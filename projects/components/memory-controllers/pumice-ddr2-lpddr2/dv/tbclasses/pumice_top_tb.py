@@ -63,7 +63,8 @@ class DDR2LPDDR2TopTB:
                  dram_beat_width: int | None = None,
                  num_ranks: int = 1, num_banks: int = 8,
                  row_width: int = 14, col_width: int = 10,
-                 dram_bl: int = 8) -> None:
+                 dram_bl: int = 8,
+                 dram_device_bytes: int | None = None) -> None:
         self.dut = dut
         self.log = logging.getLogger("pumice_top_tb")
         self.log.setLevel(logging.INFO)
@@ -84,6 +85,17 @@ class DDR2LPDDR2TopTB:
         # DFISlavePHY access granularity. Default (None) => beat==AXI (GEAR=1).
         self.dram_beat_width = dram_beat_width or axi_data_width
         self.dram_beat_bytes = self.dram_beat_width // 8
+        # PHYSICAL device width. The board carries an MT47H64M16 -- x16, so 2
+        # bytes -- while a pumice DRAM beat here is wider. Those are different
+        # quantities and the RTL already treats them so:
+        # BYTE_OFFSET_WIDTH = clog2(DRAM_DEVICE_WIDTH/8) sets the column
+        # granularity, and BL_SHIFT = clog2(beat/device) scales JEDEC BL into
+        # pumice beats. The model has to be told the same split, or the RTL
+        # decodes an address at device granularity while MemoryModel stores at
+        # beat granularity and the write lands somewhere else.
+        # Default = beat (ratio 1) reproduces the previous single-granularity
+        # behaviour exactly.
+        self.dram_device_bytes = dram_device_bytes or self.dram_beat_bytes
 
         # Address mapping mirrors the RTL's default ROW_MAJOR scheme:
         #   byte_addr = {row, bank, col, byte_off}
@@ -106,7 +118,7 @@ class DDR2LPDDR2TopTB:
         num_lines = num_ranks * num_banks * (1 << row_width) * (1 << col_width)
         self.memory = MemoryModel(
             num_lines=num_lines,
-            bytes_per_line=self.dram_beat_bytes,
+            bytes_per_line=self.dram_device_bytes,
             log=self.log,
         )
 
@@ -272,6 +284,11 @@ class DDR2LPDDR2TopTB:
             strict_write_timing=strict_timing,
             read_latency=read_latency,
             write_latency=write_latency,
+            # One DFI PHASE's data slice == the pumice DRAM beat. DFISlavePHY
+            # defaults this to the memory line, which is now the DEVICE word --
+            # so it must be passed explicitly or a device-narrower-than-beat
+            # build silently frames the DFI bus at device granularity.
+            dfi_phase_bytes=self.dram_beat_bytes,
         )
         if not strict_violations:
             self.dfi_slave.dram = DramStateModel(
