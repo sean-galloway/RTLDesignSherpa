@@ -812,10 +812,16 @@ is worth recording why it was a bad idea twice over:
   for the Genesys2 harness build. `verilator --lint-only` passes CLEAN through
   all of this; only the C++ compile fails, so **a lint gate cannot catch this
   class.** Proven by building the harness closure at both regblock sizes.
-  The underlying typedef bug is Verilator's and is PRE-EXISTING -- at `'h88`
-  the same closure still fails to compile with the inlined face
-  (`__out_t__struct__1` vs `__struct__0`) -- but the size change is what
-  selected the visible face. Filed with the stream-genesys session.
+  **CORRECTED 2026-08-31:** an earlier version of this entry claimed a
+  pre-existing structural Verilator typedef bug underneath this. There is
+  none. That conclusion came from a repro that passed a raw `-f` filelist to
+  verilator, which double-compiles the shared packages (these filelists
+  self-duplicate -- `amba_all.f` is 322 redundant of 700) and so mints two C++
+  types for one typedef, with `-Wno-fatal` then papering over the errors.
+  Resolved properly through `get_sources_from_filelist()`, the same closure at
+  `'h88` verilates AND compiles with ZERO errors. See
+  [[generated-rtl-discipline]]. Do not leave "Verilator won't allow it" in the
+  record as a reason to reject this feature -- the reason is the block, above.
 
 **So the remaining work is a DESIGN QUESTION, not a wiring job:** which block
 should own runtime address ranges? Candidates are the blocks that actually

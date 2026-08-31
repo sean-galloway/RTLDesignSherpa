@@ -52,22 +52,64 @@ next audit relitigates it.
 ## Generated code has a SIZE contract with the tools, not just a content one
 
 Adding registers to an RDL is not a neutral act. Measured 2026-08-31: nine new
-registers grew a PeakRDL regblock from `'h88` to `'hb4`, which pushed the
-generated module past **Verilator's inlining threshold**. Un-inlined, Verilator
-stopped unifying the block's `__out_t` struct typedef across two instantiating
-parents and emitted the struct PORT as `VL_OUT8(hwif_out,0,0)` — one bit —
-which broke C++ codegen for a downstream harness build.
+registers grew a PeakRDL regblock from `'h88` to `'hb4`, and that was enough to
+push the generated module across **Verilator's inlining threshold** — at `'h88`
+`obs_regs_top` is inlined with no separate C++ class, at `'hb4` it gets its own
+class and its struct output port is emitted as `VL_OUT8(hwif_out,0,0)`, one
+bit. So a regeneration can change how a downstream tool STRUCTURES the design,
+not just what the design contains.
 
-Two things to carry from that:
+State the evidence precisely, because the first version of this note did not:
 
-- **`verilator --lint-only` CANNOT catch this class.** Lint passed clean at
-  both sizes, with every waiver removed. Only the C++ compile fails. If your
-  gate for generated RTL is lint, it is blind to codegen — run an actual
-  `--cc` plus `make -f V<top>.mk` on at least one consumer.
-- **A struct-typed port crossing a module boundary is the fragile construct.**
-  It was already fragile (the same closure fails at the old size too, in the
-  inlined face); the size change only selected which face appeared. Treat "it
-  worked before" for a struct port as luck that a regeneration can revoke.
+- **Verified here:** the inline flip at `'h88` -> `'hb4`, by building the same
+  consumer closure at both sizes.
+- **Verified here:** at `'h88`, with a correctly resolved source list, that
+  closure verilates AND compiles with zero errors.
+- **Reported by the consuming session, not verified here:** that `'hb4` broke
+  their real build. Plausible and consistent, but their diagnostic repro was
+  later found faulty, and re-testing `'hb4` would mean re-breaking a shared
+  tree, so it stays unverified.
+- **RETRACTED:** an earlier version of this note claimed a *pre-existing
+  structural* Verilator typedef bug underneath all this. There is none. See
+  the next section for what actually produced that illusion.
+
+The durable part regardless: **`verilator --lint-only` cannot see any of this.**
+Lint passes clean at both sizes with every waiver removed; only the C++ codegen
+and compile differ. If your gate for generated RTL is lint, it is blind to the
+class — run an actual `--cc` plus `make -f V<top>.mk` on at least one consumer.
+
+## Never pass a raw `-f` filelist straight to verilator
+
+This is the trap that manufactured the "structural Verilator bug" above, and it
+cost two sessions most of a day.
+
+These filelists compose with `-f`, and the same sub-filelist is reached down
+several paths, so **a filelist expands with duplicates**. It is not a
+combining-two-tops artifact — a SINGLE filelist self-duplicates. Measured
+2026-08-31 over `rtl/amba/filelists/` + the misc observers: **66 filelists
+affected**, `amba_all.f` at 322 redundant entries of 700,
+`axi4_intf_master_observer.f` at 69 of 119.
+
+Verilator does not deduplicate. Compile a package twice and it mints two
+distinct C++ types for one typedef, and struct assignments across module
+boundaries then fail with `__struct__0` vs `__struct__1`. Add `-Wno-fatal` and
+verilate marches past that and emits a degraded one-bit struct port. Both look
+exactly like RTL defects. Neither is.
+
+The real build is immune only because `get_sources_from_filelist()` dedupes.
+So: resolve through the Python helper, the way the build does —
+
+    python3 -c "
+    import os
+    from TBClasses.shared.filelist_utils import get_sources_from_filelist as G
+    s, inc = G(repo_root=os.environ['REPO_ROOT'], filelist_path='<path>.f')
+    print('\n'.join(s))"
+
+— and never hand a bare `-f` to verilator for anything past `--lint-only`. A
+standalone verilator invocation is exactly the shortcut a debugging session
+reaches for, which is what makes this worth writing down. Fixing it at the
+source (dedupe in the filelist graph, or a `--check-dup` in
+`bin/filelist_registry.py`) is open work.
 
 ## Regenerate into the directory the FILELIST consumes
 
