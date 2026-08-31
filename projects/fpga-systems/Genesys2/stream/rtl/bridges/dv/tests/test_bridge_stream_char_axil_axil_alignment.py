@@ -36,6 +36,12 @@ from cocotb.triggers import RisingEdge, ClockCycles
 from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+# The area's bin/ must be on sys.path HERE, not only via conftest: cocotb
+# re-imports this module inside the SIMULATOR process, where pytest's
+# conftest never runs and python_search only supplies tests_dir.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                os.pardir, os.pardir, os.pardir, os.pardir, 'bin'))
+import stream_levels  # noqa: E402
 
 # Import the testbench class by module name, not as a dotted package path.
 # This pointed at projects.NexysA7....stream_char_framework, a tree that no
@@ -191,6 +197,14 @@ def test_bridge_stream_char_axil_axil_narrow_to_wide_alignment(request):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
+        # gate/func/full. These tests had no level at all -- they could not
+        # even be COLLECTED until recently, so nothing ever asked them to
+        # scale. 'all' walks every page of every slave window, which is the
+        # right depth for a nightly and far too slow for a smoke run.
+        **stream_levels.env(),
+        'BRIDGE_BOUNDARY_PROBE_MODE': os.environ.get(
+            'BRIDGE_BOUNDARY_PROBE_MODE',
+            stream_levels.scale('boundary', 'boundary', 'all')),
         **waves['extra_env'],
     }
 

@@ -566,10 +566,40 @@ class BridgeStreamCharAxilTB(TBBase):
         rd = self.master_rd[master_idx]
         return await rd.single_read(address, size=self._natural_arsize(master_idx))
 
-    async def master_write(self, master_idx: int, address: int, data: int) -> None:
-        """Single-beat write from master[master_idx]. `data` is master-width."""
+    async def master_write(self, master_idx: int, address: int, data: int,
+                           allow_slverr: bool = False) -> None:
+        """Single-beat write from master[master_idx]. `data` is master-width.
+
+        `allow_slverr` tolerates a SLVERR response. Pass it ONLY for a probe
+        aimed outside the slave's modeled memory (see is_seeded); a SLVERR
+        from inside the modeled region is a real error and must still raise.
+
+        Why this is needed: the two framework slave BFMs disagree about what
+        an out-of-range access returns.
+
+            axi4_interfaces.py  AXI4SlaveWrite   warn, drop, respond OKAY
+            axil4_interfaces.py AXIL4SlaveWrite  warn, drop, respond SLVERR
+
+        The class note above ("the framework slave BFMs silently drop OOR
+        writes") describes only the AXI4 behavior. Against an AXIL4 slave an
+        out-of-range probe answers SLVERR, the master raises, and the probe
+        loop dies -- which is exactly how this test failed the first time it
+        was ever able to run. SLVERR is arguably the more correct answer of
+        the two, so this tolerates it rather than forcing both BFMs to drop
+        silently; a slave that responds at all has proved the decoder routed
+        to it, which is what the out-of-range probes are here to show.
+        """
         if master_idx in self.master_apb:
             await self.master_apb[master_idx].write(address, data)
             return
         wr = self.master_wr[master_idx]
-        await wr.single_write(address, data, size=self._natural_arsize(master_idx))
+        try:
+            await wr.single_write(address, data,
+                                  size=self._natural_arsize(master_idx))
+        except RuntimeError as e:
+            if allow_slverr and 'SLVERR' in str(e):
+                self.log.debug(
+                    f"master_write: tolerated SLVERR at 0x{address:08x} "
+                    f"(outside modeled memory; routing still exercised)")
+                return
+            raise

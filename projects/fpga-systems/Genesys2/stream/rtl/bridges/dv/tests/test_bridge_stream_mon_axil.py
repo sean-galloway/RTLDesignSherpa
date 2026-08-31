@@ -27,6 +27,12 @@ from cocotb.triggers import RisingEdge, ClockCycles
 from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+# The area's bin/ must be on sys.path HERE, not only via conftest: cocotb
+# re-imports this module inside the SIMULATOR process, where pytest's
+# conftest never runs and python_search only supplies tests_dir.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                os.pardir, os.pardir, os.pardir, os.pardir, 'bin'))
+import stream_levels  # noqa: E402
 
 # Import the testbench class. NOT as a dotted package path: the area
 # lives under projects/fpga-systems/, and 'fpga-systems' contains a
@@ -520,7 +526,11 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (0 << 20) | (0 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            await tb.master_write(0, addr, d)
+            # Outside the modeled region an AXIL4 slave answers SLVERR
+            # (an AXI4 one answers OKAY) -- tolerate it there, stay
+            # strict inside. Same predicate as the data check below.
+            await tb.master_write(0, addr, d,
+                                  allow_slverr=not tb.is_seeded(0, addr))
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
             # seed pattern shows through instead of d. Skip the check
@@ -545,7 +555,11 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (0 << 20) | (1 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            await tb.master_write(0, addr, d)
+            # Outside the modeled region an AXIL4 slave answers SLVERR
+            # (an AXI4 one answers OKAY) -- tolerate it there, stay
+            # strict inside. Same predicate as the data check below.
+            await tb.master_write(0, addr, d,
+                                  allow_slverr=not tb.is_seeded(1, addr))
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
             # seed pattern shows through instead of d. Skip the check
@@ -570,7 +584,11 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (0 << 20) | (2 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            await tb.master_write(0, addr, d)
+            # Outside the modeled region an AXIL4 slave answers SLVERR
+            # (an AXI4 one answers OKAY) -- tolerate it there, stay
+            # strict inside. Same predicate as the data check below.
+            await tb.master_write(0, addr, d,
+                                  allow_slverr=not tb.is_seeded(2, addr))
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
             # seed pattern shows through instead of d. Skip the check
@@ -595,7 +613,11 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (0 << 20) | (3 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            await tb.master_write(0, addr, d)
+            # Outside the modeled region an AXIL4 slave answers SLVERR
+            # (an AXI4 one answers OKAY) -- tolerate it there, stay
+            # strict inside. Same predicate as the data check below.
+            await tb.master_write(0, addr, d,
+                                  allow_slverr=not tb.is_seeded(3, addr))
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
             # seed pattern shows through instead of d. Skip the check
@@ -620,7 +642,11 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (0 << 20) | (4 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            await tb.master_write(0, addr, d)
+            # Outside the modeled region an AXIL4 slave answers SLVERR
+            # (an AXI4 one answers OKAY) -- tolerate it there, stay
+            # strict inside. Same predicate as the data check below.
+            await tb.master_write(0, addr, d,
+                                  allow_slverr=not tb.is_seeded(4, addr))
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
             # seed pattern shows through instead of d. Skip the check
@@ -645,7 +671,11 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (0 << 20) | (5 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            await tb.master_write(0, addr, d)
+            # Outside the modeled region an AXIL4 slave answers SLVERR
+            # (an AXI4 one answers OKAY) -- tolerate it there, stay
+            # strict inside. Same predicate as the data check below.
+            await tb.master_write(0, addr, d,
+                                  allow_slverr=not tb.is_seeded(5, addr))
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
             # seed pattern shows through instead of d. Skip the check
@@ -670,7 +700,11 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (0 << 20) | (6 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            await tb.master_write(0, addr, d)
+            # Outside the modeled region an AXIL4 slave answers SLVERR
+            # (an AXI4 one answers OKAY) -- tolerate it there, stay
+            # strict inside. Same predicate as the data check below.
+            await tb.master_write(0, addr, d,
+                                  allow_slverr=not tb.is_seeded(6, addr))
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
             # seed pattern shows through instead of d. Skip the check
@@ -695,7 +729,11 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (0 << 20) | (7 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            await tb.master_write(0, addr, d)
+            # Outside the modeled region an AXIL4 slave answers SLVERR
+            # (an AXI4 one answers OKAY) -- tolerate it there, stay
+            # strict inside. Same predicate as the data check below.
+            await tb.master_write(0, addr, d,
+                                  allow_slverr=not tb.is_seeded(7, addr))
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
             # seed pattern shows through instead of d. Skip the check
@@ -720,7 +758,11 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (0 << 20) | (8 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            await tb.master_write(0, addr, d)
+            # Outside the modeled region an AXIL4 slave answers SLVERR
+            # (an AXI4 one answers OKAY) -- tolerate it there, stay
+            # strict inside. Same predicate as the data check below.
+            await tb.master_write(0, addr, d,
+                                  allow_slverr=not tb.is_seeded(8, addr))
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
             # seed pattern shows through instead of d. Skip the check
@@ -745,7 +787,11 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (0 << 20) | (9 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            await tb.master_write(0, addr, d)
+            # Outside the modeled region an AXIL4 slave answers SLVERR
+            # (an AXI4 one answers OKAY) -- tolerate it there, stay
+            # strict inside. Same predicate as the data check below.
+            await tb.master_write(0, addr, d,
+                                  allow_slverr=not tb.is_seeded(9, addr))
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
             # seed pattern shows through instead of d. Skip the check
@@ -770,7 +816,11 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (0 << 20) | (10 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            await tb.master_write(0, addr, d)
+            # Outside the modeled region an AXIL4 slave answers SLVERR
+            # (an AXI4 one answers OKAY) -- tolerate it there, stay
+            # strict inside. Same predicate as the data check below.
+            await tb.master_write(0, addr, d,
+                                  allow_slverr=not tb.is_seeded(10, addr))
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
             # seed pattern shows through instead of d. Skip the check
@@ -795,7 +845,11 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (0 << 20) | (11 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            await tb.master_write(0, addr, d)
+            # Outside the modeled region an AXIL4 slave answers SLVERR
+            # (an AXI4 one answers OKAY) -- tolerate it there, stay
+            # strict inside. Same predicate as the data check below.
+            await tb.master_write(0, addr, d,
+                                  allow_slverr=not tb.is_seeded(11, addr))
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
             # seed pattern shows through instead of d. Skip the check
@@ -820,7 +874,11 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (0 << 20) | (12 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            await tb.master_write(0, addr, d)
+            # Outside the modeled region an AXIL4 slave answers SLVERR
+            # (an AXI4 one answers OKAY) -- tolerate it there, stay
+            # strict inside. Same predicate as the data check below.
+            await tb.master_write(0, addr, d,
+                                  allow_slverr=not tb.is_seeded(12, addr))
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
             # seed pattern shows through instead of d. Skip the check
@@ -877,7 +935,11 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (2 << 20) | (6 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            await tb.master_write(2, addr, d)
+            # Outside the modeled region an AXIL4 slave answers SLVERR
+            # (an AXI4 one answers OKAY) -- tolerate it there, stay
+            # strict inside. Same predicate as the data check below.
+            await tb.master_write(2, addr, d,
+                                  allow_slverr=not tb.is_seeded(6, addr))
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
             # seed pattern shows through instead of d. Skip the check
@@ -902,7 +964,11 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (2 << 20) | (10 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            await tb.master_write(2, addr, d)
+            # Outside the modeled region an AXIL4 slave answers SLVERR
+            # (an AXI4 one answers OKAY) -- tolerate it there, stay
+            # strict inside. Same predicate as the data check below.
+            await tb.master_write(2, addr, d,
+                                  allow_slverr=not tb.is_seeded(10, addr))
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
             # seed pattern shows through instead of d. Skip the check
@@ -928,7 +994,11 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (3 << 20) | (9 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            await tb.master_write(3, addr, d)
+            # Outside the modeled region an AXIL4 slave answers SLVERR
+            # (an AXI4 one answers OKAY) -- tolerate it there, stay
+            # strict inside. Same predicate as the data check below.
+            await tb.master_write(3, addr, d,
+                                  allow_slverr=not tb.is_seeded(9, addr))
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
             # seed pattern shows through instead of d. Skip the check
@@ -953,7 +1023,11 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
             # visible at a glance in the failure message.
             d = (0xDE000000 | (3 << 20) | (10 << 16)
                  | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
-            await tb.master_write(3, addr, d)
+            # Outside the modeled region an AXIL4 slave answers SLVERR
+            # (an AXI4 one answers OKAY) -- tolerate it there, stay
+            # strict inside. Same predicate as the data check below.
+            await tb.master_write(3, addr, d,
+                                  allow_slverr=not tb.is_seeded(10, addr))
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
             # seed pattern shows through instead of d. Skip the check
@@ -1051,6 +1125,14 @@ def test_bridge_stream_mon_axil_basic_connectivity(request):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
+        # gate/func/full. These tests had no level at all -- they could not
+        # even be COLLECTED until recently, so nothing ever asked them to
+        # scale. 'all' walks every page of every slave window, which is the
+        # right depth for a nightly and far too slow for a smoke run.
+        **stream_levels.env(),
+        'BRIDGE_BOUNDARY_PROBE_MODE': os.environ.get(
+            'BRIDGE_BOUNDARY_PROBE_MODE',
+            stream_levels.scale('boundary', 'boundary', 'all')),
         **waves['extra_env'],
     }
 
@@ -1113,6 +1195,14 @@ def test_bridge_stream_mon_axil_boundary_probe(request):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
+        # gate/func/full. These tests had no level at all -- they could not
+        # even be COLLECTED until recently, so nothing ever asked them to
+        # scale. 'all' walks every page of every slave window, which is the
+        # right depth for a nightly and far too slow for a smoke run.
+        **stream_levels.env(),
+        'BRIDGE_BOUNDARY_PROBE_MODE': os.environ.get(
+            'BRIDGE_BOUNDARY_PROBE_MODE',
+            stream_levels.scale('boundary', 'boundary', 'all')),
         **waves['extra_env'],
     }
 
@@ -1173,6 +1263,14 @@ def test_bridge_stream_mon_axil_arbitration(request):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
+        # gate/func/full. These tests had no level at all -- they could not
+        # even be COLLECTED until recently, so nothing ever asked them to
+        # scale. 'all' walks every page of every slave window, which is the
+        # right depth for a nightly and far too slow for a smoke run.
+        **stream_levels.env(),
+        'BRIDGE_BOUNDARY_PROBE_MODE': os.environ.get(
+            'BRIDGE_BOUNDARY_PROBE_MODE',
+            stream_levels.scale('boundary', 'boundary', 'all')),
         **waves['extra_env'],
     }
 

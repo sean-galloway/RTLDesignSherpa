@@ -38,6 +38,13 @@ from bridge_stream_mon_axil_mon_tb import BridgeStreamMonAxilMonTB  # noqa: E402
 # copying the module (a second copy is how the two drift apart).
 sys.path.insert(0, os.path.join(_REPO_ROOT_FOR_SHARED, 'projects/components/bridge/dv/tests'))
 from monitor_stress_common import run_comprehensive, run_monitor_sim  # noqa: E402
+# The area's bin/ must be on sys.path HERE, not only via conftest: cocotb
+# re-imports this module inside the SIMULATOR process, where pytest's
+# conftest never runs and python_search only supplies tests_dir.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                os.pardir, os.pardir, os.pardir, os.pardir, 'bin'))
+import stream_levels  # noqa: E402
+
 
 CFG_PREFIXES = ['host_0_rd', 'host_0_wr', 'stream_desc_1_rd', 'monbus_wr_2_wr', 'slave_monbus_wr_3_wr', 'obs_apb_0_rd', 'obs_apb_0_wr', 'slvmon_apb_1_rd', 'slvmon_apb_1_wr', 'stream_apb_2_rd', 'stream_apb_2_wr', 'harness_csr_3_rd', 'harness_csr_3_wr', 'desc_ram_4_rd', 'desc_ram_4_wr', 'stream_err_5_rd', 'stream_err_5_wr', 'stream_tally_6_rd', 'stream_tally_6_wr', 'dma_axil_7_rd', 'dma_axil_7_wr', 'slave_err_8_rd', 'slave_err_8_wr', 'slave_tally_9_rd', 'slave_tally_9_wr', 'comp_sram_10_rd', 'comp_sram_10_wr', 'stream_tally_cfg_11_rd', 'stream_tally_cfg_11_wr', 'slave_tally_cfg_12_rd', 'slave_tally_cfg_12_wr']
 BLOCK_READY_PATH = "u_host_adapter.u_timing_wrapper_rd"
@@ -57,6 +64,12 @@ async def cocotb_test_bridge_stream_mon_axil_mon_monitor(dut):
         reachable_slaves=REACHABLE_SLAVES,
         has_compl=HAS_COMPL,
         is_regblock=IS_REGBLOCK,
+        # gate/func/full. stress_count() -- the helper's own default -- is 256
+        # at both gate and func and only rises at FULL, so a smoke run paid the
+        # full 256-read stress. Pass n explicitly instead of changing
+        # stress_count(), which is shared bridge-component collateral with
+        # other callers.
+        n=stream_levels.scale(32, 256, 512),
     )
 
 

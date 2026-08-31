@@ -38,6 +38,13 @@ from bridge_stream_char_axil_mon_tb import BridgeStreamCharAxilMonTB  # noqa: E4
 # copying the module (a second copy is how the two drift apart).
 sys.path.insert(0, os.path.join(_REPO_ROOT_FOR_SHARED, 'projects/components/bridge/dv/tests'))
 from monitor_stress_common import run_comprehensive, run_monitor_sim  # noqa: E402
+# The area's bin/ must be on sys.path HERE, not only via conftest: cocotb
+# re-imports this module inside the SIMULATOR process, where pytest's
+# conftest never runs and python_search only supplies tests_dir.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                os.pardir, os.pardir, os.pardir, os.pardir, 'bin'))
+import stream_levels  # noqa: E402
+
 
 CFG_PREFIXES = ['host_0_rd', 'host_0_wr', 'stream_desc_1_rd', 'monbus_wr_2_wr', 'stream_apb_0_rd', 'stream_apb_0_wr', 'harness_csr_1_rd', 'harness_csr_1_wr', 'desc_ram_2_rd', 'desc_ram_2_wr', 'stream_err_3_rd', 'stream_err_3_wr', 'debug_sram_4_rd', 'debug_sram_4_wr', 'dma_axil_5_rd', 'dma_axil_5_wr']
 BLOCK_READY_PATH = "u_host_adapter.u_timing_wrapper_rd"
@@ -57,6 +64,12 @@ async def cocotb_test_bridge_stream_char_axil_mon_monitor(dut):
         reachable_slaves=REACHABLE_SLAVES,
         has_compl=HAS_COMPL,
         is_regblock=IS_REGBLOCK,
+        # gate/func/full. stress_count() -- the helper's own default -- is 256
+        # at both gate and func and only rises at FULL, so a smoke run paid the
+        # full 256-read stress. Pass n explicitly instead of changing
+        # stress_count(), which is shared bridge-component collateral with
+        # other callers.
+        n=stream_levels.scale(32, 256, 512),
     )
 
 

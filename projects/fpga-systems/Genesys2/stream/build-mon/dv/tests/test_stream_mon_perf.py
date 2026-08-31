@@ -38,8 +38,33 @@ for _p in (os.path.join(_AREA, 'dv'), os.path.join(_AREA, 'bin')):
         sys.path.insert(0, _p)
 
 from stream_cfg import num_channels, verilator_unroll_args  # noqa: E402  (reads rtl/stream_cfg_pkg.sv)
+import stream_levels  # noqa: E402
 
 COCOTB_MODULE = 'cocotb_stream_harness'
+
+
+def _workload_env() -> dict:
+    """Size the DMA workload from the test level.
+
+    These are the two variables cocotb_stream_harness actually reads, so this
+    is where the level has to land for it to mean anything. An explicit
+    DMA_DESC_PER_CH / DMA_XFER_BYTES in the environment still wins -- the
+    board-scenario reruns set them directly to match a specific on-silicon
+    case, and the level must not override a caller who named exact numbers.
+
+    Monitors are ON in this build, so the simulation is roughly an order of
+    magnitude slower per descriptor than build-perf. gate is sized to finish
+    in minutes, not hours.
+    """
+    desc, xfer = stream_levels.scale(
+        gate=(1, 2048),         # smoke: one descriptor per channel
+        func=(4, 8192),         # the previous hardcoded default
+        full=(16, 65536),       # the depth the board scenarios use
+    )
+    return {
+        'DMA_DESC_PER_CH': os.environ.get('DMA_DESC_PER_CH', str(desc)),
+        'DMA_XFER_BYTES': os.environ.get('DMA_XFER_BYTES', str(xfer)),
+    }
 
 _BUILD_HOST = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                            '..', '..', 'host'))
@@ -126,8 +151,14 @@ def test_stream_mon_perf(request, test_type):
         'COCOTB_RESULTS_FILE': os.path.join(log_dir, f'results_{test_name}.xml'),
         'FPGA_CLK_HZ': str(SIM_FPGA_CLK_HZ),
         'UART_BAUD': str(SIM_UART_BAUD),
-        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate'),
         'SEED': os.environ.get('SEED', '12345'),
+        # The level must SIZE the run, not merely be forwarded. This env slot
+        # used to carry TEST_LEVEL to a cocotb half that never read it: the
+        # knob was wired to nothing, so a gate-level sweep ran the full
+        # workload and spent over two hours here. The two variables below are
+        # the ones cocotb_stream_harness actually reads.
+        **stream_levels.env(),
+        **_workload_env(),
     }
     waves = bool(int(os.environ.get('WAVES', '0')))
 

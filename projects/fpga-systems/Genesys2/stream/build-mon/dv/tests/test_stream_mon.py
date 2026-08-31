@@ -35,6 +35,7 @@ for _p in (os.path.join(_AREA, 'dv'), os.path.join(_AREA, 'bin')):
 
 from tbclasses.stream_harness_tb import StreamHarnessTB, CSR_CTRL, compose  # noqa: E402
 from stream_cfg import cfg_int, num_channels, verilator_unroll_args  # noqa: E402  (reads stream_cfg_pkg.sv)
+import stream_levels  # noqa: E402
 
 # The tally exposes FOUR clean AXIL ports (2 wr, 2 rd). Count readback rides the
 # ingest window's READ channel (stream_tally@0x40000 / slave_tally@0xC0000);
@@ -393,6 +394,16 @@ def _run_stream_mon(request, profile=False):
         'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'USE_MON': use_mon,
         'PROFILE_MODE': '1' if profile else '0',
+        # gate/func/full. This test had no level at all, so a "minimum" sweep
+        # ran it at full depth -- 2620 s. An explicit DMA_* in the environment
+        # still wins, so a board-scenario rerun can name exact numbers.
+        **stream_levels.env(),
+        **{k: v for k, v in (
+            ('DMA_DESC_PER_CH', os.environ.get('DMA_DESC_PER_CH')
+             or str(stream_levels.scale(1, 4, 16))),
+            ('DMA_XFER_BYTES', os.environ.get('DMA_XFER_BYTES')
+             or str(stream_levels.scale(2048, 8192, 65536))),
+        )},
     }
     if profile:
         # Monitors-on sim + the extra CAM-load/sweep UART traffic overruns the
