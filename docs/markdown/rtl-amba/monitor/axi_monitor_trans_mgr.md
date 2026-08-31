@@ -156,16 +156,14 @@ module axi_monitor_trans_mgr
     output logic [MAX_TRANSACTIONS-1:0]   filtered_mask,
 
     output bus_transaction_t              trans_table[MAX_TRANSACTIONS],
-    output logic [7:0]                    active_count,
-    output logic [MAX_TRANSACTIONS-1:0]   state_change
+    output logic [7:0]                    active_count
 );
 ```
 
-`state_change` is currently **driven but unconsumed** — `axi_monitor_base`
-wires it to a net that nothing reads, and the reporters scan `trans_table`
-directly instead. Only the formal harness binds it, to assert it is zero after
-reset. Treat it as a hook, not a live signal, and do not reach for it as a
-reporting gate.
+There is no per-slot state-change output, and none is planned: the reporters
+scan `trans_table` themselves. To act on a slot moving, compare
+`trans_table[i].state` — which is what `axi_monitor_reporter_debug` does to
+raise its `PktTypeDebug` packets.
 
 The `bus_transaction_t` struct (defined in `monitor_amba4_pkg.sv`) contains:
 - State flags: `valid`, `cmd_received`, `data_started`, `data_completed`,
@@ -211,13 +209,11 @@ flowchart TB
         NEXT_STATE["Per-slot next-payload<br/>combinational<br/>(generate loop)"]
         CLEANUP["Cleanup +<br/>event_reported feedback"]
         COUNT_PIPE["active_count<br/>registered pop-count"]
-        STATE_CHG["state_change<br/>1-cycle compare"]
     end
 
     subgraph Outputs["Outputs"]
         TT["trans_table[N]<br/>bus_transaction_t"]
         AC["active_count[7:0]"]
-        SC["state_change[N-1:0]"]
     end
 
     CMD --> WANTS
@@ -244,8 +240,6 @@ flowchart TB
     CAM_INST --> TT
     CAM_INST --> COUNT_PIPE
     COUNT_PIPE --> AC
-    TT --> STATE_CHG
-    STATE_CHG --> SC
 ```
 
 The split of responsibilities is the whole story here. The trans_mgr owns:
@@ -259,7 +253,7 @@ The split of responsibilities is the whole story here. The trans_mgr owns:
 - The **wants_alloc** derivation (hit suppression + the command-entry cap;
   see [Allocation and Same-ID Tracking](#allocation-and-same-id-tracking)).
 - Cleanup eligibility, event_reported feedback, the registered
-  `active_count` pop-count, state_change detection.
+  `active_count` pop-count, and the `filtered_mask` verdict.
 
 The CAM owns:
 
@@ -463,7 +457,6 @@ visible latencies are short and fixed:
 | Throughput | 1 transaction-event/cycle | Per-phase handshake; up to 3 phases (addr / data / resp) can act per cycle |
 | `trans_table` latency | 1 cycle | Output is registered |
 | `active_count` latency | 1 cycle | Registered pop-count of CAM occupancy |
-| `state_change` latency | 1 cycle | Compared against prev cycle |
 | Resource | ~5 Kb storage | 16 × 285-bit struct, in the CAM |
 
 ---
@@ -480,7 +473,6 @@ The CAM-backed revision preserves the 2026-04-23 WNS fix:
 | Per-slot CAM storage via `monitor_trans_cam` (generate-loop `always_ff`) | Same property at the registered storage layer |
 | `(* keep = "true" *)` on CAM match vectors | Prevents Vivado from fusing match-result usage into the update cones, which would re-introduce the 12-LUT-level WNS issue |
 | `active_count` = registered pop-count of `cam_entry_valid` | Derived directly from live CAM occupancy, **not** an alloc-minus-cleanup accumulator. The former accumulator could desync from true occupancy and underflow to 0xFF under legal AXI (found by the SymbiYosys proof — see `rtl/amba/KNOWN_ISSUES/axi_monitor_active_count_underflow.md`); a registered pop-count is structurally bounded to [0, N]. The valid bits are already registers, so the adder tree sits cleanly between flops; `active_count` lags occupancy by 1 cycle, which the `block_ready` margin absorbs. |
-| Pipelined `state_change` (1 cycle of `r_trans_table_prev`) | Cheap comparison against last cycle's table; output lag is 1 cycle |
 | Synchronous `clear` zeroes `active_count` alongside the CAM | `clear` invalidates every CAM slot and zeroes the registered count and age ranks on the same edge, so an empty table is never published with a stale nonzero `active_count`. |
 
 The combined effect is that no signal in the trans_mgr has more than ~6
@@ -508,7 +500,7 @@ SymbiYosys proofs and mutation-checked):
 |---|---|
 | [`monitor_trans_cam`](monitor_trans_cam.md) | Per-slot keying + storage with 3 lookup ports and alloc priority encoder |
 | [`axi_monitor_base`](axi_monitor_base.md) | Top-level monitor wrapper that instantiates trans_mgr + timer + reporter |
-| [`axi_monitor_reporter`](axi_monitor_reporter.md) | Consumes `trans_table` + `state_change` to generate monbus packets |
+| [`axi_monitor_reporter`](axi_monitor_reporter.md) | Scans `trans_table`, gated by `filtered_mask`, to generate monbus packets |
 | [`axi_monitor_timeout`](axi_monitor_timeout.md) | Watches the per-phase timers in `trans_table` for timeout events |
 
 Further reading:

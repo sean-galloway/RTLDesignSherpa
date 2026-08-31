@@ -19,7 +19,7 @@
 // addr/data/resp ID-lookup + free-slot + priority-encoded alloc logic
 // live in the shared monitor_trans_cam module; this module owns the
 // trans-mgr-specific FSM (per-slot next-payload computation, cleanup
-// eligibility, event_reported feedback, active_count, state_change).
+// eligibility, event_reported feedback, active_count).
 //
 // This version delegates to monitor_trans_cam:
 //
@@ -37,8 +37,8 @@
 //     non-blocking writes turned into blocking assignments to a `next`
 //     temporary).
 //   * The wants_alloc derivation (= input_handshake && !hit_any).
-//   * Cleanup, event_reported, active_count, state_change -- the
-//     trans-mgr-specific status outputs.
+//   * Cleanup, event_reported, active_count -- the trans-mgr-specific
+//     status outputs.
 //
 // CAM payload contains the full bus_transaction_t (including its `id`
 // field) for clean unpack to the trans_table output port. The CAM's
@@ -202,10 +202,7 @@ module axi_monitor_trans_mgr
 
     // Transaction table output
     output bus_transaction_t            trans_table[MAX_TRANSACTIONS],
-    output logic [7:0]                  active_count,
-
-    // State change detection (for debug module)
-    output logic [MAX_TRANSACTIONS-1:0] state_change
+    output logic [7:0]                  active_count
 );
 
     localparam int N         = MAX_TRANSACTIONS;
@@ -1506,29 +1503,6 @@ module axi_monitor_trans_mgr
     )
 
     assign active_count = r_active_count;
-
-    // ------------------------------------------------------------------------
-    // State-change detection.
-    // ------------------------------------------------------------------------
-    bus_transaction_t r_trans_table_prev [N];
-    logic [N-1:0]     r_state_change;
-
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            for (int i = 0; i < N; i++) r_trans_table_prev[i] <= '0;
-            r_state_change <= '0;
-        end else begin
-            r_trans_table_prev <= cam_entry_payload;
-            for (int i = 0; i < N; i++) begin
-                r_state_change[i] <= cam_entry_payload[i].valid &&
-                                     r_trans_table_prev[i].valid &&
-                                     (cam_entry_payload[i].state !=
-                                      r_trans_table_prev[i].state);
-            end
-        end
-    )
-
-    assign state_change = r_state_change;
 
 
 `ifdef FORMAL

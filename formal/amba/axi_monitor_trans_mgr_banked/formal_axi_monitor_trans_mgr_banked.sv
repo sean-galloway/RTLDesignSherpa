@@ -54,7 +54,6 @@ module formal_axi_monitor_trans_mgr_banked (
     // DUT outputs (sv2v flattened -- signals are exposed as flat wires)
     // =========================================================================
     wire [7:0]                           active_count_o;
-    wire [MAX_TRANSACTIONS-1:0]          state_change_o;
 
     // After sv2v, the trans_table output is flattened. We reference it via
     // hierarchical access in the DUT wrapper signals below.
@@ -95,8 +94,7 @@ module formal_axi_monitor_trans_mgr_banked (
         .resp_code             (resp_code),
         .timestamp             (timestamp),
         .i_event_reported_flags(i_event_reported_flags),
-        .active_count          (active_count_o),
-        .state_change          (state_change_o)
+        .active_count          (active_count_o)
     );
 
     // =========================================================================
@@ -140,13 +138,8 @@ module formal_axi_monitor_trans_mgr_banked (
             ap_count_bounded: assert (active_count_o <= 8'(MAX_TRANSACTIONS));
     end
 
-    // =========================================================================
-    // P3: state_change cleared after reset
-    // =========================================================================
-    always @(posedge clk) begin
-        if (f_past_valid > 0 && $past(!rst_n))
-            ap_reset_state_change: assert (state_change_o == '0);
-    end
+    // P3 retired with the dead `state_change` output it checked; the
+    // numbering below is left alone so it still matches the proof log.
 
     // =========================================================================
     // P4: allocation reachability -- a command into an empty table opens a
@@ -187,12 +180,6 @@ module formal_axi_monitor_trans_mgr_banked (
     always @(posedge clk) begin
         if (rst_n)
             cp_table_full: cover (active_count_o == 8'(MAX_TRANSACTIONS));
-    end
-
-    // State change detected
-    always @(posedge clk) begin
-        if (rst_n)
-            cp_state_change: cover (state_change_o != '0);
     end
 
     // Transaction cleaned up (active_count decreases)

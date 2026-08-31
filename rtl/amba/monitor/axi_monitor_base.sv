@@ -310,8 +310,7 @@ module axi_monitor_base
     // Timestamp counter for transaction timing (flopped)
     logic [31:0] r_timestamp;
 
-    // State change detection for debug module (combinational)
-    logic [MAX_TRANSACTIONS-1:0] w_state_change_detected;
+    // Per-slot verdicts from the transaction manager (combinational)
     logic [MAX_TRANSACTIONS-1:0] w_filtered_mask;
     logic [MAX_TRANSACTIONS-1:0] w_timeout_detected;
 
@@ -413,7 +412,6 @@ module axi_monitor_base
         .i_timeout_detected (w_timeout_detected),         // ISSUE #41: timeout -> terminal state
         .trans_table        (w_trans_table),
         .active_count       (w_active_count),
-        .state_change       (w_state_change_detected),
         .cfg_addr_filter_enable(cfg_addr_filter_enable),
         .cfg_addr_filter_low   (cfg_addr_filter_low),
         .cfg_addr_filter_high  (cfg_addr_filter_high),
