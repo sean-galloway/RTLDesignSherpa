@@ -458,6 +458,63 @@ double-issue bugs were previously caught only by the MACRO test because of that
 latency ([[PUMICE-KMAP]] flags this exact block for the same reason), so adding
 a stage without re-proving the issue qualification is how a third one lands.
 
+**PROGRESS 2026-08-31 -- the depth half is FIXED.**
+
+`sch_head_rel_o` in both CAMs was a SERIAL max-reduce over `w_rel[]`:
+NUM_ENTRIES chained (AGE_WIDTH subtract + compare + mux) stages, which put the
+free-running `r_age_ctr` directly on the scheduling path. The same file already
+had the right idiom on the drain side, with a comment saying exactly why --
+"1-bit compares; replaces the 16-bit max-rel argmax so r_age_ctr stays off this
+w_sys_i path". Axis-1 step 1 added the new export written the old way.
+
+Rewritten to find the oldest schedulable entry through the REGISTERED
+age-order matrix (shallow NUM_ENTRIES^2 one-bit AND-reduce) and take one
+subtract for the winner. Identical value, no pipeline stage, no staleness --
+which matters because the warning above is that adding a stage without
+re-proving issue qualification is how a third double-issue bug lands. This
+change sidesteps that risk rather than managing it.
+
+    post-synth WNS   -41.198 -> -7.022 ns
+    post-route WNS   -48.861 -> -7.732 ns
+    post-route TNS   -42710  -> -6024
+    failing endpoints  8939  -> 4084
+    worst-path LOGIC  17.825 -> 4.950 ns   <-- the part placement cannot fix
+
+`sch_head_rel_o` had NO value coverage: every test drove it as an arbiter
+INPUT and nothing checked the CAM's computation, so the 210-test suite could
+not have caught a mistake. Added a directed phase to the rd CAM test (empty
+-> 0; tracks the OLDER of two entries; advances exactly +1 per clock; DROPS
+when the oldest retires) and mutation-proved it -- forcing the slot selector
+to 0 fails with "head_rel must drop ... 16 -> 21".
+
+**WHAT REMAINS IS PHYSICAL, NOT LOGIC.** The worst path is now 22.659 ns of
+which route is 17.709 ns (78%) over only 30 levels; logic is 4.950 ns against
+a 15 ns period. The 4084 remaining failures by SOURCE:
+
+    1962  u_sched/u_cmd_fifo/read_pointer_inst/counter_bin_curr_reg
+    1149  u_ifc/u_wr_cam/r_sp_col_reg
+     272  u_rd_cam/u_issue_q/.../counter_bin_curr_reg
+     185  u_rd_cam/r_older_reg
+     156  u_wr_cam/u_fill_q/.../counter_bin_curr_reg
+     142  u_harness/r_rst_sync_reg      (2 logic levels, 94% route -- fanout)
+
+Three FIFO read pointers and one CAM register are 87% of it, each a single
+register fanning into a wide mux at 77% utilization. By DESTINATION the
+concentration is `u_rd_cam` (1249), `u_page_policy/u_row_pred` (1102) and
+`u_page_policy/u_rbl` (906) -- so Axis-2's paging tables are implicated too,
+and like the CAM export they have never been synthesized.
+
+**Next steps, in order of expected value:**
+1. Floorplan the pumice core into a Pblock so the CAM/scheduler cone stops
+   spanning the die. This is the proven move in this repo -- the stream flow
+   solved an equivalent congestion problem with `pblock_compressor` rather
+   than by pipelining.
+2. Build at LOW harness utilization (2+2 generators) as a DIAGNOSTIC, to
+   separate "pumice does not close" from "the harness pushed it over". The
+   stable +0.050 ns build ran at 33% utilization; this one is at 77%.
+3. Only then consider pipelining row_pred/rbl -- their logic depth is not
+   currently the limiter, so it would be work against the wrong number.
+
 **Regression gate:** `make synth` in
 `projects/fpga-systems/NexysA7/pumice/build-perf` reports WNS in ~6 minutes.
 It should have been run after every Axis-1 step, and was not. Run it before

@@ -275,6 +275,40 @@ module pumice_rd_cmd_cam #(
         end
     end
 
+    // ---- scheduler-side oldest SCHEDULABLE entry, via the age-order matrix --
+    // Same idiom as the drain-side oldest-valid pick above, and for the same
+    // reason: the obvious form -- a max-reduce over w_rel[] -- is a SERIAL
+    // chain of NUM_ENTRIES x (AGE_WIDTH subtract + compare + mux), and it puts
+    // the free-running r_age_ctr straight onto the w_sys_i scheduling path.
+    //
+    // That is not theoretical. It was the worst path in the whole design on
+    // the first synthesis since the mode work landed: 63.6 ns against a 15 ns
+    // period, 89 logic levels, 30 carry chains, and 17.8 ns of LOGIC alone --
+    // unfixable by placement. See PUMICE-017.
+    //
+    // The matrix is registered and its compares are 1 bit, so finding the
+    // oldest costs a shallow NUM_ENTRIES^2 AND-reduce; only the winner's
+    // relative age needs the AGE_WIDTH subtract. Identical value, no pipeline
+    // stage, no staleness.
+    logic            w_sho_found;
+    logic [PTRW-1:0] w_sho_slot;
+    always_comb begin
+        automatic logic [NUM_ENTRIES-1:0] w_sho_sched;
+        automatic logic [NUM_ENTRIES-1:0] w_sho_is;
+        for (int i = 0; i < NUM_ENTRIES; i++)
+            w_sho_sched[i] = r_valid[i] && !r_issued[i];
+        for (int i = 0; i < NUM_ENTRIES; i++) begin
+            automatic logic ge_all = 1'b1;
+            for (int j = 0; j < NUM_ENTRIES; j++)
+                if ((j != i) && w_sho_sched[j] && !r_older[i][j]) ge_all = 1'b0;
+            w_sho_is[i] = w_sho_sched[i] && ge_all;
+        end
+        w_sho_found = |w_sho_is;
+        w_sho_slot  = '0;
+        for (int i = NUM_ENTRIES-1; i >= 0; i--)
+            if (w_sho_is[i]) w_sho_slot = PTRW'(i);
+    end
+
     // ---- per-entry scheduling vectors (registered fields, 1-level derive) ---
     always_comb begin
         for (int i = 0; i < NUM_ENTRIES; i++) begin
@@ -288,10 +322,7 @@ module pumice_rd_cmd_cam #(
                                 && (age_thresh_i != 8'd0)
                                 && (w_rel[i] >= AGE_WIDTH'({age_thresh_i, 4'h0}));
         end
-        sch_head_rel_o = '0;
-        for (int i = 0; i < NUM_ENTRIES; i++)
-            if (r_valid[i] && !r_issued[i] && (w_rel[i] > sch_head_rel_o))
-                sch_head_rel_o = w_rel[i];
+        sch_head_rel_o = w_sho_found ? w_rel[w_sho_slot] : '0;
     end
 
     // ---- drain-side oldest valid (AR order) via the age-order matrix -------

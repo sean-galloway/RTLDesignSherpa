@@ -126,6 +126,15 @@ class PumiceRdCmdCamTB(TBBase):
                 int(self.dut.oldest_id_o.value),
                 int(self.dut.oldest_slot_o.value))
 
+    def head_rel(self):
+        """Relative age of the OLDEST SCHEDULABLE entry (valid && !issued).
+
+        Zero when nothing is schedulable. The age counter free-runs, so for a
+        fixed set of entries this increments by exactly one per clock -- which
+        is what makes it checkable without knowing the CAM's internal latency.
+        """
+        return int(self.dut.sch_head_rel_o.value)
+
     async def sched_query(self, queries):
         vbits = bank_pack = row_pack = 0
         for j, (v, b, r) in enumerate(queries):

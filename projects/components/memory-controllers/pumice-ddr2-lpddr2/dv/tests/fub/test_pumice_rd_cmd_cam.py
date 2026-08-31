@@ -80,6 +80,65 @@ async def cocotb_test_pumice_rd_cmd_cam(dut):
         assert got_ids == {want_id}, f"drain {k}: id {got_ids} != {want_id}"
         assert got_data == want_data, f"drain {k}: data {got_data} != {want_data}"
 
+    # =====================================================================
+    # sch_head_rel_o -- the scheduler's cross-CAM ordering key
+    # =====================================================================
+    # This output had NO value coverage: every test drove it as an arbiter
+    # INPUT and nothing checked the CAM's computation of it. It was rewritten
+    # (PUMICE-017) from a serial max-reduce over w_rel[] -- which put the
+    # free-running age counter on the scheduling critical path and cost the
+    # design 63.6 ns against a 15 ns period -- to an oldest-via-age-order-matrix
+    # pick plus a single subtract. Identical value, so it needs a test that
+    # would notice if it were not.
+    #
+    # Checked behaviourally rather than against absolute cycle counts, so the
+    # test does not encode the CAM's internal insert latency:
+    #   1. nothing schedulable                 -> 0
+    #   2. one entry, then a younger one       -> tracks the OLDER
+    #   3. free-running                        -> +1 per clock, exactly
+    #   4. retire the oldest                   -> DROPS to the younger's age
+    # Pulse reset to clear the entries the earlier phases left behind. NOT
+    # setup_clocks_and_reset() -- that would start a second clock driver.
+    await tb.assert_reset()
+    await tb.wait_clocks('aclk', 4)
+    await tb.deassert_reset()
+    await tb.wait_clocks('aclk', 4)
+
+    assert tb.head_rel() == 0, (
+        f"empty CAM must report head_rel 0, got {tb.head_rel()}")
+
+    await tb.insert(bank=3, row=30, col=1, rid=0x1)     # older
+    await tb.wait_clocks('aclk', 8)
+    await tb.insert(bank=4, row=40, col=2, rid=0x2)     # younger
+    await tb.wait_clocks('aclk', 2)
+
+    h_old = tb.head_rel()
+    assert h_old >= 8, (
+        f"head_rel must track the OLDER entry (inserted 10+ cycles ago), "
+        f"got {h_old} -- a value near 0 means it is reporting the YOUNGER one")
+
+    # Free-running: exactly +1 per clock. This is the property that separates
+    # a real age from a constant or a stale capture.
+    await tb.wait_clocks('aclk', 1)
+    h_next = tb.head_rel()
+    assert h_next == h_old + 1, (
+        f"head_rel must advance exactly 1 per clock: {h_old} -> {h_next}")
+
+    # Retire the older entry. head_rel must fall back to the younger one, which
+    # is strictly newer -- so the value DROPS. A selector stuck on slot 0, or
+    # one ignoring the schedulable predicate, keeps climbing here.
+    await tb.issue(0)
+    await tb.wait_clocks('aclk', 2)
+    h_after = tb.head_rel()
+    assert h_after < h_next, (
+        f"after issuing the oldest, head_rel must drop to the younger entry's "
+        f"age: {h_next} -> {h_after}")
+    assert h_after > 0, f"the younger entry is still schedulable, got {h_after}"
+
+    tb.log.info("PASS: sch_head_rel_o tracks the oldest schedulable entry "
+                "(older=%d, +1/clk=%d, after-retire=%d)",
+                h_old, h_next, h_after)
+
     tb.log.info("PASS: insert(AR) / issue(reordered B,A,C) / return(issue-order) "
                 "-> drain(AR-order A,B,C); oldest + sched lookups verified")
 
