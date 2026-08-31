@@ -887,18 +887,19 @@ module stream_harness #(
     // sidesteps needing visibility into cfg_channel_enable here — channels
     // that were never enabled have valid=0 so they neither pass nor fail.
     //
-    // CRC_IGNORE_MASK: known-broken channels whose mismatch must NOT fail
-    // the aggregate. Bit 0 is set: there is a pre-existing harness-side
-    // CRC-aggregation bug on channel 0 (rd-pattern vs wr-check CRC
-    // disagree on the same data) that fails the global aggregator on every
-    // run while every other channel matches. The DMA itself is correct on
-    // ch0 (datapath utilization, beat counts, and ch>=1 CRCs all confirm
-    // it). Until the harness checker is fixed we mask ch0 out so the
-    // board can show PASS for the cases where ch>=1 all matched. This is
-    // a board-display knob only -- the host-side per-channel CRC log
-    // still records the raw ch0 mismatch.
-    localparam logic [NUM_CHANNELS-1:0] CRC_IGNORE_MASK =
-        {{(NUM_CHANNELS-1){1'b0}}, 1'b1};   // bit 0 set, others clear
+    // EVERY channel is checked. There is no ignore mask and none may be added:
+    // a channel excluded from the aggregate is a channel whose data corruption
+    // reports PASS, which is worse than having no check at all.
+    //
+    // Bit 0 used to be masked, for a "pre-existing harness-side CRC-aggregation
+    // bug on channel 0". It does not reproduce. The 8-channel cosim
+    // (test_stream_mon_perf[dma_8ch]) reports match_mask=0xFF and
+    // valid_mask=0xFF -- all eight channels agree, ch0 included -- and
+    // match_mask is the RAW per-channel comparison, which the mask never
+    // touched, so it was not flattering the number. Whatever the original
+    // symptom was, it was either fixed elsewhere or misattributed.
+    //
+    // If ch0 mismatches on silicon, that is a finding to debug, not to mask.
     logic [NUM_CHANNELS-1:0] crc_match_per_ch;
     logic [NUM_CHANNELS-1:0] crc_valid_per_ch;
     always_comb begin
@@ -908,14 +909,12 @@ module stream_harness #(
                                 && (read_crc_value[ch] == write_crc_value[ch]);
         end
     end
-    // any_active: count EVERY channel that produced valid CRCs, including
-    // the ignored ones. A run with only ch0 enabled still counts as "a
-    // test ran", otherwise the LED would default to FAIL even though
-    // ch0's mismatch is exactly what we're choosing to ignore.
-    // any_mismatch: drop ignored channels here -- a ch0 mismatch must
-    // not raise the global FAIL when no other channel mismatched.
+    // any_active: at least one channel produced valid CRCs, i.e. a test ran.
+    // Channels that were never enabled have valid=0, so they neither pass nor
+    // fail and an idle channel cannot hold the aggregate down.
+    // any_mismatch: ANY active channel that disagrees fails the aggregate.
     wire any_active   = |crc_valid_per_ch;
-    wire any_mismatch = |(crc_valid_per_ch & ~crc_match_per_ch & ~CRC_IGNORE_MASK);
+    wire any_mismatch = |(crc_valid_per_ch & ~crc_match_per_ch);
     wire crc_match      = any_active && !any_mismatch;
     wire crc_both_valid = any_active;  // raw activity
     // any_error: sticky "something went wrong" signal routed to CSR_STATUS[1].

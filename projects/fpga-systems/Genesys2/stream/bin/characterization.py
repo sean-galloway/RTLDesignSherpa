@@ -1016,15 +1016,33 @@ class CharacterizationRunner:
             self.log(f"  CRC MISMATCH! rd_exp=0x{crc.get('rd_expected', 0):08X} "
                      f"wr_comp=0x{crc.get('wr_computed', 0):08X} "
                      f"match_reg=0x{match_reg or 0:08X}")
-        # Per-channel CRC visibility (multi-channel runs)
+        # Per-channel CRC. Reported AND enforced: every channel that produced
+        # valid CRCs must match, and a channel that does not is named.
+        #
+        # This used to be log-only, with the verdict resting entirely on the
+        # aggregate bit -- and the harness excluded channel 0 from that bit via
+        # a CRC_IGNORE_MASK. The two together meant a ch0 data mismatch printed
+        # to the log and still reported PASS. The mask is gone from the RTL; not
+        # enforcing per-channel here would leave the same hole open for any
+        # future mask, and for any channel the aggregate reduction misses.
+        mismatched = []
         if config.num_channels > 1:
             v_mask = crc.get('valid_mask', 0) or 0
             m_mask = crc.get('match_mask', 0) or 0
             for ch in channels:
                 rd_v = (crc.get('rd_per_ch') or [None])[ch]
                 wr_v = (crc.get('wr_per_ch') or [None])[ch]
+                ch_valid = (v_mask >> ch) & 1
+                ch_match = (m_mask >> ch) & 1
                 self.log(f"    ch{ch}: rd=0x{(rd_v or 0):08X} wr=0x{(wr_v or 0):08X} "
-                         f"valid={(v_mask >> ch) & 1} match={(m_mask >> ch) & 1}")
+                         f"valid={ch_valid} match={ch_match}")
+                if ch_valid and not ch_match:
+                    mismatched.append(ch)
+            if mismatched:
+                self.log(f"  CRC MISMATCH on channel(s) "
+                         f"{', '.join(str(c) for c in mismatched)} -- "
+                         f"per-channel check FAILED")
+        result['crc_mismatched_channels'] = mismatched
 
         # 7. Methodology metrics (datapath / end-to-end / 4-bucket)
         metrics = self.read_run_metrics(num_channels=slot_count)
@@ -1113,7 +1131,9 @@ class CharacterizationRunner:
                          f"ceiling {result['bus_max_net_moved_mbps']:.0f} MB/s "
                          f"net-moved at {self.aclk_hz/1e6:.0f} MHz)")
 
-        result['pass'] = crc_match and crc_valid
+        # Every channel counts. `mismatched` is empty unless a channel that
+        # actually ran disagreed, so a single-channel run is unaffected.
+        result['pass'] = crc_match and crc_valid and not mismatched
         return result
 
     # -----------------------------------------------------------------
