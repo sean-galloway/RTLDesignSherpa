@@ -519,7 +519,7 @@ module ddr2_char_macro
         .DFI_RATE        (DFI_RATE),
         .DRAM_BEAT_WIDTH (DRAM_BEAT_WIDTH),
         .DRAM_DEVICE_WIDTH (DRAM_DEVICE_WIDTH),
-        .BL              (DRAM_BL),
+        .DRAM_BL         (DRAM_BL),
         .NUM_ENTRIES     (WR_CAM_DEPTH),
         .N_SRAM_SLOTS    (WR_CAM_DEPTH),
         .CSR_ADDR_W      (APB_ADDR_WIDTH)
