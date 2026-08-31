@@ -1100,9 +1100,25 @@ That is the DOCREV-017 failure shape appearing inside a book that had just
 been declared finished: **an arc is complete as of a COMMIT, not forever, and
 anything merged after the voice pass is un-reviewed by construction.**
 
-Round_27 (4 units, parts 1-4 rebuilt from the current tree) confirmed it. Both
-completed units escalated 32768 -> 65536 on the budget ladder and finished
-`finish=stop`.
+Round_27 (4 units, parts 1-4 rebuilt from the current tree) confirmed it.
+**COMPLETE: 4 ok, 0 failed, 126.5 min.** Every unit escalated 32768 -> 65536
+once and finished `finish=stop`, outputs 5.8k-8.7k chars with no
+truncation-shaped outlier (rule 4 checked on all four, not just the empty
+ones). **5 RTL defects and 12 doc findings.**
+
+**CONVERGENCE CALL: parts 3 and 4 returned ZERO RTL defects** -- all five came
+from parts 1-2. The RTL side of this book is exhausted for this reviewer and
+the doc side is down to single sentences and unit labels. The book is
+correctness-clean as of b7e68972.
+
+**Humanize is NOT owed for this round.** The round_9 voice pass still stands
+over the pages it covered; what round_27 corrected was either post-humanize
+content (the TASK-015 filter sections) or single factual sentences inside
+already-humanized prose. A second full voice pass would rewrite 36 pages to
+fix wording that was never the problem -- and per the fix-survival lesson
+below, every rewrite risks dropping a correction. Re-humanize only the pages
+that gained substantial NEW prose: axi_monitor_base.md, axi_monitor_filtered.md
+and axi_monitor_reporter.md.
 
 **FIVE RTL DEFECTS, three of them one class the previous round had declared
 closed.** `ae61c9f1` called its fix the "second and LAST instance" of
@@ -1149,8 +1165,21 @@ lossy; perf and threshold DEFER, and the perf page said so, so the two pages
 contradicted each other. `apb_monitor_addr_check.md` claimed no violation is
 lost under backpressure when repeat hits on one range coalesce newest-wins.
 
-**Rule 6, measured again:** the reviewer cited ONE stale `monbus_axil_group`
-reference; there were 20 across 16 files (leftovers of the 35036222 rename).
+**Rule 6, measured FOUR times in one round.** Every single claim the reviewer
+cited was under-counted, and the ratio is the point -- 1:20, 1:9, 1:6, 1:3:
+
+| cited | actual | claim |
+|---|---|---|
+| 1 | 20 across 16 files | stale `monbus_axil_group` (35036222 rename leftover) |
+| 1 (as a passing "observation", not a finding) | 9 across 4 files | skid depth "2, 4, 6, or 8" vs the real 2..8 guard |
+| 1 | 6 in one file | `state_change` on the trans_mgr page |
+| 1 | 3 across 3 files | compressor "one slot per record" (tier-0 emits three) |
+
+Two of those trace back to an RTL HEADER COMMENT the docs were copied from
+(`monbus_arbiter.sv`'s depth line, `monbus_compressor.sv`'s throughput line) --
+fix the source or the doc error regrows, exactly as the rule says.
+
+The stale-name sweep also shows the OTHER half of rule 6:
 And fixing them mechanically CORRUPTED a page -- `monbus_group.md`'s migration
 section legitimately names the old module under a `// Old` heading, and the
 sweep renamed it. `check_doc_instantiations.py` caught that, which is the
