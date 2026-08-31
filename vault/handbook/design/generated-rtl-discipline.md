@@ -49,6 +49,36 @@ next audit relitigates it.
   point of generating. The e4m3 wrap guard was hand-fixed in one conversion
   and latent in two siblings until the template got the fix.
 
+## Generated code has a SIZE contract with the tools, not just a content one
+
+Adding registers to an RDL is not a neutral act. Measured 2026-08-31: nine new
+registers grew a PeakRDL regblock from `'h88` to `'hb4`, which pushed the
+generated module past **Verilator's inlining threshold**. Un-inlined, Verilator
+stopped unifying the block's `__out_t` struct typedef across two instantiating
+parents and emitted the struct PORT as `VL_OUT8(hwif_out,0,0)` — one bit —
+which broke C++ codegen for a downstream harness build.
+
+Two things to carry from that:
+
+- **`verilator --lint-only` CANNOT catch this class.** Lint passed clean at
+  both sizes, with every waiver removed. Only the C++ compile fails. If your
+  gate for generated RTL is lint, it is blind to codegen — run an actual
+  `--cc` plus `make -f V<top>.mk` on at least one consumer.
+- **A struct-typed port crossing a module boundary is the fragile construct.**
+  It was already fragile (the same closure fails at the old size too, in the
+  inlined face); the size change only selected which face appeared. Treat "it
+  worked before" for a struct port as luck that a regeneration can revoke.
+
+## Regenerate into the directory the FILELIST consumes
+
+Check where the build actually reads from before running the generator. A
+second, orphaned copy of generated output is a live trap: it satisfies nothing,
+drifts silently, and captures the next regen that uses a default `-o`.
+*Case: `projects/components/misc/rtl/generated/` is referenced by no filelist,
+Makefile or script, had already diverged from the real
+`rtl/regs/generated/`, and swallowed the first regen attempt — the build kept
+compiling the stale copy while the "regenerated" one sat unused.*
+
 Related: [[filelists]] (the same one-source rule for compile closures);
 the kimi-review-rounds rule 6 case in `vault/handbook/authoring/` — "fix the
 source comment or the doc error regrows" is this note's rule applied to prose.

@@ -147,5 +147,27 @@ than demanding zero (see above). Burn-down is TOOL-012. Run it by hand after any
 move, split or new area -- exactly when this class of breakage appears, and
 sooner than the PR that would catch it.
 
+## The gap the graph cannot see: a GENERATE-GATED submodule
+
+A module instantiated under `if (PARAM > 0)` is invisible to a
+default-parameter elaboration. So a filelist that omits it looks complete, and
+lints clean, for exactly as long as nobody sets the parameter. The first
+consumer that does gets `Cannot find file containing module`.
+
+It is not a rare corner. Measured 2026-08-31 across the monitor family:
+`axi_monitor_addr_check` (gated by `N_ADDR_RANGES > 0`) was listed by **2 of
+24** `*_mon` / `*_mon_cg` filelists — `ae61c9f1` fixed one and stopped — and
+NEITHER observer filelist listed `monbus_axil4_axil4_group`, which
+`EGRESS_AXIL=1` selects and which the Genesys2 harness had been consuming.
+
+So when auditing a filelist, do not read it against a default elaboration.
+**Elaborate it at the parameter values that turn its generate blocks ON:**
+
+    verilator --lint-only -GN_ADDR_RANGES=4 -f <filelist> --top-module <top>
+
+and grep the module for `generate`/`if (` around instantiations to learn which
+parameters those are. The same applies to a block whose egress or protocol
+variant is parameter-selected: build BOTH arms.
+
 Related: [[naming-and-style]] (module/file naming), [[test-runner]] (tests
 consume filelists via `get_sources_from_filelist`, never a hand-listed array).
