@@ -32,7 +32,8 @@ module pumice_rd_intake #(
     parameter int AXI_ADDR_WIDTH    = 32,
     parameter int AXI_DATA_WIDTH    = 64,
     parameter int AXI_USER_WIDTH    = 1,
-    parameter int DRAM_BEAT_WIDTH   = 64,
+    // (DRAM_BEAT_WIDTH removed: the ifc passed the AXI data width into it,
+    //  so the name was a lie and nothing here used it.)
     parameter int NUM_RANKS         = 1,
     parameter int NUM_BANKS         = 8,
     parameter int ROW_WIDTH         = 14,

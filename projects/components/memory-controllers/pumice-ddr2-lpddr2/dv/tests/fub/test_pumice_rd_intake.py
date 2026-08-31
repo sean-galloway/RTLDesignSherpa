@@ -106,7 +106,6 @@ def test_pumice_rd_intake(request):
 
     params = {
         "AXI_DATA_WIDTH":  "64",
-        "DRAM_BEAT_WIDTH": "64",
         "NUM_RANKS":       "1",
         "NUM_BANKS":       "8",
         "ROW_WIDTH":       "14",

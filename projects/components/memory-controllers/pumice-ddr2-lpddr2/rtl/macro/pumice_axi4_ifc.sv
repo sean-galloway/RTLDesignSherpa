@@ -27,6 +27,12 @@ module pumice_axi4_ifc #(
     parameter int AXI_ADDR_WIDTH    = 32,
     parameter int AXI_DATA_WIDTH    = 64,
     parameter int AXI_USER_WIDTH    = 1,
+    // NOTE pumice_core instantiates this with .DRAM_BEAT_WIDTH(DW) -- the AXI
+    // data width, NOT the DRAM beat width. The front end is deliberately
+    // DFI-word granular (one AXI beat == one DFI word), so the two coincide
+    // here and the name misleads. Kept only to size DRAM_BURST_BYTES below;
+    // it is no longer passed down, because the intakes were reading it as a
+    // DRAM quantity when it is an AXI one.
     parameter int DRAM_BEAT_WIDTH   = 64,
     parameter int NUM_RANKS         = 1,
     parameter int NUM_BANKS         = 8,
@@ -299,7 +305,6 @@ module pumice_axi4_ifc #(
         .AXI_ADDR_WIDTH   (AW),
         .AXI_DATA_WIDTH   (DW),
         .AXI_USER_WIDTH   (UW),
-        .DRAM_BEAT_WIDTH  (DRAM_BEAT_WIDTH),
         .NUM_RANKS        (NUM_RANKS),
         .NUM_BANKS        (NUM_BANKS),
         .ROW_WIDTH        (ROW_WIDTH),
@@ -447,7 +452,6 @@ module pumice_axi4_ifc #(
         .AXI_ADDR_WIDTH   (AW),
         .AXI_DATA_WIDTH   (DW),
         .AXI_USER_WIDTH   (UW),
-        .DRAM_BEAT_WIDTH  (DRAM_BEAT_WIDTH),
         .NUM_RANKS        (NUM_RANKS),
         .NUM_BANKS        (NUM_BANKS),
         .ROW_WIDTH        (ROW_WIDTH),
