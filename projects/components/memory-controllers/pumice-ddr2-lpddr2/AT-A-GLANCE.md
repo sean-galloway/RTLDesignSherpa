@@ -176,17 +176,75 @@ Spec: `rtl/PUMICE_DFI_LAYER_UARCH.md`
 All CSR-selectable, all **encoding 0 = build default and bit-identical**, each
 mutation-proven. Catalogued in `docs/design-requirements.md`.
 
-* **Axis 1 — scheduling** (`pumice_cmd_arbiter`): `order_mode`
-  (default / in_order / age_threshold), `row_sel` and `col_sel`
-  (oldest / most_pending / fewest_pending), `access_pref`
-  (column_first / row_first / precharge_first), write batching watermarks,
-  `prio_sub`, `qos_en`.
-* **Axis 2 — paging** (`pumice_page_policy` + `pumice_row_pred_table` +
-  `pumice_rbl_table`): 8 modes — build default, static open/close,
-  fixed_open, adapt_time (adaptive timeout), adapt_access (per-row 2-bit
-  predictor), rbl_static / rbl_dyn (row-buffer-locality miss counters).
-* **Axis 3 — refresh** (`refresh_ctrl`): postpone / pull-in credits, drain
-  bursts, and REFpb per-bank refresh with the device-internal rotor mirror.
+### Axis 1 — scheduling policy (`pumice_cmd_arbiter`)
+
+**The default policy is FR-FCFS** — First-Ready, First-Come-First-Served, the
+standard DRAM scheduling policy — with read-over-write priority. That is what
+the per-cycle pick ladder implements:
+
+    1 init  2 refresh  3 COLUMN (row-hit RD/WR to an open, tRCD-met row)
+    4 ACTIVATE (oldest pending op on an idle bank)  5 PRECHARGE
+
+"First-Ready" is stage 3 outranking 4: a row hit issues ahead of an older
+access that would need an ACT. "FCFS" is the oldest-first tie-break inside
+each stage.
+
+`order_mode` selects the policy; everything else is an **overlay that narrows
+which entries are candidates** — the ladder above is untouched:
+
+| `order_mode` | policy |
+|---|---|
+| 0 (default) | **FR-FCFS** — reorder for row hits, oldest-first within a class |
+| 1 `in_order` | **strict FCFS** — only the single oldest reference across both CAMs may pick. No lookahead, no row-hit reordering |
+| 3 `age_threshold` | **FR-FCFS with a starvation bound** — once any entry passes an age threshold, only aged entries may pick until they drain |
+
+The overlays are independent and none of them is required:
+
+* `access_pref` — reorders the CLASSES, not the entries. `0/1 column_first`
+  is the default and is what makes the policy First-Ready; `2 row_first` puts
+  activates ahead of row hits (buys bank parallelism at the cost of row-hit
+  throughput); `3 precharge_first` closes wrong rows eagerly.
+* `row_sel` / `col_sel` — change the pick *within* a stage from oldest to
+  `most_pending` / `fewest_pending`. `row_sel` steers ACTIVATE, `col_sel`
+  steers COLUMN.
+* **write batching** (`SCHED_WR_WM` high/low watermarks) — once the write CAM
+  crosses `high_wm`, writes outrank reads until it falls to `low_wm`, so the
+  tWTR/tRTW bus turnaround is amortized over a batch instead of paid per
+  write.
+* `prio_sub`, `qos_en` — AXI QoS admitted as a priority class.
+
+### Axis 2 — page policy (`pumice_page_policy`)
+
+Decides **auto-precharge per bank** — whether a row stays open after an
+access. Mode 0 keeps the flat build-time `page_policy_i` (OPEN/CLOSE); any
+nonzero mode takes over:
+
+| mode | policy |
+|---|---|
+| 1 `static_open` | never auto-precharge — best for streaming/row-major |
+| 2 `static_close` | always auto-precharge — best for random/low-locality |
+| 3 `fixed_open` | open, but rows close on an **idle timeout** |
+| 4 `adapt_time` | **adaptive timeout** — a per-bank timeout register adapts up/down from a mistake counter (premature-close vs held-too-long) each interval |
+| 5 `adapt_access` | **per-row 2-bit close predictor** — knob-free; predicts whether this row will be hit again |
+| 6 `rbl_static` | close on a per-bank **row-buffer-locality** verdict from a miss-counter table |
+| 7 `rbl_dyn` | `rbl_static` plus a per-epoch threshold hill-climb |
+
+The block never drives a PRE itself: it raises a request and the arbiter
+issues it as its lowest-priority pick, so demand traffic, refresh drain and
+JEDEC timing still gate it.
+
+### Axis 3 — refresh policy (`refresh_ctrl`)
+
+JEDEC allows a refresh to be deferred or run early by up to 8. The default is
+strict (issue on tREFI expiry); the credits trade latency against bandwidth:
+
+* `postpone_limit` — while demand is present, hold the refresh back, up to the
+  JEDEC 8-deep ceiling, so a burst is not interrupted mid-stream.
+* `pullin_limit` — while idle, run refreshes **ahead** so they are not owed
+  later when traffic returns.
+* `refresh_burst` (drain) — issue several queued refreshes back to back.
+* `refpb_mode` — REFab (all banks) vs **REFpb** (per-bank, LPDDR2), with a
+  rotor mirroring the device's internal bank counter.
 
 ---
 
