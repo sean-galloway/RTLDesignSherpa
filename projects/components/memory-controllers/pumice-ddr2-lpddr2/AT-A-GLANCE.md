@@ -65,6 +65,23 @@ was a real failure mode here, so the rule is deliberately unconditional.
 | `WSTRB` | any pattern, including sparse and all-zero (a legal no-op) |
 | start address | any, including part-way into a DRAM burst |
 
+### Names — one concept, several spellings
+
+The tree grew multiple names per quantity. They are the SAME number; this is
+the mapping so nobody invents a sixth:
+
+| concept | canonical | also spelled |
+|---|---|---|
+| JEDEC burst length, in DEVICE beats | `DRAM_BL` | `BL` (core/ifc/intake), `dram_bl` (TB), `DFI_PHASE.bl` (CSR), `BEATS_PER_BURST` (char suite) |
+| the same, scaled to pumice beats | `BL_PUMICE` | — |
+| AXI beats in one DRAM burst | `BURST_LEN_MULTIPLE` | `CHUNK_BEATS` (chopper/splitter), `BURST_WORDS` (core), `EXP_AXI_BEATS` (wr_intake) |
+| DFI phases per controller clock | `DFI_RATE` | `gear_ratio` is its LOG2, not the rate |
+
+`gear_ratio` is the trap in that list: it is `log2(DFI_RATE)`, so rate-2 is 1
+and rate-4 is 2. Writing the rate where the log belongs makes
+`(RATEW'(1) << gear_i)` overflow to zero, every DFI phase goes inactive and
+writes vanish with `B=OKAY`.
+
 ### How a burst maps to DRAM
 
 One DRAM burst is `BURST_WORDS` AXI beats, derived from the build parameters:

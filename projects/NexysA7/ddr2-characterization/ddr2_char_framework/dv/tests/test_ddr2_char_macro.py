@@ -62,7 +62,17 @@ _NBA_SETTLE_PS = 100
 # ---------------------------------------------------------------------------
 
 
-DFI_RATE_SIM = 2        # must track ddr2_char_macro_tb_top's DFI_RATE
+# NAMES. One concept, one name -- the tree already had several for each and
+# this file is not adding more:
+#   DRAM_BL            JEDEC burst length in DEVICE beats (CSR DFI_PHASE.bl,
+#                      RTL DRAM_BL/BL). Scaled to pumice beats as BL_PUMICE.
+#   BURST_LEN_MULTIPLE AXI beats in one DRAM burst. Same quantity the RTL
+#                      calls CHUNK_BEATS (ifc/chopper/splitter), BURST_WORDS
+#                      (pumice_core) and EXP_AXI_BEATS (wr_intake).
+#   DFI_RATE           DFI phases per controller clock.
+# All three are passed to the RTL explicitly; none is inherited from a
+# parameter default, because a default is what silently went stale at BL8.
+DFI_RATE = 2        # must track ddr2_char_macro_tb_top's DFI_RATE
 
 # AXI beats in ONE full DRAM burst, for THIS build:
 #     DRAM_BL * DRAM_DEVICE_WIDTH / AXI_DATA_WIDTH = 8 * 64 / 64 = 8
@@ -77,8 +87,8 @@ DFI_RATE_SIM = 2        # must track ddr2_char_macro_tb_top's DFI_RATE
 # below read "Burst len = BL=4 so each AXI burst maps 1-to-1 to a DRAM BL
 # burst". Commit 72a73fe2 moved DDR2 to BL8 for the on-silicon read fix and did
 # not update them, so every shape has been a sub-burst ever since.
-DRAM_BL_SIM = 8         # must track ddr2_char_macro_tb_top's DRAM_BL
-DRAM_BURST_BEATS = 8
+DRAM_BL = 8         # must track ddr2_char_macro_tb_top's DRAM_BL
+BURST_LEN_MULTIPLE = 8
 
 
 async def _drive_engine_idle(dut) -> None:
@@ -128,11 +138,11 @@ def _check_full_burst(burst_len: int, who: str) -> None:
     length after DDR2 moved to BL8 (the shape table, and BURST = 4 in both the
     pacing-sweep and ooo-schmoo suites). All were invisible until checked.
     """
-    if burst_len % DRAM_BURST_BEATS:
+    if burst_len % BURST_LEN_MULTIPLE:
         raise AssertionError(
             f"{who}: burst_len={burst_len} is ILLEGAL -- generator bursts "
-            f"must be whole multiples of DRAM_BURST_BEATS="
-            f"{DRAM_BURST_BEATS} (one full DFI BL8 transaction). This is an "
+            f"must be whole multiples of BURST_LEN_MULTIPLE="
+            f"{BURST_LEN_MULTIPLE} (one full DFI BL8 transaction). This is an "
             f"invalid configuration, not a slow one: fix the shape. The "
             f"controller's own sub-burst handling is covered at the "
             f"controller level -- test_pumice_top.py::"
@@ -202,7 +212,7 @@ async def cocotb_test_ddr2_char_macro(dut):
     test_type = os.environ.get("TEST_TYPE", "smoke")
     mem_type  = os.environ.get("MEM_TYPE", "DDR2").upper()
 
-    tb = DDR2LPDDR2TopTB(dut, num_ranks=1, dram_bl=DRAM_BL_SIM)
+    tb = DDR2LPDDR2TopTB(dut, num_ranks=1, dram_bl=DRAM_BL)
     await _drive_engine_idle(dut)
     # Drain the reader-engine debug FIFO via the framework's GAXISlave.
     # Each received packet carries (actual, expected, mismatch) for one
@@ -241,7 +251,7 @@ async def cocotb_test_ddr2_char_macro(dut):
     tb.init_apb4_master()
     await tb.apb4_master.reset_bus()
     tb.init_dfi_slave()
-    await tb.program_defaults(dfi_rate=DFI_RATE_SIM, dram_bl=DRAM_BL_SIM)
+    await tb.program_defaults(dfi_rate=DFI_RATE, dram_bl=DRAM_BL)
     tb.init_dfi_monitor()        # capture DFI cmd/wr-data/rd-data queues
     tb.start_axi_wr_snoop()      # snoop AXI WR side as WR-path ground truth
     tb.start_axi_rd_snoop()      # snoop AXI RD side for RD-path verify
@@ -249,10 +259,10 @@ async def cocotb_test_ddr2_char_macro(dut):
 
     # 1x1 known-good; 1x2 isolates multi-beat-in-burst; 2x1 isolates
     # multi-burst; 2x2 was the original failing config.
-    _B = DRAM_BURST_BEATS          # one full DFI BL8 transaction
+    _B = BURST_LEN_MULTIPLE          # one full DFI BL8 transaction
     SHAPES = {
         # <k DRAM bursts per AXI burst> x <n AXI bursts>. Every entry is a
-        # whole number of DRAM bursts (see DRAM_BURST_BEATS).
+        # whole number of DRAM bursts (see BURST_LEN_MULTIPLE).
         "smoke":     dict(burst=1 * _B, n=1,    base=0x0000_2000),
         "smoke_1x2": dict(burst=2 * _B, n=1,    base=0x0000_2040),
         "smoke_2x1": dict(burst=1 * _B, n=2,    base=0x0000_2080),
@@ -312,7 +322,7 @@ async def cocotb_test_ddr2_char_macro(dut):
             axi_id_base, id_mode, wr_gap, rd_gap, rd_start_delay,
         )
 
-        BURST = DRAM_BURST_BEATS   # one full DFI BL8 transaction
+        BURST = BURST_LEN_MULTIPLE   # one full DFI BL8 transaction
         N = 17  # past RD_CAM_DEPTH=16 — exercises slot reuse
         BASE = 0x0001_0000
         BYTES_PER_BEAT = 8
@@ -380,7 +390,7 @@ async def cocotb_test_ddr2_char_macro(dut):
         rd_gap = int(os.environ.get("RD_GAP", "0"))
         tb.log.info("pacing_sweep_b2b: wr_gap=%d rd_gap=%d", wr_gap, rd_gap)
 
-        BURST = DRAM_BURST_BEATS   # one full DFI BL8 transaction
+        BURST = BURST_LEN_MULTIPLE   # one full DFI BL8 transaction
         N = 17  # past RD_CAM_DEPTH=16 — exercises slot reuse + same-id
         BASE = 0x0001_0000
         BYTES_PER_BEAT = 8
@@ -530,7 +540,7 @@ async def cocotb_test_ddr2_char_macro(dut):
 # ---------------------------------------------------------------------------
 
 # Every entry is an integer number of full DFI BL8 transactions (see
-# DRAM_BURST_BEATS). Keep it that way: a shape that is not a whole DRAM burst
+# BURST_LEN_MULTIPLE). Keep it that way: a shape that is not a whole DRAM burst
 # makes the perf numbers meaningless (a partial burst still costs the device a
 # full ACT/CAS cycle) and is rejected by BURST_LEN_MULTIPLE in the RTL.
 _ALL_TYPES = ["smoke", "smoke_1x2", "smoke_2x1", "smoke_2x2",
@@ -864,7 +874,7 @@ def test_ddr2_char_macro_ooo_pacing_schmoo(
 @cocotb.test(timeout_time=100, timeout_unit="us")
 async def cocotb_test_ddr2_char_csr_probe(dut):
     """Program, 1 write, 1 read. Isolates the CSR path from the DRAM path."""
-    tb = DDR2LPDDR2TopTB(dut, num_ranks=1, dram_bl=DRAM_BL_SIM)
+    tb = DDR2LPDDR2TopTB(dut, num_ranks=1, dram_bl=DRAM_BL)
     await _drive_engine_idle(dut)
     await tb.reset(mem_type="DDR2", init_complete_delay=20)
     tb.init_register_map()
@@ -1005,14 +1015,14 @@ async def _watch_axi(dut, counts):
 async def cocotb_test_ddr2_char_1wr1rd(dut):
     """Program, then ONE write burst and ONE read burst, watching the masters."""
     import collections
-    tb = DDR2LPDDR2TopTB(dut, num_ranks=1, dram_bl=DRAM_BL_SIM)
+    tb = DDR2LPDDR2TopTB(dut, num_ranks=1, dram_bl=DRAM_BL)
     await _drive_engine_idle(dut)
     await tb.reset(mem_type="DDR2", init_complete_delay=20)
     tb.init_register_map()
     tb.init_apb4_master()
     await tb.apb4_master.reset_bus()
     tb.init_dfi_slave()
-    await tb.program_defaults(dfi_rate=DFI_RATE_SIM, dram_bl=DRAM_BL_SIM)
+    await tb.program_defaults(dfi_rate=DFI_RATE, dram_bl=DRAM_BL)
     await tb.wait_for_init_done()
 
     counts = collections.Counter()
@@ -1030,7 +1040,7 @@ async def cocotb_test_ddr2_char_1wr1rd(dut):
 
     # ---- one write burst ----
     await _program_writer(dut, start_addr=BASE, stride_0=8,
-                          burst_len=DRAM_BURST_BEATS, txn_count=1, lfsr_seed=SEED)
+                          burst_len=BURST_LEN_MULTIPLE, txn_count=1, lfsr_seed=SEED)
     await RisingEdge(dut.mc_clk)
     await _pulse(dut, "cfg_wr_start")
     try:
@@ -1050,8 +1060,8 @@ async def cocotb_test_ddr2_char_1wr1rd(dut):
         f"expected exactly 1 AW handshake, saw {counts['aw']} "
         f"(valid-cycles {counts['aw_v']}). cfg_wr_done asserted anyway, which "
         f"is why the WR localizer passed vacuously.")
-    assert counts["w"] == DRAM_BURST_BEATS, (
-        f"expected {DRAM_BURST_BEATS} W beats (one full DFI BL8 transaction), saw {counts['w']}")
+    assert counts["w"] == BURST_LEN_MULTIPLE, (
+        f"expected {BURST_LEN_MULTIPLE} W beats (one full DFI BL8 transaction), saw {counts['w']}")
     assert counts["b"] == 1, f"expected 1 B, saw {counts['b']}"
 
     mem = int.from_bytes(bytes(tb.peek_memory(BASE, 8)), "little")
@@ -1063,7 +1073,7 @@ async def cocotb_test_ddr2_char_1wr1rd(dut):
 
     # ---- one read burst ----
     await _program_reader(dut, start_addr=BASE, stride_0=8,
-                          burst_len=DRAM_BURST_BEATS, txn_count=1, lfsr_seed=SEED)
+                          burst_len=BURST_LEN_MULTIPLE, txn_count=1, lfsr_seed=SEED)
     await RisingEdge(dut.mc_clk)
     await _pulse(dut, "cfg_rd_start")
     try:
