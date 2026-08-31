@@ -47,7 +47,10 @@ module ddr2_char_uart_tb_top
     // JEDEC burst length. Overridden per-test alongside the BFM's
     // beats_per_burst so the DUT framing and the oracle come from ONE value --
     // inheriting the ddr2_char_macro default here let the two silently diverge.
-    parameter int DRAM_BL         = 4,
+    // Board default: BL8 (72a73fe2 moved DDR2 to BL8 end-to-end -- BL8 is
+    // the only legal a7ddrphy burst at nphases=4). Tests pass this
+    // explicitly; the default is here so it cannot silently disagree.
+    parameter int DRAM_BL         = 8,
     parameter int DFI_ADDR_BUS_W  = ROW_WIDTH * DFI_RATE,
     parameter int DFI_BANK_BUS_W  = 3 * DFI_RATE,
     parameter int DFI_CTRL_BUS_W  = DFI_RATE,

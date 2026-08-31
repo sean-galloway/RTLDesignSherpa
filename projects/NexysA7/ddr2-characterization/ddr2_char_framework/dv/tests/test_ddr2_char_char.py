@@ -60,7 +60,12 @@ import pumice_char as pc                                # noqa: E402
 CLKS_PER_BIT   = 16
 ROW_W, COL_W   = 13, 10
 NUM_BANKS      = 8
-DRAM_BL        = 4
+# JEDEC burst length in device beats. BL8 is what the board runs: 72a73fe2
+# moved DDR2 to BL8 end-to-end because BL8 is the only legal a7ddrphy burst at
+# nphases=4 (a BL4 read filled only 4 of the fixed 8 de-interleave slots, the
+# rest stale -- that was the on-silicon read failure). This suite stayed at 4,
+# so its perf numbers described a burst length the board no longer uses.
+DRAM_BL        = 8
 DFI_RATE        = int(os.environ.get("TEST_DFI_RATE", "2"))
 DRAM_BEAT_BYTES = int(os.environ.get("TEST_DRAM_BEAT_BYTES", "8"))
 DRAM_DEVICE_BYTES = int(os.environ.get("TEST_DRAM_DEVICE_BYTES", str(DRAM_BEAT_BYTES)))
@@ -124,8 +129,18 @@ async def cocotb_test_char_families(dut):
     def prog():
         drv.soft_reset()
         drv.set_dfi_cmd_delay(int(os.environ.get("TEST_CMD_DELAY", "0")))
+        # set_dfi_phase writes the WHOLE DFI_PHASE word, so gear_ratio and bl
+        # must be passed or they are clobbered rather than preserved.
+        # gear_ratio = log2(active DFI rate): rate-2 => 1. Its CSR reset is 2
+        # (the board's fixed 1:4), and pumice computes
+        #     active_rate = (RATEW'(1) << gear_i),  RATEW = clog2(DFI_RATE)+1
+        # so a stale gear_i=2 overflows the 2-bit shift to 0, every DFI phase
+        # reads inactive, and dfi_wrdata_en is held low -- writes vanish with
+        # B=OKAY and memory stays zero.
         drv.set_dfi_phase(rd_phase=int(os.environ.get("TEST_RD_PHASE", "0")),
-                          wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")))
+                          wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
+                          gear_ratio=DFI_RATE.bit_length() - 1,
+                          bl=DRAM_BL)
         return pc.run_profile(drv, profile, txn_scale=1, base_addr=0x0,
                               timeout_s=60)
 
@@ -197,7 +212,13 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path)
 
-    tag = f"{testcase}_r{dfi_rate}"
+    # The tag names the sim_build, so it MUST include every parameter that
+    # changes the RTL. It was {testcase}_r{dfi_rate}, and both families
+    # tests use the same testcase at rate 2 -- so the default-geometry
+    # and x16 board-geometry builds shared one sim_build despite being
+    # different RTL. cocotb_test re-runs verilator unconditionally, so
+    # whichever ran second silently overwrote the first (PUMICE-010).
+    tag = f"{testcase}_r{dfi_rate}_b{dram_beat_width}_d{dram_device_width}"
     sim_build = sim_build_path(tests_dir, tag)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
@@ -214,6 +235,17 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
         "TEST_DFI_RATE": str(dfi_rate),
         "TEST_DRAM_BEAT_BYTES": str(dram_beat_width // 8),
         "TEST_DRAM_DEVICE_BYTES": str(dram_device_width // 8),
+        # The HOST also holds a burst length, and it is not decorative:
+        # ddr2_char.BOARD_BURST_COLS = BOARD_DRAM_BL sets bank_lsb, because a
+        # JEDEC burst spans exactly BL COLUMN units (the column address is
+        # device-word granular). Leave the host at its BL4 default while the
+        # RTL runs BL8 and the bank field lands INSIDE the burst's 8-column
+        # span, striping every burst across banks -- which is the 2026-08-25
+        # silicon signature this suite exists to reproduce, and exactly what
+        # it reported here: "bank_interleave: 16 beats mismatched".
+        "TEST_DRAM_BL": str(DRAM_BL),
+        # MR0 burst-length field must agree: A[2:0] 010 = BL4, 011 = BL8.
+        "TEST_MR0": "0x0433" if DRAM_BL == 8 else "0x0432",
     }
     compile_args = [
         "+define+USE_ASYNC_RESET",
@@ -228,7 +260,11 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
         testcase=testcase,
         parameters={"DFI_RATE": str(dfi_rate),
                     "DRAM_BEAT_WIDTH": str(dram_beat_width),
-                    "DRAM_DEVICE_WIDTH": str(dram_device_width)},
+                    "DRAM_DEVICE_WIDTH": str(dram_device_width),
+                    # Explicit, not inherited: ddr2_char_uart_tb_top still
+                    # defaults DRAM_BL=4, and a TB that does not pass an RTL
+                    # parameter cannot track it when the RTL changes.
+                    "DRAM_BL": str(DRAM_BL)},
         sim_build=sim_build, simulator="verilator",
         extra_env=extra_env, compile_args=compile_args,
         waves=bool(int(os.environ.get("WAVES", "0"))),
