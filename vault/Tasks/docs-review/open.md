@@ -1529,8 +1529,8 @@ that actually exist as HAS/MAS today.
 | Bridge MAS | — | **none recorded** | 2026-08-11 (`93eed6f1`) |
 | Bridge HAS | — | **none recorded** | 2026-08-11 (`93eed6f1`) |
 | Converters MAS | — | **CONVERGED 2026-08-26**: rounds 1-6 (25→30→19→14→11→7 findings; last four rounds zero RTL defects) | **2026-08-26**, humanize round_1, all 19 pages, tag-survival 0 fatal |
-| APB Crossbar MAS | 7,154 (5 md) | rounds 7-13 (20→22→19→18→17→18→10); NOT converged | **never** |
-| APB Crossbar HAS | 8,179 (20 md) | rounds 7-13, same batch | **never** |
+| APB Crossbar MAS | 7,154 (5 md) | **CONVERGED 2026-08-30**: rounds 7-15 (20→22→19→18→17→18→10→12→9; last two rounds no RTL defects) | **2026-08-30**, humanize round_2, 9 pages, tag-survival 0 fatal |
+| APB Crossbar HAS | 8,179 (20 md) | rounds 7-15, same batch | **2026-08-30**, humanize round_2, 23 pages, tag-survival 0 fatal |
 
 ### Two problems, not one
 
