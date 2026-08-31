@@ -57,7 +57,16 @@ import ddr2_char as dc                                  # noqa: E402
 import pumice_char as pc                                # noqa: E402
 
 
-CLKS_PER_BIT   = 16
+# UART bit rate in system clocks. MEASURED floor is 4: 3 and 2 both FAIL
+# (uart_rx samples at (CLKS_PER_BIT-1)/2, which leaves no margin below 4),
+# while 16 and 4 both pass. Was 16.
+# The win is modest -- 126s -> 99s on the smoke test, ~1.3x -- so these
+# suites are NOT UART-bound and further baud tuning will not help.
+# Passed to the RTL as UART_BAUD = FPGA_CLK_HZ / CLKS_PER_BIT so the RTL
+# divisor and this constant cannot drift apart.
+CLKS_PER_BIT   = int(os.environ.get("TEST_CLKS_PER_BIT", "4"))
+FPGA_CLK_HZ    = 100_000_000
+UART_BAUD      = FPGA_CLK_HZ // CLKS_PER_BIT
 ROW_W, COL_W   = 13, 10
 NUM_BANKS      = 8
 # JEDEC burst length in device beats. BL8 is what the board runs: 72a73fe2
@@ -201,7 +210,7 @@ async def cocotb_test_char_families(dut):
 # =============================================================================
 # pytest wrapper
 # =============================================================================
-def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
+def _run(request, testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
          dram_device_width: int = 0):
     if dram_device_width == 0:
         dram_device_width = dram_beat_width
@@ -212,13 +221,11 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path)
 
-    # The tag names the sim_build, so it MUST include every parameter that
-    # changes the RTL. It was {testcase}_r{dfi_rate}, and both families
-    # tests use the same testcase at rate 2 -- so the default-geometry
-    # and x16 board-geometry builds shared one sim_build despite being
-    # different RTL. cocotb_test re-runs verilator unconditionally, so
-    # whichever ran second silently overwrote the first (PUMICE-010).
-    tag = f"{testcase}_r{dfi_rate}_b{dram_beat_width}_d{dram_device_width}"
+    # sim_build named from the pytest node name -- already
+    # <test_name>_<unique parameters> by repo convention, so unique per test by
+    # construction. It was {testcase}_r{dfi_rate}, which gave the default and
+    # x16 board-geometry builds ONE directory despite being different RTL.
+    tag = request.node.name.replace("[", "_").replace("]", "").replace("-", "_")
     sim_build = sim_build_path(tests_dir, tag)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
@@ -258,7 +265,9 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
         verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module="test_ddr2_char_char",
         testcase=testcase,
-        parameters={"DFI_RATE": str(dfi_rate),
+        parameters={"UART_BAUD": str(UART_BAUD),
+                    "FPGA_CLK_HZ": str(FPGA_CLK_HZ),
+                    "DFI_RATE": str(dfi_rate),
                     "DRAM_BEAT_WIDTH": str(dram_beat_width),
                     "DRAM_DEVICE_WIDTH": str(dram_device_width),
                     # Explicit, not inherited: ddr2_char_uart_tb_top still
@@ -277,7 +286,7 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
 
 
 def test_ddr2_char_char_families(request):
-    _run("cocotb_test_char_families")
+    _run(request, "cocotb_test_char_families")
 
 
 def test_ddr2_char_char_families_x16(request):
@@ -290,5 +299,5 @@ def test_ddr2_char_char_families_x16(request):
     # mismatched while device==beat sim passed). At device==beat the wrong and
     # right formulas coincide, which is exactly why the default-geometry
     # families test above cannot catch this class.
-    _run("cocotb_test_char_families", dfi_rate=2, dram_beat_width=32,
+    _run(request, "cocotb_test_char_families", dfi_rate=2, dram_beat_width=32,
          dram_device_width=16)

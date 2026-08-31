@@ -24,7 +24,19 @@ module ddr2_char_uart_tb_top
 #(
     // ---- UART baud divisor (lowered for sim) ----
     parameter int FPGA_CLK_HZ    = 100_000_000,
-    parameter int UART_BAUD      =   6_250_000,   // -> CLKS_PER_BIT = 16
+    // Sim runs the UART as close to the system clock as it will go.
+    // uart_rx samples mid-bit at (CLKS_PER_BIT-1)/2, advances at
+    // CLKS_PER_BIT-1, and sizes its counter COUNT_WIDTH =
+    // clog2(CLKS_PER_BIT). MEASURED on test_ddr2_char_uart_smoke:
+    //   16 -> pass 126s     4 -> pass  99s
+    //    3 -> FAIL           2 -> FAIL
+    // so 4 is the floor in practice, not the 2 the arithmetic allows.
+    // Note the win is only ~1.3x: 4x fewer UART cycles bought 27% wall
+    // time, so these suites are NOT UART-bound -- the runtime is
+    // elsewhere (bring-up + the transactions themselves). Do not expect
+    // further baud tuning to help.
+    // Tests pass UART_BAUD explicitly; this default is kept in step.
+    parameter int UART_BAUD      =  25_000_000,   // -> CLKS_PER_BIT = 4
     parameter int UART_CLKS_PER_BIT = FPGA_CLK_HZ / UART_BAUD,
 
     // ---- AXI / controller sizing (match ddr2_char_harness defaults) ----
