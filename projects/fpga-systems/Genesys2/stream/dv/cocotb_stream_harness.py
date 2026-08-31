@@ -61,6 +61,15 @@ _flow_dv = os.path.join(repo_root, "projects/fpga-systems/Genesys2/stream/dv")
 if _flow_dv not in sys.path:
     sys.path.insert(0, _flow_dv)
 
+# The area's bin/ holds stream_levels. Injected HERE, not left to conftest:
+# cocotb re-imports this module inside the SIMULATOR process, where pytest's
+# conftest never runs and python_search supplies only tests_dir.
+_flow_bin = os.path.join(repo_root, "projects/fpga-systems/Genesys2/stream/bin")
+if _flow_bin not in sys.path:
+    sys.path.insert(0, _flow_bin)
+
+import stream_levels
+
 from tbclasses.stream_harness_tb import StreamHarnessTB
 
 
@@ -330,13 +339,28 @@ async def cocotb_test_stream_perf(dut):
             # of sim and ~25 min of wall clock, which is far past the point of
             # diminishing returns for an equivalence check -- the observer and
             # the in-core monitors either agree or they do not, and they do so
-            # within a few thousand bursts. OBS_EQUIV_SCALE shrinks the
-            # transfer so a run lands in 10-20 ms; set it to 1 for the full
-            # soak. The channel and descriptor COUNTS are held, because the
-            # multi-channel interleave is what the comparison is about.
+            # within a few thousand bursts.
+            #
+            # The channel and descriptor COUNTS are held deliberately: the
+            # multi-channel interleave is what the comparison is about, so
+            # shrinking those would change what the test MEANS, not just how
+            # long it takes. Transfer size is the honest scale knob.
+            #
+            # The DIVISOR comes from the test level. It used to be a flat 8
+            # regardless of level, which made this the one case in the file that
+            # ignored gate/func/full -- a knob wired to nothing, the exact defect
+            # the levels work was written to remove. It cost 80+ minutes of wall
+            # clock on a GATE run whose own docstring promises "minutes, not
+            # hours", because monitors are ON here and each descriptor is an
+            # order of magnitude slower than in build-perf.
+            #
+            # func keeps the historical 8 (8 KB), so the level that stands in for
+            # the old default measures exactly what it used to.
             num_channels=4,
             descriptors_per_channel=4,
-            transfer_bytes=65536 // int(os.environ.get('OBS_EQUIV_SCALE', '8')),
+            transfer_bytes=65536 // int(os.environ.get(
+                'OBS_EQUIV_SCALE',
+                str(stream_levels.scale(gate=32, func=8, full=1)))),
             timeout_clocks=600_000,
             measure_rw_perf=True,      # opens/closes in-core window, reads RDMON/WRMON + hists
         )
