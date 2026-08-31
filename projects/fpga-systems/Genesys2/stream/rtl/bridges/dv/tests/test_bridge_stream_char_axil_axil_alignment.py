@@ -37,7 +37,13 @@ from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
-from projects.NexysA7.stream_characterization.stream_char_framework.rtl.bridges.dv.tbclasses.bridge_stream_char_axil_tb import BridgeStreamCharAxilTB
+# Import the testbench class by module name, not as a dotted package path.
+# This pointed at projects.NexysA7....stream_char_framework, a tree that no
+# longer exists; rewriting it to the new location is not possible either,
+# because 'fpga-systems' has a hyphen and cannot appear in a dotted import.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                os.pardir, 'tbclasses'))
+from bridge_stream_char_axil_tb import BridgeStreamCharAxilTB  # noqa: E402
 
 
 # ============================================================================

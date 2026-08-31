@@ -18,13 +18,26 @@ from TBClasses.shared.utilities import get_repo_root
 
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
+_REPO_ROOT_FOR_SHARED = repo_root
 
 import cocotb
 from cocotb_test.simulator import run  # noqa: F401
 
 from TBClasses.shared.utilities import get_paths
-from projects.fpga-systems.Genesys2.stream.rtl.bridges.dv.tbclasses.bridge_stream_char_axil_mon_tb import BridgeStreamCharAxilMonTB
-from monitor_stress_common import run_comprehensive, run_monitor_sim
+# Import the testbench class. NOT as a dotted package path: the area
+# lives under projects/fpga-systems/, and 'fpga-systems' contains a
+# hyphen, which is not a legal Python identifier -- 'from
+# projects.fpga-systems....' is a SyntaxError, so these five test files
+# could not even be collected. Put the tbclasses dir on sys.path and
+# import the module by its own name instead.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                os.pardir, 'tbclasses'))
+from bridge_stream_char_axil_mon_tb import BridgeStreamCharAxilMonTB  # noqa: E402
+# monitor_stress_common is shared collateral that lives with the bridge
+# component, not in this area. Put its directory on sys.path rather than
+# copying the module (a second copy is how the two drift apart).
+sys.path.insert(0, os.path.join(_REPO_ROOT_FOR_SHARED, 'projects/components/bridge/dv/tests'))
+from monitor_stress_common import run_comprehensive, run_monitor_sim  # noqa: E402
 
 CFG_PREFIXES = ['host_0_rd', 'host_0_wr', 'stream_desc_1_rd', 'monbus_wr_2_wr', 'stream_apb_0_rd', 'stream_apb_0_wr', 'harness_csr_1_rd', 'harness_csr_1_wr', 'desc_ram_2_rd', 'desc_ram_2_wr', 'stream_err_3_rd', 'stream_err_3_wr', 'debug_sram_4_rd', 'debug_sram_4_wr', 'dma_axil_5_rd', 'dma_axil_5_wr']
 BLOCK_READY_PATH = "u_host_adapter.u_timing_wrapper_rd"

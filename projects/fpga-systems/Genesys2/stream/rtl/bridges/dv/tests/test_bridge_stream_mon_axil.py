@@ -28,8 +28,15 @@ from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
-# Import generated testbench class
-from projects.fpga-systems.Genesys2.stream.rtl.bridges.dv.tbclasses.bridge_stream_mon_axil_tb import BridgeStreamMonAxilTB
+# Import the testbench class. NOT as a dotted package path: the area
+# lives under projects/fpga-systems/, and 'fpga-systems' contains a
+# hyphen, which is not a legal Python identifier -- 'from
+# projects.fpga-systems....' is a SyntaxError, so these five test files
+# could not even be collected. Put the tbclasses dir on sys.path and
+# import the module by its own name instead.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                os.pardir, 'tbclasses'))
+from bridge_stream_mon_axil_tb import BridgeStreamMonAxilTB  # noqa: E402
 
 
 # ============================================================================
