@@ -213,10 +213,36 @@ LINT_WAIVERS ?= -Wno-MULTIDRIVEN -Wno-UNUSED -Wno-UNDRIVEN -Wno-WIDTH \
 # gate did not. A gate that cannot elaborate the design cannot gate it.
 LINT_UNROLL ?=
 
+# ------------------------------------------------------------------------------
+# Flattened, DEDUPLICATED source list -- what verilator must actually be given.
+# ------------------------------------------------------------------------------
+# Filelists compose with `-f`, and several of them reach the same sub-filelist
+# down more than one path. Handed a raw `-f`, verilator therefore compiles the
+# same source twice: 66 filelists in this repo self-duplicate, amba_all.f at 322
+# redundant entries out of 700, axi4_intf_master_observer.f at 69 of 119.
+#
+# That is not cosmetic. Two copies of one package means two distinct C++ types
+# for one typedef, and the failure surfaces as `no match for operator=` between
+# a struct and itself -- which reads exactly like an RTL type error and is not.
+# A whole debugging session was spent on that, on both sides of a two-agent
+# handoff, before anyone suspected the invocation instead of the code.
+#
+# The cocotb path was always immune because it resolves sources through
+# TBClasses.shared.filelist_utils.get_sources_from_filelist(), which dedupes.
+# `make lint` was the one verilator consumer that did not, so lint and sim were
+# compiling different designs.
+#
+# bin/flatten_filelist.py expands the -f tree and dedupes (keeping first
+# occurrence, so compile order is preserved). Verified byte-identical to the
+# helper's closure on stream build-mon: 158 sources, 158 unique.
+FLATTEN_FILELIST ?= $(RDS_ROOT)/bin/flatten_filelist.py
+FLAT_FILELIST    ?= $(SELF_DIR)/.flat_filelist.f
+
 include $(RDS_ROOT)/make/fpga_board.mk
 
 .DEFAULT_GOAL := help
 .PHONY: help project synth bitstream bitstream-ila lint sim run seq-list \
+        flat-filelist \
         utilization timing clean clean-all targets \
         $(addprefix tcl-,$(TCL_RUNNABLE)) $(addprefix run-,$(RUN_NAMES)) \
         $(addprefix seq-,$(SEQ_NAMES)) $(addprefix host-,$(HOST_NAMES))
@@ -334,12 +360,22 @@ LINT_GENERICS = \
     $(if $(MON_ERROR_FLAVOR),-GMON_ERROR_FLAVOR=$(MON_ERROR_FLAVOR)) \
     $(if $(STREAM_CLKOUT0_DIVIDE),-GCLKOUT0_DIVIDE=$(STREAM_CLKOUT0_DIVIDE))
 
-lint: lint-decl-order   ## verilator --lint-only of the whole harness (fast, pre-Vivado)
+lint: lint-decl-order flat-filelist  ## verilator --lint-only of the whole harness (fast, pre-Vivado)
 	@[ -n "$(TOP)" ] || (echo "TOP is not set -- cannot lint." && false)
-	@[ -f "$(FILELIST)" ] || (echo "FILELIST not found: $(FILELIST)" && false)
 	@echo "[lint] $(TOP) $(if $(strip $(LINT_GENERICS)),[$(strip $(LINT_GENERICS))],[RTL defaults])"
-	@$(VERILATOR) --lint-only --top-module $(TOP) -f $(FILELIST) \
+	@$(VERILATOR) --lint-only --top-module $(TOP) -f $(FLAT_FILELIST) \
 	    $(LINT_GENERICS) $(LINT_DEFINES) $(LINT_WAIVERS) $(LINT_UNROLL)
+
+flat-filelist:      ## Expand + dedupe FILELIST into $(FLAT_FILELIST) (see above)
+	@[ -f "$(FILELIST)" ] || (echo "FILELIST not found: $(FILELIST)" && false)
+	@[ -f "$(FLATTEN_FILELIST)" ] || (echo "missing $(FLATTEN_FILELIST)" && false)
+	@$(PYTHON) $(FLATTEN_FILELIST) $(FILELIST) --resolve-env --absolute-paths \
+	    -o $(FLAT_FILELIST) >/dev/null \
+	  || (echo "could not flatten $(FILELIST) -- refusing to lint a raw -f list" && false)
+	@n=$$(grep -cvE '^[[:space:]]*#|^[[:space:]]*$$|^\+incdir|^-I' $(FLAT_FILELIST)); \
+	 u=$$(grep -vE '^[[:space:]]*#|^[[:space:]]*$$|^\+incdir|^-I' $(FLAT_FILELIST) | sort -u | wc -l); \
+	 [ "$$n" = "$$u" ] || (echo "flattened list still has duplicates ($$n entries, $$u unique)" && false); \
+	 echo "[flat] $$n sources, deduplicated -> $(FLAT_FILELIST)"
 
 lint-decl-order:    ## signals must be declared before use (implicit 1-bit nets)
 	@[ -f "$(DECL_ORDER_CHECK)" ] || (echo "missing $(DECL_ORDER_CHECK)" && false)
@@ -511,5 +547,6 @@ clean-build:        ## Remove cosim Verilator build trees (skips live runs)
 
 clean-all: clean clean-build   ## clean + sim builds + logs + Python bytecode
 	@echo "[clean-all] $(FLOW)"
+	@rm -f $(FLAT_FILELIST)
 	@find $(SELF_DIR) -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	@find $(SELF_DIR) -type f -name "*.pyc" -delete 2>/dev/null || true

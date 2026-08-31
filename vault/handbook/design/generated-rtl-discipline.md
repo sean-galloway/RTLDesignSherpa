@@ -105,11 +105,29 @@ So: resolve through the Python helper, the way the build does —
     s, inc = G(repo_root=os.environ['REPO_ROOT'], filelist_path='<path>.f')
     print('\n'.join(s))"
 
-— and never hand a bare `-f` to verilator for anything past `--lint-only`. A
-standalone verilator invocation is exactly the shortcut a debugging session
-reaches for, which is what makes this worth writing down. Fixing it at the
-source (dedupe in the filelist graph, or a `--check-dup` in
-`bin/filelist_registry.py`) is open work.
+— and never hand a bare `-f` to verilator, `--lint-only` included. The earlier
+wording here said "for anything past `--lint-only`"; that was too generous.
+`make lint` was handed a raw `-f` and reported 81 MODDUP warnings on the stream
+harness, i.e. the lint gate and the simulator were compiling different designs.
+
+**The flow now does this for you (2026-08-31).** `make/fpga_flow.mk` grew a
+`flat-filelist` target: it runs `bin/flatten_filelist.py --resolve-env
+--absolute-paths`, which expands the `-f` tree and dedupes keeping first
+occurrence, so compile order survives. `lint` depends on it and passes the
+flattened list. The target FAILS rather than falls back if the flatten does not
+happen, and asserts the result actually is duplicate-free -- a silent fallback
+to the raw list would restore the bug invisibly. Verified byte-identical to the
+Python helper's closure: stream build-mon 158 sources / 158 unique, MODDUP
+81 -> 0; pumice build-perf 134.
+
+`bin/flatten_filelist.py` already existed and already deduped. Nobody had wired
+it into the flow, which is the more useful lesson: check for the tool before
+writing the workaround.
+
+Still open: fixing it at the SOURCE, so the graph does not self-duplicate in the
+first place (dedupe in the filelist graph, or a `--check-dup` in
+`bin/filelist_registry.py`). The flatten step makes every make-driven consumer
+safe; it does nothing for someone typing verilator by hand.
 
 ## Regenerate into the directory the FILELIST consumes
 
