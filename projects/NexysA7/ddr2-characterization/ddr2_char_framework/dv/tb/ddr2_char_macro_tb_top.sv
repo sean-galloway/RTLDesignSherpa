@@ -32,15 +32,18 @@ module ddr2_char_macro_tb_top
     parameter int PAGE_POLICY      = 1,
 
     parameter int DFI_RATE         = 2,
-    // Physical DRAM device x-width. The Nexys A7 carries an MT47H64M16 (x16),
-    // and matching it here is what makes the sim's burst framing identical to
-    // the board's: it sets BL_SHIFT/BYTE_OFFSET_WIDTH inside pumice, and hence
-    // how many AXI beats make one DRAM burst. Left at the 64-bit default the
-    // sim silently models a device the board does not have.
-    parameter int DRAM_DEVICE_WIDTH = 64,
+    // BOARD GEOMETRY. The Nexys A7 carries an MT47H64M16 -- x16 -- behind a
+    // 32-bit pumice DRAM beat. Both numbers matter and they are NOT the same:
+    //   BL_SHIFT          = clog2(beat/device)  scales JEDEC BL into pumice beats
+    //   BYTE_OFFSET_WIDTH = clog2(device/8)     sets the column granularity
+    // Setting only one of them models a device the board does not have. The
+    // DFI bus widths below derive from the BEAT width, not the AXI width --
+    // they are different quantities and only coincided while beat == AXI.
+    parameter int DRAM_BEAT_WIDTH  = 32,
+    parameter int DRAM_DEVICE_WIDTH = 16,
     parameter int DRAM_BL          = 8,
-    parameter int DFI_DATA_WIDTH   = AXI_DATA_WIDTH * DFI_RATE,
-    parameter int DFI_STRB_WIDTH   = AXI_STRB_WIDTH * DFI_RATE,
+    parameter int DFI_DATA_WIDTH   = DRAM_BEAT_WIDTH * DFI_RATE,
+    parameter int DFI_STRB_WIDTH   = (DRAM_BEAT_WIDTH / 8) * DFI_RATE,
     parameter int DFI_EN_WIDTH     = DFI_RATE,
     parameter int DFI_VALID_WIDTH  = DFI_RATE,
     parameter int DFI_ADDR_BUS_W   = ROW_WIDTH * DFI_RATE,
@@ -203,6 +206,7 @@ module ddr2_char_macro_tb_top
         .ROW_WIDTH       (ROW_WIDTH),
         .COL_WIDTH       (COL_WIDTH),
         .DFI_RATE        (DFI_RATE),
+        .DRAM_BEAT_WIDTH   (DRAM_BEAT_WIDTH),
         .DRAM_DEVICE_WIDTH (DRAM_DEVICE_WIDTH),
         .DRAM_BL         (DRAM_BL),
         .PAGE_POLICY     (PAGE_POLICY),

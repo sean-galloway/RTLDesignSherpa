@@ -88,6 +88,12 @@ DFI_RATE = 2        # must track ddr2_char_macro_tb_top's DFI_RATE
 # burst". Commit 72a73fe2 moved DDR2 to BL8 for the on-silicon read fix and did
 # not update them, so every shape has been a sub-burst ever since.
 DRAM_BL = 8         # must track ddr2_char_macro_tb_top's DRAM_BL
+# The board carries an MT47H64M16 -- x16, 2 bytes per device word. The RTL
+# decodes the column address at DEVICE granularity (BYTE_OFFSET_WIDTH), so
+# the model must be told the same or it stores at beat granularity and the
+# two disagree about where a write landed.
+DRAM_DEVICE_BYTES = 2   # x16 device
+DRAM_BEAT_BYTES   = 4   # 32-bit pumice DRAM beat
 BURST_LEN_MULTIPLE = 8
 
 
@@ -212,7 +218,9 @@ async def cocotb_test_ddr2_char_macro(dut):
     test_type = os.environ.get("TEST_TYPE", "smoke")
     mem_type  = os.environ.get("MEM_TYPE", "DDR2").upper()
 
-    tb = DDR2LPDDR2TopTB(dut, num_ranks=1, dram_bl=DRAM_BL)
+    tb = DDR2LPDDR2TopTB(dut, num_ranks=1, dram_bl=DRAM_BL,
+                            dram_device_bytes=DRAM_DEVICE_BYTES,
+                            dram_beat_width=DRAM_BEAT_BYTES * 8)
     await _drive_engine_idle(dut)
     # Drain the reader-engine debug FIFO via the framework's GAXISlave.
     # Each received packet carries (actual, expected, mismatch) for one
@@ -874,7 +882,9 @@ def test_ddr2_char_macro_ooo_pacing_schmoo(
 @cocotb.test(timeout_time=100, timeout_unit="us")
 async def cocotb_test_ddr2_char_csr_probe(dut):
     """Program, 1 write, 1 read. Isolates the CSR path from the DRAM path."""
-    tb = DDR2LPDDR2TopTB(dut, num_ranks=1, dram_bl=DRAM_BL)
+    tb = DDR2LPDDR2TopTB(dut, num_ranks=1, dram_bl=DRAM_BL,
+                            dram_device_bytes=DRAM_DEVICE_BYTES,
+                            dram_beat_width=DRAM_BEAT_BYTES * 8)
     await _drive_engine_idle(dut)
     await tb.reset(mem_type="DDR2", init_complete_delay=20)
     tb.init_register_map()
@@ -1015,7 +1025,9 @@ async def _watch_axi(dut, counts):
 async def cocotb_test_ddr2_char_1wr1rd(dut):
     """Program, then ONE write burst and ONE read burst, watching the masters."""
     import collections
-    tb = DDR2LPDDR2TopTB(dut, num_ranks=1, dram_bl=DRAM_BL)
+    tb = DDR2LPDDR2TopTB(dut, num_ranks=1, dram_bl=DRAM_BL,
+                            dram_device_bytes=DRAM_DEVICE_BYTES,
+                            dram_beat_width=DRAM_BEAT_BYTES * 8)
     await _drive_engine_idle(dut)
     await tb.reset(mem_type="DDR2", init_complete_delay=20)
     tb.init_register_map()
@@ -1066,6 +1078,15 @@ async def cocotb_test_ddr2_char_1wr1rd(dut):
 
     mem = int.from_bytes(bytes(tb.peek_memory(BASE, 8)), "little")
     tb.log.info("memory @ 0x%04X = 0x%016X", BASE, mem)
+    # Did the data land ANYWHERE? Distinguishes "controller never wrote" from
+    # "model and RTL disagree about the address".
+    _hits = []
+    for _a in range(0, 0x8000, 8):
+        if any(bytes(tb.peek_memory(_a, 8))):
+            _hits.append(hex(_a))
+            if len(_hits) >= 6:
+                break
+    tb.log.info("NONZERO memory at: %s", _hits or "NOWHERE")
     assert mem != 0, (
         f"write completed ({counts['aw']} AW, {counts['w']} W, {counts['b']} B) "
         f"but memory @ {BASE:#x} is still zero -- the beats reached pumice's "
