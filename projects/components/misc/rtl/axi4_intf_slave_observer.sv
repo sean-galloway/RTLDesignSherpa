@@ -16,7 +16,7 @@
 //   master ports) and the fabric. Each (read, write) port pair gets
 //   wrapped by axi4_slave_rd_mon / axi4_slave_wr_mon in pass-through
 //   mode. All N monbus streams are merged by monbus_arbiter and fed
-//   into monbus_axil_axi4_group, exposing:
+//   into monbus_axil4_axi4_group, exposing:
 //
 //     - s_axil_*  : slave-read port for the host CPU's IRQ drain
 //                   (3-beat-per-record slicing)
@@ -67,9 +67,9 @@ module axi4_intf_slave_observer
     parameter int USE_COMPRESSION       = 0,
 
     // ---- Monbus egress: which dump master this instance exposes ----------
-    // 0 = monbus_axil_axi4_group -> AXI4 burst master (m_axi_*), for a
+    // 0 = monbus_axil4_axi4_group -> AXI4 burst master (m_axi_*), for a
     //     memory-ring dump.
-    // 1 = monbus_axil_axil_group -> AXIL write master (m_axil_*), which is
+    // 1 = monbus_axil4_axil4_group -> AXIL write master (m_axil_*), which is
     //     what the STREAM harness's tally path consumes.
     // BOTH port sets are always declared so the module's port list does not
     // change with the parameter; the unused set is driven to zero. A port
@@ -969,7 +969,7 @@ module axi4_intf_slave_observer
     );
 
     // =================================================================
-    // Output stage: monbus_axil_axi4_group
+    // Output stage: monbus_axil4_axi4_group
     //   - AXIL slave-read for CPU IRQ drain
     //   - AXI4 burst master-write for memory-ring dump
     // =================================================================
@@ -1010,7 +1010,7 @@ module axi4_intf_slave_observer
         assign m_axi_wdata = '0; assign m_axi_wstrb = '0;
         assign m_axi_wlast = 1'b0; assign m_axi_wuser = '0;
         assign m_axi_wvalid = 1'b0; assign m_axi_bready = 1'b0;
-    monbus_axil_axil_group #(
+    monbus_axil4_axil4_group #(
             .FIFO_DEPTH_ERR        (FIFO_DEPTH_ERR),
             .FIFO_DEPTH_WRITE      (FIFO_DEPTH_WRITE),
             .ADDR_WIDTH            (ADDR_WIDTH),
@@ -1110,7 +1110,7 @@ module axi4_intf_slave_observer
         assign m_axil_awprot = '0; assign m_axil_wvalid = 1'b0;
         assign m_axil_wdata = '0; assign m_axil_wstrb = '0;
         assign m_axil_bready = 1'b0;
-    monbus_axil_axi4_group #(
+    monbus_axil4_axi4_group #(
             .FIFO_DEPTH_ERR        (FIFO_DEPTH_ERR),
             .FIFO_DEPTH_WRITE      (FIFO_DEPTH_WRITE),
             .ADDR_WIDTH            (ADDR_WIDTH),
