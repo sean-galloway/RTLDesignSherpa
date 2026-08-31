@@ -25,7 +25,7 @@
 
 ## Top-Level Architecture
 
-The APB Crossbar consists of three main functional layers:
+The APB Crossbar has three functional layers:
 
 ### Figure 3.1: APB Crossbar Block Diagram
 
@@ -39,9 +39,9 @@ The APB Crossbar consists of three main functional layers:
 
 Each APB slave instance:
 - Accepts incoming APB transactions from a master
-- Converts APB protocol to internal command/response format
-- Provides transaction buffering
-- Generates appropriate response timing
+- Converts the APB protocol to the internal command/response format
+- Buffers the transaction
+- Generates the response timing
 
 **Interface:**
 - Input: Complete APB slave signals from external master
@@ -88,7 +88,7 @@ apbx_xbar_MxN
 
 ## Data Path Width
 
-All data paths maintain consistent width:
+Data path widths are consistent throughout:
 
 | Parameter | Default | Range | Description |
 |-----------|---------|-------|-------------|

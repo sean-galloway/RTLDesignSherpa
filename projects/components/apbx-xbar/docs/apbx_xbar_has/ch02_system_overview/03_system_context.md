@@ -25,7 +25,7 @@
 
 ## System Context Diagram
 
-The following diagram shows the APB Crossbar in a typical SoC context:
+The APB Crossbar in a typical SoC context:
 
 ### Figure 2.1: System Context Diagram
 
@@ -35,7 +35,7 @@ The following diagram shows the APB Crossbar in a typical SoC context:
 
 ### Master-Side Connections
 
-The APB Crossbar connects to upstream APB masters:
+The crossbar's master ports face upstream APB masters:
 
 | Master Type | Typical Source | Connection Point |
 |-------------|----------------|------------------|
@@ -47,7 +47,7 @@ The APB Crossbar connects to upstream APB masters:
 
 ### Slave-Side Connections
 
-The crossbar connects to downstream APB peripherals:
+The crossbar's slave ports face downstream APB peripherals:
 
 | Slave Type | Address Offset | Connection Point |
 |------------|----------------|------------------|

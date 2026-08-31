@@ -31,7 +31,7 @@
 
 ## Overview
 
-This document details the two core mechanisms of the APB Crossbar:
+This chapter details the two core mechanisms of the APB Crossbar:
 1. **Address Decode** - How incoming addresses map to specific slaves
 2. **Arbitration** - How multiple masters share access to the same slave
 
@@ -98,13 +98,11 @@ the decode-miss scenarios in `test_apbx_xbar_1to4.py`,
 
 ### Address Decode Flow Diagram
 
-The following diagram shows a concrete example of how address 0x10023456 routes to Slave 2:
+The following diagram walks a concrete address, 0x10023456, through the decode to Slave 2:
 
 ### Figure 2.1: Address Decode Flow
 
 ![Address Decode Flow](../assets/png/address_decode_flow.png)
-
-The figure shows step-by-step routing of address 0x10023456 to Slave 2.
 
 ### Decode Example Walkthrough
 
@@ -129,7 +127,7 @@ slave_index = offset[17:16]        // S=4 -> 2 bits
 The crossbar checks all slave ranges in parallel:
 - Slave 0: 0x00000 - 0x0FFFF → NO MATCH
 - Slave 1: 0x10000 - 0x1FFFF → NO MATCH
-- **Slave 2: 0x20000 - 0x2FFFF → MATCH** ✓
+- **Slave 2: 0x20000 - 0x2FFFF → MATCH**
 - Slave 3: 0x30000 - 0x3FFFF → NO MATCH
 
 **Step 4: Route to Arbiter**
@@ -501,9 +499,9 @@ checklist referenced one.
 ## Next Steps
 
 - See [Architecture](01_architecture.md) for top-level design overview
-- See [PRD.md](../../PRD.md) for complete specification
-- See [CLAUDE.md](../../CLAUDE.md) for integration guidance
-- See [README.md](../../README.md) for quick start guide
+- See [PRD.md](../../../PRD.md) for complete specification
+- See [CLAUDE.md](../../../CLAUDE.md) for integration guidance
+- See [README.md](../../../README.md) for quick start guide
 
 ---
 

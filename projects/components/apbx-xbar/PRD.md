@@ -34,7 +34,7 @@
 
 ## 1. Executive Summary
 
-The **APB Crossbar** is a parametric APB interconnect generator that creates configurable MxN crossbar fabrics for connecting multiple APB masters to multiple APB slaves. Built using proven `apb4_slave` and `apb4_master` modules, the crossbar provides independent round-robin arbitration per slave and automatic address-based routing.
+The **APB Crossbar** is a parametric generator for configurable MxN APB interconnect fabrics connecting multiple APB masters to multiple APB slaves. It is built from the proven `apb4_slave` and `apb4_master` modules, with independent round-robin arbitration per slave and automatic address-based routing.
 
 ### 1.1 Quick Stats
 
@@ -211,7 +211,7 @@ the better pattern.
 
 ### FR-1: Arbitrary MxN Configuration
 **Priority:** P0 (Critical)
-**Status:** ✅ Implemented and verified
+**Status:** Implemented and verified
 
 **Description:** Generate crossbar for any M masters and N slaves (up to 16x16)
 
@@ -219,7 +219,7 @@ the better pattern.
 
 ### FR-2: Round-Robin Arbitration
 **Priority:** P0 (Critical)
-**Status:** ✅ Implemented and verified
+**Status:** Implemented and verified
 
 **Description:** Fair per-slave arbitration with rotating master priority
 
@@ -227,7 +227,7 @@ the better pattern.
 
 ### FR-3: Address-Based Routing
 **Priority:** P0 (Critical)
-**Status:** ✅ Implemented and verified
+**Status:** Implemented and verified
 
 **Description:** Automatic slave selection based on address ranges
 
@@ -235,7 +235,7 @@ the better pattern.
 
 ### FR-4: Back-to-Back Transactions
 **Priority:** P1 (High)
-**Status:** ✅ Implemented and verified
+**Status:** Implemented and verified
 
 **Description:** Consecutive transactions are accepted with no
 master-side idle cycles required. They do NOT overlap inside the
@@ -248,7 +248,7 @@ SETUP-to-PREADY latency of 9 or 10 (HAS 5.1/5.2).
 
 ### FR-5: Configurable Address Map
 **Priority:** P1 (High)
-**Status:** ✅ Implemented and verified
+**Status:** Implemented and verified
 
 **Description:** BASE_ADDR parameter sets base of address map
 
@@ -385,12 +385,12 @@ withdrawn rather than reconciled.
 
 | Test | Transactions | Status | Coverage |
 |------|--------------|--------|----------|
-| **test_apbx_xbar_1to1** | 100+ | ✅ Pass | Basic connectivity |
-| **test_apbx_xbar_2to1** | 130+ | ✅ Pass | Arbitration stress |
-| **test_apbx_xbar_1to4** | 200+ | ✅ Pass | Address decode |
-| **test_apbx_xbar_2to4** | 350+ | ✅ Pass | Full crossbar stress |
-| **test_apbx_xbar_2to2_mixed** | 8 directed | ✅ Pass | All four APB4/APB5 pairings, sideband gating, decode miss, structural pin check |
-| **test_apbx_xbar_timing** | 2 variants | ✅ Pass | Published latency/cadence figures, both variant classes |
+| **test_apbx_xbar_1to1** | 100+ | Pass | Basic connectivity |
+| **test_apbx_xbar_2to1** | 130+ | Pass | Arbitration stress |
+| **test_apbx_xbar_1to4** | 200+ | Pass | Address decode |
+| **test_apbx_xbar_2to4** | 350+ | Pass | Full crossbar stress |
+| **test_apbx_xbar_2to2_mixed** | 8 directed | Pass | All four APB4/APB5 pairings, sideband gating, decode miss, structural pin check |
+| **test_apbx_xbar_timing** | 2 variants | Pass | Published latency/cadence figures, both variant classes |
 
 **Overall:** 100% passing (9/9), >750 transactions plus the directed
 mixed-version and timing checks. `2to2_mixed` also has a formal harness

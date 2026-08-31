@@ -31,7 +31,7 @@
 
 ## Overview
 
-The APB Crossbar uses **parametric RTL generation** to create custom MxN configurations. While five pre-generated variants exist (1to1, 2to1, 1to4, 2to4, 2to2_mixed), the Python-based generator enables creation of any arbitrary MxN crossbar up to 16x16.
+Five pre-generated variants (1to1, 2to1, 1to4, 2to4, 2to2_mixed) cover the common configurations. For anything else, the Python-based generator produces any arbitrary MxN crossbar up to 16x16.
 
 **Philosophy:**
 - Pre-generated variants for common use cases (fast integration)
@@ -84,17 +84,17 @@ python generate_xbars.py
 **Output:**
 ```
 Generating 1-to-1 crossbar...
-  ✅ apbx_xbar_1to1.sv
+  apbx_xbar_1to1.sv
 Generating 2-to-1 crossbar...
-  ✅ apbx_xbar_2to1.sv
+  apbx_xbar_2to1.sv
 Generating 1-to-4 crossbar...
-  ✅ apbx_xbar_1to4.sv
+  apbx_xbar_1to4.sv
 Generating 2-to-4 crossbar...
-  ✅ apbx_xbar_2to4.sv
+  apbx_xbar_2to4.sv
 Generating 2-to-2_mixed crossbar...
-  ✅ apbx_xbar_2to2_mixed.sv
+  apbx_xbar_2to2_mixed.sv
 
-✅ Generated 5 crossbar variants
+Generated 5 crossbar variants
 ```
 
 ### Generate Custom Variant
@@ -107,7 +107,7 @@ python generate_xbars.py --masters 3 --slaves 6
 **Output:**
 ```
 Generating 3-to-6 crossbar...
-✅ Generated apbx_xbar_3to6.sv
+Generated apbx_xbar_3to6.sv
 ```
 
 ### Generate with Custom Base Address
@@ -120,7 +120,7 @@ python generate_xbars.py --masters 4 --slaves 8 --base-addr 0x80000000
 **Output:**
 ```
 Generating 4-to-8 crossbar...
-✅ Generated apbx_xbar_4to8.sv
+Generated apbx_xbar_4to8.sv
 
 Address Map:
   Slave 0: [0x80000000, 0x8000FFFF]
@@ -767,7 +767,7 @@ for masters, slaves, base_addr in variants:
         base_addr=base_addr,
         output_file=f"xbar_{masters}to{slaves}_0x{base_addr:08X}.sv"
     )
-    print(f"✅ Generated xbar_{masters}to{slaves}_0x{base_addr:08X}.sv")
+    print(f"Generated xbar_{masters}to{slaves}_0x{base_addr:08X}.sv")
 ```
 
 ---
@@ -819,9 +819,9 @@ python generate_xbars.py
 
 - [Architecture Overview](01_architecture.md)
 - [Address Decode and Arbitration](02_address_and_arbitration.md)
-- [PRD.md](../../PRD.md) - Complete specification
-- [CLAUDE.md](../../CLAUDE.md) - Integration guidance
-- [README.md](../../README.md) - Quick start guide
+- [PRD.md](../../../PRD.md) - Complete specification
+- [CLAUDE.md](../../../CLAUDE.md) - Integration guidance
+- [README.md](../../../README.md) - Quick start guide
 
 ---
 

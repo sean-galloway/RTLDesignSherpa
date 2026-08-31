@@ -51,7 +51,7 @@
 
 ### Block Diagrams
 
-Block diagrams in this document use:
+Block diagrams here use:
 
 - **Rectangles** for functional blocks
 - **Arrows** showing data flow direction
@@ -60,7 +60,7 @@ Block diagrams in this document use:
 
 ### Address Notation
 
-Addresses are shown in hexadecimal with the `0x` prefix:
+Addresses appear in hexadecimal with the `0x` prefix:
 
 - `0x1000_0000` - Underscores separate 16-bit groups for readability
 - `[31:0]` - Bit range notation (MSB:LSB)
@@ -72,7 +72,7 @@ Tables are numbered sequentially within each chapter. A colon (`:`) followed by 
 
 ## Requirement References
 
-When referencing requirements from the PRD:
+Requirements from the PRD are referenced as:
 
 - **FR-n** - Functional Requirement number n
 - **PR-n** - Performance Requirement number n

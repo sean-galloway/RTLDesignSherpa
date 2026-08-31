@@ -36,13 +36,13 @@
 ### Clock Requirements
 
 **Single Clock Domain:**
-- All crossbar logic operates on pclk rising edge
+- All crossbar logic operates on the pclk rising edge
 - All APB signals sampled/driven synchronous to pclk
 - No internal clock generation or division
 
 **Frequency:**
 - No minimum frequency requirement
-- Maximum frequency determined by critical path
+- Maximum frequency set by the critical path
 - Typical: 100-250 MHz (depends on target technology)
 
 **Duty Cycle:**
@@ -129,9 +129,9 @@ Traffic
 ### Clock Domain Crossing
 
 If masters or slaves are in different clock domains:
-- Insert appropriate CDC logic external to crossbar
-- Crossbar assumes single clock domain
-- Consider APB clock bridge if needed
+- Insert CDC logic external to the crossbar
+- The crossbar assumes a single clock domain
+- Consider an APB clock bridge if needed
 
 ### Clock Gating
 

@@ -31,7 +31,7 @@
 
 ## Overview
 
-The APB Crossbar is a parametric interconnect that connects M APB masters to N APB slaves with automatic address-based routing and per-slave round-robin arbitration. Built from proven `apb4_slave` and `apb4_master` components, the crossbar provides a clean, scalable solution for SoC peripheral interconnect.
+The APB Crossbar is a parametric interconnect that connects M APB masters to N APB slaves with automatic address-based routing and per-slave round-robin arbitration. It is a pure composition of the proven `apb4_slave` and `apb4_master` components — there is no new protocol logic in the crossbar itself.
 
 **Key Features:**
 - Arbitrary MxN configuration (up to 16x16)
@@ -50,8 +50,6 @@ The following diagram shows a 2x4 crossbar configuration connecting 2 masters (C
 ### Figure 1.1: APB Crossbar Top-Level Architecture
 
 ![APB Crossbar Architecture (2x4 Example)](../assets/png/apbx_xbar_architecture.png)
-
-The figure shows 2 masters connected to 4 slaves via master-side protocol conversion, internal arbitration logic, and slave-side protocol conversion.
 
 ---
 
@@ -266,9 +264,9 @@ within two days of being reconciled.
 ## Next Steps
 
 - See [Address Decode and Arbitration](02_address_and_arbitration.md) for detailed operation examples
-- See [PRD.md](../../PRD.md) for complete specification
-- See [CLAUDE.md](../../CLAUDE.md) for integration guidance
-- See [README.md](../../README.md) for quick start guide
+- See [PRD.md](../../../PRD.md) for complete specification
+- See [CLAUDE.md](../../../CLAUDE.md) for integration guidance
+- See [README.md](../../../README.md) for quick start guide
 
 ---
 

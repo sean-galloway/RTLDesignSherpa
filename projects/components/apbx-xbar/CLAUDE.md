@@ -32,10 +32,10 @@
 ## Quick Context
 
 **What:** APB Crossbar Generator - Parametric APB interconnect for connecting M masters to N slaves
-**Status:** ✅ Production Ready (all tests passing)
+**Status:** Production Ready (all tests passing)
 **Your Role:** Help users generate, integrate, and customize APB crossbars
 
-**📖 Complete Specification:** `projects/components/apbx-xbar/PRD.md` ← **Always reference this for technical details**
+**Complete Specification:** `projects/components/apbx-xbar/PRD.md` ← **Always reference this for technical details**
 
 ---
 
@@ -48,8 +48,8 @@
 2. **Python generator** (`bin/generate_xbars.py`) for custom configurations
 
 **When users ask for crossbar:**
-- ✅ **Check if pre-generated variant exists first**
-- ✅ **Only suggest generation if custom size needed**
+- **Check if pre-generated variant exists first**
+- **Only suggest generation if custom size needed**
 
 **Decision Tree:**
 ```
@@ -73,9 +73,9 @@ Slave 2: BASE_ADDR + 0x0002_0000 → 0x0002_FFFF
 
 **If user asks for different sizes:**
 ```
-❌ WRONG: "Let me modify the generator to support custom sizes per slave"
+WRONG: "Let me modify the generator to support custom sizes per slave"
 
-✅ CORRECT: "Current design uses fixed 64KB per slave. You can:
+CORRECT: "Current design uses fixed 64KB per slave. You can:
 1. Use BASE_ADDR parameter to shift entire map
 2. For custom sizes, modify generator's addr_offset calculation
 3. Or use multiple crossbars with different BASE_ADDR values"
@@ -223,7 +223,7 @@ apbx_xbar_1to4 #(
 - Timer: 0x1002_0000 - 0x1002_FFFF
 - SPI: 0x1003_0000 - 0x1003_FFFF
 
-**📖 See:** `PRD.md` Section 11.1
+**See:** `PRD.md` Section 11.1
 
 ### Q: "I need CPU and DMA to access peripherals. Which crossbar?"
 
@@ -253,7 +253,7 @@ apbx_xbar_2to4 #(
 
 **Key feature:** Round-robin arbitration per slave ensures fair access between CPU and DMA.
 
-**📖 See:** `PRD.md` Section 11.2
+**See:** `PRD.md` Section 11.2
 
 ### Q: "What if I need 3 masters and 8 slaves?"
 
@@ -279,7 +279,7 @@ apbx_xbar_3to8 #(
 );
 ```
 
-**📖 See:** `PRD.md` Section 8
+**See:** `PRD.md` Section 8
 
 ### Q: "How does arbitration work?"
 
@@ -304,7 +304,7 @@ Transaction 4: M0 and M1 request → M0 granted (rotated)
   transfer for 1to1/1to4, 11 for the arbitrated variants (2to1, 2to4,
   2to2_mixed), PREADY-to-PREADY (see HAS 5.1/5.2)
 
-**📖 See:** `PRD.md` Section 3.3
+**See:** `PRD.md` Section 3.3
 
 ### Q: "Can I change the address map?"
 
@@ -327,7 +327,7 @@ apbx_xbar_1to4 #(.BASE_ADDR(32'h8000_0000)) u_xbar2 (...);
 2. Modify generator's `addr_offset` calculation
 3. Use address masking in slaves
 
-**📖 See:** `PRD.md` Section 3.2
+**See:** `PRD.md` Section 3.2
 
 ### Q: "How do I run tests?"
 
@@ -357,10 +357,10 @@ gtkwave waves.vcd
 - **test_apbx_xbar_timing**: both variant classes -- asserts the published
   latency, cadence and per-path breakdown so the numbers cannot drift
 
-**All tests passing (9/9) ✅** -- and `2to2_mixed` additionally has a formal
+**All tests passing (9/9)** -- and `2to2_mixed` additionally has a formal
 harness at `formal/apbx_xbar/apbx_xbar_2to2_mixed/`.
 
-**📖 See:** `PRD.md` Section 10
+**See:** `PRD.md` Section 10
 
 ---
 
@@ -461,41 +461,41 @@ apbx_xbar_1to4 u_periph_xbar1 (
 
 ## Anti-Patterns to Catch
 
-### ❌ Anti-Pattern 1: Generating When Pre-Generated Exists
+### Anti-Pattern 1: Generating When Pre-Generated Exists
 
 ```
-❌ WRONG:
+WRONG:
 User: "I need a 2×4 crossbar"
 You: "Let me generate that for you..."
 python generate_xbars.py --masters 2 --slaves 4
 
-✅ CORRECTED:
+CORRECTED:
 "Use the pre-generated apbx_xbar_2to4.sv in the rtl/ directory.
 No generation needed!"
 ```
 
-### ❌ Anti-Pattern 2: Assuming Custom Per-Slave Sizes
+### Anti-Pattern 2: Assuming Custom Per-Slave Sizes
 
 ```
-❌ WRONG:
+WRONG:
 User: "Can I make slave 0 256KB and slave 1 4KB?"
 You: "Sure, let me modify the parameters..."
 
-✅ CORRECTED:
+CORRECTED:
 "Current design uses fixed 64KB per slave. For custom sizes:
 1. Modify generator's addr_offset calculation
 2. Or use multiple crossbars with different BASE_ADDR
 3. Or implement address masking in slaves"
 ```
 
-### ❌ Anti-Pattern 3: Not Mentioning Address Map
+### Anti-Pattern 3: Not Mentioning Address Map
 
 ```
-❌ WRONG:
+WRONG:
 User: "How do I integrate the crossbar?"
 You: *Shows port connections only*
 
-✅ CORRECTED:
+CORRECTED:
 "Here's the integration with address map:
 apbx_xbar_1to4 #(.BASE_ADDR(32'h1000_0000)) u_xbar (...);
 
@@ -506,14 +506,14 @@ Address map:
 - Slave 3: 0x1003_0000 - 0x1003_FFFF"
 ```
 
-### ❌ Anti-Pattern 4: Forgetting About Wrappers
+### Anti-Pattern 4: Forgetting About Wrappers
 
 ```
-❌ WRONG:
+WRONG:
 User: "I need a quick 10×10 crossbar"
 You: "Run the generator with --masters 10 --slaves 10"
 
-✅ CORRECTED:
+CORRECTED:
 "We have pre-configured wrappers in rtl/wrappers/:
 - apbx_xbar_1to1_wrap.sv, apbx_xbar_2to1_wrap.sv,
   apbx_xbar_1to4_wrap.sv, apbx_xbar_2to4_wrap.sv
@@ -532,10 +532,10 @@ m10_s10 wrapper in the tree."
 ### Issue: Address Not Routing Correctly
 
 **Check in order:**
-1. ✅ BASE_ADDR parameter set correctly?
-2. ✅ Address within slave's 64KB region?
-3. ✅ PSEL signal asserted by master?
-4. ✅ All APB signals properly connected?
+1. BASE_ADDR parameter set correctly?
+2. Address within slave's 64KB region?
+3. PSEL signal asserted by master?
+4. All APB signals properly connected?
 
 **Calculate expected slave:**
 ```
@@ -555,9 +555,9 @@ gtkwave debug.vcd  # Check address decode logic
 - Other masters starved
 
 **Check:**
-1. ✅ Arbiters instantiated per slave?
-2. ✅ Round-robin logic correct?
-3. ✅ Grant persistence working?
+1. Arbiters instantiated per slave?
+2. Round-robin logic correct?
+3. Grant persistence working?
 
 **Verify with tests:**
 ```bash
@@ -567,9 +567,9 @@ pytest dv/tests/test_apbx_xbar_2to1.py -v  # Arbitration stress test
 ### Issue: Back-to-Back Transactions Stalling
 
 **Check:**
-1. ✅ Grant persistence enabled?
-2. ✅ Slaves responding with PREADY?
-3. ✅ No unintended pipeline bubbles?
+1. Grant persistence enabled?
+2. Slaves responding with PREADY?
+3. No unintended pipeline bubbles?
 
 **View waveforms:**
 ```bash
@@ -608,13 +608,13 @@ cat projects/components/apbx-xbar/README.md
 
 ## Remember
 
-1. 🔍 **Check pre-generated first** - Don't generate unnecessarily
-2. 📍 **Address map matters** - Always mention BASE_ADDR + 64KB regions
-3. ⚖️ **Fair arbitration** - Round-robin per slave
-4. 🔗 **Complete connections** - All APB signals must be wired
-5. ✅ **Tests available** - 100% passing, comprehensive coverage
-6. 📚 **Wrappers are TEST SCAFFOLDS** - `rtl/wrappers/` carries only pclk/presetn; instantiate the crossbar directly (see Anti-Pattern 4)
-7. 🎯 **Generator limits** - Up to 16×16 (configurable)
+1. **Check pre-generated first** - Don't generate unnecessarily
+2. **Address map matters** - Always mention BASE_ADDR + 64KB regions
+3. **Fair arbitration** - Round-robin per slave
+4. **Complete connections** - All APB signals must be wired
+5. **Tests available** - 100% passing, comprehensive coverage
+6. **Wrappers are TEST SCAFFOLDS** - `rtl/wrappers/` carries only pclk/presetn; instantiate the crossbar directly (see Anti-Pattern 4)
+7. **Generator limits** - Up to 16×16 (configurable)
 
 ---
 

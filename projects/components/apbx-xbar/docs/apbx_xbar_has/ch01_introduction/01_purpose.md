@@ -25,7 +25,7 @@
 
 ## Document Purpose
 
-This Hardware Architecture Specification (HAS) describes the APB Crossbar component at a system integration level. It provides sufficient detail for:
+This Hardware Architecture Specification (HAS) describes the APB Crossbar component at the system integration level. It carries enough detail for:
 
 - **System architects** to evaluate the component for SoC integration
 - **Hardware engineers** to plan interconnect topology and address mapping
@@ -34,9 +34,9 @@ This Hardware Architecture Specification (HAS) describes the APB Crossbar compon
 
 ## Component Overview
 
-The APB Crossbar is a parametric MxN interconnect fabric that connects multiple APB masters to multiple APB slaves. It provides:
+The APB Crossbar is a parametric MxN interconnect fabric connecting multiple APB masters to multiple APB slaves:
 
-- **Automatic address-based routing** to appropriate slave
+- **Automatic address-based routing** to the appropriate slave
 - **Fair round-robin arbitration** when multiple masters access the same slave
 - **Back-to-back transactions** with no master-side idle cycles
   (they do not overlap inside the fabric -- 10 pclk cycles each,
@@ -63,7 +63,7 @@ The APB Crossbar is a parametric MxN interconnect fabric that connects multiple 
 
 ## Specification Level
 
-This HAS represents a **black-box** view of the APB Crossbar:
+This HAS is a **black-box** view of the APB Crossbar:
 
 | Aspect | HAS Coverage | MAS Coverage |
 |--------|--------------|--------------|

@@ -25,7 +25,7 @@
 
 ## Pre-Verified Component
 
-The APB Crossbar is pre-verified with comprehensive tests:
+The APB Crossbar is pre-verified:
 
 | Variant | Test Transactions | Status |
 |---------|-------------------|--------|
@@ -150,6 +150,6 @@ gtkwave debug.vcd
 
 ## Related Documentation
 
-- **[APB Crossbar MAS](../apbx_xbar_mas/apbx_xbar_mas_index.md)** - Detailed implementation
-- **[PRD.md](../../PRD.md)** - Product requirements
-- **[README.md](../../README.md)** - Quick start guide
+- **[APB Crossbar MAS](../../apbx_xbar_mas/apbx_xbar_mas_index.md)** - Detailed implementation
+- **[PRD.md](../../../PRD.md)** - Product requirements
+- **[README.md](../../../README.md)** - Quick start guide
