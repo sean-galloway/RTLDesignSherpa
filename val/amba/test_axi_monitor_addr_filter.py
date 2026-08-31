@@ -39,6 +39,8 @@ from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.monbus.monbus_slave import MonbusSlave
+from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master
+from CocoTBFramework.components.shared.field_config import FieldConfig
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 
 BURST_INCR = 0b01
@@ -59,6 +61,8 @@ class AddrFilterTB(TBBase):
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
         random.seed(self.SEED)
         self.mon_slave = None
+        self.cmd_master = None
+        self.data_master = None
 
     async def setup_clocks_and_reset(self):
         await self.start_clock('aclk', 10, 'ns')
@@ -78,19 +82,13 @@ class AddrFilterTB(TBBase):
 
     async def initialize_inputs(self):
         d = self.dut
-        d.cmd_valid.value = 0
+        # cmd_valid/cmd_ready are BOTH inputs here: axi_monitor_base snoops a
+        # handshake rather than terminating one, so there is no slave to source
+        # ready on these taps. Holding them asserted is an observed-bus tie,
+        # not transaction stimulus -- the transactions come from the gaxi
+        # masters built at the end of this method.
         d.cmd_ready.value = 1
-        d.cmd_addr.value = 0
-        d.cmd_id.value = 0
-        d.cmd_len.value = 0
-        d.cmd_size.value = 2
-        d.cmd_burst.value = BURST_INCR
-
-        d.data_valid.value = 0
         d.data_ready.value = 1
-        d.data_id.value = 0
-        d.data_last.value = 0
-        d.data_resp.value = 0
 
         d.monbus_ready.value = 1
         d.clear.value = 0
@@ -127,23 +125,40 @@ class AddrFilterTB(TBBase):
             randomizer=FlexRandomizer({'ready_delay': ([(0, 0)], [1])}),
         )
 
-    async def send_read(self, addr, txn_id):
-        """One complete single-beat read: command then its data beat."""
-        d = self.dut
-        d.cmd_addr.value = addr
-        d.cmd_id.value = txn_id
-        d.cmd_len.value = 0
-        d.cmd_valid.value = 1
-        await RisingEdge(d.aclk)
-        d.cmd_valid.value = 0
+        # Stimulus through the BFMs. bus_name gives the valid/ready pair
+        # (cmd_valid/cmd_ready) and multi_sig maps each field to its own
+        # signal (cmd_addr, cmd_id, ...) -- the shape the AXI4 BFMs use
+        # internally for AW/W. Every custom interface here is valid/ready, so
+        # gaxi binds even though several signals form the packet.
+        cmd_fields = FieldConfig.from_dict({
+            'addr':  {'bits': 32, 'format': 'hex'},
+            'id':    {'bits': 8,  'format': 'hex'},
+            'len':   {'bits': 8,  'format': 'dec'},
+            'size':  {'bits': 3,  'format': 'dec'},
+            'burst': {'bits': 2,  'format': 'dec'},
+        })
+        data_fields = FieldConfig.from_dict({
+            'id':   {'bits': 8, 'format': 'hex'},
+            'last': {'bits': 1, 'format': 'dec'},
+            'resp': {'bits': 2, 'format': 'dec'},
+        })
+        self.cmd_master = create_gaxi_master(
+            dut=self.dut, title="CmdMaster", prefix="", clock=self.dut.aclk,
+            field_config=cmd_fields, bus_name="cmd", pkt_prefix="",
+            multi_sig=True, log=self.log)
+        self.data_master = create_gaxi_master(
+            dut=self.dut, title="DataMaster", prefix="", clock=self.dut.aclk,
+            field_config=data_fields, bus_name="data", pkt_prefix="",
+            multi_sig=True, log=self.log)
 
-        d.data_id.value = txn_id
-        d.data_last.value = 1
-        d.data_resp.value = 0
-        d.data_valid.value = 1
-        await RisingEdge(d.aclk)
-        d.data_valid.value = 0
-        d.data_last.value = 0
+    async def send_read(self, addr, txn_id):
+        """One complete single-beat read: command then its data beat, both
+        driven through the gaxi masters rather than by poking signals."""
+        cmd = self.cmd_master.create_packet(
+            addr=addr, id=txn_id, len=0, size=2, burst=BURST_INCR)
+        await self.cmd_master.send(cmd)
+        dat = self.data_master.create_packet(id=txn_id, last=1, resp=0)
+        await self.data_master.send(dat)
 
     async def settle(self, cycles=80):
         for _ in range(cycles):
