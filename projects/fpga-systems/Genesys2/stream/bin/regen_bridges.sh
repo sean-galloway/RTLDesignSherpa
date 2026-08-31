@@ -8,8 +8,25 @@
 # one, dropping outputs into:
 #   $FRAMEWORK_ROOT/rtl/bridges/generated/<bridge>/   ← RTL package + adapters
 #   $FRAMEWORK_ROOT/rtl/bridges/filelists/<bridge>.f  ← filelist (REPO_ROOT-anchored)
-#   $FRAMEWORK_ROOT/rtl/bridges/dv/tbclasses/         ← cocotb TB class
-#   $FRAMEWORK_ROOT/rtl/bridges/dv/tests/             ← pytest runner
+#
+# RTL and filelists ONLY. The DV collateral under rtl/bridges/dv/ is
+# hand-maintained; this script must not write there.
+#
+# It used to pass --generate-tests, and because it is the PREBUILD for
+# `make bitstream`, building a bitstream silently reverted the test files. It
+# destroyed three separate rounds of committed fixes (33ac787e, 90bca4c1,
+# bd79af49) -- restoring, in each case, a generated import that is a literal
+# SyntaxError, so the five bridge tests were not failing but ABSENT from the
+# report. The generator no longer emits that import (it falls back to a
+# sys.path import when a directory component is not a legal Python identifier),
+# but the DV files also carry area-specific things a shared generator cannot
+# know -- the TEST_LEVEL scaling from bin/stream_levels.py, and the
+# -Wno-MULTIDRIVEN the generated PeakRDL CSR needs to COMPILE.
+#
+# The tradeoff, stated plainly: CFG_PREFIXES in the test files no longer tracks
+# a .toml change by itself. Edit the .toml, edit the test. bin/tests/
+# test_bridge_dv_not_generated.py fails if this script starts writing there
+# again.
 #
 # Why this exists:
 #   - Both `make bitstream` (Vivado) and `make run` (cocotb) need the bridge
@@ -40,8 +57,6 @@ FRAMEWORK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BRIDGES_DIR="$FRAMEWORK_ROOT/rtl/bridges"
 CONFIGS_DIR="$BRIDGES_DIR/configs"
 RTL_OUT="$BRIDGES_DIR/generated"
-TB_OUT="$BRIDGES_DIR/dv/tbclasses"
-TEST_OUT="$BRIDGES_DIR/dv/tests"
 
 GENERATOR="$REPO_ROOT/projects/components/bridge/bin/bridge_generator.py"
 
@@ -50,7 +65,7 @@ if [ ! -x "$GENERATOR" ] && [ ! -f "$GENERATOR" ]; then
     exit 1
 fi
 
-mkdir -p "$RTL_OUT" "$TB_OUT" "$TEST_OUT"
+mkdir -p "$RTL_OUT"
 
 # Pick the bridges to regen: arg overrides → just that one; otherwise all.
 if [ "$#" -ge 1 ]; then
@@ -88,17 +103,13 @@ for config in "${configs[@]}"; do
         --ports "$config" \
         --connectivity "$conn" \
         --name "$name" \
-        --output-dir "$RTL_OUT" \
-        --generate-tests \
-        --output-tb "$TB_OUT" \
-        --output-test "$TEST_OUT"
+        --output-dir "$RTL_OUT"
 done
 
 echo ""
 echo "================================================================================"
 echo "✅ All bridges regenerated."
 echo "   RTL:    $RTL_OUT/<name>/"
-echo "   Tests:  $TEST_OUT/test_<name>.py"
-echo "   TBs:    $TB_OUT/<name>_tb.py"
 echo "   Lists:  $BRIDGES_DIR/filelists/<name>.f"
+echo "   (DV under $BRIDGES_DIR/dv/ is hand-maintained -- not written here.)"
 echo "================================================================================"

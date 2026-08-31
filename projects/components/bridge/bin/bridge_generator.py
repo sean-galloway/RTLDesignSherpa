@@ -48,6 +48,46 @@ from bridge_pkg import (BridgeConfig, load_config,
 # Test Generation Helper Functions
 # ==============================================================================
 
+
+def _tb_import_pkg(tb_dir_abs, repo_root_abs):
+    """Dotted package path for the TB class, or '' if it is not importable.
+
+    A dotted import only works when EVERY directory on the path is a legal
+    Python identifier. `projects/fpga-systems/...` is not: the hyphen makes
+    `from projects.fpga-systems.Genesys2... import X` a SyntaxError, so the
+    generated test could not be collected AT ALL -- not "failed", not
+    "errored", absent from the report. Returning '' tells the template to
+    import the module by name off sys.path instead, which has no such
+    constraint. Legal paths still get the dotted form, byte-identical to
+    before, so no existing generated test changes.
+    """
+    parts = tb_dir_abs.relative_to(repo_root_abs).parts
+    if all(p.isidentifier() for p in parts):
+        return '.'.join(parts)
+    return ''
+
+
+def _tb_import_block(tb_import_pkg, tb_class_module, tb_class_name):
+    """The import statement(s) for the TB class, as literal source text.
+
+    Built here rather than as a Jinja conditional. The templates render with
+    trim_blocks/lstrip_blocks on, so a `{% endif %}` silently eats the newline
+    after it -- which welded the next import onto the end of this one and
+    produced a SyntaxError in exactly the file this fix exists to keep
+    parseable. One string, no whitespace control, nothing to get wrong.
+    """
+    if tb_import_pkg:
+        return f'from {tb_import_pkg}.{tb_class_module} import {tb_class_name}'
+    return (
+        "# The TB class lives on a path that is not dotted-importable (a\n"
+        "# directory component is not a legal Python identifier, e.g.\n"
+        "# 'fpga-systems'). Import it by module name off sys.path instead --\n"
+        "# tbclasses/ is a sibling of tests/.\n"
+        "sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),\n"
+        "                                os.pardir, 'tbclasses'))\n"
+        f"from {tb_class_module} import {tb_class_name}"
+    )
+
 def get_repo_root_for_path(path: Path) -> Path:
     """Walk up from `path` to find the nearest git repo root.
 
@@ -177,8 +217,7 @@ def generate_tests(ports_file, connectivity_file, bridge_name, output_tb_dir, ou
         try:
             tb_dir_abs = Path(output_tb_dir).resolve()
             repo_root_abs = Path(get_repo_root_for_path(tb_dir_abs))
-            tb_dir_rel = tb_dir_abs.relative_to(repo_root_abs)
-            tb_import_pkg = '.'.join(tb_dir_rel.parts)
+            tb_import_pkg = _tb_import_pkg(tb_dir_abs, repo_root_abs)
         except (ValueError, RuntimeError):
             tb_import_pkg = 'projects.components.bridge.dv.tbclasses'
 
@@ -204,6 +243,8 @@ def generate_tests(ports_file, connectivity_file, bridge_name, output_tb_dir, ou
             'tb_class_name': tb_class_name,
             'tb_class_module': tb_class_module,
             'tb_import_pkg': tb_import_pkg,
+            'tb_import_block': _tb_import_block(
+                tb_import_pkg, tb_class_module, tb_class_name),
             'num_masters': len(config.masters),
             'num_slaves': len(config.slaves),
             'channel_type': channel_type,
@@ -307,7 +348,7 @@ def generate_monitor_tests(ports_file, connectivity_file, bridge_name,
         try:
             tb_dir_abs = Path(output_tb_dir).resolve()
             repo_root_abs = Path(get_repo_root_for_path(tb_dir_abs))
-            tb_import_pkg = '.'.join(tb_dir_abs.relative_to(repo_root_abs).parts)
+            tb_import_pkg = _tb_import_pkg(tb_dir_abs, repo_root_abs)
         except (ValueError, RuntimeError):
             tb_import_pkg = 'projects.components.bridge.dv.tbclasses'
 
@@ -387,6 +428,8 @@ def generate_monitor_tests(ports_file, connectivity_file, bridge_name,
             'tb_class_name': tb_class_name,
             'tb_class_module': tb_class_module,
             'tb_import_pkg': tb_import_pkg,
+            'tb_import_block': _tb_import_block(
+                tb_import_pkg, tb_class_module, tb_class_name),
             'num_masters': len(config.masters),
             'num_slaves': len(config.slaves),
             'channel_type': channel_type,

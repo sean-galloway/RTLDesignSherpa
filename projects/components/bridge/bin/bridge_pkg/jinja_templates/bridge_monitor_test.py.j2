@@ -23,7 +23,7 @@ import cocotb
 from cocotb_test.simulator import run  # noqa: F401
 
 from TBClasses.shared.utilities import get_paths
-from {{ tb_import_pkg }}.{{ tb_class_module }} import {{ tb_class_name }}
+{{ tb_import_block }}
 from monitor_stress_common import run_comprehensive, run_monitor_sim
 
 CFG_PREFIXES = {{ cfg_prefixes }}

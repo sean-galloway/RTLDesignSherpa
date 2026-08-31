@@ -55,6 +55,9 @@ FIXED_COST = {
         'circular',
     'bin/tests/test_all_tests_have_levels.py':
         'this file: a static audit of the tree, cost independent of level',
+    'bin/tests/test_bridge_dv_not_generated.py':
+        'static audit of regen_bridges.sh plus an ast.parse of each bridge DV '
+        'file; no DUT, and the file set is whatever is on disk',
     'build-mon/dv/tests/test_stream_cfg_single_source.py':
         'asserts the RTL package and the Python mirror agree; exhaustive over '
         'the parameter set by construction',
