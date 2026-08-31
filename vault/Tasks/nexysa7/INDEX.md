@@ -5,7 +5,7 @@ summary: Task rollup for the NexysA7 characterization flows (stream-char/perf, m
 
 # NexysA7 tasks
 
-**Next ID: NEXYS-003** — never recycle a number, even when its task closed.
+**Next ID: NEXYS-006** — never recycle a number, even when its task closed.
 
 Board-campaign and characterization-flow tasks for
 `projects/NexysA7/` (stream characterization: `flows-stream-bridge` = perf/char,

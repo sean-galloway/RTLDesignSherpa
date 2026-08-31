@@ -2,7 +2,7 @@
 
 # NexysA7 tasks — open (not started)
 
-### NEXYS-002: ddr2-char harness needs TWO bridges, 8 bank-targeted masters each
+### NEXYS-004: ddr2-char harness needs TWO bridges, 8 bank-targeted masters each
 
 **Priority:** Medium
 **Status:** [ ] Open (2026-08-30)
@@ -37,6 +37,24 @@ config + regen job under CRITICAL RULE #0 (delete ALL generated output, then
 regenerate), plus the harness rewire. Pairs with [[PUMICE-013]]
 characterization and [[PUMICE-016]] (observer adoption) — decide whether
 each bridge gets its own observer instance before wiring.
+
+**Once enabled — read/write mix sweep.** With the two bridges independent,
+sweep the direction mix from 100% write / 0% read to 0% write / 100% read in
+**5% increments** (21 points). This is the measurement the split exists for:
+read/write turnaround (tWTR, tRTW, bus turnaround) is paid at the DRAM and is
+invisible to any single-direction test, so the interesting shape is the middle
+of the curve, not the endpoints. A single shared path cannot produce it
+because direction ratio and offered load are not separable there.
+
+Hold everything else fixed across the sweep — same total offered load, same
+address pattern, same page policy — so the only moving variable is the mix.
+Every burst stays a whole DFI BL8 transaction (a sub-burst is illegal in the
+generators; see `_check_full_burst`), otherwise the mix curve is confounded
+by partial-burst overhead.
+
+Endpoints are the sanity check: 100/0 and 0/100 should reproduce the existing
+single-direction numbers. A dip that is deeper than turnaround alone explains
+points at scheduler behaviour rather than at the device.
 
 ### NEXYS-001: Consistent Makefiles across the stream characterization flows
 
@@ -224,3 +242,50 @@ plan. The pumice area was created there. NEXYS-002's move of the existing
 **Unverified:** the migrated `make program` path and the pumice `run_smoke.py`
 board path have NOT been run against hardware (no board attached, and pyserial
 is not installed in the venv — `pip install pyserial` before board work).
+
+### NEXYS-005: One name per quantity — BYTES_PER_AXI_BEAT / BYTES_PER_DFI_BEAT / DRAM_BL
+
+**Priority:** Medium
+**Status:** [ ] Open (2026-08-30)
+**Source:** Sean, 2026-08-30 — "can you decide on ONE name instead of 3-4 for
+the same thing"; scheme agreed same day.
+
+**Problem:** five names per quantity, and a mismatch between any two of them
+fails SILENTLY. Three separate places held a stale BL4 value for six weeks
+after the RTL moved to BL8, and none of them complained.
+
+| concept | today | canonical |
+|---|---|---|
+| one AXI interface transfer | `AXI_DATA_WIDTH`/8, `bytes_per_beat` | `BYTES_PER_AXI_BEAT` |
+| one DFI PHASE's data slice | `DRAM_BEAT_WIDTH`/8, `dfi_phase_bytes` | `BYTES_PER_DFI_BEAT` |
+| the DQ width (x16 => 2) | `DRAM_DEVICE_WIDTH`/8, `dram_device_bytes` | `BYTES_PER_DEVICE_WORD` |
+| JEDEC MR0 burst length | `DRAM_BL`, `BL`, `dram_bl`, `DFI_PHASE.bl`, `BEATS_PER_BURST` | `DRAM_BL` |
+| DFI phases per clock | `DFI_RATE` | `DFI_RATE` |
+
+**Everything else derives, one definition each:**
+
+    AXI_BEATS_PER_BURST = DRAM_BL * BYTES_PER_DEVICE_WORD / BYTES_PER_AXI_BEAT
+        replaces CHUNK_BEATS, BURST_WORDS, EXP_AXI_BEATS, BURST_LEN_MULTIPLE
+    BL_SHIFT / BL_PUMICE  from BYTES_PER_DFI_BEAT / BYTES_PER_DEVICE_WORD
+    BYTE_OFFSET_WIDTH     = clog2(BYTES_PER_DEVICE_WORD)
+    gear_ratio (CSR)      = log2(DFI_RATE)   -- ALWAYS derived, never typed
+
+**Two rules that are not cosmetic:**
+
+- **`DRAM_BL` is in DEVICE words, not DFI beats.** BL8 on the x16 part is 8
+  DQ transfers = 16 bytes = TWO 8-byte DFI beats. Naming it `DFI_BL` would
+  read as "8 DFI beats" and be wrong by the device ratio — which is
+  `BL_SHIFT`, and getting it wrong is what produced the on-silicon column
+  overlap (writes advancing +2 while a BL4 burst spanned +4).
+- **`BYTES_PER_DFI_BEAT` is the PHASE slice**, not the full bus word. The bus
+  word is `BYTES_PER_DFI_BEAT * DFI_RATE`. DFISlavePHY's `dfi_phase_bytes`
+  already uses the phase convention; match it rather than fight it.
+- **`gear_ratio` is never hand-written.** It is log2(DFI_RATE); writing the
+  rate there overflows `(RATEW'(1) << gear_i)` to 0, every DFI phase reads
+  inactive and writes vanish with B=OKAY. That bug cost a full day.
+
+**Scope:** pumice RTL (`CHUNK_BEATS` spans chopper/splitter/ifc), both TB
+classes, the harness tests. Behaviour-neutral: land as its own commit and
+lean on the 210 (pumice FULL) + 170 (harness macro) regression to prove
+bit-identity. Do NOT fold into a functional change.
+

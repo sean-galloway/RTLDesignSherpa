@@ -32,7 +32,13 @@ import re
 import subprocess
 import sys
 
-HEADING = re.compile(r"^#{2,3}\s+([A-Z][A-Z0-9]*-[A-Z0-9]+)\s*[—\-–]")
+# Separator after the ID may be an em/en dash, a hyphen, or a COLON. The
+# colon form was missing, and because a heading that does not match is
+# simply not registered, a whole area could contain zero recognised IDs
+# and still report "check passed" -- which is how a duplicate NEXYS-002
+# got committed under an enabled checker. A checker that silently sees
+# nothing is worse than no checker.
+HEADING = re.compile(r"^#{2,3}\s+([A-Z][A-Z0-9]*-[A-Z0-9]+)\s*[—\-–:]")
 # Tolerant on purpose: the line is written by humans, so accept bold either
 # side of the colon and any trailing prose after the ID.
 NEXT_ID = re.compile(r"Next ID\**\s*:\s*\**\s*([A-Z][A-Z0-9]*-(\d+))")
