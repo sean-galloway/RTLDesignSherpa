@@ -161,7 +161,7 @@ The host reads a coherent coverage snapshot over the CSR/AXIL window as follows:
 
 ## Timing
 
-- **Accept path:** a combinational legal-set CAM lookup resolves the bin, then a 2-cycle read-then-saturating-write (`ST_RUN` → `ST_WR`) commits it. `in_ready` is high in `ST_RUN` whenever running and unfrozen.
+- **Accept path:** a combinational legal-set CAM lookup resolves the bin, then a 2-cycle read-then-saturating-write (`ST_RUN` → `ST_WR`) commits it. `in_ready` is `(r_st == ST_RUN) && !i_freeze && !i_clear && !r_clear_pend` -- so a clear pulse also drops it, and it stays low until the SRAM clear walk finishes. The documented protocol freezes before clearing, which masks this, but a checker written from the "running and unfrozen" summary alone will false-flag a clear that arrives unfrozen. The clear terms are required for valid/ready correctness, not tidiness.
 - **Read:** `rd_count` is a registered read of `SRAM[rd_addr]`, always live.
 - **Clear:** walks `SRAM_DEPTH` entries writing zero (`ST_CLEAR`).
 - **Flush:** no-op (no cache).

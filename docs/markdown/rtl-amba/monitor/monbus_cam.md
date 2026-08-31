@@ -43,8 +43,10 @@
 > with TOUCH/INSTALL derived from hit/miss, because the commit lands before
 > the tier decision exists. It also has **no skid and no credit logic**; the
 > credit-gated result skid (`u_res_skid` / `r_credit`) lives in
-> `monbus_compressor`, and it is what caps sustained tier-1 throughput at
-> 0.67 records/cycle. Both files are kept in tree: this single-cycle module
+> `monbus_compressor`, and it is what sets sustained tier-1 throughput. At
+> `SKID_DEPTH = 3` (the current value) that is 1 record/cycle measured; at the
+> earlier depth of 2 it measured 0.67. See
+> [`monbus_compressor`](monbus_compressor.md). Both files are kept in tree: this single-cycle module
 > serves as the executable spec for the LRU semantics and the
 > compressor's CAM behavior, and is what the algorithmic tests
 > (`test_monbus_cam.py`) target. New code should instantiate

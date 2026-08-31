@@ -79,7 +79,7 @@ module gaxi_skid_buffer_struct #(
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `STRUCT_TYPE` | type | `logic [31:0]` | Any SystemVerilog type (struct, union, enum, array) |
-| `DEPTH` | int | 2 | Buffer depth (must be 2, 4, 6, or 8) |
+| `DEPTH` | int | 2 | Buffer depth (must be 2..8 inclusive; odd depths are legal, and elaboration fails outside that range) |
 
 ---
 

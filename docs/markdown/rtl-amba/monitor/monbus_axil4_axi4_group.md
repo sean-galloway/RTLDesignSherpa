@@ -226,7 +226,7 @@ The per-protocol filter (AXI, AXIS, CORE) decides for each packet: drop, route t
 
 ### Compression
 
-When `USE_COMPRESSION=1`, `monbus_compressor` is selectable at runtime via `cfg_compress_en`, emitting one 64-bit self-tagged slot per record instead of three raw beats; `cam_clear` synchronously empties the template CAM and zeroes stats between runs. In raw-only builds these fold away. (Unlike the AXIL/AXIL variant, this wrapper does not expose `HALF_BEAT_EN`.)
+When `USE_COMPRESSION=1`, `monbus_compressor` is selectable at runtime via `cfg_compress_en`, emitting a 64-bit self-tagged slot per COMPRESSED record instead of three raw beats (an incompressible record escapes to tier-0 and still costs three); `cam_clear` synchronously empties the template CAM and zeroes stats between runs. In raw-only builds these fold away. (Unlike the AXIL/AXIL variant, this wrapper does not expose `HALF_BEAT_EN`.)
 
 ---
 

@@ -214,7 +214,7 @@ The per-protocol filter (AXI, AXIS, CORE) decides for each packet: drop (via `pk
 
 ### Compression
 
-When `USE_COMPRESSION=1`, `monbus_compressor` can be selected at runtime via `cfg_compress_en`, emitting one 64-bit self-tagged slot per record into the write FIFO instead of three raw beats; `HALF_BEAT_EN=1` further packs two 30-bit half-slots per beat. `cam_clear` synchronously empties the compressor template CAM and zeroes its stat counters between runs. In raw-only builds these fold away.
+When `USE_COMPRESSION=1`, `monbus_compressor` can be selected at runtime via `cfg_compress_en`, emitting a 64-bit self-tagged slot per COMPRESSED record into the write FIFO instead of three raw beats (an incompressible record escapes to tier-0 and still costs three); `HALF_BEAT_EN=1` further packs two 30-bit half-slots per beat. `cam_clear` synchronously empties the compressor template CAM and zeroes its stat counters between runs. In raw-only builds these fold away.
 
 ---
 

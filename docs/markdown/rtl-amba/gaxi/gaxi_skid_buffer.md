@@ -80,7 +80,7 @@ module gaxi_skid_buffer #(
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `DATA_WIDTH` | int | 32 | Data bus width in bits |
-| `DEPTH` | int | 2 | Buffer depth (must be 2, 4, 6, or 8) |
+| `DEPTH` | int | 2 | Buffer depth (must be 2..8 inclusive; odd depths are legal, and elaboration fails outside that range) |
 
 **Derived Parameters:**
 - `DW` = DATA_WIDTH

@@ -196,7 +196,7 @@ The burst writer fires when **either**:
 The drain-plan math was originally a single combinational chain off `r_wr_addr` feeding straight back into `r_wr_addr` — the 100 MHz critical path on Nexys A7 (-1) (WNS −7.06 ns post-route). Since `r_wr_addr` is stable while the writer sits in `WR_IDLE` (only `WR_W` advances it) and the write FIFO only grows there, the **address geometry** is now a **3-stage registered pipeline**:
 
 ```
-stage 1 (caps):           bytes_to_limit / bytes_to_4kb from r_wr_addr,
+stage 1 (caps):           s1_beats_to_limit / s1_beats_to_4kb from r_wr_addr,
                           plus the rewind decision (geom_addr).
 stage 2 (planned):        min-cap tree ONLY (min of window / 4KB).
                           u_mod3_geo is fed combinationally from this

@@ -44,8 +44,8 @@ backpressure handling, packets don't get lost on the way through.
 
 - Round-robin arbitration for monitor bus packet streams
 - ACK mode operation (grants held until acknowledged)
-- Optional input skid buffers per client (2, 4, 6, or 8 entry depth)
-- Optional output skid buffer (2, 4, 6, or 8 entry depth)
+- Optional input skid buffers per client (2..8 entries)
+- Optional output skid buffer (2..8 entries)
 - 128-bit packet + 64-bit side-band timestamp, carried atomically through a 192-bit skid
 - Parameterizable client count (2-64; 1 does not elaborate)
 - Skid buffers optional (disabling them removes the skid registers; the arbitration cycle itself remains, since `grant_valid` is registered)
@@ -59,8 +59,8 @@ backpressure handling, packets don't get lost on the way through.
 | CLIENTS | int | 4 | Number of monitor bus clients (**2**-64). `CLIENTS=1` does **not** elaborate: `N = $clog2(1) = 0` makes `grant_id` a `logic [-1:0]` and the priority encoder's generic branch does an illegal `i[-1:0]` part-select |
 | INPUT_SKID_ENABLE | int | 1 | Enable skid buffers on input interfaces |
 | OUTPUT_SKID_ENABLE | int | 1 | Enable skid buffer on output interface |
-| INPUT_SKID_DEPTH | int | 2 | Depth of input skid buffers (2, 4, 6, or 8) |
-| OUTPUT_SKID_DEPTH | int | 2 | Depth of output skid buffer (2, 4, 6, or 8) |
+| INPUT_SKID_DEPTH | int | 2 | Depth of input skid buffers (2..8 inclusive) |
+| OUTPUT_SKID_DEPTH | int | 2 | Depth of output skid buffer (2..8 inclusive) |
 
 ---
 
@@ -182,7 +182,7 @@ downstream of the [`monbus_group` family](monbus_group.md) see a coherent
 - Uses gaxi_skid_buffer instances configured for 192-bit data
 - Provides elasticity for clients with bursty traffic
 - Improves timing closure by breaking long paths
-- Depth configurable: 2, 4, 6, or 8 entries
+- Depth configurable: 2..8 entries inclusive (odd depths are legal)
 
 **Output Skid Buffer**:
 
@@ -194,7 +194,10 @@ downstream of the [`monbus_group` family](monbus_group.md) see a coherent
 
 - Enable INPUT_SKID if clients have high-latency paths or bursty traffic
 - Enable OUTPUT_SKID if downstream consumer has variable latency
-- Disable both for minimum latency (zero-overhead pass-through)
+- Disable both for minimum latency. That removes the skid registers only;
+  it is NOT a combinational pass-through. `monbus_valid` comes from
+  `arbiter_round_robin`'s `grant_valid`, which is registered, so a request
+  still costs one arbitration cycle. See "Skid-Free Configuration".
 
 ---
 
@@ -213,9 +216,16 @@ monbus_arbiter #(
     .axi_aresetn         (rst_n),
     .block_arb           (1'b0),  // Not blocked
 
-    // Connect 4 client monitor bus streams (packet + timestamp per client)
+    // Connect 4 client monitor bus streams (packet + timestamp per client).
+    // NOTE the asymmetry: the three INPUT arrays take assignment patterns,
+    // which are legal rvalues for an unpacked-array input. monbus_ready_in is
+    // an OUTPUT, so its connection must be an lvalue -- an assignment pattern
+    // there does not compile. Declare the array and connect it whole:
+    //     logic mon_ready [4];
+    //     assign {mon0_ready, mon1_ready, mon2_ready, mon3_ready} =
+    //            {mon_ready[0], mon_ready[1], mon_ready[2], mon_ready[3]};
     .monbus_valid_in     ('{mon0_valid, mon1_valid, mon2_valid, mon3_valid}),
-    .monbus_ready_in     ('{mon0_ready, mon1_ready, mon2_ready, mon3_ready}),
+    .monbus_ready_in     (mon_ready),
     .monbus_packet_in    ('{mon0_packet, mon1_packet, mon2_packet, mon3_packet}),
     .monbus_timestamp_in ('{mon0_ts,     mon1_ts,     mon2_ts,     mon3_ts}),
 

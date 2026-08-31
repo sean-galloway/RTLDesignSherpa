@@ -44,8 +44,8 @@ Parameters:
 - CLIENTS: Number of monitor bus clients
 - INPUT_SKID_ENABLE: Enable skid buffers on input interfaces
 - OUTPUT_SKID_ENABLE: Enable skid buffer on output interface
-- INPUT_SKID_DEPTH: Depth of input skid buffers (2, 4, 6, or 8)
-- OUTPUT_SKID_DEPTH: Depth of output skid buffer (2, 4, 6, or 8)
+- INPUT_SKID_DEPTH: Depth of input skid buffers (2..8 inclusive)
+- OUTPUT_SKID_DEPTH: Depth of output skid buffer (2..8 inclusive)
 
 ================================================================================
 */
