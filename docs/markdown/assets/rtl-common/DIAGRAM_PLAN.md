@@ -1,5 +1,32 @@
 # rtl-common Block Diagram Generation Plan
 
+> **FORMAT CORRECTION (2026-09-01): render to PNG, not SVG.**
+>
+> This plan originally said to store diagrams as SVG "to ensure PDF
+> compatibility". That is backwards for the pipeline actually in use. SVG only
+> survives the pandoc+LaTeX route (via the `svg` package and inkscape, which
+> needs `--shell-escape`); the route these books are built through is
+> `md_to_docx.py --style`, which produces DOCX and hands it to LibreOffice for
+> the PDF, and SVG does not embed reliably there. An SVG-only diagram silently
+> does not appear in the PDF.
+>
+> **Every `.mmd` MUST have a rendered `.png` beside it.** Keep the `.svg` too if
+> it is already there -- it is useful for the web view and costs nothing -- but
+> the PNG is the one the PDF consumes. Following this plan as written produced
+> 153 diagrams with no PNG (139 of them SVG-only); they were rendered on
+> 2026-09-01.
+>
+> Render with:
+>
+> ```
+> echo '{"args": ["--no-sandbox", "--disable-setuid-sandbox"]}' > /tmp/pup.json
+> mmdc -i diagram.mmd -o diagram.png -b white -p /tmp/pup.json -s 2
+> ```
+>
+> The puppeteer config is required on this box -- without it mmdc dies with
+> "No usable sandbox". `bin/md_to_docx.py` writes the same config for its own
+> inline rendering.
+
 ## Overview
 
 This plan outlines the approach for generating Mermaid block diagrams for the 56 rtl-common markdown files that currently lack visual architecture diagrams.

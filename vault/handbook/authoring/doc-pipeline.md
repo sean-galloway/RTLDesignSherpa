@@ -38,6 +38,38 @@ front matter.
 `--strip-doc-header`. When RTL moves between directories the book definitions
 must move with it, or a book silently ships short.
 
+## Diagrams: the PDF eats PNG, not SVG
+
+Every `.mmd` needs a rendered `.png` beside it. An SVG-only diagram silently
+does not appear in the PDF -- no error, no placeholder, just a missing figure.
+
+The reason is which route the book takes. SVG survives pandoc+LaTeX, via the
+`svg` package and inkscape (and `--shell-escape`). These books are built with
+`md_to_docx.py --style`, which produces DOCX and hands it to LibreOffice for
+the PDF, and SVG does not embed reliably through that. So the format guidance
+depends on the route, and the route in use is the DOCX one.
+
+*Case (2026-09-01): `docs/markdown/assets/*/DIAGRAM_PLAN.md` prescribed SVG
+"to ensure PDF compatibility" -- exactly backwards for this pipeline. Following
+it produced **153 diagrams with no PNG**, 139 of them SVG-only, across
+rtl-amba, rtl-common and the rapids MAS/HAS books. Both plans now carry a
+correction at the top.*
+
+Keep the `.svg` if it exists -- it is fine for the web view and costs nothing.
+The PNG is the one that has to be there.
+
+    echo '{"args": ["--no-sandbox", "--disable-setuid-sandbox"]}' > /tmp/pup.json
+    mmdc -i diagram.mmd -o diagram.png -b white -p /tmp/pup.json -s 2
+
+The puppeteer config is not optional on this box: without it mmdc dies with
+"No usable sandbox" (Chromium + AppArmor). `bin/md_to_docx.py` writes the same
+config for its own inline rendering -- copy its flags rather than inventing
+new ones.
+
+**Check before shipping a book**, because nothing else will:
+
+    find . -name '*.mmd' | while read m; do [ -f "${m%.mmd}.png" ] || echo "$m"; done
+
 ## No emojis anywhere in this path
 
 They break LaTeX. See [[humanization-voice]] - a generative rewrite is the most
