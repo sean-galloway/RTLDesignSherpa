@@ -43,11 +43,31 @@ PYTHON ?= python3
 
 .PHONY: program ports board-info boards
 
-program:            ## Flash BITSTREAM onto BOARD over JTAG
-	@[ -f $(BITSTREAM) ] || \
-	    (echo "No bitstream found at $(BITSTREAM) -- run 'make bitstream' first." && false)
-	$(PYTHON) $(FPGA_BOARD_CLI) --board $(BOARD) program \
-	    --bitstream $(BITSTREAM) --vivado $(VIVADO)
+# Bitstreams are never committed; the one or two worth keeping live in the HOLD
+# dir outside the repo (see `keep` in fpga_flow.mk). So after a `make clean-all`
+# the build-dir bitstream is gone and the HOLD copy is the only one left --
+# program falls back to it rather than telling you to spend 40 minutes
+# rebuilding something you already kept.
+#
+# It says WHICH file it is programming, every time. Silently programming a
+# different bitstream than the one you just built is a worse failure than
+# refusing: it is how a board result gets attributed to the wrong design.
+RDS_HOLD_DIR ?= /mnt/data/fpga-hold
+_HOLD_BIT     = $(RDS_HOLD_DIR)/$(BOARD)/$(FLOW)/$(notdir $(BITSTREAM))
+
+program:            ## Flash BITSTREAM onto BOARD over JTAG (falls back to HOLD)
+	@if [ -f "$(BITSTREAM)" ]; then \
+	    echo "[program] using FRESH build: $(BITSTREAM)"; \
+	elif [ -f "$(_HOLD_BIT)" ]; then \
+	    echo "[program] no build-dir bitstream -- using HOLD: $(_HOLD_BIT)"; \
+	    echo "[program] this is the KEPT build, not whatever is in the RTL now."; \
+	else \
+	    echo "No bitstream at $(BITSTREAM) nor $(_HOLD_BIT) -- run 'make bitstream'."; \
+	    exit 1; \
+	fi
+	@bit=$$([ -f "$(BITSTREAM)" ] && echo "$(BITSTREAM)" || echo "$(_HOLD_BIT)"); \
+	 $(PYTHON) $(FPGA_BOARD_CLI) --board $(BOARD) program \
+	    --bitstream "$$bit" --vivado $(VIVADO)
 
 ports:              ## Which ttyUSB is this board on right now?
 	@$(PYTHON) $(FPGA_BOARD_CLI) --board $(BOARD) ports

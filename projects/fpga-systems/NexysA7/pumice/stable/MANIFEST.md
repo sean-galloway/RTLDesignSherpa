@@ -20,7 +20,7 @@ sibling of `build-perf`, outside that blast radius. Same convention as
 
 | path | what |
 |---|---|
-| `bitstream/ddr2_char.bit` | the programmed artifact |
+| ~~`bitstream/ddr2_char.bit`~~ | MOVED to HOLD, see below |
 | `reports/` | Vivado timing / utilization / DRC / CDC / power for THIS bitstream |
 
 ## Measured (read from the reports in this directory, not retyped from memory)
@@ -58,3 +58,22 @@ bring-up tuple recorded in the DDR2 notes:
 
 Residual row-sized corruption attributed to a refresh-collision arbiter bug. The
 tiny-`tREFI` soak is the regression gate for that; it is not fixed here.
+
+## Where the bitstream actually is
+
+**NOT here.** Bitstreams are never committed (Sean, 2026-09-01): a multi-megabyte
+binary whose source cannot be reconstructed from it costs git history forever,
+never diffs, and goes stale silently against the RTL beside it.
+
+    /mnt/data/fpga-hold/nexys_a7_100t/ddr2_char/ddr2_char.bit
+
+`make keep` writes it there and leaves the reports here. `make program` uses the
+build directory if a fresh build exists, and falls back to the HOLD copy
+otherwise -- announcing which one it used, every time.
+
+Override the location with `RDS_HOLD_DIR`. Keep one or two bitstreams in HOLD,
+total: an older one you cannot tie to a source tree is not a backup, it is a
+file you would never dare program.
+
+The reports in this directory are the evidence for what that bitstream did, and
+they stay in git precisely because they are text and they diff.

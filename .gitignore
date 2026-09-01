@@ -354,3 +354,24 @@ obj_dir/
 # Verilator coverage artifacts (regenerate with COVERAGE=1 make run-all-<level>)
 val/*/coverage_reports/
 val/*/coverage_data/
+
+# ---------------------------------------------------------------------------
+# Bitstreams NEVER go in the repo (2026-09-01, Sean).
+#
+# A bitstream is a multi-megabyte binary whose source cannot be reconstructed
+# from it: in git it costs history forever, it never diffs, and it goes stale
+# silently against the RTL sitting beside it. Two were tracked here until this
+# rule landed -- pumice's ddr2_char.bit and the Genesys2 stream monitor build,
+# 12 MB between them -- both under a stable/bitstream/ path that the existing
+# `**/flows-*/bitstream/*.bit` rule did not cover.
+#
+# The one or two worth keeping live in the HOLD dir OUTSIDE the repo:
+# $RDS_HOLD_DIR, default /mnt/data/fpga-hold. `make keep` puts them there.
+#
+# MANIFESTs and Vivado reports STAY in the repo. They are text, they diff, and
+# they are the evidence for what a bitstream did -- which is the part worth
+# keeping anyway.
+# ---------------------------------------------------------------------------
+*.bit
+*.ltx
+*.mcs

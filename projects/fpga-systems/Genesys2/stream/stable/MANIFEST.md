@@ -71,3 +71,22 @@ tree that produced this bitstream is NOT pinned — recording a SHA against a di
 tree would be a false provenance claim. Treat this artifact as "known-good on the
 board," not as reproducible from source. If reproducibility matters for the next
 build, commit first and record the clean SHA here.
+
+## Where the bitstream actually is
+
+**NOT here.** Bitstreams are never committed (Sean, 2026-09-01): a multi-megabyte
+binary whose source cannot be reconstructed from it costs git history forever,
+never diffs, and goes stale silently against the RTL beside it.
+
+    /mnt/data/fpga-hold/genesys2/stream_mon/stream_mon_8ch_allcones_obsmaster_obsslave.bit
+
+`make keep` writes it there and leaves the reports here. `make program` uses the
+build directory if a fresh build exists, and falls back to the HOLD copy
+otherwise -- announcing which one it used, every time.
+
+Override the location with `RDS_HOLD_DIR`. Keep one or two bitstreams in HOLD,
+total: an older one you cannot tie to a source tree is not a backup, it is a
+file you would never dare program.
+
+The reports in this directory are the evidence for what that bitstream did, and
+they stay in git precisely because they are text and they diff.

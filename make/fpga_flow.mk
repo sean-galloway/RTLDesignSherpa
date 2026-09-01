@@ -502,26 +502,56 @@ timing:             ## Print the latest timing summary + failing hotspots
 STABLE_DIR ?= $(SELF_DIR)/../stable
 
 .PHONY: keep
-keep:               ## Copy this build's bitstream + reports to ../stable/
+# The BITSTREAM goes to the HOLD dir OUTSIDE the repo; the REPORTS stay in
+# ../stable/ inside it. That split is the whole point (Sean, 2026-09-01): a
+# bitstream is a multi-megabyte binary whose source cannot be reconstructed
+# from it, so in git it costs history forever and goes stale silently against
+# the RTL beside it. The reports are text, they diff, and they are the actual
+# evidence for what the bitstream did -- so they are the half worth committing.
+#
+# Keep ONE OR TWO bitstreams in HOLD, total, not one per experiment: an older
+# bitstream you cannot tie to a source tree is not a backup, it is a file you
+# would never dare program.
+RDS_HOLD_DIR ?= /mnt/data/fpga-hold
+HOLD_DIR     := $(RDS_HOLD_DIR)/$(BOARD)/$(FLOW)
+
+keep:               ## Copy bitstream -> $RDS_HOLD_DIR (outside repo), reports -> ../stable/
 	@[ -f "$(BITSTREAM)" ] || \
 	    (echo "[keep] no bitstream at $(BITSTREAM) -- build first" && false)
-	@echo "[keep] $(FLOW) -> $(STABLE_DIR)"
-	@mkdir -p $(STABLE_DIR)/bitstream $(STABLE_DIR)/reports
-	@rm -f $(STABLE_DIR)/bitstream/* $(STABLE_DIR)/reports/*
-	@cp $(BITSTREAM) $(STABLE_DIR)/bitstream/
+	@echo "[keep] $(FLOW) bitstream -> $(HOLD_DIR)"
+	@mkdir -p $(HOLD_DIR)
+	@rm -f $(HOLD_DIR)/*.bit $(HOLD_DIR)/*.ltx
+	@cp $(BITSTREAM) $(HOLD_DIR)/
+	@[ -f "$(ILA_BITSTREAM)" ] && cp $(ILA_BITSTREAM) $(HOLD_DIR)/ || true
+	@echo "[keep] $(FLOW) reports   -> $(STABLE_DIR)/reports"
+	@mkdir -p $(STABLE_DIR)/reports
+	@rm -f $(STABLE_DIR)/reports/*
 	@[ -d "$(REPORTS)" ] && cp -r $(REPORTS)/. $(STABLE_DIR)/reports/ || true
-	@echo "[keep] copied. NOW UPDATE $(STABLE_DIR)/MANIFEST.md -- a stable"
-	@echo "[keep] artifact with a stale manifest is worse than none: it"
-	@echo "[keep] describes a build that is no longer there."
+	@echo "[keep] NOW UPDATE $(STABLE_DIR)/MANIFEST.md -- and record which"
+	@echo "[keep] HOLD file it describes. A manifest whose bitstream you"
+	@echo "[keep] cannot identify is worse than none: it describes a build"
+	@echo "[keep] that may no longer be there."
+	@echo "[keep] HOLD now holds:"
+	@ls -1sh $(RDS_HOLD_DIR)/*/*/*.bit 2>/dev/null | sed 's/^/  /' || true
 
 # ---- Clean -----------------------------------------------------------------
 # Refuses to delete anything git is tracking. The build dirs are ignored (see
 # .gitignore, build-*/fpga/) so this should never trigger -- but it has cost a
 # verified bitstream more than once, and a guard that never fires is cheap.
+#
+# EXCEPT .gitkeep, which is the one tracked file a build dir is SUPPOSED to
+# hold: it is what makes fpga/reports/ and fpga/bitstream/ exist in a fresh
+# clone. Without this filter the guard fires on its own scaffolding and
+# `make clean` can never run -- which is exactly what it did in both pumice
+# flows (build-perf and build-litedram) from the day the area was created.
+# Nobody noticed because `make bitstream` does not invoke clean, so the break
+# only surfaces when someone follows the documented
+# "clean-all before a regression" rule.
 clean:              ## Remove Vivado artifacts, reports and the bitstream
 	@echo "[clean] $(FLOW)"
 	@tracked=$$(cd $(REPO_ROOT) && git ls-files --error-unmatch \
-	    $(BUILD_DIR) $(REPORTS) $(BITSTREAM) $(ILA_BITSTREAM) 2>/dev/null); \
+	    $(BUILD_DIR) $(REPORTS) $(BITSTREAM) $(ILA_BITSTREAM) 2>/dev/null \
+	    | grep -v '/\.gitkeep$$'); \
 	 if [ -n "$$tracked" ]; then \
 	    echo "[clean] REFUSING -- these are tracked in git:"; \
 	    echo "$$tracked" | sed 's/^/  /'; \
@@ -534,6 +564,15 @@ clean:              ## Remove Vivado artifacts, reports and the bitstream
 	rm -f  $(SELF_DIR)/vivado.log $(SELF_DIR)/vivado.jou
 	rm -f  $(SELF_DIR)/vivado_*.backup.log $(SELF_DIR)/vivado_*.backup.jou
 	rm -f  $(SELF_DIR)/vivado_pid*.str $(SELF_DIR)/hs_err_pid*.log
+# Put the scaffolding back. `rm -rf $(REPORTS)` takes the directory itself, and
+# with it the tracked .gitkeep that makes fpga/reports/ exist in a fresh clone
+# -- so without this, a clean leaves a staged DELETION of a tracked file and
+# the next `git status` looks like someone removed repo content. Restore from
+# git where the file is tracked, otherwise just recreate the directory.
+	@mkdir -p $(REPORTS) $(dir $(BITSTREAM))
+	@cd $(REPO_ROOT) && for f in $(REPORTS)/.gitkeep $(dir $(BITSTREAM)).gitkeep; do \
+	    git ls-files --error-unmatch "$$f" >/dev/null 2>&1 && git checkout -- "$$f" || true; \
+	 done
 
 # Verilator build trees for this area's cosims. fpga_flow.mk had NO target for
 # these -- `clean` only removes Vivado artifacts -- so anyone wanting a cold
