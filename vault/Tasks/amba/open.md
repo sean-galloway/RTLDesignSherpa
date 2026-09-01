@@ -339,6 +339,44 @@ learn to scroll past.
 **Priority:** P2
 **Owner:** TBD
 
+**MEASURED 2026-09-01 (stream-genesys session): the bank-local pre-reduction
+`6617b0d2` does NOT recover the timing.** Genesys2 build-mon, same board, same
+11.111 ns constraint, same flow, clean-all both times:
+
+| | before | after `6617b0d2` |
+|---|---|---|
+| WNS | -1.733 ns | -2.008 ns |
+| TNS | -9241.290 | -11288.290 |
+| failing endpoints | 7,597 | 7,696 |
+| total endpoints | 326,977 | 328,238 |
+
+**Read that as "no measurable effect, direction indeterminate" -- not as a
+regression.** Two runs of a congested design land more than 0.3 ns apart on
+placement alone, and the endpoint count moved by 1,261 because other monitor
+work landed between the builds, so the two numbers are not even the same
+design.
+
+What it actually tells us: the cross-bank OR was not the binding constraint.
+The failing path was 8.305 ns route against 3.994 ns logic, and collapsing 72
+fabric-crossing wires to 8 should have bought something -- so either the
+congestion is broad enough that removing one cone does not move the critical
+path, or the critical path has moved elsewhere. Nobody chased which, and that
+is the right call: frequency is the knob here, and the monitor campaign now
+builds at 75 MHz (CLKOUT0_DIVIDE=18), which closed at +0.009 ns even before
+the change.
+
+**The change stays in**, on the grounds it was committed under: strictly
+better structure at zero behavioural risk (OR is associative; the rewrite is
+bit-identical for every input). The difference now is that it is measured
+rather than assumed, and `6617b0d2`'s framing -- which reads as though the
+restructure would recover the 1.733 ns -- should be read with this row
+attached.
+
+Lesson for the rest of this task: **a route-dominated path does not mean the
+widest cone is the cause.** The reasoning that picked this cone was sound and
+still produced no movement, so the remaining TASK-072 levers need a measured
+before/after each, not a structural argument.
+
 Standing work item: the monitor family carries more registers and wider cones
 than it needs, and it now costs something real -- the Genesys2 `build-mon`
 configuration misses setup by 1.733 ns with 7182 of 7597 failing endpoints
