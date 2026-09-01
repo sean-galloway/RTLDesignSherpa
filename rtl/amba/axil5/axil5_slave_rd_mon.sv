@@ -324,7 +324,7 @@ module axil5_slave_rd_mon
         .ENABLE_NSAID       (ENABLE_NSAID),
         .ENABLE_POISON      (ENABLE_POISON),
         .ENABLE_LOCK        (ENABLE_LOCK)
-    ) axil4_slave_rd_inst (
+    ) axil5_slave_rd_inst (
         .aclk                    (aclk),
         .aresetn                 (aresetn),
 

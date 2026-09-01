@@ -320,7 +320,7 @@ module axil5_master_rd_mon
         .ENABLE_NSAID       (ENABLE_NSAID),
         .ENABLE_POISON      (ENABLE_POISON),
         .ENABLE_LOCK        (ENABLE_LOCK)
-    ) axil4_master_rd_inst (
+    ) axil5_master_rd_inst (
         .aclk                    (aclk),
         .aresetn                 (aresetn),
 

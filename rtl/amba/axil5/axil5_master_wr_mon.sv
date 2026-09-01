@@ -335,7 +335,7 @@ module axil5_master_wr_mon
         .ENABLE_NSAID       (ENABLE_NSAID),
         .ENABLE_POISON      (ENABLE_POISON),
         .ENABLE_LOCK        (ENABLE_LOCK)
-    ) axil4_master_wr_inst (
+    ) axil5_master_wr_inst (
         .aclk                    (aclk),
         .aresetn                 (aresetn),
 
