@@ -45,7 +45,26 @@ module axi4_master_rd_mon_cg
     // Monitor parameters
     parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor in inner mon; outputs tied
     parameter int N_ADDR_RANGES     = 0,         // 0 = address-range checker disabled
+    // Per-range DEBUG/ERROR flavor. Also missing on every _cg wrapper: a
+    // clock-gated build could configure HOW MANY address ranges but not what
+    // any of them MEANT, so every range silently stayed a DEBUG range.
+    parameter logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0] ADDR_RANGE_IS_ERROR = '0,
     parameter bit ADDR_FILTER_ENABLE = 1'b0,  // 0 = address filter inert
+    // Timer calibration, forwarded to the inner monitor. These were MISSING on
+    // every _cg wrapper: not merely unforwarded but undeclared, so a clock-gated
+    // build had no way to state its clock frequency and the inner
+    // counter_freq_invariant LUT was always built at the 100 MHz default. Every
+    // microsecond-denominated timeout was therefore miscalibrated on any board
+    // not running at 100 MHz, silently. Found by qc round_29 on one wrapper;
+    // it was all twelve.
+    parameter int ACLK_MHZ           = 100,
+    parameter int CFI_MIN_FREQ_MHZ   = ACLK_MHZ,
+    parameter int CFI_MAX_FREQ_MHZ   = ACLK_MHZ,
+    // Write-monitor table shaping. NUM_BANKS > 1 on a write monitor REQUIRES
+    // USE_WDATA_ORDER_Q=1 (the inner module fails elaboration otherwise), so a
+    // banked write monitor was simply not buildable through a _cg wrapper.
+    parameter bit USE_WDATA_ORDER_Q  = 1'b0,
+    parameter int NUM_BANKS          = 1,
     parameter bit ID_FILTER_ENABLE   = 1'b0,  // 0 = ID filter inert
     parameter int ID_MATCH_BASE      = 0,
     parameter int ID_MATCH_COUNT     = 0,     // 0 = all IDs
@@ -140,7 +159,7 @@ module axi4_master_rd_mon_cg
     input  logic                       cfg_compl_enable,     // Enable completion packets
     input  logic                       cfg_threshold_enable, // Enable threshold packets
     input  logic                       cfg_debug_enable,     // Enable debug packets
-    input  logic [15:0]                cfg_timeout_cycles,      // Timeout threshold in cycles
+    input  logic [15:0]                cfg_timeout_cycles,      // Timeout threshold in MICROSECONDS (1 us tick), despite the name
     input  logic [3:0]                 cfg_freq_sel,            // counter_freq_invariant LUT index
     input  logic [31:0]                cfg_latency_threshold,   // Latency threshold for alerts
 
@@ -287,10 +306,16 @@ module axi4_master_rd_mon_cg
         .ENABLE_PERF_LOGIC       (ENABLE_PERF_LOGIC),
         .ENABLE_DEBUG_LOGIC(ENABLE_DEBUG_LOGIC),
         .ADDR_FILTER_ENABLE      (ADDR_FILTER_ENABLE),
+        .ACLK_MHZ                (ACLK_MHZ),
+        .CFI_MIN_FREQ_MHZ        (CFI_MIN_FREQ_MHZ),
+        .CFI_MAX_FREQ_MHZ        (CFI_MAX_FREQ_MHZ),
+        .USE_WDATA_ORDER_Q       (USE_WDATA_ORDER_Q),
+        .NUM_BANKS               (NUM_BANKS),
         .ID_FILTER_ENABLE        (ID_FILTER_ENABLE),
         .ID_MATCH_BASE           (ID_MATCH_BASE),
         .ID_MATCH_COUNT          (ID_MATCH_COUNT),
-        .N_ADDR_RANGES           (N_ADDR_RANGES)
+        .N_ADDR_RANGES           (N_ADDR_RANGES),
+        .ADDR_RANGE_IS_ERROR     (ADDR_RANGE_IS_ERROR)
     ) axi4_master_rd_mon_inst (
         .aclk                    (gated_aclk),
         .aresetn                 (aresetn),

@@ -297,7 +297,7 @@ All core modules use `gaxi_skid_buffer`:
 
 Monitor modules combine functional core with verification:
 - Uses shared **axi_monitor_filtered** (rtl/amba/monitor/)
-- 3-level filtering hierarchy
+- 2-level filtering (packet-type masks, then per-event-code masks; `err_select` is reserved and routes nothing)
 - 128-bit monitor bus + 64-bit side-band timestamp
 - Simplified for AXIL (MAX_TRANSACTIONS=8, vs 16 for the AXI4 wrappers)
 

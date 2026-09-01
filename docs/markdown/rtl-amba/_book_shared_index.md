@@ -35,4 +35,4 @@
 - [AMBA Protocol Shims](shims/README.md)
 - [axi4_to_apb4_convert](../../../projects/components/converters/docs/converter_mas/ch03_protocol_blocks/04_axi4_to_apb4.md)
 - [axi4_to_apb4_shim](../../../projects/components/converters/docs/converter_mas/ch03_protocol_blocks/04_axi4_to_apb4.md)
-- [peakrdl_to_cmdrsp](shims/peakrdl_to_cmdrsp.md)
+- [peakrdl_to_cmdrsp](../../../projects/components/converters/docs/peakrdl_to_cmdrsp.md) — owned by the converters component

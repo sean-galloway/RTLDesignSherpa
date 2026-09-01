@@ -13,7 +13,9 @@
 // Features:
 // - Instantiates axi5_master_rd for core AXI5 functionality
 // - Instantiates axi_monitor_filtered for transaction monitoring with filtering
-// - 3-level filtering hierarchy: packet type, error routing, individual event masking
+// - 2-level filtering: packet-type masks, then per-event-code masks.
+//   (err_select is RESERVED -- it feeds only the conflict check, no routing
+//   is implemented. See axi_monitor_filtered's banner.)
 // - Monitor bus output for system-level monitoring
 // - Configurable monitoring and filtering parameters
 // - Error detection and timeout monitoring

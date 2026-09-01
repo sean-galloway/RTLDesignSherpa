@@ -40,15 +40,15 @@ actually does today is:
 1. **Gate the monitor functionally**, by ANDing the gating enable into the
    monitor enable: `cfg_monitor_enable & cfg_cg_enable`. With
    `cfg_cg_enable = 0` the monitor stops observing.
-2. **Count idle cycles** into `cg_cycles_saved`, incremented whenever
-   `cfg_cg_enable && !busy`. The RTL labels this block
-   "Clock Gating Statistics (Placeholder)". It is an *estimate of cycles
-   during which gating would have been possible*, not a measurement of cycles
-   actually saved.
+2. **Report gating state** on `cg_gating` (the gated clock is stopped) and
+   `cg_idle` (no activity observed).
 
-The `ENABLE_CLOCK_GATING` and `CG_IDLE_CYCLES` parameters and the
-`cfg_cg_idle_threshold` port are **declared but not referenced** anywhere in
-the module body. Setting them has no effect.
+An earlier version of this page described a `cg_cycles_saved` output, a
+`cfg_cg_idle_threshold` input, and `ENABLE_CLOCK_GATING` / `CG_IDLE_CYCLES`
+parameters as "declared but not referenced". None of them exist -- not
+declared, not referenced, nowhere in `rtl/amba`. The real controls are
+`cfg_cg_enable` and `cfg_cg_idle_count` (width `CG_IDLE_COUNT_WIDTH`), and
+there is no cycles-saved counter of any kind.
 
 **Consequence for integrators:** instantiating this wrapper instead of
 `axil4_master_rd_mon` will not reduce dynamic power. If you need real clock
@@ -94,8 +94,6 @@ control input (Input, 1) - synchronous clear of the monitor transaction CAM
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `cfg_cg_enable` | Input | 1 | Gates the monitor functionally (ANDed into `cfg_monitor_enable`). 0 = monitor disabled. |
-| `cfg_cg_idle_threshold` | Input | 8 | Declared but **unused** in the current RTL |
-| `cg_cycles_saved` | Output | 32 | Count of cycles where `cfg_cg_enable && !busy`; an estimate, not a measurement |
 
 The base module's `busy` output remains available on this wrapper.
 
@@ -138,8 +136,9 @@ axil4_master_rd_mon_cg #(
 
     // Power-management interface
     .cfg_cg_enable(1'b1),            // 0 would disable the monitor
-    .cfg_cg_idle_threshold(8'd4),    // currently unused by the RTL
-    .cg_cycles_saved(idle_cycle_est),
+    .cfg_cg_idle_count(4'd4),        // idle cycles before the clock stops
+    .cg_gating(cg_gating),           // high while the gated clock is stopped
+    .cg_idle(cg_idle),
 
     // ... all other ports same as axil4_master_rd_mon
 );

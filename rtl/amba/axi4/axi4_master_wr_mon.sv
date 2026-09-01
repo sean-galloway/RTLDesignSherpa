@@ -24,7 +24,9 @@
  * Features:
  * - Instantiates axi4_master_wr for core AXI4 functionality
  * - Instantiates axi_monitor_filtered for transaction monitoring with filtering
- * - 3-level filtering hierarchy: packet type, error routing, individual event masking
+ * - 2-level filtering: packet-type masks, then per-event-code masks.
+ *   (err_select is RESERVED -- it feeds only the conflict check, no routing
+ *   is implemented. See axi_monitor_filtered's banner.)
  * - Monitor bus output for system-level monitoring
  * - Configurable monitoring and filtering parameters
  * - Error detection and timeout monitoring
@@ -184,7 +186,7 @@ module axi4_master_wr_mon
     input  logic                       cfg_compl_enable,     // Enable completion packets
     input  logic                       cfg_threshold_enable, // Enable threshold packets
     input  logic                       cfg_debug_enable,     // Enable debug packets
-    input  logic [15:0]                cfg_timeout_cycles,      // Timeout threshold in cycles
+    input  logic [15:0]                cfg_timeout_cycles,      // Timeout threshold in MICROSECONDS (1 us tick), despite the name
     input  logic [3:0]                 cfg_freq_sel,            // counter_freq_invariant LUT index
     input  logic [31:0]                cfg_latency_threshold,   // Latency threshold for alerts
 

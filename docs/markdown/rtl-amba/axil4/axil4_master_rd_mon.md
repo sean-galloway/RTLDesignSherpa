@@ -37,7 +37,7 @@ Combines **[axil4_master_rd](../axil4/axil4_master_rd.md)** with the core **axi_
 
 - ✅ All features of base **axil4_master_rd** module
 - ✅ **Integrated Monitoring:** Uses shared axi_monitor_filtered (rtl/amba/monitor/)
-- ✅ **3-Level Filtering:** Packet type masks, error routing, event masking
+- **2-Level Filtering:** packet-type masks, then per-event-code masks. `err_select` is RESERVED -- it feeds only the conflict check and routes nothing.
 - ✅ **Error Detection:** Protocol violations, timeouts, orphans
 - ✅ **128-bit Monitor Bus:** Standardized packet format paired with 64-bit side-band timestamp
 - ✅ **Reduced Complexity:** MAX_TRANSACTIONS=8 (vs 16-32 for AXI4)
@@ -123,7 +123,7 @@ The four buckets sum to `window_cycles`, so utilization = `perf_prod_cycles / wi
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
 - **When `cfg_monitor_enable=0`**: the wrapper gate forces the upstream ready open, so a runtime-disabled monitor can never stall the datapath (in-RTL formal property `ap_disabled_never_stalls`).
 
-Recovery is guaranteed by the **saturation-recovery contract**: command-originated table entries are capped at `MAX_TRANSACTIONS - cmd_entry_reserve(MAX_TRANSACTIONS)` (reserve = 2 for tables of 16 or more, 0 below; the function lives in `monitor_common_pkg`), and `block_ready` re-asserts at occupancy `< MAX_TRANSACTIONS - (reserve - 1)` -- a threshold strictly ABOVE the command cap -- so a saturated table always drains back below the reopen point. Blocking throttles; it never deadlocks. Tables smaller than 16 keep full legacy allocation (small tables cannot spare slots) and trade the recovery guarantee for tracking capacity. The contract is verified by in-RTL formal properties (mutation-checked) and a 100-seed deliberately-undersized-table stream sweep; see [axi_monitor_base](../monitor/axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) for the canonical description.
+Recovery is guaranteed by the **saturation-recovery contract**: command-originated table entries are capped at `MAX_TRANSACTIONS - cmd_entry_reserve(MAX_TRANSACTIONS)` (reserve = 4 for tables of 16 or more, 0 below; the function lives in `monitor_common_pkg`), and `block_ready` re-asserts at occupancy `< MAX_TRANSACTIONS - (reserve - 1)` -- a threshold strictly ABOVE the command cap -- so a saturated table always drains back below the reopen point. Blocking throttles; it never deadlocks. Tables smaller than 16 keep full legacy allocation (small tables cannot spare slots) and trade the recovery guarantee for tracking capacity. The contract is verified by in-RTL formal properties (mutation-checked) and a 100-seed deliberately-undersized-table stream sweep; see [axi_monitor_base](../monitor/axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) for the canonical description.
 
 Sizing note: a monitor on a bus shared by several channels/requesters must size `MAX_TRANSACTIONS` to cover `NUM_CHANNELS x per-channel outstanding` plus margin -- the per-channel limit alone makes the monitor throttle the shared master. Tables deeper than 64 also need Verilator's `--unroll-count` raised (default 64) in sim builds.
 
@@ -154,6 +154,33 @@ AddrMatch is dropped by `cfg_axi_addr_mask[1]`, the ADDR_RANGE error by
 `cfg_axi_error_mask[13]`. See the checker page for coalescing + formal properties.
 
 ---
+
+### Packet filters
+
+Two independent runtime filters cut monbus traffic without touching the
+datapath. Both are inert until driven, which is the failure to watch for: the
+build-time parameter only decides whether the logic is SYNTHESISED, and a
+design that sets the parameter but leaves the `cfg_*` ports tied low filters
+nothing and looks like the feature is broken.
+
+**Address-range filter** — `ADDR_FILTER_ENABLE` (bit, default 0) builds it.
+
+| Port | Width | Description |
+|---|---|---|
+| `cfg_addr_filter_enable` | 1 | High: suppress packets for transactions outside the window. Low: inert, whatever the parameter says |
+| `cfg_addr_filter_low` | `ADDR_WIDTH` | Window base, inclusive |
+| `cfg_addr_filter_high` | `ADDR_WIDTH` | Window limit, inclusive |
+
+The verdict is latched per table entry at ALLOCATION, from the command
+address, and held for that entry's life. Widening the window mid-flight does
+not un-filter entries already admitted — which is what makes it safe to
+reprogram live. Contrast the address-range CHECKER above, which re-evaluates
+per command.
+
+There is no runtime ID filter here. AXI-Lite has no transaction IDs, so this
+wrapper ties `cfg_id_filter_enable` / `cfg_id_match_base` /
+`cfg_id_match_count` off on the inner monitor rather than exposing them — a
+filter keyed on a field the protocol lacks has nothing to match against.
 
 ## Additional Ports (Beyond Base Module)
 

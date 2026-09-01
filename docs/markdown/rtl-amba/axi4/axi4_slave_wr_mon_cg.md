@@ -47,11 +47,19 @@ The `axi4_slave_wr_mon_cg` module adds power optimization to `axi4_slave_wr_mon`
 
 ## Parameters
 
-MOST [axi4_slave_wr_mon](./axi4_slave_wr_mon.md) parameters pass through -- with these NOT
-forwarded: `ACLK_MHZ`, `CFI_MIN_FREQ_MHZ`, `CFI_MAX_FREQ_MHZ`,
-`ADDR_RANGE_IS_ERROR`, `ACTIVE_TRANS_THRESHOLD`, `USE_WDATA_ORDER_Q`,
-`NUM_BANKS`, `ID_FILTER_ENABLE`, `ID_MATCH_BASE`, `ID_MATCH_COUNT` (use the
-base module for those knobs; setting them here fails elaboration).
+MOST [axi4_slave_wr_mon](./axi4_slave_wr_mon.md) parameters pass through. As of 2026-09-01 only
+`ACTIVE_TRANS_THRESHOLD` is NOT forwarded, and that one is harmless: its inner
+default is `MAX_TRANSACTIONS/2`, computed from the `MAX_TRANSACTIONS` this
+wrapper DOES forward.
+
+An earlier version of this page listed nine more as unforwarded, which was
+accurate when written. `ACLK_MHZ`, `CFI_MIN_FREQ_MHZ`, `CFI_MAX_FREQ_MHZ`,
+`USE_WDATA_ORDER_Q`, `NUM_BANKS` and `ADDR_RANGE_IS_ERROR` were threaded
+through every `_cg` wrapper on 2026-09-01, and `ID_FILTER_ENABLE` /
+`ID_MATCH_BASE` / `ID_MATCH_COUNT` the day before. Until then a clock-gated
+build could not state its clock frequency, so the 1 us timer tick was pinned
+to the 100 MHz default and every microsecond-denominated timeout was
+miscalibrated on any other clock -- silently.
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|

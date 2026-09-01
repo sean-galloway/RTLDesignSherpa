@@ -473,8 +473,8 @@ This is one of the cheapest shims you'll ever instantiate — two small FSMs and
 
 ## Related Modules
 
-- **[apb4_slave_stub](../apb4/apb4_slave_stub.md)** - APB → cmd/rsp conversion (upstream)
-- **[apb4_master_stub](../apb4/apb4_master_stub.md)** - cmd/rsp → APB conversion
+- **[apb4_slave_stub](../../../../docs/markdown/rtl-amba/apb4/apb4_slave_stub.md)** - APB → cmd/rsp conversion (upstream)
+- **[apb4_master_stub](../../../../docs/markdown/rtl-amba/apb4/apb4_master_stub.md)** - cmd/rsp → APB conversion
 
 **External:**
 - PeakRDL: https://github.com/SystemRDL/PeakRDL
@@ -511,5 +511,5 @@ used to list.
 
 ## Navigation
 
-- [Back to Shims Index](README.md)
-- [Back to rtl-amba Index](../index.md)
+- [Back to Shims Index](peakrdl_adapter_README.md)
+- [Back to rtl-amba Index](../../../../docs/markdown/rtl-amba/index.md)

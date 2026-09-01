@@ -219,7 +219,7 @@ Each documentation file should follow this structure (see axi_monitor_base.md as
 
 **axi_monitor_filtered.sv**
 - Wraps axi_monitor_base with configurable packet filtering
-- 3-level filtering hierarchy: packet type masking, error routing, event code masking
+- 2-level filtering: packet-type masking, then event-code masking (error routing is NOT implemented; `err_select` is reserved)
 - AXI protocol specific (protocol 3'b000)
 - Optional pipeline stage for timing closure
 

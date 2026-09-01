@@ -27,6 +27,13 @@ Generic, reusable protocol adapters for AMBA and register interfaces.
 
 ## peakrdl_to_cmdrsp
 
+> Full module reference — parameters, ports, both state machines, strobe
+> conversion and stall handling — is in
+> [`peakrdl_to_cmdrsp.md`](peakrdl_to_cmdrsp.md), moved here from the AMBA
+> book on 2026-09-01 so it sits with the module it documents. This page is
+> the shorter integration note.
+
+
 **Purpose**: Bridges PeakRDL-generated register blocks (passthrough cpuif) to rtldesignsherpa's cmd/rsp valid/ready interface.
 
 **Features**:

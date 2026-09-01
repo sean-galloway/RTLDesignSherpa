@@ -187,7 +187,7 @@ Main AXI4 master/slave interfaces.
 |------|--------|------------|--------|
 | shims/axi4_to_apb4_shim.md | axi4_to_apb4_shim | High | [ ] Pending |
 | shims/axi4_to_apb4_convert.md | axi4_to_apb4_convert | High | [ ] Pending |
-| shims/peakrdl_to_cmdrsp.md | peakrdl_to_cmdrsp | Medium | [ ] Pending |
+| ~~shims/peakrdl_to_cmdrsp.md~~ | peakrdl_to_cmdrsp | — | Page MOVED 2026-09-01 to projects/components/converters/docs/ |
 | shims/README.md | (overview) | Low | [ ] Pending |
 
 ### Phase 12: Top-Level Documentation (4 files) - LOW PRIORITY

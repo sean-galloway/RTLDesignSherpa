@@ -207,6 +207,41 @@ Same as `axi5_slave_rd` - see [AXI5 Slave Read](../axi5/axi5_slave_rd.md) for co
 
 ---
 
+### Packet filters
+
+Two independent runtime filters cut monbus traffic without touching the
+datapath. Both are inert until driven, which is the failure to watch for: the
+build-time parameter only decides whether the logic is SYNTHESISED, and a
+design that sets the parameter but leaves the `cfg_*` ports tied low filters
+nothing and looks like the feature is broken.
+
+**Address-range filter** — `ADDR_FILTER_ENABLE` (bit, default 0) builds it.
+
+| Port | Width | Description |
+|---|---|---|
+| `cfg_addr_filter_enable` | 1 | High: suppress packets for transactions outside the window. Low: inert, whatever the parameter says |
+| `cfg_addr_filter_low` | `ADDR_WIDTH` | Window base, inclusive |
+| `cfg_addr_filter_high` | `ADDR_WIDTH` | Window limit, inclusive |
+
+The verdict is latched per table entry at ALLOCATION, from the command
+address, and held for that entry's life. Widening the window mid-flight does
+not un-filter entries already admitted — which is exactly what makes it safe
+to reprogram live, since an entry's fate is decided when it is admitted and
+the retire accounting cannot be corrupted afterwards. Contrast the
+address-range CHECKER (`N_ADDR_RANGES`), which re-evaluates per command.
+
+**Runtime ID filter** — overrides the `ID_MATCH_BASE`/`ID_MATCH_COUNT`
+elaboration constants so an instance can be retargeted at a different master
+without a rebuild.
+
+| Port | Width | Description |
+|---|---|---|
+| `cfg_id_filter_enable` | 1 | High: use the window below. Low: use the parameters, bit-identical to a build without this feature |
+| `cfg_id_match_base` | `ID_WIDTH` | First ID owned |
+| `cfg_id_match_count` | `ID_WIDTH+1` | How many; `0` means ALL, matching the parameter rule so a zeroed register block does not silently filter everything away |
+
+The window is half-open: `[base, base + count)`.
+
 ## Functional Description
 
 ### Monitor Packet Format
@@ -277,7 +312,7 @@ window outputs carry that data, not packets.)
 - **When `cfg_monitor_enable=0`**: the wrapper gate forces the upstream ready open, so a runtime-disabled monitor can never stall the datapath (in-RTL formal property `ap_disabled_never_stalls`).
 - **For axi5 slave variants**: the monitor watches the FUB-side handshake, so there is a `SKID_DEPTH_AR` cycle lag between block_ready going low and new events ceasing. `MAX_TRANSACTIONS` should be sized to cover this margin.
 
-Recovery is guaranteed by the **saturation-recovery contract**: command-originated table entries are capped at `MAX_TRANSACTIONS - cmd_entry_reserve(MAX_TRANSACTIONS)` (reserve = 2 for tables of 16 or more, 0 below; the function lives in `monitor_common_pkg`), and `block_ready` re-asserts at occupancy `< MAX_TRANSACTIONS - (reserve - 1)` -- a threshold strictly ABOVE the command cap -- so a saturated table always drains back below the reopen point. Blocking throttles; it never deadlocks. Tables smaller than 16 keep full legacy allocation (small tables cannot spare slots) and trade the recovery guarantee for tracking capacity. The contract is verified by in-RTL formal properties (mutation-checked) and a 100-seed deliberately-undersized-table stream sweep; see [axi_monitor_base](../monitor/axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) for the canonical description.
+Recovery is guaranteed by the **saturation-recovery contract**: command-originated table entries are capped at `MAX_TRANSACTIONS - cmd_entry_reserve(MAX_TRANSACTIONS)` (reserve = 4 for tables of 16 or more, 0 below; the function lives in `monitor_common_pkg`), and `block_ready` re-asserts at occupancy `< MAX_TRANSACTIONS - (reserve - 1)` -- a threshold strictly ABOVE the command cap -- so a saturated table always drains back below the reopen point. Blocking throttles; it never deadlocks. Tables smaller than 16 keep full legacy allocation (small tables cannot spare slots) and trade the recovery guarantee for tracking capacity. The contract is verified by in-RTL formal properties (mutation-checked) and a 100-seed deliberately-undersized-table stream sweep; see [axi_monitor_base](../monitor/axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) for the canonical description.
 
 Sizing note: a monitor on a bus shared by several channels/requesters must size `MAX_TRANSACTIONS` to cover `NUM_CHANNELS x per-channel outstanding` plus margin -- the per-channel limit alone makes the monitor throttle the shared master. Tables deeper than 64 also need Verilator's `--unroll-count` raised (default 64) in sim builds.
 
