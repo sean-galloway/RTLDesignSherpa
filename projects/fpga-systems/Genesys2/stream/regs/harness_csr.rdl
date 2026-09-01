@@ -114,11 +114,6 @@ addrmap harness_csr {
     word_ro_t DESC_W_HS @ 0x0F4;
     word_ro_t DESC_B_HS @ 0x0F8;
     word_ro_t DESC_VR_LIVE @ 0x0FC;
-    reg {
-        field { sw = rw; hw = r; } BUS[0:0] = 0;
-        field { sw = rw; hw = r; } METRIC[1:1] = 0;
-        field { sw = rw; hw = r; } BIN[5:2] = 0;
-    } OBS_HIST_SEL @ 0x120;
     word_ro_t BUILD_VERSION @ 0x1D0;
     reg {
         field { sw = r; hw = w; } NUM_CHANNELS[4:0] = 0;

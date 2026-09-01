@@ -145,7 +145,7 @@ def harness_regs(bridge, base: int = HARNESS_CSR_BASE):
         regs.CTRL.write(start_wr=1)             # self-clearing pulse
         regs.TIMER_EXPECTED_BEATS.write_word(n)  # whole-word write
         if regs.STATUS.init_done: ...           # read one field
-        regs.OBS_HIST_SEL.bin = 3               # read-modify-write one field
+        regs.RESP_DELAY.rd_delay = 3            # read-modify-write one field
         cyc = regs.TIMER_CYCLES_LO.read()       # whole-word read
 
     For a raw absolute address (e.g. building a loop over a register family) use

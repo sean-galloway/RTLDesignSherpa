@@ -980,9 +980,8 @@ module stream_harness #(
     logic [31:0] obs_wr_agg_bp    [1];
     logic [31:0] obs_wr_agg_starv [1];
     logic [31:0] obs_wr_agg_idle  [1];
-    logic [5:0]  obs_hist_sel;        // from u_csr.o_obs_hist_sel
-    logic [31:0] obs_hist_data_mux;   // selected count -> u_csr 0x124
-    logic [31:0] obs_hist_total_mux;  // selected total -> u_csr 0x128
+    // (obs_hist_data_mux / obs_hist_total_mux removed -- see the histogram
+    //  note further down; they fed harness_csr 0x124/0x128, both retired.)
 
     // Build identity is driven from THIS harness's own parameters, so what a
     // host reads is what the bitstream was compiled with. Two bitstreams ship
@@ -1083,17 +1082,14 @@ module stream_harness #(
         .i_desc_aw_hs    (r_desc_aw_hs_cnt),
         .i_desc_w_hs     (r_desc_w_hs_cnt),
         .i_desc_b_hs     (r_desc_b_hs_cnt),
-        .i_desc_vr_live  (w_desc_ram_dbg_vr),
+        .i_desc_vr_live  (w_desc_ram_dbg_vr)
 
-        // RFC Stage E external DMA observer readback (0x100-0x128). The
-        // observer is instantiated further down in parallel with the in-core
-        // monitors; these nets are declared near that instance. The host
-        // reads the observer's aggregate productive/bp/starv/idle buckets and
-        // the indexed latency histogram entirely over CSR (no hierarchy
-        // probe), enabling observer-vs-in-core equivalence over the real bus.
-        // Indexed histogram readout: CSR drives the {bin,metric,bus} selector,
-        // the harness muxes the selected count/total back in.
-        .o_obs_hist_sel  (obs_hist_sel)
+        // NO observer readback through harness_csr. 0x100-0x128 is retired in
+        // full: the observer owns its telemetry and the host reads it from the
+        // observer's own regblock (OBS_STAT_SEL / OBS_STAT_DATA, bin/obs_addrs.py).
+        // The last survivor, OBS_HIST_SEL @ 0x120, was a register the host could
+        // write and read back that drove nothing -- its decoded {bin,metric,bus}
+        // fed only a mux the harness had already orphaned.
     );
 
     // =========================================================================
@@ -2178,12 +2174,9 @@ module stream_harness #(
     // and bin indexes the 16-entry log2 histogram. The selected count/total
     // are muxed back to the CSR at 0x124/0x128 (obs_hist_*_mux declared up by
     // the u_csr instance; obs_hist_sel likewise driven from u_csr).
-    logic                    obs_hist_metric;
-    logic [OBS_HIST_BINW-1:0] obs_hist_bin;
-    logic                    obs_hist_bus;
-    assign obs_hist_bus    = obs_hist_sel[0];
-    assign obs_hist_metric = obs_hist_sel[1];
-    assign obs_hist_bin    = obs_hist_sel[5:2];
+    // obs_hist_{bus,metric,bin} removed with obs_hist_sel: they decoded a
+    // selector nothing consumed. The observer selects its own histogram from
+    // OBS_STAT_SEL in its regblock.
 
     // ---- Observer meter + histogram outputs (aggregate nets declared by the
     //      u_csr instance above; per-channel + histogram nets declared here) ---
@@ -2197,15 +2190,24 @@ module stream_harness #(
     logic [15:0]               obs_wr_ch_starv    [1][OBS_NUM_CHANNELS];
     logic [15:0]               obs_wr_ch_idle     [1][OBS_NUM_CHANNELS];
     logic [OBS_NUM_CHANNELS*4-1:0] obs_wr_ch_overflow [1];
-    logic [31:0]               obs_rd_hist_count  [1];
-    logic [31:0]               obs_rd_hist_total  [1];
-    logic [31:0]               obs_wr_hist_count  [1];
-    logic [31:0]               obs_wr_hist_total  [1];
     logic                      obs_hist_sample_lost;
-    // Read/write-side count+total mux feeding the CSR readback (after the
-    // histogram count/total declarations above).
-    assign obs_hist_data_mux  = obs_hist_bus ? obs_wr_hist_count[0] : obs_rd_hist_count[0];
-    assign obs_hist_total_mux = obs_hist_bus ? obs_wr_hist_total[0] : obs_rd_hist_total[0];
+    // NO harness-side histogram mirror. obs_{rd,wr}_hist_{count,total}[1] and
+    // the two muxes that read them used to live here, feeding harness_csr
+    // 0x124/0x128.
+    //
+    // They were dead in three independent ways at once, which is why nothing
+    // complained: the arrays were DECLARED AND NEVER CONNECTED (the observer
+    // exposes no hist_count/hist_total output ports at all -- its histogram is
+    // reachable only through OBS_STAT_SEL/OBS_STAT_DATA in its own regblock);
+    // the muxes reading them were consumed NOWHERE; and their destination
+    // CSRs had been retired. UNDRIVEN and UNUSED are both in LINT_WAIVERS on a
+    // board top, so lint saw none of it.
+    //
+    // Found in the WAVEFORM, not by reading code: a build-perf dma_4ch run
+    // shows obs_wr_hist_total[0] flat at 0 while the observer's own
+    // wr_hist_total[0] reaches 256 -- exactly the 256 awlen=15 write bursts on
+    // the bus. Anyone reconnecting 0x124/0x128 to these nets would have wired
+    // a register to a constant zero.
 
 
     // ---- STREAM master <-> fabric, wired STRAIGHT THROUGH ----------------

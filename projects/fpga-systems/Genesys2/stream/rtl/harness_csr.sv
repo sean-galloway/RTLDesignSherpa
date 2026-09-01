@@ -286,7 +286,7 @@ module harness_csr #(
     // (bus 0=read/1=write; metric 0=AR->firstR or AW->B, 1=AR->RLAST). The
     // harness drives the observer's i_hist_metric/i_hist_bin from this and
     // muxes the selected count/total back into i_obs_hist_data/total.
-    output logic [5:0]      o_obs_hist_sel,
+    // o_obs_hist_sel RETIRED -- drove nothing; see 0x120 note below.
 
     input  logic [31:0]     i_crc_rd_expected,
     input  logic [31:0]     i_crc_wr_expected,
@@ -445,7 +445,6 @@ module harness_csr #(
     logic r_irq_latched;
     logic r_any_error_sticky;
     logic [31:0] r_scratch;
-    logic [5:0]  r_obs_hist_sel;   // RFC Stage E observer hist selector @ 0x120
 
     logic r_start_pulse;
     logic r_clear_stats_pulse;
@@ -512,7 +511,6 @@ module harness_csr #(
             r_timer_expected_beats <= '0;
             r_rd_resp_delay_cyc    <= '0;
             r_wr_resp_delay_cyc    <= '0;
-            r_obs_hist_sel         <= '0;
         end else begin
             r_start_pulse          <= 1'b0;
             r_clear_stats_pulse    <= 1'b0;
@@ -549,7 +547,6 @@ module harness_csr #(
                             // {bin[5:2], metric[1], bus[0]}. Drives the
                             // observer's hist read port; data/total stream
                             // back through 0x124/0x128 (read-only).
-                            9'h120: r_obs_hist_sel <= int_wdata[5:0];
                             default: ; // ignore
                         endcase
                         r_wstate <= W_BRESP;
@@ -688,7 +685,6 @@ module harness_csr #(
                             // Kick-burst shadow registers (read-back)                            // RFC Stage E: external axi4_intf_master_observer perf
                             // readback (revives 0x100-0x128). Aggregate R/W
                             // buckets + indexed latency-histogram readout.
-                            9'h120: r_rdata <= {26'd0, r_obs_hist_sel};
 
                             // MonBus compressor statistics (0 unless the
                             // build has USE_MON_COMPRESSION=1).
@@ -728,7 +724,6 @@ module harness_csr #(
     assign o_timer_expected_beats = r_timer_expected_beats;
     assign o_rd_resp_delay_cyc    = r_rd_resp_delay_cyc;
     assign o_wr_resp_delay_cyc    = r_wr_resp_delay_cyc;
-    assign o_obs_hist_sel         = r_obs_hist_sel;
 
 
     // Prevent unused signal warnings
