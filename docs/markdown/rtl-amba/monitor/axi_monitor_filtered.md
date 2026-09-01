@@ -77,7 +77,7 @@ Four reasons this block exists:
 | `ENABLE_THRESHOLD_LOGIC` | bit | 1 | Threshold reporter (latency / active-count thresholds). |
 | `ENABLE_PERF_LOGIC` | bit | `ENABLE_PERF_PACKETS` | Gates `axi_monitor_reporter_perf` only: two 16-bit lifetime counters plus the 5-state emit FSM. It does **not** gate the Stage B window counters below — those are unconditional `always_ff` blocks in `axi_monitor_base` and are live in every build. |
 | `ENABLE_DEBUG_LOGIC` | bit | 0 | Debug reporter. |
-| `ENABLE_FILTERING` | bit | 1 | Master enable for filtering. |
+| `ENABLE_FILTERING` | bit | 1 | Master enable for filtering: two active drop levels (packet type, then event code). Level 2 is reserved and routes nothing |
 | `ADD_PIPELINE_STAGE` | bit | 0 | Add register stage for timing. |
 | `N_ADDR_RANGES` | int | 0 | Number of address-range comparators in the [`axi_monitor_addr_check`](axi_monitor_addr_check.md) sub-block (0 = the comparator block is not synthesised at all). |
 | `ADDR_RANGE_IS_ERROR` | logic [N_ADDR_RANGES-1:0] | `'0` | Per-range flavor forwarded to the checker: 0 = DEBUG (hit -> AddrMatch), 1 = ERROR (allowlist miss -> Error/ADDR_RANGE). Default all-0. |

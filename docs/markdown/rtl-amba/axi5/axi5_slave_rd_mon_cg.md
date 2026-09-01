@@ -123,7 +123,7 @@ flowchart TB
 | UNIT_ID | int | 1 | Monitoring unit identifier |
 | AGENT_ID | int | 12 | Agent identifier |
 | MAX_TRANSACTIONS | int | 16 | Transaction table size |
-| ENABLE_FILTERING | bit | 1 | Enable packet filtering |
+| ENABLE_FILTERING | bit | 1 | Enable packet filtering: two active drop levels (packet type, then event code). Level 2 is reserved and routes nothing |
 | ADD_PIPELINE_STAGE | bit | 0 | Add pipeline stage for timing |
 | USE_MONITOR | bit | 1 | Synthesis-time monitor enable (forwarded to inner monitor). |
 | N_ADDR_RANGES | int | 0 | Number of address-range comparators (forwarded to base module). |
