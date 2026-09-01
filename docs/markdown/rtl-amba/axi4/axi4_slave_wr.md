@@ -71,7 +71,17 @@ module axi4_slave_wr #(
     parameter int AXI_ID_WIDTH      = 8,
     parameter int AXI_ADDR_WIDTH    = 32,
     parameter int AXI_DATA_WIDTH    = 32,
-    parameter int AXI_USER_WIDTH    = 1
+    parameter int AXI_USER_WIDTH    = 1,
+    parameter int AXI_WSTRB_WIDTH   = AXI_DATA_WIDTH / 8,
+    // Derived shorthands -- override the eight above, not these
+    parameter int AW       = AXI_ADDR_WIDTH,
+    parameter int DW       = AXI_DATA_WIDTH,
+    parameter int IW       = AXI_ID_WIDTH,
+    parameter int SW       = AXI_WSTRB_WIDTH,
+    parameter int UW       = AXI_USER_WIDTH,
+    parameter int AWSize   = IW+AW+8+3+2+1+4+3+4+4+UW,
+    parameter int WSize    = DW+SW+1+UW,
+    parameter int BSize    = IW+2+UW
 ) (
     // Clock and Reset
     input  logic                       aclk,
@@ -95,7 +105,7 @@ module axi4_slave_wr #(
 
     // Write data channel (W)
     input  logic [AXI_DATA_WIDTH-1:0] s_axi_wdata,
-    input  logic [AXI_DATA_WIDTH/8-1:0] s_axi_wstrb,
+    input  logic [SW-1:0]               s_axi_wstrb,
     input  logic                       s_axi_wlast,
     input  logic [AXI_USER_WIDTH-1:0] s_axi_wuser,
     input  logic                       s_axi_wvalid,
@@ -126,7 +136,7 @@ module axi4_slave_wr #(
 
     // Write data channel (W)
     output logic [AXI_DATA_WIDTH-1:0] fub_axi_wdata,
-    output logic [AXI_DATA_WIDTH/8-1:0] fub_axi_wstrb,
+    output logic [SW-1:0]               fub_axi_wstrb,
     output logic                       fub_axi_wlast,
     output logic [AXI_USER_WIDTH-1:0] fub_axi_wuser,
     output logic                       fub_axi_wvalid,
@@ -159,7 +169,7 @@ module axi4_slave_wr #(
 |------|-----------|-------|-------------|
 | `s_axi_awid` | Input | `AXI_ID_WIDTH` | Write transaction ID |
 | `s_axi_awaddr` | Input | `AXI_ADDR_WIDTH` | Write address |
-| `s_axi_awlen` | Input | 8 | Burst length (0-255 beats) |
+| `s_axi_awlen` | Input | 8 | Burst length, AXI-encoded: beats - 1 (`0x00` = 1 beat, `0xFF` = 256) |
 | `s_axi_awsize` | Input | 3 | Burst size (bytes per beat) |
 | `s_axi_awburst` | Input | 2 | Burst type (FIXED, INCR, WRAP) |
 | `s_axi_awlock` | Input | 1 | Lock type (atomic access support) |

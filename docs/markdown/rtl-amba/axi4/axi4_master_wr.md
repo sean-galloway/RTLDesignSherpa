@@ -158,7 +158,7 @@ module axi4_master_wr #(
 |------|-----------|-------|-------------|
 | `fub_axi_awid` | Input | `AXI_ID_WIDTH` | Write transaction ID |
 | `fub_axi_awaddr` | Input | `AXI_ADDR_WIDTH` | Write address |
-| `fub_axi_awlen` | Input | 8 | Burst length (0-255 beats) |
+| `fub_axi_awlen` | Input | 8 | Burst length, AXI-encoded: beats - 1 (`0x00` = 1 beat, `0xFF` = 256) |
 | `fub_axi_awsize` | Input | 3 | Burst size (bytes per beat) |
 | `fub_axi_awburst` | Input | 2 | Burst type (FIXED, INCR, WRAP) |
 | `fub_axi_awlock` | Input | 1 | Lock type (atomic access support) |

@@ -190,6 +190,9 @@ axi_data_upsize #(
     .narrow_data      (s_wdata),
     .narrow_sideband  (s_wstrb),
     .narrow_last      (s_wlast),
+    .start_lane       ('0),            // lane the burst's first narrow beat lands on;
+                                       // '0 for word-aligned starts, the tracked
+                                       // value for mid-word INCR packing
 
     // Wide output
     .wide_valid       (m_wvalid),

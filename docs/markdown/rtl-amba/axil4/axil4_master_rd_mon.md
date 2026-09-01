@@ -67,7 +67,7 @@ Each detection cone can be compiled out to save area. These are forwarded to `ax
 | `ENABLE_TIMEOUT_LOGIC` | bit | 1 | Drop the timeout cone **and** the `axi_monitor_timeout` instance |
 | `ENABLE_COMPL_LOGIC` | bit | 1 | Drop the completion cone |
 | `ENABLE_THRESHOLD_LOGIC` | bit | 1 | Drop the threshold cone |
-| `ENABLE_PERF_LOGIC` | bit | 1 | Drop the perfmon window + counters |
+| `ENABLE_PERF_LOGIC` | bit | 1 | Gates only the reporter's legacy perf-packet cone and the two lifetime counters -- the window FSM and meters are unconditional |
 | `ENABLE_DEBUG_LOGIC` | bit | 0 | (off by default) drop the debug cone |
 
 > The former `CAM_PIPELINE` / `TRANS_CAM_PIPELINE` parameters were removed — the transaction CAM is now always pipelined. Inside this wrapper `ENABLE_PERF_PACKETS` is tied to `1'b1` (perf packet path always instantiated, gated by `ENABLE_PERF_LOGIC`) and `ENABLE_DEBUG_MODULE` is tied to `1'b0`.
@@ -121,7 +121,9 @@ The four buckets sum to `window_cycles`, so utilization = `perf_prod_cycles / wi
 
 - **Where the stall lands**: the upstream `fub_axil_arready` is forced low until the monitor drains.
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
-- **When `cfg_monitor_enable=0`**: the wrapper gate forces the upstream ready open, so a runtime-disabled monitor can never stall the datapath (in-RTL formal property `ap_disabled_never_stalls`).
+- **When `cfg_monitor_enable=0`**: the wrapper gate forces the upstream ready open, so a runtime-disabled monitor can never stall the datapath (the AXI4 monitors assert this as an in-RTL formal property,
+  `ap_disabled_never_stalls`; this module has no `ifdef FORMAL` block of its
+  own, so here the guarantee rests on the gate expression above, not a proof).
 
 Recovery is guaranteed by the **saturation-recovery contract**: command-originated table entries are capped at `MAX_TRANSACTIONS - cmd_entry_reserve(MAX_TRANSACTIONS)` (reserve = 4 for tables of 16 or more, 0 below; the function lives in `monitor_common_pkg`), and `block_ready` re-asserts at occupancy `< MAX_TRANSACTIONS - (reserve - 1)` -- a threshold strictly ABOVE the command cap -- so a saturated table always drains back below the reopen point. Blocking throttles; it never deadlocks. Tables smaller than 16 keep full legacy allocation (small tables cannot spare slots) and trade the recovery guarantee for tracking capacity. The contract is verified by in-RTL formal properties (mutation-checked) and a 100-seed deliberately-undersized-table stream sweep; see [axi_monitor_base](../monitor/axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) for the canonical description.
 

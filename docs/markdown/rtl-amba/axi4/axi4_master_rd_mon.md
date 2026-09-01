@@ -68,8 +68,11 @@ The AXI4 Master Read Monitor combines a functional AXI4 master read interface wi
 | `MAX_TRANSACTIONS` | int | 16 | Maximum concurrent outstanding transactions |
 | `ACLK_MHZ` | int | 100 | Clock frequency in MHz -- keeps the 1 us tick exact off-100MHz |
 | `CFI_MIN_FREQ_MHZ` / `CFI_MAX_FREQ_MHZ` | int | = ACLK_MHZ | Bounds for the freq-invariant counter LUT (`cfg_freq_sel` indexes within them) |
-| `USE_WDATA_ORDER_Q` / `NUM_BANKS` | int | -- | Write-data ordering queue / banked-table shaping (write monitors) |
-| `ID_FILTER_ENABLE` / `ID_MATCH_BASE` / `ID_MATCH_COUNT` | int | 0/-- | Per-instance ID-slice filtering for parallel monitor snooping |
+| `USE_WDATA_ORDER_Q` | bit | 0 | Write-data ordering queue |
+| `NUM_BANKS` | int | 1 | Banked transaction tables. **>1 on a WRITE monitor requires `USE_WDATA_ORDER_Q=1`** -- `axi_monitor_trans_mgr` fails elaboration otherwise |
+| `ID_FILTER_ENABLE` | bit | 0 | Synthesises the per-instance ID-slice filter |
+| `ID_MATCH_BASE` | int | 0 | First ID this instance owns |
+| `ID_MATCH_COUNT` | int | 0 | How many; `0` means ALL, so a zeroed register block does not silently filter everything away |
 | `ACTIVE_TRANS_THRESHOLD` | int | MAX_TRANSACTIONS/2 | Active-transaction count that trips a threshold packet when `cfg_threshold_enable=1`. Replaces the former hardwired 8/4; threshold packets now scale with the table sizing |
 | `ENABLE_FILTERING` | bit | 1 | Enable packet filtering (0=pass all packets) |
 | `ADD_PIPELINE_STAGE` | bit | 0 | Add register stage for timing closure |
@@ -87,10 +90,10 @@ Each detection cone can be compiled out to save area. The classic cones default 
 | `ENABLE_TIMEOUT_LOGIC`   | bit | 1 | Drop the timeout cone **and** the `axi_monitor_timeout` instance |
 | `ENABLE_COMPL_LOGIC`     | bit | 1 | Drop the completion cone |
 | `ENABLE_THRESHOLD_LOGIC` | bit | 1 | Drop the threshold cone |
-| `ENABLE_PERF_LOGIC`      | bit | 1 | Drop the perfmon window + counters |
+| `ENABLE_PERF_LOGIC`      | bit | 1 | Gates only the reporter's legacy perf-packet cone and the two lifetime counters -- the window FSM and meters are unconditional |
 | `ENABLE_DEBUG_LOGIC`     | bit | 0 | Drop the debug (trace) cone — the 6th reporter sub-block (off by default) |
 
-Internally the wrapper hardwires two master switches on its `axi_monitor_filtered` instance: `ENABLE_PERF_PACKETS = 1` (perf datapath present, so `ENABLE_PERF_LOGIC` alone gates the window/counters) and `ENABLE_DEBUG_MODULE = 0` (debug tracking module omitted). These are not top-level parameters of the wrapper.
+Internally the wrapper hardwires two master switches on its `axi_monitor_filtered` instance: `ENABLE_PERF_PACKETS = 1` (the reporter's legacy perf cone is built; `ENABLE_PERF_LOGIC` gates THAT cone only, never the measurement window) and `ENABLE_DEBUG_MODULE = 0` (debug tracking module omitted). These are not top-level parameters of the wrapper.
 
 The transaction CAM is always pipelined.
 
@@ -286,7 +289,7 @@ AddrMatch is dropped by `cfg_axi_addr_mask[1]`, the ADDR_RANGE error by
 
 ### Performance Monitoring
 
-The wrapper hardwires `ENABLE_PERF_PACKETS = 1` on its inner `axi_monitor_filtered`, so the perfmon datapath is present whenever `ENABLE_PERF_LOGIC = 1` (the default). It instantiates a **measurement-window state machine** plus a bank of R-data-channel utilization counters. All counters accumulate **only while a window is open** (`window_active = 1`) and hold their values between windows, so the host can read a completed window's totals.
+The wrapper hardwires `ENABLE_PERF_PACKETS = 1` on its inner `axi_monitor_filtered`. The **measurement-window state machine** and its counters are unconditional `always_ff` blocks in `axi_monitor_base` -- outside every generate -- so they are present and running in EVERY build, including `ENABLE_PERF_LOGIC = 0`. That parameter reaches one consumer: the `g_perf` generate in `axi_monitor_reporter` holding the legacy perf-packet cone and the two 16-bit lifetime counters behind `perf_completed_count` / `perf_error_count`. Setting it to 0 saves that cone and nothing else. `USE_MONITOR = 0` is what ties the perfmon outputs off. The wrapper instantiates plus a bank of R-data-channel utilization counters. All counters accumulate **only while a window is open** (`window_active = 1`) and hold their values between windows, so the host can read a completed window's totals.
 
 #### The Measurement Window
 
@@ -645,7 +648,22 @@ axi4_master_rd_mon #(
     .active_transactions    (rd_active),
     .error_count            (rd_errors),
     .transaction_count      (rd_count),
-    .cfg_conflict_error     (cfg_conflict)
+    .cfg_conflict_error     (cfg_conflict),
+
+    // ... 21 further inputs elided for brevity. Verilator escalates
+    // PINMISSING to an error in this repo, so a real instantiation must
+    // connect them all. Two are load-bearing rather than merely tied off:
+    //   .i_mon_time  -- the free-running timestamp broadcast; leave it
+    //                   floating and every packet is stamped with X
+    //   .cam_clear   -- synchronous clear of the transaction CAM
+    // The rest are tie-offs: cfg_compl_enable, cfg_threshold_enable,
+    // cfg_debug_enable, cfg_freq_sel, the addr-check group
+    // (cfg_addr_check_enable / cfg_addr_range_enable / _low / _high),
+    // the filter group (cfg_addr_filter_* , cfg_id_*) and the perfmon
+    // window controls (cfg_start_event_sel / cfg_end_event_sel /
+    // cfg_start_trigger / cfg_end_trigger / cfg_window_force_close).
+    .i_mon_time             (mon_time),
+    .cam_clear              (1'b0)
 );
 
 // Downstream FIFO for monitor packets

@@ -49,7 +49,7 @@ Every AXI4 module in this subsystem ships with a clock-gated (`_cg`) variant tha
 
 - **Dynamic Clock Gating:** Automatic clock disable during idle periods
 - **Configurable Idle Threshold:** Programmable idle count before gating
-- **Functional Equivalence** for the plain _cg wrappers (minus the un-exported `busy`); the _mon_cg wrappers additionally drop ten base parameters and tie off `debug_block_ready` -- see their pages
+- **Functional Equivalence** for the plain _cg wrappers (minus the un-exported `busy`); the _mon_cg wrappers forward every base parameter except `ACTIVE_TRANS_THRESHOLD` (harmless -- its inner default is derived from the forwarded `MAX_TRANSACTIONS`) and tie off `debug_block_ready` -- see their pages
 - **Status Monitoring:** Real-time gating and idle status outputs
 - **Test Mode Support:** Bypass capability for scan testing
 - **Low Ungating Overhead:** One register stage on the wake-up path; the first usable gated-clock edge arrives 2 cycles after activity is seen
@@ -335,6 +335,13 @@ Savings: ~0% (never idle long enough to gate)
 ```
 
 ### Power Savings Estimates
+
+**Illustrative, not measured.** No power characterization has been run on
+this library; `axi4_master_rd_cg.md` says so explicitly. These rows also
+disagree with the per-module tables at comparable duty cycles (this table:
+30 % duty -> 25-40 %; `axi4_master_rd_mon_cg.md`: 25 % utilization ->
+45-55 %), which is itself evidence that neither is a measurement. Use them
+for the trend, never in a power budget.
 
 | Traffic Pattern | Duty Cycle | Idle Count | Power Savings |
 |-----------------|------------|------------|---------------|

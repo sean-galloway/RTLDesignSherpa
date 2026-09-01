@@ -144,7 +144,7 @@ module axi4_slave_rd #(
 |------|-----------|-------|-------------|
 | `s_axi_arid` | Input | `AXI_ID_WIDTH` | Read transaction ID |
 | `s_axi_araddr` | Input | `AXI_ADDR_WIDTH` | Read address |
-| `s_axi_arlen` | Input | 8 | Burst length (0-255 beats) |
+| `s_axi_arlen` | Input | 8 | Burst length, AXI-encoded: beats - 1 (`0x00` = 1 beat, `0xFF` = 256) |
 | `s_axi_arsize` | Input | 3 | Burst size (bytes per beat) |
 | `s_axi_arburst` | Input | 2 | Burst type (FIXED, INCR, WRAP) |
 | `s_axi_arlock` | Input | 1 | Lock type (atomic access support) |

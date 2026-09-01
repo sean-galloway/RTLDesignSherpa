@@ -33,6 +33,8 @@
 
 The AXI5 Slave Read Monitor with Clock Gating module puts both power management and observability on the slave read path: it wraps `axi5_slave_rd_mon` with clock gating logic, so transaction monitoring and automatic clock gating come in one block.
 
+**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking or `RTAGMATCH` generation, no chunk reassembly, no poison generation, and no atomic read-modify-write -- `AWATOP` is transported, not executed. The monitor observes handshakes, responses and timing; it performs no protocol checking of handshake stability, ID width, burst length or address alignment. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
+
 ### Key Features
 
 - Full AMBA AXI5 slave read protocol compliance
@@ -44,6 +46,7 @@ The AXI5 Slave Read Monitor with Clock Gating module puts both power management 
 - Performance metrics and filtering
 - Transparent gating - no protocol changes
 - Gating status outputs for system monitoring
+- **Power Savings:** traffic-dependent; unmeasured in this repo -- treat any percentage as a placeholder until characterized
 
 ### Module Architecture
 
@@ -382,7 +385,10 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_mon_fifo (
 ### Area and Timing Impact
 
 - **Area:** ~5-8% increase over non-monitored slave (monitoring + clock gating)
-- **Timing:** Clock gating adds <50ps, monitoring is off critical path
+- **Timing:** first-order estimate, not measured. The monitor is NOT
+  automatically off the critical path -- `axi_monitor_trans_mgr` is banked
+  precisely because it was not (16 entries closed at WNS +1.018 ns where 40
+  entries came in at -25.183 ns), so size the transaction table for your clock
 - **Power:** Net savings depends on activity factor (typically 30-50% at 50% duty cycle)
 
 ---

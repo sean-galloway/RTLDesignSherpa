@@ -54,6 +54,7 @@ The AXI5 Master Read with Clock Gating module wraps the standard `axi5_master_rd
 - **Power savings** during idle periods
 - **Transparent operation** - no protocol changes
 - **Status outputs** for clock gating state monitoring
+- **Power Savings:** traffic-dependent; unmeasured in this repo -- treat any percentage as a placeholder until characterized
 
 ---
 

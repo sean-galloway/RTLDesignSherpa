@@ -44,6 +44,7 @@ The AXI5 Slave Write with Clock Gating module wraps the standard `axi5_slave_wr`
 - Transparent gating - no protocol changes
 - Gating status outputs for system monitoring
 - SKID buffering for AW, W, and B channels
+- **Power Savings:** traffic-dependent; unmeasured in this repo -- treat any percentage as a placeholder until characterized
 
 ### Module Architecture
 

@@ -323,6 +323,7 @@ axi_data_upsize #(
     .narrow_data     (int_wdata),
     .narrow_sideband (int_wstrb),
     .narrow_last     (int_wlast),
+    .start_lane      (w_upsize_start_lane[$clog2(WIDTH_RATIO)-1:0]),
     .wide_valid      (m_axi_wvalid),
     .wide_ready      (m_axi_wready),
     .wide_data       (m_axi_wdata),

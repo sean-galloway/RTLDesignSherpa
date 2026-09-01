@@ -33,9 +33,11 @@
 
 The AXI5 Master Write with Monitor module wraps the standard `axi5_master_wr` core with an integrated `axi_monitor_filtered`, so every write transaction crossing the core is also visible to the monitor in real time. You get write transaction monitoring, error detection, and configurable packet filtering in one block — no external monitor to wire up.
 
+**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking or `RTAGMATCH` generation, no chunk reassembly, no poison generation, and no atomic read-modify-write -- `AWATOP` is transported, not executed. The monitor observes handshakes, responses and timing; it performs no protocol checking of handshake stability, ID width, burst length or address alignment. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
+
 ### Key Features
 
-- Full AMBA AXI5 protocol compliance (wraps `axi5_master_wr`)
+- Carries the full AXI5 signal set unmodified (wraps `axi5_master_wr`) -- transport, not semantics; see Scope above
 - **AWATOP:** Atomic operation support (compare-and-swap, atomic operations)
 - **AWNSAID:** Non-secure access identifier for security domains
 - **AWTRACE:** Trace signal for debug and performance monitoring
@@ -149,10 +151,11 @@ Transport sizing first, then the monitor knobs. The defaults are sane; `MAX_TRAN
 | **AGENT_ID** | int | 11 | Monitor agent identifier (default 11 for write) |
 | **MAX_TRANSACTIONS** | int | 16 | Transaction table size |
 | **ACTIVE_TRANS_THRESHOLD** | int | MAX_TRANSACTIONS/2 | Active-transaction count that trips a threshold packet when `cfg_threshold_enable=1`. Replaces the former hardwired 8/4; threshold packets now scale with the table sizing |
-| ACLK_MHZ | int | 100 | Clock MHz -- keeps the 1 us tick exact |
-| CFI_MIN_FREQ_MHZ / CFI_MAX_FREQ_MHZ | int | = ACLK_MHZ | Freq-invariant LUT bounds |
-| USE_WDATA_ORDER_Q / NUM_BANKS | int | -- | Ordering queue / banked tables |
-| ID_FILTER_ENABLE / ID_MATCH_BASE / ID_MATCH_COUNT | int | 0/-- | Per-instance ID-slice filtering |
+| USE_WDATA_ORDER_Q | bit | 0 | Write-data ordering queue |
+| NUM_BANKS | int | 1 | Banked transaction tables. **>1 on a WRITE monitor requires `USE_WDATA_ORDER_Q=1`** -- `axi_monitor_trans_mgr` fails elaboration otherwise |
+| ID_FILTER_ENABLE | bit | 0 | Synthesises the per-instance ID-slice filter |
+| ID_MATCH_BASE | int | 0 | First ID this instance owns |
+| ID_MATCH_COUNT | int | 0 | How many; `0` means ALL, so a zeroed register block does not silently filter everything away |
 | ACLK_MHZ | int | 100 | Clock frequency in MHz -- keeps the 1 us tick exact off-100MHz |
 | CFI_MIN_FREQ_MHZ / CFI_MAX_FREQ_MHZ | int | = ACLK_MHZ | Freq-invariant counter LUT bounds (`cfg_freq_sel` indexes within them) |
 | **ENABLE_FILTERING** | bit | 1 | Enable packet filtering: two active drop levels (packet type, then event code). Level 2 is reserved and routes nothing |
@@ -286,14 +289,21 @@ handshakes, IDs and response codes; none of those signals reach it.)
 **Response Errors:**
 - SLVERR (slave error response)
 - DECERR (decode error response)
-- Orphaned write response (no matching AW)
-- ID mismatch (BID != AWID)
+- Orphaned write response (no matching AW) -- a B beat whose ID matches no live entry
 
-**Timeout Errors:**
-- AW channel stall (no AWREADY)
-- W channel stall (no WREADY)
-- B channel stall (no BVALID)
-- Transaction timeout (AW to B)
+There is no BID-versus-AWID comparison. A slave returning the BID of a
+*different* outstanding write is silently mis-attributed with no error; a BID
+matching nothing is the orphan case above.
+
+**Timeout Errors -- per phase only:**
+- AW channel stall (no AWREADY) -- `EVT_CMD_TIMEOUT`
+- W channel stall (no WREADY) -- `EVT_DATA_TIMEOUT`
+- B channel stall (no BVALID) -- `EVT_RESP_TIMEOUT`
+
+`axi_monitor_timeout` runs three per-phase timers (addr, data, resp) and there
+is no whole-transaction timer. A write whose every phase keeps making progress
+just under its threshold can take arbitrarily long AW-to-B without any timeout
+firing.
 
 **Data Integrity:** NOT monitored -- WPOISON, MTE tags and ATOP status
 never reach the monitor (the AXI5 extension signals pass through the
@@ -321,7 +331,9 @@ Same as read monitor - see [AXI5 Master Read Monitor](axi5_master_rd_mon.md).
 
 - **Where the stall lands**: the upstream `fub_axi_awready` is forced low until the monitor drains.
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
-- **When `cfg_monitor_enable=0`**: the wrapper gate forces the upstream ready open, so a runtime-disabled monitor can never stall the datapath (in-RTL formal property `ap_disabled_never_stalls`).
+- **When `cfg_monitor_enable=0`**: the wrapper gate forces the upstream ready open, so a runtime-disabled monitor can never stall the datapath (the AXI4 monitors assert this as an in-RTL formal property,
+  `ap_disabled_never_stalls`; this module has no `ifdef FORMAL` block of its
+  own, so here the guarantee rests on the gate expression above, not a proof).
 - The monitor's command tap sits across the AW SKID from the block_ready gate (this master monitor mirrors the slave variant's structure), so there is a `SKID_DEPTH_AW` cycle lag between block_ready going low and new events ceasing. `MAX_TRANSACTIONS` should be sized to cover this margin.
 
 Recovery is guaranteed by the **saturation-recovery contract**: command-originated table entries are capped at `MAX_TRANSACTIONS - cmd_entry_reserve(MAX_TRANSACTIONS)` (reserve = 4 for tables of 16 or more, 0 below; the function lives in `monitor_common_pkg`), and `block_ready` re-asserts at occupancy `< MAX_TRANSACTIONS - (reserve - 1)` -- a threshold strictly ABOVE the command cap -- so a saturated table always drains back below the reopen point. Blocking throttles; it never deadlocks. Tables smaller than 16 keep full legacy allocation (small tables cannot spare slots) and trade the recovery guarantee for tracking capacity. The contract is verified by in-RTL formal properties (mutation-checked) and a 100-seed deliberately-undersized-table stream sweep; see [axi_monitor_base](../monitor/axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) for the canonical description.

@@ -223,17 +223,17 @@ flowchart LR
         m_b["B Channel"]
     end
 
-    fub_aw --> aw_skid
-    aw_skid --> aw_pack
-    aw_pack --> m_aw
+    fub_aw --> aw_pack
+    aw_pack --> aw_skid
+    aw_skid --> m_aw
 
-    fub_w --> w_skid
-    w_skid --> w_pack
-    w_pack --> m_w
+    fub_w --> w_pack
+    w_pack --> w_skid
+    w_skid --> m_w
 
-    m_b --> b_unpack
-    b_unpack --> b_skid
-    b_skid --> fub_b
+    m_b --> b_skid
+    b_skid --> b_unpack
+    b_unpack --> fub_b
 ```
 
 ### AXI5 Enhancements Over AXI4

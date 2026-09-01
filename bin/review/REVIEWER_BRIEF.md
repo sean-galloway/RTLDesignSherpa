@@ -32,22 +32,22 @@ Each directory under `books/` is one self-contained review unit:
 | `apbx_xbar_has` | APB Crossbar Hardware Architecture Specification Index | 23 | 13 | ~80k | 1 |
 | `pit_8254_mas` | APB PIT 8254 Specification - Table of Contents | 12 | 10 | ~81k | 1 |
 | `rtc_mas` | APB RTC Specification - Table of Contents | 5 | 7 | ~85k | 1 |
-| `apb` | RTL AMBA APB4 | 10 | 9 | ~94k | 1 |
-| `apb5` | RTL AMBA APB5 | 10 | 9 | ~96k | 1 |
+| `apb` | RTL AMBA APB4 | 10 | 9 | ~95k | 1 |
+| `apb5` | RTL AMBA APB5 | 10 | 9 | ~97k | 1 |
 | `hpet_mas` | APB HPET Micro-Architecture Specification | 14 | 15 | ~117k | 1 |
 | `uart_16550_mas` | APB UART 16550 Specification - Table of Contents | 27 | 8 | ~118k | 1 |
 | `bridge_has` | Bridge Hardware Architecture Specification Index | 24 | 10 | ~179k | 2 |
 | `cdc` | RTL Clock Domain Crossing | 16 | 24 | ~220k | 2 |
 | `converter_mas` | Converters Micro-Architecture Specification Index | 19 | 32 | ~235k | 2 |
 | `common` | RTL Common Library | 49 | 48 | ~248k | 4 |
+| `shared` | RTL AMBA Shared Infrastructure | 27 | 23 | ~250k | 3 |
 | `axil4` | RTL AMBA AXI4-Lite | 18 | 16 | ~265k | 2 |
-| `shared` | RTL AMBA Shared Infrastructure | 28 | 25 | ~305k | 3 |
-| `axi5` | RTL AMBA AXI5 | 17 | 16 | ~412k | 3 |
-| `monitor` | RTL AMBA Monitor Subsystem | 36 | 33 | ~425k | 4 |
+| `monitor` | RTL AMBA Monitor Subsystem | 36 | 33 | ~430k | 4 |
 | `math` | RTL Math Library | 28 | 39 | ~431k | 3 |
-| `axi4` | RTL AMBA AXI4 | 27 | 24 | ~433k | 3 |
-| `bridge_mas` | Bridge Micro-Architecture Specification Index | 26 | 24 | ~444k | 3 |
+| `bridge_mas` | Bridge Micro-Architecture Specification Index | 26 | 24 | ~447k | 3 |
 | `ioapic_mas` | APB IOAPIC Specification - Table of Contents | 15 | 48 | ~498k | 3 |
+| `axi5` | RTL AMBA AXI5 | 17 | 16 | ~502k | 3 |
+| `axi4` | RTL AMBA AXI4 | 27 | 24 | ~524k | 3 |
 
 Counts are per whole book, regenerated from the built bundle (`documented modules` is the figure in each `RTL.sv` header, which excludes the dependency closure and any GOLDEN section). A book with more than one part is already split for you: **you are reviewing ONE part**, so its scope is a subset of the row above. Do not infer a missing module from these numbers.
 

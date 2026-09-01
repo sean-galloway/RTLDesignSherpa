@@ -136,7 +136,7 @@ module axi4_master_rd #(
 |------|-------|-----------|-------------|
 | fub_axi_arid | AXI_ID_WIDTH | Input | Read address ID |
 | fub_axi_araddr | AXI_ADDR_WIDTH | Input | Read address |
-| fub_axi_arlen | 8 | Input | Burst length (0-255) |
+| fub_axi_arlen | 8 | Input | Burst length, AXI-encoded: beats - 1 (`0x00` = 1 beat, `0xFF` = 256) |
 | fub_axi_arsize | 3 | Input | Transfer size (bytes per beat) |
 | fub_axi_arburst | 2 | Input | Burst type (FIXED, INCR, WRAP) |
 | fub_axi_arlock | 1 | Input | Lock type (atomic access) |
@@ -166,7 +166,7 @@ module axi4_master_rd #(
 |------|-------|-----------|-------------|
 | m_axi_arid | AXI_ID_WIDTH | Output | Read address ID |
 | m_axi_araddr | AXI_ADDR_WIDTH | Output | Read address |
-| m_axi_arlen | 8 | Output | Burst length (0-255) |
+| m_axi_arlen | 8 | Output | Burst length, AXI-encoded: beats - 1 (`0x00` = 1 beat, `0xFF` = 256) |
 | m_axi_arsize | 3 | Output | Transfer size (bytes per beat) |
 | m_axi_arburst | 2 | Output | Burst type (FIXED, INCR, WRAP) |
 | m_axi_arlock | 1 | Output | Lock type (atomic access) |

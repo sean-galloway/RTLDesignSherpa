@@ -39,7 +39,7 @@ The `axi4_master_rd_mon_cg` module is a clock-gated variant of [axi4_master_rd_m
 - **Activity-Based Clock Gating:** one gate for the whole module, woken by bus valids, core busy, and a pending monitor packet
 - **Runtime Control:** `cfg_cg_enable` / `cfg_cg_idle_count` (no per-domain policies)
 - **Gating Status:** `cg_gating` / `cg_idle` outputs (no built-in power statistics)
-- **Functional differences from base:** ten base parameters not forwarded, `debug_block_ready` tied off, and gated-clock caveats for windows/triggers (see the WARNING below) -- use the base module when those matter
+- **Functional differences from base:** `ACTIVE_TRANS_THRESHOLD` not forwarded (harmless -- its inner default is derived from the forwarded `MAX_TRANSACTIONS`), `debug_block_ready` tied off, and gated-clock caveats for windows/triggers (see the WARNING below) -- use the base module when those matter
 
 All other functionality is identical to the base module. See [axi4_master_rd_mon.md](./axi4_master_rd_mon.md) for complete functional specification.
 
@@ -281,7 +281,13 @@ axi4_master_rd_mon_cg #(
 
 ### Power Savings Analysis
 
-Based on representative workloads:
+**These numbers are illustrative, not measured.** No power analysis has been
+run on this library -- `axi4_master_rd_cg.md` states the ground truth: power
+saving is "traffic-dependent; unmeasured in this repo -- treat any percentage
+as a placeholder until characterized." The shape of the curve (more idle time
+and a shorter idle count save more) is sound; the specific percentages are
+not sourced and disagree with the guide's table at comparable duty cycles.
+Treat the rows as a sketch of the trend.
 
 | Traffic Pattern | Clock Gating Enabled | Power Savings |
 |----------------|---------------------|---------------|

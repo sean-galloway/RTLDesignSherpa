@@ -33,9 +33,11 @@
 
 The AXI5 Master Read with Monitor module combines the standard `axi5_master_rd` core with an integrated `axi_monitor_filtered` for comprehensive transaction monitoring and error detection. You get real-time visibility into AXI5 read operations, with configurable packet filtering so the monitor bus only carries what you actually care about.
 
+**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking or `RTAGMATCH` generation, no chunk reassembly, no poison generation, and no atomic read-modify-write -- `AWATOP` is transported, not executed. The monitor observes handshakes, responses and timing; it performs no protocol checking of handshake stability, ID width, burst length or address alignment. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
+
 ### Key Features
 
-- Full AMBA AXI5 protocol compliance (wraps `axi5_master_rd`)
+- Carries the full AXI5 signal set unmodified (wraps `axi5_master_rd`) -- transport, not semantics; see Scope above
 - **ARNSAID:** Non-secure access identifier for security domains
 - **ARTRACE:** Trace signal for debug and performance monitoring
 - **ARMPAM:** Memory Partitioning and Monitoring (PartID + PMG)
@@ -85,10 +87,11 @@ The AXI5 Master Read with Monitor module combines the standard `axi5_master_rd` 
 | AGENT_ID | int | 10 | Monitor agent identifier |
 | MAX_TRANSACTIONS | int | 16 | Transaction table size |
 | ACTIVE_TRANS_THRESHOLD | int | MAX_TRANSACTIONS/2 | Active-transaction count that trips a threshold packet when cfg_threshold_enable=1. Replaces the former hardwired 8/4; threshold packets now scale with the table sizing |
-| ACLK_MHZ | int | 100 | Clock MHz -- keeps the 1 us tick exact |
-| CFI_MIN_FREQ_MHZ / CFI_MAX_FREQ_MHZ | int | = ACLK_MHZ | Freq-invariant LUT bounds |
-| USE_WDATA_ORDER_Q / NUM_BANKS | int | -- | Ordering queue / banked tables |
-| ID_FILTER_ENABLE / ID_MATCH_BASE / ID_MATCH_COUNT | int | 0/-- | Per-instance ID-slice filtering |
+| USE_WDATA_ORDER_Q | bit | 0 | Write-data ordering queue |
+| NUM_BANKS | int | 1 | Banked transaction tables. **>1 on a WRITE monitor requires `USE_WDATA_ORDER_Q=1`** -- `axi_monitor_trans_mgr` fails elaboration otherwise |
+| ID_FILTER_ENABLE | bit | 0 | Synthesises the per-instance ID-slice filter |
+| ID_MATCH_BASE | int | 0 | First ID this instance owns |
+| ID_MATCH_COUNT | int | 0 | How many; `0` means ALL, so a zeroed register block does not silently filter everything away |
 | ACLK_MHZ | int | 100 | Clock frequency in MHz -- keeps the 1 us tick exact off-100MHz |
 | CFI_MIN_FREQ_MHZ / CFI_MAX_FREQ_MHZ | int | = ACLK_MHZ | Freq-invariant counter LUT bounds (`cfg_freq_sel` indexes within them) |
 | `ENABLE_FILTERING` | bit | 1 | Enable packet filtering: two active drop levels (packet type, then event code). Level 2 is reserved and routes nothing |
@@ -277,7 +280,9 @@ flowchart TB
 
 - **Where the stall lands**: the upstream `fub_axi_arready` is forced low until the monitor drains.
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
-- **When `cfg_monitor_enable=0`**: the wrapper gate forces the upstream ready open, so a runtime-disabled monitor can never stall the datapath (in-RTL formal property `ap_disabled_never_stalls`).
+- **When `cfg_monitor_enable=0`**: the wrapper gate forces the upstream ready open, so a runtime-disabled monitor can never stall the datapath (the AXI4 monitors assert this as an in-RTL formal property,
+  `ap_disabled_never_stalls`; this module has no `ifdef FORMAL` block of its
+  own, so here the guarantee rests on the gate expression above, not a proof).
 - **For axi5 slave variants** (only applies to axi5_slave_rd_mon): the monitor watches the FUB-side handshake, so there is a `SKID_DEPTH_AR` cycle lag between block_ready going low and new events ceasing. `MAX_TRANSACTIONS` should be sized to cover this margin.
 
 Recovery is guaranteed by the **saturation-recovery contract**: command-originated table entries are capped at `MAX_TRANSACTIONS - cmd_entry_reserve(MAX_TRANSACTIONS)` (reserve = 4 for tables of 16 or more, 0 below; the function lives in `monitor_common_pkg`), and `block_ready` re-asserts at occupancy `< MAX_TRANSACTIONS - (reserve - 1)` -- a threshold strictly ABOVE the command cap -- so a saturated table always drains back below the reopen point. Blocking throttles; it never deadlocks. Tables smaller than 16 keep full legacy allocation (small tables cannot spare slots) and trade the recovery guarantee for tracking capacity. The contract is verified by in-RTL formal properties (mutation-checked) and a 100-seed deliberately-undersized-table stream sweep; see [axi_monitor_base](../monitor/axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) for the canonical description.
@@ -349,8 +354,9 @@ cfg_axi_pkt_mask[15] = 1 → DROP DEBUG packets   (type 0xF)
 
 **Level 2: cfg_axi_err_select (reserved -- no routing)**
 
-Its ONLY use is the conflict check `cfg_conflict_error =
-|(cfg_axi_pkt_mask & cfg_axi_err_select)`; no error-routing logic exists
+Its ONLY use is the conflict check
+`cfg_conflict_error = |(cfg_axi_pkt_mask & cfg_axi_err_select)`; no
+error-routing logic exists
 anywhere in the monitor chain. Setting it to "reroute errors into
 completions" changes nothing except possibly tripping cfg_conflict_error.
 
@@ -379,13 +385,21 @@ are NOT implemented -- nothing in the monitor chain inspects those.)
 **Response Errors:**
 - SLVERR (slave error response)
 - DECERR (decode error response)
-- Orphaned read data (no matching AR)
-- ID mismatch (RID != ARID)
+- Orphaned read data (no matching AR) -- an R beat whose ID matches no live entry
 
-**Timeout Errors:**
-- AR channel stall (no ARREADY)
-- R channel stall (no RVALID)
-- Transaction timeout (AR to RLAST)
+There is no RID-versus-ARID comparison. `axi_monitor_trans_mgr` attributes an
+R beat to the OLDEST live entry sharing that ID, so a slave returning the RID
+of a *different* outstanding read is silently mis-attributed with no error. An
+RID matching nothing is the orphan case above.
+
+**Timeout Errors -- per phase only:**
+- AR channel stall (no ARREADY) -- `EVT_CMD_TIMEOUT`
+- R channel stall (no RVALID) -- `EVT_DATA_TIMEOUT` / `EVT_RESP_TIMEOUT`
+
+`axi_monitor_timeout` runs three per-phase timers (addr, data, resp) and there
+is no whole-transaction timer. A read whose every phase keeps making progress
+just under its threshold can take arbitrarily long AR-to-RLAST without any
+timeout firing.
 
 **Threshold Violations:**
 - Outstanding transaction count > threshold

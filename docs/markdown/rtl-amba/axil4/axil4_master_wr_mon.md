@@ -104,7 +104,9 @@ The wrapper adds the perfmon config/status ports (`cfg_start_event_sel`, `cfg_en
 
 - **Where the stall lands**: the upstream `fub_axil_awready` is forced low until the monitor drains.
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
-- **When `cfg_monitor_enable=0`**: the wrapper gate forces the upstream ready open, so a runtime-disabled monitor can never stall the datapath (in-RTL formal property `ap_disabled_never_stalls`).
+- **When `cfg_monitor_enable=0`**: the wrapper gate forces the upstream ready open, so a runtime-disabled monitor can never stall the datapath (the AXI4 monitors assert this as an in-RTL formal property,
+  `ap_disabled_never_stalls`; this module has no `ifdef FORMAL` block of its
+  own, so here the guarantee rests on the gate expression above, not a proof).
 
 Recovery is guaranteed by the **saturation-recovery contract**: command-originated table entries are capped at `MAX_TRANSACTIONS - cmd_entry_reserve(MAX_TRANSACTIONS)` (reserve = 4 for tables of 16 or more, 0 below; the function lives in `monitor_common_pkg`), and `block_ready` re-asserts at occupancy `< MAX_TRANSACTIONS - (reserve - 1)` -- a threshold strictly ABOVE the command cap -- so a saturated table always drains back below the reopen point. Blocking throttles; it never deadlocks. Tables smaller than 16 keep full legacy allocation (small tables cannot spare slots) and trade the recovery guarantee for tracking capacity. The contract is verified by in-RTL formal properties (mutation-checked) and a 100-seed deliberately-undersized-table stream sweep; see [axi_monitor_base](../monitor/axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) for the canonical description.
 
@@ -152,6 +154,7 @@ Same as **[axil4_master_rd_mon](axil4_master_rd_mon.md)**:
 - `cam_clear` control input (Input, 1) - synchronous clear of the monitor transaction CAM (driven from the harness clear control bit, e.g. CTRL[4])
 - Filtering masks (7 masks)
 - The performance-monitoring config/status ports (see the [Performance Monitoring](#performance-monitoring) section above and the [read-monitor port table](axil4_master_rd_mon.md#performance-monitoring-ports))
+- `cfg_freq_sel` (Input, 4) - `counter_freq_invariant` LUT index scaling the 1 us timer tick; the microsecond timeouts are measured in these ticks. With the default `CFI_MIN_FREQ_MHZ == CFI_MAX_FREQ_MHZ == ACLK_MHZ` every LUT entry is identical, so it has no effect until you give CFI a real MIN..MAX range
 - Monitor bus output (valid/ready/data)
 - Status outputs (busy, active_transactions, error_count)
 

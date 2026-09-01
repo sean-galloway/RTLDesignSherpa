@@ -33,9 +33,11 @@
 
 The AXI5 Master Read with Monitor and Clock Gating module combines `axi5_master_rd_mon` (AXI5 master with integrated monitoring) with intelligent clock gating for power optimization. This is the everything variant: comprehensive transaction monitoring, error detection, and automatic power management in one instantiation.
 
+**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking or `RTAGMATCH` generation, no chunk reassembly, no poison generation, and no atomic read-modify-write -- `AWATOP` is transported, not executed. The monitor observes handshakes, responses and timing; it performs no protocol checking of handshake stability, ID width, burst length or address alignment. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
+
 ### Key Features
 
-- Full AMBA AXI5 protocol compliance
+- Carries the full AXI5 signal set unmodified -- transport, not semantics; see Scope above
 - **All AXI5 extensions:** NSAID, TRACE, MPAM, MECID, UNIQUE, CHUNKING, MTE, POISON
 - **Integrated AXI monitor** with 2-Level Filtering: packet-type drop masks + per-event masks (err_select is reserved -- no routing)
 - **Error detection:** Protocol violations, SLVERR, DECERR
@@ -47,6 +49,7 @@ The AXI5 Master Read with Monitor and Clock Gating module combines `axi5_master_
 - **Power savings** during idle periods
 - **Transparent operation** - no protocol changes
 - **Dual status outputs:** Monitor status + clock gating status
+- **Power Savings:** traffic-dependent; unmeasured in this repo -- treat any percentage as a placeholder until characterized
 
 ---
 

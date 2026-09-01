@@ -348,7 +348,7 @@ variants, and run synthesis for your own device before budgeting area.
 | Module Type | LUTs | FFs | BRAM | Notes |
 |-------------|------|-----|------|-------|
 | Master/Slave (32-bit) | ~200 | ~150 | 0 | Per direction (rd/wr) |
-| Monitor (+mon) | +800 | +600 | 0 | Additional overhead |
+| Monitor (+mon) | thousands | **>5,000** | 0 | At this family's default `MAX_TRANSACTIONS = 8`. Structural floor counted from the RTL: transaction table 285 b x 8 = 2,280 FF, the reporter's local copy another 2,280, timeout timers 384, threshold latency 256 |
 | Clock-gated (+cg) | +50 | +30 | 0 | Clock gating logic |
 
 **vs AXI4:** roughly 40-50% smaller, on the same estimate basis (no ID

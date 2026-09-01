@@ -33,9 +33,11 @@
 
 Take the monitored write master and add power management. This module combines `axi5_master_wr_mon` (AXI5 write master with integrated monitoring) with activity-driven clock gating, so the write path keeps its full transaction monitoring and error detection while the clock shuts itself off during idle stretches.
 
+**Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking or `RTAGMATCH` generation, no chunk reassembly, no poison generation, and no atomic read-modify-write -- `AWATOP` is transported, not executed. The monitor observes handshakes, responses and timing; it performs no protocol checking of handshake stability, ID width, burst length or address alignment. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
+
 ### Key Features
 
-- Full AMBA AXI5 protocol compliance
+- Carries the full AXI5 signal set unmodified -- transport, not semantics; see Scope above
 - **All AXI5 write extensions:** ATOP, NSAID, TRACE, MPAM, MECID, UNIQUE, MTE, POISON
 - **Integrated AXI monitor** with 2-Level Filtering: packet-type drop masks + per-event masks (err_select is reserved -- no routing)
 - **Error detection:** Protocol violations, SLVERR, DECERR
@@ -47,6 +49,7 @@ Take the monitored write master and add power management. This module combines `
 - **Power savings** during idle periods
 - **Transparent operation** - no protocol changes
 - **Dual status outputs:** Monitor status + clock gating status
+- **Power Savings:** traffic-dependent; unmeasured in this repo -- treat any percentage as a placeholder until characterized
 
 ### Module Architecture
 

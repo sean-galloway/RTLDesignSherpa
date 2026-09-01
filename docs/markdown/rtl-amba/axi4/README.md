@@ -157,9 +157,25 @@ untouched; exclusive-access semantics must be provided by the endpoint slave.
 
 | Module Type | LUTs | FFs | BRAM | Notes |
 |-------------|------|-----|------|-------|
-| Master/Slave (32-bit) | ~500 | ~600 | 0 | Per direction (rd/wr) |
-| Monitor (+mon) | +1000 | +800 | 0 | Additional overhead |
+| Master/Slave (32-bit) | ~500 | ~330 | 0 | Per direction (rd/wr). FFs are the SKID payloads: AR 70 b x 2 + R 44 b x 4 + control |
+| Monitor (+mon) | thousands | **>10,000** | 0 | At the default `MAX_TRANSACTIONS = 16`. See below -- this is NOT a small addition |
 | Clock-gated (+cg) | +50 | +30 | 0 | Clock gating logic |
+
+The monitor row deserves the emphasis. It is a structural floor, counted from
+the RTL rather than estimated, so synthesis can only add to it:
+
+| Contributor | FFs | Where |
+|---|---|---|
+| Transaction table | 4,560 | `bus_transaction_t` is 285 bits x `MAX_TRANSACTIONS` = 16 |
+| Reporter's local copy | 4,560 | `r_trans_table_local` -- a second full snapshot |
+| Timeout timers | 768 | 3 phases x 16 slots x 16 bits |
+| Threshold latency | 512 | 16 slots x 32 bits |
+| **Floor** | **>10,000** | plus the interrupt FIFO and the CAM compare/priority-encoder LUTs |
+
+This table previously said "+800 FFs", which is roughly **13x low**. Budget a
+monitored interface accordingly: four monitors is tens of thousands of flops,
+not a few thousand. `MAX_TRANSACTIONS` is the knob -- the cost is linear in
+it, and `NUM_BANKS` exists because 40 slots did not close timing where 16 did.
 
 ---
 
