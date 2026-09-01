@@ -108,13 +108,64 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 
 ## Ports
 
-**See RTL source:** `rtl/amba/monitor/arbiter_monbus_common.sv` for the complete
-port listing. The interface falls into four groups:
+All ports, from `rtl/amba/monitor/arbiter_monbus_common.sv`. Every arbiter-facing
+signal is an INPUT: this module snoops and never drives the arbiter.
 
-- Clock and reset
-- Input signals from the monitored (snooped) arbiter
-- Configuration signals
-- Output signals to downstream logic (monitor bus plus `debug_*` status)
+**Clock and reset**
+
+| Port | Dir | Width | Description |
+|---|---|---|---|
+| `clk` | In | 1 | Clock. Note this module uses `clk`/`rst_n`, not the AMBA `aclk`/`aresetn` |
+| `rst_n` | In | 1 | Active-low reset |
+
+**Snooped arbiter interface (inputs only)**
+
+| Port | Dir | Width | Description |
+|---|---|---|---|
+| `request` | In | `CLIENTS` | Client request vector |
+| `grant_valid` | In | 1 | Grant is valid this cycle |
+| `grant` | In | `CLIENTS` | One-hot grant vector |
+| `grant_id` | In | `N` | Binary-encoded grant ID |
+| `grant_ack` | In | `CLIENTS` | Per-client grant acknowledge |
+| `block_arb` | In | 1 | Arbiter is blocked (optional; tie 0 if unused) |
+
+**Configuration**
+
+| Port | Dir | Width | Description |
+|---|---|---|---|
+| `cfg_mon_enable` | In | 1 | Master enable for the monitor |
+| `cfg_mon_pkt_type_enable` | In | 16 | Per-packet-type enable mask |
+| `cfg_mon_latency_thresh` | In | 16 | Grant-latency threshold |
+| `cfg_mon_starvation_thresh` | In | 16 | Per-client starvation threshold |
+| `cfg_mon_fairness_thresh` | In | 16 | Fairness-deviation threshold |
+| `cfg_mon_active_thresh` | In | 16 | Active-client-count threshold |
+| `cfg_mon_ack_timeout_thresh` | In | 16 | ACK timeout threshold |
+| `cfg_mon_efficiency_thresh` | In | 16 | Grant-efficiency threshold |
+| `cfg_mon_sample_period` | In | 8 | Sampling period for the periodic metrics |
+| `cfg_max_thresh` | In | `CXMTW` | Packed per-client weight/threshold vector |
+| `i_mon_time` | In | `monbus_timestamp_t` | Shared timestamp input |
+
+**Monitor bus output**
+
+| Port | Dir | Width | Description |
+|---|---|---|---|
+| `monbus_valid` | Out | 1 | Packet valid |
+| `monbus_ready` | In | 1 | Downstream accepts the packet |
+| `monbus_packet` | Out | `monitor_packet_t` | 128-bit monitor packet |
+| `monbus_timestamp` | Out | `monbus_timestamp_t` | Side-band sampled time |
+
+**Debug status outputs**
+
+| Port | Dir | Width | Description |
+|---|---|---|---|
+| `debug_fifo_count` | Out | `$clog2(MON_FIFO_DEPTH)+1` | Occupancy of the packet FIFO |
+| `debug_packet_count` | Out | 16 | Packets emitted |
+| `debug_ack_timeout` | Out | `CLIENTS` | Per-client ACK timeout status |
+| `debug_protocol_violations` | Out | 16 | Protocol-violation count |
+| `debug_grant_efficiency` | Out | 16 | Grant efficiency, percent |
+| `debug_client_starvation` | Out | `CLIENTS` | Per-client starvation flags |
+| `debug_fairness_deviation` | Out | 16 | Fairness-deviation metric |
+| `debug_monitor_state` | Out | 3 | Monitor internal state |
 
 ---
 

@@ -97,6 +97,7 @@ faces the fabric. Only control signals pass through:
 | AW | `s_awvalid/awready/awid/awatop` → `m_awvalid/awready` |
 | W | `s_wvalid/wready/wlast` → `m_wvalid/wready` |
 | B | `m_bvalid/bready/bid/bresp` → `s_bvalid/bready/bid/bresp` |
+| Clock/reset | `aclk`, `aresetn` (active-low async) -- single domain, shared with both sides |
 
 ## Integration
 

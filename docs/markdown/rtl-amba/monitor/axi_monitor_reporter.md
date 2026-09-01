@@ -116,14 +116,52 @@ What the dispatcher actually provides:
 
 ## Ports
 
-**See RTL source:** `rtl/amba/monitor/axi_monitor_reporter.sv` for complete port listing.
+All ports, from `rtl/amba/monitor/axi_monitor_reporter.sv`.
 
-Key interface groups:
+**Clock and reset**
 
-- Clock and reset
-- Input signals from monitored interface
-- Configuration signals
-- Output signals to downstream logic
+| Port | Dir | Width | Description |
+|---|---|---|---|
+| `aclk` | In | 1 | Clock |
+| `aresetn` | In | 1 | Active-low asynchronous reset |
+
+**Transaction-table inputs**
+
+| Port | Dir | Width | Description |
+|---|---|---|---|
+| `trans_table` | In | `bus_transaction_t[MAX_TRANSACTIONS]` | The transaction table, read as a whole. This is the port behind the reporter's second full copy of the table (`r_trans_table_local`) -- the reason a monitored interface costs twice the table area |
+| `timeout_detected` | In | `MAX_TRANSACTIONS` | Per-slot timeout flags from `axi_monitor_timeout` |
+| `filtered_mask` | In | `MAX_TRANSACTIONS` | Per-slot mask of entries the ID/address filters have excluded |
+
+**Runtime configuration**
+
+| Port | Dir | Width | Description |
+|---|---|---|---|
+| `cfg_error_enable` | In | 1 | Emit error packets |
+| `cfg_compl_enable` | In | 1 | Emit completion packets |
+| `cfg_threshold_enable` | In | 1 | Emit threshold packets |
+| `cfg_timeout_enable` | In | 1 | Emit timeout packets |
+| `cfg_perf_enable` | In | 1 | Emit performance packets |
+| `cfg_debug_enable` | In | 1 | Runtime mask for the debug emitter; live only when `ENABLE_DEBUG_LOGIC=1` |
+| `active_trans_threshold` | In | 16 | Active-transaction count that trips a threshold packet |
+| `latency_threshold` | In | 32 | Latency that trips a threshold packet |
+
+**Monitor bus output**
+
+| Port | Dir | Width | Description |
+|---|---|---|---|
+| `monbus_valid` | Out | 1 | Packet valid |
+| `monbus_ready` | In | 1 | Downstream accepts the packet |
+| `monbus_packet` | Out | `monitor_packet_t` | 128-bit monitor packet |
+
+**Status outputs**
+
+| Port | Dir | Width | Description |
+|---|---|---|---|
+| `event_count` | Out | 16 | Total events emitted |
+| `perf_completed_count` | Out | 16 | Completed transactions counted |
+| `perf_error_count` | Out | 16 | Error events counted |
+| `event_reported_flags` | Out | `MAX_TRANSACTIONS` | Per-slot "already reported" feedback to the transaction manager, so one event is not emitted twice |
 
 ---
 
