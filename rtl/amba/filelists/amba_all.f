@@ -159,6 +159,38 @@ $REPO_ROOT/rtl/amba/axil4/axil4_slave_wr_cg.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_slave_wr_mon.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_slave_wr_mon_cg.sv
 
+# ------------------------------------------------------------------------------
+# AXI5-Lite - AXI4-Lite plus the optional signal groups
+# ------------------------------------------------------------------------------
+# Same sixteen-module shape as AXI4-Lite above. Each module gates USER, TRACE,
+# LOOP, MPAM, MECID, NSAID, POISON and LOCK behind its own ENABLE_* parameter;
+# with every group off the packed SKID payload width is identical to the
+# AXI4-Lite module of the same name.
+
+# AXIL5 Master Read
+$REPO_ROOT/rtl/amba/axil5/axil5_master_rd.sv
+$REPO_ROOT/rtl/amba/axil5/axil5_master_rd_cg.sv
+$REPO_ROOT/rtl/amba/axil5/axil5_master_rd_mon.sv
+$REPO_ROOT/rtl/amba/axil5/axil5_master_rd_mon_cg.sv
+
+# AXIL5 Master Write
+$REPO_ROOT/rtl/amba/axil5/axil5_master_wr.sv
+$REPO_ROOT/rtl/amba/axil5/axil5_master_wr_cg.sv
+$REPO_ROOT/rtl/amba/axil5/axil5_master_wr_mon.sv
+$REPO_ROOT/rtl/amba/axil5/axil5_master_wr_mon_cg.sv
+
+# AXIL5 Slave Read
+$REPO_ROOT/rtl/amba/axil5/axil5_slave_rd.sv
+$REPO_ROOT/rtl/amba/axil5/axil5_slave_rd_cg.sv
+$REPO_ROOT/rtl/amba/axil5/axil5_slave_rd_mon.sv
+$REPO_ROOT/rtl/amba/axil5/axil5_slave_rd_mon_cg.sv
+
+# AXIL5 Slave Write
+$REPO_ROOT/rtl/amba/axil5/axil5_slave_wr.sv
+$REPO_ROOT/rtl/amba/axil5/axil5_slave_wr_cg.sv
+$REPO_ROOT/rtl/amba/axil5/axil5_slave_wr_mon.sv
+$REPO_ROOT/rtl/amba/axil5/axil5_slave_wr_mon_cg.sv
+
 # =============================================================================
 # AXIS - AXI Stream
 # =============================================================================
