@@ -48,6 +48,10 @@ Combines **[axil4_slave_wr](../axil4/axil4_slave_wr.md)** with **axi_monitor_fil
 - `AGENT_ID = 21` (slave write agent)
 - `USE_MONITOR` (synthesis-time monitor enable)
 - `ACTIVE_TRANS_THRESHOLD` (default `MAX_TRANSACTIONS/2`): threshold-packet trip point, replaces the former hardwired value
+- `ENABLE_FILTERING` (default 1) and `ADD_PIPELINE_STAGE` (default 0)
+- `ACLK_MHZ` (default 100) and `CFI_MIN_FREQ_MHZ` / `CFI_MAX_FREQ_MHZ` (default `ACLK_MHZ`) -- the microsecond tick LUT. **Leave `ACLK_MHZ` at 100 on a 90 MHz part and every us-denominated timeout is wrong, silently**
+- `USE_WDATA_ORDER_Q` (default 0) and `NUM_BANKS` (default 1) -- **`NUM_BANKS` > 1 on a WRITE monitor requires `USE_WDATA_ORDER_Q=1`**, or `axi_monitor_trans_mgr` fails elaboration
+- `ADDR_FILTER_ENABLE` (default 0) -- synthesises the address-range report filter; the `cfg_addr_filter_*` ports arm it at runtime
 - `N_ADDR_RANGES` (address-range comparator count)
 - Others same as **[axil4_master_rd_mon](axil4_master_rd_mon.md#additional-parameters)**
 
@@ -59,7 +63,7 @@ For complete parameter descriptions, see **[axil4_master_rd_mon](axil4_master_rd
 
 ## Performance Monitoring
 
-When performance monitoring is enabled, the wrapper forwards a **measurement-window state machine** plus a bank of W-channel (write-data) utilization counters to `axi_monitor_base`. All counters accumulate **only while a window is open** (`window_active = 1`) and hold their values between windows so the host can read a completed window's totals. The counters advance only while `cfg_perf_enable = 1`; `ENABLE_PERF_LOGIC = 0` drops the whole block at synthesis.
+When performance monitoring is enabled, the wrapper forwards a **measurement-window state machine** plus a bank of W-channel (write-data) utilization counters to `axi_monitor_base`. All counters accumulate **only while a window is open** (`window_active = 1`) and hold their values between windows so the host can read a completed window's totals. The counters advance only while `cfg_perf_enable = 1`. `ENABLE_PERF_LOGIC = 0` does NOT drop them: the window FSM and its counters are unconditional `always_ff` blocks in `axi_monitor_base`, outside every generate. That parameter gates only `g_perf` in the reporter -- the legacy perf-packet cone and the two lifetime counters. `USE_MONITOR = 0` is what ties the perfmon outputs off.
 
 > Avoid enabling completion (`cfg_compl_enable`) and performance (`cfg_perf_enable`) packets simultaneously under heavy traffic — the monitor bus sustains at most one packet per two cycles. Runtime-disabling either class is safe (terminal entries auto-retire; see [axi_monitor_reporter](../monitor/axi_monitor_reporter.md)); alternatively, `cfg_axi_pkt_mask` drops the packets while keeping marking and counting. See `docs/user-guides/AXI_Monitor_Configuration_Guide.md`.
 
