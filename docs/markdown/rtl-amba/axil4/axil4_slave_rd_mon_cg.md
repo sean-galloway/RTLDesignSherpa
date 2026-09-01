@@ -83,7 +83,7 @@ In addition to all [axil4_slave_rd_mon](./axil4_slave_rd_mon.md) parameters
 | `CFI_MIN_FREQ_MHZ` | int | `ACLK_MHZ` | Lowest frequency the tick LUT must cover (dynamic-frequency builds). |
 | `CFI_MAX_FREQ_MHZ` | int | `ACLK_MHZ` | Highest frequency the tick LUT must cover. |
 | `USE_WDATA_ORDER_Q` | bit | 0 | Write-data ordering queue. Required (=1) whenever `NUM_BANKS` > 1. |
-| `NUM_BANKS` | int | 1 | Transaction-table banking. >1 needs `USE_WDATA_ORDER_Q`=1; the inner module's elaboration guard fires otherwise. |
+| `NUM_BANKS` | int | 1 | Transaction-table banking. The `USE_WDATA_ORDER_Q` pairing rule applies to WRITE monitors only -- `axi_monitor_trans_mgr` guards on `(NUM_BANKS > 1) && !IS_READ && !USE_WDATA_ORDER_Q`, so a read monitor may bank freely. |
 | `ADDR_FILTER_ENABLE` | bit | 0 | Synthesises the address-range report filter. **The parameter only decides whether the logic EXISTS** -- a build that sets it and leaves `cfg_addr_filter_enable` low filters nothing and looks broken. |
 | `CG_IDLE_COUNT_WIDTH` | int | 4 | Width of `cfg_cg_idle_count`; sets the longest programmable idle threshold |
 
@@ -92,6 +92,15 @@ parameters, and no independent gating domains. Earlier revisions of this
 document described such a scheme; it was never implemented.
 
 ---
+
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `AW` | `AXIL_ADDR_WIDTH` |
+| `DW` | `AXIL_DATA_WIDTH` |
 
 ## Additional Ports
 

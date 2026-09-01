@@ -360,7 +360,7 @@ synthesis run before committing to a system budget.
 | Module Type | LUTs | FFs | BRAM | Notes |
 |-------------|------|-----|------|-------|
 | Master/Slave (64-bit) | ~150 | ~100 | 0 | Base module |
-| Clock-gated (+cg) | +50 | +30 | 0 | Clock gating logic |
+| Clock-gated (+cg) | not measured | **+5** | 0 | Counted from the RTL: `r_wakeup` (1 FF, `amba_clock_gate_ctrl`) + `r_idle_counter` (`IDLE_CNTR_WIDTH`, default 4, `clock_gate_ctrl`). Scales as 1 + `CG_IDLE_COUNT_WIDTH`. The ICG is a latch/BUFGCE, not a fabric flop |
 | Wider data (512-bit) | ~400 | ~350 | 0 | 8x data width |
 
 **vs AXI4:** an estimated 60-70% resource saving, attributable to the absence of the five

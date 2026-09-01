@@ -173,6 +173,19 @@ Transport sizing first, then the monitor knobs. The defaults are sane; `MAX_TRAN
 
 ---
 
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `DW` | `AXI_DATA_WIDTH` |
+| `IW` | `AXI_ID_WIDTH` |
+| `SW` | `AXI_WSTRB_WIDTH` |
+| `UW` | `AXI_USER_WIDTH` |
+| `NUM_TAGS` | `(AXI_DATA_WIDTH / 128) > 0 ? (AXI_DATA_WIDTH / 128) : 1` |
+| `TW` | `AXI_TAG_WIDTH * NUM_TAGS` |
+
 ## Ports
 
 ### Clock and Reset
@@ -295,15 +308,21 @@ There is no BID-versus-AWID comparison. A slave returning the BID of a
 *different* outstanding write is silently mis-attributed with no error; a BID
 matching nothing is the orphan case above.
 
-**Timeout Errors -- per phase only:**
-- AW channel stall (no AWREADY) -- `EVT_CMD_TIMEOUT`
-- W channel stall (no WREADY) -- `EVT_DATA_TIMEOUT`
-- B channel stall (no BVALID) -- `EVT_RESP_TIMEOUT`
+**Timeout Errors -- per phase, measured as DURATION not stall:**
+- AW phase outstanding too long -- `EVT_CMD_TIMEOUT`
+- W phase outstanding too long -- `EVT_DATA_TIMEOUT`
+- B phase outstanding too long -- `EVT_RESP_TIMEOUT`
+
+Each timer is zeroed only while its phase is **not pending**
+(`if (!w_data_pending[idx]) r_data_timer[idx] <= '0;`) -- a beat handshake does
+NOT reset it. These are phase-duration limits, not stall detectors: a long
+multi-beat write burst making steady progress still trips `EVT_DATA_TIMEOUT`
+once the W phase as a whole exceeds `cfg_timeout_cycles`.
 
 `axi_monitor_timeout` runs three per-phase timers (addr, data, resp) and there
-is no whole-transaction timer. A write whose every phase keeps making progress
-just under its threshold can take arbitrarily long AW-to-B without any timeout
-firing.
+is no whole-transaction timer. A write can therefore take arbitrarily long
+AW-to-B without any timeout firing, provided each individual phase completes
+inside its own threshold -- the gaps BETWEEN phases are not timed by anything.
 
 **Data Integrity:** NOT monitored -- WPOISON, MTE tags and ATOP status
 never reach the monitor (the AXI5 extension signals pass through the
@@ -549,6 +568,8 @@ axi5_master_wr_mon #(
     .cfg_timeout_enable (1'b1),        // Enable timeouts
     .cfg_perf_enable    (1'b0),        // DISABLE (high traffic)
     .cfg_timeout_cycles (16'd10),      // 10 microseconds per phase (full 16-bit range)
+    .cfg_freq_sel     (4'd0),   // counter_freq_invariant LUT index; scales the 1 us tick
+    .cam_clear        (1'b0),   // hold high one cycle while idle to clear the CAM -- do NOT leave unconnected
     .cfg_latency_threshold (32'd500),  // 500 cycle threshold
 
     // Level 1: Enable ERROR, COMPL, TIMEOUT packets

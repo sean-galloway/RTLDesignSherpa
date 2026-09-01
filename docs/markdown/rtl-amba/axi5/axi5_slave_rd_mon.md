@@ -143,6 +143,22 @@ flowchart TB
 
 ---
 
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `AXI_WSTRB_WIDTH` | `AXI_DATA_WIDTH / 8` |
+| `AW` | `AXI_ADDR_WIDTH` |
+| `DW` | `AXI_DATA_WIDTH` |
+| `IW` | `AXI_ID_WIDTH` |
+| `SW` | `AXI_WSTRB_WIDTH` |
+| `UW` | `AXI_USER_WIDTH` |
+| `NUM_TAGS` | `(AXI_DATA_WIDTH / 128) > 0 ? (AXI_DATA_WIDTH / 128) : 1` |
+| `TW` | `AXI_TAG_WIDTH * NUM_TAGS` |
+| `CHUNK_STRB_WIDTH` | `(AXI_DATA_WIDTH / 128) > 0 ? (AXI_DATA_WIDTH / 128) : 1` |
+
 ## Ports
 
 ### Clock and Reset
@@ -279,7 +295,12 @@ Bits [63:0]    - Event Data (64 bits — full address, latency, etc.)
 | 0x1 | SLVERR response | Zero-extended 32-bit ADDRESS (the reporter cones carry address only) |
 | 0x2 | DECERR response | Zero-extended 32-bit ADDRESS |
 | 0x3 | Orphan data/response | Zero-extended 32-bit ADDRESS |
-| 0x4 | Protocol violation | Zero-extended 32-bit ADDRESS |
+| 0x4 | Protocol violation | Zero-extended 32-bit ADDRESS -- **write monitors only**, see note |
+
+(Event code 0x4 is part of the shared monitor encoding but cannot be
+emitted by a read monitor: `axi_monitor_trans_mgr` sets `EVT_PROTOCOL`
+only inside its `if (!IS_READ && resp_valid && resp_ready)` block, which
+a read instance never enters.)
 
 (Event codes 0x5 "poison" and 0x6 "tag mismatch" were documented here but
 are NOT implemented -- no poison/tag signal reaches the monitor.)
@@ -443,6 +464,8 @@ axi5_slave_rd_mon #(
     .cfg_timeout_enable (1'b1),
     .cfg_perf_enable    (1'b0),
     .cfg_timeout_cycles (16'd10),   // 10 timer ticks/phase
+    .cfg_freq_sel     (4'd0),   // counter_freq_invariant LUT index; scales the 1 us tick
+    .cam_clear        (1'b0),   // hold high one cycle while idle to clear the CAM -- do NOT leave unconnected
     .cfg_latency_threshold (32'd500),
     .cfg_axi_pkt_mask   (16'hFFF4),  // set bit = DROP; pass ERROR|COMPL|TIMEOUT
 

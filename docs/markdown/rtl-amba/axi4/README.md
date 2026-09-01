@@ -159,7 +159,7 @@ untouched; exclusive-access semantics must be provided by the endpoint slave.
 |-------------|------|-----|------|-------|
 | Master/Slave (32-bit) | ~500 | ~330 | 0 | Per direction (rd/wr). FFs are the SKID payloads: AR 70 b x 2 + R 44 b x 4 + control |
 | Monitor (+mon) | thousands | **>10,000** | 0 | At the default `MAX_TRANSACTIONS = 16`. See below -- this is NOT a small addition |
-| Clock-gated (+cg) | +50 | +30 | 0 | Clock gating logic |
+| Clock-gated (+cg) | not measured | **+5** | 0 | Counted from the RTL: `r_wakeup` (1 FF, `amba_clock_gate_ctrl`) + `r_idle_counter` (`IDLE_CNTR_WIDTH`, default 4, `clock_gate_ctrl`). Scales as 1 + `CG_IDLE_COUNT_WIDTH`. The ICG is a latch/BUFGCE, not a fabric flop |
 
 The monitor row deserves the emphasis. It is a structural floor, counted from
 the RTL rather than estimated, so synthesis can only add to it:

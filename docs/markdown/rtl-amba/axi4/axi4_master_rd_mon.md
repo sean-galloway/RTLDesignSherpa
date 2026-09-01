@@ -37,7 +37,8 @@ The AXI4 Master Read Monitor combines a functional AXI4 master read interface wi
 
 - **Integrated Monitoring:** Combines `axi4_master_rd` with `axi_monitor_filtered`
 - **2-Level Filtering: packet-type drop masks + per-event masks (err_select is reserved -- no routing)**
-- **Error Detection:** Protocol violations, SLVERR, DECERR, orphan transactions
+- **Error Detection:** SLVERR, DECERR, orphaned read data, timeouts
+  (protocol-violation events are write-monitor only -- see Error Detection Events)
 - **Timeout Monitoring:** Configurable timeout detection for stuck transactions
 - **Performance Metrics:** Latency tracking, transaction counting, throughput analysis
 - **Monitor Bus Output:** 128-bit packets paired with 64-bit side-band timestamps
@@ -98,6 +99,19 @@ Internally the wrapper hardwires two master switches on its `axi_monitor_filtere
 The transaction CAM is always pipelined.
 
 ---
+
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `AXI_WSTRB_WIDTH` | `AXI_DATA_WIDTH / 8` |
+| `AW` | `AXI_ADDR_WIDTH` |
+| `DW` | `AXI_DATA_WIDTH` |
+| `IW` | `AXI_ID_WIDTH` |
+| `SW` | `AXI_WSTRB_WIDTH` |
+| `UW` | `AXI_USER_WIDTH` |
 
 ## Ports
 
@@ -478,7 +492,7 @@ Variant single-beat read with different timing:
 
 #### Strategy 1: Functional Verification (Recommended)
 
-**Goal:** Catch protocol errors and track completion
+**Goal:** Catch error responses and orphans, and track completion
 
 ```systemverilog
 // Enable configuration
@@ -498,6 +512,7 @@ Variant single-beat read with different timing:
 
 // Timeouts
 .cfg_timeout_cycles     (16'd10),    // 10 microseconds per phase (full 16-bit range)
+.cfg_freq_sel         (4'd0),   // counter_freq_invariant LUT index; scales the 1 us tick
 .cfg_latency_threshold  (32'd500)
 ```
 

@@ -85,6 +85,15 @@ consumed internally as a wakeup term. All other ports are identical to
 
 ---
 
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `AW` | `AXIL_ADDR_WIDTH` |
+| `DW` | `AXIL_DATA_WIDTH` |
+
 ## Quick Usage
 
 ```systemverilog

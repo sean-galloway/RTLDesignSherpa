@@ -58,9 +58,14 @@ discarded, and a local `DECERR` B response returns with the AW's ID.
 - Route queue (push per AW, pop at WLAST) steers or sinks each W burst, so
   forwarded and swallowed bursts interleave correctly in AW order
 - Response queue drains local DECERRs whenever the downstream B channel is
-  idle; downstream responses always take priority
-- Control-plane only: `id`, `atop`, `wlast`, and the five handshake pairs.
-  All other AW/W payload passes around the filter; the B payload
+  idle. Downstream takes priority only when the filter is free to switch:
+  once a beat is presented on `s_bvalid`, the chosen source is **held** until
+  the master accepts it, and `m_bready` is qualified by that choice. Without
+  the hold, a downstream B arriving under a stalled `s_bvalid` would swap
+  `s_bid`/`s_bresp` mid-beat, which AXI forbids
+- Control-plane only: `id`, `atop`, `wlast`, and the six handshake pairs
+  (`s_aw`/`s_w`/`s_b` and `m_aw`/`m_w`/`m_b` -- the filter sits on the write
+  path only). All other AW/W payload passes around the filter; the B payload
   (`bid`/`bresp`) is the filter's output mux
 - Single clock domain, no protocol state machine — two small FIFOs and
   combinational routing
@@ -72,6 +77,15 @@ discarded, and a local `DECERR` B response returns with the AW's ID.
 | `AXI_ID_WIDTH` | 4 | Width of `s_awid` / `s_bid` / `m_bid` |
 | `AXI_ATOP_WIDTH` | 6 | AWATOP width (the spec value; only bit [5] is examined) |
 | `DEPTH_LG2` | 3 | log2 of the route/response queue depth (default 8 entries) |
+
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `IW` | `AXI_ID_WIDTH` |
+| `DEPTH` | `1 << DEPTH_LG2` |
 
 ## Ports
 
@@ -114,9 +128,16 @@ handshakes through.
 
 ## Verification
 
-`val/amba/test_axi5_atomic_filter.py` — direct cocotb driving with an
-always-ready downstream model: mixed forward/swallow traffic, a multi-beat
-swallowed burst, DECERR ID/order checks, and forwarded-set assertions.
+`val/amba/test_axi5_atomic_filter.py` — direct cocotb driving: mixed
+forward/swallow traffic, a multi-beat swallowed burst, DECERR ID/order checks,
+and forwarded-set assertions.
+
+Most phases use an always-ready downstream model, which cannot exercise the B
+selection hold: with `s_bready` high throughout, no beat is ever presented and
+unaccepted, so the stability window never opens. A dedicated phase therefore
+stalls the master, queues a local DECERR, then raises `m_bvalid` underneath it
+and asserts `s_bid`/`s_bresp` hold for eight cycles. Removing the hold from the
+RTL fails that phase at cycle 0; nothing else in the suite notices.
 End-to-end behavior (real ATOP values through a generated bridge, memory
 side-effect checks) is covered by
 `projects/components/bridge/dv/tests/test_bridge_1x2_wr_axi5a_atomics.py`.

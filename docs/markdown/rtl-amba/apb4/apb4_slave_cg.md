@@ -75,6 +75,21 @@ In addition to all parameters from [apb4_slave](./apb4_slave.md), this module ad
 That is the only additional parameter. Gating is not parameterized on or off, and
 there are no per-domain gating parameters — both are controlled at runtime.
 
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `STRB_WIDTH` | `DATA_WIDTH / 8` |
+| `DW` | `DATA_WIDTH` |
+| `AW` | `ADDR_WIDTH` |
+| `SW` | `STRB_WIDTH` |
+| `PW` | `PROT_WIDTH` |
+| `ICW` | `CG_IDLE_COUNT_WIDTH` |
+| `CPW` | `AW + DW + SW + PW + 1` |
+| `RPW` | `DW + 1` |
+
 ## Ports
 
 In addition to all ports from [apb4_slave](./apb4_slave.md):

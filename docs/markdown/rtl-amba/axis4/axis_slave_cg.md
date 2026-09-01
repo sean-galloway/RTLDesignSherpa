@@ -76,6 +76,21 @@ This is the **only** additional parameter. Gating enable and the idle threshold 
 
 ---
 
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `DW` | `AXIS_DATA_WIDTH` |
+| `IW` | `AXIS_ID_WIDTH` |
+| `DESTW` | `AXIS_DEST_WIDTH` |
+| `UW` | `AXIS_USER_WIDTH` |
+| `SW` | `DW / 8` |
+| `IW_WIDTH` | `(IW > 0) ? IW : 1` |
+| `DESTW_WIDTH` | `(DESTW > 0) ? DESTW : 1` |
+| `UW_WIDTH` | `(UW > 0) ? UW : 1` |
+
 ## Quick Usage
 
 ```systemverilog

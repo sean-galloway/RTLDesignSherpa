@@ -38,7 +38,8 @@ Combines **[axil4_master_rd](../axil4/axil4_master_rd.md)** with the core **axi_
 - ✅ All features of base **axil4_master_rd** module
 - ✅ **Integrated Monitoring:** Uses shared axi_monitor_filtered (rtl/amba/monitor/)
 - **2-Level Filtering:** packet-type masks, then per-event-code masks. `err_select` is RESERVED -- it feeds only the conflict check and routes nothing.
-- ✅ **Error Detection:** Protocol violations, timeouts, orphans
+- ✅ **Error Detection:** SLVERR/DECERR, timeouts, orphaned read data
+  (protocol-violation events are write-monitor only)
 - ✅ **128-bit Monitor Bus:** Standardized packet format paired with 64-bit side-band timestamp
 - ✅ **Reduced Complexity:** MAX_TRANSACTIONS=8 (vs 16-32 for AXI4)
 
@@ -56,11 +57,11 @@ Combines **[axil4_master_rd](../axil4/axil4_master_rd.md)** with the core **axi_
 | `ADD_PIPELINE_STAGE` | bit | 0 | Add register stage for timing closure |
 | `USE_MONITOR` | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
 | `N_ADDR_RANGES` | int | 0 | Number of address-range comparators. 0 = checker omitted (zero area). >0 = N independent [low, high] ranges; feeds the shared allowlist checker: a debug-range hit -> AddrMatch, an error-allowlist miss -> Error/ADDR_RANGE (see axi_monitor_addr_check.md). |
-
 | `ACLK_MHZ` | int | 100 | Clock frequency in MHz. Builds the microsecond tick LUT in `counter_freq_invariant`. **Leave this at 100 on a 90 MHz part and every us-denominated timeout is wrong, silently.** |
 | `CFI_MIN_FREQ_MHZ` / `CFI_MAX_FREQ_MHZ` | int | `ACLK_MHZ` | Bounds of the freq-invariant counter LUT (`cfg_freq_sel` indexes within them). Equal bounds means one entry and `cfg_freq_sel` has no effect. |
 | `USE_WDATA_ORDER_Q` | bit | 0 | Write-data ordering queue, forwarded to `axi_monitor_base`. |
 | `NUM_BANKS` | int | 1 | Banked transaction tables. **>1 on a WRITE monitor requires `USE_WDATA_ORDER_Q=1`** -- `axi_monitor_trans_mgr` fails elaboration otherwise. |
+
 ### Synthesis-Cone Parameters
 
 Each detection cone can be compiled out to save area. These are forwarded to `axi_monitor_base`; by default the classic cones are on and the debug cone is off.
@@ -77,6 +78,15 @@ Each detection cone can be compiled out to save area. These are forwarded to `ax
 > The former `CAM_PIPELINE` / `TRANS_CAM_PIPELINE` parameters were removed — the transaction CAM is now always pipelined. Inside this wrapper `ENABLE_PERF_PACKETS` is tied to `1'b1` (perf packet path always instantiated, gated by `ENABLE_PERF_LOGIC`) and `ENABLE_DEBUG_MODULE` is tied to `1'b0`.
 
 ---
+
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `AW` | `AXIL_ADDR_WIDTH` |
+| `DW` | `AXIL_DATA_WIDTH` |
 
 ## Performance Monitoring
 
@@ -296,6 +306,8 @@ axil4_master_rd_mon #(
     .cfg_timeout_enable(1'b1),
     .cfg_perf_enable(1'b0),      // Avoid congestion
     .cfg_timeout_cycles(16'd10),  // 10 timer ticks per phase (>15 saturates)
+    .cfg_freq_sel    (4'd0),   // counter_freq_invariant LUT index; scales the 1 us tick
+    .cam_clear       (1'b0),   // hold high one cycle while idle to clear the CAM -- do NOT leave unconnected
     .cfg_latency_threshold(32'd500),
 
     // Filtering masks - a SET bit DROPS that packet type

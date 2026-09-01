@@ -62,6 +62,21 @@ interface this page once documented never existed.)
 
 ---
 
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `AXI_WSTRB_WIDTH` | `AXI_DATA_WIDTH / 8` |
+| `AW` | `AXI_ADDR_WIDTH` |
+| `DW` | `AXI_DATA_WIDTH` |
+| `IW` | `AXI_ID_WIDTH` |
+| `SW` | `AXI_WSTRB_WIDTH` |
+| `UW` | `AXI_USER_WIDTH` |
+| `ARSize` | `IW+AW+8+3+2+1+4+3+4+4+UW` |
+| `RSize` | `IW+DW+2+1+UW` |
+
 ## Usage Example
 
 ```systemverilog

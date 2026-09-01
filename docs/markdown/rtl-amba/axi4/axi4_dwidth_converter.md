@@ -159,11 +159,11 @@ flowchart LR
     end
 
     subgraph WrConv["Write Converter"]
-        wrup["WR Upsize<br/>- Pack 4→1<br/>- AWLEN/4<br/>- WSTRB"]
+        wrup["WR Upsize<br/>- Pack 4→1<br/>- AWLEN: ceil w/ lane<br/>- WSTRB"]
     end
 
     subgraph RdConv["Read Converter"]
-        rdup["RD Upsize<br/>- Unpack<br/>- ARLEN/4"]
+        rdup["RD Upsize<br/>- Unpack<br/>- ARLEN: ceil w/ lane"]
     end
 
     subgraph Master["Master (Wide 128-bit)"]
@@ -204,11 +204,11 @@ flowchart LR
     end
 
     subgraph WrConv2["Write Converter"]
-        wrdn["WR Downsize<br/>- Unpack<br/>- AWLEN×4<br/>- WSTRB"]
+        wrdn["WR Downsize<br/>- Unpack<br/>- AWLEN: split &lt;=256<br/>- WSTRB"]
     end
 
     subgraph RdConv2["Read Converter"]
-        rddn["RD Downsize<br/>- Pack<br/>- ARLEN×4"]
+        rddn["RD Downsize<br/>- Pack<br/>- ARLEN: split &lt;=256"]
     end
 
     subgraph Master2["Master (Narrow 32-bit)"]
@@ -470,25 +470,47 @@ INVALID: AWADDR = 0x2008 (not 16-byte aligned)
 
 ### Burst Length Calculation
 
-**Upsize:**
-```
-Master AWLEN = (Slave AWLEN + WIDTH_RATIO) / WIDTH_RATIO - 1   // ceiling divide, matching the shipped rd/wr converters
-Master AWSIZE = Slave AWSIZE + $clog2(WIDTH_RATIO)
+**Upsize:** the start address matters. A burst that begins part-way into a
+wide word fills fewer narrow lanes in its first beat, so the lane offset is
+part of the count -- omit it and an unaligned burst is short by one beat.
 
-Example: 32→128 (WIDTH_RATIO=4)
-Slave:  AWLEN=15, AWSIZE=2 (4 bytes)  → 16 beats × 4 bytes = 64 bytes
-Master: AWLEN=3,  AWSIZE=4 (16 bytes) → 4 beats × 16 bytes = 64 bytes
+```
+lane          = AWADDR[clog2(M_STRB_WIDTH)-1 : 0] >> clog2(S_STRB_WIDTH)
+Master AWLEN  = ceil((lane + Slave AWLEN + WIDTH_RATIO) / WIDTH_RATIO) - 1
+Master AWSIZE = $clog2(M_STRB_WIDTH)          // the full wide size, not a delta
+
+Example: 32->128 (WIDTH_RATIO=4), aligned
+Slave:  AWLEN=15, AWSIZE=2 (4 bytes)  -> 16 beats x 4 bytes = 64 bytes
+Master: AWLEN=3,  AWSIZE=4 (16 bytes) -> 4 beats x 16 bytes = 64 bytes
+
+Same burst starting at lane 2 (AWADDR = 0x8):
+Master: AWLEN=4  -- five wide beats, the first and last partial
 ```
 
-**Downsize:**
-```
-Master AWLEN = (Slave AWLEN + 1) * WIDTH_RATIO - 1
-Master AWSIZE = Slave AWSIZE - $clog2(WIDTH_RATIO)
+`axi4_dwidth_converter_wr.sv` computes this on a 10-bit intermediate so that
+`lane + 255 + WIDTH_RATIO` cannot wrap before the divide.
 
-Example: 128→32 (WIDTH_RATIO=4)
-Slave:  AWLEN=3,  AWSIZE=4 (16 bytes) → 4 beats × 16 bytes = 64 bytes
-Master: AWLEN=15, AWSIZE=2 (4 bytes)  → 16 beats × 4 bytes = 64 bytes
+**Downsize:** there is no single-burst formula, because there cannot be one.
+One wide beat becomes `WIDTH_RATIO` narrow beats, so a full 256-beat slave
+burst would need up to `256 * WIDTH_RATIO` narrow beats -- not expressible in
+an 8-bit AWLEN and not legal AXI4.
+
 ```
+Master AWSIZE = $clog2(M_STRB_WIDTH)
+Master AWLEN  = one burst per <= 256 narrow beats, issued back to back
+```
+
+The converter therefore **splits** one slave burst into as many master bursts
+of <= 256 beats as it takes, recording each in a split queue so the W framing
+and the B fold stay consistent. WRAP never reaches this path: AXI4 caps WRAP
+at 16 beats, and `16 * WIDTH_RATIO <= 256` for every supported ratio.
+
+**Ordering constraint on the split fold.** The split records live in a single FIFO (`splitq_*`), and the B fold pops one entry per downstream response, forwarding a B to the slave only on the record marked final. That is correct while downstream B responses arrive in the order the split AWs were issued -- guaranteed by AXI4 within one ID, since the pieces of a split burst all carry the AWID of the burst they came from. It is NOT guaranteed across IDs: AXI4 permits a downstream to return B responses for different IDs in any order, and a single FIFO cannot tell them apart, so an interleaved response would be folded against the wrong record. Drive this converter from a single ID, or from a master that does not interleave write responses, until the fold is made ID-aware (tracked as CONV-001).
+
+> The naive `(Slave AWLEN + 1) * WIDTH_RATIO - 1` this section used to give is
+> the bug the split logic replaced: computed into the 8-bit field it wrapped,
+> turning 511 into 255 (half the burst silently lost), and at 4:1 a 128-beat
+> slave burst asked for 515 beats and got 3.
 
 ### Buffer Depth Guidelines
 

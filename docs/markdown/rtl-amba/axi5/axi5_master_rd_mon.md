@@ -109,6 +109,21 @@ The AXI5 Master Read with Monitor module combines the standard `axi5_master_rd` 
 
 ---
 
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `AW` | `AXI_ADDR_WIDTH` |
+| `DW` | `AXI_DATA_WIDTH` |
+| `IW` | `AXI_ID_WIDTH` |
+| `SW` | `AXI_WSTRB_WIDTH` |
+| `UW` | `AXI_USER_WIDTH` |
+| `NUM_TAGS` | `(AXI_DATA_WIDTH / 128) > 0 ? (AXI_DATA_WIDTH / 128) : 1` |
+| `TW` | `AXI_TAG_WIDTH * NUM_TAGS` |
+| `CHUNK_STRB_WIDTH` | `(AXI_DATA_WIDTH / 128) > 0 ? (AXI_DATA_WIDTH / 128) : 1` |
+
 ## Ports
 
 ### Clock and Reset
@@ -364,7 +379,13 @@ completions" changes nothing except possibly tripping cfg_conflict_error.
 
 Fine-grained control over specific events within each packet type:
 - `cfg_axi_error_mask`: SLVERR, DECERR, orphan detection, etc.
-- `cfg_axi_timeout_mask`: AR timeout, R timeout, response timeout
+- `cfg_axi_timeout_mask`: AR timeout (EVT_CMD_TIMEOUT), R timeout
+  (EVT_DATA_TIMEOUT). The response-timeout bit exists in the mask but
+  cannot fire on a read: EVT_RESP_TIMEOUT needs
+  `data_completed && !resp_received`, and on a read `data_last` sets
+  `data_completed` and `TRANS_COMPLETE` in the same cycle (or
+  `TRANS_ERROR` on a bad RRESP) -- both states are excluded from the
+  timeout block.
 - `cfg_axi_compl_mask`: Normal completion, error completion
 - `cfg_axi_thresh_mask`: Outstanding transaction count, latency threshold
 - `cfg_axi_perf_mask`: Average latency, peak bandwidth, utilization
@@ -375,12 +396,16 @@ Fine-grained control over specific events within each packet type:
 
 The monitor detects and reports:
 
-**Protocol Errors (implemented set):**
-- Response-before-data ordering (EVT_PROTOCOL in the transaction manager)
-- Orphaned responses (response with no tracked transaction)
+**Protocol Errors: none on a read monitor.**
+
+`axi_monitor_trans_mgr` emits `EVT_PROTOCOL` (response-before-data ordering)
+and `EVT_RESP_ORPHAN` (response with no tracked transaction) only from inside
+its `if (!IS_READ && resp_valid && resp_ready)` block. A read monitor
+elaborates with `IS_READ = 1`, so neither event can be produced here -- both
+describe the write B channel, which this module does not observe.
 
 (Handshake-stability, ID-width, burst-length and address-alignment checks
-are NOT implemented -- nothing in the monitor chain inspects those.)
+are NOT implemented either -- nothing in the monitor chain inspects those.)
 
 **Response Errors:**
 - SLVERR (slave error response)
@@ -392,14 +417,20 @@ R beat to the OLDEST live entry sharing that ID, so a slave returning the RID
 of a *different* outstanding read is silently mis-attributed with no error. An
 RID matching nothing is the orphan case above.
 
-**Timeout Errors -- per phase only:**
-- AR channel stall (no ARREADY) -- `EVT_CMD_TIMEOUT`
-- R channel stall (no RVALID) -- `EVT_DATA_TIMEOUT` / `EVT_RESP_TIMEOUT`
+**Timeout Errors -- per phase, measured as DURATION not stall:**
+- AR phase outstanding too long -- `EVT_CMD_TIMEOUT`
+- R phase outstanding too long -- `EVT_DATA_TIMEOUT`
+
+(`EVT_RESP_TIMEOUT` is write-only; see Protocol Errors above.)
 
 `axi_monitor_timeout` runs three per-phase timers (addr, data, resp) and there
-is no whole-transaction timer. A read whose every phase keeps making progress
-just under its threshold can take arbitrarily long AR-to-RLAST without any
-timeout firing.
+is no whole-transaction timer. Each timer is zeroed only while its phase is
+**not pending** (`if (!w_data_pending[idx]) r_data_timer[idx] <= '0;`) -- it is
+NOT reset by a beat handshake. So these are phase-duration limits, not
+stall detectors: a long multi-beat read burst that is making steady progress
+still trips `EVT_DATA_TIMEOUT` once the R phase as a whole exceeds
+`cfg_timeout_cycles`. Size the threshold for your longest legitimate burst,
+not for your worst tolerable inter-beat gap.
 
 **Threshold Violations:**
 - Outstanding transaction count > threshold
@@ -555,6 +586,8 @@ axi5_master_rd_mon #(
     .cfg_timeout_enable (1'b1),        // Enable timeouts
     .cfg_perf_enable    (1'b0),        // DISABLE (high traffic)
     .cfg_timeout_cycles (16'd10),      // 10 microseconds per phase (full 16-bit range)
+    .cfg_freq_sel     (4'd0),   // counter_freq_invariant LUT index; scales the 1 us tick
+    .cam_clear        (1'b0),   // hold high one cycle while idle to clear the CAM -- do NOT leave unconnected
     .cfg_latency_threshold (32'd500),  // 500 cycle threshold
 
     // Level 1: Enable ERROR, COMPL, TIMEOUT packets

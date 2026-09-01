@@ -78,6 +78,20 @@ In addition to all [apb4_slave_cdc](./apb4_slave_cdc.md) parameters:
 and ignored**. There is no `ENABLE_CLOCK_GATING` parameter and no per-domain
 `CG_GATE_*` parameters.
 
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `STRB_WIDTH` | `DATA_WIDTH / 8` |
+| `DW` | `DATA_WIDTH` |
+| `AW` | `ADDR_WIDTH` |
+| `SW` | `STRB_WIDTH` |
+| `PW` | `PROT_WIDTH` |
+| `CPW` | `AW + DW + SW + PW + 1` |
+| `RPW` | `DW + 1` |
+
 ## Ports
 
 In addition to all [apb4_slave_cdc](./apb4_slave_cdc.md) ports:

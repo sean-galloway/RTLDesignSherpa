@@ -149,6 +149,20 @@ flowchart TB
 
 ---
 
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `AXI_WSTRB_WIDTH` | `AXI_DATA_WIDTH / 8` |
+| `DW` | `AXI_DATA_WIDTH` |
+| `IW` | `AXI_ID_WIDTH` |
+| `SW` | `AXI_WSTRB_WIDTH` |
+| `UW` | `AXI_USER_WIDTH` |
+| `NUM_TAGS` | `(AXI_DATA_WIDTH / 128) > 0 ? (AXI_DATA_WIDTH / 128) : 1` |
+| `TW` | `AXI_TAG_WIDTH * NUM_TAGS` |
+
 ## Ports
 
 ### Clock and Reset
@@ -427,6 +441,8 @@ Three recipes cover most of what you'll need at runtime; the full instantiation 
 .cfg_timeout_enable     (1'b1),  // Detect stalls
 .cfg_perf_enable        (1'b0),  // Disable (reduces traffic)
 .cfg_timeout_cycles     (16'd10),   // 10 microseconds per phase (full 16-bit range)
+.cfg_freq_sel         (4'd0),   // counter_freq_invariant LUT index; scales the 1 us tick
+.cam_clear            (1'b0),   // hold high one cycle while idle to clear the CAM -- do NOT leave unconnected
 .cfg_latency_threshold  (32'd500)
 ```
 

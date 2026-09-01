@@ -127,6 +127,17 @@ These are computed inside the module from the parameters above. Do not override 
 
 ---
 
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `AW` | `AXI_ADDR_WIDTH` |
+| `DW` | `AXI_DATA_WIDTH` |
+| `IW` | `AXI_ID_WIDTH` |
+| `UW` | `AXI_USER_WIDTH` |
+
 ## Ports
 
 ### Clock and Reset
@@ -313,7 +324,12 @@ All power figures on this page are first-order estimates derived from duty cycle
 
 ### Clock Gating Overhead
 
-- **Area:** ~2-5% increase (clock gate cells, idle counter)
+- **Area:** +5 flops, counted from the RTL -- `r_wakeup` in
+  `amba_clock_gate_ctrl` plus `r_idle_counter` at `IDLE_CNTR_WIDTH`
+  (default 4), scaling as 1 + `CG_IDLE_COUNT_WIDTH`. Against a base
+  module of a few hundred flops that is low single-digit percent. The
+  ICG itself is a latch/BUFGCE, not fabric flops; the LUT delta is not
+  measured
 - **Timing:** Clock gating adds minimal delay (typically <50ps)
 - **Power:** Overhead from gate control logic usually <1% of savings
 

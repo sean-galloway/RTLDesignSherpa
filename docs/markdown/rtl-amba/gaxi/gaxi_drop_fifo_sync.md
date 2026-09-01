@@ -61,6 +61,15 @@ A synchronous GAXI FIFO with a trick most FIFOs don't have: a drop interface tha
 
 ---
 
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `DW` | `DATA_WIDTH` |
+| `D` | `DEPTH` |
+
 ## Ports
 
 ### Clock and Reset

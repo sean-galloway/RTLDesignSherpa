@@ -24,7 +24,7 @@
 // - BTAGMATCH: Tag match response
 //
 // Removed from AXI4:
-// - AWREGION: Deprecated (not recommended for new designs)
+// - AWREGION: Optional in AXI5 (NOT deprecated); simply omitted on this module -- decode or route by address
 //
 // Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba

@@ -2,6 +2,44 @@
 
 # AMBA tasks — open (not started)
 
+### CONV-001: dwidth converter split-fold assumes in-order B across IDs
+
+**Priority:** P3 — latent, needs an interleaving downstream AND a master using
+multiple write IDs through the converter at once. No shipped integration in
+this repo does both today.
+**Status:** open 2026-09-01. Raised as a SUSPECTED finding in qc round_31,
+verified against the RTL, documented in
+`docs/markdown/rtl-amba/axi4/axi4_dwidth_converter.md`. Filed rather than fixed
+because it changes a converter used by pumice's host gearing
+([[project_pumice_axi_width_gearing]]) — scope call belongs to Sean.
+
+**What the RTL does.** `axi4_dwidth_converter_wr.sv` splits one oversized slave
+burst into several master bursts and records each in a single FIFO:
+
+    logic [9:0]         splitq_mem [SPLITQ_DEPTH];
+    logic [SPLITQ_AW:0] splitq_wptr, splitq_rptr_w, splitq_rptr_b;
+    assign split_b_final = splitq_mem[splitq_rptr_b[SPLITQ_AW-1:0]][9];
+
+The B fold pops one entry per downstream response and forwards a B to the slave
+only on the record marked final.
+
+**Why it is only sometimes correct.** All pieces of one split burst carry the
+AWID of the burst they came from, and AXI4 guarantees same-ID B responses come
+back in order — so within one ID the FIFO fold is exact. Across IDs AXI4 places
+no such ordering requirement. If two slave bursts with different IDs are both
+split and the downstream interleaves their responses, the FIFO cannot tell them
+apart and decrements the wrong record: one burst's B is released early, the
+other's never completes.
+
+**Fix shape.** Make the fold ID-aware — a small CAM keyed by AWID, or one split
+counter per outstanding ID — rather than a single ordered FIFO. The read side
+(`axi4_dwidth_converter_rd.sv`) should be checked for the same pattern.
+
+**Test that would catch it.** Two concurrent split write bursts on distinct
+AWIDs against a downstream model that returns B out of order; assert each slave
+B arrives exactly once, after its own last master burst.
+
+
 ### TASK-073: write monitors ID-filter W beats against the LIVE AWID
 
 **Priority:** P2 — latent, but reachable at RUNTIME on any shipped build, and

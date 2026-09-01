@@ -128,6 +128,19 @@ which is what makes changing them at runtime safe.
 
 ---
 
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `AXI_WSTRB_WIDTH` | `AXI_DATA_WIDTH / 8` |
+| `AW` | `AXI_ADDR_WIDTH` |
+| `DW` | `AXI_DATA_WIDTH` |
+| `IW` | `AXI_ID_WIDTH` |
+| `SW` | `AXI_WSTRB_WIDTH` |
+| `UW` | `AXI_USER_WIDTH` |
+
 ## Functional Description
 
 ### Clock Gating Architecture
@@ -171,18 +184,24 @@ Forwarded perfmon ports (identical width and direction to the base module):
 - **Inputs:** `cfg_perf_enable`, `cfg_start_event_sel` (3), `cfg_end_event_sel` (3), `cfg_start_trigger`, `cfg_end_trigger`, `cfg_window_force_close`
 - **Outputs:** `window_active`, `window_cycles` (32), `perf_prod_cycles` (32), `perf_bp_cycles` (32), `perf_starv_cycles` (32), `perf_idle_cycles` (32), `perf_beat_count` (32), `perf_byte_count` (64), `perf_burst_count` (32)
 
-**WARNING -- gating vs window accounting:** an open measurement window is
-NOT an activity term (`user_valid` is bus valids, busy, and pending
-monitor-bus work only), and the
-entire inner monitor -- window state machine and counters included -- runs
-on the gated clock. If the bus idles past the countdown while a window is
-open, the clock gates and `window_cycles` / perf counters FREEZE while
-wall-clock time passes: the host reads an under-counted window. The same
-applies to configuration and trigger pulses (`cam_clear`,
-`cfg_start_trigger`, `cfg_end_trigger`, `cfg_window_force_close`): they
-are sampled in the gated domain and a pulse arriving while gated is
-DROPPED. For exact wall-clock windows or reliable idle-bus triggering,
-hold `cfg_cg_enable` low around the measurement, or use the base module.
+**WARNING -- gating vs window accounting.** The whole inner monitor runs on
+the gated clock, window state machine and counters included. An open
+measurement window is not one of the terms that keeps the clock alive:
+`user_valid` is bus valids, `busy`, and pending monitor-bus work, and nothing
+else.
+
+Two consequences:
+
+- **Counters freeze.** If the bus idles past the countdown while a window is
+  open, the clock gates and `window_cycles` and the perf counters stop while
+  wall-clock time keeps passing. The host reads an under-counted window and
+  has no indication it was short.
+- **Pulses are dropped.** `cam_clear`, `cfg_start_trigger`, `cfg_end_trigger`
+  and `cfg_window_force_close` are sampled in the gated domain, so a pulse
+  that arrives while the clock is gated is lost entirely.
+
+For exact wall-clock windows, or for triggering on an idle bus, hold
+`cfg_cg_enable` low across the measurement or use the base module.
 
 ---
 

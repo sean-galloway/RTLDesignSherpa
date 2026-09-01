@@ -137,7 +137,7 @@ flowchart TB
 | `CFI_MIN_FREQ_MHZ` | int | `ACLK_MHZ` | Lowest frequency the tick LUT must cover (dynamic-frequency builds). |
 | `CFI_MAX_FREQ_MHZ` | int | `ACLK_MHZ` | Highest frequency the tick LUT must cover. |
 | `USE_WDATA_ORDER_Q` | bit | 0 | Write-data ordering queue. Required (=1) whenever `NUM_BANKS` > 1. |
-| `NUM_BANKS` | int | 1 | Transaction-table banking. >1 needs `USE_WDATA_ORDER_Q`=1; the inner module's elaboration guard fires otherwise. |
+| `NUM_BANKS` | int | 1 | Transaction-table banking. The `USE_WDATA_ORDER_Q` pairing rule applies to WRITE monitors only -- `axi_monitor_trans_mgr` guards on `(NUM_BANKS > 1) && !IS_READ && !USE_WDATA_ORDER_Q`, so a read monitor may bank freely. |
 | `ADDR_FILTER_ENABLE` | bit | 0 | Synthesises the address-range report filter. **The parameter only decides whether the logic EXISTS** -- a build that sets it and leaves `cfg_addr_filter_enable` low filters nothing and looks broken. |
 | `ID_FILTER_ENABLE` | bit | 0 | Synthesises the ID report filter (see `cfg_id_*` for the runtime override). |
 | `ID_MATCH_BASE` | int | 0 | First ID this instance owns. |
@@ -145,6 +145,22 @@ flowchart TB
 | CG_IDLE_COUNT_WIDTH | int | 4 | Clock gating idle counter width |
 
 ---
+
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `AXI_WSTRB_WIDTH` | `AXI_DATA_WIDTH / 8` |
+| `AW` | `AXI_ADDR_WIDTH` |
+| `DW` | `AXI_DATA_WIDTH` |
+| `IW` | `AXI_ID_WIDTH` |
+| `SW` | `AXI_WSTRB_WIDTH` |
+| `UW` | `AXI_USER_WIDTH` |
+| `NUM_TAGS` | `(AXI_DATA_WIDTH / 128) > 0 ? (AXI_DATA_WIDTH / 128) : 1` |
+| `TW` | `AXI_TAG_WIDTH * NUM_TAGS` |
+| `CHUNK_STRB_WIDTH` | `(AXI_DATA_WIDTH / 128) > 0 ? (AXI_DATA_WIDTH / 128) : 1` |
 
 ## Ports
 
@@ -292,6 +308,8 @@ axi5_slave_rd_mon_cg #(
     .cfg_timeout_enable (1'b1),
     .cfg_perf_enable    (1'b0),
     .cfg_timeout_cycles (16'd10),   // 10 microseconds per phase (full 16-bit range)
+    .cfg_freq_sel     (4'd0),   // counter_freq_invariant LUT index; scales the 1 us tick
+    .cam_clear        (1'b0),   // hold high one cycle while idle to clear the CAM -- do NOT leave unconnected
     .cfg_latency_threshold (32'd500),
     .cfg_axi_pkt_mask   (16'hFFF4),  // set bit = DROP; pass ERROR|COMPL|TIMEOUT
 
@@ -347,7 +365,6 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_mon_fifo (
 - Error detection (SLVERR, timeout, orphan)
 - Performance tracking (latency, throughput)
 - Transaction completion tracking
-- Protocol violation detection
 - All monitoring continues when ungated
 
 ### When to Use This Module
@@ -384,7 +401,13 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_mon_fifo (
 
 ### Area and Timing Impact
 
-- **Area:** ~5-8% increase over non-monitored slave (monitoring + clock gating)
+- **Area:** not 5-8%. That figure was an unsourced estimate and is off by
+  orders of magnitude. The monitor's transaction table alone is a counted
+  floor of thousands of flops (see the resource table in the family
+  README) against a few hundred for the unmonitored slave, so a monitored
+  instance is a multiple of the base module, not a few percent on top of
+  it. Clock gating adds 5 flops. `MAX_TRANSACTIONS` is the knob and the
+  cost is linear in it
 - **Timing:** first-order estimate, not measured. The monitor is NOT
   automatically off the critical path -- `axi_monitor_trans_mgr` is banked
   precisely because it was not (16 entries closed at WNS +1.018 ns where 40

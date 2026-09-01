@@ -40,7 +40,8 @@ The AXI5 Master Read with Monitor and Clock Gating module combines `axi5_master_
 - Carries the full AXI5 signal set unmodified -- transport, not semantics; see Scope above
 - **All AXI5 extensions:** NSAID, TRACE, MPAM, MECID, UNIQUE, CHUNKING, MTE, POISON
 - **Integrated AXI monitor** with 2-Level Filtering: packet-type drop masks + per-event masks (err_select is reserved -- no routing)
-- **Error detection:** Protocol violations, SLVERR, DECERR
+- **Error detection:** SLVERR, DECERR, orphaned read data
+  (protocol-violation events are write-monitor only)
 - **Timeout monitoring:** Stuck transactions, stalled channels
 - **Performance metrics:** Latency, throughput, outstanding transactions
 - **MonBus output:** Standardized 128-bit monitor packet format paired with 64-bit side-band timestamp
@@ -94,7 +95,7 @@ The AXI5 Master Read with Monitor and Clock Gating module combines `axi5_master_
 | CFI_MIN_FREQ_MHZ | int | ACLK_MHZ | Lowest frequency the tick LUT must cover (dynamic-frequency builds). |
 | CFI_MAX_FREQ_MHZ | int | ACLK_MHZ | Highest frequency the tick LUT must cover. |
 | USE_WDATA_ORDER_Q | bit | 0 | Write-data ordering queue. Required (=1) whenever NUM_BANKS > 1. |
-| NUM_BANKS | int | 1 | Transaction-table banking. >1 needs USE_WDATA_ORDER_Q=1; the inner module's elaboration guard fires otherwise. |
+| NUM_BANKS | int | 1 | Transaction-table banking. The `USE_WDATA_ORDER_Q` pairing rule applies to WRITE monitors only -- `axi_monitor_trans_mgr` guards on `(NUM_BANKS > 1) && !IS_READ && !USE_WDATA_ORDER_Q`, so a read monitor may bank freely. |
 | ADDR_FILTER_ENABLE | bit | 0 | Synthesises the address-range report filter. **The parameter only decides whether the logic EXISTS** -- a build that sets it and leaves `cfg_addr_filter_enable` low filters nothing and looks broken. |
 | ID_FILTER_ENABLE | bit | 0 | Synthesises the ID report filter (see `cfg_id_*` for the runtime override). |
 | ID_MATCH_BASE | int | 0 | First ID this instance owns. |
@@ -116,6 +117,22 @@ These reach the inner monitor through this wrapper; before 2026-09-01 they did n
 | `cfg_id_match_count` | Input | ID_WIDTH+1 | How many; `0` means ALL |
 
 ---
+
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `AXI_WSTRB_WIDTH` | `AXI_DATA_WIDTH / 8` |
+| `AW` | `AXI_ADDR_WIDTH` |
+| `DW` | `AXI_DATA_WIDTH` |
+| `IW` | `AXI_ID_WIDTH` |
+| `SW` | `AXI_WSTRB_WIDTH` |
+| `UW` | `AXI_USER_WIDTH` |
+| `NUM_TAGS` | `(AXI_DATA_WIDTH / 128) > 0 ? (AXI_DATA_WIDTH / 128) : 1` |
+| `TW` | `AXI_TAG_WIDTH * NUM_TAGS` |
+| `CHUNK_STRB_WIDTH` | `(AXI_DATA_WIDTH / 128) > 0 ? (AXI_DATA_WIDTH / 128) : 1` |
 
 ## Ports
 
@@ -378,6 +395,8 @@ axi5_master_rd_mon_cg #(
     .cfg_timeout_enable (1'b1),        // Timeouts
     .cfg_perf_enable    (1'b0),        // DISABLED
     .cfg_timeout_cycles (16'd10),   // 10 microseconds per phase (full 16-bit range)
+    .cfg_freq_sel     (4'd0),   // counter_freq_invariant LUT index; scales the 1 us tick
+    .cam_clear        (1'b0),   // hold high one cycle while idle to clear the CAM -- do NOT leave unconnected
     .cfg_latency_threshold (32'd500),
 
     // Filtering configuration
