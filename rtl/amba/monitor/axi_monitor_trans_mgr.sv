@@ -844,13 +844,56 @@ module axi_monitor_trans_mgr
 
     logic addr_hit_any, data_hit_any, resp_hit_any;
 
-    assign addr_hit_any = |w_addr_pend_oh;
-    assign resp_hit_any = |resp_match_oh;
+    // ------------------------------------------------------------------------
+    // BANK-LOCAL PRE-REDUCTION.
+    //
+    // These were flat `|vector` reductions over all N slots. Logically that is
+    // fine, but N slots live in NUM_BANKS separate monitor_trans_cam
+    // instances, so one flat OR is a single gate reaching across every bank --
+    // and the placer then has to route all N valid/match bits to one point.
+    // On the Genesys2 8-channel build (N=72, 8 banks) that showed up as the
+    // worst setup path in the design: g_cam_bank[1] -> g_cam_bank[2], 12.3 ns
+    // against an 11.1 ns requirement, 67.5% of it ROUTE with under 4 ns of
+    // logic. Route-dominated with shallow logic is the signature of a cone
+    // that is spread out, not one that is deep.
+    //
+    // Reducing per bank first and then combining the NUM_BANKS results is
+    // BIT-IDENTICAL -- OR is associative, this is purely a bracketing change --
+    // but it lets each bank's reduction place next to its own CAM and sends
+    // only NUM_BANKS wires across the fabric instead of N.
+    //
+    // Note what this deliberately does NOT do. An earlier plan was to AND in
+    // w_addr_bank_mask so only the incoming ID's bank contributes. That does
+    // not help: the mask is a per-slot comparator against bank_of(id), so it
+    // ADDS a gate per slot without shrinking the N-input OR. And selecting
+    // `wb_addr_pend_any[bank_of(cmd_id)]` instead would be narrower still, but
+    // it would make correctness depend on the same-ID-stays-in-one-bank
+    // invariant holding at runtime rather than just structurally. This change
+    // is free of that: it cannot alter behaviour for any input.
+    // ------------------------------------------------------------------------
+    logic [NUM_BANKS-1:0] wb_addr_pend_any;
+    logic [NUM_BANKS-1:0] wb_data_match_any;
+    logic [NUM_BANKS-1:0] wb_resp_match_any;
+    logic [NUM_BANKS-1:0] wb_data_pred_any;
+    logic [NUM_BANKS-1:0] wb_data_bypass_any;
+
+    always_comb begin
+        for (int b = 0; b < NUM_BANKS; b++) begin
+            wb_addr_pend_any  [b] = |(w_addr_pend_oh      [b*BANK_SLOTS +: BANK_SLOTS]);
+            wb_data_match_any [b] = |(data_match_oh       [b*BANK_SLOTS +: BANK_SLOTS]);
+            wb_resp_match_any [b] = |(resp_match_oh       [b*BANK_SLOTS +: BANK_SLOTS]);
+            wb_data_pred_any  [b] = |(w_data_state_pred_oh[b*BANK_SLOTS +: BANK_SLOTS]);
+            wb_data_bypass_any[b] = |(w_data_cmd_bypass_oh[b*BANK_SLOTS +: BANK_SLOTS]);
+        end
+    end
+
+    assign addr_hit_any = |wb_addr_pend_any;
+    assign resp_hit_any = |wb_resp_match_any;
     // The bypass counts as a hit so the beat cannot ALSO allocate an orphan
     // in the same cycle (live path for IS_AXI=0 write monitors).
-    assign data_hit_any = IS_READ ? (|data_match_oh)
-                                  : ((|w_data_state_pred_oh) ||
-                                     (|w_data_cmd_bypass_oh));
+    assign data_hit_any = IS_READ ? (|wb_data_match_any)
+                                  : ((|wb_data_pred_any) ||
+                                     (|wb_data_bypass_any));
 
     // ------------------------------------------------------------------------
     // COMMAND-ENTRY CAP (saturation-recovery fix).
