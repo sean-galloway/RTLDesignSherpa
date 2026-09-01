@@ -1705,7 +1705,23 @@ differently enough to survive the previous sweep. That audit only covers
 classes we already know to look for, which is precisely why it is not a
 substitute for a round.
 
-**Order after axi4/axi5 converges: axil4, then axis4 + axis5.**
+**Order (Sean, 2026-09-01): axi4/axi5 to convergence, then axil as a BATCH,
+then axis4 + axis5 as a batch.** One round per family with all its members in
+it, the way rounds 30/31 sent axi4 and axi5 together, rather than the
+one-book-per-round shape of 28/29.
+
+One wrinkle on the AXI-Lite batch: **there is no axil5 book, because there is
+no axil5 IP.** `rtl/amba/axil5/` holds exactly one file --
+`test-modules/axil5_opt_slave.sv`, whose own filelist header says "TEST
+COLLATERAL ... exists so the AXI5-Lite BFMs have a DUT whose ports actually
+carry USER/TRACE/LOOP/MPAM/MECID/NSAID/POISON/LOCK; do not instantiate it in
+a design." It is driven by `val/amba/test_axil5_opt_signals.py` and nothing
+else. So the AXI-Lite batch is `axil4` alone (18 pages, 16 modules), and the
+empty-looking directory is not a gap to fill.
+
+The axis batch is genuinely two books: `axis4` (6 pages) and `axis5` (5).
+
+Both batches are FIRST-EVER rounds for every book in them.
 
 ---
 
