@@ -46,6 +46,30 @@ The rules:
   ways - anything staged you did not list (adds, and especially deletions and
   renames) gets `git restore --staged` first. A prefix grep over
   `--name-only` misses deletions by construction.
+- **The check must GATE, not report.** 2026-09-01: the reverse check ran, found
+  two of another agent's renames, printed `UNEXPECTED` - and the commit went
+  through and pushed, because it was written as
+  `grep ... && echo UNEXPECTED || echo clean` with `git commit` as the NEXT
+  statement. A guard that prints is decoration. Make it `exit 1`, or chain it
+  with `&&` so a failure actually stops the commit. Two agents hit this same
+  shape on the same day.
+- **Adopting a rename is never safe, and check HEAD not the worktree.** Git's
+  rename detection pairs a deletion with an addition already in the index and
+  carries them into your commit. But a rename is usually a rename PLUS a code
+  change, and detection can only ever carry the rename half - the half that
+  makes the tree coherent is by definition not in the index. So the adopted
+  commit is broken by construction.
+  Worse, you cannot see it from your worktree: the owner's uncommitted fix is
+  sitting right there, so a consistency grep over the working tree comes back
+  clean. It did, and main was still unbuildable - 4 filelists referencing paths
+  that no longer existed, plus 2 live instantiations. Check what you are about
+  to ship, not what you can see:
+
+      git show HEAD:<path>          # or: git stash list / git worktree
+      git grep <symbol> HEAD        # the tree as it will land, not as it looks
+
+  Recovery is fix-forward by the OWNER (they hold the other half), not a revert
+  by the adopter.
 - **Commit and push promptly.** Uncommitted work in this tree has a measured
   half-life. If it must stay uncommitted (another agent's in-flight restore,
   say), it is at risk every minute - flag it to the owner.
