@@ -2,6 +2,57 @@
 
 # STREAM tasks — open (not started)
 
+### TASK-073: build-mon host walks slvmon_apb with the wrong regmap
+
+**Priority:** Medium — silent wrong-field writes, but build-mon is not going
+near the board until it closes timing, so nothing is at risk today.
+**Status:** open 2026-08-31. Found from the rtl/amba side while retiring
+`dma_slave_monitors` ([[TASK-065]]).
+
+Filed under STREAM because STREAM is the PROJECT. Genesys2 and NexysA7 are
+boards -- they are folders that hold a build of a project, and a board does
+nothing on its own, so a board directory is not where work is tracked. This is
+the STREAM harness (`stream_harness.sv`) and STREAM's host tooling; it happens
+to be the Genesys2 build of it. (First filed against the NexysA7 board area,
+which was wrong twice over: wrong board, and a board is not an owner.)
+
+`dma_slave_monitors` is gone, but its REGBLOCK outlived it and the APB window
+got reassigned underneath the host:
+
+- `Genesys2/stream/rtl/stream_harness.sv:452` routes `slvmon_apb` (@ 0x180000)
+  to `u_slave_observer`.
+- `axi4_intf_slave_observer.sv:518` instantiates **`obs_regs_top`**.
+- `Genesys2/stream/build-mon/host/host_reg_walk.py:22,76-78` still walks that
+  window with **`slvmon_device`**'s map, labelled "slvmon_apb
+  dma_slave_monitors regblock".
+
+The two maps are unrelated at the same offsets — at `0x024`, obs_regs has
+`AXIS_MASK1` and slvmon_regs has `RDSLV_ADDR_RANGE_HIGH`. So a register walk,
+or any configuration written through that window, touches the wrong fields and
+nothing complains. Wrong-field WRITES are worse than a failure here, because
+they look like they worked.
+
+**Agreed fix (stream-genesys session, 2026-08-31): retarget the host at
+obs_regs.** The window IS `u_slave_observer/obs_regs_top` now, so
+`slvmon_device` is describing a block that is not there.
+
+**Then the cleanup falls out.** On the RTL side `slvmon_regs` is already fully
+orphaned: `slvmon_regs_top` is instantiated nowhere and no filelist pulls
+`slvmon_regs_top.f`. Once the host points at obs_regs, the whole set —
+`slvmon_regs.rdl`, `slvmon_regs.vlt`, the filelist, and the generated
+RTL + regmap — is dead and deletes cleanly, the same shape as the four dead
+packages removed in `65fa8cf0`. Regenerate only via `bin/peakrdl_generate.py`
+([[feedback_peakrdl_generate_bin]]), and generate into the directory the
+FILELIST consumes.
+
+**Do not delete the regmap before the host moves** — `host_reg_walk.py`
+imports `slvmon_device`, so removing it first breaks a script someone may be
+running.
+
+---
+
+---
+
 ### TASK-058: Signal contracts + K-maps for the significant STREAM signals (prove-by-construction)
 
 **Priority:** High

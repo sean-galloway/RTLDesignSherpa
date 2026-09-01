@@ -15,6 +15,11 @@ to mirror the repo path). Lifecycle pages: [active](active.md) · [open](open.md
   `axi_bus_meter`): RTL + cosim complete; board bring-up pending.
 
 ## Open (not started)
+- **TASK-073** (Medium) — build-mon host walks the `slvmon_apb` window with
+  `slvmon_device`'s map, but that window is `u_slave_observer/obs_regs_top`
+  now. Unrelated maps at the same offsets, so it silently writes wrong fields.
+  Fix: retarget the host at obs_regs; the orphaned `slvmon_regs` set then
+  deletes.
 - **TASK-058** (High) — Signal contracts + K-maps for the significant STREAM
   signals (especially the read/write engines) to prove the design correct by
   construction.
