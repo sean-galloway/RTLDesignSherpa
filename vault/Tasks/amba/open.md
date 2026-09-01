@@ -2,6 +2,69 @@
 
 # AMBA tasks — open (not started)
 
+### TASK-073: write monitors ID-filter W beats against the LIVE AWID
+
+**Priority:** P2 — latent, but reachable at RUNTIME on any shipped build, and
+the failure is a false error report rather than a missed one.
+**Status:** open 2026-09-01. Found as a passing observation in qc round_30
+(axi4_part_02), verified against the RTL, not yet fixed. Filed rather than
+fixed because the fix is in `axi_monitor_base`, which is shared by the whole
+family — scope call belongs to Sean ([[feedback_confirm_scope_shared_rtl]]).
+
+**What the RTL does.** `axi_monitor_base` filters each channel's valid by the
+ID window:
+
+    assign w_cmd_valid_f  = cmd_valid  && id_owned(cmd_id);
+    assign w_data_valid_f = data_valid && id_owned(data_id);
+    assign w_resp_valid_f = resp_valid && id_owned(resp_id);
+
+On READ monitors `data_id` is `RID` — the beat's own ID, correct. On the four
+AXI4/AXI5 WRITE monitors it is the LIVE `AWID`:
+
+| module | `.data_id` |
+|---|---|
+| `axi4_master_wr_mon` | `m_axi_awid` |
+| `axi4_slave_wr_mon` | `s_axi_awid` |
+| `axi5_master_wr_mon` | `m_axi_awid` |
+| `axi5_slave_wr_mon` | `fub_axi_awid` |
+| `axil4_*_wr_mon` | `1'b0` — correct, AXI4-Lite has no IDs |
+
+AXI4 dropped WID, so a W beat carries no ID and the monitor cannot derive one
+from the W channel. Sampling whatever AW happens to be presenting is not a
+substitute: with more than one outstanding write, the AW on the bus belongs to
+a LATER transaction than the W beats in flight.
+
+**Failure scenario.** Runtime filter on, `cfg_id_match_base=0`,
+`cfg_id_match_count=1` (own ID 0). AW id=0 is accepted and allocates an entry;
+AW id=1 follows and is filtered out, correctly. While the W beats for
+transaction 0 stream, `AWID` reads 1, so `id_owned(1)` is false,
+`w_data_valid_f` drops, and NONE of transaction 0's W beats reach
+`axi_monitor_trans_mgr`. Its data phase never completes: the entry holds a CAM
+slot until `EVT_DATA_TIMEOUT` fires and reports a timeout on a transaction
+that was healthy the whole time. The mirror case admits a beat for a
+transaction the filter was supposed to exclude.
+
+**Why it is reachable.** `id_owned` activates on `cfg_id_filter_enable` ALONE
+— the `ID_FILTER_ENABLE` parameter is only the fallback branch — so this is a
+CSR write away on any existing bitstream, not a synthesis-time choice. It is
+inert today only because the runtime bit ships low.
+
+**Proposed fix (needs the scope call).** Do not ID-filter the write data
+channel at all: pass `w_data_valid_f = data_valid` when `!IS_READ`. The
+justification is that the filter's job is already done upstream — an entry
+exists only if its AW passed `id_owned(cmd_id)`, so a W beat can only be
+attributed to an owned transaction, and gating the beat by a fabricated ID
+can only ever drop beats belonging to owned transactions. The alternative
+(carry the allocating entry's ID down the ordering queue and filter on that)
+is more machinery for the same answer.
+
+**Verify like a bug, not like a change.** The regression must fail against the
+current RTL: two outstanding writes with different IDs, the runtime filter
+owning only the first, asserting no `EVT_DATA_TIMEOUT` and a completed entry.
+Revert the fix, confirm RED, restore ([[kimi-review-rounds]] rule 8).
+
+---
+
 ## AMBA-MONRATE-INTERMITTENT — ROOT-CAUSED + PRIMARY FIX LANDED 2026-08-28
 **Status:** root-caused 2026-08-28; fix for `test_axi4_monitor` landed in
 68e66676. Residual is a SCOPE DECISION on six sibling TBs — see "Residual"

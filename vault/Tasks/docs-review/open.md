@@ -1498,9 +1498,52 @@ by construction:**
    tests exist. The page was correct; its defect was invisibility. Swept the
    same class across all four RTL books' indexes -- it is the only orphan.
 
-**qc round_30 (axi4 + axi5, 6 units) sent 2026-09-01** from a bundle rebuilt
-after `5c3daeb8`. Note for the round after: `axi5_atomic_filter.md` entered
-the index too late for round_30's bundle, so it still has no reviewed round.
+**qc round_30 (axi4 + axi5, 6 units) — COMPLETE 2026-09-01.** 6 ok, 0 failed,
+137.1 min; three units escalated 32768 -> 65536 once, all six finished
+`finish=stop`, outputs 7,205-10,778 chars with no truncation-shaped outlier
+(rule 4 checked on all six). **Zero RTL defects. 15 doc findings**, integrated
+in `f667e868`.
+
+**The pre-audit paid.** Four of the fifteen — the `_cg` parameter-table
+omissions on axi5 and axil4 — were ALREADY FIXED by `8c19bfc1` before the
+round returned, because I audited my own `ae3029fa` integration first instead
+of waiting to be told. That is rule 6's confirmation-round lesson used
+forward rather than learned again: the round then spent its budget on things I
+had not found.
+
+**Trap-class, all new:** two phantom detections (`RID != ARID` / `BID != AWID`
+ID-mismatch checks, and a whole-transaction `AW to B` / `AR to RLAST` timeout —
+neither exists; the RTL has three per-phase timers and eight event codes);
+`ENABLE_PERF_LOGIC` described on five pages as dropping the perfmon window and
+counters when it gates only the reporter's `g_perf` cone (three of those pages
+contradicted their own table one section away); and `ap_disabled_never_stalls`
+cited as an in-RTL property on twelve pages when it exists on exactly four.
+That last one the reviewer filed SUSPECTED, guessing an external harness —
+measuring found it HALF true, which no verdict category would have produced.
+
+**Order-of-magnitude:** the axi4 README budgeted monitor overhead at +800 FF.
+Counted from the RTL it is over 10,000 (`bus_transaction_t` = 285 bits x 16,
+twice, since the reporter keeps `r_trans_table_local`, plus timers and
+threshold latency). 13x low; axil4's +600 was 9x low. Both now carry the
+contributor table so the number is recheckable. Their "40-50% smaller"
+comparison survived — exactly 50%, because MAX_TRANSACTIONS is halved.
+
+**One RTL lead, filed not fixed: [[TASK-073]].** `axi_monitor_base` filters
+each channel by ID, and the four AXI4/AXI5 write monitors wire `data_id` to
+the LIVE `AWID` — AXI4 has no WID, so with more than one outstanding write the
+AW on the bus belongs to a later transaction than the W beats in flight. With
+the runtime filter on, an owned transaction's W beats can be dropped, its data
+phase never completes, and it reports a `DATA_TIMEOUT` that never happened.
+Reachable by CSR write on any shipped bitstream (`cfg_id_filter_enable` alone
+arms `id_owned`). Filed rather than fixed: the change is in the shared base
+module and the scope call is Sean's.
+
+**NOT converged.** Round_30 found zero RTL defects and no finding the reviewer
+rated above the trap classes above, but fifteen doc findings including four
+trap-class is not a stopping point under the DOCREV-013 rule. Round_31 next,
+from a bundle rebuilt after `f667e868`; it will be the first round to carry
+`axi5_atomic_filter.md`. Humanize only after a round comes back with nothing
+trap-class.
 
 ### axi4 + axi5 -- ARC COMPLETE 2026-08-26 (first-ever reviews + double humanize)
 
