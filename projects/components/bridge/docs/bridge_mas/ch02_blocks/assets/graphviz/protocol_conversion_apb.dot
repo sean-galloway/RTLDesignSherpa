@@ -1,0 +1,12 @@
+digraph protocol_conversion_apb {
+  rankdir=LR; bgcolor=white; node [shape=box style=filled fillcolor="#eef2f7" fontname="Helvetica" fontsize=11];
+  edge [fontname="Helvetica" fontsize=9];
+  AXI [label="AXI4 transaction\n(may be a burst)" fillcolor="#ffe1e1"];
+  subgraph cluster_c { label="AXI4 -> APB converter"; style=rounded; color="#666";
+    FSM [label="State machine\nIDLE / SETUP / ACCESS"];
+    BD [label="Burst decomposition\none APB transfer per beat"];
+    RM [label="Response mapping\nPSLVERR -> SLVERR\nworst response wins"];
+  }
+  APB [label="APB peripheral\n2-phase, single beat" fillcolor="#e1ffe1"];
+  AXI -> BD -> FSM -> APB; APB -> RM -> AXI;
+}

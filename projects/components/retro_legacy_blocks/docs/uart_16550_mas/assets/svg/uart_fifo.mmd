@@ -1,0 +1,7 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    SW["Software<br/>(THR / RBR)"] --> TXF["TX FIFO<br/>16 bytes"] --> TXE["TX engine"] --> SOUT["sout"]
+    SIN["sin"] --> RXE["RX engine"] --> RXF["RX FIFO<br/>16 bytes"] --> SW
+    FCR["FCR: FE enable,<br/>RFR / TFR resets,<br/>RX trigger level"] -.-> TXF
+    FCR -.-> RXF
+    RXF -.->|"level >= trigger"| IRQ["Interrupt"]

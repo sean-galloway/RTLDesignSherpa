@@ -1,0 +1,17 @@
+digraph master_adapter {
+  rankdir=LR; bgcolor=white; node [shape=box style=filled fillcolor="#eef2f7" fontname="Helvetica" fontsize=11];
+  edge [fontname="Helvetica" fontsize=9];
+  M [label="AXI4 Master" fillcolor="#ffe1e1"];
+  subgraph cluster_ad { label="Master Adapter"; style=rounded; color="#666";
+    SK [label="Skid buffers\n(per channel)\ntiming isolation"];
+    IDI [label="Bridge ID\ninjection"];
+    NORM [label="Protocol\nnormalisation"];
+    IDS [label="Bridge ID\nstrip"];
+    BP [label="Backpressure\nready/valid\n1-cycle latency"];
+  }
+  X [label="Crossbar" fillcolor="#e1ffe1"];
+  M -> SK [label="AW/W/AR"]; SK -> NORM -> IDI -> X;
+  X -> IDS [label="B/R"]; IDS -> BP -> M;
+  SPEC [shape=note fillcolor="#fffbe1" label="Channel specialisation:\nread-only / write-only / read-write\nadapters generated per master config"];
+  SPEC -> SK [style=dashed arrowhead=none];
+}

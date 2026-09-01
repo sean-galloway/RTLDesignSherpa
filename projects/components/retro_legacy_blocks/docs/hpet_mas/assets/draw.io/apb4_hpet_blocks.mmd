@@ -1,0 +1,19 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    APB["APB master"] --> IF
+    subgraph HPET["apb4_hpet"]
+        IF["APB slave interface<br/>(optional CDC)"]
+        RF["Register file"]
+        MC["64-bit main counter<br/>configurable clock source"]
+        subgraph TIMERS["2, 3 or 8 independent timers"]
+            T0["Timer 0<br/>64-bit comparator<br/>one-shot / periodic"]
+            TN["Timer N-1<br/>64-bit comparator<br/>one-shot / periodic"]
+        end
+        IRQ["Interrupt<br/>generation"]
+    end
+    IF --> RF --> TIMERS
+    MC --> T0
+    MC --> TN
+    T0 --> IRQ
+    TN --> IRQ
+    IRQ --> OUT["Interrupt outputs"]

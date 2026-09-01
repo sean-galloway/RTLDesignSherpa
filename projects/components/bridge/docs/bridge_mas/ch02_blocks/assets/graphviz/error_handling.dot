@@ -1,0 +1,13 @@
+digraph error_handling {
+  rankdir=TB; bgcolor=white; node [shape=box style=filled fillcolor="#eef2f7" fontname="Helvetica" fontsize=11];
+  edge [fontname="Helvetica" fontsize=9];
+  subgraph cluster_d { label="Detection"; style=rounded; color="#666";
+    OOR [label="Out-of-range\naddress"]; PROT [label="Protocol\nviolation"];
+    TO [label="Timeout"]; CAM [label="CAM miss /\nexhaustion"];
+  }
+  GEN [label="Error generation\nsynthesise DECERR / SLVERR\nso the master always completes" fillcolor="#ffd9d9"];
+  LOG [label="Error logging\nstatus + capture registers" fillcolor="#fffbe1"];
+  OOR -> GEN; PROT -> GEN; TO -> GEN; CAM -> GEN;
+  OOR -> LOG; PROT -> LOG; TO -> LOG; CAM -> LOG;
+  GEN -> MSTR [label="response"]; MSTR [label="Master" fillcolor="#ffe1e1"];
+}

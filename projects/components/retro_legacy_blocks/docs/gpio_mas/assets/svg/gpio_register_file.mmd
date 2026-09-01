@@ -1,0 +1,11 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    APB["APB transactions"] --> RF
+    subgraph RF["Register file (PeakRDL generated)"]
+        DIRR["GPIO_DIRECTION"]
+        OUTR["GPIO_OUTPUT"]
+        INR["GPIO_INPUT"]
+        INTR["Interrupt enable /<br/>status / clear"]
+    end
+    RF -->|"hwif_out"| CORE["GPIO core"]
+    CORE -->|"hwif_in"| RF

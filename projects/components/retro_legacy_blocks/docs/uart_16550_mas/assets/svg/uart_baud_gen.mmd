@@ -1,0 +1,7 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    CLK["input_clk (pclk)"] --> DIV["16-bit divider"]
+    DL["{DLM, DLL}<br/>programmable divisor"] --> DIV
+    DIV --> BT["baud_tick<br/>16x oversample"]
+    BT --> TX["TX engine"]
+    BT --> RX["RX engine<br/>samples mid-bit"]

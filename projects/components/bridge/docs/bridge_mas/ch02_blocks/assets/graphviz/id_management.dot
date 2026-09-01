@@ -1,0 +1,17 @@
+digraph id_management {
+  rankdir=LR; bgcolor=white; node [shape=box style=filled fillcolor="#eef2f7" fontname="Helvetica" fontsize=11];
+  edge [fontname="Helvetica" fontsize=9];
+  REQ [label="Request\n(master ID)" fillcolor="#ffe1e1"];
+  subgraph cluster_cam { label="CAM mode"; style=rounded; color="#666";
+    CAMW [label="Allocate entry\nkey = bridge ID\npayload = master ID"];
+    CAML [label="Lookup on response\nmatch bridge ID"];
+  }
+  subgraph cluster_fifo { label="FIFO mode"; style=rounded; color="#666";
+    FW [label="Push master ID\nin issue order"];
+    FR [label="Pop in order\non response"];
+  }
+  RSP [label="Response\n(restored master ID)" fillcolor="#e1ffe1"];
+  REQ -> CAMW; CAML -> RSP;
+  REQ -> FW; FR -> RSP;
+  NOTE [shape=note fillcolor="#fffbe1" label="CAM: out-of-order responses\nFIFO: cheaper, requires in-order"];
+}

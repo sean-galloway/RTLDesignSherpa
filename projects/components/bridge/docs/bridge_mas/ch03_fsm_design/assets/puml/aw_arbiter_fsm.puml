@@ -1,0 +1,26 @@
+@startuml
+skinparam backgroundColor white
+skinparam StateBackgroundColor #eef2f7
+skinparam StateBorderColor #666666
+title AW Arbiter FSM (per slave) -- round-robin with grant locking
+
+[*] --> IDLE
+IDLE : entry / aw_grant_matrix[s] = 0
+IDLE : entry / aw_grant_active[s] = 0
+IDLE : monitor aw_request_matrix[s]
+IDLE : track priority via aw_last_grant[s]
+
+GRANT_ACTIVE : entry / aw_grant_matrix[s][m] = 1
+GRANT_ACTIVE : entry / aw_grant_active[s] = 1
+GRANT_ACTIVE : hold grant until AWVALID && AWREADY
+GRANT_ACTIVE : W data mux follows the AW grant
+
+IDLE --> GRANT_ACTIVE : any master requests\n(round-robin picks winner m)
+GRANT_ACTIVE --> IDLE : AW handshake completes\nupdate aw_last_grant[s] = m
+GRANT_ACTIVE --> GRANT_ACTIVE : handshake not yet complete\n(grant is LOCKED)
+
+note right of GRANT_ACTIVE
+  B responses are routed by the
+  ID table, NOT by this grant.
+end note
+@enduml

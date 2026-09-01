@@ -68,13 +68,13 @@ Both are text-based and can be edited with any text editor.
 The generated PNG/SVG files are referenced in markdown documents:
 
 ```markdown
-![IOAPIC Block Diagram](../assets/svg/apb4_ioapic.svg)
+![IOAPIC Block Diagram](../assets/svg/apb4_ioapic.png)
 ```
 
 Or for SVG (better for web):
 
 ```markdown
-![IOAPIC FSM](../assets/svg/delivery_fsm.svg)
+![IOAPIC FSM](../assets/svg/delivery_fsm.png)
 ```
 
 ## Diagram Style Guide

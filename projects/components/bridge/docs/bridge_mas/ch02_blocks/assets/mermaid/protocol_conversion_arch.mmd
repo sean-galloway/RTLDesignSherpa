@@ -1,0 +1,13 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    AXIL["AXI4-Lite<br/>master"]
+    AXI["AXI4<br/>master"]
+    ADP["axil4_to_axi4<br/>adapt UP to full AXI4<br/>before the crossbar"]
+    XB["Crossbar<br/>(AXI4 throughout)"]
+    APBC["axi4_to_apb4<br/>dedicated converter"]
+    APB["APB<br/>peripheral"]
+    S["AXI4<br/>slave"]
+    AXIL --> ADP --> XB
+    AXI --> XB
+    XB --> APBC --> APB
+    XB --> S

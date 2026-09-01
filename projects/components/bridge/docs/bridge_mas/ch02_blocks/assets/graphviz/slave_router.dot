@@ -1,0 +1,14 @@
+digraph slave_router {
+  rankdir=LR; bgcolor=white; node [shape=box style=filled fillcolor="#eef2f7" fontname="Helvetica" fontsize=11];
+  edge [fontname="Helvetica" fontsize=9];
+  IN [label="AW / AR\nfrom crossbar" fillcolor="#ffe1e1"];
+  subgraph cluster_sr { label="Slave Router"; style=rounded; color="#666";
+    DEC [label="Address decode\nper-slave base/limit"];
+    MTX [label="Routing matrix\nselect target slave"];
+    OOR [label="Out-of-range\ndetection"];
+  }
+  S0 [label="Slave 0" fillcolor="#e1ffe1"]; S1 [label="Slave 1" fillcolor="#e1ffe1"]; SN [label="Slave N-1" fillcolor="#e1ffe1"];
+  ERR [label="DECERR\nresponse" fillcolor="#ffd9d9"];
+  IN -> DEC -> MTX; MTX -> S0; MTX -> S1; MTX -> SN;
+  DEC -> OOR [label="no match"]; OOR -> ERR;
+}

@@ -1,0 +1,15 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    APB["APB master"] --> IF
+    subgraph PIT["apb4_pit_8254 (Intel 8254 compatible)"]
+        IF["APB slave interface<br/>(optional CDC)"]
+        RF["Register file<br/>+ control word"]
+        subgraph CTRS["3 independent 16-bit counters"]
+            C0["Counter 0<br/>Mode 0: interrupt on<br/>terminal count"]
+            C1["Counter 1"]
+            C2["Counter 2"]
+        end
+    end
+    IF --> RF --> CTRS
+    GATE["gate[2:0]"] --> CTRS
+    CTRS --> OUTP["out[2:0]<br/>asserted at terminal count"]

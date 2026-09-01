@@ -29,7 +29,7 @@ The APB interface provides the connection between the system APB bus and the GPI
 
 ## Block Diagram
 
-![APB Interface Block](../assets/svg/gpio_interfaces.svg)
+![APB Interface Block](../assets/svg/gpio_interfaces.png)
 
 ## Interface Signals
 

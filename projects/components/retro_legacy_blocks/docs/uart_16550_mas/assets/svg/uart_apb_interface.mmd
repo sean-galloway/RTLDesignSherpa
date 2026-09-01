@@ -1,0 +1,9 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    M["APB master"] -->|"PSEL, PENABLE, PWRITE<br/>PADDR, PWDATA"| IF
+    subgraph IF["APB interface"]
+        DEC["Address decode<br/>register select"]
+        DLAB["DLAB muxing<br/>DLL/DLM vs RBR/THR/IER"]
+    end
+    IF -->|"PRDATA, PREADY, PSLVERR"| M
+    IF --> RF["Register file"]

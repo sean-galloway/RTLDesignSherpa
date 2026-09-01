@@ -1,0 +1,20 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    HOST["Host PC<br/>characterize.py<br/>115200 baud"] -->|UART| BR["UART to AXIL bridge<br/>5 address regions"]
+    BR --> CSR["harness_csr<br/>kick burst, response-delay<br/>programming, cycle-stamp<br/>timer, status"]
+    BR --> DRAM["Descriptor RAM"]
+    BR --> DBG["Debug SRAM"]
+    BR --> APB["STREAM APB"]
+    subgraph DUT["stream_top_ch8 (DUT)"]
+        DESCM["Descriptor-fetch<br/>AXI4 master"]
+        RDM["Data-read<br/>AXI4 master"]
+        WRM["Data-write<br/>AXI4 master"]
+    end
+    CSR -.->|"kick pulse"| DUT
+    APB --> DUT
+    DESCM --> DRAM
+    RDM --> RDLY["axi_response_delay<br/>(R side)"] --> RGEN["axi4_slave_rd_pattern_gen<br/>LFSR stream + per-channel CRC"]
+    WRM --> BDLY["axi_response_delay<br/>(B side)"] --> WCHK["axi4_slave_wr_crc_check<br/>per-channel CRC"]
+    RGEN --> CMP{"read CRC ==<br/>write CRC?"}
+    WCHK --> CMP
+    CMP --> ST["LEDs / 7-seg / IRQ<br/>PASS 0x0123, FAIL 0x9999"]

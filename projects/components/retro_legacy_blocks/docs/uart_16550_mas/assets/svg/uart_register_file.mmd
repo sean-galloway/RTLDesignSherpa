@@ -1,0 +1,12 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    APB["APB interface"] --> RF
+    subgraph RF["16550 register file"]
+        A["RBR / THR<br/>data"]
+        B["IER / IIR / FCR<br/>interrupt + FIFO"]
+        C["LCR / MCR<br/>line + modem control"]
+        D["LSR / MSR<br/>status"]
+        E["DLL / DLM<br/>divisor (DLAB=1)"]
+    end
+    RF --> CORE["TX / RX engines,<br/>FIFOs, baud generator"]
+    CORE --> RF

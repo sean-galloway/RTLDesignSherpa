@@ -1,0 +1,14 @@
+digraph crossbar_core {
+  rankdir=LR; bgcolor=white; node [shape=box style=filled fillcolor="#eef2f7" fontname="Helvetica" fontsize=11];
+  edge [fontname="Helvetica" fontsize=9];
+  M0 [label="Master 0" fillcolor="#ffe1e1"]; M1 [label="Master M-1" fillcolor="#ffe1e1"];
+  subgraph cluster_xb { label="Crossbar Core (M x S)"; style=rounded; color="#666";
+    DEC [label="Address\ndecode"];
+    ARB [label="Per-slave\narbitration"];
+    MUX [label="Data path\nmultiplex"];
+    RSP [label="ID-based\nresponse routing"];
+  }
+  S0 [label="Slave 0" fillcolor="#e1ffe1"]; S1 [label="Slave S-1" fillcolor="#e1ffe1"];
+  M0 -> DEC; M1 -> DEC; DEC -> ARB -> MUX; MUX -> S0; MUX -> S1;
+  S0 -> RSP; S1 -> RSP; RSP -> M0; RSP -> M1;
+}

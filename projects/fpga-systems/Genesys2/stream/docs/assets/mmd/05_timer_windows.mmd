@@ -1,0 +1,18 @@
+%%{init: {'theme': 'neutral'}}%%
+gantt
+    title harness_csr cycle-stamp windows on the test timeline
+    dateFormat X
+    axisFormat %s
+    todayMarker off
+
+    section total_cycles
+    first descriptor AR handshake -> last B response :active, tot, 0, 350
+
+    section r2r_cycles
+    startup (descriptor fetch, pipe fill)  :done, pre, 0, 22
+    first R beat -> last R beat            :active, r2r, 22, 335
+
+    section w2w_cycles
+    write pipe fill                        :done, wpre, 0, 30
+    first W beat -> last W beat            :active, w2w, 30, 343
+    drain (last B response)                :done, post, 343, 350

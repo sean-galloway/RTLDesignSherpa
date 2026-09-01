@@ -578,7 +578,7 @@ wavedrom-cli -i apb_read_access.json -s apb_read_access.svg
 ```markdown
 ## APB Read Timing
 
-![APB Read Access](assets/wavedrom/apb_read_access.svg)
+![APB Read Access](assets/wavedrom/apb_read_access.png)
 ```
 
 ### Issue 2: md_to_docx.py WaveDrom Integration
@@ -637,7 +637,7 @@ projects/components/{component}/docs/{doc_name}/
 
 ## Timing Diagram
 
-![Timing 1](assets/wavedrom/timing1.svg)
+![Timing 1](assets/wavedrom/timing1.png)
 ```
 
 **Generation Script:**
@@ -1400,7 +1400,7 @@ docs/{component}/
 │       ├── timing1.svg       # Rendered
 │       ├── timing2.json
 │       └── timing2.svg
-├── chapter1.md               # References: ![](assets/wavedrom/timing1.svg)
+├── chapter1.md               # References: ![](assets/wavedrom/timing1.png)
 └── render_wavedrom.sh        # Regeneration script
 ```
 

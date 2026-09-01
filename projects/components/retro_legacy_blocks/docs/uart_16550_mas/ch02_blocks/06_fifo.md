@@ -31,7 +31,7 @@ The UART includes 16-byte TX and RX FIFOs that buffer data between software and 
 
 ### Figure 2.6: FIFO Block
 
-![FIFO Block](../assets/svg/uart_fifo.svg)
+![FIFO Block](../assets/svg/uart_fifo.png)
 
 ## FIFO Configuration
 

@@ -1,0 +1,10 @@
+digraph width_conversion {
+  rankdir=LR; bgcolor=white; node [shape=box style=filled fillcolor="#eef2f7" fontname="Helvetica" fontsize=11];
+  edge [fontname="Helvetica" fontsize=9];
+  N [label="Narrow side" fillcolor="#ffe1e1"]; W [label="Wide side" fillcolor="#e1ffe1"];
+  UP [label="UPSIZE\npack N beats into 1\nbeat count / RATIO"];
+  DN [label="DOWNSIZE\nsplit 1 beat into N\nbeat count x RATIO"];
+  STRB [shape=note fillcolor="#fffbe1" label="WSTRB is re-lane-mapped\nboth directions; a partial\nstrobe must not widen"];
+  N -> UP -> W; W -> DN -> N;
+  STRB -> UP [style=dashed arrowhead=none]; STRB -> DN [style=dashed arrowhead=none];
+}

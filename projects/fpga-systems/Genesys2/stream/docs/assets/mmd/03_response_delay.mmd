@@ -1,0 +1,11 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    IN["Slave-side beat<br/>s_valid / s_ready"] --> ADM{"FIFO<br/>has room?"}
+    ADM -->|no| BP["s_ready = 0<br/>back-pressure<br/>(mirrors a controller<br/>out of in-flight slots)"]
+    ADM -->|yes| PUSH["Admit: {beat, t_in}"]
+    CTR["Free-running<br/>cycle counter"] -->|"t_in stamp"| PUSH
+    PUSH --> FIFO["Timestamp FIFO<br/>CAPACITY deep<br/>up to CAPACITY beats in flight"]
+    FIFO --> GATE{"now - t_in >=<br/>i_delay_cycles?"}
+    CTR -->|now| GATE
+    GATE -->|no| HOLD["Head waits"]
+    GATE -->|yes| OUT["Drain head<br/>m_valid / m_ready"]

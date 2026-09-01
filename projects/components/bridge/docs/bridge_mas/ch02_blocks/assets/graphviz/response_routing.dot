@@ -1,0 +1,12 @@
+digraph response_routing {
+  rankdir=LR; bgcolor=white; node [shape=box style=filled fillcolor="#eef2f7" fontname="Helvetica" fontsize=11];
+  edge [fontname="Helvetica" fontsize=9];
+  S0 [label="Slave 0\nB / R" fillcolor="#e1ffe1"]; S1 [label="Slave S-1\nB / R" fillcolor="#e1ffe1"];
+  subgraph cluster_r { label="Response Routing"; style=rounded; color="#666";
+    MRG [label="Channel merge\nB and R separately"];
+    DMX [label="ID-based demux\nbridge ID -> master"];
+  }
+  M0 [label="Master 0" fillcolor="#ffe1e1"]; M1 [label="Master M-1" fillcolor="#ffe1e1"];
+  S0 -> MRG; S1 -> MRG; MRG -> DMX; DMX -> M0; DMX -> M1;
+  NOTE [shape=note fillcolor="#fffbe1" label="R beats keep RLAST with the\nburst they belong to; B is one\nresponse per write transaction"];
+}

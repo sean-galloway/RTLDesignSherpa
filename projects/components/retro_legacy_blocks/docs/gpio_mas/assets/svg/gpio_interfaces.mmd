@@ -1,0 +1,11 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    APB["APB Slave<br/>configuration and status"] --> CORE
+    subgraph CORE["apb4_gpio"]
+        RF["Register file"]
+        GC["GPIO core"]
+        IRQ["Interrupt<br/>aggregation"]
+    end
+    CORE --> PINS["GPIO pins<br/>32 general-purpose I/O"]
+    CORE --> INT["Interrupt<br/>aggregate output"]
+    CLK["Clock / reset"] --> CORE

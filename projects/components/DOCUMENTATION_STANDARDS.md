@@ -519,13 +519,13 @@ Waveforms (timing diagrams from WaveDrom) MUST use the `### Waveform X.X: Title`
 ```markdown
 ### Waveform 2.3: HPET One-Shot Timer Fire
 
-![HPET One-Shot Timer Fire](../assets/wavedrom/timing/hpet_timer_fire_oneshot.svg)
+![HPET One-Shot Timer Fire](../assets/wavedrom/timing/hpet_timer_fire_oneshot.png)
 ```
 
 **INCORRECT (Will NOT appear in List of Waveforms):**
 
 ```markdown
-![HPET One-Shot Timer Fire](../assets/wavedrom/timing/hpet_timer_fire_oneshot.svg)
+![HPET One-Shot Timer Fire](../assets/wavedrom/timing/hpet_timer_fire_oneshot.png)
 ```
 
 **Detection Pattern:** `^(?:[\d.]+[\t\s]+)?Waveform\s+([\d.]+)[:\s]+(.+)$`
@@ -581,7 +581,7 @@ This section shows timing for GPIO operations.
 
 ### Waveform 2.1: GPIO Direction Write
 
-![GPIO Direction Write](../assets/wavedrom/timing/gpio_direction_write.svg)
+![GPIO Direction Write](../assets/wavedrom/timing/gpio_direction_write.png)
 
 The waveform shows the APB write transaction to set GPIO direction.
 ```

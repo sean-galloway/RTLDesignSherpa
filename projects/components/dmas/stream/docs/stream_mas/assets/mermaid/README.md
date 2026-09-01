@@ -13,7 +13,7 @@ Each diagram has two files:
 Example:
 ```
 08_axi_read_engine_block.mmd   ← Edit this
-08_axi_read_engine_L034.png   ← Auto-generated from .mmd
+08_axi_read_engine_block.png   ← Auto-generated from .mmd
 ```
 
 ## Workflow
@@ -28,12 +28,12 @@ Example:
 2. **Regenerate PNG:**
    ```bash
    cd /mnt/data/github/rtldesignsherpa/projects/components/dmas/stream/docs/stream_mas/assets/mermaid
-   mmdc -i 08_axi_read_engine_block.mmd -o 08_axi_read_engine_L034.png -w 1200 -b white --quiet
+   mmdc -i 08_axi_read_engine_block.mmd -o 08_axi_read_engine_block.png -w 1200 -b white --quiet
    ```
 
 3. **Commit both files:**
    ```bash
-   git add 08_axi_read_engine_block.mmd 08_axi_read_engine_L034.png
+   git add 08_axi_read_engine_block.mmd 08_axi_read_engine_block.png
    git commit -m "Update AXI read engine diagram"
    ```
 
@@ -56,7 +56,7 @@ done
 Markdown files reference diagrams like this:
 
 ```markdown
-![Diagram](../assets/mermaid/08_axi_read_engine_L034.png)
+![Diagram](../assets/mermaid/08_axi_read_engine_block.png)
 
 **Source:** [08_axi_read_engine_block.mmd](../assets/mermaid/08_axi_read_engine_block.mmd)
 ```
@@ -85,7 +85,7 @@ The line number helps track which diagram came from which location in the origin
 | `06_sram_controller_unit_L043` | 06_sram_controller_unit.md:43 | Three-component pipeline |
 | `06_stream_latency_bridge_L030` | 06_stream_latency_bridge.md:30 | Latency bridge block diagram |
 | `07_stream_alloc_ctrl_L073` | 07_stream_alloc_ctrl.md:73 | Allocation controller virtual FIFO |
-| `08_axi_read_engine_L034` | 08_axi_read_engine.md:34 | AXI read engine architecture |
+| `08_axi_read_engine_block` | 08_axi_read_engine.md:34 | AXI read engine architecture |
 | `09_sram_controller_L030` | 09_sram_controller.md:30` | SRAM controller architecture |
 | `09_stream_drain_ctrl_L073` | 09_stream_drain_ctrl.md:73 | Drain controller virtual FIFO |
 | `10_axi_write_engine_L051` | 10_axi_write_engine.md:51 | AXI write engine architecture |

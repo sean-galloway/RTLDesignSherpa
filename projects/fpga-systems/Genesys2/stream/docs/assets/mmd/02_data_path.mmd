@@ -1,0 +1,15 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph RD["Read path"]
+        R1["Data-read master<br/>8 outstanding AR<br/>16-beat bursts"] -->|AR| R2["axi_response_delay (R)<br/>CAPACITY = 256"]
+        R2 -->|AR| R3["axi4_slave_rd_pattern_gen<br/>LFSR byte stream"]
+        R3 -->|R beats| R2
+        R2 -->|"R beats, delayed L"| R1
+    end
+    subgraph WR["Write path"]
+        W1["Data-write master<br/>8 outstanding AW<br/>16-beat bursts"] -->|"AW, W"| W3["axi4_slave_wr_crc_check"]
+        W3 -->|B| W2["axi_response_delay (B)<br/>CAPACITY = 16"]
+        W2 -->|"B, delayed L"| W1
+    end
+    R1 --- ENG["STREAM channel<br/>read CRC vs write CRC<br/>compared at end of test"]
+    ENG --- W1

@@ -1,0 +1,17 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    H["Host over UART<br/>~870 us per APB write"] --> SH
+    subgraph CSRB["harness_csr"]
+        SH["CH_KICK_ADDR[0..3]<br/>shadow registers<br/>persistent, no side effect"]
+        GO["KICK_GO<br/>one-byte write,<br/>channel bitmask"]
+        PULSE["1-aclk pulse<br/>to selected channels"]
+    end
+    H -->|"single write"| GO
+    GO --> PULSE
+    SH -->|"start address"| PULSE
+    PULSE --> C0["ch0"]
+    PULSE --> C1["ch1"]
+    PULSE --> C2["ch2"]
+    PULSE --> C3["ch3"]
+    NOTE["All selected channels<br/>see the kick on the SAME edge --<br/>UART skew removed at the source"]
+    PULSE -.- NOTE

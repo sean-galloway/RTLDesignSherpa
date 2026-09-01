@@ -1,0 +1,14 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    subgraph A["1. Pre-cliff  (L <= in_flight x cycles_per_beat)"]
+        A1["Response pipe stays full.<br/>L cycles cost a one-time pipe-fill only.<br/><b>Throughput stays at peak (~1435 MB/s)</b>"]
+    end
+    subgraph B["2. Knee  (L ~ in_flight)"]
+        B1["Pipe just barely covers L.<br/>Throughput begins to slip.<br/><b>Measured -11 % at L = 128, 1 channel</b>"]
+    end
+    subgraph C["3. Post-cliff  (L > in_flight)"]
+        C1["Engine waits for responses.<br/>Little's Law: BW = (in_flight / L) x peak<br/><b>Within 1 % of theory across L = 384..512</b>"]
+    end
+    A --> B --> C
+    S["Scaling: total_in_flight = N_ch x 8 x 16 = 128 x N_ch<br/>-- the 4-channel build hides up to 512 cycles"]
+    C --> S

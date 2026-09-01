@@ -29,7 +29,7 @@ The GPIO core handles input synchronization, output driving, and direction contr
 
 ## Block Diagram
 
-![GPIO Core Block](../assets/svg/gpio_core.svg)
+![GPIO Core Block](../assets/svg/gpio_core.png)
 
 ## Input Path
 

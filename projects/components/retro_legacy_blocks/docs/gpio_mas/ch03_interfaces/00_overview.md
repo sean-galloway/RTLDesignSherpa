@@ -36,7 +36,7 @@ The APB GPIO module has the following external interfaces:
 
 ## Interface Summary Diagram
 
-![GPIO Interfaces](../assets/svg/gpio_interfaces.svg)
+![GPIO Interfaces](../assets/svg/gpio_interfaces.png)
 
 ## Chapter Contents
 

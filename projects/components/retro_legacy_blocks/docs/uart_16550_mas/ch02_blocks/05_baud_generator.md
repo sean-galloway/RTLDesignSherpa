@@ -31,7 +31,7 @@ The baud generator creates the 16x oversampled clock used by TX and RX engines f
 
 ### Figure 2.5: Baud Generator Block
 
-![Baud Generator Block](../assets/svg/uart_baud_gen.svg)
+![Baud Generator Block](../assets/svg/uart_baud_gen.png)
 
 ## Operation
 

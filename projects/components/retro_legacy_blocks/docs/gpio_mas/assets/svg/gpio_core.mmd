@@ -1,0 +1,13 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph IN["Input path"]
+        PIN_I["gpio_in[31:0]"] --> S1["FF1 (clk)"] --> S2["FF2 (clk)"] --> IREG["GPIO_INPUT<br/>register"]
+    end
+    subgraph OUT["Output path"]
+        OREG["GPIO_OUTPUT<br/>register"] --> PIN_O["gpio_out[31:0]"]
+    end
+    subgraph DIR["Direction control (per pin)"]
+        DREG["GPIO_DIRECTION<br/>register"] --> OE["gpio_oe[31:0]"]
+    end
+    NOTE["direction[i]=0 : input, output high-Z<br/>direction[i]=1 : output, driven<br/>Synchroniser depth = SYNC_STAGES,<br/>costs SYNC_STAGES cycles of latency"]
+    S2 -.- NOTE

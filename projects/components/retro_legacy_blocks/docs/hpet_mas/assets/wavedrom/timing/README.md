@@ -72,7 +72,7 @@ Reference these diagrams in markdown:
 ```markdown
 ### Timer Fire Timing
 
-![One-Shot Timer Fire](../assets/wavedrom/timing/hpet_timer_fire_oneshot.svg)
+![One-Shot Timer Fire](../assets/wavedrom/timing/hpet_timer_fire_oneshot.png)
 
 The one-shot timer fires once when the main counter reaches the comparator value.
 ```
