@@ -73,6 +73,43 @@ CSR_STATUS          = H("STATUS")
 # by the axi_response_delay blocks. [15:0]=rd_delay, [31:16]=wr_delay,
 # in aclk cycles. 0 = bypass.
 CSR_RESP_DELAY      = H("RESP_DELAY")
+
+# ---------------------------------------------------------------------------
+# Named RESP_DELAY sweeps
+# ---------------------------------------------------------------------------
+# The delay set is a CONFIG and lives here by name. It used to survive only as
+# prose in a CSV header ("Delay is a CLI knob, not a column"), so reproducing a
+# curve meant retyping sixteen numbers and trusting they matched the ones behind
+# the last set of numbers. A sweep you cannot name is a sweep you cannot repeat.
+#
+# Resolve with resolve_delay_sweep(): a name from here, or an explicit
+# comma-separated list for a one-off.
+DELAY_SWEEPS = {
+    # 8..512 step 8. The knee sits between 96 and 112 on the Genesys 2 at
+    # AR/AW_MAX_OUTSTANDING=8 x 16-beat bursts (~128 beats in flight), and the
+    # coarse set below only brackets it. This resolves where it actually breaks.
+    'fine':     list(range(8, 513, 8)),
+    # The historical points, kept so old curves stay reproducible.
+    'coarse':   [0, 16, 32, 64, 96, 112, 128, 144, 160, 192, 224, 256,
+                 320, 384, 448, 512],
+    # Just the knee, for a quick regression check.
+    'knee':     [0, 96, 104, 112, 120, 128, 144, 160],
+}
+
+
+def resolve_delay_sweep(spec: str) -> list:
+    """A named sweep from DELAY_SWEEPS, or an explicit comma-separated list.
+
+    Raises on an unknown name rather than falling back, so a typo cannot
+    silently measure a different curve than the one that was asked for.
+    """
+    if spec in DELAY_SWEEPS:
+        return list(DELAY_SWEEPS[spec])
+    if ',' in spec or spec.strip().isdigit():
+        return [int(x, 0) for x in spec.split(',') if x.strip()]
+    raise ValueError(
+        f"unknown delay sweep {spec!r}; known names: "
+        f"{', '.join(sorted(DELAY_SWEEPS))} (or an explicit '0,16,32,...' list)")
 CSR_DBG_WR_PTR     = H("DBG_WR_PTR")
 CSR_DBG_OVERFLOW    = H("DBG_OVERFLOW")
 CSR_CRC_RD_EXPECTED = H("CRC_RD_EXPECTED")
@@ -318,7 +355,13 @@ class CharacterizationRunner:
         wr_cyc to B. Both are clamped to 16 bits. 0 = bypass."""
         rd = rd_cyc & 0xFFFF
         wr = wr_cyc & 0xFFFF
-        self.bridge.write(CSR_RESP_DELAY, (wr << 16) | rd)
+        # BY NAME. This used to hand-pack the word as `(wr << 16) | rd`, which
+        # is the split-proof hazard the by-name rule exists for: the ADDRESS
+        # came from the regmap via H("RESP_DELAY"), so if RD_DELAY/WR_DELAY
+        # ever moved, the lookup would keep working and the shifts would
+        # quietly write the wrong bits. The regmap defines the layout
+        # (RD_DELAY[15:0], WR_DELAY[31:16]); nothing here should restate it.
+        harness_regs(self.bridge).RESP_DELAY.write(RD_DELAY=rd, WR_DELAY=wr)
         self.vlog(f"  RESP_DELAY = rd={rd}cyc wr={wr}cyc")
 
     def run_resp_delay_sweep(self, configs, rd_delays, wr_delays):
@@ -519,14 +562,18 @@ class CharacterizationRunner:
         ratios so the JSON output preserves everything for offline
         analysis.
         """
-        # Lazy import so the optional read_bus_meters module isn't a hard
-        # dep of run_characterization (e.g. for older bitstreams).
-        try:
-            from read_bus_meters import (
-                read_meter, R_METER_BASE, W_METER_BASE,
-            )
-        except ImportError:
-            return {'available': False, 'error': 'read_bus_meters import failed'}
+        # The readers live in bus_meters; read_bus_meters is a FUNCTION in it,
+        # never a module. This imported `from read_bus_meters import ...`, which
+        # can never resolve -- so every run returned
+        # {'available': False, 'error': 'read_bus_meters import failed'} and the
+        # datapath-utilization / 4-bucket half of the methodology was silently
+        # absent from every JSON this produced. The except swallowed it; the
+        # 2026-06-23 reports have metrics.available=True, so it broke after them.
+        #
+        # NOT re-wrapped in try/except: if the readers cannot be imported that is
+        # a broken install, and it should say so rather than quietly downgrade
+        # the measurement to "unavailable" for the next person to rediscover.
+        from bus_meters import read_meter, R_METER_BASE, W_METER_BASE
 
         # Timer values (cycle stamps captured by stream_char_harness)
         cycles_total = self._read64(self.bridge,
@@ -1367,9 +1414,9 @@ def main():
             compression=(args.compression == 'on'),
             rd_prefetch=(args.rd_prefetch == 'on'))
         if args.resp_delays:
-            rd = [int(s, 0) for s in args.resp_delays.split(',') if s.strip()]
+            rd = resolve_delay_sweep(args.resp_delays)
             if args.resp_delays_wr:
-                wr = [int(s, 0) for s in args.resp_delays_wr.split(',') if s.strip()]
+                wr = resolve_delay_sweep(args.resp_delays_wr)
             else:
                 wr = list(rd)
             print(f"\n=== RESP_DELAY sweep: {len(rd)} points x "

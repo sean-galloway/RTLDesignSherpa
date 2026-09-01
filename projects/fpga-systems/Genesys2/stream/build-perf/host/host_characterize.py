@@ -239,6 +239,20 @@ def parse_args():
                    help="Write-response per-beat delay in cycles "
                         "(0 = bypass; programs CSR RESP_DELAY[31:16]). "
                         "Defaults to --rd-delay if omitted.")
+    p.add_argument("--resp-delays", default=None,
+                   help="Delay sweep BY NAME (fine|coarse|knee, see "
+                        "characterization.DELAY_SWEEPS) or an explicit "
+                        "'0,16,32,...' list. Runs every config once per point "
+                        "in ONE UART session. Use --json-output to name the "
+                        "analysis-ready JSON file.")
+    p.add_argument("--resp-delays-wr", default=None,
+                   help="Write-side delay points, paired index-wise with "
+                        "--resp-delays. Omit for a symmetric (rd=wr) sweep.")
+    p.add_argument("--json-output", default=None,
+                   help="Write results as JSON in the schema "
+                        "bin/plot_char_reports.py consumes: "
+                        "[{rd_delay,wr_delay,config,result}, ...]. The CSV "
+                        "--output is unchanged and can be used alongside.")
     return p.parse_args()
 
 
@@ -302,14 +316,15 @@ def main() -> int:
             print(f"ERROR: --rd-delay/--wr-delay must be in 0..65535",
                   file=sys.stderr)
             return 1
-        delay_word = ((wr_delay & 0xFFFF) << 16) | (rd_delay & 0xFFFF)
+        delay_word = (rd_delay, wr_delay)   # programmed BY FIELD NAME below
 
     print(f"Sweeping {len(configs)} configurations on {args.port}")
     if delay_word is not None:
         print(f"Response-delay programming: rd={rd_delay} cyc, "
-              f"wr={wr_delay} cyc (RESP_DELAY=0x{delay_word:08X})")
+              f"wr={wr_delay} cyc (RESP_DELAY.RD_DELAY/WR_DELAY)")
     print()
     results = []
+    json_records = []
     args.port = autodetect_port(args.baud, want=args.port)
     with UARTAxiBridge(args.port, args.baud) as bridge:
         # Ask the board its datapath width instead of asserting 128. Every beat
@@ -331,22 +346,62 @@ def main() -> int:
         # Program response-delay CSR once up front; it persists across
         # configs in the sweep (the harness only resets it on aresetn).
         if delay_word is not None:
-            bridge.write(CSR_RESP_DELAY, delay_word)
+            # BY NAME, not a hand-packed word. This used to be
+            # ((wr & 0xFFFF) << 16) | (rd & 0xFFFF) -- the regmap already
+            # defines RESP_DELAY.RD_DELAY[15:0] / WR_DELAY[31:16], and
+            # restating the layout here is how the two drift apart silently.
+            harness_regs(bridge).RESP_DELAY.write(
+                RD_DELAY=delay_word[0] & 0xFFFF, WR_DELAY=delay_word[1] & 0xFFFF)
 
         # Tag every result with the delay programming so the CSV can carry
         # bandwidth-vs-delay context per row. Default 0 when no flag was given.
         rd_tag = rd_delay if rd_delay is not None else 0
         wr_tag = wr_delay if wr_delay is not None else 0
 
-        for i, cfg in enumerate(configs, 1):
-            print(f"[{i}/{len(configs)}] {cfg.name}")
-            r = run_one(runner, bridge, cfg, args.timeout, args.verbose)
-            r["rd_delay_cyc"] = rd_tag
-            r["wr_delay_cyc"] = wr_tag
-            results.append(r)
-            print(fmt_row(r))
+        # Delay points to sweep. Without --resp-delays this is the single
+        # (possibly None) point the old flags gave, so behaviour is unchanged.
+        if args.resp_delays:
+            rd_points = runner_mod.resolve_delay_sweep(args.resp_delays)
+            if args.resp_delays_wr:
+                wr_points = runner_mod.resolve_delay_sweep(args.resp_delays_wr)
+                if len(wr_points) != len(rd_points):
+                    print("ERROR: --resp-delays-wr must pair index-wise with "
+                          "--resp-delays", file=sys.stderr)
+                    return 1
+            else:
+                wr_points = list(rd_points)
+            print(f"=== RESP_DELAY sweep: {len(rd_points)} points x "
+                  f"{len(configs)} configs = {len(rd_points)*len(configs)} runs ===\n")
+        else:
+            rd_points, wr_points = [rd_tag], [wr_tag]
+
+        total = len(rd_points) * len(configs)
+        n = 0
+        for rd_pt, wr_pt in zip(rd_points, wr_points):
+            if args.resp_delays:
+                # Same by-name write as above; the regmap owns the layout.
+                harness_regs(bridge).RESP_DELAY.write(
+                    RD_DELAY=rd_pt & 0xFFFF, WR_DELAY=wr_pt & 0xFFFF)
+                time.sleep(0.005)   # let it propagate before the next run
+            for cfg in configs:
+                n += 1
+                print(f"[{n}/{total}] {cfg.name}"
+                      + (f"  rd_delay={rd_pt} wr_delay={wr_pt}" if args.resp_delays else ""))
+                r = run_one(runner, bridge, cfg, args.timeout, args.verbose)
+                r["rd_delay_cyc"] = rd_pt
+                r["wr_delay_cyc"] = wr_pt
+                results.append(r)
+                json_records.append({"config": cfg.name, "rd_delay": rd_pt,
+                                     "wr_delay": wr_pt, "result": r})
+                print(fmt_row(r))
 
     # Summary
+    if args.json_output and json_records:
+        import json as _json
+        with open(args.json_output, "w") as jf:
+            _json.dump(json_records, jf, indent=2, default=str)
+        print(f"JSON results -> {args.json_output} ({len(json_records)} record(s))")
+
     n_pass = sum(1 for r in results if r["pass"])
     n_fail = len(results) - n_pass
     print(f"\nSummary: {n_pass} passed, {n_fail} failed, {len(results)} total")
