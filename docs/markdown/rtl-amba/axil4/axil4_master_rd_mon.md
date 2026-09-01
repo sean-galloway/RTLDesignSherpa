@@ -52,7 +52,7 @@ Combines **[axil4_master_rd](../axil4/axil4_master_rd.md)** with the core **axi_
 | `AGENT_ID` | logic [15:0] | 16'h000A | 16-bit agent identifier emitted in the `agent_id` packet field |
 | `MAX_TRANSACTIONS` | int | 8 | Max outstanding transactions. Reduced for AXI4-Lite; the AXI4 wrappers default to 16. |
 | `ACTIVE_TRANS_THRESHOLD` | int | MAX_TRANSACTIONS/2 | Active-transaction count that trips a threshold packet when `cfg_threshold_enable=1`. Replaces the former hardwired 8/4; threshold packets now scale with the table sizing |
-| `ENABLE_FILTERING` | bit | 1 | Enable 3-level packet filtering |
+| `ENABLE_FILTERING` | bit | 1 | Enable packet filtering: two active drop levels (packet type, then event code). Level 2 is reserved and routes nothing |
 | `ADD_PIPELINE_STAGE` | bit | 0 | Add register stage for timing closure |
 | `USE_MONITOR` | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
 | `N_ADDR_RANGES` | int | 0 | Number of address-range comparators. 0 = checker omitted (zero area). >0 = N independent [low, high] ranges; feeds the shared allowlist checker: a debug-range hit -> AddrMatch, an error-allowlist miss -> Error/ADDR_RANGE (see axi_monitor_addr_check.md). |

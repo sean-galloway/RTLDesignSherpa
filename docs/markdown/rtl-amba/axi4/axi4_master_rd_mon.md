@@ -132,7 +132,7 @@ The transaction CAM is always pipelined.
 
 > The inner monitor's `cfg_debug_level` (tied to 0) and `cfg_debug_mask` (0) are fixed inside the wrapper; `cfg_active_trans_threshold` is driven from the `ACTIVE_TRANS_THRESHOLD` parameter (default `MAX_TRANSACTIONS/2`). `cfg_debug_enable` is the only debug-cone control exposed here.
 
-**Filtering Configuration (3 Levels):**
+**Filtering Configuration (levels 1 and 3 drop packets; level 2 is reserved):**
 
 **Level 1 - Packet Type Masks:**
 

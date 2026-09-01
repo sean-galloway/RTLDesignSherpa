@@ -182,8 +182,8 @@ performance samples in a stream containing protocols it has never heard of. One
 that understands `protocol` too can route AXI traffic to an AXI decoder and pass
 the rest through untouched. Only the innermost level requires knowing the block.
 
-This is what lets the filter be three-level (drop a whole type, then individual
-codes within a type you are keeping) and what lets the histogram bin on the
+This is what lets the filter work in stages (drop a whole type, then individual
+codes within a type you are keeping, then restrict to an address window) and what lets the histogram bin on the
 whole tuple without knowing what any of it means.
 
 ### Healthy classes vs fault classes
@@ -342,7 +342,7 @@ keep working.
  your block                   │                         │
        │                      ▼                         │            monbus_pkt_tally
        └──────────────> axi_monitor_filtered ───────────┘            (counting only)
-                        (3-level drop filter)
+                        (staged drop filter)
 ```
 
 Four stages, and you can stop after any of them.
@@ -385,8 +385,10 @@ instance outright. Size the monitor to what you will actually read.
 
 ### 3. Filter
 
-`axi_monitor_filtered` applies a three-level drop filter *at the source*, before
-a packet ever consumes transport bandwidth:
+Three mechanisms drop packets *at the source*, before one ever consumes
+transport bandwidth. Note that these are not the Level 1/2/3 numbers used
+inside `axi_monitor_filtered.sv` -- that module numbers its own two active
+stages 1 and 3, with 2 reserved. Here they are grouped by what they do:
 
 1. **`cfg_axi_pkt_mask`** -- drop whole packet types (16 bits, one per type).
 2. **per-type event masks** -- `cfg_axi_error_mask`, `cfg_axi_timeout_mask`,

@@ -80,7 +80,7 @@ flowchart TB
         direction TB
         trans_mgr["Transaction<br/>Manager"]
         reporter["Event<br/>Reporter"]
-        filter["3-Level<br/>Filter"]
+        filter["Packet<br/>Filter"]
 
         trans_mgr --> reporter
         reporter --> filter
@@ -155,7 +155,7 @@ Transport sizing first, then the monitor knobs. The defaults are sane; `MAX_TRAN
 | ID_FILTER_ENABLE / ID_MATCH_BASE / ID_MATCH_COUNT | int | 0/-- | Per-instance ID-slice filtering |
 | ACLK_MHZ | int | 100 | Clock frequency in MHz -- keeps the 1 us tick exact off-100MHz |
 | CFI_MIN_FREQ_MHZ / CFI_MAX_FREQ_MHZ | int | = ACLK_MHZ | Freq-invariant counter LUT bounds (`cfg_freq_sel` indexes within them) |
-| **ENABLE_FILTERING** | bit | 1 | Enable 3-level packet filtering |
+| **ENABLE_FILTERING** | bit | 1 | Enable packet filtering: two active drop levels (packet type, then event code). Level 2 is reserved and routes nothing |
 | **ADD_PIPELINE_STAGE** | bit | 0 | Add pipeline stage in monitor |
 | **USE_MONITOR** | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
 | **N_ADDR_RANGES** | int | 0 | Number of address-range comparators. 0 = checker omitted (zero area). >0 = N independent [low, high] ranges; feeds the shared allowlist checker: a debug-range hit -> AddrMatch, an error-allowlist miss -> Error/ADDR_RANGE (see axi_monitor_addr_check.md). |
@@ -311,7 +311,7 @@ the AW channel); the monitor does not tap AWATOP or BTAGMATCH and emits
 no atomic-specific events. BRESP errors on atomic transactions surface as
 ordinary SLVERR/DECERR events.
 
-### Three-Level Filtering Hierarchy
+### Filtering Hierarchy (two active levels, one reserved)
 
 Same as read monitor - see [AXI5 Master Read Monitor](axi5_master_rd_mon.md).
 

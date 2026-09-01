@@ -19,8 +19,9 @@
  * AXI Monitor with Integrated Filtering
  *
  * This module wraps the standard axi_monitor_base with configurable packet filtering
- * based on the filtering architecture from the monbus_group family. Provides 3-level
- * filtering hierarchy:
+ * based on the filtering architecture from the monbus_group family. TWO of the
+ * three numbered levels below actually drop packets; level 2 is reserved and
+ * routes nothing. The numbering is kept because the code below uses it:
  *
  * Level 1: Packet type masking (pkt_mask) - drop entire packet types
  * Level 2: RESERVED (err_select feeds only the conflict check; no routing is implemented -- doc corruption source deleted, qc round_23)
