@@ -18,10 +18,17 @@
 //                        adaptive-timeout: mistake counter MC, premature-close
 //                        vs held-too-long, TR += / -= step each check interval)
 //        5 adapt_access  ap = per-row 2-bit close predictor (Happy "Hybrid",
-//                        pumice_row_pred_table; knob-free)
+//                        pumice_row_pred_table; knob-free)   NOT BUILT
 //        6 rbl_static    ap = per-bank low-locality verdict from the RBLA
-//                        miss-counter table (pumice_rbl_table)
-//        7 rbl_dyn       rbl_static + per-epoch threshold hill-climb
+//                        miss-counter table (pumice_rbl_table) NOT BUILT
+//        7 rbl_dyn       rbl_static + per-epoch hill-climb      NOT BUILT
+//
+//   MODES 5/6/7 ARE NOT BUILT (2026-09-01). Their predictor tables were 60% of
+//   all failing timing endpoints on the Nexys A7 and are set aside under
+//   rtl/OLD/ -- correct and mutation-proven, just too expensive for this part.
+//   They decode to the default policy (no auto-precharge). The CSR field and
+//   the PAGE_RBL_CFG / PAGE_POLICY_CFG inputs are UNCHANGED so nothing in the
+//   register map, the host or the parent wiring has to move to restore them.
 //
 //   2. A background precharge REQUEST (`timeout_pre_req_o` / bank) for a row
 //      whose idle timer expired. The ARBITER issues the actual PRE as its
@@ -73,10 +80,15 @@ module pumice_page_policy
     input  logic [3:0]                 mc_low_thr_i,
     input  logic [3:0]                 mc_init_i,
     input  logic [15:0]                check_interval_i,
+    // UNUSED while modes 6/7 are not built (see the header). Kept as ports so
+    // the CSR wiring in the parent is untouched and restoring the tables is a
+    // change to this file alone.
+    /* verilator lint_off UNUSED */
     input  logic [7:0]                 rbl_miss_thresh_i, // PAGE_RBL_CFG
     input  logic [1:0]                 rbl_ways_i,
     input  logic [3:0]                 rbl_sets_i,
     input  logic [15:0]                rbl_reset_ivl_i,
+    /* verilator lint_on UNUSED */
 
     // ---- issued command stream (arbiter output, single-issue) --------------
     input  logic                       cmd_valid_i,       // cmd_valid && cmd_ready
@@ -112,63 +124,31 @@ module pumice_page_policy
     localparam logic [2:0] MODE_RBL_STATIC   = 3'd6;
     localparam logic [2:0] MODE_RBL_DYN      = 3'd7;
 
-    logic w_mode_on, w_timeout_on, w_adapt_on, w_acc_on, w_rbl_on;
-    assign w_mode_on    = (policy_mode_i != MODE_DEFAULT);
+    // MODES 5/6/7 ARE NOT BUILT (2026-09-01). Their predictor tables --
+    // pumice_row_pred_table and pumice_rbl_table -- were 60% of all failing
+    // timing endpoints on the Nexys A7 (u_rbl 1546, u_row_pred 1049 of 4307)
+    // with only a single-generator harness in front of them. The RTL is set
+    // aside under rtl/OLD/, correct and mutation-proven; see that README.
+    //
+    // They decode to the DEFAULT policy here rather than being rejected: the
+    // CSR field is unchanged and software may still write 5/6/7, so this has
+    // to be a defined, harmless behaviour rather than an X. A host that wants
+    // to know reads PAGE_CAP below.
+    logic w_mode_on, w_timeout_on, w_adapt_on;
+    assign w_mode_on    = (policy_mode_i == MODE_STATIC_OPEN)
+                       || (policy_mode_i == MODE_STATIC_CLOSE)
+                       || (policy_mode_i == MODE_FIXED_OPEN)
+                       || (policy_mode_i == MODE_ADAPT_TIME);
     assign w_timeout_on = (policy_mode_i == MODE_FIXED_OPEN)
                        || (policy_mode_i == MODE_ADAPT_TIME);
     assign w_adapt_on   = (policy_mode_i == MODE_ADAPT_TIME);
-    assign w_acc_on     = (policy_mode_i == MODE_ADAPT_ACCESS);
-    assign w_rbl_on     = (policy_mode_i == MODE_RBL_STATIC)
-                       || (policy_mode_i == MODE_RBL_DYN);
 
     // ---- auto-precharge decision -------------------------------------------
-    logic [NUM_BANKS-1:0] w_rbl_low_loc, w_acc_close;
     assign ap_mode_en_o = w_mode_on;
     assign ap_close_o   = (policy_mode_i == MODE_STATIC_CLOSE) ? {NUM_BANKS{1'b1}}
-                        : w_acc_on                              ? w_acc_close
-                        : w_rbl_on                              ? w_rbl_low_loc
                                                                 : '0;
 
-    // Per-row close predictor (mode 5): 2-bit counters vote close for rows
-    // that historically saw a single access per activation.
-    pumice_row_pred_table #(
-        .NUM_BANKS(NUM_BANKS),
-        .ROW_WIDTH(ROW_WIDTH)
-    ) u_row_pred (
-        .aclk             (aclk),
-        .aresetn          (aresetn),
-        .enable_i         (w_acc_on),
-        .ctr_thresh_i     (ctr_thresh_i),
-        .ctr_init_i       (ctr_init_i),
-        .cmd_valid_i      (cmd_valid_i),
-        .cmd_op_i         (cmd_op_i),
-        .cmd_bank_i       (cmd_bank_i),
-        .cmd_row_i        (cmd_row_i),
-        .bank_row_active_i(bank_row_active_i),
-        .bank_open_row_i  (bank_open_row_i),
-        .close_pred_o     (w_acc_close)
-    );
 
-    // RBLA miss-counter table (modes 6/7): classifies the OPEN row of each
-    // bank as low-locality (thrashing -> auto-precharge) at ACT time.
-    pumice_rbl_table #(
-        .NUM_BANKS(NUM_BANKS),
-        .ROW_WIDTH(ROW_WIDTH)
-    ) u_rbl (
-        .aclk            (aclk),
-        .aresetn         (aresetn),
-        .enable_i        (w_rbl_on),
-        .dyn_en_i        (policy_mode_i == MODE_RBL_DYN),
-        .miss_thresh_i   (rbl_miss_thresh_i),
-        .ways_log2_i     (rbl_ways_i),
-        .sets_log2_i     (rbl_sets_i),
-        .reset_interval_i(rbl_reset_ivl_i),
-        .cmd_valid_i     (cmd_valid_i),
-        .cmd_op_i        (cmd_op_i),
-        .cmd_bank_i      (cmd_bank_i),
-        .cmd_row_i       (cmd_row_i),
-        .low_locality_o  (w_rbl_low_loc)
-    );
 
     // ---- issued-stream decodes ---------------------------------------------
     logic w_is_col, w_is_act, w_is_pre, w_is_ref;
