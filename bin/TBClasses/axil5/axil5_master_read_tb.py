@@ -26,11 +26,17 @@ that dies in ``__init__``, would pass all of them. This testbench is the part
 that cannot be faked: real RTL, real signal resolution, real read transactions
 with data checked against the memory model.
 
-Optional-group coverage stops here deliberately. Exercising USER, TRACE, MPAM
-and friends needs RTL with those ports, and no AXI5-Lite DUT exists in this
-repo yet; a BFM-only test of them would assert against the BFM's own beliefs.
-What this proves is the shared path -- construction, binding, transactions --
-which is where a subclassing mistake would actually land.
+Optional-group coverage stops here, but the reason has changed and the
+sentence that used to be here is no longer true. It said no AXI5-Lite DUT
+existed in this repo, which was correct when written; `rtl/amba/axil5/` now
+holds the full sixteen-module family, every one carrying USER, TRACE, LOOP,
+MPAM, MECID, NSAID, POISON and LOCK behind its own ENABLE_* parameter.
+
+So a real optional-group test is now possible and simply has not been written.
+This testbench still proves only the shared path -- construction, binding,
+transactions -- which is where a subclassing mistake would land. Exercising
+the optional groups against axil5_* RTL is separate work; until it exists, a
+BFM-only test of them would still assert against the BFM's own beliefs.
 """
 
 from CocoTBFramework.components.axil5.axil5_factories import (
