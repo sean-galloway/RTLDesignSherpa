@@ -79,6 +79,9 @@ flowchart TB
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | CG_IDLE_COUNT_WIDTH | int | 4 | Width of idle counter (max idle = 2^N-1 cycles) |
+| `CMD_DEPTH` | int | `6` | Command FIFO depth. |
+| `ENABLE_PARITY` | bit | `0` | Enable APB5 parity generation and checking. |
+| `RSP_DEPTH` | int | `6` | Response FIFO depth. |
 
 All other parameters inherited from [apb5_master](apb5_master.md).
 

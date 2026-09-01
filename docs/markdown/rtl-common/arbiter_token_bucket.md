@@ -72,6 +72,16 @@ module arbiter_token_bucket #(
 | RATE_WIDTH | int | 4 | Width of each per-client tokens-per-tick rate field |
 | WAIT_GNT_ACK | int | 0 | Completion contract of the DOWNSTREAM arbiter (must match it) |
 
+### Derived Parameters (do not override)
+
+Declared as `parameter` so the elaborator can size the packed ports, not so callers can set them. Overriding one desynchronises it from the parameters above and the design mis-sizes or fails to elaborate.
+
+| Derived parameter | Default expression |
+|---|---|
+| `TW` | `$clog2(MAX_TOKENS)` |
+| `CXTW` | `CLIENTS * TW` |
+
+
 ## Functional Description
 
 - **`refill_tick` is external.** Pair it with

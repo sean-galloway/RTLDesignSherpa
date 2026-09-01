@@ -68,6 +68,16 @@ In addition to all parameters from [axi4_master_rd_mon](./axi4_master_rd_mon.md)
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `CG_IDLE_COUNT_WIDTH` | int | 4 | Width of the idle countdown, sizing `cfg_cg_idle_count` |
+| `ADD_PIPELINE_STAGE` | bit | `0` | Insert a register stage for timing closure. Costs a cycle of latency. (Add register stage for timing closure) |
+| `ENABLE_COMPL_LOGIC` | bit | `1'b1` | Synthesise the completion-packet cone. 0 removes the logic entirely. |
+| `ENABLE_DEBUG_LOGIC` | bit | `1'b0` | Synthesise the debug-packet cone. 0 removes the logic entirely. |
+| `ENABLE_ERROR_LOGIC` | bit | `1'b1` | Synthesise the error detection cone. 0 removes the logic entirely. |
+| `ENABLE_FILTERING` | bit | `1` | Enable packet filtering: two active drop levels (packet type, then event code). Level 2 is reserved and routes nothing. |
+| `ENABLE_PERF_LOGIC` | bit | `1'b1` | Synthesise the reporter's performance cone (`g_perf`). Does NOT gate the perfmon window state machine or its counters. |
+| `ENABLE_THRESHOLD_LOGIC` | bit | `1'b1` | Synthesise the threshold-packet cone. 0 removes the logic entirely. |
+| `ENABLE_TIMEOUT_LOGIC` | bit | `1'b1` | Synthesise the timeout detection cone. 0 removes the logic entirely. |
+| `SKID_DEPTH_AR` | int | `2` | Skid-buffer depth on the AR channel. Legal range 2..8 inclusive; odd depths are legal. |
+| `SKID_DEPTH_R` | int | `4` | Skid-buffer depth on the R channel. Legal range 2..8 inclusive; odd depths are legal. |
 
 The gating controls are RUNTIME INPUTS: `cfg_cg_enable` and
 `cfg_cg_idle_count`; status outputs are `cg_gating` / `cg_idle`. ONE

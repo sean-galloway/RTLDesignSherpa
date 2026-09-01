@@ -70,6 +70,10 @@ miscalibrated on any other clock -- silently.
 | `ID_FILTER_ENABLE` | 0 | Synthesises the ID report filter (see `cfg_id_*` for the runtime override). |
 | `ID_MATCH_BASE` | 0 | First ID this instance owns. |
 | `ID_MATCH_COUNT` | 0 | How many IDs; `0` means ALL, so a zeroed register block does not silently filter everything away. |
+| `ADD_PIPELINE_STAGE` | `0` | Insert a register stage for timing closure. Costs a cycle of latency. (Add register stage for timing closure) |
+| `ENABLE_FILTERING` | `1` | Enable packet filtering: two active drop levels (packet type, then event code). Level 2 is reserved and routes nothing. |
+| `SKID_DEPTH_AR` | `2` | Skid-buffer depth on the AR channel. Legal range 2..8 inclusive; odd depths are legal. |
+| `SKID_DEPTH_R` | `4` | Skid-buffer depth on the R channel. Legal range 2..8 inclusive; odd depths are legal. |
 
 Gating is controlled by RUNTIME inputs `cfg_cg_enable` /
 `cfg_cg_idle_count` with status outputs `cg_gating` / `cg_idle`; ONE

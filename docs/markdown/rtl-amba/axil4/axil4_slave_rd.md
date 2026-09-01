@@ -54,6 +54,16 @@ The AXIL4 Slave Read module provides a buffered AXI4-Lite read interface for sla
 
 ---
 
+
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `ARSize` | `AW+3` |
+| `RSize` | `DW+2` |
+
 ## Port Groups
 
 ### Slave Interface (Input Side from Interconnect)

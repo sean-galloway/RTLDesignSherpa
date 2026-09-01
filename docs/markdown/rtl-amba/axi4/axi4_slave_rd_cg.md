@@ -52,6 +52,8 @@ In addition to all [axi4_slave_rd](./axi4_slave_rd.md) parameters:
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `CG_IDLE_COUNT_WIDTH` | 4 | Width of the idle countdown, sizing `cfg_cg_idle_count` |
+| `SKID_DEPTH_AR` | `2` | Skid-buffer depth on the AR channel. Legal range 2..8 inclusive; odd depths are legal. |
+| `SKID_DEPTH_R` | `4` | Skid-buffer depth on the R channel. Legal range 2..8 inclusive; odd depths are legal. |
 
 The gating controls are RUNTIME INPUTS, not parameters: `cfg_cg_enable`
 and `cfg_cg_idle_count`; status outputs `cg_gating` / `cg_idle`. One

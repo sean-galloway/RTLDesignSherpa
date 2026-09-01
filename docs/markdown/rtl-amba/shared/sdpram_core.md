@@ -67,6 +67,7 @@ The core speaks exactly one wire format. AXI4 wrappers pass the real `awlen / aw
 | ADDR_WIDTH | int | 32 | Byte-address width on both FUB address channels |
 | DATA_WIDTH | int | 256 | Data-bus / BRAM word width (bits) |
 | MEM_DEPTH | int | 2048 | Number of BRAM words (array depth) |
+| `USE_WSTRB` | bit | `1'b1` | Honour WSTRB byte enables on writes. 0 = every write commits the full word. |
 
 **Derived localparams:**
 - `STRB_W = DATA_WIDTH / 8` — write-strobe / byte-enable width

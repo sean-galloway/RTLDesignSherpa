@@ -86,6 +86,8 @@ In addition to all [axil4_master_wr_mon](./axil4_master_wr_mon.md) parameters
 | `NUM_BANKS` | int | 1 | Transaction-table banking. **>1 on this WRITE monitor requires `USE_WDATA_ORDER_Q`=1** -- `axi_monitor_trans_mgr` fails elaboration otherwise (the WID-less fallback double-counts one W beat across banks). |
 | `ADDR_FILTER_ENABLE` | bit | 0 | Synthesises the address-range report filter. **The parameter only decides whether the logic EXISTS** -- a build that sets it and leaves `cfg_addr_filter_enable` low filters nothing and looks broken. |
 | `CG_IDLE_COUNT_WIDTH` | int | 4 | Width of `cfg_cg_idle_count`; sets the longest programmable idle threshold |
+| `ADD_PIPELINE_STAGE` | bit | `0` | Insert a register stage for timing closure. Costs a cycle of latency. (Add register stage for timing closure) |
+| `ENABLE_FILTERING` | bit | `1` | Enable packet filtering: two active drop levels (packet type, then event code). Level 2 is reserved and routes nothing. |
 
 There are no `CG_GATE_MONITOR`, `CG_GATE_REPORTER`, or `CG_GATE_TIMERS`
 parameters, and no independent gating domains. Earlier revisions of this

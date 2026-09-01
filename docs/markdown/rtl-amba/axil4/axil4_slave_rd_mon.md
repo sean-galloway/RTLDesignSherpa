@@ -53,6 +53,8 @@ Identical to **[axil4_master_rd_mon](axil4_master_rd_mon.md#additional-parameter
 - `ACLK_MHZ` (default 100) and `CFI_MIN_FREQ_MHZ` / `CFI_MAX_FREQ_MHZ` (default `ACLK_MHZ`) -- the microsecond tick LUT. **Leave `ACLK_MHZ` at 100 on a 90 MHz part and every us-denominated timeout is wrong, silently**
 - `USE_WDATA_ORDER_Q` (default 0) and `NUM_BANKS` (default 1) -- **`NUM_BANKS` > 1 on a WRITE monitor requires `USE_WDATA_ORDER_Q=1`**, or `axi_monitor_trans_mgr` fails elaboration
 - `ADDR_FILTER_ENABLE` (default 0) -- synthesises the address-range report filter; the `cfg_addr_filter_*` ports arm it at runtime
+- `ID_FILTER_ENABLE` (default 0), `ID_MATCH_BASE` (default 0) and `ID_MATCH_COUNT` (default 0 = all IDs) -- the per-instance ID-slice filter, inherited from the shared monitor core. **Leave `ID_FILTER_ENABLE` at 0 on AXI4-Lite.** This wrapper hardwires `cmd_id`/`data_id`/`resp_id` to `1'b0` because AXI4-Lite has no ID signals, so enabling the filter with an `ID_MATCH_BASE` above 0 makes `id_owned(0)` false for every transaction and silently drops ALL monitoring rather than narrowing it
+- `SKID_DEPTH_AR` (default 2), `SKID_DEPTH_R` (default 4) -- skid-buffer depth per channel. Legal range 2..8 inclusive; odd depths are legal
 
 Also includes the synthesis-cone parameters `ENABLE_ERROR_LOGIC`, `ENABLE_TIMEOUT_LOGIC`, `ENABLE_COMPL_LOGIC`, `ENABLE_THRESHOLD_LOGIC`, `ENABLE_PERF_LOGIC` (all default 1) and `ENABLE_DEBUG_LOGIC` (default 0), each dropping its detection cone when set to 0. `ENABLE_PERF_PACKETS` is tied `1'b1` and `ENABLE_DEBUG_MODULE` `1'b0` internally; the removed `CAM_PIPELINE` / `TRANS_CAM_PIPELINE` parameters no longer exist.
 

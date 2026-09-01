@@ -51,6 +51,8 @@ Identical to **[axil4_master_rd_mon](axil4_master_rd_mon.md)** including:
 - `ADDR_FILTER_ENABLE` (default 0) -- synthesises the address-range report filter; the `cfg_addr_filter_*` ports arm it at runtime
 - `ACTIVE_TRANS_THRESHOLD` (default `MAX_TRANSACTIONS/2`): active-transaction count that trips a threshold packet when `cfg_threshold_enable=1`; replaces the former hardwired value
 - The synthesis-cone parameters `ENABLE_ERROR_LOGIC`, `ENABLE_TIMEOUT_LOGIC`, `ENABLE_COMPL_LOGIC`, `ENABLE_THRESHOLD_LOGIC`, `ENABLE_PERF_LOGIC` (all default 1) and `ENABLE_DEBUG_LOGIC` (default 0), each of which drops the matching detection cone when set to 0. `ENABLE_PERF_PACKETS` is tied `1'b1` and `ENABLE_DEBUG_MODULE` `1'b0` internally.
+- `ID_FILTER_ENABLE` (default 0), `ID_MATCH_BASE` (default 0) and `ID_MATCH_COUNT` (default 0 = all IDs) -- the per-instance ID-slice filter, inherited from the shared monitor core. **Leave `ID_FILTER_ENABLE` at 0 on AXI4-Lite.** This wrapper hardwires `cmd_id`/`data_id`/`resp_id` to `1'b0` because AXI4-Lite has no ID signals, so enabling the filter with an `ID_MATCH_BASE` above 0 makes `id_owned(0)` false for every transaction and silently drops ALL monitoring rather than narrowing it
+- `SKID_DEPTH_AW` (default 2), `SKID_DEPTH_W` (default 2), `SKID_DEPTH_B` (default 2) -- skid-buffer depth per channel. Legal range 2..8 inclusive; odd depths are legal
 
 See **[axil4_master_rd_mon](axil4_master_rd_mon.md#synthesis-cone-parameters)** for complete parameter descriptions. The removed `CAM_PIPELINE` / `TRANS_CAM_PIPELINE` parameters no longer exist (the CAM is always pipelined).
 

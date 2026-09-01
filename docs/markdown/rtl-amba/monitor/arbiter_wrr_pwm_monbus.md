@@ -77,6 +77,17 @@ each active window.
 
 ---
 
+
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `MAX_LEVELS_WIDTH` | `$clog2(MAX_LEVELS)` |
+| `N` | `$clog2(CLIENTS)` |
+| `CXMTW` | `CLIENTS * MAX_LEVELS_WIDTH` |
+
 ## Ports
 
 ### Clock and Reset

@@ -52,6 +52,9 @@ In addition to all [axi4_master_wr](./axi4_master_wr.md) parameters:
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `CG_IDLE_COUNT_WIDTH` | 4 | Width of the idle countdown, sizing `cfg_cg_idle_count` |
+| `SKID_DEPTH_AW` | `2` | Skid-buffer depth on the AW channel. Legal range 2..8 inclusive; odd depths are legal. |
+| `SKID_DEPTH_B` | `2` | Skid-buffer depth on the B channel. Legal range 2..8 inclusive; odd depths are legal. |
+| `SKID_DEPTH_W` | `4` | Skid-buffer depth on the W channel. Legal range 2..8 inclusive; odd depths are legal. |
 
 The gating controls are RUNTIME INPUTS, not parameters: `cfg_cg_enable`
 and `cfg_cg_idle_count`; status outputs `cg_gating` / `cg_idle`. One

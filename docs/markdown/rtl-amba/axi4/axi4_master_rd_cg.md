@@ -56,6 +56,8 @@ consumed internally as a wake term):
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `CG_IDLE_COUNT_WIDTH` | 4 | Width of the idle countdown, sizing `cfg_cg_idle_count` |
+| `SKID_DEPTH_AR` | `2` | Skid-buffer depth on the AR channel. Legal range 2..8 inclusive; odd depths are legal. |
+| `SKID_DEPTH_R` | `4` | Skid-buffer depth on the R channel. Legal range 2..8 inclusive; odd depths are legal. |
 
 The gating controls are RUNTIME INPUTS, not parameters: `cfg_cg_enable`
 (gate master-enable) and `cfg_cg_idle_count` (idle cycles before gating).

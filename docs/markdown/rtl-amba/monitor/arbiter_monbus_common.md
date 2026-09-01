@@ -96,6 +96,16 @@ from.
 
 ---
 
+
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `MFCW` | `MON_FIFO_COUNT_WIDTH` |
+| `MTW` | `MAX_LEVELS_WIDTH` |
+
 ## Ports
 
 **See RTL source:** `rtl/amba/monitor/arbiter_monbus_common.sv` for the complete

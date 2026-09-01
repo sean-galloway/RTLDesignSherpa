@@ -61,6 +61,9 @@ Combines **[axil4_master_rd](../axil4/axil4_master_rd.md)** with the core **axi_
 | `CFI_MIN_FREQ_MHZ` / `CFI_MAX_FREQ_MHZ` | int | `ACLK_MHZ` | Bounds of the freq-invariant counter LUT (`cfg_freq_sel` indexes within them). Equal bounds means one entry and `cfg_freq_sel` has no effect. |
 | `USE_WDATA_ORDER_Q` | bit | 0 | Write-data ordering queue, forwarded to `axi_monitor_base`. |
 | `NUM_BANKS` | int | 1 | Banked transaction tables. **>1 on a WRITE monitor requires `USE_WDATA_ORDER_Q=1`** -- `axi_monitor_trans_mgr` fails elaboration otherwise. |
+| `ID_FILTER_ENABLE` | bit | `1'b0` | Per-instance ID-slice filter, inherited from the shared monitor core. **Leave at 0 on AXI4-Lite.** The wrapper hardwires `cmd_id`/`data_id`/`resp_id` to `1'b0`, so enabling this with `ID_MATCH_BASE` above 0 makes `id_owned(0)` false for every transaction and drops ALL monitoring. |
+| `ID_MATCH_BASE` | int | `0` | First ID this instance owns when `ID_FILTER_ENABLE=1`. Must stay 0 on AXI4-Lite -- every transaction reports ID 0. |
+| `ID_MATCH_COUNT` | bit | `0` | Number of IDs this instance owns from `ID_MATCH_BASE`. 0 = all IDs. |
 
 ### Synthesis-Cone Parameters
 

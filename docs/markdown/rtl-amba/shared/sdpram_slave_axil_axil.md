@@ -68,6 +68,7 @@ Sometimes you just need a lightweight memory shared between two AXIL agents — 
 | SKID_DEPTH_B | int | 2 | Write-response skid depth |
 | SKID_DEPTH_AR | int | 2 | Read-address skid depth |
 | SKID_DEPTH_R | int | 4 | Read-data skid depth |
+| `USE_WSTRB` | bit | `1'b1` | Honour WSTRB byte enables on writes. 0 = every write commits the full word. |
 
 **Derived localparams:** `STRB_W = DATA_WIDTH/8`, `FUB_AWSIZE_DEFAULT = $clog2(STRB_W)` (the `awsize`/`arsize` fed to the core), `CORE_ID_WIDTH = 1` (a 1-bit zero ID carried through the core for typing only — AXIL has no transaction ID).
 

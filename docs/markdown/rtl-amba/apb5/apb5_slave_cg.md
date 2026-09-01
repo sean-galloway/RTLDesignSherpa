@@ -79,6 +79,8 @@ flowchart TB
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | CG_IDLE_COUNT_WIDTH | int | 4 | Width of idle counter |
+| `DEPTH` | int | `2` | FIFO depth. |
+| `ENABLE_PARITY` | bit | `0` | Enable APB5 parity generation and checking. |
 
 All other parameters inherited from [apb5_slave](apb5_slave.md).
 

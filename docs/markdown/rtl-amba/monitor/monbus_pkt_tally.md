@@ -51,8 +51,20 @@ The intended home is the Genesys 2 monitor board-validation build; see `vault/ha
 | `ADDR_BITS` | 7 | Bin address width | `≥ clog2(N_PROFILE+1)` — sizes the dense count SRAM |
 | `N_PROFILE` | 64 | Legal-set entries (dense bins) | Dense bins `0..N-1`; `N` = `UNEXPECTED` |
 | `SRAM_DEPTH` | `1<<ADDR_BITS` | Derived count-SRAM depth | Do not override |
+| `PROF_KEY_W` | int | `32` | {agent[15:0],proto[3:0],type[3:0],event[7:0]} |
 
 ---
+
+
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `PROF_IDX_W` | `(N_PROFILE > 1) ? $clog2(N_PROFILE) : 1` |
+| `LSEL_WIDTH` | `(NUM_LATCH > 1) ? $clog2(NUM_LATCH) : 1` |
+| `LFILL_WIDTH` | `$clog2(NUM_LATCH + 1)` |
 
 ## Ports
 

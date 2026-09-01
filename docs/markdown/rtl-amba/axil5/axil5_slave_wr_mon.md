@@ -63,10 +63,10 @@ AXI5-Lite is AXI4-Lite plus optional signal groups. It changes no channel's hand
 | `MAX_TRANSACTIONS` | int | `8` | Maximum outstanding transactions (reduced for AXIL) |
 | `USE_WDATA_ORDER_Q` | bit | `1'b0` |  |
 | `NUM_BANKS` | int | `1` |  |
-| `ID_FILTER_ENABLE` | bit | `1'b0` |  |
+| `ID_FILTER_ENABLE` | bit | `1'b0` | Per-instance ID-slice filter, inherited from the shared monitor core. **Leave at 0 on AXI4-Lite.** The wrapper hardwires `cmd_id`/`data_id`/`resp_id` to `1'b0`, so enabling this with `ID_MATCH_BASE` above 0 makes `id_owned(0)` false for every transaction and drops ALL monitoring. |
 | `ADDR_FILTER_ENABLE` | bit | `1'b0` |  |
-| `ID_MATCH_BASE` | int | `0` |  |
-| `ID_MATCH_COUNT` | int | `0` |  |
+| `ID_MATCH_BASE` | int | `0` | First ID this instance owns when `ID_FILTER_ENABLE=1`. Must stay 0 on AXI4-Lite -- every transaction reports ID 0. |
+| `ID_MATCH_COUNT` | int | `0` | Number of IDs owned from `ID_MATCH_BASE`. 0 = all IDs (the filter passes everything). |
 | `ACTIVE_TRANS_THRESHOLD` | int | `MAX_TRANSACTIONS / 2` |  |
 | `ENABLE_FILTERING` | bit | `1` | Enable packet filtering |
 | `ADD_PIPELINE_STAGE` | bit | `0` | Add register stage for timing closure |

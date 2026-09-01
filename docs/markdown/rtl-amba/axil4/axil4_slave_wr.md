@@ -53,8 +53,19 @@ The AXIL4 Slave Write module provides a buffered AXI4-Lite write interface for s
 | `SKID_DEPTH_AW` | int | 2 | AW channel skid buffer depth, in entries |
 | `SKID_DEPTH_W` | int | 2 | W channel skid buffer depth, in entries |
 | `SKID_DEPTH_B` | int | 2 | B channel skid buffer depth, in entries |
+| `BSize` | int | `2            // resp only` | See the RTL declaration. |
 
 ---
+
+
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `AWSize` | `AW+3` |
+| `WSize` | `DW+(DW/8)` |
 
 ## Port Groups
 

@@ -61,6 +61,7 @@ backpressure handling, packets don't get lost on the way through.
 | OUTPUT_SKID_ENABLE | int | 1 | Enable skid buffer on output interface |
 | INPUT_SKID_DEPTH | int | 2 | Depth of input skid buffers (2..8 inclusive) |
 | OUTPUT_SKID_DEPTH | int | 2 | Depth of output skid buffer (2..8 inclusive) |
+| `SKID_DATA_WIDTH` | int | `MONBUS_PKT_WIDTH + MONBUS_TS_WIDTH` | Width of the packed skid-buffer payload. |
 
 ---
 
