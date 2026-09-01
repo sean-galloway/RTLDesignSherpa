@@ -38,14 +38,12 @@
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/apb4_to_peakrdl.f
 
-# The generator config block + the two direction-split data bridges. The macro
-# instantiates eight write and eight read generators, arbitrated down to
-# pumice's AW/W/B and AR/R channel groups respectively -- one generator per DRAM
-# bank, so bank concurrency is a property of the stimulus rather than of a
-# hand-built address pattern.
+# The generator config block. The macro instantiates ONE write and ONE read
+# generator driving pumice's s_axi directly -- the two 8x1 AXI4 crossbars that
+# used to arbitrate a per-bank array were deleted once the 2+2 build showed
+# generator count was not the timing limiter (slice occupancy is; see
+# chargen_regs.rdl and PUMICE-017).
 -f $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/chargen_regs.f
--f $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/bridges/filelists/bridge_ddr2_char_wr.f
--f $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/bridges/filelists/bridge_ddr2_char_rd.f
 
 # The macro itself
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/ddr2_char_macro.sv

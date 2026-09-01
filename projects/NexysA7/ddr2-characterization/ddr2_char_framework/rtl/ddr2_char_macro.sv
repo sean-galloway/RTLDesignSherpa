@@ -118,7 +118,15 @@ module ddr2_char_macro
     parameter int BURST_LEN_MULTIPLE = 1,
 
     // ---- Generator array ----
-    // Concurrent traffic generators per direction. FOUR, not one per bank:
+    // Concurrent traffic generators per direction. ONE. The array went 8 -> 4
+    // -> 2 -> 1 chasing timing, and the 2+2 build settled the question: it did
+    // NOT close (-7.339 ns vs -7.732 at 4+4), so generator count was never the
+    // limiter. The binding constraint is SLICE OCCUPANCY, not LUTs -- 2+2 sat
+    // at 66% LUTs but 91.5% slices, leaving the placer nowhere to put anything
+    // close together, and 81% of every failing path was wire delay.
+    //
+    // With one of each the two 8x1 crossbars are gone entirely and the writer
+    // and reader drive pumice's AXI slave port directly. Not one per bank:
     // eight of each was the intent and does not fit the XC7A100T (66470 LUTs
     // against 63400; placement short by 1469 slices). Four fits with routing
     // and timing margin and still provokes bank concurrency, which one stream
@@ -135,7 +143,7 @@ module ddr2_char_macro
     // enforce it, because the bank field's position is pumice's runtime
     // ADDR_MAP.bank_lsb, so the host asserts the mapping and reads the
     // compiled count back from GEN_CONFIG.
-    parameter int NUM_GEN          = 4,
+    parameter int NUM_GEN          = 1,
 
     // ---- Engine workload ranges ----
     parameter int TXN_COUNT_WIDTH  = 16,
@@ -419,8 +427,8 @@ module ddr2_char_macro
     // however long it took the host to program generator 15, and that skew is
     // what produced meaningless zero-utilization windows on rapids.
     logic [NUM_GEN-1:0] w_wr_go, w_rd_go;
-    assign w_wr_go = {cg_out.GO.wr_go3.value, cg_out.GO.wr_go2.value, cg_out.GO.wr_go1.value, cg_out.GO.wr_go0.value};
-    assign w_rd_go = {cg_out.GO.rd_go3.value, cg_out.GO.rd_go2.value, cg_out.GO.rd_go1.value, cg_out.GO.rd_go0.value};
+    assign w_wr_go = cg_out.GO.wr_go0.value;
+    assign w_rd_go = cg_out.GO.rd_go0.value;
 
     //=========================================================================
     // Per-generator AXI nets
@@ -738,278 +746,66 @@ module ddr2_char_macro
 
 
     //=========================================================================
-    // Write bridge: eight generators -> pumice's AW/W/B channel group
+    // Direct connection: the single generator pair drives pumice's s_axi
     //=========================================================================
-    // The `user` bits narrow to one here on purpose. pumice's s_axi_awuser and
-    // s_axi_wuser are single bits, so anything wider dies at the controller
-    // regardless; taking bit 0 explicitly makes that visible at the boundary
-    // instead of leaving a silent width truncation for lint to swallow.
-    bridge_ddr2_char_wr u_wr_bridge (
-        .aclk    (mc_clk),
-        .aresetn (mc_rst_n),
+    // No crossbar. With NUM_GEN=1 there is nothing to arbitrate, and the two
+    // generated 8x1 AXI4 bridges that used to sit here were deleted rather
+    // than shrunk: ~9000 lines of crossbar whose slice cost bought no timing
+    // (see the NUM_GEN comment above). Restoring them is a bridge-config regen
+    // if the array ever grows back.
+    //
+    // The `user` bits narrow to one here for the same reason they did through
+    // the bridge: pumice's s_axi_awuser / wuser / aruser are single bits, so
+    // anything wider dies at the controller regardless. Taking bit 0
+    // explicitly keeps that visible at the boundary.
+    assign wr_awid    = gw_awid[0];
+    assign wr_awaddr  = gw_awaddr[0];
+    assign wr_awlen   = gw_awlen[0];
+    assign wr_awsize  = gw_awsize[0];
+    assign wr_awburst = gw_awburst[0];
+    assign wr_awlock  = gw_awlock[0];
+    assign wr_awcache = gw_awcache[0];
+    assign wr_awprot  = gw_awprot[0];
+    assign wr_awqos   = gw_awqos[0];
+    assign wr_awregion= gw_awregion[0];
+    assign wr_awuser  = UW'(gw_awuser[0][0]);
+    assign wr_awvalid = gw_awvalid[0];
+    assign gw_awready[0] = wr_awready;
 
-        // Generator 0 -> bank 0
-        .wrgen0_axi_awid     (gw_awid[0]),
-        .wrgen0_axi_awaddr   (gw_awaddr[0]),
-        .wrgen0_axi_awlen    (gw_awlen[0]),
-        .wrgen0_axi_awsize   (gw_awsize[0]),
-        .wrgen0_axi_awburst  (gw_awburst[0]),
-        .wrgen0_axi_awlock   (gw_awlock[0]),
-        .wrgen0_axi_awcache  (gw_awcache[0]),
-        .wrgen0_axi_awprot   (gw_awprot[0]),
-        .wrgen0_axi_awqos    (gw_awqos[0]),
-        .wrgen0_axi_awregion (gw_awregion[0]),
-        .wrgen0_axi_awuser   (gw_awuser[0][0]),
-        .wrgen0_axi_awvalid  (gw_awvalid[0]),
-        .wrgen0_axi_awready  (gw_awready[0]),
-        .wrgen0_axi_wdata    (gw_wdata[0]),
-        .wrgen0_axi_wstrb    (gw_wstrb[0]),
-        .wrgen0_axi_wlast    (gw_wlast[0]),
-        .wrgen0_axi_wuser    (gw_wuser[0][0]),
-        .wrgen0_axi_wvalid   (gw_wvalid[0]),
-        .wrgen0_axi_wready   (gw_wready[0]),
-        .wrgen0_axi_bid      (gw_bid[0]),
-        .wrgen0_axi_bresp    (gw_bresp[0]),
-        .wrgen0_axi_buser    (gw_buser[0]),
-        .wrgen0_axi_bvalid   (gw_bvalid[0]),
-        .wrgen0_axi_bready   (gw_bready[0]),
+    assign wr_wdata   = gw_wdata[0];
+    assign wr_wstrb   = gw_wstrb[0];
+    assign wr_wlast   = gw_wlast[0];
+    assign wr_wuser   = UW'(gw_wuser[0][0]);
+    assign wr_wvalid  = gw_wvalid[0];
+    assign gw_wready[0] = wr_wready;
 
-        // Generator 1 -> bank 1
-        .wrgen1_axi_awid     (gw_awid[1]),
-        .wrgen1_axi_awaddr   (gw_awaddr[1]),
-        .wrgen1_axi_awlen    (gw_awlen[1]),
-        .wrgen1_axi_awsize   (gw_awsize[1]),
-        .wrgen1_axi_awburst  (gw_awburst[1]),
-        .wrgen1_axi_awlock   (gw_awlock[1]),
-        .wrgen1_axi_awcache  (gw_awcache[1]),
-        .wrgen1_axi_awprot   (gw_awprot[1]),
-        .wrgen1_axi_awqos    (gw_awqos[1]),
-        .wrgen1_axi_awregion (gw_awregion[1]),
-        .wrgen1_axi_awuser   (gw_awuser[1][0]),
-        .wrgen1_axi_awvalid  (gw_awvalid[1]),
-        .wrgen1_axi_awready  (gw_awready[1]),
-        .wrgen1_axi_wdata    (gw_wdata[1]),
-        .wrgen1_axi_wstrb    (gw_wstrb[1]),
-        .wrgen1_axi_wlast    (gw_wlast[1]),
-        .wrgen1_axi_wuser    (gw_wuser[1][0]),
-        .wrgen1_axi_wvalid   (gw_wvalid[1]),
-        .wrgen1_axi_wready   (gw_wready[1]),
-        .wrgen1_axi_bid      (gw_bid[1]),
-        .wrgen1_axi_bresp    (gw_bresp[1]),
-        .wrgen1_axi_buser    (gw_buser[1]),
-        .wrgen1_axi_bvalid   (gw_bvalid[1]),
-        .wrgen1_axi_bready   (gw_bready[1]),
+    assign gw_bid[0]    = wr_bid;
+    assign gw_bresp[0]  = wr_bresp;
+    assign gw_buser[0]  = wr_buser[0];
+    assign gw_bvalid[0] = wr_bvalid;
+    assign wr_bready    = gw_bready[0];
 
-        // Generator 2 -> bank 2
-        .wrgen2_axi_awid     (gw_awid[2]),
-        .wrgen2_axi_awaddr   (gw_awaddr[2]),
-        .wrgen2_axi_awlen    (gw_awlen[2]),
-        .wrgen2_axi_awsize   (gw_awsize[2]),
-        .wrgen2_axi_awburst  (gw_awburst[2]),
-        .wrgen2_axi_awlock   (gw_awlock[2]),
-        .wrgen2_axi_awcache  (gw_awcache[2]),
-        .wrgen2_axi_awprot   (gw_awprot[2]),
-        .wrgen2_axi_awqos    (gw_awqos[2]),
-        .wrgen2_axi_awregion (gw_awregion[2]),
-        .wrgen2_axi_awuser   (gw_awuser[2][0]),
-        .wrgen2_axi_awvalid  (gw_awvalid[2]),
-        .wrgen2_axi_awready  (gw_awready[2]),
-        .wrgen2_axi_wdata    (gw_wdata[2]),
-        .wrgen2_axi_wstrb    (gw_wstrb[2]),
-        .wrgen2_axi_wlast    (gw_wlast[2]),
-        .wrgen2_axi_wuser    (gw_wuser[2][0]),
-        .wrgen2_axi_wvalid   (gw_wvalid[2]),
-        .wrgen2_axi_wready   (gw_wready[2]),
-        .wrgen2_axi_bid      (gw_bid[2]),
-        .wrgen2_axi_bresp    (gw_bresp[2]),
-        .wrgen2_axi_buser    (gw_buser[2]),
-        .wrgen2_axi_bvalid   (gw_bvalid[2]),
-        .wrgen2_axi_bready   (gw_bready[2]),
+    assign rd_arid    = gr_arid[0];
+    assign rd_araddr  = gr_araddr[0];
+    assign rd_arlen   = gr_arlen[0];
+    assign rd_arsize  = gr_arsize[0];
+    assign rd_arburst = gr_arburst[0];
+    assign rd_arlock  = gr_arlock[0];
+    assign rd_arcache = gr_arcache[0];
+    assign rd_arprot  = gr_arprot[0];
+    assign rd_arqos   = gr_arqos[0];
+    assign rd_arregion= gr_arregion[0];
+    assign rd_aruser  = UW'(gr_aruser[0][0]);
+    assign rd_arvalid = gr_arvalid[0];
+    assign gr_arready[0] = rd_arready;
 
-        // Generator 3 -> bank 3
-        .wrgen3_axi_awid     (gw_awid[3]),
-        .wrgen3_axi_awaddr   (gw_awaddr[3]),
-        .wrgen3_axi_awlen    (gw_awlen[3]),
-        .wrgen3_axi_awsize   (gw_awsize[3]),
-        .wrgen3_axi_awburst  (gw_awburst[3]),
-        .wrgen3_axi_awlock   (gw_awlock[3]),
-        .wrgen3_axi_awcache  (gw_awcache[3]),
-        .wrgen3_axi_awprot   (gw_awprot[3]),
-        .wrgen3_axi_awqos    (gw_awqos[3]),
-        .wrgen3_axi_awregion (gw_awregion[3]),
-        .wrgen3_axi_awuser   (gw_awuser[3][0]),
-        .wrgen3_axi_awvalid  (gw_awvalid[3]),
-        .wrgen3_axi_awready  (gw_awready[3]),
-        .wrgen3_axi_wdata    (gw_wdata[3]),
-        .wrgen3_axi_wstrb    (gw_wstrb[3]),
-        .wrgen3_axi_wlast    (gw_wlast[3]),
-        .wrgen3_axi_wuser    (gw_wuser[3][0]),
-        .wrgen3_axi_wvalid   (gw_wvalid[3]),
-        .wrgen3_axi_wready   (gw_wready[3]),
-        .wrgen3_axi_bid      (gw_bid[3]),
-        .wrgen3_axi_bresp    (gw_bresp[3]),
-        .wrgen3_axi_buser    (gw_buser[3]),
-        .wrgen3_axi_bvalid   (gw_bvalid[3]),
-        .wrgen3_axi_bready   (gw_bready[3]),
-
-
-
-
-
-        // Slave: pumice's write half
-        .pumice_wr_axi_awid    (wr_awid),
-        .pumice_wr_axi_awaddr  (wr_awaddr),
-        .pumice_wr_axi_awlen   (wr_awlen),
-        .pumice_wr_axi_awsize  (wr_awsize),
-        .pumice_wr_axi_awburst (wr_awburst),
-        .pumice_wr_axi_awlock  (wr_awlock),
-        .pumice_wr_axi_awcache (wr_awcache),
-        .pumice_wr_axi_awprot  (wr_awprot),
-        .pumice_wr_axi_awqos   (wr_awqos),
-        .pumice_wr_axi_awregion(wr_awregion),
-        .pumice_wr_axi_awuser  (wr_awuser[0]),
-        .pumice_wr_axi_awvalid (wr_awvalid),
-        .pumice_wr_axi_awready (wr_awready),
-        .pumice_wr_axi_wdata   (wr_wdata),
-        .pumice_wr_axi_wstrb   (wr_wstrb),
-        .pumice_wr_axi_wlast   (wr_wlast),
-        .pumice_wr_axi_wuser   (wr_wuser[0]),
-        .pumice_wr_axi_wvalid  (wr_wvalid),
-        .pumice_wr_axi_wready  (wr_wready),
-        .pumice_wr_axi_bid     (wr_bid),
-        .pumice_wr_axi_bresp   (wr_bresp),
-        .pumice_wr_axi_buser   (wr_buser[0]),
-        .pumice_wr_axi_bvalid  (wr_bvalid),
-        .pumice_wr_axi_bready  (wr_bready)
-    );
-
-    // The upper user bits are unused by construction (see above).
-    assign wr_awuser[UW-1:1] = '0;
-    assign wr_wuser [UW-1:1] = '0;
-
-    //=========================================================================
-    // Read bridge: eight generators -> pumice's AR/R channel group
-    //=========================================================================
-    bridge_ddr2_char_rd u_rd_bridge (
-        .aclk    (mc_clk),
-        .aresetn (mc_rst_n),
-
-        // Generator 0 -> bank 0
-        .rdgen0_axi_arid     (gr_arid[0]),
-        .rdgen0_axi_araddr   (gr_araddr[0]),
-        .rdgen0_axi_arlen    (gr_arlen[0]),
-        .rdgen0_axi_arsize   (gr_arsize[0]),
-        .rdgen0_axi_arburst  (gr_arburst[0]),
-        .rdgen0_axi_arlock   (gr_arlock[0]),
-        .rdgen0_axi_arcache  (gr_arcache[0]),
-        .rdgen0_axi_arprot   (gr_arprot[0]),
-        .rdgen0_axi_arqos    (gr_arqos[0]),
-        .rdgen0_axi_arregion (gr_arregion[0]),
-        .rdgen0_axi_aruser   (gr_aruser[0][0]),
-        .rdgen0_axi_arvalid  (gr_arvalid[0]),
-        .rdgen0_axi_arready  (gr_arready[0]),
-        .rdgen0_axi_rid      (gr_rid[0]),
-        .rdgen0_axi_rdata    (gr_rdata[0]),
-        .rdgen0_axi_rresp    (gr_rresp[0]),
-        .rdgen0_axi_rlast    (gr_rlast[0]),
-        .rdgen0_axi_ruser    (gr_ruser[0]),
-        .rdgen0_axi_rvalid   (gr_rvalid[0]),
-        .rdgen0_axi_rready   (gr_rready[0]),
-
-        // Generator 1 -> bank 1
-        .rdgen1_axi_arid     (gr_arid[1]),
-        .rdgen1_axi_araddr   (gr_araddr[1]),
-        .rdgen1_axi_arlen    (gr_arlen[1]),
-        .rdgen1_axi_arsize   (gr_arsize[1]),
-        .rdgen1_axi_arburst  (gr_arburst[1]),
-        .rdgen1_axi_arlock   (gr_arlock[1]),
-        .rdgen1_axi_arcache  (gr_arcache[1]),
-        .rdgen1_axi_arprot   (gr_arprot[1]),
-        .rdgen1_axi_arqos    (gr_arqos[1]),
-        .rdgen1_axi_arregion (gr_arregion[1]),
-        .rdgen1_axi_aruser   (gr_aruser[1][0]),
-        .rdgen1_axi_arvalid  (gr_arvalid[1]),
-        .rdgen1_axi_arready  (gr_arready[1]),
-        .rdgen1_axi_rid      (gr_rid[1]),
-        .rdgen1_axi_rdata    (gr_rdata[1]),
-        .rdgen1_axi_rresp    (gr_rresp[1]),
-        .rdgen1_axi_rlast    (gr_rlast[1]),
-        .rdgen1_axi_ruser    (gr_ruser[1]),
-        .rdgen1_axi_rvalid   (gr_rvalid[1]),
-        .rdgen1_axi_rready   (gr_rready[1]),
-
-        // Generator 2 -> bank 2
-        .rdgen2_axi_arid     (gr_arid[2]),
-        .rdgen2_axi_araddr   (gr_araddr[2]),
-        .rdgen2_axi_arlen    (gr_arlen[2]),
-        .rdgen2_axi_arsize   (gr_arsize[2]),
-        .rdgen2_axi_arburst  (gr_arburst[2]),
-        .rdgen2_axi_arlock   (gr_arlock[2]),
-        .rdgen2_axi_arcache  (gr_arcache[2]),
-        .rdgen2_axi_arprot   (gr_arprot[2]),
-        .rdgen2_axi_arqos    (gr_arqos[2]),
-        .rdgen2_axi_arregion (gr_arregion[2]),
-        .rdgen2_axi_aruser   (gr_aruser[2][0]),
-        .rdgen2_axi_arvalid  (gr_arvalid[2]),
-        .rdgen2_axi_arready  (gr_arready[2]),
-        .rdgen2_axi_rid      (gr_rid[2]),
-        .rdgen2_axi_rdata    (gr_rdata[2]),
-        .rdgen2_axi_rresp    (gr_rresp[2]),
-        .rdgen2_axi_rlast    (gr_rlast[2]),
-        .rdgen2_axi_ruser    (gr_ruser[2]),
-        .rdgen2_axi_rvalid   (gr_rvalid[2]),
-        .rdgen2_axi_rready   (gr_rready[2]),
-
-        // Generator 3 -> bank 3
-        .rdgen3_axi_arid     (gr_arid[3]),
-        .rdgen3_axi_araddr   (gr_araddr[3]),
-        .rdgen3_axi_arlen    (gr_arlen[3]),
-        .rdgen3_axi_arsize   (gr_arsize[3]),
-        .rdgen3_axi_arburst  (gr_arburst[3]),
-        .rdgen3_axi_arlock   (gr_arlock[3]),
-        .rdgen3_axi_arcache  (gr_arcache[3]),
-        .rdgen3_axi_arprot   (gr_arprot[3]),
-        .rdgen3_axi_arqos    (gr_arqos[3]),
-        .rdgen3_axi_arregion (gr_arregion[3]),
-        .rdgen3_axi_aruser   (gr_aruser[3][0]),
-        .rdgen3_axi_arvalid  (gr_arvalid[3]),
-        .rdgen3_axi_arready  (gr_arready[3]),
-        .rdgen3_axi_rid      (gr_rid[3]),
-        .rdgen3_axi_rdata    (gr_rdata[3]),
-        .rdgen3_axi_rresp    (gr_rresp[3]),
-        .rdgen3_axi_rlast    (gr_rlast[3]),
-        .rdgen3_axi_ruser    (gr_ruser[3]),
-        .rdgen3_axi_rvalid   (gr_rvalid[3]),
-        .rdgen3_axi_rready   (gr_rready[3]),
-
-
-
-
-
-        // Slave: pumice's read half
-        .pumice_rd_axi_arid    (rd_arid),
-        .pumice_rd_axi_araddr  (rd_araddr),
-        .pumice_rd_axi_arlen   (rd_arlen),
-        .pumice_rd_axi_arsize  (rd_arsize),
-        .pumice_rd_axi_arburst (rd_arburst),
-        .pumice_rd_axi_arlock  (rd_arlock),
-        .pumice_rd_axi_arcache (rd_arcache),
-        .pumice_rd_axi_arprot  (rd_arprot),
-        .pumice_rd_axi_arqos   (rd_arqos),
-        .pumice_rd_axi_arregion(rd_arregion),
-        .pumice_rd_axi_aruser  (rd_aruser[0]),
-        .pumice_rd_axi_arvalid (rd_arvalid),
-        .pumice_rd_axi_arready (rd_arready),
-        .pumice_rd_axi_rid     (rd_rid),
-        .pumice_rd_axi_rdata   (rd_rdata),
-        .pumice_rd_axi_rresp   (rd_rresp),
-        .pumice_rd_axi_rlast   (rd_rlast),
-        .pumice_rd_axi_ruser   (rd_ruser[0]),
-        .pumice_rd_axi_rvalid  (rd_rvalid),
-        .pumice_rd_axi_rready  (rd_rready)
-    );
-
-    assign rd_aruser[UW-1:1] = '0;
+    assign gr_rid[0]    = rd_rid;
+    assign gr_rdata[0]  = rd_rdata;
+    assign gr_rresp[0]  = rd_rresp;
+    assign gr_rlast[0]  = rd_rlast;
+    assign gr_ruser[0]  = UW'(rd_ruser[0]);
+    assign gr_rvalid[0] = rd_rvalid;
+    assign rd_rready    = gr_rready[0];
 
     //=========================================================================
     // Reader debug FIFO drain -- generator 0 only

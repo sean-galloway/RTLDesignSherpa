@@ -466,26 +466,28 @@ async def cocotb_test_ddr2_char_macro(dut):
         # asserted rather than assumed.
         BANK_LSB    = 10
         BANK_STRIDE = 1 << BANK_LSB              # 1024 B per bank at this map
-        BANKS_PER_GEN = 2
-        WINDOW      = BANK_STRIDE * BANKS_PER_GEN
-        WRAP_MASK   = WINDOW - 1
-        N           = WINDOW // STRIDE           # cover the window exactly once
         BASE        = 0x0002_0000
 
         drv = _chargen(dut, log=tb.log)
 
+        # DERIVE the span from the hardware rather than hardcoding it. The
+        # generator count is an area trade that has already moved twice (8 -> 4
+        # -> 2 for PUMICE-017); the invariant that does not move is that the
+        # generators between them cover every bank.
         shape = await drv.gen_config()
         NUM_GEN  = shape["num_wr_gen"]
         GEN_MASK = (1 << NUM_GEN) - 1
         assert NUM_GEN == shape["num_rd_gen"], f"asymmetric array: {shape}"
+        assert NUM_GEN > 0, f"no generators built: {shape}"
         assert shape["num_banks"] % NUM_GEN == 0, (
             f"{shape} -- banks must divide evenly across generators or the "
             f"span-per-generator is not uniform and some banks see more "
             f"traffic than others purely by arithmetic")
-        assert shape["num_banks"] // NUM_GEN == BANKS_PER_GEN, (
-            f"{shape} implies {shape['num_banks'] // NUM_GEN} banks per "
-            f"generator, but the address window above is built for "
-            f"{BANKS_PER_GEN}")
+
+        BANKS_PER_GEN = shape["num_banks"] // NUM_GEN
+        WINDOW    = BANK_STRIDE * BANKS_PER_GEN
+        WRAP_MASK = WINDOW - 1
+        N         = WINDOW // STRIDE             # cover the window exactly once
 
         # Stage every generator first, then launch. Distinct seeds per
         # generator so a stream landing in the wrong window shows up as a CRC
