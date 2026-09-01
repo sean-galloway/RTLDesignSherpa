@@ -76,3 +76,31 @@ They break LaTeX. See [[humanization-voice]] - a generative rewrite is the most
 common way they get reintroduced.
 
 Related: [[kimi-review-rounds]] reviews this Markdown before it is generated.
+
+## The book index is GENERATED -- regenerate it, never hand-edit it
+
+Every `docs/markdown/**/_book_*_index.md` is emitted by `gen_index` inside
+`generate_rtl_pdfs.sh`, from `ls <book-dir>/*.md` with each page's H1 as the
+link text. Each file says so in a banner on line 3. Two commits hand-edited
+one anyway, directly under that banner, and a single build erased both edits.
+
+Two consequences worth knowing before you touch one:
+
+- **A page missing from a book means the index is STALE, not that a link is
+  missing.** `axi5_atomic_filter.md` -- a real module with a full page -- was
+  absent from the AXI5 PDF and from every review bundle ever built, because
+  nobody had re-run the generator since the page was added. The bundler walks
+  the same index the PDF does, so a stale index makes a page invisible to
+  BOTH the book and the review process at once. Diagnosing that as "the link
+  is missing" and hand-adding it fixes the symptom; the cause is that the
+  generator had not been run.
+- **Anything the generator cannot derive does not survive a build.** The axi4
+  index carried two hand-added cross-component links into the converters MAS.
+  `gen_index` globs one directory, so it drops them silently on the next
+  build. Put cross-book pointers on a PAGE that lives in the book -- the
+  `axi4_dwidth_converter.md` stub already carries both -- not in the index.
+
+Before assuming regeneration is safe, model it: list what the generator would
+emit against what the index currently links, and diff both directions. Losing
+a page is a real regression; losing curated link TEXT is cosmetic and the
+generator wins anyway.
