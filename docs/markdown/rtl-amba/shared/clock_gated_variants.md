@@ -421,35 +421,20 @@ through an FPGA flow without addressing it.
 
 ### Known Gaps
 
-The eight AXI4 and AXI4-Lite `*_mon_cg` wrappers predate `amba_clock_gate_ctrl` and use a
-different, incomplete scheme. None of them instantiates `amba_clock_gate_ctrl`, and none of
-them takes `CG_IDLE_COUNT_WIDTH`.
+None. Every `_cg` module in `rtl/amba` -- all 34 -- instantiates
+`amba_clock_gate_ctrl`, takes `CG_IDLE_COUNT_WIDTH`, and drives the wrapped
+module from the gated clock.
 
-**AXI4 `*_mon_cg`** (`axi4_master_rd_mon_cg`, `axi4_master_wr_mon_cg`,
-`axi4_slave_rd_mon_cg`, `axi4_slave_wr_mon_cg`):
-
-- Carry legacy parameters `ENABLE_CLOCK_GATING`, `CG_IDLE_CYCLES`, `CG_GATE_MONITOR`,
-  `CG_GATE_REPORTER`, `CG_GATE_TIMERS`, and legacy inputs `cfg_cg_idle_threshold`,
-  `cfg_cg_force_on`, `cfg_cg_gate_monitor`, `cfg_cg_gate_reporter`, `cfg_cg_gate_timers`.
-- Build per-domain gated clocks (`aclk_monitor`, `aclk_reporter`, `aclk_timers`) with
-  combinational `always_comb` blocks rather than ICG cells.
-- **Do not connect those gated clocks to anything.** The underlying monitor is instantiated
-  with `.aclk(aclk)` and an in-source `TODO: Use aclk_monitor once ICG cells replace
-  combinational gating`. The gating logic is therefore dead, and the
-  `cg_monitor_gated`/`cg_reporter_gated`/`cg_timers_gated`/`cg_cycles_saved` outputs report
-  a model that has no effect on the clock.
-
-**AXI4-Lite `*_mon_cg`** (`axil4_master_rd_mon_cg`, `axil4_master_wr_mon_cg`,
-`axil4_slave_rd_mon_cg`, `axil4_slave_wr_mon_cg`):
-
-- Carry legacy parameters `ENABLE_CLOCK_GATING` and `CG_IDLE_CYCLES` plus inputs
-  `cfg_cg_enable` and `cfg_cg_idle_threshold`.
-- Contain no gating structure at all. `cfg_cg_enable` is folded into
-  `cfg_monitor_enable`, and `cg_cycles_saved` is a plain idle-cycle counter.
-
-**Implication:** treat the AXI4 and AXI4-Lite `*_mon_cg` modules as functionally equivalent
-to their non-`_cg` base monitors for power purposes. They save no dynamic power today. The
-AXI5 `*_mon_cg` modules are the reference for how a monitor CG wrapper should look.
+This section previously described the eight AXI4 and AXI4-Lite `*_mon_cg`
+wrappers as a dead, pre-`amba_clock_gate_ctrl` scheme that "saves no dynamic
+power today", carrying legacy parameters (`ENABLE_CLOCK_GATING`,
+`CG_IDLE_CYCLES`, `CG_GATE_*`) and per-domain clocks (`aclk_monitor`,
+`aclk_reporter`, `aclk_timers`) wired to nothing. That was true once; it is
+the exact opposite of the current RTL, and it is the more dangerous direction
+of error -- an integrator reading it would route around the correct part.
+Measured on all eight: zero occurrences of any legacy name, two
+`amba_clock_gate_ctrl` references each, and the wrapped monitor instantiated
+with `.aclk(gated_aclk)`.
 
 ---
 
@@ -476,11 +461,15 @@ Every module below instantiates `amba_clock_gate_ctrl` and takes `CG_IDLE_COUNT_
 
 | Protocol | Location | CG Variants | Gating Implemented |
 |----------|----------|-------------|--------------------|
-| AXI5 | `rtl/amba/monitor/` | `axi5_master_rd_mon_cg`, `axi5_master_wr_mon_cg`, `axi5_slave_rd_mon_cg`, `axi5_slave_wr_mon_cg` | Yes |
-| AXI4 | `rtl/amba/monitor/` | `axi4_master_rd_mon_cg`, `axi4_master_wr_mon_cg`, `axi4_slave_rd_mon_cg`, `axi4_slave_wr_mon_cg` | No — see [Known Gaps](#known-gaps) |
-| AXI4-Lite | `rtl/amba/monitor/` | `axil4_master_rd_mon_cg`, `axil4_master_wr_mon_cg`, `axil4_slave_rd_mon_cg`, `axil4_slave_wr_mon_cg` | No — see [Known Gaps](#known-gaps) |
+| AXI5 | `rtl/amba/axi5/` | `axi5_master_rd_mon_cg`, `axi5_master_wr_mon_cg`, `axi5_slave_rd_mon_cg`, `axi5_slave_wr_mon_cg` | Yes |
+| AXI4 | `rtl/amba/axi4/` | `axi4_master_rd_mon_cg`, `axi4_master_wr_mon_cg`, `axi4_slave_rd_mon_cg`, `axi4_slave_wr_mon_cg` | Yes |
+| AXI4-Lite | `rtl/amba/axil4/` | `axil4_master_rd_mon_cg`, `axil4_master_wr_mon_cg`, `axil4_slave_rd_mon_cg`, `axil4_slave_wr_mon_cg` | Yes |
 
-**Total:** 34 `_cg` modules, of which 26 implement clock gating.
+The `_mon_cg` wrappers live beside the protocol they wrap, not in
+`rtl/amba/monitor/` -- that directory holds the monitor cores themselves and
+contains no `_cg` module at all.
+
+**Total:** 34 `_cg` modules, all 34 of which implement clock gating.
 
 ### Related Documentation
 

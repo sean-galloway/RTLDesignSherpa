@@ -32,30 +32,33 @@
 
 ## Implementation Status
 
-**This wrapper does not currently gate any clock.** The RTL contains no
-`amba_clock_gate_ctrl` instance, no ICG cell, and no gated clock net; the base
-`axil4_master_rd_mon` inside it runs on the ungated `aclk`. What the wrapper
-actually does today is:
+This wrapper gates the monitor's clock for real. It instantiates
+`amba_clock_gate_ctrl`, and the base `axil4_master_rd_mon` inside it is driven from
+`gated_aclk`, not from `aclk`.
 
-1. **Gate the monitor functionally**, by ANDing the gating enable into the
-   monitor enable: `cfg_monitor_enable & cfg_cg_enable`. With
-   `cfg_cg_enable = 0` the monitor stops observing.
-2. **Report gating state** on `cg_gating` (the gated clock is stopped) and
-   `cg_idle` (no activity observed).
+What it does:
 
-An earlier version of this page described a `cg_cycles_saved` output, a
-`cfg_cg_idle_threshold` input, and `ENABLE_CLOCK_GATING` / `CG_IDLE_CYCLES`
-parameters as "declared but not referenced". None of them exist -- not
-declared, not referenced, nowhere in `rtl/amba`. The real controls are
-`cfg_cg_enable` and `cfg_cg_idle_count` (width `CG_IDLE_COUNT_WIDTH`), and
-there is no cycles-saved counter of any kind.
+1. **Gates the clock.** `amba_clock_gate_ctrl` counts `cfg_cg_idle_count`
+   idle cycles and stops `gated_aclk`, reporting on `cg_gating` (the gated
+   clock is stopped) and `cg_idle` (no activity observed).
+2. **Holds off the interfaces while gated.** `fub_axil_arready` and `m_axil_rready` are forced
+   low under `cg_gating`, so nothing is accepted into a stopped clock.
+3. **Masks the monbus valid while gated** (`monbus_valid = w_monbus_valid &&
+   !cg_gating`), which is what makes delivery exactly-once across a gating
+   edge rather than a held valid replayed on wake.
 
-**Consequence for integrators:** instantiating this wrapper instead of
-`axil4_master_rd_mon` will not reduce dynamic power. If you need real clock
-gating on an AXI4-Lite transport path today, use the plain
-[`_cg` transport modules](../axil4/axil4_clock_gating_guide.md)
-(`axil4_master_rd_cg` and friends), which do instantiate
-`amba_clock_gate_ctrl` and a real ICG cell.
+Two earlier versions of this page were wrong in opposite directions, so both
+are worth naming. One described a `cg_cycles_saved` output, a
+`cfg_cg_idle_threshold` input and `ENABLE_CLOCK_GATING` / `CG_IDLE_CYCLES`
+parameters; none of those exist anywhere in `rtl/amba`. The other -- the
+correction to the first -- concluded that the wrapper therefore gates
+nothing and "will not reduce dynamic power". That was the more damaging
+error: it is false, and it steers an integrator away from the right part.
+The real controls are `cfg_cg_enable` and `cfg_cg_idle_count` (width
+`CG_IDLE_COUNT_WIDTH`); there is no cycles-saved counter of any kind.
+
+Gating behaviour is asserted directly by `val/amba/test_mon_cg_gating.py`
+(phase 5 for the ready hold-off, phase 6 for exactly-once monbus delivery).
 
 ---
 
@@ -76,8 +79,7 @@ In addition to all [axil4_master_rd_mon](./axil4_master_rd_mon.md) parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `ENABLE_CLOCK_GATING` | bit | 1 | Declared but **unused** in the current RTL |
-| `CG_IDLE_CYCLES` | int | 4 | Declared but **unused** in the current RTL |
+| `CG_IDLE_COUNT_WIDTH` | int | 4 | Width of `cfg_cg_idle_count`; sets the longest programmable idle threshold |
 
 There are no `CG_GATE_MONITOR`, `CG_GATE_REPORTER`, or `CG_GATE_TIMERS`
 parameters, and no independent gating domains. Earlier revisions of this
