@@ -66,6 +66,10 @@ miscalibrated on any other clock -- silently.
 | `CG_IDLE_COUNT_WIDTH` | 4 | Width of the idle countdown, sizing `cfg_cg_idle_count` |
 | `USE_MONITOR` | 1 | Synthesis-time monitor enable (forwarded to inner monitor). |
 | `N_ADDR_RANGES` | 0 | Number of address-range comparators (forwarded to base module). |
+| `ADDR_FILTER_ENABLE` | 0 | Synthesises the address-range report filter. **The parameter only decides whether the logic EXISTS** -- a build that sets it and leaves `cfg_addr_filter_enable` low filters nothing and looks broken. |
+| `ID_FILTER_ENABLE` | 0 | Synthesises the ID report filter (see `cfg_id_*` for the runtime override). |
+| `ID_MATCH_BASE` | 0 | First ID this instance owns. |
+| `ID_MATCH_COUNT` | 0 | How many IDs; `0` means ALL, so a zeroed register block does not silently filter everything away. |
 
 Gating is controlled by RUNTIME inputs `cfg_cg_enable` /
 `cfg_cg_idle_count` with status outputs `cg_gating` / `cg_idle`; ONE
@@ -74,6 +78,22 @@ ENABLE_CLOCK_GATING / CG_IDLE_CYCLES / CG_GATE_* interface this page once
 documented never existed.)
 
 Base-module ports are forwarded EXCEPT `debug_block_ready`, which this wrapper ties off (use the base module for the backpressure tap) -- including the full performance-monitoring interface (see [Performance Monitoring](#performance-monitoring) below). The six `ENABLE_*_LOGIC` synthesis-cone parameters (`ENABLE_ERROR_LOGIC`, `ENABLE_TIMEOUT_LOGIC`, `ENABLE_COMPL_LOGIC`, `ENABLE_THRESHOLD_LOGIC`, `ENABLE_PERF_LOGIC`, `ENABLE_DEBUG_LOGIC`) and the `cfg_compl_enable` / `cfg_threshold_enable` / `cfg_debug_enable` control enables are also passed straight through.
+
+### Filter configuration (forwarded)
+
+These reach the inner monitor through this wrapper; before 2026-09-01 they did not.
+
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `cfg_addr_filter_enable` | Input | 1 | High: suppress packets for transactions outside the window. Low: inert, whatever `ADDR_FILTER_ENABLE` says |
+| `cfg_addr_filter_low` | Input | ADDR_WIDTH | Window base, inclusive |
+| `cfg_addr_filter_high` | Input | ADDR_WIDTH | Window limit, inclusive |
+| `cfg_id_filter_enable` | Input | 1 | High: use the runtime window below instead of the `ID_MATCH_*` parameters |
+| `cfg_id_match_base` | Input | ID_WIDTH | First ID to accept |
+| `cfg_id_match_count` | Input | ID_WIDTH+1 | How many; `0` means ALL |
+
+Neither filter un-filters entries already admitted to the transaction table,
+which is what makes changing them at runtime safe.
 
 ---
 

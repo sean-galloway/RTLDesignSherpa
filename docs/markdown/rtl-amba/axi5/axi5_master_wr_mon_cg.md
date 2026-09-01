@@ -142,11 +142,34 @@ flowchart TB
 | ENABLE_THRESHOLD_LOGIC | bit | 1 | Synthesis-cone enable for threshold detection (forwarded to base module) |
 | ENABLE_PERF_LOGIC | bit | 1 | Synthesis-cone enable for the REPORTER's legacy perf-packet cone and the two lifetime counters only -- the window FSM and bucket/beat/byte/burst counters are unconditional (always compiled, always live) |
 | ENABLE_DEBUG_LOGIC | bit | 0 | Synthesis-cone enable for the debug/trace cone (forwarded to base module) |
+| `ACLK_MHZ` | int | 100 | Clock frequency in MHz. Builds the microsecond tick LUT in `counter_freq_invariant`. **Leave this at 100 on a 90 MHz part and every us-denominated timeout is wrong, silently** -- it was unreachable through this wrapper until 2026-09-01. |
+| `CFI_MIN_FREQ_MHZ` | int | `ACLK_MHZ` | Lowest frequency the tick LUT must cover (dynamic-frequency builds). |
+| `CFI_MAX_FREQ_MHZ` | int | `ACLK_MHZ` | Highest frequency the tick LUT must cover. |
+| `USE_WDATA_ORDER_Q` | bit | 0 | Write-data ordering queue. Required (=1) whenever `NUM_BANKS` > 1. |
+| `NUM_BANKS` | int | 1 | Transaction-table banking. >1 needs `USE_WDATA_ORDER_Q`=1; the inner module's elaboration guard fires otherwise. |
+| `ADDR_FILTER_ENABLE` | bit | 0 | Synthesises the address-range report filter. **The parameter only decides whether the logic EXISTS** -- a build that sets it and leaves `cfg_addr_filter_enable` low filters nothing and looks broken. |
+| `ID_FILTER_ENABLE` | bit | 0 | Synthesises the ID report filter (see `cfg_id_*` for the runtime override). |
+| `ID_MATCH_BASE` | int | 0 | First ID this instance owns. |
+| `ID_MATCH_COUNT` | int | 0 | How many IDs; `0` means ALL, so a zeroed register block does not silently filter everything away. |
 | **CG_IDLE_COUNT_WIDTH** | int | 4 | Width of idle counter (max 2^N-1 cycles) |
 
 ---
 
 ## Ports
+
+
+### Filter configuration (forwarded)
+
+These reach the inner monitor through this wrapper; before 2026-09-01 they did not.
+
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `cfg_addr_filter_enable` | Input | 1 | High: suppress packets for transactions outside the window. Low: inert, whatever `ADDR_FILTER_ENABLE` says |
+| `cfg_addr_filter_low` | Input | ADDR_WIDTH | Window base, inclusive |
+| `cfg_addr_filter_high` | Input | ADDR_WIDTH | Window limit, inclusive |
+| `cfg_id_filter_enable` | Input | 1 | High: use the runtime window below instead of the `ID_MATCH_*` parameters |
+| `cfg_id_match_base` | Input | ID_WIDTH | First ID to accept |
+| `cfg_id_match_count` | Input | ID_WIDTH+1 | How many; `0` means ALL |
 
 ### Clock and Reset
 

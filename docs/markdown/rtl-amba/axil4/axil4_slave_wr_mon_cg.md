@@ -79,6 +79,12 @@ In addition to all [axil4_slave_wr_mon](./axil4_slave_wr_mon.md) parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
+| `ACLK_MHZ` | int | 100 | Clock frequency in MHz. Builds the microsecond tick LUT in `counter_freq_invariant`. **Leave this at 100 on a 90 MHz part and every us-denominated timeout is wrong, silently** -- it was unreachable through this wrapper until 2026-09-01. |
+| `CFI_MIN_FREQ_MHZ` | int | `ACLK_MHZ` | Lowest frequency the tick LUT must cover (dynamic-frequency builds). |
+| `CFI_MAX_FREQ_MHZ` | int | `ACLK_MHZ` | Highest frequency the tick LUT must cover. |
+| `USE_WDATA_ORDER_Q` | bit | 0 | Write-data ordering queue. Required (=1) whenever `NUM_BANKS` > 1. |
+| `NUM_BANKS` | int | 1 | Transaction-table banking. >1 needs `USE_WDATA_ORDER_Q`=1; the inner module's elaboration guard fires otherwise. |
+| `ADDR_FILTER_ENABLE` | bit | 0 | Synthesises the address-range report filter. **The parameter only decides whether the logic EXISTS** -- a build that sets it and leaves `cfg_addr_filter_enable` low filters nothing and looks broken. |
 | `CG_IDLE_COUNT_WIDTH` | int | 4 | Width of `cfg_cg_idle_count`; sets the longest programmable idle threshold |
 
 There are no `CG_GATE_MONITOR`, `CG_GATE_REPORTER`, or `CG_GATE_TIMERS`
@@ -88,6 +94,19 @@ document described such a scheme; it was never implemented.
 ---
 
 ## Additional Ports
+
+
+### Filter configuration (forwarded)
+
+These reach the inner monitor through this wrapper; before 2026-09-01 they did not.
+
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `cfg_addr_filter_enable` | Input | 1 | High: suppress packets for transactions outside the window. Low: inert, whatever `ADDR_FILTER_ENABLE` says |
+| `cfg_addr_filter_low` | Input | ADDR_WIDTH | Window base, inclusive |
+| `cfg_addr_filter_high` | Input | ADDR_WIDTH | Window limit, inclusive |
+
+There is no runtime ID filter on AXI4-Lite: the protocol has no IDs to match.
 
 All base-module ports are forwarded unchanged, including the `cam_clear`
 control input (Input, 1) - synchronous clear of the monitor transaction CAM
