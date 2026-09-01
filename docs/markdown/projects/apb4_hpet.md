@@ -49,7 +49,7 @@ The complete APB HPET documentation is now maintained in the retro_legacy_blocks
 - **Specification Index:** [hpet_mas/hpet_mas_index.md](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md)
 - **Overview:** [ch01_overview/01_overview.md](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/ch01_overview/01_overview.md)
 - **Architecture:** [ch01_overview/02_architecture.md](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/ch01_overview/02_architecture.md)
-- **Block Descriptions:** [ch02_blocks/](../../../projects/components/retro_legacy_blocks/docs/hpet_spec/ch02_blocks/)
+- **Block Descriptions:** [ch02_blocks/](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/ch02_blocks/)
 - **Register Map:** [ch05_registers/01_register_map.md](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/ch05_registers/01_register_map.md)
 
 ### Project Files
@@ -57,7 +57,7 @@ The complete APB HPET documentation is now maintained in the retro_legacy_blocks
 - **AI Guide:** [CLAUDE.md](../../../projects/components/retro_legacy_blocks/CLAUDE.md)
 - **Implementation Status:** [docs/IMPLEMENTATION_STATUS.md](../../../projects/components/retro_legacy_blocks/docs/IMPLEMENTATION_STATUS.md)
 - **Source Code:** [rtl/hpet/](../../../projects/components/retro_legacy_blocks/rtl/hpet/)
-- **Tests:** [dv/tests/hpet/](../../../projects/components/retro_legacy_blocks/dv/tests/hpet/)
+- **Tests:** [dv/tests/](../../../projects/components/retro_legacy_blocks/dv/tests/)
 
 ---
 

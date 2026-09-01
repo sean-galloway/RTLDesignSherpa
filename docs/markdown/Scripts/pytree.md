@@ -415,7 +415,7 @@ python3 bin/pytree.py --path . | head -100
 
 ## Related Tools
 
-- **[Search and Replace Directory](search_and_replace_directory.md)** - Recursive file processing
+- **Search and Replace Directory** - Recursive file processing (no such script or page in this repo)
 - **[Find Instances Used](find_instances_used.md)** - Dependency analysis
 - **UNIX `tree`** - System directory tree command
 

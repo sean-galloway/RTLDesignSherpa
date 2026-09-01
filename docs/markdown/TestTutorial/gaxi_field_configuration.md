@@ -747,7 +747,7 @@ endmodule
 ## Related Documentation
 
 - [GAXI Multi-Field Integration Tutorial](gaxi_multi_field_integration.md) - Prerequisite
-- [GAXI Protocol Overview](../rtl-amba/fabric/gaxi_overview.md)
+- [GAXI Protocol Overview](../rtl-amba/_book_gaxi_index.md)
 - [WaveDrom GAXI Example](wavedrom_gaxi_example.md) - Visualizing multi-field transfers
 - [Test Examples](advanced_examples.md)
 

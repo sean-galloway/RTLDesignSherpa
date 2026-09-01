@@ -461,7 +461,7 @@ env WAVES=1 REG_LEVEL=GATE pytest test_uart_axil_bridge.py -v
 
 **Internal:**
 - [Projects Overview](overview.md)
-- [CocoTB Framework - UART Components](../CocoTBFramework/components/uart/uart_components.md)
+- CocoTB Framework UART components — `CocoTBFramework/components/uart/` in the separate RTLDesignSherpa-DV repo
 - [AXI4-Lite Master Components](../rtl-amba/axil4/axil4_master_wr.md)
 
 **External:**

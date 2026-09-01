@@ -341,7 +341,7 @@ Design → Analysis → Verification → Implementation
 ## Related Tools
 
 - **[Structure Test Script](struct_test_script.md)** - Automated structural testing
-- **[Search and Replace Directory](search_and_replace_directory.md)** - Batch file processing
+- **Search and Replace Directory** - Batch file processing (no such script or page in this repo)
 - **[PyTree](pytree.md)** - Directory visualization
 
 ## Version History

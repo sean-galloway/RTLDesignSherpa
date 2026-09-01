@@ -719,6 +719,6 @@ gaxi_fifo_async_multi #(.DEPTH(20)) ...  // Simulation may pass, synthesis fails
 ---
 
 **Related Documentation:**
-- [GAXI Protocol Overview](../rtl-amba/fabric/gaxi_overview.md)
-- [Clock Domain Crossing Best Practices](../rtl-common/cdc_guidelines.md)
+- [GAXI Protocol Overview](../rtl-amba/_book_gaxi_index.md)
+- [Clock Domain Crossing Best Practices](../rtl-cdc/cdc.md)
 - [Advanced Test Examples](advanced_examples.md)

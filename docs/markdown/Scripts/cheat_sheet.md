@@ -208,7 +208,7 @@ There are two commands shown here. The first one makes the wavedrom file (wavedr
 
 Here is what the final product looks like:
 
-![FIFO Wavedrom](../rtl/_wavedrom_svg/wavedrom_fifo_start_end.svg)
+_FIFO wavedrom — SVG not committed; regenerate with the wavedrom scripts in `bin/`._
 
 
 ### An Enumerated FSM example
@@ -259,7 +259,7 @@ Here is the JSON file for an enumerated FSM:
 
 The enum_list is a list of dictionaries. So, more than one FSM could be enumerated this way.
 
-![Binary to BCD Enum Wavedrom](../rtl/_wavedrom_svg/wavedrom_binary_to_bcd_enum.svg)
+_Binary-to-BCD enum wavedrom — SVG not committed; regenerate with the wavedrom scripts in `bin/`._
 
 ---
 

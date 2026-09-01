@@ -409,7 +409,7 @@ python3 bin/sv_interface_flattener.py \
 
 ## Related Tools
 
-- **[verible_verilog_syntax.py](verible_verilog_syntax.md)**: Verible integration utilities
+- **`verible_verilog_syntax.py`**: Verible integration utilities (no page written)
 - **[struct_test_script.py](struct_test_script.md)**: SystemVerilog structure testing
 - **[lint_wrap.py](lint_wrap.md)**: Code linting and formatting
 - **[generate_uml.py](generate_uml.md)**: UML diagram generation

@@ -204,7 +204,7 @@ wave_solver.clear_windows()
 
 ### Generated Waveform
 
-![Zero-Latency Bypass](../assets/WAVES/test_gaxi_skid_buffer_w32_d4_default_wd_zero_latency_bypass_001.png)
+_Zero-Latency Bypass — waveform not committed; regenerate with `WAVES=1 pytest val/amba/test_gaxi_skid_buffer.py`, which writes `test_gaxi_skid_buffer_w32_d4_default_wd_zero_latency_bypass_001.png`._
 
 **Key Observations:**
 - ✅ **`rd_valid` asserts immediately** when wr_valid goes high (bypass path)
@@ -237,7 +237,7 @@ wave_solver.clear_windows()
 
 ### Generated Waveform
 
-![Burst Write Full](../assets/WAVES/test_gaxi_skid_buffer_w32_d4_default_wd_burst_write_full_001.png)
+_Burst Write Full — waveform not committed; regenerate with `WAVES=1 pytest val/amba/test_gaxi_skid_buffer.py`, which writes `test_gaxi_skid_buffer_w32_d4_default_wd_burst_write_full_001.png`._
 
 **Key Observations:**
 - ✅ **wr_ready deasserts** when FIFO is full (backpressure)
@@ -272,7 +272,7 @@ wave_solver.clear_windows()
 
 ### Generated Waveform
 
-![Simultaneous Read/Write](../assets/WAVES/test_gaxi_skid_buffer_w32_d4_default_wd_simultaneous_rdwr_001.png)
+_Simultaneous Read/Write — waveform not committed; regenerate with `WAVES=1 pytest val/amba/test_gaxi_skid_buffer.py`, which writes `test_gaxi_skid_buffer_w32_d4_default_wd_simultaneous_rdwr_001.png`._
 
 **Key Observations:**
 - ✅ **count stays constant** (same rate in/out)
@@ -303,7 +303,7 @@ wave_solver.clear_windows()
 
 ### Generated Waveform
 
-![Burst Read Empty](../assets/WAVES/test_gaxi_skid_buffer_w32_d4_default_wd_burst_read_empty_001.png)
+_Burst Read Empty — waveform not committed; regenerate with `WAVES=1 pytest val/amba/test_gaxi_skid_buffer.py`, which writes `test_gaxi_skid_buffer_w32_d4_default_wd_burst_read_empty_001.png`._
 
 **Key Observations:**
 - ✅ **rd_valid deasserts** when FIFO is empty
@@ -342,7 +342,7 @@ wave_solver.clear_windows()
 
 ### Generated Waveform
 
-![Fill Then Drain](../assets/WAVES/test_gaxi_skid_buffer_w32_d4_default_wd_fill_then_drain_001.png)
+_Fill Then Drain — waveform not committed; regenerate with `WAVES=1 pytest val/amba/test_gaxi_skid_buffer.py`, which writes `test_gaxi_skid_buffer_w32_d4_default_wd_fill_then_drain_001.png`._
 
 **Key Observations:**
 - ✅ **Two distinct phases** visible in waveform
@@ -380,7 +380,7 @@ wave_solver.clear_windows()
 
 ### Generated Waveform
 
-![Alternating Read/Write](../assets/WAVES/test_gaxi_skid_buffer_w32_d4_default_wd_alternating_rdwr_001.png)
+_Alternating Read/Write — waveform not committed; regenerate with `WAVES=1 pytest val/amba/test_gaxi_skid_buffer.py`, which writes `test_gaxi_skid_buffer_w32_d4_default_wd_alternating_rdwr_001.png`._
 
 **Key Observations:**
 - ✅ **Regular pattern** of alternating write/read
@@ -557,7 +557,7 @@ This tutorial demonstrated:
 
 ## Related Documentation
 
-- [WaveDrom Quick Start](../CocoTBFramework/components/wavedrom/wavedrom_quick_start.md)
-- [Protocol Presets Reference](../CocoTBFramework/components/wavedrom/wavedrom_protocol_presets.md)
-- [Auto-Binding Guide](../CocoTBFramework/components/wavedrom/wavedrom_auto_binding.md)
-- [Segmented Capture Details](../CocoTBFramework/components/wavedrom/wavedrom_segmented_capture.md)
+- WaveDrom Quick Start (`CocoTBFramework/components/wavedrom/wavedrom_quick_start.md`, RTLDesignSherpa-DV repo)
+- Protocol Presets Reference (`CocoTBFramework/components/wavedrom/wavedrom_protocol_presets.md`, RTLDesignSherpa-DV repo)
+- Auto-Binding Guide (`CocoTBFramework/components/wavedrom/wavedrom_auto_binding.md`, RTLDesignSherpa-DV repo)
+- Segmented Capture Details (`CocoTBFramework/components/wavedrom/wavedrom_segmented_capture.md`, RTLDesignSherpa-DV repo)

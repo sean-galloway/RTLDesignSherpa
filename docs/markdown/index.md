@@ -94,7 +94,7 @@ Protocol VIP and verification infrastructure (installed via `pip install cocotb-
 - **Scoreboards**: Transaction-level modeling and checking infrastructure
 - **Coverage**: Functional coverage collection and analysis tools
 
-#### **[TBClasses](TBClasses/tbclasses_index.md)**
+#### **TBClasses** (`bin/TBClasses/` — no doc book yet)
 Project-specific testbench classes (local to this repo):
 - **Testbench Classes**: Reusable testbench components for common verification patterns
 - **Protocol TBs**: AMBA, AXI4, APB, AXIS, FIFO, GAXI testbench orchestration
@@ -250,7 +250,7 @@ RTL Design Sherpa is built on solid technical foundations inspired by industry-l
 - **[RTL AMBA Protocols](rtl-amba/index.md)** - Complete AMBA protocol implementation
 
 ### 🧪 **Verification and Testing**
-- **[TBClasses](TBClasses/tbclasses_index.md)** - Project-specific testbench classes
+- **TBClasses** (`bin/TBClasses/`) - Shared testbench classes; no doc book yet, read the source
 - **[Testing Tutorial](TestTutorial/index.md)** - Complete guide to hardware verification
 - **cocotb-framework** (PyPI) - Protocol VIP, scoreboards, and shared components
 

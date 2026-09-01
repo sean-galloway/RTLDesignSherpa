@@ -176,7 +176,7 @@ Apply common building blocks to implement industry-standard protocols (**124 mod
 #### APB (Advanced Peripheral Bus)
 - **[APB Masters](../../rtl/amba/apb4)** - Command/response interfaces with FIFO buffering
 - **[APB Slaves](../../rtl/amba/apb4)** - Register interfaces with address decoding
-- **[APB Interconnect](../../rtl/integ_amba)** - Multi-master/multi-slave crossbar
+- **APB Interconnect** - Multi-master/multi-slave crossbar (the `rtl/integ_*` examples were retired in `41e587b1`; see `projects/components/apbx-xbar/`)
 - **[APB Bridges](../../rtl/amba/apb4)** - Protocol conversion, CDC
 
 **Example:** APB register slave demonstrates parameter-driven design
@@ -199,12 +199,12 @@ apb4_slave #(
 #### AXI4-Lite (Simplified Register Interface)
 - **[AXI4-Lite Masters](../../rtl/amba/axil4)** - Register-optimized masters
 - **[AXI4-Lite Slaves](../../rtl/amba/axil4)** - Configuration registers
-- **[Protocol Bridges](rtl/amba/adapters/)** - APB ↔ AXI-Lite conversion
+- **[Protocol Bridges](../../projects/components/converters/rtl/)** - APB ↔ AXI-Lite conversion (converters component)
 
 #### AXI4-Stream (High-Throughput Data)
-- **[Stream Masters/Slaves](rtl/amba/axis4/)** - Streaming interfaces
-- **[Flow Control](rtl/amba/axis4/)** - Backpressure, buffering
-- **[Sideband Support](rtl/amba/axis4/)** - TID, TDEST, TUSER, TSTRB
+- **[Stream Masters/Slaves](../../rtl/amba/axis4/)** - Streaming interfaces
+- **[Flow Control](../../rtl/amba/axis4/)** - Backpressure, buffering
+- **[Sideband Support](../../rtl/amba/axis4/)** - TID, TDEST, TUSER, TSTRB
 
 #### Shared Infrastructure
 - **[GAXI Buffers](../../rtl/amba/gaxi)** - Generic skid buffers, FIFOs, CDC
@@ -217,7 +217,7 @@ apb4_slave #(
 
 ### Level 3: Integration Examples
 
-**Locations:** [`rtl/integ_common/`](../../rtl/integ_common) | [`rtl/integ_amba/`](../../rtl/integ_amba)
+**Locations:** retired in `41e587b1` — the integration examples are gone; the crossbar lives in `projects/components/apbx-xbar/`
 
 Practice integrating multiple modules into working systems:
 
@@ -288,7 +288,7 @@ Collection of 9 legacy/retro peripherals with full APB interfaces:
 |-----------|--------|-------------|
 | **[Delta](../../projects/components/delta)** | 📋 Planned | 4×4 Network-on-Chip mesh with virtual channels |
 | **[HIVE](../../projects/components/hive)** | 📋 Planned | Distributed RISC-V control (VexRiscv + 16 SERV monitors) |
-| **[BCH](projects/components/bch/)** | 📋 Planned | BCH error correction encoder/decoder |
+| **BCH** | 📋 Planned | BCH error correction encoder/decoder (no RTL yet) |
 
 ---
 
@@ -555,7 +555,7 @@ pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 - [Component Index](projects/index.md) - All components
 - [Component Overview](projects/overview.md) - Design patterns
 - [Retro Legacy Blocks](../../projects/components/retro_legacy_blocks/README.md) - Legacy peripheral collection
-- [HPET Specification](projects/components/retro_legacy_blocks/docs/hpet_spec/hpet_index.md) - Complete HPET guide
+- [HPET Specification](../../projects/components/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md) - Complete HPET guide
 
 ### External References
 

@@ -78,7 +78,7 @@ Advanced descriptor-based DMA with network interfaces and complex features.
 - Production-ready complexity
 
 **Documentation:**
-- 📖 [Complete Specification](../../../projects/components/dmas/rapids/docs/rapids_spec/rapids_index.md)
+- 📖 [Complete Specification](../../../projects/components/dmas/rapids/docs/rapids_beats_mas/rapids_beats_mas_index.md)
 - 📋 [Product Requirements](../../../projects/components/dmas/rapids/PRD.md)
 - 🤖 [AI Guide](../../../projects/components/dmas/rapids/CLAUDE.md)
 
