@@ -375,7 +375,7 @@ arbiter_priority_encoder, counter_bin_load, counter_bingray, counter_freq_invari
 counter_johnson, counter_load_clear, counter_ring, bin2gray, gray2bin, johnson2bin,
 glitch_free_n_dff_arn, fifo_sync, fifo_async, fifo_control,
 fifo_sync_multi, gaxi_skid_buffer, gaxi_skid_buffer_dbldrn, gaxi_skid_buffer_async,
-gaxi_skid_buffer_struct, gaxi_fifo_sync, gaxi_fifo_async, gaxi_drop_fifo_sync,
+gaxi_fifo_sync, gaxi_fifo_async, gaxi_drop_fifo_sync,
 gaxi_regslice, monbus_arbiter, axi_gen_addr, dataint_crc_xor_shift,
 dataint_crc_xor_shift_cascade, dataint_ecc_hamming, dataint_parity, dataint_crc,
 dataint_checksum, encoder, decoder, encoder_priority_enable, find_first_set,

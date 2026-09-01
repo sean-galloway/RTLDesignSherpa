@@ -9,4 +9,3 @@
 - [GAXI Register Slice](gaxi/gaxi_regslice.md)
 - [GAXI Skid Buffer](gaxi/gaxi_skid_buffer.md)
 - [GAXI Skid Buffer (Double-Drain)](gaxi/gaxi_skid_buffer_dbldrn.md)
-- [gaxi_skid_buffer_struct](gaxi/gaxi_skid_buffer_struct.md)

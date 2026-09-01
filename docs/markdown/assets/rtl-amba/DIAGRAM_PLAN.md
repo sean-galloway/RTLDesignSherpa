@@ -80,7 +80,6 @@ Core building blocks used throughout the AMBA subsystem.
 | gaxi/gaxi_fifo_sync.md | gaxi_fifo_sync | Medium | [x] Done |
 | gaxi/gaxi_skid_buffer.md | gaxi_skid_buffer | Medium | [x] Done |
 | gaxi/gaxi_skid_buffer_async.md | gaxi_skid_buffer_async | High | [x] Done |
-| gaxi/gaxi_skid_buffer_struct.md | gaxi_skid_buffer_struct | Medium | [x] Done |
 | gaxi/gaxi_drop_fifo_sync.md | gaxi_drop_fifo_sync | Medium | [x] Done |
 | gaxi/gaxi_regslice.md | gaxi_regslice | Medium | [x] Done |
 | gaxi/index.md | (overview) | Low | [x] Done |

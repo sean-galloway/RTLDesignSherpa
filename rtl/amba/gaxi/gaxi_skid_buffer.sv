@@ -53,9 +53,7 @@ module gaxi_skid_buffer #(
     parameter int DATA_WIDTH = 32,
     parameter int DEPTH = 2, // Must be 2..8 inclusive -- guarded below
     // Legacy shorthand params (kept for source-compatibility)
-    parameter int DW = DATA_WIDTH,
-    parameter int BUF_WIDTH = DATA_WIDTH * DEPTH,
-    parameter int BW = BUF_WIDTH
+    parameter int DW = DATA_WIDTH
 ) (
     // Global Clock and Reset
     input  logic          axi_aclk,

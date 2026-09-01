@@ -48,7 +48,6 @@ MODULES = \
 	gaxi_fifo_sync \
 	gaxi_regslice \
 	gaxi_skid_buffer_dbldrn \
-	gaxi_skid_buffer_struct \
 	arbiter_token_bucket \
 	icg \
 	monbus_arbiter
@@ -125,7 +124,6 @@ $(eval $(call MODULE_TARGETS,gaxi_drop_fifo_sync,gaxi-drop-fifo,gaxi_drop_fifo_s
 $(eval $(call MODULE_TARGETS,gaxi_fifo_sync,gaxi-fifo-sync,gaxi_fifo_sync.sby))
 $(eval $(call MODULE_TARGETS,gaxi_regslice,gaxi-regslice,gaxi_regslice.sby))
 $(eval $(call MODULE_TARGETS,gaxi_skid_buffer_dbldrn,gaxi-skid-dbldrn,gaxi_skid_buffer_dbldrn.sby))
-$(eval $(call MODULE_TARGETS,gaxi_skid_buffer_struct,gaxi-skid-struct,gaxi_skid_buffer_struct.sby))
 $(eval $(call MODULE_TARGETS,icg,icg,icg.sby))
 $(eval $(call MODULE_TARGETS,monbus_arbiter,monbus-arbiter,monbus_arbiter.sby))
 

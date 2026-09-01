@@ -82,7 +82,6 @@ $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_regslice.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 -f $REPO_ROOT/rtl/cdc/filelists/gaxi_skid_buffer_async.f
-$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer_struct.sv
 
 # =============================================================================
 # APB - Advanced Peripheral Bus

@@ -223,7 +223,6 @@ Infrastructure components used across all AMBA protocols.
 - **[gaxi_fifo_async](../rtl-cdc/gaxi_fifo_async.md)** - Asynchronous FIFO for clock domain crossing
 - **[gaxi_skid_buffer](gaxi/gaxi_skid_buffer.md)** - Skid buffer for pipeline optimization
 - **[gaxi_skid_buffer_async](../rtl-cdc/gaxi_skid_buffer_async.md)** - Asynchronous skid buffer
-- **[gaxi_skid_buffer_struct](gaxi/gaxi_skid_buffer_struct.md)** - Structured skid buffer implementation
 
 ### Arbitration and Control
 

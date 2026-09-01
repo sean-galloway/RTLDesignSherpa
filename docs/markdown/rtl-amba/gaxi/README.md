@@ -51,7 +51,6 @@ GAXI is a lightweight valid/ready handshake protocol for streaming data between 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
 | **gaxi_skid_buffer** | Synchronous elastic buffer, registered output | [gaxi_skid_buffer.md](gaxi_skid_buffer.md) | Documented |
-| **gaxi_skid_buffer_struct** | Type-parameterized variant for complex structs | [gaxi_skid_buffer_struct.md](gaxi_skid_buffer_struct.md) | Documented |
 | **gaxi_skid_buffer_async** | Asynchronous elastic buffer for CDC | [gaxi_skid_buffer_async.md](../../rtl-cdc/gaxi_skid_buffer_async.md) | Documented |
 | **gaxi_skid_buffer_dbldrn** | Double-drain skid buffer variant | [gaxi_skid_buffer_dbldrn.md](gaxi_skid_buffer_dbldrn.md) | Documented |
 
@@ -163,7 +162,6 @@ gaxi_fifo_sync #(
 ### Asynchronous FIFO (Clock Domain Crossing)
 
 > **Two depth rules in this directory, and they are not a contradiction.**
-> The shallow skid buffers (`gaxi_skid_buffer`, `gaxi_skid_buffer_struct`,
 > `gaxi_skid_buffer_dbldrn`) accept `DEPTH` in 2..8 inclusive (any integer). The first two
 > store entries in a small unpacked array; `gaxi_skid_buffer_dbldrn` still
 > uses the flat packed vector with dynamic part-selects the base module was
@@ -215,7 +213,6 @@ typedef struct packed {
 } axi_ar_t;
 
 // Struct-aware buffer
-gaxi_skid_buffer_struct #(
     .STRUCT_TYPE(axi_ar_t),
     .DEPTH(4)
 ) u_ar_buf (

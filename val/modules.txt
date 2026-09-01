@@ -20,7 +20,6 @@ gaxi_drop_fifo_sync.sv
 gaxi_fifo_async.sv
 gaxi_fifo_sync.sv
 gaxi_regslice.sv
-gaxi_skid_buffer_struct.sv
 gaxi_skid_buffer.sv
 amba_clock_gate_ctrl.sv
 arbiter_monbus_common.sv

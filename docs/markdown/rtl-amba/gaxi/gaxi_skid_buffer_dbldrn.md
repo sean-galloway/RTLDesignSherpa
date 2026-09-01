@@ -211,7 +211,6 @@ gaxi_skid_buffer_dbldrn #(
 ## Related Modules
 
 - [gaxi_skid_buffer](gaxi_skid_buffer.md) - The single-drain base skid buffer this variant extends
-- [gaxi_skid_buffer_struct](gaxi_skid_buffer_struct.md) - Struct-typed skid buffer variant
 - [gaxi_fifo_sync](gaxi_fifo_sync.md) - Larger-depth synchronous FIFO with optional registered output
 
 Self-contained: no RTL dependencies beyond the `reset_defs.svh` reset macros. Typical integrators are consumers that retire two GAXI entries per clock (2-wide unpack / aligner front-ends).

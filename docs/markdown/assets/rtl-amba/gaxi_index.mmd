@@ -4,7 +4,6 @@ flowchart TB
         subgraph Buffers["Elastic Buffers"]
             SKID["gaxi_skid_buffer\n(flow control)"]
             SKID_ASYNC["gaxi_skid_buffer_async\n(CDC + flow control)"]
-            SKID_STRUCT["gaxi_skid_buffer_struct\n(struct support)"]
         end
 
         subgraph FIFOs["FIFO Variants"]

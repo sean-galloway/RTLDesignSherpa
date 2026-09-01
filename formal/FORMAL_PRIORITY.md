@@ -239,7 +239,6 @@ Status: PASSING = proved (prove+cover), PROVE = prove-only PASS, ERROR = prove f
 | gaxi_regslice                 | 2        | PASSING | Register slice — prove valid/ready protocol             |
 | gaxi_drop_fifo_sync           | 1        | PASSING | Drop FIFO — prove drop-on-full behavior correct         |
 | gaxi_skid_buffer_async        | 2        | PASSING | Async skid — CDC properties                             |
-| gaxi_skid_buffer_struct       | 3        | PASSING | Struct variant                                          |
 | gaxi_fifo_async_multi         | 3        | PASSING | Multi-signal variant                                    |
 | gaxi_fifo_sync_multi          | 3        | PASSING | Multi-signal variant                                    |
 | gaxi_skid_buffer_multi        | 3        | PASSING | Multi-signal variant                                    |
