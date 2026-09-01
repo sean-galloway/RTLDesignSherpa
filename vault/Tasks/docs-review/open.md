@@ -1498,6 +1498,58 @@ by construction:**
    tests exist. The page was correct; its defect was invisibility. Swept the
    same class across all four RTL books' indexes -- it is the only orphan.
 
+**qc round_31 (axi4 + axi5, 6 units) — COMPLETE 2026-09-01.** 6 ok, 0 failed;
+all six `finish=stop` after `axi5_part_03` was resumed (rule 4 checked on all
+six). **1 RTL defect, 16 doc findings**, integrated in `f317e4a9`; the RTL fix
+shipped separately in `ad97d5d9`.
+
+**The RTL defect was on a page I had just declared correct.** Round_30 flagged
+`axi5_atomic_filter.md` as orphaned; I linked it, hand-checked every claim
+against the RTL, and wrote "the page was correct". It was — the page accurately
+described logic that violated AXI. I checked the documentation against the
+logic and never checked the logic against the protocol. The B mux switched
+source combinationally, so a downstream response arriving under a stalled
+`s_bvalid` changed BID/BRESP mid-beat. Fixed with the selection hold this repo
+already uses in `apb_monitor_addr_check`. The existing test could not catch it
+— it holds `s_bready` high throughout, so the window never opens; proved that
+by reverting the fix and watching it still pass, then added a stalling phase
+that fails at cycle 0 without the hold.
+
+**Trap-class:** read monitors documented as detecting `EVT_PROTOCOL` and
+`EVT_RESP_TIMEOUT`, both unreachable with `IS_READ=1` (nine pages claimed it,
+the reviewer cited one); and per-phase timeouts described as stall detectors
+when the timers zero only while their phase is not pending — a beat handshake
+does not reset them, so a long healthy burst trips `EVT_DATA_TIMEOUT`. The
+second one inverts advice: the pages told readers steady progress keeps a phase
+alive forever. I wrote that line in an earlier round.
+
+**Estimates sitting next to counted figures.** Round_30 recounted the monitor
+row of the resource table from the RTL and left the clock-gating row beside it
+as an inherited "+30 FFs". It is 5 (`r_wakeup` + `r_idle_counter` at
+`IDLE_CNTR_WIDTH=4`). Same table, same commit, one row measured and one
+guessed. Also "~5-8% area" for a monitored slave, against the same books'
+counted >5,000 FF floor.
+
+**Mechanised the recurring class.** Round_30 found twelve `_cg` pages missing
+six parameters; round_31 found a page dropping eight more and examples dropping
+`cfg_freq_sel`/`cam_clear`. Same defect twice, found by hand both times, so
+`bin/audit_doc_port_coverage.py` now cross-checks every page against its
+module's port and parameter lists. It found 53 pages missing the derived
+parameter aliases — the class that broke the axil5 tests when overridden — and
+13 examples that would leave `cam_clear` dangling against their own page's
+"do not leave unconnected".
+
+**A closure I got wrong mid-integration.** I measured `cfg_freq_sel` as already
+documented and closed the finding, having checked only table rows. The
+instantiation examples are enumerations too, and sixteen of them dropped it.
+Rule 7 says integration status is measured, not inferred — but the measurement
+has to cover every form the claim takes, and a table-row grep is not that.
+
+**Filed CONV-001** (amba/open.md): the dwidth converter's split fold pops one
+FIFO entry per downstream B — exact within an ID, wrong if a downstream
+interleaves B across IDs, which AXI4 permits. Documented as a constraint rather
+than fixed; it touches the converter pumice's host gearing depends on.
+
 **qc round_30 (axi4 + axi5, 6 units) — COMPLETE 2026-09-01.** 6 ok, 0 failed,
 137.1 min; three units escalated 32768 -> 65536 once, all six finished
 `finish=stop`, outputs 7,205-10,778 chars with no truncation-shaped outlier
