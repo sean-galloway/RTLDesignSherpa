@@ -79,10 +79,43 @@ verilator: ## Verilator lint over the area's master filelist
 	@# see [[generated-rtl-discipline]].
 	@python3 $(RDS_ROOT)/bin/flatten_filelist.py $(MASTER_FILELIST) \
 	    --resolve-env --absolute-paths -o $(VERILATOR_DIR)/$(AREA)_flat.f >/dev/null
-	@if $(VERILATOR) $(VERILATOR_FLAGS) -f $(VERILATOR_DIR)/$(AREA)_flat.f > $(VERILATOR_DIR)/$(AREA)_all.log 2>&1; then \
-	    echo -e "$(GREEN)PASS $(AREA): Verilator lint$(RESET)"; \
+	@# Lint each module AS A TOP. Handing verilator a whole library with no
+	@# --top-module makes it elaborate every module standalone with DEFAULT
+	@# parameters, then compare those default-width formals against the actual
+	@# connections in real instantiations. The result is a pile of WIDTHTRUNC /
+	@# WIDTHEXPAND on correctly-parameterised code: 138 of them across rtl/amba
+	@# alone, every one an artefact of the invocation rather than a defect. The
+	@# same file list with an explicit top reports ZERO. This target used to do
+	@# that, while its own sibling verilator-% already looped per module with a
+	@# top and carried a comment explaining why -- the two disagreed, and the
+	@# noisy one is the one people ran.
+	@# Prefer the module's OWN filelist, exactly as verilator-% does. Linting
+	@# every module against the whole area list works but re-reports each
+	@# shared-module warning once per top: 389 tops turned 100 real warnings
+	@# into 38,000 lines, which is its own way of making a log unreadable.
+	@files=$$(grep -vE '^(#|$$|\+|-)' $(VERILATOR_DIR)/$(AREA)_flat.f | grep '\.sv$$'); \
+	n=0; bad=0; viafl=0; viatop=0; : > $(VERILATOR_DIR)/$(AREA)_all.log; \
+	for f in $$files; do \
+	    mod=$$(basename $$f .sv); \
+	    case "$$mod" in *_pkg|*_defs) continue;; esac; \
+	    grep -qE "^[[:space:]]*module[[:space:]]+$$mod\b" $$f || continue; \
+	    n=$$((n+1)); \
+	    if [ -f "filelists/$$mod.f" ]; then \
+	        python3 $(RDS_ROOT)/bin/flatten_filelist.py filelists/$$mod.f \
+	            --resolve-env --absolute-paths -o $(VERILATOR_DIR)/$$mod.f >/dev/null 2>&1; \
+	        fl=$(VERILATOR_DIR)/$$mod.f; viafl=$$((viafl+1)); \
+	    else fl=$(VERILATOR_DIR)/$(AREA)_flat.f; viatop=$$((viatop+1)); fi; \
+	    if ! $(VERILATOR) $(VERILATOR_FLAGS) -f $$fl --top-module $$mod \
+	         >> $(VERILATOR_DIR)/$(AREA)_all.log 2>&1; then \
+	        echo "FAIL $$mod" >> $(VERILATOR_DIR)/$(AREA)_all.log; \
+	        echo -e "  $(RED)FAIL$(RESET) $$mod   (-f $$fl)"; bad=$$((bad+1)); \
+	    fi; \
+	done; \
+	echo "  $$viafl via own filelist, $$viatop via $(AREA)_flat.f"; \
+	if [ $$bad -eq 0 ]; then \
+	    echo -e "$(GREEN)PASS $(AREA): Verilator lint ($$n modules, each as its own top)$(RESET)"; \
 	else \
-	    echo -e "$(RED)FAIL $(AREA): Verilator lint$(RESET)"; \
+	    echo -e "$(RED)FAIL $(AREA): $$bad of $$n modules$(RESET)"; \
 	    tail -30 $(VERILATOR_DIR)/$(AREA)_all.log; \
 	    exit 1; \
 	fi

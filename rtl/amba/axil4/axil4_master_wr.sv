@@ -90,7 +90,6 @@ module axil4_master_wr
     logic                       int_skid_wready;
 
     logic [3:0]                 int_b_count;
-    logic [BSize-1:0]           int_b_pkt;
     logic                       int_skid_bvalid;
     logic                       int_skid_bready;
 

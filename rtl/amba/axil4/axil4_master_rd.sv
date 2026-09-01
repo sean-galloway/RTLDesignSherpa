@@ -73,7 +73,6 @@ module axil4_master_rd
     logic                      int_skid_arready;
 
     logic [3:0]                int_r_count;
-    logic [RSize-1:0]          int_r_pkt;
     logic                      int_skid_rvalid;
     logic                      int_skid_rready;
 
