@@ -1678,10 +1678,34 @@ the shared tree as of 2026-08-13; my footprint has zero overlap. See
 
 ### What comes next on amba
 
-shared: integrate the 23 CONFIRMED, decide the 6 SUSPECTED, then humanize with
-a bundle rebuilt after the last correctness commit. The remaining books
-(monitor, axi4, axi5, axil4, apb, apb5, axis4/5) have not had a round at all --
-174 of the 182 amba pages, and 531 of the emoji in DOCREV-014's amba row.
+*(This section was written 2026-08-13 and its list is long superseded --
+monitor, axi4, axi5, apb and apb5 have all had rounds since. Corrected
+coverage below, measured 2026-09-01 by listing the units in every round
+directory rather than reading any status line.)*
+
+**Books ever reviewed, across all 30 qc rounds:** apb, apb5, axi4, axi5, cdc,
+common, gaxi, math, monitor, shared.
+
+**Books NEVER reviewed: `axil4`, `axis4`, `axis5`.** Not once. `axil4` is 18
+pages and 16 modules -- the third-largest amba book -- and every axil4 defect
+found so far was found INCIDENTALLY by an axi4 or axi5 round that happened to
+carry shared monitor RTL. Round_30 alone found four that way, which is a
+strong prior for what a dedicated round would turn up.
+
+That incidental-discovery pattern is the thing to notice. A book with no
+round of its own is not merely unreviewed; it looks reviewed, because
+findings about it keep arriving and getting fixed. `axil4` has been edited in
+four commits this session and had never been the subject of a single round.
+
+A hand audit against the already-known classes (`f4700d69`) found all four
+axil4 `_mon` pages missing real parameters -- `ACLK_MHZ` among them, so the
+silent-timeout-miscalibration trap was live in the docs even after the RTL
+fix -- plus four more instances of the `ENABLE_PERF_LOGIC` falsehood worded
+differently enough to survive the previous sweep. That audit only covers
+classes we already know to look for, which is precisely why it is not a
+substitute for a round.
+
+**Order after axi4/axi5 converges: axil4, then axis4 + axis5.**
 
 ---
 
