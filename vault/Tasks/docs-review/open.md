@@ -1444,6 +1444,64 @@ USE_WDATA_ORDER_Q / NUM_BANKS (with the bank-sizing rule and the
 write-monitor elaboration error), the ID-range filter, and the CFI_*
 timer LUT -- all load-bearing, none previously in the docs.
 
+### axi4 + axi5 -- ARC REOPENED; rounds 28/29 were never logged (2026-09-01)
+
+The "ARC COMPLETE 2026-08-26" below stood while two more rounds ran, found a
+real RTL defect and 29 findings, got integrated, and were never written down.
+Rule 11 again, in its quietest form: the log said finished, the tree said
+otherwise, and nothing reconciled the two. Recording them now, with the state
+that measurement exposed.
+
+**qc round_28 (axi4, 3 parts) + round_29 (axi5, 3 parts), integrated
+`ae3029fa`.** Six units, all `finish=stop`, 29 findings, one real RTL defect
+-- and sweeping it found more than the reviewer saw. The reviewer cited
+`axi5_slave_wr_mon_cg` not forwarding the timer-calibration parameters; they
+were UNDECLARED on all twelve `_mon_cg` wrappers (ACLK_MHZ, CFI_MIN/MAX_FREQ_MHZ,
+USE_WDATA_ORDER_Q, NUM_BANKS), so a gated build could not state its clock and
+every microsecond timeout was miscalibrated off 100 MHz, silently; and a banked
+write monitor was unbuildable through a wrapper at all. Auditing the whole
+parameter surface rather than the cited one turned up a sixth,
+ADDR_RANGE_IS_ERROR on the four axi4 wrappers. Doc classes were swept, not
+patched at the citation: filter interface onto 12 pages, reserve 2->4 on 12,
+"3-level filtering hierarchy" in 11 files, cycles->microseconds in 16, phantom
+`cfg_cg_idle_threshold`/`cg_cycles_saved` ports off the axil4 `_cg` pages.
+
+**So the arc is NOT converged.** A round that returns a real RTL defect and 29
+findings is not a stopping point under the DOCREV-013 rule, and the 24 pages
+that round changed have not been voiced -- humanize round_8 predates them.
+
+**Two structural gaps found while measuring, both invisible to the pipeline
+by construction:**
+
+1. **`rtl-amba/overview.md` has never been reviewed, in twenty-nine rounds.**
+   The bundle carries only what a `_book_*_index` links, and no index links
+   the library overview. Every integration example on it was fiction: an
+   apb5 port that does not exist, the monitor reporting through per-metric
+   counter pins instead of the monbus, `axil4_master_rd` with the wrong
+   parameter prefix and a phantom `_axi_` infix, `axis5_master` wired with a
+   TKEEP that axis5 does not have, `gaxi_fifo_async` sized by ADDR_WIDTH and
+   clocked by `s_clk`/`m_clk`, `apb5_master_cg` with a scan-enable and a
+   gated-clock port, and two pipelines built on `axi5s_if`/`axi4s_if`
+   interfaces this library does not define. 40 undeclared names across the
+   four RTL books attributed to exactly two pages -- this one (34) and
+   `axis4/axis_master.md` (6). Fixed in `5c3daeb8`; all four books now report
+   zero. **The page a newcomer reads first is the page the process cannot
+   see.** Worth a checker gate rather than a memory.
+
+2. **`axi5/axi5_atomic_filter.md` was linked from nothing.** A real 6.5 KB
+   module with a full page, absent from `_book_axi5_index.md`, therefore
+   absent from the AXI5 PDF and from every review bundle ever built. Linked
+   now. Audited by hand against the RTL since no round has ever seen it:
+   ports, parameters, the `AWATOP[5]` discrimination, the W-stalls-until-AW
+   rule, DECERR-not-SLVERR, downstream-B-priority and the local-B pop guard
+   (`!m_bvalid && !w_resp_empty && s_bready`) all check out, and both cited
+   tests exist. The page was correct; its defect was invisibility. Swept the
+   same class across all four RTL books' indexes -- it is the only orphan.
+
+**qc round_30 (axi4 + axi5, 6 units) sent 2026-09-01** from a bundle rebuilt
+after `5c3daeb8`. Note for the round after: `axi5_atomic_filter.md` entered
+the index too late for round_30's bundle, so it still has no reviewed round.
+
 ### axi4 + axi5 -- ARC COMPLETE 2026-08-26 (first-ever reviews + double humanize)
 
 qc rounds 20-23: 74 -> 44 -> 24 -> class-closed (zero RTL findings after
