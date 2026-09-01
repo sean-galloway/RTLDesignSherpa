@@ -385,12 +385,14 @@ def test_axil5_write_master(request, addr_width, data_width, aw_depth, w_depth, 
         'SKID_DEPTH_B': str(b_depth),
         'AXIL_ADDR_WIDTH': str(addr_width),
         'AXIL_DATA_WIDTH': str(data_width),
-        # Calculated parameters
-        'AW': str(addr_width),
-        'DW': str(data_width),
-        'AWSize': str(aw_size),
-        'WSize': str(w_size),
-        'BSize': str(b_size),
+        # The DERIVED parameters (AW, DW, AWSize, WSize, BSize) are NOT
+        # overridden. The AXI4-Lite runner this was ported from passes them,
+        # which is harmless there because the values it computes match what
+        # the RTL derives. On AXI5-Lite they do not: BSize is 2 + USER + TRACE
+        # + LOOP = 10 with the groups on, and forcing it to the AXI4-Lite 2
+        # made every optional-group field a part-select past the end of a
+        # 2-bit vector ("Extracting 4 bits from only 2 bit number").
+        # Let the RTL derive them -- that is what a derived parameter is.
     }
 
     # Calculate timeout based on complexity
@@ -530,12 +532,14 @@ def test_axil5_write_master(request, addr_width, data_width, aw_depth, w_depth, 
         'SKID_DEPTH_B': str(b_depth),
         'AXIL_ADDR_WIDTH': str(addr_width),
         'AXIL_DATA_WIDTH': str(data_width),
-        # Calculated parameters
-        'AW': str(addr_width),
-        'DW': str(data_width),
-        'AWSize': str(aw_size),
-        'WSize': str(w_size),
-        'BSize': str(b_size),
+        # The DERIVED parameters (AW, DW, AWSize, WSize, BSize) are NOT
+        # overridden. The AXI4-Lite runner this was ported from passes them,
+        # which is harmless there because the values it computes match what
+        # the RTL derives. On AXI5-Lite they do not: BSize is 2 + USER + TRACE
+        # + LOOP = 10 with the groups on, and forcing it to the AXI4-Lite 2
+        # made every optional-group field a part-select past the end of a
+        # 2-bit vector ("Extracting 4 bits from only 2 bit number").
+        # Let the RTL derive them -- that is what a derived parameter is.
     }
 
     # Calculate timeout based on complexity

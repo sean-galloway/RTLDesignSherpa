@@ -300,11 +300,15 @@ def test_axil5_read_master(request, addr_width, data_width, ar_depth, r_depth, t
         'SKID_DEPTH_R': str(r_depth),
         'AXIL_ADDR_WIDTH': str(addr_width),
         'AXIL_DATA_WIDTH': str(data_width),
-        # Calculated parameters
-        'AW': str(addr_width),
-        'DW': str(data_width),
-        'ARSize': str(ar_size),
-        'RSize': str(r_size),
+        # The DERIVED parameters (AW, DW, ARSize, RSize) are NOT overridden.
+        # They match what the RTL derives for THIS test, because this one
+        # drives axil4_master_rd deliberately -- so the overrides were
+        # correct by coincidence rather than by construction. Repoint this at
+        # axil5_master_rd with the optional groups on and the same overrides
+        # would force ARSize to the AXI4-Lite value and every group field
+        # would part-select past the end of the vector, which is exactly what
+        # they did in test_axil5_master_wr. Overriding a derived parameter can
+        # only ever match or break; it can never help.
     }
 
     # Calculate timeout based on complexity
@@ -439,11 +443,15 @@ def test_axil5_read_master(request, addr_width, data_width, ar_depth, r_depth, t
         'SKID_DEPTH_R': str(r_depth),
         'AXIL_ADDR_WIDTH': str(addr_width),
         'AXIL_DATA_WIDTH': str(data_width),
-        # Calculated parameters
-        'AW': str(addr_width),
-        'DW': str(data_width),
-        'ARSize': str(ar_size),
-        'RSize': str(r_size),
+        # The DERIVED parameters (AW, DW, ARSize, RSize) are NOT overridden.
+        # They match what the RTL derives for THIS test, because this one
+        # drives axil4_master_rd deliberately -- so the overrides were
+        # correct by coincidence rather than by construction. Repoint this at
+        # axil5_master_rd with the optional groups on and the same overrides
+        # would force ARSize to the AXI4-Lite value and every group field
+        # would part-select past the end of the vector, which is exactly what
+        # they did in test_axil5_master_wr. Overriding a derived parameter can
+        # only ever match or break; it can never help.
     }
 
     # Calculate timeout based on complexity
