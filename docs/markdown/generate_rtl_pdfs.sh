@@ -160,6 +160,7 @@ amba_book axi4   "RTL AMBA AXI4"          RTL_AMBA_AXI4          axi4
 amba_book axil4  "RTL AMBA AXI4-Lite"     RTL_AMBA_AXI4_Lite     axil4
 amba_book axis4  "RTL AMBA AXI4-Stream"   RTL_AMBA_AXI4_Stream   axis4
 amba_book axi5   "RTL AMBA AXI5"          RTL_AMBA_AXI5          axi5
+amba_book axil5  "RTL AMBA AXI5-Lite"     RTL_AMBA_AXI5_Lite     axil5
 amba_book axis5  "RTL AMBA AXI5-Stream"   RTL_AMBA_AXI5_Stream   axis5
 amba_book shared "RTL AMBA Shared Infrastructure" RTL_AMBA_Shared  gaxi shared shims
 
