@@ -112,3 +112,46 @@ currently holds a **pre-kick-refactor** bitstream (8ch, all cones, 90 MHz).
 
 `vault/Tasks/projects/components/dmas/stream/open.md` — tally decompression
 (LOW priority; `comp_sram` unblocks compression testing without it).
+
+---
+
+## OPEN 2026-08-31: observer write-side histogram total counts 1:1 with beats
+
+Found while verifying the ext_char burst-count fix on silicon. The plumbing is
+fixed (counts are no longer zero); this is about what one of them MEANS.
+
+Board, `4desc_4ch_1MB` (16 MB), window = 1,048,616 cycles ≈ the run's 1,048,623:
+
+    rd: prod=524288  bp=521197  starv=3131  idle=0
+    wr: prod=524284  bp=0       starv=524332 idle=0
+
+    histogram TOTAL (metric 10):
+      rd hist_metric=0 -> 32766      rd hist_metric=1 -> 32766
+      wr hist_metric=0 -> 524284     wr hist_metric=1 -> 0   (write has one metric)
+
+**Read reconciles exactly.** 32,766 bursts x 16 beats = 524,256 ~= 524,288
+productive. And 524,288 beats x 32 B = 16 MB, so the observer tap is 256-bit
+wide even though `BUILD_CONFIG.DATA_WIDTH_B` reports the DMA beat as 16 B --
+consistent with the observer sitting on the wide side of a width converter.
+
+**Write does not.** 524,284 "bursts" for 524,284 productive beats is 1 beat per
+burst, against a host config of `axi_beats wr=16`.
+
+The cosim gets 16:1 on the same metric: obs_equiv reports `wr AW->B: total=128`
+for a 2048-beat workload. So sim and board disagree on what the write AW->B
+histogram total counts.
+
+Two candidates, neither guessed at here:
+  a) the write histogram total counts beats where the read one counts
+     transactions -- an asymmetry in the observer's histogram plumbing; or
+  b) the board really is issuing single-beat write bursts, which would be a
+     performance finding in its own right (though `wr bp=0` and 95% of peak
+     throughput argue against it).
+
+Cheapest discriminator: read the per-bin histogram (metric 9) on the write side.
+Bursts and beats populate different latency bins, so the shape says which.
+
+NOT chased further because the observers are NOT under suspicion -- one rename
+commit since the last known-good build, zero to the regblock, zero to
+axi_bus_meter, and every other counter reconciles. This is a semantics question
+about one metric, not evidence of observer breakage.
