@@ -230,10 +230,11 @@ apb5_master #(
     .m_apb_PREADY   (pready),
     // APB5 enhanced signals
     .m_apb_PWAKEUP  (pwakeup),
-    .m_apb_PNSE     (pnse),
     .m_apb_PAUSER   (pauser),
     .m_apb_PWUSER   (pwuser),
-    // ...
+    .m_apb_PRUSER   (pruser),
+    .m_apb_PBUSER   (pbuser)
+    // With ENABLE_PARITY=1 the six PxxxPARITY signals appear as well.
 );
 ```
 
@@ -289,10 +290,12 @@ axi5_master_rd_mon #(
     // FUB and AXI interfaces
     .fub_axi_ar*        (...),
     .m_axi_ar*          (...),
-    // Monitor bus output
-    .mon_valid          (rd_mon_valid),
-    .mon_ready          (rd_mon_ready),
-    .mon_data           (rd_mon_data)
+    // Monitor bus output -- a monbus packet, not a raw data word
+    .i_mon_time         (mon_time),       // free-running broadcast time
+    .monbus_valid       (rd_monbus_valid),
+    .monbus_ready       (rd_monbus_ready),
+    .monbus_packet      (rd_monbus_packet),
+    .monbus_timestamp   (rd_monbus_timestamp)
 );
 ```
 
@@ -321,18 +324,30 @@ The AXI4-Lite implementation provides simplified memory-mapped access optimized 
 axil4_master_rd #(
     .SKID_DEPTH_AR(2),
     .SKID_DEPTH_R(2),
-    .AXI_ADDR_WIDTH(32),
-    .AXI_DATA_WIDTH(32)
+    .AXIL_ADDR_WIDTH(32),
+    .AXIL_DATA_WIDTH(32)
 ) u_axil4_rd_master (
-    // Simplified interface - no burst, ID, or advanced features
-    .fub_axi_araddr    (araddr),
-    .fub_axi_arprot    (arprot),
-    .fub_axi_arvalid   (arvalid),
-    .fub_axi_arready   (arready),
-    .fub_axi_rdata     (rdata),
-    .fub_axi_rresp     (rresp),
-    .fub_axi_rvalid    (rvalid),
-    .fub_axi_rready    (rready)
+    .aclk              (clk),
+    .aresetn           (resetn),
+    // User side -- simplified: no burst, no ID, no advanced features
+    .fub_araddr        (araddr),
+    .fub_arprot        (arprot),
+    .fub_arvalid       (arvalid),
+    .fub_arready       (arready),
+    .fub_rdata         (rdata),
+    .fub_rresp         (rresp),
+    .fub_rvalid        (rvalid),
+    .fub_rready        (rready),
+    // AXI4-Lite side
+    .m_axil_araddr     (m_araddr),
+    .m_axil_arprot     (m_arprot),
+    .m_axil_arvalid    (m_arvalid),
+    .m_axil_arready    (m_arready),
+    .m_axil_rdata      (m_rdata),
+    .m_axil_rresp      (m_rresp),
+    .m_axil_rvalid     (m_rvalid),
+    .m_axil_rready     (m_rready),
+    .busy              (rd_busy)       // drives the _cg variant's gating
 );
 ```
 
@@ -359,29 +374,52 @@ The AXI-Stream implementation provides maximum throughput for streaming data app
 ```systemverilog
 // AXI5-Stream data processing pipeline
 axis5_master #(
-    .SKID_DEPTH_T(4),
+    .SKID_DEPTH(4),
     .AXIS_DATA_WIDTH(64),
-    .AXIS_ID_WIDTH(8)
+    .AXIS_ID_WIDTH(8),
+    .ENABLE_WAKEUP(1)
 ) u_axis5_master (
+    .aclk            (clk),
+    .aresetn         (resetn),
+    // User side
+    .fub_axis_tdata  (src_tdata),
+    .fub_axis_tstrb  (src_tstrb),
+    .fub_axis_tlast  (src_tlast),
+    .fub_axis_tid    (src_tid),
+    .fub_axis_tdest  (src_tdest),
+    .fub_axis_tuser  (src_tuser),
+    .fub_axis_tvalid (src_tvalid),
+    .fub_axis_tready (src_tready),
+    .fub_axis_twakeup(src_twakeup),
+    .fub_axis_tparity(src_tparity),
+    // Stream side. There is no TKEEP: byte qualification is TSTRB.
     .m_axis_tdata    (tdata),
     .m_axis_tstrb    (tstrb),
-    .m_axis_tkeep    (tkeep),
     .m_axis_tlast    (tlast),
     .m_axis_tid      (tid),
     .m_axis_tdest    (tdest),
     .m_axis_tuser    (tuser),
-    .m_axis_twakeup  (twakeup),  // AXI5 feature
+    .m_axis_twakeup  (twakeup),  // AXI5 feature, gated by ENABLE_WAKEUP
     .m_axis_tvalid   (tvalid),
     .m_axis_tready   (tready)
 );
 
-// Clock domain crossing FIFO
+// Clock domain crossing FIFO. Depth is a DEPTH parameter, not an address
+// width -- the pointer width is derived from it.
 gaxi_fifo_async #(
     .DATA_WIDTH(64),
-    .ADDR_WIDTH(4)
+    .DEPTH(16)
 ) u_cdc_fifo (
-    .s_axis_*(src_axis_*),
-    .m_axis_*(dst_axis_*)
+    .axi_wr_aclk    (src_clk),
+    .axi_wr_aresetn (src_resetn),
+    .axi_rd_aclk    (dst_clk),
+    .axi_rd_aresetn (dst_resetn),
+    .wr_valid       (src_tvalid),
+    .wr_ready       (src_tready),
+    .wr_data        (src_payload),
+    .rd_valid       (dst_tvalid),
+    .rd_ready       (dst_tready),
+    .rd_data        (dst_payload)
 );
 ```
 
@@ -406,10 +444,14 @@ apb5_master_cg #(
     .ADDR_WIDTH(32),
     .DATA_WIDTH(32)
 ) u_apb5_master_cg (
-    .m_apb_*(apb_signals),
-    .cg_enable      (apb_active),
-    .cg_test_enable (scan_test_mode),
-    .gated_clk      (apb_gated_clk)
+    .pclk              (pclk),
+    .presetn           (presetn),
+    .m_apb_*           (apb_signals),
+    // Config in, status out. The gated clock is generated INSIDE the
+    // wrapper; it is not a port, and there is no scan-enable port here.
+    .cfg_cg_enable     (apb_active),
+    .cfg_cg_idle_count (4'd8),
+    .apb_clock_gating  (apb_is_gated)
 );
 ```
 
@@ -431,14 +473,23 @@ axi5_master_rd_mon u_master (...);  // Monitor built-in
 
 // Or standalone monitor
 axi_monitor_base #(
-    .AXI_DATA_WIDTH(32),
-    .AXI_ID_WIDTH(8)
+    .ADDR_WIDTH(32),
+    .ID_WIDTH(8),
+    .IS_READ(1'b1),
+    .IS_AXI(1'b1)
 ) u_monitor (
-    .axi_*(shared_axi_signals),
-    .transaction_count   (trans_count),
-    .bandwidth_utilization (bandwidth),
-    .protocol_violations (violations),
-    .timeout_events     (timeouts)
+    .aclk           (clk),
+    .aresetn        (resetn),
+    .axi_*          (shared_axi_signals),
+    // The monitor reports through the monbus, not through per-metric
+    // counter ports. Errors, timeouts and completions are PACKETS.
+    .i_mon_time     (mon_time),
+    .monbus_valid   (monbus_valid),
+    .monbus_ready   (monbus_ready),
+    .monbus_packet  (monbus_packet),
+    // Status pins, for CSRs and for driving a clock-gate
+    .busy           (mon_busy),
+    .active_count   (mon_active_count)
 );
 ```
 
@@ -467,10 +518,24 @@ module mixed_amba_system (
     axi5_master_rd_mon u_cpu_rd_master (...);
     axi5_master_wr_mon u_cpu_wr_master (...);
 
-    // Bridge to AMBA 4 subsystem
+    // Bridge to the AMBA 4 subsystem. Two things to know before you wire
+    // this up. Its AXI side is PACKED -- one _pkt bus per channel, not
+    // per-signal -- and its APB side is a command/response stream, not APB
+    // pins. An apb4_master downstream turns that stream into PSEL/PENABLE.
+    // The module lives in projects/components/converters, not rtl/amba.
     axi4_to_apb4_convert u_bridge (
-        .s_axi  (cpu_axi),
-        .m_apb  (periph_apb)
+        .aclk            (clk),
+        .aresetn         (rst_n),
+        .r_s_axi_aw_pkt  (cpu_aw_pkt),
+        .r_s_axi_awvalid (cpu_awvalid),
+        .w_s_axi_awready (cpu_awready),
+        // ... W, B, AR, R channels follow the same _pkt shape ...
+        .w_cmd_valid     (apb_cmd_valid),
+        .r_cmd_ready     (apb_cmd_ready),
+        .r_cmd_data      (apb_cmd_data),
+        .r_rsp_valid     (apb_rsp_valid),
+        .w_rsp_ready     (apb_rsp_ready),
+        .r_rsp_data      (apb_rsp_data)
     );
 
     // Legacy AMBA 4 peripherals
@@ -491,14 +556,14 @@ module multi_clock_system (
     // CPU domain (high frequency) - AXI5
     axi5_master_rd_cg u_cpu_master (
         .aclk(cpu_clk),
-        .cg_enable(cpu_active),
+        .cfg_cg_enable(cpu_active),
         .*
     );
 
-    // Clock domain crossing
+    // Clock domain crossing. Both sides name their own clock and reset.
     gaxi_fifo_async u_cpu_to_ddr_cdc (
-        .s_clk(cpu_clk),
-        .m_clk(ddr_clk),
+        .axi_wr_aclk(cpu_clk),
+        .axi_rd_aclk(ddr_clk),
         .*
     );
 
@@ -521,33 +586,60 @@ endmodule
 ### 3. Streaming Data Pipeline
 
 ```systemverilog
-// High-throughput streaming processor with AXI5-Stream
+// High-throughput streaming processor with AXI5-Stream.
+//
+// This library has no SystemVerilog interface for AXI-Stream -- every port
+// is an expanded signal. Two naming traps live in this one example:
+//
+//   * the axis5 _cg wrappers use fub_axis5_* / m_axis5_* and i_cg_enable,
+//     while the modules they wrap use fub_axis_* / m_axis_* / s_axis_* and
+//     the rest of the AMBA family uses cfg_cg_enable;
+//   * byte qualification is TSTRB. There is no TKEEP anywhere in axis5.
+//
 module stream_processor (
     input logic clk, rst_n,
-    axi5s_if.slave  s_axis,
-    axi5s_if.master m_axis
+    input  logic [63:0] s_tdata, input logic [7:0] s_tstrb,
+    input  logic        s_tlast, s_tvalid, output logic s_tready,
+    output logic [63:0] m_tdata, output logic [7:0] m_tstrb,
+    output logic        m_tlast, m_tvalid, input  logic m_tready
 );
 
-    axi5s_if stage1_axis();
-    axi5s_if stage2_axis();
-
     // Input buffering with clock gating
-    axis5_master_cg u_input_stage (
-        .cg_enable(input_active),
-        .s_axis(s_axis),
-        .m_axis(stage1_axis)
+    axis5_master_cg #(.AXIS_DATA_WIDTH(64)) u_input_stage (
+        .aclk               (clk),
+        .aresetn            (rst_n),
+        .i_cg_enable        (input_active),
+        .i_cg_idle_count    (4'd8),
+        .fub_axis5_tdata    (s_tdata),
+        .fub_axis5_tstrb    (s_tstrb),
+        .fub_axis5_tlast    (s_tlast),
+        .fub_axis5_tvalid   (s_tvalid),
+        .fub_axis5_tready   (s_tready),
+        .m_axis5_tdata      (stage1_tdata),
+        .m_axis5_tstrb      (stage1_tstrb),
+        .m_axis5_tlast      (stage1_tlast),
+        .m_axis5_tvalid     (stage1_tvalid),
+        .m_axis5_tready     (stage1_tready)
+        // tid, tdest, tuser, twakeup and tparity elided
     );
 
-    // Processing pipeline
-    stream_processing_core u_processor (
-        .s_axis(stage1_axis),
-        .m_axis(stage2_axis)
-    );
+    // Processing pipeline (your logic, on the same expanded signals)
+    stream_processing_core u_processor (...);
 
     // Output buffering
-    axis5_slave u_output_stage (
-        .s_axis(stage2_axis),
-        .m_axis(m_axis)
+    axis5_slave #(.AXIS_DATA_WIDTH(64)) u_output_stage (
+        .aclk               (clk),
+        .aresetn            (rst_n),
+        .s_axis_tdata       (stage2_tdata),
+        .s_axis_tstrb       (stage2_tstrb),
+        .s_axis_tlast       (stage2_tlast),
+        .s_axis_tvalid      (stage2_tvalid),
+        .s_axis_tready      (stage2_tready),
+        .fub_axis_tdata     (m_tdata),
+        .fub_axis_tstrb     (m_tstrb),
+        .fub_axis_tlast     (m_tlast),
+        .fub_axis_tvalid    (m_tvalid),
+        .fub_axis_tready    (m_tready)
     );
 
 endmodule

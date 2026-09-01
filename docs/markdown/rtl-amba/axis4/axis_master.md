@@ -460,13 +460,17 @@ module axis_cdc_system (
         .DEPTH(64),                        // 64 entries
         .DATA_WIDTH(32 + 4 + 1 + 4 + 4 + 1)  // DW=32, SW=4, TLAST, TID=4, TDEST=4, TUSER=1
     ) u_cdc_fifo (
-        .wr_clk(src_clk),
-        .wr_resetn(src_resetn),
-        .wr_axis(cdc_src_axis),
+        .axi_wr_aclk(src_clk),
+        .axi_wr_aresetn(src_resetn),
+        .wr_valid(cdc_src_tvalid),
+        .wr_ready(cdc_src_tready),
+        .wr_data(cdc_src_packed),      // the packed TSize word, not a bundle
 
-        .rd_clk(dst_clk),
-        .rd_resetn(dst_resetn),
-        .rd_axis(dst_axis)
+        .axi_rd_aclk(dst_clk),
+        .axi_rd_aresetn(dst_resetn),
+        .rd_valid(dst_tvalid),
+        .rd_ready(dst_tready),
+        .rd_data(dst_packed)
     );
 
 endmodule
