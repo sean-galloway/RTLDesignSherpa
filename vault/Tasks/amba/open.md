@@ -335,9 +335,32 @@ consumes it -- if it is only the packet payload and the address filter compare,
 the entry may be able to hold fewer significant bits, or the filter verdict
 alone (`filtered_mask` already latches per entry).
 
-### 4. THE CROSS-BANK ALLOCATION CONE -- timing, not area
+### 4. THE CROSS-BANK ALLOCATION CONE -- DONE, and CLOSED as a timing driver
 
-Separate from storage, and it is what the board build is actually failing on:
+**Decision 2026-08-31 (Sean): "don't sweat stream timing; we can lower the
+frequency."** That is the recorded design point for this board -- 8 channels
+and AR/AW=8 are REQUIREMENTS, frequency is the knob -- so the Genesys2
+`build-mon` setup failure is NOT a justification for further monitor work.
+Do not reopen this item on timing grounds.
+
+What landed anyway, because it was free: `6617b0d2` reduces the hit_any cones
+per bank before combining them. Bit-identical (OR is associative), but only
+NUM_BANKS wires cross the fabric instead of N. Kept because it is strictly
+better structure at zero behavioural risk, not because timing demanded it.
+
+Two levers deliberately NOT taken, and they stay not-taken:
+
+* Selecting `wb_addr_pend_any[bank_of(cmd_id)]` -- narrower, but it makes
+  correctness depend on the same-ID-stays-in-one-bank invariant holding at
+  RUNTIME rather than structurally. Not worth it for a frequency we can lower.
+* Making `w_cmd_headroom` per-bank -- that changes admission semantics, not
+  just timing.
+
+**So the remaining value in this task is AREA, not speed.** Item 1 (the
+write-only timers) is the whole point: 96 bits x N of dead registers. Judge
+any future work here on flops removed at unchanged behaviour, and ignore WNS.
+
+The original description follows, for the record:
 
     assign addr_hit_any     = |w_addr_pend_oh;                   // OR over ALL N slots
     assign w_cmd_headroom   = w_cmd_entry_count < (N - RESERVE); // count over ALL N
