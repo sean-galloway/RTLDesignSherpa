@@ -5,8 +5,8 @@
 - [AXI4 (Advanced eXtensible Interface) Modules](axi4/README.md)
 - [AXI4 Clock-Gated Variants Guide](axi4/axi4_clock_gating_guide.md)
 - [AXI4 Data Width Converter (Bidirectional)](axi4/axi4_dwidth_converter.md)
-- [AXI4 Read Data Width Converter](axi4/axi4_dwidth_converter_rd.md)
-- [AXI4 Write Data Width Converter](axi4/axi4_dwidth_converter_wr.md)
+- [AXI4 Read Data Width Converter](../../../projects/components/converters/docs/converter_mas/ch02_width_blocks/06_dwidth_converter_rd.md) — owned by the converters component
+- [AXI4 Write Data Width Converter](../../../projects/components/converters/docs/converter_mas/ch02_width_blocks/05_dwidth_converter_wr.md) — owned by the converters component
 - [axi4_master_rd](axi4/axi4_master_rd.md)
 - [AXI4 Master Read Interface (Clock-Gated)](axi4/axi4_master_rd_cg.md)
 - [AXI4 Master Read Monitor](axi4/axi4_master_rd_mon.md)

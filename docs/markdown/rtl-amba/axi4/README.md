@@ -68,8 +68,8 @@ The AXI4 subsystem is a complete implementation of the ARM AMBA AXI4 protocol: m
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
 | **axi4_dwidth_converter** | Bidirectional data width conversion | [axi4_dwidth_converter.md](axi4_dwidth_converter.md) | Planned - no RTL |
-| **axi4_dwidth_converter_rd** | Read-only data width conversion | [axi4_dwidth_converter_rd.md](axi4_dwidth_converter_rd.md) | Documented |
-| **axi4_dwidth_converter_wr** | Write-only data width conversion | [axi4_dwidth_converter_wr.md](axi4_dwidth_converter_wr.md) | Documented |
+| **axi4_dwidth_converter_rd** | Read-only data width conversion | [converters MAS 2.6](../../../../projects/components/converters/docs/converter_mas/ch02_width_blocks/06_dwidth_converter_rd.md) | Not in rtl/amba — converters component |
+| **axi4_dwidth_converter_wr** | Write-only data width conversion | [converters MAS 2.5](../../../../projects/components/converters/docs/converter_mas/ch02_width_blocks/05_dwidth_converter_wr.md) | Not in rtl/amba — converters component |
 
 The converters live in `projects/components/converters/rtl/`, not `rtl/amba/axi4/`.
 

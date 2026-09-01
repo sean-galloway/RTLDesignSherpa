@@ -27,6 +27,13 @@
 **Location:** Not implemented
 **Status:** Planned - no RTL in this repository
 
+The read-only and write-only converters DO exist, but they belong to the
+converters component, not to `rtl/amba/axi4`, and they are documented in
+its micro-architecture spec:
+[`axi4_dwidth_converter_rd`](../../../../projects/components/converters/docs/converter_mas/ch02_width_blocks/06_dwidth_converter_rd.md) and [`axi4_dwidth_converter_wr`](../../../../projects/components/converters/docs/converter_mas/ch02_width_blocks/05_dwidth_converter_wr.md).
+This book carried a second copy of both until 2026-08-31; a module's docs
+live with the component that owns the module.
+
 ---
 
 ## Overview
@@ -39,8 +46,8 @@
 > `projects/components/converters/rtl/`, which use `SKID_DEPTH_*` skid buffers
 > rather than channel FIFOs:
 >
-> - [axi4_dwidth_converter_rd](axi4_dwidth_converter_rd.md)
-> - [axi4_dwidth_converter_wr](axi4_dwidth_converter_wr.md)
+> - [axi4_dwidth_converter_rd](../../../../projects/components/converters/docs/converter_mas/ch02_width_blocks/06_dwidth_converter_rd.md)
+> - [axi4_dwidth_converter_wr](../../../../projects/components/converters/docs/converter_mas/ch02_width_blocks/05_dwidth_converter_wr.md)
 >
 > Instantiate a `_rd` and a `_wr` converter side by side to obtain
 > full-duplex width conversion.
@@ -508,8 +515,8 @@ Master: AWLEN=15, AWSIZE=2 (4 bytes)  → 16 beats × 4 bytes = 64 bytes
 ## Related Modules
 
 ### Specialized Converters
-- **[axi4_dwidth_converter_rd](axi4_dwidth_converter_rd.md)** - Read-only data width conversion
-- **[axi4_dwidth_converter_wr](axi4_dwidth_converter_wr.md)** - Write-only data width conversion
+- **[axi4_dwidth_converter_rd](../../../../projects/components/converters/docs/converter_mas/ch02_width_blocks/06_dwidth_converter_rd.md)** - Read-only data width conversion
+- **[axi4_dwidth_converter_wr](../../../../projects/components/converters/docs/converter_mas/ch02_width_blocks/05_dwidth_converter_wr.md)** - Write-only data width conversion
 
 ### Core Modules
 - **[axi4_master_rd](axi4_master_rd.md)** - AXI4 read master

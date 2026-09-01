@@ -93,8 +93,8 @@ Main AXI4 master/slave interfaces.
 | axi4/axi4_slave_rd.md | axi4_slave_rd | Medium | [x] Done |
 | axi4/axi4_slave_wr.md | axi4_slave_wr | Medium | [x] Done |
 | axi4/axi4_dwidth_converter.md | axi4_dwidth_converter | High | [x] Done |
-| axi4/axi4_dwidth_converter_rd.md | axi4_dwidth_converter_rd | High | [x] Done |
-| axi4/axi4_dwidth_converter_wr.md | axi4_dwidth_converter_wr | High | [x] Done |
+| ~~axi4/axi4_dwidth_converter_rd.md~~ | axi4_dwidth_converter_rd | — | Page RETIRED 2026-08-31; module is the converters component's, documented in its MAS |
+| ~~axi4/axi4_dwidth_converter_wr.md~~ | axi4_dwidth_converter_wr | — | Page RETIRED 2026-08-31; module is the converters component's, documented in its MAS |
 
 ### Phase 4: AXI4 Monitors (4 files) - MEDIUM PRIORITY
 
