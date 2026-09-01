@@ -23,6 +23,17 @@ import os
 
 OBS_APB_BASE = 0x0019_0000     # obs_apb slave, bridge_stream_mon_axil.toml
 
+# The harness has TWO observers, each with its own obs_regs_top instance behind
+# its own APB window: the MASTER-role observer on STREAM's own port (above), and
+# the SLAVE-role observer on the DMA slaves' port (below). Same register map,
+# different base -- so both are addressed with O(name, base=...).
+#
+# This base used to live in slvmon_device, which describes the RETIRED
+# dma_slave_monitors regblock. host_reg_walk was its last consumer, so the base
+# lived in a module nobody could delete without breaking the walk. It belongs
+# here, with the block it actually addresses. (STREAM TASK-073.)
+SLAVE_OBS_APB_BASE = 0x0018_0000   # slvmon_apb slave -> u_slave_observer
+
 _REGS = None
 
 

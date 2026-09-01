@@ -19,7 +19,7 @@ Endpoints (bases owned by the address modules, never re-typed here):
 
     stream_apb   STREAM functional + MON regfile   stream_addrs.STREAM_APB_BASE
     harness_csr  char-harness CSRs                 harness_addrs.HARNESS_CSR_BASE
-    slvmon_apb   dma_slave_monitors regblock       slvmon_device.SLVMON_APB_BASE
+    slvmon_apb   slave-role observer (obs_regs)   obs_addrs.SLAVE_OBS_APB_BASE
     obs_apb      axi4_intf_master_observer regblock       obs_addrs.OBS_APB_BASE
 
 The last two are why this exists. Until the declaration-order fix they were
@@ -63,7 +63,6 @@ def _endpoints():
     """(key, label, regmap path, base) -- bases come from the address modules."""
     import stream_addrs
     import harness_addrs
-    import slvmon_device
     import obs_addrs
 
     return [
@@ -73,10 +72,22 @@ def _endpoints():
         ("harness", "harness_csr",
          os.path.join(REPO, "projects/fpga-systems/Genesys2/stream/rtl/harness_csr_regmap.py"),
          harness_addrs.HARNESS_CSR_BASE),
-        ("slvmon", "slvmon_apb  dma_slave_monitors",
-         slvmon_device._default_regmap(),
-         slvmon_device.SLVMON_APB_BASE),
-        ("obs", "obs_apb     axi4_intf_master_observer",
+        # slvmon_apb @ 0x180000 is the SLAVE-ROLE OBSERVER, not dma_slave_monitors.
+        # stream_harness.sv:452 routes it to u_slave_observer, and
+        # axi4_intf_slave_observer.sv instantiates obs_regs_top -- the SAME
+        # regblock the master observer has at 0x190000. Two instances, one map,
+        # two bases.
+        #
+        # This walked it with slvmon_device's map, which describes the retired
+        # dma_slave_monitors regblock. The two are unrelated at the same offsets:
+        # at 0x024 obs_regs has AXIS_MASK1 where slvmon_regs had
+        # RDSLV_ADDR_RANGE_HIGH. So a walk -- or any configuration written
+        # through this window -- touched the wrong fields and nothing complained.
+        # (STREAM TASK-073.)
+        ("slvmon", "slvmon_apb  axi4_intf_slave_observer (obs_regs)",
+         obs_addrs._regmap_path(),
+         obs_addrs.SLAVE_OBS_APB_BASE),
+        ("obs", "obs_apb     axi4_intf_master_observer (obs_regs)",
          obs_addrs._regmap_path(),
          obs_addrs.OBS_APB_BASE),
     ]
