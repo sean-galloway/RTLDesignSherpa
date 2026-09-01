@@ -56,6 +56,17 @@ class AXIL4SlaveReadTB(TBBase):
     without the complexity of burst transactions or ID management.
     """
 
+    # Which component family this TB drives. AXI5-Lite is AXI4-Lite plus
+    # optional signal groups, so an AXIL5 TB is this TB with the factories
+    # swapped -- see the matching AXIL5 class. Overriding here rather than
+    # copying the file keeps ONE definition of the traffic, the checks and the
+    # randomizers, so a fix to the AXI4-Lite flow cannot silently miss the
+    # AXI5-Lite one.
+    SLAVE_RD_FACTORY = staticmethod(create_axil4_slave_rd)
+    MASTER_RD_FACTORY = staticmethod(create_axil4_master_rd)
+    # Extra kwargs handed to both factories (AXI5-Lite optional groups).
+    COMPONENT_KWARGS = {}
+
     def __init__(self, dut, aclk=None, aresetn=None):
         super().__init__(dut)
 
@@ -109,7 +120,7 @@ class AXIL4SlaveReadTB(TBBase):
 
         # Create AXIL4 slave (AR + R channels) - DUT side
         try:
-            self.slave_components = create_axil4_slave_rd(
+            self.slave_components = self.SLAVE_RD_FACTORY(
                 dut=dut,
                 clock=self.aclk,
                 prefix='fub_',  # Slave backend interface
@@ -117,7 +128,8 @@ class AXIL4SlaveReadTB(TBBase):
                 addr_width=self.TEST_ADDR_WIDTH,
                 data_width=self.TEST_DATA_WIDTH,
                 memory_model=self.memory_model,
-                multi_sig=self.use_multi_sig
+                multi_sig=self.use_multi_sig,
+                **self.COMPONENT_KWARGS
             )
 
             # Access individual components
@@ -132,14 +144,15 @@ class AXIL4SlaveReadTB(TBBase):
 
         # Create AXIL4 master to generate test transactions
         try:
-            self.master_components = create_axil4_master_rd(
+            self.master_components = self.MASTER_RD_FACTORY(
                 dut=dut,
                 clock=self.aclk,
                 prefix='s_axil_',  # Master interface to slave
                 log=self.log,
                 addr_width=self.TEST_ADDR_WIDTH,
                 data_width=self.TEST_DATA_WIDTH,
-                multi_sig=True  # Use multi_sig for test master
+                multi_sig=True,  # Use multi_sig for test master
+                **self.COMPONENT_KWARGS
             )
 
             # Access individual components

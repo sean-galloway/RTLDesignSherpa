@@ -1710,14 +1710,24 @@ then axis4 + axis5 as a batch.** One round per family with all its members in
 it, the way rounds 30/31 sent axi4 and axi5 together, rather than the
 one-book-per-round shape of 28/29.
 
-One wrinkle on the AXI-Lite batch: **there is no axil5 book, because there is
-no axil5 IP.** `rtl/amba/axil5/` holds exactly one file --
-`test-modules/axil5_opt_slave.sv`, whose own filelist header says "TEST
-COLLATERAL ... exists so the AXI5-Lite BFMs have a DUT whose ports actually
-carry USER/TRACE/LOOP/MPAM/MECID/NSAID/POISON/LOCK; do not instantiate it in
-a design." It is driven by `val/amba/test_axil5_opt_signals.py` and nothing
-else. So the AXI-Lite batch is `axil4` alone (18 pages, 16 modules), and the
-empty-looking directory is not a gap to fill.
+One wrinkle on the AXI-Lite batch, and it is now OUT OF DATE -- corrected
+below rather than deleted, because the reasoning was right at the time and the
+way it went stale is the useful part.
+
+*What this said (2026-09-01, morning):* there is no axil5 book because there
+is no axil5 IP -- `rtl/amba/axil5/` held exactly one file,
+`test-modules/axil5_opt_slave.sv`, labelled TEST COLLATERAL by its own
+filelist header. So the AXI-Lite batch was axil4 alone.
+
+*What changed the same afternoon:* the axil5 family was BUILT -- sixteen
+modules mirroring axil4 one for one, commits 4de615c1 / e8a8473e / 54792f17 /
+f01d5380. The premise of the note was retired by the work recorded three
+sections down, and nobody reconciled the two. Sean corrected it.
+
+**So the AXI-Lite batch is axil4 AND axil5, as originally set.** The blocker
+is documentation, not IP: axil5 has no doc directory and no `_book_axil5_index`,
+so the review bundler has nothing to carry. axil4 has 18 pages. Writing the
+axil5 book is a PREREQUISITE for the batch, not a follow-on.
 
 The axis batch is genuinely two books: `axis4` (6 pages) and `axis5` (5).
 

@@ -46,6 +46,17 @@ from TBClasses.monbus.monbus_slave import MonbusSlave
 class AXIL4SlaveMonitorTB(TBBase):
     """Reusable testbench for AXIL4 Slave with Monitor integration testing"""
 
+    # Factory hooks, matching the four non-monitor AXIL4 TBs. AXI5-Lite is
+    # AXI4-Lite plus optional signal groups, so an AXIL5 monitor TB is this one
+    # with the factories swapped and COMPONENT_KWARGS carrying the groups --
+    # see the matching AXIL5 class. One definition of the monitor traffic and
+    # its checks, so a fix here cannot miss the AXI5-Lite flow.
+    MASTER_WR_FACTORY = staticmethod(create_axil4_master_wr)
+    MASTER_RD_FACTORY = staticmethod(create_axil4_master_rd)
+    SLAVE_WR_FACTORY = staticmethod(create_axil4_slave_wr)
+    SLAVE_RD_FACTORY = staticmethod(create_axil4_slave_rd)
+    COMPONENT_KWARGS = {}
+
     TEST_CLK_PERIOD = 10  # ns
     TEST_ADDR_WIDTH = 32
     TEST_DATA_WIDTH = 32
@@ -95,24 +106,26 @@ class AXIL4SlaveMonitorTB(TBBase):
         # Create AXIL4 master to drive s_axil_* interface (input to slave monitor)
         try:
             if self.is_write:
-                self.master_components = create_axil4_master_wr(
+                self.master_components = self.MASTER_WR_FACTORY(
                     dut=self.dut,
                     clock=self.aclk,
                     prefix='s_axil_',
                     log=self.log,
                     addr_width=self.TEST_ADDR_WIDTH,
                     data_width=self.TEST_DATA_WIDTH,
-                    multi_sig=True
+                    multi_sig=True,
+                    **self.COMPONENT_KWARGS
                 )
             else:
-                self.master_components = create_axil4_master_rd(
+                self.master_components = self.MASTER_RD_FACTORY(
                     dut=self.dut,
                     clock=self.aclk,
                     prefix='s_axil_',
                     log=self.log,
                     addr_width=self.TEST_ADDR_WIDTH,
                     data_width=self.TEST_DATA_WIDTH,
-                    multi_sig=True
+                    multi_sig=True,
+                    **self.COMPONENT_KWARGS
                 )
             self.log.info("AXIL4 Master components created")
         except Exception as e:
@@ -122,7 +135,7 @@ class AXIL4SlaveMonitorTB(TBBase):
         # Create AXIL4 slave on fub_axil_* interface (monitor output to backend)
         try:
             if self.is_write:
-                self.slave_components = create_axil4_slave_wr(
+                self.slave_components = self.SLAVE_WR_FACTORY(
                     dut=self.dut,
                     clock=self.aclk,
                     prefix='fub_axil_',
@@ -130,10 +143,11 @@ class AXIL4SlaveMonitorTB(TBBase):
                     addr_width=self.TEST_ADDR_WIDTH,
                     data_width=self.TEST_DATA_WIDTH,
                     memory_model=self.memory_model,
-                    multi_sig=True
+                    multi_sig=True,
+                    **self.COMPONENT_KWARGS
                 )
             else:
-                self.slave_components = create_axil4_slave_rd(
+                self.slave_components = self.SLAVE_RD_FACTORY(
                     dut=self.dut,
                     clock=self.aclk,
                     prefix='fub_axil_',
@@ -141,7 +155,8 @@ class AXIL4SlaveMonitorTB(TBBase):
                     addr_width=self.TEST_ADDR_WIDTH,
                     data_width=self.TEST_DATA_WIDTH,
                     memory_model=self.memory_model,
-                    multi_sig=True
+                    multi_sig=True,
+                    **self.COMPONENT_KWARGS
                 )
             self.log.info("AXIL4 Slave components created")
         except Exception as e:
