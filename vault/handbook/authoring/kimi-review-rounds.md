@@ -178,6 +178,31 @@ Each one is here because ignoring it cost real work.
    reviewer did NOT even file as a finding still hid nine instances -- so
    sweep the observations too, not just the findings.
 
+   **PRE-AUDIT YOUR OWN LAST INTEGRATION BEFORE THE NEXT ROUND, and measure
+   what it buys.** If roughly half a confirmation round is your own work
+   coming back, that half is recoverable for free: re-run every class you
+   claimed to sweep, against the tree, before you send.
+
+   *Measured (2026-09-01, axi4/axi5): the pre-audit before round_30 found
+   twelve `_cg` pages missing the six parameters I had threaded through their
+   RTL two commits earlier -- I had documented the `_mon` pages and skipped
+   the `_mon_cg` pages for the modules I had actually changed. Round_30 then
+   filed four findings for exactly that, all already fixed when it returned,
+   and spent the rest of its budget on things I had not found: two phantom
+   detections, a synthesis-cone claim inverted on five pages, and a named
+   formal property that existed on four pages of the twelve claiming it. The
+   pre-audit before round_31 came back clean on all nine classes -- which is
+   the signal that the integration was real, obtainable in minutes rather
+   than in a 137-minute round.*
+
+   The trap inside the trap: **a pre-audit re-run with the same strings finds
+   nothing and proves nothing.** The `ENABLE_PERF_LOGIC` class was swept on
+   five pages, and four MORE instances survived on a neighbouring book because
+   they said "drops the whole block at synthesis" where the sweep had matched
+   "Drop the perfmon window + counters". Search the loose concept in a script
+   and read every hit; a grep built from the fix you just made is a grep for
+   the fix you just made.
+
    Corollary for the sweep: search the loose concept across ALL THREE
    surfaces -- the RTL comment, the module page, and sibling pages -- because
    docs get rewritten FROM the RTL comment, so leaving the comment reseeds the
@@ -236,6 +261,32 @@ Each one is here because ignoring it cost real work.
      pointer.*
 
    The authority on where each kind of doc lives is [[doc-placement]].
+
+   **And audit which books have EVER had a round, by listing the round
+   directories.** A book with no round of its own does not look unreviewed --
+   it looks like a book with an active review, because findings about it keep
+   arriving and keep getting fixed. They arrive incidentally: a neighbouring
+   book's bundle carries shared RTL, the reviewer trips over the untouched
+   book's claims while checking it, and you fix them one at a time forever.
+
+   *Case (2026-09-01): after 30 qc rounds, `axil4`, `axis4` and `axis5` had
+   never been reviewed. `axil4` is 18 pages and 16 modules -- the
+   third-largest amba book -- and round_30 alone produced four axil4 findings
+   as a side effect of reviewing axi4 and axi5. It had been edited in four
+   commits that same session before anyone asked whether it had ever been the
+   subject of a round. The check is one command:*
+
+       ls <results>/qc-*/round_*/*.md | xargs -n1 basename \
+         | sed 's/_part_[0-9]*\.md//; s/\.md//' | sort -u
+
+   *Compare that list against the bundle's book list. The vault's own "what
+   comes next" note had gone stale in the direction that hides this: it named
+   seven unreviewed books, five had since been reviewed, and the two entries
+   still true read as stale along with the rest.*
+
+   A hand audit against the already-known classes closes some of the gap and
+   is worth doing while a round runs -- but only some. It finds what you
+   already know to look for, which is the definition of not being a round.
 
 10. **Filter false positives with a second model, then TUNE IT against human
     triage before trusting it.** Hand triage is the expensive place to catch
