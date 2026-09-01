@@ -109,6 +109,58 @@ async def atomic_filter_test(dut):
 
     await ClockCycles(dut.aclk, 50)
 
+    # ---------------------------------------------------------------------
+    # B-channel payload stability under a stalled BVALID (qc round_31).
+    #
+    # The filter presents either a downstream B or a locally generated DECERR
+    # on one set of s_b* wires. Before the selection hold, the mux was driven
+    # combinationally by m_bvalid: a DECERR held under s_bready=0 had its
+    # payload REPLACED the instant a downstream B arrived, so s_bid/s_bresp
+    # changed while s_bvalid stayed high. No beat was lost, but that is the
+    # AXI stability rule broken on the response channel, and a master is
+    # entitled to sample BRESP on any cycle.
+    #
+    # The traffic above cannot reach this: it holds s_bready high throughout,
+    # so no beat is ever presented-and-unaccepted. This phase stalls the
+    # master deliberately, which is the only way the window opens.
+    # ---------------------------------------------------------------------
+    dut.s_bready.value = 0
+    await ClockCycles(dut.aclk, 2)
+
+    # Queue a local DECERR by swallowing a load-class atomic.
+    await _send_write(dut, 0x7, ATOP_LOAD, 1)
+
+    # Wait for it to be presented while the master stalls.
+    for _ in range(50):
+        await RisingEdge(dut.aclk)
+        if int(dut.s_bvalid.value):
+            break
+    assert int(dut.s_bvalid.value), "no B presented to stall on"
+
+    held = (int(dut.s_bid.value), int(dut.s_bresp.value))
+
+    # Now make a downstream B available underneath the held beat. If the mux
+    # is combinational this switches s_bid/s_bresp mid-valid.
+    dut.m_bid.value = 0xE
+    dut.m_bresp.value = 0            # OKAY, distinct from the held DECERR
+    dut.m_bvalid.value = 1
+
+    for cycle in range(8):
+        await RisingEdge(dut.aclk)
+        assert int(dut.s_bvalid.value), "s_bvalid dropped without a handshake"
+        now = (int(dut.s_bid.value), int(dut.s_bresp.value))
+        assert now == held, (
+            f"B payload changed under a held VALID at cycle {cycle}: "
+            f"{held} -> {now}. BID/BRESP must be stable from BVALID until "
+            f"BREADY."
+        )
+
+    # Release: the held beat completes, then the downstream one follows.
+    dut.s_bready.value = 1
+    await ClockCycles(dut.aclk, 10)
+    dut.m_bvalid.value = 0
+    await ClockCycles(dut.aclk, 5)
+
     assert fwd_aw == [0x1, 0x2, 0x5], (
         f"forwarded AW set wrong: {[hex(x) for x in fwd_aw]}")
     assert len(b_seen) == 6, f"expected 6 B responses, saw {b_seen}"

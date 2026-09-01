@@ -112,10 +112,46 @@ module axi5_atomic_filter #(
     // -----------------------------------------------------------------
     // B path. Downstream first; local DECERR when downstream is idle.
     // -----------------------------------------------------------------
+    // The SOURCE is latched once a beat is presented. Without that, a local
+    // DECERR held under s_bready=0 gets its payload replaced the moment a
+    // downstream B arrives: s_bvalid stays high while s_bid/s_bresp change,
+    // which is the AXI stability rule (payload constant from VALID to the
+    // handshake) broken on the response channel. No beat is lost either way --
+    // the resp queue pops only on w_local_b_hs -- but a strict VIP or a
+    // formal stable(BID/BRESP) check fires, and the master is entitled to
+    // sample BRESP on any cycle it likes for logging.
+    //
+    // Same selection-hold this repo already uses in apb_monitor_addr_check
+    // and axi_monitor_addr_check for the identical hazard. Nothing is delayed
+    // indefinitely: the hold clears on accept, and the displaced source is
+    // presented on the next free cycle.
+    logic r_sel_ds;      // the presented beat came from downstream
+    logic r_sel_held;
+
+    wire w_sel_ds = r_sel_held ? r_sel_ds : m_bvalid;
+
     assign s_bvalid = m_bvalid || !w_resp_empty;
-    assign s_bid    = m_bvalid ? m_bid   : w_resp_head;
-    assign s_bresp  = m_bvalid ? m_bresp : 2'b11;  // DECERR
-    assign m_bready = s_bready;
+    assign s_bid    = w_sel_ds ? m_bid   : w_resp_head;
+    assign s_bresp  = w_sel_ds ? m_bresp : 2'b11;  // DECERR
+    // Only accept downstream when downstream is the source being presented,
+    // or its B would be consumed while the master is looking at a DECERR.
+    assign m_bready = s_bready && w_sel_ds;
+
+    // Matches this module's existing reset style rather than the reset-macro
+    // header, which it does not include.
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_sel_held <= 1'b0;
+            r_sel_ds   <= 1'b0;
+        end else begin
+            if (s_bvalid && s_bready)
+                r_sel_held <= 1'b0;
+            else if (s_bvalid && !s_bready) begin
+                r_sel_held <= 1'b1;
+                r_sel_ds   <= w_sel_ds;
+            end
+        end
+    end
 
     wire w_local_b_hs = !m_bvalid && !w_resp_empty && s_bready;
 
