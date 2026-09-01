@@ -1,0 +1,9 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    AXI4["AXI4<br/>5 channels<br/>bursts to 256 beats<br/>out-of-order by ID<br/>8-1024 bit data"]
+    AXIL["AXI4-Lite<br/>5 channels, simplified<br/>SINGLE BEAT only<br/>in-order<br/>32/64 bit data"]
+    APB["APB<br/>1 combined channel<br/>single beat<br/>in-order<br/>8-32 bit data"]
+
+    AXI4 -->|"LOSE: burst length, ID ordering.<br/>Converter must decompose the burst<br/>and aggregate N responses into one B"| AXIL
+    AXIL -->|"LOSE: pipelining.<br/>Converter must serialise into the<br/>2-phase setup/access handshake"| APB
+    APB -.->|"axil4_to_axi4 / axi4_to_apb4 reverse paths<br/>ADD defaults for the missing fields<br/>(LEN=0, BURST=INCR, SIZE=full width)"| AXI4

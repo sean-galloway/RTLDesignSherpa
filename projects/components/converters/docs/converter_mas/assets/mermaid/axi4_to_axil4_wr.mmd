@@ -1,0 +1,21 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph M["AXI4 Master"]
+        AW["AW (AWLEN=N-1)"]
+        W["W x N"]
+        B["B (single response)"]
+    end
+    subgraph C["axi4_to_axil4_wr"]
+        AFSM["Address FSM<br/>one AXIL4 AW per beat"]
+        WFSM["Write-data path<br/>one W per AW"]
+        AGG["Response aggregate<br/>worst response wins"]
+    end
+    subgraph S["AXI4-Lite Slave"]
+        LAW["AW x N"]
+        LW["W x N"]
+        LB["B x N"]
+    end
+    AW --> AFSM --> LAW
+    W --> WFSM --> LW
+    LB --> AGG --> B
+    AGG -. "N slave responses collapse to ONE<br/>upstream B for the whole burst" .- B

@@ -1,0 +1,14 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph UP["axi_data_upsize (single)"]
+        U1["Throughput 100%"]
+        U2["Latency N cycles"]
+        U3["Area 1x"]
+    end
+    subgraph DN["axi_data_dnsize (single)"]
+        D1["Throughput 0.992 beats/cycle"]
+        D2["Latency 1 cycle"]
+        D3["Area 1x"]
+    end
+    NOTE["Single-buffer downsize does NOT stall between wide beats:<br/>wide_ready asserts during the last narrow beat, so the next<br/>wide beat is accepted as the current one drains.<br/>TRACK_BURSTS=1 suppresses replacement at burst boundaries only."]
+    DN --- NOTE

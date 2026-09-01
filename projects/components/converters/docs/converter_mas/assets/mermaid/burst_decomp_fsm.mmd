@@ -1,0 +1,24 @@
+%%{init: {'theme': 'neutral'}}%%
+stateDiagram-v2
+    direction TB
+    [*] --> IDLE
+    IDLE --> ISSUE: AR/AW accepted
+    ISSUE --> ISSUE: beat < len
+    ISSUE --> WAIT_RSP: beat == len
+    WAIT_RSP --> AGGREGATE: all sub-responses in
+    AGGREGATE --> IDLE: one B / RLAST upstream
+
+    note left of IDLE
+        Latch addr, len, size, burst
+        on the accepted command.
+    end note
+    note right of ISSUE
+        next_address by burst type:
+          FIXED  addr
+          INCR   addr + (1 << size)
+          WRAP   wrap in ((len+1) << size)
+    end note
+    note right of AGGREGATE
+        ONE AXI4 response for the whole
+        burst, worst response wins.
+    end note

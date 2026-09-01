@@ -1,0 +1,22 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph M["AXI4-Lite Master"]
+        LAW["AW: AWADDR, AWPROT"]
+        LW["W: WDATA, WSTRB"]
+        LB["B: BRESP"]
+    end
+    subgraph C["axil4_to_axi4_wr"]
+        PROM["Promote AW<br/>passthrough AWADDR/AWPROT<br/>add AXI4-only fields"]
+        WP["W path<br/>passthrough WDATA/WSTRB<br/>assert WLAST (single beat)"]
+        BP["B path<br/>passthrough BRESP<br/>drop BID"]
+    end
+    subgraph S["AXI4 Slave"]
+        AAW["AW: full AXI4"]
+        AW2["W: with WLAST"]
+        AB["B: with BID"]
+    end
+    LAW --> PROM --> AAW
+    LW --> WP --> AW2
+    AB --> BP --> LB
+    PROM -. "AWLEN=8'h00 (single beat)<br/>AWSIZE=clog2(DATA_WIDTH/8)<br/>AWBURST=2'b01 INCR<br/>AWLOCK=0, AWCACHE=4'b0011<br/>AWQOS=DEFAULT_QOS, AWID=DEFAULT_ID" .- AAW
+    WP -. "every AXIL4 write is one beat,<br/>so WLAST is always 1" .- AW2

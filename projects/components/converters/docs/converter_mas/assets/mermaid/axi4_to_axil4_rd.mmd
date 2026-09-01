@@ -1,0 +1,17 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph M["AXI4 Master"]
+        AR["AR (ARLEN=N-1)"]
+        R["R x N (RLAST on last)"]
+    end
+    subgraph C["axi4_to_axil4_rd"]
+        AFSM["Address FSM<br/>one AXIL4 AR per beat<br/>next_address by burst type"]
+        RFSM["Read-data return<br/>forwards each R,<br/>asserts RLAST on beat N-1"]
+    end
+    subgraph S["AXI4-Lite Slave"]
+        LAR["AR x N"]
+        LR["R x N"]
+    end
+    AR --> AFSM --> LAR
+    LR --> RFSM --> R
+    AFSM -. "independent: AR streams as fast as<br/>m_axil_arready accepts, it does not<br/>wait for the matching R" .- RFSM

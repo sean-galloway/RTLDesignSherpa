@@ -1,0 +1,17 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph M["AXI4-Lite Master"]
+        LAR["AR: ARADDR, ARPROT"]
+        LR["R: RDATA, RRESP"]
+    end
+    subgraph C["axil4_to_axi4_rd"]
+        PROM["Promote AR<br/>passthrough ARADDR/ARPROT<br/>add AXI4-only fields"]
+        RET["Return R<br/>passthrough RDATA/RRESP<br/>drop RID/RLAST"]
+    end
+    subgraph S["AXI4 Slave"]
+        AAR["AR: full AXI4"]
+        AR2["R: with RID, RLAST"]
+    end
+    LAR --> PROM --> AAR
+    AR2 --> RET --> LR
+    PROM -. "ARLEN=8'h00 (single beat)<br/>ARSIZE=clog2(DATA_WIDTH/8)<br/>ARBURST=2'b01 INCR<br/>ARLOCK=0, ARCACHE=4'b0011<br/>ARQOS=DEFAULT_QOS, ARID=DEFAULT_ID" .- AAR

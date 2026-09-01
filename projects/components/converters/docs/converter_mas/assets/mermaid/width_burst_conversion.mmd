@@ -1,0 +1,18 @@
+%%{init: {'theme': 'neutral'}}%%
+sequenceDiagram
+    autonumber
+    participant M as AXI4 Master
+    participant C as Converter
+    participant S as AXIL4 Slave
+    Note over M,S: 4-beat burst (ARLEN=3), pipelining slave
+    M->>C: AR (ARLEN=3)
+    C->>S: AR[0]
+    S-->>C: R[0]
+    C->>S: AR[1]
+    S-->>C: R[1]
+    C->>S: AR[2]
+    S-->>C: R[2]
+    C->>S: AR[3]
+    S-->>C: R[3]
+    C-->>M: R x4 (RLAST on the 4th)
+    Note over M,S: N issue cycles + one response latency,<br/>NOT N round trips. Serialization is between<br/>whole bursts only (the one-outstanding guard).
