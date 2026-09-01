@@ -1,6 +1,6 @@
 # common — task rollup
 
-**Next ID: COMMON-024** — never recycle a number, even when its task closed.
+**Next ID: COMMON-025** — never recycle a number, even when its task closed.
 
 Canonical tracker for `rtl/common/` (~57 reusable building blocks).
 Migrated 2026-07-23 from `rtl/common/TASKS.md`.
@@ -27,6 +27,12 @@ integration support.
   per config and asserts non-empty. Three stacked defects (no constraints,
   wrong clock-group name, prefixed bindings) + the auto-draining FIFOSlave;
   see closed.md.
+- **COMMON-024** — CLOSED 2026-08-08: line-coverage gaps closed off the
+  93.3% baseline. Roughly 45% of the apparent gap was a Verilator artifact
+  (coverage points on declarations, which are not executable); the biggest
+  real gap was `counter_bin_load`'s dead `add_enable` path, now tested.
+  Filed as COMMON-021 and renumbered 2026-09-01 — that ID was already the
+  formal refresh below. See closed.md.
 - **COMMON-021** — CLOSED 2026-08-09 (same day): formal refresh — audit found
   only 7/48 flat files repo-wide are current (common's is); all "prove-only"
   and icg cover gaps had already closed (verified fresh, all covers reached);

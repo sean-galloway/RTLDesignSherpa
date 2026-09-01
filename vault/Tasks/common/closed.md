@@ -6,7 +6,10 @@
 
 
 ## COMMON-015 — shifter_beat_pack: runtime cfg wider than COUNT_BITS corrupts occupancy
-**Status:** open 2026-07-31 — surfaced by qc round_2 (common part_04), P3 misuse corner
+**Status:** CLOSED 2026-08-04 (fixed in 7d879f95, closed in 623bd254) —
+surfaced by qc round_2 (common part_04). Re-verified 2026-09-01: `pop_valid`
+now compares in the wider `CMP_W` domain, so the surviving `COUNT_BITS'` cast
+is guarded by the comparison that precedes it.
 
 `rtl/common/shifter_beat_pack.sv` casts the runtime beat width down to the
 occupancy width in two places:
@@ -37,7 +40,10 @@ w_beat_bits <= r_count <= 2**COUNT_BITS-1 and the cast is exact. Verified:
 lint passes, shifter_beat_pack 3/12/165 at gate/func/full.
 
 ## COMMON-014 — fifo_control default parameters contradict its own constraint
-**Status:** open 2026-07-31 — surfaced by qc round_2 (common part_03), P3 latent
+**Status:** CLOSED 2026-08-04 (fixed in 7d879f95, closed in 623bd254) —
+surfaced by qc round_2 (common part_03). Re-verified 2026-09-01: defaults are
+now `ADDR_WIDTH=3` / `DEPTH=8` (consistent), and the header constraint reads
+`DEPTH <= 2^ADDR_WIDTH (need not be a power of 2)` — both points fixed.
 
 `rtl/common/fifo_control.sv` declares `ADDR_WIDTH = 3` and `DEPTH = 16` as
 defaults, while its own header states "DEPTH must equal 2^ADDR_WIDTH (power of
@@ -216,8 +222,9 @@ Practice recorded in [[randomization]].
 ---
 
 ## COMMON-018 — simple arbiter "violations" are a monitor sampling bug
-**Status:** open 2026-08-04 — **ROOT CAUSED. RTL is correct; the fix is in the
-DV framework.** Not asserted on locally; logged as unexplained-by-design.
+**Status:** CLOSED 2026-08-05 (e2a52cb1) — RTL was correct; the fix was in the
+DV framework. Re-verified 2026-09-01: `active_requests` now selects
+`prev_req_vector` only when `registered_grant`, else the live `req_vector`.
 **Priority:** P2 (framework repo)
 
 `arbiter_monitor.py:796` feeds the compliance check the WRONG request vector:
@@ -278,7 +285,9 @@ run became 0. gate/func/full all green.
 ---
 
 ## COMMON-017 — the arbiter compliance model does not model block_arb
-**Status:** open 2026-08-01 — **SETTLED: model defect, not an RTL defect.** Suite green.
+**Status:** CLOSED 2026-08-05 (e2a52cb1) — model defect, not an RTL defect.
+Re-verified 2026-09-01: `arbiter_monitor.py` passes `blocked_state` and
+`block_arb_history` into `queue_transaction`, so the model sees `block_arb`.
 **Priority:** P2 — belongs to the DV framework repo, not this one
 
     ArbiterCompliance(RR_Monitor_compliance): Round-robin violation:
@@ -362,7 +371,11 @@ Mutation-checked: disabling the mirror restores the violation. The
 ---
 
 ## COMMON-016 — arbiter ACK mode: 105 unexpected ACKs, and the compliance model was muted
-**Status:** open 2026-07-31 — surfaced by test-audit round_1 triage, P2
+**Status:** CLOSED 2026-08-05 (e2a52cb1) — all three items. Re-verified
+2026-09-01: the simple TB now wires compliance in (item 1), and the 105
+`unexpected_ack`s were diagnosed to a monitor bug — an ACK-mode grant handed
+between clients without `grant_valid` dropping never retired the old owner —
+fixed upstream as RTLDesignSherpa-DV#50, both symptoms to zero (item 2).
 **Owner:** TBD
 
 Three connected things, found while making `test_walking_requests` capable of
@@ -458,7 +471,9 @@ exclusions (no-ACK mode). What remains is tracked as COMMON-019.
 ---
 
 ## COMMON-019 — ACK-mode arbiter compliance: the model loses a grant
-**Status:** open 2026-08-05 — split out of COMMON-016/017. Not asserted on.
+**Status:** CLOSED 2026-08-07 (b8d3b17e) — split out of COMMON-016/017.
+Re-verified 2026-09-01: the `WAIT_GNT_ACK` early return is gone and
+`check_monitor_errors` asserts `total_errors == 0` in BOTH modes.
 **Priority:** P2 — belongs to the DV framework repo (RTLDesignSherpa-DV)
 **Upstream:** [RTLDesignSherpa-DV#50](https://github.com/sean-galloway/RTLDesignSherpa-DV/issues/50)
 — full write-up and suggested fix also in that repo's
@@ -529,9 +544,16 @@ checker nobody has verified is not evidence** — it is the absence of it.
 
 ---
 
-## COMMON-021 — close the measured line-coverage gaps
-**Status:** open 2026-08-07 — planned off the first real measurement
+## COMMON-024 — close the measured line-coverage gaps
+**Status:** CLOSED 2026-08-08 (5c013326) — planned off the first real
+measurement. Re-verified 2026-09-01: `val/common/test_counter_bin_load.py`
+now covers the `add_enable` variable-increment path and both wrap arms,
+which was the single biggest real gap.
 **Priority:** P2
+**ID note:** filed as COMMON-021, which was already taken by the formal
+staleness-audit task closed the following day. Renumbered 2026-09-01;
+commits and prose from 2026-08-07/08 that say COMMON-021 and talk about
+coverage mean this task.
 
 Baseline: **93.3% line, 48 of 49 modules**, clean 932-test full run
 (`COVERAGE=1 make run-all-full`). `arbiter_single_client` is exempt by
@@ -649,7 +671,9 @@ is left is tooling behaviour, not test debt.
 ---
 
 ## COMMON-010 — Every module MUST have a filelist and a registry entry
-**Status:** open 2026-07-23
+**Status:** CLOSED 2026-08-09 (168faeaa) — all five items done; two had an
+expired premise. Re-verified 2026-09-01: `bin/filelist_registry.py --check`
+returns PASS across every area.
 
 **The rule** (authority: [[filelists]]): every module in `rtl/common/` has a
 filelist in `rtl/common/filelists/`, and the area is registered in
