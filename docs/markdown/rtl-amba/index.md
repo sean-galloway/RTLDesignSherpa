@@ -277,8 +277,8 @@ Path from in-flight monitor packets to host-visible memory + CPU IRQs.
 ## Protocol Bridge and Shims
 
 ### AXI4 to APB Conversion
-- **[axi4_to_apb4_convert](shims/axi4_to_apb4_convert.md)** - AXI4 to APB protocol converter
-- **[axi4_to_apb4_shim](shims/axi4_to_apb4_shim.md)** - Lightweight AXI4 to APB shim
+- **[axi4_to_apb4_convert](../../../projects/components/converters/docs/converter_mas/ch03_protocol_blocks/04_axi4_to_apb4.md)** - AXI4 to APB protocol converter
+- **[axi4_to_apb4_shim](../../../projects/components/converters/docs/converter_mas/ch03_protocol_blocks/04_axi4_to_apb4.md)** - Lightweight AXI4 to APB shim
 
 ---
 

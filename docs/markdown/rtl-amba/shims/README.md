@@ -44,10 +44,18 @@ The shims subsystem is where protocol mismatches get solved. These modules bridg
 
 ### Available Shims
 
+Two of these three modules are NOT in `rtl/amba` — they belong to the
+converters component and are specified in its MAS. This book carried a
+second full copy of each until 2026-08-31; a module's docs live with the
+component that owns it. `peakrdl_to_cmdrsp` is the exception: it is also a
+converters module, but the MAS only names it in an overview table, so the
+page here is its ONLY documentation and stays until someone gives it a
+home in that book.
+
 | Shim | Purpose | Documentation | Status |
 |------|---------|---------------|--------|
-| **axi4_to_apb4_shim** | AXI4 to APB bridge with dual-clock CDC | [axi4_to_apb4_shim.md](axi4_to_apb4_shim.md) | Documented |
-| **axi4_to_apb4_convert** | Core AXI4→APB conversion logic | [axi4_to_apb4_convert.md](axi4_to_apb4_convert.md) | Documented |
+| **axi4_to_apb4_shim** | AXI4 to APB bridge with dual-clock CDC | [converters MAS 3.4](../../../../projects/components/converters/docs/converter_mas/ch03_protocol_blocks/04_axi4_to_apb4.md) | Not in rtl/amba — converters component |
+| **axi4_to_apb4_convert** | Core AXI4→APB conversion logic | [converters MAS 3.4](../../../../projects/components/converters/docs/converter_mas/ch03_protocol_blocks/04_axi4_to_apb4.md) | Not in rtl/amba — converters component |
 | **peakrdl_to_cmdrsp** | PeakRDL passthrough → cmd/rsp adapter | [peakrdl_to_cmdrsp.md](peakrdl_to_cmdrsp.md) | Documented |
 
 ---
