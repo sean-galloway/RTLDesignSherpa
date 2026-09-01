@@ -82,7 +82,7 @@ This specification is organized into five chapters covering all aspects of the A
 
 ## Block Diagram
 
-![APB RTC Block Diagram](assets/svg/rtc_top.svg)
+![APB RTC Block Diagram](assets/svg/rtc_top.png)
 
 ---
 

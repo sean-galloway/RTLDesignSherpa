@@ -599,7 +599,7 @@ The following diagram shows the complete data flow through the STREAM core, from
 
 #### Waveform 2.1.1: STREAM Core Data Flow
 
-![STREAM Core Data Flow](../assets/wavedrom/stream_core_data_flow.svg)
+![STREAM Core Data Flow](../assets/wavedrom/stream_core_data_flow.png)
 
 **Source:** [stream_core_data_flow.json](../assets/wavedrom/stream_core_data_flow.json)
 

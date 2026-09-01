@@ -56,7 +56,7 @@
 
 ## Block Diagram
 
-![PM/ACPI Block Diagram](assets/svg/pm_acpi_top.svg)
+![PM/ACPI Block Diagram](assets/svg/pm_acpi_top.png)
 
 ---
 

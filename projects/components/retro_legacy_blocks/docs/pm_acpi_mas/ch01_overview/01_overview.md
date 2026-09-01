@@ -48,7 +48,7 @@ The APB PM/ACPI controller provides ACPI-compatible power management functionali
 
 ### Figure 1.1: PM/ACPI Block Diagram
 
-![PM/ACPI Block Diagram](../assets/svg/pm_acpi_top.svg)
+![PM/ACPI Block Diagram](../assets/svg/pm_acpi_top.png)
 
 ## Timing Diagrams
 
@@ -62,7 +62,7 @@ The APB PM/ACPI controller provides ACPI-compatible power management functionali
 
 Software initiates sleep by writing PM1_CONTROL (0x010).
 
-![PM Sleep Entry](../assets/wavedrom/timing/pm_sleep_entry.svg)
+![PM Sleep Entry](../assets/wavedrom/timing/pm_sleep_entry.png)
 
 The sequence:
 1. Software writes PM1_CONTROL with sleep_type (0=S0, 1=S1, 3=S3) and sleep_enable
@@ -74,7 +74,7 @@ The sequence:
 
 A wake source triggers a return to S0 from sleep.
 
-![PM Wake Event](../assets/wavedrom/timing/pm_wake_event.svg)
+![PM Wake Event](../assets/wavedrom/timing/pm_wake_event.png)
 
 Wake sequence:
 1. Enabled wake source detected (power button, RTC alarm, external, or GPE)
@@ -86,7 +86,7 @@ Wake sequence:
 
 Free-running PM timer for timing services.
 
-![PM Timer](../assets/wavedrom/timing/pm_timer.svg)
+![PM Timer](../assets/wavedrom/timing/pm_timer.png)
 
 The 32-bit free-running counter (PM_TIMER_VALUE, 0x020) increments at a
 3.579545 MHz equivalent rate using the PM_TIMER_CONFIG divider (default 0x001B,
@@ -96,7 +96,7 @@ divide-by-28). Overflow sets the timer_overflow / tmr_sts status.
 
 External events set a GPE status bit and can raise `pm_interrupt`.
 
-![PM GPE Event](../assets/wavedrom/timing/pm_gpe_event.svg)
+![PM GPE Event](../assets/wavedrom/timing/pm_gpe_event.png)
 
 A GPE input edge sets a bit in GPE0_STATUS_LO/HI. If the matching GPE0_ENABLE_LO/HI
 bit is set, the aggregated GPE interrupt asserts `pm_interrupt`. Software reads

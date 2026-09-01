@@ -31,7 +31,7 @@ The TX engine handles transmit data buffering, serialization, and TXD signal gen
 
 ### Figure 2.3: TX Engine Block
 
-![TX Engine Block](../assets/svg/uart_tx_engine.svg)
+![TX Engine Block](../assets/svg/uart_tx_engine.png)
 
 ## Data Path
 
@@ -100,7 +100,7 @@ flowchart TD
 
 The following diagram shows the complete TX path from APB write to serial output.
 
-![UART TX Byte](../assets/wavedrom/timing/uart_tx_byte.svg)
+![UART TX Byte](../assets/wavedrom/timing/uart_tx_byte.png)
 
 The transmission sequence:
 1. APB write to THR (Transmit Holding Register)
@@ -113,7 +113,7 @@ The transmission sequence:
 
 The baud generator divides the system clock to produce bit timing.
 
-![UART Baud Generator](../assets/wavedrom/timing/uart_baud_generator.svg)
+![UART Baud Generator](../assets/wavedrom/timing/uart_baud_generator.png)
 
 Key timing relationships:
 - `cfg_divisor` sets the baud rate (clock_freq / (16 * baud_rate))
@@ -124,7 +124,7 @@ Key timing relationships:
 
 MCR[4] enables internal loopback for diagnostics.
 
-![UART Loopback](../assets/wavedrom/timing/uart_loopback.svg)
+![UART Loopback](../assets/wavedrom/timing/uart_loopback.png)
 
 In loopback mode:
 - TX shift register output routes to RX input

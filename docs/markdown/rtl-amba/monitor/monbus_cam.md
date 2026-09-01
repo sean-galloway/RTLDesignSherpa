@@ -170,7 +170,7 @@ low and leave the new outputs open. (The compressor no longer instantiates
 
 ### Architecture
 
-![monbus_cam block diagram](../../assets/rtl-amba/monbus_cam.svg)
+![monbus_cam block diagram](../../assets/rtl-amba/monbus_cam.png)
 
 Source: [`monbus_cam.mmd`](../../assets/rtl-amba/monbus_cam.mmd)
 

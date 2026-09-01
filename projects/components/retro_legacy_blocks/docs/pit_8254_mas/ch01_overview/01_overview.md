@@ -37,7 +37,7 @@ The APB Programmable Interval Timer (PIT 8254) is an Intel 8254-compatible timer
 
 In Mode 0, the counter counts down from the loaded value and asserts OUT when reaching zero.
 
-![PIT Mode 0 Terminal Count](../assets/wavedrom/timing/pit_mode0_terminal_count.svg)
+![PIT Mode 0 Terminal Count](../assets/wavedrom/timing/pit_mode0_terminal_count.png)
 
 The counter loads with the programmed value and decrements on each clock. When terminal count (0) is reached, OUT goes high and remains high until a new count is loaded.
 
@@ -45,7 +45,7 @@ The counter loads with the programmed value and decrements on each clock. When t
 
 Mode 2 produces a divide-by-N clock output.
 
-![PIT Mode 2 Rate Generator](../assets/wavedrom/timing/pit_mode2_rate_generator.svg)
+![PIT Mode 2 Rate Generator](../assets/wavedrom/timing/pit_mode2_rate_generator.png)
 
 OUT is normally high, going low for one clock when the counter reaches 1. The counter auto-reloads, creating a periodic pulse train.
 
@@ -53,7 +53,7 @@ OUT is normally high, going low for one clock when the counter reaches 1. The co
 
 Mode 3 produces a 50% duty cycle square wave.
 
-![PIT Mode 3 Square Wave](../assets/wavedrom/timing/pit_mode3_square_wave.svg)
+![PIT Mode 3 Square Wave](../assets/wavedrom/timing/pit_mode3_square_wave.png)
 
 OUT toggles every N/2 clocks, producing a symmetric square wave output.
 
@@ -61,7 +61,7 @@ OUT toggles every N/2 clocks, producing a symmetric square wave output.
 
 The GATE input controls counter operation.
 
-![PIT Gate Control](../assets/wavedrom/timing/pit_gate_control.svg)
+![PIT Gate Control](../assets/wavedrom/timing/pit_gate_control.png)
 
 When GATE goes low, counting suspends. When GATE returns high, counting resumes from the current value (not reloaded).
 
@@ -69,7 +69,7 @@ When GATE goes low, counting suspends. When GATE returns high, counting resumes 
 
 The readback command latches counter value and status while the counter continues running.
 
-![PIT Readback](../assets/wavedrom/timing/pit_readback.svg)
+![PIT Readback](../assets/wavedrom/timing/pit_readback.png)
 
 This allows software to read a consistent counter value without stopping the timer.
 

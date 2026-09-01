@@ -25,7 +25,7 @@
 
 The `module.py` file is a Python class that facilitates the construction of Verilog module templates. It allows users to programmatically define modules with parameters, input and output ports, wires, and other Verilog constructs.
 
-![Module UML](assets/verilog_Module.svg)
+![Module UML](assets/verilog_Module.png)
 
 ## Class: Module
 

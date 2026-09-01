@@ -148,7 +148,7 @@ pipeline, FIFOs, and AXI skids). Drive it low at all other times.
 
 ### Architecture
 
-![monbus_compressor block diagram](../../assets/rtl-amba/monbus_compressor.svg)
+![monbus_compressor block diagram](../../assets/rtl-amba/monbus_compressor.png)
 
 Source: [`monbus_compressor.mmd`](../../assets/rtl-amba/monbus_compressor.mmd)
 

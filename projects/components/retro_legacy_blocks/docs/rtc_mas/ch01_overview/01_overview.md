@@ -58,7 +58,7 @@ The APB RTC is a Real-Time Clock controller with an APB slave interface. It main
 
 ### Figure 1.1: RTC Block Diagram
 
-![RTC Block Diagram](../assets/svg/rtc_top.svg)
+![RTC Block Diagram](../assets/svg/rtc_top.png)
 
 ## Timing Diagrams
 
@@ -66,13 +66,13 @@ The APB RTC is a Real-Time Clock controller with an APB slave interface. It main
 
 Reading the time registers returns the current time value.
 
-![RTC Time Read](../assets/wavedrom/timing/rtc_time_read.svg)
+![RTC Time Read](../assets/wavedrom/timing/rtc_time_read.png)
 
 ### Waveform 1.2: Time Increment with Rollover
 
 Shows the cascade of time registers as seconds overflow to minutes, minutes to hours, etc.
 
-![RTC Time Increment](../assets/wavedrom/timing/rtc_time_increment.svg)
+![RTC Time Increment](../assets/wavedrom/timing/rtc_time_increment.png)
 
 The 1Hz tick from the 32.768kHz prescaler triggers the seconds counter. Each overflow cascades to the next register, demonstrating the 23:59:59 to 00:00:00 rollover.
 
@@ -80,7 +80,7 @@ The 1Hz tick from the 32.768kHz prescaler triggers the seconds counter. Each ove
 
 When the current time matches the alarm setting, an interrupt is generated.
 
-![RTC Alarm Match](../assets/wavedrom/timing/rtc_alarm_match.svg)
+![RTC Alarm Match](../assets/wavedrom/timing/rtc_alarm_match.png)
 
 All configured alarm fields (seconds, minutes, hours) must match simultaneously for the alarm to trigger.
 
@@ -88,7 +88,7 @@ All configured alarm fields (seconds, minutes, hours) must match simultaneously 
 
 The RTC generates a fixed 1 Hz tick interrupt when enabled by `second_int_enable`.
 
-![RTC Periodic Interrupt](../assets/wavedrom/timing/rtc_periodic_interrupt.svg)
+![RTC Periodic Interrupt](../assets/wavedrom/timing/rtc_periodic_interrupt.png)
 
 The 1 Hz tick is derived from the 32.768 kHz oscillator by a fixed divide-by-32768; there is no programmable rate selector. Each tick sets the `second_tick` status flag and, when enabled, asserts the second-tick interrupt.
 

@@ -543,7 +543,7 @@ The following diagram shows the complete SRAM controller write and read flow:
 
 #### Waveform 2.8.1: SRAM Controller Write/Read Operation
 
-![SRAM Controller Write/Read](../assets/wavedrom/sram_controller_wr_rd.svg)
+![SRAM Controller Write/Read](../assets/wavedrom/sram_controller_wr_rd.png)
 
 **Source:** [sram_controller_wr_rd.json](../assets/wavedrom/sram_controller_wr_rd.json)
 

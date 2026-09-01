@@ -140,7 +140,7 @@ The APB IOAPIC draws directly from the Intel 82093AA I/O APIC specification with
 
 Shows the flow from IRQ input to message delivery to LAPIC.
 
-![IOAPIC Interrupt Delivery](../assets/wavedrom/timing/ioapic_interrupt_delivery.svg)
+![IOAPIC Interrupt Delivery](../assets/wavedrom/timing/ioapic_interrupt_delivery.png)
 
 When an IRQ edge is detected, the corresponding IRR bit sets. The redirection table entry (RTE) is consulted for vector, destination, and delivery mode. An interrupt message is sent to the target LAPIC.
 
@@ -148,7 +148,7 @@ When an IRQ edge is detected, the corresponding IRR bit sets. The redirection ta
 
 Indirect register access to configure an RTE.
 
-![IOAPIC RTE Write](../assets/wavedrom/timing/ioapic_rte_write.svg)
+![IOAPIC RTE Write](../assets/wavedrom/timing/ioapic_rte_write.png)
 
 Two APB transactions required:
 1. Write index to IOREGSEL (selects RTE low or high word)
@@ -158,7 +158,7 @@ Two APB transactions required:
 
 Level mode with Remote IRR and EOI handling.
 
-![IOAPIC Level Triggered](../assets/wavedrom/timing/ioapic_level_triggered.svg)
+![IOAPIC Level Triggered](../assets/wavedrom/timing/ioapic_level_triggered.png)
 
 For level-triggered interrupts:
 - Remote IRR set on delivery, blocking re-delivery
@@ -169,7 +169,7 @@ For level-triggered interrupts:
 
 Masked interrupts latch in IRR and deliver when unmasked.
 
-![IOAPIC Mask Interrupt](../assets/wavedrom/timing/ioapic_mask_interrupt.svg)
+![IOAPIC Mask Interrupt](../assets/wavedrom/timing/ioapic_mask_interrupt.png)
 
 When an IRQ arrives while masked, the IRR bit latches but delivery is blocked. Upon unmask, the IOAPIC checks for pending interrupts and delivers them.
 

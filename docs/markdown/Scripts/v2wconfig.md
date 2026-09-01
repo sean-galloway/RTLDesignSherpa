@@ -27,7 +27,7 @@
 
 The `V2WConfig` class configures and processes VCD (Value Change Dump) files into the WaveDrom format. It includes methods for parsing command-line arguments, grouping and sorting signals, generating configuration files, and identifying clocks within the VCD data.
 
-![VCD to Wavedrom 2, Config](assets/V2WConfig.svg)
+![VCD to Wavedrom 2, Config](assets/V2WConfig.png)
 
 ## Methods
 

@@ -274,7 +274,7 @@ The following timing diagram shows the AXI read engine operating at maximum thro
 
 #### Waveform 2.6.1: AXI Read Engine - Perfect Streaming
 
-![AXI Read Engine - Perfect Streaming](../assets/wavedrom/datapath_rd_perfect_streaming.svg)
+![AXI Read Engine - Perfect Streaming](../assets/wavedrom/datapath_rd_perfect_streaming.png)
 
 **Transaction Flow:**
 
@@ -306,7 +306,7 @@ For multi-channel operation showing channel switching while maintaining streamin
 
 #### Waveform 2.6.2: Datapath Read - Multi-Channel
 
-![Datapath Read - Multi-Channel](../assets/wavedrom/datapath_rd_multi_channel.svg)
+![Datapath Read - Multi-Channel](../assets/wavedrom/datapath_rd_multi_channel.png)
 
 This diagram shows how the engine arbitrates between channels while maintaining high throughput.
 

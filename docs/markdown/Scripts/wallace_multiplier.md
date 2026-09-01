@@ -27,7 +27,7 @@
 
 The `WallaceTree` class in the `wallace_multiplier.py` file is a Python class for generating Verilog module code for a Wallace Tree multiplier. This structure performs fast multiplication operations in hardware by reducing the partial products to minimize the delay.
 
-![Wallace Multiplier UML](assets/Multiplier_WallaceTree.svg)
+![Wallace Multiplier UML](assets/Multiplier_WallaceTree.png)
 
 ## Inputs/Outputs
 

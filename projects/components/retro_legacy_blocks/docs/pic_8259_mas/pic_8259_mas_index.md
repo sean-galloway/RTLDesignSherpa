@@ -56,7 +56,7 @@
 
 ## Block Diagram
 
-![PIC 8259 Block Diagram](assets/svg/pic_8259_top.svg)
+![PIC 8259 Block Diagram](assets/svg/pic_8259_top.png)
 
 ---
 

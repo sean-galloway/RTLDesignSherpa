@@ -27,7 +27,7 @@
 
 ### Figure 1.2: RTC Architecture
 
-![RTC Architecture](../assets/svg/rtc_top.svg)
+![RTC Architecture](../assets/svg/rtc_top.png)
 
 ## Module Hierarchy
 

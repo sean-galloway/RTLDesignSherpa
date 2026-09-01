@@ -114,7 +114,7 @@
 |--------|------|---------|-------|--------|
 | scheduler_group_array | `rtl/macro/scheduler_group_array.sv` | 8-channel array + round-robin channel arbitration (no separate channel_arbiter module) | ~500 | [Done] |
 | apb_config | `rtl/macro/stream_regs.rdl` + generated wrapper (`regs/generated/`) | Config registers | ~350 | [Done] PeakRDL-based |
-| monbus_axil_group | `rtl/amba/monitor/monbus_axil_axil_group.sv` (shared AMBA monitor block) | MonBus + AXIL | ~800 | [Done] |
+| monbus_axil_group | `rtl/amba/monitor/monbus_axil4_axil4_group.sv` (shared AMBA monitor block) | MonBus + AXIL | ~800 | [Done] |
 | stream_top | `rtl/top/stream_top_ch8.sv` | Top-level (8-channel) | ~500 | [Done] |
 
 ---

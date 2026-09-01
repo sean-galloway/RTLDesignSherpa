@@ -25,7 +25,7 @@
 
 The `sum_logic` module is part of a collection of Python scripts to generate Verilog code for various hardware designs. Specifically, this Python module generates the sum logic component of a Brent-Kung adder, a type of parallel prefix adder known for its logarithmic depth in terms of logic gates.
 
-![Sum Logic UML](assets/Adder_SumLogic.svg)
+![Sum Logic UML](assets/Adder_SumLogic.png)
 
 ## Python Code Documentation
 

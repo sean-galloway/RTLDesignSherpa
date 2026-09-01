@@ -149,7 +149,7 @@ cts_n --> FF1 --> FF2 --> synced_cts_n
 
 The following diagram shows how modem input changes are detected and reported.
 
-![UART Modem Status](../assets/wavedrom/timing/uart_modem_status.svg)
+![UART Modem Status](../assets/wavedrom/timing/uart_modem_status.png)
 
 The detection sequence:
 1. External CTS# falls (device ready to receive)

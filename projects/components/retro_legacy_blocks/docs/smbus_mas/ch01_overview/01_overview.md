@@ -61,7 +61,7 @@ The APB SMBus controller provides System Management Bus communication with APB i
 
 ### Figure 1.1: SMBus Block Diagram
 
-![SMBus Block Diagram](../assets/svg/smbus_top.svg)
+![SMBus Block Diagram](../assets/svg/smbus_top.png)
 
 ## Timing Diagrams
 
@@ -69,7 +69,7 @@ The APB SMBus controller provides System Management Bus communication with APB i
 
 Shows the START condition and 7-bit address transmission.
 
-![SMBus Byte Write](../assets/wavedrom/timing/smbus_byte_write.svg)
+![SMBus Byte Write](../assets/wavedrom/timing/smbus_byte_write.png)
 
 START condition is SDA falling while SCL is high. The 7-bit slave address plus R/W bit is clocked out, followed by slave ACK (SDA low during 9th clock).
 
@@ -77,7 +77,7 @@ START condition is SDA falling while SCL is high. The 7-bit slave address plus R
 
 Shows slave-to-master data transfer.
 
-![SMBus Byte Read](../assets/wavedrom/timing/smbus_byte_read.svg)
+![SMBus Byte Read](../assets/wavedrom/timing/smbus_byte_read.png)
 
 Slave drives 8 data bits while master clocks SCL. Master samples each bit on SCL rising edge, then provides ACK (more data) or NACK (last byte).
 
@@ -85,7 +85,7 @@ Slave drives 8 data bits while master clocks SCL. Master samples each bit on SCL
 
 Slave flow control by holding SCL low.
 
-![SMBus Clock Stretch](../assets/wavedrom/timing/smbus_clock_stretch.svg)
+![SMBus Clock Stretch](../assets/wavedrom/timing/smbus_clock_stretch.png)
 
 When the slave needs processing time, it holds SCL low after the master releases it. Master waits for SCL to rise before continuing. This provides backpressure without data loss.
 
@@ -93,7 +93,7 @@ When the slave needs processing time, it holds SCL low after the master releases
 
 Collision detection when multiple masters start simultaneously.
 
-![SMBus Arbitration](../assets/wavedrom/timing/smbus_arbitration.svg)
+![SMBus Arbitration](../assets/wavedrom/timing/smbus_arbitration.png)
 
 Both masters monitor SDA while transmitting. If a master drives 1 but reads 0 (wired-AND bus), it loses arbitration and backs off. The winner continues the transaction.
 
@@ -101,7 +101,7 @@ Both masters monitor SDA while transmitting. If a master drives 1 but reads 0 (w
 
 CRC-8 error detection for data integrity.
 
-![SMBus PEC](../assets/wavedrom/timing/smbus_pec.svg)
+![SMBus PEC](../assets/wavedrom/timing/smbus_pec.png)
 
 PEC is calculated over address, command, and data bytes using CRC-8. The PEC byte is transmitted after data and verified by the receiver to detect transmission errors.
 

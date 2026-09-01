@@ -31,7 +31,7 @@ The RX engine handles input synchronization, start bit detection, deserializatio
 
 ### Figure 2.4: RX Engine Block
 
-![RX Engine Block](../assets/svg/uart_rx_engine.svg)
+![RX Engine Block](../assets/svg/uart_rx_engine.png)
 
 ## Data Path
 
@@ -64,7 +64,7 @@ flowchart LR
 
 The following diagram shows the complete RX path from serial input to FIFO.
 
-![UART RX Byte](../assets/wavedrom/timing/uart_rx_byte.svg)
+![UART RX Byte](../assets/wavedrom/timing/uart_rx_byte.png)
 
 The reception sequence:
 1. Start bit detected (falling edge on `rx_sync`)

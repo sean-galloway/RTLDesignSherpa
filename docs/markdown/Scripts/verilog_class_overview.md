@@ -27,7 +27,7 @@
 
 The `Module` class represents a SystemVerilog module, providing methods to construct, modify, and output the module's code.
 
-![Verilog Class Overview](assets/Verilog-Classes.svg)
+![Verilog Class Overview](assets/Verilog-Classes.png)
 
 ### Key Features, Module Class
 

@@ -31,7 +31,7 @@ The `apb4_hpet` module is the top-level system integration point that combines A
 
 ### Figure 2.15: APB HPET Top-Level Block Diagram
 
-![APB HPET Top-Level Block Diagram](../assets/svg/apb4_hpet.svg)
+![APB HPET Top-Level Block Diagram](../assets/svg/apb4_hpet.png)
 
 *Figure: APB HPET top-level integration showing dual clock domains (PCLK and HPET_CLK), optional CDC, configuration registers, HPET core, and interrupt outputs. [Source: assets/graphviz/apb4_hpet.gv](../assets/graphviz/apb4_hpet.gv) | [SVG](../assets/svg/apb4_hpet.svg)*
 

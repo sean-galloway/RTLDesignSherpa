@@ -57,7 +57,7 @@ When software writes to HPET_CONFIG to enable the timer, the enable signal propa
 
 ### Waveform 2.1: HPET Config Write
 
-![HPET Config Write](../assets/wavedrom/timing/hpet_config_write.svg)
+![HPET Config Write](../assets/wavedrom/timing/hpet_config_write.png)
 
 The APB write to address 0x004 (HPET_CONFIG) sets `hpet_enable`, which starts the main counter incrementing.
 
@@ -67,7 +67,7 @@ Reading the main counter returns the current 64-bit counter value.
 
 ### Waveform 2.2: HPET Counter Read
 
-![HPET Counter Read](../assets/wavedrom/timing/hpet_counter_read.svg)
+![HPET Counter Read](../assets/wavedrom/timing/hpet_counter_read.png)
 
 The counter value is captured during the APB read transaction and returned on PRDATA.
 
@@ -77,7 +77,7 @@ In one-shot mode, the timer fires once when the counter reaches the comparator v
 
 ### Waveform 2.3: HPET One-Shot Timer Fire
 
-![HPET One-Shot Timer Fire](../assets/wavedrom/timing/hpet_timer_fire_oneshot.svg)
+![HPET One-Shot Timer Fire](../assets/wavedrom/timing/hpet_timer_fire_oneshot.png)
 
 When `r_main_counter` equals `r_timer_comparator[0]`, the match signal asserts, triggering `w_timer_fire[0]`. The interrupt output `timer_irq[0]` asserts and remains active until software clears it.
 
@@ -87,7 +87,7 @@ In periodic mode, the timer fires repeatedly, automatically adding the period to
 
 ### Waveform 2.4: HPET Periodic Timer Fire
 
-![HPET Periodic Timer Fire](../assets/wavedrom/timing/hpet_timer_fire_periodic.svg)
+![HPET Periodic Timer Fire](../assets/wavedrom/timing/hpet_timer_fire_periodic.png)
 
 After each fire event, the comparator is updated: `comparator += period`. This allows continuous periodic interrupts without software intervention.
 
@@ -97,7 +97,7 @@ Software clears timer interrupts by writing 1 to the corresponding bit in HPET_S
 
 ### Waveform 2.5: HPET Interrupt Clear
 
-![HPET Interrupt Clear](../assets/wavedrom/timing/hpet_interrupt_clear.svg)
+![HPET Interrupt Clear](../assets/wavedrom/timing/hpet_interrupt_clear.png)
 
 The W1C (Write-1-to-Clear) mechanism allows atomic clearing of individual timer interrupts.
 
@@ -107,7 +107,7 @@ Configuring a timer requires multiple APB writes: config register, then comparat
 
 ### Waveform 2.6: HPET Timer Setup
 
-![HPET Timer Setup](../assets/wavedrom/timing/hpet_timer_setup.svg)
+![HPET Timer Setup](../assets/wavedrom/timing/hpet_timer_setup.png)
 
 The sequence shows three consecutive writes:
 1. TIMER_CONFIG (0x100): Enable, interrupt enable, periodic mode
@@ -120,7 +120,7 @@ When CDC_ENABLE=1, APB transactions cross from pclk to hpet_clk domain via 2-sta
 
 ### Waveform 2.7: HPET CDC Crossing
 
-![HPET CDC Crossing](../assets/wavedrom/timing/hpet_cdc_crossing.svg)
+![HPET CDC Crossing](../assets/wavedrom/timing/hpet_cdc_crossing.png)
 
 The diagram shows the latency introduced by CDC synchronization. Configuration changes in the APB domain take 2-3 hpet_clk cycles to affect the timer core
 

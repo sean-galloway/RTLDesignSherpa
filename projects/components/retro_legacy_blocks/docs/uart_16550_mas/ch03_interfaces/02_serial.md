@@ -153,7 +153,7 @@ Detected when:
 
 The following diagram shows framing error detection when a stop bit is sampled as 0.
 
-![UART Line Status](../assets/wavedrom/timing/uart_line_status.svg)
+![UART Line Status](../assets/wavedrom/timing/uart_line_status.png)
 
 Error detection sequence:
 1. RX frame received normally (start, data bits)

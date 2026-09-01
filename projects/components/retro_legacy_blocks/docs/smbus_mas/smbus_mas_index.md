@@ -56,7 +56,7 @@
 
 ## Block Diagram
 
-![SMBus Block Diagram](assets/svg/smbus_top.svg)
+![SMBus Block Diagram](assets/svg/smbus_top.png)
 
 ---
 

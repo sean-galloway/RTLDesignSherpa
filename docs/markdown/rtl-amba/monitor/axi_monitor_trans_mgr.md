@@ -185,7 +185,7 @@ Total: 285 bits per entry. With `MAX_TRANSACTIONS=16`, the trans_table is
 
 ### Architecture
 
-![axi_monitor_trans_mgr block diagram](../../assets/rtl-amba/axi_monitor_trans_mgr.svg)
+![axi_monitor_trans_mgr block diagram](../../assets/rtl-amba/axi_monitor_trans_mgr.png)
 
 Source: [`axi_monitor_trans_mgr.mmd`](../../assets/rtl-amba/axi_monitor_trans_mgr.mmd)
 

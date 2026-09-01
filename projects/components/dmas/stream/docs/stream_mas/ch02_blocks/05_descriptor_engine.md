@@ -287,7 +287,7 @@ The following diagram shows the APB-initiated descriptor kick-off sequence:
 
 #### Waveform 2.5.1: Descriptor Engine APB Basic Kick-off
 
-![Descriptor Engine APB Basic](../assets/wavedrom/descriptor_engine_apb_basic.svg)
+![Descriptor Engine APB Basic](../assets/wavedrom/descriptor_engine_apb_basic.png)
 
 **Source:** [descriptor_engine_apb_basic.json](../assets/wavedrom/descriptor_engine_apb_basic.json)
 

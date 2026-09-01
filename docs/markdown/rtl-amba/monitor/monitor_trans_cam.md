@@ -132,7 +132,7 @@ module monitor_trans_cam #(
 
 ### Architecture
 
-![monitor_trans_cam block diagram](../../assets/rtl-amba/monitor_trans_cam.svg)
+![monitor_trans_cam block diagram](../../assets/rtl-amba/monitor_trans_cam.png)
 
 Source: [`monitor_trans_cam.mmd`](../../assets/rtl-amba/monitor_trans_cam.mmd)
 

@@ -25,7 +25,7 @@
 
 The `pg` module comes from the file located at `rtl_generators/adders/brentkung/pg.py`. This module is implemented in Python and is part of a set of tools for generating Verilog code, particularly for arithmetic operations like addition using a Brent-Kung adder structure.
 
-![PG UML](assets/Adder_PG.svg)
+![PG UML](assets/Adder_PG.png)
 
 ## Overview
 

@@ -31,7 +31,7 @@ The following diagrams illustrate GPIO interrupt detection and handling.
 
 Edge-triggered interrupts detect transitions on input pins.
 
-![GPIO Rising Edge Interrupt](../assets/wavedrom/timing/gpio_rising_edge_interrupt.svg)
+![GPIO Rising Edge Interrupt](../assets/wavedrom/timing/gpio_rising_edge_interrupt.png)
 
 The detection sequence:
 1. External input `gpio_in[0]` transitions from 0 to 1
@@ -45,7 +45,7 @@ The detection sequence:
 
 Falling edge detection uses inverted polarity configuration.
 
-![GPIO Falling Edge Interrupt](../assets/wavedrom/timing/gpio_falling_edge_interrupt.svg)
+![GPIO Falling Edge Interrupt](../assets/wavedrom/timing/gpio_falling_edge_interrupt.png)
 
 With `cfg_int_type[0]=0` (edge mode) and `cfg_int_polarity[0]=0` (falling edge), the detector triggers on 1-to-0 transitions.
 
@@ -53,7 +53,7 @@ With `cfg_int_type[0]=0` (edge mode) and `cfg_int_polarity[0]=0` (falling edge),
 
 Level-sensitive interrupts track the input state directly.
 
-![GPIO Level Interrupt](../assets/wavedrom/timing/gpio_level_interrupt.svg)
+![GPIO Level Interrupt](../assets/wavedrom/timing/gpio_level_interrupt.png)
 
 Key differences from edge mode:
 - `irq` follows the input level (not latched)
@@ -64,7 +64,7 @@ Key differences from edge mode:
 
 Write-1-to-Clear mechanism clears latched interrupts.
 
-![GPIO Interrupt Clear](../assets/wavedrom/timing/gpio_interrupt_clear.svg)
+![GPIO Interrupt Clear](../assets/wavedrom/timing/gpio_interrupt_clear.png)
 
 The clear sequence:
 1. `r_raw_int[0]` is active (edge was detected)

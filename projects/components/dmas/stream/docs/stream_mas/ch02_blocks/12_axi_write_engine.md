@@ -308,7 +308,7 @@ The following timing diagram shows the AXI write engine operating at maximum thr
 
 #### Waveform 2.12.1: AXI Write Engine - Perfect Streaming
 
-![AXI Write Engine - Perfect Streaming](../assets/wavedrom/datapath_wr_perfect_streaming.svg)
+![AXI Write Engine - Perfect Streaming](../assets/wavedrom/datapath_wr_perfect_streaming.png)
 
 **Transaction Flow:**
 
@@ -350,7 +350,7 @@ For multi-channel operation showing channel switching while maintaining streamin
 
 #### Waveform 2.12.2: Datapath Write - Multi-Channel
 
-![Datapath Write - Multi-Channel](../assets/wavedrom/datapath_wr_multi_channel.svg)
+![Datapath Write - Multi-Channel](../assets/wavedrom/datapath_wr_multi_channel.png)
 
 This diagram shows how the engine arbitrates between channels while maintaining high throughput. Note how:
 - Different channel IDs (`awid`) appear in sequence

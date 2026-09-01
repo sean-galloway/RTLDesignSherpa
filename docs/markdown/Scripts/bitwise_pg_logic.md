@@ -25,7 +25,7 @@
 
 The bitwise_pg_logic block is part of the Python code that creates adders/multipliers.
 
-![Bitwise PG UML](assets/Adder_BitwisePGLogic.svg)
+![Bitwise PG UML](assets/Adder_BitwisePGLogic.png)
 
 ## Inputs/Outputs
 

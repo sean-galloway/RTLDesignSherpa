@@ -229,7 +229,7 @@ The following diagram shows how the latency bridge handles downstream backpressu
 
 #### Waveform 2.10.1: Stream Latency Bridge Backpressure
 
-![Latency Bridge Backpressure](../assets/wavedrom/latency_bridge_backpressure.svg)
+![Latency Bridge Backpressure](../assets/wavedrom/latency_bridge_backpressure.png)
 
 **Source:** [latency_bridge_backpressure.json](../assets/wavedrom/latency_bridge_backpressure.json)
 

@@ -45,25 +45,25 @@ The following timing diagrams illustrate key register access sequences:
 
 ### Waveform 5.1: APB Write Timer Config
 
-![APB Write Timer Config](../assets/svg/apb_write_timer_config.svg)
+![APB Write Timer Config](../assets/svg/apb_write_timer_config.png)
 
 APB write to TIMER0_CONFIG register (0x100). [Source: assets/wavedrom/apb_write_timer_config.json](../assets/wavedrom/apb_write_timer_config.json)
 
 ### Waveform 5.2: APB Read Counter
 
-![APB Read Counter](../assets/svg/apb_read_counter.svg)
+![APB Read Counter](../assets/svg/apb_read_counter.png)
 
 APB read of 64-bit counter (two 32-bit reads from COUNTER_LO and COUNTER_HI). [Source: assets/wavedrom/apb_read_counter.json](../assets/wavedrom/apb_read_counter.json)
 
 ### Waveform 5.3: Interrupt W1C Sequence
 
-![Interrupt W1C Sequence](../assets/svg/interrupt_w1c_sequence.svg)
+![Interrupt W1C Sequence](../assets/svg/interrupt_w1c_sequence.png)
 
 Timer interrupt generation and W1C (Write-1-to-Clear) status clearing sequence. [Source: assets/wavedrom/interrupt_w1c_sequence.json](../assets/wavedrom/interrupt_w1c_sequence.json)
 
 ### Waveform 5.4: Timer Setup Sequence
 
-![Timer Setup Sequence](../assets/svg/timer_setup_sequence.svg)
+![Timer Setup Sequence](../assets/svg/timer_setup_sequence.png)
 
 Complete timer setup sequence: disable HPET, reset counter, configure comparator, enable timer, enable HPET. [Source: assets/wavedrom/timer_setup_sequence.json](../assets/wavedrom/timer_setup_sequence.json)
 

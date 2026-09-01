@@ -27,7 +27,7 @@
 
 ### Figure 1.2: UART Architecture
 
-![UART Architecture](../assets/svg/uart_top.svg)
+![UART Architecture](../assets/svg/uart_top.png)
 
 ## Module Hierarchy
 

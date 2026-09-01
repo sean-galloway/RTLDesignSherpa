@@ -59,7 +59,7 @@ The UART includes 16-byte TX and RX FIFOs that buffer data between software and 
 
 The following diagram shows RX FIFO filling to the trigger threshold and generating an interrupt.
 
-![UART FIFO Threshold](../assets/wavedrom/timing/uart_fifo_threshold.svg)
+![UART FIFO Threshold](../assets/wavedrom/timing/uart_fifo_threshold.png)
 
 The interrupt sequence:
 1. RX data arrives, `rx_fifo_wr` pulses

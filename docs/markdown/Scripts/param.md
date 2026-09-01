@@ -25,7 +25,7 @@
 
 The `param` module at `rtl_generators/verilog/param.py` is a Python script that handles Verilog module parameter records. It defines a `ParameterRecord` data class to store details about parameters such as their type, name, value, packed and unpacked notation, and any associated compiler directives. The `Param` class provides methods for operating on lists of these parameter records, such as parsing, manipulating, and generating Verilog parameter declarations and instance strings.
 
-![Param UML](assets/verilog_Param.svg)
+![Param UML](assets/verilog_Param.png)
 
 ## Features
 
