@@ -100,8 +100,7 @@ count `cg_gating` in the surrounding logic on the ungated clock.
 
 ---
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 axil4_master_rd_cg #(
     // Base parameters

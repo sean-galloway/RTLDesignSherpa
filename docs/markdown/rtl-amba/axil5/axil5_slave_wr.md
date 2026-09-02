@@ -183,6 +183,118 @@ A disabled group's output is driven to zero rather than left dangling, so an int
 
 ---
 
+## Timing Characteristics
+
+### Buffer Depths and Latency
+
+| Parameter | Default | Channel |
+|-----------|---------|---------|
+| `SKID_DEPTH_AW` | 2 entries | Skid depth on the AW channel |
+| `SKID_DEPTH_W` | 4 entries | Skid depth on the W channel |
+| `SKID_DEPTH_B` | 2 entries | Skid depth on the B channel |
+
+Each channel traverses one `gaxi_skid_buffer`. That module registers both
+`rd_valid` and the storage array, so the **1-cycle input-to-output latency
+applies on every transfer, including the unstalled case** -- there is no
+combinational bypass from the upstream payload to the downstream one. Full
+throughput (one transfer per cycle) is still sustained once the pipeline is
+primed; the depth sets how much backpressure can be absorbed before it
+propagates upstream, not the steady-state rate.
+
+Legal depth range is 2..8 inclusive, odd values included.
+
+### Optional-group effect
+
+The AXI5-Lite optional groups widen the packed skid payload but do not add a
+pipeline stage: `ARSize`, `AWSize`, `WSize`, `RSize` and `BSize` are
+conditional sums over the `ENABLE_*` parameters, so disabling a group narrows
+the storage without changing latency.
+
+---
+
+
+## Usage Examples
+
+Every parameter and port below is taken from the module declaration; the
+elisions name the remaining members of each group, all of which appear in the
+Ports table above. Override only what your integration needs, and never
+override a derived parameter -- see the note under Parameters.
+
+```systemverilog
+axil5_slave_wr #(
+    .AXIL_ADDR_WIDTH     (32),
+    .AXIL_DATA_WIDTH     (32),
+    .USER_WIDTH          (4),
+    .LOOP_WIDTH          (3),
+    .MPAM_WIDTH          (11),
+    .MECID_WIDTH         (16),
+    .NSAID_WIDTH         (4),
+    .ENABLE_USER         (1),
+    .ENABLE_TRACE        (1),
+    .ENABLE_LOOP         (1),
+    .ENABLE_MPAM         (1),
+    .ENABLE_MECID        (1),
+    .ENABLE_NSAID        (1),
+    .ENABLE_POISON       (1),
+    .ENABLE_LOCK         (1),
+    .SKID_DEPTH_AW       (2),
+    .SKID_DEPTH_W        (4),
+    .SKID_DEPTH_B        (2)
+) u_axil5_slave_wr (
+    // clock/reset
+    .aclk                (aclk),
+    .aresetn             (aresetn),
+    // s_axil_aw
+    .s_axil_awaddr       (s_axil_awaddr),
+    // ... `s_axil_awprot`, `s_axil_awlock`, `s_axil_awuser`, +7 more
+    // fub_aw
+    .fub_awaddr          (fub_awaddr),
+    // ... `fub_awprot`, `fub_awlock`, `fub_awuser`, +7 more
+    // s_axil_w
+    .s_axil_wdata        (s_axil_wdata),
+    // ... `s_axil_wstrb`, `s_axil_wuser`, `s_axil_wpoison`, +2 more
+    // fub_w
+    .fub_wdata           (fub_wdata),
+    // ... `fub_wstrb`, `fub_wuser`, `fub_wpoison`, +2 more
+    // fub_b
+    .fub_bresp           (fub_bresp),
+    // ... `fub_buser`, `fub_btrace`, `fub_bloop`, +2 more
+    // s_axil_b
+    .s_axil_bresp        (s_axil_bresp),
+    // ... `s_axil_buser`, `s_axil_btrace`, `s_axil_bloop`, +2 more
+    // status
+    .busy                (busy)
+);
+```
+
+---
+
+## Design Notes
+
+**All optional groups off is AXI4-Lite.** `ARSize`/`AWSize`/`WSize`/`RSize`/
+`BSize` are conditional sums over the `ENABLE_*` parameters. Disable every
+group and they collapse to the AXI4-Lite payload widths exactly, which is what
+`val/amba/test_axil5_axil4_equivalence.py` asserts by running AXI5-Lite BFMs
+against the AXI4-Lite RTL. If that test ever fails, AXI5-Lite has drifted from
+the protocol it extends.
+
+**Do not override a derived parameter.** The `*Size` parameters and the `AW`/
+`DW` aliases are declared as `parameter` so the elaborator can compute them,
+not so callers can set them. Forcing one to the AXI4-Lite value while a group
+is enabled part-selects past the end of the vector -- the failure reads
+"Extracting 4 bits from only 2 bit number", and it is how this family's test
+port broke.
+
+**No transaction IDs.** AXI4-Lite and AXI5-Lite have none, so anything
+ID-shaped in the shared monitor core is inert here and the wrappers tie the ID
+inputs to zero.
+
+**The skid buffer is not a bypass.** `gaxi_skid_buffer` registers both
+`rd_valid` and its storage, so every transfer costs one cycle even unstalled.
+Depth buys backpressure absorption, not throughput.
+
+---
+
 ## Related Modules
 
 - [axil5_master_rd](axil5_master_rd.md)

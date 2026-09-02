@@ -92,8 +92,7 @@ consumed internally as a wakeup term. All other ports are identical to
 
 ---
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 axil4_slave_rd_cg #(
     // Base module parameters (see axil4_slave_rd.md)
@@ -121,6 +120,78 @@ axil4_slave_rd_cg #(
 
 ---
 
+## Functional Description
+
+This wrapper is the base module plus one `amba_clock_gate_ctrl` instance. The
+transport datapath is untouched -- every channel signal is forwarded verbatim
+-- so functional behaviour is identical to `axil4_slave_rd` and the wrapper adds no
+latency of its own.
+
+What it adds is a gated clock. `amba_clock_gate_ctrl` watches two activity
+terms, `user_valid` (upstream valids plus the base module's `busy`) and
+`axi_valid` (downstream valids), registers their OR into `r_wakeup`, and stops
+the inner module's clock once both have been quiet for `cfg_cg_idle_count`
+cycles. The clock restarts on the next activity, one cycle later.
+
+While the clock is stopped the wrapper masks its outward-facing READY signals
+with `!cg_gating`, so an upstream master sees no acceptance until the clock is
+running again and no handshake is lost across the wake boundary.
+
+`cfg_cg_enable` arms this behaviour; with it low the clock free-runs and the
+module is indistinguishable from its base.
+
+---
+
+## Timing Characteristics
+
+### Buffer Depths and Latency
+
+| Parameter | Default | Channel |
+|-----------|---------|---------|
+| `SKID_DEPTH_AR` | 2 entries | Skid depth on the AR channel |
+| `SKID_DEPTH_R` | 4 entries | Skid depth on the R channel |
+
+Each channel traverses one `gaxi_skid_buffer`. That module registers both
+`rd_valid` and the storage array, so the **1-cycle input-to-output latency
+applies on every transfer, including the unstalled case** -- there is no
+combinational bypass from the upstream payload to the downstream one. Full
+throughput (one transfer per cycle) is still sustained once the pipeline is
+primed; the depth sets how much backpressure can be absorbed before it
+propagates upstream, not the steady-state rate.
+
+Legal depth range is 2..8 inclusive, odd values included.
+
+### Optional-group effect
+
+The AXI5-Lite optional groups widen the packed skid payload but do not add a
+pipeline stage: `ARSize`, `AWSize`, `WSize`, `RSize` and `BSize` are
+conditional sums over the `ENABLE_*` parameters, so disabling a group narrows
+the storage without changing latency.
+
+---
+
+## Design Notes
+
+**A peer's READY must never enter the activity term.** A consumer that parks
+its response-ready high while idle is behaving correctly; folding that into
+`user_valid` pins this block permanently awake and defeats gating entirely --
+silently, because function is unaffected. This wrapper wakes on VALIDs and
+pending work only. `val/amba/test_cg_peer_ready.py` parks the peer READY high,
+holds every VALID low, and requires `cg_gating`. Canonical rule:
+`vault/handbook/design/clock-gating-activity-terms.md`.
+
+**`cfg_cg_enable` is not a kill switch.** It arms gating and reaches
+`amba_clock_gate_ctrl` only; `cfg_monitor_enable` and the datapath are
+forwarded untouched. With it low the clock free-runs and this module behaves
+exactly like its base.
+
+**Gating latency.** The clock stops `cfg_cg_idle_count` + 2 cycles after the
+last bus activity -- the counter, plus one for the `r_wakeup` flop. Budget the
+idle count against your traffic's inter-burst gap; too small and the block
+wakes constantly, too large and it never gates.
+
+---
+
 ## Related Modules
 
 - **[axil4_slave_rd](./axil4_slave_rd.md)** - Base module functionality
@@ -139,6 +210,19 @@ axil4_slave_rd_cg #(
 ---
 
 **Last Updated:** 2026-07-19
+
+---
+
+## Testing
+
+`val/amba/test_axil4_slave_rd_cg.py` drives this module with the AXI4-Lite BFMs from `TBClasses/axil4`. It collects 1 parameter cases at the default `REG_LEVEL`. Run it with:
+
+```bash
+source env_python
+pytest val/amba/test_axil4_slave_rd_cg.py -v
+```
+
+`val/amba/test_cg_peer_ready.py` additionally asserts that this wrapper gates with the peer's READY parked high -- the property the activity term exists to satisfy. See `vault/handbook/design/clock-gating-activity-terms.md`.
 
 ---
 

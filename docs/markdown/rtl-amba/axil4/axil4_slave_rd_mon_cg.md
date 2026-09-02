@@ -154,8 +154,7 @@ The completion/threshold/debug enables (`cfg_compl_enable`, `cfg_threshold_enabl
 
 ---
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 axil4_slave_rd_mon_cg #(
     // Base module parameters (see axil4_slave_rd_mon.md)
@@ -181,6 +180,58 @@ axil4_slave_rd_mon_cg #(
     // ... all other ports same as axil4_slave_rd_mon
 );
 ```
+
+---
+
+## Timing Characteristics
+
+### Buffer Depths and Latency
+
+| Parameter | Default | Channel |
+|-----------|---------|---------|
+| `SKID_DEPTH_AR` | 2 entries | Skid depth on the AR channel |
+| `SKID_DEPTH_R` | 4 entries | Skid depth on the R channel |
+
+Each channel traverses one `gaxi_skid_buffer`. That module registers both
+`rd_valid` and the storage array, so the **1-cycle input-to-output latency
+applies on every transfer, including the unstalled case** -- there is no
+combinational bypass from the upstream payload to the downstream one. Full
+throughput (one transfer per cycle) is still sustained once the pipeline is
+primed; the depth sets how much backpressure can be absorbed before it
+propagates upstream, not the steady-state rate.
+
+Legal depth range is 2..8 inclusive, odd values included.
+
+### Optional-group effect
+
+The AXI5-Lite optional groups widen the packed skid payload but do not add a
+pipeline stage: `ARSize`, `AWSize`, `WSize`, `RSize` and `BSize` are
+conditional sums over the `ENABLE_*` parameters, so disabling a group narrows
+the storage without changing latency.
+
+---
+
+## Design Notes
+
+**Monitor cost is not incremental.** The transaction table is
+`bus_transaction_t` x `MAX_TRANSACTIONS`, and the reporter keeps a second full
+copy (`r_trans_table_local`), so a monitored interface is a multiple of the
+unmonitored one rather than a few percent on top. `MAX_TRANSACTIONS` is the
+knob and the cost is linear in it.
+
+**`perf_byte_count` scales with the bus width.** `cmd_size` is derived as
+`$clog2(AXIL_DATA_WIDTH/8)`. It was hardwired to `3'b010` (4 bytes) until
+2026-09-02, which halved every byte count on a 64-bit Lite bus without failing
+anything. `val/amba/test_axil_perf_byte_count.py` pins it at both legal widths.
+
+**Do not enable completion and performance packets together under load.** The
+monitor bus sustains at most one packet per two cycles. Use `cfg_axi_pkt_mask`
+to drop a class while keeping its marking and counting.
+
+**The ID filter is inert and must stay that way.** AXI4-Lite has no IDs, so
+this wrapper ties the monitor's ID inputs to zero; enabling `ID_FILTER_ENABLE`
+with an `ID_MATCH_BASE` above 0 makes `id_owned(0)` false for every
+transaction and drops ALL monitoring rather than narrowing it.
 
 ---
 

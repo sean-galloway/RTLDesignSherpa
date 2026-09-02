@@ -35,6 +35,8 @@ CANONICAL = [
     'Ports',
     'Functional Description',
     'Timing Characteristics',
+    'Waveforms',             # optional: wavedrom timing diagrams
+    'Timing Diagrams',       # optional: alias-adjacent, same purpose
     'Usage Examples',
     'Design Notes',
     'Related Modules',
@@ -42,6 +44,12 @@ CANONICAL = [
     'References',            # optional
     'Navigation',
 ]
+# Allowed but not required. Every name here MUST also appear in CANONICAL:
+# conformance requires each heading to be in CANONICAL, and REQUIRED is
+# derived as CANONICAL - OPTIONAL. 'Waveforms' and 'Timing Diagrams' were
+# listed here but NOT in CANONICAL, which made them dead configuration --
+# they could not be required, and a page carrying one was marked
+# non-conformant for having it. Four axil4 pages failed on exactly that.
 OPTIONAL = {'Module Interface', 'References', 'Waveforms', 'Timing Diagrams'}
 REQUIRED = [h for h in CANONICAL if h not in OPTIONAL]
 
@@ -68,7 +76,13 @@ ALIASES = {
     'Comparison with Related Modules': 'Related Modules',
 }
 
+# Non-module pages. The spine below describes a page that documents ONE
+# module; an index, an overview or a cross-cutting guide has no module to
+# have Parameters or Ports for. `*_guide.md` pages (three of them, all
+# clock-gating techniques spanning a family) were being counted against
+# their book for lacking sections they cannot have.
 SKIP = {'index.md', 'README.md', 'overview.md', 'quickstart.md'}
+SKIP_SUFFIX = ('_guide.md',)
 
 
 def headings(path):
@@ -81,7 +95,8 @@ def headings(path):
 
 def report(area):
     files = [f for f in sorted(glob.glob(os.path.join(area, '*.md')))
-             if os.path.basename(f) not in SKIP]
+             if os.path.basename(f) not in SKIP
+             and not os.path.basename(f).endswith(SKIP_SUFFIX)]
     if not files:
         return
     conform = 0

@@ -117,8 +117,7 @@ The buffering lets the backend respond at its own pace without stalling the inte
 
 ---
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 axil4_slave_rd #(
     .AXIL_ADDR_WIDTH(32),
@@ -164,6 +163,34 @@ axil4_slave_rd #(
 
 ---
 
+## Timing Characteristics
+
+### Buffer Depths and Latency
+
+| Parameter | Default | Channel |
+|-----------|---------|---------|
+| `SKID_DEPTH_AR` | 2 entries | Skid depth on the AR channel |
+| `SKID_DEPTH_R` | 4 entries | Skid depth on the R channel |
+
+Each channel traverses one `gaxi_skid_buffer`. That module registers both
+`rd_valid` and the storage array, so the **1-cycle input-to-output latency
+applies on every transfer, including the unstalled case** -- there is no
+combinational bypass from the upstream payload to the downstream one. Full
+throughput (one transfer per cycle) is still sustained once the pipeline is
+primed; the depth sets how much backpressure can be absorbed before it
+propagates upstream, not the steady-state rate.
+
+Legal depth range is 2..8 inclusive, odd values included.
+
+### Optional-group effect
+
+The AXI5-Lite optional groups widen the packed skid payload but do not add a
+pipeline stage: `ARSize`, `AWSize`, `WSize`, `RSize` and `BSize` are
+conditional sums over the `ENABLE_*` parameters, so disabling a group narrows
+the storage without changing latency.
+
+---
+
 ## Related Modules
 
 - **[axil4_slave_wr](axil4_slave_wr.md)** - Slave write counterpart
@@ -174,6 +201,17 @@ axil4_slave_rd #(
 ---
 
 **Last Updated:** 2026-07-19
+
+---
+
+## Testing
+
+`val/amba/test_axil4_slave_rd.py` drives this module with the AXI4-Lite BFMs from `TBClasses/axil4`. It collects 3 parameter cases at the default `REG_LEVEL`. Run it with:
+
+```bash
+source env_python
+pytest val/amba/test_axil4_slave_rd.py -v
+```
 
 ---
 

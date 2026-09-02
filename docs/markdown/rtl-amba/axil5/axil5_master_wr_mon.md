@@ -268,6 +268,110 @@ Four things worth knowing before you trust what comes out of the monitor:
 
 ---
 
+## Timing Characteristics
+
+### Buffer Depths and Latency
+
+| Parameter | Default | Channel |
+|-----------|---------|---------|
+| `SKID_DEPTH_AW` | 2 entries | Skid depth on the AW channel |
+| `SKID_DEPTH_W` | 2 entries | Skid depth on the W channel |
+| `SKID_DEPTH_B` | 2 entries | Skid depth on the B channel |
+
+Each channel traverses one `gaxi_skid_buffer`. That module registers both
+`rd_valid` and the storage array, so the **1-cycle input-to-output latency
+applies on every transfer, including the unstalled case** -- there is no
+combinational bypass from the upstream payload to the downstream one. Full
+throughput (one transfer per cycle) is still sustained once the pipeline is
+primed; the depth sets how much backpressure can be absorbed before it
+propagates upstream, not the steady-state rate.
+
+Legal depth range is 2..8 inclusive, odd values included.
+
+### Optional-group effect
+
+The AXI5-Lite optional groups widen the packed skid payload but do not add a
+pipeline stage: `ARSize`, `AWSize`, `WSize`, `RSize` and `BSize` are
+conditional sums over the `ENABLE_*` parameters, so disabling a group narrows
+the storage without changing latency.
+
+---
+
+
+## Usage Examples
+
+Every parameter and port below is taken from the module declaration; the
+elisions name the remaining members of each group, all of which appear in the
+Ports table above. Override only what your integration needs, and never
+override a derived parameter -- see the note under Parameters.
+
+```systemverilog
+axil5_master_wr_mon #(
+    .SKID_DEPTH_AW       (2),
+    .SKID_DEPTH_W        (2),
+    .SKID_DEPTH_B        (2),
+    .AXIL_ADDR_WIDTH     (32),
+    .AXIL_DATA_WIDTH     (32),
+    .ACLK_MHZ            (100),
+    .USE_MONITOR         (1'b1),
+    .N_ADDR_RANGES       (0),
+    .UNIT_ID             (8'h01),
+    .AGENT_ID            (16'h000B),
+    .MAX_TRANSACTIONS    (8),
+    .USE_WDATA_ORDER_Q   (1'b0),
+    .NUM_BANKS           (1),
+    .ID_FILTER_ENABLE    (1'b0),
+    .ADDR_FILTER_ENABLE  (1'b0),
+    .ID_MATCH_BASE       (0),
+    .ID_MATCH_COUNT      (0),
+    .ENABLE_FILTERING    (1),
+    .ADD_PIPELINE_STAGE  (0),
+    .ENABLE_ERROR_LOGIC  (1'b1),
+    .ENABLE_TIMEOUT_LOGIC(1'b1),
+    .ENABLE_COMPL_LOGIC  (1'b1),
+    .ENABLE_THRESHOLD_LOGIC(1'b1),
+    .ENABLE_PERF_LOGIC   (1'b1),
+    .ENABLE_DEBUG_LOGIC  (1'b0),
+    .USER_WIDTH          (4),
+    .LOOP_WIDTH          (3),
+    .MPAM_WIDTH          (11),
+    .MECID_WIDTH         (16),
+    .NSAID_WIDTH         (4),
+    .ENABLE_USER         (1),
+    .ENABLE_TRACE        (1),
+    .ENABLE_LOOP         (1),
+    .ENABLE_MPAM         (1),
+    .ENABLE_MECID        (1),
+    .ENABLE_NSAID        (1),
+    .ENABLE_POISON       (1),
+    .ENABLE_LOCK         (1)
+) u_axil5_master_wr_mon (
+    // clock/reset
+    .aclk                (aclk),
+    .aresetn             (aresetn),
+    // status
+    .cam_clear           (cam_clear),
+    // ... `fub_axil_awaddr`, `fub_axil_awprot`, `fub_axil_awlock`, +35 more
+    // m_axil_aw
+    .m_axil_awaddr       (m_axil_awaddr),
+    // ... `m_axil_awprot`, `m_axil_awlock`, `m_axil_awuser`, +7 more
+    // m_axil_w
+    .m_axil_wdata        (m_axil_wdata),
+    // ... `m_axil_wstrb`, `m_axil_wuser`, `m_axil_wpoison`, +2 more
+    // m_axil_b
+    .m_axil_bresp        (m_axil_bresp),
+    // ... `m_axil_buser`, `m_axil_btrace`, `m_axil_bloop`, +2 more
+    // configuration
+    .cfg_monitor_enable  (cfg_monitor_enable),
+    // ... `cfg_error_enable`, `cfg_timeout_enable`, `cfg_perf_enable`, +28 more
+    // monitor bus
+    .monbus_valid        (monbus_valid)
+    // ... `monbus_ready`, `monbus_packet`, `monbus_timestamp`
+);
+```
+
+---
+
 ## Related Modules
 
 - [axil5_master_rd](axil5_master_rd.md)

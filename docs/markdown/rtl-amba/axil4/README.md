@@ -128,8 +128,7 @@ concurrently.
 
 ---
 
-## Usage Example
-
+## Usage Examples
 ### Basic Read Master
 
 ```systemverilog
@@ -239,8 +238,7 @@ packet-type enum.
 
 ---
 
-## Timing
-
+## Timing Characteristics
 ### Throughput
 
 | Configuration | Rate | Notes |

@@ -175,6 +175,131 @@ A disabled group's output is driven to zero rather than left dangling, so an int
 
 ---
 
+## Timing Characteristics
+
+### Buffer Depths and Latency
+
+| Parameter | Default | Channel |
+|-----------|---------|---------|
+| `SKID_DEPTH_AR` | 2 entries | Skid depth on the AR channel |
+| `SKID_DEPTH_R` | 4 entries | Skid depth on the R channel |
+
+Each channel traverses one `gaxi_skid_buffer`. That module registers both
+`rd_valid` and the storage array, so the **1-cycle input-to-output latency
+applies on every transfer, including the unstalled case** -- there is no
+combinational bypass from the upstream payload to the downstream one. Full
+throughput (one transfer per cycle) is still sustained once the pipeline is
+primed; the depth sets how much backpressure can be absorbed before it
+propagates upstream, not the steady-state rate.
+
+Legal depth range is 2..8 inclusive, odd values included.
+
+### Optional-group effect
+
+The AXI5-Lite optional groups widen the packed skid payload but do not add a
+pipeline stage: `ARSize`, `AWSize`, `WSize`, `RSize` and `BSize` are
+conditional sums over the `ENABLE_*` parameters, so disabling a group narrows
+the storage without changing latency.
+
+---
+
+
+## Usage Examples
+
+Every parameter and port below is taken from the module declaration; the
+elisions name the remaining members of each group, all of which appear in the
+Ports table above. Override only what your integration needs, and never
+override a derived parameter -- see the note under Parameters.
+
+```systemverilog
+axil5_slave_rd_cg #(
+    .AXIL_ADDR_WIDTH     (32),
+    .AXIL_DATA_WIDTH     (32),
+    .USER_WIDTH          (4),
+    .LOOP_WIDTH          (3),
+    .MPAM_WIDTH          (11),
+    .MECID_WIDTH         (16),
+    .NSAID_WIDTH         (4),
+    .ENABLE_USER         (1),
+    .ENABLE_TRACE        (1),
+    .ENABLE_LOOP         (1),
+    .ENABLE_MPAM         (1),
+    .ENABLE_MECID        (1),
+    .ENABLE_NSAID        (1),
+    .ENABLE_POISON       (1),
+    .ENABLE_LOCK         (1),
+    .SKID_DEPTH_AR       (2),
+    .SKID_DEPTH_R        (4),
+    .CG_IDLE_COUNT_WIDTH (4)
+) u_axil5_slave_rd_cg (
+    // clock/reset
+    .aclk                (aclk),
+    .aresetn             (aresetn),
+    // configuration
+    .cfg_cg_enable       (cfg_cg_enable),
+    .cfg_cg_idle_count   (cfg_cg_idle_count),
+    // s_axil_ar
+    .s_axil_araddr       (s_axil_araddr),
+    // ... `s_axil_arprot`, `s_axil_arlock`, `s_axil_aruser`, +7 more
+    // fub_ar
+    .fub_araddr          (fub_araddr),
+    // ... `fub_arprot`, `fub_arlock`, `fub_aruser`, +7 more
+    // fub_r
+    .fub_rdata           (fub_rdata),
+    // ... `fub_rresp`, `fub_ruser`, `fub_rtrace`, +4 more
+    // s_axil_r
+    .s_axil_rdata        (s_axil_rdata),
+    // ... `s_axil_rresp`, `s_axil_ruser`, `s_axil_rtrace`, +4 more
+    // status
+    .cg_gating           (cg_gating),
+    .cg_idle             (cg_idle)
+);
+```
+
+---
+
+## Design Notes
+
+**All optional groups off is AXI4-Lite.** `ARSize`/`AWSize`/`WSize`/`RSize`/
+`BSize` are conditional sums over the `ENABLE_*` parameters. Disable every
+group and they collapse to the AXI4-Lite payload widths exactly, which is what
+`val/amba/test_axil5_axil4_equivalence.py` asserts by running AXI5-Lite BFMs
+against the AXI4-Lite RTL. If that test ever fails, AXI5-Lite has drifted from
+the protocol it extends.
+
+**Do not override a derived parameter.** The `*Size` parameters and the `AW`/
+`DW` aliases are declared as `parameter` so the elaborator can compute them,
+not so callers can set them. Forcing one to the AXI4-Lite value while a group
+is enabled part-selects past the end of the vector -- the failure reads
+"Extracting 4 bits from only 2 bit number", and it is how this family's test
+port broke.
+
+**No transaction IDs.** AXI4-Lite and AXI5-Lite have none, so anything
+ID-shaped in the shared monitor core is inert here and the wrappers tie the ID
+inputs to zero.
+
+**The skid buffer is not a bypass.** `gaxi_skid_buffer` registers both
+`rd_valid` and its storage, so every transfer costs one cycle even unstalled.
+Depth buys backpressure absorption, not throughput.
+
+**A peer's READY must never enter the activity term.** A consumer that parks
+its response-ready high while idle is behaving correctly; folding that signal
+into `user_valid` pins this block permanently awake and defeats gating
+entirely, silently, because function is unaffected. This wrapper wakes on
+VALIDs and pending work only. `val/amba/test_cg_peer_ready.py` parks the peer
+READY high, holds every VALID low, and requires `cg_gating` -- see
+`vault/handbook/design/clock-gating-activity-terms.md`.
+
+**`busy` is not brought out here.** The plain `_cg` wrappers consume the base
+module's `busy` internally as a wake term; use `cg_idle` or `cg_gating` for
+idle detection. The `_mon_cg` variants do expose `busy`.
+
+**`cfg_cg_enable` is not a kill switch.** It arms gating and reaches
+`amba_clock_gate_ctrl` only. With it low the clock free-runs and the module
+behaves exactly like its base.
+
+---
+
 ## Related Modules
 
 - [axil5_master_rd](axil5_master_rd.md)
