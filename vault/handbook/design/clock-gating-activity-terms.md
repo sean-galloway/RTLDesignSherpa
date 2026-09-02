@@ -12,8 +12,23 @@ sides of the block. Each rule below was paid for with a real bug in the
 - **Peer VALID, never peer READY.** A consumer legitimately parks its
   response-ready high while idle; folding that READY into the activity term
   pins the block permanently awake and silently defeats gating. All 8 axi4/
-  axi5 `_cg` wrappers shipped this way (found in the axi45 docs scrub,
-  fixed family-wide). `val/amba/test_mon_cg_gating.py` phase 2 asserts it.
+  axi5 `_cg` wrappers shipped this way (found in the axi45 docs scrub).
+  `val/amba/test_mon_cg_gating.py` phase 2 asserts it.
+
+  **"Fixed family-wide" meant one family.** That sweep corrected axi4 and
+  axi5 and stopped there. On 2026-09-02 the identical defect was still in ten
+  more wrappers -- axil4 x4, axil5 x4, axis4 x2 -- found when qc round_33
+  flagged ONE of them as SUSPECTED. A rule recorded here does not propagate
+  itself: when a defect is a CLASS, grep every family for the pattern, not
+  just the one the finding named. The command is three seconds:
+
+      grep -hE "^\s*assign (user_valid|axi_valid)" rtl/amba/*/*_cg.sv | grep ready
+
+  Three DOCUMENTS also still taught the wrong pattern
+  (`amba_clock_gate_ctrl.md`, `clock_gated_variants.md`,
+  `axis_clock_gating_guide.md`), one of them attributing it to a module that
+  had already been corrected. Fixing RTL without sweeping the docs leaves the
+  seed for the next wrapper someone writes.
 
 - **Input-side valids and datapath busy are NOT the whole story: pending
   OUTPUT-side work must wake the block too.** The mon_cg wrappers gated on
