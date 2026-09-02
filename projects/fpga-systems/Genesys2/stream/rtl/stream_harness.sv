@@ -104,7 +104,10 @@ module stream_harness #(
     // NUM_CHANNELS(8) x OBS_MAX_OUTSTANDING(8), banked CFG_OBS_NUM_BANKS=4 ways
     // = 16 deep, the depth measured at WNS +1.018 ns. The "72 will not close"
     // note below is about a FLAT cam, not this banked one.
-    parameter bit OBS_ENABLE_MON_TAPS = (USE_AXI_MONITORS == 1),
+    // NOT derived from USE_AXI_MONITORS: the observers are the measurement
+    // vehicle and must stay armed when the in-core monitors are removed
+    // for area. See CFG_OBS_ENABLE_MON_TAPS in stream_cfg_pkg.sv.
+    parameter bit OBS_ENABLE_MON_TAPS = stream_char_cfg_pkg::CFG_OBS_ENABLE_MON_TAPS,
     parameter int SRAM_DEPTH   = stream_char_cfg_pkg::CFG_SRAM_DEPTH,
     // NUM_CHANNELS is overridable so the FPGA target can build a 4-channel
     // configuration to fit the Artix-7 100T without changing the DUT's native

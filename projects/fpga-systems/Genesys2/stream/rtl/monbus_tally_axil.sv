@@ -270,15 +270,28 @@ module monbus_tally_axil
     logic                         r_cnt_rvalid;
     logic [TALLY_COUNT_WIDTH-1:0] w_rd_count;
 
-    assign cnt_arready = ~r_cnt_rvalid;
+    // rd_count is REGISTERED inside monbus_pkt_tally -- "valid one cycle after
+    // rd_addr" (see its port comment). rvalid must therefore lag the address
+    // latch by one cycle.
+    //
+    // It used to assert on the SAME edge that latched r_cnt_rd_addr, so every
+    // read returned the PREVIOUS bin's count: a whole histogram shifted by one,
+    // with the first read serving stale data. That is not a simulation detail
+    // -- the host sweeps these bins over UART through this same port, so board
+    // readback was shifted too, and a first-bin read of 0 reads exactly like
+    // "the tally counted nothing".
+    logic r_cnt_addr_v;                      // address latched, data not yet out
+    assign cnt_arready = ~r_cnt_rvalid & ~r_cnt_addr_v;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_cnt_rd_addr <= '0;
+            r_cnt_addr_v  <= 1'b0;
             r_cnt_rvalid  <= 1'b0;
         end else begin
             if (cnt_arvalid & cnt_arready)
                 r_cnt_rd_addr <= cnt_araddr[TALLY_ADDR_BITS+2:3];
-            if (cnt_arvalid & cnt_arready)       r_cnt_rvalid <= 1'b1;
+            r_cnt_addr_v <= cnt_arvalid & cnt_arready;
+            if (r_cnt_addr_v)                    r_cnt_rvalid <= 1'b1;
             else if (cnt_rvalid & cnt_rready)    r_cnt_rvalid <= 1'b0;
         end
     )
