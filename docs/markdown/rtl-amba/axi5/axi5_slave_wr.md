@@ -217,7 +217,7 @@ This slave module acts as an adapter between:
 
 ---
 
-## Timing
+## Timing Characteristics
 
 ### Basic Write Transaction
 
@@ -231,7 +231,6 @@ This slave module acts as an adapter between:
 > - FUB_AXI_BRESP, FUB_AXI_BVALID, FUB_AXI_BREADY
 > - S_AXI_BID, S_AXI_BRESP, S_AXI_BVALID, S_AXI_BREADY
 
-
 ### Write with Poison Indicator
 
 > **Timing diagram pending.** The signals and sequence this scenario
@@ -242,11 +241,9 @@ This slave module acts as an adapter between:
 > - S_AXI_WPOISON asserted on the poisoned beat
 > - FUB_AXI_WPOISON transported to the backend on the same beat
 
-
 ---
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 axi5_slave_wr #(
     .AXI_ID_WIDTH       (8),
@@ -313,6 +310,17 @@ axi5_slave_wr #(
 - **[AXI5 Master Write](axi5_master_wr.md)** - Master write interface
 - **[AXI5 Slave Write CG](axi5_slave_wr_cg.md)** - Clock-gated variant
 - **[AXI5 Slave Write Monitor](../axi5/axi5_slave_wr_mon.md)** - With integrated monitoring
+
+---
+
+## Testing
+
+`val/amba/test_axi5_slave_wr.py` exercises this module. It collects 8 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_axi5_slave_wr.py -v
+```
 
 ---
 

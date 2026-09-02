@@ -121,7 +121,7 @@ index = i[N-1:0]; // Ensure correct bit width
 - **Type safety**: Explicit width matching keeps synthesis warnings away
 - **Truncation**: Safely handles loop variable width vs. output width
 
-## Timing
+## Timing Characteristics
 
 ### Propagation Delay
 
@@ -134,7 +134,7 @@ index = i[N-1:0]; // Ensure correct bit width
 - **Optimization**: Modern synthesizers create efficient priority encoders
 - **Scaling**: Generally logarithmic complexity in hardware
 
-## Usage Example
+## Usage Examples
 
 ### Interrupt Processing
 

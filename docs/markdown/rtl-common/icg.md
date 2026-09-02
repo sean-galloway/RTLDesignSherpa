@@ -75,7 +75,7 @@ end
 assign gclk = en_out && clk;
 ```
 
-## Timing
+## Timing Characteristics
 
 ### Critical Timing Requirements
 
@@ -104,7 +104,7 @@ gclk     ____   |     | ___ | ___ | ___ |  ___
             |___|     ||___|||___|||___|||_____|
 ```
 
-## Usage Example
+## Usage Examples
 
 ### Basic Register Bank Gating
 

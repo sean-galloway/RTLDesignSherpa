@@ -234,7 +234,7 @@ assign ow_carry = w_c[N];  // Final carry out
 - `math_adder_ripple_carry`: Instantiates first FA separately, then generates remaining
 - `math_adder_full_nbit`: Uniform generate loop for all FAs
 
-## Timing
+## Timing Characteristics
 
 ### Propagation Delays
 
@@ -264,7 +264,7 @@ i_c → FA[0].Cout → FA[1].Cout → ... → FA[N-1].Cout → ow_carry
      (2N gate delays)
 ```
 
-## Usage Example
+## Usage Examples
 
 ### Half Adder: Parity Generator
 

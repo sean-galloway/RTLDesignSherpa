@@ -275,8 +275,7 @@ sequenceDiagram
 
 ---
 
-## Timing
-
+## Timing Characteristics
 <!-- TODO: Add wavedrom timing diagram for combined stub -->
 > **Timing diagram pending.** The signals and sequence this scenario
 > exercises:
@@ -288,11 +287,9 @@ sequenceDiagram
 > - Read packet interfaces (fub_axi_ar*, fub_axi_r*)
 > - Overlapping read/write operations
 
-
 ---
 
-## Usage Example
-
+## Usage Examples
 Wire it up, then parse and build packets in the testbench. The bit-slice localparams have to match your instance widths -- get those wrong and you'll spend an afternoon chasing misaligned IDs. Don't ask how I know.
 
 ```systemverilog

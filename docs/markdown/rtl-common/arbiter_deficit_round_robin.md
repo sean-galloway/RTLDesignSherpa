@@ -155,8 +155,7 @@ WRR's weights (IDLE → BLOCK → DRAIN → UPDATE → STABILIZE; 10 cycles mini
 policy. Quantum 0 disables a client entirely. A cost of 0 is defensively
 served as cost 1.
 
-## Timing
-
+## Timing Characteristics
 | Property | Value |
 |---|---|
 | Latency | 1 cycle steady-state (deficit compare, masking and RR decision combinational; grant registered in the core) |

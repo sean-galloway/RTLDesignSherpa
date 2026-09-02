@@ -271,8 +271,7 @@ sequenceDiagram
 
 ---
 
-## Timing
-
+## Timing Characteristics
 <!-- TODO: Add wavedrom timing diagram for stub transactions -->
 > **Timing diagram pending.** The signals and sequence this scenario
 > exercises:
@@ -286,11 +285,9 @@ sequenceDiagram
 > - AXI B signals (s_axi_bvalid, s_axi_bid, s_axi_bresp, etc.)
 > - Packet-to-AXI timing relationship with skid buffer operation
 
-
 ---
 
-## Usage Example
-
+## Usage Examples
 Same pattern as the combined stub: instantiate, parse packets MSB-first, and drive responses back as packed words. The localparams have to match your instance widths.
 
 ```systemverilog

@@ -150,8 +150,7 @@ w_c[0] = 1                       (carry in = 1)
 Result = A + (~B) + 1 = A - B   (two's complement)
 ```
 
-## Timing
-
+## Timing Characteristics
 | Metric | Value |
 |--------|-------|
 | **Logic Depth** | 2N + 1 levels (1 XOR + N full adders x 2) |
@@ -168,7 +167,7 @@ Result = A + (~B) + 1 = A - B   (two's complement)
 i_b[0] → XOR → FA[0] → FA[1] → ... → FA[7] → ow_carry
 ```
 
-## Usage Example
+## Usage Examples
 
 ### Simple Add/Subtract ALU
 

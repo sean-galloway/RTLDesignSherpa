@@ -245,8 +245,7 @@ The correction sequence:
 
 Fair warning: the `DEBUG` parameter is a **no-op** today. The RTL's only nod to it is an empty `initial begin if (DEBUG != 0) begin ... end end` placeholder with no `$display` statements. Turn it on and you'll get exactly no output in the current implementation.
 
-## Timing
-
+## Timing Characteristics
 - **Latency**: One clock cycle for error correction
 - **Throughput**: One word per clock cycle
 - **Detection Rate**: 100% for single and double errors
@@ -255,7 +254,7 @@ Fair warning: the `DEBUG` parameter is a **no-op** today. The RTL's only nod to 
 - **Area**: Scales with data width and parity requirements
 - **Power**: Moderate — the combinational parity math costs you
 
-## Usage Example
+## Usage Examples
 
 ### Basic Decoder
 

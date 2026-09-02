@@ -151,8 +151,20 @@ Exactly as in the AXI variant, `i_mon_time` (the free-running counter broadcast 
 
 ---
 
-## Usage Example
+## Timing Characteristics
 
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
+
+---
+
+## Usage Examples
 ```systemverilog
 // Guard two reserved APB windows; report violations on the MonBus.
 apb_monitor_addr_check #(
@@ -241,6 +253,17 @@ Program `cfg_addr_range_low[i] == cfg_addr_range_high[i]` to turn a range into a
 **Uses:** `monitor_common_pkg` (`PktTypeError`, `PROTOCOL_APB`, `monbus_timestamp_t`, `create_monitor_packet`); `monitor_amba4_pkg` (`APB_ERR_ADDR_RANGE` event code); `reset_defs.svh` (`ALWAYS_FF_RST` / `RST_ASSERTED` reset macros).
 
 **See also:** `axi_monitor_addr_check.sv` (AXI-side equivalent, no `is_read` bit); `apb4_monitor.sv` (the APB monitor this checker plugs into).
+
+---
+
+## Testing
+
+`val/amba/test_apb_monitor_addr_check.py` exercises this module. It collects 1 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_apb_monitor_addr_check.py -v
+```
 
 ---
 

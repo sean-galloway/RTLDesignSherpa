@@ -27,8 +27,7 @@
 
 The `counter` module is as simple as it gets: a configurable up-counter that raises a tick pulse when it reaches its maximum value. Use it for basic timing jobs where all you need is a periodic signal.
 
-## Module Declaration
-
+## Module Interface
 ```systemverilog
 module counter #(
     parameter int MAX = 32767
@@ -62,7 +61,7 @@ module counter #(
 |------|-------|-------------|
 | `tick` | 1 | Pulse output when counter reaches MAX |
 
-## Architecture and Implementation
+## Functional Description
 
 ### Counter Register
 
@@ -129,6 +128,24 @@ assign tick = (r_count == MAX[$clog2(MAX+1)-1:0]);
 | 99 | 7 bits | 100 | f_clk/100 |
 | 999 | 10 bits | 1000 | f_clk/1000 |
 
+### Resource Usage
+
+- **LUTs**: Approximately `$clog2(MAX+1)` LUTs for the counter
+- **FFs**: `$clog2(MAX+1)` flip-flops for the counter register
+- **Logic Levels**: Single level for tick generation
+
+### Maximum Frequency
+
+- **Maximum Frequency**: Limited by counter increment logic
+- **Reset Recovery**: One clock cycle after reset deassertion
+- **Propagation Delay**: Tick output has minimal combinational delay
+
+### Power Optimization
+
+- **Clock Gating**: Consider gating when tick output not needed
+- **Reset Strategy**: Asynchronous reset reduces reset tree loading
+- **Parameter Selection**: Smaller MAX values reduce power consumption
+
 ## Usage Examples
 
 ### 1. Basic Timer (1ms tick at 100MHz)
@@ -167,27 +184,14 @@ counter #(
 );
 ```
 
-## Performance Characteristics
+1. **Periodic Timers**: Generating regular time intervals
+2. **Clock Division**: Creating slower clock enables
+3. **Timeout Generation**: Watchdog timers and timeouts
+4. **Sampling Control**: Periodic data sampling triggers
+5. **LED Blinking**: Visual indicators and status displays
+6. **Protocol Timing**: Communication protocol timeouts
 
-### Resource Usage
-
-- **LUTs**: Approximately `$clog2(MAX+1)` LUTs for the counter
-- **FFs**: `$clog2(MAX+1)` flip-flops for the counter register
-- **Logic Levels**: Single level for tick generation
-
-### Maximum Frequency
-
-- **Maximum Frequency**: Limited by counter increment logic
-- **Reset Recovery**: One clock cycle after reset deassertion
-- **Propagation Delay**: Tick output has minimal combinational delay
-
-### Power Optimization
-
-- **Clock Gating**: Consider gating when tick output not needed
-- **Reset Strategy**: Asynchronous reset reduces reset tree loading
-- **Parameter Selection**: Smaller MAX values reduce power consumption
-
-## Verification
+## Testing
 
 ### Test Scenarios
 
@@ -204,7 +208,7 @@ counter #(
 - Tick pulse generation timing
 - Reset during counting operation
 
-## Synthesis Considerations
+## Design Notes
 
 ### Parameter Constraints
 
@@ -221,8 +225,6 @@ end
 - **Tool Directives**: Consider synthesis attributes for timing-critical paths
 - **Reset Inference**: Ensure reset is properly inferred as asynchronous
 
-## Design Considerations
-
 ### Limitations
 
 1. **No Enable Control**: Always counting when not in reset
@@ -232,15 +234,6 @@ end
 5. **Single Output**: Only provides tick signal, not count value
 
 Know these going in. If you need any of them, you want `counter_load_clear` — don't bolt an enable onto this one and call it done.
-
-## Common Applications
-
-1. **Periodic Timers**: Generating regular time intervals
-2. **Clock Division**: Creating slower clock enables
-3. **Timeout Generation**: Watchdog timers and timeouts
-4. **Sampling Control**: Periodic data sampling triggers
-5. **LED Blinking**: Visual indicators and status displays
-6. **Protocol Timing**: Communication protocol timeouts
 
 ## Related Modules
 

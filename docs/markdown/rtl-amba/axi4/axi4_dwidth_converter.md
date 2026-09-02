@@ -322,7 +322,7 @@ Beat 3: rdata[31:0]   ───┘
 
 ---
 
-## Timing
+## Timing Characteristics
 
 ### Performance Characteristics
 
@@ -341,7 +341,7 @@ Beat 3: rdata[31:0]   ───┘
 
 ---
 
-## Usage Example
+## Usage Examples
 
 ### Basic Upsize Converter (32-bit → 128-bit)
 

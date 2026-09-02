@@ -136,8 +136,7 @@ Notable, deliberate properties:
 
 ---
 
-## Timing
-
+## Timing Characteristics
 | Metric | Value | Notes |
 |---|---|---|
 | Latency | 1-2 cycles | Typical processing delay |
@@ -145,8 +144,7 @@ Notable, deliberate properties:
 
 ---
 
-## Usage Example
-
+## Usage Examples
 This module is instantiated automatically within higher-level monitor modules — `axi_monitor_base` owns it, and users configure behavior through top-level monitor parameters. See the individual monitor documentation for configuration examples.
 
 ---

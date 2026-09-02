@@ -145,7 +145,7 @@ attached at the declaration. All four variants are logically identical apart
 from the attributes and the sensitivity list. Yes, it's repetitive. That's the
 attribute syntax's fault, not the author's.
 
-## Timing
+## Timing Characteristics
 
 ### Reset Assertion (Asynchronous)
 ```
@@ -185,7 +185,7 @@ Remember the chain holds the active-high form, so 111 is "asserted".
 The output releases on the third clock edge after `rst_n` goes high — those N
 cycles are the metastability margin the chain exists to buy you.
 
-## Usage Example
+## Usage Examples
 
 ### Choosing N Value
 

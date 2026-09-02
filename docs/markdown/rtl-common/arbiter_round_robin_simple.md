@@ -145,15 +145,14 @@ always_comb begin
 end
 ```
 
-## Timing
-
+## Timing Characteristics
 | Characteristic | Value |
 |----------------|-------|
 | Setup Time | 1 clock cycle for state update |
 | Response Time | Combinational (0 cycles) |
 | Reset Recovery | 1 clock cycle |
 
-## Usage Example
+## Usage Examples
 
 ### Basic 4-Agent Arbiter
 

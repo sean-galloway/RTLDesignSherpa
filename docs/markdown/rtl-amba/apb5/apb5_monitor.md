@@ -55,8 +55,7 @@ deferred rather than half-wired.
 
 ---
 
-## Module Architecture
-
+## Functional Description
 ```mermaid
 flowchart TB
     subgraph INPUTS["Monitored Interfaces"]
@@ -377,8 +376,20 @@ If PWAKEUP remains high longer than `cfg_wakeup_timeout_cnt`, a timeout event is
 
 ---
 
-## Usage Example
+## Timing Characteristics
 
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
+
+---
+
+## Usage Examples
 ```systemverilog
 apb5_monitor #(
     .ADDR_WIDTH         (32),
@@ -502,11 +513,21 @@ apb5_monitor #(
 
 ---
 
-## Related Documentation
-
+## Related Modules
 - **[APB5 Master](../apb5/apb5_master.md)** - APB5 master interface
 - **[APB5 Slave](../apb5/apb5_slave.md)** - APB5 slave interface
 - **[Monitor Packet Format](../includes/monitor_package_spec.md)** - Standard packet format
+
+---
+
+## Testing
+
+`val/amba/test_apb5_monitor.py` exercises this module. It collects 5 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_apb5_monitor.py -v
+```
 
 ---
 

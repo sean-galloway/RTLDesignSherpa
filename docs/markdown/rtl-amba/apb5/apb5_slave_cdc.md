@@ -269,7 +269,7 @@ synchronously deasserted) in its own domain by the integrator.
 
 ---
 
-## Timing
+## Timing Characteristics
 
 ### Latency
 
@@ -293,11 +293,9 @@ synchronously deasserted) in its own domain by the integrator.
 > - Backend transaction signals
 > - CDC latency
 
-
 ---
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 apb5_slave_cdc #(
     .ADDR_WIDTH     (32),
@@ -354,6 +352,17 @@ apb5_slave_cdc #(
 - **[APB5 Slave CDC CG](apb5_slave_cdc_cg.md)** - CDC with clock gating
 - **[GAXI Async FIFO](../../rtl-cdc/gaxi_fifo_async.md)** - The async FIFO used for both crossings
 - **[Clock Domain Crossing](../../rtl-cdc/cdc.md)** - CDC design patterns and reset behavior
+
+---
+
+## Testing
+
+`val/amba/test_apb5_slave_cdc.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_apb5_slave_cdc.py -v
+```
 
 ---
 

@@ -107,7 +107,20 @@ end
 
 4. **Type Casting**: Uses `int'()` casting for index comparisons to ensure proper integer arithmetic
 
-## Usage Example
+## Timing Characteristics
+
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
+
+---
+
+## Usage Examples
 
 ### 8-bit Example
 
@@ -158,6 +171,17 @@ Output: leadingone = 3'd7
 
 - **find_last_set**: Locates the most significant set bit; drives the `leadingone` output
 - **find_first_set**: Locates the least significant set bit; drives the `trailingone` output
+
+## Testing
+
+`val/common/test_leading_one_trailing_one.py` exercises this module. It collects 2 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/common/test_leading_one_trailing_one.py -v
+```
+
+---
 
 ## Navigation
 

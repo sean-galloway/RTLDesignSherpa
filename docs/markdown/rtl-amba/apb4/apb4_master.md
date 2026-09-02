@@ -218,7 +218,7 @@ always_ff @(posedge clk) begin
 end
 ```
 
-## Timing
+## Timing Characteristics
 
 ### APB Transaction Timing
 
@@ -326,7 +326,7 @@ Shows APB write with command FIFO and response handling:
 
 ---
 
-## Usage Example
+## Usage Examples
 
 ### Basic APB Master Configuration
 

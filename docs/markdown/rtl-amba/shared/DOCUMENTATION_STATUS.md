@@ -147,7 +147,7 @@ Each documentation file should follow this structure (see axi_monitor_base.md as
 
 ---
 
-## Port Groups
+## Ports
 
 ### [Group 1 Name]
 
@@ -163,8 +163,7 @@ Each documentation file should follow this structure (see axi_monitor_base.md as
 
 ---
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 [Realistic instantiation example]
 ```
@@ -178,6 +177,13 @@ Each documentation file should follow this structure (see axi_monitor_base.md as
 [Details]
 
 ---
+
+- All RTL source files have been read and analyzed
+- Module purposes and key features extracted
+- Parameter tables ready for documentation
+- Port groupings identified
+- Design notes captured
+- No emojis used in technical documentation
 
 ## Related Modules
 
@@ -324,12 +330,3 @@ Each documentation file should follow this structure (see axi_monitor_base.md as
 ## Next Steps
 
 All module pages exist. This file's remaining value is the RTL-extracted module notes above — when a module changes, update its page FIRST and this inventory second (or delete the module's entry here rather than let it rot).
-
-## Notes
-
-- All RTL source files have been read and analyzed
-- Module purposes and key features extracted
-- Parameter tables ready for documentation
-- Port groupings identified
-- Design notes captured
-- No emojis used in technical documentation

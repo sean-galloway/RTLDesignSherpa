@@ -196,8 +196,20 @@ Comprehensive monitoring via arbiter_monbus_common:
 
 ---
 
-## Usage Example
+## Timing Characteristics
 
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
+
+---
+
+## Usage Examples
 ```systemverilog
 // 8-client round-robin arbiter with 30% availability window
 arbiter_rr_pwm_monbus #(
@@ -316,6 +328,17 @@ See arbiter_monbus_common.md for complete monitoring details. Key points:
 **Uses:** `arbiter_round_robin.sv` (core RR arbiter); `pwm.sv` (PWM generator); `arbiter_monbus_common.sv` (monitoring infrastructure).
 
 **See also:** `arbiter_wrr_pwm_monbus.sv` (weighted variant); `monbus_arbiter.sv` (aggregates monitor bus streams).
+
+---
+
+## Testing
+
+`val/amba/test_arbiter_rr_pwm_monbus.py` exercises this module. It collects 8 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_arbiter_rr_pwm_monbus.py -v
+```
 
 ---
 

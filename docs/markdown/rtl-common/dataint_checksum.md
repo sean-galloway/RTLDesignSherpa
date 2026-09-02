@@ -93,8 +93,20 @@ No formal FSM here — it operates as a simple accumulator with two states:
 - **RESET**: Counter is zero
 - **ACCUMULATING**: Counter adds valid data inputs
 
-## Usage Example
+## Timing Characteristics
 
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
+
+---
+
+## Usage Examples
 ```systemverilog
 // 16-bit checksum calculator
 dataint_checksum #(
@@ -117,6 +129,17 @@ dataint_checksum #(
 - Packet checksum calculation
 - Basic error detection in data streams
 - Accumulation of data values for verification purposes
+
+## Testing
+
+`val/common/test_dataint_checksum.py` exercises this module. It collects 4 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/common/test_dataint_checksum.py -v
+```
+
+---
 
 ## Navigation
 

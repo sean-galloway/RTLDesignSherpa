@@ -131,7 +131,7 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 ```
 
-## Timing
+## Timing Characteristics
 
 ### 4-bit Fibonacci LFSR Example
 
@@ -168,8 +168,7 @@ and freeze under the `|r_lfsr` guard (seeds 1..3), three revisit their seed so
 `lfsr_done` DOES assert (seeds 6, 11, 13), and the remaining nine settle into a
 cycle that never revisits the seed.
 
-## Usage Example
-
+## Usage Examples
 - Pseudo-random sequence generation (same maximal-length guarantees as the Galois form; the STATE SEQUENCES differ -- see the Usage Note and the Galois page)
 - CRC calculation (with appropriate polynomial)
 - Data scrambling and encryption
@@ -284,6 +283,17 @@ exponents directly (`[n, a, b]`); this module takes `[a+1, b+1, 1]`.
 
 - [shifter_lfsr_galois](shifter_lfsr_galois.md) — the distributed-XOR Galois form. Same polynomials and period, but the tap numbers are **not** interchangeable with this module's, and the state orderings differ.
 - [shifter_lfsr](shifter_lfsr.md) — the generic XNOR-feedback LFSR; left-shift, different tap encoding again (see the warning above).
+
+## Testing
+
+`val/common/test_shifter_lfsr_fibonacci.py` exercises this module. It collects 6 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/common/test_shifter_lfsr_fibonacci.py -v
+```
+
+---
 
 ## Navigation
 

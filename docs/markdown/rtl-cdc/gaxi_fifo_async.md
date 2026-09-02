@@ -175,8 +175,7 @@ Each domain keeps its own binary pointer for arithmetic, converts it to Gray
 for the crossing, and decodes the synchronized remote pointer for flag
 generation.
 
-## Timing
-
+## Timing Characteristics
 | Clock Ratio (wr:rd) | Latency | Notes |
 |---------------------|---------|-------|
 | 1:1 (same freq) | 3-5 cycles | CDC synchronization overhead |
@@ -188,7 +187,7 @@ generation.
 
 **Latency formula:** `~(2 × N_FLOP_CROSS) + 1` in slower clock domain cycles.
 
-## Usage Example
+## Usage Examples
 
 ### Example 1: basic CDC FIFO
 

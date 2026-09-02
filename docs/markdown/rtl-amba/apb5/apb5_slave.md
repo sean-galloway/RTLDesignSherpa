@@ -45,8 +45,7 @@ The APB5 Slave module implements a complete AMBA APB5 slave interface with all A
 
 ---
 
-## Module Architecture
-
+## Functional Description
 ```mermaid
 flowchart LR
     subgraph APB5["APB5 Slave Interface"]
@@ -110,6 +109,30 @@ flowchart LR
 ```
 
 ---
+
+### APB5 Slave Protocol
+
+The slave responds to APB transactions with proper timing:
+
+1. **SETUP Phase**: PSEL=1, PENABLE=0 - Capture address and control
+2. **ACCESS Phase**: PSEL=1, PENABLE=1 - Assert PREADY when response ready
+
+### Response Timing
+
+```mermaid
+sequenceDiagram
+    participant M as APB Master
+    participant S as APB5 Slave
+    participant B as Backend
+
+    M->>S: PSEL=1, PADDR, PWRITE, PAUSER
+    Note over S: SETUP phase
+    M->>S: PENABLE=1
+    Note over S: ACCESS phase
+    S->>B: cmd_valid, cmd_data
+    B->>S: rsp_valid, rsp_data
+    S->>M: PREADY=1, PRDATA, PRUSER, PBUSER
+```
 
 ## Parameters
 
@@ -228,35 +251,7 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 
 ---
 
-## Functionality
-
-### APB5 Slave Protocol
-
-The slave responds to APB transactions with proper timing:
-
-1. **SETUP Phase**: PSEL=1, PENABLE=0 - Capture address and control
-2. **ACCESS Phase**: PSEL=1, PENABLE=1 - Assert PREADY when response ready
-
-### Response Timing
-
-```mermaid
-sequenceDiagram
-    participant M as APB Master
-    participant S as APB5 Slave
-    participant B as Backend
-
-    M->>S: PSEL=1, PADDR, PWRITE, PAUSER
-    Note over S: SETUP phase
-    M->>S: PENABLE=1
-    Note over S: ACCESS phase
-    S->>B: cmd_valid, cmd_data
-    B->>S: rsp_valid, rsp_data
-    S->>M: PREADY=1, PRDATA, PRUSER, PBUSER
-```
-
----
-
-## Timing Diagrams
+## Timing Characteristics
 
 ### Write Transaction with Wait States
 
@@ -275,7 +270,6 @@ sequenceDiagram
 > - PSLVERR
 > - PBUSER
 
-
 ### Read Transaction
 
 <!-- TODO: Add wavedrom timing diagram for APB5 slave read -->
@@ -292,7 +286,6 @@ sequenceDiagram
 > - PRDATA
 > - PRUSER, PBUSER
 
-
 ### Wake-up Signaling
 
 <!-- TODO: Add wavedrom timing diagram for wake-up -->
@@ -304,11 +297,9 @@ sequenceDiagram
 > - PWAKEUP (to master)
 > - Timing relationship
 
-
 ---
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 apb5_slave #(
     .ADDR_WIDTH     (32),
@@ -420,12 +411,22 @@ itself convert them into PSLVERR -- that policy is left to the integrator.
 
 ---
 
-## Related Documentation
-
+## Related Modules
 - **[APB5 Master](apb5_master.md)** - APB5 master interface
 - **[APB5 Slave CG](apb5_slave_cg.md)** - Clock-gated variant
 - **[APB5 Slave CDC](apb5_slave_cdc.md)** - Clock domain crossing variant
 - **[APB4 Slave](../apb4/apb4_slave.md)** - APB4 version for comparison
+
+---
+
+## Testing
+
+`val/amba/test_apb5_slave.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_apb5_slave.py -v
+```
 
 ---
 

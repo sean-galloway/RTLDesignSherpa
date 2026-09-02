@@ -27,8 +27,7 @@
 
 The `counter_ring` module is the classic ring counter: a single '1' bit circulating through a shift register. The result is a one-hot encoded sequence — exactly what you want for sequential enable signals, walking LED patterns, or multi-phase operations where precisely one stage may be active at a time.
 
-## Module Declaration
-
+## Module Interface
 ```systemverilog
 module counter_ring #(
     parameter int WIDTH = 4
@@ -67,7 +66,7 @@ generates WIDTH unique states, with a single '1' bit rotating through WIDTH posi
 |------|-------|-------------|
 | `ring_out` | WIDTH | Ring counter output (one-hot encoded) |
 
-## Architecture and Implementation
+## Functional Description
 
 ### Ring Counter Principle
 
@@ -145,6 +144,31 @@ Step 6: 00000100 (Stage 2)
 Step 7: 00000010 (Stage 1)
 Step 8: 00000001 (Stage 0) - Cycle repeats
 ```
+
+## Timing Characteristics
+
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
+
+---
+
+### Maximum Frequency
+
+- **Typical**: 400-600 MHz in modern FPGAs
+- **Limitation**: Shift register timing
+- **Advantage**: Very simple logic path
+
+### Power Consumption
+
+- **Dynamic**: Proportional to switching frequency
+- **Optimization**: Higher switching than binary counters
+- **Trade-off**: Simplicity vs. power efficiency
 
 ## Usage Examples
 
@@ -386,21 +410,7 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 ```
 
-## Performance Characteristics
-
-### Maximum Frequency
-
-- **Typical**: 400-600 MHz in modern FPGAs
-- **Limitation**: Shift register timing
-- **Advantage**: Very simple logic path
-
-### Power Consumption
-
-- **Dynamic**: Proportional to switching frequency
-- **Optimization**: Higher switching than binary counters
-- **Trade-off**: Simplicity vs. power efficiency
-
-## Verification
+## Testing
 
 ### Test Scenarios
 
@@ -463,7 +473,7 @@ assert property (reset_state);
 assert property (rotation_property);
 ```
 
-## Synthesis Considerations
+## Design Notes
 
 ### Resource Utilization
 
@@ -485,8 +495,6 @@ assert property (rotation_property);
 - **Clock Skew**: Ensure clean clock distribution
 - **Setup/Hold**: Standard flip-flop requirements
 - **Routing Delay**: Minimal due to simple structure
-
-## Design Considerations
 
 ### Common Pitfalls
 

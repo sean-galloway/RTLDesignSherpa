@@ -165,8 +165,31 @@ The CRC configuration (`CRC_POLY`, `CRC_INIT`, `CRC_XOROUT`, `CRC_REFIN`, `CRC_R
 
 ---
 
-## Usage Example
+## Timing Characteristics
 
+| Skid parameter | Default depth |
+|---|---|
+| `SKID_DEPTH_AR` | 2 entries |
+| `SKID_DEPTH_R` | 4 entries |
+| `SKID_DEPTH_AW` | 2 entries |
+| `SKID_DEPTH_W` | 4 entries |
+| `SKID_DEPTH_B` | 2 entries |
+
+Each channel traverses one `gaxi_skid_buffer`, which registers both `rd_valid`
+and its storage. The **1-cycle input-to-output latency therefore applies on
+every transfer, including the unstalled case** -- there is no combinational
+bypass. Depth buys backpressure absorption, not throughput; full rate is
+sustained once the pipeline is primed. Legal range is 2..8 inclusive, odd
+values included.
+
+Clocking: `aclk`, reset `aresetn` (active-low asynchronous).
+
+No synthesis numbers are quoted here. Frequency and area depend on the target
+device and the parameters you elaborate with; run your own build.
+
+---
+
+## Usage Examples
 ```systemverilog
 // Source/sink pair on a DMA's read and write master ports.
 axi4_dma_slaves #(

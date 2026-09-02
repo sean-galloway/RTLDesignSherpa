@@ -43,8 +43,7 @@ Clock-gated variant of the APB5 Slave module. Wraps the base `apb5_slave` with c
 
 ---
 
-## Module Architecture
-
+## Functional Description
 ```mermaid
 flowchart TB
     subgraph CG["Clock Gating Control"]
@@ -166,11 +165,22 @@ activity, because APB5 adds two register stages ahead of the ICG enable.
 > - apb_clock_gating
 > - Wake-up latency (two register stages; first usable gated edge 3 ungated pclk cycles after activity)
 
+---
+
+## Timing Characteristics
+
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
 
 ---
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 apb5_slave_cg #(
     .ADDR_WIDTH         (32),
@@ -192,10 +202,20 @@ apb5_slave_cg #(
 
 ---
 
-## Related Documentation
-
+## Related Modules
 - **[APB5 Slave](apb5_slave.md)** - Base module documentation
 - **[APB5 Master CG](apb5_master_cg.md)** - Clock-gated master
+
+---
+
+## Testing
+
+`val/amba/test_apb5_slave_cg.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_apb5_slave_cg.py -v
+```
 
 ---
 

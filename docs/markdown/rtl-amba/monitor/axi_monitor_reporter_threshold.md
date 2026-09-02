@@ -134,8 +134,20 @@ Active-count beats latency. When `w_active_detect` is asserted, `pkt_valid` fire
 
 ---
 
-## Usage Example
+## Timing Characteristics
 
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
+
+---
+
+## Usage Examples
 This block is instantiated inside `axi_monitor_reporter`, not by users directly:
 
 ```systemverilog

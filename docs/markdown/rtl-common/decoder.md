@@ -84,12 +84,11 @@ endgenerate
 - **Automatic sizing**: N falls out as 2^M
 - **Generate loops**: Synthesizes cleanly for any size
 
-## Timing
-
+## Timing Characteristics
 - **Setup/hold**: None (purely combinational)
 - **Output changes**: Follow the inputs immediately
 
-## Usage Example
+## Usage Examples
 
 ### Memory Address Decoding
 
@@ -138,6 +137,17 @@ decoder #(.M(3), .N(8)) state_decoder (
 - **Encoder**: Performs inverse operation (one-hot to binary)
 - **Priority Encoder**: Handles multiple simultaneous inputs
 - **Multiplexer**: Often used together for data routing
+
+## Testing
+
+`val/common/test_decoder.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/common/test_decoder.py -v
+```
+
+---
 
 ## Navigation
 

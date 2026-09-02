@@ -158,7 +158,7 @@ assign o_pulse = r_sync[SYNC_STAGES-1] ^ r_sync_prev;
 - XOR: `0→1` or `1→0` transition generates pulse
 - Output: Single-cycle high pulse in destination domain
 
-## Timing
+## Timing Characteristics
 
 ### Timing Characteristics
 
@@ -219,7 +219,7 @@ destination clocks after the toggle flip (plus up to 1 source clock to capture
 The `+2` in the formula (and RTL header) is a conservative over-count; the timing
 diagram above shows `o_pulse` aligned with `r_sync[2]`, consistent with this.
 
-## Usage Example
+## Usage Examples
 
 ### Basic Pulse Synchronization
 

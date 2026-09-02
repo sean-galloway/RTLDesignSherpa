@@ -192,7 +192,7 @@ assign final_result = {2'b0, sum_vec} + {carry_vec, 1'b0};
 
 **Common mistake:** adding the vectors without shifting the carry. `Sum + 2xCarry = A + B + C` (the `Key Property` above) — the factor of two IS a left shift by one. `sum_vec + carry_vec` is wrong; `sum_vec + (carry_vec << 1)` is correct. I've debugged this exact bug in someone else's multiplier at least twice.
 
-## Timing
+## Timing Characteristics
 
 ### Propagation Delays
 
@@ -217,7 +217,7 @@ i_a/i_b/i_c → ow_carry  (2 gates: AND + OR)
 | Carry Lookahead | O(N) - linear (simplified) |
 | Parallel Prefix | O(log N) |
 
-## Usage Example
+## Usage Examples
 
 ### Adding 3 Numbers (Single CSA Stage)
 

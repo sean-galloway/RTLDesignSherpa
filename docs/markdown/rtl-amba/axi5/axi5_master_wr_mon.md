@@ -441,7 +441,7 @@ When `USE_MONITOR = 0` all perfmon outputs are tied to 0. With `USE_MONITOR = 1`
 
 ---
 
-## Timing
+## Timing Characteristics
 
 ### Monitored Write Burst with Error
 
@@ -454,7 +454,6 @@ When `USE_MONITOR = 0` all perfmon outputs are tied to 0. With `USE_MONITOR = 1`
 > - B channel: BID, BRESP (SLVERR), BVALID, BREADY
 > - Monitor bus: monbus_valid, monbus_packet showing ERROR packet
 
-
 ### Atomic Operation Monitoring
 
 > **Timing diagram pending.** The signals and sequence this scenario
@@ -464,7 +463,6 @@ When `USE_MONITOR = 0` all perfmon outputs are tied to 0. With `USE_MONITOR = 1`
 > - AW/W channels
 > - B response with BTAG
 > - Monitor packets for atomic sequence
-
 
 ### Write Timeout Detection
 
@@ -476,10 +474,9 @@ When `USE_MONITOR = 0` all perfmon outputs are tied to 0. With `USE_MONITOR = 1`
 > - cfg_timeout_cycles threshold
 > - Monitor bus: TIMEOUT packet generated
 
-
 ---
 
-## Usage Example
+## Usage Examples
 
 ### Functional Verification Configuration
 
@@ -695,6 +692,17 @@ Same as read monitor - see [AXI5 Master Read Monitor](axi5_master_rd_mon.md).
 - **[AXI Monitor Filtered](../monitor/axi_monitor_filtered.md)** - Monitor core specification
 - **[Monitor Package Spec](../includes/monitor_package_spec.md)** - Packet format details
 - **[AXI Monitor Configuration Guide](../../../user-guides/AXI_Monitor_Configuration_Guide.md)** - Complete configuration reference
+
+---
+
+## Testing
+
+`val/amba/test_axi5_master_wr_mon.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_axi5_master_wr_mon.py -v
+```
 
 ---
 

@@ -148,7 +148,7 @@ in-flight write or read completes cleanly before the clear begins.
 
 ---
 
-## Usage Example
+## Usage Examples
 
 ### Migration
 

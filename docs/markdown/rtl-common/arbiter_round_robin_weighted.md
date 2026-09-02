@@ -281,7 +281,7 @@ arbiter_round_robin #(
 );
 ```
 
-## Timing
+## Timing Characteristics
 
 ### Latency and Throughput
 
@@ -320,7 +320,7 @@ arbiter_round_robin #(
 - **Typical**: 300-500 MHz (modern FPGAs)
 - **Limiting Factor**: Credit comparison and request filtering logic
 
-## Usage Example
+## Usage Examples
 
 ### Basic QoS Arbiter (No-ACK Mode)
 

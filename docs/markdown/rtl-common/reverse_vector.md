@@ -98,8 +98,7 @@ vector_in[1] = 1 → vector_rev[2] = 1
 vector_in[0] = 1 → vector_rev[3] = 1
 ```
 
-## Timing
-
+## Timing Characteristics
 There is no clock and no state here, so timing in the usual sense doesn't
 apply. The output follows the input after gate and wire delay, and that's the
 whole story:
@@ -110,7 +109,7 @@ whole story:
 - **Maximum Frequency**: Unlimited by this module — limited by surrounding logic
 - **Throughput**: One operation per clock cycle (if clocked)
 
-## Usage Example
+## Usage Examples
 
 ### Endianness Conversion
 ```systemverilog

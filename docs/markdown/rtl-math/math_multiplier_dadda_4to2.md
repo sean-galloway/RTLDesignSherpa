@@ -168,8 +168,7 @@ math_adder_han_carlson_016 u_final_cpa (
 );
 ```
 
-## Timing
-
+## Timing Characteristics
 | Metric | Value |
 |--------|-------|
 | Partial Product Gen | 1 gate level (AND) |
@@ -210,7 +209,7 @@ adders, matching the resource table.)
 
 **Advantage:** at 8x8 the 4:2 variant saves one cell (41 vs 42) at the SAME 4 stages -- the win is cell count and regularity, not stage count (an earlier ~25%-fewer-stages claim was measured at 4 vs 4 and removed).
 
-## Usage Example
+## Usage Examples
 
 ### Basic 8x8 Multiplication
 

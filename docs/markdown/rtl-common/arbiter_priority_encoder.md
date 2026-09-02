@@ -171,7 +171,7 @@ assign w_priority_requests = any_masked_requests ?
                               requests_unmasked;
 ```
 
-## Timing
+## Timing Characteristics
 
 ### Latency and Propagation
 
@@ -191,7 +191,7 @@ assign w_priority_requests = any_masked_requests ?
 | 32 | Optimized | ~64 | O(CLIENTS) |
 | Other | Generic | ~CLIENTS×log(CLIENTS) | O(CLIENTS×log(CLIENTS)) |
 
-## Usage Example
+## Usage Examples
 
 ### Standalone Priority Encoder
 

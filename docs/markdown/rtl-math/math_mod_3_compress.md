@@ -106,12 +106,10 @@ assign rem_out = 2'((w_fold >= 4'd6) ? (w_fold - 4'd6)
 
 The two-branch subtract handles `w_fold` values up to 7 (subtract 6, subtract 3, or pass through), yielding the exact remainder 0, 1, or 2.
 
-## Timing
-
+## Timing Characteristics
 Purely combinational. `rem_out` tracks `d_in` with no clock and no state — one cycle of logic through the compressor tree, the final add, and the fold. If you want a pipeline stage, register the result externally.
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 // Round a beat count down to a whole number of 3-beat monbus records.
 logic [15:0] beat_count;

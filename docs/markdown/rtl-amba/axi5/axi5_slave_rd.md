@@ -199,7 +199,7 @@ This slave module acts as an adapter between:
 
 ---
 
-## Timing
+## Timing Characteristics
 
 ### Basic Read Transaction
 
@@ -212,11 +212,9 @@ This slave module acts as an adapter between:
 > - FUB_AXI_RDATA, FUB_AXI_RVALID, FUB_AXI_RREADY
 > - S_AXI_RDATA, S_AXI_RLAST, S_AXI_RVALID, S_AXI_RREADY
 
-
 ---
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 axi5_slave_rd #(
     .AXI_ID_WIDTH       (8),
@@ -275,6 +273,17 @@ axi5_slave_rd #(
 - **[AXI5 Master Read](axi5_master_rd.md)** - Master read interface
 - **[AXI5 Slave Read CG](axi5_slave_rd_cg.md)** - Clock-gated variant
 - **[AXI5 Slave Read Monitor](../axi5/axi5_slave_rd_mon.md)** - With integrated monitoring
+
+---
+
+## Testing
+
+`val/amba/test_axi5_slave_rd.py` exercises this module. It collects 8 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_axi5_slave_rd.py -v
+```
 
 ---
 

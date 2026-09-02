@@ -55,7 +55,6 @@ The intended home is the Genesys 2 monitor board-validation build; see `vault/ha
 
 ---
 
-
 ### Derived Parameters (do not override)
 
 These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
@@ -171,8 +170,7 @@ The host reads a coherent coverage snapshot over the CSR/AXIL window as follows:
 
 ---
 
-## Timing
-
+## Timing Characteristics
 - **Accept path:** a combinational legal-set CAM lookup resolves the bin, then a 2-cycle read-then-saturating-write (`ST_RUN` → `ST_WR`) commits it. `in_ready` is `(r_st == ST_RUN) && !i_freeze && !i_clear && !r_clear_pend` -- so a clear pulse also drops it, and it stays low until the SRAM clear walk finishes. The documented protocol freezes before clearing, which masks this, but a checker written from the "running and unfrozen" summary alone will false-flag a clear that arrives unfrozen. The clear terms are required for valid/ready correctness, not tidiness.
 - **Read:** `rd_count` is a registered read of `SRAM[rd_addr]`, always live.
 - **Clear:** walks `SRAM_DEPTH` entries writing zero (`ST_CLEAR`).

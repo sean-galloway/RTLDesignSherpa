@@ -248,8 +248,7 @@ validation-only input in this wrapper and is not shown in the drop path.
 
 ---
 
-## Timing
-
+## Timing Characteristics
 | Metric | Value | Notes |
 |---|---|---|
 | Filtering Latency | 0-1 cycles | Combinatorial (0) or registered (1) |
@@ -257,8 +256,7 @@ validation-only input in this wrapper and is not shown in the drop path.
 
 ---
 
-## Usage Example
-
+## Usage Examples
 This module is instantiated automatically within higher-level monitor modules — users
 configure behavior through top-level monitor parameters.
 

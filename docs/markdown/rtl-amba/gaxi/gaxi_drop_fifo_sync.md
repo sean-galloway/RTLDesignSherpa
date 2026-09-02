@@ -171,7 +171,7 @@ When `drop_valid=1` and `drop_all=1`, the FIFO is completely flushed:
 
 ---
 
-## Timing Diagrams
+## Timing Characteristics
 
 ### Fill FIFO
 

@@ -194,7 +194,7 @@ synchronizer, these signals would cross domains unsynchronized.
 
 ---
 
-## Timing
+## Timing Characteristics
 
 ### Timing Considerations
 
@@ -210,11 +210,9 @@ synchronizer, these signals would cross domains unsynchronized.
 > - Transaction flow across CDC with gating
 > - Wake-up latency from PSEL to clock active
 
-
 ---
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 apb5_slave_cdc_cg #(
     .ADDR_WIDTH         (32),
@@ -325,6 +323,17 @@ flowchart TB
 - **[APB5 Slave](apb5_slave.md)** - Base slave module
 - **[APB5 Slave CDC](apb5_slave_cdc.md)** - CDC variant without clock gating
 - **[APB5 Slave CG](apb5_slave_cg.md)** - Clock gating without CDC
+
+---
+
+## Testing
+
+`val/amba/test_apb5_slave_cdc_cg.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_apb5_slave_cdc_cg.py -v
+```
 
 ---
 

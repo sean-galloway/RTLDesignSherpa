@@ -43,8 +43,7 @@ Clock-gated variant of the APB5 Master module. Wraps the base `apb5_master` with
 
 ---
 
-## Module Architecture
-
+## Functional Description
 ```mermaid
 flowchart TB
     subgraph CG["Clock Gating Control"]
@@ -197,11 +196,22 @@ cycles.
 > - apb_clock_gating
 > - Transaction before/after gating
 
+---
+
+## Timing Characteristics
+
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
 
 ---
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 apb5_master_cg #(
     .ADDR_WIDTH         (32),
@@ -242,11 +252,21 @@ library, the ICG cell, and the clock-tree share of total dynamic power.
 
 ---
 
-## Related Documentation
-
+## Related Modules
 - **[APB5 Master](apb5_master.md)** - Base module documentation
 - **[APB5 Slave CG](apb5_slave_cg.md)** - Clock-gated slave
 - **[Clock Gating Guide](../axi4/axi4_clock_gating_guide.md)** - General clock gating concepts
+
+---
+
+## Testing
+
+`val/amba/test_apb5_master_cg.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_apb5_master_cg.py -v
+```
 
 ---
 

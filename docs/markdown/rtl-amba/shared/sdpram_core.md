@@ -176,8 +176,20 @@ The clear FSM has two states (`CLR_IDLE`, `CLR_BUSY`). It accepts `i_cfg_start_c
 
 ---
 
-## Usage Example
+## Timing Characteristics
 
+This module is **sequential**: it contains 3 `always_ff` block(s),
+clocked on `aclk` with active-low asynchronous reset `aresetn`. Outputs derived
+in those blocks are registered and therefore appear one clock after the inputs
+that produced them.
+
+Per-path cycle counts are not enumerated here; read the block that drives the
+signal you care about. No synthesis frequency or area figures are quoted --
+none have been measured against a target device.
+
+---
+
+## Usage Examples
 `sdpram_core` is not usually instantiated directly — the `sdpram_slave_*` wrappers do that. The pattern (as used inside every wrapper) is:
 
 ```systemverilog

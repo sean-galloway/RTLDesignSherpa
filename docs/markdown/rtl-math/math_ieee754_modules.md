@@ -184,7 +184,7 @@ wire w_round_up = w_guard & (w_round | w_sticky | w_lsb);
 | `ow_underflow` | Rounded result magnitude less than min normal (non-zero); IEEE 754 after-rounding detection, so a rounding carry out of the boundary yields min normal, not a flush (MATH-008) |
 | `ow_invalid` | Invalid operation (0*Inf, Inf-Inf, NaN input) |
 
-## Usage Example
+## Usage Examples
 
 ### High-Precision Computation
 

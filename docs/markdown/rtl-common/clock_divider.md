@@ -142,7 +142,7 @@ logic [COUNTER_WIDTH-1:0] r_divider_counters;  // Free-running binary counter
 localparam int ADDR_WIDTH = $clog2(COUNTER_WIDTH);  // Address width
 ```
 
-## Timing
+## Timing Characteristics
 
 ### Latency
 
@@ -185,7 +185,7 @@ architecture, excluding the clamp comparators; earlier revisions of this table
 listed 8/10/12, which did not scale with the mux width and understated the
 wide-counter cases by several times. fmax figures remain unsourced estimates.
 
-## Usage Example
+## Usage Examples
 
 ### Four Debug Clocks
 

@@ -162,8 +162,20 @@ Per-channel buckets are 16-bit, `NUM_CHANNELS` deep, binned by the low `CW` bits
 
 ---
 
-## Usage Example
+## Timing Characteristics
 
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
+
+---
+
+## Usage Examples
 ```systemverilog
 // Meter an AXIS bus: cycle buckets + byte/packet throughput, per-tid bins.
 axis_bus_meter #(
@@ -239,6 +251,17 @@ Cycle buckets are 32-bit (aggregate) / 16-bit (per-channel) matching `axi_bus_me
 ### See Also
 - **axi_bus_meter.sv** - AXI channel four-bucket meter (this module's origin)
 - **axi_perf_latency_hist.sv** - Latency histogram sharing the same window-control convention
+
+---
+
+## Testing
+
+`val/amba/test_axis_bus_meter.py` exercises this module. It collects 10 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_axis_bus_meter.py -v
+```
 
 ---
 

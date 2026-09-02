@@ -329,7 +329,7 @@ Same as read variant - see [AXI5 Master Read CG](axi5_master_rd_cg.md).
 
 ---
 
-## Timing
+## Timing Characteristics
 
 ### Clock Gating with Write Burst
 
@@ -344,7 +344,6 @@ Same as read variant - see [AXI5 Master Read CG](axi5_master_rd_cg.md).
 > - Idle counter after BREADY
 > - cg_gating activation after idle count
 
-
 ### Atomic Operation with Clock Gating
 
 > **Timing diagram pending.** The signals and sequence this scenario
@@ -355,11 +354,9 @@ Same as read variant - see [AXI5 Master Read CG](axi5_master_rd_cg.md).
 > - BTAG response
 > - Clock gating after completion
 
-
 ---
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 axi5_master_wr_cg #(
     .AXI_ID_WIDTH       (8),
@@ -502,6 +499,17 @@ end
 - **[AXI5 Master Read CG](axi5_master_rd_cg.md)** - Read with clock gating
 - **[AXI5 Master Write Monitor CG](../axi5/axi5_master_wr_mon_cg.md)** - With monitoring + clock gating
 - **[AMBA Clock Gate Controller](../shared/amba_clock_gate_ctrl.md)** - Clock gating controller spec
+
+---
+
+## Testing
+
+`val/amba/test_axi5_master_wr_cg.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_axi5_master_wr_cg.py -v
+```
 
 ---
 

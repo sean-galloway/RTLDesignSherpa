@@ -77,7 +77,6 @@ each active window.
 
 ---
 
-
 ### Derived Parameters (do not override)
 
 These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
@@ -244,8 +243,20 @@ Event generated if max deviation > cfg_mon_fairness_thresh.
 
 ---
 
-## Usage Example
+## Timing Characteristics
 
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
+
+---
+
+## Usage Examples
 ```systemverilog
 // 4-client weighted arbiter with priorities [8, 4, 2, 1]
 localparam int MAX_LEVELS = 16;
@@ -394,6 +405,17 @@ When WAIT_GNT_ACK=1, the arbiter waits for grant_ack before issuing next grant. 
 **Uses:** `arbiter_round_robin_weighted.sv` (core WRR arbiter); `pwm.sv` (PWM generator); `arbiter_monbus_common.sv` (monitoring; note WEIGHTED_MODE is inert).
 
 **See also:** `arbiter_rr_pwm_monbus.sv` (equal-priority variant); `monbus_arbiter.sv` (aggregates monitor bus streams).
+
+---
+
+## Testing
+
+`val/amba/test_arbiter_wrr_pwm_monbus.py` exercises this module. It collects 8 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_arbiter_wrr_pwm_monbus.py -v
+```
 
 ---
 

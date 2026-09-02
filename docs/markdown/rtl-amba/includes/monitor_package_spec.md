@@ -301,8 +301,7 @@ explicit at the file level.
 
 ---
 
-## Related
-
+## Related Modules
 - **[The Monitor System](../monitor/monitor_system_architecture.md)** — architecture and capabilities: drain paths, capture strategies (bulk / compressed / counting), and the aggregation topology.
 - **[`../monitor/axi_monitor_base.md`](../monitor/axi_monitor_base.md)** — Core monitor that emits packets.
 - **[`../monitor/axi_monitor_reporter.md`](../monitor/axi_monitor_reporter.md)** — Packet formatting logic (where `create_monitor_packet` is invoked).

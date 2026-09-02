@@ -130,15 +130,13 @@ For a polynomial P(x) and data bit d:
 
 That's CRC polynomial division, done in gates.
 
-## Timing
-
+## Timing Characteristics
 - **Latency**: Combinational (zero clock cycles)
 - **Throughput**: One bit per clock when wrapped in a sequential system
 - **Area**: Minimal — a few XOR gates and multiplexers
 - **Power**: Low — just simple combinational logic
 
-## Usage Example
-
+## Usage Examples
 You rarely instantiate this block alone — it's a building block.
 
 ### Single Bit Processing

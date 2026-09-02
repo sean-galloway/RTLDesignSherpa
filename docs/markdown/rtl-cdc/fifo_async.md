@@ -207,8 +207,7 @@ Why power-of-2 only, with Gray pointers:
 // Invalid depths: 3, 5, 6, 7, 9, 10, 12, 15, ...
 ```
 
-## Timing
-
+## Timing Characteristics
 - **Pointer propagation**: 2-3 clock cycles (depending on `N_FLOP_CROSS`)
 - **Status flag delay**: flags reflect state with synchronizer latency
 - **Conservative design**: prevents overflow/underflow despite the delay
@@ -268,8 +267,7 @@ pytest val/cdc/test_fifo_async_wavedrom.py -v
 
 - `test_fifo_sync_wavedrom.py` - Synchronous FIFO (single clock, no CDC)
 
-## Usage Example
-
+## Usage Examples
 Typical applications:
 
 - **Video processing**: different pixel and memory clock domains

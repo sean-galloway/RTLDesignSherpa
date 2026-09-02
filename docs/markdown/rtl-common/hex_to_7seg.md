@@ -93,6 +93,7 @@ Visual representation:
 
  ###  ###   ##  ###  ###  ### 
 #   # #     #   #   # #    #   
+
 ###   ###   #   #   # ###  ### 
 #   # #   # #   #   # #    #   
 #   # ###   ##  ###  ###  #   
@@ -125,8 +126,7 @@ always_comb begin
 end
 ```
 
-## Timing
-
+## Timing Characteristics
 - **Combinational logic**: The case statement maps to a LUT
 - **No clock dependency**: Immediate response to input changes
 
@@ -135,7 +135,7 @@ On display update rate:
 - **Visual response**: Limited by LED rise/fall times (~microseconds)
 - **Human perception**: >30Hz refresh rate for flicker-free display
 
-## Usage Example
+## Usage Examples
 
 ### Debug Displays
 

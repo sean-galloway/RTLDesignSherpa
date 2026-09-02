@@ -219,7 +219,7 @@ guard in `apb4_slave` — see [apb4_slave.md](apb4_slave.md).
 
 ---
 
-## Timing
+## Timing Characteristics
 
 ### Maximum Clock Ratio
 
@@ -313,8 +313,7 @@ Shows APB read with response crossing back from aclk to pclk domain:
 
 ---
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 apb4_slave_cdc #(
     .ADDR_WIDTH(32),
@@ -366,6 +365,17 @@ apb4_slave_cdc #(
 - **Clock-Gated Variant:** [apb4_slave_cdc_cg.md](apb4_slave_cdc_cg.md)
 - **APB5 Equivalent:** [apb5_slave_cdc.md](../apb5/apb5_slave_cdc.md)
 - **CDC FIFO:** `rtl/cdc/gaxi_fifo_async.sv`
+
+---
+
+## Testing
+
+`val/amba/test_apb4_slave_cdc.py` exercises this module. It collects 2 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_apb4_slave_cdc.py -v
+```
 
 ---
 

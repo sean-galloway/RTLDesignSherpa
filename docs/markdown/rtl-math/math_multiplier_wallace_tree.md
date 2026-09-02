@@ -326,8 +326,7 @@ plain variant is **not** built out of the `_csa_` variant—they're two
 independent generated modules, and neither instantiates the other. Instantiate
 whichever one you prefer.
 
-## Timing
-
+## Timing Characteristics
 | Metric | 8-bit | 16-bit | 32-bit |
 |--------|-------|--------|--------|
 | **Logic Depth** | ~14-16 levels | ~18-22 levels | ~24-30 levels |
@@ -354,7 +353,7 @@ design. The 32-bit variant, for example, follows an 8-layer tree with a
 
 **Note:** Actual timing depends heavily on synthesis optimization and target technology.
 
-## Usage Example
+## Usage Examples
 
 ### Basic 8×8 Multiplication
 

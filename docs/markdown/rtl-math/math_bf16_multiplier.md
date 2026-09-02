@@ -179,7 +179,6 @@ wire w_a_is_normal = ~w_a_eff_zero & ~w_a_is_inf & ~w_a_is_nan;
 > plus the exact-half tie. The fold is gone: `math_bf16_mantissa_mult` now
 > exports the guard bit and the true sticky separately.
 
-
 ```systemverilog
 // Textbook RNE: round up iff guard=1 AND (round OR sticky OR lsb)
 wire w_lsb = w_mant_mult_out[0];
@@ -232,8 +231,7 @@ always_comb begin
 end
 ```
 
-## Timing
-
+## Timing Characteristics
 | Stage | Logic Depth |
 |-------|-------------|
 | Field extraction | 0 (wiring) |
@@ -254,7 +252,7 @@ end
 | Rounding logic | ~15 |
 | Result MUX | ~25 |
 
-## Usage Example
+## Usage Examples
 
 ### Basic Multiplication
 

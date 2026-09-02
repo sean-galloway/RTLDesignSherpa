@@ -290,8 +290,7 @@ pre-`95c9490a` RTL) and `val/amba/test_axi_monitor_pktgen.py`.
 
 ---
 
-## Timing
-
+## Timing Characteristics
 | Metric | Value | Notes |
 |---|---|---|
 | Latency | 1-2 cycles | Typical processing delay |
@@ -299,8 +298,7 @@ pre-`95c9490a` RTL) and `val/amba/test_axi_monitor_pktgen.py`.
 
 ---
 
-## Usage Example
-
+## Usage Examples
 This module is instantiated automatically within higher-level monitor modules — `axi_monitor_base` owns it, and users configure behavior through top-level monitor parameters. Configuration is typically handled at the top-level monitor instantiation; see the individual monitor documentation for configuration examples.
 
 ---

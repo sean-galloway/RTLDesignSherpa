@@ -113,7 +113,7 @@ module math_fp32_to_bf16 (
 | NaN | 0x7FC00000 | Canonical quiet NaN |
 | Min Normal | 0x00800000 | ~1.2e-38 |
 
-## Usage Example
+## Usage Examples
 
 ### Training Pipeline (FP32 Master)
 

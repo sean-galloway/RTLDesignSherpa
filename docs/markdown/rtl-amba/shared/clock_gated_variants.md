@@ -212,7 +212,7 @@ stateDiagram-v2
 
 ---
 
-## Timing
+## Timing Characteristics
 
 ### Counting Convention
 
@@ -290,7 +290,7 @@ stages, first usable clock edge 3 clocks** after activity asserts.
 
 ---
 
-## Usage Example
+## Usage Examples
 
 ### Pattern 1: Aggressive Gating
 

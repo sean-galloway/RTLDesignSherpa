@@ -157,6 +157,19 @@ assign w_should_grant = w_winner_valid && w_any_requests && w_can_grant;
 - **No-ACK Mode**: Mask updates immediately when grant issued (1-cycle round-robin)
 - **ACK Mode**: Mask updates only when ACK received (prevents premature rotation)
 
+## Timing Characteristics
+
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
+
+---
+
 ## Design Notes
 
 ### Usage Notes
@@ -166,6 +179,17 @@ assign w_should_grant = w_winner_valid && w_any_requests && w_can_grant;
   rotates upward from the last winner
 - The round-robin nature ensures long-term fairness across all clients
 - Grant acknowledgment feature is useful in systems where the granted client needs time to process the grant
+
+## Testing
+
+`val/common/test_arbiter_round_robin.py` exercises this module. It collects 6 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/common/test_arbiter_round_robin.py -v
+```
+
+---
 
 ## Navigation
 

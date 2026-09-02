@@ -29,8 +29,7 @@ An AXI4-Stream master module that provides high-throughput streaming data transm
 
 The `axis_master` module implements a complete AXI4-Stream master interface with integrated skid buffering for optimal streaming performance. It supports the full AXI4-Stream protocol with configurable data widths, optional sideband signals, and intelligent buffer management to maximize throughput in streaming data applications such as video processing, network packet handling, and DSP pipelines.
 
-## Module Declaration
-
+## Module Interface
 ```systemverilog
 module axis_master #(
     parameter int SKID_DEPTH         = 4,
@@ -134,7 +133,7 @@ module axis_master #(
 |------|-------|-----------|-------------|
 | busy | 1 | Output | Module activity indicator for clock gating |
 
-## Architecture
+## Functional Description
 
 ### Skid Buffer Design
 
@@ -160,6 +159,34 @@ FUB AXIS → Skid Buffer → Master AXIS → Downstream
 - **Clock Gating Support**: Busy signal for power optimization
 - **Packet Integrity**: TLAST preservation through buffering
 - **Multi-Stream Support**: TID and TDEST routing capabilities
+
+### Buffer Management
+
+The skid buffer provides:
+1. **Decoupling**: Separates upstream and downstream timing
+2. **Flow Control**: Prevents data loss during backpressure
+3. **Pipeline Optimization**: Eliminates ready-path combinatorial logic
+
+### Conditional Signal Handling
+
+The module uses generate blocks to handle various combinations of enabled/disabled sideband signals:
+
+```systemverilog
+// Example: Full signals enabled
+if (IW > 0 && DESTW > 0 && UW > 0) begin
+    // All sideband signals active
+end else if (IW > 0 && DESTW == 0 && UW == 0) begin
+    // Only TID active
+end
+// ... additional combinations
+```
+
+### Busy Signal Generation
+
+Activity detection for clock gating:
+```systemverilog
+busy = (buffer_count > 0) || fub_axis_tvalid;
+```
 
 ## Signal Description
 
@@ -191,36 +218,6 @@ side, not protocol-compliant `TKEEP` support. See [Known Limitations](#known-lim
 | TID | 0-16 bits | Stream identifier for multiplexing |
 | TDEST | 0-16 bits | Destination routing information |
 | TUSER | 0-16 bits | User-defined control/status |
-
-## Functionality
-
-### Buffer Management
-
-The skid buffer provides:
-1. **Decoupling**: Separates upstream and downstream timing
-2. **Flow Control**: Prevents data loss during backpressure
-3. **Pipeline Optimization**: Eliminates ready-path combinatorial logic
-
-### Conditional Signal Handling
-
-The module uses generate blocks to handle various combinations of enabled/disabled sideband signals:
-
-```systemverilog
-// Example: Full signals enabled
-if (IW > 0 && DESTW > 0 && UW > 0) begin
-    // All sideband signals active
-end else if (IW > 0 && DESTW == 0 && UW == 0) begin
-    // Only TID active
-end
-// ... additional combinations
-```
-
-### Busy Signal Generation
-
-Activity detection for clock gating:
-```systemverilog
-busy = (buffer_count > 0) || fub_axis_tvalid;
-```
 
 ## Timing Characteristics
 
@@ -614,7 +611,7 @@ See the [AXIS4 Clock-Gated Variants Guide](axis_clock_gating_guide.md) for gatin
 ungating behaviour, including the ungating latency and the `fub_axis_tready` hold-off while
 gated.
 
-## Synthesis Considerations
+## Design Notes
 
 ### Area Optimization
 - Use minimum required data widths
@@ -631,6 +628,15 @@ gated.
 - Use clock gating variant (`axis_master_cg`) when available
 - Implement activity-based power scaling
 - Size buffers appropriately to minimize switching
+
+| Limitation | Detail |
+|------------|--------|
+| No `TKEEP` | Only `TSTRB` is implemented. A protocol-compliant null-byte / position-byte distinction is not available. See [TSTRB and TKEEP](#tstrb-and-tkeep) |
+| No `TWAKEUP` | The AXI4-Stream `TWAKEUP` low-power signal is not implemented |
+| No native CDC | Both interfaces are on `aclk`. Crossing clock domains requires an external `gaxi_fifo_async` |
+| No reordering or arbitration | The module is a single-stream elastic buffer. `TID`/`TDEST` are carried through unmodified; they are not decoded for routing |
+| No protocol checking | The module does not detect or report `TVALID` deassertion before `TREADY`, or `TLAST` framing errors |
+| `SKID_DEPTH` limited to 2..8 inclusive | The buffer is a timing element, not a rate adapter. Use a `gaxi_fifo_sync` downstream for deep elastic storage |
 
 ## Verification Notes
 
@@ -649,17 +655,6 @@ gated.
 - Verify buffer utilization efficiency
 - Check latency characteristics
 
-## Known Limitations
-
-| Limitation | Detail |
-|------------|--------|
-| No `TKEEP` | Only `TSTRB` is implemented. A protocol-compliant null-byte / position-byte distinction is not available. See [TSTRB and TKEEP](#tstrb-and-tkeep) |
-| No `TWAKEUP` | The AXI4-Stream `TWAKEUP` low-power signal is not implemented |
-| No native CDC | Both interfaces are on `aclk`. Crossing clock domains requires an external `gaxi_fifo_async` |
-| No reordering or arbitration | The module is a single-stream elastic buffer. `TID`/`TDEST` are carried through unmodified; they are not decoded for routing |
-| No protocol checking | The module does not detect or report `TVALID` deassertion before `TREADY`, or `TLAST` framing errors |
-| `SKID_DEPTH` limited to 2..8 inclusive | The buffer is a timing element, not a rate adapter. Use a `gaxi_fifo_sync` downstream for deep elastic storage |
-
 ## Related Modules
 
 - **axis_master_cg**: Clock-gated version for power optimization
@@ -673,3 +668,14 @@ gated.
 > integrator.
 
 The `axis_master` module provides a complete, high-performance solution for AXI4-Stream master functionality with advanced buffering, flexible signal configuration, and comprehensive system integration capabilities.
+
+---
+
+## Testing
+
+`val/amba/test_axis_master.py` exercises this module. It collects 14 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_axis_master.py -v
+```

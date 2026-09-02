@@ -232,7 +232,7 @@ The module uses two GAXI skid buffers for decoupling:
 | BUSY | PREADY=0 | Command issued, wait for backend response |
 | WAIT | PREADY=1, PRDATA/PSLVERR valid | Complete transaction |
 
-## Timing
+## Timing Characteristics
 
 ### Transaction Latency
 
@@ -320,7 +320,7 @@ header, to determine transaction direction. This affects the images under
 
 ---
 
-## Usage Example
+## Usage Examples
 
 ### Basic Register Block Interface
 

@@ -109,15 +109,14 @@ After Stage 2 (prefix cells combining pairs of pairs):
   P[3:0] = P[3:2] & P[1:0]             // Does range [3:0] propagate?
 ```
 
-## Timing
-
+## Timing Characteristics
 | Metric | Value | Description |
 |--------|-------|-------------|
 | Logic Depth | 2 gates | 1 AND + 1 OR (for G), 1 AND (for P) |
 | Critical Path | AND-OR | i_p_hi/i_g_lo -> ow_g |
 | Gate Count | 3 | 2 AND gates + 1 OR gate |
 
-## Usage Example
+## Usage Examples
 
 ### In Kogge-Stone Adder (Stage 1)
 

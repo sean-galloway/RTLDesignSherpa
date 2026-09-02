@@ -174,7 +174,6 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 
 ## Ports
 
-
 ### Filter configuration (forwarded)
 
 These reach the inner monitor through this wrapper; before 2026-09-01 they did not.
@@ -312,7 +311,7 @@ Alongside perfmon, the wrapper forwards the `cfg_compl_enable`, `cfg_threshold_e
 
 ---
 
-## Timing
+## Timing Characteristics
 
 ### Clock Gating with Write Burst and Monitoring
 
@@ -329,7 +328,6 @@ Alongside perfmon, the wrapper forwards the `cfg_compl_enable`, `cfg_threshold_e
 > - cg_gating activation
 > - Monitor quiescent before clock stops
 
-
 ### Atomic Operation with Monitor + Clock Gating
 
 > **Timing diagram pending.** The signals and sequence this scenario
@@ -341,10 +339,9 @@ Alongside perfmon, the wrapper forwards the `cfg_compl_enable`, `cfg_threshold_e
 > - B response with BTAGMATCH
 > - Clock gating after atomic completion
 
-
 ---
 
-## Usage Example
+## Usage Examples
 
 ### Comprehensive Write Debug + Power Optimization
 

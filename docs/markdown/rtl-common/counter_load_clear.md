@@ -27,8 +27,7 @@
 
 The `counter_load_clear` module is a counter with a loadable terminal count and a clear — the workhorse you reach for when a plain counter isn't quite enough. You get precise control over counting behavior through configurable match values, which makes it a natural fit for timing applications, protocol implementations, and configurable delay generation.
 
-## Module Declaration
-
+## Module Interface
 ```systemverilog
 module counter_load_clear #(
     parameter int MAX = 32'd32
@@ -74,7 +73,7 @@ determines the counter width and the maximum loadable value: counter width = `$c
 | `count` | `$clog2(MAX)` | Current counter value |
 | `done` | 1 | Terminal count reached flag |
 
-## Architecture and Implementation
+## Functional Description
 
 ### Internal Registers
 
@@ -130,7 +129,7 @@ end
 assign done = (count == r_match_val);
 ```
 
-## Timing Diagrams
+## Timing Characteristics
 
 ### Basic Operation
 
@@ -170,6 +169,18 @@ Done      : ________________________|‾‾‾|______
 (If `load` had instead arrived after `count` already reached 3, the counter
 would have wrapped at 3 first — the outcome depends on load timing relative to
 the old match value.)
+
+### Maximum Frequency
+
+- **Typical**: 300-500 MHz in modern FPGAs
+- **Critical Path**: Increment + comparison logic
+- **Optimization**: Consider pipelining for extreme speeds
+
+### Latency
+
+- **Load Operation**: 1 cycle to update match value
+- **Clear Operation**: 1 cycle to reset count
+- **Done Signal**: Combinational (0 cycles)
 
 ## Usage Examples
 
@@ -225,6 +236,14 @@ counter_load_clear #(.MAX(10000)) watchdog (
     .done(timeout)
 );
 ```
+
+1. **Timer Modules**: Configurable timing generation
+2. **Protocol Engines**: Timeout and retry mechanisms
+3. **PWM Controllers**: Variable duty cycle generation
+4. **Burst Generators**: Programmable pulse trains
+5. **Watchdog Timers**: System monitoring and reset
+6. **Clock Dividers**: Variable frequency division
+7. **Test Pattern Generators**: Configurable test sequences
 
 ## Advanced Variants
 
@@ -361,21 +380,7 @@ counter_load_clear adaptive_timer (
 );
 ```
 
-## Performance Characteristics
-
-### Maximum Frequency
-
-- **Typical**: 300-500 MHz in modern FPGAs
-- **Critical Path**: Increment + comparison logic
-- **Optimization**: Consider pipelining for extreme speeds
-
-### Latency
-
-- **Load Operation**: 1 cycle to update match value
-- **Clear Operation**: 1 cycle to reset count
-- **Done Signal**: Combinational (0 cycles)
-
-## Verification
+## Testing
 
 ### Test Scenarios
 
@@ -462,7 +467,7 @@ assert property (clear_resets_count);
 assert property (load_updates_match);
 ```
 
-## Synthesis Considerations
+## Design Notes
 
 ### Resource Usage
 
@@ -487,16 +492,6 @@ initial begin
     assert (MAX <= 2**30) else $warning("Large MAX may impact synthesis");
 end
 ```
-
-## Common Applications
-
-1. **Timer Modules**: Configurable timing generation
-2. **Protocol Engines**: Timeout and retry mechanisms
-3. **PWM Controllers**: Variable duty cycle generation
-4. **Burst Generators**: Programmable pulse trains
-5. **Watchdog Timers**: System monitoring and reset
-6. **Clock Dividers**: Variable frequency division
-7. **Test Pattern Generators**: Configurable test sequences
 
 ## Related Modules
 

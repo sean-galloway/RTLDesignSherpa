@@ -269,7 +269,20 @@ Bits [71:64]   - Unit ID (8 bits, from UNIT_ID parameter)
 Bits [63:0]    - Event Data (64 bits — full address, latency, etc.)
 ```
 
-## Usage Example
+## Timing Characteristics
+
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
+
+---
+
+## Usage Examples
 
 ### Functional Verification (Recommended)
 
@@ -434,6 +447,17 @@ gaxi_fifo_sync #(
 - `apb4_slave.sv` - APB slave with cmd/rsp interfaces
 - `monitor_common_pkg.sv` / `monitor_amba4_pkg.sv` - Monitor packet definitions and APB event codes
 - `gaxi_fifo_sync.sv` - Recommended for monitor packet buffering
+
+## Testing
+
+`val/amba/test_apb4_monitor.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_apb4_monitor.py -v
+```
+
+---
 
 ## References
 

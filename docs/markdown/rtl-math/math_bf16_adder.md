@@ -264,7 +264,7 @@ always_comb begin
 end
 ```
 
-## Timing
+## Timing Characteristics
 
 ### Pipeline Latency Configurations
 
@@ -286,7 +286,7 @@ end
 | Rounding | ~3 gates |
 | **Total (comb)** | ~20-25 gates |
 
-## Usage Example
+## Usage Examples
 
 ### Basic Addition (Combinational)
 

@@ -175,8 +175,20 @@ anything synthesized into a real design, particularly behind a CDC.
 5. Test responder provides response on `rsp_data` with `rsp_valid=1`
 6. Stub unpacks response and drives APB PRDATA/PSLVERR/PREADY
 
-## Usage Example
+## Timing Characteristics
 
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
+
+---
+
+## Usage Examples
 ```systemverilog
 // Instantiate APB slave stub
 apb4_slave_stub #(

@@ -218,7 +218,7 @@ level deeper than Han-Carlson at N=16. Han-Carlson's advantage is in wiring
 tracks and fanout regularity, and it widens as N grows — not in cell count at
 this width.
 
-## Timing
+## Timing Characteristics
 
 ### 16-bit Adder
 
@@ -250,7 +250,7 @@ Quoting `+2` without saying which is being counted invites an off-by-one when
 comparing against the Harris taxonomy, which tabulates prefix depth. Say which
 number you're quoting.
 
-## Usage Example
+## Usage Examples
 
 ### Basic 16-bit Addition
 

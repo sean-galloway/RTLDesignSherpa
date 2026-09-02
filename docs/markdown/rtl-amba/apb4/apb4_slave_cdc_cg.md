@@ -120,11 +120,22 @@ In addition to all [apb4_slave_cdc](./apb4_slave_cdc.md) ports:
 > **Do not use it as a safe-to-reset or safe-to-power-down qualifier**; that
 > requires an emptiness check this signal does not perform.
 
+---
+
+## Timing Characteristics
+
+This module is **sequential**: it contains 1 `always_ff` block(s),
+clocked on `aclk` with active-low asynchronous reset `aresetn`. Outputs derived
+in those blocks are registered and therefore appear one clock after the inputs
+that produced them.
+
+Per-path cycle counts are not enumerated here; read the block that drives the
+signal you care about. No synthesis frequency or area figures are quoted --
+none have been measured against a target device.
 
 ---
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 apb4_slave_cdc_cg #(
     // Base module parameters (see apb4_slave_cdc.md)
@@ -168,6 +179,17 @@ independently gated clocks make cross-domain timing very hard to read.
   - [axi4_master_rd_mon_cg.md](../axi4/axi4_master_rd_mon_cg.md) (AXI4 monitor)
   - [axil4_master_rd_mon_cg.md](../axil4/axil4_master_rd_mon_cg.md) (AXIL4 monitor)
   - [apb4_slave_cg.md](apb4_slave_cg.md) (APB interface)
+
+---
+
+## Testing
+
+`val/amba/test_apb4_slave_cdc_cg.py` exercises this module. It collects 2 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_apb4_slave_cdc_cg.py -v
+```
 
 ---
 

@@ -447,8 +447,7 @@ terminal entries into its auto-retire path.
 
 ---
 
-## Timing
-
+## Timing Characteristics
 Everything downstream of the trans_mgr is registered, so the externally
 visible latencies are short and fixed:
 

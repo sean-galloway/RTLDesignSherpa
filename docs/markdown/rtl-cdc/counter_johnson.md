@@ -173,8 +173,7 @@ progression and easy state decode. But they are **not** Gray code:
 > - Do not substitute one for the other in general-purpose CDC. For an
 >   arbitrary binary value crossing domains, use Gray (`bin2gray`/`gray2bin`).
 
-## Timing
-
+## Timing Characteristics
 The logic is minimal -- a shift register and an inverter -- so there are no
 complex timing requirements. Typical maximum frequency is 400-600 MHz in modern
 FPGAs, limited by the shift-register timing. For extreme speeds, pipeline:
@@ -270,7 +269,7 @@ Johnson counters are the foundation of the `fifo_async` `USE_JOHNSON=1` CDC mech
 - `test_counter_bingray_wavedrom.py` - Binary-Gray counter (power-of-2 depths, logarithmic width)
 - `test_fifo_async_wavedrom.py` - Gray code in action (async FIFO)
 
-## Usage Example
+## Usage Examples
 
 ### Example 1: 4-phase clock generator
 

@@ -55,8 +55,7 @@ The AXIS5 Master module implements an AXI5-Stream master interface with AMBA5 ex
 
 ---
 
-## Module Architecture
-
+## Functional Description
 ```mermaid
 flowchart TB
     subgraph INPUT["FUB Interface (Input)"]
@@ -105,6 +104,50 @@ flowchart TB
 ```
 
 ---
+
+### Skid Buffer Operation
+
+The module uses an internal `gaxi_skid_buffer` to:
+- Accept incoming transfers even when downstream is not ready
+- Prevent backpressure propagation
+- Provide registered outputs for timing closure
+- Track buffer occupancy via `busy` signal
+
+### Packet Packing/Unpacking
+
+**Conditional packing based on configuration:**
+
+```systemverilog
+// Full feature set (ENABLE_WAKEUP=1, ENABLE_PARITY=1)
+{tdata, tstrb, tlast, tid, tdest, tuser, twakeup, tparity}
+
+// Wake-up only (ENABLE_WAKEUP=1, ENABLE_PARITY=0)
+{tdata, tstrb, tlast, tid, tdest, tuser, twakeup}
+
+// Parity only (ENABLE_WAKEUP=0, ENABLE_PARITY=1)
+{tdata, tstrb, tlast, tid, tdest, tuser, tparity}
+
+// Base AXIS4 (ENABLE_WAKEUP=0, ENABLE_PARITY=0)
+{tdata, tstrb, tlast, tid, tdest, tuser}
+```
+
+### Parity Checking (Optional)
+
+When `ENABLE_PARITY=1`:
+1. Calculate **even** parity for each data byte: `parity[i] = ^m_axis_tdata[i*8 +: 8]`. The XOR reduction yields 1 for an odd number of set bits, so a correct byte plus its parity bit always has an even population count.
+2. Compare the calculated parity with `m_axis_tparity`
+3. Set `parity_error` flag on mismatch (sticky, cleared only by reset)
+4. The check is sampled on accepted output transfers (`m_axis_tvalid && m_axis_tready`)
+
+**This module does not generate parity.** TPARITY is supplied by the upstream FUB on `fub_axis_tparity`, carried through the skid buffer alongside TDATA, and presented on `m_axis_tparity`. The check on the output side therefore validates the data path *through this module* (packing, buffering, unpacking) against the parity the producer computed. It is not an end-to-end check of the downstream link - the receiving endpoint must run its own check, which is what `axis5_slave` does on its input side.
+
+If the upstream FUB does not compute parity, leave `ENABLE_PARITY=0`; tying `fub_axis_tparity` to a constant while parity is enabled will assert `parity_error` on the first non-matching beat.
+
+### Busy Signal
+
+The `busy` output indicates:
+- Input side has valid data (`fub_axis_tvalid`)
+- Skid buffer contains data (`int_t_count > 0`)
 
 ## Parameters
 
@@ -186,55 +229,7 @@ These are declared in the parameter list so they can be used in port widths, but
 
 ---
 
-## Functionality
-
-### Skid Buffer Operation
-
-The module uses an internal `gaxi_skid_buffer` to:
-- Accept incoming transfers even when downstream is not ready
-- Prevent backpressure propagation
-- Provide registered outputs for timing closure
-- Track buffer occupancy via `busy` signal
-
-### Packet Packing/Unpacking
-
-**Conditional packing based on configuration:**
-
-```systemverilog
-// Full feature set (ENABLE_WAKEUP=1, ENABLE_PARITY=1)
-{tdata, tstrb, tlast, tid, tdest, tuser, twakeup, tparity}
-
-// Wake-up only (ENABLE_WAKEUP=1, ENABLE_PARITY=0)
-{tdata, tstrb, tlast, tid, tdest, tuser, twakeup}
-
-// Parity only (ENABLE_WAKEUP=0, ENABLE_PARITY=1)
-{tdata, tstrb, tlast, tid, tdest, tuser, tparity}
-
-// Base AXIS4 (ENABLE_WAKEUP=0, ENABLE_PARITY=0)
-{tdata, tstrb, tlast, tid, tdest, tuser}
-```
-
-### Parity Checking (Optional)
-
-When `ENABLE_PARITY=1`:
-1. Calculate **even** parity for each data byte: `parity[i] = ^m_axis_tdata[i*8 +: 8]`. The XOR reduction yields 1 for an odd number of set bits, so a correct byte plus its parity bit always has an even population count.
-2. Compare the calculated parity with `m_axis_tparity`
-3. Set `parity_error` flag on mismatch (sticky, cleared only by reset)
-4. The check is sampled on accepted output transfers (`m_axis_tvalid && m_axis_tready`)
-
-**This module does not generate parity.** TPARITY is supplied by the upstream FUB on `fub_axis_tparity`, carried through the skid buffer alongside TDATA, and presented on `m_axis_tparity`. The check on the output side therefore validates the data path *through this module* (packing, buffering, unpacking) against the parity the producer computed. It is not an end-to-end check of the downstream link - the receiving endpoint must run its own check, which is what `axis5_slave` does on its input side.
-
-If the upstream FUB does not compute parity, leave `ENABLE_PARITY=0`; tying `fub_axis_tparity` to a constant while parity is enabled will assert `parity_error` on the first non-matching beat.
-
-### Busy Signal
-
-The `busy` output indicates:
-- Input side has valid data (`fub_axis_tvalid`)
-- Skid buffer contains data (`int_t_count > 0`)
-
----
-
-## Timing Diagrams
+## Timing Characteristics
 
 ### Basic Transfer with Wake-up
 
@@ -252,7 +247,6 @@ The `busy` output indicates:
 > - m_axis_twakeup
 > - busy
 
-
 ### Transfer with Parity Error
 
 <!-- TODO: Add wavedrom timing diagram for parity error detection -->
@@ -266,7 +260,6 @@ The `busy` output indicates:
 > - parity_mismatch
 > - parity_error (sticky flag)
 
-
 ### Skid Buffer Backpressure
 
 <!-- TODO: Add wavedrom timing diagram for skid buffer operation -->
@@ -279,10 +272,9 @@ The `busy` output indicates:
 > - int_t_count (buffer fill level)
 > - busy
 
-
 ---
 
-## Usage Example
+## Usage Examples
 
 ### Basic Configuration
 
@@ -429,13 +421,23 @@ Internal logic uses `IW_WIDTH = (IW > 0) ? IW : 1` to avoid zero-width signals.
 
 ---
 
-## Related Documentation
-
+## Related Modules
 - **[AXIS5 Slave](axis5_slave.md)** - AXIS5 slave interface
 - **[AXIS5 Master CG](axis5_master_cg.md)** - Clock-gated variant with power management
 - **[AXIS5 Slave CG](axis5_slave_cg.md)** - Clock-gated slave variant
 - **[AXIS4 Master](../axis4/axis_master.md)** - AXIS4 version for comparison
 - **[AMBA5 Overview](../overview.md)** - AMBA5 specifications and extensions
+
+---
+
+## Testing
+
+`val/amba/test_axis5_master.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_axis5_master.py -v
+```
 
 ---
 

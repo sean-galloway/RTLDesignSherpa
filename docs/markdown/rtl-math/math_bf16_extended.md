@@ -177,7 +177,7 @@ Special values behave the same way across every module:
 | NaN | NaN | NaN | Propagates | Invalid flag |
 | Subnormal | FTZ | FTZ | FTZ | FTZ |
 
-## Usage Example
+## Usage Examples
 
 ### Applying an Activation
 

@@ -108,15 +108,14 @@ flowchart LR
     end
 ```
 
-## Timing
-
+## Timing Characteristics
 | Metric | Value | Description |
 |--------|-------|-------------|
 | Logic Depth | 2 gates | 1 AND + 1 OR |
 | Critical Path | AND-OR | i_g_lo -> ow_g |
 | Gate Count | 2 | 1 AND + 1 OR |
 
-## Usage Example
+## Usage Examples
 
 ### In Han-Carlson Final Stage
 

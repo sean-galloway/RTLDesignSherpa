@@ -102,7 +102,7 @@ end
 - The final output is registered, so transitions come out clean and glitch-free
 - Resets to all zeros on system reset
 
-## Timing
+## Timing Characteristics
 
 ### Debounce Delay
 
@@ -136,6 +136,17 @@ end
 - **Tick frequency**: `long_tick` should run much slower than the bounce duration
 - **Multiple buttons**: All buttons share the same debounce parameters
 - **Reset behavior**: All outputs go low on reset, no matter what the buttons are doing
+
+## Testing
+
+`val/common/test_debounce.py` exercises this module. It collects 4 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/common/test_debounce.py -v
+```
+
+---
 
 ## Navigation
 

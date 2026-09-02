@@ -170,6 +170,19 @@ A simulation-only check enforces the double-drain contract: asserting `rd_ready2
 
 ---
 
+## Timing Characteristics
+
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
+
+---
+
 ## Usage Examples
 
 ```systemverilog
@@ -214,6 +227,17 @@ gaxi_skid_buffer_dbldrn #(
 - [gaxi_fifo_sync](gaxi_fifo_sync.md) - Larger-depth synchronous FIFO with optional registered output
 
 Self-contained: no RTL dependencies beyond the `reset_defs.svh` reset macros. Typical integrators are consumers that retire two GAXI entries per clock (2-wide unpack / aligner front-ends).
+
+---
+
+## Testing
+
+`val/amba/test_gaxi_skid_buffer_dbldrn.py` exercises this module. It collects 4 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_gaxi_skid_buffer_dbldrn.py -v
+```
 
 ---
 

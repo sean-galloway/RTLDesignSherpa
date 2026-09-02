@@ -115,14 +115,13 @@ found = 1'b0;
 - Gives every signal path a defined value
 - Keeps the synthesizer from warning about incomplete assignments
 
-## Timing
-
+## Timing Characteristics
 - **Propagation delay**: Depends on WIDTH and synthesis optimization
 - **Critical path**: Through the priority resolution loop
 - **Enable response**: Immediate when enable changes
 - **Setup/hold**: None (purely combinational)
 
-## Usage Example
+## Usage Examples
 
 ### Interrupt Controller
 
@@ -202,6 +201,17 @@ Error and exception handling:
 - **Basic Encoder**: Simpler version without enable or true priority
 - **Find Last Set**: Similar MSB-first search functionality
 - **Arbiter**: Often uses priority encoders for grant generation
+
+## Testing
+
+`val/common/test_encoder_priority_enable.py` exercises this module. It collects 2 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/common/test_encoder_priority_enable.py -v
+```
+
+---
 
 ## Navigation
 

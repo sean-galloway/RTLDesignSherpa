@@ -55,8 +55,7 @@ The AXIS5 Slave CG (Clock Gated) module implements an AXI5-Stream slave interfac
 
 ---
 
-## Module Architecture
-
+## Functional Description
 ```mermaid
 flowchart TB
     subgraph CONFIG["Clock Gate Configuration"]
@@ -106,6 +105,84 @@ flowchart TB
 ```
 
 ---
+
+### Clock Gating Control
+
+**Wake-up detection logic:**
+```systemverilog
+r_wakeup <= s_axis_tvalid ||    // Input has data
+            core_busy ||         // Core processing
+            fub_axis5_tvalid ||  // Backend has data
+            s_axis_twakeup;      // Explicit wake-up
+```
+
+The clock gate controller:
+1. Monitors `r_wakeup` for activity
+2. If idle (r_wakeup=0) for `i_cg_idle_count` cycles, gates the clock
+3. On activity (r_wakeup=1), ungates the clock
+4. Respects `i_cg_enable` (clock forced on when 0)
+
+### Wake-up and Gating Latency
+
+Activity is registered once (AXI4, AXI5, AXI4-Lite, AXI4-Stream) or twice (APB, APB5, AXI5-Stream -- with one exception: `apb4_slave_cdc_cg` drives `amba_clock_gate_ctrl` combinationally and so registers once, not twice) before reaching the ICG enable, which is combinational. AXI5-Stream is a **two-stage** family: `r_wakeup` in this wrapper, then a second `r_wakeup` inside `amba_clock_gate_ctrl`. The first gated-clock rising edge available to the core therefore arrives 3 `aclk` cycles after activity asserts. Budget accordingly:
+
+| Event | Latency | Path |
+|-------|---------|------|
+| Activity to first usable gated-clock edge | 3 `aclk` cycles (2 register stages) | `s_axis_tvalid` to `r_wakeup` to controller `r_wakeup` to combinational ICG enable to next edge |
+| Last activity to clock gated | `i_cg_idle_count` + 3 `aclk` cycles | `i_cg_idle_count` + 1 after the internal wakeup deasserts, plus two wake-up register stages |
+
+The wake-up path is **not** zero-latency. Nothing is lost during those cycles: `s_axis_tready` is driven by the skid buffer on `gated_clk`, so it stays low while the clock is stopped and the upstream master simply holds TVALID until the clock resumes. Both registers and the idle counter run on the ungated `aclk`, so the wake-up path is live even while the core clock is stopped.
+
+### Reset Behavior
+
+Reset is safe with respect to gating; the clock is guaranteed to be running whenever reset is asserted:
+
+- `aresetn` is asynchronous and is passed **ungated** to both the clock gate controller and the core, so its assertion edge does not depend on the gated clock.
+- `r_wakeup` in this wrapper and `r_wakeup` inside `amba_clock_gate_ctrl` both reset to 1, which forces the ICG enable active. The clock therefore runs during reset and for at least the idle countdown after reset deassertion.
+- `clock_gate_ctrl` loads its idle counter with `i_cg_idle_count` on reset, so gating cannot re-engage until a full idle period has elapsed after release.
+
+Because reset removal is asynchronous, apply the usual practice of releasing `aresetn` synchronously to `aclk` at the system level.
+
+### Power Saving Mechanism
+
+**Clock gating states:**
+
+| Condition | r_wakeup | Clock State | Power State |
+|-----------|----------|-------------|-------------|
+| Receiving data | 1 | Running | Full power |
+| Buffer has data | 1 | Running | Full power |
+| Backend processing | 1 | Running | Full power |
+| Wake-up asserted | 1 | Running | Full power |
+| Idle < threshold | 0 | Running | Full power |
+| Idle ≥ threshold | 0 | Gated | Low power |
+
+**Benefits:**
+- Reduces dynamic power during idle periods
+- Wake-up on new transfers costs 2 register stages; the first usable gated-clock edge arrives 3 `aclk` cycles after activity (see Wake-up and Gating Latency)
+- No protocol impact (transparent to upstream/backend)
+
+### Parity Error Detection
+
+When `ENABLE_PARITY=1`:
+- Parity checked on **input side** (`s_axis_tdata` vs `s_axis_tparity`)
+- Early error detection at receive interface
+- `parity_error` flag is sticky (latches until reset)
+- No transfer can slip past the check while gated: `s_axis_tready` is driven on `gated_clk`, so no transfer is accepted until the clock has resumed
+
+### Idle Count Configuration
+
+**Typical values for `i_cg_idle_count`:**
+- **Aggressive power saving:** 2-4 cycles
+  - Quick gating, may have frequent gate/ungate transitions
+  - Best for bursty traffic with long idle periods
+- **Balanced:** 8-16 cycles
+  - Reduces gate/ungate overhead
+  - Good for moderate traffic patterns
+- **Conservative:** 32-64 cycles
+  - Only gates during extended idle
+  - Minimal gate/ungate overhead
+
+**Trade-off:** Lower count = more power savings but more gate transitions (dynamic overhead)
 
 ## Parameters
 
@@ -196,89 +273,7 @@ These are declared in the parameter list so they can be used in port widths, but
 
 ---
 
-## Functionality
-
-### Clock Gating Control
-
-**Wake-up detection logic:**
-```systemverilog
-r_wakeup <= s_axis_tvalid ||    // Input has data
-            core_busy ||         // Core processing
-            fub_axis5_tvalid ||  // Backend has data
-            s_axis_twakeup;      // Explicit wake-up
-```
-
-The clock gate controller:
-1. Monitors `r_wakeup` for activity
-2. If idle (r_wakeup=0) for `i_cg_idle_count` cycles, gates the clock
-3. On activity (r_wakeup=1), ungates the clock
-4. Respects `i_cg_enable` (clock forced on when 0)
-
-### Wake-up and Gating Latency
-
-Activity is registered once (AXI4, AXI5, AXI4-Lite, AXI4-Stream) or twice (APB, APB5, AXI5-Stream -- with one exception: `apb4_slave_cdc_cg` drives `amba_clock_gate_ctrl` combinationally and so registers once, not twice) before reaching the ICG enable, which is combinational. AXI5-Stream is a **two-stage** family: `r_wakeup` in this wrapper, then a second `r_wakeup` inside `amba_clock_gate_ctrl`. The first gated-clock rising edge available to the core therefore arrives 3 `aclk` cycles after activity asserts. Budget accordingly:
-
-| Event | Latency | Path |
-|-------|---------|------|
-| Activity to first usable gated-clock edge | 3 `aclk` cycles (2 register stages) | `s_axis_tvalid` to `r_wakeup` to controller `r_wakeup` to combinational ICG enable to next edge |
-| Last activity to clock gated | `i_cg_idle_count` + 3 `aclk` cycles | `i_cg_idle_count` + 1 after the internal wakeup deasserts, plus two wake-up register stages |
-
-The wake-up path is **not** zero-latency. Nothing is lost during those cycles: `s_axis_tready` is driven by the skid buffer on `gated_clk`, so it stays low while the clock is stopped and the upstream master simply holds TVALID until the clock resumes. Both registers and the idle counter run on the ungated `aclk`, so the wake-up path is live even while the core clock is stopped.
-
-### Reset Behavior
-
-Reset is safe with respect to gating; the clock is guaranteed to be running whenever reset is asserted:
-
-- `aresetn` is asynchronous and is passed **ungated** to both the clock gate controller and the core, so its assertion edge does not depend on the gated clock.
-- `r_wakeup` in this wrapper and `r_wakeup` inside `amba_clock_gate_ctrl` both reset to 1, which forces the ICG enable active. The clock therefore runs during reset and for at least the idle countdown after reset deassertion.
-- `clock_gate_ctrl` loads its idle counter with `i_cg_idle_count` on reset, so gating cannot re-engage until a full idle period has elapsed after release.
-
-Because reset removal is asynchronous, apply the usual practice of releasing `aresetn` synchronously to `aclk` at the system level.
-
-### Power Saving Mechanism
-
-**Clock gating states:**
-
-| Condition | r_wakeup | Clock State | Power State |
-|-----------|----------|-------------|-------------|
-| Receiving data | 1 | Running | Full power |
-| Buffer has data | 1 | Running | Full power |
-| Backend processing | 1 | Running | Full power |
-| Wake-up asserted | 1 | Running | Full power |
-| Idle < threshold | 0 | Running | Full power |
-| Idle ≥ threshold | 0 | Gated | Low power |
-
-**Benefits:**
-- Reduces dynamic power during idle periods
-- Wake-up on new transfers costs 2 register stages; the first usable gated-clock edge arrives 3 `aclk` cycles after activity (see Wake-up and Gating Latency)
-- No protocol impact (transparent to upstream/backend)
-
-### Parity Error Detection
-
-When `ENABLE_PARITY=1`:
-- Parity checked on **input side** (`s_axis_tdata` vs `s_axis_tparity`)
-- Early error detection at receive interface
-- `parity_error` flag is sticky (latches until reset)
-- No transfer can slip past the check while gated: `s_axis_tready` is driven on `gated_clk`, so no transfer is accepted until the clock has resumed
-
-### Idle Count Configuration
-
-**Typical values for `i_cg_idle_count`:**
-- **Aggressive power saving:** 2-4 cycles
-  - Quick gating, may have frequent gate/ungate transitions
-  - Best for bursty traffic with long idle periods
-- **Balanced:** 8-16 cycles
-  - Reduces gate/ungate overhead
-  - Good for moderate traffic patterns
-- **Conservative:** 32-64 cycles
-  - Only gates during extended idle
-  - Minimal gate/ungate overhead
-
-**Trade-off:** Lower count = more power savings but more gate transitions (dynamic overhead)
-
----
-
-## Timing Diagrams
+## Timing Characteristics
 
 ### Clock Gating Activation on Slave
 
@@ -294,7 +289,6 @@ When `ENABLE_PARITY=1`:
 > - axis_clock_gating (status)
 > - New s_axis_tvalid arrival ungates clock
 
-
 ### Wake-up Preventing Gating During Receive
 
 <!-- TODO: Add wavedrom timing diagram for wake-up during receive -->
@@ -308,7 +302,6 @@ When `ENABLE_PARITY=1`:
 > - gated_clk (remains running)
 > - axis_clock_gating (stays 0)
 > - fub_axis5_tvalid (output forwarded)
-
 
 ### Backend Backpressure with Clock Gating
 
@@ -324,10 +317,9 @@ When `ENABLE_PARITY=1`:
 > - gated_clk (remains running due to busy)
 > - axis_clock_gating (stays 0 during backpressure)
 
-
 ---
 
-## Usage Example
+## Usage Examples
 
 ### Basic Clock-Gated Slave
 
@@ -570,13 +562,23 @@ No CDC synchronizers are needed, because `gated_clk` is `aclk` passed through an
 
 ---
 
-## Related Documentation
-
+## Related Modules
 - **[AXIS5 Slave](axis5_slave.md)** - Base AXIS5 slave without clock gating
 - **[AXIS5 Master CG](axis5_master_cg.md)** - Clock-gated master variant
 - **[AXIS5 Master](axis5_master.md)** - Base AXIS5 master
 - **[AMBA Clock Gate Controller](../shared/amba_clock_gate_ctrl.md)** - Clock gating controller
 - **[AMBA5 Power Management](../overview.md#power-management)** - AMBA5 power features
+
+---
+
+## Testing
+
+`val/amba/test_axis5_slave_cg.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_axis5_slave_cg.py -v
+```
 
 ---
 

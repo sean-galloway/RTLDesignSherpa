@@ -495,8 +495,7 @@ hit rate; on the validation dataset it's 93.5 %.
 
 ---
 
-## Timing
-
+## Timing Characteristics
 The encoder is split into **three stages** (1, 2a, 2b in the table below),
 with a tier-1 record ~3 cycles in flight. Per-record slot counts are unchanged
 from the original single-cycle design, and so is the sustained input

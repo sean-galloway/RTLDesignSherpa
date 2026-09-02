@@ -155,15 +155,14 @@ Chunk 3: data_in[29:21]  (9 bits)  → parity[3], parity_err[3]
 - **Simultaneous Operation**: Generation and checking run concurrently, each chunk minds its own business, and all chunks evaluate at the same time
 - **Parity Flexibility**: You can flip the parity type during operation; all chunks share the same parity type; both common parity schemes covered
 
-## Timing
-
+## Timing Characteristics
 - **Combinational Logic**: Zero clock delay
 - **Critical Path**: XOR tree depth ≈ log₂(ChunkSize)
 - **Propagation Delay**: Minimal for typical chunk sizes
 - **Area**: Grows linearly with CHUNKS and WIDTH; just XOR trees, so very little logic per chunk
 - **Power**: Low — simple combinational logic, and power tracks the data switching
 
-## Usage Example
+## Usage Examples
 
 ### Basic Parity Generation
 
@@ -260,6 +259,17 @@ Related application areas:
 - **Alignment**: Think about data bus alignment
 - **Extra Bits**: Handle remainder bits sensibly
 - **Performance**: Balance chunk count against granularity
+
+## Testing
+
+`val/common/test_dataint_parity.py` exercises this module. It collects 16 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/common/test_dataint_parity.py -v
+```
+
+---
 
 ## Navigation
 

@@ -136,8 +136,20 @@ The block presents one packet at a time. The top reporter samples `pkt_valid`, f
 
 ---
 
-## Usage Example
+## Timing Characteristics
 
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
+
+---
+
+## Usage Examples
 This block is not instantiated directly by users; it is instantiated inside `axi_monitor_reporter`. The pattern is:
 
 ```systemverilog

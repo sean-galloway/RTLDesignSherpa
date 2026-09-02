@@ -44,8 +44,7 @@ The APB5 Slave Stub provides a simplified packed-data interface for responding t
 
 ---
 
-## Module Architecture
-
+## Functional Description
 ```mermaid
 flowchart LR
     subgraph APB5["APB5 Bus"]
@@ -289,11 +288,22 @@ sequenceDiagram
 > - rsp_valid, rsp_ready, rsp_data
 > - State transitions IDLE -> XFER_DATA -> IDLE
 
+---
+
+## Timing Characteristics
+
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
 
 ---
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 apb5_slave_stub #(
     .DEPTH          (4),
@@ -400,10 +410,20 @@ The `wakeup_request` input is registered before driving `s_apb_PWAKEUP`:
 
 ---
 
-## Related Documentation
-
+## Related Modules
 - **[APB5 Slave](apb5_slave.md)** - Full slave module
 - **[APB5 Master Stub](apb5_master_stub.md)** - Corresponding master stub
+
+---
+
+## Testing
+
+`val/amba/test_apb5_slave_stub.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_apb5_slave_stub.py -v
+```
 
 ---
 

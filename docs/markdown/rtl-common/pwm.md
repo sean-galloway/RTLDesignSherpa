@@ -197,7 +197,7 @@ underflowing, since 0 means infinite.
 - All internal counters and state machines reset to IDLE
 - Clean startup guaranteed after reset deassertion
 
-## Timing
+## Timing Characteristics
 
 ### Single Period Example (WIDTH=8, duty=3, period=8)
 
@@ -214,7 +214,7 @@ Period: 1     2     DONE
 PWM:    ████▒▒▒▒████▒▒▒▒____
 ```
 
-## Usage Example
+## Usage Examples
 
 ### Motor Speed Control
 
@@ -254,6 +254,17 @@ repeat_count = 1;         // Single pulse
 - Audio signal generation
 - Power supply switching
 - Heating element control
+
+## Testing
+
+`val/common/test_pwm.py` exercises this module. It collects 2 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/common/test_pwm.py -v
+```
+
+---
 
 ## Navigation
 

@@ -149,7 +149,7 @@ always_comb begin
 end
 ```
 
-## Timing
+## Timing Characteristics
 
 ### 8-bit Examples (WIDTH=8)
 
@@ -183,8 +183,7 @@ Input:  data = 8'b11010110, shift_amount = 3, ctrl = 3'b110
 Output: 8'b10110110  (bits wrap around)
 ```
 
-## Usage Example
-
+## Usage Examples
 Barrel shifters show up anywhere bits need to move fast. Typical homes for this one:
 
 - ALU implementations
@@ -223,6 +222,17 @@ runtime is just a lookup. You spend a little area, you get back maximum speed.
 - **Propagation Delay**: Constant regardless of shift amount
 - **Critical Path**: Through lookup array and final output mux
 - **Frequency**: Limited by combinational delay, not shift complexity
+
+## Testing
+
+`val/common/test_shifter_barrel.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/common/test_shifter_barrel.py -v
+```
+
+---
 
 ## Navigation
 

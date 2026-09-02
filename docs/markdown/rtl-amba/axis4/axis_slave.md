@@ -29,8 +29,7 @@ An AXI4-Stream slave module that provides high-throughput streaming data recepti
 
 The `axis_slave` module implements a complete AXI4-Stream slave interface with integrated skid buffering for optimal streaming performance. It supports the full AXI4-Stream protocol with configurable data widths, optional sideband signals, and intelligent buffer management for streaming data applications.
 
-## Module Declaration
-
+## Module Interface
 ```systemverilog
 module axis_slave #(
     parameter int SKID_DEPTH         = 4,
@@ -165,8 +164,7 @@ busy = (buffer_count > 0) || s_axis_tvalid;
 `busy` is asserted while any beat is held in the skid buffer or a new beat is being offered
 on the slave interface. It is the wakeup term consumed by `axis_slave_cg`.
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 axis_slave #(
     .SKID_DEPTH(4),           // 4 entries
@@ -208,8 +206,6 @@ axis_slave #(
 - **Use Case:** Stream receivers, packet processors, video decoders
 - **Buffering:** Allows backend to consume at its own pace without stalling interconnect
 
-## Known Limitations
-
 | Limitation | Detail |
 |------------|--------|
 | No `TKEEP` | Only `TSTRB` is implemented. A protocol-compliant null-byte / position-byte distinction is not available |
@@ -228,6 +224,17 @@ axis_slave #(
 ---
 
 **Last Updated:** 2025-10-20
+
+## Testing
+
+`val/amba/test_axis_slave.py` exercises this module. It collects 14 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_axis_slave.py -v
+```
+
+---
 
 ## Navigation
 

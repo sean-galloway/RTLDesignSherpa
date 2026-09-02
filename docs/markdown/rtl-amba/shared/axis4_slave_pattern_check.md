@@ -145,8 +145,20 @@ The expected data for the active channel is its current LFSR value replicated to
 
 ---
 
-## Usage Example
+## Timing Characteristics
 
+This module is **sequential**: it contains 2 `always_ff` block(s),
+clocked on `clk` with active-low asynchronous reset `rst_n`. Outputs derived
+in those blocks are registered and therefore appear one clock after the inputs
+that produced them.
+
+Per-path cycle counts are not enumerated here; read the block that drives the
+signal you care about. No synthesis frequency or area figures are quoted --
+none have been measured against a target device.
+
+---
+
+## Usage Examples
 ```systemverilog
 // AXIS checker terminating a 4-channel RAPIDS source engine.
 axis4_slave_pattern_check #(

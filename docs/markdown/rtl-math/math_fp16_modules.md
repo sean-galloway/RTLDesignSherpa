@@ -113,7 +113,7 @@ module math_fp16_{activation} (
 | Min Normal | 0x0400 | ~6.1e-5 |
 | Subnormal | Exp=0 | Flushed to zero (FTZ) |
 
-## Usage Example
+## Usage Examples
 
 ### Mixed Precision Pipeline
 

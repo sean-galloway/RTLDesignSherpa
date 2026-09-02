@@ -168,7 +168,7 @@ independent, because CLZ is decided by the highest set bit and CTZ by the lowest
 example `8'b00110000` gives `clz = 2` and `ctz = 4`, which sum to 6, not 7. Worth
 remembering before you write a check that assumes the identity holds for arbitrary data.
 
-## Timing
+## Timing Characteristics
 
 ### Resource Utilization
 
@@ -185,7 +185,7 @@ remembering before you write a check that assumes the identity holds for arbitra
 - **Critical Path**: Through the priority encoding logic
 - **Scalability**: Linear increase in logic for the function implementation
 
-## Usage Example
+## Usage Examples
 
 ### Address Alignment Detection
 

@@ -283,8 +283,7 @@ always_comb begin
 end
 ```
 
-## Timing
-
+## Timing Characteristics
 | Stage | Logic Depth |
 |-------|-------------|
 | Field extraction | 0 (wiring) |
@@ -310,7 +309,7 @@ end
 | Rounding logic | ~30 |
 | Special case MUX | ~50 |
 
-## Usage Example
+## Usage Examples
 
 ### Basic FMA Operation
 

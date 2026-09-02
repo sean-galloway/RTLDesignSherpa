@@ -404,12 +404,24 @@ to publish a protocol-tagged event_code without manual bit packing.
 
 ---
 
-## Related
-
+## Related Modules
 - **[`monitor_package_spec.md`](./monitor_package_spec.md)** — Universal types, packet layout, helper functions.
 - **[`monitor_amba5_pkg.md`](./monitor_amba5_pkg.md)** — AXI5 / APB5 / AXIS5 extended event codes.
 - **[`monitor_arbiter_pkg.md`](./monitor_arbiter_pkg.md)** — ARB and CORE event codes.
 - **[The Monitor System](../monitor/monitor_system_architecture.md)** — architecture and capabilities: how packets are produced, filtered, transported and captured, and how to instrument a block that is not a bus protocol.
+
+---
+
+## Timing Characteristics
+
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
 
 ---
 

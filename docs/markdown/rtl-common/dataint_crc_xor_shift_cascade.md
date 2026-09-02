@@ -118,7 +118,7 @@ endgenerate
 - **Bit Order Handling**: MSB-first processing (network byte order), with the bit index calculated as `data_input[7-i]`, matching standard CRC bit processing order
 - **Scalable Architecture**: Easy to modify for different byte sizes; generate blocks enable clean scaling, parameterized for different CRC widths
 
-## Timing
+## Timing Characteristics
 
 ### Combinational Delay
 
@@ -137,7 +137,7 @@ The critical path runs through all 8 stages:
 block_input → Stage0 → Stage1 → ... → Stage7 → block_output
 ```
 
-## Usage Example
+## Usage Examples
 
 ### Basic Usage
 

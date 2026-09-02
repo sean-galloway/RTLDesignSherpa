@@ -361,7 +361,20 @@ Same combinational engine the read splitter uses (axi_split_combi) — one way t
 
 ---
 
-## Usage Example
+## Timing Characteristics
+
+This module is **sequential**: it contains 1 `always_ff` block(s),
+clocked on `aclk` with active-low asynchronous reset `aresetn`. Outputs derived
+in those blocks are registered and therefore appear one clock after the inputs
+that produced them.
+
+Per-path cycle counts are not enumerated here; read the block that drives the
+signal you care about. No synthesis frequency or area figures are quoted --
+none have been measured against a target device.
+
+---
+
+## Usage Examples
 
 ### Basic Integration (4KB Boundary, Response Consolidation)
 
@@ -589,6 +602,17 @@ Worst error wins → System sees most severe failure
 ### See Also
 - **axi_master_rd_splitter.sv** - Read channel splitting (AR + R channels)
 - **axi_split_combi.sv** - Combined read/write splitting wrapper
+
+---
+
+## Testing
+
+`val/amba/test_axi_master_wr_splitter.py` exercises this module. It collects 1 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_axi_master_wr_splitter.py -v
+```
 
 ---
 

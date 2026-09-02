@@ -31,8 +31,7 @@ Stops the clock automatically when a block goes idle — one of the cheapest dyn
 
 The `clock_gate_ctrl` module is a clock gating controller that stops the clock automatically when a circuit block goes idle, significantly reducing dynamic power consumption. You get a configurable idle timeout, immediate wake-up capability, and safe clock gating through integrated clock gate (ICG) cells.
 
-## Module Declaration
-
+## Module Interface
 ```systemverilog
 module clock_gate_ctrl #(
     parameter int IDLE_CNTR_WIDTH = 4   // the ONLY overridable parameter
@@ -82,7 +81,7 @@ module clock_gate_ctrl #(
 | `clk_out` | 1 | `logic` | Gated output clock |
 | `gating` | 1 | `logic` | Clock gating status indicator |
 
-## Functionality
+## Functional Description
 
 ### Why Clock Gating?
 
@@ -118,8 +117,6 @@ r_idle_counter:  <3><2><3><2><1><0><0><0><0><0><0><0><0><3><2>
 gating:          __________________|‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾|____
 clk_out:         __|‾|__|‾|__|‾|__|‾|__|___________________|‾|__|‾
 ```
-
-## Implementation Details
 
 ### Idle Counter Logic
 
@@ -266,6 +263,19 @@ endmodule
 | 4-bit counter | 8 | 4 | 1 | < 2% |
 | 8-bit counter | 15 | 8 | 1 | < 3% |
 | 16-bit counter | 30 | 16 | 1 | < 5% |
+
+## Timing Characteristics
+
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
+
+---
 
 ## Usage Examples
 
@@ -689,7 +699,7 @@ module hierarchical_clock_gating (
 endmodule
 ```
 
-## Design Considerations
+## Design Notes
 
 ### Glitch-Free Clock Switching
 
@@ -942,7 +952,7 @@ System Level (Longest timeout)
 4. **Logic Analyzer**: Capture real-time gating behavior in hardware
 5. **Power Profiling**: Measure current consumption with/without gating
 
-## Verification
+## Testing
 
 ### Test Bench
 

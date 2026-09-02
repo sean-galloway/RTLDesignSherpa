@@ -387,7 +387,7 @@ TEST_LEVEL=full pytest val/amba/test_gaxi_regslice.py -v
 
 ---
 
-## Comparison with Related Modules
+## Related Modules
 
 ### gaxi_regslice vs gaxi_skid_buffer
 
@@ -419,8 +419,6 @@ outputs (the table above and the RTL agree). Choose on depth.
 
 ---
 
-## Related Modules
-
 - [gaxi_skid_buffer](gaxi_skid_buffer.md) - Same latency, deeper elastic storage
 - [gaxi_fifo_sync](gaxi_fifo_sync.md) - Multi-entry FIFO version
 - [gaxi_fifo_async](../../rtl-cdc/gaxi_fifo_async.md) - Clock domain crossing version
@@ -430,8 +428,6 @@ outputs (the table above and the RTL agree). Choose on depth.
 
 **Version:** 1.0
 **Last Updated:** 2025-10-23
-
----
 
 ## Navigation
 

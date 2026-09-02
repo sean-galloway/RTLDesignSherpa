@@ -126,8 +126,20 @@ Like the threshold and perf cones, debug packets bypass the shared FIFO and inje
 
 ---
 
-## Usage Example
+## Timing Characteristics
 
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
+
+---
+
+## Usage Examples
 ```systemverilog
 // Instantiated inside axi_monitor_reporter, gated by ENABLE_DEBUG_LOGIC.
 axi_monitor_reporter_debug #(

@@ -102,13 +102,12 @@ The for-loop gives you priority for free:
 - **Default assignment**: Ensures output has known value for all inputs
 - **Type casting**: `$clog2(N)'(i)` ensures proper bit width matching
 
-## Timing
-
+## Timing Characteristics
 - **Propagation delay**: Depends on input width and synthesis
 - **Critical path**: Runs through the for-loop comparisons
 - **Setup/hold**: None (purely combinational)
 
-## Usage Example
+## Usage Examples
 
 ### Interrupt Controller
 
@@ -160,6 +159,17 @@ For priority encoding:
 - **Decoder**: Performs inverse operation (binary to one-hot)
 - **Priority Encoder with Enable**: Enhanced version with enable control
 - **Find First Set**: Similar functionality with different search order
+
+## Testing
+
+`val/common/test_encoder.py` exercises this module. It collects 2 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/common/test_encoder.py -v
+```
+
+---
 
 ## Navigation
 

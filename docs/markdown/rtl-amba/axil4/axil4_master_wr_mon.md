@@ -249,13 +249,6 @@ propagates upstream, not the steady-state rate.
 
 Legal depth range is 2..8 inclusive, odd values included.
 
-### Optional-group effect
-
-The AXI5-Lite optional groups widen the packed skid payload but do not add a
-pipeline stage: `ARSize`, `AWSize`, `WSize`, `RSize` and `BSize` are
-conditional sums over the `ENABLE_*` parameters, so disabling a group narrows
-the storage without changing latency.
-
 ---
 
 ## Design Notes
@@ -291,6 +284,7 @@ transaction and drops ALL monitoring rather than narrowing it.
 ---
 
 **Last Updated:** 2026-07-19
+
 ## Testing
 
 `val/amba/test_axil4_master_wr_mon.py` drives this module with the AXI4-Lite BFMs from `TBClasses/axil4`. It collects 3 parameter cases at the default `REG_LEVEL`. Run it with:

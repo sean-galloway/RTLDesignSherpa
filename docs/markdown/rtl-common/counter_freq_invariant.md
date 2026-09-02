@@ -41,8 +41,7 @@ One bit of history: an earlier revision of this module had a hardcoded 68-entry
 frequency table and a fixed 4-bit `freq_sel`. That table is gone; the LUT is now
 generated from parameters and `freq_sel` is sized to match `NUM_FREQ_ENTRIES`.
 
-## Module Declaration
-
+## Module Interface
 ```systemverilog
 module counter_freq_invariant #(
     // User parameters
@@ -116,8 +115,7 @@ Bad combinations get caught early: the three `$error` checks in the
 
 One naming gotcha: the output is `o_counter`, not `counter`.
 
-## Architecture and Implementation
-
+## Functional Description
 ```
         freq_sel ---> [ LUT mux ] ---> division_factor
                             |
@@ -255,7 +253,7 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 ```
 
-## Performance Characteristics
+## Timing Characteristics
 
 ### Timing
 
@@ -287,6 +285,15 @@ At the default `COUNTER_WIDTH` of 16, the counter wraps every 65536 us, or about
 The critical path runs through the prescaler increment and its terminal-count
 comparison. Raising `MAX_FREQ_MHZ` widens `DIV_WIDTH` and lengthens that path —
 something to watch if you're pushing frequency.
+
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
 
 ## Usage Examples
 
@@ -363,8 +370,7 @@ counter_freq_invariant #(
 );
 ```
 
-## Verification
-
+## Testing
 Test: `val/common/test_counter_freq_invariant.py`
 
 Scenarios worth covering:
@@ -376,7 +382,7 @@ Scenarios worth covering:
 5. Both `FREQ_STRATEGY` values generate the expected LUT
 6. `NUM_FREQ_ENTRIES = 1` degenerate case elaborates and runs
 
-## Design Considerations
+## Design Notes
 
 ### Choosing the LUT Range
 

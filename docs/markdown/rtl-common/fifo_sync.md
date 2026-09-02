@@ -171,7 +171,7 @@ Reset behavior:
 - **Data**: Read data cleared in flop mode
 - **Memory**: Contents undefined, but that doesn't matter
 
-## Timing
+## Timing Characteristics
 
 ### Write Sequence
 

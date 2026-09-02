@@ -44,8 +44,7 @@ The APB5 Master Stub provides a simplified packed-data interface for driving APB
 
 ---
 
-## Module Architecture
-
+## Functional Description
 ```mermaid
 flowchart LR
     subgraph PACKED["Packed Interface"]
@@ -109,7 +108,6 @@ With all defaults (32-bit address and data, 4-bit strobe, 3-bit protection,
 `RESP_PACKET_WIDTH = 44`.
 
 ---
-
 
 ### Derived Parameters (do not override)
 
@@ -267,11 +265,22 @@ sequenceDiagram
 > - rsp_valid, rsp_ready, rsp_data
 > - Packet-to-APB timing relationship
 
+---
+
+## Timing Characteristics
+
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
 
 ---
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 apb5_master_stub #(
     .CMD_DEPTH      (6),
@@ -371,10 +380,20 @@ The stub instantiates the full `apb5_master` internally:
 
 ---
 
-## Related Documentation
-
+## Related Modules
 - **[APB5 Master](apb5_master.md)** - Core master module (wrapped by stub)
 - **[APB5 Slave Stub](apb5_slave_stub.md)** - Corresponding slave stub
+
+---
+
+## Testing
+
+`val/amba/test_apb5_master_stub.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_apb5_master_stub.py -v
+```
 
 ---
 

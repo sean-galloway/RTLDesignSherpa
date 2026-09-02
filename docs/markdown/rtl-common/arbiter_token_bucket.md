@@ -81,7 +81,6 @@ Declared as `parameter` so the elaborator can size the packed ports, not so call
 | `TW` | `$clog2(MAX_TOKENS)` |
 | `CXTW` | `CLIENTS * TW` |
 
-
 ## Functional Description
 
 - **`refill_tick` is external.** Pair it with
@@ -108,8 +107,7 @@ Declared as `parameter` so the elaborator can size the packed ports, not so call
 - **No config-update FSM** — unlike the WRR/DRR there is no cross-client
   invariant to protect; rate/cap changes take effect per the clamp rules.
 
-## Timing
-
+## Timing Characteristics
 | Property | Value |
 |---|---|
 | Gate | Combinational: request_in to request_out through one compare |

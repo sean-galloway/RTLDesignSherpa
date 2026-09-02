@@ -175,8 +175,20 @@ depth -- otherwise the histogram silently undercounts and misattributes.
 
 ---
 
-## Usage Example
+## Timing Characteristics
 
+This module is **sequential**: it contains 1 `always_ff` block(s),
+clocked on `aclk` with active-low asynchronous reset `aresetn`. Outputs derived
+in those blocks are registered and therefore appear one clock after the inputs
+that produced them.
+
+Per-path cycle counts are not enumerated here; read the block that drives the
+signal you care about. No synthesis frequency or area figures are quoted --
+none have been measured against a target device.
+
+---
+
+## Usage Examples
 ```systemverilog
 // Read-latency histogram on an AXI master read port (2 metrics: first-R, RLAST).
 axi_perf_latency_hist #(
@@ -254,6 +266,17 @@ Because increments land four cycles after the completing beat (capture, subtract
 - **axi_bus_meter.sv** - Four-bucket utilization meter, shares the window-control convention
 - **axi4_intf_master_observer.sv** - interface observability wrapper with per-port latency histograms (`projects/components/misc/rtl/`)
 - **axi_monitor_base.sv** - The shared monitor scaffold this block deliberately does not touch
+
+---
+
+## Testing
+
+`val/amba/test_axi_perf_latency_hist.py` exercises this module. It collects 4 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_axi_perf_latency_hist.py -v
+```
 
 ---
 

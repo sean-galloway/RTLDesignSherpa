@@ -108,7 +108,7 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 ```
 
-## Timing
+## Timing Characteristics
 
 ### Seed Loading and Operation
 ```
@@ -136,7 +136,7 @@ Step | LFSR | lfsr & 110 | Feedback | Next
 6    | 000  | 000        | 1        | 001  (wraps to start; period 7)
 ```
 
-## Usage Example
+## Usage Examples
 
 ### Pseudo-Random Number Generation
 ```systemverilog
@@ -235,6 +235,17 @@ wire [TAP_COUNT*TIW-1:0] taps = {4'd8, 4'd6, 4'd5, 4'd4};
 
 - [shifter_lfsr_fibonacci](shifter_lfsr_fibonacci.md) — Fibonacci (external-XOR) form; carries the `|r_lfsr` zero guard this module doesn't need.
 - [shifter_lfsr_galois](shifter_lfsr_galois.md) — Galois (distributed-XOR) form for higher clock frequencies.
+
+## Testing
+
+`val/common/test_shifter_lfsr.py` exercises this module. It collects 6 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/common/test_shifter_lfsr.py -v
+```
+
+---
 
 ## Navigation
 

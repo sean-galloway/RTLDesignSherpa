@@ -192,8 +192,7 @@ endmodule
 | 0011 | 0010 | bin[3]=0, bin[2]=0⊕0=0, bin[1]=0⊕1=1, bin[0]=1⊕1=0 |
 | 0010 | 0011 | bin[3]=0, bin[2]=0⊕0=0, bin[1]=0⊕1=1, bin[0]=1⊕0=1 |
 
-## Timing
-
+## Timing Characteristics
 One XOR gate of delay -- typically 0.1-0.3ns in modern processes -- and that's
 the whole critical path. Each binary bit drives at most 2 XOR gates, and the
 delay is constant regardless of WIDTH. This module will never be your timing
@@ -210,8 +209,7 @@ Typical FPGA resource usage, by width:
 
 : bin2gray resource usage by width (typical FPGA)
 
-## Usage Example
-
+## Usage Examples
 > **One rule governs every example below.** `bin2gray` is combinational. If its
 > output is going to be sampled by another clock -- a FIFO pointer, a status
 > word, anything crossing -- it MUST be registered in the source domain first.

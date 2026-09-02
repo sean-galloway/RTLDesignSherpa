@@ -164,7 +164,6 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 
 ## Ports
 
-
 ### Filter configuration (forwarded)
 
 These reach the inner monitor through this wrapper; before 2026-09-01 they did not.
@@ -264,8 +263,28 @@ Alongside perfmon, the wrapper forwards the `cfg_compl_enable`, `cfg_threshold_e
 
 ---
 
-## Usage Example
+## Timing Characteristics
 
+| Skid parameter | Default depth |
+|---|---|
+| `SKID_DEPTH_AR` | 2 entries |
+| `SKID_DEPTH_R` | 4 entries |
+
+Each channel traverses one `gaxi_skid_buffer`, which registers both `rd_valid`
+and its storage. The **1-cycle input-to-output latency therefore applies on
+every transfer, including the unstalled case** -- there is no combinational
+bypass. Depth buys backpressure absorption, not throughput; full rate is
+sustained once the pipeline is primed. Legal range is 2..8 inclusive, odd
+values included.
+
+Clocking: `aclk`, reset `aresetn` (active-low asynchronous).
+
+No synthesis numbers are quoted here. Frequency and area depend on the target
+device and the parameters you elaborate with; run your own build.
+
+---
+
+## Usage Examples
 ```systemverilog
 axi5_slave_rd_mon_cg #(
     .AXI_ID_WIDTH       (8),
@@ -423,6 +442,17 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_mon_fifo (
 - **[AXI5 Slave Read Monitor](axi5_slave_rd_mon.md)** - Monitored without clock gating
 - **[AXI5 Slave Write Monitor CG](axi5_slave_wr_mon_cg.md)** - Write variant
 - **[AMBA Clock Gate Control](../shared/amba_clock_gate_ctrl.md)** - Clock gating controller
+
+---
+
+## Testing
+
+`val/amba/test_axi5_slave_rd_mon_cg.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_axi5_slave_rd_mon_cg.py -v
+```
 
 ---
 

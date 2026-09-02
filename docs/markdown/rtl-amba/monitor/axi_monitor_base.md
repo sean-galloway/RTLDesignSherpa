@@ -519,8 +519,7 @@ The integrator computes average burst length as `perf_beat_count / perf_burst_co
 
 ---
 
-## Timing
-
+## Timing Characteristics
 | Metric | Value | Notes |
 |---|---|---|
 | Latency | 2-3 cycles | Event detection to packet output |
@@ -529,8 +528,7 @@ The integrator computes average burst length as `perf_beat_count / perf_burst_co
 
 ---
 
-## Usage Example
-
+## Usage Examples
 **Not typically instantiated directly by users.** Use the high-level monitors instead:
 
 ```systemverilog

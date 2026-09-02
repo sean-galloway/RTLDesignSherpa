@@ -135,8 +135,7 @@ Note what this buys you over a `bin2gray` plus a separate flop: the Gray output
 is registered from the *next-state* value in the same process, so the encoding
 transient never leaves the module.
 
-## Timing
-
+## Timing Characteristics
 Three paths matter:
 
 1. **Binary increment** -- standard binary addition timing
@@ -246,7 +245,7 @@ Binary-Gray counters are the foundation of the standard `fifo_async` module:
 - `test_counter_johnson_wavedrom.py` - Johnson counter (any depth, linear width)
 - `test_fifo_async_wavedrom.py` - BinGray counter in action (async FIFO, power-of-2)
 
-## Usage Example
+## Usage Examples
 
 ### Asynchronous FIFO pointers
 

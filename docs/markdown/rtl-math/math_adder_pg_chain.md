@@ -30,7 +30,6 @@
 > depth. For genuine logarithmic-depth adders use `math_adder_brent_kung` or
 > `math_adder_han_carlson`.
 
-
 A parameterized carry lookahead adder supporting arbitrary bit widths with O(N) depth, using generate and propagate logic to cut carry propagation delay compared to ripple carry adders.
 
 ## Overview
@@ -61,7 +60,6 @@ module math_adder_pg_chain #(
 - **Typical**: 4, 8, 16 bits (good speed/area balance)
 - **Minimum**: 1 bit (degenerates to a single full adder — it has a carry input, which a half adder lacks)
 - **Maximum**: 64 bits (practical synthesis limit, but consider parallel prefix for >16 bits)
-
 
 ## Ports
 
@@ -135,7 +133,7 @@ end
 ow_carry = w_c[N];
 ```
 
-## Timing
+## Timing Characteristics
 
 ### Timing Analysis
 
@@ -188,7 +186,7 @@ i_a[i]/i_b[i] → P[i] → ow_sum[i]  (depends on C[i] from carry chain)
 
 **Observation:** Delay scales linearly with width. For N > 16, that's your cue to reach for a parallel prefix adder (Brent-Kung, Kogge-Stone).
 
-## Usage Example
+## Usage Examples
 
 ### Basic 8-bit Addition
 

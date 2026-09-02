@@ -152,8 +152,7 @@ flowchart LR
 
 **Key optimization:** The `a^b` XOR result is shared between sum calculation and carry propagation. One gate, two jobs.
 
-## Timing
-
+## Timing Characteristics
 | Characteristic | Typical Value | Description |
 |----------------|---------------|-------------|
 | Propagation Delay (Sum) | 2 × t_XOR | Through 2 XOR gates |
@@ -161,7 +160,7 @@ flowchart LR
 | Setup Time | 0 | Purely combinational |
 | Hold Time | 0 | Purely combinational |
 
-## Usage Example
+## Usage Examples
 
 ### Basic Full Adder
 

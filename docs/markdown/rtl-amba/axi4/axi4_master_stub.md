@@ -272,8 +272,7 @@ sequenceDiagram
 
 ---
 
-## Timing
-
+## Timing Characteristics
 <!-- TODO: Add wavedrom timing diagram for combined stub -->
 > **Timing diagram pending.** The signals and sequence this scenario
 > exercises:
@@ -285,11 +284,9 @@ sequenceDiagram
 > - AXI read channels (m_axi_ar*, m_axi_r*)
 > - Overlapping read/write operations
 
-
 ---
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 axi4_master_stub #(
     .SKID_DEPTH_AW   (2),

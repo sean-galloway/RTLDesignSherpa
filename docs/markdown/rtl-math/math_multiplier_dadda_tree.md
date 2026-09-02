@@ -339,8 +339,7 @@ This matches the generated RTL, whose stage comments read
 `Dadda reduction stage 1: max column height 6` through
 `stage 4: max column height 2`.
 
-## Timing
-
+## Timing Characteristics
 | Metric | 8-bit | 16-bit | 32-bit |
 |--------|-------|--------|--------|
 | **Logic Depth** | ~13-15 levels | ~17-20 levels | ~22-28 levels |
@@ -402,7 +401,7 @@ results.
 **Key Advantage:** for the same reduction depth, Dadda instantiates
 substantially fewer compressor cells than Wallace.
 
-## Usage Example
+## Usage Examples
 
 ### Basic 8×8 Multiplication
 

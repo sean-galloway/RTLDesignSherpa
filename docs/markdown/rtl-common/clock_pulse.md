@@ -100,7 +100,7 @@ end
 
 That second point is the one people get wrong, so let's be blunt about it: the registered comparison means `pulse` never coincides with the terminal count. It lands one cycle later, on the wrapped-to-zero count. Every timing diagram below follows from that.
 
-## Timing
+## Timing Characteristics
 
 ### Timing Characteristics
 
@@ -153,7 +153,7 @@ Two things worth seeing here, both consequences of the pulse being registered
 | 100 | 100 cycles | 1% | Heartbeat |
 | 1000 | 1000 cycles | 0.1% | Slow events |
 
-## Usage Example
+## Usage Examples
 
 ### 1. Heartbeat and Status Indicators
 

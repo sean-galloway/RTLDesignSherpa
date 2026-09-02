@@ -184,8 +184,20 @@ See [apb4_slave_stub.md](apb4_slave_stub.md) for the side-by-side comparison.
 4. On APB completion, stub packs the response with the dequeued `{last, first}` and asserts `rsp_valid=1`
 5. Test driver reads response when `rsp_ready=1`
 
-## Usage Example
+## Timing Characteristics
 
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
+
+---
+
+## Usage Examples
 ```systemverilog
 // Instantiate APB master stub
 apb4_master_stub #(

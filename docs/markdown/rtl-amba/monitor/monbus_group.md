@@ -267,7 +267,7 @@ Per-event masks are 16 bits but only `event_code[3:0]` indexes; codes ≥ 16 are
 
 ---
 
-## Usage Example
+## Usage Examples
 
 ### Migration from `monbus_axil_group`
 

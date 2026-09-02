@@ -196,7 +196,7 @@ Start with a moderate value (4-8) and tune against measured activity patterns. T
 
 ---
 
-## Timing
+## Timing Characteristics
 
 ### Gating Sequence (Activity → Idle)
 
@@ -218,7 +218,7 @@ The part that matters: ungating does not wait on the idle counter. It still cost
 
 ---
 
-## Usage Example
+## Usage Examples
 
 ### Basic Integration with AXI Interface
 

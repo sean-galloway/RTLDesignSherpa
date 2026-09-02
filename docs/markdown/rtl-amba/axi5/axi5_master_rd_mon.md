@@ -507,7 +507,7 @@ When `USE_MONITOR = 0` all perfmon outputs are tied to 0. With `USE_MONITOR = 1`
 
 ---
 
-## Timing
+## Timing Characteristics
 
 ### Monitored Read Transaction with Error
 
@@ -520,7 +520,6 @@ When `USE_MONITOR = 0` all perfmon outputs are tied to 0. With `USE_MONITOR = 1`
 > - Monitor bus: monbus_valid, monbus_packet showing ERROR packet
 > - Event sequence: AR → R error → ERROR packet generated
 
-
 ### Timeout Detection
 
 > **Timing diagram pending.** The signals and sequence this scenario
@@ -532,7 +531,6 @@ When `USE_MONITOR = 0` all perfmon outputs are tied to 0. With `USE_MONITOR = 1`
 > - cfg_timeout_cycles threshold
 > - Monitor bus: monbus_valid, monbus_packet showing TIMEOUT packet
 
-
 ### Performance Monitoring
 
 > **Timing diagram pending.** The signals and sequence this scenario
@@ -543,10 +541,9 @@ When `USE_MONITOR = 0` all perfmon outputs are tied to 0. With `USE_MONITOR = 1`
 > - Monitor bus: PERF packets with latency data
 > - Threshold comparison with cfg_latency_threshold
 
-
 ---
 
-## Usage Example
+## Usage Examples
 
 ### Functional Verification Configuration
 
@@ -706,6 +703,17 @@ The monitor respects `monbus_ready` backpressure:
 - **[AXI Monitor Filtered](../monitor/axi_monitor_filtered.md)** - Monitor core specification
 - **[Monitor Package Spec](../includes/monitor_package_spec.md)** - Packet format details
 - **[AXI Monitor Configuration Guide](../../../user-guides/AXI_Monitor_Configuration_Guide.md)** - Complete configuration reference
+
+---
+
+## Testing
+
+`val/amba/test_axi5_master_rd_mon.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_axi5_master_rd_mon.py -v
+```
 
 ---
 

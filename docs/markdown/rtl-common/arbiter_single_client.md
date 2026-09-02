@@ -137,8 +137,20 @@ assign grant_id = 1'b0;          // single client
 
 Because there is exactly one client, `grant` and `grant_valid` are identical, and `grant_id` is a constant 0.
 
-## Usage Example
+## Timing Characteristics
 
+This module is **sequential**: it contains 1 `always_ff` block(s),
+clocked on `clk` with active-low asynchronous reset `rst_n`. Outputs derived
+in those blocks are registered and therefore appear one clock after the inputs
+that produced them.
+
+Per-path cycle counts are not enumerated here; read the block that drives the
+signal you care about. No synthesis frequency or area figures are quoted --
+none have been measured against a target device.
+
+---
+
+## Usage Examples
 ```systemverilog
 // Single-channel build: use arbiter_single_client where a >1-channel
 // build would instantiate arbiter_round_robin in WAIT_GNT_ACK mode.

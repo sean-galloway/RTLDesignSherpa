@@ -78,8 +78,8 @@ In addition to all parameters from [axi4_master_rd_mon](./axi4_master_rd_mon.md)
 | `ENABLE_TIMEOUT_LOGIC` | bit | `1'b1` | Synthesise the timeout detection cone. 0 removes the logic entirely. |
 | `SKID_DEPTH_AR` | int | `2` | Skid-buffer depth on the AR channel. Legal range 2..8 inclusive; odd depths are legal. |
 | `SKID_DEPTH_R` | int | `4` | Skid-buffer depth on the R channel. Legal range 2..8 inclusive; odd depths are legal. |
-| `AGENT_ID` | `16'h000A` | Agent identifier emitted in the `agent_id` field of every monitor packet. Pairs with `UNIT_ID` to identify the packet source. (16-bit Agent ID for monitor packets) |
-| `UNIT_ID` | `8'h01` | Unit identifier emitted in the `unit_id` field of every monitor packet. Give each monitored interface a distinct value or the packets cannot be told apart at the collector. (8-bit Unit ID for monitor packets) |
+| `AGENT_ID` | logic | `16'h000A` | Agent identifier emitted in the `agent_id` field of every monitor packet. Pairs with `UNIT_ID` to identify the packet source. (16-bit Agent ID for monitor packets) |
+| `UNIT_ID` | logic | `8'h01` | Unit identifier emitted in the `unit_id` field of every monitor packet. Give each monitored interface a distinct value or the packets cannot be told apart at the collector. (8-bit Unit ID for monitor packets) |
 
 The gating controls are RUNTIME INPUTS: `cfg_cg_enable` and
 `cfg_cg_idle_count`; status outputs are `cg_gating` / `cg_idle`. ONE
@@ -217,7 +217,7 @@ For exact wall-clock windows, or for triggering on an idle bus, hold
 
 ---
 
-## Timing
+## Timing Characteristics
 
 ### Wake-Up and Gating Latency
 
@@ -239,7 +239,7 @@ usable gated-clock edge arrives **2 clock cycles** after activity asserts.
 
 ---
 
-## Usage Example
+## Usage Examples
 
 ### Example 1: Maximum Power Savings (Burst Traffic)
 
@@ -400,6 +400,17 @@ For power-specific verification:
 - **Power Optimization Guide:** `docs/POWER_OPTIMIZATION_GUIDE.md`
 - **Clock Gating Best Practices:** `docs/CLOCK_GATING_GUIDE.md`
 - **AMBA Subsystem Overview:** `docs/markdown/rtl-amba/overview.md`
+
+---
+
+## Testing
+
+`val/amba/test_axi4_master_rd_mon_cg.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_axi4_master_rd_mon_cg.py -v
+```
 
 ---
 

@@ -350,7 +350,7 @@ assign ascii_tens     = 8'h30 + tens;
 assign ascii_hundreds = 8'h30 + hundreds;
 ```
 
-## Timing
+## Timing Characteristics
 
 ### Conversion Latency
 
@@ -409,7 +409,7 @@ The conversion is inherently sequential, making pipelining challenging:
 - **Optimization**: Clock gating during IDLE state
 - **Trade-off**: Performance vs. power efficiency
 
-## Usage Example
+## Usage Examples
 
 ### Worked Example: Converting 8-bit Binary 156 (WIDTH=8, DIGITS=3)
 

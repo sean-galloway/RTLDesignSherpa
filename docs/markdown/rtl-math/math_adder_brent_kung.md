@@ -256,7 +256,7 @@ Black cells follow `N - log2(N) - 1` and gray cells `N`. Don't take my word for
 it — count them yourself with
 `grep -c math_adder_brent_kung_black rtl/math/math_adder_brent_kung_grouppg_032.sv`.
 
-## Timing
+## Timing Characteristics
 
 ### Combinational Delay Analysis
 
@@ -311,7 +311,7 @@ always_ff @(posedge clk) begin
 end
 ```
 
-## Usage Example
+## Usage Examples
 
 ### Basic 32-bit Addition
 

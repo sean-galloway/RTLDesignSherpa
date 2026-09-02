@@ -242,8 +242,7 @@ Uses lookahead logic to compute borrows faster (similar to CLA adder):
 
 **Timing:** O(N) delay (simplified lookahead)
 
-## Timing
-
+## Timing Characteristics
 | Module | Logic Levels | Typical Delay (ns) |
 |--------|--------------|-------------------|
 | Half Subtractor | 1 | ~0.2 |
@@ -253,7 +252,7 @@ Uses lookahead logic to compute borrows faster (similar to CLA adder):
 
 **Note:** Subtractors have the same timing as the equivalent adders.
 
-## Usage Example
+## Usage Examples
 
 ### Basic Subtraction (Using Subtractor)
 

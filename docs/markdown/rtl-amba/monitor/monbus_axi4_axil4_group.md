@@ -186,8 +186,31 @@ Filtering, FIFO sizing, address-window, watermark, timeout, and compression are 
 
 ---
 
-## Usage Example
+## Timing Characteristics
 
+| Skid parameter | Default depth |
+|---|---|
+| `SKID_DEPTH_AR` | 2 entries |
+| `SKID_DEPTH_R` | 4 entries |
+| `SKID_DEPTH_AW` | 2 entries |
+| `SKID_DEPTH_W` | 2 entries |
+| `SKID_DEPTH_B` | 2 entries |
+
+Each channel traverses one `gaxi_skid_buffer`, which registers both `rd_valid`
+and its storage. The **1-cycle input-to-output latency therefore applies on
+every transfer, including the unstalled case** -- there is no combinational
+bypass. Depth buys backpressure absorption, not throughput; full rate is
+sustained once the pipeline is primed. Legal range is 2..8 inclusive, odd
+values included.
+
+Clocking: `aclk`, reset `aresetn` (active-low asynchronous).
+
+No synthesis numbers are quoted here. Frequency and area depend on the target
+device and the parameters you elaborate with; run your own build.
+
+---
+
+## Usage Examples
 ```systemverilog
 monbus_axi4_axil4_group #(
     .ADDR_WIDTH      (32),
@@ -263,6 +286,17 @@ The error-drain path is byte-for-byte the same as the AXI4/AXI4 group — the re
 - **monbus_axil4_axi4_group.sv** — AXIL read + AXI4 write variant
 - **monbus_axil4_axil4_group.sv** — AXIL read + AXIL write variant
 - **monbus_arbiter.sv** — upstream aggregation
+
+---
+
+## Testing
+
+`val/amba/test_monbus_axi4_axil4_group.py` exercises this module. It collects 1 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_monbus_axi4_axil4_group.py -v
+```
 
 ---
 

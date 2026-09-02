@@ -55,8 +55,7 @@ The AXIS5 Slave module implements an AXI5-Stream slave interface with AMBA5 exte
 
 ---
 
-## Module Architecture
-
+## Functional Description
 ```mermaid
 flowchart TB
     subgraph INPUT["Slave AXIS5 Interface (Input)"]
@@ -105,6 +104,50 @@ flowchart TB
 ```
 
 ---
+
+### Skid Buffer Operation
+
+The module uses an internal `gaxi_skid_buffer` to:
+- Accept incoming transfers even when backend is not ready
+- Prevent backpressure to upstream
+- Provide registered outputs for timing closure
+- Track buffer occupancy via `busy` signal
+
+### Packet Packing/Unpacking
+
+**Conditional packing based on configuration:**
+
+```systemverilog
+// Full feature set (ENABLE_WAKEUP=1, ENABLE_PARITY=1)
+{tdata, tstrb, tlast, tid, tdest, tuser, twakeup, tparity}
+
+// Wake-up only (ENABLE_WAKEUP=1, ENABLE_PARITY=0)
+{tdata, tstrb, tlast, tid, tdest, tuser, twakeup}
+
+// Parity only (ENABLE_WAKEUP=0, ENABLE_PARITY=1)
+{tdata, tstrb, tlast, tid, tdest, tuser, tparity}
+
+// Base AXIS4 (ENABLE_WAKEUP=0, ENABLE_PARITY=0)
+{tdata, tstrb, tlast, tid, tdest, tuser}
+```
+
+### Parity Checking (Optional)
+
+When `ENABLE_PARITY=1`:
+1. Calculate **even** parity for each input data byte: `parity[i] = ^s_axis_tdata[i*8 +: 8]`. The XOR reduction yields 1 for an odd number of set bits, so a correct byte plus its parity bit always has an even population count.
+2. Compare the calculated parity with the received `s_axis_tparity`
+3. Set `parity_error` flag on mismatch (sticky, cleared only by reset)
+4. Parity check occurs on accepted input transfers (`s_axis_tvalid && s_axis_tready`)
+
+**Note:** Parity checking is performed on the **input side**, so it covers the upstream link and detects errors as early as possible. This is the receiver-side check of the pair; `axis5_master` checks on its output side, which covers only its own internal data path.
+
+TPARITY is an RTL Design Sherpa extension, not an ARM AXI5-Stream signal. Leave `ENABLE_PARITY=0` (the default) when interoperating with third-party stream IP.
+
+### Busy Signal
+
+The `busy` output indicates:
+- Input side has valid data (`s_axis_tvalid`)
+- Skid buffer contains data (`int_t_count > 0`)
 
 ## Parameters
 
@@ -186,55 +229,7 @@ These are declared in the parameter list so they can be used in port widths, but
 
 ---
 
-## Functionality
-
-### Skid Buffer Operation
-
-The module uses an internal `gaxi_skid_buffer` to:
-- Accept incoming transfers even when backend is not ready
-- Prevent backpressure to upstream
-- Provide registered outputs for timing closure
-- Track buffer occupancy via `busy` signal
-
-### Packet Packing/Unpacking
-
-**Conditional packing based on configuration:**
-
-```systemverilog
-// Full feature set (ENABLE_WAKEUP=1, ENABLE_PARITY=1)
-{tdata, tstrb, tlast, tid, tdest, tuser, twakeup, tparity}
-
-// Wake-up only (ENABLE_WAKEUP=1, ENABLE_PARITY=0)
-{tdata, tstrb, tlast, tid, tdest, tuser, twakeup}
-
-// Parity only (ENABLE_WAKEUP=0, ENABLE_PARITY=1)
-{tdata, tstrb, tlast, tid, tdest, tuser, tparity}
-
-// Base AXIS4 (ENABLE_WAKEUP=0, ENABLE_PARITY=0)
-{tdata, tstrb, tlast, tid, tdest, tuser}
-```
-
-### Parity Checking (Optional)
-
-When `ENABLE_PARITY=1`:
-1. Calculate **even** parity for each input data byte: `parity[i] = ^s_axis_tdata[i*8 +: 8]`. The XOR reduction yields 1 for an odd number of set bits, so a correct byte plus its parity bit always has an even population count.
-2. Compare the calculated parity with the received `s_axis_tparity`
-3. Set `parity_error` flag on mismatch (sticky, cleared only by reset)
-4. Parity check occurs on accepted input transfers (`s_axis_tvalid && s_axis_tready`)
-
-**Note:** Parity checking is performed on the **input side**, so it covers the upstream link and detects errors as early as possible. This is the receiver-side check of the pair; `axis5_master` checks on its output side, which covers only its own internal data path.
-
-TPARITY is an RTL Design Sherpa extension, not an ARM AXI5-Stream signal. Leave `ENABLE_PARITY=0` (the default) when interoperating with third-party stream IP.
-
-### Busy Signal
-
-The `busy` output indicates:
-- Input side has valid data (`s_axis_tvalid`)
-- Skid buffer contains data (`int_t_count > 0`)
-
----
-
-## Timing Diagrams
+## Timing Characteristics
 
 ### Basic Receive with Wake-up
 
@@ -252,7 +247,6 @@ The `busy` output indicates:
 > - fub_axis_twakeup
 > - busy
 
-
 ### Receive with Parity Error
 
 <!-- TODO: Add wavedrom timing diagram for parity error detection -->
@@ -266,7 +260,6 @@ The `busy` output indicates:
 > - parity_mismatch
 > - parity_error (sticky flag set)
 
-
 ### Skid Buffer Backpressure from Backend
 
 <!-- TODO: Add wavedrom timing diagram for backend backpressure -->
@@ -279,10 +272,9 @@ The `busy` output indicates:
 > - int_t_count (buffer fill level)
 > - busy
 
-
 ---
 
-## Usage Example
+## Usage Examples
 
 ### Basic Configuration
 
@@ -492,13 +484,23 @@ The `parity_error` flag is **sticky** (latches high until reset):
 
 ---
 
-## Related Documentation
-
+## Related Modules
 - **[AXIS5 Master](axis5_master.md)** - AXIS5 master interface (transmit side)
 - **[AXIS5 Slave CG](axis5_slave_cg.md)** - Clock-gated variant with power management
 - **[AXIS5 Master CG](axis5_master_cg.md)** - Clock-gated master variant
 - **[AXIS4 Slave](../axis4/axis_slave.md)** - AXIS4 version for comparison
 - **[AMBA5 Overview](../overview.md)** - AMBA5 specifications and extensions
+
+---
+
+## Testing
+
+`val/amba/test_axis5_slave.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_axis5_slave.py -v
+```
 
 ---
 

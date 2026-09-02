@@ -307,7 +307,7 @@ Set `ENABLE_ATOMIC = 0` to drop `AWATOP` from the AW SKID payload when atomics a
 
 ---
 
-## Timing
+## Timing Characteristics
 
 ### Basic Write Transaction
 
@@ -326,7 +326,6 @@ Set `ENABLE_ATOMIC = 0` to drop `AWATOP` from the AW SKID payload when atomics a
 > - BVALID, BREADY
 > - BTRACE, BTAG (AXI5 extensions)
 
-
 ### Atomic Operation
 
 <!-- TODO: Add wavedrom timing diagram for atomic operation -->
@@ -336,7 +335,6 @@ Set `ENABLE_ATOMIC = 0` to drop `AWATOP` from the AW SKID payload when atomics a
 > - AWATOP encoding for atomic operation
 > - Write data for atomic operand
 > - Response with atomic result
-
 
 ### Memory Tagging Extension (MTE)
 
@@ -350,11 +348,9 @@ Set `ENABLE_ATOMIC = 0` to drop `AWATOP` from the AW SKID payload when atomics a
 > - WTAGUPDATE mask
 > - BTAGMATCH response
 
-
 ---
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 axi5_master_wr #(
     .AXI_ID_WIDTH       (8),
@@ -492,6 +488,17 @@ Disable unused features to reduce area:
 - **[AXI5 Master Write CG](axi5_master_wr_cg.md)** - Clock-gated variant
 - **[AXI5 Master Write Monitor](../axi5/axi5_master_wr_mon.md)** - With integrated monitoring
 - **[AXI4 Master Write](../axi4/axi4_master_wr.md)** - AXI4 version for comparison
+
+---
+
+## Testing
+
+`val/amba/test_axi5_master_wr.py` exercises this module. It collects 8 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_axi5_master_wr.py -v
+```
 
 ---
 

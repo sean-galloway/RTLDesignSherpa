@@ -47,8 +47,7 @@ For the complementary count from the LSB upward, use
 > not be re-added. If you actually want the LSB-up count, instantiate
 > `count_trailing_zeros` instead of reversing the input.
 
-## Module Declaration
-
+## Module Interface
 ```systemverilog
 module count_leading_zeros #(
     parameter int WIDTH = 32
@@ -85,7 +84,7 @@ The output width `$clog2(WIDTH)+1` ensures the port can represent all possible c
 - **Example**: For WIDTH=32, output is 6 bits (0-32 requires 6 bits)
 - **Special Case**: All zeros input produces CLZ = WIDTH
 
-## Architecture and Implementation
+## Functional Description
 
 ### Function-Based Approach
 
@@ -279,6 +278,14 @@ end else begin
 end
 ```
 
+1. **CPU/DSP Cores**: Instruction implementation (CLZ instruction)
+2. **Floating-Point Units**: Mantissa normalization
+3. **Network Processors**: Longest prefix matching
+4. **Compression Engines**: Run-length encoding optimization
+5. **Memory Controllers**: Priority arbitration
+6. **Graphics Processors**: Texture coordinate processing
+7. **Cryptographic Units**: Bit manipulation operations
+
 ## Advanced Variants
 
 ### 1. Pipeline Version for High Speed
@@ -384,7 +391,7 @@ end
 endmodule
 ```
 
-## Performance Characteristics
+## Timing Characteristics
 
 ### Resource Utilization
 
@@ -401,7 +408,7 @@ endmodule
 - **Critical Path**: Through the priority encoding logic
 - **Scalability**: Linear increase in logic for function implementation
 
-## Verification
+## Testing
 
 ### Test Scenarios
 
@@ -463,7 +470,7 @@ assert property (msb_set_case);
 assert property (clz_correctness);
 ```
 
-## Synthesis Considerations
+## Design Notes
 
 ### Tool-Specific Attributes
 
@@ -482,16 +489,6 @@ assert property (clz_correctness);
 // For speed optimization: Use tree-based or LUT approach
 // For power optimization: Add enable signals and clock gating
 ```
-
-## Common Applications
-
-1. **CPU/DSP Cores**: Instruction implementation (CLZ instruction)
-2. **Floating-Point Units**: Mantissa normalization
-3. **Network Processors**: Longest prefix matching
-4. **Compression Engines**: Run-length encoding optimization
-5. **Memory Controllers**: Priority arbitration
-6. **Graphics Processors**: Texture coordinate processing
-7. **Cryptographic Units**: Bit manipulation operations
 
 ## Related Modules
 

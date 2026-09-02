@@ -222,8 +222,7 @@ Array accumulation:
 Product: 5 × 6 = 30 (correct)
 ```
 
-## Timing
-
+## Timing Characteristics
 | Metric | 4-bit | 8-bit | 16-bit |
 |--------|-------|-------|--------|
 | **Logic Depth** | ~8 levels | ~16 levels | ~32 levels |
@@ -264,7 +263,7 @@ i_multiplier[N-1] → PP[N-1][0] → row N-1 accumulation → final addition →
 
 **Key Observation:** Array multipliers are ~2× slower but simpler than tree multipliers.
 
-## Usage Example
+## Usage Examples
 
 ### Basic 4×4 Multiplication
 

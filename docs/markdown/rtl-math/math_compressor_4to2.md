@@ -116,8 +116,7 @@ ow_cout = (i_x1 & i_x2) | (i_x2 & i_x3) | (i_x1 & i_x3);
 
 This allows multiple 4:2 compressors to be chained with their cout signals forming independent carry chains, reducing the critical path compared to implementations where all carries depend on cin.
 
-## Timing
-
+## Timing Characteristics
 | Metric | Value | Description |
 |--------|-------|-------------|
 | Logic Depth | 4 gates | 2 full adders in series |
@@ -148,7 +147,7 @@ This allows multiple 4:2 compressors to be chained with their cout signals formi
 
 **Advantage:** 4:2 compressors reduce column height faster, resulting in fewer reduction stages for multipliers.
 
-## Usage Example
+## Usage Examples
 
 ### Single Compressor
 

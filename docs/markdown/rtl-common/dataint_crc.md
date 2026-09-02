@@ -167,7 +167,7 @@ always_comb begin
 end
 ```
 
-## Timing
+## Timing Characteristics
 
 ### Throughput
 
@@ -191,7 +191,7 @@ end
 2. **Output Reflection**: Bit reversal for REFOUT
 3. **Register Setup**: Loading CRC state register
 
-## Usage Example
+## Usage Examples
 
 ### Basic CRC Calculation
 

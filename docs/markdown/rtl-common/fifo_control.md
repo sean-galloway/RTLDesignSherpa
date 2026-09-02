@@ -263,8 +263,7 @@ standing between you and a truncated wraparound occupancy. Cast to `AW'(D)`
 instead and you reintroduce the truncation bug: e.g. DEPTH=16 with wr=2, rd=14
 should give occupancy 16-14+2 = 4, but `AW'(16)` = 0 yields 0-14+2 (garbage).
 
-## Timing
-
+## Timing Characteristics
 - **Minimal overhead**: Efficient pointer arithmetic
 - **Low latency**: Single cycle flag updates
 - **Resource efficient**: Shared across multiple FIFO types

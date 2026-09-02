@@ -176,7 +176,7 @@ Practical guidelines:
 - **3 stages**: Recommended for high-reliability systems  
 - **4+ stages**: Extreme reliability requirements (aerospace, medical)
 
-## Timing
+## Timing Characteristics
 
 ### Synchronizer Latency
 
@@ -197,7 +197,7 @@ glitch_free_n_dff_arn #(.FLOP_COUNT(3)) safe_sync (...);
 glitch_free_n_dff_arn #(.FLOP_COUNT(4)) ultra_safe_sync (...);
 ```
 
-## Usage Example
+## Usage Examples
 
 ### Reset Synchronizer Pattern
 

@@ -225,8 +225,7 @@ sequenceDiagram
 
 ---
 
-## Timing
-
+## Timing Characteristics
 <!-- TODO: Add wavedrom timing diagram for stub transactions -->
 > **Timing diagram pending.** The signals and sequence this scenario
 > exercises:
@@ -238,11 +237,9 @@ sequenceDiagram
 > - AXI R signals (s_axi_rvalid, s_axi_rdata, s_axi_rlast, etc.)
 > - Packet-to-AXI timing relationship with skid buffer operation
 
-
 ---
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 axi4_slave_rd_stub #(
     .SKID_DEPTH_AR   (2),

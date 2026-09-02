@@ -254,7 +254,7 @@ is just the pipeline itself — a **pipeline-based control scheme**:
    - `done` signal is simply the valid signal from the final pipeline stage
    - No complex output state management required
 
-## Timing
+## Timing Characteristics
 
 ### Timing Characteristics
 
@@ -278,7 +278,7 @@ r_stage_valid[5]: -      -      -      -      -      1
 done:     0      0      0      0      0      1
 ```
 
-## Usage Example
+## Usage Examples
 
 ### Typical Use Cases
 

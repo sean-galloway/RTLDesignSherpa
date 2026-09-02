@@ -135,7 +135,7 @@ flowchart LR
 
 ---
 
-## Timing
+## Timing Characteristics
 
 ### Latency Components
 
@@ -159,7 +159,7 @@ the data. There is no zero-latency bypass path.
 
 ---
 
-## Usage Example
+## Usage Examples
 
 ### Example 1: Basic Async Skid Buffer
 

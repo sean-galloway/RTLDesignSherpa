@@ -191,8 +191,7 @@ Johnson: 111111 → Binary: 4'b1000 (all ones: lower bits forced to 0, but the R
 | **Width scaling** | Logarithmic | Linear with JCW |
 | **Use case** | Power-of-2 sequences | Any sequence length |
 
-## Timing
-
+## Timing Characteristics
 The critical path runs through the position detection logic: leading/trailing
 one detection, a binary addition, and the output mux. Synthesis complexity is
 higher than a standard Gray conversion, and resources scale with JCW -- the
@@ -205,8 +204,7 @@ Resources scale with JCW (Johnson Counter Width):
 - Large FIFOs (JCW > 64): May become limiting factor
 ```
 
-## Usage Example
-
+## Usage Examples
 This is where the module actually lives -- decoding the crossed pointer in
 `fifo_async.sv` (`USE_JOHNSON=1`):
 

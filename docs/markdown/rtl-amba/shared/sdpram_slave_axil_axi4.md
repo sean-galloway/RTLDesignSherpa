@@ -169,8 +169,31 @@ A `translate_off` block asserts on each accepted AR that `arburst` is not WRAP. 
 
 ---
 
-## Usage Example
+## Timing Characteristics
 
+| Skid parameter | Default depth |
+|---|---|
+| `SKID_DEPTH_AW` | 2 entries |
+| `SKID_DEPTH_W` | 2 entries |
+| `SKID_DEPTH_B` | 2 entries |
+| `SKID_DEPTH_AR` | 2 entries |
+| `SKID_DEPTH_R` | 4 entries |
+
+Each channel traverses one `gaxi_skid_buffer`, which registers both `rd_valid`
+and its storage. The **1-cycle input-to-output latency therefore applies on
+every transfer, including the unstalled case** -- there is no combinational
+bypass. Depth buys backpressure absorption, not throughput; full rate is
+sustained once the pipeline is primed. Legal range is 2..8 inclusive, odd
+values included.
+
+Clocking: `aclk`, reset `aresetn` (active-low asynchronous).
+
+No synthesis numbers are quoted here. Frequency and area depend on the target
+device and the parameters you elaborate with; run your own build.
+
+---
+
+## Usage Examples
 ```systemverilog
 sdpram_slave_axil_axi4 #(
     .AXI_ID_WIDTH (8),
@@ -247,6 +270,17 @@ This wrapper shares `sdpram_core` with the three other permutations. Each protoc
 - **sdpram_slave_axi4_axi4.sv** — AXI4 write + AXI4 read variant
 - **sdpram_slave_axi4_axil.sv** — AXI4 write + AXIL read variant
 - **sdpram_slave_axil_axil.sv** — AXIL write + AXIL read variant
+
+---
+
+## Testing
+
+`val/amba/test_sdpram_slave_axil_axi4.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_sdpram_slave_axil_axi4.py -v
+```
 
 ---
 

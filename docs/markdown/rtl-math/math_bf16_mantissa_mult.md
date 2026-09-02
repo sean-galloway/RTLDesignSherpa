@@ -161,8 +161,7 @@ breaks the correct `G & (R|S|LSB)`: with the fold, G=1 forces the parenthesized
 term to 1, so ties-at-even wrongly round up. See `math_bf16_multiplier` for the
 rounding decision that consumes these bits.
 
-## Timing
-
+## Timing Characteristics
 | Stage | Logic Depth |
 |-------|-------------|
 | Mantissa extension | 0 (just wiring) |
@@ -177,7 +176,7 @@ rounding decision that consumes these bits.
 | Component | Resource |
 |-----------|----------|
 
-## Usage Example
+## Usage Examples
 
 ### Basic Usage
 

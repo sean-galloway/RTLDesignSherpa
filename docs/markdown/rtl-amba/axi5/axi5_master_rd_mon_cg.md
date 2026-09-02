@@ -102,7 +102,6 @@ The AXI5 Master Read with Monitor and Clock Gating module combines `axi5_master_
 | ID_MATCH_COUNT | int | 0 | How many IDs; `0` means ALL, so a zeroed register block does not silently filter everything away. |
 | CG_IDLE_COUNT_WIDTH | int | 4 | Width of idle counter (max 2^N-1 cycles) |
 
-
 ### Filter configuration (forwarded)
 
 These reach the inner monitor through this wrapper; before 2026-09-01 they did not.
@@ -318,7 +317,7 @@ Alongside perfmon, the wrapper forwards the `cfg_compl_enable`, `cfg_threshold_e
 
 ---
 
-## Timing
+## Timing Characteristics
 
 ### Clock Gating with Monitor Activity
 
@@ -333,7 +332,6 @@ Alongside perfmon, the wrapper forwards the `cfg_compl_enable`, `cfg_threshold_e
 > - cg_gating activation
 > - Monitor quiescent before clock stops
 
-
 ### Wake-up with Immediate Monitoring
 
 > **Timing diagram pending.** The signals and sequence this scenario
@@ -346,10 +344,9 @@ Alongside perfmon, the wrapper forwards the `cfg_compl_enable`, `cfg_threshold_e
 > - AXI transaction proceeds
 > - Monitor packets generated immediately
 
-
 ---
 
-## Usage Example
+## Usage Examples
 
 ### Comprehensive Debug + Power Optimization
 
@@ -539,6 +536,17 @@ gaxi_fifo_sync #(
 - **[AXI5 Master Write Monitor CG](axi5_master_wr_mon_cg.md)** - Write variant
 - **[AXI Monitor Configuration Guide](../../../user-guides/AXI_Monitor_Configuration_Guide.md)** - Monitor setup
 - **[AMBA Clock Gate Controller](../shared/amba_clock_gate_ctrl.md)** - Clock gating details
+
+---
+
+## Testing
+
+`val/amba/test_axi5_master_rd_mon_cg.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_axi5_master_rd_mon_cg.py -v
+```
 
 ---
 

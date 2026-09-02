@@ -304,10 +304,9 @@ The `cfg_cg_idle_count` parameter sets how many consecutive idle cycles are requ
 
 All power figures on this page are first-order estimates derived from duty cycle, not measured results. No power analysis (gate-level or otherwise) has been run against these modules. Actual savings depend on the gated logic's share of total design power, the technology library's clock-gate cell, and leakage, which clock gating does not reduce at all. Treat these numbers as a sizing aid and characterize your own instance before quoting a savings figure.
 
-
 ---
 
-## Timing
+## Timing Characteristics
 
 ### Clock Gating Activation
 
@@ -323,7 +322,6 @@ All power figures on this page are first-order estimates derived from duty cycle
 > - cg_gating activation
 > - Clock stops after idle count
 
-
 ### Clock Gating Wake-up
 
 <!-- TODO: Add wavedrom timing diagram for clock gating wake-up -->
@@ -337,11 +335,9 @@ All power figures on this page are first-order estimates derived from duty cycle
 > - arready response after wake
 > - Normal AXI transaction proceeds
 
-
 ---
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 axi5_master_rd_cg #(
     .AXI_ID_WIDTH       (8),
@@ -503,6 +499,17 @@ When verifying clock-gated designs:
 - **[AXI5 Master Write CG](axi5_master_wr_cg.md)** - Write with clock gating
 - **[AXI5 Master Read Monitor CG](../axi5/axi5_master_rd_mon_cg.md)** - With monitoring + clock gating
 - **[AMBA Clock Gate Controller](../shared/amba_clock_gate_ctrl.md)** - Clock gating controller spec
+
+---
+
+## Testing
+
+`val/amba/test_axi5_master_rd_cg.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_axi5_master_rd_cg.py -v
+```
 
 ---
 

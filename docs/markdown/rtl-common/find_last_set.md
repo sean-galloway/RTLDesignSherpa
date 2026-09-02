@@ -122,7 +122,7 @@ end
 - **Single assignment**: Prevents overwriting the highest found bit
 - **Priority enforcement**: Only the first match (highest index) is captured
 
-## Timing
+## Timing Characteristics
 
 ### Propagation Delay
 
@@ -139,7 +139,7 @@ MSB check → MSB-1 check → ... → LSB check → Output
 - **Typical case**: Shorter path when higher bits are set
 - **Optimization**: Synthesis tools create efficient implementations
 
-## Usage Example
+## Usage Examples
 
 ### Interrupt Priority Handling
 

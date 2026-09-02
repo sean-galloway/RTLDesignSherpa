@@ -206,7 +206,6 @@ stateDiagram-v2
 - Gating only occurs after configured idle period
 - Any activity immediately ungates the clock
 
-
 ### Ready Deassertion and Wake Behavior
 
 While `cg_gating` is asserted, the ready outputs listed above are forced low.
@@ -242,7 +241,7 @@ An always-ready consumer no longer prevents gating.
 
 ---
 
-## Timing
+## Timing Characteristics
 
 ### Clock Gating Sequence
 
@@ -256,11 +255,9 @@ An always-ready consumer no longer prevents gating.
 > - cg_idle assertion
 > - cg_gating activation
 
-
 ---
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 axi5_slave_rd_cg #(
     .AXI_ID_WIDTH       (8),
@@ -321,7 +318,6 @@ Worked example, assuming the module is active 60% of the time:
 
 All power figures on this page are first-order estimates derived from duty cycle, not measured results. No power analysis (gate-level or otherwise) has been run against these modules. Actual savings depend on the gated logic's share of total design power, the technology library's clock-gate cell, and leakage, which clock gating does not reduce at all. Treat these numbers as a sizing aid and characterize your own instance before quoting a savings figure.
 
-
 ### Clock Gating Overhead
 
 - **Area:** +5 flops, counted from the RTL -- `r_wakeup` in
@@ -376,6 +372,17 @@ assign gating_efficiency = (gating_cycles * 100) / total_cycles;
 - **[AXI5 Slave Write CG](axi5_slave_wr_cg.md)** - Clock-gated write variant
 - **[AXI5 Slave Read Monitor CG](../axi5/axi5_slave_rd_mon_cg.md)** - With monitoring
 - **[AMBA Clock Gate Control](../shared/amba_clock_gate_ctrl.md)** - Clock gating controller
+
+---
+
+## Testing
+
+`val/amba/test_axi5_slave_rd_cg.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_axi5_slave_rd_cg.py -v
+```
 
 ---
 

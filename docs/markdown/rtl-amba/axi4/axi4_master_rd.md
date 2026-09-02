@@ -260,7 +260,7 @@ assign busy = (int_ar_count > 0) || (int_r_count > 0) ||
                 fub_axi_arvalid || m_axi_rvalid;
 ```
 
-## Timing
+## Timing Characteristics
 
 ### Buffer Latency
 
@@ -286,7 +286,7 @@ assign busy = (int_ar_count > 0) || (int_r_count > 0) ||
 | Burst Read | 2+N cycles | Address + N data beats |
 | Back-to-back | 1 cycle/txn | Sustained rate with buffering |
 
-## Usage Example
+## Usage Examples
 
 ### Basic AXI4 Read Master Configuration
 

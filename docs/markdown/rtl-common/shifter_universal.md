@@ -152,7 +152,7 @@ end
 - **Serial Outputs**: Both remain low (no shift occurring)
 - **Use Case**: Initialization, data injection
 
-## Timing
+## Timing Characteristics
 
 ### Right Shift Operation Example (WIDTH=4)
 
@@ -181,7 +181,7 @@ o_pdata:   1010 0101 1010 0101
 o_sdata_lt:---- 1    0    1
 ```
 
-## Usage Example
+## Usage Examples
 
 ### Serial Communication Interface
 ```systemverilog
@@ -310,6 +310,17 @@ case (state)
     HOLD: select = 2'b00;
 endcase
 ```
+
+## Testing
+
+`val/common/test_shifter_universal.py` exercises this module. It collects 1 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/common/test_shifter_universal.py -v
+```
+
+---
 
 ## Navigation
 

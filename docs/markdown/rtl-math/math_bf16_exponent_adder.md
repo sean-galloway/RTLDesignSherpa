@@ -171,8 +171,7 @@ always_comb begin
 end
 ```
 
-## Timing
-
+## Timing Characteristics
 | Path | Logic Depth |
 |------|-------------|
 | Special case detection | 1 gate (comparator) |
@@ -190,7 +189,7 @@ end
 | Output MUX | ~8 |
 | Special case flags | ~4 |
 
-## Usage Example
+## Usage Examples
 
 ### Basic Usage
 

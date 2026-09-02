@@ -27,8 +27,7 @@
 
 The `counter_bin` module is a binary counter with one job: FIFO (First-In-First-Out) buffer addressing. Instead of a plain wrap, it inverts the MSB and clears the lower bits when it reaches the maximum value. That folded counting pattern is exactly what circular buffer management wants — the MSB becomes your lap marker.
 
-## Module Declaration
-
+## Module Interface
 ```systemverilog
 module counter_bin #(
     parameter int WIDTH = 5,
@@ -75,7 +74,7 @@ exactly at `MAX = 2^(WIDTH-1)`. The one hard constraint: `MAX-1` must fit within
 | `counter_bin_curr` | WIDTH | Current counter value (registered) |
 | `counter_bin_next` | WIDTH | Next counter value (combinational) |
 
-## Architecture and Implementation
+## Functional Description
 
 ### Internal Signals
 
@@ -166,6 +165,40 @@ assign fifo_full = (rd_ptr[WIDTH-2:0] == wr_ptr[WIDTH-2:0]) &&
                    (rd_ptr[WIDTH-1] != wr_ptr[WIDTH-1]);
 ```
 
+## Timing Characteristics
+
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
+
+---
+
+### Timing
+
+- **Enable to Next**: Single logic level
+- **Current to Next**: Increment/wrap logic depth
+- **Critical Path**: Wrap detection and MSB inversion
+- **Setup Time**: Standard flip-flop requirements
+- **Clock-to-Q**: Standard flip-flop propagation
+- **Reset Recovery**: One cycle after reset deassertion
+
+### Maximum Frequency
+
+- **Limiting Factor**: Wrap detection and MSB inversion logic
+- **Typical Performance**: 300-500 MHz in modern FPGAs
+- **Optimization**: Consider registering intermediate signals for high speed
+
+### Power Consumption
+
+- **Dynamic Power**: Proportional to toggle rate
+- **Optimization**: Use enable signal to reduce unnecessary toggles
+- **Clock Gating**: Gate clock when FIFO operations are idle
+
 ## Usage Examples
 
 ### 1. Small FIFO Buffer (8 entries)
@@ -231,30 +264,7 @@ bin2gray #(.WIDTH(WIDTH)) b2g (
 );
 ```
 
-## Performance Characteristics
-
-### Timing
-
-- **Enable to Next**: Single logic level
-- **Current to Next**: Increment/wrap logic depth
-- **Critical Path**: Wrap detection and MSB inversion
-- **Setup Time**: Standard flip-flop requirements
-- **Clock-to-Q**: Standard flip-flop propagation
-- **Reset Recovery**: One cycle after reset deassertion
-
-### Maximum Frequency
-
-- **Limiting Factor**: Wrap detection and MSB inversion logic
-- **Typical Performance**: 300-500 MHz in modern FPGAs
-- **Optimization**: Consider registering intermediate signals for high speed
-
-### Power Consumption
-
-- **Dynamic Power**: Proportional to toggle rate
-- **Optimization**: Use enable signal to reduce unnecessary toggles
-- **Clock Gating**: Gate clock when FIFO operations are idle
-
-## Verification
+## Testing
 
 ### Test Scenarios
 
@@ -280,7 +290,7 @@ covergroup counter_bin_cg @(posedge clk);
 endgroup
 ```
 
-## Synthesis Considerations
+## Design Notes
 
 ### Resource Utilization
 
@@ -310,8 +320,6 @@ initial begin
         else $error("MAX must be positive");
 end
 ```
-
-## Design Considerations
 
 ### Common Issues and Solutions
 

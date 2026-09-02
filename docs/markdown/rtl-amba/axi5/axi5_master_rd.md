@@ -262,7 +262,7 @@ Disabled signals default to 0.
 
 ---
 
-## Timing
+## Timing Characteristics
 
 ### Basic Read Transaction
 
@@ -278,7 +278,6 @@ Disabled signals default to 0.
 > - RVALID, RREADY
 > - RTRACE, RPOISON (AXI5 extensions)
 
-
 ### Chunked Read Transaction
 
 <!-- TODO: Add wavedrom timing diagram for chunked read -->
@@ -290,7 +289,6 @@ Disabled signals default to 0.
 > - RCHUNKV, RCHUNKNUM, RCHUNKSTRB
 > - Partial data transfer pattern
 
-
 ### Memory Tagging Extension (MTE)
 
 <!-- TODO: Add wavedrom timing diagram for MTE operation -->
@@ -301,11 +299,9 @@ Disabled signals default to 0.
 > - RTAG delivery with data
 > - RTAGMATCH response
 
-
 ---
 
-## Usage Example
-
+## Usage Examples
 A full-featured instantiation with every AXI5 extension enabled:
 
 ```systemverilog
@@ -442,6 +438,17 @@ Disable unused features to reduce area:
 - **[AXI5 Master Read CG](axi5_master_rd_cg.md)** - Clock-gated variant
 - **[AXI5 Master Read Monitor](../axi5/axi5_master_rd_mon.md)** - With integrated monitoring
 - **[AXI4 Master Read](../axi4/axi4_master_rd.md)** - AXI4 version for comparison
+
+---
+
+## Testing
+
+`val/amba/test_axi5_master_rd.py` exercises this module. It collects 8 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_axi5_master_rd.py -v
+```
 
 ---
 

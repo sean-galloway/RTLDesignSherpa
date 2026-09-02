@@ -141,8 +141,7 @@ XORs together every bit from position `i` to the MSB. The generate loop makes
 it work for any WIDTH, synthesis tools recognize the pattern and optimize it,
 all bits compute in parallel, and the result maps onto XOR tree structures.
 
-## Timing
-
+## Timing Characteristics
 The delay is an XOR tree of depth `log2(WIDTH)` -- typically 1-2 LUT delays for
 most widths, with the critical path running from the MSB input to the LSB
 output.
@@ -159,7 +158,7 @@ output.
 Modern synthesis tools need no help here: they recognize the XOR-reduction
 pattern, build balanced trees, and share XOR gates where possible.
 
-## Usage Example
+## Usage Examples
 
 ### Asynchronous FIFO pointers
 

@@ -147,8 +147,20 @@ Two `$error` guards enforce the sizing rules that keep forward progress guarante
 
 Pick `CHUNK_BITS` and `MAX_BEAT_BYTES` so any runtime beat width fits in the `2N` (or deeper) storage, i.e. `cfg_beat_bytes × 8 <= DEPTH_CHUNKS × CHUNK_BITS`. Ingress chunk width and egress beat cap are independent, so callers can right-size both.
 
-## Usage Example
+## Timing Characteristics
 
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
+
+---
+
+## Usage Examples
 ```systemverilog
 // Repack 128-bit DFI cycles into runtime-sized DRAM beats (up to 16 bytes).
 shifter_beat_pack #(
@@ -190,6 +202,17 @@ shifter_beat_pack #(
 - **Used by:** memory-controller aligners that repack DFI cycles into DRAM beats
 - **Uses:** nothing beyond the `reset_defs.svh` reset macros — the module is self-contained
 - **See also:** [fifo_sync](fifo_sync.md) - Whole-entry synchronous FIFO (contrast: this module repacks at bit granularity)
+
+## Testing
+
+`val/common/test_shifter_beat_pack.py` exercises this module. It collects 12 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/common/test_shifter_beat_pack.py -v
+```
+
+---
 
 ## References
 

@@ -188,7 +188,7 @@ module math_fp8_e4m3_multiplier (
 | -Inf | 0xFC | exp=31, mant=0 |
 | NaN | 0x7E | exp=31, mant!=0 |
 
-## Usage Example
+## Usage Examples
 
 ### Inference Pipeline (E4M3)
 

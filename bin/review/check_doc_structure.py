@@ -64,6 +64,22 @@ ALIASES = {
     'Theory of operation': 'Functional Description',
     'Implementation': 'Functional Description',
     'Implementation Details': 'Functional Description',
+    # Verified by reading the content behind each, 2026-09-02: 'Module
+    # Declaration' holds the SystemVerilog declaration block, 'Module
+    # Architecture' holds the block diagram, 'Related Documentation' holds the
+    # see-also list. Same section, different name -- which is what this map is
+    # for; the alternative is inventing a parallel spine per book.
+    'Module Declaration': 'Module Interface',
+    'Module Architecture': 'Functional Description',
+    'Architecture and Implementation': 'Functional Description',
+    'Architecture': 'Functional Description',
+    'Implementation': 'Functional Description',
+    'Related Documentation': 'Related Modules',
+    'Related': 'Related Modules',
+    'Performance Characteristics': 'Timing Characteristics',
+    'Synthesis Considerations': 'Design Notes',
+    'Known Limitations': 'Design Notes',
+    'Common Applications': 'Usage Examples',
     'Timing': 'Timing Characteristics',
     'Timing Diagrams': 'Timing Characteristics',
     'Usage Example': 'Usage Examples',

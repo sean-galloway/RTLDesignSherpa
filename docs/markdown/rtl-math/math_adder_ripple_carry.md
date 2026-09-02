@@ -136,7 +136,7 @@ endgenerate
 assign ow_carry = w_c[N-1];
 ```
 
-## Timing
+## Timing Characteristics
 
 ### Timing Analysis
 
@@ -194,7 +194,7 @@ MSB (Sum[7]): Depends on C[6] → 16 levels (slowest)
 
 **Why Linear Scaling is Bad:** For wide adders, delay becomes prohibitive. Use a faster architecture for N > 8.
 
-## Usage Example
+## Usage Examples
 
 ### Basic 8-bit Addition
 

@@ -176,6 +176,19 @@ end
 - `tags_full = &r_valid`: AND of all valid bits
 - `tag_status`: Result of tag lookup operation
 
+## Timing Characteristics
+
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
+
+---
+
 ## Design Notes
 
 ### Usage Considerations
@@ -185,6 +198,17 @@ end
 - **Conflicts**: No protection against duplicate tag insertion
 - **Performance**: Search time is constant regardless of occupancy
 - **Power**: All entries are searched simultaneously (high power for large depths)
+
+## Testing
+
+`val/common/test_cam_tag.py` exercises this module. It collects 2 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/common/test_cam_tag.py -v
+```
+
+---
 
 ## Navigation
 

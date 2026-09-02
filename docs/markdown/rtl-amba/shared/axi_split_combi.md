@@ -201,7 +201,20 @@ This signal indicates a new split sequence is starting (as opposed to continuing
 
 ---
 
-## Usage Example
+## Timing Characteristics
+
+This module is **sequential**: it contains 3 `always_ff` block(s),
+clocked on `aclk` with active-low asynchronous reset `aresetn`. Outputs derived
+in those blocks are registered and therefore appear one clock after the inputs
+that produced them.
+
+Per-path cycle counts are not enumerated here; read the block that drives the
+signal you care about. No synthesis frequency or area figures are quoted --
+none have been measured against a target device.
+
+---
+
+## Usage Examples
 
 ### Integration with Read Splitter
 
@@ -478,6 +491,17 @@ Enable detailed transaction logging:
 ### See Also
 - **axi_master_rd_splitter.sv** - Full read splitter with state machine
 - **axi_master_wr_splitter.sv** - Full write splitter with response consolidation
+
+---
+
+## Testing
+
+`val/amba/test_axi_split_combi.py` exercises this module. It collects 16 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_axi_split_combi.py -v
+```
 
 ---
 

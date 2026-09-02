@@ -150,8 +150,20 @@ Because 16 bits wraps after 65 536 cycles (~655 µs at 100 MHz), each per-channe
 
 ---
 
-## Usage Example
+## Timing Characteristics
 
+This module is **purely combinational** -- it contains no `always_ff` and no
+latch, so it holds no state and adds no clock cycles. Its outputs settle a
+propagation delay after its inputs, and it introduces no latency into a
+pipeline that instantiates it.
+
+Timing closure is therefore a question of the surrounding logic's slack, not of
+this module's cycle count. No synthesis figures are quoted; none have been
+measured.
+
+---
+
+## Usage Examples
 ```systemverilog
 // Meter the read engine's R channel: aggregate + per-channel by rid.
 axi_bus_meter #(

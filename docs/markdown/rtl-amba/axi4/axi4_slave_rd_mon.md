@@ -330,6 +330,27 @@ Identical 128-bit format (with 64-bit side-band timestamp) as other AXI4 monitor
 
 ---
 
+## Timing Characteristics
+
+| Skid parameter | Default depth |
+|---|---|
+| `SKID_DEPTH_AR` | 2 entries |
+| `SKID_DEPTH_R` | 4 entries |
+
+Each channel traverses one `gaxi_skid_buffer`, which registers both `rd_valid`
+and its storage. The **1-cycle input-to-output latency therefore applies on
+every transfer, including the unstalled case** -- there is no combinational
+bypass. Depth buys backpressure absorption, not throughput; full rate is
+sustained once the pipeline is primed. Legal range is 2..8 inclusive, odd
+values included.
+
+Clocking: `aclk`, reset `aresetn` (active-low asynchronous).
+
+No synthesis numbers are quoted here. Frequency and area depend on the target
+device and the parameters you elaborate with; run your own build.
+
+---
+
 ## Waveforms
 
 The following waveforms show AXI4 slave read monitor behavior from the slave perspective:
@@ -366,7 +387,7 @@ Variant read transaction with different timing from slave:
 
 ---
 
-## Usage Example
+## Usage Examples
 
 ### Configuration Strategies
 
@@ -543,6 +564,17 @@ Same as [axi4_slave_rd](../axi4/axi4_slave_rd.md):
 - **[gaxi_skid_buffer](../gaxi/gaxi_skid_buffer.md)** - Elastic buffering
 - **axi_monitor_base** - Core monitoring logic (monitor/)
 - **axi_monitor_trans_mgr** - Transaction tracking (monitor/)
+
+---
+
+## Testing
+
+`val/amba/test_axi4_slave_rd_mon.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_axi4_slave_rd_mon.py -v
+```
 
 ---
 

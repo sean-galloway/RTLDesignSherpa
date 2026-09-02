@@ -27,8 +27,7 @@
 
 The `counter_bin_load` module takes basic binary counting and adds three distinct operating modes: standard +1 increment, variable-amount increment, and direct load. It's built specifically for FIFO pointer management, where drop/flush operations need to jump the read pointer by arbitrary amounts. The wraparound is FIFO-style — at 2×MAX, with an MSB toggle for full/empty detection. If you've ever had to discard a burst of FIFO entries mid-stream, this is the counter that makes it painless.
 
-## Module Declaration
-
+## Module Interface
 ```systemverilog
 module counter_bin_load #(
     parameter int WIDTH = 5,     // Counter bit width
@@ -97,7 +96,7 @@ module counter_bin_load #(
 | counter_bin_curr | WIDTH | Current counter value (registered output) |
 | counter_bin_next | WIDTH | Next counter value (combinational preview) |
 
-## Architecture and Implementation
+## Functional Description
 
 ### Operation Priority
 
@@ -387,8 +386,6 @@ next:     0011  1100  1100
                  ↑ load  ↑ load low -> hold (next = curr)
 ```
 
-## Performance Characteristics
-
 ### Resource Utilization
 
 | Configuration | FFs | LUTs | Description |
@@ -406,8 +403,7 @@ next:     0011  1100  1100
 - **Limiting Factor**: Add operation with wraparound detection
 - **Optimization**: Pipeline add path for >500 MHz
 
-## Verification
-
+## Testing
 Test suite location: `val/common/test_counter_bin_load.py`
 
 **Key Test Scenarios:**
@@ -425,7 +421,7 @@ Test suite location: `val/common/test_counter_bin_load.py`
 pytest val/common/test_counter_bin_load.py -v
 ```
 
-## Design Considerations
+## Design Notes
 
 ### When to Use counter_bin_load
 

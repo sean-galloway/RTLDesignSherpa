@@ -133,7 +133,7 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 ```
 
-## Timing
+## Timing Characteristics
 
 ### 4-bit Galois LFSR Example
 
@@ -156,7 +156,7 @@ Cycle | LFSR | LSB | after >>1 | XOR 1100? | Next LFSR
 ...
 ```
 
-## Usage Example
+## Usage Examples
 
 ### High-Speed Systems
 ```systemverilog

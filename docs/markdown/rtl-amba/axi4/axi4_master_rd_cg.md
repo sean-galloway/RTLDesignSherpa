@@ -84,8 +84,28 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | `ARSize` | `IW+AW+8+3+2+1+4+3+4+4+UW` |
 | `RSize` | `IW+DW+2+1+UW` |
 
-## Usage Example
+## Timing Characteristics
 
+| Skid parameter | Default depth |
+|---|---|
+| `SKID_DEPTH_AR` | 2 entries |
+| `SKID_DEPTH_R` | 4 entries |
+
+Each channel traverses one `gaxi_skid_buffer`, which registers both `rd_valid`
+and its storage. The **1-cycle input-to-output latency therefore applies on
+every transfer, including the unstalled case** -- there is no combinational
+bypass. Depth buys backpressure absorption, not throughput; full rate is
+sustained once the pipeline is primed. Legal range is 2..8 inclusive, odd
+values included.
+
+Clocking: `aclk`, reset `aresetn` (active-low asynchronous).
+
+No synthesis numbers are quoted here. Frequency and area depend on the target
+device and the parameters you elaborate with; run your own build.
+
+---
+
+## Usage Examples
 ```systemverilog
 axi4_master_rd_cg #(
     // Base module parameters (see axi4_master_rd.md)
@@ -114,6 +134,17 @@ axi4_master_rd_cg #(
   - [axi4_master_rd_mon_cg.md](../axi4/axi4_master_rd_mon_cg.md) (AXI4 monitor)
   - [axil4_master_rd_mon_cg.md](../axil4/axil4_master_rd_mon_cg.md) (AXIL4 monitor)
   - [apb4_slave_cg.md](../apb4/apb4_slave_cg.md) (APB interface)
+
+---
+
+## Testing
+
+`val/amba/test_axi4_master_rd_cg.py` exercises this module. It collects 1 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_axi4_master_rd_cg.py -v
+```
 
 ---
 

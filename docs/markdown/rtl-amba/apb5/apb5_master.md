@@ -46,8 +46,7 @@ The APB5 Master module implements a complete AMBA APB5 master interface with all
 
 ---
 
-## Module Architecture
-
+## Functional Description
 ```mermaid
 flowchart LR
     subgraph CMD["Command Interface"]
@@ -119,6 +118,49 @@ flowchart LR
 ```
 
 ---
+
+### APB5 Protocol State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE
+
+    IDLE --> SETUP : cmd_fifo_valid
+    SETUP --> ACCESS : always
+    ACCESS --> IDLE : PREADY & cmd_fifo_empty
+    ACCESS --> SETUP : PREADY & !cmd_fifo_empty
+
+    state IDLE {
+        note right of IDLE : PSEL=0, PENABLE=0
+    }
+    state SETUP {
+        note right of SETUP : PSEL=1, PENABLE=0
+    }
+    state ACCESS {
+        note right of ACCESS : PSEL=1, PENABLE=1
+    }
+```
+
+### APB5 Extensions
+
+**User Signals:**
+- **PAUSER**: Carries user-defined attributes with the address/control phase
+- **PWUSER**: Carries user-defined attributes with write data
+- **PRUSER**: Returns user-defined attributes with read data
+- **PBUSER**: Returns user-defined attributes with the response
+
+**Wake-up Support:**
+- **PWAKEUP**: Slave can assert to indicate wake-up events
+- Captured in response packet (`rsp_pwakeup`) for software handling
+- Also latched into `wakeup_pending`, which sets on any PWAKEUP pulse and
+  clears once the FSM leaves IDLE to start a transaction
+
+**Parity Protection:**
+- Optional parity on data, address, and control signals
+- Enables detection of single-bit transmission errors
+
+See [Parity Implementation](#parity-implementation) for the exact coverage of
+each parity bit.
 
 ## Parameters
 
@@ -241,54 +283,7 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 
 ---
 
-## Functionality
-
-### APB5 Protocol State Machine
-
-```mermaid
-stateDiagram-v2
-    [*] --> IDLE
-
-    IDLE --> SETUP : cmd_fifo_valid
-    SETUP --> ACCESS : always
-    ACCESS --> IDLE : PREADY & cmd_fifo_empty
-    ACCESS --> SETUP : PREADY & !cmd_fifo_empty
-
-    state IDLE {
-        note right of IDLE : PSEL=0, PENABLE=0
-    }
-    state SETUP {
-        note right of SETUP : PSEL=1, PENABLE=0
-    }
-    state ACCESS {
-        note right of ACCESS : PSEL=1, PENABLE=1
-    }
-```
-
-### APB5 Extensions
-
-**User Signals:**
-- **PAUSER**: Carries user-defined attributes with the address/control phase
-- **PWUSER**: Carries user-defined attributes with write data
-- **PRUSER**: Returns user-defined attributes with read data
-- **PBUSER**: Returns user-defined attributes with the response
-
-**Wake-up Support:**
-- **PWAKEUP**: Slave can assert to indicate wake-up events
-- Captured in response packet (`rsp_pwakeup`) for software handling
-- Also latched into `wakeup_pending`, which sets on any PWAKEUP pulse and
-  clears once the FSM leaves IDLE to start a transaction
-
-**Parity Protection:**
-- Optional parity on data, address, and control signals
-- Enables detection of single-bit transmission errors
-
-See [Parity Implementation](#parity-implementation) for the exact coverage of
-each parity bit.
-
----
-
-## Timing Diagrams
+## Timing Characteristics
 
 ### Basic Write Transaction
 
@@ -308,7 +303,6 @@ each parity bit.
 > - PREADY
 > - PSLVERR
 
-
 ### Basic Read Transaction
 
 <!-- TODO: Add wavedrom timing diagram for APB5 read transaction -->
@@ -326,7 +320,6 @@ each parity bit.
 > - PRUSER
 > - PSLVERR
 
-
 ### Wake-up Signal Handling
 
 <!-- TODO: Add wavedrom timing diagram for wake-up scenario -->
@@ -338,11 +331,9 @@ each parity bit.
 > - PWAKEUP assertion
 > - Response capture
 
-
 ---
 
-## Usage Example
-
+## Usage Examples
 ```systemverilog
 apb5_master #(
     .ADDR_WIDTH     (32),
@@ -461,12 +452,22 @@ stages, so it costs no additional latency.
 
 ---
 
-## Related Documentation
-
+## Related Modules
 - **[APB5 Slave](apb5_slave.md)** - APB5 slave interface
 - **[APB5 Master CG](apb5_master_cg.md)** - Clock-gated variant
 - **[APB5 Monitor](../apb5/apb5_monitor.md)** - Protocol monitor
 - **[APB4 Master](../apb4/apb4_master.md)** - APB4 version for comparison
+
+---
+
+## Testing
+
+`val/amba/test_apb5_master.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.
+
+```bash
+source env_python
+pytest val/amba/test_apb5_master.py -v
+```
 
 ---
 

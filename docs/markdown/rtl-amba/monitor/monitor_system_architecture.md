@@ -323,8 +323,7 @@ keep working.
 
 ---
 
-## Architecture
-
+## Functional Description
 ```
    DETECT                  SHAPE                    TRANSPORT           CAPTURE
    ------                  -----                    ---------           -------
@@ -599,8 +598,7 @@ Two that have bitten before:
 
 ---
 
-## Related
-
+## Related Modules
 | For | Read |
 |---|---|
 | Packet fields, event-code assignments | [monitor_package_spec](../includes/monitor_package_spec.md) |
