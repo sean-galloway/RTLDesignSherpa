@@ -39,6 +39,7 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 from projects.components.misc.dv.tbclasses.axi4_intf_observer_tb import AXI4IntfObserverTB  # noqa: E402
+from TBClasses.monbus.monbus_types import AXIErrorCode  # noqa: E402
 
 
 def _p(name, default):
@@ -149,7 +150,195 @@ async def cocotb_test_observer_regs(dut):
     tb.log.info("observer register layer OK")
 
 
-def _run_observer(request, dut_name, params):
+@cocotb.test(timeout_time=500, timeout_unit="us")
+async def cocotb_test_observer_traffic(dut):
+    """Does the observer actually OBSERVE? Meters, and monbus packets out.
+
+    The register test proves the block is configurable. This proves it does
+    its job: drive real AXI handshakes through the taps and require that the
+    bus meters count and that the monbus group emits records. Both observers
+    sat for months with their monitors compiled out, emitting nothing, and no
+    test existed that would have noticed.
+    """
+    tb = AXI4IntfObserverTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.start_egress_sink()
+
+    # Flush every complete record rather than waiting for the 16-deep
+    # watermark; a short test never reaches it and the group would sit on the
+    # records until its flush timeout, long after the checks below.
+    await tb.write_reg("OBS_CTRL", 0)
+    await tb.write_reg("OBS_BASE_ADDR", 0x0000_0000)
+    await tb.write_reg("OBS_LIMIT_ADDR", 0x0000_FFFF)
+
+    caps0 = await tb.read_reg("OBS_CAPS0")
+    assert (caps0 >> 6) & 1, "taps not armed in this build; traffic cannot be observed"
+
+    for i in range(8):
+        await tb.drive_read_burst(addr=0x1000 + i * 0x40, arid=i % 2, beats=4)
+        await tb.drive_write_burst(addr=0x2000 + i * 0x40, awid=i % 2, beats=4)
+    await tb.wait_clocks("aclk", 400)
+
+    # Bus meters live OUTSIDE the tap gate and must count in every build.
+    rd_prod = await tb.read_stat(metric=0, is_write=0)
+    wr_prod = await tb.read_stat(metric=0, is_write=1)
+    tb.log.info(f"meters: rd_productive={rd_prod} wr_productive={wr_prod}")
+    assert rd_prod > 0 or wr_prod > 0, (
+        f"bus meters counted nothing after 8 read + 8 write bursts "
+        f"(rd={rd_prod} wr={wr_prod}) -- the taps are not seeing the bus")
+
+    # And the monbus group must have pushed records out of its AXIL master.
+    tb.log.info(f"monbus egress beats: {tb.egress_beats}")
+    if (caps0 & 0b0000_0111):        # any of ERROR / TIMEOUT / COMPL built
+        assert tb.egress_beats > 0, (
+            f"reporter cones are built (caps0=0x{caps0:08X}) and 16 bursts "
+            f"completed, but the monbus group emitted nothing. That is the "
+            f"exact failure the observers shipped with: monitors enabled, "
+            f"cones present, mon_valid flat at 0.")
+    tb.log.info("observer traffic path OK")
+
+
+@cocotb.test(timeout_time=2, timeout_unit="ms")
+async def cocotb_test_observer_packet_coverage(dut):
+    """Every injectable error, and every packet class the observer can emit.
+
+    Counting egress BEATS is not verification: it cannot tell a completion
+    from an error, and it cannot explain why two observers that share a
+    register map emit different totals. This decodes every record with the
+    SHARED monbus decoder and asserts on packet_type/event_code.
+    """
+    tb = AXI4IntfObserverTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.start_egress_sink()
+    await tb.write_reg("OBS_CTRL", 0)                 # flush every record
+    await tb.write_reg("OBS_BASE_ADDR", 0x0000_0000)
+    await tb.write_reg("OBS_LIMIT_ADDR", 0x0000_FFFF)
+
+    caps0 = await tb.read_reg("OBS_CAPS0")
+    built = {"ERROR": caps0 & 1, "TIMEOUT": (caps0 >> 1) & 1,
+             "COMPL": (caps0 >> 2) & 1, "THRESHOLD": (caps0 >> 3) & 1,
+             "PERF": (caps0 >> 4) & 1, "DEBUG": (caps0 >> 5) & 1}
+    tb.log.info(f"cones built: {built}")
+
+    # ---- 1. clean traffic -> COMPLETION only -----------------------------
+    # UNIQUE ids per transaction. Reusing an id while the previous
+    # transaction is still live in the CAM is an ID collision, and a write
+    # whose B lands before its data is attributed reads as a protocol
+    # violation -- both are stimulus faults that look like DUT errors.
+    for i in range(4):
+        await tb.drive_read_burst(addr=0x1000 + i * 0x40, arid=i, beats=4)
+        await tb.wait_clocks("aclk", 40)
+        await tb.drive_write_burst(addr=0x2000 + i * 0x40, awid=i + 8, beats=4)
+        await tb.wait_clocks("aclk", 40)
+    await tb.wait_clocks("aclk", 300)
+    clean = tb.log_tally("clean traffic")
+    if built["COMPL"]:
+        assert "Completion" in tb.types_seen(), (
+            f"COMPL cone is built and 8 clean bursts completed, but no "
+            f"Completion packet was emitted. Saw: {sorted(tb.types_seen())}")
+    assert "Error" not in tb.types_seen(), (
+        f"clean traffic produced an Error packet: {clean}")
+
+    # ---- 2. inject every AXI response error ------------------------------
+    # SLVERR and DECERR on both the read and the write channel: these are the
+    # errors an interface observer can actually be made to see from the bus.
+    n_before = len(tb.packets)
+    for n, (resp, code) in enumerate(((2, AXIErrorCode.AXI_ERR_RESP_SLVERR),
+                                      (3, AXIErrorCode.AXI_ERR_RESP_DECERR))):
+        # distinct ids AND a settle gap: the first injection previously used
+        # the same id as the second, so the second collided with a CAM entry
+        # still in TRANS_ERROR and only one code was ever reported.
+        await tb.drive_write_burst(addr=0x3000 + n * 0x100, awid=2 + n, beats=2, bresp=resp)
+        await tb.wait_clocks("aclk", 60)
+        await tb.drive_read_burst(addr=0x4000 + n * 0x100, arid=4 + n, beats=2, rresp=resp)
+        await tb.wait_clocks("aclk", 60)
+    await tb.wait_clocks("aclk", 400)
+    injected = tb.log_tally("after error injection")
+
+    if built["ERROR"]:
+        errs = {c for (n, c) in injected if n == "Error"}
+        assert errs, (
+            f"ERROR cone built, SLVERR+DECERR injected on both channels, no "
+            f"Error packet emitted. Saw: {sorted(tb.types_seen())}")
+        for want in (int(AXIErrorCode.AXI_ERR_RESP_SLVERR),
+                     int(AXIErrorCode.AXI_ERR_RESP_DECERR)):
+            assert want in errs, (
+                f"injected AXI error code {want} "
+                f"({AXIErrorCode(want).name}) never appeared; got {sorted(errs)}")
+        assert len(tb.packets) > n_before, "error injection produced no new packets"
+
+    tb.log.info(f"packet classes observed: {sorted(tb.types_seen())}")
+    tb.check_record_framing()
+
+
+@cocotb.test(timeout_time=4, timeout_unit="ms")
+async def cocotb_test_observer_all_classes(dut):
+    """Every packet CLASS the observer can emit, on a build with every cone.
+
+    Errors alone are not coverage. This build turns on all six reporter cones
+    and four address ranges, enables every runtime cone bit, and then drives
+    stimulus shaped to provoke each class in turn. Whatever a class needs to
+    fire, the test states it and checks for it by name.
+    """
+    tb = AXI4IntfObserverTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.start_egress_sink()
+    await tb.write_reg("OBS_CTRL", 0)
+    await tb.write_reg("OBS_BASE_ADDR", 0x0000_0000)
+    await tb.write_reg("OBS_LIMIT_ADDR", 0x0000_FFFF)
+
+    caps0 = await tb.read_reg("OBS_CAPS0")
+    n_ranges = (caps0 >> 12) & 0xF
+    tb.log.info(f"caps0=0x{caps0:08X} n_addr_ranges={n_ranges}")
+
+    # every runtime cone on, tight thresholds so they can actually trip
+    await tb.write_reg("MON_CTRL", 0xFF)          # all EN bits + ADDR_CHECK + MONITOR
+    await tb.write_reg("MON_TIMEOUT", 4)          # microseconds, short
+    await tb.write_reg("MON_LATENCY", 8)          # trip THRESHOLD easily
+    if n_ranges:
+        await tb.write_reg("ADDR_RANGE0_LOW", 0x0000_1000)
+        await tb.write_reg("ADDR_RANGE0_HIGH", 0x0000_1FFF)
+        await tb.write_reg("ADDR_RANGE_CTRL", 0x1)
+
+    # completion + threshold + perf + addr-match: in-range and out-of-range
+    for i in range(6):
+        await tb.drive_read_burst(addr=0x1000 + i * 0x40, arid=i, beats=4)
+        await tb.wait_clocks("aclk", 40)
+        await tb.drive_write_burst(addr=0x1000 + i * 0x40, awid=i + 8, beats=4)
+        await tb.wait_clocks("aclk", 40)
+    for i in range(4):                            # deliberately OUT of range 0
+        await tb.drive_read_burst(addr=0x8000 + i * 0x40, arid=i, beats=2)
+        await tb.wait_clocks("aclk", 40)
+    for n, resp in enumerate((2, 3)):
+        await tb.drive_write_burst(addr=0x3000 + n * 0x100, awid=2 + n, beats=2, bresp=resp)
+        await tb.wait_clocks("aclk", 60)
+        await tb.drive_read_burst(addr=0x4000 + n * 0x100, arid=4 + n, beats=2, rresp=resp)
+        await tb.wait_clocks("aclk", 60)
+    # timeout: an address with no data, left to expire
+    await tb.drive_read_burst(addr=0x5000, arid=6, beats=0)
+    await tb.wait_clocks("aclk", 4000)
+
+    tally = tb.log_tally("all classes")
+    seen = tb.types_seen()
+    tb.check_record_framing()
+
+    want = {"Completion": (caps0 >> 2) & 1, "Error": caps0 & 1,
+            "Timeout": (caps0 >> 1) & 1, "Threshold": (caps0 >> 3) & 1,
+            "Perf": (caps0 >> 4) & 1, "Debug": (caps0 >> 5) & 1}
+    missing = [k for k, built in want.items() if built and k not in seen]
+    tb.log.info(f"classes seen={sorted(seen)} built-but-missing={missing}")
+    assert not missing, (
+        f"cones built but these packet classes never came out: {missing}. "
+        f"Tally: {tally}. Check the per-cone runtime enables in "
+        f"axi4_*_{{rd,wr}}_mon, then the group's cfg_axi_pkt_mask/err_select.")
+    if n_ranges:
+        assert "AddrMatch" in seen, (
+            f"{n_ranges} address ranges built and range0 armed over "
+            f"0x1000-0x1FFF with traffic both inside and outside, but no "
+            f"AddrMatch packet. Saw: {sorted(seen)}")
+
+
+def _run_observer(request, dut_name, params, testcase="cocotb_test_observer_regs"):
     module, repo_root_, tests_dir, log_dir, rtl_dict = get_paths({
         'misc_rtl': '../../../rtl',
     })
@@ -178,9 +367,9 @@ def _run_observer(request, dut_name, params):
         includes=includes,
         toplevel=dut_name,
         module=os.path.splitext(os.path.basename(__file__))[0],
-        testcase="cocotb_test_observer_regs",
+        testcase=testcase,
         parameters=params,
-        sim_build=sim_build_path(tests_dir, dut_name),
+        sim_build=sim_build_path(tests_dir, f"{dut_name}_{testcase}"),
         extra_env=env,
         timescale="1ns/1ps",
         compile_args=["--unroll-count", "16384", "--unroll-stmts", "200000",
@@ -193,6 +382,16 @@ def _run_observer(request, dut_name, params):
         plus_args=['--trace'] if enable_waves else [],
     )
 
+
+# Every cone built + address ranges, so the all-classes test can actually
+# reach each one. The lean _PARAMS above mirrors how the harness builds it.
+_PARAMS_ALL = {
+    'NUM_RD_PORTS': 1, 'NUM_WR_PORTS': 1, 'NUM_CHANNELS': 2,
+    'ENABLE_MON_TAPS': 1, 'EGRESS_AXIL': 1, 'N_ADDR_RANGES': 4,
+    'TAP_ENABLE_ERROR_LOGIC': 1, 'TAP_ENABLE_TIMEOUT_LOGIC': 1,
+    'TAP_ENABLE_COMPL_LOGIC': 1, 'TAP_ENABLE_THRESHOLD_LOGIC': 1,
+    'TAP_ENABLE_PERF_LOGIC': 1, 'TAP_ENABLE_DEBUG_LOGIC': 1,
+}
 
 _PARAMS = {
     'NUM_RD_PORTS': 1, 'NUM_WR_PORTS': 1, 'NUM_CHANNELS': 2,
@@ -209,6 +408,42 @@ def test_axi4_intf_master_observer(request):
     _run_observer(request, 'axi4_intf_master_observer', dict(_PARAMS))
 
 
+def test_axi4_intf_master_observer_traffic(request):
+    """Observation path of the MASTER observer."""
+    _run_observer(request, 'axi4_intf_master_observer', dict(_PARAMS),
+                  testcase="cocotb_test_observer_traffic")
+
+
+def test_axi4_intf_slave_observer_traffic(request):
+    """Observation path of the SLAVE observer."""
+    _run_observer(request, 'axi4_intf_slave_observer', dict(_PARAMS),
+                  testcase="cocotb_test_observer_traffic")
+
+
+def test_axi4_intf_master_observer_packets(request):
+    """Packet-class and error-injection coverage, MASTER observer."""
+    _run_observer(request, 'axi4_intf_master_observer', dict(_PARAMS),
+                  testcase="cocotb_test_observer_packet_coverage")
+
+
+def test_axi4_intf_slave_observer_packets(request):
+    """Packet-class and error-injection coverage, SLAVE observer."""
+    _run_observer(request, 'axi4_intf_slave_observer', dict(_PARAMS),
+                  testcase="cocotb_test_observer_packet_coverage")
+
+
 def test_axi4_intf_slave_observer(request):
     """Register layer of the SLAVE observer -- same map, same body."""
     _run_observer(request, 'axi4_intf_slave_observer', dict(_PARAMS))
+
+
+def test_axi4_intf_master_observer_all_classes(request):
+    """Every packet class, MASTER observer, all cones built."""
+    _run_observer(request, 'axi4_intf_master_observer', dict(_PARAMS_ALL),
+                  testcase="cocotb_test_observer_all_classes")
+
+
+def test_axi4_intf_slave_observer_all_classes(request):
+    """Every packet class, SLAVE observer, all cones built."""
+    _run_observer(request, 'axi4_intf_slave_observer', dict(_PARAMS_ALL),
+                  testcase="cocotb_test_observer_all_classes")
