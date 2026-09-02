@@ -17,15 +17,41 @@ From `flows-stream-bridge/host/ADDRESS_MAP.md` and `PORT_MAP.md` (the current de
 `flows-stream-bridge/README.md` describes a superseded 5-slave decoder — trust
 the address-map docs):
 
-| Base | Size | Slave | Width | Protocol |
-|------|------|-------|:-----:|----------|
-| 0x0000_0000 | 4 KB | `stream_apb` (STREAM config) | 32b | APB |
-| 0x0001_0000 | 4 KB | `harness_csr` | 32b | AXIL |
-| 0x0002_0000 | 64 KB | `desc_ram` (32 B/desc) | 256b | AXIL |
-| 0x0003_0000 | 4 KB | `stream_err` (MonBus IRQ-FIFO drain) | 64b | AXIL |
-| 0x0004_0000 | 256 KB | `debug_sram` (MonBus bulk trace) | 64b | AXIL |
-| 0x0008_0000 | 4 KB | `dma_axil` (tied off, reserved MCDMA) | 32b | AXIL |
-| 0x000c_0000 | 64 KB | `bridge_trace_sram` (bridge MonBus trace) | 64b | AXIL |
+The two builds ride different bridges. The perf build (`build-perf`,
+`USE_AXI_MONITORS=0`) carries the DMA plus a capture memory; the monitor build
+(`build-mon`) adds the two observers, their tallies and the compression capture
+memory. Both tables are generated from the bridge configs the RTL is generated
+from -- `bin/bridge_windows.py` prints them, and host tools resolve every window
+by NAME rather than by a pasted constant.
+
+Perf build (`bridge_stream_char_axil`):
+
+| Base | Size | Slave |
+|------|------|-------|
+| 0x00000000 | 8 KB | `stream_apb` (STREAM config) |
+| 0x00010000 | 4 KB | `harness_csr` (harness control/status) |
+| 0x00020000 | 64 KB | `desc_ram` (descriptor preload, 32 B/desc) |
+| 0x00030000 | 4 KB | `stream_err` (MonBus IRQ-FIFO drain) |
+| 0x00040000 | 256 KB | `debug_sram` -- STREAM MonBus capture memory |
+| 0x00080000 | 4 KB | `dma_axil` (tied off, reserved MCDMA) |
+
+Monitor build (`bridge_stream_mon_axil`):
+
+| Base | Size | Slave |
+|------|------|-------|
+| 0x00000000 | 8 KB | `stream_apb` (STREAM config) |
+| 0x00010000 | 4 KB | `harness_csr` (harness control/status) |
+| 0x00020000 | 64 KB | `desc_ram` (descriptor preload, 32 B/desc) |
+| 0x00030000 | 4 KB | `stream_err` (MonBus IRQ-FIFO drain) |
+| 0x00040000 | 256 KB | `stream_tally` (master-observer MonBus records, counted) |
+| 0x00080000 | 4 KB | `dma_axil` (tied off, reserved MCDMA) |
+| 0x00090000 | 4 KB | `slave_err` (slave-monitor err/IRQ drain) |
+| 0x000C0000 | 256 KB | `slave_tally` (slave-observer MonBus records, counted) |
+| 0x00100000 | 256 KB | `stream_tally_cfg` (stream tally CAM config/readback) |
+| 0x00140000 | 256 KB | `slave_tally_cfg` (slave tally CAM config/readback) |
+| 0x00180000 | 4 KB | `slvmon_apb` (slave-monitor config regblock) |
+| 0x00190000 | 4 KB | `obs_apb` (observer config regblock) |
+| 0x001A0000 | 64 KB | `comp_sram` -- STREAM MonBus capture memory (host download) |
 
 : Bridge slave address map
 
@@ -57,5 +83,14 @@ non-perturbing observability:
   histogram and the MonBus-compression observer, all read back through the
   harness CSR.
 
-The DUT's own MonBus monitors feed `debug_sram`; the monbus compressor / half-beat
-packer (`USE_MON_COMPRESSION`) drives the compression characterization.
+STREAM's own in-core MonBus monitors feed the capture MEMORY -- `debug_sram` in
+the perf build, `comp_sram` in the monitor build -- which the host downloads and
+diffs against the bit-exact Python golden
+(`bin/TBClasses/monbus/monbus_compressor.py`), so the wire format is verified on
+silicon with no RTL decoder in the loop. The monbus compressor / half-beat packer
+(`USE_MON_COMPRESSION`) drives the compression characterization.
+
+The tallies are NOT on that path. Each observer's monbus group drives its tally's
+record port directly, with no bridge in between: the observer is the monitor
+under test, and the tally counts its packets. Through the bridge the tally
+windows are the host's count-read path only.

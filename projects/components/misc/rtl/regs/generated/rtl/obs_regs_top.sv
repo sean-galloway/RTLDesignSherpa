@@ -89,6 +89,22 @@ module obs_regs_top (
             logic OBS_STICKY;
             logic OBS_COMP_STAT0;
             logic OBS_COMP_STAT1;
+            logic MON_CTRL;
+            logic MON_TIMEOUT;
+            logic MON_LATENCY;
+            logic MON_WINDOW;
+            logic ADDR_RANGE_CTRL;
+            logic ADDR_RANGE0_LOW;
+            logic ADDR_RANGE0_HIGH;
+            logic ADDR_RANGE1_LOW;
+            logic ADDR_RANGE1_HIGH;
+            logic ADDR_RANGE2_LOW;
+            logic ADDR_RANGE2_HIGH;
+            logic ADDR_RANGE3_LOW;
+            logic ADDR_RANGE3_HIGH;
+            logic OBS_CAPS0;
+            logic OBS_CAPS1;
+            logic OBS_CAPS2;
         } OBS;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
@@ -120,6 +136,22 @@ module obs_regs_top (
         decoded_reg_strb.OBS.OBS_STICKY = cpuif_req_masked & (cpuif_addr == 8'h7c);
         decoded_reg_strb.OBS.OBS_COMP_STAT0 = cpuif_req_masked & (cpuif_addr == 8'h80);
         decoded_reg_strb.OBS.OBS_COMP_STAT1 = cpuif_req_masked & (cpuif_addr == 8'h84);
+        decoded_reg_strb.OBS.MON_CTRL = cpuif_req_masked & (cpuif_addr == 8'h90);
+        decoded_reg_strb.OBS.MON_TIMEOUT = cpuif_req_masked & (cpuif_addr == 8'h94);
+        decoded_reg_strb.OBS.MON_LATENCY = cpuif_req_masked & (cpuif_addr == 8'h98);
+        decoded_reg_strb.OBS.MON_WINDOW = cpuif_req_masked & (cpuif_addr == 8'h9c);
+        decoded_reg_strb.OBS.ADDR_RANGE_CTRL = cpuif_req_masked & (cpuif_addr == 8'ha0);
+        decoded_reg_strb.OBS.ADDR_RANGE0_LOW = cpuif_req_masked & (cpuif_addr == 8'ha4);
+        decoded_reg_strb.OBS.ADDR_RANGE0_HIGH = cpuif_req_masked & (cpuif_addr == 8'ha8);
+        decoded_reg_strb.OBS.ADDR_RANGE1_LOW = cpuif_req_masked & (cpuif_addr == 8'hac);
+        decoded_reg_strb.OBS.ADDR_RANGE1_HIGH = cpuif_req_masked & (cpuif_addr == 8'hb0);
+        decoded_reg_strb.OBS.ADDR_RANGE2_LOW = cpuif_req_masked & (cpuif_addr == 8'hb4);
+        decoded_reg_strb.OBS.ADDR_RANGE2_HIGH = cpuif_req_masked & (cpuif_addr == 8'hb8);
+        decoded_reg_strb.OBS.ADDR_RANGE3_LOW = cpuif_req_masked & (cpuif_addr == 8'hbc);
+        decoded_reg_strb.OBS.ADDR_RANGE3_HIGH = cpuif_req_masked & (cpuif_addr == 8'hc0);
+        decoded_reg_strb.OBS.OBS_CAPS0 = cpuif_req_masked & (cpuif_addr == 8'hd0);
+        decoded_reg_strb.OBS.OBS_CAPS1 = cpuif_req_masked & (cpuif_addr == 8'hd4);
+        decoded_reg_strb.OBS.OBS_CAPS2 = cpuif_req_masked & (cpuif_addr == 8'hd8);
     end
 
     // Pass down signals to next stage
@@ -315,6 +347,128 @@ module obs_regs_top (
                     logic load_next;
                 } HIST_METRIC;
             } OBS_STAT_SEL;
+            struct {
+                struct {
+                    logic next;
+                    logic load_next;
+                } ERROR_EN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } TIMEOUT_EN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } COMPL_EN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } THRESHOLD_EN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } PERF_EN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } DEBUG_EN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } ADDR_CHECK_EN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } MONITOR_EN;
+            } MON_CTRL;
+            struct {
+                struct {
+                    logic [15:0] next;
+                    logic load_next;
+                } TIMEOUT_CYCLES;
+            } MON_TIMEOUT;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } MON_LATENCY;
+            struct {
+                struct {
+                    logic [2:0] next;
+                    logic load_next;
+                } START_EVENT_SEL;
+                struct {
+                    logic [2:0] next;
+                    logic load_next;
+                } END_EVENT_SEL;
+                struct {
+                    logic next;
+                    logic load_next;
+                } START_TRIGGER;
+                struct {
+                    logic next;
+                    logic load_next;
+                } END_TRIGGER;
+                struct {
+                    logic next;
+                    logic load_next;
+                } FORCE_CLOSE;
+            } MON_WINDOW;
+            struct {
+                struct {
+                    logic [3:0] next;
+                    logic load_next;
+                } RANGE_EN;
+            } ADDR_RANGE_CTRL;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } ADDR_RANGE0_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } ADDR_RANGE0_HIGH;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } ADDR_RANGE1_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } ADDR_RANGE1_HIGH;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } ADDR_RANGE2_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } ADDR_RANGE2_HIGH;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } ADDR_RANGE3_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } ADDR_RANGE3_HIGH;
         } OBS;
     } field_combo_t;
     field_combo_t field_combo;
@@ -466,6 +620,104 @@ module obs_regs_top (
                     logic value;
                 } HIST_METRIC;
             } OBS_STAT_SEL;
+            struct {
+                struct {
+                    logic value;
+                } ERROR_EN;
+                struct {
+                    logic value;
+                } TIMEOUT_EN;
+                struct {
+                    logic value;
+                } COMPL_EN;
+                struct {
+                    logic value;
+                } THRESHOLD_EN;
+                struct {
+                    logic value;
+                } PERF_EN;
+                struct {
+                    logic value;
+                } DEBUG_EN;
+                struct {
+                    logic value;
+                } ADDR_CHECK_EN;
+                struct {
+                    logic value;
+                } MONITOR_EN;
+            } MON_CTRL;
+            struct {
+                struct {
+                    logic [15:0] value;
+                } TIMEOUT_CYCLES;
+            } MON_TIMEOUT;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } MON_LATENCY;
+            struct {
+                struct {
+                    logic [2:0] value;
+                } START_EVENT_SEL;
+                struct {
+                    logic [2:0] value;
+                } END_EVENT_SEL;
+                struct {
+                    logic value;
+                } START_TRIGGER;
+                struct {
+                    logic value;
+                } END_TRIGGER;
+                struct {
+                    logic value;
+                } FORCE_CLOSE;
+            } MON_WINDOW;
+            struct {
+                struct {
+                    logic [3:0] value;
+                } RANGE_EN;
+            } ADDR_RANGE_CTRL;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } ADDR_RANGE0_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } ADDR_RANGE0_HIGH;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } ADDR_RANGE1_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } ADDR_RANGE1_HIGH;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } ADDR_RANGE2_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } ADDR_RANGE2_HIGH;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } ADDR_RANGE3_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } ADDR_RANGE3_HIGH;
         } OBS;
     } field_storage_t;
     field_storage_t field_storage;
@@ -1321,6 +1573,558 @@ module obs_regs_top (
         end
     end
     assign hwif_out.OBS.OBS_STAT_SEL.HIST_METRIC.value = field_storage.OBS.OBS_STAT_SEL.HIST_METRIC.value;
+    // Field: obs_regs_top.OBS.MON_CTRL.ERROR_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.MON_CTRL.ERROR_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.MON_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.MON_CTRL.ERROR_EN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.MON_CTRL.ERROR_EN.next = next_c;
+        field_combo.OBS.MON_CTRL.ERROR_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.MON_CTRL.ERROR_EN.value <= 1'h1;
+        end else begin
+            if(field_combo.OBS.MON_CTRL.ERROR_EN.load_next) begin
+                field_storage.OBS.MON_CTRL.ERROR_EN.value <= field_combo.OBS.MON_CTRL.ERROR_EN.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.MON_CTRL.ERROR_EN.value = field_storage.OBS.MON_CTRL.ERROR_EN.value;
+    // Field: obs_regs_top.OBS.MON_CTRL.TIMEOUT_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.MON_CTRL.TIMEOUT_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.MON_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.MON_CTRL.TIMEOUT_EN.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.MON_CTRL.TIMEOUT_EN.next = next_c;
+        field_combo.OBS.MON_CTRL.TIMEOUT_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.MON_CTRL.TIMEOUT_EN.value <= 1'h1;
+        end else begin
+            if(field_combo.OBS.MON_CTRL.TIMEOUT_EN.load_next) begin
+                field_storage.OBS.MON_CTRL.TIMEOUT_EN.value <= field_combo.OBS.MON_CTRL.TIMEOUT_EN.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.MON_CTRL.TIMEOUT_EN.value = field_storage.OBS.MON_CTRL.TIMEOUT_EN.value;
+    // Field: obs_regs_top.OBS.MON_CTRL.COMPL_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.MON_CTRL.COMPL_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.MON_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.MON_CTRL.COMPL_EN.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.MON_CTRL.COMPL_EN.next = next_c;
+        field_combo.OBS.MON_CTRL.COMPL_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.MON_CTRL.COMPL_EN.value <= 1'h1;
+        end else begin
+            if(field_combo.OBS.MON_CTRL.COMPL_EN.load_next) begin
+                field_storage.OBS.MON_CTRL.COMPL_EN.value <= field_combo.OBS.MON_CTRL.COMPL_EN.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.MON_CTRL.COMPL_EN.value = field_storage.OBS.MON_CTRL.COMPL_EN.value;
+    // Field: obs_regs_top.OBS.MON_CTRL.THRESHOLD_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.MON_CTRL.THRESHOLD_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.MON_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.MON_CTRL.THRESHOLD_EN.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.MON_CTRL.THRESHOLD_EN.next = next_c;
+        field_combo.OBS.MON_CTRL.THRESHOLD_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.MON_CTRL.THRESHOLD_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.OBS.MON_CTRL.THRESHOLD_EN.load_next) begin
+                field_storage.OBS.MON_CTRL.THRESHOLD_EN.value <= field_combo.OBS.MON_CTRL.THRESHOLD_EN.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.MON_CTRL.THRESHOLD_EN.value = field_storage.OBS.MON_CTRL.THRESHOLD_EN.value;
+    // Field: obs_regs_top.OBS.MON_CTRL.PERF_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.MON_CTRL.PERF_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.MON_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.MON_CTRL.PERF_EN.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.MON_CTRL.PERF_EN.next = next_c;
+        field_combo.OBS.MON_CTRL.PERF_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.MON_CTRL.PERF_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.OBS.MON_CTRL.PERF_EN.load_next) begin
+                field_storage.OBS.MON_CTRL.PERF_EN.value <= field_combo.OBS.MON_CTRL.PERF_EN.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.MON_CTRL.PERF_EN.value = field_storage.OBS.MON_CTRL.PERF_EN.value;
+    // Field: obs_regs_top.OBS.MON_CTRL.DEBUG_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.MON_CTRL.DEBUG_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.MON_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.MON_CTRL.DEBUG_EN.value & ~decoded_wr_biten[5:5]) | (decoded_wr_data[5:5] & decoded_wr_biten[5:5]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.MON_CTRL.DEBUG_EN.next = next_c;
+        field_combo.OBS.MON_CTRL.DEBUG_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.MON_CTRL.DEBUG_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.OBS.MON_CTRL.DEBUG_EN.load_next) begin
+                field_storage.OBS.MON_CTRL.DEBUG_EN.value <= field_combo.OBS.MON_CTRL.DEBUG_EN.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.MON_CTRL.DEBUG_EN.value = field_storage.OBS.MON_CTRL.DEBUG_EN.value;
+    // Field: obs_regs_top.OBS.MON_CTRL.ADDR_CHECK_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.MON_CTRL.ADDR_CHECK_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.MON_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.MON_CTRL.ADDR_CHECK_EN.value & ~decoded_wr_biten[6:6]) | (decoded_wr_data[6:6] & decoded_wr_biten[6:6]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.MON_CTRL.ADDR_CHECK_EN.next = next_c;
+        field_combo.OBS.MON_CTRL.ADDR_CHECK_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.MON_CTRL.ADDR_CHECK_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.OBS.MON_CTRL.ADDR_CHECK_EN.load_next) begin
+                field_storage.OBS.MON_CTRL.ADDR_CHECK_EN.value <= field_combo.OBS.MON_CTRL.ADDR_CHECK_EN.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.MON_CTRL.ADDR_CHECK_EN.value = field_storage.OBS.MON_CTRL.ADDR_CHECK_EN.value;
+    // Field: obs_regs_top.OBS.MON_CTRL.MONITOR_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.MON_CTRL.MONITOR_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.MON_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.MON_CTRL.MONITOR_EN.value & ~decoded_wr_biten[7:7]) | (decoded_wr_data[7:7] & decoded_wr_biten[7:7]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.MON_CTRL.MONITOR_EN.next = next_c;
+        field_combo.OBS.MON_CTRL.MONITOR_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.MON_CTRL.MONITOR_EN.value <= 1'h1;
+        end else begin
+            if(field_combo.OBS.MON_CTRL.MONITOR_EN.load_next) begin
+                field_storage.OBS.MON_CTRL.MONITOR_EN.value <= field_combo.OBS.MON_CTRL.MONITOR_EN.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.MON_CTRL.MONITOR_EN.value = field_storage.OBS.MON_CTRL.MONITOR_EN.value;
+    // Field: obs_regs_top.OBS.MON_TIMEOUT.TIMEOUT_CYCLES
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.MON_TIMEOUT.TIMEOUT_CYCLES.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.MON_TIMEOUT && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.MON_TIMEOUT.TIMEOUT_CYCLES.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.MON_TIMEOUT.TIMEOUT_CYCLES.next = next_c;
+        field_combo.OBS.MON_TIMEOUT.TIMEOUT_CYCLES.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.MON_TIMEOUT.TIMEOUT_CYCLES.value <= 16'h400;
+        end else begin
+            if(field_combo.OBS.MON_TIMEOUT.TIMEOUT_CYCLES.load_next) begin
+                field_storage.OBS.MON_TIMEOUT.TIMEOUT_CYCLES.value <= field_combo.OBS.MON_TIMEOUT.TIMEOUT_CYCLES.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.MON_TIMEOUT.TIMEOUT_CYCLES.value = field_storage.OBS.MON_TIMEOUT.TIMEOUT_CYCLES.value;
+    // Field: obs_regs_top.OBS.MON_LATENCY.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.MON_LATENCY.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.MON_LATENCY && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.MON_LATENCY.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.MON_LATENCY.VALUE.next = next_c;
+        field_combo.OBS.MON_LATENCY.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.MON_LATENCY.VALUE.value <= 32'hffff;
+        end else begin
+            if(field_combo.OBS.MON_LATENCY.VALUE.load_next) begin
+                field_storage.OBS.MON_LATENCY.VALUE.value <= field_combo.OBS.MON_LATENCY.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.MON_LATENCY.VALUE.value = field_storage.OBS.MON_LATENCY.VALUE.value;
+    // Field: obs_regs_top.OBS.MON_WINDOW.START_EVENT_SEL
+    always_comb begin
+        automatic logic [2:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.MON_WINDOW.START_EVENT_SEL.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.MON_WINDOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.MON_WINDOW.START_EVENT_SEL.value & ~decoded_wr_biten[2:0]) | (decoded_wr_data[2:0] & decoded_wr_biten[2:0]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.MON_WINDOW.START_EVENT_SEL.next = next_c;
+        field_combo.OBS.MON_WINDOW.START_EVENT_SEL.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.MON_WINDOW.START_EVENT_SEL.value <= 3'h0;
+        end else begin
+            if(field_combo.OBS.MON_WINDOW.START_EVENT_SEL.load_next) begin
+                field_storage.OBS.MON_WINDOW.START_EVENT_SEL.value <= field_combo.OBS.MON_WINDOW.START_EVENT_SEL.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.MON_WINDOW.START_EVENT_SEL.value = field_storage.OBS.MON_WINDOW.START_EVENT_SEL.value;
+    // Field: obs_regs_top.OBS.MON_WINDOW.END_EVENT_SEL
+    always_comb begin
+        automatic logic [2:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.MON_WINDOW.END_EVENT_SEL.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.MON_WINDOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.MON_WINDOW.END_EVENT_SEL.value & ~decoded_wr_biten[6:4]) | (decoded_wr_data[6:4] & decoded_wr_biten[6:4]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.MON_WINDOW.END_EVENT_SEL.next = next_c;
+        field_combo.OBS.MON_WINDOW.END_EVENT_SEL.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.MON_WINDOW.END_EVENT_SEL.value <= 3'h0;
+        end else begin
+            if(field_combo.OBS.MON_WINDOW.END_EVENT_SEL.load_next) begin
+                field_storage.OBS.MON_WINDOW.END_EVENT_SEL.value <= field_combo.OBS.MON_WINDOW.END_EVENT_SEL.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.MON_WINDOW.END_EVENT_SEL.value = field_storage.OBS.MON_WINDOW.END_EVENT_SEL.value;
+    // Field: obs_regs_top.OBS.MON_WINDOW.START_TRIGGER
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.MON_WINDOW.START_TRIGGER.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.MON_WINDOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.MON_WINDOW.START_TRIGGER.value & ~decoded_wr_biten[8:8]) | (decoded_wr_data[8:8] & decoded_wr_biten[8:8]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.MON_WINDOW.START_TRIGGER.next = next_c;
+        field_combo.OBS.MON_WINDOW.START_TRIGGER.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.MON_WINDOW.START_TRIGGER.value <= 1'h0;
+        end else begin
+            if(field_combo.OBS.MON_WINDOW.START_TRIGGER.load_next) begin
+                field_storage.OBS.MON_WINDOW.START_TRIGGER.value <= field_combo.OBS.MON_WINDOW.START_TRIGGER.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.MON_WINDOW.START_TRIGGER.value = field_storage.OBS.MON_WINDOW.START_TRIGGER.value;
+    // Field: obs_regs_top.OBS.MON_WINDOW.END_TRIGGER
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.MON_WINDOW.END_TRIGGER.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.MON_WINDOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.MON_WINDOW.END_TRIGGER.value & ~decoded_wr_biten[9:9]) | (decoded_wr_data[9:9] & decoded_wr_biten[9:9]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.MON_WINDOW.END_TRIGGER.next = next_c;
+        field_combo.OBS.MON_WINDOW.END_TRIGGER.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.MON_WINDOW.END_TRIGGER.value <= 1'h0;
+        end else begin
+            if(field_combo.OBS.MON_WINDOW.END_TRIGGER.load_next) begin
+                field_storage.OBS.MON_WINDOW.END_TRIGGER.value <= field_combo.OBS.MON_WINDOW.END_TRIGGER.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.MON_WINDOW.END_TRIGGER.value = field_storage.OBS.MON_WINDOW.END_TRIGGER.value;
+    // Field: obs_regs_top.OBS.MON_WINDOW.FORCE_CLOSE
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.MON_WINDOW.FORCE_CLOSE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.MON_WINDOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.MON_WINDOW.FORCE_CLOSE.value & ~decoded_wr_biten[10:10]) | (decoded_wr_data[10:10] & decoded_wr_biten[10:10]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.MON_WINDOW.FORCE_CLOSE.next = next_c;
+        field_combo.OBS.MON_WINDOW.FORCE_CLOSE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.MON_WINDOW.FORCE_CLOSE.value <= 1'h0;
+        end else begin
+            if(field_combo.OBS.MON_WINDOW.FORCE_CLOSE.load_next) begin
+                field_storage.OBS.MON_WINDOW.FORCE_CLOSE.value <= field_combo.OBS.MON_WINDOW.FORCE_CLOSE.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.MON_WINDOW.FORCE_CLOSE.value = field_storage.OBS.MON_WINDOW.FORCE_CLOSE.value;
+    // Field: obs_regs_top.OBS.ADDR_RANGE_CTRL.RANGE_EN
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.ADDR_RANGE_CTRL.RANGE_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.ADDR_RANGE_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.ADDR_RANGE_CTRL.RANGE_EN.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.ADDR_RANGE_CTRL.RANGE_EN.next = next_c;
+        field_combo.OBS.ADDR_RANGE_CTRL.RANGE_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.ADDR_RANGE_CTRL.RANGE_EN.value <= 4'h0;
+        end else begin
+            if(field_combo.OBS.ADDR_RANGE_CTRL.RANGE_EN.load_next) begin
+                field_storage.OBS.ADDR_RANGE_CTRL.RANGE_EN.value <= field_combo.OBS.ADDR_RANGE_CTRL.RANGE_EN.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.ADDR_RANGE_CTRL.RANGE_EN.value = field_storage.OBS.ADDR_RANGE_CTRL.RANGE_EN.value;
+    // Field: obs_regs_top.OBS.ADDR_RANGE0_LOW.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.ADDR_RANGE0_LOW.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.ADDR_RANGE0_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.ADDR_RANGE0_LOW.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.ADDR_RANGE0_LOW.VALUE.next = next_c;
+        field_combo.OBS.ADDR_RANGE0_LOW.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.ADDR_RANGE0_LOW.VALUE.value <= 32'h0;
+        end else begin
+            if(field_combo.OBS.ADDR_RANGE0_LOW.VALUE.load_next) begin
+                field_storage.OBS.ADDR_RANGE0_LOW.VALUE.value <= field_combo.OBS.ADDR_RANGE0_LOW.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.ADDR_RANGE0_LOW.VALUE.value = field_storage.OBS.ADDR_RANGE0_LOW.VALUE.value;
+    // Field: obs_regs_top.OBS.ADDR_RANGE0_HIGH.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.ADDR_RANGE0_HIGH.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.ADDR_RANGE0_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.ADDR_RANGE0_HIGH.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.ADDR_RANGE0_HIGH.VALUE.next = next_c;
+        field_combo.OBS.ADDR_RANGE0_HIGH.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.ADDR_RANGE0_HIGH.VALUE.value <= 32'h0;
+        end else begin
+            if(field_combo.OBS.ADDR_RANGE0_HIGH.VALUE.load_next) begin
+                field_storage.OBS.ADDR_RANGE0_HIGH.VALUE.value <= field_combo.OBS.ADDR_RANGE0_HIGH.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.ADDR_RANGE0_HIGH.VALUE.value = field_storage.OBS.ADDR_RANGE0_HIGH.VALUE.value;
+    // Field: obs_regs_top.OBS.ADDR_RANGE1_LOW.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.ADDR_RANGE1_LOW.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.ADDR_RANGE1_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.ADDR_RANGE1_LOW.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.ADDR_RANGE1_LOW.VALUE.next = next_c;
+        field_combo.OBS.ADDR_RANGE1_LOW.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.ADDR_RANGE1_LOW.VALUE.value <= 32'h0;
+        end else begin
+            if(field_combo.OBS.ADDR_RANGE1_LOW.VALUE.load_next) begin
+                field_storage.OBS.ADDR_RANGE1_LOW.VALUE.value <= field_combo.OBS.ADDR_RANGE1_LOW.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.ADDR_RANGE1_LOW.VALUE.value = field_storage.OBS.ADDR_RANGE1_LOW.VALUE.value;
+    // Field: obs_regs_top.OBS.ADDR_RANGE1_HIGH.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.ADDR_RANGE1_HIGH.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.ADDR_RANGE1_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.ADDR_RANGE1_HIGH.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.ADDR_RANGE1_HIGH.VALUE.next = next_c;
+        field_combo.OBS.ADDR_RANGE1_HIGH.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.ADDR_RANGE1_HIGH.VALUE.value <= 32'h0;
+        end else begin
+            if(field_combo.OBS.ADDR_RANGE1_HIGH.VALUE.load_next) begin
+                field_storage.OBS.ADDR_RANGE1_HIGH.VALUE.value <= field_combo.OBS.ADDR_RANGE1_HIGH.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.ADDR_RANGE1_HIGH.VALUE.value = field_storage.OBS.ADDR_RANGE1_HIGH.VALUE.value;
+    // Field: obs_regs_top.OBS.ADDR_RANGE2_LOW.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.ADDR_RANGE2_LOW.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.ADDR_RANGE2_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.ADDR_RANGE2_LOW.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.ADDR_RANGE2_LOW.VALUE.next = next_c;
+        field_combo.OBS.ADDR_RANGE2_LOW.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.ADDR_RANGE2_LOW.VALUE.value <= 32'h0;
+        end else begin
+            if(field_combo.OBS.ADDR_RANGE2_LOW.VALUE.load_next) begin
+                field_storage.OBS.ADDR_RANGE2_LOW.VALUE.value <= field_combo.OBS.ADDR_RANGE2_LOW.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.ADDR_RANGE2_LOW.VALUE.value = field_storage.OBS.ADDR_RANGE2_LOW.VALUE.value;
+    // Field: obs_regs_top.OBS.ADDR_RANGE2_HIGH.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.ADDR_RANGE2_HIGH.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.ADDR_RANGE2_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.ADDR_RANGE2_HIGH.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.ADDR_RANGE2_HIGH.VALUE.next = next_c;
+        field_combo.OBS.ADDR_RANGE2_HIGH.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.ADDR_RANGE2_HIGH.VALUE.value <= 32'h0;
+        end else begin
+            if(field_combo.OBS.ADDR_RANGE2_HIGH.VALUE.load_next) begin
+                field_storage.OBS.ADDR_RANGE2_HIGH.VALUE.value <= field_combo.OBS.ADDR_RANGE2_HIGH.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.ADDR_RANGE2_HIGH.VALUE.value = field_storage.OBS.ADDR_RANGE2_HIGH.VALUE.value;
+    // Field: obs_regs_top.OBS.ADDR_RANGE3_LOW.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.ADDR_RANGE3_LOW.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.ADDR_RANGE3_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.ADDR_RANGE3_LOW.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.ADDR_RANGE3_LOW.VALUE.next = next_c;
+        field_combo.OBS.ADDR_RANGE3_LOW.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.ADDR_RANGE3_LOW.VALUE.value <= 32'h0;
+        end else begin
+            if(field_combo.OBS.ADDR_RANGE3_LOW.VALUE.load_next) begin
+                field_storage.OBS.ADDR_RANGE3_LOW.VALUE.value <= field_combo.OBS.ADDR_RANGE3_LOW.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.ADDR_RANGE3_LOW.VALUE.value = field_storage.OBS.ADDR_RANGE3_LOW.VALUE.value;
+    // Field: obs_regs_top.OBS.ADDR_RANGE3_HIGH.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.ADDR_RANGE3_HIGH.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.ADDR_RANGE3_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.ADDR_RANGE3_HIGH.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.ADDR_RANGE3_HIGH.VALUE.next = next_c;
+        field_combo.OBS.ADDR_RANGE3_HIGH.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.ADDR_RANGE3_HIGH.VALUE.value <= 32'h0;
+        end else begin
+            if(field_combo.OBS.ADDR_RANGE3_HIGH.VALUE.load_next) begin
+                field_storage.OBS.ADDR_RANGE3_HIGH.VALUE.value <= field_combo.OBS.ADDR_RANGE3_HIGH.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.ADDR_RANGE3_HIGH.VALUE.value = field_storage.OBS.ADDR_RANGE3_HIGH.VALUE.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -1338,7 +2142,7 @@ module obs_regs_top (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[22];
+    logic [31:0] readback_array[38];
     assign readback_array[0][15:0] = (decoded_reg_strb.OBS.AXI_PKT_MASK && !decoded_req_is_wr) ? field_storage.OBS.AXI_PKT_MASK.PKT_MASK.value : '0;
     assign readback_array[0][31:16] = (decoded_reg_strb.OBS.AXI_PKT_MASK && !decoded_req_is_wr) ? field_storage.OBS.AXI_PKT_MASK.ERR_SELECT.value : '0;
     assign readback_array[1][15:0] = (decoded_reg_strb.OBS.AXI_MASK1 && !decoded_req_is_wr) ? field_storage.OBS.AXI_MASK1.ERROR_MASK.value : '0;
@@ -1389,6 +2193,39 @@ module obs_regs_top (
     assign readback_array[20][31:16] = (decoded_reg_strb.OBS.OBS_COMP_STAT0 && !decoded_req_is_wr) ? hwif_in.OBS.OBS_COMP_STAT0.TIER0.next : '0;
     assign readback_array[21][15:0] = (decoded_reg_strb.OBS.OBS_COMP_STAT1 && !decoded_req_is_wr) ? hwif_in.OBS.OBS_COMP_STAT1.CAM_MISS.next : '0;
     assign readback_array[21][31:16] = (decoded_reg_strb.OBS.OBS_COMP_STAT1 && !decoded_req_is_wr) ? hwif_in.OBS.OBS_COMP_STAT1.OVERFLOW.next : '0;
+    assign readback_array[22][0:0] = (decoded_reg_strb.OBS.MON_CTRL && !decoded_req_is_wr) ? field_storage.OBS.MON_CTRL.ERROR_EN.value : '0;
+    assign readback_array[22][1:1] = (decoded_reg_strb.OBS.MON_CTRL && !decoded_req_is_wr) ? field_storage.OBS.MON_CTRL.TIMEOUT_EN.value : '0;
+    assign readback_array[22][2:2] = (decoded_reg_strb.OBS.MON_CTRL && !decoded_req_is_wr) ? field_storage.OBS.MON_CTRL.COMPL_EN.value : '0;
+    assign readback_array[22][3:3] = (decoded_reg_strb.OBS.MON_CTRL && !decoded_req_is_wr) ? field_storage.OBS.MON_CTRL.THRESHOLD_EN.value : '0;
+    assign readback_array[22][4:4] = (decoded_reg_strb.OBS.MON_CTRL && !decoded_req_is_wr) ? field_storage.OBS.MON_CTRL.PERF_EN.value : '0;
+    assign readback_array[22][5:5] = (decoded_reg_strb.OBS.MON_CTRL && !decoded_req_is_wr) ? field_storage.OBS.MON_CTRL.DEBUG_EN.value : '0;
+    assign readback_array[22][6:6] = (decoded_reg_strb.OBS.MON_CTRL && !decoded_req_is_wr) ? field_storage.OBS.MON_CTRL.ADDR_CHECK_EN.value : '0;
+    assign readback_array[22][7:7] = (decoded_reg_strb.OBS.MON_CTRL && !decoded_req_is_wr) ? field_storage.OBS.MON_CTRL.MONITOR_EN.value : '0;
+    assign readback_array[22][31:8] = (decoded_reg_strb.OBS.MON_CTRL && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[23][15:0] = (decoded_reg_strb.OBS.MON_TIMEOUT && !decoded_req_is_wr) ? field_storage.OBS.MON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
+    assign readback_array[23][31:16] = (decoded_reg_strb.OBS.MON_TIMEOUT && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[24][31:0] = (decoded_reg_strb.OBS.MON_LATENCY && !decoded_req_is_wr) ? field_storage.OBS.MON_LATENCY.VALUE.value : '0;
+    assign readback_array[25][2:0] = (decoded_reg_strb.OBS.MON_WINDOW && !decoded_req_is_wr) ? field_storage.OBS.MON_WINDOW.START_EVENT_SEL.value : '0;
+    assign readback_array[25][3:3] = '0;
+    assign readback_array[25][6:4] = (decoded_reg_strb.OBS.MON_WINDOW && !decoded_req_is_wr) ? field_storage.OBS.MON_WINDOW.END_EVENT_SEL.value : '0;
+    assign readback_array[25][7:7] = '0;
+    assign readback_array[25][8:8] = (decoded_reg_strb.OBS.MON_WINDOW && !decoded_req_is_wr) ? field_storage.OBS.MON_WINDOW.START_TRIGGER.value : '0;
+    assign readback_array[25][9:9] = (decoded_reg_strb.OBS.MON_WINDOW && !decoded_req_is_wr) ? field_storage.OBS.MON_WINDOW.END_TRIGGER.value : '0;
+    assign readback_array[25][10:10] = (decoded_reg_strb.OBS.MON_WINDOW && !decoded_req_is_wr) ? field_storage.OBS.MON_WINDOW.FORCE_CLOSE.value : '0;
+    assign readback_array[25][31:11] = (decoded_reg_strb.OBS.MON_WINDOW && !decoded_req_is_wr) ? 21'h0 : '0;
+    assign readback_array[26][3:0] = (decoded_reg_strb.OBS.ADDR_RANGE_CTRL && !decoded_req_is_wr) ? field_storage.OBS.ADDR_RANGE_CTRL.RANGE_EN.value : '0;
+    assign readback_array[26][31:4] = (decoded_reg_strb.OBS.ADDR_RANGE_CTRL && !decoded_req_is_wr) ? 28'h0 : '0;
+    assign readback_array[27][31:0] = (decoded_reg_strb.OBS.ADDR_RANGE0_LOW && !decoded_req_is_wr) ? field_storage.OBS.ADDR_RANGE0_LOW.VALUE.value : '0;
+    assign readback_array[28][31:0] = (decoded_reg_strb.OBS.ADDR_RANGE0_HIGH && !decoded_req_is_wr) ? field_storage.OBS.ADDR_RANGE0_HIGH.VALUE.value : '0;
+    assign readback_array[29][31:0] = (decoded_reg_strb.OBS.ADDR_RANGE1_LOW && !decoded_req_is_wr) ? field_storage.OBS.ADDR_RANGE1_LOW.VALUE.value : '0;
+    assign readback_array[30][31:0] = (decoded_reg_strb.OBS.ADDR_RANGE1_HIGH && !decoded_req_is_wr) ? field_storage.OBS.ADDR_RANGE1_HIGH.VALUE.value : '0;
+    assign readback_array[31][31:0] = (decoded_reg_strb.OBS.ADDR_RANGE2_LOW && !decoded_req_is_wr) ? field_storage.OBS.ADDR_RANGE2_LOW.VALUE.value : '0;
+    assign readback_array[32][31:0] = (decoded_reg_strb.OBS.ADDR_RANGE2_HIGH && !decoded_req_is_wr) ? field_storage.OBS.ADDR_RANGE2_HIGH.VALUE.value : '0;
+    assign readback_array[33][31:0] = (decoded_reg_strb.OBS.ADDR_RANGE3_LOW && !decoded_req_is_wr) ? field_storage.OBS.ADDR_RANGE3_LOW.VALUE.value : '0;
+    assign readback_array[34][31:0] = (decoded_reg_strb.OBS.ADDR_RANGE3_HIGH && !decoded_req_is_wr) ? field_storage.OBS.ADDR_RANGE3_HIGH.VALUE.value : '0;
+    assign readback_array[35][31:0] = (decoded_reg_strb.OBS.OBS_CAPS0 && !decoded_req_is_wr) ? hwif_in.OBS.OBS_CAPS0.VALUE.next : '0;
+    assign readback_array[36][31:0] = (decoded_reg_strb.OBS.OBS_CAPS1 && !decoded_req_is_wr) ? hwif_in.OBS.OBS_CAPS1.VALUE.next : '0;
+    assign readback_array[37][31:0] = (decoded_reg_strb.OBS.OBS_CAPS2 && !decoded_req_is_wr) ? hwif_in.OBS.OBS_CAPS2.VALUE.next : '0;
 
     // Reduce the array
     always_comb begin
@@ -1396,7 +2233,7 @@ module obs_regs_top (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<22; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<38; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

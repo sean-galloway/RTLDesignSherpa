@@ -43,6 +43,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(_here, "..", "..", "bin")))
 import stream_env  # noqa: F401,E402  (import side effect: sys.path setup)
 from harness_addrs import H, autodetect_port, compose, build_info, describe_build
 from stream_addrs import A, compose as scompose
+from bridge_windows import W                                     # bridge windows by name
 from characterization import CharacterizationRunner
 from stream_device import build_stream_bus
 from uart_axi_bridge import UARTAxiBridge
@@ -101,8 +102,12 @@ def _mon_common(br, pkt_mask, **en_fields):
             fields["COMPRESS_EN"] = 0
         br.write(A(f"{m}_ENABLE"), scompose(f"{m}_ENABLE", MON_EN=1, **fields))
         br.write(A(f"{m}_ERR_CFG"), 0x0)               # BULK_TRACE -> tally
-    br.write(A("MON_GROUP_BASE_ADDR"),       0x0004_0000)
-    br.write(A("MON_GROUP_LIMIT_ADDR"),      0x0007_FFFF)
+    _cbase, _climit = W("comp_sram")
+    # STREAM's in-core monbus lands in comp_sram -- the capture MEMORY the host
+    # downloads and diffs against the Python golden. The tallies are fed DIRECTLY
+    # by the two observers now and are not reachable from this master.
+    br.write(A("MON_GROUP_BASE_ADDR"),  _cbase)
+    br.write(A("MON_GROUP_LIMIT_ADDR"), _climit)
     br.write(A("MON_GROUP_FLUSH_WATERMARK"), 0x0)
 
 

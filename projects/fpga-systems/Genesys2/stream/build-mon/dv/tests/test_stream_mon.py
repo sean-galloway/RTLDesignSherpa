@@ -130,11 +130,16 @@ async def cocotb_test_stream_mon(dut):
     dut._log.info("[desc_ram probe] PASS — host<->desc_ram round-trips through the new bridge")
 
     # Internal probes: does each monbus group actually WRITE its m_axil master?
-    # mon_awvalid  = STREAM in-core group -> stream_tally (the empty one).
-    # slmon_awvalid = slave group -> slave_tally (the working one, reference).
+    # Three groups, three destinations -- the tallies belong to the OBSERVERS:
+    #   dmamon_awvalid = master observer -> u_stream_tally.rec_* (DIRECT)
+    #   slmon_awvalid  = slave observer  -> u_slave_tally.rec_*  (DIRECT)
+    #   mon_awvalid    = STREAM in-core  -> bridge -> comp_sram (capture memory)
+    # mon_awvalid used to feed stream_tally; it does not any more, so a zero
+    # there says nothing about the tallies. Probe the observer that actually
+    # feeds each one.
     # Edge-triggered (no per-cycle Python cost); records first assertion.
     from cocotb.triggers import RisingEdge as _RE
-    _emit = {'stream_mon_awvalid': 0, 'slave_slmon_awvalid': 0}
+    _emit = {'stream_mon_awvalid': 0, 'slave_slmon_awvalid': 0, 'dma_dmamon_awvalid': 0}
     async def _watch(sig_name, key):
         sig = getattr(dut, sig_name, None)
         if sig is None:
@@ -145,6 +150,7 @@ async def cocotb_test_stream_mon(dut):
     if os.environ.get('USE_MON', '0') == '1':
         cocotb.start_soon(_watch('mon_awvalid', 'stream_mon_awvalid'))
         cocotb.start_soon(_watch('slmon_awvalid', 'slave_slmon_awvalid'))
+        cocotb.start_soon(_watch('dmamon_awvalid', 'dma_dmamon_awvalid'))
 
     # Program the in-core address-range checker (allowlist) via the MON-block
     # CSRs (@ 0x1000 + 0x200 RDMON / +0x230 WRMON). DEBUG ranges 0,1 = match-all
@@ -227,9 +233,10 @@ async def cocotb_test_stream_mon(dut):
     dut._log.info(f"[tally] STREAM dense bins={dense} rd(agent9)={rd_hits} "
                   f"wr(agent10)={wr_hits} UNEXPECTED={dense.get(UNEXPECTED, 0)}")
     # Did each group's m_axil master actually write? Isolates emit vs bin.
-    dut._log.info(f"[probe] m_axil awvalid edges: STREAM(mon)={_emit['stream_mon_awvalid']} "
-                  f"SLAVE(slmon)={_emit['slave_slmon_awvalid']}  "
-                  f"(STREAM=0 => in-core group never emits; >0 => emits)")
+    dut._log.info(f"[probe] m_axil awvalid edges: "
+                  f"MASTER-OBS(dmamon)={_emit['dma_dmamon_awvalid']} -> stream_tally, "
+                  f"SLAVE-OBS(slmon)={_emit['slave_slmon_awvalid']} -> slave_tally, "
+                  f"STREAM-in-core(mon)={_emit['stream_mon_awvalid']} -> comp_sram")
 
     # TEST_MISS repro: read the ADDR_RANGE error bins (4/5) and TIMEOUT bins (6/7)
     # and surface them via an assert so the counts print regardless of log capture.
@@ -285,8 +292,10 @@ async def cocotb_test_stream_mon(dut):
     if os.environ.get('USE_MON', '0') == '1':
         assert rd_hits > 0 and wr_hits > 0, (
             f"per-agent AddrMatch not resolved in the STREAM tally: rd(bin0)={rd_hits} "
-            f"wr(bin1)={wr_hits} (CAM load or agent binning failed); m_axil awvalid edges "
-            f"STREAM={_emit['stream_mon_awvalid']} SLAVE={_emit['slave_slmon_awvalid']}")
+            f"wr(bin1)={wr_hits} (CAM load or agent binning failed); the STREAM tally is "
+            f"fed by the MASTER OBSERVER, whose m_axil awvalid edges = "
+            f"{_emit['dma_dmamon_awvalid']} (0 => observer never emitted: check "
+            f"ENABLE_MON_TAPS and the group window); slave-obs={_emit['slave_slmon_awvalid']}")
 
 
 # ----------------------------------------------------------------------------

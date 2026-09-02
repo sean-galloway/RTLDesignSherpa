@@ -40,6 +40,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(_here, "..", "..", "bin")))
 import stream_env  # noqa: F401,E402  (import side effect: sys.path setup)
 from harness_addrs import H, autodetect_port, compose          # common UART harness
 from stream_addrs import A                                       # by-name STREAM regs
+from bridge_windows import W                                     # bridge windows by name
 from characterization import CharacterizationRunner          # shared runner
 from stream_device import build_stream_bus                       # STREAM device (DMA)
 
@@ -151,8 +152,12 @@ def configure_monitors(bridge, A):
     for p in ("RDMON_PERF_CTRL", "WRMON_PERF_CTRL", "DAXMON_PERF_CTRL"):
         bridge.write(A(p), 0x1)             # RUN=1
     # In-core group bulk-trace write window -> debug_sram (stream_tally ingest).
-    bridge.write(A("MON_GROUP_BASE_ADDR"),       0x0004_0000)
-    bridge.write(A("MON_GROUP_LIMIT_ADDR"),      0x0007_FFFF)
+    _cbase, _climit = W("comp_sram")
+    # STREAM's in-core monbus lands in comp_sram -- the capture MEMORY the host
+    # downloads and diffs against the Python golden. The tallies are fed DIRECTLY
+    # by the two observers now and are not reachable from this master.
+    bridge.write(A("MON_GROUP_BASE_ADDR"),  _cbase)
+    bridge.write(A("MON_GROUP_LIMIT_ADDR"), _climit)
     bridge.write(A("MON_GROUP_FLUSH_WATERMARK"), 0x0000)
 
 

@@ -153,6 +153,119 @@ regfile obs_regs {
     reg { name = "Compressor stats 2"; desc = "CAM miss and overflow counters";
           field { sw=r; hw=w; } CAM_MISS[15:0] = 16'h0;
           field { sw=r; hw=w; } OVERFLOW[31:16] = 16'h0; } OBS_COMP_STAT1 @ 0x084;
+
+    //-------------------------------------------------------------------------
+    // Monitor tap configuration (0x090+)
+    //
+    // These were the LAST tie-offs: 26 cfg_* inputs on the rd/wr monitors,
+    // hardcoded at the instantiation in both observers and reachable from
+    // nowhere. That is what made the observers untestable -- completions were
+    // enabled, the perf cone was not, and no host could change either. Every
+    // default below is the constant it replaces, so this stays behaviour
+    // neutral until a host writes.
+    //
+    // NOTE the two-gate structure, because it is not obvious and it cost a
+    // full debug cycle: these are RUNTIME enables, and they only do anything
+    // if the corresponding cone was BUILT (TAP_ENABLE_*_LOGIC, a parameter --
+    // it decides whether the logic exists in silicon, so it cannot be a
+    // register without paying the area unconditionally). Read OBS_CAPS0 to
+    // find out what this instance actually has. An enable whose cone is
+    // absent reads back as written and does nothing.
+    //-------------------------------------------------------------------------
+    reg { name = "Monitor tap control"; desc = "Per-cone runtime enables for the rd/wr monitors. Gated by the build-time cones in OBS_CAPS0.";
+          field { desc = "Emit ERROR packets";     sw=rw; hw=r; } ERROR_EN[0:0]      = 1'b1;
+          field { desc = "Emit TIMEOUT packets";   sw=rw; hw=r; } TIMEOUT_EN[1:1]    = 1'b1;
+          field { desc = "Emit COMPLETION packets"; sw=rw; hw=r; } COMPL_EN[2:2]     = 1'b1;
+          field { desc = "Emit THRESHOLD packets"; sw=rw; hw=r; } THRESHOLD_EN[3:3]  = 1'b0;
+          field { desc = "Emit PERF packets";      sw=rw; hw=r; } PERF_EN[4:4]       = 1'b0;
+          field { desc = "Emit DEBUG packets";     sw=rw; hw=r; } DEBUG_EN[5:5]      = 1'b0;
+          field { desc = "Enable the address-range checker. Inert unless OBS_CAPS0.N_ADDR_RANGES > 0.";
+                  sw=rw; hw=r; } ADDR_CHECK_EN[6:6] = 1'b0;
+          field { desc = "Runtime gate on the per-transaction CAM, ANDed with the build-time
+                  ENABLE_MON_TAPS (OBS_CAPS0.MON_TAPS_ARMED). Clear it to stop the tap
+                  back-pressuring the datapath: an armed tap gates ready as
+                  (block_ready | ~cfg_monitor_enable), so at MAX_TRANSACTIONS the instrument
+                  becomes the bottleneck and reports its own limit as the engine's throughput.";
+                  sw=rw; hw=r; } MONITOR_EN[7:7] = 1'b1;
+          field { sw=r; hw=na; } RSVD[31:8] = 24'h0; } MON_CTRL @ 0x090;
+
+    reg { name = "Monitor timeout"; desc = "Transaction timeout threshold in MICROSECONDS (0 = 0xFFFF, i.e. effectively never)";
+          field { sw=rw; hw=r; } TIMEOUT_CYCLES[15:0] = 16'd1024;
+          field { sw=r; hw=na; } RSVD[31:16] = 16'h0; } MON_TIMEOUT @ 0x094;
+
+    reg { name = "Monitor latency threshold"; desc = "Latency above which a THRESHOLD packet is raised";
+          field { sw=rw; hw=r; } VALUE[31:0] = 32'h0000_FFFF; } MON_LATENCY @ 0x098;
+
+    reg { name = "Monitor perf window"; desc = "Event-driven performance window: pick the start/end events, or drive the triggers by hand";
+          field { sw=rw; hw=r; } START_EVENT_SEL[2:0] = 3'd0;
+          field { sw=rw; hw=r; } END_EVENT_SEL[6:4]   = 3'd0;
+          field { desc = "Manual window open";  sw=rw; hw=r; } START_TRIGGER[8:8] = 1'b0;
+          field { desc = "Manual window close"; sw=rw; hw=r; } END_TRIGGER[9:9]   = 1'b0;
+          field { desc = "Force the window shut regardless of the end event";
+                  sw=rw; hw=r; } FORCE_CLOSE[10:10] = 1'b0;
+          field { sw=r; hw=na; } RSVD[31:11] = 21'h0; } MON_WINDOW @ 0x09C;
+
+    //-------------------------------------------------------------------------
+    // Address-range checker (0x0A0+)
+    //
+    // Four ranges, matching the widest the monitors are built for here. A
+    // range is [LOW, HIGH] INCLUSIVE. These registers always exist so the map
+    // is the same shape on every instance; whether they DO anything depends on
+    // N_ADDR_RANGES, which OBS_CAPS0 reports -- it is 0 by default, which
+    // compiles the checker out entirely, and that is why ADDR_MATCH packets
+    // were unreachable no matter what the host wrote.
+    //-------------------------------------------------------------------------
+    reg { name = "Address range enable"; desc = "bit[i] = 1 arms range i";
+          field { sw=rw; hw=r; } RANGE_EN[3:0] = 4'h0;
+          field { sw=r; hw=na; } RSVD[31:4] = 28'h0; } ADDR_RANGE_CTRL @ 0x0A0;
+
+    reg { name = "Range 0 low";  field { sw=rw; hw=r; } VALUE[31:0] = 32'h0; } ADDR_RANGE0_LOW  @ 0x0A4;
+    reg { name = "Range 0 high"; field { sw=rw; hw=r; } VALUE[31:0] = 32'h0; } ADDR_RANGE0_HIGH @ 0x0A8;
+    reg { name = "Range 1 low";  field { sw=rw; hw=r; } VALUE[31:0] = 32'h0; } ADDR_RANGE1_LOW  @ 0x0AC;
+    reg { name = "Range 1 high"; field { sw=rw; hw=r; } VALUE[31:0] = 32'h0; } ADDR_RANGE1_HIGH @ 0x0B0;
+    reg { name = "Range 2 low";  field { sw=rw; hw=r; } VALUE[31:0] = 32'h0; } ADDR_RANGE2_LOW  @ 0x0B4;
+    reg { name = "Range 2 high"; field { sw=rw; hw=r; } VALUE[31:0] = 32'h0; } ADDR_RANGE2_HIGH @ 0x0B8;
+    reg { name = "Range 3 low";  field { sw=rw; hw=r; } VALUE[31:0] = 32'h0; } ADDR_RANGE3_LOW  @ 0x0BC;
+    reg { name = "Range 3 high"; field { sw=rw; hw=r; } VALUE[31:0] = 32'h0; } ADDR_RANGE3_HIGH @ 0x0C0;
+
+    //-------------------------------------------------------------------------
+    // Capabilities (0x0D0+) -- read-only, driven from parameters
+    //
+    // What this INSTANCE was built with. Software should read these before
+    // concluding anything from a zero counter: an observer whose COMPL cone is
+    // absent reports no completions no matter how it is configured, and that
+    // is indistinguishable from a broken datapath unless you can ask. Both
+    // observers populate these identically.
+    //-------------------------------------------------------------------------
+    // CAPS PACKING -- read before "improving" these into named fields.
+    //
+    // These three are single wide hw=w fields, unlike every other register
+    // here, and that is deliberate. Each hw=w FIELD becomes its own nested
+    // entry in the generated hwif_in struct, and Verilator 5.020 miscompiles
+    // the struct port copy once that struct gets wide enough: it emits
+    //     u_obs_regs.hwif_in = hwif_i;
+    // with the destination typed CData, and g++ rejects it with
+    //     cannot convert 'Vtop_obs_regs_top___05Fin_t__struct__0' to 'CData'.
+    // Nineteen 1-bit capability fields took hwif_in from 10 members to 29 and
+    // tripped exactly that. Verified by bisection: commenting out all 19
+    // DRIVERS did not help, so it is the struct shape, not the assignments.
+    //
+    // `make lint` does NOT catch this -- it never runs C++ codegen. Only a
+    // full model build does. Same trap the per-field-drive comment further
+    // down warns about.
+    reg { name = "Capabilities 0"; desc = "Build-time feature bits, packed. Wide single fields on purpose: see the CAPS PACKING note above.
+          [0] ERROR_CONE  [1] TIMEOUT_CONE [2] COMPL_CONE  [3] THRESHOLD_CONE
+          [4] PERF_CONE   [5] DEBUG_CONE   [6] MON_TAPS_ARMED [7] BUS_METER
+          [8] COMPRESSION [9] EGRESS_AXIL  [10] ID_SLICE   [15:12] N_ADDR_RANGES";
+          field { sw=r; hw=w; } VALUE[31:0] = 32'h0; } OBS_CAPS0 @ 0x0D0;
+
+    reg { name = "Capabilities 1"; desc = "Tap geometry, packed.
+          [7:0] NUM_RD_PORTS [15:8] NUM_WR_PORTS [23:16] NUM_CHANNELS (per tap) [31:24] CH_BASE";
+          field { sw=r; hw=w; } VALUE[31:0] = 32'h0; } OBS_CAPS1 @ 0x0D4;
+
+    reg { name = "Capabilities 2"; desc = "Transaction-table sizing, packed.
+          [15:0] MAX_TRANSACTIONS [23:16] NUM_BANKS [31:24] ADDR_WIDTH";
+          field { sw=r; hw=w; } VALUE[31:0] = 32'h0; } OBS_CAPS2 @ 0x0D8;
 };
 
 addrmap obs_regs_top {

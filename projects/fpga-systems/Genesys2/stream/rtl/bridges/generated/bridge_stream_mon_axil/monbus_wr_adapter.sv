@@ -175,16 +175,12 @@ module monbus_wr_adapter
 
     // ================================================================
     // Address decode (slave selection) - Write
-    // Slave 6 (stream_tally): 0x00040000 - 0x0007FFFF
     // Slave 10 (comp_sram): 0x001A0000 - 0x001AFFFF
     // ================================================================
     logic [NUM_SLAVES-1:0] comb_slave_select_aw;
     always_comb begin
         comb_slave_select_aw = '0;
-        if (fub_axi_awaddr >= 32'h00040000 && fub_axi_awaddr <= 32'h0007FFFF) begin
-            comb_slave_select_aw[6] = 1'b1;  // stream_tally
-        end
-        else if (fub_axi_awaddr >= 32'h001A0000 && fub_axi_awaddr <= 32'h001AFFFF) begin
+        if (fub_axi_awaddr >= 32'h001A0000 && fub_axi_awaddr <= 32'h001AFFFF) begin
             comb_slave_select_aw[10] = 1'b1;  // comp_sram
         end
     end
@@ -200,11 +196,11 @@ module monbus_wr_adapter
     // Per-width path-active gates (see comment in adapter_generator.py).
     logic aw_gate_ok;
     logic aw_path_active_64b;
-    assign aw_path_active_64b = (comb_slave_select_aw[6] | comb_slave_select_aw[10]) && aw_gate_ok;
+    assign aw_path_active_64b = (comb_slave_select_aw[10]) && aw_gate_ok;
     logic w_path_active_64b;
-    assign w_path_active_64b = w_slave_select[6] | w_slave_select[10];
+    assign w_path_active_64b = w_slave_select[10];
     logic b_path_active_64b;
-    assign b_path_active_64b = b_slave_select[6] | b_slave_select[10];
+    assign b_path_active_64b = b_slave_select[10];
 
     // ================================================================
     // Direct passthrough: 64b → 64b (no converter)
@@ -341,9 +337,6 @@ module monbus_wr_adapter
     always_comb begin
         fub_axi_awready = 1'b0;
         case (comb_slave_select_aw)
-            13'b0000001000000: begin  // Slave 6 (64b)
-                fub_axi_awready = monbus_wr_64b_awready;
-            end
             13'b0010000000000: begin  // Slave 10 (64b)
                 fub_axi_awready = monbus_wr_64b_awready;
             end
@@ -360,9 +353,6 @@ module monbus_wr_adapter
     always_comb begin
         fub_axi_wready = 1'b0;
         case (w_slave_select)
-            13'b0000001000000: begin  // Slave 6 (64b)
-                fub_axi_wready = monbus_wr_64b_wready;
-            end
             13'b0010000000000: begin  // Slave 10 (64b)
                 fub_axi_wready = monbus_wr_64b_wready;
             end
@@ -379,11 +369,6 @@ module monbus_wr_adapter
         fub_axi_bvalid = 1'b0;
 
         case (b_slave_select)
-            13'b0000001000000: begin  // Slave 6 (64b)
-                fub_axi_bid = monbus_wr_64b_b.id;
-                fub_axi_bresp = monbus_wr_64b_b.resp;
-                fub_axi_bvalid = monbus_wr_64b_bvalid;
-            end
             13'b0010000000000: begin  // Slave 10 (64b)
                 fub_axi_bid = monbus_wr_64b_b.id;
                 fub_axi_bresp = monbus_wr_64b_b.resp;

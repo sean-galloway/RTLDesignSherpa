@@ -6,11 +6,14 @@
 # confuse the two. This one adds a second monbus write master and two extra
 # slaves so BOTH tally SRAMs and the dma-monitor's err/IRQ port reach the fabric.
 #
-# Masters (4):
+# Masters (3):
 #   host             AXIL rw 32   UART host (reads/writes everything)
 #   stream_desc      AXI4 r  256  STREAM descriptor fetch  -> desc_ram
-#   monbus_wr        AXIL w  64   STREAM in-core monitors  -> stream_tally
-#   slave_monbus_wr  AXIL w  64   dma_slave_monitors group -> slave_tally
+#   monbus_wr        AXIL w  64   STREAM in-core monitors  -> comp_sram
+#
+# The two observers no longer ride the bridge: each monbus group drives its
+# tally's rec_* port DIRECTLY, so slave_monbus_wr is gone and monbus_wr now
+# targets comp_sram only (compressed capture for host download).
 #
 # Slaves / address map (each on its own window, distinct spaces):
 #   stream_apb    0x0000_0000  8 KB    APB    STREAM config regs
@@ -62,17 +65,6 @@ user_width  = 3
 [[bridge.masters]]
 name        = "monbus_wr"
 prefix      = "monbus_wr_"
-protocol    = "axil"
-channels    = "wr"
-id_width    = 8
-addr_width  = 32
-data_width  = 64
-user_width  = 0
-
-# dma_slave_monitors' monbus_axil4_axil4_group m_axil_* -> slave_tally SRAM.
-[[bridge.masters]]
-name        = "slave_monbus_wr"
-prefix      = "slave_monbus_wr_"
 protocol    = "axil"
 channels    = "wr"
 id_width    = 8
@@ -198,7 +190,8 @@ user_width  = 0
 base_addr   = "0x00090000"
 addr_range  = "0x00001000"     # 4 KB
 
-# Slave tally SRAM (monbus_tally_axil): written by slave_monbus_wr, read by host.
+# Slave tally SRAM (monbus_tally_axil): records come DIRECT from the slave
+# observer; through the bridge the host only reads counts.
 [[bridge.slaves]]
 name        = "slave_tally"
 prefix      = "slave_tally_axi_"

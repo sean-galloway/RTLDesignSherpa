@@ -46,7 +46,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
 import stream_levels  # noqa: E402
 
 
-CFG_PREFIXES = ['host_0_rd', 'host_0_wr', 'stream_desc_1_rd', 'monbus_wr_2_wr', 'slave_monbus_wr_3_wr', 'obs_apb_0_rd', 'obs_apb_0_wr', 'slvmon_apb_1_rd', 'slvmon_apb_1_wr', 'stream_apb_2_rd', 'stream_apb_2_wr', 'harness_csr_3_rd', 'harness_csr_3_wr', 'desc_ram_4_rd', 'desc_ram_4_wr', 'stream_err_5_rd', 'stream_err_5_wr', 'stream_tally_6_rd', 'stream_tally_6_wr', 'dma_axil_7_rd', 'dma_axil_7_wr', 'slave_err_8_rd', 'slave_err_8_wr', 'slave_tally_9_rd', 'slave_tally_9_wr', 'comp_sram_10_rd', 'comp_sram_10_wr', 'stream_tally_cfg_11_rd', 'stream_tally_cfg_11_wr', 'slave_tally_cfg_12_rd', 'slave_tally_cfg_12_wr']
+CFG_PREFIXES = ['host_0_rd', 'host_0_wr', 'stream_desc_1_rd', 'monbus_wr_2_wr', 'obs_apb_0_rd', 'obs_apb_0_wr', 'slvmon_apb_1_rd', 'slvmon_apb_1_wr', 'stream_apb_2_rd', 'stream_apb_2_wr', 'harness_csr_3_rd', 'harness_csr_3_wr', 'desc_ram_4_rd', 'desc_ram_4_wr', 'stream_err_5_rd', 'stream_err_5_wr', 'stream_tally_6_rd', 'stream_tally_6_wr', 'dma_axil_7_rd', 'dma_axil_7_wr', 'slave_err_8_rd', 'slave_err_8_wr', 'slave_tally_9_rd', 'slave_tally_9_wr', 'comp_sram_10_rd', 'comp_sram_10_wr', 'stream_tally_cfg_11_rd', 'stream_tally_cfg_11_wr', 'slave_tally_cfg_12_rd', 'slave_tally_cfg_12_wr']
 BLOCK_READY_PATH = "u_host_adapter.u_timing_wrapper_rd"
 REACHABLE_SLAVES = [4]
 HAS_COMPL = True

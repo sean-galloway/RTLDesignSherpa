@@ -65,6 +65,8 @@ from descriptor_builder import DescriptorBuilder, CharConfig
 # broke the perf path when the monitors relocated to 0x1000+).
 from stream_addrs import A, compose as _scompose
 from harness_addrs import H, compose  # by-name harness CSR access (never hardcode offsets)
+from bridge_windows import monbus_capture_window  # capture memory (comp_sram), by name
+import obs_addrs as _obs  # observer regblock, by name (both observers share it)
 
 
 # =========================================================================
@@ -74,7 +76,6 @@ STREAM_APB_BASE    = 0x0000_0000
 HARNESS_CSR_BASE   = 0x0001_0000
 DESC_RAM_BASE      = 0x0002_0000
 STREAM_ERR_BASE    = 0x0003_0000
-DEBUG_SRAM_BASE    = 0x0004_0000
 
 # Harness CSR offsets
 CSR_CTRL              = H("CTRL")
@@ -170,17 +171,18 @@ APB_WRMON_MASK3         = A("WRMON_MASK3")
 
 # Monbus GROUP master-write config. These WERE harness-driven cfg_mon_* ports;
 # they are now internal MON CSRs, so the HOST programs them by name like every
-# other stream config (the harness no longer drives them). Capture window =
-# debug_sram @ 0x40000; watermark 0 = flush every complete record.
+# other stream config (the harness no longer drives them). Watermark 0 = flush
+# every complete record; the capture window is resolved per flavour below.
 APB_MON_GROUP_BASE      = A("MON_GROUP_BASE_ADDR")
 APB_MON_GROUP_LIMIT     = A("MON_GROUP_LIMIT_ADDR")
 APB_MON_GROUP_WM        = A("MON_GROUP_FLUSH_WATERMARK")
-# Capture window = debug_sram @ 0x40000, sized by DEBUG_SRAM_WORDS. Every board
-# top sets DEBUG_SRAM_WORDS=4096 (16 KB), so the window is 0x40000..0x43FFF. This
-# is the safe value for BOTH flows: it matches the perf debug_sram exactly, and
-# the monitor tally counts records regardless of the write-address wrap.
-MON_GROUP_CAPTURE_BASE  = 0x0004_0000
-MON_GROUP_CAPTURE_LIMIT = 0x0004_3FFF   # 0x40000 + 4096*4 - 1
+# Capture window: resolved BY NAME per build flavour, not hardcoded. The two
+# flows do NOT share an address here. Perf writes into debug_sram @ 0x40000;
+# the monitor build writes into comp_sram @ 0x1A0000, because in that bridge
+# 0x40000 is the stream tally -- and the tally is now fed DIRECTLY by the
+# master observer, with no path from this master at all. A single hardcoded
+# 0x40000 pointed the monitor build's records at a slave it can no longer
+# reach, which reads back as "compression captured nothing".
 
 # Descriptor AXI Monitor perf-window CSRs (RFC Stage E CSR route). RUN=1 opens
 # the window (rising edge clears counters); RUN=0 closes/freezes. PROD/BP/STARV/
@@ -1301,10 +1303,37 @@ class StreamHarnessTB(TBBase):
 
         # 3a. Monbus group master-write window + flush watermark -- programmed by
         # name here like the rest of the stream config (no longer harness-driven
-        # cfg_mon_* ports). Points the group's bulk-trace writes at debug_sram.
-        await self.uart_write(APB_MON_GROUP_BASE,  MON_GROUP_CAPTURE_BASE)
-        await self.uart_write(APB_MON_GROUP_LIMIT, MON_GROUP_CAPTURE_LIMIT)
+        # cfg_mon_* ports). Resolved BY NAME from the same bridge config the RTL
+        # is generated from: comp_sram, in both builds, because both instantiate
+        # the same harness and the same bridge. The old hardcoded 0x40000 is the
+        # TALLY in this map, and the tally is fed directly by the observers now.
+        _cap_base, _cap_limit = monbus_capture_window()
+        self.log.info(f"  monbus capture window: 0x{_cap_base:08X}..0x{_cap_limit:08X} "
+                      f"(comp_sram)")
+        await self.uart_write(APB_MON_GROUP_BASE,  _cap_base)
+        await self.uart_write(APB_MON_GROUP_LIMIT, _cap_limit)
         await self.uart_write(APB_MON_GROUP_WM,    0)
+
+        # 3a-bis. Program the OBSERVERS' own regblocks. Nothing did this before,
+        # so both ran entirely on reset defaults -- and the default
+        # OBS_CTRL.FLUSH_WATERMARK is 16 RECORDS. A short test produces two, so
+        # the group sat on them until its 1024-cycle flush timeout, which is
+        # ~20x longer than the 50-cycle settle before the tally is read: the
+        # records arrived, just not before anyone looked. Watermark 0 = flush
+        # every complete record, matching what the in-core group is given above.
+        #
+        # Same register file at both windows -- the two observers share
+        # obs_regs.rdl -- so one loop configures both.
+        for _label, _base in (("master", _obs.OBS_APB_BASE),
+                              ("slave",  _obs.SLAVE_OBS_APB_BASE)):
+            await self.uart_write(_obs.O("OBS_CTRL", _base), 0)   # WM=0, no compression
+            _caps0 = await self.uart_read(_obs.O("OBS_CAPS0", _base))
+            _caps0 = _caps0 or 0
+            self.log.info(
+                f"  {_label} observer caps0=0x{_caps0:08X} "
+                f"cones[err={_caps0 & 1} tmo={(_caps0 >> 1) & 1} compl={(_caps0 >> 2) & 1} "
+                f"thr={(_caps0 >> 3) & 1} perf={(_caps0 >> 4) & 1} dbg={(_caps0 >> 5) & 1}] "
+                f"taps_armed={(_caps0 >> 6) & 1} n_addr_ranges={(_caps0 >> 12) & 0xF}")
 
         # 3b. Address-range CSRs, programmed AFTER the soft-reset so they survive
         # to DMA time (the whole point — see addr_range_writes note above).

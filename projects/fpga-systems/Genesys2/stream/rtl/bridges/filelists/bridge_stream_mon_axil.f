@@ -5,7 +5,6 @@
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_mon_axil/bridge_stream_mon_axil_pkg.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_mon_axil/host_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_mon_axil/monbus_wr_adapter.sv
-$REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_mon_axil/slave_monbus_wr_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_mon_axil/stream_desc_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_mon_axil/bridge_stream_mon_axil.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_mon_axil/bridge_stream_mon_axil_xbar.sv

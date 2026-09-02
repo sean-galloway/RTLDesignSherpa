@@ -192,6 +192,7 @@ EXPECTED_BUILD_ID   = 0x5354_5243
 # the monitors (mirrors the cocotb TB, stream_char_tb.py).
 from stream_addrs import A as _A   # noqa: E402 (addresses by name; never hardcode)
 from stream_addrs import write_reg as _stream_write_reg  # noqa: E402 (fields by name)
+from bridge_windows import base as _bw_base  # capture memory, by name
 # Read-side aliases only (status snapshot / reset pulse); all register WRITES use
 # _stream_write_reg("NAME", FIELD=..) so nothing is a hand-assembled bitmask.
 APB_CHANNEL_RESET       = _A("CHANNEL_RESET")
@@ -799,7 +800,11 @@ class CharacterizationRunner:
     # a head/tail of the monbus trace SRAM so we can read the last
     # packets the monitors emitted before the wedge.
     # ------------------------------------------------------------------
-    DEBUG_SRAM_BASE_HOST = 0x0004_0000  # see stream_char_harness.sv address map
+    # Monbus capture memory, resolved BY NAME from the bridge config. It was
+    # 0x40000, which in this bridge is the stream TALLY -- a dense histogram,
+    # not the trace bytes -- so the wedge snapshot was reading counters and
+    # calling them packets. The capture memory is comp_sram.
+    DEBUG_SRAM_BASE_HOST = _bw_base("comp_sram")
 
     # Per-monitor "monitor still alive" + sticky-state registers. The
     # field block in stream_regs.rdl exposes each engine's outstanding /

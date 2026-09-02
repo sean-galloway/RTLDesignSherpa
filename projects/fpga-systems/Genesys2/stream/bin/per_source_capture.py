@@ -71,6 +71,7 @@ THIS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(THIS_DIR))
 
 from harness_addrs import H, harness_regs  # noqa: E402  (by-name harness CSR access)
+from bridge_windows import base as _bw_base  # noqa: E402  (capture memory, by name)
 
 from dump_monbus_sram import (  # noqa: E402
     dump_json as dump_sram_to_json,
@@ -81,7 +82,9 @@ from dump_monbus_sram import (  # noqa: E402
 # run_characterization import chain.
 STREAM_APB_BASE = 0x0000_0000  # bridge slave 0
 HARNESS_CSR_BASE = 0x0001_0000  # bridge slave 1
-DEBUG_SRAM_BASE = 0x0004_0000  # bridge slave 4 (256 KB monbus trace)
+# Monbus capture memory, by name from the bridge config. Was 0x40000, which is
+# the stream TALLY in this bridge, not the trace bytes.
+DEBUG_SRAM_BASE = _bw_base("comp_sram")
 DEBUG_SRAM_BYTES = 0x40000     # full 256 KB
 
 # harness_csr offsets we actually use here.

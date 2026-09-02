@@ -18,7 +18,7 @@ The **STREAM DUT's** APB config, by contrast, *is* PeakRDL-generated
 
 ### Waveform 5.1: Descriptor Load and Kick
 
-![Descriptor load and kick](../assets/wavedrom/01_desc_kick.svg)
+![Descriptor load and kick](../assets/wavedrom/01_desc_kick.png)
 
 **Source:** [01_desc_kick.json](../assets/wavedrom/01_desc_kick.json)
 

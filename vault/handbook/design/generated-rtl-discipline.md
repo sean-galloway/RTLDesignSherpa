@@ -134,10 +134,27 @@ safe; it does nothing for someone typing verilator by hand.
 Check where the build actually reads from before running the generator. A
 second, orphaned copy of generated output is a live trap: it satisfies nothing,
 drifts silently, and captures the next regen that uses a default `-o`.
-*Case: `projects/components/misc/rtl/generated/` is referenced by no filelist,
+*Case: `projects/components/misc/rtl/generated/` was referenced by no filelist,
 Makefile or script, had already diverged from the real
 `rtl/regs/generated/`, and swallowed the first regen attempt — the build kept
-compiling the stale copy while the "regenerated" one sat unused.*
+compiling the stale copy while the "regenerated" one sat unused. It bit a second
+time on 2026-09-01: extending `obs_regs.rdl` left the orphan holding a regblock
+with none of the new registers, indistinguishable at a glance from the live one.
+REMOVED that day (95 files), along with an orphaned `rtl/regs/obs_regs_top.md`
+that no longer matched the generated docs. The single source is now
+`rtl/obs_regs.rdl` -> `rtl/regs/generated/` (RTL + docs + regmap), plus the
+hand-maintained `rtl/regs/obs_regs.vlt` waiver the filelists name directly.
+Regenerate with an EXPLICIT `-o`, never the default:*
+
+```
+python3 bin/peakrdl_generate.py projects/components/misc/rtl/obs_regs.rdl \
+    -o projects/components/misc/rtl/regs/generated --no-html
+```
+
+*The rule the case argues for: a shared regblock lives ONCE, in the component
+that owns it, and consumers reference it from a filelist (or at most take a
+copy) — they never generate their own. `obs_regs` is consumed by both Genesys 2
+stream and NexysA7 pumice this way.*
 
 Related: [[filelists]] (the same one-source rule for compile closures);
 the kimi-review-rounds rule 6 case in `vault/handbook/authoring/` — "fix the

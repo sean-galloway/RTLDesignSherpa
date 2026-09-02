@@ -5,7 +5,7 @@ package obs_regs_top_pkg;
 
     localparam OBS_REGS_TOP_DATA_WIDTH = 32;
     localparam OBS_REGS_TOP_MIN_ADDR_WIDTH = 8;
-    localparam OBS_REGS_TOP_SIZE = 'h88;
+    localparam OBS_REGS_TOP_SIZE = 'hdc;
 
     typedef struct {
         logic [31:0] next;
@@ -73,11 +73,38 @@ package obs_regs_top_pkg;
     } obs_regs__OBS_COMP_STAT1__in_t;
 
     typedef struct {
+        logic [31:0] next;
+    } obs_regs__OBS_CAPS0__VALUE__in_t;
+
+    typedef struct {
+        obs_regs__OBS_CAPS0__VALUE__in_t VALUE;
+    } obs_regs__OBS_CAPS0__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } obs_regs__OBS_CAPS1__VALUE__in_t;
+
+    typedef struct {
+        obs_regs__OBS_CAPS1__VALUE__in_t VALUE;
+    } obs_regs__OBS_CAPS1__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } obs_regs__OBS_CAPS2__VALUE__in_t;
+
+    typedef struct {
+        obs_regs__OBS_CAPS2__VALUE__in_t VALUE;
+    } obs_regs__OBS_CAPS2__in_t;
+
+    typedef struct {
         obs_regs__OBS_STAT_DATA__in_t OBS_STAT_DATA;
         obs_regs__OBS_FIFO_STAT__in_t OBS_FIFO_STAT;
         obs_regs__OBS_STICKY__in_t OBS_STICKY;
         obs_regs__OBS_COMP_STAT0__in_t OBS_COMP_STAT0;
         obs_regs__OBS_COMP_STAT1__in_t OBS_COMP_STAT1;
+        obs_regs__OBS_CAPS0__in_t OBS_CAPS0;
+        obs_regs__OBS_CAPS1__in_t OBS_CAPS1;
+        obs_regs__OBS_CAPS2__in_t OBS_CAPS2;
     } obs_regs__in_t;
 
     typedef struct {
@@ -321,6 +348,165 @@ package obs_regs_top_pkg;
     } obs_regs__OBS_STAT_SEL__out_t;
 
     typedef struct {
+        logic value;
+    } obs_regs__MON_CTRL__ERROR_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } obs_regs__MON_CTRL__TIMEOUT_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } obs_regs__MON_CTRL__COMPL_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } obs_regs__MON_CTRL__THRESHOLD_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } obs_regs__MON_CTRL__PERF_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } obs_regs__MON_CTRL__DEBUG_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } obs_regs__MON_CTRL__ADDR_CHECK_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } obs_regs__MON_CTRL__MONITOR_EN__out_t;
+
+    typedef struct {
+        obs_regs__MON_CTRL__ERROR_EN__out_t ERROR_EN;
+        obs_regs__MON_CTRL__TIMEOUT_EN__out_t TIMEOUT_EN;
+        obs_regs__MON_CTRL__COMPL_EN__out_t COMPL_EN;
+        obs_regs__MON_CTRL__THRESHOLD_EN__out_t THRESHOLD_EN;
+        obs_regs__MON_CTRL__PERF_EN__out_t PERF_EN;
+        obs_regs__MON_CTRL__DEBUG_EN__out_t DEBUG_EN;
+        obs_regs__MON_CTRL__ADDR_CHECK_EN__out_t ADDR_CHECK_EN;
+        obs_regs__MON_CTRL__MONITOR_EN__out_t MONITOR_EN;
+    } obs_regs__MON_CTRL__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } obs_regs__MON_TIMEOUT__TIMEOUT_CYCLES__out_t;
+
+    typedef struct {
+        obs_regs__MON_TIMEOUT__TIMEOUT_CYCLES__out_t TIMEOUT_CYCLES;
+    } obs_regs__MON_TIMEOUT__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } obs_regs__MON_LATENCY__VALUE__out_t;
+
+    typedef struct {
+        obs_regs__MON_LATENCY__VALUE__out_t VALUE;
+    } obs_regs__MON_LATENCY__out_t;
+
+    typedef struct {
+        logic [2:0] value;
+    } obs_regs__MON_WINDOW__START_EVENT_SEL__out_t;
+
+    typedef struct {
+        logic [2:0] value;
+    } obs_regs__MON_WINDOW__END_EVENT_SEL__out_t;
+
+    typedef struct {
+        logic value;
+    } obs_regs__MON_WINDOW__START_TRIGGER__out_t;
+
+    typedef struct {
+        logic value;
+    } obs_regs__MON_WINDOW__END_TRIGGER__out_t;
+
+    typedef struct {
+        logic value;
+    } obs_regs__MON_WINDOW__FORCE_CLOSE__out_t;
+
+    typedef struct {
+        obs_regs__MON_WINDOW__START_EVENT_SEL__out_t START_EVENT_SEL;
+        obs_regs__MON_WINDOW__END_EVENT_SEL__out_t END_EVENT_SEL;
+        obs_regs__MON_WINDOW__START_TRIGGER__out_t START_TRIGGER;
+        obs_regs__MON_WINDOW__END_TRIGGER__out_t END_TRIGGER;
+        obs_regs__MON_WINDOW__FORCE_CLOSE__out_t FORCE_CLOSE;
+    } obs_regs__MON_WINDOW__out_t;
+
+    typedef struct {
+        logic [3:0] value;
+    } obs_regs__ADDR_RANGE_CTRL__RANGE_EN__out_t;
+
+    typedef struct {
+        obs_regs__ADDR_RANGE_CTRL__RANGE_EN__out_t RANGE_EN;
+    } obs_regs__ADDR_RANGE_CTRL__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } obs_regs__ADDR_RANGE0_LOW__VALUE__out_t;
+
+    typedef struct {
+        obs_regs__ADDR_RANGE0_LOW__VALUE__out_t VALUE;
+    } obs_regs__ADDR_RANGE0_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } obs_regs__ADDR_RANGE0_HIGH__VALUE__out_t;
+
+    typedef struct {
+        obs_regs__ADDR_RANGE0_HIGH__VALUE__out_t VALUE;
+    } obs_regs__ADDR_RANGE0_HIGH__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } obs_regs__ADDR_RANGE1_LOW__VALUE__out_t;
+
+    typedef struct {
+        obs_regs__ADDR_RANGE1_LOW__VALUE__out_t VALUE;
+    } obs_regs__ADDR_RANGE1_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } obs_regs__ADDR_RANGE1_HIGH__VALUE__out_t;
+
+    typedef struct {
+        obs_regs__ADDR_RANGE1_HIGH__VALUE__out_t VALUE;
+    } obs_regs__ADDR_RANGE1_HIGH__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } obs_regs__ADDR_RANGE2_LOW__VALUE__out_t;
+
+    typedef struct {
+        obs_regs__ADDR_RANGE2_LOW__VALUE__out_t VALUE;
+    } obs_regs__ADDR_RANGE2_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } obs_regs__ADDR_RANGE2_HIGH__VALUE__out_t;
+
+    typedef struct {
+        obs_regs__ADDR_RANGE2_HIGH__VALUE__out_t VALUE;
+    } obs_regs__ADDR_RANGE2_HIGH__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } obs_regs__ADDR_RANGE3_LOW__VALUE__out_t;
+
+    typedef struct {
+        obs_regs__ADDR_RANGE3_LOW__VALUE__out_t VALUE;
+    } obs_regs__ADDR_RANGE3_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } obs_regs__ADDR_RANGE3_HIGH__VALUE__out_t;
+
+    typedef struct {
+        obs_regs__ADDR_RANGE3_HIGH__VALUE__out_t VALUE;
+    } obs_regs__ADDR_RANGE3_HIGH__out_t;
+
+    typedef struct {
         obs_regs__AXI_PKT_MASK__out_t AXI_PKT_MASK;
         obs_regs__AXI_MASK1__out_t AXI_MASK1;
         obs_regs__AXI_MASK2__out_t AXI_MASK2;
@@ -338,6 +524,19 @@ package obs_regs_top_pkg;
         obs_regs__OBS_BASE_ADDR__out_t OBS_BASE_ADDR;
         obs_regs__OBS_LIMIT_ADDR__out_t OBS_LIMIT_ADDR;
         obs_regs__OBS_STAT_SEL__out_t OBS_STAT_SEL;
+        obs_regs__MON_CTRL__out_t MON_CTRL;
+        obs_regs__MON_TIMEOUT__out_t MON_TIMEOUT;
+        obs_regs__MON_LATENCY__out_t MON_LATENCY;
+        obs_regs__MON_WINDOW__out_t MON_WINDOW;
+        obs_regs__ADDR_RANGE_CTRL__out_t ADDR_RANGE_CTRL;
+        obs_regs__ADDR_RANGE0_LOW__out_t ADDR_RANGE0_LOW;
+        obs_regs__ADDR_RANGE0_HIGH__out_t ADDR_RANGE0_HIGH;
+        obs_regs__ADDR_RANGE1_LOW__out_t ADDR_RANGE1_LOW;
+        obs_regs__ADDR_RANGE1_HIGH__out_t ADDR_RANGE1_HIGH;
+        obs_regs__ADDR_RANGE2_LOW__out_t ADDR_RANGE2_LOW;
+        obs_regs__ADDR_RANGE2_HIGH__out_t ADDR_RANGE2_HIGH;
+        obs_regs__ADDR_RANGE3_LOW__out_t ADDR_RANGE3_LOW;
+        obs_regs__ADDR_RANGE3_HIGH__out_t ADDR_RANGE3_HIGH;
     } obs_regs__out_t;
 
     typedef struct {

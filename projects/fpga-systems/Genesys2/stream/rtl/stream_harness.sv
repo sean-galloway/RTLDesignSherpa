@@ -11,7 +11,8 @@
 //                                      external converter glue needed)
 //   - harness_csr                     (control/status)
 //   - desc_ram                        (descriptor storage)
-//   - debug_sram                      (MonBus trace capture)
+//   - stream_tally / slave_tally      (observer monbus records, counted)
+//   - comp_sram                       (STREAM monbus capture, host download)
 //   - axi4_slave_rd_pattern_gen       (DMA source)
 //   - axi4_slave_wr_crc_check         (DMA sink)
 //   - stream_top_ch8                  (DUT: STREAM DMA)
@@ -65,10 +66,15 @@ module stream_harness #(
     // A measurement build wants them apart. The bus meters and latency
     // histograms live OUTSIDE this gate and keep counting either way, so every
     // number this harness characterizes with is unaffected. What the tap adds
-    // is error/timeout/completion attribution -- which this build does not
-    // consume, since the tap's reporter cones are compiled out
-    // (TAP_ENABLE_ERROR/TIMEOUT/COMPL_LOGIC default 0) and cfg_perf_enable is
-    // tied low.
+    // is error/timeout/completion attribution. The PERF build does not consume
+    // it, so there the reporter cones stay compiled out. The MONITOR build
+    // does: this parameter now drives TAP_ENABLE_ERROR/TIMEOUT/COMPL_LOGIC at
+    // both observers as well, because arming the CAM alone is not enough --
+    // with the cones out, an observer tracks transactions and emits nothing.
+    // (cfg_perf_enable is tied low inside the observer either way, so the perf
+    // cone it builds by default is inert; error/timeout/compl have their
+    // runtime cfg_*_enable tied HIGH, so building the cone is what turns them
+    // on.)
     //
     // It is not free to leave armed. An enabled tap gates the DMA's ready
     //     ready = core_ready & (block_ready | ~cfg_monitor_enable)
@@ -78,7 +84,27 @@ module stream_harness #(
     // Default 0 = measurement-only. Set 1 when the error/completion monbus
     // stream is genuinely wanted, and size OBS_MAX_TRANSACTIONS for the real
     // concurrency if you do.
-    parameter bit OBS_ENABLE_MON_TAPS = 1'b0,
+    // Observer monitor taps: ON for the monitor flavour, OFF for perf.
+    //
+    // The instantiation comment below has always SAID this was "tied to the
+    // build flavor, NOT hardcoded" -- it was not. The parameter was a literal
+    // 1'b0 that nothing overrode, so BOTH observers were built with their
+    // monitor taps off in every flavour, and the observer-hosted master/slave
+    // monitors could not emit an error, completion, timeout or threshold packet
+    // at all. Only the bus meters and latency histograms (which sit outside the
+    // tap gate) ever counted.
+    //
+    // Deriving it from USE_AXI_MONITORS makes the code do what the comment
+    // claims: build-perf (USE_AXI_MONITORS=0) keeps taps off -- no command-
+    // channel gate, no CAM on the critical path, which is exactly what a perf
+    // build wants and leaves that flavour bit-identical. build-mon
+    // (USE_AXI_MONITORS=1) turns them on so the monitors are testable.
+    //
+    // Sizing is already correct for taps-on: CFG_OBS_MAX_TRANSACTIONS=64 is
+    // NUM_CHANNELS(8) x OBS_MAX_OUTSTANDING(8), banked CFG_OBS_NUM_BANKS=4 ways
+    // = 16 deep, the depth measured at WNS +1.018 ns. The "72 will not close"
+    // note below is about a FLAT cam, not this banked one.
+    parameter bit OBS_ENABLE_MON_TAPS = (USE_AXI_MONITORS == 1),
     parameter int SRAM_DEPTH   = stream_char_cfg_pkg::CFG_SRAM_DEPTH,
     // NUM_CHANNELS is overridable so the FPGA target can build a 4-channel
     // configuration to fit the Artix-7 100T without changing the DUT's native
@@ -247,7 +273,7 @@ module stream_harness #(
     //   harness_csr    0x0001_0000  256 B   AXIL   timer/delay/kick/status
     //   desc_ram       0x0002_0000  64 KB   AXIL   descriptor preload
     //   stream_err     0x0003_0000  64 B    AXIL   small err FIFO
-    //   debug_sram     0x0004_0000  256 KB  AXIL   monitor trace
+    //   stream_tally   0x0004_0000  256 KB  AXIL   master-observer records
     //   dma_axil       0x0008_0000  4 KB    AXIL   DMA bridge port (unused
     //                                              in flows-stream-bridge;
     //                                              tied off below)
@@ -310,7 +336,7 @@ module stream_harness #(
     logic                       desc_rvalid, desc_rready;
 
     // ---- Slave-side AXIL wires consumed by the rest of the harness ---------
-    // (s1_* harness_csr, s2_* desc_ram, s3_* stream_err, s4_* debug_sram)
+    // (s1_* harness_csr, s2_* desc_ram, s3_* stream_err, s4_* stream_tally)
     logic [31:0] s1_awaddr, s1_wdata, s1_araddr, s1_rdata;
     logic [3:0]  s1_wstrb;
     logic [2:0]  s1_awprot, s1_arprot;
@@ -350,9 +376,9 @@ module stream_harness #(
     logic s3_awvalid, s3_awready, s3_wvalid, s3_wready, s3_bvalid, s3_bready;
     logic s3_arvalid, s3_arready, s3_rvalid, s3_rready;
 
-    // Slave 4 (debug_sram): bridge now delivers 64-bit AXIL — monbus is
-    // a native 64b master through the bridge; host reads go through the
-    // bridge's 32->64 upsize.
+    // Slave 4 (stream_tally): 64-bit AXIL. Records no longer arrive here --
+    // the master observer drives the tally's rec_* port directly -- so this
+    // is the host's count-READ path; host reads go through the 32->64 upsize.
     logic [31:0] s4_awaddr, s4_araddr;
     logic [63:0] s4_wdata, s4_rdata;
     logic [7:0]  s4_wstrb;
@@ -394,12 +420,19 @@ module stream_harness #(
     // handles every port — no external converter glue.
 
     // ---- Interconnect wires for the new mon-bridge ports -------------------
-    // slave_monbus_wr master  <- u_slave_observer.m_axil_* (64-bit AXIL wr)
+    // Slave observer monbus group -> u_slave_tally.rec_* (DIRECT, no bridge).
     logic [31:0] slmon_awaddr; logic [2:0] slmon_awprot;
     logic        slmon_awvalid, slmon_awready;
     logic [63:0] slmon_wdata;  logic [7:0] slmon_wstrb;
     logic        slmon_wvalid, slmon_wready;
     logic [1:0]  slmon_bresp;  logic slmon_bvalid, slmon_bready;
+
+    // Master observer monbus group -> u_stream_tally.rec_* (DIRECT, no bridge).
+    logic [31:0] dmamon_awaddr; logic [2:0] dmamon_awprot;
+    logic        dmamon_awvalid, dmamon_awready;
+    logic [63:0] dmamon_wdata;  logic [7:0] dmamon_wstrb;
+    logic        dmamon_wvalid, dmamon_wready;
+    logic [1:0]  dmamon_bresp;  logic dmamon_bvalid, dmamon_bready;
     // slave_err slave (read side) -> u_slave_observer.s_axil_* (32-bit AXIL rd)
     logic [31:0] se_araddr; logic [2:0] se_arprot;
     logic        se_arvalid, se_arready;
@@ -582,7 +615,7 @@ module stream_harness #(
         .stream_err_axi_rvalid   (s3_rvalid),
         .stream_err_axi_rready   (s3_rready),
 
-        // Slave 4: debug_sram (native AXIL — wired directly to s4_*)
+        // Slave 4: stream_tally (native AXIL — wired directly to s4_*)
         .stream_tally_axi_awaddr   (s4_awaddr),
         .stream_tally_axi_awprot   (s4_awprot),
         .stream_tally_axi_awvalid  (s4_awvalid),
@@ -634,7 +667,7 @@ module stream_harness #(
         // "rw" until the validator was tightened -- so every earlier bridge
         // carried a dead AW/W/B path that this harness tied off by name. With
         // channels="rd" the ports are gone and the tie-offs went with them
-        // (24 pins here, 8 each on monbus_wr / slave_monbus_wr for the mirror
+        // (24 pins here, 8 on monbus_wr for the mirror
         // case). Config and RTL now agree on what this master is.
         
         
@@ -714,13 +747,6 @@ module stream_harness #(
         
         
 
-        // Master 3: slave_monbus_wr — dma_slave_monitors' m_axil_* (64-bit AXIL, write-only)
-        .slave_monbus_wr_awaddr (slmon_awaddr), .slave_monbus_wr_awprot (slmon_awprot),
-        .slave_monbus_wr_awvalid(slmon_awvalid), .slave_monbus_wr_awready(slmon_awready),
-        .slave_monbus_wr_wdata  (slmon_wdata),  .slave_monbus_wr_wstrb  (slmon_wstrb),
-        .slave_monbus_wr_wvalid (slmon_wvalid), .slave_monbus_wr_wready (slmon_wready),
-        .slave_monbus_wr_bresp  (slmon_bresp),  .slave_monbus_wr_bvalid (slmon_bvalid),
-        .slave_monbus_wr_bready (slmon_bready),
         
         
         
@@ -1460,12 +1486,16 @@ module stream_harness #(
     assign s3_bresp   = 2'b10;  // SLVERR
 
     // =========================================================================
-    // S4: debug_sram — sdpram_slave at 64-bit, AXIL wr + AXIL rd.
+    // S4: stream_tally — monbus_tally_axil at 64-bit.
     //
-    // Both host (reads) and monbus (writes) go through the bridge now.
-    // STREAM's m_axil_mon output drives the bridge's monbus_wr_* master
-    // port; the bridge arbitrates monbus writes against host reads/writes
-    // and forwards both to this slave at 64-bit AXIL.
+    // Records come DIRECTLY from u_dma_observer's monbus group (dmamon_*), with
+    // no bridge in the record path -- that is the whole point of the observer:
+    // it is the monitor under test, and its packets are counted here.
+    //
+    // Through the bridge this slave is READ-ONLY in practice: the host reads the
+    // histogram. Its write channel is SLVERR-terminated below, since no master
+    // produces records into it any more. STREAM's own m_axil_mon is a separate
+    // story -- it drives bridge master monbus_wr into comp_sram.
     // =========================================================================
     // mon_* signals are declared up near the bridge instance (search
     // "// STREAM m_axil_mon master signals (declared early"). They have
@@ -1497,19 +1527,19 @@ module stream_harness #(
         .N_PROFILE        (MON_N_PROFILE)
     ) u_stream_tally (
         .aclk(aclk), .aresetn(unit_aresetn),
-        // WR1 record ingest <- stream_tally slave WRITE channels @ 0x40000.
-        .rec_awaddr  (s4_awaddr),  .rec_awprot  (s4_awprot),
-        .rec_awvalid (s4_awvalid), .rec_awready (s4_awready),
-        .rec_wdata   (s4_wdata),   .rec_wstrb   (s4_wstrb),
-        .rec_wvalid  (s4_wvalid),  .rec_wready  (s4_wready),
-        .rec_bresp   (s4_bresp),   .rec_bvalid  (s4_bvalid),
-        .rec_bready  (s4_bready),
+        // WR1 record ingest <- stream_tally observer monbus group, DIRECT. Was: bridge @ 0x40000.
+        .rec_awaddr  (dmamon_awaddr),  .rec_awprot  (dmamon_awprot),
+        .rec_awvalid (dmamon_awvalid), .rec_awready (dmamon_awready),
+        .rec_wdata   (dmamon_wdata),   .rec_wstrb   (dmamon_wstrb),
+        .rec_wvalid  (dmamon_wvalid),  .rec_wready  (dmamon_wready),
+        .rec_bresp   (dmamon_bresp),   .rec_bvalid  (dmamon_bvalid),
+        .rec_bready  (dmamon_bready),
         // RD1 count readback <- stream_tally slave READ channels @ 0x40000.
         .cnt_araddr  (s4_araddr),  .cnt_arprot  (s4_arprot),
         .cnt_arvalid (s4_arvalid), .cnt_arready (s4_arready),
         .cnt_rdata   (s4_rdata),   .cnt_rresp   (s4_rresp),
         .cnt_rvalid  (s4_rvalid),  .cnt_rready  (s4_rready),
-        // WR2 config <- stream_tally_cfg slave WRITE channels @ 0x100000.
+        // WR2 config <- stream_tally_cfg observer monbus group, DIRECT. Was: bridge @ 0x100000.
         .cfgw_awaddr (sc0_awaddr),  .cfgw_awprot (sc0_awprot),
         .cfgw_awvalid(sc0_awvalid), .cfgw_awready(sc0_awready),
         .cfgw_wdata  (sc0_wdata),   .cfgw_wstrb  (sc0_wstrb),
@@ -1525,8 +1555,9 @@ module stream_harness #(
         .tally_flush_busy(w_stream_tally_flush_busy), .tally_clear(csr_clear_pulse)
     );
 
-    // Slave-side tally SRAM — its OWN AXIL region (bridge slave_tally @ 0xC0000),
-    // written by slave_monbus_wr (dma_slave_monitors' group), read by host.
+    // Slave-side tally SRAM. Records arrive DIRECTLY from the slave observer's
+    // monbus group (slmon_*); the bridge slave_tally window @ 0xC0000 is the
+    // host's READ path for the counts only.
     logic w_slave_tally_flush_busy;
 
     monbus_tally_axil #(
@@ -1535,18 +1566,18 @@ module stream_harness #(
         .N_PROFILE(MON_N_PROFILE)
     ) u_slave_tally (
         .aclk(aclk), .aresetn(unit_aresetn),
-        // WR1 record ingest <- slave_tally slave WRITE channels @ 0xC0000.
-        .rec_awaddr(s6_awaddr),  .rec_awprot(s6_awprot),
-        .rec_awvalid(s6_awvalid), .rec_awready(s6_awready),
-        .rec_wdata(s6_wdata),    .rec_wstrb(s6_wstrb),
-        .rec_wvalid(s6_wvalid),  .rec_wready(s6_wready),
-        .rec_bresp(s6_bresp),    .rec_bvalid(s6_bvalid), .rec_bready(s6_bready),
+        // WR1 record ingest <- slave_tally observer monbus group, DIRECT. Was: bridge @ 0xC0000.
+        .rec_awaddr(slmon_awaddr),  .rec_awprot(slmon_awprot),
+        .rec_awvalid(slmon_awvalid), .rec_awready(slmon_awready),
+        .rec_wdata(slmon_wdata),    .rec_wstrb(slmon_wstrb),
+        .rec_wvalid(slmon_wvalid),  .rec_wready(slmon_wready),
+        .rec_bresp(slmon_bresp),    .rec_bvalid(slmon_bvalid), .rec_bready(slmon_bready),
         // RD1 count readback <- slave_tally slave READ channels @ 0xC0000.
         .cnt_araddr(s6_araddr),  .cnt_arprot(s6_arprot),
         .cnt_arvalid(s6_arvalid), .cnt_arready(s6_arready),
         .cnt_rdata(s6_rdata),    .cnt_rresp(s6_rresp),
         .cnt_rvalid(s6_rvalid),  .cnt_rready(s6_rready),
-        // WR2 config <- slave_tally_cfg slave WRITE channels @ 0x140000.
+        // WR2 config <- slave_tally_cfg observer monbus group, DIRECT. Was: bridge @ 0x140000.
         .cfgw_awaddr(sc1_awaddr),  .cfgw_awprot(sc1_awprot),
         .cfgw_awvalid(sc1_awvalid), .cfgw_awready(sc1_awready),
         .cfgw_wdata(sc1_wdata),    .cfgw_wstrb(sc1_wstrb),
@@ -1560,6 +1591,43 @@ module stream_harness #(
         .tally_freeze(csr_freeze),  .tally_flush(w_tally_flush),
         .tally_flush_busy(w_slave_tally_flush_busy), .tally_clear(csr_clear_pulse)
     );
+
+    // s4 write channel: the tally's record ingest is now driven DIRECTLY by
+    // its observer, so nothing on the bridge produces records any more. The
+    // host only ever reads counts here. Sink writes with SLVERR rather than
+    // leaving the channel dangling, so a stray write fails loudly.
+    logic r_s4_wr_bvalid;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_s4_wr_bvalid <= 1'b0;
+        end else begin
+            if (s4_awvalid && s4_wvalid && !r_s4_wr_bvalid) r_s4_wr_bvalid <= 1'b1;
+            else if (s4_bready && r_s4_wr_bvalid)              r_s4_wr_bvalid <= 1'b0;
+        end
+    )
+    assign s4_awready = !r_s4_wr_bvalid;
+    assign s4_wready  = !r_s4_wr_bvalid;
+    assign s4_bvalid  = r_s4_wr_bvalid;
+    assign s4_bresp   = 2'b10;  // SLVERR
+
+    // s6 write channel: the tally's record ingest is now driven DIRECTLY by
+    // its observer, so nothing on the bridge produces records any more. The
+    // host only ever reads counts here. Sink writes with SLVERR rather than
+    // leaving the channel dangling, so a stray write fails loudly.
+    logic r_s6_wr_bvalid;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_s6_wr_bvalid <= 1'b0;
+        end else begin
+            if (s6_awvalid && s6_wvalid && !r_s6_wr_bvalid) r_s6_wr_bvalid <= 1'b1;
+            else if (s6_bready && r_s6_wr_bvalid)              r_s6_wr_bvalid <= 1'b0;
+        end
+    )
+    assign s6_awready = !r_s6_wr_bvalid;
+    assign s6_wready  = !r_s6_wr_bvalid;
+    assign s6_bvalid  = r_s6_wr_bvalid;
+    assign s6_bresp   = 2'b10;  // SLVERR
+
 
     // =========================================================================
     // Compression capture SRAM (comp_sram @ 0x001A_0000, 64 KB)
@@ -1829,9 +1897,9 @@ module stream_harness #(
     logic                      s_wr_bready;
 
     // --- MONITOR HARNESS: the bare DMA slaves are replaced by dma_slave_monitors
-    //     (slaves + rd/wr monitors + monbus group). Its m_axil_* goes to bridge
-    //     master slave_monbus_wr -> u_slave_tally; its s_axil_* err read goes to
-    //     bridge slave slave_err. NO tally inside the block.
+    //     (slaves + rd/wr monitors + monbus group). Its m_axil_* drives
+    //     u_slave_tally.rec_* DIRECTLY -- no bridge in the record path; its
+    //     s_axil_* err read goes to bridge slave slave_err. NO tally inside.
     //     w_tally_flush auto-flush pulse is shared by both tally SRAMs.
     //     (declared up with the first tally instance so both instances can use it.)
     logic         r_tally_freeze_d;
@@ -1946,6 +2014,16 @@ module stream_harness #(
         // AXIL egress: the harness tally path consumes m_axil_*.
         .EGRESS_AXIL         (1'b1),
         .ENABLE_MON_TAPS     (OBS_ENABLE_MON_TAPS),
+        // Reporter cones. ENABLE_MON_TAPS arms the CAM; these BUILD the logic
+        // that turns a tracked transaction into a packet. Both are needed: with
+        // the cones compiled out the observer tracks transactions and emits
+        // nothing, which is exactly how both observers sat -- monbus groups
+        // wired up, monitors enabled, mon_valid flat at 0 for a whole run.
+        // Threshold/debug stay out: their runtime cfg_*_enable is tied low
+        // inside the observer, so building them would be dead area.
+        .TAP_ENABLE_ERROR_LOGIC   (OBS_ENABLE_MON_TAPS),
+        .TAP_ENABLE_TIMEOUT_LOGIC (OBS_ENABLE_MON_TAPS),
+        .TAP_ENABLE_COMPL_LOGIC   (OBS_ENABLE_MON_TAPS),
         .ENABLE_BUS_METER    (0),
         .ENABLE_LATENCY_HIST (0),
         .NUM_CHANNELS        (OBS_NUM_CHANNELS),
@@ -2270,6 +2348,7 @@ module stream_harness #(
         .OBS_AXI_ID_WIDTH    (4),
         .MAX_BURST_BEATS     (64),
         .USE_COMPRESSION     (0),
+        .EGRESS_AXIL         (1'b1),
         // Size to EVERYTHING THE DMA CAN INITIATE, not to a nominal 16.
         //
         // The observer instantiates axi4_master_{rd,wr}_mon with
@@ -2301,6 +2380,16 @@ module stream_harness #(
         // stream. USE_AXI_MONITORS=0 (build-perf) => taps off, no gate, no
         // throttle. USE_AXI_MONITORS=1 (build-mon) => taps on, as before.
         .ENABLE_MON_TAPS     (OBS_ENABLE_MON_TAPS),
+        // Reporter cones. ENABLE_MON_TAPS arms the CAM; these BUILD the logic
+        // that turns a tracked transaction into a packet. Both are needed: with
+        // the cones compiled out the observer tracks transactions and emits
+        // nothing, which is exactly how both observers sat -- monbus groups
+        // wired up, monitors enabled, mon_valid flat at 0 for a whole run.
+        // Threshold/debug stay out: their runtime cfg_*_enable is tied low
+        // inside the observer, so building them would be dead area.
+        .TAP_ENABLE_ERROR_LOGIC   (OBS_ENABLE_MON_TAPS),
+        .TAP_ENABLE_TIMEOUT_LOGIC (OBS_ENABLE_MON_TAPS),
+        .TAP_ENABLE_COMPL_LOGIC   (OBS_ENABLE_MON_TAPS),
         .MAX_TRANSACTIONS    (OBS_MAX_TRANSACTIONS),
         .NUM_BANKS           (OBS_NUM_BANKS),
         .USE_WDATA_ORDER_Q   (OBS_USE_WDATA_ORDER_Q),
@@ -2449,21 +2538,22 @@ module stream_harness #(
         // i.e. the observer is too small for what STREAM can initiate and the
         // histogram totals read low. Should be 0 by construction now that the
         // depths are derived; surfaced so it cannot regress silently.
-        // EGRESS_AXIL=0 on this instance, so the AXIL dump master is tied
-        // off inside the observer. The ports exist either way -- that is the
-        // price of a port list that does not move with the parameter -- so
-        // connect them explicitly rather than leaving them PINMISSING.
-        .m_axil_awaddr   (),
-        .m_axil_awprot   (),
-        .m_axil_awready  (),
-        .m_axil_awvalid  (),
-        .m_axil_bready   (),
-        .m_axil_bresp    (),
-        .m_axil_bvalid   (),
-        .m_axil_wdata    (),
-        .m_axil_wready   (),
-        .m_axil_wstrb    (),
-        .m_axil_wvalid   ()
+        // AXIL dump master: this observer's monbus group drives u_stream_tally's
+        // rec_* port DIRECTLY (see dmamon_*), with no bridge in between. The
+        // m_axi_* AXI4 egress is the one tied off here, since EGRESS_AXIL=1
+        // builds the AXIL group. Both port sets exist regardless of the
+        // parameter, so connect explicitly rather than leaving them PINMISSING.
+        .m_axil_awaddr   (dmamon_awaddr),
+        .m_axil_awprot   (dmamon_awprot),
+        .m_axil_awready  (dmamon_awready),
+        .m_axil_awvalid  (dmamon_awvalid),
+        .m_axil_bready   (dmamon_bready),
+        .m_axil_bresp    (dmamon_bresp),
+        .m_axil_bvalid   (dmamon_bvalid),
+        .m_axil_wdata    (dmamon_wdata),
+        .m_axil_wready   (dmamon_wready),
+        .m_axil_wstrb    (dmamon_wstrb),
+        .m_axil_wvalid   (dmamon_wvalid)
     );
 
     // =========================================================================
@@ -2592,7 +2682,9 @@ module stream_harness #(
         .s_axil_err_rdata  (s3_err_rdata),
         .s_axil_err_rresp  (s3_err_rresp),
 
-        // Monitor data AXIL master (writes to debug_sram)
+        // Monitor data AXIL master. Bridge master monbus_wr -> comp_sram, the
+        // capture MEMORY the host downloads and diffs against the Python
+        // golden. It does NOT feed a tally: the tallies belong to the observers.
         .m_axil_mon_awvalid(mon_awvalid),
         .m_axil_mon_awready(mon_awready),
         .m_axil_mon_awaddr (mon_awaddr),

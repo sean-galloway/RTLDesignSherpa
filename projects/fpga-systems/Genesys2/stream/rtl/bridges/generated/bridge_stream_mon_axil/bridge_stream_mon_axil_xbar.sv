@@ -94,20 +94,6 @@ module bridge_stream_mon_axil_xbar
     output logic         monbus_wr_64b_bvalid,
     input  logic         monbus_wr_64b_bready,
 
-    // slave_monbus_wr adapter outputs (multiple width paths)
-    input  logic [NUM_SLAVES-1:0] slave_monbus_wr_slave_select_aw,
-    input  logic [BRIDGE_ID_WIDTH-1:0] slave_monbus_wr_bridge_id_aw,
-    // 64b path
-    input  axi4_aw_t     slave_monbus_wr_64b_aw,
-    input  logic         slave_monbus_wr_64b_awvalid,
-    output logic         slave_monbus_wr_64b_awready,
-    input  axi4_w_64b_t  slave_monbus_wr_64b_w,
-    input  logic         slave_monbus_wr_64b_wvalid,
-    output logic         slave_monbus_wr_64b_wready,
-    output axi4_b_t      slave_monbus_wr_64b_b,
-    output logic         slave_monbus_wr_64b_bvalid,
-    input  logic         slave_monbus_wr_64b_bready,
-
     // Slave 0: obs_apb
     output logic [BRIDGE_ID_WIDTH-1:0] obs_apb_axi_bridge_id_aw,
     input  logic [BRIDGE_ID_WIDTH-1:0] obs_apb_axi_bid_bridge_id,
@@ -894,14 +880,8 @@ module bridge_stream_mon_axil_xbar
     logic host_64b_w_sel_slave_tally_cfg;
     logic host_256b_w_to_desc_ram;
     logic host_256b_w_sel_desc_ram;
-    logic monbus_wr_64b_w_to_stream_tally;
-    logic monbus_wr_64b_w_sel_stream_tally;
     logic monbus_wr_64b_w_to_comp_sram;
     logic monbus_wr_64b_w_sel_comp_sram;
-    logic slave_monbus_wr_64b_w_to_slave_tally;
-    logic slave_monbus_wr_64b_w_sel_slave_tally;
-    logic slave_monbus_wr_64b_w_to_comp_sram;
-    logic slave_monbus_wr_64b_w_sel_comp_sram;
 
     // ================================================================
     // Slave 0: obs_apb (32b)
@@ -1321,140 +1301,57 @@ module bridge_stream_mon_axil_xbar
     // ================================================================
     // Slave 6: stream_tally (64b)
     // ================================================================
-    // Multi-master (2 masters) → stream_tally
-    //   - host (rw)
-    //   - monbus_wr (wr)
+    // Single master: host → stream_tally
+    // Master width: 32b, Slave width: 64b
+    // Using 64b path from adapter
 
+    // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_64b_aw_to_stream_tally = ((host_64b_aw.addr >= 32'h00040000) && (host_64b_aw.addr <= 32'h0007ffff));
+    wire host_64b_aw_gnt_stream_tally = host_64b_aw_to_stream_tally;
+    assign stream_tally_axi_awid     = host_64b_aw_to_stream_tally ? host_64b_aw.id : '0;
+    assign stream_tally_axi_awaddr   = host_64b_aw_to_stream_tally ? host_64b_aw.addr : '0;
+    assign stream_tally_axi_awlen    = host_64b_aw_to_stream_tally ? host_64b_aw.len : '0;
+    assign stream_tally_axi_awsize   = host_64b_aw_to_stream_tally ? host_64b_aw.size : '0;
+    assign stream_tally_axi_awburst  = host_64b_aw_to_stream_tally ? host_64b_aw.burst : '0;
+    assign stream_tally_axi_awlock   = host_64b_aw_to_stream_tally ? host_64b_aw.lock : '0;
+    assign stream_tally_axi_awcache  = host_64b_aw_to_stream_tally ? host_64b_aw.cache : '0;
+    assign stream_tally_axi_awprot   = host_64b_aw_to_stream_tally ? host_64b_aw.prot : '0;
+    assign stream_tally_axi_awvalid  = host_64b_aw_to_stream_tally && host_64b_awvalid;
+
+    assign host_64b_w_sel_stream_tally = host_64b_w_to_stream_tally;
+
+    // W channel (gated by the W destination FIFO head)
+    assign stream_tally_axi_wdata  = host_64b_w_to_stream_tally ? host_64b_w.data : '0;
+    assign stream_tally_axi_wstrb  = host_64b_w_to_stream_tally ? host_64b_w.strb : '0;
+    assign stream_tally_axi_wlast  = host_64b_w_to_stream_tally ? host_64b_w.last : '0;
+    assign stream_tally_axi_wvalid = host_64b_w_to_stream_tally && host_64b_wvalid;
+
+    // Bready (master → slave) — gated on bid_valid so the path stays
+    // open through the entire B handshake, not just the AW phase.
+    assign stream_tally_axi_bready = ((stream_tally_axi_bid_bridge_id == 0) && stream_tally_axi_bid_valid) ? host_64b_bready : '0;
+
+    // Bridge ID (master → slave)
+    assign stream_tally_axi_bridge_id_aw = host_64b_aw_to_stream_tally ? host_bridge_id_aw : '0;
+
+    // AR channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_64b_ar_to_stream_tally = ((host_64b_ar.addr >= 32'h00040000) && (host_64b_ar.addr <= 32'h0007ffff));
-    wire monbus_wr_64b_aw_to_stream_tally = ((monbus_wr_64b_aw.addr >= 32'h00040000) && (monbus_wr_64b_aw.addr <= 32'h0007ffff));
+    wire host_64b_ar_gnt_stream_tally = host_64b_ar_to_stream_tally;
+    assign stream_tally_axi_arid     = host_64b_ar_to_stream_tally ? host_64b_ar.id : '0;
+    assign stream_tally_axi_araddr   = host_64b_ar_to_stream_tally ? host_64b_ar.addr : '0;
+    assign stream_tally_axi_arlen    = host_64b_ar_to_stream_tally ? host_64b_ar.len : '0;
+    assign stream_tally_axi_arsize   = host_64b_ar_to_stream_tally ? host_64b_ar.size : '0;
+    assign stream_tally_axi_arburst  = host_64b_ar_to_stream_tally ? host_64b_ar.burst : '0;
+    assign stream_tally_axi_arlock   = host_64b_ar_to_stream_tally ? host_64b_ar.lock : '0;
+    assign stream_tally_axi_arcache  = host_64b_ar_to_stream_tally ? host_64b_ar.cache : '0;
+    assign stream_tally_axi_arprot   = host_64b_ar_to_stream_tally ? host_64b_ar.prot : '0;
+    assign stream_tally_axi_arvalid  = host_64b_ar_to_stream_tally && host_64b_arvalid;
 
-    // ---- AW arbiter for stream_tally: round-robin, lock until handshake ----
-    logic [1:0] stream_tally_aw_arb_req;
-    assign stream_tally_aw_arb_req = {monbus_wr_64b_aw_to_stream_tally && monbus_wr_64b_awvalid, host_64b_aw_to_stream_tally && host_64b_awvalid};
-    logic [0:0] stream_tally_aw_arb_lock, stream_tally_aw_arb_rr;
-    logic stream_tally_aw_arb_locked;
-    wire [0:0] stream_tally_aw_arb_pick = (stream_tally_aw_arb_rr == 1'd0) ? (stream_tally_aw_arb_req[0] ? 1'd0 : 1'd1) : 
-        stream_tally_aw_arb_req[1] ? 1'd1 : 1'd0;
-    wire stream_tally_aw_arb_gnt_valid = stream_tally_aw_arb_locked || (|stream_tally_aw_arb_req);
-    wire [0:0] stream_tally_aw_arb_gnt = stream_tally_aw_arb_locked ? stream_tally_aw_arb_lock : stream_tally_aw_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
-            stream_tally_aw_arb_lock   <= '0;
-            stream_tally_aw_arb_rr     <= '0;
-            stream_tally_aw_arb_locked <= 1'b0;
-        end else begin
-            if (stream_tally_axi_awvalid && stream_tally_axi_awready) begin
-                stream_tally_aw_arb_locked <= 1'b0;
-                stream_tally_aw_arb_rr <= (stream_tally_aw_arb_gnt == 1'd1) ? 1'd0 : stream_tally_aw_arb_gnt + 1'b1;
-            end else if (stream_tally_axi_awvalid) begin
-                stream_tally_aw_arb_lock   <= stream_tally_aw_arb_gnt;
-                stream_tally_aw_arb_locked <= 1'b1;
-            end
-        end
-    end
-    wire host_64b_aw_gnt_stream_tally = stream_tally_aw_arb_gnt_valid && (stream_tally_aw_arb_gnt == 1'd0) && stream_tally_aw_arb_req[0];
-    wire monbus_wr_64b_aw_gnt_stream_tally = stream_tally_aw_arb_gnt_valid && (stream_tally_aw_arb_gnt == 1'd1) && stream_tally_aw_arb_req[1];
+    // Rready (master → slave) — gated on rid_valid so the path stays
+    // open through the entire R handshake, not just the AR phase.
+    assign stream_tally_axi_rready = ((stream_tally_axi_rid_bridge_id == 0) && stream_tally_axi_rid_valid) ? host_64b_rready : '0;
 
-    // AW channel (arbitrated mux across writing masters)
-    assign stream_tally_axi_awid = (host_64b_aw_gnt_stream_tally ? host_64b_aw.id : '0) |
-        (monbus_wr_64b_aw_gnt_stream_tally ? monbus_wr_64b_aw.id : '0);
-    assign stream_tally_axi_awaddr = (host_64b_aw_gnt_stream_tally ? host_64b_aw.addr : '0) |
-        (monbus_wr_64b_aw_gnt_stream_tally ? monbus_wr_64b_aw.addr : '0);
-    assign stream_tally_axi_awlen = (host_64b_aw_gnt_stream_tally ? host_64b_aw.len : '0) |
-        (monbus_wr_64b_aw_gnt_stream_tally ? monbus_wr_64b_aw.len : '0);
-    assign stream_tally_axi_awsize = (host_64b_aw_gnt_stream_tally ? host_64b_aw.size : '0) |
-        (monbus_wr_64b_aw_gnt_stream_tally ? monbus_wr_64b_aw.size : '0);
-    assign stream_tally_axi_awburst = (host_64b_aw_gnt_stream_tally ? host_64b_aw.burst : '0) |
-        (monbus_wr_64b_aw_gnt_stream_tally ? monbus_wr_64b_aw.burst : '0);
-    assign stream_tally_axi_awlock = (host_64b_aw_gnt_stream_tally ? host_64b_aw.lock : '0) |
-        (monbus_wr_64b_aw_gnt_stream_tally ? monbus_wr_64b_aw.lock : '0);
-    assign stream_tally_axi_awcache = (host_64b_aw_gnt_stream_tally ? host_64b_aw.cache : '0) |
-        (monbus_wr_64b_aw_gnt_stream_tally ? monbus_wr_64b_aw.cache : '0);
-    assign stream_tally_axi_awprot = (host_64b_aw_gnt_stream_tally ? host_64b_aw.prot : '0) |
-        (monbus_wr_64b_aw_gnt_stream_tally ? monbus_wr_64b_aw.prot : '0);
-    assign stream_tally_axi_awvalid = host_64b_aw_gnt_stream_tally || monbus_wr_64b_aw_gnt_stream_tally;
-
-    // W owner FIFO: slave-side AW accept order owns the W channel
-    logic [0:0] stream_tally_wowner_mem [16];
-    logic [4:0] stream_tally_wowner_wptr, stream_tally_wowner_rptr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
-            stream_tally_wowner_wptr <= '0;
-            stream_tally_wowner_rptr <= '0;
-        end else begin
-            if (stream_tally_axi_awvalid && stream_tally_axi_awready) begin
-                stream_tally_wowner_mem[stream_tally_wowner_wptr[3:0]] <= stream_tally_aw_arb_gnt;
-                stream_tally_wowner_wptr <= stream_tally_wowner_wptr + 1'b1;
-            end
-            if (stream_tally_axi_wvalid && stream_tally_axi_wready && stream_tally_axi_wlast) begin
-                stream_tally_wowner_rptr <= stream_tally_wowner_rptr + 1'b1;
-            end
-        end
-    end
-    wire stream_tally_wowner_valid = (stream_tally_wowner_wptr != stream_tally_wowner_rptr);
-    wire [0:0] stream_tally_wowner_head = stream_tally_wowner_mem[stream_tally_wowner_rptr[3:0]];
-    assign host_64b_w_sel_stream_tally = stream_tally_wowner_valid && (stream_tally_wowner_head == 1'd0) && host_64b_w_to_stream_tally;
-    assign monbus_wr_64b_w_sel_stream_tally = stream_tally_wowner_valid && (stream_tally_wowner_head == 1'd1) && monbus_wr_64b_w_to_stream_tally;
-
-    // W channel (owner-gated mux across writing masters)
-    assign stream_tally_axi_wdata = ((host_64b_w_sel_stream_tally && host_64b_wvalid) ? host_64b_w.data : '0) |
-        ((monbus_wr_64b_w_sel_stream_tally && monbus_wr_64b_wvalid) ? monbus_wr_64b_w.data : '0);
-    assign stream_tally_axi_wstrb = ((host_64b_w_sel_stream_tally && host_64b_wvalid) ? host_64b_w.strb : '0) |
-        ((monbus_wr_64b_w_sel_stream_tally && monbus_wr_64b_wvalid) ? monbus_wr_64b_w.strb : '0);
-    assign stream_tally_axi_wlast = ((host_64b_w_sel_stream_tally && host_64b_wvalid) ? host_64b_w.last : '0) |
-        ((monbus_wr_64b_w_sel_stream_tally && monbus_wr_64b_wvalid) ? monbus_wr_64b_w.last : '0);
-    assign stream_tally_axi_wvalid = (host_64b_w_sel_stream_tally && host_64b_wvalid) || (monbus_wr_64b_w_sel_stream_tally && monbus_wr_64b_wvalid);
-
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign stream_tally_axi_bready = ((stream_tally_axi_bid_bridge_id == 0) && stream_tally_axi_bid_valid ? host_64b_bready : '0) |
-        ((stream_tally_axi_bid_bridge_id == 2) && stream_tally_axi_bid_valid ? monbus_wr_64b_bready : '0);
-
-    // Bridge ID (writes) — the granted master's id
-    assign stream_tally_axi_bridge_id_aw = (host_64b_aw_gnt_stream_tally ? host_bridge_id_aw : '0) |
-        (monbus_wr_64b_aw_gnt_stream_tally ? monbus_wr_bridge_id_aw : '0);
-
-    // ---- AR arbiter for stream_tally: round-robin, lock until handshake ----
-    logic [0:0] stream_tally_ar_arb_req;
-    assign stream_tally_ar_arb_req = {host_64b_ar_to_stream_tally && host_64b_arvalid};
-    logic [0:0] stream_tally_ar_arb_lock, stream_tally_ar_arb_rr;
-    logic stream_tally_ar_arb_locked;
-    wire [0:0] stream_tally_ar_arb_pick = 1'd0;
-    wire stream_tally_ar_arb_gnt_valid = stream_tally_ar_arb_locked || (|stream_tally_ar_arb_req);
-    wire [0:0] stream_tally_ar_arb_gnt = stream_tally_ar_arb_locked ? stream_tally_ar_arb_lock : stream_tally_ar_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
-            stream_tally_ar_arb_lock   <= '0;
-            stream_tally_ar_arb_rr     <= '0;
-            stream_tally_ar_arb_locked <= 1'b0;
-        end else begin
-            if (stream_tally_axi_arvalid && stream_tally_axi_arready) begin
-                stream_tally_ar_arb_locked <= 1'b0;
-                stream_tally_ar_arb_rr <= (stream_tally_ar_arb_gnt == 1'd0) ? 1'd0 : stream_tally_ar_arb_gnt + 1'b1;
-            end else if (stream_tally_axi_arvalid) begin
-                stream_tally_ar_arb_lock   <= stream_tally_ar_arb_gnt;
-                stream_tally_ar_arb_locked <= 1'b1;
-            end
-        end
-    end
-    wire host_64b_ar_gnt_stream_tally = stream_tally_ar_arb_gnt_valid && (stream_tally_ar_arb_gnt == 1'd0) && stream_tally_ar_arb_req[0];
-
-    // AR channel (arbitrated mux across reading masters)
-    assign stream_tally_axi_arid = (host_64b_ar_gnt_stream_tally ? host_64b_ar.id : '0);
-    assign stream_tally_axi_araddr = (host_64b_ar_gnt_stream_tally ? host_64b_ar.addr : '0);
-    assign stream_tally_axi_arlen = (host_64b_ar_gnt_stream_tally ? host_64b_ar.len : '0);
-    assign stream_tally_axi_arsize = (host_64b_ar_gnt_stream_tally ? host_64b_ar.size : '0);
-    assign stream_tally_axi_arburst = (host_64b_ar_gnt_stream_tally ? host_64b_ar.burst : '0);
-    assign stream_tally_axi_arlock = (host_64b_ar_gnt_stream_tally ? host_64b_ar.lock : '0);
-    assign stream_tally_axi_arcache = (host_64b_ar_gnt_stream_tally ? host_64b_ar.cache : '0);
-    assign stream_tally_axi_arprot = (host_64b_ar_gnt_stream_tally ? host_64b_ar.prot : '0);
-    assign stream_tally_axi_arvalid = host_64b_ar_gnt_stream_tally;
-
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign stream_tally_axi_rready = ((stream_tally_axi_rid_bridge_id == 0) && stream_tally_axi_rid_valid ? host_64b_rready : '0);
-
-    // Bridge ID (reads) — the granted master's id
-    assign stream_tally_axi_bridge_id_ar = (host_64b_ar_gnt_stream_tally ? host_bridge_id_ar : '0);
+    // Bridge ID (master → slave)
+    assign stream_tally_axi_bridge_id_ar = host_64b_ar_to_stream_tally ? host_bridge_id_ar : '0;
 
 
     // ================================================================
@@ -1572,165 +1469,79 @@ module bridge_stream_mon_axil_xbar
     // ================================================================
     // Slave 9: slave_tally (64b)
     // ================================================================
-    // Multi-master (2 masters) → slave_tally
-    //   - host (rw)
-    //   - slave_monbus_wr (wr)
+    // Single master: host → slave_tally
+    // Master width: 32b, Slave width: 64b
+    // Using 64b path from adapter
 
+    // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_64b_aw_to_slave_tally = ((host_64b_aw.addr >= 32'h000c0000) && (host_64b_aw.addr <= 32'h000fffff));
+    wire host_64b_aw_gnt_slave_tally = host_64b_aw_to_slave_tally;
+    assign slave_tally_axi_awid     = host_64b_aw_to_slave_tally ? host_64b_aw.id : '0;
+    assign slave_tally_axi_awaddr   = host_64b_aw_to_slave_tally ? host_64b_aw.addr : '0;
+    assign slave_tally_axi_awlen    = host_64b_aw_to_slave_tally ? host_64b_aw.len : '0;
+    assign slave_tally_axi_awsize   = host_64b_aw_to_slave_tally ? host_64b_aw.size : '0;
+    assign slave_tally_axi_awburst  = host_64b_aw_to_slave_tally ? host_64b_aw.burst : '0;
+    assign slave_tally_axi_awlock   = host_64b_aw_to_slave_tally ? host_64b_aw.lock : '0;
+    assign slave_tally_axi_awcache  = host_64b_aw_to_slave_tally ? host_64b_aw.cache : '0;
+    assign slave_tally_axi_awprot   = host_64b_aw_to_slave_tally ? host_64b_aw.prot : '0;
+    assign slave_tally_axi_awvalid  = host_64b_aw_to_slave_tally && host_64b_awvalid;
+
+    assign host_64b_w_sel_slave_tally = host_64b_w_to_slave_tally;
+
+    // W channel (gated by the W destination FIFO head)
+    assign slave_tally_axi_wdata  = host_64b_w_to_slave_tally ? host_64b_w.data : '0;
+    assign slave_tally_axi_wstrb  = host_64b_w_to_slave_tally ? host_64b_w.strb : '0;
+    assign slave_tally_axi_wlast  = host_64b_w_to_slave_tally ? host_64b_w.last : '0;
+    assign slave_tally_axi_wvalid = host_64b_w_to_slave_tally && host_64b_wvalid;
+
+    // Bready (master → slave) — gated on bid_valid so the path stays
+    // open through the entire B handshake, not just the AW phase.
+    assign slave_tally_axi_bready = ((slave_tally_axi_bid_bridge_id == 0) && slave_tally_axi_bid_valid) ? host_64b_bready : '0;
+
+    // Bridge ID (master → slave)
+    assign slave_tally_axi_bridge_id_aw = host_64b_aw_to_slave_tally ? host_bridge_id_aw : '0;
+
+    // AR channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_64b_ar_to_slave_tally = ((host_64b_ar.addr >= 32'h000c0000) && (host_64b_ar.addr <= 32'h000fffff));
-    wire slave_monbus_wr_64b_aw_to_slave_tally = ((slave_monbus_wr_64b_aw.addr >= 32'h000c0000) && (slave_monbus_wr_64b_aw.addr <= 32'h000fffff));
+    wire host_64b_ar_gnt_slave_tally = host_64b_ar_to_slave_tally;
+    assign slave_tally_axi_arid     = host_64b_ar_to_slave_tally ? host_64b_ar.id : '0;
+    assign slave_tally_axi_araddr   = host_64b_ar_to_slave_tally ? host_64b_ar.addr : '0;
+    assign slave_tally_axi_arlen    = host_64b_ar_to_slave_tally ? host_64b_ar.len : '0;
+    assign slave_tally_axi_arsize   = host_64b_ar_to_slave_tally ? host_64b_ar.size : '0;
+    assign slave_tally_axi_arburst  = host_64b_ar_to_slave_tally ? host_64b_ar.burst : '0;
+    assign slave_tally_axi_arlock   = host_64b_ar_to_slave_tally ? host_64b_ar.lock : '0;
+    assign slave_tally_axi_arcache  = host_64b_ar_to_slave_tally ? host_64b_ar.cache : '0;
+    assign slave_tally_axi_arprot   = host_64b_ar_to_slave_tally ? host_64b_ar.prot : '0;
+    assign slave_tally_axi_arvalid  = host_64b_ar_to_slave_tally && host_64b_arvalid;
 
-    // ---- AW arbiter for slave_tally: round-robin, lock until handshake ----
-    logic [1:0] slave_tally_aw_arb_req;
-    assign slave_tally_aw_arb_req = {slave_monbus_wr_64b_aw_to_slave_tally && slave_monbus_wr_64b_awvalid, host_64b_aw_to_slave_tally && host_64b_awvalid};
-    logic [0:0] slave_tally_aw_arb_lock, slave_tally_aw_arb_rr;
-    logic slave_tally_aw_arb_locked;
-    wire [0:0] slave_tally_aw_arb_pick = (slave_tally_aw_arb_rr == 1'd0) ? (slave_tally_aw_arb_req[0] ? 1'd0 : 1'd1) : 
-        slave_tally_aw_arb_req[1] ? 1'd1 : 1'd0;
-    wire slave_tally_aw_arb_gnt_valid = slave_tally_aw_arb_locked || (|slave_tally_aw_arb_req);
-    wire [0:0] slave_tally_aw_arb_gnt = slave_tally_aw_arb_locked ? slave_tally_aw_arb_lock : slave_tally_aw_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
-            slave_tally_aw_arb_lock   <= '0;
-            slave_tally_aw_arb_rr     <= '0;
-            slave_tally_aw_arb_locked <= 1'b0;
-        end else begin
-            if (slave_tally_axi_awvalid && slave_tally_axi_awready) begin
-                slave_tally_aw_arb_locked <= 1'b0;
-                slave_tally_aw_arb_rr <= (slave_tally_aw_arb_gnt == 1'd1) ? 1'd0 : slave_tally_aw_arb_gnt + 1'b1;
-            end else if (slave_tally_axi_awvalid) begin
-                slave_tally_aw_arb_lock   <= slave_tally_aw_arb_gnt;
-                slave_tally_aw_arb_locked <= 1'b1;
-            end
-        end
-    end
-    wire host_64b_aw_gnt_slave_tally = slave_tally_aw_arb_gnt_valid && (slave_tally_aw_arb_gnt == 1'd0) && slave_tally_aw_arb_req[0];
-    wire slave_monbus_wr_64b_aw_gnt_slave_tally = slave_tally_aw_arb_gnt_valid && (slave_tally_aw_arb_gnt == 1'd1) && slave_tally_aw_arb_req[1];
+    // Rready (master → slave) — gated on rid_valid so the path stays
+    // open through the entire R handshake, not just the AR phase.
+    assign slave_tally_axi_rready = ((slave_tally_axi_rid_bridge_id == 0) && slave_tally_axi_rid_valid) ? host_64b_rready : '0;
 
-    // AW channel (arbitrated mux across writing masters)
-    assign slave_tally_axi_awid = (host_64b_aw_gnt_slave_tally ? host_64b_aw.id : '0) |
-        (slave_monbus_wr_64b_aw_gnt_slave_tally ? slave_monbus_wr_64b_aw.id : '0);
-    assign slave_tally_axi_awaddr = (host_64b_aw_gnt_slave_tally ? host_64b_aw.addr : '0) |
-        (slave_monbus_wr_64b_aw_gnt_slave_tally ? slave_monbus_wr_64b_aw.addr : '0);
-    assign slave_tally_axi_awlen = (host_64b_aw_gnt_slave_tally ? host_64b_aw.len : '0) |
-        (slave_monbus_wr_64b_aw_gnt_slave_tally ? slave_monbus_wr_64b_aw.len : '0);
-    assign slave_tally_axi_awsize = (host_64b_aw_gnt_slave_tally ? host_64b_aw.size : '0) |
-        (slave_monbus_wr_64b_aw_gnt_slave_tally ? slave_monbus_wr_64b_aw.size : '0);
-    assign slave_tally_axi_awburst = (host_64b_aw_gnt_slave_tally ? host_64b_aw.burst : '0) |
-        (slave_monbus_wr_64b_aw_gnt_slave_tally ? slave_monbus_wr_64b_aw.burst : '0);
-    assign slave_tally_axi_awlock = (host_64b_aw_gnt_slave_tally ? host_64b_aw.lock : '0) |
-        (slave_monbus_wr_64b_aw_gnt_slave_tally ? slave_monbus_wr_64b_aw.lock : '0);
-    assign slave_tally_axi_awcache = (host_64b_aw_gnt_slave_tally ? host_64b_aw.cache : '0) |
-        (slave_monbus_wr_64b_aw_gnt_slave_tally ? slave_monbus_wr_64b_aw.cache : '0);
-    assign slave_tally_axi_awprot = (host_64b_aw_gnt_slave_tally ? host_64b_aw.prot : '0) |
-        (slave_monbus_wr_64b_aw_gnt_slave_tally ? slave_monbus_wr_64b_aw.prot : '0);
-    assign slave_tally_axi_awvalid = host_64b_aw_gnt_slave_tally || slave_monbus_wr_64b_aw_gnt_slave_tally;
-
-    // W owner FIFO: slave-side AW accept order owns the W channel
-    logic [0:0] slave_tally_wowner_mem [16];
-    logic [4:0] slave_tally_wowner_wptr, slave_tally_wowner_rptr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
-            slave_tally_wowner_wptr <= '0;
-            slave_tally_wowner_rptr <= '0;
-        end else begin
-            if (slave_tally_axi_awvalid && slave_tally_axi_awready) begin
-                slave_tally_wowner_mem[slave_tally_wowner_wptr[3:0]] <= slave_tally_aw_arb_gnt;
-                slave_tally_wowner_wptr <= slave_tally_wowner_wptr + 1'b1;
-            end
-            if (slave_tally_axi_wvalid && slave_tally_axi_wready && slave_tally_axi_wlast) begin
-                slave_tally_wowner_rptr <= slave_tally_wowner_rptr + 1'b1;
-            end
-        end
-    end
-    wire slave_tally_wowner_valid = (slave_tally_wowner_wptr != slave_tally_wowner_rptr);
-    wire [0:0] slave_tally_wowner_head = slave_tally_wowner_mem[slave_tally_wowner_rptr[3:0]];
-    assign host_64b_w_sel_slave_tally = slave_tally_wowner_valid && (slave_tally_wowner_head == 1'd0) && host_64b_w_to_slave_tally;
-    assign slave_monbus_wr_64b_w_sel_slave_tally = slave_tally_wowner_valid && (slave_tally_wowner_head == 1'd1) && slave_monbus_wr_64b_w_to_slave_tally;
-
-    // W channel (owner-gated mux across writing masters)
-    assign slave_tally_axi_wdata = ((host_64b_w_sel_slave_tally && host_64b_wvalid) ? host_64b_w.data : '0) |
-        ((slave_monbus_wr_64b_w_sel_slave_tally && slave_monbus_wr_64b_wvalid) ? slave_monbus_wr_64b_w.data : '0);
-    assign slave_tally_axi_wstrb = ((host_64b_w_sel_slave_tally && host_64b_wvalid) ? host_64b_w.strb : '0) |
-        ((slave_monbus_wr_64b_w_sel_slave_tally && slave_monbus_wr_64b_wvalid) ? slave_monbus_wr_64b_w.strb : '0);
-    assign slave_tally_axi_wlast = ((host_64b_w_sel_slave_tally && host_64b_wvalid) ? host_64b_w.last : '0) |
-        ((slave_monbus_wr_64b_w_sel_slave_tally && slave_monbus_wr_64b_wvalid) ? slave_monbus_wr_64b_w.last : '0);
-    assign slave_tally_axi_wvalid = (host_64b_w_sel_slave_tally && host_64b_wvalid) || (slave_monbus_wr_64b_w_sel_slave_tally && slave_monbus_wr_64b_wvalid);
-
-    // Bready (slave → owning master, by bid_bridge_id)
-    assign slave_tally_axi_bready = ((slave_tally_axi_bid_bridge_id == 0) && slave_tally_axi_bid_valid ? host_64b_bready : '0) |
-        ((slave_tally_axi_bid_bridge_id == 3) && slave_tally_axi_bid_valid ? slave_monbus_wr_64b_bready : '0);
-
-    // Bridge ID (writes) — the granted master's id
-    assign slave_tally_axi_bridge_id_aw = (host_64b_aw_gnt_slave_tally ? host_bridge_id_aw : '0) |
-        (slave_monbus_wr_64b_aw_gnt_slave_tally ? slave_monbus_wr_bridge_id_aw : '0);
-
-    // ---- AR arbiter for slave_tally: round-robin, lock until handshake ----
-    logic [0:0] slave_tally_ar_arb_req;
-    assign slave_tally_ar_arb_req = {host_64b_ar_to_slave_tally && host_64b_arvalid};
-    logic [0:0] slave_tally_ar_arb_lock, slave_tally_ar_arb_rr;
-    logic slave_tally_ar_arb_locked;
-    wire [0:0] slave_tally_ar_arb_pick = 1'd0;
-    wire slave_tally_ar_arb_gnt_valid = slave_tally_ar_arb_locked || (|slave_tally_ar_arb_req);
-    wire [0:0] slave_tally_ar_arb_gnt = slave_tally_ar_arb_locked ? slave_tally_ar_arb_lock : slave_tally_ar_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
-            slave_tally_ar_arb_lock   <= '0;
-            slave_tally_ar_arb_rr     <= '0;
-            slave_tally_ar_arb_locked <= 1'b0;
-        end else begin
-            if (slave_tally_axi_arvalid && slave_tally_axi_arready) begin
-                slave_tally_ar_arb_locked <= 1'b0;
-                slave_tally_ar_arb_rr <= (slave_tally_ar_arb_gnt == 1'd0) ? 1'd0 : slave_tally_ar_arb_gnt + 1'b1;
-            end else if (slave_tally_axi_arvalid) begin
-                slave_tally_ar_arb_lock   <= slave_tally_ar_arb_gnt;
-                slave_tally_ar_arb_locked <= 1'b1;
-            end
-        end
-    end
-    wire host_64b_ar_gnt_slave_tally = slave_tally_ar_arb_gnt_valid && (slave_tally_ar_arb_gnt == 1'd0) && slave_tally_ar_arb_req[0];
-
-    // AR channel (arbitrated mux across reading masters)
-    assign slave_tally_axi_arid = (host_64b_ar_gnt_slave_tally ? host_64b_ar.id : '0);
-    assign slave_tally_axi_araddr = (host_64b_ar_gnt_slave_tally ? host_64b_ar.addr : '0);
-    assign slave_tally_axi_arlen = (host_64b_ar_gnt_slave_tally ? host_64b_ar.len : '0);
-    assign slave_tally_axi_arsize = (host_64b_ar_gnt_slave_tally ? host_64b_ar.size : '0);
-    assign slave_tally_axi_arburst = (host_64b_ar_gnt_slave_tally ? host_64b_ar.burst : '0);
-    assign slave_tally_axi_arlock = (host_64b_ar_gnt_slave_tally ? host_64b_ar.lock : '0);
-    assign slave_tally_axi_arcache = (host_64b_ar_gnt_slave_tally ? host_64b_ar.cache : '0);
-    assign slave_tally_axi_arprot = (host_64b_ar_gnt_slave_tally ? host_64b_ar.prot : '0);
-    assign slave_tally_axi_arvalid = host_64b_ar_gnt_slave_tally;
-
-    // Rready (slave → owning master, by rid_bridge_id)
-    assign slave_tally_axi_rready = ((slave_tally_axi_rid_bridge_id == 0) && slave_tally_axi_rid_valid ? host_64b_rready : '0);
-
-    // Bridge ID (reads) — the granted master's id
-    assign slave_tally_axi_bridge_id_ar = (host_64b_ar_gnt_slave_tally ? host_bridge_id_ar : '0);
+    // Bridge ID (master → slave)
+    assign slave_tally_axi_bridge_id_ar = host_64b_ar_to_slave_tally ? host_bridge_id_ar : '0;
 
 
     // ================================================================
     // Slave 10: comp_sram (64b)
     // ================================================================
-    // Multi-master (3 masters) → comp_sram
+    // Multi-master (2 masters) → comp_sram
     //   - host (rw)
     //   - monbus_wr (wr)
-    //   - slave_monbus_wr (wr)
 
     wire host_64b_aw_to_comp_sram = ((host_64b_aw.addr >= 32'h001a0000) && (host_64b_aw.addr <= 32'h001affff));
     wire host_64b_ar_to_comp_sram = ((host_64b_ar.addr >= 32'h001a0000) && (host_64b_ar.addr <= 32'h001affff));
     wire monbus_wr_64b_aw_to_comp_sram = ((monbus_wr_64b_aw.addr >= 32'h001a0000) && (monbus_wr_64b_aw.addr <= 32'h001affff));
-    wire slave_monbus_wr_64b_aw_to_comp_sram = ((slave_monbus_wr_64b_aw.addr >= 32'h001a0000) && (slave_monbus_wr_64b_aw.addr <= 32'h001affff));
 
     // ---- AW arbiter for comp_sram: round-robin, lock until handshake ----
-    logic [2:0] comp_sram_aw_arb_req;
-    assign comp_sram_aw_arb_req = {slave_monbus_wr_64b_aw_to_comp_sram && slave_monbus_wr_64b_awvalid, monbus_wr_64b_aw_to_comp_sram && monbus_wr_64b_awvalid, host_64b_aw_to_comp_sram && host_64b_awvalid};
-    logic [1:0] comp_sram_aw_arb_lock, comp_sram_aw_arb_rr;
+    logic [1:0] comp_sram_aw_arb_req;
+    assign comp_sram_aw_arb_req = {monbus_wr_64b_aw_to_comp_sram && monbus_wr_64b_awvalid, host_64b_aw_to_comp_sram && host_64b_awvalid};
+    logic [0:0] comp_sram_aw_arb_lock, comp_sram_aw_arb_rr;
     logic comp_sram_aw_arb_locked;
-    wire [1:0] comp_sram_aw_arb_pick = (comp_sram_aw_arb_rr == 2'd0) ? (comp_sram_aw_arb_req[0] ? 2'd0 : comp_sram_aw_arb_req[1] ? 2'd1 : 2'd2) : 
-        (comp_sram_aw_arb_rr == 2'd1) ? (comp_sram_aw_arb_req[1] ? 2'd1 : comp_sram_aw_arb_req[2] ? 2'd2 : 2'd0) : 
-        comp_sram_aw_arb_req[2] ? 2'd2 : comp_sram_aw_arb_req[0] ? 2'd0 : 2'd1;
+    wire [0:0] comp_sram_aw_arb_pick = (comp_sram_aw_arb_rr == 1'd0) ? (comp_sram_aw_arb_req[0] ? 1'd0 : 1'd1) : 
+        comp_sram_aw_arb_req[1] ? 1'd1 : 1'd0;
     wire comp_sram_aw_arb_gnt_valid = comp_sram_aw_arb_locked || (|comp_sram_aw_arb_req);
-    wire [1:0] comp_sram_aw_arb_gnt = comp_sram_aw_arb_locked ? comp_sram_aw_arb_lock : comp_sram_aw_arb_pick;
+    wire [0:0] comp_sram_aw_arb_gnt = comp_sram_aw_arb_locked ? comp_sram_aw_arb_lock : comp_sram_aw_arb_pick;
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             comp_sram_aw_arb_lock   <= '0;
@@ -1739,46 +1550,37 @@ module bridge_stream_mon_axil_xbar
         end else begin
             if (comp_sram_axi_awvalid && comp_sram_axi_awready) begin
                 comp_sram_aw_arb_locked <= 1'b0;
-                comp_sram_aw_arb_rr <= (comp_sram_aw_arb_gnt == 2'd2) ? 2'd0 : comp_sram_aw_arb_gnt + 1'b1;
+                comp_sram_aw_arb_rr <= (comp_sram_aw_arb_gnt == 1'd1) ? 1'd0 : comp_sram_aw_arb_gnt + 1'b1;
             end else if (comp_sram_axi_awvalid) begin
                 comp_sram_aw_arb_lock   <= comp_sram_aw_arb_gnt;
                 comp_sram_aw_arb_locked <= 1'b1;
             end
         end
     end
-    wire host_64b_aw_gnt_comp_sram = comp_sram_aw_arb_gnt_valid && (comp_sram_aw_arb_gnt == 2'd0) && comp_sram_aw_arb_req[0];
-    wire monbus_wr_64b_aw_gnt_comp_sram = comp_sram_aw_arb_gnt_valid && (comp_sram_aw_arb_gnt == 2'd1) && comp_sram_aw_arb_req[1];
-    wire slave_monbus_wr_64b_aw_gnt_comp_sram = comp_sram_aw_arb_gnt_valid && (comp_sram_aw_arb_gnt == 2'd2) && comp_sram_aw_arb_req[2];
+    wire host_64b_aw_gnt_comp_sram = comp_sram_aw_arb_gnt_valid && (comp_sram_aw_arb_gnt == 1'd0) && comp_sram_aw_arb_req[0];
+    wire monbus_wr_64b_aw_gnt_comp_sram = comp_sram_aw_arb_gnt_valid && (comp_sram_aw_arb_gnt == 1'd1) && comp_sram_aw_arb_req[1];
 
     // AW channel (arbitrated mux across writing masters)
     assign comp_sram_axi_awid = (host_64b_aw_gnt_comp_sram ? host_64b_aw.id : '0) |
-        (monbus_wr_64b_aw_gnt_comp_sram ? monbus_wr_64b_aw.id : '0) |
-        (slave_monbus_wr_64b_aw_gnt_comp_sram ? slave_monbus_wr_64b_aw.id : '0);
+        (monbus_wr_64b_aw_gnt_comp_sram ? monbus_wr_64b_aw.id : '0);
     assign comp_sram_axi_awaddr = (host_64b_aw_gnt_comp_sram ? host_64b_aw.addr : '0) |
-        (monbus_wr_64b_aw_gnt_comp_sram ? monbus_wr_64b_aw.addr : '0) |
-        (slave_monbus_wr_64b_aw_gnt_comp_sram ? slave_monbus_wr_64b_aw.addr : '0);
+        (monbus_wr_64b_aw_gnt_comp_sram ? monbus_wr_64b_aw.addr : '0);
     assign comp_sram_axi_awlen = (host_64b_aw_gnt_comp_sram ? host_64b_aw.len : '0) |
-        (monbus_wr_64b_aw_gnt_comp_sram ? monbus_wr_64b_aw.len : '0) |
-        (slave_monbus_wr_64b_aw_gnt_comp_sram ? slave_monbus_wr_64b_aw.len : '0);
+        (monbus_wr_64b_aw_gnt_comp_sram ? monbus_wr_64b_aw.len : '0);
     assign comp_sram_axi_awsize = (host_64b_aw_gnt_comp_sram ? host_64b_aw.size : '0) |
-        (monbus_wr_64b_aw_gnt_comp_sram ? monbus_wr_64b_aw.size : '0) |
-        (slave_monbus_wr_64b_aw_gnt_comp_sram ? slave_monbus_wr_64b_aw.size : '0);
+        (monbus_wr_64b_aw_gnt_comp_sram ? monbus_wr_64b_aw.size : '0);
     assign comp_sram_axi_awburst = (host_64b_aw_gnt_comp_sram ? host_64b_aw.burst : '0) |
-        (monbus_wr_64b_aw_gnt_comp_sram ? monbus_wr_64b_aw.burst : '0) |
-        (slave_monbus_wr_64b_aw_gnt_comp_sram ? slave_monbus_wr_64b_aw.burst : '0);
+        (monbus_wr_64b_aw_gnt_comp_sram ? monbus_wr_64b_aw.burst : '0);
     assign comp_sram_axi_awlock = (host_64b_aw_gnt_comp_sram ? host_64b_aw.lock : '0) |
-        (monbus_wr_64b_aw_gnt_comp_sram ? monbus_wr_64b_aw.lock : '0) |
-        (slave_monbus_wr_64b_aw_gnt_comp_sram ? slave_monbus_wr_64b_aw.lock : '0);
+        (monbus_wr_64b_aw_gnt_comp_sram ? monbus_wr_64b_aw.lock : '0);
     assign comp_sram_axi_awcache = (host_64b_aw_gnt_comp_sram ? host_64b_aw.cache : '0) |
-        (monbus_wr_64b_aw_gnt_comp_sram ? monbus_wr_64b_aw.cache : '0) |
-        (slave_monbus_wr_64b_aw_gnt_comp_sram ? slave_monbus_wr_64b_aw.cache : '0);
+        (monbus_wr_64b_aw_gnt_comp_sram ? monbus_wr_64b_aw.cache : '0);
     assign comp_sram_axi_awprot = (host_64b_aw_gnt_comp_sram ? host_64b_aw.prot : '0) |
-        (monbus_wr_64b_aw_gnt_comp_sram ? monbus_wr_64b_aw.prot : '0) |
-        (slave_monbus_wr_64b_aw_gnt_comp_sram ? slave_monbus_wr_64b_aw.prot : '0);
-    assign comp_sram_axi_awvalid = host_64b_aw_gnt_comp_sram || monbus_wr_64b_aw_gnt_comp_sram || slave_monbus_wr_64b_aw_gnt_comp_sram;
+        (monbus_wr_64b_aw_gnt_comp_sram ? monbus_wr_64b_aw.prot : '0);
+    assign comp_sram_axi_awvalid = host_64b_aw_gnt_comp_sram || monbus_wr_64b_aw_gnt_comp_sram;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
-    logic [1:0] comp_sram_wowner_mem [16];
+    logic [0:0] comp_sram_wowner_mem [16];
     logic [4:0] comp_sram_wowner_wptr, comp_sram_wowner_rptr;
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
@@ -1795,32 +1597,26 @@ module bridge_stream_mon_axil_xbar
         end
     end
     wire comp_sram_wowner_valid = (comp_sram_wowner_wptr != comp_sram_wowner_rptr);
-    wire [1:0] comp_sram_wowner_head = comp_sram_wowner_mem[comp_sram_wowner_rptr[3:0]];
-    assign host_64b_w_sel_comp_sram = comp_sram_wowner_valid && (comp_sram_wowner_head == 2'd0) && host_64b_w_to_comp_sram;
-    assign monbus_wr_64b_w_sel_comp_sram = comp_sram_wowner_valid && (comp_sram_wowner_head == 2'd1) && monbus_wr_64b_w_to_comp_sram;
-    assign slave_monbus_wr_64b_w_sel_comp_sram = comp_sram_wowner_valid && (comp_sram_wowner_head == 2'd2) && slave_monbus_wr_64b_w_to_comp_sram;
+    wire [0:0] comp_sram_wowner_head = comp_sram_wowner_mem[comp_sram_wowner_rptr[3:0]];
+    assign host_64b_w_sel_comp_sram = comp_sram_wowner_valid && (comp_sram_wowner_head == 1'd0) && host_64b_w_to_comp_sram;
+    assign monbus_wr_64b_w_sel_comp_sram = comp_sram_wowner_valid && (comp_sram_wowner_head == 1'd1) && monbus_wr_64b_w_to_comp_sram;
 
     // W channel (owner-gated mux across writing masters)
     assign comp_sram_axi_wdata = ((host_64b_w_sel_comp_sram && host_64b_wvalid) ? host_64b_w.data : '0) |
-        ((monbus_wr_64b_w_sel_comp_sram && monbus_wr_64b_wvalid) ? monbus_wr_64b_w.data : '0) |
-        ((slave_monbus_wr_64b_w_sel_comp_sram && slave_monbus_wr_64b_wvalid) ? slave_monbus_wr_64b_w.data : '0);
+        ((monbus_wr_64b_w_sel_comp_sram && monbus_wr_64b_wvalid) ? monbus_wr_64b_w.data : '0);
     assign comp_sram_axi_wstrb = ((host_64b_w_sel_comp_sram && host_64b_wvalid) ? host_64b_w.strb : '0) |
-        ((monbus_wr_64b_w_sel_comp_sram && monbus_wr_64b_wvalid) ? monbus_wr_64b_w.strb : '0) |
-        ((slave_monbus_wr_64b_w_sel_comp_sram && slave_monbus_wr_64b_wvalid) ? slave_monbus_wr_64b_w.strb : '0);
+        ((monbus_wr_64b_w_sel_comp_sram && monbus_wr_64b_wvalid) ? monbus_wr_64b_w.strb : '0);
     assign comp_sram_axi_wlast = ((host_64b_w_sel_comp_sram && host_64b_wvalid) ? host_64b_w.last : '0) |
-        ((monbus_wr_64b_w_sel_comp_sram && monbus_wr_64b_wvalid) ? monbus_wr_64b_w.last : '0) |
-        ((slave_monbus_wr_64b_w_sel_comp_sram && slave_monbus_wr_64b_wvalid) ? slave_monbus_wr_64b_w.last : '0);
-    assign comp_sram_axi_wvalid = (host_64b_w_sel_comp_sram && host_64b_wvalid) || (monbus_wr_64b_w_sel_comp_sram && monbus_wr_64b_wvalid) || (slave_monbus_wr_64b_w_sel_comp_sram && slave_monbus_wr_64b_wvalid);
+        ((monbus_wr_64b_w_sel_comp_sram && monbus_wr_64b_wvalid) ? monbus_wr_64b_w.last : '0);
+    assign comp_sram_axi_wvalid = (host_64b_w_sel_comp_sram && host_64b_wvalid) || (monbus_wr_64b_w_sel_comp_sram && monbus_wr_64b_wvalid);
 
     // Bready (slave → owning master, by bid_bridge_id)
     assign comp_sram_axi_bready = ((comp_sram_axi_bid_bridge_id == 0) && comp_sram_axi_bid_valid ? host_64b_bready : '0) |
-        ((comp_sram_axi_bid_bridge_id == 2) && comp_sram_axi_bid_valid ? monbus_wr_64b_bready : '0) |
-        ((comp_sram_axi_bid_bridge_id == 3) && comp_sram_axi_bid_valid ? slave_monbus_wr_64b_bready : '0);
+        ((comp_sram_axi_bid_bridge_id == 2) && comp_sram_axi_bid_valid ? monbus_wr_64b_bready : '0);
 
     // Bridge ID (writes) — the granted master's id
     assign comp_sram_axi_bridge_id_aw = (host_64b_aw_gnt_comp_sram ? host_bridge_id_aw : '0) |
-        (monbus_wr_64b_aw_gnt_comp_sram ? monbus_wr_bridge_id_aw : '0) |
-        (slave_monbus_wr_64b_aw_gnt_comp_sram ? slave_monbus_wr_bridge_id_aw : '0);
+        (monbus_wr_64b_aw_gnt_comp_sram ? monbus_wr_bridge_id_aw : '0);
 
     // ---- AR arbiter for comp_sram: round-robin, lock until handshake ----
     logic [0:0] comp_sram_ar_arb_req;
@@ -2062,10 +1858,10 @@ module bridge_stream_mon_axil_xbar
     wire [0:0] host_256b_wdest_head = host_256b_wdest_mem[host_256b_wdest_rptr[3:0]];
     assign host_256b_w_to_desc_ram = host_256b_wdest_valid && (host_256b_wdest_head == 1'd0);
 
-    // monbus_wr 64b path -> stream_tally, comp_sram
+    // monbus_wr 64b path -> comp_sram
     logic [0:0] monbus_wr_64b_wdest_mem [16];
     logic [4:0] monbus_wr_64b_wdest_wptr, monbus_wr_64b_wdest_rptr;
-    wire [0:0] monbus_wr_64b_wdest_enc = monbus_wr_64b_aw_to_comp_sram ? 1'd1 : 1'd0;
+    wire [0:0] monbus_wr_64b_wdest_enc = 1'd0;
     wire monbus_wr_64b_wdest_push = monbus_wr_64b_awvalid && monbus_wr_64b_awready;
     wire monbus_wr_64b_wdest_pop  = monbus_wr_64b_wvalid && monbus_wr_64b_wready && monbus_wr_64b_w.last;
     always_ff @(posedge aclk or negedge aresetn) begin
@@ -2084,33 +1880,7 @@ module bridge_stream_mon_axil_xbar
     end
     wire monbus_wr_64b_wdest_valid = (monbus_wr_64b_wdest_wptr != monbus_wr_64b_wdest_rptr);
     wire [0:0] monbus_wr_64b_wdest_head = monbus_wr_64b_wdest_mem[monbus_wr_64b_wdest_rptr[3:0]];
-    assign monbus_wr_64b_w_to_stream_tally = monbus_wr_64b_wdest_valid && (monbus_wr_64b_wdest_head == 1'd0);
-    assign monbus_wr_64b_w_to_comp_sram = monbus_wr_64b_wdest_valid && (monbus_wr_64b_wdest_head == 1'd1);
-
-    // slave_monbus_wr 64b path -> slave_tally, comp_sram
-    logic [0:0] slave_monbus_wr_64b_wdest_mem [16];
-    logic [4:0] slave_monbus_wr_64b_wdest_wptr, slave_monbus_wr_64b_wdest_rptr;
-    wire [0:0] slave_monbus_wr_64b_wdest_enc = slave_monbus_wr_64b_aw_to_comp_sram ? 1'd1 : 1'd0;
-    wire slave_monbus_wr_64b_wdest_push = slave_monbus_wr_64b_awvalid && slave_monbus_wr_64b_awready;
-    wire slave_monbus_wr_64b_wdest_pop  = slave_monbus_wr_64b_wvalid && slave_monbus_wr_64b_wready && slave_monbus_wr_64b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
-            slave_monbus_wr_64b_wdest_wptr <= '0;
-            slave_monbus_wr_64b_wdest_rptr <= '0;
-        end else begin
-            if (slave_monbus_wr_64b_wdest_push) begin
-                slave_monbus_wr_64b_wdest_mem[slave_monbus_wr_64b_wdest_wptr[3:0]] <= slave_monbus_wr_64b_wdest_enc;
-                slave_monbus_wr_64b_wdest_wptr <= slave_monbus_wr_64b_wdest_wptr + 1'b1;
-            end
-            if (slave_monbus_wr_64b_wdest_pop) begin
-                slave_monbus_wr_64b_wdest_rptr <= slave_monbus_wr_64b_wdest_rptr + 1'b1;
-            end
-        end
-    end
-    wire slave_monbus_wr_64b_wdest_valid = (slave_monbus_wr_64b_wdest_wptr != slave_monbus_wr_64b_wdest_rptr);
-    wire [0:0] slave_monbus_wr_64b_wdest_head = slave_monbus_wr_64b_wdest_mem[slave_monbus_wr_64b_wdest_rptr[3:0]];
-    assign slave_monbus_wr_64b_w_to_slave_tally = slave_monbus_wr_64b_wdest_valid && (slave_monbus_wr_64b_wdest_head == 1'd0);
-    assign slave_monbus_wr_64b_w_to_comp_sram = slave_monbus_wr_64b_wdest_valid && (slave_monbus_wr_64b_wdest_head == 1'd1);
+    assign monbus_wr_64b_w_to_comp_sram = monbus_wr_64b_wdest_valid && (monbus_wr_64b_wdest_head == 1'd0);
 
     // ================================================================
     // Response MUXes (OR together all slave responses)
@@ -2353,46 +2123,19 @@ module bridge_stream_mon_axil_xbar
 
     // Master: monbus_wr, Width path: 64b
     assign monbus_wr_64b_awready = 
-        (monbus_wr_64b_aw_gnt_stream_tally ? stream_tally_axi_awready : '0) |
         (monbus_wr_64b_aw_gnt_comp_sram ? comp_sram_axi_awready : '0);
 
     assign monbus_wr_64b_wready = 
-        (monbus_wr_64b_w_sel_stream_tally ? stream_tally_axi_wready : '0) |
         (monbus_wr_64b_w_sel_comp_sram ? comp_sram_axi_wready : '0);
 
     assign monbus_wr_64b_b.id = 
-        ((stream_tally_axi_bid_bridge_id == 2) && stream_tally_axi_bid_valid ? stream_tally_axi_bid : '0) |
         ((comp_sram_axi_bid_bridge_id == 2) && comp_sram_axi_bid_valid ? comp_sram_axi_bid : '0);
 
     assign monbus_wr_64b_b.resp = 
-        ((stream_tally_axi_bid_bridge_id == 2) && stream_tally_axi_bid_valid ? stream_tally_axi_bresp : '0) |
         ((comp_sram_axi_bid_bridge_id == 2) && comp_sram_axi_bid_valid ? comp_sram_axi_bresp : '0);
 
     assign monbus_wr_64b_bvalid = 
-        ((stream_tally_axi_bid_bridge_id == 2) && stream_tally_axi_bid_valid ? stream_tally_axi_bvalid : '0) |
         ((comp_sram_axi_bid_bridge_id == 2) && comp_sram_axi_bid_valid ? comp_sram_axi_bvalid : '0);
-
-
-    // Master: slave_monbus_wr, Width path: 64b
-    assign slave_monbus_wr_64b_awready = 
-        (slave_monbus_wr_64b_aw_gnt_slave_tally ? slave_tally_axi_awready : '0) |
-        (slave_monbus_wr_64b_aw_gnt_comp_sram ? comp_sram_axi_awready : '0);
-
-    assign slave_monbus_wr_64b_wready = 
-        (slave_monbus_wr_64b_w_sel_slave_tally ? slave_tally_axi_wready : '0) |
-        (slave_monbus_wr_64b_w_sel_comp_sram ? comp_sram_axi_wready : '0);
-
-    assign slave_monbus_wr_64b_b.id = 
-        ((slave_tally_axi_bid_bridge_id == 3) && slave_tally_axi_bid_valid ? slave_tally_axi_bid : '0) |
-        ((comp_sram_axi_bid_bridge_id == 3) && comp_sram_axi_bid_valid ? comp_sram_axi_bid : '0);
-
-    assign slave_monbus_wr_64b_b.resp = 
-        ((slave_tally_axi_bid_bridge_id == 3) && slave_tally_axi_bid_valid ? slave_tally_axi_bresp : '0) |
-        ((comp_sram_axi_bid_bridge_id == 3) && comp_sram_axi_bid_valid ? comp_sram_axi_bresp : '0);
-
-    assign slave_monbus_wr_64b_bvalid = 
-        ((slave_tally_axi_bid_bridge_id == 3) && slave_tally_axi_bid_valid ? slave_tally_axi_bvalid : '0) |
-        ((comp_sram_axi_bid_bridge_id == 3) && comp_sram_axi_bid_valid ? comp_sram_axi_bvalid : '0);
 
 
 endmodule : bridge_stream_mon_axil_xbar

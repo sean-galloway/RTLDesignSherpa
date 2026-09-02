@@ -58,7 +58,7 @@ class BridgeStreamMonAxilTB(TBBase):
     Testbench for bridge_stream_mon_axil bridge.
 
     Configuration:
-        Masters: 4 (host, stream_desc, monbus_wr, slave_monbus_wr)
+        Masters: 3 (host, stream_desc, monbus_wr)
         Slaves:  13 (obs_apb, slvmon_apb, stream_apb, harness_csr, desc_ram, stream_err, stream_tally, dma_axil, slave_err, slave_tally, comp_sram, stream_tally_cfg, slave_tally_cfg)
         Channels: RW
         Data Width: 256
@@ -109,7 +109,6 @@ class BridgeStreamMonAxilTB(TBBase):
             0: 32,  # host
             1: 256,  # stream_desc
             2: 64,  # monbus_wr
-            3: 64,  # slave_monbus_wr
         }
 
         # Slave memory models — one per slave, pre-seeded.
@@ -144,7 +143,6 @@ class BridgeStreamMonAxilTB(TBBase):
         self._setup_master_0_host()
         self._setup_master_1_stream_desc()
         self._setup_master_2_monbus_wr()
-        self._setup_master_3_slave_monbus_wr()
 
     # ----------------------------------------------------------------------
     # Slave seed pattern
@@ -330,16 +328,6 @@ class BridgeStreamMonAxilTB(TBBase):
         self.master_wr[2] = AXIL4MasterWrite(
             self.dut, self.clock,
             prefix="monbus_wr_",
-            log=self.log,
-            data_width=64,
-            addr_width=32,
-            multi_sig=True,
-        )
-    def _setup_master_3_slave_monbus_wr(self):
-        """Set up protocol BFMs for master 3: slave_monbus_wr (protocol: axil)"""
-        self.master_wr[3] = AXIL4MasterWrite(
-            self.dut, self.clock,
-            prefix="slave_monbus_wr_",
             log=self.log,
             data_width=64,
             addr_width=32,

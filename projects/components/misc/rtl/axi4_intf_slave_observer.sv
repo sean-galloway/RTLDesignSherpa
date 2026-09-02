@@ -171,6 +171,16 @@ module axi4_intf_slave_observer
     // completion/error monbus dump path (e.g. the standalone observer unit
     // test) override the relevant enable to 1'b1. Synthesized characterization
     // instances keep the perf-only defaults, so the FPGA footprint is unchanged.
+    // Address-range checker depth. 0 compiles the checker OUT of the monitors,
+    // which is why ADDR_MATCH packets were unreachable regardless of config.
+    // The ADDR_RANGE* registers exist either way; OBS_CAPS0 reports the truth.
+    // APB config window width, VISIBLE at the top on purpose. The regblock's
+    // own cpuif width is NOT a second knob: it is DERIVED below from the
+    // generated package, so it tracks the register map automatically. A
+    // hand-written cast here is what made every register at or above 0x080
+    // silently alias onto a low one -- see CPUIF_ADDR_WIDTH.
+    parameter int APB_ADDR_WIDTH             = 12,
+    parameter int N_ADDR_RANGES              = 0,
     parameter bit TAP_ENABLE_ERROR_LOGIC     = 1'b0,
     parameter bit TAP_ENABLE_TIMEOUT_LOGIC   = 1'b0,
     parameter bit TAP_ENABLE_COMPL_LOGIC     = 1'b0,
@@ -205,7 +215,7 @@ module axi4_intf_slave_observer
     input  logic                          s_apb_psel,
     input  logic                          s_apb_penable,
     output logic                          s_apb_pready,
-    input  logic [11:0]                   s_apb_paddr,
+    input  logic [APB_ADDR_WIDTH-1:0]     s_apb_paddr,
     input  logic                          s_apb_pwrite,
     input  logic [31:0]                   s_apb_pwdata,
     input  logic [3:0]                    s_apb_pstrb,
@@ -473,7 +483,18 @@ module axi4_intf_slave_observer
     logic                w_rsp_valid, w_rsp_ready, w_rsp_pslverr;
     logic [31:0]         w_rsp_prdata;
 
-    apb4_slave #(.ADDR_WIDTH(12), .DATA_WIDTH(32)) u_obs_apb (
+    // Regblock cpuif address width, DERIVED from the generated package so it
+    // cannot drift from the register map. PeakRDL sizes
+    // OBS_REGS_TOP_MIN_ADDR_WIDTH from the RDL span; when a register is added
+    // past the current top this widens on its own.
+    //
+    // It was hardcoded 7'(...) against an 8-bit port. That does not error --
+    // it ALIASES: 0x0D0 wraps to 0x50, 0x080 onto AXI_PKT_MASK, 0x084 onto
+    // AXI_MASK1, all returning a plausible wrong value. OBS_COMP_STAT0/1 were
+    // unreadable from the day they were added and nobody could tell.
+    localparam int CPUIF_ADDR_WIDTH = obs_regs_top_pkg::OBS_REGS_TOP_MIN_ADDR_WIDTH;
+
+    apb4_slave #(.ADDR_WIDTH(APB_ADDR_WIDTH), .DATA_WIDTH(32)) u_obs_apb (
         .pclk(aclk), .presetn(aresetn),
         .s_apb_PSEL(s_apb_psel),     .s_apb_PENABLE(s_apb_penable),
         .s_apb_PREADY(s_apb_pready), .s_apb_PADDR(s_apb_paddr),
@@ -489,10 +510,10 @@ module axi4_intf_slave_observer
 
     logic        w_rb_req, w_rb_req_is_wr, w_rb_stall_wr, w_rb_stall_rd;
     logic        w_rb_rd_ack, w_rb_rd_err, w_rb_wr_ack, w_rb_wr_err;
-    logic [11:0] w_rb_addr;
+    logic [APB_ADDR_WIDTH-1:0] w_rb_addr;
     logic [31:0] w_rb_wr_data, w_rb_wr_biten, w_rb_rd_data;
 
-    peakrdl_to_cmdrsp #(.ADDR_WIDTH(12), .DATA_WIDTH(32)) u_obs_adapter (
+    peakrdl_to_cmdrsp #(.ADDR_WIDTH(APB_ADDR_WIDTH), .DATA_WIDTH(32)) u_obs_adapter (
         .aclk(aclk), .aresetn(aresetn),
         .cmd_valid(w_cmd_valid),   .cmd_ready(w_cmd_ready),
         .cmd_pwrite(w_cmd_pwrite), .cmd_paddr(w_cmd_paddr),
@@ -518,7 +539,7 @@ module axi4_intf_slave_observer
     obs_regs_top u_obs_regs (
         .clk(aclk), .rst(~aresetn),
         .s_cpuif_req(w_rb_req),               .s_cpuif_req_is_wr(w_rb_req_is_wr),
-        .s_cpuif_addr(7'(w_rb_addr)),         .s_cpuif_wr_data(w_rb_wr_data),
+        .s_cpuif_addr(CPUIF_ADDR_WIDTH'(w_rb_addr)),         .s_cpuif_wr_data(w_rb_wr_data),
         .s_cpuif_wr_biten(w_rb_wr_biten),
         .s_cpuif_req_stall_wr(w_rb_stall_wr), .s_cpuif_req_stall_rd(w_rb_stall_rd),
         .s_cpuif_rd_ack(w_rb_rd_ack),         .s_cpuif_rd_err(w_rb_rd_err),
@@ -542,6 +563,30 @@ module axi4_intf_slave_observer
     logic [15:0] cfg_flush_watermark;
     logic        cfg_compress_en;
     logic [3:0]  cfg_freq_sel;
+    // Monitor tap config -- was 26 constants hardcoded at the instantiations
+    // below, reachable from nowhere. Same alias style as the masks above; now
+    // fed by MON_CTRL / MON_TIMEOUT / MON_LATENCY / MON_WINDOW / ADDR_RANGE*.
+    localparam int OBS_ADDR_RANGES_MAX = 4;
+
+    // The APB window must be able to address the whole regblock. If a future
+    // register pushes the map past the window this stops the build instead of
+    // aliasing silently, which is the failure this whole block just had.
+    initial begin
+        if (APB_ADDR_WIDTH < CPUIF_ADDR_WIDTH)
+            $error("APB_ADDR_WIDTH=%0d cannot address the %0d-bit regblock map",
+                   APB_ADDR_WIDTH, CPUIF_ADDR_WIDTH);
+    end
+    localparam int NAR = (N_ADDR_RANGES > 0) ? N_ADDR_RANGES : 1;
+    logic        cfg_monitor_enable_w, cfg_error_enable_w, cfg_timeout_enable_w;
+    logic        cfg_compl_enable_w, cfg_threshold_enable_w, cfg_perf_enable_w;
+    logic        cfg_debug_enable_w, cfg_addr_check_enable_w;
+    logic [15:0] cfg_timeout_cycles_w;
+    logic [31:0] cfg_latency_threshold_w;
+    logic [2:0]  cfg_start_event_sel_w, cfg_end_event_sel_w;
+    logic        cfg_start_trigger_w, cfg_end_trigger_w, cfg_window_force_close_w;
+    logic [OBS_ADDR_RANGES_MAX-1:0][31:0] w_range_low, w_range_high;
+    logic [NAR-1:0]                       cfg_addr_range_enable_w;
+    logic [NAR-1:0][ADDR_WIDTH-1:0]       cfg_addr_range_low_w, cfg_addr_range_high_w;
 
     // Build-time LUT index for ACLK_MHZ, inverting the LINEAR mapping
     // freq[i] = MIN + (MAX-MIN)*i/(N-1) with N=16.
@@ -603,6 +648,79 @@ module axi4_intf_slave_observer
     assign cfg_base_addr         = ADDR_WIDTH'(hwif.OBS.OBS_BASE_ADDR.VALUE.value);
     assign cfg_limit_addr        = ADDR_WIDTH'(hwif.OBS.OBS_LIMIT_ADDR.VALUE.value);
 
+    // ---- Monitor tap runtime config (MON_CTRL / MON_TIMEOUT / MON_LATENCY / MON_WINDOW)
+    // MONITOR_EN is ANDed with the build-time arm: a tap that was not armed
+    // cannot be armed from software, and a cone that was not built cannot be
+    // switched on at all -- OBS_CAPS0 is how software finds that out.
+    assign cfg_monitor_enable_w     = ENABLE_MON_TAPS & hwif.OBS.MON_CTRL.MONITOR_EN.value;
+    assign cfg_error_enable_w       = hwif.OBS.MON_CTRL.ERROR_EN.value;
+    assign cfg_timeout_enable_w     = hwif.OBS.MON_CTRL.TIMEOUT_EN.value;
+    assign cfg_compl_enable_w       = hwif.OBS.MON_CTRL.COMPL_EN.value;
+    assign cfg_threshold_enable_w   = hwif.OBS.MON_CTRL.THRESHOLD_EN.value;
+    assign cfg_perf_enable_w        = hwif.OBS.MON_CTRL.PERF_EN.value;
+    assign cfg_debug_enable_w       = hwif.OBS.MON_CTRL.DEBUG_EN.value;
+    assign cfg_addr_check_enable_w  = hwif.OBS.MON_CTRL.ADDR_CHECK_EN.value;
+    assign cfg_timeout_cycles_w     = hwif.OBS.MON_TIMEOUT.TIMEOUT_CYCLES.value;
+    assign cfg_latency_threshold_w  = hwif.OBS.MON_LATENCY.VALUE.value;
+    assign cfg_start_event_sel_w    = hwif.OBS.MON_WINDOW.START_EVENT_SEL.value;
+    assign cfg_end_event_sel_w      = hwif.OBS.MON_WINDOW.END_EVENT_SEL.value;
+    assign cfg_start_trigger_w      = hwif.OBS.MON_WINDOW.START_TRIGGER.value;
+    assign cfg_end_trigger_w        = hwif.OBS.MON_WINDOW.END_TRIGGER.value;
+    assign cfg_window_force_close_w = hwif.OBS.MON_WINDOW.FORCE_CLOSE.value;
+
+    // ---- Address-range checker. Four register pairs exist on every instance so
+    // the map is one shape everywhere; only the first N_ADDR_RANGES are wired,
+    // and N_ADDR_RANGES=0 compiles the checker out of the monitors entirely.
+    assign w_range_low[0]  = hwif.OBS.ADDR_RANGE0_LOW.VALUE.value;
+    assign w_range_high[0] = hwif.OBS.ADDR_RANGE0_HIGH.VALUE.value;
+    assign w_range_low[1]  = hwif.OBS.ADDR_RANGE1_LOW.VALUE.value;
+    assign w_range_high[1] = hwif.OBS.ADDR_RANGE1_HIGH.VALUE.value;
+    assign w_range_low[2]  = hwif.OBS.ADDR_RANGE2_LOW.VALUE.value;
+    assign w_range_high[2] = hwif.OBS.ADDR_RANGE2_HIGH.VALUE.value;
+    assign w_range_low[3]  = hwif.OBS.ADDR_RANGE3_LOW.VALUE.value;
+    assign w_range_high[3] = hwif.OBS.ADDR_RANGE3_HIGH.VALUE.value;
+
+    // genvar, not a for-loop in always_comb: a VARIABLE index into a struct
+    // field (hwif.OBS.ADDR_RANGE_CTRL.RANGE_EN.value[r]) put the struct port
+    // copy into Verilator's nba_comb scheduling and it then miscompiled the
+    // whole hwif_in copy -- `cannot convert ...__in_t to CData` out of g++,
+    // with lint clean because lint never runs C++ codegen. Constant indices
+    // keep it a plain continuous drive.
+    generate
+        for (genvar r = 0; r < NAR; r++) begin : g_addr_range
+            assign cfg_addr_range_enable_w[r] = hwif.OBS.ADDR_RANGE_CTRL.RANGE_EN.value[r];
+            assign cfg_addr_range_low_w[r]    = ADDR_WIDTH'(w_range_low[r]);
+            assign cfg_addr_range_high_w[r]   = ADDR_WIDTH'(w_range_high[r]);
+        end
+    endgenerate
+
+    // Capabilities: what this instance was BUILT with. Read these before
+    // concluding anything from a zero counter -- an absent cone reports nothing
+    // no matter how it is configured, which looks exactly like a dead datapath.
+    // Packed rather than fielded; see the CAPS PACKING note in obs_regs.rdl.
+    assign hwif_i.OBS.OBS_CAPS0.VALUE.next = {
+        16'h0,                          // [31:16] reserved
+        4'(N_ADDR_RANGES),              // [15:12]
+        1'b0,                           // [11]    reserved
+        ENABLE_ID_SLICE,                // [10]
+        EGRESS_AXIL,                    // [9]
+        (USE_COMPRESSION != 0),         // [8]
+        ENABLE_BUS_METER,               // [7]
+        ENABLE_MON_TAPS,                // [6]
+        TAP_ENABLE_DEBUG_LOGIC,         // [5]
+        TAP_ENABLE_PERF_LOGIC,          // [4]
+        TAP_ENABLE_THRESHOLD_LOGIC,     // [3]
+        TAP_ENABLE_COMPL_LOGIC,         // [2]
+        TAP_ENABLE_TIMEOUT_LOGIC,       // [1]
+        TAP_ENABLE_ERROR_LOGIC          // [0]
+    };
+    assign hwif_i.OBS.OBS_CAPS1.VALUE.next = {
+        8'(CH_BASE), 8'(NUM_CHANNELS), 8'(NUM_WR_PORTS), 8'(NUM_RD_PORTS)
+    };
+    assign hwif_i.OBS.OBS_CAPS2.VALUE.next = {
+        8'(ADDR_WIDTH), 8'(NUM_BANKS), 16'(MAX_TRANSACTIONS)
+    };
+
 
     // =================================================================
     // Local parameters / derived sizes
@@ -663,6 +781,7 @@ module axi4_intf_slave_observer
                 // Observer tap cone enables (default perf-only -- see the
                 // TAP_ENABLE_* parameter block for why). Overridable per-instance
                 // so the dump-path unit test can enable completions.
+                .N_ADDR_RANGES          (N_ADDR_RANGES),
                 .ENABLE_ERROR_LOGIC     (TAP_ENABLE_ERROR_LOGIC),
                 .ENABLE_TIMEOUT_LOGIC   (TAP_ENABLE_TIMEOUT_LOGIC),
                 .ENABLE_COMPL_LOGIC     (TAP_ENABLE_COMPL_LOGIC),
@@ -720,16 +839,16 @@ module axi4_intf_slave_observer
 
                 // Monitor enables (all-on default; expose later if needed)
                 .debug_block_ready    (obs_rd_block_ready[gi]),
-                .cfg_monitor_enable   (ENABLE_MON_TAPS),
-                .cfg_error_enable     (1'b1),
-                .cfg_timeout_enable   (1'b1),
-                .cfg_perf_enable      (1'b0),     // perf packets off by default
-                .cfg_compl_enable     (1'b1),
-                .cfg_threshold_enable (1'b0),
-                .cfg_debug_enable     (1'b0),
-                .cfg_timeout_cycles   (16'd1024),
+                .cfg_monitor_enable   (cfg_monitor_enable_w),
+                .cfg_error_enable     (cfg_error_enable_w),
+                .cfg_timeout_enable   (cfg_timeout_enable_w),
+                .cfg_perf_enable      (cfg_perf_enable_w),
+                .cfg_compl_enable     (cfg_compl_enable_w),
+                .cfg_threshold_enable (cfg_threshold_enable_w),
+                .cfg_debug_enable     (cfg_debug_enable_w),
+                .cfg_timeout_cycles   (cfg_timeout_cycles_w),
                 .cfg_freq_sel         (cfg_freq_sel),
-                .cfg_latency_threshold(32'h0000_FFFF),
+                .cfg_latency_threshold(cfg_latency_threshold_w),
 
                 // Leaf filter masks tied to "let everything through";
                 // the monbus_group's central filter does the real work.
@@ -744,15 +863,15 @@ module axi4_intf_slave_observer
                 .cfg_axi_debug_mask  (16'h0000),
 
                 // Address-range / perf-window: disabled in v1
-                .cfg_addr_check_enable (1'b0),
-                .cfg_addr_range_enable ('0),
-                .cfg_addr_range_low    ('0),
-                .cfg_addr_range_high   ('0),
-                .cfg_start_event_sel   (3'd0),
-                .cfg_end_event_sel     (3'd0),
-                .cfg_start_trigger     (1'b0),
-                .cfg_end_trigger       (1'b0),
-                .cfg_window_force_close(1'b0),
+                .cfg_addr_check_enable (cfg_addr_check_enable_w),
+                .cfg_addr_range_enable (cfg_addr_range_enable_w),
+                .cfg_addr_range_low    (cfg_addr_range_low_w),
+                .cfg_addr_range_high   (cfg_addr_range_high_w),
+                .cfg_start_event_sel   (cfg_start_event_sel_w),
+                .cfg_end_event_sel     (cfg_end_event_sel_w),
+                .cfg_start_trigger     (cfg_start_trigger_w),
+                .cfg_end_trigger       (cfg_end_trigger_w),
+                .cfg_window_force_close(cfg_window_force_close_w),
 
                 // Free-running timestamp loop-back
                 .i_mon_time      (mon_time_w),
@@ -814,6 +933,7 @@ module axi4_intf_slave_observer
                 // Observer tap cone enables (default perf-only -- see the
                 // TAP_ENABLE_* parameter block). Overridable per-instance so the
                 // dump-path unit test can enable completions.
+                .N_ADDR_RANGES          (N_ADDR_RANGES),
                 .ENABLE_ERROR_LOGIC     (TAP_ENABLE_ERROR_LOGIC),
                 .ENABLE_TIMEOUT_LOGIC   (TAP_ENABLE_TIMEOUT_LOGIC),
                 .ENABLE_COMPL_LOGIC     (TAP_ENABLE_COMPL_LOGIC),
@@ -876,16 +996,16 @@ module axi4_intf_slave_observer
                 .fub_axi_bready(),
 
                 .debug_block_ready    (obs_wr_block_ready[gi]),
-                .cfg_monitor_enable   (ENABLE_MON_TAPS),
-                .cfg_error_enable     (1'b1),
-                .cfg_timeout_enable   (1'b1),
-                .cfg_perf_enable      (1'b0),
-                .cfg_compl_enable     (1'b1),
-                .cfg_threshold_enable (1'b0),
-                .cfg_debug_enable     (1'b0),
-                .cfg_timeout_cycles   (16'd1024),
+                .cfg_monitor_enable   (cfg_monitor_enable_w),
+                .cfg_error_enable     (cfg_error_enable_w),
+                .cfg_timeout_enable   (cfg_timeout_enable_w),
+                .cfg_perf_enable      (cfg_perf_enable_w),
+                .cfg_compl_enable     (cfg_compl_enable_w),
+                .cfg_threshold_enable (cfg_threshold_enable_w),
+                .cfg_debug_enable     (cfg_debug_enable_w),
+                .cfg_timeout_cycles   (cfg_timeout_cycles_w),
                 .cfg_freq_sel         (cfg_freq_sel),
-                .cfg_latency_threshold(32'h0000_FFFF),
+                .cfg_latency_threshold(cfg_latency_threshold_w),
 
                 .cfg_axi_pkt_mask    (16'h0000),
                 .cfg_axi_err_select  (16'h0000),
@@ -897,15 +1017,15 @@ module axi4_intf_slave_observer
                 .cfg_axi_addr_mask   (16'h0000),
                 .cfg_axi_debug_mask  (16'h0000),
 
-                .cfg_addr_check_enable (1'b0),
-                .cfg_addr_range_enable ('0),
-                .cfg_addr_range_low    ('0),
-                .cfg_addr_range_high   ('0),
-                .cfg_start_event_sel   (3'd0),
-                .cfg_end_event_sel     (3'd0),
-                .cfg_start_trigger     (1'b0),
-                .cfg_end_trigger       (1'b0),
-                .cfg_window_force_close(1'b0),
+                .cfg_addr_check_enable (cfg_addr_check_enable_w),
+                .cfg_addr_range_enable (cfg_addr_range_enable_w),
+                .cfg_addr_range_low    (cfg_addr_range_low_w),
+                .cfg_addr_range_high   (cfg_addr_range_high_w),
+                .cfg_start_event_sel   (cfg_start_event_sel_w),
+                .cfg_end_event_sel     (cfg_end_event_sel_w),
+                .cfg_start_trigger     (cfg_start_trigger_w),
+                .cfg_end_trigger       (cfg_end_trigger_w),
+                .cfg_window_force_close(cfg_window_force_close_w),
 
                 .i_mon_time      (mon_time_w),
 
