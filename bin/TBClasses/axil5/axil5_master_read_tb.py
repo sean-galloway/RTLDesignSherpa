@@ -62,3 +62,35 @@ class AXIL5MasterReadTB(AXIL4MasterReadTB):
     # This empty dict IS the assertion that AXIL5 defaults to the AXI4-Lite
     # signal set -- enabling a group here would make the DUT fail to bind.
     COMPONENT_KWARGS = {}
+
+
+class AXIL5MasterReadGroupsTB(AXIL5MasterReadTB):
+    """The same read-master flow with every optional AXI5-Lite group ON.
+
+    `AXIL5MasterReadTB` above deliberately runs with no groups, against the
+    AXI4-Lite RTL, to assert the all-groups-off equivalence. That left
+    `axil5_master_rd` itself -- the one AXI5-Lite module whose runner pointed
+    at its AXI4-Lite counterpart -- with no coverage of its own, and the read
+    master with no groups-on path at all.
+
+    That matters because the SKID payload widths are conditional sums:
+
+        ARSize = AW + 3 + (ENABLE_LOCK ? 1 : 0) + (ENABLE_USER ? UW : 0) + ...
+
+    A wrong slice when a group is present is invisible to the equivalence run,
+    because every one of those terms is zero there.
+
+    Widths mirror the RTL parameter defaults in rtl/amba/axil5/; change one
+    here without changing the DUT parameter and the bind fails loudly.
+    """
+
+    COMPONENT_KWARGS = {
+        'user_width': 4,     # USER_WIDTH
+        'trace': True,       # ENABLE_TRACE
+        'loop_width': 3,     # LOOP_WIDTH
+        'mpam_width': 11,    # MPAM_WIDTH
+        'mecid_width': 16,   # MECID_WIDTH
+        'nsaid_width': 4,    # NSAID_WIDTH
+        'poison': True,      # ENABLE_POISON
+        'exclusive': True,   # ENABLE_LOCK
+    }

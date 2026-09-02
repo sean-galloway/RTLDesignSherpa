@@ -9,16 +9,13 @@
 #
 # Subsystem: tests
 
-"""AXI5-Lite read-master test runner.
+"""AXI5-Lite / AXI4-Lite equivalence runner (read master).
 
-Drives `axil5_master_rd` itself with EVERY optional signal group enabled.
-
-The all-groups-off equivalence against `axil4_master_rd` lives in
-`test_axil5_axil4_equivalence.py`. That run cannot exercise the packing,
-because the SKID payload widths are conditional sums
-(`ARSize = AW + 3 + (ENABLE_LOCK ? 1 : 0) + (ENABLE_USER ? UW : 0) + ...`)
-and every optional term is zero there. This runner is what makes a wrong
-slice fail.
+Runs the AXIL4 read-master traffic with AXI5-Lite BFMs against the SAME
+`axil4_master_rd` RTL, filelist and parameters. With no optional signal groups
+enabled an AXI5-Lite interface IS an AXI4-Lite interface, so this must pass
+exactly as the AXIL4 runner does -- and if it ever stops passing, AXIL5 has
+drifted away from the protocol it claims to extend.
 
 This is the functional half of AXIL5's coverage. The framework's
 `tests/unit/test_axil5_extends_axil4.py` compares field configs and class
@@ -39,7 +36,7 @@ from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_pat
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import the testbench
-from TBClasses.axil5.axil5_master_read_tb import AXIL5MasterReadGroupsTB
+from TBClasses.axil5.axil5_master_read_tb import AXIL5MasterReadTB
 
 
 @cocotb.test(timeout_time=10, timeout_unit="ms")
@@ -47,7 +44,7 @@ async def axil5_read_master_test(dut):
     """AXIL4 read master test using the AXIL4 framework components"""
 
     # Create testbench instance
-    tb = AXIL5MasterReadGroupsTB(dut, aclk=dut.aclk, aresetn=dut.aresetn)
+    tb = AXIL5MasterReadTB(dut, aclk=dut.aclk, aresetn=dut.aresetn)
 
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
@@ -261,12 +258,12 @@ def test_axil5_read_master(request, addr_width, data_width, ar_depth, r_depth, t
 
     # Get paths and setup
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_axil5': 'rtl/amba/axil5/',
+        'rtl_axil4': 'rtl/amba/axil4/',
         'rtl_gaxi': 'rtl/amba/gaxi',
      'rtl_amba_includes': 'rtl/amba/includes'})
 
     # AXIL4 module details (no stub versions)
-    dut_name = "axil5_master_rd"
+    dut_name = "axil4_master_rd"
     
     # Create descriptive test name
     aw_str = TBBase.format_dec(addr_width, 2)
@@ -287,7 +284,7 @@ def test_axil5_read_master(request, addr_width, data_width, ar_depth, r_depth, t
     # Verilog sources - include dependencies for gaxi_skid_buffer
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axil5_master_rd.f")
+        filelist_path="rtl/amba/filelists/axil4_master_rd.f")
 
     # Check that files exist
     for src in verilog_sources:
@@ -304,9 +301,14 @@ def test_axil5_read_master(request, addr_width, data_width, ar_depth, r_depth, t
         'AXIL_ADDR_WIDTH': str(addr_width),
         'AXIL_DATA_WIDTH': str(data_width),
         # The DERIVED parameters (AW, DW, ARSize, RSize) are NOT overridden.
-        # ARSize here is AW + 3 + LOCK + USER + TRACE + LOOP + MPAM + MECID
-        # + NSAID, not the AXI4-Lite 35. Forcing it part-selects past the end
-        # of the vector -- the exact failure this module went untested behind.
+        # They match what the RTL derives for THIS test, because this one
+        # drives axil4_master_rd deliberately -- so the overrides were
+        # correct by coincidence rather than by construction. Repoint this at
+        # axil5_master_rd with the optional groups on and the same overrides
+        # would force ARSize to the AXI4-Lite value and every group field
+        # would part-select past the end of the vector, which is exactly what
+        # they did in test_axil5_master_wr. Overriding a derived parameter can
+        # only ever match or break; it can never help.
     }
 
     # Calculate timeout based on complexity
@@ -400,12 +402,12 @@ def test_axil5_read_master(request, addr_width, data_width, ar_depth, r_depth, t
 
     # Get paths and setup
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_axil5': 'rtl/amba/axil5/',
+        'rtl_axil4': 'rtl/amba/axil4/',
         'rtl_gaxi': 'rtl/amba/gaxi',
      'rtl_amba_includes': 'rtl/amba/includes'})
 
     # AXIL4 module details (no stub versions)
-    dut_name = "axil5_master_rd"
+    dut_name = "axil4_master_rd"
     
     # Create descriptive test name
     aw_str = TBBase.format_dec(addr_width, 2)
@@ -425,7 +427,7 @@ def test_axil5_read_master(request, addr_width, data_width, ar_depth, r_depth, t
     # Verilog sources - include dependencies for gaxi_skid_buffer
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axil5_master_rd.f")
+        filelist_path="rtl/amba/filelists/axil4_master_rd.f")
 
     # Check that files exist
     for src in verilog_sources:
@@ -442,9 +444,14 @@ def test_axil5_read_master(request, addr_width, data_width, ar_depth, r_depth, t
         'AXIL_ADDR_WIDTH': str(addr_width),
         'AXIL_DATA_WIDTH': str(data_width),
         # The DERIVED parameters (AW, DW, ARSize, RSize) are NOT overridden.
-        # ARSize here is AW + 3 + LOCK + USER + TRACE + LOOP + MPAM + MECID
-        # + NSAID, not the AXI4-Lite 35. Forcing it part-selects past the end
-        # of the vector -- the exact failure this module went untested behind.
+        # They match what the RTL derives for THIS test, because this one
+        # drives axil4_master_rd deliberately -- so the overrides were
+        # correct by coincidence rather than by construction. Repoint this at
+        # axil5_master_rd with the optional groups on and the same overrides
+        # would force ARSize to the AXI4-Lite value and every group field
+        # would part-select past the end of the vector, which is exactly what
+        # they did in test_axil5_master_wr. Overriding a derived parameter can
+        # only ever match or break; it can never help.
     }
 
     # Calculate timeout based on complexity

@@ -85,6 +85,20 @@ module axil5_opt_slave
     parameter int MECID_WIDTH     = 16,
     parameter int NSAID_WIDTH     = 4,
 
+    // Optional-group enables, same names and defaults as the production
+    // AXI5-Lite modules. A disabled group is not carried in the payload
+    // there, so its field reads zero; this model does the same, which is
+    // what lets one testbench sweep configurations instead of only ever
+    // exercising all-groups-on.
+    parameter bit ENABLE_USER     = 1,
+    parameter bit ENABLE_TRACE    = 1,
+    parameter bit ENABLE_LOOP     = 1,
+    parameter bit ENABLE_MPAM     = 1,
+    parameter bit ENABLE_MECID    = 1,
+    parameter bit ENABLE_NSAID    = 1,
+    parameter bit ENABLE_POISON   = 1,
+    parameter bit ENABLE_LOCK     = 1,
+
     // Derived. Do not override.
     parameter int AW           = AXIL_ADDR_WIDTH,
     parameter int DW           = AXIL_DATA_WIDTH,
@@ -292,7 +306,7 @@ module axil5_opt_slave
 
                 r_b_valid <= 1'b1;
                 // Exclusive access answers EXOKAY; a normal write answers OKAY.
-                r_b_resp  <= r_aw_lock ? RESP_EXOKAY : RESP_OKAY;
+                r_b_resp  <= (ENABLE_LOCK && r_aw_lock) ? RESP_EXOKAY : RESP_OKAY;
                 // Echo the transaction's sideband back on its response.
                 r_b_user  <= r_aw_user;
                 r_b_trace <= r_aw_trace;
@@ -318,7 +332,8 @@ module axil5_opt_slave
                 r_r_valid  <= 1'b1;
                 r_r_data   <= r_mem[w_ar_idx];
                 r_r_poison <= r_poison[w_ar_idx];
-                r_r_resp   <= s_axil_arlock ? RESP_EXOKAY : RESP_OKAY;
+                r_r_resp   <= (ENABLE_LOCK && s_axil_arlock)
+                              ? RESP_EXOKAY : RESP_OKAY;
                 r_r_user   <= s_axil_aruser;
                 r_r_trace  <= s_axil_artrace;
                 r_r_loop   <= s_axil_arloop;
@@ -329,17 +344,17 @@ module axil5_opt_slave
     )
 
     assign s_axil_bresp   = r_b_resp;
-    assign s_axil_buser   = r_b_user;
-    assign s_axil_btrace  = r_b_trace;
-    assign s_axil_bloop   = r_b_loop;
+    assign s_axil_buser = ENABLE_USER ? r_b_user : '0;
+    assign s_axil_btrace = ENABLE_TRACE ? r_b_trace : 1'b0;
+    assign s_axil_bloop = ENABLE_LOOP ? r_b_loop : '0;
     assign s_axil_bvalid  = r_b_valid;
 
     assign s_axil_rdata   = r_r_data;
     assign s_axil_rresp   = r_r_resp;
-    assign s_axil_ruser   = r_r_user;
-    assign s_axil_rtrace  = r_r_trace;
-    assign s_axil_rloop   = r_r_loop;
-    assign s_axil_rpoison = r_r_poison;
+    assign s_axil_ruser = ENABLE_USER ? r_r_user : '0;
+    assign s_axil_rtrace = ENABLE_TRACE ? r_r_trace : 1'b0;
+    assign s_axil_rloop = ENABLE_LOOP ? r_r_loop : '0;
+    assign s_axil_rpoison = ENABLE_POISON ? r_r_poison : '0;
     assign s_axil_rvalid  = r_r_valid;
 
     // ---- Qualifier observation -------------------------------------------
@@ -357,20 +372,23 @@ module axil5_opt_slave
             o_last_ar_mecid <= '0;
             o_last_ar_nsaid <= '0;
         end else begin
+            // A disabled group is not carried, so its tap stays at zero --
+            // the same thing a caller sees from the production modules, whose
+            // payload simply has no field for it.
             if (w_aw_fire) begin
                 o_last_aw_prot  <= s_axil_awprot;
-                o_last_aw_mpam  <= s_axil_awmpam;
-                o_last_aw_mecid <= s_axil_awmecid;
-                o_last_aw_nsaid <= s_axil_awnsaid;
+                o_last_aw_mpam  <= ENABLE_MPAM  ? s_axil_awmpam  : '0;
+                o_last_aw_mecid <= ENABLE_MECID ? s_axil_awmecid : '0;
+                o_last_aw_nsaid <= ENABLE_NSAID ? s_axil_awnsaid : '0;
             end
             if (w_w_fire) begin
-                o_last_w_user   <= s_axil_wuser;
+                o_last_w_user   <= ENABLE_USER ? s_axil_wuser : '0;
             end
             if (w_ar_fire) begin
                 o_last_ar_prot  <= s_axil_arprot;
-                o_last_ar_mpam  <= s_axil_armpam;
-                o_last_ar_mecid <= s_axil_armecid;
-                o_last_ar_nsaid <= s_axil_arnsaid;
+                o_last_ar_mpam  <= ENABLE_MPAM  ? s_axil_armpam  : '0;
+                o_last_ar_mecid <= ENABLE_MECID ? s_axil_armecid : '0;
+                o_last_ar_nsaid <= ENABLE_NSAID ? s_axil_arnsaid : '0;
             end
         end
     )

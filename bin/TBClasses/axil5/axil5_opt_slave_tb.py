@@ -114,7 +114,23 @@ class AXIL5OptSlaveTB(TBBase):
 
         self.write_if = self.wr['interface']
         self.read_if = self.rd['interface']
-        self.log.info("AXIL5 masters created with every optional group enabled")
+        # Which groups the DUT was ELABORATED with. The BFM still drives every
+        # wire -- the ports exist either way -- so only the EXPECTATION changes:
+        # a disabled group is not carried, so its field comes back zero. Without
+        # this the suite could only ever run all-groups-on, which is the one
+        # configuration in which a packing bug cannot show.
+        self.enabled = {
+            g: os.environ.get(f'TEST_ENABLE_{g.upper()}', '1') == '1'
+            for g in ('user', 'trace', 'loop', 'mpam', 'mecid', 'nsaid',
+                      'poison', 'lock')
+        }
+        off = [g for g, on in self.enabled.items() if not on]
+        self.log.info("AXIL5 masters created; groups OFF: %s"
+                      % (", ".join(off) if off else "none (all enabled)"))
+
+    def _want(self, group, value):
+        """Expected value of an optional field: zero when its group is off."""
+        return value if self.enabled[group] else 0
 
     # ---- required TBBase lifecycle --------------------------------------
     async def setup_clocks_and_reset(self):
@@ -180,21 +196,24 @@ class AXIL5OptSlaveTB(TBBase):
         assert b is not None, "no B packet retained; response sideband is lost"
 
         # Echoed on the response channel.
-        self._check('BUSER',  self._field(b, 'user'),  v['awuser'],  failures)
-        self._check('BTRACE', self._field(b, 'trace'), v['awtrace'], failures)
-        self._check('BLOOP',  self._field(b, 'loop'),  v['awloop'],  failures)
+        self._check('BUSER',  self._field(b, 'user'),
+                    self._want('user', v['awuser']), failures)
+        self._check('BTRACE', self._field(b, 'trace'),
+                    self._want('trace', v['awtrace']), failures)
+        self._check('BLOOP',  self._field(b, 'loop'),
+                    self._want('loop', v['awloop']), failures)
 
         # Captured by the DUT -- proof the BFM drove the wire.
         self._check('AWPROT@dut',  int(self.dut.o_last_aw_prot.value),
                     v['awprot'], failures)
         self._check('AWMPAM@dut',  int(self.dut.o_last_aw_mpam.value),
-                    v['awmpam'], failures)
+                    self._want('mpam', v['awmpam']), failures)
         self._check('AWMECID@dut', int(self.dut.o_last_aw_mecid.value),
-                    v['awmecid'], failures)
+                    self._want('mecid', v['awmecid']), failures)
         self._check('AWNSAID@dut', int(self.dut.o_last_aw_nsaid.value),
-                    v['awnsaid'], failures)
+                    self._want('nsaid', v['awnsaid']), failures)
         self._check('WUSER@dut',   int(self.dut.o_last_w_user.value),
-                    v['wuser'], failures)
+                    self._want('user', v['wuser']), failures)
         return failures, v
 
     async def test_read_qualifiers(self, addr, expect_data, expect_poison, rnd):
@@ -218,20 +237,24 @@ class AXIL5OptSlaveTB(TBBase):
         r = self.read_if.last_r_packet
         assert r is not None, "no R packet retained; response sideband is lost"
 
-        self._check('RUSER',   self._field(r, 'user'),   v['aruser'],  failures)
-        self._check('RTRACE',  self._field(r, 'trace'),  v['artrace'], failures)
-        self._check('RLOOP',   self._field(r, 'loop'),   v['arloop'],  failures)
+        self._check('RUSER',   self._field(r, 'user'),
+                    self._want('user', v['aruser']), failures)
+        self._check('RTRACE',  self._field(r, 'trace'),
+                    self._want('trace', v['artrace']), failures)
+        self._check('RLOOP',   self._field(r, 'loop'),
+                    self._want('loop', v['arloop']), failures)
         # POISON is the round-trip check: written earlier, stored, returned now.
-        self._check('RPOISON', self._field(r, 'poison'), expect_poison, failures)
+        self._check('RPOISON', self._field(r, 'poison'),
+                    self._want('poison', expect_poison), failures)
 
         self._check('ARPROT@dut',  int(self.dut.o_last_ar_prot.value),
                     v['arprot'], failures)
         self._check('ARMPAM@dut',  int(self.dut.o_last_ar_mpam.value),
-                    v['armpam'], failures)
+                    self._want('mpam', v['armpam']), failures)
         self._check('ARMECID@dut', int(self.dut.o_last_ar_mecid.value),
-                    v['armecid'], failures)
+                    self._want('mecid', v['armecid']), failures)
         self._check('ARNSAID@dut', int(self.dut.o_last_ar_nsaid.value),
-                    v['arnsaid'], failures)
+                    self._want('nsaid', v['arnsaid']), failures)
         return failures
 
     async def test_exclusive_access(self, addr, data):
@@ -240,17 +263,24 @@ class AXIL5OptSlaveTB(TBBase):
         Regression guard: the shared transaction methods used to raise on any
         non-zero response, so a successful exclusive access surfaced as
         RuntimeError and exclusive access was unusable.
+
+        With ENABLE_LOCK=0 the DUT does not carry AxLOCK, so an exclusive
+        access is indistinguishable from a normal one and OKAY is the correct
+        answer. The expectation follows the configuration.
         """
-        self.log.info(f"=== exclusive write/read at 0x{addr:08X} ===")
+        exok = 1 if self.enabled['lock'] else 0
+        self.log.info(f"=== exclusive write/read at 0x{addr:08X} "
+                      f"(lock {'on' if self.enabled['lock'] else 'OFF'}, "
+                      f"expecting {'EXOKAY' if exok else 'OKAY'}) ===")
         failures = []
 
         resp = await self.write_if.write_transaction(addr, data, awlock=1)
-        self._check('exclusive BRESP (EXOKAY=1)', resp, 1, failures)
+        self._check(f'exclusive BRESP (want {exok})', resp, exok, failures)
 
         await self.read_if.read_transaction(addr, arlock=1)
         r = self.read_if.last_r_packet
-        self._check('exclusive RRESP (EXOKAY=1)',
-                    self._field(r, 'resp'), 1, failures)
+        self._check(f'exclusive RRESP (want {exok})',
+                    self._field(r, 'resp'), exok, failures)
 
         # And a NORMAL access must still answer OKAY -- otherwise the check
         # above would pass against a DUT that always returns EXOKAY.

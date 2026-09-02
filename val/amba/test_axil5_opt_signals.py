@@ -82,16 +82,37 @@ def generate_axil5_opt_params():
     """
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
     if reg_level == 'GATE':
-        return [(32, 32, 'gate')]
+        return [(32, 32, 'gate', 'all_on')]
     if reg_level == 'FUNC':
-        return [(32, 32, 'gate'), (32, 64, 'func')]
-    return [(32, 32, 'gate'), (32, 64, 'func'),
-            (64, 32, 'func'), (64, 64, 'full')]
+        return [(32, 32, 'gate', 'all_on'), (32, 64, 'func', 'all_on'),
+                (32, 32, 'gate', 'all_off'), (32, 64, 'func', 'sideband_off')]
+    return [(32, 32, 'gate', 'all_on'), (32, 64, 'func', 'all_on'),
+            (64, 32, 'func', 'all_on'), (64, 64, 'full', 'all_on'),
+            (32, 32, 'gate', 'all_off'), (64, 64, 'func', 'all_off'),
+            (32, 64, 'func', 'sideband_off'), (64, 32, 'func', 'qualifiers_off'),
+            (32, 32, 'func', 'user_only'), (64, 64, 'full', 'poison_off')]
 
 
-@pytest.mark.parametrize("addr_width, data_width, test_level",
+# Which optional groups each named configuration turns ON. Every group is
+# driven by the BFM regardless -- the ports exist either way -- so what these
+# select is what the RTL is ELABORATED with, and therefore what it is allowed
+# to return. all_on was the only configuration ever exercised before.
+GROUP_SETS = {
+    'all_on':         {},                    # every ENABLE_* defaults to 1
+    'all_off':        {g: 0 for g in ('USER', 'TRACE', 'LOOP', 'MPAM',
+                                      'MECID', 'NSAID', 'POISON', 'LOCK')},
+    'sideband_off':   {'USER': 0, 'TRACE': 0, 'LOOP': 0},
+    'qualifiers_off': {'MPAM': 0, 'MECID': 0, 'NSAID': 0},
+    'user_only':      {'TRACE': 0, 'LOOP': 0, 'MPAM': 0, 'MECID': 0,
+                       'NSAID': 0, 'POISON': 0, 'LOCK': 0},
+    'poison_off':     {'POISON': 0},
+}
+
+
+@pytest.mark.parametrize("addr_width, data_width, test_level, groups",
                          generate_axil5_opt_params())
-def test_axil5_opt_signals(request, addr_width, data_width, test_level):
+def test_axil5_opt_signals(request, addr_width, data_width, test_level,
+                           groups):
     """AXI5-Lite optional signal groups against axil5_opt_slave."""
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
 
@@ -105,7 +126,7 @@ def test_axil5_opt_signals(request, addr_width, data_width, test_level):
     dw_str = TBBase.format_dec(data_width, 2)
     reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
     test_name_plus_params = (f"test_{worker_id}_{dut_name}_a{aw_str}_d{dw_str}"
-                             f"_{test_level}_{reg_level}")
+                             f"_{groups}_{test_level}_{reg_level}")
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = sim_build_path(tests_dir, test_name_plus_params)
@@ -133,6 +154,10 @@ def test_axil5_opt_signals(request, addr_width, data_width, test_level):
         'MECID_WIDTH':     str(MECID_WIDTH),
         'NSAID_WIDTH':     str(NSAID_WIDTH),
     }
+    # Disabled groups are passed explicitly; the rest keep their RTL default
+    # of 1. These are NOT derived parameters -- they are the knob under test.
+    for grp, val in GROUP_SETS[groups].items():
+        rtl_parameters[f'ENABLE_{grp}'] = str(val)
 
     extra_env = {
         'TEST_ADDR_WIDTH': str(addr_width),
@@ -144,6 +169,9 @@ def test_axil5_opt_signals(request, addr_width, data_width, test_level):
         'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'DUT': dut_name,
     }
+    for grp in ('USER', 'TRACE', 'LOOP', 'MPAM', 'MECID', 'NSAID', 'POISON',
+                'LOCK'):
+        extra_env[f'TEST_ENABLE_{grp}'] = str(GROUP_SETS[groups].get(grp, 1))
 
     compile_args = [
         "-Wall", "-Wno-DECLFILENAME", "-Wno-UNUSED",
