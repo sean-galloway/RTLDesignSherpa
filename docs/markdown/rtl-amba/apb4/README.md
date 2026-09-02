@@ -93,7 +93,7 @@ The RTL, generator, and testbenches live in the component area
 
 Each adds `cfg_cg_enable` / `cfg_cg_idle_count` inputs and gating/idle
 status outputs. `apb4_master_cg` and `apb4_slave_cg` wrap their base module
-in one `amba_clock_gate_ctrl` with an `apb_clock_gating` status output;
+in one `amba_clock_gate_ctrl` with an `cg_gating` status output;
 `apb4_slave_cdc_cg` is a SIBLING of apb4_slave_cdc, not a wrapper — it
 re-instantiates apb4_slave plus the two CDC FIFOs around TWO gate cells,
 with per-domain `pclk_cg_*` / `aclk_cg_*` status outputs.

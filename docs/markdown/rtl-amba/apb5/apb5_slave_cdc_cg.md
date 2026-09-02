@@ -116,7 +116,8 @@ Same command/response interface as [apb5_slave_cdc](apb5_slave_cdc.md) - operate
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| `apb_clock_gating` | Output | 1 | Indicates clock is currently gated |
+| `cg_gating` | Output | 1 | Indicates clock is currently gated |
+| `cg_idle` | Out | 1 | Activity terms quiet (registered `~wakeup`). |
 | `parity_error_wdata` | Output | 1 | Write data parity error detected |
 | `parity_error_ctrl` | Output | 1 | Control signal parity error |
 
@@ -153,7 +154,7 @@ flowchart TB
 
     cfg_cg_enable --> cg_ctrl
     apb_if -->|activity| cg_ctrl
-    cg_ctrl -->|apb_clock_gating| status
+    cg_ctrl -->|cg_gating| status
 ```
 
 ### Wake-up Logic
@@ -206,7 +207,7 @@ synchronizer, these signals would cross domains unsynchronized.
 > - gated_pclk
 > - aclk (different frequency)
 > - s_apb_PSEL (wake trigger)
-> - apb_clock_gating indicator
+> - cg_gating indicator
 > - Transaction flow across CDC with gating
 > - Wake-up latency from PSEL to clock active
 
@@ -236,7 +237,7 @@ apb5_slave_cdc_cg #(
     // Clock gating
     .cfg_cg_enable      (1'b1),
     .cfg_cg_idle_count  (4'd8),
-    .apb_clock_gating   (slave_clk_gated),
+    .cg_gating   (slave_clk_gated),
 
     // APB5 slave interface (pclk domain)
     .s_apb_PSEL         (s_apb_psel),

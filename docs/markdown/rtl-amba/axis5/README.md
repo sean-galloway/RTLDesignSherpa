@@ -255,7 +255,7 @@ axis5_master_cg #(
     // Status
     .busy                   (m_busy),
     .parity_error           (),
-    .axis_clock_gating      (m_clk_gated)
+    .cg_gating      (m_clk_gated)
 );
 ```
 

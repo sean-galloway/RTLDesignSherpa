@@ -451,7 +451,7 @@ apb5_master_cg #(
     // wrapper; it is not a port, and there is no scan-enable port here.
     .cfg_cg_enable     (apb_active),
     .cfg_cg_idle_count (4'd8),
-    .apb_clock_gating  (apb_is_gated)
+    .cg_gating  (apb_is_gated)
 );
 ```
 

@@ -82,7 +82,9 @@ module axis5_master_cg
     // Status outputs
     output logic                       busy,
     output logic                       parity_error,
-    output logic                       axis_clock_gating
+    output logic                       cg_gating,
+    // Idle indicator: activity terms quiet (registered ~wakeup)
+    output logic                       cg_idle
 );
 
     // Internal gated clock
@@ -116,9 +118,9 @@ module axis5_master_cg
         .user_valid          (r_wakeup),
         .axi_valid           (1'b0),
         .clk_out             (gated_clk),
-        .gating              (axis_clock_gating),
+        .gating              (cg_gating),
         /* verilator lint_off PINCONNECTEMPTY */
-        .idle                ()
+        .idle                (cg_idle)
         /* verilator lint_on PINCONNECTEMPTY */
     );
 

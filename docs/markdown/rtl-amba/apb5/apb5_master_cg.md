@@ -121,7 +121,8 @@ Clock-gated variant of the APB5 Master module. Wraps the base `apb5_master` with
 | `parity_error_rdata` | Out | 1 |  |
 | `parity_error_ctrl` | Out | 1 |  |
 | `wakeup_pending` | Out | 1 |  |
-| `apb_clock_gating` | Out | 1 |  |
+| `cg_gating` | Out | 1 |  |
+| `cg_idle` | Out | 1 | Activity terms quiet (registered `~wakeup`). |
 
 ---
 
@@ -150,7 +151,7 @@ flowchart TB
     cfg_cg_enable --> gate
     cfg_cg_idle_count --> idle
 
-    gate -->|apb_clock_gating| status
+    gate -->|cg_gating| status
 ```
 
 ---
@@ -200,10 +201,10 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
-| apb_clock_gating | 1 | Output | High while the internal clock is gated off |
+| cg_gating | 1 | Output | High while the internal clock is gated off |
 
 There is no cumulative gated-cycle counter port on this module. If a gated-cycle
-total is needed, count `apb_clock_gating` in the integrating logic on the
+total is needed, count `cg_gating` in the integrating logic on the
 ungated `pclk`.
 
 All ports of [apb5_master](apb5_master.md) -- including the parity signals,
@@ -273,7 +274,7 @@ cycles.
 > - cmd_valid
 > - cfg_cg_idle_count
 > - idle_counter
-> - apb_clock_gating
+> - cg_gating
 > - Transaction before/after gating
 ## Timing Characteristics
 
@@ -305,7 +306,7 @@ apb5_master_cg #(
     .cfg_cg_idle_count  (4'd8),    // Gate after 8 idle cycles
 
     // Clock gating status
-    .apb_clock_gating   (master_clk_gated),
+    .cg_gating   (master_clk_gated),
 
     // APB5 and command/response interfaces
     // ... (same as apb5_master)

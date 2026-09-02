@@ -70,7 +70,9 @@ module apb4_master_cg #(
     output logic              rsp_pslverr,
 
     // Clock gating indicator
-    output logic              apb_clock_gating
+    output logic              cg_gating,
+    // Idle indicator: activity terms quiet (registered ~wakeup)
+    output logic              cg_idle
 );
 
     // Local clock gating signals
@@ -98,8 +100,8 @@ module apb4_master_cg #(
         .user_valid          (r_wakeup),
         .axi_valid           ('b0),
         .clk_out             (gated_pclk),
-        .gating              (apb_clock_gating),
-        .idle                ()
+        .gating              (cg_gating),
+        .idle                (cg_idle)
     );
 
     // Instantiate the APB master

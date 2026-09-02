@@ -119,7 +119,8 @@ Clock-gated variant of the APB5 Slave module. Wraps the base `apb5_slave` with c
 | `wakeup_request` | In | 1 |  |
 | `parity_error_wdata` | Out | 1 |  |
 | `parity_error_ctrl` | Out | 1 |  |
-| `apb_clock_gating` | Out | 1 |  |
+| `cg_gating` | Out | 1 |  |
+| `cg_idle` | Out | 1 | Activity terms quiet (registered `~wakeup`). |
 
 ---
 
@@ -197,10 +198,10 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
-| apb_clock_gating | 1 | Output | High while the internal clock is gated off |
+| cg_gating | 1 | Output | High while the internal clock is gated off |
 
 There is no cumulative gated-cycle counter port on this module. If a gated-cycle
-total is needed, count `apb_clock_gating` in the integrating logic on the
+total is needed, count `cg_gating` in the integrating logic on the
 ungated `pclk`.
 
 All ports of [apb5_slave](apb5_slave.md) -- including the parity signals,
@@ -240,7 +241,7 @@ activity, because APB5 adds two register stages ahead of the ICG enable.
 > - pclk
 > - gated_pclk
 > - s_apb_PSEL
-> - apb_clock_gating
+> - cg_gating
 > - Wake-up latency (two register stages; first usable gated edge 3 ungated pclk cycles after activity)
 ## Timing Characteristics
 
@@ -268,7 +269,7 @@ apb5_slave_cg #(
     // Clock gating
     .cfg_cg_enable      (1'b1),
     .cfg_cg_idle_count  (4'd4),
-    .apb_clock_gating   (slave_clk_gated),
+    .cg_gating   (slave_clk_gated),
 
     // APB5 interface (same as apb5_slave)
     // ...

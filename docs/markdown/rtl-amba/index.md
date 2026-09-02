@@ -115,10 +115,10 @@ High-throughput unidirectional streaming for data processing pipelines.
 **[AXI4-Stream Module Documentation](axis4/README.md)**
 
 #### Stream Components
-- **[axis_master](axis4/axis_master.md)** - AXI4-Stream master for data streaming
-- **[axis_master_cg](axis4/axis_master_cg.md)** - Clock-gated AXI4-Stream master
-- **[axis_slave](axis4/axis_slave.md)** - AXI4-Stream slave for data reception
-- **[axis_slave_cg](axis4/axis_slave_cg.md)** - Clock-gated AXI4-Stream slave
+- **[axis4_master](axis4/axis4_master.md)** - AXI4-Stream master for data streaming
+- **[axis4_master_cg](axis4/axis4_master_cg.md)** - Clock-gated AXI4-Stream master
+- **[axis4_slave](axis4/axis4_slave.md)** - AXI4-Stream slave for data reception
+- **[axis4_slave_cg](axis4/axis4_slave_cg.md)** - Clock-gated AXI4-Stream slave
 
 ---
 

@@ -46,8 +46,8 @@ class AxiClockGateCtrl(TBBase):
             clock_signal_name: Name of the clock signal
             user_valid_signals: List of user-side valid signal names
             axi_valid_signals: List of AXI-side valid signal names
-            gating_signal_name: Name of the gating status signal (e.g., "pclk_cg_gating")
-            idle_signal_name: Name of the idle status signal (e.g., "pclk_cg_idle")
+            gating_signal_name: Name of the gating status signal (e.g., "cg_gating")
+            idle_signal_name: Name of the idle status signal (e.g., "cg_idle")
             enable_signal_name: Name of the clock gating enable signal
             idle_count_signal_name: Name of the idle count configuration signal
         """
@@ -494,8 +494,8 @@ pclk_cg_ctrl = AxiClockGateCtrl(
     clock_signal_name="pclk",
     user_valid_signals=["s_apb_PSEL", "w_rsp_valid"],
     axi_valid_signals=["w_cmd_valid"],
-    gating_signal_name="pclk_cg_gating",
-    idle_signal_name="pclk_cg_idle"
+    gating_signal_name="cg_gating",
+    idle_signal_name="cg_idle"
 )
 
 aclk_cg_ctrl = AxiClockGateCtrl(
@@ -504,8 +504,8 @@ aclk_cg_ctrl = AxiClockGateCtrl(
     clock_signal_name="aclk",
     user_valid_signals=["rsp_valid"],
     axi_valid_signals=["cmd_valid", "cmd_ready"],
-    gating_signal_name="aclk_cg_gating",
-    idle_signal_name="aclk_cg_idle"
+    gating_signal_name="cg_gating",
+    idle_signal_name="cg_idle"
 )
 
 # Create multi-domain controller

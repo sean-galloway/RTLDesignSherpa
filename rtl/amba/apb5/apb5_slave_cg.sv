@@ -111,7 +111,9 @@ module apb5_slave_cg #(
     output logic              parity_error_ctrl,
 
     // Clock gating indicator
-    output logic              apb_clock_gating
+    output logic              cg_gating,
+    // Idle indicator: activity terms quiet (registered ~wakeup)
+    output logic              cg_idle
 );
 
     // Local clock gating signals
@@ -138,9 +140,9 @@ module apb5_slave_cg #(
         .user_valid          (r_wakeup),
         .axi_valid           ('b0),
         .clk_out             (gated_pclk),
-        .gating              (apb_clock_gating),
+        .gating              (cg_gating),
         /* verilator lint_off PINCONNECTEMPTY */
-        .idle                ()
+        .idle                (cg_idle)
         /* verilator lint_on PINCONNECTEMPTY */
     );
 

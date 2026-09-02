@@ -140,7 +140,8 @@ These are declared in the parameter list so they can be used in port widths, but
 |------|-------|-----------|-------------|
 | busy | 1 | Output | Module busy (data in buffer or input valid) |
 | parity_error | 1 | Output | Parity error detected on input (sticky flag) |
-| axis_clock_gating | 1 | Output | Clock gating active status (1=gated, 0=running) |
+| cg_gating | 1 | Output | Clock gating active status (1=gated, 0=running) |
+| `cg_idle` | Out | 1 | Activity terms quiet (registered `~wakeup`). |
 
 ---
 
@@ -164,7 +165,7 @@ flowchart TB
     subgraph CG_CTRL["Clock Gate Controller"]
         ctrl["amba_clock_gate_ctrl"]
         gated_clk["gated_clk"]
-        gating_status["axis_clock_gating"]
+        gating_status["cg_gating"]
     end
 
     subgraph CORE["AXIS5 Slave Core"]
@@ -286,7 +287,7 @@ When `ENABLE_PARITY=1`:
 > - r_wakeup (activity detection)
 > - i_cg_idle_count (threshold)
 > - gated_clk (starts gating after threshold)
-> - axis_clock_gating (status)
+> - cg_gating (status)
 > - New s_axis_tvalid arrival ungates clock
 
 ### Wake-up Preventing Gating During Receive
@@ -300,7 +301,7 @@ When `ENABLE_PARITY=1`:
 > - s_axis_tvalid
 > - r_wakeup (stays high)
 > - gated_clk (remains running)
-> - axis_clock_gating (stays 0)
+> - cg_gating (stays 0)
 > - fub_axis5_tvalid (output forwarded)
 
 ### Backend Backpressure with Clock Gating
@@ -315,7 +316,7 @@ When `ENABLE_PARITY=1`:
 > - core_busy (stays high)
 > - r_wakeup (stays high)
 > - gated_clk (remains running due to busy)
-> - axis_clock_gating (stays 0 during backpressure)
+> - cg_gating (stays 0 during backpressure)
 
 ---
 
@@ -367,7 +368,7 @@ axis5_slave_cg #(
     // Status
     .busy                   (axis_busy),
     .parity_error           (),
-    .axis_clock_gating      (axis_clk_gated)  // Monitor gating status
+    .cg_gating      (axis_clk_gated)  // Monitor gating status
 );
 ```
 
@@ -415,7 +416,7 @@ axis5_slave_cg #(
     // Status monitoring
     .busy                   (rx_busy),
     .parity_error           (rx_parity_err),
-    .axis_clock_gating      (rx_clk_gated)
+    .cg_gating      (rx_clk_gated)
 );
 
 // Error and power monitoring
@@ -488,7 +489,7 @@ axis5_slave_cg #(
     // Status for system monitoring
     .busy                   (rx_busy),
     .parity_error           (rx_parity_err),
-    .axis_clock_gating      (rx_clk_gated)
+    .cg_gating      (rx_clk_gated)
 );
 
 // Interrupt on parity error
@@ -551,11 +552,11 @@ Parity errors detected on input side:
 - **Input signals:** Sampled by the wake-up logic on `aclk` (always running) and by the core on `gated_clk`
 - **Core logic:** Operates on `gated_clk` domain
 - **Output signals:** Driven by `gated_clk` domain
-- **Status outputs:** `axis_clock_gating` on `aclk` domain
+- **Status outputs:** `cg_gating` on `aclk` domain
 
 No CDC synchronizers are needed, because `gated_clk` is `aclk` passed through an ICG cell: same frequency, same phase, no independent clock source. There is still physical work to do:
 
-- **Clock tree synthesis:** `gated_clk` must be balanced against `aclk`. The wake-up registers and `axis_clock_gating` sit on `aclk` while the core sits on `gated_clk`, so uncontrolled skew between the two branches eats directly into the timing budget on every path that crosses between them.
+- **Clock tree synthesis:** `gated_clk` must be balanced against `aclk`. The wake-up registers and `cg_gating` sit on `aclk` while the core sits on `gated_clk`, so uncontrolled skew between the two branches eats directly into the timing budget on every path that crosses between them.
 - **ICG placement:** place the ICG cell close to the root of the gated branch so the insertion delay it adds is common to the whole core.
 - **FPGA targets:** `clock_gate_ctrl` instantiates an ICG cell, which is an ASIC library primitive. On FPGAs use a clock-enable style implementation or a device buffer with an enable (for example `BUFGCE`) instead; a bare ICG will not map cleanly.
 

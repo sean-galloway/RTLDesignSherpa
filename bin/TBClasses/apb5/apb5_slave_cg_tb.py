@@ -177,8 +177,8 @@ class APB5SlaveCGTB(APB5SlaveTB):
 
         # Check busy/gating indicators
         gating_active = False
-        if hasattr(self.dut, 'apb_clock_gating'):
-            gating_active = int(self.dut.apb_clock_gating.value) == 1
+        if hasattr(self.dut, 'cg_gating'):
+            gating_active = int(self.dut.cg_gating.value) == 1
 
         self.log.info(f"Clock gating during busy: {gating_active}")
 

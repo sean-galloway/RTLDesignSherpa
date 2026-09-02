@@ -36,7 +36,7 @@ This is the **clock-gated variant** of [apb4_master](./apb4_master.md). It adds 
 
 - **Same Functionality:** 100% equivalent to base module
 - **Runtime Control:** Gating is enabled and tuned by input signals, not parameters
-- **Observable:** `apb_clock_gating` output reports when the clock is gated
+- **Observable:** `cg_gating` output reports when the clock is gated
 - **Bypassable:** Tie `cfg_cg_enable = 0` for behaviour identical to the base module
 
 **For the clock-gating architecture and the underlying gate cell, see:**
@@ -85,7 +85,8 @@ In addition to all [apb4_master](./apb4_master.md) ports:
 |------|-------|-----------|-------------|
 | `cfg_cg_enable` | 1 | Input | Global clock-gate enable. 0 = never gate (identical to base module) |
 | `cfg_cg_idle_count` | CG_IDLE_COUNT_WIDTH | Input | Idle cycles to count down before gating the clock |
-| `apb_clock_gating` | 1 | Output | Asserted while the internal clock is gated |
+| `cg_gating` | 1 | Output | Asserted while the internal clock is gated |
+| `cg_idle` | Out | 1 | Activity terms quiet (registered `~wakeup`). |
 
 ## Functional Description
 
@@ -145,7 +146,7 @@ apb4_master_cg #(
     // Clock gating control
     .cfg_cg_enable     (1'b1),
     .cfg_cg_idle_count (4'd8),
-    .apb_clock_gating  (apb_cg_active),
+    .cg_gating  (apb_cg_active),
 
     // ... all other ports same as apb4_master
 );

@@ -231,8 +231,8 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_fifo (
 
 | Module | Purpose | Key Params | Documentation |
 |--------|---------|------------|---------------|
-| `axis_master.sv` | AXIS transmit monitoring | DATA_WIDTH, ID_WIDTH, DEST_WIDTH | `docs/markdown/rtl-amba/axis4/axis_master.md` |
-| `axis_slave.sv` | AXIS receive monitoring | Same | `docs/markdown/rtl-amba/axis4/` |
+| `axis4_master.sv` | AXIS transmit monitoring | DATA_WIDTH, ID_WIDTH, DEST_WIDTH | `docs/markdown/rtl-amba/axis4/axis4_master.md` |
+| `axis4_slave.sv` | AXIS receive monitoring | Same | `docs/markdown/rtl-amba/axis4/` |
 
 ### AXI4-Lite Monitors
 
@@ -522,7 +522,7 @@ apb4_monitor #(
 ### Pattern 3: AXIS Monitor
 
 ```systemverilog
-axis_master #(
+axis4_master #(
     .DATA_WIDTH(64),
     .ID_WIDTH(8),
     .DEST_WIDTH(4)

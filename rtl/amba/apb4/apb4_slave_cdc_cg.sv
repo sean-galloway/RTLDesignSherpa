@@ -84,7 +84,16 @@ module apb4_slave_cdc_cg #(
     output logic              pclk_cg_gating,
     output logic              pclk_cg_idle,
     output logic              aclk_cg_gating,
-    output logic              aclk_cg_idle
+    output logic              aclk_cg_idle,
+
+    // Canonical whole-module gating status. Every *_cg wrapper exposes
+    // cg_gating/cg_idle; this module has TWO independent clock domains, so the
+    // per-domain signals above stay -- they are not interchangeable, and each
+    // masks only its own side's readys. The canonical pair is the aggregate:
+    // the module is gated only when BOTH domains are, and idle only when both
+    // are idle.
+    output logic              cg_gating,
+    output logic              cg_idle
 );
 
     // Local Parameters
@@ -137,6 +146,9 @@ module apb4_slave_cdc_cg #(
     logic              w_rsp_pslverr;
 
     // Force PREADY to 0 when clock gating is active in PCLK domain
+    assign cg_gating = pclk_cg_gating && aclk_cg_gating;
+    assign cg_idle   = pclk_cg_idle   && aclk_cg_idle;
+
     assign s_apb_PREADY = pclk_cg_gating ? 1'b0 : int_apb_PREADY;
 
     // OR all PCLK domain valid signals for clock gating control

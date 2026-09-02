@@ -140,7 +140,8 @@ These are declared in the parameter list so they can be used in port widths, but
 |------|-------|-----------|-------------|
 | busy | 1 | Output | Module busy (data in buffer or input valid) |
 | parity_error | 1 | Output | Parity error detected (sticky flag) |
-| axis_clock_gating | 1 | Output | Clock gating active status (1=gated, 0=running) |
+| cg_gating | 1 | Output | Clock gating active status (1=gated, 0=running) |
+| `cg_idle` | Out | 1 | Activity terms quiet (registered `~wakeup`). |
 
 ---
 
@@ -164,7 +165,7 @@ flowchart TB
     subgraph CG_CTRL["Clock Gate Controller"]
         ctrl["amba_clock_gate_ctrl"]
         gated_clk["gated_clk"]
-        gating_status["axis_clock_gating"]
+        gating_status["cg_gating"]
     end
 
     subgraph CORE["AXIS5 Master Core"]
@@ -284,7 +285,7 @@ This dual use is what guarantees wake-up events are never missed because the clo
 > - r_wakeup (activity detection)
 > - i_cg_idle_count (threshold)
 > - gated_clk (starts gating after threshold)
-> - axis_clock_gating (status)
+> - cg_gating (status)
 > - fub_axis5_tvalid (new transfer wakes up)
 
 ### Wake-up Signal Preventing Gating
@@ -297,7 +298,7 @@ This dual use is what guarantees wake-up events are never missed because the clo
 > - fub_axis5_twakeup (asserted)
 > - r_wakeup (stays high)
 > - gated_clk (remains running)
-> - axis_clock_gating (stays 0)
+> - cg_gating (stays 0)
 
 ### Transfer During Idle Period
 
@@ -309,7 +310,7 @@ This dual use is what guarantees wake-up events are never missed because the clo
 > - gated_clk (gated, then ungates on transfer)
 > - fub_axis5_tvalid (new transfer)
 > - r_wakeup (0 → 1 transition)
-> - axis_clock_gating (1 → 0)
+> - cg_gating (1 → 0)
 > - m_axis5_tvalid (output after ungate)
 
 ---
@@ -362,7 +363,7 @@ axis5_master_cg #(
     // Status
     .busy                   (axis_busy),
     .parity_error           (),
-    .axis_clock_gating      (axis_clk_gated)  // Monitor gating status
+    .cg_gating      (axis_clk_gated)  // Monitor gating status
 );
 ```
 
@@ -390,7 +391,7 @@ axis5_master_cg #(
 
     .busy                   (axis_busy),
     .parity_error           (parity_err),
-    .axis_clock_gating      (clk_gated_status)
+    .cg_gating      (clk_gated_status)
 );
 
 // Configuration register interface
@@ -428,7 +429,7 @@ axis5_master_cg #(
     .i_cg_enable        (1'b1),
     .i_cg_idle_count    (4'd8),
     // ... ports ...
-    .axis_clock_gating  (gated_status)
+    .cg_gating  (gated_status)
 );
 
 // Track gating statistics
@@ -492,11 +493,11 @@ Each clock gate transition has overhead:
 - **Input signals:** Must be on `aclk` domain (always running)
 - **Core logic:** Operates on `gated_clk` domain
 - **Output signals:** Driven by `gated_clk` domain
-- **Status outputs:** `axis_clock_gating` on `aclk` domain
+- **Status outputs:** `cg_gating` on `aclk` domain
 
 No CDC synchronizers are needed, because `gated_clk` is `aclk` passed through an ICG cell: same frequency, same phase, no independent clock source. There is still physical work to do:
 
-- **Clock tree synthesis:** `gated_clk` must be balanced against `aclk`. The wake-up registers and `axis_clock_gating` sit on `aclk` while the core sits on `gated_clk`, so uncontrolled skew between the two branches eats directly into the timing budget on every path that crosses between them.
+- **Clock tree synthesis:** `gated_clk` must be balanced against `aclk`. The wake-up registers and `cg_gating` sit on `aclk` while the core sits on `gated_clk`, so uncontrolled skew between the two branches eats directly into the timing budget on every path that crosses between them.
 - **ICG placement:** place the ICG cell close to the root of the gated branch so the insertion delay it adds is common to the whole core.
 - **FPGA targets:** `clock_gate_ctrl` instantiates an ICG cell, which is an ASIC library primitive. On FPGAs use a clock-enable style implementation or a device buffer with an enable (for example `BUFGCE`) instead; a bare ICG will not map cleanly.
 

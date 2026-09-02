@@ -100,10 +100,10 @@ In addition to all [apb4_slave_cdc](./apb4_slave_cdc.md) ports:
 |------|-------|-----------|-------------|
 | `cfg_cg_enable` | 1 | Input | Global clock-gate enable for both domains. 0 = never gate |
 | `cfg_cg_idle_count` | CG_IDLE_COUNT_WIDTH | Input | Idle cycles to count down before gating |
-| `pclk_cg_gating` | 1 | Output | Asserted while the `pclk` domain is gated |
-| `pclk_cg_idle` | 1 | Output | Asserted one cycle after the `pclk`-domain activity terms go low. **Not an occupancy flag** — see below |
-| `aclk_cg_gating` | 1 | Output | Asserted while the `aclk` domain is gated |
-| `aclk_cg_idle` | 1 | Output | Asserted one cycle after the `aclk`-domain activity terms go low. **Not an occupancy flag** — see below |
+| `cg_gating` | 1 | Output | Asserted while the `pclk` domain is gated |
+| `cg_idle` | 1 | Output | Asserted one cycle after the `pclk`-domain activity terms go low. **Not an occupancy flag** — see below |
+| `cg_gating` | 1 | Output | Asserted while the `aclk` domain is gated |
+| `cg_idle` | 1 | Output | Asserted one cycle after the `aclk`-domain activity terms go low. **Not an occupancy flag** — see below |
 
 > **`*_cg_idle` does not know whether the FIFOs are empty.** `amba_clock_gate_ctrl`
 > has no occupancy input at all — its whole idle logic is
@@ -112,13 +112,34 @@ In addition to all [apb4_slave_cdc](./apb4_slave_cdc.md) ports:
 > On this wrapper the activity terms mostly hide occupancy anyway: APB holds
 > `s_apb_PSEL` until `PREADY`, and this slave asserts `PREADY` only when the
 > response returns, so a stalled backend keeps `pclk_user_valid` high and
-> `pclk_cg_idle` low for the whole stall; an unconsumed response likewise
+> `cg_idle` low for the whole stall; an unconsumed response likewise
 > holds `w_rsp_valid`/`rsp_valid` high. Do not read that as "idle implies
 > empty" — it does not, here or anywhere: idle is "nothing has been handed to
 > me recently", the input to the gating countdown.
 >
 > **Do not use it as a safe-to-reset or safe-to-power-down qualifier**; that
 > requires an emptiness check this signal does not perform.
+
+---
+
+### Clock-gating status outputs
+
+This wrapper spans TWO clock domains and gates each independently, so it
+carries three pairs rather than one. They are not interchangeable.
+
+| Port | Dir | Width | Description |
+|---|---|---|---|
+| `pclk_cg_gating` | Out | 1 | APB-domain clock gated. Masks `s_apb_PREADY` and the command-side ready. |
+| `pclk_cg_idle` | Out | 1 | APB-domain activity terms quiet. |
+| `aclk_cg_gating` | Out | 1 | AXI-domain clock gated. Masks the response-side ready. |
+| `aclk_cg_idle` | Out | 1 | AXI-domain activity terms quiet. |
+| `cg_gating` | Out | 1 | Whole-module aggregate: `pclk_cg_gating && aclk_cg_gating`. High only when BOTH domains are gated. |
+| `cg_idle` | Out | 1 | Whole-module aggregate: `pclk_cg_idle && aclk_cg_idle`. |
+
+Use the per-domain signals to reason about one side's readys; use `cg_gating`
+only as the "is this block asleep" summary. Treating `cg_gating` as equivalent
+to `pclk_cg_gating` is wrong: with one domain busy the aggregate stays low
+while that domain's readys are still masked.
 
 ---
 
@@ -180,10 +201,10 @@ apb4_slave_cdc_cg #(
     .cfg_cg_idle_count (4'd8),
 
     // Per-domain gating status
-    .pclk_cg_gating    (pclk_gated),
-    .pclk_cg_idle      (pclk_idle),
-    .aclk_cg_gating    (aclk_gated),
-    .aclk_cg_idle      (aclk_idle),
+    .cg_gating    (pclk_gated),
+    .cg_idle      (pclk_idle),
+    .cg_gating    (aclk_gated),
+    .cg_idle      (aclk_idle),
 
     // ... all other ports same as apb4_slave_cdc
 );

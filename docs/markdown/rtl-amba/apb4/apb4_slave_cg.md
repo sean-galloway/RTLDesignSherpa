@@ -38,7 +38,7 @@ The `apb4_slave_cg` module is a clock-gated variant of [apb4_slave](./apb4_slave
 
 - **Activity-Based Clock Gating:** Gates `pclk` when the interface has been idle
 - **Runtime Configuration:** Enable and idle threshold are input signals, not parameters
-- **Gating Status Output:** `apb_clock_gating` reports when the clock is gated
+- **Gating Status Output:** `cg_gating` reports when the clock is gated
 - **Zero Functional Impact:** Maintains 100% functional equivalence with base module
 
 The module is a thin wrapper: one `amba_clock_gate_ctrl` instance produces
@@ -98,7 +98,8 @@ In addition to all ports from [apb4_slave](./apb4_slave.md):
 |------|-------|-----------|-------------|
 | `cfg_cg_enable` | 1 | Input | Global clock-gate enable. 0 = never gate (identical to base module) |
 | `cfg_cg_idle_count` | CG_IDLE_COUNT_WIDTH | Input | Idle cycles to count down before gating the clock |
-| `apb_clock_gating` | 1 | Output | Asserted while the internal clock is gated |
+| `cg_gating` | 1 | Output | Asserted while the internal clock is gated |
+| `cg_idle` | Out | 1 | Activity terms quiet (registered `~wakeup`). |
 
 ---
 
@@ -191,7 +192,7 @@ apb4_slave_cg #(
 
     .cfg_cg_enable     (1'b1),
     .cfg_cg_idle_count (4'd4),   // gate quickly after 4 idle cycles
-    .apb_clock_gating  (cg_active),
+    .cg_gating  (cg_active),
     // ... connect signals same as base module
 );
 ```
@@ -209,7 +210,7 @@ apb4_slave_cg #(
 
     .cfg_cg_enable     (1'b1),
     .cfg_cg_idle_count (4'd15),  // wait longer; fewer gate/ungate events
-    .apb_clock_gating  (cg_active),
+    .cg_gating  (cg_active),
     // ... connect signals same as base module
 );
 ```
@@ -257,7 +258,7 @@ switching activity file (SAIF/VCD) and compare against `apb4_slave`.
 
 | Signal | Width | Description |
 |--------|-------|-------------|
-| `apb_clock_gating` | 1 | Asserted while the internal clock is gated. Integrate over a window to measure the gated duty cycle |
+| `cg_gating` | 1 | Asserted while the internal clock is gated. Integrate over a window to measure the gated duty cycle |
 
 ### Synthesis Considerations
 
@@ -318,7 +319,7 @@ apb4_slave_cg dut (
 For power-specific verification:
 
 1. **Enable gating** (`cfg_cg_enable = 1`) with a realistic `cfg_cg_idle_count`
-2. **Monitor `apb_clock_gating`** to verify the expected gated duty cycle
+2. **Monitor `cg_gating`** to verify the expected gated duty cycle
 3. **Vary traffic patterns** to test gating effectiveness
 4. **Check wake-up timing** meets system requirements
 

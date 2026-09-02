@@ -548,7 +548,7 @@ apb4_master_cg #(
     // ... all other ports identical to apb4_master ...
 
     // Status
-    .apb_clock_gating  (apb_cg_active)   // 1 while the clock is gated
+    .cg_gating  (apb_cg_active)   // 1 while the clock is gated
 );
 ```
 

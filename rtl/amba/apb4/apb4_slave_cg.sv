@@ -68,7 +68,9 @@ module apb4_slave_cg #(
     input  logic [DW-1:0]     rsp_prdata,
     input  logic              rsp_pslverr,
     // Clock gating indicator
-    output logic              apb_clock_gating
+    output logic              cg_gating,
+    // Idle indicator: activity terms quiet (registered ~wakeup)
+    output logic              cg_idle
 );
 
     // local clock gating signals
@@ -95,9 +97,9 @@ module apb4_slave_cg #(
         .user_valid          (r_wakeup),
         .axi_valid           ('b0),
         .clk_out             (gated_pclk),
-        .gating              (apb_clock_gating),
+        .gating              (cg_gating),
         /* verilator lint_off PINCONNECTEMPTY */
-        .idle                ()
+        .idle                (cg_idle)
         /* verilator lint_on PINCONNECTEMPTY */
     );
 

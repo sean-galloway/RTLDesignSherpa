@@ -248,8 +248,8 @@ class APBSlaveCDCCGTB(TBBase):
                 clock_signal_name="pclk",
                 user_valid_signals=["s_apb_PSEL", "w_rsp_valid"],
                 axi_valid_signals=["w_cmd_valid"],
-                gating_signal_name="pclk_cg_gating",
-                idle_signal_name="pclk_cg_idle",
+                gating_signal_name="cg_gating",
+                idle_signal_name="cg_idle",
                 enable_signal_name="cfg_cg_enable",
                 idle_count_signal_name="cfg_cg_idle_count"
             )
@@ -262,8 +262,8 @@ class APBSlaveCDCCGTB(TBBase):
                 clock_signal_name="aclk",
                 user_valid_signals=["rsp_valid"],
                 axi_valid_signals=["cmd_valid", "cmd_ready"],
-                gating_signal_name="aclk_cg_gating",
-                idle_signal_name="aclk_cg_idle",
+                gating_signal_name="cg_gating",
+                idle_signal_name="cg_idle",
                 enable_signal_name="cfg_cg_enable",    # Shared config
                 idle_count_signal_name="cfg_cg_idle_count"  # Shared config
             )
@@ -510,8 +510,8 @@ class APBSlaveCDCCGTB(TBBase):
         # Check Clock Gating specific signals
         cg_signals = [
             'cfg_cg_enable', 'cfg_cg_idle_count', 
-            'pclk_cg_gating', 'pclk_cg_idle',
-            'aclk_cg_gating', 'aclk_cg_idle'
+            'cg_gating', 'cg_idle',
+            'cg_gating', 'cg_idle'
         ]
         for sig in cg_signals:
             try:

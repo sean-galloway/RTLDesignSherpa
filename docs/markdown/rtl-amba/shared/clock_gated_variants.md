@@ -42,7 +42,7 @@ compile-time enable parameter on the wrapper.
 **Examples:**
 - `axi4_master_rd.sv` → `axi4_master_rd_cg.sv`
 - `apb4_slave.sv` → `apb4_slave_cg.sv`
-- `axis_master.sv` → `axis_master_cg.sv`
+- `axis4_master.sv` → `axis4_master_cg.sv`
 
 The key principle: **clock-gated variants preserve the functional behavior of the base module and add runtime power management.**
 
@@ -92,10 +92,10 @@ Status port naming differs by protocol family. Check the module port list before
 |--------|--------------|
 | AXI4, AXI5, AXI4-Lite, AXI-Stream (`axis4`) | `cg_gating`, `cg_idle` |
 | AXI5 monitor (`*_mon_cg`) | `cg_gating`, `cg_idle` |
-| AXI5-Stream (`axis5`) | `axis_clock_gating` |
-| APB, APB5 (non-CDC) | `apb_clock_gating` (the controller `idle` output is left unconnected) |
-| APB5 CDC (`apb5_slave_cdc_cg`) | `apb_clock_gating` |
-| APB CDC (`apb4_slave_cdc_cg`) | `pclk_cg_gating`, `pclk_cg_idle`, `aclk_cg_gating`, `aclk_cg_idle` (two gating domains, two controller instances) |
+| AXI5-Stream (`axis5`) | `cg_gating` |
+| APB, APB5 (non-CDC) | `cg_gating` (the controller `idle` output is left unconnected) |
+| APB5 CDC (`apb5_slave_cdc_cg`) | `cg_gating` |
+| APB CDC (`apb4_slave_cdc_cg`) | `cg_gating`, `cg_idle`, `cg_gating`, `cg_idle` (two gating domains, two controller instances) |
 
 **All other ports are identical to the base module.**
 
@@ -179,7 +179,7 @@ The following wrappers drive the relevant `*ready` outputs to zero while gated, 
 first beat out of a gated period is backpressured rather than lost:
 
 - All AXI4, AXI5, and AXI4-Lite transport `_cg` modules
-- `axis_master_cg`, `axis_slave_cg`
+- `axis4_master_cg`, `axis4_slave_cg`
 - All four AXI5 `*_mon_cg` modules
 - `apb4_slave_cdc_cg` (both clock domains)
 
@@ -242,7 +242,7 @@ edge, not a register stage.
 | Family | Wrapper flop | `amba_clock_gate_ctrl` flop | Stages | First usable edge |
 |--------|--------------|-----------------------------|--------|-------------------|
 | AXI4, AXI5, AXI4-Lite `_cg` | No (combinational) | Yes | 1 | 2 clocks |
-| `axis_master_cg`, `axis_slave_cg` (AXI4-Stream) | No (combinational) | Yes | 1 | 2 clocks |
+| `axis4_master_cg`, `axis4_slave_cg` (AXI4-Stream) | No (combinational) | Yes | 1 | 2 clocks |
 | All `*_mon_cg` monitor wrappers | No (combinational) | Yes | 1 | 2 clocks |
 | `apb4_slave_cdc_cg` | No (combinational) | Yes | 1 | 2 clocks |
 | `apb4_master_cg`, `apb4_slave_cg` | Yes | Yes | 2 | 3 clocks |
@@ -460,7 +460,7 @@ Every module below instantiates `amba_clock_gate_ctrl` and takes `CG_IDLE_COUNT_
 | AXI4-Lite | `rtl/amba/axil4/` | `axil4_master_rd_cg`, `axil4_master_wr_cg`, `axil4_slave_rd_cg`, `axil4_slave_wr_cg` |
 | APB | `rtl/amba/apb4/` | `apb4_master_cg`, `apb4_slave_cg`, `apb4_slave_cdc_cg` (two gating domains) |
 | APB5 | `rtl/amba/apb5/` | `apb5_master_cg`, `apb5_slave_cg`, `apb5_slave_cdc_cg` |
-| AXI-Stream | `rtl/amba/axis4/` | `axis_master_cg`, `axis_slave_cg` |
+| AXI-Stream | `rtl/amba/axis4/` | `axis4_master_cg`, `axis4_slave_cg` |
 | AXI5-Stream | `rtl/amba/axis5/` | `axis5_master_cg`, `axis5_slave_cg` |
 
 #### Monitor Modules (12)
@@ -483,7 +483,7 @@ contains no `_cg` module at all.
 - **Per-Protocol Guides:**
   - [AXI4 Clock Gating Guide](../axi4/axi4_clock_gating_guide.md)
   - [AXI4-Lite Clock Gating Guide](../axil4/axil4_clock_gating_guide.md)
-  - [AXI-Stream Clock Gating Guide](../axis4/axis_clock_gating_guide.md)
+  - [AXI-Stream Clock Gating Guide](../axis4/axis4_clock_gating_guide.md)
 - **Base Module Documentation:** see the per-protocol directories (`axi4/`, `axi5/`,
   `axil4/`, `apb/`, `apb5/`, `axis4/`, `axis5/`)
 - **AMBA Overview:** [overview.md](../overview.md)
