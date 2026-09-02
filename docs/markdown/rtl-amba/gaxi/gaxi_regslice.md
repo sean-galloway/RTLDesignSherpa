@@ -204,120 +204,25 @@ rd_data  ========[ A ]================
 
 ## Usage Examples
 
-### Example 1: Pipeline Timing Isolation
+
+Every parameter and port below is read from the module declaration.
 
 ```systemverilog
-// Insert register slice to break long combinatorial path
 gaxi_regslice #(
-    .DATA_WIDTH(64)
-) u_pipeline_break (
-    .axi_aclk     (clk),
-    .axi_aresetn  (rst_n),
-    .wr_valid     (stage1_valid),
-    .wr_ready     (stage1_ready),
-    .wr_data      (stage1_data),
-    .rd_valid     (stage2_valid),
-    .rd_ready     (stage2_ready),
-    .rd_data      (stage2_data),
-    .count        ()  // Optional monitoring
+    .DATA_WIDTH            (32)
+) u_gaxi_regslice (
+    .axi_aclk              (axi_aclk),
+    .axi_aresetn           (axi_aresetn),
+    .wr_valid              (wr_valid),
+    .wr_ready              (wr_ready),
+    .wr_data               (wr_data),
+    .rd_valid              (rd_valid),
+    .rd_ready              (rd_ready),
+    .rd_data               (rd_data),
+    .count                 (count),
+    .rd_count              (rd_count)
 );
 ```
-
-### Example 2: AXI Channel Register Slice
-
-```systemverilog
-// Register slice for AXI AR channel
-gaxi_regslice #(
-    .DATA_WIDTH(AXI_ID_WIDTH + AXI_ADDR_WIDTH + 8 + 3 + 2)
-
-) u_ar_regslice (
-    .axi_aclk     (aclk),
-    .axi_aresetn  (aresetn),
-    .wr_valid     (m_axi_arvalid),
-    .wr_ready     (m_axi_arready),
-    .wr_data      ({m_axi_arid, m_axi_araddr, m_axi_arlen,
-                    m_axi_arsize, m_axi_arburst}),
-    .rd_valid     (s_axi_arvalid),
-    .rd_ready     (s_axi_arready),
-    .rd_data      ({s_axi_arid, s_axi_araddr, s_axi_arlen,
-                    s_axi_arsize, s_axi_arburst}),
-    .count        (ar_occupancy)
-);
-```
-
-### Example 3: Multiple Register Slices for Deep Pipelining
-
-```systemverilog
-// Chain multiple register slices for multi-cycle pipeline
-gaxi_regslice #(.DATA_WIDTH(32)) u_stage1 (
-    .axi_aclk(clk), .axi_aresetn(rst_n),
-    .wr_valid(in_valid),   .wr_ready(in_ready),   .wr_data(in_data),
-    .rd_valid(pipe1_valid), .rd_ready(pipe1_ready), .rd_data(pipe1_data)
-);
-
-gaxi_regslice #(.DATA_WIDTH(32)) u_stage2 (
-    .axi_aclk(clk), .axi_aresetn(rst_n),
-    .wr_valid(pipe1_valid), .wr_ready(pipe1_ready), .wr_data(pipe1_data),
-    .rd_valid(pipe2_valid), .rd_ready(pipe2_ready), .rd_data(pipe2_data)
-);
-
-gaxi_regslice #(.DATA_WIDTH(32)) u_stage3 (
-    .axi_aclk(clk), .axi_aresetn(rst_n),
-    .wr_valid(pipe2_valid), .wr_ready(pipe2_ready), .wr_data(pipe2_data),
-    .rd_valid(out_valid), .rd_ready(out_ready), .rd_data(out_data)
-);
-// Total latency: 3 cycles, full throughput maintained
-```
-
-### Example 4: Breaking Long Combinatorial Paths
-
-Problem: Critical path through multiple modules
-```systemverilog
-// Before: Long combinatorial path
-assign module_b_in = complex_function(module_a_out);
-```
-
-Solution: Insert register slice
-```systemverilog
-// After: Broken with 1-cycle register
-gaxi_regslice #(.DATA_WIDTH(32)) u_break (
-    .axi_aclk(clk), .axi_aresetn(rst_n),
-    .wr_valid(module_a_valid), .wr_data(module_a_out), .wr_ready(module_a_ready),
-    .rd_valid(module_b_valid), .rd_data(module_b_in),   .rd_ready(module_b_ready)
-);
-```
-
-### Example 5: AXI Interface Pipelining
-
-Improve timing across AXI channels:
-```systemverilog
-// Pipeline all 5 AXI4 channels
-gaxi_regslice #(...) u_ar_slice (...);  // Address Read
-gaxi_regslice #(...) u_r_slice  (...);  // Read Data
-gaxi_regslice #(...) u_aw_slice (...);  // Address Write
-gaxi_regslice #(...) u_w_slice  (...);  // Write Data
-gaxi_regslice #(...) u_b_slice  (...);  // Write Response
-```
-
-### Example 6: CDC Preparation
-
-Use before async FIFO to ensure registered inputs:
-```systemverilog
-// Register slice before CDC FIFO
-gaxi_regslice #(.DATA_WIDTH(32)) u_pre_cdc (
-    .axi_aclk(clk_a), .axi_aresetn(rst_a_n),
-    .wr_valid(src_valid), .wr_data(src_data), .wr_ready(src_ready),
-    .rd_valid(fifo_wr_valid), .rd_data(fifo_wr_data), .rd_ready(fifo_wr_ready)
-);
-
-gaxi_fifo_async #(.DATA_WIDTH(32), .DEPTH(16)) u_cdc_fifo (
-    .axi_wr_aclk(clk_a), .axi_rd_aclk(clk_b), ...
-    .wr_valid(fifo_wr_valid), .wr_data(fifo_wr_data), .wr_ready(fifo_wr_ready),
-    ...
-);
-```
-
----
 
 ## Design Notes
 

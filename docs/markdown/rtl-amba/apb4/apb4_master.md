@@ -328,187 +328,41 @@ Shows APB write with command FIFO and response handling:
 
 ## Usage Examples
 
-### Basic APB Master Configuration
+
+Every parameter and port below is read from the module declaration.
 
 ```systemverilog
 apb4_master #(
-    .ADDR_WIDTH(32),
-    .DATA_WIDTH(32),
-    .CMD_DEPTH(4),      // 4-entry command FIFO (literal entry count)
-    .RSP_DEPTH(4)       // 4-entry response FIFO (literal entry count)
+    .ADDR_WIDTH            (32),
+    .DATA_WIDTH            (32),
+    .PROT_WIDTH            (3),
+    .CMD_DEPTH             (6),
+    .RSP_DEPTH             (6)
 ) u_apb4_master (
-    .pclk         (apb_clk),
-    .presetn      (apb_resetn),
-
-    // APB interface to slaves
-    .m_apb_PSEL     (apb_psel),
-    .m_apb_PENABLE  (apb_penable),
-    .m_apb_PADDR    (apb_paddr),
-    .m_apb_PWRITE   (apb_pwrite),
-    .m_apb_PWDATA   (apb_pwdata),
-    .m_apb_PSTRB    (apb_pstrb),
-    .m_apb_PPROT    (apb_pprot),
-    .m_apb_PRDATA   (apb_prdata),
-    .m_apb_PSLVERR  (apb_pslverr),
-    .m_apb_PREADY   (apb_pready),
-
-    // Command interface from CPU/DMA
-    .cmd_valid      (cmd_valid),
-    .cmd_ready      (cmd_ready),
-    .cmd_pwrite     (cmd_write),
-    .cmd_paddr      (cmd_addr),
-    .cmd_pwdata     (cmd_wdata),
-    .cmd_pstrb      (cmd_strb),
-    .cmd_pprot      (3'b000),   // Normal access
-
-    // Response interface to CPU/DMA
-    .rsp_valid      (rsp_valid),
-    .rsp_ready      (rsp_ready),
-    .rsp_prdata     (rsp_rdata),
-    .rsp_pslverr    (rsp_error)
+    .pclk                  (pclk),
+    .presetn               (presetn),
+    .m_apb_PSEL            (m_apb_PSEL),
+    .m_apb_PENABLE         (m_apb_PENABLE),
+    .m_apb_PADDR           (m_apb_PADDR),
+    .m_apb_PWRITE          (m_apb_PWRITE),
+    .m_apb_PWDATA          (m_apb_PWDATA),
+    .m_apb_PSTRB           (m_apb_PSTRB),
+    .m_apb_PPROT           (m_apb_PPROT),
+    .m_apb_PRDATA          (m_apb_PRDATA),
+    .m_apb_PSLVERR         (m_apb_PSLVERR),
+    .m_apb_PREADY          (m_apb_PREADY),
+    .cmd_valid             (cmd_valid),
+    .cmd_ready             (cmd_ready),
+    .cmd_pwrite            (cmd_pwrite),
+    .cmd_paddr             (cmd_paddr),
+    .cmd_pwdata            (cmd_pwdata),
+    .cmd_pstrb             (cmd_pstrb),
+    .cmd_pprot             (cmd_pprot),
+    .rsp_valid             (rsp_valid),
+    .rsp_ready             (rsp_ready),
+    .rsp_prdata            (rsp_prdata),
+    .rsp_pslverr           (rsp_pslverr)
 );
-```
-
-### Register Write Sequence
-
-```systemverilog
-// Write to control register
-always_ff @(posedge clk) begin
-    if (write_control_reg) begin
-        cmd_valid  <= 1'b1;
-        cmd_pwrite <= 1'b1;
-        cmd_paddr  <= 32'h1000_0000;    // Control register address
-        cmd_pwdata <= control_value;
-        cmd_pstrb  <= 4'hF;             // All bytes valid
-        cmd_pprot  <= 3'b000;           // Normal access
-    end else if (cmd_ready) begin
-        cmd_valid  <= 1'b0;
-    end
-end
-
-// No response needed for writes (unless checking for errors)
-assign rsp_ready = 1'b1;
-```
-
-### Register Read Sequence
-
-```systemverilog
-// Read from status register
-always_ff @(posedge clk) begin
-    if (read_status_reg) begin
-        cmd_valid  <= 1'b1;
-        cmd_pwrite <= 1'b0;             // Read operation
-        cmd_paddr  <= 32'h1000_0004;    // Status register address
-        cmd_pwdata <= 32'h0;            // Don't care for reads
-        cmd_pstrb  <= 4'hF;             // All bytes
-        cmd_pprot  <= 3'b000;           // Normal access
-    end else if (cmd_ready) begin
-        cmd_valid  <= 1'b0;
-    end
-end
-
-// Handle read response
-always_ff @(posedge clk) begin
-    if (rsp_valid && rsp_ready) begin
-        if (!rsp_pslverr) begin
-            status_value <= rsp_prdata;
-            read_complete <= 1'b1;
-        end else begin
-            read_error <= 1'b1;
-        end
-    end
-end
-
-assign rsp_ready = 1'b1;  // Always ready to accept responses
-```
-
-### Burst Operation Example
-
-```systemverilog
-// Multiple register access sequence
-parameter int NUM_REGS = 8;
-logic [31:0] reg_addresses [NUM_REGS] = '{
-    32'h1000_0000, 32'h1000_0004, 32'h1000_0008, 32'h1000_000C,
-    32'h1000_0010, 32'h1000_0014, 32'h1000_0018, 32'h1000_001C
-};
-logic [31:0] reg_data [NUM_REGS];
-int reg_index;
-
-// Issue multiple commands
-always_ff @(posedge clk) begin
-    if (start_burst && reg_index < NUM_REGS) begin
-        if (cmd_ready || !cmd_valid) begin
-            cmd_valid  <= 1'b1;
-            cmd_pwrite <= 1'b1;
-            cmd_paddr  <= reg_addresses[reg_index];
-            cmd_pwdata <= reg_data[reg_index];
-            cmd_pstrb  <= 4'hF;
-            cmd_pprot  <= 3'b000;
-            reg_index  <= reg_index + 1;
-        end
-    end else begin
-        cmd_valid <= 1'b0;
-    end
-end
-```
-
-### APB Crossbar Integration
-
-```systemverilog
-// APB system with crossbar
-module apb_system (
-    input logic clk, resetn,
-    // CPU interface
-    input logic [31:0] cpu_addr,
-    input logic [31:0] cpu_wdata,
-    input logic        cpu_write,
-    input logic        cpu_valid,
-    output logic       cpu_ready,
-    output logic [31:0] cpu_rdata,
-    output logic        cpu_error
-);
-
-    // APB master
-    apb4_master u_apb4_master (
-        .pclk(clk),
-        .presetn(resetn),
-        /* ... m_apb_* ports to apb_m_* ... */
-        // CPU command interface
-        .cmd_valid(cpu_valid),
-        .cmd_ready(cpu_ready),
-        .cmd_pwrite(cpu_write),
-        .cmd_paddr(cpu_addr),
-        .cmd_pwdata(cpu_wdata),
-        .cmd_pstrb(4'hF),
-        .cmd_pprot(3'b000),
-        // CPU response interface
-        .rsp_valid(rsp_valid),
-        .rsp_ready(1'b1),
-        .rsp_prdata(cpu_rdata),
-        .rsp_pslverr(cpu_error)
-    );
-
-    // APB crossbar to multiple slaves.
-    // Fixed-configuration generated crossbar: 1 master, 4 slaves.
-    // Its master-side ports are m0_apb_* (inputs from this master) and its
-    // slave-side ports are sN_apb_* (outputs to the peripherals).
-    apbx_xbar_1to4 #(
-        .ADDR_WIDTH(32),
-        .DATA_WIDTH(32),
-        .BASE_ADDR (32'h1000_0000)
-    ) u_apbx_xbar (
-        .pclk(clk),
-        .presetn(resetn),
-        // Master side: driven by the apb4_master above
-        /* ... m0_apb_* ports ... */
-        // Slave side: to the peripherals
-        /* ... s0_apb_* ports ... */
-        /* ... s1_apb_* ports ... */
-        .s2_apb_*(slave2_apb_*),
-        .s3_apb_*(slave3_apb_*)
-    );
-
-endmodule
 ```
 
 ## Design Notes

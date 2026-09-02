@@ -771,11 +771,11 @@ async def test_custom_packets(dut):
     await tb.start_clock('aclk', freq=10, units='ns')
 
     # Initialize interfaces
-    axis_master = AXIS4Master(dut, dut.aclk, "s_axis_", 32, tb.log)
-    axis_slave = AXIS4Slave(dut, dut.aclk, "m_axis_", 32, tb.log)
+    axis4_master = AXIS4Master(dut, dut.aclk, "s_axis_", 32, tb.log)
+    axis4_slave = AXIS4Slave(dut, dut.aclk, "m_axis_", 32, tb.log)
 
     # Initialize driver
-    driver = CustomPacketDriver(axis_master, tb.log)
+    driver = CustomPacketDriver(axis4_master, tb.log)
 
     # Create and send packet
     packet = CustomPacket(
@@ -789,7 +789,7 @@ async def test_custom_packets(dut):
     await driver.send_packet(packet)
 
     # Receive and verify
-    received = await driver.receive_packet(axis_slave)
+    received = await driver.receive_packet(axis4_slave)
 
     assert received.packet_id == packet.packet_id
     assert received.payload == packet.payload
@@ -1306,7 +1306,7 @@ class ComponentFactory:
                 component = cls.create_axi_master(dut, clock, prefix, config)
             elif ifc_type == 'apb4_master':
                 component = cls.create_apb4_master(dut, clock, prefix, config)
-            elif ifc_type == 'axis_master':
+            elif ifc_type == 'axis4_master':
                 component = cls.create_axis_master(dut, clock, prefix, config)
             else:
                 raise ValueError(f"Unknown interface type: {ifc_type}")
@@ -1329,7 +1329,7 @@ async def test_with_factory(dut):
     interfaces = {
         'mem': ('axi_master', 'm_axi_', {'data_width': 64}),
         'cfg': ('apb4_master', 'apb_', {'addr_width': 16}),
-        'stream': ('axis_master', 's_axis_', {'data_width': 32})
+        'stream': ('axis4_master', 's_axis_', {'data_width': 32})
     }
 
     # Create all components

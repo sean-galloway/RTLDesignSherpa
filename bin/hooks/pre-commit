@@ -67,6 +67,19 @@ if echo "$STAGED" | grep -qE '(^|/)test_[^/]*\.py$'; then
     fi
 fi
 
+# --- a doc example must name ports the module actually has -------------------
+# Twenty-eight pages carried instantiations with invented ports. Every qc round
+# had the RTL and the example in the SAME bundle unit and missed them; two were
+# INTRODUCED by a humanize round. A script finds them in under a second, so a
+# script owns this, not a reviewer.
+if echo "$STAGED" | grep -qE '^docs/markdown/.*\.md$|\.sv$'; then
+    echo "[pre-commit] Checking doc instantiation examples..."
+    if ! out=$("$PY" "$REPO_ROOT/bin/check_doc_examples.py" 2>&1); then
+        echo "$out" | tail -12 >&2
+        fail=1
+    fi
+fi
+
 # --- filelist contract -------------------------------------------------------
 # The fast local mirror of .github/workflows/filelist-checks.yml. CI is the
 # authority; this saves the round trip.

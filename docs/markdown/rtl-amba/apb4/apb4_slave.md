@@ -322,279 +322,40 @@ header, to determine transaction direction. This affects the images under
 
 ## Usage Examples
 
-### Basic Register Block Interface
+
+Every parameter and port below is read from the module declaration.
 
 ```systemverilog
 apb4_slave #(
-    .ADDR_WIDTH(16),     // 64KB address space
-    .DATA_WIDTH(32),
-    .DEPTH(2)            // 2-entry buffers (literal entry count)
-) u_reg_slave (
-    .pclk         (apb_clk),
-    .presetn      (apb_resetn),
-
-    // APB interface from master
-    .s_apb_PSEL     (apb_psel),
-    .s_apb_PENABLE  (apb_penable),
-    .s_apb_PREADY   (apb_pready),
-    .s_apb_PADDR    (apb_paddr),
-    .s_apb_PWRITE   (apb_pwrite),
-    .s_apb_PWDATA   (apb_pwdata),
-    .s_apb_PSTRB    (apb_pstrb),
-    .s_apb_PPROT    (apb_pprot),
-    .s_apb_PRDATA   (apb_prdata),
-    .s_apb_PSLVERR  (apb_pslverr),
-
-    // Command interface to register block
-    .cmd_valid      (reg_cmd_valid),
-    .cmd_ready      (reg_cmd_ready),
-    .cmd_pwrite     (reg_write),
-    .cmd_paddr      (reg_addr),
-    .cmd_pwdata     (reg_wdata),
-    .cmd_pstrb      (reg_strb),
-    .cmd_pprot      (reg_prot),
-
-    // Response interface from register block
-    .rsp_valid      (reg_rsp_valid),
-    .rsp_ready      (reg_rsp_ready),
-    .rsp_prdata     (reg_rdata),
-    .rsp_pslverr    (reg_error)
+    .ADDR_WIDTH            (32),
+    .DATA_WIDTH            (32),
+    .PROT_WIDTH            (3),
+    .DEPTH                 (2)
+) u_apb4_slave (
+    .pclk                  (pclk),
+    .presetn               (presetn),
+    .s_apb_PSEL            (s_apb_PSEL),
+    .s_apb_PENABLE         (s_apb_PENABLE),
+    .s_apb_PREADY          (s_apb_PREADY),
+    .s_apb_PADDR           (s_apb_PADDR),
+    .s_apb_PWRITE          (s_apb_PWRITE),
+    .s_apb_PWDATA          (s_apb_PWDATA),
+    .s_apb_PSTRB           (s_apb_PSTRB),
+    .s_apb_PPROT           (s_apb_PPROT),
+    .s_apb_PRDATA          (s_apb_PRDATA),
+    .s_apb_PSLVERR         (s_apb_PSLVERR),
+    .cmd_valid             (cmd_valid),
+    .cmd_ready             (cmd_ready),
+    .cmd_pwrite            (cmd_pwrite),
+    .cmd_paddr             (cmd_paddr),
+    .cmd_pwdata            (cmd_pwdata),
+    .cmd_pstrb             (cmd_pstrb),
+    .cmd_pprot             (cmd_pprot),
+    .rsp_valid             (rsp_valid),
+    .rsp_ready             (rsp_ready),
+    .rsp_prdata            (rsp_prdata),
+    .rsp_pslverr           (rsp_pslverr)
 );
-```
-
-### Register Block Backend Implementation
-
-`PADDR` is a **byte** address. The example below holds 32-bit registers, so it
-drops the two low byte-lane bits and indexes with `cmd_addr[5:2]` to address 16
-words. Adjust the slice if `DATA_WIDTH` is not 32.
-
-```systemverilog
-// Simple register block backend
-module register_block (
-    input  logic        clk,
-    input  logic        resetn,
-
-    // Command interface
-    input  logic        cmd_valid,
-    output logic        cmd_ready,
-    input  logic        cmd_write,
-    input  logic [15:0] cmd_addr,
-    input  logic [31:0] cmd_wdata,
-    input  logic [3:0]  cmd_strb,
-
-    // Response interface
-    output logic        rsp_valid,
-    input  logic        rsp_ready,
-    output logic [31:0] rsp_rdata,
-    output logic        rsp_error
-);
-
-    // Register array
-    logic [31:0] registers [16];
-
-    // Command processing
-    always_ff @(posedge clk) begin
-        if (cmd_valid && cmd_ready) begin
-            if (cmd_write) begin
-                // Write operation with byte strobes
-                for (int i = 0; i < 4; i++) begin
-                    if (cmd_strb[i]) begin
-                        registers[cmd_addr[5:2]][i*8+:8] <= cmd_wdata[i*8+:8];
-                    end
-                end
-            end
-        end
-    end
-
-    // Response generation
-    always_ff @(posedge clk) begin
-        if (!resetn) begin
-            rsp_valid <= 1'b0;
-            rsp_rdata <= 32'h0;
-            rsp_error <= 1'b0;
-        end else if (cmd_valid && cmd_ready) begin
-            rsp_valid <= 1'b1;
-            rsp_rdata <= cmd_write ? 32'h0 : registers[cmd_addr[5:2]];
-            rsp_error <= (cmd_addr >= 16*4); // Address range check
-        end else if (rsp_ready) begin
-            rsp_valid <= 1'b0;
-        end
-    end
-
-    assign cmd_ready = !rsp_valid || rsp_ready;
-
-endmodule
-```
-
-### Memory Interface Example
-
-```systemverilog
-// APB slave for memory interface
-apb4_slave #(
-    .ADDR_WIDTH(20),     // 1MB address space
-    .DATA_WIDTH(32),
-    .DEPTH(3)            // 3-entry buffers for memory latency (odd depths are legal: 2..8)
-) u_mem_slave (
-    .pclk         (mem_clk),
-    .presetn      (mem_resetn),
-
-    // APB interface
-    .s_apb_PSEL(apb_psel), /* ... remaining s_apb_* ports ... */
-
-    // Memory command interface
-    .cmd_valid    (mem_cmd_valid),
-    .cmd_ready    (mem_cmd_ready),
-    .cmd_pwrite   (mem_write),
-    .cmd_paddr    (mem_addr),
-    .cmd_pwdata   (mem_wdata),
-    .cmd_pstrb    (mem_strb),
-    .cmd_pprot    (mem_prot),
-
-    // Memory response interface
-    .rsp_valid    (mem_rsp_valid),
-    .rsp_ready    (mem_rsp_ready),
-    .rsp_prdata   (mem_rdata),
-    .rsp_pslverr  (mem_error)
-);
-
-// Memory controller interface
-memory_controller u_mem_ctrl (
-    .clk          (mem_clk),
-    .resetn       (mem_resetn),
-
-    // APB slave interface
-    /* ... cmd_* ports to mem_cmd_* ... */
-    .rsp_*(mem_rsp_*),
-
-    // Physical memory interface
-    /* ... mem_* ports to ddr_* ... */
-);
-```
-
-### Multi-Register Bank System
-
-```systemverilog
-module multi_register_system (
-    input logic clk, resetn,
-
-    // APB interface
-    input  logic        apb_psel,
-    input  logic        apb_penable,
-    output logic        apb_pready,
-    input  logic [31:0] apb_paddr,
-    input  logic        apb_pwrite,
-    input  logic [31:0] apb_pwdata,
-    input  logic [3:0]  apb_pstrb,
-    input  logic [2:0]  apb_pprot,
-    output logic [31:0] apb_prdata,
-    output logic        apb_pslverr
-);
-
-    // APB slave with address-based routing
-    apb4_slave u_apb4_slave (
-        .pclk(clk),
-        .presetn(resetn),
-        .s_apb_PSEL(apb_psel), /* ... remaining s_apb_* ports ... */
-        /* ... cmd_* / rsp_* pass-through ... */
-        .rsp_*(rsp_*)
-    );
-
-    // Address decoder for multiple register banks
-    logic [2:0] bank_select;
-    logic [2:0] bank_cmd_valid;
-    logic [2:0] bank_rsp_valid;
-
-    assign bank_select = cmd_paddr[31:29]; // Top 3 bits for bank selection
-
-    // Command distribution
-    for (genvar i = 0; i < 3; i++) begin : gen_banks
-        assign bank_cmd_valid[i] = cmd_valid && (bank_select == i);
-
-        register_bank #(.BANK_ID(i)) u_bank (
-            .clk(clk),
-            .resetn(resetn),
-            .cmd_valid(bank_cmd_valid[i]),
-            .cmd_ready(bank_cmd_ready[i]),
-            /* ... cmd_* / rsp_* pass-through ... */
-            .rsp_valid(bank_rsp_valid[i]),
-            .rsp_*(rsp_*)
-        );
-    end
-
-    // Response arbitration
-    assign cmd_ready = |bank_cmd_ready;
-    assign rsp_valid = |bank_rsp_valid;
-
-endmodule
-```
-
-### Error Handling and Status Reporting
-
-```systemverilog
-// Enhanced backend with error handling
-module enhanced_register_block (
-    input  logic        clk,
-    input  logic        resetn,
-
-    // APB slave interface
-    input  logic        cmd_valid,
-    output logic        cmd_ready,
-    input  logic        cmd_write,
-    input  logic [15:0] cmd_addr,
-    input  logic [31:0] cmd_wdata,
-    input  logic [3:0]  cmd_strb,
-    input  logic [2:0]  cmd_prot,
-
-    output logic        rsp_valid,
-    input  logic        rsp_ready,
-    output logic [31:0] rsp_rdata,
-    output logic        rsp_error
-);
-
-    // Error conditions
-    logic addr_error, prot_error, access_error;
-
-    assign addr_error = (cmd_addr >= 16*4);                    // Out of range
-    assign prot_error = (cmd_prot[0] == 1'b1);                 // Privileged access (PPROT[0]; PPROT[2] is the instruction/data bit)
-    assign access_error = addr_error || prot_error;
-
-    // Register access with error checking
-    always_ff @(posedge clk) begin
-        if (cmd_valid && cmd_ready) begin
-            if (cmd_write && !access_error) begin
-                // Safe register write
-                for (int i = 0; i < 4; i++) begin
-                    if (cmd_strb[i]) begin
-                        registers[cmd_addr[5:2]][i*8+:8] <= cmd_wdata[i*8+:8];
-                    end
-                end
-            end
-        end
-    end
-
-    // Response with comprehensive error reporting
-    always_ff @(posedge clk) begin
-        if (!resetn) begin
-            rsp_valid <= 1'b0;
-            rsp_rdata <= 32'h0;
-            rsp_error <= 1'b0;
-        end else if (cmd_valid && cmd_ready) begin
-            rsp_valid <= 1'b1;
-            rsp_error <= access_error;
-
-            if (access_error) begin
-                rsp_rdata <= 32'hDEADBEEF;  // Error pattern
-            end else begin
-                rsp_rdata <= cmd_write ? 32'h0 : registers[cmd_addr[5:2]];
-            end
-        end else if (rsp_ready) begin
-            rsp_valid <= 1'b0;
-        end
-    end
-
-    assign cmd_ready = !rsp_valid || rsp_ready;
-
-endmodule
 ```
 
 ## Design Notes

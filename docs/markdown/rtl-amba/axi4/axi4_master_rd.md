@@ -288,178 +288,62 @@ assign busy = (int_ar_count > 0) || (int_r_count > 0) ||
 
 ## Usage Examples
 
-### Basic AXI4 Read Master Configuration
+
+Every parameter and port below is read from the module declaration.
 
 ```systemverilog
 axi4_master_rd #(
-    .SKID_DEPTH_AR(2),        // 2-entry address buffer
-    .SKID_DEPTH_R(4),         // 4-entry data buffer
-    .AXI_ID_WIDTH(8),
-    .AXI_ADDR_WIDTH(32),
-    .AXI_DATA_WIDTH(64),
-    .AXI_USER_WIDTH(1)
-) u_axi4_rd_master (
-    .aclk            (axi_clk),
-    .aresetn         (axi_resetn),
-
-    // Slave interface (from CPU/DMA)
-    .fub_axi_arid      (cpu_axi_arid),
-    .fub_axi_araddr    (cpu_axi_araddr),
-    .fub_axi_arlen     (cpu_axi_arlen),
-    .fub_axi_arsize    (cpu_axi_arsize),
-    .fub_axi_arburst   (cpu_axi_arburst),
-    .fub_axi_arlock    (cpu_axi_arlock),
-    .fub_axi_arcache   (cpu_axi_arcache),
-    .fub_axi_arprot    (cpu_axi_arprot),
-    .fub_axi_arqos     (cpu_axi_arqos),
-    .fub_axi_arregion  (cpu_axi_arregion),
-    .fub_axi_aruser    (cpu_axi_aruser),
-    .fub_axi_arvalid   (cpu_axi_arvalid),
-    .fub_axi_arready   (cpu_axi_arready),
-
-    .fub_axi_rid       (cpu_axi_rid),
-    .fub_axi_rdata     (cpu_axi_rdata),
-    .fub_axi_rresp     (cpu_axi_rresp),
-    .fub_axi_rlast     (cpu_axi_rlast),
-    .fub_axi_ruser     (cpu_axi_ruser),
-    .fub_axi_rvalid    (cpu_axi_rvalid),
-    .fub_axi_rready    (cpu_axi_rready),
-
-    // Master interface (to memory)
-    .m_axi_arid        (mem_axi_arid),
-    .m_axi_araddr      (mem_axi_araddr),
-    .m_axi_arlen       (mem_axi_arlen),
-    .m_axi_arsize      (mem_axi_arsize),
-    .m_axi_arburst     (mem_axi_arburst),
-    .m_axi_arlock      (mem_axi_arlock),
-    .m_axi_arcache     (mem_axi_arcache),
-    .m_axi_arprot      (mem_axi_arprot),
-    .m_axi_arqos       (mem_axi_arqos),
-    .m_axi_arregion    (mem_axi_arregion),
-    .m_axi_aruser      (mem_axi_aruser),
-    .m_axi_arvalid     (mem_axi_arvalid),
-    .m_axi_arready     (mem_axi_arready),
-
-    .m_axi_rid         (mem_axi_rid),
-    .m_axi_rdata       (mem_axi_rdata),
-    .m_axi_rresp       (mem_axi_rresp),
-    .m_axi_rlast       (mem_axi_rlast),
-    .m_axi_ruser       (mem_axi_ruser),
-    .m_axi_rvalid      (mem_axi_rvalid),
-    .m_axi_rready      (mem_axi_rready),
-
-    // Status for clock gating
-    .busy              (rd_master_busy)
+    .SKID_DEPTH_AR         (2),
+    .SKID_DEPTH_R          (4),
+    .AXI_ID_WIDTH          (8),
+    .AXI_ADDR_WIDTH        (32),
+    .AXI_DATA_WIDTH        (32),
+    .AXI_USER_WIDTH        (1)
+) u_axi4_master_rd (
+    .aclk                  (aclk),
+    .aresetn               (aresetn),
+    .fub_axi_arid          (fub_axi_arid),
+    .fub_axi_araddr        (fub_axi_araddr),
+    .fub_axi_arlen         (fub_axi_arlen),
+    .fub_axi_arsize        (fub_axi_arsize),
+    .fub_axi_arburst       (fub_axi_arburst),
+    .fub_axi_arlock        (fub_axi_arlock),
+    .fub_axi_arcache       (fub_axi_arcache),
+    .fub_axi_arprot        (fub_axi_arprot),
+    .fub_axi_arqos         (fub_axi_arqos),
+    .fub_axi_arregion      (fub_axi_arregion),
+    .fub_axi_aruser        (fub_axi_aruser),
+    .fub_axi_arvalid       (fub_axi_arvalid),
+    .fub_axi_arready       (fub_axi_arready),
+    .fub_axi_rid           (fub_axi_rid),
+    .fub_axi_rdata         (fub_axi_rdata),
+    .fub_axi_rresp         (fub_axi_rresp),
+    .fub_axi_rlast         (fub_axi_rlast),
+    .fub_axi_ruser         (fub_axi_ruser),
+    .fub_axi_rvalid        (fub_axi_rvalid),
+    .fub_axi_rready        (fub_axi_rready),
+    .m_axi_arid            (m_axi_arid),
+    .m_axi_araddr          (m_axi_araddr),
+    .m_axi_arlen           (m_axi_arlen),
+    .m_axi_arsize          (m_axi_arsize),
+    .m_axi_arburst         (m_axi_arburst),
+    .m_axi_arlock          (m_axi_arlock),
+    .m_axi_arcache         (m_axi_arcache),
+    .m_axi_arprot          (m_axi_arprot),
+    .m_axi_arqos           (m_axi_arqos),
+    .m_axi_arregion        (m_axi_arregion),
+    .m_axi_aruser          (m_axi_aruser),
+    .m_axi_arvalid         (m_axi_arvalid),
+    .m_axi_arready         (m_axi_arready),
+    .m_axi_rid             (m_axi_rid),
+    .m_axi_rdata           (m_axi_rdata),
+    .m_axi_rresp           (m_axi_rresp),
+    .m_axi_rlast           (m_axi_rlast),
+    .m_axi_ruser           (m_axi_ruser),
+    .m_axi_rvalid          (m_axi_rvalid),
+    .m_axi_rready          (m_axi_rready),
+    .busy                  (busy)
 );
-```
-
-### High-Performance Memory Interface
-
-```systemverilog
-// High-performance configuration for DDR interface
-axi4_master_rd #(
-    .SKID_DEPTH_AR(4),        // 4-entry address buffer
-    .SKID_DEPTH_R(8),         // 8-entry data buffer
-    .AXI_ID_WIDTH(4),         // Reduced ID width for efficiency
-    .AXI_ADDR_WIDTH(32),
-    .AXI_DATA_WIDTH(128),     // Wide data path
-    .AXI_USER_WIDTH(1)
-) u_ddr_rd_master (
-    .aclk            (ddr_clk),
-    .aresetn         (ddr_resetn),
-
-    // Connect to multiple read requestors via AXI interconnect
-    .fub_axi_*(cpu_cluster_axi_*),
-
-    // Connect to DDR controller
-    .m_axi_*(ddr_ctrl_axi_*),
-
-    .busy            (ddr_rd_busy)
-);
-```
-
-### Multi-Master System Integration
-
-```systemverilog
-module axi_memory_system (
-    input logic axi_clk,
-    input logic axi_resetn,
-
-    // CPU interface
-    axi4_if.slave   cpu_axi,
-    // DMA interface
-    axi4_if.slave   dma_axi,
-    // Memory interface
-    axi4_if.master  mem_axi
-);
-
-    // Read masters for independent buffering
-    axi4_master_rd #(
-        .SKID_DEPTH_AR(2),
-        .SKID_DEPTH_R(4),
-        .AXI_ID_WIDTH(4),
-        .AXI_DATA_WIDTH(64)
-    ) u_cpu_rd_master (
-        .aclk(axi_clk),
-        .aresetn(axi_resetn),
-        .fub_axi_*(cpu_axi.*),
-        .m_axi_*(cpu_rd_axi.*),
-        .busy(cpu_rd_busy)
-    );
-
-    axi4_master_rd #(
-        .SKID_DEPTH_AR(4),
-        .SKID_DEPTH_R(6),
-        .AXI_ID_WIDTH(4),
-        .AXI_DATA_WIDTH(64)
-    ) u_dma_rd_master (
-        .aclk(axi_clk),
-        .aresetn(axi_resetn),
-        .fub_axi_*(dma_axi.*),
-        .m_axi_*(dma_rd_axi.*),
-        .busy(dma_rd_busy)
-    );
-
-    // AXI interconnect for arbitration
-    axi4_interconnect #(
-        .NUM_MASTERS(2),
-        .NUM_SLAVES(1)
-    ) u_interconnect (
-        .aclk(axi_clk),
-        .aresetn(axi_resetn),
-        .s_axi({cpu_rd_axi, dma_rd_axi}),
-        .m_axi(mem_axi)
-    );
-
-endmodule
-```
-
-### Clock Gating Integration
-
-```systemverilog
-// Clock gated version for power optimization
-axi4_master_rd_cg #(
-    .SKID_DEPTH_AR(2),
-    .SKID_DEPTH_R(4),
-    .AXI_DATA_WIDTH(32)
-) u_rd_master_cg (
-    .aclk            (axi_clk),
-    .aresetn         (axi_resetn),
-
-    // Standard AXI interfaces
-    /* ... fub_axi_* and m_axi_* ports ... */
-
-    // Clock gating control (runtime inputs; scan bypass = cfg_cg_enable=0)
-    .cfg_cg_enable    (rd_enable && !scan_mode),
-    .cfg_cg_idle_count(4'd8),
-    .cg_gating        (rd_cg_gating),
-    .cg_idle          (rd_cg_idle)
-);
-// NOTE: the _cg wrapper does not re-export the base module's busy output;
-// use cg_idle for system-level power management instead.
-always_ff @(posedge axi_clk) begin
-    rd_power_gate <= rd_cg_idle && idle_counter > IDLE_THRESHOLD;
-end
 ```
 
 ## Design Notes

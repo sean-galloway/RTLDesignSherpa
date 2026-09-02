@@ -308,107 +308,72 @@ device and the parameters you elaborate with; run your own build.
 
 ## Usage Examples
 
-### Basic Integration
+
+Every parameter and port below is read from the module declaration.
 
 ```systemverilog
-// Instantiate AXI4 master write buffer
 axi4_master_wr #(
-    .SKID_DEPTH_AW(2),
-    .SKID_DEPTH_W(4),
-    .SKID_DEPTH_B(2),
-    .AXI_ID_WIDTH(4),
-    .AXI_ADDR_WIDTH(32),
-    .AXI_DATA_WIDTH(64),
-    .AXI_USER_WIDTH(1)
-) u_axi_master_wr (
-    .aclk               (axi_aclk),
-    .aresetn            (axi_aresetn),
-
-    // Frontend interface (from write initiator)
-    .fub_axi_awid       (write_awid),
-    .fub_axi_awaddr     (write_awaddr),
-    .fub_axi_awlen      (write_awlen),
-    .fub_axi_awsize     (write_awsize),
-    .fub_axi_awburst    (write_awburst),
-    .fub_axi_awlock     (1'b0),
-    .fub_axi_awcache    (4'b0010),
-    .fub_axi_awprot     (3'b000),
-    .fub_axi_awqos      (4'b0000),
-    .fub_axi_awregion   (4'b0000),
-    .fub_axi_awuser     (1'b0),
-    .fub_axi_awvalid    (write_awvalid),
-    .fub_axi_awready    (write_awready),
-
-    .fub_axi_wdata      (write_wdata),
-    .fub_axi_wstrb      (write_wstrb),
-    .fub_axi_wlast      (write_wlast),
-    .fub_axi_wuser      (1'b0),
-    .fub_axi_wvalid     (write_wvalid),
-    .fub_axi_wready     (write_wready),
-
-    .fub_axi_bid        (write_bid),
-    .fub_axi_bresp      (write_bresp),
-    .fub_axi_buser      (write_buser),
-    .fub_axi_bvalid     (write_bvalid),
-    .fub_axi_bready     (write_bready),
-
-    // Master interface (to AXI interconnect)
-    .m_axi_awid         (m_axi_awid),
-    .m_axi_awaddr       (m_axi_awaddr),
-    .m_axi_awlen        (m_axi_awlen),
-    .m_axi_awsize       (m_axi_awsize),
-    .m_axi_awburst      (m_axi_awburst),
-    .m_axi_awlock       (m_axi_awlock),
-    .m_axi_awcache      (m_axi_awcache),
-    .m_axi_awprot       (m_axi_awprot),
-    .m_axi_awqos        (m_axi_awqos),
-    .m_axi_awregion     (m_axi_awregion),
-    .m_axi_awuser       (m_axi_awuser),
-    .m_axi_awvalid      (m_axi_awvalid),
-    .m_axi_awready      (m_axi_awready),
-
-    .m_axi_wdata        (m_axi_wdata),
-    .m_axi_wstrb        (m_axi_wstrb),
-    .m_axi_wlast        (m_axi_wlast),
-    .m_axi_wuser        (m_axi_wuser),
-    .m_axi_wvalid       (m_axi_wvalid),
-    .m_axi_wready       (m_axi_wready),
-
-    .m_axi_bid          (m_axi_bid),
-    .m_axi_bresp        (m_axi_bresp),
-    .m_axi_buser        (m_axi_buser),
-    .m_axi_bvalid       (m_axi_bvalid),
-    .m_axi_bready       (m_axi_bready),
-
-    // Status
-    .busy               (wr_master_busy)
+    .SKID_DEPTH_AW         (2),
+    .SKID_DEPTH_W          (4),
+    .SKID_DEPTH_B          (2),
+    .AXI_ID_WIDTH          (8),
+    .AXI_ADDR_WIDTH        (32),
+    .AXI_DATA_WIDTH        (32),
+    .AXI_USER_WIDTH        (1)
+) u_axi4_master_wr (
+    .aclk                  (aclk),
+    .aresetn               (aresetn),
+    .fub_axi_awid          (fub_axi_awid),
+    .fub_axi_awaddr        (fub_axi_awaddr),
+    .fub_axi_awlen         (fub_axi_awlen),
+    .fub_axi_awsize        (fub_axi_awsize),
+    .fub_axi_awburst       (fub_axi_awburst),
+    .fub_axi_awlock        (fub_axi_awlock),
+    .fub_axi_awcache       (fub_axi_awcache),
+    .fub_axi_awprot        (fub_axi_awprot),
+    .fub_axi_awqos         (fub_axi_awqos),
+    .fub_axi_awregion      (fub_axi_awregion),
+    .fub_axi_awuser        (fub_axi_awuser),
+    .fub_axi_awvalid       (fub_axi_awvalid),
+    .fub_axi_awready       (fub_axi_awready),
+    .fub_axi_wdata         (fub_axi_wdata),
+    .fub_axi_wstrb         (fub_axi_wstrb),
+    .fub_axi_wlast         (fub_axi_wlast),
+    .fub_axi_wuser         (fub_axi_wuser),
+    .fub_axi_wvalid        (fub_axi_wvalid),
+    .fub_axi_wready        (fub_axi_wready),
+    .fub_axi_bid           (fub_axi_bid),
+    .fub_axi_bresp         (fub_axi_bresp),
+    .fub_axi_buser         (fub_axi_buser),
+    .fub_axi_bvalid        (fub_axi_bvalid),
+    .fub_axi_bready        (fub_axi_bready),
+    .m_axi_awid            (m_axi_awid),
+    .m_axi_awaddr          (m_axi_awaddr),
+    .m_axi_awlen           (m_axi_awlen),
+    .m_axi_awsize          (m_axi_awsize),
+    .m_axi_awburst         (m_axi_awburst),
+    .m_axi_awlock          (m_axi_awlock),
+    .m_axi_awcache         (m_axi_awcache),
+    .m_axi_awprot          (m_axi_awprot),
+    .m_axi_awqos           (m_axi_awqos),
+    .m_axi_awregion        (m_axi_awregion),
+    .m_axi_awuser          (m_axi_awuser),
+    .m_axi_awvalid         (m_axi_awvalid),
+    .m_axi_awready         (m_axi_awready),
+    .m_axi_wdata           (m_axi_wdata),
+    .m_axi_wstrb           (m_axi_wstrb),
+    .m_axi_wlast           (m_axi_wlast),
+    .m_axi_wuser           (m_axi_wuser),
+    .m_axi_wvalid          (m_axi_wvalid),
+    .m_axi_wready          (m_axi_wready),
+    .m_axi_bid             (m_axi_bid),
+    .m_axi_bresp           (m_axi_bresp),
+    .m_axi_buser           (m_axi_buser),
+    .m_axi_bvalid          (m_axi_bvalid),
+    .m_axi_bready          (m_axi_bready),
+    .busy                  (busy)
 );
 ```
-
-### Clock Gating Example
-
-```systemverilog
-// Use busy signal for clock gating
-logic axi_clk_gated;
-
-clock_gate_ctrl u_cg (
-    .clk_in            (axi_clk),
-    .aresetn           (axi_resetn),
-    .cfg_cg_enable     (1'b1),
-    .cfg_cg_idle_count (4'd8),
-    .wakeup            (wr_master_busy),
-    .clk_out           (axi_clk_gated),
-    .gating            ()
-);
-
-// Connect module to gated clock
-axi4_master_wr #( ... ) u_master_wr (
-    .aclk (axi_clk_gated),
-    ...
-);
-```
-
----
 
 ## Design Notes
 

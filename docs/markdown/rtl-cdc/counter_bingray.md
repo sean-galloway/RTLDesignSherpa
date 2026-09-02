@@ -247,158 +247,19 @@ Binary-Gray counters are the foundation of the standard `fifo_async` module:
 
 ## Usage Examples
 
-### Asynchronous FIFO pointers
 
-This is the canonical use -- one counter per domain:
-
-```systemverilog
-// Write domain counter
-counter_bingray #(.WIDTH(ADDR_WIDTH+1)) wr_counter (
-    .clk(wr_clk),
-    .rst_n(wr_rst_n),
-    .enable(wr_enable),
-    .counter_bin(wr_bin),
-    .counter_bin_next(wr_bin_next),
-    .counter_gray(wr_gray)
-);
-
-// Read domain counter
-counter_bingray #(.WIDTH(ADDR_WIDTH+1)) rd_counter (
-    .clk(rd_clk),
-    .rst_n(rd_rst_n), 
-    .enable(rd_enable),
-    .counter_bin(rd_bin),
-    .counter_bin_next(rd_bin_next),
-    .counter_gray(rd_gray)
-);
-```
-
-### Cross-domain synchronization
-
-The Gray pointers cross; the binary ones don't:
+Every parameter and port below is read from the module declaration.
 
 ```systemverilog
-// Synchronize Gray code pointers across domains
-logic [ADDR_WIDTH:0] wr_gray_sync, rd_gray_sync;
-
-// Write domain: synchronize read Gray pointer
-glitch_free_n_dff_arn #(
-    .FLOP_COUNT(2),
-    .WIDTH(ADDR_WIDTH+1)
-) rd_sync (
-    .clk  (wr_clk),
-    .rst_n(wr_rst_n),
-    .d    (rd_gray),
-    .q    (rd_gray_sync)
-);
-
-// Read domain: synchronize write Gray pointer
-glitch_free_n_dff_arn #(
-    .FLOP_COUNT(2),
-    .WIDTH(ADDR_WIDTH+1)
-) wr_sync (
-    .clk  (rd_clk),
-    .rst_n(rd_rst_n),
-    .d    (wr_gray),
-    .q    (wr_gray_sync)
-);
-```
-
-### FIFO status generation
-
-```systemverilog
-// FIFO empty: Gray pointers equal
-assign fifo_empty = (rd_gray == wr_gray_sync);
-
-// FIFO full: Binary addresses equal, MSBs different
-//
-// gray2bin is a MODULE, not a function -- instantiate it once and slice the
-// output. It cannot be called inside an expression.
-wire [ADDR_WIDTH:0] rd_bin_sync;
-
-gray2bin #(.WIDTH(ADDR_WIDTH + 1)) u_rd_ptr_decode (
-    .gray   (rd_gray_sync),
-    .binary (rd_bin_sync)
-);
-
-wire [ADDR_WIDTH-1:0] wr_addr      = wr_bin[ADDR_WIDTH-1:0];
-wire [ADDR_WIDTH-1:0] rd_addr_sync = rd_bin_sync[ADDR_WIDTH-1:0];
-wire                  wr_msb       = wr_bin[ADDR_WIDTH];
-wire                  rd_msb_sync  = rd_bin_sync[ADDR_WIDTH];
-
-assign fifo_full = (wr_addr == rd_addr_sync) && (wr_msb != rd_msb_sync);
-```
-
-### Almost full/empty flags
-
-```systemverilog
-// Calculate occupancy using binary values. rd_bin_sync comes from the
-// gray2bin INSTANCE above -- there is no gray2bin function to call.
-wire [ADDR_WIDTH:0] occupancy = wr_bin - rd_bin_sync;
-
-// Generate status flags
-assign almost_full = (occupancy >= ALMOST_FULL_THRESH);
-assign almost_empty = (occupancy <= ALMOST_EMPTY_THRESH);
-```
-
-If you ever need the decode as a function inside your own logic (rather than
-the module), this is the shape:
-
-```systemverilog
-function automatic [WIDTH-1:0] gray2bin;
-    input [WIDTH-1:0] gray;
-    integer i;
-    begin
-        gray2bin[WIDTH-1] = gray[WIDTH-1];
-        for (i = WIDTH-2; i >= 0; i--) begin
-            gray2bin[i] = gray2bin[i+1] ^ gray[i];
-        end
-    end
-endfunction
-```
-
-### Example: 8-bit asynchronous FIFO pointer
-
-```systemverilog
-parameter FIFO_DEPTH = 256;
-parameter ADDR_WIDTH = $clog2(FIFO_DEPTH);
-parameter PTR_WIDTH = ADDR_WIDTH + 1;  // Extra bit for full detection
-
 counter_bingray #(
-    .WIDTH(PTR_WIDTH)
-) fifo_wr_ptr (
-    .clk(wr_clk),
-    .rst_n(async_rst_n),
-    .enable(wr_enable && !fifo_full),
-    .counter_bin(wr_ptr_bin),
-    .counter_bin_next(wr_ptr_bin_next),
-    .counter_gray(wr_ptr_gray)
-);
-```
-
-### Example: clock domain crossing counter
-
-```systemverilog
-// Source domain
-counter_bingray #(.WIDTH(8)) src_counter (
-    .clk(src_clk),
-    .rst_n(src_rst_n),
-    .enable(src_enable),
-    .counter_bin(src_bin),
-    .counter_bin_next(),
-    .counter_gray(src_gray)
-);
-
-// Destination domain receives synchronized Gray value
-logic [7:0] dest_gray_sync;
-glitch_free_n_dff_arn #(
-    .FLOP_COUNT(2),
-    .WIDTH(8)
-) sync_inst (
-    .clk  (dest_clk),
-    .rst_n(dest_rst_n),
-    .d    (src_gray),
-    .q    (dest_gray_sync)
+    .WIDTH                 (4)
+) u_counter_bingray (
+    .clk                   (clk),
+    .rst_n                 (rst_n),
+    .enable                (enable),
+    .counter_bin           (counter_bin),
+    .counter_bin_next      (counter_bin_next),
+    .counter_gray          (counter_gray)
 );
 ```
 

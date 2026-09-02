@@ -253,319 +253,38 @@ a system budget.
 | Pipeline Efficiency | >95% | Continuous data flow |
 
 ## Usage Examples
-> **Notation:** some examples below abbreviate a full port list as `.m_axis_*(name_*)` or
-> `.fub_axis_*(iface.*)`. **This is shorthand for the reader, not legal SystemVerilog** — a
-> port-name wildcard of that form does not compile. Expand it to explicit named connections
-> (as in the "Basic Video Stream Processing" example) or use an interface port. The examples
-> using this shorthand are illustrative of topology only and are not drop-in compilable.
 
-### Basic Video Stream Processing
+Every parameter and port below is read from the module declaration.
 
 ```systemverilog
 axis4_master #(
-    .SKID_DEPTH(4),           // 4-entry buffer
-    .AXIS_DATA_WIDTH(64),     // 8 bytes per transfer
-    .AXIS_ID_WIDTH(4),        // Support 16 streams
-    .AXIS_DEST_WIDTH(4),      // Support 16 destinations
-    .AXIS_USER_WIDTH(8)       // 8-bit control signals
-) u_video_stream (
-    .aclk            (video_clk),
-    .aresetn         (video_resetn),
-
-    // Input from video source
-    .fub_axis_tdata    (pixel_data),
-    .fub_axis_tstrb    (pixel_strb),
-    .fub_axis_tlast    (line_end),
-    .fub_axis_tid      (stream_id),
-    .fub_axis_tdest    (display_id),
-    .fub_axis_tuser    (pixel_ctrl),
-    .fub_axis_tvalid   (pixel_valid),
-    .fub_axis_tready   (pixel_ready),
-
-    // Output to video pipeline
-    .m_axis_tdata      (pipe_tdata),
-    .m_axis_tstrb      (pipe_tstrb),
-    .m_axis_tlast      (pipe_tlast),
-    .m_axis_tid        (pipe_tid),
-    .m_axis_tdest      (pipe_tdest),
-    .m_axis_tuser      (pipe_tuser),
-    .m_axis_tvalid     (pipe_tvalid),
-    .m_axis_tready     (pipe_tready),
-
-    .busy              (video_busy)
+    .SKID_DEPTH            (4),
+    .AXIS_DATA_WIDTH       (32),
+    .AXIS_ID_WIDTH         (8),
+    .AXIS_DEST_WIDTH       (4),
+    .AXIS_USER_WIDTH       (1)
+) u_axis4_master (
+    .aclk                  (aclk),
+    .aresetn               (aresetn),
+    .fub_axis_tdata        (fub_axis_tdata),
+    .fub_axis_tstrb        (fub_axis_tstrb),
+    .fub_axis_tlast        (fub_axis_tlast),
+    .fub_axis_tid          (fub_axis_tid),
+    .fub_axis_tdest        (fub_axis_tdest),
+    .fub_axis_tuser        (fub_axis_tuser),
+    .fub_axis_tvalid       (fub_axis_tvalid),
+    .fub_axis_tready       (fub_axis_tready),
+    .m_axis_tdata          (m_axis_tdata),
+    .m_axis_tstrb          (m_axis_tstrb),
+    .m_axis_tlast          (m_axis_tlast),
+    .m_axis_tid            (m_axis_tid),
+    .m_axis_tdest          (m_axis_tdest),
+    .m_axis_tuser          (m_axis_tuser),
+    .m_axis_tvalid         (m_axis_tvalid),
+    .m_axis_tready         (m_axis_tready),
+    .busy                  (busy)
 );
 ```
-
-### Network Packet Processing
-
-```systemverilog
-// High-performance packet processing
-axis4_master #(
-    .SKID_DEPTH(8),           // 8-entry buffer (deepest legal) for latency tolerance
-    .AXIS_DATA_WIDTH(512),    // 64 bytes per beat (512-bit)
-    .AXIS_ID_WIDTH(8),        // 256 flow IDs
-    .AXIS_DEST_WIDTH(6),      // 64 output ports
-    .AXIS_USER_WIDTH(16)      // Packet metadata
-) u_packet_master (
-    .aclk            (net_clk),
-    .aresetn         (net_resetn),
-
-    // Input from packet classifier
-    .fub_axis_tdata    (pkt_data),
-    .fub_axis_tstrb    (pkt_keep),
-    .fub_axis_tlast    (pkt_eop),
-    .fub_axis_tid      (flow_id),
-    .fub_axis_tdest    (output_port),
-    .fub_axis_tuser    ({pkt_len, pkt_type}),
-    .fub_axis_tvalid   (pkt_valid),
-    .fub_axis_tready   (pkt_ready),
-
-    // Output to switching fabric
-    .m_axis_*(switch_axis_*),
-
-    .busy              (pkt_proc_busy)
-);
-```
-
-### DSP Data Pipeline
-
-```systemverilog
-// DSP processing chain with minimal sideband
-axis4_master #(
-    .SKID_DEPTH(2),           // 2-entry buffer (minimum latency)
-    .AXIS_DATA_WIDTH(128),    // 4 x 32-bit samples
-    .AXIS_ID_WIDTH(0),        // No stream ID needed
-    .AXIS_DEST_WIDTH(0),      // No destination routing
-    .AXIS_USER_WIDTH(4)       // Sample metadata
-) u_dsp_stream (
-    .aclk            (dsp_clk),
-    .aresetn         (dsp_resetn),
-
-    // Input from ADC interface
-    .fub_axis_tdata    (adc_samples),
-    .fub_axis_tstrb    (adc_valid_bytes),
-    .fub_axis_tlast    (frame_end),
-    .fub_axis_tid      (1'b0),          // Unused
-    .fub_axis_tdest    (1'b0),          // Unused
-    .fub_axis_tuser    (sample_metadata),
-    .fub_axis_tvalid   (adc_valid),
-    .fub_axis_tready   (adc_ready),
-
-    // Output to DSP processing
-    .m_axis_tdata      (proc_samples),
-    .m_axis_tstrb      (proc_strb),
-    .m_axis_tlast      (proc_frame_end),
-    .m_axis_tid        (),              // Unconnected
-    .m_axis_tdest      (),              // Unconnected
-    .m_axis_tuser      (proc_metadata),
-    .m_axis_tvalid     (proc_valid),
-    .m_axis_tready     (proc_ready),
-
-    .busy              (dsp_busy)
-);
-```
-
-### Multi-Stream Router Integration
-
-```systemverilog
-module stream_router (
-    input logic axi_clk,
-    input logic axi_resetn,
-
-    // Multiple input streams
-    axi4s_if.slave  input_streams [4],
-    // Single output stream
-    axi4s_if.master output_stream
-);
-
-    // Stream masters for each input with buffering
-    genvar i;
-    generate
-        for (i = 0; i < 4; i++) begin : gen_stream_masters
-            axis4_master #(
-                .SKID_DEPTH(4),
-                .AXIS_DATA_WIDTH(64),
-                .AXIS_ID_WIDTH(4),
-                .AXIS_DEST_WIDTH(4),
-                .AXIS_USER_WIDTH(1)
-            ) u_stream_master (
-                .aclk(axi_clk),
-                .aresetn(axi_resetn),
-
-                // Connect to input stream
-                .fub_axis_*(input_streams[i].*),
-
-                // Connect to arbiter
-                .m_axis_*(arb_inputs[i].*),
-
-                .busy(stream_busy[i])
-            );
-        end
-    endgenerate
-
-    // Stream arbiter for output selection
-    axis_arbiter #(
-        .NUM_INPUTS(4),
-        .DATA_WIDTH(64)
-    ) u_arbiter (
-        .aclk(axi_clk),
-        .aresetn(axi_resetn),
-        .s_axis(arb_inputs),
-        .m_axis(output_stream),
-        .active_mask(stream_enable)
-    );
-
-endmodule
-```
-
-### Advanced Integration Patterns
-
-#### Clock Domain Crossing
-
-```systemverilog
-// Cross clock domains with async FIFO
-module axis_cdc_system (
-    // Source domain
-    input  logic        src_clk,
-    input  logic        src_resetn,
-    axi4s_if.slave      src_axis,
-
-    // Destination domain
-    input  logic        dst_clk,
-    input  logic        dst_resetn,
-    axi4s_if.master     dst_axis
-);
-
-    // Source domain buffering
-    axis4_master #(
-        .SKID_DEPTH(2),
-        .AXIS_DATA_WIDTH(32),
-        .AXIS_ID_WIDTH(4),
-        .AXIS_DEST_WIDTH(4),
-        .AXIS_USER_WIDTH(1)
-    ) u_src_master (
-        .aclk(src_clk),
-        .aresetn(src_resetn),
-        .fub_axis_*(src_axis.*),
-        .m_axis_*(cdc_src_axis.*),
-        .busy(src_busy)
-    );
-
-    // Async clock domain crossing.
-    // gaxi_fifo_async.DEPTH is also a literal entry count (default 16).
-    // DATA_WIDTH must equal the packed TSize of the stream being carried:
-    //   TSize = DW + DW/8 + 1 + IW_WIDTH + DESTW_WIDTH + UW_WIDTH
-    gaxi_fifo_async #(
-        .DEPTH(64),                        // 64 entries
-        .DATA_WIDTH(32 + 4 + 1 + 4 + 4 + 1)  // DW=32, SW=4, TLAST, TID=4, TDEST=4, TUSER=1
-    ) u_cdc_fifo (
-        .axi_wr_aclk(src_clk),
-        .axi_wr_aresetn(src_resetn),
-        .wr_valid(cdc_src_tvalid),
-        .wr_ready(cdc_src_tready),
-        .wr_data(cdc_src_packed),      // the packed TSize word, not a bundle
-
-        .axi_rd_aclk(dst_clk),
-        .axi_rd_aresetn(dst_resetn),
-        .rd_valid(dst_tvalid),
-        .rd_ready(dst_tready),
-        .rd_data(dst_packed)
-    );
-
-endmodule
-```
-
-#### Stream Processing Pipeline
-
-```systemverilog
-// Multi-stage processing pipeline
-module stream_pipeline (
-    input logic clk, resetn,
-    axi4s_if.slave  input_stream,
-    axi4s_if.master output_stream
-);
-
-    // Pipeline stage interfaces
-    axi4s_if stage1_out();
-    axi4s_if stage2_out();
-    axi4s_if stage3_out();
-
-    // Stage 1: Input buffering
-    axis4_master #(.SKID_DEPTH(2), .AXIS_DATA_WIDTH(64))
-    u_stage1 (
-        .aclk(clk), .aresetn(resetn),
-        .fub_axis_*(input_stream.*),
-        .m_axis_*(stage1_out.*),
-        .busy(stage1_busy)
-    );
-
-    // Stage 2: Processing with buffering
-    stream_processor u_processor (
-        .clk(clk), .resetn(resetn),
-        .s_axis(stage1_out), .m_axis(stage2_out)
-    );
-
-    axis4_master #(.SKID_DEPTH(4), .AXIS_DATA_WIDTH(64))
-    u_stage2 (
-        .aclk(clk), .aresetn(resetn),
-        .fub_axis_*(stage2_out.*),
-        .m_axis_*(stage3_out.*),
-        .busy(stage2_busy)
-    );
-
-    // Stage 3: Output conditioning
-    axis4_master #(.SKID_DEPTH(2), .AXIS_DATA_WIDTH(64))
-    u_stage3 (
-        .aclk(clk), .aresetn(resetn),
-        .fub_axis_*(stage3_out.*),
-        .m_axis_*(output_stream.*),
-        .busy(stage3_busy)
-    );
-
-    assign pipeline_busy = stage1_busy | stage2_busy | stage3_busy;
-
-endmodule
-```
-
-#### Clock Gating Integration
-
-The clock-gated variant `axis4_master_cg` wraps this module and drives it from a gated clock.
-Its control ports are `cfg_cg_enable` and `cfg_cg_idle_count`; its status ports are
-`cg_gating` and `cg_idle`. There is **no `cg_enable`, no `cg_test_enable`, and no `busy`
-output** on the `_cg` wrapper — the base module's `busy` is consumed internally as one of the
-wakeup terms.
-
-```systemverilog
-// Clock gated version for power optimization
-axis4_master_cg #(
-    .SKID_DEPTH(4),
-    .AXIS_DATA_WIDTH(64),
-    .CG_IDLE_COUNT_WIDTH(4)
-) u_cg_master (
-    .aclk               (axi_clk),
-    .aresetn            (axi_resetn),
-
-    // Clock gating configuration
-    .cfg_cg_enable      (stream_cg_enable),
-    .cfg_cg_idle_count  (4'd8),
-
-    // Standard AXI4-Stream interfaces (expand to explicit connections)
-    // .fub_axis_tdata (...), ... , .m_axis_tready (...),
-
-    // Clock gating status
-    .cg_gating          (stream_clk_gated),
-    .cg_idle            (stream_idle)
-);
-
-// System-level power management
-always_ff @(posedge axi_clk) begin
-    stream_power_down <= stream_idle && (idle_time > POWER_DOWN_DELAY);
-end
-```
-
-See the [AXIS4 Clock-Gated Variants Guide](axis4_clock_gating_guide.md) for gating and
-ungating behaviour, including the ungating latency and the `fub_axis_tready` hold-off while
-gated.
 
 ## Design Notes
 

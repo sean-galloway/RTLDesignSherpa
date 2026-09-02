@@ -478,156 +478,155 @@ When `USE_MONITOR = 0` all perfmon outputs are tied to 0. With `USE_MONITOR = 1`
 
 ## Usage Examples
 
-### Functional Verification Configuration
+
+Every parameter and port below is read from the module declaration.
 
 ```systemverilog
 axi5_master_wr_mon #(
-    .AXI_ID_WIDTH       (8),
-    .AXI_ADDR_WIDTH     (32),
-    .AXI_DATA_WIDTH     (64),
-    .AXI_USER_WIDTH     (4),
-    .SKID_DEPTH_AW      (2),
-    .SKID_DEPTH_W       (4),
-    .SKID_DEPTH_B       (2),
-    // Enable AXI5 features
-    .ENABLE_ATOMIC      (1),
-    .ENABLE_NSAID       (1),
-    .ENABLE_TRACE       (1),
-    .ENABLE_MPAM        (1),
-    .ENABLE_MECID       (1),
-    .ENABLE_UNIQUE      (1),
-    .ENABLE_MTE         (1),
-    .ENABLE_POISON      (1),
-    // Monitor configuration
-    .UNIT_ID            (1),
-    .AGENT_ID           (11),  // Write agent
-    .MAX_TRANSACTIONS   (16),
-    .ENABLE_FILTERING   (1)
+    .SKID_DEPTH_AW         (2),
+    .SKID_DEPTH_W          (4),
+    .SKID_DEPTH_B          (2),
+    .AXI_ID_WIDTH          (8),
+    .AXI_ADDR_WIDTH        (32),
+    .AXI_DATA_WIDTH        (32),
+    .AXI_USER_WIDTH        (1),
+    .AXI_ATOP_WIDTH        (6),
+    .AXI_NSAID_WIDTH       (4),
+    .AXI_MPAM_WIDTH        (11)
 ) u_axi5_master_wr_mon (
-    .aclk               (axi_clk),
-    .aresetn            (axi_rst_n),
-
-    // FUB interface (slave side)
-    .fub_axi_awid       (fub_awid),
-    .fub_axi_awaddr     (fub_awaddr),
-    .fub_axi_awlen      (fub_awlen),
-    .fub_axi_awsize     (fub_awsize),
-    .fub_axi_awburst    (fub_awburst),
-    .fub_axi_awlock     (fub_awlock),
-    .fub_axi_awcache    (fub_awcache),
-    .fub_axi_awprot     (fub_awprot),
-    .fub_axi_awqos      (fub_awqos),
-    .fub_axi_awuser     (fub_awuser),
-    .fub_axi_awvalid    (fub_awvalid),
-    .fub_axi_awready    (fub_awready),
-
-    // AXI5 AW extensions
-    .fub_axi_awatop     (fub_awatop),
-    .fub_axi_awnsaid    (fub_awnsaid),
-    .fub_axi_awtrace    (fub_awtrace),
-    .fub_axi_awmpam     (fub_awmpam),
-    .fub_axi_awmecid    (fub_awmecid),
-    .fub_axi_awunique   (fub_awunique),
-    .fub_axi_awtagop    (fub_awtagop),
-    .fub_axi_awtag      (fub_awtag),
-
-    // W channel
-    .fub_axi_wdata      (fub_wdata),
-    .fub_axi_wstrb      (fub_wstrb),
-    .fub_axi_wlast      (fub_wlast),
-    .fub_axi_wuser      (fub_wuser),
-    .fub_axi_wvalid     (fub_wvalid),
-    .fub_axi_wready     (fub_wready),
-
-    // AXI5 W extensions
-    .fub_axi_wpoison    (fub_wpoison),
-    .fub_axi_wtag       (fub_wtag),
-    .fub_axi_wtagupdate (fub_wtagupdate),
-
-    // B channel
-    .fub_axi_bid        (fub_bid),
-    .fub_axi_bresp      (fub_bresp),
-    .fub_axi_buser      (fub_buser),
-    .fub_axi_bvalid     (fub_bvalid),
-    .fub_axi_bready     (fub_bready),
-
-    // AXI5 B extensions
-    .fub_axi_btrace     (fub_btrace),
-    .fub_axi_btag       (fub_btag),
-    .fub_axi_btagmatch  (fub_btagmatch),
-
-    // Master interface (output side)
-    // ... (connect all m_axi_* signals)
-
-    // Monitor configuration - FUNCTIONAL DEBUG MODE
-    .cfg_monitor_enable (1'b1),        // Master gate: monitor active
-    .cfg_error_enable   (1'b1),        // Enable errors
-    .cfg_timeout_enable (1'b1),        // Enable timeouts
-    .cfg_perf_enable    (1'b0),        // DISABLE (high traffic)
-    .cfg_timeout_cycles (16'd10),      // 10 microseconds per phase (full 16-bit range)
-    .cfg_freq_sel     (4'd0),   // counter_freq_invariant LUT index; scales the 1 us tick
-    .cam_clear        (1'b0),   // hold high one cycle while idle to clear the CAM -- do NOT leave unconnected
-    .cfg_latency_threshold (32'd500),  // 500 cycle threshold
-
-    // Level 1: Enable ERROR, COMPL, TIMEOUT packets
-    .cfg_axi_pkt_mask   (16'hFFF4),    // Drop all but ERROR|COMPL|TIMEOUT (set bit = drop)
-
-    // Level 2: reserved (cfg_axi_err_select performs NO routing; only the conflict check reads it)
-    .cfg_axi_err_select (16'h0000),  // No error re-routing
-
-    // Level 3: Enable all error events
-    .cfg_axi_error_mask (16'h0000),    // set bit = drop
-    .cfg_axi_timeout_mask (16'h0000),
-    .cfg_axi_compl_mask (16'h0000),
-
-    // Monitor bus output
-    .monbus_valid       (mon_valid),
-    .monbus_ready       (mon_ready),
-    .monbus_packet      (mon_pkt),
-
-    // Status
-    .busy               (master_busy),
-    .active_transactions (active_trans),
-    .cfg_conflict_error (cfg_error)
+    .aclk                  (aclk),
+    .aresetn               (aresetn),
+    .cam_clear             (cam_clear),
+    .fub_axi_awid          (fub_axi_awid),
+    .fub_axi_awaddr        (fub_axi_awaddr),
+    .fub_axi_awlen         (fub_axi_awlen),
+    .fub_axi_awsize        (fub_axi_awsize),
+    .fub_axi_awburst       (fub_axi_awburst),
+    .fub_axi_awlock        (fub_axi_awlock),
+    .fub_axi_awcache       (fub_axi_awcache),
+    .fub_axi_awprot        (fub_axi_awprot),
+    .fub_axi_awqos         (fub_axi_awqos),
+    .fub_axi_awuser        (fub_axi_awuser),
+    .fub_axi_awvalid       (fub_axi_awvalid),
+    .fub_axi_awready       (fub_axi_awready),
+    .fub_axi_awatop        (fub_axi_awatop),
+    .fub_axi_awnsaid       (fub_axi_awnsaid),
+    .fub_axi_awtrace       (fub_axi_awtrace),
+    .fub_axi_awmpam        (fub_axi_awmpam),
+    .fub_axi_awmecid       (fub_axi_awmecid),
+    .fub_axi_awunique      (fub_axi_awunique),
+    .fub_axi_awtagop       (fub_axi_awtagop),
+    .fub_axi_awtag         (fub_axi_awtag),
+    .fub_axi_wdata         (fub_axi_wdata),
+    .fub_axi_wstrb         (fub_axi_wstrb),
+    .fub_axi_wlast         (fub_axi_wlast),
+    .fub_axi_wuser         (fub_axi_wuser),
+    .fub_axi_wvalid        (fub_axi_wvalid),
+    .fub_axi_wready        (fub_axi_wready),
+    .fub_axi_wpoison       (fub_axi_wpoison),
+    .fub_axi_wtag          (fub_axi_wtag),
+    .fub_axi_wtagupdate    (fub_axi_wtagupdate),
+    .fub_axi_bid           (fub_axi_bid),
+    .fub_axi_bresp         (fub_axi_bresp),
+    .fub_axi_buser         (fub_axi_buser),
+    .fub_axi_bvalid        (fub_axi_bvalid),
+    .fub_axi_bready        (fub_axi_bready),
+    .fub_axi_btrace        (fub_axi_btrace),
+    .fub_axi_btag          (fub_axi_btag),
+    .fub_axi_btagmatch     (fub_axi_btagmatch),
+    .m_axi_awid            (m_axi_awid),
+    .m_axi_awaddr          (m_axi_awaddr),
+    .m_axi_awlen           (m_axi_awlen),
+    .m_axi_awsize          (m_axi_awsize),
+    .m_axi_awburst         (m_axi_awburst),
+    .m_axi_awlock          (m_axi_awlock),
+    .m_axi_awcache         (m_axi_awcache),
+    .m_axi_awprot          (m_axi_awprot),
+    .m_axi_awqos           (m_axi_awqos),
+    .m_axi_awuser          (m_axi_awuser),
+    .m_axi_awvalid         (m_axi_awvalid),
+    .m_axi_awready         (m_axi_awready),
+    .m_axi_awatop          (m_axi_awatop),
+    .m_axi_awnsaid         (m_axi_awnsaid),
+    .m_axi_awtrace         (m_axi_awtrace),
+    .m_axi_awmpam          (m_axi_awmpam),
+    .m_axi_awmecid         (m_axi_awmecid),
+    .m_axi_awunique        (m_axi_awunique),
+    .m_axi_awtagop         (m_axi_awtagop),
+    .m_axi_awtag           (m_axi_awtag),
+    .m_axi_wdata           (m_axi_wdata),
+    .m_axi_wstrb           (m_axi_wstrb),
+    .m_axi_wlast           (m_axi_wlast),
+    .m_axi_wuser           (m_axi_wuser),
+    .m_axi_wvalid          (m_axi_wvalid),
+    .m_axi_wready          (m_axi_wready),
+    .m_axi_wpoison         (m_axi_wpoison),
+    .m_axi_wtag            (m_axi_wtag),
+    .m_axi_wtagupdate      (m_axi_wtagupdate),
+    .m_axi_bid             (m_axi_bid),
+    .m_axi_bresp           (m_axi_bresp),
+    .m_axi_buser           (m_axi_buser),
+    .m_axi_bvalid          (m_axi_bvalid),
+    .m_axi_bready          (m_axi_bready),
+    .m_axi_btrace          (m_axi_btrace),
+    .m_axi_btag            (m_axi_btag),
+    .m_axi_btagmatch       (m_axi_btagmatch),
+    .cfg_monitor_enable    (cfg_monitor_enable),
+    .cfg_error_enable      (cfg_error_enable),
+    .cfg_timeout_enable    (cfg_timeout_enable),
+    .cfg_perf_enable       (cfg_perf_enable),
+    .cfg_compl_enable      (cfg_compl_enable),
+    .cfg_threshold_enable  (cfg_threshold_enable),
+    .cfg_debug_enable      (cfg_debug_enable),
+    .cfg_timeout_cycles    (cfg_timeout_cycles),
+    .cfg_freq_sel          (cfg_freq_sel),
+    .cfg_latency_threshold (cfg_latency_threshold),
+    .cfg_axi_pkt_mask      (cfg_axi_pkt_mask),
+    .cfg_axi_err_select    (cfg_axi_err_select),
+    .cfg_axi_error_mask    (cfg_axi_error_mask),
+    .cfg_axi_timeout_mask  (cfg_axi_timeout_mask),
+    .cfg_axi_compl_mask    (cfg_axi_compl_mask),
+    .cfg_axi_thresh_mask   (cfg_axi_thresh_mask),
+    .cfg_axi_perf_mask     (cfg_axi_perf_mask),
+    .cfg_axi_addr_mask     (cfg_axi_addr_mask),
+    .cfg_axi_debug_mask    (cfg_axi_debug_mask),
+    .cfg_addr_check_enable (cfg_addr_check_enable),
+    .cfg_addr_range_enable (cfg_addr_range_enable),
+    .cfg_addr_range_low    (cfg_addr_range_low),
+    .cfg_addr_range_high   (cfg_addr_range_high),
+    .cfg_id_filter_enable  (cfg_id_filter_enable),
+    .cfg_id_match_base     (cfg_id_match_base),
+    .cfg_id_match_count    (cfg_id_match_count),
+    .cfg_addr_filter_enable(cfg_addr_filter_enable),
+    .cfg_addr_filter_low   (cfg_addr_filter_low),
+    .cfg_addr_filter_high  (cfg_addr_filter_high),
+    .i_mon_time            (i_mon_time),
+    .monbus_valid          (monbus_valid),
+    .monbus_ready          (monbus_ready),
+    .monbus_packet         (monbus_packet),
+    .monbus_timestamp      (monbus_timestamp),
+    .busy                  (busy),
+    .active_transactions   (active_transactions),
+    .error_count           (error_count),
+    .transaction_count     (transaction_count),
+    .debug_block_ready     (debug_block_ready),
+    .cfg_conflict_error    (cfg_conflict_error),
+    .cfg_start_event_sel   (cfg_start_event_sel),
+    .cfg_end_event_sel     (cfg_end_event_sel),
+    .cfg_start_trigger     (cfg_start_trigger),
+    .cfg_end_trigger       (cfg_end_trigger),
+    .cfg_window_force_close(cfg_window_force_close),
+    .window_active         (window_active),
+    .window_cycles         (window_cycles),
+    .perf_prod_cycles      (perf_prod_cycles),
+    .perf_bp_cycles        (perf_bp_cycles),
+    .perf_starv_cycles     (perf_starv_cycles),
+    .perf_idle_cycles      (perf_idle_cycles),
+    .perf_beat_count       (perf_beat_count),
+    .perf_byte_count       (perf_byte_count),
+    .perf_burst_count      (perf_burst_count)
 );
-
-// Downstream FIFO for monitor packets
-gaxi_fifo_sync #(
-    .DATA_WIDTH (128),
-    .DEPTH      (256)
-) u_mon_fifo (
-    .axi_aclk      (axi_clk),
-    .axi_aresetn    (axi_rst_n),
-    .wr_valid    (mon_valid),
-    .wr_data     (mon_pkt),
-    .wr_ready    (mon_ready),
-    .rd_valid    (fifo_valid),
-    .rd_data     (fifo_pkt),
-    .rd_ready    (consumer_ready)
-);
-
-// Monitor packet decoder for write events
-always_ff @(posedge axi_clk) begin
-    if (fifo_valid && consumer_ready) begin
-        case (fifo_pkt[127:124])  // Packet type (128-bit monitor_packet_t)
-            4'h0: begin  // ERROR
-                $display("Write Error: Event=%h, Ch=%h, Data=%h",
-                    fifo_pkt[104:97], fifo_pkt[96:88], fifo_pkt[63:0]);
-            end
-            4'h1: begin  // COMPL
-                $display("Write Complete: Ch=%h, Data=%h",
-                    fifo_pkt[96:88], fifo_pkt[63:0]);
-            end
-            4'h3: begin  // TIMEOUT
-                $display("Write Timeout: Event=%h, Ch=%h",
-                    fifo_pkt[104:97], fifo_pkt[96:88]);
-            end
-        endcase
-    end
-end
 ```
-
----
 
 ## Design Notes
 

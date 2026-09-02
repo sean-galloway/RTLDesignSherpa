@@ -274,106 +274,63 @@ device and the parameters you elaborate with; run your own build.
 
 ## Usage Examples
 
-### Basic Integration with Memory
+
+Every parameter and port below is read from the module declaration.
 
 ```systemverilog
-// Instantiate AXI4 slave read buffer
 axi4_slave_rd #(
-    .SKID_DEPTH_AR(2),
-    .SKID_DEPTH_R(4),
-    .AXI_ID_WIDTH(4),
-    .AXI_ADDR_WIDTH(32),
-    .AXI_DATA_WIDTH(64),
-    .AXI_USER_WIDTH(1)
-) u_axi_slave_rd (
-    .aclk               (axi_aclk),
-    .aresetn            (axi_aresetn),
-
-    // Slave interface (from AXI interconnect)
-    .s_axi_arid         (s_axi_arid),
-    .s_axi_araddr       (s_axi_araddr),
-    .s_axi_arlen        (s_axi_arlen),
-    .s_axi_arsize       (s_axi_arsize),
-    .s_axi_arburst      (s_axi_arburst),
-    .s_axi_arlock       (s_axi_arlock),
-    .s_axi_arcache      (s_axi_arcache),
-    .s_axi_arprot       (s_axi_arprot),
-    .s_axi_arqos        (s_axi_arqos),
-    .s_axi_arregion     (s_axi_arregion),
-    .s_axi_aruser       (s_axi_aruser),
-    .s_axi_arvalid      (s_axi_arvalid),
-    .s_axi_arready      (s_axi_arready),
-
-    .s_axi_rid          (s_axi_rid),
-    .s_axi_rdata        (s_axi_rdata),
-    .s_axi_rresp        (s_axi_rresp),
-    .s_axi_rlast        (s_axi_rlast),
-    .s_axi_ruser        (s_axi_ruser),
-    .s_axi_rvalid       (s_axi_rvalid),
-    .s_axi_rready       (s_axi_rready),
-
-    // Backend interface (to memory controller)
-    .fub_axi_arid       (mem_arid),
-    .fub_axi_araddr     (mem_araddr),
-    .fub_axi_arlen      (mem_arlen),
-    .fub_axi_arsize     (mem_arsize),
-    .fub_axi_arburst    (mem_arburst),
-    .fub_axi_arlock     (mem_arlock),
-    .fub_axi_arcache    (mem_arcache),
-    .fub_axi_arprot     (mem_arprot),
-    .fub_axi_arqos      (mem_arqos),
-    .fub_axi_arregion   (mem_arregion),
-    .fub_axi_aruser     (mem_aruser),
-    .fub_axi_arvalid    (mem_arvalid),
-    .fub_axi_arready    (mem_arready),
-
-    .fub_axi_rid        (mem_rid),
-    .fub_axi_rdata      (mem_rdata),
-    .fub_axi_rresp      (mem_rresp),
-    .fub_axi_rlast      (mem_rlast),
-    .fub_axi_ruser      (mem_ruser),
-    .fub_axi_rvalid     (mem_rvalid),
-    .fub_axi_rready     (mem_rready),
-
-    // Status
-    .busy               (rd_slave_busy)
-);
-
-// Memory controller backend
-memory_controller u_mem_ctrl (
-    .axi_aclk       (axi_aclk),
-    .axi_aresetn    (axi_aresetn),
-    // Connect to fub_axi_* signals
-    .axi_arid       (mem_arid),
-    .axi_araddr     (mem_araddr),
-    // ... rest of signals
+    .SKID_DEPTH_AR         (2),
+    .SKID_DEPTH_R          (4),
+    .AXI_ID_WIDTH          (8),
+    .AXI_ADDR_WIDTH        (32),
+    .AXI_DATA_WIDTH        (32),
+    .AXI_USER_WIDTH        (1)
+) u_axi4_slave_rd (
+    .aclk                  (aclk),
+    .aresetn               (aresetn),
+    .s_axi_arid            (s_axi_arid),
+    .s_axi_araddr          (s_axi_araddr),
+    .s_axi_arlen           (s_axi_arlen),
+    .s_axi_arsize          (s_axi_arsize),
+    .s_axi_arburst         (s_axi_arburst),
+    .s_axi_arlock          (s_axi_arlock),
+    .s_axi_arcache         (s_axi_arcache),
+    .s_axi_arprot          (s_axi_arprot),
+    .s_axi_arqos           (s_axi_arqos),
+    .s_axi_arregion        (s_axi_arregion),
+    .s_axi_aruser          (s_axi_aruser),
+    .s_axi_arvalid         (s_axi_arvalid),
+    .s_axi_arready         (s_axi_arready),
+    .s_axi_rid             (s_axi_rid),
+    .s_axi_rdata           (s_axi_rdata),
+    .s_axi_rresp           (s_axi_rresp),
+    .s_axi_rlast           (s_axi_rlast),
+    .s_axi_ruser           (s_axi_ruser),
+    .s_axi_rvalid          (s_axi_rvalid),
+    .s_axi_rready          (s_axi_rready),
+    .fub_axi_arid          (fub_axi_arid),
+    .fub_axi_araddr        (fub_axi_araddr),
+    .fub_axi_arlen         (fub_axi_arlen),
+    .fub_axi_arsize        (fub_axi_arsize),
+    .fub_axi_arburst       (fub_axi_arburst),
+    .fub_axi_arlock        (fub_axi_arlock),
+    .fub_axi_arcache       (fub_axi_arcache),
+    .fub_axi_arprot        (fub_axi_arprot),
+    .fub_axi_arqos         (fub_axi_arqos),
+    .fub_axi_arregion      (fub_axi_arregion),
+    .fub_axi_aruser        (fub_axi_aruser),
+    .fub_axi_arvalid       (fub_axi_arvalid),
+    .fub_axi_arready       (fub_axi_arready),
+    .fub_axi_rid           (fub_axi_rid),
+    .fub_axi_rdata         (fub_axi_rdata),
+    .fub_axi_rresp         (fub_axi_rresp),
+    .fub_axi_rlast         (fub_axi_rlast),
+    .fub_axi_ruser         (fub_axi_ruser),
+    .fub_axi_rvalid        (fub_axi_rvalid),
+    .fub_axi_rready        (fub_axi_rready),
+    .busy                  (busy)
 );
 ```
-
-### Clock Gating Example
-
-```systemverilog
-// Use busy signal for clock gating
-logic axi_clk_gated;
-
-clock_gate_ctrl u_cg (
-    .clk_in            (axi_clk),
-    .aresetn           (axi_resetn),
-    .cfg_cg_enable     (1'b1),
-    .cfg_cg_idle_count (4'd8),
-    .wakeup            (rd_slave_busy),
-    .clk_out           (axi_clk_gated),
-    .gating            ()
-);
-
-// Connect module to gated clock
-axi4_slave_rd #( ... ) u_slave_rd (
-    .aclk (axi_clk_gated),
-    ...
-);
-```
-
----
 
 ## Design Notes
 

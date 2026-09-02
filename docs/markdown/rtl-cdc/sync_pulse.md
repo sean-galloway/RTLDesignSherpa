@@ -221,96 +221,19 @@ diagram above shows `o_pulse` aligned with `r_sync[2]`, consistent with this.
 
 ## Usage Examples
 
-### Basic Pulse Synchronization
+
+Every parameter and port below is read from the module declaration.
 
 ```systemverilog
-// Synchronize button press from slow to fast clock
 sync_pulse #(
-    .SYNC_STAGES(3)
-) u_button_sync (
-    .i_src_clk   (button_clk),        // Slow clock (debounced button)
-    .i_src_rst_n (sys_rst_n),
-    .i_pulse     (button_press),      // Single-cycle pulse
-    .i_dst_clk   (core_clk),          // Fast core clock
-    .i_dst_rst_n (sys_rst_n),
-    .o_pulse     (button_press_sync)
-);
-```
-
-### Interrupt Synchronization
-
-```systemverilog
-// Synchronize peripheral interrupt to CPU clock
-sync_pulse #(
-    .SYNC_STAGES(3)
-) u_irq_sync (
-    .i_src_clk   (periph_clk),
-    .i_src_rst_n (periph_rst_n),
-    .i_pulse     (periph_irq_pulse),  // Interrupt pulse
-    .i_dst_clk   (cpu_clk),
-    .i_dst_rst_n (cpu_rst_n),
-    .o_pulse     (cpu_irq)
-);
-
-// Use synchronized interrupt in CPU
-always_ff @(posedge cpu_clk) begin
-    if (cpu_irq) begin
-        // Handle interrupt
-        irq_pending <= 1'b1;
-    end
-end
-```
-
-### Event Counter Synchronization
-
-```systemverilog
-// Count events across clock domains
-logic [15:0] event_count;
-
-sync_pulse #(
-    .SYNC_STAGES(3)
-) u_event_sync (
-    .i_src_clk   (sensor_clk),
-    .i_src_rst_n (sys_rst_n),
-    .i_pulse     (sensor_event),
-    .i_dst_clk   (sys_clk),
-    .i_dst_rst_n (sys_rst_n),
-    .o_pulse     (event_sync)
-);
-
-// Count synchronized events
-always_ff @(posedge sys_clk or negedge sys_rst_n) begin
-    if (!sys_rst_n) begin
-        event_count <= 16'h0;
-    end else if (event_sync) begin
-        event_count <= event_count + 16'h1;
-    end
-end
-```
-
-### With Edge Detector for Multi-Cycle Signals
-
-```systemverilog
-// Convert multi-cycle signal to single-cycle pulse first
-logic multi_cycle_sig, single_cycle_pulse;
-
-edge_detect u_edge_det (
-    .clk      (src_clk),
-    .rst_n    (src_rst_n),
-    .sig_in   (multi_cycle_sig),
-    .pulse_out(single_cycle_pulse)   // Rising edge → pulse
-);
-
-// Then synchronize the pulse
-sync_pulse #(
-    .SYNC_STAGES(3)
-) u_sync (
-    .i_src_clk   (src_clk),
-    .i_src_rst_n (src_rst_n),
-    .i_pulse     (single_cycle_pulse),
-    .i_dst_clk   (dst_clk),
-    .i_dst_rst_n (dst_rst_n),
-    .o_pulse     (pulse_sync)
+    .SYNC_STAGES           (3)
+) u_sync_pulse (
+    .i_src_clk             (i_src_clk),
+    .i_src_rst_n           (i_src_rst_n),
+    .i_pulse               (i_pulse),
+    .i_dst_clk             (i_dst_clk),
+    .i_dst_rst_n           (i_dst_rst_n),
+    .o_pulse               (o_pulse)
 );
 ```
 

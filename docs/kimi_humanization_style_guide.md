@@ -1,5 +1,24 @@
 # Kimi Humanization Style Guide
 
+
+## Never rewrite a code block
+
+Reproduce every fenced code block **byte for byte**. Port names, parameter
+names, signal names, widths, values and connection order are not prose and are
+not yours to improve. If an instantiation looks wrong, leave it wrong and say so
+in surrounding text -- do not "fix" it.
+
+This is not a style preference. Humanize round_2 and round_4 rewrote
+`bin_to_bcd`'s instantiation into ports the module does not have (`.data`,
+`.tx`, `.busy`; the real ones are `clk`, `rst_n`, `start`, `binary`, `bcd`,
+`done`). Twenty-eight pages repo-wide ended up with examples naming ports that
+do not exist -- code a reader would copy and find will not compile. A voice pass
+is free to reword an explanation; it is not qualified to invent an interface.
+
+`bin/check_doc_examples.py` now gates this in CI and pre-commit, but the gate
+exists because this rule was missing, not instead of it.
+
+
 ## Hard Rules (Non-Negotiable)
 
 These are not style preferences. A pass that breaks either one is rejected by

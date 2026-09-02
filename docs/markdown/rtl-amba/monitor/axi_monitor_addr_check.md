@@ -204,57 +204,38 @@ measured.
 
 ## Usage Examples
 
-### Example 1: Error allowlist (out-of-range → Error packet)
 
-Declare `0x1000_0000..0x1FFF_FFFF` as the only legal region; any access outside
-it raises an Error/ADDR_RANGE packet:
+Every parameter and port below is read from the module declaration.
 
 ```systemverilog
-axi4_master_wr_mon #(
-    .N_ADDR_RANGES(1),
-    .ADDR_RANGE_IS_ERROR(1'b1),   // range 0 is an ERROR (allowlist) range
-    .AXI_ADDR_WIDTH(32)
-) u_wr_mon (
-    .cfg_addr_check_enable(1'b1),
-    .cfg_error_enable(1'b1),      // enable the MISS path
-    .cfg_addr_range_enable(1'b1),
-    .cfg_addr_range_low(32'h1000_0000),
-    .cfg_addr_range_high(32'h1FFF_FFFF)
-    // ...
+axi_monitor_addr_check #(
+    .N_ADDR_RANGES         (4),
+    .ADDR_WIDTH            (32),
+    .ID_WIDTH              (6),
+    .UNIT_ID               (8'h00),
+    .AGENT_ID              (16'h0000),
+    .IS_READ               (1'b1),
+    .ADDR_RANGE_IS_ERROR   ('0)
+) u_axi_monitor_addr_check (
+    .clk                   (clk),
+    .aresetn               (aresetn),
+    .i_mon_time            (i_mon_time),
+    .cmd_addr              (cmd_addr),
+    .cmd_id                (cmd_id),
+    .cmd_valid             (cmd_valid),
+    .cmd_ready             (cmd_ready),
+    .cfg_addr_check_enable (cfg_addr_check_enable),
+    .cfg_debug_enable      (cfg_debug_enable),
+    .cfg_error_enable      (cfg_error_enable),
+    .cfg_addr_range_enable (cfg_addr_range_enable),
+    .cfg_addr_range_low    (cfg_addr_range_low),
+    .cfg_addr_range_high   (cfg_addr_range_high),
+    .addr_pkt_valid        (addr_pkt_valid),
+    .addr_pkt_ready        (addr_pkt_ready),
+    .addr_pkt_data         (addr_pkt_data),
+    .addr_pkt_timestamp    (addr_pkt_timestamp)
 );
 ```
-
-### Example 2: Mixed debug + error ranges
-
-Range 0 traces a debug region (AddrMatch on hit); range 1 is the error
-allowlist (Error on miss). `ADDR_RANGE_IS_ERROR = 2'b10`:
-
-```systemverilog
-axi4_master_rd_mon #(
-    .N_ADDR_RANGES(2),
-    .ADDR_RANGE_IS_ERROR(2'b10),  // range1 = ERROR, range0 = DEBUG
-    .AXI_ADDR_WIDTH(32)
-) u_rd_mon (
-    .cfg_addr_check_enable(1'b1),
-    .cfg_debug_enable(1'b1),      // MATCH path (range0)
-    .cfg_error_enable(1'b1),      // MISS  path (range1 allowlist)
-    .cfg_addr_range_enable(2'b11),
-    .cfg_addr_range_low ({32'h1000_0000, 32'h0800_0000}),  // {r1, r0}
-    .cfg_addr_range_high({32'h1FFF_FFFF, 32'h08FF_FFFF})
-    // ...
-);
-```
-
-### Example 3: Exact-Match Detector
-
-Detect accesses to a single debug address:
-
-```systemverilog
-.cfg_addr_range_low(32'hDEAD_BEEF),
-.cfg_addr_range_high(32'hDEAD_BEEF)   // low == high => exact match only
-```
-
----
 
 ## Design Notes
 

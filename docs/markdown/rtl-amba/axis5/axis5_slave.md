@@ -275,157 +275,45 @@ The `busy` output indicates:
 ---
 
 ## Usage Examples
-### Basic Configuration
+
+Every parameter and port below is read from the module declaration.
 
 ```systemverilog
 axis5_slave #(
-    .SKID_DEPTH       (4),
-    .AXIS_DATA_WIDTH  (64),
-    .AXIS_ID_WIDTH    (8),
-    .AXIS_DEST_WIDTH  (4),
-    .AXIS_USER_WIDTH  (1),
-    .ENABLE_WAKEUP    (1),
-    .ENABLE_PARITY    (0)
+    .SKID_DEPTH            (4),
+    .AXIS_DATA_WIDTH       (32),
+    .AXIS_ID_WIDTH         (8),
+    .AXIS_DEST_WIDTH       (4),
+    .AXIS_USER_WIDTH       (1),
+    .ENABLE_WAKEUP         (1),
+    .ENABLE_PARITY         (0)
 ) u_axis5_slave (
-    .aclk                (axis_clk),
-    .aresetn             (axis_rst_n),
-
-    // Slave interface (from upstream)
-    .s_axis_tdata        (s_axis_tdata),
-    .s_axis_tstrb        (s_axis_tstrb),
-    .s_axis_tlast        (s_axis_tlast),
-    .s_axis_tid          (s_axis_tid),
-    .s_axis_tdest        (s_axis_tdest),
-    .s_axis_tuser        (s_axis_tuser),
-    .s_axis_tvalid       (s_axis_tvalid),
-    .s_axis_tready       (s_axis_tready),
-    .s_axis_twakeup      (s_axis_twakeup),
-    .s_axis_tparity      (8'h00),  // Not used when ENABLE_PARITY=0
-
-    // FUB interface (to backend)
-    .fub_axis_tdata      (fub_tdata),
-    .fub_axis_tstrb      (fub_tstrb),
-    .fub_axis_tlast      (fub_tlast),
-    .fub_axis_tid        (fub_tid),
-    .fub_axis_tdest      (fub_tdest),
-    .fub_axis_tuser      (fub_tuser),
-    .fub_axis_tvalid     (fub_tvalid),
-    .fub_axis_tready     (fub_tready),
-    .fub_axis_twakeup    (fub_twakeup),
-    .fub_axis_tparity    (),  // Not used when ENABLE_PARITY=0
-
-    // Status
-    .busy                (axis_busy),
-    .parity_error        ()  // Not used when ENABLE_PARITY=0
+    .aclk                  (aclk),
+    .aresetn               (aresetn),
+    .s_axis_tdata          (s_axis_tdata),
+    .s_axis_tstrb          (s_axis_tstrb),
+    .s_axis_tlast          (s_axis_tlast),
+    .s_axis_tid            (s_axis_tid),
+    .s_axis_tdest          (s_axis_tdest),
+    .s_axis_tuser          (s_axis_tuser),
+    .s_axis_tvalid         (s_axis_tvalid),
+    .s_axis_tready         (s_axis_tready),
+    .s_axis_twakeup        (s_axis_twakeup),
+    .s_axis_tparity        (s_axis_tparity),
+    .fub_axis_tdata        (fub_axis_tdata),
+    .fub_axis_tstrb        (fub_axis_tstrb),
+    .fub_axis_tlast        (fub_axis_tlast),
+    .fub_axis_tid          (fub_axis_tid),
+    .fub_axis_tdest        (fub_axis_tdest),
+    .fub_axis_tuser        (fub_axis_tuser),
+    .fub_axis_tvalid       (fub_axis_tvalid),
+    .fub_axis_tready       (fub_axis_tready),
+    .fub_axis_twakeup      (fub_axis_twakeup),
+    .fub_axis_tparity      (fub_axis_tparity),
+    .busy                  (busy),
+    .parity_error          (parity_error)
 );
 ```
-
-### With Parity Protection and Error Handling
-
-```systemverilog
-axis5_slave #(
-    .AXIS_DATA_WIDTH  (32),
-    .ENABLE_WAKEUP    (1),
-    .ENABLE_PARITY    (1)  // Enable parity checking on input
-) u_axis5_slave_parity (
-    .aclk                (axis_clk),
-    .aresetn             (axis_rst_n),
-
-    // Slave interface with parity
-    .s_axis_tdata        (s_axis_tdata),
-    .s_axis_tstrb        (s_axis_tstrb),
-    .s_axis_tlast        (s_axis_tlast),
-    .s_axis_tid          (s_axis_tid),
-    .s_axis_tdest        (s_axis_tdest),
-    .s_axis_tuser        (s_axis_tuser),
-    .s_axis_tvalid       (s_axis_tvalid),
-    .s_axis_tready       (s_axis_tready),
-    .s_axis_twakeup      (s_axis_twakeup),
-    .s_axis_tparity      (s_axis_tparity),  // 4 bits for 32-bit data
-
-    // FUB interface
-    .fub_axis_tdata      (fub_tdata),
-    .fub_axis_tstrb      (fub_tstrb),
-    .fub_axis_tlast      (fub_tlast),
-    .fub_axis_tid        (fub_tid),
-    .fub_axis_tdest      (fub_tdest),
-    .fub_axis_tuser      (fub_tuser),
-    .fub_axis_tvalid     (fub_tvalid),
-    .fub_axis_tready     (fub_tready),
-    .fub_axis_twakeup    (fub_twakeup),
-    .fub_axis_tparity    (fub_tparity),
-
-    // Status - monitor parity errors
-    .busy                (axis_busy),
-    .parity_error        (axis_parity_err)  // Sticky error flag
-);
-
-// Error handling and logging
-always_ff @(posedge axis_clk or negedge axis_rst_n) begin
-    if (!axis_rst_n) begin
-        error_count <= '0;
-        prev_parity_err <= 1'b0;
-    end else begin
-        prev_parity_err <= axis_parity_err;
-        // Count rising edges (new errors)
-        if (axis_parity_err && !prev_parity_err) begin
-            error_count <= error_count + 1;
-            // Log error or trigger interrupt
-            $error("AXIS5 Slave: Parity error detected at time %t", $time);
-        end
-    end
-end
-```
-
-### Integration with Processing Pipeline
-
-```systemverilog
-// AXIS5 slave receives data from network/upstream
-axis5_slave #(
-    .AXIS_DATA_WIDTH  (512),  // Wide data path
-    .AXIS_ID_WIDTH    (4),
-    .ENABLE_WAKEUP    (1),
-    .ENABLE_PARITY    (1)
-) u_rx_slave (
-    .aclk              (sys_clk),
-    .aresetn           (sys_rst_n),
-    .s_axis_tdata      (rx_tdata),
-    .s_axis_tstrb      (rx_tstrb),
-    .s_axis_tlast      (rx_tlast),
-    .s_axis_tid        (rx_tid),
-    .s_axis_tdest      (rx_tdest),
-    .s_axis_tuser      (rx_tuser),
-    .s_axis_tvalid     (rx_tvalid),
-    .s_axis_tready     (rx_tready),
-    .s_axis_twakeup    (rx_twakeup),
-    .s_axis_tparity    (rx_tparity),
-    // To processing pipeline
-    .fub_axis_tdata    (proc_tdata),
-    .fub_axis_tstrb    (proc_tstrb),
-    .fub_axis_tlast    (proc_tlast),
-    .fub_axis_tid      (proc_tid),
-    .fub_axis_tdest    (proc_tdest),
-    .fub_axis_tuser    (proc_tuser),
-    .fub_axis_tvalid   (proc_tvalid),
-    .fub_axis_tready   (proc_tready),
-    .fub_axis_twakeup  (proc_twakeup),
-    .fub_axis_tparity  (proc_tparity),
-    .busy              (rx_busy),
-    .parity_error      (rx_parity_err)
-);
-
-// Connect to processing module
-my_data_processor u_processor (
-    .clk         (sys_clk),
-    .rst_n       (sys_rst_n),
-    .in_tdata    (proc_tdata),
-    .in_tvalid   (proc_tvalid),
-    .in_tready   (proc_tready),
-    // ... other signals
-);
-```
-
----
 
 ## Design Notes
 

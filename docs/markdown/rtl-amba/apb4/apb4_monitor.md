@@ -284,134 +284,59 @@ measured.
 
 ## Usage Examples
 
-### Functional Verification (Recommended)
+
+Every parameter and port below is read from the module declaration.
 
 ```systemverilog
-.cfg_error_enable(1'b1),          // Catch all errors
-.cfg_timeout_enable(1'b1),        // Detect hangs
-.cfg_protocol_enable(1'b1),       // Catch violations
-.cfg_slverr_enable(1'b1),         // Report slave errors
-.cfg_perf_enable(1'b0),           // Disable (reduces packet traffic)
-.cfg_debug_enable(1'b0),          // Only if deep debugging needed
-.cfg_cmd_timeout_cnt(16'd1000),   // 1000 cycle timeout
-.cfg_rsp_timeout_cnt(16'd1000)
-```
-
-### Performance Analysis
-
-```systemverilog
-.cfg_error_enable(1'b1),          // Still catch errors
-.cfg_timeout_enable(1'b0),        // Disable
-.cfg_protocol_enable(1'b0),       // Disable
-.cfg_slverr_enable(1'b1),         // Keep error reporting
-.cfg_perf_enable(1'b1),           // Enable performance tracking
-.cfg_latency_enable(1'b1),        // Track latencies
-.cfg_throughput_enable(1'b0),     // unimplemented -- tie low
-.cfg_latency_threshold(32'd100)   // Alert on >100 cycle latency
-```
-
-### Debug Mode
-
-```systemverilog
-.cfg_error_enable(1'b1),
-.cfg_debug_enable(1'b1),          // Enable debug packets
-.cfg_trans_debug_enable(1'b1),    // Transaction-level debug
-.cfg_debug_level(4'd0),           // unimplemented -- tie low
-.cfg_perf_enable(1'b0)            // Reduce traffic
-```
-
-### Full Integration
-
-```systemverilog
-// APB Master with integrated monitor
-apb4_master #(
-    .ADDR_WIDTH(32),
-    .DATA_WIDTH(32)
-) u_apb4_master (
-    .pclk(pclk),
-    .presetn(presetn),
-    // APB master interface
-    .m_apb_PSEL(apb_psel),
-    .m_apb_PENABLE(apb_penable),
-    .m_apb_PADDR(apb_paddr),
-    .m_apb_PWRITE(apb_pwrite),
-    .m_apb_PWDATA(apb_pwdata),
-    .m_apb_PREADY(apb_pready),
-    .m_apb_PRDATA(apb_prdata),
-    .m_apb_PSLVERR(apb_pslverr),
-    // Command/Response interfaces
-    .cmd_valid(cmd_valid),
-    .cmd_ready(cmd_ready),
-    .cmd_pwrite(cmd_pwrite),
-    .cmd_paddr(cmd_paddr),
-    .cmd_pwdata(cmd_pwdata),
-    .cmd_pstrb(cmd_pstrb),     // floating these drives Z into the command FIFO
-    .cmd_pprot(cmd_pprot),
-    .rsp_valid(rsp_valid),
-    .rsp_ready(rsp_ready),
-    .rsp_prdata(rsp_prdata),
-    .rsp_pslverr(rsp_pslverr)
-);
-
-// APB Monitor attached to cmd/rsp interfaces
 apb4_monitor #(
-    .ADDR_WIDTH(32),
-    .DATA_WIDTH(32),
-    .UNIT_ID(1),
-    .AGENT_ID(10),
-    .MAX_TRANSACTIONS(4)
+    .USE_MONITOR           (1'b1),
+    .N_ADDR_RANGES         (0),
+    .ADDR_WIDTH            (32),
+    .DATA_WIDTH            (32),
+    .UNIT_ID               (8'h01),
+    .AGENT_ID              (16'h000A),
+    .MAX_TRANSACTIONS      (4),
+    .MONITOR_FIFO_DEPTH    (8)
 ) u_apb4_monitor (
-    .aclk(pclk),
-    .aresetn(presetn),
-    // Monitor cmd/rsp interfaces
-    .cmd_valid(cmd_valid),
-    .cmd_ready(cmd_ready),
-    .cmd_pwrite(cmd_pwrite),
-    .cmd_paddr(cmd_paddr),
-    .cmd_pwdata(cmd_pwdata),
-    .cmd_pstrb(cmd_pstrb),
-    .cmd_pprot(cmd_pprot),
-    .rsp_valid(rsp_valid),
-    .rsp_ready(rsp_ready),
-    .rsp_prdata(rsp_prdata),
-    .rsp_pslverr(rsp_pslverr),
-    // Configuration
-    .cfg_error_enable(1'b1),
-    .cfg_timeout_enable(1'b1),
-    .cfg_protocol_enable(1'b1),
-    .cfg_slverr_enable(1'b1),
-    .cfg_perf_enable(1'b0),
-    .cfg_debug_enable(1'b0),
-    .cfg_cmd_timeout_cnt(16'd1000),
-    .cfg_rsp_timeout_cnt(16'd1000),
-    // Free-running time input -- leaving it unconnected floats the timestamp
-    .i_mon_time(mon_time),
-    // Monitor bus (128-bit packet + 64-bit side-band timestamp)
-    .monbus_valid(mon_valid),
-    .monbus_ready(mon_ready),
-    .monbus_packet(mon_packet),
-    .monbus_timestamp(mon_timestamp),
-    // Status
-    .active_count(mon_active),
-    .error_count(mon_errors),
-    .transaction_count(mon_trans_cnt)
-);
-
-// Downstream FIFO for monitor packets
-gaxi_fifo_sync #(
-    .DATA_WIDTH(128),   // FULL packet width -- 64 would truncate the entire
-                        // header half (type, protocol, event code, IDs)
-    .DEPTH(128)
-) u_mon_fifo (
-    .axi_aclk(pclk),
-    .axi_aresetn(presetn),
-    .wr_valid(mon_valid),
-    .wr_data(mon_packet),
-    .wr_ready(mon_ready),
-    // Connect to system monitor consumer
-    .rd_valid(sys_mon_valid),
-    .rd_data(sys_mon_data),
-    .rd_ready(sys_mon_ready)
+    .aclk                  (aclk),
+    .aresetn               (aresetn),
+    .cmd_valid             (cmd_valid),
+    .cmd_ready             (cmd_ready),
+    .cmd_pwrite            (cmd_pwrite),
+    .cmd_paddr             (cmd_paddr),
+    .cmd_pwdata            (cmd_pwdata),
+    .cmd_pstrb             (cmd_pstrb),
+    .cmd_pprot             (cmd_pprot),
+    .rsp_valid             (rsp_valid),
+    .rsp_ready             (rsp_ready),
+    .rsp_prdata            (rsp_prdata),
+    .rsp_pslverr           (rsp_pslverr),
+    .cfg_error_enable      (cfg_error_enable),
+    .cfg_timeout_enable    (cfg_timeout_enable),
+    .cfg_protocol_enable   (cfg_protocol_enable),
+    .cfg_slverr_enable     (cfg_slverr_enable),
+    .cfg_perf_enable       (cfg_perf_enable),
+    .cfg_latency_enable    (cfg_latency_enable),
+    .cfg_throughput_enable (cfg_throughput_enable),
+    .cfg_debug_enable      (cfg_debug_enable),
+    .cfg_trans_debug_enable(cfg_trans_debug_enable),
+    .cfg_debug_level       (cfg_debug_level),
+    .cfg_cmd_timeout_cnt   (cfg_cmd_timeout_cnt),
+    .cfg_rsp_timeout_cnt   (cfg_rsp_timeout_cnt),
+    .cfg_latency_threshold (cfg_latency_threshold),
+    .cfg_throughput_threshold(cfg_throughput_threshold),
+    .cfg_addr_check_enable (cfg_addr_check_enable),
+    .cfg_addr_range_enable (cfg_addr_range_enable),
+    .cfg_addr_range_low    (cfg_addr_range_low),
+    .cfg_addr_range_high   (cfg_addr_range_high),
+    .i_mon_time            (i_mon_time),
+    .monbus_valid          (monbus_valid),
+    .monbus_ready          (monbus_ready),
+    .monbus_packet         (monbus_packet),
+    .monbus_timestamp      (monbus_timestamp),
+    .active_count          (active_count),
+    .error_count           (error_count),
+    .transaction_count     (transaction_count)
 );
 ```
 

@@ -568,7 +568,7 @@ class AXIS4TB(TBBase):
         super().__init__(dut)
         self.clk_name = 'aclk'
 
-        self.axis_master = AXIS4Master(
+        self.axis4_master = AXIS4Master(
             dut=dut,
             clock=dut.aclk,
             prefix="s_axis_",
@@ -576,7 +576,7 @@ class AXIS4TB(TBBase):
             log=self.log
         )
 
-        self.axis_slave = AXIS4Slave(
+        self.axis4_slave = AXIS4Slave(
             dut=dut,
             clock=dut.aclk,
             prefix="m_axis_",
@@ -613,12 +613,12 @@ async def test_axis4_streaming(dut):
             'tlast': 1 if i == len(test_data)-1 else 0,
             'tuser': 0
         }
-        await tb.axis_master.send(packet)
+        await tb.axis4_master.send(packet)
 
     # Receive and verify
     received_data = []
     for i in range(len(test_data)):
-        packet = await tb.axis_slave.recv()
+        packet = await tb.axis4_slave.recv()
         received_data.append(packet['tdata'])
 
         # Verify TLAST on final packet
@@ -641,7 +641,7 @@ async def test_axis4_backpressure(dut):
     await tb.setup_clocks_and_reset()
 
     # Configure slave to apply backpressure
-    tb.axis_slave.set_backpressure_mode('random', probability=0.5)
+    tb.axis4_slave.set_backpressure_mode('random', probability=0.5)
 
     # Send data stream
     num_packets = 100
@@ -652,12 +652,12 @@ async def test_axis4_backpressure(dut):
             'tlast': 1 if i == num_packets-1 else 0,
             'tuser': 0
         }
-        await tb.axis_master.send(packet)
+        await tb.axis4_master.send(packet)
 
     # Receive with backpressure
     received_count = 0
     for i in range(num_packets):
-        packet = await tb.axis_slave.recv()
+        packet = await tb.axis4_slave.recv()
         received_count += 1
 
     assert received_count == num_packets, \

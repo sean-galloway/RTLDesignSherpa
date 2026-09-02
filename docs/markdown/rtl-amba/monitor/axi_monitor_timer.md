@@ -297,60 +297,23 @@ measured.
 ---
 
 ## Usage Examples
+
+Every parameter and port below is read from the module declaration.
+
 ```systemverilog
-// Timer module instance
-axi_monitor_timer u_timer (
-    .aclk         (axi_clk),
-    .aresetn      (axi_rst_n),
-
-    // Frequency selection
-    .cfg_freq_sel (4'd7),  // 105 MHz table entry -> ~1 us tick @ 100 MHz
-
-    // Timer outputs
-    .timer_tick   (timer_tick),
-    .timestamp    (global_timestamp)
+axi_monitor_timer #(
+    .CFI_MIN_FREQ_MHZ      (5),
+    .CFI_MAX_FREQ_MHZ      (220),
+    .CFI_NUM_FREQ_ENTRIES  (16),
+    .CFI_FREQ_STRATEGY     (0)
+) u_axi_monitor_timer (
+    .aclk                  (aclk),
+    .aresetn               (aresetn),
+    .cfg_freq_sel          (cfg_freq_sel),
+    .timer_tick            (timer_tick),
+    .timestamp             (timestamp)
 );
-
-// Transaction manager uses timestamp
-axi_monitor_trans_mgr #(
-    .MAX_TRANSACTIONS (16),
-    // ...
-) u_trans_mgr (
-    .aclk         (axi_clk),
-    .aresetn      (axi_rst_n),
-
-    // Timestamp input
-    .timestamp    (global_timestamp),
-
-    // ... other connections
-);
-
-// Timeout module uses timer tick
-axi_monitor_timeout #(
-    .MAX_TRANSACTIONS (16),
-    // ...
-) u_timeout (
-    .aclk         (axi_clk),
-    .aresetn      (axi_rst_n),
-
-    // Timer tick input
-    .timer_tick   (timer_tick),
-
-    // Timeout thresholds -- 16-bit, one tick = one microsecond
-    .cfg_addr_cnt (16'd8),   // 8 us
-    .cfg_data_cnt (16'd12),  // 12 us
-    .cfg_resp_cnt (16'd8),   // 8 us
-
-    // ... other connections
-);
-
-// Timeout durations need no arithmetic: the tick is 1 us at any clock the
-// table is built for, so the count IS the timeout in microseconds.
-//   addr timeout = 8 us      data timeout = 12 us     resp timeout = 8 us
-// Range is 1..65535 us (~65 ms); 16'hFFFF means "effectively never".
 ```
-
----
 
 ## Design Notes
 

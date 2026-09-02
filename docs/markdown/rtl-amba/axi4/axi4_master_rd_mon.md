@@ -509,216 +509,121 @@ Variant single-beat read with different timing:
 
 ## Usage Examples
 
-### Configuration Strategies
 
-#### Strategy 1: Functional Verification (Recommended)
-
-**Goal:** Catch error responses and orphans, and track completion
+Every parameter and port below is read from the module declaration.
 
 ```systemverilog
-// Enable configuration
-.cfg_monitor_enable     (1'b1),
-.cfg_error_enable       (1'b1),      // Errors
-.cfg_timeout_enable     (1'b1),      // Timeouts
-.cfg_perf_enable        (1'b0),      // Disable (reduces traffic)
-
-// Filtering - pass error and timeout, drop others
-.cfg_axi_pkt_mask       (16'hFFF6),  // Drop all but ERROR, TIMEOUT (set bit = drop)
-.cfg_axi_err_select     (16'h0000),
-.cfg_axi_error_mask     (16'h0000),  // Pass all errors
-.cfg_axi_timeout_mask   (16'h0000),  // Pass all timeouts
-.cfg_axi_compl_mask     (16'hFFFF),  // Drop completions
-.cfg_axi_perf_mask      (16'hFFFF),  // Drop performance
-.cfg_axi_debug_mask     (16'hFFFF),  // Drop debug
-
-// Timeouts
-.cfg_timeout_cycles     (16'd10),    // 10 microseconds per phase (full 16-bit range)
-.cfg_freq_sel         (4'd0),   // counter_freq_invariant LUT index; scales the 1 us tick
-.cfg_latency_threshold  (32'd500)
-```
-
-#### Strategy 2: Performance Analysis
-
-**Goal:** Collect performance metrics, suppress completions
-
-Two suppression options exist. Runtime-disabling completions
-(`cfg_compl_enable=0`) is safe — terminal entries auto-retire without
-emitting packets or bumping counters (see
-[axi_monitor_reporter](../monitor/axi_monitor_reporter.md)) — but the `transaction_count`
-output stops advancing. The mask approach below (`cfg_axi_compl_mask`)
-keeps marking and counting while dropping the packets downstream in
-`axi_monitor_filtered`.
-
-```systemverilog
-// Enable configuration
-.cfg_monitor_enable     (1'b1),
-.cfg_error_enable       (1'b1),      // Still catch errors
-.cfg_timeout_enable     (1'b0),      // Disable timeouts
-.cfg_perf_enable        (1'b1),      // Enable performance
-
-// Filtering - pass error and performance only
-.cfg_axi_pkt_mask       (16'hFFEE),  // Drop all but ERROR, PERF (set bit = drop)
-.cfg_axi_err_select     (16'h0000),
-.cfg_axi_error_mask     (16'h0000),  // Pass all errors
-.cfg_axi_perf_mask      (16'h0000),  // Pass all performance
-.cfg_axi_compl_mask     (16'hFFFF),  // Drop completions
-.cfg_axi_timeout_mask   (16'hFFFF),  // Drop timeouts
-.cfg_axi_debug_mask     (16'hFFFF),  // Drop debug
-```
-
-#### Strategy 3: Debug Mode
-
-**Goal:** Maximum visibility, expect low traffic
-
-```systemverilog
-// Enable everything
-.cfg_monitor_enable     (1'b1),
-.cfg_error_enable       (1'b1),
-.cfg_timeout_enable     (1'b1),
-.cfg_perf_enable        (1'b1),
-
-// Filtering - pass all packets
-.cfg_axi_pkt_mask       (16'h0000),  // Pass all packet types
-.cfg_axi_err_select     (16'h0000),
-.cfg_axi_error_mask     (16'h0000),
-.cfg_axi_timeout_mask   (16'h0000),
-.cfg_axi_compl_mask     (16'h0000),  // Pass completions
-.cfg_axi_thresh_mask    (16'h0000),
-.cfg_axi_perf_mask      (16'h0000),
-.cfg_axi_addr_mask      (16'h0000),
-.cfg_axi_debug_mask     (16'h0000)
-```
-
-**WARNING:** Avoid enabling all packet types in high-throughput scenarios — the monitor bus sustains at most one packet per two cycles and will congest. (Since the auto-retire fix in `95c9490a`, congestion or runtime-disabling classes can drop packets but can no longer leak table slots or wedge the bus.)
-
-### Basic Integration
-
-```systemverilog
-// Instantiate AXI4 master read monitor
 axi4_master_rd_mon #(
-    .SKID_DEPTH_AR      (2),
-    .SKID_DEPTH_R       (4),
-    .AXI_ID_WIDTH       (4),
-    .AXI_ADDR_WIDTH     (32),
-    .AXI_DATA_WIDTH     (64),
-    .AXI_USER_WIDTH     (1),
-    .UNIT_ID            (1),
-    .AGENT_ID           (10),
-    .MAX_TRANSACTIONS   (16),
-    .ENABLE_FILTERING   (1)
-) u_master_rd_mon (
-    .aclk               (axi_aclk),
-    .aresetn            (axi_aresetn),
-
-    // Frontend interface
-    .fub_axi_arid       (read_arid),
-    .fub_axi_araddr     (read_araddr),
-    .fub_axi_arlen      (read_arlen),
-    .fub_axi_arsize     (read_arsize),
-    .fub_axi_arburst    (read_arburst),
-    .fub_axi_arlock     (1'b0),
-    .fub_axi_arcache    (4'b0010),
-    .fub_axi_arprot     (3'b000),
-    .fub_axi_arqos      (4'b0000),
-    .fub_axi_arregion   (4'b0000),
-    .fub_axi_aruser     (1'b0),
-    .fub_axi_arvalid    (read_arvalid),
-    .fub_axi_arready    (read_arready),
-
-    .fub_axi_rid        (read_rid),
-    .fub_axi_rdata      (read_rdata),
-    .fub_axi_rresp      (read_rresp),
-    .fub_axi_rlast      (read_rlast),
-    .fub_axi_ruser      (read_ruser),
-    .fub_axi_rvalid     (read_rvalid),
-    .fub_axi_rready     (read_rready),
-
-    // Master interface (to interconnect)
-    .m_axi_arid         (m_axi_arid),
-    .m_axi_araddr       (m_axi_araddr),
-    .m_axi_arlen        (m_axi_arlen),
-    .m_axi_arsize       (m_axi_arsize),
-    .m_axi_arburst      (m_axi_arburst),
-    .m_axi_arlock       (m_axi_arlock),
-    .m_axi_arcache      (m_axi_arcache),
-    .m_axi_arprot       (m_axi_arprot),
-    .m_axi_arqos        (m_axi_arqos),
-    .m_axi_arregion     (m_axi_arregion),
-    .m_axi_aruser       (m_axi_aruser),
-    .m_axi_arvalid      (m_axi_arvalid),
-    .m_axi_arready      (m_axi_arready),
-
-    .m_axi_rid          (m_axi_rid),
-    .m_axi_rdata        (m_axi_rdata),
-    .m_axi_rresp        (m_axi_rresp),
-    .m_axi_rlast        (m_axi_rlast),
-    .m_axi_ruser        (m_axi_ruser),
-    .m_axi_rvalid       (m_axi_rvalid),
-    .m_axi_rready       (m_axi_rready),
-
-    // Monitor configuration (Strategy 1 - Functional)
-    .cfg_monitor_enable     (1'b1),
-    .cfg_error_enable       (1'b1),
-    .cfg_timeout_enable     (1'b1),
-    .cfg_perf_enable        (1'b0),
-    .cfg_timeout_cycles     (16'd10),    // 10 microseconds per phase (full 16-bit range)
-    .cfg_latency_threshold  (32'd500),
-
-    .cfg_axi_pkt_mask       (16'hFFF6),  // Drop all but ERROR, TIMEOUT
-    .cfg_axi_err_select     (16'h0000),
-    .cfg_axi_error_mask     (16'h0000),
-    .cfg_axi_timeout_mask   (16'h0000),
-    .cfg_axi_compl_mask     (16'hFFFF),
-    .cfg_axi_thresh_mask    (16'hFFFF),
-    .cfg_axi_perf_mask      (16'hFFFF),
-    .cfg_axi_addr_mask      (16'hFFFF),
-    .cfg_axi_debug_mask     (16'hFFFF),
-
-    // Monitor bus output
-    .monbus_valid           (mon_valid),
-    .monbus_ready           (mon_ready),
-    .monbus_packet          (mon_packet),
-
-    // Status
-    .busy                   (rd_busy),
-    .active_transactions    (rd_active),
-    .error_count            (rd_errors),
-    .transaction_count      (rd_count),
-    .cfg_conflict_error     (cfg_conflict),
-
-    // ... 21 further inputs elided for brevity. Verilator escalates
-    // PINMISSING to an error in this repo, so a real instantiation must
-    // connect them all. Two are load-bearing rather than merely tied off:
-    //   .i_mon_time  -- the free-running timestamp broadcast; leave it
-    //                   floating and every packet is stamped with X
-    //   .cam_clear   -- synchronous clear of the transaction CAM
-    // The rest are tie-offs: cfg_compl_enable, cfg_threshold_enable,
-    // cfg_debug_enable, cfg_freq_sel, the addr-check group
-    // (cfg_addr_check_enable / cfg_addr_range_enable / _low / _high),
-    // the filter group (cfg_addr_filter_* , cfg_id_*) and the perfmon
-    // window controls (cfg_start_event_sel / cfg_end_event_sel /
-    // cfg_start_trigger / cfg_end_trigger / cfg_window_force_close).
-    .i_mon_time             (mon_time),
-    .cam_clear              (1'b0)
-);
-
-// Downstream FIFO for monitor packets
-gaxi_fifo_sync #(
-    .DATA_WIDTH(128),
-    .DEPTH(256)
-) u_mon_fifo (
-    .axi_aclk      (axi_aclk),
-    .axi_aresetn    (axi_aresetn),
-    .wr_valid    (mon_valid),
-    .wr_data     (mon_packet),
-    .wr_ready    (mon_ready),
-    .rd_valid    (fifo_valid),
-    .rd_data     (fifo_data),
-    .rd_ready    (consumer_ready)
+    .SKID_DEPTH_AR         (2),
+    .SKID_DEPTH_R          (4),
+    .AXI_ID_WIDTH          (8),
+    .AXI_ADDR_WIDTH        (32),
+    .AXI_DATA_WIDTH        (32),
+    .AXI_USER_WIDTH        (1),
+    .ACLK_MHZ              (100),
+    .USE_MONITOR           (1'b1),
+    .N_ADDR_RANGES         (0),
+    .ADDR_RANGE_IS_ERROR   ('0)
+) u_axi4_master_rd_mon (
+    .aclk                  (aclk),
+    .aresetn               (aresetn),
+    .cam_clear             (cam_clear),
+    .fub_axi_arid          (fub_axi_arid),
+    .fub_axi_araddr        (fub_axi_araddr),
+    .fub_axi_arlen         (fub_axi_arlen),
+    .fub_axi_arsize        (fub_axi_arsize),
+    .fub_axi_arburst       (fub_axi_arburst),
+    .fub_axi_arlock        (fub_axi_arlock),
+    .fub_axi_arcache       (fub_axi_arcache),
+    .fub_axi_arprot        (fub_axi_arprot),
+    .fub_axi_arqos         (fub_axi_arqos),
+    .fub_axi_arregion      (fub_axi_arregion),
+    .fub_axi_aruser        (fub_axi_aruser),
+    .fub_axi_arvalid       (fub_axi_arvalid),
+    .fub_axi_arready       (fub_axi_arready),
+    .fub_axi_rid           (fub_axi_rid),
+    .fub_axi_rdata         (fub_axi_rdata),
+    .fub_axi_rresp         (fub_axi_rresp),
+    .fub_axi_rlast         (fub_axi_rlast),
+    .fub_axi_ruser         (fub_axi_ruser),
+    .fub_axi_rvalid        (fub_axi_rvalid),
+    .fub_axi_rready        (fub_axi_rready),
+    .m_axi_arid            (m_axi_arid),
+    .m_axi_araddr          (m_axi_araddr),
+    .m_axi_arlen           (m_axi_arlen),
+    .m_axi_arsize          (m_axi_arsize),
+    .m_axi_arburst         (m_axi_arburst),
+    .m_axi_arlock          (m_axi_arlock),
+    .m_axi_arcache         (m_axi_arcache),
+    .m_axi_arprot          (m_axi_arprot),
+    .m_axi_arqos           (m_axi_arqos),
+    .m_axi_arregion        (m_axi_arregion),
+    .m_axi_aruser          (m_axi_aruser),
+    .m_axi_arvalid         (m_axi_arvalid),
+    .m_axi_arready         (m_axi_arready),
+    .m_axi_rid             (m_axi_rid),
+    .m_axi_rdata           (m_axi_rdata),
+    .m_axi_rresp           (m_axi_rresp),
+    .m_axi_rlast           (m_axi_rlast),
+    .m_axi_ruser           (m_axi_ruser),
+    .m_axi_rvalid          (m_axi_rvalid),
+    .m_axi_rready          (m_axi_rready),
+    .cfg_monitor_enable    (cfg_monitor_enable),
+    .cfg_error_enable      (cfg_error_enable),
+    .cfg_timeout_enable    (cfg_timeout_enable),
+    .cfg_perf_enable       (cfg_perf_enable),
+    .cfg_compl_enable      (cfg_compl_enable),
+    .cfg_threshold_enable  (cfg_threshold_enable),
+    .cfg_debug_enable      (cfg_debug_enable),
+    .cfg_timeout_cycles    (cfg_timeout_cycles),
+    .cfg_freq_sel          (cfg_freq_sel),
+    .cfg_latency_threshold (cfg_latency_threshold),
+    .cfg_axi_pkt_mask      (cfg_axi_pkt_mask),
+    .cfg_axi_err_select    (cfg_axi_err_select),
+    .cfg_axi_error_mask    (cfg_axi_error_mask),
+    .cfg_axi_timeout_mask  (cfg_axi_timeout_mask),
+    .cfg_axi_compl_mask    (cfg_axi_compl_mask),
+    .cfg_axi_thresh_mask   (cfg_axi_thresh_mask),
+    .cfg_axi_perf_mask     (cfg_axi_perf_mask),
+    .cfg_axi_addr_mask     (cfg_axi_addr_mask),
+    .cfg_axi_debug_mask    (cfg_axi_debug_mask),
+    .cfg_addr_check_enable (cfg_addr_check_enable),
+    .cfg_addr_range_enable (cfg_addr_range_enable),
+    .cfg_addr_range_low    (cfg_addr_range_low),
+    .cfg_addr_range_high   (cfg_addr_range_high),
+    .cfg_id_filter_enable  (cfg_id_filter_enable),
+    .cfg_id_match_base     (cfg_id_match_base),
+    .cfg_id_match_count    (cfg_id_match_count),
+    .cfg_addr_filter_enable(cfg_addr_filter_enable),
+    .cfg_addr_filter_low   (cfg_addr_filter_low),
+    .cfg_addr_filter_high  (cfg_addr_filter_high),
+    .cfg_start_event_sel   (cfg_start_event_sel),
+    .cfg_end_event_sel     (cfg_end_event_sel),
+    .cfg_start_trigger     (cfg_start_trigger),
+    .cfg_end_trigger       (cfg_end_trigger),
+    .cfg_window_force_close(cfg_window_force_close),
+    .i_mon_time            (i_mon_time),
+    .monbus_valid          (monbus_valid),
+    .monbus_ready          (monbus_ready),
+    .monbus_packet         (monbus_packet),
+    .monbus_timestamp      (monbus_timestamp),
+    .busy                  (busy),
+    .active_transactions   (active_transactions),
+    .error_count           (error_count),
+    .transaction_count     (transaction_count),
+    .debug_block_ready     (debug_block_ready),
+    .window_active         (window_active),
+    .window_cycles         (window_cycles),
+    .perf_prod_cycles      (perf_prod_cycles),
+    .perf_bp_cycles        (perf_bp_cycles),
+    .perf_starv_cycles     (perf_starv_cycles),
+    .perf_idle_cycles      (perf_idle_cycles),
+    .perf_beat_count       (perf_beat_count),
+    .perf_byte_count       (perf_byte_count),
+    .perf_burst_count      (perf_burst_count),
+    .cfg_conflict_error    (cfg_conflict_error)
 );
 ```
-
----
 
 ## Design Notes
 
