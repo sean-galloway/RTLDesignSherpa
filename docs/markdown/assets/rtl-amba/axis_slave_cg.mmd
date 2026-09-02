@@ -6,12 +6,12 @@ flowchart LR
         CG_TEST[cg_test_enable]
     end
 
-    subgraph axis_slave_cg["axis_slave_cg"]
+    subgraph axis4_slave_cg["axis4_slave_cg"]
         subgraph ICG["Clock Gate"]
             GATE["amba_clock_gate_ctrl\nenable | test | busy"]
         end
 
-        subgraph Core["axis_slave"]
+        subgraph Core["axis4_slave"]
             CORE["Core module\n(gated clock)"]
         end
     end

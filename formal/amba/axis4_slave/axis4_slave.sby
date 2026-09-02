@@ -14,12 +14,12 @@ cover: smtbmc z3
 
 [script]
 read -formal -sv -Iincludes gaxi_skid_buffer.sv
-read -formal -sv -Iincludes axis_slave.sv
+read -formal -sv -Iincludes axis4_slave.sv
 read -formal -sv -Iincludes formal_axis_slave.sv
 prep -top formal_axis_slave
 
 [files]
 gaxi_skid_buffer.sv ../../../rtl/amba/gaxi/gaxi_skid_buffer.sv
-axis_slave.sv ../../../rtl/amba/axis4/axis_slave.sv
+axis4_slave.sv ../../../rtl/amba/axis4/axis4_slave.sv
 formal_axis_slave.sv
 includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

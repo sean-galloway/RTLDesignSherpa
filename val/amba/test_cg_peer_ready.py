@@ -52,8 +52,8 @@ DUTS = {
     'axil5_master_wr_cg': (['fub_awvalid', 'fub_wvalid'], 'fub_bready'),
     'axil5_slave_rd_cg':  (['s_axil_arvalid'], 's_axil_rready'),
     'axil5_slave_wr_cg':  (['s_axil_awvalid', 's_axil_wvalid'], 's_axil_bready'),
-    'axis_master_cg':     (['fub_axis_tvalid'], 'm_axis_tready'),
-    'axis_slave_cg':      (['s_axis_tvalid'], 'fub_axis_tready'),
+    'axis4_master_cg':     (['fub_axis_tvalid'], 'm_axis_tready'),
+    'axis4_slave_cg':      (['s_axis_tvalid'], 'fub_axis_tready'),
 }
 
 IDLE_COUNT = 4

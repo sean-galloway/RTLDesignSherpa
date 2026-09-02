@@ -21,17 +21,17 @@
 
 <!-- End Header -->
 
-# axis_slave
+# axis4_slave
 
 An AXI4-Stream slave module that provides high-throughput streaming data reception with configurable buffering and comprehensive support for all AXI4-Stream sideband signals including ID, DEST, and USER channels.
 
 ## Overview
 
-The `axis_slave` module implements a complete AXI4-Stream slave interface with integrated skid buffering for optimal streaming performance. It supports the full AXI4-Stream protocol with configurable data widths, optional sideband signals, and intelligent buffer management for streaming data applications.
+The `axis4_slave` module implements a complete AXI4-Stream slave interface with integrated skid buffering for optimal streaming performance. It supports the full AXI4-Stream protocol with configurable data widths, optional sideband signals, and intelligent buffer management for streaming data applications.
 
 ## Module Interface
 ```systemverilog
-module axis_slave #(
+module axis4_slave #(
     parameter int SKID_DEPTH         = 4,
     parameter int AXIS_DATA_WIDTH    = 32,
     parameter int AXIS_ID_WIDTH      = 8,
@@ -159,11 +159,11 @@ busy = (buffer_count > 0) || s_axis_tvalid;
 ```
 
 `busy` is asserted while any beat is held in the skid buffer or a new beat is being offered
-on the slave interface. It is the wakeup term consumed by `axis_slave_cg`.
+on the slave interface. It is the wakeup term consumed by `axis4_slave_cg`.
 
 ## Usage Examples
 ```systemverilog
-axis_slave #(
+axis4_slave #(
     .SKID_DEPTH(4),           // 4 entries
     .AXIS_DATA_WIDTH(64),
     .AXIS_ID_WIDTH(8),
@@ -229,9 +229,9 @@ surrounding design treats it that way. That is an integrator-side naming convent
 protocol-compliant `TKEEP` support.
 ## Related Modules
 
-- **[axis_master](axis_master.md)** - Stream master counterpart
-- **[axis_slave_cg](axis_slave_cg.md)** - Clock-gated version
-- **[AXIS4 Clock-Gated Variants Guide](axis_clock_gating_guide.md)** - Clock gating configuration and behaviour
+- **[axis4_master](axis4_master.md)** - Stream master counterpart
+- **[axis4_slave_cg](axis4_slave_cg.md)** - Clock-gated version
+- **[AXIS4 Clock-Gated Variants Guide](axis4_clock_gating_guide.md)** - Clock gating configuration and behaviour
 
 ---
 
@@ -239,11 +239,11 @@ protocol-compliant `TKEEP` support.
 
 ## Testing
 
-`val/amba/test_axis_slave.py` exercises this module. It collects 14 parameter cases at the default `REG_LEVEL`.
+`val/amba/test_axis4_slave.py` exercises this module. It collects 14 parameter cases at the default `REG_LEVEL`.
 
 ```bash
 source env_python
-pytest val/amba/test_axis_slave.py -v
+pytest val/amba/test_axis4_slave.py -v
 ```
 
 ---

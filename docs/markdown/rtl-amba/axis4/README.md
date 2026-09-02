@@ -51,17 +51,17 @@ The AXIS4 subsystem provides a complete implementation of the ARM AMBA AXI4-Stre
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **axis_master** | AXIS master with buffered output | [axis_master.md](axis_master.md) |  Documented |
-| **axis_slave** | AXIS slave with buffered input | [axis_slave.md](axis_slave.md) |  Documented |
+| **axis4_master** | AXIS master with buffered output | [axis4_master.md](axis4_master.md) |  Documented |
+| **axis4_slave** | AXIS slave with buffered input | [axis4_slave.md](axis4_slave.md) |  Documented |
 
 ### Clock-Gated Variants
 
-**All clock-gated variants documented in:** [axis_clock_gating_guide.md](axis_clock_gating_guide.md)
+**All clock-gated variants documented in:** [axis4_clock_gating_guide.md](axis4_clock_gating_guide.md)
 
 | Module | Base Module | Status |
 |--------|-------------|--------|
-| **axis_master_cg** | [axis_master](axis_master.md) |  Documented |
-| **axis_slave_cg** | [axis_slave](axis_slave.md) |  Documented |
+| **axis4_master_cg** | [axis4_master](axis4_master.md) |  Documented |
+| **axis4_slave_cg** | [axis4_slave](axis4_slave.md) |  Documented |
 
 ---
 
@@ -126,7 +126,7 @@ signals named `*_keep` to `*_tstrb` are relying on exactly that convention.
 ### Basic Stream Master
 
 ```systemverilog
-axis_master #(
+axis4_master #(
     .SKID_DEPTH(4),           // 4 entries
     .AXIS_DATA_WIDTH(64),     // 64 bits = 8 bytes per transfer
     .AXIS_ID_WIDTH(4),        // 16 streams
@@ -157,7 +157,7 @@ axis_master #(
 ### Basic Stream Slave
 
 ```systemverilog
-axis_slave #(
+axis4_slave #(
     .SKID_DEPTH(4),           // 4 entries
     .AXIS_DATA_WIDTH(64),
     .AXIS_ID_WIDTH(8),
@@ -189,7 +189,7 @@ axis_slave #(
 
 ```systemverilog
 // Video frame buffer with packet boundaries
-axis_master #(
+axis4_master #(
     .SKID_DEPTH(4),           // 4-entry buffer
     .AXIS_DATA_WIDTH(96),     // 4 pixels x 24-bit RGB
     .AXIS_ID_WIDTH(0),        // No stream ID
@@ -227,7 +227,7 @@ axis_master #(
 
 ```systemverilog
 // High-bandwidth packet processing
-axis_slave #(
+axis4_slave #(
     .SKID_DEPTH(6),           // 6-entry buffer for latency
     .AXIS_DATA_WIDTH(512),    // 64 bytes per beat
     .AXIS_ID_WIDTH(8),        // 256 flow IDs
@@ -272,15 +272,15 @@ All AXIS4 modules are verified using CocoTB-based testbenches:
 pytest val/amba/test_axis*.py -v
 
 # Run specific module tests
-pytest val/amba/test_axis_master.py -v
-pytest val/amba/test_axis_slave.py -v
+pytest val/amba/test_axis4_master.py -v
+pytest val/amba/test_axis4_slave.py -v
 
 # Run clock-gated variant tests
-pytest val/amba/test_axis_master_cg.py -v
-pytest val/amba/test_axis_slave_cg.py -v
+pytest val/amba/test_axis4_master_cg.py -v
+pytest val/amba/test_axis4_slave_cg.py -v
 
 # Run with waveforms
-pytest val/amba/test_axis_master.py --vcd=waves.vcd -v
+pytest val/amba/test_axis4_master.py --vcd=waves.vcd -v
 ```
 
 ---
@@ -327,7 +327,7 @@ Clock-gated variants (`*_cg`) add power management:
 - 1 wake-up register stage; the first usable gated-clock edge arrives 2 cycles after activity, during which the incoming TREADY is held low
 - Best for packet-based streams with idle gaps
 
-See the [AXIS4 Clock-Gated Variants Guide](axis_clock_gating_guide.md) for the exact wakeup
+See the [AXIS4 Clock-Gated Variants Guide](axis4_clock_gating_guide.md) for the exact wakeup
 terms and the ungating latency breakdown.
 
 ---
@@ -472,7 +472,7 @@ tens or hundreds of entries of elastic storage, place a `gaxi_fifo_sync` (or
 
 ## Known Limitations
 
-Applies to `axis_master`, `axis_slave`, and their `_cg` variants:
+Applies to `axis4_master`, `axis4_slave`, and their `_cg` variants:
 
 | Limitation | Detail |
 |------------|--------|

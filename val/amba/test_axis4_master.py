@@ -4,8 +4,8 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
-# Module: test_axis_slave
-# Purpose: AXIS Slave Test Runner
+# Module: test_axis4_master
+# Purpose: AXIS Master Test Runner
 #
 # Documentation: PRD.md
 # Subsystem: tests
@@ -14,12 +14,12 @@
 # Created: 2025-10-18
 
 """
-AXIS Slave Test Runner
+AXIS Master Test Runner
 
-Test runner for the axis_slave.sv module using the CocoTB framework.
+Test runner for the axis4_master.sv module using the CocoTB framework.
 Tests various AXIS configurations and validates stream transactions.
 
-The axis_slave converts standard AXIS slave interface to FUB-side AXIS signals
+The axis4_master converts FUB-side AXIS signals to standard AXIS master interface
 through a skid buffer mechanism.
 
 Based on the AXI4 test runner pattern but adapted for AXIS stream protocol.
@@ -36,20 +36,20 @@ from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_pat
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import the testbench
-from TBClasses.axis4.axis_slave_tb import AXISSlaveTB
+from TBClasses.axis4.axis_master_tb import AXISMasterTB
 
 
 @cocotb.test(timeout_time=15, timeout_unit="ms")
-async def axis_slave_test(dut):
-    """AXIS slave test using the AXIS framework components"""
+async def axis_master_test(dut):
+    """AXIS master test using the AXIS framework components"""
 
     # Create testbench instance
-    tb = AXISSlaveTB(dut, aclk=dut.aclk, aresetn=dut.aresetn)
+    tb = AXISMasterTB(dut, aclk=dut.aclk, aresetn=dut.aresetn)
 
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    tb.log.info(f'AXIS slave test with seed: {seed}')
+    tb.log.info(f'AXIS master test with seed: {seed}')
 
     # Get test parameters from environment
     test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
@@ -86,25 +86,15 @@ async def axis_slave_test(dut):
         if test_level in ['func', 'full']:
             await tb.run_backpressure_test(num_packets=20)
 
-        # Phase 4: Ready signal tests
-        tb.log.info("=== Phase 4: Ready Signal Test ===")
-        if test_level == 'full':
-            await tb.run_ready_deassert_test()
-
-        # Phase 5: Skid buffer stress tests
-        tb.log.info("=== Phase 5: Skid Buffer Stress Test ===")
+        # Phase 4: Skid buffer stress tests
+        tb.log.info("=== Phase 4: Skid Buffer Stress Test ===")
         if test_level == 'full':
             await tb.run_skid_buffer_stress_test()
 
-        # Phase 6: Busy signal tests
-        tb.log.info("=== Phase 6: Busy Signal Test ===")
+        # Phase 5: Busy signal tests
+        tb.log.info("=== Phase 5: Busy Signal Test ===")
         if test_level == 'full':
             await tb.run_busy_signal_test()
-
-        # Phase 7: Data integrity tests
-        tb.log.info("=== Phase 7: Data Integrity Test ===")
-        if test_level == 'full':
-            await tb.run_data_integrity_test(num_packets=30)
 
         # Wait for completion
         await tb.wait_clocks('aclk', 50)
@@ -115,14 +105,14 @@ async def axis_slave_test(dut):
         if not report_success:
             raise AssertionError("Final report validation failed")
 
-        tb.log.info("=== ALL AXIS SLAVE TESTS PASSED ===")
+        tb.log.info("=== ALL AXIS MASTER TESTS PASSED ===")
 
     except AssertionError as e:
-        tb.log.error(f"AXIS slave test failed: {str(e)}")
+        tb.log.error(f"AXIS master test failed: {str(e)}")
         raise
 
     except Exception as e:
-        tb.log.error(f"AXIS slave test error: {str(e)}")
+        tb.log.error(f"AXIS master test error: {str(e)}")
         raise
 
 
@@ -153,8 +143,8 @@ async def axis_slave_test(dut):
     # Various USER widths
     (4, 32, 8, 4, 8),    # 8-bit USER
 ])
-def test_axis_slave(request, skid_depth, data_width, id_width, dest_width, user_width):
-    """Run the AXIS slave test with different configurations"""
+def test_axis4_master(request, skid_depth, data_width, id_width, dest_width, user_width):
+    """Run the AXIS master test with different configurations"""
 
     # Get worker ID for parallel execution isolation
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
@@ -164,13 +154,13 @@ def test_axis_slave(request, skid_depth, data_width, id_width, dest_width, user_
         'rtl_amba': 'rtl/amba'
     , 'rtl_amba_includes': 'rtl/amba/includes'})
 
-    dut_name = "axis_slave"
+    dut_name = "axis4_master"
     toplevel = dut_name
 
-    # Verilog sources for AXIS slave
+    # Verilog sources for AXIS master
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axis_slave.f")
+        filelist_path="rtl/amba/filelists/axis4_master.f")
 
     # Create a human readable test identifier
     sd_str = TBBase.format_dec(skid_depth, 1)
@@ -194,7 +184,7 @@ def test_axis_slave(request, skid_depth, data_width, id_width, dest_width, user_
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
     includes=includes
-    # RTL parameters for AXIS slave
+    # RTL parameters for AXIS master
     parameters = {
         'SKID_DEPTH': skid_depth,
         'AXIS_DATA_WIDTH': data_width,
@@ -264,17 +254,16 @@ def test_axis_slave(request, skid_depth, data_width, id_width, dest_width, user_
             plus_args=plus_args,
         )
     except Exception as e:
-        print(f"AXIS slave test failed: {str(e)}")
+        print(f"AXIS master test failed: {str(e)}")
         print(f"Test configuration: SKID_DEPTH={skid_depth}, DATA_WIDTH={data_width}")
         print(f"ID_WIDTH={id_width}, DEST_WIDTH={dest_width}, USER_WIDTH={user_width}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run this command: {cmd_filename}")
 
-        print("\nTroubleshooting hints for AXIS slave:")
+        print("\nTroubleshooting hints for AXIS master:")
         print("- Check that gaxi_skid_buffer.sv is present")
         print("- Verify AXIS signal connectivity")
         print("- Look for signal interface compatibility issues")
-        print("- Check ready signal propagation")
         print("- Check busy signal behavior")
         print("- Verify skid buffer depth configuration")
 
@@ -282,20 +271,20 @@ def test_axis_slave(request, skid_depth, data_width, id_width, dest_width, user_
     # Get worker ID for parallel execution isolation
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
 
-    """Run the AXIS slave test with different configurations"""
+    """Run the AXIS master test with different configurations"""
 
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_amba': 'rtl/amba'
     , 'rtl_amba_includes': 'rtl/amba/includes'})
 
-    dut_name = "axis_slave"
+    dut_name = "axis4_master"
     toplevel = dut_name
 
-    # Verilog sources for AXIS slave
+    # Verilog sources for AXIS master
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axis_slave.f")
+        filelist_path="rtl/amba/filelists/axis4_master.f")
 
     # Create a human readable test identifier
     sd_str = TBBase.format_dec(skid_depth, 1)
@@ -319,7 +308,7 @@ def test_axis_slave(request, skid_depth, data_width, id_width, dest_width, user_
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
     includes=includes
-    # RTL parameters for AXIS slave
+    # RTL parameters for AXIS master
     parameters = {
         'SKID_DEPTH': skid_depth,
         'AXIS_DATA_WIDTH': data_width,
@@ -389,17 +378,16 @@ def test_axis_slave(request, skid_depth, data_width, id_width, dest_width, user_
             plus_args=plus_args,
         )
     except Exception as e:
-        print(f"AXIS slave test failed: {str(e)}")
+        print(f"AXIS master test failed: {str(e)}")
         print(f"Test configuration: SKID_DEPTH={skid_depth}, DATA_WIDTH={data_width}")
         print(f"ID_WIDTH={id_width}, DEST_WIDTH={dest_width}, USER_WIDTH={user_width}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run this command: {cmd_filename}")
 
-        print("\nTroubleshooting hints for AXIS slave:")
+        print("\nTroubleshooting hints for AXIS master:")
         print("- Check that gaxi_skid_buffer.sv is present")
         print("- Verify AXIS signal connectivity")
         print("- Look for signal interface compatibility issues")
-        print("- Check ready signal propagation")
         print("- Check busy signal behavior")
         print("- Verify skid buffer depth configuration")
 

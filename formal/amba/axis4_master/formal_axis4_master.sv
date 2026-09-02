@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Formal proof for axis_master -- AXI-Stream master skid buffer wrapper
+// Formal proof for axis4_master -- AXI-Stream master skid buffer wrapper
 //
 // Properties verified:
 //   P1: Reset clears m_axis_tvalid
@@ -61,7 +61,7 @@ module formal_axis_master (
     // =========================================================================
     // DUT
     // =========================================================================
-    axis_master #(
+    axis4_master #(
         .SKID_DEPTH      (SKID),
         .AXIS_DATA_WIDTH (DW),
         .AXIS_ID_WIDTH   (IW),

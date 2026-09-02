@@ -16,11 +16,11 @@
 """
 AXIS Master Clock Gated Testbench
 
-Testbench for testing axis_master_cg.sv module using the CocoTB framework.
+Testbench for testing axis4_master_cg.sv module using the CocoTB framework.
 Extends the base AXIS master testbench with clock gating functionality.
 
 Architecture:
-    fub_axis_* (input) -> [axis_master_cg] -> m_axis_* (output)
+    fub_axis_* (input) -> [axis4_master_cg] -> m_axis_* (output)
                               |
                          Clock Gating Control
 

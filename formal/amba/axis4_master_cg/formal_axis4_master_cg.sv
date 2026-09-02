@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Formal wrapper for axis_master_cg
+// Formal wrapper for axis4_master_cg
 
 `include "reset_defs.svh"
 
@@ -40,7 +40,7 @@ module formal_axis_master_cg (
     wire                  cg_gating;
     wire                  cg_idle;
 
-    axis_master_cg #(
+    axis4_master_cg #(
         .SKID_DEPTH          (2),
         .AXIS_DATA_WIDTH     (DW),
         .AXIS_ID_WIDTH       (IW),
@@ -95,7 +95,7 @@ module formal_axis_master_cg (
 endmodule
 
 // ======================================================================
-// Bound wake-coverage checker for axis_master_cg
+// Bound wake-coverage checker for axis4_master_cg
 // ======================================================================
 module axis_master_cg_wake_checker (
     input logic aclk,
@@ -114,7 +114,7 @@ module axis_master_cg_wake_checker (
     end
 endmodule
 
-bind axis_master_cg axis_master_cg_wake_checker u_wake_check (
+bind axis4_master_cg axis_master_cg_wake_checker u_wake_check (
     .aclk            (aclk),
     .aresetn         (aresetn),
     .fub_axis_tvalid (fub_axis_tvalid),

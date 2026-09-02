@@ -21,17 +21,17 @@
 
 <!-- End Header -->
 
-# axis_master
+# axis4_master
 
 An AXI4-Stream master module that provides high-throughput streaming data transmission with configurable buffering and comprehensive support for all AXI4-Stream sideband signals including ID, DEST, and USER channels.
 
 ## Overview
 
-The `axis_master` module implements a complete AXI4-Stream master interface with integrated skid buffering for optimal streaming performance. It supports the full AXI4-Stream protocol with configurable data widths, optional sideband signals, and intelligent buffer management to maximize throughput in streaming data applications such as video processing, network packet handling, and DSP pipelines.
+The `axis4_master` module implements a complete AXI4-Stream master interface with integrated skid buffering for optimal streaming performance. It supports the full AXI4-Stream protocol with configurable data widths, optional sideband signals, and intelligent buffer management to maximize throughput in streaming data applications such as video processing, network packet handling, and DSP pipelines.
 
 ## Module Interface
 ```systemverilog
-module axis_master #(
+module axis4_master #(
     parameter int SKID_DEPTH         = 4,
     parameter int AXIS_DATA_WIDTH    = 32,
     parameter int AXIS_ID_WIDTH      = 8,
@@ -276,7 +276,7 @@ a system budget.
 ### Basic Video Stream Processing
 
 ```systemverilog
-axis_master #(
+axis4_master #(
     .SKID_DEPTH(4),           // 4-entry buffer
     .AXIS_DATA_WIDTH(64),     // 8 bytes per transfer
     .AXIS_ID_WIDTH(4),        // Support 16 streams
@@ -314,7 +314,7 @@ axis_master #(
 
 ```systemverilog
 // High-performance packet processing
-axis_master #(
+axis4_master #(
     .SKID_DEPTH(8),           // 8-entry buffer (deepest legal) for latency tolerance
     .AXIS_DATA_WIDTH(512),    // 64 bytes per beat (512-bit)
     .AXIS_ID_WIDTH(8),        // 256 flow IDs
@@ -345,7 +345,7 @@ axis_master #(
 
 ```systemverilog
 // DSP processing chain with minimal sideband
-axis_master #(
+axis4_master #(
     .SKID_DEPTH(2),           // 2-entry buffer (minimum latency)
     .AXIS_DATA_WIDTH(128),    // 4 x 32-bit samples
     .AXIS_ID_WIDTH(0),        // No stream ID needed
@@ -396,7 +396,7 @@ module stream_router (
     genvar i;
     generate
         for (i = 0; i < 4; i++) begin : gen_stream_masters
-            axis_master #(
+            axis4_master #(
                 .SKID_DEPTH(4),
                 .AXIS_DATA_WIDTH(64),
                 .AXIS_ID_WIDTH(4),
@@ -451,7 +451,7 @@ module axis_cdc_system (
 );
 
     // Source domain buffering
-    axis_master #(
+    axis4_master #(
         .SKID_DEPTH(2),
         .AXIS_DATA_WIDTH(32),
         .AXIS_ID_WIDTH(4),
@@ -505,7 +505,7 @@ module stream_pipeline (
     axi4s_if stage3_out();
 
     // Stage 1: Input buffering
-    axis_master #(.SKID_DEPTH(2), .AXIS_DATA_WIDTH(64))
+    axis4_master #(.SKID_DEPTH(2), .AXIS_DATA_WIDTH(64))
     u_stage1 (
         .aclk(clk), .aresetn(resetn),
         .fub_axis_*(input_stream.*),
@@ -519,7 +519,7 @@ module stream_pipeline (
         .s_axis(stage1_out), .m_axis(stage2_out)
     );
 
-    axis_master #(.SKID_DEPTH(4), .AXIS_DATA_WIDTH(64))
+    axis4_master #(.SKID_DEPTH(4), .AXIS_DATA_WIDTH(64))
     u_stage2 (
         .aclk(clk), .aresetn(resetn),
         .fub_axis_*(stage2_out.*),
@@ -528,7 +528,7 @@ module stream_pipeline (
     );
 
     // Stage 3: Output conditioning
-    axis_master #(.SKID_DEPTH(2), .AXIS_DATA_WIDTH(64))
+    axis4_master #(.SKID_DEPTH(2), .AXIS_DATA_WIDTH(64))
     u_stage3 (
         .aclk(clk), .aresetn(resetn),
         .fub_axis_*(stage3_out.*),
@@ -543,7 +543,7 @@ endmodule
 
 ### Clock Gating Integration
 
-The clock-gated variant `axis_master_cg` wraps this module and drives it from a gated clock.
+The clock-gated variant `axis4_master_cg` wraps this module and drives it from a gated clock.
 Its control ports are `cfg_cg_enable` and `cfg_cg_idle_count`; its status ports are
 `cg_gating` and `cg_idle`. There is **no `cg_enable`, no `cg_test_enable`, and no `busy`
 output** on the `_cg` wrapper — the base module's `busy` is consumed internally as one of the
@@ -551,7 +551,7 @@ wakeup terms.
 
 ```systemverilog
 // Clock gated version for power optimization
-axis_master_cg #(
+axis4_master_cg #(
     .SKID_DEPTH(4),
     .AXIS_DATA_WIDTH(64),
     .CG_IDLE_COUNT_WIDTH(4)
@@ -577,7 +577,7 @@ always_ff @(posedge axi_clk) begin
 end
 ```
 
-See the [AXIS4 Clock-Gated Variants Guide](axis_clock_gating_guide.md) for gating and
+See the [AXIS4 Clock-Gated Variants Guide](axis4_clock_gating_guide.md) for gating and
 ungating behaviour, including the ungating latency and the `fub_axis_tready` hold-off while
 gated.
 ## Design Notes
@@ -594,7 +594,7 @@ gated.
 - Consider pipeline stages for very high-frequency designs
 
 ### Power Optimization
-- Use clock gating variant (`axis_master_cg`) when available
+- Use clock gating variant (`axis4_master_cg`) when available
 - Implement activity-based power scaling
 - Size buffers appropriately to minimize switching
 
@@ -633,7 +633,7 @@ localparam VIDEO_PIXELS_PER_CYCLE = 4;
 localparam PIXEL_BITS = 24;  // RGB888
 localparam VIDEO_DATA_WIDTH = VIDEO_PIXELS_PER_CYCLE * PIXEL_BITS;
 
-axis_master #(
+axis4_master #(
     .AXIS_DATA_WIDTH(VIDEO_DATA_WIDTH),  // 96 bits
     .SKID_DEPTH(4),
     .AXIS_USER_WIDTH(8)  // Control signals
@@ -644,7 +644,7 @@ axis_master #(
 
 ```systemverilog
 // Minimize unused sideband signals for area/power
-axis_master #(
+axis4_master #(
     .AXIS_DATA_WIDTH(128),
     .AXIS_ID_WIDTH(0),     // Disable TID
     .AXIS_DEST_WIDTH(0),   // Disable TDEST
@@ -654,27 +654,27 @@ axis_master #(
 ```
 ## Related Modules
 
-- **axis_master_cg**: Clock-gated version for power optimization
-- **axis_slave**: Complementary AXI4-Stream slave implementation
+- **axis4_master_cg**: Clock-gated version for power optimization
+- **axis4_slave**: Complementary AXI4-Stream slave implementation
 - **gaxi_skid_buffer**: Underlying buffer infrastructure
 - **gaxi_fifo_async**: Asynchronous FIFO for clock domain crossing
 
 > The `axis_arbiter` and `axis_interconnect` blocks referenced in the "Multi-Stream Router
 > Integration" example above are **not part of this repository**. That example illustrates a
-> system topology built around `axis_master`; the arbitration block is left to the
+> system topology built around `axis4_master`; the arbitration block is left to the
 > integrator.
 
-The `axis_master` module provides a complete, high-performance solution for AXI4-Stream master functionality with advanced buffering, flexible signal configuration, and comprehensive system integration capabilities.
+The `axis4_master` module provides a complete, high-performance solution for AXI4-Stream master functionality with advanced buffering, flexible signal configuration, and comprehensive system integration capabilities.
 
 ---
 
 ## Testing
 
-`val/amba/test_axis_master.py` exercises this module. It collects 14 parameter cases at the default `REG_LEVEL`.
+`val/amba/test_axis4_master.py` exercises this module. It collects 14 parameter cases at the default `REG_LEVEL`.
 
 ```bash
 source env_python
-pytest val/amba/test_axis_master.py -v
+pytest val/amba/test_axis4_master.py -v
 ```
 
 ---

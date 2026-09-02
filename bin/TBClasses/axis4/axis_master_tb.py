@@ -16,12 +16,12 @@
 """
 AXIS Master Testbench
 
-Testbench for testing axis_master.sv module using the CocoTB framework's
-AXIS components. The axis_master is a skid buffer that converts FUB-side
+Testbench for testing axis4_master.sv module using the CocoTB framework's
+AXIS components. The axis4_master is a skid buffer that converts FUB-side
 signals to standard AXIS master interface.
 
 Architecture:
-    fub_axis_* (input) -> [axis_master] -> m_axis_* (output)
+    fub_axis_* (input) -> [axis4_master] -> m_axis_* (output)
                               |
                             busy (status)
 
@@ -43,7 +43,7 @@ from CocoTBFramework.components.axis4.axis_field_configs import AXISFieldConfigs
 
 class AXISMasterTB(TBBase):
     """
-    AXIS Master testbench for testing axis_master.sv RTL module.
+    AXIS Master testbench for testing axis4_master.sv RTL module.
 
     Tests the skid buffer functionality that converts FUB-side AXIS
     signals to standard AXIS master interface.
@@ -120,7 +120,7 @@ class AXISMasterTB(TBBase):
     def setup_components(self):
         """Setup AXIS components for testing."""
 
-        # Create FUB-side master (feeds input to axis_master RTL)
+        # Create FUB-side master (feeds input to axis4_master RTL)
         self.fub_master_components = create_axis_master(
             dut=self.dut,
             clock=self.aclk,
@@ -134,7 +134,7 @@ class AXISMasterTB(TBBase):
         )
         self.fub_master = self.fub_master_components['interface']
 
-        # Create AXIS slave (receives output from axis_master RTL)
+        # Create AXIS slave (receives output from axis4_master RTL)
         self.axis_slave_components = create_axis_slave(
             dut=self.dut,
             clock=self.aclk,
@@ -208,7 +208,7 @@ class AXISMasterTB(TBBase):
         self.log.info("Reset deasserted and bus interfaces reset")
 
     async def run_basic_transfer_test(self, num_packets=10):
-        """Test basic packet transfer through the axis_master."""
+        """Test basic packet transfer through the axis4_master."""
         self.log.info(f"Starting basic transfer test with {num_packets} packets")
 
         # Configure slave to be always ready (using GAXISlave method)

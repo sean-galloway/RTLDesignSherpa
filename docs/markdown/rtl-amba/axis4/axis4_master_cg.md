@@ -23,8 +23,8 @@
 
 # AXIS Master Interface (Clock-Gated)
 
-**Module:** `axis_master_cg.sv`
-**Base Module:** [axis_master](./axis_master.md)
+**Module:** `axis4_master_cg.sv`
+**Base Module:** [axis4_master](./axis4_master.md)
 **Location:** `rtl/amba/axis4/`
 **Status:**  Production Ready
 
@@ -32,10 +32,10 @@
 
 ## Overview
 
-`axis_master_cg` is the clock-gated variant of `axis_master`: the same
+`axis4_master_cg` is the clock-gated variant of `axis4_master`: the same
 AXI4-Stream transport, wrapped in one `amba_clock_gate_ctrl` that stops the
 inner module's clock while the stream is idle. Functionally it is
-indistinguishable from `axis_master`; what it adds is the gating and the
+indistinguishable from `axis4_master`; what it adds is the gating and the
 `cg_gating` / `cg_idle` status outputs.
 
 ---
@@ -138,7 +138,7 @@ device and the parameters you elaborate with; run your own build.
 Every parameter and port below is taken from the module declaration.
 
 ```systemverilog
-axis_master_cg #(
+axis4_master_cg #(
     .SKID_DEPTH            (4),
     .AXIS_DATA_WIDTH       (32),
     .AXIS_ID_WIDTH         (8),
@@ -179,17 +179,17 @@ axis_master_cg #(
 
 ### Quick Reference
 
-This is the **clock-gated variant** of [axis_master](./axis_master.md).
+This is the **clock-gated variant** of [axis4_master](./axis4_master.md).
 
 **For complete clock-gating documentation, usage examples, and configuration guidelines, see:**
 
-**→ [AXIS4 Clock-Gated Variants Guide](./axis_clock_gating_guide.md)**
+**→ [AXIS4 Clock-Gated Variants Guide](./axis4_clock_gating_guide.md)**
 
 ### Quick Usage
 
 ```systemverilog
-axis_master_cg #(
-    // Base module parameters (see axis_master.md)
+axis4_master_cg #(
+    // Base module parameters (see axis4_master.md)
     .SKID_DEPTH(4),
     .AXIS_DATA_WIDTH(64),
     .AXIS_ID_WIDTH(8),
@@ -206,7 +206,7 @@ axis_master_cg #(
     .cfg_cg_enable(cg_enable),
     .cfg_cg_idle_count(4'd8),
 
-    // ... all AXI4-Stream ports same as axis_master ...
+    // ... all AXI4-Stream ports same as axis4_master ...
 
     // Clock gating status (replaces the base module's `busy` output)
     .cg_gating(clk_is_gated),
@@ -246,7 +246,7 @@ fabric flops.
 
 ### Summary
 
-The `axis_master_cg` module adds power optimization to `axis_master` through activity-based clock gating:
+The `axis4_master_cg` module adds power optimization to `axis4_master` through activity-based clock gating:
 
 - **Same Data Functionality:** Identical to the base module once the clock is running
 - **Power Savings:** Estimated 25-70% depending on stream duty cycle (planning figure, not measured)
@@ -255,7 +255,7 @@ The `axis_master_cg` module adds power optimization to `axis_master` through act
 
 ### Common Parameters
 
-In addition to all [axis_master](./axis_master.md) parameters:
+In addition to all [axis4_master](./axis4_master.md) parameters:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
@@ -295,8 +295,8 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 
 ### Documentation
 
-- **Base Module Functionality:** [axis_master.md](./axis_master.md)
-- **Clock Gating Guide:** [axis_clock_gating_guide.md](./axis_clock_gating_guide.md) (AXIS4-specific)
+- **Base Module Functionality:** [axis4_master.md](./axis4_master.md)
+- **Clock Gating Guide:** [axis4_clock_gating_guide.md](./axis4_clock_gating_guide.md) (AXIS4-specific)
 - **Generic CG Architecture:** [clock_gated_variants.md](../shared/clock_gated_variants.md)
 - **Detailed CG Examples:**
   - [axi4_master_rd_mon_cg.md](../axi4/axi4_master_rd_mon_cg.md) (AXI4 monitor)
@@ -309,17 +309,17 @@ modules this one instantiates and the modules that instantiate it.
 
 **Instantiates:**
 - `amba_clock_gate_ctrl`
-- `axis_master`
+- `axis4_master`
 
 ---
 
 ## Testing
 
-`val/amba/test_axis_master_cg.py` exercises this module. It collects 2 parameter cases at the default `REG_LEVEL`.
+`val/amba/test_axis4_master_cg.py` exercises this module. It collects 2 parameter cases at the default `REG_LEVEL`.
 
 ```bash
 source env_python
-pytest val/amba/test_axis_master_cg.py -v
+pytest val/amba/test_axis4_master_cg.py -v
 ```
 
 ---

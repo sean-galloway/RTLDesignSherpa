@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: axis_slave
+// Module: axis4_slave
 // Purpose: Axis Slave module
 //
 // Documentation: docs/markdown/rtl-amba/index.md
@@ -15,7 +15,7 @@
 
 `timescale 1ns / 1ps
 
-module axis_slave
+module axis4_slave
 #(
     parameter int SKID_DEPTH         = 4,
     parameter int AXIS_DATA_WIDTH    = 32,
@@ -135,4 +135,4 @@ module axis_slave
     assign fub_axis_tvalid = int_skid_tvalid;
     assign int_skid_tready = fub_axis_tready;
 
-endmodule : axis_slave
+endmodule : axis4_slave

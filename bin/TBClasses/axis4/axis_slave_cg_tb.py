@@ -16,11 +16,11 @@
 """
 AXIS Slave Clock Gated Testbench
 
-Testbench for testing axis_slave_cg.sv module using the CocoTB framework.
+Testbench for testing axis4_slave_cg.sv module using the CocoTB framework.
 Extends the base AXIS slave testbench with clock gating functionality.
 
 Architecture:
-    s_axis_* (input) -> [axis_slave_cg] -> fub_axis_* (output)
+    s_axis_* (input) -> [axis4_slave_cg] -> fub_axis_* (output)
                            |
                       Clock Gating Control
 

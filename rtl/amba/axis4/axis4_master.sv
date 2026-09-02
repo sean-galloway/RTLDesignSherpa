@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: axis_master
+// Module: axis4_master
 // Purpose: Axis Master module
 //
 // Documentation: docs/markdown/rtl-amba/index.md
@@ -15,7 +15,7 @@
 
 `timescale 1ns / 1ps
 
-module axis_master
+module axis4_master
 #(
     parameter int SKID_DEPTH         = 4,
     parameter int AXIS_DATA_WIDTH    = 32,
@@ -135,4 +135,4 @@ module axis_master
     assign m_axis_tvalid = int_skid_tvalid;
     assign int_skid_tready = m_axis_tready;
 
-endmodule : axis_master
+endmodule : axis4_master

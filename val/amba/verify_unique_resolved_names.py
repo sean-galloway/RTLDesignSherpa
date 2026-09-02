@@ -51,7 +51,7 @@ def analyze_name_patterns(names):
                 if len(parts) >= 3:
                     base = '_'.join(parts[:3])  # e.g., "axi4_master_rd"
                 elif len(parts) >= 2:
-                    base = '_'.join(parts[:2])  # e.g., "axis_master"
+                    base = '_'.join(parts[:2])  # e.g., "axis4_master"
         else:
             base = name
 

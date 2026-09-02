@@ -36,8 +36,8 @@ Both AXIS4 modules have clock-gated (`_cg`) variants that add power management t
 
 | Module | Base Module | Description |
 |--------|-------------|-------------|
-| `axis_master_cg` | [axis_master](axis_master.md) | Clock-gated stream master |
-| `axis_slave_cg` | [axis_slave](axis_slave.md) | Clock-gated stream slave |
+| `axis4_master_cg` | [axis4_master](axis4_master.md) | Clock-gated stream master |
+| `axis4_slave_cg` | [axis4_slave](axis4_slave.md) | Clock-gated stream slave |
 
 ### Key Features
 
@@ -92,7 +92,7 @@ Both AXIS4 modules have clock-gated (`_cg`) variants that add power management t
 ## Usage Example
 
 ```systemverilog
-axis_master_cg #(
+axis4_master_cg #(
     // Base parameters
     .SKID_DEPTH(4),
     .AXIS_DATA_WIDTH(64),
@@ -125,7 +125,7 @@ axis_master_cg #(
 ## Clock Gating Behavior
 
 Both wrappers build a single `wakeup` term and hand it to `amba_clock_gate_ctrl`. For
-`axis_master_cg` that term is:
+`axis4_master_cg` that term is:
 
 ```systemverilog
 user_valid = fub_axis_tvalid || busy;   // busy is internal; m_axis_tvalid is in axi_valid
@@ -139,7 +139,7 @@ wakeup     = user_valid || axi_valid;                    // registered one cycle
 > silently, because function is unaffected. Use the VALID your side drives.
 > Ten `_cg` wrappers carried this defect until 2026-09-02.
 
-`axis_slave_cg` uses the same structure with `s_axis_tvalid`, `fub_axis_tready` and
+`axis4_slave_cg` uses the same structure with `s_axis_tvalid`, `fub_axis_tready` and
 `fub_axis_tvalid` substituted. Note that the **sink's ready signal is a wakeup term**: a
 downstream block holding TREADY high keeps the clock running even with no traffic.
 
@@ -179,9 +179,9 @@ This latency is not free of protocol impact. Both wrappers force the incoming re
 low while gated:
 
 ```systemverilog
-// axis_master_cg
+// axis4_master_cg
 assign fub_axis_tready = cg_gating ? 1'b0 : int_tready;
-// axis_slave_cg
+// axis4_slave_cg
 assign s_axis_tready   = cg_gating ? 1'b0 : int_tready;
 ```
 
@@ -277,8 +277,8 @@ have not been correlated against a power analysis run on any target technology.
 ## Related Documentation
 
 ### Base Modules
-- **[axis_master](axis_master.md)** - Base stream master
-- **[axis_slave](axis_slave.md)** - Base stream slave
+- **[axis4_master](axis4_master.md)** - Base stream master
+- **[axis4_slave](axis4_slave.md)** - Base stream slave
 
 ### Architecture
 - **[AXI4 Clock Gating Guide](../axi4/axi4_clock_gating_guide.md)** - Complete reference

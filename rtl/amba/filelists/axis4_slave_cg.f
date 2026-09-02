@@ -1,5 +1,5 @@
-# Filelist for axis_master_cg
-# Location: rtl/amba/filelists/axis_master_cg.f
+# Filelist for axis4_slave_cg
+# Location: rtl/amba/filelists/axis4_slave_cg.f
 #
 # Generated from the inline verilog_sources lists in val/amba.
 # Compile order is significant and preserved from the original tests.
@@ -10,5 +10,5 @@
 -f $REPO_ROOT/rtl/common/filelists/clock_gate_ctrl.f
 $REPO_ROOT/rtl/amba/shared/amba_clock_gate_ctrl.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
-$REPO_ROOT/rtl/amba/axis4/axis_master.sv
-$REPO_ROOT/rtl/amba/axis4/axis_master_cg.sv
+$REPO_ROOT/rtl/amba/axis4/axis4_slave.sv
+$REPO_ROOT/rtl/amba/axis4/axis4_slave_cg.sv

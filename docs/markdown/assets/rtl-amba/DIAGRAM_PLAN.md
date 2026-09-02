@@ -200,11 +200,11 @@ Main AXI4 master/slave interfaces.
 
 | File | Module | Complexity | Status |
 |------|--------|------------|--------|
-| axis4/axis_master.md | axis_master | Medium | [ ] Pending |
-| axis4/axis_slave.md | axis_slave | Medium | [ ] Pending |
-| axis4/axis_master_cg.md | axis_master_cg | Low | [ ] Pending |
-| axis4/axis_slave_cg.md | axis_slave_cg | Low | [ ] Pending |
-| axis4/axis_clock_gating_guide.md | (guide) | Low | [ ] Pending |
+| axis4/axis4_master.md | axis4_master | Medium | [ ] Pending |
+| axis4/axis4_slave.md | axis4_slave | Medium | [ ] Pending |
+| axis4/axis4_master_cg.md | axis4_master_cg | Low | [ ] Pending |
+| axis4/axis4_slave_cg.md | axis4_slave_cg | Low | [ ] Pending |
+| axis4/axis4_clock_gating_guide.md | (guide) | Low | [ ] Pending |
 | axis4/README.md | (overview) | Low | [ ] Pending |
 
 ### Phase 11: Protocol Shims (4 files) - LOW PRIORITY

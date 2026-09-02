@@ -488,7 +488,7 @@ The `parity_error` flag is **sticky** (latches high until reset):
 - **[AXIS5 Master](axis5_master.md)** - AXIS5 master interface (transmit side)
 - **[AXIS5 Slave CG](axis5_slave_cg.md)** - Clock-gated variant with power management
 - **[AXIS5 Master CG](axis5_master_cg.md)** - Clock-gated master variant
-- **[AXIS4 Slave](../axis4/axis_slave.md)** - AXIS4 version for comparison
+- **[AXIS4 Slave](../axis4/axis4_slave.md)** - AXIS4 version for comparison
 - **[AMBA5 Overview](../overview.md)** - AMBA5 specifications and extensions
 
 ---

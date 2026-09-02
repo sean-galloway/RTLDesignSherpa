@@ -4,8 +4,8 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
-# Module: test_axis_slave_cg
-# Purpose: AXIS Slave Clock Gated Test Runner
+# Module: test_axis4_master_cg
+# Purpose: AXIS Master Clock Gated Test Runner
 #
 # Documentation: PRD.md
 # Subsystem: tests
@@ -14,9 +14,9 @@
 # Created: 2025-10-18
 
 """
-AXIS Slave Clock Gated Test Runner
+AXIS Master Clock Gated Test Runner
 
-Test runner for the axis_slave_cg module using the CocoTB framework.
+Test runner for the axis4_master_cg module using the CocoTB framework.
 Tests clock gating functionality while validating AXIS stream transactions.
 
 Based on the AXI4 clock gated test runner pattern but adapted for AXIS stream testing.
@@ -35,20 +35,20 @@ from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_pat
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import the clock gated testbench
-from TBClasses.axis4.axis_slave_cg_tb import AXISSlaveCGTB
+from TBClasses.axis4.axis_master_cg_tb import AXISMasterCGTB
 
 
 @cocotb.test(timeout_time=30, timeout_unit="ms")
-async def axis_slave_cg_test(dut):
-    """AXIS slave clock gated test using the enhanced framework"""
+async def axis_master_cg_test(dut):
+    """AXIS master clock gated test using the enhanced framework"""
 
     # Create clock-gated testbench instance
-    tb = AXISSlaveCGTB(dut, aclk=dut.aclk, aresetn=dut.aresetn)
+    tb = AXISMasterCGTB(dut, aclk=dut.aclk, aresetn=dut.aresetn)
 
     # Use seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
-    tb.log.info(f'AXIS slave CG test with seed: {seed}')
+    tb.log.info(f'AXIS master CG test with seed: {seed}')
 
     # Get test parameters
     test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
@@ -70,7 +70,7 @@ async def axis_slave_cg_test(dut):
     tb.setup_components()
 
     tb.log.info("=" * 80)
-    tb.log.info(f"AXIS SLAVE CLOCK GATED TEST - {test_level.upper()} LEVEL")
+    tb.log.info(f"AXIS MASTER CLOCK GATED TEST - {test_level.upper()} LEVEL")
     tb.log.info("=" * 80)
     tb.log.info(f"CG Test Mode: {cg_test_mode.upper()}")
     tb.log.info(f"AXIS widths: DATA={tb.TEST_DATA_WIDTH}, ID={tb.TEST_ID_WIDTH}, DEST={tb.TEST_DEST_WIDTH}, USER={tb.TEST_USER_WIDTH}")
@@ -179,8 +179,8 @@ async def axis_slave_cg_test(dut):
                     if cycle + 20 < power_measurement_cycles:  # Ensure we don't exceed measurement period
                         try:
                             data = 0x40000000 + packet_count
-                            packet = tb.axis_master.create_packet(data=data, last=1)
-                            await tb.axis_master.send(packet)
+                            packet = tb.fub_master.create_packet(data=data, last=1)
+                            await tb.fub_master.send(packet)
                             packet_count += 1
 
                             # Add some idle time between transfers
@@ -213,7 +213,7 @@ async def axis_slave_cg_test(dut):
 
         # === FINAL RESULTS ===
         tb.log.info("=" * 80)
-        tb.log.info("CLOCK GATED AXIS SLAVE TEST SUMMARY")
+        tb.log.info("CLOCK GATED AXIS MASTER TEST SUMMARY")
         tb.log.info("=" * 80)
 
         success_rate = (passed_tests / total_tests * 100) if total_tests > 0 else 0
@@ -227,18 +227,18 @@ async def axis_slave_cg_test(dut):
                 tb.log.info(f"  Idle count {result['idle_count']}: {result['efficiency_percent']:.1f}% efficiency")
 
         if success_rate < 75:  # Allow margin for clock gating complexity and statistics timing
-            tb.log.error("❌ AXIS SLAVE CG TEST FAILED")
+            tb.log.error("❌ AXIS MASTER CG TEST FAILED")
             raise Exception(f"Clock gated test failed with {success_rate:.1f}% success rate")
 
-        tb.log.info("✅ AXIS SLAVE CG TEST PASSED")
+        tb.log.info("✅ AXIS MASTER CG TEST PASSED")
 
     except Exception as e:
-        tb.log.error(f"AXIS slave CG test FAILED with exception: {str(e)}")
+        tb.log.error(f"AXIS master CG test FAILED with exception: {str(e)}")
         raise
 
 
 def generate_axis_cg_params():
-    """Generate test parameters for clock-gated AXIS slave testing"""
+    """Generate test parameters for clock-gated AXIS master testing"""
 
     # Clock gated modules test with RTL only
     skid_depths = [2, 4]
@@ -263,8 +263,8 @@ def generate_axis_cg_params():
 
 @pytest.mark.parametrize("skid_depth, data_width, id_width, dest_width, user_width, test_level, cg_test_mode",
                         generate_axis_cg_params())
-def test_axis_slave_cg(skid_depth, data_width, id_width, dest_width, user_width, test_level, cg_test_mode):
-    """Test AXIS slave clock gated with specified parameters"""
+def test_axis4_master_cg(skid_depth, data_width, id_width, dest_width, user_width, test_level, cg_test_mode):
+    """Test AXIS master clock gated with specified parameters"""
 
     # Get worker ID for parallel execution isolation
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
@@ -281,10 +281,10 @@ def test_axis_slave_cg(skid_depth, data_width, id_width, dest_width, user_width,
      'rtl_amba_includes': 'rtl/amba/includes'})
 
     # Clock gated module details
-    dut_name = "axis_slave_cg"
+    dut_name = "axis4_master_cg"
 
     id_str = f"sd{skid_depth}_dw{data_width:03d}_iw{id_width:02d}_destw{dest_width}_uw{user_width}_{test_level}_{cg_test_mode}"
-    test_name_plus_params = f"test_{worker_id}_axis_slave_cg_{id_str}"
+    test_name_plus_params = f"test_{worker_id}_axis_master_cg_{id_str}"
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = sim_build_path(tests_dir, test_name_plus_params)
@@ -293,10 +293,10 @@ def test_axis_slave_cg(skid_depth, data_width, id_width, dest_width, user_width,
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    # RTL files for clock gated AXIS slave
+    # RTL files for clock gated AXIS master
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/axis_slave_cg.f")
+        filelist_path="rtl/amba/filelists/axis4_master_cg.f")
 
     # Check that files exist
     for src in verilog_sources:
@@ -366,7 +366,7 @@ def test_axis_slave_cg(skid_depth, data_width, id_width, dest_width, user_width,
                                     module, test_name_plus_params)
 
     print(f"\n{'='*80}")
-    print(f"Running {test_level.upper()} AXIS Slave CG test: {dut_name}")
+    print(f"Running {test_level.upper()} AXIS Master CG test: {dut_name}")
     print(f"AXIS Config: SKID={skid_depth}, DATA={data_width}, ID={id_width}, DEST={dest_width}, USER={user_width}")
     print(f"CG Test Mode: {cg_test_mode.upper()}")
     print(f"Expected duration: {timeout_ms/1000:.1f}s")
@@ -388,9 +388,9 @@ def test_axis_slave_cg(skid_depth, data_width, id_width, dest_width, user_width,
             sim_args=sim_args,
             plus_args=plus_args,
         )
-        print(f"✓ {test_level.upper()} AXIS Slave CG test PASSED")
+        print(f"✓ {test_level.upper()} AXIS Master CG test PASSED")
     except Exception as e:
-        print(f"✗ {test_level.upper()} AXIS Slave CG test FAILED: {str(e)}")
+        print(f"✗ {test_level.upper()} AXIS Master CG test FAILED: {str(e)}")
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise

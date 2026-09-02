@@ -14,9 +14,9 @@ cover: smtbmc z3
 
 [script]
 read -formal -sv -Iincludes gaxi_skid_buffer.sv
-read -formal -sv -Iincludes axis_slave.sv
+read -formal -sv -Iincludes axis4_slave.sv
 read -formal -sv -Iincludes amba_clock_gate_ctrl_fv.sv
-read -formal -sv -Iincludes axis_slave_cg.sv
+read -formal -sv -Iincludes axis4_slave_cg.sv
 read -formal -sv -Iincludes formal_axis_slave_cg.sv
 hierarchy -top formal_axis_slave_cg
 proc
@@ -25,8 +25,8 @@ prep -top formal_axis_slave_cg
 
 [files]
 gaxi_skid_buffer.sv ../../../rtl/amba/gaxi/gaxi_skid_buffer.sv
-axis_slave.sv ../../../rtl/amba/axis4/axis_slave.sv
-axis_slave_cg.sv ../../../rtl/amba/axis4/axis_slave_cg.sv
+axis4_slave.sv ../../../rtl/amba/axis4/axis4_slave.sv
+axis4_slave_cg.sv ../../../rtl/amba/axis4/axis4_slave_cg.sv
 amba_clock_gate_ctrl_fv.sv
 formal_axis_slave_cg.sv
 includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

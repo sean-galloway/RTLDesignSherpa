@@ -16,12 +16,12 @@
 """
 AXIS Slave Testbench
 
-Testbench for testing axis_slave.sv module using the CocoTB framework's
-AXIS components. The axis_slave is a skid buffer that converts standard
+Testbench for testing axis4_slave.sv module using the CocoTB framework's
+AXIS components. The axis4_slave is a skid buffer that converts standard
 AXIS slave interface to FUB-side signals.
 
 Architecture:
-    s_axis_* (input) -> [axis_slave] -> fub_axis_* (output)
+    s_axis_* (input) -> [axis4_slave] -> fub_axis_* (output)
                            |
                          busy (status)
 
@@ -43,7 +43,7 @@ from CocoTBFramework.components.axis4.axis_field_configs import AXISFieldConfigs
 
 class AXISSlaveTB(TBBase):
     """
-    AXIS Slave testbench for testing axis_slave.sv RTL module.
+    AXIS Slave testbench for testing axis4_slave.sv RTL module.
 
     Tests the skid buffer functionality that converts standard AXIS
     slave interface to FUB-side AXIS signals.
@@ -121,7 +121,7 @@ class AXISSlaveTB(TBBase):
     def setup_components(self):
         """Setup AXIS components for testing."""
 
-        # Create AXIS master (feeds input to axis_slave RTL)
+        # Create AXIS master (feeds input to axis4_slave RTL)
         self.axis_master_components = create_axis_master(
             dut=self.dut,
             clock=self.aclk,
@@ -134,7 +134,7 @@ class AXISSlaveTB(TBBase):
         )
         self.axis_master = self.axis_master_components['interface']
 
-        # Create FUB-side slave (receives output from axis_slave RTL)
+        # Create FUB-side slave (receives output from axis4_slave RTL)
         self.fub_slave_components = create_axis_slave(
             dut=self.dut,
             clock=self.aclk,
@@ -203,7 +203,7 @@ class AXISSlaveTB(TBBase):
         self.log.info("Reset deasserted and bus interfaces reset")
 
     async def run_basic_transfer_test(self, num_packets=10):
-        """Test basic packet transfer through the axis_slave."""
+        """Test basic packet transfer through the axis4_slave."""
         self.log.info(f"Starting basic transfer test with {num_packets} packets")
 
         # Configure FUB slave to be always ready

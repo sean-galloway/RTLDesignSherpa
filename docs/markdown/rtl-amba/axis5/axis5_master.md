@@ -425,7 +425,7 @@ Internal logic uses `IW_WIDTH = (IW > 0) ? IW : 1` to avoid zero-width signals.
 - **[AXIS5 Slave](axis5_slave.md)** - AXIS5 slave interface
 - **[AXIS5 Master CG](axis5_master_cg.md)** - Clock-gated variant with power management
 - **[AXIS5 Slave CG](axis5_slave_cg.md)** - Clock-gated slave variant
-- **[AXIS4 Master](../axis4/axis_master.md)** - AXIS4 version for comparison
+- **[AXIS4 Master](../axis4/axis4_master.md)** - AXIS4 version for comparison
 - **[AMBA5 Overview](../overview.md)** - AMBA5 specifications and extensions
 
 ---

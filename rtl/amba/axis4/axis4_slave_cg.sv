@@ -4,8 +4,8 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: axis_master_cg
-// Purpose: Axis Master Cg module
+// Module: axis4_slave_cg
+// Purpose: Axis Slave Cg module
 //
 // Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
@@ -15,7 +15,7 @@
 
 `timescale 1ns / 1ps
 
-module axis_master_cg
+module axis4_slave_cg
 #(
     parameter int SKID_DEPTH         = 4,
     parameter int AXIS_DATA_WIDTH    = 32,
@@ -46,28 +46,28 @@ module axis_master_cg
     input  logic [CG_IDLE_COUNT_WIDTH-1:0] cfg_cg_idle_count,
 
     // Slave AXI4-Stream Interface (Input Side)
-    input  logic [DW-1:0]              fub_axis_tdata,
-    input  logic [SW-1:0]              fub_axis_tstrb,
-    input  logic                       fub_axis_tlast,
-    input  logic [IW_WIDTH-1:0]        fub_axis_tid,
-    input  logic [DESTW_WIDTH-1:0]     fub_axis_tdest,
-    input  logic [UW_WIDTH-1:0]        fub_axis_tuser,
-    input  logic                       fub_axis_tvalid,
-    output logic                       fub_axis_tready,
+    input  logic [DW-1:0]              s_axis_tdata,
+    input  logic [SW-1:0]              s_axis_tstrb,
+    input  logic                       s_axis_tlast,
+    input  logic [IW_WIDTH-1:0]        s_axis_tid,
+    input  logic [DESTW_WIDTH-1:0]     s_axis_tdest,
+    input  logic [UW_WIDTH-1:0]        s_axis_tuser,
+    input  logic                       s_axis_tvalid,
+    output logic                       s_axis_tready,
 
-    // Master AXI4-Stream Interface (Output Side)
-    output logic [DW-1:0]              m_axis_tdata,
-    output logic [SW-1:0]              m_axis_tstrb,
-    output logic                       m_axis_tlast,
-    output logic [IW_WIDTH-1:0]        m_axis_tid,
-    output logic [DESTW_WIDTH-1:0]     m_axis_tdest,
-    output logic [UW_WIDTH-1:0]        m_axis_tuser,
-    output logic                       m_axis_tvalid,
-    input  logic                       m_axis_tready,
+    // Master AXI4-Stream Interface (Output Side to memory or backend)
+    output logic [DW-1:0]              fub_axis_tdata,
+    output logic [SW-1:0]              fub_axis_tstrb,
+    output logic                       fub_axis_tlast,
+    output logic [IW_WIDTH-1:0]        fub_axis_tid,
+    output logic [DESTW_WIDTH-1:0]     fub_axis_tdest,
+    output logic [UW_WIDTH-1:0]        fub_axis_tuser,
+    output logic                       fub_axis_tvalid,
+    input  logic                       fub_axis_tready,
 
     // Clock gating status
-    output logic                       cg_gating,         // Active gating indicator
-    output logic                       cg_idle            // All buffers empty indicator
+    output logic                       cg_gating,
+    output logic                       cg_idle
 );
 
     // Gated clock signal
@@ -87,13 +87,13 @@ module axis_master_cg
     // and folding that in pins this block permanently awake and defeats
     // gating entirely -- the wrapper's only feature, silently dead. The
     // _mon_cg siblings documented this rule and obeyed it; these did not.
-    assign user_valid = fub_axis_tvalid || int_busy;  // m_axis_tvalid is in axi_valid
+    assign user_valid = s_axis_tvalid || int_busy;  // fub_axis_tvalid is in axi_valid
 
     // OR all AXI-side valid signals
-    assign axi_valid = m_axis_tvalid;
+    assign axi_valid = fub_axis_tvalid;
 
     // Force ready signal to 0 when clock gating is active (following AXI4 pattern)
-    assign fub_axis_tready = cg_gating ? 1'b0 : int_tready;
+    assign s_axis_tready = cg_gating ? 1'b0 : int_tready;
 
     // Instantiate clock gate controller
     amba_clock_gate_ctrl #(
@@ -110,18 +110,28 @@ module axis_master_cg
         .idle                (cg_idle)
     );
 
-    // Instantiate the base AXI4-Stream master module with gated clock
-    axis_master #(
+    // Instantiate the base AXI4-Stream slave module with gated clock
+    axis4_slave #(
         .AXIS_DATA_WIDTH      (AXIS_DATA_WIDTH),
         .AXIS_ID_WIDTH        (AXIS_ID_WIDTH),
         .AXIS_DEST_WIDTH      (AXIS_DEST_WIDTH),
         .AXIS_USER_WIDTH      (AXIS_USER_WIDTH),
         .SKID_DEPTH           (SKID_DEPTH)
-    ) i_axis_master (
+    ) i_axis_slave (
         .aclk                 (gated_aclk),      // Use gated clock
         .aresetn              (aresetn),
 
         // Slave AXI4-Stream Interface (Input Side)
+        .s_axis_tdata         (s_axis_tdata),
+        .s_axis_tstrb         (s_axis_tstrb),
+        .s_axis_tlast         (s_axis_tlast),
+        .s_axis_tid           (s_axis_tid),
+        .s_axis_tdest         (s_axis_tdest),
+        .s_axis_tuser         (s_axis_tuser),
+        .s_axis_tvalid        (s_axis_tvalid),
+        .s_axis_tready        (int_tready),      // Connect to internal signal
+
+        // Master AXI4-Stream Interface (Output Side)
         .fub_axis_tdata       (fub_axis_tdata),
         .fub_axis_tstrb       (fub_axis_tstrb),
         .fub_axis_tlast       (fub_axis_tlast),
@@ -129,19 +139,9 @@ module axis_master_cg
         .fub_axis_tdest       (fub_axis_tdest),
         .fub_axis_tuser       (fub_axis_tuser),
         .fub_axis_tvalid      (fub_axis_tvalid),
-        .fub_axis_tready      (int_tready),      // Connect to internal signal
-
-        // Master AXI4-Stream Interface (Output Side)
-        .m_axis_tdata         (m_axis_tdata),
-        .m_axis_tstrb         (m_axis_tstrb),
-        .m_axis_tlast         (m_axis_tlast),
-        .m_axis_tid           (m_axis_tid),
-        .m_axis_tdest         (m_axis_tdest),
-        .m_axis_tuser         (m_axis_tuser),
-        .m_axis_tvalid        (m_axis_tvalid),
-        .m_axis_tready        (m_axis_tready),
+        .fub_axis_tready      (fub_axis_tready),
 
         .busy                 (int_busy)
     );
 
-endmodule : axis_master_cg
+endmodule : axis4_slave_cg

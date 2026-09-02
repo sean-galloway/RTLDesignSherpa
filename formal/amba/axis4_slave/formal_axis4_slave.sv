@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Formal proof for axis_slave -- AXI-Stream slave skid buffer wrapper
+// Formal proof for axis4_slave -- AXI-Stream slave skid buffer wrapper
 //
 // Properties verified:
 //   P1: Reset clears fub_axis_tvalid
@@ -60,7 +60,7 @@ module formal_axis_slave (
     // =========================================================================
     // DUT
     // =========================================================================
-    axis_slave #(
+    axis4_slave #(
         .SKID_DEPTH      (SKID),
         .AXIS_DATA_WIDTH (DW),
         .AXIS_ID_WIDTH   (IW),

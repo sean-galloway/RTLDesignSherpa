@@ -193,10 +193,10 @@ $REPO_ROOT/rtl/amba/axil5/axil5_slave_wr_mon_cg.sv
 # =============================================================================
 # AXIS - AXI Stream
 # =============================================================================
-$REPO_ROOT/rtl/amba/axis4/axis_master.sv
-$REPO_ROOT/rtl/amba/axis4/axis_master_cg.sv
-$REPO_ROOT/rtl/amba/axis4/axis_slave.sv
-$REPO_ROOT/rtl/amba/axis4/axis_slave_cg.sv
+$REPO_ROOT/rtl/amba/axis4/axis4_master.sv
+$REPO_ROOT/rtl/amba/axis4/axis4_master_cg.sv
+$REPO_ROOT/rtl/amba/axis4/axis4_slave.sv
+$REPO_ROOT/rtl/amba/axis4/axis4_slave_cg.sv
 
 # ==============================================================================
 # =============================================================================
