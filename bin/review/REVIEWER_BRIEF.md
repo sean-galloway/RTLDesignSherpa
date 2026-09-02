@@ -23,7 +23,7 @@ Each directory under `books/` is one self-contained review unit:
 |------|-------|------|--------------------|---------------|-------|
 | `pic_8259_mas` | APB PIC 8259 Specification - Table of Contents | 3 | 0 | ~4k | 1 |
 | `pm_acpi_mas` | APB PM/ACPI Specification - Table of Contents | 3 | 1 | ~27k | 1 |
-| `axis4` | RTL AMBA AXI4-Stream | 6 | 4 | ~33k | 1 |
+| `axis4` | RTL AMBA AXI4-Stream | 6 | 4 | ~34k | 1 |
 | `axis5` | RTL AMBA AXI5-Stream | 5 | 4 | ~36k | 1 |
 | `smbus_mas` | APB SMBus Specification - Table of Contents | 3 | 2 | ~38k | 1 |
 | `gaxi` | RTL AMBA GAXI Modules | 7 | 5 | ~40k | 1 |
@@ -37,7 +37,7 @@ Each directory under `books/` is one self-contained review unit:
 | `hpet_mas` | APB HPET Micro-Architecture Specification | 14 | 15 | ~117k | 1 |
 | `uart_16550_mas` | APB UART 16550 Specification - Table of Contents | 27 | 8 | ~117k | 1 |
 | `bridge_has` | Bridge Hardware Architecture Specification Index | 24 | 10 | ~180k | 2 |
-| `cdc` | RTL Clock Domain Crossing | 15 | 23 | ~214k | 2 |
+| `cdc` | RTL Clock Domain Crossing | 15 | 23 | ~215k | 2 |
 | `converter_mas` | Converters Micro-Architecture Specification Index | 19 | 32 | ~235k | 2 |
 | `common` | RTL Common Library | 50 | 48 | ~257k | 4 |
 | `shared` | RTL AMBA Shared Infrastructure | 31 | 25 | ~278k | 3 |
