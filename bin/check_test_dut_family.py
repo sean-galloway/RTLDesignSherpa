@@ -42,10 +42,24 @@ RE_DUT = re.compile(r'dut_name\s*=\s*["\']([\w]+)["\']')
 
 
 def family(name: str):
-    """Longest matching family prefix, so axil5 wins over axi5."""
+    """Longest matching family prefix, so axil5 wins over axi5.
+
+    `axis_*` maps to axis4. The AXI5-Stream modules are named `axis5_master.sv`
+    and friends, but the AXI4-Stream ones are bare `axis_master.sv` with no `4`
+    -- an inconsistency in rtl/amba/axis4/. Without this mapping `family()`
+    returns None for every axis4 module, those tests are SKIPPED, and this
+    checker reports a clean run over a family it cannot see. It did exactly
+    that until 2026-09-02.
+
+    This is a workaround for the naming, not an endorsement of it. Renaming the
+    four axis4 modules to `axis4_*` touches ~104 files; when that happens, this
+    special case should go.
+    """
     for f in sorted(FAMILIES, key=len, reverse=True):
         if name.startswith(f + '_') or name == f:
             return f
+    if name.startswith('axis_'):
+        return 'axis4'
     return None
 
 

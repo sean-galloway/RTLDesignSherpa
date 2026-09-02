@@ -249,7 +249,7 @@ All nine are 16-bit inputs. `cfg_axi_pkt_mask` is indexed by the 4-bit
 | Port | Width | Description |
 |------|-------|-------------|
 | `cfg_axi_pkt_mask` | 16 | Level 1: drop mask indexed by `packet_type` |
-| `cfg_axi_err_select` | 16 | Route selected packet types to the error path. Overlapping a bit with `cfg_axi_pkt_mask` raises `cfg_conflict_error`. |
+| `cfg_axi_err_select` | 16 | RESERVED -- routes nothing. `axi_monitor_filtered` uses it in exactly one place, `cfg_conflict_error = \|(cfg_axi_pkt_mask & cfg_axi_err_select)`, so its only effect is to raise that flag on an overlap. |
 | `cfg_axi_error_mask` | 16 | Level 3: mask individual error events |
 | `cfg_axi_timeout_mask` | 16 | Level 3: mask individual timeout events |
 | `cfg_axi_compl_mask` | 16 | Level 3: mask individual completion events |

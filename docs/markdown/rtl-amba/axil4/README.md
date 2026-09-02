@@ -331,7 +331,7 @@ response time. Each channel traversed costs one clock in its skid buffer.
 | Path | Cycles | Notes |
 |------|--------|-------|
 | AR → R (single) | Slave latency + 2 | 1 clock in the AR buffer, 1 in the R buffer |
-| AW+W → B (single) | Slave latency + 3 | AW and W buffers, then the B buffer |
+| AW+W → B (single) | Slave latency + 2 | AW and W buffers traverse in parallel, then the B buffer |
 | Buffer overhead | +1 per channel | Skid buffer latency |
 
 The write figure assumes the slave accepts AW and W in the same cycle. If the

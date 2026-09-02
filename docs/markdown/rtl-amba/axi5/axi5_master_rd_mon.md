@@ -370,7 +370,7 @@ cfg_axi_pkt_mask[15] = 1 → DROP DEBUG packets   (type 0xF)
 **Level 2: cfg_axi_err_select (reserved -- no routing)**
 
 Its ONLY use is the conflict check
-`cfg_conflict_error = |(cfg_axi_pkt_mask & cfg_axi_err_select)`; no
+`cfg_conflict_error = \|(cfg_axi_pkt_mask & cfg_axi_err_select)`; no
 error-routing logic exists
 anywhere in the monitor chain. Setting it to "reroute errors into
 completions" changes nothing except possibly tripping cfg_conflict_error.

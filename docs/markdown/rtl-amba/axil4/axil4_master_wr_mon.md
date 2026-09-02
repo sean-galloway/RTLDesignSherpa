@@ -64,6 +64,7 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 
 | Derived parameter | Default expression |
 |---|---|
+| `AW` | `AXIL_ADDR_WIDTH` |
 | `DW` | `AXIL_DATA_WIDTH` |
 
 ## Performance Monitoring
@@ -165,7 +166,7 @@ filter keyed on a field the protocol lacks has nothing to match against.
 Same as **[axil4_master_rd_mon](axil4_master_rd_mon.md)**:
 - Monitor configuration inputs, including `cfg_error_enable`, `cfg_timeout_enable`, `cfg_compl_enable`, `cfg_threshold_enable`, `cfg_perf_enable`, `cfg_debug_enable`
 - `cam_clear` control input (Input, 1) - synchronous clear of the monitor transaction CAM (driven from the harness clear control bit, e.g. CTRL[4])
-- Filtering masks (7 masks)
+- Filtering masks (9: eight `cfg_axi_*_mask` plus the reserved `cfg_axi_err_select`)
 - The performance-monitoring config/status ports (see the [Performance Monitoring](#performance-monitoring) section above and the [read-monitor port table](axil4_master_rd_mon.md#performance-monitoring-ports))
 - `cfg_freq_sel` (Input, 4) - `counter_freq_invariant` LUT index scaling the 1 us timer tick; the microsecond timeouts are measured in these ticks. With the default `CFI_MIN_FREQ_MHZ == CFI_MAX_FREQ_MHZ == ACLK_MHZ` every LUT entry is identical, so it has no effect until you give CFI a real MIN..MAX range
 - Monitor bus output (valid/ready/data)

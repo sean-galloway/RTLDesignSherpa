@@ -393,10 +393,12 @@ oscillate.
 | Frontend → Backend (AW) | 1 | Skid buffer overhead |
 | Frontend → Backend (W) | 1 | Skid buffer overhead |
 | Backend → Frontend (B) | 1 | Skid buffer overhead |
-| Total write latency | Slave latency + 3 | AW + W + Slave + B, best case |
+| Total write latency | Slave latency + 2 | AW and W traverse in PARALLEL (separate channels, one cycle), then the slave, then B. Best case |
 
-The `+3` best case assumes the slave asserts AWREADY and WREADY in the **same**
-cycle, so the AW and W buffer traversals overlap. If the slave accepts the
+The `+2` best case assumes the slave asserts AWREADY and WREADY in the **same**
+cycle, so the AW and W buffer traversals overlap: one cycle for that pair, not
+one each. (This section said `+3`, which is the figure you get by adding both
+hops -- the arithmetic the sentence right here rules out.) If the slave accepts the
 address and the data in different cycles, the write completes off the later of
 the two handshakes, and the total is that skew plus the slave and B latency.
 Backpressure on B adds further cycles.

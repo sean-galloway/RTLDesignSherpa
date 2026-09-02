@@ -304,13 +304,18 @@ stretch it themselves if they need a level signal.
 | ARPROT[2:0] | Privilege | Security | Type |
 |-------------|-----------|----------|------|
 | 3'b000 | Unprivileged | Secure | Data |
-| 3'b001 | Unprivileged | Secure | Instruction |
+| 3'b001 | Privileged | Secure | Data |
 | 3'b010 | Unprivileged | Non-secure | Data |
-| 3'b011 | Unprivileged | Non-secure | Instruction |
-| 3'b100 | Privileged | Secure | Data |
+| 3'b011 | Privileged | Non-secure | Data |
+| 3'b100 | Unprivileged | Secure | Instruction |
 | 3'b101 | Privileged | Secure | Instruction |
-| 3'b110 | Privileged | Non-secure | Data |
+| 3'b110 | Unprivileged | Non-secure | Instruction |
 | 3'b111 | Privileged | Non-secure | Instruction |
+
+Per AMBA AXI (IHI 0022, A4.7): `AxPROT[0]` is privilege (1 = privileged),
+`AxPROT[1]` is security (1 = NON-secure), `AxPROT[2]` is type (1 = instruction).
+This table previously had bits 0 and 2 swapped, which only 3'b000 and 3'b111
+agree on -- every other row named the wrong access.
 
 **Typical:** `3'b000` (unprivileged secure data) for most peripherals
 

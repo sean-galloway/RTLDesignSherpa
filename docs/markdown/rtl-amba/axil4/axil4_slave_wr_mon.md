@@ -69,6 +69,7 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 
 | Derived parameter | Default expression |
 |---|---|
+| `AW` | `AXIL_ADDR_WIDTH` |
 | `DW` | `AXIL_DATA_WIDTH` |
 
 ## Performance Monitoring
