@@ -38,7 +38,11 @@ import sys
 
 FAMILIES = ('axil4', 'axil5', 'axis4', 'axis5', 'axi4', 'axi5',
             'apb4', 'apb5', 'gaxi')
-RE_DUT = re.compile(r'dut_name\s*=\s*["\']([\w]+)["\']')
+# A runner names its DUT as either `dut_name = "..."` or `toplevel = "..."`.
+# Matching only the first skipped 17 files silently -- including all four
+# axis5 tests -- and this checker then reported a clean run over them. That
+# is the same failure it exists to catch, one level up.
+RE_DUT = re.compile(r'(?:dut_name|toplevel)\s*=\s*["\']([\w]+)["\']')
 
 
 def family(name: str):
