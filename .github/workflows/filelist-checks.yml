@@ -37,6 +37,9 @@ jobs:
       - name: No NEW blind spots (unregistered .f, hand-listed test, dead .sby path)
         run: python3 bin/filelist_registry.py --blindspots --ratchet
 
+      - name: No test elaborates another protocol family's RTL
+        run: python3 bin/check_test_dut_family.py
+
       - name: Show the outstanding backlog
         if: always()
         run: python3 bin/filelist_registry.py --blindspots || true
