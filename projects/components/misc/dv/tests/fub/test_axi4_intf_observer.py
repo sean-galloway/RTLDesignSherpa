@@ -375,6 +375,19 @@ def _run_observer(request, dut_name, params, testcase="cocotb_test_observer_regs
         compile_args=["--unroll-count", "16384", "--unroll-stmts", "200000",
                       "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC", "-Wno-SELRANGE",
                       "-Wno-PINMISSING", "-Wno-PINCONNECTEMPTY",
+                      # UNOPTFLAT on monitor_trans_cam's allocator is a PROVEN
+                      # FALSE POSITIVE, not an unexamined silence. Traced every
+                      # link Verilator names and all pass through registered
+                      # state -- w_free_oh[i] = !r_valid[i], entry_valid[gi] =
+                      # r_valid[gi] -- so no alloc output can reach a
+                      # *_wants_alloc input. It is word-granularity analysis of
+                      # the addr->data->resp chain on one vector.
+                      # split_var is the right fix and is silently REFUSED on
+                      # public vars ("will not be split because it is public"),
+                      # which --public-flat-rw makes all of them. Rewriting the
+                      # allocator feed-forward did not help either (3 -> 5
+                      # warnings), so the honest option is a documented waiver.
+                      "-Wno-UNOPTFLAT",
                       "-Wno-MULTIDRIVEN"] + wave_args,
         waves=enable_waves,
         sim_args=(["--trace", "--trace-structs", "--trace-depth", "99"]
