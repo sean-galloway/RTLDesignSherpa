@@ -90,7 +90,10 @@ module axis4_master #(
 
 > **SKID_DEPTH is a literal entry count.** `SKID_DEPTH = 4` yields a 4-entry buffer, not 16.
 > The underlying `gaxi_skid_buffer` is a shift-register FIFO whose `count` port is 4 bits wide;
-> only the values 2..8 inclusive are supported. Odd values such as 3 or 5 are not legal.
+> only the values 2..8 inclusive are supported. Any integer in that range is
+> legal, odd values included -- `gaxi_skid_buffer` states "2..8 inclusive (any
+> integer)" and guards it. The `{2,4,6,8}` restriction claimed here was an
+> inference, not a contract.
 
 ## Ports
 

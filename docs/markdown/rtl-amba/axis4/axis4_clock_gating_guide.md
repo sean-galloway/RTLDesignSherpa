@@ -151,7 +151,9 @@ downstream block holding TREADY high keeps the clock running even with no traffi
 3. Gating enabled (`cfg_cg_enable = 1`)
 
 **Ungating Conditions (Any Triggers Ungating):**
-1. Any wakeup term asserts (TVALID on either side, downstream TREADY, or a non-empty buffer)
+1. Any wakeup term asserts (TVALID on either side, or a non-empty buffer).
+   A peer's TREADY is NOT a wakeup term and must never be one -- see
+   `vault/handbook/design/clock-gating-activity-terms.md`.
 2. `cfg_cg_enable` deasserted
 
 ### Ungating Latency

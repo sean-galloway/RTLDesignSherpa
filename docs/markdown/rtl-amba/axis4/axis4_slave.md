@@ -90,7 +90,10 @@ module axis4_slave #(
 
 > **SKID_DEPTH is a literal entry count.** `SKID_DEPTH = 4` yields a 4-entry buffer, not 16.
 > The underlying `gaxi_skid_buffer` is a shift-register FIFO whose `count` port is 4 bits wide;
-> only the values 2..8 inclusive are supported. Odd values such as 3 or 5 are not legal.
+> only the values 2..8 inclusive are supported. Any integer in that range is
+> legal, odd values included -- `gaxi_skid_buffer` states "2..8 inclusive (any
+> integer)" and guards it. The `{2,4,6,8}` restriction claimed here was an
+> inference, not a contract.
 
 ## Ports
 
@@ -134,7 +137,7 @@ buffer registers both `rd_valid` and its storage, so every beat costs one cycle 
 when neither side stalls; `SKID_DEPTH` sets how much upstream backpressure can be
 absorbed before it propagates, not the sustained rate.
 
-TLAST, TKEEP, TSTRB, TID, TDEST and TUSER are carried verbatim when their widths are
+TLAST, TSTRB, TID, TDEST and TUSER are carried verbatim when their widths are
 non-zero. The module holds no packet state -- it is a buffer, not a framer.
 
 ---
