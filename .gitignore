@@ -375,3 +375,4 @@ val/*/coverage_data/
 *.bit
 *.ltx
 *.mcs
+.ast-cache/

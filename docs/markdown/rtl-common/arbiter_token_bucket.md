@@ -155,10 +155,10 @@ arbiter_token_bucket #(
     .MAX_TOKENS            (64),
     .RATE_WIDTH            (4),
     .WAIT_GNT_ACK          (0),
-    .TW                    ($clog2(MAX_TOKENS),
+    .TW                    ($clog2(MAX_TOKENS)),
     .C                     (CLIENTS),
     .CXTW                  (CLIENTS * TW),
-    .CXRW                  (CLIENTS * RATE_WIDTH)
+    .CXRW                  (CLIENTS * RATE_WIDTH),
 ) u_arbiter_token_bucket (
     .clk                   (clk),
     .rst_n                 (rst_n),

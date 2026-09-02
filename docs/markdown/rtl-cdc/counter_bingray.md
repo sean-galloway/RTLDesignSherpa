@@ -341,7 +341,7 @@ covergroup counter_bingray_cg @(posedge clk);
         bins transitions[] = ([0:2**WIDTH-2] => [1:2**WIDTH-1]);
         bins rollover = (2**WIDTH-1 => 0);
     }
-endgroup
+endcovergroup
 ```
 
 ### Assertions

@@ -423,7 +423,7 @@ covergroup load_clear_cg @(posedge clk);
 
     // Cross coverage
     cross_done_ops: cross cp_operations, done;
-endgroup
+endcovergroup
 ```
 
 ### Assertions

@@ -192,11 +192,11 @@ arbiter_deficit_round_robin #(
     .MAX_QUANTUM           (16),
     .COST_WIDTH            (4),
     .WAIT_GNT_ACK          (0),
-    .QW                    ($clog2(MAX_QUANTUM),
-    .N                     ($clog2(CLIENTS),
+    .QW                    ($clog2(MAX_QUANTUM)),
+    .N                     ($clog2(CLIENTS)),
     .C                     (CLIENTS),
     .CXQW                  (CLIENTS * QW),
-    .CXCW                  (CLIENTS * COST_WIDTH)
+    .CXCW                  (CLIENTS * COST_WIDTH),
 ) u_arbiter_deficit_round_robin (
     .clk                   (clk),
     .rst_n                 (rst_n),

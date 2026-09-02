@@ -2,6 +2,38 @@
 
 # AMBA tasks — open (not started)
 
+### TASK-077: five instantiation examples in components docs name ports that do not exist
+
+**Priority:** P3 each, but the class matters: a reader copies the example and it
+does not compile.
+**Status:** open 2026-09-02. Found by `bin/check_doc_examples.py`, verified
+against Verilator's AST (`bin/rtl_ast.py`), NOT auto-fixed -- my auto-repair
+destroyed content twice today and these pages belong to other areas.
+
+| Page | Module | Names that do not exist |
+|---|---|---|
+| `stream_mas/ch01_overview/03_clocks_and_reset.md` | `apb4_slave_cdc` | `SYNC_STAGES`, `m_paddr`, `m_pclk`, `m_prdata`, `m_presetn` |
+| same | `clock_gate_ctrl` | `enable` |
+| same | `scheduler` | `aclk`, `aresetn` |
+| `rapids_beats_mas/ch03_macro_blocks/11_rapids_core_beats.md` | `rapids_core_beats` | `ENABLE_AXIS_WRAPPERS`, `all_channels_idle`, `desc_m_axi_ar*` |
+| `pumice_mas/ch06_configuration/01_build_config.md` | `pumice_top` | `BL` (confirmed: the AST lists no `BL` parameter) |
+
+**How to fix one safely.** Get ground truth from the AST, never from a regex
+over the source:
+
+    python3 bin/rtl_ast.py <path/to/module.sv> rtl/amba/includes rtl/common
+
+then edit the example by hand. Do NOT regenerate the whole code block: several
+of these blocks contain more than one instantiation, and a whole-block rewrite
+silently drops the others -- it removed instantiations from gaxi/README.md,
+monbus_group.md and quickstart.md before I caught it.
+
+**Why this was never found before.** These pages have never had a review round;
+`projects/components` has had none at all. The gate that finds them
+(`check_doc_examples.py`) now runs in CI and pre-commit and walks
+`projects/**/docs`, so no new instance can land.
+
+
 ### TASK-076: axis5 _cg pages claim TREADY is held low while gated -- unverified
 
 **Priority:** P3 documentation-accuracy, but it describes a data-loss window, so

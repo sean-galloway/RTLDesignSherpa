@@ -439,7 +439,7 @@ covergroup clock_divider_cg @(posedge clk);
     cp_outputs: coverpoint divided_clk {
         bins all_outputs[] = {[1:$]};
     }
-endgroup
+endcovergroup
 ```
 
 ## Navigation

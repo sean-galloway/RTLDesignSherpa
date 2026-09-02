@@ -190,10 +190,10 @@ monbus_pkt_tally #(
     .NUM_LATCH             (4),
     .ADDR_BITS             (7),
     .N_PROFILE             (64),
-    .SRAM_DEPTH            ((1 << ADDR_BITS),
-    .PROF_IDX_W            ((N_PROFILE > 1),
+    .SRAM_DEPTH            ((1 << ADDR_BITS)),
+    .PROF_IDX_W            ((N_PROFILE > 1)),
     .PROF_KEY_W            (32),
-    .LSEL_WIDTH            ((NUM_LATCH > 1)
+    .LSEL_WIDTH            ((NUM_LATCH > 1))
 ) u_monbus_pkt_tally (
     .clk                   (clk),
     .rst_n                 (rst_n),

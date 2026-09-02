@@ -93,10 +93,14 @@ The tally builds the key as
 
 ## Timing Characteristics
 
-This module is **purely combinational** -- it contains no `always_ff` and no
-latch, so it holds no state and adds no clock cycles. Its outputs settle a
-propagation delay after its inputs, and it introduces no latency into a
-pipeline that instantiates it.
+This module is **sequential**: it contains clocked logic (via `always_ff` or
+the repository's `ALWAYS_FF_RST` macro) and therefore holds state. Outputs
+driven from those blocks are registered and appear one clock after the inputs
+that produced them.
+
+Per-path cycle counts are not enumerated here; read the block that drives the
+signal you care about. No synthesis frequency or area figures are quoted --
+none have been measured against a target device.
 
 Timing closure is therefore a question of the surrounding logic's slack, not of
 this module's cycle count. No synthesis figures are quoted; none have been
@@ -112,7 +116,7 @@ Every parameter and port below is taken from the module declaration.
 monbus_legal_cam #(
     .N_ENTRIES             (64),
     .KEY_WIDTH             (32),
-    .IDX_WIDTH             ((N_ENTRIES > 1)
+    .IDX_WIDTH             ((N_ENTRIES > 1))
 ) u_monbus_legal_cam (
     .clk                   (clk),
     .rst_n                 (rst_n),

@@ -159,10 +159,14 @@ assign w_should_grant = w_winner_valid && w_any_requests && w_can_grant;
 
 ## Timing Characteristics
 
-This module is **purely combinational** -- it contains no `always_ff` and no
-latch, so it holds no state and adds no clock cycles. Its outputs settle a
-propagation delay after its inputs, and it introduces no latency into a
-pipeline that instantiates it.
+This module is **sequential**: it contains clocked logic (via `always_ff` or
+the repository's `ALWAYS_FF_RST` macro) and therefore holds state. Outputs
+driven from those blocks are registered and appear one clock after the inputs
+that produced them.
+
+Per-path cycle counts are not enumerated here; read the block that drives the
+signal you care about. No synthesis frequency or area figures are quoted --
+none have been measured against a target device.
 
 Timing closure is therefore a question of the surrounding logic's slack, not of
 this module's cycle count. No synthesis figures are quoted; none have been
@@ -178,7 +182,7 @@ Every parameter and port below is taken from the module declaration.
 arbiter_round_robin #(
     .CLIENTS               (4),
     .WAIT_GNT_ACK          (0),
-    .N                     ($clog2(CLIENTS)
+    .N                     ($clog2(CLIENTS))
 ) u_arbiter_round_robin (
     .clk                   (clk),
     .rst_n                 (rst_n),

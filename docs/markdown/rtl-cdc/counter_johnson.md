@@ -471,7 +471,7 @@ covergroup johnson_cg @(posedge clk);
         bins enabled = {1};
         bins disabled = {0};
     }
-endgroup
+endcovergroup
 ```
 
 ### Assertions

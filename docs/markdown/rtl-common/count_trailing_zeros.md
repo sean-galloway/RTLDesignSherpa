@@ -418,7 +418,7 @@ covergroup ctz_cg;
         bins msb_set     = {1 << (WIDTH-1)};
         bins mixed[]     = {[1:2**(WIDTH-1)-1]};
     }
-endgroup
+endcovergroup
 ```
 
 ### Assertions
