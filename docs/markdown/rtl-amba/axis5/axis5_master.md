@@ -31,7 +31,7 @@
 
 ## Overview
 
-The AXIS5 Master module implements an AXI5-Stream master interface with AMBA5 extensions including wake-up signaling for power management and optional parity for data integrity. It provides buffering through an internal skid buffer for improved system performance.
+The AXIS5 Master implements an AXI5-Stream master interface with the AMBA5 extensions — wake-up signaling for power management — plus an optional parity sideband for data integrity. Buffering comes from an internal skid buffer, which is what keeps the timing clean at the endpoint boundary.
 
 ### Key Features
 
@@ -54,100 +54,6 @@ The AXIS5 Master module implements an AXI5-Stream master interface with AMBA5 ex
 | Parity error detection | None | Built-in sticky `parity_error` flag | No - implementation status output |
 
 ---
-
-## Functional Description
-```mermaid
-flowchart TB
-    subgraph INPUT["FUB Interface (Input)"]
-        fub_tdata["fub_axis_tdata"]
-        fub_tvalid["fub_axis_tvalid"]
-        fub_tready["fub_axis_tready"]
-        fub_twakeup["fub_axis_twakeup"]
-        fub_tparity["fub_axis_tparity"]
-    end
-
-    subgraph PACK["Packet Packing"]
-        pack["Pack signals based on<br/>ENABLE_WAKEUP/ENABLE_PARITY"]
-    end
-
-    subgraph SKID["Skid Buffer"]
-        sb["gaxi_skid_buffer<br/>Depth: SKID_DEPTH"]
-    end
-
-    subgraph UNPACK["Packet Unpacking"]
-        unpack["Unpack to AXIS5 signals"]
-    end
-
-    subgraph PARITY["Parity Check (Optional)"]
-        calc["Calculate parity<br/>per byte"]
-        cmp["Compare with<br/>received parity"]
-        err["parity_error<br/>flag"]
-    end
-
-    subgraph OUTPUT["Master AXIS5 Interface"]
-        m_tdata["m_axis_tdata"]
-        m_tvalid["m_axis_tvalid"]
-        m_tready["m_axis_tready"]
-        m_twakeup["m_axis_twakeup"]
-        m_tparity["m_axis_tparity"]
-    end
-
-    INPUT --> PACK
-    PACK --> SKID
-    SKID --> UNPACK
-    UNPACK --> OUTPUT
-    OUTPUT --> PARITY
-    PARITY --> err
-
-    style PARITY fill:#fff4e6
-    style err fill:#ffe6e6
-```
-
----
-
-### Skid Buffer Operation
-
-The module uses an internal `gaxi_skid_buffer` to:
-- Accept incoming transfers even when downstream is not ready
-- Prevent backpressure propagation
-- Provide registered outputs for timing closure
-- Track buffer occupancy via `busy` signal
-
-### Packet Packing/Unpacking
-
-**Conditional packing based on configuration:**
-
-```systemverilog
-// Full feature set (ENABLE_WAKEUP=1, ENABLE_PARITY=1)
-{tdata, tstrb, tlast, tid, tdest, tuser, twakeup, tparity}
-
-// Wake-up only (ENABLE_WAKEUP=1, ENABLE_PARITY=0)
-{tdata, tstrb, tlast, tid, tdest, tuser, twakeup}
-
-// Parity only (ENABLE_WAKEUP=0, ENABLE_PARITY=1)
-{tdata, tstrb, tlast, tid, tdest, tuser, tparity}
-
-// Base AXIS4 (ENABLE_WAKEUP=0, ENABLE_PARITY=0)
-{tdata, tstrb, tlast, tid, tdest, tuser}
-```
-
-### Parity Checking (Optional)
-
-When `ENABLE_PARITY=1`:
-1. Calculate **even** parity for each data byte: `parity[i] = ^m_axis_tdata[i*8 +: 8]`. The XOR reduction yields 1 for an odd number of set bits, so a correct byte plus its parity bit always has an even population count.
-2. Compare the calculated parity with `m_axis_tparity`
-3. Set `parity_error` flag on mismatch (sticky, cleared only by reset)
-4. The check is sampled on accepted output transfers (`m_axis_tvalid && m_axis_tready`)
-
-**This module does not generate parity.** TPARITY is supplied by the upstream FUB on `fub_axis_tparity`, carried through the skid buffer alongside TDATA, and presented on `m_axis_tparity`. The check on the output side therefore validates the data path *through this module* (packing, buffering, unpacking) against the parity the producer computed. It is not an end-to-end check of the downstream link - the receiving endpoint must run its own check, which is what `axis5_slave` does on its input side.
-
-If the upstream FUB does not compute parity, leave `ENABLE_PARITY=0`; tying `fub_axis_tparity` to a constant while parity is enabled will assert `parity_error` on the first non-matching beat.
-
-### Busy Signal
-
-The `busy` output indicates:
-- Input side has valid data (`fub_axis_tvalid`)
-- Skid buffer contains data (`int_t_count > 0`)
 
 ## Parameters
 
@@ -229,8 +135,102 @@ These are declared in the parameter list so they can be used in port widths, but
 
 ---
 
-## Timing Characteristics
+## Functional Description
 
+```mermaid
+flowchart TB
+    subgraph INPUT["FUB Interface (Input)"]
+        fub_tdata["fub_axis_tdata"]
+        fub_tvalid["fub_axis_tvalid"]
+        fub_tready["fub_axis_tready"]
+        fub_twakeup["fub_axis_twakeup"]
+        fub_tparity["fub_axis_tparity"]
+    end
+
+    subgraph PACK["Packet Packing"]
+        pack["Pack signals based on<br/>ENABLE_WAKEUP/ENABLE_PARITY"]
+    end
+
+    subgraph SKID["Skid Buffer"]
+        sb["gaxi_skid_buffer<br/>Depth: SKID_DEPTH"]
+    end
+
+    subgraph UNPACK["Packet Unpacking"]
+        unpack["Unpack to AXIS5 signals"]
+    end
+
+    subgraph PARITY["Parity Check (Optional)"]
+        calc["Calculate parity<br/>per byte"]
+        cmp["Compare with<br/>received parity"]
+        err["parity_error<br/>flag"]
+    end
+
+    subgraph OUTPUT["Master AXIS5 Interface"]
+        m_tdata["m_axis_tdata"]
+        m_tvalid["m_axis_tvalid"]
+        m_tready["m_axis_tready"]
+        m_twakeup["m_axis_twakeup"]
+        m_tparity["m_axis_tparity"]
+    end
+
+    INPUT --> PACK
+    PACK --> SKID
+    SKID --> UNPACK
+    UNPACK --> OUTPUT
+    OUTPUT --> PARITY
+    PARITY --> err
+
+    style PARITY fill:#fff4e6
+    style err fill:#ffe6e6
+```
+
+### Skid Buffer Operation
+
+The module uses an internal `gaxi_skid_buffer` to:
+- Accept incoming transfers even when downstream is not ready
+- Prevent backpressure propagation
+- Provide registered outputs for timing closure
+- Track buffer occupancy via `busy` signal
+
+### Packet Packing/Unpacking
+
+**Conditional packing based on configuration:**
+
+```systemverilog
+// Full feature set (ENABLE_WAKEUP=1, ENABLE_PARITY=1)
+{tdata, tstrb, tlast, tid, tdest, tuser, twakeup, tparity}
+
+// Wake-up only (ENABLE_WAKEUP=1, ENABLE_PARITY=0)
+{tdata, tstrb, tlast, tid, tdest, tuser, twakeup}
+
+// Parity only (ENABLE_WAKEUP=0, ENABLE_PARITY=1)
+{tdata, tstrb, tlast, tid, tdest, tuser, tparity}
+
+// Base AXIS4 (ENABLE_WAKEUP=0, ENABLE_PARITY=0)
+{tdata, tstrb, tlast, tid, tdest, tuser}
+```
+
+### Parity Checking (Optional)
+
+When `ENABLE_PARITY=1`:
+1. Calculate **even** parity for each data byte: `parity[i] = ^m_axis_tdata[i*8 +: 8]`. The XOR reduction yields 1 for an odd number of set bits, so a correct byte plus its parity bit always has an even population count.
+2. Compare the calculated parity with `m_axis_tparity`
+3. Set `parity_error` flag on mismatch (sticky, cleared only by reset)
+4. The check is sampled on accepted output transfers (`m_axis_tvalid && m_axis_tready`)
+
+**This module does not generate parity.** TPARITY is supplied by the upstream FUB on `fub_axis_tparity`, carried through the skid buffer alongside TDATA, and presented on `m_axis_tparity`. The check on the output side therefore validates the data path *through this module* — packing, buffering, unpacking — against the parity the producer computed. It is not an end-to-end check of the downstream link; the receiving endpoint has to run its own check, which is exactly what `axis5_slave` does on its input side.
+
+If the upstream FUB does not compute parity, leave `ENABLE_PARITY=0`. Tying `fub_axis_tparity` to a constant while parity is enabled will assert `parity_error` on the first non-matching beat — that's the trap people fall into.
+
+### Busy Signal
+
+The `busy` output indicates:
+- Input side has valid data (`fub_axis_tvalid`)
+- Skid buffer contains data (`int_t_count > 0`)
+
+---
+
+## Timing Characteristics
 ### Basic Transfer with Wake-up
 
 <!-- TODO: Add wavedrom timing diagram for AXIS5 transfer with wake-up -->
@@ -275,7 +275,6 @@ These are declared in the parameter list so they can be used in port widths, but
 ---
 
 ## Usage Examples
-
 ### Basic Configuration
 
 ```systemverilog
@@ -394,7 +393,7 @@ end
   - Lower latency
   - May cause upstream backpressure
 
-**Recommendation:** Use depth 4 for most applications, increase if downstream frequently stalls.
+**Recommendation:** depth 4 covers most applications; go deeper if your downstream stalls frequently.
 
 ### Parity Implementation
 
@@ -422,6 +421,7 @@ Internal logic uses `IW_WIDTH = (IW > 0) ? IW : 1` to avoid zero-width signals.
 ---
 
 ## Related Modules
+
 - **[AXIS5 Slave](axis5_slave.md)** - AXIS5 slave interface
 - **[AXIS5 Master CG](axis5_master_cg.md)** - Clock-gated variant with power management
 - **[AXIS5 Slave CG](axis5_slave_cg.md)** - Clock-gated slave variant

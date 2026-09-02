@@ -27,9 +27,29 @@ An AXI4-Stream slave module that provides high-throughput streaming data recepti
 
 ## Overview
 
-The `axis4_slave` module implements a complete AXI4-Stream slave interface with integrated skid buffering for optimal streaming performance. It supports the full AXI4-Stream protocol with configurable data widths, optional sideband signals, and intelligent buffer management for streaming data applications.
+The `axis4_slave` module implements a complete AXI4-Stream slave interface with integrated skid buffering for optimal streaming performance. It supports the full AXI4-Stream protocol with configurable data widths, optional sideband signals, and intelligent buffer management for streaming data applications. It's the mirror image of `axis4_master` — the interconnect talks to the `s_axis_*` side, your backend drinks from the `fub_axis_*` side, and the skid buffer in the middle keeps the two from tripping over each other.
 
-## Module Interface
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| SKID_DEPTH | int | 4 | Skid buffer depth in **entries** (not a log2 exponent). Passed directly to `gaxi_skid_buffer.DEPTH`, which supports 2..8 inclusive |
+| AXIS_DATA_WIDTH | int | 32 | AXI4-Stream data bus width in **bits** (must be a multiple of 8; `SW = AXIS_DATA_WIDTH/8`) |
+| AXIS_ID_WIDTH | int | 8 | Stream ID width (0 to disable) |
+| AXIS_DEST_WIDTH | int | 4 | Destination width (0 to disable) |
+| AXIS_USER_WIDTH | int | 1 | User signal width (0 to disable) |
+
+> **SKID_DEPTH is a literal entry count.** `SKID_DEPTH = 4` yields a 4-entry buffer, not 16.
+> The underlying `gaxi_skid_buffer` is a shift-register FIFO whose `count` port is 4 bits wide;
+> only the values 2..8 inclusive are supported. Any integer in that range is
+> legal, odd values included -- `gaxi_skid_buffer` states "2..8 inclusive (any
+> integer)" and guards it. The `{2,4,6,8}` restriction claimed here was an
+> inference, not a contract.
+
+## Ports
+
+The full declaration, straight from the RTL:
+
 ```systemverilog
 module axis4_slave #(
     parameter int SKID_DEPTH         = 4,
@@ -78,25 +98,6 @@ module axis4_slave #(
 );
 ```
 
-## Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| SKID_DEPTH | int | 4 | Skid buffer depth in **entries** (not a log2 exponent). Passed directly to `gaxi_skid_buffer.DEPTH`, which supports 2..8 inclusive |
-| AXIS_DATA_WIDTH | int | 32 | AXI4-Stream data bus width in **bits** (must be a multiple of 8; `SW = AXIS_DATA_WIDTH/8`) |
-| AXIS_ID_WIDTH | int | 8 | Stream ID width (0 to disable) |
-| AXIS_DEST_WIDTH | int | 4 | Destination width (0 to disable) |
-| AXIS_USER_WIDTH | int | 1 | User signal width (0 to disable) |
-
-> **SKID_DEPTH is a literal entry count.** `SKID_DEPTH = 4` yields a 4-entry buffer, not 16.
-> The underlying `gaxi_skid_buffer` is a shift-register FIFO whose `count` port is 4 bits wide;
-> only the values 2..8 inclusive are supported. Any integer in that range is
-> legal, odd values included -- `gaxi_skid_buffer` states "2..8 inclusive (any
-> integer)" and guards it. The `{2,4,6,8}` restriction claimed here was an
-> inference, not a contract.
-
-## Ports
-
 ### Slave AXI4-Stream Interface (Input from Interconnect)
 
 | Port | Width | Direction | Description |
@@ -140,10 +141,18 @@ absorbed before it propagates, not the sustained rate.
 TLAST, TSTRB, TID, TDEST and TUSER are carried verbatim when their widths are
 non-zero. The module holds no packet state -- it is a buffer, not a framer.
 
+### Busy Signal Generation
+
+```systemverilog
+busy = (buffer_count > 0) || s_axis_tvalid;
+```
+
+`busy` is asserted while any beat is held in the skid buffer or a new beat is being offered
+on the slave interface. It is the wakeup term consumed by `axis4_slave_cg`.
+
 ---
 
 ## Timing Characteristics
-
 | Characteristic | Value | Description |
 |----------------|-------|-------------|
 | Buffer Depth | 4 entries (default) | `SKID_DEPTH` entries, verbatim |
@@ -154,15 +163,6 @@ non-zero. The module holds no packet state -- it is a buffer, not a framer.
 `gaxi_skid_buffer` registers both `rd_valid` and the storage array, so the 1-cycle latency
 applies on **every** transfer, including the unstalled case. There is no combinational path
 from `s_axis_tdata` to `fub_axis_tdata`.
-
-### Busy Signal Generation
-
-```systemverilog
-busy = (buffer_count > 0) || s_axis_tvalid;
-```
-
-`busy` is asserted while any beat is held in the skid buffer or a new beat is being offered
-on the slave interface. It is the wakeup term consumed by `axis4_slave_cg`.
 
 ## Usage Examples
 ```systemverilog
@@ -206,6 +206,15 @@ axis4_slave #(
 - **Use Case:** Stream receivers, packet processors, video decoders
 - **Buffering:** Allows backend to consume at its own pace without stalling interconnect
 
+### Features
+
+- **Full AXI4-Stream Protocol:** Support for all optional sideband signals
+- **Elastic Buffering:** Skid buffer decouples interconnect and backend timing
+- **Configurable Width:** Optional ID, DEST, USER signals (set width to 0 to disable)
+- **Activity Monitoring:** Busy signal for power management
+
+### Known Limitations
+
 | Limitation | Detail |
 |------------|--------|
 | No `TKEEP` | Only `TSTRB` is implemented. A protocol-compliant null-byte / position-byte distinction is not available |
@@ -215,13 +224,6 @@ axis4_slave #(
 | No protocol checking | The module does not detect or report `TVALID` deassertion before `TREADY`, or `TLAST` framing errors |
 | `SKID_DEPTH` limited to 2..8 inclusive | The buffer is a timing element, not a rate adapter. Use a `gaxi_fifo_sync` downstream for deep elastic storage |
 
-### Features
-
-- **Full AXI4-Stream Protocol:** Support for all optional sideband signals
-- **Elastic Buffering:** Skid buffer decouples interconnect and backend timing
-- **Configurable Width:** Optional ID, DEST, USER signals (set width to 0 to disable)
-- **Activity Monitoring:** Busy signal for power management
-
 ### TSTRB and TKEEP
 
 ARM IHI 0051A defines two byte qualifiers: `TKEEP` (byte is part of the data stream) and
@@ -230,6 +232,7 @@ only** — there is no `TKEEP` port. `s_axis_tstrb` is packed into the skid buff
 reproduced on `fub_axis_tstrb` unmodified, so it can equally carry a `TKEEP` mask if the
 surrounding design treats it that way. That is an integrator-side naming convention, not
 protocol-compliant `TKEEP` support.
+
 ## Related Modules
 
 - **[axis4_master](axis4_master.md)** - Stream master counterpart

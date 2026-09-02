@@ -25,49 +25,49 @@
 
 **Location:** `rtl/amba/axis4/`
 **Test Location:** `val/amba/`
-**Status:**  Production Ready
+**Status:** Production Ready
 
 ---
 
 ## Overview
 
-The AXIS4 subsystem provides a complete implementation of the ARM AMBA AXI4-Stream protocol—a high-performance streaming interface optimized for unidirectional data flows such as video processing, network packet handling, and DSP pipelines.
+The AXIS4 subsystem is a complete implementation of the ARM AMBA AXI4-Stream protocol — the streaming member of the AMBA family, built for high-performance unidirectional data flows. Video processing, network packet handling, DSP pipelines: anywhere data moves in one direction without an address in sight, this is what you reach for. AXI4-Stream gets its speed by throwing things away — no address channels, no burst bookkeeping — and what's left is a single channel that sustains one beat per cycle.
 
 ### Key Features
 
--  **AXI4-Stream Protocol:** Streaming-optimized subset (no address channels)
--  **High Throughput:** One beat per cycle sustained; e.g. 25.6 GB/s at 512-bit / 400 MHz
--  **Flexible Sideband Signals:** TID, TDEST, TUSER for routing/control
--  **Packet Framing:** TLAST for packet/frame boundaries
--  **Elastic Buffering:** Integrated skid buffers for timing closure
--  **Clock Gating Variants:** Power-optimized versions
--  **Typical Use:** Video streams, network packets, DSP pipelines
+- **AXI4-Stream Protocol:** Streaming-optimized subset (no address channels)
+- **High Throughput:** One beat per cycle sustained; e.g. 25.6 GB/s at 512-bit / 400 MHz
+- **Flexible Sideband Signals:** TID, TDEST, TUSER for routing/control
+- **Packet Framing:** TLAST for packet/frame boundaries
+- **Elastic Buffering:** Integrated skid buffers for timing closure
+- **Clock Gating Variants:** Power-optimized versions
+- **Typical Use:** Video streams, network packets, DSP pipelines
 
----
+### Module Categories
 
-## Module Categories
+Two modules do the work — a master and a slave — and each has a clock-gated sibling for power-sensitive designs.
 
-### Core Master/Slave Modules
+#### Core Master/Slave Modules
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **axis4_master** | AXIS master with buffered output | [axis4_master.md](axis4_master.md) |  Documented |
-| **axis4_slave** | AXIS slave with buffered input | [axis4_slave.md](axis4_slave.md) |  Documented |
+| **axis4_master** | AXIS master with buffered output | [axis4_master.md](axis4_master.md) | Documented |
+| **axis4_slave** | AXIS slave with buffered input | [axis4_slave.md](axis4_slave.md) | Documented |
 
-### Clock-Gated Variants
+#### Clock-Gated Variants
 
 **All clock-gated variants documented in:** [axis4_clock_gating_guide.md](axis4_clock_gating_guide.md)
 
 | Module | Base Module | Status |
 |--------|-------------|--------|
-| **axis4_master_cg** | [axis4_master](axis4_master.md) |  Documented |
-| **axis4_slave_cg** | [axis4_slave](axis4_slave.md) |  Documented |
+| **axis4_master_cg** | [axis4_master](axis4_master.md) | Documented |
+| **axis4_slave_cg** | [axis4_slave](axis4_slave.md) | Documented |
 
----
+### AXI4-Stream Protocol Overview
 
-## AXI4-Stream Protocol Overview
+#### Streaming vs Memory-Mapped
 
-### Streaming vs Memory-Mapped
+If you already know AXI4, the mental model is short: AXI4-Stream is what remains when you strip the addressing off and let the data run.
 
 | Feature | AXI4 | AXI4-Stream |
 |---------|------|-------------|
@@ -79,7 +79,7 @@ The AXIS4 subsystem provides a complete implementation of the ARM AMBA AXI4-Stre
 | **Routing** | Address-based | TID/TDEST-based |
 | **Typical Use** | Register/memory access | Video/network/DSP |
 
-### Signal Architecture
+#### Signal Architecture
 
 AXI4-Stream uses a single channel for streaming data:
 
@@ -103,7 +103,7 @@ an opaque per-byte-lane field and carries it through unmodified, so a design may
 a receiver cannot distinguish null bytes from position bytes. Examples below that connect
 signals named `*_keep` to `*_tstrb` are relying on exactly that convention.
 
-### Key Signals
+#### Key Signals
 
 **Data Transfer:**
 - `TDATA[N:0]` - Primary streaming data
@@ -121,7 +121,8 @@ signals named `*_keep` to `*_tstrb` are relying on exactly that convention.
 
 ---
 
-## Quick Start
+## Usage Examples
+Four starting points cover most of what people build with these modules. Pick the one closest to your problem and adjust the widths.
 
 ### Basic Stream Master
 
@@ -263,31 +264,11 @@ axis4_slave #(
 
 ---
 
-## Testing
+## Design Notes
 
-All AXIS4 modules are verified using CocoTB-based testbenches:
+### Design Patterns
 
-```bash
-# Run all AXIS4 tests
-pytest val/amba/test_axis*.py -v
-
-# Run specific module tests
-pytest val/amba/test_axis4_master.py -v
-pytest val/amba/test_axis4_slave.py -v
-
-# Run clock-gated variant tests
-pytest val/amba/test_axis4_master_cg.py -v
-pytest val/amba/test_axis4_slave_cg.py -v
-
-# Run with waveforms
-pytest val/amba/test_axis4_master.py --vcd=waves.vcd -v
-```
-
----
-
-## Design Patterns
-
-### Pattern 1: Elastic Buffering
+#### Pattern 1: Elastic Buffering
 
 All core modules use `gaxi_skid_buffer`:
 - Decouples source and sink timing
@@ -296,7 +277,9 @@ All core modules use `gaxi_skid_buffer`:
   `rd_valid`, so this is not a zero-bubble bypass skid
 - Full backpressure handling, one beat per cycle sustained once primed
 
-### Pattern 2: Packet Framing
+That third bullet is the part that bites people. If your latency budget assumes an unstalled beat passes combinationally, it doesn't — not here.
+
+#### Pattern 2: Packet Framing
 
 TLAST signal marks packet boundaries:
 ```systemverilog
@@ -310,7 +293,7 @@ tlast = (byte_count == packet_length - 1);
 tlast = (sample_count == FRAME_SIZE - 1);
 ```
 
-### Pattern 3: Stream Multiplexing
+#### Pattern 3: Stream Multiplexing
 
 TID enables multiple logical streams:
 ```systemverilog
@@ -319,7 +302,7 @@ TID enables multiple logical streams:
 .fub_axis_tdest(display_id) // Route to specific display
 ```
 
-### Pattern 4: Clock Gating
+#### Pattern 4: Clock Gating
 
 Clock-gated variants (`*_cg`) add power management:
 - Dynamic gating driven by TVALID on either side, the downstream TREADY, and buffer occupancy
@@ -330,15 +313,13 @@ Clock-gated variants (`*_cg`) add power management:
 See the [AXIS4 Clock-Gated Variants Guide](axis4_clock_gating_guide.md) for the exact wakeup
 terms and the ungating latency breakdown.
 
----
-
-## Performance Characteristics
+### Performance Characteristics
 
 The tables in this section are **design targets for scoping, not measured synthesis or
 power results.** No target device or technology node backs them; re-derive from your own
 synthesis run before committing to a system budget.
 
-### Throughput
+#### Throughput
 
 | Configuration | Bandwidth | Notes |
 |--------------|-----------|-------|
@@ -347,7 +328,7 @@ synthesis run before committing to a system budget.
 | 128-bit @ 400 MHz | 6.4 GB/s | High-bandwidth video |
 | 512-bit @ 400 MHz | 25.6 GB/s | Network/storage |
 
-### Latency
+#### Latency
 
 | Path | Cycles | Notes |
 |------|--------|-------|
@@ -355,7 +336,7 @@ synthesis run before committing to a system budget.
 | Master → Slave | 2-3 | Through interconnect |
 | Typical pipeline | 5-10 | Multi-stage processing |
 
-### Resource Usage
+#### Resource Usage
 
 | Module Type | LUTs | FFs | BRAM | Notes |
 |-------------|------|-----|------|-------|
@@ -368,11 +349,9 @@ address/response channels and of any outstanding-transaction tracking. No AXI4 b
 measurement is published in this document, so treat the figure as a rough expectation rather
 than a benchmarked result.
 
----
+### Common Use Cases
 
-## Common Use Cases
-
-### Video Processing
+#### Video Processing
 
 **Characteristics:**
 - High throughput (1-10 GB/s)
@@ -387,7 +366,7 @@ than a benchmarked result.
 .AXIS_USER_WIDTH(8-16)     // Frame/line metadata
 ```
 
-### Network Packet Processing
+#### Network Packet Processing
 
 **Characteristics:**
 - Variable packet sizes
@@ -403,7 +382,7 @@ than a benchmarked result.
 .AXIS_DEST_WIDTH(6)        // 64 ports
 ```
 
-### DSP Pipelines
+#### DSP Pipelines
 
 **Characteristics:**
 - Continuous data flow
@@ -420,11 +399,9 @@ than a benchmarked result.
 .AXIS_USER_WIDTH(4)        // Minimal metadata
 ```
 
----
+### Parameter Selection Guidelines
 
-## Parameter Selection Guidelines
-
-### Data Width (AXIS_DATA_WIDTH)
+#### Data Width (AXIS_DATA_WIDTH)
 
 | Application | Recommended Width | Rationale |
 |-------------|-------------------|-----------|
@@ -435,7 +412,7 @@ than a benchmarked result.
 | Network (1G) | 64-128 bits | Moderate packet rate |
 | Network (10G/100G) | 256-512 bits | High packet rate |
 
-### Buffer Depth (SKID_DEPTH)
+#### Buffer Depth (SKID_DEPTH)
 
 `SKID_DEPTH` is a **literal entry count**, not a log2 exponent, and is passed straight to
 `gaxi_skid_buffer.DEPTH`. Only the values 2..8 inclusive are supported.
@@ -451,7 +428,7 @@ The skid buffer is a timing element, not a rate-adaptation FIFO. If an applicati
 tens or hundreds of entries of elastic storage, place a `gaxi_fifo_sync` (or
 `gaxi_fifo_async` across clock domains) downstream instead of scaling `SKID_DEPTH`.
 
-### Sideband Signal Widths
+#### Sideband Signal Widths
 
 **TID (Stream ID):**
 - 0: Single stream, no multiplexing
@@ -468,9 +445,7 @@ tens or hundreds of entries of elastic storage, place a `gaxi_fifo_sync` (or
 - 4-8: Frame/packet control
 - 16+: Complex metadata
 
----
-
-## Known Limitations
+### Known Limitations
 
 Applies to `axis4_master`, `axis4_slave`, and their `_cg` variants:
 
@@ -485,9 +460,56 @@ Applies to `axis4_master`, `axis4_slave`, and their `_cg` variants:
 | `SKID_DEPTH` limited to 2..8 inclusive | The skid buffer is a timing element, not a rate adapter |
 | 1 register stage / 2-cycle ungating latency (`_cg`) | The first beat after an idle period is backpressured while the clock restarts |
 
+### When to Use AXI4-Stream
+
+**Use AXI4-Stream For:**
+- Video/image processing pipelines
+- Network packet processing
+- DSP data flows
+- High-throughput unidirectional data
+- Streaming accelerators
+
+**Use AXI4 For:**
+- Memory-mapped register access
+- Random access patterns
+- Bidirectional data flows
+- Address-based routing
+
+### Buffer Depth Trade-offs
+
+**Shallow Buffers (SKID_DEPTH = 2):**
+- Lower latency
+- Smaller area
+- Less tolerance for backpressure
+- **Use for:** Low-latency DSP, continuous streams
+
+**Deep Buffers (SKID_DEPTH = 6-8):**
+- High backpressure tolerance
+- Better throughput under variable load
+- Higher latency
+- Larger area
+- **Use for:** Network packets, variable-latency paths
+
+No single depth wins everywhere — you're trading latency and area against backpressure tolerance, so size for the stall pattern you actually expect.
+
+### Sideband Signal Optimization
+
+**Minimize unused signals for area/power:**
+```systemverilog
+// Video processing - no routing needed
+.AXIS_ID_WIDTH(0),     // No stream multiplexing
+.AXIS_DEST_WIDTH(0),   // No destination routing
+.AXIS_USER_WIDTH(8)    // Only frame metadata
+
+// vs Network processing - full routing
+.AXIS_ID_WIDTH(8),     // 256 flows
+.AXIS_DEST_WIDTH(6),   // 64 ports
+.AXIS_USER_WIDTH(16)   // Full packet metadata
+```
+
 ---
 
-## Related Documentation
+## Related Modules
 
 ### Protocol Specifications
 - ARM IHI 0051A: AMBA AXI4-Stream Protocol Specification
@@ -506,51 +528,24 @@ Applies to `axis4_master`, `axis4_slave`, and their `_cg` variants:
 
 ---
 
-## Design Notes
+## Testing
 
-### When to Use AXI4-Stream
+All AXIS4 modules are verified using CocoTB-based testbenches:
 
-** Use AXI4-Stream For:**
-- Video/image processing pipelines
-- Network packet processing
-- DSP data flows
-- High-throughput unidirectional data
-- Streaming accelerators
+```bash
+# Run all AXIS4 tests
+pytest val/amba/test_axis*.py -v
 
-** Use AXI4 For:**
-- Memory-mapped register access
-- Random access patterns
-- Bidirectional data flows
-- Address-based routing
+# Run specific module tests
+pytest val/amba/test_axis4_master.py -v
+pytest val/amba/test_axis4_slave.py -v
 
-### Buffer Depth Trade-offs
+# Run clock-gated variant tests
+pytest val/amba/test_axis4_master_cg.py -v
+pytest val/amba/test_axis4_slave_cg.py -v
 
-**Shallow Buffers (SKID_DEPTH = 2):**
--  Lower latency
--  Smaller area
--  Less tolerance for backpressure
-- **Use for:** Low-latency DSP, continuous streams
-
-**Deep Buffers (SKID_DEPTH = 6-8):**
--  High backpressure tolerance
--  Better throughput under variable load
--  Higher latency
--  Larger area
-- **Use for:** Network packets, variable-latency paths
-
-### Sideband Signal Optimization
-
-**Minimize unused signals for area/power:**
-```systemverilog
-// Video processing - no routing needed
-.AXIS_ID_WIDTH(0),     // No stream multiplexing
-.AXIS_DEST_WIDTH(0),   // No destination routing
-.AXIS_USER_WIDTH(8)    // Only frame metadata
-
-// vs Network processing - full routing
-.AXIS_ID_WIDTH(8),     // 256 flows
-.AXIS_DEST_WIDTH(6),   // 64 ports
-.AXIS_USER_WIDTH(16)   // Full packet metadata
+# Run with waveforms
+pytest val/amba/test_axis4_master.py --vcd=waves.vcd -v
 ```
 
 ---

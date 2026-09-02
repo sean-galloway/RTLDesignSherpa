@@ -24,13 +24,13 @@
 # AXIS4 Clock-Gated Variants Guide
 
 **Location:** `rtl/amba/axis4/*_cg.sv`
-**Status:**  Production Ready
+**Status:** Production Ready
 
 ---
 
 ## Overview
 
-Both AXIS4 modules have clock-gated (`_cg`) variants that add power management through dynamic clock gating. Same architecture as AXI4/AXIL4 clock gating, optimized for streaming protocols.
+Both AXIS4 modules have clock-gated (`_cg`) variants that add power management through dynamic clock gating. Same architecture as AXI4/AXIL4 clock gating, optimized for streaming protocols. The deal is simple: when the stream goes quiet, the clock stops; when traffic shows up, the clock restarts and the beat moves.
 
 ### Available Clock-Gated Modules
 
@@ -53,7 +53,9 @@ Both AXIS4 modules have clock-gated (`_cg`) variants that add power management t
 
 ---
 
-## Additional Parameters (All _cg Modules)
+## Parameters
+
+The `_cg` variants add exactly one parameter to the base module's list:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -63,21 +65,21 @@ Both AXIS4 modules have clock-gated (`_cg`) variants that add power management t
 
 ---
 
-## Additional Ports (All _cg Modules)
+## Ports
 
 ### Clock Gating Configuration
 
-| Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `cfg_cg_enable` | Input | 1 | Enable clock gating (0=disabled, 1=enabled) |
-| `cfg_cg_idle_count` | Input | CG_IDLE_COUNT_WIDTH | Idle cycles before gating |
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| `cfg_cg_enable` | 1 | Input | Enable clock gating (0=disabled, 1=enabled) |
+| `cfg_cg_idle_count` | CG_IDLE_COUNT_WIDTH | Input | Idle cycles before gating |
 
 ### Clock Gating Status
 
-| Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `cg_gating` | Output | 1 | Clock currently gated (1=gated, 0=running) |
-| `cg_idle` | Output | 1 | No activity was observed in the previous cycle (registered `~wakeup`) |
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| `cg_gating` | 1 | Output | Clock currently gated (1=gated, 0=running) |
+| `cg_idle` | 1 | Output | No activity was observed in the previous cycle (registered `~wakeup`) |
 
 > **The `_cg` wrappers do not expose `busy`.** The base module's `busy` output is consumed
 > internally as one of the wakeup terms and is not brought out. Use `cg_idle` for
@@ -89,40 +91,9 @@ Both AXIS4 modules have clock-gated (`_cg`) variants that add power management t
 
 ---
 
-## Usage Example
+## Functional Description
 
-```systemverilog
-axis4_master_cg #(
-    // Base parameters
-    .SKID_DEPTH(4),
-    .AXIS_DATA_WIDTH(64),
-    .AXIS_ID_WIDTH(8),
-    .AXIS_DEST_WIDTH(4),
-    .AXIS_USER_WIDTH(1),
-
-    // Clock gating
-    .CG_IDLE_COUNT_WIDTH(4)  // Up to 15 idle cycles
-) u_axis_master_cg (
-    .aclk(stream_clk),
-    .aresetn(stream_resetn),
-
-    // Clock gating configuration
-    .cfg_cg_enable(1'b1),         // Enable gating
-    .cfg_cg_idle_count(4'd3),     // Gate after 3 idle cycles
-
-    // AXIS signals (identical to base module)
-    .fub_axis_tdata(src_tdata),
-    // ... rest of AXIS signals ...
-
-    // Clock gating status
-    .cg_gating(stream_clk_gated),
-    .cg_idle(stream_idle)
-);
-```
-
----
-
-## Clock Gating Behavior
+### Clock Gating Behavior
 
 Both wrappers build a single `wakeup` term and hand it to `amba_clock_gate_ctrl`. For
 `axis4_master_cg` that term is:
@@ -156,6 +127,9 @@ downstream block holding TREADY high keeps the clock running even with no traffi
    `vault/handbook/design/clock-gating-activity-terms.md`.
 2. `cfg_cg_enable` deasserted
 
+---
+
+## Timing Characteristics
 ### Ungating Latency
 
 **Ungating is not instantaneous.** Activity is registered once (AXI4, AXI5, AXI4-Lite,
@@ -194,9 +168,43 @@ first-beat latency for power.
 
 ---
 
-## Configuration Guidelines
+## Usage Examples
+```systemverilog
+axis4_master_cg #(
+    // Base parameters
+    .SKID_DEPTH(4),
+    .AXIS_DATA_WIDTH(64),
+    .AXIS_ID_WIDTH(8),
+    .AXIS_DEST_WIDTH(4),
+    .AXIS_USER_WIDTH(1),
 
-### Idle Count Selection for Streaming
+    // Clock gating
+    .CG_IDLE_COUNT_WIDTH(4)  // Up to 15 idle cycles
+) u_axis_master_cg (
+    .aclk(stream_clk),
+    .aresetn(stream_resetn),
+
+    // Clock gating configuration
+    .cfg_cg_enable(1'b1),         // Enable gating
+    .cfg_cg_idle_count(4'd3),     // Gate after 3 idle cycles
+
+    // AXIS signals (identical to base module)
+    .fub_axis_tdata(src_tdata),
+    // ... rest of AXIS signals ...
+
+    // Clock gating status
+    .cg_gating(stream_clk_gated),
+    .cg_idle(stream_idle)
+);
+```
+
+---
+
+## Design Notes
+
+### Configuration Guidelines
+
+#### Idle Count Selection for Streaming
 
 **Aggressive Gating (Burst Packets):**
 ```systemverilog
@@ -224,22 +232,20 @@ first-beat latency for power.
 
 ### When to Use Clock Gating
 
-** Recommended For:**
+**Recommended For:**
 - Packet-based streaming (idle between packets)
 - Video processing (blanking periods between frames/lines)
 - Burst data transfers (gaps between bursts)
 - Power-constrained streaming applications
 
-** Not Recommended For:**
+**Not Recommended For:**
 - Continuous audio/video streams (100% utilization)
 - Real-time DSP pipelines (no idle periods)
 - Ultra-low-latency paths
 
----
+The pattern there is honest: gating pays when your stream has gaps. A stream that never idles gives the gate nothing to work with.
 
-## Power Savings Estimates
-
-### Typical Savings (Streaming Patterns)
+### Power Savings Estimates
 
 The figures below are **estimates for planning purposes, not measured power results.** They
 have not been correlated against a power analysis run on any target technology.
@@ -261,22 +267,16 @@ have not been correlated against a power analysis run on any target technology.
 - At 100% duty cycle, gating never engages, so the wrapper is pure overhead. Instantiate the
   base module instead, or tie `cfg_cg_enable` low.
 
+AXIS-specific notes: the architecture is the same as AXI4/AXIL4 clock gating, power savings
+vary based on stream duty cycle, and the best fit is packet-based or frame-based streams.
+
 ---
 
-## Complete Documentation
+## Related Modules
 
 **For full clock gating details, see:**
 - **[AXI4 Clock Gating Guide](../axi4/axi4_clock_gating_guide.md)** - Complete reference
 - **[AXIL4 Clock Gating Guide](../axil4/axil4_clock_gating_guide.md)** - Additional examples
-
-**AXIS-specific notes:**
-- Same architecture as AXI4/AXIL4 clock gating
-- Power savings vary based on stream duty cycle
-- Best for packet-based or frame-based streams
-
----
-
-## Related Documentation
 
 ### Base Modules
 - **[axis4_master](axis4_master.md)** - Base stream master

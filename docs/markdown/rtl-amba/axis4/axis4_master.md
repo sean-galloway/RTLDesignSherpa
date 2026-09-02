@@ -27,9 +27,29 @@ An AXI4-Stream master module that provides high-throughput streaming data transm
 
 ## Overview
 
-The `axis4_master` module implements a complete AXI4-Stream master interface with integrated skid buffering for optimal streaming performance. It supports the full AXI4-Stream protocol with configurable data widths, optional sideband signals, and intelligent buffer management to maximize throughput in streaming data applications such as video processing, network packet handling, and DSP pipelines.
+The `axis4_master` module implements a complete AXI4-Stream master interface with integrated skid buffering for optimal streaming performance. It supports the full AXI4-Stream protocol with configurable data widths, optional sideband signals, and intelligent buffer management to maximize throughput in streaming data applications such as video processing, network packet handling, and DSP pipelines. In practice it's a shallow elastic buffer with an AXIS face on each side — which is exactly what you want between a producer and an interconnect that don't quite agree on timing.
 
-## Module Interface
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| SKID_DEPTH | int | 4 | Skid buffer depth in **entries** (not a log2 exponent). Passed directly to `gaxi_skid_buffer.DEPTH`, which supports 2..8 inclusive |
+| AXIS_DATA_WIDTH | int | 32 | AXI4-Stream data bus width in **bits** (must be a multiple of 8; `SW = AXIS_DATA_WIDTH/8`) |
+| AXIS_ID_WIDTH | int | 8 | Stream ID width (0 to disable) |
+| AXIS_DEST_WIDTH | int | 4 | Destination width (0 to disable) |
+| AXIS_USER_WIDTH | int | 1 | User signal width (0 to disable) |
+
+> **SKID_DEPTH is a literal entry count.** `SKID_DEPTH = 4` yields a 4-entry buffer, not 16.
+> The underlying `gaxi_skid_buffer` is a shift-register FIFO whose `count` port is 4 bits wide;
+> only the values 2..8 inclusive are supported. Any integer in that range is
+> legal, odd values included -- `gaxi_skid_buffer` states "2..8 inclusive (any
+> integer)" and guards it. The `{2,4,6,8}` restriction claimed here was an
+> inference, not a contract.
+
+## Ports
+
+The full declaration, straight from the RTL:
+
 ```systemverilog
 module axis4_master #(
     parameter int SKID_DEPTH         = 4,
@@ -77,25 +97,6 @@ module axis4_master #(
     output logic                       busy
 );
 ```
-
-## Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| SKID_DEPTH | int | 4 | Skid buffer depth in **entries** (not a log2 exponent). Passed directly to `gaxi_skid_buffer.DEPTH`, which supports 2..8 inclusive |
-| AXIS_DATA_WIDTH | int | 32 | AXI4-Stream data bus width in **bits** (must be a multiple of 8; `SW = AXIS_DATA_WIDTH/8`) |
-| AXIS_ID_WIDTH | int | 8 | Stream ID width (0 to disable) |
-| AXIS_DEST_WIDTH | int | 4 | Destination width (0 to disable) |
-| AXIS_USER_WIDTH | int | 1 | User signal width (0 to disable) |
-
-> **SKID_DEPTH is a literal entry count.** `SKID_DEPTH = 4` yields a 4-entry buffer, not 16.
-> The underlying `gaxi_skid_buffer` is a shift-register FIFO whose `count` port is 4 bits wide;
-> only the values 2..8 inclusive are supported. Any integer in that range is
-> legal, odd values included -- `gaxi_skid_buffer` states "2..8 inclusive (any
-> integer)" and guards it. The `{2,4,6,8}` restriction claimed here was an
-> inference, not a contract.
-
-## Ports
 
 ### Clock and Reset
 
@@ -193,7 +194,7 @@ busy = (buffer_count > 0) || fub_axis_tvalid;
 
 ### Signal Description
 
-### Core Signals
+#### Core Signals
 
 | Signal | Width | Description |
 |--------|-------|-------------|
@@ -214,7 +215,7 @@ and reproduced on `m_axis_tstrb` unmodified, so it can equally carry a `TKEEP` m
 surrounding design treats it that way. Doing so is a naming convention on the integrator's
 side, not protocol-compliant `TKEEP` support. See [Known Limitations](#known-limitations).
 
-### Optional Sideband Signals
+#### Optional Sideband Signals
 
 | Signal | Width | Description |
 |--------|-------|-------------|
@@ -222,24 +223,7 @@ side, not protocol-compliant `TKEEP` support. See [Known Limitations](#known-lim
 | TDEST | 0-16 bits | Destination routing information |
 | TUSER | 0-16 bits | User-defined control/status |
 
-### Verification Notes
-
-### Protocol Compliance
-- Verify AXI4-Stream handshaking (VALID/READY)
-- Check TLAST alignment with packet boundaries
-- Validate sideband signal preservation
-
-### Buffer Verification
-- Test buffer overflow/underflow protection
-- Verify data integrity through buffering
-- Check flow control under backpressure
-
-### Performance Verification
-- Measure sustained throughput under various loads
-- Verify buffer utilization efficiency
-- Check latency characteristics
 ## Timing Characteristics
-
 ### Buffer Performance
 
 | Characteristic | Value | Description |
@@ -269,7 +253,6 @@ a system budget.
 | Pipeline Efficiency | >95% | Continuous data flow |
 
 ## Usage Examples
-
 > **Notation:** some examples below abbreviate a full port list as `.m_axis_*(name_*)` or
 > `.fub_axis_*(iface.*)`. **This is shorthand for the reader, not legal SystemVerilog** — a
 > port-name wildcard of that form does not compile. Expand it to explicit named connections
@@ -437,7 +420,7 @@ endmodule
 
 ### Advanced Integration Patterns
 
-### Clock Domain Crossing
+#### Clock Domain Crossing
 
 ```systemverilog
 // Cross clock domains with async FIFO
@@ -492,7 +475,7 @@ module axis_cdc_system (
 endmodule
 ```
 
-### Stream Processing Pipeline
+#### Stream Processing Pipeline
 
 ```systemverilog
 // Multi-stage processing pipeline
@@ -544,7 +527,7 @@ module stream_pipeline (
 endmodule
 ```
 
-### Clock Gating Integration
+#### Clock Gating Integration
 
 The clock-gated variant `axis4_master_cg` wraps this module and drives it from a gated clock.
 Its control ports are `cfg_cg_enable` and `cfg_cg_idle_count`; its status ports are
@@ -583,6 +566,7 @@ end
 See the [AXIS4 Clock-Gated Variants Guide](axis4_clock_gating_guide.md) for gating and
 ungating behaviour, including the ungating latency and the `fub_axis_tready` hold-off while
 gated.
+
 ## Design Notes
 
 ### Area Optimization
@@ -601,6 +585,8 @@ gated.
 - Implement activity-based power scaling
 - Size buffers appropriately to minimize switching
 
+### Known Limitations
+
 | Limitation | Detail |
 |------------|--------|
 | No `TKEEP` | Only `TSTRB` is implemented. A protocol-compliant null-byte / position-byte distinction is not available. See [TSTRB and TKEEP](#tstrb-and-tkeep) |
@@ -609,8 +595,6 @@ gated.
 | No reordering or arbitration | The module is a single-stream elastic buffer. `TID`/`TDEST` are carried through unmodified; they are not decoded for routing |
 | No protocol checking | The module does not detect or report `TVALID` deassertion before `TREADY`, or `TLAST` framing errors |
 | `SKID_DEPTH` limited to 2..8 inclusive | The buffer is a timing element, not a rate adapter. Use a `gaxi_fifo_sync` downstream for deep elastic storage |
-
-### Performance Optimization
 
 ### Buffer Depth Selection
 
@@ -655,6 +639,7 @@ axis4_master #(
     .SKID_DEPTH(2)
 ) u_optimized_master (...);
 ```
+
 ## Related Modules
 
 - **axis4_master_cg**: Clock-gated version for power optimization
@@ -679,6 +664,23 @@ The `axis4_master` module provides a complete, high-performance solution for AXI
 source env_python
 pytest val/amba/test_axis4_master.py -v
 ```
+
+### What to Verify
+
+**Protocol Compliance**
+- Verify AXI4-Stream handshaking (VALID/READY)
+- Check TLAST alignment with packet boundaries
+- Validate sideband signal preservation
+
+**Buffer Verification**
+- Test buffer overflow/underflow protection
+- Verify data integrity through buffering
+- Check flow control under backpressure
+
+**Performance Verification**
+- Measure sustained throughput under various loads
+- Verify buffer utilization efficiency
+- Check latency characteristics
 
 ---
 

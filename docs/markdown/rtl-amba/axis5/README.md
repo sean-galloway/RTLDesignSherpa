@@ -31,15 +31,15 @@
 
 ## Overview
 
-The AXIS5 subsystem provides AXI5-Stream master and slave endpoints, plus clock-gated variants, for high-throughput streaming data applications.
+The AXIS5 subsystem gives you AXI5-Stream master and slave endpoints, plus clock-gated variants of each, for high-throughput streaming data applications.
 
-AXI5-Stream extends AXI4-Stream primarily with wake-up signalling (TWAKEUP) for low-power operation. These modules implement the AXI4-Stream handshake and signal set, add TWAKEUP, and add an optional per-byte data parity sideband (TPARITY) that is an RTL Design Sherpa extension, not an ARM signal.
+AXI5-Stream extends AXI4-Stream primarily with wake-up signalling (TWAKEUP) for low-power operation. These modules implement the AXI4-Stream handshake and signal set, add TWAKEUP on top, and offer an optional per-byte data parity sideband (TPARITY). That parity signal is an RTL Design Sherpa extension, not an ARM signal — keep that in mind before you wire these endpoints to someone else's IP.
 
 ---
 
 ## Implemented Signal Set
 
-Read this table before integrating with third-party AXI-Stream IP. It is the authoritative statement of what the RTL in `rtl/amba/axis5/` actually carries.
+Read this table before you integrate with third-party AXI-Stream IP. It's the authoritative statement of what the RTL in `rtl/amba/axis5/` actually carries — not what the ARM spec says could be there.
 
 | Signal | Status in these modules | Notes |
 |--------|-------------------------|-------|
@@ -56,7 +56,7 @@ Read this table before integrating with third-party AXI-Stream IP. It is the aut
 
 **Deviations from the ARM AXI-Stream signal set:**
 
-- **No TKEEP.** These modules carry TSTRB only. Null bytes (the TKEEP=0 encoding) cannot be expressed. A stream that needs null-byte signalling must carry that information in TUSER or use a different endpoint.
+- **No TKEEP.** These modules carry TSTRB only. Null bytes (the TKEEP=0 encoding) cannot be expressed. A stream that needs null-byte signalling has to carry that information in TUSER or use a different endpoint.
 - **TPARITY is proprietary.** It occupies no ARM-defined signal name and will not connect to third-party AXI5-Stream IP. Leave `ENABLE_PARITY=0` (the default) for interoperable designs.
 - **No TPOISON and no chunking (TCHUNKEN) support.** Neither signal is present in the RTL.
 - **TID default width is 8 bits.** `AXIS_ID_WIDTH` is a free parameter, so wider IDs are configurable, but nothing in these modules requires or defaults to a wider ID.
@@ -78,8 +78,8 @@ This table compares the two generations *as implemented here*, not the full ARM 
 | Clock-gate port names | `cfg_cg_enable` / `cfg_cg_idle_count` | **`i_cg_enable` / `i_cg_idle_count`** -- see below |
 | Stream port prefix on the `_cg` wrappers | `fub_axis_*` / `m_axis_*` | **`fub_axis5_*` / `m_axis5_*`** -- see below |
 
-**Two naming outliers, both in the axis5 `_cg` wrappers.** They are worth
-knowing before you port an instantiation across:
+**Two naming outliers, both in the axis5 `_cg` wrappers.** Learn them before
+you port an instantiation across, because they will trip you:
 
 - Thirty-two of the thirty-four `_cg` modules in `rtl/amba` take
   `cfg_cg_enable`. The two exceptions are `axis5_master_cg` and
@@ -89,9 +89,10 @@ knowing before you port an instantiation across:
   `axis5_master`, `axis5_slave` -- use `fub_axis_*` / `m_axis_*` /
   `s_axis_*` without it.
 
-Neither is a defect; both are inconsistencies that break copy-paste between
+Neither is a defect. Both are inconsistencies that break copy-paste between
 the axis4 and axis5 pages and between a wrapper and the module inside it.
-Renaming them is a family-wide interface change and has not been made.
+Renaming them is a family-wide interface change and has not been made — so
+the documentation calls it out instead.
 
 ---
 
@@ -258,13 +259,13 @@ axis5_master_cg #(
 );
 ```
 
-**Port prefix warning:** the clock-gated variants name their streaming ports `fub_axis5_*` and `m_axis5_*` / `s_axis_*`, while the non-gated variants use `fub_axis_*` and `m_axis_*` / `s_axis_*`. Swapping a module for its `_cg` counterpart therefore requires renaming the FUB-side and master-side connections. See each module page for the exact port list.
+**Port prefix warning:** the clock-gated variants name their streaming ports `fub_axis5_*` and `m_axis5_*` / `s_axis_*`, while the non-gated variants use `fub_axis_*` and `m_axis_*` / `s_axis_*`. Swapping a module for its `_cg` counterpart therefore means renaming every FUB-side and master-side connection — the exact kind of mechanical edit that's easy to get half-done. See each module page for the exact port list.
 
 ---
 
 ## Testing
 
-All AXIS5 modules are verified using CocoTB-based testbenches located in `val/amba/`:
+All AXIS5 modules are verified with CocoTB-based testbenches in `val/amba/`:
 
 ```bash
 # Run all AXIS5 tests
@@ -300,7 +301,7 @@ TKEEP is deliberately absent from this table because no AXIS5 module implements 
 
 ### Flow Control
 
-AXI5-Stream uses simple valid/ready handshaking:
+AXI5-Stream flow control is a plain valid/ready handshake:
 
 1. **Data Transfer:** Occurs when TVALID and TREADY are both high
 2. **Backpressure:** Slave deasserts TREADY to pause stream
@@ -343,7 +344,7 @@ Neither generation implements TKEEP, so a design already using the AXIS4 modules
 
 ### Streaming Pipeline Integration
 
-AXIS5 modules integrate seamlessly into streaming pipelines:
+AXIS5 modules drop cleanly into streaming pipelines:
 
 ```systemverilog
 // Streaming data processing pipeline
@@ -372,7 +373,7 @@ axis5_slave u_output (
 
 ## Performance Characteristics
 
-The figures below are design targets, not measured silicon or post-route results. No synthesis or timing run for these modules is published in this repository, and achievable frequency depends heavily on data width, technology, and the surrounding logic. Treat them as order-of-magnitude guidance only.
+Treat the figures below as design targets, not measured silicon or post-route results. No synthesis or timing run for these modules is published in this repository, and achievable frequency depends heavily on data width, technology, and the surrounding logic. Order-of-magnitude guidance only — quote them in a design review at your own risk.
 
 | Metric | Value | Basis |
 |--------|-------|-------|

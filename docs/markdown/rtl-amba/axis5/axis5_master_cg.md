@@ -31,7 +31,7 @@
 
 ## Overview
 
-The AXIS5 Master CG (Clock Gated) module implements an AXI5-Stream master interface with integrated clock gating for power savings. It wraps the standard AXIS5 master with the AMBA clock gate controller, automatically gating the clock during idle periods while preserving full AXIS5 functionality including wake-up signaling and optional parity.
+The AXIS5 Master CG (Clock Gated) wraps the standard AXIS5 master with the AMBA clock gate controller, giving you an AXI5-Stream master interface that gates its own clock during idle periods. Full AXIS5 functionality survives the wrapping — wake-up signaling, optional parity, the skid buffer, all of it.
 
 ### Key Features
 
@@ -54,134 +54,6 @@ The AXIS5 Master CG (Clock Gated) module implements an AXI5-Stream master interf
 | Activity detection | Multi-source OR logic | Comprehensive coverage |
 
 ---
-
-## Functional Description
-```mermaid
-flowchart TB
-    subgraph CONFIG["Clock Gate Configuration"]
-        cg_en["i_cg_enable"]
-        cg_cnt["i_cg_idle_count"]
-    end
-
-    subgraph WAKEUP["Wake-up Detection"]
-        fub_valid["fub_axis5_tvalid"]
-        core_busy["core_busy"]
-        m_valid["m_axis5_tvalid"]
-        twakeup["fub_axis5_twakeup"]
-        r_wakeup["r_wakeup (OR gate)"]
-    end
-
-    subgraph CG_CTRL["Clock Gate Controller"]
-        ctrl["amba_clock_gate_ctrl"]
-        gated_clk["gated_clk"]
-        gating_status["axis_clock_gating"]
-    end
-
-    subgraph CORE["AXIS5 Master Core"]
-        master["axis5_master<br/>(operates on gated_clk)"]
-    end
-
-    subgraph INPUT["FUB Interface"]
-        fub_in["fub_axis5_t*"]
-    end
-
-    subgraph OUTPUT["Master AXIS5 Interface"]
-        m_out["m_axis5_t*"]
-    end
-
-    CONFIG --> CG_CTRL
-    WAKEUP --> r_wakeup
-    r_wakeup --> CG_CTRL
-    CG_CTRL --> gated_clk
-    CG_CTRL --> gating_status
-    gated_clk --> CORE
-    INPUT --> CORE
-    CORE --> OUTPUT
-    OUTPUT --> WAKEUP
-
-    style CG_CTRL fill:#e6f3ff
-    style WAKEUP fill:#fff4e6
-    style gating_status fill:#e6ffe6
-```
-
----
-
-### Clock Gating Control
-
-**Wake-up detection logic:**
-```systemverilog
-r_wakeup <= fub_axis5_tvalid ||  // Input has data
-            core_busy ||          // Core processing
-            m_axis5_tvalid ||     // Output has data
-            fub_axis5_twakeup;    // Explicit wake-up
-```
-
-The clock gate controller:
-1. Monitors `r_wakeup` for activity
-2. If idle (r_wakeup=0) for `i_cg_idle_count` cycles, gates the clock
-3. On activity (r_wakeup=1), ungates the clock
-4. Respects `i_cg_enable` (clock forced on when 0)
-
-### Wake-up and Gating Latency
-
-Activity is registered once (AXI4, AXI5, AXI4-Lite, AXI4-Stream) or twice (APB, APB5, AXI5-Stream -- with one exception: `apb4_slave_cdc_cg` drives `amba_clock_gate_ctrl` combinationally and so registers once, not twice) before reaching the ICG enable, which is combinational. AXI5-Stream is a **two-stage** family: `r_wakeup` in this wrapper, then a second `r_wakeup` inside `amba_clock_gate_ctrl`. The first gated-clock rising edge available to the core therefore arrives 3 `aclk` cycles after activity asserts. Budget accordingly:
-
-| Event | Latency | Path |
-|-------|---------|------|
-| Activity to first usable gated-clock edge | 3 `aclk` cycles (2 register stages) | `fub_axis5_tvalid` to `r_wakeup` to controller `r_wakeup` to combinational ICG enable to next edge |
-| Last activity to clock gated | `i_cg_idle_count` + 3 `aclk` cycles | `i_cg_idle_count` + 1 after the internal wakeup deasserts, plus two wake-up register stages |
-
-The wake-up path is **not** zero-latency. Nothing is lost during those cycles: `fub_axis5_tready` is driven by the skid buffer on `gated_clk`, so it stays low while the clock is stopped and the producer simply holds TVALID until the clock resumes. Both registers and the idle counter run on the ungated `aclk`, so the wake-up path is live even while the core clock is stopped.
-
-### Reset Behavior
-
-Reset is safe with respect to gating; the clock is guaranteed to be running whenever reset is asserted:
-
-- `aresetn` is asynchronous and is passed **ungated** to both the clock gate controller and the core, so its assertion edge does not depend on the gated clock.
-- `r_wakeup` in this wrapper and `r_wakeup` inside `amba_clock_gate_ctrl` both reset to 1, which forces the ICG enable active. The clock therefore runs during reset and for at least the idle countdown after reset deassertion.
-- `clock_gate_ctrl` loads its idle counter with `i_cg_idle_count` on reset, so gating cannot re-engage until a full idle period has elapsed after release.
-
-Because reset removal is asynchronous, apply the usual practice of releasing `aresetn` synchronously to `aclk` at the system level.
-
-### Power Saving Mechanism
-
-**Clock gating states:**
-
-| Condition | r_wakeup | Clock State | Power State |
-|-----------|----------|-------------|-------------|
-| Active transfer | 1 | Running | Full power |
-| Buffer has data | 1 | Running | Full power |
-| Wake-up asserted | 1 | Running | Full power |
-| Idle < threshold | 0 | Running | Full power |
-| Idle ≥ threshold | 0 | Gated | Low power |
-
-**Benefits:**
-- Reduces dynamic power during idle periods
-- Wake-up on new transfers costs 2 register stages; the first usable gated-clock edge arrives 3 `aclk` cycles after activity (see Wake-up and Gating Latency)
-- No protocol impact (transparent to upstream/downstream)
-
-### Integration with AXIS5 Extensions
-
-**Wake-up signal dual purpose:**
-1. **Protocol:** Power management hint to downstream
-2. **Clock gating:** Prevents local clock gating
-
-This ensures wake-up events are never missed due to clock gating.
-
-### Idle Count Configuration
-
-**Typical values for `i_cg_idle_count`:**
-- **Aggressive power saving:** 2-4 cycles
-  - Quick gating, may have frequent gate/ungate transitions
-  - Best for bursty traffic with long idle periods
-- **Balanced:** 8-16 cycles
-  - Reduces gate/ungate overhead
-  - Good for moderate traffic patterns
-- **Conservative:** 32-64 cycles
-  - Only gates during extended idle
-  - Minimal gate/ungate overhead
-
-**Trade-off:** Lower count = more power savings but more gate transitions (dynamic overhead)
 
 ## Parameters
 
@@ -272,8 +144,136 @@ These are declared in the parameter list so they can be used in port widths, but
 
 ---
 
-## Timing Characteristics
+## Functional Description
 
+```mermaid
+flowchart TB
+    subgraph CONFIG["Clock Gate Configuration"]
+        cg_en["i_cg_enable"]
+        cg_cnt["i_cg_idle_count"]
+    end
+
+    subgraph WAKEUP["Wake-up Detection"]
+        fub_valid["fub_axis5_tvalid"]
+        core_busy["core_busy"]
+        m_valid["m_axis5_tvalid"]
+        twakeup["fub_axis5_twakeup"]
+        r_wakeup["r_wakeup (OR gate)"]
+    end
+
+    subgraph CG_CTRL["Clock Gate Controller"]
+        ctrl["amba_clock_gate_ctrl"]
+        gated_clk["gated_clk"]
+        gating_status["axis_clock_gating"]
+    end
+
+    subgraph CORE["AXIS5 Master Core"]
+        master["axis5_master<br/>(operates on gated_clk)"]
+    end
+
+    subgraph INPUT["FUB Interface"]
+        fub_in["fub_axis5_t*"]
+    end
+
+    subgraph OUTPUT["Master AXIS5 Interface"]
+        m_out["m_axis5_t*"]
+    end
+
+    CONFIG --> CG_CTRL
+    WAKEUP --> r_wakeup
+    r_wakeup --> CG_CTRL
+    CG_CTRL --> gated_clk
+    CG_CTRL --> gating_status
+    gated_clk --> CORE
+    INPUT --> CORE
+    CORE --> OUTPUT
+    OUTPUT --> WAKEUP
+
+    style CG_CTRL fill:#e6f3ff
+    style WAKEUP fill:#fff4e6
+    style gating_status fill:#e6ffe6
+```
+
+### Clock Gating Control
+
+**Wake-up detection logic:**
+```systemverilog
+r_wakeup <= fub_axis5_tvalid ||  // Input has data
+            core_busy ||          // Core processing
+            m_axis5_tvalid ||     // Output has data
+            fub_axis5_twakeup;    // Explicit wake-up
+```
+
+The clock gate controller:
+1. Monitors `r_wakeup` for activity
+2. If idle (r_wakeup=0) for `i_cg_idle_count` cycles, gates the clock
+3. On activity (r_wakeup=1), ungates the clock
+4. Respects `i_cg_enable` (clock forced on when 0)
+
+### Wake-up and Gating Latency
+
+Activity is registered once (AXI4, AXI5, AXI4-Lite, AXI4-Stream) or twice (APB, APB5, AXI5-Stream -- with one exception: `apb4_slave_cdc_cg` drives `amba_clock_gate_ctrl` combinationally and so registers once, not twice) before reaching the ICG enable, which is combinational. AXI5-Stream is a **two-stage** family: `r_wakeup` in this wrapper, then a second `r_wakeup` inside `amba_clock_gate_ctrl`. The first gated-clock rising edge available to the core therefore arrives 3 `aclk` cycles after activity asserts. Budget accordingly:
+
+| Event | Latency | Path |
+|-------|---------|------|
+| Activity to first usable gated-clock edge | 3 `aclk` cycles (2 register stages) | `fub_axis5_tvalid` to `r_wakeup` to controller `r_wakeup` to combinational ICG enable to next edge |
+| Last activity to clock gated | `i_cg_idle_count` + 3 `aclk` cycles | `i_cg_idle_count` + 1 after the internal wakeup deasserts, plus two wake-up register stages |
+
+The wake-up path is **not** zero-latency. Nothing is lost during those cycles: `fub_axis5_tready` is driven by the skid buffer on `gated_clk`, so it stays low while the clock is stopped and the producer simply holds TVALID until the clock resumes. Both registers and the idle counter run on the ungated `aclk`, so the wake-up path stays live even while the core clock is stopped.
+
+### Reset Behavior
+
+Reset is safe with respect to gating; the clock is guaranteed to be running whenever reset is asserted:
+
+- `aresetn` is asynchronous and is passed **ungated** to both the clock gate controller and the core, so its assertion edge does not depend on the gated clock.
+- `r_wakeup` in this wrapper and `r_wakeup` inside `amba_clock_gate_ctrl` both reset to 1, which forces the ICG enable active. The clock therefore runs during reset and for at least the idle countdown after reset deassertion.
+- `clock_gate_ctrl` loads its idle counter with `i_cg_idle_count` on reset, so gating cannot re-engage until a full idle period has elapsed after release.
+
+Because reset removal is asynchronous, apply the usual practice of releasing `aresetn` synchronously to `aclk` at the system level.
+
+### Power Saving Mechanism
+
+**Clock gating states:**
+
+| Condition | r_wakeup | Clock State | Power State |
+|-----------|----------|-------------|-------------|
+| Active transfer | 1 | Running | Full power |
+| Buffer has data | 1 | Running | Full power |
+| Wake-up asserted | 1 | Running | Full power |
+| Idle < threshold | 0 | Running | Full power |
+| Idle ≥ threshold | 0 | Gated | Low power |
+
+**Benefits:**
+- Reduces dynamic power during idle periods
+- Wake-up on new transfers costs 2 register stages; the first usable gated-clock edge arrives 3 `aclk` cycles after activity (see Wake-up and Gating Latency)
+- No protocol impact (transparent to upstream/downstream)
+
+### Integration with AXIS5 Extensions
+
+**Wake-up signal dual purpose:**
+1. **Protocol:** Power management hint to downstream
+2. **Clock gating:** Prevents local clock gating
+
+This dual use is what guarantees wake-up events are never missed because the clock happened to be gated.
+
+### Idle Count Configuration
+
+**Typical values for `i_cg_idle_count`:**
+- **Aggressive power saving:** 2-4 cycles
+  - Quick gating, may have frequent gate/ungate transitions
+  - Best for bursty traffic with long idle periods
+- **Balanced:** 8-16 cycles
+  - Reduces gate/ungate overhead
+  - Good for moderate traffic patterns
+- **Conservative:** 32-64 cycles
+  - Only gates during extended idle
+  - Minimal gate/ungate overhead
+
+**Trade-off:** lower count means more power savings but more gate transitions, and each transition has its own dynamic overhead.
+
+---
+
+## Timing Characteristics
 ### Clock Gating Activation
 
 <!-- TODO: Add wavedrom timing diagram for clock gating activation -->
@@ -315,7 +315,6 @@ These are declared in the parameter list so they can be used in port widths, but
 ---
 
 ## Usage Examples
-
 ### Basic Clock-Gated Configuration
 
 ```systemverilog
@@ -448,7 +447,7 @@ end
 assign gated_duty_pct = (gated_cycles * 100) / total_cycles;
 ```
 
-**Read this metric carefully.** `gated_duty_pct` is the fraction of time the clock was gated, not a power saving. Actual dynamic power saved depends on the switching activity that would have occurred during those cycles; leakage is unaffected by gating; and the gating logic and its clock-tree branch consume power themselves. Use the number as a gating-effectiveness indicator and get real figures from a power analysis tool with a VCD or SAIF from a representative workload.
+**Read this metric carefully.** `gated_duty_pct` is the fraction of time the clock was gated, not a power saving. Actual dynamic power saved depends on the switching activity that would have occurred during those cycles; leakage is unaffected by gating; and the gating logic and its clock-tree branch consume power themselves. Use the number as a gating-effectiveness indicator, and get real figures from a power analysis tool fed a VCD or SAIF from a representative workload.
 
 ---
 
@@ -486,7 +485,7 @@ Each clock gate transition has overhead:
 - **Ungate activation:** two wake-up register stages; first usable gated-clock edge 3 cycles after activity asserts
 - **Dynamic power:** Gate/ungate switching consumes power
 
-**Recommendation:** Set `i_cg_idle_count` high enough to amortize transition overhead.
+**Recommendation:** set `i_cg_idle_count` high enough to amortize the transition overhead.
 
 ### Clock Domain Considerations
 
@@ -504,6 +503,7 @@ No CDC synchronizers are needed, because `gated_clk` is `aclk` passed through an
 ---
 
 ## Related Modules
+
 - **[AXIS5 Master](axis5_master.md)** - Base AXIS5 master without clock gating
 - **[AXIS5 Slave CG](axis5_slave_cg.md)** - Clock-gated slave variant
 - **[AXIS5 Slave](axis5_slave.md)** - Base AXIS5 slave

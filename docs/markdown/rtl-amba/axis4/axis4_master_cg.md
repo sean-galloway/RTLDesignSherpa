@@ -21,12 +21,12 @@
 
 <!-- End Header -->
 
-# AXIS Master Interface (Clock-Gated)
+# axis4_master_cg
 
 **Module:** `axis4_master_cg.sv`
 **Base Module:** [axis4_master](./axis4_master.md)
 **Location:** `rtl/amba/axis4/`
-**Status:**  Production Ready
+**Status:** Production Ready
 
 ---
 
@@ -38,55 +38,106 @@ inner module's clock while the stream is idle. Functionally it is
 indistinguishable from `axis4_master`; what it adds is the gating and the
 `cg_gating` / `cg_idle` status outputs.
 
+For complete clock-gating documentation — wakeup terms, ungating latency, configuration
+guidelines — see the [AXIS4 Clock-Gated Variants Guide](./axis4_clock_gating_guide.md).
+
 ---
 
 ## Parameters
 
-| Parameter | Default | Description |
-|---|---|---|
-| `SKID_DEPTH` | `4` |  |
-| `AXIS_DATA_WIDTH` | `32` |  |
-| `AXIS_ID_WIDTH` | `8` |  |
-| `AXIS_DEST_WIDTH` | `4` |  |
-| `AXIS_USER_WIDTH` | `1` |  |
-| `CG_IDLE_COUNT_WIDTH` | `4` |  |
-| `DW` | `AXIS_DATA_WIDTH` |  |
-| `IW` | `AXIS_ID_WIDTH` |  |
-| `DESTW` | `AXIS_DEST_WIDTH` |  |
-| `UW` | `AXIS_USER_WIDTH` |  |
-| `SW` | `DW / 8` |  |
-| `IW_WIDTH` | `(IW > 0` |  |
-| `DESTW_WIDTH` | `(DESTW > 0` |  |
-| `UW_WIDTH` | `(UW > 0` |  |
+All of the [axis4_master](./axis4_master.md) parameters, plus one clock-gating parameter:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `SKID_DEPTH` | int | 4 | Skid buffer depth in entries (2..8 inclusive), passed directly to `gaxi_skid_buffer.DEPTH` |
+| `AXIS_DATA_WIDTH` | int | 32 | AXI4-Stream data bus width in bits (must be a multiple of 8) |
+| `AXIS_ID_WIDTH` | int | 8 | Stream ID width (0 to disable) |
+| `AXIS_DEST_WIDTH` | int | 4 | Destination width (0 to disable) |
+| `AXIS_USER_WIDTH` | int | 1 | User signal width (0 to disable) |
+| `CG_IDLE_COUNT_WIDTH` | int | 4 | Width of the idle countdown counter (max idle = 2^N - 1 cycles) |
+
+`CG_IDLE_COUNT_WIDTH` is the **only** additional parameter. Gating enable and the idle
+threshold are **runtime inputs**, not parameters — they appear in the port list, not here.
+
+> There is no `ENABLE_CLOCK_GATING` parameter, no `CG_IDLE_CYCLES` parameter, and no
+> `CG_GATE_*` domain-enable family. There is a single gating domain covering the whole
+> module. The `_cg` wrapper also **does not expose the base module's `busy` output** — it is
+> consumed internally as a wakeup term.
+
+> The base module's parameters are `SKID_DEPTH`, `AXIS_DATA_WIDTH`, `AXIS_ID_WIDTH`,
+> `AXIS_DEST_WIDTH` and `AXIS_USER_WIDTH`. AXI4-Stream has no address channel, so there is
+> no `AXI_ADDR_WIDTH`.
+
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `DW` | `AXIS_DATA_WIDTH` |
+| `IW` | `AXIS_ID_WIDTH` |
+| `DESTW` | `AXIS_DEST_WIDTH` |
+| `UW` | `AXIS_USER_WIDTH` |
+| `SW` | `DW / 8` |
+| `IW_WIDTH` | `(IW > 0) ? IW : 1` |
+| `DESTW_WIDTH` | `(DESTW > 0) ? DESTW : 1` |
+| `UW_WIDTH` | `(UW > 0) ? UW : 1` |
 
 ---
 
 ## Ports
 
-| Port | Dir | Width | Description |
-|---|---|---|---|
-| `aclk` | In | 1 |  |
-| `aresetn` | In | 1 |  |
-| `cfg_cg_enable` | In | 1 |  |
-| `cfg_cg_idle_count` | In | `[CG_IDLE_COUNT_WIDTH-1:0]` |  |
-| `fub_axis_tdata` | In | `[DW-1:0]` |  |
-| `fub_axis_tstrb` | In | `[SW-1:0]` |  |
-| `fub_axis_tlast` | In | 1 |  |
-| `fub_axis_tid` | In | `[IW_WIDTH-1:0]` |  |
-| `fub_axis_tdest` | In | `[DESTW_WIDTH-1:0]` |  |
-| `fub_axis_tuser` | In | `[UW_WIDTH-1:0]` |  |
-| `fub_axis_tvalid` | In | 1 |  |
-| `fub_axis_tready` | Out | 1 |  |
-| `m_axis_tdata` | Out | `[DW-1:0]` |  |
-| `m_axis_tstrb` | Out | `[SW-1:0]` |  |
-| `m_axis_tlast` | Out | 1 |  |
-| `m_axis_tid` | Out | `[IW_WIDTH-1:0]` |  |
-| `m_axis_tdest` | Out | `[DESTW_WIDTH-1:0]` |  |
-| `m_axis_tuser` | Out | `[UW_WIDTH-1:0]` |  |
-| `m_axis_tvalid` | Out | 1 |  |
-| `m_axis_tready` | In | 1 |  |
-| `cg_gating` | Out | 1 | Active gating indicator |
-| `cg_idle` | Out | 1 | All buffers empty indicator |
+### Clock and Reset
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| `aclk` | 1 | Input | AXI4-Stream clock |
+| `aresetn` | 1 | Input | AXI4-Stream active-low reset |
+
+### Clock Gating Configuration
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| `cfg_cg_enable` | 1 | Input | Enable clock gating (0 = clock always running) |
+| `cfg_cg_idle_count` | CG_IDLE_COUNT_WIDTH | Input | Idle cycles before gating engages |
+
+### Slave AXI4-Stream Interface (Input Side - FUB)
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| `fub_axis_tdata` | DW | Input | Stream data |
+| `fub_axis_tstrb` | SW | Input | Data byte strobes |
+| `fub_axis_tlast` | 1 | Input | Last transfer in packet |
+| `fub_axis_tid` | IW_WIDTH | Input | Stream identifier |
+| `fub_axis_tdest` | DESTW_WIDTH | Input | Destination routing |
+| `fub_axis_tuser` | UW_WIDTH | Input | User-defined sideband |
+| `fub_axis_tvalid` | 1 | Input | Transfer valid |
+| `fub_axis_tready` | 1 | Output | Transfer ready |
+
+### Master AXI4-Stream Interface (Output Side)
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| `m_axis_tdata` | DW | Output | Stream data |
+| `m_axis_tstrb` | SW | Output | Data byte strobes |
+| `m_axis_tlast` | 1 | Output | Last transfer in packet |
+| `m_axis_tid` | IW_WIDTH | Output | Stream identifier |
+| `m_axis_tdest` | DESTW_WIDTH | Output | Destination routing |
+| `m_axis_tuser` | UW_WIDTH | Output | User-defined sideband |
+| `m_axis_tvalid` | 1 | Output | Transfer valid |
+| `m_axis_tready` | 1 | Input | Transfer ready |
+
+### Clock Gating Status
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| `cg_gating` | 1 | Output | Clock currently gated (1=gated, 0=running) |
+| `cg_idle` | 1 | Output | No activity observed in the previous cycle |
+
+> The `_cg` wrappers do not expose `busy`. The base module's `busy` output is consumed
+> internally as one of the wakeup terms and is not brought out. Use `cg_idle` for
+> system-level power sequencing instead. Apart from that substitution, and the two
+> `cfg_cg_*` inputs above, the port list matches the base module.
 
 ---
 
@@ -114,7 +165,6 @@ module is indistinguishable from its base.
 ---
 
 ## Timing Characteristics
-
 | Skid parameter | Default depth |
 |---|---|
 | `SKID_DEPTH` | 4 entries |
@@ -134,7 +184,6 @@ device and the parameters you elaborate with; run your own build.
 ---
 
 ## Usage Examples
-
 Every parameter and port below is taken from the module declaration.
 
 ```systemverilog
@@ -175,16 +224,6 @@ axis4_master_cg #(
 );
 ```
 
----
-
-### Quick Reference
-
-This is the **clock-gated variant** of [axis4_master](./axis4_master.md).
-
-**For complete clock-gating documentation, usage examples, and configuration guidelines, see:**
-
-**→ [AXIS4 Clock-Gated Variants Guide](./axis4_clock_gating_guide.md)**
-
 ### Quick Usage
 
 ```systemverilog
@@ -214,9 +253,6 @@ axis4_master_cg #(
 );
 ```
 
-> The base module's parameters are `SKID_DEPTH`, `AXIS_DATA_WIDTH`, `AXIS_ID_WIDTH`,
-> `AXIS_DEST_WIDTH` and `AXIS_USER_WIDTH`. AXI4-Stream has no address channel, so there is
-> no `AXI_ADDR_WIDTH`.
 ## Design Notes
 
 **A peer's READY must never enter the activity term.** A consumer that parks
@@ -242,8 +278,6 @@ wakes constantly, too large and it never gates.
 scaling as 1 + `CG_IDLE_COUNT_WIDTH`. The ICG itself is a latch or BUFGCE, not
 fabric flops.
 
----
-
 ### Summary
 
 The `axis4_master_cg` module adds power optimization to `axis4_master` through activity-based clock gating:
@@ -253,45 +287,16 @@ The `axis4_master_cg` module adds power optimization to `axis4_master` through a
 - **Configurable:** Runtime idle threshold and enable via `cfg_cg_*` inputs
 - **Bypass When Disabled:** `cfg_cg_enable = 0` holds the clock permanently enabled, making the wrapper functionally identical to the base module
 
-### Common Parameters
-
-In addition to all [axis4_master](./axis4_master.md) parameters:
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `CG_IDLE_COUNT_WIDTH` | 4 | Width of the idle countdown counter (max idle = 2^N - 1 cycles) |
-
-This is the **only** additional parameter. Gating enable and the idle threshold are
-**runtime inputs**, not parameters:
-
-| Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `cfg_cg_enable` | Input | 1 | Enable clock gating (0 = clock always running) |
-| `cfg_cg_idle_count` | Input | `CG_IDLE_COUNT_WIDTH` | Idle cycles before gating engages |
-| `cg_gating` | Output | 1 | Clock currently gated |
-| `cg_idle` | Output | 1 | No activity observed in the previous cycle |
-
-> There is no `ENABLE_CLOCK_GATING` parameter, no `CG_IDLE_CYCLES` parameter, and no
-> `CG_GATE_*` domain-enable family. There is a single gating domain covering the whole
-> module. The `_cg` wrapper also **does not expose the base module's `busy` output** — it is
-> consumed internally as a wakeup term.
-
 ---
 
-### Derived Parameters (do not override)
+## Related Modules
 
-These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+Read out of the RTL, not curated: these are the
+modules this one instantiates and the modules that instantiate it.
 
-| Derived parameter | Default expression |
-|---|---|
-| `DW` | `AXIS_DATA_WIDTH` |
-| `IW` | `AXIS_ID_WIDTH` |
-| `DESTW` | `AXIS_DEST_WIDTH` |
-| `UW` | `AXIS_USER_WIDTH` |
-| `SW` | `DW / 8` |
-| `IW_WIDTH` | `(IW > 0) ? IW : 1` |
-| `DESTW_WIDTH` | `(DESTW > 0) ? DESTW : 1` |
-| `UW_WIDTH` | `(UW > 0) ? UW : 1` |
+**Instantiates:**
+- `amba_clock_gate_ctrl`
+- `axis4_master`
 
 ### Documentation
 
@@ -302,14 +307,6 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
   - [axi4_master_rd_mon_cg.md](../axi4/axi4_master_rd_mon_cg.md) (AXI4 monitor)
   - [axil4_master_rd_mon_cg.md](../axil4/axil4_master_rd_mon_cg.md) (AXIL4 monitor)
   - [apb4_slave_cg.md](../apb4/apb4_slave_cg.md) (APB interface)
-## Related Modules
-
-Read out of the RTL, not curated: these are the
-modules this one instantiates and the modules that instantiate it.
-
-**Instantiates:**
-- `amba_clock_gate_ctrl`
-- `axis4_master`
 
 ---
 

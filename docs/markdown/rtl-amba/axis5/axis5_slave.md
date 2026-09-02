@@ -31,7 +31,7 @@
 
 ## Overview
 
-The AXIS5 Slave module implements an AXI5-Stream slave interface with AMBA5 extensions including wake-up signaling for power management and optional parity for data integrity. It accepts incoming stream data and provides buffering through an internal skid buffer for improved system performance.
+The AXIS5 Slave implements an AXI5-Stream slave interface with the AMBA5 extensions — wake-up signaling for power management — plus an optional parity sideband for data integrity. It accepts incoming stream data and buffers it through an internal skid buffer, which is what keeps backpressure off your upstream link.
 
 ### Key Features
 
@@ -54,100 +54,6 @@ The AXIS5 Slave module implements an AXI5-Stream slave interface with AMBA5 exte
 | Parity error detection | None | Built-in sticky `parity_error` flag | No - implementation status output |
 
 ---
-
-## Functional Description
-```mermaid
-flowchart TB
-    subgraph INPUT["Slave AXIS5 Interface (Input)"]
-        s_tdata["s_axis_tdata"]
-        s_tvalid["s_axis_tvalid"]
-        s_tready["s_axis_tready"]
-        s_twakeup["s_axis_twakeup"]
-        s_tparity["s_axis_tparity"]
-    end
-
-    subgraph PARITY_IN["Input Parity Check (Optional)"]
-        calc_in["Calculate parity<br/>per byte"]
-        cmp_in["Compare with<br/>s_axis_tparity"]
-        err["parity_error<br/>flag"]
-    end
-
-    subgraph PACK["Packet Packing"]
-        pack["Pack signals based on<br/>ENABLE_WAKEUP/ENABLE_PARITY"]
-    end
-
-    subgraph SKID["Skid Buffer"]
-        sb["gaxi_skid_buffer<br/>Depth: SKID_DEPTH"]
-    end
-
-    subgraph UNPACK["Packet Unpacking"]
-        unpack["Unpack to FUB signals"]
-    end
-
-    subgraph OUTPUT["FUB AXIS5 Interface (Output)"]
-        fub_tdata["fub_axis_tdata"]
-        fub_tvalid["fub_axis_tvalid"]
-        fub_tready["fub_axis_tready"]
-        fub_twakeup["fub_axis_twakeup"]
-        fub_tparity["fub_axis_tparity"]
-    end
-
-    INPUT --> PARITY_IN
-    PARITY_IN --> err
-    INPUT --> PACK
-    PACK --> SKID
-    SKID --> UNPACK
-    UNPACK --> OUTPUT
-
-    style PARITY_IN fill:#fff4e6
-    style err fill:#ffe6e6
-```
-
----
-
-### Skid Buffer Operation
-
-The module uses an internal `gaxi_skid_buffer` to:
-- Accept incoming transfers even when backend is not ready
-- Prevent backpressure to upstream
-- Provide registered outputs for timing closure
-- Track buffer occupancy via `busy` signal
-
-### Packet Packing/Unpacking
-
-**Conditional packing based on configuration:**
-
-```systemverilog
-// Full feature set (ENABLE_WAKEUP=1, ENABLE_PARITY=1)
-{tdata, tstrb, tlast, tid, tdest, tuser, twakeup, tparity}
-
-// Wake-up only (ENABLE_WAKEUP=1, ENABLE_PARITY=0)
-{tdata, tstrb, tlast, tid, tdest, tuser, twakeup}
-
-// Parity only (ENABLE_WAKEUP=0, ENABLE_PARITY=1)
-{tdata, tstrb, tlast, tid, tdest, tuser, tparity}
-
-// Base AXIS4 (ENABLE_WAKEUP=0, ENABLE_PARITY=0)
-{tdata, tstrb, tlast, tid, tdest, tuser}
-```
-
-### Parity Checking (Optional)
-
-When `ENABLE_PARITY=1`:
-1. Calculate **even** parity for each input data byte: `parity[i] = ^s_axis_tdata[i*8 +: 8]`. The XOR reduction yields 1 for an odd number of set bits, so a correct byte plus its parity bit always has an even population count.
-2. Compare the calculated parity with the received `s_axis_tparity`
-3. Set `parity_error` flag on mismatch (sticky, cleared only by reset)
-4. Parity check occurs on accepted input transfers (`s_axis_tvalid && s_axis_tready`)
-
-**Note:** Parity checking is performed on the **input side**, so it covers the upstream link and detects errors as early as possible. This is the receiver-side check of the pair; `axis5_master` checks on its output side, which covers only its own internal data path.
-
-TPARITY is an RTL Design Sherpa extension, not an ARM AXI5-Stream signal. Leave `ENABLE_PARITY=0` (the default) when interoperating with third-party stream IP.
-
-### Busy Signal
-
-The `busy` output indicates:
-- Input side has valid data (`s_axis_tvalid`)
-- Skid buffer contains data (`int_t_count > 0`)
 
 ## Parameters
 
@@ -229,8 +135,102 @@ These are declared in the parameter list so they can be used in port widths, but
 
 ---
 
-## Timing Characteristics
+## Functional Description
 
+```mermaid
+flowchart TB
+    subgraph INPUT["Slave AXIS5 Interface (Input)"]
+        s_tdata["s_axis_tdata"]
+        s_tvalid["s_axis_tvalid"]
+        s_tready["s_axis_tready"]
+        s_twakeup["s_axis_twakeup"]
+        s_tparity["s_axis_tparity"]
+    end
+
+    subgraph PARITY_IN["Input Parity Check (Optional)"]
+        calc_in["Calculate parity<br/>per byte"]
+        cmp_in["Compare with<br/>s_axis_tparity"]
+        err["parity_error<br/>flag"]
+    end
+
+    subgraph PACK["Packet Packing"]
+        pack["Pack signals based on<br/>ENABLE_WAKEUP/ENABLE_PARITY"]
+    end
+
+    subgraph SKID["Skid Buffer"]
+        sb["gaxi_skid_buffer<br/>Depth: SKID_DEPTH"]
+    end
+
+    subgraph UNPACK["Packet Unpacking"]
+        unpack["Unpack to FUB signals"]
+    end
+
+    subgraph OUTPUT["FUB AXIS5 Interface (Output)"]
+        fub_tdata["fub_axis_tdata"]
+        fub_tvalid["fub_axis_tvalid"]
+        fub_tready["fub_axis_tready"]
+        fub_twakeup["fub_axis_twakeup"]
+        fub_tparity["fub_axis_tparity"]
+    end
+
+    INPUT --> PARITY_IN
+    PARITY_IN --> err
+    INPUT --> PACK
+    PACK --> SKID
+    SKID --> UNPACK
+    UNPACK --> OUTPUT
+
+    style PARITY_IN fill:#fff4e6
+    style err fill:#ffe6e6
+```
+
+### Skid Buffer Operation
+
+The module uses an internal `gaxi_skid_buffer` to:
+- Accept incoming transfers even when backend is not ready
+- Prevent backpressure to upstream
+- Provide registered outputs for timing closure
+- Track buffer occupancy via `busy` signal
+
+### Packet Packing/Unpacking
+
+**Conditional packing based on configuration:**
+
+```systemverilog
+// Full feature set (ENABLE_WAKEUP=1, ENABLE_PARITY=1)
+{tdata, tstrb, tlast, tid, tdest, tuser, twakeup, tparity}
+
+// Wake-up only (ENABLE_WAKEUP=1, ENABLE_PARITY=0)
+{tdata, tstrb, tlast, tid, tdest, tuser, twakeup}
+
+// Parity only (ENABLE_WAKEUP=0, ENABLE_PARITY=1)
+{tdata, tstrb, tlast, tid, tdest, tuser, tparity}
+
+// Base AXIS4 (ENABLE_WAKEUP=0, ENABLE_PARITY=0)
+{tdata, tstrb, tlast, tid, tdest, tuser}
+```
+
+### Parity Checking (Optional)
+
+When `ENABLE_PARITY=1`:
+1. Calculate **even** parity for each input data byte: `parity[i] = ^s_axis_tdata[i*8 +: 8]`. The XOR reduction yields 1 for an odd number of set bits, so a correct byte plus its parity bit always has an even population count.
+2. Compare the calculated parity with the received `s_axis_tparity`
+3. Set `parity_error` flag on mismatch (sticky, cleared only by reset)
+4. Parity check occurs on accepted input transfers (`s_axis_tvalid && s_axis_tready`)
+
+**Note:** parity checking happens on the **input side**, so it covers the upstream link and catches errors as early as possible. This is the receiver-side check of the pair; `axis5_master` checks on its output side, which covers only its own internal data path.
+
+TPARITY is an RTL Design Sherpa extension, not an ARM AXI5-Stream signal. Leave `ENABLE_PARITY=0` (the default) when interoperating with third-party stream IP.
+
+### Busy Signal
+
+The `busy` output indicates:
+- Input side has valid data (`s_axis_tvalid`)
+- Skid buffer contains data (`int_t_count > 0`)
+
+---
+
+## Timing Characteristics
 ### Basic Receive with Wake-up
 
 <!-- TODO: Add wavedrom timing diagram for AXIS5 receive with wake-up -->
@@ -275,7 +275,6 @@ These are declared in the parameter list so they can be used in port widths, but
 ---
 
 ## Usage Examples
-
 ### Basic Configuration
 
 ```systemverilog
@@ -445,7 +444,7 @@ my_data_processor u_processor (
 - **Slave:** Parity checked on **input** (`s_axis_tdata` vs `s_axis_tparity`)
 - **Master:** Parity checked on **output** (`m_axis_tdata` vs `m_axis_tparity`)
 
-This allows early detection of transmission errors at the receiving side.
+Checking at the input means transmission errors get caught at the receiving side, as early as possible.
 
 ### Skid Buffer Sizing
 
@@ -457,7 +456,7 @@ This allows early detection of transmission errors at the receiving side.
   - Lower latency
   - May cause upstream backpressure
 
-**Recommendation:** Use depth 4 for most applications, increase if backend frequently stalls.
+**Recommendation:** depth 4 covers most applications; go deeper if your backend stalls frequently.
 
 ### Parity Implementation
 
@@ -480,11 +479,12 @@ The `parity_error` flag is **sticky** (latches high until reset):
 - Software must clear by resetting module
 - For edge-sensitive interrupts, external logic must detect rising edge
 
-**Alternative:** Modify module to add `parity_error_clear` input if needed.
+**Alternative:** modify the module to add a `parity_error_clear` input if your system needs one.
 
 ---
 
 ## Related Modules
+
 - **[AXIS5 Master](axis5_master.md)** - AXIS5 master interface (transmit side)
 - **[AXIS5 Slave CG](axis5_slave_cg.md)** - Clock-gated variant with power management
 - **[AXIS5 Master CG](axis5_master_cg.md)** - Clock-gated master variant
