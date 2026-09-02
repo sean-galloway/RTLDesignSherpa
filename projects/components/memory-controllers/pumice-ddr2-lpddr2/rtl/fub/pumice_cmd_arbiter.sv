@@ -223,6 +223,30 @@ module pumice_cmd_arbiter
     logic                 r_wr_commit, r_rd_issue;
     logic [PTRW-1:0]      r_commit_slot, r_issue_slot;
 
+    // Pre-pick (stage-2) registers -- see the STAGE 1/2 split below. Declared
+    // here because the schedulable mask reads the guards derived from them.
+    logic            rd_col_f, wr_col_f, rd_act_f, wr_act_f, rd_pre_f, wr_pre_f;
+    logic [PTRW-1:0] rd_col_s, wr_col_s, rd_act_s, wr_act_s, rd_pre_s, wr_pre_s;
+
+    // Output-stage accept (also the pre-pick advance). Declared here rather
+    // than at the output register because the pre-pick flop above uses it.
+    logic w_out_ready, w_fire_out;
+    assign w_out_ready = !r_pick_valid || cmd_ready_i;
+    assign w_fire_out  = r_pick_valid && cmd_ready_i;
+
+    // Pre-pick forward-guard, the twin of w_inflight_col/w_inflight_preact
+    // below but for the ADDED pipeline stage. A column or ACT/PRE now spends
+    // TWO cycles registered (pre-pick, then output) before the CAM r_issued /
+    // bank timers reflect it, so the mask must exclude a slot queued in EITHER
+    // stage -- otherwise arg_sel re-selects it and it DOUBLE-ISSUES. This block
+    // has produced two silicon double-issue bugs from exactly this
+    // registered-feedback latency (PUMICE-KMAP); the guard mirrors the proven
+    // output-stage mask rather than inventing a new mechanism. It also keeps
+    // tCCD spacing, since the blanket column mask is what enforces it.
+    logic w_prepick_col, w_prepick_preact;
+    assign w_prepick_col    = rd_col_f || wr_col_f;
+    assign w_prepick_preact = rd_act_f || wr_act_f || rd_pre_f || wr_pre_f;
+
     // Forward-masks covering the extra output-register cycle:
     //  - an in-flight (registered) ACT/PRE keeps ITS bank guarded until the
     //    timers reflect it (folded into w_guarded below);
@@ -242,7 +266,15 @@ module pumice_cmd_arbiter
     // the ONE exception is an auto-precharge column, which does close its bank
     // — see w_ap_col_guard below.
     logic [NUM_BANKS-1:0] w_guarded;
-    assign w_guarded = r_guard0 | r_guard1
+    logic [NUM_BANKS-1:0] w_prepick_guard;
+    always_comb begin
+        w_prepick_guard = '0;
+        if (rd_act_f) w_prepick_guard |= (NUM_BANKS'(1) << f_bank(rd_sch_bank_i, rd_act_s));
+        if (wr_act_f) w_prepick_guard |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, wr_act_s));
+        if (rd_pre_f) w_prepick_guard |= (NUM_BANKS'(1) << f_bank(rd_sch_bank_i, rd_pre_s));
+        if (wr_pre_f) w_prepick_guard |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, wr_pre_s));
+    end
+    assign w_guarded = r_guard0 | r_guard1 | w_prepick_guard
                      | ((w_inflight_preact || w_inflight_col)
                         ? (NUM_BANKS'(1) << r_bank) : '0);
 
@@ -368,7 +400,7 @@ module pumice_cmd_arbiter
                 // parked-victim pattern in test_pumice_core_sched_order;
                 // latent since the bank-parallel refactor.
                 rd_col_m[e] = rhit && r_bank_rdwr_ready[RK0][rb] && tccd_ok_i && twtr_ok_i
-                              && rd_issue_ready_i && !w_inflight_col
+                              && rd_issue_ready_i && !w_inflight_col && !w_prepick_col
                               && !w_rd_turn_block && !w_ap_col_guard[rb]
                               && !w_pre_col_guard[rb];
                 rd_act_m[e] = !r_bank_row_active[RK0][rb] && !w_guarded[rb]
@@ -383,7 +415,7 @@ module pumice_cmd_arbiter
             // DRAM) and the slot re-issues. ACT/PRE stay free.
             if (wr_sch_valid_i[e]) begin
                 wr_col_m[e] = whit && r_bank_rdwr_ready[RK0][wb] && tccd_ok_i && trtw_ok_i
-                              && wr_commit_ready_i && !w_inflight_col
+                              && wr_commit_ready_i && !w_inflight_col && !w_prepick_col
                               && !w_wr_turn_block && !w_ap_col_guard[wb]
                               && !w_pre_col_guard[wb];
                 wr_act_m[e] = !r_bank_row_active[RK0][wb] && !w_guarded[wb]
@@ -592,16 +624,48 @@ module pumice_cmd_arbiter
         wr_pre_q = sched_qos_en_i ? qos_top(wr_pre_me, wr_sch_qos_i) : wr_pre_me;
     end
 
-    logic            rd_col_f, wr_col_f, rd_act_f, wr_act_f, rd_pre_f, wr_pre_f;
-    logic [PTRW-1:0] rd_col_s, wr_col_s, rd_act_s, wr_act_s, rd_pre_s, wr_pre_s;
+    // ---- STAGE 1: per-class selection (the deep cone) ----------------------
+    // arg_sel/arg_oldest over the age-order matrix + population + qos is the
+    // longest combinational path in the design (r_older -> here -> the pick).
+    // PUMICE-017: it is cut here with a register (the *_f/_s below are the
+    // registered "pre-pick"), so stage 1 is r_older -> selection -> flop and
+    // stage 2 is flop -> class-priority -> op-decode -> the output register.
+    logic            w_sel_rd_col_f, w_sel_wr_col_f, w_sel_rd_act_f;
+    logic            w_sel_wr_act_f, w_sel_rd_pre_f, w_sel_wr_pre_f;
+    logic [PTRW-1:0] w_sel_rd_col_s, w_sel_wr_col_s, w_sel_rd_act_s;
+    logic [PTRW-1:0] w_sel_wr_act_s, w_sel_rd_pre_s, w_sel_wr_pre_s;
     always_comb begin
-        {rd_col_f, rd_col_s} = arg_sel(sched_col_sel_i, rd_col_q, rd_sch_older_i, rd_pop);
-        {wr_col_f, wr_col_s} = arg_sel(sched_col_sel_i, wr_col_q, wr_sch_older_i, wr_pop);
-        {rd_act_f, rd_act_s} = arg_sel(sched_row_sel_i, rd_act_q, rd_sch_older_i, rd_pop);
-        {wr_act_f, wr_act_s} = arg_sel(sched_row_sel_i, wr_act_q, wr_sch_older_i, wr_pop);
-        {rd_pre_f, rd_pre_s} = arg_oldest(rd_pre_q, rd_sch_older_i);
-        {wr_pre_f, wr_pre_s} = arg_oldest(wr_pre_q, wr_sch_older_i);
+        {w_sel_rd_col_f, w_sel_rd_col_s} = arg_sel(sched_col_sel_i, rd_col_q, rd_sch_older_i, rd_pop);
+        {w_sel_wr_col_f, w_sel_wr_col_s} = arg_sel(sched_col_sel_i, wr_col_q, wr_sch_older_i, wr_pop);
+        {w_sel_rd_act_f, w_sel_rd_act_s} = arg_sel(sched_row_sel_i, rd_act_q, rd_sch_older_i, rd_pop);
+        {w_sel_wr_act_f, w_sel_wr_act_s} = arg_sel(sched_row_sel_i, wr_act_q, wr_sch_older_i, wr_pop);
+        {w_sel_rd_pre_f, w_sel_rd_pre_s} = arg_oldest(rd_pre_q, rd_sch_older_i);
+        {w_sel_wr_pre_f, w_sel_wr_pre_s} = arg_oldest(wr_pre_q, wr_sch_older_i);
     end
+
+    // ---- STAGE 2: the registered pre-pick. Every consumer below (the
+    // write-first decision, the class-priority mux, and the main pick) reads
+    // these, so the names are unchanged from the pre-pipeline version -- only
+    // their source moved from combinational to registered. The register
+    // advances with the output stage (w_out_ready): it HOLDS its decision
+    // under cmd-FIFO backpressure rather than dropping or re-deriving it, which
+    // is why a plain flop is right here and a skid buffer would be wrong (the
+    // pre-pick is a re-evaluated decision, not a stream that must not lose a
+    // beat). See PUMICE-017. (Declared near the output register above, because
+    // the schedulable mask -- stage 1 -- must see what is queued here.)
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            rd_col_f <= 1'b0; wr_col_f <= 1'b0; rd_act_f <= 1'b0;
+            wr_act_f <= 1'b0; rd_pre_f <= 1'b0; wr_pre_f <= 1'b0;
+        end else if (w_out_ready) begin
+            rd_col_f <= w_sel_rd_col_f; rd_col_s <= w_sel_rd_col_s;
+            wr_col_f <= w_sel_wr_col_f; wr_col_s <= w_sel_wr_col_s;
+            rd_act_f <= w_sel_rd_act_f; rd_act_s <= w_sel_rd_act_s;
+            wr_act_f <= w_sel_wr_act_f; wr_act_s <= w_sel_wr_act_s;
+            rd_pre_f <= w_sel_rd_pre_f; rd_pre_s <= w_sel_rd_pre_s;
+            wr_pre_f <= w_sel_wr_pre_f; wr_pre_s <= w_sel_wr_pre_s;
+        end
+    )
 
     // ---- write-batching drain state (SCHED_WR_WM hysteresis) ----
     localparam int OCCW = $clog2(NUM_ENTRIES + 1);
@@ -814,10 +878,6 @@ module pumice_cmd_arbiter
     // ---- output register: capture the pick, drain to the cmd FIFO ----------
     // Accept a new pick when the output stage is empty or draining this cycle;
     // otherwise hold the decision (backpressure from a full cmd FIFO).
-    logic w_out_ready, w_fire_out;
-    assign w_out_ready = !r_pick_valid || cmd_ready_i;   // may capture a new pick
-    assign w_fire_out  = r_pick_valid && cmd_ready_i;     // registered cmd accepted
-
     // prio_sub == none fair-alternation toggle (declared above with the
     // pick logic that reads it).
     `ALWAYS_FF_RST(aclk, aresetn,

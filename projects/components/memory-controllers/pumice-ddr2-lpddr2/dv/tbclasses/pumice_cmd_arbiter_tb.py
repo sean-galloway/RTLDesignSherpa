@@ -190,12 +190,28 @@ class PumiceCmdArbiterTB(TBBase):
         getattr(self.dut, f'{pfx}_sch_col_i').value = col
         getattr(self.dut, f'{pfx}_sch_older_i').value = older
 
-    async def settle(self):
-        # The arbiter is a 2-stage pipeline: it registers the per-bank timer
-        # fan-in at its INPUT (1 cycle), then registers the DECISION at its
-        # OUTPUT (1 cycle). So a pick reflecting freshly-set bank state / CAM
-        # entries appears 2 edges later. Advance both, then settle combinational.
-        await RisingEdge(self.dut.aclk)
+    async def settle(self, depth=3):
+        # The arbiter is a 3-stage pipeline for DEMAND picks (col/act/pre from
+        # arg_sel): it registers the per-bank timer
+        # fan-in at its INPUT (1 cycle), the per-class SELECTION in the pre-pick
+        # register (1 cycle, added by PUMICE-017 to cut the r_older->pick cone),
+        # then the DECISION at its OUTPUT (1 cycle). So a pick reflecting
+        # freshly-set bank state / CAM entries appears 3 edges later. Advance
+        # all three, then settle combinational. INIT and REFRESH picks do NOT
+        # go through arg_sel or the pre-pick register (they are decoded directly
+        # in stage 2 from registered port/bank state), so they appear at depth=2
+        # -- those scenarios pass depth=2.
+        for _ in range(depth):
+            await RisingEdge(self.dut.aclk)
+        await Timer(1, units='ns')
+
+    async def step(self):
+        # ONE edge + settle. For windowed polls: a fixed multi-edge settle()
+        # stride aliases against the pick's cycle period (the pipeline throttles
+        # columns to every 2-3 cycles), so a poll that advances by settle() can
+        # phase-lock onto the idle cycle and never see the pick -- the exact
+        # trap the PUMICE-006 order-mode scenarios already switched to per-edge
+        # polling to avoid. Poll with this, not settle().
         await RisingEdge(self.dut.aclk)
         await Timer(1, units='ns')
 

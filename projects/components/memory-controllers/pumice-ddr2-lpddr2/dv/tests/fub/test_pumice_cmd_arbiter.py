@@ -40,7 +40,7 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
     dut.init_cmd_op_i.value = OP_MRS
     dut.init_cmd_bank_i.value = 2
     dut.init_cmd_row_i.value = 0x532
-    await tb.settle()
+    await tb.settle(2)   # init path bypasses arg_sel/pre-pick -> 2 stages
     p = tb.picked()
     assert p['valid'] == 1 and p['op'] == OP_MRS and p['bank'] == 2 and p['row'] == 0x532, \
         f"init passthrough wrong: {p}"
@@ -51,7 +51,7 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
     tb.set_bank_bits(dut.bank_row_active_i, {3: 1})
     tb.set_bank_bits(dut.bank_pre_ready_i, {3: 1})
     dut.refresh_req_i.value = 1
-    await tb.settle()
+    await tb.settle(2)   # refresh path bypasses arg_sel/pre-pick -> 2 stages
     p = tb.picked(); s = tb.strobes()
     assert p['op'] == OP_PRE and p['bank'] == 3, f"refresh should PRE active bank first: {p}"
     assert s['pre'] == 1 and s['grant'] == 0, f"expected PRE strobe, no grant yet: {s}"
@@ -109,8 +109,8 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
     # cross-direction columns for 2 cycles after the fire — poll a bounded
     # window instead of asserting the exact settle cycle.
     got_wr = False
-    for _ in range(6):
-        await tb.settle()
+    for _ in range(18):
+        await tb.step()
         p = tb.picked(); s = tb.strobes()
         if p['op'] == OP_WR:
             got_wr = True
@@ -156,14 +156,13 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
     tb.set_cmd_ready(True)
     fired = []
     live = {3: (1, 0x11, 0x08, 20), 7: (6, 0x66, 0x09, 55)}  # slot -> entry tuple
-    for _ in range(8):
+    for _ in range(24):
         tb.set_entries('rd', dict(live))
-        await tb.settle()
+        await tb.step()
         s = tb.strobes()
         if s['rd'] and s['rd_issue_slot'] in live:
             fired.append(tb.picked()['bank'])
             live.pop(s['rd_issue_slot'], None)   # retire the issued slot
-        await RisingEdge(dut.aclk)
     assert fired == [6, 1], \
         f"columns must issue oldest-first (bank6 then bank1): got {fired}"
 
