@@ -88,10 +88,12 @@ scan-insertion step) to hold the clock free-running during scan.
 | `cg_gating` | Output | 1 | Clock currently gated (1=gated, 0=running) |
 | `cg_idle` | Output | 1 | No activity was seen on the previous cycle (registered `~wakeup`) |
 
-**All other ports are identical to the base module, with one exception:** the
-base module's `busy` output is **not** brought out on the `_cg` wrapper. It is
-consumed internally as one of the wakeup terms. Use `cg_idle` (or `cg_gating`)
-for interface idle detection on a `_cg` module.
+**All other ports are identical to the base module, with one exception, and it
+differs by wrapper kind.** On the plain `_cg` wrappers (`axil4_master_rd_cg`
+and the other three) the base module's `busy` output is **not** brought out --
+it is consumed internally as a wakeup term, so use `cg_idle` or `cg_gating` for
+idle detection there. The four `_mon_cg` wrappers DO expose `busy`; what they
+drop instead is `debug_block_ready`.
 
 There is no cumulative gated-cycle counter on these modules. If you need one,
 count `cg_gating` in the surrounding logic on the ungated clock.
@@ -138,9 +140,15 @@ registers it and drives `clock_gate_ctrl` and its ICG cell. For
 `axil4_master_rd_cg` the terms are:
 
 ```systemverilog
-assign user_valid = fub_arvalid || fub_rready || int_busy;
+assign user_valid = fub_arvalid || fub_rvalid || int_busy;
 assign axi_valid  = m_axil_arvalid || m_axil_rvalid;
 ```
+
+> This term used to read `fub_rready`. A peer's READY must never appear in the
+> activity term: a consumer that parks its response-ready high while idle is
+> behaving correctly, and folding that in pins the block permanently awake and
+> defeats gating entirely -- silently, since function is unaffected. Ten `_cg`
+> wrappers carried that defect until 2026-09-02.
 
 **Gating Conditions (All Must Be True):**
 1. No activity in `user_valid` or `axi_valid`
@@ -150,7 +158,8 @@ assign axi_valid  = m_axil_arvalid || m_axil_rvalid;
 
 **Ungating Conditions (Any Triggers Ungating):**
 1. Any `*valid` signal asserted on either side of the module
-2. `fub_rready` asserted, or the base module still `busy`
+2. `fub_rvalid` asserted (this module presenting read data), or the base
+   module still `busy`
 
 **Gating latency:** `cfg_cg_idle_count + 1` clocks after the internal wakeup
 deasserts, which is `cfg_cg_idle_count + 2` clocks after the last bus activity

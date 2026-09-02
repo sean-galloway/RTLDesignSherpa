@@ -128,10 +128,16 @@ Both wrappers build a single `wakeup` term and hand it to `amba_clock_gate_ctrl`
 `axis_master_cg` that term is:
 
 ```systemverilog
-user_valid = fub_axis_tvalid || m_axis_tready || busy;   // busy is internal
+user_valid = fub_axis_tvalid || busy;   // busy is internal; m_axis_tvalid is in axi_valid
 axi_valid  = m_axis_tvalid;
 wakeup     = user_valid || axi_valid;                    // registered one cycle
 ```
+
+> **A peer's READY must never appear in the activity term.** A consumer that
+> parks its response-ready high while idle is behaving correctly; folding
+> that in pins the block permanently awake and defeats gating entirely,
+> silently, because function is unaffected. Use the VALID your side drives.
+> Ten `_cg` wrappers carried this defect until 2026-09-02.
 
 `axis_slave_cg` uses the same structure with `s_axis_tvalid`, `fub_axis_tready` and
 `fub_axis_tvalid` substituted. Note that the **sink's ready signal is a wakeup term**: a

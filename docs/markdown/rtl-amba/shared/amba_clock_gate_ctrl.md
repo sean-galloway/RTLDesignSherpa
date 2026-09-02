@@ -343,8 +343,14 @@ amba_clock_gate_ctrl #(
 user_valid = awvalid | wvalid | arvalid
 
 // AXI Slave Interface
-user_valid = awready | wready | arready | rvalid | bvalid
+user_valid = awvalid | wvalid | arvalid | rvalid | bvalid
 ```
+
+> **A peer's READY must never appear in the activity term.** A consumer that
+> parks its response-ready high while idle is behaving correctly; folding
+> that in pins the block permanently awake and defeats gating entirely,
+> silently, because function is unaffected. Use the VALID your side drives.
+> Ten `_cg` wrappers carried this defect until 2026-09-02.
 
 **For the AXI interface (downstream):**
 ```systemverilog

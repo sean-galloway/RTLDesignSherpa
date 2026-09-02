@@ -157,9 +157,15 @@ transport wrappers, the base module's `busy` output) of the channels it owns. Fo
 `axi4_master_rd_cg`:
 
 ```systemverilog
-assign user_valid = fub_axi_arvalid || fub_axi_rready || int_busy;
+assign user_valid = fub_axi_arvalid || fub_axi_rvalid || int_busy;
 assign axi_valid  = m_axi_arvalid   || m_axi_rvalid;
 ```
+
+> **A peer's READY must never appear in the activity term.** A consumer that
+> parks its response-ready high while idle is behaving correctly; folding
+> that in pins the block permanently awake and defeats gating entirely,
+> silently, because function is unaffected. Use the VALID your side drives.
+> Ten `_cg` wrappers carried this defect until 2026-09-02.
 
 ### Gating Conditions (All Must Be True)
 
