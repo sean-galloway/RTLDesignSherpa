@@ -41,7 +41,7 @@ pumice_top #(
     .COL_WIDTH       (10),
     .DFI_RATE        (2),      // DFI phases per MC clock (gear ratio)
     .DRAM_BEAT_WIDTH (64),     // bits per DRAM beat (device data bus)
-    .BL              (8),      // DRAM burst length
+    .DRAM_BL         (8),      // DRAM burst length (DDR2 uses 4; 8 is the default)
     .NUM_ENTRIES     (8),      // CAM depth
     .N_SRAM_SLOTS    (8)
     // DW is DERIVED: DW = DRAM_BEAT_WIDTH * DFI_RATE

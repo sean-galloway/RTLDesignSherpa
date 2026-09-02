@@ -310,28 +310,27 @@ rapids_core_beats #(
     .NUM_CHANNELS(8),
     .ADDR_WIDTH(64),
     .DATA_WIDTH(512),
-    .SRAM_DEPTH(512),
-    .ENABLE_AXIS_WRAPPERS(0)
+    .SRAM_DEPTH(512)
 ) u_rapids_core (
     .clk                    (clk),
     .rst_n                  (rst_n),
 
     // APB kick-off
-    .apb_valid              (apb_kick_valid),
-    .apb_ready              (apb_kick_ready),
-    .apb_addr               (apb_kick_addr),
+    .src_apb_valid              (apb_kick_valid),
+    .src_apb_ready              (apb_kick_ready),
+    .src_apb_addr               (apb_kick_addr),
 
     // Configuration
-    .cfg_channel_enable     (cfg_ch_enable),
-    .cfg_sched_timeout_cycles(cfg_timeout),
+    .src_cfg_channel_enable     (cfg_ch_enable),
+    .src_cfg_sched_timeout_cycles(cfg_timeout),
 
     // Descriptor AXI
-    .desc_m_axi_arvalid     (desc_arvalid),
-    .desc_m_axi_arready     (desc_arready),
-    .desc_m_axi_araddr      (desc_araddr),
-    .desc_m_axi_rvalid      (desc_rvalid),
-    .desc_m_axi_rready      (desc_rready),
-    .desc_m_axi_rdata       (desc_rdata),
+    .src_m_axi_desc_arvalid     (desc_arvalid),
+    .src_m_axi_desc_arready     (desc_arready),
+    .src_m_axi_desc_araddr      (desc_araddr),
+    .src_m_axi_desc_rvalid      (desc_rvalid),
+    .src_m_axi_desc_rready      (desc_rready),
+    .src_m_axi_desc_rdata       (desc_rdata),
 
     // Sink AXI write
     .snk_m_axi_awvalid      (snk_awvalid),
@@ -369,7 +368,7 @@ rapids_core_beats #(
     .monbus_pkt_data        (mon_data),
 
     // Status
-    .all_channels_idle      (rapids_idle)
+    .src_system_idle      (rapids_idle)
 );
 ```
 

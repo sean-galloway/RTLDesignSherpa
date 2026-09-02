@@ -2,37 +2,33 @@
 
 # AMBA tasks — open (not started)
 
-### TASK-077: five instantiation examples in components docs name ports that do not exist
+### TASK-077: four instantiation examples in components docs name ports that do not exist
 
-**Priority:** P3 each, but the class matters: a reader copies the example and it
-does not compile.
-**Status:** open 2026-09-02. Found by `bin/check_doc_examples.py`, verified
-against Verilator's AST (`bin/rtl_ast.py`), NOT auto-fixed -- my auto-repair
-destroyed content twice today and these pages belong to other areas.
+**Priority:** P3. A reader copies the example and it does not compile.
+**Status:** open 2026-09-02, reduced from 5 pages to 4 findings. Two fixed:
+`pumice_top` (`.BL` -> `.DRAM_BL`, the real parameter) and most of
+`rapids_core_beats` (12 names remapped: `apb_*` -> `src_apb_*`,
+`cfg_channel_enable` -> `src_cfg_channel_enable`, `desc_m_axi_ar*` ->
+`src_m_axi_desc_ar*`, `all_channels_idle` -> `src_system_idle`, and
+`ENABLE_AXIS_WRAPPERS` removed -- no such parameter).
 
-| Page | Module | Names that do not exist |
-|---|---|---|
-| `stream_mas/ch01_overview/03_clocks_and_reset.md` | `apb4_slave_cdc` | `SYNC_STAGES`, `m_paddr`, `m_pclk`, `m_prdata`, `m_presetn` |
-| same | `clock_gate_ctrl` | `enable` |
-| same | `scheduler` | `aclk`, `aresetn` |
-| `rapids_beats_mas/ch03_macro_blocks/11_rapids_core_beats.md` | `rapids_core_beats` | `ENABLE_AXIS_WRAPPERS`, `all_channels_idle`, `desc_m_axi_ar*` |
-| `pumice_mas/ch06_configuration/01_build_config.md` | `pumice_top` | `BL` (confirmed: the AST lists no `BL` parameter) |
+**What is left, and why I stopped:**
 
-**How to fix one safely.** Get ground truth from the AST, never from a regex
-over the source:
+| Page | Module | Names | Why not fixed |
+|---|---|---|---|
+| `stream_mas/ch01_overview/03_clocks_and_reset.md` | `apb4_slave_cdc` | `SYNC_STAGES`, `m_paddr`, `m_pclk`, `m_prdata`, `m_presetn` | needs the stream owner: the real APB master-side names differ and the example may be describing a different wrapper |
+| same | `clock_gate_ctrl` | `enable` | trivial but same page |
+| same | `scheduler` | `aclk`, `aresetn` | `scheduler` uses `clk`/`rst_n`; confirm which module the page means |
+| `rapids_beats_mas/ch03_macro_blocks/11_rapids_core_beats.md` | `rapids_core_beats` | `monbus_pkt_*`, `snk_fill_*` | **the module has NO monbus or fill ports at all** -- these belong to a different module, probably `rapids_beats_top`. Cannot be remapped without knowing which. |
 
-    python3 bin/rtl_ast.py <path/to/module.sv> rtl/amba/includes rtl/common
+**Method.** Get ground truth from the AST, never a regex over source:
 
-then edit the example by hand. Do NOT regenerate the whole code block: several
-of these blocks contain more than one instantiation, and a whole-block rewrite
-silently drops the others -- it removed instantiations from gaxi/README.md,
-monbus_group.md and quickstart.md before I caught it.
+    python3 bin/rtl_ast.py <module.sv> rtl/amba/includes rtl/common
 
-**Why this was never found before.** These pages have never had a review round;
-`projects/components` has had none at all. The gate that finds them
-(`check_doc_examples.py`) now runs in CI and pre-commit and walks
-`projects/**/docs`, so no new instance can land.
+Fix names in place. Do NOT regenerate the block: several of these contain more
+than one instantiation and a whole-block rewrite silently drops the others.
 
+`bin/check_doc_examples.py` ratchets at 4, so the count cannot grow.
 
 ### TASK-075: seven modules have no test coverage, direct or transitive
 
