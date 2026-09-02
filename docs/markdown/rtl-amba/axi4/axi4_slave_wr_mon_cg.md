@@ -75,6 +75,8 @@ miscalibrated on any other clock -- silently.
 | `SKID_DEPTH_AW` | `2` | Skid-buffer depth on the AW channel. Legal range 2..8 inclusive; odd depths are legal. |
 | `SKID_DEPTH_B` | `2` | Skid-buffer depth on the B channel. Legal range 2..8 inclusive; odd depths are legal. |
 | `SKID_DEPTH_W` | `4` | Skid-buffer depth on the W channel. Legal range 2..8 inclusive; odd depths are legal. |
+| `AGENT_ID` | `16'h0015` | Agent identifier emitted in the `agent_id` field of every monitor packet. Pairs with `UNIT_ID` to identify the packet source. (16-bit Agent ID for monitor packets) |
+| `UNIT_ID` | `8'h02` | Unit identifier emitted in the `unit_id` field of every monitor packet. Give each monitored interface a distinct value or the packets cannot be told apart at the collector. (8-bit Unit ID for monitor packets) |
 
 Gating is controlled by RUNTIME inputs `cfg_cg_enable` /
 `cfg_cg_idle_count` with status outputs `cg_gating` / `cg_idle`; ONE

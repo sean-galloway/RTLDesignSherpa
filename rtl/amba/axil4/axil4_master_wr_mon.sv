@@ -380,7 +380,13 @@ module axil4_master_wr_mon
             .cmd_addr                (m_axil_awaddr),
             .cmd_id                  (1'b0),             // Fixed ID=0 for AXIL
             .cmd_len                 (8'h00),            // Single-beat: len=0
-            .cmd_size                (3'b010),           // 4 bytes (32-bit)
+            // AxSIZE for the single Lite beat, DERIVED from the bus width.
+            // This was hardwired 3'b010 (4 bytes). axi_monitor_base computes
+            // perf_byte_count as (1 << cmd_size) per beat, so on a 64-bit
+            // AXI4-Lite bus every beat moved 8 bytes and was counted as 4 --
+            // byte counts read exactly half, silently. AXI4-Lite permits 32
+            // and 64. At DW=32 this evaluates to 3'b010, unchanged.
+            .cmd_size                (3'($clog2(AXIL_DATA_WIDTH/8))),
             .cmd_burst               (2'b01),            // INCR burst type
             .cmd_valid               (w_mon_cmd_valid),
             .cmd_ready               (m_axil_awready),

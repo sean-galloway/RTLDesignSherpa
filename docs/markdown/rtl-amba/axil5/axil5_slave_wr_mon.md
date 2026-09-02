@@ -97,6 +97,8 @@ AXI5-Lite is AXI4-Lite plus optional signal groups. It changes no channel's hand
 | `EW` | int | `MECID_WIDTH` |  |
 | `NW` | int | `NSAID_WIDTH` |  |
 | `PW` | int | `(DW / 64) > 0 ? (DW / 64) : 1` |  |
+| `AGENT_ID` | `16'h0015` | Agent identifier emitted in the `agent_id` field of every monitor packet. Pairs with `UNIT_ID` to identify the packet source. (16-bit Agent ID for monitor packets) |
+| `UNIT_ID` | `8'h02` | Unit identifier emitted in the `unit_id` field of every monitor packet. Give each monitored interface a distinct value or the packets cannot be told apart at the collector. (8-bit Unit ID for monitor packets) |
 
 The derived parameters (`AW`, `DW`, `UW`, ... and the `*Size` payload widths) are computed from the ones above. **Do not override them.** Forcing a `*Size` to a value the RTL did not derive makes every optional-group field a part-select past the end of the vector -- which is exactly how `test_axil5_master_wr` failed until `d6266344` removed those overrides.
 
@@ -181,6 +183,11 @@ The derived parameters (`AW`, `DW`, `UW`, ... and the `*Size` payload widths) ar
 | `cfg_addr_filter_high` | Input | `[AW-1:0]` |  |
 | `monbus_valid` | Output | 1 | Monitor bus valid |
 | `monbus_ready` | Input | 1 | Monitor bus ready |
+| `monbus_packet` | Output | `monitor_packet_t` (128) | The monitor packet itself -- the module's primary output. Valid when `monbus_valid` is high. |
+| `monbus_timestamp` | Output | `monbus_timestamp_t` | Side-band sampled time for the packet on `monbus_packet`. |
+| `i_mon_time` | Input | `monbus_timestamp_t` | Shared free-running timestamp, driven from the group/aggregator so every monitor stamps against one clock. |
+| `cfg_addr_range_low` | Input | `[AW-1:0]` x `N_ADDR_RANGES` | Low bound of each address-range comparator; only present when `N_ADDR_RANGES > 0`. |
+| `cfg_addr_range_high` | Input | `[AW-1:0]` x `N_ADDR_RANGES` | High bound of each address-range comparator; pairs with `cfg_addr_range_low`. |
 | `busy` | Output | 1 |  |
 | `active_transactions` | Output | `[7:0]` | Number of active transactions |
 | `error_count` | Output | `[15:0]` | Total error count |

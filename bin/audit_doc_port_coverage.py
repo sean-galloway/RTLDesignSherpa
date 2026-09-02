@@ -34,7 +34,18 @@ REPO = Path(__file__).resolve().parent.parent
 
 # `module foo #( ... ) ( ... );` - grab the two paren groups separately.
 RE_MODULE = re.compile(r'^\s*module\s+(\w+)', re.M)
-RE_PARAM = re.compile(r'\bparameter\s+(?:type\s+)?(?:\w+\s+)*?(\w+)\s*(?:=|,|\))')
+# `parameter [type] [signedness] [packed dims] NAME = ...`
+# The packed dimension is why this is not a simple \w+ run: UNIT_ID is declared
+# `parameter logic [7:0] UNIT_ID = 8'h01`, and a pattern that cannot skip
+# `[7:0]` silently drops every width-typed parameter -- which is exactly how a
+# clean 0-gap report coexisted with pages missing UNIT_ID and AGENT_ID.
+RE_PARAM = re.compile(
+    r'\bparameter\s+'
+    r'(?:type\s+)?'
+    r'(?:\w+\s*(?:::\s*\w+)?\s+)*?'      # optional type, incl. pkg::type
+    r'(?:signed|unsigned\s+)?'
+    r'(?:\[[^\]]*\]\s*)*'                 # optional packed dimensions
+    r'(\w+)\s*(?:=|,|\))')
 RE_PORT_LINE = re.compile(r'^\s*(?:input|output|inout)\b(.*)$', re.M)
 
 # Standard AXI/APB channel signals. A page that says "connect all slave AW/W/B

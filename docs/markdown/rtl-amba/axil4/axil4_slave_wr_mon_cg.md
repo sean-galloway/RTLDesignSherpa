@@ -25,7 +25,7 @@
 
 **Module:** `axil4_slave_wr_mon_cg.sv`
 **Base Module:** [axil4_slave_wr_mon](./axil4_slave_wr_mon.md)
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/axil4/`
 **Status:** ⚠️ Partial — see [Implementation Status](#implementation-status)
 
 ---
@@ -118,13 +118,18 @@ These reach the inner monitor through this wrapper; before 2026-09-01 they did n
 
 There is no runtime ID filter on AXI4-Lite: the protocol has no IDs to match.
 
-All base-module ports are forwarded unchanged, including the `cam_clear`
-control input (Input, 1) - synchronous clear of the monitor transaction CAM
-(driven from the harness clear control bit, e.g. CTRL[4]). The wrapper adds:
+Base-module ports are forwarded unchanged EXCEPT `debug_block_ready`, which
+this wrapper does not bring out (use the base module when you need that tap).
+That includes the `cam_clear` control input (Input, 1) - synchronous clear of
+the monitor transaction CAM, driven from the harness clear control bit, e.g.
+CTRL[4]. The wrapper adds four ports:
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| `cfg_cg_enable` | Input | 1 | Gates the monitor functionally (ANDed into `cfg_monitor_enable`). 0 = monitor disabled. |
+| `cfg_cg_enable` | Input | 1 | Arms clock gating. It reaches `amba_clock_gate_ctrl` only -- `cfg_monitor_enable` is forwarded to the inner monitor untouched, so 0 here does NOT disable the monitor, it just leaves the clock free-running. |
+| `cfg_cg_idle_count` | Input | `CG_IDLE_COUNT_WIDTH` | Idle cycles before the clock gates. The clock stops `cfg_cg_idle_count` + 2 cycles after the last bus activity (one extra for the `r_wakeup` flop). |
+| `cg_gating` | Output | 1 | High while the clock is gated. |
+| `cg_idle` | Output | 1 | High while the activity terms are quiet. |
 
 The base module's `busy` output remains available on this wrapper.
 
@@ -142,8 +147,10 @@ removes, nor retimes any perfmon port. They behave exactly as documented for
 
 The completion/threshold/debug enables (`cfg_compl_enable`, `cfg_threshold_enable`, `cfg_debug_enable`) and the synthesis-cone parameters (`ENABLE_ERROR_LOGIC`, `ENABLE_TIMEOUT_LOGIC`, `ENABLE_COMPL_LOGIC`, `ENABLE_THRESHOLD_LOGIC`, `ENABLE_PERF_LOGIC`, `ENABLE_DEBUG_LOGIC`) are likewise forwarded unchanged. The utilization buckets watch the **W** (write-data) channel; for AXI4-Lite each transaction is a single data beat, so `perf_burst_count` counts AW handshakes = transactions.
 
-> Note that `cfg_cg_enable = 0` disables the monitor, and therefore stops the
-> performance counters as well.
+> Note that `cfg_cg_enable = 0` does NOT disable the monitor. It only
+> disarms clock gating, leaving the inner monitor on a free-running clock
+> and behaving exactly like the base module. Use `cfg_monitor_enable = 0`
+> to actually stop monitoring.
 
 ---
 
@@ -167,7 +174,7 @@ axil4_slave_wr_mon_cg #(
     .aresetn(rst_n),
 
     // Power-management interface
-    .cfg_cg_enable(1'b1),            // 0 would disable the monitor
+    .cfg_cg_enable(1'b1),            // arm gating; 0 = clock free-runs
     .cfg_cg_idle_count(4'd4),        // idle cycles before the clock stops
     .cg_gating(cg_gating),           // high while the gated clock is stopped
     .cg_idle(cg_idle),
@@ -180,10 +187,16 @@ axil4_slave_wr_mon_cg #(
 
 ## Verification Considerations
 
-Because no clock is actually gated, simulation of this wrapper behaves exactly
-like the base module as long as `cfg_cg_enable = 1`. Drive `cfg_cg_enable = 1`
-for any test that expects monitor packets — with it low the monitor is off and
-no packets are emitted.
+A clock IS gated here -- that is the wrapper's entire purpose.
+`amba_clock_gate_ctrl` drives the inner monitor's clock, and it stops when the
+activity terms go quiet for `cfg_cg_idle_count` cycles.
+
+`cfg_cg_enable` arms that gating. It is NOT a monitor kill-switch: with it low
+the clock simply free-runs and the monitor behaves exactly like the base
+module, packets included. Drive it low for any test that wants the base
+module's timing without gating effects; drive it high to exercise the gating
+itself, and expect the counters and any trigger pulse to be lost while the
+clock is stopped (see the warning under Performance Monitoring).
 
 ---
 
