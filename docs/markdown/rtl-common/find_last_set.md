@@ -107,7 +107,7 @@ Same auto-sizing as `find_first_set`:
 - **Output width**: `$clog2(WIDTH)` bits
 - **Examples**:
   - WIDTH=8 → index[2:0] (3 bits)
-  - WIDTH=16 → index[3:0] (4 bits)  
+  - WIDTH=16 → index[3:0] (4 bits)
   - WIDTH=32 → index[4:0] (5 bits)
 
 ### Found Flag Logic

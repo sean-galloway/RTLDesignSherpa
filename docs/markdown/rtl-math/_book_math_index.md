@@ -3,11 +3,10 @@
 <!-- Auto-generated link index for PDF build. Regenerate via generate_rtl_pdfs.sh -->
 
 - [RTL Math Library](math_library.md)
-- [Mod-3 Carry-Save Compressor](math_mod_3_compress.md)
 - [Basic Adder Building Blocks](math_adder_basic.md)
 - [Brent-Kung Parallel Prefix Adder](math_adder_brent_kung.md)
 - [Carry-Save Adder](math_adder_carry_save.md)
-- [math_adder_full](math_adder_full.md)
+- [Full Adder](math_adder_full.md)
 - [Han-Carlson Parallel Prefix Adder](math_adder_han_carlson.md)
 - [Carry Lookahead Adder](math_adder_pg_chain.md)
 - [Ripple Carry Adder](math_adder_ripple_carry.md)
@@ -23,6 +22,8 @@
 - [FP32 (Single Precision) Modules](math_fp32_modules.md)
 - [FP8 (8-bit Floating-Point) Modules](math_fp8_modules.md)
 - [IEEE 754-2008 Compliant Modules](math_ieee754_modules.md)
+- [RTL Math Library](math_library.md)
+- [math_mod_3_compress (`math_mod_3_compress.sv`)](math_mod_3_compress.md)
 - [Basic Multiplier Building Blocks](math_multiplier_basic.md)
 - [Dadda Multiplier with 4:2 Compressors](math_multiplier_dadda_4to2.md)
 - [Dadda Tree Multipliers](math_multiplier_dadda_tree.md)

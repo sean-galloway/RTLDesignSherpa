@@ -285,7 +285,7 @@ counter_johnson #(
 
 // Decode individual phases
 assign phase_0 = (phases == 4'b0001);  // Step 1
-assign phase_1 = (phases == 4'b0011);  // Step 2  
+assign phase_1 = (phases == 4'b0011);  // Step 2
 assign phase_2 = (phases == 4'b0111);  // Step 3
 assign phase_3 = (phases == 4'b1111);  // Step 4
 ```
@@ -455,7 +455,7 @@ covergroup johnson_cg @(posedge clk);
                               4'b1111, 4'b1110, 4'b1100, 4'b1000};
         bins invalid_states[] = default;
     }
-    
+
     cp_transitions: coverpoint counter_gray {
         bins valid_trans[] = (4'b0000 => 4'b0001),
                             (4'b0001 => 4'b0011),
@@ -466,7 +466,7 @@ covergroup johnson_cg @(posedge clk);
                             (4'b1100 => 4'b1000),
                             (4'b1000 => 4'b0000);
     }
-    
+
     cp_enable: coverpoint enable {
         bins enabled = {1};
         bins disabled = {0};

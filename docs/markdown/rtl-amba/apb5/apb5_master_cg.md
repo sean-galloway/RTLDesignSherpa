@@ -155,7 +155,7 @@ flowchart TB
 
 ---
 
-## Additional Parameters
+### Additional Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -187,7 +187,7 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | `CPW` | `AW + DW + SW + PW + AUW + WUW + 1` |
 | `RPW` | `DW + RUW + BUW + 2` |
 
-## Additional Ports
+### Additional Ports
 
 ### Clock Gating Configuration
 
@@ -210,9 +210,7 @@ All ports of [apb5_master](apb5_master.md) -- including the parity signals,
 `parity_error_rdata`, `parity_error_ctrl` and `wakeup_pending` -- are present
 unchanged and pass straight through to the wrapped core.
 
----
-
-## Clock Gating Behavior
+### Clock Gating Behavior
 
 ### Gating State Machine
 
@@ -277,9 +275,6 @@ cycles.
 > - idle_counter
 > - apb_clock_gating
 > - Transaction before/after gating
-
----
-
 ## Timing Characteristics
 
 This module is **purely combinational** -- it contains no `always_ff` and no
@@ -319,7 +314,34 @@ apb5_master_cg #(
 
 ---
 
-## Power Savings
+## Design Notes
+
+**A peer's READY must never enter the activity term.** A consumer that parks
+its response-ready high while idle is behaving correctly; folding that signal
+into `user_valid` pins this block permanently awake and defeats gating
+entirely -- silently, because function is unaffected. Ten wrappers in this
+repository shipped that way and nothing failed until someone measured.
+`val/amba/test_cg_peer_ready.py` parks the peer READY high, holds every VALID
+low, and requires `cg_gating`. Canonical rule:
+`vault/handbook/design/clock-gating-activity-terms.md`.
+
+**`cfg_cg_enable` is not a kill switch.** It arms gating and reaches
+`amba_clock_gate_ctrl` only; the datapath and any monitor enables are forwarded
+untouched. With it low the clock free-runs and this module behaves exactly like
+its base.
+
+**Gating latency.** The clock stops `cfg_cg_idle_count` + 2 cycles after the
+last bus activity -- the idle counter, plus one for the `r_wakeup` flop. Size
+the idle count against your traffic's inter-burst gap: too small and the block
+wakes constantly, too large and it never gates.
+
+**Cost.** Five flops: `r_wakeup` plus `r_idle_counter` at `IDLE_CNTR_WIDTH`,
+scaling as 1 + `CG_IDLE_COUNT_WIDTH`. The ICG itself is a latch or BUFGCE, not
+fabric flops.
+
+---
+
+### Power Savings
 
 The figures below are first-order expectations derived from the fraction of
 cycles the clock is gated off; they are analytical estimates, not measured
@@ -331,9 +353,6 @@ library, the ICG cell, and the clock-tree share of total dynamic power.
 | Burst | 30% | 35-40% |
 | Mixed | 50% | 20-25% |
 | Continuous | 90%+ | <5% |
-
----
-
 ## Related Modules
 - **[APB5 Master](apb5_master.md)** - Base module documentation
 - **[APB5 Slave CG](apb5_slave_cg.md)** - Clock-gated slave

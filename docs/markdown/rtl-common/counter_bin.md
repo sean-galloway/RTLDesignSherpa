@@ -119,33 +119,7 @@ When `counter_bin_curr[WIDTH-2:0] == MAX-1`:
 - When `enable = 1`: Counter operates normally
 - When `enable = 0`: Counter holds current value
 
-## Counting Sequence Example
-
-### Configuration: WIDTH=4, MAX=6
-
-```
-Initial:  0000 (MSB=0, lower=000)
-         0001
-         0010  
-         0011
-         0100
-         0101  <- MAX-1 reached
-Wrap:    1000  <- MSB inverted (0→1), lower bits cleared
-         1001
-         1010
-         1011
-         1100
-         1101  <- MAX-1 reached again  
-Wrap:    0000  <- MSB inverted (1→0), lower bits cleared
-```
-
-### Pattern Analysis
-
-- **First Half**: MSB=0, counts 0 to MAX-1
-- **Second Half**: MSB=1, counts 0 to MAX-1  
-- **Full Cycle**: 2×MAX states total
-
-## FIFO Application Context
+### FIFO Application Context
 
 ### Address Generation
 
@@ -165,6 +139,28 @@ assign fifo_full = (rd_ptr[WIDTH-2:0] == wr_ptr[WIDTH-2:0]) &&
                    (rd_ptr[WIDTH-1] != wr_ptr[WIDTH-1]);
 ```
 
+### Advanced Variants
+
+### Address Extraction
+
+```systemverilog
+// Extract memory address (lower bits only)
+assign mem_addr = counter_bin_curr[WIDTH-2:0];
+
+// Extract wrap flag (MSB only)
+assign wrap_flag = counter_bin_curr[WIDTH-1];
+```
+
+### Gray Code Conversion
+
+For asynchronous FIFOs, convert to Gray code:
+```systemverilog
+logic [WIDTH-1:0] gray_ptr;
+bin2gray #(.WIDTH(WIDTH)) b2g (
+    .binary(counter_bin_curr),
+    .gray(gray_ptr)
+);
+```
 ## Timing Characteristics
 
 This module is **purely combinational** -- it contains no `always_ff` and no
@@ -241,29 +237,31 @@ counter_bin #(.WIDTH(5), .MAX(16)) wr_cnt (...);
 counter_bin #(.WIDTH(6), .MAX(32)) rd_cnt (...);
 ```
 
-## Advanced Variants
+### Counting Sequence Example
 
-### Address Extraction
+### Configuration: WIDTH=4, MAX=6
 
-```systemverilog
-// Extract memory address (lower bits only)
-assign mem_addr = counter_bin_curr[WIDTH-2:0];
-
-// Extract wrap flag (MSB only)  
-assign wrap_flag = counter_bin_curr[WIDTH-1];
+```
+Initial:  0000 (MSB=0, lower=000)
+         0001
+         0010
+         0011
+         0100
+         0101  <- MAX-1 reached
+Wrap:    1000  <- MSB inverted (0→1), lower bits cleared
+         1001
+         1010
+         1011
+         1100
+         1101  <- MAX-1 reached again
+Wrap:    0000  <- MSB inverted (1→0), lower bits cleared
 ```
 
-### Gray Code Conversion
+### Pattern Analysis
 
-For asynchronous FIFOs, convert to Gray code:
-```systemverilog
-logic [WIDTH-1:0] gray_ptr;
-bin2gray #(.WIDTH(WIDTH)) b2g (
-    .binary(counter_bin_curr),
-    .gray(gray_ptr)
-);
-```
-
+- **First Half**: MSB=0, counts 0 to MAX-1
+- **Second Half**: MSB=1, counts 0 to MAX-1
+- **Full Cycle**: 2×MAX states total
 ## Testing
 
 ### Test Scenarios

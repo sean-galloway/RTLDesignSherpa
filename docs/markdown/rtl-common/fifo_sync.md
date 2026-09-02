@@ -160,7 +160,7 @@ Write operations:
 - **Status**: Full flags track the new occupancy
 
 Read operations:
-- **Condition**: `read && !rd_empty`  
+- **Condition**: `read && !rd_empty`
 - **Action**: Advance the read pointer (data handling depends on mode)
 - **Blocking**: Reads ignored when the FIFO is empty
 - **Status**: Empty flags track the new occupancy
@@ -190,7 +190,7 @@ read    ______|‾‾‾‾‾|_________
 rd_data ======[ D0 ]=========  (immediate)
 ```
 
-### Read Sequence - Flop Mode  
+### Read Sequence - Flop Mode
 
 ```
 clk     __|‾|__|‾|__|‾|__|‾|__

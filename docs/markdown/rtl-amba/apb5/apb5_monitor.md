@@ -98,6 +98,139 @@ flowchart TB
 
 ---
 
+### Monitor Packet Format
+
+### 128-bit Packet Structure
+
+The APB5 monitor drives the standard 128-bit packet built by
+`monitor_common_pkg::create_monitor_packet`, paired with the 64-bit side-band
+`monbus_timestamp`. See
+[monitor_package_spec.md](../includes/monitor_package_spec.md) for the canonical
+definition.
+
+```
+Bits [127:124] - Packet Type (4 bits, see table below)
+Bits [123:109] - Reserved (15 bits)
+Bits [108:105] - Protocol (4 bits): fixed to PROTOCOL_APB (0x2)
+Bits [104: 97] - Event Code (8 bits, APB/APB5-specific)
+Bits [ 96: 88] - Channel ID (9 bits, always 0 for APB)
+Bits [ 87: 72] - Agent ID (16 bits, from AGENT_ID)
+Bits [ 71: 64] - Unit ID (8 bits, from UNIT_ID)
+Bits [ 63:  0] - Event Data (64 bits)
+```
+
+For FIFO-sourced events the event-data field is
+`{24'h0, aux_data[7:0], event_data[31:0]}`. For address-range violations from
+`apb_monitor_addr_check` it is `{range_index[3:0], is_read, addr[58:0]}`.
+
+> **History:** before the fix for issue #41 this module connected the 128-bit
+> `addr_pkt_data` output of `apb_monitor_addr_check` to a 64-bit net. Every
+> header field was discarded and `event_data` was re-decoded against the legacy
+> 64-bit layout, so a range-3 violation surfaced as `packet_type = 0x3`
+> (Timeout) with `protocol = AXI`, `event_code = 0x00`, and the address shifted
+> right by 3. The path was uncovered because every harness — including the
+> formal proof — left `N_ADDR_RANGES` at its default of 0, which elides the
+> checker entirely.
+
+### Packet Types
+
+Packet-type codes follow `monitor_common_pkg`. The APB5 monitor emits the subset
+marked below; other codes are defined for cross-protocol consistency.
+
+| Value | Type | Emitted by APB5 monitor | Description |
+|-------|------|:-----------------------:|-------------|
+| 0x0 | Error |  | SLVERR, protocol violations, parity errors |
+| 0x1 | Completion |  | Transaction completed without error |
+| 0x2 | Threshold | — | Threshold-crossed events (not generated here) |
+| 0x3 | Timeout |  | Command / response / wake-up timeout |
+| 0x4 | Performance |  | Latency-threshold-exceeded metric |
+| 0x8 | AddrMatch | — | Not generated. Address-range violations are emitted as **Error** (`0x0`) packets with event code `APB_ERR_ADDR_RANGE` (`0x08`) |
+| 0x9 | APB |  | APB-specific events (wake-up request/acknowledge) |
+| 0xF | Debug | — | Debug/trace events (not generated here) |
+
+> **Note:** parity error events are emitted as **Error** packets (type `0x0`) with an
+> APB5 parity event code — not as a distinct packet type.
+
+### Event Edge Detection
+
+Timeout, protocol-violation, parity and latency-threshold conditions are all
+*levels* — once true they stay true until the underlying condition clears. Every
+one of them is edge-qualified before it can write the event FIFO, so a single
+occurrence produces exactly one packet. Without this, one stuck command emitted
+an identical timeout packet on every cycle the condition held (29 packets over a
+40-cycle stall in the regression test). Regression coverage:
+`val/amba/test_apb5_monitor.py::test_apb5_monitor_timeout_edge`.
+
+### APB5-Specific Event Codes
+
+Event codes live in per-category enums, so a given numeric code is disambiguated by
+the packet type it rides on. Wake-up codes ride the **APB** packet type (`0x9`);
+parity codes ride the **Error** packet type (`0x0`).
+
+| Event | Code | Packet Type | Description |
+|-------|------|-------------|-------------|
+| APB5_WAKEUP_REQUEST | 0x0 | APB (0x9) | PWAKEUP rising edge |
+| APB5_WAKEUP_ACKNOWLEDGED | 0x1 | APB (0x9) | PWAKEUP falling edge |
+| APB5_PARITY_PWDATA_ERROR | 0x0 | Error (0x0) | Write data parity error |
+| APB5_PARITY_PRDATA_ERROR | 0x1 | Error (0x0) | Read data parity error |
+| APB5_PARITY_PREADY_ERROR | 0x2 | Error (0x0) | PREADY parity error |
+
+### Transaction State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE
+
+    IDLE --> CMD_SENT : cmd_valid & cmd_ready
+    CMD_SENT --> COMPLETE : rsp_valid & rsp_ready
+    COMPLETE --> IDLE : (next cycle)
+
+    state IDLE {
+        note right of IDLE : No active transaction
+    }
+    state CMD_SENT {
+        note right of CMD_SENT : Waiting for response
+    }
+    state COMPLETE {
+        note right of COMPLETE : Transaction finished
+    }
+```
+
+### Event Priority
+
+Events are generated with the following priority (highest first):
+
+1. **Error Events** - Protocol violations, SLVERR
+2. **Parity Events** - Parity errors detected
+3. **Timeout Events** - Command/response timeouts
+4. **Wake-up Events** - PWAKEUP transitions
+5. **Performance Events** - Latency threshold exceeded
+6. **Completion Events** - Normal transaction completion
+
+### Wake-up Monitoring
+
+### Wake-up Detection
+
+```mermaid
+sequenceDiagram
+    participant SRC as Wake-up Source
+    participant MON as APB5 Monitor
+    participant BUS as Monitor Bus
+
+    SRC->>MON: PWAKEUP rising
+    Note over MON: Start wake-up timer
+    MON->>BUS: WAKEUP_REQUEST event
+
+    Note over MON: Wake-up active period
+
+    SRC->>MON: PWAKEUP falling
+    MON->>BUS: WAKEUP_ACKNOWLEDGED event
+    Note over MON: Stop wake-up timer
+```
+
+### Wake-up Timeout
+
+If PWAKEUP remains high longer than `cfg_wakeup_timeout_cnt`, a timeout event is generated.
 ## Parameters
 
 | Parameter | Type | Default | Description |
@@ -234,148 +367,6 @@ emission-cycle time, not a match-cycle latch.
 
 ---
 
-## Monitor Packet Format
-
-### 128-bit Packet Structure
-
-The APB5 monitor drives the standard 128-bit packet built by
-`monitor_common_pkg::create_monitor_packet`, paired with the 64-bit side-band
-`monbus_timestamp`. See
-[monitor_package_spec.md](../includes/monitor_package_spec.md) for the canonical
-definition.
-
-```
-Bits [127:124] - Packet Type (4 bits, see table below)
-Bits [123:109] - Reserved (15 bits)
-Bits [108:105] - Protocol (4 bits): fixed to PROTOCOL_APB (0x2)
-Bits [104: 97] - Event Code (8 bits, APB/APB5-specific)
-Bits [ 96: 88] - Channel ID (9 bits, always 0 for APB)
-Bits [ 87: 72] - Agent ID (16 bits, from AGENT_ID)
-Bits [ 71: 64] - Unit ID (8 bits, from UNIT_ID)
-Bits [ 63:  0] - Event Data (64 bits)
-```
-
-For FIFO-sourced events the event-data field is
-`{24'h0, aux_data[7:0], event_data[31:0]}`. For address-range violations from
-`apb_monitor_addr_check` it is `{range_index[3:0], is_read, addr[58:0]}`.
-
-> **History:** before the fix for issue #41 this module connected the 128-bit
-> `addr_pkt_data` output of `apb_monitor_addr_check` to a 64-bit net. Every
-> header field was discarded and `event_data` was re-decoded against the legacy
-> 64-bit layout, so a range-3 violation surfaced as `packet_type = 0x3`
-> (Timeout) with `protocol = AXI`, `event_code = 0x00`, and the address shifted
-> right by 3. The path was uncovered because every harness — including the
-> formal proof — left `N_ADDR_RANGES` at its default of 0, which elides the
-> checker entirely.
-
-### Packet Types
-
-Packet-type codes follow `monitor_common_pkg`. The APB5 monitor emits the subset
-marked below; other codes are defined for cross-protocol consistency.
-
-| Value | Type | Emitted by APB5 monitor | Description |
-|-------|------|:-----------------------:|-------------|
-| 0x0 | Error | ✅ | SLVERR, protocol violations, parity errors |
-| 0x1 | Completion | ✅ | Transaction completed without error |
-| 0x2 | Threshold | — | Threshold-crossed events (not generated here) |
-| 0x3 | Timeout | ✅ | Command / response / wake-up timeout |
-| 0x4 | Performance | ✅ | Latency-threshold-exceeded metric |
-| 0x8 | AddrMatch | — | Not generated. Address-range violations are emitted as **Error** (`0x0`) packets with event code `APB_ERR_ADDR_RANGE` (`0x08`) |
-| 0x9 | APB | ✅ | APB-specific events (wake-up request/acknowledge) |
-| 0xF | Debug | — | Debug/trace events (not generated here) |
-
-> **Note:** parity error events are emitted as **Error** packets (type `0x0`) with an
-> APB5 parity event code — not as a distinct packet type.
-
-### Event Edge Detection
-
-Timeout, protocol-violation, parity and latency-threshold conditions are all
-*levels* — once true they stay true until the underlying condition clears. Every
-one of them is edge-qualified before it can write the event FIFO, so a single
-occurrence produces exactly one packet. Without this, one stuck command emitted
-an identical timeout packet on every cycle the condition held (29 packets over a
-40-cycle stall in the regression test). Regression coverage:
-`val/amba/test_apb5_monitor.py::test_apb5_monitor_timeout_edge`.
-
-### APB5-Specific Event Codes
-
-Event codes live in per-category enums, so a given numeric code is disambiguated by
-the packet type it rides on. Wake-up codes ride the **APB** packet type (`0x9`);
-parity codes ride the **Error** packet type (`0x0`).
-
-| Event | Code | Packet Type | Description |
-|-------|------|-------------|-------------|
-| APB5_WAKEUP_REQUEST | 0x0 | APB (0x9) | PWAKEUP rising edge |
-| APB5_WAKEUP_ACKNOWLEDGED | 0x1 | APB (0x9) | PWAKEUP falling edge |
-| APB5_PARITY_PWDATA_ERROR | 0x0 | Error (0x0) | Write data parity error |
-| APB5_PARITY_PRDATA_ERROR | 0x1 | Error (0x0) | Read data parity error |
-| APB5_PARITY_PREADY_ERROR | 0x2 | Error (0x0) | PREADY parity error |
-
----
-
-## Transaction State Machine
-
-```mermaid
-stateDiagram-v2
-    [*] --> IDLE
-
-    IDLE --> CMD_SENT : cmd_valid & cmd_ready
-    CMD_SENT --> COMPLETE : rsp_valid & rsp_ready
-    COMPLETE --> IDLE : (next cycle)
-
-    state IDLE {
-        note right of IDLE : No active transaction
-    }
-    state CMD_SENT {
-        note right of CMD_SENT : Waiting for response
-    }
-    state COMPLETE {
-        note right of COMPLETE : Transaction finished
-    }
-```
-
----
-
-## Event Priority
-
-Events are generated with the following priority (highest first):
-
-1. **Error Events** - Protocol violations, SLVERR
-2. **Parity Events** - Parity errors detected
-3. **Timeout Events** - Command/response timeouts
-4. **Wake-up Events** - PWAKEUP transitions
-5. **Performance Events** - Latency threshold exceeded
-6. **Completion Events** - Normal transaction completion
-
----
-
-## Wake-up Monitoring
-
-### Wake-up Detection
-
-```mermaid
-sequenceDiagram
-    participant SRC as Wake-up Source
-    participant MON as APB5 Monitor
-    participant BUS as Monitor Bus
-
-    SRC->>MON: PWAKEUP rising
-    Note over MON: Start wake-up timer
-    MON->>BUS: WAKEUP_REQUEST event
-
-    Note over MON: Wake-up active period
-
-    SRC->>MON: PWAKEUP falling
-    MON->>BUS: WAKEUP_ACKNOWLEDGED event
-    Note over MON: Stop wake-up timer
-```
-
-### Wake-up Timeout
-
-If PWAKEUP remains high longer than `cfg_wakeup_timeout_cnt`, a timeout event is generated.
-
----
-
 ## Timing Characteristics
 
 This module is **purely combinational** -- it contains no `always_ff` and no
@@ -474,7 +465,22 @@ apb5_monitor #(
 
 ---
 
-## Configuration Guidelines
+## Design Notes
+
+### Transaction Table
+
+- Tracks up to `MAX_TRANSACTIONS` concurrent transactions
+- APB typically has 1-4 outstanding (simple protocol)
+- Table entries cleaned up after event reported
+
+### Internal FIFOs
+
+- Monitor FIFO depth configurable via `MONITOR_FIFO_DEPTH`
+- Output skid buffer ensures no backpressure stalls
+
+---
+
+### Configuration Guidelines
 
 ### Recommended Configurations
 
@@ -495,24 +501,6 @@ apb5_monitor #(
 .cfg_latency_enable (1'b1),
 .cfg_wakeup_enable  (1'b0)   // Disable non-essential
 ```
-
----
-
-## Design Notes
-
-### Transaction Table
-
-- Tracks up to `MAX_TRANSACTIONS` concurrent transactions
-- APB typically has 1-4 outstanding (simple protocol)
-- Table entries cleaned up after event reported
-
-### Internal FIFOs
-
-- Monitor FIFO depth configurable via `MONITOR_FIFO_DEPTH`
-- Output skid buffer ensures no backpressure stalls
-
----
-
 ## Related Modules
 - **[APB5 Master](../apb5/apb5_master.md)** - APB5 master interface
 - **[APB5 Slave](../apb5/apb5_slave.md)** - APB5 slave interface

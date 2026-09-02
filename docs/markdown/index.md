@@ -47,7 +47,7 @@ The framework emphasizes **practical industry workflows**, **comprehensive verif
 
 ## Framework Components
 
-### 📦 RTL IP Libraries
+### RTL IP Libraries
 
 #### **[RTL Common Modules](rtl-common/index.md)**
 Fundamental building blocks for digital design:

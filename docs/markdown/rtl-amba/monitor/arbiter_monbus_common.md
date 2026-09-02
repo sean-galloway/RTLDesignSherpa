@@ -265,6 +265,24 @@ arbiter_monbus_common #(
 
 ---
 
+## Design Notes
+
+**This module snoops and never drives.** Every arbiter-facing port is an input;
+it observes request/grant/ACK activity and cannot perturb the arbitration it is
+measuring. That is the property that lets it be dropped into an existing
+arbiter without changing behaviour.
+
+**It uses `clk`/`rst_n`, not the AMBA `aclk`/`aresetn`.** An easy mis-wire in a
+file where every neighbour uses the AMBA names.
+
+**The compliance model belongs to the DV framework, not here.** Round-robin
+order, starvation and fairness verdicts are computed in
+`CocoTBFramework`'s `ArbiterCompliance`; several historical "violations" were
+defects in that model rather than in any arbiter (COMMON-016 through
+COMMON-019).
+
+---
+
 ## Related Modules
 
 **Used by:** `arbiter_rr_pwm_monbus`, `arbiter_wrr_pwm_monbus` (as `u_monitor`).

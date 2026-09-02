@@ -117,6 +117,10 @@ def is_module_page(path):
     """
     import os
     stem = os.path.splitext(os.path.basename(path))[0]
+    # A SystemVerilog package is not a module: it has no ports and no clock
+    # by construction, so 'Ports' and 'Usage Examples' cannot apply to it.
+    if stem.endswith('_pkg'):
+        return False
     for root in ('rtl', 'projects'):
         for _dir, _sub, files in os.walk(root):
             if f'{stem}.sv' in files:

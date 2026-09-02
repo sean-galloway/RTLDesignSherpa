@@ -149,18 +149,18 @@ attribute syntax's fault, not the author's.
 
 ### Reset Assertion (Asynchronous)
 ```
-rst_n:      ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾╲_________________________
-sync_rst_n: ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾╲_________________________
+rst_n:      ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾_________________________
+sync_rst_n: ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾_________________________
                                 ^
                            Immediate assertion
 ```
 
 ### Reset Deassertion (Synchronous, N=3)
 ```
-clk:        ____╱‾╲____╱‾╲____╱‾╲____╱‾╲____╱‾╲____╱‾╲____
-rst_n:      _________________╱‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+clk:        ____‾____‾____‾____‾____‾____‾____
+rst_n:      _________________‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 r_sync_reg: 111  111  111  110  100  000  000  000  000
-sync_rst_n: _________________________╱‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+sync_rst_n: _________________________‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
                                     ^
                             Synchronized deassertion
                             (N clock cycles after rst_n release)
@@ -281,10 +281,10 @@ module reset_controller (
 );
 
     logic combined_rst_n;
-    
+
     // Combine all reset sources
     assign combined_rst_n = external_rst_n & watchdog_rst_n & ~sw_rst;
-    
+
     // Synchronize the combined reset
     reset_sync #(.N(3)) rst_sync_inst (
         .clk(sys_clk),
@@ -350,7 +350,7 @@ Configurable N lets you tune for different requirements:
 ```systemverilog
 // Plan reset distribution hierarchy
 // Level 1: Global reset synchronizer
-// Level 2: Domain-specific reset synchronizers  
+// Level 2: Domain-specific reset synchronizers
 // Level 3: Module-level reset distribution
 ```
 
@@ -433,7 +433,7 @@ property sync_deassert;
     $rose(rst_n) |-> ##N $rose(sync_rst_n);
 endproperty
 
-// Verify asynchronous assertion  
+// Verify asynchronous assertion
 property async_assert;
     $fell(rst_n) |-> $fell(sync_rst_n);
 endproperty

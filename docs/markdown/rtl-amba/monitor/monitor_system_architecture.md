@@ -172,8 +172,8 @@ too.
 
 ```
 protocol  (4b, 16 slots)   AXI / AXIS / APB / ARB / CORE
-  └─ packet_type (4b)      error / timeout / completion / threshold / perf / debug / ...
-       └─ event_code (8b)  ARB_ERR_STARVATION, AXI_PERFWIN_BP_CYCLES, ...
+   packet_type (4b)      error / timeout / completion / threshold / perf / debug / ...
+        event_code (8b)  ARB_ERR_STARVATION, AXI_PERFWIN_BP_CYCLES, ...
 ```
 
 Each level narrows the one above, and **each level is independently useful**. A
@@ -222,8 +222,8 @@ zero.
 
 ```
 unit_id    (8b)   which subsystem
-  └─ agent_id  (16b)   which instance within it
-       └─ channel_id (9b)   which channel, or which AXI transaction ID
+   agent_id  (16b)   which instance within it
+        channel_id (9b)   which channel, or which AXI transaction ID
 ```
 
 Note this nests the same way the classification does, and to the same depth --
@@ -329,18 +329,18 @@ keep working.
    ------                  -----                    ---------           -------
 
  protocol wrapper      axi_monitor_base           monbus_arbiter    monbus_*_group
- axi4_master_rd_mon      trans_mgr (CAM)            (N:1 merge,       ├─ error FIFO
- axi5_slave_wr_mon       timer / timeout            packet+ts         │   -> AXI read
- axil4_*_mon             reporter_error            atomic)           │      (IRQ)
- apb4_monitor             reporter_timeout               │            └─ write FIFO
- apb5_monitor            reporter_compl                 │                -> AXI write
-                         reporter_threshold             │                (bulk trace)
- custom producer         reporter_perf                  │                   │
- arbiter_rr_pwm_monbus   reporter_debug                 │            monbus_compressor
- arbiter_wrr_pwm_monbus       │                         │            (optional, in-line)
- your block                   │                         │
-       │                      ▼                         │            monbus_pkt_tally
-       └──────────────> axi_monitor_filtered ───────────┘            (counting only)
+ axi4_master_rd_mon      trans_mgr (CAM)            (N:1 merge,        error FIFO
+ axi5_slave_wr_mon       timer / timeout            packet+ts            -> AXI read
+ axil4_*_mon             reporter_error            atomic)                 (IRQ)
+ apb4_monitor             reporter_timeout                            write FIFO
+ apb5_monitor            reporter_compl                                 -> AXI write
+                         reporter_threshold                             (bulk trace)
+ custom producer         reporter_perf
+ arbiter_rr_pwm_monbus   reporter_debug                             monbus_compressor
+ arbiter_wrr_pwm_monbus                                            (optional, in-line)
+ your block
+                                                                  monbus_pkt_tally
+       > axi_monitor_filtered             (counting only)
                         (staged drop filter)
 ```
 

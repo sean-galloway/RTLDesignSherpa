@@ -55,9 +55,9 @@ consecutive values:
 
 ```
 Binary  Gray   Transitions
-000  →  000    
+000  →  000
 001  →  001    1 bit change
-010  →  011    1 bit change  
+010  →  011    1 bit change
 011  →  010    1 bit change
 100  →  110    1 bit change
 101  →  111    1 bit change
@@ -98,7 +98,7 @@ Bit by bit, for a 4-bit converter:
 // For 4-bit example:
 assign binary[3] = gray[3];                           // MSB unchanged
 assign binary[2] = gray[3] ^ gray[2];                 // XOR from MSB down
-assign binary[1] = gray[3] ^ gray[2] ^ gray[1];       // XOR from MSB down  
+assign binary[1] = gray[3] ^ gray[2] ^ gray[1];       // XOR from MSB down
 assign binary[0] = gray[3] ^ gray[2] ^ gray[1] ^ gray[0]; // XOR all bits
 ```
 
@@ -121,7 +121,7 @@ assign binary[0] = gray[3] ^ gray[2] ^ gray[1] ^ gray[0]; // XOR all bits
 Gray input: 0110
 
 binary[3] = gray[3] = 0
-binary[2] = gray[3] ^ gray[2] = 0 ^ 1 = 1  
+binary[2] = gray[3] ^ gray[2] = 0 ^ 1 = 1
 binary[1] = gray[3] ^ gray[2] ^ gray[1] = 0 ^ 1 ^ 1 = 0
 binary[0] = gray[3] ^ gray[2] ^ gray[1] ^ gray[0] = 0 ^ 1 ^ 1 ^ 0 = 0
 
@@ -173,7 +173,7 @@ gray2bin #(.WIDTH(5)) wr_ptr_conv (
 );
 
 gray2bin #(.WIDTH(5)) rd_ptr_conv (
-    .gray(sync_rd_ptr_gray),  
+    .gray(sync_rd_ptr_gray),
     .binary(sync_rd_ptr_bin)
 );
 

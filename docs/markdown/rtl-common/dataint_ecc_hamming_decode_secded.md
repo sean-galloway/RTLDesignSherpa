@@ -135,14 +135,14 @@ always_comb begin : create_syndrome_covered_bits
             parity_pos = (2 ** i) - 1;  // Parity bit positions
             w_syndrome_in[i] = hamming_data[parity_pos];  // Stored parity
             w_syndrome[i] = 1'b0;
-            
+
             w_covered_bits = get_covered_bits(i);
             for (bit_index = 0; bit_index < TotalWidth; bit_index++) begin
                 // Calculate parity over covered bits (excluding parity bit itself)
                 if (w_covered_bits[bit_index] && (bit_index != parity_pos))
                     w_syndrome[i] = w_syndrome[i] ^ hamming_data[bit_index];
             end
-            
+
             // Compare with stored parity to get syndrome
             w_syndrome[i] = w_syndrome[i] ^ w_syndrome_in[i];
         end
@@ -186,14 +186,14 @@ always_ff @(posedge clk or negedge rst_n) begin
         // SECDED error detection logic
         if (w_overall_parity != w_overall_parity_in) begin
             error_detected <= 1'b1;
-            
+
             if (w_syndrome != {ParityBits{1'b0}}) begin
                 // Single-bit error in Hamming data - correct it
                 r_data_with_parity[w_syndrome_0_based] <= 
                     ~hamming_data[w_syndrome_0_based];
             end
             // Single-bit error in SECDED bit - no correction needed
-            
+
         end else if (w_syndrome != {ParityBits{1'b0}}) begin
             // Double-bit error detected
             error_detected <= 1'b1;

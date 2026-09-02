@@ -142,6 +142,29 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 
 ---
 
+## Functional Description
+
+This wrapper is the base module plus one `amba_clock_gate_ctrl` instance. The
+datapath is untouched -- every channel signal is forwarded verbatim -- so
+functional behaviour is identical to the base module and the wrapper adds no
+latency of its own.
+
+What it adds is a gated clock. `amba_clock_gate_ctrl` watches two activity
+terms, `user_valid` (this side's valids plus the base module's `busy`) and
+`axi_valid` (the far side's valids), registers their OR into `r_wakeup`, and
+stops the inner module's clock once both have been quiet for
+`cfg_cg_idle_count` cycles. The clock restarts on the next activity, one cycle
+later.
+
+While the clock is stopped the wrapper masks its outward-facing READY signals
+with `!cg_gating`, so a peer sees no acceptance until the clock runs again and
+no handshake is lost across the wake boundary.
+
+`cfg_cg_enable` arms this behaviour; with it low the clock free-runs and the
+module is indistinguishable from its base.
+
+---
+
 ## Timing Characteristics
 
 | Skid parameter | Default depth |
@@ -182,6 +205,33 @@ axi4_master_wr_cg #(
     // ... all other ports same as axi4_master_wr (except busy)
 );
 ```
+
+---
+
+## Design Notes
+
+**A peer's READY must never enter the activity term.** A consumer that parks
+its response-ready high while idle is behaving correctly; folding that signal
+into `user_valid` pins this block permanently awake and defeats gating
+entirely -- silently, because function is unaffected. Ten wrappers in this
+repository shipped that way and nothing failed until someone measured.
+`val/amba/test_cg_peer_ready.py` parks the peer READY high, holds every VALID
+low, and requires `cg_gating`. Canonical rule:
+`vault/handbook/design/clock-gating-activity-terms.md`.
+
+**`cfg_cg_enable` is not a kill switch.** It arms gating and reaches
+`amba_clock_gate_ctrl` only; the datapath and any monitor enables are forwarded
+untouched. With it low the clock free-runs and this module behaves exactly like
+its base.
+
+**Gating latency.** The clock stops `cfg_cg_idle_count` + 2 cycles after the
+last bus activity -- the idle counter, plus one for the `r_wakeup` flop. Size
+the idle count against your traffic's inter-burst gap: too small and the block
+wakes constantly, too large and it never gates.
+
+**Cost.** Five flops: `r_wakeup` plus `r_idle_counter` at `IDLE_CNTR_WIDTH`,
+scaling as 1 + `CG_IDLE_COUNT_WIDTH`. The ICG itself is a latch or BUFGCE, not
+fabric flops.
 
 ---
 

@@ -575,7 +575,7 @@ parameter ADDR_WIDTH = 16;  // 2^16 addresses
 parameter CTRL_WIDTH = 8;   // Byte-aligned
 parameter DATA_WIDTH = 32;  // Word-aligned
 
-// ⚠️ ACCEPTABLE: Non-power-of-2 when needed
+// ️ ACCEPTABLE: Non-power-of-2 when needed
 parameter TAG_WIDTH  = 12;  // 4096 tags (actual requirement)
 ```
 
@@ -587,7 +587,7 @@ gaxi_skid_buffer_multi #(.DEPTH(2)) ...
 
 // Sync FIFOs: Power-of-2 recommended but not required
 gaxi_fifo_sync_multi #(.DEPTH(16)) ...   // ✅ Power-of-2
-gaxi_fifo_sync_multi #(.DEPTH(20)) ...   // ⚠️ Works but less efficient
+gaxi_fifo_sync_multi #(.DEPTH(20)) ...   // ️ Works but less efficient
 
 // Async FIFOs: MUST be power-of-2 (Gray code requirement)
 gaxi_fifo_async_multi #(.DEPTH(16)) ...  // ✅ Required

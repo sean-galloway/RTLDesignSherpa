@@ -176,6 +176,16 @@ end
 - `tags_full = &r_valid`: AND of all valid bits
 - `tag_status`: Result of tag lookup operation
 
+## Related Modules
+
+Nothing in the tree instantiates this module and it
+instantiates nothing: it is a leaf, used directly by whatever design needs
+it. Its nearest neighbours in `rtl/common/` are:
+
+- (none in this category)
+
+---
+
 ## Timing Characteristics
 
 This module is **purely combinational** -- it contains no `always_ff` and no

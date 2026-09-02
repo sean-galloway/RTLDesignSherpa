@@ -277,12 +277,12 @@ rows in 4 layers, then a single 16-bit Brent-Kung prefix CPA sums them.
 8 for 32-bit**—count the `// Wallace reduction layer N` comments in the
 generated RTL if you want to check.
 
-Don't trust a closed form here. The often-quoted `⌈log₁.₅(N)⌉` is wrong: it
+Don't trust a closed form here. The often-quoted `log₁.₅(N)` is wrong: it
 describes reduction from N rows down to 1, and this tree stops at 2.
-Correcting it to `⌈log₁.₅(N/2)⌉` fixes 8-bit and 16-bit but still under-predicts
+Correcting it to `log₁.₅(N/2)` fixes 8-bit and 16-bit but still under-predicts
 32-bit—it gives 7 where the generator emits 8:
 
-| N | `⌈log₁.₅(N)⌉` | `⌈log₁.₅(N/2)⌉` | measured |
+| N | `log₁.₅(N)` | `log₁.₅(N/2)` | measured |
 |---|---------------|-----------------|----------|
 | 8 | 6 | 4 | **4** |
 | 16 | 7 | 6 | **6** |

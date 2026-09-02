@@ -162,13 +162,13 @@ module icg (
     input  logic en,     // Enable (active high)
     output logic gclk    // Gated clock output
 );
-    
+
     // Implementation varies by technology library
     // Typically includes:
     // - Latch to avoid glitches
     // - AND gate for gating
     // - Proper setup/hold timing
-    
+
 endmodule
 ```
 
@@ -183,13 +183,13 @@ module icg_generic (
 );
 
     logic en_latched;
-    
+
     // Latch enable on falling edge to avoid glitches
     always_latch begin
         if (~clk)
             en_latched = en;
     end
-    
+
     // Gate clock with latched enable
     assign gclk = clk & en_latched;
 
@@ -224,11 +224,11 @@ module icg_intel (
 
     // Intel FPGA implementation
     logic en_reg;
-    
+
     always_ff @(negedge clk) begin
         en_reg <= en;
     end
-    
+
     assign gclk = clk & en_reg;
 
 endmodule
@@ -241,20 +241,20 @@ module icg_behavioral (
 );
 
     logic en_latch;
-    
+
     // Latch enable on falling edge to prevent glitches
     always_latch begin
         if (!clk)
             en_latch = en;
     end
-    
+
     // Gate the clock
     assign gclk = clk & en_latch;
 
 endmodule
 ```
 
-## Timing and Performance
+### Timing and Performance
 
 ### Resource Utilization
 
@@ -263,7 +263,6 @@ endmodule
 | 4-bit counter | 8 | 4 | 1 | < 2% |
 | 8-bit counter | 15 | 8 | 1 | < 3% |
 | 16-bit counter | 30 | 16 | 1 | < 5% |
-
 ## Timing Characteristics
 
 This module is **purely combinational** -- it contains no `always_ff` and no
@@ -285,16 +284,16 @@ measured.
 module cpu_clock_gating (
     input  logic        clk_cpu,
     input  logic        rst_n,
-    
+
     // CPU control signals
     input  logic        cpu_active,
     input  logic        interrupt_pending,
     input  logic        debug_mode,
-    
+
     // Power management
     input  logic [3:0]  idle_threshold,
     input  logic        power_save_enable,
-    
+
     // Output clocks
     output logic        clk_cpu_gated,
     output logic        clk_debug,
@@ -303,13 +302,13 @@ module cpu_clock_gating (
 
     logic cpu_wakeup;
     logic debug_wakeup;
-    
+
     // CPU wake-up conditions
     assign cpu_wakeup = cpu_active || interrupt_pending;
-    
+
     // Debug interface always active in debug mode
     assign debug_wakeup = debug_mode || cpu_wakeup;
-    
+
     // Main CPU clock gating
     clock_gate_ctrl #(
         .IDLE_CNTR_WIDTH(4)
@@ -322,7 +321,7 @@ module cpu_clock_gating (
         .clk_out(clk_cpu_gated),
         .gating(cpu_sleeping)
     );
-    
+
     // Debug clock gating (shorter timeout)
     clock_gate_ctrl #(
         .IDLE_CNTR_WIDTH(3)
@@ -345,32 +344,32 @@ endmodule
 module peripheral_clock_manager (
     input  logic        clk_system,
     input  logic        rst_n,
-    
+
     // Peripheral activity signals
     input  logic        uart_active,
     input  logic        spi_active,
     input  logic        i2c_active,
     input  logic        timer_active,
-    
+
     // Configuration
     input  logic [7:0]  power_config,   // [7:4] = enable bits, [3:0] = timeout
-    
+
     // Gated clocks
     output logic        clk_uart,
     output logic        clk_spi,
     output logic        clk_i2c,
     output logic        clk_timer,
-    
+
     // Status
     output logic [3:0]  peripheral_sleeping
 );
 
     logic [3:0] idle_timeout;
     logic [3:0] gate_enables;
-    
+
     assign idle_timeout = power_config[3:0];
     assign gate_enables = power_config[7:4];
-    
+
     // UART clock gating
     clock_gate_ctrl #(4) uart_cg (
         .clk_in(clk_system),
@@ -381,7 +380,7 @@ module peripheral_clock_manager (
         .clk_out(clk_uart),
         .gating(peripheral_sleeping[0])
     );
-    
+
     // SPI clock gating
     clock_gate_ctrl #(4) spi_cg (
         .clk_in(clk_system),
@@ -392,7 +391,7 @@ module peripheral_clock_manager (
         .clk_out(clk_spi),
         .gating(peripheral_sleeping[1])
     );
-    
+
     // I2C clock gating
     clock_gate_ctrl #(4) i2c_cg (
         .clk_in(clk_system),
@@ -403,7 +402,7 @@ module peripheral_clock_manager (
         .clk_out(clk_i2c),
         .gating(peripheral_sleeping[2])
     );
-    
+
     // Timer clock gating (different timeout)
     clock_gate_ctrl #(4) timer_cg (
         .clk_in(clk_system),
@@ -424,33 +423,33 @@ endmodule
 module memory_clock_gating (
     input  logic        clk_memory,
     input  logic        rst_n,
-    
+
     // Memory access signals
     input  logic        mem_read,
     input  logic        mem_write,
     input  logic        mem_refresh_req,
     input  logic        cache_miss,
-    
+
     // Configuration
     input  logic [2:0]  mem_power_mode,  // 0=always on, 7=aggressive gating
-    
+
     // Gated clocks
     output logic        clk_mem_ctrl,    // Memory controller
     output logic        clk_mem_data,    // Data path
     output logic        clk_mem_refresh, // Refresh logic
-    
+
     // Status
     output logic [2:0]  mem_gating_status
 );
 
     logic [3:0] timeout_ctrl, timeout_data, timeout_refresh;
     logic mem_active, data_active, refresh_active;
-    
+
     // Activity detection
     assign mem_active = mem_read || mem_write || cache_miss;
     assign data_active = mem_read || mem_write;
     assign refresh_active = mem_refresh_req;
-    
+
     // Timeout configuration based on power mode
     always_comb begin
         case (mem_power_mode)
@@ -464,7 +463,7 @@ module memory_clock_gating (
             3'd7: {timeout_ctrl, timeout_data, timeout_refresh} = {4'd0, 4'd0, 4'd1};    // Ultra power save
         endcase
     end
-    
+
     // Memory controller clock gating
     clock_gate_ctrl #(4) ctrl_cg (
         .clk_in(clk_memory),
@@ -475,7 +474,7 @@ module memory_clock_gating (
         .clk_out(clk_mem_ctrl),
         .gating(mem_gating_status[0])
     );
-    
+
     // Data path clock gating
     clock_gate_ctrl #(4) data_cg (
         .clk_in(clk_memory),
@@ -486,7 +485,7 @@ module memory_clock_gating (
         .clk_out(clk_mem_data),
         .gating(mem_gating_status[1])
     );
-    
+
     // Refresh logic clock gating
     clock_gate_ctrl #(4) refresh_cg (
         .clk_in(clk_memory),
@@ -509,14 +508,14 @@ module adaptive_clock_gating #(
 ) (
     input  logic        clk_in,
     input  logic        rst_n,
-    
+
     // Activity signals
     input  logic [7:0]  activity_vector,
-    
+
     // Configuration
     input  logic        adaptive_enable,
     input  logic [3:0]  base_timeout,
-    
+
     // Outputs
     output logic        clk_out,
     output logic        gating_active,
@@ -527,7 +526,7 @@ module adaptive_clock_gating #(
     logic [7:0] activity_window_counter;
     logic [3:0] adaptive_timeout;
     logic block_active;
-    
+
     // Activity monitoring
     always_ff @(posedge clk_in or negedge rst_n) begin
         if (!rst_n) begin
@@ -538,9 +537,9 @@ module adaptive_clock_gating #(
             // Count activity in current window
             if (|activity_vector)
                 activity_counter <= activity_counter + 1;
-                
+
             activity_window_counter <= activity_window_counter + 1;
-            
+
             // Update activity level at end of window
             if (activity_window_counter == ACTIVITY_WINDOW - 1) begin
                 activity_level <= activity_counter[15:8]; // Scale to 0-255
@@ -549,7 +548,7 @@ module adaptive_clock_gating #(
             end
         end
     end
-    
+
     // Adaptive timeout based on activity level
     always_comb begin
         if (!adaptive_enable) begin
@@ -557,7 +556,7 @@ module adaptive_clock_gating #(
         end else begin
             case (activity_level)
                 8'h00: adaptive_timeout = base_timeout + 4'd8; // Very low activity
-                8'h01: adaptive_timeout = base_timeout + 4'd6; // Low activity  
+                8'h01: adaptive_timeout = base_timeout + 4'd6; // Low activity
                 8'h02: adaptive_timeout = base_timeout + 4'd4; // Medium-low activity
                 8'h04: adaptive_timeout = base_timeout + 4'd2; // Medium activity
                 8'h08: adaptive_timeout = base_timeout;        // Normal activity
@@ -565,10 +564,10 @@ module adaptive_clock_gating #(
             endcase
         end
     end
-    
+
     // Activity detection
     assign block_active = |activity_vector;
-    
+
     // Clock gating controller
     clock_gate_ctrl #(4) adaptive_cg (
         .clk_in(clk_in),
@@ -589,23 +588,23 @@ endmodule
 module hierarchical_clock_gating (
     input  logic        clk_root,
     input  logic        rst_n,
-    
+
     // Global control
     input  logic        global_cg_enable,
     input  logic [3:0]  global_timeout,
-    
+
     // Subsystem activity
     input  logic        cpu_active,
     input  logic        dsp_active,
     input  logic        peripheral_active,
     input  logic        memory_active,
-    
+
     // Hierarchical clocks
     output logic        clk_cpu_domain,
     output logic        clk_dsp_domain,
     output logic        clk_peripheral_domain,
     output logic        clk_memory_domain,
-    
+
     // Power monitoring
     output logic [3:0]  domain_gating_status,
     output logic [15:0] power_savings_estimate
@@ -614,10 +613,10 @@ module hierarchical_clock_gating (
     logic system_active;
     logic clk_system_gated;
     logic system_gated;
-    
+
     // System-level activity detection
     assign system_active = cpu_active || dsp_active || peripheral_active || memory_active;
-    
+
     // Top-level system clock gating
     clock_gate_ctrl #(4) system_cg (
         .clk_in(clk_root),
@@ -628,7 +627,7 @@ module hierarchical_clock_gating (
         .clk_out(clk_system_gated),
         .gating(system_gated)
     );
-    
+
     // CPU domain gating
     clock_gate_ctrl #(4) cpu_cg (
         .clk_in(clk_system_gated),
@@ -639,7 +638,7 @@ module hierarchical_clock_gating (
         .clk_out(clk_cpu_domain),
         .gating(domain_gating_status[0])
     );
-    
+
     // DSP domain gating
     clock_gate_ctrl #(4) dsp_cg (
         .clk_in(clk_system_gated),
@@ -650,7 +649,7 @@ module hierarchical_clock_gating (
         .clk_out(clk_dsp_domain),
         .gating(domain_gating_status[1])
     );
-    
+
     // Peripheral domain gating
     clock_gate_ctrl #(4) peripheral_cg (
         .clk_in(clk_system_gated),
@@ -661,7 +660,7 @@ module hierarchical_clock_gating (
         .clk_out(clk_peripheral_domain),
         .gating(domain_gating_status[2])
     );
-    
+
     // Memory domain gating
     clock_gate_ctrl #(4) memory_cg (
         .clk_in(clk_system_gated),
@@ -672,11 +671,11 @@ module hierarchical_clock_gating (
         .clk_out(clk_memory_domain),
         .gating(domain_gating_status[3])
     );
-    
+
     // Power savings estimation (simplified)
     logic [3:0] gated_domains;
     assign gated_domains = domain_gating_status[3:0];
-    
+
     always_ff @(posedge clk_root or negedge rst_n) begin
         if (!rst_n) begin
             power_savings_estimate <= 0;
@@ -714,7 +713,7 @@ module glitch_free_clock_gate (
 
     logic gate_enable_sync;
     logic gate_request;
-    
+
     // Synchronize gate enable to avoid glitches
     always_ff @(posedge clk_in or negedge rst_n) begin
         if (!rst_n) begin
@@ -725,7 +724,7 @@ module glitch_free_clock_gate (
             gate_request <= gate_enable_sync && !wakeup;
         end
     end
-    
+
     // Use ICG with synchronized control
     icg u_icg (
         .clk(clk_in),
@@ -753,13 +752,13 @@ module multi_level_clock_gate #(
 
     logic [LEVELS:0] clk_levels; // Include input clock
     assign clk_levels[0] = clk_in;
-    
+
     genvar i;
     generate
         for (i = 0; i < LEVELS; i++) begin : level_gates
             logic [3:0] timeout;
             assign timeout = level_timeouts[i*4+:4];
-            
+
             clock_gate_ctrl #(4) level_cg (
                 .clk_in(clk_levels[i]),
                 .aresetn(rst_n),
@@ -771,7 +770,7 @@ module multi_level_clock_gate #(
             );
         end
     endgenerate
-    
+
     assign clk_out = clk_levels[LEVELS];
 
 endmodule
@@ -801,12 +800,12 @@ module power_analysis_wrapper (
         .clk_out(clk_out),
         .gating(gating)
     );
-    
+
     // Power monitoring
     logic [31:0] total_cycles;
     logic [31:0] gated_cycles;
     logic [31:0] ungated_cycles;
-    
+
     always_ff @(posedge clk_in or negedge rst_n) begin
         if (!rst_n) begin
             total_cycles <= 0;
@@ -820,7 +819,7 @@ module power_analysis_wrapper (
                 ungated_cycles <= ungated_cycles + 1;
         end
     end
-    
+
     // Calculate power savings percentage
     always_ff @(posedge clk_in) begin
         if (total_cycles > 1000) begin // Avoid division by small numbers
@@ -898,7 +897,7 @@ assign cpu_active = instruction_fetch ||
 logic bad_activity;
 assign bad_activity = |all_system_signals; // Too broad
 
-// Avoid overly narrow activity signals  
+// Avoid overly narrow activity signals
 logic narrow_activity;
 assign narrow_activity = specific_register_write; // Too narrow
 ```
@@ -907,13 +906,13 @@ assign narrow_activity = specific_register_write; // Too narrow
 
 ```
 System Level (Longest timeout)
-├── CPU Domain (Medium timeout)
-│   ├── ALU (Short timeout)
-│   ├── Cache (Medium timeout)
-│   └── Debug (Very short timeout)
-├── DSP Domain (Short timeout)
-├── Peripheral Domain (Long timeout)
-└── Memory Domain (Medium timeout)
+ CPU Domain (Medium timeout)
+    ALU (Short timeout)
+    Cache (Medium timeout)
+    Debug (Very short timeout)
+ DSP Domain (Short timeout)
+ Peripheral Domain (Long timeout)
+ Memory Domain (Medium timeout)
 ```
 
 **Verification checklist:**
@@ -973,22 +972,22 @@ modules this one instantiates and the modules that instantiate it.
 module tb_clock_gate_ctrl;
 
     parameter IDLE_CNTR_WIDTH = 4;
-    
+
     logic clk_in, aresetn;
     logic cfg_cg_enable;
     logic [IDLE_CNTR_WIDTH-1:0] cfg_cg_idle_count;
     logic wakeup;
     logic clk_out, gating;
-    
+
     // Clock generation
     initial clk_in = 0;
     always #5ns clk_in = ~clk_in; // 100MHz
-    
+
     // DUT instantiation
     clock_gate_ctrl #(
         .IDLE_CNTR_WIDTH(IDLE_CNTR_WIDTH)
     ) dut (.*);
-    
+
     // Test sequence
     initial begin
         // Initialize
@@ -996,46 +995,46 @@ module tb_clock_gate_ctrl;
         cfg_cg_enable = 0;
         cfg_cg_idle_count = 4'd5;
         wakeup = 0;
-        
+
         #100ns aresetn = 1;
-        
+
         // Test basic gating
         test_basic_gating();
-        
+
         // Test immediate wakeup
         test_immediate_wakeup();
-        
+
         // Test global disable
         test_global_disable();
-        
+
         // Test different timeouts
         test_timeout_values();
-        
+
         $display("All tests completed!");
         $finish;
     end
-    
+
     // Test basic clock gating functionality
     task test_basic_gating();
         begin
             $display("Testing basic clock gating...");
-            
+
             cfg_cg_enable = 1;
             cfg_cg_idle_count = 4'd3;
-            
+
             // Wait for gating to occur
             wait_for_gating();
-            
+
             // Verify clock is gated
             check_clock_gated();
-            
+
             // Wake up and verify clock restoration
             wakeup = 1;
             #20ns wakeup = 0;
             check_clock_active();
         end
     endtask
-    
+
     // Wait for clock gating to occur
     task wait_for_gating();
         int timeout_cycles;
@@ -1045,7 +1044,7 @@ module tb_clock_gate_ctrl;
                 @(posedge clk_in);
                 timeout_cycles++;
             end
-            
+
             if (!gating) begin
                 $error("Clock gating did not occur within timeout");
             end else begin
@@ -1053,7 +1052,7 @@ module tb_clock_gate_ctrl;
             end
         end
     endtask
-    
+
     // Check that clock is properly gated
     task check_clock_gated();
         logic prev_clk_out;
@@ -1061,7 +1060,7 @@ module tb_clock_gate_ctrl;
         begin
             prev_clk_out = clk_out;
             stable_cycles = 0;
-            
+
             repeat (10) begin
                 @(posedge clk_in);
                 if (clk_out == prev_clk_out) begin
@@ -1071,7 +1070,7 @@ module tb_clock_gate_ctrl;
                     prev_clk_out = clk_out;
                 end
             end
-            
+
             if (stable_cycles >= 5) begin
                 $display("PASS: Clock is properly gated");
             end else begin
@@ -1079,18 +1078,18 @@ module tb_clock_gate_ctrl;
             end
         end
     endtask
-    
+
     // Check that clock is active
     task check_clock_active();
         int edge_count;
         begin
             edge_count = 0;
-            
+
             repeat (20) begin
                 @(posedge clk_in);
                 if ($rose(clk_out)) edge_count++;
             end
-            
+
             if (edge_count >= 8) begin
                 $display("PASS: Clock is active after wakeup");
             end else begin
@@ -1106,33 +1105,33 @@ endmodule
 
 ```systemverilog
 covergroup clock_gate_cg @(posedge clk_in);
-    
+
     cp_idle_count: coverpoint cfg_cg_idle_count {
         bins short_timeout[] = {[0:3]};
         bins medium_timeout[] = {[4:10]};
         bins long_timeout[] = {[11:15]};
     }
-    
+
     cp_counter_values: coverpoint dut.r_idle_counter {
         bins countdown[] = {[0:15]};
         bins zero = {0};
     }
-    
+
     cp_gating_enable: coverpoint cfg_cg_enable {
         bins enabled = {1};
         bins disabled = {0};
     }
-    
+
     cp_wakeup: coverpoint wakeup {
         bins active = {1};
         bins inactive = {0};
     }
-    
+
     cp_gating_status: coverpoint gating {
         bins gated = {1};
         bins ungated = {0};
     }
-    
+
     // Cross coverage
     cross_timeout_gating: cross cp_idle_count, cp_gating_status;
     cross_wakeup_gating: cross cp_wakeup, cp_gating_status;
@@ -1147,32 +1146,32 @@ module clock_gate_properties;
 
     // Bind to DUT
     bind clock_gate_ctrl clock_gate_properties props_inst (.*);
-    
+
     // Property: Immediate wakeup
     property immediate_wakeup;
         @(posedge clk_in) disable iff (!aresetn)
         wakeup |-> ##1 !gating;
     endproperty
-    
+
     // Property: Gating after timeout
     property gating_after_timeout;
         @(posedge clk_in) disable iff (!aresetn)
         cfg_cg_enable && !wakeup && (dut.r_idle_counter == 0) |-> gating;
     endproperty
-    
+
     // Property: Counter behavior
     property counter_countdown;
         @(posedge clk_in) disable iff (!aresetn)
         cfg_cg_enable && !wakeup && (dut.r_idle_counter > 0) |=>
         (dut.r_idle_counter == $past(dut.r_idle_counter) - 1);
     endproperty
-    
+
     // Property: Global disable
     property global_disable;
         @(posedge clk_in) disable iff (!aresetn)
         !cfg_cg_enable |-> !gating;
     endproperty
-    
+
     // Assertions
     assert property (immediate_wakeup);
     assert property (gating_after_timeout);

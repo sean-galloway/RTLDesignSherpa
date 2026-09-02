@@ -595,6 +595,23 @@ monbus_compressor #(
 
 ---
 
+## Design Notes
+
+**Compression is a runtime choice, not a build one.** With `USE_COMPRESSION=1`
+the compressor is selectable via `cfg_compress_en`, emitting one 64-bit
+self-tagged slot per compressed record instead of three raw beats. An
+incompressible record escapes to tier 0 and still costs three, so the worst
+case is no worse than raw.
+
+**The template CAM is the timing-critical path in this family.** On the STREAM
+characterisation build this route is the chronic critical path; the fix there
+was floorplanning, not pipelining.
+
+**`cam_clear` zeroes the statistics as well as the templates**, which is what
+makes per-run hit-rate figures comparable.
+
+---
+
 ## Testing
 
 The acceptance criterion is **byte-identical equivalence** between the RTL
@@ -658,10 +675,10 @@ DMA, descriptor-fetch monitor on a Nexys A7.
 | Tier-1 B hits | 10 (1.5 %) |
 | Tier-1 C hits | 0 (0 %) |
 | Tier-0 escapes | 44 (6.5 %) |
-| ┕ caused by CAM miss | 32 |
-| ┕ caused by delta_ts overflow | 12 |
-| ┕ caused by event_data overflow | 0 |
-| ┕ caused by ed_delta overflow | 0 |
+|  caused by CAM miss | 32 |
+|  caused by delta_ts overflow | 12 |
+|  caused by event_data overflow | 0 |
+|  caused by ed_delta overflow | 0 |
 | Distinct templates seen | 32 (perfectly fits CAM=32) |
 
 The dataset and acceptance recipe live at

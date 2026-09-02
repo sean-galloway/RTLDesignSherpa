@@ -25,7 +25,7 @@
 
 **Location:** `rtl/amba/axis4/`
 **Test Location:** `val/amba/`
-**Status:** ✅ Production Ready
+**Status:**  Production Ready
 
 ---
 
@@ -35,13 +35,13 @@ The AXIS4 subsystem provides a complete implementation of the ARM AMBA AXI4-Stre
 
 ### Key Features
 
-- ✅ **AXI4-Stream Protocol:** Streaming-optimized subset (no address channels)
-- ✅ **High Throughput:** One beat per cycle sustained; e.g. 25.6 GB/s at 512-bit / 400 MHz
-- ✅ **Flexible Sideband Signals:** TID, TDEST, TUSER for routing/control
-- ✅ **Packet Framing:** TLAST for packet/frame boundaries
-- ✅ **Elastic Buffering:** Integrated skid buffers for timing closure
-- ✅ **Clock Gating Variants:** Power-optimized versions
-- ✅ **Typical Use:** Video streams, network packets, DSP pipelines
+-  **AXI4-Stream Protocol:** Streaming-optimized subset (no address channels)
+-  **High Throughput:** One beat per cycle sustained; e.g. 25.6 GB/s at 512-bit / 400 MHz
+-  **Flexible Sideband Signals:** TID, TDEST, TUSER for routing/control
+-  **Packet Framing:** TLAST for packet/frame boundaries
+-  **Elastic Buffering:** Integrated skid buffers for timing closure
+-  **Clock Gating Variants:** Power-optimized versions
+-  **Typical Use:** Video streams, network packets, DSP pipelines
 
 ---
 
@@ -51,8 +51,8 @@ The AXIS4 subsystem provides a complete implementation of the ARM AMBA AXI4-Stre
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **axis_master** | AXIS master with buffered output | [axis_master.md](axis_master.md) | ✅ Documented |
-| **axis_slave** | AXIS slave with buffered input | [axis_slave.md](axis_slave.md) | ✅ Documented |
+| **axis_master** | AXIS master with buffered output | [axis_master.md](axis_master.md) |  Documented |
+| **axis_slave** | AXIS slave with buffered input | [axis_slave.md](axis_slave.md) |  Documented |
 
 ### Clock-Gated Variants
 
@@ -60,8 +60,8 @@ The AXIS4 subsystem provides a complete implementation of the ARM AMBA AXI4-Stre
 
 | Module | Base Module | Status |
 |--------|-------------|--------|
-| **axis_master_cg** | [axis_master](axis_master.md) | ✅ Documented |
-| **axis_slave_cg** | [axis_slave](axis_slave.md) | ✅ Documented |
+| **axis_master_cg** | [axis_master](axis_master.md) |  Documented |
+| **axis_slave_cg** | [axis_slave](axis_slave.md) |  Documented |
 
 ---
 
@@ -510,14 +510,14 @@ Applies to `axis_master`, `axis_slave`, and their `_cg` variants:
 
 ### When to Use AXI4-Stream
 
-**✅ Use AXI4-Stream For:**
+** Use AXI4-Stream For:**
 - Video/image processing pipelines
 - Network packet processing
 - DSP data flows
 - High-throughput unidirectional data
 - Streaming accelerators
 
-**❌ Use AXI4 For:**
+** Use AXI4 For:**
 - Memory-mapped register access
 - Random access patterns
 - Bidirectional data flows
@@ -526,16 +526,16 @@ Applies to `axis_master`, `axis_slave`, and their `_cg` variants:
 ### Buffer Depth Trade-offs
 
 **Shallow Buffers (SKID_DEPTH = 2):**
-- ✅ Lower latency
-- ✅ Smaller area
-- ❌ Less tolerance for backpressure
+-  Lower latency
+-  Smaller area
+-  Less tolerance for backpressure
 - **Use for:** Low-latency DSP, continuous streams
 
 **Deep Buffers (SKID_DEPTH = 6-8):**
-- ✅ High backpressure tolerance
-- ✅ Better throughput under variable load
-- ❌ Higher latency
-- ❌ Larger area
+-  High backpressure tolerance
+-  Better throughput under variable load
+-  Higher latency
+-  Larger area
 - **Use for:** Network packets, variable-latency paths
 
 ### Sideband Signal Optimization

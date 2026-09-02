@@ -55,7 +55,7 @@ module gaxi_fifo_async #(
     input  logic            wr_valid,
     output logic            wr_ready,    // not full
     input  logic [DW-1:0]   wr_data,
-    
+
     // Read Domain
     input  logic            axi_rd_aclk,
     input  logic            axi_rd_aresetn,
@@ -204,7 +204,7 @@ gaxi_fifo_async #(
     .wr_valid       (domain_a_valid),
     .wr_ready       (domain_a_ready),
     .wr_data        (domain_a_data),
-    
+
     // Read domain @ 50 MHz
     .axi_rd_aclk    (clk_50mhz),
     .axi_rd_aresetn (rst_50_n),
@@ -230,7 +230,7 @@ gaxi_fifo_async #(
     .wr_valid       (fast_valid),
     .wr_ready       (fast_ready),
     .wr_data        (fast_data),
-    
+
     .axi_rd_aclk    (clk_62p5mhz),
     .axi_rd_aresetn (rst_slow_n),
     .rd_ready       (slow_ready),

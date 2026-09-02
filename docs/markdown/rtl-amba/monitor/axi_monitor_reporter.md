@@ -303,6 +303,25 @@ This module is instantiated automatically within higher-level monitor modules â€
 
 ---
 
+## Design Notes
+
+**This module is where half the monitor's area goes.** It keeps
+`r_trans_table_local`, a second full copy of `bus_transaction_t x
+MAX_TRANSACTIONS`, alongside the transaction manager's. Budget a monitored
+interface as a multiple of the unmonitored one, not a percentage on top;
+`MAX_TRANSACTIONS` is the knob and the cost is linear in it.
+
+**`event_reported_flags` is feedback, not status.** It tells the transaction
+manager which slots have already emitted, so one event is not reported twice.
+Leaving it unconnected reintroduces a defect the family has already had.
+
+**Packet classes contend for one bus.** The monbus sustains at most one packet
+per two cycles; enabling completion and performance together under heavy
+traffic drops packets. `cfg_axi_pkt_mask` suppresses a class while keeping its
+marking and counting.
+
+---
+
 ## Related Modules
 
 - **[axi_monitor_base](./axi_monitor_base.md)**

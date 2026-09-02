@@ -173,7 +173,7 @@ relative column for sizing and do not quote an absolute figure to anyone.
 Practical guidelines:
 
 - **2 stages**: Minimum for most applications
-- **3 stages**: Recommended for high-reliability systems  
+- **3 stages**: Recommended for high-reliability systems
 - **4+ stages**: Extreme reliability requirements (aerospace, medical)
 
 ## Timing Characteristics
@@ -190,7 +190,7 @@ Practical guidelines:
 // 2-stage: 2 cycle latency, good MTBF
 glitch_free_n_dff_arn #(.FLOP_COUNT(2)) fast_sync (...);
 
-// 3-stage: 3 cycle latency, excellent MTBF  
+// 3-stage: 3 cycle latency, excellent MTBF
 glitch_free_n_dff_arn #(.FLOP_COUNT(3)) safe_sync (...);
 
 // 4-stage: 4 cycle latency, extreme MTBF

@@ -70,12 +70,12 @@ usually why you're reaching for it.
 ### Key Architectural Differences
 ```
 Fibonacci LFSR:                    Galois LFSR:
-                                  
+
 MSB ← [XOR of all taps] ← LSB     MSB → [XOR] → [XOR] → [XOR] → LSB
  ↓                                      ↑       ↑       ↑       ↓
 Shift Right                           tap1    tap2    tap3   feedback
  ↓                                                              ↑
-LSB                                                             └─────┘
+LSB
 ```
 
 ### Advantages of Galois Architecture
@@ -132,6 +132,19 @@ always_ff @(posedge clk or negedge rst_n) begin
     end
 end
 ```
+
+## Testing
+
+`val/common/test_shifter_lfsr_galois.py` exercises the module, and
+`val/common/test_shifter_lfsr_galois_sequence.py` checks the generated sequence
+against a reference model.
+
+```bash
+source env_python
+pytest val/common/test_shifter_lfsr_galois.py val/common/test_shifter_lfsr_galois_sequence.py -v
+```
+
+---
 
 ## Timing Characteristics
 

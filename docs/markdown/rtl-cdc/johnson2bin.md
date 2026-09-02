@@ -160,7 +160,7 @@ Logic: gray[5]=0 → first half, position = w_leading_one + 1 = 3 + 1 = 4
 Binary: 4'b0100 = {wrap=0, addr=4} -- Johnson state 4
 ```
 
-#### Second Half Conversion (MSB = 1)  
+#### Second Half Conversion (MSB = 1)
 ```
 Johnson: 111000 (set bits {3,4,5}: w_leading_one = 5, w_trailing_one = 3)
 Logic: gray[5]=1 → second half, position = w_trailing_one = 3
@@ -200,7 +200,7 @@ Johnson width, not its log:
 ```
 Resources scale with JCW (Johnson Counter Width):
 - Small FIFOs (JCW ≤ 16): Reasonable overhead
-- Medium FIFOs (JCW = 32-64): Significant resources  
+- Medium FIFOs (JCW = 32-64): Significant resources
 - Large FIFOs (JCW > 64): May become limiting factor
 ```
 
@@ -246,7 +246,7 @@ parameter int DEPTH = 14;  // Standard Gray won't work
 
 // Use standard Gray approach when:
 parameter int DEPTH = 8;   // Power-of-2 is acceptable
-parameter int DEPTH = 16;  // Efficiency more important  
+parameter int DEPTH = 16;  // Efficiency more important
 parameter int DEPTH = 64;  // Large depth, resource conscious
 ```
 
@@ -293,7 +293,7 @@ decoder can assume them.
 ```systemverilog
 // Monitor internal state for debugging:
 // - w_leading_one: Position of leftmost 1
-// - w_trailing_one: Position of rightmost 1  
+// - w_trailing_one: Position of rightmost 1
 // - w_all_zeroes: Special case flag
 // - w_all_ones: Special case flag
 // - w_valid: nonzero-input flag ONLY -- not a Johnson-pattern check

@@ -61,14 +61,14 @@ The RTL, generator, and testbenches are in the component area, not under
 
 ```
 projects/components/apbx-xbar/
-├── bin/                    generator + convenience driver
-│   ├── apbx_xbar_generator.py
-│   └── generate_xbars.py
-├── rtl/                    generator output (regenerate, do not hand-edit)
-│   ├── apbx_xbar_{1to1,2to1,1to4,2to4,2to2_mixed}.sv
-│   ├── filelists/
-│   └── wrappers/           hand-written testbench scaffolding
-└── dv/tests/               CocoTB testbenches
+ bin/                    generator + convenience driver
+    apbx_xbar_generator.py
+    generate_xbars.py
+ rtl/                    generator output (regenerate, do not hand-edit)
+    apbx_xbar_{1to1,2to1,1to4,2to4,2to2_mixed}.sv
+    filelists/
+    wrappers/           hand-written testbench scaffolding
+ dv/tests/               CocoTB testbenches
 ```
 
 Formal proofs are separate again, under `formal/apbx_xbar/`.

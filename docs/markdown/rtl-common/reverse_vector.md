@@ -77,7 +77,7 @@ Output: vector_rev = 8'b10001101
 
 Bit mapping:
 vector_in[7] = 1 → vector_rev[0] = 1
-vector_in[6] = 0 → vector_rev[1] = 0  
+vector_in[6] = 0 → vector_rev[1] = 0
 vector_in[5] = 1 → vector_rev[2] = 1
 vector_in[4] = 1 → vector_rev[3] = 1
 vector_in[3] = 0 → vector_rev[4] = 0
@@ -94,7 +94,7 @@ Output: vector_rev = 4'b1101
 Bit mapping:
 vector_in[3] = 1 → vector_rev[0] = 1
 vector_in[2] = 0 → vector_rev[1] = 0
-vector_in[1] = 1 → vector_rev[2] = 1  
+vector_in[1] = 1 → vector_rev[2] = 1
 vector_in[0] = 1 → vector_rev[3] = 1
 ```
 
@@ -156,7 +156,7 @@ reverse_vector #(.WIDTH(16)) rev16 (
     .vector_rev(reversed_16bit)
 );
 
-// 64-bit reversal  
+// 64-bit reversal
 reverse_vector #(.WIDTH(64)) rev64 (
     .vector_in(data_64bit),
     .vector_rev(reversed_64bit)
@@ -306,7 +306,7 @@ endgenerate
 vector_in = '0;
 assert(vector_rev == '0);
 
-// Test all ones  
+// Test all ones
 vector_in = '1;
 assert(vector_rev == '1);
 

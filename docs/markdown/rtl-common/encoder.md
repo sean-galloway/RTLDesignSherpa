@@ -133,7 +133,7 @@ encoder #(.N(16)) grant_encoder (
 
 For valid one-hot inputs:
 - **Interrupt acknowledgment**: Convert interrupt vector to binary ID
-- **Resource arbitration**: Encode granted request to requester ID  
+- **Resource arbitration**: Encode granted request to requester ID
 - **State machine encoding**: Convert one-hot state to binary
 - **Position encoding**: Find position of active element
 

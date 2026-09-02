@@ -152,16 +152,7 @@ flowchart LR
 
 ---
 
-## Timing Characteristics
-
-| Mode | Write→Read Latency | Max Throughput | Read Path |
-|------|-------------------|----------------|-----------|
-| Mux (REGISTERED=0) | 1 cycle | 1/cycle | Combinatorial |
-| Flop (REGISTERED=1) | 2 cycles | 1/cycle | Registered |
-
----
-
-## Resource Utilization
+### Resource Utilization
 
 | DEPTH | Mode | Flops | LUTs | Memory Bits |
 |-------|------|-------|------|-------------|
@@ -169,6 +160,24 @@ flowchart LR
 | 16 | Flop | 16×DW + DW + ~20 | ~80 | 16×DW |
 | 64 | Mux | 64×DW + ~30 | ~120 | 64×DW |
 | 64 | Flop | 64×DW + DW + ~30 | ~120 | 64×DW |
+## Design Notes
+
+**Depth need not be a power of two.** `fifo_control` computes its
+flags through `counter_bin`'s MAX wrap, so any `DEPTH <= 2^ADDR_WIDTH` works. The
+header once claimed DEPTH must EQUAL 2^ADDR_WIDTH, which overstated the constraint
+and made non-power-of-two depths look illegal (COMMON-014).
+
+**Almost-full and almost-empty margins are in entries, not percent**, and a margin
+larger than the depth makes the flag unreachable rather than always-asserted.
+
+---
+
+## Timing Characteristics
+
+| Mode | Write→Read Latency | Max Throughput | Read Path |
+|------|-------------------|----------------|-----------|
+| Mux (REGISTERED=0) | 1 cycle | 1/cycle | Combinatorial |
+| Flop (REGISTERED=1) | 2 cycles | 1/cycle | Registered |
 
 ---
 

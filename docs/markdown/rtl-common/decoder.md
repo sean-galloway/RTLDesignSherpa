@@ -121,7 +121,7 @@ decoder #(.M(3), .N(8)) state_decoder (
 ### Synthesis Considerations
 
 - **Resource usage**: Typically lands in LUT-based logic
-- **Propagation delay**: Single LUT delay in most FPGA architectures  
+- **Propagation delay**: Single LUT delay in most FPGA architectures
 - **Fan-out**: Each input bit feeds multiple output comparisons
 
 ### Other Notes

@@ -208,7 +208,7 @@ always_comb begin
     for (int i = 0; i < NUM_VALS; i++) begin
         w_next_values[stage][i] = w_values[stage-1][i];
     end
-    
+
     if (IS_ODD_PASS) begin
         // Odd pass: compare (0,1), (2,3), (4,5), etc.
         for (int i = 0; i < NUM_VALS-1; i += 2) begin
@@ -253,6 +253,16 @@ is just the pipeline itself — a **pipeline-based control scheme**:
 3. **Output Indication**:
    - `done` signal is simply the valid signal from the final pipeline stage
    - No complex output state management required
+
+## Related Modules
+
+Nothing in the tree instantiates this module and it
+instantiates nothing: it is a leaf, used directly by whatever design needs
+it. Its nearest neighbours in `rtl/common/` are:
+
+- (none in this category)
+
+---
 
 ## Timing Characteristics
 

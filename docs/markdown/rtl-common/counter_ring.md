@@ -110,7 +110,7 @@ end
 3. **Enable Control**: Only advances when `enable` is high
 4. **Circular**: After WIDTH cycles, returns to initial state
 
-## State Sequences
+### State Sequences
 
 ### 4-bit Ring Counter (WIDTH=4)
 
@@ -135,7 +135,7 @@ end
 
 ```
 Step 0: 00000001 (Stage 0)
-Step 1: 10000000 (Stage 7)  
+Step 1: 10000000 (Stage 7)
 Step 2: 01000000 (Stage 6)
 Step 3: 00100000 (Stage 5)
 Step 4: 00010000 (Stage 4)
@@ -145,6 +145,88 @@ Step 7: 00000010 (Stage 1)
 Step 8: 00000001 (Stage 0) - Cycle repeats
 ```
 
+### Properties and Characteristics
+
+### One-Hot Encoding
+
+Ring counters hand you one-hot encoding for free:
+- **Exactly One Bit Set**: Always exactly one bit is '1'
+- **Unique States**: Each state is distinctly different
+- **Easy Decode**: No additional decoding logic needed
+- **Glitch-Free**: Clean transitions between states
+
+### Self-Correcting Behavior
+
+An honest word about self-correction — ring counters mostly don't:
+- **All Zeros**: Will remain stuck (not self-correcting)
+- **Multiple Ones**: Will maintain multiple bits indefinitely
+- **Single One**: Will operate correctly
+
+If an upset can land you in an illegal state, see the self-correcting variant under Advanced Variants.
+
+### Comparison with Other Counters
+
+| Counter Type | States | Decode Logic | One-Hot | Power |
+|--------------|--------|--------------|---------|-------|
+| Binary | 2^N | Complex | No | Low |
+| Gray | 2^N | Moderate | No | Low |
+| Johnson | 2×N | Moderate | No | Low |
+| Ring | N | None | Yes | Medium |
+
+### Advanced Variants
+
+### 1. Self-Correcting Ring Counter
+
+```systemverilog
+// Add error correction for stuck states
+logic error_detected;
+logic [WIDTH-1:0] corrected_ring;
+
+assign error_detected = (ring_out == 'b0) || ($countones(ring_out) != 1);
+
+always_comb begin
+    if (error_detected)
+        corrected_ring = 'b1;  // Force to valid state
+    else
+        corrected_ring = ring_out;
+end
+```
+
+### 2. Bidirectional Ring Counter
+
+```systemverilog
+logic direction;  // 0 = right, 1 = left
+
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        ring_out <= 'b1;
+    end else if (enable) begin
+        if (direction)
+            // Left rotate
+            ring_out <= {ring_out[WIDTH-2:0], ring_out[WIDTH-1]};
+        else
+            // Right rotate
+            ring_out <= {ring_out[0], ring_out[WIDTH-1:1]};
+    end
+end
+```
+
+### 3. Programmable Ring Counter
+
+```systemverilog
+logic [WIDTH-1:0] init_pattern;
+logic load_pattern;
+
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        ring_out <= 'b1;
+    end else if (load_pattern) begin
+        ring_out <= init_pattern;
+    end else if (enable) begin
+        ring_out <= {ring_out[0], ring_out[WIDTH-1:1]};
+    end
+end
+```
 ## Timing Characteristics
 
 This module is **purely combinational** -- it contains no `always_ff` and no
@@ -247,7 +329,7 @@ assign bank_cs_n = ~bank_select;  // Active low chip selects
 always_comb begin
     mem_addr = base_addr;
     mem_data_out = 32'h0;
-    
+
     case (bank_select)
         4'b0001: begin
             mem_addr = bank0_addr;
@@ -327,89 +409,6 @@ always_comb begin
 end
 ```
 
-## Properties and Characteristics
-
-### One-Hot Encoding
-
-Ring counters hand you one-hot encoding for free:
-- **Exactly One Bit Set**: Always exactly one bit is '1'
-- **Unique States**: Each state is distinctly different
-- **Easy Decode**: No additional decoding logic needed
-- **Glitch-Free**: Clean transitions between states
-
-### Self-Correcting Behavior
-
-An honest word about self-correction — ring counters mostly don't:
-- **All Zeros**: Will remain stuck (not self-correcting)
-- **Multiple Ones**: Will maintain multiple bits indefinitely
-- **Single One**: Will operate correctly
-
-If an upset can land you in an illegal state, see the self-correcting variant under Advanced Variants.
-
-### Comparison with Other Counters
-
-| Counter Type | States | Decode Logic | One-Hot | Power |
-|--------------|--------|--------------|---------|-------|
-| Binary | 2^N | Complex | No | Low |
-| Gray | 2^N | Moderate | No | Low |
-| Johnson | 2×N | Moderate | No | Low |
-| Ring | N | None | Yes | Medium |
-
-## Advanced Variants
-
-### 1. Self-Correcting Ring Counter
-
-```systemverilog
-// Add error correction for stuck states
-logic error_detected;
-logic [WIDTH-1:0] corrected_ring;
-
-assign error_detected = (ring_out == 'b0) || ($countones(ring_out) != 1);
-
-always_comb begin
-    if (error_detected)
-        corrected_ring = 'b1;  // Force to valid state
-    else
-        corrected_ring = ring_out;
-end
-```
-
-### 2. Bidirectional Ring Counter
-
-```systemverilog
-logic direction;  // 0 = right, 1 = left
-
-always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-        ring_out <= 'b1;
-    end else if (enable) begin
-        if (direction)
-            // Left rotate
-            ring_out <= {ring_out[WIDTH-2:0], ring_out[WIDTH-1]};
-        else
-            // Right rotate  
-            ring_out <= {ring_out[0], ring_out[WIDTH-1:1]};
-    end
-end
-```
-
-### 3. Programmable Ring Counter
-
-```systemverilog
-logic [WIDTH-1:0] init_pattern;
-logic load_pattern;
-
-always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-        ring_out <= 'b1;
-    end else if (load_pattern) begin
-        ring_out <= init_pattern;
-    end else if (enable) begin
-        ring_out <= {ring_out[0], ring_out[WIDTH-1:1]};
-    end
-end
-```
-
 ## Testing
 
 ### Test Scenarios
@@ -428,18 +427,18 @@ covergroup ring_cg @(posedge clk);
         bins valid_states[] = {1, 2, 4, 8, 16, 32, 64, 128}; // For WIDTH=8
         bins invalid_states[] = default;
     }
-    
+
     cp_enable: coverpoint enable {
         bins enabled = {1};
         bins disabled = {0};
     }
-    
+
     cp_one_hot: coverpoint $countones(ring_out) {
         bins exactly_one = {1};
         bins zero = {0};
         bins multiple = {[2:WIDTH]};
     }
-    
+
     // Verify complete cycle
     cp_transitions: coverpoint ring_out {
         bins cycle[] = (1 => 8), (8 => 4), (4 => 2), (2 => 1); // For WIDTH=4

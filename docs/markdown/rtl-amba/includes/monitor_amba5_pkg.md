@@ -40,7 +40,26 @@ enum and the `packet_type` context the producer uses.
 
 ---
 
-## AXI5 Extended Event Codes
+## Design Notes
+
+**This is a package, not a module.** It has no ports and no clock; it declares
+the types, enums and parameters that the monitor family shares, and exists so
+that a field width or event encoding has exactly one definition. Changing a
+width here changes every module that imports it, which is the point.
+
+**Compile order matters.** A package must be analysed before anything that
+imports it. The filelists under `rtl/amba/filelists/` place the `includes/`
+packages first for that reason; hand-listing sources in a different order is
+one of the ways a build breaks confusingly
+(`vault/handbook/design/filelists.md`).
+
+**No test of its own, and none expected.** A package has no behaviour to
+simulate. It is verified by every module that imports it failing to elaborate
+if a declaration is wrong.
+
+---
+
+### AXI5 Extended Event Codes
 
 Two new categories on top of the AXI4 baseline: atomic-operation events and
 QoS / trace events.
@@ -82,9 +101,7 @@ QoS / trace events.
 | 8'h8–8'hE | _(reserved)_            | _Reserved for future use_ |
 | 8'hF      | `AXI5_USER_DEFINED`     | User-defined |
 
----
-
-## APB5 Extended Event Codes
+### APB5 Extended Event Codes
 
 Three new categories on top of the APB4 baseline: wake-up signaling
 (PWAKEUP), parity (PPARITY / PRDATAPARITY / PREADYPARITY / PSLVERRPARITY),
@@ -134,9 +151,7 @@ and user signals (PUSER / PSUSER).
 | 8'h3–8'hE | _(reserved)_                | _Reserved for future use_ |
 | 8'hF      | `APB5_USER_USER_DEFINED`    | User-defined |
 
----
-
-## AXIS5 Extended Event Codes
+### AXIS5 Extended Event Codes
 
 Three new categories on top of the AXIS4 baseline: wake-up (TWAKEUP),
 parity (TPARITY), and CRC (TCRC_ERROR).
@@ -184,9 +199,7 @@ parity (TPARITY), and CRC (TCRC_ERROR).
 | 8'h5–8'hE | _(reserved)_             | _Reserved for future use_ |
 | 8'hF      | `AXIS5_CRC_USER_DEFINED` | User-defined CRC |
 
----
-
-## Unified Event Code Union
+### Unified Event Code Union
 
 `monitor_amba5_pkg` exports an `amba5_event_code_t` packed union that
 overlays the eight AMBA5 enums above (plus a `raw` 8-bit view) onto a
@@ -195,9 +208,6 @@ single field. Helper functions `create_axi5_atomic_event`,
 `create_apb5_parity_event`, `create_apb5_user_event`,
 `create_axis5_wakeup_event`, `create_axis5_parity_event`, and
 `create_axis5_crc_event` construct the union from a typed enum value.
-
----
-
 ## Related Modules
 - **[`monitor_package_spec.md`](./monitor_package_spec.md)** — Universal types, packet layout, helper functions.
 - **[`monitor_amba4_pkg.md`](./monitor_amba4_pkg.md)** — AXI4 / APB4 / AXIS4 baseline event codes.

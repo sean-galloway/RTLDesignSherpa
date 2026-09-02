@@ -93,6 +93,20 @@ No formal FSM here — it operates as a simple accumulator with two states:
 - **RESET**: Counter is zero
 - **ACCUMULATING**: Counter adds valid data inputs
 
+## Related Modules
+
+Nothing in the tree instantiates this module and it
+instantiates nothing: it is a leaf, used directly by whatever design needs
+it. Its nearest neighbours in `rtl/common/` are:
+
+- `dataint_crc`
+- `dataint_crc_xor_shift`
+- `dataint_crc_xor_shift_cascade`
+- `dataint_ecc_hamming_decode_secded`
+- `dataint_ecc_hamming_encode_secded`
+
+---
+
 ## Timing Characteristics
 
 This module is **purely combinational** -- it contains no `always_ff` and no

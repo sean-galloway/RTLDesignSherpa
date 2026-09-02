@@ -130,10 +130,10 @@ register stages ahead of the ICG enable.
 The gate cell follows the standard three-state sequence:
 
 ```
-ACTIVE ───────► IDLE_COUNT ───────► GATED
-  ▲                                    │
-  │                                    │
-  └────────────────────────────────────┘
+ACTIVE  IDLE_COUNT  GATED
+
+
+
         (Activity Detected)
 
 States:

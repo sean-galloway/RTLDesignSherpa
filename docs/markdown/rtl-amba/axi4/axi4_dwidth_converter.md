@@ -242,14 +242,14 @@ AWSIZE = 3'b010 (4 bytes)  AWSIZE = 3'b100 (16 bytes)
 AWADDR = 0x1000            AWADDR = 0x1000 (aligned)
 
 W beats (32-bit):          W beats (128-bit):
-Beat 0: wdata[31:0]   ───┐
-Beat 1: wdata[31:0]   ───┤
-Beat 2: wdata[31:0]   ───┼──► Beat 0: {beat3, beat2, beat1, beat0}
-Beat 3: wdata[31:0]   ───┘
-Beat 4: wdata[31:0]   ───┐
-Beat 5: wdata[31:0]   ───┤
-Beat 6: wdata[31:0]   ───┼──► Beat 1: {beat7, beat6, beat5, beat4}
-Beat 7: wdata[31:0]   ───┘
+Beat 0: wdata[31:0]
+Beat 1: wdata[31:0]
+Beat 2: wdata[31:0]    Beat 0: {beat3, beat2, beat1, beat0}
+Beat 3: wdata[31:0]
+Beat 4: wdata[31:0]
+Beat 5: wdata[31:0]
+Beat 6: wdata[31:0]    Beat 1: {beat7, beat6, beat5, beat4}
+Beat 7: wdata[31:0]
 ... (16 beats total)       ... (4 beats total)
 ```
 
@@ -261,11 +261,11 @@ ARSIZE = 3'b010 (4 bytes)  ARSIZE = 3'b100 (16 bytes)
 ARADDR = 0x2000            ARADDR = 0x2000 (aligned)
 
 R beats (128-bit):         R beats (32-bit):
-Beat 0: {127:0} ──────────► Beat 0: rdata[31:0]   (bits [31:0])
+Beat 0: {127:0}  Beat 0: rdata[31:0]   (bits [31:0])
                            Beat 1: rdata[31:0]   (bits [63:32])
                            Beat 2: rdata[31:0]   (bits [95:64])
                            Beat 3: rdata[31:0]   (bits [127:96])
-Beat 1: {127:0} ──────────► Beat 4-7: ...
+Beat 1: {127:0}  Beat 4-7: ...
 ... (4 beats total)        ... (16 beats total)
 ```
 
@@ -281,11 +281,11 @@ AWSIZE = 3'b100 (16 bytes) AWSIZE = 3'b010 (4 bytes)
 AWADDR = 0x3000            AWADDR = 0x3000 (aligned)
 
 W beats (128-bit):         W beats (32-bit):
-Beat 0: wdata[127:0] ─────► Beat 0: [31:0]
+Beat 0: wdata[127:0]  Beat 0: [31:0]
                            Beat 1: [63:32]
                            Beat 2: [95:64]
                            Beat 3: [127:96]
-Beat 1: wdata[127:0] ─────► Beat 4-7: ...
+Beat 1: wdata[127:0]  Beat 4-7: ...
 ... (4 beats total)        ... (16 beats total)
 ```
 
@@ -297,10 +297,10 @@ ARSIZE = 3'b100 (16 bytes) ARSIZE = 3'b010 (4 bytes)
 ARADDR = 0x4000            ARADDR = 0x4000 (aligned)
 
 R beats (32-bit):          R beats (128-bit):
-Beat 0: rdata[31:0]   ───┐
-Beat 1: rdata[31:0]   ───┤
-Beat 2: rdata[31:0]   ───┼──► Beat 0: {beat3, beat2, beat1, beat0}
-Beat 3: rdata[31:0]   ───┘
+Beat 0: rdata[31:0]
+Beat 1: rdata[31:0]
+Beat 2: rdata[31:0]    Beat 0: {beat3, beat2, beat1, beat0}
+Beat 3: rdata[31:0]
 ... (16 beats total)       ... (4 beats total)
 ```
 

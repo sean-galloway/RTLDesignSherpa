@@ -21,13 +21,13 @@
 
 <!-- End Header -->
 
-# 🧠 AXI Stream for Dummies
+# AXI Stream for Dummies
 
 > *A plain-English guide to understanding AXI4-Stream — the simplest, most elegant way to move data through an FPGA or SoC.*
 
 ---
 
-## 🧩 What Is AXI Stream?
+## What Is AXI Stream?
 
 AXI4-Stream (or **AXIS**) is a **unidirectional data channel** used to **stream** data from one block (the *source*) to another (the *sink*).
 Think of it as a **conveyor belt** moving packets or words of data — one piece at a time — when both sides agree it’s okay to send.
@@ -36,7 +36,7 @@ Unlike full AXI (which handles addresses and memory reads/writes), AXI Stream on
 
 ---
 
-## 🧭 The Core Idea
+## The Core Idea
 
 The protocol uses a **ready/valid handshake** between sender and receiver.
 
@@ -51,7 +51,7 @@ The protocol uses a **ready/valid handshake** between sender and receiver.
 
 ---
 
-## 🤝 The Handshake
+## The Handshake
 
 Data only transfers when **both** `TVALID` and `TREADY` are **high** at the same clock cycle.
 
@@ -68,7 +68,7 @@ Transfer occurs only when both TVALID and TREADY are high at the same time.
 
 ---
 
-## 🚀 How It Works (Simplified)
+## How It Works (Simplified)
 
 Let’s use an analogy:
 
@@ -83,19 +83,19 @@ Let’s use an analogy:
 
 ---
 
-## 🧰 Example: 4-Beat Stream Transfer
+## Example: 4-Beat Stream Transfer
 
 | Cycle | TVALID | TREADY | Transfer? | TDATA            |
 | :---- | :----- | :----- | :-------- | :--------------- |
-| 1     | 1      | 0      | ❌         | (Master waiting) |
-| 2     | 1      | 1      | ✅         | Word 0           |
-| 3     | 1      | 1      | ✅         | Word 1           |
-| 4     | 1      | 0      | ❌         | (Slave stalled)  |
-| 5     | 1      | 1      | ✅         | Word 2           |
+| 1     | 1      | 0      |          | (Master waiting) |
+| 2     | 1      | 1      |          | Word 0           |
+| 3     | 1      | 1      |          | Word 1           |
+| 4     | 1      | 0      |          | (Slave stalled)  |
+| 5     | 1      | 1      |          | Word 2           |
 
 ---
 
-## 🧠 Why Use AXI Stream?
+## Why Use AXI Stream?
 
 * **No addressing overhead** → perfect for **high-speed data paths**
 * **Decoupled flow control** → each side can pause independently
@@ -105,7 +105,7 @@ Let’s use an analogy:
 
 ---
 
-## 🏗️ Common AXI Stream Modules
+## Common AXI Stream Modules
 
 | Module Type                    | Function                                          |
 | :----------------------------- | :------------------------------------------------ |
@@ -117,7 +117,7 @@ Let’s use an analogy:
 
 ---
 
-## 🔧 Minimal Verilog Example
+## Minimal Verilog Example
 
 ```verilog
 always @(posedge clk) begin
@@ -139,7 +139,7 @@ end
 
 ---
 
-## 💡 Tips for New Designers
+## Tips for New Designers
 
 * Always **register your outputs** (`TVALID`, `TDATA`, etc.).
 * Avoid combinational loops between `TREADY` and `TVALID`.
@@ -148,7 +148,7 @@ end
 
 ---
 
-## 🧩 Quick Summary
+## Quick Summary
 
 | Concept        | TL;DR                                                     |
 | :------------- | :-------------------------------------------------------- |
@@ -160,7 +160,7 @@ end
 
 ---
 
-## 🧮 Bonus: Packet Flow Diagram
+## Bonus: Packet Flow Diagram
 
 ```
   [DMA Source] ---> [AXIS FIFO] ---> [Filter] ---> [Sink]
@@ -171,13 +171,13 @@ end
 
 ---
 
-# 🎓 For the Slightly Smarter Dummies
+# For the Slightly Smarter Dummies
 
 Let’s go a level deeper.
 
 ---
 
-## 🧾 TLAST: Packet Boundaries
+## TLAST: Packet Boundaries
 
 `TLAST` marks the **end of a frame or packet**. Think of it as the **"end of sentence"** in your stream.
 
@@ -191,7 +191,7 @@ assign tlast = (beat_count == 1023);
 
 ---
 
-## 🧮 TKEEP: Byte Masking
+## TKEEP: Byte Masking
 
 `TKEEP` is a **byte-valid mask** for each beat. It lets you mark which bytes in `TDATA` are valid.
 
@@ -207,7 +207,7 @@ Use this for variable-length packets that don’t fill the full data word.
 
 ---
 
-## 🗂️ TUSER, TID, and TDEST
+## TUSER, TID, and TDEST
 
 | Signal    | Purpose                                                 |
 | :-------- | :------------------------------------------------------ |
@@ -219,7 +219,7 @@ These are optional and can be ignored if you don’t need them, but they make AX
 
 ---
 
-## 🛠️ Multi-Beat Transfer Example
+## Multi-Beat Transfer Example
 
 Example of a 3-beat packet with `TKEEP` and `TLAST`:
 
@@ -233,7 +233,7 @@ This shows that only the lower 4 bytes are valid in the final beat.
 
 ---
 
-## ⚙️ Practical Design Tips
+## Practical Design Tips
 
 * **Register slice everything.** AXIS can stall anytime; use register slices for timing closure.
 * **Add FIFOs** between clock domains or whenever you need backpressure decoupling.
@@ -242,7 +242,7 @@ This shows that only the lower 4 bytes are valid in the final beat.
 
 ---
 
-## 📈 Common Patterns
+## Common Patterns
 
 | Pattern                | Description                         |
 | :--------------------- | :---------------------------------- |
@@ -254,7 +254,7 @@ This shows that only the lower 4 bytes are valid in the final beat.
 
 ---
 
-## 🔬 Example System: From Memory to DSP
+## Example System: From Memory to DSP
 
 ```
    [DDR Memory]
@@ -274,25 +274,25 @@ Each block follows the same handshake — data flows when everyone agrees.
 
 ---
 
-## 🧩 Debug Checklist
+## Debug Checklist
 
-* ✅ Is TVALID ever asserted?
-* ✅ Does TREADY toggle or stay stuck low?
-* ✅ Are transfers happening (`TVALID && TREADY`)?
-* ✅ Is TLAST asserted correctly at packet boundaries?
-* ✅ Are you respecting TKEEP on partial packets?
+*  Is TVALID ever asserted?
+*  Does TREADY toggle or stay stuck low?
+*  Are transfers happening (`TVALID && TREADY`)?
+*  Is TLAST asserted correctly at packet boundaries?
+*  Are you respecting TKEEP on partial packets?
 
 If you fail any of these, your stream isn’t flowing.
 
 ---
 
-## 💬 In a Sentence
+## In a Sentence
 
 > AXI Stream is just data moving one beat at a time, when both sides agree, wrapped in a handshake polite enough to make hardware engineers sleep at night.
 
 ---
 
-## 🧩 Quick Reference Summary
+## Quick Reference Summary
 
 | Signal     | Width                     | Purpose                |
 | :--------- | :------------------------ | :--------------------- |
@@ -307,7 +307,7 @@ If you fail any of these, your stream isn’t flowing.
 
 ---
 
-## 🏁 Closing Thought
+## Closing Thought
 
 Once you understand `TVALID` + `TREADY`, everything else in AXI Stream is optional frosting.
 It’s designed to be modular, scalable, and as close to plug-and-play as hardware gets.
@@ -316,11 +316,11 @@ It’s designed to be modular, scalable, and as close to plug-and-play as hardwa
 
 ---
 
-# 📦 Packing TLAST/TKEEP/TUSER into the FIFO Payload
+# Packing TLAST/TKEEP/TUSER into the FIFO Payload
 
 If you pack `TLAST`, `TKEEP`, and `TUSER` **with** `TDATA` into the FIFO (your current approach), you keep the FIFO protocol‑agnostic and preserve packet semantics. Below is a tight pattern that scales and keeps synthesis happy.
 
-## ✅ Recommended Bundle Typedef
+## Recommended Bundle Typedef
 
 ```systemverilog
 // Parameterize everything so the FIFO stays neutral
@@ -345,7 +345,7 @@ localparam int FIFO_W = $bits(axis_pkt_t);
 * Maintains **packet atomicity** (data + sideband move together).
 * Avoids lockstep FIFOs and the drift bugs they can cause.
 
-## 🔌 AXIS ⇄ FIFO Wiring (Ingress/Egress)
+## AXIS  FIFO Wiring (Ingress/Egress)
 
 ```systemverilog
 // Ingress (AXIS slave → FIFO write)
@@ -372,7 +372,7 @@ assign m_axis_tvalid = rd_valid;
 assign rd_ready      = m_axis_tready;
 ```
 
-## 🧪 Packet-Integrity SVAs (drop‑in)
+## Packet-Integrity SVAs (drop‑in)
 
 ```systemverilog
 // 1) TLAST only when VALID (no ghost last)
@@ -398,7 +398,7 @@ assert property (p_keep_prefix_on_last);
 // (Use your FIFO's count/last observation to build stronger invariants as needed)
 ```
 
-## 🧠 Design Notes
+## Design Notes
 
 * **Atomicity:** Packing guarantees `TLAST` travels with its data; you never split “end‑of‑packet” from the payload beat that owns it.
 * **Width changes:** If you introduce a width converter before/after the FIFO, re‑emit `KEEP` accordingly; on the final beat enforce the prefix‑mask rule.
@@ -406,7 +406,7 @@ assert property (p_keep_prefix_on_last);
 * **Registered vs mux read:** Use your FIFO’s `REGISTERED=1` for timing closure across partitions; keep `=0` for absolute minimum latency. Throughput is still 1 beat/clk.
 * **Watermarks:** Drive upstream `TREADY=0` when `almost_full` to avoid bubble‑y on/off toggling; optionally gate downstream `rd_ready` until occupancy exceeds a low watermark to drain in larger bursts.
 
-## 🧯 Corner Cases Checklist
+## Corner Cases Checklist
 
 * Partial last beat: `TLAST=1` with `KEEP!=all_ones` is legal; consumers must honor `KEEP` when storing.
 * Empty packets: usually **disallow** (no beats with `TLAST` but zero data). Add an assertion if your system forbids zero‑length frames.

@@ -176,7 +176,7 @@ gaxi_skid_buffer_async #(
     .wr_valid       (src_valid),
     .wr_ready       (src_ready),
     .wr_data        (src_data),
-    
+
     // Read domain @ 75 MHz
     .axi_rd_aclk    (clk_75),
     .axi_rd_aresetn (rst_75_n),
@@ -201,7 +201,7 @@ gaxi_skid_buffer_async #(
     .wr_valid       (stage_in_valid),
     .wr_ready       (stage_in_ready),
     .wr_data        (stage_in_data),
-    
+
     .axi_rd_aclk    (dest_clk),
     .axi_rd_aresetn (dest_rst_n),
     .rd_valid       (stage_out_valid),

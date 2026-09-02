@@ -100,6 +100,17 @@ end
 
 That second point is the one people get wrong, so let's be blunt about it: the registered comparison means `pulse` never coincides with the terminal count. It lands one cycle later, on the wrapped-to-zero count. Every timing diagram below follows from that.
 
+## Related Modules
+
+Nothing in the tree instantiates this module and it
+instantiates nothing: it is a leaf, used directly by whatever design needs
+it. Its nearest neighbours in `rtl/common/` are:
+
+- `clock_divider`
+- `clock_gate_ctrl`
+
+---
+
 ## Timing Characteristics
 
 ### Timing Characteristics
@@ -170,9 +181,9 @@ module system_heartbeat #(
 );
 
     localparam int HEARTBEAT_WIDTH = CLOCK_FREQ_HZ / HEARTBEAT_FREQ_HZ;
-    
+
     logic heartbeat_pulse;
-    
+
     // Generate 1Hz heartbeat pulse
     clock_pulse #(
         .WIDTH(HEARTBEAT_WIDTH)
@@ -181,7 +192,7 @@ module system_heartbeat #(
         .rst_n(rst_n),
         .pulse(heartbeat_pulse)
     );
-    
+
     // LED control with heartbeat
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -190,10 +201,10 @@ module system_heartbeat #(
             heartbeat_led <= ~heartbeat_led;  // Toggle LED
         end
     end
-    
+
     // System status based on heartbeat activity
     logic [7:0] heartbeat_monitor;
-    
+
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             heartbeat_monitor <= 8'h00;
@@ -201,7 +212,7 @@ module system_heartbeat #(
             heartbeat_monitor <= {heartbeat_monitor[6:0], heartbeat_pulse};
         end
     end
-    
+
     assign status_ok = system_active && |heartbeat_monitor;
 
 endmodule
@@ -219,16 +230,16 @@ module data_sampler #(
     input  logic                  rst_n,
     input  logic                  enable,
     input  logic [DATA_WIDTH-1:0] analog_data,
-    
+
     output logic [DATA_WIDTH-1:0] sampled_data,
     output logic                  sample_valid,
     output logic                  buffer_full
 );
 
     localparam int SAMPLE_WIDTH = (CLOCK_FREQ_MHZ * 1000) / SAMPLE_RATE_KHZ;
-    
+
     logic sample_trigger;
-    
+
     // Generate sampling trigger
     clock_pulse #(
         .WIDTH(SAMPLE_WIDTH)
@@ -237,7 +248,7 @@ module data_sampler #(
         .rst_n(rst_n),
         .pulse(sample_trigger)
     );
-    
+
     // Sample data on trigger
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -250,10 +261,10 @@ module data_sampler #(
             sample_valid <= 1'b0;
         end
     end
-    
+
     // Buffer management (simplified)
     logic [7:0] buffer_count;
-    
+
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             buffer_count <= 8'h00;
@@ -261,7 +272,7 @@ module data_sampler #(
             buffer_count <= buffer_count + 1;
         end
     end
-    
+
     assign buffer_full = &buffer_count;  // Full at 255 samples
 
 endmodule
@@ -277,16 +288,16 @@ module uart_baud_generator #(
     input  logic clk,
     input  logic rst_n,
     input  logic enable,
-    
+
     output logic baud_tick,      // 1x baud rate
     output logic baud_tick_16x   // 16x baud rate for oversampling
 );
 
     localparam int BAUD_WIDTH = CLOCK_FREQ_HZ / BAUD_RATE;
     localparam int BAUD_16X_WIDTH = CLOCK_FREQ_HZ / (BAUD_RATE * 16);
-    
+
     logic baud_pulse, baud_16x_pulse;
-    
+
     // 1x baud rate generator
     clock_pulse #(
         .WIDTH(BAUD_WIDTH)
@@ -295,8 +306,8 @@ module uart_baud_generator #(
         .rst_n(rst_n),
         .pulse(baud_pulse)
     );
-    
-    // 16x baud rate generator  
+
+    // 16x baud rate generator
     clock_pulse #(
         .WIDTH(BAUD_16X_WIDTH)
     ) baud_16x_gen (
@@ -304,7 +315,7 @@ module uart_baud_generator #(
         .rst_n(rst_n),
         .pulse(baud_16x_pulse)
     );
-    
+
     // Gate with enable
     assign baud_tick = enable ? baud_pulse : 1'b0;
     assign baud_tick_16x = enable ? baud_16x_pulse : 1'b0;
@@ -323,7 +334,7 @@ module dram_refresh_controller #(
     input  logic        clk,
     input  logic        rst_n,
     input  logic        refresh_enable,
-    
+
     output logic        refresh_request,
     output logic [12:0] refresh_row_addr,
     output logic        refresh_active
@@ -339,10 +350,10 @@ module dram_refresh_controller #(
 
     if (REFRESH_WIDTH < 2)
         $fatal(1, "REFRESH_WIDTH=%0d is below clock_pulse's minimum of 2", REFRESH_WIDTH);
-    
+
     logic refresh_pulse;
     logic [12:0] row_counter;
-    
+
     // Generate refresh timing
     clock_pulse #(
         .WIDTH(REFRESH_WIDTH)
@@ -351,7 +362,7 @@ module dram_refresh_controller #(
         .rst_n(rst_n),
         .pulse(refresh_pulse)
     );
-    
+
     // Row address counter
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -363,7 +374,7 @@ module dram_refresh_controller #(
                 row_counter <= row_counter + 1;
         end
     end
-    
+
     // Output assignments
     assign refresh_request = refresh_pulse && refresh_enable;
     assign refresh_row_addr = row_counter;
@@ -379,15 +390,15 @@ module multi_rate_pulse_generator (
     input  logic       clk,
     input  logic       rst_n,
     input  logic [2:0] rate_select,    // Select pulse rate
-    
+
     output logic       pulse_fast,     // Fast pulse output
-    output logic       pulse_medium,   // Medium pulse output  
+    output logic       pulse_medium,   // Medium pulse output
     output logic       pulse_slow,     // Slow pulse output
     output logic       pulse_config    // Configurable pulse output
 );
 
     logic [31:0] config_width;
-    
+
     // Rate selection for configurable output
     always_comb begin
         case (rate_select)
@@ -399,20 +410,20 @@ module multi_rate_pulse_generator (
             default: config_width = 32'd1000;  // Default medium
         endcase
     end
-    
+
     // Fixed rate pulse generators
     clock_pulse #(.WIDTH(50)) fast_gen (
         .clk(clk), .rst_n(rst_n), .pulse(pulse_fast)
     );
-    
+
     clock_pulse #(.WIDTH(500)) medium_gen (
         .clk(clk), .rst_n(rst_n), .pulse(pulse_medium)
     );
-    
+
     clock_pulse #(.WIDTH(5000)) slow_gen (
         .clk(clk), .rst_n(rst_n), .pulse(pulse_slow)
     );
-    
+
     // Configurable rate generator (requires parameterizable module)
     configurable_pulse_gen config_gen (
         .clk(clk),
@@ -435,9 +446,9 @@ module configurable_pulse_gen #(
 
     logic [31:0] r_counter;
     logic [31:0] w_width_minus_one;
-    
+
     assign w_width_minus_one = (width_config > 0) ? (width_config - 1) : 0;
-    
+
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             r_counter <= 32'h00000000;
@@ -447,7 +458,7 @@ module configurable_pulse_gen #(
                 r_counter <= r_counter + 1;
             else
                 r_counter <= 32'h00000000;
-                
+
             pulse <= (r_counter == w_width_minus_one) && (width_config > 0);
         end
     end
@@ -463,7 +474,7 @@ module test_pattern_generator (
     input  logic       rst_n,
     input  logic       test_enable,
     input  logic [3:0] pattern_select,
-    
+
     output logic [7:0] test_data,
     output logic       test_valid,
     output logic       pattern_complete
@@ -471,14 +482,14 @@ module test_pattern_generator (
 
     logic update_pulse;
     logic [7:0] pattern_counter;
-    
+
     // Generate test data update rate
     clock_pulse #(.WIDTH(16)) pattern_clock (
         .clk(clk),
         .rst_n(rst_n),
         .pulse(update_pulse)
     );
-    
+
     // Pattern counter
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -487,7 +498,7 @@ module test_pattern_generator (
             pattern_counter <= pattern_counter + 1;
         end
     end
-    
+
     // Test pattern generation
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -510,7 +521,7 @@ module test_pattern_generator (
             test_valid <= 1'b0;
         end
     end
-    
+
     assign pattern_complete = test_enable && (&pattern_counter) && update_pulse;
 
 endmodule
@@ -534,10 +545,10 @@ module pulse_generator_with_enable #(
 
     logic [WIDTH-1:0] r_counter;
     logic [WIDTH-1:0] w_width_minus_one;
-    
+
     assign w_width_minus_one = WIDTH[WIDTH-1:0] - 1'b1;
     assign count_value = r_counter;
-    
+
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             r_counter <= 'b0;
@@ -547,7 +558,7 @@ module pulse_generator_with_enable #(
                 r_counter <= r_counter + 1'b1;
             else
                 r_counter <= 'b0;
-                
+
             pulse <= (r_counter == w_width_minus_one);
         end else begin
             pulse <= 1'b0;  // No pulse when disabled or paused
@@ -574,9 +585,9 @@ module variable_pulse_generator #(
     logic [$clog2(MAX_WIDTH):0] r_counter;
     logic [$clog2(MAX_WIDTH):0] r_width;
     logic [$clog2(MAX_WIDTH):0] w_width_minus_one;
-    
+
     assign w_width_minus_one = (r_width > 0) ? (r_width - 1) : 0;
-    
+
     // Width register
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -589,7 +600,7 @@ module variable_pulse_generator #(
             width_loaded <= 1'b0;
         end
     end
-    
+
     // Counter and pulse generation
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -600,7 +611,7 @@ module variable_pulse_generator #(
                 r_counter <= r_counter + 1;
             else
                 r_counter <= 'b0;
-                
+
             pulse <= (r_counter == w_width_minus_one) && (r_width > 0);
         end
     end
@@ -624,9 +635,9 @@ module multi_phase_pulse_generator #(
     logic [WIDTH-1:0] r_counter;
     logic [WIDTH-1:0] w_width_minus_one;
     logic [WIDTH-1:0] phase_thresholds [PHASES];
-    
+
     assign w_width_minus_one = WIDTH[WIDTH-1:0] - 1'b1;
-    
+
     // Calculate phase thresholds
     genvar i;
     generate
@@ -634,7 +645,7 @@ module multi_phase_pulse_generator #(
             assign phase_thresholds[i] = (WIDTH * i) / PHASES;
         end
     endgenerate
-    
+
     // Counter
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -646,7 +657,7 @@ module multi_phase_pulse_generator #(
                 r_counter <= 'b0;
         end
     end
-    
+
     // Phase pulse generation
     generate
         for (i = 0; i < PHASES; i++) begin : gen_phases
@@ -675,7 +686,7 @@ module burst_pulse_generator #(
     input  logic rst_n,
     input  logic enable,
     input  logic trigger,           // Start burst sequence
-    
+
     output logic burst_pulse,       // Individual pulses in burst
     output logic burst_active,      // Burst sequence active
     output logic burst_complete     // Burst sequence completed
@@ -687,13 +698,13 @@ module burst_pulse_generator #(
         INTER_PULSE_DELAY,
         INTER_BURST_DELAY_ST
     } burst_state_t;
-    
+
     burst_state_t state;
-    
+
     logic [$clog2(BURST_LENGTH):0] pulse_count;
     logic [$clog2(BURST_PERIOD):0] period_counter;
     logic [$clog2(INTER_BURST_DELAY):0] delay_counter;
-    
+
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             state <= IDLE;
@@ -704,7 +715,7 @@ module burst_pulse_generator #(
             burst_complete <= 1'b0;
         end else begin
             burst_complete <= 1'b0;  // Default
-            
+
             case (state)
                 IDLE: begin
                     burst_pulse <= 1'b0;
@@ -715,11 +726,11 @@ module burst_pulse_generator #(
                         burst_pulse <= 1'b1;  // First pulse
                     end
                 end
-                
+
                 BURST_ACTIVE: begin
                     burst_pulse <= 1'b0;
                     pulse_count <= pulse_count + 1;
-                    
+
                     if (pulse_count >= BURST_LENGTH - 1) begin
                         state <= INTER_BURST_DELAY_ST;
                         delay_counter <= 0;
@@ -729,7 +740,7 @@ module burst_pulse_generator #(
                         period_counter <= 0;
                     end
                 end
-                
+
                 INTER_PULSE_DELAY: begin
                     period_counter <= period_counter + 1;
                     if (period_counter >= BURST_PERIOD - 1) begin
@@ -737,7 +748,7 @@ module burst_pulse_generator #(
                         burst_pulse <= 1'b1;
                     end
                 end
-                
+
                 INTER_BURST_DELAY_ST: begin
                     delay_counter <= delay_counter + 1;
                     if (delay_counter >= INTER_BURST_DELAY - 1) begin
@@ -747,7 +758,7 @@ module burst_pulse_generator #(
             endcase
         end
     end
-    
+
     assign burst_active = (state != IDLE);
 
 endmodule
@@ -837,41 +848,41 @@ That's the whole module. It's a small thing, but precise periodic timing shows u
 module tb_clock_pulse;
 
     parameter WIDTH = 10;
-    
+
     logic clk, rst_n, pulse;
-    
+
     // Clock generation
     initial clk = 0;
     always #5ns clk = ~clk; // 100MHz
-    
+
     // DUT instantiation
     clock_pulse #(.WIDTH(WIDTH)) dut (.*);
-    
+
     // Test sequence
     initial begin
         rst_n = 0;
         #100ns rst_n = 1;
-        
+
         // Test basic pulse generation
         test_basic_pulse_generation();
-        
+
         // Test reset behavior
         test_reset_behavior();
-        
+
         // Test timing accuracy
         test_timing_accuracy();
-        
+
         $display("All tests completed!");
         $finish;
     end
-    
+
     // Test basic pulse generation
     task test_basic_pulse_generation();
         int pulse_count = 0;
         int cycle_count = 0;
         begin
             $display("Testing basic pulse generation (WIDTH=%0d)...", WIDTH);
-            
+
             // Monitor for several pulse periods. WIDTH*3 + 1 edges: `@(posedge clk)`
             // resumes BEFORE the NBA update, so pulses are first visible at edges
             // WIDTH+1, 2*WIDTH+1, 3*WIDTH+1 (see test_reset_behavior for the trace).
@@ -880,7 +891,7 @@ module tb_clock_pulse;
                 cycle_count++;
                 if (pulse) pulse_count++;
             end
-            
+
             // Verify pulse count
             if (pulse_count == 3) begin
                 $display("PASS: Correct number of pulses generated");
@@ -889,7 +900,7 @@ module tb_clock_pulse;
             end
         end
     endtask
-    
+
     // Test reset behavior -- the two consequences of the registered pulse
     task test_reset_behavior();
         int pulses_during_reset = 0;
@@ -940,7 +951,7 @@ module tb_clock_pulse;
             end
         end
     endtask
-    
+
     // Test timing accuracy
     task test_timing_accuracy();
         time pulse_times[10];
@@ -949,27 +960,27 @@ module tb_clock_pulse;
         real avg_period, expected_period;
         begin
             $display("Testing timing accuracy...");
-            
+
             expected_period = WIDTH * 10.0; // 10ns clock period
-            
+
             // Capture pulse timing
             for (i = 0; i < 10; i++) begin
                 @(posedge pulse);
                 pulse_times[i] = $time;
             end
-            
+
             // Calculate periods
             for (i = 0; i < 9; i++) begin
                 pulse_periods[i] = pulse_times[i+1] - pulse_times[i];
             end
-            
+
             // Calculate average period
             avg_period = 0;
             for (i = 0; i < 9; i++) begin
                 avg_period += pulse_periods[i];
             end
             avg_period = avg_period / 9.0;
-            
+
             // Check accuracy (within 1% tolerance)
             if (abs(avg_period - expected_period) < expected_period * 0.01) begin
                 $display("PASS: Average period = %.1f ns (expected %.1f ns)", 
@@ -980,7 +991,7 @@ module tb_clock_pulse;
             end
         end
     endtask
-    
+
     function real abs(real value);
         abs = (value >= 0) ? value : -value;
     endfunction
@@ -992,7 +1003,7 @@ endmodule
 
 ```systemverilog
 covergroup clock_pulse_cg @(posedge clk);
-    
+
     cp_counter_values: coverpoint dut.r_counter {
         bins zero = {0};
         bins low[] = {[1:WIDTH/4]};
@@ -1000,17 +1011,17 @@ covergroup clock_pulse_cg @(posedge clk);
         bins high[] = {[3*WIDTH/4+1:WIDTH-2]};
         bins max = {WIDTH-1};
     }
-    
+
     cp_pulse: coverpoint pulse {
         bins asserted = {1};
         bins deasserted = {0};
     }
-    
+
     cp_reset: coverpoint rst_n {
         bins reset = {0};
         bins normal = {1};
     }
-    
+
     // Transition coverage
     cp_pulse_edges: coverpoint pulse {
         bins rising = (0 => 1);
@@ -1018,7 +1029,7 @@ covergroup clock_pulse_cg @(posedge clk);
         bins stable_low = (0 => 0);
         bins stable_high = (1 => 1);
     }
-    
+
     // Cross coverage
     cross_counter_pulse: cross cp_counter_values, cp_pulse;
 
@@ -1032,7 +1043,7 @@ module clock_pulse_properties;
 
     // Bind to DUT
     bind clock_pulse clock_pulse_properties props_inst (.*);
-    
+
     // Property: reaching max count produces a pulse on the NEXT cycle.
     // The comparison is registered (pulse <= r_counter == WIDTH-1), so the
     // implication is |=> (next cycle), NOT |-> (same cycle).
@@ -1040,32 +1051,32 @@ module clock_pulse_properties;
         @(posedge clk) disable iff (!rst_n)
         (dut.r_counter == WIDTH-1) |=> pulse;
     endproperty
-    
+
     // Property: a pulse implies the PREVIOUS count was max
     property pulse_implies_prev_max;
         @(posedge clk) disable iff (!rst_n)
         pulse |-> $past(dut.r_counter == WIDTH-1);
     endproperty
-    
+
     // Property: Counter wraps correctly
     property counter_wrap;
         @(posedge clk) disable iff (!rst_n)
         (dut.r_counter == WIDTH-1) |=> (dut.r_counter == 0);
     endproperty
-    
+
     // Property: Counter increments
     property counter_increment;
         @(posedge clk) disable iff (!rst_n)
         (dut.r_counter < WIDTH-1) |=> 
         (dut.r_counter == $past(dut.r_counter) + 1);
     endproperty
-    
+
     // Property: Reset behavior
     property reset_behavior;
         @(posedge clk)
         !rst_n |=> (dut.r_counter == 0) && !pulse;
     endproperty
-    
+
     // Assertions
     assert property (pulse_after_max_count);
     assert property (pulse_implies_prev_max);

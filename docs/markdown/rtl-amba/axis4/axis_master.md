@@ -188,7 +188,7 @@ Activity detection for clock gating:
 busy = (buffer_count > 0) || fub_axis_tvalid;
 ```
 
-## Signal Description
+### Signal Description
 
 ### Core Signals
 
@@ -219,6 +219,22 @@ side, not protocol-compliant `TKEEP` support. See [Known Limitations](#known-lim
 | TDEST | 0-16 bits | Destination routing information |
 | TUSER | 0-16 bits | User-defined control/status |
 
+### Verification Notes
+
+### Protocol Compliance
+- Verify AXI4-Stream handshaking (VALID/READY)
+- Check TLAST alignment with packet boundaries
+- Validate sideband signal preservation
+
+### Buffer Verification
+- Test buffer overflow/underflow protection
+- Verify data integrity through buffering
+- Check flow control under backpressure
+
+### Performance Verification
+- Measure sustained throughput under various loads
+- Verify buffer utilization efficiency
+- Check latency characteristics
 ## Timing Characteristics
 
 ### Buffer Performance
@@ -416,7 +432,7 @@ module stream_router (
 endmodule
 ```
 
-## Advanced Integration Patterns
+### Advanced Integration Patterns
 
 ### Clock Domain Crossing
 
@@ -525,7 +541,73 @@ module stream_pipeline (
 endmodule
 ```
 
-## Performance Optimization
+### Clock Gating Integration
+
+The clock-gated variant `axis_master_cg` wraps this module and drives it from a gated clock.
+Its control ports are `cfg_cg_enable` and `cfg_cg_idle_count`; its status ports are
+`cg_gating` and `cg_idle`. There is **no `cg_enable`, no `cg_test_enable`, and no `busy`
+output** on the `_cg` wrapper — the base module's `busy` is consumed internally as one of the
+wakeup terms.
+
+```systemverilog
+// Clock gated version for power optimization
+axis_master_cg #(
+    .SKID_DEPTH(4),
+    .AXIS_DATA_WIDTH(64),
+    .CG_IDLE_COUNT_WIDTH(4)
+) u_cg_master (
+    .aclk               (axi_clk),
+    .aresetn            (axi_resetn),
+
+    // Clock gating configuration
+    .cfg_cg_enable      (stream_cg_enable),
+    .cfg_cg_idle_count  (4'd8),
+
+    // Standard AXI4-Stream interfaces (expand to explicit connections)
+    // .fub_axis_tdata (...), ... , .m_axis_tready (...),
+
+    // Clock gating status
+    .cg_gating          (stream_clk_gated),
+    .cg_idle            (stream_idle)
+);
+
+// System-level power management
+always_ff @(posedge axi_clk) begin
+    stream_power_down <= stream_idle && (idle_time > POWER_DOWN_DELAY);
+end
+```
+
+See the [AXIS4 Clock-Gated Variants Guide](axis_clock_gating_guide.md) for gating and
+ungating behaviour, including the ungating latency and the `fub_axis_tready` hold-off while
+gated.
+## Design Notes
+
+### Area Optimization
+- Use minimum required data widths
+- Disable unused sideband signals (set width to 0)
+- Optimize buffer depths for application requirements
+- Share buffers across multiple streams when possible
+
+### Timing Optimization
+- Register all interface outputs for timing closure
+- Use appropriate buffer depths to break critical paths
+- Consider pipeline stages for very high-frequency designs
+
+### Power Optimization
+- Use clock gating variant (`axis_master_cg`) when available
+- Implement activity-based power scaling
+- Size buffers appropriately to minimize switching
+
+| Limitation | Detail |
+|------------|--------|
+| No `TKEEP` | Only `TSTRB` is implemented. A protocol-compliant null-byte / position-byte distinction is not available. See [TSTRB and TKEEP](#tstrb-and-tkeep) |
+| No `TWAKEUP` | The AXI4-Stream `TWAKEUP` low-power signal is not implemented |
+| No native CDC | Both interfaces are on `aclk`. Crossing clock domains requires an external `gaxi_fifo_async` |
+| No reordering or arbitration | The module is a single-stream elastic buffer. `TID`/`TDEST` are carried through unmodified; they are not decoded for routing |
+| No protocol checking | The module does not detect or report `TVALID` deassertion before `TREADY`, or `TLAST` framing errors |
+| `SKID_DEPTH` limited to 2..8 inclusive | The buffer is a timing element, not a rate adapter. Use a `gaxi_fifo_sync` downstream for deep elastic storage |
+
+### Performance Optimization
 
 ### Buffer Depth Selection
 
@@ -570,91 +652,6 @@ axis_master #(
     .SKID_DEPTH(2)
 ) u_optimized_master (...);
 ```
-
-## Clock Gating Integration
-
-The clock-gated variant `axis_master_cg` wraps this module and drives it from a gated clock.
-Its control ports are `cfg_cg_enable` and `cfg_cg_idle_count`; its status ports are
-`cg_gating` and `cg_idle`. There is **no `cg_enable`, no `cg_test_enable`, and no `busy`
-output** on the `_cg` wrapper — the base module's `busy` is consumed internally as one of the
-wakeup terms.
-
-```systemverilog
-// Clock gated version for power optimization
-axis_master_cg #(
-    .SKID_DEPTH(4),
-    .AXIS_DATA_WIDTH(64),
-    .CG_IDLE_COUNT_WIDTH(4)
-) u_cg_master (
-    .aclk               (axi_clk),
-    .aresetn            (axi_resetn),
-
-    // Clock gating configuration
-    .cfg_cg_enable      (stream_cg_enable),
-    .cfg_cg_idle_count  (4'd8),
-
-    // Standard AXI4-Stream interfaces (expand to explicit connections)
-    // .fub_axis_tdata (...), ... , .m_axis_tready (...),
-
-    // Clock gating status
-    .cg_gating          (stream_clk_gated),
-    .cg_idle            (stream_idle)
-);
-
-// System-level power management
-always_ff @(posedge axi_clk) begin
-    stream_power_down <= stream_idle && (idle_time > POWER_DOWN_DELAY);
-end
-```
-
-See the [AXIS4 Clock-Gated Variants Guide](axis_clock_gating_guide.md) for gating and
-ungating behaviour, including the ungating latency and the `fub_axis_tready` hold-off while
-gated.
-
-## Design Notes
-
-### Area Optimization
-- Use minimum required data widths
-- Disable unused sideband signals (set width to 0)
-- Optimize buffer depths for application requirements
-- Share buffers across multiple streams when possible
-
-### Timing Optimization
-- Register all interface outputs for timing closure
-- Use appropriate buffer depths to break critical paths
-- Consider pipeline stages for very high-frequency designs
-
-### Power Optimization
-- Use clock gating variant (`axis_master_cg`) when available
-- Implement activity-based power scaling
-- Size buffers appropriately to minimize switching
-
-| Limitation | Detail |
-|------------|--------|
-| No `TKEEP` | Only `TSTRB` is implemented. A protocol-compliant null-byte / position-byte distinction is not available. See [TSTRB and TKEEP](#tstrb-and-tkeep) |
-| No `TWAKEUP` | The AXI4-Stream `TWAKEUP` low-power signal is not implemented |
-| No native CDC | Both interfaces are on `aclk`. Crossing clock domains requires an external `gaxi_fifo_async` |
-| No reordering or arbitration | The module is a single-stream elastic buffer. `TID`/`TDEST` are carried through unmodified; they are not decoded for routing |
-| No protocol checking | The module does not detect or report `TVALID` deassertion before `TREADY`, or `TLAST` framing errors |
-| `SKID_DEPTH` limited to 2..8 inclusive | The buffer is a timing element, not a rate adapter. Use a `gaxi_fifo_sync` downstream for deep elastic storage |
-
-## Verification Notes
-
-### Protocol Compliance
-- Verify AXI4-Stream handshaking (VALID/READY)
-- Check TLAST alignment with packet boundaries
-- Validate sideband signal preservation
-
-### Buffer Verification
-- Test buffer overflow/underflow protection
-- Verify data integrity through buffering
-- Check flow control under backpressure
-
-### Performance Verification
-- Measure sustained throughput under various loads
-- Verify buffer utilization efficiency
-- Check latency characteristics
-
 ## Related Modules
 
 - **axis_master_cg**: Clock-gated version for power optimization

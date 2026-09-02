@@ -273,19 +273,19 @@ A typical AXI4 read transaction, walked phase by phase:
                               addr_alloc fires (free CAM slot picked)
                               valid       = 1
                               state       = TRANS_ADDR_PHASE
-   cmd_valid handshake ─►     id          = cmd_id
+   cmd_valid handshake      id          = cmd_id
    (cmd_id, cmd_addr, ...)    cmd_received= cmd_ready
                               expected_beats = cmd_len + 1
                               addr_timestamp = timestamp
 
                               addr_update fires (the SAME entry, still
-   cmd held valid ─────►      awaiting its handshake: cmd_received=0)
+   cmd held valid       awaiting its handshake: cmd_received=0)
    across stalled cycles      cmd_received <= 1 on the handshake cycle
                               addr_timer  <= 0
                               addr_timestamp <= timestamp
 
                               data_update fires (oldest matching open entry)
-   data_valid handshake ─►    data_started <= 1
+   data_valid handshake     data_started <= 1
    (data_id == cmd_id,        data_beat_count++
     data_last, data_resp)     state        <= TRANS_DATA_PHASE
                               if data_last:
@@ -297,7 +297,7 @@ A typical AXI4 read transaction, walked phase by phase:
 
                               (later, reporter handles the event)
                               cleanup fires
-   event_reported flag ─►     valid <= 0       # slot returned to free pool
+   event_reported flag      valid <= 0       # slot returned to free pool
    from reporter              # CAM sees the entry as free on next cycle
 ```
 

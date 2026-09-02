@@ -2,12 +2,12 @@
 
 <!-- Auto-generated link index for PDF build. Regenerate via generate_rtl_pdfs.sh -->
 
-<!-- GAXI moved to its own book 2026-08-09: see _book_gaxi_index.md. The two
-     async variants (gaxi_fifo_async, gaxi_skid_buffer_async) live in rtl/cdc
-     and were listed HERE as well as in _book_cdc_index.md -- the same page in
-     two books, reviewed twice and humanized twice, with no way to tell which
-     copy a finding referred to. They belong to cdc. -->
-
+- [GAXI (Generic AXI) Modules](gaxi/README.md)
+- [gaxi_drop_fifo_sync](gaxi/gaxi_drop_fifo_sync.md)
+- [gaxi_fifo_sync](gaxi/gaxi_fifo_sync.md)
+- [gaxi_regslice](gaxi/gaxi_regslice.md)
+- [gaxi_skid_buffer](gaxi/gaxi_skid_buffer.md)
+- [gaxi_skid_buffer_dbldrn](gaxi/gaxi_skid_buffer_dbldrn.md)
 - [Shared Infrastructure Documentation Status](shared/DOCUMENTATION_STATUS.md)
 - [AMBA Shared Infrastructure](shared/README.md)
 - [AMBA Clock Gate Controller](shared/amba_clock_gate_ctrl.md)
@@ -33,6 +33,3 @@
 - [SDPRAM Slave — AXIL Write / AXI4 Read](shared/sdpram_slave_axil_axi4.md)
 - [SDPRAM Slave — AXIL Write / AXIL Read](shared/sdpram_slave_axil_axil.md)
 - [AMBA Protocol Shims](shims/README.md)
-- [axi4_to_apb4_convert](../../../projects/components/converters/docs/converter_mas/ch03_protocol_blocks/04_axi4_to_apb4.md)
-- [axi4_to_apb4_shim](../../../projects/components/converters/docs/converter_mas/ch03_protocol_blocks/04_axi4_to_apb4.md)
-- [peakrdl_to_cmdrsp](../../../projects/components/converters/docs/peakrdl_to_cmdrsp.md) — owned by the converters component

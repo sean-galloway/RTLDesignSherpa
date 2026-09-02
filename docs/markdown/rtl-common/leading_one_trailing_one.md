@@ -63,7 +63,7 @@ Internally it's two specialized finder modules working opposite ends:
    - Implements priority encoding from MSB to LSB
 
 2. **find_first_set**: Locates the position of the least significant set bit
-   - Connected to `trailingone` output  
+   - Connected to `trailingone` output
    - Implements priority encoding from LSB to MSB
 
 ### One-Hot Vector Generation
@@ -128,7 +128,7 @@ measured.
 Input:  data = 8'b00101000
 Output: leadingone = 3'd5
         leadingone_vector = 8'b00100000
-        trailingone = 3'd3  
+        trailingone = 3'd3
         trailingone_vector = 8'b00001000
         all_zeroes = 1'b0
         all_ones = 1'b0

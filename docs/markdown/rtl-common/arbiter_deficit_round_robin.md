@@ -155,6 +155,20 @@ WRR's weights (IDLE → BLOCK → DRAIN → UPDATE → STABILIZE; 10 cycles mini
 policy. Quantum 0 disables a client entirely. A cost of 0 is defensively
 served as cost 1.
 
+## Design Notes
+
+**Deficit round robin shapes by CREDIT, not by turn.** A client
+with a larger quantum receives proportionally more service over a round rather than
+more turns, so short-burst and long-burst clients with the same quantum get the same
+bandwidth, not the same grant count. Size quanta in the unit the downstream consumes.
+
+**The compliance model lives in the DV framework.** Round-robin order and fairness
+verdicts come from `CocoTBFramework`'s `ArbiterCompliance`; several historical
+"violations" in this family were defects in that model rather than in any arbiter
+(COMMON-016 through COMMON-019).
+
+---
+
 ## Timing Characteristics
 | Property | Value |
 |---|---|

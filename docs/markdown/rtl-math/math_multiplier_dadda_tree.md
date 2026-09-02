@@ -110,7 +110,7 @@ The Dadda tree uses an **optimized reduction schedule** rather than immediate re
 
 **Step 1: Calculate Reduction Schedule**
 ```
-Define target heights: d(1) = 2, d(j+1) = ⌊1.5 × d(j)⌋
+Define target heights: d(1) = 2, d(j+1) = 1.5 × d(j)
 Sequence: 2, 3, 4, 6, 9, 13, 19, 28, 42, ...
 ```
 Pick the smallest sequence entry that is greater than or equal to the tallest
@@ -319,7 +319,7 @@ The Dadda reduction sequence is defined as:
 
 ```
 d(1) = 2           (final stage: 2 rows)
-d(j+1) = ⌊1.5 × d(j)⌋  (recursive definition)
+d(j+1) = 1.5 × d(j)  (recursive definition)
 
 Sequence: 2, 3, 4, 6, 9, 13, 19, 28, 42, 63, 94, 141, ...
 ```

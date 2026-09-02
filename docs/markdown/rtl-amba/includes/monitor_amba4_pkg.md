@@ -42,7 +42,26 @@ in a 4-bit space.
 
 ---
 
-## AXI4 Event Codes
+## Design Notes
+
+**This is a package, not a module.** It has no ports and no clock; it declares
+the types, enums and parameters that the monitor family shares, and exists so
+that a field width or event encoding has exactly one definition. Changing a
+width here changes every module that imports it, which is the point.
+
+**Compile order matters.** A package must be analysed before anything that
+imports it. The filelists under `rtl/amba/filelists/` place the `includes/`
+packages first for that reason; hand-listing sources in a different order is
+one of the ways a build breaks confusingly
+(`vault/handbook/design/filelists.md`).
+
+**No test of its own, and none expected.** A package has no behaviour to
+simulate. It is verified by every module that imports it failing to elaborate
+if a declaration is wrong.
+
+---
+
+### AXI4 Event Codes
 
 Nine categories cover the AXI4 / AXI4-Lite monitor surface: error, timeout,
 completion, threshold, performance, address-match, debug, and the two
@@ -183,9 +202,7 @@ package for the full perf-window / perf-histogram value tables. The
 | 8'hB–8'hE | _(reserved)_               | _Reserved for future use_ |
 | 8'hF      | `AXI_DEBUG_USER_DEFINED`   | User-defined debug |
 
----
-
-## APB4 Event Codes
+### APB4 Event Codes
 
 Six categories cover the APB4 monitor surface: error, timeout, completion,
 threshold, performance, and debug. The `protocol` field for every code in
@@ -281,9 +298,7 @@ this section is `PROTOCOL_APB` (4'h2).
 | 8'h9–8'hE | _(reserved)_              | _Reserved for future use_ |
 | 8'hF      | `APB_DEBUG_USER_DEFINED`  | User-defined debug |
 
----
-
-## AXIS4 Event Codes
+### AXIS4 Event Codes
 
 Six categories cover the AXI4-Stream monitor surface: error, timeout,
 completion, credit, channel, and stream. The `protocol` field for every
@@ -389,9 +404,7 @@ code in this section is `PROTOCOL_AXIS` (4'h1).
 | 8'h8–8'hE | _(reserved)_               | _Reserved for future use_ |
 | 8'hF      | `AXIS_STREAM_USER_DEFINED` | User-defined stream event |
 
----
-
-## Unified Event Code Union
+### Unified Event Code Union
 
 `monitor_amba4_pkg` also exports a `unified_event_code_t` packed union that
 overlays the **8-bit event-code enums** in this document onto a single 8-bit
@@ -401,9 +414,6 @@ have no `create_*` helper — pack those through the `raw` view. Helper function
 `create_axi_*_event`, `create_apb4_*_event`, and `create_axis_*_event` construct
 the union from a typed enum value — use these from any wrapper that needs
 to publish a protocol-tagged event_code without manual bit packing.
-
----
-
 ## Related Modules
 - **[`monitor_package_spec.md`](./monitor_package_spec.md)** — Universal types, packet layout, helper functions.
 - **[`monitor_amba5_pkg.md`](./monitor_amba5_pkg.md)** — AXI5 / APB5 / AXIS5 extended event codes.

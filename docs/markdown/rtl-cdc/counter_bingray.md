@@ -262,7 +262,7 @@ counter_bingray #(.WIDTH(ADDR_WIDTH+1)) wr_counter (
     .counter_gray(wr_gray)
 );
 
-// Read domain counter  
+// Read domain counter
 counter_bingray #(.WIDTH(ADDR_WIDTH+1)) rd_counter (
     .clk(rd_clk),
     .rst_n(rd_rst_n), 
@@ -466,16 +466,16 @@ covergroup counter_bingray_cg @(posedge clk);
     cp_binary: coverpoint counter_bin {
         bins all_values[] = {[0:2**WIDTH-1]};
     }
-    
+
     cp_gray: coverpoint counter_gray {
         bins all_values[] = {[0:2**WIDTH-1]};
     }
-    
+
     cp_enable: coverpoint enable {
         bins enabled = {1};
         bins disabled = {0};
     }
-    
+
     cp_transitions: coverpoint counter_bin {
         bins transitions[] = ([0:2**WIDTH-2] => [1:2**WIDTH-1]);
         bins rollover = (2**WIDTH-1 => 0);

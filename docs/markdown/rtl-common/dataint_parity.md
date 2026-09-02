@@ -95,12 +95,12 @@ generate
         localparam int LowerBound = i * ChunkSize;
         localparam int UpperBound = (i < CHUNKS - 1) ? 
             ((i + 1) * ChunkSize) - 1 : WIDTH - 1;
-        
+
         // Calculate parity for this chunk
         wire calculated_parity = parity_type ? 
             ^data_in[UpperBound:LowerBound] :      // Even parity
             ~^data_in[UpperBound:LowerBound];      // Odd parity
-            
+
         assign parity[i] = calculated_parity;
         assign parity_err[i] = (calculated_parity != parity_in[i]);
     end
@@ -154,6 +154,20 @@ Chunk 3: data_in[29:21]  (9 bits)  → parity[3], parity_err[3]
 - **Scalable Architecture**: Parameterizable chunk count, flexible data width, uneven divisions handled for you
 - **Simultaneous Operation**: Generation and checking run concurrently, each chunk minds its own business, and all chunks evaluate at the same time
 - **Parity Flexibility**: You can flip the parity type during operation; all chunks share the same parity type; both common parity schemes covered
+
+## Related Modules
+
+Nothing in the tree instantiates this module and it
+instantiates nothing: it is a leaf, used directly by whatever design needs
+it. Its nearest neighbours in `rtl/common/` are:
+
+- `dataint_checksum`
+- `dataint_crc`
+- `dataint_crc_xor_shift`
+- `dataint_crc_xor_shift_cascade`
+- `dataint_ecc_hamming_decode_secded`
+
+---
 
 ## Timing Characteristics
 - **Combinational Logic**: Zero clock delay

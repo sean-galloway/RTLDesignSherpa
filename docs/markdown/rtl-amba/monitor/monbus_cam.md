@@ -383,6 +383,19 @@ monbus_cam #(
 
 ---
 
+## Design Notes
+
+**`cam_clear` is level-sensitive and must be driven.** Sample it for one cycle
+while the CAM is idle; it empties the template store and zeroes the compressor
+statistics so the next run starts from a clean hit/miss profile, without
+asserting `axi_aresetn`. Leaving it unconnected means the profile never resets
+between runs.
+
+**Tied off in raw-only builds.** With `USE_COMPRESSION=0` there is no CAM and
+the port folds away.
+
+---
+
 ## Testing
 
 `val/amba/test_monbus_cam.py` runs 10 sub-tests covering:

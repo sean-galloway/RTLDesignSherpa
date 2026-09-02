@@ -76,6 +76,91 @@ flowchart LR
 
 ---
 
+### Packet Formats
+
+### Command Packet Structure
+
+```
+cmd_data = {pwrite, pprot, pstrb, paddr, pwdata, pauser, pwuser}
+```
+
+| Field | Width | Description |
+|-------|-------|-------------|
+| pwrite | 1 | Write/read indicator |
+| pprot | PROT_WIDTH | Protection attributes |
+| pstrb | STRB_WIDTH | Write byte strobes |
+| paddr | ADDR_WIDTH | Transaction address |
+| pwdata | DATA_WIDTH | Write data |
+| pauser | AUSER_WIDTH | Address user signal |
+| pwuser | WUSER_WIDTH | Write user signal |
+
+### Response Packet Structure
+
+```
+rsp_data = {pslverr, prdata, pruser, pbuser}
+```
+
+| Field | Width | Description |
+|-------|-------|-------------|
+| pslverr | 1 | Error response |
+| prdata | DATA_WIDTH | Read data |
+| pruser | RUSER_WIDTH | Read user signal |
+| pbuser | BUSER_WIDTH | Response user signal |
+
+### State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE
+
+    IDLE --> XFER_DATA : PSEL & PENABLE & cmd_ready
+    XFER_DATA --> IDLE : rsp_valid
+
+    state IDLE {
+        note right of IDLE : Wait for APB access
+    }
+    state XFER_DATA {
+        note right of XFER_DATA : Wait for backend response
+    }
+```
+
+### State Descriptions
+
+| State | Description |
+|-------|-------------|
+| IDLE | Waiting for APB transaction (PSEL & PENABLE) |
+| XFER_DATA | Command sent, waiting for response from backend |
+
+### Transaction Flow
+
+### Read Transaction
+
+```mermaid
+sequenceDiagram
+    participant M as APB Master
+    participant STUB as APB5 Slave Stub
+    participant BE as Backend
+
+    M->>STUB: PSEL=1, PADDR, PWRITE=0
+    M->>STUB: PENABLE=1
+    Note over STUB: Pack command
+    STUB->>BE: cmd_valid, cmd_data
+    BE-->>STUB: rsp_valid, rsp_data
+    Note over STUB: Unpack response
+    STUB-->>M: PREADY=1, PRDATA
+```
+
+### Timing
+
+<!-- TODO: Add wavedrom timing diagram for slave stub -->
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - pclk
+> - APB signals (PSEL, PENABLE, PADDR, PWRITE, PREADY, PRDATA)
+> - cmd_valid, cmd_ready, cmd_data
+> - rsp_valid, rsp_ready, rsp_data
+> - State transitions IDLE -> XFER_DATA -> IDLE
 ## Parameters
 
 | Parameter | Type | Default | Description |
@@ -195,98 +280,6 @@ identical to [apb5_slave](apb5_slave.md#parity-implementation).
 | wakeup_request | 1 | Input | Assert PWAKEUP to master |
 | parity_error_wdata | 1 | Output | Write data parity error |
 | parity_error_ctrl | 1 | Output | Control signal parity error |
-
----
-
-## Packet Formats
-
-### Command Packet Structure
-
-```
-cmd_data = {pwrite, pprot, pstrb, paddr, pwdata, pauser, pwuser}
-```
-
-| Field | Width | Description |
-|-------|-------|-------------|
-| pwrite | 1 | Write/read indicator |
-| pprot | PROT_WIDTH | Protection attributes |
-| pstrb | STRB_WIDTH | Write byte strobes |
-| paddr | ADDR_WIDTH | Transaction address |
-| pwdata | DATA_WIDTH | Write data |
-| pauser | AUSER_WIDTH | Address user signal |
-| pwuser | WUSER_WIDTH | Write user signal |
-
-### Response Packet Structure
-
-```
-rsp_data = {pslverr, prdata, pruser, pbuser}
-```
-
-| Field | Width | Description |
-|-------|-------|-------------|
-| pslverr | 1 | Error response |
-| prdata | DATA_WIDTH | Read data |
-| pruser | RUSER_WIDTH | Read user signal |
-| pbuser | BUSER_WIDTH | Response user signal |
-
----
-
-## State Machine
-
-```mermaid
-stateDiagram-v2
-    [*] --> IDLE
-
-    IDLE --> XFER_DATA : PSEL & PENABLE & cmd_ready
-    XFER_DATA --> IDLE : rsp_valid
-
-    state IDLE {
-        note right of IDLE : Wait for APB access
-    }
-    state XFER_DATA {
-        note right of XFER_DATA : Wait for backend response
-    }
-```
-
-### State Descriptions
-
-| State | Description |
-|-------|-------------|
-| IDLE | Waiting for APB transaction (PSEL & PENABLE) |
-| XFER_DATA | Command sent, waiting for response from backend |
-
----
-
-## Transaction Flow
-
-### Read Transaction
-
-```mermaid
-sequenceDiagram
-    participant M as APB Master
-    participant STUB as APB5 Slave Stub
-    participant BE as Backend
-
-    M->>STUB: PSEL=1, PADDR, PWRITE=0
-    M->>STUB: PENABLE=1
-    Note over STUB: Pack command
-    STUB->>BE: cmd_valid, cmd_data
-    BE-->>STUB: rsp_valid, rsp_data
-    Note over STUB: Unpack response
-    STUB-->>M: PREADY=1, PRDATA
-```
-
-### Timing
-
-<!-- TODO: Add wavedrom timing diagram for slave stub -->
-> **Timing diagram pending.** The signals and sequence this scenario
-> exercises:
->
-> - pclk
-> - APB signals (PSEL, PENABLE, PADDR, PWRITE, PREADY, PRDATA)
-> - cmd_valid, cmd_ready, cmd_data
-> - rsp_valid, rsp_ready, rsp_data
-> - State transitions IDLE -> XFER_DATA -> IDLE
 
 ---
 

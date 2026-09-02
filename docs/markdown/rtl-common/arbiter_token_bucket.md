@@ -125,6 +125,19 @@ Declared as `parameter` so the elaborator can size the packed ports, not so call
 - **No config-update FSM** — unlike the WRR/DRR there is no cross-client
   invariant to protect; rate/cap changes take effect per the clamp rules.
 
+## Design Notes
+
+**`TW` and `CXTW` are derived; do not override them.** They are
+`$clog2(MAX_TOKENS)` and `CLIENTS * TW`, declared as `parameter` so the elaborator
+can size the packed ports. Setting one directly desynchronises it from `MAX_TOKENS`
+and the packed vectors mis-size.
+
+**`WAIT_GNT_ACK` must match the DOWNSTREAM arbiter.** It states the completion
+contract this shaper is feeding, not a preference; a mismatch means the shaper and
+the arbiter disagree about when a grant is finished.
+
+---
+
 ## Timing Characteristics
 | Property | Value |
 |---|---|

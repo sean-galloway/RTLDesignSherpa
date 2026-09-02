@@ -104,7 +104,7 @@ fi
 # ---- CDC (dedicated cross-cutting book: primer + primitives + gray + slaves) ----
 if want cdc; then
   # The CDC modules now live in rtl/cdc with their own book (AMBA-CDC-REORG),
-  # so the pages come from rtl-cdc/. glitch_free_n_dff_arn and clock_pulse stay
+  # so the pages come from rtl-cdc/. clock_pulse stays
   # in rtl-common (they are not CDC-owned) and the apb slaves stay with their
   # protocol, so this book remains cross-cutting.
   CDC=(
@@ -117,7 +117,7 @@ if want cdc; then
     rtl-cdc/fifo_async.md
     rtl-cdc/gaxi_fifo_async.md
     rtl-cdc/gaxi_skid_buffer_async.md
-    rtl-common/glitch_free_n_dff_arn.md
+    rtl-cdc/glitch_free_n_dff_arn.md
     rtl-common/clock_pulse.md
     rtl-amba/apb4/apb4_slave_cdc.md
     rtl-amba/apb4/apb4_slave_cdc_cg.md
@@ -154,7 +154,7 @@ amba_book() {  # <book-key> <Title> <out-name> <subdir...>
   build_book "${title}" "${SUB}" "rtl-amba/_book_${key}_index.md" "${out}"
 }
 
-amba_book apb    "RTL AMBA APB4"          RTL_AMBA_APB4          apb
+amba_book apb    "RTL AMBA APB4"          RTL_AMBA_APB4          apb4
 amba_book apb5   "RTL AMBA APB5"          RTL_AMBA_APB5          apb5
 amba_book axi4   "RTL AMBA AXI4"          RTL_AMBA_AXI4          axi4
 amba_book axil4  "RTL AMBA AXI4-Lite"     RTL_AMBA_AXI4_Lite     axil4

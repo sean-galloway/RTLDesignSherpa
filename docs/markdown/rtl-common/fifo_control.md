@@ -95,7 +95,7 @@ wr_ptr  = 0_101  (address 5, no wrap)
 rd_ptr  = 0_010  (address 2, no wrap)
 → MSBs same, not full
 
-Case 2: Full  
+Case 2: Full
 wr_ptr  = 1_010  (address 2, wrapped once)
 rd_ptr  = 0_010  (address 2, not wrapped)
 → MSBs differ, addresses same = FULL
@@ -136,7 +136,7 @@ generate
     if (REGISTERED == 1) begin : gen_flop_mode
         // FLOP mode: Use previous cycle's write pointer
         logic [ADDR_WIDTH:0] r_rdom_wr_ptr_bin_delayed;
-        
+
         always_ff @(posedge rd_clk or negedge rd_rst_n) begin
             if (!rd_rst_n) begin
                 r_rdom_wr_ptr_bin_delayed <= '0;
@@ -144,7 +144,7 @@ generate
                 r_rdom_wr_ptr_bin_delayed <= rdom_wr_ptr_bin;
             end
         end
-        
+
         assign w_wr_ptr_for_empty = r_rdom_wr_ptr_bin_delayed;
     end else begin : gen_mux_mode
         // MUX mode: Use current write pointer

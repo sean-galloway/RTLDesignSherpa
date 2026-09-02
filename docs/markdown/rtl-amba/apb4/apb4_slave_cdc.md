@@ -219,6 +219,19 @@ guard in `apb4_slave` — see [apb4_slave.md](apb4_slave.md).
 
 ---
 
+## Design Notes
+
+**This is a clock-domain crossing; the usual CDC rules bind.**
+Pointers cross Gray-coded through `glitch_free_n_dff_arn`, and the reset must be
+asserted in both domains -- releasing one before the other leaves the pointer
+comparison meaningless until the second releases.
+
+**Depth buys latency tolerance, not bandwidth.** A CDC FIFO's throughput is set by
+the slower domain; a deeper buffer absorbs a longer burst without stalling but does
+not raise the sustained rate. See `vault/handbook/design/cdc.md`.
+
+---
+
 ## Timing Characteristics
 
 ### Maximum Clock Ratio

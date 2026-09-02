@@ -38,7 +38,26 @@ wide; slot `8'hF` is the `*_USER_DEFINED` escape hatch. ARB codes carry
 
 ---
 
-## ARB Event Codes
+## Design Notes
+
+**This is a package, not a module.** It has no ports and no clock; it declares
+the types, enums and parameters that the monitor family shares, and exists so
+that a field width or event encoding has exactly one definition. Changing a
+width here changes every module that imports it, which is the point.
+
+**Compile order matters.** A package must be analysed before anything that
+imports it. The filelists under `rtl/amba/filelists/` place the `includes/`
+packages first for that reason; hand-listing sources in a different order is
+one of the ways a build breaks confusingly
+(`vault/handbook/design/filelists.md`).
+
+**No test of its own, and none expected.** A package has no behaviour to
+simulate. It is verified by every module that imports it failing to elaborate
+if a declaration is wrong.
+
+---
+
+### ARB Event Codes
 
 Six categories cover the arbiter monitor surface: error, timeout,
 completion, threshold, performance, and debug. The `protocol` field for
@@ -156,9 +175,7 @@ every code in this section is `PROTOCOL_ARB` (4'h3).
 | 8'hC–8'hE | _(reserved)_                 | _Reserved for future use_ |
 | 8'hF      | `ARB_DEBUG_USER_DEFINED`     | User-defined debug |
 
----
-
-## CORE Event Codes
+### CORE Event Codes
 
 Six categories cover the core/accelerator monitor surface: error, timeout,
 completion, threshold, performance, and debug. The `protocol` field for
@@ -283,9 +300,7 @@ read/write engines, credit-based flow control).
 | 8'hB–8'hE | _(reserved)_                     | _Reserved for future use_ |
 | 8'hF      | `CORE_DEBUG_USER_DEFINED`        | User-defined debug |
 
----
-
-## Unified Event Code Union (`arb_core_event_code_t`)
+### Unified Event Code Union (`arb_core_event_code_t`)
 
 `monitor_arbiter_pkg` exports a single `arb_core_event_code_t` packed
 union that overlays all twelve enums (six ARB + six CORE) plus a `raw`
@@ -319,9 +334,6 @@ Helper constructors `create_arb_error_event`, `create_arb_timeout_event`,
 union from a typed ARB enum value. (Equivalent CORE constructors are not
 exported by the package — code producing CORE codes assigns the union
 field directly.)
-
----
-
 ## Related Modules
 - **[`monitor_package_spec.md`](./monitor_package_spec.md)** — Universal types, packet layout, helper functions.
 - **[`monitor_amba4_pkg.md`](./monitor_amba4_pkg.md)** — AXI4 / APB4 / AXIS4 event codes.

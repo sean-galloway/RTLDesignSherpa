@@ -129,123 +129,7 @@ end
 assign done = (count == r_match_val);
 ```
 
-## Timing Characteristics
-
-### Basic Operation
-
-```
-Clock     : __|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__
-Reset_n   : _____|‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-Load      : __________|‾‾‾|_________________________
-LoadVal   : ─────────< 3 >─────────────────────────
-Clear     : __________________________________|‾‾‾|_
-Increment : ________________|‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾|_
-Count     : ──< 0 >──< 0 >──< 0 >──< 1 >──< 2 >──< 3 >──< 0 >
-Done      : ‾‾‾‾‾‾‾‾‾‾‾‾‾‾_____________|‾‾‾|_______
-```
-
-`done` is combinational (`count == r_match_val`) and both reset to 0, so it
-is **high out of reset** and stays high until the load writes a non-zero
-match value. It is not a pulse that only appears at terminal count.
-
-### Load During Count
-
-Load only writes `r_match_val`; it does **not** stall the count. With
-`increment` held high, `count` advances every cycle (including the load cycle).
-Here `load` asserts while `count == 2`, so `r_match_val` becomes 5 starting the
-next cycle — before `count` reaches the old match value 3 — so the counter never
-wraps at 3 and instead runs to the new match 5:
-
-```
-Clock     : __|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__
-Load      : ___________|‾‾‾|___________________
-LoadVal   : ──────────< 5 >────────────────────
-Increment : |‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾|
-Count     : < 0 >< 1 >< 2 >< 3 >< 4 >< 5 >< 0 >
-r_match   : < 3 >< 3 >< 3 >< 5 >< 5 >< 5 >< 5 >
-Done      : ________________________|‾‾‾|______
-```
-
-(If `load` had instead arrived after `count` already reached 3, the counter
-would have wrapped at 3 first — the outcome depends on load timing relative to
-the old match value.)
-
-### Maximum Frequency
-
-- **Typical**: 300-500 MHz in modern FPGAs
-- **Critical Path**: Increment + comparison logic
-- **Optimization**: Consider pipelining for extreme speeds
-
-### Latency
-
-- **Load Operation**: 1 cycle to update match value
-- **Clear Operation**: 1 cycle to reset count
-- **Done Signal**: Combinational (0 cycles)
-
-## Usage Examples
-
-### 1. Basic Counting Mode
-
-```systemverilog
-// Simple timer: count to 100
-counter_load_clear #(.MAX(1000)) timer (
-    .clk(clk),
-    .rst_n(rst_n),
-    .clear(1'b0),
-    .increment(1'b1),
-    .load(1'b1),
-    .loadval(8'd99),    // Count 0-99 (100 cycles)
-    .count(timer_count),
-    .done(timer_done)
-);
-```
-
-### 2. Configurable Delay Mode
-
-```systemverilog
-// Variable delay generator
-logic [7:0] delay_setting;
-logic start_delay, delay_complete;
-
-counter_load_clear #(.MAX(256)) delay_gen (
-    .clk(clk),
-    .rst_n(rst_n),
-    .clear(start_delay),        // Start new delay
-    .increment(1'b1),
-    .load(start_delay),         // Load new value when starting
-    .loadval(delay_setting),
-    .count(),
-    .done(delay_complete)
-);
-```
-
-### 3. Retriggerable Timer Mode
-
-```systemverilog
-// Watchdog timer that resets on activity
-logic activity_detected, timeout;
-
-counter_load_clear #(.MAX(10000)) watchdog (
-    .clk(clk),
-    .rst_n(rst_n),
-    .clear(activity_detected),  // Reset on activity
-    .increment(1'b1),
-    .load(1'b1),
-    .loadval(16'd9999),         // 10000 cycle timeout
-    .count(),
-    .done(timeout)
-);
-```
-
-1. **Timer Modules**: Configurable timing generation
-2. **Protocol Engines**: Timeout and retry mechanisms
-3. **PWM Controllers**: Variable duty cycle generation
-4. **Burst Generators**: Programmable pulse trains
-5. **Watchdog Timers**: System monitoring and reset
-6. **Clock Dividers**: Variable frequency division
-7. **Test Pattern Generators**: Configurable test sequences
-
-## Advanced Variants
+### Advanced Variants
 
 ### 1. Dual-Rate Timer
 
@@ -340,8 +224,123 @@ counter_load_clear #(.MAX(2048)) rx_timer (
     .done(rx_timeout)
 );
 ```
+## Timing Characteristics
 
-## Design Patterns
+### Basic Operation
+
+```
+Clock     : __|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__
+Reset_n   : _____|‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+Load      : __________|‾‾‾|_________________________
+LoadVal   : < 3 >
+Clear     : __________________________________|‾‾‾|_
+Increment : ________________|‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾|_
+Count     : < 0 >< 0 >< 0 >< 1 >< 2 >< 3 >< 0 >
+Done      : ‾‾‾‾‾‾‾‾‾‾‾‾‾‾_____________|‾‾‾|_______
+```
+
+`done` is combinational (`count == r_match_val`) and both reset to 0, so it
+is **high out of reset** and stays high until the load writes a non-zero
+match value. It is not a pulse that only appears at terminal count.
+
+### Load During Count
+
+Load only writes `r_match_val`; it does **not** stall the count. With
+`increment` held high, `count` advances every cycle (including the load cycle).
+Here `load` asserts while `count == 2`, so `r_match_val` becomes 5 starting the
+next cycle — before `count` reaches the old match value 3 — so the counter never
+wraps at 3 and instead runs to the new match 5:
+
+```
+Clock     : __|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__
+Load      : ___________|‾‾‾|___________________
+LoadVal   : < 5 >
+Increment : |‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾|
+Count     : < 0 >< 1 >< 2 >< 3 >< 4 >< 5 >< 0 >
+r_match   : < 3 >< 3 >< 3 >< 5 >< 5 >< 5 >< 5 >
+Done      : ________________________|‾‾‾|______
+```
+
+(If `load` had instead arrived after `count` already reached 3, the counter
+would have wrapped at 3 first — the outcome depends on load timing relative to
+the old match value.)
+
+### Maximum Frequency
+
+- **Typical**: 300-500 MHz in modern FPGAs
+- **Critical Path**: Increment + comparison logic
+- **Optimization**: Consider pipelining for extreme speeds
+
+### Latency
+
+- **Load Operation**: 1 cycle to update match value
+- **Clear Operation**: 1 cycle to reset count
+- **Done Signal**: Combinational (0 cycles)
+
+## Usage Examples
+
+### 1. Basic Counting Mode
+
+```systemverilog
+// Simple timer: count to 100
+counter_load_clear #(.MAX(1000)) timer (
+    .clk(clk),
+    .rst_n(rst_n),
+    .clear(1'b0),
+    .increment(1'b1),
+    .load(1'b1),
+    .loadval(8'd99),    // Count 0-99 (100 cycles)
+    .count(timer_count),
+    .done(timer_done)
+);
+```
+
+### 2. Configurable Delay Mode
+
+```systemverilog
+// Variable delay generator
+logic [7:0] delay_setting;
+logic start_delay, delay_complete;
+
+counter_load_clear #(.MAX(256)) delay_gen (
+    .clk(clk),
+    .rst_n(rst_n),
+    .clear(start_delay),        // Start new delay
+    .increment(1'b1),
+    .load(start_delay),         // Load new value when starting
+    .loadval(delay_setting),
+    .count(),
+    .done(delay_complete)
+);
+```
+
+### 3. Retriggerable Timer Mode
+
+```systemverilog
+// Watchdog timer that resets on activity
+logic activity_detected, timeout;
+
+counter_load_clear #(.MAX(10000)) watchdog (
+    .clk(clk),
+    .rst_n(rst_n),
+    .clear(activity_detected),  // Reset on activity
+    .increment(1'b1),
+    .load(1'b1),
+    .loadval(16'd9999),         // 10000 cycle timeout
+    .count(),
+    .done(timeout)
+);
+```
+
+1. **Timer Modules**: Configurable timing generation
+2. **Protocol Engines**: Timeout and retry mechanisms
+3. **PWM Controllers**: Variable duty cycle generation
+4. **Burst Generators**: Programmable pulse trains
+5. **Watchdog Timers**: System monitoring and reset
+6. **Clock Dividers**: Variable frequency division
+7. **Test Pattern Generators**: Configurable test sequences
+
+### Design Patterns
 
 ### Pattern 1: Auto-Reloading Timer
 
@@ -379,7 +378,6 @@ counter_load_clear adaptive_timer (
     ...
 );
 ```
-
 ## Testing
 
 ### Test Scenarios
@@ -402,14 +400,14 @@ covergroup load_clear_cg @(posedge clk);
         bins mid = {[MAX/4+1:3*MAX/4]};
         bins high = {[3*MAX/4+1:MAX-1]};
     }
-    
+
     cp_match_val: coverpoint r_match_val {
         bins zero = {0};
         bins low = {[1:MAX/4]};
         bins mid = {[MAX/4+1:3*MAX/4]};
         bins high = {[3*MAX/4+1:MAX-1]};
     }
-    
+
     cp_operations: coverpoint {clear, increment, load} {
         bins clear_only = {3'b100};
         bins inc_only = {3'b010};
@@ -420,9 +418,9 @@ covergroup load_clear_cg @(posedge clk);
         bins all_ops = {3'b111};
         bins no_ops = {3'b000};
     }
-    
+
     cp_done: coverpoint done;
-    
+
     // Cross coverage
     cross_done_ops: cross cp_operations, done;
 endgroup

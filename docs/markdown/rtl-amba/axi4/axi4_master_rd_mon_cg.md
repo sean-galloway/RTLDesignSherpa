@@ -282,10 +282,10 @@ rises -- even at `cfg_cg_idle_count = 0`.
 ### Gating State Machine
 
 ```
-ACTIVE ───────► IDLE_COUNT ───────► GATED
-  ▲                                    │
-  │                                    │
-  └────────────────────────────────────┘
+ACTIVE  IDLE_COUNT  GATED
+
+
+
         (Activity Detected)
 
 States:

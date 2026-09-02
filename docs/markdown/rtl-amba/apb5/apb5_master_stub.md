@@ -73,6 +73,80 @@ flowchart LR
 
 ---
 
+### Packet Formats
+
+### Command Packet Structure
+
+```mermaid
+flowchart LR
+    subgraph CMD["Command Packet (MSB to LSB)"]
+        last["last<br/>(1b)"]
+        first["first<br/>(1b)"]
+        pwrite["pwrite<br/>(1b)"]
+        pprot["pprot<br/>(3b)"]
+        pstrb["pstrb<br/>(SW)"]
+        paddr["paddr<br/>(AW)"]
+        pwdata["pwdata<br/>(DW)"]
+        pauser["pauser<br/>(AUW)"]
+        pwuser["pwuser<br/>(WUW)"]
+    end
+```
+
+**Bit Positions:**
+```
+cmd_data = {last, first, pwrite, pprot, pstrb, paddr, pwdata, pauser, pwuser}
+```
+
+### Response Packet Structure
+
+```mermaid
+flowchart LR
+    subgraph RSP["Response Packet (MSB to LSB)"]
+        last["last<br/>(1b)"]
+        first["first<br/>(1b)"]
+        pslverr["pslverr<br/>(1b)"]
+        pwakeup["pwakeup<br/>(1b)"]
+        prdata["prdata<br/>(DW)"]
+        pruser["pruser<br/>(RUW)"]
+        pbuser["pbuser<br/>(BUW)"]
+    end
+```
+
+**Bit Positions:**
+```
+rsp_data = {last, first, pslverr, pwakeup, prdata, pruser, pbuser}
+```
+
+### Transaction Flow
+
+### Write Transaction
+
+```mermaid
+sequenceDiagram
+    participant TB as Testbench
+    participant STUB as APB5 Master Stub
+    participant APB as APB5 Bus
+
+    TB->>STUB: cmd_valid, cmd_data (write)
+    Note over STUB: Unpack command
+    STUB->>APB: PSEL=1, PADDR, PWDATA
+    STUB->>APB: PENABLE=1
+    APB-->>STUB: PREADY=1
+    Note over STUB: Pack response
+    STUB-->>TB: rsp_valid, rsp_data
+```
+
+### Timing
+
+<!-- TODO: Add wavedrom timing diagram for stub transactions -->
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - pclk
+> - cmd_valid, cmd_ready, cmd_data
+> - APB signals (PSEL, PENABLE, PADDR, PWDATA, PREADY)
+> - rsp_valid, rsp_ready, rsp_data
+> - Packet-to-APB timing relationship
 ## Parameters
 
 | Parameter | Type | Default | Description |
@@ -185,85 +259,6 @@ identical to [apb5_master](apb5_master.md#parity-implementation).
 | parity_error_rdata | 1 | Output | Read data parity error |
 | parity_error_ctrl | 1 | Output | Control signal parity error |
 | wakeup_pending | 1 | Output | Wake-up signal active |
-
----
-
-## Packet Formats
-
-### Command Packet Structure
-
-```mermaid
-flowchart LR
-    subgraph CMD["Command Packet (MSB to LSB)"]
-        last["last<br/>(1b)"]
-        first["first<br/>(1b)"]
-        pwrite["pwrite<br/>(1b)"]
-        pprot["pprot<br/>(3b)"]
-        pstrb["pstrb<br/>(SW)"]
-        paddr["paddr<br/>(AW)"]
-        pwdata["pwdata<br/>(DW)"]
-        pauser["pauser<br/>(AUW)"]
-        pwuser["pwuser<br/>(WUW)"]
-    end
-```
-
-**Bit Positions:**
-```
-cmd_data = {last, first, pwrite, pprot, pstrb, paddr, pwdata, pauser, pwuser}
-```
-
-### Response Packet Structure
-
-```mermaid
-flowchart LR
-    subgraph RSP["Response Packet (MSB to LSB)"]
-        last["last<br/>(1b)"]
-        first["first<br/>(1b)"]
-        pslverr["pslverr<br/>(1b)"]
-        pwakeup["pwakeup<br/>(1b)"]
-        prdata["prdata<br/>(DW)"]
-        pruser["pruser<br/>(RUW)"]
-        pbuser["pbuser<br/>(BUW)"]
-    end
-```
-
-**Bit Positions:**
-```
-rsp_data = {last, first, pslverr, pwakeup, prdata, pruser, pbuser}
-```
-
----
-
-## Transaction Flow
-
-### Write Transaction
-
-```mermaid
-sequenceDiagram
-    participant TB as Testbench
-    participant STUB as APB5 Master Stub
-    participant APB as APB5 Bus
-
-    TB->>STUB: cmd_valid, cmd_data (write)
-    Note over STUB: Unpack command
-    STUB->>APB: PSEL=1, PADDR, PWDATA
-    STUB->>APB: PENABLE=1
-    APB-->>STUB: PREADY=1
-    Note over STUB: Pack response
-    STUB-->>TB: rsp_valid, rsp_data
-```
-
-### Timing
-
-<!-- TODO: Add wavedrom timing diagram for stub transactions -->
-> **Timing diagram pending.** The signals and sequence this scenario
-> exercises:
->
-> - pclk
-> - cmd_valid, cmd_ready, cmd_data
-> - APB signals (PSEL, PENABLE, PADDR, PWDATA, PREADY)
-> - rsp_valid, rsp_ready, rsp_data
-> - Packet-to-APB timing relationship
 
 ---
 

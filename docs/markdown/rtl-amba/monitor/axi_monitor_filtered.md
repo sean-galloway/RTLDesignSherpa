@@ -293,6 +293,20 @@ to `16'h0000` unless you need to suppress specific event codes.
 
 ---
 
+## Design Notes
+
+**Two active filter levels, not three.** Packet-type masks
+(`cfg_axi_pkt_mask`), then per-event-code masks. `cfg_axi_err_select` is
+RESERVED and routes nothing: this module uses it in exactly one expression,
+`cfg_conflict_error = |(cfg_axi_pkt_mask & cfg_axi_err_select)`, so its only
+effect is to raise that flag on an overlap. Its own port comment says "unused
+in this context".
+
+**A mask bit set means DROP.** The sense catches people out; a mask of all ones
+emits nothing.
+
+---
+
 ## Related Modules
 
 - **[axi_monitor_base](./axi_monitor_base.md)**

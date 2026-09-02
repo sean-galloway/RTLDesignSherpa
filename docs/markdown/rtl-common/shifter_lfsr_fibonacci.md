@@ -214,7 +214,7 @@ all zeros and relies on seed loading for proper initialization.
 - **Easy to Understand**: Classical LFSR textbook implementation
 - **Single XOR Gate**: All feedback logic concentrated in one location
 
-### Disadvantages of Fibonacci LFSR  
+### Disadvantages of Fibonacci LFSR
 - **Fan-out**: Feedback XOR gate may have high fan-out for many taps
 - **Critical Path**: All tapped bits must route to single XOR gate
 - **Timing**: May be slower than distributed Galois implementation

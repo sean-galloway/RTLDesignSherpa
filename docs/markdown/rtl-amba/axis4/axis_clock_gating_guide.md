@@ -24,7 +24,7 @@
 # AXIS4 Clock-Gated Variants Guide
 
 **Location:** `rtl/amba/axis4/*_cg.sv`
-**Status:** ✅ Production Ready
+**Status:**  Production Ready
 
 ---
 
@@ -222,13 +222,13 @@ first-beat latency for power.
 
 ### When to Use Clock Gating
 
-**✅ Recommended For:**
+** Recommended For:**
 - Packet-based streaming (idle between packets)
 - Video processing (blanking periods between frames/lines)
 - Burst data transfers (gaps between bursts)
 - Power-constrained streaming applications
 
-**❌ Not Recommended For:**
+** Not Recommended For:**
 - Continuous audio/video streams (100% utilization)
 - Real-time DSP pipelines (no idle periods)
 - Ultra-low-latency paths

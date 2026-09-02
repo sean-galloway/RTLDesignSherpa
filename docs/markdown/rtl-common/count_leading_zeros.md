@@ -130,163 +130,7 @@ Because the scan direction already matches the definition, the input must be fed
 directly. Reversing `data` before connecting it turns this module back into a trailing
 zero counter - see the history note above.
 
-## Examples and Truth Tables
-
-### 8-bit Examples (WIDTH=8)
-
-The count is set by the **highest** set bit; bits below it never affect the result.
-
-| Input (data) | Binary | Highest set bit | Leading Zeros | CLZ Output |
-|--------------|---------|--------------|---------------|------------|
-| 8'b00000000 | 00000000 | None | 8 | 8 |
-| 8'b00000001 | 00000001 | Bit 0 | 7 | 7 |
-| 8'b00000010 | 00000010 | Bit 1 | 6 | 6 |
-| 8'b00000100 | 00000100 | Bit 2 | 5 | 5 |
-| 8'b00001000 | 00001000 | Bit 3 | 4 | 4 |
-| 8'b00010000 | 00010000 | Bit 4 | 3 | 3 |
-| 8'b00100000 | 00100000 | Bit 5 | 2 | 2 |
-| 8'b01000000 | 01000000 | Bit 6 | 1 | 1 |
-| 8'b10000000 | 10000000 | Bit 7 | 0 | 0 |
-| 8'b11111111 | 11111111 | Bit 7 | 0 | 0 |
-| 8'b10101010 | 10101010 | Bit 7 | 0 | 0 |
-| 8'b00010101 | 00010101 | Bit 4 | 3 | 3 |
-| 8'b00110000 | 00110000 | Bit 5 | 2 | 2 |
-
-### 32-bit Examples
-
-| Input | Hex | Leading Zeros | CLZ |
-|-------|-----|---------------|-----|
-| 32'h00000000 | 0x00000000 | 32 | 32 |
-| 32'h00000001 | 0x00000001 | 31 | 31 |
-| 32'h00000080 | 0x00000080 | 24 | 24 |
-| 32'h00008000 | 0x00008000 | 16 | 16 |
-| 32'h00800000 | 0x00800000 | 8 | 8 |
-| 32'h80000000 | 0x80000000 | 0 | 0 |
-| 32'hFFFFFFFF | 0xFFFFFFFF | 0 | 0 |
-
-## Usage Examples
-
-### 1. Floating-Point Normalization
-
-```systemverilog
-// IEEE 754 floating-point normalization
-logic [31:0] mantissa_raw;
-logic [5:0] shift_amount;
-logic [31:0] normalized_mantissa;
-
-count_leading_zeros #(.WIDTH(32)) norm_clz (
-    .data(mantissa_raw),
-    .clz(shift_amount)
-);
-
-// Normalize mantissa by shifting left
-assign normalized_mantissa = mantissa_raw << shift_amount;
-
-// Adjust exponent accordingly
-logic [7:0] adjusted_exponent;
-assign adjusted_exponent = raw_exponent - shift_amount;
-```
-
-### 2. Priority Encoder
-
-```systemverilog
-// Find highest priority request
-logic [15:0] request_vector;
-logic [4:0]  leading_zeros;
-logic [3:0]  highest_priority;
-logic any_request;
-
-count_leading_zeros #(.WIDTH(16)) priority_enc (
-    .data(request_vector),
-    .clz(leading_zeros)
-);
-
-assign any_request = (leading_zeros != 16);
-assign highest_priority = any_request ? (15 - leading_zeros) : 4'b0;
-
-// Example: request_vector = 16'b0000_0100_1000_0000
-// Highest set bit is bit 10
-// CLZ = 5 (five leading zeros above bit 10)
-// highest_priority = 15 - 5 = 10
-```
-
-### 3. Bit Width Calculation
-
-```systemverilog
-// Determine minimum bits needed to represent a number
-logic [31:0] number;
-logic [5:0] min_bits_needed;
-
-count_leading_zeros #(.WIDTH(32)) bit_width_calc (
-    .data(number),
-    .clz(leading_zeros)
-);
-
-assign min_bits_needed = (number == 0) ? 1 : (32 - leading_zeros);
-
-// Examples:
-// number = 0      → min_bits = 1
-// number = 1      → min_bits = 1  
-// number = 255    → min_bits = 8
-// number = 256    → min_bits = 9
-// number = 65535  → min_bits = 16
-```
-
-### 4. Log2 Calculation
-
-```systemverilog
-// Calculate floor(log2(x)) for x > 0
-logic [31:0] input_value;
-logic [4:0] log2_result;
-logic valid;
-
-count_leading_zeros #(.WIDTH(32)) log2_calc (
-    .data(input_value),
-    .clz(leading_zeros)
-);
-
-assign valid = (input_value != 0);
-assign log2_result = valid ? (31 - leading_zeros) : 5'b0;
-
-// Examples:
-// input = 1    → log2 = 0
-// input = 2    → log2 = 1
-// input = 4    → log2 = 2
-// input = 7    → log2 = 2 (floor)
-// input = 8    → log2 = 3
-```
-
-### 5. Data Compression - Run Length Encoding
-
-```systemverilog
-// Count leading zeros for compression
-logic [63:0] data_block;
-logic [6:0] zero_run_length;
-
-count_leading_zeros #(.WIDTH(64)) rle_counter (
-    .data(data_block),
-    .clz(zero_run_length)
-);
-
-// Use in compression algorithm
-if (zero_run_length > THRESHOLD) begin
-    // Encode as zero run
-    compressed_data = {RLE_CODE, zero_run_length};
-end else begin
-    // Encode as literal data
-    compressed_data = {LITERAL_CODE, data_block};
-end
-```
-
-1. **CPU/DSP Cores**: Instruction implementation (CLZ instruction)
-2. **Floating-Point Units**: Mantissa normalization
-3. **Network Processors**: Longest prefix matching
-4. **Compression Engines**: Run-length encoding optimization
-5. **Memory Controllers**: Priority arbitration
-6. **Graphics Processors**: Texture coordinate processing
-7. **Cryptographic Units**: Bit manipulation operations
-
-## Advanced Variants
+### Advanced Variants
 
 ### 1. Pipeline Version for High Speed
 
@@ -390,7 +234,161 @@ end
 
 endmodule
 ```
+## Usage Examples
 
+### 1. Floating-Point Normalization
+
+```systemverilog
+// IEEE 754 floating-point normalization
+logic [31:0] mantissa_raw;
+logic [5:0] shift_amount;
+logic [31:0] normalized_mantissa;
+
+count_leading_zeros #(.WIDTH(32)) norm_clz (
+    .data(mantissa_raw),
+    .clz(shift_amount)
+);
+
+// Normalize mantissa by shifting left
+assign normalized_mantissa = mantissa_raw << shift_amount;
+
+// Adjust exponent accordingly
+logic [7:0] adjusted_exponent;
+assign adjusted_exponent = raw_exponent - shift_amount;
+```
+
+### 2. Priority Encoder
+
+```systemverilog
+// Find highest priority request
+logic [15:0] request_vector;
+logic [4:0]  leading_zeros;
+logic [3:0]  highest_priority;
+logic any_request;
+
+count_leading_zeros #(.WIDTH(16)) priority_enc (
+    .data(request_vector),
+    .clz(leading_zeros)
+);
+
+assign any_request = (leading_zeros != 16);
+assign highest_priority = any_request ? (15 - leading_zeros) : 4'b0;
+
+// Example: request_vector = 16'b0000_0100_1000_0000
+// Highest set bit is bit 10
+// CLZ = 5 (five leading zeros above bit 10)
+// highest_priority = 15 - 5 = 10
+```
+
+### 3. Bit Width Calculation
+
+```systemverilog
+// Determine minimum bits needed to represent a number
+logic [31:0] number;
+logic [5:0] min_bits_needed;
+
+count_leading_zeros #(.WIDTH(32)) bit_width_calc (
+    .data(number),
+    .clz(leading_zeros)
+);
+
+assign min_bits_needed = (number == 0) ? 1 : (32 - leading_zeros);
+
+// Examples:
+// number = 0      → min_bits = 1
+// number = 1      → min_bits = 1
+// number = 255    → min_bits = 8
+// number = 256    → min_bits = 9
+// number = 65535  → min_bits = 16
+```
+
+### 4. Log2 Calculation
+
+```systemverilog
+// Calculate floor(log2(x)) for x > 0
+logic [31:0] input_value;
+logic [4:0] log2_result;
+logic valid;
+
+count_leading_zeros #(.WIDTH(32)) log2_calc (
+    .data(input_value),
+    .clz(leading_zeros)
+);
+
+assign valid = (input_value != 0);
+assign log2_result = valid ? (31 - leading_zeros) : 5'b0;
+
+// Examples:
+// input = 1    → log2 = 0
+// input = 2    → log2 = 1
+// input = 4    → log2 = 2
+// input = 7    → log2 = 2 (floor)
+// input = 8    → log2 = 3
+```
+
+### 5. Data Compression - Run Length Encoding
+
+```systemverilog
+// Count leading zeros for compression
+logic [63:0] data_block;
+logic [6:0] zero_run_length;
+
+count_leading_zeros #(.WIDTH(64)) rle_counter (
+    .data(data_block),
+    .clz(zero_run_length)
+);
+
+// Use in compression algorithm
+if (zero_run_length > THRESHOLD) begin
+    // Encode as zero run
+    compressed_data = {RLE_CODE, zero_run_length};
+end else begin
+    // Encode as literal data
+    compressed_data = {LITERAL_CODE, data_block};
+end
+```
+
+1. **CPU/DSP Cores**: Instruction implementation (CLZ instruction)
+2. **Floating-Point Units**: Mantissa normalization
+3. **Network Processors**: Longest prefix matching
+4. **Compression Engines**: Run-length encoding optimization
+5. **Memory Controllers**: Priority arbitration
+6. **Graphics Processors**: Texture coordinate processing
+7. **Cryptographic Units**: Bit manipulation operations
+
+### Examples and Truth Tables
+
+### 8-bit Examples (WIDTH=8)
+
+The count is set by the **highest** set bit; bits below it never affect the result.
+
+| Input (data) | Binary | Highest set bit | Leading Zeros | CLZ Output |
+|--------------|---------|--------------|---------------|------------|
+| 8'b00000000 | 00000000 | None | 8 | 8 |
+| 8'b00000001 | 00000001 | Bit 0 | 7 | 7 |
+| 8'b00000010 | 00000010 | Bit 1 | 6 | 6 |
+| 8'b00000100 | 00000100 | Bit 2 | 5 | 5 |
+| 8'b00001000 | 00001000 | Bit 3 | 4 | 4 |
+| 8'b00010000 | 00010000 | Bit 4 | 3 | 3 |
+| 8'b00100000 | 00100000 | Bit 5 | 2 | 2 |
+| 8'b01000000 | 01000000 | Bit 6 | 1 | 1 |
+| 8'b10000000 | 10000000 | Bit 7 | 0 | 0 |
+| 8'b11111111 | 11111111 | Bit 7 | 0 | 0 |
+| 8'b10101010 | 10101010 | Bit 7 | 0 | 0 |
+| 8'b00010101 | 00010101 | Bit 4 | 3 | 3 |
+| 8'b00110000 | 00110000 | Bit 5 | 2 | 2 |
+
+### 32-bit Examples
+
+| Input | Hex | Leading Zeros | CLZ |
+|-------|-----|---------------|-----|
+| 32'h00000000 | 0x00000000 | 32 | 32 |
+| 32'h00000001 | 0x00000001 | 31 | 31 |
+| 32'h00000080 | 0x00000080 | 24 | 24 |
+| 32'h00008000 | 0x00008000 | 16 | 16 |
+| 32'h00800000 | 0x00800000 | 8 | 8 |
+| 32'h80000000 | 0x80000000 | 0 | 0 |
+| 32'hFFFFFFFF | 0xFFFFFFFF | 0 | 0 |
 ## Timing Characteristics
 
 ### Resource Utilization
@@ -428,7 +426,7 @@ covergroup clz_cg;
         bins high_clz = {[3*WIDTH/4+1:WIDTH-1]};
         bins all_zeros = {WIDTH};
     }
-    
+
     cp_data_patterns: coverpoint data {
         bins all_zeros = {'0};
         bins all_ones = {'1};

@@ -78,7 +78,7 @@ end
 
 - **Normally Open (NO)**: `PRESSED_STATE = 1`
   - Button reads '0' when not pressed, '1' when pressed
-- **Normally Closed (NC)**: `PRESSED_STATE = 0`  
+- **Normally Closed (NC)**: `PRESSED_STATE = 0`
   - Button reads '1' when not pressed, '0' when pressed
 - The input inversion handles NC buttons transparently
 

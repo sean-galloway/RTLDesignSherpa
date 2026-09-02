@@ -55,68 +55,68 @@ The RTL AMBA library is built on the following core principles:
 
 ```
 AMBA Protocol Family
-├── AMBA 4 (Established Standard)
-│   ├── APB4 (Advanced Peripheral Bus)
-│   │   ├── Simple register-oriented interface
-│   │   ├── Low power, low area implementation
-│   │   └── Suitable for control/status registers
-│   ├── AXI4-Lite (Lightweight Memory-Mapped)
-│   │   ├── Single outstanding transaction
-│   │   ├── Register-oriented access patterns
-│   │   └── Simplified AXI4 for configuration
-│   ├── AXI4-Full (High-Performance Memory-Mapped)
-│   │   ├── Multiple outstanding transactions (up to 16)
-│   │   ├── Burst transaction support
-│   │   └── High-throughput memory access
-│   └── AXI4-Stream (High-Throughput Streaming)
-│       ├── Unidirectional data streaming
-│       ├── Back-pressure flow control
-│       └── Packet-based data transfer
-│
-└── AMBA 5 (Next-Generation Features)
-    ├── APB5 (Enhanced Peripheral Bus)
-    │   ├── All APB4 features plus:
-    │   ├── PWAKEUP for low-power wake-up
-    │   ├── PNSE for TrustZone non-secure extension
-    │   └── User signals (PAUSER, PWUSER, etc.)
-    ├── AXI5 (Enhanced High-Performance)
-    │   ├── All AXI4 features plus:
-    │   ├── Atomic operations (AtomicStore, AtomicLoad, etc.)
-    │   ├── Memory tagging (AWMEMATTR, ARMEMATTR)
-    │   ├── Data poisoning (RPOISON, WPOISON)
-    │   └── Up to 256 outstanding transactions
-    └── AXI5-Stream (Enhanced Streaming)
-        ├── All AXI4-Stream features plus:
-        ├── TWAKEUP for low-power wake-up
-        └── TPOISON for error propagation
+ AMBA 4 (Established Standard)
+    APB4 (Advanced Peripheral Bus)
+       Simple register-oriented interface
+       Low power, low area implementation
+       Suitable for control/status registers
+    AXI4-Lite (Lightweight Memory-Mapped)
+       Single outstanding transaction
+       Register-oriented access patterns
+       Simplified AXI4 for configuration
+    AXI4-Full (High-Performance Memory-Mapped)
+       Multiple outstanding transactions (up to 16)
+       Burst transaction support
+       High-throughput memory access
+    AXI4-Stream (High-Throughput Streaming)
+        Unidirectional data streaming
+        Back-pressure flow control
+        Packet-based data transfer
+
+ AMBA 5 (Next-Generation Features)
+     APB5 (Enhanced Peripheral Bus)
+        All APB4 features plus:
+        PWAKEUP for low-power wake-up
+        PNSE for TrustZone non-secure extension
+        User signals (PAUSER, PWUSER, etc.)
+     AXI5 (Enhanced High-Performance)
+        All AXI4 features plus:
+        Atomic operations (AtomicStore, AtomicLoad, etc.)
+        Memory tagging (AWMEMATTR, ARMEMATTR)
+        Data poisoning (RPOISON, WPOISON)
+        Up to 256 outstanding transactions
+     AXI5-Stream (Enhanced Streaming)
+         All AXI4-Stream features plus:
+         TWAKEUP for low-power wake-up
+         TPOISON for error propagation
 ```
 
 ### Implementation Architecture
 
 ```
 RTL AMBA Library Architecture (131 modules under rtl/amba/)
-├── AMBA 4 Protocol Implementations (45 modules)
-│   ├── APB4 (9 modules) -- rtl/amba/apb4/
-│   │   Masters, slaves, clock-gating and CDC variants, test stubs
-│   ├── AXI4 (16 modules) -- rtl/amba/axi4/
-│   │   Read/write masters and slaves, clock-gating and monitored variants
-│   ├── AXI4-Lite (16 modules) -- rtl/amba/axil4/
-│   │   Read/write masters and slaves, clock-gating and monitored variants
-│   └── AXI4-Stream (4 modules) -- rtl/amba/axis4/
-│       Masters and slaves, clock-gating variants
-│
-├── AMBA 5 Protocol Implementations (30 modules)
-│   ├── APB5 (9 modules) -- rtl/amba/apb5/
-│   ├── AXI5 (17 modules) -- rtl/amba/axi5/
-│   └── AXI5-Stream (4 modules) -- rtl/amba/axis5/
-│
-└── Shared Infrastructure (56 modules)
-    ├── Monitor subsystem (30 modules) -- rtl/amba/monitor/
-    │   Transaction monitors, the six reporter sub-blocks, the monbus
-    │   CAM/compressor/group path, and the monbus-instrumented arbiters
-    ├── Shared datapath (20 modules) -- rtl/amba/shared/
-    │   Splitters, bus meters, pattern generators, CRC checkers, SDPRAM slaves
-    └── GAXI generic components (6 modules) -- rtl/amba/gaxi/
+ AMBA 4 Protocol Implementations (45 modules)
+    APB4 (9 modules) -- rtl/amba/apb4/
+      Masters, slaves, clock-gating and CDC variants, test stubs
+    AXI4 (16 modules) -- rtl/amba/axi4/
+      Read/write masters and slaves, clock-gating and monitored variants
+    AXI4-Lite (16 modules) -- rtl/amba/axil4/
+      Read/write masters and slaves, clock-gating and monitored variants
+    AXI4-Stream (4 modules) -- rtl/amba/axis4/
+       Masters and slaves, clock-gating variants
+
+ AMBA 5 Protocol Implementations (30 modules)
+    APB5 (9 modules) -- rtl/amba/apb5/
+    AXI5 (17 modules) -- rtl/amba/axi5/
+    AXI5-Stream (4 modules) -- rtl/amba/axis5/
+
+ Shared Infrastructure (56 modules)
+     Monitor subsystem (30 modules) -- rtl/amba/monitor/
+       Transaction monitors, the six reporter sub-blocks, the monbus
+       CAM/compressor/group path, and the monbus-instrumented arbiters
+     Shared datapath (20 modules) -- rtl/amba/shared/
+       Splitters, bus meters, pattern generators, CRC checkers, SDPRAM slaves
+     GAXI generic components (6 modules) -- rtl/amba/gaxi/
         Skid buffers, sync and drop FIFOs, register slice
 ```
 

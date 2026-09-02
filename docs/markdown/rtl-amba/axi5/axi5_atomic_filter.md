@@ -99,33 +99,21 @@ faces the fabric. Only control signals pass through:
 | B | `m_bvalid/bready/bid/bresp` → `s_bvalid/bready/bid/bresp` |
 | Clock/reset | `aclk`, `aresetn` (active-low async) -- single domain, shared with both sides |
 
-## Integration
+## Functional Description
 
-The bridge generator (BRIDGE-002 A5-3a) inserts this filter automatically in
-the master adapter of any AXI5 master port with `atomic` in its
-`axi5_features`, between the `axi5_slave_wr` boundary wrapper (`pref_axi_*`)
-and the fabric-facing `fub_axi_*` namespace. Handshakes and the B payload go
-through the filter; every other signal gets a `pref → fub` pass-through
-assign. Swallowed transactions never assert `m_awvalid`, so stale
-pass-through payload is inert.
+The filter sits on the write path and decides, per AW,
+whether the burst is forwarded downstream or swallowed. An unsupported atomic
+(`AWATOP` naming a load, swap or compare) is swallowed: its W beats are discarded and
+a local DECERR is returned with the AW's ID. Everything else passes through.
 
-Standalone integrations follow the same recipe: route payload around,
-handshakes through.
+A route queue pushed per AW and popped at WLAST steers each W burst, so forwarded and
+swallowed bursts interleave correctly in AW order. A response queue holds the locally
+generated DECERRs, and the B output selects between that queue and the downstream
+response.
 
-## Design Notes and Constraints
+There is no protocol state machine: two small FIFOs and combinational routing.
 
-- **W stalls until its AW is queued.** `s_wready` is held low while the
-  route queue is empty. AW acceptance never depends on W, so this cannot
-  deadlock; it simply serializes W-before-AW masters at this boundary.
-- **Same-ID B ordering.** A local DECERR can pass an in-flight forwarded
-  write's B response. The AXI atomic rules already require atomics not to
-  share an ID with outstanding transactions, so a compliant master never
-  observes the reorder.
-- **DECERR, not SLVERR.** An unsupported atomic at this boundary is "no
-  such capability at this address path" — the decode-class error.
-- The filter is intentionally not parameterized to pass load-class atomics
-  through: a fabric that CAN route read returns (A5-3b's shared per-ID
-  tracker) simply omits the filter.
+---
 
 ## Timing Characteristics
 
@@ -175,6 +163,51 @@ axi5_atomic_filter #(
     .m_bresp               (m_bresp)
 );
 ```
+
+---
+
+### Integration
+
+The bridge generator (BRIDGE-002 A5-3a) inserts this filter automatically in
+the master adapter of any AXI5 master port with `atomic` in its
+`axi5_features`, between the `axi5_slave_wr` boundary wrapper (`pref_axi_*`)
+and the fabric-facing `fub_axi_*` namespace. Handshakes and the B payload go
+through the filter; every other signal gets a `pref → fub` pass-through
+assign. Swallowed transactions never assert `m_awvalid`, so stale
+pass-through payload is inert.
+
+Standalone integrations follow the same recipe: route payload around,
+handshakes through.
+
+### Design Notes and Constraints
+
+- **W stalls until its AW is queued.** `s_wready` is held low while the
+  route queue is empty. AW acceptance never depends on W, so this cannot
+  deadlock; it simply serializes W-before-AW masters at this boundary.
+- **Same-ID B ordering.** A local DECERR can pass an in-flight forwarded
+  write's B response. The AXI atomic rules already require atomics not to
+  share an ID with outstanding transactions, so a compliant master never
+  observes the reorder.
+- **DECERR, not SLVERR.** An unsupported atomic at this boundary is "no
+  such capability at this address path" — the decode-class error.
+- The filter is intentionally not parameterized to pass load-class atomics
+  through: a fabric that CAN route read returns (A5-3b's shared per-ID
+  tracker) simply omits the filter.
+## Design Notes
+
+**The B selection must be HELD once presented.** AXI requires BID
+and BRESP to be stable from BVALID until the handshake. Selecting combinationally
+between the downstream response and a queued DECERR lets a downstream B arriving
+under a stalled `s_bvalid` change the payload mid-beat; the module latches which
+source is presented and releases only on accept, and qualifies `m_bready` by that
+choice so a downstream response is not consumed while the master is still looking at
+a DECERR.
+
+**DECERR, not SLVERR.** An unsupported atomic at this boundary is "no such
+capability here", which is a decode error.
+
+**Write path only.** The filter has six handshake pairs -- `s_aw`/`s_w`/`s_b` and
+`m_aw`/`m_w`/`m_b`; the read channels do not pass through it.
 
 ---
 

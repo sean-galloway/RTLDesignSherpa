@@ -82,26 +82,26 @@ always_comb begin
     w_pdata = o_pdata;
     w_sdata_lt = 1'b0;
     w_sdata_rt = 1'b0;
-    
+
     casez (select)
         2'b00: begin  // Hold
             w_pdata = o_pdata;
             w_sdata_lt = 1'b0;
             w_sdata_rt = 1'b0;
         end
-        
+
         2'b01: begin  // Right Shift
             w_pdata = {i_sdata_rt, o_pdata[WIDTH-1:1]};
             w_sdata_lt = 1'b0;
             w_sdata_rt = o_pdata[0];
         end
-        
+
         2'b10: begin  // Left Shift
             w_pdata = {o_pdata[WIDTH-2:0], i_sdata_lt};
             w_sdata_lt = o_pdata[WIDTH-1];
             w_sdata_rt = 1'b0;
         end
-        
+
         2'b11: begin  // Parallel Load
             w_pdata = i_pdata;
             w_sdata_lt = 1'b0;
@@ -140,7 +140,7 @@ end
 - **Use Case**: Serial-to-parallel conversion, delay lines
 
 ### Left Shift Operation (select = 2'b10)
-- **Function**: Shifts data toward MSB  
+- **Function**: Shifts data toward MSB
 - **Data Flow**: `i_sdata_lt` → LSB, MSB → `o_sdata_lt`
 - **Serial Input**: New data enters from `i_sdata_lt`
 - **Serial Output**: Shifted-out data exits via `o_sdata_lt`
@@ -152,6 +152,20 @@ end
 - **Serial Outputs**: Both remain low (no shift occurring)
 - **Use Case**: Initialization, data injection
 
+## Related Modules
+
+Nothing in the tree instantiates this module and it
+instantiates nothing: it is a leaf, used directly by whatever design needs
+it. Its nearest neighbours in `rtl/common/` are:
+
+- `shifter_barrel`
+- `shifter_beat_pack`
+- `shifter_lfsr`
+- `shifter_lfsr_fibonacci`
+- `shifter_lfsr_galois`
+
+---
+
 ## Timing Characteristics
 
 ### Right Shift Operation Example (WIDTH=4)
@@ -161,7 +175,7 @@ value *after* that cycle's edge. `o_sdata_rt` is registered, so the bit it shows
 in a column is the LSB that the *previous* column's `o_pdata` ejected.
 
 ```
-Clock:      _╱‾╲__╱‾╲__╱‾╲__╱‾╲__╱‾╲__╱‾╲_
+Clock:      _‾__‾__‾__‾__‾__‾_
 select:     ---- 01   01   01   01   01
 i_sdata_rt: ---- 1    0    1    1    0
 o_pdata:    0000 1000 0100 1010 1101 0110
@@ -173,7 +187,7 @@ and visible in the column that shift produces -- not alongside `1101` itself.
 
 ### Parallel Load followed by Left Shift
 ```
-Clock:     ___╱‾╲___╱‾╲___╱‾╲___╱‾╲___
+Clock:     ___‾___‾___‾___‾___
 select:    11   10   10   10
 i_pdata:   1010 ---- ---- ----
 i_sdata_lt:---- 1    0    1
@@ -199,7 +213,7 @@ received_byte = o_pdata;
 select = 2'b10;
 i_sdata_lt = 1'b0;  // Fill with zeros
 
-// Divide by 2: right shift  
+// Divide by 2: right shift
 select = 2'b01;
 i_sdata_rt = 1'b0;  // Fill with zeros (unsigned)
 // or i_sdata_rt = o_pdata[WIDTH-1] for arithmetic shift
@@ -249,7 +263,7 @@ scan_out = o_sdata_rt;
 
 ### Common Use Cases
 - Serial-to-parallel conversion
-- Parallel-to-serial conversion  
+- Parallel-to-serial conversion
 - Data delay and timing adjustment
 - Arithmetic operations (×2, ÷2)
 - Pattern generation and circulation

@@ -156,7 +156,7 @@ end
 for (i = 0; i < ParityBits; i++) begin
     parity_pos = (2 ** i) - 1;  // Positions 0, 1, 3, 7, 15, ...
     w_data_with_parity[parity_pos] = 1'b0;  // Initialize
-    
+
     // XOR all covered positions
     w_covered_bits = get_covered_bits(i);
     for (bit_index = 0; bit_index < TotalWidth; bit_index++) begin

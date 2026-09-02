@@ -187,33 +187,18 @@ The register slice introduces exactly 1 cycle of latency. So does `gaxi_skid_buf
 
 ```
 Cycle:   1      2      3      4      5
-         ─────  ─────  ─────  ─────  ─────
-wr_valid   ╱‾‾╲_____________________
+
+wr_valid   ‾‾_____________________
 wr_data  =[ A ]=====================
 
-r_valid  ________╱‾‾‾‾‾‾‾‾‾╲_________
+r_valid  ________‾‾‾‾‾‾‾‾‾_________
 r_data   ========[ A ]================
 
-rd_valid ________╱‾‾‾‾‾‾‾‾‾╲_________
+rd_valid ________‾‾‾‾‾‾‾‾‾_________
 rd_data  ========[ A ]================
          ↑
          1-cycle delay guaranteed
 ```
-
----
-
-## Resource Utilization
-
-### FPGA Resources (Typical)
-
-| DATA_WIDTH | Flops | LUTs | Slice Registers |
-|------------|-------|------|-----------------|
-| 8 | 9 | ~6 | 9 |
-| 32 | 33 | ~12 | 33 |
-| 64 | 65 | ~18 | 65 |
-| 128 | 129 | ~24 | 129 |
-
-**Scaling:** Approximately DATA_WIDTH + 1 flops (data + valid flag)
 
 ---
 
@@ -374,6 +359,18 @@ BFMs in `val/amba/test_gaxi_regslice.py`.
 
 ---
 
+### Resource Utilization
+
+### FPGA Resources (Typical)
+
+| DATA_WIDTH | Flops | LUTs | Slice Registers |
+|------------|-------|------|-----------------|
+| 8 | 9 | ~6 | 9 |
+| 32 | 33 | ~12 | 33 |
+| 64 | 65 | ~18 | 65 |
+| 128 | 129 | ~24 | 129 |
+
+**Scaling:** Approximately DATA_WIDTH + 1 flops (data + valid flag)
 ## Testing
 
 **Test File:** `val/amba/test_gaxi_regslice.py`

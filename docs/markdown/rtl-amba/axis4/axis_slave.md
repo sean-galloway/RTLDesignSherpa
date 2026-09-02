@@ -126,21 +126,18 @@ module axis_slave #(
 |------|-------|-----------|-------------|
 | busy | 1 | Output | Interface active (for clock gating) |
 
-## Features
+## Functional Description
 
-- **Full AXI4-Stream Protocol:** Support for all optional sideband signals
-- **Elastic Buffering:** Skid buffer decouples interconnect and backend timing
-- **Configurable Width:** Optional ID, DEST, USER signals (set width to 0 to disable)
-- **Activity Monitoring:** Busy signal for power management
+The slave accepts an AXI4-Stream on `s_axis_*` and
+presents it on the FUB-facing `fub_axis_*` side through a `gaxi_skid_buffer`. The
+buffer registers both `rd_valid` and its storage, so every beat costs one cycle even
+when neither side stalls; `SKID_DEPTH` sets how much upstream backpressure can be
+absorbed before it propagates, not the sustained rate.
 
-### TSTRB and TKEEP
+TLAST, TKEEP, TSTRB, TID, TDEST and TUSER are carried verbatim when their widths are
+non-zero. The module holds no packet state -- it is a buffer, not a framer.
 
-ARM IHI 0051A defines two byte qualifiers: `TKEEP` (byte is part of the data stream) and
-`TSTRB` (byte is a data byte rather than a position byte). This module implements **`TSTRB`
-only** — there is no `TKEEP` port. `s_axis_tstrb` is packed into the skid buffer entry and
-reproduced on `fub_axis_tstrb` unmodified, so it can equally carry a `TKEEP` mask if the
-surrounding design treats it that way. That is an integrator-side naming convention, not
-protocol-compliant `TKEEP` support.
+---
 
 ## Timing Characteristics
 
@@ -215,6 +212,21 @@ axis_slave #(
 | No protocol checking | The module does not detect or report `TVALID` deassertion before `TREADY`, or `TLAST` framing errors |
 | `SKID_DEPTH` limited to 2..8 inclusive | The buffer is a timing element, not a rate adapter. Use a `gaxi_fifo_sync` downstream for deep elastic storage |
 
+### Features
+
+- **Full AXI4-Stream Protocol:** Support for all optional sideband signals
+- **Elastic Buffering:** Skid buffer decouples interconnect and backend timing
+- **Configurable Width:** Optional ID, DEST, USER signals (set width to 0 to disable)
+- **Activity Monitoring:** Busy signal for power management
+
+### TSTRB and TKEEP
+
+ARM IHI 0051A defines two byte qualifiers: `TKEEP` (byte is part of the data stream) and
+`TSTRB` (byte is a data byte rather than a position byte). This module implements **`TSTRB`
+only** — there is no `TKEEP` port. `s_axis_tstrb` is packed into the skid buffer entry and
+reproduced on `fub_axis_tstrb` unmodified, so it can equally carry a `TKEEP` mask if the
+surrounding design treats it that way. That is an integrator-side naming convention, not
+protocol-compliant `TKEEP` support.
 ## Related Modules
 
 - **[axis_master](axis_master.md)** - Stream master counterpart

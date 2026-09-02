@@ -57,34 +57,34 @@ Per-category counts live in one place — the [count table in index.md](index.md
 
 ```
 rtl-common Library
-├── (Arithmetic & Math moved to rtl/math/ — see rtl-math book)
-├── Data Integrity
-│   ├── Error Detection (CRC, Checksum, Parity)
-│   └── Error Correction (Hamming ECC)
-├── Control & Arbitration
-│   ├── Round-Robin Arbiters
-│   └── Priority Arbiters
-├── Clock & Reset
-│   ├── Clock Management (ICG, Dividers)
-│   └── Reset Synchronization
-├── Counters & Sequences
-│   ├── Binary Counters (Gray/Johnson counters moved to rtl/cdc/)
-│   └── Specialized Counting
-├── Data Conversion
-│   ├── Code Converters (Binary→BCD; Gray/Johnson moved to rtl/cdc/)
-│   └── Display Decoders
-├── Bit Operations
-│   ├── Bit Searching & Counting
-│   └── Vector Manipulation
-├── Shift & LFSR
-│   ├── Barrel Shifters
-│   └── Pseudorandom Generation
-├── Memory & Storage
-│   ├── FIFO Implementations
-│   └── Content Addressable Memory
-└── Utilities
-    ├── PWM Generation
-    └── Sorting Algorithms
+ (Arithmetic & Math moved to rtl/math/ — see rtl-math book)
+ Data Integrity
+    Error Detection (CRC, Checksum, Parity)
+    Error Correction (Hamming ECC)
+ Control & Arbitration
+    Round-Robin Arbiters
+    Priority Arbiters
+ Clock & Reset
+    Clock Management (ICG, Dividers)
+    Reset Synchronization
+ Counters & Sequences
+    Binary Counters (Gray/Johnson counters moved to rtl/cdc/)
+    Specialized Counting
+ Data Conversion
+    Code Converters (Binary→BCD; Gray/Johnson moved to rtl/cdc/)
+    Display Decoders
+ Bit Operations
+    Bit Searching & Counting
+    Vector Manipulation
+ Shift & LFSR
+    Barrel Shifters
+    Pseudorandom Generation
+ Memory & Storage
+    FIFO Implementations
+    Content Addressable Memory
+ Utilities
+     PWM Generation
+     Sorting Algorithms
 ```
 
 ## Functional Categories

@@ -211,7 +211,7 @@ PWM:    1 1 1 0 0 0 0 0 1 1 1 0 0 0 0 0 ...
 
 ```
 Period: 1     2     DONE
-PWM:    ████▒▒▒▒████▒▒▒▒____
+PWM:    ____
 ```
 
 ## Usage Examples
@@ -240,7 +240,7 @@ repeat_count = fade_duration;
 ```systemverilog
 // 20ms period with 1-2ms pulse width
 duty = servo_position;     // 1000-2000 for 1-2ms
-period = 20000;  // needs WIDTH >= 15 -- at the default 8, 20000 truncates to 32           // 20ms at 1MHz clock  
+period = 20000;  // needs WIDTH >= 15 -- at the default 8, 20000 truncates to 32           // 20ms at 1MHz clock
 repeat_count = 1;         // Single pulse
 ```
 

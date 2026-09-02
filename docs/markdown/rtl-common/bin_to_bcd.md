@@ -125,20 +125,20 @@ typedef enum logic [5:0] {
 ### State Transition Diagram
 
 ```
-    IDLE ──start──→ SHIFT
+    IDLE start→ SHIFT
      ↑                ↓
-     │                ↓
+                     ↓
 BCD_DONE            CK_S_IDX
-     ↑              ↙      ↘
-     │        all bits     more bits
-     │        shifted        ↓
-     │             ↓        ADD
-     │        BCD_DONE      ↓
-     │                   CK_D_IDX
-     │                   ↙      ↘
-     │             all digits   more digits
-     │             processed      ↓
-     └─────────────────────→   SHIFT
+     ↑
+             all bits     more bits
+             shifted        ↓
+                  ↓        ADD
+             BCD_DONE      ↓
+                        CK_D_IDX
+
+                  all digits   more digits
+                  processed      ↓
+     →   SHIFT
 ```
 
 ### State Descriptions
@@ -151,7 +151,7 @@ BCD_DONE            CK_S_IDX
   - Initialize counters and registers when start detected
 - **Next State**: SHIFT when `start == 1'b1`
 
-#### SHIFT State  
+#### SHIFT State
 - **Function**: Shift one bit from binary to BCD
 - **Duration**: 1 clock cycle
 - **Actions**:
@@ -163,7 +163,7 @@ BCD_DONE            CK_S_IDX
 
 #### CK_S_IDX State
 - **Function**: Check if all binary bits processed
-- **Duration**: 1 clock cycle  
+- **Duration**: 1 clock cycle
 - **Actions**:
   - Compare loop counter with WIDTH
   - Reset digit index for ADD phase
@@ -326,7 +326,7 @@ The output `bcd` uses packed BCD format where multiple digits are concatenated:
 ```systemverilog
 // For DIGITS = 3, bcd[11:0] contains:
 // bcd[11:8]  = hundreds digit
-// bcd[7:4]   = tens digit  
+// bcd[7:4]   = tens digit
 // bcd[3:0]   = ones digit
 
 // Example: decimal 123 → bcd = 12'h123
@@ -349,6 +349,16 @@ assign ascii_ones     = 8'h30 + ones;     // Add ASCII '0'
 assign ascii_tens     = 8'h30 + tens;
 assign ascii_hundreds = 8'h30 + hundreds;
 ```
+
+## Related Modules
+
+Nothing in the tree instantiates this module and it
+instantiates nothing: it is a leaf, used directly by whatever design needs
+it. Its nearest neighbours in `rtl/common/` are:
+
+- (none in this category)
+
+---
 
 ## Timing Characteristics
 
@@ -489,7 +499,7 @@ module display_controller #(
     // BCD converter
     logic [11:0] bcd_result;
     logic conversion_done;
-    
+
     bin_to_bcd #(
         .WIDTH(WIDTH),
         .DIGITS(3)
@@ -501,18 +511,18 @@ module display_controller #(
         .bcd(bcd_result),
         .done(conversion_done)
     );
-    
+
     // Extract digits
     logic [3:0] digit_hundreds, digit_tens, digit_ones;
     assign digit_hundreds = bcd_result[11:8];
     assign digit_tens     = bcd_result[7:4];
     assign digit_ones     = bcd_result[3:0];
-    
+
     // Seven-segment decoders
     seven_seg_decoder dec_hundreds (.digit(digit_hundreds), .segments(seg_hundreds));
     seven_seg_decoder dec_tens     (.digit(digit_tens),     .segments(seg_tens));
     seven_seg_decoder dec_ones     (.digit(digit_ones),     .segments(seg_ones));
-    
+
     assign display_ready = conversion_done;
 
 endmodule
@@ -525,7 +535,7 @@ module seven_seg_decoder (
     always_comb begin
         case (digit)
             4'd0: segments = 7'b0111111; // 0
-            4'd1: segments = 7'b0000110; // 1  
+            4'd1: segments = 7'b0000110; // 1
             4'd2: segments = 7'b1011011; // 2
             4'd3: segments = 7'b1001111; // 3
             4'd4: segments = 7'b1100110; // 4
@@ -558,7 +568,7 @@ module decimal_uart_tx #(
     // BCD conversion
     logic [DIGITS*4-1:0] bcd_value;
     logic bcd_done;
-    
+
     bin_to_bcd #(
         .WIDTH(WIDTH),
         .DIGITS(DIGITS)
@@ -570,20 +580,20 @@ module decimal_uart_tx #(
         .bcd(bcd_value),
         .done(bcd_done)
     );
-    
+
     // ASCII conversion and transmission
     typedef enum {IDLE, CONVERT, TRANSMIT} state_t;
     state_t state;
-    
+
     logic [2:0] digit_idx;
     logic [3:0] current_digit;
     logic [7:0] ascii_char;
     logic uart_start, uart_done;
-    
+
     // Extract current digit (MSB first for display)
     assign current_digit = bcd_value[(DIGITS-1-digit_idx)*4+:4];
     assign ascii_char = 8'h30 + current_digit; // Convert to ASCII
-    
+
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             state <= IDLE;
@@ -591,7 +601,7 @@ module decimal_uart_tx #(
             uart_start <= 0;
         end else begin
             uart_start <= 0; // Default
-            
+
             case (state)
                 IDLE: begin
                     if (bcd_done) begin
@@ -599,7 +609,7 @@ module decimal_uart_tx #(
                         digit_idx <= 0;
                     end
                 end
-                
+
                 TRANSMIT: begin
                     if (!uart_busy && !uart_start) begin
                         uart_start <= 1;
@@ -614,7 +624,7 @@ module decimal_uart_tx #(
             endcase
         end
     end
-    
+
     // UART transmitter instance
     uart_tx_module uart_tx_inst (
         .clk(clk),
@@ -625,7 +635,7 @@ module decimal_uart_tx #(
         .busy(uart_busy),
         .done(uart_done)
     );
-    
+
     assign tx_busy = (state != IDLE);
 
 endmodule
@@ -652,12 +662,12 @@ module multi_channel_bcd #(
     logic [$clog2(CHANNELS)-1:0] current_channel;
     logic [CHANNELS-1:0] pending_requests;
     logic conversion_active;
-    
+
     // Single BCD converter instance
     logic [WIDTH-1:0] conv_binary;
     logic conv_start, conv_done;
     logic [DIGITS*4-1:0] conv_bcd;
-    
+
     bin_to_bcd #(
         .WIDTH(WIDTH),
         .DIGITS(DIGITS)
@@ -669,7 +679,7 @@ module multi_channel_bcd #(
         .bcd(conv_bcd),
         .done(conv_done)
     );
-    
+
     // Request management
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -681,11 +691,11 @@ module multi_channel_bcd #(
         end else begin
             conv_start <= 0;
             conversion_done <= 0;
-            
+
             // Latch new requests
             pending_requests <= (pending_requests | convert_request) & 
                               ~(conversion_done);
-            
+
             if (!conversion_active && |pending_requests) begin
                 // Find next channel to service
                 for (int i = 0; i < CHANNELS; i++) begin
@@ -698,7 +708,7 @@ module multi_channel_bcd #(
                     end
                 end
             end
-            
+
             if (conv_done) begin
                 bcd_results[current_channel] <= conv_bcd;
                 conversion_done[current_channel] <= 1;
@@ -708,7 +718,7 @@ module multi_channel_bcd #(
             end
         end
     end
-    
+
     assign converter_busy = conversion_active || |pending_requests;
 
 endmodule
@@ -736,7 +746,7 @@ assign significant_bits = WIDTH - leading_zeros;
 // Modify loop termination condition
 always_ff @(posedge clk) begin
     // ... other logic ...
-    
+
     CK_S_IDX: begin
         if (r_loop_count == significant_bits - 1) begin
             r_fsm_main <= BCD_DONE; // Early termination
@@ -767,7 +777,7 @@ endgenerate
 // Update all digits simultaneously
 always_ff @(posedge clk) begin
     // ... other states ...
-    
+
     ADD: begin
         for (int j = 0; j < DIGITS; j++) begin
             r_bcd[j*4+:4] <= adjusted_digits[j];
@@ -798,13 +808,13 @@ module bin_to_bcd_pipelined #(
     logic [STAGES-1:0] valid_pipe;
     logic [WIDTH-1:0] binary_pipe [STAGES];
     logic [DIGITS*4-1:0] bcd_pipe [STAGES];
-    
+
     // Stage processing
     generate
         for (genvar s = 0; s < STAGES; s++) begin : pipeline_stages
             logic [7:0] bits_to_process;
             assign bits_to_process = WIDTH * s / STAGES;
-            
+
             // Process subset of bits in each stage
             // Implementation depends on specific algorithm partitioning
         end
@@ -830,13 +840,13 @@ module auto_display_interface #(
     // Auto-trigger conversion on new data
     logic prev_data_valid;
     logic start_conversion;
-    
+
     always_ff @(posedge clk) begin
         prev_data_valid <= data_valid;
     end
-    
+
     assign start_conversion = data_valid && !prev_data_valid;
-    
+
     // BCD converter and display driver
     // ... (implementation similar to previous examples)
 
@@ -864,7 +874,7 @@ module buffered_bcd_converter #(
     // Input FIFO
     logic [WIDTH-1:0] fifo_data_out;
     logic fifo_read_enable, fifo_empty_int;
-    
+
     fifo_sync #(
         .DATA_WIDTH(WIDTH),
         .DEPTH(BUFFER_DEPTH)
@@ -880,13 +890,13 @@ module buffered_bcd_converter #(
         .rd_empty(fifo_empty_int),
         .rd_almost_empty()
     );
-    
+
     // BCD converter control
     logic conversion_idle;
-    
+
     assign fifo_read_enable = !fifo_empty_int && conversion_idle;
     assign buffer_empty = fifo_empty_int;
-    
+
     // BCD converter instance
     bin_to_bcd #(
         .WIDTH(WIDTH),
@@ -899,7 +909,7 @@ module buffered_bcd_converter #(
         .bcd(bcd_out),
         .done(bcd_valid)
     );
-    
+
     // Track converter state
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -982,69 +992,69 @@ module tb_bin_to_bcd;
     parameter int WIDTH = 8;
     parameter int DIGITS = 3;
     parameter int MAX_VALUE = (1 << WIDTH) - 1;
-    
+
     // DUT signals
     logic clk, rst_n, start, done;
     logic [WIDTH-1:0] binary;
     logic [DIGITS*4-1:0] bcd;
-    
+
     // Test control
     logic [WIDTH-1:0] test_vector;
     logic [31:0] expected_decimal;
     logic [DIGITS*4-1:0] expected_bcd;
-    
+
     // DUT instantiation
     bin_to_bcd #(
         .WIDTH(WIDTH),
         .DIGITS(DIGITS)
     ) dut (.*);
-    
+
     // Clock generation
     initial clk = 0;
     always #5 clk = ~clk;
-    
+
     // Test sequence
     initial begin
         rst_n = 0;
         start = 0;
         binary = 0;
-        
+
         #100 rst_n = 1;
-        
+
         // Test all possible values
         for (int i = 0; i <= MAX_VALUE; i++) begin
             test_conversion(i);
         end
-        
+
         // Boundary tests
         test_conversion(0);
         test_conversion(1);
         test_conversion(MAX_VALUE);
-        
+
         // Random tests
         repeat (1000) begin
             test_conversion($random % (MAX_VALUE + 1));
         end
-        
+
         $display("All tests completed successfully!");
         $finish;
     end
-    
+
     // Test task
     task test_conversion(input [WIDTH-1:0] value);
         begin
             binary = value;
             expected_decimal = value;
             expected_bcd = decimal_to_bcd(expected_decimal);
-            
+
             @(posedge clk);
             start = 1;
             @(posedge clk);
             start = 0;
-            
+
             wait(done);
             @(posedge clk);
-            
+
             if (bcd !== expected_bcd) begin
                 $error("Mismatch: binary=%d, expected_bcd=%h, actual_bcd=%h", 
                        value, expected_bcd, bcd);
@@ -1053,7 +1063,7 @@ module tb_bin_to_bcd;
             end
         end
     endtask
-    
+
     // Reference function
     function [DIGITS*4-1:0] decimal_to_bcd(input [31:0] decimal);
         logic [31:0] temp;
@@ -1075,7 +1085,7 @@ endmodule
 
 ```systemverilog
 covergroup bcd_conversion_cg;
-    
+
     // Input value coverage
     cp_binary_value: coverpoint binary {
         bins zero = {0};
@@ -1084,7 +1094,7 @@ covergroup bcd_conversion_cg;
         bins large[] = {[100:255]}; // For 8-bit
         bins max_val = {2**WIDTH - 1};
     }
-    
+
     // State coverage
     cp_fsm_states: coverpoint dut.r_fsm_main {
         bins all_states[] = {IDLE, SHIFT, CK_S_IDX, ADD, CK_D_IDX, BCD_DONE};
@@ -1097,17 +1107,17 @@ covergroup bcd_conversion_cg;
                                    (CK_D_IDX => SHIFT),
                                    (BCD_DONE => IDLE);
     }
-    
+
     // BCD digit coverage
     cp_bcd_digits: coverpoint bcd {
         bins valid_bcd[] = {[12'h000:12'h999]}; // Valid BCD range
     }
-    
+
     // Loop iteration coverage
     cp_loop_count: coverpoint dut.r_loop_count {
         bins all_counts[] = {[0:WIDTH-1]};
     }
-    
+
     // Cross coverage
     cross_value_states: cross cp_binary_value, cp_fsm_states;
 
@@ -1125,25 +1135,25 @@ module bin_to_bcd_properties #(
 
     // Bind to DUT
     bind bin_to_bcd bin_to_bcd_properties #(WIDTH, DIGITS) props_inst (.*);
-    
+
     // Basic properties
     property conversion_eventually_completes;
         @(posedge clk) disable iff (!rst_n)
         start |-> ##[1:200] done; // Adjust bound based on max latency
     endproperty
-    
+
     property bcd_output_valid;
         @(posedge clk) disable iff (!rst_n)
         done |-> valid_bcd(bcd);
     endproperty
-    
+
     property conversion_correctness;
         logic [31:0] expected_decimal;
         @(posedge clk) disable iff (!rst_n)
         (start, expected_decimal = binary) |-> 
         ##[1:200] (done && (bcd_to_decimal(bcd) == expected_decimal));
     endproperty
-    
+
     // Helper functions
     function bit valid_bcd(logic [DIGITS*4-1:0] bcd_val);
         for (int i = 0; i < DIGITS; i++) begin
@@ -1151,7 +1161,7 @@ module bin_to_bcd_properties #(
         end
         return 1;
     endfunction
-    
+
     function [31:0] bcd_to_decimal(logic [DIGITS*4-1:0] bcd_val);
         logic [31:0] result = 0;
         for (int i = 0; i < DIGITS; i++) begin
@@ -1159,7 +1169,7 @@ module bin_to_bcd_properties #(
         end
         return result;
     endfunction
-    
+
     // Assertions
     assert property (conversion_eventually_completes);
     assert property (bcd_output_valid);

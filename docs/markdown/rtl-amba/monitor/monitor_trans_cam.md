@@ -328,7 +328,7 @@ The combinational depth from input port to CAM output is:
 ```
 lookup_id  →  match_oh  (per-slot compare; the module exports the
            one-hot vector, and the consumer ORs it if it needs a hit flag)
-                       ↘
+
                         first_oh (priority encoder)
 ```
 That's ~3–4 LUT levels for DEPTH=16 — comfortably under the 100 MHz budget on the -1 part.
