@@ -213,6 +213,18 @@ On the interface with the parent module:
 - **`dataint_crc`**: Parent CRC calculation module
 - Used together to create flexible CRC calculation systems
 
+## Testing
+
+**No dedicated testbench for this module.** It has no
+`val/**/test_dataint_crc_xor_shift_cascade.py`; it is exercised indirectly, through the
+tests of the modules that instantiate it:
+
+- `dataint_crc` -- `val/common/test_dataint_crc.py`
+
+Indirect coverage exercises this module only in the configurations its parents elaborate. A parameter or mode no parent uses is untested.
+
+---
+
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**

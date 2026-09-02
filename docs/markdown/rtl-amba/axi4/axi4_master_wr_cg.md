@@ -81,6 +81,67 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | `WSize` | `DW+SW+1+UW` |
 | `BSize` | `IW+2+UW` |
 
+## Ports
+
+| Port | Dir | Width | Description |
+|---|---|---|---|
+| `aclk` | In | 1 |  |
+| `aresetn` | In | 1 |  |
+| `cfg_cg_enable` | In | 1 |  |
+| `cfg_cg_idle_count` | In | `[CG_IDLE_COUNT_WIDTH-1:0]` |  |
+| `fub_axi_awid` | In | `[IW-1:0]` |  |
+| `fub_axi_awaddr` | In | `[AW-1:0]` |  |
+| `fub_axi_awlen` | In | `[7:0]` |  |
+| `fub_axi_awsize` | In | `[2:0]` |  |
+| `fub_axi_awburst` | In | `[1:0]` |  |
+| `fub_axi_awlock` | In | 1 |  |
+| `fub_axi_awcache` | In | `[3:0]` |  |
+| `fub_axi_awprot` | In | `[2:0]` |  |
+| `fub_axi_awqos` | In | `[3:0]` |  |
+| `fub_axi_awregion` | In | `[3:0]` |  |
+| `fub_axi_awuser` | In | `[UW-1:0]` |  |
+| `fub_axi_awvalid` | In | 1 |  |
+| `fub_axi_awready` | Out | 1 |  |
+| `fub_axi_wdata` | In | `[DW-1:0]` |  |
+| `fub_axi_wstrb` | In | `[SW-1:0]` |  |
+| `fub_axi_wlast` | In | 1 |  |
+| `fub_axi_wuser` | In | `[UW-1:0]` |  |
+| `fub_axi_wvalid` | In | 1 |  |
+| `fub_axi_wready` | Out | 1 |  |
+| `fub_axi_bid` | Out | `[IW-1:0]` |  |
+| `fub_axi_bresp` | Out | `[1:0]` |  |
+| `fub_axi_buser` | Out | `[UW-1:0]` |  |
+| `fub_axi_bvalid` | Out | 1 |  |
+| `fub_axi_bready` | In | 1 |  |
+| `m_axi_awid` | Out | `[IW-1:0]` |  |
+| `m_axi_awaddr` | Out | `[AW-1:0]` |  |
+| `m_axi_awlen` | Out | `[7:0]` |  |
+| `m_axi_awsize` | Out | `[2:0]` |  |
+| `m_axi_awburst` | Out | `[1:0]` |  |
+| `m_axi_awlock` | Out | 1 |  |
+| `m_axi_awcache` | Out | `[3:0]` |  |
+| `m_axi_awprot` | Out | `[2:0]` |  |
+| `m_axi_awqos` | Out | `[3:0]` |  |
+| `m_axi_awregion` | Out | `[3:0]` |  |
+| `m_axi_awuser` | Out | `[UW-1:0]` |  |
+| `m_axi_awvalid` | Out | 1 |  |
+| `m_axi_awready` | In | 1 |  |
+| `m_axi_wdata` | Out | `[DW-1:0]` |  |
+| `m_axi_wstrb` | Out | `[SW-1:0]` |  |
+| `m_axi_wlast` | Out | 1 |  |
+| `m_axi_wuser` | Out | `[UW-1:0]` |  |
+| `m_axi_wvalid` | Out | 1 |  |
+| `m_axi_wready` | In | 1 |  |
+| `m_axi_bid` | In | `[IW-1:0]` |  |
+| `m_axi_bresp` | In | `[1:0]` |  |
+| `m_axi_buser` | In | `[UW-1:0]` |  |
+| `m_axi_bvalid` | In | 1 |  |
+| `m_axi_bready` | Out | 1 |  |
+| `cg_gating` | Out | 1 |  |
+| `cg_idle` | Out | 1 |  |
+
+---
+
 ## Timing Characteristics
 
 | Skid parameter | Default depth |

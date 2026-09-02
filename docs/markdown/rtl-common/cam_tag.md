@@ -189,6 +189,31 @@ measured.
 
 ---
 
+## Usage Examples
+
+Every parameter and port below is taken from the module declaration.
+
+```systemverilog
+cam_tag #(
+    .ENABLE                (1),
+    .N                     (8),
+    .DEPTH                 (16)
+) u_cam_tag (
+    .clk                   (clk),
+    .rst_n                 (rst_n),
+    .tag_in_status         (tag_in_status),
+    .mark_valid            (mark_valid),
+    .tag_in_valid          (tag_in_valid),
+    .mark_invalid          (mark_invalid),
+    .tag_in_invalid        (tag_in_invalid),
+    .tags_empty            (tags_empty),
+    .tags_full             (tags_full),
+    .tag_status            (tag_status)
+);
+```
+
+---
+
 ## Design Notes
 
 ### Usage Considerations

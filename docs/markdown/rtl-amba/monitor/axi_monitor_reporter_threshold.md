@@ -217,6 +217,25 @@ The 16 x 32-bit latency registers plus 16 threshold flags are the reason disabli
 
 ---
 
+## Testing
+
+**No dedicated testbench for this module.** It has no
+`val/**/test_axi_monitor_reporter_threshold.py`. It is exercised indirectly, through the tests of
+modules that instantiate it (directly or further up):
+
+- `axi4_master_rd_mon` -- `val/**/test_axi4_master_rd_mon.py`
+- `axi4_master_wr_mon` -- `val/**/test_axi4_master_wr_mon.py`
+- `axi4_slave_rd_mon` -- `val/**/test_axi4_slave_rd_mon.py`
+- `axi4_slave_wr_mon` -- `val/**/test_axi4_slave_wr_mon.py`
+- `axi5_master_rd_mon` -- `val/**/test_axi5_master_rd_mon.py`
+
+Indirect coverage exercises this module only in the configurations those
+parents elaborate. A parameter or mode no parent uses is untested.
+
+Treat any behaviour described on this page as unverified by simulation.
+
+---
+
 ## References
 
 ### Source Code

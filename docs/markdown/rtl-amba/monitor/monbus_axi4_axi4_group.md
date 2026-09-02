@@ -303,6 +303,15 @@ The five `SKID_DEPTH_*` parameters size the per-channel skid buffers in the leav
 
 ---
 
+## Testing
+
+**No test coverage.** There is no
+`val/**/test_monbus_axi4_axi4_group.py`, and no module that instantiates this one has a testbench either, so nothing in the repository exercises it.
+
+Treat any behaviour described on this page as unverified by simulation.
+
+---
+
 ## References
 
 ### Source Code

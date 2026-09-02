@@ -167,6 +167,15 @@ clock makes the internal state appear frozen and is easy to misread as a hang.
 
 ---
 
+## Testing
+
+**No test coverage.** There is no
+`val/**/test_apb4_master_cg.py`, and no module that instantiates this one has a testbench either, so nothing in the repository exercises it.
+
+Treat any behaviour described on this page as unverified by simulation.
+
+---
+
 ## Navigation
 
 - **[← Back to APB Index](./README.md)**

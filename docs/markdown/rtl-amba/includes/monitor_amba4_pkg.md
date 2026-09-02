@@ -425,6 +425,25 @@ measured.
 
 ---
 
+## Testing
+
+**No dedicated testbench for this module.** It has no
+`val/**/test_monitor_amba4_pkg.py`. It is exercised indirectly, through the tests of
+modules that instantiate it (directly or further up):
+
+- `apb4_monitor` -- `val/**/test_apb4_monitor.py`
+- `apb5_monitor` -- `val/**/test_apb5_monitor.py`
+- `apb_monitor_addr_check` -- `val/**/test_apb_monitor_addr_check.py`
+- `arbiter_monbus_common` -- `val/**/test_arbiter_monbus_common.py`
+- `axi4_master_rd_mon` -- `val/**/test_axi4_master_rd_mon.py`
+
+Indirect coverage exercises this module only in the configurations those
+parents elaborate. A parameter or mode no parent uses is untested.
+
+Treat any behaviour described on this page as unverified by simulation.
+
+---
+
 ## Navigation
 
 - **[← Back to Includes Index](./README.md)**

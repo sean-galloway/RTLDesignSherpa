@@ -170,6 +170,30 @@ measured.
 
 ---
 
+## Usage Examples
+
+Every parameter and port below is taken from the module declaration.
+
+```systemverilog
+arbiter_round_robin #(
+    .CLIENTS               (4),
+    .WAIT_GNT_ACK          (0),
+    .N                     ($clog2(CLIENTS)
+) u_arbiter_round_robin (
+    .clk                   (clk),
+    .rst_n                 (rst_n),
+    .block_arb             (block_arb),
+    .request               (request),
+    .grant_ack             (grant_ack),
+    .grant_valid           (grant_valid),
+    .grant                 (grant),
+    .grant_id              (grant_id),
+    .last_grant            (last_grant)
+);
+```
+
+---
+
 ## Design Notes
 
 ### Usage Notes
@@ -179,6 +203,24 @@ measured.
   rotates upward from the last winner
 - The round-robin nature ensures long-term fairness across all clients
 - Grant acknowledgment feature is useful in systems where the granted client needs time to process the grant
+
+## Related Modules
+
+Read out of the RTL, not curated: these are the
+modules this one instantiates and the modules that instantiate it.
+
+**Instantiates:**
+- `arbiter_priority_encoder`
+
+**Instantiated by:**
+- `arbiter_deficit_round_robin`
+- `arbiter_round_robin_weighted`
+- `arbiter_rr_pwm_monbus`
+- `axi_read_engine`
+- `axi_read_engine_beats`
+- `axi_write_engine`
+
+---
 
 ## Testing
 

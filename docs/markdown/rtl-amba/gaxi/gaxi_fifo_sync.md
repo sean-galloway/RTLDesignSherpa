@@ -88,6 +88,22 @@ module gaxi_fifo_sync #(
 
 ---
 
+## Ports
+
+| Port | Dir | Width | Description |
+|---|---|---|---|
+| `axi_aclk` | In | 1 |  |
+| `axi_aresetn` | In | 1 |  |
+| `wr_valid` | In | 1 |  |
+| `wr_ready` | Out | 1 | not full |
+| `wr_data` | In | `[DW-1:0]` |  |
+| `rd_ready` | In | 1 |  |
+| `count` | Out | `[AW:0]` |  |
+| `rd_valid` | Out | 1 | not empty |
+| `rd_data` | Out | `[DW-1:0]` |  |
+
+---
+
 ## Functional Description
 
 ### Read Modes

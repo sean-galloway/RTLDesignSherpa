@@ -123,6 +123,121 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | `SW` | `AXI_WSTRB_WIDTH` |
 | `UW` | `AXI_USER_WIDTH` |
 
+## Ports
+
+| Port | Dir | Width | Description |
+|---|---|---|---|
+| `aclk` | In | 1 |  |
+| `aresetn` | In | 1 |  |
+| `cam_clear` | In | 1 | sync clear of the monitor trans CAM |
+| `fub_axi_awid` | In | `[IW-1:0]` |  |
+| `fub_axi_awaddr` | In | `[AW-1:0]` |  |
+| `fub_axi_awlen` | In | `[7:0]` |  |
+| `fub_axi_awsize` | In | `[2:0]` |  |
+| `fub_axi_awburst` | In | `[1:0]` |  |
+| `fub_axi_awlock` | In | 1 |  |
+| `fub_axi_awcache` | In | `[3:0]` |  |
+| `fub_axi_awprot` | In | `[2:0]` |  |
+| `fub_axi_awqos` | In | `[3:0]` |  |
+| `fub_axi_awregion` | In | `[3:0]` |  |
+| `fub_axi_awuser` | In | `[UW-1:0]` |  |
+| `fub_axi_awvalid` | In | 1 |  |
+| `fub_axi_awready` | Out | 1 |  |
+| `fub_axi_wdata` | In | `[DW-1:0]` |  |
+| `fub_axi_wstrb` | In | `[SW-1:0]` |  |
+| `fub_axi_wlast` | In | 1 |  |
+| `fub_axi_wuser` | In | `[UW-1:0]` |  |
+| `fub_axi_wvalid` | In | 1 |  |
+| `fub_axi_wready` | Out | 1 |  |
+| `fub_axi_bid` | Out | `[IW-1:0]` |  |
+| `fub_axi_bresp` | Out | `[1:0]` |  |
+| `fub_axi_buser` | Out | `[UW-1:0]` |  |
+| `fub_axi_bvalid` | Out | 1 |  |
+| `fub_axi_bready` | In | 1 |  |
+| `m_axi_awid` | Out | `[IW-1:0]` |  |
+| `m_axi_awaddr` | Out | `[AW-1:0]` |  |
+| `m_axi_awlen` | Out | `[7:0]` |  |
+| `m_axi_awsize` | Out | `[2:0]` |  |
+| `m_axi_awburst` | Out | `[1:0]` |  |
+| `m_axi_awlock` | Out | 1 |  |
+| `m_axi_awcache` | Out | `[3:0]` |  |
+| `m_axi_awprot` | Out | `[2:0]` |  |
+| `m_axi_awqos` | Out | `[3:0]` |  |
+| `m_axi_awregion` | Out | `[3:0]` |  |
+| `m_axi_awuser` | Out | `[UW-1:0]` |  |
+| `m_axi_awvalid` | Out | 1 |  |
+| `m_axi_awready` | In | 1 |  |
+| `m_axi_wdata` | Out | `[DW-1:0]` |  |
+| `m_axi_wstrb` | Out | `[SW-1:0]` |  |
+| `m_axi_wlast` | Out | 1 |  |
+| `m_axi_wuser` | Out | `[UW-1:0]` |  |
+| `m_axi_wvalid` | Out | 1 |  |
+| `m_axi_wready` | In | 1 |  |
+| `m_axi_bid` | In | `[IW-1:0]` |  |
+| `m_axi_bresp` | In | `[1:0]` |  |
+| `m_axi_buser` | In | `[UW-1:0]` |  |
+| `m_axi_bvalid` | In | 1 |  |
+| `m_axi_bready` | Out | 1 |  |
+| `cfg_monitor_enable` | In | 1 | Enable monitoring |
+| `cfg_error_enable` | In | 1 | Enable error detection |
+| `cfg_timeout_enable` | In | 1 | Enable timeout detection |
+| `cfg_perf_enable` | In | 1 | Enable performance monitoring |
+| `cfg_compl_enable` | In | 1 | Enable completion packets |
+| `cfg_threshold_enable` | In | 1 | Enable threshold packets |
+| `cfg_debug_enable` | In | 1 | Enable debug packets |
+| `cfg_timeout_cycles` | In | `[15:0]` | Timeout threshold in MICROSECONDS (1 us tick), despite the name |
+| `cfg_freq_sel` | In | `[3:0]` | counter_freq_invariant LUT index |
+| `cfg_latency_threshold` | In | `[31:0]` | Latency threshold for alerts |
+| `cfg_axi_pkt_mask` | In | `[15:0]` | Drop mask for packet types |
+| `cfg_axi_err_select` | In | `[15:0]` | Error select for packet types (for future routing) |
+| `cfg_axi_error_mask` | In | `[15:0]` | Individual error event mask |
+| `cfg_axi_timeout_mask` | In | `[15:0]` | Individual timeout event mask |
+| `cfg_axi_compl_mask` | In | `[15:0]` | Individual completion event mask |
+| `cfg_axi_thresh_mask` | In | `[15:0]` | Individual threshold event mask |
+| `cfg_axi_perf_mask` | In | `[15:0]` | Individual performance event mask |
+| `cfg_axi_addr_mask` | In | `[15:0]` | Individual address match event mask |
+| `cfg_axi_debug_mask` | In | `[15:0]` | Individual debug event mask |
+| `cfg_cg_enable` | In | 1 | Enable clock gating |
+| `cfg_cg_idle_count` | In | `[CG_IDLE_COUNT_WIDTH-1:0]` | Idle cycles before gating |
+| `cfg_addr_check_enable` | In | 1 |  |
+| `cfg_addr_range_enable` | In | `[(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0]` |  |
+| `cfg_addr_range_low` | In | `[(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0]` |  |
+| `cfg_addr_range_high` | In | `[(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0]` |  |
+| `cfg_addr_filter_enable` | In | 1 |  |
+| `cfg_addr_filter_low` | In | `[AW-1:0]` |  |
+| `cfg_addr_filter_high` | In | `[AW-1:0]` |  |
+| `cfg_id_filter_enable` | In | 1 |  |
+| `cfg_id_match_base` | In | `[IW-1:0]` |  |
+| `cfg_id_match_count` | In | `[IW:0]` |  |
+| `i_mon_time` | In | 1 |  |
+| `monbus_valid` | Out | 1 | Monitor bus valid |
+| `monbus_ready` | In | 1 | Monitor bus ready |
+| `monbus_packet` | Out | 1 | Monitor packet (128-bit) |
+| `monbus_timestamp` | Out | 1 | Side-band sampled time |
+| `busy` | Out | 1 |  |
+| `active_transactions` | Out | `[7:0]` | Number of active transactions |
+| `error_count` | Out | `[15:0]` | Total error count |
+| `transaction_count` | Out | `[31:0]` | Total transaction count |
+| `cg_gating` | Out | 1 | Gated clock is stopped |
+| `cg_idle` | Out | 1 | No activity observed |
+| `cfg_conflict_error` | Out | 1 | Configuration conflict detected |
+| `cfg_start_event_sel` | In | `[2:0]` |  |
+| `cfg_end_event_sel` | In | `[2:0]` |  |
+| `cfg_start_trigger` | In | 1 |  |
+| `cfg_end_trigger` | In | 1 |  |
+| `cfg_window_force_close` | In | 1 |  |
+| `window_active` | Out | 1 |  |
+| `window_cycles` | Out | `[31:0]` |  |
+| `perf_prod_cycles` | Out | `[31:0]` |  |
+| `perf_bp_cycles` | Out | `[31:0]` |  |
+| `perf_starv_cycles` | Out | `[31:0]` |  |
+| `perf_idle_cycles` | Out | `[31:0]` |  |
+| `perf_beat_count` | Out | `[31:0]` |  |
+| `perf_byte_count` | Out | `[63:0]` |  |
+| `perf_burst_count` | Out | `[31:0]` |  |
+
+---
+
 ## Functional Description
 
 ### Performance Monitoring

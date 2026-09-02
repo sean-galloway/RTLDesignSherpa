@@ -168,6 +168,37 @@ the base arbiter — one comparator wider than the WRR's credit-nonzero
 check. At high client counts consider registering eligibility (costs a
 cycle of latency).
 
+## Usage Examples
+
+Every parameter and port below is taken from the module declaration.
+
+```systemverilog
+arbiter_deficit_round_robin #(
+    .CLIENTS               (4),
+    .MAX_QUANTUM           (16),
+    .COST_WIDTH            (4),
+    .WAIT_GNT_ACK          (0),
+    .QW                    ($clog2(MAX_QUANTUM),
+    .N                     ($clog2(CLIENTS),
+    .C                     (CLIENTS),
+    .CXQW                  (CLIENTS * QW),
+    .CXCW                  (CLIENTS * COST_WIDTH)
+) u_arbiter_deficit_round_robin (
+    .clk                   (clk),
+    .rst_n                 (rst_n),
+    .block_arb             (block_arb),
+    .quantum               (quantum),
+    .req_cost              (req_cost),
+    .request               (request),
+    .grant_ack             (grant_ack),
+    .grant_valid           (grant_valid),
+    .grant                 (grant),
+    .grant_id              (grant_id)
+);
+```
+
+---
+
 ## Related Modules
 
 - [arbiter_round_robin](arbiter_round_robin.md) — the shared base core

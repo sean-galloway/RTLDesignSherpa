@@ -104,6 +104,31 @@ measured.
 
 ---
 
+## Usage Examples
+
+Every parameter and port below is taken from the module declaration.
+
+```systemverilog
+monbus_legal_cam #(
+    .N_ENTRIES             (64),
+    .KEY_WIDTH             (32),
+    .IDX_WIDTH             ((N_ENTRIES > 1)
+) u_monbus_legal_cam (
+    .clk                   (clk),
+    .rst_n                 (rst_n),
+    .load_clear            (load_clear),
+    .load_we               (load_we),
+    .load_addr             (load_addr),
+    .load_valid            (load_valid),
+    .load_key              (load_key),
+    .lookup_key            (lookup_key),
+    .lookup_hit            (lookup_hit),
+    .lookup_idx            (lookup_idx)
+);
+```
+
+---
+
 ## Design Notes
 
 Area scales with `N_ENTRIES × KEY_WIDTH` comparators. When the full legal set

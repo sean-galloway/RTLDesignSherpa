@@ -359,6 +359,17 @@ All AXI protocol handling is done by the skid buffers and downstream modules.
 
 ---
 
+## Testing
+
+**No dedicated testbench, and none is expected.** This is a stub: a tie-off
+shell that presents the interface and drives inert values, so there is no
+behaviour to verify beyond elaboration. `make verilator` lints it as its own
+top on every run, which is the coverage that applies.
+
+Treat any behaviour described on this page as unverified by simulation.
+
+---
+
 ## Navigation
 
 - **[← Back to AXI4 Index](README.md)**

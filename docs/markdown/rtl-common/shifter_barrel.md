@@ -223,6 +223,17 @@ runtime is just a lookup. You spend a little area, you get back maximum speed.
 - **Critical Path**: Through lookup array and final output mux
 - **Frequency**: Limited by combinational delay, not shift complexity
 
+## Related Modules
+
+Read out of the RTL, not curated: these are the
+modules this one instantiates and the modules that instantiate it.
+
+**Instantiated by:**
+- `math_bf16_adder`
+- `math_ieee754_2008_fp32_adder`
+
+---
+
 ## Testing
 
 `val/common/test_shifter_barrel.py` exercises this module. It collects 3 parameter cases at the default `REG_LEVEL`.

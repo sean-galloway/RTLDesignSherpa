@@ -121,6 +121,26 @@ end
 - **Asymmetric**: press is fully debounced; release propagates ~`DEBOUNCE_DELAY`×
   faster. Do NOT rely on symmetric debounce timing.
 
+## Usage Examples
+
+Every parameter and port below is taken from the module declaration.
+
+```systemverilog
+debounce #(
+    .N                     (4),
+    .DEBOUNCE_DELAY        (4),
+    .PRESSED_STATE         (1)
+) u_debounce (
+    .clk                   (clk),
+    .rst_n                 (rst_n),
+    .long_tick             (long_tick),
+    .button_in             (button_in),
+    .button_out            (button_out)
+);
+```
+
+---
+
 ## Design Notes
 
 ### Applications
@@ -136,6 +156,16 @@ end
 - **Tick frequency**: `long_tick` should run much slower than the bounce duration
 - **Multiple buttons**: All buttons share the same debounce parameters
 - **Reset behavior**: All outputs go low on reset, no matter what the buttons are doing
+
+## Related Modules
+
+Read out of the RTL, not curated: these are the
+modules this one instantiates and the modules that instantiate it.
+
+**Instantiated by:**
+- `cdc_counter_display_top`
+
+---
 
 ## Testing
 

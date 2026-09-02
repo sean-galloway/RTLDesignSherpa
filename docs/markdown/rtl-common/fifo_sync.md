@@ -205,6 +205,33 @@ rd_data ===========[ D0 ]=====  (1 cycle delay)
 - **Occupancy**: 0 to DEPTH words
 - **Efficiency**: 100% bandwidth utilization possible
 
+## Usage Examples
+
+Every parameter and port below is taken from the module declaration.
+
+```systemverilog
+fifo_sync #(
+    .MEM_STYLE             (FIFO_AUTO),
+    .REGISTERED            (0),
+    .DATA_WIDTH            (4),
+    .DEPTH                 (4),
+    .ALMOST_WR_MARGIN      (1),
+    .ALMOST_RD_MARGIN      (1)
+) u_fifo_sync (
+    .clk                   (clk),
+    .write                 (write),
+    .wr_data               (wr_data),
+    .wr_full               (wr_full),
+    .wr_almost_full        (wr_almost_full),
+    .read                  (read),
+    .rd_data               (rd_data),
+    .rd_empty              (rd_empty),
+    .rd_almost_empty       (rd_almost_empty)
+);
+```
+
+---
+
 ## Design Notes
 
 ### Mode Selection Guidelines

@@ -194,6 +194,23 @@ The packer holds at most one pending half. It never accumulates more than two re
 
 ---
 
+## Testing
+
+**No dedicated testbench for this module.** It has no
+`val/**/test_monbus_halfbeat_packer.py`. It is exercised indirectly, through the tests of
+modules that instantiate it (directly or further up):
+
+- `monbus_axi4_axil4_group` -- `val/**/test_monbus_axi4_axil4_group.py`
+- `monbus_axil4_axi4_group` -- `val/**/test_monbus_axil4_axi4_group.py`
+- `monbus_axil4_axil4_group` -- `val/**/test_monbus_axil4_axil4_group.py`
+
+Indirect coverage exercises this module only in the configurations those
+parents elaborate. A parameter or mode no parent uses is untested.
+
+Treat any behaviour described on this page as unverified by simulation.
+
+---
+
 ## References
 
 ### Source Code

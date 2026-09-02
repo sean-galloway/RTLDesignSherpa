@@ -952,6 +952,19 @@ System Level (Longest timeout)
 4. **Logic Analyzer**: Capture real-time gating behavior in hardware
 5. **Power Profiling**: Measure current consumption with/without gating
 
+## Related Modules
+
+Read out of the RTL, not curated: these are the
+modules this one instantiates and the modules that instantiate it.
+
+**Instantiates:**
+- `icg`
+
+**Instantiated by:**
+- `amba_clock_gate_ctrl`
+
+---
+
 ## Testing
 
 ### Test Bench

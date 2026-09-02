@@ -223,6 +223,15 @@ assign stream_ok = !chk_data_error && (chk_crc[ch] == gen_expected_crc[ch]);
 
 ---
 
+## Testing
+
+**No test coverage.** There is no
+`val/**/test_axis4_slave_pattern_check.py`, and no module that instantiates this one has a testbench either, so nothing in the repository exercises it.
+
+Treat any behaviour described on this page as unverified by simulation.
+
+---
+
 ## References
 
 ### Source Code

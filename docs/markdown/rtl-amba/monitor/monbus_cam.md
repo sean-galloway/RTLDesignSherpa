@@ -345,6 +345,44 @@ measured.
 
 ---
 
+## Usage Examples
+
+Every parameter and port below is taken from the module declaration.
+
+```systemverilog
+monbus_cam #(
+    .KEY_WIDTH             (49),
+    .DATA_WIDTH            (64),
+    .TS_WIDTH              (24),
+    .DEPTH                 (32),
+    .IDX_WIDTH             ((DEPTH > 1),
+    .CNT_WIDTH             ($clog2(DEPTH + 1)
+) u_monbus_cam (
+    .clk                   (clk),
+    .rst_n                 (rst_n),
+    .access_key            (access_key),
+    .access_hit            (access_hit),
+    .access_idx            (access_idx),
+    .access_old_data       (access_old_data),
+    .access_old_ts         (access_old_ts),
+    .access_action         (access_action),
+    .access_new_data       (access_new_data),
+    .access_new_ts         (access_new_ts),
+    .cam_full              (cam_full),
+    .cam_count             (cam_count),
+    .evicted               (evicted),
+    .evict_key             (evict_key),
+    .evict_data            (evict_data),
+    .dump_idx              (dump_idx),
+    .dump_valid            (dump_valid),
+    .dump_key              (dump_key),
+    .dump_data             (dump_data),
+    .soft_clear            (soft_clear)
+);
+```
+
+---
+
 ## Testing
 
 `val/amba/test_monbus_cam.py` runs 10 sub-tests covering:

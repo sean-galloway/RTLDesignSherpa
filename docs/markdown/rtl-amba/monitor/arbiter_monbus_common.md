@@ -212,6 +212,59 @@ yourself. See the individual monitor pages for configuration examples.
 
 ---
 
+## Usage Examples
+
+Every parameter and port below is taken from the module declaration.
+
+```systemverilog
+arbiter_monbus_common #(
+    .CLIENTS               (4),
+    .WAIT_GNT_ACK          (0),
+    .WEIGHTED_MODE         (0),
+    .MON_AGENT_ID          (16'h0010),
+    .MON_UNIT_ID           (8'h00),
+    .MON_FIFO_DEPTH        (8),
+    .MON_FIFO_ALMOST_MARGIN(1),
+    .FAIRNESS_REPORT_CYCLES(256),
+    .MIN_GRANTS_FOR_FAIRNESS(100),
+    .DEFAULT_ACK_TIMEOUT   (64)
+) u_arbiter_monbus_common (
+    .clk                   (clk),
+    .rst_n                 (rst_n),
+    .cfg_max_thresh        (cfg_max_thresh),
+    .request               (request),
+    .grant_valid           (grant_valid),
+    .grant                 (grant),
+    .grant_id              (grant_id),
+    .grant_ack             (grant_ack),
+    .block_arb             (block_arb),
+    .cfg_mon_enable        (cfg_mon_enable),
+    .cfg_mon_pkt_type_enable(cfg_mon_pkt_type_enable),
+    .cfg_mon_latency_thresh(cfg_mon_latency_thresh),
+    .cfg_mon_starvation_thresh(cfg_mon_starvation_thresh),
+    .cfg_mon_fairness_thresh(cfg_mon_fairness_thresh),
+    .cfg_mon_active_thresh (cfg_mon_active_thresh),
+    .cfg_mon_ack_timeout_thresh(cfg_mon_ack_timeout_thresh),
+    .cfg_mon_efficiency_thresh(cfg_mon_efficiency_thresh),
+    .cfg_mon_sample_period (cfg_mon_sample_period),
+    .i_mon_time            (i_mon_time),
+    .monbus_valid          (monbus_valid),
+    .monbus_ready          (monbus_ready),
+    .monbus_packet         (monbus_packet),
+    .monbus_timestamp      (monbus_timestamp),
+    .debug_fifo_count      (debug_fifo_count),
+    .debug_packet_count    (debug_packet_count),
+    .debug_ack_timeout     (debug_ack_timeout),
+    .debug_protocol_violations(debug_protocol_violations),
+    .debug_grant_efficiency(debug_grant_efficiency),
+    .debug_client_starvation(debug_client_starvation),
+    .debug_fairness_deviation(debug_fairness_deviation),
+    .debug_monitor_state   (debug_monitor_state)
+);
+```
+
+---
+
 ## Related Modules
 
 **Used by:** `arbiter_rr_pwm_monbus`, `arbiter_wrr_pwm_monbus` (as `u_monitor`).

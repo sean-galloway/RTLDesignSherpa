@@ -267,6 +267,15 @@ dataint_ecc_hamming_encode_secded #(
 - **`dataint_ecc_hamming_decode_secded`**: Corresponding decoder module
 - Used together for complete SECDED error correction system
 
+## Testing
+
+**No test coverage.** There is no
+`val/**/test_dataint_ecc_hamming_encode_secded.py`, and no module that instantiates this one has a testbench either, so nothing in the repository exercises it.
+
+Treat any behaviour described on this page as unverified by simulation.
+
+---
+
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**

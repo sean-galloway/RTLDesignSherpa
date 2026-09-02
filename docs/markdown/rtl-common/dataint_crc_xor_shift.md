@@ -185,6 +185,31 @@ assign final_crc = stage[7];
 - Educational CRC implementations
 - Custom protocol CRC calculators
 
+## Related Modules
+
+Read out of the RTL, not curated: these are the
+modules this one instantiates and the modules that instantiate it.
+
+**Instantiated by:**
+- `dataint_crc_xor_shift_cascade`
+
+---
+
+## Testing
+
+**No dedicated testbench for this module.** It has no
+`val/**/test_dataint_crc_xor_shift.py`. It is exercised indirectly, through the tests of
+modules that instantiate it (directly or further up):
+
+- `dataint_crc` -- `val/**/test_dataint_crc.py`
+
+Indirect coverage exercises this module only in the configurations those
+parents elaborate. A parameter or mode no parent uses is untested.
+
+Treat any behaviour described on this page as unverified by simulation.
+
+---
+
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**

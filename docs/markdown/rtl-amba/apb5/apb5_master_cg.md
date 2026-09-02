@@ -43,6 +43,88 @@ Clock-gated variant of the APB5 Master module. Wraps the base `apb5_master` with
 
 ---
 
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `ADDR_WIDTH` | `32` |  |
+| `DATA_WIDTH` | `32` |  |
+| `PROT_WIDTH` | `3` |  |
+| `AUSER_WIDTH` | `4` |  |
+| `WUSER_WIDTH` | `4` |  |
+| `RUSER_WIDTH` | `4` |  |
+| `BUSER_WIDTH` | `4` |  |
+| `CMD_DEPTH` | `6` |  |
+| `RSP_DEPTH` | `6` |  |
+| `ENABLE_PARITY` | `0` |  |
+| `CG_IDLE_COUNT_WIDTH` | `4` |  |
+| `STRB_WIDTH` | `DATA_WIDTH / 8` |  |
+| `AW` | `ADDR_WIDTH` |  |
+| `DW` | `DATA_WIDTH` |  |
+| `SW` | `STRB_WIDTH` |  |
+| `PW` | `PROT_WIDTH` |  |
+| `AUW` | `AUSER_WIDTH` |  |
+| `WUW` | `WUSER_WIDTH` |  |
+| `RUW` | `RUSER_WIDTH` |  |
+| `BUW` | `BUSER_WIDTH` |  |
+| `ICW` | `CG_IDLE_COUNT_WIDTH` |  |
+| `CPW` | `AW + DW + SW + PW + AUW + WUW + 1` |  |
+| `RPW` | `DW + RUW + BUW + 2` |  |
+
+---
+
+## Ports
+
+| Port | Dir | Width | Description |
+|---|---|---|---|
+| `pclk` | In | 1 |  |
+| `presetn` | In | 1 |  |
+| `cfg_cg_enable` | In | 1 |  |
+| `cfg_cg_idle_count` | In | `[ICW-1:0]` |  |
+| `m_apb_PSEL` | Out | 1 |  |
+| `m_apb_PENABLE` | Out | 1 |  |
+| `m_apb_PADDR` | Out | `[AW-1:0]` |  |
+| `m_apb_PWRITE` | Out | 1 |  |
+| `m_apb_PWDATA` | Out | `[DW-1:0]` |  |
+| `m_apb_PSTRB` | Out | `[SW-1:0]` |  |
+| `m_apb_PPROT` | Out | `[PW-1:0]` |  |
+| `m_apb_PAUSER` | Out | `[AUW-1:0]` |  |
+| `m_apb_PWUSER` | Out | `[WUW-1:0]` |  |
+| `m_apb_PRDATA` | In | `[DW-1:0]` |  |
+| `m_apb_PSLVERR` | In | 1 |  |
+| `m_apb_PREADY` | In | 1 |  |
+| `m_apb_PWAKEUP` | In | 1 |  |
+| `m_apb_PRUSER` | In | `[RUW-1:0]` |  |
+| `m_apb_PBUSER` | In | `[BUW-1:0]` |  |
+| `m_apb_PWDATAPARITY` | Out | `[SW-1:0]` |  |
+| `m_apb_PADDRPARITY` | Out | 1 |  |
+| `m_apb_PCTRLPARITY` | Out | 1 |  |
+| `m_apb_PRDATAPARITY` | In | `[SW-1:0]` |  |
+| `m_apb_PREADYPARITY` | In | 1 |  |
+| `m_apb_PSLVERRPARITY` | In | 1 |  |
+| `cmd_valid` | In | 1 |  |
+| `cmd_ready` | Out | 1 |  |
+| `cmd_pwrite` | In | 1 |  |
+| `cmd_paddr` | In | `[AW-1:0]` |  |
+| `cmd_pwdata` | In | `[DW-1:0]` |  |
+| `cmd_pstrb` | In | `[SW-1:0]` |  |
+| `cmd_pprot` | In | `[PW-1:0]` |  |
+| `cmd_pauser` | In | `[AUW-1:0]` |  |
+| `cmd_pwuser` | In | `[WUW-1:0]` |  |
+| `rsp_valid` | Out | 1 |  |
+| `rsp_ready` | In | 1 |  |
+| `rsp_prdata` | Out | `[DW-1:0]` |  |
+| `rsp_pslverr` | Out | 1 |  |
+| `rsp_pwakeup` | Out | 1 |  |
+| `rsp_pruser` | Out | `[RUW-1:0]` |  |
+| `rsp_pbuser` | Out | `[BUW-1:0]` |  |
+| `parity_error_rdata` | Out | 1 |  |
+| `parity_error_ctrl` | Out | 1 |  |
+| `wakeup_pending` | Out | 1 |  |
+| `apb_clock_gating` | Out | 1 |  |
+
+---
+
 ## Functional Description
 ```mermaid
 flowchart TB

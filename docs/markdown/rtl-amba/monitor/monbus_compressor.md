@@ -562,6 +562,39 @@ file and floorplan details.
 
 ---
 
+## Usage Examples
+
+Every parameter and port below is taken from the module declaration.
+
+```systemverilog
+monbus_compressor #(
+    .HALF_BEAT_EN          (0)
+) u_monbus_compressor (
+    .clk                   (clk),
+    .rst_n                 (rst_n),
+    .clear                 (clear),
+    .in_valid              (in_valid),
+    .in_ready              (in_ready),
+    .in_packet             (in_packet),
+    .in_source_ts          (in_source_ts),
+    .out_valid             (out_valid),
+    .out_ready             (out_ready),
+    .out_slot              (out_slot),
+    .out_half_valid        (out_half_valid),
+    .out_half_slot         (out_half_slot),
+    .stat_tier1_a          (stat_tier1_a),
+    .stat_tier1_b          (stat_tier1_b),
+    .stat_tier1_c          (stat_tier1_c),
+    .stat_tier0            (stat_tier0),
+    .stat_cam_miss         (stat_cam_miss),
+    .stat_delta_ts_ovf     (stat_delta_ts_ovf),
+    .stat_event_data_ovf   (stat_event_data_ovf),
+    .stat_ed_delta_ovf     (stat_ed_delta_ovf)
+);
+```
+
+---
+
 ## Testing
 
 The acceptance criterion is **byte-identical equivalence** between the RTL

@@ -99,6 +99,29 @@ ALIASES = {
 # their book for lacking sections they cannot have.
 SKIP = {'index.md', 'README.md', 'overview.md', 'quickstart.md'}
 SKIP_SUFFIX = ('_guide.md',)
+SKIP_PREFIX = ('_book_',)          # generated book indexes, built by gen_index
+
+
+def is_module_page(path):
+    """True when the page documents ONE module that exists in the tree.
+
+    The spine below describes a per-module page. A family page
+    (`math_fp16_modules.md`, `math_adder_basic.md` -- each covering half a
+    dozen modules), an area overview (`cdc.md`, `math_library.md`) or a status
+    page has no single module to have Parameters and Ports for, and holding it
+    to the module template produces a failure nobody can act on. Twenty-six
+    pages were in that state.
+
+    Judged by whether `<stem>.sv` exists anywhere under rtl/ or projects/,
+    which is a fact about the tree rather than a naming convention.
+    """
+    import os
+    stem = os.path.splitext(os.path.basename(path))[0]
+    for root in ('rtl', 'projects'):
+        for _dir, _sub, files in os.walk(root):
+            if f'{stem}.sv' in files:
+                return True
+    return False
 
 
 def headings(path):
@@ -112,7 +135,10 @@ def headings(path):
 def report(area):
     files = [f for f in sorted(glob.glob(os.path.join(area, '*.md')))
              if os.path.basename(f) not in SKIP
-             and not os.path.basename(f).endswith(SKIP_SUFFIX)]
+             and not os.path.basename(f).endswith(SKIP_SUFFIX)
+             and not os.path.basename(f).startswith(SKIP_PREFIX)]
+    skipped_nonmodule = [f for f in files if not is_module_page(f)]
+    files = [f for f in files if is_module_page(f)]
     if not files:
         return
     conform = 0
@@ -135,6 +161,9 @@ def report(area):
     n = len(files)
     pct = 100.0 * conform / n
     print(f'\n{area}  --  {conform}/{n} pages conformant ({pct:.0f}%)')
+    if skipped_nonmodule:
+        names = ', '.join(os.path.basename(f) for f in skipped_nonmodule)
+        print(f'  not module pages, spine not applied: {names}')
     if missing:
         print('  missing required sections:')
         for h, c in missing.most_common():

@@ -285,6 +285,20 @@ Each side accepts one burst at a time — `fub_awready` deasserts while a write 
 
 ---
 
+## Testing
+
+**No dedicated testbench for this module.** It has no
+`val/**/test_sdpram_core.py`; it is exercised indirectly, through the
+tests of the modules that instantiate it:
+
+- `sdpram_slave_axi4_axil` -- `val/amba/test_sdpram_slave_axi4_axil.py`
+- `sdpram_slave_axil_axi4` -- `val/amba/test_sdpram_slave_axil_axi4.py`
+- `sdpram_slave_axil_axil` -- `val/amba/test_sdpram_slave_axil_axil.py`
+
+Indirect coverage exercises this module only in the configurations its parents elaborate. A parameter or mode no parent uses is untested.
+
+---
+
 ## References
 
 ### Source Code

@@ -460,6 +460,56 @@ visible latencies are short and fixed:
 
 ---
 
+## Usage Examples
+
+Every parameter and port below is taken from the module declaration.
+
+```systemverilog
+axi_monitor_trans_mgr #(
+    .MAX_TRANSACTIONS      (16),
+    .ADDR_WIDTH            (32),
+    .ID_WIDTH              (8),
+    .IS_READ               (1'b1),
+    .IS_AXI                (1'b1),
+    .ENABLE_PERF_PACKETS   (1'b0),
+    .USE_WDATA_ORDER_Q     (1'b0),
+    .NUM_BANKS             (1),
+    .AW                    (ADDR_WIDTH),
+    .IW                    (ID_WIDTH)
+) u_axi_monitor_trans_mgr (
+    .aclk                  (aclk),
+    .aresetn               (aresetn),
+    .clear                 (clear),
+    .cmd_valid             (cmd_valid),
+    .cmd_ready             (cmd_ready),
+    .cmd_id                (cmd_id),
+    .cmd_addr              (cmd_addr),
+    .cmd_len               (cmd_len),
+    .cmd_size              (cmd_size),
+    .cmd_burst             (cmd_burst),
+    .data_valid            (data_valid),
+    .data_ready            (data_ready),
+    .data_id               (data_id),
+    .data_last             (data_last),
+    .data_resp             (data_resp),
+    .resp_valid            (resp_valid),
+    .resp_ready            (resp_ready),
+    .resp_id               (resp_id),
+    .resp_code             (resp_code),
+    .timestamp             (timestamp),
+    .i_event_reported_flags(i_event_reported_flags),
+    .i_timeout_detected    (i_timeout_detected),
+    .cfg_addr_filter_enable(cfg_addr_filter_enable),
+    .cfg_addr_filter_low   (cfg_addr_filter_low),
+    .cfg_addr_filter_high  (cfg_addr_filter_high),
+    .filtered_mask         (filtered_mask),
+    .trans_table           (trans_table),
+    .active_count          (active_count)
+);
+```
+
+---
+
 ## Design Notes
 
 ### Synthesis Notes

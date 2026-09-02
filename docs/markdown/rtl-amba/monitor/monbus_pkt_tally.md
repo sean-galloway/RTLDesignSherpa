@@ -178,6 +178,52 @@ The host reads a coherent coverage snapshot over the CSR/AXIL window as follows:
 
 ---
 
+## Usage Examples
+
+Every parameter and port below is taken from the module declaration.
+
+```systemverilog
+monbus_pkt_tally #(
+    .PKT_WIDTH             (128),
+    .TS_WIDTH              (64),
+    .COUNT_WIDTH           (32),
+    .NUM_LATCH             (4),
+    .ADDR_BITS             (7),
+    .N_PROFILE             (64),
+    .SRAM_DEPTH            ((1 << ADDR_BITS),
+    .PROF_IDX_W            ((N_PROFILE > 1),
+    .PROF_KEY_W            (32),
+    .LSEL_WIDTH            ((NUM_LATCH > 1)
+) u_monbus_pkt_tally (
+    .clk                   (clk),
+    .rst_n                 (rst_n),
+    .in_valid              (in_valid),
+    .in_ready              (in_ready),
+    .in_packet             (in_packet),
+    .in_ts                 (in_ts),
+    .i_freeze              (i_freeze),
+    .i_flush               (i_flush),
+    .o_flush_busy          (o_flush_busy),
+    .i_clear               (i_clear),
+    .rd_addr               (rd_addr),
+    .rd_count              (rd_count),
+    .i_watch_arm           (i_watch_arm),
+    .i_watch_pkttype_mask  (i_watch_pkttype_mask),
+    .latch_sel             (latch_sel),
+    .latch_valid           (latch_valid),
+    .latch_packet          (latch_packet),
+    .latch_ts              (latch_ts),
+    .latch_fill            (latch_fill),
+    .profile_clear         (profile_clear),
+    .profile_we            (profile_we),
+    .profile_waddr         (profile_waddr),
+    .profile_wvalid        (profile_wvalid),
+    .profile_wkey          (profile_wkey)
+);
+```
+
+---
+
 ## Design Notes
 
 ### Why Count Instead of Log?
@@ -213,3 +259,10 @@ Each accepted packet is a read-modify-write on the count SRAM (read the bin, sat
 **Run:** `pytest val/amba/test_monbus_pkt_tally.py -v`
 
 The acceptance criterion is an **exact** cross-check: after a freeze/flush, the hardware bin counts must equal a pure-Python golden count of the same accepted `(protocol, pkt_type, event_code)` stream. A lost increment shows up as a per-bin mismatch. Phases: random count + readback, back-to-back same-bin accepts (the RMW hazard the two-cycle accept sequence exists to cover), saturation (a bin pegs and never wraps), first-event latch, and clear. (Earlier revisions of this section described eviction-stress phases against an LRU write-combining cache; that cache was removed -- every accept is now a direct SRAM read-modify-write.)
+
+---
+
+## Navigation
+
+- **[← Back to monitor index](../index.md)**
+- **[← Back to rtl-amba index](../index.md)**

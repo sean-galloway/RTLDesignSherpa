@@ -79,6 +79,59 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | `ARSize` | `IW+AW+8+3+2+1+4+3+4+4+UW` |
 | `RSize` | `IW+DW+2+1+UW` |
 
+## Ports
+
+| Port | Dir | Width | Description |
+|---|---|---|---|
+| `aclk` | In | 1 |  |
+| `aresetn` | In | 1 |  |
+| `cfg_cg_enable` | In | 1 |  |
+| `cfg_cg_idle_count` | In | `[CG_IDLE_COUNT_WIDTH-1:0]` |  |
+| `s_axi_arid` | In | `[IW-1:0]` |  |
+| `s_axi_araddr` | In | `[AW-1:0]` |  |
+| `s_axi_arlen` | In | `[7:0]` |  |
+| `s_axi_arsize` | In | `[2:0]` |  |
+| `s_axi_arburst` | In | `[1:0]` |  |
+| `s_axi_arlock` | In | 1 |  |
+| `s_axi_arcache` | In | `[3:0]` |  |
+| `s_axi_arprot` | In | `[2:0]` |  |
+| `s_axi_arqos` | In | `[3:0]` |  |
+| `s_axi_arregion` | In | `[3:0]` |  |
+| `s_axi_aruser` | In | `[UW-1:0]` |  |
+| `s_axi_arvalid` | In | 1 |  |
+| `s_axi_arready` | Out | 1 |  |
+| `s_axi_rid` | Out | `[IW-1:0]` |  |
+| `s_axi_rdata` | Out | `[DW-1:0]` |  |
+| `s_axi_rresp` | Out | `[1:0]` |  |
+| `s_axi_rlast` | Out | 1 |  |
+| `s_axi_ruser` | Out | `[UW-1:0]` |  |
+| `s_axi_rvalid` | Out | 1 |  |
+| `s_axi_rready` | In | 1 |  |
+| `fub_axi_arid` | Out | `[IW-1:0]` |  |
+| `fub_axi_araddr` | Out | `[AW-1:0]` |  |
+| `fub_axi_arlen` | Out | `[7:0]` |  |
+| `fub_axi_arsize` | Out | `[2:0]` |  |
+| `fub_axi_arburst` | Out | `[1:0]` |  |
+| `fub_axi_arlock` | Out | 1 |  |
+| `fub_axi_arcache` | Out | `[3:0]` |  |
+| `fub_axi_arprot` | Out | `[2:0]` |  |
+| `fub_axi_arqos` | Out | `[3:0]` |  |
+| `fub_axi_arregion` | Out | `[3:0]` |  |
+| `fub_axi_aruser` | Out | `[UW-1:0]` |  |
+| `fub_axi_arvalid` | Out | 1 |  |
+| `fub_axi_arready` | In | 1 |  |
+| `fub_axi_rid` | In | `[IW-1:0]` |  |
+| `fub_axi_rdata` | In | `[DW-1:0]` |  |
+| `fub_axi_rresp` | In | `[1:0]` |  |
+| `fub_axi_rlast` | In | 1 |  |
+| `fub_axi_ruser` | In | `[UW-1:0]` |  |
+| `fub_axi_rvalid` | In | 1 |  |
+| `fub_axi_rready` | Out | 1 |  |
+| `cg_gating` | Out | 1 |  |
+| `cg_idle` | Out | 1 |  |
+
+---
+
 ## Timing Characteristics
 
 | Skid parameter | Default depth |

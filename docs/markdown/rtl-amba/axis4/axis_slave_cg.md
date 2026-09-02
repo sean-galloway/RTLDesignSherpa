@@ -138,6 +138,56 @@ axis_slave_cg #(
 
 ---
 
+## Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `SKID_DEPTH` | `4` |  |
+| `AXIS_DATA_WIDTH` | `32` |  |
+| `AXIS_ID_WIDTH` | `8` |  |
+| `AXIS_DEST_WIDTH` | `4` |  |
+| `AXIS_USER_WIDTH` | `1` |  |
+| `CG_IDLE_COUNT_WIDTH` | `4` |  |
+| `DW` | `AXIS_DATA_WIDTH` |  |
+| `IW` | `AXIS_ID_WIDTH` |  |
+| `DESTW` | `AXIS_DEST_WIDTH` |  |
+| `UW` | `AXIS_USER_WIDTH` |  |
+| `SW` | `DW / 8` |  |
+| `IW_WIDTH` | `(IW > 0` |  |
+| `DESTW_WIDTH` | `(DESTW > 0` |  |
+| `UW_WIDTH` | `(UW > 0` |  |
+
+---
+
+## Ports
+
+| Port | Dir | Width | Description |
+|---|---|---|---|
+| `aclk` | In | 1 |  |
+| `aresetn` | In | 1 |  |
+| `cfg_cg_enable` | In | 1 |  |
+| `cfg_cg_idle_count` | In | `[CG_IDLE_COUNT_WIDTH-1:0]` |  |
+| `s_axis_tdata` | In | `[DW-1:0]` |  |
+| `s_axis_tstrb` | In | `[SW-1:0]` |  |
+| `s_axis_tlast` | In | 1 |  |
+| `s_axis_tid` | In | `[IW_WIDTH-1:0]` |  |
+| `s_axis_tdest` | In | `[DESTW_WIDTH-1:0]` |  |
+| `s_axis_tuser` | In | `[UW_WIDTH-1:0]` |  |
+| `s_axis_tvalid` | In | 1 |  |
+| `s_axis_tready` | Out | 1 |  |
+| `fub_axis_tdata` | Out | `[DW-1:0]` |  |
+| `fub_axis_tstrb` | Out | `[SW-1:0]` |  |
+| `fub_axis_tlast` | Out | 1 |  |
+| `fub_axis_tid` | Out | `[IW_WIDTH-1:0]` |  |
+| `fub_axis_tdest` | Out | `[DESTW_WIDTH-1:0]` |  |
+| `fub_axis_tuser` | Out | `[UW_WIDTH-1:0]` |  |
+| `fub_axis_tvalid` | Out | 1 |  |
+| `fub_axis_tready` | In | 1 |  |
+| `cg_gating` | Out | 1 |  |
+| `cg_idle` | Out | 1 |  |
+
+---
+
 ## Timing Characteristics
 
 | Skid parameter | Default depth |
@@ -155,6 +205,61 @@ Clocking: `aclk`, reset `aresetn` (active-low asynchronous).
 
 No synthesis numbers are quoted here. Frequency and area depend on the target
 device and the parameters you elaborate with; run your own build.
+
+---
+
+## Usage Examples
+
+Every parameter and port below is taken from the module declaration.
+
+```systemverilog
+axis_slave_cg #(
+    .SKID_DEPTH            (4),
+    .AXIS_DATA_WIDTH       (32),
+    .AXIS_ID_WIDTH         (8),
+    .AXIS_DEST_WIDTH       (4),
+    .AXIS_USER_WIDTH       (1),
+    .CG_IDLE_COUNT_WIDTH   (4),
+    .DW                    (AXIS_DATA_WIDTH),
+    .IW                    (AXIS_ID_WIDTH),
+    .DESTW                 (AXIS_DEST_WIDTH),
+    .UW                    (AXIS_USER_WIDTH)
+) u_axis_slave_cg (
+    .aclk                  (aclk),
+    .aresetn               (aresetn),
+    .cfg_cg_enable         (cfg_cg_enable),
+    .cfg_cg_idle_count     (cfg_cg_idle_count),
+    .s_axis_tdata          (s_axis_tdata),
+    .s_axis_tstrb          (s_axis_tstrb),
+    .s_axis_tlast          (s_axis_tlast),
+    .s_axis_tid            (s_axis_tid),
+    .s_axis_tdest          (s_axis_tdest),
+    .s_axis_tuser          (s_axis_tuser),
+    .s_axis_tvalid         (s_axis_tvalid),
+    .s_axis_tready         (s_axis_tready),
+    .fub_axis_tdata        (fub_axis_tdata),
+    .fub_axis_tstrb        (fub_axis_tstrb),
+    .fub_axis_tlast        (fub_axis_tlast),
+    .fub_axis_tid          (fub_axis_tid),
+    .fub_axis_tdest        (fub_axis_tdest),
+    .fub_axis_tuser        (fub_axis_tuser),
+    .fub_axis_tvalid       (fub_axis_tvalid),
+    .fub_axis_tready       (fub_axis_tready),
+    .cg_gating             (cg_gating),
+    .cg_idle               (cg_idle)
+);
+```
+
+---
+
+## Related Modules
+
+Read out of the RTL, not curated: these are the
+modules this one instantiates and the modules that instantiate it.
+
+**Instantiates:**
+- `amba_clock_gate_ctrl`
+- `axis_slave`
 
 ---
 

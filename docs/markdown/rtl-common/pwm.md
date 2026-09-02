@@ -255,6 +255,17 @@ repeat_count = 1;         // Single pulse
 - Power supply switching
 - Heating element control
 
+## Related Modules
+
+Read out of the RTL, not curated: these are the
+modules this one instantiates and the modules that instantiate it.
+
+**Instantiated by:**
+- `arbiter_rr_pwm_monbus`
+- `arbiter_wrr_pwm_monbus`
+
+---
+
 ## Testing
 
 `val/common/test_pwm.py` exercises this module. It collects 2 parameter cases at the default `REG_LEVEL`.

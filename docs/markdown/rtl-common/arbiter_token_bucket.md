@@ -81,6 +81,24 @@ Declared as `parameter` so the elaborator can size the packed ports, not so call
 | `TW` | `$clog2(MAX_TOKENS)` |
 | `CXTW` | `CLIENTS * TW` |
 
+## Ports
+
+| Port | Dir | Width | Description |
+|---|---|---|---|
+| `clk` | In | 1 |  |
+| `rst_n` | In | 1 |  |
+| `refill_tick` | In | 1 |  |
+| `rate` | In | `[CXRW-1:0]` |  |
+| `bucket_cap` | In | `[CXTW-1:0]` |  |
+| `request_in` | In | `[C-1:0]` |  |
+| `grant` | In | `[C-1:0]` |  |
+| `grant_valid` | In | 1 |  |
+| `grant_ack` | In | `[C-1:0]` |  |
+| `request_out` | Out | `[C-1:0]` |  |
+| `tokens` | Out | `[CXTW-1:0]` |  |
+
+---
+
 ## Functional Description
 
 - **`refill_tick` is external.** Pair it with
@@ -113,6 +131,37 @@ Declared as `parameter` so the elaborator can size the packed ports, not so call
 | Gate | Combinational: request_in to request_out through one compare |
 | Buckets | Registered; refill-then-clamp-then-spend per cycle |
 | Sustained rate | Exactly rate[i] tokens per tick interval under saturation |
+
+## Usage Examples
+
+Every parameter and port below is taken from the module declaration.
+
+```systemverilog
+arbiter_token_bucket #(
+    .CLIENTS               (4),
+    .MAX_TOKENS            (64),
+    .RATE_WIDTH            (4),
+    .WAIT_GNT_ACK          (0),
+    .TW                    ($clog2(MAX_TOKENS),
+    .C                     (CLIENTS),
+    .CXTW                  (CLIENTS * TW),
+    .CXRW                  (CLIENTS * RATE_WIDTH)
+) u_arbiter_token_bucket (
+    .clk                   (clk),
+    .rst_n                 (rst_n),
+    .refill_tick           (refill_tick),
+    .rate                  (rate),
+    .bucket_cap            (bucket_cap),
+    .request_in            (request_in),
+    .grant                 (grant),
+    .grant_valid           (grant_valid),
+    .grant_ack             (grant_ack),
+    .request_out           (request_out),
+    .tokens                (tokens)
+);
+```
+
+---
 
 ## Related Modules
 

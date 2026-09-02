@@ -231,6 +231,15 @@ axis4_master_pattern_gen #(
 
 ---
 
+## Testing
+
+**No test coverage.** There is no
+`val/**/test_axis4_master_pattern_gen.py`, and no module that instantiates this one has a testbench either, so nothing in the repository exercises it.
+
+Treat any behaviour described on this page as unverified by simulation.
+
+---
+
 ## References
 
 ### Source Code

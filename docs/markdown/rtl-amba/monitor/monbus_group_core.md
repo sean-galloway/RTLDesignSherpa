@@ -350,6 +350,20 @@ The burst is always sized so its last byte stays at or below `cfg_limit_addr` an
 
 ---
 
+## Testing
+
+**No dedicated testbench for this module.** It has no
+`val/**/test_monbus_group_core.py`; it is exercised indirectly, through the
+tests of the modules that instantiate it:
+
+- `monbus_axi4_axil4_group` -- `val/amba/test_monbus_axi4_axil4_group.py`
+- `monbus_axil4_axi4_group` -- `val/amba/test_monbus_axil4_axi4_group.py`
+- `monbus_axil4_axil4_group` -- `val/amba/test_monbus_axil4_axil4_group.py`
+
+Indirect coverage exercises this module only in the configurations its parents elaborate. A parameter or mode no parent uses is untested.
+
+---
+
 ## References
 
 ### Source Code

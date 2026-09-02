@@ -268,6 +268,33 @@ should give occupancy 16-14+2 = 4, but `AW'(16)` = 0 yields 0-14+2 (garbage).
 - **Low latency**: Single cycle flag updates
 - **Resource efficient**: Shared across multiple FIFO types
 
+## Usage Examples
+
+Every parameter and port below is taken from the module declaration.
+
+```systemverilog
+fifo_control #(
+    .ADDR_WIDTH            (3),
+    .DEPTH                 (8),
+    .ALMOST_WR_MARGIN      (1),
+    .ALMOST_RD_MARGIN      (1),
+    .REGISTERED            (0)
+) u_fifo_control (
+    .wr_clk                (wr_clk),
+    .wr_ptr_bin            (wr_ptr_bin),
+    .wdom_rd_ptr_bin       (wdom_rd_ptr_bin),
+    .rd_ptr_bin            (rd_ptr_bin),
+    .rdom_wr_ptr_bin       (rdom_wr_ptr_bin),
+    .count                 (count),
+    .wr_full               (wr_full),
+    .wr_almost_full        (wr_almost_full),
+    .rd_empty              (rd_empty),
+    .rd_almost_empty       (rd_almost_empty)
+);
+```
+
+---
+
 ## Design Notes
 
 ### Key Design Insights
@@ -296,6 +323,20 @@ Conservative design:
 ## Related Modules
 
 - **`fifo_sync`** and **`fifo_async`**: both FIFO variants share this status logic (binary or Johnson pointers). The former `fifo_async_div2` is retired — `fifo_async` with `USE_JOHNSON=1` replaces it.
+
+## Testing
+
+**No dedicated testbench for this module.** It has no
+`val/**/test_fifo_control.py`; it is exercised indirectly, through the
+tests of the modules that instantiate it:
+
+- `fifo_sync` -- `val/common/test_fifo_sync.py`
+- `gaxi_drop_fifo_sync` -- `val/amba/test_gaxi_drop_fifo_sync.py`
+- `gaxi_fifo_sync` -- `val/amba/test_gaxi_fifo_sync.py`
+
+Indirect coverage exercises this module only in the configurations its parents elaborate. A parameter or mode no parent uses is untested.
+
+---
 
 ## Navigation
 

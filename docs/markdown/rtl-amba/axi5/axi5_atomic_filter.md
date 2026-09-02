@@ -140,6 +140,44 @@ none have been measured against a target device.
 
 ---
 
+## Usage Examples
+
+Every parameter and port below is taken from the module declaration.
+
+```systemverilog
+axi5_atomic_filter #(
+    .AXI_ID_WIDTH          (4),
+    .AXI_ATOP_WIDTH        (6),
+    .DEPTH_LG2             (3),
+    .IW                    (AXI_ID_WIDTH),
+    .DEPTH                 (1 << DEPTH_LG2)
+) u_axi5_atomic_filter (
+    .aclk                  (aclk),
+    .aresetn               (aresetn),
+    .s_awvalid             (s_awvalid),
+    .s_awready             (s_awready),
+    .s_awid                (s_awid),
+    .s_awatop              (s_awatop),
+    .s_wvalid              (s_wvalid),
+    .s_wready              (s_wready),
+    .s_wlast               (s_wlast),
+    .s_bvalid              (s_bvalid),
+    .s_bready              (s_bready),
+    .s_bid                 (s_bid),
+    .s_bresp               (s_bresp),
+    .m_awvalid             (m_awvalid),
+    .m_awready             (m_awready),
+    .m_wvalid              (m_wvalid),
+    .m_wready              (m_wready),
+    .m_bvalid              (m_bvalid),
+    .m_bready              (m_bready),
+    .m_bid                 (m_bid),
+    .m_bresp               (m_bresp)
+);
+```
+
+---
+
 ## Testing
 `val/amba/test_axi5_atomic_filter.py` — direct cocotb driving: mixed
 forward/swallow traffic, a multi-beat swallowed burst, DECERR ID/order checks,
@@ -160,3 +198,10 @@ side-effect checks) is covered by
 - [axi5_slave_wr](axi5_slave_wr.md) — the boundary wrapper upstream of the
   filter in bridge master adapters
 - [AXI5 index](README.md) — scope statement for the AXI5 family
+
+---
+
+## Navigation
+
+- **[← Back to axi5 index](../axi5/README.md)**
+- **[← Back to rtl-amba index](../index.md)**

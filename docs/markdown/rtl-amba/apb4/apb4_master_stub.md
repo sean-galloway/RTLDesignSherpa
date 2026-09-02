@@ -258,6 +258,17 @@ For production use, consider the full-featured `apb4_master` module.
 - `apb4_slave_stub.sv` - Companion APB slave stub
 - `apb4_monitor.sv` - APB transaction monitoring
 
+## Testing
+
+**No dedicated testbench, and none is expected.** This is a stub: a tie-off
+shell that presents the interface and drives inert values, so there is no
+behaviour to verify beyond elaboration. `make verilator` lints it as its own
+top on every run, which is the coverage that applies.
+
+Treat any behaviour described on this page as unverified by simulation.
+
+---
+
 ## References
 
 - **APB Protocol**: ARM IHI 0024C -- AMBA APB Protocol Specification, Version 2.0 (APB4)

@@ -379,3 +379,10 @@ REG_LEVEL parameter sweep:
 - **GATE:** 1 config (8/64/16)
 - **FUNC:** 2 configs (+ 4/32/8)
 - **FULL:** 7 configs (depth 4/8/16/32, id 4/6/8, payload 32/64/128/256)
+
+---
+
+## Navigation
+
+- **[← Back to monitor index](../index.md)**
+- **[← Back to rtl-amba index](../index.md)**

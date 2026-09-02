@@ -213,6 +213,38 @@ measured.
 
 ---
 
+## Usage Examples
+
+Every parameter and port below is taken from the module declaration.
+
+```systemverilog
+monbus_cam_pipe #(
+    .KEY_WIDTH             (49),
+    .DATA_WIDTH            (64),
+    .TS_WIDTH              (24),
+    .DEPTH                 (32),
+    .IDX_WIDTH             ((DEPTH > 1),
+    .CNT_WIDTH             ($clog2(DEPTH + 1)
+) u_monbus_cam_pipe (
+    .clk                   (clk),
+    .rst_n                 (rst_n),
+    .clear                 (clear),
+    .access_en             (access_en),
+    .access_key            (access_key),
+    .access_new_data       (access_new_data),
+    .access_new_ts         (access_new_ts),
+    .result_valid          (result_valid),
+    .result_hit            (result_hit),
+    .result_idx            (result_idx),
+    .result_old_data       (result_old_data),
+    .result_old_ts         (result_old_ts),
+    .cam_full              (cam_full),
+    .cam_count             (cam_count)
+);
+```
+
+---
+
 ## Design Notes
 
 ### How It Differs from `monbus_cam`

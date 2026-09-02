@@ -2,6 +2,44 @@
 
 # AMBA tasks — open (not started)
 
+### TASK-075: seven modules have no test coverage, direct or transitive
+
+**Priority:** P2 for the ECC pair, P3 for the rest. None is a known defect;
+they are simply unverified, which is worse than a failing test because nothing
+reports it.
+**Status:** open 2026-09-02. Surfaced by the doc-conformance sweep, not by a
+test run -- writing a truthful "Testing" section for every module page forced
+the question of what actually exercises each one.
+
+**Method.** Built the module instantiation graph over rtl/ and projects/, then
+asked for each module whether ANY transitive ancestor has a `val/**/test_*.py`.
+The first pass used a one-level parent lookup and wrongly reported 28 modules
+as uncovered; twelve of those are covered further up (the `axi_monitor_reporter_*`
+cones reach a test through `axi_monitor_reporter` -> `axi_monitor_base` ->
+`axi4_master_rd_mon`). The number below is from the transitive walk.
+
+**Genuinely uncovered:**
+
+| Module | Note |
+|---|---|
+| `dataint_ecc_hamming_encode_secded` | SECDED encode. Real logic, no test. |
+| `dataint_ecc_hamming_decode_secded` | SECDED decode, including the double-error-detect path. Real logic, no test. |
+| `apb4_master_cg` | The only clock-gated wrapper in the repo with no gating test; its nine siblings are covered by `test_cg_peer_ready.py` / `test_mon_cg_gating.py`. |
+| `monbus_axi4_axi4_group` | Group wrapper; the axil/axil variants are tested. |
+| `sdpram_slave_axi4_axi4` | Sibling `sdpram_slave_axil_axil` is tested. |
+| `axis4_master_pattern_gen` | Used by `test_axis4_pattern_pair`, which drives a `tb_` wrapper rather than this module. |
+| `axis4_slave_pattern_check` | Same. |
+
+**Excluded deliberately:** the eight `*_stub` modules (tie-off shells with no
+behaviour beyond elaboration, linted as their own top every run) and
+`arbiter_single_client` (exempt by decision, verified in situ in STREAM).
+
+**Why the ECC pair is P2.** Encode/decode SECDED is exactly the kind of module
+whose single- and double-error paths are easy to get subtly wrong and
+impossible to notice from integration traffic, because a correct-looking
+result is indistinguishable from a corrected one without injecting faults.
+
+
 ### TASK-074: test_axis_slave dies with SystemExit under heavy parallel load
 
 **Priority:** P3 — intermittent, and the cocotb test itself PASSES every time.
