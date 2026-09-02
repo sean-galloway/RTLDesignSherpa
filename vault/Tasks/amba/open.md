@@ -2,6 +2,54 @@
 
 # AMBA tasks — open (not started)
 
+### TASK-074: test_axis_slave dies with SystemExit under heavy parallel load
+
+**Priority:** P3 — intermittent, and the cocotb test itself PASSES every time.
+What fails is the pytest wrapper, so this costs a red suite rather than hiding
+a functional defect.
+**Status:** open 2026-09-02. Found while validating the clock-gating activity
+term fix; NOT caused by it (see below).
+
+**What happens.** In a 16-worker run of
+`test_mon_cg_gating + test_axil4_* + test_axil5_* + test_axis* +
+test_axil_perf_byte_count`, exactly one `test_axis_slave` parameter set fails
+with `SystemExit`. Measured 4 runs: 2 failed, 2 clean (314 passed).
+
+    run 1: FAILED test_axis_slave[4-64-8-4-1]   313 passed
+    run 2: FAILED test_axis_slave[8-32-8-4-1]   313 passed
+    run 3: clean, 314 passed
+    run 4: clean, 314 passed
+
+**A DIFFERENT parameter set each time**, so it is load-sensitive, not a bad
+case.
+
+**What it is not.**
+- Not the RTL: the cocotb test reports `TESTS=1 PASS=1 FAIL=0` in the same run
+  that pytest marks failed. The simulation succeeds; the wrapper exits.
+- Not the 2026-09-02 gating change: the failing DUT is `axis_slave`, and
+  `rtl/amba/filelists/axis_slave.f` does not reference `axis_slave_cg.sv` at
+  all. The edited file is not in that build.
+- Not a sim_build collision between workers: `test_name_plus_params` includes
+  `worker_id`, so each case owns its directory.
+- Not the TB safety monitor: `_check_cpu_usage` only warns, and
+  `_check_memory_usage` raises `MemoryLimitExceeded`, not `SystemExit`.
+- Not axis in isolation: `test_axis*.py -n 16` alone is 58/58 clean,
+  repeatedly. It needs the heavier mixed load.
+
+**Where to look next.** `SystemExit` from `cocotb_test.simulator.run` is what a
+failed BUILD raises. Under 16 concurrent Verilator invocations the likely
+mechanism is ccache or Verilator artifact contention — the same class as
+PUMICE-010 ("concurrent Verilator/ccache compiles destroy each other's
+artifacts"), but that one was diagnosed for a SHARED sim_build and this one
+has per-worker directories, so the shared resource is something else (ccache
+itself is the obvious candidate). Capture the failing worker's build log:
+`--tb=long` did not surface the message, so the runner is swallowing it.
+
+**Do not paper over it with a rerun flag.** An intermittent failure is a real
+bug in the runner, the harness or the RTL ([[feedback_no_flaky_dismissal]]);
+`--reruns` would hide the one signal we have.
+
+
 ### CONV-001: dwidth converter split-fold assumes in-order B across IDs
 
 **Priority:** P3 — latent, needs an interleaving downstream AND a master using

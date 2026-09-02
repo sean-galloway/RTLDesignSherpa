@@ -85,7 +85,12 @@ module axil4_slave_rd_cg
     logic int_busy;
 
     // OR all user-side valid signals (slave receives from AXI, sends to backend)
-    assign user_valid = s_axil_arvalid || s_axil_rready || int_busy;
+    // A peer's READY must never appear in the activity term: a consumer
+    // that parks its response-ready high while idle is behaving correctly,
+    // and folding that in pins this block permanently awake and defeats
+    // gating entirely -- the wrapper's only feature, silently dead. The
+    // _mon_cg siblings documented this rule and obeyed it; these did not.
+    assign user_valid = s_axil_arvalid || int_busy;  // s_axil_rvalid is in axi_valid
 
     // OR all AXI-side valid signals (backend sends, slave sends to AXI)
     assign axi_valid = fub_arvalid || fub_rvalid || s_axil_rvalid;

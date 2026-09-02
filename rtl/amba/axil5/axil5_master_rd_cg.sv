@@ -134,7 +134,12 @@ module axil5_master_rd_cg
     logic int_arready;
     logic int_rready;
 
-    assign user_valid = fub_arvalid || fub_rready || int_busy;
+    // A peer's READY must never appear in the activity term: a consumer
+    // that parks its response-ready high while idle is behaving correctly,
+    // and folding that in pins this block permanently awake and defeats
+    // gating entirely -- the wrapper's only feature, silently dead. The
+    // _mon_cg siblings documented this rule and obeyed it; these did not.
+    assign user_valid = fub_arvalid || int_busy;  // fub_rvalid is in axi_valid
     assign axi_valid  = m_axil_arvalid || m_axil_rvalid || fub_rvalid;
 
     // Nothing is accepted into a stopped clock

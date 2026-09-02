@@ -82,7 +82,12 @@ module axis_slave_cg
     logic int_busy;
 
     // OR all user-side valid signals (following AXI4 pattern)
-    assign user_valid = s_axis_tvalid || fub_axis_tready || int_busy;
+    // A peer's READY must never appear in the activity term: a consumer
+    // that parks its response-ready high while idle is behaving correctly,
+    // and folding that in pins this block permanently awake and defeats
+    // gating entirely -- the wrapper's only feature, silently dead. The
+    // _mon_cg siblings documented this rule and obeyed it; these did not.
+    assign user_valid = s_axis_tvalid || int_busy;  // fub_axis_tvalid is in axi_valid
 
     // OR all AXI-side valid signals
     assign axi_valid = fub_axis_tvalid;

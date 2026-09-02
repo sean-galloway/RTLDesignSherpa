@@ -97,7 +97,12 @@ module axil4_master_wr_cg
     logic int_busy;
 
     // OR all user-side valid signals
-    assign user_valid = fub_awvalid || fub_wvalid || fub_bready || int_busy;
+    // A peer's READY must never appear in the activity term: a consumer
+    // that parks its response-ready high while idle is behaving correctly,
+    // and folding that in pins this block permanently awake and defeats
+    // gating entirely -- the wrapper's only feature, silently dead. The
+    // _mon_cg siblings documented this rule and obeyed it; these did not.
+    assign user_valid = fub_awvalid || fub_wvalid || fub_bvalid || int_busy;
 
     // OR all AXI-side valid signals
     assign axi_valid = m_axil_awvalid || m_axil_wvalid || m_axil_bvalid;
