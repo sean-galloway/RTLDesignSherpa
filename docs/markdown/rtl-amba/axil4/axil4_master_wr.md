@@ -25,23 +25,23 @@
 
 **Module:** `axil4_master_wr.sv`
 **Location:** `rtl/amba/axil4/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
 ## Overview
 
-The AXIL4 Master Write module provides a buffered AXI4-Lite write interface for master devices. AXI4-Lite is a simplified subset of AXI4 designed for control register access with reduced signal count and single-beat transactions only.
+The AXIL4 Master Write module gives a master device a buffered AXI4-Lite write interface. AXI4-Lite is the simplified subset of AXI4 designed for control-register access: reduced signal count, single-beat transactions only.
 
 ### Key Features
 
-- ✅ **AXI4-Lite Protocol:** Simplified write-only interface (AW, W, B channels)
-- ✅ **Single-Beat Transactions:** No burst support (always 1 transfer)
-- ✅ **Buffered Channels:** Configurable skid buffers for all 3 channels
-- ✅ **Byte Strobes:** WSTRB support for partial word writes
-- ✅ **Elastic Buffering:** Decouples frontend and backend timing
-- ✅ **Activity Monitoring:** Busy signal for clock gating
-- ✅ **Minimal Latency:** 1-cycle buffer overhead per channel
+- **AXI4-Lite Protocol:** Simplified write-only interface (AW, W, B channels)
+- **Single-Beat Transactions:** No burst support (always 1 transfer)
+- **Buffered Channels:** Configurable skid buffers for all 3 channels
+- **Byte Strobes:** WSTRB support for partial word writes
+- **Elastic Buffering:** Decouples frontend and backend timing
+- **Activity Monitoring:** Busy signal for clock gating
+- **Minimal Latency:** 1-cycle buffer overhead per channel
 
 ---
 
@@ -71,7 +71,7 @@ signals concatenated into that buffer.
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 
@@ -138,7 +138,9 @@ signals concatenated into that buffer.
 
 ---
 
-## Module Architecture
+## Functional Description
+
+### Module Architecture
 
 ```mermaid
 flowchart LR
@@ -167,11 +169,9 @@ flowchart LR
     BUF --> busy["busy"]
 ```
 
----
-
-## Signal Flow
-
 ### Write Transaction Sequence
+
+AW and W travel in parallel through their own buffers, and the B response comes back on its own — one clock of buffer overhead on each leg:
 
 ```
 Cycle 1:  fub_awaddr=0x2000, fub_awvalid=1, fub_awprot=0
@@ -192,6 +192,47 @@ Cycle 7:  B buffer forwards to frontend:
           fub_bresp=OKAY, fub_bvalid=1
           fub_bready=1 (frontend accepts)
 ```
+
+---
+
+## Timing
+
+### Latency
+
+| Path | Cycles | Notes |
+|------|--------|-------|
+| Frontend → Backend (AW) | 1 | Skid buffer overhead |
+| Frontend → Backend (W) | 1 | Skid buffer overhead |
+| Backend → Frontend (B) | 1 | Skid buffer overhead |
+| Total write latency | Slave latency + 2 | AW and W traverse in PARALLEL (separate channels, one cycle), then the slave, then B. Best case |
+
+The `+2` best case assumes the slave asserts AWREADY and WREADY in the **same**
+cycle, so the AW and W buffer traversals overlap: one cycle for that pair, not
+one each. (This section said `+3`, which is the figure you get by adding both
+hops -- the arithmetic the sentence right here rules out.) If the slave accepts the
+address and the data in different cycles, the write completes off the later of
+the two handshakes, and the total is that skew plus the slave and B latency.
+Backpressure on B adds further cycles.
+
+### Throughput
+
+| Scenario | Rate | Notes |
+|----------|------|-------|
+| Back-to-back writes | 1 write/cycle | If buffers not stalled |
+| Typical peripheral | 1 write/N cycles | N = slave response time |
+
+### Resource Usage
+
+These are **order-of-magnitude estimates**, not measured synthesis results — no
+target device, tool version, or optimization setting is attached to them. They
+scale with `AXIL_DATA_WIDTH` and the `SKID_DEPTH_*` settings. Synthesize for
+your own device before budgeting area.
+
+| Resource | Count | Notes |
+|----------|-------|-------|
+| LUTs | ~300 | Estimate, 32-bit data, 3 channels, default depths |
+| FFs | ~250 | Buffer state + control |
+| BRAM | 0 | Skid buffers are flop-based |
 
 ---
 
@@ -381,47 +422,6 @@ oscillate.
 - Clock gating control (see `axil4_master_wr_cg`)
 - Power management
 - Interface idle detection
-
----
-
-## Performance Characteristics
-
-### Latency
-
-| Path | Cycles | Notes |
-|------|--------|-------|
-| Frontend → Backend (AW) | 1 | Skid buffer overhead |
-| Frontend → Backend (W) | 1 | Skid buffer overhead |
-| Backend → Frontend (B) | 1 | Skid buffer overhead |
-| Total write latency | Slave latency + 2 | AW and W traverse in PARALLEL (separate channels, one cycle), then the slave, then B. Best case |
-
-The `+2` best case assumes the slave asserts AWREADY and WREADY in the **same**
-cycle, so the AW and W buffer traversals overlap: one cycle for that pair, not
-one each. (This section said `+3`, which is the figure you get by adding both
-hops -- the arithmetic the sentence right here rules out.) If the slave accepts the
-address and the data in different cycles, the write completes off the later of
-the two handshakes, and the total is that skew plus the slave and B latency.
-Backpressure on B adds further cycles.
-
-### Throughput
-
-| Scenario | Rate | Notes |
-|----------|------|-------|
-| Back-to-back writes | 1 write/cycle | If buffers not stalled |
-| Typical peripheral | 1 write/N cycles | N = slave response time |
-
-### Resource Usage
-
-These are **order-of-magnitude estimates**, not measured synthesis results — no
-target device, tool version, or optimization setting is attached to them. They
-scale with `AXIL_DATA_WIDTH` and the `SKID_DEPTH_*` settings. Synthesize for
-your own device before budgeting area.
-
-| Resource | Count | Notes |
-|----------|-------|-------|
-| LUTs | ~300 | Estimate, 32-bit data, 3 channels, default depths |
-| FFs | ~250 | Buffer state + control |
-| BRAM | 0 | Skid buffers are flop-based |
 
 ---
 

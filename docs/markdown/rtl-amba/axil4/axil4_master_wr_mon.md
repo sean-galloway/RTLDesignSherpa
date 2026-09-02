@@ -25,7 +25,7 @@
 
 **Module:** `axil4_master_wr_mon.sv`
 **Location:** `rtl/amba/axil4/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
@@ -35,14 +35,14 @@ Combines **[axil4_master_wr](../axil4/axil4_master_wr.md)** with **axi_monitor_f
 
 ### Key Features
 
-- ✅ All features of **axil4_master_wr**
-- ✅ Integrated write monitoring (AW, W, B channels)
+- All features of **axil4_master_wr**
+- Integrated write monitoring (AW, W, B channels)
 - 2-level filtering (packet-type masks, then per-event-code masks) and error detection
-- ✅ Simplified for AXI4-Lite (MAX_TRANSACTIONS=8)
+- Simplified for AXI4-Lite (MAX_TRANSACTIONS=8)
 
 ---
 
-## Additional Parameters
+## Parameters
 
 Identical to **[axil4_master_rd_mon](axil4_master_rd_mon.md)** including:
 - `UNIT_ID`, `AGENT_ID`, `MAX_TRANSACTIONS`, `ENABLE_FILTERING`, `ADD_PIPELINE_STAGE`, `USE_MONITOR`, `N_ADDR_RANGES`
@@ -56,8 +56,6 @@ Identical to **[axil4_master_rd_mon](axil4_master_rd_mon.md)** including:
 
 See **[axil4_master_rd_mon](axil4_master_rd_mon.md#synthesis-cone-parameters)** for complete parameter descriptions. The removed `CAM_PIPELINE` / `TRANS_CAM_PIPELINE` parameters no longer exist (the CAM is always pipelined).
 
----
-
 ### Derived Parameters (do not override)
 
 These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
@@ -67,13 +65,30 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | `AW` | `AXIL_ADDR_WIDTH` |
 | `DW` | `AXIL_DATA_WIDTH` |
 
-## Performance Monitoring
+---
+
+## Ports
+
+Same as **[axil4_master_rd_mon](axil4_master_rd_mon.md)**:
+- Monitor configuration inputs, including `cfg_error_enable`, `cfg_timeout_enable`, `cfg_compl_enable`, `cfg_threshold_enable`, `cfg_perf_enable`, `cfg_debug_enable`
+- `cam_clear` control input (Input, 1) - synchronous clear of the monitor transaction CAM (driven from the harness clear control bit, e.g. CTRL[4])
+- Filtering masks (9: eight `cfg_axi_*_mask` plus the reserved `cfg_axi_err_select`)
+- The performance-monitoring config/status ports (see [Performance Monitoring](#performance-monitoring) and the [read-monitor port table](axil4_master_rd_mon.md#performance-monitoring-ports))
+- `cfg_freq_sel` (Input, 4) - `counter_freq_invariant` LUT index scaling the 1 us timer tick; the microsecond timeouts are measured in these ticks. With the default `CFI_MIN_FREQ_MHZ == CFI_MAX_FREQ_MHZ == ACLK_MHZ` every LUT entry is identical, so it has no effect until you give CFI a real MIN..MAX range
+- Monitor bus output (valid/ready/data)
+- Status outputs (busy, active_transactions, error_count)
+
+---
+
+## Functional Description
+
+### Performance Monitoring
 
 When performance monitoring is enabled, the wrapper forwards a **measurement-window state machine** plus a bank of W-channel (write-data) utilization counters to `axi_monitor_base`. All counters accumulate **only while a window is open** (`window_active = 1`) and hold their values between windows so the host can read a completed window's totals. `cfg_perf_enable` does NOT gate them: it selects the window start/end event (it is edge-detected for `cfg_start_event_sel` modes 010/011) and enables the perf PACKET class. The counters themselves advance whenever a window is open, enabled or not. `ENABLE_PERF_LOGIC = 0` does NOT drop them: the window FSM and its counters are unconditional `always_ff` blocks in `axi_monitor_base`, outside every generate. That parameter gates only `g_perf` in the reporter -- the legacy perf-packet cone and the two lifetime counters. `USE_MONITOR = 0` is what ties the perfmon outputs off.
 
 > Avoid enabling completion (`cfg_compl_enable`) and performance (`cfg_perf_enable`) packets simultaneously under heavy traffic — the monitor bus sustains at most one packet per two cycles. Runtime-disabling either class is safe (terminal entries auto-retire; see [axi_monitor_reporter](../monitor/axi_monitor_reporter.md)); alternatively, `cfg_axi_pkt_mask` drops the packets while keeping marking and counting. See `docs/user-guides/AXI_Monitor_Configuration_Guide.md`.
 
-### The Measurement Window
+#### The Measurement Window
 
 A window is opened by a **start event** and closed by an **end event**:
 
@@ -83,7 +98,7 @@ A window is opened by a **start event** and closed by an **end event**:
 
 While the window is open, `window_active` is high and `window_cycles` [31:0] free-runs, counting every clock elapsed inside the window.
 
-### Utilization Counters (W channel)
+#### Utilization Counters (W channel)
 
 Every in-window cycle is classified by the W-channel valid/ready into exactly one of four buckets:
 
@@ -96,7 +111,7 @@ Every in-window cycle is classified by the W-channel valid/ready into exactly on
 
 The four buckets sum to `window_cycles`, so utilization = `perf_prod_cycles / window_cycles`.
 
-### Throughput Counters
+#### Throughput Counters
 
 | Output | Width | Meaning |
 |--------|:-----:|---------|
@@ -106,13 +121,11 @@ The four buckets sum to `window_cycles`, so utilization = `perf_prod_cycles / wi
 
 **AXI4-Lite note:** every transaction is a single data beat (AWLEN is implicitly 0), so `perf_burst_count` counts AW handshakes = transactions and `perf_beat_count` equals the transaction count. Average burst length (`perf_beat_count / perf_burst_count`) is therefore always 1.
 
-### Perfmon & Additional Control Ports
+#### Perfmon & Additional Control Ports
 
 The wrapper adds the perfmon config/status ports (`cfg_start_event_sel`, `cfg_end_event_sel`, `cfg_start_trigger`, `cfg_end_trigger`, `cfg_window_force_close`, `window_active`, `window_cycles`, `perf_prod_cycles`, `perf_bp_cycles`, `perf_starv_cycles`, `perf_idle_cycles`, `perf_beat_count`, `perf_byte_count`, `perf_burst_count`) and the completion/threshold/debug enables (`cfg_compl_enable`, `cfg_threshold_enable`, `cfg_debug_enable`) with the same directions/widths and semantics as **[axil4_master_rd_mon](axil4_master_rd_mon.md#performance-monitoring-ports)** — the only difference is that `perf_burst_count` counts AW handshakes and the utilization buckets watch the W channel. As on the read monitor, `cfg_debug_level`/`cfg_debug_mask`/`cfg_active_trans_threshold` are tied to constants internally and not exposed.
 
----
-
-## Monitor Backpressure (block_ready)
+### Monitor Backpressure (block_ready)
 
 `block_ready` is a flow-control net inside the wrapper, and it IS brought out: `debug_block_ready` is an output port of this module (the `_cg` wrapper ties it off, so use the base module when you need the tap). It goes low when the monitor's transaction-table occupancy reaches its blocking threshold (a function of `MAX_TRANSACTIONS`; the reporter FIFO depth `INTR_FIFO_DEPTH` has no path to it). The wrapper ANDs it into the upstream-facing `fub_axil_awready` so a saturated monitor throttles new transactions at the handshake instead of dropping events.
 
@@ -126,13 +139,9 @@ Recovery is guaranteed by the **saturation-recovery contract**: command-originat
 
 Sizing note: a monitor on a bus shared by several channels/requesters must size `MAX_TRANSACTIONS` to cover `NUM_CHANNELS x per-channel outstanding` plus margin -- the per-channel limit alone makes the monitor throttle the shared master. Tables deeper than 64 also need Verilator's `--unroll-count` raised (default 64) in sim builds.
 
----
-
-## Address-Range Checker
+### Address-Range Checker
 
 Identical to **[axil4_master_rd_mon](axil4_master_rd_mon.md#address-range-checker)** except the checker watches AW (write address) handshakes instead of AR (read address) handshakes. The `cfg_addr_*` configuration inputs and monbus event encoding are the same. See the read monitor's Address-Range Checker section for full details.
-
----
 
 ### Packet filters
 
@@ -161,38 +170,9 @@ wrapper ties `cfg_id_filter_enable` / `cfg_id_match_base` /
 `cfg_id_match_count` off on the inner monitor rather than exposing them — a
 filter keyed on a field the protocol lacks has nothing to match against.
 
-## Additional Ports
-
-Same as **[axil4_master_rd_mon](axil4_master_rd_mon.md)**:
-- Monitor configuration inputs, including `cfg_error_enable`, `cfg_timeout_enable`, `cfg_compl_enable`, `cfg_threshold_enable`, `cfg_perf_enable`, `cfg_debug_enable`
-- `cam_clear` control input (Input, 1) - synchronous clear of the monitor transaction CAM (driven from the harness clear control bit, e.g. CTRL[4])
-- Filtering masks (9: eight `cfg_axi_*_mask` plus the reserved `cfg_axi_err_select`)
-- The performance-monitoring config/status ports (see the [Performance Monitoring](#performance-monitoring) section above and the [read-monitor port table](axil4_master_rd_mon.md#performance-monitoring-ports))
-- `cfg_freq_sel` (Input, 4) - `counter_freq_invariant` LUT index scaling the 1 us timer tick; the microsecond timeouts are measured in these ticks. With the default `CFI_MIN_FREQ_MHZ == CFI_MAX_FREQ_MHZ == ACLK_MHZ` every LUT entry is identical, so it has no effect until you give CFI a real MIN..MAX range
-- Monitor bus output (valid/ready/data)
-- Status outputs (busy, active_transactions, error_count)
-
 ---
 
-## Usage
-
-```systemverilog
-axil4_master_wr_mon #(
-    .AXIL_ADDR_WIDTH(32),
-    .AXIL_DATA_WIDTH(32),
-    .UNIT_ID(1),
-    .AGENT_ID(11),  // Different from read monitor
-    .MAX_TRANSACTIONS(8)
-) u_axil_wr_mon (
-    // AXIL write interfaces (AW, W, B)
-    // Monitor configuration and bus
-    // Same pattern as axil4_master_rd_mon
-);
-```
-
----
-
-## Timing Diagrams
+## Waveforms
 
 ### Scenario 1: Single-Beat Write Transaction
 
@@ -229,6 +209,24 @@ axil4_master_wr_mon #(
 - Slave holds BVALID until BREADY=1
 - Monitor tracks extended write latency
 - Completion packet generated after B handshake
+
+---
+
+## Usage Example
+
+```systemverilog
+axil4_master_wr_mon #(
+    .AXIL_ADDR_WIDTH(32),
+    .AXIL_DATA_WIDTH(32),
+    .UNIT_ID(1),
+    .AGENT_ID(11),  // Different from read monitor
+    .MAX_TRANSACTIONS(8)
+) u_axil_wr_mon (
+    // AXIL write interfaces (AW, W, B)
+    // Monitor configuration and bus
+    // Same pattern as axil4_master_rd_mon
+);
+```
 
 ---
 

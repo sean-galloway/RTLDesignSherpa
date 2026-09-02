@@ -25,36 +25,32 @@
 
 **Location:** `rtl/amba/axil4/`
 **Test Location:** `val/amba/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
 ## Overview
 
-The AXIL4 subsystem provides a complete implementation of the ARM AMBA AXI4-Lite protocol—a simplified subset of AXI4 designed for control register access with reduced signal count and single-beat transactions.
+The AXIL4 subsystem is a complete implementation of the ARM AMBA AXI4-Lite protocol — the simplified subset of AXI4 built for control-register access, with a reduced signal count and single-beat transactions only. This is the bus you reach for when a register needs an interface, not when data needs a firehose.
 
 ### Key Features
 
-- ✅ **AXI4-Lite Protocol:** Simplified subset (no burst, no ID, no QoS)
-- ✅ **Single-Beat Transactions:** Always 1 transfer per transaction
-- ✅ **Reduced Signals:** 40-50% fewer signals vs full AXI4
-- ✅ **Buffered Interfaces:** Elastic buffering via gaxi_skid_buffer
-- ✅ **Monitoring Infrastructure:** Integrated transaction monitoring
-- ✅ **Clock Gating Variants:** Power-optimized versions
-- ✅ **Typical Use:** Control registers, CSRs, peripheral access
-
----
-
-## Module Categories
+- **AXI4-Lite Protocol:** Simplified subset (no burst, no ID, no QoS)
+- **Single-Beat Transactions:** Always 1 transfer per transaction
+- **Reduced Signals:** 40-50% fewer signals vs full AXI4
+- **Buffered Interfaces:** Elastic buffering via gaxi_skid_buffer
+- **Monitoring Infrastructure:** Integrated transaction monitoring
+- **Clock Gating Variants:** Power-optimized versions
+- **Typical Use:** Control registers, CSRs, peripheral access
 
 ### Core Master/Slave Modules
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **axil4_master_rd** | AXIL4 read master with buffered channels | [axil4_master_rd.md](axil4_master_rd.md) | ✅ Documented |
-| **axil4_master_wr** | AXIL4 write master with buffered channels | [axil4_master_wr.md](axil4_master_wr.md) | ✅ Documented |
-| **axil4_slave_rd** | AXIL4 read slave with buffered channels | [axil4_slave_rd.md](axil4_slave_rd.md) | ✅ Documented |
-| **axil4_slave_wr** | AXIL4 write slave with buffered channels | [axil4_slave_wr.md](axil4_slave_wr.md) | ✅ Documented |
+| **axil4_master_rd** | AXIL4 read master with buffered channels | [axil4_master_rd.md](axil4_master_rd.md) | Documented |
+| **axil4_master_wr** | AXIL4 write master with buffered channels | [axil4_master_wr.md](axil4_master_wr.md) | Documented |
+| **axil4_slave_rd** | AXIL4 read slave with buffered channels | [axil4_slave_rd.md](axil4_slave_rd.md) | Documented |
+| **axil4_slave_wr** | AXIL4 write slave with buffered channels | [axil4_slave_wr.md](axil4_slave_wr.md) | Documented |
 
 ### Monitor Modules (Verification)
 
@@ -62,10 +58,10 @@ The AXIL4 subsystem provides a complete implementation of the ARM AMBA AXI4-Lite
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **axil4_master_rd_mon** | Read master with integrated monitoring | [axil4_master_rd_mon.md](../axil4/axil4_master_rd_mon.md) | ✅ Documented |
-| **axil4_master_wr_mon** | Write master with integrated monitoring | [axil4_master_wr_mon.md](../axil4/axil4_master_wr_mon.md) | ✅ Documented |
-| **axil4_slave_rd_mon** | Read slave with integrated monitoring | [axil4_slave_rd_mon.md](../axil4/axil4_slave_rd_mon.md) | ✅ Documented |
-| **axil4_slave_wr_mon** | Write slave with integrated monitoring | [axil4_slave_wr_mon.md](../axil4/axil4_slave_wr_mon.md) | ✅ Documented |
+| **axil4_master_rd_mon** | Read master with integrated monitoring | [axil4_master_rd_mon.md](../axil4/axil4_master_rd_mon.md) | Documented |
+| **axil4_master_wr_mon** | Write master with integrated monitoring | [axil4_master_wr_mon.md](../axil4/axil4_master_wr_mon.md) | Documented |
+| **axil4_slave_rd_mon** | Read slave with integrated monitoring | [axil4_slave_rd_mon.md](../axil4/axil4_slave_rd_mon.md) | Documented |
+| **axil4_slave_wr_mon** | Write slave with integrated monitoring | [axil4_slave_wr_mon.md](../axil4/axil4_slave_wr_mon.md) | Documented |
 
 ### Clock-Gated Variants
 
@@ -73,20 +69,22 @@ The AXIL4 subsystem provides a complete implementation of the ARM AMBA AXI4-Lite
 
 | Module | Base Module | Status |
 |--------|-------------|--------|
-| **axil4_master_rd_cg** | [axil4_master_rd](axil4_master_rd.md) | ✅ Documented |
-| **axil4_master_wr_cg** | [axil4_master_wr](axil4_master_wr.md) | ✅ Documented |
-| **axil4_slave_rd_cg** | [axil4_slave_rd](axil4_slave_rd.md) | ✅ Documented |
-| **axil4_slave_wr_cg** | [axil4_slave_wr](axil4_slave_wr.md) | ✅ Documented |
-| **axil4_master_rd_mon_cg** | [axil4_master_rd_mon](../axil4/axil4_master_rd_mon.md) | ✅ Documented |
-| **axil4_master_wr_mon_cg** | [axil4_master_wr_mon](../axil4/axil4_master_wr_mon.md) | ✅ Documented |
-| **axil4_slave_rd_mon_cg** | [axil4_slave_rd_mon](../axil4/axil4_slave_rd_mon.md) | ✅ Documented |
-| **axil4_slave_wr_mon_cg** | [axil4_slave_wr_mon](../axil4/axil4_slave_wr_mon.md) | ✅ Documented |
+| **axil4_master_rd_cg** | [axil4_master_rd](axil4_master_rd.md) | Documented |
+| **axil4_master_wr_cg** | [axil4_master_wr](axil4_master_wr.md) | Documented |
+| **axil4_slave_rd_cg** | [axil4_slave_rd](axil4_slave_rd.md) | Documented |
+| **axil4_slave_wr_cg** | [axil4_slave_wr](axil4_slave_wr.md) | Documented |
+| **axil4_master_rd_mon_cg** | [axil4_master_rd_mon](../axil4/axil4_master_rd_mon.md) | Documented |
+| **axil4_master_wr_mon_cg** | [axil4_master_wr_mon](../axil4/axil4_master_wr_mon.md) | Documented |
+| **axil4_slave_rd_mon_cg** | [axil4_slave_rd_mon](../axil4/axil4_slave_rd_mon.md) | Documented |
+| **axil4_slave_wr_mon_cg** | [axil4_slave_wr_mon](../axil4/axil4_slave_wr_mon.md) | Documented |
 
 ---
 
-## AXI4-Lite Protocol Overview
+## Functional Description
 
 ### Simplified vs Full AXI4
+
+AXI4-Lite keeps the AXI4 handshake model and drops everything a register interface doesn't need:
 
 | Feature | AXI4 | AXI4-Lite |
 |---------|------|-----------|
@@ -130,7 +128,7 @@ concurrently.
 
 ---
 
-## Quick Start
+## Usage Example
 
 ### Basic Read Master
 
@@ -241,80 +239,7 @@ packet-type enum.
 
 ---
 
-## Testing
-
-All AXIL4 modules are verified using CocoTB-based testbenches:
-
-```bash
-# Run all AXIL4 tests
-pytest val/amba/test_axil4*.py -v
-
-# Run specific module tests
-pytest val/amba/test_axil4_master_rd.py -v
-pytest val/amba/test_axil4_slave_wr.py -v
-pytest val/amba/test_axil4_master_rd_mon.py -v
-
-# Run with waveforms
-pytest val/amba/test_axil4_master_rd.py --vcd=waves.vcd -v
-```
-
----
-
-## Terminology
-
-| Term | Meaning |
-|------|---------|
-| **FUB** | Functional Unit Block — the design-internal logic on the far side of the module from the external AXI4-Lite bus. FUB-side ports are prefixed `fub_`. |
-| **Skid buffer** | A small elastic FIFO (`gaxi_skid_buffer`) placed in a valid/ready channel. It registers the handshake so neither side sees a combinational path to the other, at the cost of one clock of latency. |
-| **CG** | Clock Gating. The `_cg` module suffix denotes the clock-gated variant. |
-| **MonBus** | The 128-bit monitor packet bus (plus 64-bit side-band timestamp) emitted by the `_mon` wrappers. |
-
----
-
-## Known Limitations
-
-- **No clock domain crossing.** All modules are fully synchronous to `aclk`. Cross domains with `gaxi_skid_buffer_async` or a CDC FIFO outside these modules.
-- **No address decode or protection enforcement.** The modules are transport only: `AxPROT` is carried through untouched and never checked. Address decode belongs to the interconnect or the register block.
-- **No error injection or response rewriting.** `RRESP` / `BRESP` pass through from the backend unmodified.
-- **No write-data reordering or AW/W matching.** The AW and W channels are buffered independently; nothing in these modules pairs an address with its data. A backend that requires AW before W must enforce that itself.
-- **Unaligned and narrow accesses are the backend's problem.** AXI4-Lite has no `AxSIZE`; partial-word access is expressed only through `WSTRB`, which the backend must honor.
-- **`gaxi_skid_buffer` constrains `SKID_DEPTH_*` to 2..8 inclusive.** Other values are not supported.
-- **Clock gating is ASIC-oriented.** `clock_gate_ctrl` instantiates an ICG cell; on FPGA this does not map to true clock gating. There is no scan/test bypass port — set `cfg_cg_enable = 0` to disable gating.
-
----
-
-## Design Patterns
-
-### Pattern 1: Buffered Master/Slave
-
-All core modules use `gaxi_skid_buffer`:
-- Decouples frontend and backend timing
-- Configurable depth per channel
-- 1-cycle latency overhead
-- Full backpressure handling
-
-### Pattern 2: Monitor Integration
-
-Monitor modules combine functional core with verification:
-- Uses shared **axi_monitor_filtered** (rtl/amba/monitor/)
-- 2-level filtering (packet-type masks, then per-event-code masks; `err_select` is reserved and routes nothing)
-- 128-bit monitor bus + 64-bit side-band timestamp
-- Simplified for AXIL (MAX_TRANSACTIONS=8, vs 16 for the AXI4 wrappers)
-
-### Pattern 3: Clock Gating
-
-Clock-gated variants (`*_cg`) add power management:
-- Dynamic gating based on channel valid activity plus the base module's `busy`
-- Activity is registered once (AXI4, AXI5, AXI4-Lite, AXI4-Stream) or twice (APB,
-  APB5, AXI5-Stream) before reaching the ICG enable, which is combinational.
-  AXIL4 is single-stage, so the first usable gated-clock edge arrives 2 clocks
-  after activity asserts — see the
-  [Clock-Gated Variants Guide](axil4_clock_gating_guide.md)
-- Better power savings than AXI4 (bursty register access)
-
----
-
-## Performance Characteristics
+## Timing
 
 ### Throughput
 
@@ -357,44 +282,18 @@ measured comparison against the AXI4 modules.
 
 ---
 
-## Related Documentation
-
-### Protocol Specifications
-- ARM IHI 0022E: AMBA AXI Protocol Specification
-- Chapter 4: AXI4-Lite
-
-### RTL Design Sherpa Documentation
-- **[rtl-amba Overview](../overview.md)** - Complete AMBA subsystem architecture
-- **[AXI4 Modules](../axi4/README.md)** - Full AXI4 protocol (comparison)
-- **[APB Modules](README.md)** - Even simpler peripheral bus
-- **[GAXI Modules](../gaxi/README.md)** - Generic AXI utilities (buffers, FIFOs)
-
-### Configuration and Integration
-- **[AXI Monitor Configuration Guide](../monitor/axi_monitor_base.md)** - Monitor setup strategies
-- **[Monitor Packet Specification](../includes/monitor_package_spec.md)** - 128-bit packet plus 64-bit side-band timestamp
-
-### Source Code
-- RTL: `rtl/amba/axil4/`
-- Monitor wrappers: `rtl/amba/monitor/`
-- Tests: `val/amba/test_axil4*.py`
-- Framework: `bin/TBClasses/components/axil4/`
-- Shared Infrastructure: `rtl/amba/monitor/` (monitor base and filter),
-  `rtl/amba/gaxi/` (gaxi_skid_buffer)
-
----
-
 ## Design Notes
 
 ### When to Use AXI4-Lite
 
-**✅ Use AXI4-Lite For:**
+**Use AXI4-Lite for:**
 - Control and status registers (CSRs)
 - Peripheral configuration interfaces
 - Low-bandwidth control paths
 - Resource-constrained designs
 - Simpler protocol requirements
 
-**❌ Use Full AXI4 For:**
+**Use full AXI4 for:**
 - High-bandwidth data transfers
 - Burst transactions required
 - Out-of-order support needed
@@ -420,6 +319,102 @@ constrains `DEPTH` to one of 2..8 inclusive.
 **Response Channel (B):**
 - Default: 2 entries - responses are single-beat
 - Rarely needs adjustment
+
+### Design Patterns
+
+#### Pattern 1: Buffered Master/Slave
+
+All core modules use `gaxi_skid_buffer`:
+- Decouples frontend and backend timing
+- Configurable depth per channel
+- 1-cycle latency overhead
+- Full backpressure handling
+
+#### Pattern 2: Monitor Integration
+
+Monitor modules combine functional core with verification:
+- Uses shared **axi_monitor_filtered** (rtl/amba/monitor/)
+- 2-level filtering (packet-type masks, then per-event-code masks; `err_select` is reserved and routes nothing)
+- 128-bit monitor bus + 64-bit side-band timestamp
+- Simplified for AXIL (MAX_TRANSACTIONS=8, vs 16 for the AXI4 wrappers)
+
+#### Pattern 3: Clock Gating
+
+Clock-gated variants (`*_cg`) add power management:
+- Dynamic gating based on channel valid activity plus the base module's `busy`
+- Activity is registered once (AXI4, AXI5, AXI4-Lite, AXI4-Stream) or twice (APB,
+  APB5, AXI5-Stream) before reaching the ICG enable, which is combinational.
+  AXIL4 is single-stage, so the first usable gated-clock edge arrives 2 clocks
+  after activity asserts — see the
+  [Clock-Gated Variants Guide](axil4_clock_gating_guide.md)
+- Better power savings than AXI4 (bursty register access)
+
+### Known Limitations
+
+- **No clock domain crossing.** All modules are fully synchronous to `aclk`. Cross domains with `gaxi_skid_buffer_async` or a CDC FIFO outside these modules.
+- **No address decode or protection enforcement.** The modules are transport only: `AxPROT` is carried through untouched and never checked. Address decode belongs to the interconnect or the register block.
+- **No error injection or response rewriting.** `RRESP` / `BRESP` pass through from the backend unmodified.
+- **No write-data reordering or AW/W matching.** The AW and W channels are buffered independently; nothing in these modules pairs an address with its data. A backend that requires AW before W must enforce that itself.
+- **Unaligned and narrow accesses are the backend's problem.** AXI4-Lite has no `AxSIZE`; partial-word access is expressed only through `WSTRB`, which the backend must honor.
+- **`gaxi_skid_buffer` constrains `SKID_DEPTH_*` to 2..8 inclusive.** Other values are not supported.
+- **Clock gating is ASIC-oriented.** `clock_gate_ctrl` instantiates an ICG cell; on FPGA this does not map to true clock gating. There is no scan/test bypass port — set `cfg_cg_enable = 0` to disable gating.
+
+### Terminology
+
+| Term | Meaning |
+|------|---------|
+| **FUB** | Functional Unit Block — the design-internal logic on the far side of the module from the external AXI4-Lite bus. FUB-side ports are prefixed `fub_`. |
+| **Skid buffer** | A small elastic FIFO (`gaxi_skid_buffer`) placed in a valid/ready channel. It registers the handshake so neither side sees a combinational path to the other, at the cost of one clock of latency. |
+| **CG** | Clock Gating. The `_cg` module suffix denotes the clock-gated variant. |
+| **MonBus** | The 128-bit monitor packet bus (plus 64-bit side-band timestamp) emitted by the `_mon` wrappers. |
+
+---
+
+## Related Modules
+
+- **[rtl-amba Overview](../overview.md)** - Complete AMBA subsystem architecture
+- **[AXI4 Modules](../axi4/README.md)** - Full AXI4 protocol (comparison)
+- **[APB Modules](README.md)** - Even simpler peripheral bus
+- **[GAXI Modules](../gaxi/README.md)** - Generic AXI utilities (buffers, FIFOs)
+
+---
+
+## Testing
+
+All AXIL4 modules are verified using CocoTB-based testbenches:
+
+```bash
+# Run all AXIL4 tests
+pytest val/amba/test_axil4*.py -v
+
+# Run specific module tests
+pytest val/amba/test_axil4_master_rd.py -v
+pytest val/amba/test_axil4_slave_wr.py -v
+pytest val/amba/test_axil4_master_rd_mon.py -v
+
+# Run with waveforms
+pytest val/amba/test_axil4_master_rd.py --vcd=waves.vcd -v
+```
+
+---
+
+## References
+
+### Protocol Specifications
+- ARM IHI 0022E: AMBA AXI Protocol Specification
+- Chapter 4: AXI4-Lite
+
+### Configuration and Integration
+- **[AXI Monitor Configuration Guide](../monitor/axi_monitor_base.md)** - Monitor setup strategies
+- **[Monitor Packet Specification](../includes/monitor_package_spec.md)** - 128-bit packet plus 64-bit side-band timestamp
+
+### Source Code
+- RTL: `rtl/amba/axil4/`
+- Monitor wrappers: `rtl/amba/monitor/`
+- Tests: `val/amba/test_axil4*.py`
+- Framework: `bin/TBClasses/components/axil4/`
+- Shared Infrastructure: `rtl/amba/monitor/` (monitor base and filter),
+  `rtl/amba/gaxi/` (gaxi_skid_buffer)
 
 ---
 

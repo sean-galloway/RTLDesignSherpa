@@ -25,22 +25,22 @@
 
 **Module:** `axil4_master_rd.sv`
 **Location:** `rtl/amba/axil4/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
 ## Overview
 
-The AXIL4 Master Read module provides a buffered AXI4-Lite read interface for master devices. AXI4-Lite is a simplified subset of AXI4 designed for control register access with reduced signal count and single-beat transactions only.
+The AXIL4 Master Read module gives a master device a buffered AXI4-Lite read interface. AXI4-Lite is the simplified subset of AXI4 designed for control-register access: reduced signal count, single-beat transactions only. Think of it as a clean pipe — your frontend logic and the interconnect each get their own valid/ready pair, and neither ever sees a combinational path to the other.
 
 ### Key Features
 
-- ✅ **AXI4-Lite Protocol:** Simplified read-only interface (AR and R channels)
-- ✅ **Single-Beat Transactions:** No burst support (always 1 transfer)
-- ✅ **Buffered Channels:** Configurable skid buffers for timing closure
-- ✅ **Elastic Buffering:** Decouples frontend and backend timing
-- ✅ **Activity Monitoring:** Busy signal for clock gating
-- ✅ **Minimal Latency:** 1-cycle buffer overhead per channel
+- **AXI4-Lite Protocol:** Simplified read-only interface (AR and R channels)
+- **Single-Beat Transactions:** No burst support (always 1 transfer)
+- **Buffered Channels:** Configurable skid buffers for timing closure
+- **Elastic Buffering:** Decouples frontend and backend timing
+- **Activity Monitoring:** Busy signal for clock gating
+- **Minimal Latency:** 1-cycle buffer overhead per channel
 
 ---
 
@@ -68,7 +68,7 @@ signals concatenated into that buffer.
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 
@@ -121,7 +121,9 @@ signals concatenated into that buffer.
 
 ---
 
-## Module Architecture
+## Functional Description
+
+### Module Architecture
 
 ```mermaid
 flowchart LR
@@ -146,11 +148,9 @@ flowchart LR
     BUF --> busy["busy"]
 ```
 
----
-
-## Signal Flow
-
 ### Read Transaction Sequence
+
+One address in, one data beat out — each channel pays one clock in its skid buffer along the way:
 
 ```
 Cycle 1:  fub_araddr=0x1000, fub_arvalid=1, fub_arprot=0
@@ -169,6 +169,38 @@ Cycle 7:  R buffer forwards to frontend:
           fub_rdata=0xDEADBEEF, fub_rresp=OKAY
           fub_rvalid=1, fub_rready=1 (frontend accepts)
 ```
+
+---
+
+## Timing
+
+### Latency
+
+| Path | Cycles | Notes |
+|------|--------|-------|
+| Frontend → Backend (AR) | 1 | Skid buffer overhead |
+| Backend → Frontend (R) | 1 | Skid buffer overhead |
+| Total read latency | Slave latency + 2 | AR + Slave + R |
+
+### Throughput
+
+| Scenario | Rate | Notes |
+|----------|------|-------|
+| Back-to-back reads | 1 read/cycle | If buffers not stalled |
+| Typical peripheral | 1 read/N cycles | N = slave response time |
+
+### Resource Usage
+
+These are **order-of-magnitude estimates**, not measured synthesis results — no
+target device, tool version, or optimization setting is attached to them. They
+scale with `AXIL_DATA_WIDTH` and the `SKID_DEPTH_*` settings. Synthesize for
+your own device before budgeting area.
+
+| Resource | Count | Notes |
+|----------|-------|-------|
+| LUTs | ~200 | Estimate, 32-bit data, default depths |
+| FFs | ~150 | Buffer state + control |
+| BRAM | 0 | Skid buffers are flop-based |
 
 ---
 
@@ -318,38 +350,6 @@ This table previously had bits 0 and 2 swapped, which only 3'b000 and 3'b111
 agree on -- every other row named the wrong access.
 
 **Typical:** `3'b000` (unprivileged secure data) for most peripherals
-
----
-
-## Performance Characteristics
-
-### Latency
-
-| Path | Cycles | Notes |
-|------|--------|-------|
-| Frontend → Backend (AR) | 1 | Skid buffer overhead |
-| Backend → Frontend (R) | 1 | Skid buffer overhead |
-| Total read latency | Slave latency + 2 | AR + Slave + R |
-
-### Throughput
-
-| Scenario | Rate | Notes |
-|----------|------|-------|
-| Back-to-back reads | 1 read/cycle | If buffers not stalled |
-| Typical peripheral | 1 read/N cycles | N = slave response time |
-
-### Resource Usage
-
-These are **order-of-magnitude estimates**, not measured synthesis results — no
-target device, tool version, or optimization setting is attached to them. They
-scale with `AXIL_DATA_WIDTH` and the `SKID_DEPTH_*` settings. Synthesize for
-your own device before budgeting area.
-
-| Resource | Count | Notes |
-|----------|-------|-------|
-| LUTs | ~200 | Estimate, 32-bit data, default depths |
-| FFs | ~150 | Buffer state + control |
-| BRAM | 0 | Skid buffers are flop-based |
 
 ---
 

@@ -25,21 +25,21 @@
 
 **Module:** `axil4_slave_rd.sv`
 **Location:** `rtl/amba/axil4/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
 ## Overview
 
-The AXIL4 Slave Read module provides a buffered AXI4-Lite read interface for slave devices (memory, peripherals). It accepts read requests from an interconnect/master and forwards them to backend logic with elastic buffering for timing closure.
+The AXIL4 Slave Read module gives a slave device (memory, peripheral) a buffered AXI4-Lite read interface. It accepts read requests from an interconnect/master and forwards them to backend logic, with elastic buffering for timing closure on both sides.
 
 ### Key Features
 
-- ✅ **AXI4-Lite Slave:** Buffered read-only interface (AR and R channels)
-- ✅ **Single-Beat Transactions:** No burst support
-- ✅ **Elastic Buffering:** Decouples interconnect and backend timing
-- ✅ **Activity Monitoring:** Busy signal for clock gating
-- ✅ **Minimal Latency:** 1-cycle buffer overhead per channel
+- **AXI4-Lite Slave:** Buffered read-only interface (AR and R channels)
+- **Single-Beat Transactions:** No burst support
+- **Elastic Buffering:** Decouples interconnect and backend timing
+- **Activity Monitoring:** Busy signal for clock gating
+- **Minimal Latency:** 1-cycle buffer overhead per channel
 
 ---
 
@@ -52,9 +52,6 @@ The AXIL4 Slave Read module provides a buffered AXI4-Lite read interface for sla
 | `SKID_DEPTH_AR` | int | 2 | AR channel skid buffer depth, in entries |
 | `SKID_DEPTH_R` | int | 4 | R channel skid buffer depth, in entries |
 
----
-
-
 ### Derived Parameters (do not override)
 
 These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
@@ -64,7 +61,9 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | `ARSize` | `AW+3` |
 | `RSize` | `DW+2` |
 
-## Port Groups
+---
+
+## Ports
 
 ### Slave Interface (Input Side from Interconnect)
 
@@ -107,6 +106,14 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `busy` | Output | 1 | Interface active (for clock gating) |
+
+---
+
+## Functional Description
+
+**Signal Flow:** Interconnect → AR Buffer → Backend → R Buffer → Interconnect
+
+The buffering lets the backend respond at its own pace without stalling the interconnect — the whole point of putting skid buffers on both channels.
 
 ---
 
@@ -153,9 +160,7 @@ axil4_slave_rd #(
 
 ## Design Notes
 
-- **Signal Flow:** Interconnect → AR Buffer → Backend → R Buffer → Interconnect
 - **Use Case:** Memory controllers, peripheral slaves, register blocks
-- **Buffering:** Allows backend to respond at its own pace without stalling interconnect
 
 ---
 

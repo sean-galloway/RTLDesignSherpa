@@ -26,11 +26,11 @@
 **Module:** `axil4_slave_wr_cg.sv`
 **Base Module:** [axil4_slave_wr](./axil4_slave_wr.md)
 **Location:** `rtl/amba/axil4/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
-## Quick Reference
+## Overview
 
 This is the **clock-gated variant** of [axil4_slave_wr](./axil4_slave_wr.md).
 
@@ -40,37 +40,43 @@ This is the **clock-gated variant** of [axil4_slave_wr](./axil4_slave_wr.md).
 
 **→ [Clock-Gated Variants Guide](../shared/clock_gated_variants.md)** (cross-protocol overview)
 
----
-
-## Summary
-
 The `axil4_slave_wr_cg` module adds power optimization to `axil4_slave_wr` through activity-based clock gating:
 
-- ✅ **Same Functionality:** 100% equivalent to base module
-- ✅ **Power Savings:** dynamic clock power in the gated block scales with idle
+- **Same Functionality:** 100% equivalent to base module
+- **Power Savings:** dynamic clock power in the gated block scales with idle
   fraction; see the [AXIL4 Clock-Gated Variants Guide](./axil4_clock_gating_guide.md)
   for the estimate table and its caveats
-- ✅ **Configurable:** idle threshold and enable, both at **runtime** via
+- **Configurable:** idle threshold and enable, both at **runtime** via
   `cfg_cg_idle_count` / `cfg_cg_enable`
-- ✅ **Zero Overhead When Disabled:** `cfg_cg_enable = 0` holds the clock
+- **Zero Overhead When Disabled:** `cfg_cg_enable = 0` holds the clock
   free-running, making behavior identical to the base module
 
 ---
 
-## Common Parameters
+## Parameters
 
-In addition to all [axil4_slave_wr](./axil4_slave_wr.md) parameters:
-
-The `_cg` wrapper adds exactly **one** parameter. Gating is enabled and tuned
-at runtime through ports, not through parameters — there is no
-`ENABLE_CLOCK_GATING` parameter, no `CG_IDLE_CYCLES` parameter, and no
-per-domain `CG_GATE_*` parameters on this module.
+In addition to all [axil4_slave_wr](./axil4_slave_wr.md) parameters, the `_cg`
+wrapper adds exactly **one** parameter. Gating is enabled and tuned at runtime
+through ports, not through parameters — there is no `ENABLE_CLOCK_GATING`
+parameter, no `CG_IDLE_CYCLES` parameter, and no per-domain `CG_GATE_*`
+parameters on this module.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `CG_IDLE_COUNT_WIDTH` | int | 4 | Width of the idle counter; max idle count = 2^N - 1 |
 
-### Additional Ports
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `AW` | `AXIL_ADDR_WIDTH` |
+| `DW` | `AXIL_DATA_WIDTH` |
+
+---
+
+## Ports
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -85,16 +91,7 @@ consumed internally as a wakeup term. All other ports are identical to
 
 ---
 
-### Derived Parameters (do not override)
-
-These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
-
-| Derived parameter | Default expression |
-|---|---|
-| `AW` | `AXIL_ADDR_WIDTH` |
-| `DW` | `AXIL_DATA_WIDTH` |
-
-## Quick Usage
+## Usage Example
 
 ```systemverilog
 axil4_slave_wr_cg #(
@@ -124,7 +121,7 @@ axil4_slave_wr_cg #(
 
 ---
 
-## Documentation
+## Related Modules
 
 - **Base Module Functionality:** [axil4_slave_wr.md](./axil4_slave_wr.md)
 - **AXIL4 Clock Gating Guide:** [axil4_clock_gating_guide.md](./axil4_clock_gating_guide.md)

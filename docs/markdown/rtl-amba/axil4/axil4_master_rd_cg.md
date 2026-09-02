@@ -26,11 +26,11 @@
 **Module:** `axil4_master_rd_cg.sv`
 **Base Module:** [axil4_master_rd](./axil4_master_rd.md)
 **Location:** `rtl/amba/axil4/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
-## Quick Reference
+## Overview
 
 This is the **clock-gated variant** of [axil4_master_rd](./axil4_master_rd.md).
 
@@ -40,24 +40,20 @@ This is the **clock-gated variant** of [axil4_master_rd](./axil4_master_rd.md).
 
 **→ [Clock-Gated Variants Guide](../shared/clock_gated_variants.md)** (cross-protocol overview)
 
----
+What the wrapper adds over the base module:
 
-## Summary
-
-The `axil4_master_rd_cg` module adds power optimization to `axil4_master_rd` through activity-based clock gating:
-
-- ✅ **Same Functionality:** 100% equivalent to base module
-- ✅ **Power Savings:** dynamic clock power in the gated block scales with idle
+- **Same Functionality:** 100% equivalent to base module
+- **Power Savings:** dynamic clock power in the gated block scales with idle
   fraction; see the [AXIL4 Clock-Gated Variants Guide](./axil4_clock_gating_guide.md)
   for the estimate table and its caveats
-- ✅ **Configurable:** idle threshold and enable, both at **runtime** via
+- **Configurable:** idle threshold and enable, both at **runtime** via
   `cfg_cg_idle_count` / `cfg_cg_enable`
-- ✅ **Zero Overhead When Disabled:** `cfg_cg_enable = 0` holds the clock
+- **Zero Overhead When Disabled:** `cfg_cg_enable = 0` holds the clock
   free-running, making behavior identical to the base module
 
 ---
 
-## Common Parameters
+## Parameters
 
 In addition to all [axil4_master_rd](./axil4_master_rd.md) parameters:
 
@@ -70,7 +66,18 @@ per-domain `CG_GATE_*` parameters on this module.
 |-----------|------|---------|-------------|
 | `CG_IDLE_COUNT_WIDTH` | int | 4 | Width of the idle counter; max idle count = 2^N - 1 |
 
-### Additional Ports
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `AW` | `AXIL_ADDR_WIDTH` |
+| `DW` | `AXIL_DATA_WIDTH` |
+
+---
+
+## Ports
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -85,16 +92,7 @@ consumed internally as a wakeup term. All other ports are identical to
 
 ---
 
-### Derived Parameters (do not override)
-
-These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
-
-| Derived parameter | Default expression |
-|---|---|
-| `AW` | `AXIL_ADDR_WIDTH` |
-| `DW` | `AXIL_DATA_WIDTH` |
-
-## Quick Usage
+## Usage Example
 
 ```systemverilog
 axil4_master_rd_cg #(
@@ -123,15 +121,20 @@ axil4_master_rd_cg #(
 
 ---
 
-## Documentation
+## Related Modules
 
-- **Base Module Functionality:** [axil4_master_rd.md](./axil4_master_rd.md)
-- **AXIL4 Clock Gating Guide:** [axil4_clock_gating_guide.md](./axil4_clock_gating_guide.md)
-- **Cross-Protocol Clock Gating Guide:** [clock_gated_variants.md](../shared/clock_gated_variants.md)
+- **[axil4_master_rd](./axil4_master_rd.md)** - Base module functionality
 - **Detailed CG Examples:**
   - [axi4_master_rd_mon_cg.md](../axi4/axi4_master_rd_mon_cg.md) (AXI4 monitor)
   - [axil4_master_rd_mon_cg.md](../axil4/axil4_master_rd_mon_cg.md) (AXIL4 monitor)
   - [apb4_slave_cg.md](../apb4/apb4_slave_cg.md) (APB interface)
+
+---
+
+## References
+
+- **[axil4_clock_gating_guide.md](./axil4_clock_gating_guide.md)** - AXIL4 Clock Gating Guide
+- **[clock_gated_variants.md](../shared/clock_gated_variants.md)** - Cross-Protocol Clock Gating Guide
 
 ---
 

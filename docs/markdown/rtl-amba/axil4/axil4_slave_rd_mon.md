@@ -25,7 +25,7 @@
 
 **Module:** `axil4_slave_rd_mon.sv`
 **Location:** `rtl/amba/axil4/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
@@ -35,14 +35,14 @@ Combines **[axil4_slave_rd](../axil4/axil4_slave_rd.md)** with **axi_monitor_fil
 
 ### Key Features
 
-- ✅ All features of **axil4_slave_rd**
-- ✅ Slave-side monitoring (backend latency tracking)
+- All features of **axil4_slave_rd**
+- Slave-side monitoring (backend latency tracking)
 - 2-level filtering (packet-type masks, then per-event-code masks) and error detection
-- ✅ Simplified for AXI4-Lite (MAX_TRANSACTIONS=8)
+- Simplified for AXI4-Lite (MAX_TRANSACTIONS=8)
 
 ---
 
-## Additional Parameters
+## Parameters
 
 Identical to **[axil4_master_rd_mon](axil4_master_rd_mon.md#additional-parameters)** including `N_ADDR_RANGES`, but typically:
 - `UNIT_ID = 2` (slaves use different unit ID)
@@ -60,8 +60,6 @@ Also includes the synthesis-cone parameters `ENABLE_ERROR_LOGIC`, `ENABLE_TIMEOU
 
 For complete parameter descriptions including `N_ADDR_RANGES` and the synthesis-cone parameters, see **[axil4_master_rd_mon](axil4_master_rd_mon.md#synthesis-cone-parameters)**.
 
----
-
 ### Derived Parameters (do not override)
 
 These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
@@ -71,13 +69,25 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | `AW` | `AXIL_ADDR_WIDTH` |
 | `DW` | `AXIL_DATA_WIDTH` |
 
-## Performance Monitoring
+---
+
+## Ports
+
+Same as **[axil4_master_rd_mon](axil4_master_rd_mon.md)**, including the `cam_clear` control input (Input, 1) - synchronous clear of the monitor transaction CAM (driven from the harness clear control bit, e.g. CTRL[4]), the `cfg_compl_enable` / `cfg_threshold_enable` / `cfg_debug_enable` control enables, and the performance-monitoring config/status ports (see [Performance Monitoring](#performance-monitoring)).
+
+`cfg_freq_sel` (Input, 4) is also forwarded: the `counter_freq_invariant` LUT index that scales the 1 us timer tick, in which the microsecond timeouts are measured. With the default `CFI_MIN_FREQ_MHZ == CFI_MAX_FREQ_MHZ == ACLK_MHZ` every LUT entry is identical, so it has no effect until you give CFI a real MIN..MAX range.
+
+---
+
+## Functional Description
+
+### Performance Monitoring
 
 When performance monitoring is enabled, the wrapper forwards a **measurement-window state machine** plus a bank of R-channel (read-data) utilization counters to `axi_monitor_base`. All counters accumulate **only while a window is open** (`window_active = 1`) and hold their values between windows so the host can read a completed window's totals. `cfg_perf_enable` does NOT gate them: it selects the window start/end event (it is edge-detected for `cfg_start_event_sel` modes 010/011) and enables the perf PACKET class. The counters themselves advance whenever a window is open, enabled or not. `ENABLE_PERF_LOGIC = 0` does NOT drop them: the window FSM and its counters are unconditional `always_ff` blocks in `axi_monitor_base`, outside every generate. That parameter gates only `g_perf` in the reporter -- the legacy perf-packet cone and the two lifetime counters. `USE_MONITOR = 0` is what ties the perfmon outputs off.
 
 > Avoid enabling completion (`cfg_compl_enable`) and performance (`cfg_perf_enable`) packets simultaneously under heavy traffic — the monitor bus sustains at most one packet per two cycles. Runtime-disabling either class is safe (terminal entries auto-retire; see [axi_monitor_reporter](../monitor/axi_monitor_reporter.md)); alternatively, `cfg_axi_pkt_mask` drops the packets while keeping marking and counting. See `docs/user-guides/AXI_Monitor_Configuration_Guide.md`.
 
-### The Measurement Window
+#### The Measurement Window
 
 A window is opened by a **start event** and closed by an **end event**:
 
@@ -87,7 +97,7 @@ A window is opened by a **start event** and closed by an **end event**:
 
 While the window is open, `window_active` is high and `window_cycles` [31:0] free-runs, counting every clock elapsed inside the window.
 
-### Utilization Counters (R channel)
+#### Utilization Counters (R channel)
 
 Every in-window cycle is classified by the R-channel valid/ready into exactly one of four buckets:
 
@@ -100,7 +110,7 @@ Every in-window cycle is classified by the R-channel valid/ready into exactly on
 
 The four buckets sum to `window_cycles`, so utilization = `perf_prod_cycles / window_cycles`.
 
-### Throughput Counters
+#### Throughput Counters
 
 | Output | Width | Meaning |
 |--------|:-----:|---------|
@@ -112,9 +122,7 @@ The four buckets sum to `window_cycles`, so utilization = `perf_prod_cycles / wi
 
 The perfmon config/status ports and the `cfg_compl_enable` / `cfg_threshold_enable` / `cfg_debug_enable` control inputs have the same directions/widths and semantics as the **[read-monitor port table](axil4_master_rd_mon.md#performance-monitoring-ports)**. As there, `cfg_debug_level`/`cfg_debug_mask`/`cfg_active_trans_threshold` are tied to constants internally and not exposed.
 
----
-
-## Monitor Backpressure (block_ready)
+### Monitor Backpressure (block_ready)
 
 `block_ready` is a flow-control net inside the wrapper, and it IS brought out: `debug_block_ready` is an output port of this module (the `_cg` wrapper ties it off, so use the base module when you need the tap). It goes low when the monitor's transaction-table occupancy reaches its blocking threshold (a function of `MAX_TRANSACTIONS`; the reporter FIFO depth `INTR_FIFO_DEPTH` has no path to it). The wrapper ANDs it into the upstream-facing `s_axil_arready` so a saturated monitor throttles new transactions at the handshake instead of dropping events.
 
@@ -128,13 +136,9 @@ Recovery is guaranteed by the **saturation-recovery contract**: command-originat
 
 Sizing note: a monitor on a bus shared by several channels/requesters must size `MAX_TRANSACTIONS` to cover `NUM_CHANNELS x per-channel outstanding` plus margin -- the per-channel limit alone makes the monitor throttle the shared master. Tables deeper than 64 also need Verilator's `--unroll-count` raised (default 64) in sim builds.
 
----
-
-## Address-Range Checker
+### Address-Range Checker
 
 Identical to **[axil4_master_rd_mon](axil4_master_rd_mon.md#address-range-checker)** — monitors AR (read address) handshakes and emits address-range violation packets. See the master read monitor's section for full details.
-
----
 
 ### Packet filters
 
@@ -163,32 +167,9 @@ wrapper ties `cfg_id_filter_enable` / `cfg_id_match_base` /
 `cfg_id_match_count` off on the inner monitor rather than exposing them — a
 filter keyed on a field the protocol lacks has nothing to match against.
 
-## Additional Ports
-
-Same as **[axil4_master_rd_mon](axil4_master_rd_mon.md)**, including the `cam_clear` control input (Input, 1) - synchronous clear of the monitor transaction CAM (driven from the harness clear control bit, e.g. CTRL[4]), the `cfg_compl_enable` / `cfg_threshold_enable` / `cfg_debug_enable` control enables, and the performance-monitoring config/status ports (see the [Performance Monitoring](#performance-monitoring) section above).
-
-`cfg_freq_sel` (Input, 4) is also forwarded: the `counter_freq_invariant` LUT index that scales the 1 us timer tick, in which the microsecond timeouts are measured. With the default `CFI_MIN_FREQ_MHZ == CFI_MAX_FREQ_MHZ == ACLK_MHZ` every LUT entry is identical, so it has no effect until you give CFI a real MIN..MAX range.
-
 ---
 
-## Usage
-
-```systemverilog
-axil4_slave_rd_mon #(
-    .AXIL_ADDR_WIDTH(32),
-    .AXIL_DATA_WIDTH(32),
-    .UNIT_ID(2),    // Slave unit ID
-    .AGENT_ID(20),  // Slave agent ID
-    .MAX_TRANSACTIONS(8)
-) u_axil_slave_rd_mon (
-    // Slave AXIL interfaces (s_axil_*, fub_*)
-    // Monitor configuration and bus
-);
-```
-
----
-
-## Timing Diagrams
+## Waveforms
 
 ### Scenario 1: Slave Read Transaction
 
@@ -225,6 +206,23 @@ axil4_slave_rd_mon #(
 - Master holds ARVALID until slave accepts
 - Backend read takes multiple cycles
 - Monitor tracks full transaction latency
+
+---
+
+## Usage Example
+
+```systemverilog
+axil4_slave_rd_mon #(
+    .AXIL_ADDR_WIDTH(32),
+    .AXIL_DATA_WIDTH(32),
+    .UNIT_ID(2),    // Slave unit ID
+    .AGENT_ID(20),  // Slave agent ID
+    .MAX_TRANSACTIONS(8)
+) u_axil_slave_rd_mon (
+    // Slave AXIL interfaces (s_axil_*, fub_*)
+    // Monitor configuration and bus
+);
+```
 
 ---
 

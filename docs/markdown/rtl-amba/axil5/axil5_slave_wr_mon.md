@@ -31,9 +31,9 @@
 
 ## Overview
 
-The AXIL5 Slave Write Monitor provides a buffered AXI5-Lite write interface for slave devices.
+The AXIL5 Slave Write Monitor gives a slave device a buffered AXI5-Lite write interface — and keeps a transaction monitor on the path while it's at it.
 
-AXI5-Lite is AXI4-Lite plus optional signal groups. It changes no channel's handshake, ordering or response semantics, so this module is structurally `axil4_slave_wr_mon` with those groups threaded through the packed SKID payload.
+If you take one thing from this page, take this: AXI5-Lite is AXI4-Lite plus optional signal groups. It changes no channel's handshake, ordering or response semantics, so this module is structurally `axil4_slave_wr_mon` with those groups threaded through the packed SKID payload. Know the AXI4-Lite part and you know this one.
 
 ### Key Features
 
@@ -97,10 +97,10 @@ AXI5-Lite is AXI4-Lite plus optional signal groups. It changes no channel's hand
 | `EW` | int | `MECID_WIDTH` |  |
 | `NW` | int | `NSAID_WIDTH` |  |
 | `PW` | int | `(DW / 64) > 0 ? (DW / 64) : 1` |  |
-| `AGENT_ID` | `16'h0015` | Agent identifier emitted in the `agent_id` field of every monitor packet. Pairs with `UNIT_ID` to identify the packet source. (16-bit Agent ID for monitor packets) |
-| `UNIT_ID` | `8'h02` | Unit identifier emitted in the `unit_id` field of every monitor packet. Give each monitored interface a distinct value or the packets cannot be told apart at the collector. (8-bit Unit ID for monitor packets) |
+| `AGENT_ID` |  | `16'h0015` | Agent identifier emitted in the `agent_id` field of every monitor packet. Pairs with `UNIT_ID` to identify the packet source. (16-bit Agent ID for monitor packets) |
+| `UNIT_ID` |  | `8'h02` | Unit identifier emitted in the `unit_id` field of every monitor packet. Give each monitored interface a distinct value or the packets cannot be told apart at the collector. (8-bit Unit ID for monitor packets) |
 
-The derived parameters (`AW`, `DW`, `UW`, ... and the `*Size` payload widths) are computed from the ones above. **Do not override them.** Forcing a `*Size` to a value the RTL did not derive makes every optional-group field a part-select past the end of the vector -- which is exactly how `test_axil5_master_wr` failed until `d6266344` removed those overrides.
+The derived parameters (`AW`, `DW`, `UW`, ... and the `*Size` payload widths) are computed from the ones above. **Do not override them.** Force a `*Size` to a value the RTL didn't derive and every optional-group field turns into a part-select past the end of the vector — which is exactly how `test_axil5_master_wr` failed until `d6266344` removed those overrides.
 
 ---
 
@@ -211,10 +211,9 @@ The derived parameters (`AW`, `DW`, `UW`, ... and the `*Size` payload widths) ar
 
 ---
 
-## AXI5-Lite Optional Signal Groups
+## Functional Description
 
-Eight groups, each gated by its own `ENABLE_*` parameter. A group contributes
-to the packed SKID payload only when enabled.
+AXI5-Lite adds eight optional signal groups, each gated by its own `ENABLE_*` parameter. A group contributes to the packed SKID payload only when it's enabled — turn it off and those bits simply aren't in the vector.
 
 | Group | Parameter | Signals on this module | Width |
 |---|---|---|---|
@@ -245,49 +244,37 @@ counterpart's, channel for channel:
 
 (at `AXIL_ADDR_WIDTH = AXIL_DATA_WIDTH = 32` and the default group widths.)
 
-That equivalence is what `val/amba/test_axil5_master_rd.py` relies on when it
-drives AXI4-Lite RTL with AXI5-Lite BFMs: with no groups enabled an AXI5-Lite
-interface *is* an AXI4-Lite interface, so the same testbench binds to either.
+That equivalence isn't academic. It's what `val/amba/test_axil5_master_rd.py` relies on when it drives AXI4-Lite RTL with AXI5-Lite BFMs: with no groups enabled an AXI5-Lite interface *is* an AXI4-Lite interface, so the same testbench binds to either.
 
 ### It transports; it does not interpret
 
-MPAM, MECID, NSAID, LOOP and TRACE are carried end to end unmodified. POISON is
-carried, never generated and never checked. LOCK is carried with no
-exclusive-access monitor behind it. Those behaviours belong to the endpoints on
-either side, and nothing in this module implements them.
+This module is a pipe, not a policy engine. MPAM, MECID, NSAID, LOOP and TRACE are carried end to end unmodified. POISON is carried, never generated and never checked. LOCK is carried with no exclusive-access monitor behind it. Those behaviours belong to the endpoints on either side, and nothing in this module implements them.
 
-A disabled group's OUTPUT is driven to zero rather than left dangling, so an
-integrator who disables a group downstream of one that enables it sees a
-defined value instead of X.
+One kindness to integrators: a disabled group's OUTPUT is driven to zero rather than left dangling, so if you disable a group downstream of a block that enables it, you see a defined value instead of X.
 
 ---
 
-## Notes for the monitored variants
+## Design Notes
+
+A handful of traps specific to the monitored variants. Each one is written down because someone hit it.
 
 **The monitor does not observe the optional groups.** `axi_monitor_filtered`
 has no ports for MPAM, MECID, NSAID, TRACE, LOOP or POISON, so it sees exactly
-what it sees on AXI4-Lite: handshakes, addresses, responses and timing. It does
-not check MPAM/MECID/NSAID consistency and does not validate POISON.
+what it sees on AXI4-Lite: handshakes, addresses, responses and timing. It
+doesn't check MPAM/MECID/NSAID consistency, and it doesn't validate POISON.
 
 **`ACLK_MHZ` is not decoration.** It builds the microsecond tick LUT in
 `counter_freq_invariant`. Leave it at the 100 MHz default on a 90 MHz part and
-every microsecond-denominated timeout is wrong, silently.
+every microsecond-denominated timeout is wrong — silently. That's the worst
+kind of wrong.
 
 **`NUM_BANKS` > 1 on a WRITE monitor requires `USE_WDATA_ORDER_Q = 1`.**
 `axi_monitor_trans_mgr` fails elaboration otherwise; the error names the
-combination.
+combination. At least that one fails loud.
 
 **A filter parameter only decides whether the logic is SYNTHESISED.** A build
 that sets `ADDR_FILTER_ENABLE` but leaves `cfg_addr_filter_enable` low filters
 nothing and looks broken. The parameter and the runtime port are both required.
-
----
-
-## Verification
-
-`val/amba/test_axil5_slave_wr_mon.py` drives this module with the AXI5-Lite BFMs and **every optional group enabled** -- `TBClasses/axil5` sets the group widths in `COMPONENT_KWARGS` to mirror the RTL defaults. A BFM configured differently from its DUT is a bind failure, which is the loud version of the mistake.
-
-The testbench class is the AXI4-Lite one with the component factories swapped, so every phase, check and randomizer sweep has a single definition and a fix to the AXI4-Lite flow reaches this module automatically.
 
 ---
 
@@ -301,6 +288,14 @@ The testbench class is the AXI4-Lite one with the component factories swapped, s
 - [axil5_master_wr_cg](axil5_master_wr_cg.md)
 - [`axil4_slave_wr_mon`](../axil4/axil4_slave_wr_mon.md) -- the AXI4-Lite counterpart
 - [AXI4-Lite modules](../axil4/README.md)
+
+---
+
+## Testing
+
+`val/amba/test_axil5_slave_wr_mon.py` drives this module with the AXI5-Lite BFMs and **every optional group enabled** — `TBClasses/axil5` sets the group widths in `COMPONENT_KWARGS` to mirror the RTL defaults. A BFM configured differently from its DUT is a bind failure, which is the loud version of the mistake — and the version you'd rather get.
+
+The testbench class is the AXI4-Lite one with the component factories swapped, so every phase, check and randomizer sweep has a single definition, and a fix to the AXI4-Lite flow reaches this module automatically. That's exactly how you want a variant family to work.
 
 ---
 

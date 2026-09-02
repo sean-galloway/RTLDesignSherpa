@@ -25,22 +25,25 @@
 
 **Module:** `axil4_slave_wr.sv`
 **Location:** `rtl/amba/axil4/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
 ## Overview
 
-The AXIL4 Slave Write module provides a buffered AXI4-Lite write interface for slave devices (memory, peripherals). It accepts write requests from an interconnect/master and forwards them to backend logic with elastic buffering for timing closure.
+The AXIL4 Slave Write module provides a buffered AXI4-Lite write interface for
+slave devices (memory, peripherals). It accepts write requests from an
+interconnect/master and forwards them to backend logic with elastic buffering
+for timing closure.
 
-### Key Features
+Key features:
 
-- ✅ **AXI4-Lite Slave:** Buffered write-only interface (AW, W, B channels)
-- ✅ **Single-Beat Transactions:** No burst support
-- ✅ **Byte Strobes:** WSTRB support for partial writes
-- ✅ **Elastic Buffering:** Decouples interconnect and backend timing
-- ✅ **Activity Monitoring:** Busy signal for clock gating
-- ✅ **Minimal Latency:** 1-cycle buffer overhead per channel
+- **AXI4-Lite Slave:** Buffered write-only interface (AW, W, B channels)
+- **Single-Beat Transactions:** No burst support
+- **Byte Strobes:** WSTRB support for partial writes
+- **Elastic Buffering:** Decouples interconnect and backend timing
+- **Activity Monitoring:** Busy signal for clock gating
+- **Minimal Latency:** 1-cycle buffer overhead per channel
 
 ---
 
@@ -55,9 +58,6 @@ The AXIL4 Slave Write module provides a buffered AXI4-Lite write interface for s
 | `SKID_DEPTH_B` | int | 2 | B channel skid buffer depth, in entries |
 | `BSize` | int | `2            // resp only` | See the RTL declaration. |
 
----
-
-
 ### Derived Parameters (do not override)
 
 These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
@@ -67,11 +67,14 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | `AWSize` | `AW+3` |
 | `WSize` | `DW+(DW/8)` |
 
-## Port Groups
+---
+
+## Ports
 
 ### Slave Interface (Input Side from Interconnect)
 
 **Write Address Channel (AW):**
+
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `s_axil_awaddr` | Input | AW | Write address (from interconnect) |
@@ -80,6 +83,7 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | `s_axil_awready` | Output | 1 | Address ready (buffer status) |
 
 **Write Data Channel (W):**
+
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `s_axil_wdata` | Input | DW | Write data (from interconnect) |
@@ -88,6 +92,7 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | `s_axil_wready` | Output | 1 | Data ready (buffer status) |
 
 **Write Response Channel (B):**
+
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `s_axil_bresp` | Output | 2 | Write response (to interconnect) |
@@ -97,6 +102,7 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 ### Backend Interface (Output Side to Memory/Logic)
 
 **Write Address Channel (AW):**
+
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `fub_awaddr` | Output | AW | Write address (to backend) |
@@ -105,6 +111,7 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | `fub_awready` | Input | 1 | Address ready (from backend) |
 
 **Write Data Channel (W):**
+
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `fub_wdata` | Output | DW | Write data (to backend) |
@@ -113,6 +120,7 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | `fub_wready` | Input | 1 | Data ready (from backend) |
 
 **Write Response Channel (B):**
+
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `fub_bresp` | Input | 2 | Write response (from backend) |
@@ -124,6 +132,16 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `busy` | Output | 1 | Interface active (for clock gating) |
+
+---
+
+## Functional Description
+
+Signal flow runs Interconnect → AW/W Buffers → Backend → B Buffer →
+Interconnect. Each channel crosses its own buffer, so the backend can respond
+at its own pace without stalling the interconnect — that decoupling is the
+elastic buffering the Overview mentions, and it's what buys you the timing
+closure.
 
 ---
 
@@ -179,9 +197,7 @@ axil4_slave_wr #(
 
 ## Design Notes
 
-- **Signal Flow:** Interconnect → AW/W Buffers → Backend → B Buffer → Interconnect
 - **Use Case:** Memory controllers, peripheral slaves, register blocks
-- **Buffering:** Allows backend to respond at its own pace without stalling interconnect
 - **Write Strobes:** Backend must honor WSTRB for partial word writes
 
 ---

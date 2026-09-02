@@ -30,65 +30,23 @@
 
 ## Overview
 
-Sixteen modules mirroring the AXI4-Lite family one for one, with the AXI5-Lite
-optional signal groups threaded through. Same channel set, same handshakes,
-same single-beat semantics; what AXI5-Lite adds is sideband.
+Sixteen modules mirroring the AXI4-Lite family one for one, with the AXI5-Lite optional signal groups threaded through. Same channel set, same handshakes, same single-beat semantics -- what AXI5-Lite adds is sideband.
 
-## Scope of This Implementation
-
-These modules **transport** AXI5-Lite signals. They do not execute AXI5-Lite
-semantics:
-
-- MPAM, MECID, NSAID, LOOP and TRACE are carried end to end unmodified. Nothing
-  here interprets a partition ID or an encryption context.
-- POISON is carried. It is never generated and never checked.
-- LOCK is carried with no exclusive-access monitor behind it. A completer
-  returning EXOKAY is not validated against anything.
-
-Those behaviours belong to the endpoints on either side. Read this before
-treating the family as a full AXI5-Lite protocol stack -- it is not one.
-
-## Module Categories
-
-### Transport (4)
-
-| Module | Channels |
-|---|---|
-| [axil5_master_rd](axil5_master_rd.md) | AR, R |
-| [axil5_master_wr](axil5_master_wr.md) | AW, W, B |
-| [axil5_slave_rd](axil5_slave_rd.md) | AR, R |
-| [axil5_slave_wr](axil5_slave_wr.md) | AW, W, B |
-
-### Clock-gated (4)
-
-| Module | Adds |
-|---|---|
-| [axil5_master_rd_cg](axil5_master_rd_cg.md) | One `amba_clock_gate_ctrl` over the whole inner module |
-| [axil5_master_wr_cg](axil5_master_wr_cg.md) | ditto |
-| [axil5_slave_rd_cg](axil5_slave_rd_cg.md) | ditto |
-| [axil5_slave_wr_cg](axil5_slave_wr_cg.md) | ditto |
-
-### Monitored (4)
-
-| Module | Adds |
-|---|---|
-| [axil5_master_rd_mon](axil5_master_rd_mon.md) | `axi_monitor_filtered`, monbus packet output |
-| [axil5_master_wr_mon](axil5_master_wr_mon.md) | ditto |
-| [axil5_slave_rd_mon](axil5_slave_rd_mon.md) | ditto |
-| [axil5_slave_wr_mon](axil5_slave_wr_mon.md) | ditto |
-
-### Monitored and clock-gated (4)
-
-| Module | Adds |
-|---|---|
-| [axil5_master_rd_mon_cg](axil5_master_rd_mon_cg.md) | Both, with ready held low while gated |
-| [axil5_master_wr_mon_cg](axil5_master_wr_mon_cg.md) | ditto |
-| [axil5_slave_rd_mon_cg](axil5_slave_rd_mon_cg.md) | ditto |
-| [axil5_slave_wr_mon_cg](axil5_slave_wr_mon_cg.md) | ditto |
+If you came here looking for a full AXI5-Lite protocol stack, read the next section before you instantiate anything.
 
 ---
 
-## AXI4-Lite vs AXI5-Lite in This Library
+## Functional Description
+
+These modules **transport** AXI5-Lite signals. They do not execute AXI5-Lite semantics:
+
+- MPAM, MECID, NSAID, LOOP and TRACE are carried end to end unmodified. Nothing here interprets a partition ID or an encryption context.
+- POISON is carried. It is never generated and never checked.
+- LOCK is carried with no exclusive-access monitor behind it. A completer returning EXOKAY is not validated against anything.
+
+Those behaviours belong to the endpoints on either side. Read this before treating the family as a full AXI5-Lite protocol stack -- it is not one.
+
+AXI4-Lite vs AXI5-Lite, as this library implements them:
 
 | Feature | AXI4-Lite | AXI5-Lite |
 |---|---|---|
@@ -102,13 +60,13 @@ treating the family as a full AXI5-Lite protocol stack -- it is not one.
 | Poison | not present | `WPOISON`/`RPOISON`, one bit per 64 data bits |
 | Exclusive access | not present | `AxLOCK`, gated by `ENABLE_LOCK` |
 
-**With every group disabled the two are the same interface.** The packed
-payload widths match channel for channel, which is what lets one testbench
-bind to either family.
+**With every group disabled the two are the same interface.** The packed payload widths match channel for channel, which is what lets one testbench bind to either family.
 
 ---
 
-## Quick Start
+## Usage Example
+
+Two configurations of the same module -- every group off, and the security qualifiers on:
 
 ```systemverilog
 // AXI4-Lite-equivalent: every group off, payload widths identical to axil4
@@ -132,33 +90,66 @@ axil5_master_rd #(
 
 ---
 
-## Testing
+## Design Notes
 
-`val/amba/test_axil5_*.py` -- sixteen runners, 42 parameterised cases, all
-passing. They drive the modules with **every optional group enabled**, which
-makes them the only tests in the repo that exercise the AXI5-Lite sideband
-against real transport RTL rather than a behavioural model.
+Known limitations:
 
-The testbench classes in `bin/TBClasses/axil5/` are the AXI4-Lite ones with
-the component factories swapped and the group widths set in
-`COMPONENT_KWARGS`. One definition of the traffic and its checks.
-
-Also here: `test_axil5_opt_signals.py` drives `axil5_opt_slave`, a behavioural
-slave under `rtl/amba/axil5/test-modules/` built purely so the BFMs had a DUT
-carrying every optional port. It is test collateral -- do not instantiate it in
-a design.
+- No protocol checking of the optional groups. The monitored variants observe handshakes, addresses, responses and timing; `axi_monitor_filtered` has no ports for MPAM, MECID, NSAID, TRACE, LOOP or POISON.
+- No exclusive-access monitor. `AxLOCK` is transported; nothing tracks exclusive state or validates EXOKAY.
+- No poison generation or checking.
+- Timing diagrams are not yet drawn for this family.
 
 ---
 
-## Known Limitations
+## Related Modules
 
-- No protocol checking of the optional groups. The monitored variants observe
-  handshakes, addresses, responses and timing; `axi_monitor_filtered` has no
-  ports for MPAM, MECID, NSAID, TRACE, LOOP or POISON.
-- No exclusive-access monitor. `AxLOCK` is transported; nothing tracks
-  exclusive state or validates EXOKAY.
-- No poison generation or checking.
-- Timing diagrams are not yet drawn for this family.
+The family, grouped by what each variant adds:
+
+### Transport (4)
+
+| Module | Channels |
+|---|---|
+| [axil5_master_rd](axil5_master_rd.md) | AR, R |
+| [axil5_master_wr](axil5_master_wr.md) | AW, W, B |
+| [axil5_slave_rd](axil5_slave_rd.md) | AR, R |
+| [axil5_slave_wr](axil5_slave_wr.md) | AW, W, B |
+
+### Clock-gated (4)
+
+| Module | Adds |
+|---|---|
+| [axil5_master_rd_cg](axil5_master_rd_cg.md) | One `amba_clock_gate_ctrl` over the whole inner module |
+| [axil5_master_wr_cg](axil5_master_wr_cg.md) | One `amba_clock_gate_ctrl` over the whole inner module |
+| [axil5_slave_rd_cg](axil5_slave_rd_cg.md) | One `amba_clock_gate_ctrl` over the whole inner module |
+| [axil5_slave_wr_cg](axil5_slave_wr_cg.md) | One `amba_clock_gate_ctrl` over the whole inner module |
+
+### Monitored (4)
+
+| Module | Adds |
+|---|---|
+| [axil5_master_rd_mon](axil5_master_rd_mon.md) | `axi_monitor_filtered`, monbus packet output |
+| [axil5_master_wr_mon](axil5_master_wr_mon.md) | `axi_monitor_filtered`, monbus packet output |
+| [axil5_slave_rd_mon](axil5_slave_rd_mon.md) | `axi_monitor_filtered`, monbus packet output |
+| [axil5_slave_wr_mon](axil5_slave_wr_mon.md) | `axi_monitor_filtered`, monbus packet output |
+
+### Monitored and clock-gated (4)
+
+| Module | Adds |
+|---|---|
+| [axil5_master_rd_mon_cg](axil5_master_rd_mon_cg.md) | Both, with ready held low while gated |
+| [axil5_master_wr_mon_cg](axil5_master_wr_mon_cg.md) | Both, with ready held low while gated |
+| [axil5_slave_rd_mon_cg](axil5_slave_rd_mon_cg.md) | Both, with ready held low while gated |
+| [axil5_slave_wr_mon_cg](axil5_slave_wr_mon_cg.md) | Both, with ready held low while gated |
+
+---
+
+## Testing
+
+`val/amba/test_axil5_*.py` -- sixteen runners, 42 parameterised cases, all passing. They drive the modules with **every optional group enabled**, which makes them the only tests in the repo that exercise the AXI5-Lite sideband against real transport RTL rather than a behavioural model.
+
+The testbench classes in `bin/TBClasses/axil5/` are the AXI4-Lite ones with the component factories swapped and the group widths set in `COMPONENT_KWARGS`. One definition of the traffic and its checks.
+
+Also here: `test_axil5_opt_signals.py` drives `axil5_opt_slave`, a behavioural slave under `rtl/amba/axil5/test-modules/` built purely so the BFMs had a DUT carrying every optional port. It is test collateral -- do not instantiate it in a design.
 
 ---
 

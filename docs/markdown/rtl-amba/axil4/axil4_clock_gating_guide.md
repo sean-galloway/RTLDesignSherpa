@@ -24,7 +24,7 @@
 # AXIL4 Clock-Gated Variants Guide
 
 **Location:** `rtl/amba/axil4/*_cg.sv`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
@@ -50,11 +50,11 @@ The four `*_mon_cg` modules live in `rtl/amba/monitor/`; the four plain
 
 ### Key Features
 
-- ✅ **Dynamic Clock Gating:** Automatic clock disable during idle
-- ✅ **Configurable Idle Threshold:** Programmable idle count before gating
-- ✅ **Full Functional Equivalence:** Identical to base modules
-- ✅ **Status Monitoring:** `cg_gating` and `cg_idle` status outputs
-- ✅ **Runtime Bypass:** `cfg_cg_enable = 0` disables gating entirely
+- **Dynamic Clock Gating:** Automatic clock disable during idle
+- **Configurable Idle Threshold:** Programmable idle count before gating
+- **Full Functional Equivalence:** Identical to base modules
+- **Status Monitoring:** `cg_gating` and `cg_idle` status outputs
+- **Runtime Bypass:** `cfg_cg_enable = 0` disables gating entirely
 
 There is **no scan/test-mode bypass port**. `clock_gate_ctrl` exposes only
 `cfg_cg_enable`; a DFT flow must drive that low (or bypass the ICG cell in the
@@ -218,12 +218,12 @@ interface pays the wakeup cost before its first handshake.
 
 ### When to Use Clock Gating
 
-**✅ Recommended For:**
+**Recommended for:**
 - Register access patterns (idle between accesses)
 - Low-duty-cycle control interfaces
 - Power-constrained systems
 
-**❌ Not Recommended For:**
+**Not recommended for:**
 - 100% utilization scenarios
 - Ultra-low-latency critical paths
 - Continuous register polling

@@ -26,11 +26,19 @@
 **Module:** `axil4_master_wr_mon_cg.sv`
 **Base Module:** [axil4_master_wr_mon](./axil4_master_wr_mon.md)
 **Location:** `rtl/amba/axil4/`
-**Status:** ⚠️ Partial — see [Implementation Status](#implementation-status)
+**Status:** Partial — see [Implementation Status](#implementation-status)
 
 ---
 
-## Implementation Status
+## Overview
+
+`axil4_master_wr_mon_cg` wraps [axil4_master_wr_mon](./axil4_master_wr_mon.md) and adds a
+power-management control and status interface. All monitoring, filtering,
+address-range checking, and performance-monitoring behavior is that of the base
+module; see [axil4_master_wr_mon.md](./axil4_master_wr_mon.md) for the complete
+functional specification.
+
+### Implementation Status
 
 This wrapper gates the monitor's clock for real. It instantiates
 `amba_clock_gate_ctrl`, and the base `axil4_master_wr_mon` inside it is driven from
@@ -62,17 +70,7 @@ Gating behaviour is asserted directly by `val/amba/test_mon_cg_gating.py`
 
 ---
 
-## Overview
-
-`axil4_master_wr_mon_cg` wraps [axil4_master_wr_mon](./axil4_master_wr_mon.md) and adds a
-power-management control and status interface. All monitoring, filtering,
-address-range checking, and performance-monitoring behavior is that of the base
-module; see [axil4_master_wr_mon.md](./axil4_master_wr_mon.md) for the complete
-functional specification.
-
----
-
-## Additional Parameters
+## Parameters
 
 In addition to all [axil4_master_wr_mon](./axil4_master_wr_mon.md) parameters
 (including `USE_MONITOR` and `N_ADDR_RANGES`):
@@ -93,8 +91,6 @@ There are no `CG_GATE_MONITOR`, `CG_GATE_REPORTER`, or `CG_GATE_TIMERS`
 parameters, and no independent gating domains. Earlier revisions of this
 document described such a scheme; it was never implemented.
 
----
-
 ### Derived Parameters (do not override)
 
 These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
@@ -104,8 +100,9 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | `AW` | `AXIL_ADDR_WIDTH` |
 | `DW` | `AXIL_DATA_WIDTH` |
 
-## Additional Ports
+---
 
+## Ports
 
 ### Filter configuration (forwarded)
 
@@ -136,7 +133,9 @@ The base module's `busy` output remains available on this wrapper.
 
 ---
 
-## Performance Monitoring
+## Functional Description
+
+### Performance Monitoring
 
 The wrapper forwards the base module's full performance-monitoring interface to
 `axi_monitor_base` **unchanged** — the power-management interface neither adds,
@@ -186,7 +185,7 @@ axil4_master_wr_mon_cg #(
 
 ---
 
-## Verification Considerations
+## Testing
 
 A clock IS gated here -- that is the wrapper's entire purpose.
 `amba_clock_gate_ctrl` drives the inner monitor's clock, and it stops when the
