@@ -74,8 +74,20 @@ def facts(sv_path, incdirs=(), verilator='verilator'):
         if not dumps:
             return None
         # earliest stage still holds PORT and GPARAM, before substitution
+        tree = json.load(open(os.path.join(td, dumps[0])))
+        # Scope to the TOP MODULE's own subtree. Walking the whole dump collects
+        # every submodule's parameters too: apb4_master_stub was credited with
+        # ALMOST_RD_MARGIN, MEM_STYLE and FLOP_COUNT, which belong to the FIFO
+        # and synchroniser it instantiates. That inflated an "undocumented
+        # parameter" count from tens to 201.
+        allnodes = []
+        _walk(tree, allnodes)
+        top = next((n for n in allnodes
+                    if n.get('type') == 'MODULE' and n.get('name') == stem), None)
+        if top is None:
+            return None
         nodes = []
-        _walk(json.load(open(os.path.join(td, dumps[0]))), nodes)
+        _walk(top, nodes)
 
     ports, params = {}, []
     for n in nodes:
