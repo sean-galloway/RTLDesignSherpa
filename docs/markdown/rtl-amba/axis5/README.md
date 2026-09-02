@@ -75,7 +75,7 @@ This table compares the two generations *as implemented here*, not the full ARM 
 | Side-band signals | TID, TDEST, TUSER | TID, TDEST, TUSER (same, parameterized widths) |
 | Byte qualification | TSTRB only | TSTRB only |
 | Clock gating | Available (`_cg` variants) | Available (`_cg` variants) |
-| Clock-gate port names | `cfg_cg_enable` / `cfg_cg_idle_count` | **`i_cg_enable` / `i_cg_idle_count`** -- see below |
+| Clock-gate port names | `cfg_cg_enable` / `cfg_cg_idle_count` | **`cfg_cg_enable` / `cfg_cg_idle_count`** -- see below |
 | Stream port prefix on the `_cg` wrappers | `fub_axis_*` / `m_axis_*` | **`fub_axis5_*` / `m_axis5_*`** -- see below |
 
 **Two naming outliers, both in the axis5 `_cg` wrappers.** Learn them before
@@ -83,7 +83,7 @@ you port an instantiation across, because they will trip you:
 
 - Thirty-two of the thirty-four `_cg` modules in `rtl/amba` take
   `cfg_cg_enable`. The two exceptions are `axis5_master_cg` and
-  `axis5_slave_cg`, which take `i_cg_enable` / `i_cg_idle_count`.
+  `axis5_slave_cg`, which take `cfg_cg_enable` / `cfg_cg_idle_count`.
 - Those same two wrappers carry a `5` in their stream port names
   (`fub_axis5_tdata`, `m_axis5_tvalid`, ...) while the modules they WRAP --
   `axis5_master`, `axis5_slave` -- use `fub_axis_*` / `m_axis_*` /
@@ -243,8 +243,8 @@ axis5_master_cg #(
     .aresetn                (resetn),
 
     // Clock gating control
-    .i_cg_enable            (1'b1),      // 1 = allow gating, 0 = clock always on
-    .i_cg_idle_count        (4'd8),      // Idle cycles before the clock gates
+    .cfg_cg_enable            (1'b1),      // 1 = allow gating, 0 = clock always on
+    .cfg_cg_idle_count        (4'd8),      // Idle cycles before the clock gates
 
     // Streaming interfaces (note the axis5_ prefix on the _cg variants)
     .fub_axis5_tdata        (fub_tdata),

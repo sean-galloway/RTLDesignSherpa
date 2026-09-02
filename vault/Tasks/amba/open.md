@@ -34,43 +34,6 @@ monbus_group.md and quickstart.md before I caught it.
 `projects/**/docs`, so no new instance can land.
 
 
-### TASK-076: axis5 _cg pages claim TREADY is held low while gated -- unverified
-
-**Priority:** P3 documentation-accuracy, but it describes a data-loss window, so
-worth settling rather than leaving.
-**Status:** open 2026-09-02. Raised by qc round_35 (axis5), NOT yet verified
-against the RTL -- I ran out of session budget before finishing the analysis and
-would rather leave it open than integrate a claim I have not checked.
-
-**The claim on the page.** `axis5_master_cg.md` and `axis5_slave_cg.md` both say
-the outward TREADY "is driven by the skid buffer on `gated_clk`, so it stays low
-while the clock is stopped and the producer simply holds TVALID until the clock
-resumes", concluding "nothing is lost".
-
-**Why the reviewer disputes it.** A signal driven by a register on a STOPPED
-clock holds its last value; it does not go low. If TREADY was high when the
-clock stopped, it stays high, and a transfer completing during the wake-up
-window would be accepted by the peer but never observed by the gated logic.
-
-**What I did check.** Neither `axis5_slave_cg.sv` nor `axis5_master_cg.sv`
-contains a `tready =` assignment, so there is no explicit `!cg_gating` mask of
-the kind the axil4/axi4 `_cg` wrappers use. That is consistent with the
-reviewer's reading but does not prove it -- the masking could be inside
-`gaxi_skid_buffer`, or the gate may only engage when the buffer is empty and
-TREADY is already low.
-
-**How to settle it.** Directed test: fill so TREADY is high, let the clock gate,
-assert TVALID, and check no beat is lost or double-accepted. The pattern is
-`val/amba/test_cg_peer_ready.py`, which already drives these wrappers.
-
-**Related, same round, also unintegrated:** `ENABLE_WAKEUP=0` is documented as
-removing the `twakeup` ports "entirely" -- they remain in the port list (5
-references in `axis5_master_cg.sv`); an idle-threshold example that sets 0 while
-its comment says 16; two different gating latencies on one page; truncated
-derived-parameter defaults in the `_cg` tables; and an unsourced "+5-10% area"
-figure.
-
-
 ### TASK-075: seven modules have no test coverage, direct or transitive
 
 **Priority:** P2 for the ECC pair, P3 for the rest. None is a known defect;

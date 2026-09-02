@@ -591,7 +591,7 @@ endmodule
 // This library has no SystemVerilog interface for AXI-Stream -- every port
 // is an expanded signal. Two naming traps live in this one example:
 //
-//   * the axis5 _cg wrappers use fub_axis5_* / m_axis5_* and i_cg_enable,
+//   * the axis5 _cg wrappers use fub_axis5_* / m_axis5_* and cfg_cg_enable,
 //     while the modules they wrap use fub_axis_* / m_axis_* / s_axis_* and
 //     the rest of the AMBA family uses cfg_cg_enable;
 //   * byte qualification is TSTRB. There is no TKEEP anywhere in axis5.
@@ -608,8 +608,8 @@ module stream_processor (
     axis5_master_cg #(.AXIS_DATA_WIDTH(64)) u_input_stage (
         .aclk               (clk),
         .aresetn            (rst_n),
-        .i_cg_enable        (input_active),
-        .i_cg_idle_count    (4'd8),
+        .cfg_cg_enable        (input_active),
+        .cfg_cg_idle_count    (4'd8),
         .fub_axis5_tdata    (s_tdata),
         .fub_axis5_tstrb    (s_tstrb),
         .fub_axis5_tlast    (s_tlast),

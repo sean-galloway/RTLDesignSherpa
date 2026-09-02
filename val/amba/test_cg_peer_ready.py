@@ -54,6 +54,11 @@ DUTS = {
     'axil5_slave_wr_cg':  (['s_axil_awvalid', 's_axil_wvalid'], 's_axil_bready'),
     'axis4_master_cg':     (['fub_axis_tvalid'], 'm_axis_tready'),
     'axis4_slave_cg':      (['s_axis_tvalid'], 'fub_axis_tready'),
+    # axis5 was not in the peer-READY sweep -- its wrappers were already clean
+    # there -- but it IS in scope for the outward-READY mask below, which is
+    # where they turned out to differ from their axis4 siblings.
+    'axis5_master_cg':     (['fub_axis5_tvalid'], 'm_axis5_tready'),
+    'axis5_slave_cg':      (['s_axis_tvalid'], 'fub_axis5_tready'),
 }
 
 IDLE_COUNT = 4
@@ -127,4 +132,63 @@ def test_cg_peer_ready(request, dut_name):
         },
         waves=False,
         keep_files=True,
+    )
+
+
+# --- outward READY must be masked while the clock is gated -------------------
+# A wrapper's outward READY is driven by a register on the GATED clock. When
+# that clock stops the register holds its last value -- it does not fall. If
+# READY was high at the moment gating engaged, a peer sees a still-asserted
+# READY, drives a beat, and considers it accepted while the gated logic never
+# observes it. The beat is lost.
+#
+# axis4_slave_cg guards this explicitly:
+#     assign s_axis_tready = cg_gating ? 1'b0 : int_tready;
+# and the axil4/axi4 families do the same for their AW/W/AR readys. The axis5
+# wrappers did not, while their doc pages claimed the READY "stays low while
+# the clock is stopped" -- describing the sibling's behaviour, not their own.
+# Raised as a SUSPECTED finding by qc round_35 (TASK-076), confirmed here.
+
+# The wrapper's OWN output, i.e. the READY it drives toward its producer.
+# A master's producer is on the fub side; a slave's is the s_axis side. Getting
+# this backwards tests an input the wrapper does not control.
+READY_OUT = {
+    'axis4_master_cg':    'fub_axis_tready',
+    'axis4_slave_cg':     's_axis_tready',
+    'axis5_master_cg':    'fub_axis5_tready',
+    'axis5_slave_cg':     's_axis_tready',
+}
+
+
+@cocotb.test(timeout_time=2, timeout_unit="ms")
+async def outward_ready_is_masked_while_gated(dut):
+    """Once cg_gating is high, the outward READY must read 0."""
+    name = os.environ['DUT']
+    valids, peer_ready = DUTS[name]
+    ready_out = READY_OUT.get(name)
+    if ready_out is None or not hasattr(dut, ready_out):
+        return                      # not a stream wrapper; nothing to assert
+
+    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    dut.aresetn.value = 0
+    dut.cfg_cg_enable.value = 1
+    dut.cfg_cg_idle_count.value = IDLE_COUNT
+    for v in valids:
+        getattr(dut, v).value = 0
+    getattr(dut, peer_ready).value = 1
+    for _ in range(8):
+        await RisingEdge(dut.aclk)
+    dut.aresetn.value = 1
+
+    for _ in range(IDLE_COUNT + 20):
+        await RisingEdge(dut.aclk)
+
+    gating = int(dut.cg_gating.value)
+    assert gating == 1, f"{name} never gated; cannot test the mask"
+    rdy = int(getattr(dut, ready_out).value)
+    dut._log.info(f"{name}: cg_gating=1 -> {ready_out}={rdy}")
+    assert rdy == 0, (
+        f"{name}: {ready_out} is {rdy} while cg_gating is high. A peer sees an "
+        f"asserted READY, drives a beat, and the gated logic never observes it "
+        f"-- the beat is lost. Mask it with !cg_gating, as axis4_slave_cg does."
     )

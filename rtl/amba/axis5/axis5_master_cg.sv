@@ -52,8 +52,8 @@ module axis5_master_cg
     input  logic                       aresetn,
 
     // Clock gating configuration
-    input  logic                       i_cg_enable,
-    input  logic [ICW-1:0]             i_cg_idle_count,
+    input  logic                       cfg_cg_enable,
+    input  logic [ICW-1:0]             cfg_cg_idle_count,
 
     // Slave AXI5-Stream Interface (Input Side - from FUB)
     input  logic [DW-1:0]              fub_axis5_tdata,
@@ -113,8 +113,8 @@ module axis5_master_cg
     ) u_clock_gate_ctrl (
         .clk_in              (aclk),
         .aresetn             (aresetn),
-        .cfg_cg_enable       (i_cg_enable),
-        .cfg_cg_idle_count   (i_cg_idle_count),
+        .cfg_cg_enable       (cfg_cg_enable),
+        .cfg_cg_idle_count   (cfg_cg_idle_count),
         .user_valid          (r_wakeup),
         .axi_valid           (1'b0),
         .clk_out             (gated_clk),
@@ -125,6 +125,15 @@ module axis5_master_cg
     );
 
     // Core AXIS5 master instance
+    logic int_fub_axis5_tready;
+    // Masked with !cg_gating. This READY is driven by a register on the
+    // GATED clock, so when that clock stops the register HOLDS its last
+    // value -- it does not fall. A producer would see a still-asserted
+    // READY, drive a beat, consider it accepted, and the gated logic would
+    // never observe it. axis4_slave_cg and the axil4/axi4 families already
+    // guard this; these two did not (TASK-076).
+    assign fub_axis5_tready = cg_gating ? 1'b0 : int_fub_axis5_tready;
+
     axis5_master #(
         .SKID_DEPTH       (SKID_DEPTH),
         .AXIS_DATA_WIDTH  (AXIS_DATA_WIDTH),
@@ -144,7 +153,7 @@ module axis5_master_cg
         .fub_axis_tdest    (fub_axis5_tdest),
         .fub_axis_tuser    (fub_axis5_tuser),
         .fub_axis_tvalid   (fub_axis5_tvalid),
-        .fub_axis_tready   (fub_axis5_tready),
+        .fub_axis_tready   (int_fub_axis5_tready),
         .fub_axis_twakeup  (fub_axis5_twakeup),
         .fub_axis_tparity  (fub_axis5_tparity),
 

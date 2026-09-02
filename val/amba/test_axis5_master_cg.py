@@ -43,7 +43,7 @@ async def cocotb_test_axis5_master_cg_basic(dut):
     await tb.setup_clocks_and_reset()
 
     # Configure clock gating idle count
-    dut.i_cg_idle_count.value = 8
+    dut.cfg_cg_idle_count.value = 8
 
     # Configure slave side
     dut.m_axis5_tready.value = 1

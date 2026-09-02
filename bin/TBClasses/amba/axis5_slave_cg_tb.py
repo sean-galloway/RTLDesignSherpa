@@ -51,6 +51,6 @@ class AXIS5SlaveCGBasicTB(TBBase):
 
     async def enable_clock_gating(self, enable=True):
         """Enable or disable clock gating."""
-        self.dut.i_cg_enable.value = 1 if enable else 0
+        self.dut.cfg_cg_enable.value = 1 if enable else 0
         await RisingEdge(self.dut.aclk)
         self.log.info(f"Clock gating {'enabled' if enable else 'disabled'}")

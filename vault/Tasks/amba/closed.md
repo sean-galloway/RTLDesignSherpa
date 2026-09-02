@@ -2399,3 +2399,61 @@ leaves residue in every system that indexes code -- formal harnesses, test
 environment config, generated make targets, file headers -- and each one is
 found by a different check, or by none.
 
+### TASK-076: axis5 _cg pages claim TREADY is held low while gated -- unverified
+
+**Priority:** P3 documentation-accuracy, but it describes a data-loss window, so
+worth settling rather than leaving.
+**Status:** CLOSED 2026-09-02. CONFIRMED and fixed. The reviewer was right.
+
+**The claim on the page.** `axis5_master_cg.md` and `axis5_slave_cg.md` both say
+the outward TREADY "is driven by the skid buffer on `gated_clk`, so it stays low
+while the clock is stopped and the producer simply holds TVALID until the clock
+resumes", concluding "nothing is lost".
+
+**Why the reviewer disputes it.** A signal driven by a register on a STOPPED
+clock holds its last value; it does not go low. If TREADY was high when the
+clock stopped, it stays high, and a transfer completing during the wake-up
+window would be accepted by the peer but never observed by the gated logic.
+
+**What I did check.** Neither `axis5_slave_cg.sv` nor `axis5_master_cg.sv`
+contains a `tready =` assignment, so there is no explicit `!cg_gating` mask of
+the kind the axil4/axi4 `_cg` wrappers use. That is consistent with the
+reviewer's reading but does not prove it -- the masking could be inside
+`gaxi_skid_buffer`, or the gate may only engage when the buffer is empty and
+TREADY is already low.
+
+**How to settle it.** Directed test: fill so TREADY is high, let the clock gate,
+assert TVALID, and check no beat is lost or double-accepted. The pattern is
+`val/amba/test_cg_peer_ready.py`, which already drives these wrappers.
+
+**Related, same round, also unintegrated:** `ENABLE_WAKEUP=0` is documented as
+removing the `twakeup` ports "entirely" -- they remain in the port list (5
+references in `axis5_master_cg.sv`); an idle-threshold example that sets 0 while
+its comment says 16; two different gating latencies on one page; truncated
+derived-parameter defaults in the `_cg` tables; and an unsourced "+5-10% area"
+figure.
+
+
+
+### Resolution
+
+Confirmed in simulation, not by reading: with the clock gated,
+`fub_axis5_tready` and `s_axis_tready` both read **1**. A producer sees an
+asserted READY, drives a beat, considers it accepted, and the gated logic never
+observes it -- the beat is lost.
+
+`axis4_slave_cg` already guarded this (`assign s_axis_tready = cg_gating ? 1'b0
+: int_tready;`) and so do the axil4/axi4 families; the two axis5 wrappers did
+not, while their doc pages described the sibling's behaviour as their own.
+Both now mask with `!cg_gating`.
+
+Mutation-checked: removing the mask fails with `s_axis_tready=1`.
+`val/amba/test_cg_peer_ready.py::outward_ready_is_masked_while_gated` covers
+all four stream wrappers.
+
+Found on the way: the axis5 wrappers used `i_cg_enable`/`i_cg_idle_count` where
+the other 40 use `cfg_cg_*`. The test could not even reach them until that was
+renamed -- a naming inconsistency that had been hiding the defect from any
+generic gating test.
+
+Docs corrected on both pages. 70 tests pass, lint clean on 388 modules.

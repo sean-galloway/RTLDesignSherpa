@@ -58,8 +58,8 @@ class AXIS5SlaveCGTB(AXIS5SlaveTB):
         Args:
             enable: True to enable clock gating, False to keep clock running
         """
-        if hasattr(self.dut, 'i_cg_enable'):
-            self.dut.i_cg_enable.value = 1 if enable else 0
+        if hasattr(self.dut, 'cfg_cg_enable'):
+            self.dut.cfg_cg_enable.value = 1 if enable else 0
             await self.wait_clocks(self.aclk_name, 1)
             self.log.info(f"Clock gating {'enabled' if enable else 'disabled'}")
         else:
