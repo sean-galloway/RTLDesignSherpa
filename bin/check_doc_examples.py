@@ -124,7 +124,11 @@ def main() -> int:
     # Five known findings in projects/components are tracked as TASK-077 and
     # are being fixed by hand -- a whole-block regeneration drops the other
     # instantiations in the same block. Ratchet: this must not GROW.
-    BASELINE = 4
+    # Measured against a clean HEAD checkout, NOT the working tree. A dirty
+    # tree carries other sessions' uncommitted fixes, so a baseline taken
+    # there is lower than what CI sees -- I set 4 that way and CI failed with
+    # 9. `git worktree add --detach /tmp/chk HEAD` and run it there.
+    BASELINE = 9
     if bad > BASELINE:
         print(f'  FAIL: {bad} exceeds the baseline of {BASELINE} (TASK-077)')
         return 1

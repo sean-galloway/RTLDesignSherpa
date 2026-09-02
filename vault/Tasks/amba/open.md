@@ -28,7 +28,19 @@
 Fix names in place. Do NOT regenerate the block: several of these contain more
 than one instantiation and a whole-block rewrite silently drops the others.
 
-`bin/check_doc_examples.py` ratchets at 4, so the count cannot grow.
+`bin/check_doc_examples.py` ratchets at 9, so the count cannot grow.
+
+**Measure the baseline at HEAD, not in the working tree.** I first set it to 4,
+which is what my dirty tree showed -- other sessions had uncommitted fixes for
+pages I had not touched. CI, which sees only HEAD, failed at 9. Use:
+
+    git worktree add --detach /tmp/chk HEAD && cd /tmp/chk && python3 bin/check_doc_examples.py
+
+The extra findings at HEAD are in `stream_mas/ch01_overview/02_port_list.md`,
+`stream_mas/ch02_blocks/08_sram_controller.md`,
+`rapids_beats_mas/ch04_interfaces/03_monbus_interface_spec.md` and
+`pit_8254_mas/ch03_interfaces/01_top_level.md`; some already have fixes in
+flight from their owners, so the number should fall on its own.
 
 ### TASK-075: seven modules have no test coverage, direct or transitive
 
