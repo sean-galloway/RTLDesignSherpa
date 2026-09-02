@@ -1,53 +1,99 @@
 #!/usr/bin/env bash
-# Filelist contract, checked before the commit lands.
+# The repository's pre-commit hook. ONE file -- git installs exactly one
+# .git/hooks/pre-commit, so a second tracked hook does not add a check, it
+# REPLACES every check in the one it overwrites.
 #
-# Install (per clone -- git does not track .git/hooks):
-#     ln -sf ../../bin/hooks/pre-commit .git/hooks/pre-commit
+# That is not hypothetical. This file used to carry only the filelist contract
+# and was installed by symlink. On 2026-08-28 a second hook appeared at
+# tools/hooks/pre-commit carrying the task-ID and declaration-order checks, and
+# `make setup-hooks` COPIED it over the symlink. From then until 2026-09-02 the
+# filelist checks did not run locally at all. Nobody noticed, because CI still
+# ran them -- the local check was silently gone, not visibly broken.
 #
-# This is the fast local mirror of .github/workflows/filelist-checks.yml. CI is
-# the authority; this just saves you the round trip. It runs only when the
-# commit touches something that can break the contract, so an unrelated commit
-# pays nothing.
+# So: add new checks HERE. Do not add another hook file.
 #
-# Bypass with `git commit --no-verify` when you must -- but note that CI runs
-# the same three checks and will not be bypassed.
+# Install (git does not track .git/hooks, so it is per clone):
+#     make setup-hooks
+# which symlinks this file. A symlink cannot drift from the tracked copy the
+# way the old `cp` could.
+#
+# Bypass with `git commit --no-verify`. CI runs the same checks and will not be.
 
 set -u
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT" || exit 0
 
-# Only bother when the staged set can actually affect the contract.
-if ! git diff --cached --name-only | grep -qE '\.(f|sv|svh|sby|toml)$|(^|/)test_[^/]*\.py$'; then
-    exit 0
-fi
-
-# tomllib needs 3.11+; fall back quietly rather than blocking a commit on a
-# python version. CI pins 3.11, so nothing is skipped where it counts.
+# tomllib needs 3.11+; prefer a python that has it.
 PY=$(command -v python3.12 || command -v python3.11 || command -v python3)
-if ! "$PY" -c 'import tomllib' 2>/dev/null && ! "$PY" -c 'import tomli' 2>/dev/null; then
-    echo "pre-commit: skipping filelist checks (no tomllib/tomli on $PY)" >&2
-    exit 0
-fi
 
+STAGED=$(git diff --cached --name-only --diff-filter=ACM)
 fail=0
-for check in --check --audit; do
-    if ! out=$("$PY" bin/filelist_registry.py "$check" 2>&1); then
-        echo "pre-commit: filelist_registry.py $check FAILED" >&2
-        echo "$out" | tail -20 >&2
+
+# --- task-tracker integrity (vault/Tasks/) ------------------------------------
+# Duplicate IDs make every [[LINK]] ambiguous. COMMON-021, PUMICE-010 and
+# PUMICE-011 each ended up naming two unrelated tasks this way.
+if echo "$STAGED" | grep -q '^vault/Tasks/.*\.md$'; then
+    echo "[pre-commit] Checking task-tracker IDs..."
+    if ! "$PY" "$REPO_ROOT/bin/check_task_ids.py"; then
+        echo "" >&2
+        echo "[pre-commit] BLOCKED: task-tracker ID problem." >&2
+        echo "  Next free ID:  bin/check_task_ids.py --next <area>" >&2
         fail=1
     fi
-done
+fi
 
-if ! out=$("$PY" bin/filelist_registry.py --blindspots --ratchet 2>&1); then
-    echo "$out" >&2
-    echo "pre-commit: run 'python3 bin/filelist_registry.py --blindspots' for the full list" >&2
-    fail=1
+# --- SystemVerilog declaration order -----------------------------------------
+# SystemVerilog allows forward references; some formal and synthesis flows
+# do not.
+STAGED_SV=$(echo "$STAGED" | grep '\.sv$' || true)
+if [ -n "$STAGED_SV" ]; then
+    echo "[pre-commit] Checking declaration order in $(echo "$STAGED_SV" | wc -l) staged .sv file(s)..."
+    if ! "$PY" "$REPO_ROOT/bin/check_sv_decl_order.py" --staged; then
+        echo "" >&2
+        echo "[pre-commit] BLOCKED: signal(s) used before declaration." >&2
+        fail=1
+    fi
+fi
+
+# --- a test must not elaborate another protocol family's RTL -----------------
+# test_axil5_master_rd.py drove axil4_master_rd for five days, green the whole
+# time, while axil5_master_rd was never simulated.
+if echo "$STAGED" | grep -qE '(^|/)test_[^/]*\.py$'; then
+    echo "[pre-commit] Checking test/DUT protocol families..."
+    if ! out=$("$PY" "$REPO_ROOT/bin/check_test_dut_family.py" 2>&1); then
+        echo "$out" >&2
+        fail=1
+    fi
+fi
+
+# --- filelist contract -------------------------------------------------------
+# The fast local mirror of .github/workflows/filelist-checks.yml. CI is the
+# authority; this saves the round trip.
+if echo "$STAGED" | grep -qE '\.(f|sv|svh|sby|toml)$|(^|/)test_[^/]*\.py$'; then
+    if ! "$PY" -c 'import tomllib' 2>/dev/null && ! "$PY" -c 'import tomli' 2>/dev/null; then
+        echo "[pre-commit] skipping filelist checks (no tomllib/tomli on $PY)" >&2
+    else
+        echo "[pre-commit] Checking the filelist contract..."
+        for check in --check --audit; do
+            if ! out=$("$PY" bin/filelist_registry.py "$check" 2>&1); then
+                echo "[pre-commit] filelist_registry.py $check FAILED" >&2
+                echo "$out" | tail -20 >&2
+                fail=1
+            fi
+        done
+        if ! out=$("$PY" bin/filelist_registry.py --blindspots --ratchet 2>&1); then
+            echo "$out" >&2
+            echo "[pre-commit] run 'python3 bin/filelist_registry.py --blindspots' for the full list" >&2
+            fail=1
+        fi
+    fi
 fi
 
 if [ "$fail" -ne 0 ]; then
     echo "" >&2
-    echo "pre-commit: filelist contract broken -- see vault/handbook/design/filelists.md" >&2
+    echo "[pre-commit] BLOCKED. Bypass with 'git commit --no-verify' if you must;" >&2
+    echo "             CI runs the same checks and cannot be bypassed." >&2
     exit 1
 fi
 exit 0

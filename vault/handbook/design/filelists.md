@@ -108,8 +108,24 @@ gap is entirely the exempt list (multi-instance wrappers with no consumer yet).
 **The checks are gated now** (2026-07-26). `.github/workflows/filelist-checks.yml`
 runs on push to main and every PR: `--check` and `--audit` as hard gates,
 `--blindspots --ratchet` against `bin/blindspots_baseline.json`.
-`bin/hooks/pre-commit` is an optional local mirror, installed per clone with
-`ln -sf ../../bin/hooks/pre-commit .git/hooks/pre-commit`.
+`bin/hooks/pre-commit` is the local mirror, installed per clone with
+`make setup-hooks`.
+
+**There is exactly ONE tracked pre-commit hook, and that is deliberate.** Git
+installs a single `.git/hooks/pre-commit`, so a second hook file does not add a
+check -- it REPLACES every check in whatever it overwrites. On 2026-08-28 a
+second hook appeared at `tools/hooks/pre-commit` carrying the task-ID and
+declaration-order checks, and `make setup-hooks` COPIED it over the filelist
+symlink. The filelist checks then did not run locally at all until 2026-09-02.
+Nothing failed and nobody noticed, because CI still ran them: the local gate
+was silently absent, not visibly broken.
+
+Two things changed so it cannot recur. `bin/hooks/pre-commit` now carries every
+check (task IDs, declaration order, test/DUT protocol family, filelist
+contract) and `tools/hooks/` is gone. And `make setup-hooks` SYMLINKS rather
+than copies, so the installed hook cannot drift from the tracked one.
+
+Add a new check to that file. Do not add another hook.
 
 **The ratchet is the reason a gate could land at all.** `--blindspots` had 516
 findings; requiring zero would have meant no gate for months, and gating on a
