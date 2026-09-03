@@ -191,29 +191,19 @@ class PumiceCmdArbiterTB(TBBase):
         getattr(self.dut, f'{pfx}_sch_older_i').value = older
 
     async def settle(self, depth=3):
-        # DEFAULT path is the two-stage bank scheduler (PUMICE_BANK_SCHED). A
-        # DEMAND pick (col/act/pre) is a 3-stage pipeline: the per-bank pickers
-        # read LIVE bank state (no input-register turn), register the candidate
-        # (1), the sched-core Stage-A tournament registers the winner (1), and
-        # Stage-B registers the decision/output (1) -- so a pick reflecting
-        # freshly-set bank state / CAM entries appears 3 edges later. The pickers
-        # reading live bank state (not a registered copy) is what keeps a
-        # just-precharged bank's ACT presentable next cycle and holds close-page
-        # write utilisation at 100%; the core still re-checks against the
-        # registered view. INIT and REFRESH decode directly in Stage B (depth=2).
+        # The arbiter is a 3-stage pipeline for DEMAND picks (col/act/pre from
+        # arg_sel): it registers the per-bank timer
+        # fan-in at its INPUT (1 cycle), the per-class SELECTION in the pre-pick
+        # register (1 cycle, added by PUMICE-017 to cut the r_older->pick cone),
+        # then the DECISION at its OUTPUT (1 cycle). So a pick reflecting
+        # freshly-set bank state / CAM entries appears 3 edges later. Advance
+        # all three, then settle combinational. INIT and REFRESH picks do NOT
+        # go through arg_sel or the pre-pick register (they are decoded directly
+        # in stage 2 from registered port/bank state), so they appear at depth=2
+        # -- those scenarios pass depth=2.
         for _ in range(depth):
             await RisingEdge(self.dut.aclk)
         await Timer(1, units='ns')
-        # Cadence-robust tail: a demand pick lands at `depth`, but a guard carried
-        # over from the PREVIOUS scenario (e.g. a just-fired column's re-issue
-        # guard on the same bank) can push the FIRST valid pick a cycle or two
-        # later. If nothing is presented yet, step a bounded window for it -- this
-        # only WAITS for a pick, never masks a wrong one (the caller asserts op).
-        for _ in range(6):
-            if int(self.dut.cmd_valid_o.value):
-                break
-            await RisingEdge(self.dut.aclk)
-            await Timer(1, units='ns')
 
     async def step(self):
         # ONE edge + settle. For windowed polls: a fixed multi-edge settle()

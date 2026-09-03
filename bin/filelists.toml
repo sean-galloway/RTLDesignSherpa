@@ -251,3 +251,10 @@ gaxi_skid_buffer_multi_sigmap = "multi-instance wrapper; no consumer yet"
 # filelist entries, and deleting these two lines.
 pumice_rbl_table = "set aside under rtl/OLD/ -- 60% of failing timing endpoints; see that README"
 pumice_row_pred_table = "set aside under rtl/OLD/ -- 60% of failing timing endpoints; see that README"
+# Two-stage bank scheduler (per-bank pickers + tournament core). Correct and
+# fully verified, but 2.3x the flat arbiter's LUTs -> 97% slices -> route
+# congestion; does not fit the xc7a100t -1. Set aside as the base returns to the
+# flat single-stage FR-FCFS arbiter, and preserved for the codegen family
+# (enable on a bigger/faster part). See rtl/OLD/README.md.
+pumice_bank_cmd_picker = "set aside under rtl/OLD/ -- two-stage scheduler, too big for this part; see that README"
+pumice_bank_sched_core = "set aside under rtl/OLD/ -- two-stage scheduler, too big for this part; see that README"
