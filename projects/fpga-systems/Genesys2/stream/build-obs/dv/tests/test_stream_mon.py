@@ -10,6 +10,9 @@
 # Reuses the proven StreamHarnessTB UART transport (the mon harness shares the perf
 # harness's UART/CSR/descriptor interface). Pattern B.
 
+import contextlib
+import io
+import logging
 import os
 import sys
 import random
@@ -18,6 +21,7 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 
+from TBClasses.apb.register_map import RegisterMap
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path, preserve_prior_log
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
@@ -41,18 +45,47 @@ import stream_levels  # noqa: E402
 # ingest window's READ channel (stream_tally@0x40000 / slave_tally@0xC0000);
 # config (profile-CAM load/clear) rides the cfg window's WRITE channel
 # (stream_tally_cfg@0x100000 / slave_tally_cfg@0x140000).
-STREAM_TALLY_RD   = 0x0004_0000       # count readback (ingest-window read port)
-SLAVE_TALLY_RD    = 0x000C_0000
-STREAM_TALLY_CFG  = 0x0010_0000       # config write (profile CAM), config readback
-SLAVE_TALLY_CFG   = 0x0014_0000
-BIN_COMPLETION0 = 0x0100              # {AXI, COMPLETION, evcode 0}
+# Windows BY NAME from the bridge config that generated the RTL, never as
+# literals. The tally window is exactly where a literal went wrong before:
+# 0x40000 was hardcoded in host tools for years after the capture memory moved,
+# and the counters read back zero the whole time.
+import bridge_windows  # noqa: E402
 
-# CAM programming registers (offsets within a *_tally_cfg slave). Register-based
-# (index comes from data, not address) -> bus-width independent, no stride hazard.
-CAM_CLEAR_OFF = 0x0100               # any write invalidates all CAM entries
-CAM_KEY_OFF   = 0x0108               # wdata[31:0] = key to load next
-CAM_LOAD_OFF  = 0x0110               # wdata = (1<<31 valid) | index -> load CAM_KEY
+STREAM_TALLY_RD   = bridge_windows.base('stream_tally')       # count readback
+SLAVE_TALLY_RD    = bridge_windows.base('slave_tally')
+STREAM_TALLY_CFG  = bridge_windows.base('stream_tally_cfg')   # profile-CAM config
+SLAVE_TALLY_CFG   = bridge_windows.base('slave_tally_cfg')
+BIN_COMPLETION0 = 0x0100              # {AXI, COMPLETION, evcode 0} -- a BIN, not a register
+
+# CAM programming registers, resolved from the block that generates the decode
+# (projects/components/misc/rtl/tally_regs.rdl). These were hardcoded localparams
+# in the RTL and literals here; both sides now come from the one RDL.
+_TALLY_REGS = RegisterMap(
+    os.path.join(os.environ['REPO_ROOT'],
+                 'projects/components/misc/rtl/regs/generated/tally_regs_top_regmap.py'),
+    apb_data_width=32, apb_addr_width=32, start_address=0,
+    log=logging.getLogger('tally_regs'))
+
+CAM_CLEAR_OFF = _TALLY_REGS.reg_address(_TALLY_REGS.registers['CAM_CLEAR'])
+CAM_KEY_OFF   = _TALLY_REGS.reg_address(_TALLY_REGS.registers['CAM_KEY'])
+CAM_LOAD_OFF  = _TALLY_REGS.reg_address(_TALLY_REGS.registers['CAM_LOAD'])
 MON_N_PROFILE = cfg_int('CFG_MON_N_PROFILE')   # legal-set size, from the package
+
+
+_STREAM_REGS = RegisterMap(
+    os.path.join(os.environ['REPO_ROOT'],
+                 'projects/components/dmas/stream/regs/generated/stream_regs_regmap.py'),
+    apb_data_width=32, apb_addr_width=32, start_address=0,
+    log=logging.getLogger('stream_regs'))
+
+
+def _MON_REG(name):
+    """Offset of a STREAM register by NAME, relative to the APB window base.
+
+    The monitor block already moved once (to 0x1000) and took every hardcoded
+    copy with it. Resolving by name means the next move is a regmap regen.
+    """
+    return _STREAM_REGS.reg_address(_STREAM_REGS.registers[name])
 
 
 def profile_key(agent, protocol, pkt_type, event_code):
@@ -116,7 +149,7 @@ async def cocotb_test_stream_mon(dut):
 
     # DECISIVE PROBE: host <-> desc_ram round-trip over the NEW bridge
     # (32-bit AXIL host -> 32->256 upsize -> desc_ram slave @ 0x20000).
-    DESC = 0x0002_0000
+    DESC = bridge_windows.base('desc_ram')   # by name; never a literal
     pat = {0x00: 0xDEADBEEF, 0x04: 0x12345678, 0x20: 0xCAFEBABE, 0x24: 0x0BADF00D}
     for off, val in pat.items():
         await tb.uart_write(DESC + off, val)
@@ -163,13 +196,17 @@ async def cocotb_test_stream_mon(dut):
     # range0 is DEBUG (flavor bit0=0) -> a hit emits AddrMatch.
     addr_range_writes = None
     if os.environ.get('USE_MON', '0') == '1':
-        MON = 0x1000
+        # BY NAME from the STREAM regmap. These were literals -- MON = 0x1000
+        # plus per-monitor 0x200/0x230 and per-range 0x00/0x04/0x10/0x14 -- which
+        # is the same shape of bug that moved the monitor block to 0x1000 and
+        # left every perf counter reading zero for a week.
         ctrl_val = 0x01 | (1 << 4) | (1 << 5)       # RANGE_EN=0b0001, CHECK_EN, MATCH_EN
         addr_range_writes = []
-        for rbase, cbase in ((MON + 0x200, MON + 0x220), (MON + 0x230, MON + 0x250)):
-            addr_range_writes += [(rbase + 0x00, 0x00000000),   # range0 LOW  = 0
-                                  (rbase + 0x04, 0xFFFFFFFF),   # range0 HIGH = match-all
-                                  (cbase,        ctrl_val)]     # enable range0 + check + match
+        for mon in ('RDMON', 'WRMON'):
+            addr_range_writes += [
+                (_MON_REG(f'{mon}_ADDR_RANGE0_LOW'),  0x00000000),  # match-all low
+                (_MON_REG(f'{mon}_ADDR_RANGE0_HIGH'), 0xFFFFFFFF),  # match-all high
+                (_MON_REG(f'{mon}_ADDR_RANGE_CTRL'),  ctrl_val)]    # range0 + check + match
         # MISS/error repro: arm range2 (ERROR-flavored, IS_ERROR bit2) with a tiny
         # high exclude window so EVERY command is an allowlist miss -> should emit
         # Error/ADDR_RANGE (type 0, event 0x0D) into bin 0x000D. CTRL adds RANGE_EN
@@ -177,10 +214,11 @@ async def cocotb_test_stream_mon(dut):
         # scenario -- run with TEST_MISS=1 to reproduce the empty-error-bin symptom.
         if os.environ.get('TEST_MISS', '0') == '1':
             miss_ctrl = 0x01 | (1 << 2) | (1 << 4) | (1 << 5) | (1 << 6)  # r0+r2+check+match+miss
-            for rbase, cbase in ((MON + 0x200, MON + 0x220), (MON + 0x230, MON + 0x250)):
-                addr_range_writes += [(rbase + 0x10, 0xFFFFFFF0),  # range2 LOW  (excludes DMA)
-                                      (rbase + 0x14, 0xFFFFFFFF),  # range2 HIGH
-                                      (cbase,        miss_ctrl)]   # + range2 enable + MISS
+            for mon in ('RDMON', 'WRMON'):
+                addr_range_writes += [
+                    (_MON_REG(f'{mon}_ADDR_RANGE2_LOW'),  0xFFFFFFF0),  # excludes the DMA
+                    (_MON_REG(f'{mon}_ADDR_RANGE2_HIGH'), 0xFFFFFFFF),
+                    (_MON_REG(f'{mon}_ADDR_RANGE_CTRL'),  miss_ctrl)]   # + range2 + MISS
             dut._log.info("[addr-range] TEST_MISS=1: armed ERROR range2 exclude + MISS_EN")
         # Load the STREAM legal set into the tally CAM HERE too: run_dma_test's
         # SOFT_RESET wipes the CAM (it fans out to unit_aresetn), so it MUST be

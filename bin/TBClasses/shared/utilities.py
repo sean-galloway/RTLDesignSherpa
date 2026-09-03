@@ -208,6 +208,36 @@ def get_paths(dir_dict):
     return module, repo_root, tests_dir, log_dir, paths_dict
 
 
+def preserve_prior_log(log_path, keep=3):
+    """Rotate an existing log aside so a re-run cannot destroy its evidence.
+
+    The log path is keyed by TEST NAME, so re-running a failing test overwrites
+    the failing run's log -- including the SEED line the TB prints so the run
+    can be reproduced. That is exactly the file you need, and it is gone the
+    moment you try to look at the failure again.
+
+    This is not hypothetical: a randomized descriptor soak failed in a full
+    suite run and passed when re-run alone. The re-run overwrote the failing
+    log, took the seed with it, and made it impossible to tell a seed-specific
+    RTL bug from an environmental one. The failure is still unclassified.
+
+    Keeps the previous `keep` runs as <name>.1.log (most recent) .. .N.log.
+    Best-effort: a rotation failure must never fail a test, so errors are
+    swallowed -- losing a rotation is bad, losing the run is worse.
+    """
+    try:
+        if not os.path.isfile(log_path):
+            return
+        base, ext = os.path.splitext(log_path)
+        for i in range(keep - 1, 0, -1):
+            older, newer = f"{base}.{i}{ext}", f"{base}.{i + 1}{ext}"
+            if os.path.isfile(older):
+                os.replace(older, newer)
+        os.replace(log_path, f"{base}.1{ext}")
+    except OSError:
+        pass
+
+
 def create_view_cmd(log_dir, log_path, sim_build, module, test_name):
     """
     Creates a shell script to view waveforms and logs based on the simulator in use.

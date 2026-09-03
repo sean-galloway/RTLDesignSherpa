@@ -24,7 +24,7 @@ import random
 import pytest
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
+from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path, preserve_prior_log
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 repo_root = get_repo_root()
@@ -220,6 +220,9 @@ def test_stream_perf(request, test_type, test_level):
     # sim_build is keyed by ELABORATION INPUTS, not the test name -- assigned
     # just before run(), once rtl_parameters and compile_args exist.
     os.makedirs(log_dir, exist_ok=True)
+    # Keep the previous run's log: re-running a failure would otherwise
+    # overwrite it and take the reproduction seed with it.
+    preserve_prior_log(log_path)
 
     # USE_AXI_MONITORS = 0. This is the PERF build, and it builds its own
     # bitstream that way (build-perf/Makefile: USE_AXI_MONITORS ?= 0), so the
