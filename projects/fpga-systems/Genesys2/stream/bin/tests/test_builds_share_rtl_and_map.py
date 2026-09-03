@@ -195,3 +195,56 @@ def test_perf_runs_faster_than_the_instrumented_flavours():
         assert perf > mhz(build), (
             f"build-perf is at {perf} MHz, not above {build}'s {mhz(build)} MHz"
         )
+
+
+# The instrumentation lists. Everything that is not a bridge belongs to the
+# shared one, so a source common to all three flavours is written down once.
+_FILELISTS = STREAM_ROOT / "rtl" / "filelists"
+_COMMON = "instrumentation_common.f"
+
+
+@pytest.mark.parametrize("variant", ("instrumentation.f", "instrumentation_mon.f"))
+def test_instrumentation_variants_only_add_a_bridge(variant):
+    """A per-bridge list may add its bridge and nothing else.
+
+    These two were once identical except for one line -- fourteen duplicated
+    entries, the harness registers among them. Adding the generated harness_csr
+    regblock meant editing both, and editing only one would have left two builds
+    compiling different register sets, silently, because each list is
+    internally valid on its own.
+    """
+    path = _FILELISTS / variant
+    assert path.is_file(), f"missing {path}"
+    lines = [ln.strip() for ln in path.read_text().splitlines()]
+    body = [ln for ln in lines if ln and not ln.startswith("#")]
+
+    assert any(_COMMON in ln for ln in body), (
+        f"{variant} does not pull {_COMMON}; the shared sources would be "
+        f"written down twice again"
+    )
+    bridges = [ln for ln in body if "bridges/filelists/" in ln]
+    assert len(bridges) == 1, (
+        f"{variant} should name exactly one bridge, found {len(bridges)}: "
+        f"{bridges}. The two bridges' adapter modules collide by name."
+    )
+    extra = [ln for ln in body if _COMMON not in ln and "bridges/filelists/" not in ln]
+    assert not extra, (
+        f"{variant} lists sources of its own: {extra}. Anything shared by the "
+        f"flavours belongs in {_COMMON}, not in one variant."
+    )
+
+
+def test_the_harness_registers_are_listed_once():
+    """The generated harness_csr regblock lives in the shared list only."""
+    hits = {
+        f.name: f.read_text().count("harness_csr_regs_top.sv")
+        for f in _FILELISTS.glob("instrumentation*.f")
+    }
+    assert hits.get(_COMMON, 0) >= 1, (
+        f"{_COMMON} does not list the generated harness regblock: {hits}"
+    )
+    dupes = {n: c for n, c in hits.items() if n != _COMMON and c}
+    assert not dupes, (
+        f"the harness registers are also listed in {dupes} -- they must be in "
+        f"ONE list shared by all three builds"
+    )
