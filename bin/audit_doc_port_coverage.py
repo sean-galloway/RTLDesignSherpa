@@ -83,6 +83,24 @@ def port_name(tail: str):
     return ids[-1] if ids else None
 
 
+RE_SLASH_ALT = re.compile(r'`([A-Za-z0-9_]+?)_([A-Za-z0-9]+(?:/[A-Za-z0-9]+)+)')
+
+
+def expand_slash_alternations(text):
+    """Names written as one token with a slash alternation.
+
+    The axil4 monitor pages document the range bounds as
+    `cfg_addr_range_low/high[N-1:0][...]` -- one token covering two ports.
+    Both are documented; only a literal-name search says otherwise. Expanding
+    the alternation is honest, where relaxing the search would not be.
+    """
+    extra = []
+    for stem, alts in RE_SLASH_ALT.findall(text):
+        for a in alts.split('/'):
+            extra.append(f'{stem}_{a}')
+    return ' '.join(extra)
+
+
 RE_PREFIX_DELEGATE = re.compile(
     r'same port list as[^.\n]*?`([A-Za-z0-9_]+?)_?\*`', re.I)
 
@@ -113,8 +131,18 @@ def covered_by_prefix(name, prefixes, text):
     return False
 
 
-RE_DELEGATE_LINK = re.compile(r'\[([A-Za-z0-9_]+)\]\(([^)]+\.md)\)')
-RE_DELEGATES = re.compile(r'\b(?:same as|identical to)\b', re.I)
+# Link text is free-form prose, not an identifier. Requiring [A-Za-z0-9_]+
+# meant "see [AXI5 Slave Read](axi5_slave_rd.md) for complete port list" was
+# not recognised as a delegation, and its 22 forwarded ports were reported as
+# undocumented.
+RE_DELEGATE_LINK = re.compile(r'\[([^\]]+)\]\(([^)]+\.md)\)')
+
+# "**Base Module:** [x](x.md)" is the wrapper convention in this book: a _cg
+# wrapper forwards its base module's ports unchanged and documents only what
+# it adds. That is a delegation, and a checkable one -- if the base page drops
+# a port, the wrapper page now fails with it.
+RE_DELEGATES = re.compile(
+    r'\b(?:same as|identical to|base module|base-module)\b', re.I)
 
 
 def declared(sv: Path):
@@ -209,6 +237,7 @@ def main() -> int:
             continue
         params, ports = got
         text = with_delegations(page, page.read_text(errors='replace'))
+        text += '\n' + expand_slash_alternations(text)
         gaps = []
         if not args.ports_only:
             gaps += [('param', n) for n in sorted(params)
