@@ -83,6 +83,36 @@ def port_name(tail: str):
     return ids[-1] if ids else None
 
 
+RE_PREFIX_DELEGATE = re.compile(
+    r'same port list as[^.\n]*?`([A-Za-z0-9_]+?)_?\*`', re.I)
+
+
+def prefix_delegations(text):
+    """Prefixes the page documents by reference rather than by table.
+
+    axi5_master_wr says "Same port list as FUB interface but with `m_axi_*`
+    prefix and reversed directions" instead of repeating forty rows with one
+    word changed. Only the handful of names appearing nowhere else literally
+    (m_axi_awtagop, m_axi_awunique, m_axi_btagmatch, m_axi_wtagupdate) were
+    reported as gaps, which made the report look like a documentation defect
+    when it is a documentation style.
+
+    A delegated name counts as documented only if the SAME suffix is
+    documented under some other prefix -- so if the FUB side is missing it
+    too, both are still reported.
+    """
+    return [m.group(1) + '_' for m in RE_PREFIX_DELEGATE.finditer(text)]
+
+
+def covered_by_prefix(name, prefixes, text):
+    for pre in prefixes:
+        if name.startswith(pre):
+            suffix = name[len(pre):]
+            if suffix and re.search(rf'\b\w+_{re.escape(suffix)}\b', text):
+                return True
+    return False
+
+
 RE_DELEGATE_LINK = re.compile(r'\[([A-Za-z0-9_]+)\]\(([^)]+\.md)\)')
 RE_DELEGATES = re.compile(r'\b(?:same as|identical to)\b', re.I)
 
@@ -187,6 +217,11 @@ def main() -> int:
             gaps += [('port', n) for n in sorted(ports)
                      if not re.search(rf'\b{re.escape(n)}\b', text)
                      and (args.strict or not RE_PROTOCOL_PORT.match(n))]
+        if gaps:
+            pres = prefix_delegations(text)
+            if pres:
+                gaps = [(k, n) for (k, n) in gaps
+                        if not (k == 'port' and covered_by_prefix(n, pres, text))]
         if gaps:
             offenders += 1
             total_missing += len(gaps)
