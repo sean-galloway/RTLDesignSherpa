@@ -604,8 +604,19 @@ module harness_csr #(
     assign w_hwif_in.DESC_B_HS.VALUE.next = i_desc_b_hs;
     assign w_hwif_in.DESC_VR_LIVE.VALUE.next = {16'h0, i_desc_vr_live};
     assign w_hwif_in.BUILD_VERSION.VALUE.next = 32'(BUILD_VERSION);
+    // ALL SIX fields, matching the retired decode's concatenation exactly:
+    //   {15'h0, MAIN_CONES, DATA_WIDTH_B[7:0], GEN_MON, USE_MONITORS,
+    //    ERROR_FLAVOR, NUM_CHANNELS[4:0]}
+    // I first mapped only two of them by hand and left four undriven, which
+    // synthesis caught as "does not have driver". USE_MONITORS is the one that
+    // would have hurt: the host reads bit 6 to choose the monbus capture
+    // window, so an undriven bit sends records at the wrong slave.
+    assign w_hwif_in.BUILD_CONFIG.NUM_CHANNELS.next = 5'(BUILD_NUM_CHANNELS);
+    assign w_hwif_in.BUILD_CONFIG.ERROR_FLAVOR.next = 1'(BUILD_ERROR_FLAVOR);
+    assign w_hwif_in.BUILD_CONFIG.USE_MONITORS.next = 1'(BUILD_USE_MONITORS);
+    assign w_hwif_in.BUILD_CONFIG.GEN_MON.next      = 1'(BUILD_GEN_MON);
     assign w_hwif_in.BUILD_CONFIG.DATA_WIDTH_B.next = 8'(BUILD_DATA_WIDTH_B);
-    assign w_hwif_in.BUILD_CONFIG.MAIN_CONES.next = 1'(BUILD_MAIN_CONES);
+    assign w_hwif_in.BUILD_CONFIG.MAIN_CONES.next   = 1'(BUILD_MAIN_CONES);
     assign w_hwif_in.BUILD_N_PROFILE.VALUE.next = 32'(BUILD_N_PROFILE);
     assign w_hwif_in.BUILD_CLK_HZ.VALUE.next = 32'(BUILD_CLK_HZ);
     assign w_hwif_in.COMP_TIER1_A.VALUE.next = i_mon_comp_tier1_a;
