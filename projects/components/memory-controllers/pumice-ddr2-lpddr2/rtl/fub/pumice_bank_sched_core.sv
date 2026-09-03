@@ -7,26 +7,31 @@
 // Module: pumice_bank_sched_core
 // Purpose: The STAGE-2 (final) scheduler of the two-stage bank-partitioned
 //   arbiter (PUMICE_BANK_SCHED). It arbitrates among the NUM_BANKS REGISTERED
-//   per-bank candidates from pumice_bank_cmd_picker, applies the GLOBAL timing
-//   constraints a single bank cannot see (bus 1/cyc, tRRD, tFAW, tWTR/tRTW
-//   turnaround, tCCD), RE-CHECKS each candidate against live per-bank readiness
-//   (a flopped candidate can go illegal in one cycle), overlays the
-//   refresh / init OVERRIDE at highest priority (ported faithfully from the
-//   flat pumice_cmd_arbiter, incl. the PRE-then-REF drain, REFpb rotor bank,
-//   tRFC recovery and the double-issue !r_grant guard), registers the decision
-//   into the cmd FIFO, and drives the evt / CAM-commit / CAM-issue / grant
-//   strobes plus the per-bank issued_o strobe (+ issued_op_o) that advances the
-//   winning picker and arms its guards.
+//   per-bank candidates from pumice_bank_cmd_picker and drives one DRAM command,
+//   the evt / CAM-commit / CAM-issue / grant strobes, and the per-bank issued_o
+//   (+ issued_op_o) feedback that advances the winning picker and arms its
+//   guards.
 //
-// This is the production sibling of rtl/proto/pumice_bank_sched_core.sv (the
-// depth-measurement scaffold, ~24 mux levels). Because the candidates are
-// pre-selected and registered, the cross-bank pick is an 8-way TOURNAMENT TREE
-// (clog2(NUM_BANKS) compares), never a serial `if pri>best` accumulator
+// TWO INTERNAL PIPELINE STAGES (keeps each cone shallow):
+//   STAGE A -- the balanced NUM_BANKS-way TOURNAMENT over the candidate keys,
+//     eligibility-rechecked against live per-bank readiness + the global
+//     constraints (tRRD/tFAW/tCCD/tWTR/tRTW turnaround) + the guards, then FLOP
+//     the single winner {valid, op, bank, row, col, slot, is_rd, ap}.
+//   STAGE B -- a LIVE re-check of that flopped winner (it can go illegal in the
+//     extra cycle), the refresh / init OVERRIDE at highest priority (PRE-then-REF
+//     drain, REFpb rotor bank, tRFC recovery, the !r_grant double-issue guard),
+//     the timeout-PRE, then the output register + all strobes.
+//
+// This costs +1 issue-latency vs a single-stage core. The issued_o -> picker
+// feedback therefore returns one cycle later, and the DOUBLE-ISSUE guard spans
+// BOTH pipeline registers: a bank in flight in stage A (r_a) OR stage B (r_pick)
+// is excluded from the stage-A tournament, and the picker's per-bank guards were
+// deepened by one to match (see pumice_bank_cmd_picker).
+//
+// Depth discipline: the cross-bank pick is a balanced TOURNAMENT TREE
+// (clog2(NUM_BANKS) key compares), and the refresh precharge target is a
+// lowest-set isolate + reduce, never a serial `if pri>best` / priority scan
 // (PUMICE-017).
-//
-// Pipeline: [picker classify+select] -> candidate REG -> [this core: recheck +
-// override + register] -> output REG. Two registers, matching the flat
-// arbiter's pre-pick + output depth, so the neighbouring timing is unchanged.
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
@@ -39,7 +44,7 @@ module pumice_bank_sched_core
     parameter int COL_WIDTH = 10,
     parameter int BKW       = 3,
     parameter int PTRW      = 3,
-    parameter int AGE_WIDTH = 16,
+    parameter int KEYW      = 15,
     parameter int RKW       = 1
 ) (
     input  logic                                aclk,
@@ -53,7 +58,7 @@ module pumice_bank_sched_core
     input  logic [NUM_BANKS-1:0][COL_WIDTH-1:0] cand_col_i,
     input  logic [NUM_BANKS-1:0][PTRW-1:0]      cand_slot_i,
     input  logic [NUM_BANKS-1:0]                cand_is_rd_i,
-    input  logic [NUM_BANKS-1:0][AGE_WIDTH-1:0] cand_pri_i,
+    input  logic [NUM_BANKS-1:0][KEYW-1:0]      cand_pri_i,
 
     // ---- registered per-bank state (recheck + refresh) ----
     input  logic [NUM_BANKS-1:0]                bank_act_ready_i,
@@ -120,8 +125,17 @@ module pumice_bank_sched_core
 );
 
     localparam int RK0 = 0;   // v1 single-rank pick
+    localparam int LV  = $clog2(NUM_BANKS);
 
-    // ---- registered decision (output stage) --------------------------------
+    // ---- STAGE A registered winner ----------------------------------------
+    logic                 r_a_valid, r_a_is_rd, r_a_ap;
+    dram_op_e             r_a_op;
+    logic [BKW-1:0]       r_a_bank;
+    logic [ROW_WIDTH-1:0] r_a_row;
+    logic [COL_WIDTH-1:0] r_a_col;
+    logic [PTRW-1:0]      r_a_slot;
+
+    // ---- STAGE B registered decision (output stage) -----------------------
     logic                 r_pick_valid;
     dram_op_e             r_op;
     logic [BKW-1:0]       r_bank;
@@ -132,48 +146,48 @@ module pumice_bank_sched_core
     logic                 r_wr_commit, r_rd_issue;
     logic [PTRW-1:0]      r_commit_slot, r_issue_slot;
 
-    logic w_out_ready, w_fire_out;
-    assign w_out_ready = !r_pick_valid || cmd_ready_i;
-    assign w_fire_out  = r_pick_valid && cmd_ready_i;
-
-    // ---- guards (registered), all driven by this core's own issued command --
-    logic [NUM_BANKS-1:0] r_guard0, r_guard1;   // block ACT/PRE re-issue (2 cyc)
-    logic [NUM_BANKS-1:0] r_colguard0;          // block THIS BANK's columns (1 cyc)
-    logic                 r_rdfire0, r_rdfire1;     // tRTW turnaround history
-    logic                 r_wrfire0, r_wrfire1;     // tWTR turnaround history
+    // ---- guards (registered), driven by the STAGE B fire ------------------
+    logic [NUM_BANKS-1:0] r_guard0, r_guard1;   // block ACT/PRE re-issue
+    logic [NUM_BANKS-1:0] r_colguard0;          // block a bank's columns 1 cyc
+    logic                 r_rdfire0, r_rdfire1; // tRTW turnaround history
+    logic                 r_wrfire0, r_wrfire1; // tWTR turnaround history
     logic [15:0]          r_rfc_cnt;
 
-    logic w_inflight_preact, w_inflight_col, w_rfc_busy;
+    // ---- flow control ------------------------------------------------------
+    logic w_out_ready, w_fire_out, w_a_ready;
+    assign w_out_ready = !r_pick_valid || cmd_ready_i;    // stage B can accept
+    assign w_fire_out  = r_pick_valid && cmd_ready_i;     // stage B issues
+    assign w_a_ready   = !r_a_valid || w_out_ready;       // stage A can push to B
+
+    // ---- inflight + guard views -------------------------------------------
+    logic w_infl_a_pre, w_infl_a_col, w_infl_b_pre, w_infl_b_col, w_rfc_busy;
     logic w_rd_turn_block, w_wr_turn_block;
-    assign w_inflight_preact = r_pick_valid && (r_do_act || r_do_pre);
-    assign w_inflight_col    = r_pick_valid && (r_do_rd  || r_do_wr);
-    assign w_rfc_busy        = (r_rfc_cnt != 16'd0);
-    assign w_rd_turn_block   = r_wrfire0 || r_wrfire1;   // WR fired < 2 cyc ago
-    assign w_wr_turn_block   = r_rdfire0 || r_rdfire1;   // RD fired < 2 cyc ago
+    assign w_infl_a_pre = r_a_valid && ((r_a_op == OP_ACT) || (r_a_op == OP_PRE));
+    assign w_infl_a_col = r_a_valid && is_column_op(r_a_op);
+    assign w_infl_b_pre = r_pick_valid && (r_do_act || r_do_pre);
+    assign w_infl_b_col = r_pick_valid && (r_do_rd  || r_do_wr);
+    assign w_rfc_busy   = (r_rfc_cnt != 16'd0);
+    assign w_rd_turn_block = r_wrfire0 || r_wrfire1;   // WR fired < 2 cyc ago
+    assign w_wr_turn_block = r_rdfire0 || r_rdfire1;   // RD fired < 2 cyc ago
 
-    // Bank guard: 2-cycle re-issue block + the in-flight (held/draining) bank.
-    logic [NUM_BANKS-1:0] w_guarded;
+    // ACT/PRE re-issue guard. _b (stage-B recheck / refresh) covers r_pick +
+    // the post-issue shift; _a (stage-A tournament) adds r_a so a bank already
+    // in EITHER pipeline register is excluded -- the two-stage double-issue net.
+    logic [NUM_BANKS-1:0] w_g_b, w_g_a, w_cg_b, w_cg_a;
     always_comb begin
-        w_guarded = r_guard0 | r_guard1;
-        if (w_inflight_preact || w_inflight_col)
-            w_guarded |= (NUM_BANKS'(1) << r_bank);
+        w_g_b  = r_guard0 | r_guard1;
+        if (w_infl_b_pre || w_infl_b_col) w_g_b |= (NUM_BANKS'(1) << r_bank);
+        w_g_a  = w_g_b;
+        if (w_infl_a_pre || w_infl_a_col) w_g_a |= (NUM_BANKS'(1) << r_a_bank);
+        w_cg_b = r_colguard0;
+        if (w_infl_b_col) w_cg_b |= (NUM_BANKS'(1) << r_bank);
+        w_cg_a = w_cg_b;
+        if (w_infl_a_col) w_cg_a |= (NUM_BANKS'(1) << r_a_bank);
     end
 
-    // Per-bank COLUMN guard: block ONLY the just-fired column's own bank, for
-    // the two cycles that bridge the candidate-reg + output-reg latency until
-    // the CAM retires the slot -- w_inflight_col (the held/draining column's
-    // bank) then r_colguard0 (one flop). This is the exact contract the flat
-    // arbiter's 1-cycle w_inflight_col relied on (1-cycle CAM retire), so a
-    // static single-bank column stream re-issues every other cycle just as the
-    // flat path does. Per-bank (not a global stall) leaves OTHER banks free; a
-    // deeper block would re-shape the pick cadence.
-    logic [NUM_BANKS-1:0] w_col_guarded;
-    always_comb begin
-        w_col_guarded = r_colguard0;
-        if (w_inflight_col) w_col_guarded |= (NUM_BANKS'(1) << r_bank);
-    end
-
-    // ---- re-check each registered candidate against live readiness + global -
+    // ========================================================================
+    // STAGE A: eligibility re-check + balanced max-key tournament.
+    // ========================================================================
     logic [NUM_BANKS-1:0] w_elig;
     always_comb begin
         w_elig = '0;
@@ -181,80 +195,145 @@ module pumice_bank_sched_core
             automatic logic is_col = is_column_op(cand_op_i[b]);
             automatic logic is_act = (cand_op_i[b] == OP_ACT);
             automatic logic is_pre = (cand_op_i[b] == OP_PRE);
-            automatic logic okc = is_col && bank_rdwr_ready_i[b] && tccd_ok_i
-                                  && !w_col_guarded[b]
+            automatic logic okc = is_col && bank_rdwr_ready_i[b] && tccd_ok_i && !w_cg_a[b]
                                   && (cand_is_rd_i[b] ? (twtr_ok_i && !w_rd_turn_block)
                                                       : (trtw_ok_i && !w_wr_turn_block));
             automatic logic oka = is_act && bank_act_ready_i[b] && tfaw_ok_i && trrd_ok_i
-                                  && !w_rfc_busy && !w_guarded[b];
-            automatic logic okp = is_pre && bank_pre_ready_i[b] && !w_guarded[b];
+                                  && !w_rfc_busy && !w_g_a[b];
+            automatic logic okp = is_pre && bank_pre_ready_i[b] && !w_g_a[b];
             w_elig[b] = cand_valid_i[b] && (okc || oka || okp);
         end
     end
 
-    // ---- 8-way pick among eligible candidates: oldest priority wins --------
-    // Balanced TOURNAMENT TREE (clog2(NUM_BANKS) compares), NOT the serial
-    // `for b: if elig && pri>best` accumulator (PUMICE-017). Prefer-left on ties.
-    localparam int LV = $clog2(NUM_BANKS);
-    logic                 tv [LV+1][NUM_BANKS];
-    logic [AGE_WIDTH-1:0] tp [LV+1][NUM_BANKS];
-    logic [BKW-1:0]       tb [LV+1][NUM_BANKS];
-    logic                 sel_valid;
-    logic [BKW-1:0]       sel_bank;
-    logic [AGE_WIDTH-1:0] best_pri;
+    // Balanced tournament tree: max cand_pri among eligible; prefer-left on ties.
+    logic [KEYW:0] tk [LV+1][NUM_BANKS];   // {valid, key}
+    logic [BKW-1:0] tb [LV+1][NUM_BANKS];
+    logic           sel_valid;
+    logic [BKW-1:0] sel_bank;
     always_comb begin
         for (int b = 0; b < NUM_BANKS; b++) begin
-            tv[0][b] = w_elig[b];
-            tp[0][b] = cand_pri_i[b];
+            tk[0][b] = {w_elig[b], cand_pri_i[b]};   // invalid -> MSB 0 -> loses
             tb[0][b] = BKW'(b);
         end
         for (int l = 1; l <= LV; l++) begin
             for (int i = 0; i < (NUM_BANKS >> l); i++) begin
-                automatic logic av = tv[l-1][2*i];
-                automatic logic bv = tv[l-1][2*i+1];
-                // right child wins only if left invalid, or right valid + strictly
-                // higher priority (prefer-left on ties/none)
-                automatic logic pick_r = (!av) || (bv && (tp[l-1][2*i+1] > tp[l-1][2*i]));
-                tv[l][i] = av || bv;
-                tp[l][i] = pick_r ? tp[l-1][2*i+1] : tp[l-1][2*i];
+                automatic logic pick_r = tk[l-1][2*i+1] > tk[l-1][2*i];
+                tk[l][i] = pick_r ? tk[l-1][2*i+1] : tk[l-1][2*i];
                 tb[l][i] = pick_r ? tb[l-1][2*i+1] : tb[l-1][2*i];
             end
         end
-        sel_valid = tv[LV][0];
-        best_pri  = tp[LV][0];
+        sel_valid = tk[LV][0][KEYW];   // winner's validity bit
         sel_bank  = tb[LV][0];
     end
-    // best_pri is diagnostic only (the winner is named by sel_bank).
-    wire _unused_best_pri = &{1'b0, best_pri};
 
-    // ---- refresh: pick the lowest active bank that can precharge -----------
-    logic           w_any_active, w_rfsh_pre_found, w_ref_safe, w_refpb_safe;
-    logic [BKW-1:0] w_rfsh_pre_bank;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_a_valid <= 1'b0; r_a_op <= OP_NOP; r_a_bank <= '0; r_a_row <= '0;
+            r_a_col <= '0; r_a_slot <= '0; r_a_is_rd <= 1'b1; r_a_ap <= 1'b0;
+        end else if (w_a_ready) begin
+            r_a_valid <= sel_valid;
+            r_a_op    <= cand_op_i[sel_bank];
+            r_a_bank  <= sel_bank;
+            r_a_row   <= cand_row_i[sel_bank];
+            r_a_col   <= cand_col_i[sel_bank];
+            r_a_slot  <= cand_slot_i[sel_bank];
+            r_a_is_rd <= cand_is_rd_i[sel_bank];
+            r_a_ap    <= cand_ap_i[sel_bank];
+        end
+    )
+
+    // ========================================================================
+    // STAGE B: live re-check of r_a + refresh/init override + timeout-PRE.
+    // ========================================================================
+    // live re-check: the flopped winner may have gone illegal in the extra cycle
+    logic w_b_ok;
     always_comb begin
-        w_any_active     = |bank_row_active_i;
-        w_rfsh_pre_found = 1'b0;
-        w_rfsh_pre_bank  = '0;
-        for (int j = NUM_BANKS-1; j >= 0; j--)
-            if (bank_row_active_i[j] && bank_pre_ready_i[j] && !w_guarded[j]) begin
-                w_rfsh_pre_found = 1'b1;
-                w_rfsh_pre_bank  = BKW'(j);
-            end
+        automatic logic is_col = is_column_op(r_a_op);
+        automatic logic is_act = (r_a_op == OP_ACT);
+        automatic logic okc = is_col && bank_rdwr_ready_i[r_a_bank] && tccd_ok_i
+                              && !w_cg_b[r_a_bank]
+                              && (r_a_is_rd ? (twtr_ok_i && !w_rd_turn_block)
+                                            : (trtw_ok_i && !w_wr_turn_block));
+        automatic logic oka = is_act && bank_act_ready_i[r_a_bank] && tfaw_ok_i && trrd_ok_i
+                              && !w_rfc_busy && !w_g_b[r_a_bank];
+        automatic logic okp = (r_a_op == OP_PRE) && bank_pre_ready_i[r_a_bank] && !w_g_b[r_a_bank];
+        w_b_ok = r_a_valid && (okc || oka || okp);
     end
-    // REF may fire only when NO bank can possibly have a row open, nothing
-    // row-affecting is in flight / inside its guard window, tRFC elapsed, and no
-    // grant is already in the output register (!r_grant stops the double-issue).
-    assign w_ref_safe   = !w_any_active && !w_inflight_preact
+
+    // refresh: lowest active bank that can precharge (isolate-lowest + reduce,
+    // not a serial priority scan).
+    logic [NUM_BANKS-1:0] w_rfsh_elig, w_rfsh_low;
+    logic                 w_any_active, w_rfsh_pre_found, w_ref_safe, w_refpb_safe;
+    logic [BKW-1:0]       w_rfsh_pre_bank;
+    always_comb begin
+        for (int b = 0; b < NUM_BANKS; b++)
+            w_rfsh_elig[b] = bank_row_active_i[b] && bank_pre_ready_i[b] && !w_g_b[b];
+        w_rfsh_low       = w_rfsh_elig & (~w_rfsh_elig + NUM_BANKS'(1));  // lowest set
+        w_rfsh_pre_found = |w_rfsh_elig;
+        w_any_active     = |bank_row_active_i;
+        w_rfsh_pre_bank  = '0;
+        for (int p = 0; p < BKW; p++) begin
+            automatic logic [NUM_BANKS-1:0] pm;
+            for (int b = 0; b < NUM_BANKS; b++) pm[b] = w_rfsh_low[b] && b[p];
+            w_rfsh_pre_bank[p] = |pm;
+        end
+    end
+    assign w_ref_safe   = !w_any_active && !w_infl_a_pre && !w_infl_b_pre
                         && (r_guard0 == '0) && (r_guard1 == '0)
                         && !w_rfc_busy && !r_grant;
-    // REFpb: only the rotor bank must be closed; inflight/guard/rfc stay global.
-    assign w_refpb_safe = !bank_row_active_i[refresh_bank_i] && !w_inflight_preact
+    assign w_refpb_safe = !bank_row_active_i[refresh_bank_i]
+                        && !w_infl_a_pre && !w_infl_b_pre
                         && (r_guard0 == '0) && (r_guard1 == '0)
                         && !w_rfc_busy && !r_grant;
 
-    // ========================================================================
-    // Priority pick (combinational): init > refresh > demand tournament >
-    // timeout-PRE. Produces the abstract command + side-effect strobes.
-    // ========================================================================
+    // Refresh sub-decision, in its OWN small block (PRE active banks first, then
+    // REF + grant; REFpb rotor variant). Kept nested here where the depth is
+    // bounded, so the TOP-LEVEL priority below is a FLAT parallel select rather
+    // than a deep procmux chain (that nested if-else was the 19-mux cone).
+    logic     w_ref_valid, w_ref_do_pre, w_ref_grant;
+    dram_op_e w_ref_op;
+    logic [BKW-1:0] w_ref_bank;
+    always_comb begin
+        w_ref_valid = 1'b0; w_ref_do_pre = 1'b0; w_ref_grant = 1'b0;
+        w_ref_op = OP_NOP; w_ref_bank = '0;
+        if (refresh_kind_i) begin
+            if (bank_row_active_i[refresh_bank_i]) begin
+                if (bank_pre_ready_i[refresh_bank_i] && !w_g_b[refresh_bank_i]) begin
+                    w_ref_valid = 1'b1; w_ref_op = OP_PRE;
+                    w_ref_bank = refresh_bank_i; w_ref_do_pre = 1'b1;
+                end
+            end else if (w_refpb_safe) begin
+                w_ref_valid = 1'b1; w_ref_op = OP_REFPB;
+                w_ref_bank = refresh_bank_i; w_ref_grant = 1'b1;
+            end
+        end else if (w_any_active) begin
+            if (w_rfsh_pre_found) begin
+                w_ref_valid = 1'b1; w_ref_op = OP_PRE;
+                w_ref_bank = w_rfsh_pre_bank; w_ref_do_pre = 1'b1;
+            end
+        end else if (w_ref_safe) begin
+            w_ref_valid = 1'b1; w_ref_op = OP_REF; w_ref_grant = 1'b1;
+        end
+    end
+
+    // Timeout-PRE legality (lowest priority).
+    logic w_to_ok;
+    assign w_to_ok = timeout_pre_req_i
+                   && bank_row_active_i[timeout_pre_bank_i]
+                   && bank_pre_ready_i[timeout_pre_bank_i]
+                   && !w_g_b[timeout_pre_bank_i];
+
+    // ---- FLAT branch selects (priority folded into the conditions) ---------
+    // init > refresh > demand > timeout. Demand/timeout are suppressed whenever
+    // a refresh is requested (matches the flat else-if fall-through: the refresh
+    // branch owns the cycle even when it emits nothing).
+    logic w_refresh_active, w_sel_init, w_sel_ref, w_sel_dem, w_sel_to;
+    assign w_refresh_active = refresh_req_i || refresh_drain_i;
+    assign w_sel_init = !init_done_i && init_cmd_valid_i;
+    assign w_sel_ref  = init_done_i && w_refresh_active && w_ref_valid;
+    assign w_sel_dem  = init_done_i && !w_refresh_active && w_b_ok;
+    assign w_sel_to   = init_done_i && !w_refresh_active && !w_b_ok && w_to_ok;
+
     dram_op_e             w_op;
     logic [BKW-1:0]       w_bank;
     logic [ROW_WIDTH-1:0] w_row;
@@ -263,69 +342,36 @@ module pumice_bank_sched_core
     logic                 w_do_act, w_do_rd, w_do_wr, w_do_pre, w_grant;
     logic                 w_wr_commit, w_rd_issue;
     logic [PTRW-1:0]      w_commit_slot, w_issue_slot;
+    logic                 w_dem_rd, w_dem_wr;
+    assign w_dem_rd = w_sel_dem && is_read_op(r_a_op);
+    assign w_dem_wr = w_sel_dem && is_write_op(r_a_op);
+    assign w_valid   = w_sel_init || w_sel_ref || w_sel_dem || w_sel_to;
+    assign w_do_rd   = w_dem_rd;
+    assign w_do_wr   = w_dem_wr;
+    assign w_do_act  = w_sel_dem && (r_a_op == OP_ACT);
+    assign w_do_pre  = (w_sel_dem && (r_a_op == OP_PRE))
+                     || (w_sel_ref && w_ref_do_pre) || w_sel_to;
+    assign w_grant   = w_sel_ref && w_ref_grant;
+    assign w_rd_issue  = w_dem_rd;
+    assign w_wr_commit = w_dem_wr;
+    assign w_issue_slot  = r_a_slot;
+    assign w_commit_slot = r_a_slot;
+    assign w_ap_out  = w_sel_dem && r_a_ap;
+    // one flat select per wide field (idle default = NOP / bank 0, as the flat
+    // path did -- consumers gate on cmd_valid, but keeping op==NOP when idle also
+    // avoids a stale OP_PRE lingering in the registered cmd_op).
+    assign w_op   = w_sel_init ? init_cmd_op_i
+                  : w_sel_ref  ? w_ref_op
+                  : w_sel_dem  ? r_a_op
+                  : w_sel_to   ? OP_PRE : OP_NOP;
+    assign w_bank = w_sel_init ? init_cmd_bank_i
+                  : w_sel_ref  ? w_ref_bank
+                  : w_sel_dem  ? r_a_bank
+                  : w_sel_to   ? timeout_pre_bank_i : '0;
+    assign w_row  = w_sel_init ? init_cmd_row_i : (w_sel_dem ? r_a_row : '0);
+    assign w_col  = w_sel_dem ? r_a_col : '0;
 
-    always_comb begin
-        w_op = OP_NOP; w_bank = '0; w_row = '0; w_col = '0; w_ap_out = 1'b0;
-        w_valid = 1'b0;
-        w_do_act = 1'b0; w_do_rd = 1'b0; w_do_wr = 1'b0; w_do_pre = 1'b0; w_grant = 1'b0;
-        w_wr_commit = 1'b0; w_rd_issue = 1'b0; w_commit_slot = '0; w_issue_slot = '0;
-
-        if (!init_done_i) begin
-            // 1. INIT -- forward the sequencer command verbatim.
-            if (init_cmd_valid_i) begin
-                w_valid = 1'b1; w_op = init_cmd_op_i;
-                w_bank = init_cmd_bank_i; w_row = init_cmd_row_i;
-            end
-        end else if (refresh_req_i || refresh_drain_i) begin
-            // 2. REFRESH -- precharge active banks first, then REF + grant.
-            if (refresh_kind_i) begin
-                // 2b. REFpb -- close ONLY the device's rotor bank.
-                if (bank_row_active_i[refresh_bank_i]) begin
-                    if (bank_pre_ready_i[refresh_bank_i] && !w_guarded[refresh_bank_i]) begin
-                        w_valid = 1'b1; w_op = OP_PRE; w_bank = refresh_bank_i;
-                        w_do_pre = 1'b1;
-                    end
-                end else if (w_refpb_safe) begin
-                    w_valid = 1'b1; w_op = OP_REFPB; w_bank = refresh_bank_i;
-                    w_grant = 1'b1;
-                end
-            end else if (w_any_active) begin
-                if (w_rfsh_pre_found) begin
-                    w_valid = 1'b1; w_op = OP_PRE; w_bank = w_rfsh_pre_bank;
-                    w_do_pre = 1'b1;
-                end
-            end else if (w_ref_safe) begin
-                w_valid = 1'b1; w_op = OP_REF; w_grant = 1'b1;
-            end
-        end else if (sel_valid) begin
-            // 3. DEMAND -- the tournament winner (read-priority + oldest are
-            // already resolved inside the picker; class order too).
-            w_valid  = 1'b1;
-            w_op     = cand_op_i[sel_bank];
-            w_bank   = sel_bank;
-            w_row    = cand_row_i[sel_bank];
-            w_col    = cand_col_i[sel_bank];
-            w_ap_out = cand_ap_i[sel_bank];
-            if (is_read_op(cand_op_i[sel_bank])) begin
-                w_do_rd = 1'b1; w_rd_issue = 1'b1; w_issue_slot = cand_slot_i[sel_bank];
-            end else if (is_write_op(cand_op_i[sel_bank])) begin
-                w_do_wr = 1'b1; w_wr_commit = 1'b1; w_commit_slot = cand_slot_i[sel_bank];
-            end else if (cand_op_i[sel_bank] == OP_ACT) begin
-                w_do_act = 1'b1;
-            end else begin
-                w_do_pre = 1'b1;   // OP_PRE
-            end
-        end else if (timeout_pre_req_i
-                     && bank_row_active_i[timeout_pre_bank_i]
-                     && bank_pre_ready_i[timeout_pre_bank_i]
-                     && !w_guarded[timeout_pre_bank_i]) begin
-            // 4. TIMEOUT PRECHARGE -- strictly lowest priority.
-            w_valid = 1'b1; w_op = OP_PRE; w_bank = timeout_pre_bank_i;
-            w_do_pre = 1'b1;
-        end
-    end
-
-    // ---- output register: capture the pick, drain to the cmd FIFO ----------
+    // ---- output register ---------------------------------------------------
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_pick_valid <= 1'b0;
@@ -380,8 +426,6 @@ module pumice_bank_sched_core
     assign refresh_grant_o   = w_fire_out && r_grant;
 
     // ---- picker feedback: advance the winning bank + broadcast the fired op -
-    // Pulses for demand picks AND refresh PREs (any op that names a bank);
-    // REF/REFpb-grant and init carry no bank -> no pulse.
     always_comb begin
         issued_o = '0;
         if (w_fire_out && (r_do_act || r_do_rd || r_do_wr || r_do_pre))
@@ -389,7 +433,7 @@ module pumice_bank_sched_core
     end
     assign issued_op_o = r_op;
 
-    // ---- guard update -----------------------------------------------------
+    // ---- guard update (on STAGE B fire) -----------------------------------
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_guard0 <= '0; r_guard1 <= '0;
@@ -401,13 +445,9 @@ module pumice_bank_sched_core
             r_guard0 <= '0;
             if (w_fire_out && (r_do_act || r_do_pre || r_do_rd || r_do_wr))
                 r_guard0 <= (NUM_BANKS'(1) << r_bank);
-            // per-bank column guard: one flop after this bank fires a column
-            // (w_inflight_col covers the fire cycle; this covers the next, until
-            // the CAM's 1-cycle retire drops the slot).
             r_colguard0 <= '0;
             if (w_fire_out && (r_do_rd || r_do_wr))
                 r_colguard0 <= (NUM_BANKS'(1) << r_bank);
-            // direction-turnaround history (see w_rd/wr_turn_block).
             r_wrfire1 <= r_wrfire0;
             r_wrfire0 <= w_fire_out && r_do_wr;
             r_rdfire1 <= r_rdfire0;

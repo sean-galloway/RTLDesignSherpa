@@ -198,11 +198,20 @@ module pumice_cmd_arbiter
     //   pumice_bank_sched_core              (STAGE 2: tournament + recheck +
     //                                        refresh/init override + output reg)
     // The default build (this define OFF) keeps the proven flat arbiter below,
-    // byte-for-byte. This branch drives the SAME output ports; PHASE 1 does NOT
-    // implement the SCHED_POLICY axes (order-mode / row-col-sel / access-pref /
-    // write-batching / prio-sub / qos) or the predictor tables -- those inputs
-    // are sunk here and remain a later phase.
+    // byte-for-byte. This branch drives the SAME output ports and implements the
+    // full SCHED_POLICY / QoS overlay stack to parity with the flat path: the
+    // GLOBAL overlays (order-mode keep masks with the cross-CAM head compare,
+    // per-entry population, write-batching occupancy/drain, the fair-alternation
+    // toggle) are computed ONCE here and fanned into every per-bank picker, which
+    // resolves qos / pop / age / class / direction over its own entries and emits
+    // a composite priority key the core arbitrates. The predictor tables remain a
+    // later phase (still set aside under rtl/OLD/).
     // ------------------------------------------------------------------------
+    localparam int BSPOPW = $clog2(NUM_ENTRIES + 1);
+    localparam int BSKEYW = 8 + BSPOPW + PTRW;       // class+dir+qos+pop+age
+    localparam int BSOCCW = $clog2(NUM_ENTRIES + 1);
+    localparam logic [1:0] BSINORDER = 2'd1;
+    localparam logic [1:0] BSAGETHR  = 2'd3;
 
     // Register the per-bank timer fan-in at the arbiter input (parity with the
     // flat path's r_bank_* staleness: the picker reads 1-cycle-old bank state,
@@ -229,9 +238,100 @@ module pumice_cmd_arbiter
     logic [NUM_BANKS-1:0][ROW_WIDTH-1:0] w_cand_row;
     logic [NUM_BANKS-1:0][COL_WIDTH-1:0] w_cand_col;
     logic [NUM_BANKS-1:0][PTRW-1:0]      w_cand_slot;
-    logic [NUM_BANKS-1:0][AGE_WIDTH-1:0] w_cand_pri;
+    logic [NUM_BANKS-1:0][BSKEYW-1:0]   w_cand_pri;
     logic [NUM_BANKS-1:0]                w_issued;
     dram_op_e                            w_issued_op;
+
+    // ---- ORDER_MODE keep masks (in_order / age_threshold NARROW candidacy) --
+    // Per-CAM head = valid entry with no older valid entry (older matrix). The
+    // cross-CAM winner (in_order) is by head rel-age, tie -> read -- exactly the
+    // flat w_rd_head_wins. Computed once; ANDed into the pickers' class masks.
+    logic [NUM_ENTRIES-1:0] w_bs_rd_head, w_bs_wr_head;
+    always_comb begin
+        for (int i = 0; i < NUM_ENTRIES; i++) begin
+            automatic logic older_rd = 1'b0;
+            automatic logic older_wr = 1'b0;
+            for (int j = 0; j < NUM_ENTRIES; j++) begin
+                if ((j != i) && rd_sch_valid_i[j]
+                    && rd_sch_older_i[j*NUM_ENTRIES + i]) older_rd = 1'b1;
+                if ((j != i) && wr_sch_valid_i[j]
+                    && wr_sch_older_i[j*NUM_ENTRIES + i]) older_wr = 1'b1;
+            end
+            w_bs_rd_head[i] = rd_sch_valid_i[i] && !older_rd;
+            w_bs_wr_head[i] = wr_sch_valid_i[i] && !older_wr;
+        end
+    end
+    logic w_bs_rd_head_wins, w_bs_boost_any;
+    assign w_bs_rd_head_wins = !(|wr_sch_valid_i)
+                             || ((|rd_sch_valid_i)
+                                 && (rd_sch_head_rel_i >= wr_sch_head_rel_i));
+    assign w_bs_boost_any = (|rd_sch_age_exceed_i) || (|wr_sch_age_exceed_i);
+
+    logic [NUM_ENTRIES-1:0] w_bs_rd_keep, w_bs_wr_keep;
+    always_comb begin
+        w_bs_rd_keep = '1; w_bs_wr_keep = '1;
+        if (sched_order_mode_i == BSINORDER) begin
+            if (w_bs_rd_head_wins) begin
+                w_bs_rd_keep = w_bs_rd_head; w_bs_wr_keep = '0;
+            end else begin
+                w_bs_wr_keep = w_bs_wr_head; w_bs_rd_keep = '0;
+            end
+        end else if (sched_order_mode_i == BSAGETHR && w_bs_boost_any) begin
+            w_bs_rd_keep = rd_sch_age_exceed_i;
+            w_bs_wr_keep = wr_sch_age_exceed_i;
+        end
+    end
+
+    // ---- per-entry pending population (SCHED_POLICY.row_sel / col_sel) ------
+    logic [NUM_ENTRIES*BSPOPW-1:0] w_bs_rd_pop, w_bs_wr_pop;
+    always_comb begin
+        w_bs_rd_pop = '0; w_bs_wr_pop = '0;
+        for (int i = 0; i < NUM_ENTRIES; i++) begin
+            automatic logic [BSPOPW-1:0] rp = '0;
+            automatic logic [BSPOPW-1:0] wp = '0;
+            for (int j = 0; j < NUM_ENTRIES; j++) begin
+                if (rd_sch_valid_i[j]
+                    && (rd_sch_bank_i[j*BKW +: BKW] == rd_sch_bank_i[i*BKW +: BKW])
+                    && (rd_sch_row_i[j*ROW_WIDTH +: ROW_WIDTH]
+                        == rd_sch_row_i[i*ROW_WIDTH +: ROW_WIDTH]))
+                    rp = rp + BSPOPW'(1);
+                if (wr_sch_valid_i[j]
+                    && (wr_sch_bank_i[j*BKW +: BKW] == wr_sch_bank_i[i*BKW +: BKW])
+                    && (wr_sch_row_i[j*ROW_WIDTH +: ROW_WIDTH]
+                        == wr_sch_row_i[i*ROW_WIDTH +: ROW_WIDTH]))
+                    wp = wp + BSPOPW'(1);
+            end
+            w_bs_rd_pop[i*BSPOPW +: BSPOPW] = rp;
+            w_bs_wr_pop[i*BSPOPW +: BSPOPW] = wp;
+        end
+    end
+
+    // ---- write-batching drain hysteresis (SCHED_WR_WM), global -------------
+    logic [BSOCCW-1:0] w_bs_wr_occ;
+    always_comb begin
+        w_bs_wr_occ = '0;
+        for (int i = 0; i < NUM_ENTRIES; i++)
+            if (wr_sch_valid_i[i]) w_bs_wr_occ = w_bs_wr_occ + BSOCCW'(1);
+    end
+    logic r_bs_wr_drain;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_bs_wr_drain <= 1'b0;
+        end else if (sched_wr_high_wm_i == 8'd0) begin
+            r_bs_wr_drain <= 1'b0;
+        end else if (8'(w_bs_wr_occ) <= sched_wr_low_wm_i) begin
+            r_bs_wr_drain <= 1'b0;
+        end else if (8'(w_bs_wr_occ) >= sched_wr_high_wm_i) begin
+            r_bs_wr_drain <= 1'b1;
+        end
+    )
+
+    // ---- fair-alternation toggle (prio_sub == none): flips per fired op -----
+    logic r_bs_dir_rr;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) r_bs_dir_rr <= 1'b0;
+        else if (|w_issued)         r_bs_dir_rr <= ~r_bs_dir_rr;
+    )
 
     genvar gb;
     generate
@@ -243,41 +343,56 @@ module pumice_cmd_arbiter
                 .COL_WIDTH   (COL_WIDTH),
                 .BKW         (BKW),
                 .PTRW        (PTRW),
-                .AGE_WIDTH   (AGE_WIDTH)
+                .POPW        (BSPOPW),
+                .KEYW        (BSKEYW)
             ) u_picker (
-                .aclk              (aclk),
-                .aresetn           (aresetn),
-                .page_policy_i     (page_policy_i),
-                .ap_mode_en_i      (ap_mode_en_i),
-                .ap_close_bit_i    (ap_close_i[gb]),
-                .read_pref_i       (1'b1),                  // read-priority default
-                .bank_act_ready_i  (r_bs_act[RK0][gb]),
-                .bank_rdwr_ready_i (r_bs_rdwr[RK0][gb]),
-                .bank_pre_ready_i  (r_bs_pre[RK0][gb]),
-                .bank_row_active_i (r_bs_active[RK0][gb]),
-                .bank_open_row_i   (r_bs_open[RK0][gb]),
-                .rd_valid_i        (rd_sch_valid_i),
-                .rd_bank_i         (rd_sch_bank_i),
-                .rd_row_i          (rd_sch_row_i),
-                .rd_col_i          (rd_sch_col_i),
-                .rd_older_i        (rd_sch_older_i),
-                .rd_issue_ready_i  (rd_issue_ready_i),
-                .wr_valid_i        (wr_sch_valid_i),
-                .wr_bank_i         (wr_sch_bank_i),
-                .wr_row_i          (wr_sch_row_i),
-                .wr_col_i          (wr_sch_col_i),
-                .wr_older_i        (wr_sch_older_i),
-                .wr_commit_ready_i (wr_commit_ready_i),
-                .issued_i          (w_issued[gb]),
-                .issued_op_i       (w_issued_op),
-                .cand_valid_o      (w_cand_valid[gb]),
-                .cand_op_o         (w_cand_op[gb]),
-                .cand_ap_o         (w_cand_ap[gb]),
-                .cand_row_o        (w_cand_row[gb]),
-                .cand_col_o        (w_cand_col[gb]),
-                .cand_slot_o       (w_cand_slot[gb]),
-                .cand_is_rd_o      (w_cand_is_rd[gb]),
-                .cand_pri_o        (w_cand_pri[gb])
+                .aclk               (aclk),
+                .aresetn            (aresetn),
+                .page_policy_i      (page_policy_i),
+                .ap_mode_en_i       (ap_mode_en_i),
+                .ap_close_bit_i     (ap_close_i[gb]),
+                .sched_access_pref_i(sched_access_pref_i),
+                .sched_row_sel_i    (sched_row_sel_i),
+                .sched_col_sel_i    (sched_col_sel_i),
+                .sched_prio_sub_i   (sched_prio_sub_i),
+                .sched_qos_en_i     (sched_qos_en_i),
+                .wr_drain_i         (r_bs_wr_drain),
+                .dir_rr_i           (r_bs_dir_rr),
+                .bank_act_ready_i   (r_bs_act[RK0][gb]),
+                .bank_rdwr_ready_i  (r_bs_rdwr[RK0][gb]),
+                .bank_pre_ready_i   (r_bs_pre[RK0][gb]),
+                .bank_row_active_i  (r_bs_active[RK0][gb]),
+                .bank_open_row_i    (r_bs_open[RK0][gb]),
+                .rd_valid_i         (rd_sch_valid_i),
+                .rd_bank_i          (rd_sch_bank_i),
+                .rd_row_i           (rd_sch_row_i),
+                .rd_col_i           (rd_sch_col_i),
+                .rd_older_i         (rd_sch_older_i),
+                .rd_issue_ready_i   (rd_issue_ready_i),
+                .rd_keep_i          (w_bs_rd_keep),
+                .rd_pop_i           (w_bs_rd_pop),
+                .rd_qos_i           (rd_sch_qos_i),
+                .rd_age_exceed_i    (rd_sch_age_exceed_i),
+                .wr_valid_i         (wr_sch_valid_i),
+                .wr_bank_i          (wr_sch_bank_i),
+                .wr_row_i           (wr_sch_row_i),
+                .wr_col_i           (wr_sch_col_i),
+                .wr_older_i         (wr_sch_older_i),
+                .wr_commit_ready_i  (wr_commit_ready_i),
+                .wr_keep_i          (w_bs_wr_keep),
+                .wr_pop_i           (w_bs_wr_pop),
+                .wr_qos_i           (wr_sch_qos_i),
+                .wr_age_exceed_i    (wr_sch_age_exceed_i),
+                .issued_i           (w_issued[gb]),
+                .issued_op_i        (w_issued_op),
+                .cand_valid_o       (w_cand_valid[gb]),
+                .cand_op_o          (w_cand_op[gb]),
+                .cand_ap_o          (w_cand_ap[gb]),
+                .cand_row_o         (w_cand_row[gb]),
+                .cand_col_o         (w_cand_col[gb]),
+                .cand_slot_o        (w_cand_slot[gb]),
+                .cand_is_rd_o       (w_cand_is_rd[gb]),
+                .cand_pri_o         (w_cand_pri[gb])
             );
         end
     endgenerate
@@ -288,7 +403,7 @@ module pumice_cmd_arbiter
         .COL_WIDTH (COL_WIDTH),
         .BKW       (BKW),
         .PTRW      (PTRW),
-        .AGE_WIDTH (AGE_WIDTH),
+        .KEYW      (BSKEYW),
         .RKW       (RKW)
     ) u_sched_core (
         .aclk               (aclk),
@@ -347,15 +462,6 @@ module pumice_cmd_arbiter
         .issued_o           (w_issued),
         .issued_op_o        (w_issued_op)
     );
-
-    // PHASE-1-unused SCHED_POLICY / QoS / population / order-mode / head-rel
-    // inputs. These select the later-phase policy axes the two-stage path does
-    // not yet implement; sink them so the flat path's ports stay identical.
-    wire _unused_bank_sched = &{1'b0,
-        sched_order_mode_i, sched_row_sel_i, sched_col_sel_i, sched_access_pref_i,
-        sched_wr_high_wm_i, sched_wr_low_wm_i, sched_prio_sub_i, sched_qos_en_i,
-        rd_sch_qos_i, wr_sch_qos_i, rd_sch_age_exceed_i, wr_sch_age_exceed_i,
-        rd_sch_head_rel_i, wr_sch_head_rel_i, 1'b0};
 
 `else
     // Column auto-precharge bit from the page policy. With the runtime

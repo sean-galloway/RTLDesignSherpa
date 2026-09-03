@@ -9,41 +9,50 @@
 //   half of the two-stage bank-partitioned scheduler (PUMICE_BANK_SCHED). For a
 //   FIXED bank it classifies only THIS bank's rd + wr CAM entries into
 //   column / activate / precharge against this bank's (registered) open-row
-//   image + per-bank readiness, picks the bank's single best legal command,
-//   and REGISTERS it as this bank's candidate. pumice_bank_sched_core then
-//   arbitrates the NUM_BANKS registered candidates -- an 8-way pick, not the
-//   old cross-bank associative cone.
+//   image + per-bank readiness, builds a COMPOSITE PRIORITY KEY for EVERY entry
+//   in parallel, and REGISTERS the single max-key entry as this bank's
+//   candidate. pumice_bank_sched_core then arbitrates the NUM_BANKS candidates
+//   by that key (a max-key tournament) -- reproducing the flat arbiter's global
+//   SCHED_POLICY pick without the flat cross-bank associative cone.
 //
-// This is the production sibling of rtl/proto/pumice_bank_cmd_picker.sv
-// (the depth-measurement scaffold, ~19 mux levels). Differences from the
-// scaffold: real pumice_pkg dram_op_e / page_policy_e, per-bank AUTO-PRECHARGE
-// (RDA/WRA) decode, a real relative-age priority (from the CAM's older matrix,
-// not the slot proxy), and the PER-BANK guards that the flat arbiter carried at
-// bank scope and that fixed real data-corruption bugs:
-//   - same-bank ACT/PRE re-issue guard (r_guard0/1): the bank timers register
-//     their readiness (2-cycle latency from an evt), so re-classifying ACT/PRE
-//     to a bank we just issued to would double-issue before the timers reflect
-//     it. Column ops self-limit (the CAM retires the slot on issue/commit).
-//   - PRE-column staleness guard (r_preguard0/1/2): a column picked within 3
-//     cycles of a PRE on this bank lands on the just-closed row (registered row
-//     image is stale end-to-end). 3-deep, matching the flat arbiter.
-//   - AP-column guard (r_apguard0/1): under CLOSE an RDA/WRA precharges the
-//     bank as part of the access, so the next access must re-ACTivate; block
-//     this bank's columns for 2 cycles after a fired auto-precharge column.
-//   - rd_issue_ready / wr_commit_ready: a column may only fire when the CAM's
-//     issue / drain FIFO has room, else the command issues but the CAM drops it.
+// DEPTH-CRITICAL STRUCTURE (why cand_pri is shallow): the per-entry key is a
+// pure function of THAT ENTRY's own fields plus its own row of the older matrix
+// (age_rank_e = $countones of entry e's older-row -- who e outranks -- a
+// PARALLEL per-entry popcount, NOT a function of the selected slot). All 2*N
+// keys are computed at once; a single balanced max-key tournament then selects
+// the winner, and cand_pri is the winner's ALREADY-COMPUTED key via one mux.
+// Nothing is recomputed from the winning slot, so the old 95-level key cone
+// (key depended on arg_sel's selected slot, which depended on the key) is gone.
 //
-// The GLOBAL constraints (tCCD, tRRD, tFAW, tWTR/tRTW turnaround, refresh/init
-// override, the cross-bank tCCD/turnaround re-check) live in the final stage
-// (pumice_bank_sched_core), which a single bank cannot see. Feedback: issued_i
-// (this bank's command was accepted) + issued_op_i (what the core actually
-// fired, so the guards latch on the true issued op even under backpressure).
+// Composite key (MSB..LSB, so one unsigned max compares them lexicographically):
+//   { class_pri[1:0], dir_pri[1:0], qos[3:0], pop_key[POPW-1:0], age_rank[PTRW-1:0] }
+//   - class_pri : class rank under sched_access_pref (column / row / precharge
+//                 first) -- the OUTER key, class before entry (flat w_pick_class).
+//   - dir_pri   : direction-preference score. Read outranks write EXCEPT under
+//                 write-batching drain / prio_sub=none(fair-alt) / prio_sub=
+//                 age_boost where a boosted write outranks a non-boosted read.
+//                 Encoded per-entry so it needs no winner feedback (see f_dir).
+//   - qos       : AxQOS when qos_en, so the max-QoS candidate wins within a
+//                 class+direction (subsumes the flat qos_top narrowing).
+//   - pop_key   : sched_col_sel (columns) / sched_row_sel (activates) population
+//                 term -- most -> pop, fewest -> (MAXPOP-pop), oldest -> 0.
+//   - age_rank  : relative age (count of same-CAM valid entries e is older than).
 //
-// Depth-critical coding rules (why this cone stays shallow -- do NOT reintroduce
-// the deep chains): reductions use $reduce operators (&terms, |mask), field
-// extraction is a single variable part-select v[slot*W +: W] (log depth), and
-// the winner select resolves class/direction on 1-bit FOUND flags then extracts
-// the wide fields ONCE. No `for j: if(c) x=0` accumulator chains (PUMICE-017).
+// The order-mode overlay (in_order / age_threshold) arrives as per-entry KEEP
+// masks (computed once in the wrapper, incl. the cross-CAM head compare) and
+// simply gates candidacy. Write-batch occupancy/drain and the fair-alternation
+// toggle are global, computed once in the wrapper and fanned in.
+//
+// PER-BANK guards carried here (fixed real data-corruption bugs; kept identical):
+//   - r_guard0/1/2   same-bank ACT/PRE re-issue (bank-timer latency + core 2-stage),
+//   - r_preguard0/1/2 PRE-column staleness (a column within 3 cycles of a PRE
+//                     lands on the just-closed row),
+//   - r_apguard0/1   AP-column (RDA/WRA precharges the bank; next access re-ACTs),
+//   - rd_issue_ready / wr_commit_ready column FIFO-room gating.
+// Feedback: issued_i + issued_op_i (the op the core actually fired), so guards
+// latch on the true issued op even under cmd-FIFO backpressure. The guard SHIFT
+// depths (3/3/2) span the pipelined issued_i round-trip incl. the core's TWO
+// register stages (A + B), so a candidate cannot double-issue.
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
@@ -57,16 +66,23 @@ module pumice_bank_cmd_picker
     parameter int COL_WIDTH   = 10,
     parameter int BKW         = 3,
     parameter int PTRW        = 3,
-    parameter int AGE_WIDTH   = 16
+    parameter int POPW        = 4,
+    parameter int KEYW        = 15
 ) (
     input  logic                               aclk,
     input  logic                               aresetn,
 
-    // ---- policy (per-bank auto-precharge decode) ----
+    // ---- policy (per-bank auto-precharge decode + SCHED_POLICY axes) ----
     input  page_policy_e                       page_policy_i,
     input  logic                               ap_mode_en_i,
-    input  logic                               ap_close_bit_i,   // this bank's ap_close
-    input  logic                               read_pref_i,      // 1 = read-priority
+    input  logic                               ap_close_bit_i,     // this bank's ap_close
+    input  logic [1:0]                         sched_access_pref_i,
+    input  logic [1:0]                         sched_row_sel_i,
+    input  logic [1:0]                         sched_col_sel_i,
+    input  logic [1:0]                         sched_prio_sub_i,
+    input  logic                               sched_qos_en_i,
+    input  logic                               wr_drain_i,         // global write-batch drain
+    input  logic                               dir_rr_i,           // global fair-alt toggle
 
     // ---- this bank's registered live state (from pumice_bank_timers) ----
     input  logic                               bank_act_ready_i,
@@ -75,21 +91,29 @@ module pumice_bank_cmd_picker
     input  logic                               bank_row_active_i,
     input  logic [ROW_WIDTH-1:0]               bank_open_row_i,
 
-    // ---- rd CAM per-entry vectors (registered, whole CAM) + issue-FIFO room -
+    // ---- rd CAM per-entry vectors (registered, whole CAM) + overlays --------
     input  logic [NUM_ENTRIES-1:0]             rd_valid_i,
     input  logic [NUM_ENTRIES*BKW-1:0]         rd_bank_i,
     input  logic [NUM_ENTRIES*ROW_WIDTH-1:0]   rd_row_i,
     input  logic [NUM_ENTRIES*COL_WIDTH-1:0]   rd_col_i,
     input  logic [NUM_ENTRIES*NUM_ENTRIES-1:0] rd_older_i,
     input  logic                               rd_issue_ready_i,
+    input  logic [NUM_ENTRIES-1:0]             rd_keep_i,          // order-mode narrow
+    input  logic [NUM_ENTRIES*POPW-1:0]        rd_pop_i,
+    input  logic [NUM_ENTRIES*4-1:0]           rd_qos_i,
+    input  logic [NUM_ENTRIES-1:0]             rd_age_exceed_i,
 
-    // ---- wr CAM per-entry vectors (registered, whole CAM) + drain-FIFO room -
+    // ---- wr CAM per-entry vectors (registered, whole CAM) + overlays --------
     input  logic [NUM_ENTRIES-1:0]             wr_valid_i,
     input  logic [NUM_ENTRIES*BKW-1:0]         wr_bank_i,
     input  logic [NUM_ENTRIES*ROW_WIDTH-1:0]   wr_row_i,
     input  logic [NUM_ENTRIES*COL_WIDTH-1:0]   wr_col_i,
     input  logic [NUM_ENTRIES*NUM_ENTRIES-1:0] wr_older_i,
     input  logic                               wr_commit_ready_i,
+    input  logic [NUM_ENTRIES-1:0]             wr_keep_i,
+    input  logic [NUM_ENTRIES*POPW-1:0]        wr_pop_i,
+    input  logic [NUM_ENTRIES*4-1:0]           wr_qos_i,
+    input  logic [NUM_ENTRIES-1:0]             wr_age_exceed_i,
 
     // ---- final-scheduler feedback ----
     input  logic                               issued_i,     // my candidate accepted
@@ -103,8 +127,18 @@ module pumice_bank_cmd_picker
     output logic [COL_WIDTH-1:0]               cand_col_o,
     output logic [PTRW-1:0]                    cand_slot_o,
     output logic                               cand_is_rd_o,
-    output logic [AGE_WIDTH-1:0]               cand_pri_o
+    output logic [KEYW-1:0]                     cand_pri_o
 );
+
+    localparam int M    = 2 * NUM_ENTRIES;        // rd pool [0..N-1] + wr pool [N..2N-1]
+    localparam int LV   = $clog2(M);
+    localparam logic [1:0] CCOL = 2'd1, CACT = 2'd2, CPRE = 2'd3;  // class code
+    localparam logic [1:0] PRIONONE = 2'd1;       // prio_sub: fair alternation
+    localparam logic [1:0] PRIOAGE  = 2'd3;       // prio_sub: age_boost
+    localparam logic [1:0] PREFROW  = 2'd2;       // access_pref: row_first
+    localparam logic [1:0] PREFPRE  = 2'd3;       // access_pref: precharge_first
+    localparam logic [1:0] SELMOST  = 2'd1;       // row/col_sel: most_pending
+    localparam logic [1:0] SELFEWEST = 2'd2;      // row/col_sel: fewest_pending
 
     // ---- per-entry field extractors (single variable part-select each) ------
     function automatic logic [BKW-1:0] f_bank(
@@ -120,60 +154,48 @@ module pumice_bank_cmd_picker
         return v[e*COL_WIDTH +: COL_WIDTH];
     endfunction
 
-    // oldest-in-mask via the age-order matrix -> one-hot is_old, then slot.
-    // Reduction operators (&terms, |bmask), not accumulator loops: a reduce is
-    // one $reduce cell; the obvious `for j: if(...) ge=0` / `for i: if(old)
-    // slot=i` synthesize as NUM_ENTRIES-deep mux chains (PUMICE-017).
-    function automatic logic [PTRW:0] arg_oldest(
-        input logic [NUM_ENTRIES-1:0]              mask,
-        input logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  older);
-        logic                   found;
-        logic [PTRW-1:0]        slot;
-        logic [NUM_ENTRIES-1:0] is_old;
-        for (int i = 0; i < NUM_ENTRIES; i++) begin
-            automatic logic [NUM_ENTRIES-1:0] orow  = older[i*NUM_ENTRIES +: NUM_ENTRIES];
-            automatic logic [NUM_ENTRIES-1:0] terms;
-            // i is >= entry j iff j is itself, not masked, or i is older than j
-            for (int j = 0; j < NUM_ENTRIES; j++)
-                terms[j] = (j == i) || !mask[j] || orow[j];
-            is_old[i] = mask[i] && (&terms);      // one reduce-AND
-        end
-        found = |is_old;                          // one reduce-OR
-        slot  = '0;
-        // one-hot -> binary: each index bit is a masked reduce-OR
-        for (int b = 0; b < PTRW; b++) begin
-            automatic logic [NUM_ENTRIES-1:0] bmask;
-            for (int i = 0; i < NUM_ENTRIES; i++) bmask[i] = is_old[i] && i[b];
-            slot[b] = |bmask;
-        end
-        return {found, slot};
+    // class rank under access_pref (2=top, 0=low).
+    function automatic logic [1:0] f_class_pri(input logic [1:0] cls, input logic [1:0] pref);
+        logic is_c, is_a;
+        is_c = (cls == CCOL);
+        is_a = (cls == CACT);
+        case (pref)
+            PREFROW: return is_a ? 2'd2 : is_c ? 2'd1 : 2'd0;
+            PREFPRE: return is_c ? 2'd1 : is_a ? 2'd0 : 2'd2;
+            default: return is_c ? 2'd2 : is_a ? 2'd1 : 2'd0;
+        endcase
     endfunction
 
-    // Relative-age priority of a slot: how many VALID same-CAM entries this slot
-    // is older than (older[slot][j] over valid j). The globally-oldest entry in
-    // the CAM is older than all others -> max; the final-stage tournament picks
-    // the max across banks, so this is a real cross-bank age key (within the CAM
-    // epoch), not the scaffold's slot proxy. The count is a small popcount (the
-    // same 3-bit-adder pattern the flat arbiter uses for rd_pop/wr_pop).
-    function automatic logic [AGE_WIDTH-1:0] age_rank(
-        input logic [PTRW-1:0]                     slot,
-        input logic [NUM_ENTRIES-1:0]              valid,
-        input logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  older);
-        logic [NUM_ENTRIES-1:0] orow;
-        logic [AGE_WIDTH-1:0]   cnt;
-        orow = older[slot*NUM_ENTRIES +: NUM_ENTRIES];
-        cnt  = '0;
-        for (int j = 0; j < NUM_ENTRIES; j++)
-            if (valid[j] && orow[j] && (PTRW'(j) != slot)) cnt = cnt + AGE_WIDTH'(1);
-        return cnt;
+    // direction-preference score (2 bits). Read outranks write by default; drain
+    // / fair-alt flip it; age_boost lets a boosted write beat a NON-boosted read
+    // (and, crucially, a boosted read still beats a boosted write -- exactly the
+    // flat w_*_wrf = wr_boost && !rd_boost rule, expressed per-entry).
+    function automatic logic [1:0] f_dir(
+        input logic is_wr, input logic boost,
+        input logic [1:0] prio, input logic drain, input logic rr);
+        automatic logic wf_global = drain || ((prio == PRIONONE) && rr);
+        if (wf_global)              return is_wr ? 2'd1 : 2'd0;   // write-first
+        else if (prio == PRIOAGE)   return is_wr ? (boost ? 2'd2 : 2'd0)
+                                                 : (boost ? 2'd3 : 2'd1);
+        else                        return is_wr ? 2'd0 : 2'd1;   // read-priority
+    endfunction
+
+    // pop_key term (direction per most/fewest/oldest).
+    function automatic logic [POPW-1:0] f_pop_key(
+        input logic [1:0] sel, input logic [POPW-1:0] pop);
+        case (sel)
+            SELMOST:   return pop;
+            SELFEWEST: return POPW'(NUM_ENTRIES) - pop;
+            default:   return '0;
+        endcase
     endfunction
 
     // ---- per-bank guards (registered) --------------------------------------
-    logic r_guard0, r_guard1;                    // block ACT/PRE re-issue (2 cyc)
+    logic r_guard0, r_guard1, r_guard2;           // block ACT/PRE re-issue (3 cyc)
     logic r_preguard0, r_preguard1, r_preguard2; // block columns after PRE (3 cyc)
     logic r_apguard0, r_apguard1;                // block columns after AP col (2 cyc)
     logic w_guard, w_preguard, w_apguard;
-    assign w_guard    = r_guard0 || r_guard1;
+    assign w_guard    = r_guard0 || r_guard1 || r_guard2;
     assign w_preguard = r_preguard0 || r_preguard1 || r_preguard2;
     assign w_apguard  = r_apguard0 || r_apguard1;
 
@@ -181,91 +203,126 @@ module pumice_bank_cmd_picker
     logic w_ap;
     assign w_ap = ap_mode_en_i ? ap_close_bit_i : (page_policy_i == PAGE_POLICY_CLOSE);
 
-    // ---- classify THIS bank's entries (BANK_ID fixed: open_row is direct) ---
-    logic [NUM_ENTRIES-1:0] rd_col_m, rd_act_m, rd_pre_m;
-    logic [NUM_ENTRIES-1:0] wr_col_m, wr_act_m, wr_pre_m;
+    // ======================================================================
+    // PER-ENTRY, PARALLEL: legality, class, key, op, ap, row, col -- one lane
+    // per entry in each CAM. No cross-entry / slot dependence; all 2*N lanes are
+    // peers. The tournament key carries LEGAL as its MSB so an illegal lane (key
+    // MSB 0) always loses to any legal lane -- which makes each tournament level
+    // a plain gt->mux (no separate valid book-keeping on the compare path). The
+    // row/col are per-entry CONSTANT slices (the loop index e is unrolled), so
+    // they are carried as tournament payload -- no post-select variable
+    // part-select (that multiply-indexed shift was the old tail).
+    // ======================================================================
+    localparam int KTW = KEYW + 1;                // {legal, key}
+    logic [KTW-1:0]       e_tkey [M];
+    logic [PTRW-1:0]      e_slot [M];
+    logic [M-1:0]         e_isrd;
+    dram_op_e             e_op   [M];
+    logic [M-1:0]         e_ap;
+    logic [ROW_WIDTH-1:0] e_row  [M];
+    logic [COL_WIDTH-1:0] e_col  [M];
+
     always_comb begin
-        rd_col_m = '0; rd_act_m = '0; rd_pre_m = '0;
-        wr_col_m = '0; wr_act_m = '0; wr_pre_m = '0;
-        for (int e = 0; e < NUM_ENTRIES; e++) begin
-            automatic logic [PTRW-1:0] ei    = PTRW'(e);
-            automatic logic mine_r = rd_valid_i[e] && (f_bank(rd_bank_i, ei) == BKW'(BANK_ID));
-            automatic logic mine_w = wr_valid_i[e] && (f_bank(wr_bank_i, ei) == BKW'(BANK_ID));
-            automatic logic rhit   = bank_row_active_i && (f_row(rd_row_i, ei) == bank_open_row_i);
-            automatic logic whit   = bank_row_active_i && (f_row(wr_row_i, ei) == bank_open_row_i);
-            if (mine_r) begin
-                rd_col_m[e] = rhit && bank_rdwr_ready_i && rd_issue_ready_i
-                              && !w_preguard && !w_apguard;
-                rd_act_m[e] = !bank_row_active_i && bank_act_ready_i && !w_guard;
-                rd_pre_m[e] = bank_row_active_i && !rhit && bank_pre_ready_i && !w_guard;
-            end
-            if (mine_w) begin
-                wr_col_m[e] = whit && bank_rdwr_ready_i && wr_commit_ready_i
-                              && !w_preguard && !w_apguard;
-                wr_act_m[e] = !bank_row_active_i && bank_act_ready_i && !w_guard;
-                wr_pre_m[e] = bank_row_active_i && !whit && bank_pre_ready_i && !w_guard;
+        for (int c = 0; c < 2; c++) begin
+            for (int e = 0; e < NUM_ENTRIES; e++) begin
+                automatic logic [LV-1:0] m     = LV'(c*NUM_ENTRIES + e);
+                automatic logic          is_wr = (c == 1);
+                automatic logic [PTRW-1:0] ei  = PTRW'(e);
+                automatic logic [NUM_ENTRIES-1:0] valv  = is_wr ? wr_valid_i : rd_valid_i;
+                automatic logic [NUM_ENTRIES*BKW-1:0] bnkv = is_wr ? wr_bank_i : rd_bank_i;
+                automatic logic [NUM_ENTRIES*ROW_WIDTH-1:0] rowv = is_wr ? wr_row_i : rd_row_i;
+                automatic logic [NUM_ENTRIES*COL_WIDTH-1:0] colv = is_wr ? wr_col_i : rd_col_i;
+                automatic logic [NUM_ENTRIES*NUM_ENTRIES-1:0] oldv = is_wr ? wr_older_i
+                                                                             : rd_older_i;
+                automatic logic [NUM_ENTRIES-1:0] keepv = is_wr ? wr_keep_i : rd_keep_i;
+                automatic logic [NUM_ENTRIES-1:0] agxv = is_wr ? wr_age_exceed_i
+                                                                            : rd_age_exceed_i;
+                automatic logic [NUM_ENTRIES*4-1:0] qosv = is_wr ? wr_qos_i : rd_qos_i;
+                automatic logic [NUM_ENTRIES*POPW-1:0] popv = is_wr ? wr_pop_i : rd_pop_i;
+                automatic logic cfifo = is_wr ? wr_commit_ready_i : rd_issue_ready_i;
+
+                // classify: reduction-AND conjunctions (one $reduce cell each,
+                // not a serial && chain).
+                automatic logic mine = &{valv[e], (f_bank(bnkv, ei) == BKW'(BANK_ID)), keepv[e]};
+                automatic logic rhit = bank_row_active_i && (f_row(rowv, ei) == bank_open_row_i);
+                automatic logic is_col = &{mine, rhit, bank_rdwr_ready_i, cfifo,
+                                           ~w_preguard, ~w_apguard};
+                automatic logic is_act = &{mine, ~bank_row_active_i, bank_act_ready_i, ~w_guard};
+                automatic logic is_pre = &{mine, bank_row_active_i, ~rhit,
+                                           bank_pre_ready_i, ~w_guard};
+                automatic logic legal  = is_col || is_act || is_pre;
+                automatic logic [1:0] eclass = is_col ? CCOL : is_act ? CACT : CPRE;
+
+                // per-entry key fields (pure functions of e's own state)
+                automatic logic [1:0]      k_class = f_class_pri(eclass, sched_access_pref_i);
+                automatic logic [1:0]      k_dir   = f_dir(is_wr, agxv[e], sched_prio_sub_i,
+                                                           wr_drain_i, dir_rr_i);
+                automatic logic [3:0]      k_qos   = sched_qos_en_i ? qosv[e*4 +: 4] : 4'd0;
+                automatic logic [1:0]      psel    = is_col ? sched_col_sel_i
+                                                   : is_act ? sched_row_sel_i : 2'd0;
+                automatic logic [POPW-1:0] k_pop   = f_pop_key(psel, popv[e*POPW +: POPW]);
+                // age_rank: PARALLEL per-entry popcount of e's own older-row.
+                automatic logic [NUM_ENTRIES-1:0] orow = oldv[e*NUM_ENTRIES +: NUM_ENTRIES];
+                automatic logic [PTRW-1:0] k_age   = PTRW'($countones(orow & valv));
+
+                e_tkey[m] = {legal, k_class, k_dir, k_qos, k_pop, k_age};
+                e_slot[m] = ei;
+                e_isrd[m] = !is_wr;
+                e_ap[m]   = is_col && w_ap;
+                e_op[m]   = is_col ? (is_wr ? (w_ap ? OP_WRA : OP_WR) : (w_ap ? OP_RDA : OP_RD))
+                          : is_act ? OP_ACT : OP_PRE;
+                e_row[m]  = f_row(rowv, ei);      // constant slice (e unrolled)
+                e_col[m]  = f_col(colv, ei);      // constant slice
             end
         end
     end
 
-    // ---- oldest-per-class {found,slot}, all six in parallel ----------------
-    logic [PTRW:0] rc, ra, rp, wc, wa, wp;
-    assign rc = arg_oldest(rd_col_m, rd_older_i);
-    assign ra = arg_oldest(rd_act_m, rd_older_i);
-    assign rp = arg_oldest(rd_pre_m, rd_older_i);
-    assign wc = arg_oldest(wr_col_m, wr_older_i);
-    assign wa = arg_oldest(wr_act_m, wr_older_i);
-    assign wp = arg_oldest(wr_pre_m, wr_older_i);
-    logic rc_f, ra_f, rp_f, wc_f, wa_f, wp_f;
-    assign rc_f = rc[PTRW]; assign ra_f = ra[PTRW]; assign rp_f = rp[PTRW];
-    assign wc_f = wc[PTRW]; assign wa_f = wa[PTRW]; assign wp_f = wp[PTRW];
-
-    // ---- parallel winner select (class order col > act > pre; read-priority
-    // resolves rd/wr ties). Resolved on the six 1-bit FOUND flags, NOT by
-    // re-muxing the wide fields six times.
-    logic col_any, act_any;
-    assign col_any = rc_f || wc_f;
-    assign act_any = ra_f || wa_f;
-    logic sel_col_rd, sel_col_wr, sel_act_rd, sel_act_wr, sel_pre_rd;
-    // read-priority: read wins ties (read_pref_i=1). read_pref_i=0 -> write wins.
-    // The write-precharge case is the fallthrough (n_op default = OP_PRE), so it
-    // needs no explicit select bit.
-    assign sel_col_rd = read_pref_i ? rc_f            : (rc_f && !wc_f);
-    assign sel_col_wr = read_pref_i ? (wc_f && !rc_f) : wc_f;
-    assign sel_act_rd = ra_f            && !col_any;
-    assign sel_act_wr = (wa_f && !ra_f) && !col_any;
-    assign sel_pre_rd = rp_f            && !col_any && !act_any;
-
-    logic n_is_rd, n_valid, n_ap;
-    assign n_is_rd = sel_col_rd || sel_act_rd || sel_pre_rd;
-    assign n_valid = col_any || act_any || rp_f || wp_f;
-    assign n_ap    = (sel_col_rd || sel_col_wr) && w_ap;
-
-    // winning slot inside each CAM (small 3:1 mux of PTRW-bit slots), then ONE
-    // part-select per field on the chosen CAM/slot.
-    logic [PTRW-1:0] rd_slot, wr_slot, n_slot;
-    assign rd_slot = sel_col_rd ? rc[PTRW-1:0] : sel_act_rd ? ra[PTRW-1:0] : rp[PTRW-1:0];
-    assign wr_slot = sel_col_wr ? wc[PTRW-1:0] : sel_act_wr ? wa[PTRW-1:0] : wp[PTRW-1:0];
-    assign n_slot  = n_is_rd ? rd_slot : wr_slot;
-
+    // ======================================================================
+    // Single balanced MAX-KEY tournament over the 2*N per-entry lanes. Each
+    // level is a plain gt->mux (legal is the key MSB, so validity rides the
+    // compare); the payload (slot/is_rd/op/ap/row/col) follows the same select.
+    // Prefer lower index on ties (strict gt -> left wins). LV = clog2(2N) levels.
+    // ======================================================================
+    logic [KTW-1:0]       tk [LV+1][M];
+    logic [PTRW-1:0]      ts [LV+1][M];
+    logic                 ti [LV+1][M];   // is_rd
+    dram_op_e             to [LV+1][M];
+    logic                 ta [LV+1][M];   // ap
+    logic [ROW_WIDTH-1:0] tr [LV+1][M];
+    logic [COL_WIDTH-1:0] tc [LV+1][M];
+    logic [KTW-1:0]       n_tkey;
+    logic                 n_is_rd, n_ap;
+    logic [PTRW-1:0]      n_slot;
+    dram_op_e             n_op;
     logic [ROW_WIDTH-1:0] n_row;
     logic [COL_WIDTH-1:0] n_col;
-    assign n_row = n_is_rd ? f_row(rd_row_i, rd_slot) : f_row(wr_row_i, wr_slot);
-    assign n_col = n_is_rd ? f_col(rd_col_i, rd_slot) : f_col(wr_col_i, wr_slot);
-
-    // final op incl per-bank auto-precharge (RDA/WRA under CLOSE).
-    dram_op_e n_op;
     always_comb begin
-        if      (sel_col_rd) n_op = w_ap ? OP_RDA : OP_RD;
-        else if (sel_col_wr) n_op = w_ap ? OP_WRA : OP_WR;
-        else if (sel_act_rd || sel_act_wr) n_op = OP_ACT;
-        else                 n_op = OP_PRE;
+        for (int m = 0; m < M; m++) begin
+            tk[0][m] = e_tkey[m]; ts[0][m] = e_slot[m]; ti[0][m] = e_isrd[m];
+            to[0][m] = e_op[m];   ta[0][m] = e_ap[m];   tr[0][m] = e_row[m];
+            tc[0][m] = e_col[m];
+        end
+        for (int l = 1; l <= LV; l++) begin
+            for (int i = 0; i < (M >> l); i++) begin
+                automatic logic pick_r = tk[l-1][2*i+1] > tk[l-1][2*i];
+                tk[l][i] = pick_r ? tk[l-1][2*i+1] : tk[l-1][2*i];
+                ts[l][i] = pick_r ? ts[l-1][2*i+1] : ts[l-1][2*i];
+                ti[l][i] = pick_r ? ti[l-1][2*i+1] : ti[l-1][2*i];
+                to[l][i] = pick_r ? to[l-1][2*i+1] : to[l-1][2*i];
+                ta[l][i] = pick_r ? ta[l-1][2*i+1] : ta[l-1][2*i];
+                tr[l][i] = pick_r ? tr[l-1][2*i+1] : tr[l-1][2*i];
+                tc[l][i] = pick_r ? tc[l-1][2*i+1] : tc[l-1][2*i];
+            end
+        end
+        n_tkey = tk[LV][0]; n_slot = ts[LV][0]; n_is_rd = ti[LV][0];
+        n_op   = to[LV][0]; n_ap   = ta[LV][0]; n_row   = tr[LV][0];
+        n_col  = tc[LV][0];
     end
 
-    // relative-age priority of the winner (over its own CAM's valid set).
-    logic [AGE_WIDTH-1:0] n_pri;
-    assign n_pri = n_is_rd ? age_rank(rd_slot, rd_valid_i, rd_older_i)
-                           : age_rank(wr_slot, wr_valid_i, wr_older_i);
+    logic            n_valid;
+    logic [KEYW-1:0] n_key;
+    assign n_valid = n_tkey[KEYW];        // the legal MSB
+    assign n_key   = n_tkey[KEYW-1:0];    // key for the core's tournament
 
     // ---- register this bank's candidate ------------------------------------
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -286,12 +343,11 @@ module pumice_bank_cmd_picker
             cand_col_o   <= n_col;
             cand_slot_o  <= n_slot;
             cand_is_rd_o <= n_is_rd;
-            cand_pri_o   <= n_pri;
+            cand_pri_o   <= n_key;
         end
     )
 
-    // ---- guard update: latch on the TRUE issued op (issued_op_i), so it is
-    // correct even when the core held the decision under backpressure. -------
+    // ---- guard update: latch on the TRUE issued op (issued_op_i) ------------
     logic w_iss_actpre, w_iss_pre, w_iss_apcol;
     assign w_iss_actpre = issued_i && ((issued_op_i == OP_ACT) || (issued_op_i == OP_PRE));
     assign w_iss_pre    = issued_i && (issued_op_i == OP_PRE);
@@ -299,10 +355,11 @@ module pumice_bank_cmd_picker
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_guard0    <= 1'b0; r_guard1    <= 1'b0;
+            r_guard0    <= 1'b0; r_guard1    <= 1'b0; r_guard2 <= 1'b0;
             r_preguard0 <= 1'b0; r_preguard1 <= 1'b0; r_preguard2 <= 1'b0;
             r_apguard0  <= 1'b0; r_apguard1  <= 1'b0;
         end else begin
+            r_guard2    <= r_guard1;
             r_guard1    <= r_guard0;
             r_guard0    <= w_iss_actpre;
             r_preguard2 <= r_preguard1;
