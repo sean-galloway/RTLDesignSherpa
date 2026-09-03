@@ -236,3 +236,18 @@ gaxi_skid_buffer_async_multi = "multi-instance wrapper; no consumer yet"
 gaxi_skid_buffer_multi       = "multi-instance wrapper; no consumer yet"
 gaxi_skid_buffer_multi_sigmap = "multi-instance wrapper; no consumer yet"
 
+# pumice_rbl_table, pumice_row_pred_table: SET ASIDE 2026-09-01, not deleted.
+# The Axis-2 paging predictors behind PAGE_POLICY_CFG.policy_mode 5/6/7. They
+# were 60% of all failing timing endpoints on the Nexys A7 (u_rbl 1546,
+# u_row_pred 1049 of 4307) with only a single-generator harness in front of
+# them, so the harness was not the cause and shrinking it did not help. The RTL
+# is correct and mutation-proven -- it simply does not fit this part at this
+# frequency -- so it lives under pumice-ddr2-lpddr2/rtl/OLD/ with a README
+# rather than being deleted.
+#
+# Exempt rather than given a filelist: a filelist would assert these are part
+# of a build closure, and they are deliberately not in one. Restoring them is
+# `git mv` back to rtl/fub/, two instantiations in pumice_page_policy.sv, the
+# filelist entries, and deleting these two lines.
+pumice_rbl_table = "set aside under rtl/OLD/ -- 60% of failing timing endpoints; see that README"
+pumice_row_pred_table = "set aside under rtl/OLD/ -- 60% of failing timing endpoints; see that README"
