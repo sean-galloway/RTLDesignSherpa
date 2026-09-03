@@ -70,7 +70,7 @@ def _endpoints():
          os.path.join(REPO, "projects/components/dmas/stream/rtl/stream_regmap.py"),
          stream_addrs.STREAM_APB_BASE),
         ("harness", "harness_csr",
-         os.path.join(REPO, "projects/fpga-systems/Genesys2/stream/rtl/harness_csr_regmap.py"),
+         os.path.join(REPO, "projects/fpga-systems/Genesys2/stream/rtl/regs/generated/harness_csr_regs_top_regmap.py"),
          harness_addrs.HARNESS_CSR_BASE),
         # slvmon_apb @ 0x180000 is the SLAVE-ROLE OBSERVER, not dma_slave_monitors.
         # stream_harness.sv:452 routes it to u_slave_observer, and

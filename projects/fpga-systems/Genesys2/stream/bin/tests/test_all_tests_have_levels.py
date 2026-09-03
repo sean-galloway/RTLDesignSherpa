@@ -43,6 +43,15 @@ _AREA = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 FIXED_COST = {
     'bin/tests/test_dump_monbus.py':
         'decodes monbus records from a fixture; no DUT, no sweep',
+    'bin/tests/test_builds_share_rtl_and_map.py':
+        'reads the three build Makefiles; no DUT, no workload to scale',
+    'bin/tests/test_generics_reach_the_top.py':
+        'three static lists must agree -- create_project.tcl, LINT_GENERICS and '
+        'the top module. A text comparison over a fixed set; there is no '
+        '"more" of it to run',
+    'build-obs/dv/tests/test_stream_cfg_single_source.py':
+        'same fixed-cost consistency check as the build-mon copy: the config '
+        'package is one file, compared once',
     'bin/tests/test_dump_monbus_sram.py':
         'SRAM word/beat packing arithmetic; pure function under test',
     'bin/tests/test_harness_regmap.py':

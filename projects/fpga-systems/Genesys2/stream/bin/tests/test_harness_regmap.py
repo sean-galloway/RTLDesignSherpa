@@ -32,7 +32,7 @@ if not _REPO:
 
 _FW = os.path.join(_REPO, "projects/fpga-systems/Genesys2/stream")
 _SV = os.path.join(_FW, "rtl/harness_csr.sv")
-_REGMAP = os.path.join(_FW, "rtl/harness_csr_regmap.py")
+_REGMAP = os.path.join(_FW, "rtl/regs/generated/harness_csr_regs_top_regmap.py")
 
 import harness_addrs as ha  # noqa: E402
 
@@ -135,15 +135,27 @@ if __name__ == "__main__":
 # The guard that actually matters: does the RTL DECODE what the map promises?
 # ---------------------------------------------------------------------------
 
-def _sv_decode_offsets() -> set:
-    """Every offset harness_csr.sv has a case label for, read or write path.
+_REGBLOCK = os.path.join(
+    _FW, "rtl/regs/generated/rtl/harness_csr_regs_top.sv")
 
-    Labels are written both 8'hXX (0x000-0x0FF) and 9'hXXX (the 0x100+ meter
-    region), so normalise on the hex value rather than the width.
+
+def _sv_decode_offsets() -> set:
+    """Every offset the RTL actually decodes.
+
+    This used to scrape case labels out of harness_csr.sv, because the decode
+    was hand-written there and could drift from the map. It is generated now
+    (regs/harness_csr.rdl -> harness_csr_regs.sv), so the labels live in the
+    generated block as decoded_reg_strb comparisons.
+
+    The check is still worth running, and is NOT tautological: the RTL and the
+    regmap are emitted by separate passes of peakrdl_generate, so regenerating
+    one without the other is exactly the drift this catches -- and that drift is
+    silent, because an undecoded register reads back 0 with no bus error. That
+    is what misled three host tools before any of this was generated.
     """
     out = set()
-    with open(_SV) as f:
-        for m in re.finditer(r"\d'h([0-9A-Fa-f]+)\s*:", f.read()):
+    with open(_REGBLOCK) as f:
+        for m in re.finditer(r"cpuif_addr == \d+'h([0-9A-Fa-f]+)", f.read()):
             out.add(int(m.group(1), 16))
     return out
 

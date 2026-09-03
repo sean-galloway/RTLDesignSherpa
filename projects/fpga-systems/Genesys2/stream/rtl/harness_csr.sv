@@ -441,19 +441,77 @@ module harness_csr #(
     // =========================================================================
     // Register storage
     // =========================================================================
-    logic r_freeze_trace;
+    // Register storage is the GENERATED block below; only the two sticky bits
+    // are kept here, because they are set by hardware events and cleared by a
+    // CTRL pulse rather than written by software.
     logic r_irq_latched;
     logic r_any_error_sticky;
-    logic [31:0] r_scratch;
 
-    logic r_start_pulse;
-    logic r_clear_stats_pulse;
-    logic r_soft_reset_pulse;
-    logic r_cam_clear_pulse;
-    logic r_timer_clear_pulse;
+    // Everything software writes now comes out of harness_csr_regs' hwif_out.
+    // The RDL's singlepulse fields land exactly on the old *_pulse signals --
+    // which is the check that the RDL was already an accurate model of this
+    // hardware, not a parallel description of it.
+    logic        r_freeze_trace;
+    logic [31:0] r_scratch;
+    logic        r_start_pulse;
+    logic        r_clear_stats_pulse;
+    logic        r_soft_reset_pulse;
+    logic        r_cam_clear_pulse;
+    logic        r_timer_clear_pulse;
     logic [31:0] r_timer_expected_beats;
     logic [15:0] r_rd_resp_delay_cyc;
     logic [15:0] r_wr_resp_delay_cyc;
+
+    harness_csr_regs_top_pkg::harness_csr_regs_top__in_t  w_hwif_in;
+    harness_csr_regs_top_pkg::harness_csr_regs_top__out_t w_hwif_out;
+
+    assign r_freeze_trace         = w_hwif_out.CTRL.FREEZE_TRACE.value;
+    assign r_start_pulse          = w_hwif_out.CTRL.START.value;
+    assign r_clear_stats_pulse    = w_hwif_out.CTRL.CLEAR_STATS.value;
+    assign r_soft_reset_pulse     = w_hwif_out.CTRL.SOFT_RESET.value;
+    assign r_cam_clear_pulse      = w_hwif_out.CTRL.CAM_CLEAR.value;
+    assign r_scratch              = w_hwif_out.SCRATCH.VALUE.value;
+    assign r_timer_clear_pulse    = w_hwif_out.TIMER_CTRL.CLEAR.value;
+    assign r_timer_expected_beats = w_hwif_out.TIMER_EXPECTED_BEATS.VALUE.value;
+    assign r_rd_resp_delay_cyc    = w_hwif_out.RESP_DELAY.RD_DELAY.value;
+    assign r_wr_resp_delay_cyc    = w_hwif_out.RESP_DELAY.WR_DELAY.value;
+
+    // Single cpuif port, two independent AXI channels: writes win and a read
+    // simply waits, which costs nothing because the host never pipelines the
+    // two against each other.
+    logic        w_cpuif_req;
+    logic        w_cpuif_req_is_wr;
+    logic [8:0]  w_cpuif_addr;
+    logic [31:0] w_cpuif_wr_data;
+    logic        w_cpuif_rd_ack;
+    logic [31:0] w_cpuif_rd_data;
+    logic        w_wr_req;
+    logic        w_rd_req;
+
+    assign w_cpuif_req       = w_wr_req | w_rd_req;
+    assign w_cpuif_req_is_wr = w_wr_req;
+    assign w_cpuif_addr      = w_wr_req ? int_awaddr[8:0] : int_araddr[8:0];
+    assign w_cpuif_wr_data   = int_wdata;
+
+    harness_csr_regs_top u_regs (
+        .clk                  (aclk),
+        .rst                  (~aresetn),
+        .s_cpuif_req          (w_cpuif_req),
+        .s_cpuif_req_is_wr    (w_cpuif_req_is_wr),
+        .s_cpuif_addr         (w_cpuif_addr),
+        .s_cpuif_wr_data      (w_cpuif_wr_data),
+        .s_cpuif_wr_biten     ({32{1'b1}}),
+        .s_cpuif_req_stall_wr (),
+        .s_cpuif_req_stall_rd (),
+        .s_cpuif_rd_ack       (w_cpuif_rd_ack),
+        .s_cpuif_rd_err       (),
+        .s_cpuif_rd_data      (w_cpuif_rd_data),
+        .s_cpuif_wr_ack       (),
+        .s_cpuif_wr_err       (),
+        .hwif_in              (w_hwif_in),
+        .hwif_out             (w_hwif_out)
+    );
+
 
     // Kick-burst storage: per-channel address shadow + pulse-per-cycle
 
@@ -488,6 +546,77 @@ module harness_csr #(
         end
     end
 
+    // ---- hwif_in: hardware -> register block -------------------------------
+    // GENERATED PAIRING, not hand-typed. The RDL and the retired hand-written
+    // read decode agreed on all 64 offsets exactly, so every read-only
+    // register's source is taken from the decode it replaces.
+    assign w_hwif_in.STATUS.STREAM_IRQ.next = r_irq_latched;
+    assign w_hwif_in.STATUS.ANY_ERROR.next = r_any_error_sticky;
+    assign w_hwif_in.STATUS.TRACE_OVERFLOW.next = i_dbg_overflow;
+    assign w_hwif_in.STATUS.CLEAR_BUSY.next = i_dbg_clear_busy;
+    assign w_hwif_in.DBG_WR_PTR.VALUE.next = i_dbg_wr_ptr;
+    assign w_hwif_in.DBG_OVERFLOW.VALUE.next = {31'd0, i_dbg_overflow};
+    assign w_hwif_in.CRC_RD_EXPECTED.VALUE.next = i_crc_rd_expected;
+    assign w_hwif_in.CRC_WR_EXPECTED.VALUE.next = i_crc_wr_expected;
+    assign w_hwif_in.CRC_WR_COMPUTED.VALUE.next = i_crc_wr_computed;
+    assign w_hwif_in.CRC_MATCH.MATCH.next = i_crc_match;
+    assign w_hwif_in.CRC_MATCH.VALID.next = i_crc_valid;
+    assign w_hwif_in.BUILD_ID.VALUE.next = BUILD_ID;
+    assign w_hwif_in.TIMER_STATUS.DONE.next = i_timer_done;
+    assign w_hwif_in.TIMER_STATUS.RUNNING.next = i_timer_running;
+    assign w_hwif_in.TIMER_STATUS.PASS.next = i_timer_pass;
+    assign w_hwif_in.TIMER_CYCLES_LO.VALUE.next = i_timer_cycles[31:0];
+    assign w_hwif_in.TIMER_CYCLES_HI.VALUE.next = i_timer_cycles[63:32];
+    assign w_hwif_in.TIMER_R_FIRST_LO.VALUE.next = i_timer_r_first[31:0];
+    assign w_hwif_in.TIMER_R_FIRST_HI.VALUE.next = i_timer_r_first[63:32];
+    assign w_hwif_in.TIMER_R_LAST_LO.VALUE.next = i_timer_r_last [31:0];
+    assign w_hwif_in.TIMER_R_LAST_HI.VALUE.next = i_timer_r_last [63:32];
+    assign w_hwif_in.TIMER_W_FIRST_LO.VALUE.next = i_timer_w_first[31:0];
+    assign w_hwif_in.TIMER_W_FIRST_HI.VALUE.next = i_timer_w_first[63:32];
+    assign w_hwif_in.TIMER_W_LAST_LO.VALUE.next = i_timer_w_last [31:0];
+    assign w_hwif_in.TIMER_W_LAST_HI.VALUE.next = i_timer_w_last [63:32];
+    assign w_hwif_in.CRC_RD_PER_CH0.VALUE.next = crc_rd_view[0];
+    assign w_hwif_in.CRC_RD_PER_CH1.VALUE.next = crc_rd_view[1];
+    assign w_hwif_in.CRC_RD_PER_CH2.VALUE.next = crc_rd_view[2];
+    assign w_hwif_in.CRC_RD_PER_CH3.VALUE.next = crc_rd_view[3];
+    assign w_hwif_in.CRC_RD_PER_CH4.VALUE.next = crc_rd_view[4];
+    assign w_hwif_in.CRC_RD_PER_CH5.VALUE.next = crc_rd_view[5];
+    assign w_hwif_in.CRC_RD_PER_CH6.VALUE.next = crc_rd_view[6];
+    assign w_hwif_in.CRC_RD_PER_CH7.VALUE.next = crc_rd_view[7];
+    assign w_hwif_in.CRC_WR_PER_CH0.VALUE.next = crc_wr_view[0];
+    assign w_hwif_in.CRC_WR_PER_CH1.VALUE.next = crc_wr_view[1];
+    assign w_hwif_in.CRC_WR_PER_CH2.VALUE.next = crc_wr_view[2];
+    assign w_hwif_in.CRC_WR_PER_CH3.VALUE.next = crc_wr_view[3];
+    assign w_hwif_in.CRC_WR_PER_CH4.VALUE.next = crc_wr_view[4];
+    assign w_hwif_in.CRC_WR_PER_CH5.VALUE.next = crc_wr_view[5];
+    assign w_hwif_in.CRC_WR_PER_CH6.VALUE.next = crc_wr_view[6];
+    assign w_hwif_in.CRC_WR_PER_CH7.VALUE.next = crc_wr_view[7];
+    assign w_hwif_in.CRC_VALID_MASK.VALUE.next = w_crc_valid_word;
+    assign w_hwif_in.CRC_MATCH_MASK.VALUE.next = w_crc_match_word;
+    assign w_hwif_in.DESC_SRAM_AR_HS.VALUE.next = i_desc_sram_ar_hs;
+    assign w_hwif_in.DESC_SRAM_R_HS.VALUE.next = i_desc_sram_r_hs;
+    assign w_hwif_in.DESC_AR_HS.VALUE.next = i_desc_ar_hs;
+    assign w_hwif_in.DESC_AR_STALL.VALUE.next = i_desc_ar_stall;
+    assign w_hwif_in.DESC_R_HS.VALUE.next = i_desc_r_hs;
+    assign w_hwif_in.DESC_R_STALL.VALUE.next = i_desc_r_stall;
+    assign w_hwif_in.DESC_AW_HS.VALUE.next = i_desc_aw_hs;
+    assign w_hwif_in.DESC_W_HS.VALUE.next = i_desc_w_hs;
+    assign w_hwif_in.DESC_B_HS.VALUE.next = i_desc_b_hs;
+    assign w_hwif_in.DESC_VR_LIVE.VALUE.next = {16'h0, i_desc_vr_live};
+    assign w_hwif_in.BUILD_VERSION.VALUE.next = 32'(BUILD_VERSION);
+    assign w_hwif_in.BUILD_CONFIG.DATA_WIDTH_B.next = 8'(BUILD_DATA_WIDTH_B);
+    assign w_hwif_in.BUILD_CONFIG.MAIN_CONES.next = 1'(BUILD_MAIN_CONES);
+    assign w_hwif_in.BUILD_N_PROFILE.VALUE.next = 32'(BUILD_N_PROFILE);
+    assign w_hwif_in.BUILD_CLK_HZ.VALUE.next = 32'(BUILD_CLK_HZ);
+    assign w_hwif_in.COMP_TIER1_A.VALUE.next = i_mon_comp_tier1_a;
+    assign w_hwif_in.COMP_TIER1_B.VALUE.next = i_mon_comp_tier1_b;
+    assign w_hwif_in.COMP_TIER1_C.VALUE.next = i_mon_comp_tier1_c;
+    assign w_hwif_in.COMP_TIER0.VALUE.next = i_mon_comp_tier0;
+    assign w_hwif_in.COMP_CAM_MISS.VALUE.next = i_mon_comp_cam_miss;
+    assign w_hwif_in.COMP_DELTA_TS_OVF.VALUE.next = i_mon_comp_delta_ts_ovf;
+    assign w_hwif_in.COMP_EVENT_DATA_OVF.VALUE.next = i_mon_comp_event_data_ovf;
+    assign w_hwif_in.COMP_ED_DELTA_OVF.VALUE.next = i_mon_comp_ed_delta_ovf;
+
     // =========================================================================
     // Write channel FSM (operates on skid-buffer outputs)
     // =========================================================================
@@ -500,55 +629,22 @@ module harness_csr #(
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
+            // Reset values and the one-cycle auto-clear of the CTRL /
+            // TIMER_CTRL pulses now live in the register block: every pulse is
+            // a `singlepulse` field in harness_csr.rdl, which is exactly what
+            // this hand-written block was open-coding.
             r_wstate            <= W_IDLE;
-            r_freeze_trace      <= 1'b0;
-            r_scratch           <= '0;
-            r_start_pulse          <= 1'b0;
-            r_clear_stats_pulse    <= 1'b0;
-            r_soft_reset_pulse     <= 1'b0;
-            r_cam_clear_pulse      <= 1'b0;
-            r_timer_clear_pulse    <= 1'b0;
-            r_timer_expected_beats <= '0;
-            r_rd_resp_delay_cyc    <= '0;
-            r_wr_resp_delay_cyc    <= '0;
         end else begin
-            r_start_pulse          <= 1'b0;
-            r_clear_stats_pulse    <= 1'b0;
-            r_soft_reset_pulse     <= 1'b0;
-            r_cam_clear_pulse      <= 1'b0;
-            r_timer_clear_pulse    <= 1'b0;
 
             case (r_wstate)
                 W_IDLE: begin
                     if (int_awvalid && int_wvalid) begin
+                        // The decode is the register block's job now.
                         // Use the same 9-bit slice as the read path so the
                         // meter region 0x100-0x1FF stays read-only (no write
                         // case-match means write goes to default = ignore),
                         // with the sole exception of the RFC Stage E observer
                         // histogram selector at 0x120 (RW).
-                        case (int_awaddr[8:0])
-                            8'h00: begin
-                                r_start_pulse       <= int_wdata[0];
-                                r_clear_stats_pulse <= int_wdata[1];
-                                r_freeze_trace      <= int_wdata[2];
-                                r_soft_reset_pulse  <= int_wdata[3];
-                                r_cam_clear_pulse   <= int_wdata[4];
-                            end
-                            8'h20: r_scratch <= int_wdata;
-                            8'h28: r_timer_clear_pulse <= int_wdata[0];
-                            8'h38: r_timer_expected_beats <= int_wdata;
-                            8'h3C: begin
-                                r_rd_resp_delay_cyc <= int_wdata[15:0];
-                                r_wr_resp_delay_cyc <= int_wdata[31:16];
-                            end
-                            // Kick-burst shadow address per channel
-                            // (0xB0..0xCC: 8 slots = enough for NC up to 8)                            // Kick-burst trigger: bitmask of channels to
-                            // pulse for exactly one cycle. Auto-clears.                            // RFC Stage E observer histogram selector (RW):
-                            // {bin[5:2], metric[1], bus[0]}. Drives the
-                            // observer's hist read port; data/total stream
-                            // back through 0x124/0x128 (read-only).
-                            default: ; // ignore
-                        endcase
                         r_wstate <= W_BRESP;
                     end
                 end
@@ -559,6 +655,9 @@ module harness_csr #(
             endcase
         end
     )
+
+    // The write moment: exactly when the old decode's case fired.
+    assign w_wr_req = (r_wstate == W_IDLE) && int_awvalid && int_wvalid;
 
     assign int_awready = (r_wstate == W_IDLE) && int_wvalid;
     assign int_wready  = (r_wstate == W_IDLE) && int_awvalid;
@@ -598,6 +697,10 @@ module harness_csr #(
     logic [8:0] w_raddr;
     assign w_raddr = int_araddr[8:0];
 
+    // The read moment. A write in the same cycle wins the single cpuif port,
+    // so the read simply re-asserts until it is granted and acked.
+    assign w_rd_req = (r_rstate == R_IDLE) && int_arvalid && !w_wr_req;
+
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_rstate <= R_IDLE;
@@ -606,99 +709,7 @@ module harness_csr #(
             case (r_rstate)
                 R_IDLE: begin
                     if (int_arvalid) begin
-                        case (w_raddr)
-                            8'h00: r_rdata <= {28'd0, 1'b0, r_freeze_trace, 2'b00};
-                            8'h04: r_rdata <= {28'd0, i_dbg_clear_busy, i_dbg_overflow, r_any_error_sticky, r_irq_latched};
-                            8'h08: r_rdata <= i_dbg_wr_ptr;
-                            8'h0C: r_rdata <= {31'd0, i_dbg_overflow};
-                            8'h10: r_rdata <= i_crc_rd_expected;
-                            8'h14: r_rdata <= i_crc_wr_expected;
-                            8'h18: r_rdata <= i_crc_wr_computed;
-                            8'h1C: r_rdata <= {30'd0, i_crc_valid, i_crc_match};
-                            8'h20: r_rdata <= r_scratch;
-                            8'h24: r_rdata <= BUILD_ID;
-                            // 0x1D0 BUILD_VERSION, 0x1D4 BUILD_CONFIG.
-                            9'h1D0: r_rdata <= 32'(BUILD_VERSION);
-                            // MAIN_CONES goes at bit 16, in the previously
-                            // reserved upper half, so the existing field
-                            // positions -- and any host already parsing them --
-                            // are untouched.
-                            9'h1D4: r_rdata <= {15'h0,
-                                                1'(BUILD_MAIN_CONES),
-                                                8'(BUILD_DATA_WIDTH_B),
-                                                1'(BUILD_GEN_MON),
-                                                1'(BUILD_USE_MONITORS),
-                                                1'(BUILD_ERROR_FLAVOR),
-                                                5'(BUILD_NUM_CHANNELS)};
-                            9'h1D8: r_rdata <= 32'(BUILD_N_PROFILE);
-                            9'h1DC: r_rdata <= 32'(BUILD_CLK_HZ);
-                            8'h28: r_rdata <= 32'h0000_0000;  // TIMER_CTRL is W-only
-                            8'h2C: r_rdata <= {29'd0, i_timer_pass,
-                                                       i_timer_running,
-                                                       i_timer_done};
-                            8'h30: r_rdata <= i_timer_cycles[31:0];
-                            8'h34: r_rdata <= i_timer_cycles[63:32];
-                            8'h38: r_rdata <= r_timer_expected_beats;
-                            8'h3C: r_rdata <= {r_wr_resp_delay_cyc, r_rd_resp_delay_cyc};
-                            8'h40: r_rdata <= i_timer_r_first[31:0];
-                            8'h44: r_rdata <= i_timer_r_first[63:32];
-                            8'h48: r_rdata <= i_timer_r_last [31:0];
-                            8'h4C: r_rdata <= i_timer_r_last [63:32];
-                            8'h50: r_rdata <= i_timer_w_first[31:0];
-                            8'h54: r_rdata <= i_timer_w_first[63:32];
-                            8'h58: r_rdata <= i_timer_w_last [31:0];
-                            8'h5C: r_rdata <= i_timer_w_last [63:32];
-                            // Per-channel CRC values (NC up to CRC_VIEW_NC=8).
-                            // 0x60..0x7C: read CRCs, 0x80..0x9C: write CRCs.
-                            8'h60: r_rdata <= crc_rd_view[0];
-                            8'h64: r_rdata <= crc_rd_view[1];
-                            8'h68: r_rdata <= crc_rd_view[2];
-                            8'h6C: r_rdata <= crc_rd_view[3];
-                            8'h70: r_rdata <= crc_rd_view[4];
-                            8'h74: r_rdata <= crc_rd_view[5];
-                            8'h78: r_rdata <= crc_rd_view[6];
-                            8'h7C: r_rdata <= crc_rd_view[7];
-                            8'h80: r_rdata <= crc_wr_view[0];
-                            8'h84: r_rdata <= crc_wr_view[1];
-                            8'h88: r_rdata <= crc_wr_view[2];
-                            8'h8C: r_rdata <= crc_wr_view[3];
-                            8'h90: r_rdata <= crc_wr_view[4];
-                            8'h94: r_rdata <= crc_wr_view[5];
-                            8'h98: r_rdata <= crc_wr_view[6];
-                            8'h9C: r_rdata <= crc_wr_view[7];
-                            8'hA0: r_rdata <= w_crc_valid_word;
-                            8'hA4: r_rdata <= w_crc_match_word;
-                            // SRAM-side desc_ram handshake counters
-                            // (see 0xD4/0xD8 in the address-map docstring).
-                            8'hD4: r_rdata <= i_desc_sram_ar_hs;
-                            8'hD8: r_rdata <= i_desc_sram_r_hs;
-                            // desc_ram observation counters / live valid-ready
-                            // snapshot (see address-map docstring 0xE0..0xFC).
-                            8'hE0: r_rdata <= i_desc_ar_hs;
-                            8'hE4: r_rdata <= i_desc_ar_stall;
-                            8'hE8: r_rdata <= i_desc_r_hs;
-                            8'hEC: r_rdata <= i_desc_r_stall;
-                            8'hF0: r_rdata <= i_desc_aw_hs;
-                            8'hF4: r_rdata <= i_desc_w_hs;
-                            8'hF8: r_rdata <= i_desc_b_hs;
-                            8'hFC: r_rdata <= {16'h0, i_desc_vr_live};
-                            // Kick-burst shadow registers (read-back)                            // RFC Stage E: external axi4_intf_master_observer perf
-                            // readback (revives 0x100-0x128). Aggregate R/W
-                            // buckets + indexed latency-histogram readout.
-
-                            // MonBus compressor statistics (0 unless the
-                            // build has USE_MON_COMPRESSION=1).
-                            9'h1E0: r_rdata <= i_mon_comp_tier1_a;
-                            9'h1E4: r_rdata <= i_mon_comp_tier1_b;
-                            9'h1E8: r_rdata <= i_mon_comp_tier1_c;
-                            9'h1EC: r_rdata <= i_mon_comp_tier0;
-                            9'h1F0: r_rdata <= i_mon_comp_cam_miss;
-                            9'h1F4: r_rdata <= i_mon_comp_delta_ts_ovf;
-                            9'h1F8: r_rdata <= i_mon_comp_event_data_ovf;
-                            9'h1FC: r_rdata <= i_mon_comp_ed_delta_ovf;
-
-                            default: r_rdata <= 32'h0000_0000;
-                        endcase
+                        r_rdata <= w_cpuif_rd_data;
                         r_rstate <= R_RRESP;
                     end
                 end

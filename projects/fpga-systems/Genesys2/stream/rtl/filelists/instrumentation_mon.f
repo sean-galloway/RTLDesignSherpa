@@ -4,6 +4,11 @@
 # names collide).
 $STREAM_CHAR_FRAMEWORK_ROOT/rtl/axi_response_delay.sv
 -f $STREAM_CHAR_FRAMEWORK_ROOT/rtl/bridges/filelists/bridge_stream_mon_axil.f
+# harness_csr's registers come from regs/harness_csr.rdl now, not a
+# hand-rolled decode. The generated block must precede the module that
+# instantiates it.
+$STREAM_CHAR_FRAMEWORK_ROOT/rtl/regs/generated/rtl/harness_csr_regs_top_pkg.sv
+$STREAM_CHAR_FRAMEWORK_ROOT/rtl/regs/generated/rtl/harness_csr_regs_top.sv
 $STREAM_CHAR_FRAMEWORK_ROOT/rtl/harness_csr.sv
 -f $REPO_ROOT/rtl/amba/filelists/axi_gen_addr.f
 -f $REPO_ROOT/rtl/amba/filelists/sdpram_core.f

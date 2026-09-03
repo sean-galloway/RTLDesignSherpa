@@ -45,13 +45,20 @@ def _default_regmap() -> str:
     # resolved against the OLD tree's regmap, so registers added here read back
     # as "unknown" with no error. The old tree is deleted; resolve locally only,
     # and fail loudly rather than resolving against some other copy.
+    # ONE regmap, and it is the generated one that sits beside the generated
+    # RTL. Both come from regs/harness_csr_regs.rdl in the same
+    # peakrdl_generate run, so the map a host resolves by name and the decode
+    # the hardware implements cannot describe different registers. A second
+    # copy under rtl/ was exactly the drift this block warns about below.
     local = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                         "rtl", "harness_csr_regmap.py")
+                         "rtl", "regs", "generated",
+                         "harness_csr_regs_top_regmap.py")
     if os.path.isfile(local):
         return local
     raise FileNotFoundError(
-        f"harness_csr_regmap.py not found at {local}; regenerate it with "
-        f"bin/gen_harness_regmap.py, or set HARNESS_REGMAP")
+        f"harness_csr_regs_top_regmap.py not found at {local}; regenerate with "
+        f"bin/peakrdl_generate.py regs/harness_csr_regs.rdl "
+        f"-o rtl/regs/generated, or set HARNESS_REGMAP")
 
 
 @lru_cache(maxsize=1)

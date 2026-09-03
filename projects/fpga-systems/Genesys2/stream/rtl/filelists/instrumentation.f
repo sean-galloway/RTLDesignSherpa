@@ -15,6 +15,11 @@ $STREAM_CHAR_FRAMEWORK_ROOT/rtl/axi_response_delay.sv
 -f $STREAM_CHAR_FRAMEWORK_ROOT/rtl/bridges/filelists/bridge_stream_char_axil.f
 
 # Harness CSRs (kick-burst, response-delay programming, cycle timer, status).
+# harness_csr's registers come from regs/harness_csr.rdl now, not a
+# hand-rolled decode. The generated block must precede the module that
+# instantiates it.
+$STREAM_CHAR_FRAMEWORK_ROOT/rtl/regs/generated/rtl/harness_csr_regs_top_pkg.sv
+$STREAM_CHAR_FRAMEWORK_ROOT/rtl/regs/generated/rtl/harness_csr_regs_top.sv
 $STREAM_CHAR_FRAMEWORK_ROOT/rtl/harness_csr.sv
 
 # (axi_bus_meter.sv retired from the harness in RFC Stage E.4 -- the per-cycle
