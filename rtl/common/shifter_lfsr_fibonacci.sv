@@ -84,9 +84,12 @@
 //   tap positions here, and a wrong set does not merely shorten the sequence:
 //   it costs the full period, and the failure is quiet either way.
 //   Measured by sweeping all 15 non-zero seeds at WIDTH=4 with taps [4,3]:
-//   three seeds (including 4'b0001, which gets there in ONE step) walk to 0 and
-//   freeze under the `|r_lfsr` guard; the other twelve settle into a short
-//   cycle that never revisits the seed, so lfsr_done never asserts. Taps [4,1]
+//   three seeds (1, 2, 3 -- including 4'b0001, which gets there in ONE step)
+//   walk to 0 and freeze under the `|r_lfsr` guard; three (6, 11, 13) DO
+//   revisit their seed, so lfsr_done ASSERTS for them; the remaining nine
+//   settle into a cycle that never revisits the seed and never assert it.
+//   The "other twelve never assert" claim this comment used to make was wrong
+//   for 6, 11 and 13 -- verified by simulating the feedback directly. Taps [4,1]
 //   run the full period of 15 from every seed. The outcome is seed-dependent --
 //   do not expect the zero-lock from every wrong tap set.
 //

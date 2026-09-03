@@ -232,10 +232,11 @@ all zeros and relies on seed loading for proper initialization.
 > `shifter_lfsr.sv` header, which is XNOR feedback with a *left* shift -- encodes
 > the same polynomials differently. Get it wrong and you lose the full period,
 > and the failure is quiet either way. Sweeping all 15 non-zero seeds on this
-> RTL at `WIDTH=4` with taps `[4,3]`: three seeds (including `4'b0001`, which
-> reaches zero in **one** step) walk to zero and freeze under the `|r_lfsr`
-> guard; the other twelve settle into a short cycle that never revisits the
-> seed, so `lfsr_done` never asserts. `[4,1]` runs the full period of 15 from
+> RTL at `WIDTH=4` with taps `[4,3]`: three seeds (1, 2, 3 -- including
+> `4'b0001`, which reaches zero in **one** step) walk to zero and freeze under
+> the `|r_lfsr` guard; three (6, 11, 13) DO revisit their seed, so `lfsr_done`
+> asserts for them; the remaining nine settle into a cycle that never revisits
+> the seed and never assert it. `[4,1]` runs the full period of 15 from
 > every seed.
 
 | Width | Polynomial | Tap Positions | Period |
