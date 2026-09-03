@@ -51,8 +51,8 @@
 //   - rd_issue_ready / wr_commit_ready column FIFO-room gating.
 // Feedback: issued_i + issued_op_i (the op the core actually fired), so guards
 // latch on the true issued op even under cmd-FIFO backpressure. The guard SHIFT
-// depths (3/3/2) span the pipelined issued_i round-trip incl. the core's TWO
-// register stages (A + B), so a candidate cannot double-issue.
+// depths (2/3/2): with the pickers reading LIVE bank state the issue round-trip
+// reflects one cycle sooner, so a candidate cannot double-issue.
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
@@ -191,11 +191,11 @@ module pumice_bank_cmd_picker
     endfunction
 
     // ---- per-bank guards (registered) --------------------------------------
-    logic r_guard0, r_guard1, r_guard2;           // block ACT/PRE re-issue (3 cyc)
+    logic r_guard0, r_guard1;                     // block ACT/PRE re-issue (2 cyc)
     logic r_preguard0, r_preguard1, r_preguard2; // block columns after PRE (3 cyc)
     logic r_apguard0, r_apguard1;                // block columns after AP col (2 cyc)
     logic w_guard, w_preguard, w_apguard;
-    assign w_guard    = r_guard0 || r_guard1 || r_guard2;
+    assign w_guard    = r_guard0 || r_guard1;
     assign w_preguard = r_preguard0 || r_preguard1 || r_preguard2;
     assign w_apguard  = r_apguard0 || r_apguard1;
 
@@ -355,11 +355,10 @@ module pumice_bank_cmd_picker
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_guard0    <= 1'b0; r_guard1    <= 1'b0; r_guard2 <= 1'b0;
+            r_guard0    <= 1'b0; r_guard1    <= 1'b0;
             r_preguard0 <= 1'b0; r_preguard1 <= 1'b0; r_preguard2 <= 1'b0;
             r_apguard0  <= 1'b0; r_apguard1  <= 1'b0;
         end else begin
-            r_guard2    <= r_guard1;
             r_guard1    <= r_guard0;
             r_guard0    <= w_iss_actpre;
             r_preguard2 <= r_preguard1;

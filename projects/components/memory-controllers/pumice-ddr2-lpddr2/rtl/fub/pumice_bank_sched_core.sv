@@ -72,6 +72,13 @@ module pumice_bank_sched_core
     input  logic                                twtr_ok_i,
     input  logic                                trtw_ok_i,
     input  logic                                tccd_ok_i,
+    // Column commit / issue FIFO room -- the pickers gate classification on
+    // these, but the winner is registered for 2 more stages before it issues,
+    // and the FIFO can fill in that window (esp. under the faster live-picker
+    // demand). Re-check them here so a column commit is never launched into a
+    // full drain / issue FIFO (that desyncs the wr CAM -> write channel wedge).
+    input  logic                                wr_commit_ready_i,
+    input  logic                                rd_issue_ready_i,
 
     // ---- init passthrough (from init_sequencer) ----
     input  logic                                init_done_i,
@@ -161,14 +168,30 @@ module pumice_bank_sched_core
 
     // ---- inflight + guard views -------------------------------------------
     logic w_infl_a_pre, w_infl_a_col, w_infl_b_pre, w_infl_b_col, w_rfc_busy;
-    logic w_rd_turn_block, w_wr_turn_block;
     assign w_infl_a_pre = r_a_valid && ((r_a_op == OP_ACT) || (r_a_op == OP_PRE));
     assign w_infl_a_col = r_a_valid && is_column_op(r_a_op);
     assign w_infl_b_pre = r_pick_valid && (r_do_act || r_do_pre);
     assign w_infl_b_col = r_pick_valid && (r_do_rd  || r_do_wr);
     assign w_rfc_busy   = (r_rfc_cnt != 16'd0);
-    assign w_rd_turn_block = r_wrfire0 || r_wrfire1;   // WR fired < 2 cyc ago
-    assign w_wr_turn_block = r_rdfire0 || r_rdfire1;   // RD fired < 2 cyc ago
+
+    // ---- direction turnaround (tRTW rd->wr, tWTR wr->rd) -------------------
+    // 2-deep FIRE history covers the POST-fire window; an OPPOSITE-direction
+    // column still IN FLIGHT in a pipeline register (r_a / r_pick) also blocks,
+    // else it would issue before the fire reaches the history (the opt-2 two-
+    // stage tRTW/tWTR hole). Write-only streams are unaffected (no RD to block a
+    // WR); same-direction (tCCD) spacing stays with tccd_ok + w_cg so the close-
+    // page WRA rotation is not over-serialised. _a = stage-A tournament, _b =
+    // stage-B recheck of r_a (must NOT count r_a itself).
+    logic w_rd_infl_b, w_rd_infl_a, w_wr_infl_b, w_wr_infl_a;
+    assign w_rd_infl_b = r_pick_valid && r_do_rd;
+    assign w_rd_infl_a = w_rd_infl_b || (r_a_valid && is_read_op(r_a_op));
+    assign w_wr_infl_b = r_pick_valid && r_do_wr;
+    assign w_wr_infl_a = w_wr_infl_b || (r_a_valid && is_write_op(r_a_op));
+    logic w_rd_turn_block_a, w_wr_turn_block_a, w_rd_turn_block_b, w_wr_turn_block_b;
+    assign w_rd_turn_block_a = r_wrfire0 || r_wrfire1 || w_wr_infl_a;
+    assign w_wr_turn_block_a = r_rdfire0 || r_rdfire1 || w_rd_infl_a;
+    assign w_rd_turn_block_b = r_wrfire0 || r_wrfire1 || w_wr_infl_b;
+    assign w_wr_turn_block_b = r_rdfire0 || r_rdfire1 || w_rd_infl_b;
 
     // ACT/PRE re-issue guard. _b (stage-B recheck / refresh) covers r_pick +
     // the post-issue shift; _a (stage-A tournament) adds r_a so a bank already
@@ -196,8 +219,9 @@ module pumice_bank_sched_core
             automatic logic is_act = (cand_op_i[b] == OP_ACT);
             automatic logic is_pre = (cand_op_i[b] == OP_PRE);
             automatic logic okc = is_col && bank_rdwr_ready_i[b] && tccd_ok_i && !w_cg_a[b]
-                                  && (cand_is_rd_i[b] ? (twtr_ok_i && !w_rd_turn_block)
-                                                      : (trtw_ok_i && !w_wr_turn_block));
+                                  && (cand_is_rd_i[b]
+                                      ? (rd_issue_ready_i && twtr_ok_i && !w_rd_turn_block_a)
+                                      : (wr_commit_ready_i && trtw_ok_i && !w_wr_turn_block_a));
             automatic logic oka = is_act && bank_act_ready_i[b] && tfaw_ok_i && trrd_ok_i
                                   && !w_rfc_busy && !w_g_a[b];
             automatic logic okp = is_pre && bank_pre_ready_i[b] && !w_g_a[b];
@@ -231,7 +255,14 @@ module pumice_bank_sched_core
             r_a_valid <= 1'b0; r_a_op <= OP_NOP; r_a_bank <= '0; r_a_row <= '0;
             r_a_col <= '0; r_a_slot <= '0; r_a_is_rd <= 1'b1; r_a_ap <= 1'b0;
         end else if (w_a_ready) begin
-            r_a_valid <= sel_valid;
+            // Do NOT hold a demand candidate valid while a refresh owns the
+            // pipe. A held demand ACT/PRE would assert w_infl_a_pre and poison
+            // w_ref_safe, so the refresh could never reach its REF -- and the
+            // held ACT could never issue (w_sel_dem is gated off during
+            // refresh), a permanent deadlock. Demand is re-picked (one cycle)
+            // once the refresh clears. Matches the flat arbiter, which never
+            // carries a registered demand pick across a refresh.
+            r_a_valid <= sel_valid && !(refresh_req_i || refresh_drain_i);
             r_a_op    <= cand_op_i[sel_bank];
             r_a_bank  <= sel_bank;
             r_a_row   <= cand_row_i[sel_bank];
@@ -252,8 +283,9 @@ module pumice_bank_sched_core
         automatic logic is_act = (r_a_op == OP_ACT);
         automatic logic okc = is_col && bank_rdwr_ready_i[r_a_bank] && tccd_ok_i
                               && !w_cg_b[r_a_bank]
-                              && (r_a_is_rd ? (twtr_ok_i && !w_rd_turn_block)
-                                            : (trtw_ok_i && !w_wr_turn_block));
+                              && (r_a_is_rd
+                                  ? (rd_issue_ready_i && twtr_ok_i && !w_rd_turn_block_b)
+                                  : (wr_commit_ready_i && trtw_ok_i && !w_wr_turn_block_b));
         automatic logic oka = is_act && bank_act_ready_i[r_a_bank] && tfaw_ok_i && trrd_ok_i
                               && !w_rfc_busy && !w_g_b[r_a_bank];
         automatic logic okp = (r_a_op == OP_PRE) && bank_pre_ready_i[r_a_bank] && !w_g_b[r_a_bank];
@@ -466,5 +498,7 @@ module pumice_bank_sched_core
             r_rfc_cnt <= r_rfc_cnt - 16'd1;
         end
     )
+
+
 
 endmodule : pumice_bank_sched_core
