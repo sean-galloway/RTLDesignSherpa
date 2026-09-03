@@ -67,14 +67,41 @@ What it's for:
 
 ## Ports
 
-**See RTL source:** `rtl/amba/monitor/axi_monitor_timeout.sv` for complete port listing.
+### Clock and Reset
 
-Key interface groups:
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| `aclk` | 1 | Input | Monitor clock |
+| `aresetn` | 1 | Input | Active-low asynchronous reset |
 
-- Clock and reset
-- Input signals from monitored interface
-- Configuration signals
-- Output signals to downstream logic
+### Transaction Table
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| `trans_table` | `bus_transaction_t` x `MAX_TRANSACTIONS` | Input | The transaction manager's table, read directly as an unpacked array. This module only reads it; `axi_monitor_trans_mgr` owns the entries. |
+
+### Timer
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| `timer_tick` | 1 | Input | One-cycle pulse from the frequency-invariant timer. Every threshold below counts these, not `aclk` cycles, so a timeout means the same wall-clock interval at any bus frequency. |
+
+### Timeout Configuration
+
+Each threshold is a count of `timer_tick` pulses for one phase of a transaction.
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| `cfg_addr_cnt` | 16 | Input | Address-phase timeout threshold |
+| `cfg_data_cnt` | 16 | Input | Data-phase timeout threshold |
+| `cfg_resp_cnt` | 16 | Input | Response-phase timeout threshold |
+| `cfg_timeout_enable` | 1 | Input | Master enable for timeout detection. Low does not merely mask the output: the per-phase timers and all recorded detections are flushed, so the block is inert rather than holding stale state. A detection registered while disabled would resurface the instant the enable returned -- a detection with no `timer_tick` behind it, which the formal property `ap_no_set_without_tick` rejects. |
+
+### Outputs
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| `timeout_detected` | `MAX_TRANSACTIONS` | Output | One bit per table slot, high for a transaction that has timed out. Consumed by the transaction manager to retire the entry. |
 
 ---
 
