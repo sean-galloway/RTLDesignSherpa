@@ -741,19 +741,25 @@ module stream_harness #(
         .monbus_wr_bresp      (mon_bresp),
         .monbus_wr_bvalid     (mon_bvalid),
         .monbus_wr_bready     (mon_bready),
-        
-        
-        
-        
-        
-        
-        
-        
-
-        
-        
-        
-        
+        // Master 3: slave_monbus_wr — UNUSED in this design.
+        // The slave observer now drives u_slave_tally.rec_* DIRECTLY, so no
+        // record traffic rides the bridge on this port any more. The master is
+        // kept in the bridge on purpose: there is ONE bridge for all three
+        // build flavours (perf/obs/mon) and respinning it to drop a master
+        // rewrites the xbar arbitration under stream_desc, the descriptor
+        // fetch path. Tie the request side off instead; an always-idle master
+        // costs nothing and the arbiter never grants it.
+        .slave_monbus_wr_awaddr  (32'h0),
+        .slave_monbus_wr_awprot  (3'h0),
+        .slave_monbus_wr_awvalid (1'b0),
+        .slave_monbus_wr_awready (),
+        .slave_monbus_wr_wdata   (64'h0),
+        .slave_monbus_wr_wstrb   (8'h0),
+        .slave_monbus_wr_wvalid  (1'b0),
+        .slave_monbus_wr_wready  (),
+        .slave_monbus_wr_bresp   (),
+        .slave_monbus_wr_bvalid  (),
+        .slave_monbus_wr_bready  (1'b1),
 
         // Slave 6: slave_err — dma_slave_monitors' s_axil_* err/IRQ read.
         // Read side -> the group's s_axil; write side tied (err FIFO not writable).

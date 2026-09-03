@@ -23,6 +23,7 @@ module bridge_stream_mon_axil_mon
     parameter bit USE_MONITOR_host_rd = 1'b1,
     parameter bit USE_MONITOR_stream_desc_rd = 1'b1,
     parameter bit USE_MONITOR_monbus_wr_wr = 1'b1,
+    parameter bit USE_MONITOR_slave_monbus_wr_wr = 1'b1,
     parameter bit USE_MONITOR_obs_apb_wr = 1'b1,
     parameter bit USE_MONITOR_obs_apb_rd = 1'b1,
     parameter bit USE_MONITOR_slvmon_apb_wr = 1'b1,
@@ -115,6 +116,20 @@ module bridge_stream_mon_axil_mon
     output logic [1:0]            monbus_wr_bresp,
     output logic                  monbus_wr_bvalid,
     input  logic                  monbus_wr_bready,
+
+    // Master 3: slave_monbus_wr (wr)
+    // Master: slave_monbus_wr (axil, wr)
+    input  logic [31:0] slave_monbus_wr_awaddr,
+    input  logic [2:0]            slave_monbus_wr_awprot,
+    input  logic                  slave_monbus_wr_awvalid,
+    output logic                  slave_monbus_wr_awready,
+    input  logic [63:0] slave_monbus_wr_wdata,
+    input  logic [7:0] slave_monbus_wr_wstrb,
+    input  logic                  slave_monbus_wr_wvalid,
+    output logic                  slave_monbus_wr_wready,
+    output logic [1:0]            slave_monbus_wr_bresp,
+    output logic                  slave_monbus_wr_bvalid,
+    input  logic                  slave_monbus_wr_bready,
 
     // Slave 0: obs_apb
     // APB Slave: obs_apb
@@ -466,6 +481,7 @@ module bridge_stream_mon_axil_mon
     localparam bit EFF_USE_MON_host_rd = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_host_rd;
     localparam bit EFF_USE_MON_stream_desc_rd = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_stream_desc_rd;
     localparam bit EFF_USE_MON_monbus_wr_wr = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_monbus_wr_wr;
+    localparam bit EFF_USE_MON_slave_monbus_wr_wr = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_slave_monbus_wr_wr;
     localparam bit EFF_USE_MON_obs_apb_wr = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_obs_apb_wr;
     localparam bit EFF_USE_MON_obs_apb_rd = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_obs_apb_rd;
     localparam bit EFF_USE_MON_slvmon_apb_wr = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_slvmon_apb_wr;
@@ -571,6 +587,20 @@ module bridge_stream_mon_axil_mon
     axi4_b_t      monbus_wr_64b_b;
     logic         monbus_wr_64b_bvalid;
     logic         monbus_wr_64b_bready;
+
+    // slave_monbus_wr Adapter outputs
+    logic [NUM_SLAVES-1:0] slave_monbus_wr_slave_select_aw;
+    logic [BRIDGE_ID_WIDTH-1:0] slave_monbus_wr_bridge_id_aw;
+    // 64b path
+    axi4_aw_t     slave_monbus_wr_64b_aw;
+    logic         slave_monbus_wr_64b_awvalid;
+    logic         slave_monbus_wr_64b_awready;
+    axi4_w_64b_t  slave_monbus_wr_64b_w;
+    logic         slave_monbus_wr_64b_wvalid;
+    logic         slave_monbus_wr_64b_wready;
+    axi4_b_t      slave_monbus_wr_64b_b;
+    logic         slave_monbus_wr_64b_bvalid;
+    logic         slave_monbus_wr_64b_bready;
 
     // Crossbar-to-Slave Internal AXI4 Signals
     // obs_apb (APB, 32b AXI4 interface)
@@ -1271,6 +1301,10 @@ module bridge_stream_mon_axil_mon
     logic                                  monbus_monbus_wr_2_wr_ready;
     monitor_common_pkg::monitor_packet_t   monbus_monbus_wr_2_wr_packet;
     monitor_common_pkg::monbus_timestamp_t monbus_monbus_wr_2_wr_timestamp;
+    logic                                  monbus_slave_monbus_wr_3_wr_valid;
+    logic                                  monbus_slave_monbus_wr_3_wr_ready;
+    monitor_common_pkg::monitor_packet_t   monbus_slave_monbus_wr_3_wr_packet;
+    monitor_common_pkg::monbus_timestamp_t monbus_slave_monbus_wr_3_wr_timestamp;
     logic                                  monbus_obs_apb_0_wr_valid;
     logic                                  monbus_obs_apb_0_wr_ready;
     monitor_common_pkg::monitor_packet_t   monbus_obs_apb_0_wr_packet;
@@ -1469,6 +1503,27 @@ module bridge_stream_mon_axil_mon
     logic [15:0] cfg_monbus_wr_2_wr_axi_perf_mask;
     logic [15:0] cfg_monbus_wr_2_wr_axi_addr_mask;
     logic [15:0] cfg_monbus_wr_2_wr_axi_debug_mask;
+
+    // cfg nets for master slave_monbus_wr (idx 3, wr)
+    logic         cfg_slave_monbus_wr_3_wr_monitor_enable;
+    logic         cfg_slave_monbus_wr_3_wr_error_enable;
+    logic         cfg_slave_monbus_wr_3_wr_timeout_enable;
+    logic         cfg_slave_monbus_wr_3_wr_perf_enable;
+    logic         cfg_slave_monbus_wr_3_wr_compl_enable;
+    logic         cfg_slave_monbus_wr_3_wr_threshold_enable;
+    logic         cfg_slave_monbus_wr_3_wr_debug_enable;
+    logic [15:0] cfg_slave_monbus_wr_3_wr_timeout_cycles;
+    logic [3:0] cfg_slave_monbus_wr_3_wr_freq_sel;
+    logic [31:0] cfg_slave_monbus_wr_3_wr_latency_threshold;
+    logic [15:0] cfg_slave_monbus_wr_3_wr_axi_pkt_mask;
+    logic [15:0] cfg_slave_monbus_wr_3_wr_axi_err_select;
+    logic [15:0] cfg_slave_monbus_wr_3_wr_axi_error_mask;
+    logic [15:0] cfg_slave_monbus_wr_3_wr_axi_timeout_mask;
+    logic [15:0] cfg_slave_monbus_wr_3_wr_axi_compl_mask;
+    logic [15:0] cfg_slave_monbus_wr_3_wr_axi_thresh_mask;
+    logic [15:0] cfg_slave_monbus_wr_3_wr_axi_perf_mask;
+    logic [15:0] cfg_slave_monbus_wr_3_wr_axi_addr_mask;
+    logic [15:0] cfg_slave_monbus_wr_3_wr_axi_debug_mask;
 
     // cfg nets for slave obs_apb (idx 0, wr)
     logic         cfg_obs_apb_0_wr_monitor_enable;
@@ -2358,6 +2413,83 @@ module bridge_stream_mon_axil_mon
     );
 
     // ================================================================
+    // SLAVE_MONBUS_WR Adapter
+    // ================================================================
+    slave_monbus_wr_adapter #(
+        .USE_MONITOR_WR(EFF_USE_MON_slave_monbus_wr_wr)
+    ) u_slave_monbus_wr_adapter (
+        .aclk(aclk),
+        .aresetn(aresetn),
+
+        // External interface
+        .slave_monbus_wr_awid(8'h0),
+        .slave_monbus_wr_awaddr(slave_monbus_wr_awaddr),
+        .slave_monbus_wr_awlen(8'h0),
+        .slave_monbus_wr_awsize(3'd3),
+        .slave_monbus_wr_awburst(2'b01),
+        .slave_monbus_wr_awlock(1'b0),
+        .slave_monbus_wr_awcache(4'h0),
+        .slave_monbus_wr_awprot(slave_monbus_wr_awprot),
+        .slave_monbus_wr_awqos(4'h0),
+        .slave_monbus_wr_awregion(4'h0),
+        .slave_monbus_wr_awuser(1'b0),
+        .slave_monbus_wr_awvalid(slave_monbus_wr_awvalid),
+        .slave_monbus_wr_awready(slave_monbus_wr_awready),
+        .slave_monbus_wr_wdata(slave_monbus_wr_wdata),
+        .slave_monbus_wr_wstrb(slave_monbus_wr_wstrb),
+        .slave_monbus_wr_wlast(1'b1),
+        .slave_monbus_wr_wuser(1'b0),
+        .slave_monbus_wr_wvalid(slave_monbus_wr_wvalid),
+        .slave_monbus_wr_wready(slave_monbus_wr_wready),
+        .slave_monbus_wr_bid(),
+        .slave_monbus_wr_bresp(slave_monbus_wr_bresp),
+        .slave_monbus_wr_buser(),
+        .slave_monbus_wr_bvalid(slave_monbus_wr_bvalid),
+        .slave_monbus_wr_bready(slave_monbus_wr_bready),
+
+        // Decode outputs
+        .slave_select_aw(slave_monbus_wr_slave_select_aw),
+        .bridge_id_aw(slave_monbus_wr_bridge_id_aw),
+
+        // 64b path
+        .slave_monbus_wr_64b_aw(slave_monbus_wr_64b_aw),
+        .slave_monbus_wr_64b_awvalid(slave_monbus_wr_64b_awvalid),
+        .slave_monbus_wr_64b_awready(slave_monbus_wr_64b_awready),
+        .slave_monbus_wr_64b_w(slave_monbus_wr_64b_w),
+        .slave_monbus_wr_64b_wvalid(slave_monbus_wr_64b_wvalid),
+        .slave_monbus_wr_64b_wready(slave_monbus_wr_64b_wready),
+        .slave_monbus_wr_64b_b(slave_monbus_wr_64b_b),
+        .slave_monbus_wr_64b_bvalid(slave_monbus_wr_64b_bvalid),
+        .slave_monbus_wr_64b_bready(slave_monbus_wr_64b_bready),
+
+        // Monitor side-band
+        .i_mon_time(mon_time_w),
+        .monbus_wr_valid(monbus_slave_monbus_wr_3_wr_valid),
+        .monbus_wr_ready(monbus_slave_monbus_wr_3_wr_ready),
+        .monbus_wr_packet(monbus_slave_monbus_wr_3_wr_packet),
+        .monbus_wr_timestamp(monbus_slave_monbus_wr_3_wr_timestamp),
+        .cfg_wr_monitor_enable(cfg_slave_monbus_wr_3_wr_monitor_enable),
+        .cfg_wr_error_enable(cfg_slave_monbus_wr_3_wr_error_enable),
+        .cfg_wr_timeout_enable(cfg_slave_monbus_wr_3_wr_timeout_enable),
+        .cfg_wr_perf_enable(cfg_slave_monbus_wr_3_wr_perf_enable),
+        .cfg_wr_compl_enable(cfg_slave_monbus_wr_3_wr_compl_enable),
+        .cfg_wr_threshold_enable(cfg_slave_monbus_wr_3_wr_threshold_enable),
+        .cfg_wr_debug_enable(cfg_slave_monbus_wr_3_wr_debug_enable),
+        .cfg_wr_timeout_cycles(cfg_slave_monbus_wr_3_wr_timeout_cycles),
+        .cfg_wr_freq_sel(cfg_slave_monbus_wr_3_wr_freq_sel),
+        .cfg_wr_latency_threshold(cfg_slave_monbus_wr_3_wr_latency_threshold),
+        .cfg_wr_axi_pkt_mask(cfg_slave_monbus_wr_3_wr_axi_pkt_mask),
+        .cfg_wr_axi_err_select(cfg_slave_monbus_wr_3_wr_axi_err_select),
+        .cfg_wr_axi_error_mask(cfg_slave_monbus_wr_3_wr_axi_error_mask),
+        .cfg_wr_axi_timeout_mask(cfg_slave_monbus_wr_3_wr_axi_timeout_mask),
+        .cfg_wr_axi_compl_mask(cfg_slave_monbus_wr_3_wr_axi_compl_mask),
+        .cfg_wr_axi_thresh_mask(cfg_slave_monbus_wr_3_wr_axi_thresh_mask),
+        .cfg_wr_axi_perf_mask(cfg_slave_monbus_wr_3_wr_axi_perf_mask),
+        .cfg_wr_axi_addr_mask(cfg_slave_monbus_wr_3_wr_axi_addr_mask),
+        .cfg_wr_axi_debug_mask(cfg_slave_monbus_wr_3_wr_axi_debug_mask)
+    );
+
+    // ================================================================
     // Crossbar Module Instantiation
     // ================================================================
     bridge_stream_mon_axil_mon_xbar u_xbar (
@@ -2442,6 +2574,20 @@ module bridge_stream_mon_axil_mon
         .monbus_wr_64b_b(monbus_wr_64b_b),
         .monbus_wr_64b_bvalid(monbus_wr_64b_bvalid),
         .monbus_wr_64b_bready(monbus_wr_64b_bready),
+
+        // slave_monbus_wr adapter outputs
+        .slave_monbus_wr_slave_select_aw(slave_monbus_wr_slave_select_aw),
+        .slave_monbus_wr_bridge_id_aw(slave_monbus_wr_bridge_id_aw),
+        // 64b path
+        .slave_monbus_wr_64b_aw(slave_monbus_wr_64b_aw),
+        .slave_monbus_wr_64b_awvalid(slave_monbus_wr_64b_awvalid),
+        .slave_monbus_wr_64b_awready(slave_monbus_wr_64b_awready),
+        .slave_monbus_wr_64b_w(slave_monbus_wr_64b_w),
+        .slave_monbus_wr_64b_wvalid(slave_monbus_wr_64b_wvalid),
+        .slave_monbus_wr_64b_wready(slave_monbus_wr_64b_wready),
+        .slave_monbus_wr_64b_b(slave_monbus_wr_64b_b),
+        .slave_monbus_wr_64b_bvalid(slave_monbus_wr_64b_bvalid),
+        .slave_monbus_wr_64b_bready(slave_monbus_wr_64b_bready),
 
         // Slave 0: obs_apb
         .obs_apb_axi_awid(xbar_obs_apb_axi_awid),
@@ -4978,6 +5124,26 @@ module bridge_stream_mon_axil_mon
     assign cfg_monbus_wr_2_wr_axi_addr_mask = hwif_out.MONBUS_WR_2_WR_MASKS_D.axi_addr_mask.value;
     assign cfg_monbus_wr_2_wr_axi_debug_mask = hwif_out.MONBUS_WR_2_WR_MASKS_E.axi_debug_mask.value;
 
+    assign cfg_slave_monbus_wr_3_wr_monitor_enable = hwif_out.SLAVE_MONBUS_WR_3_WR_CTRL.monitor_enable.value;
+    assign cfg_slave_monbus_wr_3_wr_error_enable = hwif_out.SLAVE_MONBUS_WR_3_WR_CTRL.error_enable.value;
+    assign cfg_slave_monbus_wr_3_wr_timeout_enable = hwif_out.SLAVE_MONBUS_WR_3_WR_CTRL.timeout_enable.value;
+    assign cfg_slave_monbus_wr_3_wr_perf_enable = hwif_out.SLAVE_MONBUS_WR_3_WR_CTRL.perf_enable.value;
+    assign cfg_slave_monbus_wr_3_wr_compl_enable = hwif_out.SLAVE_MONBUS_WR_3_WR_CTRL.compl_enable.value;
+    assign cfg_slave_monbus_wr_3_wr_threshold_enable = hwif_out.SLAVE_MONBUS_WR_3_WR_CTRL.threshold_enable.value;
+    assign cfg_slave_monbus_wr_3_wr_debug_enable = hwif_out.SLAVE_MONBUS_WR_3_WR_CTRL.debug_enable.value;
+    assign cfg_slave_monbus_wr_3_wr_timeout_cycles = hwif_out.SLAVE_MONBUS_WR_3_WR_CTRL.timeout_cycles.value;
+    assign cfg_slave_monbus_wr_3_wr_freq_sel = hwif_out.SLAVE_MONBUS_WR_3_WR_CTRL.freq_sel.value;
+    assign cfg_slave_monbus_wr_3_wr_latency_threshold = hwif_out.SLAVE_MONBUS_WR_3_WR_LATENCY.latency_threshold.value;
+    assign cfg_slave_monbus_wr_3_wr_axi_pkt_mask = hwif_out.SLAVE_MONBUS_WR_3_WR_MASKS_A.axi_pkt_mask.value;
+    assign cfg_slave_monbus_wr_3_wr_axi_err_select = hwif_out.SLAVE_MONBUS_WR_3_WR_MASKS_A.axi_err_select.value;
+    assign cfg_slave_monbus_wr_3_wr_axi_error_mask = hwif_out.SLAVE_MONBUS_WR_3_WR_MASKS_B.axi_error_mask.value;
+    assign cfg_slave_monbus_wr_3_wr_axi_timeout_mask = hwif_out.SLAVE_MONBUS_WR_3_WR_MASKS_B.axi_timeout_mask.value;
+    assign cfg_slave_monbus_wr_3_wr_axi_compl_mask = hwif_out.SLAVE_MONBUS_WR_3_WR_MASKS_C.axi_compl_mask.value;
+    assign cfg_slave_monbus_wr_3_wr_axi_thresh_mask = hwif_out.SLAVE_MONBUS_WR_3_WR_MASKS_C.axi_thresh_mask.value;
+    assign cfg_slave_monbus_wr_3_wr_axi_perf_mask = hwif_out.SLAVE_MONBUS_WR_3_WR_MASKS_D.axi_perf_mask.value;
+    assign cfg_slave_monbus_wr_3_wr_axi_addr_mask = hwif_out.SLAVE_MONBUS_WR_3_WR_MASKS_D.axi_addr_mask.value;
+    assign cfg_slave_monbus_wr_3_wr_axi_debug_mask = hwif_out.SLAVE_MONBUS_WR_3_WR_MASKS_E.axi_debug_mask.value;
+
     assign cfg_obs_apb_0_wr_monitor_enable = hwif_out.OBS_APB_0_WR_CTRL.monitor_enable.value;
     assign cfg_obs_apb_0_wr_error_enable = hwif_out.OBS_APB_0_WR_CTRL.error_enable.value;
     assign cfg_obs_apb_0_wr_timeout_enable = hwif_out.OBS_APB_0_WR_CTRL.timeout_enable.value;
@@ -5530,12 +5696,12 @@ module bridge_stream_mon_axil_mon
     assign cfg_mon_group_compress_en = hwif_out.MON_GROUP_COMPRESS_EN.compress_en.value;
 
     // ============================================================
-    // Monitor aggregator -- 30 client(s) -> arbiter -> axil_group
+    // Monitor aggregator -- 31 client(s) -> arbiter -> axil_group
     // ============================================================
-    logic                                  mon_arb_monbus_valid_in     [30];
-    logic                                  mon_arb_monbus_ready_in     [30];
-    monitor_common_pkg::monitor_packet_t   mon_arb_monbus_packet_in    [30];
-    monitor_common_pkg::monbus_timestamp_t mon_arb_monbus_timestamp_in [30];
+    logic                                  mon_arb_monbus_valid_in     [31];
+    logic                                  mon_arb_monbus_ready_in     [31];
+    monitor_common_pkg::monitor_packet_t   mon_arb_monbus_packet_in    [31];
+    monitor_common_pkg::monbus_timestamp_t mon_arb_monbus_timestamp_in [31];
     assign mon_arb_monbus_valid_in[0]     = monbus_host_0_wr_valid;
     assign monbus_host_0_wr_ready = mon_arb_monbus_ready_in[0];
     assign mon_arb_monbus_packet_in[0]    = monbus_host_0_wr_packet;
@@ -5552,113 +5718,117 @@ module bridge_stream_mon_axil_mon
     assign monbus_monbus_wr_2_wr_ready = mon_arb_monbus_ready_in[3];
     assign mon_arb_monbus_packet_in[3]    = monbus_monbus_wr_2_wr_packet;
     assign mon_arb_monbus_timestamp_in[3] = monbus_monbus_wr_2_wr_timestamp;
-    assign mon_arb_monbus_valid_in[4]     = monbus_obs_apb_0_wr_valid;
-    assign monbus_obs_apb_0_wr_ready = mon_arb_monbus_ready_in[4];
-    assign mon_arb_monbus_packet_in[4]    = monbus_obs_apb_0_wr_packet;
-    assign mon_arb_monbus_timestamp_in[4] = monbus_obs_apb_0_wr_timestamp;
-    assign mon_arb_monbus_valid_in[5]     = monbus_obs_apb_0_rd_valid;
-    assign monbus_obs_apb_0_rd_ready = mon_arb_monbus_ready_in[5];
-    assign mon_arb_monbus_packet_in[5]    = monbus_obs_apb_0_rd_packet;
-    assign mon_arb_monbus_timestamp_in[5] = monbus_obs_apb_0_rd_timestamp;
-    assign mon_arb_monbus_valid_in[6]     = monbus_slvmon_apb_1_wr_valid;
-    assign monbus_slvmon_apb_1_wr_ready = mon_arb_monbus_ready_in[6];
-    assign mon_arb_monbus_packet_in[6]    = monbus_slvmon_apb_1_wr_packet;
-    assign mon_arb_monbus_timestamp_in[6] = monbus_slvmon_apb_1_wr_timestamp;
-    assign mon_arb_monbus_valid_in[7]     = monbus_slvmon_apb_1_rd_valid;
-    assign monbus_slvmon_apb_1_rd_ready = mon_arb_monbus_ready_in[7];
-    assign mon_arb_monbus_packet_in[7]    = monbus_slvmon_apb_1_rd_packet;
-    assign mon_arb_monbus_timestamp_in[7] = monbus_slvmon_apb_1_rd_timestamp;
-    assign mon_arb_monbus_valid_in[8]     = monbus_stream_apb_2_wr_valid;
-    assign monbus_stream_apb_2_wr_ready = mon_arb_monbus_ready_in[8];
-    assign mon_arb_monbus_packet_in[8]    = monbus_stream_apb_2_wr_packet;
-    assign mon_arb_monbus_timestamp_in[8] = monbus_stream_apb_2_wr_timestamp;
-    assign mon_arb_monbus_valid_in[9]     = monbus_stream_apb_2_rd_valid;
-    assign monbus_stream_apb_2_rd_ready = mon_arb_monbus_ready_in[9];
-    assign mon_arb_monbus_packet_in[9]    = monbus_stream_apb_2_rd_packet;
-    assign mon_arb_monbus_timestamp_in[9] = monbus_stream_apb_2_rd_timestamp;
-    assign mon_arb_monbus_valid_in[10]     = monbus_harness_csr_3_wr_valid;
-    assign monbus_harness_csr_3_wr_ready = mon_arb_monbus_ready_in[10];
-    assign mon_arb_monbus_packet_in[10]    = monbus_harness_csr_3_wr_packet;
-    assign mon_arb_monbus_timestamp_in[10] = monbus_harness_csr_3_wr_timestamp;
-    assign mon_arb_monbus_valid_in[11]     = monbus_harness_csr_3_rd_valid;
-    assign monbus_harness_csr_3_rd_ready = mon_arb_monbus_ready_in[11];
-    assign mon_arb_monbus_packet_in[11]    = monbus_harness_csr_3_rd_packet;
-    assign mon_arb_monbus_timestamp_in[11] = monbus_harness_csr_3_rd_timestamp;
-    assign mon_arb_monbus_valid_in[12]     = monbus_desc_ram_4_wr_valid;
-    assign monbus_desc_ram_4_wr_ready = mon_arb_monbus_ready_in[12];
-    assign mon_arb_monbus_packet_in[12]    = monbus_desc_ram_4_wr_packet;
-    assign mon_arb_monbus_timestamp_in[12] = monbus_desc_ram_4_wr_timestamp;
-    assign mon_arb_monbus_valid_in[13]     = monbus_desc_ram_4_rd_valid;
-    assign monbus_desc_ram_4_rd_ready = mon_arb_monbus_ready_in[13];
-    assign mon_arb_monbus_packet_in[13]    = monbus_desc_ram_4_rd_packet;
-    assign mon_arb_monbus_timestamp_in[13] = monbus_desc_ram_4_rd_timestamp;
-    assign mon_arb_monbus_valid_in[14]     = monbus_stream_err_5_wr_valid;
-    assign monbus_stream_err_5_wr_ready = mon_arb_monbus_ready_in[14];
-    assign mon_arb_monbus_packet_in[14]    = monbus_stream_err_5_wr_packet;
-    assign mon_arb_monbus_timestamp_in[14] = monbus_stream_err_5_wr_timestamp;
-    assign mon_arb_monbus_valid_in[15]     = monbus_stream_err_5_rd_valid;
-    assign monbus_stream_err_5_rd_ready = mon_arb_monbus_ready_in[15];
-    assign mon_arb_monbus_packet_in[15]    = monbus_stream_err_5_rd_packet;
-    assign mon_arb_monbus_timestamp_in[15] = monbus_stream_err_5_rd_timestamp;
-    assign mon_arb_monbus_valid_in[16]     = monbus_stream_tally_6_wr_valid;
-    assign monbus_stream_tally_6_wr_ready = mon_arb_monbus_ready_in[16];
-    assign mon_arb_monbus_packet_in[16]    = monbus_stream_tally_6_wr_packet;
-    assign mon_arb_monbus_timestamp_in[16] = monbus_stream_tally_6_wr_timestamp;
-    assign mon_arb_monbus_valid_in[17]     = monbus_stream_tally_6_rd_valid;
-    assign monbus_stream_tally_6_rd_ready = mon_arb_monbus_ready_in[17];
-    assign mon_arb_monbus_packet_in[17]    = monbus_stream_tally_6_rd_packet;
-    assign mon_arb_monbus_timestamp_in[17] = monbus_stream_tally_6_rd_timestamp;
-    assign mon_arb_monbus_valid_in[18]     = monbus_dma_axil_7_wr_valid;
-    assign monbus_dma_axil_7_wr_ready = mon_arb_monbus_ready_in[18];
-    assign mon_arb_monbus_packet_in[18]    = monbus_dma_axil_7_wr_packet;
-    assign mon_arb_monbus_timestamp_in[18] = monbus_dma_axil_7_wr_timestamp;
-    assign mon_arb_monbus_valid_in[19]     = monbus_dma_axil_7_rd_valid;
-    assign monbus_dma_axil_7_rd_ready = mon_arb_monbus_ready_in[19];
-    assign mon_arb_monbus_packet_in[19]    = monbus_dma_axil_7_rd_packet;
-    assign mon_arb_monbus_timestamp_in[19] = monbus_dma_axil_7_rd_timestamp;
-    assign mon_arb_monbus_valid_in[20]     = monbus_slave_err_8_wr_valid;
-    assign monbus_slave_err_8_wr_ready = mon_arb_monbus_ready_in[20];
-    assign mon_arb_monbus_packet_in[20]    = monbus_slave_err_8_wr_packet;
-    assign mon_arb_monbus_timestamp_in[20] = monbus_slave_err_8_wr_timestamp;
-    assign mon_arb_monbus_valid_in[21]     = monbus_slave_err_8_rd_valid;
-    assign monbus_slave_err_8_rd_ready = mon_arb_monbus_ready_in[21];
-    assign mon_arb_monbus_packet_in[21]    = monbus_slave_err_8_rd_packet;
-    assign mon_arb_monbus_timestamp_in[21] = monbus_slave_err_8_rd_timestamp;
-    assign mon_arb_monbus_valid_in[22]     = monbus_slave_tally_9_wr_valid;
-    assign monbus_slave_tally_9_wr_ready = mon_arb_monbus_ready_in[22];
-    assign mon_arb_monbus_packet_in[22]    = monbus_slave_tally_9_wr_packet;
-    assign mon_arb_monbus_timestamp_in[22] = monbus_slave_tally_9_wr_timestamp;
-    assign mon_arb_monbus_valid_in[23]     = monbus_slave_tally_9_rd_valid;
-    assign monbus_slave_tally_9_rd_ready = mon_arb_monbus_ready_in[23];
-    assign mon_arb_monbus_packet_in[23]    = monbus_slave_tally_9_rd_packet;
-    assign mon_arb_monbus_timestamp_in[23] = monbus_slave_tally_9_rd_timestamp;
-    assign mon_arb_monbus_valid_in[24]     = monbus_comp_sram_10_wr_valid;
-    assign monbus_comp_sram_10_wr_ready = mon_arb_monbus_ready_in[24];
-    assign mon_arb_monbus_packet_in[24]    = monbus_comp_sram_10_wr_packet;
-    assign mon_arb_monbus_timestamp_in[24] = monbus_comp_sram_10_wr_timestamp;
-    assign mon_arb_monbus_valid_in[25]     = monbus_comp_sram_10_rd_valid;
-    assign monbus_comp_sram_10_rd_ready = mon_arb_monbus_ready_in[25];
-    assign mon_arb_monbus_packet_in[25]    = monbus_comp_sram_10_rd_packet;
-    assign mon_arb_monbus_timestamp_in[25] = monbus_comp_sram_10_rd_timestamp;
-    assign mon_arb_monbus_valid_in[26]     = monbus_stream_tally_cfg_11_wr_valid;
-    assign monbus_stream_tally_cfg_11_wr_ready = mon_arb_monbus_ready_in[26];
-    assign mon_arb_monbus_packet_in[26]    = monbus_stream_tally_cfg_11_wr_packet;
-    assign mon_arb_monbus_timestamp_in[26] = monbus_stream_tally_cfg_11_wr_timestamp;
-    assign mon_arb_monbus_valid_in[27]     = monbus_stream_tally_cfg_11_rd_valid;
-    assign monbus_stream_tally_cfg_11_rd_ready = mon_arb_monbus_ready_in[27];
-    assign mon_arb_monbus_packet_in[27]    = monbus_stream_tally_cfg_11_rd_packet;
-    assign mon_arb_monbus_timestamp_in[27] = monbus_stream_tally_cfg_11_rd_timestamp;
-    assign mon_arb_monbus_valid_in[28]     = monbus_slave_tally_cfg_12_wr_valid;
-    assign monbus_slave_tally_cfg_12_wr_ready = mon_arb_monbus_ready_in[28];
-    assign mon_arb_monbus_packet_in[28]    = monbus_slave_tally_cfg_12_wr_packet;
-    assign mon_arb_monbus_timestamp_in[28] = monbus_slave_tally_cfg_12_wr_timestamp;
-    assign mon_arb_monbus_valid_in[29]     = monbus_slave_tally_cfg_12_rd_valid;
-    assign monbus_slave_tally_cfg_12_rd_ready = mon_arb_monbus_ready_in[29];
-    assign mon_arb_monbus_packet_in[29]    = monbus_slave_tally_cfg_12_rd_packet;
-    assign mon_arb_monbus_timestamp_in[29] = monbus_slave_tally_cfg_12_rd_timestamp;
+    assign mon_arb_monbus_valid_in[4]     = monbus_slave_monbus_wr_3_wr_valid;
+    assign monbus_slave_monbus_wr_3_wr_ready = mon_arb_monbus_ready_in[4];
+    assign mon_arb_monbus_packet_in[4]    = monbus_slave_monbus_wr_3_wr_packet;
+    assign mon_arb_monbus_timestamp_in[4] = monbus_slave_monbus_wr_3_wr_timestamp;
+    assign mon_arb_monbus_valid_in[5]     = monbus_obs_apb_0_wr_valid;
+    assign monbus_obs_apb_0_wr_ready = mon_arb_monbus_ready_in[5];
+    assign mon_arb_monbus_packet_in[5]    = monbus_obs_apb_0_wr_packet;
+    assign mon_arb_monbus_timestamp_in[5] = monbus_obs_apb_0_wr_timestamp;
+    assign mon_arb_monbus_valid_in[6]     = monbus_obs_apb_0_rd_valid;
+    assign monbus_obs_apb_0_rd_ready = mon_arb_monbus_ready_in[6];
+    assign mon_arb_monbus_packet_in[6]    = monbus_obs_apb_0_rd_packet;
+    assign mon_arb_monbus_timestamp_in[6] = monbus_obs_apb_0_rd_timestamp;
+    assign mon_arb_monbus_valid_in[7]     = monbus_slvmon_apb_1_wr_valid;
+    assign monbus_slvmon_apb_1_wr_ready = mon_arb_monbus_ready_in[7];
+    assign mon_arb_monbus_packet_in[7]    = monbus_slvmon_apb_1_wr_packet;
+    assign mon_arb_monbus_timestamp_in[7] = monbus_slvmon_apb_1_wr_timestamp;
+    assign mon_arb_monbus_valid_in[8]     = monbus_slvmon_apb_1_rd_valid;
+    assign monbus_slvmon_apb_1_rd_ready = mon_arb_monbus_ready_in[8];
+    assign mon_arb_monbus_packet_in[8]    = monbus_slvmon_apb_1_rd_packet;
+    assign mon_arb_monbus_timestamp_in[8] = monbus_slvmon_apb_1_rd_timestamp;
+    assign mon_arb_monbus_valid_in[9]     = monbus_stream_apb_2_wr_valid;
+    assign monbus_stream_apb_2_wr_ready = mon_arb_monbus_ready_in[9];
+    assign mon_arb_monbus_packet_in[9]    = monbus_stream_apb_2_wr_packet;
+    assign mon_arb_monbus_timestamp_in[9] = monbus_stream_apb_2_wr_timestamp;
+    assign mon_arb_monbus_valid_in[10]     = monbus_stream_apb_2_rd_valid;
+    assign monbus_stream_apb_2_rd_ready = mon_arb_monbus_ready_in[10];
+    assign mon_arb_monbus_packet_in[10]    = monbus_stream_apb_2_rd_packet;
+    assign mon_arb_monbus_timestamp_in[10] = monbus_stream_apb_2_rd_timestamp;
+    assign mon_arb_monbus_valid_in[11]     = monbus_harness_csr_3_wr_valid;
+    assign monbus_harness_csr_3_wr_ready = mon_arb_monbus_ready_in[11];
+    assign mon_arb_monbus_packet_in[11]    = monbus_harness_csr_3_wr_packet;
+    assign mon_arb_monbus_timestamp_in[11] = monbus_harness_csr_3_wr_timestamp;
+    assign mon_arb_monbus_valid_in[12]     = monbus_harness_csr_3_rd_valid;
+    assign monbus_harness_csr_3_rd_ready = mon_arb_monbus_ready_in[12];
+    assign mon_arb_monbus_packet_in[12]    = monbus_harness_csr_3_rd_packet;
+    assign mon_arb_monbus_timestamp_in[12] = monbus_harness_csr_3_rd_timestamp;
+    assign mon_arb_monbus_valid_in[13]     = monbus_desc_ram_4_wr_valid;
+    assign monbus_desc_ram_4_wr_ready = mon_arb_monbus_ready_in[13];
+    assign mon_arb_monbus_packet_in[13]    = monbus_desc_ram_4_wr_packet;
+    assign mon_arb_monbus_timestamp_in[13] = monbus_desc_ram_4_wr_timestamp;
+    assign mon_arb_monbus_valid_in[14]     = monbus_desc_ram_4_rd_valid;
+    assign monbus_desc_ram_4_rd_ready = mon_arb_monbus_ready_in[14];
+    assign mon_arb_monbus_packet_in[14]    = monbus_desc_ram_4_rd_packet;
+    assign mon_arb_monbus_timestamp_in[14] = monbus_desc_ram_4_rd_timestamp;
+    assign mon_arb_monbus_valid_in[15]     = monbus_stream_err_5_wr_valid;
+    assign monbus_stream_err_5_wr_ready = mon_arb_monbus_ready_in[15];
+    assign mon_arb_monbus_packet_in[15]    = monbus_stream_err_5_wr_packet;
+    assign mon_arb_monbus_timestamp_in[15] = monbus_stream_err_5_wr_timestamp;
+    assign mon_arb_monbus_valid_in[16]     = monbus_stream_err_5_rd_valid;
+    assign monbus_stream_err_5_rd_ready = mon_arb_monbus_ready_in[16];
+    assign mon_arb_monbus_packet_in[16]    = monbus_stream_err_5_rd_packet;
+    assign mon_arb_monbus_timestamp_in[16] = monbus_stream_err_5_rd_timestamp;
+    assign mon_arb_monbus_valid_in[17]     = monbus_stream_tally_6_wr_valid;
+    assign monbus_stream_tally_6_wr_ready = mon_arb_monbus_ready_in[17];
+    assign mon_arb_monbus_packet_in[17]    = monbus_stream_tally_6_wr_packet;
+    assign mon_arb_monbus_timestamp_in[17] = monbus_stream_tally_6_wr_timestamp;
+    assign mon_arb_monbus_valid_in[18]     = monbus_stream_tally_6_rd_valid;
+    assign monbus_stream_tally_6_rd_ready = mon_arb_monbus_ready_in[18];
+    assign mon_arb_monbus_packet_in[18]    = monbus_stream_tally_6_rd_packet;
+    assign mon_arb_monbus_timestamp_in[18] = monbus_stream_tally_6_rd_timestamp;
+    assign mon_arb_monbus_valid_in[19]     = monbus_dma_axil_7_wr_valid;
+    assign monbus_dma_axil_7_wr_ready = mon_arb_monbus_ready_in[19];
+    assign mon_arb_monbus_packet_in[19]    = monbus_dma_axil_7_wr_packet;
+    assign mon_arb_monbus_timestamp_in[19] = monbus_dma_axil_7_wr_timestamp;
+    assign mon_arb_monbus_valid_in[20]     = monbus_dma_axil_7_rd_valid;
+    assign monbus_dma_axil_7_rd_ready = mon_arb_monbus_ready_in[20];
+    assign mon_arb_monbus_packet_in[20]    = monbus_dma_axil_7_rd_packet;
+    assign mon_arb_monbus_timestamp_in[20] = monbus_dma_axil_7_rd_timestamp;
+    assign mon_arb_monbus_valid_in[21]     = monbus_slave_err_8_wr_valid;
+    assign monbus_slave_err_8_wr_ready = mon_arb_monbus_ready_in[21];
+    assign mon_arb_monbus_packet_in[21]    = monbus_slave_err_8_wr_packet;
+    assign mon_arb_monbus_timestamp_in[21] = monbus_slave_err_8_wr_timestamp;
+    assign mon_arb_monbus_valid_in[22]     = monbus_slave_err_8_rd_valid;
+    assign monbus_slave_err_8_rd_ready = mon_arb_monbus_ready_in[22];
+    assign mon_arb_monbus_packet_in[22]    = monbus_slave_err_8_rd_packet;
+    assign mon_arb_monbus_timestamp_in[22] = monbus_slave_err_8_rd_timestamp;
+    assign mon_arb_monbus_valid_in[23]     = monbus_slave_tally_9_wr_valid;
+    assign monbus_slave_tally_9_wr_ready = mon_arb_monbus_ready_in[23];
+    assign mon_arb_monbus_packet_in[23]    = monbus_slave_tally_9_wr_packet;
+    assign mon_arb_monbus_timestamp_in[23] = monbus_slave_tally_9_wr_timestamp;
+    assign mon_arb_monbus_valid_in[24]     = monbus_slave_tally_9_rd_valid;
+    assign monbus_slave_tally_9_rd_ready = mon_arb_monbus_ready_in[24];
+    assign mon_arb_monbus_packet_in[24]    = monbus_slave_tally_9_rd_packet;
+    assign mon_arb_monbus_timestamp_in[24] = monbus_slave_tally_9_rd_timestamp;
+    assign mon_arb_monbus_valid_in[25]     = monbus_comp_sram_10_wr_valid;
+    assign monbus_comp_sram_10_wr_ready = mon_arb_monbus_ready_in[25];
+    assign mon_arb_monbus_packet_in[25]    = monbus_comp_sram_10_wr_packet;
+    assign mon_arb_monbus_timestamp_in[25] = monbus_comp_sram_10_wr_timestamp;
+    assign mon_arb_monbus_valid_in[26]     = monbus_comp_sram_10_rd_valid;
+    assign monbus_comp_sram_10_rd_ready = mon_arb_monbus_ready_in[26];
+    assign mon_arb_monbus_packet_in[26]    = monbus_comp_sram_10_rd_packet;
+    assign mon_arb_monbus_timestamp_in[26] = monbus_comp_sram_10_rd_timestamp;
+    assign mon_arb_monbus_valid_in[27]     = monbus_stream_tally_cfg_11_wr_valid;
+    assign monbus_stream_tally_cfg_11_wr_ready = mon_arb_monbus_ready_in[27];
+    assign mon_arb_monbus_packet_in[27]    = monbus_stream_tally_cfg_11_wr_packet;
+    assign mon_arb_monbus_timestamp_in[27] = monbus_stream_tally_cfg_11_wr_timestamp;
+    assign mon_arb_monbus_valid_in[28]     = monbus_stream_tally_cfg_11_rd_valid;
+    assign monbus_stream_tally_cfg_11_rd_ready = mon_arb_monbus_ready_in[28];
+    assign mon_arb_monbus_packet_in[28]    = monbus_stream_tally_cfg_11_rd_packet;
+    assign mon_arb_monbus_timestamp_in[28] = monbus_stream_tally_cfg_11_rd_timestamp;
+    assign mon_arb_monbus_valid_in[29]     = monbus_slave_tally_cfg_12_wr_valid;
+    assign monbus_slave_tally_cfg_12_wr_ready = mon_arb_monbus_ready_in[29];
+    assign mon_arb_monbus_packet_in[29]    = monbus_slave_tally_cfg_12_wr_packet;
+    assign mon_arb_monbus_timestamp_in[29] = monbus_slave_tally_cfg_12_wr_timestamp;
+    assign mon_arb_monbus_valid_in[30]     = monbus_slave_tally_cfg_12_rd_valid;
+    assign monbus_slave_tally_cfg_12_rd_ready = mon_arb_monbus_ready_in[30];
+    assign mon_arb_monbus_packet_in[30]    = monbus_slave_tally_cfg_12_rd_packet;
+    assign mon_arb_monbus_timestamp_in[30] = monbus_slave_tally_cfg_12_rd_timestamp;
 
     monbus_arbiter #(
-        .CLIENTS            (30),
+        .CLIENTS            (31),
         .INPUT_SKID_ENABLE  (1),
         .OUTPUT_SKID_ENABLE (1),
         .INPUT_SKID_DEPTH   (2),

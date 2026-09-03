@@ -81,6 +81,20 @@ module bridge_stream_mon_axil
     output logic                  monbus_wr_bvalid,
     input  logic                  monbus_wr_bready,
 
+    // Master 3: slave_monbus_wr (wr)
+    // Master: slave_monbus_wr (axil, wr)
+    input  logic [31:0] slave_monbus_wr_awaddr,
+    input  logic [2:0]            slave_monbus_wr_awprot,
+    input  logic                  slave_monbus_wr_awvalid,
+    output logic                  slave_monbus_wr_awready,
+    input  logic [63:0] slave_monbus_wr_wdata,
+    input  logic [7:0] slave_monbus_wr_wstrb,
+    input  logic                  slave_monbus_wr_wvalid,
+    output logic                  slave_monbus_wr_wready,
+    output logic [1:0]            slave_monbus_wr_bresp,
+    output logic                  slave_monbus_wr_bvalid,
+    input  logic                  slave_monbus_wr_bready,
+
     // Slave 0: obs_apb
     // APB Slave: obs_apb
     output  logic         obs_apb_PSEL,
@@ -450,6 +464,20 @@ module bridge_stream_mon_axil
     axi4_b_t      monbus_wr_64b_b;
     logic         monbus_wr_64b_bvalid;
     logic         monbus_wr_64b_bready;
+
+    // slave_monbus_wr Adapter outputs
+    logic [NUM_SLAVES-1:0] slave_monbus_wr_slave_select_aw;
+    logic [BRIDGE_ID_WIDTH-1:0] slave_monbus_wr_bridge_id_aw;
+    // 64b path
+    axi4_aw_t     slave_monbus_wr_64b_aw;
+    logic         slave_monbus_wr_64b_awvalid;
+    logic         slave_monbus_wr_64b_awready;
+    axi4_w_64b_t  slave_monbus_wr_64b_w;
+    logic         slave_monbus_wr_64b_wvalid;
+    logic         slave_monbus_wr_64b_wready;
+    axi4_b_t      slave_monbus_wr_64b_b;
+    logic         slave_monbus_wr_64b_bvalid;
+    logic         slave_monbus_wr_64b_bready;
 
     // Crossbar-to-Slave Internal AXI4 Signals
     // obs_apb (APB, 32b AXI4 interface)
@@ -1331,6 +1359,55 @@ module bridge_stream_mon_axil
     );
 
     // ================================================================
+    // SLAVE_MONBUS_WR Adapter
+    // ================================================================
+    slave_monbus_wr_adapter u_slave_monbus_wr_adapter (
+        .aclk(aclk),
+        .aresetn(aresetn),
+
+        // External interface
+        .slave_monbus_wr_awid(8'h0),
+        .slave_monbus_wr_awaddr(slave_monbus_wr_awaddr),
+        .slave_monbus_wr_awlen(8'h0),
+        .slave_monbus_wr_awsize(3'd3),
+        .slave_monbus_wr_awburst(2'b01),
+        .slave_monbus_wr_awlock(1'b0),
+        .slave_monbus_wr_awcache(4'h0),
+        .slave_monbus_wr_awprot(slave_monbus_wr_awprot),
+        .slave_monbus_wr_awqos(4'h0),
+        .slave_monbus_wr_awregion(4'h0),
+        .slave_monbus_wr_awuser(1'b0),
+        .slave_monbus_wr_awvalid(slave_monbus_wr_awvalid),
+        .slave_monbus_wr_awready(slave_monbus_wr_awready),
+        .slave_monbus_wr_wdata(slave_monbus_wr_wdata),
+        .slave_monbus_wr_wstrb(slave_monbus_wr_wstrb),
+        .slave_monbus_wr_wlast(1'b1),
+        .slave_monbus_wr_wuser(1'b0),
+        .slave_monbus_wr_wvalid(slave_monbus_wr_wvalid),
+        .slave_monbus_wr_wready(slave_monbus_wr_wready),
+        .slave_monbus_wr_bid(),
+        .slave_monbus_wr_bresp(slave_monbus_wr_bresp),
+        .slave_monbus_wr_buser(),
+        .slave_monbus_wr_bvalid(slave_monbus_wr_bvalid),
+        .slave_monbus_wr_bready(slave_monbus_wr_bready),
+
+        // Decode outputs
+        .slave_select_aw(slave_monbus_wr_slave_select_aw),
+        .bridge_id_aw(slave_monbus_wr_bridge_id_aw),
+
+        // 64b path
+        .slave_monbus_wr_64b_aw(slave_monbus_wr_64b_aw),
+        .slave_monbus_wr_64b_awvalid(slave_monbus_wr_64b_awvalid),
+        .slave_monbus_wr_64b_awready(slave_monbus_wr_64b_awready),
+        .slave_monbus_wr_64b_w(slave_monbus_wr_64b_w),
+        .slave_monbus_wr_64b_wvalid(slave_monbus_wr_64b_wvalid),
+        .slave_monbus_wr_64b_wready(slave_monbus_wr_64b_wready),
+        .slave_monbus_wr_64b_b(slave_monbus_wr_64b_b),
+        .slave_monbus_wr_64b_bvalid(slave_monbus_wr_64b_bvalid),
+        .slave_monbus_wr_64b_bready(slave_monbus_wr_64b_bready)
+    );
+
+    // ================================================================
     // Crossbar Module Instantiation
     // ================================================================
     bridge_stream_mon_axil_xbar u_xbar (
@@ -1415,6 +1492,20 @@ module bridge_stream_mon_axil
         .monbus_wr_64b_b(monbus_wr_64b_b),
         .monbus_wr_64b_bvalid(monbus_wr_64b_bvalid),
         .monbus_wr_64b_bready(monbus_wr_64b_bready),
+
+        // slave_monbus_wr adapter outputs
+        .slave_monbus_wr_slave_select_aw(slave_monbus_wr_slave_select_aw),
+        .slave_monbus_wr_bridge_id_aw(slave_monbus_wr_bridge_id_aw),
+        // 64b path
+        .slave_monbus_wr_64b_aw(slave_monbus_wr_64b_aw),
+        .slave_monbus_wr_64b_awvalid(slave_monbus_wr_64b_awvalid),
+        .slave_monbus_wr_64b_awready(slave_monbus_wr_64b_awready),
+        .slave_monbus_wr_64b_w(slave_monbus_wr_64b_w),
+        .slave_monbus_wr_64b_wvalid(slave_monbus_wr_64b_wvalid),
+        .slave_monbus_wr_64b_wready(slave_monbus_wr_64b_wready),
+        .slave_monbus_wr_64b_b(slave_monbus_wr_64b_b),
+        .slave_monbus_wr_64b_bvalid(slave_monbus_wr_64b_bvalid),
+        .slave_monbus_wr_64b_bready(slave_monbus_wr_64b_bready),
 
         // Slave 0: obs_apb
         .obs_apb_axi_awid(xbar_obs_apb_axi_awid),

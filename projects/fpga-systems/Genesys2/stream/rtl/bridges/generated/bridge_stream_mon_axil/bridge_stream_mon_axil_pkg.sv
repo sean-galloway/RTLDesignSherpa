@@ -7,7 +7,7 @@
 package bridge_stream_mon_axil_pkg;
 
     // Bridge Configuration Parameters
-    localparam int NUM_MASTERS = 3;
+    localparam int NUM_MASTERS = 4;
     localparam int BRIDGE_ID_WIDTH = 2;  // $clog2(NUM_MASTERS)
 
     // AXI4 Write Address Channel (width-independent)
