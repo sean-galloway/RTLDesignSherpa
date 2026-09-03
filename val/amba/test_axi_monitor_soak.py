@@ -13,7 +13,7 @@
 #          on-chip monbus_pkt_tally histogram would count on silicon.
 #
 # Documentation: val/amba/axi_monitor_pktgen_dut.sv (the driven DUT)
-#                rtl/amba/monitor/monbus_pkt_tally.sv (the silicon coverage twin)
+#                projects/components/misc/rtl/monbus_pkt_tally.sv (the silicon coverage twin)
 # Subsystem: tests
 #
 # Author: sean galloway

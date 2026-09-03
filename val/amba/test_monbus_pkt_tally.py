@@ -5,9 +5,9 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Module: test_monbus_pkt_tally
-# Purpose: FUB cocotb tests for rtl/amba/monitor/monbus_pkt_tally.sv
+# Purpose: FUB cocotb tests for projects/components/misc/rtl/monbus_pkt_tally.sv
 #
-# Documentation: rtl/amba/monitor/monbus_pkt_tally.sv (header)
+# Documentation: projects/components/misc/rtl/monbus_pkt_tally.sv (header)
 # Subsystem: tests
 #
 # Author: sean galloway
@@ -419,7 +419,7 @@ def test_monbus_pkt_tally(request, addr_bits, count_width, num_latch, n_profile)
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/monbus_pkt_tally.f")
+        filelist_path="projects/components/misc/rtl/filelists/monbus_pkt_tally.f")
     for src in verilog_sources:
         if not os.path.exists(src):
             raise FileNotFoundError(f"RTL source not found: {src}")

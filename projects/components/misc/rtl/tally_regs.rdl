@@ -1,0 +1,85 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 sean galloway
+//
+// Control registers for monbus_tally_axil -- the CAM-routed packet histogram
+// that is the primary board test vehicle for the observers.
+//
+// WHY THIS EXISTS: these five registers were hardcoded localparams inside
+// monbus_tally_axil.sv (REG_CAM_CLEAR = 12'h100, and four more). That made
+// them invisible to everything that works by name: the host had to carry
+// literal offsets, the board register walk could not reach them, and nothing
+// cross-checked the RTL decode against what the host believed. The tally binned
+// 11.38M packets on silicon while its own control registers were the one part
+// of the design with no register block behind them.
+//
+// OFFSETS ARE PRESERVED EXACTLY. Each register keeps the address it already
+// had, so a host built against the old literals still works and the change is
+// behaviour-neutral on hardware. The 8-byte spacing is deliberate and load
+// bearing: the cfg port is 64 bits wide, so one 32-bit register per 64-bit
+// word means a 4-byte-strided access can never land on an empty high half.
+//
+// Field widths are the MAXIMUM the RTL supports, not the instantiated width.
+// PROF_IDX_W and LSEL_WIDTH are derived parameters ($clog2 of N_PROFILE and
+// TALLY_NUM_LATCH), and RDL has no parameters -- so INDEX and SEL are declared
+// wide and the RTL slices [PROF_IDX_W-1:0] / [LSEL_WIDTH-1:0] off them. A host
+// writing an index beyond the instantiated CAM writes a truncated one; that was
+// true of the hardcoded version too.
+
+regfile tally_regs {
+    name = "monbus packet tally control";
+    desc = "CAM programming and first-event capture control for monbus_tally_axil";
+
+    //-------------------------------------------------------------------------
+    // CAM programming. The entry index travels in register DATA, never in the
+    // address -- which is what makes this decode independent of the bus width.
+    //-------------------------------------------------------------------------
+    reg { name = "CAM clear";
+          desc = "Any write invalidates every CAM entry. Self-clearing action.";
+          // swmod, not a value test: the host clears by writing ZERO to this
+          // register (host_obs_campaign.py), matching the old decode which
+          // fired on any write to 0x100. A bit-must-be-set model would silently
+          // stop clearing the CAM.
+          field { sw=w; hw=r; swmod; } CLEAR[0:0] = 0;
+    } CAM_CLEAR @ 0x100;
+
+    reg { name = "CAM key";
+          desc = "Key latched here is loaded into the CAM by the next CAM_LOAD write. Holds its value.";
+          field { sw=rw; hw=r; } KEY[31:0] = 32'h00000000;
+    } CAM_KEY @ 0x108;
+
+    reg { name = "CAM load";
+          desc = "Writing loads CAM_KEY into entry[INDEX] with the given VALID. Self-clearing action.";
+          // Not singlepulse: the RTL takes these combinationally off wdata at
+          // write time and never stores them, so there is nothing to self-clear.
+          // Write-only is the accurate model, and the walk treats write-only as
+          // non-latching for the same reason.
+          // INDEX carries swmod: the load fires on a write to this register,
+          // and INDEX/VALID are the data that rides along with it.
+          field { sw=w; hw=r; swmod; } INDEX[7:0]   = 0;
+          field { sw=w; hw=r; }        VALID[31:31] = 0;
+    } CAM_LOAD @ 0x110;
+
+    //-------------------------------------------------------------------------
+    // First-event capture. ARMED BY DEFAULT with an empty mask: the watch
+    // condition is (MASK[pkt_type] || out-of-profile), so the reset state
+    // captures exactly the first TALLY_NUM_LATCH UNEXPECTED packets. That is
+    // the whole point of the UNEXPECTED bin -- without it the bin gives a count
+    // and no way to see WHICH packet was out of profile.
+    //-------------------------------------------------------------------------
+    reg { name = "Watch control";
+          desc = "MASK bit[pkt_type]=1 also captures that type; ARM enables capture.";
+          field { sw=rw; hw=r; } MASK[15:0]  = 16'h0000;
+          field { sw=rw; hw=r; } ARM[31:31]  = 1'b1;
+    } WATCH_CTRL @ 0x118;
+
+    reg { name = "Latch select";
+          desc = "Which capture slot the read port returns.";
+          field { sw=rw; hw=r; } SEL[7:0] = 0;
+    } LATCH_SEL @ 0x120;
+};
+
+addrmap tally_regs_top {
+    name = "monbus tally register block";
+    desc = "Top-level wrapper so peakrdl_generate emits RTL + regmap for the tally";
+    tally_regs TALLY @ 0x000;
+};
