@@ -33,6 +33,7 @@ seconds and the checkers run over ~850 modules.
 """
 import hashlib
 import sys
+import glob
 import json
 import os
 import subprocess
@@ -66,6 +67,47 @@ def _default_incdirs():
     return (d,) if os.path.isdir(d) else ()
 
 
+_PKGS = None
+
+
+def _packages():
+    """Every *_pkg.sv under rtl/, dependency-shallow first.
+
+    Ordering is a heuristic, not a topological sort: `*_common_pkg.sv` defines
+    the types the protocol packages build on, so it must be compiled first.
+    """
+    global _PKGS
+    if _PKGS is None:
+        found = glob.glob(os.path.join(_REPO, 'rtl', '**', '*_pkg.sv'),
+                          recursive=True)
+        _PKGS = sorted(found, key=lambda f: (0 if 'common' in
+                                             os.path.basename(f) else 1, f))
+    return _PKGS
+
+
+_FILELISTS = None
+
+
+def _filelist_for(stem):
+    """The module's own filelist, if the repo has one.
+
+    A single .sv is the wrong compile unit here. axi_monitor_base uses the
+    `ALWAYS_FF_RST macro without including reset_defs.svh itself, and the
+    monitor packages reference each other's typedefs -- so compiled alone,
+    44 modules (every AXI monitor, every monbus group, the arbiters) failed
+    to elaborate and were silently never checked. The filelist IS the
+    authoritative compile unit; use it when it exists.
+    """
+    global _FILELISTS
+    if _FILELISTS is None:
+        _FILELISTS = {}
+        for d in glob.glob(os.path.join(_REPO, 'rtl', '*', 'filelists')):
+            for f in glob.glob(os.path.join(d, '*.f')):
+                _FILELISTS.setdefault(
+                    os.path.splitext(os.path.basename(f))[0], f)
+    return _FILELISTS.get(stem)
+
+
 _YDIRS = None
 
 
@@ -90,8 +132,11 @@ def facts(sv_path, incdirs=(), verilator='verilator'):
     """-> {'ports': {name: dir}, 'params': [name], 'sequential': bool} or None."""
     stem = os.path.splitext(os.path.basename(sv_path))[0]
     try:
-        key = hashlib.sha1(
-            f'{sv_path}:{os.path.getmtime(sv_path)}'.encode()).hexdigest()[:16]
+        fl = _filelist_for(stem)
+        sig = f'{sv_path}:{os.path.getmtime(sv_path)}'
+        if fl:
+            sig += f'|{fl}:{os.path.getmtime(fl)}'
+        key = hashlib.sha1(sig.encode()).hexdigest()[:16]
     except OSError:
         return None
     os.makedirs(CACHE, exist_ok=True)
@@ -100,14 +145,33 @@ def facts(sv_path, incdirs=(), verilator='verilator'):
         return json.load(open(cached))
 
     with tempfile.TemporaryDirectory() as td:
-        cmd = [verilator, '--lint-only', '--top-module', stem,
+        # -Wno-fatal: this extracts facts, it does not lint. A style warning
+        # must not decide whether a module's ports are checked -- and the
+        # filelist graph has real duplicate-source warnings (axi_monitor_base.f
+        # pulls counter_load_clear.sv via two different sub-filelists) that
+        # would otherwise suppress the whole module. The empty-port guard below
+        # is what catches a genuinely broken parse.
+        cmd = [verilator, '--lint-only', '-Wno-fatal', '--top-module', stem,
                '--dump-tree-json', '--dumpi-tree-json', '3', '--Mdir', td]
         for i in (tuple(incdirs) or _default_incdirs()):
             cmd += ['-I' + i]
-        for y in _module_path():
-            cmd += ['-y', y]
-        cmd.append(sv_path)
-        r = subprocess.run(cmd, capture_output=True, timeout=180)
+        if fl:
+            # The filelist carries its own +incdir+ and the full compile order.
+            cmd += ['-f', fl]
+        else:
+            for y in _module_path():
+                cmd += ['-y', y]
+            # -y resolves MODULES, not packages. A module that imports a
+            # package in its header (axi_monitor_trans_mgr imports
+            # monitor_common_pkg) cannot elaborate unless the package source
+            # is compiled first, so pass every package explicitly, commons
+            # ahead of the packages that build on them.
+            for pkg in _packages():
+                if os.path.abspath(pkg) != os.path.abspath(sv_path):
+                    cmd.append(pkg)
+            cmd.append(sv_path)
+        env = dict(os.environ, REPO_ROOT=_REPO)
+        r = subprocess.run(cmd, capture_output=True, timeout=180, env=env)
         dumps = sorted(f for f in os.listdir(td) if f.endswith('.tree.json'))
         # A failed elaboration must NEVER be cached, and must never be reported
         # as a module with no ports. It was: with no -I, every file that

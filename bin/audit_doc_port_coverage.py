@@ -167,6 +167,11 @@ def main() -> int:
         page = pages.get(sv.stem)
         if page is None:
             continue
+        if sv.stem.endswith('_pkg'):
+            # A package declares types, not ports. It has nothing for this
+            # check to measure, and counting it as a failed elaboration
+            # buries the modules that genuinely did not parse.
+            continue
         checked += 1
         got = declared(sv)
         if got is None:
