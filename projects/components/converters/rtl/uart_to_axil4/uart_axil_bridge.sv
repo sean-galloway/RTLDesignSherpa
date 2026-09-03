@@ -131,10 +131,17 @@ module uart_axil_bridge #(
 
     cmd_state_t r_cmd_state, w_cmd_state_next;
 
+    localparam logic [1:0] AXI_RESP_OKAY = 2'b00;
+
     // Calculate maximum hex digits needed for address and data
     localparam int ADDR_HEX_DIGITS = (AXIL_ADDR_WIDTH + 3) / 4;  // Round up to nibbles
     localparam int DATA_HEX_DIGITS = (AXIL_DATA_WIDTH + 3) / 4;  // Round up to nibbles
-    localparam int MAX_RESPONSE_LEN = 2 + DATA_HEX_DIGITS + 1;   // "0x" + hex digits + "\n"
+    // "0x" + hex digits + "\n", but never shorter than the 4-character
+    // "ERR\n" error response below.
+    localparam int RESP_OK_LEN  = 2 + DATA_HEX_DIGITS + 1;
+    localparam int RESP_ERR_LEN = 4;                             // "ERR\n"
+    localparam int MAX_RESPONSE_LEN =
+        (RESP_OK_LEN > RESP_ERR_LEN) ? RESP_OK_LEN : RESP_ERR_LEN;
     localparam int RESPONSE_INDEX_WIDTH = $clog2(MAX_RESPONSE_LEN + 1);  // Width for index
 
     // Command buffer (parameterized for data width)
@@ -223,30 +230,54 @@ module uart_axil_bridge #(
                 CMD_AXIL_READ_DATA: begin
                     if (w_fub_rvalid && w_fub_rready) begin
                         r_resp_data <= w_fub_rdata;
-                        // Prepare response: "0x<DATA_HEX_DIGITS>\n"
-                        // Dynamic formatting based on AXIL_DATA_WIDTH
-                        r_response_buffer[0] <= "0";
-                        r_response_buffer[1] <= "x";
-                        // Generate hex digits from MSB to LSB
-                        for (int i = 0; i < DATA_HEX_DIGITS; i++) begin
-                            r_response_buffer[2 + i] <= val_to_hex(
-                                w_fub_rdata[(AXIL_DATA_WIDTH - 1) - (i * 4) -: 4]
-                            );
+                        if (w_fub_rresp != AXI_RESP_OKAY) begin
+                            // SLVERR/DECERR: say so. Returning "0x" plus
+                            // whatever sat on rdata reports a failed read as a
+                            // successful one, and the host cannot tell.
+                            r_response_buffer[0] <= "E";
+                            r_response_buffer[1] <= "R";
+                            r_response_buffer[2] <= "R";
+                            r_response_buffer[3] <= "\n";
+                            r_response_index  <= '0;
+                            r_response_length <= RESPONSE_INDEX_WIDTH'(RESP_ERR_LEN);
+                        end else begin
+                            // Prepare response: "0x<DATA_HEX_DIGITS>\n"
+                            // Dynamic formatting based on AXIL_DATA_WIDTH
+                            r_response_buffer[0] <= "0";
+                            r_response_buffer[1] <= "x";
+                            // Generate hex digits from MSB to LSB
+                            for (int i = 0; i < DATA_HEX_DIGITS; i++) begin
+                                r_response_buffer[2 + i] <= val_to_hex(
+                                    w_fub_rdata[(AXIL_DATA_WIDTH - 1) - (i * 4) -: 4]
+                                );
+                            end
+                            r_response_buffer[2 + DATA_HEX_DIGITS] <= "\n";
+                            r_response_index <= '0;
+                            r_response_length <= RESPONSE_INDEX_WIDTH'(RESP_OK_LEN);
                         end
-                        r_response_buffer[2 + DATA_HEX_DIGITS] <= "\n";
-                        r_response_index <= '0;
-                        r_response_length <= RESPONSE_INDEX_WIDTH'(2 + DATA_HEX_DIGITS + 1);  // "0x" + digits + "\n"
                     end
                 end
 
                 CMD_AXIL_WRITE_RESP: begin
                     if (w_fub_bvalid && w_fub_bready) begin
-                        // Prepare "OK\n" response
-                        r_response_buffer[0] <= "O";
-                        r_response_buffer[1] <= "K";
-                        r_response_buffer[2] <= "\n";
-                        r_response_index <= '0;
-                        r_response_length <= RESPONSE_INDEX_WIDTH'(3);  // "OK\n"
+                        if (w_fub_bresp != AXI_RESP_OKAY) begin
+                            // SLVERR/DECERR: answering "OK" to a write that
+                            // failed is the one answer a host cannot recover
+                            // from, because it looks exactly like success.
+                            r_response_buffer[0] <= "E";
+                            r_response_buffer[1] <= "R";
+                            r_response_buffer[2] <= "R";
+                            r_response_buffer[3] <= "\n";
+                            r_response_index  <= '0;
+                            r_response_length <= RESPONSE_INDEX_WIDTH'(RESP_ERR_LEN);
+                        end else begin
+                            // Prepare "OK\n" response
+                            r_response_buffer[0] <= "O";
+                            r_response_buffer[1] <= "K";
+                            r_response_buffer[2] <= "\n";
+                            r_response_index <= '0;
+                            r_response_length <= RESPONSE_INDEX_WIDTH'(3);  // "OK\n"
+                        end
                     end
                 end
 

@@ -221,6 +221,24 @@ class UARTAXILBridgeTB(TBBase):
             self.stats['errors'] += 1
             return False
 
+    async def send_uart_command_raw(self, cmd, expect_len):
+        """Send a command and return the first expect_len response characters.
+
+        The verify helpers above pop a fixed number of bytes and compare
+        against "OK\\n" or a "0x..." shape. An error response is neither, so a
+        test that wants to see one needs the raw bytes rather than a bool.
+        """
+        self.uart_rx_monitor._recvQ.clear()
+        await self.uart_tx_master.send_string(cmd)
+        self.stats['commands_sent'] += 1
+        wait_clocks = (len(cmd) + expect_len) * 10 * self.clks_per_bit + 10000
+        await self.wait_clocks(self.clk_name, wait_clocks)
+        got = ''
+        for _ in range(min(expect_len, len(self.uart_rx_monitor._recvQ))):
+            got += chr(self.uart_rx_monitor._recvQ.popleft().data)
+        self.log.info(f"raw response for {cmd.strip()!r}: {got!r}")
+        return got
+
     async def send_uart_read_command(self, addr):
         """
         Send UART read command and verify response.

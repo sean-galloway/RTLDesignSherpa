@@ -13,8 +13,6 @@ module gaxi_skid_buffer (
 	parameter signed [31:0] DATA_WIDTH = 32;
 	parameter signed [31:0] DEPTH = 2;
 	parameter signed [31:0] DW = DATA_WIDTH;
-	parameter signed [31:0] BUF_WIDTH = DATA_WIDTH * DEPTH;
-	parameter signed [31:0] BW = BUF_WIDTH;
 	input wire axi_aclk;
 	input wire axi_aresetn;
 	input wire wr_valid;
@@ -25,40 +23,62 @@ module gaxi_skid_buffer (
 	input wire rd_ready;
 	output wire [3:0] rd_count;
 	output wire [DW - 1:0] rd_data;
-	reg [BW - 1:0] r_data;
+	reg [DW - 1:0] r_data [0:DEPTH - 1];
 	reg [3:0] r_data_count;
 	wire w_wr_xfer;
 	wire w_rd_xfer;
-	wire [DW - 1:0] zeros;
-	assign zeros = 'b0;
 	assign w_wr_xfer = wr_valid & wr_ready;
 	assign w_rd_xfer = rd_valid & rd_ready;
+	generate
+		if ((DEPTH < 2) || (DEPTH > 8)) begin : gen_depth_guard
+			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/gaxi/gaxi_skid_buffer.sv:101:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive", DEPTH);
+		end
+	endgenerate
+	genvar _gv_gi_1;
+	generate
+		for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
+			localparam gi = _gv_gi_1;
+			always @(posedge axi_aclk)
+				if (!axi_aresetn)
+					r_data[gi] <= 1'sb0;
+				else
+					(* full_case, parallel_case *)
+					case ({w_wr_xfer, w_rd_xfer})
+						2'b10:
+							if (r_data_count == gi[3:0])
+								r_data[gi] <= wr_data;
+						2'b01:
+							if (gi < (DEPTH - 1))
+								r_data[gi] <= r_data[gi + 1];
+							else
+								r_data[gi] <= 1'sb0;
+						2'b11:
+							if ((r_data_count >= 1) && (gi[3:0] == (r_data_count - 4'd1)))
+								r_data[gi] <= wr_data;
+							else if (gi < (DEPTH - 1))
+								r_data[gi] <= r_data[gi + 1];
+							else
+								r_data[gi] <= 1'sb0;
+						default:
+							;
+					endcase
+		end
+	endgenerate
+	always @(posedge axi_aclk)
+		if (!axi_aresetn)
+			r_data_count <= 1'sb0;
+		else
+			(* full_case, parallel_case *)
+			case ({w_wr_xfer, w_rd_xfer})
+				2'b10: r_data_count <= r_data_count + 4'd1;
+				2'b01: r_data_count <= r_data_count - 4'd1;
+				default:
+					;
+			endcase
 	function automatic [31:0] sv2v_cast_32;
 		input reg [31:0] inp;
 		sv2v_cast_32 = inp;
 	endfunction
-	always @(posedge axi_aclk)
-		if (!axi_aresetn) begin
-			r_data <= 'b0;
-			r_data_count <= 'b0;
-		end
-		else
-			case ({w_wr_xfer, w_rd_xfer})
-				2'b10: begin
-					r_data[DW * r_data_count+:DW] <= wr_data;
-					r_data_count <= r_data_count + 1;
-				end
-				2'b01: begin
-					r_data <= {zeros, r_data[BUF_WIDTH - 1:DW]};
-					r_data_count <= r_data_count - 1;
-				end
-				2'b11: begin
-					r_data <= {zeros, r_data[BUF_WIDTH - 1:DW]};
-					r_data[DW * (sv2v_cast_32(r_data_count) - 1)+:DW] <= wr_data;
-				end
-				default:
-					;
-			endcase
 	always @(posedge axi_aclk)
 		if (!axi_aresetn) begin
 			wr_ready <= 1'b0;
@@ -68,7 +88,7 @@ module gaxi_skid_buffer (
 			wr_ready <= ((sv2v_cast_32(r_data_count) <= (DEPTH - 2)) || ((sv2v_cast_32(r_data_count) == (DEPTH - 1)) && (~w_wr_xfer || w_rd_xfer))) || ((sv2v_cast_32(r_data_count) == DEPTH) && w_rd_xfer);
 			rd_valid <= ((r_data_count >= 2) || ((r_data_count == 4'b0001) && (~w_rd_xfer || w_wr_xfer))) || ((r_data_count == 4'b0000) && w_wr_xfer);
 		end
-	assign rd_data = r_data[DW - 1:0];
+	assign rd_data = r_data[0];
 	assign rd_count = r_data_count;
 	assign count = r_data_count;
 endmodule
@@ -125,7 +145,6 @@ module axil4_master_rd (
 	wire int_skid_arvalid;
 	wire int_skid_arready;
 	wire [3:0] int_r_count;
-	wire [RSize - 1:0] int_r_pkt;
 	wire int_skid_rvalid;
 	wire int_skid_rready;
 	assign busy = (((int_ar_count > 0) || (int_r_count > 0)) || fub_arvalid) || m_axil_rvalid;
@@ -236,7 +255,6 @@ module axil4_master_wr (
 	wire int_skid_wvalid;
 	wire int_skid_wready;
 	wire [3:0] int_b_count;
-	wire [BSize - 1:0] int_b_pkt;
 	wire int_skid_bvalid;
 	wire int_skid_bready;
 	assign busy = (((((int_aw_count > 0) || (int_w_count > 0)) || (int_b_count > 0)) || fub_awvalid) || fub_wvalid) || m_axil_bvalid;
@@ -601,12 +619,15 @@ module uart_axil_bridge (
 	);
 	reg [3:0] r_cmd_state;
 	reg [3:0] w_cmd_state_next;
+	localparam [1:0] AXI_RESP_OKAY = 2'b00;
 	localparam signed [31:0] ADDR_HEX_DIGITS = (AXIL_ADDR_WIDTH + 3) / 4;
 	localparam signed [31:0] DATA_HEX_DIGITS = (AXIL_DATA_WIDTH + 3) / 4;
-	localparam signed [31:0] MAX_RESPONSE_LEN = (2 + DATA_HEX_DIGITS) + 1;
+	localparam signed [31:0] RESP_OK_LEN = (2 + DATA_HEX_DIGITS) + 1;
+	localparam signed [31:0] RESP_ERR_LEN = 4;
+	localparam signed [31:0] MAX_RESPONSE_LEN = (RESP_OK_LEN > RESP_ERR_LEN ? RESP_OK_LEN : RESP_ERR_LEN);
 	localparam signed [31:0] RESPONSE_INDEX_WIDTH = $clog2(MAX_RESPONSE_LEN + 1);
 	reg [7:0] r_cmd_type;
-	reg [31:0] r_cmd_addr;
+	reg [AXIL_ADDR_WIDTH - 1:0] r_cmd_addr;
 	reg [AXIL_DATA_WIDTH - 1:0] r_cmd_data;
 	reg [AXIL_DATA_WIDTH - 1:0] r_resp_data;
 	reg [4:0] r_nibble_count;
@@ -692,24 +713,44 @@ module uart_axil_bridge (
 				4'd9:
 					if (w_fub_rvalid && w_fub_rready) begin
 						r_resp_data <= w_fub_rdata;
-						r_response_buffer[0] <= "0";
-						r_response_buffer[1] <= "x";
-						begin : sv2v_autoblock_1
-							reg signed [31:0] i;
-							for (i = 0; i < DATA_HEX_DIGITS; i = i + 1)
-								r_response_buffer[2 + i] <= val_to_hex(w_fub_rdata[(AXIL_DATA_WIDTH - 1) - (i * 4)-:4]);
+						if (w_fub_rresp != AXI_RESP_OKAY) begin
+							r_response_buffer[0] <= "E";
+							r_response_buffer[1] <= "R";
+							r_response_buffer[2] <= "R";
+							r_response_buffer[3] <= "\n";
+							r_response_index <= 1'sb0;
+							r_response_length <= sv2v_cast_1E9FA_signed(RESP_ERR_LEN);
 						end
-						r_response_buffer[2 + DATA_HEX_DIGITS] <= "\n";
-						r_response_index <= 1'sb0;
-						r_response_length <= sv2v_cast_1E9FA_signed((2 + DATA_HEX_DIGITS) + 1);
+						else begin
+							r_response_buffer[0] <= "0";
+							r_response_buffer[1] <= "x";
+							begin : sv2v_autoblock_1
+								reg signed [31:0] i;
+								for (i = 0; i < DATA_HEX_DIGITS; i = i + 1)
+									r_response_buffer[2 + i] <= val_to_hex(w_fub_rdata[(AXIL_DATA_WIDTH - 1) - (i * 4)-:4]);
+							end
+							r_response_buffer[2 + DATA_HEX_DIGITS] <= "\n";
+							r_response_index <= 1'sb0;
+							r_response_length <= sv2v_cast_1E9FA_signed(RESP_OK_LEN);
+						end
 					end
 				4'd7:
 					if (w_fub_bvalid && w_fub_bready) begin
-						r_response_buffer[0] <= "O";
-						r_response_buffer[1] <= "K";
-						r_response_buffer[2] <= "\n";
-						r_response_index <= 1'sb0;
-						r_response_length <= sv2v_cast_1E9FA_signed(3);
+						if (w_fub_bresp != AXI_RESP_OKAY) begin
+							r_response_buffer[0] <= "E";
+							r_response_buffer[1] <= "R";
+							r_response_buffer[2] <= "R";
+							r_response_buffer[3] <= "\n";
+							r_response_index <= 1'sb0;
+							r_response_length <= sv2v_cast_1E9FA_signed(RESP_ERR_LEN);
+						end
+						else begin
+							r_response_buffer[0] <= "O";
+							r_response_buffer[1] <= "K";
+							r_response_buffer[2] <= "\n";
+							r_response_index <= 1'sb0;
+							r_response_length <= sv2v_cast_1E9FA_signed(3);
+						end
 					end
 				4'd10:
 					if (w_tx_valid && w_tx_ready)

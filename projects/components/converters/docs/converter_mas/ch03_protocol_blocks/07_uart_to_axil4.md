@@ -49,18 +49,30 @@ validate length**. Supplying too few digits left-aligns nothing and yields a
 small address; supplying too many silently discards the oldest nibbles. The
 host is responsible for sending exactly the digit count the bus width implies.
 
-## 3.7.3 Error Responses Are Not Reported
+## 3.7.3 Error Responses
 
-**A write that returns `SLVERR` or `DECERR` still answers `OK`.** The bridge
-brings `bresp` and `rresp` back from the two `axil4_master_*` instances into
-`w_fub_bresp`/`w_fub_rresp`, and then never examines them: no state depends on
-either signal, and the response text is chosen by command type alone. A failed
-read returns `0x` followed by whatever was on `rdata`.
+A transfer that returns a non-`OKAY` response answers `ERR\n`:
 
-This is a limitation of the bridge, not of the bus -- the response codes are
-present at the pins and correct. A host that needs to distinguish an error from
-success must do it out of band (for example by reading back a status register
-the target sets), or the bridge must be extended to encode the response.
+| Outcome | Response |
+|---------|----------|
+| Write accepted (`bresp == OKAY`) | `OK\n` |
+| Write rejected (`SLVERR`/`DECERR`) | `ERR\n` |
+| Read accepted (`rresp == OKAY`) | `0x<data>\n` |
+| Read rejected (`SLVERR`/`DECERR`) | `ERR\n` |
+
+A failed read returns no data at all rather than `0x` followed by whatever sat
+on `rdata`, because a value that looks well-formed is worse than no value.
+
+Until 2026-09-03 the bridge did not do this. It brought `bresp` and `rresp`
+back from the two `axil4_master_*` instances and never examined either, so a
+write that returned `SLVERR` still answered `OK` and a failed read returned
+stale bus data formatted as a normal result. A host had no way to tell a
+failure from a success.
+
+The host side needed no change: `uart_axi_bridge.py` already returns
+`response.strip() == b'OK'` from `write()`, and `read()` already requires a
+`0x` prefix. Both were written expecting error signalling the RTL was not
+producing.
 
 ## 3.7.4 Parameters
 
@@ -100,7 +112,7 @@ with the same meaning.
 | `m_axil_wstrb` | AXIL_DATA_WIDTH/8 | Output | Write byte strobes |
 | `m_axil_wvalid` | 1 | Output | Write data valid |
 | `m_axil_wready` | 1 | Input | Write data ready |
-| `m_axil_bresp` | 2 | Input | Write response; accepted but not reported (3.7.3) |
+| `m_axil_bresp` | 2 | Input | Write response; a non-OKAY value yields `ERR\n` (3.7.3) |
 | `m_axil_bvalid` | 1 | Input | Write response valid |
 | `m_axil_bready` | 1 | Output | Write response ready |
 | `m_axil_araddr` | AXIL_ADDR_WIDTH | Output | Read address |
@@ -108,7 +120,7 @@ with the same meaning.
 | `m_axil_arvalid` | 1 | Output | Read address valid |
 | `m_axil_arready` | 1 | Input | Read address ready |
 | `m_axil_rdata` | AXIL_DATA_WIDTH | Input | Read data, returned in the `0x...` response |
-| `m_axil_rresp` | 2 | Input | Read response; accepted but not reported (3.7.3) |
+| `m_axil_rresp` | 2 | Input | Read response; a non-OKAY value yields `ERR\n` (3.7.3) |
 | `m_axil_rvalid` | 1 | Input | Read data valid |
 | `m_axil_rready` | 1 | Output | Read data ready |
 
