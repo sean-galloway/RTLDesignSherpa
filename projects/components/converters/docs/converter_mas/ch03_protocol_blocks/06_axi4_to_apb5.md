@@ -63,7 +63,7 @@ One parameter is inert and worth calling out so nobody wires a knob to it:
 
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
-| `USE_2_PHASE_CDC` | bit | 1 | **Deprecated and ignored.** This shim forwards it to `apb5_slave_cdc`, which does not reference it either, so it has no effect at any level |
+| `USE_2_PHASE_CDC` | bit | 1 | **Deprecated and ignored.** This shim wraps `axi4_to_apb4_shim` and forwards the parameter to it; that module declares it `// deprecated, ignored` and never references it, so it has no effect at any level |
 
 : AXI4 to APB5 Shim -- Inert Parameter
 

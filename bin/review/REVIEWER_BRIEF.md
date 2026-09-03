@@ -28,24 +28,24 @@ Each directory under `books/` is one self-contained review unit:
 | `smbus_mas` | APB SMBus Specification - Table of Contents | 3 | 2 | ~38k | 1 |
 | `gaxi` | RTL AMBA GAXI Modules | 7 | 5 | ~40k | 1 |
 | `gpio_mas` | APB GPIO Micro-Architecture Specification | 23 | 7 | ~70k | 1 |
-| `apbx_xbar_mas` | APB Crossbar Micro-Architecture Specification Index | 9 | 14 | ~77k | 1 |
+| `apbx_xbar_mas` | APB Crossbar Micro-Architecture Specification Index | 9 | 14 | ~78k | 1 |
 | `apbx_xbar_has` | APB Crossbar Hardware Architecture Specification Index | 23 | 13 | ~80k | 1 |
 | `pit_8254_mas` | APB PIT 8254 Specification - Table of Contents | 12 | 10 | ~81k | 1 |
 | `rtc_mas` | APB RTC Specification - Table of Contents | 5 | 7 | ~85k | 1 |
 | `apb` | RTL AMBA APB4 | 10 | 9 | ~96k | 1 |
-| `apb5` | RTL AMBA APB5 | 10 | 9 | ~102k | 1 |
+| `apb5` | RTL AMBA APB5 | 10 | 9 | ~103k | 1 |
 | `hpet_mas` | APB HPET Micro-Architecture Specification | 14 | 15 | ~117k | 1 |
 | `uart_16550_mas` | APB UART 16550 Specification - Table of Contents | 27 | 8 | ~117k | 1 |
 | `bridge_has` | Bridge Hardware Architecture Specification Index | 24 | 10 | ~180k | 2 |
-| `cdc` | RTL Clock Domain Crossing | 15 | 23 | ~206k | 2 |
-| `converter_mas` | Converters Micro-Architecture Specification Index | 19 | 32 | ~235k | 2 |
+| `cdc` | RTL Clock Domain Crossing | 15 | 23 | ~207k | 2 |
+| `converter_mas` | Converters Micro-Architecture Specification Index | 19 | 34 | ~243k | 2 |
 | `common` | RTL Common Library | 50 | 48 | ~251k | 4 |
 | `shared` | RTL AMBA Shared Infrastructure | 31 | 25 | ~266k | 3 |
 | `axil4` | RTL AMBA AXI4-Lite | 18 | 16 | ~282k | 2 |
 | `axil5` | RTL AMBA AXI5-Lite | 17 | 16 | ~308k | 2 |
 | `math` | RTL Math Library | 28 | 39 | ~432k | 3 |
 | `axi5` | RTL AMBA AXI5 | 18 | 17 | ~447k | 3 |
-| `monitor` | RTL AMBA Monitor Subsystem | 36 | 33 | ~447k | 4 |
+| `monitor` | RTL AMBA Monitor Subsystem | 36 | 33 | ~448k | 4 |
 | `bridge_mas` | Bridge Micro-Architecture Specification Index | 26 | 24 | ~448k | 3 |
 | `axi4` | RTL AMBA AXI4 | 25 | 24 | ~462k | 4 |
 | `ioapic_mas` | APB IOAPIC Specification - Table of Contents | 15 | 48 | ~498k | 3 |

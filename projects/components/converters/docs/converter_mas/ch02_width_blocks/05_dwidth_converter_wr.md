@@ -352,10 +352,45 @@ assign s_bresp  = m_bresp;
 
 ### Response Ordering
 
-Responses return in order because:
-- Single outstanding transaction per ID
+Responses return in order **provided the master-side slave returns them in
+issue order across all IDs** -- see the constraint below, which is a real
+restriction and not a formality. Given that, the fold is safe because:
 - Upsize doesn't reorder data
 - B response generated after all W beats accepted
+
+An earlier version of this list gave "single outstanding transaction per ID"
+as sufficient. It is not: the B fold compares no IDs at all.
+
+### Ordering Constraint (applies to both directions)
+
+**The master-side slave must return responses in AR/AW issue order across ALL
+IDs.** Neither converter carries a transaction ID through its data path, so
+neither can attribute an out-of-order completion to the burst it belongs to.
+
+Read side: the burst-length queue holds `{narrow ARLEN, start lane}` and
+nothing else, and `s_axi_rid` is a single register latched on every master R
+handshake. If a slave returns ID1's data before ID0's, ID1's beats are counted
+against ID0's queue head, `s_axi_rlast` fires at the wrong boundary, one
+aggregated wide beat can mix two transactions, and `s_axi_rid` is whichever ID
+handshaked most recently.
+
+Write side: the split queue is popped by `split_b_pop = m_axi_bvalid &&
+m_axi_bready` -- any arriving B pops the head, whatever its ID -- and
+`m_axi_bready = split_b_final ? int_b_ready : 1'b1` swallows a non-final
+response unconditionally. A B that arrives out of order is folded into the
+wrong burst's accumulator: the burst it actually belonged to never gets its
+response (the master hangs), the other burst's response is built from the
+wrong beats, and every later burst's framing is shifted by one.
+
+AXI4 permits both behaviours. A slave may complete different-ID transactions
+out of order and may interleave read data across IDs, and a multi-ported DDR
+controller normally does. Satisfying "one outstanding transaction per ID" is
+**not** sufficient -- two IDs with one transaction each meet that and still
+break the fold.
+
+Safe configurations are: an in-order master-side slave, or a single ID
+outstanding at a time. Nothing in the RTL enforces or detects a violation, so
+a breach corrupts data silently rather than failing (tracked as CONV-001).
 
 ## 2.5.8 AW/W Synchronization
 

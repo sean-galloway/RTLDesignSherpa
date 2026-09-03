@@ -192,61 +192,76 @@ Final:  wide RRESP = SLVERR — not DECERR, which a bitwise OR would fabricate
 
 ### Core Logic
 
+Wide valid is **registered**, not combinational. It is set by the narrow beat
+that *completes* a group, so the wide word is only offered after its final
+lane has actually been written:
+
 ```systemverilog
-// Beat counter
-logic [$clog2(RATIO)-1:0] r_count;
+// Lane the incoming narrow beat lands in (start_lane on a fresh burst)
+assign w_lane = (r_beat_ptr == '0) ? start_lane : r_beat_ptr;
 
-// Accumulator buffer
-logic [WIDE_WIDTH-1:0] r_data;
-logic [WIDE_SB_WIDTH-1:0] r_sideband;
-logic r_last;
+// The accepted narrow beat that closes a group: last lane, or an early LAST
+logic narrow_completes_group;
+assign narrow_completes_group = narrow_valid && narrow_ready &&
+                                (w_lane == PTR_WIDTH'(WIDTH_RATIO-1) ||
+                                 narrow_last);
 
-// Output valid when buffer full or early LAST
-logic w_output_valid;
-assign w_output_valid = (r_count == RATIO - 1) || r_last;
+logic wide_accept;
+assign wide_accept = r_wide_valid && wide_ready;
 
-// Ready when not outputting or downstream ready
-assign s_ready = !w_output_valid || m_ready;
+always_ff @(posedge aclk or negedge aresetn) begin
+    if (!aresetn) begin
+        r_data_accumulator <= '0;
+        r_beat_ptr         <= '0;
+        r_wide_valid       <= 1'b0;
+        r_last_buffered    <= 1'b0;
+        r_burst_fresh      <= 1'b1;
+    end else begin
+        if (narrow_valid && narrow_ready) begin
+            // A group-opening beat ZEROES the whole accumulator and places
+            // its data in one whole-register assignment; later beats write
+            // only their own lane. Without the zeroing, an early narrow_last
+            // (or a burst starting mid-word) leaves residual data and WSTRB
+            // in the unfilled lanes and they leak into the emitted beat.
+            if (r_beat_ptr == '0)
+                r_data_accumulator <= {{(WIDE_WIDTH-NARROW_WIDTH){1'b0}}, narrow_data}
+                                      << (w_lane * NARROW_WIDTH);
+            else
+                r_data_accumulator[w_lane*NARROW_WIDTH +: NARROW_WIDTH] <= narrow_data;
 
-// Main accumulation logic
-always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-        r_count <= '0;
-        r_data <= '0;
-        r_sideband <= '0;
-        r_last <= 1'b0;
-    end else if (s_valid && s_ready) begin
-        // Pack data into buffer
-        r_data[r_count * NARROW_WIDTH +: NARROW_WIDTH] <= s_data;
+            r_beat_ptr    <= narrow_completes_group ? '0 : (w_lane + 1'b1);
+            r_burst_fresh <= narrow_last;
+        end
 
-        // Handle sideband based on mode
-        if (SB_OR_MODE)
-            // severity fold: numeric max, NOT bitwise OR (CONV-005 --
-            // SLVERR | EXOKAY would fabricate DECERR)
-            r_sideband <= (r_count == 0) ? s_sideband :
-                          (s_sideband > r_sideband) ? s_sideband : r_sideband;
-        else
-            r_sideband[r_count * NARROW_SB_WIDTH +: NARROW_SB_WIDTH] <= s_sideband;
-
-        // Track LAST
-        r_last <= s_last;
-
-        // Update counter
-        if (s_last || r_count == RATIO - 1)
-            r_count <= '0;
-        else
-            r_count <= r_count + 1'b1;
-    end else if (m_valid && m_ready) begin
-        r_last <= 1'b0;
+        // ONE point of control for r_wide_valid. A newly completed group
+        // dominates an in-flight wide accept -- when both land on the same
+        // cycle, two separate NBAs to this register would race.
+        if (narrow_completes_group) begin
+            r_wide_valid    <= 1'b1;
+            r_last_buffered <= narrow_last;
+        end else if (wide_accept) begin
+            r_wide_valid    <= 1'b0;
+            r_last_buffered <= 1'b0;
+        end
     end
 end
 
-// Output assignments
-assign m_valid = w_output_valid;
-assign m_data = r_data;
-assign m_sideband = r_sideband;
-assign m_last = r_last;
+assign narrow_ready = !r_wide_valid || wide_ready;
+assign wide_valid   = r_wide_valid;
+assign wide_last    = r_last_buffered;
 ```
+
+The registered form is what makes the throughput claim in 2.2.7 true. An
+earlier version of this page showed a combinational
+`w_output_valid = (r_count == RATIO-1) || r_last` driving `m_valid`, with
+`s_ready` gated on `m_ready`. That machine is wrong in both directions: it
+asserts valid during the cycle the completing narrow beat is still being
+accepted, so with `m_ready` high the wide beat handshakes before the final
+lane's non-blocking write lands (a wide word missing its last narrow beat),
+and with `m_ready` low the completing narrow beat stalls (a bubble every
+group). It also contradicted 2.2.4, which correctly places the transition
+*after* the completing beat.
+
 
 ## 2.2.7 Timing
 

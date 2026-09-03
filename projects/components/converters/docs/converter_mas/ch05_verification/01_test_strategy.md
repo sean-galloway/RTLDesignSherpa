@@ -182,7 +182,7 @@ class AXI4MasterDriver:
 
         # B phase
         await self._wait_valid("bvalid")
-        return self.dut.bresp.value
+        return sig("bresp").value
 ```
 
 ### 5.1.5 Coverage Model
