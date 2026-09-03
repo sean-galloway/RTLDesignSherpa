@@ -119,20 +119,23 @@ package stream_char_cfg_pkg;
     // monitors-off flavor to keep in step, because carrying two board
     // configurations to test one design is how sim and silicon end up
     // measuring different things -- see [[one-source-config]].
-    parameter int CFG_USE_AXI_MONITORS = 0;
+    parameter int CFG_USE_AXI_MONITORS = 1;
 
     // Observer taps, INDEPENDENT of CFG_USE_AXI_MONITORS on purpose.
     //
-    // With both on, the design needs 217,761 LUTs against 203,800 on the
-    // xc7k325t -- it does not fit, and the placer never runs. The observers
-    // are the measurement vehicle, so the in-core monitors come out and the
-    // observers stay armed.
+    // With both on the design needs 217,761 LUTs against 203,800 on the
+    // xc7k325t -- it does not fit and the placer never runs. So the three
+    // builds pick ONE instrument each, via their own Makefile generics
+    // (USE_AXI_MONITORS / OBS_ENABLE_MON_TAPS); these are only the defaults:
     //
-    // These MUST be separate knobs. Deriving the taps from USE_AXI_MONITORS
-    // (which is what I first did) means turning the in-core monitors off to
-    // save area silently disarms the observers too -- exactly the welding the
-    // stream_harness comment warns about.
-    parameter bit CFG_OBS_ENABLE_MON_TAPS = 1'b1;
+    //   build-perf : monitors 0, taps 0   -- clean throughput, no instrument
+    //   build-obs  : monitors 0, taps 1   -- observers are the vehicle
+    //   build-mon  : monitors 1, taps 0   -- in-core stream monitors
+    //
+    // These MUST stay separate knobs. Deriving the taps from USE_AXI_MONITORS
+    // means turning the in-core monitors off for area silently disarms the
+    // observers too -- the welding stream_harness.sv already warns about.
+    parameter bit CFG_OBS_ENABLE_MON_TAPS = 1'b0;
 
     // Banked monitor CAM. stream_core sizes the table as
     //     MAX(16, NUM_CHANNELS * Ax_MAX_OUTSTANDING + MON_TRANS_MARGIN)

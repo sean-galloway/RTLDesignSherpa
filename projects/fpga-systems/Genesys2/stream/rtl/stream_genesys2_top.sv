@@ -61,6 +61,17 @@ module stream_genesys2_top #(
     // stream_char_cfg_pkg so the cosim elaborates the same thing. There is no
     // monitors-off board flavor to keep in step any more.
     parameter int USE_AXI_MONITORS = stream_char_cfg_pkg::CFG_USE_AXI_MONITORS,
+    // Observer taps: arms the per-transaction CAM AND builds the reporter
+    // cones. MUST be a top-level parameter, not just a harness one. Both
+    // Vivado and the linter apply generics to the TOP, and a generic naming a
+    // parameter the top does not have is IGNORED -- the linter errors, Vivado
+    // only warns. That is how every Genesys 2 bitstream shipped with the full
+    // monitor CAMs while build-perf exported USE_AXI_MONITORS=0 (see
+    // fpga/tcl/create_project.tcl). Same trap, same file, second time.
+    //
+    // Do not start a comment line here with the tool's name: it is read as a
+    // metacomment pragma and fails elaboration (BADVLTPRAGMA).
+    parameter bit OBS_ENABLE_MON_TAPS = stream_char_cfg_pkg::CFG_OBS_ENABLE_MON_TAPS,
     parameter int MON_NUM_BANKS    = stream_char_cfg_pkg::CFG_MON_NUM_BANKS,
     // Agent-resolved tally legal-set size: the host loads a legal set over each
     // tally's cfg AXIL slave; bins become dense per-agent indices, plus an
@@ -215,6 +226,7 @@ module stream_genesys2_top #(
         // In-core rd/wr AXI monitors ON, with banked CAMs (the point of this
         // bitstream, and now the only configuration).
         .USE_AXI_MONITORS      (USE_AXI_MONITORS),
+        .OBS_ENABLE_MON_TAPS   (OBS_ENABLE_MON_TAPS),
         .MON_NUM_BANKS         (MON_NUM_BANKS),
         // Agent-resolved tally legal-set size (both tally memories).
         .MON_N_PROFILE          (MON_N_PROFILE),
