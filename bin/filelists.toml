@@ -251,3 +251,10 @@ gaxi_skid_buffer_multi_sigmap = "multi-instance wrapper; no consumer yet"
 # filelist entries, and deleting these two lines.
 pumice_rbl_table = "set aside under rtl/OLD/ -- 60% of failing timing endpoints; see that README"
 pumice_row_pred_table = "set aside under rtl/OLD/ -- 60% of failing timing endpoints; see that README"
+# Depth-measurement reference models under rtl/proto/ -- self-contained (no
+# pumice_pkg) scaffolds that proved the two-stage bank scheduler (81 -> 24
+# levels). The BUILD copies live in rtl/fub/ (pumice_bank_cmd_picker /
+# pumice_bank_sched_core) and ARE in a filelist; these proto/ copies are the
+# reference the production version was derived from, not part of any closure.
+pumice_bank_cmd_picker = "rtl/proto/ reference scaffold; the buildable copy is in rtl/fub/"
+pumice_bank_sched_core = "rtl/proto/ reference scaffold; the buildable copy is in rtl/fub/"
