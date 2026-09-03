@@ -55,10 +55,10 @@ the version gate; there is no mask to set.
 
 | Signal | Width | Direction | Description |
 |--------|-------|-----------|-------------|
-| `m<i>_apb_PAUSER` | AUSER_WIDTH | Input | Request user attributes; forwarded only to an APB5 slave |
-| `m<i>_apb_PWUSER` | WUSER_WIDTH | Input | Write-data user attributes; likewise |
-| `m<i>_apb_PRUSER` | RUSER_WIDTH | Output | Completer read-data user attributes, from an APB5 slave |
-| `m<i>_apb_PBUSER` | BUSER_WIDTH | Output | Completer response user attributes, from an APB5 slave |
+| `m<i>_apb_PAUSER` | 1 | Input | Request user attributes; forwarded only to an APB5 slave |
+| `m<i>_apb_PWUSER` | 1 | Input | Write-data user attributes; likewise |
+| `m<i>_apb_PRUSER` | 1 | Output | Completer read-data user attributes, from an APB5 slave |
+| `m<i>_apb_PBUSER` | 1 | Output | Completer response user attributes, from an APB5 slave |
 | `m<i>_apb_PWAKEUP` | 1 | Output | Tied `'0` -- see below |
 
 : APB5 Master Sideband Signals
@@ -72,6 +72,14 @@ unconnected and ties `wakeup_request` to `'0`, so an APB5 slave asserting
 PWAKEUP is never seen here. This is a known limitation rather than a
 guarantee, and it is asserted formally (`ap_pwakeup_dropped`) so that
 wiring it up later fails a proof instead of changing behaviour silently.
+
+**The user-signal widths are fixed at 1 bit, not parameterised.** This table
+previously named `AUSER_WIDTH`/`WUSER_WIDTH`/`RUSER_WIDTH`/`BUSER_WIDTH` as
+though an integrator could size them. There are no such parameters: the whole
+module takes only `ADDR_WIDTH`, `BASE_ADDR`, `DATA_WIDTH` and `STRB_WIDTH`, and
+the generator hardcodes `AUSER_WIDTH(1)` .. `BUSER_WIDTH(1)` at each boundary
+shim. Widening a user field means regenerating the crossbar, not overriding a
+parameter.
 
 Parity pins are absent entirely: every shipped variant is generated with
 parity off, and a mixed pairing carries no parity in any case.

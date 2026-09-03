@@ -235,3 +235,58 @@ The wiring is exactly the instantiation in 3.5.7; the earlier example
 here showed the adapter hanging off a register block's APB port through
 `reg_*` signals that do not exist — the reversed-direction reading this
 page used to make.
+
+## 3.5.9 APB4 Front End (apb4_to_peakrdl)
+
+`peakrdl_to_cmdrsp` above takes a cmd/rsp stream. `apb4_to_peakrdl` is the
+module that produces one from an APB4 slave port, and it crosses clock domains
+while doing it -- APB on `pclk`, the register block on `aclk`. It is a
+two-stage composition and adds no register logic of its own:
+
+| Stage | Module | Domain |
+|-------|--------|--------|
+| 1 | `apb4_slave_cdc` | `pclk` in, `aclk` out |
+| 2 | `peakrdl_to_cmdrsp` | `aclk` |
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `ADDR_WIDTH` | int | 12 | APB and cpuif byte address width |
+| `DATA_WIDTH` | int | 32 | Must match the PeakRDL generation |
+| `PROT_WIDTH` | int | 3 | `PPROT` width |
+| `STRB_WIDTH` | int | DATA_WIDTH/8 | Derived; do not override |
+| `CDC_DEPTH` | int | 2 | Command/response CDC FIFO depth (>= 2) |
+| `USE_JOHNSON` | int | 0 | CDC pointer encoding: 0 = Gray (power-of-2 depth only), 1 = Johnson (any depth) |
+| `USE_2_PHASE_CDC` | bit | 1 | **Deprecated and ignored.** Accepted for compatibility; `apb4_slave_cdc` does not reference it, so setting it changes nothing |
+
+: apb4_to_peakrdl Parameters
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| `aclk` | 1 | Input | Register-block clock; drives the cpuif master |
+| `aresetn` | 1 | Input | Active-low reset, `aclk` domain |
+| `pclk` | 1 | Input | APB clock |
+| `presetn` | 1 | Input | Active-low reset, `pclk` domain |
+| `s_apb_PSEL` | 1 | Input | APB select |
+| `s_apb_PENABLE` | 1 | Input | APB enable |
+| `s_apb_PREADY` | 1 | Output | APB ready |
+| `s_apb_PADDR` | ADDR_WIDTH | Input | APB address |
+| `s_apb_PWRITE` | 1 | Input | Write/read direction |
+| `s_apb_PWDATA` | DATA_WIDTH | Input | Write data |
+| `s_apb_PSTRB` | STRB_WIDTH | Input | Write strobes |
+| `s_apb_PPROT` | PROT_WIDTH | Input | Protection attributes |
+| `s_apb_PRDATA` | DATA_WIDTH | Output | Read data |
+| `s_apb_PSLVERR` | 1 | Output | Slave error |
+| `cpuif_req` | 1 | Output | Passthrough request |
+| `cpuif_req_is_wr` | 1 | Output | Request is a write |
+| `cpuif_addr` | ADDR_WIDTH | Output | Request address |
+| `cpuif_wr_data` | DATA_WIDTH | Output | Write data |
+| `cpuif_wr_biten` | DATA_WIDTH | Output | Per-bit write enables, expanded from `PSTRB` |
+| `cpuif_req_stall_wr` | 1 | Input | Register block stalls a write |
+| `cpuif_req_stall_rd` | 1 | Input | Register block stalls a read |
+| `cpuif_rd_ack` | 1 | Input | Read acknowledge |
+| `cpuif_rd_err` | 1 | Input | Read error, returned as `PSLVERR` |
+| `cpuif_rd_data` | DATA_WIDTH | Input | Read data |
+| `cpuif_wr_ack` | 1 | Input | Write acknowledge |
+| `cpuif_wr_err` | 1 | Input | Write error, returned as `PSLVERR` |
+
+: apb4_to_peakrdl Ports

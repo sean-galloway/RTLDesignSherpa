@@ -52,6 +52,21 @@ its own to 4, so the two do NOT line up out of the box — set
 signal set is otherwise pin-for-pin with that slave, including the
 repo's convention that PWAKEUP rides completer→requester.
 
+## Parameters
+
+The width and depth parameters are the same as the APB4 shim's -- see
+[Table 3.17](04_axi4_to_apb4.md) -- with the APB5 user-signal widths
+(`APB_AUSER_WIDTH`, `APB_WUSER_WIDTH`, `APB_RUSER_WIDTH`, `APB_BUSER_WIDTH`)
+added for the sideband above.
+
+One parameter is inert and worth calling out so nobody wires a knob to it:
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `USE_2_PHASE_CDC` | bit | 1 | **Deprecated and ignored.** This shim forwards it to `apb5_slave_cdc`, which does not reference it either, so it has no effect at any level |
+
+: AXI4 to APB5 Shim -- Inert Parameter
+
 ## Design Notes
 
 Deriving the wrapper from the APB4 shim's actual port surface (rather

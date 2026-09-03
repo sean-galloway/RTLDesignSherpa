@@ -828,3 +828,29 @@ python generate_xbars.py
 **Version:** 1.0
 **Last Updated:** 2025-10-25
 **Maintained By:** RTL Design Sherpa Project
+
+
+## Verification Wrappers
+
+Alongside each generated crossbar the generator emits a `*_wrap` module in
+`rtl/wrappers/` -- `apbx_xbar_1to1_wrap`, `apbx_xbar_1to4_wrap`,
+`apbx_xbar_2to1_wrap`, `apbx_xbar_2to4_wrap`. These are **not** design
+entities and must not be instantiated in a system.
+
+Each declares only `pclk` and `presetn` as ports, holds every master- and
+slave-side APB signal as an internal net, and instantiates the crossbar
+against those nets. That shape exists for the cocotb testbenches, which use
+the wrapper as `toplevel` (see `dv/tests/test_apbx_xbar_*.py`) and drive the
+bus by hierarchical name rather than through ports.
+
+Keeping the bus off the port list is deliberate: the AXI/APB factory helpers
+match signals by name pattern, and a wrapper that re-exported `m0_apb_*` and
+`s0_apb_*` at its own boundary would give those patterns two matches per
+signal. The internal-net form leaves exactly one.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `ADDR_WIDTH` | 32 | Forwarded to the wrapped crossbar |
+| `DATA_WIDTH` | 32 | Forwarded to the wrapped crossbar |
+
+: Verification Wrapper Parameters

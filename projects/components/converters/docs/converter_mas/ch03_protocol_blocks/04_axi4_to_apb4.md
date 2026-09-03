@@ -76,6 +76,7 @@ generator emits:
 | APB_CMD_DEPTH | int | 4 | APB command FIFO depth |
 | APB_RSP_DEPTH | int | 4 | APB response FIFO depth |
 | USE_JOHNSON | int | 0 | CDC-FIFO pointer encoding: 0 = Gray (power-of-2 depth only), 1 = Johnson |
+| USE_2_PHASE_CDC | bit | 1 | **Deprecated and ignored.** Declared for compatibility and never referenced, so setting it changes nothing |
 | AXI_*/APB_* widths | int | as above | Same width parameters as the core |
 
 : Table 3.17: AXI4 to APB Shim Parameters
