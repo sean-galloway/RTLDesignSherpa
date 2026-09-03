@@ -86,7 +86,39 @@ class RegisterMap:
             return 0xFFFF_FFFF if reg.get('sw') == 'rw' else 0
         mask = 0
         for f in flds.values():
-            if f.get('sw') != 'rw':
+            if f.get('sw') not in ('rw', 'w'):
+                continue
+            off = str(f.get('offset', '0'))
+            if ':' in off:
+                hi, lo = (int(x) for x in off.split(':'))
+            else:
+                hi = lo = int(off)
+            mask |= ((1 << (hi - lo + 1)) - 1) << lo
+        return mask
+
+    @classmethod
+    def nonlatching_mask(cls, reg):
+        """Writable bits that do NOT hold what software wrote.
+
+        A self-clearing pulse (SystemRDL `singlepulse`) takes a 1, acts on it,
+        and is back to 0 before software can read it; a write-only field has no
+        read path at all. Both are legitimately writable, so they belong in
+        sw_writable_mask -- but expecting them to read back the written value is
+        wrong, and that wrongness looks exactly like a broken register.
+
+        harness_csr CTRL is the case that motivated this: four of its five bits
+        are pulses and only FREEZE_TRACE latches, so writing 0xFFFFFFFF reads
+        back 0x04. The walk called that a failure for as long as it existed.
+
+        Marked per FIELD as 'singlepulse': True, or by sw='w' (write-only).
+        Absent both, behaviour is unchanged.
+        """
+        flds = cls._walk_fields(reg)
+        if not flds:
+            return 0xFFFF_FFFF if reg.get('sw') == 'w' else 0
+        mask = 0
+        for f in flds.values():
+            if not (f.get('singlepulse') or f.get('sw') == 'w'):
                 continue
             off = str(f.get('offset', '0'))
             if ':' in off:
@@ -151,10 +183,14 @@ class RegisterMap:
                                  f" 0x{got:08X} -> 0x{after:08X}")
                 continue
 
+            # Pulses and write-only fields are writable but do not hold the
+            # written value, so only the latching bits are expected to read
+            # back what was written; the rest read their default.
+            latch = smask & ~self.nonlatching_mask(reg) & 0xFFFF_FFFF
             for pat in self.WALK_PATTERNS:
                 write(addr, pat)
                 rb = read(addr)
-                expect = (pat & smask) | (dflt & ~smask & 0xFFFF_FFFF)
+                expect = (pat & latch) | (dflt & ~latch & 0xFFFF_FFFF)
                 if rb == self.WALK_NO_RESPONSE:
                     fails.append(f"{name} @ 0x{addr:08X}: no response after write")
                     break

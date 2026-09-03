@@ -40,11 +40,11 @@ addrmap harness_csr {
         field { sw = rw; hw = r; } VALUE[31:0] = 0; };
 
     reg {
-        field { sw = rw; hw = r; } START[0:0] = 0;
-        field { sw = rw; hw = r; } CLEAR_STATS[1:1] = 0;
+        field { sw = rw; hw = r; singlepulse; } START[0:0] = 0;
+        field { sw = rw; hw = r; singlepulse; } CLEAR_STATS[1:1] = 0;
         field { sw = rw; hw = r; } FREEZE_TRACE[2:2] = 0;
-        field { sw = rw; hw = r; } SOFT_RESET[3:3] = 0;
-        field { sw = rw; hw = r; } CAM_CLEAR[4:4] = 0;
+        field { sw = rw; hw = r; singlepulse; } SOFT_RESET[3:3] = 0;
+        field { sw = rw; hw = r; singlepulse; } CAM_CLEAR[4:4] = 0;
     } CTRL @ 0x000;
     reg {
         field { sw = r; hw = w; } STREAM_IRQ[0:0] = 0;
@@ -64,7 +64,7 @@ addrmap harness_csr {
     word_rw_t SCRATCH @ 0x020;
     word_ro_t BUILD_ID @ 0x024;
     reg {
-        field { sw = rw; hw = r; } CLEAR[0:0] = 0;
+        field { sw = rw; hw = r; singlepulse; } CLEAR[0:0] = 0;
     } TIMER_CTRL @ 0x028;
     reg {
         field { sw = r; hw = w; } DONE[0:0] = 0;

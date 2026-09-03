@@ -208,12 +208,21 @@ def build_regmap_dict(top_node):
             reg_dict['array_index'] = array_index
             reg_dict['array_name'] = array_name
         for field_node in node_obj.fields():
-            reg_dict[field_node.inst_name] = {
+            fld = {
                 'offset': _rm_field_offset(field_node),
                 'default': _rm_field_default(field_node),
                 'sw': _rm_sw_access(field_node),
                 'type': 'field',
             }
+            # A singlepulse field takes a 1, acts on it, and self-clears before
+            # software can read it back. It is writable, but expecting it to
+            # hold the written value is wrong -- and that wrongness is
+            # indistinguishable from a broken register in a walk. Carry the
+            # property through so RegisterMap.walk can model it instead of
+            # reporting harness_csr CTRL as 4 failures forever.
+            if field_node.get_property('singlepulse', default=False):
+                fld['singlepulse'] = True
+            reg_dict[field_node.inst_name] = fld
         regs[key] = reg_dict
     return regs
 
