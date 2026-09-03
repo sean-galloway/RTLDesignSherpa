@@ -161,7 +161,7 @@ def declared(sv: Path):
     return set(f['params']), set(f['ports'])
 
 
-def with_delegations(page: Path, text: str, depth: int = 1) -> str:
+def with_delegations(page: Path, text: str, depth: int = 2) -> str:
     """Append the text of pages this one EXPLICITLY delegates to.
 
     A page may say "Same as [apb5_slave](apb5_slave.md)" rather than repeat a
@@ -174,6 +174,12 @@ def with_delegations(page: Path, text: str, depth: int = 1) -> str:
     Deliberately narrow -- only links on a line that says "same as" or
     "identical to". Following every link would let any cross-reference launder
     a genuine gap.
+
+    Depth 2, because the chains are two hops: axil4_slave_rd_mon_cg names
+    axil4_slave_rd_mon as its base module, and that page in turn says "Same as
+    axil4_master_rd_mon" for the monitor's own ports. At depth 1 the wrapper
+    saw only the middle page and reported 24 ports that are documented one hop
+    further on.
     """
     if depth <= 0:
         return text
