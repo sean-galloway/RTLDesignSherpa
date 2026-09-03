@@ -64,6 +64,7 @@ def _endpoints():
     import stream_addrs
     import harness_addrs
     import obs_addrs
+    import bridge_windows
 
     return [
         ("stream", "stream_apb  STREAM + MON",
@@ -90,6 +91,26 @@ def _endpoints():
         ("obs", "obs_apb     axi4_intf_master_observer (obs_regs)",
          obs_addrs._regmap_path(),
          obs_addrs.OBS_APB_BASE),
+        # The two tallies. Their controls used to be hardcoded localparams
+        # inside monbus_tally_axil.sv with no register block, so the block that
+        # bins every observer packet was the one endpoint this walk could not
+        # reach -- and its read decode ignored the high address bits, so a read
+        # of 0x100 aliased onto the ID word and the registers were unreadable
+        # by construction. Both are fixed (tally_regs.rdl); walking them is the
+        # point of having done it.
+        #
+        # Bases come from the bridge config BY NAME. A literal here would be a
+        # third copy of the address map, and the tally window is exactly where
+        # that went wrong before -- 0x40000 was hardcoded in host tools for
+        # years while the capture memory had moved.
+        ("stream_tally", "stream_tally_cfg  monbus_tally_axil (tally_regs)",
+         os.path.join(REPO, "projects/components/misc/rtl/regs/generated/"
+                            "tally_regs_top_regmap.py"),
+         bridge_windows.base("stream_tally_cfg")),
+        ("slave_tally", "slave_tally_cfg   monbus_tally_axil (tally_regs)",
+         os.path.join(REPO, "projects/components/misc/rtl/regs/generated/"
+                            "tally_regs_top_regmap.py"),
+         bridge_windows.base("slave_tally_cfg")),
     ]
 
 
@@ -117,6 +138,12 @@ NO_WRITE = {
         + [f"CH{i}_CTRL_HIGH" for i in range(8)]
     ),
     "harness": [],
+    # Writing these programs or wipes the CAM the tally routes every packet
+    # through. Harmless to a walk's arithmetic, destructive to a campaign that
+    # ran before it -- the same class of mistake as KICK_ENABLE, caught early
+    # this time rather than after a day of chasing a phantom hang.
+    "stream_tally": ["CAM_CLEAR", "CAM_LOAD"],
+    "slave_tally": ["CAM_CLEAR", "CAM_LOAD"],
     "slvmon": [],
     "obs": [],
 }

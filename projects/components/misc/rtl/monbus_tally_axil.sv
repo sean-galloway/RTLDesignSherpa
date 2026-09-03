@@ -193,68 +193,92 @@ module monbus_tally_axil
     assign cfgw_bvalid = r_cfgw_bvalid;
     assign cfgw_bresp  = 2'b00;
 
-    // Register-based CAM programming (bus-width INDEPENDENT -- the entry index
-    // comes from register DATA, not the address, so there is no 4/8-byte stride
-    // or addr[2] upsizer hazard). Three registers, 8 bytes apart so each is its
-    // own 64-bit word:
-    //   0x100 CAM_CLEAR : any write invalidates all CAM entries
-    //   0x108 CAM_KEY   : wdata[31:0] latched as the key to load next
-    //   0x110 CAM_LOAD  : wdata[31]=valid, wdata[PROF_IDX_W-1:0]=index ->
-    //                     load the latched CAM_KEY into entry[index]
-    //   0x118 WATCH_CTRL: wdata[31]=arm, wdata[15:0]=pkt_type watch mask
-    //   0x120 LATCH_SEL : which capture slot the read port returns
-    localparam logic [11:0] REG_CAM_CLEAR  = 12'h100;
-    localparam logic [11:0] REG_CAM_KEY    = 12'h108;
-    localparam logic [11:0] REG_CAM_LOAD   = 12'h110;
-    localparam logic [11:0] REG_WATCH_CTRL = 12'h118;
-    localparam logic [11:0] REG_LATCH_SEL  = 12'h120;
-    logic [11:0] w_cfg_off;
-    assign w_cfg_off = r_cfgw_awaddr[11:0];
+    // ------------------------------------------------------------------------
+    // Control registers -- GENERATED, from tally_regs.rdl.
+    //
+    // These were five hardcoded localparams (REG_CAM_CLEAR = 12'h100 and four
+    // more) with a hand-rolled decode. Nothing that works by name could reach
+    // them: the host carried literal offsets, the board register walk covered
+    // four endpoints and not this one, and no check tied the RTL decode to what
+    // the host believed. The tally binned 11.38M packets on silicon with its own
+    // controls as the one block in the design behind no register block.
+    //
+    // Offsets and reset values are UNCHANGED, so a host built against the old
+    // literals still works. The 8-byte spacing stays load bearing: the cfg port
+    // is 64 bits, so one 32-bit register per 64-bit word means a 4-byte-strided
+    // access can never land on an empty high half.
+    //
+    // Write path only. Reads are served combinationally from hwif_out below,
+    // which avoids arbitrating this single cpuif port between the independent
+    // AXI write and read channels.
+    // ------------------------------------------------------------------------
+    localparam int TALLY_CPUIF_AW = tally_regs_top_pkg::TALLY_REGS_TOP_MIN_ADDR_WIDTH;
 
-    logic w_is_key;
-    assign w_is_key = w_cfgw_wr & (w_cfg_off == REG_CAM_KEY);
+    tally_regs_top_pkg::tally_regs_top__out_t w_tally_hwif;
 
-    // CAM_KEY holding register (loaded into the CAM on the next CAM_LOAD write).
-    logic [PROF_KEY_W-1:0] r_cam_key;
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) r_cam_key <= '0;
-        else if (w_is_key)          r_cam_key <= r_cfgw_wdata[PROF_KEY_W-1:0];
-    )
+    tally_regs_top u_tally_regs (
+        .clk                  (aclk),
+        .rst                  (~aresetn),
+        .s_cpuif_req          (w_cfgw_wr),
+        .s_cpuif_req_is_wr    (1'b1),
+        .s_cpuif_addr         (TALLY_CPUIF_AW'(r_cfgw_awaddr)),
+        .s_cpuif_wr_data      (r_cfgw_wdata[31:0]),
+        .s_cpuif_wr_biten     ({32{1'b1}}),
+        .s_cpuif_req_stall_wr (),
+        .s_cpuif_req_stall_rd (),
+        .s_cpuif_rd_ack       (),
+        .s_cpuif_rd_err       (),
+        .s_cpuif_rd_data      (),
+        .s_cpuif_wr_ack       (),
+        .s_cpuif_wr_err       (),
+        .hwif_out             (w_tally_hwif)
+    );
 
+    // CAM programming. swmod is a write STROBE, not a value test: the host
+    // clears by writing ZERO (host_obs_campaign.py), exactly as the old decode
+    // fired on any write to 0x100. A bit-must-be-set model would silently stop
+    // clearing the CAM.
     logic                    w_profile_clear;
     logic                    w_profile_we;
     logic [PROF_IDX_W-1:0]   w_profile_waddr;
     logic                    w_profile_wvalid;
     logic [PROF_KEY_W-1:0]   w_profile_wkey;
-    assign w_profile_clear  = w_cfgw_wr & (w_cfg_off == REG_CAM_CLEAR);
-    assign w_profile_we     = w_cfgw_wr & (w_cfg_off == REG_CAM_LOAD);
-    assign w_profile_waddr  = r_cfgw_wdata[PROF_IDX_W-1:0];      // index from data
-    assign w_profile_wvalid = r_cfgw_wdata[31];                  // valid bit from data
-    assign w_profile_wkey   = r_cam_key;                         // key from CAM_KEY reg
+    assign w_profile_clear  = w_tally_hwif.TALLY.CAM_CLEAR.CLEAR.swmod;
 
-    // First-event capture control. ARMED BY DEFAULT with an empty pkt_type mask:
-    // the tally's watch condition is (mask[pkt_type] || out-of-profile), so the
-    // default captures exactly the first TALLY_NUM_LATCH UNEXPECTED packets --
-    // which is the whole point of the UNEXPECTED bin. Without this the bin gives
-    // a count and no way to see WHICH message was out of profile. A host that
-    // also wants a known packet type captured writes WATCH_CTRL.
+    // The load pulse is DELAYED ONE CYCLE, and it has to be. swmod is
+    // combinational with the bus write (decoded_reg_strb && is_wr), while
+    // INDEX/VALID are field_storage that only take the written value on the
+    // NEXT edge -- so at the instant swmod fires they still hold the PREVIOUS
+    // CAM_LOAD's index. Loading on the raw swmod writes every entry one slot
+    // late: the fub test caught it as bin 0 counting 200 where 250 was
+    // expected and bin 1 holding the 250, a whole histogram shifted by one.
+    //
+    // The hand-rolled decode this replaced took the index straight off wdata in
+    // the same cycle as the strobe, so it never had the skew. Delaying the
+    // pulse re-aligns the strobe with the storage instead of reaching around
+    // the register block for the data.
+    logic r_cam_load_pulse;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) r_cam_load_pulse <= 1'b0;
+        else                        r_cam_load_pulse <= w_tally_hwif.TALLY.CAM_LOAD.INDEX.swmod;
+    )
+    assign w_profile_we     = r_cam_load_pulse;
+    assign w_profile_waddr  = w_tally_hwif.TALLY.CAM_LOAD.INDEX.value[PROF_IDX_W-1:0];
+    assign w_profile_wvalid = w_tally_hwif.TALLY.CAM_LOAD.VALID.value;
+    assign w_profile_wkey   = w_tally_hwif.TALLY.CAM_KEY.KEY.value[PROF_KEY_W-1:0];
+
+    // First-event capture control. ARMED BY DEFAULT with an empty pkt_type mask
+    // (the reset values live in the RDL): the watch condition is
+    // (mask[pkt_type] || out-of-profile), so the default captures exactly the
+    // first TALLY_NUM_LATCH UNEXPECTED packets -- which is the whole point of
+    // the UNEXPECTED bin. Without it the bin gives a count and no way to see
+    // WHICH message was out of profile.
     logic                    r_watch_arm;
     logic [15:0]             r_watch_mask;
     logic [LSEL_WIDTH-1:0]   r_latch_sel;
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_watch_arm  <= 1'b1;
-            r_watch_mask <= 16'h0;
-            r_latch_sel  <= '0;
-        end else begin
-            if (w_cfgw_wr && (w_cfg_off == REG_WATCH_CTRL)) begin
-                r_watch_arm  <= r_cfgw_wdata[31];
-                r_watch_mask <= r_cfgw_wdata[15:0];
-            end
-            if (w_cfgw_wr && (w_cfg_off == REG_LATCH_SEL))
-                r_latch_sel <= r_cfgw_wdata[LSEL_WIDTH-1:0];
-        end
-    )
+    assign r_watch_arm  = w_tally_hwif.TALLY.WATCH_CTRL.ARM.value;
+    assign r_watch_mask = w_tally_hwif.TALLY.WATCH_CTRL.MASK.value;
+    assign r_latch_sel  = w_tally_hwif.TALLY.LATCH_SEL.SEL.value[LSEL_WIDTH-1:0];
 
     logic [127:0]            w_latch_packet;
     logic [63:0]             w_latch_ts;
@@ -330,7 +354,32 @@ module monbus_tally_axil
             else if (cfgr_rvalid & cfgr_rready)  r_cfgr_rvalid <= 1'b0;
         end
     )
+    // Register readback lives at 0x100+, the ID/latch window at 0x000-0x047, so
+    // araddr[8] separates them and the existing decode is untouched. Before
+    // this, [6:3] ignored the high bits and a read of 0x100 aliased onto the ID
+    // word -- the registers were unreadable by construction, which is half of
+    // why the walk could not cover them.
+    //
+    // Write-only registers (CAM_CLEAR, CAM_LOAD) read back ZERO, matching their
+    // sw=w declaration in the RDL. Returning stored values instead would make
+    // the walk fail on registers that are behaving correctly.
+    logic [31:0] w_cfgr_reg_word;
     always_comb begin
+        unique case (r_cfgr_araddr[8:3])
+            6'h20:   w_cfgr_reg_word = 32'h0;                                  // 0x100 CAM_CLEAR  (w)
+            6'h21:   w_cfgr_reg_word = w_tally_hwif.TALLY.CAM_KEY.KEY.value;   // 0x108 CAM_KEY
+            6'h22:   w_cfgr_reg_word = 32'h0;                                  // 0x110 CAM_LOAD   (w)
+            6'h23:   w_cfgr_reg_word = {w_tally_hwif.TALLY.WATCH_CTRL.ARM.value,
+                                        15'h0,
+                                        w_tally_hwif.TALLY.WATCH_CTRL.MASK.value};
+            6'h24:   w_cfgr_reg_word = {24'h0, w_tally_hwif.TALLY.LATCH_SEL.SEL.value};
+            default: w_cfgr_reg_word = 32'h0;
+        endcase
+    end
+
+    always_comb begin
+        if (r_cfgr_araddr[8]) w_cfgr_word = w_cfgr_reg_word;
+        else
         unique case (r_cfgr_araddr[6:3])
             4'd0:    w_cfgr_word = TALLY_ID | 32'h1;   // bit0 = CAM always on
             4'd1:    w_cfgr_word = {N_PROFILE[15:0], TALLY_ADDR_BITS[15:0]};
