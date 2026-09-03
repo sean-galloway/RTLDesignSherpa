@@ -44,7 +44,16 @@ This is the classic register slice: a 1-deep elastic buffer that exists for one 
 
 ---
 
-## Module Interface
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `DATA_WIDTH` | int | 32 | Data bus width (arbitrary) |
+| `DW` | int | DATA_WIDTH | Derived parameter (internal use) |
+
+---
+
+## Ports
 
 ```systemverilog
 module gaxi_regslice #(
@@ -71,31 +80,18 @@ module gaxi_regslice #(
 );
 ```
 
----
-
-## Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `DATA_WIDTH` | int | 32 | Data bus width (arbitrary) |
-| `DW` | int | DATA_WIDTH | Derived parameter (internal use) |
-
----
-
-## Ports
-
-| Port | Dir | Width | Description |
-|---|---|---|---|
-| `axi_aclk` | In | 1 |  |
-| `axi_aresetn` | In | 1 |  |
-| `wr_valid` | In | 1 |  |
-| `wr_ready` | Out | 1 |  |
-| `wr_data` | In | `[DW-1:0]` |  |
-| `rd_valid` | Out | 1 |  |
-| `rd_ready` | In | 1 |  |
-| `rd_data` | Out | `[DW-1:0]` |  |
-| `count` | Out | `[3:0]` | 0 or 1 |
-| `rd_count` | Out | `[3:0]` | mirror of count |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `axi_aclk` | input | 1 |  |
+| `axi_aresetn` | input | 1 |  |
+| `wr_valid` | input | 1 |  |
+| `wr_ready` | output | 1 |  |
+| `wr_data` | input | `[DW-1:0]` |  |
+| `rd_valid` | output | 1 |  |
+| `rd_ready` | input | 1 |  |
+| `rd_data` | output | `[DW-1:0]` |  |
+| `count` | output | `[3:0]` | 0 or 1 |
+| `rd_count` | output | `[3:0]` | mirror of count |
 
 ---
 
@@ -204,7 +200,6 @@ rd_data  ========[ A ]================
 
 ## Usage Examples
 
-
 Every parameter and port below is read from the module declaration.
 
 ```systemverilog
@@ -223,6 +218,8 @@ gaxi_regslice #(
     .rd_count              (rd_count)
 );
 ```
+
+---
 
 ## Design Notes
 
@@ -262,11 +259,9 @@ There are no backpressure or invalid-read checks, and the file carries no
 Backpressure and handshake legality are checked in verification, by the GAXI
 BFMs in `val/amba/test_gaxi_regslice.py`.
 
----
-
 ### Resource Utilization
 
-### FPGA Resources (Typical)
+FPGA resource usage, typical:
 
 | DATA_WIDTH | Flops | LUTs | Slice Registers |
 |------------|-------|------|-----------------|
@@ -276,33 +271,6 @@ BFMs in `val/amba/test_gaxi_regslice.py`.
 | 128 | 129 | ~24 | 129 |
 
 **Scaling:** Approximately DATA_WIDTH + 1 flops (data + valid flag)
-## Testing
-
-**Test File:** `val/amba/test_gaxi_regslice.py`
-
-**Test Methods:**
-- Simple incremental loops (fill/drain cycles)
-- Back-to-back transfers (sustained throughput)
-- Comprehensive randomizer sweep (varied timing patterns)
-- Stress test with random patterns
-
-**Test Levels:**
-- **basic:** Quick smoke test (~30s, 4 loops)
-- **medium:** Moderate coverage (~2min, expanded patterns)
-- **full:** Comprehensive validation (~5min, 100+ loops)
-
-### Running Tests
-
-```bash
-# Basic test (quick validation)
-TEST_LEVEL=basic pytest val/amba/test_gaxi_regslice.py -v
-
-# Medium test (normal CI)
-TEST_LEVEL=medium pytest val/amba/test_gaxi_regslice.py -v
-
-# Full test (pre-release validation)
-TEST_LEVEL=full pytest val/amba/test_gaxi_regslice.py -v
-```
 
 ---
 
@@ -336,8 +304,6 @@ outputs (the table above and the RTL agree). Choose on depth.
 | **Resources** | Minimal (1 register) | Scales with depth |
 | **Use Case** | Pipeline breaks | Buffering, rate matching |
 
----
-
 - [gaxi_skid_buffer](gaxi_skid_buffer.md) - Same latency, deeper elastic storage
 - [gaxi_fifo_sync](gaxi_fifo_sync.md) - Multi-entry FIFO version
 - [gaxi_fifo_async](../../rtl-cdc/gaxi_fifo_async.md) - Clock domain crossing version
@@ -345,8 +311,40 @@ outputs (the table above and the RTL agree). Choose on depth.
 
 ---
 
+## Testing
+
+**Test File:** `val/amba/test_gaxi_regslice.py`
+
+**Test Methods:**
+- Simple incremental loops (fill/drain cycles)
+- Back-to-back transfers (sustained throughput)
+- Comprehensive randomizer sweep (varied timing patterns)
+- Stress test with random patterns
+
+**Test Levels:**
+- **basic:** Quick smoke test (~30s, 4 loops)
+- **medium:** Moderate coverage (~2min, expanded patterns)
+- **full:** Comprehensive validation (~5min, 100+ loops)
+
+### Running Tests
+
+```bash
+# Basic test (quick validation)
+TEST_LEVEL=basic pytest val/amba/test_gaxi_regslice.py -v
+
+# Medium test (normal CI)
+TEST_LEVEL=medium pytest val/amba/test_gaxi_regslice.py -v
+
+# Full test (pre-release validation)
+TEST_LEVEL=full pytest val/amba/test_gaxi_regslice.py -v
+```
+
+---
+
 **Version:** 1.0
 **Last Updated:** 2025-10-23
+
+---
 
 ## Navigation
 

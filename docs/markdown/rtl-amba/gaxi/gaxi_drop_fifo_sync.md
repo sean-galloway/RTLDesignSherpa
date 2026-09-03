@@ -59,8 +59,6 @@ A synchronous GAXI FIFO with a trick most FIFOs don't have: a drop interface tha
 > The `DATA_WIDTH`/`DEPTH` defaults are 4 and 4, not 32 and 16. They are sized
 > for a smoke test, so set both explicitly for anything real.
 
----
-
 ### Derived Parameters (do not override)
 
 These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
@@ -69,6 +67,8 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 |---|---|
 | `DW` | `DATA_WIDTH` |
 | `D` | `DEPTH` |
+
+---
 
 ## Ports
 
@@ -87,7 +87,7 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | `wr_ready` | output | 1 | FIFO ready to accept write |
 | `wr_data` | input | DATA_WIDTH | Write data |
 
-**Handshake**: Write occurs when `wr_valid && wr_ready` on rising edge of clock.
+**Handshake:** Write occurs when `wr_valid && wr_ready` on rising edge of clock.
 
 ### Read Interface
 
@@ -97,7 +97,7 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | `rd_ready` | input | 1 | Downstream ready to accept read |
 | `rd_data` | output | DATA_WIDTH | Read data |
 
-**Handshake**: Read occurs when `rd_valid && rd_ready` on rising edge of clock.
+**Handshake:** Read occurs when `rd_valid && rd_ready` on rising edge of clock.
 
 ### Drop Interface
 
@@ -108,9 +108,9 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | `drop_count` | input | $clog2(DEPTH)+1 | Number of entries to drop. 5 bits at DEPTH=16, 9 bits at DEPTH=256 — not a fixed 8. |
 | `drop_all` | input | 1 | Drop all entries (ignore count) |
 
-**Handshake**: Drop completes when `drop_valid && drop_ready` on rising edge of clock.
+**Handshake:** Drop completes when `drop_valid && drop_ready` on rising edge of clock.
 
-**Drop Latency**: 3 clock cycles from `drop_valid` assertion to `drop_ready` assertion.
+**Drop Latency:** 3 clock cycles from `drop_valid` assertion to `drop_ready` assertion.
 
 ### Status
 
@@ -368,6 +368,15 @@ never appear; the note earlier on this page was always the correct one.)
 
 ---
 
+## Related Modules
+
+- `fifo_control.sv` - Core FIFO control logic
+- `counter_bin.sv` - Binary counter for address generation
+- `counter_bin_load.sv` - Loadable binary counter for drop pointer updates
+- `gaxi_drop_fifo_async.sv` - Asynchronous clock domain version (future)
+
+---
+
 ## Testing
 
 Comprehensive verification lives in `val/amba/test_gaxi_drop_fifo_sync.py`:
@@ -402,15 +411,6 @@ pytest val/amba/test_gaxi_drop_fifo_sync.py::test_gaxi_drop_fifo_smoke -v
 # Generate waveforms for documentation
 env ENABLE_WAVEDROM=1 pytest val/amba/test_gaxi_drop_fifo_wavedrom.py -v
 ```
-
----
-
-## Related Modules
-
-- `fifo_control.sv` - Core FIFO control logic
-- `counter_bin.sv` - Binary counter for address generation
-- `counter_bin_load.sv` - Loadable binary counter for drop pointer updates
-- `gaxi_drop_fifo_async.sv` - Asynchronous clock domain version (future)
 
 ---
 

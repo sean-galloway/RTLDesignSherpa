@@ -43,7 +43,24 @@ Unlike the skid buffer, this module is a true FIFO built on read/write pointers,
 
 ---
 
-## Module Interface
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `MEM_STYLE` | fifo_mem_t | `FIFO_AUTO` | Memory inference hint. `FIFO_SRL` targets distributed RAM / MLAB, `FIFO_BRAM` targets block RAM and forces a synchronous read regardless of `REGISTERED`. `FIFO_AUTO` lets the tool choose. |
+| `REGISTERED` | int | 0 | 0=mux mode (comb read), 1=flop mode (reg read) |
+| `DATA_WIDTH` | int | 4 | Data bus width |
+| `DEPTH` | int | 4 | FIFO depth (any value, power-of-2 optimal) |
+| `ALMOST_WR_MARGIN` | int | 1 | Almost-full margin — internal only, no port |
+| `ALMOST_RD_MARGIN` | int | 1 | Almost-empty margin — internal only, no port |
+
+> The almost-full/almost-empty flags are computed inside `fifo_control` but are
+> not brought out of `gaxi_fifo_sync`, so the two margins have no observable
+> effect. Compare `count` against your own threshold instead.
+
+---
+
+## Ports
 
 ```systemverilog
 module gaxi_fifo_sync #(
@@ -69,38 +86,17 @@ module gaxi_fifo_sync #(
 );
 ```
 
----
-
-## Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `MEM_STYLE` | fifo_mem_t | `FIFO_AUTO` | Memory inference hint. `FIFO_SRL` targets distributed RAM / MLAB, `FIFO_BRAM` targets block RAM and forces a synchronous read regardless of `REGISTERED`. `FIFO_AUTO` lets the tool choose. |
-| `REGISTERED` | int | 0 | 0=mux mode (comb read), 1=flop mode (reg read) |
-| `DATA_WIDTH` | int | 4 | Data bus width |
-| `DEPTH` | int | 4 | FIFO depth (any value, power-of-2 optimal) |
-| `ALMOST_WR_MARGIN` | int | 1 | Almost-full margin — internal only, no port |
-| `ALMOST_RD_MARGIN` | int | 1 | Almost-empty margin — internal only, no port |
-
-> The almost-full/almost-empty flags are computed inside `fifo_control` but are
-> not brought out of `gaxi_fifo_sync`, so the two margins have no observable
-> effect. Compare `count` against your own threshold instead.
-
----
-
-## Ports
-
-| Port | Dir | Width | Description |
-|---|---|---|---|
-| `axi_aclk` | In | 1 |  |
-| `axi_aresetn` | In | 1 |  |
-| `wr_valid` | In | 1 |  |
-| `wr_ready` | Out | 1 | not full |
-| `wr_data` | In | `[DW-1:0]` |  |
-| `rd_ready` | In | 1 |  |
-| `count` | Out | `[AW:0]` |  |
-| `rd_valid` | Out | 1 | not empty |
-| `rd_data` | Out | `[DW-1:0]` |  |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `axi_aclk` | input | 1 |  |
+| `axi_aresetn` | input | 1 |  |
+| `wr_valid` | input | 1 |  |
+| `wr_ready` | output | 1 | not full |
+| `wr_data` | input | `[DW-1:0]` |  |
+| `rd_ready` | input | 1 |  |
+| `count` | output | `[AW:0]` |  |
+| `rd_valid` | output | 1 | not empty |
+| `rd_data` | output | `[DW-1:0]` |  |
 
 ---
 
@@ -150,8 +146,6 @@ flowchart LR
 - `counter_bin.sv` - Binary counters for read/write pointers
 - `fifo_control.sv` - Full/empty flag generation
 
----
-
 ### Resource Utilization
 
 | DEPTH | Mode | Flops | LUTs | Memory Bits |
@@ -160,15 +154,6 @@ flowchart LR
 | 16 | Flop | 16×DW + DW + ~20 | ~80 | 16×DW |
 | 64 | Mux | 64×DW + ~30 | ~120 | 64×DW |
 | 64 | Flop | 64×DW + DW + ~30 | ~120 | 64×DW |
-## Design Notes
-
-**Depth need not be a power of two.** `fifo_control` computes its
-flags through `counter_bin`'s MAX wrap, so any `DEPTH <= 2^ADDR_WIDTH` works. The
-header once claimed DEPTH must EQUAL 2^ADDR_WIDTH, which overstated the constraint
-and made non-power-of-two depths look illegal (COMMON-014).
-
-**Almost-full and almost-empty margins are in entries, not percent**, and a margin
-larger than the depth makes the flag unreachable rather than always-asserted.
 
 ---
 
@@ -225,6 +210,26 @@ gaxi_fifo_sync #(
 
 ---
 
+## Design Notes
+
+**Depth need not be a power of two.** `fifo_control` computes its
+flags through `counter_bin`'s MAX wrap, so any `DEPTH <= 2^ADDR_WIDTH` works. The
+header once claimed DEPTH must EQUAL 2^ADDR_WIDTH, which overstated the constraint
+and made non-power-of-two depths look illegal (COMMON-014).
+
+**Almost-full and almost-empty margins are in entries, not percent**, and a margin
+larger than the depth makes the flag unreachable rather than always-asserted.
+
+---
+
+## Related Modules
+
+- [gaxi_skid_buffer](gaxi_skid_buffer.md) - Same 1-cycle latency, shallower elastic storage
+- [gaxi_fifo_async](../../rtl-cdc/gaxi_fifo_async.md) - Clock domain crossing version
+- [GAXI Index](index.md) - Overview of all GAXI modules
+
+---
+
 ## Testing
 
 One testbench covers both output modes:
@@ -234,14 +239,6 @@ One testbench covers both output modes:
 pytest val/amba/test_gaxi_fifo_sync.py -k "fifo_mux" -v   # Mux mode
 pytest val/amba/test_gaxi_fifo_sync.py -k "fifo_flop" -v  # Flop mode
 ```
-
----
-
-## Related Modules
-
-- [gaxi_skid_buffer](gaxi_skid_buffer.md) - Same 1-cycle latency, shallower elastic storage
-- [gaxi_fifo_async](../../rtl-cdc/gaxi_fifo_async.md) - Clock domain crossing version
-- [GAXI Index](index.md) - Overview of all GAXI modules
 
 ---
 

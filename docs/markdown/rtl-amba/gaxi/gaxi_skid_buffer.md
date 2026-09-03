@@ -43,7 +43,21 @@ The skid buffer is the simplest useful elastic buffer: it decouples a producer f
 
 ---
 
-## Module Interface
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `DATA_WIDTH` | int | 32 | Data bus width in bits |
+| `DEPTH` | int | 2 | Buffer depth (must be 2..8 inclusive; odd depths are legal, and elaboration fails outside that range) |
+
+**Derived Parameters:**
+- `DW` = DATA_WIDTH
+- `BUF_WIDTH` = DATA_WIDTH × DEPTH (total buffer storage)
+- `BW` = BUF_WIDTH
+
+---
+
+## Ports
 
 ```systemverilog
 module gaxi_skid_buffer #(
@@ -72,24 +86,6 @@ module gaxi_skid_buffer #(
     output logic [3:0]    rd_count   // Same as count (for compatibility)
 );
 ```
-
----
-
-## Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `DATA_WIDTH` | int | 32 | Data bus width in bits |
-| `DEPTH` | int | 2 | Buffer depth (must be 2..8 inclusive; odd depths are legal, and elaboration fails outside that range) |
-
-**Derived Parameters:**
-- `DW` = DATA_WIDTH
-- `BUF_WIDTH` = DATA_WIDTH × DEPTH (total buffer storage)
-- `BW` = BUF_WIDTH
-
----
-
-## Ports
 
 ### Clock and Reset
 
@@ -256,6 +252,60 @@ rd_valid <= (count >= 2) ||
 
 ---
 
+## Waveforms
+
+Six captured scenarios cover the interesting corners. Each links its WaveJSON so you can re-render or zoom.
+
+### Scenario 1: Streaming Read/Write
+
+A partially-filled buffer streaming, with `rd_data` trailing `wr_data`:
+
+![Streaming read/write](../../assets/WAVES/gaxi_skid_buffer/zero_latency_bypass_001.png)
+
+**WaveJSON:** [zero_latency_bypass_001.json](../../assets/WAVES/gaxi_skid_buffer/zero_latency_bypass_001.json)
+
+### Scenario 2: Burst Write Until Full
+
+Demonstrates backpressure behavior:
+
+![Burst Write Full](../../assets/WAVES/gaxi_skid_buffer/burst_write_full_001.png)
+
+**WaveJSON:** [burst_write_full_001.json](../../assets/WAVES/gaxi_skid_buffer/burst_write_full_001.json)
+
+### Scenario 3: Simultaneous Read/Write
+
+Pass-through operation with constant occupancy:
+
+![Simultaneous R/W](../../assets/WAVES/gaxi_skid_buffer/simultaneous_rdwr_001.png)
+
+**WaveJSON:** [simultaneous_rdwr_001.json](../../assets/WAVES/gaxi_skid_buffer/simultaneous_rdwr_001.json)
+
+### Scenario 4: Burst Read Until Empty
+
+Draining the buffer:
+
+![Burst Read Empty](../../assets/WAVES/gaxi_skid_buffer/burst_read_empty_001.png)
+
+**WaveJSON:** [burst_read_empty_001.json](../../assets/WAVES/gaxi_skid_buffer/burst_read_empty_001.json)
+
+### Scenario 5: Fill Then Drain Pattern
+
+Complete fill phase followed by drain:
+
+![Fill Then Drain](../../assets/WAVES/gaxi_skid_buffer/fill_then_drain_001.png)
+
+**WaveJSON:** [fill_then_drain_001.json](../../assets/WAVES/gaxi_skid_buffer/fill_then_drain_001.json)
+
+### Scenario 6: Alternating Read/Write
+
+Continuous interleaved operations:
+
+![Alternating R/W](../../assets/WAVES/gaxi_skid_buffer/alternating_rdwr_001.png)
+
+**WaveJSON:** [alternating_rdwr_001.json](../../assets/WAVES/gaxi_skid_buffer/alternating_rdwr_001.json)
+
+---
+
 ## Usage Examples
 
 ### Example 1: Basic Pipeline Stage
@@ -334,55 +384,6 @@ end
 
 ---
 
-### Comprehensive Timing Examples
-
-### Scenario 1: Streaming Read/Write
-
-A partially-filled buffer streaming, with `rd_data` trailing `wr_data`:
-
-![Streaming read/write](../../assets/WAVES/gaxi_skid_buffer/zero_latency_bypass_001.png)
-
-**WaveJSON:** [zero_latency_bypass_001.json](../../assets/WAVES/gaxi_skid_buffer/zero_latency_bypass_001.json)
-
-### Scenario 2: Burst Write Until Full
-
-Demonstrates backpressure behavior:
-
-![Burst Write Full](../../assets/WAVES/gaxi_skid_buffer/burst_write_full_001.png)
-
-**WaveJSON:** [burst_write_full_001.json](../../assets/WAVES/gaxi_skid_buffer/burst_write_full_001.json)
-
-### Scenario 3: Simultaneous Read/Write
-
-Pass-through operation with constant occupancy:
-
-![Simultaneous R/W](../../assets/WAVES/gaxi_skid_buffer/simultaneous_rdwr_001.png)
-
-**WaveJSON:** [simultaneous_rdwr_001.json](../../assets/WAVES/gaxi_skid_buffer/simultaneous_rdwr_001.json)
-
-### Scenario 4: Burst Read Until Empty
-
-Draining the buffer:
-
-![Burst Read Empty](../../assets/WAVES/gaxi_skid_buffer/burst_read_empty_001.png)
-
-**WaveJSON:** [burst_read_empty_001.json](../../assets/WAVES/gaxi_skid_buffer/burst_read_empty_001.json)
-
-### Scenario 5: Fill Then Drain Pattern
-
-Complete fill phase followed by drain:
-
-![Fill Then Drain](../../assets/WAVES/gaxi_skid_buffer/fill_then_drain_001.png)
-
-**WaveJSON:** [fill_then_drain_001.json](../../assets/WAVES/gaxi_skid_buffer/fill_then_drain_001.json)
-
-### Scenario 6: Alternating Read/Write
-
-Continuous interleaved operations:
-
-![Alternating R/W](../../assets/WAVES/gaxi_skid_buffer/alternating_rdwr_001.png)
-
-**WaveJSON:** [alternating_rdwr_001.json](../../assets/WAVES/gaxi_skid_buffer/alternating_rdwr_001.json)
 ## Design Notes
 
 ### Depth Selection
@@ -442,10 +443,6 @@ Protocol violations are caught in verification instead, not by the RTL:
 If you want in-RTL checking, add it at the integration level where a failure
 can be tied to a specific producer or consumer.
 
----
-
-### Common Issues and Debugging
-
 ### Issue 1: Timing Violation on the Read Path
 
 **Symptom:** Setup time violation into the consumer's capture flop
@@ -478,22 +475,27 @@ end
 1. Check buffer was empty when write occurred
 2. Verify `rd_ready` is asserted (prevents data from appearing)
 3. Look at `count` - if non-zero, data is buffered
+
+---
+
+## Related Modules
+
+- [gaxi_fifo_sync](gaxi_fifo_sync.md) - Larger depth, optional registered output
+- [gaxi_fifo_async](../../rtl-cdc/gaxi_fifo_async.md) - Clock domain crossing
+- [gaxi_skid_buffer_async](../../rtl-cdc/gaxi_skid_buffer_async.md) - Async version
+
+---
+
 ## Testing
 
-### Test File
-
-**Location:** `val/amba/test_gaxi_skid_buffer.py`
+**Test File:** `val/amba/test_gaxi_skid_buffer.py`
 
 **Test Modes:**
 - `mode='skid'` → Tests this module specifically
 - `mode='fifo_mux'` → Tests gaxi_fifo_sync with REGISTERED=0
 - `mode='fifo_flop'` → Tests gaxi_fifo_sync with REGISTERED=1
 
-### WaveDrom Test
-
-**Location:** `val/amba/test_gaxi_wavedrom_example.py`
-
-Generates comprehensive timing diagrams showing all 6 scenarios.
+**WaveDrom Test:** `val/amba/test_gaxi_wavedrom_example.py` — generates comprehensive timing diagrams showing all 6 scenarios.
 
 ### Running Tests
 
@@ -505,14 +507,6 @@ pytest val/amba/test_gaxi_skid_buffer.py -k "skid" -v
 pytest val/amba/test_gaxi_wavedrom_example.py -v
 cd val/amba && bash wd_cmd.sh
 ```
-
----
-
-## Related Modules
-
-- [gaxi_fifo_sync](gaxi_fifo_sync.md) - Larger depth, optional registered output
-- [gaxi_fifo_async](../../rtl-cdc/gaxi_fifo_async.md) - Clock domain crossing
-- [gaxi_skid_buffer_async](../../rtl-cdc/gaxi_skid_buffer_async.md) - Async version
 
 ---
 
