@@ -102,7 +102,8 @@ def expand_slash_alternations(text):
 
 
 RE_PREFIX_DELEGATE = re.compile(
-    r'same port list as[^.\n]*?`([A-Za-z0-9_]+?)_?\*`', re.I)
+    r'same (?:port list|signals|ports|interface)[^.\n]*?`([A-Za-z0-9_]+?)_?\*`',
+    re.I)
 
 
 def prefix_delegations(text):
