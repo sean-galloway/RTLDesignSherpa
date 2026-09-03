@@ -57,7 +57,8 @@ def find_filelist(top):
 def build_one(top):
     fl = find_filelist(top)
     if fl is None:
-        print(f"[skip] {top:<28} no filelist"); return None
+        print(f"[skip] {top:<28} no own .f filelist -- if it is a submodule, "
+              f"build the parent top instead (its closure includes this)"); return None
     srcs, incs = resolve_fl(repo_root=str(REPO), filelist_path=str(fl))
     sv = [s for s in srcs if s.endswith(".sv")]
     inc_args = [f"-I{d}" for d in incs]
@@ -120,7 +121,7 @@ def main():
         elif r[0] == "bbox": bbox += 1
         else: ok += 1
     print(f"\n{ok} rendered, {bbox} black-boxed (too big), {fail} failed")
-    return 0
+    return 1 if fail else 0   # non-zero on any skip/fail so a chained && can't false-green
 
 if __name__ == "__main__":
     sys.exit(main())
