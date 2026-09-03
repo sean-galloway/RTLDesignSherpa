@@ -113,6 +113,13 @@ if {[info exists ::env(USE_AXI_MONITORS)]}         { lappend generics "USE_AXI_M
 # because timing scales with the depth of ONE cam. 64/4 = four 16-deep CAMs.
 # A banked WRITE monitor also needs OBS_USE_WDATA_ORDER_Q=1 or the RTL
 # refuses to elaborate.
+# Observer taps: arms the per-transaction CAM AND builds the reporter cones.
+# INDEPENDENT of USE_AXI_MONITORS on purpose -- the observers are the
+# measurement vehicle, so an obs-build removes the in-core monitors for area
+# (both together need 217,761 LUTs against 203,800 on the xc7k325t) while
+# keeping the observers armed. Deriving one from the other means turning the
+# in-core monitors off silently disarms the observers too.
+if {[info exists ::env(OBS_ENABLE_MON_TAPS)]}      { lappend generics "OBS_ENABLE_MON_TAPS=$::env(OBS_ENABLE_MON_TAPS)" }
 if {[info exists ::env(OBS_MAX_TRANSACTIONS)]}     { lappend generics "OBS_MAX_TRANSACTIONS=$::env(OBS_MAX_TRANSACTIONS)" }
 if {[info exists ::env(OBS_NUM_BANKS)]}            { lappend generics "OBS_NUM_BANKS=$::env(OBS_NUM_BANKS)" }
 if {[info exists ::env(OBS_USE_WDATA_ORDER_Q)]}    { lappend generics "OBS_USE_WDATA_ORDER_Q=$::env(OBS_USE_WDATA_ORDER_Q)" }

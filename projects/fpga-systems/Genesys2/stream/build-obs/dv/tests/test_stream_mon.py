@@ -392,6 +392,18 @@ def _run_stream_mon(request, profile=False):
         'FPGA_CLK_HZ': str(SIM_FPGA_CLK_HZ), 'UART_BAUD': str(SIM_UART_BAUD),
         # Per-BUILD flavor, not common geometry (build-mon=1, build-perf=0).
         'USE_AXI_MONITORS': use_mon,
+        # Per-BUILD flavor too, and it MUST be stated. stream_cfg_pkg's default
+        # went neutral (taps off) so every build declares its own instrument,
+        # and the three Makefiles pin it -- but this cosim elaborates the
+        # harness directly and was not updated, so it built the observers with
+        # their taps DISARMED while the bitstream ships them armed.
+        #
+        # The observers then emitted nothing, the STREAM tally is fed by the
+        # master observer, and test_stream_mon_profile failed on an empty tally
+        # while the same design binned millions of records on the board. A
+        # cosim that does not elaborate the board's configuration is not a
+        # cosim. Read the value the build exports; 1 is build-obs's pin.
+        'OBS_ENABLE_MON_TAPS': os.environ.get('OBS_ENABLE_MON_TAPS', '1'),
         # Passed explicitly so SIM_NUM_CHANNELS reaches the RTL and the
         # testbench TOGETHER -- both call num_channels(), so the elaboration
         # and the channel count the TB drives cannot disagree. With the env var
