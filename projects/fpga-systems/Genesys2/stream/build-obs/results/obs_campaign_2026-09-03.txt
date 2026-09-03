@@ -1,0 +1,22 @@
+# Genesys 2 STREAM observer tally campaign 2026-09-03
+# bitstream stream_mon_8ch_obs_obsmaster_obsslave.bit
+# sha256 be288e56952245e5875e1fabe20f71f9ec68b77b860219b9829603f5dff415fe
+# WNS +0.177 ns, 0 failing of 310680 endpoints; xc7k325t, 90 MHz
+# generics: NUM_CHANNELS=8 USE_AXI_MONITORS=0 OBS_ENABLE_MON_TAPS=1 MON_ERROR_FLAVOR=2
+# host: host_obs_campaign.py --port /dev/ttyUSB0 --iters 20
+#       (8 descriptors x 65536 B per iteration, channel 0)
+#
+# Observer capability readback (proves the cones were BUILT, not just enabled):
+#   master observer caps0=0x000002D7  cones[err=1 tmo=1 compl=1 perf=1] taps=1
+#   slave  observer caps0=0x00000257  cones[err=1 tmo=1 compl=1 perf=1] taps=1
+#
+# cumulative over 20 iterations
+observer      total       rd_compl   wr_compl   rd_perf     wr_perf
+master     5691397          22148      22132    2823608     2823509
+slave      5691396          22134      22132    2823623     2823507
+
+TOTAL PACKETS BINNED: 11382793
+
+# Cross-check: the two observers sit on opposite ends of the same traffic and
+# independently binned 5691397 vs 5691396 -- a one-packet difference over 5.7M,
+# which is the sampling boundary at window close, not a loss.
