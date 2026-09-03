@@ -41,8 +41,12 @@ SIM_TESTS ?= $(SELF_DIR)/dv/tests
 export STREAM_BUILD ?= perf
 
 # ---- Build geometry: the perf flavor --------------------------------------
-# Monitors OFF. The observer is not gated by this and still meters the bus.
+# Monitors OFF, observer taps OFF: no instrument at all, pure throughput.
 export USE_AXI_MONITORS    ?= 0
+# Pin this even though it is the package default. Every flavour states BOTH
+# instrument knobs explicitly, so the flavour is readable here and a change to
+# stream_cfg_pkg's default cannot silently re-arm an instrument in this build.
+export OBS_ENABLE_MON_TAPS ?= 0
 # NOTE: no trailing comments on these lines. Make keeps the whitespace BEFORE a
 # trailing '#', so `?= 8      # comment` sets the variable to "8      ". That
 # value reaches create_project.tcl, which braces it to preserve the spaces, and
