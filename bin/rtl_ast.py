@@ -155,19 +155,37 @@ def facts(sv_path, incdirs=(), verilator='verilator'):
         return json.load(open(cached))
 
     with tempfile.TemporaryDirectory() as td:
-        # -Wno-fatal: this extracts facts, it does not lint. A style warning
-        # must not decide whether a module's ports are checked -- and the
-        # filelist graph has real duplicate-source warnings (axi_monitor_base.f
-        # pulls counter_load_clear.sv via two different sub-filelists) that
-        # would otherwise suppress the whole module. The empty-port guard below
-        # is what catches a genuinely broken parse.
+        # -Wno-fatal: this extracts facts, it does not lint. Warnings are
+        # fatal by default, and 18 modules (every axil4/axil5 monitor, the
+        # apb4 monitor, math_bf16_adder) carry lint warnings that would
+        # otherwise decide their ports go unchecked. The empty-port guard
+        # below is what catches a genuinely broken parse.
         cmd = [verilator, '--lint-only', '-Wno-fatal', '--top-module', stem,
                '--dump-tree-json', '--dumpi-tree-json', '3', '--Mdir', td]
         for i in (tuple(incdirs) or _default_incdirs()):
             cmd += ['-I' + i]
         if fl:
-            # The filelist carries its own +incdir+ and the full compile order.
-            cmd += ['-f', fl]
+            # FLATTEN first. A filelist is hierarchical, and a common leaf --
+            # gaxi_skid_buffer, counter_load_clear -- is legitimately reached
+            # through several sub-filelists. bin/flatten_filelist.py expands
+            # the -f graph and de-duplicates (that is its default), which is
+            # how the rest of the repo consumes these. Handing the raw
+            # hierarchical list to verilator instead makes it compile the same
+            # leaf twice and report MODDUP, which is an artefact of skipping
+            # the flatten step, not a defect in the filelist.
+            flat = os.path.join(td, 'flat.f')
+            fr = subprocess.run(
+                [sys.executable, os.path.join(_REPO, 'bin', 'flatten_filelist.py'),
+                 fl, '--resolve-env', '--absolute-paths'],
+                capture_output=True, timeout=120,
+                env=dict(os.environ, REPO_ROOT=_REPO))
+            if fr.returncode != 0:
+                if _DEBUG:
+                    sys.stderr.write(f'rtl_ast: flatten failed for {fl}\n')
+                return None
+            with open(flat, 'wb') as fh:
+                fh.write(fr.stdout)
+            cmd += ['-f', flat]
         else:
             for y in _module_path():
                 cmd += ['-y', y]
