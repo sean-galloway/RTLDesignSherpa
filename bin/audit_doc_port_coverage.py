@@ -26,6 +26,7 @@ a code block counts as documented. The check is deliberately weak: it is a
 floor against silent omission, not a claim that the prose is correct.
 """
 import argparse
+import rtl_ast
 import re
 import sys
 from pathlib import Path
@@ -82,21 +83,51 @@ def port_name(tail: str):
     return ids[-1] if ids else None
 
 
+RE_DELEGATE_LINK = re.compile(r'\[([A-Za-z0-9_]+)\]\(([^)]+\.md)\)')
+RE_DELEGATES = re.compile(r'\b(?:same as|identical to)\b', re.I)
+
+
 def declared(sv: Path):
-    """Return (params, ports) declared by the FIRST module in the file."""
-    src = strip_comments(sv.read_text(errors='replace'))
-    m = RE_MODULE.search(src)
-    if not m:
-        return set(), set()
-    body = src[m.end():]
-    end = body.find(');')
-    header = body[:end] if end != -1 else body
-    params = {p for p in RE_PARAM.findall(header)}
-    ports = {n for n in (port_name(m.group(1))
-             for m in RE_PORT_LINE.finditer(header)) if n}
-    # A localparam-derived name is not a port; RE_PORT only matches
-    # direction-led lines, so ports is already clean.
-    return params, ports
+    """Return (params, ports) for the module the file is named after.
+
+    Verilator's AST, not a regex over the header. A regex cannot see a port
+    declared through a macro, and reads `parameter logic [7:0] UNIT_ID` as a
+    type rather than a name -- that blind spot once reported "0 gaps" while 24
+    parameters were undocumented. Returns None when the file will not
+    elaborate, so an unparseable module is reported rather than scored clean.
+    """
+    f = rtl_ast.facts(str(sv))
+    if f is None:
+        return None
+    return set(f['params']), set(f['ports'])
+
+
+def with_delegations(page: Path, text: str, depth: int = 1) -> str:
+    """Append the text of pages this one EXPLICITLY delegates to.
+
+    A page may say "Same as [apb5_slave](apb5_slave.md)" rather than repeat a
+    thirty-row port table, which is better practice than duplicating it -- a
+    copy drifts silently. But it left every delegated port reported as
+    undocumented (61 of them across the two apb5 CDC pages). Following the link
+    makes the delegation checkable instead: if the target ever drops a port,
+    these pages start failing.
+
+    Deliberately narrow -- only links on a line that says "same as" or
+    "identical to". Following every link would let any cross-reference launder
+    a genuine gap.
+    """
+    if depth <= 0:
+        return text
+    extra = []
+    for line in text.splitlines():
+        if not RE_DELEGATES.search(line):
+            continue
+        for _name, href in RE_DELEGATE_LINK.findall(line):
+            tgt = (page.parent / href).resolve()
+            if tgt.is_file() and tgt != page.resolve():
+                extra.append(with_delegations(
+                    tgt, tgt.read_text(errors='replace'), depth - 1))
+    return text + '\n' + '\n'.join(extra)
 
 
 def main() -> int:
@@ -129,6 +160,7 @@ def main() -> int:
     total_missing = 0
     offenders = 0
     checked = 0
+    unparseable = []
     for i, sv in enumerate(svs, 1):
         if not args.quiet and i % 50 == 0:
             print(f'  [{i}/{len(svs)}] scanning...', file=sys.stderr)
@@ -136,8 +168,12 @@ def main() -> int:
         if page is None:
             continue
         checked += 1
-        params, ports = declared(sv)
-        text = page.read_text(errors='replace')
+        got = declared(sv)
+        if got is None:
+            unparseable.append(sv.name)
+            continue
+        params, ports = got
+        text = with_delegations(page, page.read_text(errors='replace'))
         gaps = []
         if not args.ports_only:
             gaps += [('param', n) for n in sorted(params)
@@ -155,9 +191,13 @@ def main() -> int:
                 for kind, name in gaps:
                     print(f'    undocumented {kind}: {name}')
 
-    print(f'\n{checked} pages cross-checked, {offenders} with gaps, '
-          f'{total_missing} undocumented names total')
-    return 1 if total_missing else 0
+    if unparseable:
+        print(f'\n{len(unparseable)} module(s) would not elaborate, so were '
+              f'NOT checked: {", ".join(sorted(unparseable))}', file=sys.stderr)
+
+    print(f'\n{checked - len(unparseable)} pages cross-checked, {offenders} '
+          f'with gaps, {total_missing} undocumented names total')
+    return 1 if (total_missing or unparseable) else 0
 
 
 if __name__ == '__main__':

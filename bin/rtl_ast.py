@@ -32,6 +32,7 @@ Cached under .ast-cache/ keyed by source mtime, because a dump per module is
 seconds and the checkers run over ~850 modules.
 """
 import hashlib
+import sys
 import json
 import os
 import subprocess
@@ -50,6 +51,41 @@ def _walk(n, out):
             _walk(v, out)
 
 
+_DEBUG = bool(os.environ.get('RTL_AST_DEBUG'))
+_REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _default_incdirs():
+    """Include dirs to use when the caller names none.
+
+    Callers kept passing no -I and getting None (or, worse, an empty port set)
+    for every module that includes reset_defs.svh. Defaulting to the tree's one
+    include directory makes the common call work rather than fail quietly.
+    """
+    d = os.path.join(_REPO, 'rtl', 'amba', 'includes')
+    return (d,) if os.path.isdir(d) else ()
+
+
+_YDIRS = None
+
+
+def _module_path():
+    """Every directory under rtl/ holding a .sv, for verilator's -y.
+
+    Without it only LEAF modules elaborate: anything instantiating a submodule
+    died on MODMISSING and came back None, so the hierarchical modules -- the
+    ones whose docs matter most -- were silently never checked.
+    """
+    global _YDIRS
+    if _YDIRS is None:
+        seen = set()
+        for root, _dirs, files in os.walk(os.path.join(_REPO, 'rtl')):
+            if any(f.endswith('.sv') for f in files):
+                seen.add(root)
+        _YDIRS = tuple(sorted(seen))
+    return _YDIRS
+
+
 def facts(sv_path, incdirs=(), verilator='verilator'):
     """-> {'ports': {name: dir}, 'params': [name], 'sequential': bool} or None."""
     stem = os.path.splitext(os.path.basename(sv_path))[0]
@@ -66,12 +102,24 @@ def facts(sv_path, incdirs=(), verilator='verilator'):
     with tempfile.TemporaryDirectory() as td:
         cmd = [verilator, '--lint-only', '--top-module', stem,
                '--dump-tree-json', '--dumpi-tree-json', '3', '--Mdir', td]
-        for i in incdirs:
+        for i in (tuple(incdirs) or _default_incdirs()):
             cmd += ['-I' + i]
+        for y in _module_path():
+            cmd += ['-y', y]
         cmd.append(sv_path)
-        subprocess.run(cmd, capture_output=True, timeout=180)
+        r = subprocess.run(cmd, capture_output=True, timeout=180)
         dumps = sorted(f for f in os.listdir(td) if f.endswith('.tree.json'))
-        if not dumps:
+        # A failed elaboration must NEVER be cached, and must never be reported
+        # as a module with no ports. It was: with no -I, every file that
+        # `include`s reset_defs.svh died at the preprocessor, and six modules
+        # were cached as {'ports': {}}. Zero ports reads as "every port is
+        # documented", so those pages scored vacuously clean.
+        if r.returncode != 0 or not dumps:
+            if _DEBUG:
+                sys.stderr.write(
+                    f'rtl_ast: {sv_path} did not elaborate '
+                    f'(rc={r.returncode}):\n'
+                    + r.stderr.decode(errors="replace")[:400] + '\n')
             return None
         # earliest stage still holds PORT and GPARAM, before substitution
         tree = json.load(open(os.path.join(td, dumps[0])))
@@ -109,7 +157,15 @@ def facts(sv_path, incdirs=(), verilator='verilator'):
     if not seq:
         seq = any(n.get('type') == 'SENITEM'
                   and n.get('edgeType') in ('POS', 'NEG', 'BOTH') for n in nodes)
-    out = {'ports': ports, 'params': sorted(set(params)), 'sequential': seq}
+    out = {'ports': ports, 'params': sorted(set(params)), 'sequential': seq,
+           'source': sv_path}
+    if not ports:
+        # Every synthesisable module in this tree has ports. An empty set means
+        # the dump was partial, not that the module is portless -- caching it
+        # would make the vacuous pass permanent and invisible.
+        if _DEBUG:
+            sys.stderr.write(f'rtl_ast: {sv_path} yielded 0 ports; not caching\n')
+        return None
     json.dump(out, open(cached, 'w'))
     return out
 
