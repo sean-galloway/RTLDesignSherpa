@@ -139,13 +139,25 @@ class RegisterMap:
         except ValueError:
             return 0
 
-    def walk(self, read, write, base=None, names=None, restore=True):
+    def walk(self, read, write, base=None, names=None, restore=True,
+             no_write=()):
         """Walk every register. Returns a list of failure strings ([] = clean).
 
         read(addr) -> int and write(addr, value) -> None may be anything
         callable, so one implementation covers a cocotb APB master and a UART
         bridge on the board.
+
+        no_write names registers that must never be WRITTEN, only read. A write
+        to an action register is not an observation -- it launches hardware.
+        STREAM's KICK_ENABLE reads back 0, so it lands in the read-only branch
+        below, which proves a register is read-only BY WRITING to it; that write
+        kicked all eight channels at whatever address CHx_CTRL_LOW had just been
+        walked to (0xFFFFFFFF), and the descriptor fetch never returned. The
+        board then failed every functional test until it was reprogrammed --
+        CTRL.SOFT_RESET does not abort an AXI transaction already in flight.
+        The reset-value check still runs for these; only the write does not.
         """
+        no_write = set(no_write)
         base = self.start_address if base is None else base
         regs = self.registers if names is None else {
             n: self.registers[n] for n in names}
@@ -165,6 +177,9 @@ class RegisterMap:
             if smask and (got & smask) != (dflt & smask):
                 fails.append(f"{name} @ 0x{addr:08X}: reset 0x{got & smask:08X}"
                              f" != default 0x{dflt & smask:08X}")
+
+            if name in no_write:
+                continue                    # reset value checked above; never poked
 
             if smask == 0:
                 # Read-only must not move WHEN WRITTEN -- but many read-only
