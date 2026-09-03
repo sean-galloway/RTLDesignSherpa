@@ -47,6 +47,13 @@ export USE_AXI_MONITORS    ?= 0
 # instrument knobs explicitly, so the flavour is readable here and a change to
 # stream_cfg_pkg's default cannot silently re-arm an instrument in this build.
 export OBS_ENABLE_MON_TAPS ?= 0
+# Harness clock = VCO_MHZ / CLKOUT0_DIVIDE = 1200/12 = 100 MHz.
+# no instrument to fit, so this build takes the higher clock.
+# Pinned, not inherited: the RTL default is 1350/15 (90 MHz), and a build
+# that does not state its clock silently follows any change to that default.
+# VCO must be a multiple of 25 -- MULT_F moves in 0.125 steps off 200 MHz.
+export STREAM_VCO_MHZ        ?= 1200
+export STREAM_CLKOUT0_DIVIDE ?= 12
 # NOTE: no trailing comments on these lines. Make keeps the whitespace BEFORE a
 # trailing '#', so `?= 8      # comment` sets the variable to "8      ". That
 # value reaches create_project.tcl, which braces it to preserve the spaces, and

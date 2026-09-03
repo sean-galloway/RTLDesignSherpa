@@ -36,6 +36,18 @@ BUILDS = ("build-perf", "build-obs", "build-mon")
 # state every one of these, even when it is setting the package default.
 INSTRUMENT_GENERICS = ("USE_AXI_MONITORS", "OBS_ENABLE_MON_TAPS")
 
+# The harness clock is a legitimate per-flavour DIFFERENCE -- perf carries no
+# instrument so it runs faster -- but it must be STATED. An unpinned clock
+# follows the RTL default (1350/15 = 90 MHz), so a build can silently change
+# frequency because someone edited a parameter in stream_genesys2_top.
+CLOCK_GENERICS = ("STREAM_VCO_MHZ", "STREAM_CLKOUT0_DIVIDE")
+
+EXPECTED_CLOCK_MHZ = {
+    "build-perf": 100,
+    "build-obs": 90,
+    "build-mon": 90,
+}
+
 # The design point these three builds are meant to cover: exactly one
 # instrument each, and perf carries none.
 EXPECTED = {
@@ -133,3 +145,53 @@ def test_generic_values_carry_no_trailing_whitespace():
                 f"{build}/Makefile {var} has a trailing comment or whitespace "
                 f"({value!r}); make keeps it and Vivado spins on the generic"
             )
+
+
+@pytest.mark.parametrize("build", BUILDS)
+def test_every_flavour_pins_its_clock(build):
+    """Frequency is the knob for fitting; an inherited one is not a choice."""
+    text = _makefile(build)
+    values = {}
+    for var in CLOCK_GENERICS:
+        raw = _simple_assign(text, var)
+        assert raw is not None, (
+            f"{build}/Makefile does not pin {var}; it would inherit the "
+            f"stream_genesys2_top default (1350/15 = 90 MHz) rather than "
+            f"stating the frequency this flavour is built and timed at"
+        )
+        assert raw.isdigit(), f"{build} {var}={raw!r} is not a plain integer"
+        values[var] = int(raw)
+
+    vco, div = values["STREAM_VCO_MHZ"], values["STREAM_CLKOUT0_DIVIDE"]
+
+    assert vco % 25 == 0, (
+        f"{build} VCO_MHZ={vco} is not a multiple of 25; MULT_F moves in "
+        f"0.125 steps off the 200 MHz sysclk, so the MMCM cannot hit it"
+    )
+    assert vco % div == 0, (
+        f"{build} {vco}/{div} is not an integer frequency"
+    )
+    assert vco // div == EXPECTED_CLOCK_MHZ[build], (
+        f"{build} resolves to {vco // div} MHz, expected "
+        f"{EXPECTED_CLOCK_MHZ[build]} MHz"
+    )
+
+
+def test_perf_runs_faster_than_the_instrumented_flavours():
+    """perf carries no instrument, so it is the flavour that gets the clock.
+
+    If perf ever drops to the instrumented frequency, either it grew an
+    instrument or someone matched the clocks by hand -- both worth a failure
+    rather than a silently slower throughput number.
+    """
+    def mhz(build):
+        text = _makefile(build)
+        return int(_simple_assign(text, "STREAM_VCO_MHZ")) // int(
+            _simple_assign(text, "STREAM_CLKOUT0_DIVIDE")
+        )
+
+    perf = mhz("build-perf")
+    for build in ("build-obs", "build-mon"):
+        assert perf > mhz(build), (
+            f"build-perf is at {perf} MHz, not above {build}'s {mhz(build)} MHz"
+        )

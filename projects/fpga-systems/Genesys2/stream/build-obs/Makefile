@@ -46,15 +46,18 @@ SIM_TESTS ?= $(SELF_DIR)/dv/tests
 # stream_env's DEFAULT is 'mon', so this is belt-and-braces here -- but being
 # explicit is what makes build-perf's setting obviously necessary rather than
 # looking like a stray override.
-export STREAM_BUILD ?= mon
+export STREAM_BUILD ?= obs
 
-# ---- MON-BUILD: the in-core stream monitors are the vehicle ----------------
-# Observer taps OFF here -- see build-obs/Makefile for why they cannot both be
-# built. Generics, not shared-package edits.
-export USE_AXI_MONITORS    ?= 1
-export OBS_ENABLE_MON_TAPS ?= 0
+# ---- OBS-BUILD: the observers are the measurement vehicle -------------------
+# In-core stream monitors OUT, observer taps ARMED. Both together need 217,761
+# LUTs against 203,800 on the xc7k325t -- the placer never runs. These are
+# GENERICS, not edits to the shared stream_cfg_pkg.sv: that package is the
+# default for every build, so changing it there silently retargets build-perf
+# and build-mon too.
+export USE_AXI_MONITORS    ?= 0
+export OBS_ENABLE_MON_TAPS ?= 1
 # Harness clock = VCO_MHZ / CLKOUT0_DIVIDE = 1350/15 = 90 MHz.
-# in-core monitor CAMs are the tightest fit; 90 MHz is where it closes.
+# observer taps add logic to both observers; 90 MHz is where it closes.
 # Pinned, not inherited: the RTL default is 1350/15 (90 MHz), and a build
 # that does not state its clock silently follows any change to that default.
 # VCO must be a multiple of 25 -- MULT_F moves in 0.125 steps off 200 MHz.
@@ -84,7 +87,7 @@ export MON_ERROR_FLAVOR    ?= 2
 # disagree with the bitstream again.
 FPGA_DIR  := $(SELF_DIR)/fpga
 MON_CONES := $(if $(filter 2,$(MON_ERROR_FLAVOR)),allcones,$(if $(filter 1,$(MON_ERROR_FLAVOR)),error,allexcepterror))
-BITSTREAM := $(FPGA_DIR)/bitstream/$(FLOW)_$(STREAM_NUM_CHANNELS)ch_$(MON_CONES)_obsmaster_obsslave.bit
+BITSTREAM := $(FPGA_DIR)/bitstream/$(FLOW)_$(STREAM_NUM_CHANNELS)ch_obs_obsmaster_obsslave.bit
 
 # Keep the generated bridge in lockstep with its .toml/.csv before any synthesis
 # (cheap, and stops a stale checkout producing a stale bitstream). fpga_flow.mk
