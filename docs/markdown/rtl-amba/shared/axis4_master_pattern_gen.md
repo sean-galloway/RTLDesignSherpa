@@ -233,8 +233,11 @@ axis4_master_pattern_gen #(
 
 ## Testing
 
-**No test coverage.** There is no
-`val/**/test_axis4_master_pattern_gen.py`, and no module that instantiates this one has a testbench either, so nothing in the repository exercises it.
+`val/amba/test_axis4_pattern_pair.py` covers this module. It drives the generator and checker as a pair through a `tb_` wrapper.
+
+The test is named for the PAIR rather than the module, which is why an
+earlier audit looking only for `val/**/test_axis4_master_pattern_gen.py` reported it as
+having no coverage. It does.
 
 Treat any behaviour described on this page as unverified by simulation.
 

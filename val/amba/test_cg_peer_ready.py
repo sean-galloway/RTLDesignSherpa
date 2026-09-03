@@ -59,7 +59,15 @@ DUTS = {
     # where they turned out to differ from their axis4 siblings.
     'axis5_master_cg':     (['fub_axis5_tvalid'], 'm_axis5_tready'),
     'axis5_slave_cg':      (['s_axis_tvalid'], 'fub_axis5_tready'),
+    # APB master: the peer's READY is the slave's PREADY; the wrapper's own
+    # activity is cmd_valid. This family clocks on pclk/presetn, which is why it
+    # sat outside this test until CLK_RST below existed -- and why it was the one
+    # _cg wrapper in the repo with no gating coverage at all.
+    'apb4_master_cg':      (['cmd_valid', 'rsp_ready'], 'm_apb_PREADY'),
 }
+
+# DUT -> (clock, reset). Defaults to the AMBA aclk/aresetn.
+CLK_RST = {'apb4_master_cg': ('pclk', 'presetn')}
 
 IDLE_COUNT = 4
 
@@ -70,9 +78,11 @@ async def idle_bus_gates_with_peer_ready_parked(dut):
     name = os.environ['DUT']
     valids, peer_ready = DUTS[name]
 
-    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    clk_n, rst_n = CLK_RST.get(name, ('aclk', 'aresetn'))
+    clk, rst = getattr(dut, clk_n), getattr(dut, rst_n)
+    cocotb.start_soon(Clock(clk, 10, units="ns").start())
 
-    dut.aresetn.value = 0
+    rst.value = 0
     dut.cfg_cg_enable.value = 1
     dut.cfg_cg_idle_count.value = IDLE_COUNT
     for v in valids:
@@ -80,13 +90,13 @@ async def idle_bus_gates_with_peer_ready_parked(dut):
     # The whole point: a well-behaved consumer parks its READY high while idle.
     getattr(dut, peer_ready).value = 1
     for _ in range(8):
-        await RisingEdge(dut.aclk)
-    dut.aresetn.value = 1
+        await RisingEdge(clk)
+    rst.value = 1
 
     # Gating asserts cfg_cg_idle_count + 2 cycles after the last activity
     # (one extra for the r_wakeup flop). Allow generous margin.
     for _ in range(IDLE_COUNT + 20):
-        await RisingEdge(dut.aclk)
+        await RisingEdge(clk)
 
     gating = int(dut.cg_gating.value)
     dut._log.info(f"{name}: {peer_ready} parked high, all valids low -> "
@@ -169,19 +179,21 @@ async def outward_ready_is_masked_while_gated(dut):
     if ready_out is None or not hasattr(dut, ready_out):
         return                      # not a stream wrapper; nothing to assert
 
-    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
-    dut.aresetn.value = 0
+    clk_n, rst_n = CLK_RST.get(name, ('aclk', 'aresetn'))
+    clk, rst = getattr(dut, clk_n), getattr(dut, rst_n)
+    cocotb.start_soon(Clock(clk, 10, units="ns").start())
+    rst.value = 0
     dut.cfg_cg_enable.value = 1
     dut.cfg_cg_idle_count.value = IDLE_COUNT
     for v in valids:
         getattr(dut, v).value = 0
     getattr(dut, peer_ready).value = 1
     for _ in range(8):
-        await RisingEdge(dut.aclk)
-    dut.aresetn.value = 1
+        await RisingEdge(clk)
+    rst.value = 1
 
     for _ in range(IDLE_COUNT + 20):
-        await RisingEdge(dut.aclk)
+        await RisingEdge(clk)
 
     gating = int(dut.cg_gating.value)
     assert gating == 1, f"{name} never gated; cannot test the mask"

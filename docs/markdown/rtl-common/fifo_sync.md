@@ -218,6 +218,7 @@ fifo_sync #(
     .ALMOST_WR_MARGIN      (1),
     .ALMOST_RD_MARGIN      (1)
 ) u_fifo_sync (
+    .rst_n               (rst_n),
     .clk                   (clk),
     .write                 (write),
     .wr_data               (wr_data),

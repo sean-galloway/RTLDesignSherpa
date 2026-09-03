@@ -281,8 +281,11 @@ INCR and FIXED bursts of any length are supported. WRAP is flagged by assertion 
 
 ## Testing
 
-**No test coverage.** There is no
-`val/**/test_sdpram_slave_axi4_axi4.py`, and no module that instantiates this one has a testbench either, so nothing in the repository exercises it.
+`val/amba/test_sdpram_slave.py` covers this module. It covers this variant alongside its axil sibling.
+
+The test is named for the PAIR rather than the module, which is why an
+earlier audit looking only for `val/**/test_sdpram_slave_axi4_axi4.py` reported it as
+having no coverage. It does.
 
 Treat any behaviour described on this page as unverified by simulation.
 

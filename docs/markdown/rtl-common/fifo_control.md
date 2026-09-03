@@ -280,6 +280,9 @@ fifo_control #(
     .ALMOST_RD_MARGIN      (1),
     .REGISTERED            (0)
 ) u_fifo_control (
+    .wr_rst_n            (wr_rst_n),
+    .rd_clk              (rd_clk),
+    .rd_rst_n            (rd_rst_n),
     .wr_clk                (wr_clk),
     .wr_ptr_bin            (wr_ptr_bin),
     .wdom_rd_ptr_bin       (wdom_rd_ptr_bin),

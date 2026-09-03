@@ -269,8 +269,11 @@ dataint_ecc_hamming_encode_secded #(
 
 ## Testing
 
-**No test coverage.** There is no
-`val/**/test_dataint_ecc_hamming_encode_secded.py`, and no module that instantiates this one has a testbench either, so nothing in the repository exercises it.
+`val/common/test_dataint_ecc_hamming_secded.py` covers this module. It builds an `ecc_secded_wrapper` instantiating the encoder and decoder together and drives injected single- and double-bit errors through the pair.
+
+The test is named for the PAIR rather than the module, which is why an
+earlier audit looking only for `val/**/test_dataint_ecc_hamming_encode_secded.py` reported it as
+having no coverage. It does.
 
 Treat any behaviour described on this page as unverified by simulation.
 

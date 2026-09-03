@@ -42,43 +42,45 @@ The extra findings at HEAD are in `stream_mas/ch01_overview/02_port_list.md`,
 `pit_8254_mas/ch03_interfaces/01_top_level.md`; some already have fixes in
 flight from their owners, so the number should fall on its own.
 
-### TASK-075: seven modules have no test coverage, direct or transitive
+### TASK-075: one module has no test coverage (was seven -- five of those claims were wrong)
 
-**Priority:** P2 for the ECC pair, P3 for the rest. None is a known defect;
-they are simply unverified, which is worse than a failing test because nothing
-reports it.
-**Status:** open 2026-09-02. Surfaced by the doc-conformance sweep, not by a
-test run -- writing a truthful "Testing" section for every module page forced
-the question of what actually exercises each one.
+**Priority:** P3.
+**Status:** open 2026-09-02, corrected. qc round_38 disputed my "no coverage"
+claim on the ECC pair and was RIGHT.
 
-**Method.** Built the module instantiation graph over rtl/ and projects/, then
-asked for each module whether ANY transitive ancestor has a `val/**/test_*.py`.
-The first pass used a one-level parent lookup and wrongly reported 28 modules
-as uncovered; twelve of those are covered further up (the `axi_monitor_reporter_*`
-cones reach a test through `axi_monitor_reporter` -> `axi_monitor_base` ->
-`axi4_master_rd_mon`). The number below is from the transitive walk.
+**What I got wrong.** I searched for `val/**/test_<module>.py` and for parents
+in the RTL instantiation graph. Neither finds a test that names the module in a
+Python string and builds its own wrapper. Re-checked by searching test SOURCES
+for each module name:
 
-**Genuinely uncovered:**
+| Module | Actually covered by |
+|---|---|
+| `dataint_ecc_hamming_encode_secded` | `test_dataint_ecc_hamming_secded.py` -- builds `ecc_secded_wrapper` around encoder+decoder, 5 tests |
+| `dataint_ecc_hamming_decode_secded` | same |
+| `sdpram_slave_axi4_axi4` | `test_sdpram_slave.py` |
+| `axis4_master_pattern_gen` | `test_axis4_pattern_pair.py` |
+| `axis4_slave_pattern_check` | same |
+
+Both ECC modules were the P2 items in the original filing. They were covered
+all along, and five of the seven pages carried a false "no test coverage"
+warning that I put there. All five corrected.
+
+**Fixed while checking:** `apb4_master_cg` had no coverage, and the reason was
+that it had **no filelist** -- nothing could build it. Created
+`rtl/amba/filelists/apb4_master_cg.f` and added it to
+`val/amba/test_cg_peer_ready.py`, which needed per-DUT clock names because the
+APB family uses `pclk`/`presetn` rather than `aclk`/`aresetn`. It now passes
+both gating assertions.
+
+**Genuinely uncovered, still open:**
 
 | Module | Note |
 |---|---|
-| `dataint_ecc_hamming_encode_secded` | SECDED encode. Real logic, no test. |
-| `dataint_ecc_hamming_decode_secded` | SECDED decode, including the double-error-detect path. Real logic, no test. |
-| `apb4_master_cg` | The only clock-gated wrapper in the repo with no gating test; its nine siblings are covered by `test_cg_peer_ready.py` / `test_mon_cg_gating.py`. |
-| `monbus_axi4_axi4_group` | Group wrapper; the axil/axil variants are tested. |
-| `sdpram_slave_axi4_axi4` | Sibling `sdpram_slave_axil_axil` is tested. |
-| `axis4_master_pattern_gen` | Used by `test_axis4_pattern_pair`, which drives a `tb_` wrapper rather than this module. |
-| `axis4_slave_pattern_check` | Same. |
+| `monbus_axi4_axi4_group` | No test names it and no filelist-reachable parent has one. The axil/axil variant IS tested, so the gap is this variant only. |
 
-**Excluded deliberately:** the eight `*_stub` modules (tie-off shells with no
-behaviour beyond elaboration, linted as their own top every run) and
-`arbiter_single_client` (exempt by decision, verified in situ in STREAM).
-
-**Why the ECC pair is P2.** Encode/decode SECDED is exactly the kind of module
-whose single- and double-error paths are easy to get subtly wrong and
-impossible to notice from integration traffic, because a correct-looking
-result is indistinguishable from a corrected one without injecting faults.
-
+**Method for next time:** a module is covered if any file under `val/` names
+it, not merely if `test_<module>.py` exists. Tests that synthesise a wrapper
+are invisible to the filename convention.
 
 ### TASK-074: test_axis4_slave dies with SystemExit under heavy parallel load
 
