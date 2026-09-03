@@ -190,6 +190,174 @@ module pumice_cmd_arbiter
 
     localparam int RK0 = 0;   // v1 single-rank pick
 
+`ifdef PUMICE_BANK_SCHED
+    // ========================================================================
+    // OPT-IN: two-stage bank-partitioned scheduler (PUMICE-017 depth split).
+    // The single 81-level pick cone is split by a per-bank candidate register:
+    //   pumice_bank_cmd_picker x NUM_BANKS  (STAGE 1: per-bank classify+select)
+    //   pumice_bank_sched_core              (STAGE 2: tournament + recheck +
+    //                                        refresh/init override + output reg)
+    // The default build (this define OFF) keeps the proven flat arbiter below,
+    // byte-for-byte. This branch drives the SAME output ports; PHASE 1 does NOT
+    // implement the SCHED_POLICY axes (order-mode / row-col-sel / access-pref /
+    // write-batching / prio-sub / qos) or the predictor tables -- those inputs
+    // are sunk here and remain a later phase.
+    // ------------------------------------------------------------------------
+
+    // Register the per-bank timer fan-in at the arbiter input (parity with the
+    // flat path's r_bank_* staleness: the picker reads 1-cycle-old bank state,
+    // the core re-checks against the same registered signal one cycle later).
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                r_bs_act, r_bs_rdwr;
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                r_bs_pre, r_bs_active;
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0][ROW_WIDTH-1:0] r_bs_open;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_bs_act <= '0; r_bs_rdwr <= '0; r_bs_pre <= '0; r_bs_active <= '0;
+            r_bs_open <= '0;
+        end else begin
+            r_bs_act    <= bank_act_ready_i;
+            r_bs_rdwr   <= bank_rdwr_ready_i;
+            r_bs_pre    <= bank_pre_ready_i;
+            r_bs_active <= bank_row_active_i;
+            r_bs_open   <= bank_open_row_i;
+        end
+    )
+
+    // Per-bank candidate bus (picker -> core) and the core -> picker feedback.
+    logic [NUM_BANKS-1:0]                w_cand_valid, w_cand_ap, w_cand_is_rd;
+    dram_op_e                            w_cand_op [NUM_BANKS];
+    logic [NUM_BANKS-1:0][ROW_WIDTH-1:0] w_cand_row;
+    logic [NUM_BANKS-1:0][COL_WIDTH-1:0] w_cand_col;
+    logic [NUM_BANKS-1:0][PTRW-1:0]      w_cand_slot;
+    logic [NUM_BANKS-1:0][AGE_WIDTH-1:0] w_cand_pri;
+    logic [NUM_BANKS-1:0]                w_issued;
+    dram_op_e                            w_issued_op;
+
+    genvar gb;
+    generate
+        for (gb = 0; gb < NUM_BANKS; gb++) begin : g_bank_picker
+            pumice_bank_cmd_picker #(
+                .BANK_ID     (gb),
+                .NUM_ENTRIES (NUM_ENTRIES),
+                .ROW_WIDTH   (ROW_WIDTH),
+                .COL_WIDTH   (COL_WIDTH),
+                .BKW         (BKW),
+                .PTRW        (PTRW),
+                .AGE_WIDTH   (AGE_WIDTH)
+            ) u_picker (
+                .aclk              (aclk),
+                .aresetn           (aresetn),
+                .page_policy_i     (page_policy_i),
+                .ap_mode_en_i      (ap_mode_en_i),
+                .ap_close_bit_i    (ap_close_i[gb]),
+                .read_pref_i       (1'b1),                  // read-priority default
+                .bank_act_ready_i  (r_bs_act[RK0][gb]),
+                .bank_rdwr_ready_i (r_bs_rdwr[RK0][gb]),
+                .bank_pre_ready_i  (r_bs_pre[RK0][gb]),
+                .bank_row_active_i (r_bs_active[RK0][gb]),
+                .bank_open_row_i   (r_bs_open[RK0][gb]),
+                .rd_valid_i        (rd_sch_valid_i),
+                .rd_bank_i         (rd_sch_bank_i),
+                .rd_row_i          (rd_sch_row_i),
+                .rd_col_i          (rd_sch_col_i),
+                .rd_older_i        (rd_sch_older_i),
+                .rd_issue_ready_i  (rd_issue_ready_i),
+                .wr_valid_i        (wr_sch_valid_i),
+                .wr_bank_i         (wr_sch_bank_i),
+                .wr_row_i          (wr_sch_row_i),
+                .wr_col_i          (wr_sch_col_i),
+                .wr_older_i        (wr_sch_older_i),
+                .wr_commit_ready_i (wr_commit_ready_i),
+                .issued_i          (w_issued[gb]),
+                .issued_op_i       (w_issued_op),
+                .cand_valid_o      (w_cand_valid[gb]),
+                .cand_op_o         (w_cand_op[gb]),
+                .cand_ap_o         (w_cand_ap[gb]),
+                .cand_row_o        (w_cand_row[gb]),
+                .cand_col_o        (w_cand_col[gb]),
+                .cand_slot_o       (w_cand_slot[gb]),
+                .cand_is_rd_o      (w_cand_is_rd[gb]),
+                .cand_pri_o        (w_cand_pri[gb])
+            );
+        end
+    endgenerate
+
+    pumice_bank_sched_core #(
+        .NUM_BANKS (NUM_BANKS),
+        .ROW_WIDTH (ROW_WIDTH),
+        .COL_WIDTH (COL_WIDTH),
+        .BKW       (BKW),
+        .PTRW      (PTRW),
+        .AGE_WIDTH (AGE_WIDTH),
+        .RKW       (RKW)
+    ) u_sched_core (
+        .aclk               (aclk),
+        .aresetn            (aresetn),
+        .cand_valid_i       (w_cand_valid),
+        .cand_op_i          (w_cand_op),
+        .cand_ap_i          (w_cand_ap),
+        .cand_row_i         (w_cand_row),
+        .cand_col_i         (w_cand_col),
+        .cand_slot_i        (w_cand_slot),
+        .cand_is_rd_i       (w_cand_is_rd),
+        .cand_pri_i         (w_cand_pri),
+        .bank_act_ready_i   (r_bs_act[RK0]),
+        .bank_rdwr_ready_i  (r_bs_rdwr[RK0]),
+        .bank_pre_ready_i   (r_bs_pre[RK0]),
+        .bank_row_active_i  (r_bs_active[RK0]),
+        .tfaw_ok_i          (tfaw_ok_i[RK0]),
+        .trrd_ok_i          (trrd_ok_i[RK0]),
+        .twtr_ok_i          (twtr_ok_i),
+        .trtw_ok_i          (trtw_ok_i),
+        .tccd_ok_i          (tccd_ok_i),
+        .init_done_i        (init_done_i),
+        .init_cmd_valid_i   (init_cmd_valid_i),
+        .init_cmd_op_i      (init_cmd_op_i),
+        .init_cmd_bank_i    (init_cmd_bank_i),
+        .init_cmd_row_i     (init_cmd_row_i),
+        .refresh_req_i      (refresh_req_i),
+        .refresh_drain_i    (refresh_drain_i),
+        .refresh_kind_i     (refresh_kind_i),
+        .refresh_bank_i     (refresh_bank_i),
+        .t_rfc_i            (t_rfc_i),
+        .t_rfc_pb_i         (t_rfc_pb_i),
+        .refresh_grant_o    (refresh_grant_o),
+        .timeout_pre_req_i  (timeout_pre_req_i),
+        .timeout_pre_bank_i (timeout_pre_bank_i),
+        .cmd_ready_i        (cmd_ready_i),
+        .cmd_valid_o        (cmd_valid_o),
+        .cmd_op_o           (cmd_op_o),
+        .cmd_rank_o         (cmd_rank_o),
+        .cmd_bank_o         (cmd_bank_o),
+        .cmd_row_o          (cmd_row_o),
+        .cmd_col_o          (cmd_col_o),
+        .cmd_ap_o           (cmd_ap_o),
+        .evt_act_o          (evt_act_o),
+        .evt_rd_o           (evt_rd_o),
+        .evt_wr_o           (evt_wr_o),
+        .evt_pre_o          (evt_pre_o),
+        .evt_ap_o           (evt_ap_o),
+        .evt_rank_o         (evt_rank_o),
+        .evt_bank_o         (evt_bank_o),
+        .evt_row_o          (evt_row_o),
+        .wr_commit_valid_o  (wr_commit_valid_o),
+        .wr_commit_slot_o   (wr_commit_slot_o),
+        .rd_issue_valid_o   (rd_issue_valid_o),
+        .rd_issue_slot_o    (rd_issue_slot_o),
+        .issued_o           (w_issued),
+        .issued_op_o        (w_issued_op)
+    );
+
+    // PHASE-1-unused SCHED_POLICY / QoS / population / order-mode / head-rel
+    // inputs. These select the later-phase policy axes the two-stage path does
+    // not yet implement; sink them so the flat path's ports stay identical.
+    wire _unused_bank_sched = &{1'b0,
+        sched_order_mode_i, sched_row_sel_i, sched_col_sel_i, sched_access_pref_i,
+        sched_wr_high_wm_i, sched_wr_low_wm_i, sched_prio_sub_i, sched_qos_en_i,
+        rd_sch_qos_i, wr_sch_qos_i, rd_sch_age_exceed_i, wr_sch_age_exceed_i,
+        rd_sch_head_rel_i, wr_sch_head_rel_i, 1'b0};
+
+`else
     // Column auto-precharge bit from the page policy. With the runtime
     // page-policy engine active (ap_mode_en_i) the decision is per-bank.
     logic w_ap;
@@ -983,5 +1151,7 @@ module pumice_cmd_arbiter
             r_rfc_cnt <= r_rfc_cnt - 16'd1;
         end
     )
+
+`endif  // PUMICE_BANK_SCHED
 
 endmodule : pumice_cmd_arbiter
