@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-# apb5_slave_cdc
+# APB5 Slave CDC
 
 **Module:** `apb5_slave_cdc.sv`
 **Location:** `rtl/amba/apb5/`
@@ -75,8 +75,6 @@ synchronizer depth is fixed at 2 flops (`N_FLOP_CROSS(2)` on both
 needs 3-flop synchronization for an extreme clock ratio, you're editing the
 instantiation in the RTL.
 
----
-
 ### Derived Parameters (do not override)
 
 These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
@@ -94,16 +92,18 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | `CPW` | `AW + DW + SW + PW + AUW + WUW + 1` |
 | `RPW` | `DW + RUW + BUW + 1` |
 
+---
+
 ## Ports
 
 ### Clock and Reset
 
-| Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `pclk` | Input | 1 | APB bus clock |
-| `presetn` | Input | 1 | APB reset (active low) |
-| `aclk` | Input | 1 | Backend/user clock |
-| `aresetn` | Input | 1 | Backend/user reset (active low) |
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| `pclk` | 1 | Input | APB bus clock |
+| `presetn` | 1 | Input | APB reset (active low) |
+| `aclk` | 1 | Input | Backend/user clock |
+| `aresetn` | 1 | Input | Backend/user reset (active low) |
 
 The backend clock and reset are named `aclk` and `aresetn`, matching the rest of
 the AMBA library. There are no `bclk`/`bresetn` ports.
@@ -296,6 +296,7 @@ synchronously deasserted) in its own domain by the integrator.
 ---
 
 ## Usage Examples
+
 ```systemverilog
 apb5_slave_cdc #(
     .ADDR_WIDTH     (32),

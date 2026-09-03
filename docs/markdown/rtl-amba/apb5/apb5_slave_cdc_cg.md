@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-# apb5_slave_cdc_cg
+# APB5 Slave CDC (Clock-Gated)
 
 **Module:** `apb5_slave_cdc_cg.sv`
 **Location:** `rtl/amba/apb5/`
@@ -66,8 +66,6 @@ The APB5 Slave CDC + Clock-Gated module combines clock domain crossing with cloc
 As with [apb5_slave_cdc](apb5_slave_cdc.md), there is no `SYNC_STAGES`
 parameter: pointer synchronization is fixed at 2 flops inside the async FIFOs.
 
----
-
 ### Derived Parameters (do not override)
 
 These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
@@ -86,23 +84,25 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | `CPW` | `AW + DW + SW + PW + AUW + WUW + 1` |
 | `RPW` | `DW + RUW + BUW + 1` |
 
+---
+
 ## Ports
 
 ### Clock and Reset
 
-| Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `pclk` | Input | 1 | APB bus clock |
-| `presetn` | Input | 1 | APB reset (active low) |
-| `aclk` | Input | 1 | User/backend clock |
-| `aresetn` | Input | 1 | User reset (active low) |
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| `pclk` | 1 | Input | APB bus clock |
+| `presetn` | 1 | Input | APB reset (active low) |
+| `aclk` | 1 | Input | User/backend clock |
+| `aresetn` | 1 | Input | User reset (active low) |
 
 ### Clock Gating Configuration
 
-| Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `cfg_cg_enable` | Input | 1 | Enable clock gating |
-| `cfg_cg_idle_count` | Input | CG_IDLE_COUNT_WIDTH | Idle cycles before gating |
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| `cfg_cg_enable` | 1 | Input | Enable clock gating |
+| `cfg_cg_idle_count` | CG_IDLE_COUNT_WIDTH | Input | Idle cycles before gating |
 
 ### APB5 Slave Interface
 
@@ -114,12 +114,12 @@ Same command/response interface as [apb5_slave_cdc](apb5_slave_cdc.md) - operate
 
 ### Status Outputs
 
-| Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `cg_gating` | Output | 1 | Indicates clock is currently gated |
-| `cg_idle` | Out | 1 | Activity terms quiet (registered `~wakeup`). |
-| `parity_error_wdata` | Output | 1 | Write data parity error detected |
-| `parity_error_ctrl` | Output | 1 | Control signal parity error |
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| `cg_gating` | 1 | Output | Indicates clock is currently gated |
+| `cg_idle` | 1 | Output | Activity terms quiet (registered `~wakeup`). |
+| `parity_error_wdata` | 1 | Output | Write data parity error detected |
+| `parity_error_ctrl` | 1 | Output | Control signal parity error |
 
 ---
 
@@ -197,8 +197,6 @@ synchronizer, these signals would cross domains unsynchronized.
 
 ## Timing Characteristics
 
-### Timing Considerations
-
 <!-- TODO: Add wavedrom timing diagram for CDC+CG -->
 > **Timing diagram pending.** The signals and sequence this scenario
 > exercises:
@@ -214,6 +212,7 @@ synchronizer, these signals would cross domains unsynchronized.
 ---
 
 ## Usage Examples
+
 ```systemverilog
 apb5_slave_cdc_cg #(
     .ADDR_WIDTH         (32),

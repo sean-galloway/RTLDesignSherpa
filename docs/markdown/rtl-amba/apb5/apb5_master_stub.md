@@ -44,109 +44,6 @@ The APB5 Master Stub provides a simplified packed-data interface for driving APB
 
 ---
 
-## Functional Description
-```mermaid
-flowchart LR
-    subgraph PACKED["Packed Interface"]
-        cmd_pkt["Command<br/>Packet"]
-        rsp_pkt["Response<br/>Packet"]
-    end
-
-    subgraph STUB["APB5 Master Stub"]
-        unpack["Unpack<br/>Command"]
-        pack["Pack<br/>Response"]
-        master["apb5_master<br/>(Core)"]
-    end
-
-    subgraph APB5["APB5 Bus"]
-        m_apb["APB5<br/>Master IF"]
-    end
-
-    cmd_pkt --> unpack
-    unpack --> master
-    master --> m_apb
-
-    m_apb --> master
-    master --> pack
-    pack --> rsp_pkt
-```
-
----
-
-### Packet Formats
-
-### Command Packet Structure
-
-```mermaid
-flowchart LR
-    subgraph CMD["Command Packet (MSB to LSB)"]
-        last["last<br/>(1b)"]
-        first["first<br/>(1b)"]
-        pwrite["pwrite<br/>(1b)"]
-        pprot["pprot<br/>(3b)"]
-        pstrb["pstrb<br/>(SW)"]
-        paddr["paddr<br/>(AW)"]
-        pwdata["pwdata<br/>(DW)"]
-        pauser["pauser<br/>(AUW)"]
-        pwuser["pwuser<br/>(WUW)"]
-    end
-```
-
-**Bit Positions:**
-```
-cmd_data = {last, first, pwrite, pprot, pstrb, paddr, pwdata, pauser, pwuser}
-```
-
-### Response Packet Structure
-
-```mermaid
-flowchart LR
-    subgraph RSP["Response Packet (MSB to LSB)"]
-        last["last<br/>(1b)"]
-        first["first<br/>(1b)"]
-        pslverr["pslverr<br/>(1b)"]
-        pwakeup["pwakeup<br/>(1b)"]
-        prdata["prdata<br/>(DW)"]
-        pruser["pruser<br/>(RUW)"]
-        pbuser["pbuser<br/>(BUW)"]
-    end
-```
-
-**Bit Positions:**
-```
-rsp_data = {last, first, pslverr, pwakeup, prdata, pruser, pbuser}
-```
-
-### Transaction Flow
-
-### Write Transaction
-
-```mermaid
-sequenceDiagram
-    participant TB as Testbench
-    participant STUB as APB5 Master Stub
-    participant APB as APB5 Bus
-
-    TB->>STUB: cmd_valid, cmd_data (write)
-    Note over STUB: Unpack command
-    STUB->>APB: PSEL=1, PADDR, PWDATA
-    STUB->>APB: PENABLE=1
-    APB-->>STUB: PREADY=1
-    Note over STUB: Pack response
-    STUB-->>TB: rsp_valid, rsp_data
-```
-
-### Timing
-
-<!-- TODO: Add wavedrom timing diagram for stub transactions -->
-> **Timing diagram pending.** The signals and sequence this scenario
-> exercises:
->
-> - pclk
-> - cmd_valid, cmd_ready, cmd_data
-> - APB signals (PSEL, PENABLE, PADDR, PWDATA, PREADY)
-> - rsp_valid, rsp_ready, rsp_data
-> - Packet-to-APB timing relationship
 ## Parameters
 
 | Parameter | Type | Default | Description |
@@ -181,8 +78,6 @@ With all defaults (32-bit address and data, 4-bit strobe, 3-bit protection,
 4-bit user fields) this gives `CMD_PACKET_WIDTH = 82` and
 `RESP_PACKET_WIDTH = 44`.
 
----
-
 ### Derived Parameters (do not override)
 
 These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
@@ -192,6 +87,8 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | `PW` | `PROT_WIDTH` |
 | `CPW` | `CMD_PACKET_WIDTH` |
 | `RPW` | `RESP_PACKET_WIDTH` |
+
+---
 
 ## Ports
 
@@ -262,7 +159,110 @@ identical to [apb5_master](apb5_master.md#parity-implementation).
 
 ---
 
+## Functional Description
+
+```mermaid
+flowchart LR
+    subgraph PACKED["Packed Interface"]
+        cmd_pkt["Command<br/>Packet"]
+        rsp_pkt["Response<br/>Packet"]
+    end
+
+    subgraph STUB["APB5 Master Stub"]
+        unpack["Unpack<br/>Command"]
+        pack["Pack<br/>Response"]
+        master["apb5_master<br/>(Core)"]
+    end
+
+    subgraph APB5["APB5 Bus"]
+        m_apb["APB5<br/>Master IF"]
+    end
+
+    cmd_pkt --> unpack
+    unpack --> master
+    master --> m_apb
+
+    m_apb --> master
+    master --> pack
+    pack --> rsp_pkt
+```
+
+### Packet Formats
+
+#### Command Packet Structure
+
+```mermaid
+flowchart LR
+    subgraph CMD["Command Packet (MSB to LSB)"]
+        last["last<br/>(1b)"]
+        first["first<br/>(1b)"]
+        pwrite["pwrite<br/>(1b)"]
+        pprot["pprot<br/>(3b)"]
+        pstrb["pstrb<br/>(SW)"]
+        paddr["paddr<br/>(AW)"]
+        pwdata["pwdata<br/>(DW)"]
+        pauser["pauser<br/>(AUW)"]
+        pwuser["pwuser<br/>(WUW)"]
+    end
+```
+
+**Bit Positions:**
+```
+cmd_data = {last, first, pwrite, pprot, pstrb, paddr, pwdata, pauser, pwuser}
+```
+
+#### Response Packet Structure
+
+```mermaid
+flowchart LR
+    subgraph RSP["Response Packet (MSB to LSB)"]
+        last["last<br/>(1b)"]
+        first["first<br/>(1b)"]
+        pslverr["pslverr<br/>(1b)"]
+        pwakeup["pwakeup<br/>(1b)"]
+        prdata["prdata<br/>(DW)"]
+        pruser["pruser<br/>(RUW)"]
+        pbuser["pbuser<br/>(BUW)"]
+    end
+```
+
+**Bit Positions:**
+```
+rsp_data = {last, first, pslverr, pwakeup, prdata, pruser, pbuser}
+```
+
+### Transaction Flow
+
+#### Write Transaction
+
+```mermaid
+sequenceDiagram
+    participant TB as Testbench
+    participant STUB as APB5 Master Stub
+    participant APB as APB5 Bus
+
+    TB->>STUB: cmd_valid, cmd_data (write)
+    Note over STUB: Unpack command
+    STUB->>APB: PSEL=1, PADDR, PWDATA
+    STUB->>APB: PENABLE=1
+    APB-->>STUB: PREADY=1
+    Note over STUB: Pack response
+    STUB-->>TB: rsp_valid, rsp_data
+```
+
+---
+
 ## Timing Characteristics
+
+<!-- TODO: Add wavedrom timing diagram for stub transactions -->
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - pclk
+> - cmd_valid, cmd_ready, cmd_data
+> - APB signals (PSEL, PENABLE, PADDR, PWDATA, PREADY)
+> - rsp_valid, rsp_ready, rsp_data
+> - Packet-to-APB timing relationship
 
 This module is **purely combinational** -- it contains no `always_ff` and no
 latch, so it holds no state and adds no clock cycles. Its outputs settle a
@@ -276,6 +276,7 @@ measured.
 ---
 
 ## Usage Examples
+
 ```systemverilog
 apb5_master_stub #(
     .CMD_DEPTH      (6),
@@ -376,6 +377,7 @@ The stub instantiates the full `apb5_master` internally:
 ---
 
 ## Related Modules
+
 - **[APB5 Master](apb5_master.md)** - Core master module (wrapped by stub)
 - **[APB5 Slave Stub](apb5_slave_stub.md)** - Corresponding slave stub
 

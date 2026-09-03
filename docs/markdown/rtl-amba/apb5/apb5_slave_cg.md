@@ -45,86 +45,146 @@ Clock-gated variant of the APB5 Slave module. Wraps the base `apb5_slave` with c
 
 ## Parameters
 
-| Parameter | Default | Description |
-|---|---|---|
-| `ADDR_WIDTH` | `32` |  |
-| `DATA_WIDTH` | `32` |  |
-| `STRB_WIDTH` | `DATA_WIDTH / 8` |  |
-| `PROT_WIDTH` | `3` |  |
-| `AUSER_WIDTH` | `4` |  |
-| `WUSER_WIDTH` | `4` |  |
-| `RUSER_WIDTH` | `4` |  |
-| `BUSER_WIDTH` | `4` |  |
-| `DEPTH` | `2` |  |
-| `ENABLE_PARITY` | `0` |  |
-| `CG_IDLE_COUNT_WIDTH` | `4` |  |
-| `DW` | `DATA_WIDTH` |  |
-| `AW` | `ADDR_WIDTH` |  |
-| `SW` | `STRB_WIDTH` |  |
-| `PW` | `PROT_WIDTH` |  |
-| `AUW` | `AUSER_WIDTH` |  |
-| `WUW` | `WUSER_WIDTH` |  |
-| `RUW` | `RUSER_WIDTH` |  |
-| `BUW` | `BUSER_WIDTH` |  |
-| `ICW` | `CG_IDLE_COUNT_WIDTH` |  |
-| `CPW` | `AW + DW + SW + PW + AUW + WUW + 1` |  |
-| `RPW` | `DW + RUW + BUW + 1` |  |
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| ADDR_WIDTH | int | 32 | APB address bus width |
+| DATA_WIDTH | int | 32 | APB data bus width |
+| PROT_WIDTH | int | 3 | Protection signal width |
+| AUSER_WIDTH | int | 4 | Address/request user signal width |
+| WUSER_WIDTH | int | 4 | Write data user signal width |
+| RUSER_WIDTH | int | 4 | Read data user signal width |
+| BUSER_WIDTH | int | 4 | Response user signal width |
+| DEPTH | int | 2 | FIFO depth |
+| ENABLE_PARITY | bit | 0 | Enable APB5 parity generation and checking |
+| CG_IDLE_COUNT_WIDTH | int | 4 | Width of idle counter |
+
+All other parameters are inherited from [apb5_slave](apb5_slave.md).
+
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `STRB_WIDTH` | `DATA_WIDTH / 8` |
+| `DW` | `DATA_WIDTH` |
+| `AW` | `ADDR_WIDTH` |
+| `SW` | `STRB_WIDTH` |
+| `PW` | `PROT_WIDTH` |
+| `AUW` | `AUSER_WIDTH` |
+| `WUW` | `WUSER_WIDTH` |
+| `RUW` | `RUSER_WIDTH` |
+| `BUW` | `BUSER_WIDTH` |
+| `ICW` | `CG_IDLE_COUNT_WIDTH` |
+| `CPW` | `AW + DW + SW + PW + AUW + WUW + 1` |
+| `RPW` | `DW + RUW + BUW + 1` |
 
 ---
 
 ## Ports
 
-| Port | Dir | Width | Description |
-|---|---|---|---|
-| `pclk` | In | 1 |  |
-| `presetn` | In | 1 |  |
-| `cfg_cg_enable` | In | 1 |  |
-| `cfg_cg_idle_count` | In | `[ICW-1:0]` |  |
-| `s_apb_PSEL` | In | 1 |  |
-| `s_apb_PENABLE` | In | 1 |  |
-| `s_apb_PREADY` | Out | 1 |  |
-| `s_apb_PADDR` | In | `[AW-1:0]` |  |
-| `s_apb_PWRITE` | In | 1 |  |
-| `s_apb_PWDATA` | In | `[DW-1:0]` |  |
-| `s_apb_PSTRB` | In | `[SW-1:0]` |  |
-| `s_apb_PPROT` | In | `[PW-1:0]` |  |
-| `s_apb_PAUSER` | In | `[AUW-1:0]` |  |
-| `s_apb_PWUSER` | In | `[WUW-1:0]` |  |
-| `s_apb_PRDATA` | Out | `[DW-1:0]` |  |
-| `s_apb_PSLVERR` | Out | 1 |  |
-| `s_apb_PWAKEUP` | Out | 1 |  |
-| `s_apb_PRUSER` | Out | `[RUW-1:0]` |  |
-| `s_apb_PBUSER` | Out | `[BUW-1:0]` |  |
-| `s_apb_PWDATAPARITY` | In | `[SW-1:0]` |  |
-| `s_apb_PADDRPARITY` | In | 1 |  |
-| `s_apb_PCTRLPARITY` | In | 1 |  |
-| `s_apb_PRDATAPARITY` | Out | `[SW-1:0]` |  |
-| `s_apb_PREADYPARITY` | Out | 1 |  |
-| `s_apb_PSLVERRPARITY` | Out | 1 |  |
-| `cmd_valid` | Out | 1 |  |
-| `cmd_ready` | In | 1 |  |
-| `cmd_pwrite` | Out | 1 |  |
-| `cmd_paddr` | Out | `[AW-1:0]` |  |
-| `cmd_pwdata` | Out | `[DW-1:0]` |  |
-| `cmd_pstrb` | Out | `[SW-1:0]` |  |
-| `cmd_pprot` | Out | `[PW-1:0]` |  |
-| `cmd_pauser` | Out | `[AUW-1:0]` |  |
-| `cmd_pwuser` | Out | `[WUW-1:0]` |  |
-| `rsp_valid` | In | 1 |  |
-| `rsp_ready` | Out | 1 |  |
-| `rsp_prdata` | In | `[DW-1:0]` |  |
-| `rsp_pslverr` | In | 1 |  |
-| `rsp_pruser` | In | `[RUW-1:0]` |  |
-| `rsp_pbuser` | In | `[BUW-1:0]` |  |
-| `wakeup_request` | In | 1 |  |
-| `parity_error_wdata` | Out | 1 |  |
-| `parity_error_ctrl` | Out | 1 |  |
-| `cg_gating` | Out | 1 |  |
-| `cg_idle` | Out | 1 | Activity terms quiet (registered `~wakeup`). |
+### Clock and Reset
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| pclk | 1 | Input | APB clock |
+| presetn | 1 | Input | APB active-low reset |
+
+### Clock Gating Configuration
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| cfg_cg_enable | 1 | Input | Enable clock gating |
+| cfg_cg_idle_count | CG_IDLE_COUNT_WIDTH | Input | Idle cycles before gating |
+
+### Clock Gating Status
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| cg_gating | 1 | Output | High while the internal clock is gated off |
+| cg_idle | 1 | Output | Activity terms quiet (registered `~wakeup`). |
+
+There is no cumulative gated-cycle counter port on this module. If a gated-cycle
+total is needed, count `cg_gating` in the integrating logic on the
+ungated `pclk`.
+
+All ports of [apb5_slave](apb5_slave.md) -- including the parity signals,
+`wakeup_request`, `parity_error_wdata` and `parity_error_ctrl` -- are present
+unchanged and pass straight through to the wrapped core.
+
+### APB5 Slave Interface
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| s_apb_PSEL | 1 | Input | APB select signal |
+| s_apb_PENABLE | 1 | Input | APB enable signal |
+| s_apb_PREADY | 1 | Output | Slave ready response |
+| s_apb_PADDR | AW | Input | APB address |
+| s_apb_PWRITE | 1 | Input | Write/read indicator |
+| s_apb_PWDATA | DW | Input | Write data |
+| s_apb_PSTRB | SW | Input | Write byte strobes |
+| s_apb_PPROT | PW | Input | Protection attributes |
+| s_apb_PAUSER | AUW | Input | User-defined request attributes |
+| s_apb_PWUSER | WUW | Input | User-defined write data attributes |
+| s_apb_PRDATA | DW | Output | Read data to master |
+| s_apb_PSLVERR | 1 | Output | Slave error response |
+| s_apb_PWAKEUP | 1 | Output | Wake-up signal to master |
+| s_apb_PRUSER | RUW | Output | User-defined read data attributes |
+| s_apb_PBUSER | BUW | Output | User-defined response attributes |
+
+### Parity Signals (Optional)
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| s_apb_PWDATAPARITY | SW | Input | Write data parity from master |
+| s_apb_PADDRPARITY | 1 | Input | Address parity from master |
+| s_apb_PCTRLPARITY | 1 | Input | Control signals parity from master |
+| s_apb_PRDATAPARITY | SW | Output | Read data parity to master |
+| s_apb_PREADYPARITY | 1 | Output | PREADY parity to master |
+| s_apb_PSLVERRPARITY | 1 | Output | PSLVERR parity to master |
+
+### Command Interface (to backend)
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| cmd_valid | 1 | Output | Command valid to backend |
+| cmd_ready | 1 | Input | Backend ready |
+| cmd_pwrite | 1 | Output | Command write/read |
+| cmd_paddr | AW | Output | Command address |
+| cmd_pwdata | DW | Output | Command write data |
+| cmd_pstrb | SW | Output | Command write strobes |
+| cmd_pprot | PW | Output | Command protection |
+| cmd_pauser | AUW | Output | Command address user |
+| cmd_pwuser | WUW | Output | Command write user |
+
+### Response Interface (from backend)
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| rsp_valid | 1 | Input | Response valid from backend |
+| rsp_ready | 1 | Output | Slave ready for response |
+| rsp_prdata | DW | Input | Response read data |
+| rsp_pslverr | 1 | Input | Response error status |
+| rsp_pruser | RUW | Input | Response read user |
+| rsp_pbuser | BUW | Input | Response user |
+
+### Wake-up Control
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| wakeup_request | 1 | Input | Wake-up request from backend; registered onto `s_apb_PWAKEUP` |
+
+### Status Outputs
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| parity_error_wdata | 1 | Output | Write-data parity mismatch (tied to 0 when ENABLE_PARITY=0) |
+| parity_error_ctrl | 1 | Output | Address or control parity mismatch (tied to 0 when ENABLE_PARITY=0) |
 
 ---
 
 ## Functional Description
+
 ```mermaid
 flowchart TB
     subgraph CG["Clock Gating Control"]
@@ -152,65 +212,9 @@ flowchart TB
     cfg_cg_idle_count --> idle
 ```
 
----
-
-### Additional Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| CG_IDLE_COUNT_WIDTH | int | 4 | Width of idle counter |
-| `DEPTH` | int | `2` | FIFO depth. |
-| `ENABLE_PARITY` | bit | `0` | Enable APB5 parity generation and checking. |
-
-All other parameters inherited from [apb5_slave](apb5_slave.md).
-
----
-
-### Derived Parameters (do not override)
-
-These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
-
-| Derived parameter | Default expression |
-|---|---|
-| `STRB_WIDTH` | `DATA_WIDTH / 8` |
-| `DW` | `DATA_WIDTH` |
-| `AW` | `ADDR_WIDTH` |
-| `SW` | `STRB_WIDTH` |
-| `PW` | `PROT_WIDTH` |
-| `AUW` | `AUSER_WIDTH` |
-| `WUW` | `WUSER_WIDTH` |
-| `RUW` | `RUSER_WIDTH` |
-| `BUW` | `BUSER_WIDTH` |
-| `ICW` | `CG_IDLE_COUNT_WIDTH` |
-| `CPW` | `AW + DW + SW + PW + AUW + WUW + 1` |
-| `RPW` | `DW + RUW + BUW + 1` |
-
-### Additional Ports
-
-### Clock Gating Configuration
-
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| cfg_cg_enable | 1 | Input | Enable clock gating |
-| cfg_cg_idle_count | CG_IDLE_COUNT_WIDTH | Input | Idle cycles before gating |
-
-### Clock Gating Status
-
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| cg_gating | 1 | Output | High while the internal clock is gated off |
-
-There is no cumulative gated-cycle counter port on this module. If a gated-cycle
-total is needed, count `cg_gating` in the integrating logic on the
-ungated `pclk`.
-
-All ports of [apb5_slave](apb5_slave.md) -- including the parity signals,
-`wakeup_request`, `parity_error_wdata` and `parity_error_ctrl` -- are present
-unchanged and pass straight through to the wrapped core.
-
 ### Clock Gating Behavior
 
-### Wake-up Trigger
+#### Wake-up Trigger
 
 The wrapper keeps the clock running whenever any of the following is high:
 
@@ -235,6 +239,10 @@ Gating engages `cfg_cg_idle_count + 1` ungated `pclk` cycles after the internal
 wakeup deasserts, which is `cfg_cg_idle_count + 3` cycles after the last bus
 activity, because APB5 adds two register stages ahead of the ICG enable.
 
+---
+
+## Timing Characteristics
+
 > **Timing diagram pending.** The signals and sequence this scenario
 > exercises:
 >
@@ -243,7 +251,6 @@ activity, because APB5 adds two register stages ahead of the ICG enable.
 > - s_apb_PSEL
 > - cg_gating
 > - Wake-up latency (two register stages; first usable gated edge 3 ungated pclk cycles after activity)
-## Timing Characteristics
 
 This module is **sequential**: it contains clocked logic (via `always_ff` or
 the repository's `ALWAYS_FF_RST` macro) and therefore holds state. Outputs
@@ -261,6 +268,7 @@ measured.
 ---
 
 ## Usage Examples
+
 ```systemverilog
 apb5_slave_cg #(
     .ADDR_WIDTH         (32),
@@ -310,6 +318,7 @@ fabric flops.
 ---
 
 ## Related Modules
+
 - **[APB5 Slave](apb5_slave.md)** - Base module documentation
 - **[APB5 Master CG](apb5_master_cg.md)** - Clock-gated master
 

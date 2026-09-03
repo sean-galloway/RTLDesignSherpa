@@ -31,13 +31,11 @@
 
 ## Overview
 
-The APB5 subsystem provides a complete implementation of the ARM AMBA 5 APB (Advanced Peripheral Bus) protocol, including masters, slaves, monitors, clock domain crossing, and testbench utilities.
+The APB5 subsystem is a complete implementation of the ARM AMBA 5 APB (Advanced Peripheral Bus) protocol: masters, slaves, monitors, clock domain crossing, and testbench utilities.
 
-APB5 extends APB4 with enhanced features for modern SoC designs while maintaining backward compatibility. The simple two-cycle handshake protocol is preserved, with additional signals for improved security, wake-up signaling, and error handling.
+APB5 extends APB4 with features aimed at modern SoC designs while staying backward compatible. The simple two-cycle handshake is preserved exactly -- what changes is the signal list, which picks up security attributes, wake-up signaling, and improved error handling.
 
----
-
-## AMBA4 vs AMBA5 Comparison
+### AMBA4 vs AMBA5 Comparison
 
 The table below compares the APB4 and APB5 protocol definitions, and states what
 this RTL release actually implements. Optional APB5 features that are not
@@ -54,11 +52,9 @@ ports to connect.
 | Parity | Not supported | Optional signal parity | Yes (`ENABLE_PARITY`) |
 | Error Response | PSLVERR | PSLVERR (enhanced semantics) | Yes |
 
----
+### Module Categories
 
-## Module Categories
-
-### Core Protocol Components
+#### Core Protocol Components
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
@@ -67,7 +63,7 @@ ports to connect.
 | **apb5_slave_cdc** | APB5 slave with clock domain crossing support | [apb5_slave_cdc.md](apb5_slave_cdc.md) | Documented |
 | **apb5_monitor** | Transaction monitoring with 128-bit monitor bus packet + 64-bit side-band timestamp | [apb5_monitor.md](apb5_monitor.md) | Documented |
 
-### Clock-Gated Variants
+#### Clock-Gated Variants
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
@@ -75,14 +71,14 @@ ports to connect.
 | **apb5_slave_cg** | APB5 slave with integrated clock gating | [apb5_slave_cg.md](apb5_slave_cg.md) | Documented |
 | **apb5_slave_cdc_cg** | APB5 slave CDC with integrated clock gating | [apb5_slave_cdc_cg.md](apb5_slave_cdc_cg.md) | Documented |
 
-### Testbench Utilities
+#### Testbench Utilities
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
 | **apb5_master_stub** | Lightweight APB5 master for testbench integration | [apb5_master_stub.md](apb5_master_stub.md) | Documented |
 | **apb5_slave_stub** | Lightweight APB5 slave for testbench integration | [apb5_slave_stub.md](apb5_slave_stub.md) | Documented |
 
-### Interconnect
+#### Interconnect
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
@@ -93,11 +89,9 @@ than here, because it is not an APB5-only block — the same RTL covers APB4,
 APB5, and mixed configurations. An APB5 port on the crossbar instantiates the
 `apb5_master` / `apb5_slave` boundary IP listed above.
 
----
+### Key Features
 
-## Key Features
-
-### APB5 Protocol Support
+#### APB5 Protocol Support
 - **PSTRB Support:** Byte-lane strobes for partial writes
 - **PPROT Support:** Protection attributes for security-aware systems
 - **PWAKEUP Support:** Low-power wake-up signaling
@@ -108,17 +102,17 @@ APB5, and mixed configurations. An APB5 port on the crossbar instantiates the
 PEXCL/PEXOKAY exclusive-access pair. No module in `rtl/amba/apb5/` declares
 these ports.
 
-### Clock Domain Crossing
+#### Clock Domain Crossing
 - **Dual-Clock Operation:** APB (pclk) and backend (aclk) domains
 - **Safe CDC:** Proper handshake-based clock domain crossing
 - **Independent Frequencies:** Backend can run faster or slower than APB
 
-### Power Management
+#### Power Management
 - **Clock Gating:** Per-module clock gating for power reduction
 - **Wake-up Signaling:** PWAKEUP for low-power state exit
 - **Idle Detection:** Automatic clock gate when bus is idle
 
-### Monitoring and Debug
+#### Monitoring and Debug
 - **Transaction Monitoring:** Real-time protocol monitoring
 - **64-bit Monitor Bus:** Standardized packet format (`monbus_packet[63:0]`, no side-band timestamp)
 - **Error Detection:** Protocol violations, timeout detection
@@ -126,7 +120,72 @@ these ports.
 
 ---
 
-## Quick Start
+## Functional Description
+
+### APB5 Transfer Phases
+
+APB5 uses the same two-phase protocol as APB4:
+
+1. **SETUP Phase:** PSEL asserted, PENABLE low
+   - Master presents address, control signals, and write data (if write)
+   - Slave prepares for transfer
+
+2. **ACCESS Phase:** PSEL and PENABLE both asserted
+   - Slave completes transfer and asserts PREADY when ready
+   - For reads, slave presents PRDATA
+   - Slave may assert PSLVERR to signal error
+
+### APB5 Signal Descriptions
+
+In this implementation the clock and reset ports are named `pclk` and `presetn`,
+and the bus signals are prefixed `m_apb_` on masters and `s_apb_` on slaves
+(for example `m_apb_PADDR`, `s_apb_PREADY`).
+
+| Signal | Direction | Description |
+|--------|-----------|-------------|
+| pclk | Input | APB clock |
+| presetn | Input | Active-low reset |
+| PSEL | Master to Slave | Slave select |
+| PENABLE | Master to Slave | Enable (ACCESS phase indicator) |
+| PREADY | Slave to Master | Transfer complete |
+| PADDR | Master to Slave | Address bus |
+| PWRITE | Master to Slave | Write enable (1=write, 0=read) |
+| PWDATA | Master to Slave | Write data |
+| PSTRB | Master to Slave | Byte lane strobes |
+| PPROT | Master to Slave | Protection attributes |
+| PWAKEUP | Slave to Master | Wake-up signal (APB5) -- see note below |
+| PAUSER | Master to Slave | Address phase user signal (APB5) |
+| PWUSER | Master to Slave | Write data user signal (APB5) |
+| PRDATA | Slave to Master | Read data |
+| PSLVERR | Slave to Master | Error response |
+| PRUSER | Slave to Master | Read data user signal (APB5) |
+| PBUSER | Slave to Master | Write response user signal (APB5) |
+
+**PWAKEUP direction note:** this suite implements PWAKEUP as a slave-to-master
+signal used by a peripheral to request that the master (and its power domain)
+stay awake. `apb5_slave` drives `s_apb_PWAKEUP` from its `wakeup_request` input
+and `apb5_master` consumes `m_apb_PWAKEUP` as an input, capturing it in the
+response packet (`rsp_pwakeup`) and in the `wakeup_pending` status output.
+
+**PNSE, PEXCL and PEXOKAY are not implemented** and do not appear on any module
+port list.
+
+### Optional Parity Signals
+
+Present on all masters and slaves; meaningful only when `ENABLE_PARITY=1`.
+
+| Signal | Width | Direction | Description |
+|--------|-------|-----------|-------------|
+| PWDATAPARITY | STRB_WIDTH | Master to Slave | One parity bit per write-data byte lane |
+| PADDRPARITY | 1 | Master to Slave | Single parity bit over the whole address |
+| PCTRLPARITY | 1 | Master to Slave | Single parity bit over {PWRITE, PSTRB, PPROT} |
+| PRDATAPARITY | STRB_WIDTH | Slave to Master | One parity bit per read-data byte lane |
+| PREADYPARITY | 1 | Slave to Master | Parity bit for PREADY |
+| PSLVERRPARITY | 1 | Slave to Master | Parity bit for PSLVERR |
+
+---
+
+## Usage Examples
 
 ### Using APB5 Master
 
@@ -256,88 +315,6 @@ apb5_slave #(
 
 ---
 
-## Testing
-
-All APB5 modules are verified using CocoTB-based testbenches located in `val/amba/`:
-
-```bash
-# Run all APB5 tests
-pytest val/amba/test_apb5*.py -v
-
-# Run specific module tests
-pytest val/amba/test_apb5_master.py -v
-pytest val/amba/test_apb5_slave.py -v
-pytest val/amba/test_apb5_slave_cdc.py -v
-pytest val/amba/test_apb5_monitor.py -v
-```
-
----
-
-## Protocol Details
-
-### APB5 Transfer Phases
-
-APB5 uses the same two-phase protocol as APB4:
-
-1. **SETUP Phase:** PSEL asserted, PENABLE low
-   - Master presents address, control signals, and write data (if write)
-   - Slave prepares for transfer
-
-2. **ACCESS Phase:** PSEL and PENABLE both asserted
-   - Slave completes transfer and asserts PREADY when ready
-   - For reads, slave presents PRDATA
-   - Slave may assert PSLVERR to signal error
-
-### APB5 Signal Descriptions
-
-In this implementation the clock and reset ports are named `pclk` and `presetn`,
-and the bus signals are prefixed `m_apb_` on masters and `s_apb_` on slaves
-(for example `m_apb_PADDR`, `s_apb_PREADY`).
-
-| Signal | Direction | Description |
-|--------|-----------|-------------|
-| pclk | Input | APB clock |
-| presetn | Input | Active-low reset |
-| PSEL | Master to Slave | Slave select |
-| PENABLE | Master to Slave | Enable (ACCESS phase indicator) |
-| PREADY | Slave to Master | Transfer complete |
-| PADDR | Master to Slave | Address bus |
-| PWRITE | Master to Slave | Write enable (1=write, 0=read) |
-| PWDATA | Master to Slave | Write data |
-| PSTRB | Master to Slave | Byte lane strobes |
-| PPROT | Master to Slave | Protection attributes |
-| PWAKEUP | Slave to Master | Wake-up signal (APB5) -- see note below |
-| PAUSER | Master to Slave | Address phase user signal (APB5) |
-| PWUSER | Master to Slave | Write data user signal (APB5) |
-| PRDATA | Slave to Master | Read data |
-| PSLVERR | Slave to Master | Error response |
-| PRUSER | Slave to Master | Read data user signal (APB5) |
-| PBUSER | Slave to Master | Write response user signal (APB5) |
-
-**PWAKEUP direction note:** this suite implements PWAKEUP as a slave-to-master
-signal used by a peripheral to request that the master (and its power domain)
-stay awake. `apb5_slave` drives `s_apb_PWAKEUP` from its `wakeup_request` input
-and `apb5_master` consumes `m_apb_PWAKEUP` as an input, capturing it in the
-response packet (`rsp_pwakeup`) and in the `wakeup_pending` status output.
-
-**PNSE, PEXCL and PEXOKAY are not implemented** and do not appear on any module
-port list.
-
-### Optional Parity Signals
-
-Present on all masters and slaves; meaningful only when `ENABLE_PARITY=1`.
-
-| Signal | Width | Direction | Description |
-|--------|-------|-----------|-------------|
-| PWDATAPARITY | STRB_WIDTH | Master to Slave | One parity bit per write-data byte lane |
-| PADDRPARITY | 1 | Master to Slave | Single parity bit over the whole address |
-| PCTRLPARITY | 1 | Master to Slave | Single parity bit over {PWRITE, PSTRB, PPROT} |
-| PRDATAPARITY | STRB_WIDTH | Slave to Master | One parity bit per read-data byte lane |
-| PREADYPARITY | 1 | Slave to Master | Parity bit for PREADY |
-| PSLVERRPARITY | 1 | Slave to Master | Parity bit for PSLVERR |
-
----
-
 ## Design Notes
 
 ### Command/Response Architecture
@@ -373,12 +350,29 @@ APB5 modules are backward compatible with APB4 systems:
 
 ---
 
-## Related Documentation
+## Related Modules
 
 - **[APB4 Modules](../apb4/README.md)** - APB4 protocol components
 - **[AXI5 Modules](../axi5/README.md)** - AXI5 protocol components
 - **[AXIS5 Modules](../axis5/README.md)** - AXI5-Stream components
 - **[GAXI Modules](../gaxi/README.md)** - Generic AXI utilities
+
+---
+
+## Testing
+
+All APB5 modules are verified using CocoTB-based testbenches located in `val/amba/`:
+
+```bash
+# Run all APB5 tests
+pytest val/amba/test_apb5*.py -v
+
+# Run specific module tests
+pytest val/amba/test_apb5_master.py -v
+pytest val/amba/test_apb5_slave.py -v
+pytest val/amba/test_apb5_slave_cdc.py -v
+pytest val/amba/test_apb5_monitor.py -v
+```
 
 ---
 

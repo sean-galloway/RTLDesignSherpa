@@ -46,122 +46,6 @@ The APB5 Master module implements a complete AMBA APB5 master interface with all
 
 ---
 
-## Functional Description
-```mermaid
-flowchart LR
-    subgraph CMD["Command Interface"]
-        cv["cmd_valid"]
-        cr["cmd_ready"]
-        cd["cmd_data"]
-    end
-
-    subgraph FIFO["Internal FIFOs"]
-        cf["Command<br/>FIFO"]
-        rf["Response<br/>FIFO"]
-    end
-
-    subgraph FSM["APB5 FSM"]
-        idle["IDLE"]
-        setup["SETUP"]
-        access["ACCESS"]
-    end
-
-    subgraph APB5["APB5 Master Interface"]
-        psel["PSEL"]
-        pen["PENABLE"]
-        paddr["PADDR"]
-        pwrite["PWRITE"]
-        pwdata["PWDATA"]
-        pstrb["PSTRB"]
-        pprot["PPROT"]
-        pauser["PAUSER"]
-        pwuser["PWUSER"]
-        prdata["PRDATA"]
-        pslverr["PSLVERR"]
-        pready["PREADY"]
-        pwakeup["PWAKEUP"]
-        pruser["PRUSER"]
-        pbuser["PBUSER"]
-    end
-
-    subgraph RSP["Response Interface"]
-        rv["rsp_valid"]
-        rr["rsp_ready"]
-        rd["rsp_data"]
-    end
-
-    cv --> cf
-    cd --> cf
-    cf --> cr
-
-    cf --> FSM
-    FSM --> psel
-    FSM --> pen
-    FSM --> paddr
-    FSM --> pwrite
-    FSM --> pwdata
-    FSM --> pstrb
-    FSM --> pprot
-    FSM --> pauser
-    FSM --> pwuser
-
-    prdata --> rf
-    pslverr --> rf
-    pready --> FSM
-    pwakeup --> rf
-    pruser --> rf
-    pbuser --> rf
-
-    rf --> rv
-    rf --> rd
-    rr --> rf
-```
-
----
-
-### APB5 Protocol State Machine
-
-```mermaid
-stateDiagram-v2
-    [*] --> IDLE
-
-    IDLE --> SETUP : cmd_fifo_valid
-    SETUP --> ACCESS : always
-    ACCESS --> IDLE : PREADY & cmd_fifo_empty
-    ACCESS --> SETUP : PREADY & !cmd_fifo_empty
-
-    state IDLE {
-        note right of IDLE : PSEL=0, PENABLE=0
-    }
-    state SETUP {
-        note right of SETUP : PSEL=1, PENABLE=0
-    }
-    state ACCESS {
-        note right of ACCESS : PSEL=1, PENABLE=1
-    }
-```
-
-### APB5 Extensions
-
-**User Signals:**
-- **PAUSER**: Carries user-defined attributes with the address/control phase
-- **PWUSER**: Carries user-defined attributes with write data
-- **PRUSER**: Returns user-defined attributes with read data
-- **PBUSER**: Returns user-defined attributes with the response
-
-**Wake-up Support:**
-- **PWAKEUP**: Slave can assert to indicate wake-up events
-- Captured in response packet (`rsp_pwakeup`) for software handling
-- Also latched into `wakeup_pending`, which sets on any PWAKEUP pulse and
-  clears once the FSM leaves IDLE to start a transaction
-
-**Parity Protection:**
-- Optional parity on data, address, and control signals
-- Enables detection of single-bit transmission errors
-
-See [Parity Implementation](#parity-implementation) for the exact coverage of
-each parity bit.
-
 ## Parameters
 
 | Parameter | Type | Default | Description |
@@ -182,16 +66,6 @@ each parity bit.
 whose `DEPTH` is a literal entry count -- not a log2 exponent. The default of 6
 means six buffered entries.
 
-Two further computed parameters are exposed for reference and should not be
-overridden:
-
-| Parameter | Formula | Default value |
-|-----------|---------|---------------|
-| CPW | ADDR_WIDTH + DATA_WIDTH + STRB_WIDTH + PROT_WIDTH + AUSER_WIDTH + WUSER_WIDTH + 1 | 80 |
-| RPW | DATA_WIDTH + RUSER_WIDTH + BUSER_WIDTH + 2 | 42 |
-
----
-
 ### Derived Parameters (do not override)
 
 These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
@@ -206,6 +80,14 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | `WUW` | `WUSER_WIDTH` |
 | `RUW` | `RUSER_WIDTH` |
 | `BUW` | `BUSER_WIDTH` |
+| `CPW` | `ADDR_WIDTH + DATA_WIDTH + STRB_WIDTH + PROT_WIDTH + AUSER_WIDTH + WUSER_WIDTH + 1` |
+| `RPW` | `DATA_WIDTH + RUSER_WIDTH + BUSER_WIDTH + 2` |
+
+Two further computed parameters, `CPW` and `RPW`, are exposed for reference and
+should not be overridden either; with the default widths they evaluate to 80
+and 42 respectively.
+
+---
 
 ## Ports
 
@@ -283,6 +165,123 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 
 ---
 
+## Functional Description
+
+```mermaid
+flowchart LR
+    subgraph CMD["Command Interface"]
+        cv["cmd_valid"]
+        cr["cmd_ready"]
+        cd["cmd_data"]
+    end
+
+    subgraph FIFO["Internal FIFOs"]
+        cf["Command<br/>FIFO"]
+        rf["Response<br/>FIFO"]
+    end
+
+    subgraph FSM["APB5 FSM"]
+        idle["IDLE"]
+        setup["SETUP"]
+        access["ACCESS"]
+    end
+
+    subgraph APB5["APB5 Master Interface"]
+        psel["PSEL"]
+        pen["PENABLE"]
+        paddr["PADDR"]
+        pwrite["PWRITE"]
+        pwdata["PWDATA"]
+        pstrb["PSTRB"]
+        pprot["PPROT"]
+        pauser["PAUSER"]
+        pwuser["PWUSER"]
+        prdata["PRDATA"]
+        pslverr["PSLVERR"]
+        pready["PREADY"]
+        pwakeup["PWAKEUP"]
+        pruser["PRUSER"]
+        pbuser["PBUSER"]
+    end
+
+    subgraph RSP["Response Interface"]
+        rv["rsp_valid"]
+        rr["rsp_ready"]
+        rd["rsp_data"]
+    end
+
+    cv --> cf
+    cd --> cf
+    cf --> cr
+
+    cf --> FSM
+    FSM --> psel
+    FSM --> pen
+    FSM --> paddr
+    FSM --> pwrite
+    FSM --> pwdata
+    FSM --> pstrb
+    FSM --> pprot
+    FSM --> pauser
+    FSM --> pwuser
+
+    prdata --> rf
+    pslverr --> rf
+    pready --> FSM
+    pwakeup --> rf
+    pruser --> rf
+    pbuser --> rf
+
+    rf --> rv
+    rf --> rd
+    rr --> rf
+```
+
+### APB5 Protocol State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE
+
+    IDLE --> SETUP : cmd_fifo_valid
+    SETUP --> ACCESS : always
+    ACCESS --> IDLE : PREADY & cmd_fifo_empty
+    ACCESS --> SETUP : PREADY & !cmd_fifo_empty
+
+    state IDLE {
+        note right of IDLE : PSEL=0, PENABLE=0
+    }
+    state SETUP {
+        note right of SETUP : PSEL=1, PENABLE=0
+    }
+    state ACCESS {
+        note right of ACCESS : PSEL=1, PENABLE=1
+    }
+```
+
+### APB5 Extensions
+
+**User Signals:**
+- **PAUSER**: Carries user-defined attributes with the address/control phase
+- **PWUSER**: Carries user-defined attributes with write data
+- **PRUSER**: Returns user-defined attributes with read data
+- **PBUSER**: Returns user-defined attributes with the response
+
+**Wake-up Support:**
+- **PWAKEUP**: Slave can assert to indicate wake-up events
+- Captured in response packet (`rsp_pwakeup`) for software handling
+- Also latched into `wakeup_pending`, which sets on any PWAKEUP pulse and
+  clears once the FSM leaves IDLE to start a transaction
+
+**Parity Protection:**
+- Optional parity on data, address, and control signals
+- Enables detection of single-bit transmission errors
+
+See [Parity Implementation](#parity-implementation) for the exact coverage of
+each parity bit.
+
+---
+
 ## Timing Characteristics
 
 ### Basic Write Transaction
@@ -334,6 +333,7 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 ---
 
 ## Usage Examples
+
 ```systemverilog
 apb5_master #(
     .ADDR_WIDTH     (32),
@@ -453,6 +453,7 @@ stages, so it costs no additional latency.
 ---
 
 ## Related Modules
+
 - **[APB5 Slave](apb5_slave.md)** - APB5 slave interface
 - **[APB5 Master CG](apb5_master_cg.md)** - Clock-gated variant
 - **[APB5 Monitor](../apb5/apb5_monitor.md)** - Protocol monitor

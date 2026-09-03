@@ -45,95 +45,6 @@ The APB5 Slave module implements a complete AMBA APB5 slave interface with all A
 
 ---
 
-## Functional Description
-```mermaid
-flowchart LR
-    subgraph APB5["APB5 Slave Interface"]
-        psel["PSEL"]
-        pen["PENABLE"]
-        paddr["PADDR"]
-        pwrite["PWRITE"]
-        pwdata["PWDATA"]
-        pstrb["PSTRB"]
-        pprot["PPROT"]
-        pauser["PAUSER"]
-        pwuser["PWUSER"]
-        pready["PREADY"]
-        prdata["PRDATA"]
-        pslverr["PSLVERR"]
-        pwakeup["PWAKEUP"]
-        pruser["PRUSER"]
-        pbuser["PBUSER"]
-    end
-
-    subgraph CTRL["Control Logic"]
-        fsm["APB5<br/>FSM"]
-        buf["Skid<br/>Buffer"]
-    end
-
-    subgraph CMD["Command Interface"]
-        cv["cmd_valid"]
-        cr["cmd_ready"]
-        cd["cmd_data"]
-    end
-
-    subgraph RSP["Response Interface"]
-        rv["rsp_valid"]
-        rr["rsp_ready"]
-        rd["rsp_data"]
-    end
-
-    psel --> fsm
-    pen --> fsm
-    paddr --> buf
-    pwrite --> buf
-    pwdata --> buf
-    pstrb --> buf
-    pprot --> buf
-    pauser --> buf
-    pwuser --> buf
-
-    fsm --> pready
-    buf --> cv
-    buf --> cd
-    cr --> buf
-
-    rv --> fsm
-    rd --> prdata
-    rd --> pslverr
-    rd --> pruser
-    rd --> pbuser
-    rr --> fsm
-
-    fsm --> pwakeup
-```
-
----
-
-### APB5 Slave Protocol
-
-The slave responds to APB transactions with proper timing:
-
-1. **SETUP Phase**: PSEL=1, PENABLE=0 - Capture address and control
-2. **ACCESS Phase**: PSEL=1, PENABLE=1 - Assert PREADY when response ready
-
-### Response Timing
-
-```mermaid
-sequenceDiagram
-    participant M as APB Master
-    participant S as APB5 Slave
-    participant B as Backend
-
-    M->>S: PSEL=1, PADDR, PWRITE, PAUSER
-    Note over S: SETUP phase
-    M->>S: PENABLE=1
-    Note over S: ACCESS phase
-    S->>B: cmd_valid, cmd_data
-    B->>S: rsp_valid, rsp_data
-    S->>M: PREADY=1, PRDATA, PRUSER, PBUSER
-```
-
 ## Parameters
 
 | Parameter | Type | Default | Description |
@@ -152,8 +63,6 @@ sequenceDiagram
 `DEPTH` sets both the command and the response `gaxi_skid_buffer` depth. It is a
 literal entry count, not a log2 exponent.
 
----
-
 ### Derived Parameters (do not override)
 
 These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
@@ -170,6 +79,8 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | `BUW` | `BUSER_WIDTH` |
 | `CPW` | `AW + DW + SW + PW + AUW + WUW + 1` |
 | `RPW` | `DW + RUW + BUW + 1` |
+
+---
 
 ## Ports
 
@@ -251,6 +162,96 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 
 ---
 
+## Functional Description
+
+```mermaid
+flowchart LR
+    subgraph APB5["APB5 Slave Interface"]
+        psel["PSEL"]
+        pen["PENABLE"]
+        paddr["PADDR"]
+        pwrite["PWRITE"]
+        pwdata["PWDATA"]
+        pstrb["PSTRB"]
+        pprot["PPROT"]
+        pauser["PAUSER"]
+        pwuser["PWUSER"]
+        pready["PREADY"]
+        prdata["PRDATA"]
+        pslverr["PSLVERR"]
+        pwakeup["PWAKEUP"]
+        pruser["PRUSER"]
+        pbuser["PBUSER"]
+    end
+
+    subgraph CTRL["Control Logic"]
+        fsm["APB5<br/>FSM"]
+        buf["Skid<br/>Buffer"]
+    end
+
+    subgraph CMD["Command Interface"]
+        cv["cmd_valid"]
+        cr["cmd_ready"]
+        cd["cmd_data"]
+    end
+
+    subgraph RSP["Response Interface"]
+        rv["rsp_valid"]
+        rr["rsp_ready"]
+        rd["rsp_data"]
+    end
+
+    psel --> fsm
+    pen --> fsm
+    paddr --> buf
+    pwrite --> buf
+    pwdata --> buf
+    pstrb --> buf
+    pprot --> buf
+    pauser --> buf
+    pwuser --> buf
+
+    fsm --> pready
+    buf --> cv
+    buf --> cd
+    cr --> buf
+
+    rv --> fsm
+    rd --> prdata
+    rd --> pslverr
+    rd --> pruser
+    rd --> pbuser
+    rr --> fsm
+
+    fsm --> pwakeup
+```
+
+### APB5 Slave Protocol
+
+The slave responds to APB transactions with proper timing:
+
+1. **SETUP Phase**: PSEL=1, PENABLE=0 - Capture address and control
+2. **ACCESS Phase**: PSEL=1, PENABLE=1 - Assert PREADY when response ready
+
+### Response Timing
+
+```mermaid
+sequenceDiagram
+    participant M as APB Master
+    participant S as APB5 Slave
+    participant B as Backend
+
+    M->>S: PSEL=1, PADDR, PWRITE, PAUSER
+    Note over S: SETUP phase
+    M->>S: PENABLE=1
+    Note over S: ACCESS phase
+    S->>B: cmd_valid, cmd_data
+    B->>S: rsp_valid, rsp_data
+    S->>M: PREADY=1, PRDATA, PRUSER, PBUSER
+```
+
+---
+
 ## Timing Characteristics
 
 ### Write Transaction with Wait States
@@ -300,6 +301,7 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 ---
 
 ## Usage Examples
+
 ```systemverilog
 apb5_slave #(
     .ADDR_WIDTH     (32),
@@ -412,6 +414,7 @@ itself convert them into PSLVERR -- that policy is left to the integrator.
 ---
 
 ## Related Modules
+
 - **[APB5 Master](apb5_master.md)** - APB5 master interface
 - **[APB5 Slave CG](apb5_slave_cg.md)** - Clock-gated variant
 - **[APB5 Slave CDC](apb5_slave_cdc.md)** - Clock domain crossing variant

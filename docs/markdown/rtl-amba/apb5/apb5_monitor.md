@@ -55,7 +55,144 @@ deferred rather than half-wired.
 
 ---
 
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| ADDR_WIDTH | int | 32 | APB address bus width |
+| DATA_WIDTH | int | 32 | APB data bus width |
+| AUSER_WIDTH | int | 4 | Address user signal width |
+| WUSER_WIDTH | int | 4 | Write user signal width |
+| RUSER_WIDTH | int | 4 | Read user signal width |
+| BUSER_WIDTH | int | 4 | Response user signal width |
+| UNIT_ID | logic [7:0] | 8'h01 | 8-bit unit identifier |
+| AGENT_ID | logic [15:0] | 16'h000A | 16-bit agent identifier |
+| MAX_TRANSACTIONS | int | 4 | Maximum concurrent transactions |
+| MONITOR_FIFO_DEPTH | int | 8 | Monitor packet FIFO depth |
+| ENABLE_PARITY_MON | bit | 0 | Enable parity monitoring |
+| N_ADDR_RANGES | int | 0 | Number of `apb_monitor_addr_check` comparators. 0 = address-range checker not synthesized |
+| USE_MONITOR | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
+
+### Derived Parameters (do not override)
+
+These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
+
+| Derived parameter | Default expression |
+|---|---|
+| `AW` | `ADDR_WIDTH` |
+| `DW` | `DATA_WIDTH` |
+| `SW` | `DW/8` |
+| `AUW` | `AUSER_WIDTH` |
+| `WUW` | `WUSER_WIDTH` |
+| `RUW` | `RUSER_WIDTH` |
+| `BUW` | `BUSER_WIDTH` |
+
+---
+
+## Ports
+
+### Clock and Reset
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| aclk | 1 | Input | Monitor clock |
+| aresetn | 1 | Input | Monitor reset (active low) |
+
+### Command Interface Monitoring
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| cmd_valid | 1 | Input | Command valid signal |
+| cmd_ready | 1 | Input | Command ready signal |
+| cmd_pwrite | 1 | Input | Write/read indicator |
+| cmd_paddr | ADDR_WIDTH | Input | Command address |
+| cmd_pwdata | DATA_WIDTH | Input | Command write data |
+| cmd_pstrb | STRB_WIDTH | Input | Write byte strobes |
+| cmd_pprot | 3 | Input | Protection attributes |
+| cmd_pauser | AUSER_WIDTH | Input | Address user signal |
+| cmd_pwuser | WUSER_WIDTH | Input | Write user signal |
+
+### Response Interface Monitoring
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| rsp_valid | 1 | Input | Response valid signal |
+| rsp_ready | 1 | Input | Response ready signal |
+| rsp_prdata | DATA_WIDTH | Input | Response read data |
+| rsp_pslverr | 1 | Input | Slave error response |
+| rsp_pruser | RUSER_WIDTH | Input | Read user signal |
+| rsp_pbuser | BUSER_WIDTH | Input | Response user signal |
+
+### APB5 Extension Monitoring
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| apb5_pwakeup | 1 | Input | APB5 wake-up signal |
+| parity_error_wdata | 1 | Input | Write data parity error |
+| parity_error_rdata | 1 | Input | Read data parity error |
+| parity_error_ctrl | 1 | Input | Control parity error |
+
+### Configuration Inputs
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| cfg_error_enable | 1 | Input | Enable error reporting |
+| cfg_timeout_enable | 1 | Input | Enable timeout detection |
+| cfg_protocol_enable | 1 | Input | Enable protocol checking |
+| cfg_slverr_enable | 1 | Input | Enable SLVERR reporting |
+| cfg_parity_enable | 1 | Input | Enable parity error reporting |
+| cfg_wakeup_enable | 1 | Input | Enable wake-up event reporting |
+| cfg_user_enable | 1 | Input | Enable user signal reporting |
+| cfg_perf_enable | 1 | Input | Enable performance reporting |
+| cfg_latency_enable | 1 | Input | Enable latency threshold |
+| cfg_cmd_timeout_cnt | 16 | Input | Command timeout threshold |
+| cfg_rsp_timeout_cnt | 16 | Input | Response timeout threshold |
+| cfg_latency_threshold | 32 | Input | Latency threshold value |
+| cfg_wakeup_timeout_cnt | 16 | Input | Wake-up timeout threshold |
+
+### Address-Range Checker Configuration
+
+Active only when `N_ADDR_RANGES > 0`; otherwise these inputs are ignored and the
+`apb_monitor_addr_check` block is not synthesized. Range-violation packets are
+merged onto the monitor bus at lower priority than the event FIFO.
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| cfg_addr_check_enable | 1 | Input | Master enable for the address-range checker |
+| cfg_addr_range_enable | N_ADDR_RANGES | Input | Per-range enable bit vector |
+| cfg_addr_range_low | N_ADDR_RANGES × ADDR_WIDTH | Input | Per-range low (inclusive) bounds |
+| cfg_addr_range_high | N_ADDR_RANGES × ADDR_WIDTH | Input | Per-range high (inclusive) bounds |
+
+### Monitor Bus Output
+
+The APB5 monitor emits the standard **128-bit `monitor_packet_t`** plus the 64-bit
+side-band `monbus_timestamp`, identical to `apb4_monitor`. `i_mon_time` is the
+free-running monitor-time broadcast from the `monbus_group` family; FIFO events
+sample it at emission; address-range packets sample it the same way --
+`apb_monitor_addr_check` holds no timestamp register, so the value is the
+emission-cycle time, not a match-cycle latch.
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| i_mon_time | 64 | Input | Free-running monitor-time broadcast |
+| monbus_valid | 1 | Output | Monitor packet valid |
+| monbus_ready | 1 | Input | Monitor bus ready |
+| monbus_packet | 128 | Output | 128-bit monitor packet (see format below) |
+| monbus_timestamp | 64 | Output | Side-band time sampled at emission |
+
+### Status Outputs
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| active_count | 8 | Output | Active transaction count |
+| error_count | 16 | Output | Total error count |
+| transaction_count | 32 | Output | Total transaction count |
+| wakeup_active | 1 | Output | Wake-up currently active |
+
+---
+
 ## Functional Description
+
 ```mermaid
 flowchart TB
     subgraph INPUTS["Monitored Interfaces"]
@@ -96,11 +233,9 @@ flowchart TB
     skid --> monbus
 ```
 
----
-
 ### Monitor Packet Format
 
-### 128-bit Packet Structure
+#### 128-bit Packet Structure
 
 The APB5 monitor drives the standard 128-bit packet built by
 `monitor_common_pkg::create_monitor_packet`, paired with the 64-bit side-band
@@ -209,7 +344,7 @@ Events are generated with the following priority (highest first):
 
 ### Wake-up Monitoring
 
-### Wake-up Detection
+#### Wake-up Detection
 
 ```mermaid
 sequenceDiagram
@@ -228,142 +363,9 @@ sequenceDiagram
     Note over MON: Stop wake-up timer
 ```
 
-### Wake-up Timeout
+#### Wake-up Timeout
 
 If PWAKEUP remains high longer than `cfg_wakeup_timeout_cnt`, a timeout event is generated.
-## Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| ADDR_WIDTH | int | 32 | APB address bus width |
-| DATA_WIDTH | int | 32 | APB data bus width |
-| AUSER_WIDTH | int | 4 | Address user signal width |
-| WUSER_WIDTH | int | 4 | Write user signal width |
-| RUSER_WIDTH | int | 4 | Read user signal width |
-| BUSER_WIDTH | int | 4 | Response user signal width |
-| UNIT_ID | logic [7:0] | 8'h01 | 8-bit unit identifier |
-| AGENT_ID | logic [15:0] | 16'h000A | 16-bit agent identifier |
-| MAX_TRANSACTIONS | int | 4 | Maximum concurrent transactions |
-| MONITOR_FIFO_DEPTH | int | 8 | Monitor packet FIFO depth |
-| ENABLE_PARITY_MON | bit | 0 | Enable parity monitoring |
-| N_ADDR_RANGES | int | 0 | Number of `apb_monitor_addr_check` comparators. 0 = address-range checker not synthesized |
-| USE_MONITOR | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
-
----
-
-### Derived Parameters (do not override)
-
-These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
-
-| Derived parameter | Default expression |
-|---|---|
-| `AW` | `ADDR_WIDTH` |
-| `DW` | `DATA_WIDTH` |
-| `SW` | `DW/8` |
-| `AUW` | `AUSER_WIDTH` |
-| `WUW` | `WUSER_WIDTH` |
-| `RUW` | `RUSER_WIDTH` |
-| `BUW` | `BUSER_WIDTH` |
-
-## Ports
-
-### Clock and Reset
-
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| aclk | 1 | Input | Monitor clock |
-| aresetn | 1 | Input | Monitor reset (active low) |
-
-### Command Interface Monitoring
-
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| cmd_valid | 1 | Input | Command valid signal |
-| cmd_ready | 1 | Input | Command ready signal |
-| cmd_pwrite | 1 | Input | Write/read indicator |
-| cmd_paddr | ADDR_WIDTH | Input | Command address |
-| cmd_pwdata | DATA_WIDTH | Input | Command write data |
-| cmd_pstrb | STRB_WIDTH | Input | Write byte strobes |
-| cmd_pprot | 3 | Input | Protection attributes |
-| cmd_pauser | AUSER_WIDTH | Input | Address user signal |
-| cmd_pwuser | WUSER_WIDTH | Input | Write user signal |
-
-### Response Interface Monitoring
-
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| rsp_valid | 1 | Input | Response valid signal |
-| rsp_ready | 1 | Input | Response ready signal |
-| rsp_prdata | DATA_WIDTH | Input | Response read data |
-| rsp_pslverr | 1 | Input | Slave error response |
-| rsp_pruser | RUSER_WIDTH | Input | Read user signal |
-| rsp_pbuser | BUSER_WIDTH | Input | Response user signal |
-
-### APB5 Extension Monitoring
-
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| apb5_pwakeup | 1 | Input | APB5 wake-up signal |
-| parity_error_wdata | 1 | Input | Write data parity error |
-| parity_error_rdata | 1 | Input | Read data parity error |
-| parity_error_ctrl | 1 | Input | Control parity error |
-
-### Configuration Inputs
-
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| cfg_error_enable | 1 | Input | Enable error reporting |
-| cfg_timeout_enable | 1 | Input | Enable timeout detection |
-| cfg_protocol_enable | 1 | Input | Enable protocol checking |
-| cfg_slverr_enable | 1 | Input | Enable SLVERR reporting |
-| cfg_parity_enable | 1 | Input | Enable parity error reporting |
-| cfg_wakeup_enable | 1 | Input | Enable wake-up event reporting |
-| cfg_user_enable | 1 | Input | Enable user signal reporting |
-| cfg_perf_enable | 1 | Input | Enable performance reporting |
-| cfg_latency_enable | 1 | Input | Enable latency threshold |
-| cfg_cmd_timeout_cnt | 16 | Input | Command timeout threshold |
-| cfg_rsp_timeout_cnt | 16 | Input | Response timeout threshold |
-| cfg_latency_threshold | 32 | Input | Latency threshold value |
-| cfg_wakeup_timeout_cnt | 16 | Input | Wake-up timeout threshold |
-
-### Address-Range Checker Configuration
-
-Active only when `N_ADDR_RANGES > 0`; otherwise these inputs are ignored and the
-`apb_monitor_addr_check` block is not synthesized. Range-violation packets are
-merged onto the monitor bus at lower priority than the event FIFO.
-
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| cfg_addr_check_enable | 1 | Input | Master enable for the address-range checker |
-| cfg_addr_range_enable | N_ADDR_RANGES | Input | Per-range enable bit vector |
-| cfg_addr_range_low | N_ADDR_RANGES × ADDR_WIDTH | Input | Per-range low (inclusive) bounds |
-| cfg_addr_range_high | N_ADDR_RANGES × ADDR_WIDTH | Input | Per-range high (inclusive) bounds |
-
-### Monitor Bus Output
-
-The APB5 monitor emits the standard **128-bit `monitor_packet_t`** plus the 64-bit
-side-band `monbus_timestamp`, identical to `apb4_monitor`. `i_mon_time` is the
-free-running monitor-time broadcast from the `monbus_group` family; FIFO events
-sample it at emission; address-range packets sample it the same way --
-`apb_monitor_addr_check` holds no timestamp register, so the value is the
-emission-cycle time, not a match-cycle latch.
-
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| i_mon_time | 64 | Input | Free-running monitor-time broadcast |
-| monbus_valid | 1 | Output | Monitor packet valid |
-| monbus_ready | 1 | Input | Monitor bus ready |
-| monbus_packet | 128 | Output | 128-bit monitor packet (see format below) |
-| monbus_timestamp | 64 | Output | Side-band time sampled at emission |
-
-### Status Outputs
-
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| active_count | 8 | Output | Active transaction count |
-| error_count | 16 | Output | Total error count |
-| transaction_count | 32 | Output | Total transaction count |
-| wakeup_active | 1 | Output | Wake-up currently active |
 
 ---
 
@@ -385,6 +387,7 @@ measured.
 ---
 
 ## Usage Examples
+
 ```systemverilog
 apb5_monitor #(
     .ADDR_WIDTH         (32),
@@ -482,11 +485,7 @@ apb5_monitor #(
 - Monitor FIFO depth configurable via `MONITOR_FIFO_DEPTH`
 - Output skid buffer ensures no backpressure stalls
 
----
-
 ### Configuration Guidelines
-
-### Recommended Configurations
 
 **Functional Debug:**
 ```systemverilog
@@ -505,7 +504,11 @@ apb5_monitor #(
 .cfg_latency_enable (1'b1),
 .cfg_wakeup_enable  (1'b0)   // Disable non-essential
 ```
+
+---
+
 ## Related Modules
+
 - **[APB5 Master](../apb5/apb5_master.md)** - APB5 master interface
 - **[APB5 Slave](../apb5/apb5_slave.md)** - APB5 slave interface
 - **[Monitor Packet Format](../includes/monitor_package_spec.md)** - Standard packet format
@@ -525,6 +528,6 @@ pytest val/amba/test_apb5_monitor.py -v
 
 ## Navigation
 
-- **[<- Back to APB5 Index](../_book_monitor_index.md)**
-- **[<- Back to rtl-amba Index](../index.md)**
-- **[<- Back to Main Documentation Index](../../index.md)**
+- **[← Back to APB5 Index](../_book_monitor_index.md)**
+- **[← Back to rtl-amba Index](../index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

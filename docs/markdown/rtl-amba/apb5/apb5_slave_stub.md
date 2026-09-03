@@ -44,123 +44,6 @@ The APB5 Slave Stub provides a simplified packed-data interface for responding t
 
 ---
 
-## Functional Description
-```mermaid
-flowchart LR
-    subgraph APB5["APB5 Bus"]
-        s_apb["APB5<br/>Slave IF"]
-    end
-
-    subgraph STUB["APB5 Slave Stub"]
-        fsm["APB5<br/>FSM"]
-        cmd_skid["Command<br/>Skid Buffer"]
-        rsp_skid["Response<br/>Skid Buffer"]
-        parity["Parity<br/>Logic"]
-    end
-
-    subgraph PACKED["Packed Interface"]
-        cmd_pkt["Command<br/>Packet"]
-        rsp_pkt["Response<br/>Packet"]
-    end
-
-    s_apb --> fsm
-    fsm --> cmd_skid
-    cmd_skid --> cmd_pkt
-
-    rsp_pkt --> rsp_skid
-    rsp_skid --> fsm
-    fsm --> s_apb
-
-    s_apb <--> parity
-```
-
----
-
-### Packet Formats
-
-### Command Packet Structure
-
-```
-cmd_data = {pwrite, pprot, pstrb, paddr, pwdata, pauser, pwuser}
-```
-
-| Field | Width | Description |
-|-------|-------|-------------|
-| pwrite | 1 | Write/read indicator |
-| pprot | PROT_WIDTH | Protection attributes |
-| pstrb | STRB_WIDTH | Write byte strobes |
-| paddr | ADDR_WIDTH | Transaction address |
-| pwdata | DATA_WIDTH | Write data |
-| pauser | AUSER_WIDTH | Address user signal |
-| pwuser | WUSER_WIDTH | Write user signal |
-
-### Response Packet Structure
-
-```
-rsp_data = {pslverr, prdata, pruser, pbuser}
-```
-
-| Field | Width | Description |
-|-------|-------|-------------|
-| pslverr | 1 | Error response |
-| prdata | DATA_WIDTH | Read data |
-| pruser | RUSER_WIDTH | Read user signal |
-| pbuser | BUSER_WIDTH | Response user signal |
-
-### State Machine
-
-```mermaid
-stateDiagram-v2
-    [*] --> IDLE
-
-    IDLE --> XFER_DATA : PSEL & PENABLE & cmd_ready
-    XFER_DATA --> IDLE : rsp_valid
-
-    state IDLE {
-        note right of IDLE : Wait for APB access
-    }
-    state XFER_DATA {
-        note right of XFER_DATA : Wait for backend response
-    }
-```
-
-### State Descriptions
-
-| State | Description |
-|-------|-------------|
-| IDLE | Waiting for APB transaction (PSEL & PENABLE) |
-| XFER_DATA | Command sent, waiting for response from backend |
-
-### Transaction Flow
-
-### Read Transaction
-
-```mermaid
-sequenceDiagram
-    participant M as APB Master
-    participant STUB as APB5 Slave Stub
-    participant BE as Backend
-
-    M->>STUB: PSEL=1, PADDR, PWRITE=0
-    M->>STUB: PENABLE=1
-    Note over STUB: Pack command
-    STUB->>BE: cmd_valid, cmd_data
-    BE-->>STUB: rsp_valid, rsp_data
-    Note over STUB: Unpack response
-    STUB-->>M: PREADY=1, PRDATA
-```
-
-### Timing
-
-<!-- TODO: Add wavedrom timing diagram for slave stub -->
-> **Timing diagram pending.** The signals and sequence this scenario
-> exercises:
->
-> - pclk
-> - APB signals (PSEL, PENABLE, PADDR, PWRITE, PREADY, PRDATA)
-> - cmd_valid, cmd_ready, cmd_data
-> - rsp_valid, rsp_ready, rsp_data
-> - State transitions IDLE -> XFER_DATA -> IDLE
 ## Parameters
 
 | Parameter | Type | Default | Description |
@@ -197,8 +80,6 @@ Unlike [apb5_master_stub](apb5_master_stub.md), the slave stub packets carry no
 `first`/`last` markers and no `pwakeup` bit, so the two stubs' packet widths are
 not interchangeable.
 
----
-
 ### Derived Parameters (do not override)
 
 These are declared as `parameter` so the elaborator can compute them, not so callers can set them. Each defaults to an expression over the parameters above; overriding one desynchronises it from its source and the design fails to elaborate or silently mis-sizes a bus. Set the parameters they are derived FROM and leave these alone.
@@ -213,6 +94,8 @@ These are declared as `parameter` so the elaborator can compute them, not so cal
 | `WUW` | `WUSER_WIDTH` |
 | `CPW` | `CMD_PACKET_WIDTH` |
 | `RPW` | `RESP_PACKET_WIDTH` |
+
+---
 
 ## Ports
 
@@ -283,7 +166,124 @@ identical to [apb5_slave](apb5_slave.md#parity-implementation).
 
 ---
 
+## Functional Description
+
+```mermaid
+flowchart LR
+    subgraph APB5["APB5 Bus"]
+        s_apb["APB5<br/>Slave IF"]
+    end
+
+    subgraph STUB["APB5 Slave Stub"]
+        fsm["APB5<br/>FSM"]
+        cmd_skid["Command<br/>Skid Buffer"]
+        rsp_skid["Response<br/>Skid Buffer"]
+        parity["Parity<br/>Logic"]
+    end
+
+    subgraph PACKED["Packed Interface"]
+        cmd_pkt["Command<br/>Packet"]
+        rsp_pkt["Response<br/>Packet"]
+    end
+
+    s_apb --> fsm
+    fsm --> cmd_skid
+    cmd_skid --> cmd_pkt
+
+    rsp_pkt --> rsp_skid
+    rsp_skid --> fsm
+    fsm --> s_apb
+
+    s_apb <--> parity
+```
+
+### Packet Formats
+
+#### Command Packet Structure
+
+```
+cmd_data = {pwrite, pprot, pstrb, paddr, pwdata, pauser, pwuser}
+```
+
+| Field | Width | Description |
+|-------|-------|-------------|
+| pwrite | 1 | Write/read indicator |
+| pprot | PROT_WIDTH | Protection attributes |
+| pstrb | STRB_WIDTH | Write byte strobes |
+| paddr | ADDR_WIDTH | Transaction address |
+| pwdata | DATA_WIDTH | Write data |
+| pauser | AUSER_WIDTH | Address user signal |
+| pwuser | WUSER_WIDTH | Write user signal |
+
+#### Response Packet Structure
+
+```
+rsp_data = {pslverr, prdata, pruser, pbuser}
+```
+
+| Field | Width | Description |
+|-------|-------|-------------|
+| pslverr | 1 | Error response |
+| prdata | DATA_WIDTH | Read data |
+| pruser | RUSER_WIDTH | Read user signal |
+| pbuser | BUSER_WIDTH | Response user signal |
+
+### State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE
+
+    IDLE --> XFER_DATA : PSEL & PENABLE & cmd_ready
+    XFER_DATA --> IDLE : rsp_valid
+
+    state IDLE {
+        note right of IDLE : Wait for APB access
+    }
+    state XFER_DATA {
+        note right of XFER_DATA : Wait for backend response
+    }
+```
+
+### State Descriptions
+
+| State | Description |
+|-------|-------------|
+| IDLE | Waiting for APB transaction (PSEL & PENABLE) |
+| XFER_DATA | Command sent, waiting for response from backend |
+
+### Transaction Flow
+
+#### Read Transaction
+
+```mermaid
+sequenceDiagram
+    participant M as APB Master
+    participant STUB as APB5 Slave Stub
+    participant BE as Backend
+
+    M->>STUB: PSEL=1, PADDR, PWRITE=0
+    M->>STUB: PENABLE=1
+    Note over STUB: Pack command
+    STUB->>BE: cmd_valid, cmd_data
+    BE-->>STUB: rsp_valid, rsp_data
+    Note over STUB: Unpack response
+    STUB-->>M: PREADY=1, PRDATA
+```
+
+---
+
 ## Timing Characteristics
+
+<!-- TODO: Add wavedrom timing diagram for slave stub -->
+> **Timing diagram pending.** The signals and sequence this scenario
+> exercises:
+>
+> - pclk
+> - APB signals (PSEL, PENABLE, PADDR, PWRITE, PREADY, PRDATA)
+> - cmd_valid, cmd_ready, cmd_data
+> - rsp_valid, rsp_ready, rsp_data
+> - State transitions IDLE -> XFER_DATA -> IDLE
 
 This module is **sequential**: it contains clocked logic (via `always_ff` or
 the repository's `ALWAYS_FF_RST` macro) and therefore holds state. Outputs
@@ -301,6 +301,7 @@ measured.
 ---
 
 ## Usage Examples
+
 ```systemverilog
 apb5_slave_stub #(
     .DEPTH          (4),
@@ -408,6 +409,7 @@ The `wakeup_request` input is registered before driving `s_apb_PWAKEUP`:
 ---
 
 ## Related Modules
+
 - **[APB5 Slave](apb5_slave.md)** - Full slave module
 - **[APB5 Master Stub](apb5_master_stub.md)** - Corresponding master stub
 
