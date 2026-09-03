@@ -1,0 +1,40 @@
+# Genesys 2 STREAM obs build -- register-block refactor, board validation
+# bitstream stream_mon_8ch_obs_obsmaster_obsslave.bit
+# sha256 610b8e349051f36497d8b117e0078391f26fe2dfd805f228525e5449476cc8ab
+# WNS +0.432 ns, 90.000 MHz (clk_unbuf), xc7k325t
+# generics: NUM_CHANNELS=8 USE_AXI_MONITORS=0 OBS_ENABLE_MON_TAPS=1 MON_ERROR_FLAVOR=2
+#
+# What this bitstream is the first to carry:
+#   - harness_csr registers GENERATED from regs/harness_csr_regs.rdl instead of
+#     a hand-written 57-case write / 64-case read decode
+#   - monbus_tally_axil control registers generated from tally_regs.rdl instead
+#     of five hardcoded localparam offsets
+#   - BUILD_CONFIG driving all six fields (four were left undriven by the
+#     conversion; USE_MONITORS is the bit the host reads to pick the monbus
+#     capture window, so undriven would have aimed records at the wrong slave)
+
+REGISTER WALK -- 6 endpoints, 290 registers, ALL PASS
+  stream_apb        140   PASS
+  harness_csr        64   PASS   generated regblock
+  slvmon_apb         38   PASS
+  obs_apb            38   PASS
+  stream_tally_cfg    5   PASS   generated regblock; UNREACHABLE before this
+  slave_tally_cfg     5   PASS   generated regblock; UNREACHABLE before this
+
+  Both tally windows were unwalkable until now: the registers were hardcoded
+  localparams and the read decode ignored the high address bits, so a read of
+  0x100 aliased onto the ID word.
+
+OBSERVER CAMPAIGN -- 5 iterations, 8 desc x 64 KB, channel 0
+  stream total  1426061     slave total  1426061
+  TOTAL PACKETS BINNED: 2852122
+  The two observers watch opposite ends of the same traffic and agree EXACTLY.
+  This is the functional proof of the tally regblock's CAM path -- the swmod
+  write strobe plus the one-cycle load delay that fixed a histogram shifted by
+  one entry.
+
+DMA SWEEP -- 40 scenarios
+  40 passed, 0 failed
+  Cycle-identical to the pre-regblock obs sweep : 40/40
+  Cycle-identical to the perf sweep (100 MHz)   : 40/40
+  So the register-block conversion changed no cycle of DMA behaviour.
