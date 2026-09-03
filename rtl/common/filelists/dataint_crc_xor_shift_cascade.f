@@ -8,4 +8,6 @@
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 
 # dataint_crc_xor_shift_cascade module
+# the cascade instantiates this; without it the filelist cannot elaborate
+$REPO_ROOT/rtl/common/dataint_crc_xor_shift.sv
 $REPO_ROOT/rtl/common/dataint_crc_xor_shift_cascade.sv

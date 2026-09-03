@@ -83,6 +83,51 @@ def port_name(tail: str):
     return ids[-1] if ids else None
 
 
+RE_ELIDED_RUN = re.compile(
+    r'([A-Za-z0-9_]{4,})((?:\s*/\s*_[A-Za-z0-9_]+)+)')
+
+
+def expand_elided_runs(text):
+    """One row listing a family with the shared prefix elided after the first.
+
+    The axil4 monbus pages write the eight compressor counters as
+    "mon_compressor_stat_tier1_a / _tier1_b / _tier1_c / _tier0 / _cam_miss /
+    ..." -- every name is present, but only the first is spelled in full.
+
+    Each continuation is re-attached to every underscore-boundary prefix of the
+    leading name, because which boundary is the shared stem is not knowable
+    from the text alone (_tier1_b attaches to mon_compressor_stat, not to
+    mon_compressor_stat_tier1). Only names matching a real port are ever
+    consulted, so the surplus candidates are inert.
+    """
+    out = []
+    for base, run in RE_ELIDED_RUN.findall(text):
+        parts = base.split('_')
+        stems = ['_'.join(parts[:i]) for i in range(1, len(parts) + 1)]
+        for cont in re.findall(r'_([A-Za-z0-9_]+)', run):
+            out += [f'{st}_{cont}' for st in stems]
+    return ' '.join(out)
+
+
+RE_WILDCARD = re.compile(r'`([A-Za-z0-9_]{7,}?)_?\*`')
+
+
+def wildcard_families(text):
+    """Families the page documents with a glob rather than one row each.
+
+    The monbus group pages carry a row for `mon_compressor_stat_*` (output,
+    32 each) and prose naming the three mask groups `cfg_axi_*`, `cfg_axis_*`
+    and `cfg_core_*` with their shared semantics. That is documentation of a
+    family, the same principle as the prefix delegation above -- 25 near
+    identical mask rows would be worse for a reader, not better.
+
+    The 7-character floor on the stem is what keeps this honest: `cfg_axi_` and
+    `mon_compressor_stat_` qualify, a bare `cfg_*` does not, so a page cannot
+    blanket its whole port list with one glob.
+    """
+    return [m.group(1) + '_' for m in RE_WILDCARD.finditer(text)]
+
+
 RE_SLASH_ALT = re.compile(r'`([A-Za-z0-9_]+?)_([A-Za-z0-9]+(?:/[A-Za-z0-9]+)+)')
 
 
@@ -245,6 +290,7 @@ def main() -> int:
         params, ports = got
         text = with_delegations(page, page.read_text(errors='replace'))
         text += '\n' + expand_slash_alternations(text)
+        text += '\n' + expand_elided_runs(text)
         gaps = []
         if not args.ports_only:
             gaps += [('param', n) for n in sorted(params)
@@ -253,6 +299,12 @@ def main() -> int:
             gaps += [('port', n) for n in sorted(ports)
                      if not re.search(rf'\b{re.escape(n)}\b', text)
                      and (args.strict or not RE_PROTOCOL_PORT.match(n))]
+        if gaps:
+            fams = wildcard_families(text)
+            if fams:
+                gaps = [(k, n) for (k, n) in gaps
+                        if not (k == 'port'
+                                and any(n.startswith(f) for f in fams))]
         if gaps:
             pres = prefix_delegations(text)
             if pres:
