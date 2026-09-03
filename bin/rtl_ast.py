@@ -42,14 +42,24 @@ import tempfile
 CACHE = '.ast-cache'
 
 
-def _walk(n, out):
+def _walk(n, out, parent=None):
+    """Collect every node, tagging each with its nearest typed ancestor.
+
+    The ancestor is what separates a module port from a function argument:
+    both are VARs carrying a direction, and counter_freq_invariant's
+    interpolation helpers contributed idx/n/lo/hi as phantom undocumented
+    ports until this told them apart.
+    """
     if isinstance(n, dict):
+        n['_parent'] = parent
         out.append(n)
-        for v in n.values():
-            _walk(v, out)
+        nxt = n.get('type') or parent
+        for k, v in list(n.items()):
+            if k != '_parent':
+                _walk(v, out, nxt)
     elif isinstance(n, list):
         for v in n:
-            _walk(v, out)
+            _walk(v, out, parent)
 
 
 _DEBUG = bool(os.environ.get('RTL_AST_DEBUG'))
@@ -206,10 +216,15 @@ def facts(sv_path, incdirs=(), verilator='verilator'):
         if n.get('type') != 'VAR':
             continue
         vt, name = n.get('varType'), n.get('name')
-        if vt == 'GPARAM':
+        direction = n.get('direction')
+        in_module = n.get('_parent') == 'MODULE'
+        if vt == 'GPARAM' and in_module:
             params.append(name)
-        elif vt == 'PORT':
-            ports[name] = n.get('direction') or 'UNKNOWN'
+        elif direction in ('INPUT', 'OUTPUT', 'INOUT') and in_module:
+            # Keyed on DIRECTION, not varType. A port declared `input wire`
+            # carries varType WIRE, not PORT, so bin2gray and gray2bin
+            # reported zero ports and scored as fully documented.
+            ports[name] = direction
     # Sequential iff the AST holds a clocked process. Verilator records the
     # source keyword on the ALWAYS node -- 'always_ff', 'always', 'cont_assign'
     # -- so a macro that expands to always_ff is indistinguishable from a
