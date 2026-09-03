@@ -302,7 +302,7 @@ async def measure_throughput(tb, transaction_count=1000):
 #### Expected Throughput
 
 | Module | Mode | Expected |
-|--------|------|----------|
+| --- | --- | --- |
 | axi_data_upsize | Single | 1.0 trans/cycle |
 | axi_data_dnsize | Single | 0.992 narrow beats/cycle (measured) |
 | axi4_to_axil4 | Single-beat | ~1/(2+slave latency) trans/cycle (one-outstanding guard) |

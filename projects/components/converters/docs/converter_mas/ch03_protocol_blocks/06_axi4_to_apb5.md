@@ -28,13 +28,7 @@
 
 ## Overview
 
-APB5 keeps the APB4 transfer protocol — PSEL/PENABLE phases, PREADY,
-PSLVERR are unchanged — and adds only sideband: requester-driven user
-signals and completer-driven wakeup/user signals. So this block is a thin
-**pin-superset wrapper** over [`axi4_to_apb4_shim`](04_axi4_to_apb4.md):
-the entire protocol engine (CDC, cmd/rsp FIFOs, burst decomposition,
-response assembly) is the APB4 shim instantiated unchanged, with all 58
-ports and 18 parameters forwarded 1:1.
+APB5 changes less than the version bump suggests. The transfer protocol is pure APB4 — PSEL/PENABLE phases, PREADY, PSLVERR, all unchanged — and everything new lives in the sideband: requester-driven user signals on one side, completer-driven wakeup/user signals on the other. So this block is a thin **pin-superset wrapper** over [`axi4_to_apb4_shim`](04_axi4_to_apb4.md). The entire protocol engine — CDC, cmd/rsp FIFOs, burst decomposition, response assembly — is the APB4 shim instantiated unchanged, with all 58 ports and 18 parameters forwarded 1:1.
 
 The APB5 additions on the requester surface:
 
@@ -46,11 +40,7 @@ The APB5 additions on the requester surface:
 | `m_apb_PRUSER[APB_RUSER_WIDTH-1:0]` | in | accepted and terminated |
 | `m_apb_PBUSER[APB_BUSER_WIDTH-1:0]` | in | accepted and terminated |
 
-User-signal widths default to 1. `rtl/amba/apb5/apb5_slave.sv` defaults
-its own to 4, so the two do NOT line up out of the box — set
-`APB_{A,W,R,B}USER_WIDTH` to match whatever completer you attach. The
-signal set is otherwise pin-for-pin with that slave, including the
-repo's convention that PWAKEUP rides completer→requester.
+One thing to get right before you wire this up. User-signal widths default to 1 here, but `rtl/amba/apb5/apb5_slave.sv` defaults its own to 4, so the two do NOT line up out of the box — set `APB_{A,W,R,B}USER_WIDTH` to match whatever completer you attach. The signal set is otherwise pin-for-pin with that slave, including the repo's convention that PWAKEUP rides completer→requester.
 
 ## Parameters
 
@@ -59,7 +49,7 @@ The width and depth parameters are the same as the APB4 shim's -- see
 (`APB_AUSER_WIDTH`, `APB_WUSER_WIDTH`, `APB_RUSER_WIDTH`, `APB_BUSER_WIDTH`)
 added for the sideband above.
 
-One parameter is inert and worth calling out so nobody wires a knob to it:
+One parameter is inert, and I'd rather call it out here than watch someone wire a knob to it:
 
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -69,12 +59,7 @@ One parameter is inert and worth calling out so nobody wires a knob to it:
 
 ## Design Notes
 
-Deriving the wrapper from the APB4 shim's actual port surface (rather
-than reimplementing the conversion) means the APB4 engine's fixes and
-its dependency closure are inherited automatically — the closure
-filelist simply `-f`'s the APB4 shim's. When a future consumer needs
-real PAUSER/PWUSER sourcing or PWAKEUP-gated clocking, those grow here
-without touching the conversion core.
+Deriving the wrapper from the APB4 shim's actual port surface — rather than reimplementing the conversion — means the APB4 engine's fixes and its dependency closure are inherited automatically. The closure filelist simply `-f`'s the APB4 shim's. When a future consumer needs real PAUSER/PWUSER sourcing or PWAKEUP-gated clocking, those grow here without touching the conversion core.
 
 ## Related Modules
 
@@ -85,6 +70,6 @@ the five extra pairs. Verified by
 `projects/components/bridge/dv/tests/test_bridge_1x2_rw_apb5.py`
 (APB4 BFM legally drives the port: same transfer protocol).
 
----
+## Navigation
 
 **Next:** [PeakRDL Adapter](05_peakrdl_adapter.md)

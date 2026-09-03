@@ -25,7 +25,7 @@
 
 ## Overview
 
-These are the state machines inside the width converters. The twist: the upsize and downsize primitives don't have one, and that's deliberate — what they have instead is tighter. The full AXI4 dwidth converters do run explicit FSMs, and those are small.
+Here's the twist with the width converters: the upsize and downsize primitives don't have a state machine at all, and that's deliberate — what they have instead is tighter. The full AXI4 dwidth converters do run explicit FSMs, and those are small.
 
 ## Functional Description
 

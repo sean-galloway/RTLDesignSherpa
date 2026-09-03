@@ -29,7 +29,7 @@ The Converters component provides data width and protocol conversion — the mod
 
 ## 1.2 Problem Statement
 
-SoC designs run into the same two integration problems over and over:
+Sooner or later, every SoC design runs into the same two integration problems:
 
 ### 1.2.1 Data Width Mismatch
 
@@ -42,7 +42,7 @@ SoC designs run into the same two integration problems over and over:
 
 : Table 1.1: Common Data Width Configurations
 
-**Challenge:** Mismatched widths can't be wired together directly; a width converter has to sit between them.
+**Challenge:** You can't wire mismatched widths together directly — a width converter has to sit between them.
 
 ### 1.2.2 Protocol Incompatibility
 
@@ -55,7 +55,7 @@ SoC designs run into the same two integration problems over and over:
 
 : Table 1.2: Protocol Mismatch Examples
 
-**Challenge:** Different protocols can't communicate without a bridge between them.
+**Challenge:** Different protocols can't exchange a single transfer without a bridge between them.
 
 ## 1.3 Solution Architecture
 

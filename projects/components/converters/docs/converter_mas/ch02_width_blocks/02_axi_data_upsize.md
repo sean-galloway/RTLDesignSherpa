@@ -262,7 +262,6 @@ and with `m_ready` low the completing narrow beat stalls (a bubble every
 group). It also contradicted 2.2.4, which correctly places the transition
 *after* the completing beat.
 
-
 ## 2.2.7 Timing
 
 ### Latency

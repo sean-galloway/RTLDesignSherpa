@@ -80,8 +80,6 @@ axil4_to_axi4.sv          # Full bidirectional wrapper
 
 ## 3.3.4 Read Path (axil4_to_axi4_rd)
 
-### Block Diagram
-
 ### Figure 3.4: AXI4-Lite to AXI4 Read Path
 
 ![AXIL4 to AXI4 Read](../assets/mermaid/axil4_to_axi4_rd.png)
@@ -164,8 +162,6 @@ module axil4_to_axi4_rd #(
 - RID from AXI4 is ignored (no ID tracking in AXIL4)
 
 ## 3.3.5 Write Path (axil4_to_axi4_wr)
-
-### Block Diagram
 
 ### Figure 3.5: AXI4-Lite to AXI4 Write Path
 

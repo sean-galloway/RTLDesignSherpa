@@ -76,10 +76,10 @@ This specification covers the Converters component — the configurable data-wid
 
 ### For New Users
 
-1. Start with [Overview](ch01_introduction/01_overview.md) for understanding converter capabilities
+1. Start with [Overview](ch01_introduction/01_overview.md) for a tour of what the converters can do
 2. Read [Generic Building Blocks](ch02_width_blocks/01_generic_blocks.md) to understand the architecture
 3. Study [Protocol Conversion Overview](ch03_protocol_blocks/01_overview.md) for protocol handling
-4. Reference [Test Strategy](ch05_verification/01_test_strategy.md) for verification approach
+4. Reference [Test Strategy](ch05_verification/01_test_strategy.md) for the verification approach
 
 ### For Integration
 

@@ -232,7 +232,6 @@ from transaction progress rather than the previous command state is the
 fix for a hang recorded in the RTL history (a `first=0` first command
 froze the response FSM in RSP_IDLE).
 
-
 ## 3.4.6 Burst Handling
 
 ### Burst Decomposition

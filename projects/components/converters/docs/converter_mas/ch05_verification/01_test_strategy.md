@@ -25,7 +25,7 @@
 
 ## Overview
 
-The verification approach for the converter modules, from unit tests to system stress. Three test levels, a coverage model, and the exact commands to run it all.
+How the converter modules get verified, from unit tests to system stress: three test levels, a coverage model, and the exact commands to run it all.
 
 ## Testing
 
@@ -101,7 +101,7 @@ async def test_upsize_ratios(dut, narrow_width, wide_width):
 #### Functional Tests
 
 | Category | Description | Example |
-|----------|-------------|---------|
+| --- | --- | --- |
 | Basic | Single transactions | Single read, single write |
 | Burst | Multi-beat transactions | INCR burst, WRAP burst |
 | Mixed | Interleaved R/W | Read-modify-write sequences |
@@ -112,7 +112,7 @@ async def test_upsize_ratios(dut, narrow_width, wide_width):
 #### Stress Tests
 
 | Category | Description | Duration |
-|----------|-------------|----------|
+| --- | --- | --- |
 | Throughput | Maximum bandwidth | 10,000 transactions |
 | Backpressure | Ready signal variations | Random delays |
 | Reset | Reset during operation | Mid-transaction reset |
@@ -122,7 +122,7 @@ async def test_upsize_ratios(dut, narrow_width, wide_width):
 #### Error Tests
 
 | Category | Description | Expected Behavior |
-|----------|-------------|-------------------|
+| --- | --- | --- |
 | SLVERR | Slave error injection | Error propagation |
 | DECERR | Decode error | Error response |
 | Timeout | Response timeout | Error handling |
@@ -219,7 +219,7 @@ class ConverterCoverage:
 **Target:** >95% line coverage, >90% branch coverage
 
 | Module | Line | Branch | FSM |
-|--------|------|--------|-----|
+| --- | --- | --- | --- |
 | axi_data_upsize | 98% | 95% | n/a (no FSM -- see 4.1.1) |
 | axi_data_dnsize | 97% | 93% | n/a (no FSM -- see 4.1.2) |
 | axi4_to_axil4_rd | 96% | 91% | 100% |

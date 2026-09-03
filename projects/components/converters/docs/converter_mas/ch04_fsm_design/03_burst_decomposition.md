@@ -208,7 +208,7 @@ end
 #### Decomposition Overhead
 
 | Transaction Type | Overhead |
-|------------------|----------|
+| --- | --- |
 | Single-beat | 0 cycles (passthrough) |
 | N-beat burst | none per beat -- requests stream at the downstream accept rate, independent of responses (see 4.2.4) |
 | Back-to-back bursts | serialized by the one-outstanding-burst guard |

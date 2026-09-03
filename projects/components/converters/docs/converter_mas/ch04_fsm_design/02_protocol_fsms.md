@@ -25,7 +25,7 @@
 
 ## Overview
 
-These are the state machines inside the protocol converters. Every one of them is smaller than the earlier documentation made it look.
+The state machines inside the protocol converters: every one of them is smaller than the earlier documentation made it look.
 
 ## Functional Description
 

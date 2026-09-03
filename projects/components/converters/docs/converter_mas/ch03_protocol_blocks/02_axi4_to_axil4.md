@@ -42,8 +42,6 @@ Read and write are separate modules, which buys:
 
 ## 3.2.2 Read Path (axi4_to_axil4_rd)
 
-### Block Diagram
-
 ### Figure 3.2: AXI4 to AXI4-Lite Read Path
 
 ![AXI4 to AXIL4 Read](../assets/mermaid/axi4_to_axil4_rd.png)
@@ -139,8 +137,6 @@ one-outstanding-burst guard cannot rely on the FSM state alone.
 ```
 
 ## 3.2.3 Write Path (axi4_to_axil4_wr)
-
-### Block Diagram
 
 ### Figure 3.3: AXI4 to AXI4-Lite Write Path
 
