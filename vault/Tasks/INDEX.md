@@ -110,6 +110,7 @@ reviewed tree starts until the review is back and integrated.
 | [common](common/INDEX.md) | **migrated** | rtl/common building blocks | — |
 | [math](math/INDEX.md) | **native** | rtl/math arithmetic library (MATH-001: bf16 rounding decision) | — (new 2026-07-29) |
 | [cdc](cdc/INDEX.md) | **native** | rtl/cdc clock-domain crossing (gray/binary converters, async FIFOs, pointer synchronisers) | — (new 2026-09-04) |
+| [misc](projects/components/misc/INDEX.md) | **native** | shared odds and ends: AXI4 interface observers, tally/slvmon register blocks, dma_address_gen | — (new 2026-09-04) |
 | [stream](projects/components/dmas/stream/INDEX.md) | **started** | dmas/stream DMA (nested to mirror repo path) | TASK-056 migrated from TODO_RFC_StageE; [TASKS.md](../../projects/components/dmas/stream/TASKS.md) (v1.0 complete) still to fold in |
 | [rapids](projects/components/dmas/rapids/INDEX.md) | **started** | dmas/rapids DMA (beats, nested to mirror repo) | TASK-057 regmap hygiene (ported from STREAM); [TASKS.md](../../projects/components/dmas/rapids/TASKS.md) + rapids_beats_mas/TODO still to fold in |
 | [bridge](bridge/INDEX.md) | **started** | bridge crossbar generator | [TASKS.md](../../projects/components/bridge/TASKS.md) (still to fold in; area holds BRIDGE-001) |
