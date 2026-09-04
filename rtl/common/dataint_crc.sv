@@ -280,7 +280,13 @@ module dataint_crc #(
     logic [CW-1:0] r_crc_value;
     logic [CW-1:0] w_poly;
     logic [7:0]    w_block_data[CH];  // verilog_lint: waive unpacked-dimensions-range-ordering
+    // verilator lint_off UNOPTFLAT
+    // w_cascade is a FEED-FORWARD chain of per-chunk cascade stages (stage i is
+    // driven from stage i-1 in the generate below) -- not a real combinational
+    // loop. Verilator's UNOPTFLAT is a false positive from whole-array-signal
+    // granularity; waive at the source so all consumers build clean.
     logic [CW-1:0] w_cascade[CH];  // verilog_lint: waive unpacked-dimensions-range-ordering
+    // verilator lint_on UNOPTFLAT
     logic [CW-1:0] w_result, w_result_xor, w_selected_cascade_output;
 
     assign w_poly = POLY;

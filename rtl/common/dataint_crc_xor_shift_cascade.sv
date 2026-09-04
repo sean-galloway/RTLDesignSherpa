@@ -26,7 +26,14 @@ module dataint_crc_xor_shift_cascade #(
     output [CRC_WIDTH-1:0] block_output
 );
 
+    // verilator lint_off UNOPTFLAT
+    // w_cascade is a FEED-FORWARD generate chain (stage i drives stage i+1, see
+    // the loop below); it is not a real combinational loop. Verilator's
+    // UNOPTFLAT is a false positive because it analyses the array at whole-signal
+    // granularity rather than per-element. Waive it here at the source so every
+    // consumer builds clean, instead of scattering -Wno-UNOPTFLAT across tests.
     wire [(CRC_WIDTH-1):0] w_cascade [0:7]; // verilog_lint: waive unpacked-dimensions-range-ordering
+    // verilator lint_on UNOPTFLAT
 
     ////////////////////////////////////////////////////////////////////////////
     // Generate loop for XOR_Shift blocks
