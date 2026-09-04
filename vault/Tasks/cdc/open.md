@@ -1,8 +1,8 @@
 <!-- Managed by the `tasks` convention: see /vault/Tasks/INDEX.md. Move a task between pages by cutting its block, do not copy. -->
 
-# math — Open
+# cdc — Open (accepted, ready to start)
 
-### MATH-010: scrub the tests for completeness (math)
+### CDC-001: scrub the tests for completeness (cdc)
 
 **Priority:** P2. Blocks the coverage/formal push, not day-to-day work.
 **Status:** open 2026-09-04. Raised by Sean: test scrubbing was meant to be
@@ -12,7 +12,8 @@ part of the kimi review packets and got dropped along the way.
 everywhere, and BEFORE coverage and formal are driven clean. Doing it after
 coverage would mean chasing numbers produced by tests nobody has audited.
 
-**Scope:** `val/math/` -- the math library.
+**Scope:** `val/cdc/` -- `bin2gray`, `gray2bin`, the async FIFOs and the
+pointer-synchroniser family.
 
 **The capability already exists and was simply never run here.**
 `bin/review/run_batch.py` has a `testqc` mode alongside `qc` and `humanize`,
@@ -23,28 +24,26 @@ treated as reviewed ground truth rather than an audit target. Start there
 rather than inventing a method.
 
 **Why this is not busywork.** A test that passes because the RTL is broken is
-worse than no test, and this area has already produced them:
+worse than no test, and the repo has already produced them:
 
-- The area reports 100% module coverage and a clean sheet, which is exactly
-  the condition under which an unaudited test suite is most dangerous: there
-  is no failing signal to prompt a second look.
-- 147 math `.sby` files were path-repaired without being re-run (MATH-006).
-  Test and formal collateral in this area has a history of being present but
-  not exercised.
+- `bin2gray` and `gray2bin` were invisible to the doc/port auditor for weeks
+  because their ports are declared `input wire` rather than `logic` -- the
+  tooling reported zero ports and scored them fully documented. Tooling that
+  silently sees nothing is the same class of failure a test scrub looks for.
+- In `amba` the same week, the apb5 master suite was green *because* the RTL
+  was broken: nothing drove `rsp_ready`, and the TB's completion check
+  returned True on exactly the state the defect produced. See [[TASK-078]].
+- This area is small enough that a complete scrub is cheap, and it feeds the
+  async-FIFO and pointer-encoding work the rest of the repo depends on.
 
 **What "complete" has to mean, at minimum:**
 
-- Every `test_*.py` actually exercises the DUT it names (the
-  `bin/check_test_dut_family.py` gate catches the family-level version of
-  this; it does not catch a test that drives the right DUT trivially).
-- No test asserts a condition the bug itself satisfies. The apb5 case is the
-  template: `wait_for_transaction()` returned True on `PENABLE && PREADY`,
-  which is exactly the state the defect produced.
-- Inputs the DUT needs are actually driven. `rsp_ready` was never assigned in
-  the apb5 master TB, so the response path was never exercised.
+- Every `test_*.py` actually exercises the DUT it names.
+- No test asserts a condition the bug itself satisfies.
+- Inputs the DUT needs are actually driven.
 - gate/func/full levels mean something distinct, not three names for one run.
 - A fix landed with a test has a mutation check recorded: the test was seen
   RED against the unfixed RTL. Without that the test is decoration.
 
-**Related:** [[TASK-077]] documents the doc-side equivalent (examples that
-name ports which do not exist). The test-side is this task.
+**Related:** [[TASK-078]], [[COMMON-025]], [[MATH-010]] are the same task in
+the other three areas.

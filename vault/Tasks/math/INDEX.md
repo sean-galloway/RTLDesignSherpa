@@ -1,13 +1,13 @@
 # math — task rollup
 
-**Next ID: MATH-010** — never recycle a number, even when its task closed.
+**Next ID: MATH-011** — never recycle a number, even when its task closed.
 
 Math library (rtl/math, val/math, docs/markdown/rtl-math) work.
 
 | State | Count |
 |---|---|
 | [active](active.md) | 0 |
-| [open](open.md) | 0 |
+| [open](open.md) | 1 |
 | [closed](closed.md) | 9 |
 | [dropped](dropped.md) | 0 |
 
