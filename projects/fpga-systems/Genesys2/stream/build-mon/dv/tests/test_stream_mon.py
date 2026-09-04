@@ -325,7 +325,14 @@ def _run_stream_mon(request, profile=False):
     area_bin = os.path.join(repo_root, 'projects/fpga-systems/Genesys2/stream/bin')
     # Profile mode forces the in-core monitors on and builds both tallies in
     # agent-resolved profile mode; direct mode keeps the legacy 16-bit matrix.
-    use_mon  = '1' if profile else os.environ.get('USE_MON', '0')
+    # The STREAM in-core monitors are a BUILD property, never a test's to
+    # force. This read '1' if profile else ...', so the profile cosim built
+    # stream_top_ch8's monitors while the build-mon bitstream ships
+    # USE_AXI_MONITORS=1 and has none -- the sim elaborated hardware the
+    # board does not have. That leftover is from when the tally was fed by
+    # those monitors; it is observer-fed now, so the profile run needs
+    # nothing from them.
+    use_mon  = os.environ.get('USE_AXI_MONITORS', '1')
     test_name = "test_stream_mon_profile" if profile else "test_stream_mon"
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = sim_build_path(tests_dir, test_name)

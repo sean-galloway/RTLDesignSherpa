@@ -26,7 +26,7 @@
 //
 // Offsets are relative to the harness CSR base 0x0001_0000.
 
-addrmap harness_csr {
+addrmap harness_csr_regs_top {
     name = "Genesys 2 STREAM Characterization Harness CSR";
     desc = "Control/status/timer/CRC/observability registers for the char harness";
 

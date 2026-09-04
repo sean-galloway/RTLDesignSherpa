@@ -50,6 +50,7 @@ import stream_levels  # noqa: E402
 # 0x40000 was hardcoded in host tools for years after the capture memory moved,
 # and the counters read back zero the whole time.
 import bridge_windows  # noqa: E402
+import obs_addrs        # noqa: E402  (observer APB window bases, by name)
 
 STREAM_TALLY_RD   = bridge_windows.base('stream_tally')       # count readback
 SLAVE_TALLY_RD    = bridge_windows.base('slave_tally')
@@ -79,6 +80,18 @@ _STREAM_REGS = RegisterMap(
     log=logging.getLogger('stream_regs'))
 
 
+_OBS_REGS = RegisterMap(
+    os.path.join(os.environ['REPO_ROOT'],
+                 'projects/components/misc/rtl/regs/generated/obs_regs_top_regmap.py'),
+    apb_data_width=32, apb_addr_width=32, start_address=0,
+    log=logging.getLogger('obs_regs'))
+
+
+def _OBS_REG(name):
+    """Offset of an observer register by NAME, relative to its APB window."""
+    return _OBS_REGS.reg_address(_OBS_REGS.registers[name])
+
+
 def _MON_REG(name):
     """Offset of a STREAM register by NAME, relative to the APB window base.
 
@@ -97,9 +110,20 @@ def profile_key(agent, protocol, pkt_type, event_code):
 # STREAM legal set for profile mode: rd/wr datapath AddrMatch (agent 9/10, AXI,
 # type 8 AddrMatch, event 0x01 = AXI_ADDR_RANGE_MATCH) + scheduler/desc CORE
 # completions. Dense bin index = position in this list.
+# Agent IDs are the OBSERVERS', because the tallies are observer-fed after the
+# rewire. axi4_intf_master_observer builds its monitors with
+#   AGENT_ID = {8'h00, 4'h0, gi}  -> 0  for the read ports
+#   AGENT_ID = {8'h00, 4'h1, gi}  -> 16 for the write ports
+# The in-core monitors' 9/10 belong to stream_top_ch8, whose records now go to
+# comp_sram. Keying the CAM to 9/10 meant no observer packet could ever match an
+# entry: they fell through to UNEXPECTED and rd(bin0)/wr(bin1) stayed 0, which
+# is the second reason this test failed with the observers visibly emitting.
+OBS_RD_AGENT = 0x00
+OBS_WR_AGENT = 0x10
+
 STREAM_PROFILE = [
-    (9,  0, 8, 0x01),   # 0: rd datapath AddrMatch
-    (10, 0, 8, 0x01),   # 1: wr datapath AddrMatch
+    (OBS_RD_AGENT, 0, 8, 0x01),   # 0: rd datapath AddrMatch (master observer)
+    (OBS_WR_AGENT, 0, 8, 0x01),   # 1: wr datapath AddrMatch (master observer)
     (48, 4, 1, 0x01),   # 2: scheduler DESC_COMPLETE
     (16, 4, 1, 0x40),   # 3: descriptor-engine DESCRIPTOR_LOADED
     (9,  0, 0, 0x0D),   # 4: rd ADDR_RANGE error (MISS)   <- TEST_MISS repro
@@ -180,46 +204,64 @@ async def cocotb_test_stream_mon(dut):
         while True:
             await _RE(sig)          # edge-triggered on the signal itself (cheap)
             _emit[key] += 1
-    if os.environ.get('USE_MON', '0') == '1':
+    # Probe whenever this run cares about emission: the observers emit even with
+    # the in-core monitors absent, which is the whole point of build-obs.
+    if os.environ.get('PROFILE_MODE', '0') == '1' or os.environ.get('USE_MON', '0') == '1':
         cocotb.start_soon(_watch('mon_awvalid', 'stream_mon_awvalid'))
         cocotb.start_soon(_watch('slmon_awvalid', 'slave_slmon_awvalid'))
         cocotb.start_soon(_watch('dmamon_awvalid', 'dma_dmamon_awvalid'))
 
-    # Program the in-core address-range checker (allowlist) via the MON-block
-    # CSRs (@ 0x1000 + 0x200 RDMON / +0x230 WRMON). DEBUG ranges 0,1 = match-all
-    # so every accepted AR/AW is a debug hit -> AddrMatch packet. (Flavor 4'b1100:
-    # ranges 2,3 are ERROR; left disabled this pass, so no miss/Error packets.)
-    # Address-range CSRs are QUEUED here, not written now: run_dma_test issues a
-    # SOFT_RESET at its start that wipes the register block, so these must be
-    # programmed *inside* run_dma_test after that reset (via addr_range_writes).
-    # range0 = match-all on each monitor (rd @0x200, wr @0x230; ctrl @0x220/0x250);
-    # range0 is DEBUG (flavor bit0=0) -> a hit emits AddrMatch.
+    # Program the OBSERVERS' address-range checkers, not the in-core monitors'.
+    #
+    # This block used to drive RDMON/WRMON inside stream_top_ch8. Those monitors
+    # do emit AddrMatch, but after the observer rewire their records go to
+    # comp_sram -- the tallies are fed by the OBSERVERS. So the test programmed
+    # one block and asserted on another, and the assertion could never pass:
+    # dense bins={} with "awvalid edges = 0", while the same design binned 2.85M
+    # observer records on the board.
+    #
+    # The observers now build with N_ADDR_RANGES(4) (they defaulted to 0, which
+    # compiles the checker out entirely), so range0 = match-all makes every
+    # accepted AR/AW a hit and emits AddrMatch into the tally the test reads.
+    #
+    # QUEUED, not written now: run_dma_test issues a SOFT_RESET at its start
+    # that wipes the register blocks, so these must land after that reset.
     addr_range_writes = None
-    if os.environ.get('USE_MON', '0') == '1':
-        # BY NAME from the STREAM regmap. These were literals -- MON = 0x1000
-        # plus per-monitor 0x200/0x230 and per-range 0x00/0x04/0x10/0x14 -- which
-        # is the same shape of bug that moved the monitor block to 0x1000 and
-        # left every perf counter reading zero for a week.
-        ctrl_val = 0x01 | (1 << 4) | (1 << 5)       # RANGE_EN=0b0001, CHECK_EN, MATCH_EN
+    # PROFILE_MODE, not USE_MON. This programs the OBSERVERS and asserts on the
+    # observer-fed tally, so it must not be gated on whether stream_top_ch8's
+    # in-core monitors were built -- build-obs ships USE_AXI_MONITORS=0 and has
+    # none, yet this is exactly the run that needs the observers programmed.
+    if os.environ.get('PROFILE_MODE', '0') == '1':
+        # Observer registers BY NAME from obs_regs, and both observer windows by
+        # name from the bridge config. The master observer feeds stream_tally,
+        # the slave observer feeds slave_tally.
+        # ONE class at a time. The tally is a bounded dense histogram, and a
+        # monbus that carries every class at once floods it -- the counts stop
+        # meaning what the test thinks they mean. This run proves AddrMatch, so
+        # it enables the address-check path and NOTHING else; the completion,
+        # error and timeout classes are covered by other runs in the matrix.
+        #
+        # DEBUG_EN is not optional here: a range hit emits ADDR_MATCH through
+        # the DEBUG path (cfg_debug_enable), so with bit 5 clear the checker
+        # matches and the packet is suppressed before it is ever emitted. That
+        # was one of the two reasons rd(bin0)=wr(bin1)=0 with the observers
+        # visibly emitting (awvalid edges = 6).
+        mon_ctrl = (
+            (1 << 5)    # DEBUG_EN     -- ADDR_MATCH rides the debug path
+            | (1 << 6)  # ADDR_CHECK_EN -- without this the checker stays idle
+            | (1 << 7)  # MONITOR_EN
+        )
         addr_range_writes = []
-        for mon in ('RDMON', 'WRMON'):
+        for base in (obs_addrs.OBS_APB_BASE, obs_addrs.SLAVE_OBS_APB_BASE):
             addr_range_writes += [
-                (_MON_REG(f'{mon}_ADDR_RANGE0_LOW'),  0x00000000),  # match-all low
-                (_MON_REG(f'{mon}_ADDR_RANGE0_HIGH'), 0xFFFFFFFF),  # match-all high
-                (_MON_REG(f'{mon}_ADDR_RANGE_CTRL'),  ctrl_val)]    # range0 + check + match
-        # MISS/error repro: arm range2 (ERROR-flavored, IS_ERROR bit2) with a tiny
-        # high exclude window so EVERY command is an allowlist miss -> should emit
-        # Error/ADDR_RANGE (type 0, event 0x0D) into bin 0x000D. CTRL adds RANGE_EN
-        # bit2 + MISS_EN(6) on top of range0/match. This mirrors the board addr_error
-        # scenario -- run with TEST_MISS=1 to reproduce the empty-error-bin symptom.
-        if os.environ.get('TEST_MISS', '0') == '1':
-            miss_ctrl = 0x01 | (1 << 2) | (1 << 4) | (1 << 5) | (1 << 6)  # r0+r2+check+match+miss
-            for mon in ('RDMON', 'WRMON'):
-                addr_range_writes += [
-                    (_MON_REG(f'{mon}_ADDR_RANGE2_LOW'),  0xFFFFFFF0),  # excludes the DMA
-                    (_MON_REG(f'{mon}_ADDR_RANGE2_HIGH'), 0xFFFFFFFF),
-                    (_MON_REG(f'{mon}_ADDR_RANGE_CTRL'),  miss_ctrl)]   # + range2 + MISS
-            dut._log.info("[addr-range] TEST_MISS=1: armed ERROR range2 exclude + MISS_EN")
+                (base + _OBS_REG('ADDR_RANGE0_LOW'),  0x00000000),   # match-all
+                (base + _OBS_REG('ADDR_RANGE0_HIGH'), 0xFFFFFFFF),
+                (base + _OBS_REG('ADDR_RANGE_CTRL'),  0x1),          # RANGE_EN[0]
+                (base + _OBS_REG('MON_CTRL'),         mon_ctrl),
+            ]
+        dut._log.info(f"[addr-range] queued match-all range0 + ADDR_CHECK_EN on "
+                      f"BOTH observers ({len(addr_range_writes)} writes)")
+
         # Load the STREAM legal set into the tally CAM HERE too: run_dma_test's
         # SOFT_RESET wipes the CAM (it fans out to unit_aresetn), so it MUST be
         # (re)loaded AFTER that reset, exactly like the addr-range CSRs. These go
@@ -326,8 +368,9 @@ async def cocotb_test_stream_mon(dut):
                   f"USE_AXI_MONITORS gate has crept back over the bus meters.")
     assert rd_prod > 0 or wr_prod > 0, assign_msg
 
-    # Tally asserts only when the in-core monitors are built (USE_MON=1).
-    if os.environ.get('USE_MON', '0') == '1':
+    # Tally asserts on the PROFILE run. It used to key off USE_MON, from when
+    # the tally was fed by the in-core monitors; it is observer-fed now.
+    if os.environ.get('PROFILE_MODE', '0') == '1':
         assert rd_hits > 0 and wr_hits > 0, (
             f"per-agent AddrMatch not resolved in the STREAM tally: rd(bin0)={rd_hits} "
             f"wr(bin1)={wr_hits} (CAM load or agent binning failed); the STREAM tally is "
@@ -363,7 +406,14 @@ def _run_stream_mon(request, profile=False):
     area_bin = os.path.join(repo_root, 'projects/fpga-systems/Genesys2/stream/bin')
     # Profile mode forces the in-core monitors on and builds both tallies in
     # agent-resolved profile mode; direct mode keeps the legacy 16-bit matrix.
-    use_mon  = '1' if profile else os.environ.get('USE_MON', '0')
+    # The STREAM in-core monitors are a BUILD property, never a test's to
+    # force. This read '1' if profile else ...', so the profile cosim built
+    # stream_top_ch8's monitors while the build-obs bitstream ships
+    # USE_AXI_MONITORS=0 and has none -- the sim elaborated hardware the
+    # board does not have. That leftover is from when the tally was fed by
+    # those monitors; it is observer-fed now, so the profile run needs
+    # nothing from them.
+    use_mon  = os.environ.get('USE_AXI_MONITORS', '0')
     test_name = "test_stream_mon_profile" if profile else "test_stream_mon"
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = sim_build_path(tests_dir, test_name)

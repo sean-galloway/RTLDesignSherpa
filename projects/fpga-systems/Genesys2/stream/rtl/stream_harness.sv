@@ -2036,7 +2036,14 @@ module stream_harness #(
         .ENABLE_BUS_METER    (0),
         .ENABLE_LATENCY_HIST (0),
         .NUM_CHANNELS        (OBS_NUM_CHANNELS),
-        .UNIT_ID             (8'h11)
+        .UNIT_ID             (8'h11),
+        // Address-range checker: 4 ranges, matching the in-core monitors'
+        // MON_N_ADDR_RANGES(4). The default is 0, which compiles the checker
+        // OUT -- and since the observer rewire made the tallies observer-fed,
+        // a compiled-out checker means NO AddrMatch packet can ever reach a
+        // tally. test_stream_mon_profile asserted on exactly those bins and
+        // was unsatisfiable by construction, not failing on a bug.
+        .N_ADDR_RANGES       (4)
     ) u_slave_observer (
         .aclk    (aclk),
         .aresetn (unit_aresetn),
@@ -2414,7 +2421,14 @@ module stream_harness #(
         // tied if either moves. Undersized here, axi_perf_latency_hist drops
         // the timestamp with no flag and the completion pops someone else's,
         // so totals undercount AND the surviving latencies are misattributed.
-        .HIST_MAX_OUTSTANDING(OBS_MAX_OUTSTANDING)
+        .HIST_MAX_OUTSTANDING(OBS_MAX_OUTSTANDING),
+        // Address-range checker: 4 ranges, matching the in-core monitors'
+        // MON_N_ADDR_RANGES(4). The default is 0, which compiles the checker
+        // OUT -- and since the observer rewire made the tallies observer-fed,
+        // a compiled-out checker means NO AddrMatch packet can ever reach a
+        // tally. test_stream_mon_profile asserted on exactly those bins and
+        // was unsatisfiable by construction, not failing on a bug.
+        .N_ADDR_RANGES       (4)
     ) u_dma_observer (
         .aclk    (aclk),
         .aresetn (unit_aresetn),
