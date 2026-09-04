@@ -90,6 +90,76 @@ async def cocotb_test_apb5_master_basic(dut):
     tb.log.info("=== APB5 Master Basic Test PASSED ===")
 
 
+@cocotb.test(timeout_time=100, timeout_unit="us")
+async def cocotb_test_apb5_master_rsp_backpressure(dut):
+    """TASK-068 witness: PENABLE must never be held past a completed transfer.
+
+    Ported in spirit from apb4_master's equivalent. The unfixed apb5_master
+    launched on r_cmd_valid alone and, on PREADY with a full response skid,
+    sat in ACCESS still asserting PSEL and PENABLE. Against the always-ready
+    slave this TB models that is not a wedge -- it is worse: the slave sees a
+    completed transfer on every held cycle, so one command is executed many
+    times over.
+
+    APB completes a transfer when PSEL && PENABLE && PREADY. The FSM must then
+    leave ACCESS, so PENABLE cannot still be high on the next edge with PREADY
+    still high. This watches for that and stalls the response consumer to
+    provoke it. Commands are driven inline rather than through
+    drive_command(), which blocks on cmd_ready and would deadlock here once
+    the stalled master backs the command skid up.
+    """
+    tb = APB5MasterBasicTB(dut)
+    await tb.setup_clocks_and_reset()
+
+    dut.m_apb_PREADY.value = 1
+    dut.m_apb_PRDATA.value = 0xDEADBEEF
+    dut.m_apb_PSLVERR.value = 0
+
+    violations = 0
+    completions = 0
+
+    async def watch_bus():
+        nonlocal violations, completions
+        prev_completed = False
+        while True:
+            await RisingEdge(dut.pclk)
+            completed = bool(dut.m_apb_PSEL.value and dut.m_apb_PENABLE.value
+                             and dut.m_apb_PREADY.value)
+            if completed:
+                completions += 1
+                if prev_completed:
+                    violations += 1
+            prev_completed = completed
+
+    cocotb.start_soon(watch_bus())
+
+    # Stall the response consumer, then push commands in without blocking.
+    dut.rsp_ready.value = 0
+    for i in range(12):
+        waited = 0
+        while not dut.cmd_ready.value and waited < 8:
+            await RisingEdge(dut.pclk)
+            waited += 1
+        if not dut.cmd_ready.value:
+            break          # skid full: enough is in flight to provoke the bug
+        dut.cmd_valid.value = 1
+        dut.cmd_pwrite.value = 1
+        dut.cmd_paddr.value = 0x400 + i * 4
+        dut.cmd_pwdata.value = 0xC0DE0000 + i
+        dut.cmd_pstrb.value = 0xF
+        await RisingEdge(dut.pclk)
+        dut.cmd_valid.value = 0
+
+    await tb.wait_clocks('pclk', 60)
+    dut.rsp_ready.value = 1
+    await tb.wait_clocks('pclk', 200)
+
+    assert violations == 0, (
+        f"PENABLE held asserted across {violations} completed transfer(s) "
+        f"({completions} bus completions seen). The FSM stayed in ACCESS with "
+        f"a full response skid, so the slave re-executed the transfer.")
+
+
 def generate_apb5_master_params():
     """Generate test parameters for APB5 master."""
     return [
@@ -191,7 +261,7 @@ def test_apb5_master(request, addr_width, data_width, auser_width, wuser_width,
             plus_args=(['--trace'] if enable_waves else []),
             keep_files=True,
             compile_args=compile_args,
-            testcase="cocotb_test_apb5_master_basic",
+            testcase="cocotb_test_apb5_master_basic,cocotb_test_apb5_master_rsp_backpressure",
             simulator="verilator",
         )
     except Exception as e:

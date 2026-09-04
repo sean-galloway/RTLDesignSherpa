@@ -253,6 +253,19 @@ module apb5_slave #(
             casez (r_apb_state)
 
                 IDLE: begin
+                    // Orphan-response guard, carried over from apb4_slave.
+                    // A response sitting in the skid with no command
+                    // outstanding is not ours to return: without this pop,
+                    // the NEXT command consumes it instead of its own
+                    // response, which permanently offsets every subsequent
+                    // transaction. That misalignment was observed on the
+                    // Nexys A7 DDR2 board and persisted until the device was
+                    // reprogrammed. Causes are a duplicate backend response
+                    // or a CDC reset independently of this side.
+                    if (r_rsp_valid) begin
+                        r_rsp_ready <= 1'b1;   // pop and drop
+                    end
+
                     // Only capture on rising edge of PENABLE (SETUP->ACCESS transition)
                     if (s_apb_PSEL && s_apb_PENABLE && !r_penable_prev && r_cmd_ready) begin
                         r_cmd_valid <= 1'b1;

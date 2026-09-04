@@ -39,6 +39,16 @@ class APB5MasterBasicTB(TBBase):
 
     async def assert_reset(self):
         """Assert reset."""
+        # Drain responses. Nothing drove rsp_ready before, so the response
+        # skid filled after RSP_DEPTH transfers and never emptied. The test
+        # still passed, because the pre-2026-09-04 apb5_master held PSEL and
+        # PENABLE asserted past PREADY when it could not enqueue, and
+        # wait_for_transaction() below returns True on seeing PENABLE &&
+        # PREADY -- so the suite was watching a protocol violation and
+        # scoring it a pass. With the master fixed to gate its launch on
+        # response space (TASK-068, as apb4_master already did), an
+        # undrained skid correctly stalls instead, and the old TB times out.
+        self.dut.rsp_ready.value = 1
         self.dut.presetn.value = 0
         await self.wait_clocks('pclk', 5)
         self.log.info("Reset asserted")

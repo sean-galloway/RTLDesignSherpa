@@ -151,6 +151,7 @@ module apb5_master #(
     // Response FIFO signals
     logic                w_rsp_valid;
     logic                r_rsp_ready;
+    logic [3:0]          w_rsp_count;   // rsp skid occupancy (back-to-back gate)
     logic [RPW-1:0]      r_rsp_data_in;
     logic [RPW-1:0]      r_rsp_data_out;
 
@@ -167,9 +168,7 @@ module apb5_master #(
         .wr_valid     (w_rsp_valid),
         .wr_ready     (r_rsp_ready),
         .wr_data      (r_rsp_data_in),
-        /* verilator lint_off PINCONNECTEMPTY */
-        .count        (),
-        /* verilator lint_on PINCONNECTEMPTY */
+        .count        (w_rsp_count),
         .rd_valid     (rsp_valid),
         .rd_ready     (rsp_ready),
         .rd_data      (r_rsp_data_out),
@@ -277,7 +276,15 @@ module apb5_master #(
                 // launch-from-idle transfer a TWO-cycle setup phase where
                 // APB defines exactly one (TASK-071). The state sequence is
                 // unchanged, so this costs no latency.
-                if (r_cmd_valid) begin
+                // Start a transaction only when a command is pending AND
+                // the response skid has space. Launch-gating is the deadlock
+                // fix carried over from apb4_master (TASK-068): the completed
+                // transfer's response must be enqueueable, or ACCESS would
+                // have to hold PENABLE past PREADY -- a protocol violation --
+                // against a one-shot-PREADY slave that never re-fires, which
+                // wedges the bus permanently. This FSM is the skid's only
+                // writer, so space at launch holds through completion.
+                if (r_cmd_valid && r_rsp_ready) begin
                     w_apb_next_state = SETUP;
                 end
             end
@@ -297,22 +304,24 @@ module apb5_master #(
                 m_apb_PSEL = 1'b1;
                 m_apb_PENABLE = 1'b1;
 
-                // Wait for slave to respond with PREADY
+                // Wait for slave to respond with PREADY. Response space was
+                // guaranteed at launch (IDLE and the back-to-back shortcut
+                // both gate on r_rsp_ready), so completion always enqueues and
+                // this state never has to hold PENABLE past PREADY.
                 if (m_apb_PREADY) begin
-                    // Only proceed if response FIFO is ready
-                    if (r_rsp_ready) begin
-                        w_rsp_valid = 1'b1;
-                        w_cmd_ready = 1'b1;
+                    w_rsp_valid = 1'b1;
+                    w_cmd_ready = 1'b1;
 
-                        // Go back to IDLE or directly start a new transaction
-                        if (w_cmd_count > 1)
-                            w_apb_next_state = SETUP;
-                        else
-                            w_apb_next_state = IDLE;
-                    end else begin
-                        // Response FIFO not ready, stay in ACCESS state
-                        w_apb_next_state = ACCESS;
-                    end
+                    // Back-to-back only when the NEXT response also has space
+                    // AFTER this cycle's enqueue -- r_rsp_ready alone is stale
+                    // by one entry here (it predates the enqueue), and
+                    // launching on the last slot would lose the next response.
+                    // Otherwise drain through IDLE, which re-applies the
+                    // launch gate on fresh state.
+                    if (w_cmd_count > 1 && (32'(w_rsp_count) <= RSP_DEPTH - 2))
+                        w_apb_next_state = SETUP;
+                    else
+                        w_apb_next_state = IDLE;
                 end
             end
 
