@@ -123,11 +123,21 @@ The remaining two hits are in `bin/peakrdl_to_regmap.py` and
 not need to change, though they are worth a glance for whether the example
 should name the new location.
 
-**Open question for whoever takes it:** flat or per-block? `rdl/gpio_regs.rdl`
-is simplest and matches misc, which keeps a flat `rdl/`. `rdl/<block>/` keeps
-the block association explicit for nine blocks. Pick one and say so in the
-commit; do not leave it half-applied, which is exactly the state MISC-001
-exists to fix.
+**Layout: PER BLOCK.** Decided by Sean 2026-09-04 -- `rdl/<block>/<name>.rdl`,
+not a flat directory:
+
+    rdl/gpio/gpio_regs.rdl
+    rdl/hpet/hpet_regs.rdl
+    rdl/ioapic/ioapic_regs.rdl
+    rdl/pic_8259/pic_8259_regs.rdl
+    rdl/pit_8254/pit_regs.rdl
+    rdl/pm_acpi/pm_acpi_regs.rdl
+    rdl/rtc/rtc_regs.rdl
+    rdl/smbus/smbus_regs.rdl
+    rdl/uart_16550/uart_16550_regs.rdl
+
+Apply it uniformly. Half-application is exactly the state MISC-001 exists to
+fix.
 
 **Also worth deciding while in there:** three of the `peakrdl/` directories
 carry a `README.md` (hpet, rtc, smbus). Per the handbook, methodology does not

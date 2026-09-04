@@ -13,11 +13,20 @@ directory.**
 directory holding `dma_address_gen.rdl`, so the convention is established
 here. Three more sit in `rtl/`:
 
+**Layout: PER BLOCK** (Sean, 2026-09-04, same call as [[RLB-007]]) --
+`rdl/<block>/<name>.rdl`, not a flat directory:
+
 | File | Current | Belongs |
 |---|---|---|
-| `obs_regs.rdl` | `misc/rtl/` | `misc/rdl/` |
-| `slvmon_regs.rdl` | `misc/rtl/` | `misc/rdl/` |
-| `tally_regs.rdl` | `misc/rtl/` | `misc/rdl/` |
+| `obs_regs.rdl` | `misc/rtl/` | `misc/rdl/obs/` |
+| `slvmon_regs.rdl` | `misc/rtl/` | `misc/rdl/slvmon/` |
+| `tally_regs.rdl` | `misc/rtl/` | `misc/rdl/tally/` |
+
+Note this also moves the file already in place: `misc/rdl/dma_address_gen.rdl`
+becomes `misc/rdl/dma_address_gen/dma_address_gen.rdl`. That is the reading of
+"per block" applied consistently -- if a single flat file was meant to stay put
+in this area, say so, because leaving one file flat beside three nested ones is
+the half-applied state this task exists to remove.
 
 **This is not a `git mv`.** Eleven files reference them by path, and they span
 two areas -- moving the sources without the references breaks generation and
