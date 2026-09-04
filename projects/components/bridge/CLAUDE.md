@@ -47,7 +47,9 @@ These documents contain the **definitive bridge architecture** including:
 
 ## Quick Context
 
-**What:** Bridge - Two complementary AXI4 Crossbar Generators (framework-based and CSV-based)
+**What:** Bridge - one AXI4/AXI5 crossbar generator, `bin/bridge_generator.py`,
+taking TOML or CSV configuration. There is no second generator: the separate
+`bridge_csv_generator.py` was merged into it and no longer exists.
 **Status:** Phase 2 Complete - CSV generator with channel-specific masters (wr/rd/rw)
 **Your Role:** Help users configure CSV files, generate bridges, understand architecture, and create tests
 
@@ -946,8 +948,12 @@ module bridge_2x2_rw
 
 1. **5-Channel Implementation:** Complete AW, W, B, AR, R routing
 2. **Round-Robin Arbitration:** Per-slave arbitration with grant locking
-3. **Transaction ID Tracking:** Distributed RAM for B/R response routing
-4. **ID-Based Routing:** Enables out-of-order responses
+3. **Response routing:** a small in-order FIFO per direction in each slave
+   adapter, holding the `bridge_id` of the master whose request was
+   accepted. Not a RAM, and not indexed by AXI ID.
+4. **`bridge_id` sideband routing:** responses return IN ORDER. The slave
+   must complete in the order its requests were accepted; a reordering
+   slave misroutes silently (see FR-2 in the PRD).
 5. **Configurable Parameters:** NxM topology, data/addr/ID widths
 
 ### Address Map
@@ -1003,7 +1009,9 @@ The Bridge AXI4 crossbar connects multiple AXI4 masters to multiple slaves:
 1. **Address Decode (AW/AR):** Routes master requests to appropriate slave based on address
 2. **Write Path:** AW → arbitration → slave, W follows locked grant
 3. **Read Path:** AR → arbitration → slave, R returns via ID table
-4. **Arbitration:** Per-slave round-robin with grant locking until burst complete
+4. **Arbitration:** Per-slave round-robin, AW and AR only, with the grant
+   locked until the ADDRESS handshake -- not until burst complete. W is
+   owned via a FIFO; B and R have no arbiter.
 5. **Response Routing:** B/R responses use ID lookup tables (not grant-based)
 
 **Key Features:**
@@ -1146,7 +1154,8 @@ verilator --lint-only projects/components/bridge/rtl/generated/bridge_2x2_rw/bri
 3. **MANDATORY: conftest.py** - Must exist in dv/tests/
 4. **Use GAXI components** - Never manually drive AXI4 handshakes
 5. **Queue-based verification** - Simple tests use direct queue access
-6. **Three-layer architecture** - TB (framework) + Test (runner) + Scoreboard (verification)
+6. **Three-layer architecture** - TB (PROJECT area, not the framework) + Test
+   (runner) + Scoreboard (verification)
 7. **Three mandatory methods** - setup_clocks_and_reset, assert_reset, deassert_reset
 8. **Search first** - Use existing components before creating new ones
 9. **Test scalability** - Support basic/medium/full test levels

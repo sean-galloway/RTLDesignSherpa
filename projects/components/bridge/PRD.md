@@ -494,7 +494,7 @@ address_map = {
 |----------|---------------|-------|
 | **LUTs** | ~2,500 | Address decode + arbiters + mux |
 | **FFs** | ~3,000 | Registered outputs + ID tables |
-| **BRAM** | 0 | Distributed RAM for small ID tables |
+| **BRAM** | 0 | No ID tables exist. Tracking is a small in-order FIFO per direction in each slave adapter. |
 | **DSP** | 0 | No arithmetic operations |
 
 **Scaling:** ~150 LUTs per M×S connection
@@ -579,18 +579,28 @@ input  logic                    s_axi_rready [NUM_MASTERS];
 
 Mirror of master interfaces, with M → S direction reversed.
 
-### 5.3 Configuration Parameters
+### 5.3 Configuration Is Generation-Time, Not Parameters
+
+**The generated bridge exposes no parameters.** Everything below is fixed when
+the generator runs and reaches the module through its package:
 
 ```systemverilog
-parameter int NUM_MASTERS   = 4;          // Number of master interfaces
-parameter int NUM_SLAVES    = 4;          // Number of slave interfaces
-parameter int DATA_WIDTH    = 512;        // Data bus width (bits)
-parameter int ADDR_WIDTH    = 64;         // Address bus width (bits)
-parameter int ID_WIDTH      = 4;          // Transaction ID width (bits)
-parameter int MAX_BURST_LEN = 256;        // Maximum burst length (beats)
-parameter bit PIPELINE_OUTPUTS = 1;       // Register slave outputs
-parameter bit ENABLE_COUNTERS  = 1;       // Performance counters
+module bridge_2x2_rw
+    import bridge_2x2_rw_pkg::*;
+(
+    input logic aclk, ...
 ```
+
+Geometry and widths come from the TOML, per port, and appear inside the
+generated modules as localparams (`localparam ADDR_WIDTH = 32;`,
+`localparam ID_WIDTH = 4;` in `cpu_adapter`). To change any of them,
+regenerate -- there is nothing to override at elaboration.
+
+An earlier revision of this section listed a parameter block including
+`MAX_BURST_LEN`, `PIPELINE_OUTPUTS` and `ENABLE_COUNTERS`. **None of those
+three exist in any generated module**, and neither do the performance counters
+that `ENABLE_COUNTERS` implied -- there is no counter logic anywhere in the
+generated set.
 
 ---
 
@@ -873,7 +883,7 @@ Configuration:
 **Benefits:**
 - Standard AXI4 interfaces (Xilinx IP compatibility)
 - Scalable to many masters/slaves
-- Performance counters for profiling
+- Performance counters for profiling. **NOT IMPLEMENTED** -- no counter logic exists in any generated module.
 
 ---
 
