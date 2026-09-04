@@ -27,10 +27,9 @@
 
 ### Single Master
 
-With a single master accessing any slave:
-
-Split by arbiter presence -- the generator emits one only when M > 1, and
-its registered grant costs a cycle on every figure. See 5.2.
+With a single master accessing any slave, the figures split by arbiter
+presence: the generator emits an arbiter only when M > 1, and its
+registered grant costs a cycle on every one of them. See 5.2.
 
 | Metric | M = 1 | M > 1 | Notes |
 |--------|-------|-------|-------|

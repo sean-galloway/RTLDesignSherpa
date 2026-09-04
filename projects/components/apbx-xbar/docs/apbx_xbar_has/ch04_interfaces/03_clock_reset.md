@@ -72,10 +72,10 @@
 - Reset release is NOT synchronized internally -- `presetn` is applied directly as an asynchronous reset (`ALWAYS_FF_RST`) in every module. The integrator must synchronize reset DEASSERTION to `pclk` externally (recovery/removal timing)
 - Ready to accept transactions from the first `pclk` edge after a
   correctly synchronized deassertion -- NOT "immediately" in the sense of
-  the deassertion instant. The bullet above requires the integrator to
-  synchronize removal externally; until that lands cleanly the fabric's
-  state is not defined. The "Reset Deassertion" guidance later on this
-  page (wait 1 cycle before the first transaction) is the operative rule.
+  the deassertion instant. Until that externally synchronized removal
+  lands cleanly, the fabric's state is not defined; the "Reset
+  Deassertion" guidance later on this page (wait 1 cycle before the
+  first transaction) is the operative rule.
 
 ### Reset Safe Values
 

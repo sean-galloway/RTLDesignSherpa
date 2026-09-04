@@ -31,7 +31,7 @@
 
 ## Overview
 
-This chapter details the two core mechanisms of the APB Crossbar:
+Two mechanisms do the crossbar's work:
 1. **Address Decode** - How incoming addresses map to specific slaves
 2. **Arbitration** - How multiple masters share access to the same slave
 
@@ -67,7 +67,7 @@ slave_index = offset[16 +: $clog2(S)]   // ceil(log2(S)) bits above the 64KB win
 
 ### Out-of-Range Addresses
 
-This applies to the variants that DECODE -- `1to4`, `2to4`,
+This applies to the variants that DECODE — `1to4`, `2to4`,
 `2to2_mixed`. In `1to1` and `2to1` there is a single slave, no address
 decode, and `BASE_ADDR` is unused: every access is forwarded to that
 slave whatever its address, and the slave's own response is returned.
@@ -90,7 +90,7 @@ the decode-miss scenarios in `test_apbx_xbar_1to4.py`,
 - Lower 16 bits (offset[15:0]) are byte address within slave
 - `ceil(log2(S))` bits starting at bit 16 select the slave: [17:16]
   for a 4-slave variant, [16] for 2 slaves. The shipped variants wire
-  exactly those bits -- `m0_slave_sel` is 2 bits wide on 1to4/2to4,
+  exactly those bits — `m0_slave_sel` is 2 bits wide on 1to4/2to4,
   1 bit on 2to2_mixed, NOT a 4-bit index
 - The generator supports up to 16 slaves; bits above the index field
   do not select a slave, they fail the range check and become a
@@ -98,7 +98,7 @@ the decode-miss scenarios in `test_apbx_xbar_1to4.py`,
 
 ### Address Decode Flow Diagram
 
-The following diagram walks a concrete address, 0x10023456, through the decode to Slave 2:
+The diagram walks one concrete address — 0x10023456 — through the decode to Slave 2:
 
 ### Figure 2.1: Address Decode Flow
 
@@ -142,7 +142,7 @@ After arbitration grant, transaction forwarded via apb4_master[2] to physical Sl
 
 ### Multiple Address Maps
 
-You can create multiple distinct address maps by using different BASE_ADDR values:
+Different BASE_ADDR values create distinct address maps:
 
 **Example: Two Crossbars**
 
@@ -176,7 +176,7 @@ Each slave has an **independent arbiter** that implements round-robin scheduling
 
 ### Round-Robin Timing Diagram
 
-The following timing diagram shows 2 masters (M0, M1) competing for access to Slave 0:
+Two masters (M0, M1) competing for access to Slave 0:
 
 ### Waveform 2.1: Round-Robin Arbitration Timing
 
@@ -194,7 +194,7 @@ This walkthrough shows the ORDER of arbitration events, not their timing.
 It is deliberately not cycle-numbered: a numbered version here showed a
 three-cycle transaction, which contradicted this chapter's own measured
 9-cycle SETUP-to-PREADY figure. `S0_PSEL` cannot assert in the grant cycle
--- after the REGISTERED grant the command still crosses the `apb4_master`
+— after the REGISTERED grant the command still crosses the `apb4_master`
 cmd skid, the FSM's IDLE launch and its SETUP state before the downstream
 PSEL appears. For real numbers see "Transaction Latency" below and
 `dv/tests/test_apbx_xbar_timing.py`.
@@ -231,7 +231,7 @@ grant exists.
   Priority rotates: M1 now has priority
 ```
 
-**Result:** Fair access -- each master is served in turn when both request.
+**Result:** Fair access — each master is served in turn when both request.
 The grant is held from command acceptance to the response handshake
 (`WAIT_GNT_ACK(1)`), so a blocked master waits one full transaction, not
 one cycle.
@@ -292,15 +292,15 @@ WITH Grant Persistence:
 - Fabric overhead is the dominant term, not APB's 2-cycle minimum:
   a full transfer measures **10** cycles SETUP-to-PREADY on an
   arbitrated variant (see "Transaction Latency" below). Everything in
-  this chapter is an M > 1 figure -- there is no arbiter at all when
+  this chapter is an M > 1 figure — there is no arbiter at all when
   M = 1, and those variants are a cycle faster.
 
 **Worst Case (Maximum Contention):**
 - Wait for the masters ahead in the round-robin to complete FULL
-  transactions -- the grant is held until the response handshake
+  transactions — the grant is held until the response handshake
   (`WAIT_GNT_ACK(1)`), so each is a full transaction, not 1 cycle. The
   right figure for a QUEUED transaction is the back-to-back period of
-  **11** cycles, not the 10-cycle single-transfer latency -- a waiting
+  **11** cycles, not the 10-cycle single-transfer latency — a waiting
   master inherits the same mandatory SETUP cycle that separates any two
   consecutive transfers
 - Example: 2 masters, worst case ~= one full transaction (11 cycles) of wait
@@ -396,20 +396,20 @@ apbx_xbar_2to4 #(
 1. **Address Decode:** 0 cycles (combinational, parallel)
 2. **Arbitration Decision:** 1 cycle (grant is registered)
 3. **Master APB phases:** 2 cycles (PSEL, then PENABLE)
-4. **Boundary IP + skid buffers:** ~6 cycles -- `apb4_slave` capture,
+4. **Boundary IP + skid buffers:** ~6 cycles — `apb4_slave` capture,
    registered cmd skid, `apb4_master` IDLE→SETUP→ACCESS, registered rsp
    skid, `apb4_slave` BUSY→PREADY
 5. **Slave Response:** Variable (adds to the above)
 
 **Total Minimum Latency: 10 cycles** SETUP-to-PREADY (9 of them
 ACCESS->PREADY) on an arbitrated variant, uncontended with a zero-wait
-slave -- measured on `apbx_xbar_2to1`, and the same on `2to4` and
+slave — measured on `apbx_xbar_2to1`, and the same on `2to4` and
 `2to2_mixed`. A single-master variant has no arbiter and measures 9 (8
 fabric). APB's 2-cycle minimum applies to a directly-attached
 slave; it does not apply through this fabric, which converts
 APB→cmd/rsp→APB across registered buffers in both directions.
 
-**Sustained cadence is 11 cycles**, PREADY-to-PREADY, not 10 -- see
+**Sustained cadence is 11 cycles**, PREADY-to-PREADY, not 10 — see
 "Single Master" above and HAS 5.2 for why the two differ and for the
 M = 1 column.
 
@@ -468,8 +468,8 @@ expected_slave = slave_index  // Should match actual PSEL
 **Check:**
 1. Other masters continuously accessing same slave?
 2. Round-robin priority rotating correctly? (grant is released at the
-   RESPONSE handshake -- `grant_ack = grant && rsp_valid && rsp_ready`
-   with `WAIT_GNT_ACK(1)` -- so a master that never completes a
+   RESPONSE handshake — `grant_ack = grant && rsp_valid && rsp_ready`
+   with `WAIT_GNT_ACK(1)` — so a master that never completes a
    transaction holds its grant)
 3. Is the starved master's address actually decoding in range? An
    out-of-range access completes locally with PSLVERR and never reaches

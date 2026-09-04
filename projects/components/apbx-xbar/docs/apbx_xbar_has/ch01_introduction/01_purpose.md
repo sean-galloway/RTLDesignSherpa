@@ -25,7 +25,7 @@
 
 ## Document Purpose
 
-This Hardware Architecture Specification (HAS) describes the APB Crossbar component at the system integration level. It carries enough detail for:
+This Hardware Architecture Specification (HAS) describes the APB Crossbar at the system integration level, with enough detail for:
 
 - **System architects** to evaluate the component for SoC integration
 - **Hardware engineers** to plan interconnect topology and address mapping

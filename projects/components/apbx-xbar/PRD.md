@@ -34,7 +34,7 @@
 
 ## 1. Executive Summary
 
-The **APB Crossbar** is a parametric generator for configurable MxN APB interconnect fabrics connecting multiple APB masters to multiple APB slaves. It is built from the proven `apb4_slave` and `apb4_master` modules, with independent round-robin arbitration per slave and automatic address-based routing.
+The **APB Crossbar** is a parametric generator for configurable MxN APB interconnect fabrics connecting multiple APB masters to multiple APB slaves. It is built from the proven `apb4_slave` and `apb4_master` modules: independent round-robin arbitration per slave, automatic address-based routing, and no new protocol logic.
 
 ### 1.1 Quick Stats
 
@@ -189,7 +189,7 @@ that table by up to 33%.
 ### 4.2 Wrapper Modules
 
 **These are TESTBENCH SCAFFOLDS, not integration building blocks.** Each
-exposes `pclk` and `presetn` and nothing else -- every APB signal is an
+exposes `pclk` and `presetn` and nothing else — every APB signal is an
 internal net driven by the cocotb testbench. They exist because the four
 legacy tests drive a wrapper rather than the bare crossbar; a design
 cannot connect anything to one.
@@ -239,7 +239,7 @@ the better pattern.
 
 **Description:** Consecutive transactions are accepted with no
 master-side idle cycles required. They do NOT overlap inside the
-fabric -- `apb4_slave` is one-command-at-a-time. Sustained cadence is
+fabric — `apb4_slave` is one-command-at-a-time. Sustained cadence is
 10 pclk cycles PREADY-to-PREADY for a single-master variant and 11 for
 an arbitrated one, in each case one more than that variant's
 SETUP-to-PREADY latency of 9 or 10 (HAS 5.1/5.2).
@@ -354,7 +354,7 @@ Options:
 | **Total** | **9** | **10** | SETUP->PREADY, uncontended, zero-wait slave (8 / 9 ACCESS->PREADY) |
 
 M = 1 is `1to1` and `1to4`, which the generator emits with no arbiter at
-all. M > 1 is `2to1`, `2to4` and `2to2_mixed` -- including the 2x4 this
+all. M > 1 is `2to1`, `2to4` and `2to2_mixed` — including the 2x4 this
 document calls the typical SoC case. This table gave only the M = 1
 figures, unlabelled, until 2026-08-30.
 
@@ -365,7 +365,7 @@ breakdown and the measurement.
 
 ### 9.2 Throughput
 
-- **Back-to-back transactions:** Supported, but not overlapped --
+- **Back-to-back transactions:** Supported, but not overlapped —
   `apb4_slave` is a one-command-at-a-time FSM, so the next command is
   captured only after the previous transaction completes
 - **Maximum rate:** ~1 transaction per 10 pclk cycles (1to1, 1to4) or 11 (2to1, 2to4, 2to2_mixed) per master
@@ -373,7 +373,7 @@ breakdown and the measurement.
 
 ### 9.3 Resource Utilization (Estimated)
 
-See HAS ch05_performance/03_resources.md -- that table is the single
+See HAS ch05_performance/03_resources.md — that table is the single
 source of truth. An earlier duplicate here quoted figures 2-3x smaller
 in every cell; both were unsourced hand estimates, so the duplicate is
 withdrawn rather than reconciled.

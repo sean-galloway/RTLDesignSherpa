@@ -60,7 +60,7 @@ projects/components/apbx-xbar/
    - Contains `generate_apbx_xbar()` function
    - Located in the component's own `bin/` directory:
      `projects/components/apbx-xbar/bin/apbx_xbar_generator.py`.
-     It is NOT under `bin/rtl_generators/` -- that path was claimed here
+     It is NOT under `bin/rtl_generators/` — that path was claimed here
      until 2026-08-29 and contradicted this chapter's own tree, its
      troubleshooting section, the README and the PRD.
      `bin/rtl_generators/amba/` contains only an `__init__.py`.
@@ -523,7 +523,7 @@ Slave 8:  0x10080000 - 0x1008FFFF (ADC)
 Slave 9:  0x10090000 - 0x1009FFFF (Watchdog)
 ```
 
-**LOC:** ~2500 lines (extrapolated, not generated and counted -- the
+**LOC:** ~2500 lines (extrapolated, not generated and counted — the
 measured anchors are in HAS ch05_performance/03_resources.md)
 
 ### Example 2: Multi-CPU System
@@ -794,7 +794,7 @@ python generate_xbars.py
 
 **Solution:**
 1. Check parameter ranges (1-16 for M and N)
-2. No span alignment is required -- the slave index comes from the
+2. No span alignment is required — the slave index comes from the
    OFFSET. The one illegal region is the top S x 64KB of the address
    space, where `BASE_ADDR + S*64KB` wraps 32-bit and every access
    becomes a decode miss
@@ -832,7 +832,7 @@ python generate_xbars.py
 
 ## Verification Wrappers
 
-`rtl/wrappers/*_wrap.sv` holds four modules -- `apbx_xbar_1to1_wrap`,
+`rtl/wrappers/*_wrap.sv` holds four modules — `apbx_xbar_1to1_wrap`,
 `apbx_xbar_1to4_wrap`, `apbx_xbar_2to1_wrap`, `apbx_xbar_2to4_wrap`.
 
 **The generator does not emit them.** They are hand-written testbench

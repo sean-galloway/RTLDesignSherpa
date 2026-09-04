@@ -32,7 +32,7 @@
 
 ## Overview
 
-This directory holds the visual documentation for the APB Crossbar component: architecture diagrams, timing waveforms, and the generator guide.
+This directory holds the APB Crossbar's documentation set: the architecture chapters, their diagrams and timing waveforms, and the generator guide.
 
 **Component Purpose:** Parametric MxN APB interconnect connecting multiple masters to multiple slaves with automatic address-based routing and round-robin arbitration.
 
@@ -327,7 +327,7 @@ wavedrom-cli -i arbitration_round_robin.json -p arbitration_round_robin.png
 1. Check this documentation first
 2. Review [PRD.md](../../PRD.md) for complete specification
 3. Review [CLAUDE.md](../../CLAUDE.md) for integration guidance
-4. Open GitHub issue if problem persists
+4. Open a GitHub issue if the problem persists
 
 ---
 

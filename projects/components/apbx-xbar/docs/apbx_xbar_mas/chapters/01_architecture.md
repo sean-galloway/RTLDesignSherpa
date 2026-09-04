@@ -45,7 +45,7 @@ The APB Crossbar is a parametric interconnect that connects M APB masters to N A
 
 ## Architecture Diagram
 
-The following diagram shows a 2x4 crossbar configuration connecting 2 masters (CPU and DMA) to 4 slaves (UART, GPIO, Timer, SPI):
+The 2x4 configuration below connects 2 masters (CPU and DMA) to 4 slaves (UART, GPIO, Timer, SPI):
 
 ### Figure 1.1: APB Crossbar Top-Level Architecture
 
@@ -152,7 +152,7 @@ Internal Crossbar Logic → cmd/rsp bus → apb4_master → APB Slave
    - Response routed back to apb4_slave[0]
    - apb4_slave[0] returns PREADY to CPU
 
-**Total Latency:** 9 cycles SETUP-to-PREADY uncontended on a single-master variant, 10 when arbitrated; sustained back-to-back cadence is 10 and 11 respectively (measured; see 2.x -- the fabric's boundary IP and registered skid buffers dominate, not APB's 2-cycle protocol minimum)
+**Total Latency:** 9 cycles SETUP-to-PREADY uncontended on a single-master variant, 10 when arbitrated; sustained back-to-back cadence is 10 and 11 respectively (measured; see 2.x — the fabric's boundary IP and registered skid buffers dominate, not APB's 2-cycle protocol minimum)
 
 ---
 
@@ -208,13 +208,13 @@ in `rtl/` is generated with parity OFF: `apbx_xbar_2to2_mixed` declares
 no parity ports at all on its module boundary, ties the boundary IP's
 parity inputs to `'0` and leaves its `parity_error_*` outputs
 unconnected. So there is nothing to connect and nothing to monitor
-unless you generate your own variant with the flag set -- and a mixed
+unless you generate your own variant with the flag set — and a mixed
 APB4/APB5 pairing carries no parity in any case.
 
 Formal coverage: `formal/apbx_xbar/apbx_xbar_2to2_mixed/` proves the
 mixed configuration as of 2026-08-29, replacing the proof lost with the
 thin core on 2026-08-27. Note it proves the SIDEBAND gate, not a parity
-gate -- a mixed pairing carries no parity at all here, so there is no
+gate — a mixed pairing carries no parity at all here, so there is no
 parity property left to state. The generated variants are instantiated
 with `ENABLE_PARITY=0`, and the APB4-port never-sees-parity question the
 thin core answered does not arise when the port has no parity pins.

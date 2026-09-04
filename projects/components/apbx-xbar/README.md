@@ -234,7 +234,7 @@ pytest projects/components/apbx-xbar/dv/tests/ -v  # All variants
   is held to the response handshake (`WAIT_GNT_ACK(1)`), so a second
   command never queues behind an executing one. Sustained cadence is
   10 pclk cycles PREADY-to-PREADY against a 9-cycle SETUP-to-PREADY
-  single transfer with one master, and 11 against 10 when arbitrated --
+  single transfer with one master, and 11 against 10 when arbitrated —
   in each case one MORE than the latency, because the next transfer's
   mandatory SETUP cycle cannot overlap the previous transfer's ACCESS.
   The generator emits no arbiter at all when M = 1, which is the whole
@@ -275,7 +275,7 @@ if M < 1 or M > 16:  # Change 16 to desired max
 - Generator: `projects/components/apbx-xbar/bin/apbx_xbar_generator.py`
 - Base modules: `rtl/amba/apb4/apb4_{slave,master}.sv`,
   `rtl/amba/apb5/apb5_{slave,master}.sv`
-- Formal: `formal/apbx_xbar/` -- four all-APB4 harnesses plus `apbx_xbar_2to2_mixed` for the mixed configuration
+- Formal: `formal/apbx_xbar/` — four all-APB4 harnesses plus `apbx_xbar_2to2_mixed` for the mixed configuration
 - Tests: `dv/tests/test_apbx_xbar_*.py`
 
 ## Not implemented
@@ -287,7 +287,7 @@ if M < 1 or M > 16:  # Change 16 to desired max
   the far side; the cmd/rsp fabric between the two is outside the
   protected domain, which is why each port exposes its own
   `parity_error_*` output. (There is no `PSELPARITY` signal in this
-  library -- the APB5 parity pins are `paddrparity`, `pwdataparity`,
+  library — the APB5 parity pins are `paddrparity`, `pwdataparity`,
   `pctrlparity`, `prdataparity`, `preadyparity`, `pslverrparity`.)
 - **Formal proof of version gating (RESTORED 2026-08-29).** The four
   all-APB4 harnesses (`apbx_xbar_{1to1,2to1,1to4,2to4}`) are joined by
@@ -296,8 +296,8 @@ if M < 1 or M > 16:  # Change 16 to desired max
   deleted on 2026-08-27, but it does NOT restate that proof: the thin
   core took versions as parameters, so every port had every sideband pin
   and "an APB4 port never sees sideband" was the real content. Here the
-  versions are structural -- m0 and s1 have no sideband pins to see
-  anything with -- so those properties would pass vacuously and are
+  versions are structural — m0 and s1 have no sideband pins to see
+  anything with — so those properties would pass vacuously and are
   deliberately omitted. The port-list fact is checked structurally by
   `test_apbx_xbar_2to2_mixed.py`'s `hasattr` sweep instead.
 

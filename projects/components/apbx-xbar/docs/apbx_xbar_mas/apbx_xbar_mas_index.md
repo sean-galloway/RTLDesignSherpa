@@ -32,7 +32,7 @@
 
 ## Document Organization
 
-This specification covers the APB Crossbar: a parametric MxN interconnect that connects multiple APB masters to multiple APB slaves with automatic address-based routing and round-robin arbitration.
+This specification covers the APB Crossbar: a parametric MxN interconnect that routes multiple APB masters to multiple APB slaves with automatic address-based routing and round-robin arbitration.
 
 ### Main Documentation
 
@@ -70,7 +70,7 @@ This specification covers the APB Crossbar: a parametric MxN interconnect that c
 
 ### Common Questions
 
-All answered in [README.md](README.md) Section "Common Questions"
+All answered in [README.md](README.md), section "Common Questions".
 
 ---
 
@@ -113,7 +113,7 @@ Every diagram in this specification is checked in as both source and rendered ou
 - **Back-to-Back Transactions:** Accepted without master-side idle
   cycles, though they do not overlap inside the fabric (10 pclk cycles
   each for M = 1, 11 for arbitrated variants; one more than that
-  variant's single-transfer latency -- see HAS 5.2)
+  variant's single-transfer latency — see HAS 5.2)
 - **Grant Persistence:** Grant held through transaction completion
 - **RTL Generation:** Python-based generator for custom configurations
 

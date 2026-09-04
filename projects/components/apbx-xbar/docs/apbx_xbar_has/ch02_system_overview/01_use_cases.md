@@ -29,7 +29,7 @@
 
 **Scenario:** Single CPU accessing multiple peripherals
 
-A microcontroller needs to reach UART, GPIO, Timer, and SPI peripherals through a single APB master interface.
+A microcontroller reaches UART, GPIO, Timer, and SPI peripherals through a single APB master interface.
 
 **Configuration:**
 - 1 Master (CPU)
@@ -48,7 +48,7 @@ A microcontroller needs to reach UART, GPIO, Timer, and SPI peripherals through 
 
 **Scenario:** CPU and DMA both accessing peripherals
 
-An SoC where both the CPU and a DMA controller need access to shared peripherals.
+An SoC where both the CPU and a DMA controller share the same peripherals.
 
 **Configuration:**
 - 2 Masters (CPU, DMA)

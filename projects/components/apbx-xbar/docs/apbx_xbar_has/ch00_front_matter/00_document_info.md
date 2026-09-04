@@ -34,7 +34,7 @@
 
 ## Document Purpose
 
-This Hardware Architecture Specification (HAS) is the high-level architectural view of the APB Crossbar component. It covers the system-level design, external interfaces, performance characteristics, and integration requirements. Internal implementation specifics are deliberately left to the MAS.
+This Hardware Architecture Specification (HAS) is the high-level architectural view of the APB Crossbar: system-level design, external interfaces, performance characteristics, and integration requirements. Internal implementation specifics are deliberately left to the MAS.
 
 **Target Audience:**
 - System architects evaluating APB Crossbar for SoC integration

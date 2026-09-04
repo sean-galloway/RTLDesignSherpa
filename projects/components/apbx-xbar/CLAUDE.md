@@ -69,7 +69,7 @@ Slave 2: BASE_ADDR + 0x0002_0000 → 0x0002_FFFF
 ...
 ```
 
-**The window size is not a module parameter, but it IS a generator option.** Every *shipped* variant uses 64KB windows because `bin/generate_xbars.py` passes `slave_size=0x10000`. The generator's own default is 4KB, and `apbx_xbar_generator.py --slave-size` accepts any power of 2 >= 256 bytes. Once generated the size is baked into the decode part-select, so it cannot be overridden at elaboration -- only `BASE_ADDR` can, and only on the decoding variants.
+**The window size is not a module parameter, but it IS a generator option.** Every *shipped* variant uses 64KB windows because `bin/generate_xbars.py` passes `slave_size=0x10000`. The generator's own default is 4KB, and `apbx_xbar_generator.py --slave-size` accepts any power of 2 >= 256 bytes. Once generated the size is baked into the decode part-select, so it cannot be overridden at elaboration — only `BASE_ADDR` can, and only on the decoding variants.
 
 **If user asks for different sizes:**
 ```
@@ -300,7 +300,7 @@ Transaction 4: M0 and M1 request → M0 granted (rotated)
 - **Independent per slave:** Each slave arbitrates independently
 - **Fair:** No master can starve another
 - **Grant persistence:** Once granted, master holds slave until response completes
-- **Back-to-back:** supported, but not overlapped -- 10 pclk cycles per
+- **Back-to-back:** supported, but not overlapped — 10 pclk cycles per
   transfer for 1to1/1to4, 11 for the arbitrated variants (2to1, 2to4,
   2to2_mixed), PREADY-to-PREADY (see HAS 5.1/5.2)
 
@@ -352,12 +352,12 @@ gtkwave waves.vcd
 - **test_apbx_xbar_2to1**: 130+ transactions (arbitration)
 - **test_apbx_xbar_1to4**: 200+ transactions (address decode)
 - **test_apbx_xbar_2to4**: 350+ transactions (full stress)
-- **test_apbx_xbar_2to2_mixed**: 8 directed -- all four APB4/APB5 pairings,
+- **test_apbx_xbar_2to2_mixed**: 8 directed — all four APB4/APB5 pairings,
   sideband gating, decode miss, structural pin check
-- **test_apbx_xbar_timing**: both variant classes -- asserts the published
+- **test_apbx_xbar_timing**: both variant classes — asserts the published
   latency, cadence and per-path breakdown so the numbers cannot drift
 
-**All tests passing (9/9)** -- and `2to2_mixed` additionally has a formal
+**All tests passing (9/9)** — and `2to2_mixed` additionally has a formal
 harness at `formal/apbx_xbar/apbx_xbar_2to2_mixed/`.
 
 **See:** `PRD.md` Section 10
