@@ -39,7 +39,7 @@
 
 **Key Differentiator from Delta:**
 - **Delta:** AXI-Stream crossbar (streaming data, single channel, simple routing)
-- **Bridge:** AXI4 full crossbar (memory-mapped, 5 channels, burst support, ID-based routing)
+- **Bridge:** AXI4 full crossbar (memory-mapped, 5 channels, burst support, `bridge_id` sideband routing)
 
 **Key Differentiator from Commercial IP:**
 - **Commercial AXI4 Crossbars:** Feature-complete, support every AXI4 edge case, complex configurability
@@ -95,8 +95,12 @@ Features intentionally excluded for simplicity:
 Core AXI4 features that matter:
 - Full 5-channel AXI4 protocol (AW, W, B, AR, R)
 - Burst transactions (INCR, WRAP, FIXED)
-- Out-of-order completion via transaction IDs
-- Multiple outstanding transactions per master
+- In-order completion. Responses are routed by a per-master `bridge_id`
+  sideband and an in-order FIFO, NOT by matching AXI IDs -- see FR-2.
+- Multiple outstanding transactions per master, **to one slave at a time**.
+  The generated master adapters carry a single-outstanding-target gate
+  (`aw_gate_ok` / `ar_gate_ok`): a new AW/AR to a DIFFERENT slave is held off
+  until the outstanding ones drain.
 - Channel-specific masters (write-only, read-only, read-write)
 - Data width conversion (32b ↔ 64b ↔ 128b ↔ 256b ↔ 512b)
 - Configurable M×N topology (1-32 masters, 1-256 slaves)
@@ -178,7 +182,7 @@ Bridge automates generation of AXI4 crossbar infrastructure:
 - **Python code generation** - Parameterized RTL generation (similar to APB/Delta)
 - **Performance modeling** - Analytical + simulation validation
 - **Flat topology** - Full M×N interconnect matrix
-- **ID-based routing** - Out-of-order transaction support
+- **`bridge_id` sideband routing** - in-order response return (see FR-2)
 - **Burst optimization** - Pipelined burst transfers
 
 ### 1.2 Target Audience
@@ -202,7 +206,10 @@ Bridge automates generation of AXI4 crossbar infrastructure:
 - [x] Generates CSV/TOML-configured bridges (bridge_generator.py + bridge_pkg/; the earlier separate bridge_csv_generator.py was merged in)
 - [x] Passes Verilator lint
 - [x] Supports 1-32 masters, 1-256 slaves
-- [x] Handles out-of-order completion via IDs (bridge_cam.sv)
+- [ ] Handles out-of-order completion via IDs. NOT IMPLEMENTED: `bridge_cam.sv`
+  exists but is instantiated by no generated module. The slave adapters run
+  "Bridge ID Tracking - FIFO Mode (In-Order)" and 93 generated files still
+  declare `cam_wr_allocate`/`cam_rd_allocate` without driving them.
 - [x] Supports burst lengths 1-256 beats
 - [x] Channel-specific masters (wr/rd/rw) for resource optimization (Phase 2)
 - [ ] APB converter integration (Phase 3 pending)
@@ -269,7 +276,8 @@ The bridge generator now supports both TOML/CSV configuration and legacy array-i
 
 **Additional Resources:**
 - `models/bridge_model/bridge_model.py` - Performance modeling (V1 Flat implemented)
-- `rtl/bridge_cam.sv` - Transaction ID tracking for OOO support
+- `rtl/bridge_cam.sv` - CAM for ID tracking. **Not instantiated by any generated
+  module**; kept for the OOO work FR-2 describes as not implemented.
 - See `GENERATOR_ARCHITECTURE.md` for the generator/build architecture
 - See `docs/bridge_has/` and `docs/bridge_mas/` for architecture diagrams and specs
   (the older BRIDGE_CURRENT_STATE.md / BRIDGE_ARCHITECTURE_DIAGRAMS.md were superseded)
@@ -286,7 +294,7 @@ The bridge generator now supports both TOML/CSV configuration and legacy array-i
 | **Channels** | 1 (address + data) | 1 (data stream) | 5 (AW, W, B, AR, R) |
 | **Request Generation** | Address range decode | TDEST decode | Address range decode |
 | **Arbitration** | Per-slave, per-cycle | Per-slave, packet-locked | Per-slave, per-address-phase |
-| **Out-of-Order** | No (sequential) | No (streaming order) | Yes (ID-based) |
+| **Out-of-Order** | No (sequential) | No (streaming order) | No (in-order, `bridge_id` routed) |
 | **Burst Support** | No | Packet (via TLAST) | Yes (AWLEN/ARLEN) |
 | **Complexity** | Low | Medium | **High** |
 | **Latency** | 1-2 cycles | 2 cycles | 2-3 cycles |
@@ -294,7 +302,7 @@ The bridge generator now supports both TOML/CSV configuration and legacy array-i
 
 **Bridge Complexity Sources:**
 1. **5 independent channels** requiring separate arbitration
-2. **ID-based routing** for out-of-order completion
+2. **`bridge_id` sideband routing**, in-order (the AXI ID is not used for routing)
 3. **Burst handling** with interleaving constraints
 4. **Write response tracking** (match AW with B channel)
 5. **Address decode + ID muxing** for response routing
@@ -322,12 +330,12 @@ Masters (M)                                                    Slaves (S)
                  │             │                        │
 ┌─────────┐      │   ┌──────────────────────────┐      │     ┌─────────┐
 │ Master 2│ ─────┼───│  Arbitration Matrix      │──────┼─────│ Slave 2 │
-│  (DMA)  │      │   │  (5 separate arbiters    │      │     │ (PCIE)  │
+│  (DMA)  │      │   │  (AW + AR arbiters       │      │     │ (PCIE)  │
 └─────────┘      │   │   per slave: AW,W,B,AR,R)│      │     └─────────┘
                  │   └──────────────────────────┘      │
 ┌─────────┐      │             │                        │     ┌─────────┐
 │ Master 3│ ─────┴───│  Data/Addr Multiplexing  │──────┴─────│ Slave 3 │
-│ (Accel) │          │  (ID-based routing)      │            │ (Periph)│
+│ (Accel) │          │  (bridge_id routing)     │            │ (Periph)│
 └─────────┘          └──────────────────────────┘            └─────────┘
                                │
                      ┌──────────────────────────┐
@@ -344,12 +352,13 @@ Masters (M)                                                    Slaves (S)
 - Similar to APB but more complex (2 address channels)
 
 **2. Per-Slave Arbitration**
-- **5 separate arbiters per slave:**
+- **2 arbiters per slave**, not five:
   - AW channel arbiter (write address)
-  - W channel arbiter (write data - locked to AW grant)
-  - B channel arbiter (write response - routed by ID)
   - AR channel arbiter (read address)
-  - R channel arbiter (read data - routed by ID)
+  - W has no arbiter -- a W-owner FIFO gives the channel to whichever master's
+    AW the slave accepted first.
+  - B and R have no arbiter -- they are muxed combinationally on the
+    `bridge_id` carried alongside the response.
 - Round-robin with burst locking
 - Separate read/write paths (no head-of-line blocking)
 
@@ -381,11 +390,17 @@ Masters (M)                                                    Slaves (S)
 - Support burst types: INCR, WRAP, FIXED
 - Support burst sizes: 1-128 bytes (AWSIZE/ARSIZE = 0-7)
 
-**FR-2: Out-of-Order Transaction Support**
-- Route responses via ID matching
-- Maintain transaction ID integrity (AWID → BID, ARID → RID)
-- Support configurable ID width (1-16 bits)
-- Track up to 2^ID_WIDTH outstanding transactions per slave
+**FR-2: Response Routing (in-order)**
+- Responses are routed by the `bridge_id` sideband, a static per-master tag,
+  popped from an in-order FIFO. The AXI ID plays no part in routing.
+- Master IDs pass through unchanged -- there is no ID extension. `cpu_adapter`
+  drives `cpu_32b_aw.id = fub_axi_awid`, 4 bits in, 4 bits out.
+- **Constraint this imposes:** the slave must return responses in the order its
+  requests were accepted. A reordering slave misroutes -- the FIFO head names
+  the wrong master, so one master receives another's beats and the second
+  starves. Nothing detects this.
+- Two masters using the same AXI ID to the same slave alias to one ID at that
+  slave; the `bridge_id` sideband, not the ID, keeps their responses apart.
 
 **FR-3: Atomic Operations**
 - Support exclusive access (AWLOCK/ARLOCK)
@@ -416,7 +431,10 @@ address_map = {
 **FR-6: Round-Robin Arbitration**
 - Fair bandwidth allocation (no starvation)
 - Separate arbiters for AW and AR channels
-- Burst locking: Grant held until xlast (WLAST/RLAST)
+- Grant is locked only until the ADDRESS handshake (`awvalid && awready`),
+  not until xlast. The RTL comment reads "lock until handshake". Back-to-back
+  AWs from different masters can therefore be accepted and their W bursts
+  sequenced by the W-owner FIFO.
 - Configurable arbitration policy (round-robin default)
 
 **FR-7: Read/Write Independence**
@@ -748,10 +766,11 @@ end
 - Backpressure handling (similar to PREADY)
 
 **New Components for Bridge:**
-- **5× the arbiters** (AW, W, B, AR, R instead of single channel)
-- **ID-based routing** (B and R channel demuxing)
-- **Transaction tracking** (ID tables for out-of-order)
-- **Burst handling** (grant locking until xlast)
+- **2 arbiters per slave** (AW and AR). W is owned via a FIFO, B and R are
+  muxed combinationally -- no arbiter on any of the three.
+- **`bridge_id` sideband routing** (B and R channel demuxing)
+- **In-order transaction tracking** (a FIFO per direction, not an ID table)
+- **Burst handling** (grant locked to the ADDRESS handshake, not xlast)
 
 **Migration Effort from APB:**
 - ~120 minutes (vs ~75 min for AXIS, due to higher complexity)
@@ -767,7 +786,7 @@ end
 
 **Key Differences:**
 - **5 channels** vs 1 channel (Delta only has TDATA/TVALID/TREADY/TLAST)
-- **ID-based routing** vs TDEST-based routing
+- **`bridge_id` sideband routing** vs TDEST-based routing
 - **Address decode** vs TDEST decode (Bridge more complex)
 - **Transaction tracking** vs packet atomicity (different mechanisms)
 
@@ -858,7 +877,7 @@ Configuration:
 
 **Arbiter Tests:**
 - Round-robin fairness (all masters get turns)
-- Burst locking (grant held until xlast)
+- Grant locking to the ADDRESS handshake (not xlast -- see FR-6)
 - Starvation prevention
 
 **ID Table Tests:**

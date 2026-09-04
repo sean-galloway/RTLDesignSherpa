@@ -29,28 +29,40 @@ When a Bridge test fails, start here. This guide lists the failure modes that ac
 
 ## Debug Signal Access
 
-### Enabling Debug Outputs
+### There are no `dbg_*` ports
+
+The generator emits no debug ports. Earlier revisions of this chapter showed
+`dbg_aw_grant_s0`, `dbg_outstanding_m0`, `dbg_resp_master` and a
+`dbg_id_table_*` CAM view; none of them exist in any generated module, and
+every procedure written against them fails immediately with a cocotb
+`AttributeError`.
+
+Debug instead by reaching into the real internal signals by hierarchical
+name. They are named after the SLAVE (`<slave>_...`) in the xbar and are plain
+`logic`, so cocotb can read them directly:
 
 ```python
-# Enable debug signals in test
 @cocotb.test()
 async def test_with_debug(dut):
-    # Access debug signals
-    grant_s0 = dut.dbg_aw_grant_s0.value
-    outstanding_m0 = dut.dbg_outstanding_m0.value
-    state_s0 = dut.dbg_aw_state_s0.value
+    xbar = dut.u_xbar                     # instance name in the generated top
+    grant   = xbar.ddr_aw_arb_gnt.value   # which master holds the AW grant
+    locked  = xbar.ddr_aw_arb_locked.value
+    rr      = xbar.ddr_aw_arb_rr.value    # round-robin pointer
+    routed  = xbar.ddr_axi_rid_bridge_id.value  # bridge_id the R beat returns to
 ```
 
-### Debug Signal Categories
+| Category | Real signals | Purpose |
+|----------|--------------|---------|
+| Arbitration | `<slave>_aw_arb_gnt`, `_locked`, `_rr`, `_req`, `_pick` | Grant, lock and round-robin state, per slave, AW and AR |
+| Response routing | `<slave>_axi_bid_bridge_id`, `<slave>_axi_rid_bridge_id` | The `bridge_id` a B/R beat is muxed to. This is the routing decision -- the AXI ID is not used |
+| Outstanding tracking | `aw_trk_wptr` / `aw_trk_rptr`, `ar_trk_*` (in the master adapter) | Depth of the in-order tracking FIFO |
+| Target gating | `aw_gate_ok` / `ar_gate_ok`, `r_aw_active_target` (adapter) | Why a new AW/AR to a different slave is being held off |
 
-| Category | Signals | Purpose |
-|----------|---------|---------|
-| Arbitration | `dbg_*_grant_s*` | Grant state per slave |
-| Outstanding | `dbg_outstanding_m*` | Transaction depth per master |
-| State | `dbg_*_state_s*` | FSM states per channel |
-| ID Tracking | `dbg_id_table_*` | CAM contents |
+: Table 7.3: Debug Signals That Exist
 
-: Table 7.3: Debug Signal Categories
+There is no outstanding-count output and no FSM state vector -- the arbiters
+are two-state (`locked` / not) rather than an encoded FSM, so `_locked` plus
+`_gnt` is the whole state.
 
 ## Common Issues
 
@@ -69,10 +81,13 @@ print(f"AWVALID: {dut.m0_axi_awvalid.value}")
 print(f"AWREADY: {dut.m0_axi_awready.value}")
 
 # 2. Check arbitration state
-print(f"AW Grant S0: {dut.dbg_aw_grant_s0.value}")
+print(f"AW grant (ddr): {dut.u_xbar.ddr_aw_arb_gnt.value}")
+print(f"AW locked     : {dut.u_xbar.ddr_aw_arb_locked.value}")
 
-# 3. Check outstanding count
-print(f"Outstanding M0: {dut.dbg_outstanding_m0.value}")
+# 3. Check the tracking FIFO and the single-outstanding-target gate
+print(f"AW trk wptr/rptr: {dut.u_cpu_adapter.aw_trk_wptr.value}"
+      f"/{dut.u_cpu_adapter.aw_trk_rptr.value}")
+print(f"aw_gate_ok      : {dut.u_cpu_adapter.aw_gate_ok.value}")
 
 # 4. Check slave response
 print(f"BVALID: {dut.s0_axi_bvalid.value}")
@@ -80,10 +95,13 @@ print(f"BREADY: {dut.s0_axi_bready.value}")
 ```
 
 **Common Causes:**
-- Arbiter locked by another master
-- Outstanding limit reached
+- Arbiter locked by another master (`_arb_locked` high for someone else)
+- **A different slave is still outstanding.** `aw_gate_ok` low means the
+  adapter is holding AWREADY down because every outstanding write must target
+  one slave at a time. This is by design, not a fault -- see the
+  single-outstanding-target note in the PRD.
 - Slave not responding
-- ID table full
+- Tracking FIFO full (`aw_trk_wptr` has lapped `aw_trk_rptr`)
 
 ### Issue: Wrong Response Routing
 
@@ -94,19 +112,23 @@ print(f"BREADY: {dut.s0_axi_bready.value}")
 **Debug Steps:**
 
 ```python
-# Check ID extension
-print(f"Outgoing AWID: {dut.xbar_m0_awid.value}")
-print(f"Slave received ID: {dut.s0_axi_awid.value}")
+# The AXI ID passes through UNCHANGED -- there is no ID extension.
+print(f"Master AWID : {dut.cpu_m_axi_awid.value}")
+print(f"Slave  AWID : {dut.ddr_axi_awid.value}")     # same value
 
-# Check response ID
-print(f"Slave BID: {dut.s0_axi_bid.value}")
-print(f"Routed to master: {dut.dbg_resp_master.value}")
+# Routing is by the bridge_id sideband, not the ID:
+print(f"B routed to bridge_id: {dut.u_xbar.ddr_axi_bid_bridge_id.value}")
+print(f"R routed to bridge_id: {dut.u_xbar.ddr_axi_rid_bridge_id.value}")
 ```
 
 **Common Causes:**
-- ID extension incorrect
-- CAM lookup failure
-- ID width mismatch
+- **The slave returned responses out of order.** Routing pops an in-order
+  FIFO, so a reordering slave sends one master's beats to another. Nothing
+  detects it. This is the single most likely cause and it is a design
+  constraint, not a bug in the bridge -- see FR-2 in the PRD.
+- ID width mismatch between master and slave ports
+- Two masters using the same AXI ID to one slave: their IDs alias at the
+  slave, and only the `bridge_id` sideband keeps the responses apart
 
 ### Issue: Data Corruption
 
@@ -157,10 +179,12 @@ Waveform Signal Groups:
 │   └── m0_axi_awvalid, m0_axi_awready, m0_axi_awaddr, m0_axi_awid
 ├── Slave 0 AW Channel
 │   └── s0_axi_awvalid, s0_axi_awready, s0_axi_awaddr, s0_axi_awid
-├── Arbitration
-│   └── dbg_aw_grant_s0, dbg_ar_grant_s0
+├── Arbitration (inside u_xbar)
+│   └── ddr_aw_arb_gnt, ddr_aw_arb_locked, ddr_ar_arb_gnt, ddr_ar_arb_locked
+├── Target gating (inside the master adapter)
+│   └── aw_gate_ok, ar_gate_ok, r_aw_active_target
 └── Response
-    └── s0_axi_bvalid, m0_axi_bvalid, dbg_resp_master
+    └── s0_axi_bvalid, m0_axi_bvalid, ddr_axi_bid_bridge_id
 ```
 
 ### Timing Analysis
@@ -178,18 +202,16 @@ Waveform Signal Groups:
 
 ## Assertion Failures
 
-### Built-in Assertions
+### There are no built-in assertions
 
-```systemverilog
-// Protocol assertions in generated RTL
-assert property (@(posedge aclk) disable iff (!aresetn)
-    s_awvalid && !s_awready |=> s_awvalid
-) else $error("AW handshake violation");
+The generated RTL contains no `assert` statements of any kind -- not in the
+top, the xbar or any adapter. An earlier revision of this section showed two
+protocol assertions as though they shipped; they never existed, and the
+signals they referenced (`s_awvalid`, `r_current_awid`) match no identifier in
+the generated design.
 
-assert property (@(posedge aclk) disable iff (!aresetn)
-    s_wvalid && s_wlast |-> s_awid == r_current_awid
-) else $error("W data ID mismatch");
-```
+Protocol checking is the testbench's job here. Use the AXI4 BFMs and the
+monitor wrappers rather than expecting the DUT to flag a violation itself.
 
 ### Handling Assertion Failures
 

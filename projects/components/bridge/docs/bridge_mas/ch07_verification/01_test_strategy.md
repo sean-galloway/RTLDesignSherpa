@@ -36,7 +36,7 @@ Per-block verification:
 ```
 Unit Test Coverage:
 ├── Master Adapter Tests
-│   ├── ID extension verification
+│   ├── bridge_id sideband tagging (IDs pass through unchanged)
 │   ├── Channel routing
 │   └── Backpressure handling
 ├── Address Decoder Tests
@@ -62,7 +62,7 @@ Integration Test Matrix:
 ├── 2x2 Configuration
 │   ├── Basic read/write
 │   ├── Concurrent transactions
-│   └── ID collision avoidance
+│   └── Same-ID aliasing across masters (bridge_id keeps them apart)
 ├── 4x4 Configuration
 │   ├── Full arbitration coverage
 │   ├── Width conversion paths
