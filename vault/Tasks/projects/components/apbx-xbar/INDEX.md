@@ -6,7 +6,7 @@ fixed-configuration variants `1to1`, `2to1`, `1to4`, `2to4` and
 
 | State | Count |
 |---|---|
-| [open](open.md) | 0 |
+| [open](open.md) | 1 |
 | [closed](closed.md) | 5 |
 | [dropped](dropped.md) | 1 |
 

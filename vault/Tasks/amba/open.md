@@ -1782,6 +1782,12 @@ worse than no test, and this area has already produced them:
 - Inputs the DUT needs are actually driven. `rsp_ready` was never assigned in
   the apb5 master TB, so the response path was never exercised.
 - gate/func/full levels mean something distinct, not three names for one run.
+- No `run()` call pins `testcase=` to a single cocotb test. A pinned
+  `testcase=` silently hides every OTHER `@cocotb.test` in that module, so a
+  test can sit in the file for months and never execute. `test_apb5_master.py`
+  did exactly this (2026-09-04) -- the TASK-068 witness added beside the basic
+  test ran zero times until the pin was widened. Grep for `testcase=`
+  repo-wide; a comma-separated list is the fix when a pin is genuinely wanted.
 - A fix landed with a test has a mutation check recorded: the test was seen
   RED against the unfixed RTL. Without that the test is decoration.
 
