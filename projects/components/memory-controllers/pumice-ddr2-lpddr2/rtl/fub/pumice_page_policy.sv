@@ -70,8 +70,6 @@ module pumice_page_policy
     // ---- mode-select CSR fields (SCHED/PAGE_* registers) -------------------
     input  logic [2:0]                 policy_mode_i,     // PAGE_POLICY_CFG.policy_mode
     input  logic                       policy_scope_i,    // 0=per-bank TR, 1=global TR
-    input  logic [3:0]                 ctr_thresh_i,      // PAGE_POLICY_CFG.ctr_open_max
-    input  logic [3:0]                 ctr_init_i,        // PAGE_POLICY_CFG.ctr_init
     input  logic [7:0]                 tr_init_i,         // PAGE_TIMEOUT_CFG
     input  logic [7:0]                 tr_min_i,
     input  logic [7:0]                 tr_max_i,
@@ -80,15 +78,10 @@ module pumice_page_policy
     input  logic [3:0]                 mc_low_thr_i,
     input  logic [3:0]                 mc_init_i,
     input  logic [15:0]                check_interval_i,
-    // UNUSED while modes 6/7 are not built (see the header). Kept as ports so
-    // the CSR wiring in the parent is untouched and restoring the tables is a
-    // change to this file alone.
-    /* verilator lint_off UNUSED */
-    input  logic [7:0]                 rbl_miss_thresh_i, // PAGE_RBL_CFG
-    input  logic [1:0]                 rbl_ways_i,
-    input  logic [3:0]                 rbl_sets_i,
-    input  logic [15:0]                rbl_reset_ivl_i,
-    /* verilator lint_on UNUSED */
+    // NOTE: the adapt_access (mode 5) ctr_* and RBLA (modes 6/7) rbl_* inputs
+    // were removed with the predictor tier (rtl/OLD/); modes 5-7 decode to the
+    // default policy in the minimal base. Restoring the tables re-adds these
+    // ports + their CSRs (see rtl/OLD/README).
 
     // ---- issued command stream (arbiter output, single-issue) --------------
     input  logic                       cmd_valid_i,       // cmd_valid && cmd_ready

@@ -42,7 +42,6 @@ Don't override. Generated from: $root
 | 0x070|     PAGE_POLICY_CFG    |           Page Policy Config          |
 | 0x074|    PAGE_TIMEOUT_CFG    |          Page Timeout Config          |
 | 0x078|     PAGE_ADAPT_CFG     |          Page Adaptive Config         |
-| 0x07C|      PAGE_RBL_CFG      |            Page RBL Config            |
 | 0x080|     OBS_ROW_HIT[0]     |      Per-Bank Row Hit Observation     |
 | 0x084|     OBS_ROW_HIT[1]     |      Per-Bank Row Hit Observation     |
 | 0x088|     OBS_ROW_HIT[2]     |      Per-Bank Row Hit Observation     |
@@ -908,40 +907,25 @@ request. All hw-readable so they drive the controller core.</p>
 - Base Offset: 0x70
 - Size: 0x4
 
-<p>Axis 2 mode select + adapt_access counter shape. 0 = build default.</p>
+<p>Axis 2 page-policy mode select. 0 = build default.</p>
 
-| Bits| Identifier |Access|Reset|Name|
-|-----|------------|------|-----|----|
-| 2:0 | policy_mode|  rw  | 0x0 |  — |
-|  3  |policy_scope|  rw  | 0x0 |  — |
-| 5:4 |  ctr_width |  rw  | 0x0 |  — |
-| 9:6 |ctr_open_max|  rw  | 0x0 |  — |
-|13:10|  ctr_init  |  rw  | 0x0 |  — |
-|31:14|    RSVD    |   r  | 0x0 |  — |
+|Bits| Identifier |Access|Reset|Name|
+|----|------------|------|-----|----|
+| 2:0| policy_mode|  rw  | 0x0 |  — |
+|  3 |policy_scope|  rw  | 0x0 |  — |
+|31:4|    RSVD    |   r  | 0x0 |  — |
 
 #### policy_mode field
 
-<p>0=build default, 1=static_open, 2=static_close, 3=fixed_open, 4=adapt_time, 5=adapt_access, 6=rbl_static, 7=rbl_dyn</p>
+<p>0=build default, 1=static_open, 2=static_close, 3=fixed_open, 4=adapt_time. Modes 5-7 (adapt_access/rbl_static/rbl_dyn) are the predictor tier, set aside under rtl/OLD/ and NOT built in the minimal base.</p>
 
 #### policy_scope field
 
 <p>0 = per-bank decision state, 1 = global</p>
 
-#### ctr_width field
-
-<p>adapt_access counter width select (0=2-bit)</p>
-
-#### ctr_open_max field
-
-<p>adapt_access: counter value at/above which the row is CLOSED</p>
-
-#### ctr_init field
-
-<p>adapt_access: counter init value</p>
-
 #### RSVD field
 
-<p>Reserved</p>
+<p>Reserved (was adapt_access ctr_width/ctr_open_max/ctr_init -- retired with the row_pred predictor to rtl/OLD/)</p>
 
 ### PAGE_TIMEOUT_CFG register
 
@@ -1009,42 +993,6 @@ request. All hw-readable so they drive the controller core.</p>
 #### check_interval field
 
 <p>Cycles between MC evaluations</p>
-
-### PAGE_RBL_CFG register
-
-- Absolute Address: 0x7C
-- Base Offset: 0x7C
-- Size: 0x4
-
-<p>RBLA/Yoon miss-counter table shape. rbl_dyn hill-climb weights land with that mode.</p>
-
-| Bits|  Identifier  |Access|Reset|Name|
-|-----|--------------|------|-----|----|
-| 7:0 |  miss_thresh |  rw  | 0x0 |  — |
-| 9:8 |     ways     |  rw  | 0x0 |  — |
-|13:10|     sets     |  rw  | 0x0 |  — |
-|15:14|     RSVD     |   r  | 0x0 |  — |
-|31:16|reset_interval|  rw  | 0x0 |  — |
-
-#### miss_thresh field
-
-<p>Miss count above which a row is low-locality (auto-precharge)</p>
-
-#### ways field
-
-<p>log2 table ways</p>
-
-#### sets field
-
-<p>log2 table sets</p>
-
-#### RSVD field
-
-<p>Reserved</p>
-
-#### reset_interval field
-
-<p>Epoch length: counters reset every N cycles (0=never)</p>
 
 ## OBS_ROW_HIT register file
 

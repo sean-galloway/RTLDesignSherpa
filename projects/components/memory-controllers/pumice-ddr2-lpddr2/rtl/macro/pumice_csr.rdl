@@ -666,11 +666,11 @@ addrmap pumice_csr {
 
     reg {
         name = "Page Policy Config";
-        desc = "Axis 2 mode select + adapt_access counter shape. 0 = build default.";
+        desc = "Axis 2 page-policy mode select. 0 = build default.";
 
         field {
             sw = rw; hw = r;
-            desc = "0=build default, 1=static_open, 2=static_close, 3=fixed_open, 4=adapt_time, 5=adapt_access, 6=rbl_static, 7=rbl_dyn";
+            desc = "0=build default, 1=static_open, 2=static_close, 3=fixed_open, 4=adapt_time. Modes 5-7 (adapt_access/rbl_static/rbl_dyn) are the predictor tier, set aside under rtl/OLD/ and NOT built in the minimal base.";
         } policy_mode[2:0] = 3'h0;
 
         field {
@@ -679,21 +679,9 @@ addrmap pumice_csr {
         } policy_scope[3:3] = 1'b0;
 
         field {
-            sw = rw; hw = r;
-            desc = "adapt_access counter width select (0=2-bit)";
-        } ctr_width[5:4] = 2'h0;
-
-        field {
-            sw = rw; hw = r;
-            desc = "adapt_access: counter value at/above which the row is CLOSED";
-        } ctr_open_max[9:6] = 4'h0;
-
-        field {
-            sw = rw; hw = r;
-            desc = "adapt_access: counter init value";
-        } ctr_init[13:10] = 4'h0;
-
-        field { sw = r; hw = na; desc = "Reserved"; } RSVD[31:14] = 18'h0;
+            sw = r; hw = na;
+            desc = "Reserved (was adapt_access ctr_width/ctr_open_max/ctr_init -- retired with the row_pred predictor to rtl/OLD/)";
+        } RSVD[31:4] = 28'h0;
 
     } PAGE_POLICY_CFG @ 0x070;
 
@@ -720,17 +708,10 @@ addrmap pumice_csr {
 
     } PAGE_ADAPT_CFG @ 0x078;
 
-    reg {
-        name = "Page RBL Config";
-        desc = "RBLA/Yoon miss-counter table shape. rbl_dyn hill-climb weights land with that mode.";
-
-        field { sw = rw; hw = r; desc = "Miss count above which a row is low-locality (auto-precharge)"; } miss_thresh[7:0] = 8'h0;
-        field { sw = rw; hw = r; desc = "log2 table ways";                        } ways[9:8]   = 2'h0;
-        field { sw = rw; hw = r; desc = "log2 table sets";                        } sets[13:10] = 4'h0;
-        field { sw = r; hw = na; desc = "Reserved";                               } RSVD[15:14] = 2'h0;
-        field { sw = rw; hw = r; desc = "Epoch length: counters reset every N cycles (0=never)"; } reset_interval[31:16] = 16'h0;
-
-    } PAGE_RBL_CFG @ 0x07C;
+    // 0x07C (was PAGE_RBL_CFG) -- retired with the RBLA/Yoon miss-counter
+    // predictor (policy_mode 6/7). pumice_rbl_table and its CSRs are set aside
+    // under rtl/OLD/; address intentionally left unmapped in the minimal base.
+    // Restoring the predictor tier re-adds this register (see rtl/OLD/README).
 
     reg {
         name = "Refresh Mode Control";
