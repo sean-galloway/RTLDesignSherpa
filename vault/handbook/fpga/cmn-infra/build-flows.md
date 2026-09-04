@@ -87,6 +87,55 @@ Two rules fall out of it:
   `make bitstream`. `Genesys2/stream/bin/tests/test_bridge_dv_not_generated.py`
   makes that check mechanical for this flow.
 
+## Defines: lint and the build see different RTL
+
+`make/fpga_flow.mk` sets exactly one define, and only for lint:
+
+```make
+LINT_DEFINES ?= +define+USE_ASYNC_RESET
+```
+
+It is passed on the lint line alone. **Synthesis and simulation are given no
+defines at all**, so they take `rtl/amba/includes/reset_defs.svh`'s default,
+which is SYNCHRONOUS:
+
+```systemverilog
+`define ALWAYS_FF_RST_LO(clk, rst, BODY)          \
+    `ifdef USE_ASYNC_RESET                        \
+        always_ff @(posedge (clk) or negedge (rst)) BODY \
+    `else                                         \
+        always_ff @(posedge (clk)) BODY           \
+    `endif
+```
+
+So lint elaborates every `ALWAYS_FF_RST` block with reset in the sensitivity
+list and the bitstream you actually build does not.
+
+Keep the size of that difference straight. `BODY` is identical in both
+branches -- same flops, same reset values, same logic -- so lint checks the
+registers you ship, and width, unused/undriven, case-completeness, latch and
+declaration-order checks all run on exactly the code that gets built. The ONLY
+thing that differs is whether reset is asynchronous or synchronous. What that
+costs you is narrow: a finding that depends on reset TIMING is being made
+against a configuration nobody builds, in either direction.
+
+Nothing documents why the define is there. It arrived unexplained in
+d2d387e5 (the shared-infra commit), and the comment immediately above it in
+the makefile is about the WAIVER set, not about resets -- so it reads as
+intentional when it may simply be misplaced. Do not "fix" it by deleting it
+without checking what the lint clean depends on; the safe change is per build,
+`LINT_DEFINES := ` in the build's Makefile, then re-run `make lint`.
+
+To build a design with asynchronous resets, the define has to reach synthesis
+too, which today means adding it in the build's own tcl -- `fpga_flow.mk` has
+no `SYNTH_DEFINES` hook. Adding one is the right fix if any board build ever
+needs async reset.
+
+Reference: `projects/fpga-systems/NexysA7/pumice/build-perf/Makefile` is the
+model for the variables-only build file, and it overrides none of this -- so
+pumice on the Nexys A7 is built with synchronous resets and linted with
+asynchronous ones, like every other flow.
+
 ## Flow notes
 
 - Non-project batch Tcl driven by the Makefiles above
