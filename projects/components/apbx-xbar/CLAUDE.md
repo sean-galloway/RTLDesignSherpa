@@ -69,15 +69,15 @@ Slave 2: BASE_ADDR + 0x0002_0000 → 0x0002_FFFF
 ...
 ```
 
-**Users CANNOT change per-slave size** -- every variant uses fixed 64KB windows. The map's origin is settable via `BASE_ADDR`; the window size is not a parameter.
+**The window size is not a module parameter, but it IS a generator option.** Every *shipped* variant uses 64KB windows because `bin/generate_xbars.py` passes `slave_size=0x10000`. The generator's own default is 4KB, and `apbx_xbar_generator.py --slave-size` accepts any power of 2 >= 256 bytes. Once generated the size is baked into the decode part-select, so it cannot be overridden at elaboration -- only `BASE_ADDR` can, and only on the decoding variants.
 
 **If user asks for different sizes:**
 ```
 WRONG: "Let me modify the generator to support custom sizes per slave"
 
-CORRECT: "Current design uses fixed 64KB per slave. You can:
-1. Use BASE_ADDR parameter to shift entire map
-2. For custom sizes, modify generator's addr_offset calculation
+CORRECT: "The shipped variants use 64KB per slave. You can:
+1. Use BASE_ADDR to shift the whole map (decoding variants only)
+2. For a different window, regenerate with --slave-size (power of 2, >= 256B)
 3. Or use multiple crossbars with different BASE_ADDR values"
 ```
 
@@ -482,8 +482,8 @@ User: "Can I make slave 0 256KB and slave 1 4KB?"
 You: "Sure, let me modify the parameters..."
 
 CORRECTED:
-"Current design uses fixed 64KB per slave. For custom sizes:
-1. Modify generator's addr_offset calculation
+"The shipped variants use 64KB per slave. For a different window:
+1. Regenerate with --slave-size (power of 2, >= 256B)
 2. Or use multiple crossbars with different BASE_ADDR
 3. Or implement address masking in slaves"
 ```

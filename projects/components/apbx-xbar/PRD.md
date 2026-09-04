@@ -487,7 +487,7 @@ apbx_xbar_2to4 #(
 |------------|-------|-----------|
 | **Max masters** | 16 | Generator limit (configurable) |
 | **Max slaves** | 16 | Generator limit (configurable) |
-| **Slave region size** | 64KB | Fixed per slave |
+| **Slave region size** | 64KB in every shipped variant | Baked in at generation (`--slave-size`, default 4KB); not overridable at elaboration |
 | **No slave disable** | N/A | All slaves always active |
 | **No timeout** | N/A | Assumes slaves always respond |
 

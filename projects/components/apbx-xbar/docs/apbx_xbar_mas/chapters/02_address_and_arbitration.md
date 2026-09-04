@@ -41,7 +41,7 @@ This chapter details the two core mechanisms of the APB Crossbar:
 
 ### Address Map Structure
 
-The crossbar uses a fixed 64KB (0x10000 bytes) region per slave:
+The shipped variants use a 64KB (0x10000 bytes) region per slave, fixed for a given generated module and chosen at generation via `--slave-size`:
 
 ```
 BASE_ADDR + 0x0000_0000 → 0x0000_FFFF : Slave 0 (64KB)

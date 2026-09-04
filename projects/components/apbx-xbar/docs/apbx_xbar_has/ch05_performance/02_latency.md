@@ -40,8 +40,6 @@ When a master has exclusive access to a slave:
 
 : Uncontended Transaction Latency
 
-: Uncontended Transaction Latency
-
 **These are measured numbers, not protocol minimums.** A crossbar
 transfer is NOT the 2-cycle APB minimum: the fabric converts APB to an
 internal cmd/rsp protocol through `apb4_slave` and back through

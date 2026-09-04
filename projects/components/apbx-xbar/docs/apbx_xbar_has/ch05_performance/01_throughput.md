@@ -105,7 +105,7 @@ consecutive transactions to draw.
 | Factor | Impact | Mitigation |
 |--------|--------|------------|
 | Slave wait states | Variable | Choose faster peripherals |
-| Arbitration conflicts | 1+ cycle | Distribute access across slaves |
+| Arbitration conflicts | ~11 cycles per master ahead in the round-robin | Distribute access across slaves |
 | Slave response time | Variable | Design slaves for quick response |
 
 : Throughput Reduction Factors

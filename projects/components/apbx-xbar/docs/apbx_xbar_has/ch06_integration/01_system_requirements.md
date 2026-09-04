@@ -31,7 +31,7 @@
 |-------------|---------------|
 | Clock input | Single clock (pclk) |
 | Clock frequency | No minimum, technology-dependent maximum |
-| Reset input | Active-low asynchronous (presetn) |
+| Reset input | Active-low (`presetn`); synchronous assertion unless the build defines `USE_ASYNC_RESET` |
 | Reset duration | Minimum 2 clock cycles |
 
 : Clock and Reset Requirements
@@ -80,7 +80,7 @@ Software must be configured with the correct address map:
 
 | Constraint | Value | Notes |
 |------------|-------|-------|
-| Slave region size | 64KB (fixed) | Cannot be changed |
+| Slave region size | 64KB in the shipped variants | Set at generation via `--slave-size`; fixed once generated |
 | Maximum slaves | 16 | Generator limit |
 | Maximum masters | 16 | Generator limit |
 | Address alignment | Byte aligned | No alignment requirement |

@@ -25,7 +25,7 @@
 
 ## Address Map Structure
 
-The APB Crossbar uses a fixed 64KB address region per slave:
+The shipped APB Crossbar variants use a 64KB address region per slave. The size is chosen at generation (`--slave-size`, generator default 4KB) and then baked into the decode part-select, so it is fixed for a given generated module:
 
 ### Figure 3.3: Address Mapping Structure
 
