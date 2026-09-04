@@ -10,6 +10,9 @@
 # Reuses the proven StreamHarnessTB UART transport (the mon harness shares the perf
 # harness's UART/CSR/descriptor interface). Pattern B.
 
+import logging
+import io
+import contextlib
 import os
 import sys
 import random
@@ -18,6 +21,7 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 
+from TBClasses.apb.register_map import RegisterMap
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path, preserve_prior_log
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
@@ -36,6 +40,7 @@ for _p in (os.path.join(_AREA, 'dv'), os.path.join(_AREA, 'bin')):
 from tbclasses.stream_harness_tb import StreamHarnessTB, CSR_CTRL, compose  # noqa: E402
 from stream_cfg import cfg_int, num_channels, verilator_unroll_args  # noqa: E402  (reads stream_cfg_pkg.sv)
 import stream_levels  # noqa: E402
+import bridge_windows  # noqa: E402  (bridge slave windows, by name)
 
 # The tally exposes FOUR clean AXIL ports (2 wr, 2 rd). Count readback rides the
 # ingest window's READ channel (stream_tally@0x40000 / slave_tally@0xC0000);
@@ -53,6 +58,18 @@ CAM_CLEAR_OFF = 0x0100               # any write invalidates all CAM entries
 CAM_KEY_OFF   = 0x0108               # wdata[31:0] = key to load next
 CAM_LOAD_OFF  = 0x0110               # wdata = (1<<31 valid) | index -> load CAM_KEY
 MON_N_PROFILE = cfg_int('CFG_MON_N_PROFILE')   # legal-set size, from the package
+
+
+_STREAM_REGS = RegisterMap(
+    os.path.join(os.environ['REPO_ROOT'],
+                 'projects/components/dmas/stream/regs/generated/stream_regs_regmap.py'),
+    apb_data_width=32, apb_addr_width=32, start_address=0,
+    log=logging.getLogger('stream_regs'))
+
+
+def _MON_REG(name):
+    """Offset of a STREAM register by NAME, relative to the APB window base."""
+    return _STREAM_REGS.reg_address(_STREAM_REGS.registers[name])
 
 
 def profile_key(agent, protocol, pkt_type, event_code):
@@ -163,9 +180,23 @@ async def cocotb_test_stream_mon(dut):
     # range0 is DEBUG (flavor bit0=0) -> a hit emits AddrMatch.
     addr_range_writes = None
     if os.environ.get('USE_MON', '0') == '1':
+        # WHERE THE RECORDS GO is programmable, and this test chooses the TALLY.
+        #
+        # The monbus group's destination is MON_GROUP_BASE/LIMIT_ADDR (RDL
+        # default 0x40000/0x7FFFF = the stream tally). bridge_windows then
+        # reprograms it to comp_sram on every run, which is why the tally saw
+        # nothing in mon -- not a flavour limitation, a host override. The
+        # in-core monitors emitted 12 records and every one went to the capture
+        # memory, leaving UNEXPECTED=0 in a tally that was never addressed.
+        #
+        # Resolved BY NAME; a literal here would be a second copy of the map.
+        _tally_base, _tally_limit = bridge_windows.W('stream_tally')
         MON = 0x1000
         ctrl_val = 0x01 | (1 << 4) | (1 << 5)       # RANGE_EN=0b0001, CHECK_EN, MATCH_EN
-        addr_range_writes = []
+        addr_range_writes = [
+            (_MON_REG('MON_GROUP_BASE_ADDR'),  _tally_base),
+            (_MON_REG('MON_GROUP_LIMIT_ADDR'), _tally_limit),
+        ]
         for rbase, cbase in ((MON + 0x200, MON + 0x220), (MON + 0x230, MON + 0x250)):
             addr_range_writes += [(rbase + 0x00, 0x00000000),   # range0 LOW  = 0
                                   (rbase + 0x04, 0xFFFFFFFF),   # range0 HIGH = match-all
@@ -288,7 +319,10 @@ async def cocotb_test_stream_mon(dut):
                   f"USE_AXI_MONITORS gate has crept back over the bus meters.")
     assert rd_prod > 0 or wr_prod > 0, assign_msg
 
-    # Tally asserts only when the in-core monitors are built (USE_MON=1).
+    # Assert the tally when THIS TEST routed records to it, which is a property
+    # of the programming, not of the build flavour. I first gated this on
+    # OBS_ENABLE_MON_TAPS -- wrong, and wrong in the direction that hides a real
+    # capability: mon can absolutely drive the tally, it just has to address it.
     if os.environ.get('USE_MON', '0') == '1':
         assert rd_hits > 0 and wr_hits > 0, (
             f"per-agent AddrMatch not resolved in the STREAM tally: rd(bin0)={rd_hits} "
@@ -303,7 +337,7 @@ SIM_FPGA_CLK_HZ = 100_000_000
 SIM_UART_BAUD   = 12_500_000
 
 
-def _run_stream_mon(request, profile=False):
+def _run_stream_mon(request, profile=False, testcase="cocotb_test_stream_mon"):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'stream_harness': 'projects/fpga-systems/Genesys2/stream',
     })
@@ -333,7 +367,9 @@ def _run_stream_mon(request, profile=False):
     # those monitors; it is observer-fed now, so the profile run needs
     # nothing from them.
     use_mon  = os.environ.get('USE_AXI_MONITORS', '1')
-    test_name = "test_stream_mon_profile" if profile else "test_stream_mon"
+    test_name = ("test_stream_mon_profile" if profile
+                 else "test_stream_mon_compress"
+                 if testcase.endswith("_compress") else "test_stream_mon")
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
@@ -425,6 +461,11 @@ def _run_stream_mon(request, profile=False):
         'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'USE_MON': use_mon,
         'PROFILE_MODE': '1' if profile else '0',
+        # The cocotb side gates the tally assertions on this: the tallies
+        # are observer-fed, so they only carry records where the observers
+        # are armed. Passed explicitly rather than left to a default that
+        # merely happens to match this flavour.
+        'OBS_ENABLE_MON_TAPS': os.environ.get('OBS_ENABLE_MON_TAPS', '0'),
         # gate/func/full. This test had no level at all, so a "minimum" sweep
         # ran it at full depth -- 2620 s. An explicit DMA_* in the environment
         # still wins, so a board-scenario rerun can name exact numbers.
@@ -472,7 +513,7 @@ def _run_stream_mon(request, profile=False):
     run(
         python_search=[tests_dir, area_dv, area_bin],
         verilog_sources=verilog_sources, includes=includes,
-        toplevel=dut_name, module=module, testcase="cocotb_test_stream_mon",
+        toplevel=dut_name, module=module, testcase=testcase,
         parameters=rtl_parameters, sim_build=sim_build, extra_env=extra_env,
         keep_files=True, compile_args=compile_args,
         waves=enable_waves,
@@ -480,6 +521,75 @@ def _run_stream_mon(request, profile=False):
                   if enable_waves else []),
         plus_args=['--trace'] if enable_waves else [],
     )
+
+
+
+@cocotb.test(timeout_time=int(os.environ.get('SIM_TIMEOUT_MS', '80')), timeout_unit="ms")
+async def cocotb_test_stream_mon_compress(dut):
+    """COMPRESSED records -> comp_sram, decoded with the reference model.
+
+    The other mon run points the monbus group at the tally with compression OFF,
+    because the tally reassembles RAW 3-beat records. This exercises the other
+    half of the flow the hardware supports: compression ON, records landing in
+    comp_sram, read back, and decoded.
+
+    The check that matters is not "bytes arrived" -- it is that the stream
+    DECODES. monbus_compressor.Decoder is a bit-exact mirror of the RTL encoder
+    and evolves the same CAM state, so a template/escape/delta mistake shows up
+    as a decode that desynchronises rather than as a plausible-looking buffer.
+    """
+    from TBClasses.monbus.monbus_compressor import Decoder
+
+    tb = StreamHarnessTB(dut)
+    await tb.setup_clocks_and_reset()
+    assert await tb.run_ping_test(), "ping failed - harness not alive over UART"
+
+    cap_base, cap_limit = bridge_windows.W('comp_sram')
+    dut._log.info(f"[compress] capture window comp_sram "
+                  f"0x{cap_base:06X}..0x{cap_limit:06X} (by name)")
+
+    # Queued so they land AFTER run_dma_test's SOFT_RESET, like every other
+    # post-reset write -- programming them before the reset loses them silently.
+    capture_writes = [
+        (_MON_REG('MON_GROUP_BASE_ADDR'),  cap_base),
+        (_MON_REG('MON_GROUP_LIMIT_ADDR'), cap_limit),
+    ]
+
+    ok = await tb.run_dma_test(
+        num_channels=1, descriptors_per_channel=1, transfer_bytes=4096,
+        timeout_clocks=400_000, mon_err_cfg=0, compress_en=True,
+        addr_range_writes=capture_writes)
+    assert ok, "DMA workload did not complete"
+
+    # Read the head of the capture window and stop at the first empty 64-bit
+    # slot. There is no group write-pointer register, and decoding trailing
+    # zeros would manufacture packets that were never emitted.
+    N_WORDS32 = 512
+    words32 = []
+    for i in range(N_WORDS32):
+        w = await tb.uart_read(cap_base + 4 * i)
+        words32.append(0 if w is None else w)
+    slots = [(words32[i + 1] << 32) | words32[i] for i in range(0, len(words32) - 1, 2)]
+    populated = []
+    for sl in slots:
+        if sl == 0:
+            break
+        populated.append(sl)
+
+    decoded = list(Decoder().decode(populated))
+    dut._log.info(f"[compress] {len(populated)} populated slots -> "
+                  f"{len(decoded)} decoded packets")
+
+    assert populated, (
+        f"comp_sram @0x{cap_base:06X} is EMPTY after a completed DMA with "
+        f"compress_en=True. Either the group never wrote there (check that "
+        f"MON_GROUP_BASE_ADDR survived the SOFT_RESET) or nothing was emitted.")
+    assert decoded, (
+        f"{len(populated)} slots captured but NOTHING decoded: the compressed "
+        f"stream does not match the reference decoder's CAM evolution.")
+
+    bad = [p for p, _ts in decoded if ((p >> 124) & 0xF) > 0xF]
+    assert not bad, f"{len(bad)} decoded packets carry an impossible packet_type"
 
 
 def test_stream_mon(request):
@@ -491,3 +601,8 @@ def test_stream_mon_profile(request):
     """Agent-resolved profile tally: load the legal set over the cfg AXIL slave,
     then prove per-agent AddrMatch (rd=9, wr=10) lands in distinct dense bins."""
     _run_stream_mon(request, profile=True)
+
+
+def test_stream_mon_compress(request):
+    """Compressed monbus records land in comp_sram and decode against the model."""
+    _run_stream_mon(request, profile=False, testcase="cocotb_test_stream_mon_compress")

@@ -1505,6 +1505,27 @@ module stream_harness #(
     // histogram. Its write channel is SLVERR-terminated below, since no master
     // produces records into it any more. STREAM's own m_axil_mon is a separate
     // story -- it drives bridge master monbus_wr into comp_sram.
+    // Tally record-ingest arbiter nets, declared ahead of the tally
+    // instances that consume them. The arbiters themselves live with the
+    // bridge slave channels further down, next to the s4/s6 ports they mux.
+    logic        tally_s4_awvalid, tally_s4_awready;
+    logic        tally_s4_wvalid,  tally_s4_wready;
+    logic        tally_s4_bvalid,  tally_s4_bready;
+    logic [1:0]  tally_s4_bresp;
+    logic [31:0] tally_s4_awaddr;
+    logic [2:0]  tally_s4_awprot;
+    logic [63:0] tally_s4_wdata;
+    logic [7:0]  tally_s4_wstrb;
+
+    logic        tally_s6_awvalid, tally_s6_awready;
+    logic        tally_s6_wvalid,  tally_s6_wready;
+    logic        tally_s6_bvalid,  tally_s6_bready;
+    logic [1:0]  tally_s6_bresp;
+    logic [31:0] tally_s6_awaddr;
+    logic [2:0]  tally_s6_awprot;
+    logic [63:0] tally_s6_wdata;
+    logic [7:0]  tally_s6_wstrb;
+
     // =========================================================================
     // mon_* signals are declared up near the bridge instance (search
     // "// STREAM m_axil_mon master signals (declared early"). They have
@@ -1537,12 +1558,12 @@ module stream_harness #(
     ) u_stream_tally (
         .aclk(aclk), .aresetn(unit_aresetn),
         // WR1 record ingest <- stream_tally observer monbus group, DIRECT. Was: bridge @ 0x40000.
-        .rec_awaddr  (dmamon_awaddr),  .rec_awprot  (dmamon_awprot),
-        .rec_awvalid (dmamon_awvalid), .rec_awready (dmamon_awready),
-        .rec_wdata   (dmamon_wdata),   .rec_wstrb   (dmamon_wstrb),
-        .rec_wvalid  (dmamon_wvalid),  .rec_wready  (dmamon_wready),
-        .rec_bresp   (dmamon_bresp),   .rec_bvalid  (dmamon_bvalid),
-        .rec_bready  (dmamon_bready),
+        .rec_awaddr  (tally_s4_awaddr),  .rec_awprot  (tally_s4_awprot),
+        .rec_awvalid (tally_s4_awvalid), .rec_awready (tally_s4_awready),
+        .rec_wdata   (tally_s4_wdata),   .rec_wstrb   (tally_s4_wstrb),
+        .rec_wvalid  (tally_s4_wvalid),  .rec_wready  (tally_s4_wready),
+        .rec_bresp   (tally_s4_bresp),   .rec_bvalid  (tally_s4_bvalid),
+        .rec_bready  (tally_s4_bready),
         // RD1 count readback <- stream_tally slave READ channels @ 0x40000.
         .cnt_araddr  (s4_araddr),  .cnt_arprot  (s4_arprot),
         .cnt_arvalid (s4_arvalid), .cnt_arready (s4_arready),
@@ -1576,11 +1597,11 @@ module stream_harness #(
     ) u_slave_tally (
         .aclk(aclk), .aresetn(unit_aresetn),
         // WR1 record ingest <- slave_tally observer monbus group, DIRECT. Was: bridge @ 0xC0000.
-        .rec_awaddr(slmon_awaddr),  .rec_awprot(slmon_awprot),
-        .rec_awvalid(slmon_awvalid), .rec_awready(slmon_awready),
-        .rec_wdata(slmon_wdata),    .rec_wstrb(slmon_wstrb),
-        .rec_wvalid(slmon_wvalid),  .rec_wready(slmon_wready),
-        .rec_bresp(slmon_bresp),    .rec_bvalid(slmon_bvalid), .rec_bready(slmon_bready),
+        .rec_awaddr(tally_s6_awaddr),  .rec_awprot(tally_s6_awprot),
+        .rec_awvalid(tally_s6_awvalid), .rec_awready(tally_s6_awready),
+        .rec_wdata(tally_s6_wdata),    .rec_wstrb(tally_s6_wstrb),
+        .rec_wvalid(tally_s6_wvalid),  .rec_wready(tally_s6_wready),
+        .rec_bresp(tally_s6_bresp),    .rec_bvalid(tally_s6_bvalid), .rec_bready(tally_s6_bready),
         // RD1 count readback <- slave_tally slave READ channels @ 0xC0000.
         .cnt_araddr(s6_araddr),  .cnt_arprot(s6_arprot),
         .cnt_arvalid(s6_arvalid), .cnt_arready(s6_arready),
@@ -1601,41 +1622,115 @@ module stream_harness #(
         .tally_flush_busy(w_slave_tally_flush_busy), .tally_clear(csr_clear_pulse)
     );
 
-    // s4 write channel: the tally's record ingest is now driven DIRECTLY by
-    // its observer, so nothing on the bridge produces records any more. The
-    // host only ever reads counts here. Sink writes with SLVERR rather than
-    // leaving the channel dangling, so a stray write fails loudly.
-    logic r_s4_wr_bvalid;
+    // s4 write channel: RECORD INGEST for u_stream_tally, arbitrated between the
+    // observer's monbus group (direct) and the bridge window @ 0x40000.
+    //
+    // This used to be SLVERR-terminated, on the reasoning that the observer
+    // rewire made the direct path the only producer. That was true of the obs
+    // flavour and false as a rule: the monbus group's destination is a runtime
+    // register (MON_GROUP_BASE_ADDR, RDL default 0x40000), so the in-core monitors
+    // can address this tally too -- and in build-mon they are the ONLY producer,
+    // because the observers' taps are off. Terminating the bridge write made
+    // that configuration silently impossible: records were emitted, SLVERR'd,
+    // and the tally read back empty with nothing reporting an error.
+    //
+    // Priority to the observer: in obs the bridge side is idle, in mon the
+    // observer side is idle, so the arbiter never actually contends -- it
+    // exists so neither path can be starved if both are ever armed at once.
+    // Grant is LATCHED until B completes; an AXIL write is three handshakes and
+    // interleaving two masters mid-burst would corrupt both.
+    logic r_s4_gr_bridge, r_s4_gr_obs, r_s4_busy;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_s4_wr_bvalid <= 1'b0;
-        end else begin
-            if (s4_awvalid && s4_wvalid && !r_s4_wr_bvalid) r_s4_wr_bvalid <= 1'b1;
-            else if (s4_bready && r_s4_wr_bvalid)              r_s4_wr_bvalid <= 1'b0;
+            r_s4_gr_bridge <= 1'b0; r_s4_gr_obs <= 1'b0; r_s4_busy <= 1'b0;
+        end else if (!r_s4_busy) begin
+            if (dmamon_awvalid) begin
+                r_s4_gr_obs <= 1'b1; r_s4_busy <= 1'b1;
+            end else if (s4_awvalid) begin
+                r_s4_gr_bridge <= 1'b1; r_s4_busy <= 1'b1;
+            end
+        end else if (tally_s4_bvalid && tally_s4_bready) begin
+            r_s4_gr_bridge <= 1'b0; r_s4_gr_obs <= 1'b0; r_s4_busy <= 1'b0;
         end
     )
-    assign s4_awready = !r_s4_wr_bvalid;
-    assign s4_wready  = !r_s4_wr_bvalid;
-    assign s4_bvalid  = r_s4_wr_bvalid;
-    assign s4_bresp   = 2'b10;  // SLVERR
 
-    // s6 write channel: the tally's record ingest is now driven DIRECTLY by
-    // its observer, so nothing on the bridge produces records any more. The
-    // host only ever reads counts here. Sink writes with SLVERR rather than
-    // leaving the channel dangling, so a stray write fails loudly.
-    logic r_s6_wr_bvalid;
+    always_comb begin
+        if (r_s4_gr_bridge) begin
+            tally_s4_awaddr  = s4_awaddr;  tally_s4_awprot = s4_awprot;
+            tally_s4_awvalid = s4_awvalid; tally_s4_wdata  = s4_wdata;
+            tally_s4_wstrb   = s4_wstrb;   tally_s4_wvalid = s4_wvalid;
+            tally_s4_bready  = s4_bready;
+        end else begin
+            tally_s4_awaddr  = dmamon_awaddr;  tally_s4_awprot = dmamon_awprot;
+            tally_s4_awvalid = dmamon_awvalid; tally_s4_wdata  = dmamon_wdata;
+            tally_s4_wstrb   = dmamon_wstrb;   tally_s4_wvalid = dmamon_wvalid;
+            tally_s4_bready  = dmamon_bready;
+        end
+    end
+
+    assign dmamon_awready = r_s4_gr_obs    ? tally_s4_awready : 1'b0;
+    assign dmamon_wready  = r_s4_gr_obs    ? tally_s4_wready  : 1'b0;
+    assign dmamon_bvalid  = r_s4_gr_obs    ? tally_s4_bvalid  : 1'b0;
+    assign dmamon_bresp   = tally_s4_bresp;
+    assign s4_awready  = r_s4_gr_bridge ? tally_s4_awready : 1'b0;
+    assign s4_wready   = r_s4_gr_bridge ? tally_s4_wready  : 1'b0;
+    assign s4_bvalid   = r_s4_gr_bridge ? tally_s4_bvalid  : 1'b0;
+    assign s4_bresp    = tally_s4_bresp;
+
+    // s6 write channel: RECORD INGEST for u_slave_tally, arbitrated between the
+    // observer's monbus group (direct) and the bridge window @ 0xC0000.
+    //
+    // This used to be SLVERR-terminated, on the reasoning that the observer
+    // rewire made the direct path the only producer. That was true of the obs
+    // flavour and false as a rule: the monbus group's destination is a runtime
+    // register (MON_GROUP_BASE_ADDR, RDL default 0xC0000), so the in-core monitors
+    // can address this tally too -- and in build-mon they are the ONLY producer,
+    // because the observers' taps are off. Terminating the bridge write made
+    // that configuration silently impossible: records were emitted, SLVERR'd,
+    // and the tally read back empty with nothing reporting an error.
+    //
+    // Priority to the observer: in obs the bridge side is idle, in mon the
+    // observer side is idle, so the arbiter never actually contends -- it
+    // exists so neither path can be starved if both are ever armed at once.
+    // Grant is LATCHED until B completes; an AXIL write is three handshakes and
+    // interleaving two masters mid-burst would corrupt both.
+    logic r_s6_gr_bridge, r_s6_gr_obs, r_s6_busy;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_s6_wr_bvalid <= 1'b0;
-        end else begin
-            if (s6_awvalid && s6_wvalid && !r_s6_wr_bvalid) r_s6_wr_bvalid <= 1'b1;
-            else if (s6_bready && r_s6_wr_bvalid)              r_s6_wr_bvalid <= 1'b0;
+            r_s6_gr_bridge <= 1'b0; r_s6_gr_obs <= 1'b0; r_s6_busy <= 1'b0;
+        end else if (!r_s6_busy) begin
+            if (slmon_awvalid) begin
+                r_s6_gr_obs <= 1'b1; r_s6_busy <= 1'b1;
+            end else if (s6_awvalid) begin
+                r_s6_gr_bridge <= 1'b1; r_s6_busy <= 1'b1;
+            end
+        end else if (tally_s6_bvalid && tally_s6_bready) begin
+            r_s6_gr_bridge <= 1'b0; r_s6_gr_obs <= 1'b0; r_s6_busy <= 1'b0;
         end
     )
-    assign s6_awready = !r_s6_wr_bvalid;
-    assign s6_wready  = !r_s6_wr_bvalid;
-    assign s6_bvalid  = r_s6_wr_bvalid;
-    assign s6_bresp   = 2'b10;  // SLVERR
+
+    always_comb begin
+        if (r_s6_gr_bridge) begin
+            tally_s6_awaddr  = s6_awaddr;  tally_s6_awprot = s6_awprot;
+            tally_s6_awvalid = s6_awvalid; tally_s6_wdata  = s6_wdata;
+            tally_s6_wstrb   = s6_wstrb;   tally_s6_wvalid = s6_wvalid;
+            tally_s6_bready  = s6_bready;
+        end else begin
+            tally_s6_awaddr  = slmon_awaddr;  tally_s6_awprot = slmon_awprot;
+            tally_s6_awvalid = slmon_awvalid; tally_s6_wdata  = slmon_wdata;
+            tally_s6_wstrb   = slmon_wstrb;   tally_s6_wvalid = slmon_wvalid;
+            tally_s6_bready  = slmon_bready;
+        end
+    end
+
+    assign slmon_awready = r_s6_gr_obs    ? tally_s6_awready : 1'b0;
+    assign slmon_wready  = r_s6_gr_obs    ? tally_s6_wready  : 1'b0;
+    assign slmon_bvalid  = r_s6_gr_obs    ? tally_s6_bvalid  : 1'b0;
+    assign slmon_bresp   = tally_s6_bresp;
+    assign s6_awready  = r_s6_gr_bridge ? tally_s6_awready : 1'b0;
+    assign s6_wready   = r_s6_gr_bridge ? tally_s6_wready  : 1'b0;
+    assign s6_bvalid   = r_s6_gr_bridge ? tally_s6_bvalid  : 1'b0;
+    assign s6_bresp    = tally_s6_bresp;
 
 
     // =========================================================================

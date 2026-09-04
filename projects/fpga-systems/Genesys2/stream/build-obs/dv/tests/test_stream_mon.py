@@ -506,6 +506,11 @@ def _run_stream_mon(request, profile=False):
         'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'USE_MON': use_mon,
         'PROFILE_MODE': '1' if profile else '0',
+        # The cocotb side gates the tally assertions on this: the tallies
+        # are observer-fed, so they only carry records where the observers
+        # are armed. Passed explicitly rather than left to a default that
+        # merely happens to match this flavour.
+        'OBS_ENABLE_MON_TAPS': os.environ.get('OBS_ENABLE_MON_TAPS', '1'),
         # gate/func/full. This test had no level at all, so a "minimum" sweep
         # ran it at full depth -- 2620 s. An explicit DMA_* in the environment
         # still wins, so a board-scenario rerun can name exact numbers.
