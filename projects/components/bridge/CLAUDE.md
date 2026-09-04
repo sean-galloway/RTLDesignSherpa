@@ -924,14 +924,13 @@ APB converter placeholders need implementation before end-to-end testing.
 
 Illustrative shape (see `rtl/generated/bridge_2x2_rw/bridge_2x2_rw.sv` for a real example):
 
+The generated top takes **no parameters at all** -- every width is fixed at
+generation time and reaches the module through its package:
+
 ```systemverilog
-module bridge_2x2_rw #(
-    parameter NUM_MASTERS = 2,
-    parameter NUM_SLAVES = 2,
-    parameter DATA_WIDTH = 32,
-    parameter ADDR_WIDTH = 32,
-    parameter ID_WIDTH = 4
-) (
+module bridge_2x2_rw
+    import bridge_2x2_rw_pkg::*;
+(
     input  logic aclk,
     input  logic aresetn,
 
@@ -953,10 +952,14 @@ module bridge_2x2_rw #(
 
 ### Address Map
 
-Default address map (configurable):
-- Slave 0: 0x00000000 - 0x0FFFFFFF (256MB)
-- Slave 1: 0x10000000 - 0x1FFFFFFF (256MB)
-- Slave N: N * 0x10000000
+There is no default address map and no 0x10000000 stride. Windows come from
+each slave's `base_addr` / `addr_range` in the TOML and are baked into the
+decode. `bridge_2x2_rw` splits the space in half:
+
+- Slave 0 (ddr):  0x00000000 - 0x7FFFFFFF
+- Slave 1 (sram): 0x80000000 - 0xFFFFFFFF
+
+Probing 0x1000_0000 expecting "slave 1" hits slave 0.
 
 ---
 
@@ -1135,7 +1138,10 @@ verilator --lint-only projects/components/bridge/rtl/generated/bridge_2x2_rw/bri
 
 ## Remember
 
-1. **MANDATORY: Testbench architecture** - TB classes in framework, tests import them
+1. **MANDATORY: Testbench architecture** - TB classes in the PROJECT area
+   (`projects/components/bridge/dv/tbclasses/`), NOT the framework; tests
+   import them. (This line used to say "in framework", contradicting the
+   hard rule above.)
 2. **MANDATORY: Directory structure** - Follow RAPIDS/AMBA pattern exactly
 3. **MANDATORY: conftest.py** - Must exist in dv/tests/
 4. **Use GAXI components** - Never manually drive AXI4 handshakes

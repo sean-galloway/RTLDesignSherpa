@@ -71,8 +71,8 @@ We enforce uniform widths on certain parameters to eliminate complexity:
 
 | Parameter | Hard Limit | Rationale |
 |-----------|-----------|-----------|
-| **ID Width** | 8 bits (fixed) | Eliminates ID width conversion logic. 256 unique IDs is sufficient for all realistic use cases. |
-| **Address Width** | 64 bits (fixed) | Eliminates address width conversion. 64-bit addressing covers all memory-mapped systems. |
+| **ID Width** | Per port, set at generation | NOT fixed at 8. The TOML sets `id_width` per port and the generated bridge bakes it in -- `bridge_2x2_rw` has 4-bit IDs. This row previously said "8 bits (fixed)", which the generator has never enforced. |
+| **Address Width** | Per port, set at generation | NOT fixed at 64. `bridge_2x2_rw` is a 32-bit-address bridge. Same correction as the row above. |
 | **Data Width** | Variable (32b-512b) | Width converters ONLY for data. Commonly needed for bandwidth optimization. |
 
 **Why This Works:**
@@ -83,8 +83,9 @@ We enforce uniform widths on certain parameters to eliminate complexity:
 **4. What We DON'T Support (By Design)**
 
 Features intentionally excluded for simplicity:
-- No variable ID width per port
-- No variable address width per port
+- (Both of these WERE excluded once and no longer are: ID width and address
+  width are per-port generation inputs. Left here as history because the
+  "design differentiator" argument above still cites them.)
 - No AXI4-Lite protocol variant (use standard AXI4 with len=0)
 - No ACE protocol extensions (cache coherency)
 - No AXI5 features
@@ -215,7 +216,12 @@ Bridge automates generation of AXI4 crossbar infrastructure:
 - [ ] APB converter integration (Phase 3 pending)
 
 **Performance:**
-- [x] Latency ≤ 3 cycles for single-beat transactions
+- [ ] Latency ≤ 3 cycles for single-beat transactions. **Unverified for the
+  generated bridge.** The generated path crosses four skid buffers on the
+  round trip (adapter timing wrappers on both sides), and gaxi_skid_buffer
+  registers its output side, so an ideal zero-wait slave still costs >=4
+  cycles of bridge-added latency before arbitration. The 2-3 cycle figure in
+  6.1 describes the wrapperless flat crossbar, not what the generator emits.
 - [x] Throughput: All M×N paths can transfer concurrently
 - [x] Performance models implemented (bridge_model.py - V1 Flat)
 - [ ] Fmax ≥ 300 MHz on UltraScale+ FPGAs (pending synthesis validation)
@@ -402,8 +408,13 @@ Masters (M)                                                    Slaves (S)
 - Two masters using the same AXI ID to the same slave alias to one ID at that
   slave; the `bridge_id` sideband, not the ID, keeps their responses apart.
 
-**FR-3: Atomic Operations**
-- Support exclusive access (AWLOCK/ARLOCK)
+**FR-3: Atomic Operations** (the bridge does NOT implement a monitor -- see below)
+- Pass AWLOCK/ARLOCK through to the slave. **The bridge implements no
+  exclusive monitor**: there is no per-slave exclusive tracking and no EXOKAY
+  generation anywhere in the generated RTL -- `awlock` is muxed to the granted
+  slave and nothing more. Exclusives work only if the attached slave
+  implements the monitor itself. 13.1 correctly lists the monitor as future
+  work; this requirement previously read as though the bridge provided it.
 - Track exclusive monitor per slave
 - Generate BRESP/RRESP errors for failed exclusives
 
