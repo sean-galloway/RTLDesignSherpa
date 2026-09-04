@@ -49,6 +49,7 @@ This specification covers the Converters component — the configurable data-wid
 - [axi_data_dnsize Module](ch02_width_blocks/03_axi_data_dnsize.md)
 - [axi4_dwidth_converter_wr](ch02_width_blocks/05_dwidth_converter_wr.md)
 - [axi4_dwidth_converter_rd](ch02_width_blocks/06_dwidth_converter_rd.md)
+- [AXIL Wide-Alignment Converters](ch02_width_blocks/07_wide_align.md)
 
 ### Chapter 3: Protocol Converter Blocks
 
@@ -58,6 +59,8 @@ This specification covers the Converters component — the configurable data-wid
 - [AXI4 to APB](ch03_protocol_blocks/04_axi4_to_apb4.md)
 - [AXI4 to APB5 Shim](ch03_protocol_blocks/06_axi4_to_apb5.md)
 - [PeakRDL Adapter](ch03_protocol_blocks/05_peakrdl_adapter.md)
+- [UART to AXI4-Lite Bridge](ch03_protocol_blocks/07_uart_to_axil4.md)
+- [Width-plus-Protocol Chains](ch03_protocol_blocks/08_dwidth_chains.md)
 
 ### Chapter 4: FSM Design
 
