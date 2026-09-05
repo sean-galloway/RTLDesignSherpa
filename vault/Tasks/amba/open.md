@@ -1851,3 +1851,51 @@ combinational loop is a synthesis hazard, and this RTL is on two boards.
 **Also worth doing:** add a `-cc --public-flat-rw` build to whatever gate is
 supposed to catch this. A gate that cannot see the failure class is not a
 gate.
+
+---
+
+### TASK-082: three lint findings in the monitor that the bridge gate now surfaces
+
+**Priority:** P3. None is known to misbehave; all three fail a gate that, as of
+2026-09-05, finally reports instead of drowning.
+**Status:** open 2026-09-05. Split out of the [[TASK-081]] work: with
+PINCONNECTEMPTY waived, `make verilator` in projects/components/bridge/rtl
+went from 36/36 variants failing to 13, and those 13 are these three findings
+repeated across the monitor-variant bridges.
+
+**1. `pipe_ready` is undriven when `ADD_PIPELINE_STAGE = 0`** (13 variants)
+`rtl/amba/monitor/axi_monitor_filtered.sv:245`. The signal is declared at
+module scope but only assigned inside `generate if (ADD_PIPELINE_STAGE)`,
+while line 444 references it unconditionally:
+
+```systemverilog
+assign base_monbus_ready = pkt_drop ||
+                          (ADD_PIPELINE_STAGE ? pipe_ready : monbus_ready);
+```
+
+With the parameter 0 the ternary constant-folds to `monbus_ready`, so this
+cannot change behaviour -- but the reference keeps the net alive and undriven,
+which is an X source under tools that do not fold as eagerly. Fix is a tie in
+the generate's else branch (or moving the mux inside the generate). One line,
+but it wants its own verification run rather than being folded into an
+unrelated change.
+
+**2. Two WIDTHEXPAND in `axi_monitor_trans_mgr.sv`** (26 sites across variants)
+- `:677` `EQ expects 8 bits on the RHS, but 'w_widq_head' generates 4`
+- `:1458` `MODDIV expects 32 or 7 bits on the LHS, but 'resp_id' generates 4`
+
+Both are comparisons/arithmetic against a wider literal or expression. Almost
+certainly benign (the narrow side is zero-extended, which is what was meant),
+but "almost certainly" is what an explicit cast is for -- and an implicit
+resize is exactly the class the repo has been removing elsewhere.
+
+**3. Two WIDTHTRUNC in the regblock bridge top** (1 variant)
+`bridge_1x2_rd_regblock_mon.sv:673,684`: `s_axil_awaddr` / `s_axil_araddr`
+expect 8 bits, driven by a 32-bit `s_cfg_axil_*`. This is the CSR window
+narrowing and is intentional, but it is implicit. The generator should emit
+the explicit part-select so the intent is in the RTL rather than in the
+reader's head. GENERATOR-side fix, not RTL.
+
+**Do not silence any of these with a waiver.** The gate was just repaired
+precisely because a blanket waiver is how the UNOPTFLAT in [[TASK-081]] stayed
+invisible for weeks.
