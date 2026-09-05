@@ -1798,8 +1798,11 @@ name ports which do not exist). The test-side is this task.
 
 ### TASK-081: monitor_trans_cam has a combinational loop that only a cocotb-flavoured build can see
 
-**Priority:** P1. It was the sole cause of 13 red tests -- every `*_mon_monitor`
-bridge variant -- and it had been red for an unknown but long time.
+**Priority:** P1. It was the cause of 12 of the 13 red `*_mon_monitor` bridge
+tests, red for an unknown but long time. NOT the sole cause, as first written:
+the 13th (`bridge_1x2_rd_regblock_mon`) has a SECOND, independent build failure
+-- BLKLOOPINIT in its PeakRDL regblock -- and stays red after this fix. That
+one is [[TASK-082]] finding 4.
 **Status:** FIXED 2026-09-05, same day. It was a FALSE cycle, created by
 Verilator's block-level scheduling, not a real feedback path -- see the fix at
 the end. Kept open-page until the val/amba sweep in [[TASK-025]] absorbs it.
@@ -1965,7 +1968,10 @@ formal prove+cover PASS for `axi_monitor_trans_mgr`, and prove PASS for
 `axi_monitor_trans_mgr_banked`, `axi_monitor_base`, `axi_monitor_filtered` --
 each against a FRESHLY REGENERATED flat, because the `.sby` reads a generated
 `*_flat.v` and a stale one proves the old RTL; val/amba monitor sweep 43/43;
-the two previously-failing bridge mon tests now pass.
+and the full components/bridge suite went 25 failed / 45 passed -> 3 failed /
+67 passed across this session's fixes. The 3 that remain are all diagnosed and
+filed: the regblock BLKLOOPINIT above, and the two boundary probes in
+[[BRIDGE-008]].
 
 The gate gap is closed too: `make build-check` in projects/components/bridge/
 rtl now runs every variant through a real build with `--public-flat-rw`. See
