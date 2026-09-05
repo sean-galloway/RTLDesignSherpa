@@ -9,8 +9,22 @@
 SV_FILES := $(shell find . -name "*.sv" -type f)
 SV_COUNT := $(words $(SV_FILES))
 
-# Master filelist (if exists)
-MASTER_FILELIST = filelists/bridge_all.f
+# Lint runs PER VARIANT. There is no master filelist and there cannot be a
+# useful one: every variant's filelist pulls the same rtl/amba leaves, so a
+# concatenation of all 35 collides on MODDUP for every shared module. The
+# Makefile pointed at filelists/bridge_all.f, which nothing generates and
+# which has never existed -- so `make verilator` failed on "Cannot open -f
+# command file" and wrote a report that read like a lint failure. It sat that
+# way while 253 generated files changed underneath it.
+BRIDGE_FILELISTS := $(wildcard filelists/*.f)
+FLATTEN          := $(REPO_ROOT)/bin/flatten_filelist.py
+
+# Shared-leaf noise. These fire inside rtl/amba wrappers the bridge only
+# instantiates, and are that library's business, not this one's. UNDRIVEN is
+# deliberately NOT waived: an undriven output on a generated bridge port is a
+# routing defect, which is exactly what this gate exists to catch.
+LINT_WAIVERS = -Wno-UNUSEDSIGNAL -Wno-UNUSEDPARAM -Wno-VARHIDDEN \
+               -Wno-SYNCASYNCNET -Wno-DECLFILENAME
 
 # Lint output directories
 LINT_DIR = lint_reports
@@ -39,17 +53,32 @@ YOSYS_FLAGS = -p "read_verilog -sv"
 verilator: ## Run Verilator lint on all files
 	$(call print_header,Running Verilator Lint on Bridge RTL ($(SV_COUNT) files))
 	@mkdir -p $(VERILATOR_DIR)
-	@if $(VERILATOR) $(VERILATOR_FLAGS) -f $(MASTER_FILELIST) > $(VERILATOR_DIR)/bridge_all.log 2>&1; then \
+	@rm -f $(VERILATOR_DIR)/bridge_all.log
+	@fail=0; n=0; \
+	for fl in $(BRIDGE_FILELISTS); do \
+		top=$$(basename $$fl .f); n=$$((n+1)); \
+		REPO_ROOT=$(REPO_ROOT) python3 $(FLATTEN) $$fl --resolve-env --absolute-paths \
+			> $(VERILATOR_DIR)/.flat.f 2>/dev/null; \
+		echo "===== $$top =====" >> $(VERILATOR_DIR)/bridge_all.log; \
+		if $(VERILATOR) $(VERILATOR_FLAGS) $(LINT_WAIVERS) --top-module $$top \
+			-f $(VERILATOR_DIR)/.flat.f >> $(VERILATOR_DIR)/bridge_all.log 2>&1; then \
+			:; \
+		else \
+			echo "  FAIL $$top"; fail=$$((fail+1)); \
+		fi; \
+	done; \
+	rm -f $(VERILATOR_DIR)/.flat.f; \
+	if [ $$fail -eq 0 ]; then \
 		echo "$(GREEN)✓ Bridge RTL lint passed$(RESET)" | tee $(VERILATOR_DIR)/summary.txt; \
 		echo "" >> $(VERILATOR_DIR)/summary.txt; \
-		echo "All $(SV_COUNT) files passed lint checks" >> $(VERILATOR_DIR)/summary.txt; \
+		echo "All $$n bridge variants passed lint checks" >> $(VERILATOR_DIR)/summary.txt; \
 	else \
-		echo "$(RED)✗ Bridge RTL lint failed$(RESET)" | tee $(VERILATOR_DIR)/summary.txt; \
+		echo "$(RED)✗ Bridge RTL lint failed: $$fail of $$n variants$(RESET)" | tee $(VERILATOR_DIR)/summary.txt; \
 		echo "" >> $(VERILATOR_DIR)/summary.txt; \
-		echo "Errors found. See $(VERILATOR_DIR)/bridge_all.log for details" >> $(VERILATOR_DIR)/summary.txt; \
-		echo ""; \
-		echo "Last 30 lines of error log:"; \
-		tail -30 $(VERILATOR_DIR)/bridge_all.log; \
+		echo "See $(VERILATOR_DIR)/bridge_all.log" >> $(VERILATOR_DIR)/summary.txt; \
+		grep -E "%Warning|%Error" $(VERILATOR_DIR)/bridge_all.log | \
+			sed 's/.*\(%[A-Za-z]*-[A-Z]*\).*/\1/' | sort | uniq -c | sort -rn \
+			>> $(VERILATOR_DIR)/summary.txt; \
 		exit 1; \
 	fi
 	$(call print_success,Verilator lint complete. Reports: $(VERILATOR_DIR)/)
