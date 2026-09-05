@@ -1899,9 +1899,40 @@ narrowing and is intentional, but it is implicit. The generator should emit
 the explicit part-select so the intent is in the RTL rather than in the
 reader's head. GENERATOR-side fix, not RTL.
 
+**4. `BLKLOOPINIT` in the PeakRDL regblock** (1 test:
+`test_bridge_1x2_rd_regblock_mon_monitor`, and the same shape in the Genesys2
+`*_mon` bridges). Not a lint finding -- it fails the BUILD:
+
+```
+%Error-BLKLOOPINIT: bridge_1x2_rd_regblock_mon_cfg.sv:165:41:
+  Unsupported: Non-blocking assignment to array with compound element type
+  inside loop
+```
+
+`axil_resp_buffer` is an unpacked array of a struct, reset with NBAs inside a
+`for(int i=0; i<2; i++)`. Verilator does not support that shape.
+
+**An unroll budget does NOT fix this one, and that is worth writing down**
+because it is the obvious first guess -- [[feedback_lint_gate_must_elaborate]]
+records a different BLKLOOPINIT that `--unroll-count`/`--unroll-stmts` DID
+fix, by unrolling the loop until the NBAs were no longer inside one. Measured
+here 2026-09-05:
+
+| flags | BLKLOOPINIT |
+|---|---|
+| default | 9 |
+| `--unroll-count 16384 --unroll-stmts 200000` | 9 |
+
+So the two BLKLOOPINIT cases in this repo have different fixes. This one needs
+the generated code to change shape -- a whole-array reset
+(`axil_resp_buffer <= '{default: '0};`) rather than a per-element loop. That is
+PeakRDL's template, so the fix belongs upstream or in a post-process step, NOT
+in the generated `.sv` ([[generated-rtl-discipline]]).
+
 **Do not silence any of these with a waiver.** The gate was just repaired
 precisely because a blanket waiver is how the UNOPTFLAT in [[TASK-081]] stayed
-invisible for weeks.
+invisible for weeks. And BLKLOOPINIT is not waivable in any case -- it is
+Verilator refusing to elaborate, not a style opinion.
 
 
 **FIXED 2026-09-05.** A false cycle, twice over, both times the same rule:
