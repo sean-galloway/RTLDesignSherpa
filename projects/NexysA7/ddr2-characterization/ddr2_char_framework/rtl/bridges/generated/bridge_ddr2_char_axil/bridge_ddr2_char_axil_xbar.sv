@@ -438,6 +438,9 @@ module bridge_ddr2_char_axil_xbar
     assign ddr2_apb_axi_awlock   = host_32b_aw_to_ddr2_apb ? host_32b_aw.lock : '0;
     assign ddr2_apb_axi_awcache  = host_32b_aw_to_ddr2_apb ? host_32b_aw.cache : '0;
     assign ddr2_apb_axi_awprot   = host_32b_aw_to_ddr2_apb ? host_32b_aw.prot : '0;
+    assign ddr2_apb_axi_awqos    = host_32b_aw_to_ddr2_apb ? host_32b_aw.qos : '0;
+    assign ddr2_apb_axi_awregion = host_32b_aw_to_ddr2_apb ? host_32b_aw.region : '0;
+    assign ddr2_apb_axi_awuser   = host_32b_aw_to_ddr2_apb ? host_32b_aw.user : '0;
     assign ddr2_apb_axi_awvalid  = host_32b_aw_to_ddr2_apb && host_32b_awvalid;
 
     assign host_32b_w_sel_ddr2_apb = host_32b_w_to_ddr2_apb;
@@ -446,6 +449,7 @@ module bridge_ddr2_char_axil_xbar
     assign ddr2_apb_axi_wdata  = host_32b_w_to_ddr2_apb ? host_32b_w.data : '0;
     assign ddr2_apb_axi_wstrb  = host_32b_w_to_ddr2_apb ? host_32b_w.strb : '0;
     assign ddr2_apb_axi_wlast  = host_32b_w_to_ddr2_apb ? host_32b_w.last : '0;
+    assign ddr2_apb_axi_wuser  = host_32b_w_to_ddr2_apb ? host_32b_w.user : '0;
     assign ddr2_apb_axi_wvalid = host_32b_w_to_ddr2_apb && host_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
@@ -466,6 +470,9 @@ module bridge_ddr2_char_axil_xbar
     assign ddr2_apb_axi_arlock   = host_32b_ar_to_ddr2_apb ? host_32b_ar.lock : '0;
     assign ddr2_apb_axi_arcache  = host_32b_ar_to_ddr2_apb ? host_32b_ar.cache : '0;
     assign ddr2_apb_axi_arprot   = host_32b_ar_to_ddr2_apb ? host_32b_ar.prot : '0;
+    assign ddr2_apb_axi_arqos    = host_32b_ar_to_ddr2_apb ? host_32b_ar.qos : '0;
+    assign ddr2_apb_axi_arregion = host_32b_ar_to_ddr2_apb ? host_32b_ar.region : '0;
+    assign ddr2_apb_axi_aruser   = host_32b_ar_to_ddr2_apb ? host_32b_ar.user : '0;
     assign ddr2_apb_axi_arvalid  = host_32b_ar_to_ddr2_apb && host_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -494,6 +501,9 @@ module bridge_ddr2_char_axil_xbar
     assign harness_csr_axi_awlock   = host_32b_aw_to_harness_csr ? host_32b_aw.lock : '0;
     assign harness_csr_axi_awcache  = host_32b_aw_to_harness_csr ? host_32b_aw.cache : '0;
     assign harness_csr_axi_awprot   = host_32b_aw_to_harness_csr ? host_32b_aw.prot : '0;
+    assign harness_csr_axi_awqos    = host_32b_aw_to_harness_csr ? host_32b_aw.qos : '0;
+    assign harness_csr_axi_awregion = host_32b_aw_to_harness_csr ? host_32b_aw.region : '0;
+    assign harness_csr_axi_awuser   = host_32b_aw_to_harness_csr ? host_32b_aw.user : '0;
     assign harness_csr_axi_awvalid  = host_32b_aw_to_harness_csr && host_32b_awvalid;
 
     assign host_32b_w_sel_harness_csr = host_32b_w_to_harness_csr;
@@ -502,6 +512,7 @@ module bridge_ddr2_char_axil_xbar
     assign harness_csr_axi_wdata  = host_32b_w_to_harness_csr ? host_32b_w.data : '0;
     assign harness_csr_axi_wstrb  = host_32b_w_to_harness_csr ? host_32b_w.strb : '0;
     assign harness_csr_axi_wlast  = host_32b_w_to_harness_csr ? host_32b_w.last : '0;
+    assign harness_csr_axi_wuser  = host_32b_w_to_harness_csr ? host_32b_w.user : '0;
     assign harness_csr_axi_wvalid = host_32b_w_to_harness_csr && host_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
@@ -522,6 +533,9 @@ module bridge_ddr2_char_axil_xbar
     assign harness_csr_axi_arlock   = host_32b_ar_to_harness_csr ? host_32b_ar.lock : '0;
     assign harness_csr_axi_arcache  = host_32b_ar_to_harness_csr ? host_32b_ar.cache : '0;
     assign harness_csr_axi_arprot   = host_32b_ar_to_harness_csr ? host_32b_ar.prot : '0;
+    assign harness_csr_axi_arqos    = host_32b_ar_to_harness_csr ? host_32b_ar.qos : '0;
+    assign harness_csr_axi_arregion = host_32b_ar_to_harness_csr ? host_32b_ar.region : '0;
+    assign harness_csr_axi_aruser   = host_32b_ar_to_harness_csr ? host_32b_ar.user : '0;
     assign harness_csr_axi_arvalid  = host_32b_ar_to_harness_csr && host_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -550,6 +564,9 @@ module bridge_ddr2_char_axil_xbar
     assign debug_sram_axi_awlock   = host_64b_aw_to_debug_sram ? host_64b_aw.lock : '0;
     assign debug_sram_axi_awcache  = host_64b_aw_to_debug_sram ? host_64b_aw.cache : '0;
     assign debug_sram_axi_awprot   = host_64b_aw_to_debug_sram ? host_64b_aw.prot : '0;
+    assign debug_sram_axi_awqos    = host_64b_aw_to_debug_sram ? host_64b_aw.qos : '0;
+    assign debug_sram_axi_awregion = host_64b_aw_to_debug_sram ? host_64b_aw.region : '0;
+    assign debug_sram_axi_awuser   = host_64b_aw_to_debug_sram ? host_64b_aw.user : '0;
     assign debug_sram_axi_awvalid  = host_64b_aw_to_debug_sram && host_64b_awvalid;
 
     assign host_64b_w_sel_debug_sram = host_64b_w_to_debug_sram;
@@ -558,6 +575,7 @@ module bridge_ddr2_char_axil_xbar
     assign debug_sram_axi_wdata  = host_64b_w_to_debug_sram ? host_64b_w.data : '0;
     assign debug_sram_axi_wstrb  = host_64b_w_to_debug_sram ? host_64b_w.strb : '0;
     assign debug_sram_axi_wlast  = host_64b_w_to_debug_sram ? host_64b_w.last : '0;
+    assign debug_sram_axi_wuser  = host_64b_w_to_debug_sram ? host_64b_w.user : '0;
     assign debug_sram_axi_wvalid = host_64b_w_to_debug_sram && host_64b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
@@ -578,6 +596,9 @@ module bridge_ddr2_char_axil_xbar
     assign debug_sram_axi_arlock   = host_64b_ar_to_debug_sram ? host_64b_ar.lock : '0;
     assign debug_sram_axi_arcache  = host_64b_ar_to_debug_sram ? host_64b_ar.cache : '0;
     assign debug_sram_axi_arprot   = host_64b_ar_to_debug_sram ? host_64b_ar.prot : '0;
+    assign debug_sram_axi_arqos    = host_64b_ar_to_debug_sram ? host_64b_ar.qos : '0;
+    assign debug_sram_axi_arregion = host_64b_ar_to_debug_sram ? host_64b_ar.region : '0;
+    assign debug_sram_axi_aruser   = host_64b_ar_to_debug_sram ? host_64b_ar.user : '0;
     assign debug_sram_axi_arvalid  = host_64b_ar_to_debug_sram && host_64b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -606,6 +627,9 @@ module bridge_ddr2_char_axil_xbar
     assign dfi_mon_ram_axi_awlock   = host_32b_aw_to_dfi_mon_ram ? host_32b_aw.lock : '0;
     assign dfi_mon_ram_axi_awcache  = host_32b_aw_to_dfi_mon_ram ? host_32b_aw.cache : '0;
     assign dfi_mon_ram_axi_awprot   = host_32b_aw_to_dfi_mon_ram ? host_32b_aw.prot : '0;
+    assign dfi_mon_ram_axi_awqos    = host_32b_aw_to_dfi_mon_ram ? host_32b_aw.qos : '0;
+    assign dfi_mon_ram_axi_awregion = host_32b_aw_to_dfi_mon_ram ? host_32b_aw.region : '0;
+    assign dfi_mon_ram_axi_awuser   = host_32b_aw_to_dfi_mon_ram ? host_32b_aw.user : '0;
     assign dfi_mon_ram_axi_awvalid  = host_32b_aw_to_dfi_mon_ram && host_32b_awvalid;
 
     assign host_32b_w_sel_dfi_mon_ram = host_32b_w_to_dfi_mon_ram;
@@ -614,6 +638,7 @@ module bridge_ddr2_char_axil_xbar
     assign dfi_mon_ram_axi_wdata  = host_32b_w_to_dfi_mon_ram ? host_32b_w.data : '0;
     assign dfi_mon_ram_axi_wstrb  = host_32b_w_to_dfi_mon_ram ? host_32b_w.strb : '0;
     assign dfi_mon_ram_axi_wlast  = host_32b_w_to_dfi_mon_ram ? host_32b_w.last : '0;
+    assign dfi_mon_ram_axi_wuser  = host_32b_w_to_dfi_mon_ram ? host_32b_w.user : '0;
     assign dfi_mon_ram_axi_wvalid = host_32b_w_to_dfi_mon_ram && host_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
@@ -634,6 +659,9 @@ module bridge_ddr2_char_axil_xbar
     assign dfi_mon_ram_axi_arlock   = host_32b_ar_to_dfi_mon_ram ? host_32b_ar.lock : '0;
     assign dfi_mon_ram_axi_arcache  = host_32b_ar_to_dfi_mon_ram ? host_32b_ar.cache : '0;
     assign dfi_mon_ram_axi_arprot   = host_32b_ar_to_dfi_mon_ram ? host_32b_ar.prot : '0;
+    assign dfi_mon_ram_axi_arqos    = host_32b_ar_to_dfi_mon_ram ? host_32b_ar.qos : '0;
+    assign dfi_mon_ram_axi_arregion = host_32b_ar_to_dfi_mon_ram ? host_32b_ar.region : '0;
+    assign dfi_mon_ram_axi_aruser   = host_32b_ar_to_dfi_mon_ram ? host_32b_ar.user : '0;
     assign dfi_mon_ram_axi_arvalid  = host_32b_ar_to_dfi_mon_ram && host_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -662,6 +690,9 @@ module bridge_ddr2_char_axil_xbar
     assign obs_apb_axi_awlock   = host_32b_aw_to_obs_apb ? host_32b_aw.lock : '0;
     assign obs_apb_axi_awcache  = host_32b_aw_to_obs_apb ? host_32b_aw.cache : '0;
     assign obs_apb_axi_awprot   = host_32b_aw_to_obs_apb ? host_32b_aw.prot : '0;
+    assign obs_apb_axi_awqos    = host_32b_aw_to_obs_apb ? host_32b_aw.qos : '0;
+    assign obs_apb_axi_awregion = host_32b_aw_to_obs_apb ? host_32b_aw.region : '0;
+    assign obs_apb_axi_awuser   = host_32b_aw_to_obs_apb ? host_32b_aw.user : '0;
     assign obs_apb_axi_awvalid  = host_32b_aw_to_obs_apb && host_32b_awvalid;
 
     assign host_32b_w_sel_obs_apb = host_32b_w_to_obs_apb;
@@ -670,6 +701,7 @@ module bridge_ddr2_char_axil_xbar
     assign obs_apb_axi_wdata  = host_32b_w_to_obs_apb ? host_32b_w.data : '0;
     assign obs_apb_axi_wstrb  = host_32b_w_to_obs_apb ? host_32b_w.strb : '0;
     assign obs_apb_axi_wlast  = host_32b_w_to_obs_apb ? host_32b_w.last : '0;
+    assign obs_apb_axi_wuser  = host_32b_w_to_obs_apb ? host_32b_w.user : '0;
     assign obs_apb_axi_wvalid = host_32b_w_to_obs_apb && host_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
@@ -690,6 +722,9 @@ module bridge_ddr2_char_axil_xbar
     assign obs_apb_axi_arlock   = host_32b_ar_to_obs_apb ? host_32b_ar.lock : '0;
     assign obs_apb_axi_arcache  = host_32b_ar_to_obs_apb ? host_32b_ar.cache : '0;
     assign obs_apb_axi_arprot   = host_32b_ar_to_obs_apb ? host_32b_ar.prot : '0;
+    assign obs_apb_axi_arqos    = host_32b_ar_to_obs_apb ? host_32b_ar.qos : '0;
+    assign obs_apb_axi_arregion = host_32b_ar_to_obs_apb ? host_32b_ar.region : '0;
+    assign obs_apb_axi_aruser   = host_32b_ar_to_obs_apb ? host_32b_ar.user : '0;
     assign obs_apb_axi_arvalid  = host_32b_ar_to_obs_apb && host_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -718,6 +753,9 @@ module bridge_ddr2_char_axil_xbar
     assign chargen_apb_axi_awlock   = host_32b_aw_to_chargen_apb ? host_32b_aw.lock : '0;
     assign chargen_apb_axi_awcache  = host_32b_aw_to_chargen_apb ? host_32b_aw.cache : '0;
     assign chargen_apb_axi_awprot   = host_32b_aw_to_chargen_apb ? host_32b_aw.prot : '0;
+    assign chargen_apb_axi_awqos    = host_32b_aw_to_chargen_apb ? host_32b_aw.qos : '0;
+    assign chargen_apb_axi_awregion = host_32b_aw_to_chargen_apb ? host_32b_aw.region : '0;
+    assign chargen_apb_axi_awuser   = host_32b_aw_to_chargen_apb ? host_32b_aw.user : '0;
     assign chargen_apb_axi_awvalid  = host_32b_aw_to_chargen_apb && host_32b_awvalid;
 
     assign host_32b_w_sel_chargen_apb = host_32b_w_to_chargen_apb;
@@ -726,6 +764,7 @@ module bridge_ddr2_char_axil_xbar
     assign chargen_apb_axi_wdata  = host_32b_w_to_chargen_apb ? host_32b_w.data : '0;
     assign chargen_apb_axi_wstrb  = host_32b_w_to_chargen_apb ? host_32b_w.strb : '0;
     assign chargen_apb_axi_wlast  = host_32b_w_to_chargen_apb ? host_32b_w.last : '0;
+    assign chargen_apb_axi_wuser  = host_32b_w_to_chargen_apb ? host_32b_w.user : '0;
     assign chargen_apb_axi_wvalid = host_32b_w_to_chargen_apb && host_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
@@ -746,6 +785,9 @@ module bridge_ddr2_char_axil_xbar
     assign chargen_apb_axi_arlock   = host_32b_ar_to_chargen_apb ? host_32b_ar.lock : '0;
     assign chargen_apb_axi_arcache  = host_32b_ar_to_chargen_apb ? host_32b_ar.cache : '0;
     assign chargen_apb_axi_arprot   = host_32b_ar_to_chargen_apb ? host_32b_ar.prot : '0;
+    assign chargen_apb_axi_arqos    = host_32b_ar_to_chargen_apb ? host_32b_ar.qos : '0;
+    assign chargen_apb_axi_arregion = host_32b_ar_to_chargen_apb ? host_32b_ar.region : '0;
+    assign chargen_apb_axi_aruser   = host_32b_ar_to_chargen_apb ? host_32b_ar.user : '0;
     assign chargen_apb_axi_arvalid  = host_32b_ar_to_chargen_apb && host_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -844,6 +886,13 @@ module bridge_ddr2_char_axil_xbar
         ((obs_apb_axi_bid_bridge_id == 0) && obs_apb_axi_bid_valid ? obs_apb_axi_bresp : '0) |
         ((chargen_apb_axi_bid_bridge_id == 0) && chargen_apb_axi_bid_valid ? chargen_apb_axi_bresp : '0);
 
+    assign host_32b_b.user = 
+        ((ddr2_apb_axi_bid_bridge_id == 0) && ddr2_apb_axi_bid_valid ? ddr2_apb_axi_buser : '0) |
+        ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_buser : '0) |
+        ((dfi_mon_ram_axi_bid_bridge_id == 0) && dfi_mon_ram_axi_bid_valid ? dfi_mon_ram_axi_buser : '0) |
+        ((obs_apb_axi_bid_bridge_id == 0) && obs_apb_axi_bid_valid ? obs_apb_axi_buser : '0) |
+        ((chargen_apb_axi_bid_bridge_id == 0) && chargen_apb_axi_bid_valid ? chargen_apb_axi_buser : '0);
+
     assign host_32b_bvalid = 
         ((ddr2_apb_axi_bid_bridge_id == 0) && ddr2_apb_axi_bid_valid ? ddr2_apb_axi_bvalid : '0) |
         ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_bvalid : '0) |
@@ -886,6 +935,13 @@ module bridge_ddr2_char_axil_xbar
         ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid ? obs_apb_axi_rlast : '0) |
         ((chargen_apb_axi_rid_bridge_id == 0) && chargen_apb_axi_rid_valid ? chargen_apb_axi_rlast : '0);
 
+    assign host_32b_r.user = 
+        ((ddr2_apb_axi_rid_bridge_id == 0) && ddr2_apb_axi_rid_valid ? ddr2_apb_axi_ruser : '0) |
+        ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_ruser : '0) |
+        ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid ? dfi_mon_ram_axi_ruser : '0) |
+        ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid ? obs_apb_axi_ruser : '0) |
+        ((chargen_apb_axi_rid_bridge_id == 0) && chargen_apb_axi_rid_valid ? chargen_apb_axi_ruser : '0);
+
     assign host_32b_rvalid = 
         ((ddr2_apb_axi_rid_bridge_id == 0) && ddr2_apb_axi_rid_valid ? ddr2_apb_axi_rvalid : '0) |
         ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rvalid : '0) |
@@ -907,6 +963,9 @@ module bridge_ddr2_char_axil_xbar
     assign host_64b_b.resp = 
         ((debug_sram_axi_bid_bridge_id == 0) && debug_sram_axi_bid_valid ? debug_sram_axi_bresp : '0);
 
+    assign host_64b_b.user = 
+        ((debug_sram_axi_bid_bridge_id == 0) && debug_sram_axi_bid_valid ? debug_sram_axi_buser : '0);
+
     assign host_64b_bvalid = 
         ((debug_sram_axi_bid_bridge_id == 0) && debug_sram_axi_bid_valid ? debug_sram_axi_bvalid : '0);
 
@@ -924,6 +983,9 @@ module bridge_ddr2_char_axil_xbar
 
     assign host_64b_r.last = 
         ((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid ? debug_sram_axi_rlast : '0);
+
+    assign host_64b_r.user = 
+        ((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid ? debug_sram_axi_ruser : '0);
 
     assign host_64b_rvalid = 
         ((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid ? debug_sram_axi_rvalid : '0);

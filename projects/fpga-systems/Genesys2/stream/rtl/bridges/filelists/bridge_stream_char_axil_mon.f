@@ -20,6 +20,9 @@ $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_st
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_char_axil_mon/stream_apb_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_char_axil_mon/stream_err_adapter.sv
 
+# Verilator waiver: PeakRDL field_combo MULTIDRIVEN (see file)
+$REPO_ROOT/projects/components/bridge/rtl/regs/bridge_regblock.vlt
+
 # AXI4 Wrapper modules (timing isolation)
 #
 # Pulled in via each component's OWN filelist rather than by hand-listing

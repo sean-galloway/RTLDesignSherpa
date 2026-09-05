@@ -158,12 +158,16 @@ module host_adapter
     logic         fub_axi_awlock;
     logic [3:0]   fub_axi_awcache;
     logic [2:0]   fub_axi_awprot;
+    logic [3:0]   fub_axi_awqos;
+    logic [3:0]   fub_axi_awregion;
+    logic         fub_axi_awuser;
     logic         fub_axi_awvalid;
     logic         fub_axi_awready;
 
     logic [31:0]  fub_axi_wdata;
     logic [3:0]   fub_axi_wstrb;
     logic         fub_axi_wlast;
+    logic         fub_axi_wuser;
     logic         fub_axi_wvalid;
     logic         fub_axi_wready;
 
@@ -180,6 +184,9 @@ module host_adapter
     logic         fub_axi_arlock;
     logic [3:0]   fub_axi_arcache;
     logic [2:0]   fub_axi_arprot;
+    logic [3:0]   fub_axi_arqos;
+    logic [3:0]   fub_axi_arregion;
+    logic         fub_axi_aruser;
     logic         fub_axi_arvalid;
     logic         fub_axi_arready;
 
@@ -243,15 +250,15 @@ module host_adapter
         .fub_axi_awlock(fub_axi_awlock),
         .fub_axi_awcache(fub_axi_awcache),
         .fub_axi_awprot(fub_axi_awprot),
-        .fub_axi_awqos(),
-        .fub_axi_awregion(),
-        .fub_axi_awuser(),
+        .fub_axi_awqos(fub_axi_awqos),
+        .fub_axi_awregion(fub_axi_awregion),
+        .fub_axi_awuser(fub_axi_awuser),
         .fub_axi_awvalid(fub_axi_awvalid),
         .fub_axi_awready(fub_axi_awready),
         .fub_axi_wdata(fub_axi_wdata),
         .fub_axi_wstrb(fub_axi_wstrb),
         .fub_axi_wlast(fub_axi_wlast),
-        .fub_axi_wuser(),
+        .fub_axi_wuser(fub_axi_wuser),
         .fub_axi_wvalid(fub_axi_wvalid),
         .fub_axi_wready(fub_axi_wready),
         .fub_axi_bid(fub_axi_bid),
@@ -309,9 +316,9 @@ module host_adapter
         .fub_axi_arlock(fub_axi_arlock),
         .fub_axi_arcache(fub_axi_arcache),
         .fub_axi_arprot(fub_axi_arprot),
-        .fub_axi_arqos(),
-        .fub_axi_arregion(),
-        .fub_axi_aruser(),
+        .fub_axi_arqos(fub_axi_arqos),
+        .fub_axi_arregion(fub_axi_arregion),
+        .fub_axi_aruser(fub_axi_aruser),
         .fub_axi_arvalid(fub_axi_arvalid),
         .fub_axi_arready(fub_axi_arready),
         .fub_axi_rid(fub_axi_rid),
@@ -510,9 +517,9 @@ module host_adapter
     assign host_32b_aw.lock   = fub_axi_awlock;
     assign host_32b_aw.cache  = fub_axi_awcache;
     assign host_32b_aw.prot   = fub_axi_awprot;
-    assign host_32b_aw.qos    = 4'b0;  // Tie to 0
-    assign host_32b_aw.region = 4'b0;  // Tie to 0
-    assign host_32b_aw.user   = 1'b0;  // Tie to 0
+    assign host_32b_aw.qos    = fub_axi_awqos;
+    assign host_32b_aw.region = fub_axi_awregion;
+    assign host_32b_aw.user   = fub_axi_awuser;
     assign host_32b_awvalid   = fub_axi_awvalid && aw_path_active_32b;
     // awready routed via MUX
 
@@ -520,7 +527,7 @@ module host_adapter
     assign host_32b_w.data  = fub_axi_wdata;
     assign host_32b_w.strb  = fub_axi_wstrb;
     assign host_32b_w.last  = fub_axi_wlast;
-    assign host_32b_w.user  = 1'b0;  // Tie to 0
+    assign host_32b_w.user  = fub_axi_wuser;
     assign host_32b_wvalid  = fub_axi_wvalid && w_path_active_32b;
     // wready routed via MUX
 
@@ -538,9 +545,9 @@ module host_adapter
     assign host_32b_ar.lock   = fub_axi_arlock;
     assign host_32b_ar.cache  = fub_axi_arcache;
     assign host_32b_ar.prot   = fub_axi_arprot;
-    assign host_32b_ar.qos    = 4'b0;  // Tie to 0
-    assign host_32b_ar.region = 4'b0;  // Tie to 0
-    assign host_32b_ar.user   = 1'b0;  // Tie to 0
+    assign host_32b_ar.qos    = fub_axi_arqos;
+    assign host_32b_ar.region = fub_axi_arregion;
+    assign host_32b_ar.user   = fub_axi_aruser;
     assign host_32b_arvalid   = fub_axi_arvalid && ar_path_active_32b;
     // arready routed via MUX
 
@@ -1061,37 +1068,37 @@ module host_adapter
 
         case (b_slave_select)
             13'b0000000000001: begin  // Slave 0 (32b)
-                fub_axi_bid = host_32b_b.id;
+                fub_axi_bid = host_32b_b.id[7:0];
                 fub_axi_bresp = host_32b_b.resp;
                 fub_axi_bvalid = host_32b_bvalid;
             end
             13'b0000000000010: begin  // Slave 1 (32b)
-                fub_axi_bid = host_32b_b.id;
+                fub_axi_bid = host_32b_b.id[7:0];
                 fub_axi_bresp = host_32b_b.resp;
                 fub_axi_bvalid = host_32b_bvalid;
             end
             13'b0000000000100: begin  // Slave 2 (32b)
-                fub_axi_bid = host_32b_b.id;
+                fub_axi_bid = host_32b_b.id[7:0];
                 fub_axi_bresp = host_32b_b.resp;
                 fub_axi_bvalid = host_32b_bvalid;
             end
             13'b0000000001000: begin  // Slave 3 (32b)
-                fub_axi_bid = host_32b_b.id;
+                fub_axi_bid = host_32b_b.id[7:0];
                 fub_axi_bresp = host_32b_b.resp;
                 fub_axi_bvalid = host_32b_bvalid;
             end
             13'b0000000100000: begin  // Slave 5 (32b)
-                fub_axi_bid = host_32b_b.id;
+                fub_axi_bid = host_32b_b.id[7:0];
                 fub_axi_bresp = host_32b_b.resp;
                 fub_axi_bvalid = host_32b_bvalid;
             end
             13'b0000010000000: begin  // Slave 7 (32b)
-                fub_axi_bid = host_32b_b.id;
+                fub_axi_bid = host_32b_b.id[7:0];
                 fub_axi_bresp = host_32b_b.resp;
                 fub_axi_bvalid = host_32b_bvalid;
             end
             13'b0000100000000: begin  // Slave 8 (32b)
-                fub_axi_bid = host_32b_b.id;
+                fub_axi_bid = host_32b_b.id[7:0];
                 fub_axi_bresp = host_32b_b.resp;
                 fub_axi_bvalid = host_32b_bvalid;
             end
@@ -1193,49 +1200,49 @@ module host_adapter
 
         case (r_slave_select)
             13'b0000000000001: begin  // Slave 0 (32b)
-                fub_axi_rid = host_32b_r.id;
+                fub_axi_rid = host_32b_r.id[7:0];
                 fub_axi_rdata = host_32b_r.data;
                 fub_axi_rresp = host_32b_r.resp;
                 fub_axi_rlast = host_32b_r.last;
                 fub_axi_rvalid = host_32b_rvalid;
             end
             13'b0000000000010: begin  // Slave 1 (32b)
-                fub_axi_rid = host_32b_r.id;
+                fub_axi_rid = host_32b_r.id[7:0];
                 fub_axi_rdata = host_32b_r.data;
                 fub_axi_rresp = host_32b_r.resp;
                 fub_axi_rlast = host_32b_r.last;
                 fub_axi_rvalid = host_32b_rvalid;
             end
             13'b0000000000100: begin  // Slave 2 (32b)
-                fub_axi_rid = host_32b_r.id;
+                fub_axi_rid = host_32b_r.id[7:0];
                 fub_axi_rdata = host_32b_r.data;
                 fub_axi_rresp = host_32b_r.resp;
                 fub_axi_rlast = host_32b_r.last;
                 fub_axi_rvalid = host_32b_rvalid;
             end
             13'b0000000001000: begin  // Slave 3 (32b)
-                fub_axi_rid = host_32b_r.id;
+                fub_axi_rid = host_32b_r.id[7:0];
                 fub_axi_rdata = host_32b_r.data;
                 fub_axi_rresp = host_32b_r.resp;
                 fub_axi_rlast = host_32b_r.last;
                 fub_axi_rvalid = host_32b_rvalid;
             end
             13'b0000000100000: begin  // Slave 5 (32b)
-                fub_axi_rid = host_32b_r.id;
+                fub_axi_rid = host_32b_r.id[7:0];
                 fub_axi_rdata = host_32b_r.data;
                 fub_axi_rresp = host_32b_r.resp;
                 fub_axi_rlast = host_32b_r.last;
                 fub_axi_rvalid = host_32b_rvalid;
             end
             13'b0000010000000: begin  // Slave 7 (32b)
-                fub_axi_rid = host_32b_r.id;
+                fub_axi_rid = host_32b_r.id[7:0];
                 fub_axi_rdata = host_32b_r.data;
                 fub_axi_rresp = host_32b_r.resp;
                 fub_axi_rlast = host_32b_r.last;
                 fub_axi_rvalid = host_32b_rvalid;
             end
             13'b0000100000000: begin  // Slave 8 (32b)
-                fub_axi_rid = host_32b_r.id;
+                fub_axi_rid = host_32b_r.id[7:0];
                 fub_axi_rdata = host_32b_r.data;
                 fub_axi_rresp = host_32b_r.resp;
                 fub_axi_rlast = host_32b_r.last;

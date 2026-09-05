@@ -103,6 +103,9 @@ module stream_desc_adapter
     logic         fub_axi_arlock;
     logic [3:0]   fub_axi_arcache;
     logic [2:0]   fub_axi_arprot;
+    logic [3:0]   fub_axi_arqos;
+    logic [3:0]   fub_axi_arregion;
+    logic         fub_axi_aruser;
     logic         fub_axi_arvalid;
     logic         fub_axi_arready;
 
@@ -169,9 +172,9 @@ module stream_desc_adapter
         .fub_axi_arlock(fub_axi_arlock),
         .fub_axi_arcache(fub_axi_arcache),
         .fub_axi_arprot(fub_axi_arprot),
-        .fub_axi_arqos(),
-        .fub_axi_arregion(),
-        .fub_axi_aruser(),
+        .fub_axi_arqos(fub_axi_arqos),
+        .fub_axi_arregion(fub_axi_arregion),
+        .fub_axi_aruser(fub_axi_aruser),
         .fub_axi_arvalid(fub_axi_arvalid),
         .fub_axi_arready(fub_axi_arready),
         .fub_axi_rid(fub_axi_rid),
@@ -216,6 +219,16 @@ module stream_desc_adapter
         .cfg_axi_perf_mask(cfg_rd_axi_perf_mask),
         .cfg_axi_addr_mask(cfg_rd_axi_addr_mask),
         .cfg_axi_debug_mask(cfg_rd_axi_debug_mask),
+
+        // Monitor filter/CAM inputs (inert)
+        .cam_clear(1'b0),
+        .cfg_addr_filter_enable(1'b0),
+        .cfg_addr_filter_low('0),
+        .cfg_addr_filter_high('0),
+        .cfg_id_filter_enable(1'b0),
+        .cfg_id_match_base('0),
+        .cfg_id_match_count('0),
+        .debug_block_ready(),
 
         // Address-range checker (disabled at N_ADDR_RANGES=0)
         .cfg_addr_check_enable(1'b0),
@@ -284,9 +297,9 @@ module stream_desc_adapter
     assign stream_desc_256b_ar.lock   = fub_axi_arlock;
     assign stream_desc_256b_ar.cache  = fub_axi_arcache;
     assign stream_desc_256b_ar.prot   = fub_axi_arprot;
-    assign stream_desc_256b_ar.qos    = 4'b0;  // Tie to 0
-    assign stream_desc_256b_ar.region = 4'b0;  // Tie to 0
-    assign stream_desc_256b_ar.user   = 1'b0;  // Tie to 0
+    assign stream_desc_256b_ar.qos    = fub_axi_arqos;
+    assign stream_desc_256b_ar.region = fub_axi_arregion;
+    assign stream_desc_256b_ar.user   = fub_axi_aruser;
     assign stream_desc_256b_arvalid   = fub_axi_arvalid && ar_path_active_256b;
     // arready routed via MUX
 
@@ -381,7 +394,7 @@ module stream_desc_adapter
 
         case (r_slave_select)
             13'b0000000010000: begin  // Slave 4 (256b)
-                fub_axi_rid = stream_desc_256b_r.id;
+                fub_axi_rid = stream_desc_256b_r.id[7:0];
                 fub_axi_rdata = stream_desc_256b_r.data;
                 fub_axi_rresp = stream_desc_256b_r.resp;
                 fub_axi_rlast = stream_desc_256b_r.last;

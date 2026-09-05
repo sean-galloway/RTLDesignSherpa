@@ -113,12 +113,16 @@ module monbus_wr_adapter
     logic         fub_axi_awlock;
     logic [3:0]   fub_axi_awcache;
     logic [2:0]   fub_axi_awprot;
+    logic [3:0]   fub_axi_awqos;
+    logic [3:0]   fub_axi_awregion;
+    logic         fub_axi_awuser;
     logic         fub_axi_awvalid;
     logic         fub_axi_awready;
 
     logic [63:0]  fub_axi_wdata;
     logic [7:0]   fub_axi_wstrb;
     logic         fub_axi_wlast;
+    logic         fub_axi_wuser;
     logic         fub_axi_wvalid;
     logic         fub_axi_wready;
 
@@ -188,15 +192,15 @@ module monbus_wr_adapter
         .fub_axi_awlock(fub_axi_awlock),
         .fub_axi_awcache(fub_axi_awcache),
         .fub_axi_awprot(fub_axi_awprot),
-        .fub_axi_awqos(),
-        .fub_axi_awregion(),
-        .fub_axi_awuser(),
+        .fub_axi_awqos(fub_axi_awqos),
+        .fub_axi_awregion(fub_axi_awregion),
+        .fub_axi_awuser(fub_axi_awuser),
         .fub_axi_awvalid(fub_axi_awvalid),
         .fub_axi_awready(fub_axi_awready),
         .fub_axi_wdata(fub_axi_wdata),
         .fub_axi_wstrb(fub_axi_wstrb),
         .fub_axi_wlast(fub_axi_wlast),
-        .fub_axi_wuser(),
+        .fub_axi_wuser(fub_axi_wuser),
         .fub_axi_wvalid(fub_axi_wvalid),
         .fub_axi_wready(fub_axi_wready),
         .fub_axi_bid(fub_axi_bid),
@@ -239,6 +243,16 @@ module monbus_wr_adapter
         .cfg_axi_perf_mask(cfg_wr_axi_perf_mask),
         .cfg_axi_addr_mask(cfg_wr_axi_addr_mask),
         .cfg_axi_debug_mask(cfg_wr_axi_debug_mask),
+
+        // Monitor filter/CAM inputs (inert)
+        .cam_clear(1'b0),
+        .cfg_addr_filter_enable(1'b0),
+        .cfg_addr_filter_low('0),
+        .cfg_addr_filter_high('0),
+        .cfg_id_filter_enable(1'b0),
+        .cfg_id_match_base('0),
+        .cfg_id_match_count('0),
+        .debug_block_ready(),
 
         // Address-range checker (disabled at N_ADDR_RANGES=0)
         .cfg_addr_check_enable(1'b0),
@@ -310,9 +324,9 @@ module monbus_wr_adapter
     assign monbus_wr_64b_aw.lock   = fub_axi_awlock;
     assign monbus_wr_64b_aw.cache  = fub_axi_awcache;
     assign monbus_wr_64b_aw.prot   = fub_axi_awprot;
-    assign monbus_wr_64b_aw.qos    = 4'b0;  // Tie to 0
-    assign monbus_wr_64b_aw.region = 4'b0;  // Tie to 0
-    assign monbus_wr_64b_aw.user   = 1'b0;  // Tie to 0
+    assign monbus_wr_64b_aw.qos    = fub_axi_awqos;
+    assign monbus_wr_64b_aw.region = fub_axi_awregion;
+    assign monbus_wr_64b_aw.user   = fub_axi_awuser;
     assign monbus_wr_64b_awvalid   = fub_axi_awvalid && aw_path_active_64b;
     // awready routed via MUX
 
@@ -320,7 +334,7 @@ module monbus_wr_adapter
     assign monbus_wr_64b_w.data  = fub_axi_wdata;
     assign monbus_wr_64b_w.strb  = fub_axi_wstrb;
     assign monbus_wr_64b_w.last  = fub_axi_wlast;
-    assign monbus_wr_64b_w.user  = 1'b0;  // Tie to 0
+    assign monbus_wr_64b_w.user  = fub_axi_wuser;
     assign monbus_wr_64b_wvalid  = fub_axi_wvalid && w_path_active_64b;
     // wready routed via MUX
 
@@ -463,7 +477,7 @@ module monbus_wr_adapter
 
         case (b_slave_select)
             6'b010000: begin  // Slave 4 (64b)
-                fub_axi_bid = monbus_wr_64b_b.id;
+                fub_axi_bid = monbus_wr_64b_b.id[7:0];
                 fub_axi_bresp = monbus_wr_64b_b.resp;
                 fub_axi_bvalid = monbus_wr_64b_bvalid;
             end

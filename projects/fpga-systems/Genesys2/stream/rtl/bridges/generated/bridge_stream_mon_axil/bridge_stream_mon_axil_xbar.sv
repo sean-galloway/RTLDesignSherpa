@@ -921,6 +921,9 @@ module bridge_stream_mon_axil_xbar
     assign obs_apb_axi_awlock   = host_32b_aw_to_obs_apb ? host_32b_aw.lock : '0;
     assign obs_apb_axi_awcache  = host_32b_aw_to_obs_apb ? host_32b_aw.cache : '0;
     assign obs_apb_axi_awprot   = host_32b_aw_to_obs_apb ? host_32b_aw.prot : '0;
+    assign obs_apb_axi_awqos    = host_32b_aw_to_obs_apb ? host_32b_aw.qos : '0;
+    assign obs_apb_axi_awregion = host_32b_aw_to_obs_apb ? host_32b_aw.region : '0;
+    assign obs_apb_axi_awuser   = host_32b_aw_to_obs_apb ? host_32b_aw.user : '0;
     assign obs_apb_axi_awvalid  = host_32b_aw_to_obs_apb && host_32b_awvalid;
 
     assign host_32b_w_sel_obs_apb = host_32b_w_to_obs_apb;
@@ -929,6 +932,7 @@ module bridge_stream_mon_axil_xbar
     assign obs_apb_axi_wdata  = host_32b_w_to_obs_apb ? host_32b_w.data : '0;
     assign obs_apb_axi_wstrb  = host_32b_w_to_obs_apb ? host_32b_w.strb : '0;
     assign obs_apb_axi_wlast  = host_32b_w_to_obs_apb ? host_32b_w.last : '0;
+    assign obs_apb_axi_wuser  = host_32b_w_to_obs_apb ? host_32b_w.user : '0;
     assign obs_apb_axi_wvalid = host_32b_w_to_obs_apb && host_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
@@ -949,6 +953,9 @@ module bridge_stream_mon_axil_xbar
     assign obs_apb_axi_arlock   = host_32b_ar_to_obs_apb ? host_32b_ar.lock : '0;
     assign obs_apb_axi_arcache  = host_32b_ar_to_obs_apb ? host_32b_ar.cache : '0;
     assign obs_apb_axi_arprot   = host_32b_ar_to_obs_apb ? host_32b_ar.prot : '0;
+    assign obs_apb_axi_arqos    = host_32b_ar_to_obs_apb ? host_32b_ar.qos : '0;
+    assign obs_apb_axi_arregion = host_32b_ar_to_obs_apb ? host_32b_ar.region : '0;
+    assign obs_apb_axi_aruser   = host_32b_ar_to_obs_apb ? host_32b_ar.user : '0;
     assign obs_apb_axi_arvalid  = host_32b_ar_to_obs_apb && host_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -977,6 +984,9 @@ module bridge_stream_mon_axil_xbar
     assign slvmon_apb_axi_awlock   = host_32b_aw_to_slvmon_apb ? host_32b_aw.lock : '0;
     assign slvmon_apb_axi_awcache  = host_32b_aw_to_slvmon_apb ? host_32b_aw.cache : '0;
     assign slvmon_apb_axi_awprot   = host_32b_aw_to_slvmon_apb ? host_32b_aw.prot : '0;
+    assign slvmon_apb_axi_awqos    = host_32b_aw_to_slvmon_apb ? host_32b_aw.qos : '0;
+    assign slvmon_apb_axi_awregion = host_32b_aw_to_slvmon_apb ? host_32b_aw.region : '0;
+    assign slvmon_apb_axi_awuser   = host_32b_aw_to_slvmon_apb ? host_32b_aw.user : '0;
     assign slvmon_apb_axi_awvalid  = host_32b_aw_to_slvmon_apb && host_32b_awvalid;
 
     assign host_32b_w_sel_slvmon_apb = host_32b_w_to_slvmon_apb;
@@ -985,6 +995,7 @@ module bridge_stream_mon_axil_xbar
     assign slvmon_apb_axi_wdata  = host_32b_w_to_slvmon_apb ? host_32b_w.data : '0;
     assign slvmon_apb_axi_wstrb  = host_32b_w_to_slvmon_apb ? host_32b_w.strb : '0;
     assign slvmon_apb_axi_wlast  = host_32b_w_to_slvmon_apb ? host_32b_w.last : '0;
+    assign slvmon_apb_axi_wuser  = host_32b_w_to_slvmon_apb ? host_32b_w.user : '0;
     assign slvmon_apb_axi_wvalid = host_32b_w_to_slvmon_apb && host_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
@@ -1005,6 +1016,9 @@ module bridge_stream_mon_axil_xbar
     assign slvmon_apb_axi_arlock   = host_32b_ar_to_slvmon_apb ? host_32b_ar.lock : '0;
     assign slvmon_apb_axi_arcache  = host_32b_ar_to_slvmon_apb ? host_32b_ar.cache : '0;
     assign slvmon_apb_axi_arprot   = host_32b_ar_to_slvmon_apb ? host_32b_ar.prot : '0;
+    assign slvmon_apb_axi_arqos    = host_32b_ar_to_slvmon_apb ? host_32b_ar.qos : '0;
+    assign slvmon_apb_axi_arregion = host_32b_ar_to_slvmon_apb ? host_32b_ar.region : '0;
+    assign slvmon_apb_axi_aruser   = host_32b_ar_to_slvmon_apb ? host_32b_ar.user : '0;
     assign slvmon_apb_axi_arvalid  = host_32b_ar_to_slvmon_apb && host_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -1033,6 +1047,9 @@ module bridge_stream_mon_axil_xbar
     assign stream_apb_axi_awlock   = host_32b_aw_to_stream_apb ? host_32b_aw.lock : '0;
     assign stream_apb_axi_awcache  = host_32b_aw_to_stream_apb ? host_32b_aw.cache : '0;
     assign stream_apb_axi_awprot   = host_32b_aw_to_stream_apb ? host_32b_aw.prot : '0;
+    assign stream_apb_axi_awqos    = host_32b_aw_to_stream_apb ? host_32b_aw.qos : '0;
+    assign stream_apb_axi_awregion = host_32b_aw_to_stream_apb ? host_32b_aw.region : '0;
+    assign stream_apb_axi_awuser   = host_32b_aw_to_stream_apb ? host_32b_aw.user : '0;
     assign stream_apb_axi_awvalid  = host_32b_aw_to_stream_apb && host_32b_awvalid;
 
     assign host_32b_w_sel_stream_apb = host_32b_w_to_stream_apb;
@@ -1041,6 +1058,7 @@ module bridge_stream_mon_axil_xbar
     assign stream_apb_axi_wdata  = host_32b_w_to_stream_apb ? host_32b_w.data : '0;
     assign stream_apb_axi_wstrb  = host_32b_w_to_stream_apb ? host_32b_w.strb : '0;
     assign stream_apb_axi_wlast  = host_32b_w_to_stream_apb ? host_32b_w.last : '0;
+    assign stream_apb_axi_wuser  = host_32b_w_to_stream_apb ? host_32b_w.user : '0;
     assign stream_apb_axi_wvalid = host_32b_w_to_stream_apb && host_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
@@ -1061,6 +1079,9 @@ module bridge_stream_mon_axil_xbar
     assign stream_apb_axi_arlock   = host_32b_ar_to_stream_apb ? host_32b_ar.lock : '0;
     assign stream_apb_axi_arcache  = host_32b_ar_to_stream_apb ? host_32b_ar.cache : '0;
     assign stream_apb_axi_arprot   = host_32b_ar_to_stream_apb ? host_32b_ar.prot : '0;
+    assign stream_apb_axi_arqos    = host_32b_ar_to_stream_apb ? host_32b_ar.qos : '0;
+    assign stream_apb_axi_arregion = host_32b_ar_to_stream_apb ? host_32b_ar.region : '0;
+    assign stream_apb_axi_aruser   = host_32b_ar_to_stream_apb ? host_32b_ar.user : '0;
     assign stream_apb_axi_arvalid  = host_32b_ar_to_stream_apb && host_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -1089,6 +1110,9 @@ module bridge_stream_mon_axil_xbar
     assign harness_csr_axi_awlock   = host_32b_aw_to_harness_csr ? host_32b_aw.lock : '0;
     assign harness_csr_axi_awcache  = host_32b_aw_to_harness_csr ? host_32b_aw.cache : '0;
     assign harness_csr_axi_awprot   = host_32b_aw_to_harness_csr ? host_32b_aw.prot : '0;
+    assign harness_csr_axi_awqos    = host_32b_aw_to_harness_csr ? host_32b_aw.qos : '0;
+    assign harness_csr_axi_awregion = host_32b_aw_to_harness_csr ? host_32b_aw.region : '0;
+    assign harness_csr_axi_awuser   = host_32b_aw_to_harness_csr ? host_32b_aw.user : '0;
     assign harness_csr_axi_awvalid  = host_32b_aw_to_harness_csr && host_32b_awvalid;
 
     assign host_32b_w_sel_harness_csr = host_32b_w_to_harness_csr;
@@ -1097,6 +1121,7 @@ module bridge_stream_mon_axil_xbar
     assign harness_csr_axi_wdata  = host_32b_w_to_harness_csr ? host_32b_w.data : '0;
     assign harness_csr_axi_wstrb  = host_32b_w_to_harness_csr ? host_32b_w.strb : '0;
     assign harness_csr_axi_wlast  = host_32b_w_to_harness_csr ? host_32b_w.last : '0;
+    assign harness_csr_axi_wuser  = host_32b_w_to_harness_csr ? host_32b_w.user : '0;
     assign harness_csr_axi_wvalid = host_32b_w_to_harness_csr && host_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
@@ -1117,6 +1142,9 @@ module bridge_stream_mon_axil_xbar
     assign harness_csr_axi_arlock   = host_32b_ar_to_harness_csr ? host_32b_ar.lock : '0;
     assign harness_csr_axi_arcache  = host_32b_ar_to_harness_csr ? host_32b_ar.cache : '0;
     assign harness_csr_axi_arprot   = host_32b_ar_to_harness_csr ? host_32b_ar.prot : '0;
+    assign harness_csr_axi_arqos    = host_32b_ar_to_harness_csr ? host_32b_ar.qos : '0;
+    assign harness_csr_axi_arregion = host_32b_ar_to_harness_csr ? host_32b_ar.region : '0;
+    assign harness_csr_axi_aruser   = host_32b_ar_to_harness_csr ? host_32b_ar.user : '0;
     assign harness_csr_axi_arvalid  = host_32b_ar_to_harness_csr && host_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -1172,6 +1200,9 @@ module bridge_stream_mon_axil_xbar
     assign desc_ram_axi_awlock = (host_256b_aw_gnt_desc_ram ? host_256b_aw.lock : '0);
     assign desc_ram_axi_awcache = (host_256b_aw_gnt_desc_ram ? host_256b_aw.cache : '0);
     assign desc_ram_axi_awprot = (host_256b_aw_gnt_desc_ram ? host_256b_aw.prot : '0);
+    assign desc_ram_axi_awqos = (host_256b_aw_gnt_desc_ram ? host_256b_aw.qos : '0);
+    assign desc_ram_axi_awregion = (host_256b_aw_gnt_desc_ram ? host_256b_aw.region : '0);
+    assign desc_ram_axi_awuser = (host_256b_aw_gnt_desc_ram ? host_256b_aw.user : '0);
     assign desc_ram_axi_awvalid = host_256b_aw_gnt_desc_ram;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
@@ -1199,6 +1230,7 @@ module bridge_stream_mon_axil_xbar
     assign desc_ram_axi_wdata = ((host_256b_w_sel_desc_ram && host_256b_wvalid) ? host_256b_w.data : '0);
     assign desc_ram_axi_wstrb = ((host_256b_w_sel_desc_ram && host_256b_wvalid) ? host_256b_w.strb : '0);
     assign desc_ram_axi_wlast = ((host_256b_w_sel_desc_ram && host_256b_wvalid) ? host_256b_w.last : '0);
+    assign desc_ram_axi_wuser = ((host_256b_w_sel_desc_ram && host_256b_wvalid) ? host_256b_w.user : '0);
     assign desc_ram_axi_wvalid = (host_256b_w_sel_desc_ram && host_256b_wvalid);
 
     // Bready (slave → owning master, by bid_bridge_id)
@@ -1251,6 +1283,12 @@ module bridge_stream_mon_axil_xbar
         (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar.cache : '0);
     assign desc_ram_axi_arprot = (host_256b_ar_gnt_desc_ram ? host_256b_ar.prot : '0) |
         (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar.prot : '0);
+    assign desc_ram_axi_arqos = (host_256b_ar_gnt_desc_ram ? host_256b_ar.qos : '0) |
+        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar.qos : '0);
+    assign desc_ram_axi_arregion = (host_256b_ar_gnt_desc_ram ? host_256b_ar.region : '0) |
+        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar.region : '0);
+    assign desc_ram_axi_aruser = (host_256b_ar_gnt_desc_ram ? host_256b_ar.user : '0) |
+        (stream_desc_256b_ar_gnt_desc_ram ? stream_desc_256b_ar.user : '0);
     assign desc_ram_axi_arvalid = host_256b_ar_gnt_desc_ram || stream_desc_256b_ar_gnt_desc_ram;
 
     // Rready (slave → owning master, by rid_bridge_id)
@@ -1280,6 +1318,9 @@ module bridge_stream_mon_axil_xbar
     assign stream_err_axi_awlock   = host_32b_aw_to_stream_err ? host_32b_aw.lock : '0;
     assign stream_err_axi_awcache  = host_32b_aw_to_stream_err ? host_32b_aw.cache : '0;
     assign stream_err_axi_awprot   = host_32b_aw_to_stream_err ? host_32b_aw.prot : '0;
+    assign stream_err_axi_awqos    = host_32b_aw_to_stream_err ? host_32b_aw.qos : '0;
+    assign stream_err_axi_awregion = host_32b_aw_to_stream_err ? host_32b_aw.region : '0;
+    assign stream_err_axi_awuser   = host_32b_aw_to_stream_err ? host_32b_aw.user : '0;
     assign stream_err_axi_awvalid  = host_32b_aw_to_stream_err && host_32b_awvalid;
 
     assign host_32b_w_sel_stream_err = host_32b_w_to_stream_err;
@@ -1288,6 +1329,7 @@ module bridge_stream_mon_axil_xbar
     assign stream_err_axi_wdata  = host_32b_w_to_stream_err ? host_32b_w.data : '0;
     assign stream_err_axi_wstrb  = host_32b_w_to_stream_err ? host_32b_w.strb : '0;
     assign stream_err_axi_wlast  = host_32b_w_to_stream_err ? host_32b_w.last : '0;
+    assign stream_err_axi_wuser  = host_32b_w_to_stream_err ? host_32b_w.user : '0;
     assign stream_err_axi_wvalid = host_32b_w_to_stream_err && host_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
@@ -1308,6 +1350,9 @@ module bridge_stream_mon_axil_xbar
     assign stream_err_axi_arlock   = host_32b_ar_to_stream_err ? host_32b_ar.lock : '0;
     assign stream_err_axi_arcache  = host_32b_ar_to_stream_err ? host_32b_ar.cache : '0;
     assign stream_err_axi_arprot   = host_32b_ar_to_stream_err ? host_32b_ar.prot : '0;
+    assign stream_err_axi_arqos    = host_32b_ar_to_stream_err ? host_32b_ar.qos : '0;
+    assign stream_err_axi_arregion = host_32b_ar_to_stream_err ? host_32b_ar.region : '0;
+    assign stream_err_axi_aruser   = host_32b_ar_to_stream_err ? host_32b_ar.user : '0;
     assign stream_err_axi_arvalid  = host_32b_ar_to_stream_err && host_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -1373,6 +1418,12 @@ module bridge_stream_mon_axil_xbar
         (monbus_wr_64b_aw_gnt_stream_tally ? monbus_wr_64b_aw.cache : '0);
     assign stream_tally_axi_awprot = (host_64b_aw_gnt_stream_tally ? host_64b_aw.prot : '0) |
         (monbus_wr_64b_aw_gnt_stream_tally ? monbus_wr_64b_aw.prot : '0);
+    assign stream_tally_axi_awqos = (host_64b_aw_gnt_stream_tally ? host_64b_aw.qos : '0) |
+        (monbus_wr_64b_aw_gnt_stream_tally ? monbus_wr_64b_aw.qos : '0);
+    assign stream_tally_axi_awregion = (host_64b_aw_gnt_stream_tally ? host_64b_aw.region : '0) |
+        (monbus_wr_64b_aw_gnt_stream_tally ? monbus_wr_64b_aw.region : '0);
+    assign stream_tally_axi_awuser = (host_64b_aw_gnt_stream_tally ? host_64b_aw.user : '0) |
+        (monbus_wr_64b_aw_gnt_stream_tally ? monbus_wr_64b_aw.user : '0);
     assign stream_tally_axi_awvalid = host_64b_aw_gnt_stream_tally || monbus_wr_64b_aw_gnt_stream_tally;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
@@ -1404,6 +1455,8 @@ module bridge_stream_mon_axil_xbar
         ((monbus_wr_64b_w_sel_stream_tally && monbus_wr_64b_wvalid) ? monbus_wr_64b_w.strb : '0);
     assign stream_tally_axi_wlast = ((host_64b_w_sel_stream_tally && host_64b_wvalid) ? host_64b_w.last : '0) |
         ((monbus_wr_64b_w_sel_stream_tally && monbus_wr_64b_wvalid) ? monbus_wr_64b_w.last : '0);
+    assign stream_tally_axi_wuser = ((host_64b_w_sel_stream_tally && host_64b_wvalid) ? host_64b_w.user : '0) |
+        ((monbus_wr_64b_w_sel_stream_tally && monbus_wr_64b_wvalid) ? monbus_wr_64b_w.user : '0);
     assign stream_tally_axi_wvalid = (host_64b_w_sel_stream_tally && host_64b_wvalid) || (monbus_wr_64b_w_sel_stream_tally && monbus_wr_64b_wvalid);
 
     // Bready (slave → owning master, by bid_bridge_id)
@@ -1448,6 +1501,9 @@ module bridge_stream_mon_axil_xbar
     assign stream_tally_axi_arlock = (host_64b_ar_gnt_stream_tally ? host_64b_ar.lock : '0);
     assign stream_tally_axi_arcache = (host_64b_ar_gnt_stream_tally ? host_64b_ar.cache : '0);
     assign stream_tally_axi_arprot = (host_64b_ar_gnt_stream_tally ? host_64b_ar.prot : '0);
+    assign stream_tally_axi_arqos = (host_64b_ar_gnt_stream_tally ? host_64b_ar.qos : '0);
+    assign stream_tally_axi_arregion = (host_64b_ar_gnt_stream_tally ? host_64b_ar.region : '0);
+    assign stream_tally_axi_aruser = (host_64b_ar_gnt_stream_tally ? host_64b_ar.user : '0);
     assign stream_tally_axi_arvalid = host_64b_ar_gnt_stream_tally;
 
     // Rready (slave → owning master, by rid_bridge_id)
@@ -1475,6 +1531,9 @@ module bridge_stream_mon_axil_xbar
     assign dma_axil_axi_awlock   = host_32b_aw_to_dma_axil ? host_32b_aw.lock : '0;
     assign dma_axil_axi_awcache  = host_32b_aw_to_dma_axil ? host_32b_aw.cache : '0;
     assign dma_axil_axi_awprot   = host_32b_aw_to_dma_axil ? host_32b_aw.prot : '0;
+    assign dma_axil_axi_awqos    = host_32b_aw_to_dma_axil ? host_32b_aw.qos : '0;
+    assign dma_axil_axi_awregion = host_32b_aw_to_dma_axil ? host_32b_aw.region : '0;
+    assign dma_axil_axi_awuser   = host_32b_aw_to_dma_axil ? host_32b_aw.user : '0;
     assign dma_axil_axi_awvalid  = host_32b_aw_to_dma_axil && host_32b_awvalid;
 
     assign host_32b_w_sel_dma_axil = host_32b_w_to_dma_axil;
@@ -1483,6 +1542,7 @@ module bridge_stream_mon_axil_xbar
     assign dma_axil_axi_wdata  = host_32b_w_to_dma_axil ? host_32b_w.data : '0;
     assign dma_axil_axi_wstrb  = host_32b_w_to_dma_axil ? host_32b_w.strb : '0;
     assign dma_axil_axi_wlast  = host_32b_w_to_dma_axil ? host_32b_w.last : '0;
+    assign dma_axil_axi_wuser  = host_32b_w_to_dma_axil ? host_32b_w.user : '0;
     assign dma_axil_axi_wvalid = host_32b_w_to_dma_axil && host_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
@@ -1503,6 +1563,9 @@ module bridge_stream_mon_axil_xbar
     assign dma_axil_axi_arlock   = host_32b_ar_to_dma_axil ? host_32b_ar.lock : '0;
     assign dma_axil_axi_arcache  = host_32b_ar_to_dma_axil ? host_32b_ar.cache : '0;
     assign dma_axil_axi_arprot   = host_32b_ar_to_dma_axil ? host_32b_ar.prot : '0;
+    assign dma_axil_axi_arqos    = host_32b_ar_to_dma_axil ? host_32b_ar.qos : '0;
+    assign dma_axil_axi_arregion = host_32b_ar_to_dma_axil ? host_32b_ar.region : '0;
+    assign dma_axil_axi_aruser   = host_32b_ar_to_dma_axil ? host_32b_ar.user : '0;
     assign dma_axil_axi_arvalid  = host_32b_ar_to_dma_axil && host_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -1531,6 +1594,9 @@ module bridge_stream_mon_axil_xbar
     assign slave_err_axi_awlock   = host_32b_aw_to_slave_err ? host_32b_aw.lock : '0;
     assign slave_err_axi_awcache  = host_32b_aw_to_slave_err ? host_32b_aw.cache : '0;
     assign slave_err_axi_awprot   = host_32b_aw_to_slave_err ? host_32b_aw.prot : '0;
+    assign slave_err_axi_awqos    = host_32b_aw_to_slave_err ? host_32b_aw.qos : '0;
+    assign slave_err_axi_awregion = host_32b_aw_to_slave_err ? host_32b_aw.region : '0;
+    assign slave_err_axi_awuser   = host_32b_aw_to_slave_err ? host_32b_aw.user : '0;
     assign slave_err_axi_awvalid  = host_32b_aw_to_slave_err && host_32b_awvalid;
 
     assign host_32b_w_sel_slave_err = host_32b_w_to_slave_err;
@@ -1539,6 +1605,7 @@ module bridge_stream_mon_axil_xbar
     assign slave_err_axi_wdata  = host_32b_w_to_slave_err ? host_32b_w.data : '0;
     assign slave_err_axi_wstrb  = host_32b_w_to_slave_err ? host_32b_w.strb : '0;
     assign slave_err_axi_wlast  = host_32b_w_to_slave_err ? host_32b_w.last : '0;
+    assign slave_err_axi_wuser  = host_32b_w_to_slave_err ? host_32b_w.user : '0;
     assign slave_err_axi_wvalid = host_32b_w_to_slave_err && host_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
@@ -1559,6 +1626,9 @@ module bridge_stream_mon_axil_xbar
     assign slave_err_axi_arlock   = host_32b_ar_to_slave_err ? host_32b_ar.lock : '0;
     assign slave_err_axi_arcache  = host_32b_ar_to_slave_err ? host_32b_ar.cache : '0;
     assign slave_err_axi_arprot   = host_32b_ar_to_slave_err ? host_32b_ar.prot : '0;
+    assign slave_err_axi_arqos    = host_32b_ar_to_slave_err ? host_32b_ar.qos : '0;
+    assign slave_err_axi_arregion = host_32b_ar_to_slave_err ? host_32b_ar.region : '0;
+    assign slave_err_axi_aruser   = host_32b_ar_to_slave_err ? host_32b_ar.user : '0;
     assign slave_err_axi_arvalid  = host_32b_ar_to_slave_err && host_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -1624,6 +1694,12 @@ module bridge_stream_mon_axil_xbar
         (slave_monbus_wr_64b_aw_gnt_slave_tally ? slave_monbus_wr_64b_aw.cache : '0);
     assign slave_tally_axi_awprot = (host_64b_aw_gnt_slave_tally ? host_64b_aw.prot : '0) |
         (slave_monbus_wr_64b_aw_gnt_slave_tally ? slave_monbus_wr_64b_aw.prot : '0);
+    assign slave_tally_axi_awqos = (host_64b_aw_gnt_slave_tally ? host_64b_aw.qos : '0) |
+        (slave_monbus_wr_64b_aw_gnt_slave_tally ? slave_monbus_wr_64b_aw.qos : '0);
+    assign slave_tally_axi_awregion = (host_64b_aw_gnt_slave_tally ? host_64b_aw.region : '0) |
+        (slave_monbus_wr_64b_aw_gnt_slave_tally ? slave_monbus_wr_64b_aw.region : '0);
+    assign slave_tally_axi_awuser = (host_64b_aw_gnt_slave_tally ? host_64b_aw.user : '0) |
+        (slave_monbus_wr_64b_aw_gnt_slave_tally ? slave_monbus_wr_64b_aw.user : '0);
     assign slave_tally_axi_awvalid = host_64b_aw_gnt_slave_tally || slave_monbus_wr_64b_aw_gnt_slave_tally;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
@@ -1655,6 +1731,8 @@ module bridge_stream_mon_axil_xbar
         ((slave_monbus_wr_64b_w_sel_slave_tally && slave_monbus_wr_64b_wvalid) ? slave_monbus_wr_64b_w.strb : '0);
     assign slave_tally_axi_wlast = ((host_64b_w_sel_slave_tally && host_64b_wvalid) ? host_64b_w.last : '0) |
         ((slave_monbus_wr_64b_w_sel_slave_tally && slave_monbus_wr_64b_wvalid) ? slave_monbus_wr_64b_w.last : '0);
+    assign slave_tally_axi_wuser = ((host_64b_w_sel_slave_tally && host_64b_wvalid) ? host_64b_w.user : '0) |
+        ((slave_monbus_wr_64b_w_sel_slave_tally && slave_monbus_wr_64b_wvalid) ? slave_monbus_wr_64b_w.user : '0);
     assign slave_tally_axi_wvalid = (host_64b_w_sel_slave_tally && host_64b_wvalid) || (slave_monbus_wr_64b_w_sel_slave_tally && slave_monbus_wr_64b_wvalid);
 
     // Bready (slave → owning master, by bid_bridge_id)
@@ -1699,6 +1777,9 @@ module bridge_stream_mon_axil_xbar
     assign slave_tally_axi_arlock = (host_64b_ar_gnt_slave_tally ? host_64b_ar.lock : '0);
     assign slave_tally_axi_arcache = (host_64b_ar_gnt_slave_tally ? host_64b_ar.cache : '0);
     assign slave_tally_axi_arprot = (host_64b_ar_gnt_slave_tally ? host_64b_ar.prot : '0);
+    assign slave_tally_axi_arqos = (host_64b_ar_gnt_slave_tally ? host_64b_ar.qos : '0);
+    assign slave_tally_axi_arregion = (host_64b_ar_gnt_slave_tally ? host_64b_ar.region : '0);
+    assign slave_tally_axi_aruser = (host_64b_ar_gnt_slave_tally ? host_64b_ar.user : '0);
     assign slave_tally_axi_arvalid = host_64b_ar_gnt_slave_tally;
 
     // Rready (slave → owning master, by rid_bridge_id)
@@ -1775,6 +1856,15 @@ module bridge_stream_mon_axil_xbar
     assign comp_sram_axi_awprot = (host_64b_aw_gnt_comp_sram ? host_64b_aw.prot : '0) |
         (monbus_wr_64b_aw_gnt_comp_sram ? monbus_wr_64b_aw.prot : '0) |
         (slave_monbus_wr_64b_aw_gnt_comp_sram ? slave_monbus_wr_64b_aw.prot : '0);
+    assign comp_sram_axi_awqos = (host_64b_aw_gnt_comp_sram ? host_64b_aw.qos : '0) |
+        (monbus_wr_64b_aw_gnt_comp_sram ? monbus_wr_64b_aw.qos : '0) |
+        (slave_monbus_wr_64b_aw_gnt_comp_sram ? slave_monbus_wr_64b_aw.qos : '0);
+    assign comp_sram_axi_awregion = (host_64b_aw_gnt_comp_sram ? host_64b_aw.region : '0) |
+        (monbus_wr_64b_aw_gnt_comp_sram ? monbus_wr_64b_aw.region : '0) |
+        (slave_monbus_wr_64b_aw_gnt_comp_sram ? slave_monbus_wr_64b_aw.region : '0);
+    assign comp_sram_axi_awuser = (host_64b_aw_gnt_comp_sram ? host_64b_aw.user : '0) |
+        (monbus_wr_64b_aw_gnt_comp_sram ? monbus_wr_64b_aw.user : '0) |
+        (slave_monbus_wr_64b_aw_gnt_comp_sram ? slave_monbus_wr_64b_aw.user : '0);
     assign comp_sram_axi_awvalid = host_64b_aw_gnt_comp_sram || monbus_wr_64b_aw_gnt_comp_sram || slave_monbus_wr_64b_aw_gnt_comp_sram;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
@@ -1810,6 +1900,9 @@ module bridge_stream_mon_axil_xbar
     assign comp_sram_axi_wlast = ((host_64b_w_sel_comp_sram && host_64b_wvalid) ? host_64b_w.last : '0) |
         ((monbus_wr_64b_w_sel_comp_sram && monbus_wr_64b_wvalid) ? monbus_wr_64b_w.last : '0) |
         ((slave_monbus_wr_64b_w_sel_comp_sram && slave_monbus_wr_64b_wvalid) ? slave_monbus_wr_64b_w.last : '0);
+    assign comp_sram_axi_wuser = ((host_64b_w_sel_comp_sram && host_64b_wvalid) ? host_64b_w.user : '0) |
+        ((monbus_wr_64b_w_sel_comp_sram && monbus_wr_64b_wvalid) ? monbus_wr_64b_w.user : '0) |
+        ((slave_monbus_wr_64b_w_sel_comp_sram && slave_monbus_wr_64b_wvalid) ? slave_monbus_wr_64b_w.user : '0);
     assign comp_sram_axi_wvalid = (host_64b_w_sel_comp_sram && host_64b_wvalid) || (monbus_wr_64b_w_sel_comp_sram && monbus_wr_64b_wvalid) || (slave_monbus_wr_64b_w_sel_comp_sram && slave_monbus_wr_64b_wvalid);
 
     // Bready (slave → owning master, by bid_bridge_id)
@@ -1856,6 +1949,9 @@ module bridge_stream_mon_axil_xbar
     assign comp_sram_axi_arlock = (host_64b_ar_gnt_comp_sram ? host_64b_ar.lock : '0);
     assign comp_sram_axi_arcache = (host_64b_ar_gnt_comp_sram ? host_64b_ar.cache : '0);
     assign comp_sram_axi_arprot = (host_64b_ar_gnt_comp_sram ? host_64b_ar.prot : '0);
+    assign comp_sram_axi_arqos = (host_64b_ar_gnt_comp_sram ? host_64b_ar.qos : '0);
+    assign comp_sram_axi_arregion = (host_64b_ar_gnt_comp_sram ? host_64b_ar.region : '0);
+    assign comp_sram_axi_aruser = (host_64b_ar_gnt_comp_sram ? host_64b_ar.user : '0);
     assign comp_sram_axi_arvalid = host_64b_ar_gnt_comp_sram;
 
     // Rready (slave → owning master, by rid_bridge_id)
@@ -1883,6 +1979,9 @@ module bridge_stream_mon_axil_xbar
     assign stream_tally_cfg_axi_awlock   = host_64b_aw_to_stream_tally_cfg ? host_64b_aw.lock : '0;
     assign stream_tally_cfg_axi_awcache  = host_64b_aw_to_stream_tally_cfg ? host_64b_aw.cache : '0;
     assign stream_tally_cfg_axi_awprot   = host_64b_aw_to_stream_tally_cfg ? host_64b_aw.prot : '0;
+    assign stream_tally_cfg_axi_awqos    = host_64b_aw_to_stream_tally_cfg ? host_64b_aw.qos : '0;
+    assign stream_tally_cfg_axi_awregion = host_64b_aw_to_stream_tally_cfg ? host_64b_aw.region : '0;
+    assign stream_tally_cfg_axi_awuser   = host_64b_aw_to_stream_tally_cfg ? host_64b_aw.user : '0;
     assign stream_tally_cfg_axi_awvalid  = host_64b_aw_to_stream_tally_cfg && host_64b_awvalid;
 
     assign host_64b_w_sel_stream_tally_cfg = host_64b_w_to_stream_tally_cfg;
@@ -1891,6 +1990,7 @@ module bridge_stream_mon_axil_xbar
     assign stream_tally_cfg_axi_wdata  = host_64b_w_to_stream_tally_cfg ? host_64b_w.data : '0;
     assign stream_tally_cfg_axi_wstrb  = host_64b_w_to_stream_tally_cfg ? host_64b_w.strb : '0;
     assign stream_tally_cfg_axi_wlast  = host_64b_w_to_stream_tally_cfg ? host_64b_w.last : '0;
+    assign stream_tally_cfg_axi_wuser  = host_64b_w_to_stream_tally_cfg ? host_64b_w.user : '0;
     assign stream_tally_cfg_axi_wvalid = host_64b_w_to_stream_tally_cfg && host_64b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
@@ -1911,6 +2011,9 @@ module bridge_stream_mon_axil_xbar
     assign stream_tally_cfg_axi_arlock   = host_64b_ar_to_stream_tally_cfg ? host_64b_ar.lock : '0;
     assign stream_tally_cfg_axi_arcache  = host_64b_ar_to_stream_tally_cfg ? host_64b_ar.cache : '0;
     assign stream_tally_cfg_axi_arprot   = host_64b_ar_to_stream_tally_cfg ? host_64b_ar.prot : '0;
+    assign stream_tally_cfg_axi_arqos    = host_64b_ar_to_stream_tally_cfg ? host_64b_ar.qos : '0;
+    assign stream_tally_cfg_axi_arregion = host_64b_ar_to_stream_tally_cfg ? host_64b_ar.region : '0;
+    assign stream_tally_cfg_axi_aruser   = host_64b_ar_to_stream_tally_cfg ? host_64b_ar.user : '0;
     assign stream_tally_cfg_axi_arvalid  = host_64b_ar_to_stream_tally_cfg && host_64b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -1939,6 +2042,9 @@ module bridge_stream_mon_axil_xbar
     assign slave_tally_cfg_axi_awlock   = host_64b_aw_to_slave_tally_cfg ? host_64b_aw.lock : '0;
     assign slave_tally_cfg_axi_awcache  = host_64b_aw_to_slave_tally_cfg ? host_64b_aw.cache : '0;
     assign slave_tally_cfg_axi_awprot   = host_64b_aw_to_slave_tally_cfg ? host_64b_aw.prot : '0;
+    assign slave_tally_cfg_axi_awqos    = host_64b_aw_to_slave_tally_cfg ? host_64b_aw.qos : '0;
+    assign slave_tally_cfg_axi_awregion = host_64b_aw_to_slave_tally_cfg ? host_64b_aw.region : '0;
+    assign slave_tally_cfg_axi_awuser   = host_64b_aw_to_slave_tally_cfg ? host_64b_aw.user : '0;
     assign slave_tally_cfg_axi_awvalid  = host_64b_aw_to_slave_tally_cfg && host_64b_awvalid;
 
     assign host_64b_w_sel_slave_tally_cfg = host_64b_w_to_slave_tally_cfg;
@@ -1947,6 +2053,7 @@ module bridge_stream_mon_axil_xbar
     assign slave_tally_cfg_axi_wdata  = host_64b_w_to_slave_tally_cfg ? host_64b_w.data : '0;
     assign slave_tally_cfg_axi_wstrb  = host_64b_w_to_slave_tally_cfg ? host_64b_w.strb : '0;
     assign slave_tally_cfg_axi_wlast  = host_64b_w_to_slave_tally_cfg ? host_64b_w.last : '0;
+    assign slave_tally_cfg_axi_wuser  = host_64b_w_to_slave_tally_cfg ? host_64b_w.user : '0;
     assign slave_tally_cfg_axi_wvalid = host_64b_w_to_slave_tally_cfg && host_64b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
@@ -1967,6 +2074,9 @@ module bridge_stream_mon_axil_xbar
     assign slave_tally_cfg_axi_arlock   = host_64b_ar_to_slave_tally_cfg ? host_64b_ar.lock : '0;
     assign slave_tally_cfg_axi_arcache  = host_64b_ar_to_slave_tally_cfg ? host_64b_ar.cache : '0;
     assign slave_tally_cfg_axi_arprot   = host_64b_ar_to_slave_tally_cfg ? host_64b_ar.prot : '0;
+    assign slave_tally_cfg_axi_arqos    = host_64b_ar_to_slave_tally_cfg ? host_64b_ar.qos : '0;
+    assign slave_tally_cfg_axi_arregion = host_64b_ar_to_slave_tally_cfg ? host_64b_ar.region : '0;
+    assign slave_tally_cfg_axi_aruser   = host_64b_ar_to_slave_tally_cfg ? host_64b_ar.user : '0;
     assign slave_tally_cfg_axi_arvalid  = host_64b_ar_to_slave_tally_cfg && host_64b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -2153,6 +2263,15 @@ module bridge_stream_mon_axil_xbar
         ((dma_axil_axi_bid_bridge_id == 0) && dma_axil_axi_bid_valid ? dma_axil_axi_bresp : '0) |
         ((slave_err_axi_bid_bridge_id == 0) && slave_err_axi_bid_valid ? slave_err_axi_bresp : '0);
 
+    assign host_32b_b.user = 
+        ((obs_apb_axi_bid_bridge_id == 0) && obs_apb_axi_bid_valid ? obs_apb_axi_buser : '0) |
+        ((slvmon_apb_axi_bid_bridge_id == 0) && slvmon_apb_axi_bid_valid ? slvmon_apb_axi_buser : '0) |
+        ((stream_apb_axi_bid_bridge_id == 0) && stream_apb_axi_bid_valid ? stream_apb_axi_buser : '0) |
+        ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_buser : '0) |
+        ((stream_err_axi_bid_bridge_id == 0) && stream_err_axi_bid_valid ? stream_err_axi_buser : '0) |
+        ((dma_axil_axi_bid_bridge_id == 0) && dma_axil_axi_bid_valid ? dma_axil_axi_buser : '0) |
+        ((slave_err_axi_bid_bridge_id == 0) && slave_err_axi_bid_valid ? slave_err_axi_buser : '0);
+
     assign host_32b_bvalid = 
         ((obs_apb_axi_bid_bridge_id == 0) && obs_apb_axi_bid_valid ? obs_apb_axi_bvalid : '0) |
         ((slvmon_apb_axi_bid_bridge_id == 0) && slvmon_apb_axi_bid_valid ? slvmon_apb_axi_bvalid : '0) |
@@ -2207,6 +2326,15 @@ module bridge_stream_mon_axil_xbar
         ((dma_axil_axi_rid_bridge_id == 0) && dma_axil_axi_rid_valid ? dma_axil_axi_rlast : '0) |
         ((slave_err_axi_rid_bridge_id == 0) && slave_err_axi_rid_valid ? slave_err_axi_rlast : '0);
 
+    assign host_32b_r.user = 
+        ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid ? obs_apb_axi_ruser : '0) |
+        ((slvmon_apb_axi_rid_bridge_id == 0) && slvmon_apb_axi_rid_valid ? slvmon_apb_axi_ruser : '0) |
+        ((stream_apb_axi_rid_bridge_id == 0) && stream_apb_axi_rid_valid ? stream_apb_axi_ruser : '0) |
+        ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_ruser : '0) |
+        ((stream_err_axi_rid_bridge_id == 0) && stream_err_axi_rid_valid ? stream_err_axi_ruser : '0) |
+        ((dma_axil_axi_rid_bridge_id == 0) && dma_axil_axi_rid_valid ? dma_axil_axi_ruser : '0) |
+        ((slave_err_axi_rid_bridge_id == 0) && slave_err_axi_rid_valid ? slave_err_axi_ruser : '0);
+
     assign host_32b_rvalid = 
         ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid ? obs_apb_axi_rvalid : '0) |
         ((slvmon_apb_axi_rid_bridge_id == 0) && slvmon_apb_axi_rid_valid ? slvmon_apb_axi_rvalid : '0) |
@@ -2245,6 +2373,13 @@ module bridge_stream_mon_axil_xbar
         ((comp_sram_axi_bid_bridge_id == 0) && comp_sram_axi_bid_valid ? comp_sram_axi_bresp : '0) |
         ((stream_tally_cfg_axi_bid_bridge_id == 0) && stream_tally_cfg_axi_bid_valid ? stream_tally_cfg_axi_bresp : '0) |
         ((slave_tally_cfg_axi_bid_bridge_id == 0) && slave_tally_cfg_axi_bid_valid ? slave_tally_cfg_axi_bresp : '0);
+
+    assign host_64b_b.user = 
+        ((stream_tally_axi_bid_bridge_id == 0) && stream_tally_axi_bid_valid ? stream_tally_axi_buser : '0) |
+        ((slave_tally_axi_bid_bridge_id == 0) && slave_tally_axi_bid_valid ? slave_tally_axi_buser : '0) |
+        ((comp_sram_axi_bid_bridge_id == 0) && comp_sram_axi_bid_valid ? comp_sram_axi_buser : '0) |
+        ((stream_tally_cfg_axi_bid_bridge_id == 0) && stream_tally_cfg_axi_bid_valid ? stream_tally_cfg_axi_buser : '0) |
+        ((slave_tally_cfg_axi_bid_bridge_id == 0) && slave_tally_cfg_axi_bid_valid ? slave_tally_cfg_axi_buser : '0);
 
     assign host_64b_bvalid = 
         ((stream_tally_axi_bid_bridge_id == 0) && stream_tally_axi_bid_valid ? stream_tally_axi_bvalid : '0) |
@@ -2288,6 +2423,13 @@ module bridge_stream_mon_axil_xbar
         ((stream_tally_cfg_axi_rid_bridge_id == 0) && stream_tally_cfg_axi_rid_valid ? stream_tally_cfg_axi_rlast : '0) |
         ((slave_tally_cfg_axi_rid_bridge_id == 0) && slave_tally_cfg_axi_rid_valid ? slave_tally_cfg_axi_rlast : '0);
 
+    assign host_64b_r.user = 
+        ((stream_tally_axi_rid_bridge_id == 0) && stream_tally_axi_rid_valid ? stream_tally_axi_ruser : '0) |
+        ((slave_tally_axi_rid_bridge_id == 0) && slave_tally_axi_rid_valid ? slave_tally_axi_ruser : '0) |
+        ((comp_sram_axi_rid_bridge_id == 0) && comp_sram_axi_rid_valid ? comp_sram_axi_ruser : '0) |
+        ((stream_tally_cfg_axi_rid_bridge_id == 0) && stream_tally_cfg_axi_rid_valid ? stream_tally_cfg_axi_ruser : '0) |
+        ((slave_tally_cfg_axi_rid_bridge_id == 0) && slave_tally_cfg_axi_rid_valid ? slave_tally_cfg_axi_ruser : '0);
+
     assign host_64b_rvalid = 
         ((stream_tally_axi_rid_bridge_id == 0) && stream_tally_axi_rid_valid ? stream_tally_axi_rvalid : '0) |
         ((slave_tally_axi_rid_bridge_id == 0) && slave_tally_axi_rid_valid ? slave_tally_axi_rvalid : '0) |
@@ -2309,6 +2451,9 @@ module bridge_stream_mon_axil_xbar
     assign host_256b_b.resp = 
         ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_bresp : '0);
 
+    assign host_256b_b.user = 
+        ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_buser : '0);
+
     assign host_256b_bvalid = 
         ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_bvalid : '0);
 
@@ -2326,6 +2471,9 @@ module bridge_stream_mon_axil_xbar
 
     assign host_256b_r.last = 
         ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rlast : '0);
+
+    assign host_256b_r.user = 
+        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_ruser : '0);
 
     assign host_256b_rvalid = 
         ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rvalid : '0);
@@ -2346,6 +2494,9 @@ module bridge_stream_mon_axil_xbar
 
     assign stream_desc_256b_r.last = 
         ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rlast : '0);
+
+    assign stream_desc_256b_r.user = 
+        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_ruser : '0);
 
     assign stream_desc_256b_rvalid = 
         ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rvalid : '0);
@@ -2368,6 +2519,10 @@ module bridge_stream_mon_axil_xbar
         ((stream_tally_axi_bid_bridge_id == 2) && stream_tally_axi_bid_valid ? stream_tally_axi_bresp : '0) |
         ((comp_sram_axi_bid_bridge_id == 2) && comp_sram_axi_bid_valid ? comp_sram_axi_bresp : '0);
 
+    assign monbus_wr_64b_b.user = 
+        ((stream_tally_axi_bid_bridge_id == 2) && stream_tally_axi_bid_valid ? stream_tally_axi_buser : '0) |
+        ((comp_sram_axi_bid_bridge_id == 2) && comp_sram_axi_bid_valid ? comp_sram_axi_buser : '0);
+
     assign monbus_wr_64b_bvalid = 
         ((stream_tally_axi_bid_bridge_id == 2) && stream_tally_axi_bid_valid ? stream_tally_axi_bvalid : '0) |
         ((comp_sram_axi_bid_bridge_id == 2) && comp_sram_axi_bid_valid ? comp_sram_axi_bvalid : '0);
@@ -2389,6 +2544,10 @@ module bridge_stream_mon_axil_xbar
     assign slave_monbus_wr_64b_b.resp = 
         ((slave_tally_axi_bid_bridge_id == 3) && slave_tally_axi_bid_valid ? slave_tally_axi_bresp : '0) |
         ((comp_sram_axi_bid_bridge_id == 3) && comp_sram_axi_bid_valid ? comp_sram_axi_bresp : '0);
+
+    assign slave_monbus_wr_64b_b.user = 
+        ((slave_tally_axi_bid_bridge_id == 3) && slave_tally_axi_bid_valid ? slave_tally_axi_buser : '0) |
+        ((comp_sram_axi_bid_bridge_id == 3) && comp_sram_axi_bid_valid ? comp_sram_axi_buser : '0);
 
     assign slave_monbus_wr_64b_bvalid = 
         ((slave_tally_axi_bid_bridge_id == 3) && slave_tally_axi_bid_valid ? slave_tally_axi_bvalid : '0) |
