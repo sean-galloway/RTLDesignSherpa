@@ -96,8 +96,10 @@ class SlaveAdapterGenerator:
             lines.extend(self._generate_axi4_timing_wrapper())
         elif self.slave.protocol in ('apb', 'apb5'):
             lines.extend(self._generate_apb_converter())
-        elif self.slave.protocol == 'axil':
+        elif self.slave.protocol in ('axil', 'axil5'):
             # Real AXI4-to-AXI4-Lite conversion at the slave boundary.
+            # axil5 takes the same path through axi4_to_axil5_{rd,wr},
+            # which wraps those same converters and adds the sideband.
             # The crossbar carries full AXI4; only when the packet is
             # about to land on an AXIL slave do we shim it through
             # axi4_to_axil4_{rd,wr} (which lives in projects/components
@@ -329,7 +331,7 @@ class SlaveAdapterGenerator:
             lines.extend(self._generate_axi4_external_ports())
         elif self.slave.protocol in ('apb', 'apb5'):
             lines.extend(self._generate_apb_external_ports())
-        elif self.slave.protocol == 'axil':
+        elif self.slave.protocol in ('axil', 'axil5'):
             # Real AXI4-Lite external ports (no id/len/size/burst/last/user).
             # See _generate_axil_converter for the shim that converts
             # the crossbar-side AXI4 into AXI4-Lite at this boundary.
@@ -452,7 +454,14 @@ class SlaveAdapterGenerator:
         return lines
 
     def _generate_axil_external_ports(self) -> List[str]:
-        """Generate AXI4-Lite external slave ports."""
+        """Generate AXI4-Lite (or AXI5-Lite) external slave ports.
+
+        For protocol='axil5' the AXI4-Lite set below is followed by the full
+        AXI5-Lite sideband from `axil5_sideband`, in that module's order --
+        every group, enabled or not. A boundary whose shape changes with a
+        feature flag cannot be wired to a fixed external slave, and the
+        converter drives a disabled group to 0 rather than leaving it open.
+        """
         lines = []
         prefix = self.slave.prefix
 
@@ -502,7 +511,34 @@ class SlaveAdapterGenerator:
             lines.append(f"    input  logic                  {prefix}rvalid,")
             lines.append(f"    output logic                  {prefix}rready")  # Last signal - no comma
 
+        if self.slave.protocol == 'axil5':
+            sideband = self._generate_axil5_sideband_ports()
+            if sideband:
+                # The AXI4-Lite block above ends its last signal without a
+                # comma, because it is normally the last port. It is not, here.
+                lines[-1] = lines[-1].split('  //')[0].rstrip() + ','
+                lines.extend(sideband)
+
         return lines
+
+    def _generate_axil5_sideband_ports(self) -> List[str]:
+        """AXI5-Lite sideband port declarations, from the shared table."""
+        from ..axil5_sideband import (sideband_ports, field_width,
+                                      AXIL5_USER_WIDTH, AXIL5_LOOP_WIDTH)
+
+        entries = sideband_ports(self.channels)
+        if not entries:
+            return []
+
+        out = ["    // AXI5-Lite sideband"]
+        for index, (base, width_key, direction) in enumerate(entries):
+            width = field_width(width_key, self.slave.data_width,
+                                AXIL5_USER_WIDTH, AXIL5_LOOP_WIDTH)
+            kind = "output logic" if direction == 'out' else "input  logic"
+            span = "" if width == 1 else f"[{width-1}:0] "
+            sep = "" if index == len(entries) - 1 else ","
+            out.append(f"    {kind} {span}{self.slave.prefix}{base}{sep}")
+        return out
 
     def _generate_internal_signals(self) -> List[str]:
         """Generate internal signal declarations."""
@@ -515,7 +551,7 @@ class SlaveAdapterGenerator:
 
         # Add protocol converter intermediate signals for APB/AXIL
         # These allow FIFO tracking to monitor converter output instead of crossbar input
-        if self.slave.protocol in ['apb', 'apb5', 'axil']:
+        if self.slave.protocol in ['apb', 'apb5', 'axil', 'axil5']:
             lines.append("    // Protocol converter intermediate signals")
             lines.append("    // (FIFO tracking monitors these instead of crossbar signals)")
             if self.has_write:
@@ -642,7 +678,7 @@ class SlaveAdapterGenerator:
         #         `converter_bready` off the shim's AXI4 (s_axi) side
         #         so the FIFO pops the moment the shim actually
         #         produces a response, not when external completes.
-        if self.slave.protocol in ('apb', 'apb5', 'axil'):
+        if self.slave.protocol in ('apb', 'apb5', 'axil', 'axil5'):
             label = self.slave.protocol.upper()
             pop_condition = "converter_bvalid && converter_bready"
             lines.append(f"    // Write Channel FIFO (In-Order) - {label} Protocol")
@@ -732,7 +768,7 @@ class SlaveAdapterGenerator:
         # shims with their own latency; tracking the shim's AXI4
         # (s_axi) output via converter_rvalid keeps the FIFO in
         # lockstep with the actual response.
-        if self.slave.protocol in ('apb', 'apb5', 'axil'):
+        if self.slave.protocol in ('apb', 'apb5', 'axil', 'axil5'):
             label = self.slave.protocol.upper()
             pop_condition = "converter_rvalid && converter_rready && converter_rlast"
             lines.append(f"    // Read Channel FIFO (In-Order) - {label} Protocol")
@@ -1052,6 +1088,9 @@ class SlaveAdapterGenerator:
             skid_depth_b=self.skid_depth_b,
             skid_depth_ar=self.skid_depth_ar,
             skid_depth_r=self.skid_depth_r,
+            protocol=('axil5' if self.slave.protocol == 'axil5' else 'axil4'),
+            axi5_features=(getattr(self.slave, 'axi5_features', None)
+                           if self.slave.protocol == 'axil5' else None),
         )
         shim.connect_clocks_and_resets()
 

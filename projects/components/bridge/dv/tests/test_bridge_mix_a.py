@@ -431,8 +431,12 @@ def test_bridge_mix_a_basic_connectivity(request):
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
     results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
+    # sim_build_path(), not a hand-built join: it honours SIM_BUILD_ROOT so
+    # concurrent sessions do not share one build tree, and drops an advisory
+    # busy marker so a cleaner can tell "being built in right now" from
+    # "leftover". Hand-joining tests_dir/local_sim_build puts every session
+    # back in the same directory, which is what f01853fe was written to stop.
     sim_build = sim_build_path(tests_dir, sim_build_name)
-    os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
     # Waveforms via the canonical helper in TBClasses.shared.utilities.
@@ -484,8 +488,12 @@ def test_bridge_mix_a_boundary_probe(request):
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
     results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
+    # sim_build_path(), not a hand-built join: it honours SIM_BUILD_ROOT so
+    # concurrent sessions do not share one build tree, and drops an advisory
+    # busy marker so a cleaner can tell "being built in right now" from
+    # "leftover". Hand-joining tests_dir/local_sim_build puts every session
+    # back in the same directory, which is what f01853fe was written to stop.
     sim_build = sim_build_path(tests_dir, sim_build_name)
-    os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
     waves = get_wave_config(sim_build)
@@ -534,8 +542,12 @@ def test_bridge_mix_a_arbitration(request):
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
     results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
+    # sim_build_path(), not a hand-built join: it honours SIM_BUILD_ROOT so
+    # concurrent sessions do not share one build tree, and drops an advisory
+    # busy marker so a cleaner can tell "being built in right now" from
+    # "leftover". Hand-joining tests_dir/local_sim_build puts every session
+    # back in the same directory, which is what f01853fe was written to stop.
     sim_build = sim_build_path(tests_dir, sim_build_name)
-    os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
     waves = get_wave_config(sim_build)

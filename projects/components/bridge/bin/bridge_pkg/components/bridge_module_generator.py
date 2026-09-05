@@ -1280,13 +1280,18 @@ class BridgeModuleGenerator:
             if lines and lines[-1].endswith(','):
                 lines[-1] = lines[-1][:-1]
 
-        elif slave.protocol == 'axil':
+        elif slave.protocol in ('axil', 'axil5'):
             # AXI4-Lite slave ports. The crossbar carries full AXI4 across
             # the fabric, and the per-slave adapter shims AXI4 → AXIL at
             # the slave boundary (see SlaveAdapterGenerator
             # ._generate_axil_external_ports). So the bridge top must
             # expose only AXIL signals here — no id/len/burst/etc.
-            lines.append(f"    // AXI4-Lite Slave: {slave.name}")
+            #
+            # axil5 adds the AXI5-Lite sideband after this set, from the
+            # same table the adapter and the shim read, so the three port
+            # lists cannot drift apart.
+            label = "AXI5-Lite" if slave.protocol == 'axil5' else "AXI4-Lite"
+            lines.append(f"    // {label} Slave: {slave.name}")
 
             connecting_masters = self._get_masters_connecting_to_slave(slave)
             has_write = any(m.channels in ["wr", "rw"] for m in connecting_masters)
@@ -1318,6 +1323,22 @@ class BridgeModuleGenerator:
                 lines.append(f"    input  logic [1:0]            {pfx}rresp,")
                 lines.append(f"    input  logic                  {pfx}rvalid,")
                 lines.append(f"    output logic                  {pfx}rready,")
+
+            if slave.protocol == 'axil5':
+                from ..axil5_sideband import (sideband_ports, field_width,
+                                              AXIL5_USER_WIDTH,
+                                              AXIL5_LOOP_WIDTH)
+                channels = ('rw' if (has_write and has_read)
+                            else 'wr' if has_write else 'rd')
+                entries = sideband_ports(channels)
+                if entries:
+                    lines.append("    // AXI5-Lite sideband")
+                for base, width_key, direction in entries:
+                    width = field_width(width_key, data_w,
+                                        AXIL5_USER_WIDTH, AXIL5_LOOP_WIDTH)
+                    kind = "output logic" if direction == 'out' else "input  logic"
+                    span = "" if width == 1 else f"[{width-1}:0] "
+                    lines.append(f"    {kind} {span}{pfx}{base},")
 
             # Drop trailing comma so the caller can splice the slave
             # ports between other port blocks.
@@ -1661,8 +1682,16 @@ class BridgeModuleGenerator:
             axsize_val = 0
             while (1 << axsize_val) < strb_w:
                 axsize_val += 1
+            # Same rule as AdapterGenerator.fub_id_width, and it has to STAY
+            # the same: these literals drive the adapter's internal AXI4 face,
+            # so a different answer here is a width-mismatched port
+            # connection. Unclamped it also emits `0'h0` -- a zero-width
+            # literal, which is not legal SystemVerilog.
+            fub_id_width = (master.id_width or
+                            max([max(1, m.id_width or 0) for m in self.masters]
+                                or [4]))
             axi4_extra_defaults = {
-                'awid':     f"{master.id_width}'h0",
+                'awid':     f"{fub_id_width}'h0",
                 'awlen':    "8'h0",
                 'awsize':   f"3'd{axsize_val}",
                 'awburst':  "2'b01",
@@ -1673,7 +1702,7 @@ class BridgeModuleGenerator:
                 'awuser':   "1'b0",
                 'wlast':    "1'b1",
                 'wuser':    "1'b0",
-                'arid':     f"{master.id_width}'h0",
+                'arid':     f"{fub_id_width}'h0",
                 'arlen':    "8'h0",
                 'arsize':   f"3'd{axsize_val}",
                 'arburst':  "2'b01",

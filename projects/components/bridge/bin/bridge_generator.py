@@ -49,6 +49,32 @@ from bridge_pkg import (BridgeConfig, load_config,
 # ==============================================================================
 
 
+
+def _axil5_bfm_features(slave) -> str:
+    """Render the AXIL5 BFM feature kwargs for a generated testbench.
+
+    EVERY group is enabled, not just the ones in the port's axi5_features.
+    The bridge exposes the whole AXI5-Lite sideband on an axil5 port
+    regardless of which groups are live, so a BFM told a group is absent
+    would fail to bind a signal that is right there on the DUT. Which groups
+    carry real values is the converter's business, not the BFM's.
+    """
+    from bridge_pkg.axil5_sideband import (
+        AXIL5_USER_WIDTH, AXIL5_LOOP_WIDTH, MPAM_WIDTH, MECID_WIDTH,
+        NSAID_WIDTH,
+    )
+    kwargs = [
+        f"user_width={AXIL5_USER_WIDTH}",
+        "trace=True",
+        f"loop_width={AXIL5_LOOP_WIDTH}",
+        f"mpam_width={MPAM_WIDTH}",
+        f"mecid_width={MECID_WIDTH}",
+        f"nsaid_width={NSAID_WIDTH}",
+        "poison=True",
+        "exclusive=True",
+    ]
+    return "\n".join(f"            {k}," for k in kwargs)
+
 def _tb_import_pkg(tb_dir_abs, repo_root_abs):
     """Dotted package path for the TB class, or '' if it is not importable.
 
@@ -277,6 +303,11 @@ def generate_tests(ports_file, connectivity_file, bridge_name, output_tb_dir, ou
         # except-Exception in generate_tests() and produce a stale file.
         env.globals['min'] = min
         env.globals['max'] = max
+        # AXI5-Lite BFM feature kwargs. Sourced from axil5_sideband so the
+        # BFM's signal widths cannot drift from the ports the generator just
+        # emitted -- a mismatch there dies at signal resolution with a
+        # message about a missing signal, not about a width.
+        env.globals['axil5_bfm_features'] = _axil5_bfm_features
 
         # Render templates
         tb_template = env.get_template('bridge_tb_class.py.j2')
@@ -458,6 +489,11 @@ def generate_monitor_tests(ports_file, connectivity_file, bridge_name,
                           trim_blocks=True, lstrip_blocks=True)
         env.globals['min'] = min
         env.globals['max'] = max
+        # AXI5-Lite BFM feature kwargs. Sourced from axil5_sideband so the
+        # BFM's signal widths cannot drift from the ports the generator just
+        # emitted -- a mismatch there dies at signal resolution with a
+        # message about a missing signal, not about a width.
+        env.globals['axil5_bfm_features'] = _axil5_bfm_features
 
         tb_content = env.get_template('bridge_tb_class.py.j2').render(context)
         test_content = env.get_template('bridge_monitor_test.py.j2').render(context)
@@ -965,6 +1001,17 @@ def _emit_bridge_variant(
         filelist_lines.append("# -f the converters filelists; do not hand-list its sources.")
         filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_axil4_rd.f")
         filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_axil4_wr.f")
+
+    # AXI5-Lite slaves: the axi4_to_axil5_{rd,wr} wrappers. Their closure
+    # filelists -f the AXI4-Lite ones, so these REPLACE rather than augment
+    # the axil4 entries when only axil5 slaves are present -- the same
+    # relationship apb5 has with apb4 above.
+    has_axil5 = any(slave.protocol.lower() == 'axil5' for slave in config.slaves)
+    if has_axil5:
+        filelist_lines.append("")
+        filelist_lines.append("# AXI4-to-AXI5-Lite converter dependencies (protocol=axil5 slaves)")
+        filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_axil5_rd.f")
+        filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_axil5_wr.f")
 
     # Monitor-aggregation dependencies. Only added for the "mon"
     # variant -- the "no" variant uses the non-_mon wrappers and has

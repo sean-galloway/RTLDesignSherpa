@@ -335,7 +335,11 @@ class AdapterGenerator:
 
         # Width parameters for signal info queries
         width_values = {
-            'ID_WIDTH': self.master.id_width,
+            # The AXI4-face ports (awid/bid/arid/rid on an AXI4-Lite master
+            # are declared but tied off at the bridge top) are sized by the
+            # same rule as the face itself -- see fub_id_width. For a real
+            # AXI4/AXI5 master this IS master.id_width, so nothing moves.
+            'ID_WIDTH': self.fub_id_width,
             'ADDR_WIDTH': 32,  # Global address width
             'DATA_WIDTH': self.master.data_width,
             'STRB_WIDTH': self.master.data_width // 8,
@@ -549,7 +553,7 @@ class AdapterGenerator:
             lines.append(f"    assign pref_axi_{base} = fub_axi_{base};")
         lines.append("")
         lines.append("    axi5_atomic_filter #(")
-        lines.append(f"        .AXI_ID_WIDTH({self.master.id_width})")
+        lines.append(f"        .AXI_ID_WIDTH({self.fub_id_width})")
         lines.append("    ) u_atomic_filter (")
         lines.append("        .aclk(aclk),")
         lines.append("        .aresetn(aresetn),")
@@ -576,15 +580,40 @@ class AdapterGenerator:
         lines.append("")
         return lines
 
+    @property
+    def fub_id_width(self) -> int:
+        """ID width of the adapter's INTERNAL AXI4 face.
+
+        An AXI4-Lite master port has id_width 0, and used unclamped that makes
+        every `fub_axi_*id` declaration `logic [-1:0]` -- malformed
+        SystemVerilog that Verilator happens to elaborate as 2 bits and other
+        tools may reject outright.
+
+        The placeholder width is the BRIDGE's struct ID width, not 1. AXI4-Lite
+        carries no ID, so the value is a don't-care and any consistent width is
+        correct -- but this face connects directly to the crossbar's channel
+        structs, whose `id` field is that width. Picking 1 instead leaves every
+        one of those connections width-mismatched, which Verilator reports as
+        WIDTHEXPAND on the way in and WIDTHTRUNC on the way out. Same
+        expression as bridge_module_generator uses to size the package structs,
+        so the two cannot disagree.
+
+        EVERY site that sizes something on this face reads this, including the
+        parameter overrides of instantiated modules. Clamping only the
+        declarations (as the first version of this fix did) leaves the
+        instantiated module's own ports at [-1:0] while the nets driving them
+        are a different width -- Verilator reports ASCRANGE and the build dies
+        on warnings, which is how this was found.
+        """
+        if self.master.id_width:
+            return self.master.id_width
+        masters = self.all_masters or [self.master]
+        return max([max(1, m.id_width or 0) for m in masters] or [4])
+
     def _generate_internal_signals(self) -> List[str]:
         """Generate internal signal declarations (fub_axi_*)."""
         lines = []
-        # Clamp to 1. An AXI4-Lite port has id_width 0, which made every
-        # fub_axi_*id declaration `logic [-1:0]` -- malformed SystemVerilog
-        # that Verilator happens to elaborate as 2 bits and other tools may
-        # reject outright. AXI4-Lite carries no ID, so a 1-bit placeholder is
-        # the honest width for the internal AXI4 face.
-        id_width = max(self.master.id_width, 1)
+        id_width = self.fub_id_width
         addr_width = 32  # Use global 32-bit address width
         data_width = self.master.data_width
         strb_width = data_width // 8
@@ -598,7 +627,13 @@ class AdapterGenerator:
         lines.append("")
         lines.append("    // ================================================================")
         lines.append("    // Internal signals after wrapper (timing isolation)")
-        lines.append(f"    // Note: ID width matches external ({id_width}-bit)")
+        if self.master.id_width:
+            lines.append(f"    // Note: ID width matches external ({id_width}-bit)")
+        else:
+            lines.append(f"    // Note: {id_width}-bit ID placeholder. This port is AXI4-Lite and")
+            lines.append( "    // has no external ID; the width matches the crossbar's struct")
+            lines.append( "    // field so every connection to it is width-exact. The value is")
+            lines.append( "    // tied to zero end to end.")
         lines.append("    // ================================================================")
 
         # Write channels
@@ -672,7 +707,7 @@ class AdapterGenerator:
         # Pre-filter (wrapper-side) wr signals when this master carries
         # 'atomic' (A5-3a): the axi5_atomic_filter sits pref -> fub.
         if 'atomic' in self.sb_own and self.master.channels in ("wr", "rw"):
-            id_w = self.master.id_width
+            id_w = self.fub_id_width
             dw = self.master.data_width
             lines.append("    // Pre-filter wr signals (axi5_atomic_filter upstream side)")
             lines.append(f"    logic [{id_w-1}:0]   pref_axi_awid;")
@@ -746,7 +781,7 @@ class AdapterGenerator:
             wrapper = Axi4TimingWrapper(
                 side='slave', channel='wr', mon=self.enable_monitoring,
                 instance_name='u_timing_wrapper_wr',
-                id_width=self.master.id_width,
+                id_width=self.fub_id_width,
                 addr_width=32,
                 data_width=self.master.data_width,
                 # The SV module sets default skid depths from top-level
@@ -801,7 +836,7 @@ class AdapterGenerator:
             wrapper = Axi4TimingWrapper(
                 side='slave', channel='rd', mon=self.enable_monitoring,
                 instance_name='u_timing_wrapper_rd',
-                id_width=self.master.id_width,
+                id_width=self.fub_id_width,
                 addr_width=32,
                 data_width=self.master.data_width,
                 skid_depth_ax='SKID_DEPTH_AR',
@@ -1348,7 +1383,7 @@ class AdapterGenerator:
             lines.append("    always_comb begin")
 
             # Default assignments
-            lines.append(f"        fub_axi_bid = {self.master.id_width}'d0;")
+            lines.append(f"        fub_axi_bid = {self.fub_id_width}'d0;")
             lines.append("        fub_axi_bresp = 2'b00;")
             lines.append("        fub_axi_bvalid = 1'b0;")
             for _f, _w, feat, base in self._sb_fields('b', self.sb_own):
@@ -1379,7 +1414,7 @@ class AdapterGenerator:
                         # here recovers exactly what was sent -- but say so
                         # with an explicit select instead of leaving lint to
                         # report an implicit truncation.
-                        lines.append(f"                fub_axi_bid = {self.master.name}_{suffix}_b.id[{max(self.master.id_width, 1) - 1}:0];")
+                        lines.append(f"                fub_axi_bid = {self.master.name}_{suffix}_b.id[{self.fub_id_width - 1}:0];")
                         lines.append(f"                fub_axi_bresp = {self.master.name}_{suffix}_b.resp;")
                         lines.append(f"                fub_axi_bvalid = {self.master.name}_{suffix}_bvalid;")
                         for field, _w, _feat, base in self._sb_fields('b', self.sb_own):
@@ -1434,7 +1469,7 @@ class AdapterGenerator:
             lines.append("    always_comb begin")
 
             # Default assignments
-            lines.append(f"        fub_axi_rid = {self.master.id_width}'d0;")
+            lines.append(f"        fub_axi_rid = {self.fub_id_width}'d0;")
             lines.append(f"        fub_axi_rdata = {master_width}'d0;")
             lines.append("        fub_axi_rresp = 2'b00;")
             lines.append("        fub_axi_rlast = 1'b0;")
@@ -1458,7 +1493,7 @@ class AdapterGenerator:
 
                     if slave_width == master_width:
                         # Direct passthrough signals
-                        lines.append(f"                fub_axi_rid = {self.master.name}_{suffix}_r.id[{max(self.master.id_width, 1) - 1}:0];")
+                        lines.append(f"                fub_axi_rid = {self.master.name}_{suffix}_r.id[{self.fub_id_width - 1}:0];")
                         lines.append(f"                fub_axi_rdata = {self.master.name}_{suffix}_r.data;")
                         lines.append(f"                fub_axi_rresp = {self.master.name}_{suffix}_r.resp;")
                         lines.append(f"                fub_axi_rlast = {self.master.name}_{suffix}_r.last;")
@@ -1600,12 +1635,12 @@ class AdapterGenerator:
         if self.master.channels in ["wr", "rw"]:
             lines.append(f"    logic conv_{suffix}_awready;")
             lines.append(f"    logic conv_{suffix}_wready;")
-            lines.append(f"    logic [{self.master.id_width-1}:0] conv_{suffix}_bid;")
+            lines.append(f"    logic [{self.fub_id_width-1}:0] conv_{suffix}_bid;")
             lines.append(f"    logic [1:0] conv_{suffix}_bresp;")
             lines.append(f"    logic conv_{suffix}_bvalid;")
         if self.master.channels in ["rd", "rw"]:
             lines.append(f"    logic conv_{suffix}_arready;")
-            lines.append(f"    logic [{self.master.id_width-1}:0] conv_{suffix}_rid;")
+            lines.append(f"    logic [{self.fub_id_width-1}:0] conv_{suffix}_rid;")
             lines.append(f"    logic [{master_width-1}:0] conv_{suffix}_rdata;")
             lines.append(f"    logic [1:0] conv_{suffix}_rresp;")
             lines.append(f"    logic conv_{suffix}_rlast;")
@@ -1639,7 +1674,7 @@ class AdapterGenerator:
                     instance_name=f'u_wr_conv_{suffix}',
                     s_data_width=master_width,
                     m_data_width=slave_width,
-                    id_width=self.master.id_width,
+                    id_width=self.fub_id_width,
                     user_width=getattr(self.master, 'user_width', 1) or 1,
                     addr_width=getattr(self.master, 'addr_width', 32),
                     suffix=suffix,
@@ -1651,7 +1686,7 @@ class AdapterGenerator:
                     instance_name=f'u_wr_conv_{suffix}',
                     s_data_width=master_width,
                     m_data_width=slave_width,
-                    id_width=self.master.id_width,
+                    id_width=self.fub_id_width,
                 )
                 conv_wr.connect_clocks_and_resets()
                 conv_wr.connect_s_axi_write(
@@ -1677,7 +1712,7 @@ class AdapterGenerator:
                     instance_name=f'u_rd_conv_{suffix}',
                     s_data_width=master_width,
                     m_data_width=slave_width,
-                    id_width=self.master.id_width,
+                    id_width=self.fub_id_width,
                     user_width=getattr(self.master, 'user_width', 1) or 1,
                     addr_width=getattr(self.master, 'addr_width', 32),
                     suffix=suffix,
@@ -1689,7 +1724,7 @@ class AdapterGenerator:
                     instance_name=f'u_rd_conv_{suffix}',
                     s_data_width=master_width,
                     m_data_width=slave_width,
-                    id_width=self.master.id_width,
+                    id_width=self.fub_id_width,
                 )
                 conv_rd.connect_clocks_and_resets()
                 conv_rd.connect_s_axi_read(

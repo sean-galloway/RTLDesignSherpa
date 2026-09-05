@@ -10,7 +10,7 @@ Configuration Validator
 
 Validates bridge configurations to detect:
 1. Invalid channel specifications (not in ['rw', 'rd', 'wr'])
-2. Invalid protocol specifications (not in ['axi4', 'apb', 'axil'])
+2. Invalid protocol specifications (see validate_protocol for the set)
 3. Illegal master-slave channel combinations (incompatible channels)
 4. APB-specific constraints (must be 'rw', specific data widths)
 5. AXI4-Lite specific constraints
@@ -60,13 +60,15 @@ def validate_protocol(protocol: str, port_name: str) -> None:
     Validate protocol field value.
 
     Args:
-        protocol: Protocol specification ('axi4', 'axi5', 'apb', 'apb5', 'axil')
+        protocol: Protocol specification -- see valid_protocols below
         port_name: Port name for error messages
 
     Raises:
         ValidationError: If protocol value is invalid
     """
-    valid_protocols = {'axi4', 'axi5', 'apb', 'apb5', 'axil'}
+    # 'axil5' is an AXI5-Lite slave boundary: AXI4-Lite transfers plus the
+    # optional sideband groups, converted by axi4_to_axil5_{rd,wr}.
+    valid_protocols = {'axi4', 'axi5', 'apb', 'apb5', 'axil', 'axil5'}
     if protocol not in valid_protocols:
         raise ValidationError(
             f"Invalid protocol '{protocol}' for port '{port_name}'. "
@@ -129,12 +131,14 @@ def validate_axi5(masters: List[PortSpec], slaves: List[PortSpec]) -> None:
     """
     for port in list(masters) + list(slaves):
         feats = getattr(port, 'axi5_features', []) or []
-        if feats and port.protocol != 'axi5':
+        if feats and port.protocol not in ('axi5', 'axil5'):
             raise ValidationError(
                 f"Port '{port.port_name}': 'axi5_features' is only legal "
-                f"on protocol=\"axi5\" ports (got protocol="
+                f"on protocol=\"axi5\"/\"axil5\" ports (got protocol="
                 f"'{port.protocol}')"
             )
+
+    validate_axil5_features(slaves)
 
     for port in list(masters) + list(slaves):
         if port.protocol != 'axi5':
@@ -168,6 +172,47 @@ def validate_axi5(masters: List[PortSpec], slaves: List[PortSpec]) -> None:
                 f"{list(AXI5_CONNECTIVITY_GATED_FEATURES)}; phase-gated: "
                 f"{sorted(AXI5_PHASED_FEATURES)}"
             )
+
+
+# AXI5-Lite features that actually do something on an AXI4 fabric. Only these
+# two have an AXI4 source to forward, so only these two are gates in
+# axi4_to_axil5_{rd,wr}. The rest of the AXI5-Lite sideband is exposed on the
+# boundary and tied to zero either way -- naming one in axi5_features would
+# suggest it does something, so it is rejected rather than quietly ignored.
+AXIL5_FORWARDABLE_FEATURES = ('user', 'exclusive')
+
+# Named separately from the unknown-name case so the message can say WHY: a
+# reader who asked for mpam on an AXI4 fabric has a design question, not a
+# typo.
+AXIL5_TIED_FEATURES = ('trace', 'loop', 'mpam', 'mecid', 'nsaid', 'poison')
+
+
+def validate_axil5_features(slaves: List[PortSpec]) -> None:
+    """Only the forwardable groups may be named on an axil5 port."""
+    for port in slaves:
+        if port.protocol != 'axil5':
+            continue
+        seen = set()
+        for f in getattr(port, 'axi5_features', []) or []:
+            if f in seen:
+                raise ValidationError(
+                    f"AXI5-Lite slave '{port.port_name}': duplicate "
+                    f"axi5_features entry '{f}'")
+            seen.add(f)
+            if f in AXIL5_FORWARDABLE_FEATURES:
+                continue
+            if f in AXIL5_TIED_FEATURES:
+                raise ValidationError(
+                    f"AXI5-Lite slave '{port.port_name}': feature '{f}' has "
+                    f"no AXI4 source, so the converter ties it to zero "
+                    f"whether or not it is named here. Its port is exposed "
+                    f"on the boundary regardless -- remove it from "
+                    f"axi5_features. Forwardable: "
+                    f"{list(AXIL5_FORWARDABLE_FEATURES)}")
+            raise ValidationError(
+                f"AXI5-Lite slave '{port.port_name}': unknown axi5_features "
+                f"entry '{f}'. Legal on an axil5 port: "
+                f"{list(AXIL5_FORWARDABLE_FEATURES)}")
 
 
 def _axi5_connected_pairs(masters: List[PortSpec], slaves: List[PortSpec],

@@ -274,11 +274,13 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
         # AXI5 feature list (A5-2 slice 1: AXI5 slaves in interop mode).
         # Same non-axi5 rejection as masters; the feature whitelist is
         # enforced downstream by validate_axi5.
+        # axil5 shares the vocabulary: it names which AXI5-Lite optional
+        # groups are live on that boundary.
         axi5_features = list(s.get('axi5_features', []))
-        if axi5_features and protocol != 'axi5':
+        if axi5_features and protocol not in ('axi5', 'axil5'):
             raise ValidationError(
                 f"Slave '{port_name}': 'axi5_features' is only legal on "
-                f"protocol=\"axi5\" ports (got protocol='{protocol}')")
+                f"protocol=\"axi5\"/\"axil5\" ports (got protocol='{protocol}')")
 
         # Interface config (store for Phase 2, don't use yet)
         interface_config = s.get('interface')

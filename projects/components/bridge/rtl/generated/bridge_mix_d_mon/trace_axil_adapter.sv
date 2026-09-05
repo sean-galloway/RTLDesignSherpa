@@ -24,7 +24,7 @@ module trace_axil_adapter
     input  logic aresetn,
 
     // External AXI interface (from trace_axil master)
-    input  logic         trace_axil_awid,
+    input  logic [3:0]  trace_axil_awid,
     input  logic [31:0]  trace_axil_awaddr,
     input  logic [7:0]  trace_axil_awlen,
     input  logic [2:0]  trace_axil_awsize,
@@ -45,13 +45,13 @@ module trace_axil_adapter
     input  logic         trace_axil_wvalid,
     output  logic         trace_axil_wready,
 
-    output  logic         trace_axil_bid,
+    output  logic [3:0]  trace_axil_bid,
     output  logic [1:0]  trace_axil_bresp,
     output  logic         trace_axil_buser,
     output  logic         trace_axil_bvalid,
     input  logic         trace_axil_bready,
 
-    input  logic         trace_axil_arid,
+    input  logic [3:0]  trace_axil_arid,
     input  logic [31:0]  trace_axil_araddr,
     input  logic [7:0]  trace_axil_arlen,
     input  logic [2:0]  trace_axil_arsize,
@@ -65,7 +65,7 @@ module trace_axil_adapter
     input  logic         trace_axil_arvalid,
     output  logic         trace_axil_arready,
 
-    output  logic         trace_axil_rid,
+    output  logic [3:0]  trace_axil_rid,
     output  logic [31:0]  trace_axil_rdata,
     output  logic [1:0]  trace_axil_rresp,
     output  logic         trace_axil_rlast,
@@ -181,13 +181,16 @@ module trace_axil_adapter
     // ================================================================
     localparam ADDR_WIDTH = 32;
     localparam DATA_WIDTH = 32;
-    localparam ID_WIDTH = 1;
+    localparam ID_WIDTH = 4;
 
     // ================================================================
     // Internal signals after wrapper (timing isolation)
-    // Note: ID width matches external (1-bit)
+    // Note: 4-bit ID placeholder. This port is AXI4-Lite and
+    // has no external ID; the width matches the crossbar's struct
+    // field so every connection to it is width-exact. The value is
+    // tied to zero end to end.
     // ================================================================
-    logic [0:0]   fub_axi_awid;
+    logic [3:0]   fub_axi_awid;
     logic [31:0]  fub_axi_awaddr;
     logic [7:0]   fub_axi_awlen;
     logic [2:0]   fub_axi_awsize;
@@ -208,12 +211,12 @@ module trace_axil_adapter
     logic         fub_axi_wvalid;
     logic         fub_axi_wready;
 
-    logic [0:0]   fub_axi_bid;
+    logic [3:0]   fub_axi_bid;
     logic [1:0]   fub_axi_bresp;
     logic         fub_axi_bvalid;
     logic         fub_axi_bready;
 
-    logic [0:0]   fub_axi_arid;
+    logic [3:0]   fub_axi_arid;
     logic [31:0]  fub_axi_araddr;
     logic [7:0]   fub_axi_arlen;
     logic [2:0]   fub_axi_arsize;
@@ -227,7 +230,7 @@ module trace_axil_adapter
     logic         fub_axi_arvalid;
     logic         fub_axi_arready;
 
-    logic [0:0]   fub_axi_rid;
+    logic [3:0]   fub_axi_rid;
     logic [31:0]  fub_axi_rdata;
     logic [1:0]   fub_axi_rresp;
     logic         fub_axi_rlast;
@@ -244,7 +247,7 @@ module trace_axil_adapter
         .SKID_DEPTH_AW(SKID_DEPTH_AW),
         .SKID_DEPTH_W(SKID_DEPTH_W),
         .SKID_DEPTH_B(SKID_DEPTH_B),
-        .AXI_ID_WIDTH(0),
+        .AXI_ID_WIDTH(4),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1),
@@ -387,7 +390,7 @@ module trace_axil_adapter
     axi4_slave_rd_mon #(
         .SKID_DEPTH_AR(SKID_DEPTH_AR),
         .SKID_DEPTH_R(SKID_DEPTH_R),
-        .AXI_ID_WIDTH(0),
+        .AXI_ID_WIDTH(4),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1),
@@ -648,11 +651,11 @@ module trace_axil_adapter
     // Intermediate signals for 64b converter
     logic conv_64b_awready;
     logic conv_64b_wready;
-    logic [-1:0] conv_64b_bid;
+    logic [3:0] conv_64b_bid;
     logic [1:0] conv_64b_bresp;
     logic conv_64b_bvalid;
     logic conv_64b_arready;
-    logic [-1:0] conv_64b_rid;
+    logic [3:0] conv_64b_rid;
     logic [31:0] conv_64b_rdata;
     logic [1:0] conv_64b_rresp;
     logic conv_64b_rlast;
@@ -664,7 +667,7 @@ module trace_axil_adapter
     axil_to_axi4_wide_align_wr #(
         .S_AXI_DATA_WIDTH(32),
         .M_AXI_DATA_WIDTH(64),
-        .AXI_ID_WIDTH(0),
+        .AXI_ID_WIDTH(4),
         .AXI_ADDR_WIDTH(32),
         .AXI_USER_WIDTH(1)
     ) u_wr_conv_64b (
@@ -724,7 +727,7 @@ module trace_axil_adapter
     axil_to_axi4_wide_align_rd #(
         .S_AXI_DATA_WIDTH(32),
         .M_AXI_DATA_WIDTH(64),
-        .AXI_ID_WIDTH(0),
+        .AXI_ID_WIDTH(4),
         .AXI_ADDR_WIDTH(32),
         .AXI_USER_WIDTH(1)
     ) u_rd_conv_64b (
@@ -950,13 +953,13 @@ module trace_axil_adapter
 
     // Write response MUX (B channel - uses b_slave_select FIFO head)
     always_comb begin
-        fub_axi_bid = 0'd0;
+        fub_axi_bid = 4'd0;
         fub_axi_bresp = 2'b00;
         fub_axi_bvalid = 1'b0;
 
         case (b_slave_select)
             3'b010: begin  // Slave 1 (32b)
-                fub_axi_bid = trace_axil_32b_b.id[0:0];
+                fub_axi_bid = trace_axil_32b_b.id[3:0];
                 fub_axi_bresp = trace_axil_32b_b.resp;
                 fub_axi_bvalid = trace_axil_32b_bvalid;
             end
@@ -992,7 +995,7 @@ module trace_axil_adapter
 
     // Read response MUX (R channel - uses r_slave_select FIFO head)
     always_comb begin
-        fub_axi_rid = 0'd0;
+        fub_axi_rid = 4'd0;
         fub_axi_rdata = 32'd0;
         fub_axi_rresp = 2'b00;
         fub_axi_rlast = 1'b0;
@@ -1000,7 +1003,7 @@ module trace_axil_adapter
 
         case (r_slave_select)
             3'b010: begin  // Slave 1 (32b)
-                fub_axi_rid = trace_axil_32b_r.id[0:0];
+                fub_axi_rid = trace_axil_32b_r.id[3:0];
                 fub_axi_rdata = trace_axil_32b_r.data;
                 fub_axi_rresp = trace_axil_32b_r.resp;
                 fub_axi_rlast = trace_axil_32b_r.last;

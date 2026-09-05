@@ -1,0 +1,54 @@
+# Bridge Configuration: one AXI4 master, one AXI4 slave, one AXI5-Lite slave.
+#
+# Exercises protocol = "axil5": the crossbar carries full AXI4 as always, and
+# the axil5 slave's adapter shims it through axi4_to_axil5_{rd,wr} at the
+# boundary -- the same last-mile pattern as "axil" and "apb5", with the
+# AXI5-Lite sideband added.
+#
+# axi5_features names which optional groups are LIVE. Only "user" and
+# "exclusive" can be: they have an AXI4 source to forward. The remaining
+# AXI5-Lite sideband is exposed on the boundary and tied to zero, because
+# a port whose shape changes with a config knob cannot be wired to a fixed
+# external slave.
+#
+# Connectivity comes from bridge_1x2_rw_axil5_connectivity.csv.
+
+[bridge]
+name = "bridge_1x2_rw_axil5"
+variants = ["no"]
+description = "1 AXI4 master x (1 AXI4 + 1 AXI5-Lite) slave read/write bridge"
+
+[[bridge.masters]]
+name = "cpu"
+prefix = "cpu_axi_"
+protocol = "axi4"
+channels = "rw"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+
+[[bridge.slaves]]
+name = "ddr"
+prefix = "ddr_axi_"
+protocol = "axi4"
+channels = "rw"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+base_addr = "0x00000000"
+addr_range = "0x80000000"
+
+[[bridge.slaves]]
+name = "cfg"
+prefix = "cfg_axil_"
+protocol = "axil5"
+channels = "rw"
+id_width = 0            # AXI5-Lite has no transaction IDs
+addr_width = 32
+data_width = 32
+user_width = 1
+axi5_features = ["user", "exclusive"]
+base_addr = "0x80000000"
+addr_range = "0x80000000"

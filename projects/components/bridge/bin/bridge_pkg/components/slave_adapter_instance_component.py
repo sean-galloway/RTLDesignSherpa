@@ -67,12 +67,15 @@ class SlaveAdapterInstance:
 
     def __init__(self, slave_name: str, slave_prefix: str, protocol: str,
                  has_write: bool, has_read: bool, axi5_features=None):
-        if protocol not in ('axi4', 'axi5', 'apb', 'apb5', 'axil'):
+        if protocol not in ('axi4', 'axi5', 'apb', 'apb5', 'axil', 'axil5'):
             raise ValueError(f"unsupported protocol: {protocol!r}")
         if not (has_write or has_read):
             raise ValueError("adapter must carry at least one channel")
-        if protocol != 'axi5' and axi5_features:
-            raise ValueError("axi5_features passed but protocol is not 'axi5'")
+        # axil5 reuses the axi5_features vocabulary to pick which optional
+        # groups are live on the AXI5-Lite boundary.
+        if protocol not in ('axi5', 'axil5') and axi5_features:
+            raise ValueError(
+                "axi5_features passed but protocol is not 'axi5'/'axil5'")
         self.slave_name = slave_name
         self.slave_prefix = slave_prefix
         self.protocol = protocol
@@ -181,7 +184,7 @@ class SlaveAdapterInstance:
             self._sections.append((
                 f"External {self.protocol.upper()} interface "
                 f"({self.slave_prefix}*)", pairs))
-        elif self.protocol == 'axil':
+        elif self.protocol in ('axil', 'axil5'):
             pairs: List[tuple] = []
             if self.has_write:
                 for base in _AXIL_WRITE_PORTS:
@@ -191,8 +194,19 @@ class SlaveAdapterInstance:
                 for base in _AXIL_READ_PORTS:
                     pairs.append((f'{self.slave_prefix}{base}',
                                   f'{self.slave_prefix}{base}'))
+            if self.protocol == 'axil5':
+                # Sideband ports come from the one table, in its order, so
+                # this connection list cannot drift from the adapter's
+                # declarations. See axil5_sideband.
+                from ..axil5_sideband import sideband_ports
+                channels = ('rw' if (self.has_write and self.has_read)
+                            else 'wr' if self.has_write else 'rd')
+                for base, _width_key, _direction in sideband_ports(channels):
+                    pairs.append((f'{self.slave_prefix}{base}',
+                                  f'{self.slave_prefix}{base}'))
+            label = ("AXI5-Lite" if self.protocol == 'axil5' else "AXI4-Lite")
             self._sections.append((
-                f"External AXI4-Lite interface ({self.slave_prefix}*)", pairs))
+                f"External {label} interface ({self.slave_prefix}*)", pairs))
         else:  # axi4
             pairs: List[tuple] = []
             if self.has_write:

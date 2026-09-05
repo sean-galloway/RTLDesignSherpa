@@ -927,7 +927,7 @@ module bridge_mix_d_mon
         .aresetn(aresetn),
 
         // External interface
-        .trace_axil_awid(0'h0),
+        .trace_axil_awid(4'h0),
         .trace_axil_awaddr(trace_axil_awaddr),
         .trace_axil_awlen(8'h0),
         .trace_axil_awsize(3'd2),
@@ -951,7 +951,7 @@ module bridge_mix_d_mon
         .trace_axil_buser(),
         .trace_axil_bvalid(trace_axil_bvalid),
         .trace_axil_bready(trace_axil_bready),
-        .trace_axil_arid(0'h0),
+        .trace_axil_arid(4'h0),
         .trace_axil_araddr(trace_axil_araddr),
         .trace_axil_arlen(8'h0),
         .trace_axil_arsize(3'd2),

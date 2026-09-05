@@ -626,3 +626,121 @@ def test_axi5_poison_accepted_native_both_ends(tmp_path):
     cfg = load_config(toml, conn)
     assert 'poison' in cfg.masters[0].axi5_features
     assert 'poison' in cfg.slaves[0].axi5_features
+
+
+# ---------------------------------------------------------------------
+# AXI5-Lite slaves (protocol="axil5")
+# ---------------------------------------------------------------------
+
+def test_axil5_forwardable_features_accepted(tmp_path):
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra=('channels = "rd"\nprotocol = "axil5"\n'
+                     'axi5_features = ["user", "exclusive"]'),
+    )
+    cfg = load_config(toml, conn)
+    assert cfg.slaves[0].protocol == "axil5"
+    assert cfg.slaves[0].axi5_features == ["user", "exclusive"]
+
+
+@pytest.mark.parametrize("feat", ["trace", "loop", "mpam", "mecid",
+                                  "nsaid", "poison"])
+def test_axil5_tied_features_rejected(tmp_path, feat):
+    """A tied group named in axi5_features would read as a request that
+    changes something. It cannot: axi4_to_axil5_* drives those to zero
+    unconditionally, and their ports exist either way. Rejected rather
+    than ignored, so the config cannot lie about what the design does."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra=(f'channels = "rd"\nprotocol = "axil5"\n'
+                     f'axi5_features = ["{feat}"]'),
+    )
+    with pytest.raises(ValidationError, match="no AXI4 source"):
+        load_config(toml, conn)
+
+
+def test_axil5_unknown_feature_rejected(tmp_path):
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra=('channels = "rd"\nprotocol = "axil5"\n'
+                     'axi5_features = ["telepathy"]'),
+    )
+    with pytest.raises(ValidationError, match="unknown axi5_features"):
+        load_config(toml, conn)
+
+
+def test_axil5_generation_smoke(tmp_path):
+    """Generate the axil5 fixture end-to-end.
+
+    The bridge top must expose the FULL AXI5-Lite surface on the axil5
+    port -- every sideband group, enabled or not, because a boundary
+    whose shape depends on a config knob cannot be wired to a fixed
+    external slave. Request-side groups are outputs, response-side ones
+    inputs. The adapter must instantiate the AXI5-Lite converters, not
+    the AXI4-Lite ones, and the sibling AXI4 slave port must be
+    untouched."""
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+         "--ports", _fixture("bridge_1x2_rw_axil5.toml"),
+         "--connectivity", _fixture("bridge_1x2_rw_axil5_connectivity.csv"),
+         "--name", "bridge_1x2_rw_axil5",
+         "--output-dir", str(tmp_path)],
+        cwd=str(BIN_DIR), env=env,
+        capture_output=True, text=True, timeout=300,
+    )
+    assert r.returncode == 0, f"generator failed:\n{r.stdout}\n{r.stderr}"
+
+    top = (tmp_path / "bridge_1x2_rw_axil5" / "bridge_1x2_rw_axil5.sv").read_text()
+
+    # Request-side sideband: outputs toward the external AXI5-Lite slave.
+    for base in ("awlock", "awuser", "awloop", "awmpam", "awmecid",
+                 "awnsaid", "awtrace", "wuser", "wpoison",
+                 "arlock", "aruser", "arloop", "armpam", "armecid",
+                 "arnsaid", "artrace"):
+        assert f"output logic" in top and f"cfg_axil_{base}" in top, base
+
+    # Response-side sideband: inputs from it.
+    for base in ("buser", "bloop", "btrace", "ruser", "rloop", "rtrace",
+                 "rpoison"):
+        assert f"cfg_axil_{base}" in top, base
+
+    # The AXI4 sibling keeps its own surface; no sideband leaked onto it.
+    assert "ddr_axi_awid" in top
+    assert "ddr_axi_awmpam" not in top
+
+    # Widths come from the shared table, not from a retyped literal.
+    from bridge_pkg.axil5_sideband import MPAM_WIDTH, MECID_WIDTH, NSAID_WIDTH
+    assert f"[{MPAM_WIDTH-1}:0] cfg_axil_awmpam" in top
+    assert f"[{MECID_WIDTH-1}:0] cfg_axil_awmecid" in top
+    assert f"[{NSAID_WIDTH-1}:0] cfg_axil_arnsaid" in top
+
+    adapter = (tmp_path / "bridge_1x2_rw_axil5" / "cfg_adapter.sv").read_text()
+    assert "axi4_to_axil5_wr" in adapter
+    assert "axi4_to_axil5_rd" in adapter
+    # The AXI4-Lite modules are wrapped BY those, never instantiated here.
+    assert "axi4_to_axil4_wr #(" not in adapter
+    assert "axi4_to_axil4_rd #(" not in adapter
+
+    # Only the two gating parameters exist on the converter -- the tied
+    # groups deliberately have none (see axil5_sideband.FEATURE_TO_ENABLE).
+    assert ".ENABLE_USER(1)" in adapter
+    assert ".ENABLE_LOCK(1)" in adapter
+    for absent in ("ENABLE_TRACE", "ENABLE_LOOP", "ENABLE_MPAM",
+                   "ENABLE_MECID", "ENABLE_NSAID", "ENABLE_POISON"):
+        assert absent not in adapter, f"{absent} is a parameter that does not exist"
+
+
+def test_axil5_sideband_table_matches_converter_ports():
+    """The generator's table and the RTL it drives must name the same
+    ports. A mismatch here is a PINMISSING in every generated bridge --
+    the failure this table exists to prevent, so it is worth asserting
+    directly rather than waiting for a lint run to notice."""
+    from bridge_pkg.axil5_sideband import sideband_ports
+
+    rtl = REPO_ROOT / "projects/components/converters/rtl"
+    text = ((rtl / "axi4_to_axil5_wr.sv").read_text()
+            + (rtl / "axi4_to_axil5_rd.sv").read_text())
+    for base, _width_key, _direction in sideband_ports("rw"):
+        assert f"m_axil_{base}" in text, (
+            f"axil5_sideband names m_axil_{base}, the RTL does not")

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2025 sean galloway
 #
-# Typed component wrapper for axi4_to_axil4_{wr,rd} instantiations.
+# Typed component wrapper for axi4_to_axil{4,5}_{wr,rd} instantiations.
 #
 # Mirrors Axi4ToApbShim. The crossbar always carries full AXI4 across the
 # fabric; at the slave boundary AXIL-protocol slaves get a shim that
@@ -20,7 +20,13 @@ from rtl_generators.verilog.module import Module
 
 
 class Axi4ToAxilShim:
-    """Generate `axi4_to_axil4_wr` and/or `axi4_to_axil4_rd` instantiations.
+    """Generate `axi4_to_axil{4,5}_wr` and/or `_rd` instantiations.
+
+    `protocol` selects which: 'axil4' emits the AXI4-Lite converters, 'axil5'
+    emits the AXI5-Lite ones. The AXI5-Lite modules WRAP the AXI4-Lite ones,
+    so the AXI4 (crossbar-facing) and AXI4-Lite (slave-facing) port lists are
+    identical between the two -- the only difference is the module name, the
+    ENABLE_*/width parameters, and the sideband ports appended at the end.
 
     Usage (rw):
         shim = Axi4ToAxilShim(
@@ -59,8 +65,22 @@ class Axi4ToAxilShim:
         skid_depth_ar: int = 2,
         skid_depth_r: int = 4,
         axi_user_width: int = 1,
+        protocol: str = 'axil4',
+        axi5_features=None,
+        loop_width: int = 1,
     ):
         assert has_write or has_read, "shim must carry at least one channel"
+        if protocol not in ('axil4', 'axil5'):
+            raise ValueError(f"Axi4ToAxilShim: unsupported protocol {protocol!r}")
+        if protocol != 'axil5' and axi5_features:
+            raise ValueError("axi5_features passed but protocol is not 'axil5'")
+        self.protocol = protocol
+        self.axi5_features = list(axi5_features or ())
+        # The AXI5-Lite USER width matches the fabric's AXI4 USER width: USER
+        # is the only address-channel group with an AXI4 source, so widening
+        # it here would only pad zeros.
+        self.user_width = axi_user_width
+        self.loop_width = loop_width
         self.instance_base = instance_base
         self.id_width = id_width
         self.addr_width = addr_width
@@ -221,6 +241,50 @@ class Axi4ToAxilShim:
             entry['sections'].append((
                 "AXI4-Lite master read interface (to external slave)", pairs_rd))
 
+        if self.protocol == 'axil5':
+            self._connect_axil5_sideband(prefix)
+
+    def _connect_axil5_sideband(self, prefix: str) -> None:
+        """Wire every AXI5-Lite sideband port straight out to the boundary.
+
+        Every field in the table is connected, enabled or not: the converter
+        drives a disabled group to 0 rather than leaving it dangling, so the
+        external surface has the same shape in every build. Leaving a port
+        unconnected instead would read as PINMISSING and float on the slave.
+        """
+        from ..axil5_sideband import sideband_ports, WRITE_CHANNELS
+
+        channels = ('rw' if (self.has_write and self.has_read)
+                    else 'wr' if self.has_write else 'rd')
+        write_bases = {base for base, _w, _d in sideband_ports('wr')}
+
+        wr_pairs, rd_pairs = [], []
+        for base, _width_key, _direction in sideband_ports(channels):
+            pair = (f'm_axil_{base}', f'{prefix}{base}')
+            (wr_pairs if base in write_bases else rd_pairs).append(pair)
+
+        if wr_pairs:
+            self._ensure_converter('wr')['sections'].append((
+                "AXI5-Lite write sideband (to external slave)", wr_pairs))
+        if rd_pairs:
+            self._ensure_converter('rd')['sections'].append((
+                "AXI5-Lite read sideband (to external slave)", rd_pairs))
+
+    def _axil5_param_suffix(self) -> str:
+        """ENABLE_* and sideband widths, appended to the base parameter list."""
+        from ..axil5_sideband import (enable_params, MPAM_WIDTH, MECID_WIDTH,
+                                      NSAID_WIDTH)
+        parts = [f"parameter bit {name} = {value}"
+                 for name, value in enable_params(self.axi5_features)]
+        parts += [
+            f"parameter int USER_WIDTH  = {self.user_width}",
+            f"parameter int LOOP_WIDTH  = {self.loop_width}",
+            f"parameter int MPAM_WIDTH  = {MPAM_WIDTH}",
+            f"parameter int MECID_WIDTH = {MECID_WIDTH}",
+            f"parameter int NSAID_WIDTH = {NSAID_WIDTH}",
+        ]
+        return ", " + ", ".join(parts)
+
     # --- formatting ----------------------------------------------------
 
     def _format_param_str_wr(self) -> str:
@@ -259,9 +323,12 @@ class Axi4ToAxilShim:
         for entry in ordered:
             kind = entry['kind']
             instance_name = entry['instance_name']
-            module_name = f"axi4_to_axil4_{kind}"
+            family = 'axil5' if self.protocol == 'axil5' else 'axil4'
+            module_name = f"axi4_to_{family}_{kind}"
             param_str = (self._format_param_str_wr() if kind == 'wr'
                          else self._format_param_str_rd())
+            if self.protocol == 'axil5':
+                param_str += self._axil5_param_suffix()
             module = Module(module_name=module_name, instance_name=instance_name)
             module.params.add_param_string(param_str)
 

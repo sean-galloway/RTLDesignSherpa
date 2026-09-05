@@ -174,6 +174,71 @@ reads" rule keeps routing unambiguous once tracked.
   generated tests + a hand-written check against the CocoTBFramework
   apb5 slave BFM; regen all bridges, zero drift on the existing 21.
 
+**A5-3d — AXI5-Lite slaves (protocol="axil5"): LANDED 2026-09-05.**
+Follows A5-3c beat for beat -- treat axil5 as "the axil branch plus the
+AXI5-Lite sideband".
+
+*The IP first:* `converters/rtl/axi4_to_axil5{,_wr,_rd}.sv`, wrappers over
+`axi4_to_axil4_{wr,rd}` (AXI5-Lite keeps the AXI4-Lite transfer protocol
+unchanged, so burst decomposition and response folding are inherited) plus
+closure filelists. Sideband disposition is FORWARDED (lock/user/wuser, and
+buser/ruser returning) / TIED (loop, mpam, mecid, nsaid, trace, poison) /
+TERMINATED (bloop, btrace, rloop, rtrace, rpoison). Two design calls worth
+recording:
+
+- **The tied group has no `ENABLE_` parameter.** They are driven `'0`
+  unconditionally, so a knob for them could not change the design --
+  worse than no knob, because a reader sets it and believes something
+  happened. Only `ENABLE_LOCK` and `ENABLE_USER` exist. Verilator agrees:
+  the modules lint clean with UNUSEDPARAM *unwaived*.
+- **The tied group's PORTS do exist.** An AXI5-Lite boundary whose shape
+  changes with a config knob cannot be wired to a fixed external
+  completer. Always present, always driven.
+
+*One real bug, found and fixed before commit:* the AW/AR sideband must be
+HELD, not passed through. The core decomposes, so one AXI4 AW handshake
+becomes N AXI5-Lite ones, and `s_axi_awready` drops on acceptance -- the
+master then presents the NEXT transaction's AW while beats 2..N are still
+going out. The first version passed it combinationally, and burst A's beats
+carried burst B's USER from beat 0. The fix mirrors the core's own
+`r_aw_active ? r_aw_addr : s_axi_awaddr`. Only OVERLAPPING bursts can catch
+it; sequential traffic cannot. Mutation-checked: RED against the unfixed
+RTL, GREEN after.
+
+*Generator, per the A5-3c map:* (a) new shared table
+`bin/bridge_pkg/axil5_sideband.py` -- port names, widths, directions and
+the ENABLE_ mapping in ONE place, read by the adapter, the shim component
+and the bridge top, so the three port lists cannot drift; (b)
+`Axi4ToAxilShim` gains `protocol='axil4'|'axil5'` (module-name swap +
+sideband pairs + parameter suffix); (c) slave_adapter_generator protocol
+tests extended and `_generate_axil5_sideband_ports`; (d)
+SlaveAdapterInstance + bridge_module_generator external surfaces; (e)
+validator/config_loader whitelists, plus `validate_axil5_features`:
+`axi5_features` on an axil5 port accepts ONLY `user`/`exclusive`, and
+REJECTS a tied group by name rather than ignoring it, so the config cannot
+imply something it does not do; (f) filelist emission -f's the axil5
+closures; (g) TB template picks the AXIL5 BFMs, with the import made
+conditional so bridges without an axil5 slave stay byte-identical.
+
+**Verified:** 63 generator unit tests (10 new, incl. one asserting the
+table and the RTL name the same ports); fixture `bridge_1x2_rw_axil5` in
+the batch manifest; 24/24 bridges regenerate with the 23 pre-existing
+byte-identical in RTL *and* TB classes; the generated bridge lints at
+parity with its axil4 sibling (13 PINCONNECTEMPTY vs 26, no new class);
+generated bridge test 2/2 green; converter suite 8/8 across three levels.
+
+**Not done, deliberately:** axil5 as a bridge MASTER protocol. apb5 is
+slave-only too; a master-side AXI5-Lite requester is a different piece of
+work and nothing in-tree needs one.
+
+*Adjacent finding, NOT fixed here:* `make verilator` in
+`projects/components/bridge/rtl` fails on all 36 variants, entirely from
+pre-existing PINCONNECTEMPTY on deliberate open pins (`.busy()` and
+friends) -- a gate that fails on everything reports nothing. The `mon`
+variants additionally surface real WIDTHEXPAND/UNDRIVEN warnings inside
+`rtl/amba/monitor/*`. Both predate this change (the RTL they fire on is
+byte-identical to HEAD) and want their own pass.
+
 **A5-2 design note (2026-08-09):** two slices.
 
 - *Slice 1 — AXI5 slave ports, interop mode:* LANDED 2026-08-09.
