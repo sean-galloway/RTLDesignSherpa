@@ -2128,6 +2128,19 @@ module stream_harness #(
         .TAP_ENABLE_ERROR_LOGIC   (OBS_ENABLE_MON_TAPS),
         .TAP_ENABLE_TIMEOUT_LOGIC (OBS_ENABLE_MON_TAPS),
         .TAP_ENABLE_COMPL_LOGIC   (OBS_ENABLE_MON_TAPS),
+        // The other two emittable classes. Both default OFF, so their reporters
+        // were never built and no amount of runtime config could produce a
+        // Threshold or Debug packet -- the same shape as N_ADDR_RANGES=0 making
+        // AddrMatch unreachable. A class the hardware cannot emit is a class the
+        // board campaign can never cover.
+        .TAP_ENABLE_THRESHOLD_LOGIC (OBS_ENABLE_MON_TAPS),
+        .TAP_ENABLE_DEBUG_LOGIC     (OBS_ENABLE_MON_TAPS),
+        // Range flavour: 0,1 stay DEBUG (a hit emits AddrMatch), 2,3 are ERROR
+        // (a MISS emits Error/ADDR_RANGE 0x0D). Default is all-zero = all DEBUG,
+        // which makes Error/ADDR_RANGE unreachable. Mirrors the in-core
+        // monitors' MON_ADDR_RANGE_IS_ERROR(4'b1100) so both instruments answer
+        // to the same convention.
+        .ADDR_RANGE_IS_ERROR      (4'b1100),
         .ENABLE_BUS_METER    (0),
         .ENABLE_LATENCY_HIST (0),
         .NUM_CHANNELS        (OBS_NUM_CHANNELS),
@@ -2501,6 +2514,19 @@ module stream_harness #(
         .TAP_ENABLE_ERROR_LOGIC   (OBS_ENABLE_MON_TAPS),
         .TAP_ENABLE_TIMEOUT_LOGIC (OBS_ENABLE_MON_TAPS),
         .TAP_ENABLE_COMPL_LOGIC   (OBS_ENABLE_MON_TAPS),
+        // The other two emittable classes. Both default OFF, so their reporters
+        // were never built and no amount of runtime config could produce a
+        // Threshold or Debug packet -- the same shape as N_ADDR_RANGES=0 making
+        // AddrMatch unreachable. A class the hardware cannot emit is a class the
+        // board campaign can never cover.
+        .TAP_ENABLE_THRESHOLD_LOGIC (OBS_ENABLE_MON_TAPS),
+        .TAP_ENABLE_DEBUG_LOGIC     (OBS_ENABLE_MON_TAPS),
+        // Range flavour: 0,1 stay DEBUG (a hit emits AddrMatch), 2,3 are ERROR
+        // (a MISS emits Error/ADDR_RANGE 0x0D). Default is all-zero = all DEBUG,
+        // which makes Error/ADDR_RANGE unreachable. Mirrors the in-core
+        // monitors' MON_ADDR_RANGE_IS_ERROR(4'b1100) so both instruments answer
+        // to the same convention.
+        .ADDR_RANGE_IS_ERROR      (4'b1100),
         .MAX_TRANSACTIONS    (OBS_MAX_TRANSACTIONS),
         .NUM_BANKS           (OBS_NUM_BANKS),
         .USE_WDATA_ORDER_Q   (OBS_USE_WDATA_ORDER_Q),

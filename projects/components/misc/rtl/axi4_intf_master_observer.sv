@@ -150,7 +150,10 @@ module axi4_intf_master_observer
     //
     // Two separate things have to happen, and doing only the first is the trap:
     //   1. the transaction tables must not allocate for other IDs
-    //      -> ID_FILTER_ENABLE / ID_MATCH_BASE / ID_MATCH_COUNT on the taps
+    //      -> observer-local only. This must NOT reach axi_monitor_base:
+    //         that module is shared by every monitor in the repo, including
+    //         stream_core's in-core ones, and a filter there changes blocks
+    //         that have nothing to do with slicing an observer across a bus.
     //   2. the latency histograms index by cmd_id[CW-1:0], so with
     //      NUM_CHANNELS=2 (CW=1) channels 0,2,4,6 would all alias onto slot 0.
     //      Narrowing NUM_CHANNELS alone does NOT select two channels, it folds
@@ -181,6 +184,14 @@ module axi4_intf_master_observer
     // silently alias onto a low one -- see CPUIF_ADDR_WIDTH.
     parameter int APB_ADDR_WIDTH             = 12,
     parameter int N_ADDR_RANGES              = 0,
+    // Per-range flavour, forwarded to the monitors' address checker: a bit
+    // SET makes that range ERROR-flavoured, so a MISS emits
+    // Error/ADDR_RANGE (0x0D); a bit CLEAR leaves it DEBUG, so a HIT emits
+    // AddrMatch (0x01). N_ADDR_RANGES was forwarded and this was not, so
+    // every range silently took the all-DEBUG default and Error/ADDR_RANGE
+    // was unreachable no matter how the ranges were programmed.
+    parameter logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0]
+                  ADDR_RANGE_IS_ERROR        = '0,
     parameter bit TAP_ENABLE_ERROR_LOGIC     = 1'b0,
     parameter bit TAP_ENABLE_TIMEOUT_LOGIC   = 1'b0,
     parameter bit TAP_ENABLE_COMPL_LOGIC     = 1'b0,
@@ -772,16 +783,11 @@ module axi4_intf_master_observer
                 // Own only this instance's channels: without this every
                 // parallel snooper allocates for ALL traffic and the split
                 // buys nothing.
-                .ID_FILTER_ENABLE(ENABLE_ID_SLICE),
-                // PER-TAP base: tap gi owns [CH_BASE + gi*NUM_CHANNELS, +NUM_CHANNELS).
-                // NUM_CHANNELS is per tap, so a 4-tap instance covers
-                // 4*NUM_CHANNELS channels of one shared bus.
-                .ID_MATCH_BASE   (CH_BASE + gi * NUM_CHANNELS),
-                .ID_MATCH_COUNT  (NUM_CHANNELS),
                 // Observer tap cone enables (default perf-only -- see the
                 // TAP_ENABLE_* parameter block for why). Overridable per-instance
                 // so the dump-path unit test can enable completions.
                 .N_ADDR_RANGES          (N_ADDR_RANGES),
+                .ADDR_RANGE_IS_ERROR     (ADDR_RANGE_IS_ERROR),
                 .ENABLE_ERROR_LOGIC     (TAP_ENABLE_ERROR_LOGIC),
                 .ENABLE_TIMEOUT_LOGIC   (TAP_ENABLE_TIMEOUT_LOGIC),
                 .ENABLE_COMPL_LOGIC     (TAP_ENABLE_COMPL_LOGIC),
@@ -924,16 +930,11 @@ module axi4_intf_master_observer
                 // Own only this instance's channels: without this every
                 // parallel snooper allocates for ALL traffic and the split
                 // buys nothing.
-                .ID_FILTER_ENABLE(ENABLE_ID_SLICE),
-                // PER-TAP base: tap gi owns [CH_BASE + gi*NUM_CHANNELS, +NUM_CHANNELS).
-                // NUM_CHANNELS is per tap, so a 4-tap instance covers
-                // 4*NUM_CHANNELS channels of one shared bus.
-                .ID_MATCH_BASE   (CH_BASE + gi * NUM_CHANNELS),
-                .ID_MATCH_COUNT  (NUM_CHANNELS),
                 // Observer tap cone enables (default perf-only -- see the
                 // TAP_ENABLE_* parameter block). Overridable per-instance so the
                 // dump-path unit test can enable completions.
                 .N_ADDR_RANGES          (N_ADDR_RANGES),
+                .ADDR_RANGE_IS_ERROR     (ADDR_RANGE_IS_ERROR),
                 .ENABLE_ERROR_LOGIC     (TAP_ENABLE_ERROR_LOGIC),
                 .ENABLE_TIMEOUT_LOGIC   (TAP_ENABLE_TIMEOUT_LOGIC),
                 .ENABLE_COMPL_LOGIC     (TAP_ENABLE_COMPL_LOGIC),
