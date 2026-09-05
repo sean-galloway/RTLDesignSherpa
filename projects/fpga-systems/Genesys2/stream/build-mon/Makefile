@@ -53,13 +53,18 @@ export STREAM_BUILD ?= mon
 # built. Generics, not shared-package edits.
 export USE_AXI_MONITORS    ?= 1
 export OBS_ENABLE_MON_TAPS ?= 0
-# Harness clock = VCO_MHZ / CLKOUT0_DIVIDE = 1350/15 = 90 MHz.
-# in-core monitor CAMs are the tightest fit; 90 MHz is where it closes.
+# Harness clock = VCO_MHZ / CLKOUT0_DIVIDE = 1200/20 = 60 MHz.
+# 90 MHz does NOT close: WNS -2.052 / TNS -10428. The observers carry the
+# 4-deep address-range checker in EVERY flavour (N_ADDR_RANGES is not
+# tap-gated), and mon adds the in-core monitor CAMs on top. Same cone and
+# same cause as build-obs, which missed by -3.708 and now runs at 60.
+# Both instrumented flavours therefore share one clock, which also keeps
+# their throughput numbers directly comparable.
 # Pinned, not inherited: the RTL default is 1350/15 (90 MHz), and a build
 # that does not state its clock silently follows any change to that default.
 # VCO must be a multiple of 25 -- MULT_F moves in 0.125 steps off 200 MHz.
-export STREAM_VCO_MHZ        ?= 1350
-export STREAM_CLKOUT0_DIVIDE ?= 15
+export STREAM_VCO_MHZ        ?= 1200
+export STREAM_CLKOUT0_DIVIDE ?= 20
 
 # ---- Build geometry (Vivado generics) --------------------------------------
 export STREAM_NUM_CHANNELS ?= 8
