@@ -494,7 +494,10 @@ def test_pumice_cmd_arbiter(request):
         "COCOTB_RESULTS_FILE": results_path, "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
     }
     extra_env.update(params)
-    compile_args = ["+define+USE_ASYNC_RESET"] + get_coverage_compile_args()
+    # This fub test hand-drives order_mode 1/3 (in_order / age_threshold) and
+    # asserts the narrowed picks, so it needs the ENHANCED arbiter build. Basic
+    # pumice (board + FR-FCFS tests) compiles those overlays out to close timing.
+    compile_args = ["+define+USE_ASYNC_RESET", "+define+PUMICE_ENHANCED"] + get_coverage_compile_args()
     extra_env.update(get_coverage_env(test_name, sim_build=sim_build))
 
     run(

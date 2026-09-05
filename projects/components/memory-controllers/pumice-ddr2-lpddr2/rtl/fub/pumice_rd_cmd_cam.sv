@@ -176,8 +176,46 @@ module pumice_rd_cmd_cam #(
             end
     end
 
-    (* ram_style = "distributed" *)
-    logic [DW-1:0] r_sram [N_SRAM_SLOTS*AXI_BEATS_PER_BURST];
+    // Read-return buffer: was a distributed flop array with a COMBINATIONAL read
+    // (LUT-heavy read mux, 0 BRAM). Now a registered-read BRAM -- one write port
+    // (DFI return) + one read port (drain), synchronous read -> infers block RAM.
+    // The synchronous read has 1-cycle latency; a 2-DEEP PREFETCH SKID (below)
+    // decouples fetch from consume so the read port stays busy across burst
+    // boundaries (beat-0 of the next AR-order burst prefetches while the current
+    // tail drains -> no per-burst bubble). Read data carries no strobes -> DW word.
+    (* ram_style = "block" *)
+    logic [DW-1:0] r_mem [N_SRAM_SLOTS*AXI_BEATS_PER_BURST];
+    logic [DW-1:0] r_rd_q;    // BRAM read-data register (output of the sync read)
+    logic [BCW-1:0] r_fbeat;  // fetch beat pointer (next beat to issue)
+
+    // Per-entry "fully fetched" flag: set at fetch-last, cleared on evict/insert.
+    // The fetch-side oldest pick skips fetched-but-still-draining entries so the
+    // NEXT AR-order burst can prefetch while the current one's tail drains.
+    logic          r_fetched [NUM_ENTRIES];
+
+    // ---- 2-deep prefetch skid FIFO (cross-burst) ---------------------------
+    // Each entry carries a full tag so the consume side never needs the current
+    // fetch pick (which has advanced to the next burst). One BRAM read port,
+    // 1-cycle latency, tracked by an in-flight register (r_if_*); a credit count
+    // bounds (outstanding + buffered) <= SKID_DEPTH so a stalled consumer never
+    // loses a beat. Drain order = fetch order = AR (oldest) order.
+    localparam int SKID_DEPTH = 2;
+    logic [DW-1:0]   r_sk_data  [SKID_DEPTH];
+    logic [PTRW-1:0] r_sk_slot  [SKID_DEPTH]; // entry slot (eviction / SRAM free)
+    logic            r_sk_blast [SKID_DEPTH]; // last beat of the burst
+    logic [IW-1:0]   r_sk_id    [SKID_DEPTH]; // r_id  of the entry
+    logic [1:0]      r_sk_resp  [SKID_DEPTH]; // r_resp of the entry
+    logic            r_sk_rd;                 // head pointer (1 bit; DEPTH=2)
+    logic            r_sk_wr;                 // tail pointer
+    logic [1:0]      r_sk_cnt;                // occupancy 0..2
+    logic [1:0]      r_credits;               // SKID_DEPTH - (outstanding + buffered)
+
+    // in-flight read (issued last cycle; its data lands in r_rd_q this cycle)
+    logic            r_if_valid;
+    logic [PTRW-1:0] r_if_slot;
+    logic            r_if_blast;
+    logic [IW-1:0]   r_if_id;
+    logic [1:0]      r_if_resp;
 
     // ---- free-slot allocation ----------------------------------------------
     logic            w_have_free;
@@ -325,61 +363,84 @@ module pumice_rd_cmd_cam #(
         sch_head_rel_o = w_sho_found ? w_rel[w_sho_slot] : '0;
     end
 
-    // ---- drain-side oldest valid (AR order) via the age-order matrix -------
-    // The oldest valid entry = the one older than every OTHER valid entry
-    // (1-bit compares; replaces the 16-bit max-rel argmax so r_age_ctr stays
-    // off this w_sys_i path).
-    logic            w_dro_found;
-    logic [PTRW-1:0] w_dro_slot;
+    // ---- fetch-side oldest NOT-FETCHED valid entry, via the age-order matrix -
+    // The fetch pick = the oldest entry that is valid and not yet fully fetched
+    // (1-bit compares; r_age_ctr stays off this path). Fetched-but-still-draining
+    // entries are skipped so the NEXT AR-order burst can prefetch while the
+    // current tail drains. AR order is preserved: the pick is always the OLDEST
+    // not-fetched entry, and the fetch is gated on its data-ready, so a younger
+    // ready entry never jumps ahead of an older not-ready one.
+    logic            w_fro_found;
+    logic [PTRW-1:0] w_fro_slot;
     always_comb begin
-        automatic logic [NUM_ENTRIES-1:0] w_dro_is;
+        automatic logic [NUM_ENTRIES-1:0] w_fro_cand;
+        automatic logic [NUM_ENTRIES-1:0] w_fro_is;
+        for (int i = 0; i < NUM_ENTRIES; i++)
+            w_fro_cand[i] = r_valid[i] && !r_fetched[i];
         for (int i = 0; i < NUM_ENTRIES; i++) begin
             automatic logic ge_all = 1'b1;
             for (int j = 0; j < NUM_ENTRIES; j++)
-                if ((j != i) && r_valid[j] && !r_older[i][j]) ge_all = 1'b0;
-            w_dro_is[i] = r_valid[i] && ge_all;
+                if ((j != i) && w_fro_cand[j] && !r_older[i][j]) ge_all = 1'b0;
+            w_fro_is[i] = w_fro_cand[i] && ge_all;
         end
-        w_dro_found = |w_dro_is;
-        w_dro_slot  = '0;
+        w_fro_found = |w_fro_is;
+        w_fro_slot  = '0;
         for (int i = NUM_ENTRIES-1; i >= 0; i--)
-            if (w_dro_is[i]) w_dro_slot = PTRW'(i);
+            if (w_fro_is[i]) w_fro_slot = PTRW'(i);
     end
 
-    // ---- drain engine : oldest-first, gated on data-ready (AR-order) -------
-    // NO active/slot FSM — the draining slot IS the oldest-valid pick
-    // (w_dro_slot), which is stable across a burst: the entry stays valid until
-    // its own last-beat evict, and later inserts are younger so they can never
-    // become "more oldest". Only a burst beat-counter is registered.
-    logic [BCW-1:0]  r_dr_beat;
-    logic            w_dr_go;
-    logic [31:0]     w_dr_idx;
-    assign w_dr_go  = w_dro_found && r_ready[w_dro_slot];   // oldest + data staged
-    assign w_dr_idx = 32'(r_ptr[w_dro_slot]) * 32'(AXI_BEATS_PER_BURST) + 32'(r_dr_beat);
+    // ---- 2-deep prefetch skid over the synchronous-read BRAM ----------------
+    // The consume side reads the skid head; its carried tag drives id/resp/last
+    // and the eviction. The fetch side runs the oldest not-fetched entry.
+    logic            w_hd_vld, w_hd_blast;
+    logic [DW-1:0]   w_hd_data;
+    logic [PTRW-1:0] w_hd_slot;
+    logic [IW-1:0]   w_hd_id;
+    logic [1:0]      w_hd_resp;
+    assign w_hd_vld   = (r_sk_cnt != 2'd0);
+    assign w_hd_data  = r_sk_data [r_sk_rd];
+    assign w_hd_slot  = r_sk_slot [r_sk_rd];
+    assign w_hd_blast = r_sk_blast[r_sk_rd];
+    assign w_hd_id    = r_sk_id   [r_sk_rd];
+    assign w_hd_resp  = r_sk_resp [r_sk_rd];
 
-    assign drain_valid_o = w_dr_go;
-    assign drain_data_o  = r_sram[w_dr_idx];
-    assign drain_id_o    = r_id[w_dro_slot];
-    assign drain_resp_o  = r_resp[w_dro_slot];
-    assign drain_last_o  = (r_dr_beat == BCW'(AXI_BEATS_PER_BURST-1));
+    logic        w_dr_fire, w_pop, w_room, w_fetch;
+    logic [31:0] w_dr_idx;
+    assign drain_valid_o = w_hd_vld;
+    assign drain_data_o  = w_hd_data;
+    assign drain_id_o    = w_hd_id;
+    assign drain_resp_o  = w_hd_resp;
+    assign drain_last_o  = w_hd_blast;
+    assign w_dr_fire     = drain_valid_o && drain_ready_i;
+    assign w_pop         = w_dr_fire;
 
-    logic w_dr_fire;
-    assign w_dr_fire = drain_valid_o && drain_ready_i;
+    // issue only when a credit is free (or a pop frees one this cycle) AND the
+    // oldest not-fetched entry has its data fully staged (AR-order gate).
+    assign w_room  = (r_credits != 2'd0) || w_pop;
+    assign w_fetch = w_room && w_fro_found && r_ready[w_fro_slot];
+    assign w_dr_idx = 32'(r_ptr[w_fro_slot]) * 32'(AXI_BEATS_PER_BURST) + 32'(r_fbeat);
 
-    assign busy_o = w_dro_found || w_iq_rd_valid;
+    assign busy_o = w_fro_found || w_iq_rd_valid || w_hd_vld || r_if_valid;
 
     // ---- sequential --------------------------------------------------------
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_age_ctr   <= '0;
             r_ret_beat  <= '0;
-            r_dr_beat   <= '0;
+            r_fbeat     <= '0;
             r_sram_occ  <= '0;
+            r_sk_rd     <= 1'b0;
+            r_sk_wr     <= 1'b0;
+            r_sk_cnt    <= 2'd0;
+            r_credits   <= 2'(SKID_DEPTH);
+            r_if_valid  <= 1'b0;
             for (int i = 0; i < NUM_ENTRIES; i++) begin
-                r_valid[i]  <= 1'b0;
-                r_issued[i] <= 1'b0;
-                r_ready[i]  <= 1'b0;
-                r_pv[i]     <= 1'b0;
-                r_older[i]  <= '0;
+                r_valid[i]   <= 1'b0;
+                r_issued[i]  <= 1'b0;
+                r_ready[i]   <= 1'b0;
+                r_pv[i]      <= 1'b0;
+                r_fetched[i] <= 1'b0;
+                r_older[i]   <= '0;
             end
         end else begin
             r_age_ctr <= r_age_ctr + 1'b1;
@@ -395,6 +456,7 @@ module pumice_rd_cmd_cam #(
                 r_id    [w_free_slot] <= ins_id_i;
                 r_qos  [w_free_slot] <= ins_qos_i;
                 r_age   [w_free_slot] <= r_age_ctr;
+                r_fetched[w_free_slot] <= 1'b0;
                 // age matrix: new slot is YOUNGEST -> older than nobody, and
                 // every other slot is older than it.
                 for (int j = 0; j < NUM_ENTRIES; j++) begin
@@ -414,7 +476,6 @@ module pumice_rd_cmd_cam #(
                     r_pv [w_iq_rd_slot] <= 1'b1;
                     r_sram_occ[w_slot_free] <= 1'b1;
                 end
-                r_sram[w_ret_idx] <= dfi_ret_data_i;
                 if (dfi_ret_last_i) begin
                     r_ready[w_iq_rd_slot] <= 1'b1;
                     r_resp [w_iq_rd_slot] <= dfi_ret_resp_i;
@@ -424,19 +485,70 @@ module pumice_rd_cmd_cam #(
                 end
             end
 
-            // drain (oldest-first, gated on ready): advance the beat counter;
-            // evict the head (w_dro_slot) on the last beat. No active latch.
-            if (w_dr_fire) begin
-                if (drain_last_o) begin
-                    r_dr_beat             <= '0;
-                    r_valid[w_dro_slot]   <= 1'b0;           // evict entry
-                    r_pv   [w_dro_slot]   <= 1'b0;
-                    r_sram_occ[r_ptr[w_dro_slot]] <= 1'b0;   // free SRAM slot
+            // ---- 2-deep prefetch skid pipeline --------------------------------
+            // Stage 1 (issue): pick the oldest not-fetched ready entry, issue the
+            // BRAM read, latch its tag as in-flight, mark it fetched at the last
+            // beat so the fetch pick advances to the next AR-order burst. Stage 2
+            // (capture, next cycle): r_rd_q holds the data and r_if_* the tag ->
+            // push into the skid FIFO. Credits bound (outstanding + buffered).
+            r_if_valid <= w_fetch;
+            if (w_fetch) begin
+                r_if_slot  <= w_fro_slot;
+                r_if_blast <= (r_fbeat == BCW'(AXI_BEATS_PER_BURST-1));
+                r_if_id    <= r_id  [w_fro_slot];
+                r_if_resp  <= r_resp[w_fro_slot];
+                if (r_fbeat == BCW'(AXI_BEATS_PER_BURST-1)) begin
+                    r_fbeat               <= '0;
+                    r_fetched[w_fro_slot] <= 1'b1;   // burst fully fetched into pipe
                 end else begin
-                    r_dr_beat <= r_dr_beat + 1'b1;
+                    r_fbeat <= r_fbeat + 1'b1;
                 end
+            end
+
+            // push the captured in-flight beat into the skid FIFO tail
+            if (r_if_valid) begin
+                r_sk_data [r_sk_wr] <= r_rd_q;
+                r_sk_slot [r_sk_wr] <= r_if_slot;
+                r_sk_blast[r_sk_wr] <= r_if_blast;
+                r_sk_id   [r_sk_wr] <= r_if_id;
+                r_sk_resp [r_sk_wr] <= r_if_resp;
+                r_sk_wr             <= r_sk_wr + 1'b1;
+            end
+            if (w_pop) r_sk_rd <= r_sk_rd + 1'b1;
+            r_sk_cnt  <= r_sk_cnt  + (r_if_valid ? 2'd1 : 2'd0) - (w_pop  ? 2'd1 : 2'd0);
+            r_credits <= r_credits - (w_fetch    ? 2'd1 : 2'd0) + (w_pop  ? 2'd1 : 2'd0);
+
+            // evict the entry when the consumer takes its last beat, sourced from
+            // the CARRIED tag (head slot), NOT the fetch pick (already advanced).
+            if (w_dr_fire && w_hd_blast) begin
+                r_valid  [w_hd_slot] <= 1'b0;            // evict entry
+                r_pv     [w_hd_slot] <= 1'b0;
+                r_fetched[w_hd_slot] <= 1'b0;
+                r_sram_occ[r_ptr[w_hd_slot]] <= 1'b0;    // free SRAM slot
             end
         end
     )
+
+    // -------------------------------------------------------------------------
+    // Data storage: a dedicated, RESET-FREE clocked process so Vivado maps it to
+    // Block RAM. A memory written inside an async-reset process (the design
+    // compiles with +define+USE_ASYNC_RESET) reports "RAM is sensitive to
+    // asynchronous reset signal" and dissolves into fabric flip-flops. One write
+    // port + one registered read port = simple dual-port BRAM. Behaviour is
+    // identical to keeping these in the RST block: r_mem is never reset and the
+    // read is registered the same cycle.
+    //
+    // READ LATENCY IS EXACTLY 1 CYCLE and the read-side pipeline depends on it:
+    // combinational address w_dr_idx + single output register r_rd_q, so data
+    // for the address issued in cycle T lands in r_rd_q in T+1 -- when the 1-deep
+    // in-flight tag (r_if_*) is paired with it and pushed into the skid. Do NOT
+    // register the read address or add an output-register stage unless you
+    // deepen the r_if_* tag pipeline to match, or every captured beat pairs with
+    // the WRONG tag (slot/last/id/resp) -> silent data corruption, no error.
+    // -------------------------------------------------------------------------
+    always_ff @(posedge aclk) begin
+        if (w_ret_fire) r_mem[w_ret_idx] <= dfi_ret_data_i;
+        if (w_fetch)    r_rd_q           <= r_mem[w_dr_idx];
+    end
 
 endmodule : pumice_rd_cmd_cam

@@ -47,7 +47,9 @@ puts "PLACE_DESIGN directive: $_place_dir"
 set_property STEPS.PLACE_DESIGN.DIRECTIVE               $_place_dir       [get_runs impl_1]
 set_property STEPS.PHYS_OPT_DESIGN.IS_ENABLED           true              [get_runs impl_1]
 set_property STEPS.PHYS_OPT_DESIGN.DIRECTIVE            AggressiveExplore [get_runs impl_1]
-set_property STEPS.ROUTE_DESIGN.DIRECTIVE               Explore           [get_runs impl_1]
+set _route_dir [expr {[info exists ::env(ROUTE_DIRECTIVE)] ? $::env(ROUTE_DIRECTIVE) : "Explore"}]
+puts "ROUTE_DESIGN directive: $_route_dir"
+set_property STEPS.ROUTE_DESIGN.DIRECTIVE               $_route_dir       [get_runs impl_1]
 set_property STEPS.POST_ROUTE_PHYS_OPT_DESIGN.IS_ENABLED  true            [get_runs impl_1]
 set_property STEPS.POST_ROUTE_PHYS_OPT_DESIGN.DIRECTIVE AggressiveExplore [get_runs impl_1]
 launch_runs impl_1 -to_step write_bitstream -jobs 4

@@ -1228,7 +1228,12 @@ def _echo_seed(tag):
     return sd
 
 
-def _run(request, testcase, params_over=None):
+def _run(request, testcase, params_over=None, enhanced=False):
+    # enhanced=True builds the arbiter with +define+PUMICE_ENHANCED so the
+    # in_order / age_threshold order-mode overlays are present. Basic pumice
+    # (the board build + every FR-FCFS test) leaves them compiled out, which is
+    # what lets the board close timing; only tests that actually drive
+    # order_mode != 0 need the enhanced arbiter.
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_core_tb_top"
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
@@ -1251,7 +1256,9 @@ def _run(request, testcase, params_over=None):
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module, testcase=testcase,
         sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
-        compile_args=["+define+USE_ASYNC_RESET", "--public-flat-rw", "--assert"],
+        compile_args=(["+define+USE_ASYNC_RESET"]
+                      + (["+define+PUMICE_ENHANCED"] if enhanced else [])
+                      + ["--public-flat-rw", "--assert"]),
         waves=(os.environ.get("WAVES", "0") == "1"),
         plus_args=(["--trace"] if os.environ.get("WAVES", "0") == "1" else []),
         keep_files=True, timescale="1ns/1ps")
@@ -1271,7 +1278,7 @@ def test_pumice_core_refresh_credit(request):
 
 
 def test_pumice_core_sched_order(request):
-    _run(request, "cocotb_test_pumice_core_sched_order")
+    _run(request, "cocotb_test_pumice_core_sched_order", enhanced=True)
 
 
 def test_pumice_core_refresh_collide(request):
@@ -1292,7 +1299,7 @@ def test_pumice_core_perf_refresh_bubbles(request):
 def test_pumice_core_perf_paging_sweep(request):
     _run(request, "cocotb_test_pumice_core_perf_paging_sweep")
 def test_pumice_core_perf_paging_sched_cross(request):
-    _run(request, "cocotb_test_pumice_core_perf_paging_sched_cross")
+    _run(request, "cocotb_test_pumice_core_perf_paging_sched_cross", enhanced=True)
 
 # ---------------------------------------------------------------------------
 # rbl / adapt_access: REMOVED 2026-09-01

@@ -190,17 +190,20 @@ class PumiceCmdArbiterTB(TBBase):
         getattr(self.dut, f'{pfx}_sch_col_i').value = col
         getattr(self.dut, f'{pfx}_sch_older_i').value = older
 
-    async def settle(self, depth=3):
-        # The arbiter is a 3-stage pipeline for DEMAND picks (col/act/pre from
-        # arg_sel): it registers the per-bank timer
-        # fan-in at its INPUT (1 cycle), the per-class SELECTION in the pre-pick
-        # register (1 cycle, added by PUMICE-017 to cut the r_older->pick cone),
-        # then the DECISION at its OUTPUT (1 cycle). So a pick reflecting
-        # freshly-set bank state / CAM entries appears 3 edges later. Advance
-        # all three, then settle combinational. INIT and REFRESH picks do NOT
-        # go through arg_sel or the pre-pick register (they are decoded directly
-        # in stage 2 from registered port/bank state), so they appear at depth=2
-        # -- those scenarios pass depth=2.
+    async def settle(self, depth=4):
+        # The arbiter is a 4-stage pipeline for DEMAND picks (col/act/pre from
+        # arg_sel): it registers the per-bank timer fan-in at its INPUT
+        # (1 cycle); the arg_sel INPUT SET in the STAGE-1a snapshot (1 cycle,
+        # added by PUMICE-018 to cut the mask-build -> argmax cone so the argmax
+        # runs on registered inputs); the per-class SELECTION in the pre-pick
+        # register (1 cycle, PUMICE-017); then the DECISION at its OUTPUT
+        # (1 cycle). So a pick reflecting freshly-set bank state / CAM entries
+        # appears 4 edges later (was 3 before PUMICE-018 added the snapshot
+        # stage). Advance all four, then settle combinational. INIT and REFRESH
+        # picks do NOT go through arg_sel / the snapshot / the pre-pick register
+        # (they are decoded directly in stage 2 from registered port/bank
+        # state), so they are UNCHANGED by the snapshot and still appear at
+        # depth=2 -- those scenarios pass settle(2) explicitly.
         for _ in range(depth):
             await RisingEdge(self.dut.aclk)
         await Timer(1, units='ns')

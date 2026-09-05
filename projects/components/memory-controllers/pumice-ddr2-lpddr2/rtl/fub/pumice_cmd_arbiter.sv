@@ -223,10 +223,22 @@ module pumice_cmd_arbiter
     logic                 r_wr_commit, r_rd_issue;
     logic [PTRW-1:0]      r_commit_slot, r_issue_slot;
 
-    // Pre-pick (stage-2) registers -- see the STAGE 1/2 split below. Declared
+    // Pre-pick registers -- see the STAGE 1a/1b/2 split below. Declared
     // here because the schedulable mask reads the guards derived from them.
     logic            rd_col_f, wr_col_f, rd_act_f, wr_act_f, rd_pre_f, wr_pre_f;
     logic [PTRW-1:0] rd_col_s, wr_col_s, rd_act_s, wr_act_s, rd_pre_s, wr_pre_s;
+
+    // arg_sel COMBINATIONAL result (STAGE 1b), one cycle before the pre-pick
+    // flop above latches it. Declared here (not with the arg_sel always_comb)
+    // because the forward guards below must exclude a slot the moment it is
+    // SELECTED -- an extra STAGE-1a snapshot register (PUMICE-018) now sits
+    // between the mask build and arg_sel, so a picked slot spends one more
+    // cycle before it lands in the pre-pick flop; without guarding the
+    // selection cycle the mask build re-includes it and it DOUBLE-ISSUES.
+    logic            w_sel_rd_col_f, w_sel_wr_col_f, w_sel_rd_act_f;
+    logic            w_sel_wr_act_f, w_sel_rd_pre_f, w_sel_wr_pre_f;
+    logic [PTRW-1:0] w_sel_rd_col_s, w_sel_wr_col_s, w_sel_rd_act_s;
+    logic [PTRW-1:0] w_sel_wr_act_s, w_sel_rd_pre_s, w_sel_wr_pre_s;
 
     // Output-stage accept (also the pre-pick advance). Declared here rather
     // than at the output register because the pre-pick flop above uses it.
@@ -235,17 +247,26 @@ module pumice_cmd_arbiter
     assign w_fire_out  = r_pick_valid && cmd_ready_i;
 
     // Pre-pick forward-guard, the twin of w_inflight_col/w_inflight_preact
-    // below but for the ADDED pipeline stage. A column or ACT/PRE now spends
-    // TWO cycles registered (pre-pick, then output) before the CAM r_issued /
-    // bank timers reflect it, so the mask must exclude a slot queued in EITHER
-    // stage -- otherwise arg_sel re-selects it and it DOUBLE-ISSUES. This block
-    // has produced two silicon double-issue bugs from exactly this
-    // registered-feedback latency (PUMICE-KMAP); the guard mirrors the proven
-    // output-stage mask rather than inventing a new mechanism. It also keeps
+    // below but for the REGISTERED pipeline stages. A column or ACT/PRE now
+    // spends THREE cycles registered (STAGE-1a snapshot -> STAGE-1b arg_sel ->
+    // pre-pick, then output) before the CAM r_issued / bank timers reflect it,
+    // so the mask must exclude a slot queued in ANY of them -- otherwise the
+    // mask build re-includes a just-selected slot, the STAGE-1a snapshot
+    // re-captures it, arg_sel re-selects it next cycle, and it DOUBLE-ISSUES.
+    // The w_sel_* terms cover the SELECTION cycle (the slot arg_sel is about to
+    // latch into the pre-pick flop): the mask build reads rd_col_f, which is
+    // still stale during that cycle, so the selection signal is the only view
+    // of the incoming pick. This block has produced two silicon double-issue
+    // bugs from exactly this registered-feedback latency (PUMICE-KMAP); the
+    // guard mirrors the proven output-stage mask rather than inventing a new
+    // mechanism, extended by one stage for the added snapshot. It also keeps
     // tCCD spacing, since the blanket column mask is what enforces it.
     logic w_prepick_col, w_prepick_preact;
-    assign w_prepick_col    = rd_col_f || wr_col_f;
-    assign w_prepick_preact = rd_act_f || wr_act_f || rd_pre_f || wr_pre_f;
+    assign w_prepick_col    = w_sel_rd_col_f || w_sel_wr_col_f
+                            || rd_col_f || wr_col_f;
+    assign w_prepick_preact = w_sel_rd_act_f || w_sel_wr_act_f
+                            || w_sel_rd_pre_f || w_sel_wr_pre_f
+                            || rd_act_f || wr_act_f || rd_pre_f || wr_pre_f;
 
     // Forward-masks covering the extra output-register cycle:
     //  - an in-flight (registered) ACT/PRE keeps ITS bank guarded until the
@@ -269,14 +290,73 @@ module pumice_cmd_arbiter
     logic [NUM_BANKS-1:0] w_prepick_guard;
     always_comb begin
         w_prepick_guard = '0;
+        // pre-pick flop (STAGE-1b result, one cycle before output)
         if (rd_act_f) w_prepick_guard |= (NUM_BANKS'(1) << f_bank(rd_sch_bank_i, rd_act_s));
         if (wr_act_f) w_prepick_guard |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, wr_act_s));
         if (rd_pre_f) w_prepick_guard |= (NUM_BANKS'(1) << f_bank(rd_sch_bank_i, rd_pre_s));
         if (wr_pre_f) w_prepick_guard |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, wr_pre_s));
+        // SELECTION cycle (STAGE-1b combinational, about to enter the pre-pick
+        // flop): rd_act_f et al are still stale here, so guard the bank of the
+        // slot arg_sel is picking THIS cycle, else the added snapshot stage lets
+        // the same bank be re-ACT'd/re-PRE'd -> double-issue. Bank field is read
+        // live (stable while the entry is valid, and the pick is intersected
+        // with live sch_valid at arg_sel).
+        if (w_sel_rd_act_f)
+            w_prepick_guard |= (NUM_BANKS'(1) << f_bank(rd_sch_bank_i, w_sel_rd_act_s));
+        if (w_sel_wr_act_f)
+            w_prepick_guard |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, w_sel_wr_act_s));
+        if (w_sel_rd_pre_f)
+            w_prepick_guard |= (NUM_BANKS'(1) << f_bank(rd_sch_bank_i, w_sel_rd_pre_s));
+        if (w_sel_wr_pre_f)
+            w_prepick_guard |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, w_sel_wr_pre_s));
     end
-    assign w_guarded = r_guard0 | r_guard1 | w_prepick_guard
+    // Banks with a COLUMN in flight in the pick pipeline (selection / pre-pick).
+    // The output-stage column is already covered by w_inflight_col below. This
+    // is the SYMMETRIC twin of w_preact_bank_guard (PUMICE-018): it stops any
+    // PRE -- conflict PRE (mask), timeout PRE, refresh-drain PRE, REFpb PRE
+    // (all of which gate on w_guarded) -- from firing to a bank that has a
+    // column mid-flight, which the added snapshot stage otherwise allows: a
+    // stage-2 timeout PRE decided while a same-bank WR column sits in the
+    // snapshot/pre-pick closes the row before the column issues -> the write
+    // lands on the closed row (adapt_time arm of fixed_open). It feeds ONLY
+    // w_guarded (never the column mask / w_preact_bank_guard), so it cannot
+    // self-throttle same-bank column streaming.
+    logic [NUM_BANKS-1:0] w_col_inflight_guard;
+    always_comb begin
+        w_col_inflight_guard = '0;
+        if (w_sel_rd_col_f)
+            w_col_inflight_guard |= (NUM_BANKS'(1) << f_bank(rd_sch_bank_i, w_sel_rd_col_s));
+        if (w_sel_wr_col_f)
+            w_col_inflight_guard |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, w_sel_wr_col_s));
+        if (rd_col_f)
+            w_col_inflight_guard |= (NUM_BANKS'(1) << f_bank(rd_sch_bank_i, rd_col_s));
+        if (wr_col_f)
+            w_col_inflight_guard |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, wr_col_s));
+    end
+
+    assign w_guarded = r_guard0 | r_guard1 | w_prepick_guard | w_col_inflight_guard
                      | ((w_inflight_preact || w_inflight_col)
                         ? (NUM_BANKS'(1) << r_bank) : '0);
+
+    // ---- in-flight ACT/PRE bank guard for the COLUMN masks (PUMICE-018) -----
+    // A column must NOT be picked to a bank that already has an ACT or PRE in
+    // the pick pipeline (selection / pre-pick / output). The existing column
+    // guards (w_pre_col_guard, w_ap_col_guard) only engage AFTER a PRE/AP
+    // FIRES; the post-fire row-image guard therefore leaves the PRE's pre-fire
+    // in-flight cycles uncovered. With the pre-pipeline depth this was masked by
+    // class priority (column > PRE, so no column could co-exist with a PRE it
+    // did not already outrank) -- but the added STAGE-1a snapshot lengthens the
+    // window: a row-hit column that becomes schedulable (e.g. its drain/issue
+    // FIFO frees) WHILE a same-bank PRE is already committed in the pipe gets
+    // captured, selected, and issued to the row that PRE is about to close ->
+    // the write lands on the closed row (lost write; caught by the DFISlavePHY
+    // golden model in top_csr / fixed_open). Guard the bank across ALL in-flight
+    // ACT/PRE stages. This does NOT throttle same-bank column streaming: only
+    // ACT/PRE (never columns) contribute to this mask, so row-buffer-hit bursts
+    // to an open bank are unaffected.
+    logic [NUM_BANKS-1:0] w_preact_bank_guard;
+    assign w_preact_bank_guard = w_prepick_guard
+                               | (w_inflight_preact ? (NUM_BANKS'(1) << r_bank) : '0);
 
     // ---- direction-turnaround guard (tWTR/tRTW staleness) ------------------
     // The global turnaround oks are FLOPPED in global_timers (a fired column's
@@ -402,7 +482,7 @@ module pumice_cmd_arbiter
                 rd_col_m[e] = rhit && r_bank_rdwr_ready[RK0][rb] && tccd_ok_i && twtr_ok_i
                               && rd_issue_ready_i && !w_inflight_col && !w_prepick_col
                               && !w_rd_turn_block && !w_ap_col_guard[rb]
-                              && !w_pre_col_guard[rb];
+                              && !w_pre_col_guard[rb] && !w_preact_bank_guard[rb];
                 rd_act_m[e] = !r_bank_row_active[RK0][rb] && !w_guarded[rb]
                               && r_bank_act_ready[RK0][rb] && tfaw_ok_i[RK0] && trrd_ok_i[RK0]
                               && !w_rfc_busy;
@@ -417,7 +497,7 @@ module pumice_cmd_arbiter
                 wr_col_m[e] = whit && r_bank_rdwr_ready[RK0][wb] && tccd_ok_i && trtw_ok_i
                               && wr_commit_ready_i && !w_inflight_col && !w_prepick_col
                               && !w_wr_turn_block && !w_ap_col_guard[wb]
-                              && !w_pre_col_guard[wb];
+                              && !w_pre_col_guard[wb] && !w_preact_bank_guard[wb];
                 wr_act_m[e] = !r_bank_row_active[RK0][wb] && !w_guarded[wb]
                               && r_bank_act_ready[RK0][wb] && tfaw_ok_i[RK0] && trrd_ok_i[RK0]
                               && !w_rfc_busy;
@@ -471,6 +551,23 @@ module pumice_cmd_arbiter
     localparam logic [1:0] ORDER_IN_ORDER = 2'd1;
     localparam logic [1:0] ORDER_AGE_THR  = 2'd3;
 
+    // BASIC vs ENHANCED build gate. Basic pumice is FR-FCFS ONLY (the build
+    // default, 8 of 9 board-char configs). The in_order / age_threshold overlays
+    // below are an ENHANCED-build feature: they need the cross-CAM global-age
+    // compare (w_rd_head_wins), a ~26-level, 78%-route cone (wr_cam -> arbiter ->
+    // rd_cam) that is the FPGA timing wall. So the overlays are compiled OUT by
+    // default -- the whole cone (and the CAMs' sch_head_rel export) constant-
+    // propagates away, which is what lets the basic build close timing. An
+    // ENHANCED build opts in with +define+PUMICE_ENHANCED to get in_order +
+    // age_threshold. NOTE: on a basic bitstream a software write of
+    // SCHED_POLICY.order_mode = in_order/age_threshold is a no-op (runs FR-FCFS)
+    // -- the host must not report those as tested.
+`ifdef PUMICE_ENHANCED
+    localparam bit SUPPORT_ORDER_MODES = 1'b1;
+`else
+    localparam bit SUPPORT_ORDER_MODES = 1'b0;
+`endif
+
     logic [NUM_ENTRIES-1:0] w_rd_head, w_wr_head;
     always_comb begin
         for (int i = 0; i < NUM_ENTRIES; i++) begin
@@ -506,7 +603,7 @@ module pumice_cmd_arbiter
     always_comb begin
         rd_col_me = rd_col_m; rd_act_me = rd_act_m; rd_pre_me = rd_pre_m;
         wr_col_me = wr_col_m; wr_act_me = wr_act_m; wr_pre_me = wr_pre_m;
-        if (sched_order_mode_i == ORDER_IN_ORDER) begin
+        if (SUPPORT_ORDER_MODES && sched_order_mode_i == ORDER_IN_ORDER) begin
             if (w_rd_head_wins) begin
                 rd_col_me &= w_rd_head; rd_act_me &= w_rd_head;
                 rd_pre_me &= w_rd_head;
@@ -516,7 +613,7 @@ module pumice_cmd_arbiter
                 wr_pre_me &= w_wr_head;
                 rd_col_me = '0; rd_act_me = '0; rd_pre_me = '0;
             end
-        end else if (sched_order_mode_i == ORDER_AGE_THR && w_boost_any) begin
+        end else if (SUPPORT_ORDER_MODES && sched_order_mode_i == ORDER_AGE_THR && w_boost_any) begin
             rd_col_me &= rd_sch_age_exceed_i; rd_act_me &= rd_sch_age_exceed_i;
             rd_pre_me &= rd_sch_age_exceed_i;
             wr_col_me &= wr_sch_age_exceed_i; wr_act_me &= wr_sch_age_exceed_i;
@@ -624,35 +721,107 @@ module pumice_cmd_arbiter
         wr_pre_q = sched_qos_en_i ? qos_top(wr_pre_me, wr_sch_qos_i) : wr_pre_me;
     end
 
-    // ---- STAGE 1: per-class selection (the deep cone) ----------------------
-    // arg_sel/arg_oldest over the age-order matrix + population + qos is the
-    // longest combinational path in the design (r_older -> here -> the pick).
-    // PUMICE-017: it is cut here with a register (the *_f/_s below are the
-    // registered "pre-pick"), so stage 1 is r_older -> selection -> flop and
-    // stage 2 is flop -> class-priority -> op-decode -> the output register.
-    logic            w_sel_rd_col_f, w_sel_wr_col_f, w_sel_rd_act_f;
-    logic            w_sel_wr_act_f, w_sel_rd_pre_f, w_sel_wr_pre_f;
-    logic [PTRW-1:0] w_sel_rd_col_s, w_sel_wr_col_s, w_sel_rd_act_s;
-    logic [PTRW-1:0] w_sel_wr_act_s, w_sel_rd_pre_s, w_sel_wr_pre_s;
+    // ---- STAGE 1a: register the arg_sel INPUT SET as one coherent epoch ----
+    // PUMICE-018. The mask build (CAM-match -> *_m -> ORDER_MODE overlay ->
+    // qos -> *_q) and the O(N^2) arg_sel argmax over the age-order matrix used
+    // to be ONE combinational stage -- ~19 logic levels, 77% route, the WNS
+    // path (rd_cam/r_row -> arbiter/rd_col_s, -0.6 ns @ 66.67 MHz). Split them
+    // with a register HERE: snapshot each arg_sel input set TOGETHER (same
+    // cycle) so the argmax next cycle runs on a coherent epoch, not a mix of a
+    // stale mask and a live age matrix. The qos'd class masks (*_q) already
+    // carry the qos narrowing baked in, so only the masks + the age-order
+    // matrix + the population arrays + the row/col sel modes need snapshotting.
+    // Advances with the output stage (w_out_ready) so the whole pick pipeline
+    // freezes coherently under cmd-FIFO backpressure. Reset to a benign empty
+    // set (masks '0 -> arg_sel found=0) so nothing issues out of reset.
+    logic [NUM_ENTRIES-1:0]             r_rd_col_q, r_rd_act_q, r_rd_pre_q;
+    logic [NUM_ENTRIES-1:0]             r_wr_col_q, r_wr_act_q, r_wr_pre_q;
+    logic [NUM_ENTRIES*NUM_ENTRIES-1:0] r_rd_older, r_wr_older;
+    logic [POPW-1:0]                    r_rd_pop [NUM_ENTRIES];
+    logic [POPW-1:0]                    r_wr_pop [NUM_ENTRIES];
+    logic [1:0]                         r_col_sel, r_row_sel;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_rd_col_q <= '0; r_rd_act_q <= '0; r_rd_pre_q <= '0;
+            r_wr_col_q <= '0; r_wr_act_q <= '0; r_wr_pre_q <= '0;
+            r_rd_older <= '0; r_wr_older <= '0;
+            r_col_sel  <= '0; r_row_sel  <= '0;
+            for (int i = 0; i < NUM_ENTRIES; i++) begin
+                r_rd_pop[i] <= '0; r_wr_pop[i] <= '0;
+            end
+        end else if (w_out_ready) begin
+            r_rd_col_q <= rd_col_q; r_rd_act_q <= rd_act_q; r_rd_pre_q <= rd_pre_q;
+            r_wr_col_q <= wr_col_q; r_wr_act_q <= wr_act_q; r_wr_pre_q <= wr_pre_q;
+            r_rd_older <= rd_sch_older_i; r_wr_older <= wr_sch_older_i;
+            r_col_sel  <= sched_col_sel_i; r_row_sel <= sched_row_sel_i;
+            for (int i = 0; i < NUM_ENTRIES; i++) begin
+                r_rd_pop[i] <= rd_pop[i]; r_wr_pop[i] <= wr_pop[i];
+            end
+        end
+    )
+
+    // ---- STAGE 1b: per-class selection (the deep argmax, now on registers) --
+    // arg_sel/arg_oldest run on the STAGE-1a snapshot, so the argmax cone is a
+    // clean register-to-register hop. The result (w_sel_*) feeds the existing
+    // pre-pick flop (rd_col_f/... below), so the pick is now
+    //   CAM-match+mask -> FLOP(1a) -> arg_sel -> FLOP(pre-pick) -> ...
+    // i.e. +1 pipeline cycle vs PUMICE-017; throughput is unchanged.
+    //
+    // DOUBLE-ISSUE RE-VALIDATION (critical). The snapshot mask is 1 cycle
+    // stale, so a slot committed/issued in the gap -- its CAM sch_valid dropped
+    // -- must not be re-picked and issued twice. INTERSECT each registered
+    // candidate mask with the LIVE per-CAM schedulable signal (rd/wr_sch_valid_i,
+    // which the CAM drops the cycle a slot is committed) before the argmax: a
+    // slot that left the schedulable set is excluded, and an empty intersected
+    // mask yields found=0 (a bubble, always safe). This is the SECOND line of
+    // defense; the w_sel_* forward guards above stop the same-slot re-pick
+    // during the cycles before sch_valid has had time to drop.
+    //
+    // LIVE ACT-GATE RE-VALIDATION (critical, PUMICE-018). sch_valid alone is
+    // NOT enough for ACTIVATE: the snapshot also freezes the rank-global ACT
+    // gates (tRFC recovery w_rfc_busy, tFAW, tRRD), and those are NOT covered
+    // by the per-bank re-issue guards. If a REF fires in the snapshot gap,
+    // w_rfc_busy rises the NEXT cycle -- but the snapshot captured its ACT
+    // candidates with w_rfc_busy=0, so a stale ACT would issue inside tRFC
+    // (the macro cmd-history checker's fatal "ACT N cyc after REFab -- refresh
+    // recovery not enforced"). Re-apply these LIVE, single-bit rank gates to
+    // the ACT picks here (cheap: no deep match, and they cannot form a loop --
+    // they depend on a counter/inputs, not on the guards they would feed).
+    // Squashing the class is safe; the ACT re-arms once the timer clears.
+    // Columns/precharge have no rank-global gate of this kind: column spacing
+    // (tCCD) and direction turnaround (tWTR/tRTW) are enforced by the blanket
+    // column guard + turnaround guards, which the extended forward guards keep
+    // covering across the added stage; precharge is per-bank (guard-covered).
+    logic w_act_gate_live;
+    assign w_act_gate_live = !w_rfc_busy && tfaw_ok_i[RK0] && trrd_ok_i[RK0];
     always_comb begin
-        {w_sel_rd_col_f, w_sel_rd_col_s} = arg_sel(sched_col_sel_i, rd_col_q, rd_sch_older_i, rd_pop);
-        {w_sel_wr_col_f, w_sel_wr_col_s} = arg_sel(sched_col_sel_i, wr_col_q, wr_sch_older_i, wr_pop);
-        {w_sel_rd_act_f, w_sel_rd_act_s} = arg_sel(sched_row_sel_i, rd_act_q, rd_sch_older_i, rd_pop);
-        {w_sel_wr_act_f, w_sel_wr_act_s} = arg_sel(sched_row_sel_i, wr_act_q, wr_sch_older_i, wr_pop);
-        {w_sel_rd_pre_f, w_sel_rd_pre_s} = arg_oldest(rd_pre_q, rd_sch_older_i);
-        {w_sel_wr_pre_f, w_sel_wr_pre_s} = arg_oldest(wr_pre_q, wr_sch_older_i);
+        {w_sel_rd_col_f, w_sel_rd_col_s} =
+            arg_sel(r_col_sel, r_rd_col_q & rd_sch_valid_i, r_rd_older, r_rd_pop);
+        {w_sel_wr_col_f, w_sel_wr_col_s} =
+            arg_sel(r_col_sel, r_wr_col_q & wr_sch_valid_i, r_wr_older, r_wr_pop);
+        {w_sel_rd_act_f, w_sel_rd_act_s} =
+            arg_sel(r_row_sel, r_rd_act_q & rd_sch_valid_i, r_rd_older, r_rd_pop);
+        {w_sel_wr_act_f, w_sel_wr_act_s} =
+            arg_sel(r_row_sel, r_wr_act_q & wr_sch_valid_i, r_wr_older, r_wr_pop);
+        {w_sel_rd_pre_f, w_sel_rd_pre_s} = arg_oldest(r_rd_pre_q & rd_sch_valid_i, r_rd_older);
+        {w_sel_wr_pre_f, w_sel_wr_pre_s} = arg_oldest(r_wr_pre_q & wr_sch_valid_i, r_wr_older);
+        if (!w_act_gate_live) begin
+            w_sel_rd_act_f = 1'b0;
+            w_sel_wr_act_f = 1'b0;
+        end
     end
 
-    // ---- STAGE 2: the registered pre-pick. Every consumer below (the
-    // write-first decision, the class-priority mux, and the main pick) reads
-    // these, so the names are unchanged from the pre-pipeline version -- only
-    // their source moved from combinational to registered. The register
-    // advances with the output stage (w_out_ready): it HOLDS its decision
-    // under cmd-FIFO backpressure rather than dropping or re-deriving it, which
-    // is why a plain flop is right here and a skid buffer would be wrong (the
-    // pre-pick is a re-evaluated decision, not a stream that must not lose a
-    // beat). See PUMICE-017. (Declared near the output register above, because
-    // the schedulable mask -- stage 1 -- must see what is queued here.)
+    // ---- the registered pre-pick (fed by STAGE-1b arg_sel). Every consumer
+    // below (the write-first decision, the class-priority mux, and the main
+    // pick) reads these, so the names are unchanged from the pre-pipeline
+    // version -- only their source moved (combinational -> STAGE-1b argmax on
+    // the STAGE-1a snapshot). The register advances with the output stage
+    // (w_out_ready): it HOLDS its decision under cmd-FIFO backpressure rather
+    // than dropping or re-deriving it, which is why a plain flop is right here
+    // and a skid buffer would be wrong (the pre-pick is a re-evaluated
+    // decision, not a stream that must not lose a beat). See PUMICE-017/018.
+    // (Declared near the output register above, because the schedulable mask
+    // must see what is queued here.)
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             rd_col_f <= 1'b0; wr_col_f <= 1'b0; rd_act_f <= 1'b0;

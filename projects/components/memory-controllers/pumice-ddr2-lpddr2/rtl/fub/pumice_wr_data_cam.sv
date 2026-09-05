@@ -206,10 +206,63 @@ module pumice_wr_data_cam #(
         for (int i = 0; i < NUM_ENTRIES; i++)
             w_rel[i] = r_age_ctr - r_age[i];
 
-    // ---- SRAM (NUM_ENTRIES * AXI_BEATS_PER_BURST beats) -------------------------------------
-    (* ram_style = "distributed" *)
-    logic [DW-1:0] r_sram  [N_SRAM_SLOTS*AXI_BEATS_PER_BURST];
-    logic [SW-1:0] r_strb  [N_SRAM_SLOTS*AXI_BEATS_PER_BURST];
+    // ---- data SRAM (N_SRAM_SLOTS * AXI_BEATS_PER_BURST beats) ----------------
+    // Was a distributed flop array {r_sram,r_strb} with COMBINATIONAL multi-port
+    // reads -- LUT-heavy (the wide read muxes) and 0 BRAM used. Now ONE BRAM word
+    // per (slot,beat) holding {strb,data} packed, with a SYNCHRONOUS (registered)
+    // read -> infers block RAM. One write port (fill) + one read port SHARED by
+    // the snarf and commit streams (never concurrent; commit has priority).
+    // The synchronous read has 1-cycle latency; a 2-DEEP PREFETCH SKID (below)
+    // decouples fetch from consume so the read port stays busy across burst
+    // boundaries (beat-0 of the next burst prefetches while the current tail
+    // drains). {strb,data} stay in the same word so a read returns them
+    // atomically (strobes in sync with data).
+    localparam int SRW = DW + SW;
+    (* ram_style = "block" *)
+    logic [SRW-1:0]  r_mem [N_SRAM_SLOTS*AXI_BEATS_PER_BURST];
+    logic [SRW-1:0]  r_rd_q;    // BRAM read-data register (output of the sync read)
+
+    // ---- 2-deep prefetch skid FIFO (cross-burst) ---------------------------
+    // Decouples FETCH from CONSUME so beat-0 of the NEXT burst can be prefetched
+    // while the current burst's tail still drains -> no per-burst bubble. Each
+    // entry carries a full tag so the consume side never needs the source-FIFO
+    // head (which has already advanced to the next burst). One BRAM read port,
+    // 1-cycle latency, tracked by an in-flight register (r_if_*); a credit count
+    // bounds (outstanding + buffered) <= SKID_DEPTH so a stalled consumer never
+    // loses a beat.
+    localparam int SKID_DEPTH = 2;
+    logic [SRW-1:0]  r_sk_data  [SKID_DEPTH];
+    logic            r_sk_iscm  [SKID_DEPTH]; // commit (else snarf)
+    logic [PTRW-1:0] r_sk_slot  [SKID_DEPTH]; // entry slot (eviction / SRAM free)
+    logic            r_sk_blast [SKID_DEPTH]; // last beat of the burst
+    logic            r_sk_agg   [SKID_DEPTH]; // r_agg of the entry (B consolidation)
+    logic            r_sk_slast [SKID_DEPTH]; // r_last of the entry (final sub-cmd)
+    logic [IW-1:0]   r_sk_id    [SKID_DEPTH]; // r_id  of the entry (B id)
+    logic            r_sk_rd;                 // head pointer (1 bit; DEPTH=2)
+    logic            r_sk_wr;                 // tail pointer
+    logic [1:0]      r_sk_cnt;                // occupancy 0..2
+    logic [1:0]      r_credits;               // SKID_DEPTH - (outstanding + buffered)
+
+    // Snarf anti-starvation. The single BRAM read port is shared by the commit
+    // (write-drain) and snarf (read-your-write forward) streams with COMMIT
+    // PRIORITY -- the DRAM write-drain is the bandwidth path. Unbounded priority
+    // would let a sustained commit drain starve a pending snarf forever (a
+    // multi-ID out-of-order master keeps the drain FIFO non-empty). r_sn_wait
+    // counts cycles a pending snarf is preempted by commit; at SN_STARVE_LIMIT
+    // the snarf is granted one fetch, bounding forwarded-read latency without a
+    // second read port (a RAMB36 cannot do 2 reads + 1 write).
+    localparam int   SN_STARVE_LIMIT = 16;
+    logic [4:0]      r_sn_wait;
+    logic            w_sn_starved;
+
+    // in-flight read (issued last cycle; its data lands in r_rd_q this cycle)
+    logic            r_if_valid;
+    logic            r_if_iscm;
+    logic [PTRW-1:0] r_if_slot;
+    logic            r_if_blast;
+    logic            r_if_agg;
+    logic            r_if_slast;
+    logic [IW-1:0]   r_if_id;
 
     // ---- free-slot allocation ----------------------------------------------
     logic            w_have_free;
@@ -462,54 +515,93 @@ module pumice_wr_data_cam #(
     // exactly like the fill engine reads its fill FIFO. The head slot IS the
     // "active" slot; "active" == FIFO non-empty; the slot FIFO is popped on the
     // last beat. (declared before the index helpers that reference them)
-    logic [BCW-1:0]  r_sn_beat;   // snarf-stream beat within the burst
-    logic [BCW-1:0]  r_cm_beat;   // commit-drain beat within the burst
+    // address-side beat pointers -- run one beat AHEAD of the presented beat so
+    // each stream sustains 1 beat/cycle over the synchronous-read BRAM.
+    logic [BCW-1:0]  r_cm_fbeat;  // commit fetch beat (next beat to issue)
+    logic [BCW-1:0]  r_sn_fbeat;  // snarf  fetch beat (next beat to issue)
 
     // SRAM flat-index helpers (index by the FIFO-head slot's ptr; 32-bit width)
     logic [31:0] w_sn_idx, w_cm_idx, w_fill_idx;
-    assign w_sn_idx   = 32'(r_ptr[w_sq_rd_slot]) * 32'(AXI_BEATS_PER_BURST) + 32'(r_sn_beat);
-    assign w_cm_idx   = 32'(r_ptr[w_dq_rd_slot]) * 32'(AXI_BEATS_PER_BURST) + 32'(r_cm_beat);
+    assign w_sn_idx   = 32'(r_ptr[w_sq_rd_slot]) * 32'(AXI_BEATS_PER_BURST) + 32'(r_sn_fbeat);
+    assign w_cm_idx   = 32'(r_ptr[w_dq_rd_slot]) * 32'(AXI_BEATS_PER_BURST) + 32'(r_cm_fbeat);
     assign w_fill_idx = 32'(w_fill_slot)         * 32'(AXI_BEATS_PER_BURST) + 32'(r_fill_beat);
 
-    // ---- snarf read engine (FIFO-fed, beat-counter only) -------------------
-    assign snarf_rd_valid_o = w_sq_rd_valid;                 // a slot is queued
-    assign snarf_rd_data_o  = r_sram[w_sn_idx];
-    assign snarf_rd_last_o  = (r_sn_beat == BCW'(AXI_BEATS_PER_BURST-1));
+    // ---- 2-deep prefetch skid over the BRAM (snarf XOR commit) --------------
+    // The consume side reads the skid head; its carried tag drives last, the B
+    // strobe and the eviction. Commit and snarf share the single BRAM read port;
+    // only the per-cycle PORT GRANT is exclusive (commit priority + snarf anti-
+    // starvation, below) -- the two source FIFOs are independent and can both be
+    // non-empty, so aggregate concurrent snarf+commit throughput is 1 beat/cycle
+    // (the accepted price of one BRAM read port). One skid suffices; the per-
+    // entry is_cm tag routes each beat to the right consumer, and a stalled
+    // consumer of one stream can head-of-line-block a beat of the other.
+    logic            w_hd_vld, w_hd_iscm, w_hd_blast, w_hd_agg, w_hd_slast;
+    logic [SRW-1:0]  w_hd_data;
+    logic [PTRW-1:0] w_hd_slot;
+    logic [IW-1:0]   w_hd_id;
+    assign w_hd_vld   = (r_sk_cnt != 2'd0);
+    assign w_hd_data  = r_sk_data [r_sk_rd];
+    assign w_hd_iscm  = r_sk_iscm [r_sk_rd];
+    assign w_hd_slot  = r_sk_slot [r_sk_rd];
+    assign w_hd_blast = r_sk_blast[r_sk_rd];
+    assign w_hd_agg   = r_sk_agg  [r_sk_rd];
+    assign w_hd_slast = r_sk_slast[r_sk_rd];
+    assign w_hd_id    = r_sk_id   [r_sk_rd];
 
-    // ---- commit drain read-engine + evict (FIFO-fed, beat-counter only) ----
-    assign cm_rd_valid_o  = w_dq_rd_valid;                   // a slot is queued
-    assign cm_rd_data_o   = r_sram[w_cm_idx];
-    assign cm_rd_strb_o   = r_strb[w_cm_idx];
-    assign cm_rd_last_o   = (r_cm_beat == BCW'(AXI_BEATS_PER_BURST-1));
-
-    logic w_sn_fire, w_cm_fire;
-    assign w_sn_fire = snarf_rd_valid_o && snarf_rd_ready_i;
+    logic w_cm_fire, w_sn_fire, w_pop, w_room;
+    assign cm_rd_valid_o    = w_hd_vld &&  w_hd_iscm;
+    assign snarf_rd_valid_o = w_hd_vld && !w_hd_iscm;
+    assign cm_rd_data_o     = w_hd_data[DW-1:0];
+    assign cm_rd_strb_o     = w_hd_data[SRW-1:DW];
+    assign snarf_rd_data_o  = w_hd_data[DW-1:0];
+    assign cm_rd_last_o     = w_hd_blast;
+    assign snarf_rd_last_o  = w_hd_blast;
     assign w_cm_fire = cm_rd_valid_o    && cm_rd_ready_i;
+    assign w_sn_fire = snarf_rd_valid_o && snarf_rd_ready_i;
+    assign w_pop     = w_cm_fire || w_sn_fire;
 
-    // pop the request FIFO once the final beat of the burst is accepted
-    assign w_sq_rd_ready  = w_sn_fire && snarf_rd_last_o;
-    assign w_dq_rd_ready  = w_cm_fire && cm_rd_last_o;
+    // fetch arbitration: commit priority; issue only when a credit is free (or a
+    // pop frees one this cycle). Pop the source slot FIFO at FETCH-last so the
+    // fetch pointer can advance into the NEXT burst's slot immediately, keeping
+    // the read port busy across the burst boundary (the bubble fix).
+    logic        w_cm_fetch, w_sn_fetch, w_issue;
+    logic [31:0] w_rd_idx;
+    assign w_room     = (r_credits != 2'd0) || w_pop;
+    assign w_sn_starved = (r_sn_wait >= 5'(SN_STARVE_LIMIT));
+    // snarf wins the port when commit is idle OR snarf has waited too long;
+    // commit wins otherwise. The two are mutually exclusive by construction.
+    assign w_sn_fetch = w_room && w_sq_rd_valid && (!w_dq_rd_valid || w_sn_starved);
+    assign w_cm_fetch = w_room &&  w_dq_rd_valid && !w_sn_fetch;
+    assign w_issue    = w_cm_fetch || w_sn_fetch;
+    assign w_rd_idx   = w_cm_fetch ? w_cm_idx : w_sn_idx;
+    assign w_dq_rd_ready = w_cm_fetch && (r_cm_fbeat == BCW'(AXI_BEATS_PER_BURST-1));
+    assign w_sq_rd_ready = w_sn_fetch && (r_sn_fbeat == BCW'(AXI_BEATS_PER_BURST-1));
 
-    // B consolidation: a split host burst produces one B, strobed on the FINAL
-    // sub-command's commit (agg && last). Non-split bursts (agg=0) always strobe.
-    // Earlier sub-commands of a split evict silently (no B). Assumes a burst's
-    // sub-commands commit in order (holds when they share a bank/row - the
-    // pumice-aligned case, e.g. consecutive columns).
-    assign commit_done_valid_o = w_cm_fire && cm_rd_last_o &&
-                                 (!r_agg[w_dq_rd_slot] || r_last[w_dq_rd_slot]);
-    assign commit_done_id_o    = r_id[w_dq_rd_slot];
+    // B consolidation: one B per host burst, strobed on the FINAL sub-command's
+    // commit-last (agg && slast). Non-split bursts (agg=0) always strobe. Sourced
+    // from the CARRIED tag (the drain FIFO head has already advanced past it).
+    assign commit_done_valid_o = w_cm_fire && w_hd_blast &&
+                                 (!w_hd_agg || w_hd_slast);
+    assign commit_done_id_o    = w_hd_id;
 
-    assign busy_o = w_old_found || w_sq_rd_valid || w_dq_rd_valid || w_fq_rd_valid;
+    assign busy_o = w_old_found || w_sq_rd_valid || w_dq_rd_valid || w_fq_rd_valid
+                    || w_hd_vld || r_if_valid;
 
     // ---- sequential --------------------------------------------------------
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_age_ctr   <= '0;
             r_fill_beat <= '0;
-            r_sn_beat   <= '0;
-            r_cm_beat   <= '0;
+            r_cm_fbeat  <= '0;
+            r_sn_fbeat  <= '0;
             r_sram_occ  <= '0;
             r_sp_valid  <= 1'b0;
+            r_sk_rd     <= 1'b0;
+            r_sk_wr     <= 1'b0;
+            r_sk_cnt    <= 2'd0;
+            r_credits   <= 2'(SKID_DEPTH);
+            r_if_valid  <= 1'b0;
+            r_sn_wait   <= 5'd0;
             for (int i = 0; i < NUM_ENTRIES; i++) begin
                 r_valid[i] <= 1'b0;
                 r_pv[i]    <= 1'b0;
@@ -557,16 +649,57 @@ module pumice_wr_data_cam #(
                     r_pv [w_fq_rd_slot]  <= 1'b1;
                     r_sram_occ[w_slot_free] <= 1'b1;
                 end
-                r_sram[w_fill_idx] <= wd_data_i;
-                r_strb[w_fill_idx] <= wd_strb_i;
                 r_fill_beat <= wd_last_i ? '0 : (r_fill_beat + 1'b1);
                 if (wd_last_i) r_fdone[w_fq_rd_slot] <= 1'b1;
             end
 
-            // snarf read engine: advance the beat counter; the head slot is
-            // popped combinationally (w_sq_rd_ready) on the last beat.
-            if (w_sn_fire)
-                r_sn_beat <= snarf_rd_last_o ? '0 : (r_sn_beat + 1'b1);
+            // ---- 2-deep prefetch skid pipeline --------------------------------
+            // Stage 1 (issue): pick a beat, issue the BRAM read, latch its tag as
+            // in-flight. Stage 2 (capture, next cycle): r_rd_q holds the data and
+            // r_if_* the tag -> push into the skid FIFO. Credits bound (outstanding
+            // + buffered) to SKID_DEPTH so a stalled consumer never loses a beat.
+            r_if_valid <= w_issue;
+            if (w_issue) begin
+                r_if_iscm  <= w_cm_fetch;
+                r_if_slot  <= w_cm_fetch ? w_dq_rd_slot : w_sq_rd_slot;
+                r_if_blast <= w_cm_fetch ? (r_cm_fbeat == BCW'(AXI_BEATS_PER_BURST-1))
+                                         : (r_sn_fbeat == BCW'(AXI_BEATS_PER_BURST-1));
+                r_if_agg   <= w_cm_fetch ? r_agg [w_dq_rd_slot] : 1'b0;
+                r_if_slast <= w_cm_fetch ? r_last[w_dq_rd_slot] : 1'b0;
+                r_if_id    <= w_cm_fetch ? r_id  [w_dq_rd_slot] : r_id[w_sq_rd_slot];
+            end
+
+            // advance the fetch beat pointer; wrap at the last beat of the burst
+            // (the source FIFO is popped combinationally via w_*_rd_ready there,
+            // so the next cycle already reads the next burst's slot).
+            if (w_cm_fetch) begin
+                if (r_cm_fbeat == BCW'(AXI_BEATS_PER_BURST-1)) r_cm_fbeat <= '0;
+                else                                           r_cm_fbeat <= r_cm_fbeat + 1'b1;
+            end
+            if (w_sn_fetch) begin
+                if (r_sn_fbeat == BCW'(AXI_BEATS_PER_BURST-1)) r_sn_fbeat <= '0;
+                else                                           r_sn_fbeat <= r_sn_fbeat + 1'b1;
+            end
+
+            // push the captured in-flight beat into the skid FIFO tail
+            if (r_if_valid) begin
+                r_sk_data [r_sk_wr] <= r_rd_q;
+                r_sk_iscm [r_sk_wr] <= r_if_iscm;
+                r_sk_slot [r_sk_wr] <= r_if_slot;
+                r_sk_blast[r_sk_wr] <= r_if_blast;
+                r_sk_agg  [r_sk_wr] <= r_if_agg;
+                r_sk_slast[r_sk_wr] <= r_if_slast;
+                r_sk_id   [r_sk_wr] <= r_if_id;
+                r_sk_wr             <= r_sk_wr + 1'b1;
+            end
+            if (w_pop) r_sk_rd <= r_sk_rd + 1'b1;
+            r_sk_cnt  <= r_sk_cnt  + (r_if_valid ? 2'd1 : 2'd0) - (w_pop   ? 2'd1 : 2'd0);
+            r_credits <= r_credits - (w_issue    ? 2'd1 : 2'd0) + (w_pop   ? 2'd1 : 2'd0);
+
+            // snarf anti-starvation counter: clear on grant, else count cycles a
+            // pending snarf is preempted by commit (room available, commit won).
+            if (w_sn_fetch)                                   r_sn_wait <= 5'd0;
+            else if (w_sq_rd_valid && w_room && !w_sn_starved) r_sn_wait <= r_sn_wait + 5'd1;
 
             // commit MARK: the arbiter's commit sets scheduled (immediate) +
             // enqueues the slot into the drain FIFO. Excluded from sched_lu/
@@ -574,22 +707,43 @@ module pumice_wr_data_cam #(
             if (w_commit_fire)
                 r_sched[commit_slot_i] <= 1'b1;
 
-            // commit DRAIN read-engine + evict on last (sourced from drain FIFO;
-            // the head slot is popped combinationally on the last beat). The
-            // draining slot is the FIFO head (w_dq_rd_slot), stable until pop.
-            if (w_cm_fire) begin
-                if (cm_rd_last_o) begin
-                    r_cm_beat              <= '0;
-                    r_valid[w_dq_rd_slot]  <= 1'b0;          // evict entry
-                    r_pv   [w_dq_rd_slot]  <= 1'b0;
-                    r_fdone[w_dq_rd_slot]  <= 1'b0;
-                    r_sched[w_dq_rd_slot]  <= 1'b0;
-                    r_sram_occ[r_ptr[w_dq_rd_slot]] <= 1'b0; // free SRAM slot
-                end else begin
-                    r_cm_beat <= r_cm_beat + 1'b1;
-                end
+            // commit DRAIN evict on the last CONSUMED beat, sourced from the
+            // CARRIED tag (head slot), NOT the drain FIFO head (already popped at
+            // fetch-last). Frees the entry and its SRAM slot; the fetch address
+            // side has already moved on to the next burst.
+            if (w_cm_fire && w_hd_blast) begin
+                r_valid[w_hd_slot]  <= 1'b0;             // evict entry
+                r_pv   [w_hd_slot]  <= 1'b0;
+                r_fdone[w_hd_slot]  <= 1'b0;
+                r_sched[w_hd_slot]  <= 1'b0;
+                r_sram_occ[r_ptr[w_hd_slot]] <= 1'b0;    // free SRAM slot
             end
         end
     )
+
+    // -------------------------------------------------------------------------
+    // Data storage: a dedicated, RESET-FREE clocked process so Vivado maps it to
+    // Block RAM. RAM contents cannot be async-reset; a memory written inside an
+    // async-reset process (the design compiles with +define+USE_ASYNC_RESET)
+    // reports "RAM is sensitive to asynchronous reset signal" and dissolves into
+    // fabric flip-flops -- defeating the whole point of moving data out of the
+    // CAM. One write port + one registered read port = simple dual-port BRAM.
+    // Behaviour is identical to keeping these two assignments in the RST block:
+    // r_mem is never reset, and the read is registered the same cycle.
+    //
+    // READ LATENCY IS EXACTLY 1 CYCLE and the read-side pipeline depends on it:
+    // the address w_rd_idx is combinational, the output r_rd_q is a single
+    // register, so data for the address issued in cycle T lands in r_rd_q in
+    // T+1 -- which is when the 1-deep in-flight tag (r_if_*) is paired with it
+    // and pushed into the skid. Do NOT register the read address or add an
+    // output-register stage (a common Fmax move, also selectable on RAMB) unless
+    // you deepen the r_if_* tag pipeline to match: otherwise every captured beat
+    // pairs with the WRONG tag (slot/last/id) -> silent data corruption and
+    // mis-routed B/eviction, with no elaboration error.
+    // -------------------------------------------------------------------------
+    always_ff @(posedge aclk) begin
+        if (w_wd_fire)                r_mem[w_fill_idx] <= {wd_strb_i, wd_data_i};
+        if (w_cm_fetch || w_sn_fetch) r_rd_q            <= r_mem[w_rd_idx];
+    end
 
 endmodule : pumice_wr_data_cam

@@ -239,6 +239,23 @@ set_property INTERNAL_VREF 0.900 [get_iobanks 35]
 ## note above: constraining the pumice cone backfires here). The route wall on
 ## the snarf/scheduler cone needs a pipeline register, not floorplanning.
 
+## CORE Pblock (BRAM-anchored, wr_cam+rd_cam+arbiter into CLOCKREGION_X0Y1:X0Y3)
+## was tried 2026-09-04 after the data->BRAM change regressed the w_rd_head_wins
+## cross-CAM compare to WNS -4.237. It moved WNS only +0.19 ns (-4.045), route
+## still 78%, and split the r_rfc_cnt carry chain across the region -- i.e. the
+## SAME result as the pre-BRAM u_ifc attempt below. Floorplanning this cone does
+## not work; the 26-level global-age compare needs a PIPELINE REGISTER. Pblock
+## removed. See w_rd_head_wins pipelining work.
+
+## A u_arbiter-only compaction Pblock (CLOCKREGION_X1Y1:X1Y2) was tried
+## 2026-09-04 to attack the route-dominated intra-arbiter miss (pipelined build
+## WNS -0.175). It BACKFIRED: WNS -1.013 (worse), 133 failing endpoints. Even a
+## single-module Pblock hurts here -- confining u_arbiter congested the region
+## (its own route grew to 12.5ns) AND pushed the CAMs away (u_rd_cam -> 81
+## failing endpoints on the lengthened CAM->arbiter feed). So NO floorplanning
+## of the scheduler/CAM cone works, single-module included; the levers are
+## frequency or further logic-depth reduction. Pblock removed.
+
 ## bank_lsb (address-map config CSR) is set once before init and is CONSTANT
 ## during DRAM traffic, so its combinational fan-out into the address mapper /
 ## CAMs never needs to meet a per-cycle deadline. Relax paths that START there.
