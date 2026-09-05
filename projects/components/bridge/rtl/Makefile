@@ -23,8 +23,27 @@ FLATTEN          := $(REPO_ROOT)/bin/flatten_filelist.py
 # instantiates, and are that library's business, not this one's. UNDRIVEN is
 # deliberately NOT waived: an undriven output on a generated bridge port is a
 # routing defect, which is exactly what this gate exists to catch.
+#
+# PINCONNECTEMPTY is waived because a deliberately-open pin is idiomatic here
+# and pervasive (`.busy()`, `.count()`, the two overridden USER outputs in the
+# AXI5-Lite converters). Without the waiver this gate failed on ALL 36
+# variants, and a gate that fails on everything reports nothing -- it went
+# unread while the real defects below sat in the tree.
 LINT_WAIVERS = -Wno-UNUSEDSIGNAL -Wno-UNUSEDPARAM -Wno-VARHIDDEN \
-               -Wno-SYNCASYNCNET -Wno-DECLFILENAME
+               -Wno-SYNCASYNCNET -Wno-DECLFILENAME -Wno-PINCONNECTEMPTY
+
+# The build gate (`make build-check`) runs the SAME sources through a real
+# model build with the flags cocotb passes. This is not redundant with lint.
+# --lint-only never runs the scheduling analysis that finds circular
+# combinational logic, and a plain `-cc` build optimises across such a loop and
+# reports nothing either. It takes --public-flat-rw -- which cocotb always
+# passes, so every signal stays addressable and nothing is flattened -- to make
+# the cycle real. A UNOPTFLAT in rtl/amba/monitor went unseen that way and
+# broke every *_mon variant's build; see TASK-081.
+BUILD_FLAGS = -cc --public-flat-rw --trace --trace-structs
+# WIDTH* and MULTIDRIVEN are lint's job (above); this pass exists for the
+# scheduling classes lint structurally cannot see.
+BUILD_WAIVERS = $(LINT_WAIVERS) -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-MULTIDRIVEN
 
 # Lint output directories
 LINT_DIR = lint_reports
@@ -82,6 +101,36 @@ verilator: ## Run Verilator lint on all files
 		exit 1; \
 	fi
 	$(call print_success,Verilator lint complete. Reports: $(VERILATOR_DIR)/)
+
+.PHONY: build-check
+build-check: ## Build every variant with the cocotb flag set (catches UNOPTFLAT)
+	$(call print_header,Building every bridge variant (cocotb flag set))
+	@mkdir -p $(VERILATOR_DIR)
+	@rm -f $(VERILATOR_DIR)/build_all.log
+	@fail=0; n=0; \
+	for fl in $(BRIDGE_FILELISTS); do \
+		top=$$(basename $$fl .f); n=$$((n+1)); \
+		REPO_ROOT=$(REPO_ROOT) python3 $(FLATTEN) $$fl --resolve-env --absolute-paths \
+			> $(VERILATOR_DIR)/.flat.f 2>/dev/null; \
+		echo "===== $$top =====" >> $(VERILATOR_DIR)/build_all.log; \
+		if $(VERILATOR) $(BUILD_FLAGS) --Mdir $(VERILATOR_DIR)/.build -Wall \
+			$(BUILD_WAIVERS) --top-module $$top \
+			-f $(VERILATOR_DIR)/.flat.f >> $(VERILATOR_DIR)/build_all.log 2>&1; then \
+			:; \
+		else \
+			echo "  FAIL $$top"; fail=$$((fail+1)); \
+		fi; \
+		rm -rf $(VERILATOR_DIR)/.build; \
+	done; \
+	rm -f $(VERILATOR_DIR)/.flat.f; \
+	if [ $$fail -eq 0 ]; then \
+		echo "$(GREEN)✓ All $$n variants build clean$(RESET)"; \
+	else \
+		echo "$(RED)✗ Build check failed: $$fail of $$n variants$(RESET)"; \
+		grep -E "%Warning|%Error" $(VERILATOR_DIR)/build_all.log | \
+			sed 's/.*\(%[A-Za-z]*-[A-Z]*\).*/\1/' | sort | uniq -c | sort -rn; \
+		exit 1; \
+	fi
 
 .PHONY: verible
 verible: ## Run Verible lint on all files
