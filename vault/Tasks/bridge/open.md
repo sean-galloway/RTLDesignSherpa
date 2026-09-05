@@ -329,3 +329,64 @@ that generated tests must be regenerated, never hand-edited (CRITICAL RULE #0).
 
 **Related:** [[TASK-078]], [[COMMON-025]], [[MATH-010]], [[CDC-001]] are the
 same task in the rtl/ areas.
+
+---
+
+### BRIDGE-008: boundary probe fails on any AXI4-Lite slave larger than the TB's 4 KB memory model
+
+**Priority:** P2. Two red tests, both in generated collateral, no RTL defect
+behind them -- but they are red, and a red test nobody has diagnosed is how a
+real one gets ignored.
+**Status:** open 2026-09-05. Surfaced by the axil5 work (A5-3d): fixing the
+`logic [-1:0]` build failure on AXI4-Lite MASTER ports made mix_a..d compile
+for the first time, and two simulation failures appeared behind it.
+
+**Failing:** `test_bridge_mix_a_boundary_probe`, `test_bridge_mix_c_boundary_probe`.
+
+**The discriminator is exact** -- it is the AXI4-Lite SLAVE's region size:
+
+| bridge | AXI4-Lite slave | region | result |
+|---|---|---|---|
+| mix_a | `axil_periph` | 64 KB | FAIL |
+| mix_c | `cfg_regs` | 64 KB | FAIL |
+| mix_d | `doorbell` | 4 KB (= the cap) | pass |
+| mix_b | none | -- | pass |
+
+**Mechanism.** The generated TB seeds only `SLAVE_MEM_CAP_BYTES = 4096` of each
+slave's MemoryModel, and its class comment states the premise this rests on:
+
+> Routing-only probes (address_decode beyond page 0) work outside the cap --
+> the framework slave BFMs silently drop OOR writes and fall back to
+> addr-as-data on OOR reads, so the AW/AR routing assertion still fires.
+
+That premise is false for the AXI4-Lite slave BFM. `AXIL4SlaveWrite`'s response
+path does:
+
+```python
+except Exception as e:
+    if self.log: self.log.warning(f"Memory write failed at 0x{address:08X}: {e}")
+    resp = 2  # SLVERR
+```
+
+So a probe at `base + 0x8000` on a 64 KB axil slave reaches the right slave --
+routing is CORRECT, which is what the probe set out to test -- and is then
+answered SLVERR because the model holds 4 KB. The AXI4 master's
+`write_transaction` raises on the error response and the test dies.
+
+**Two candidate fixes, and they are not equivalent:**
+
+1. **Cap the probe addresses** to the modelled window for protocols whose BFM
+   errors out of range. Smallest change, but it narrows what the boundary
+   probe covers -- and covering the far edge of the window is the point of
+   the test.
+2. **Make `AXIL4SlaveWrite`/`AXIL4SlaveRead` behave as the TB comment says**
+   (drop OOR writes, addr-as-data on OOR reads), matching the AXI4 slave BFM.
+   This is the fix that makes the comment true, but it lives in RDS-DV and
+   changes behaviour every AXIL test sees -- so it needs its own check that
+   nothing was relying on the SLVERR.
+
+Decide which contract is right before writing either. Whichever wins, the TB's
+class comment has to end up describing what the BFMs actually do -- a comment
+asserting a behaviour no BFM implements is what let this sit unnoticed.
+
+**Not a blocker for anything.** Routing is proven correct by the same run.
