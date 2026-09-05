@@ -488,7 +488,7 @@ module cpu_rd_adapter
                 fub_axi_rvalid = conv_32b_rvalid;
             end
             4'b0010: begin  // Slave 1 (64b)
-                fub_axi_rid = cpu_rd_64b_r.id;
+                fub_axi_rid = cpu_rd_64b_r.id[3:0];
                 fub_axi_rdata = cpu_rd_64b_r.data;
                 fub_axi_rresp = cpu_rd_64b_r.resp;
                 fub_axi_rlast = cpu_rd_64b_r.last;

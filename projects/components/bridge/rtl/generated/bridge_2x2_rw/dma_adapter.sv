@@ -592,12 +592,12 @@ module dma_adapter
 
         case (b_slave_select)
             2'b01: begin  // Slave 0 (32b)
-                fub_axi_bid = dma_32b_b.id;
+                fub_axi_bid = dma_32b_b.id[3:0];
                 fub_axi_bresp = dma_32b_b.resp;
                 fub_axi_bvalid = dma_32b_bvalid;
             end
             2'b10: begin  // Slave 1 (32b)
-                fub_axi_bid = dma_32b_b.id;
+                fub_axi_bid = dma_32b_b.id[3:0];
                 fub_axi_bresp = dma_32b_b.resp;
                 fub_axi_bvalid = dma_32b_bvalid;
             end
@@ -636,14 +636,14 @@ module dma_adapter
 
         case (r_slave_select)
             2'b01: begin  // Slave 0 (32b)
-                fub_axi_rid = dma_32b_r.id;
+                fub_axi_rid = dma_32b_r.id[3:0];
                 fub_axi_rdata = dma_32b_r.data;
                 fub_axi_rresp = dma_32b_r.resp;
                 fub_axi_rlast = dma_32b_r.last;
                 fub_axi_rvalid = dma_32b_rvalid;
             end
             2'b10: begin  // Slave 1 (32b)
-                fub_axi_rid = dma_32b_r.id;
+                fub_axi_rid = dma_32b_r.id[3:0];
                 fub_axi_rdata = dma_32b_r.data;
                 fub_axi_rresp = dma_32b_r.resp;
                 fub_axi_rlast = dma_32b_r.last;

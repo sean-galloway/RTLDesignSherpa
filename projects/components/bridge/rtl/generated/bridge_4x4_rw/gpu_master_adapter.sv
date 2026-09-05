@@ -956,7 +956,7 @@ module gpu_master_adapter
                 fub_axi_bvalid = conv_64b_bvalid;
             end
             4'b1000: begin  // Slave 3 (256b)
-                fub_axi_bid = gpu_master_256b_b.id;
+                fub_axi_bid = gpu_master_256b_b.id[3:0];
                 fub_axi_bresp = gpu_master_256b_b.resp;
                 fub_axi_bvalid = gpu_master_256b_bvalid;
             end
@@ -1012,7 +1012,7 @@ module gpu_master_adapter
                 fub_axi_rvalid = conv_64b_rvalid;
             end
             4'b1000: begin  // Slave 3 (256b)
-                fub_axi_rid = gpu_master_256b_r.id;
+                fub_axi_rid = gpu_master_256b_r.id[3:0];
                 fub_axi_rdata = gpu_master_256b_r.data;
                 fub_axi_rresp = gpu_master_256b_r.resp;
                 fub_axi_rlast = gpu_master_256b_r.last;

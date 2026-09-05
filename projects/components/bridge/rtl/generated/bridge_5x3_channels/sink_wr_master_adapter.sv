@@ -384,12 +384,12 @@ module sink_wr_master_adapter
 
         case (b_slave_select)
             3'b001: begin  // Slave 0 (256b)
-                fub_axi_bid = sink_wr_master_256b_b.id;
+                fub_axi_bid = sink_wr_master_256b_b.id[7:0];
                 fub_axi_bresp = sink_wr_master_256b_b.resp;
                 fub_axi_bvalid = sink_wr_master_256b_bvalid;
             end
             3'b010: begin  // Slave 1 (256b)
-                fub_axi_bid = sink_wr_master_256b_b.id;
+                fub_axi_bid = sink_wr_master_256b_b.id[7:0];
                 fub_axi_bresp = sink_wr_master_256b_b.resp;
                 fub_axi_bvalid = sink_wr_master_256b_bvalid;
             end

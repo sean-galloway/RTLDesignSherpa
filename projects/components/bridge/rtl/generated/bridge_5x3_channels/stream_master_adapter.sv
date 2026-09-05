@@ -592,12 +592,12 @@ module stream_master_adapter
 
         case (b_slave_select)
             3'b001: begin  // Slave 0 (256b)
-                fub_axi_bid = stream_master_256b_b.id;
+                fub_axi_bid = stream_master_256b_b.id[7:0];
                 fub_axi_bresp = stream_master_256b_b.resp;
                 fub_axi_bvalid = stream_master_256b_bvalid;
             end
             3'b010: begin  // Slave 1 (256b)
-                fub_axi_bid = stream_master_256b_b.id;
+                fub_axi_bid = stream_master_256b_b.id[7:0];
                 fub_axi_bresp = stream_master_256b_b.resp;
                 fub_axi_bvalid = stream_master_256b_bvalid;
             end
@@ -636,14 +636,14 @@ module stream_master_adapter
 
         case (r_slave_select)
             3'b001: begin  // Slave 0 (256b)
-                fub_axi_rid = stream_master_256b_r.id;
+                fub_axi_rid = stream_master_256b_r.id[7:0];
                 fub_axi_rdata = stream_master_256b_r.data;
                 fub_axi_rresp = stream_master_256b_r.resp;
                 fub_axi_rlast = stream_master_256b_r.last;
                 fub_axi_rvalid = stream_master_256b_rvalid;
             end
             3'b010: begin  // Slave 1 (256b)
-                fub_axi_rid = stream_master_256b_r.id;
+                fub_axi_rid = stream_master_256b_r.id[7:0];
                 fub_axi_rdata = stream_master_256b_r.data;
                 fub_axi_rresp = stream_master_256b_r.resp;
                 fub_axi_rlast = stream_master_256b_r.last;

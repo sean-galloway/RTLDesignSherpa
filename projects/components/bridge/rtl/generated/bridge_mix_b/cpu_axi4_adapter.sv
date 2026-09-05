@@ -951,7 +951,7 @@ module cpu_axi4_adapter
                 fub_axi_bvalid = conv_32b_bvalid;
             end
             3'b010: begin  // Slave 1 (64b)
-                fub_axi_bid = cpu_axi4_64b_b.id;
+                fub_axi_bid = cpu_axi4_64b_b.id[3:0];
                 fub_axi_bresp = cpu_axi4_64b_b.resp;
                 fub_axi_bvalid = cpu_axi4_64b_bvalid;
             end
@@ -1005,7 +1005,7 @@ module cpu_axi4_adapter
                 fub_axi_rvalid = conv_32b_rvalid;
             end
             3'b010: begin  // Slave 1 (64b)
-                fub_axi_rid = cpu_axi4_64b_r.id;
+                fub_axi_rid = cpu_axi4_64b_r.id[3:0];
                 fub_axi_rdata = cpu_axi4_64b_r.data;
                 fub_axi_rresp = cpu_axi4_64b_r.resp;
                 fub_axi_rlast = cpu_axi4_64b_r.last;

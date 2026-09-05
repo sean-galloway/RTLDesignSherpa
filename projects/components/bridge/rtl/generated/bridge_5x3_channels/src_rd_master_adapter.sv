@@ -298,14 +298,14 @@ module src_rd_master_adapter
 
         case (r_slave_select)
             3'b001: begin  // Slave 0 (256b)
-                fub_axi_rid = src_rd_master_256b_r.id;
+                fub_axi_rid = src_rd_master_256b_r.id[7:0];
                 fub_axi_rdata = src_rd_master_256b_r.data;
                 fub_axi_rresp = src_rd_master_256b_r.resp;
                 fub_axi_rlast = src_rd_master_256b_r.last;
                 fub_axi_rvalid = src_rd_master_256b_rvalid;
             end
             3'b010: begin  // Slave 1 (256b)
-                fub_axi_rid = src_rd_master_256b_r.id;
+                fub_axi_rid = src_rd_master_256b_r.id[7:0];
                 fub_axi_rdata = src_rd_master_256b_r.data;
                 fub_axi_rresp = src_rd_master_256b_r.resp;
                 fub_axi_rlast = src_rd_master_256b_r.last;

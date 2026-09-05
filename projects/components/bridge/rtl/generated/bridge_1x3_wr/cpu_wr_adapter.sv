@@ -589,7 +589,7 @@ module cpu_wr_adapter
                 fub_axi_bvalid = conv_32b_bvalid;
             end
             3'b010: begin  // Slave 1 (64b)
-                fub_axi_bid = cpu_wr_64b_b.id;
+                fub_axi_bid = cpu_wr_64b_b.id[3:0];
                 fub_axi_bresp = cpu_wr_64b_b.resp;
                 fub_axi_bvalid = cpu_wr_64b_bvalid;
             end

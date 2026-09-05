@@ -946,7 +946,7 @@ module dma0_master_adapter
 
         case (b_slave_select)
             4'b0001: begin  // Slave 0 (32b)
-                fub_axi_bid = dma0_master_32b_b.id;
+                fub_axi_bid = dma0_master_32b_b.id[3:0];
                 fub_axi_bresp = dma0_master_32b_b.resp;
                 fub_axi_bvalid = dma0_master_32b_bvalid;
             end
@@ -998,7 +998,7 @@ module dma0_master_adapter
 
         case (r_slave_select)
             4'b0001: begin  // Slave 0 (32b)
-                fub_axi_rid = dma0_master_32b_r.id;
+                fub_axi_rid = dma0_master_32b_r.id[3:0];
                 fub_axi_rdata = dma0_master_32b_r.data;
                 fub_axi_rresp = dma0_master_32b_r.resp;
                 fub_axi_rlast = dma0_master_32b_r.last;

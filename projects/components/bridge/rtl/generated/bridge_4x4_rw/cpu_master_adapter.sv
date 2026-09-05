@@ -1135,7 +1135,7 @@ module cpu_master_adapter
                 fub_axi_bvalid = conv_32b_bvalid;
             end
             4'b0010: begin  // Slave 1 (64b)
-                fub_axi_bid = cpu_master_64b_b.id;
+                fub_axi_bid = cpu_master_64b_b.id[3:0];
                 fub_axi_bresp = cpu_master_64b_b.resp;
                 fub_axi_bvalid = cpu_master_64b_bvalid;
             end
@@ -1197,7 +1197,7 @@ module cpu_master_adapter
                 fub_axi_rvalid = conv_32b_rvalid;
             end
             4'b0010: begin  // Slave 1 (64b)
-                fub_axi_rid = cpu_master_64b_r.id;
+                fub_axi_rid = cpu_master_64b_r.id[3:0];
                 fub_axi_rdata = cpu_master_64b_r.data;
                 fub_axi_rresp = cpu_master_64b_r.resp;
                 fub_axi_rlast = cpu_master_64b_r.last;

@@ -579,7 +579,12 @@ class AdapterGenerator:
     def _generate_internal_signals(self) -> List[str]:
         """Generate internal signal declarations (fub_axi_*)."""
         lines = []
-        id_width = self.master.id_width
+        # Clamp to 1. An AXI4-Lite port has id_width 0, which made every
+        # fub_axi_*id declaration `logic [-1:0]` -- malformed SystemVerilog
+        # that Verilator happens to elaborate as 2 bits and other tools may
+        # reject outright. AXI4-Lite carries no ID, so a 1-bit placeholder is
+        # the honest width for the internal AXI4 face.
+        id_width = max(self.master.id_width, 1)
         addr_width = 32  # Use global 32-bit address width
         data_width = self.master.data_width
         strb_width = data_width // 8
@@ -1367,7 +1372,14 @@ class AdapterGenerator:
 
                     if slave_width == master_width:
                         # Direct passthrough signals
-                        lines.append(f"                fub_axi_bid = {self.master.name}_{suffix}_b.id;")
+                        # The fabric struct carries the bridge-wide ID
+                        # width; this port's may be narrower (an axil port
+                        # has ID_WIDTH 0). Outbound the port's ID is
+                        # zero-extended into the struct, so narrowing back
+                        # here recovers exactly what was sent -- but say so
+                        # with an explicit select instead of leaving lint to
+                        # report an implicit truncation.
+                        lines.append(f"                fub_axi_bid = {self.master.name}_{suffix}_b.id[{max(self.master.id_width, 1) - 1}:0];")
                         lines.append(f"                fub_axi_bresp = {self.master.name}_{suffix}_b.resp;")
                         lines.append(f"                fub_axi_bvalid = {self.master.name}_{suffix}_bvalid;")
                         for field, _w, _feat, base in self._sb_fields('b', self.sb_own):
@@ -1446,7 +1458,7 @@ class AdapterGenerator:
 
                     if slave_width == master_width:
                         # Direct passthrough signals
-                        lines.append(f"                fub_axi_rid = {self.master.name}_{suffix}_r.id;")
+                        lines.append(f"                fub_axi_rid = {self.master.name}_{suffix}_r.id[{max(self.master.id_width, 1) - 1}:0];")
                         lines.append(f"                fub_axi_rdata = {self.master.name}_{suffix}_r.data;")
                         lines.append(f"                fub_axi_rresp = {self.master.name}_{suffix}_r.resp;")
                         lines.append(f"                fub_axi_rlast = {self.master.name}_{suffix}_r.last;")

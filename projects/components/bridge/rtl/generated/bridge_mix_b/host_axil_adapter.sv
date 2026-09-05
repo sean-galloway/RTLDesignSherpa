@@ -124,13 +124,13 @@ module host_axil_adapter
     // ================================================================
     localparam ADDR_WIDTH = 32;
     localparam DATA_WIDTH = 32;
-    localparam ID_WIDTH = 0;
+    localparam ID_WIDTH = 1;
 
     // ================================================================
     // Internal signals after wrapper (timing isolation)
-    // Note: ID width matches external (0-bit)
+    // Note: ID width matches external (1-bit)
     // ================================================================
-    logic [-1:0]   fub_axi_awid;
+    logic [0:0]   fub_axi_awid;
     logic [31:0]  fub_axi_awaddr;
     logic [7:0]   fub_axi_awlen;
     logic [2:0]   fub_axi_awsize;
@@ -151,12 +151,12 @@ module host_axil_adapter
     logic         fub_axi_wvalid;
     logic         fub_axi_wready;
 
-    logic [-1:0]   fub_axi_bid;
+    logic [0:0]   fub_axi_bid;
     logic [1:0]   fub_axi_bresp;
     logic         fub_axi_bvalid;
     logic         fub_axi_bready;
 
-    logic [-1:0]   fub_axi_arid;
+    logic [0:0]   fub_axi_arid;
     logic [31:0]  fub_axi_araddr;
     logic [7:0]   fub_axi_arlen;
     logic [2:0]   fub_axi_arsize;
@@ -170,7 +170,7 @@ module host_axil_adapter
     logic         fub_axi_arvalid;
     logic         fub_axi_arready;
 
-    logic [-1:0]   fub_axi_rid;
+    logic [0:0]   fub_axi_rid;
     logic [31:0]  fub_axi_rdata;
     logic [1:0]   fub_axi_rresp;
     logic         fub_axi_rlast;
@@ -753,7 +753,7 @@ module host_axil_adapter
 
         case (b_slave_select)
             3'b100: begin  // Slave 2 (32b)
-                fub_axi_bid = host_axil_32b_b.id;
+                fub_axi_bid = host_axil_32b_b.id[0:0];
                 fub_axi_bresp = host_axil_32b_b.resp;
                 fub_axi_bvalid = host_axil_32b_bvalid;
             end
@@ -797,7 +797,7 @@ module host_axil_adapter
 
         case (r_slave_select)
             3'b100: begin  // Slave 2 (32b)
-                fub_axi_rid = host_axil_32b_r.id;
+                fub_axi_rid = host_axil_32b_r.id[0:0];
                 fub_axi_rdata = host_axil_32b_r.data;
                 fub_axi_rresp = host_axil_32b_r.resp;
                 fub_axi_rlast = host_axil_32b_r.last;

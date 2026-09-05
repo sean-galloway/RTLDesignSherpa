@@ -403,14 +403,14 @@ module cpu_rd_adapter
 
         case (r_slave_select)
             2'b01: begin  // Slave 0 (32b)
-                fub_axi_rid = cpu_rd_32b_r.id;
+                fub_axi_rid = cpu_rd_32b_r.id[3:0];
                 fub_axi_rdata = cpu_rd_32b_r.data;
                 fub_axi_rresp = cpu_rd_32b_r.resp;
                 fub_axi_rlast = cpu_rd_32b_r.last;
                 fub_axi_rvalid = cpu_rd_32b_rvalid;
             end
             2'b10: begin  // Slave 1 (32b)
-                fub_axi_rid = cpu_rd_32b_r.id;
+                fub_axi_rid = cpu_rd_32b_r.id[3:0];
                 fub_axi_rdata = cpu_rd_32b_r.data;
                 fub_axi_rresp = cpu_rd_32b_r.resp;
                 fub_axi_rlast = cpu_rd_32b_r.last;

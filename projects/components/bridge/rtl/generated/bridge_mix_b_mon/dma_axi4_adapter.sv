@@ -970,7 +970,7 @@ module dma_axi4_adapter
                 fub_axi_bvalid = conv_64b_bvalid;
             end
             3'b001: begin  // Slave 0 (128b)
-                fub_axi_bid = dma_axi4_128b_b.id;
+                fub_axi_bid = dma_axi4_128b_b.id[3:0];
                 fub_axi_bresp = dma_axi4_128b_b.resp;
                 fub_axi_bvalid = dma_axi4_128b_bvalid;
             end
@@ -1016,7 +1016,7 @@ module dma_axi4_adapter
                 fub_axi_rvalid = conv_64b_rvalid;
             end
             3'b001: begin  // Slave 0 (128b)
-                fub_axi_rid = dma_axi4_128b_r.id;
+                fub_axi_rid = dma_axi4_128b_r.id[3:0];
                 fub_axi_rdata = dma_axi4_128b_r.data;
                 fub_axi_rresp = dma_axi4_128b_r.resp;
                 fub_axi_rlast = dma_axi4_128b_r.last;

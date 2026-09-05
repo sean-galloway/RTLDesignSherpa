@@ -530,13 +530,13 @@ module cpu_wr_adapter
 
         case (b_slave_select)
             2'b01: begin  // Slave 0 (32b)
-                fub_axi_bid = cpu_wr_32b_b.id;
+                fub_axi_bid = cpu_wr_32b_b.id[3:0];
                 fub_axi_bresp = cpu_wr_32b_b.resp;
                 fub_axi_bvalid = cpu_wr_32b_bvalid;
                 fub_axi_btrace = cpu_wr_32b_b.trace;
             end
             2'b10: begin  // Slave 1 (32b)
-                fub_axi_bid = cpu_wr_32b_b.id;
+                fub_axi_bid = cpu_wr_32b_b.id[3:0];
                 fub_axi_bresp = cpu_wr_32b_b.resp;
                 fub_axi_bvalid = cpu_wr_32b_bvalid;
                 fub_axi_btrace = cpu_wr_32b_b.trace;
