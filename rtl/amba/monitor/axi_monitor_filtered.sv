@@ -487,6 +487,21 @@ module axi_monitor_filtered
             assign monbus_packet    = base_monbus_packet;
             assign monbus_timestamp = base_monbus_timestamp;
 
+            // pipe_ready is declared at module scope but only driven in the
+            // other branch, while base_monbus_ready references it
+            // unconditionally:
+            //
+            //   assign base_monbus_ready = pkt_drop ||
+            //       (ADD_PIPELINE_STAGE ? pipe_ready : monbus_ready);
+            //
+            // With the parameter 0 the ternary constant-folds to monbus_ready,
+            // so the value cannot reach anything -- but the net stays alive
+            // and undriven, which is an X source in tools that fold less
+            // eagerly and an UNDRIVEN on every monitor-variant build here.
+            // Driven, not left dangling. The other pipe_* signals are already
+            // dead in this branch (nothing reads them) so they need no tie.
+            assign pipe_ready       = 1'b1;
+
         end
     endgenerate
 

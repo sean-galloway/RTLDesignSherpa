@@ -3885,6 +3885,7 @@ module axi_monitor_filtered (
 			assign monbus_valid = base_monbus_valid && !pkt_drop;
 			assign monbus_packet = base_monbus_packet;
 			assign monbus_timestamp = base_monbus_timestamp;
+			assign pipe_ready = 1'b1;
 		end
 	endgenerate
 	initial _sv2v_0 = 0;

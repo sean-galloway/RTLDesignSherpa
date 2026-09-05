@@ -1860,16 +1860,18 @@ gate.
 
 ---
 
-### TASK-082: three lint findings in the monitor that the bridge gate now surfaces
+### TASK-082: lint findings in the monitor that the bridge gate now surfaces
 
-**Priority:** P3. None is known to misbehave; all three fail a gate that, as of
+**Priority:** P3. None is known to misbehave; all fail a gate that, as of
 2026-09-05, finally reports instead of drowning.
+**Progress:** finding 1 FIXED 2026-09-05 (commit below). Findings 2-4 open.
 **Status:** open 2026-09-05. Split out of the [[TASK-081]] work: with
 PINCONNECTEMPTY waived, `make verilator` in projects/components/bridge/rtl
 went from 36/36 variants failing to 13, and those 13 are these three findings
 repeated across the monitor-variant bridges.
 
 **1. `pipe_ready` is undriven when `ADD_PIPELINE_STAGE = 0`** (13 variants)
+**-- FIXED 2026-09-05.**
 `rtl/amba/monitor/axi_monitor_filtered.sv:245`. The signal is declared at
 module scope but only assigned inside `generate if (ADD_PIPELINE_STAGE)`,
 while line 444 references it unconditionally:
@@ -1881,10 +1883,19 @@ assign base_monbus_ready = pkt_drop ||
 
 With the parameter 0 the ternary constant-folds to `monbus_ready`, so this
 cannot change behaviour -- but the reference keeps the net alive and undriven,
-which is an X source under tools that do not fold as eagerly. Fix is a tie in
-the generate's else branch (or moving the mux inside the generate). One line,
-but it wants its own verification run rather than being folded into an
-unrelated change.
+which is an X source under tools that do not fold as eagerly.
+
+Fixed with `assign pipe_ready = 1'b1;` in the `gen_no_pipeline` branch. Single
+driver per elaboration (the two assigns are in mutually exclusive generate
+branches), and the only read outside the generate is the ternary that folds
+away. The other `pipe_*` signals need no tie -- nothing reads them in this
+branch.
+
+**Verified:** bridge lint's 13 UNDRIVEN gone (3 causes -> 2; the same 13
+variants still fail, now on finding 2 alone); `axi_monitor_filtered` formal
+prove PASS against a REGENERATED flat; all 15 components `*_mon` variants and
+both Genesys2 `*_mon` bridges build clean of UNOPTFLAT/UNDRIVEN under the
+cocotb flag set; val/amba monitor subset 13/13.
 
 **2. Two WIDTHEXPAND in `axi_monitor_trans_mgr.sv`** (26 sites across variants)
 - `:677` `EQ expects 8 bits on the RHS, but 'w_widq_head' generates 4`
