@@ -668,6 +668,13 @@ module ddr2_char_harness
         .AXI_ID_WIDTH     (AXI_ID_WIDTH),
         .AXI_USER_WIDTH   (AXI_USER_WIDTH),
         .ROW_WIDTH        (ROW_WIDTH),
+        // Lean board reorder depth. The macro defaults to 16, but the command
+        // arbiter's pick is an O(N^2) argmax over the CAM entries, so 16 = a
+        // 256-way compare and the dominant route-bound timing path. 4 entries
+        // (16-way) shrinks that ~16x. The board is DRAM-bandwidth-limited, not
+        // reorder-depth-limited, so shallow reorder is the right lean-tier point;
+        // deep reorder belongs to an enhanced variant.
+        .WR_CAM_DEPTH     (4),
         .APB_ADDR_WIDTH   (APB_ADDR_WIDTH),
         .APB_DATA_WIDTH   (APB_DATA_WIDTH)
     ) u_dut (

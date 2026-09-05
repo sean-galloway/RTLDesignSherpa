@@ -47,7 +47,7 @@ module pumice_axi4_ifc #(
     // is how a ragged-burst check got derived against the wrong units.
     parameter int AXI_BEATS_PER_BURST = 4,
     parameter int NUM_ENTRIES     = 8,
-    parameter int N_SRAM_SLOTS    = 8,
+    parameter int N_SRAM_SLOTS    = NUM_ENTRIES,
     parameter int N_SCHED_LU      = 4,
     parameter int AGE_WIDTH       = 16,
 

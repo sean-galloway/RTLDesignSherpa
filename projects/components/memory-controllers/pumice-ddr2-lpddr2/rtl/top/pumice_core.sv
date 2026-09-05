@@ -43,7 +43,7 @@ module pumice_core
     parameter int DRAM_DEVICE_WIDTH = DRAM_BEAT_WIDTH,
     parameter int DRAM_BL             = 8,        // burst length, JEDEC device beats (MR0)
     parameter int NUM_ENTRIES    = 8,
-    parameter int N_SRAM_SLOTS   = 8,
+    parameter int N_SRAM_SLOTS   = NUM_ENTRIES,
     parameter int AGE_WIDTH      = 16,
     // DV knob: arm the scheduler's command-history scoreboard (JEDEC same-bank
     // sequencing audit, $fatal on violation). 0 = generate-off, zero cost.

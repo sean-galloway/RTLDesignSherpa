@@ -162,7 +162,8 @@ def test_pumice_core(request):
     params = {"AXI_ID_WIDTH": "8", "AXI_ADDR_WIDTH": "32", "NUM_RANKS": "1",
               "NUM_BANKS": "8", "ROW_WIDTH": "14", "COL_WIDTH": "10",
               "DFI_RATE": str(DFI_RATE), "DRAM_BEAT_WIDTH": str(DRAM_BEAT), "DRAM_BL": str(BL),
-              "NUM_ENTRIES": "8", "N_SRAM_SLOTS": "8"}
+              "NUM_ENTRIES": os.environ.get("PUMICE_NUM_ENTRIES", "8"),
+              "N_SRAM_SLOTS": os.environ.get("PUMICE_NUM_ENTRIES", "8")}
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",
                  "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
