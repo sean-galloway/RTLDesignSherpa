@@ -1793,3 +1793,61 @@ worse than no test, and this area has already produced them:
 
 **Related:** [[TASK-077]] documents the doc-side equivalent (examples that
 name ports which do not exist). The test-side is this task.
+
+---
+
+### TASK-081: monitor_trans_cam has a combinational loop that only a cocotb-flavoured build can see
+
+**Priority:** P1. It is the sole cause of 13 red tests -- every `*_mon_monitor`
+bridge variant -- and it has been red for an unknown but long time.
+**Status:** open 2026-09-05. Found while running the bridge suite from a
+CLEAN build tree during the axil5 work.
+
+**Symptom.** Every monitor-variant bridge fails to BUILD:
+
+```
+%Warning-UNOPTFLAT: rtl/amba/monitor/monitor_trans_cam.sv:92:47:
+  Signal unoptimizable: Circular combinational logic:
+  '...trans_mgr.g_cam_bank[0].u_cam.addr_wants_alloc'
+%Warning-UNOPTFLAT: ...:93:47: ... 'data_wants_alloc'
+%Error: Exiting due to 2 warning(s)
+```
+
+Same signal pair appears in the Genesys2 `bridge_stream_*_mon` lint output, so
+it is not specific to the components fixtures.
+
+**NOT caused by the recent monitor work.** The obvious suspect was
+[[6617b0d2]] ("bank-local pre-reduction on the trans_mgr hit_any cones",
+2026-08-31), which reworked the very cone these signals feed. It is not: a
+worktree at `6617b0d2^` reproduces the SAME 4 UNOPTFLAT. The loop predates it.
+Do not start there.
+
+**Why nothing caught it — this is the transferable part.** The warning is
+invisible to every lint gate in the repo, and it takes THREE things to see it:
+
+| invocation | UNOPTFLAT |
+|---|---|
+| `verilator --lint-only -Wall` (what `make lint` runs) | 0 |
+| `verilator -cc -Wall` (a real model build) | 0 |
+| `verilator -cc --public-flat-rw --trace` (what cocotb runs) | **4** |
+
+`--lint-only` never runs the scheduling analysis that finds circular
+combinational logic. Even `-cc` finds nothing, because Verilator optimises
+across the loop and the problem disappears. It takes `--public-flat-rw` --
+which cocotb always passes, so every signal stays addressable and nothing can
+be flattened -- to make the cycle real. Elaborating the design is necessary
+and NOT sufficient; see [[lint-gate-must-elaborate]], which this sharpens.
+
+Standalone `monitor_trans_cam` is clean at default parameters; it needs the
+bridge's parameterisation (multiple CAM banks) to appear.
+
+**Where to start.** `monitor_trans_cam.sv:92-93` -- `addr_wants_alloc` and
+`data_wants_alloc` are combinational outputs that feed a cone which comes back
+to them. Either break the cycle or, if it is a false cycle across independent
+bits, split the signals so Verilator can see the bits are independent. A
+`lint_off UNOPTFLAT` would silence it and is the wrong answer: a real
+combinational loop is a synthesis hazard, and this RTL is on two boards.
+
+**Also worth doing:** add a `-cc --public-flat-rw` build to whatever gate is
+supposed to catch this. A gate that cannot see the failure class is not a
+gate.
