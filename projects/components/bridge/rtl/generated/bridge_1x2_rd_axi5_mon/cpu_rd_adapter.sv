@@ -260,6 +260,16 @@ module cpu_rd_adapter
         .cfg_axi_addr_mask(cfg_rd_axi_addr_mask),
         .cfg_axi_debug_mask(cfg_rd_axi_debug_mask),
 
+        // Monitor filter/CAM inputs (inert)
+        .cam_clear(1'b0),
+        .cfg_addr_filter_enable(1'b0),
+        .cfg_addr_filter_low('0),
+        .cfg_addr_filter_high('0),
+        .cfg_id_filter_enable(1'b0),
+        .cfg_id_match_base('0),
+        .cfg_id_match_count('0),
+        .debug_block_ready(),
+
         // Address-range checker (disabled at N_ADDR_RANGES=0)
         .cfg_addr_check_enable(1'b0),
         .cfg_addr_range_enable(1'b0),

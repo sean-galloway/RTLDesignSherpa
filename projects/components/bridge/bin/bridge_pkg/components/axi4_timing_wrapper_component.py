@@ -606,6 +606,34 @@ class Axi4TimingWrapper:
             pairs.append((sig, f"{connector_prefix}{base}"))
         self._sections.append(("Monitor cfg inputs", pairs))
 
+        # The filter/CAM inputs are NOT in MONITOR_CFG_SIGNALS and were
+        # therefore left unconnected -- 517 floating inputs across the 35
+        # variants. An unconnected input has no default on these ports
+        # (`input logic cam_clear,` carries no `= '0`), so the monitor's
+        # filtering behaviour was undefined in simulation and
+        # tool-dependent in synthesis.
+        #
+        # Tied to their INERT values here, which is what the comment on
+        # MONITOR_CFG_SIGNALS says an integrator does today: filters off,
+        # no CAM clear. That makes the behaviour defined and matches what
+        # the docs already claim (`cfg_addr_filter_enable` low = inert).
+        # When the per-port cfg subsystem (#90) lands these should become
+        # routed inputs like the fifteen above; they are widths AW/IW
+        # rather than fixed, so that needs the width table to carry
+        # parameter expressions.
+        self._sections.append(("Monitor filter/CAM inputs (inert)", [
+            ('cam_clear',              "1'b0"),
+            ('cfg_addr_filter_enable', "1'b0"),
+            ('cfg_addr_filter_low',    "'0"),
+            ('cfg_addr_filter_high',   "'0"),
+            ('cfg_id_filter_enable',   "1'b0"),
+            ('cfg_id_match_base',      "'0"),
+            ('cfg_id_match_count',     "'0"),
+            # Output: explicitly open, so it reads as deliberate rather
+            # than as a forgotten pin.
+            ('debug_block_ready',      ""),
+        ]))
+
     # --- internals -----------------------------------------------------
 
     def _fub_default_connectors(self, connector_prefix: str) -> dict:

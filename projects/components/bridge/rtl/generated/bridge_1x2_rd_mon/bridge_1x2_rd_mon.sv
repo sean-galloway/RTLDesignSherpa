@@ -721,6 +721,10 @@ module bridge_1x2_rd_mon
         .m_axil_bvalid (m_mon_axil_bvalid),
         .m_axil_bready (m_mon_axil_bready),
         .m_axil_bresp (m_mon_axil_bresp),
+        // CAM clear: tied inert, same as every timing wrapper's.
+        // The group's cam_clear was simply never connected, leaving
+        // a floating input with no port default on 13 variants.
+        .cam_clear         (1'b0),
         // IRQ
         .irq_out           (mon_irq_out),
         // Group-level cfg

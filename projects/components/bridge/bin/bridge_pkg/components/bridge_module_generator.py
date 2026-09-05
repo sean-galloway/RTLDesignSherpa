@@ -835,6 +835,10 @@ class BridgeModuleGenerator:
             for suffix, _dir, _w in sig['master']:
                 lines.append(
                     f"        .{sig['m_wrap']}_{suffix} ({sig['m_net']}_{suffix}),")
+            lines.append("        // CAM clear: tied inert, same as every timing wrapper's.")
+            lines.append("        // The group's cam_clear was simply never connected, leaving")
+            lines.append("        // a floating input with no port default on 13 variants.")
+            lines.append("        .cam_clear         (1'b0),")
             lines.append("        // IRQ")
             lines.append("        .irq_out           (mon_irq_out),")
             lines.append("        // Group-level cfg")
