@@ -182,6 +182,9 @@ module bridge_1x2_rw_apb5_mon_xbar
     assign sram_axi_awlock   = cpu_32b_aw_to_sram ? cpu_32b_aw.lock : '0;
     assign sram_axi_awcache  = cpu_32b_aw_to_sram ? cpu_32b_aw.cache : '0;
     assign sram_axi_awprot   = cpu_32b_aw_to_sram ? cpu_32b_aw.prot : '0;
+    assign sram_axi_awqos    = cpu_32b_aw_to_sram ? cpu_32b_aw.qos : '0;
+    assign sram_axi_awregion = cpu_32b_aw_to_sram ? cpu_32b_aw.region : '0;
+    assign sram_axi_awuser   = cpu_32b_aw_to_sram ? cpu_32b_aw.user : '0;
     assign sram_axi_awvalid  = cpu_32b_aw_to_sram && cpu_32b_awvalid;
 
     assign cpu_32b_w_sel_sram = cpu_32b_w_to_sram;
@@ -190,6 +193,7 @@ module bridge_1x2_rw_apb5_mon_xbar
     assign sram_axi_wdata  = cpu_32b_w_to_sram ? cpu_32b_w.data : '0;
     assign sram_axi_wstrb  = cpu_32b_w_to_sram ? cpu_32b_w.strb : '0;
     assign sram_axi_wlast  = cpu_32b_w_to_sram ? cpu_32b_w.last : '0;
+    assign sram_axi_wuser  = cpu_32b_w_to_sram ? cpu_32b_w.user : '0;
     assign sram_axi_wvalid = cpu_32b_w_to_sram && cpu_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
@@ -210,6 +214,9 @@ module bridge_1x2_rw_apb5_mon_xbar
     assign sram_axi_arlock   = cpu_32b_ar_to_sram ? cpu_32b_ar.lock : '0;
     assign sram_axi_arcache  = cpu_32b_ar_to_sram ? cpu_32b_ar.cache : '0;
     assign sram_axi_arprot   = cpu_32b_ar_to_sram ? cpu_32b_ar.prot : '0;
+    assign sram_axi_arqos    = cpu_32b_ar_to_sram ? cpu_32b_ar.qos : '0;
+    assign sram_axi_arregion = cpu_32b_ar_to_sram ? cpu_32b_ar.region : '0;
+    assign sram_axi_aruser   = cpu_32b_ar_to_sram ? cpu_32b_ar.user : '0;
     assign sram_axi_arvalid  = cpu_32b_ar_to_sram && cpu_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -238,6 +245,9 @@ module bridge_1x2_rw_apb5_mon_xbar
     assign periph5_axi_awlock   = cpu_32b_aw_to_periph5 ? cpu_32b_aw.lock : '0;
     assign periph5_axi_awcache  = cpu_32b_aw_to_periph5 ? cpu_32b_aw.cache : '0;
     assign periph5_axi_awprot   = cpu_32b_aw_to_periph5 ? cpu_32b_aw.prot : '0;
+    assign periph5_axi_awqos    = cpu_32b_aw_to_periph5 ? cpu_32b_aw.qos : '0;
+    assign periph5_axi_awregion = cpu_32b_aw_to_periph5 ? cpu_32b_aw.region : '0;
+    assign periph5_axi_awuser   = cpu_32b_aw_to_periph5 ? cpu_32b_aw.user : '0;
     assign periph5_axi_awvalid  = cpu_32b_aw_to_periph5 && cpu_32b_awvalid;
 
     assign cpu_32b_w_sel_periph5 = cpu_32b_w_to_periph5;
@@ -246,6 +256,7 @@ module bridge_1x2_rw_apb5_mon_xbar
     assign periph5_axi_wdata  = cpu_32b_w_to_periph5 ? cpu_32b_w.data : '0;
     assign periph5_axi_wstrb  = cpu_32b_w_to_periph5 ? cpu_32b_w.strb : '0;
     assign periph5_axi_wlast  = cpu_32b_w_to_periph5 ? cpu_32b_w.last : '0;
+    assign periph5_axi_wuser  = cpu_32b_w_to_periph5 ? cpu_32b_w.user : '0;
     assign periph5_axi_wvalid = cpu_32b_w_to_periph5 && cpu_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
@@ -266,6 +277,9 @@ module bridge_1x2_rw_apb5_mon_xbar
     assign periph5_axi_arlock   = cpu_32b_ar_to_periph5 ? cpu_32b_ar.lock : '0;
     assign periph5_axi_arcache  = cpu_32b_ar_to_periph5 ? cpu_32b_ar.cache : '0;
     assign periph5_axi_arprot   = cpu_32b_ar_to_periph5 ? cpu_32b_ar.prot : '0;
+    assign periph5_axi_arqos    = cpu_32b_ar_to_periph5 ? cpu_32b_ar.qos : '0;
+    assign periph5_axi_arregion = cpu_32b_ar_to_periph5 ? cpu_32b_ar.region : '0;
+    assign periph5_axi_aruser   = cpu_32b_ar_to_periph5 ? cpu_32b_ar.user : '0;
     assign periph5_axi_arvalid  = cpu_32b_ar_to_periph5 && cpu_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -325,6 +339,10 @@ module bridge_1x2_rw_apb5_mon_xbar
         ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_bresp : '0) |
         ((periph5_axi_bid_bridge_id == 0) && periph5_axi_bid_valid ? periph5_axi_bresp : '0);
 
+    assign cpu_32b_b.user = 
+        ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_buser : '0) |
+        ((periph5_axi_bid_bridge_id == 0) && periph5_axi_bid_valid ? periph5_axi_buser : '0);
+
     assign cpu_32b_bvalid = 
         ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_bvalid : '0) |
         ((periph5_axi_bid_bridge_id == 0) && periph5_axi_bid_valid ? periph5_axi_bvalid : '0);
@@ -348,6 +366,10 @@ module bridge_1x2_rw_apb5_mon_xbar
     assign cpu_32b_r.last = 
         ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rlast : '0) |
         ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid ? periph5_axi_rlast : '0);
+
+    assign cpu_32b_r.user = 
+        ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_ruser : '0) |
+        ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid ? periph5_axi_ruser : '0);
 
     assign cpu_32b_rvalid = 
         ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rvalid : '0) |

@@ -396,6 +396,12 @@ module bridge_mix_b_mon_xbar
         (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw.cache : '0);
     assign ddr_axi_awprot = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw.prot : '0) |
         (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw.prot : '0);
+    assign ddr_axi_awqos = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw.qos : '0) |
+        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw.qos : '0);
+    assign ddr_axi_awregion = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw.region : '0) |
+        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw.region : '0);
+    assign ddr_axi_awuser = (cpu_axi4_128b_aw_gnt_ddr ? cpu_axi4_128b_aw.user : '0) |
+        (dma_axi4_128b_aw_gnt_ddr ? dma_axi4_128b_aw.user : '0);
     assign ddr_axi_awvalid = cpu_axi4_128b_aw_gnt_ddr || dma_axi4_128b_aw_gnt_ddr;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
@@ -427,6 +433,8 @@ module bridge_mix_b_mon_xbar
         ((dma_axi4_128b_w_sel_ddr && dma_axi4_128b_wvalid) ? dma_axi4_128b_w.strb : '0);
     assign ddr_axi_wlast = ((cpu_axi4_128b_w_sel_ddr && cpu_axi4_128b_wvalid) ? cpu_axi4_128b_w.last : '0) |
         ((dma_axi4_128b_w_sel_ddr && dma_axi4_128b_wvalid) ? dma_axi4_128b_w.last : '0);
+    assign ddr_axi_wuser = ((cpu_axi4_128b_w_sel_ddr && cpu_axi4_128b_wvalid) ? cpu_axi4_128b_w.user : '0) |
+        ((dma_axi4_128b_w_sel_ddr && dma_axi4_128b_wvalid) ? dma_axi4_128b_w.user : '0);
     assign ddr_axi_wvalid = (cpu_axi4_128b_w_sel_ddr && cpu_axi4_128b_wvalid) || (dma_axi4_128b_w_sel_ddr && dma_axi4_128b_wvalid);
 
     // Bready (slave → owning master, by bid_bridge_id)
@@ -481,6 +489,12 @@ module bridge_mix_b_mon_xbar
         (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar.cache : '0);
     assign ddr_axi_arprot = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar.prot : '0) |
         (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar.prot : '0);
+    assign ddr_axi_arqos = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar.qos : '0) |
+        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar.qos : '0);
+    assign ddr_axi_arregion = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar.region : '0) |
+        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar.region : '0);
+    assign ddr_axi_aruser = (cpu_axi4_128b_ar_gnt_ddr ? cpu_axi4_128b_ar.user : '0) |
+        (dma_axi4_128b_ar_gnt_ddr ? dma_axi4_128b_ar.user : '0);
     assign ddr_axi_arvalid = cpu_axi4_128b_ar_gnt_ddr || dma_axi4_128b_ar_gnt_ddr;
 
     // Rready (slave → owning master, by rid_bridge_id)
@@ -561,6 +575,15 @@ module bridge_mix_b_mon_xbar
     assign scratch_axi_awprot = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw.prot : '0) |
         (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw.prot : '0) |
         (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw.prot : '0);
+    assign scratch_axi_awqos = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw.qos : '0) |
+        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw.qos : '0) |
+        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw.qos : '0);
+    assign scratch_axi_awregion = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw.region : '0) |
+        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw.region : '0) |
+        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw.region : '0);
+    assign scratch_axi_awuser = (cpu_axi4_64b_aw_gnt_scratch ? cpu_axi4_64b_aw.user : '0) |
+        (dma_axi4_64b_aw_gnt_scratch ? dma_axi4_64b_aw.user : '0) |
+        (host_axil_64b_aw_gnt_scratch ? host_axil_64b_aw.user : '0);
     assign scratch_axi_awvalid = cpu_axi4_64b_aw_gnt_scratch || dma_axi4_64b_aw_gnt_scratch || host_axil_64b_aw_gnt_scratch;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
@@ -596,6 +619,9 @@ module bridge_mix_b_mon_xbar
     assign scratch_axi_wlast = ((cpu_axi4_64b_w_sel_scratch && cpu_axi4_64b_wvalid) ? cpu_axi4_64b_w.last : '0) |
         ((dma_axi4_64b_w_sel_scratch && dma_axi4_64b_wvalid) ? dma_axi4_64b_w.last : '0) |
         ((host_axil_64b_w_sel_scratch && host_axil_64b_wvalid) ? host_axil_64b_w.last : '0);
+    assign scratch_axi_wuser = ((cpu_axi4_64b_w_sel_scratch && cpu_axi4_64b_wvalid) ? cpu_axi4_64b_w.user : '0) |
+        ((dma_axi4_64b_w_sel_scratch && dma_axi4_64b_wvalid) ? dma_axi4_64b_w.user : '0) |
+        ((host_axil_64b_w_sel_scratch && host_axil_64b_wvalid) ? host_axil_64b_w.user : '0);
     assign scratch_axi_wvalid = (cpu_axi4_64b_w_sel_scratch && cpu_axi4_64b_wvalid) || (dma_axi4_64b_w_sel_scratch && dma_axi4_64b_wvalid) || (host_axil_64b_w_sel_scratch && host_axil_64b_wvalid);
 
     // Bready (slave → owning master, by bid_bridge_id)
@@ -662,6 +688,15 @@ module bridge_mix_b_mon_xbar
     assign scratch_axi_arprot = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar.prot : '0) |
         (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar.prot : '0) |
         (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar.prot : '0);
+    assign scratch_axi_arqos = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar.qos : '0) |
+        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar.qos : '0) |
+        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar.qos : '0);
+    assign scratch_axi_arregion = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar.region : '0) |
+        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar.region : '0) |
+        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar.region : '0);
+    assign scratch_axi_aruser = (cpu_axi4_64b_ar_gnt_scratch ? cpu_axi4_64b_ar.user : '0) |
+        (dma_axi4_64b_ar_gnt_scratch ? dma_axi4_64b_ar.user : '0) |
+        (host_axil_64b_ar_gnt_scratch ? host_axil_64b_ar.user : '0);
     assign scratch_axi_arvalid = cpu_axi4_64b_ar_gnt_scratch || dma_axi4_64b_ar_gnt_scratch || host_axil_64b_ar_gnt_scratch;
 
     // Rready (slave → owning master, by rid_bridge_id)
@@ -731,6 +766,12 @@ module bridge_mix_b_mon_xbar
         (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.cache : '0);
     assign apb_periph_axi_awprot = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw.prot : '0) |
         (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.prot : '0);
+    assign apb_periph_axi_awqos = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw.qos : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.qos : '0);
+    assign apb_periph_axi_awregion = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw.region : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.region : '0);
+    assign apb_periph_axi_awuser = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw.user : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.user : '0);
     assign apb_periph_axi_awvalid = cpu_axi4_32b_aw_gnt_apb_periph || host_axil_32b_aw_gnt_apb_periph;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
@@ -762,6 +803,8 @@ module bridge_mix_b_mon_xbar
         ((host_axil_32b_w_sel_apb_periph && host_axil_32b_wvalid) ? host_axil_32b_w.strb : '0);
     assign apb_periph_axi_wlast = ((cpu_axi4_32b_w_sel_apb_periph && cpu_axi4_32b_wvalid) ? cpu_axi4_32b_w.last : '0) |
         ((host_axil_32b_w_sel_apb_periph && host_axil_32b_wvalid) ? host_axil_32b_w.last : '0);
+    assign apb_periph_axi_wuser = ((cpu_axi4_32b_w_sel_apb_periph && cpu_axi4_32b_wvalid) ? cpu_axi4_32b_w.user : '0) |
+        ((host_axil_32b_w_sel_apb_periph && host_axil_32b_wvalid) ? host_axil_32b_w.user : '0);
     assign apb_periph_axi_wvalid = (cpu_axi4_32b_w_sel_apb_periph && cpu_axi4_32b_wvalid) || (host_axil_32b_w_sel_apb_periph && host_axil_32b_wvalid);
 
     // Bready (slave → owning master, by bid_bridge_id)
@@ -816,6 +859,12 @@ module bridge_mix_b_mon_xbar
         (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.cache : '0);
     assign apb_periph_axi_arprot = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar.prot : '0) |
         (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.prot : '0);
+    assign apb_periph_axi_arqos = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar.qos : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.qos : '0);
+    assign apb_periph_axi_arregion = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar.region : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.region : '0);
+    assign apb_periph_axi_aruser = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar.user : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.user : '0);
     assign apb_periph_axi_arvalid = cpu_axi4_32b_ar_gnt_apb_periph || host_axil_32b_ar_gnt_apb_periph;
 
     // Rready (slave → owning master, by rid_bridge_id)
@@ -1015,6 +1064,9 @@ module bridge_mix_b_mon_xbar
     assign cpu_axi4_32b_b.resp = 
         ((apb_periph_axi_bid_bridge_id == 0) && apb_periph_axi_bid_valid ? apb_periph_axi_bresp : '0);
 
+    assign cpu_axi4_32b_b.user = 
+        ((apb_periph_axi_bid_bridge_id == 0) && apb_periph_axi_bid_valid ? apb_periph_axi_buser : '0);
+
     assign cpu_axi4_32b_bvalid = 
         ((apb_periph_axi_bid_bridge_id == 0) && apb_periph_axi_bid_valid ? apb_periph_axi_bvalid : '0);
 
@@ -1033,6 +1085,9 @@ module bridge_mix_b_mon_xbar
     assign cpu_axi4_32b_r.last = 
         ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid ? apb_periph_axi_rlast : '0);
 
+    assign cpu_axi4_32b_r.user = 
+        ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid ? apb_periph_axi_ruser : '0);
+
     assign cpu_axi4_32b_rvalid = 
         ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid ? apb_periph_axi_rvalid : '0);
 
@@ -1049,6 +1104,9 @@ module bridge_mix_b_mon_xbar
 
     assign cpu_axi4_64b_b.resp = 
         ((scratch_axi_bid_bridge_id == 0) && scratch_axi_bid_valid ? scratch_axi_bresp : '0);
+
+    assign cpu_axi4_64b_b.user = 
+        ((scratch_axi_bid_bridge_id == 0) && scratch_axi_bid_valid ? scratch_axi_buser : '0);
 
     assign cpu_axi4_64b_bvalid = 
         ((scratch_axi_bid_bridge_id == 0) && scratch_axi_bid_valid ? scratch_axi_bvalid : '0);
@@ -1068,6 +1126,9 @@ module bridge_mix_b_mon_xbar
     assign cpu_axi4_64b_r.last = 
         ((scratch_axi_rid_bridge_id == 0) && scratch_axi_rid_valid ? scratch_axi_rlast : '0);
 
+    assign cpu_axi4_64b_r.user = 
+        ((scratch_axi_rid_bridge_id == 0) && scratch_axi_rid_valid ? scratch_axi_ruser : '0);
+
     assign cpu_axi4_64b_rvalid = 
         ((scratch_axi_rid_bridge_id == 0) && scratch_axi_rid_valid ? scratch_axi_rvalid : '0);
 
@@ -1084,6 +1145,9 @@ module bridge_mix_b_mon_xbar
 
     assign cpu_axi4_128b_b.resp = 
         ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bresp : '0);
+
+    assign cpu_axi4_128b_b.user = 
+        ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_buser : '0);
 
     assign cpu_axi4_128b_bvalid = 
         ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bvalid : '0);
@@ -1103,6 +1167,9 @@ module bridge_mix_b_mon_xbar
     assign cpu_axi4_128b_r.last = 
         ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rlast : '0);
 
+    assign cpu_axi4_128b_r.user = 
+        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_ruser : '0);
+
     assign cpu_axi4_128b_rvalid = 
         ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rvalid : '0);
 
@@ -1119,6 +1186,9 @@ module bridge_mix_b_mon_xbar
 
     assign dma_axi4_64b_b.resp = 
         ((scratch_axi_bid_bridge_id == 1) && scratch_axi_bid_valid ? scratch_axi_bresp : '0);
+
+    assign dma_axi4_64b_b.user = 
+        ((scratch_axi_bid_bridge_id == 1) && scratch_axi_bid_valid ? scratch_axi_buser : '0);
 
     assign dma_axi4_64b_bvalid = 
         ((scratch_axi_bid_bridge_id == 1) && scratch_axi_bid_valid ? scratch_axi_bvalid : '0);
@@ -1138,6 +1208,9 @@ module bridge_mix_b_mon_xbar
     assign dma_axi4_64b_r.last = 
         ((scratch_axi_rid_bridge_id == 1) && scratch_axi_rid_valid ? scratch_axi_rlast : '0);
 
+    assign dma_axi4_64b_r.user = 
+        ((scratch_axi_rid_bridge_id == 1) && scratch_axi_rid_valid ? scratch_axi_ruser : '0);
+
     assign dma_axi4_64b_rvalid = 
         ((scratch_axi_rid_bridge_id == 1) && scratch_axi_rid_valid ? scratch_axi_rvalid : '0);
 
@@ -1154,6 +1227,9 @@ module bridge_mix_b_mon_xbar
 
     assign dma_axi4_128b_b.resp = 
         ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_bresp : '0);
+
+    assign dma_axi4_128b_b.user = 
+        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_buser : '0);
 
     assign dma_axi4_128b_bvalid = 
         ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_bvalid : '0);
@@ -1173,6 +1249,9 @@ module bridge_mix_b_mon_xbar
     assign dma_axi4_128b_r.last = 
         ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rlast : '0);
 
+    assign dma_axi4_128b_r.user = 
+        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_ruser : '0);
+
     assign dma_axi4_128b_rvalid = 
         ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rvalid : '0);
 
@@ -1189,6 +1268,9 @@ module bridge_mix_b_mon_xbar
 
     assign host_axil_32b_b.resp = 
         ((apb_periph_axi_bid_bridge_id == 2) && apb_periph_axi_bid_valid ? apb_periph_axi_bresp : '0);
+
+    assign host_axil_32b_b.user = 
+        ((apb_periph_axi_bid_bridge_id == 2) && apb_periph_axi_bid_valid ? apb_periph_axi_buser : '0);
 
     assign host_axil_32b_bvalid = 
         ((apb_periph_axi_bid_bridge_id == 2) && apb_periph_axi_bid_valid ? apb_periph_axi_bvalid : '0);
@@ -1208,6 +1290,9 @@ module bridge_mix_b_mon_xbar
     assign host_axil_32b_r.last = 
         ((apb_periph_axi_rid_bridge_id == 2) && apb_periph_axi_rid_valid ? apb_periph_axi_rlast : '0);
 
+    assign host_axil_32b_r.user = 
+        ((apb_periph_axi_rid_bridge_id == 2) && apb_periph_axi_rid_valid ? apb_periph_axi_ruser : '0);
+
     assign host_axil_32b_rvalid = 
         ((apb_periph_axi_rid_bridge_id == 2) && apb_periph_axi_rid_valid ? apb_periph_axi_rvalid : '0);
 
@@ -1224,6 +1309,9 @@ module bridge_mix_b_mon_xbar
 
     assign host_axil_64b_b.resp = 
         ((scratch_axi_bid_bridge_id == 2) && scratch_axi_bid_valid ? scratch_axi_bresp : '0);
+
+    assign host_axil_64b_b.user = 
+        ((scratch_axi_bid_bridge_id == 2) && scratch_axi_bid_valid ? scratch_axi_buser : '0);
 
     assign host_axil_64b_bvalid = 
         ((scratch_axi_bid_bridge_id == 2) && scratch_axi_bid_valid ? scratch_axi_bvalid : '0);
@@ -1242,6 +1330,9 @@ module bridge_mix_b_mon_xbar
 
     assign host_axil_64b_r.last = 
         ((scratch_axi_rid_bridge_id == 2) && scratch_axi_rid_valid ? scratch_axi_rlast : '0);
+
+    assign host_axil_64b_r.user = 
+        ((scratch_axi_rid_bridge_id == 2) && scratch_axi_rid_valid ? scratch_axi_ruser : '0);
 
     assign host_axil_64b_rvalid = 
         ((scratch_axi_rid_bridge_id == 2) && scratch_axi_rid_valid ? scratch_axi_rvalid : '0);

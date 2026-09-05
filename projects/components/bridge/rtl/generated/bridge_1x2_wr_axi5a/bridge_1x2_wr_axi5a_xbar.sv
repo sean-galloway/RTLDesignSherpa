@@ -130,6 +130,9 @@ module bridge_1x2_wr_axi5a_xbar
     assign ddr_wr_axi_awlock   = cpu_wr_32b_aw_to_ddr_wr ? cpu_wr_32b_aw.lock : '0;
     assign ddr_wr_axi_awcache  = cpu_wr_32b_aw_to_ddr_wr ? cpu_wr_32b_aw.cache : '0;
     assign ddr_wr_axi_awprot   = cpu_wr_32b_aw_to_ddr_wr ? cpu_wr_32b_aw.prot : '0;
+    assign ddr_wr_axi_awqos    = cpu_wr_32b_aw_to_ddr_wr ? cpu_wr_32b_aw.qos : '0;
+    assign ddr_wr_axi_awregion = cpu_wr_32b_aw_to_ddr_wr ? cpu_wr_32b_aw.region : '0;
+    assign ddr_wr_axi_awuser   = cpu_wr_32b_aw_to_ddr_wr ? cpu_wr_32b_aw.user : '0;
     assign ddr_wr_axi_awtrace  = cpu_wr_32b_aw_to_ddr_wr ? cpu_wr_32b_aw.trace : '0;  // AXI5 sideband
     assign ddr_wr_axi_awatop  = cpu_wr_32b_aw_to_ddr_wr ? cpu_wr_32b_aw.atop : '0;  // AXI5 sideband
     assign ddr_wr_axi_awvalid  = cpu_wr_32b_aw_to_ddr_wr && cpu_wr_32b_awvalid;
@@ -140,6 +143,7 @@ module bridge_1x2_wr_axi5a_xbar
     assign ddr_wr_axi_wdata  = cpu_wr_32b_w_to_ddr_wr ? cpu_wr_32b_w.data : '0;
     assign ddr_wr_axi_wstrb  = cpu_wr_32b_w_to_ddr_wr ? cpu_wr_32b_w.strb : '0;
     assign ddr_wr_axi_wlast  = cpu_wr_32b_w_to_ddr_wr ? cpu_wr_32b_w.last : '0;
+    assign ddr_wr_axi_wuser  = cpu_wr_32b_w_to_ddr_wr ? cpu_wr_32b_w.user : '0;
     assign ddr_wr_axi_wvalid = cpu_wr_32b_w_to_ddr_wr && cpu_wr_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
@@ -168,6 +172,9 @@ module bridge_1x2_wr_axi5a_xbar
     assign sram_wr_axi_awlock   = cpu_wr_32b_aw_to_sram_wr ? cpu_wr_32b_aw.lock : '0;
     assign sram_wr_axi_awcache  = cpu_wr_32b_aw_to_sram_wr ? cpu_wr_32b_aw.cache : '0;
     assign sram_wr_axi_awprot   = cpu_wr_32b_aw_to_sram_wr ? cpu_wr_32b_aw.prot : '0;
+    assign sram_wr_axi_awqos    = cpu_wr_32b_aw_to_sram_wr ? cpu_wr_32b_aw.qos : '0;
+    assign sram_wr_axi_awregion = cpu_wr_32b_aw_to_sram_wr ? cpu_wr_32b_aw.region : '0;
+    assign sram_wr_axi_awuser   = cpu_wr_32b_aw_to_sram_wr ? cpu_wr_32b_aw.user : '0;
     assign sram_wr_axi_awatop  = cpu_wr_32b_aw_to_sram_wr ? cpu_wr_32b_aw.atop : '0;  // AXI5 sideband
     assign sram_wr_axi_awvalid  = cpu_wr_32b_aw_to_sram_wr && cpu_wr_32b_awvalid;
 
@@ -177,6 +184,7 @@ module bridge_1x2_wr_axi5a_xbar
     assign sram_wr_axi_wdata  = cpu_wr_32b_w_to_sram_wr ? cpu_wr_32b_w.data : '0;
     assign sram_wr_axi_wstrb  = cpu_wr_32b_w_to_sram_wr ? cpu_wr_32b_w.strb : '0;
     assign sram_wr_axi_wlast  = cpu_wr_32b_w_to_sram_wr ? cpu_wr_32b_w.last : '0;
+    assign sram_wr_axi_wuser  = cpu_wr_32b_w_to_sram_wr ? cpu_wr_32b_w.user : '0;
     assign sram_wr_axi_wvalid = cpu_wr_32b_w_to_sram_wr && cpu_wr_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
@@ -235,6 +243,10 @@ module bridge_1x2_wr_axi5a_xbar
     assign cpu_wr_32b_b.resp = 
         ((ddr_wr_axi_bid_bridge_id == 0) && ddr_wr_axi_bid_valid ? ddr_wr_axi_bresp : '0) |
         ((sram_wr_axi_bid_bridge_id == 0) && sram_wr_axi_bid_valid ? sram_wr_axi_bresp : '0);
+
+    assign cpu_wr_32b_b.user = 
+        ((ddr_wr_axi_bid_bridge_id == 0) && ddr_wr_axi_bid_valid ? ddr_wr_axi_buser : '0) |
+        ((sram_wr_axi_bid_bridge_id == 0) && sram_wr_axi_bid_valid ? sram_wr_axi_buser : '0);
 
     assign cpu_wr_32b_bvalid = 
         ((ddr_wr_axi_bid_bridge_id == 0) && ddr_wr_axi_bid_valid ? ddr_wr_axi_bvalid : '0) |

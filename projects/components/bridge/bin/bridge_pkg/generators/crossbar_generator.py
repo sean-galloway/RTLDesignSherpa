@@ -660,10 +660,18 @@ class CrossbarGenerator:
 
             aw_gate = f"{{m}}_{{suffix}}_aw_gnt_{slave.name}"
             lines.append("    // AW channel (arbitrated mux across writing masters)")
+            # qos/region/user are ordinary AXI4 signals: the struct has
+            # carried them all along and the master adapters populate them,
+            # but they were never muxed out to the slave. That left every
+            # generated slave port's awqos/awregion/awuser UNDRIVEN -- 130,
+            # 130 and 193 lint warnings across the 35 variants -- so a
+            # master's QoS never reached its slave and the outputs floated
+            # rather than tying to zero.
             aw_pairs = [("awid", ".id"), ("awaddr", ".addr"), ("awlen", ".len"),
                         ("awsize", ".size"), ("awburst", ".burst"),
                         ("awlock", ".lock"), ("awcache", ".cache"),
-                        ("awprot", ".prot")]
+                        ("awprot", ".prot"), ("awqos", ".qos"),
+                        ("awregion", ".region"), ("awuser", ".user")]
             aw_pairs += [(base, f".{field}") for field, _w, _f, base
                          in self._sb_fields('aw', self._sb_slave_feats(slave))]
             for sig, fld in aw_pairs:
@@ -707,7 +715,8 @@ class CrossbarGenerator:
 
             w_gate = f"({{m}}_{{suffix}}_w_sel_{slave.name} && {{m}}_{{suffix}}_wvalid)"
             lines.append("    // W channel (owner-gated mux across writing masters)")
-            w_pairs = [("wdata", ".data"), ("wstrb", ".strb"), ("wlast", ".last")]
+            w_pairs = [("wdata", ".data"), ("wstrb", ".strb"), ("wlast", ".last"),
+                       ("wuser", ".user")]
             w_pairs += [(base, f".{field}") for field, _w, _f, base
                         in self._sb_fields('w', self._sb_slave_feats(slave))]
             for sig, fld in w_pairs:
@@ -751,7 +760,8 @@ class CrossbarGenerator:
             ar_pairs = [("arid", ".id"), ("araddr", ".addr"), ("arlen", ".len"),
                         ("arsize", ".size"), ("arburst", ".burst"),
                         ("arlock", ".lock"), ("arcache", ".cache"),
-                        ("arprot", ".prot")]
+                        ("arprot", ".prot"), ("arqos", ".qos"),
+                        ("arregion", ".region"), ("aruser", ".user")]
             ar_pairs += [(base, f".{field}") for field, _w, _f, base
                          in self._sb_fields('ar', self._sb_slave_feats(slave))]
             for sig, fld in ar_pairs:
@@ -878,6 +888,12 @@ class CrossbarGenerator:
         lines.append(f"    assign {prefix}awlock   = {sig_select} ? {master.name}_{suffix}_aw.lock : '0;")
         lines.append(f"    assign {prefix}awcache  = {sig_select} ? {master.name}_{suffix}_aw.cache : '0;")
         lines.append(f"    assign {prefix}awprot   = {sig_select} ? {master.name}_{suffix}_aw.prot : '0;")
+        # qos/region/user: ordinary AXI4 signals the struct has always
+        # carried. Omitted here as well as in the arbitrated path, so
+        # single-master bridges left them undriven too.
+        lines.append(f"    assign {prefix}awqos    = {sig_select} ? {master.name}_{suffix}_aw.qos : '0;")
+        lines.append(f"    assign {prefix}awregion = {sig_select} ? {master.name}_{suffix}_aw.region : '0;")
+        lines.append(f"    assign {prefix}awuser   = {sig_select} ? {master.name}_{suffix}_aw.user : '0;")
         for field, _w, _feat, base in self._sb_fields('aw', self._sb_slave_feats(slave)):
             lines.append(f"    assign {prefix}{base}  = {sig_select} ? {master.name}_{suffix}_aw.{field} : '0;  // AXI5 sideband")
         lines.append(f"    assign {prefix}awvalid  = {sig_select} && {master.name}_{suffix}_awvalid;")
@@ -894,6 +910,7 @@ class CrossbarGenerator:
         lines.append(f"    assign {prefix}wdata  = {w_sig} ? {master.name}_{suffix}_w.data : '0;")
         lines.append(f"    assign {prefix}wstrb  = {w_sig} ? {master.name}_{suffix}_w.strb : '0;")
         lines.append(f"    assign {prefix}wlast  = {w_sig} ? {master.name}_{suffix}_w.last : '0;")
+        lines.append(f"    assign {prefix}wuser  = {w_sig} ? {master.name}_{suffix}_w.user : '0;")
         for field, _w, _feat, base in self._sb_fields('w', self._sb_slave_feats(slave)):
             lines.append(f"    assign {prefix}{base} = {w_sig} ? {master.name}_{suffix}_w.{field} : '0;  // AXI5 sideband")
         lines.append(f"    assign {prefix}wvalid = {w_sig} && {master.name}_{suffix}_wvalid;")
@@ -944,6 +961,9 @@ class CrossbarGenerator:
         lines.append(f"    assign {prefix}arlock   = {sig_select} ? {master.name}_{suffix}_ar.lock : '0;")
         lines.append(f"    assign {prefix}arcache  = {sig_select} ? {master.name}_{suffix}_ar.cache : '0;")
         lines.append(f"    assign {prefix}arprot   = {sig_select} ? {master.name}_{suffix}_ar.prot : '0;")
+        lines.append(f"    assign {prefix}arqos    = {sig_select} ? {master.name}_{suffix}_ar.qos : '0;")
+        lines.append(f"    assign {prefix}arregion = {sig_select} ? {master.name}_{suffix}_ar.region : '0;")
+        lines.append(f"    assign {prefix}aruser   = {sig_select} ? {master.name}_{suffix}_ar.user : '0;")
         for field, _w, _feat, base in self._sb_fields('ar', self._sb_slave_feats(slave)):
             lines.append(f"    assign {prefix}{base}  = {sig_select} ? {master.name}_{suffix}_ar.{field} : '0;  // AXI5 sideband")
         lines.append(f"    assign {prefix}arvalid  = {sig_select} && {master.name}_{suffix}_arvalid;")
@@ -1067,6 +1087,17 @@ class CrossbarGenerator:
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
+        # buser: the response struct has always carried it and the master
+        # adapter reads it, but it was never driven -- the return half of the
+        # same gap that left awuser/aruser undriven on the request side.
+        lines.append(f"    assign {master.name}_{suffix}_b.user = ")
+        mux_terms = []
+        for slave_idx, slave in connected_slaves:
+            prefix = get_slave_prefix(slave)
+            mux_terms.append(f"        (({prefix}bid_bridge_id == {master_idx}) && {prefix}bid_valid ? {prefix}buser : '0)")
+        lines.append(" |\n".join(mux_terms) + ";")
+        lines.append("")
+
         lines.append(f"    assign {master.name}_{suffix}_bvalid = ")
         mux_terms = []
         for slave_idx, slave in connected_slaves:
@@ -1153,6 +1184,14 @@ class CrossbarGenerator:
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
             mux_terms.append(f"        (({prefix}rid_bridge_id == {master_idx}) && {prefix}rid_valid ? {prefix}rlast : '0)")
+        lines.append(" |\n".join(mux_terms) + ";")
+        lines.append("")
+
+        lines.append(f"    assign {master.name}_{suffix}_r.user = ")
+        mux_terms = []
+        for slave_idx, slave in connected_slaves:
+            prefix = get_slave_prefix(slave)
+            mux_terms.append(f"        (({prefix}rid_bridge_id == {master_idx}) && {prefix}rid_valid ? {prefix}ruser : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 

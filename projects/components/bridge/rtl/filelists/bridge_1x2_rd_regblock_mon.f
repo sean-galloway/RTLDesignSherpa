@@ -14,6 +14,9 @@ $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_1x2_rd_regblock_mon/b
 $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_1x2_rd_regblock_mon/ddr_rd_adapter.sv
 $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_1x2_rd_regblock_mon/sram_rd_adapter.sv
 
+# Verilator waiver: PeakRDL field_combo MULTIDRIVEN (see file)
+$REPO_ROOT/projects/components/bridge/rtl/regs/bridge_regblock.vlt
+
 # AXI4 Wrapper modules (timing isolation)
 #
 # Pulled in via each component's OWN filelist rather than by hand-listing

@@ -146,6 +146,9 @@ module bridge_1x3_rd_xbar
     assign periph_rd_axi_arlock   = cpu_rd_32b_ar_to_periph_rd ? cpu_rd_32b_ar.lock : '0;
     assign periph_rd_axi_arcache  = cpu_rd_32b_ar_to_periph_rd ? cpu_rd_32b_ar.cache : '0;
     assign periph_rd_axi_arprot   = cpu_rd_32b_ar_to_periph_rd ? cpu_rd_32b_ar.prot : '0;
+    assign periph_rd_axi_arqos    = cpu_rd_32b_ar_to_periph_rd ? cpu_rd_32b_ar.qos : '0;
+    assign periph_rd_axi_arregion = cpu_rd_32b_ar_to_periph_rd ? cpu_rd_32b_ar.region : '0;
+    assign periph_rd_axi_aruser   = cpu_rd_32b_ar_to_periph_rd ? cpu_rd_32b_ar.user : '0;
     assign periph_rd_axi_arvalid  = cpu_rd_32b_ar_to_periph_rd && cpu_rd_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -174,6 +177,9 @@ module bridge_1x3_rd_xbar
     assign ddr_rd_axi_arlock   = cpu_rd_64b_ar_to_ddr_rd ? cpu_rd_64b_ar.lock : '0;
     assign ddr_rd_axi_arcache  = cpu_rd_64b_ar_to_ddr_rd ? cpu_rd_64b_ar.cache : '0;
     assign ddr_rd_axi_arprot   = cpu_rd_64b_ar_to_ddr_rd ? cpu_rd_64b_ar.prot : '0;
+    assign ddr_rd_axi_arqos    = cpu_rd_64b_ar_to_ddr_rd ? cpu_rd_64b_ar.qos : '0;
+    assign ddr_rd_axi_arregion = cpu_rd_64b_ar_to_ddr_rd ? cpu_rd_64b_ar.region : '0;
+    assign ddr_rd_axi_aruser   = cpu_rd_64b_ar_to_ddr_rd ? cpu_rd_64b_ar.user : '0;
     assign ddr_rd_axi_arvalid  = cpu_rd_64b_ar_to_ddr_rd && cpu_rd_64b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -202,6 +208,9 @@ module bridge_1x3_rd_xbar
     assign hbm_rd_axi_arlock   = cpu_rd_128b_ar_to_hbm_rd ? cpu_rd_128b_ar.lock : '0;
     assign hbm_rd_axi_arcache  = cpu_rd_128b_ar_to_hbm_rd ? cpu_rd_128b_ar.cache : '0;
     assign hbm_rd_axi_arprot   = cpu_rd_128b_ar_to_hbm_rd ? cpu_rd_128b_ar.prot : '0;
+    assign hbm_rd_axi_arqos    = cpu_rd_128b_ar_to_hbm_rd ? cpu_rd_128b_ar.qos : '0;
+    assign hbm_rd_axi_arregion = cpu_rd_128b_ar_to_hbm_rd ? cpu_rd_128b_ar.region : '0;
+    assign hbm_rd_axi_aruser   = cpu_rd_128b_ar_to_hbm_rd ? cpu_rd_128b_ar.user : '0;
     assign hbm_rd_axi_arvalid  = cpu_rd_128b_ar_to_hbm_rd && cpu_rd_128b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -235,6 +244,9 @@ module bridge_1x3_rd_xbar
     assign cpu_rd_32b_r.last = 
         ((periph_rd_axi_rid_bridge_id == 0) && periph_rd_axi_rid_valid ? periph_rd_axi_rlast : '0);
 
+    assign cpu_rd_32b_r.user = 
+        ((periph_rd_axi_rid_bridge_id == 0) && periph_rd_axi_rid_valid ? periph_rd_axi_ruser : '0);
+
     assign cpu_rd_32b_rvalid = 
         ((periph_rd_axi_rid_bridge_id == 0) && periph_rd_axi_rid_valid ? periph_rd_axi_rvalid : '0);
 
@@ -255,6 +267,9 @@ module bridge_1x3_rd_xbar
     assign cpu_rd_64b_r.last = 
         ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_rlast : '0);
 
+    assign cpu_rd_64b_r.user = 
+        ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_ruser : '0);
+
     assign cpu_rd_64b_rvalid = 
         ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_rvalid : '0);
 
@@ -274,6 +289,9 @@ module bridge_1x3_rd_xbar
 
     assign cpu_rd_128b_r.last = 
         ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_rlast : '0);
+
+    assign cpu_rd_128b_r.user = 
+        ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_ruser : '0);
 
     assign cpu_rd_128b_rvalid = 
         ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_rvalid : '0);

@@ -176,6 +176,9 @@ module bridge_1x3_wr_xbar
     assign periph_wr_axi_awlock   = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.lock : '0;
     assign periph_wr_axi_awcache  = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.cache : '0;
     assign periph_wr_axi_awprot   = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.prot : '0;
+    assign periph_wr_axi_awqos    = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.qos : '0;
+    assign periph_wr_axi_awregion = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.region : '0;
+    assign periph_wr_axi_awuser   = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.user : '0;
     assign periph_wr_axi_awvalid  = cpu_wr_32b_aw_to_periph_wr && cpu_wr_32b_awvalid;
 
     assign cpu_wr_32b_w_sel_periph_wr = cpu_wr_32b_w_to_periph_wr;
@@ -184,6 +187,7 @@ module bridge_1x3_wr_xbar
     assign periph_wr_axi_wdata  = cpu_wr_32b_w_to_periph_wr ? cpu_wr_32b_w.data : '0;
     assign periph_wr_axi_wstrb  = cpu_wr_32b_w_to_periph_wr ? cpu_wr_32b_w.strb : '0;
     assign periph_wr_axi_wlast  = cpu_wr_32b_w_to_periph_wr ? cpu_wr_32b_w.last : '0;
+    assign periph_wr_axi_wuser  = cpu_wr_32b_w_to_periph_wr ? cpu_wr_32b_w.user : '0;
     assign periph_wr_axi_wvalid = cpu_wr_32b_w_to_periph_wr && cpu_wr_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
@@ -212,6 +216,9 @@ module bridge_1x3_wr_xbar
     assign ddr_wr_axi_awlock   = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.lock : '0;
     assign ddr_wr_axi_awcache  = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.cache : '0;
     assign ddr_wr_axi_awprot   = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.prot : '0;
+    assign ddr_wr_axi_awqos    = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.qos : '0;
+    assign ddr_wr_axi_awregion = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.region : '0;
+    assign ddr_wr_axi_awuser   = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.user : '0;
     assign ddr_wr_axi_awvalid  = cpu_wr_64b_aw_to_ddr_wr && cpu_wr_64b_awvalid;
 
     assign cpu_wr_64b_w_sel_ddr_wr = cpu_wr_64b_w_to_ddr_wr;
@@ -220,6 +227,7 @@ module bridge_1x3_wr_xbar
     assign ddr_wr_axi_wdata  = cpu_wr_64b_w_to_ddr_wr ? cpu_wr_64b_w.data : '0;
     assign ddr_wr_axi_wstrb  = cpu_wr_64b_w_to_ddr_wr ? cpu_wr_64b_w.strb : '0;
     assign ddr_wr_axi_wlast  = cpu_wr_64b_w_to_ddr_wr ? cpu_wr_64b_w.last : '0;
+    assign ddr_wr_axi_wuser  = cpu_wr_64b_w_to_ddr_wr ? cpu_wr_64b_w.user : '0;
     assign ddr_wr_axi_wvalid = cpu_wr_64b_w_to_ddr_wr && cpu_wr_64b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
@@ -248,6 +256,9 @@ module bridge_1x3_wr_xbar
     assign hbm_wr_axi_awlock   = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.lock : '0;
     assign hbm_wr_axi_awcache  = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.cache : '0;
     assign hbm_wr_axi_awprot   = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.prot : '0;
+    assign hbm_wr_axi_awqos    = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.qos : '0;
+    assign hbm_wr_axi_awregion = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.region : '0;
+    assign hbm_wr_axi_awuser   = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.user : '0;
     assign hbm_wr_axi_awvalid  = cpu_wr_128b_aw_to_hbm_wr && cpu_wr_128b_awvalid;
 
     assign cpu_wr_128b_w_sel_hbm_wr = cpu_wr_128b_w_to_hbm_wr;
@@ -256,6 +267,7 @@ module bridge_1x3_wr_xbar
     assign hbm_wr_axi_wdata  = cpu_wr_128b_w_to_hbm_wr ? cpu_wr_128b_w.data : '0;
     assign hbm_wr_axi_wstrb  = cpu_wr_128b_w_to_hbm_wr ? cpu_wr_128b_w.strb : '0;
     assign hbm_wr_axi_wlast  = cpu_wr_128b_w_to_hbm_wr ? cpu_wr_128b_w.last : '0;
+    assign hbm_wr_axi_wuser  = cpu_wr_128b_w_to_hbm_wr ? cpu_wr_128b_w.user : '0;
     assign hbm_wr_axi_wvalid = cpu_wr_128b_w_to_hbm_wr && cpu_wr_128b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
@@ -358,6 +370,9 @@ module bridge_1x3_wr_xbar
     assign cpu_wr_32b_b.resp = 
         ((periph_wr_axi_bid_bridge_id == 0) && periph_wr_axi_bid_valid ? periph_wr_axi_bresp : '0);
 
+    assign cpu_wr_32b_b.user = 
+        ((periph_wr_axi_bid_bridge_id == 0) && periph_wr_axi_bid_valid ? periph_wr_axi_buser : '0);
+
     assign cpu_wr_32b_bvalid = 
         ((periph_wr_axi_bid_bridge_id == 0) && periph_wr_axi_bid_valid ? periph_wr_axi_bvalid : '0);
 
@@ -375,6 +390,9 @@ module bridge_1x3_wr_xbar
     assign cpu_wr_64b_b.resp = 
         ((ddr_wr_axi_bid_bridge_id == 0) && ddr_wr_axi_bid_valid ? ddr_wr_axi_bresp : '0);
 
+    assign cpu_wr_64b_b.user = 
+        ((ddr_wr_axi_bid_bridge_id == 0) && ddr_wr_axi_bid_valid ? ddr_wr_axi_buser : '0);
+
     assign cpu_wr_64b_bvalid = 
         ((ddr_wr_axi_bid_bridge_id == 0) && ddr_wr_axi_bid_valid ? ddr_wr_axi_bvalid : '0);
 
@@ -391,6 +409,9 @@ module bridge_1x3_wr_xbar
 
     assign cpu_wr_128b_b.resp = 
         ((hbm_wr_axi_bid_bridge_id == 0) && hbm_wr_axi_bid_valid ? hbm_wr_axi_bresp : '0);
+
+    assign cpu_wr_128b_b.user = 
+        ((hbm_wr_axi_bid_bridge_id == 0) && hbm_wr_axi_bid_valid ? hbm_wr_axi_buser : '0);
 
     assign cpu_wr_128b_bvalid = 
         ((hbm_wr_axi_bid_bridge_id == 0) && hbm_wr_axi_bid_valid ? hbm_wr_axi_bvalid : '0);

@@ -845,6 +845,21 @@ def _emit_bridge_variant(
         if file_key != 'package':  # Skip package (already added)
             filelist_lines.append(_bridge_file_path(generated_files[file_key]))
 
+    # Verilator waiver for the PeakRDL regblock, when this variant has one.
+    # PeakRDL writes one always_comb per field, each touching a different
+    # sub-field of the same `field_combo` struct; Verilator checks MULTIDRIVEN
+    # at variable granularity and cannot see they are disjoint, so it fires
+    # once per field (128 times across the bridge, all in this one struct).
+    # The waiver is scoped to the generated regblock so a genuine two-driver
+    # net in the crossbar is still caught, and it lives outside generated/ so
+    # regeneration does not delete it. Same treatment as
+    # misc/rtl/regs/obs_regs.vlt and stream/regs/stream_regs.vlt.
+    if any(str(v).endswith('_cfg.sv') for v in generated_files.values()):
+        filelist_lines.append("")
+        filelist_lines.append("# Verilator waiver: PeakRDL field_combo MULTIDRIVEN (see file)")
+        filelist_lines.append(
+            "$REPO_ROOT/projects/components/bridge/rtl/regs/bridge_regblock.vlt")
+
     filelist_lines.append("")
     filelist_lines.append("# AXI4 Wrapper modules (timing isolation)")
     filelist_lines.append("#")

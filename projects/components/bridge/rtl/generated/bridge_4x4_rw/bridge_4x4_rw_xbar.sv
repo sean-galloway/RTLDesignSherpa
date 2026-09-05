@@ -581,6 +581,15 @@ module bridge_4x4_rw_xbar
     assign periph_slave_axi_awprot = (cpu_master_32b_aw_gnt_periph_slave ? cpu_master_32b_aw.prot : '0) |
         (dma0_master_32b_aw_gnt_periph_slave ? dma0_master_32b_aw.prot : '0) |
         (gpu_master_32b_aw_gnt_periph_slave ? gpu_master_32b_aw.prot : '0);
+    assign periph_slave_axi_awqos = (cpu_master_32b_aw_gnt_periph_slave ? cpu_master_32b_aw.qos : '0) |
+        (dma0_master_32b_aw_gnt_periph_slave ? dma0_master_32b_aw.qos : '0) |
+        (gpu_master_32b_aw_gnt_periph_slave ? gpu_master_32b_aw.qos : '0);
+    assign periph_slave_axi_awregion = (cpu_master_32b_aw_gnt_periph_slave ? cpu_master_32b_aw.region : '0) |
+        (dma0_master_32b_aw_gnt_periph_slave ? dma0_master_32b_aw.region : '0) |
+        (gpu_master_32b_aw_gnt_periph_slave ? gpu_master_32b_aw.region : '0);
+    assign periph_slave_axi_awuser = (cpu_master_32b_aw_gnt_periph_slave ? cpu_master_32b_aw.user : '0) |
+        (dma0_master_32b_aw_gnt_periph_slave ? dma0_master_32b_aw.user : '0) |
+        (gpu_master_32b_aw_gnt_periph_slave ? gpu_master_32b_aw.user : '0);
     assign periph_slave_axi_awvalid = cpu_master_32b_aw_gnt_periph_slave || dma0_master_32b_aw_gnt_periph_slave || gpu_master_32b_aw_gnt_periph_slave;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
@@ -616,6 +625,9 @@ module bridge_4x4_rw_xbar
     assign periph_slave_axi_wlast = ((cpu_master_32b_w_sel_periph_slave && cpu_master_32b_wvalid) ? cpu_master_32b_w.last : '0) |
         ((dma0_master_32b_w_sel_periph_slave && dma0_master_32b_wvalid) ? dma0_master_32b_w.last : '0) |
         ((gpu_master_32b_w_sel_periph_slave && gpu_master_32b_wvalid) ? gpu_master_32b_w.last : '0);
+    assign periph_slave_axi_wuser = ((cpu_master_32b_w_sel_periph_slave && cpu_master_32b_wvalid) ? cpu_master_32b_w.user : '0) |
+        ((dma0_master_32b_w_sel_periph_slave && dma0_master_32b_wvalid) ? dma0_master_32b_w.user : '0) |
+        ((gpu_master_32b_w_sel_periph_slave && gpu_master_32b_wvalid) ? gpu_master_32b_w.user : '0);
     assign periph_slave_axi_wvalid = (cpu_master_32b_w_sel_periph_slave && cpu_master_32b_wvalid) || (dma0_master_32b_w_sel_periph_slave && dma0_master_32b_wvalid) || (gpu_master_32b_w_sel_periph_slave && gpu_master_32b_wvalid);
 
     // Bready (slave → owning master, by bid_bridge_id)
@@ -682,6 +694,15 @@ module bridge_4x4_rw_xbar
     assign periph_slave_axi_arprot = (cpu_master_32b_ar_gnt_periph_slave ? cpu_master_32b_ar.prot : '0) |
         (dma0_master_32b_ar_gnt_periph_slave ? dma0_master_32b_ar.prot : '0) |
         (gpu_master_32b_ar_gnt_periph_slave ? gpu_master_32b_ar.prot : '0);
+    assign periph_slave_axi_arqos = (cpu_master_32b_ar_gnt_periph_slave ? cpu_master_32b_ar.qos : '0) |
+        (dma0_master_32b_ar_gnt_periph_slave ? dma0_master_32b_ar.qos : '0) |
+        (gpu_master_32b_ar_gnt_periph_slave ? gpu_master_32b_ar.qos : '0);
+    assign periph_slave_axi_arregion = (cpu_master_32b_ar_gnt_periph_slave ? cpu_master_32b_ar.region : '0) |
+        (dma0_master_32b_ar_gnt_periph_slave ? dma0_master_32b_ar.region : '0) |
+        (gpu_master_32b_ar_gnt_periph_slave ? gpu_master_32b_ar.region : '0);
+    assign periph_slave_axi_aruser = (cpu_master_32b_ar_gnt_periph_slave ? cpu_master_32b_ar.user : '0) |
+        (dma0_master_32b_ar_gnt_periph_slave ? dma0_master_32b_ar.user : '0) |
+        (gpu_master_32b_ar_gnt_periph_slave ? gpu_master_32b_ar.user : '0);
     assign periph_slave_axi_arvalid = cpu_master_32b_ar_gnt_periph_slave || dma0_master_32b_ar_gnt_periph_slave || gpu_master_32b_ar_gnt_periph_slave;
 
     // Rready (slave → owning master, by rid_bridge_id)
@@ -777,6 +798,18 @@ module bridge_4x4_rw_xbar
         (dma0_master_64b_aw_gnt_ddr0_slave ? dma0_master_64b_aw.prot : '0) |
         (dma1_master_64b_aw_gnt_ddr0_slave ? dma1_master_64b_aw.prot : '0) |
         (gpu_master_64b_aw_gnt_ddr0_slave ? gpu_master_64b_aw.prot : '0);
+    assign ddr0_slave_axi_awqos = (cpu_master_64b_aw_gnt_ddr0_slave ? cpu_master_64b_aw.qos : '0) |
+        (dma0_master_64b_aw_gnt_ddr0_slave ? dma0_master_64b_aw.qos : '0) |
+        (dma1_master_64b_aw_gnt_ddr0_slave ? dma1_master_64b_aw.qos : '0) |
+        (gpu_master_64b_aw_gnt_ddr0_slave ? gpu_master_64b_aw.qos : '0);
+    assign ddr0_slave_axi_awregion = (cpu_master_64b_aw_gnt_ddr0_slave ? cpu_master_64b_aw.region : '0) |
+        (dma0_master_64b_aw_gnt_ddr0_slave ? dma0_master_64b_aw.region : '0) |
+        (dma1_master_64b_aw_gnt_ddr0_slave ? dma1_master_64b_aw.region : '0) |
+        (gpu_master_64b_aw_gnt_ddr0_slave ? gpu_master_64b_aw.region : '0);
+    assign ddr0_slave_axi_awuser = (cpu_master_64b_aw_gnt_ddr0_slave ? cpu_master_64b_aw.user : '0) |
+        (dma0_master_64b_aw_gnt_ddr0_slave ? dma0_master_64b_aw.user : '0) |
+        (dma1_master_64b_aw_gnt_ddr0_slave ? dma1_master_64b_aw.user : '0) |
+        (gpu_master_64b_aw_gnt_ddr0_slave ? gpu_master_64b_aw.user : '0);
     assign ddr0_slave_axi_awvalid = cpu_master_64b_aw_gnt_ddr0_slave || dma0_master_64b_aw_gnt_ddr0_slave || dma1_master_64b_aw_gnt_ddr0_slave || gpu_master_64b_aw_gnt_ddr0_slave;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
@@ -816,6 +849,10 @@ module bridge_4x4_rw_xbar
         ((dma0_master_64b_w_sel_ddr0_slave && dma0_master_64b_wvalid) ? dma0_master_64b_w.last : '0) |
         ((dma1_master_64b_w_sel_ddr0_slave && dma1_master_64b_wvalid) ? dma1_master_64b_w.last : '0) |
         ((gpu_master_64b_w_sel_ddr0_slave && gpu_master_64b_wvalid) ? gpu_master_64b_w.last : '0);
+    assign ddr0_slave_axi_wuser = ((cpu_master_64b_w_sel_ddr0_slave && cpu_master_64b_wvalid) ? cpu_master_64b_w.user : '0) |
+        ((dma0_master_64b_w_sel_ddr0_slave && dma0_master_64b_wvalid) ? dma0_master_64b_w.user : '0) |
+        ((dma1_master_64b_w_sel_ddr0_slave && dma1_master_64b_wvalid) ? dma1_master_64b_w.user : '0) |
+        ((gpu_master_64b_w_sel_ddr0_slave && gpu_master_64b_wvalid) ? gpu_master_64b_w.user : '0);
     assign ddr0_slave_axi_wvalid = (cpu_master_64b_w_sel_ddr0_slave && cpu_master_64b_wvalid) || (dma0_master_64b_w_sel_ddr0_slave && dma0_master_64b_wvalid) || (dma1_master_64b_w_sel_ddr0_slave && dma1_master_64b_wvalid) || (gpu_master_64b_w_sel_ddr0_slave && gpu_master_64b_wvalid);
 
     // Bready (slave → owning master, by bid_bridge_id)
@@ -894,6 +931,18 @@ module bridge_4x4_rw_xbar
         (dma0_master_64b_ar_gnt_ddr0_slave ? dma0_master_64b_ar.prot : '0) |
         (dma1_master_64b_ar_gnt_ddr0_slave ? dma1_master_64b_ar.prot : '0) |
         (gpu_master_64b_ar_gnt_ddr0_slave ? gpu_master_64b_ar.prot : '0);
+    assign ddr0_slave_axi_arqos = (cpu_master_64b_ar_gnt_ddr0_slave ? cpu_master_64b_ar.qos : '0) |
+        (dma0_master_64b_ar_gnt_ddr0_slave ? dma0_master_64b_ar.qos : '0) |
+        (dma1_master_64b_ar_gnt_ddr0_slave ? dma1_master_64b_ar.qos : '0) |
+        (gpu_master_64b_ar_gnt_ddr0_slave ? gpu_master_64b_ar.qos : '0);
+    assign ddr0_slave_axi_arregion = (cpu_master_64b_ar_gnt_ddr0_slave ? cpu_master_64b_ar.region : '0) |
+        (dma0_master_64b_ar_gnt_ddr0_slave ? dma0_master_64b_ar.region : '0) |
+        (dma1_master_64b_ar_gnt_ddr0_slave ? dma1_master_64b_ar.region : '0) |
+        (gpu_master_64b_ar_gnt_ddr0_slave ? gpu_master_64b_ar.region : '0);
+    assign ddr0_slave_axi_aruser = (cpu_master_64b_ar_gnt_ddr0_slave ? cpu_master_64b_ar.user : '0) |
+        (dma0_master_64b_ar_gnt_ddr0_slave ? dma0_master_64b_ar.user : '0) |
+        (dma1_master_64b_ar_gnt_ddr0_slave ? dma1_master_64b_ar.user : '0) |
+        (gpu_master_64b_ar_gnt_ddr0_slave ? gpu_master_64b_ar.user : '0);
     assign ddr0_slave_axi_arvalid = cpu_master_64b_ar_gnt_ddr0_slave || dma0_master_64b_ar_gnt_ddr0_slave || dma1_master_64b_ar_gnt_ddr0_slave || gpu_master_64b_ar_gnt_ddr0_slave;
 
     // Rready (slave → owning master, by rid_bridge_id)
@@ -978,6 +1027,15 @@ module bridge_4x4_rw_xbar
     assign sram_slave_axi_awprot = (cpu_master_128b_aw_gnt_sram_slave ? cpu_master_128b_aw.prot : '0) |
         (dma0_master_128b_aw_gnt_sram_slave ? dma0_master_128b_aw.prot : '0) |
         (dma1_master_128b_aw_gnt_sram_slave ? dma1_master_128b_aw.prot : '0);
+    assign sram_slave_axi_awqos = (cpu_master_128b_aw_gnt_sram_slave ? cpu_master_128b_aw.qos : '0) |
+        (dma0_master_128b_aw_gnt_sram_slave ? dma0_master_128b_aw.qos : '0) |
+        (dma1_master_128b_aw_gnt_sram_slave ? dma1_master_128b_aw.qos : '0);
+    assign sram_slave_axi_awregion = (cpu_master_128b_aw_gnt_sram_slave ? cpu_master_128b_aw.region : '0) |
+        (dma0_master_128b_aw_gnt_sram_slave ? dma0_master_128b_aw.region : '0) |
+        (dma1_master_128b_aw_gnt_sram_slave ? dma1_master_128b_aw.region : '0);
+    assign sram_slave_axi_awuser = (cpu_master_128b_aw_gnt_sram_slave ? cpu_master_128b_aw.user : '0) |
+        (dma0_master_128b_aw_gnt_sram_slave ? dma0_master_128b_aw.user : '0) |
+        (dma1_master_128b_aw_gnt_sram_slave ? dma1_master_128b_aw.user : '0);
     assign sram_slave_axi_awvalid = cpu_master_128b_aw_gnt_sram_slave || dma0_master_128b_aw_gnt_sram_slave || dma1_master_128b_aw_gnt_sram_slave;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
@@ -1013,6 +1071,9 @@ module bridge_4x4_rw_xbar
     assign sram_slave_axi_wlast = ((cpu_master_128b_w_sel_sram_slave && cpu_master_128b_wvalid) ? cpu_master_128b_w.last : '0) |
         ((dma0_master_128b_w_sel_sram_slave && dma0_master_128b_wvalid) ? dma0_master_128b_w.last : '0) |
         ((dma1_master_128b_w_sel_sram_slave && dma1_master_128b_wvalid) ? dma1_master_128b_w.last : '0);
+    assign sram_slave_axi_wuser = ((cpu_master_128b_w_sel_sram_slave && cpu_master_128b_wvalid) ? cpu_master_128b_w.user : '0) |
+        ((dma0_master_128b_w_sel_sram_slave && dma0_master_128b_wvalid) ? dma0_master_128b_w.user : '0) |
+        ((dma1_master_128b_w_sel_sram_slave && dma1_master_128b_wvalid) ? dma1_master_128b_w.user : '0);
     assign sram_slave_axi_wvalid = (cpu_master_128b_w_sel_sram_slave && cpu_master_128b_wvalid) || (dma0_master_128b_w_sel_sram_slave && dma0_master_128b_wvalid) || (dma1_master_128b_w_sel_sram_slave && dma1_master_128b_wvalid);
 
     // Bready (slave → owning master, by bid_bridge_id)
@@ -1079,6 +1140,15 @@ module bridge_4x4_rw_xbar
     assign sram_slave_axi_arprot = (cpu_master_128b_ar_gnt_sram_slave ? cpu_master_128b_ar.prot : '0) |
         (dma0_master_128b_ar_gnt_sram_slave ? dma0_master_128b_ar.prot : '0) |
         (dma1_master_128b_ar_gnt_sram_slave ? dma1_master_128b_ar.prot : '0);
+    assign sram_slave_axi_arqos = (cpu_master_128b_ar_gnt_sram_slave ? cpu_master_128b_ar.qos : '0) |
+        (dma0_master_128b_ar_gnt_sram_slave ? dma0_master_128b_ar.qos : '0) |
+        (dma1_master_128b_ar_gnt_sram_slave ? dma1_master_128b_ar.qos : '0);
+    assign sram_slave_axi_arregion = (cpu_master_128b_ar_gnt_sram_slave ? cpu_master_128b_ar.region : '0) |
+        (dma0_master_128b_ar_gnt_sram_slave ? dma0_master_128b_ar.region : '0) |
+        (dma1_master_128b_ar_gnt_sram_slave ? dma1_master_128b_ar.region : '0);
+    assign sram_slave_axi_aruser = (cpu_master_128b_ar_gnt_sram_slave ? cpu_master_128b_ar.user : '0) |
+        (dma0_master_128b_ar_gnt_sram_slave ? dma0_master_128b_ar.user : '0) |
+        (dma1_master_128b_ar_gnt_sram_slave ? dma1_master_128b_ar.user : '0);
     assign sram_slave_axi_arvalid = cpu_master_128b_ar_gnt_sram_slave || dma0_master_128b_ar_gnt_sram_slave || dma1_master_128b_ar_gnt_sram_slave;
 
     // Rready (slave → owning master, by rid_bridge_id)
@@ -1161,6 +1231,15 @@ module bridge_4x4_rw_xbar
     assign gpu_mem_slave_axi_awprot = (cpu_master_256b_aw_gnt_gpu_mem_slave ? cpu_master_256b_aw.prot : '0) |
         (dma1_master_256b_aw_gnt_gpu_mem_slave ? dma1_master_256b_aw.prot : '0) |
         (gpu_master_256b_aw_gnt_gpu_mem_slave ? gpu_master_256b_aw.prot : '0);
+    assign gpu_mem_slave_axi_awqos = (cpu_master_256b_aw_gnt_gpu_mem_slave ? cpu_master_256b_aw.qos : '0) |
+        (dma1_master_256b_aw_gnt_gpu_mem_slave ? dma1_master_256b_aw.qos : '0) |
+        (gpu_master_256b_aw_gnt_gpu_mem_slave ? gpu_master_256b_aw.qos : '0);
+    assign gpu_mem_slave_axi_awregion = (cpu_master_256b_aw_gnt_gpu_mem_slave ? cpu_master_256b_aw.region : '0) |
+        (dma1_master_256b_aw_gnt_gpu_mem_slave ? dma1_master_256b_aw.region : '0) |
+        (gpu_master_256b_aw_gnt_gpu_mem_slave ? gpu_master_256b_aw.region : '0);
+    assign gpu_mem_slave_axi_awuser = (cpu_master_256b_aw_gnt_gpu_mem_slave ? cpu_master_256b_aw.user : '0) |
+        (dma1_master_256b_aw_gnt_gpu_mem_slave ? dma1_master_256b_aw.user : '0) |
+        (gpu_master_256b_aw_gnt_gpu_mem_slave ? gpu_master_256b_aw.user : '0);
     assign gpu_mem_slave_axi_awvalid = cpu_master_256b_aw_gnt_gpu_mem_slave || dma1_master_256b_aw_gnt_gpu_mem_slave || gpu_master_256b_aw_gnt_gpu_mem_slave;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
@@ -1196,6 +1275,9 @@ module bridge_4x4_rw_xbar
     assign gpu_mem_slave_axi_wlast = ((cpu_master_256b_w_sel_gpu_mem_slave && cpu_master_256b_wvalid) ? cpu_master_256b_w.last : '0) |
         ((dma1_master_256b_w_sel_gpu_mem_slave && dma1_master_256b_wvalid) ? dma1_master_256b_w.last : '0) |
         ((gpu_master_256b_w_sel_gpu_mem_slave && gpu_master_256b_wvalid) ? gpu_master_256b_w.last : '0);
+    assign gpu_mem_slave_axi_wuser = ((cpu_master_256b_w_sel_gpu_mem_slave && cpu_master_256b_wvalid) ? cpu_master_256b_w.user : '0) |
+        ((dma1_master_256b_w_sel_gpu_mem_slave && dma1_master_256b_wvalid) ? dma1_master_256b_w.user : '0) |
+        ((gpu_master_256b_w_sel_gpu_mem_slave && gpu_master_256b_wvalid) ? gpu_master_256b_w.user : '0);
     assign gpu_mem_slave_axi_wvalid = (cpu_master_256b_w_sel_gpu_mem_slave && cpu_master_256b_wvalid) || (dma1_master_256b_w_sel_gpu_mem_slave && dma1_master_256b_wvalid) || (gpu_master_256b_w_sel_gpu_mem_slave && gpu_master_256b_wvalid);
 
     // Bready (slave → owning master, by bid_bridge_id)
@@ -1262,6 +1344,15 @@ module bridge_4x4_rw_xbar
     assign gpu_mem_slave_axi_arprot = (cpu_master_256b_ar_gnt_gpu_mem_slave ? cpu_master_256b_ar.prot : '0) |
         (dma1_master_256b_ar_gnt_gpu_mem_slave ? dma1_master_256b_ar.prot : '0) |
         (gpu_master_256b_ar_gnt_gpu_mem_slave ? gpu_master_256b_ar.prot : '0);
+    assign gpu_mem_slave_axi_arqos = (cpu_master_256b_ar_gnt_gpu_mem_slave ? cpu_master_256b_ar.qos : '0) |
+        (dma1_master_256b_ar_gnt_gpu_mem_slave ? dma1_master_256b_ar.qos : '0) |
+        (gpu_master_256b_ar_gnt_gpu_mem_slave ? gpu_master_256b_ar.qos : '0);
+    assign gpu_mem_slave_axi_arregion = (cpu_master_256b_ar_gnt_gpu_mem_slave ? cpu_master_256b_ar.region : '0) |
+        (dma1_master_256b_ar_gnt_gpu_mem_slave ? dma1_master_256b_ar.region : '0) |
+        (gpu_master_256b_ar_gnt_gpu_mem_slave ? gpu_master_256b_ar.region : '0);
+    assign gpu_mem_slave_axi_aruser = (cpu_master_256b_ar_gnt_gpu_mem_slave ? cpu_master_256b_ar.user : '0) |
+        (dma1_master_256b_ar_gnt_gpu_mem_slave ? dma1_master_256b_ar.user : '0) |
+        (gpu_master_256b_ar_gnt_gpu_mem_slave ? gpu_master_256b_ar.user : '0);
     assign gpu_mem_slave_axi_arvalid = cpu_master_256b_ar_gnt_gpu_mem_slave || dma1_master_256b_ar_gnt_gpu_mem_slave || gpu_master_256b_ar_gnt_gpu_mem_slave;
 
     // Rready (slave → owning master, by rid_bridge_id)
@@ -1607,6 +1698,9 @@ module bridge_4x4_rw_xbar
     assign cpu_master_32b_b.resp = 
         ((periph_slave_axi_bid_bridge_id == 0) && periph_slave_axi_bid_valid ? periph_slave_axi_bresp : '0);
 
+    assign cpu_master_32b_b.user = 
+        ((periph_slave_axi_bid_bridge_id == 0) && periph_slave_axi_bid_valid ? periph_slave_axi_buser : '0);
+
     assign cpu_master_32b_bvalid = 
         ((periph_slave_axi_bid_bridge_id == 0) && periph_slave_axi_bid_valid ? periph_slave_axi_bvalid : '0);
 
@@ -1625,6 +1719,9 @@ module bridge_4x4_rw_xbar
     assign cpu_master_32b_r.last = 
         ((periph_slave_axi_rid_bridge_id == 0) && periph_slave_axi_rid_valid ? periph_slave_axi_rlast : '0);
 
+    assign cpu_master_32b_r.user = 
+        ((periph_slave_axi_rid_bridge_id == 0) && periph_slave_axi_rid_valid ? periph_slave_axi_ruser : '0);
+
     assign cpu_master_32b_rvalid = 
         ((periph_slave_axi_rid_bridge_id == 0) && periph_slave_axi_rid_valid ? periph_slave_axi_rvalid : '0);
 
@@ -1641,6 +1738,9 @@ module bridge_4x4_rw_xbar
 
     assign cpu_master_64b_b.resp = 
         ((ddr0_slave_axi_bid_bridge_id == 0) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_bresp : '0);
+
+    assign cpu_master_64b_b.user = 
+        ((ddr0_slave_axi_bid_bridge_id == 0) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_buser : '0);
 
     assign cpu_master_64b_bvalid = 
         ((ddr0_slave_axi_bid_bridge_id == 0) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_bvalid : '0);
@@ -1660,6 +1760,9 @@ module bridge_4x4_rw_xbar
     assign cpu_master_64b_r.last = 
         ((ddr0_slave_axi_rid_bridge_id == 0) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rlast : '0);
 
+    assign cpu_master_64b_r.user = 
+        ((ddr0_slave_axi_rid_bridge_id == 0) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_ruser : '0);
+
     assign cpu_master_64b_rvalid = 
         ((ddr0_slave_axi_rid_bridge_id == 0) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rvalid : '0);
 
@@ -1676,6 +1779,9 @@ module bridge_4x4_rw_xbar
 
     assign cpu_master_128b_b.resp = 
         ((sram_slave_axi_bid_bridge_id == 0) && sram_slave_axi_bid_valid ? sram_slave_axi_bresp : '0);
+
+    assign cpu_master_128b_b.user = 
+        ((sram_slave_axi_bid_bridge_id == 0) && sram_slave_axi_bid_valid ? sram_slave_axi_buser : '0);
 
     assign cpu_master_128b_bvalid = 
         ((sram_slave_axi_bid_bridge_id == 0) && sram_slave_axi_bid_valid ? sram_slave_axi_bvalid : '0);
@@ -1695,6 +1801,9 @@ module bridge_4x4_rw_xbar
     assign cpu_master_128b_r.last = 
         ((sram_slave_axi_rid_bridge_id == 0) && sram_slave_axi_rid_valid ? sram_slave_axi_rlast : '0);
 
+    assign cpu_master_128b_r.user = 
+        ((sram_slave_axi_rid_bridge_id == 0) && sram_slave_axi_rid_valid ? sram_slave_axi_ruser : '0);
+
     assign cpu_master_128b_rvalid = 
         ((sram_slave_axi_rid_bridge_id == 0) && sram_slave_axi_rid_valid ? sram_slave_axi_rvalid : '0);
 
@@ -1711,6 +1820,9 @@ module bridge_4x4_rw_xbar
 
     assign cpu_master_256b_b.resp = 
         ((gpu_mem_slave_axi_bid_bridge_id == 0) && gpu_mem_slave_axi_bid_valid ? gpu_mem_slave_axi_bresp : '0);
+
+    assign cpu_master_256b_b.user = 
+        ((gpu_mem_slave_axi_bid_bridge_id == 0) && gpu_mem_slave_axi_bid_valid ? gpu_mem_slave_axi_buser : '0);
 
     assign cpu_master_256b_bvalid = 
         ((gpu_mem_slave_axi_bid_bridge_id == 0) && gpu_mem_slave_axi_bid_valid ? gpu_mem_slave_axi_bvalid : '0);
@@ -1730,6 +1842,9 @@ module bridge_4x4_rw_xbar
     assign cpu_master_256b_r.last = 
         ((gpu_mem_slave_axi_rid_bridge_id == 0) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_rlast : '0);
 
+    assign cpu_master_256b_r.user = 
+        ((gpu_mem_slave_axi_rid_bridge_id == 0) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_ruser : '0);
+
     assign cpu_master_256b_rvalid = 
         ((gpu_mem_slave_axi_rid_bridge_id == 0) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_rvalid : '0);
 
@@ -1746,6 +1861,9 @@ module bridge_4x4_rw_xbar
 
     assign dma0_master_32b_b.resp = 
         ((periph_slave_axi_bid_bridge_id == 1) && periph_slave_axi_bid_valid ? periph_slave_axi_bresp : '0);
+
+    assign dma0_master_32b_b.user = 
+        ((periph_slave_axi_bid_bridge_id == 1) && periph_slave_axi_bid_valid ? periph_slave_axi_buser : '0);
 
     assign dma0_master_32b_bvalid = 
         ((periph_slave_axi_bid_bridge_id == 1) && periph_slave_axi_bid_valid ? periph_slave_axi_bvalid : '0);
@@ -1765,6 +1883,9 @@ module bridge_4x4_rw_xbar
     assign dma0_master_32b_r.last = 
         ((periph_slave_axi_rid_bridge_id == 1) && periph_slave_axi_rid_valid ? periph_slave_axi_rlast : '0);
 
+    assign dma0_master_32b_r.user = 
+        ((periph_slave_axi_rid_bridge_id == 1) && periph_slave_axi_rid_valid ? periph_slave_axi_ruser : '0);
+
     assign dma0_master_32b_rvalid = 
         ((periph_slave_axi_rid_bridge_id == 1) && periph_slave_axi_rid_valid ? periph_slave_axi_rvalid : '0);
 
@@ -1781,6 +1902,9 @@ module bridge_4x4_rw_xbar
 
     assign dma0_master_64b_b.resp = 
         ((ddr0_slave_axi_bid_bridge_id == 1) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_bresp : '0);
+
+    assign dma0_master_64b_b.user = 
+        ((ddr0_slave_axi_bid_bridge_id == 1) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_buser : '0);
 
     assign dma0_master_64b_bvalid = 
         ((ddr0_slave_axi_bid_bridge_id == 1) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_bvalid : '0);
@@ -1800,6 +1924,9 @@ module bridge_4x4_rw_xbar
     assign dma0_master_64b_r.last = 
         ((ddr0_slave_axi_rid_bridge_id == 1) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rlast : '0);
 
+    assign dma0_master_64b_r.user = 
+        ((ddr0_slave_axi_rid_bridge_id == 1) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_ruser : '0);
+
     assign dma0_master_64b_rvalid = 
         ((ddr0_slave_axi_rid_bridge_id == 1) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rvalid : '0);
 
@@ -1816,6 +1943,9 @@ module bridge_4x4_rw_xbar
 
     assign dma0_master_128b_b.resp = 
         ((sram_slave_axi_bid_bridge_id == 1) && sram_slave_axi_bid_valid ? sram_slave_axi_bresp : '0);
+
+    assign dma0_master_128b_b.user = 
+        ((sram_slave_axi_bid_bridge_id == 1) && sram_slave_axi_bid_valid ? sram_slave_axi_buser : '0);
 
     assign dma0_master_128b_bvalid = 
         ((sram_slave_axi_bid_bridge_id == 1) && sram_slave_axi_bid_valid ? sram_slave_axi_bvalid : '0);
@@ -1835,6 +1965,9 @@ module bridge_4x4_rw_xbar
     assign dma0_master_128b_r.last = 
         ((sram_slave_axi_rid_bridge_id == 1) && sram_slave_axi_rid_valid ? sram_slave_axi_rlast : '0);
 
+    assign dma0_master_128b_r.user = 
+        ((sram_slave_axi_rid_bridge_id == 1) && sram_slave_axi_rid_valid ? sram_slave_axi_ruser : '0);
+
     assign dma0_master_128b_rvalid = 
         ((sram_slave_axi_rid_bridge_id == 1) && sram_slave_axi_rid_valid ? sram_slave_axi_rvalid : '0);
 
@@ -1851,6 +1984,9 @@ module bridge_4x4_rw_xbar
 
     assign dma1_master_64b_b.resp = 
         ((ddr0_slave_axi_bid_bridge_id == 2) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_bresp : '0);
+
+    assign dma1_master_64b_b.user = 
+        ((ddr0_slave_axi_bid_bridge_id == 2) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_buser : '0);
 
     assign dma1_master_64b_bvalid = 
         ((ddr0_slave_axi_bid_bridge_id == 2) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_bvalid : '0);
@@ -1870,6 +2006,9 @@ module bridge_4x4_rw_xbar
     assign dma1_master_64b_r.last = 
         ((ddr0_slave_axi_rid_bridge_id == 2) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rlast : '0);
 
+    assign dma1_master_64b_r.user = 
+        ((ddr0_slave_axi_rid_bridge_id == 2) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_ruser : '0);
+
     assign dma1_master_64b_rvalid = 
         ((ddr0_slave_axi_rid_bridge_id == 2) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rvalid : '0);
 
@@ -1886,6 +2025,9 @@ module bridge_4x4_rw_xbar
 
     assign dma1_master_128b_b.resp = 
         ((sram_slave_axi_bid_bridge_id == 2) && sram_slave_axi_bid_valid ? sram_slave_axi_bresp : '0);
+
+    assign dma1_master_128b_b.user = 
+        ((sram_slave_axi_bid_bridge_id == 2) && sram_slave_axi_bid_valid ? sram_slave_axi_buser : '0);
 
     assign dma1_master_128b_bvalid = 
         ((sram_slave_axi_bid_bridge_id == 2) && sram_slave_axi_bid_valid ? sram_slave_axi_bvalid : '0);
@@ -1905,6 +2047,9 @@ module bridge_4x4_rw_xbar
     assign dma1_master_128b_r.last = 
         ((sram_slave_axi_rid_bridge_id == 2) && sram_slave_axi_rid_valid ? sram_slave_axi_rlast : '0);
 
+    assign dma1_master_128b_r.user = 
+        ((sram_slave_axi_rid_bridge_id == 2) && sram_slave_axi_rid_valid ? sram_slave_axi_ruser : '0);
+
     assign dma1_master_128b_rvalid = 
         ((sram_slave_axi_rid_bridge_id == 2) && sram_slave_axi_rid_valid ? sram_slave_axi_rvalid : '0);
 
@@ -1921,6 +2066,9 @@ module bridge_4x4_rw_xbar
 
     assign dma1_master_256b_b.resp = 
         ((gpu_mem_slave_axi_bid_bridge_id == 2) && gpu_mem_slave_axi_bid_valid ? gpu_mem_slave_axi_bresp : '0);
+
+    assign dma1_master_256b_b.user = 
+        ((gpu_mem_slave_axi_bid_bridge_id == 2) && gpu_mem_slave_axi_bid_valid ? gpu_mem_slave_axi_buser : '0);
 
     assign dma1_master_256b_bvalid = 
         ((gpu_mem_slave_axi_bid_bridge_id == 2) && gpu_mem_slave_axi_bid_valid ? gpu_mem_slave_axi_bvalid : '0);
@@ -1940,6 +2088,9 @@ module bridge_4x4_rw_xbar
     assign dma1_master_256b_r.last = 
         ((gpu_mem_slave_axi_rid_bridge_id == 2) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_rlast : '0);
 
+    assign dma1_master_256b_r.user = 
+        ((gpu_mem_slave_axi_rid_bridge_id == 2) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_ruser : '0);
+
     assign dma1_master_256b_rvalid = 
         ((gpu_mem_slave_axi_rid_bridge_id == 2) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_rvalid : '0);
 
@@ -1956,6 +2107,9 @@ module bridge_4x4_rw_xbar
 
     assign gpu_master_32b_b.resp = 
         ((periph_slave_axi_bid_bridge_id == 3) && periph_slave_axi_bid_valid ? periph_slave_axi_bresp : '0);
+
+    assign gpu_master_32b_b.user = 
+        ((periph_slave_axi_bid_bridge_id == 3) && periph_slave_axi_bid_valid ? periph_slave_axi_buser : '0);
 
     assign gpu_master_32b_bvalid = 
         ((periph_slave_axi_bid_bridge_id == 3) && periph_slave_axi_bid_valid ? periph_slave_axi_bvalid : '0);
@@ -1975,6 +2129,9 @@ module bridge_4x4_rw_xbar
     assign gpu_master_32b_r.last = 
         ((periph_slave_axi_rid_bridge_id == 3) && periph_slave_axi_rid_valid ? periph_slave_axi_rlast : '0);
 
+    assign gpu_master_32b_r.user = 
+        ((periph_slave_axi_rid_bridge_id == 3) && periph_slave_axi_rid_valid ? periph_slave_axi_ruser : '0);
+
     assign gpu_master_32b_rvalid = 
         ((periph_slave_axi_rid_bridge_id == 3) && periph_slave_axi_rid_valid ? periph_slave_axi_rvalid : '0);
 
@@ -1991,6 +2148,9 @@ module bridge_4x4_rw_xbar
 
     assign gpu_master_64b_b.resp = 
         ((ddr0_slave_axi_bid_bridge_id == 3) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_bresp : '0);
+
+    assign gpu_master_64b_b.user = 
+        ((ddr0_slave_axi_bid_bridge_id == 3) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_buser : '0);
 
     assign gpu_master_64b_bvalid = 
         ((ddr0_slave_axi_bid_bridge_id == 3) && ddr0_slave_axi_bid_valid ? ddr0_slave_axi_bvalid : '0);
@@ -2010,6 +2170,9 @@ module bridge_4x4_rw_xbar
     assign gpu_master_64b_r.last = 
         ((ddr0_slave_axi_rid_bridge_id == 3) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rlast : '0);
 
+    assign gpu_master_64b_r.user = 
+        ((ddr0_slave_axi_rid_bridge_id == 3) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_ruser : '0);
+
     assign gpu_master_64b_rvalid = 
         ((ddr0_slave_axi_rid_bridge_id == 3) && ddr0_slave_axi_rid_valid ? ddr0_slave_axi_rvalid : '0);
 
@@ -2026,6 +2189,9 @@ module bridge_4x4_rw_xbar
 
     assign gpu_master_256b_b.resp = 
         ((gpu_mem_slave_axi_bid_bridge_id == 3) && gpu_mem_slave_axi_bid_valid ? gpu_mem_slave_axi_bresp : '0);
+
+    assign gpu_master_256b_b.user = 
+        ((gpu_mem_slave_axi_bid_bridge_id == 3) && gpu_mem_slave_axi_bid_valid ? gpu_mem_slave_axi_buser : '0);
 
     assign gpu_master_256b_bvalid = 
         ((gpu_mem_slave_axi_bid_bridge_id == 3) && gpu_mem_slave_axi_bid_valid ? gpu_mem_slave_axi_bvalid : '0);
@@ -2044,6 +2210,9 @@ module bridge_4x4_rw_xbar
 
     assign gpu_master_256b_r.last = 
         ((gpu_mem_slave_axi_rid_bridge_id == 3) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_rlast : '0);
+
+    assign gpu_master_256b_r.user = 
+        ((gpu_mem_slave_axi_rid_bridge_id == 3) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_ruser : '0);
 
     assign gpu_master_256b_rvalid = 
         ((gpu_mem_slave_axi_rid_bridge_id == 3) && gpu_mem_slave_axi_rid_valid ? gpu_mem_slave_axi_rvalid : '0);

@@ -395,6 +395,18 @@ module bridge_5x3_channels_xbar
         (sink_wr_master_256b_aw_gnt_sram_buffer ? sink_wr_master_256b_aw.prot : '0) |
         (stream_master_256b_aw_gnt_sram_buffer ? stream_master_256b_aw.prot : '0) |
         (cpu_master_256b_aw_gnt_sram_buffer ? cpu_master_256b_aw.prot : '0);
+    assign sram_buffer_axi_awqos = (descr_wr_master_256b_aw_gnt_sram_buffer ? descr_wr_master_256b_aw.qos : '0) |
+        (sink_wr_master_256b_aw_gnt_sram_buffer ? sink_wr_master_256b_aw.qos : '0) |
+        (stream_master_256b_aw_gnt_sram_buffer ? stream_master_256b_aw.qos : '0) |
+        (cpu_master_256b_aw_gnt_sram_buffer ? cpu_master_256b_aw.qos : '0);
+    assign sram_buffer_axi_awregion = (descr_wr_master_256b_aw_gnt_sram_buffer ? descr_wr_master_256b_aw.region : '0) |
+        (sink_wr_master_256b_aw_gnt_sram_buffer ? sink_wr_master_256b_aw.region : '0) |
+        (stream_master_256b_aw_gnt_sram_buffer ? stream_master_256b_aw.region : '0) |
+        (cpu_master_256b_aw_gnt_sram_buffer ? cpu_master_256b_aw.region : '0);
+    assign sram_buffer_axi_awuser = (descr_wr_master_256b_aw_gnt_sram_buffer ? descr_wr_master_256b_aw.user : '0) |
+        (sink_wr_master_256b_aw_gnt_sram_buffer ? sink_wr_master_256b_aw.user : '0) |
+        (stream_master_256b_aw_gnt_sram_buffer ? stream_master_256b_aw.user : '0) |
+        (cpu_master_256b_aw_gnt_sram_buffer ? cpu_master_256b_aw.user : '0);
     assign sram_buffer_axi_awvalid = descr_wr_master_256b_aw_gnt_sram_buffer || sink_wr_master_256b_aw_gnt_sram_buffer || stream_master_256b_aw_gnt_sram_buffer || cpu_master_256b_aw_gnt_sram_buffer;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
@@ -434,6 +446,10 @@ module bridge_5x3_channels_xbar
         ((sink_wr_master_256b_w_sel_sram_buffer && sink_wr_master_256b_wvalid) ? sink_wr_master_256b_w.last : '0) |
         ((stream_master_256b_w_sel_sram_buffer && stream_master_256b_wvalid) ? stream_master_256b_w.last : '0) |
         ((cpu_master_256b_w_sel_sram_buffer && cpu_master_256b_wvalid) ? cpu_master_256b_w.last : '0);
+    assign sram_buffer_axi_wuser = ((descr_wr_master_256b_w_sel_sram_buffer && descr_wr_master_256b_wvalid) ? descr_wr_master_256b_w.user : '0) |
+        ((sink_wr_master_256b_w_sel_sram_buffer && sink_wr_master_256b_wvalid) ? sink_wr_master_256b_w.user : '0) |
+        ((stream_master_256b_w_sel_sram_buffer && stream_master_256b_wvalid) ? stream_master_256b_w.user : '0) |
+        ((cpu_master_256b_w_sel_sram_buffer && cpu_master_256b_wvalid) ? cpu_master_256b_w.user : '0);
     assign sram_buffer_axi_wvalid = (descr_wr_master_256b_w_sel_sram_buffer && descr_wr_master_256b_wvalid) || (sink_wr_master_256b_w_sel_sram_buffer && sink_wr_master_256b_wvalid) || (stream_master_256b_w_sel_sram_buffer && stream_master_256b_wvalid) || (cpu_master_256b_w_sel_sram_buffer && cpu_master_256b_wvalid);
 
     // Bready (slave → owning master, by bid_bridge_id)
@@ -502,6 +518,15 @@ module bridge_5x3_channels_xbar
     assign sram_buffer_axi_arprot = (src_rd_master_256b_ar_gnt_sram_buffer ? src_rd_master_256b_ar.prot : '0) |
         (stream_master_256b_ar_gnt_sram_buffer ? stream_master_256b_ar.prot : '0) |
         (cpu_master_256b_ar_gnt_sram_buffer ? cpu_master_256b_ar.prot : '0);
+    assign sram_buffer_axi_arqos = (src_rd_master_256b_ar_gnt_sram_buffer ? src_rd_master_256b_ar.qos : '0) |
+        (stream_master_256b_ar_gnt_sram_buffer ? stream_master_256b_ar.qos : '0) |
+        (cpu_master_256b_ar_gnt_sram_buffer ? cpu_master_256b_ar.qos : '0);
+    assign sram_buffer_axi_arregion = (src_rd_master_256b_ar_gnt_sram_buffer ? src_rd_master_256b_ar.region : '0) |
+        (stream_master_256b_ar_gnt_sram_buffer ? stream_master_256b_ar.region : '0) |
+        (cpu_master_256b_ar_gnt_sram_buffer ? cpu_master_256b_ar.region : '0);
+    assign sram_buffer_axi_aruser = (src_rd_master_256b_ar_gnt_sram_buffer ? src_rd_master_256b_ar.user : '0) |
+        (stream_master_256b_ar_gnt_sram_buffer ? stream_master_256b_ar.user : '0) |
+        (cpu_master_256b_ar_gnt_sram_buffer ? cpu_master_256b_ar.user : '0);
     assign sram_buffer_axi_arvalid = src_rd_master_256b_ar_gnt_sram_buffer || stream_master_256b_ar_gnt_sram_buffer || cpu_master_256b_ar_gnt_sram_buffer;
 
     // Rready (slave → owning master, by rid_bridge_id)
@@ -597,6 +622,18 @@ module bridge_5x3_channels_xbar
         (sink_wr_master_256b_aw_gnt_ddr_controller ? sink_wr_master_256b_aw.prot : '0) |
         (stream_master_256b_aw_gnt_ddr_controller ? stream_master_256b_aw.prot : '0) |
         (cpu_master_256b_aw_gnt_ddr_controller ? cpu_master_256b_aw.prot : '0);
+    assign ddr_controller_axi_awqos = (descr_wr_master_256b_aw_gnt_ddr_controller ? descr_wr_master_256b_aw.qos : '0) |
+        (sink_wr_master_256b_aw_gnt_ddr_controller ? sink_wr_master_256b_aw.qos : '0) |
+        (stream_master_256b_aw_gnt_ddr_controller ? stream_master_256b_aw.qos : '0) |
+        (cpu_master_256b_aw_gnt_ddr_controller ? cpu_master_256b_aw.qos : '0);
+    assign ddr_controller_axi_awregion = (descr_wr_master_256b_aw_gnt_ddr_controller ? descr_wr_master_256b_aw.region : '0) |
+        (sink_wr_master_256b_aw_gnt_ddr_controller ? sink_wr_master_256b_aw.region : '0) |
+        (stream_master_256b_aw_gnt_ddr_controller ? stream_master_256b_aw.region : '0) |
+        (cpu_master_256b_aw_gnt_ddr_controller ? cpu_master_256b_aw.region : '0);
+    assign ddr_controller_axi_awuser = (descr_wr_master_256b_aw_gnt_ddr_controller ? descr_wr_master_256b_aw.user : '0) |
+        (sink_wr_master_256b_aw_gnt_ddr_controller ? sink_wr_master_256b_aw.user : '0) |
+        (stream_master_256b_aw_gnt_ddr_controller ? stream_master_256b_aw.user : '0) |
+        (cpu_master_256b_aw_gnt_ddr_controller ? cpu_master_256b_aw.user : '0);
     assign ddr_controller_axi_awvalid = descr_wr_master_256b_aw_gnt_ddr_controller || sink_wr_master_256b_aw_gnt_ddr_controller || stream_master_256b_aw_gnt_ddr_controller || cpu_master_256b_aw_gnt_ddr_controller;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
@@ -636,6 +673,10 @@ module bridge_5x3_channels_xbar
         ((sink_wr_master_256b_w_sel_ddr_controller && sink_wr_master_256b_wvalid) ? sink_wr_master_256b_w.last : '0) |
         ((stream_master_256b_w_sel_ddr_controller && stream_master_256b_wvalid) ? stream_master_256b_w.last : '0) |
         ((cpu_master_256b_w_sel_ddr_controller && cpu_master_256b_wvalid) ? cpu_master_256b_w.last : '0);
+    assign ddr_controller_axi_wuser = ((descr_wr_master_256b_w_sel_ddr_controller && descr_wr_master_256b_wvalid) ? descr_wr_master_256b_w.user : '0) |
+        ((sink_wr_master_256b_w_sel_ddr_controller && sink_wr_master_256b_wvalid) ? sink_wr_master_256b_w.user : '0) |
+        ((stream_master_256b_w_sel_ddr_controller && stream_master_256b_wvalid) ? stream_master_256b_w.user : '0) |
+        ((cpu_master_256b_w_sel_ddr_controller && cpu_master_256b_wvalid) ? cpu_master_256b_w.user : '0);
     assign ddr_controller_axi_wvalid = (descr_wr_master_256b_w_sel_ddr_controller && descr_wr_master_256b_wvalid) || (sink_wr_master_256b_w_sel_ddr_controller && sink_wr_master_256b_wvalid) || (stream_master_256b_w_sel_ddr_controller && stream_master_256b_wvalid) || (cpu_master_256b_w_sel_ddr_controller && cpu_master_256b_wvalid);
 
     // Bready (slave → owning master, by bid_bridge_id)
@@ -704,6 +745,15 @@ module bridge_5x3_channels_xbar
     assign ddr_controller_axi_arprot = (src_rd_master_256b_ar_gnt_ddr_controller ? src_rd_master_256b_ar.prot : '0) |
         (stream_master_256b_ar_gnt_ddr_controller ? stream_master_256b_ar.prot : '0) |
         (cpu_master_256b_ar_gnt_ddr_controller ? cpu_master_256b_ar.prot : '0);
+    assign ddr_controller_axi_arqos = (src_rd_master_256b_ar_gnt_ddr_controller ? src_rd_master_256b_ar.qos : '0) |
+        (stream_master_256b_ar_gnt_ddr_controller ? stream_master_256b_ar.qos : '0) |
+        (cpu_master_256b_ar_gnt_ddr_controller ? cpu_master_256b_ar.qos : '0);
+    assign ddr_controller_axi_arregion = (src_rd_master_256b_ar_gnt_ddr_controller ? src_rd_master_256b_ar.region : '0) |
+        (stream_master_256b_ar_gnt_ddr_controller ? stream_master_256b_ar.region : '0) |
+        (cpu_master_256b_ar_gnt_ddr_controller ? cpu_master_256b_ar.region : '0);
+    assign ddr_controller_axi_aruser = (src_rd_master_256b_ar_gnt_ddr_controller ? src_rd_master_256b_ar.user : '0) |
+        (stream_master_256b_ar_gnt_ddr_controller ? stream_master_256b_ar.user : '0) |
+        (cpu_master_256b_ar_gnt_ddr_controller ? cpu_master_256b_ar.user : '0);
     assign ddr_controller_axi_arvalid = src_rd_master_256b_ar_gnt_ddr_controller || stream_master_256b_ar_gnt_ddr_controller || cpu_master_256b_ar_gnt_ddr_controller;
 
     // Rready (slave → owning master, by rid_bridge_id)
@@ -735,6 +785,9 @@ module bridge_5x3_channels_xbar
     assign apb_periph_axi_awlock   = cpu_master_32b_aw_to_apb_periph ? cpu_master_32b_aw.lock : '0;
     assign apb_periph_axi_awcache  = cpu_master_32b_aw_to_apb_periph ? cpu_master_32b_aw.cache : '0;
     assign apb_periph_axi_awprot   = cpu_master_32b_aw_to_apb_periph ? cpu_master_32b_aw.prot : '0;
+    assign apb_periph_axi_awqos    = cpu_master_32b_aw_to_apb_periph ? cpu_master_32b_aw.qos : '0;
+    assign apb_periph_axi_awregion = cpu_master_32b_aw_to_apb_periph ? cpu_master_32b_aw.region : '0;
+    assign apb_periph_axi_awuser   = cpu_master_32b_aw_to_apb_periph ? cpu_master_32b_aw.user : '0;
     assign apb_periph_axi_awvalid  = cpu_master_32b_aw_to_apb_periph && cpu_master_32b_awvalid;
 
     assign cpu_master_32b_w_sel_apb_periph = cpu_master_32b_w_to_apb_periph;
@@ -743,6 +796,7 @@ module bridge_5x3_channels_xbar
     assign apb_periph_axi_wdata  = cpu_master_32b_w_to_apb_periph ? cpu_master_32b_w.data : '0;
     assign apb_periph_axi_wstrb  = cpu_master_32b_w_to_apb_periph ? cpu_master_32b_w.strb : '0;
     assign apb_periph_axi_wlast  = cpu_master_32b_w_to_apb_periph ? cpu_master_32b_w.last : '0;
+    assign apb_periph_axi_wuser  = cpu_master_32b_w_to_apb_periph ? cpu_master_32b_w.user : '0;
     assign apb_periph_axi_wvalid = cpu_master_32b_w_to_apb_periph && cpu_master_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
@@ -763,6 +817,9 @@ module bridge_5x3_channels_xbar
     assign apb_periph_axi_arlock   = cpu_master_32b_ar_to_apb_periph ? cpu_master_32b_ar.lock : '0;
     assign apb_periph_axi_arcache  = cpu_master_32b_ar_to_apb_periph ? cpu_master_32b_ar.cache : '0;
     assign apb_periph_axi_arprot   = cpu_master_32b_ar_to_apb_periph ? cpu_master_32b_ar.prot : '0;
+    assign apb_periph_axi_arqos    = cpu_master_32b_ar_to_apb_periph ? cpu_master_32b_ar.qos : '0;
+    assign apb_periph_axi_arregion = cpu_master_32b_ar_to_apb_periph ? cpu_master_32b_ar.region : '0;
+    assign apb_periph_axi_aruser   = cpu_master_32b_ar_to_apb_periph ? cpu_master_32b_ar.user : '0;
     assign apb_periph_axi_arvalid  = cpu_master_32b_ar_to_apb_periph && cpu_master_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -921,6 +978,10 @@ module bridge_5x3_channels_xbar
         ((sram_buffer_axi_bid_bridge_id == 0) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bresp : '0) |
         ((ddr_controller_axi_bid_bridge_id == 0) && ddr_controller_axi_bid_valid ? ddr_controller_axi_bresp : '0);
 
+    assign descr_wr_master_256b_b.user = 
+        ((sram_buffer_axi_bid_bridge_id == 0) && sram_buffer_axi_bid_valid ? sram_buffer_axi_buser : '0) |
+        ((ddr_controller_axi_bid_bridge_id == 0) && ddr_controller_axi_bid_valid ? ddr_controller_axi_buser : '0);
+
     assign descr_wr_master_256b_bvalid = 
         ((sram_buffer_axi_bid_bridge_id == 0) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bvalid : '0) |
         ((ddr_controller_axi_bid_bridge_id == 0) && ddr_controller_axi_bid_valid ? ddr_controller_axi_bvalid : '0);
@@ -942,6 +1003,10 @@ module bridge_5x3_channels_xbar
     assign sink_wr_master_256b_b.resp = 
         ((sram_buffer_axi_bid_bridge_id == 1) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bresp : '0) |
         ((ddr_controller_axi_bid_bridge_id == 1) && ddr_controller_axi_bid_valid ? ddr_controller_axi_bresp : '0);
+
+    assign sink_wr_master_256b_b.user = 
+        ((sram_buffer_axi_bid_bridge_id == 1) && sram_buffer_axi_bid_valid ? sram_buffer_axi_buser : '0) |
+        ((ddr_controller_axi_bid_bridge_id == 1) && ddr_controller_axi_bid_valid ? ddr_controller_axi_buser : '0);
 
     assign sink_wr_master_256b_bvalid = 
         ((sram_buffer_axi_bid_bridge_id == 1) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bvalid : '0) |
@@ -969,6 +1034,10 @@ module bridge_5x3_channels_xbar
         ((sram_buffer_axi_rid_bridge_id == 2) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rlast : '0) |
         ((ddr_controller_axi_rid_bridge_id == 2) && ddr_controller_axi_rid_valid ? ddr_controller_axi_rlast : '0);
 
+    assign src_rd_master_256b_r.user = 
+        ((sram_buffer_axi_rid_bridge_id == 2) && sram_buffer_axi_rid_valid ? sram_buffer_axi_ruser : '0) |
+        ((ddr_controller_axi_rid_bridge_id == 2) && ddr_controller_axi_rid_valid ? ddr_controller_axi_ruser : '0);
+
     assign src_rd_master_256b_rvalid = 
         ((sram_buffer_axi_rid_bridge_id == 2) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rvalid : '0) |
         ((ddr_controller_axi_rid_bridge_id == 2) && ddr_controller_axi_rid_valid ? ddr_controller_axi_rvalid : '0);
@@ -990,6 +1059,10 @@ module bridge_5x3_channels_xbar
     assign stream_master_256b_b.resp = 
         ((sram_buffer_axi_bid_bridge_id == 3) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bresp : '0) |
         ((ddr_controller_axi_bid_bridge_id == 3) && ddr_controller_axi_bid_valid ? ddr_controller_axi_bresp : '0);
+
+    assign stream_master_256b_b.user = 
+        ((sram_buffer_axi_bid_bridge_id == 3) && sram_buffer_axi_bid_valid ? sram_buffer_axi_buser : '0) |
+        ((ddr_controller_axi_bid_bridge_id == 3) && ddr_controller_axi_bid_valid ? ddr_controller_axi_buser : '0);
 
     assign stream_master_256b_bvalid = 
         ((sram_buffer_axi_bid_bridge_id == 3) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bvalid : '0) |
@@ -1015,6 +1088,10 @@ module bridge_5x3_channels_xbar
         ((sram_buffer_axi_rid_bridge_id == 3) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rlast : '0) |
         ((ddr_controller_axi_rid_bridge_id == 3) && ddr_controller_axi_rid_valid ? ddr_controller_axi_rlast : '0);
 
+    assign stream_master_256b_r.user = 
+        ((sram_buffer_axi_rid_bridge_id == 3) && sram_buffer_axi_rid_valid ? sram_buffer_axi_ruser : '0) |
+        ((ddr_controller_axi_rid_bridge_id == 3) && ddr_controller_axi_rid_valid ? ddr_controller_axi_ruser : '0);
+
     assign stream_master_256b_rvalid = 
         ((sram_buffer_axi_rid_bridge_id == 3) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rvalid : '0) |
         ((ddr_controller_axi_rid_bridge_id == 3) && ddr_controller_axi_rid_valid ? ddr_controller_axi_rvalid : '0);
@@ -1033,6 +1110,9 @@ module bridge_5x3_channels_xbar
     assign cpu_master_32b_b.resp = 
         ((apb_periph_axi_bid_bridge_id == 4) && apb_periph_axi_bid_valid ? apb_periph_axi_bresp : '0);
 
+    assign cpu_master_32b_b.user = 
+        ((apb_periph_axi_bid_bridge_id == 4) && apb_periph_axi_bid_valid ? apb_periph_axi_buser : '0);
+
     assign cpu_master_32b_bvalid = 
         ((apb_periph_axi_bid_bridge_id == 4) && apb_periph_axi_bid_valid ? apb_periph_axi_bvalid : '0);
 
@@ -1050,6 +1130,9 @@ module bridge_5x3_channels_xbar
 
     assign cpu_master_32b_r.last = 
         ((apb_periph_axi_rid_bridge_id == 4) && apb_periph_axi_rid_valid ? apb_periph_axi_rlast : '0);
+
+    assign cpu_master_32b_r.user = 
+        ((apb_periph_axi_rid_bridge_id == 4) && apb_periph_axi_rid_valid ? apb_periph_axi_ruser : '0);
 
     assign cpu_master_32b_rvalid = 
         ((apb_periph_axi_rid_bridge_id == 4) && apb_periph_axi_rid_valid ? apb_periph_axi_rvalid : '0);
@@ -1071,6 +1154,10 @@ module bridge_5x3_channels_xbar
     assign cpu_master_256b_b.resp = 
         ((sram_buffer_axi_bid_bridge_id == 4) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bresp : '0) |
         ((ddr_controller_axi_bid_bridge_id == 4) && ddr_controller_axi_bid_valid ? ddr_controller_axi_bresp : '0);
+
+    assign cpu_master_256b_b.user = 
+        ((sram_buffer_axi_bid_bridge_id == 4) && sram_buffer_axi_bid_valid ? sram_buffer_axi_buser : '0) |
+        ((ddr_controller_axi_bid_bridge_id == 4) && ddr_controller_axi_bid_valid ? ddr_controller_axi_buser : '0);
 
     assign cpu_master_256b_bvalid = 
         ((sram_buffer_axi_bid_bridge_id == 4) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bvalid : '0) |
@@ -1095,6 +1182,10 @@ module bridge_5x3_channels_xbar
     assign cpu_master_256b_r.last = 
         ((sram_buffer_axi_rid_bridge_id == 4) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rlast : '0) |
         ((ddr_controller_axi_rid_bridge_id == 4) && ddr_controller_axi_rid_valid ? ddr_controller_axi_rlast : '0);
+
+    assign cpu_master_256b_r.user = 
+        ((sram_buffer_axi_rid_bridge_id == 4) && sram_buffer_axi_rid_valid ? sram_buffer_axi_ruser : '0) |
+        ((ddr_controller_axi_rid_bridge_id == 4) && ddr_controller_axi_rid_valid ? ddr_controller_axi_ruser : '0);
 
     assign cpu_master_256b_rvalid = 
         ((sram_buffer_axi_rid_bridge_id == 4) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rvalid : '0) |

@@ -110,6 +110,9 @@ module bridge_1x2_rd_axi5s_xbar
     assign ddr_rd_axi_arlock   = cpu_rd_32b_ar_to_ddr_rd ? cpu_rd_32b_ar.lock : '0;
     assign ddr_rd_axi_arcache  = cpu_rd_32b_ar_to_ddr_rd ? cpu_rd_32b_ar.cache : '0;
     assign ddr_rd_axi_arprot   = cpu_rd_32b_ar_to_ddr_rd ? cpu_rd_32b_ar.prot : '0;
+    assign ddr_rd_axi_arqos    = cpu_rd_32b_ar_to_ddr_rd ? cpu_rd_32b_ar.qos : '0;
+    assign ddr_rd_axi_arregion = cpu_rd_32b_ar_to_ddr_rd ? cpu_rd_32b_ar.region : '0;
+    assign ddr_rd_axi_aruser   = cpu_rd_32b_ar_to_ddr_rd ? cpu_rd_32b_ar.user : '0;
     assign ddr_rd_axi_arvalid  = cpu_rd_32b_ar_to_ddr_rd && cpu_rd_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -138,6 +141,9 @@ module bridge_1x2_rd_axi5s_xbar
     assign sram_rd_axi_arlock   = cpu_rd_32b_ar_to_sram_rd ? cpu_rd_32b_ar.lock : '0;
     assign sram_rd_axi_arcache  = cpu_rd_32b_ar_to_sram_rd ? cpu_rd_32b_ar.cache : '0;
     assign sram_rd_axi_arprot   = cpu_rd_32b_ar_to_sram_rd ? cpu_rd_32b_ar.prot : '0;
+    assign sram_rd_axi_arqos    = cpu_rd_32b_ar_to_sram_rd ? cpu_rd_32b_ar.qos : '0;
+    assign sram_rd_axi_arregion = cpu_rd_32b_ar_to_sram_rd ? cpu_rd_32b_ar.region : '0;
+    assign sram_rd_axi_aruser   = cpu_rd_32b_ar_to_sram_rd ? cpu_rd_32b_ar.user : '0;
     assign sram_rd_axi_artrace  = cpu_rd_32b_ar_to_sram_rd ? cpu_rd_32b_ar.trace : '0;  // AXI5 sideband
     assign sram_rd_axi_arunique  = cpu_rd_32b_ar_to_sram_rd ? cpu_rd_32b_ar.uniq : '0;  // AXI5 sideband
     assign sram_rd_axi_arvalid  = cpu_rd_32b_ar_to_sram_rd && cpu_rd_32b_arvalid;
@@ -177,6 +183,10 @@ module bridge_1x2_rd_axi5s_xbar
     assign cpu_rd_32b_r.last = 
         ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_rlast : '0) |
         ((sram_rd_axi_rid_bridge_id == 0) && sram_rd_axi_rid_valid ? sram_rd_axi_rlast : '0);
+
+    assign cpu_rd_32b_r.user = 
+        ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_ruser : '0) |
+        ((sram_rd_axi_rid_bridge_id == 0) && sram_rd_axi_rid_valid ? sram_rd_axi_ruser : '0);
 
     assign cpu_rd_32b_rvalid = 
         ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_rvalid : '0) |

@@ -246,6 +246,12 @@ module bridge_2x2_rw_xbar
         (dma_32b_aw_gnt_ddr ? dma_32b_aw.cache : '0);
     assign ddr_axi_awprot = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw.prot : '0) |
         (dma_32b_aw_gnt_ddr ? dma_32b_aw.prot : '0);
+    assign ddr_axi_awqos = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw.qos : '0) |
+        (dma_32b_aw_gnt_ddr ? dma_32b_aw.qos : '0);
+    assign ddr_axi_awregion = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw.region : '0) |
+        (dma_32b_aw_gnt_ddr ? dma_32b_aw.region : '0);
+    assign ddr_axi_awuser = (cpu_32b_aw_gnt_ddr ? cpu_32b_aw.user : '0) |
+        (dma_32b_aw_gnt_ddr ? dma_32b_aw.user : '0);
     assign ddr_axi_awvalid = cpu_32b_aw_gnt_ddr || dma_32b_aw_gnt_ddr;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
@@ -277,6 +283,8 @@ module bridge_2x2_rw_xbar
         ((dma_32b_w_sel_ddr && dma_32b_wvalid) ? dma_32b_w.strb : '0);
     assign ddr_axi_wlast = ((cpu_32b_w_sel_ddr && cpu_32b_wvalid) ? cpu_32b_w.last : '0) |
         ((dma_32b_w_sel_ddr && dma_32b_wvalid) ? dma_32b_w.last : '0);
+    assign ddr_axi_wuser = ((cpu_32b_w_sel_ddr && cpu_32b_wvalid) ? cpu_32b_w.user : '0) |
+        ((dma_32b_w_sel_ddr && dma_32b_wvalid) ? dma_32b_w.user : '0);
     assign ddr_axi_wvalid = (cpu_32b_w_sel_ddr && cpu_32b_wvalid) || (dma_32b_w_sel_ddr && dma_32b_wvalid);
 
     // Bready (slave → owning master, by bid_bridge_id)
@@ -331,6 +339,12 @@ module bridge_2x2_rw_xbar
         (dma_32b_ar_gnt_ddr ? dma_32b_ar.cache : '0);
     assign ddr_axi_arprot = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar.prot : '0) |
         (dma_32b_ar_gnt_ddr ? dma_32b_ar.prot : '0);
+    assign ddr_axi_arqos = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar.qos : '0) |
+        (dma_32b_ar_gnt_ddr ? dma_32b_ar.qos : '0);
+    assign ddr_axi_arregion = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar.region : '0) |
+        (dma_32b_ar_gnt_ddr ? dma_32b_ar.region : '0);
+    assign ddr_axi_aruser = (cpu_32b_ar_gnt_ddr ? cpu_32b_ar.user : '0) |
+        (dma_32b_ar_gnt_ddr ? dma_32b_ar.user : '0);
     assign ddr_axi_arvalid = cpu_32b_ar_gnt_ddr || dma_32b_ar_gnt_ddr;
 
     // Rready (slave → owning master, by rid_bridge_id)
@@ -398,6 +412,12 @@ module bridge_2x2_rw_xbar
         (dma_32b_aw_gnt_sram ? dma_32b_aw.cache : '0);
     assign sram_axi_awprot = (cpu_32b_aw_gnt_sram ? cpu_32b_aw.prot : '0) |
         (dma_32b_aw_gnt_sram ? dma_32b_aw.prot : '0);
+    assign sram_axi_awqos = (cpu_32b_aw_gnt_sram ? cpu_32b_aw.qos : '0) |
+        (dma_32b_aw_gnt_sram ? dma_32b_aw.qos : '0);
+    assign sram_axi_awregion = (cpu_32b_aw_gnt_sram ? cpu_32b_aw.region : '0) |
+        (dma_32b_aw_gnt_sram ? dma_32b_aw.region : '0);
+    assign sram_axi_awuser = (cpu_32b_aw_gnt_sram ? cpu_32b_aw.user : '0) |
+        (dma_32b_aw_gnt_sram ? dma_32b_aw.user : '0);
     assign sram_axi_awvalid = cpu_32b_aw_gnt_sram || dma_32b_aw_gnt_sram;
 
     // W owner FIFO: slave-side AW accept order owns the W channel
@@ -429,6 +449,8 @@ module bridge_2x2_rw_xbar
         ((dma_32b_w_sel_sram && dma_32b_wvalid) ? dma_32b_w.strb : '0);
     assign sram_axi_wlast = ((cpu_32b_w_sel_sram && cpu_32b_wvalid) ? cpu_32b_w.last : '0) |
         ((dma_32b_w_sel_sram && dma_32b_wvalid) ? dma_32b_w.last : '0);
+    assign sram_axi_wuser = ((cpu_32b_w_sel_sram && cpu_32b_wvalid) ? cpu_32b_w.user : '0) |
+        ((dma_32b_w_sel_sram && dma_32b_wvalid) ? dma_32b_w.user : '0);
     assign sram_axi_wvalid = (cpu_32b_w_sel_sram && cpu_32b_wvalid) || (dma_32b_w_sel_sram && dma_32b_wvalid);
 
     // Bready (slave → owning master, by bid_bridge_id)
@@ -483,6 +505,12 @@ module bridge_2x2_rw_xbar
         (dma_32b_ar_gnt_sram ? dma_32b_ar.cache : '0);
     assign sram_axi_arprot = (cpu_32b_ar_gnt_sram ? cpu_32b_ar.prot : '0) |
         (dma_32b_ar_gnt_sram ? dma_32b_ar.prot : '0);
+    assign sram_axi_arqos = (cpu_32b_ar_gnt_sram ? cpu_32b_ar.qos : '0) |
+        (dma_32b_ar_gnt_sram ? dma_32b_ar.qos : '0);
+    assign sram_axi_arregion = (cpu_32b_ar_gnt_sram ? cpu_32b_ar.region : '0) |
+        (dma_32b_ar_gnt_sram ? dma_32b_ar.region : '0);
+    assign sram_axi_aruser = (cpu_32b_ar_gnt_sram ? cpu_32b_ar.user : '0) |
+        (dma_32b_ar_gnt_sram ? dma_32b_ar.user : '0);
     assign sram_axi_arvalid = cpu_32b_ar_gnt_sram || dma_32b_ar_gnt_sram;
 
     // Rready (slave → owning master, by rid_bridge_id)
@@ -568,6 +596,10 @@ module bridge_2x2_rw_xbar
         ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bresp : '0) |
         ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_bresp : '0);
 
+    assign cpu_32b_b.user = 
+        ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_buser : '0) |
+        ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_buser : '0);
+
     assign cpu_32b_bvalid = 
         ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bvalid : '0) |
         ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_bvalid : '0);
@@ -592,6 +624,10 @@ module bridge_2x2_rw_xbar
         ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rlast : '0) |
         ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rlast : '0);
 
+    assign cpu_32b_r.user = 
+        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_ruser : '0) |
+        ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_ruser : '0);
+
     assign cpu_32b_rvalid = 
         ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rvalid : '0) |
         ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rvalid : '0);
@@ -613,6 +649,10 @@ module bridge_2x2_rw_xbar
     assign dma_32b_b.resp = 
         ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_bresp : '0) |
         ((sram_axi_bid_bridge_id == 1) && sram_axi_bid_valid ? sram_axi_bresp : '0);
+
+    assign dma_32b_b.user = 
+        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_buser : '0) |
+        ((sram_axi_bid_bridge_id == 1) && sram_axi_bid_valid ? sram_axi_buser : '0);
 
     assign dma_32b_bvalid = 
         ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_bvalid : '0) |
@@ -637,6 +677,10 @@ module bridge_2x2_rw_xbar
     assign dma_32b_r.last = 
         ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rlast : '0) |
         ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid ? sram_axi_rlast : '0);
+
+    assign dma_32b_r.user = 
+        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_ruser : '0) |
+        ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid ? sram_axi_ruser : '0);
 
     assign dma_32b_rvalid = 
         ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rvalid : '0) |

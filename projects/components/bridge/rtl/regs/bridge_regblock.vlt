@@ -1,0 +1,14 @@
+`verilator_config
+// PeakRDL generates one always_comb per field, and each writes a different
+// sub-field of the same `field_combo` struct. No two blocks touch the same
+// bits, but Verilator's IEEE 1800-2023 9.2.2.2 check works at variable
+// granularity and cannot prove that, so it reports MULTIDRIVEN -- 128 times
+// in the bridge, all of them this one struct in one generated regblock.
+// Vivado, Synopsys DC and Icarus accept the pattern silently.
+//
+// Waiving only the generated regblock keeps MULTIDRIVEN live everywhere else,
+// which matters: a genuine two-driver net in the crossbar is exactly what this
+// gate should catch. This file lives outside generated/ so regeneration does
+// not overwrite it. Same treatment as misc/rtl/regs/obs_regs.vlt and
+// stream/regs/stream_regs.vlt.
+lint_off -rule MULTIDRIVEN -file "*_regblock_mon_cfg.sv"
