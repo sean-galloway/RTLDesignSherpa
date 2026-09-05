@@ -56,13 +56,19 @@ export STREAM_BUILD ?= obs
 # and build-mon too.
 export USE_AXI_MONITORS    ?= 0
 export OBS_ENABLE_MON_TAPS ?= 1
-# Harness clock = VCO_MHZ / CLKOUT0_DIVIDE = 1350/15 = 90 MHz.
-# observer taps add logic to both observers; 90 MHz is where it closes.
+# Harness clock = VCO_MHZ / CLKOUT0_DIVIDE = 1200/20 = 60 MHz.
+# Observer taps, the 4-deep address-range checker AND the threshold/debug
+# reporters all land in the monitors' trans_mgr CAM cone. At 90 MHz that
+# cone missed by WNS -3.708 / TNS -33766 -- not one stray path, the whole
+# cone. A -3.708 violation at 11.111ns needs >= 14.82ns, so 60 MHz
+# (16.67ns) clears it with +1.85ns to spare. 65 MHz would leave +0.57ns,
+# which is a gamble on a number the router produced after giving up.
+# Frequency is the knob here: 8 channels and AR/AW=8 are the requirement.
 # Pinned, not inherited: the RTL default is 1350/15 (90 MHz), and a build
 # that does not state its clock silently follows any change to that default.
 # VCO must be a multiple of 25 -- MULT_F moves in 0.125 steps off 200 MHz.
-export STREAM_VCO_MHZ        ?= 1350
-export STREAM_CLKOUT0_DIVIDE ?= 15
+export STREAM_VCO_MHZ        ?= 1200
+export STREAM_CLKOUT0_DIVIDE ?= 20
 
 # ---- Build geometry (Vivado generics) --------------------------------------
 export STREAM_NUM_CHANNELS ?= 8

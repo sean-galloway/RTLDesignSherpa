@@ -44,7 +44,7 @@ CLOCK_GENERICS = ("STREAM_VCO_MHZ", "STREAM_CLKOUT0_DIVIDE")
 
 EXPECTED_CLOCK_MHZ = {
     "build-perf": 100,
-    "build-obs": 90,
+    "build-obs": 60,   # reclocked: the CAM cone missed -3.708 at 90
     "build-mon": 90,
 }
 
