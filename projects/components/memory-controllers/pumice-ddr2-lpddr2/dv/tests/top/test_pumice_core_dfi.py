@@ -1244,7 +1244,8 @@ def _run(request, testcase, params_over=None, enhanced=False):
               "NUM_BANKS": str(NUM_BANKS), "ROW_WIDTH": str(ROW_WIDTH),
               "COL_WIDTH": str(COL_WIDTH), "DFI_RATE": str(DFI_RATE),
               "DRAM_BEAT_WIDTH": str(DRAM_BEAT), "DRAM_BL": str(BL),
-              "NUM_ENTRIES": "8", "N_SRAM_SLOTS": "8"}
+              "NUM_ENTRIES": os.environ.get("PUMICE_NUM_ENTRIES", "8"),
+              "N_SRAM_SLOTS": os.environ.get("PUMICE_NUM_ENTRIES", "8")}
     if params_over:
         params.update(params_over)
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{testcase}.log"),

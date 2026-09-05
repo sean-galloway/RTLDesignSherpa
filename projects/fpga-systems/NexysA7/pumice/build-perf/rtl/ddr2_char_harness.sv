@@ -674,7 +674,7 @@ module ddr2_char_harness
         // (16-way) shrinks that ~16x. The board is DRAM-bandwidth-limited, not
         // reorder-depth-limited, so shallow reorder is the right lean-tier point;
         // deep reorder belongs to an enhanced variant.
-        .WR_CAM_DEPTH     (4),
+        .WR_CAM_DEPTH     (8),
         .APB_ADDR_WIDTH   (APB_ADDR_WIDTH),
         .APB_DATA_WIDTH   (APB_DATA_WIDTH)
     ) u_dut (

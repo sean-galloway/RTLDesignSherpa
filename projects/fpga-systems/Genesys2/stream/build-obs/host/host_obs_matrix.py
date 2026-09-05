@@ -73,11 +73,23 @@ MATRIX = {
         "one Completion per transaction on a clean DMA",
     ),
     "perf": (
-        _b(PERF_EN, MONITOR_EN),
-        [(AGENT_RD, PROTO_AXI, 4, 7, "rd_perf"),
-         (AGENT_WR, PROTO_AXI, 4, 7, "wr_perf")],
+        # PERF_EN alone emits NOTHING. axi_monitor_reporter_perf gates its
+        # packet on r_completed_count > 0, and that counter increments on
+        # compl_marked_mask -- the COMPLETION path. With COMPL_EN clear nothing
+        # marks, the count stays 0, and the reporter never fires. Measured: this
+        # row binned 0 with PERF_EN|MONITOR_EN while the campaign binned 706k
+        # with completion also enabled.
+        #
+        # So this row is deliberately TWO classes. Completion is keyed as well,
+        # otherwise its packets land in UNEXPECTED and the bin counts stop
+        # separating "perf works" from "something else arrived".
+        _b(PERF_EN, COMPL_EN, MONITOR_EN),
+        [(AGENT_RD, PROTO_AXI, 4, 7, "rd_perf"),        # AXI_PERF_COMPLETED_COUNT
+         (AGENT_WR, PROTO_AXI, 4, 7, "wr_perf"),
+         (AGENT_RD, PROTO_AXI, 1, 0, "rd_compl"),
+         (AGENT_WR, PROTO_AXI, 1, 0, "wr_compl")],
         None,
-        "periodic Perf metrics; the highest-rate class by far",
+        "Perf derives from completions, so both cones are on by necessity",
     ),
     "addrmatch": (
         _b(ADDR_CHECK_EN, DEBUG_EN, MONITOR_EN),
