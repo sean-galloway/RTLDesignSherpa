@@ -15,6 +15,7 @@ summary: RTL rules with the failures that taught them.
 - [[sram-and-memories]] - no-reset SRAMs, ram_style, array syntax
 - [[sizing-invariants]] - shared-resource math; one source of truth
 - [[priority-logic-depth]] - serialized scans vs parallel selects
+- [[always-comb-block-fusion]] - a block is one scheduling node; mixing independent signals invents dependencies and fakes combinational loops
 - [[naming-and-style]] - module/signal conventions, headers
 - [[signal-prefixes]] - r_ = flopped, w_ = combinational; what it promises and where it lies
 - [[filelists]] - every module MUST have a .f and be registered; the two silent failures
