@@ -32,14 +32,14 @@ module axi4_to_axil5 #(
     // disabled this converter presents the same behaviour as axi4_to_axil4
     // with the sideband ports tied off, which is what an integrator
     // migrating an AXI4-Lite slave to an AXI5-Lite port starts from.
+    // Only LOCK and USER get an ENABLE_ knob, because only they have an AXI4
+    // source to gate. TRACE / LOOP / MPAM / MECID / NSAID / POISON are tied
+    // to zero unconditionally -- an ENABLE_ for those would be a parameter
+    // that cannot change the design's behaviour, which is worse than no
+    // parameter: a reader sets it and believes something happened. The
+    // widths stay, because they set the port shape.
     parameter bit ENABLE_LOCK       = 1'b0,
     parameter bit ENABLE_USER       = 1'b0,
-    parameter bit ENABLE_POISON     = 1'b0,
-    parameter bit ENABLE_TRACE      = 1'b0,
-    parameter bit ENABLE_LOOP       = 1'b0,
-    parameter bit ENABLE_MPAM       = 1'b0,
-    parameter bit ENABLE_MECID      = 1'b0,
-    parameter bit ENABLE_NSAID      = 1'b0,
 
     parameter int USER_WIDTH        = 1,
     parameter int LOOP_WIDTH        = 1,
@@ -171,12 +171,6 @@ module axi4_to_axil5 #(
         .AXI_USER_WIDTH (AXI_USER_WIDTH),
         .ENABLE_LOCK    (ENABLE_LOCK),
         .ENABLE_USER    (ENABLE_USER),
-        .ENABLE_POISON  (ENABLE_POISON),
-        .ENABLE_TRACE   (ENABLE_TRACE),
-        .ENABLE_LOOP    (ENABLE_LOOP),
-        .ENABLE_MPAM    (ENABLE_MPAM),
-        .ENABLE_MECID   (ENABLE_MECID),
-        .ENABLE_NSAID   (ENABLE_NSAID),
         .USER_WIDTH     (USER_WIDTH),
         .LOOP_WIDTH     (LOOP_WIDTH),
         .MPAM_WIDTH     (MPAM_WIDTH),
@@ -237,12 +231,6 @@ module axi4_to_axil5 #(
         .AXI_USER_WIDTH (AXI_USER_WIDTH),
         .ENABLE_LOCK    (ENABLE_LOCK),
         .ENABLE_USER    (ENABLE_USER),
-        .ENABLE_POISON  (ENABLE_POISON),
-        .ENABLE_TRACE   (ENABLE_TRACE),
-        .ENABLE_LOOP    (ENABLE_LOOP),
-        .ENABLE_MPAM    (ENABLE_MPAM),
-        .ENABLE_MECID   (ENABLE_MECID),
-        .ENABLE_NSAID   (ENABLE_NSAID),
         .USER_WIDTH     (USER_WIDTH),
         .LOOP_WIDTH     (LOOP_WIDTH),
         .MPAM_WIDTH     (MPAM_WIDTH),

@@ -72,4 +72,4 @@ the five extra pairs. Verified by
 
 ## Navigation
 
-**Next:** [PeakRDL Adapter](05_peakrdl_adapter.md)
+**Next:** [AXI4 to AXI5-Lite](09_axi4_to_axil5.md)

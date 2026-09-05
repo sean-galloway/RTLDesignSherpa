@@ -208,9 +208,9 @@ def test_axi4_to_axil5(request, params):
         filelist_path='projects/components/converters/rtl/filelists/axi4_to_axil5.f'
     )
 
-    # Every optional group is elaborated in, so an undriven one shows as X on
-    # the wire rather than being absent and passing by omission. ENABLE_USER
-    # and ENABLE_LOCK are what the `enable=0` row sweeps.
+    # ENABLE_LOCK and ENABLE_USER are the only gates the converter has --
+    # the other groups are tied unconditionally, so there is nothing to
+    # enable. The `enable=0` row sweeps exactly the two that do something.
     rtl_parameters = {
         'AXI_ID_WIDTH': str(id_width),
         'AXI_ADDR_WIDTH': str(addr_width),
@@ -218,12 +218,6 @@ def test_axi4_to_axil5(request, params):
         'AXI_USER_WIDTH': str(user_width),
         'ENABLE_LOCK': str(enable),
         'ENABLE_USER': str(enable),
-        'ENABLE_POISON': '1',
-        'ENABLE_TRACE': '1',
-        'ENABLE_LOOP': '1',
-        'ENABLE_MPAM': '1',
-        'ENABLE_MECID': '1',
-        'ENABLE_NSAID': '1',
         'USER_WIDTH': str(user_width),
         'LOOP_WIDTH': '3',
         'MPAM_WIDTH': '11',

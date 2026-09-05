@@ -21,10 +21,11 @@
 //     awlock, awuser, wuser  (request side)
 //     buser                  (response side, returned to the AXI4 master)
 //
-//   TIED -- AXI5 introduced these and AXI4 has no source for them. They are
-//   driven to '0 rather than left floating, and each is gated by its
-//   ENABLE_* parameter so a build that does not use the feature carries no
-//   port at all:
+//   TIED -- AXI5 introduced these and AXI4 has no source for them. The port
+//   exists (an AXI5-Lite boundary whose shape changes with a config knob
+//   cannot be wired to a fixed slave) and is driven to '0 rather than left
+//   floating. There is deliberately no ENABLE_ for this group: nothing it
+//   could switch between.
 //     awloop, awmecid, awmpam, awnsaid, awtrace, wpoison
 //
 //   TERMINATED -- completer-driven, with nothing on the AXI4 side to return
@@ -49,14 +50,14 @@ module axi4_to_axil5_wr #(
     // AXI5-Lite feature enables. Each gates one sideband group; all
     // default off so an axil5 port with no features is bit-identical to
     // axil4 plus the forwarded signals.
+    // Only LOCK and USER get an ENABLE_ knob, because only they have an AXI4
+    // source to gate. TRACE / LOOP / MPAM / MECID / NSAID / POISON are tied
+    // to zero unconditionally -- an ENABLE_ for those would be a parameter
+    // that cannot change the design's behaviour, which is worse than no
+    // parameter: a reader sets it and believes something happened. The
+    // widths stay, because they set the port shape.
     parameter bit ENABLE_LOCK       = 1'b0,
     parameter bit ENABLE_USER       = 1'b0,
-    parameter bit ENABLE_POISON     = 1'b0,
-    parameter bit ENABLE_TRACE      = 1'b0,
-    parameter bit ENABLE_LOOP       = 1'b0,
-    parameter bit ENABLE_MPAM       = 1'b0,
-    parameter bit ENABLE_MECID      = 1'b0,
-    parameter bit ENABLE_NSAID      = 1'b0,
 
     parameter int USER_WIDTH        = 1,
     parameter int LOOP_WIDTH        = 1,
@@ -211,8 +212,15 @@ module axi4_to_axil5_wr #(
     // TERMINATED: completer-driven, nothing on the AXI4 side to receive
     // them. buser is the exception -- AXI4 has BUSER, so it is returned.
     //==========================================================================
+    // The core drives its own BUSER, which this module overrides from the
+    // AXI5-Lite response. Connected to a named net rather than left open: an
+    // empty port connection reads as PINCONNECTEMPTY, and a lint gate that
+    // has to be told to ignore a category stops catching the accidents in it.
+    logic [AXI_USER_WIDTH-1:0] w_core_buser_unused;
+
     /* verilator lint_off UNUSED */
-    wire _unused_axil5_sideband = &{1'b0, m_axil_bloop, m_axil_btrace};
+    wire _unused_axil5_sideband = &{1'b0, m_axil_bloop, m_axil_btrace,
+                                    w_core_buser_unused};
     /* verilator lint_on UNUSED */
 
     //==========================================================================
@@ -256,7 +264,7 @@ module axi4_to_axil5_wr #(
         .s_axi_bid      (s_axi_bid),
         .s_axi_bresp    (s_axi_bresp),
         /* buser is driven above from the AXI5-Lite response */
-        .s_axi_buser    (),
+        .s_axi_buser    (w_core_buser_unused),
         .s_axi_bvalid   (s_axi_bvalid),
         .s_axi_bready   (s_axi_bready),
 

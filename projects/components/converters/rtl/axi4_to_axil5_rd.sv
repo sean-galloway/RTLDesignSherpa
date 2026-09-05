@@ -38,14 +38,14 @@ module axi4_to_axil5_rd #(
     parameter int AXI_DATA_WIDTH    = 32,
     parameter int AXI_USER_WIDTH    = 1,
 
+    // Only LOCK and USER get an ENABLE_ knob, because only they have an AXI4
+    // source to gate. TRACE / LOOP / MPAM / MECID / NSAID / POISON are tied
+    // to zero unconditionally -- an ENABLE_ for those would be a parameter
+    // that cannot change the design's behaviour, which is worse than no
+    // parameter: a reader sets it and believes something happened. The
+    // widths stay, because they set the port shape.
     parameter bit ENABLE_LOCK       = 1'b0,
     parameter bit ENABLE_USER       = 1'b0,
-    parameter bit ENABLE_POISON     = 1'b0,
-    parameter bit ENABLE_TRACE      = 1'b0,
-    parameter bit ENABLE_LOOP       = 1'b0,
-    parameter bit ENABLE_MPAM       = 1'b0,
-    parameter bit ENABLE_MECID      = 1'b0,
-    parameter bit ENABLE_NSAID      = 1'b0,
 
     parameter int USER_WIDTH        = 1,
     parameter int LOOP_WIDTH        = 1,
@@ -170,9 +170,13 @@ module axi4_to_axil5_rd #(
     // TERMINATED. rpoison is deliberately NOT folded into RRESP -- see the
     // header. ruser is the one response-side signal AXI4 can carry.
     //==========================================================================
+    // See the note in axi4_to_axil5_wr: the core's own RUSER output is
+    // overridden here, and is given a name rather than an empty connection.
+    logic [AXI_USER_WIDTH-1:0] w_core_ruser_unused;
+
     /* verilator lint_off UNUSED */
     wire _unused_axil5_sideband = &{1'b0, m_axil_rloop, m_axil_rtrace,
-                                    m_axil_rpoison};
+                                    m_axil_rpoison, w_core_ruser_unused};
     /* verilator lint_on UNUSED */
 
     assign s_axi_ruser = ENABLE_USER ? AXI_USER_WIDTH'(m_axil_ruser) : '0;
@@ -205,7 +209,7 @@ module axi4_to_axil5_rd #(
         .s_axi_rresp    (s_axi_rresp),
         .s_axi_rlast    (s_axi_rlast),
         /* ruser is driven above from the AXI5-Lite response */
-        .s_axi_ruser    (),
+        .s_axi_ruser    (w_core_ruser_unused),
         .s_axi_rvalid   (s_axi_rvalid),
         .s_axi_rready   (s_axi_rready),
 

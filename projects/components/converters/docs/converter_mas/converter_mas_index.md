@@ -58,6 +58,7 @@ This specification covers the Converters component — the configurable data-wid
 - [AXI4-Lite to AXI4](ch03_protocol_blocks/03_axil4_to_axi4.md)
 - [AXI4 to APB](ch03_protocol_blocks/04_axi4_to_apb4.md)
 - [AXI4 to APB5 Shim](ch03_protocol_blocks/06_axi4_to_apb5.md)
+- [AXI4 to AXI5-Lite](ch03_protocol_blocks/09_axi4_to_axil5.md)
 - [PeakRDL Adapter](ch03_protocol_blocks/05_peakrdl_adapter.md)
 - [UART to AXI4-Lite Bridge](ch03_protocol_blocks/07_uart_to_axil4.md)
 - [Width-plus-Protocol Chains](ch03_protocol_blocks/08_dwidth_chains.md)
