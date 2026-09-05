@@ -23,6 +23,17 @@ Usage: python3 bin/build_review_bundle.py [out_dir]
 import os, re, sys, glob, json, collections
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# The single positional argument is an output DIRECTORY, and this script
+# `rm -rf`s it. `--help` used to be taken as that directory: the script
+# created ./--help, filled it with books, and deleted it on the next run.
+# Anything that looks like a flag gets the usage text instead.
+if len(sys.argv) > 1 and sys.argv[1].startswith('-'):
+    if sys.argv[1] in ('-h', '--help'):
+        print(__doc__.strip())
+        raise SystemExit(0)
+    raise SystemExit(f"unknown option {sys.argv[1]!r}\n\n{__doc__.strip()}")
+
 OUT  = sys.argv[1] if len(sys.argv) > 1 else '/mnt/data/github/rtl-doc-review'
 MD   = 'docs/markdown'
 LIMIT = 120_000 * 4          # chars; ~120k tokens per unit
