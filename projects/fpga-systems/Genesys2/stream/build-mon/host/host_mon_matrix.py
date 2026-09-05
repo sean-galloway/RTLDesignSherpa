@@ -140,12 +140,27 @@ def enable_monitors(bridge, A, classes):
         for rbase, cbase in ((MON + 0x200, MON + 0x220), (MON + 0x230, MON + 0x250)):
             bridge.write(rbase + 0x00, 0x0); bridge.write(rbase + 0x04, 0xFFFF_FFFF)
             bridge.write(cbase, ctrl)
-    _cbase, _climit = W("comp_sram")
-    # STREAM's in-core monbus lands in comp_sram -- the capture MEMORY the host
-    # downloads and diffs against the Python golden. The tallies are fed DIRECTLY
-    # by the two observers now and are not reachable from this master.
-    bridge.write(A("MON_GROUP_BASE_ADDR"),  _cbase)
-    bridge.write(A("MON_GROUP_LIMIT_ADDR"), _climit)
+    # Route the in-core monbus to the TALLY, because that is what this tool
+    # SWEEPS (sweep_dense(STREAM_TALLY_RD) at the end of every scenario).
+    #
+    # It used to point at comp_sram, with the comment "the tallies are fed
+    # DIRECTLY by the two observers now and are not reachable from this master".
+    # That was true when written -- the tally's bridge write channel was
+    # SLVERR-terminated -- and it made every scenario here unwinnable: records
+    # went to the capture memory while the tally was read for counts, so the
+    # sweep returned nothing and no error was raised anywhere.
+    #
+    # 56e63114 arbitrates the tally's record ingest between the observer group
+    # and the bridge, so the in-core monitors can address it again. In build-mon
+    # they are the ONLY producer -- the observers' taps are off -- so without
+    # this the tally has no source at all.
+    #
+    # To capture COMPRESSED records instead, point this at W("comp_sram") and
+    # read the memory rather than sweeping bins; the two destinations are
+    # exclusive, which is why this is one line and not a flag.
+    _tbase, _tlimit = W("stream_tally")
+    bridge.write(A("MON_GROUP_BASE_ADDR"),  _tbase)
+    bridge.write(A("MON_GROUP_LIMIT_ADDR"), _tlimit)
     bridge.write(A("MON_GROUP_FLUSH_WATERMARK"), 0x0)
 
 
