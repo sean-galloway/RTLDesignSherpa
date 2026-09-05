@@ -373,6 +373,26 @@ routing is CORRECT, which is what the probe set out to test -- and is then
 answered SLVERR because the model holds 4 KB. The AXI4 master's
 `write_transaction` raises on the error response and the test dies.
 
+**The two slave BFMs genuinely disagree, and the TB comment describes the
+AXI4 one.** Confirmed by reading both (2026-09-05):
+
+```python
+# AXI4SlaveWrite -- logs and leaves resp alone. Silent drop, answers OKAY.
+except Exception as mem_error:
+    if self.log:
+        self.log.warning(f"AXI4SlaveWrite: Memory write failed for txn ...")
+
+# AXIL4SlaveWrite -- same situation, different answer.
+except Exception as e:
+    if self.log: self.log.warning(f"Memory write failed at 0x{address:08X}: {e}")
+    resp = 2  # SLVERR
+```
+
+So this is not a case of the TB believing something no BFM does -- it is one
+BFM behaving one way, its AXI4-Lite sibling the other, and the TB written
+against the first. That asymmetry is the actual defect; the two red tests are
+a symptom.
+
 **Two candidate fixes, and they are not equivalent:**
 
 1. **Cap the probe addresses** to the modelled window for protocols whose BFM
