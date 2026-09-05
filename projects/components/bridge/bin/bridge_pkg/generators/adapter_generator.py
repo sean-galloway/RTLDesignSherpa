@@ -539,8 +539,8 @@ class AdapterGenerator:
         lines.append("    // store-class atomics and plain writes pass through (A5-3a)")
         lines.append("    // ================================================================")
         for sig in ('awid', 'awaddr', 'awlen', 'awsize', 'awburst',
-                    'awlock', 'awcache', 'awprot',
-                    'wdata', 'wstrb', 'wlast'):
+                    'awlock', 'awcache', 'awprot', 'awqos', 'awuser',
+                    'wdata', 'wstrb', 'wlast', 'wuser'):
             lines.append(f"    assign fub_axi_{sig} = pref_axi_{sig};")
         for ch in ('aw', 'w'):
             for _f, _w, _feat, base in self._sb_fields(ch, self.sb_own):
@@ -606,6 +606,10 @@ class AdapterGenerator:
             lines.append("    logic         fub_axi_awlock;")
             lines.append("    logic [3:0]   fub_axi_awcache;")
             lines.append("    logic [2:0]   fub_axi_awprot;")
+            lines.append("    logic [3:0]   fub_axi_awqos;")
+            if self.master.protocol != 'axi5':
+                lines.append("    logic [3:0]   fub_axi_awregion;")
+            lines.append("    logic         fub_axi_awuser;")
             lines.append("    logic         fub_axi_awvalid;")
             lines.append("    logic         fub_axi_awready;")
             lines.append("")
@@ -613,6 +617,7 @@ class AdapterGenerator:
             lines.append(f"    logic [{data_width-1}:0]  fub_axi_wdata;")
             lines.append(f"    logic [{strb_width-1}:0]   fub_axi_wstrb;")
             lines.append("    logic         fub_axi_wlast;")
+            lines.append("    logic         fub_axi_wuser;")
             lines.append("    logic         fub_axi_wvalid;")
             lines.append("    logic         fub_axi_wready;")
             lines.append("")
@@ -633,6 +638,10 @@ class AdapterGenerator:
             lines.append("    logic         fub_axi_arlock;")
             lines.append("    logic [3:0]   fub_axi_arcache;")
             lines.append("    logic [2:0]   fub_axi_arprot;")
+            lines.append("    logic [3:0]   fub_axi_arqos;")
+            if self.master.protocol != 'axi5':
+                lines.append("    logic [3:0]   fub_axi_arregion;")
+            lines.append("    logic         fub_axi_aruser;")
             lines.append("    logic         fub_axi_arvalid;")
             lines.append("    logic         fub_axi_arready;")
             lines.append("")
@@ -669,11 +678,14 @@ class AdapterGenerator:
             lines.append("    logic         pref_axi_awlock;")
             lines.append("    logic [3:0]   pref_axi_awcache;")
             lines.append("    logic [2:0]   pref_axi_awprot;")
+            lines.append("    logic [3:0]   pref_axi_awqos;")
+            lines.append("    logic         pref_axi_awuser;")
             lines.append("    logic         pref_axi_awvalid;")
             lines.append("    logic         pref_axi_awready;")
             lines.append(f"    logic [{dw-1}:0]  pref_axi_wdata;")
             lines.append(f"    logic [{dw//8-1}:0]   pref_axi_wstrb;")
             lines.append("    logic         pref_axi_wlast;")
+            lines.append("    logic         pref_axi_wuser;")
             lines.append("    logic         pref_axi_wvalid;")
             lines.append("    logic         pref_axi_wready;")
             lines.append(f"    logic [{id_w-1}:0]   pref_axi_bid;")
@@ -1487,9 +1499,19 @@ class AdapterGenerator:
             lines.append(f"    assign {self.master.name}_{suffix}_aw.lock   = fub_axi_awlock;")
             lines.append(f"    assign {self.master.name}_{suffix}_aw.cache  = fub_axi_awcache;")
             lines.append(f"    assign {self.master.name}_{suffix}_aw.prot   = fub_axi_awprot;")
-            lines.append(f"    assign {self.master.name}_{suffix}_aw.qos    = 4'b0;  // Tie to 0")
-            lines.append(f"    assign {self.master.name}_{suffix}_aw.region = 4'b0;  // Tie to 0")
-            lines.append(f"    assign {self.master.name}_{suffix}_aw.user   = 1'b0;  // Tie to 0")
+            # Carry the master's real qos/region/user instead of zeroing
+            # them. These were tied off while the crossbar had no mux for
+            # them; it does now, and tying here would have made the mux
+            # route constant 0 -- lint-clean and silently lossy.
+            lines.append(f"    assign {self.master.name}_{suffix}_aw.qos    = fub_axi_awqos;")
+            if self.master.protocol == 'axi5':
+                # AXI5 removed REGION: the axi5_slave_* wrapper has no
+                # awregion port, so there is nothing to route and '0 is the
+                # correct value rather than a dropped signal.
+                lines.append(f"    assign {self.master.name}_{suffix}_aw.region = 4'b0;  // AXI5 has no REGION")
+            else:
+                lines.append(f"    assign {self.master.name}_{suffix}_aw.region = fub_axi_awregion;")
+            lines.append(f"    assign {self.master.name}_{suffix}_aw.user   = fub_axi_awuser;")
             lines.extend(self._sb_pack_lines('aw', suffix))
             # Gate by `<W>b_aw_path_active` so only the path matching the
             # currently selected slave's data_width drives awvalid (see big
@@ -1502,7 +1524,7 @@ class AdapterGenerator:
             lines.append(f"    assign {self.master.name}_{suffix}_w.data  = fub_axi_wdata;")
             lines.append(f"    assign {self.master.name}_{suffix}_w.strb  = fub_axi_wstrb;")
             lines.append(f"    assign {self.master.name}_{suffix}_w.last  = fub_axi_wlast;")
-            lines.append(f"    assign {self.master.name}_{suffix}_w.user  = 1'b0;  // Tie to 0")
+            lines.append(f"    assign {self.master.name}_{suffix}_w.user  = fub_axi_wuser;")
             lines.extend(self._sb_pack_lines('w', suffix))
             # Gate by `<W>b_w_path_active` (FIFO-tracked) -- aw_path_active
             # is combinational and would revert mid-burst once fub_axi_awaddr
@@ -1528,9 +1550,12 @@ class AdapterGenerator:
             lines.append(f"    assign {self.master.name}_{suffix}_ar.lock   = fub_axi_arlock;")
             lines.append(f"    assign {self.master.name}_{suffix}_ar.cache  = fub_axi_arcache;")
             lines.append(f"    assign {self.master.name}_{suffix}_ar.prot   = fub_axi_arprot;")
-            lines.append(f"    assign {self.master.name}_{suffix}_ar.qos    = 4'b0;  // Tie to 0")
-            lines.append(f"    assign {self.master.name}_{suffix}_ar.region = 4'b0;  // Tie to 0")
-            lines.append(f"    assign {self.master.name}_{suffix}_ar.user   = 1'b0;  // Tie to 0")
+            lines.append(f"    assign {self.master.name}_{suffix}_ar.qos    = fub_axi_arqos;")
+            if self.master.protocol == 'axi5':
+                lines.append(f"    assign {self.master.name}_{suffix}_ar.region = 4'b0;  // AXI5 has no REGION")
+            else:
+                lines.append(f"    assign {self.master.name}_{suffix}_ar.region = fub_axi_arregion;")
+            lines.append(f"    assign {self.master.name}_{suffix}_ar.user   = fub_axi_aruser;")
             lines.extend(self._sb_pack_lines('ar', suffix))
             # Gate by `<W>b_ar_path_active` (only the matching width path
             # drives arvalid; see comment in _generate_width_adaptation).

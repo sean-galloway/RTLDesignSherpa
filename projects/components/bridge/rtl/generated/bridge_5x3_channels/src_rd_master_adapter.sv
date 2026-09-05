@@ -73,6 +73,9 @@ module src_rd_master_adapter
     logic         fub_axi_arlock;
     logic [3:0]   fub_axi_arcache;
     logic [2:0]   fub_axi_arprot;
+    logic [3:0]   fub_axi_arqos;
+    logic [3:0]   fub_axi_arregion;
+    logic         fub_axi_aruser;
     logic         fub_axi_arvalid;
     logic         fub_axi_arready;
 
@@ -130,9 +133,9 @@ module src_rd_master_adapter
         .fub_axi_arlock(fub_axi_arlock),
         .fub_axi_arcache(fub_axi_arcache),
         .fub_axi_arprot(fub_axi_arprot),
-        .fub_axi_arqos(),
-        .fub_axi_arregion(),
-        .fub_axi_aruser(),
+        .fub_axi_arqos(fub_axi_arqos),
+        .fub_axi_arregion(fub_axi_arregion),
+        .fub_axi_aruser(fub_axi_aruser),
         .fub_axi_arvalid(fub_axi_arvalid),
         .fub_axi_arready(fub_axi_arready),
         .fub_axi_rid(fub_axi_rid),
@@ -195,9 +198,9 @@ module src_rd_master_adapter
     assign src_rd_master_256b_ar.lock   = fub_axi_arlock;
     assign src_rd_master_256b_ar.cache  = fub_axi_arcache;
     assign src_rd_master_256b_ar.prot   = fub_axi_arprot;
-    assign src_rd_master_256b_ar.qos    = 4'b0;  // Tie to 0
-    assign src_rd_master_256b_ar.region = 4'b0;  // Tie to 0
-    assign src_rd_master_256b_ar.user   = 1'b0;  // Tie to 0
+    assign src_rd_master_256b_ar.qos    = fub_axi_arqos;
+    assign src_rd_master_256b_ar.region = fub_axi_arregion;
+    assign src_rd_master_256b_ar.user   = fub_axi_aruser;
     assign src_rd_master_256b_arvalid   = fub_axi_arvalid && ar_path_active_256b;
     // arready routed via MUX
 

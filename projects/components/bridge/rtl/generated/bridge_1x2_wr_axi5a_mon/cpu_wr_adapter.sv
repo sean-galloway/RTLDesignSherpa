@@ -115,12 +115,15 @@ module cpu_wr_adapter
     logic         fub_axi_awlock;
     logic [3:0]   fub_axi_awcache;
     logic [2:0]   fub_axi_awprot;
+    logic [3:0]   fub_axi_awqos;
+    logic         fub_axi_awuser;
     logic         fub_axi_awvalid;
     logic         fub_axi_awready;
 
     logic [31:0]  fub_axi_wdata;
     logic [3:0]   fub_axi_wstrb;
     logic         fub_axi_wlast;
+    logic         fub_axi_wuser;
     logic         fub_axi_wvalid;
     logic         fub_axi_wready;
 
@@ -145,11 +148,14 @@ module cpu_wr_adapter
     logic         pref_axi_awlock;
     logic [3:0]   pref_axi_awcache;
     logic [2:0]   pref_axi_awprot;
+    logic [3:0]   pref_axi_awqos;
+    logic         pref_axi_awuser;
     logic         pref_axi_awvalid;
     logic         pref_axi_awready;
     logic [31:0]  pref_axi_wdata;
     logic [3:0]   pref_axi_wstrb;
     logic         pref_axi_wlast;
+    logic         pref_axi_wuser;
     logic         pref_axi_wvalid;
     logic         pref_axi_wready;
     logic [3:0]   pref_axi_bid;
@@ -240,8 +246,8 @@ module cpu_wr_adapter
         .fub_axi_awlock(pref_axi_awlock),
         .fub_axi_awcache(pref_axi_awcache),
         .fub_axi_awprot(pref_axi_awprot),
-        .fub_axi_awqos(),
-        .fub_axi_awuser(),
+        .fub_axi_awqos(pref_axi_awqos),
+        .fub_axi_awuser(pref_axi_awuser),
         .fub_axi_awvalid(pref_axi_awvalid),
         .fub_axi_awready(pref_axi_awready),
         .fub_axi_awatop(pref_axi_awatop),
@@ -255,7 +261,7 @@ module cpu_wr_adapter
         .fub_axi_wdata(pref_axi_wdata),
         .fub_axi_wstrb(pref_axi_wstrb),
         .fub_axi_wlast(pref_axi_wlast),
-        .fub_axi_wuser(),
+        .fub_axi_wuser(pref_axi_wuser),
         .fub_axi_wvalid(pref_axi_wvalid),
         .fub_axi_wready(pref_axi_wready),
         .fub_axi_wpoison(),
@@ -340,9 +346,12 @@ module cpu_wr_adapter
     assign fub_axi_awlock = pref_axi_awlock;
     assign fub_axi_awcache = pref_axi_awcache;
     assign fub_axi_awprot = pref_axi_awprot;
+    assign fub_axi_awqos = pref_axi_awqos;
+    assign fub_axi_awuser = pref_axi_awuser;
     assign fub_axi_wdata = pref_axi_wdata;
     assign fub_axi_wstrb = pref_axi_wstrb;
     assign fub_axi_wlast = pref_axi_wlast;
+    assign fub_axi_wuser = pref_axi_wuser;
     assign fub_axi_awtrace = pref_axi_awtrace;
     assign fub_axi_awatop = pref_axi_awatop;
     assign pref_axi_btrace = fub_axi_btrace;
@@ -424,9 +433,9 @@ module cpu_wr_adapter
     assign cpu_wr_32b_aw.lock   = fub_axi_awlock;
     assign cpu_wr_32b_aw.cache  = fub_axi_awcache;
     assign cpu_wr_32b_aw.prot   = fub_axi_awprot;
-    assign cpu_wr_32b_aw.qos    = 4'b0;  // Tie to 0
-    assign cpu_wr_32b_aw.region = 4'b0;  // Tie to 0
-    assign cpu_wr_32b_aw.user   = 1'b0;  // Tie to 0
+    assign cpu_wr_32b_aw.qos    = fub_axi_awqos;
+    assign cpu_wr_32b_aw.region = 4'b0;  // AXI5 has no REGION
+    assign cpu_wr_32b_aw.user   = fub_axi_awuser;
     assign cpu_wr_32b_aw.trace = fub_axi_awtrace;  // AXI5 sideband
     assign cpu_wr_32b_aw.atop = fub_axi_awatop;  // AXI5 sideband
     assign cpu_wr_32b_awvalid   = fub_axi_awvalid && aw_path_active_32b;
@@ -436,7 +445,7 @@ module cpu_wr_adapter
     assign cpu_wr_32b_w.data  = fub_axi_wdata;
     assign cpu_wr_32b_w.strb  = fub_axi_wstrb;
     assign cpu_wr_32b_w.last  = fub_axi_wlast;
-    assign cpu_wr_32b_w.user  = 1'b0;  // Tie to 0
+    assign cpu_wr_32b_w.user  = fub_axi_wuser;
     assign cpu_wr_32b_wvalid  = fub_axi_wvalid && w_path_active_32b;
     // wready routed via MUX
 

@@ -195,12 +195,16 @@ module trace_axil_adapter
     logic         fub_axi_awlock;
     logic [3:0]   fub_axi_awcache;
     logic [2:0]   fub_axi_awprot;
+    logic [3:0]   fub_axi_awqos;
+    logic [3:0]   fub_axi_awregion;
+    logic         fub_axi_awuser;
     logic         fub_axi_awvalid;
     logic         fub_axi_awready;
 
     logic [31:0]  fub_axi_wdata;
     logic [3:0]   fub_axi_wstrb;
     logic         fub_axi_wlast;
+    logic         fub_axi_wuser;
     logic         fub_axi_wvalid;
     logic         fub_axi_wready;
 
@@ -217,6 +221,9 @@ module trace_axil_adapter
     logic         fub_axi_arlock;
     logic [3:0]   fub_axi_arcache;
     logic [2:0]   fub_axi_arprot;
+    logic [3:0]   fub_axi_arqos;
+    logic [3:0]   fub_axi_arregion;
+    logic         fub_axi_aruser;
     logic         fub_axi_arvalid;
     logic         fub_axi_arready;
 
@@ -289,15 +296,15 @@ module trace_axil_adapter
         .fub_axi_awlock(fub_axi_awlock),
         .fub_axi_awcache(fub_axi_awcache),
         .fub_axi_awprot(fub_axi_awprot),
-        .fub_axi_awqos(),
-        .fub_axi_awregion(),
-        .fub_axi_awuser(),
+        .fub_axi_awqos(fub_axi_awqos),
+        .fub_axi_awregion(fub_axi_awregion),
+        .fub_axi_awuser(fub_axi_awuser),
         .fub_axi_awvalid(fub_axi_awvalid),
         .fub_axi_awready(fub_axi_awready),
         .fub_axi_wdata(fub_axi_wdata),
         .fub_axi_wstrb(fub_axi_wstrb),
         .fub_axi_wlast(fub_axi_wlast),
-        .fub_axi_wuser(),
+        .fub_axi_wuser(fub_axi_wuser),
         .fub_axi_wvalid(fub_axi_wvalid),
         .fub_axi_wready(fub_axi_wready),
         .fub_axi_bid(fub_axi_bid),
@@ -418,9 +425,9 @@ module trace_axil_adapter
         .fub_axi_arlock(fub_axi_arlock),
         .fub_axi_arcache(fub_axi_arcache),
         .fub_axi_arprot(fub_axi_arprot),
-        .fub_axi_arqos(),
-        .fub_axi_arregion(),
-        .fub_axi_aruser(),
+        .fub_axi_arqos(fub_axi_arqos),
+        .fub_axi_arregion(fub_axi_arregion),
+        .fub_axi_aruser(fub_axi_aruser),
         .fub_axi_arvalid(fub_axi_arvalid),
         .fub_axi_arready(fub_axi_arready),
         .fub_axi_rid(fub_axi_rid),
@@ -575,9 +582,9 @@ module trace_axil_adapter
     assign trace_axil_32b_aw.lock   = fub_axi_awlock;
     assign trace_axil_32b_aw.cache  = fub_axi_awcache;
     assign trace_axil_32b_aw.prot   = fub_axi_awprot;
-    assign trace_axil_32b_aw.qos    = 4'b0;  // Tie to 0
-    assign trace_axil_32b_aw.region = 4'b0;  // Tie to 0
-    assign trace_axil_32b_aw.user   = 1'b0;  // Tie to 0
+    assign trace_axil_32b_aw.qos    = fub_axi_awqos;
+    assign trace_axil_32b_aw.region = fub_axi_awregion;
+    assign trace_axil_32b_aw.user   = fub_axi_awuser;
     assign trace_axil_32b_awvalid   = fub_axi_awvalid && aw_path_active_32b;
     // awready routed via MUX
 
@@ -585,7 +592,7 @@ module trace_axil_adapter
     assign trace_axil_32b_w.data  = fub_axi_wdata;
     assign trace_axil_32b_w.strb  = fub_axi_wstrb;
     assign trace_axil_32b_w.last  = fub_axi_wlast;
-    assign trace_axil_32b_w.user  = 1'b0;  // Tie to 0
+    assign trace_axil_32b_w.user  = fub_axi_wuser;
     assign trace_axil_32b_wvalid  = fub_axi_wvalid && w_path_active_32b;
     // wready routed via MUX
 
@@ -603,9 +610,9 @@ module trace_axil_adapter
     assign trace_axil_32b_ar.lock   = fub_axi_arlock;
     assign trace_axil_32b_ar.cache  = fub_axi_arcache;
     assign trace_axil_32b_ar.prot   = fub_axi_arprot;
-    assign trace_axil_32b_ar.qos    = 4'b0;  // Tie to 0
-    assign trace_axil_32b_ar.region = 4'b0;  // Tie to 0
-    assign trace_axil_32b_ar.user   = 1'b0;  // Tie to 0
+    assign trace_axil_32b_ar.qos    = fub_axi_arqos;
+    assign trace_axil_32b_ar.region = fub_axi_arregion;
+    assign trace_axil_32b_ar.user   = fub_axi_aruser;
     assign trace_axil_32b_arvalid   = fub_axi_arvalid && ar_path_active_32b;
     // arready routed via MUX
 

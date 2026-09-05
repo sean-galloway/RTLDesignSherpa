@@ -616,13 +616,17 @@ class Axi4TimingWrapper:
         pass through with the prefix."""
         d = {}
         if self.side == 'slave':
-            # axi4_slave_* on the master-adapter -- match the hand-written
-            # convention: open qos/region/user outputs, tie buser to 0,
-            # ruser=1'b0 too.
-            for name in ('awqos', 'awregion', 'awuser',
-                         'wuser', 'buser',
-                         'arqos', 'arregion', 'aruser', 'ruser'):
-                d[name] = ""
+            # axi4_slave_* on the master-adapter. qos/region/user used to be
+            # left OPEN here on the grounds that "the master adapter has no
+            # place to route them" -- true when the crossbar had no mux for
+            # them, false now. Leaving them open and tying the struct to zero
+            # made the fabric carry constant 0: lint-clean, silently lossy.
+            # They now fall through to the prefixed connector like every other
+            # signal, so the master's real values reach the slave.
+            #
+            # buser/ruser stay tied: those are fub INPUTS on this side (the
+            # response comes back INTO the wrapper) and the crossbar drives
+            # them separately via b.user / r.user.
             d['buser'] = "1'b0"
             d['ruser'] = "1'b0"
         # AXI5 feature ports terminate at the wrapper on the fabric side

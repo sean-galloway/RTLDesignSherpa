@@ -138,12 +138,16 @@ module cpu_master_adapter
     logic         fub_axi_awlock;
     logic [3:0]   fub_axi_awcache;
     logic [2:0]   fub_axi_awprot;
+    logic [3:0]   fub_axi_awqos;
+    logic [3:0]   fub_axi_awregion;
+    logic         fub_axi_awuser;
     logic         fub_axi_awvalid;
     logic         fub_axi_awready;
 
     logic [63:0]  fub_axi_wdata;
     logic [7:0]   fub_axi_wstrb;
     logic         fub_axi_wlast;
+    logic         fub_axi_wuser;
     logic         fub_axi_wvalid;
     logic         fub_axi_wready;
 
@@ -160,6 +164,9 @@ module cpu_master_adapter
     logic         fub_axi_arlock;
     logic [3:0]   fub_axi_arcache;
     logic [2:0]   fub_axi_arprot;
+    logic [3:0]   fub_axi_arqos;
+    logic [3:0]   fub_axi_arregion;
+    logic         fub_axi_aruser;
     logic         fub_axi_arvalid;
     logic         fub_axi_arready;
 
@@ -223,15 +230,15 @@ module cpu_master_adapter
         .fub_axi_awlock(fub_axi_awlock),
         .fub_axi_awcache(fub_axi_awcache),
         .fub_axi_awprot(fub_axi_awprot),
-        .fub_axi_awqos(),
-        .fub_axi_awregion(),
-        .fub_axi_awuser(),
+        .fub_axi_awqos(fub_axi_awqos),
+        .fub_axi_awregion(fub_axi_awregion),
+        .fub_axi_awuser(fub_axi_awuser),
         .fub_axi_awvalid(fub_axi_awvalid),
         .fub_axi_awready(fub_axi_awready),
         .fub_axi_wdata(fub_axi_wdata),
         .fub_axi_wstrb(fub_axi_wstrb),
         .fub_axi_wlast(fub_axi_wlast),
-        .fub_axi_wuser(),
+        .fub_axi_wuser(fub_axi_wuser),
         .fub_axi_wvalid(fub_axi_wvalid),
         .fub_axi_wready(fub_axi_wready),
         .fub_axi_bid(fub_axi_bid),
@@ -289,9 +296,9 @@ module cpu_master_adapter
         .fub_axi_arlock(fub_axi_arlock),
         .fub_axi_arcache(fub_axi_arcache),
         .fub_axi_arprot(fub_axi_arprot),
-        .fub_axi_arqos(),
-        .fub_axi_arregion(),
-        .fub_axi_aruser(),
+        .fub_axi_arqos(fub_axi_arqos),
+        .fub_axi_arregion(fub_axi_arregion),
+        .fub_axi_aruser(fub_axi_aruser),
         .fub_axi_arvalid(fub_axi_arvalid),
         .fub_axi_arready(fub_axi_arready),
         .fub_axi_rid(fub_axi_rid),

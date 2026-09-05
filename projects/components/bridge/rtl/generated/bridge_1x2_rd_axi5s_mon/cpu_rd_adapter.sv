@@ -103,6 +103,9 @@ module cpu_rd_adapter
     logic         fub_axi_arlock;
     logic [3:0]   fub_axi_arcache;
     logic [2:0]   fub_axi_arprot;
+    logic [3:0]   fub_axi_arqos;
+    logic [3:0]   fub_axi_arregion;
+    logic         fub_axi_aruser;
     logic         fub_axi_arvalid;
     logic         fub_axi_arready;
 
@@ -169,9 +172,9 @@ module cpu_rd_adapter
         .fub_axi_arlock(fub_axi_arlock),
         .fub_axi_arcache(fub_axi_arcache),
         .fub_axi_arprot(fub_axi_arprot),
-        .fub_axi_arqos(),
-        .fub_axi_arregion(),
-        .fub_axi_aruser(),
+        .fub_axi_arqos(fub_axi_arqos),
+        .fub_axi_arregion(fub_axi_arregion),
+        .fub_axi_aruser(fub_axi_aruser),
         .fub_axi_arvalid(fub_axi_arvalid),
         .fub_axi_arready(fub_axi_arready),
         .fub_axi_rid(fub_axi_rid),
@@ -288,9 +291,9 @@ module cpu_rd_adapter
     assign cpu_rd_32b_ar.lock   = fub_axi_arlock;
     assign cpu_rd_32b_ar.cache  = fub_axi_arcache;
     assign cpu_rd_32b_ar.prot   = fub_axi_arprot;
-    assign cpu_rd_32b_ar.qos    = 4'b0;  // Tie to 0
-    assign cpu_rd_32b_ar.region = 4'b0;  // Tie to 0
-    assign cpu_rd_32b_ar.user   = 1'b0;  // Tie to 0
+    assign cpu_rd_32b_ar.qos    = fub_axi_arqos;
+    assign cpu_rd_32b_ar.region = fub_axi_arregion;
+    assign cpu_rd_32b_ar.user   = fub_axi_aruser;
     assign cpu_rd_32b_ar.trace = '0;  // AXI5 sideband (not on this master)
     assign cpu_rd_32b_ar.uniq = '0;  // AXI5 sideband (not on this master)
     assign cpu_rd_32b_arvalid   = fub_axi_arvalid && ar_path_active_32b;
