@@ -28,6 +28,7 @@ Not fifteen mistakes. One mistake, fifteen times.
 | RDL `default` on a hw-mirrored status reg | `CHANNEL_IDLE=0xF` is CORRECT | "9 register defects" |
 | bitstream copy path mismatch | WARNING, exit 0 | month-old `.bit` looked current |
 | one of two root vars unset | built the OLD tree's bridge | a clean build of a stale design |
+| a gate whose flags differ from the consumer's | `--lint-only` cannot see scheduling loops | "lint is clean" while every `*_mon` build was broken |
 
 And, while writing the fix for the address trap, a `try/except` that returned
 the floor on failure -- **a silent fallback inside the silent-fallback fix.**
@@ -90,6 +91,32 @@ describes nothing. Build masks from fields.
 
 ### 8. Truthiness never, on framework objects
 `if bfm:` calls `__len__`. Use `is not None`.
+
+### 9. A gate must run the flags its consumer runs
+A gate reports on the invocation it makes, not on the design. `make lint` ran
+`verilator --lint-only` and reported clean for weeks while a combinational loop
+in `rtl/amba/monitor` broke the build of every monitor-variant bridge. Even a
+real `-cc` model build reported nothing -- Verilator optimises across the loop
+and it disappears. It takes `--public-flat-rw`, which cocotb always passes, for
+the cycle to exist at all:
+
+| invocation | UNOPTFLAT |
+|---|---|
+| `verilator --lint-only -Wall` | 0 |
+| `verilator -cc -Wall` | 0 |
+| `verilator -cc --public-flat-rw --trace` | 4 |
+
+Elaborating the design is necessary and NOT sufficient. Before trusting a green
+gate, ask what its invocation differs from the one that actually consumes the
+RTL -- and close the gap rather than the ticket. `make build-check` in
+`projects/components/bridge/rtl` exists for this. See
+[[always-comb-block-fusion]] for the defect itself and [[TASK-081]].
+
+### 10. A gate that fails on everything reports nothing
+The same bridge lint gate failed 36 of 36 variants on PINCONNECTEMPTY from
+deliberately-open pins. Nobody read it, so the real findings underneath were
+invisible too. Waive what is idiomatic so the signal survives -- but never
+waive the class you are hunting.
 
 ## The single question
 
