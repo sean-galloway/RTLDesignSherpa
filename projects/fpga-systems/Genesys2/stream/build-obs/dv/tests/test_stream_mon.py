@@ -73,6 +73,70 @@ CAM_LOAD_OFF  = _TALLY_REGS.reg_address(_TALLY_REGS.registers['CAM_LOAD'])
 MON_N_PROFILE = cfg_int('CFG_MON_N_PROFILE')   # legal-set size, from the package
 
 
+# Per-class observer configuration, MIRRORING host_obs_matrix.py so the cosim
+# and the board exercise the same scenarios. The board gives bin counts; this
+# gives waves, which is the only way to see WHY a class fails to emit.
+#
+# Selected by OBS_CLASS in the environment. Default addrmatch preserves the
+# behaviour this test had before the table existed.
+#
+# (mon_ctrl, [(agent,proto,ptype,evc,label)], range_cfg, (rd_delay,wr_delay))
+_ERROR_EN, _TIMEOUT_EN, _COMPL_EN, _THRESHOLD_EN = 0, 1, 2, 3
+_PERF_EN, _DEBUG_EN, _ADDR_CHECK_EN, _MONITOR_EN = 4, 5, 6, 7
+
+
+def _bits(*b):
+    v = 0
+    for x in b:
+        v |= 1 << x
+    return v
+
+
+OBS_CLASSES = {
+    "addrmatch": (
+        _bits(_DEBUG_EN, _ADDR_CHECK_EN, _MONITOR_EN),
+        [(0x00, 0, 8, 0x01, "rd_addrmatch"), (0x10, 0, 8, 0x01, "wr_addrmatch")],
+        {"range": 0, "low": 0x00000000, "high": 0xFFFFFFFF, "en": 0x1},
+        (0, 0),
+    ),
+    "error": (
+        _bits(_ADDR_CHECK_EN, _ERROR_EN, _MONITOR_EN),
+        [(0x00, 0, 0, 0x0D, "rd_err_addrrange"), (0x10, 0, 0, 0x0D, "wr_err_addrrange")],
+        # range2 is ERROR-flavoured (ADDR_RANGE_IS_ERROR=4'b1100 in the harness).
+        # Point it somewhere the DMA never goes so every command MISSES.
+        {"range": 2, "low": 0xFFFFFFF0, "high": 0xFFFFFFFF, "en": 0x4},
+        (0, 0),
+    ),
+    "timeout": (
+        _bits(_TIMEOUT_EN, _MONITOR_EN),
+        [(0x00, 0, 3, 1, "rd_timeout"), (0x10, 0, 3, 1, "wr_timeout")],
+        None,
+        (0x0800, 0x0800),   # delay the SLAVE, do not shrink MON_TIMEOUT
+    ),
+    "threshold": (
+        _bits(_THRESHOLD_EN, _MONITOR_EN),
+        [(0x00, 0, 2, 0, "rd_threshold"), (0x10, 0, 2, 0, "wr_threshold")],
+        None,
+        (0x0040, 0x0040),
+    ),
+    "debug": (
+        _bits(_DEBUG_EN, _MONITOR_EN),
+        [(0x00, 0, 15, 0, "rd_debug"), (0x10, 0, 15, 0, "wr_debug")],
+        None,
+        (0, 0),
+    ),
+    "perf": (
+        # Perf derives from the completion path: the reporter gates on
+        # r_completed_count > 0, incremented by compl_marked_mask. PERF_EN alone
+        # emits nothing -- measured 0 on the board, 567880 with COMPL_EN added.
+        _bits(_PERF_EN, _COMPL_EN, _MONITOR_EN),
+        [(0x00, 0, 4, 7, "rd_perf"), (0x10, 0, 4, 7, "wr_perf"),
+         (0x00, 0, 1, 0, "rd_compl"), (0x10, 0, 1, 0, "wr_compl")],
+        None,
+        (0, 0),
+    ),
+}
+
 _STREAM_REGS = RegisterMap(
     os.path.join(os.environ['REPO_ROOT'],
                  'projects/components/dmas/stream/regs/generated/stream_regs_regmap.py'),
@@ -246,21 +310,28 @@ async def cocotb_test_stream_mon(dut):
         # matches and the packet is suppressed before it is ever emitted. That
         # was one of the two reasons rd(bin0)=wr(bin1)=0 with the observers
         # visibly emitting (awvalid edges = 6).
-        mon_ctrl = (
-            (1 << 5)    # DEBUG_EN     -- ADDR_MATCH rides the debug path
-            | (1 << 6)  # ADDR_CHECK_EN -- without this the checker stays idle
-            | (1 << 7)  # MONITOR_EN
-        )
+        _cls = os.environ.get('OBS_CLASS', 'addrmatch')
+        mon_ctrl, _legal, _rng, (_rd_dly, _wr_dly) = OBS_CLASSES[_cls]
         addr_range_writes = []
+        # Slave response delay is how timeout/threshold are provoked: make the
+        # TRAFFIC slow rather than narrowing the monitor's own window, which
+        # would prove the comparator fires instead of proving the instrument
+        # detects what it exists for. Written for every class, so one scenario's
+        # stimulus cannot leak into the next.
+        addr_range_writes.append(
+            (H('RESP_DELAY'), ((_wr_dly & 0xFFFF) << 16) | (_rd_dly & 0xFFFF)))
         for base in (obs_addrs.OBS_APB_BASE, obs_addrs.SLAVE_OBS_APB_BASE):
-            addr_range_writes += [
-                (base + _OBS_REG('ADDR_RANGE0_LOW'),  0x00000000),   # match-all
-                (base + _OBS_REG('ADDR_RANGE0_HIGH'), 0xFFFFFFFF),
-                (base + _OBS_REG('ADDR_RANGE_CTRL'),  0x1),          # RANGE_EN[0]
-                (base + _OBS_REG('MON_CTRL'),         mon_ctrl),
-            ]
-        dut._log.info(f"[addr-range] queued match-all range0 + ADDR_CHECK_EN on "
-                      f"BOTH observers ({len(addr_range_writes)} writes)")
+            if _rng is not None:
+                _n = _rng['range']
+                addr_range_writes += [
+                    (base + _OBS_REG(f'ADDR_RANGE{_n}_LOW'),  _rng['low']),
+                    (base + _OBS_REG(f'ADDR_RANGE{_n}_HIGH'), _rng['high']),
+                    (base + _OBS_REG('ADDR_RANGE_CTRL'),      _rng['en']),
+                ]
+            addr_range_writes.append((base + _OBS_REG('MON_CTRL'), mon_ctrl))
+        dut._log.info(f"[obs-class] {_cls}: MON_CTRL=0x{mon_ctrl:02X} "
+                      f"range={_rng} slave_delay=({_rd_dly},{_wr_dly}) "
+                      f"{len(addr_range_writes)} queued writes")
 
         # Load the STREAM legal set into the tally CAM HERE too: run_dma_test's
         # SOFT_RESET wipes the CAM (it fans out to unit_aresetn), so it MUST be
@@ -269,7 +340,7 @@ async def cocotb_test_stream_mon(dut):
         # Register-based CAM load: CAM_CLEAR, then per entry {CAM_KEY, CAM_LOAD}.
         # The index rides in CAM_LOAD data, so no bus-width/stride hazard.
         addr_range_writes += [(STREAM_TALLY_CFG + CAM_CLEAR_OFF, 0)]
-        for i, (ag, pr, ty, ec) in enumerate(STREAM_PROFILE):
+        for i, (ag, pr, ty, ec) in enumerate([t[:4] for t in _legal]):
             addr_range_writes += [(STREAM_TALLY_CFG + CAM_KEY_OFF, profile_key(ag, pr, ty, ec)),
                                   (STREAM_TALLY_CFG + CAM_LOAD_OFF, (1 << 31) | i)]
         dut._log.info(f"[addr-range] queued match-all DEBUG range0 rd+wr + "

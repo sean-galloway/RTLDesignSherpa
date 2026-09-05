@@ -93,8 +93,16 @@ MATRIX = {
     ),
     "addrmatch": (
         _b(ADDR_CHECK_EN, DEBUG_EN, MONITOR_EN),
+        # AddrMatch rides the DEBUG path, so DEBUG_EN is mandatory -- and since
+        # 2d0d75a1 built the debug reporter, that same bit ALSO emits Debug
+        # packets. They are real, not noise: they went to UNEXPECTED and split
+        # the run almost exactly in half (4396 keyed / 4424 unexpected), and the
+        # tally's first-event capture identified them as type=0xF. Key them, the
+        # way perf keys the completions it structurally depends on.
         [(AGENT_RD, PROTO_AXI, 8, 0x01, "rd_addrmatch"),
-         (AGENT_WR, PROTO_AXI, 8, 0x01, "wr_addrmatch")],
+         (AGENT_WR, PROTO_AXI, 8, 0x01, "wr_addrmatch"),
+         (AGENT_RD, PROTO_AXI, 15, 0x00, "rd_debug_side"),
+         (AGENT_WR, PROTO_AXI, 15, 0x00, "wr_debug_side")],
         # range0 DEBUG-flavoured, match-all: every accepted AR/AW is a HIT.
         # AddrMatch rides the DEBUG path, so DEBUG_EN is required, not optional.
         {"range": 0, "low": 0x00000000, "high": 0xFFFFFFFF, "en": 0x1},
@@ -118,8 +126,15 @@ MATRIX = {
     ),
     "threshold": (
         _b(THRESHOLD_EN, MONITOR_EN),
-        [(AGENT_RD, PROTO_AXI, 2, 0, "rd_threshold"),
-         (AGENT_WR, PROTO_AXI, 2, 0, "wr_threshold")],
+        # The reporter emits TWO event codes: AXI_THRESH_ACTIVE_COUNT (0x0) and
+        # AXI_THRESH_LATENCY (0x1). Keying only ACTIVE_COUNT sent 8,804 real
+        # packets to UNEXPECTED and read as "threshold does not work" when the
+        # reporter was in fact emitting exactly as designed -- the stimulus here
+        # is a slave delay against MON_LATENCY, so they are LATENCY packets.
+        [(AGENT_RD, PROTO_AXI, 2, 0x0, "rd_thr_active"),
+         (AGENT_WR, PROTO_AXI, 2, 0x0, "wr_thr_active"),
+         (AGENT_RD, PROTO_AXI, 2, 0x1, "rd_thr_latency"),
+         (AGENT_WR, PROTO_AXI, 2, 0x1, "wr_thr_latency")],
         None,
         "slave delayed 64 cyc against a 1-cycle latency threshold",
     ),
@@ -151,7 +166,13 @@ TUNING = {
 # Cleared back to 0 for every other class so one row's stimulus cannot leak into
 # the next -- these persist across a SOFT_RESET's register clear otherwise.
 SLAVE_DELAY = {
-    "timeout":   (0x0800, 0x0800),   # 2048 cycles: far beyond MON_TIMEOUT's reset
+    # MON_TIMEOUT resets to 0x400 (1024 cycles). 0x440 is just ABOVE it, so
+    # every transaction still expires, but each costs ~1088 cycles instead of
+    # 2048 -- the reporter fires once per timed-out transaction and clears the
+    # detect vector, so the count is bounded by transactions ISSUED, not by how
+    # far past the threshold each one goes. Overshooting the threshold buys
+    # nothing and halves the sample rate.
+    "timeout":   (0x0440, 0x0440),
     "threshold": (0x0040, 0x0040),   # 64 cycles: over the latency floor, no timeout
 }
 
