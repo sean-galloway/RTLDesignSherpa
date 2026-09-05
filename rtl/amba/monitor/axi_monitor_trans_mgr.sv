@@ -455,6 +455,22 @@ module axi_monitor_trans_mgr
     /* verilator lint_on PINCONNECTEMPTY */
 
     // Per-bank -> flat (read side). Single driver per flat vector.
+    //
+    // SPLIT INTO TWO BLOCKS ON PURPOSE, and it must stay split. Verilator
+    // schedules an always_comb as ONE node, so every signal written in a block
+    // inherits the dependencies of every signal read in it. Flattening the
+    // ALLOC vectors in the same block as the MATCH/FREE vectors therefore made
+    // addr_match_oh look like a function of addr_alloc_oh -- and hence of
+    // addr_wants_alloc, which is computed FROM addr_hit_any, which is computed
+    // from addr_match_oh. Verilator reported that false cycle as UNOPTFLAT and
+    // it failed every monitor build that cannot optimise across it (cocotb
+    // passes --public-flat-rw, so nothing is flattened and the cycle stands).
+    //
+    // The true dependency is acyclic: an allocation pick never feeds a match
+    // result. Keeping the two in separate blocks is what lets the scheduler
+    // see that. This is the same fusion the CAM's own alloc block causes --
+    // see the addr-alloc mirror further down, which cuts the data-side path
+    // for the identical reason.
     always_comb begin
         for (int b = 0; b < NUM_BANKS; b++) begin
             for (int i = 0; i < BANK_SLOTS; i++) begin
@@ -463,11 +479,19 @@ module axi_monitor_trans_mgr
                 resp_match_oh          [b*BANK_SLOTS + i] = wb_resp_match   [b][i];
                 cam_data_match_first_oh[b*BANK_SLOTS + i] = wb_data_first   [b][i];
                 free_oh                [b*BANK_SLOTS + i] = wb_free         [b][i];
+                cam_entry_valid        [b*BANK_SLOTS + i] = wb_entry_valid  [b][i];
+                cam_entry_payload      [b*BANK_SLOTS + i] = wb_entry_payload[b][i];
+            end
+        end
+    end
+
+    // Alloc picks, flattened separately -- see the note above.
+    always_comb begin
+        for (int b = 0; b < NUM_BANKS; b++) begin
+            for (int i = 0; i < BANK_SLOTS; i++) begin
                 addr_alloc_oh          [b*BANK_SLOTS + i] = wb_addr_alloc   [b][i];
                 data_alloc_oh          [b*BANK_SLOTS + i] = wb_data_alloc   [b][i];
                 resp_alloc_oh          [b*BANK_SLOTS + i] = wb_resp_alloc   [b][i];
-                cam_entry_valid        [b*BANK_SLOTS + i] = wb_entry_valid  [b][i];
-                cam_entry_payload      [b*BANK_SLOTS + i] = wb_entry_payload[b][i];
             end
         end
     end
@@ -877,11 +901,30 @@ module axi_monitor_trans_mgr
     logic [NUM_BANKS-1:0] wb_data_pred_any;
     logic [NUM_BANKS-1:0] wb_data_bypass_any;
 
+    // SPLIT ON THE ALLOC BOUNDARY, and it must stay split -- same scheduling
+    // rule as the per-bank flattening above. Verilator schedules an
+    // always_comb as one node, so reducing wb_addr_pend_any in the same block
+    // as wb_data_bypass_any gave the addr reduction the bypass's dependencies.
+    // The bypass is computed from w_addr_alloc_mirror_oh, which is computed
+    // from addr_wants_alloc, which is computed from addr_hit_any = the addr
+    // reduction: a false cycle, reported as UNOPTFLAT, failing every write
+    // monitor build that cannot optimise across it.
+    //
+    // Acyclic in truth: addr_hit_any reads ONLY the addr-pend term, and the
+    // bypass terms feed data_hit_any alone. The split is what lets the
+    // scheduler see it. Bit-identical to the single block -- same expressions,
+    // same single driver per signal.
     always_comb begin
         for (int b = 0; b < NUM_BANKS; b++) begin
             wb_addr_pend_any  [b] = |(w_addr_pend_oh      [b*BANK_SLOTS +: BANK_SLOTS]);
             wb_data_match_any [b] = |(data_match_oh       [b*BANK_SLOTS +: BANK_SLOTS]);
             wb_resp_match_any [b] = |(resp_match_oh       [b*BANK_SLOTS +: BANK_SLOTS]);
+        end
+    end
+
+    // Alloc-dependent reductions -- feed data_hit_any only. See the note above.
+    always_comb begin
+        for (int b = 0; b < NUM_BANKS; b++) begin
             wb_data_pred_any  [b] = |(w_data_state_pred_oh[b*BANK_SLOTS +: BANK_SLOTS]);
             wb_data_bypass_any[b] = |(w_data_cmd_bypass_oh[b*BANK_SLOTS +: BANK_SLOTS]);
         end

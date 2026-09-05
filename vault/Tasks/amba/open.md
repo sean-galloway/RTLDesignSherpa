@@ -1798,9 +1798,12 @@ name ports which do not exist). The test-side is this task.
 
 ### TASK-081: monitor_trans_cam has a combinational loop that only a cocotb-flavoured build can see
 
-**Priority:** P1. It is the sole cause of 13 red tests -- every `*_mon_monitor`
-bridge variant -- and it has been red for an unknown but long time.
-**Status:** open 2026-09-05. Found while running the bridge suite from a
+**Priority:** P1. It was the sole cause of 13 red tests -- every `*_mon_monitor`
+bridge variant -- and it had been red for an unknown but long time.
+**Status:** FIXED 2026-09-05, same day. It was a FALSE cycle, created by
+Verilator's block-level scheduling, not a real feedback path -- see the fix at
+the end. Kept open-page until the val/amba sweep in [[TASK-025]] absorbs it.
+**Raised:** 2026-09-05. Found while running the bridge suite from a
 CLEAN build tree during the axil5 work.
 
 **Symptom.** Every monitor-variant bridge fails to BUILD:
@@ -1899,3 +1902,40 @@ reader's head. GENERATOR-side fix, not RTL.
 **Do not silence any of these with a waiver.** The gate was just repaired
 precisely because a blanket waiver is how the UNOPTFLAT in [[TASK-081]] stayed
 invisible for weeks.
+
+
+**FIXED 2026-09-05.** A false cycle, twice over, both times the same rule:
+**Verilator schedules an `always_comb` as ONE node, so every signal written in
+a block inherits the dependencies of every signal read in it.**
+`axi_monitor_trans_mgr.sv` had two blocks that each mixed alloc-dependent and
+alloc-independent signals:
+
+1. the per-bank -> flat flattening wrote `addr_match_oh` and `addr_alloc_oh`
+   together, so match inherited alloc's dependency on `addr_wants_alloc`;
+2. the per-bank reduction wrote `wb_addr_pend_any` and `wb_data_bypass_any`
+   together, and the bypass is computed from the addr-alloc mirror -- so the
+   addr reduction inherited it too.
+
+Either one closes `addr_hit_any -> addr_wants_alloc -> ... -> addr_hit_any`.
+The true dependency is acyclic: an allocation pick never feeds a match result,
+and `addr_hit_any` reads only the addr-pend term. The fix is to SPLIT both
+blocks on the alloc boundary -- identical right-hand sides, identical single
+driver per signal, purely a bracketing change. Comments at both sites say why
+they must stay split.
+
+This is the same fusion the CAM's own alloc block causes, which the author had
+already worked around once with the addr-alloc mirror further down the file.
+The mirror cut the data path; these two blocks re-created the problem at the
+bank level.
+
+**Verified:** all 15 bridge `*_mon` variants build clean under the cocotb flag
+set (4 UNOPTFLAT -> 0); `axi_monitor_base` and `axi_monitor_filtered` likewise;
+formal prove+cover PASS for `axi_monitor_trans_mgr`, and prove PASS for
+`axi_monitor_trans_mgr_banked`, `axi_monitor_base`, `axi_monitor_filtered` --
+each against a FRESHLY REGENERATED flat, because the `.sby` reads a generated
+`*_flat.v` and a stale one proves the old RTL; val/amba monitor sweep 43/43;
+the two previously-failing bridge mon tests now pass.
+
+The gate gap is closed too: `make build-check` in projects/components/bridge/
+rtl now runs every variant through a real build with `--public-flat-rw`. See
+[[TASK-082]] for the three findings the repaired lint gate surfaced alongside.
