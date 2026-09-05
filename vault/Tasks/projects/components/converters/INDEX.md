@@ -1,12 +1,14 @@
 # converters — task rollup
 
+**Next ID: CONV-010** — never recycle a number, even when its task closed.
+
 Protocol and width converters (`projects/components/converters/`): the
 AXI4↔AXIL4 and AXI4→APB4/APB5 protocol converters, the data-width
 upsize/downsize primitives and the dwidth converter wrappers.
 
 | State | Count |
 |---|---|
-| [open](open.md) | 2 |
+| [open](open.md) | 4 |
 | [closed](closed.md) | 5 |
 
 ## Open shortlist
