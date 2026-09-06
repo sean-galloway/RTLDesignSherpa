@@ -49,7 +49,7 @@ def drive_reads(port, baud):
     _rdph = int(os.environ.get("CAP_RDPHASE", "0"))
     d.set_dfi_phase(rd_phase=_rdph, wr_phase=0)
     print(f"[uart] rd_phase={_rdph}", flush=True)
-    d.set_dfi_rddata_delay(int(os.environ.get("CAP_RDDLY", "8")))
+    d.set_dfi_rddata_delay(int(os.environ.get("CAP_RDDLY", "7")))
     # Optional: stress refresh recovery (small tREFI) to expose a tRFC (REF->ACT)
     # violation on silicon — the sim scoreboard flagged ACT issued too soon after
     # REFab. CAP_TREFI=0 (default) leaves the board's programmed tREFI alone.
@@ -131,7 +131,7 @@ def main():
                          "soft_reset that re-runs the JEDEC init MRS chain")
     args = ap.parse_args()
 
-    tcl = os.path.join(_SELF, "tcl/capture_ila.tcl")
+    tcl = os.path.join(_SELF, "fpga/tcl/capture_ila.tcl")
     vivado = os.environ.get("VIVADO", "vivado")
     proc = subprocess.Popen(
         [vivado, "-mode", "batch", "-notrace", "-source", tcl,

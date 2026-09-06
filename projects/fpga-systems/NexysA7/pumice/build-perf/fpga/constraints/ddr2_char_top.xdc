@@ -264,6 +264,20 @@ set_false_path -from [get_cells -quiet -hier -filter {NAME =~ *field_storage_reg
 ##==============================================================================
 ## Configuration / Bitstream
 ##==============================================================================
+## ---------------------------------------------------------------------------
+## Sys-clock design margin (2026-09-05). A build that just MEETS a constraint
+## only proves the tool stopped optimising once slack went non-negative -- it
+## does not place for margin. An over-constraint probe (2.5ns uncertainty)
+## measured the TRUE worst path at ~12.0-12.15ns across two seeds => Fmax ~82-83
+## MHz, i.e. ~+1.2ns of real slack at 75 MHz. To BANK that margin rather than
+## ship a knife-edge, hold 1.0ns of setup uncertainty on the sys clock: the tool
+## places to ~12.2ns and still reports MET at 75, so the bitstream carries real
+## slack against the ~0.5ns placement swing and future harness growth.
+# Left DISABLED by default: the un-instrumented design already carries ~+1.2ns raw
+# slack at 75, and disabling lets the ILA/debug build (which adds a debug core)
+# also close. Re-enable to BANK the extra 1.0ns margin on a shipping perf build.
+# set_clock_uncertainty -setup 1.000 [get_clocks -of_objects [get_pins u_mmcm/CLKOUT0]]
+
 set_property CONFIG_VOLTAGE 3.3 [current_design]
 set_property CFGBVS VCCO [current_design]
 set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]

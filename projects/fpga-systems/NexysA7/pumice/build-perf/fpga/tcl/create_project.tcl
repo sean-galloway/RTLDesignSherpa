@@ -141,6 +141,12 @@ lappend current_defines "USE_ASYNC_RESET"
 # DDR2_CHAR_SYNTH selects the real MMCME2_BASE / BUFG / IDELAYCTRL clocking
 # in ddr2_char_top (sim path aliases all clocks to CLK100MHZ instead).
 lappend current_defines "DDR2_CHAR_SYNTH"
+# Per-frequency profile: env PUMICE_SYS_75=1 selects the 75 MHz / DDR2-300
+# MMCM + FPGA_CLK_HZ profile in ddr2_char_top.sv. Default (unset) = 66.67 MHz.
+if {[info exists ::env(PUMICE_SYS_75)] && $::env(PUMICE_SYS_75) ne "" && $::env(PUMICE_SYS_75) ne "0"} {
+    lappend current_defines "PUMICE_SYS_75"
+    puts "verilog_define: PUMICE_SYS_75 (75 MHz / DDR2-300 profile)"
+}
 set_property verilog_define $current_defines $src_fs
 
 set top_name ddr2_char_top
