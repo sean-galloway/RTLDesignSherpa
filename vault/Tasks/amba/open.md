@@ -1862,10 +1862,12 @@ gate.
 
 ### TASK-082: lint findings in the monitor that the bridge gate now surfaces
 
-**Priority:** P3. None is known to misbehave; all fail a gate that, as of
-2026-09-05, finally reports instead of drowning.
-**Progress:** finding 1 FIXED 2026-09-05 (commit below). Findings 2-4 open.
-**Status:** open 2026-09-05. Split out of the [[TASK-081]] work: with
+**Priority:** P3.
+**Status:** ALL FOUR FIXED -- 1 and 4 on 2026-09-05, 2 and 3 on 2026-09-06.
+`make verilator` in projects/components/bridge/rtl now passes 36 of 36
+variants; it was failing all 36 when this task opened. Kept open-page for the
+history; safe to close.
+**Raised:** 2026-09-05. Split out of the [[TASK-081]] work: with
 PINCONNECTEMPTY waived, `make verilator` in projects/components/bridge/rtl
 went from 36/36 variants failing to 13, and those 13 are these three findings
 repeated across the monitor-variant bridges.
@@ -1897,21 +1899,43 @@ prove PASS against a REGENERATED flat; all 15 components `*_mon` variants and
 both Genesys2 `*_mon` bridges build clean of UNOPTFLAT/UNDRIVEN under the
 cocotb flag set; val/amba monitor subset 13/13.
 
-**2. Two WIDTHEXPAND in `axi_monitor_trans_mgr.sv`** (26 sites across variants)
+**2. Two WIDTHEXPAND in `axi_monitor_trans_mgr.sv` -- FIXED 2026-09-06.** (26 sites)
 - `:677` `EQ expects 8 bits on the RHS, but 'w_widq_head' generates 4`
 - `:1458` `MODDIV expects 32 or 7 bits on the LHS, but 'resp_id' generates 4`
 
-Both are comparisons/arithmetic against a wider literal or expression. Almost
-certainly benign (the narrow side is zero-extended, which is what was meant),
-but "almost certainly" is what an explicit cast is for -- and an implicit
-resize is exactly the class the repo has been removing elsewhere.
+Both were benign and both are now explicit.
 
-**3. Two WIDTHTRUNC in the regblock bridge top** (1 variant)
+`:677` compared the 8-bit payload `id` field against the IW-wide
+`w_widq_head`. Safe because `ID_WIDTH > 8` is a hard elaboration error and the
+write side does `next.id = '0; next.id[IW-1:0] = cmd_id;`, so the upper bits
+are zero by construction -- the implicit zero-extend was right. Now uses the
+`[IW-1:0]` part-select this same file already uses at `next_id`.
+
+`:1458` was `resp_id % 64` into a 6-bit field, with a `lint_off WIDTHTRUNC`
+around it; its twin at `:1396` spelled the same operation `{24'h0, data_id} %
+64`. `% 64` into a 6-bit field IS "the low 6 bits", so both are now `6'(...)`
+-- one spelling, no modulo whose operand width tracks IW, and the waiver is
+gone. Two spellings of one operation is how `:677` drifted from its own
+file's idiom in the first place.
+
+**Verified:** bridge lint 36/36 pass; formal prove for trans_mgr,
+trans_mgr_banked, base and filtered plus trans_mgr cover, each against a
+regenerated flat; val/amba monitor sweep 43/43.
+
+**3. Two WIDTHTRUNC in the regblock bridge top -- FIXED 2026-09-06.** (1 variant)
 `bridge_1x2_rd_regblock_mon.sv:673,684`: `s_axil_awaddr` / `s_axil_araddr`
 expect 8 bits, driven by a 32-bit `s_cfg_axil_*`. This is the CSR window
-narrowing and is intentional, but it is implicit. The generator should emit
-the explicit part-select so the intent is in the RTL rather than in the
-reader's head. GENERATOR-side fix, not RTL.
+narrowing and is intentional, but it is implicit.
+
+Fixed generator-side. The catch is ordering: PeakRDL sizes `s_axil_a{w,r}addr`
+from the register map, and the bridge top is emitted BEFORE the regblock
+exists, so the width is not knowable when those connection lines are written.
+`bridge_generator` now reads the width out of the emitted regblock and rewrites
+the two lines, raising if the port declaration or either connection is not
+found -- a silent skip would put the WIDTHTRUNC back with nothing to say why.
+
+**With this and finding 2, `make verilator` in projects/components/bridge/rtl
+passes 36 of 36 variants** -- it was failing all 36 when this task opened.
 
 **4. `BLKLOOPINIT` in the PeakRDL regblock -- FIXED 2026-09-05.** (1 test:
 `test_bridge_1x2_rd_regblock_mon_monitor`, and the same shape in the Genesys2

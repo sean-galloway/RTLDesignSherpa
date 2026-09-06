@@ -50,6 +50,41 @@ from bridge_pkg import (BridgeConfig, load_config,
 
 
 
+
+def _narrow_cfg_axil_addr(top_sv, regblock_sv) -> None:
+    """Give the bridge top's regblock address connections an explicit slice.
+
+    Reads the width PeakRDL chose from the emitted regblock and rewrites the
+    two connection lines in the already-written top. ASSERTS on every step:
+    if the port declaration cannot be found, or a connection line is missing,
+    it raises rather than leaving an implicit truncation behind -- a silent
+    skip here would put the WIDTHTRUNC back with nothing to say why.
+    """
+    import re as _re
+    rb = regblock_sv.read_text()
+    m = _re.search(r'input\s+wire\s+\[(\d+):0\]\s+s_axil_awaddr', rb)
+    if not m:
+        raise RuntimeError(
+            f"{regblock_sv.name}: could not read the regblock's s_axil_awaddr "
+            f"width. The PeakRDL port declaration has changed; update "
+            f"_narrow_cfg_axil_addr."
+        )
+    hi = int(m.group(1))
+    text = top_sv.read_text()
+    for ch in ('aw', 'ar'):
+        old = f"        .s_axil_{ch}addr  (s_cfg_axil_{ch}addr),"
+        new = (f"        .s_axil_{ch}addr  (s_cfg_axil_{ch}addr[{hi}:0]),"
+               f"  // in-window offset; base decoded upstream")
+        if new in text:
+            continue
+        if old not in text:
+            raise RuntimeError(
+                f"{top_sv.name}: expected the regblock connection line "
+                f"{old.strip()!r} to narrow, and it is not there."
+            )
+        text = text.replace(old, new)
+    top_sv.write_text(text)
+
 def _axil5_bfm_features(slave) -> str:
     """Render the AXIL5 BFM feature kwargs for a generated testbench.
 
@@ -788,6 +823,21 @@ def _emit_bridge_variant(
         for p in cfg_out['sv_paths']:
             tag = '__cfg_a_pkg' if p.name.endswith('_pkg.sv') else '__cfg_b_body'
             generated_files[tag] = str(p)
+
+        # Narrow the CSR address where the bridge top drives the regblock.
+        # PeakRDL sizes s_axil_a{w,r}addr from the register map (8 bits here),
+        # the bridge top's external CSR port is a standard 32, and the top is
+        # emitted BEFORE the regblock exists -- so the width is not knowable at
+        # the time those two connection lines are written. Patch them once it
+        # is. The upper bits are the window base, decoded upstream; only the
+        # in-window offset reaches the regblock, which is what the implicit
+        # truncation already did. Saying it explicitly is the difference
+        # between a deliberate narrowing and a WIDTHTRUNC someone has to
+        # re-derive every time they read the lint log.
+        _narrow_cfg_axil_addr(
+            _Path(bridge_dir) / f"{output_name}.sv",
+            [p for p in cfg_out['sv_paths'] if not p.name.endswith('_pkg.sv')][0],
+        )
 
     print(f"  ✓ Generated bridge package: {generated_files['package']}")
     for master in master_configs:
