@@ -332,11 +332,17 @@ same task in the rtl/ areas.
 
 ---
 
-### BRIDGE-008: boundary probe fails on any AXI4-Lite slave larger than the TB's 4 KB memory model
+### BRIDGE-008: the two slave BFMs disagree about an out-of-range access
 
-**Priority:** P2. Two red tests, both in generated collateral, no RTL defect
-behind them -- but they are red, and a red test nobody has diagnosed is how a
-real one gets ignored.
+**Priority:** P3, downgraded 2026-09-05. The two red tests are FIXED and the
+suite is 70/70; what remains open is the BFM asymmetry itself, which still
+applies to any slave whose window exceeds the TB's memory model.
+
+**The tests were fixed by widening the model, not by resolving the
+disagreement.** SLAVE_MEM_CAP_BYTES went 4 KB -> 64 KB so a peripheral window
+is covered whole and those probes now land in real memory (they verify DATA as
+well as routing as a result). A slave larger than the cap still depends on
+whatever the BFM does out of range -- which is the thing below, still unsettled.
 **Status:** open 2026-09-05. Surfaced by the axil5 work (A5-3d): fixing the
 `logic [-1:0]` build failure on AXI4-Lite MASTER ports made mix_a..d compile
 for the first time, and two simulation failures appeared behind it.
