@@ -1,5 +1,40 @@
 # STREAM 7-8 channel board timeout — handoff
 
+> **SETTLED 2026-09-06 — CLOSED. The monitors were never the difference.**
+> The like-for-like retest this page asked for has now been run: a MONITOR
+> bitstream from today's tree (`build-mon`, `USE_AXI_MONITORS=1`, all cones,
+> 8ch, WNS +1.336 ns) sweeps **40 of 40 PASS**, all five former failures
+> included, at 1525.7 MB/s mean — indistinguishable from the perf build:
+>
+> | scenario | data | cycles | MB/s |
+> |---|---|---|---|
+> | 4desc_8ch_1MB | 32 MB | 2,097,199 | 1525.8 |
+> | 8desc_7ch_1MB | 56 MB | 3,670,063 | 1525.9 |
+> | 8desc_8ch_1MB | 64 MB | 4,194,351 | 1525.9 |
+> | 16desc_7ch_1MB | 112 MB | 7,340,079 | 1525.9 |
+> | 16desc_8ch_1MB | 128 MB | 8,388,655 | 1525.9 |
+>
+> Per this page's own decision rule ("pass both => something landed since
+> 2026-08-25 and the page is closable"), it is closable. The
+> descriptor-fetch-monitor contention theory — a flat 16-entry table shared by
+> every channel — is **disproven for this tree**: monitors are ON here, all
+> cones built, and 8 channels pass.
+>
+> **The one variable still not matched is frequency** (this build is 60 MHz, the
+> original failures were 90 MHz). That does not rescue the theory: a shared
+> transaction table wedging under channel contention is a functional deadlock,
+> not a timing failure, so it would reproduce at 60 MHz too. It does mean a
+> 90 MHz monitor build has not been re-measured, and if the staircase ever
+> returns, frequency is the untested axis.
+>
+> Same-day caution, because it nearly sent this page the wrong way again: the
+> mon build first appeared to have a totally wedged DMA, which looked like
+> exactly the monitor-side wedge predicted here. It was a bitstream built from a
+> stale tree. Rebuilding fixed it with no RTL change. See
+> [[feedback_stale_sim_build_false_green]] — verify the bitstream is newer than
+> the last RTL commit before reading any silicon symptom as evidence.
+
+
 > **UPDATE 2026-08-31: does NOT reproduce on the dedicated perf build.**
 > A `build-perf` bitstream (USE_AXI_MONITORS=0, 8ch, 100 MHz, WNS +1.582 ns,
 > sha256 c49a1b76...) sweeps **40 of 40 scenarios PASS**, all five former
