@@ -44,6 +44,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module math_bf16_goldschmidt_div #(
     parameter int ITERATIONS = 1,         // 1 or 2 iterations
     parameter int LUT_DEPTH = 32,         // Initial estimate LUT size
@@ -219,8 +221,8 @@ module math_bf16_goldschmidt_div #(
                 logic        r_special_zero, r_special_inf, r_special_nan;
                 logic        r_result_sign;
 
-                always_ff @(posedge i_clk or negedge i_rst_n) begin
-                    if (!i_rst_n) begin
+                `ALWAYS_FF_RST(i_clk, i_rst_n,
+                    if (`RST_ASSERTED(i_rst_n)) begin
                         r_n1 <= '0;
                         r_d1 <= '0;
                         r_valid_s1 <= 1'b0;
@@ -248,7 +250,7 @@ module math_bf16_goldschmidt_div #(
                                         (w_a_is_inf && w_b_is_inf);
                         r_result_sign <= w_result_sign;
                     end
-                end
+                )
 
                 // Stage 2: Compute F_1 = 2 - D_1
                 logic [15:0] w_neg_d1_p;
@@ -293,8 +295,8 @@ module math_bf16_goldschmidt_div #(
                 logic        r_valid_s2;
                 logic        r_div_zero, r_is_inf, r_is_nan;
 
-                always_ff @(posedge i_clk or negedge i_rst_n) begin
-                    if (!i_rst_n) begin
+                `ALWAYS_FF_RST(i_clk, i_rst_n,
+                    if (`RST_ASSERTED(i_rst_n)) begin
                         r_quotient <= '0;
                         r_valid_s2 <= 1'b0;
                         r_div_zero <= 1'b0;
@@ -315,7 +317,7 @@ module math_bf16_goldschmidt_div #(
                         else
                             r_quotient <= {r_result_sign, w_n2[14:0]};
                     end
-                end
+                )
 
                 assign ow_quotient = r_quotient;
                 assign ow_valid = r_valid_s2;
@@ -455,8 +457,8 @@ module math_bf16_goldschmidt_div #(
                 logic        r_valid;
                 logic        r_div_zero, r_is_inf, r_is_nan;
 
-                always_ff @(posedge i_clk or negedge i_rst_n) begin
-                    if (!i_rst_n) begin
+                `ALWAYS_FF_RST(i_clk, i_rst_n,
+                    if (`RST_ASSERTED(i_rst_n)) begin
                         r_quotient <= '0;
                         r_valid <= 1'b0;
                         r_div_zero <= 1'b0;
@@ -479,7 +481,7 @@ module math_bf16_goldschmidt_div #(
                         else
                             r_quotient <= {w_result_sign, w_n1[14:0]};
                     end
-                end
+                )
 
                 assign ow_quotient = r_quotient;
                 assign ow_valid = r_valid;

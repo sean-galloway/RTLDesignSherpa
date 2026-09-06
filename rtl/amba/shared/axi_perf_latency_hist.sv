@@ -198,8 +198,8 @@ module axi_perf_latency_hist #(
     logic [BINW-1:0] s2_bin;
 
     integer ci, bi;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn || i_clear) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn) || i_clear) begin
             // Reset on hard reset or window open (RUN rising edge / i_clear).
             for (ci = 0; ci < NUM_CHANNELS; ci++) begin
                 r_head[ci]         <= '0;
@@ -262,7 +262,7 @@ module axi_perf_latency_hist #(
                 r_total[1]        <= r_total[1] + CNT_W'(1);
             end
         end
-    end
+    )
 
     // CSR-indexed readout (combinational mux).
     assign o_hist_count = r_hist[i_hist_metric ? 1 : 0][i_hist_bin];

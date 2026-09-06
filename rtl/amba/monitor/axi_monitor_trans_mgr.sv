@@ -702,8 +702,8 @@ module axi_monitor_trans_mgr
     // Shift-out queue: N is small (table depth) and one entry moves per cycle,
     // so a shift register costs less than pointer wrap logic and keeps head at
     // index 0 for a flat mux.
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_widq_count <= '0;
             for (int i = 0; i < N; i++) r_widq[i] <= '0;
         end else if (clear) begin
@@ -724,7 +724,7 @@ module axi_monitor_trans_mgr
             end
             r_widq_count <= v_cnt;
         end
-    end
+    )
 
     // ------------------------------------------------------------------------
     // Cleanup eligibility (same policy as the production module).

@@ -14,6 +14,8 @@
 // Created: 2025-10-18
 
 `timescale 1ns / 1ps
+
+`include "reset_defs.svh"
 /**
  * AXI Monitor Bus Base Module - Updated for Generic Monitor Package
  *
@@ -739,10 +741,10 @@ module axi_monitor_base
     assign w_window_saturate = (r_window_cycles == 32'hFFFF_FFFE);
 
     // Edge detect on cfg_perf_enable for sel modes 010/011
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) r_perf_enable_d1 <= 1'b0;
-        else          r_perf_enable_d1 <= cfg_perf_enable;
-    end
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) r_perf_enable_d1 <= 1'b0;
+        else                        r_perf_enable_d1 <= cfg_perf_enable;
+    )
     assign w_perf_enable_rising  =  cfg_perf_enable && !r_perf_enable_d1;
     assign w_perf_enable_falling = !cfg_perf_enable &&  r_perf_enable_d1;
 
@@ -784,8 +786,8 @@ module axi_monitor_base
         endcase
     end
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_win_state     <= WIN_IDLE_S;
             r_window_cycles <= 32'h0;
         end else begin
@@ -828,7 +830,7 @@ module axi_monitor_base
                 end
             endcase
         end
-    end
+    )
 
     assign window_active = (r_win_state == WIN_ACTIVE_S);
     assign window_cycles = r_window_cycles;
@@ -864,16 +866,16 @@ module axi_monitor_base
     // Latch axsize on every command handshake while the window is open;
     // outside the window we still track it so it's stable at window-open
     // time. Defaults to 3'h0 (1 byte / beat) before any AR/AW.
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_axsize_latched <= 3'h0;
         end else if (w_cmd_handshake) begin
             r_axsize_latched <= cmd_size;
         end
-    end
+    )
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_prod_cycles  <= 32'h0;
             r_bp_cycles    <= 32'h0;
             r_starv_cycles <= 32'h0;
@@ -932,7 +934,7 @@ module axi_monitor_base
         // r_window_cycles as well (it used to be zeroed in WIN_CLOSING,
         // leaving it readable for a single cycle while these held), so the
         // whole counter set stays coherent until the next window opens.
-    end
+    )
 
     assign perf_prod_cycles  = r_prod_cycles;
     assign perf_bp_cycles    = r_bp_cycles;

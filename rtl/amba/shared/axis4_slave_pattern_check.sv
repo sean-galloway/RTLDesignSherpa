@@ -42,6 +42,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module axis4_slave_pattern_check #(
     parameter int          NUM_CHANNELS     = 1,
     parameter int          AXIS_DATA_WIDTH  = 512,
@@ -170,8 +172,8 @@ module axis4_slave_pattern_check #(
                 .crc              (crc_out_per_ch[gch])
             );
 
-            always_ff @(posedge clk or negedge rst_n) begin
-                if (!rst_n) begin
+            `ALWAYS_FF_RST(clk, rst_n,
+                if (`RST_ASSERTED(rst_n)) begin
                     r_ch_crc_valid  <= 1'b0;
                     r_ch_beat_count <= '0;
                 end else if (w_load) begin
@@ -181,7 +183,7 @@ module axis4_slave_pattern_check #(
                     r_ch_crc_valid  <= 1'b1;
                     r_ch_beat_count <= r_ch_beat_count + 1'b1;
                 end
-            end
+            )
 
             assign o_actual_crc      [gch] = crc_out_per_ch[gch];
             assign o_actual_crc_valid[gch] = r_ch_crc_valid;
@@ -206,8 +208,8 @@ module axis4_slave_pattern_check #(
     logic w_data_mismatch;
     assign w_data_mismatch = w_beat && (s_axis_tdata != expected_data_per_ch[w_ch]);
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
             o_data_error <= 1'b0;
             o_pkt_count  <= '0;
         end else if (cfg_start) begin
@@ -217,6 +219,6 @@ module axis4_slave_pattern_check #(
             if (w_data_mismatch)  o_data_error <= 1'b1;
             if (s_axis_tlast)     o_pkt_count  <= o_pkt_count + 1'b1;
         end
-    end
+    )
 
 endmodule : axis4_slave_pattern_check

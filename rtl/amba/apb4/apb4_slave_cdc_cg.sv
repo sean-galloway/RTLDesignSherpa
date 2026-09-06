@@ -15,6 +15,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module apb4_slave_cdc_cg #(
     parameter int ADDR_WIDTH         = 32,
     parameter int DATA_WIDTH         = 32,
@@ -121,15 +123,15 @@ module apb4_slave_cdc_cg #(
     // Synchronize pclk-domain s_apb_PSEL into aclk domain for clock gating
     // Without this, s_apb_PSEL crosses clock domains unsynchronized (CDC violation)
     logic r_psel_sync1, r_psel_sync2;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_psel_sync1 <= 1'b0;
             r_psel_sync2 <= 1'b0;
         end else begin
             r_psel_sync1 <= s_apb_PSEL;
             r_psel_sync2 <= r_psel_sync1;
         end
-    end
+    )
 
     // Internal signals to pass between the handshake
     logic              w_cmd_valid;

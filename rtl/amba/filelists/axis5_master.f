@@ -4,6 +4,10 @@
 # Generated from the inline verilog_sources lists in val/amba.
 # Compile order is significant and preserved from the original tests.
 
+# reset_defs.svh -- the module now uses `ALWAYS_FF_RST, so its macro
+# header must be on the include path and compiled before it.
+-f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
+
 +incdir+$REPO_ROOT/rtl/amba/includes
 
 -f $REPO_ROOT/rtl/common/filelists/counter_bin.f

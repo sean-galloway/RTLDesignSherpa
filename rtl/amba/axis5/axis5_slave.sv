@@ -19,6 +19,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module axis5_slave
 #(
     parameter int SKID_DEPTH         = 4,
@@ -199,13 +201,13 @@ module axis5_slave
             assign parity_mismatch = (calculated_parity != s_axis_tparity) && s_axis_tvalid;
 
             // Register parity error
-            always_ff @(posedge aclk or negedge aresetn) begin
-                if (!aresetn) begin
+            `ALWAYS_FF_RST(aclk, aresetn,
+                if (`RST_ASSERTED(aresetn)) begin
                     parity_error <= 1'b0;
                 end else if (parity_mismatch && s_axis_tvalid && s_axis_tready) begin
                     parity_error <= 1'b1;
                 end
-            end
+            )
         end else begin : g_no_parity_check
             assign calculated_parity = '0;
             assign parity_mismatch = 1'b0;

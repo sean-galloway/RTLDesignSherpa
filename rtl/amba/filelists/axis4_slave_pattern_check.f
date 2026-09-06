@@ -5,6 +5,10 @@
 # rtl/common dependencies and sub-blocks. Consumers -f include this file
 # rather than hand-listing its contents, so internal changes stay internal.
 
+# reset_defs.svh -- the module now uses `ALWAYS_FF_RST, so its macro
+# header must be on the include path and compiled before it.
+-f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
+
 +incdir+$REPO_ROOT/rtl/amba/includes
 
 -f $REPO_ROOT/rtl/common/filelists/dataint_crc.f

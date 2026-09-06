@@ -26,6 +26,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module arbiter_single_client #(
     parameter int WAIT_GNT_ACK = 1
 ) (
@@ -50,8 +52,8 @@ module arbiter_single_client #(
     assign w_can_grant    = (WAIT_GNT_ACK == 1) ? (!r_pending_ack || w_ack_received) : 1'b1;
     assign w_should_grant = w_req && w_can_grant;
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
             grant_valid   <= 1'b0;
             r_pending_ack <= 1'b0;
         end else if (WAIT_GNT_ACK == 0) begin
@@ -76,7 +78,7 @@ module arbiter_single_client #(
                 r_pending_ack <= 1'b0;
             end
         end
-    end
+    )
 
     assign grant    = grant_valid;
     assign grant_id = 1'b0;

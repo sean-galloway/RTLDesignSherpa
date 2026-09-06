@@ -20,6 +20,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module math_fp8_e5m2_softmax_8 (
     input  logic                 i_clk,
     input  logic                 i_rst_n,
@@ -82,8 +84,8 @@ function automatic logic [7:0] fp_max(
 endfunction
 
 // Stage 1: Register inputs and find max
-always_ff @(posedge i_clk or negedge i_rst_n) begin
-    if (!i_rst_n) begin
+`ALWAYS_FF_RST(i_clk, i_rst_n,
+    if (`RST_ASSERTED(i_rst_n)) begin
         r_valid_d1 <= 1'b0;
         r_max <= 8'h0;
         for (int i = 0; i < 8; i++) begin
@@ -103,15 +105,15 @@ always_ff @(posedge i_clk or negedge i_rst_n) begin
                                    fp_max(i_data[6], i_data[7])));
         end
     end
-end
+)
 
 // Stage 2: Compute relative exp approximation
 // exp(x - max) approximation: if max-x is small, use linear; else use 0
 logic [7:0] r_exp_approx [8];
 logic r_valid_d2_reg;
 
-always_ff @(posedge i_clk or negedge i_rst_n) begin
-    if (!i_rst_n) begin
+`ALWAYS_FF_RST(i_clk, i_rst_n,
+    if (`RST_ASSERTED(i_rst_n)) begin
         r_valid_d2 <= 1'b0;
         for (int i = 0; i < 8; i++) begin
             r_exp_approx[i] <= 8'h0;
@@ -131,15 +133,15 @@ always_ff @(posedge i_clk or negedge i_rst_n) begin
             end
         end
     end
-end
+)
 
 // Stage 3: Normalize (simplified: divide by sum)
 // For 8 elements with max=1, others~0.125: sum ≈ 1 + 7*0.125 = 1.875 ≈ 2
 // Normalized: max element ≈ 0.5, others ≈ 0.0625
 logic [7:0] r_result [8];
 
-always_ff @(posedge i_clk or negedge i_rst_n) begin
-    if (!i_rst_n) begin
+`ALWAYS_FF_RST(i_clk, i_rst_n,
+    if (`RST_ASSERTED(i_rst_n)) begin
         r_valid_d3 <= 1'b0;
         for (int i = 0; i < 8; i++) begin
             r_result[i] <= 8'h0;
@@ -160,7 +162,7 @@ always_ff @(posedge i_clk or negedge i_rst_n) begin
             end
         end
     end
-end
+)
 
 assign ow_valid = r_valid_d3;
 assign ow_result = r_result;

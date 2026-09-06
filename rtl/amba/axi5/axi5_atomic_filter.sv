@@ -1,4 +1,6 @@
 `timescale 1ns / 1ps
+
+`include "reset_defs.svh"
 //
 // axi5_atomic_filter: read-return atomic termination (BRIDGE-002 A5-3a)
 //
@@ -139,8 +141,8 @@ module axi5_atomic_filter #(
 
     // Matches this module's existing reset style rather than the reset-macro
     // header, which it does not include.
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_sel_held <= 1'b0;
             r_sel_ds   <= 1'b0;
         end else begin
@@ -151,12 +153,12 @@ module axi5_atomic_filter #(
                 r_sel_ds   <= w_sel_ds;
             end
         end
-    end
+    )
 
     wire w_local_b_hs = !m_bvalid && !w_resp_empty && s_bready;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_route_wptr <= '0;
             r_route_rptr <= '0;
             r_resp_wptr  <= '0;
@@ -175,6 +177,6 @@ module axi5_atomic_filter #(
             if (w_local_b_hs)
                 r_resp_rptr <= r_resp_rptr + 1'b1;
         end
-    end
+    )
 
 endmodule : axi5_atomic_filter

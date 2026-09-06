@@ -36,6 +36,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module math_bf16_adder #(
     parameter int PIPE_STAGE_1 = 0,  // After exponent diff + swap
     parameter int PIPE_STAGE_2 = 0,  // After alignment shifter
@@ -147,8 +149,8 @@ module math_bf16_adder #(
 
     generate
         if (PIPE_STAGE_1) begin : gen_pipe1
-            always_ff @(posedge i_clk or negedge i_rst_n) begin
-                if (!i_rst_n) begin
+            `ALWAYS_FF_RST(i_clk, i_rst_n,
+                if (`RST_ASSERTED(i_rst_n)) begin
                     r1_valid        <= 1'b0;
                     r1_any_nan      <= 1'b0;
                     r1_inf_minus_inf <= 1'b0;
@@ -189,7 +191,7 @@ module math_bf16_adder #(
                     r1_s_is_normal  <= w_s_is_normal;
                     r1_s_eff_zero   <= w_s_eff_zero;
                 end
-            end
+            )
         end else begin : gen_no_pipe1
             always_comb begin
                 r1_valid        = i_valid;
@@ -278,8 +280,8 @@ module math_bf16_adder #(
 
     generate
         if (PIPE_STAGE_2) begin : gen_pipe2
-            always_ff @(posedge i_clk or negedge i_rst_n) begin
-                if (!i_rst_n) begin
+            `ALWAYS_FF_RST(i_clk, i_rst_n,
+                if (`RST_ASSERTED(i_rst_n)) begin
                     r2_valid          <= 1'b0;
                     r2_any_nan        <= 1'b0;
                     r2_inf_minus_inf  <= 1'b0;
@@ -314,7 +316,7 @@ module math_bf16_adder #(
                     r2_mant_s_aligned <= w_mant_s_final;
                     r2_sticky_s       <= w_sticky_s;
                 end
-            end
+            )
         end else begin : gen_no_pipe2
             always_comb begin
                 r2_valid          = r1_valid;
@@ -380,8 +382,8 @@ module math_bf16_adder #(
 
     generate
         if (PIPE_STAGE_3) begin : gen_pipe3
-            always_ff @(posedge i_clk or negedge i_rst_n) begin
-                if (!i_rst_n) begin
+            `ALWAYS_FF_RST(i_clk, i_rst_n,
+                if (`RST_ASSERTED(i_rst_n)) begin
                     r3_valid         <= 1'b0;
                     r3_any_nan       <= 1'b0;
                     r3_inf_minus_inf <= 1'b0;
@@ -418,7 +420,7 @@ module math_bf16_adder #(
                     r3_sum_is_zero   <= w_sum_is_zero;
                     r3_sticky_s      <= r2_sticky_s;
                 end
-            end
+            )
         end else begin : gen_no_pipe3
             always_comb begin
                 r3_valid         = r2_valid;
@@ -555,8 +557,8 @@ module math_bf16_adder #(
 
     generate
         if (PIPE_STAGE_4) begin : gen_pipe4
-            always_ff @(posedge i_clk or negedge i_rst_n) begin
-                if (!i_rst_n) begin
+            `ALWAYS_FF_RST(i_clk, i_rst_n,
+                if (`RST_ASSERTED(i_rst_n)) begin
                     r4_valid           <= 1'b0;
                     r4_any_nan         <= 1'b0;
                     r4_inf_minus_inf   <= 1'b0;
@@ -593,7 +595,7 @@ module math_bf16_adder #(
                     r4_sum_is_zero     <= r3_sum_is_zero;
                     r4_norm_sticky     <= w_norm_sticky;
                 end
-            end
+            )
         end else begin : gen_no_pipe4
             always_comb begin
                 r4_valid           = r3_valid;

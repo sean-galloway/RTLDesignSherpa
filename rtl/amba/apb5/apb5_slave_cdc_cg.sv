@@ -139,15 +139,15 @@ module apb5_slave_cdc_cg #(
     // Synchronize aclk-domain signals into pclk domain for clock gating
     // Without this, cmd_valid/rsp_valid/wakeup_request cross unsynchronized (CDC violation)
     logic r_aclk_activity_sync1, r_aclk_activity_sync2;
-    always_ff @(posedge pclk or negedge presetn) begin
-        if (!presetn) begin
+    `ALWAYS_FF_RST(pclk, presetn,
+        if (`RST_ASSERTED(presetn)) begin
             r_aclk_activity_sync1 <= 1'b0;
             r_aclk_activity_sync2 <= 1'b0;
         end else begin
             r_aclk_activity_sync1 <= cmd_valid || rsp_valid || wakeup_request;
             r_aclk_activity_sync2 <= r_aclk_activity_sync1;
         end
-    end
+    )
 
     `ALWAYS_FF_RST(pclk, presetn,
         if (!presetn)
