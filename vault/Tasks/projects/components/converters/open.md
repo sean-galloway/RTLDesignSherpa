@@ -248,8 +248,16 @@ verbatim in the `else`, because that one clears `r_aw_sent` and is not a no-op.
 
 **Verified:** every converter filelist lints clean in BOTH reset builds (the
 residual SYNCASYNCNET on the apb chains and UNDRIVEN in axi_data_upsize are
-pre-existing and in files this did not touch); converters suite 149 passed,
-0 failed. That suite is the point -- this flips 13 flops from asynchronous to
+pre-existing and in files this did not touch); converters suite 97 passed,
+0 failed.
+
+(The CONV-009 commit message says "149 passed". That was a miscount on my
+part -- 149 is the number of cocotb regression lines in the log, not pytest
+tests; several test files run more than one cocotb test. The pytest total is
+97, and nothing failed either way. Recorded here because the commit message
+cannot be corrected.)
+
+That suite is the point -- this flips 13 flops from asynchronous to
 synchronous reset in the default build, which is the behaviour the rest of the
 area already had.
 
