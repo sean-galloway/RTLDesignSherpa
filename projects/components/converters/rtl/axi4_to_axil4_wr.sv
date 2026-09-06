@@ -36,6 +36,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module axi4_to_axil4_wr #(
     // Width Configuration
     parameter int AXI_ID_WIDTH      = 8,
@@ -152,13 +154,13 @@ module axi4_to_axil4_wr #(
 
     wr_state_t r_wr_state, w_wr_next_state;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_wr_state <= WR_IDLE;
         end else begin
             r_wr_state <= w_wr_next_state;
         end
-    end
+    )
 
     // Write next state logic
     always_comb begin
@@ -191,8 +193,8 @@ module axi4_to_axil4_wr #(
     end
 
     // Write burst tracking registers
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_aw_id <= '0;
             r_aw_addr <= '0;
             r_aw_len <= '0;
@@ -219,7 +221,13 @@ module axi4_to_axil4_wr #(
                     end
                     r_aw_sent <= 1'b0;
                 end
-                WR_BURST, WR_LAST_BEAT: begin
+                // WR_BURST and WR_LAST_BEAT. Written as `default` with an
+                // explicit state test rather than a two-label arm, because
+                // `ALWAYS_FF_RST` takes this body as a macro ARGUMENT and the
+                // comma in `WR_BURST, WR_LAST_BEAT:` would split it. The
+                // else-branch below is the original `default` arm verbatim, so
+                // the undefined-state behaviour is unchanged too.
+                default: if (r_wr_state != WR_IDLE) begin
                     // Track AW/W completion for this beat
                     if (m_axil_awvalid && m_axil_awready && m_axil_wvalid && m_axil_wready) begin
                         // Both AW and W complete together
@@ -241,13 +249,12 @@ module axi4_to_axil4_wr #(
                             r_aw_active <= 1'b0;
                         r_aw_sent <= 1'b0;
                     end
-                end
-                default: begin
+                end else begin
                     r_aw_sent <= 1'b0;
                 end
             endcase
         end
-    end
+    )
 
     // AXI4-Lite AW and W channel assignment
     // For bursts (awlen>0): Don't pass through, let FSM handle all beats
@@ -256,15 +263,15 @@ module axi4_to_axil4_wr #(
     // when its B is handed to the master. awready is low while set, so the
     // set and clear cannot collide.
     logic r_wr_outstanding;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_wr_outstanding <= 1'b0;
         end else if (s_axi_awvalid && s_axi_awready) begin
             r_wr_outstanding <= 1'b1;
         end else if (s_axi_bvalid && s_axi_bready) begin
             r_wr_outstanding <= 1'b0;
         end
-    end
+    )
 
     assign m_axil_awaddr = r_aw_active ? r_aw_addr : s_axi_awaddr;
     assign m_axil_awprot = r_aw_active ? r_aw_prot : s_axi_awprot;
@@ -352,8 +359,8 @@ module axi4_to_axil4_wr #(
     logic [AXI_ID_WIDTH-1:0] r_b_id;
     logic [1:0] r_b_resp_accum;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_b_beat_count <= '0;
             r_b_len <= '0;
             r_b_id <= '0;
@@ -371,7 +378,7 @@ module axi4_to_axil4_wr #(
                     r_b_resp_accum <= m_axil_bresp;
             end
         end
-    end
+    )
 
     // Write response channel - only generate response after all beats complete
     logic w_b_all_beats_done;

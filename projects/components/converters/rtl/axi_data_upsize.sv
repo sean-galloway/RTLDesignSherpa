@@ -225,8 +225,8 @@ module axi_data_upsize #(
                 // the fold keeps the largest value instead. Sub-beats of
                 // one exclusive access should all carry the same response
                 // anyway; if they diverge, the worst one wins.
-                always_ff @(posedge aclk or negedge aresetn) begin
-                    if (!aresetn) begin
+                `ALWAYS_FF_RST(aclk, aresetn,
+                    if (`RST_ASSERTED(aresetn)) begin
                         r_sideband_accumulator <= '0;
                     end else begin
                         if (narrow_valid && narrow_ready) begin
@@ -238,7 +238,7 @@ module axi_data_upsize #(
                             end
                         end
                     end
-                end
+                )
             end else begin : gen_concat_mode
                 // Concatenate mode: for WSTRB accumulation.
                 // Same single-NBA-per-cycle pattern as the data
@@ -246,8 +246,8 @@ module axi_data_upsize #(
                 // after an early narrow_last termination so a partial
                 // wide beat doesn't re-strobe bytes from the previous
                 // group's WSTRBs.
-                always_ff @(posedge aclk or negedge aresetn) begin
-                    if (!aresetn) begin
+                `ALWAYS_FF_RST(aclk, aresetn,
+                    if (`RST_ASSERTED(aresetn)) begin
                         r_sideband_accumulator <= '0;
                     end else begin
                         if (narrow_valid && narrow_ready) begin
@@ -264,7 +264,7 @@ module axi_data_upsize #(
                             end
                         end
                     end
-                end
+                )
             end
         end
     endgenerate

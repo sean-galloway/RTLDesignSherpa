@@ -32,6 +32,8 @@
 //
 // The port convention mirrors rtl/amba/axil5/axil5_slave_rd.sv.
 
+`include "reset_defs.svh"
+
 module axi4_to_axil5_rd #(
     parameter int AXI_ID_WIDTH      = 8,
     parameter int AXI_ADDR_WIDTH    = 32,
@@ -128,24 +130,15 @@ module axi4_to_axil5_rd #(
     logic                      r_held_arlock;
     logic [AXI_USER_WIDTH-1:0] r_held_aruser;
 
-    // Reset style follows axi4_to_axil4_rd, the module this wraps:
-    // manual async reset, not `ALWAYS_FF_RST`. The components-area mandate
-    // (GLOBAL_REQUIREMENTS 1.1) says the macro, and these converters predate
-    // it. Using the macro HERE while the core stays manual makes one design
-    // half sync-reset and half async in the default build -- Verilator says
-    // so with SYNCASYNCNET. Converting the whole area is real work with real
-    // verification behind it (11 flops change from async to sync reset, and
-    // two multi-label `case` arms have to move because the macro takes its
-    // body as an argument); it is tracked as CONV-009, not smuggled in here.
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_held_arlock <= 1'b0;
             r_held_aruser <= '0;
         end else if (w_ar_accept) begin
             r_held_arlock <= s_axi_arlock;
             r_held_aruser <= s_axi_aruser;
         end
-    end
+    )
 
     wire                      w_arlock_sel = w_ar_accept ? s_axi_arlock : r_held_arlock;
     wire [AXI_USER_WIDTH-1:0] w_aruser_sel = w_ar_accept ? s_axi_aruser : r_held_aruser;

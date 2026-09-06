@@ -238,15 +238,15 @@ module axi_data_dnsize #(
                 // as the data-path FF above (drops the !r_wide_buffered
                 // predicate so back-to-back atomic-replace captures the
                 // new wide beat's sideband too).
-                always_ff @(posedge aclk or negedge aresetn) begin
-                    if (!aresetn) begin
+                `ALWAYS_FF_RST(aclk, aresetn,
+                    if (`RST_ASSERTED(aresetn)) begin
                         gen_single_buffer.r_sideband_buffer <= '0;
                     end else begin
                         if (wide_valid && wide_ready) begin
                             gen_single_buffer.r_sideband_buffer <= wide_sideband;
                         end
                     end
-                end
+                )
             end
         end
     endgenerate

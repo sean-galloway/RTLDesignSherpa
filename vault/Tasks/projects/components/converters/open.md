@@ -235,9 +235,25 @@ same task in the rtl/ areas.
 
 ### CONV-009: converters RTL still uses manual async reset, against the components mandate
 
-**Priority:** P2. Nothing is broken today; the cost is a mixed-reset design
-and a lint warning that has to be explained every time someone new reads it.
-**Status:** open 2026-09-05. Found while adding the AXI5-Lite converters
+**Priority:** P2.
+**Status:** FIXED 2026-09-06. All 11 blocks across the four files are on
+`ALWAYS_FF_RST`, and the two AXI5-Lite wrappers that had deliberately matched
+the old style follow -- so the area is uniform and the mixed-reset
+SYNCASYNCNET on the axil4/axil5 chains is gone.
+
+The two `case` arms the macro cannot carry were handled without semantic
+change: the read path's folded into its no-op `default`; the write path's
+became `default: if (r_wr_state != WR_IDLE)` with its original `default` body
+verbatim in the `else`, because that one clears `r_aw_sent` and is not a no-op.
+
+**Verified:** every converter filelist lints clean in BOTH reset builds (the
+residual SYNCASYNCNET on the apb chains and UNDRIVEN in axi_data_upsize are
+pre-existing and in files this did not touch); converters suite 149 passed,
+0 failed. That suite is the point -- this flips 13 flops from asynchronous to
+synchronous reset in the default build, which is the behaviour the rest of the
+area already had.
+
+**Raised:** 2026-09-05. Found while adding the AXI5-Lite converters
 (`axi4_to_axil5{,_rd,_wr}`): writing the new flops with the mandated macro
 made Verilator report `SYNCASYNCNET` on `aresetn`, because the module they
 wrap does not use it.

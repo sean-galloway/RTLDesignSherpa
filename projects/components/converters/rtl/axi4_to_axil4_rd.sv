@@ -36,6 +36,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module axi4_to_axil4_rd #(
     // Width Configuration
     parameter int AXI_ID_WIDTH      = 8,
@@ -133,13 +135,13 @@ module axi4_to_axil4_rd #(
 
     rd_state_t r_rd_state, w_rd_next_state;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_rd_state <= RD_IDLE;
         end else begin
             r_rd_state <= w_rd_next_state;
         end
-    end
+    )
 
     // Read next state logic
     always_comb begin
@@ -168,8 +170,8 @@ module axi4_to_axil4_rd #(
     end
 
     // Read burst tracking registers
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_ar_id <= '0;
             r_ar_addr <= '0;
             r_ar_len <= '0;
@@ -192,7 +194,11 @@ module axi4_to_axil4_rd #(
                         r_ar_active <= (s_axi_arlen > 0);
                     end
                 end
-                RD_BURST, RD_LAST_BEAT: begin
+                // RD_BURST and RD_LAST_BEAT -- `default` for the same macro
+                // reason as the write path. RD_IDLE has its own arm above and
+                // the old `default` was an explicit no-op, so the reachable
+                // behaviour is unchanged.
+                default: begin
                     if (m_axil_arvalid && m_axil_arready) begin
                         r_ar_beat_count <= r_ar_beat_count + 1'b1;
                         // FIXED holds the address; INCR advances; WRAP
@@ -203,27 +209,24 @@ module axi4_to_axil4_rd #(
                             r_ar_active <= 1'b0;
                     end
                 end
-                default: begin
-                    // Do nothing for undefined states
-                end
             endcase
         end
-    end
+    )
 
     // AXI4-Lite AR channel assignment
     // One AXI read burst may be in flight at a time: set on AR acceptance,
     // cleared when its final beat is handed to the master. arready is low
     // while this is set, so the set and clear cannot collide.
     logic r_rd_outstanding;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_rd_outstanding <= 1'b0;
         end else if (s_axi_arvalid && s_axi_arready) begin
             r_rd_outstanding <= 1'b1;
         end else if (s_axi_rvalid && s_axi_rready && s_axi_rlast) begin
             r_rd_outstanding <= 1'b0;
         end
-    end
+    )
 
     // For bursts (arlen>0): Don't pass through, let FSM handle all beats
     // For single beats (arlen==0): Pass through directly for efficiency
@@ -257,8 +260,8 @@ module axi4_to_axil4_rd #(
     logic [AXI_ID_WIDTH-1:0] r_r_id;
     logic [1:0] r_r_resp_accum;  // Accumulate worst response
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_r_beat_count <= '0;
             r_r_len <= '0;
             r_r_id <= '0;
@@ -279,7 +282,7 @@ module axi4_to_axil4_rd #(
                     r_r_resp_accum <= m_axil_rresp;
             end
         end
-    end
+    )
 
     // Read data channel passthrough
     assign s_axi_rid = r_r_id;
