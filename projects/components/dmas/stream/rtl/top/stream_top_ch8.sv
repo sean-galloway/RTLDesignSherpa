@@ -992,6 +992,15 @@ module stream_top_ch8 #(
         hwif_in.OBS_DATA0.DATA.next  = obs_data0;
         hwif_in.OBS_DATA1.DATA.next  = obs_data1;
 
+        // Scheduler error status (sticky, per channel). SCHED_ERROR @ 0x170
+        // existed in the RDL and stream_core has always driven the source, but
+        // nothing connected the two: Vivado reported
+        // hwif_in[SCHED_ERROR][SCHED_ERR][next] as an undriven net, so the CSR
+        // read 0 in every build no matter what the scheduler was doing. That
+        // made it useless as a debug instrument -- a zero could not be
+        // distinguished from "no error".
+        hwif_in.SCHED_ERROR.SCHED_ERR.next = 8'(sched_error);
+
         // Descriptor AXI monitor perf-window readback (RFC Stage E CSR route;
         // see DAXMON_PERF_CTRL @ 0x2D0 for the run control).
         hwif_in.MON.DAXMON_PERF_STATUS.WIN_ACTIVE.next  = dmon_perf_window_active;
