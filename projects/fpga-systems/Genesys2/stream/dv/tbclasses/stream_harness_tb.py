@@ -1255,7 +1255,12 @@ class StreamHarnessTB(TBBase):
         # and StreamHelper sequence. All register addresses from stream_regmap.py.
 
         # 3a. Scheduler config: enable + timeout + error/completion reporting
-        sched_cfg = 0x0F  # [0]=SCHED_EN, [1]=TIMEOUT_EN, [2]=ERR_EN, [3]=COMPL_EN
+        # [0]=SCHED_EN [1]=TIMEOUT_EN [2]=ERR_EN [3]=COMPL_EN [5]=RD_PREFETCH_EN
+        # The BOARD runs 0x2F -- prefetch ON, which is its reset value and what
+        # the owner requires (it keeps the descriptor engine fed without
+        # bubbles). This TB wrote 0x0F, silently clearing prefetch, so the cosim
+        # has never exercised the board's scheduler configuration.
+        sched_cfg = int(os.environ.get('SCHED_CONFIG_OVERRIDE', '0x0F'), 0)
         await self.uart_write(APB_SCHED_CONFIG, sched_cfg)
         # SCHED_TIMEOUT_CYCLES is a 32-bit field; use the full width.
         # The earlier 0x0FFFFFFF (28-bit, ~2.68 s @ 100 MHz) was too tight

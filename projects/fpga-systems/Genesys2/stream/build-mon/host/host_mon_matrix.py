@@ -74,7 +74,14 @@ def gen_candidates():
             c.append((ag, 0, 0x0, ev, f"{who}_err_{nm}"))                # Error
         for ev, nm in ((0x0, "cmd"), (0x1, "data"), (0x2, "resp")):
             c.append((ag, 0, 0x3, ev, f"{who}_timeout_{nm}"))            # Timeout
-        c.append((ag, 0, 0x2, 0x0, f"{who}_threshold"))                  # Threshold
+        # Threshold. axi_monitor_reporter_threshold emits TWO event codes:
+        # AXI_THRESH_ACTIVE_COUNT (0x0) and AXI_THRESH_LATENCY (0x1). Keying
+        # only 0x0 sent every latency-threshold packet to the UNEXPECTED bin,
+        # which read as "threshold is broken" when the class was working --
+        # the `threshold` scenario drives LATENCY_THRESH specifically, so 0x1
+        # is the code it produces.
+        c.append((ag, 0, 0x2, 0x0, f"{who}_threshold_active"))          # Threshold
+        c.append((ag, 0, 0x2, 0x1, f"{who}_threshold_latency"))         # Threshold
     # CORE completions (scheduler 48, descriptor-engine 16).
     c.append((48, 4, 0x1, 0x01, "sched_desc_complete"))
     c.append((16, 4, 0x1, 0x40, "desc_loaded"))
@@ -195,9 +202,18 @@ def sc_threshold(bridge, A, runner):
 
 
 def sc_timeout(bridge, A, runner):
+    # UNITS: the monitor timeout counters count timer_tick, not aclk. axi_monitor_timer
+    # runs a frequency-invariant prescaler that emits a 1 MHz tick, so the threshold is
+    # in MICROSECONDS. The old value of 100 was written as if it were cycles: 100 ticks
+    # is 100 us = 6000 cycles at 60 MHz, while the stimulus below only holds a
+    # transaction outstanding for ~2000 cycles (~33 us). The threshold sat ABOVE the
+    # stimulus, so the cone never fired and the class read as unimplemented.
+    #
+    # 5 ticks = 5 us = ~300 cycles at 60 MHz, comfortably under the ~33 us the response
+    # delay imposes, so every transaction trips it.
     for r in _mons(A, "TIMEOUT"):
-        bridge.write(r, 100)                               # low timeout window
-    runner.set_resp_delay(2000, 2000)                      # far exceed it
+        bridge.write(r, 5)                                 # 5 us, in TICKS not cycles
+    runner.set_resp_delay(2000, 2000)                      # ~33 us dwell -> far exceeds
 
 
 def sc_addr_error(bridge, A, runner):

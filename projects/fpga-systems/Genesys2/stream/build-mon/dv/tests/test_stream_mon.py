@@ -240,7 +240,18 @@ async def cocotb_test_stream_mon(dut):
     # bypass). The CAM is (re)loaded POST-soft-reset via addr_range_writes above,
     # since run_dma_test's SOFT_RESET wipes it.
     ok = await tb.run_dma_test(
-        num_channels=1, descriptors_per_channel=1, transfer_bytes=256,
+        # DMA_XFER_BYTES / DMA_DESC_PER_CH are plumbed into extra_env by the
+        # wrapper and were NEVER READ here -- transfer_bytes was hardcoded 256
+        # while the board runs 1 MB, 4096x larger. A knob that exists, is passed
+        # in, and is then ignored makes the suite describe a workload nobody
+        # runs; honour it so a sim can be pointed at the board's actual size.
+        #
+        # NOTE: this is NOT why the 2026-09-06 build-mon board stall happened --
+        # that was a bitstream built from a stale tree, and the RTL was fine.
+        # Do not read a root cause into this knob.
+        num_channels=int(os.environ.get('DMA_NUM_CH', '1')),
+        descriptors_per_channel=int(os.environ.get('DMA_DESC_PER_CH', '1')),
+        transfer_bytes=int(os.environ.get('DMA_XFER_BYTES', '256')),
         timeout_clocks=200_000, mon_err_cfg=0, compress_en=False,
         pkt_mask=0xFEF0, allow_addr_match=True,
         addr_range_writes=addr_range_writes)
@@ -473,6 +484,13 @@ def _run_stream_mon(request, profile=False, testcase="cocotb_test_stream_mon"):
         **{k: v for k, v in (
             ('DMA_DESC_PER_CH', os.environ.get('DMA_DESC_PER_CH')
              or str(stream_levels.scale(1, 4, 16))),
+            # Anything the TB reads from the environment MUST be listed here.
+            # The cocotb process gets ONLY extra_env, so a knob left out is
+            # silently the default -- that has now cost three runs today
+            # (OBS_ENABLE_MON_TAPS, DMA_XFER_BYTES, SCHED_CONFIG_OVERRIDE).
+            ('SCHED_CONFIG_OVERRIDE',
+             os.environ.get('SCHED_CONFIG_OVERRIDE') or '0x0F'),
+            ('DMA_NUM_CH', os.environ.get('DMA_NUM_CH') or '1'),
             ('DMA_XFER_BYTES', os.environ.get('DMA_XFER_BYTES')
              or str(stream_levels.scale(2048, 8192, 65536))),
         )},
