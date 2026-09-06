@@ -49,10 +49,10 @@ module cdc_handshake #(
     dst_state_t r_dst_state;
 
     // Source Domain Synchronizer (Dest -> Source Ack)
-    always_ff @(posedge clk_src or negedge rst_src_n) begin
-        if (!rst_src_n) begin
+    `ALWAYS_FF_RST(clk_src, rst_src_n,
+        if (`RST_ASSERTED(rst_src_n)) begin
             r_ack_sync <= 3'b000;
-        end else begin
+    ) else begin
             r_ack_sync <= {r_ack_sync[1:0], r_ack_dst};
         end
     end
@@ -60,13 +60,13 @@ module cdc_handshake #(
     assign w_ack_sync = r_ack_sync[2];
 
     // Source Domain Handshake FSM
-    always_ff @(posedge clk_src or negedge rst_src_n) begin
-        if (!rst_src_n) begin
+    `ALWAYS_FF_RST(clk_src, rst_src_n,
+        if (`RST_ASSERTED(rst_src_n)) begin
             r_src_state   <= S_IDLE;
             r_req_src     <= 1'b0;
             src_ready     <= 1'b0;
             r_async_data  <= {DATA_WIDTH{1'b0}};
-        end else begin
+    ) else begin
             case (r_src_state)
                 S_IDLE: begin
                     src_ready <= 1'b1;
@@ -108,10 +108,10 @@ module cdc_handshake #(
     end
 
     // Destination Domain Synchronizer (Source -> Dest Req)
-    always_ff @(posedge clk_dst or negedge rst_dst_n) begin
-        if (!rst_dst_n) begin
+    `ALWAYS_FF_RST(clk_dst, rst_dst_n,
+        if (`RST_ASSERTED(rst_dst_n)) begin
             r_req_sync <= 3'b000;
-        end else begin
+    ) else begin
             r_req_sync <= {r_req_sync[1:0], r_req_src};
         end
     end
@@ -119,13 +119,13 @@ module cdc_handshake #(
     assign w_req_sync = r_req_sync[2];
 
     // Destination Domain Handshake FSM
-    always_ff @(posedge clk_dst or negedge rst_dst_n) begin
-        if (!rst_dst_n) begin
+    `ALWAYS_FF_RST(clk_dst, rst_dst_n,
+        if (`RST_ASSERTED(rst_dst_n)) begin
             r_dst_state <= D_IDLE;
             r_ack_dst   <= 1'b0;
             dst_valid   <= 1'b0;
             r_dst_data  <= {DATA_WIDTH{1'b0}};
-        end else begin
+    ) else begin
             case (r_dst_state)
                 D_IDLE: begin
                     r_ack_dst <= 1'b0;

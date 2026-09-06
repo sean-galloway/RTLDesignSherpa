@@ -28,6 +28,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module char_top_fpga (
     // Nexys A7-100T board pins
     input  logic        CLK100MHZ,
@@ -52,10 +54,11 @@ module char_top_fpga (
     assign seed_data  = {28'd0, SW};
     assign seed_valid = !r_seeded;
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n)        r_seeded <= 1'b0;
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n))
+ r_seeded <= 1'b0;
         else               r_seeded <= 1'b1;
-    end
+    )
 
     // ---- Wide FUB outputs from the characterization harness ----
     logic                          o_nand;

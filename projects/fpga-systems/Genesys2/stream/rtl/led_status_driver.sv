@@ -125,15 +125,15 @@ module led_status_driver #(
     (* ASYNC_REG = "TRUE" *) logic r_slow_rst_meta;
     (* ASYNC_REG = "TRUE" *) logic r_slow_rst_sync;
 
-    always_ff @(posedge slow_clk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(slow_clk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_slow_rst_meta <= 1'b0;
             r_slow_rst_sync <= 1'b0;
         end else begin
             r_slow_rst_meta <= 1'b1;
             r_slow_rst_sync <= r_slow_rst_meta;
         end
-    end
+    )
 
     wire slow_aresetn = r_slow_rst_sync;
 
@@ -177,13 +177,13 @@ module led_status_driver #(
     // -----------------------------------------------------------------------
     logic [NUM_LEDS-1:0] r_led;
 
-    always_ff @(posedge slow_clk or negedge slow_aresetn) begin
-        if (!slow_aresetn) begin
+    `ALWAYS_FF_RST(slow_clk, slow_aresetn,
+        if (`RST_ASSERTED(slow_aresetn)) begin
             r_led <= '0;
         end else if (w_dst_valid) begin
             r_led <= w_dst_data;
         end
-    end
+    )
 
     assign o_led = r_led;
 

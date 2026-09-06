@@ -30,6 +30,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module pumice_cmd_history_checker
     import pumice_pkg::*;
 #(
@@ -79,8 +81,8 @@ module pumice_cmd_history_checker
     // r_hist[r][b][0] = op issued to bank (r,b) LAST cycle; [DEPTH-1] = oldest.
     dram_op_e r_hist [NUM_RANKS][NUM_BANKS][DEPTH];
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
             for (int r = 0; r < NUM_RANKS; r++)
                 for (int b = 0; b < NUM_BANKS; b++)
                     for (int d = 0; d < DEPTH; d++)
@@ -103,7 +105,7 @@ module pumice_cmd_history_checker
                 end
             end
         end
-    end
+    )
 
     // ---- GLOBAL column-direction history (all banks, one stream) ------------
     // r_gdir[d]: 2'b01 = a RD-class column issued d+1 cycles ago, 2'b10 = WR-
@@ -116,15 +118,15 @@ module pumice_cmd_history_checker
     endfunction
 
     logic [1:0] r_gdir [DEPTH];
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
             for (int d = 0; d < DEPTH; d++) r_gdir[d] <= 2'b00;
         end else begin
             for (int d = DEPTH - 1; d > 0; d--) r_gdir[d] <= r_gdir[d-1];
             r_gdir[0] <= (cmd_valid_i && is_rd_col(cmd_op_i)) ? 2'b01 :
                          (cmd_valid_i && is_wr_col(cmd_op_i)) ? 2'b10 : 2'b00;
         end
-    end
+    )
 
     // ---- derived: is bank (r,b) currently row-OPEN? -------------------------
     // Scan newest->oldest: the first row-affecting op decides. An ACT more recent
@@ -165,8 +167,8 @@ module pumice_cmd_history_checker
 
     // Diagnostic counters (visible via $display at end-of-sim or on demand).
     int dbg_cmd_cnt, dbg_ref_cnt, dbg_ref_openrow;
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
             dbg_cmd_cnt <= 0; dbg_ref_cnt <= 0; dbg_ref_openrow <= 0;
         end else if (cmd_valid_i) begin
             dbg_cmd_cnt <= dbg_cmd_cnt + 1;
@@ -179,7 +181,7 @@ module pumice_cmd_history_checker
                          $time, dbg_ref_cnt + 1);
             end
         end
-    end
+    )
 
     always_ff @(posedge clk) begin
         if (rst_n && cmd_valid_i) begin

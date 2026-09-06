@@ -22,6 +22,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module sig_accum #(
     parameter int IN_WIDTH  = 64,   // total bits being folded each cycle
     parameter int SNAP_LOG2 = 16    // snapshot every 2^16 = 65536 cycles
@@ -52,8 +54,8 @@ module sig_accum #(
         end
     end
 
-    always_ff @(posedge src_clk or negedge src_rst_n) begin
-        if (!src_rst_n) begin
+    `ALWAYS_FF_RST(src_clk, src_rst_n,
+        if (`RST_ASSERTED(src_rst_n)) begin
             r_sig      <= 32'd0;
             r_snap_cnt <= '0;
         end else begin
@@ -63,20 +65,20 @@ module sig_accum #(
             r_sig      <= {r_sig[30:0], r_sig[31]} ^ w_fold;
             r_snap_cnt <= r_snap_cnt + 1'b1;
         end
-    end
+    )
 
     // Snapshot register: latched every SNAP_LOG2 cycles in the source domain.
     logic [31:0] r_snap;
     logic        r_snap_strobe;
-    always_ff @(posedge src_clk or negedge src_rst_n) begin
-        if (!src_rst_n) begin
+    `ALWAYS_FF_RST(src_clk, src_rst_n,
+        if (`RST_ASSERTED(src_rst_n)) begin
             r_snap        <= '0;
             r_snap_strobe <= 1'b0;
         end else if (&r_snap_cnt) begin
             r_snap        <= r_sig;
             r_snap_strobe <= ~r_snap_strobe;
         end
-    end
+    )
 
     // ---- Observation-side: 2-flop CDC of the (quasi-static) snapshot ------
     // The snapshot is updated by the source side at most once every 2^SNAP_LOG2
@@ -90,8 +92,8 @@ module sig_accum #(
     logic                                  r_str_sync_d;
     logic [31:0]                           r_sig_prev;
 
-    always_ff @(posedge obs_clk or negedge obs_rst_n) begin
-        if (!obs_rst_n) begin
+    `ALWAYS_FF_RST(obs_clk, obs_rst_n,
+        if (`RST_ASSERTED(obs_rst_n)) begin
             r_sig_meta   <= '0;
             r_sig_sync   <= '0;
             r_str_meta   <= 1'b0;
@@ -108,7 +110,7 @@ module sig_accum #(
                 r_sig_prev <= r_sig_sync;
             end
         end
-    end
+    )
 
     assign obs_sig   = r_sig_sync;
     assign obs_alive = (r_sig_sync != r_sig_prev);

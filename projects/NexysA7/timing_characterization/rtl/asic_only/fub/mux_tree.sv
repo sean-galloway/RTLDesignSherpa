@@ -54,6 +54,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module mux_tree #(
     parameter int LEVELS    = 3,
     parameter int NUM_FLOPS = 256,
@@ -87,10 +89,10 @@ module mux_tree #(
     `endif
     logic [ACTUAL_FLOPS-1:0] r_data_flops;
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!(rst_n)) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
             r_data_flops <= '0;
-        end else begin
+    ) else begin
             r_data_flops <= i_data;
         end
         end
@@ -106,10 +108,10 @@ module mux_tree #(
     `endif
     logic [ACTUAL_SEL-1:0] r_sel_flops;
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!(rst_n)) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
             r_sel_flops <= '0;
-        end else begin
+    ) else begin
             r_sel_flops <= i_sel;
         end
         end
@@ -167,10 +169,10 @@ module mux_tree #(
     `endif
     logic r_out_flop;
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!(rst_n)) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
             r_out_flop <= 1'b0;
-        end else begin
+    ) else begin
             r_out_flop <= gen_mux_tree[0].w_node;
         end
         end

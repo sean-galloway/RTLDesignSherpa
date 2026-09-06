@@ -12,6 +12,26 @@
 //
 // Author: sean galloway
 // Created: 2025-10-18
+//
+// RESET IN THIS FILE IS PLAIN SystemVerilog ON PURPOSE.
+//
+// This is a language reference: the `always_ff @(posedge clk or negedge
+// reset_n)` below shows the CONSTRUCT. Real RTL in this repo does not write
+// it that way -- it uses `ALWAYS_FF_RST` from rtl/amba/includes/reset_defs.svh,
+// which expands to exactly this and keeps every flop's reset spelled one way:
+//
+//     `include "reset_defs.svh"
+//
+//     `ALWAYS_FF_RST(clk, reset_n,
+//         if (`RST_ASSERTED(reset_n)) begin
+//             state <= S0;
+//         end else begin
+//             ...
+//         end
+//     )
+//
+// Copy the macro form into new design code, not the raw form below. This file
+// is in no filelist and is never compiled into a design.
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Operators: Arithmetic, Relational, Equality, Logical, Bitwise, Shift

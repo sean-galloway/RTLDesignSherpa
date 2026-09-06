@@ -71,15 +71,15 @@ module ddr2_char_top #(
     // =========================================================================
     (* ASYNC_REG = "TRUE" *) logic r_rst_meta;
     (* ASYNC_REG = "TRUE" *) logic r_rst_sync;
-    always_ff @(posedge CLK100MHZ or negedge CPU_RESETN) begin
-        if (!CPU_RESETN) begin
+    `ALWAYS_FF_RST(CLK100MHZ, CPU_RESETN,
+        if (`RST_ASSERTED(CPU_RESETN)) begin
             r_rst_meta <= 1'b0;
             r_rst_sync <= 1'b0;
         end else begin
             r_rst_meta <= 1'b1;
             r_rst_sync <= r_rst_meta;
         end
-    end
+    )
 
     // =========================================================================
     // Clock generation for the a7ddrphy (1:2 / nphases=2) at 300 MT/s — the

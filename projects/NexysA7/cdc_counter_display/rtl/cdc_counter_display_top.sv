@@ -15,6 +15,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 //==============================================================================
 // Module: cdc_counter_display_top
 //==============================================================================
@@ -323,30 +325,30 @@ module cdc_counter_display_top #(
 
     // Edge detector for button press (generate single-cycle pulse)
     logic btn_debounced_prev;
-    always_ff @(posedge btn_clk or negedge sys_rst_n) begin
-        if (!sys_rst_n) begin
+    `ALWAYS_FF_RST(btn_clk, sys_rst_n,
+        if (`RST_ASSERTED(sys_rst_n)) begin
             btn_debounced_prev <= 1'b0;
         end else begin
             btn_debounced_prev <= btn_debounced;
         end
-    end
+    )
 
     assign btn_increment_pulse = btn_debounced && !btn_debounced_prev;
 
     // Binary counter
-    always_ff @(posedge btn_clk or negedge sys_rst_n) begin
-        if (!sys_rst_n) begin
+    `ALWAYS_FF_RST(btn_clk, sys_rst_n,
+        if (`RST_ASSERTED(sys_rst_n)) begin
             r_count_value <= '0;
         end else if (btn_increment_pulse) begin
             r_count_value <= r_count_value + 1'b1;  // Wraps at 2^COUNTER_WIDTH
         end
-    end
+    )
 
     // Button domain heartbeat (toggles at half btn_clk frequency)
     localparam int BTN_HEARTBEAT_WIDTH = $clog2(HEARTBEAT_BTN_DIV) + 1;
     logic led_btn_heartbeat;
-    always_ff @(posedge btn_clk or negedge sys_rst_n) begin
-        if (!sys_rst_n) begin
+    `ALWAYS_FF_RST(btn_clk, sys_rst_n,
+        if (`RST_ASSERTED(sys_rst_n)) begin
             r_count_heartbeat <= '0;
             led_btn_heartbeat <= 1'b0;
         end else begin
@@ -357,13 +359,13 @@ module cdc_counter_display_top #(
                 r_count_heartbeat <= r_count_heartbeat + 1'b1;
             end
         end
-    end
+    )
     assign led[0] = led_btn_heartbeat;
 
     // CDC source valid: Assert when button pressed and CDC ready
     // This creates a single-cycle valid pulse that triggers the handshake
-    always_ff @(posedge btn_clk or negedge sys_rst_n) begin
-        if (!sys_rst_n) begin
+    `ALWAYS_FF_RST(btn_clk, sys_rst_n,
+        if (`RST_ASSERTED(sys_rst_n)) begin
             cdc_src_valid <= 1'b0;
         end else begin
             // Assert valid for one cycle when button pressed AND CDC is ready
@@ -373,7 +375,7 @@ module cdc_counter_display_top #(
                 cdc_src_valid <= 1'b0;
             end
         end
-    end
+    )
 
     //==========================================================================
     // Clock Domain Crossing (btn_clk → disp_clk)
@@ -410,19 +412,19 @@ module cdc_counter_display_top #(
     //==========================================================================
 
     // Capture counter value when CDC indicates valid data
-    always_ff @(posedge disp_clk or negedge sys_rst_n) begin
-        if (!sys_rst_n) begin
+    `ALWAYS_FF_RST(disp_clk, sys_rst_n,
+        if (`RST_ASSERTED(sys_rst_n)) begin
             r_display_count <= '0;
         end else if (cdc_dst_valid) begin
             r_display_count <= cdc_dst_data;  // Sample transferred value
         end
-    end
+    )
 
     // Display domain heartbeat (toggles at half disp_clk frequency)
     localparam int DISP_HEARTBEAT_WIDTH = $clog2(HEARTBEAT_DISP_DIV) + 1;
     logic led_disp_heartbeat;
-    always_ff @(posedge disp_clk or negedge sys_rst_n) begin
-        if (!sys_rst_n) begin
+    `ALWAYS_FF_RST(disp_clk, sys_rst_n,
+        if (`RST_ASSERTED(sys_rst_n)) begin
             r_display_heartbeat <= '0;
             led_disp_heartbeat <= 1'b0;
         end else begin
@@ -433,7 +435,7 @@ module cdc_counter_display_top #(
                 r_display_heartbeat <= r_display_heartbeat + 1'b1;
             end
         end
-    end
+    )
     assign led[1] = led_disp_heartbeat;
 
     // Split count into hex digits
@@ -459,13 +461,13 @@ module cdc_counter_display_top #(
     // Simple time-multiplexing between two digits
     // Alternate every disp_clk cycle (1ms per digit = 500Hz refresh per digit)
     logic digit_select;
-    always_ff @(posedge disp_clk or negedge sys_rst_n) begin
-        if (!sys_rst_n) begin
+    `ALWAYS_FF_RST(disp_clk, sys_rst_n,
+        if (`RST_ASSERTED(sys_rst_n)) begin
             digit_select <= 1'b0;
         end else begin
             digit_select <= ~digit_select;
         end
-    end
+    )
 
     // Multiplex segment and anode outputs
     always_comb begin

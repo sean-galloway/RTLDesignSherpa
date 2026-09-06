@@ -52,6 +52,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module char_top #(
     //=========================================================================
     // Feature Enables (0=disabled, 1=enabled)
@@ -152,10 +154,10 @@ module char_top #(
 
     logic [31:0] r_lfsr;
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!(rst_n)) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
             r_lfsr <= 32'hDEAD_BEEF;
-        end else begin
+    ) else begin
             if (i_seed_valid) begin
                 r_lfsr <= i_seed_data;
             end else begin

@@ -1,5 +1,7 @@
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 // Module: cmdrsp_router
 // Description: Routes CMD/RSP transactions based on address
 //
@@ -106,8 +108,8 @@ module cmdrsp_router #(
     logic r_sel_perf;
     logic r_sel_m1;
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
             r_sel_m0   <= 1'b0;
             r_sel_perf <= 1'b0;
             r_sel_m1   <= 1'b0;
@@ -125,7 +127,7 @@ module cmdrsp_router #(
                 r_sel_m1   <= 1'b0;
             end
         end
-    end
+    )
 
     //=========================================================================
     // Performance Profiler Register Logic (Integrated)
@@ -139,8 +141,8 @@ module cmdrsp_router #(
     // Configuration register (writable)
     logic [2:0] r_perf_config;  // {cfg_clear, cfg_mode, cfg_enable}
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
             r_perf_config <= 3'b000;  // All disabled on reset
         end else begin
             // Write to PERF_CONFIG register
@@ -153,7 +155,7 @@ module cmdrsp_router #(
                 r_perf_config[2] <= 1'b0;
             end
         end
-    end
+    )
 
     // Configuration outputs
     assign perf_cfg_enable = r_perf_config[0];
@@ -200,8 +202,8 @@ module cmdrsp_router #(
     assign perf_rsp_ready_internal = 1'b1;
 
     // Response valid (single cycle after command accepted)
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
             perf_rsp_valid <= 1'b0;
         end else begin
             if (s_cmd_valid && s_cmd_ready && addr_hit_perf) begin
@@ -210,7 +212,7 @@ module cmdrsp_router #(
                 perf_rsp_valid <= 1'b0;
             end
         end
-    end
+    )
 
     //=========================================================================
     // Command Routing

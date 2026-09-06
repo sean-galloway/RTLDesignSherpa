@@ -15,6 +15,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 //==============================================================================
 // Module: clock_divider
 //==============================================================================
@@ -285,10 +287,11 @@ module clock_divider #(
         end
     end
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) r_divider_counters <= 0;
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n))
+ r_divider_counters <= 0;
         else r_divider_counters <= r_divider_counters + 1;
-        end
+    )
 
 
     genvar i;
@@ -307,10 +310,11 @@ module clock_divider #(
                                     w_pickoff_raw[ADDR_WIDTH-1:0] :
                                     ADDR_WIDTH'(COUNTER_WIDTH - 1);
 
-            always_ff @(posedge clk or negedge rst_n) begin
-                if (!rst_n) divided_clk[i] <= 0;
+            `ALWAYS_FF_RST(clk, rst_n,
+                if (`RST_ASSERTED(rst_n))
+ divided_clk[i] <= 0;
                 else divided_clk[i] <= r_divider_counters[w_pickoff_addr];
-                end
+            )
 
         end
     endgenerate

@@ -18,6 +18,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 //==============================================================================
 // Module: dma_address_gen
 //==============================================================================
@@ -302,8 +304,8 @@ module dma_address_gen #(
     assign w_s1_ready  = !r_s1_valid || w_s2_ready;
     assign o_req_ready = w_s1_ready;
 
-    always_ff @(posedge i_clk or negedge i_rst_n) begin
-        if (!i_rst_n) begin
+    `ALWAYS_FF_RST(i_clk, i_rst_n,
+        if (`RST_ASSERTED(i_rst_n)) begin
             r_s1_valid     <= 1'b0;
             r_s1_offset_0  <= '0;
             r_s1_offset_1  <= '0;
@@ -320,7 +322,7 @@ module dma_address_gen #(
                 r_s1_valid <= 1'b0;
             end
         end
-    end
+    )
 
     // =========================================================================
     // Stage 2: Final address addition
@@ -344,8 +346,8 @@ module dma_address_gen #(
 
     assign w_s2_ready = !r_s2_valid || i_result_ready;
 
-    always_ff @(posedge i_clk or negedge i_rst_n) begin
-        if (!i_rst_n) begin
+    `ALWAYS_FF_RST(i_clk, i_rst_n,
+        if (`RST_ASSERTED(i_rst_n)) begin
             r_s2_valid <= 1'b0;
             r_s2_addr  <= '0;
             r_s2_tag   <= '0;
@@ -358,7 +360,7 @@ module dma_address_gen #(
                 r_s2_valid <= 1'b0;
             end
         end
-    end
+    )
 
     // =========================================================================
     // Output assignments

@@ -2,6 +2,8 @@
 // Formal stub for amba_clock_gate_ctrl (pass-through clock + free gating)
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module amba_clock_gate_ctrl #(
     parameter int CG_IDLE_COUNT_WIDTH = 4,
     parameter int ICW = CG_IDLE_COUNT_WIDTH
@@ -18,10 +20,11 @@ module amba_clock_gate_ctrl #(
 );
     assign clk_out = clk_in;
     logic r_wakeup;
-    always_ff @(posedge clk_in or negedge aresetn) begin
-        if (!aresetn) r_wakeup <= 1'b1;
+    `ALWAYS_FF_RST(clk_in, aresetn,
+        if (`RST_ASSERTED(aresetn))
+ r_wakeup <= 1'b1;
         else          r_wakeup <= user_valid || axi_valid;
-    end
+    )
     assign idle = ~r_wakeup;
     (* anyseq *) logic free_gating;
     assign gating = free_gating;

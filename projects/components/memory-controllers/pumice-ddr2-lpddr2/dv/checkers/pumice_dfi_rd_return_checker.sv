@@ -25,6 +25,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module pumice_dfi_rd_return_checker
     import pumice_pkg::*;
 #(
@@ -70,8 +72,8 @@ module pumice_dfi_rd_return_checker
                         && (r_watchdog == WDW'(TIMEOUT));
         wire w_zerof = w_ret && (ret_data_i == '0) && (r_ref_win != 0);
 
-        always_ff @(posedge clk or negedge rst_n) begin
-            if (!rst_n) begin
+        `ALWAYS_FF_RST(clk, rst_n,
+            if (`RST_ASSERTED(rst_n)) begin
                 r_issued <= '0; r_returned <= '0; r_drops <= '0; r_zero <= '0;
                 r_ref_inflight <= '0; r_outstanding <= '0; r_watchdog <= '0;
                 r_ref_win <= '0; r_err <= 1'b0;
@@ -111,7 +113,7 @@ module pumice_dfi_rd_return_checker
                 if (w_zerof) r_zero  <= r_zero  + 16'd1;
                 if (w_drop || w_zerof) r_err <= 1'b1;
             end
-        end
+        )
 
         assign dbg_reads_issued_o   = r_issued;
         assign dbg_reads_returned_o = r_returned;

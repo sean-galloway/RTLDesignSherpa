@@ -175,15 +175,15 @@ module stream_genesys2_top #(
 
     (* ASYNC_REG = "TRUE" *) logic r_rst_meta;
     (* ASYNC_REG = "TRUE" *) logic r_rst_sync;
-    always_ff @(posedge aclk or negedge rst_n_raw) begin
-        if (!rst_n_raw) begin
+    `ALWAYS_FF_RST(aclk, rst_n_raw,
+        if (`RST_ASSERTED(rst_n_raw)) begin
             r_rst_meta <= 1'b0;
             r_rst_sync <= 1'b0;
         end else begin
             r_rst_meta <= 1'b1;
             r_rst_sync <= r_rst_meta;
         end
-    end
+    )
 
     wire aresetn = r_rst_sync;
 

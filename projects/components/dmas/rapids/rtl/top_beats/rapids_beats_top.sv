@@ -28,7 +28,7 @@
 //       -> rapids_config_block x2 (u_cfg_src <- hwif_out.SRC.*,
 //                                  u_cfg_snk <- hwif_out.SNK.*)
 //       -> rapids_core_beats (two independent halves)
-//       -> monbus_axil_axil_group (single merged MonBus -> AXI-Lite drain /
+//       -> monbus_axil4_axil4_group (single merged MonBus -> AXI-Lite drain /
 //                                  bulk-capture master / IRQ)
 //
 //   APB address map (13-bit APB address; bit[12] selects SRC(0)/SNK(1)):
@@ -39,7 +39,7 @@
 //
 //   NOTE on the single MonBus egress config: the two halves each emit their own
 //   monitor stream; the core merges them into ONE stream. The downstream
-//   monbus_axil_axil_group packet-filter/compression config is therefore a
+//   monbus_axil4_axil4_group packet-filter/compression config is therefore a
 //   single shared egress config, sourced from hwif_out.SRC.MON.* (the SNK.MON.*
 //   filter fields exist in the register block but are not wired to the shared
 //   egress; per-half egress splitting is a later stage).
@@ -66,7 +66,7 @@ module rapids_beats_top #(
     parameter int MON_MAX_TRANSACTIONS = 16,
     // Monitor synthesis gates (default 1 = production behavior unchanged).
     //   USE_AXI_MONITORS=0 omits the descriptor-AXI monitor hardware AND the
-    //     top-level monbus_axil_axil_group (egress capture/err-drain/IRQ); the
+    //     top-level monbus_axil4_axil4_group (egress capture/err-drain/IRQ); the
     //     m_axil_mon_*/mon_irq/s_axil_err_* ports are tied off.
     //   GEN_MON=0 omits the per-channel completion/error MonBus emitters.
     // For an FPGA characterization build that meters externally, set both 0 to
@@ -680,8 +680,8 @@ module rapids_beats_top #(
     // ------------------------------------------------------------------------
     localparam int TICK_1US_CYCLES = 100;
     logic [$clog2(TICK_1US_CYCLES)-1:0] r_tick_cnt;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_tick_cnt <= '0;
             tick_1us   <= 1'b0;
         end else if (r_tick_cnt == TICK_1US_CYCLES[$clog2(TICK_1US_CYCLES)-1:0] - 1) begin
@@ -691,7 +691,7 @@ module rapids_beats_top #(
             r_tick_cnt <= r_tick_cnt + 1'b1;
             tick_1us   <= 1'b0;
         end
-    end
+    )
 
     //=========================================================================
     // Config mapping block - SOURCE half
@@ -1377,7 +1377,7 @@ module rapids_beats_top #(
     monitor_common_pkg::monbus_timestamp_t mon_grp_time_w;
     generate
     if (USE_AXI_MONITORS != 0) begin : g_monbus_axil
-    monbus_axil_axil_group #(
+    monbus_axil4_axil4_group #(
         .FIFO_DEPTH_ERR     (64),
         .FIFO_DEPTH_WRITE   (96),
         .ADDR_WIDTH         (32),

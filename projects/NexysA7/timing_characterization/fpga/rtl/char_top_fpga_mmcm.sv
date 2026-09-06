@@ -37,6 +37,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module char_top_fpga_mmcm (
     input  logic        CLK100MHZ,
     input  logic        CPU_RESETN,
@@ -114,15 +116,15 @@ module char_top_fpga_mmcm (
         for (gr = 0; gr < 4; gr++) begin : gen_rst_sync
             (* ASYNC_REG = "TRUE" *) logic r_meta;
             (* ASYNC_REG = "TRUE" *) logic r_sync;
-            always_ff @(posedge clk_test[gr] or negedge CPU_RESETN) begin
-                if (!CPU_RESETN) begin
+            `ALWAYS_FF_RST(clk_test[gr], CPU_RESETN,
+                if (`RST_ASSERTED(CPU_RESETN)) begin
                     r_meta <= 1'b0;
                     r_sync <= 1'b0;
                 end else begin
                     r_meta <= mmcm_locked;
                     r_sync <= r_meta;
                 end
-            end
+            )
             assign test_rst_n[gr] = r_sync;
         end
     endgenerate
@@ -152,10 +154,10 @@ module char_top_fpga_mmcm (
             assign seed_data  = {28'd0, SW};
             assign seed_valid = !r_seeded[gi];
 
-            always_ff @(posedge clk_test[gi] or negedge test_rst_n[gi]) begin
-                if (!test_rst_n[gi]) r_seeded[gi] <= 1'b0;
-                else                 r_seeded[gi] <= 1'b1;
-            end
+            `ALWAYS_FF_RST(clk_test[gi], test_rst_n[gi],
+                if (`RST_ASSERTED(test_rst_n[gi])) r_seeded[gi] <= 1'b0;
+                else                               r_seeded[gi] <= 1'b1;
+            )
 
             char_top #(
                 .EN_NAND_TREE      (1),

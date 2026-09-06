@@ -468,10 +468,10 @@ module stream_top_ch8 #(
     // of how many cycles the adapter holds the request.
     logic [7:0] r_kick_pulse_d;
     logic [7:0] w_kick_edge;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) r_kick_pulse_d <= '0;
-        else          r_kick_pulse_d <= w_kick_pulse;
-    end
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) r_kick_pulse_d <= '0;
+        else                        r_kick_pulse_d <= w_kick_pulse;
+    )
     assign w_kick_edge = w_kick_pulse & ~r_kick_pulse_d;
 
     // Hold the request until the descriptor engine accepts it, so a one-cycle
@@ -479,8 +479,8 @@ module stream_top_ch8 #(
     logic [NUM_CHANNELS-1:0]                 r_kick_pending;
     logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0] r_kick_addr;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_kick_pending <= '0;
             r_kick_addr    <= '{default:'0};
         end else begin
@@ -493,7 +493,7 @@ module stream_top_ch8 #(
                 end
             end
         end
-    end
+    )
 
     always_comb begin
         for (int ch = 0; ch < NUM_CHANNELS; ch++) begin
@@ -1088,8 +1088,8 @@ module stream_top_ch8 #(
     // STICKY counter: counts every time apb_cmd_valid fires for a read
     logic [7:0] r_debug_apb_rd_count;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_debug_last_cpuif_addr <= '0;
             r_debug_last_cpuif_rd_data <= '0;
             r_debug_last_cpuif_rd_ack <= '0;
@@ -1113,7 +1113,7 @@ module stream_top_ch8 #(
                 r_debug_apb_rd_count <= r_debug_apb_rd_count + 1'b1;
             end
         end
-    end
+    )
 
     assign debug_last_cpuif_addr = r_debug_last_cpuif_addr;
     assign debug_last_cpuif_rd_data = r_debug_last_cpuif_rd_data;
@@ -1127,8 +1127,8 @@ module stream_top_ch8 #(
     logic [APB_ADDR_WIDTH-1:0] r_debug_apb_rd_cmd_addr;
     logic [31:0] r_debug_apb_rsp_prdata_captured;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_debug_apb_rd_cmd_seen <= 1'b0;
             r_debug_apb_rd_cmd_addr <= '0;
             r_debug_apb_rsp_prdata_captured <= '0;
@@ -1143,7 +1143,7 @@ module stream_top_ch8 #(
                 r_debug_apb_rsp_prdata_captured <= apb_rsp_prdata;
             end
         end
-    end
+    )
 
     // Debug outputs for APB command/response path (direct combinational)
     assign debug_apb_cmd_valid = apb_cmd_valid;
@@ -2072,7 +2072,7 @@ module stream_top_ch8 #(
     // Conditional instantiation: Only when USE_AXI_MONITORS=1
     generate
         if (USE_AXI_MONITORS == 1) begin : g_monbus_axil
-            monbus_axil_axil_group #(
+            monbus_axil4_axil4_group #(
                 .FIFO_DEPTH_ERR     (64),    // Error/interrupt FIFO depth
                 .FIFO_DEPTH_WRITE   (96),    // Write data FIFO depth (BEATS)
                 .ADDR_WIDTH         (32),    // AXI-Lite address width

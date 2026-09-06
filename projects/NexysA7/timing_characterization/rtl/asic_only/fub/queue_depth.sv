@@ -38,6 +38,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module queue_depth #(
     parameter int DATA_WIDTH = 32,
     parameter int DEPTH      = 16,
@@ -112,11 +114,11 @@ module queue_depth #(
     `endif
     logic r_out_valid;
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!(rst_n)) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
             r_out_flop  <= '0;
             r_out_valid <= 1'b0;
-        end else begin
+    ) else begin
             r_out_valid <= w_fifo_rd_valid;
             if (w_fifo_rd_valid && i_rd_ready) begin
                 r_out_flop <= w_fifo_rd_data;

@@ -376,3 +376,10 @@ val/*/coverage_data/
 *.ltx
 *.mcs
 .ast-cache/
+
+# Flattened filelists written next to a build by flatten_filelist.py. Build
+# artifacts, not sources -- and the filelist registry counts any committed *.f
+# outside a registered dir as an unregistered filelist, so committing one
+# fails the pre-commit blind-spot gate (it caught this on 2026-09-06).
+.flat_filelist.f
+**/.flat_filelist.f

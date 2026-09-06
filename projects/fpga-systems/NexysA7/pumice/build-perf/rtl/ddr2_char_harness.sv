@@ -154,15 +154,15 @@ module ddr2_char_harness
     // Reset synchroniser for aresetn (async assert, sync deassert)
     // =========================================================================
     (* ASYNC_REG = "TRUE" *) logic r_rst_meta, r_rst_sync;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_rst_meta <= 1'b0;
             r_rst_sync <= 1'b0;
         end else begin
             r_rst_meta <= 1'b1;
             r_rst_sync <= r_rst_meta;
         end
-    end
+    )
     logic unit_aresetn;
     assign unit_aresetn = r_rst_sync;
 
@@ -634,10 +634,12 @@ module ddr2_char_harness
     // Previously w_soft_reset_pulse was unconnected — soft_reset was a no-op.
     // =========================================================================
     logic [3:0] r_soft_rst_cnt;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn)                    r_soft_rst_cnt <= 4'd0;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn))
+ r_soft_rst_cnt <= 4'd0;
         else if (w_soft_reset_pulse)     r_soft_rst_cnt <= 4'd15;   // stretch
-        else if (r_soft_rst_cnt != 4'd0) r_soft_rst_cnt <= r_soft_rst_cnt - 4'd1;
+        else if (r_soft_rst_cnt != 4'd0) r_soft_rst_cnt <= r_soft_rst_cnt -
+    )1;
     end
     logic dp_aresetn;   // datapath reset: power-on reset OR soft-reset window
     assign dp_aresetn = unit_aresetn & (r_soft_rst_cnt == 4'd0);

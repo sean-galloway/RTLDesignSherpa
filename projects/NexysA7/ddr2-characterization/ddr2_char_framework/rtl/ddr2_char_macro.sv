@@ -654,15 +654,15 @@ module ddr2_char_macro
     // finished because it IS finished.
     logic [NUM_GEN-1:0] r_wr_launched, r_rd_launched;
 
-    always_ff @(posedge mc_clk or negedge mc_rst_n) begin
-        if (!mc_rst_n) begin
+    `ALWAYS_FF_RST(mc_clk, mc_rst_n,
+        if (`RST_ASSERTED(mc_rst_n)) begin
             r_wr_launched <= '0;
             r_rd_launched <= '0;
         end else begin
             r_wr_launched <= r_wr_launched | w_wr_go;
             r_rd_launched <= r_rd_launched | w_rd_go;
         end
-    end
+    )
 
     assign gen_wr_started = |w_wr_go;
     assign gen_rd_started = |w_rd_go;

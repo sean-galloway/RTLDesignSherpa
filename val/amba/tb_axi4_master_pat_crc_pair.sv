@@ -17,6 +17,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module tb_axi4_master_pat_crc_pair #(
     parameter int AXI_ADDR_WIDTH = 32,
     parameter int AXI_DATA_WIDTH = 64,
@@ -258,8 +260,8 @@ module tb_axi4_master_pat_crc_pair #(
     assign wr_awready = !wr_active_busy;
     assign wr_wready  = wr_active_busy;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             wr_active_addr <= '0;
             wr_active_id   <= '0;
             wr_active_left <= '0;
@@ -268,7 +270,7 @@ module tb_axi4_master_pat_crc_pair #(
             wr_bid         <= '0;
             wr_bresp       <= 2'b00;
             wr_buser       <= '0;
-        end else begin
+    ) else begin
             // B response handshake
             if (wr_bvalid && wr_bready) wr_bvalid <= 1'b0;
 
@@ -308,8 +310,8 @@ module tb_axi4_master_pat_crc_pair #(
 
     assign rd_arready = !rd_active_busy;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             rd_active_addr <= '0;
             rd_active_id   <= '0;
             rd_active_left <= '0;
@@ -320,7 +322,7 @@ module tb_axi4_master_pat_crc_pair #(
             rd_rresp       <= 2'b00;
             rd_rlast       <= 1'b0;
             rd_ruser       <= '0;
-        end else begin
+    ) else begin
             // R handshake retires the current beat
             if (rd_rvalid && rd_rready) begin
                 rd_active_addr <= rd_active_addr + AW'(BYTES_PER_BEAT);

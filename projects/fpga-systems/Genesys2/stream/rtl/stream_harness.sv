@@ -2007,9 +2007,10 @@ module stream_harness #(
     //     w_tally_flush auto-flush pulse is shared by both tally SRAMs.
     //     (declared up with the first tally instance so both instances can use it.)
     logic         r_tally_freeze_d;
-    always_ff @(posedge aclk or negedge unit_aresetn)
-        if (!unit_aresetn) r_tally_freeze_d <= 1'b0;
-        else               r_tally_freeze_d <= csr_freeze;
+    `ALWAYS_FF_RST(aclk, unit_aresetn,
+        if (`RST_ASSERTED(unit_aresetn)) r_tally_freeze_d <= 1'b0;
+        else                             r_tally_freeze_d <= csr_freeze;
+    )
     assign w_tally_flush   = csr_freeze & ~r_tally_freeze_d;  // auto-flush on freeze rising edge
 
     // The bare DMA slaves. The monitors that used to be spliced INLINE here

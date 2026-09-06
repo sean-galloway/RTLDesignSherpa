@@ -52,6 +52,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module multiplier_tree #(
     parameter int MULT_TYPE = 0,     // 0=inferred, 1=dadda, 2=wallace, 3=wallace_csa, 4=dadda_4to2
     parameter int WIDTH     = 16
@@ -86,11 +88,11 @@ module multiplier_tree #(
     `endif
     logic [WIDTH-1:0] r_input_b;
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!(rst_n)) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
             r_input_a <= '0;
             r_input_b <= '0;
-        end else begin
+    ) else begin
             r_input_a <= i_data_a;
             r_input_b <= i_data_b;
         end
@@ -253,10 +255,10 @@ module multiplier_tree #(
     `endif
     logic [2*WIDTH-1:0] r_out_flops;
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!(rst_n)) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
             r_out_flops <= '0;
-        end else begin
+    ) else begin
             r_out_flops <= w_product;
         end
         end

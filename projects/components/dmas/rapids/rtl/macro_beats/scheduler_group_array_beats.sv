@@ -29,6 +29,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 // Import RAPIDS and monitor packages
 `include "rapids_imports.svh"
 
@@ -721,8 +723,8 @@ module scheduler_group_array_beats #(
     end
 
     // Serializer: latch active channel on AW accept; hold busy until B completes.
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
             r_ctrlwr_busy      <= 1'b0;
             r_ctrlwr_active_ch <= '0;
         end else begin
@@ -733,7 +735,7 @@ module scheduler_group_array_beats #(
                 r_ctrlwr_busy      <= 1'b0;
             end
         end
-    end
+    )
 
     // AW mux: granted channel only, while idle (issuing the address phase).
     always_comb begin

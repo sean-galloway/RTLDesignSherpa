@@ -3,6 +3,10 @@
 # Purpose: Array of beats_scheduler_group modules with shared resources
 
 # Include beats_scheduler_group which pulls in all FUB dependencies
+# reset_defs.svh -- this module uses `ALWAYS_FF_RST, so its macro header
+# must be on the include path and compiled before it.
+-f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
+
 -f $REPO_ROOT/projects/components/dmas/rapids/rtl/filelists/macro_beats/scheduler_group_beats.f
 
 # Additional common RTL dependencies (not in axi4_master_rd_mon.f)

@@ -10,6 +10,10 @@
 # -f include THIS list rather than hand-listing the path, which is what they
 # used to do.
 
+# reset_defs.svh -- this module uses `ALWAYS_FF_RST, so its macro header
+# must be on the include path and compiled before it.
+-f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
+
 +incdir+$REPO_ROOT/rtl/amba/includes
 
 $REPO_ROOT/projects/components/misc/rtl/dma_address_gen.sv

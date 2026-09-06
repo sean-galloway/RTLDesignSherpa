@@ -14,6 +14,10 @@
 # absolute path and are de-duplicated by the loader.
 
 # Include directories
+# reset_defs.svh -- this module uses `ALWAYS_FF_RST, so its macro header
+# must be on the include path and compiled before it.
+-f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
+
 +incdir+$REPO_ROOT/rtl/amba/includes
 +incdir+$REPO_ROOT/projects/components/dmas/rapids/rtl/includes
 +incdir+$REPO_ROOT/projects/components/dmas/stream/rtl/includes

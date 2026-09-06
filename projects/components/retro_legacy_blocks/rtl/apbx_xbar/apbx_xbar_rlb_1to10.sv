@@ -252,15 +252,15 @@ module apbx_xbar_rlb_1to10 #(
     end
 
     // Register slave selection when command accepted
-    always_ff @(posedge pclk or negedge presetn) begin
-        if (!presetn) begin
+    `ALWAYS_FF_RST(pclk, presetn,
+        if (`RST_ASSERTED(presetn)) begin
             r_slave_sel <= 4'd0;
         end else begin
             if (m_cmd_valid && m_cmd_ready) begin
                 r_slave_sel <= slave_sel;
             end
         end
-    end
+    )
 
     // ========================================================================
     // Command Routing to Slaves

@@ -37,6 +37,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module inverter_chain #(
     parameter int NUM_INVERTERS = 64
 ) (
@@ -62,10 +64,10 @@ module inverter_chain #(
     `endif
     logic r_input_flop;
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!(rst_n)) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
             r_input_flop <= 1'b0;
-        end else begin
+    ) else begin
             r_input_flop <= i_data;
         end
         end
@@ -107,10 +109,10 @@ module inverter_chain #(
     `endif
     logic r_out_flop;
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!(rst_n)) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
             r_out_flop <= 1'b0;
-        end else begin
+    ) else begin
             r_out_flop <= gen_inv_chain[NUM_INVERTERS-1].w_node;
         end
         end

@@ -7,6 +7,10 @@
 # - stream_core (USE_AXI_MONITORS=0, monitors disabled)
 
 # Include directories
+# reset_defs.svh -- this module uses `ALWAYS_FF_RST, so its macro header
+# must be on the include path and compiled before it.
+-f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
+
 +incdir+$STREAM_ROOT/rtl/includes
 +incdir+$REPO_ROOT/rtl/amba/includes
 

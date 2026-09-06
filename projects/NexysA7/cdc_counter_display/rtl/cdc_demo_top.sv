@@ -28,6 +28,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module cdc_demo_top (
     input  logic        CLK100MHZ,
     input  logic        CPU_RESETN,     // BTNR / active-low reset
@@ -62,15 +64,15 @@ module cdc_demo_top (
     BUFG u_sys_bufg (.I(sys_clk_pad), .O(sys_clk));
 
     (* ASYNC_REG = "TRUE" *) logic r_rstn_sync0, r_rstn_sync1;
-    always_ff @(posedge sys_clk or negedge CPU_RESETN) begin
-        if (!CPU_RESETN) begin
+    `ALWAYS_FF_RST(sys_clk, CPU_RESETN,
+        if (`RST_ASSERTED(CPU_RESETN)) begin
             r_rstn_sync0 <= 1'b0;
             r_rstn_sync1 <= 1'b0;
         end else begin
             r_rstn_sync0 <= 1'b1;
             r_rstn_sync1 <= r_rstn_sync0;
         end
-    end
+    )
     assign sys_rstn = r_rstn_sync1 && !w_soft_reset;
 
     // ----------------------------------------------------------------
@@ -202,8 +204,10 @@ module cdc_demo_top (
 
     (* ASYNC_REG = "TRUE" *) logic [3:0] r_btn_sync0;
     (* ASYNC_REG = "TRUE" *) logic [3:0] r_btn_sync1;
-    always_ff @(posedge sys_clk or negedge sys_rstn) begin
-        if (!sys_rstn) begin r_btn_sync0 <= 4'h0; r_btn_sync1 <= 4'h0; end
+    `ALWAYS_FF_RST(sys_clk, sys_rstn,
+        if (`RST_ASSERTED(sys_rstn)) begin
+ r_btn_sync0 <= 4'h0; r_btn_sync1 <= 4'h0;
+    )
         else           begin r_btn_sync0 <= btn_raw; r_btn_sync1 <= r_btn_sync0; end
     end
 
@@ -215,8 +219,8 @@ module cdc_demo_top (
     genvar bi;
     generate
         for (bi = 0; bi < 4; bi = bi + 1) begin : g_db
-            always_ff @(posedge sys_clk or negedge sys_rstn) begin
-                if (!sys_rstn) begin
+            `ALWAYS_FF_RST(sys_clk, sys_rstn,
+                if (`RST_ASSERTED(sys_rstn)) begin
                     r_btn_stable[bi]    <= 1'b0;
                     r_btn_prev[bi]      <= 1'b0;
                     r_debounce_cnt[bi]  <= 21'd0;
@@ -233,7 +237,7 @@ module cdc_demo_top (
                         r_debounce_cnt[bi] <= 21'd0;
                     end
                 end
-            end
+            )
             assign w_btn_pressed[bi] = r_btn_stable[bi] && !r_btn_prev[bi];
         end
     endgenerate
@@ -507,8 +511,8 @@ module cdc_demo_top (
     logic [25:0] r_rx_stretch_cnt, r_tx_stretch_cnt, r_alive_stretch_cnt;
     logic        r_led_rx, r_led_tx, r_led_alive;
 
-    always_ff @(posedge sys_clk or negedge sys_rstn) begin
-        if (!sys_rstn) begin
+    `ALWAYS_FF_RST(sys_clk, sys_rstn,
+        if (`RST_ASSERTED(sys_rstn)) begin
             r_rx_stretch_cnt   <= '0;
             r_tx_stretch_cnt   <= '0;
             r_alive_stretch_cnt<= '0;
@@ -531,7 +535,7 @@ module cdc_demo_top (
                 r_alive_stretch_cnt <= r_alive_stretch_cnt + 1'b1;
             end
         end
-    end
+    )
 
     logic [3:0] w_sel_one_hot;
     always_comb begin
@@ -562,10 +566,11 @@ module cdc_demo_seg8 (
     output logic        o_DP
 );
     logic [16:0] r_refresh_cnt;
-    always_ff @(posedge sys_clk or negedge sys_rstn) begin
-        if (!sys_rstn) r_refresh_cnt <= '0;
+    `ALWAYS_FF_RST(sys_clk, sys_rstn,
+        if (`RST_ASSERTED(sys_rstn))
+ r_refresh_cnt <= '0;
         else           r_refresh_cnt <= r_refresh_cnt + 1'b1;
-    end
+    )
 
     logic [2:0] w_digit_idx;
     assign w_digit_idx = r_refresh_cnt[16:14];

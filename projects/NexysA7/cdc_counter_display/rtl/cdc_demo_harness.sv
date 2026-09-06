@@ -30,6 +30,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module cdc_demo_harness #(
     parameter int NUM_COUNTERS  = 4,
     parameter int VAL_WIDTH     = 16,
@@ -199,8 +201,8 @@ module cdc_demo_harness #(
     assign w_aw_hs        = s_axil_awvalid && s_axil_awready;
     assign w_w_hs         = s_axil_wvalid  && s_axil_wready;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_w_addr      <= '0;
             r_w_data      <= '0;
             r_w_strb      <= '0;
@@ -222,11 +224,11 @@ module cdc_demo_harness #(
                 r_w_have_data <= 1'b0;
             end
         end
-    end
+    )
 
     // B response: fire one cycle after we've consumed addr+data
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             s_axil_bvalid <= 1'b0;
             s_axil_bresp  <= 2'b00;
             w_b_pending   <= 1'b0;
@@ -240,7 +242,7 @@ module cdc_demo_harness #(
                 w_b_pending   <= 1'b0;
             end
         end
-    end
+    )
 
     // ---- Read channel ----
     logic                       w_ar_hs;
@@ -250,8 +252,8 @@ module cdc_demo_harness #(
     assign s_axil_arready = !r_r_pending;
     assign w_ar_hs        = s_axil_arvalid && s_axil_arready;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_r_addr     <= '0;
             r_r_pending  <= 1'b0;
             s_axil_rvalid <= 1'b0;
@@ -271,7 +273,7 @@ module cdc_demo_harness #(
                 r_r_pending   <= 1'b0;
             end
         end
-    end
+    )
 
     // -----------------------------------------------------------------
     // Read decode (combinational — driven by latched r_r_addr)
@@ -332,8 +334,8 @@ module cdc_demo_harness #(
     assign w_do_write = r_w_have_addr && r_w_have_data && !w_b_pending;
 
     integer wi;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_scratch        <= 32'h0;
             r_freeze_all     <= 1'b0;
             r_ignore_btn     <= 1'b0;
@@ -430,7 +432,7 @@ module cdc_demo_harness #(
                 end
             end
         end
-    end
+    )
 
     function automatic logic [7:0] clamp_pickoff(input logic [7:0] v);
         // verilator lint_off UNSIGNED
@@ -462,8 +464,8 @@ module cdc_demo_harness #(
     // r_alive_seen[i]; clear all bits every ~0.67 s.
     // -----------------------------------------------------------------
     integer ai;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_alive_seen      <= '0;
             r_alive_decay_cnt <= '0;
         end else begin
@@ -475,6 +477,6 @@ module cdc_demo_harness #(
                 r_alive_seen <= '0;
             end
         end
-    end
+    )
 
 endmodule
