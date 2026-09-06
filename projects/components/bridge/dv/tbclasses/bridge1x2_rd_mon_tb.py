@@ -144,11 +144,26 @@ class Bridge1x2RdMonTB(TBBase):
     # byte, scaled across multiple multi-hundred-MB slaves).
     #
     # Pre-seed the first SLAVE_MEM_CAP_BYTES of each slave; tests must
-    # probe within that window for data verification. Routing-only probes
-    # (address_decode beyond page 0) work outside the cap — the framework
-    # slave BFMs silently drop OOR writes and fall back to addr-as-data on
-    # OOR reads, so the AW/AR routing assertion still fires.
-    SLAVE_MEM_CAP_BYTES = 4096
+    # probe within that window for data verification.
+    #
+    # 64 KB, not 4 KB, and the difference is load-bearing. The two slave BFMs
+    # DISAGREE about an out-of-range access: AXI4SlaveWrite logs it and leaves
+    # RESP alone (a silent drop, answering OKAY), while AXIL4SlaveWrite answers
+    # SLVERR. An earlier version of this comment asserted the first behaviour
+    # for both and sized the cap at 4 KB on that basis, so a boundary probe of
+    # a 64 KB AXI4-Lite slave -- mix_a's axil_periph, mix_c's cfg_regs -- got a
+    # legitimate SLVERR from a model that simply did not extend that far, and
+    # the master raised. Routing was correct the whole time; the model was
+    # short.
+    #
+    # 64 KB covers a typical peripheral window whole, so those probes now land
+    # in real memory and verify DATA as well as routing rather than depending
+    # on a drop. Cost is 9 bytes per addressable byte (uint8 data + two uint32
+    # access maps) = ~576 KB per slave, against the multi-GB windows the cap
+    # exists to stop. A slave larger than this is still capped, and a probe
+    # past the cap on one still relies on the BFM's out-of-range behaviour --
+    # tracked as BRIDGE-008.
+    SLAVE_MEM_CAP_BYTES = 64 * 1024
 
     # Bridge page granularity. The slave-window validator already aligns
     # each base_addr / addr_range to PAGE_SIZE (4 KB), so page-level probes
@@ -257,7 +272,21 @@ class Bridge1x2RdMonTB(TBBase):
         offset = addr - base
         if proto in ('apb', 'apb5'):
             apb = self.slave_apb[slave_idx]
-            data_bytes = apb.mem.read(offset, byte_count)
+            # Read where the APB slave ACTUALLY stored it. APBSlave does not
+            # subtract the window base: it masks the full PADDR by its own
+            # memory size --
+            #     addr_bits = (num_lines * strb_bits - 1).bit_length()
+            #     self.mem.write(address & ((1 << addr_bits) - 1), ...)
+            # -- so `addr - base` is only the same place when
+            # `base & mask == 0`. It silently was, for every APB slave whose
+            # base happened to be mask-aligned, until the memory model grew and
+            # widened the mask: mix_d's apb_periph at base 0x4000_1000 then
+            # stored a write to 0x4000_1100 at 0x1100 while this read looked at
+            # 0x0100 and got seed data back. Mirror the slave's own mapping
+            # instead of assuming one.
+            span = apb.num_lines * apb.strb_bits
+            mask = (1 << (span - 1).bit_length()) - 1
+            data_bytes = apb.mem.read(addr & mask, byte_count)
         else:
             mem = self.slave_memory[slave_idx]
             data_bytes = mem.read(offset, byte_count)
