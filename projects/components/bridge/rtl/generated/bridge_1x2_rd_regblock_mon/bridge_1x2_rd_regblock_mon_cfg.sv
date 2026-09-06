@@ -160,11 +160,15 @@ module bridge_1x2_rd_regblock_mon_cfg (
 
     always_ff @(posedge clk) begin
         if(rst) begin
-            for(int i=0; i<2; i++) begin
-                axil_resp_buffer[i].is_wr <= '0;
-                axil_resp_buffer[i].err <= '0;
-                axil_resp_buffer[i].rdata <= '0;
-            end
+            // Reset unrolled from PeakRDL's per-element for loop by
+            // cfg_rdl_generator -- see the note there. Same assignments,
+            // no loop.
+            axil_resp_buffer[0].is_wr <= '0;
+            axil_resp_buffer[0].err <= '0;
+            axil_resp_buffer[0].rdata <= '0;
+            axil_resp_buffer[1].is_wr <= '0;
+            axil_resp_buffer[1].err <= '0;
+            axil_resp_buffer[1].rdata <= '0;
             axil_resp_wptr <= '0;
             axil_resp_rptr <= '0;
         end else begin

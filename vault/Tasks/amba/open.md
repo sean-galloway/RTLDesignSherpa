@@ -1913,7 +1913,7 @@ narrowing and is intentional, but it is implicit. The generator should emit
 the explicit part-select so the intent is in the RTL rather than in the
 reader's head. GENERATOR-side fix, not RTL.
 
-**4. `BLKLOOPINIT` in the PeakRDL regblock** (1 test:
+**4. `BLKLOOPINIT` in the PeakRDL regblock -- FIXED 2026-09-05.** (1 test:
 `test_bridge_1x2_rd_regblock_mon_monitor`, and the same shape in the Genesys2
 `*_mon` bridges). Not a lint finding -- it fails the BUILD:
 
@@ -1942,6 +1942,21 @@ the generated code to change shape -- a whole-array reset
 (`axil_resp_buffer <= '{default: '0};`) rather than a per-element loop. That is
 PeakRDL's template, so the fix belongs upstream or in a post-process step, NOT
 in the generated `.sv` ([[generated-rtl-discipline]]).
+
+**Fixed** in `cfg_rdl_generator.run_peakrdl`, which now rewrites that reset
+after invoking peakrdl. It UNROLLS the loop rather than collapsing it, and the
+difference matters: `axil_resp_buffer <= '{default: '0};` also clears
+BLKLOOPINIT, but then trips a Verilator CODEGEN bug -- the emitted C++ assigns
+`unsigned int` to the struct type and g++ rejects it with "no match for
+operator=". Per-field scalar assignments, which is what the loop expanded to
+anyway, avoid both.
+
+Worth recording HOW that nearly shipped: `verilator -cc` GENERATES C++ but does
+not COMPILE it, so a BLKLOOPINIT count of 0 from `-cc` looked like success while
+the build still died in g++. Counting the symptom is not building the design --
+run the test. The transform asserts it matched, so a PeakRDL upgrade that
+changes the template fails loudly instead of silently emitting RTL that will
+not build.
 
 **Do not silence any of these with a waiver.** The gate was just repaired
 precisely because a blanket waiver is how the UNOPTFLAT in [[TASK-081]] stayed

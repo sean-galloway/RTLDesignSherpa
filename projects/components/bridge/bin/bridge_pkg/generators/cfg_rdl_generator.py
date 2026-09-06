@@ -194,7 +194,76 @@ class CfgRdlGenerator:
         base = rdl_path.stem
         out_sv = output_dir / f'{base}.sv'
         out_pkg = output_dir / f'{base}_pkg.sv'
+        self._patch_resp_buffer_reset(out_sv)
         return [out_pkg, out_sv]
+
+    # Reset loop PeakRDL's axi4-lite CPUIF emits for its response buffer. It is
+    # an unpacked array of a struct, reset element-by-element inside a for.
+    _RESP_RESET_LOOP = """            for(int i=0; i<2; i++) begin
+                axil_resp_buffer[i].is_wr <= '0;
+                axil_resp_buffer[i].err <= '0;
+                axil_resp_buffer[i].rdata <= '0;
+            end
+"""
+    # The loop UNROLLED, not collapsed. `axil_resp_buffer <= '{default: '0};`
+    # also clears BLKLOOPINIT but then trips a Verilator CODEGEN bug: it emits
+    # C++ assigning `unsigned int` to the struct type and g++ rejects it
+    # ("no match for operator="). Per-field scalar assignments avoid both.
+    _RESP_RESET_WHOLE = """            // Reset unrolled from PeakRDL's per-element for loop by
+            // cfg_rdl_generator -- see the note there. Same assignments,
+            // no loop.
+            axil_resp_buffer[0].is_wr <= '0;
+            axil_resp_buffer[0].err <= '0;
+            axil_resp_buffer[0].rdata <= '0;
+            axil_resp_buffer[1].is_wr <= '0;
+            axil_resp_buffer[1].err <= '0;
+            axil_resp_buffer[1].rdata <= '0;
+"""
+
+    @classmethod
+    def _patch_resp_buffer_reset(cls, sv_path: Path) -> None:
+        """Rewrite PeakRDL's response-buffer reset loop as a whole-array reset.
+
+        Verilator cannot elaborate a non-blocking assignment to an array with a
+        COMPOUND element type inside a loop -- `%Error-BLKLOOPINIT: Unsupported`
+        -- and once it hits that in an always_ff it rejects every compound-array
+        NBA in the block, 9 errors in the emitted regblock. That fails the BUILD,
+        so every test on a regblock bridge dies before it starts. It is not a
+        warning and cannot be waived.
+
+        An unroll budget does NOT help here, which is the obvious first guess:
+        measured 9 errors both with and without
+        `--unroll-count 16384 --unroll-stmts 200000`. The loop bound is 2; the
+        problem is the compound element type, not the iteration count.
+
+        The rewrite UNROLLS the loop rather than collapsing it.
+        `axil_resp_buffer <= '{default: '0};` also clears BLKLOOPINIT, but then
+        trips a Verilator codegen bug -- the emitted C++ assigns `unsigned int`
+        to the struct type and g++ rejects it. Per-field scalar assignments,
+        which is what the loop expanded to anyway, avoid both. Same six
+        assignments, no loop.
+
+        The transform is a strict, exact-text replacement and it ASSERTS that it
+        matched. If a PeakRDL upgrade changes the template, this fails loudly
+        instead of silently emitting RTL that will not build -- the failure mode
+        that let the original sit unnoticed.
+        """
+        text = sv_path.read_text()
+        if cls._RESP_RESET_LOOP not in text:
+            # Already the whole-array form, or a template that no longer needs
+            # the fix -- but say which, so "no patch" is never silent.
+            if "axil_resp_buffer[1].rdata <= '0;" in text:
+                return
+            raise RuntimeError(
+                f"{sv_path.name}: cfg_rdl_generator could not find PeakRDL's "
+                f"axil_resp_buffer reset loop to rewrite, and the whole-array "
+                f"form is not present either. The PeakRDL template has changed. "
+                f"Re-check whether Verilator still rejects the emitted reset "
+                f"(BLKLOOPINIT) and update _RESP_RESET_LOOP, or delete this "
+                f"patch if it is no longer needed."
+            )
+        sv_path.write_text(text.replace(cls._RESP_RESET_LOOP,
+                                        cls._RESP_RESET_WHOLE))
 
     def generate(
         self,
