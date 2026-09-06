@@ -488,7 +488,7 @@ module axi_monitor_trans_mgr (
 		if ((!IS_READ && USE_WDATA_ORDER_Q) && ((r_widq_count != {WQW {1'sb0}}) || w_widq_bypass)) begin : sv2v_autoblock_13
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
-				w_widq_cand_oh[i] = (w_data_state_pred_oh[i] && (cam_entry_payload[(((N - 1) - i) * 285) + 242-:8] == w_widq_head)) && !w_freeing_oh[i];
+				w_widq_cand_oh[i] = (w_data_state_pred_oh[i] && (cam_entry_payload[(((N - 1) - i) * 285) + ((234 + IW) >= 235 ? 234 + IW : ((234 + IW) + ((234 + IW) >= 235 ? (234 + IW) - 234 : 236 - (234 + IW))) - 1)-:((234 + IW) >= 235 ? (234 + IW) - 234 : 236 - (234 + IW))] == w_widq_head)) && !w_freeing_oh[i];
 		end
 	end
 	assign w_widq_head_dead = (r_widq_count != {WQW {1'sb0}}) && !(|w_widq_cand_oh);
@@ -799,6 +799,10 @@ module axi_monitor_trans_mgr (
 	localparam [7:0] monitor_amba4_pkg_EVT_RESP_ORPHAN = 8'h03;
 	localparam [7:0] monitor_amba4_pkg_EVT_RESP_SLVERR = 8'h00;
 	localparam [7:0] monitor_amba4_pkg_EVT_RESP_TIMEOUT = 8'h02;
+	function automatic [5:0] sv2v_cast_6;
+		input reg [5:0] inp;
+		sv2v_cast_6 = inp;
+	endfunction
 	generate
 		for (_gv_gi_2 = 0; _gv_gi_2 < N; _gv_gi_2 = _gv_gi_2 + 1) begin : g_entry_next
 			localparam gi = _gv_gi_2;
@@ -878,7 +882,7 @@ module axi_monitor_trans_mgr (
 						next[242-:8] = 1'sb0;
 						if (IS_AXI) begin
 							next[234 + IW:235] = data_id;
-							next[221-:6] = {24'h000000, data_id} % 64;
+							next[221-:6] = sv2v_cast_6(data_id);
 							next[23-:8] = (IS_READ ? 8'h00 : 8'h01);
 						end
 						else begin
@@ -921,7 +925,7 @@ module axi_monitor_trans_mgr (
 						next[242-:8] = 1'sb0;
 						if (IS_AXI) begin
 							next[234 + IW:235] = resp_id;
-							next[221-:6] = resp_id % 64;
+							next[221-:6] = sv2v_cast_6(resp_id);
 						end
 						else
 							next[221-:6] = 6'h00;

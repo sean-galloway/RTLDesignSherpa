@@ -673,8 +673,15 @@ module axi_monitor_trans_mgr
         if (!IS_READ && USE_WDATA_ORDER_Q &&
             ((r_widq_count != '0) || w_widq_bypass)) begin
             for (int i = 0; i < N; i++) begin
+                // Compare the low IW bits explicitly. The payload `id` field
+                // is a fixed 8 bits while w_widq_head is IW wide, and the
+                // write side zeroes the field before setting [IW-1:0] (see
+                // next.id below), so the upper bits are always 0 and the
+                // implicit zero-extend was correct -- just implicit. Same
+                // part-select the read at `next_id` already uses. ID_WIDTH > 8
+                // is a hard elaboration error, so [IW-1:0] is always in range.
                 w_widq_cand_oh[i] = w_data_state_pred_oh[i] &&
-                                    (cam_entry_payload[i].id == w_widq_head) &&
+                                    (cam_entry_payload[i].id[IW-1:0] == w_widq_head) &&
                                     !w_freeing_oh[i];
             end
         end
@@ -1393,7 +1400,11 @@ module axi_monitor_trans_mgr
                         if (IS_AXI) begin
                             next.id[IW-1:0]        = data_id;
                             /* verilator lint_off WIDTHTRUNC */
-                            next.channel           = ({24'h0, data_id} % 64);
+                            // `% 64` into a 6-bit field is exactly "the low 6
+                            // bits", and IW <= 8 is enforced at elaboration, so
+                            // a width cast says it without a modulo whose
+                            // operand width depends on IW.
+                            next.channel           = 6'(data_id);
                             /* verilator lint_on WIDTHTRUNC */
                             next.expected_beats    = IS_READ ? 8'h0 : 8'h1;
                         end else begin
@@ -1454,9 +1465,8 @@ module axi_monitor_trans_mgr
                         next.id                    = '0;
                         if (IS_AXI) begin
                             next.id[IW-1:0]        = resp_id;
-                            /* verilator lint_off WIDTHTRUNC */
-                            next.channel           = (resp_id % 64);
-                            /* verilator lint_on WIDTHTRUNC */
+                            // Same as the data-orphan path above.
+                            next.channel           = 6'(resp_id);
                         end else begin
                             next.channel           = 6'h0;
                         end
