@@ -118,10 +118,18 @@ All outputs appear after aclk rising edge:
 | Path | Typical Delay |
 |------|---------------|
 | aclk to VALID | 1 cycle (registered) |
-| aclk to READY | Combinational |
+| aclk to READY | 1 cycle (registered) |
 | aclk to DATA | 1 cycle (registered) |
 
 : Table 4.8: Clock-to-Output Delays
+
+READY is registered like the rest, which an earlier revision of this table gave
+as "Combinational". Every external port terminates in a `gaxi_skid_buffer`
+inside its boundary wrapper -- a master port's `awready` is
+`axi4_slave_wr.s_axi_awready`, wired straight to the skid's `wr_ready`, and
+that is assigned in an `ALWAYS_FF_RST` block. A master budgeting a
+combinational ready path against this bridge would be wrong by a register
+stage.
 
 ### Recommended Constraints
 

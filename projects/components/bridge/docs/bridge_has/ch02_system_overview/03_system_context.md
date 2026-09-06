@@ -57,11 +57,19 @@ Each slave occupies a configurable address region:
 
 | Slave | Base Address | Address Range | Size |
 |-------|--------------|---------------|------|
-| Slave 0 | `BASE + 0x0000_0000` | Configurable | Variable |
-| Slave 1 | `BASE + addr_range_0` | Configurable | Variable |
-| Slave N | Sum of previous ranges | Configurable | Variable |
+| Slave 0 | `base_addr` from its own TOML entry | `addr_range` | Variable |
+| Slave 1 | `base_addr` from its own TOML entry | `addr_range` | Variable |
+| Slave N | `base_addr` from its own TOML entry | `addr_range` | Variable |
 
 : Table 2.3: Address Map Organization
+
+**Windows are not derived from a single BASE and are not contiguous.** Each
+slave carries its own `base_addr`, subject only to 4 KB alignment and
+non-overlap ([Parameters](../ch06_integration/02_parameters.md)). An earlier
+revision of this table showed `BASE + addr_range_0` and "sum of previous
+ranges", which no shipped config follows -- `bridge_mix_d` places a 1 GB `ddr`
+at `0x0000_0000`, a 4 KB `doorbell` at `0x4000_0000` and a 64 KB `apb_periph`
+at `0x4000_1000`, and gaps between windows are legal (they decode-miss).
 
 ### Address Decode
 

@@ -106,8 +106,8 @@ Generate all five channels for complete read/write capability.
 
 | Master Type | Channels | Signal Reduction |
 |-------------|----------|------------------|
-| Write-only (wr) | 3 of 5 | ~39% fewer signals |
-| Read-only (rd) | 2 of 5 | ~61% fewer signals |
+| Write-only (wr) | 3 of 5 | 40% fewer channels (~48% fewer wires at DW=64) |
+| Read-only (rd) | 2 of 5 | 60% fewer channels (~52% fewer wires at DW=64) |
 | Full (rw) | 5 of 5 | Baseline |
 
 : Table 2.2: Channel-Specific Resource Savings

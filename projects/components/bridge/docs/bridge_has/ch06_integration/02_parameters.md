@@ -59,7 +59,7 @@
 | channels | enum | "rw", "wr", or "rd" |
 | data_width | int | Port data width |
 | id_width | int | Port ID width |
-| use_monitor | bool | **Mandatory.** Enable per-port monitor wrappers (true/false) |
+| use_monitor | bool | Optional, defaults to `true`. Per-port monitor wrappers. Only meaningful on a `mon` variant; on a `no` variant there is nothing to disable. |
 
 : Table 6.10: Master Port Configuration
 
@@ -69,11 +69,11 @@
 |-------|------|-------------|
 | name | string | Unique identifier |
 | prefix | string | Signal prefix |
-| protocol | enum | "axi4", "axi4lite", "apb" |
+| protocol | enum | `axi4`, `axi5`, `axil`, `axil5`, `apb`, `apb5` -- the exact values `config_validator.valid_protocols` accepts. Note `axil`, not `axi4lite`. |
 | data_width | int | Port data width |
 | base_addr | hex | Base address (must be 4K-aligned) |
 | addr_range | hex | Address range size (must be multiple of 4K) |
-| use_monitor | bool | **Mandatory.** Enable per-port monitor wrappers (true/false) |
+| use_monitor | bool | Optional, defaults to `true`. Per-port monitor wrappers. Only meaningful on a `mon` variant; on a `no` variant there is nothing to disable. |
 
 : Table 6.11: Slave Port Configuration
 

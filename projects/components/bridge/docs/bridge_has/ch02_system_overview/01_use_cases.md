@@ -80,8 +80,14 @@ Bridge topology for RAPIDS accelerator with channel-specific masters.
 
 ### Benefits
 
-- **39% port reduction** for write-only masters (3 channels vs 5)
-- **61% port reduction** for read-only masters (2 channels vs 5)
+- **40% fewer channels** for write-only masters (3 of 5: AW, W, B)
+- **60% fewer channels** for read-only masters (2 of 5: AR, R)
+
+Those are CHANNEL counts, which is the honest way to state it -- the saving in
+actual wires depends on the widths. At DW=64/AW=32/IW=4/UW=1 the five channels
+are roughly 295 bits, and dropping AR+R saves about 48% of them while dropping
+AW+W+B saves about 52%; at DW=512 it is nearer 47%/53%. Earlier revisions of
+this page quoted "39%" and "61%", which match neither basis.
 - **Automatic width conversion** for 64b CPU to 512b DDR
 - **Protocol conversion** for APB peripheral access
 
