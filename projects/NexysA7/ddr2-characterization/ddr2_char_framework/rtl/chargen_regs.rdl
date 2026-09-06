@@ -60,8 +60,8 @@
 // meaningless number. One write, one start edge, one measurement window.
 //
 // Address space: 4 KB APB window (12-bit PADDR), matching the bridge slot.
-//   0x000..0x03F   WR_GEN[0]      0x40 stride (0x040..0x1FF reserved for 1..7)
-//   0x200..0x23F   RD_GEN[0]      0x40 stride (0x240..0x3FF reserved for 1..7)
+//   0x000..0x07F   WR_GEN[0..1]   0x40 stride (0x080..0x1FF reserved for 2..7)
+//   0x200..0x27F   RD_GEN[0..1]   0x40 stride (0x280..0x3FF reserved for 2..7)
 //   0x400..        global launch / status / identity
 //=============================================================================
 
@@ -211,8 +211,8 @@ addrmap chargen_regs {
     // programmed. Getting this wrong does not fail; it silently measures
     // something other than bank concurrency, so the host asserts the mapping.
     //=========================================================================
-    wr_gen_t WR_GEN[1] @ 0x000 += 0x40;
-    rd_gen_t RD_GEN[1] @ 0x200 += 0x40;
+    wr_gen_t WR_GEN[2] @ 0x000 += 0x40;
+    rd_gen_t RD_GEN[2] @ 0x200 += 0x40;
 
     //=========================================================================
     // Global launch and roll-up (0x400..)
@@ -223,7 +223,9 @@ addrmap chargen_regs {
         // the mask is written out bit by bit. It is still one register and one
         // write: every bit set in that write pulses on the same cycle.
         field { sw = w; hw = r; singlepulse; } wr_go0[0:0] = 0;
+        field { sw = w; hw = r; singlepulse; } wr_go1[1:1] = 0;
         field { sw = w; hw = r; singlepulse; } rd_go0[8:8] = 0;
+        field { sw = w; hw = r; singlepulse; } rd_go1[9:9] = 0;
     } GO @ 0x400;
 
     reg {
@@ -247,8 +249,8 @@ addrmap chargen_regs {
     //=========================================================================
     reg {
         desc = "Compile-time generator array shape";
-        field { sw = r; hw = w; } num_wr_gen[7:0]  = 1;
-        field { sw = r; hw = w; } num_rd_gen[15:8] = 1;
+        field { sw = r; hw = w; } num_wr_gen[7:0]  = 2;
+        field { sw = r; hw = w; } num_rd_gen[15:8] = 2;
         field { sw = r; hw = w; } num_banks[23:16] = 8;
     } GEN_CONFIG @ 0x410;
 
