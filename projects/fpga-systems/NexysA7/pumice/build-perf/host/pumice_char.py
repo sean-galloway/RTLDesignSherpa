@@ -205,6 +205,13 @@ class ControllerConfig:
     # hardcoded 4, then with the pre-tuple 0.
     t_phy_wrlat:   int = int(os.environ.get("TEST_T_PHY_WRLAT", "1"))
     t_rddata_en:   int = 6
+    # rddata_delay slides the read DATA onto the rddata_valid cycle. VERIFIED
+    # 75/DDR2-300 value = 7 (ILA 2026-09-05: data arrived 1 cycle after valid
+    # at 8; razor-sharp single-cycle optimum 6->fail,7->clean,8->fail). Was
+    # MISSING from apply() -> stayed 0 -> every read mismatched.
+    rddata_delay:  int = int(os.environ.get("TEST_RDDATA_DELAY", "7"))
+    rd_phase:      int = 0
+    wr_phase:      int = 0
 
     def apply(self, drv: DDR2CharDriver) -> None:
         # rd_in_order + the DFI latencies live on the harness CTRLR_CFG (one
@@ -213,6 +220,11 @@ class ControllerConfig:
                                t_phy_wrlat=self.t_phy_wrlat,
                                t_rddata_en=self.t_rddata_en,
                                rd_in_order=self.rd_in_order)
+        # Program the read-capture alignment every scenario for the same
+        # reason as the latencies above: soft_reset clears it, and a read
+        # one cycle off valid mismatches 100%.
+        drv.set_dfi_phase(rd_phase=self.rd_phase, wr_phase=self.wr_phase)
+        drv.set_dfi_rddata_delay(self.rddata_delay)
         if self.scheme is not None:
             drv.set_addr_map_scheme(self.scheme)
         if self.page_policy is not None:
