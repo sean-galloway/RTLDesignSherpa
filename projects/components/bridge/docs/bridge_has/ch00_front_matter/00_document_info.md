@@ -31,7 +31,7 @@
 | Version | 1.1 |
 | Date | June 4, 2026 |
 | Status | Released |
-| Classification | Open Source - Apache 2.0 License |
+| Classification | Open Source - MIT License |
 
 ## Revision History
 

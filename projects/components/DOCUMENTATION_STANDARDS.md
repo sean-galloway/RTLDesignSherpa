@@ -130,7 +130,7 @@ The styles YAML file MUST include these sections for title page and lists to wor
 # MANDATORY: Company info (used in headers/footers)
 company:
   name: "RTL Design Sherpa"
-  confidential_text: "Open Source - Apache 2.0 License"
+  confidential_text: "Open Source - MIT License"
 
 # MANDATORY: Colors (used by title page and headings)
 colors:

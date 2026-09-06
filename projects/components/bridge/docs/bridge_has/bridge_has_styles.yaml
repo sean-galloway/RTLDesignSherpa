@@ -3,7 +3,7 @@
 
 company:
   name: "RTL Design Sherpa"
-  confidential_text: "Open Source - Apache 2.0 License"
+  confidential_text: "Open Source - MIT License"
 
 colors:
   primary: "#228B22"      # Forest green

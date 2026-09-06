@@ -28,7 +28,7 @@
 **Document Number:** DDR2-LPDDR2-MAS-001
 **Version:** 0.4
 **Status:** Draft - reconciled with rearchitected RTL
-**Classification:** Open Source - Apache 2.0 License
+**Classification:** Open Source - MIT License
 
 ---
 

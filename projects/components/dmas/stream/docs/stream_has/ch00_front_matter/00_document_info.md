@@ -28,7 +28,7 @@
 **Document Number:** STREAM-HAS-001
 **Version:** 0.95
 **Status:** Draft
-**Classification:** Open Source - Apache 2.0 License
+**Classification:** Open Source - MIT License
 
 ---
 
