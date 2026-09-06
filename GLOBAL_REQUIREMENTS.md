@@ -53,10 +53,23 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 ```
 
-**Applies to:** projects/components/ area
-**Source:** `projects/components/CLAUDE.md` Rule #0
-**Tool:** `bin/update_resets.py` for conversion
-**Status:** rtl/common/ and rtl/amba/ already compliant
+**Applies to:** ALL synthesisable RTL -- `rtl/` and `projects/` alike.
+**Source:** `projects/components/CLAUDE.md` Rule #0, widened 2026-09-06 (Sean:
+"All flops should use the global macro").
+
+**The one exception, and it is structural:** `rtl/common/reset_sync.sv`. The
+macro is asynchronous only under `USE_ASYNC_RESET`, and a reset synchroniser
+whose assert waits for a clock edge is not a reset synchroniser. It is also
+active-HIGH, which the macro cannot express without `RESET_ACTIVE_HIGH` set
+globally. Documented at the flop itself. If you add another exception, document
+it there too and say WHY the async assert is load-bearing -- "it has always
+been like that" is not a reason.
+
+**Status:** `rtl/` converted 2026-09-06 (45 blocks / 20 files; the claim that
+it was "already compliant" was wrong). `projects/components/converters/` done
+as CONV-009. Hand-written RTL still outstanding elsewhere under `projects/`,
+plus ~928 blocks in GENERATED files, which must be fixed at their generators
+and never in the emitted `.sv`.
 
 ---
 

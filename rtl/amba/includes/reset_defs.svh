@@ -18,8 +18,24 @@
 `define RESET_DEFS_SVH
 
 // -----------------------------------------------------------------------------
+// RESET IS ASYNCHRONOUS ON ASSERTION. ALWAYS. There is no switch for it.
+//
+// It used to be conditional on -DUSE_ASYNC_RESET, defaulting to SYNCHRONOUS,
+// and the result was that the tools disagreed about what the design even was:
+// `make lint` set the define (make/fpga_flow.mk LINT_DEFINES) and saw async,
+// while 277 of 325 cocotb test files and every synthesis flow but one left it
+// unset and saw sync. Lint was checking a design nobody built. Corrected
+// 2026-09-06 (Sean: "All must be asynchronous on assertion").
+//
+// A flop that needs a clock edge before it will reset is not reset -- it is
+// waiting. That is the wrong behaviour at power-on, on a stopped or gated
+// clock, and on any domain whose clock is not yet running when reset asserts,
+// which is exactly when reset matters.
+//
+// USE_ASYNC_RESET is now a no-op. Builds that still pass it are harmless and
+// can drop it at leisure; nothing needs to be added anywhere.
+//
 // Build-time switches (set with compiler flags):
-//   -DUSE_ASYNC_RESET        → include reset in sensitivity list
 //   -DRESET_ACTIVE_HIGH      → active-HIGH reset (default is active-LOW)
 // -----------------------------------------------------------------------------
 
@@ -34,19 +50,13 @@
 //       BODY must be a single procedural statement (e.g. 'if (...) begin ... end'
 //       or an explicit block 'begin ... end').
 
+// Async assert, sync deassert -- the reset reaches the sensitivity list, and
+// reset_sync is what makes the RELEASE synchronous. No `ifdef: see above.
 `define ALWAYS_FF_RST_LO(clk, rst, BODY)                             \
-    `ifdef USE_ASYNC_RESET                                           \
-        always_ff @(posedge (clk) or negedge (rst)) BODY             \
-    `else                                                            \
-        always_ff @(posedge (clk)) BODY                              \
-    `endif
+    always_ff @(posedge (clk) or negedge (rst)) BODY
 
 `define ALWAYS_FF_RST_HI(clk, rst, BODY)                             \
-    `ifdef USE_ASYNC_RESET                                           \
-        always_ff @(posedge (clk) or posedge (rst)) BODY             \
-    `else                                                            \
-        always_ff @(posedge (clk)) BODY                              \
-    `endif
+    always_ff @(posedge (clk) or posedge (rst)) BODY
 
 `ifdef RESET_ACTIVE_HIGH
     `define ALWAYS_FF_RST(clk, rst, BODY) `ALWAYS_FF_RST_HI(clk, rst, BODY)

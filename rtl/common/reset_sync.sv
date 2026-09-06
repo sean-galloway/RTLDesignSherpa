@@ -260,7 +260,17 @@ module reset_sync #(
                 (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED" *)
                 logic [N-1:0] r_sync_reg = '0 /* synthesis syn_preserve = 1 */;
 
-                // Async assert (posedge rst_in_h), sync deassert
+                // Async assert (posedge rst_in_h), sync deassert.
+                //
+                // THE ONE FILE IN rtl/ THAT DOES NOT USE `ALWAYS_FF_RST, and it
+                // must not. The macro is asynchronous only when the build
+                // defines USE_ASYNC_RESET; the default build makes it
+                // synchronous. A reset synchroniser whose assert needs a clock
+                // edge is not a reset synchroniser -- it is the thing that
+                // produces the synchronous deassert everything else relies on,
+                // so its own assert path has to be async unconditionally.
+                // Active-HIGH here too, which the macro cannot express without
+                // RESET_ACTIVE_HIGH set globally.
                 always_ff @(posedge clk or posedge rst_in_h) begin
                     if (rst_in_h) r_sync_reg <= '1;                // hold asserted through chain
                     else          r_sync_reg <= {r_sync_reg[N-2:0], 1'b0};
