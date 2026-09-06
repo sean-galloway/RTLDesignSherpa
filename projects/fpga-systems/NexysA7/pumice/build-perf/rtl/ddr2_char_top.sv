@@ -108,15 +108,35 @@ module ddr2_char_top #(
     // (DDR2-266, within the MT47H64M16 125-333 MHz CK range), idelay=200 (/4).
     // Gives ~+1.2ns slack for ~11% BW vs 300 MT/s. NOTE: FPGA_CLK_HZ (UART baud)
     // + the host tREFI/timing-CSR cycle counts must track this freq.
+    // -----------------------------------------------------------------------
+    // Per-frequency profile (saved + selectable). DEFAULT = 66.67 MHz, the
+    // silicon-proven known-good point (VCO 800; DDR2-266; DDR2 tuple wrlat=1/
+    // rden=6/rddata_delay=7/bitslip0/tap8). +define+PUMICE_SYS_75 selects the
+    // 75 MHz / DDR2-300 profile (VCO 600; needs its own DDR2 calibration).
+    // Both are kept here so neither is lost when the other is worked on.
+    // -----------------------------------------------------------------------
+`ifdef PUMICE_SYS_75
+    localparam real MMCM_MULT = 6.0;   // VCO = 600 MHz
+    localparam real MMCM_CO0  = 8.0;   // sys       = 75 MHz
+    localparam int  MMCM_CO1  = 4;     // sys2x     = 150 MHz (DDR2-300)
+    localparam int  MMCM_CO2  = 4;     // sys2x_dqs = 150 MHz
+    localparam int  MMCM_CO3  = 3;     // idelay    = 200 MHz (/3)
+`else
+    localparam real MMCM_MULT = 8.0;   // VCO = 800 MHz
+    localparam real MMCM_CO0  = 12.0;  // sys       = 66.67 MHz (known-good)
+    localparam int  MMCM_CO1  = 6;     // sys2x     = 133.3 MHz (DDR2-266)
+    localparam int  MMCM_CO2  = 6;     // sys2x_dqs = 133.3 MHz
+    localparam int  MMCM_CO3  = 4;     // idelay    = 200 MHz (/4)
+`endif
     MMCME2_BASE #(
         .CLKIN1_PERIOD   (10.0),   // 100 MHz board clock
         .DIVCLK_DIVIDE   (1),
-        .CLKFBOUT_MULT_F (8.0),    // VCO = 800 MHz
-        .CLKOUT0_DIVIDE_F(12.0),   // sys        = 66.67 MHz
-        .CLKOUT1_DIVIDE  (6),      // sys2x      = 133.3 MHz (= DRAM CK, 266 MT/s)
-        .CLKOUT2_DIVIDE  (6),      // sys2x_dqs  = 133.3 MHz
+        .CLKFBOUT_MULT_F (MMCM_MULT),
+        .CLKOUT0_DIVIDE_F(MMCM_CO0),
+        .CLKOUT1_DIVIDE  (MMCM_CO1),
+        .CLKOUT2_DIVIDE  (MMCM_CO2),
         .CLKOUT2_PHASE   (90.0),   // DQS 90-deg
-        .CLKOUT3_DIVIDE  (4)       // idelay ref = 200 MHz
+        .CLKOUT3_DIVIDE  (MMCM_CO3) // idelay ref = 200 MHz
     ) u_mmcm (
         .CLKIN1   (CLK100MHZ),
         .CLKFBIN  (w_clkfb),
@@ -251,7 +271,11 @@ module ddr2_char_top #(
         .DRAM_BL         (DRAM_BL),
         .BURST_LEN_MULTIPLE(BURST_LEN_MULTIPLE),
         .ROW_WIDTH       (ROW_WIDTH),
+`ifdef PUMICE_SYS_75
+        .FPGA_CLK_HZ     (75_000_000)   // sys = 75 MHz  -> UART baud divisor
+`else
         .FPGA_CLK_HZ     (66_666_667)   // sys = 66.67 MHz -> UART baud divisor
+`endif
         // DFI command->data alignment is now a runtime CSR (DFI_TUNING.cmd_delay,
         // default 5) — tune live over UART, no rebuild. CMD_MAX_DELAY defaults 8.
     ) u_harness (
