@@ -62,7 +62,7 @@ Protocol conversion does five things:
 - Expose full 5-channel AXI4 interface at the bridge boundary
 - Are documented as "axil" for user reference only
 
-The bridge now emits real AXI4-to-AXIL4 conversion shims (`axi4_to_axil4_{rd,wr}.sv`) at the slave boundary when `protocol = "axi4lite"` is specified in the TOML. These shims downgrade bursts to single beats and enforce AXIL protocol constraints transparently. See "Generator-Emitted Conversion Shims" below.
+The bridge now emits real AXI4-to-AXIL4 conversion shims (`axi4_to_axil4_{rd,wr}.sv`) at the slave boundary when `protocol = "axil"` is specified in the TOML. These shims downgrade bursts to single beats and enforce AXIL protocol constraints transparently. See "Generator-Emitted Conversion Shims" below.
 
 ### Future Support (Phase 2+)
 
@@ -335,15 +335,22 @@ Note: Most implementations are purely combinatorial wire
 ### Configuration
 
 ```toml
-[[masters]]
-name = "control_processor"
-protocol = "axi4lite"          # Specify simplified protocol
-channels = "rw"                # Full read-write
-arid_width = 0                 # Often no ID in AXI4-Lite
-awid_width = 0
+[[bridge.masters]]
+name       = "control_processor"
+prefix     = "cpu_axil_"       # required -- prefixes every external signal
+protocol   = "axil"            # NOT "axi4lite"; see the protocol table in the HAS
+channels   = "rw"              # "rw" | "rd" | "wr"
+id_width   = 0                 # AXI4-Lite carries no ID
 addr_width = 32
-data_width = 32                # Typically 32 or 64 bits
+data_width = 32
+user_width = 1
 ```
+
+Field names are `id_width` / `addr_width` / `data_width` -- one `id_width` per
+port, not the `arid_width` / `awid_width` pair an earlier revision of this page
+showed, which the loader does not read. The table is `[[bridge.masters]]`, not
+`[[masters]]`. Compare `bin/test_configs/bridge_1x5_wr_axil.toml` for a config
+that actually generates.
 
 ### Common Issues and Debug
 
@@ -504,11 +511,19 @@ APB → AXI Response Translation:
 PREADY=1, PSLVERR=0 → RRESP/BRESP = 2'b00 (OKAY)
 PREADY=1, PSLVERR=1 → RRESP/BRESP = 2'b10 (SLVERR)
 
-Timeout (PREADY stuck at 0):
-  After N cycles → RRESP/BRESP = 2'b11 (DECERR)
+PREADY stuck at 0:
+  The converter WAITS. There is no timeout and no DECERR.
 ```
 
-## 2.7.5 Implementation
+**There is no PREADY timeout anywhere in the path.** `apb4_master` waits
+unconditionally in ACCESS (`if (m_apb_PREADY) ...` with no counter), and
+neither `axi4_to_apb4_convert`, `axi4_to_apb4_shim` nor `axi4_to_apb5_shim`
+contains a threshold register or cycle counter. A slave that never asserts
+PREADY stalls that path indefinitely, and the stall propagates back through
+the crossbar as backpressure. Budget for it in the system, or put a watchdog
+outside the bridge; the bridge will not manufacture an error response.
+
+## 2.7.7 Implementation
 
 ### AXI4-to-APB Converter FSM
 
@@ -598,7 +613,7 @@ end
 assign paddr = current_addr;
 ```
 
-## 2.7.6 Resource Utilization
+## 2.7.8 Resource Utilization
 
 ### APB Converter Resources
 
@@ -623,7 +638,7 @@ Adding APB slaves:
 - Shared address decoder logic
 - Independent per-slave FSMs
 
-## 2.7.7 Timing Characteristics
+## 2.7.9 Timing Characteristics
 
 ### Latency
 
@@ -631,7 +646,7 @@ Adding APB slaves:
 ```
 Best case: 2 cycles (SETUP + ACCESS with PREADY=1)
 Typical: 3-5 cycles (if slave extends with PREADY=0)
-Worst case: Configurable timeout (e.g., 1000 cycles)
+Worst case: unbounded -- the converter waits for PREADY with no timeout
 
 For 8-beat AXI burst:
   Total: 8 × 3 = 24 cycles typical
@@ -652,7 +667,7 @@ AXI4: 1 transaction/cycle (burst mode)
 APB suitable only for low-bandwidth peripherals
 ```
 
-## 2.7.8 Configuration Parameters
+## 2.7.10 Configuration Parameters
 
 ### Protocol Conversion Configuration (TOML)
 
@@ -663,7 +678,6 @@ protocol = "apb"            # "axi4", "apb", "ahb" (future)
 base_address = 0xF000_0000
 size = 0x1000
 data_width = 32
-apb_timeout = 1000          # Cycles before timeout error
 
 [[slaves]]
 name = "ddr_memory"
@@ -673,7 +687,7 @@ size = 0x4000_0000
 data_width = 64
 ```
 
-## 2.7.9 Debug and Observability
+## 2.7.11 Debug and Observability
 
 ### Recommended Debug Signals
 
@@ -682,7 +696,6 @@ APB Converter:
 - FSM state
 - APB phase (SETUP, ACCESS)
 - Beat counter (progress through burst)
-- PREADY timeout counter
 - Response accumulation (for burst)
 
 APB Bus:
@@ -698,7 +711,7 @@ APB Bus:
 - PREADY signal (stuck at 0?)
 - APB slave clock/reset
 - PSEL assertion
-- Timeout threshold
+(There is no timeout threshold to check -- the converter waits forever.)
 
 **Symptom**: Data corruption on APB  
 **Check**:
@@ -712,7 +725,7 @@ APB Bus:
 - APB slave response time (PREADY)
 - Alternative: Use AXI4 slave instead
 
-## 2.7.10 Verification Considerations
+## 2.7.12 Verification Considerations
 
 ### Test Scenarios
 
@@ -744,14 +757,15 @@ APB Bus:
 - Check error propagated to master
 ```
 
-5. **APB Timeout**:
+5. **APB stall (no timeout to test)**:
 ```
 - Slave never asserts PREADY
-- Verify timeout after N cycles
-- Check DECERR response
+- Verify the path stalls and backpressures cleanly, with no lost or
+  duplicated beats once PREADY finally arrives
+- There is NO timeout and NO DECERR to check for -- see 2.7.6
 ```
 
-## 2.7.11 Performance Considerations
+## 2.7.13 Performance Considerations
 
 ### When to Use APB
 
@@ -780,7 +794,7 @@ Power            Very low         Moderate
 Use Case         Peripherals      Memory, DMA
 ```
 
-## 2.7.12 Mixed Protocol Bridges
+## 2.7.14 Mixed Protocol Bridges
 
 ### Example Configuration
 
@@ -820,7 +834,7 @@ DMA → SRAM: AXI4-to-AXI4 (native, fast)
 DMA → Peripherals: AXI4-to-APB (rare, acceptable slowdown)
 ```
 
-## 2.7.13 Master-Side vs Slave-Side Conversion
+## 2.7.15 Master-Side vs Slave-Side Conversion
 
 ### Comparison
 
@@ -851,13 +865,13 @@ Use Case             Control registers          Peripherals
 - Low-bandwidth acceptable
 - Power optimization critical
 
-## 2.7.13 Generator-Emitted Conversion Shims
+## 2.7.16 Generator-Emitted Conversion Shims
 
 The bridge generator automatically emits protocol conversion shims at the slave boundary based on the TOML configuration. These shims are instantiated between the crossbar core (uniformly AXI4 internally) and the external slave port.
 
 ### AXI4 to AXI4-Lite Conversion
 
-When `protocol = "axi4lite"` is specified in the slave TOML:
+When `protocol = "axil"` is specified in the slave TOML:
 - Generator emits `axi4_to_axil4_rd.sv` (read path) and `axi4_to_axil4_wr.sv` (write path)
 - Shims downgrade bursts to single beats (set ARLEN/AWLEN = 0 on output)
 - Enforce single-beat semantics transparently
@@ -869,12 +883,20 @@ When `protocol = "axi4lite"` is specified in the slave TOML:
 ### AXI4 to APB Conversion
 
 When `protocol = "apb"` is specified in the slave TOML:
-- Generator emits `axi4_to_axil4` shim followed by an internal AXIL-to-APB bridge chain
-- APB operates on a single-beat protocol, so burst-to-single-beat reduction is mandatory
-- Data width conversion happens before the APB stage (if needed)
+- Generator emits ONE shim, `axi4_to_apb4_shim` -- a direct full-AXI4-to-APB4
+  converter. There is no AXI4-Lite stage: the shim does its own burst
+  decomposition (`r_burst_count` + `axi_gen_addr`), so nothing upstream has to
+  reduce the burst first.
+- `protocol = "apb5"` emits `axi4_to_apb5_shim`, a sideband wrapper over that
+  same shim -- see [AMBA5 Boundary](10_amba5_boundary.md).
 - Slave port externally presents APB signals; internally the crossbar is AXI4
 
-**Modules**: `projects/components/converters/rtl/axi4_to_axil4*.sv` + internal APB bridge (if width mismatch)
+**Modules**: `projects/components/converters/rtl/axi4_to_apb4_shim.sv`
+(`axi4_to_apb5_shim.sv` for `apb5`)
+
+An earlier revision of this page described the path as an `axi4_to_axil4`
+shim followed by an internal AXIL-to-APB bridge chain. No such chain exists,
+and no generated APB slave adapter instantiates `axi4_to_axil4`.
 
 ### Master-Side AXIL→Wider-Slave Alignment
 
@@ -887,10 +909,14 @@ When an AXI4-Lite master interfaces with a wider AXI4 slave (e.g., 32-bit AXIL m
 **Modules**: `projects/components/converters/rtl/axil_to_axi4_wide_align_{rd,wr}.sv`
 
 **Example**: 32-bit AXIL master → 64-bit AXI4 slave
-- Master writes to addr 0x04 with data 0xAABBCCDD → Master alignment shim combines into 0xXXXXAAAABBCCDD on 64-bit bus
+- Master writes to addr 0x04 with data 0xAABBCCDD. The shim selects the lane
+  from `addr[2]` (= 1), so the data lands on the UPPER half: the slave sees
+  `wdata[63:32] = 0xAABBCCDD`, `WSTRB = 0xF0`, at row-aligned address `0x00` --
+  the lane bits move out of the address and into the strobe. Worked through in
+  [Width Converters](../ch05_converters/01_width_converters.md).
 - Shim is inserted after master adapter, before crossbar
 
-## 2.7.14 Future Protocol Support
+## 2.7.17 Future Protocol Support
 
 ### Planned Features
 
@@ -919,12 +945,14 @@ When an AXI4-Lite master interfaces with a wider AXI4 slave (e.g., 32-bit AXIL m
 - **PCIe TLP**: For PCIe endpoint integration
 - **CHI**: ARM's Coherent Hub Interface
 
-## 2.7.14 Best Practices
+## 2.7.18 Best Practices
 
 ### Design Recommendations
 
 1. **Limit APB Burst Lengths**: Configure masters to use short bursts to APB slaves
-2. **Proper Timeouts**: Set realistic timeout values for APB slaves
+2. **Watchdog Outside the Bridge**: the converter has no PREADY timeout, so a
+   wedged APB slave stalls its path forever. If the system needs to survive
+   that, the watchdog belongs upstream.
 3. **Protocol Matching**: Use native AXI4 where possible, APB only when necessary
 4. **Address Map Planning**: Group APB peripherals together for efficient decoding
 5. **Width Matching**: Match APB data width to peripheral requirements

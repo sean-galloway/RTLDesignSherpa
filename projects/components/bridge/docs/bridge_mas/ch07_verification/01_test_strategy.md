@@ -181,23 +181,29 @@ async def test_boundary_probes(self):
     """Probe top, middle, bottom of each slave's address window."""
     
     for slave_idx, (base_addr, window_size) in enumerate(self.slave_windows):
+        # Payloads carry the slave index and the probe position, so a readback
+        # mismatch says BOTH which probe failed and whether the write landed on
+        # the wrong slave -- the failure a boundary probe is actually hunting.
+        bottom, middle, top = (0xB0000000 | (slave_idx << 8) | pos
+                               for pos in (0x0, 0x1, 0x2))
+
         # Probe bottom (base address)
-        await self.masters[0].write(base_addr + 0x000, data=0xBOTTOM)
-        
+        await self.masters[0].write(base_addr + 0x000, data=bottom)
+
         # Probe middle (arbitrary offset)
-        await self.masters[0].write(base_addr + window_size // 2, data=0xMIDDLE)
-        
+        await self.masters[0].write(base_addr + window_size // 2, data=middle)
+
         # Probe top (last valid address)
-        await self.masters[0].write(base_addr + window_size - 1, data=0xTOP)
-        
+        await self.masters[0].write(base_addr + window_size - 1, data=top)
+
         # Verify via readback
         rb_bottom = await self.masters[0].read(base_addr + 0x000)
         rb_middle = await self.masters[0].read(base_addr + window_size // 2)
         rb_top = await self.masters[0].read(base_addr + window_size - 1)
-        
-        assert rb_bottom == 0xBOTTOM
-        assert rb_middle == 0xMIDDLE
-        assert rb_top == 0xTOP
+
+        assert rb_bottom == bottom
+        assert rb_middle == middle
+        assert rb_top == top
 ```
 
 ## Coverage Goals

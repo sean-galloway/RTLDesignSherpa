@@ -68,12 +68,28 @@ Low-power peripheral protocol:
 
 ## Automatic Conversion Shims at Slave Boundary
 
-When a slave port's TOML entry names a protocol other than native AXI4 (e.g., `protocol = "axi4lite"` or `protocol = "apb"`), the generator emits the conversion shims between the crossbar core and that slave port. This happens once, at generation time; there is nothing to configure at runtime.
+When a slave port's TOML entry names a protocol other than native AXI4 (e.g.,
+`protocol = "axil"` or `protocol = "apb"`), the generator emits the conversion
+shims between the crossbar core and that slave port. This happens once, at
+generation time; there is nothing to configure at runtime.
 
-**Supported Slave Protocols:**
-- **axi4**: Native AXI4 (no shim required)
-- **axi4lite**: AXI4-Lite protocol (emits `axi4_to_axil4_{rd,wr}` shims)
-- **apb**: APB3/APB4 protocol (emits `axi4_to_axil4` shim followed by internal AXIL-to-APB bridge)
+**Supported Slave Protocols** -- these are the exact TOML values the generator
+accepts (`config_validator.valid_protocols`); anything else is a generation
+error, so spelling matters:
+
+| `protocol` | Meaning | Shim emitted at the slave boundary |
+| --- | --- | --- |
+| `axi4` | Native AXI4 | none |
+| `axi5` | AXI5, interop mode | `axi5_master_{wr,rd}` boundary wrappers |
+| `axil` | AXI4-Lite | `axi4_to_axil4_{rd,wr}` |
+| `axil5` | AXI5-Lite | `axi4_to_axil5_{rd,wr}` |
+| `apb` | APB3/APB4 | `axi4_to_apb4_shim` |
+| `apb5` | APB5 | `axi4_to_apb5_shim` |
+
+: Table 3.4: Slave-port protocol values
+
+Note the spelling: it is `axil`, not `axi4lite`. Earlier revisions of this
+page used the latter, which the generator rejects.
 
 The shim modules live in `projects/components/converters/rtl/`; the generator instantiates them into each generated top-level module. The slave port still presents the configured protocol (AXIL or APB) to the outside; inside, the crossbar core is uniformly AXI4.
 

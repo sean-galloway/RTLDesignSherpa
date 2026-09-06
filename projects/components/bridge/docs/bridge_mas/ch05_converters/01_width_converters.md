@@ -219,11 +219,18 @@ An AXI4-Lite master talking to a wider AXI4 slave through the bridge has an alig
 
 Master writes 32-bit word to offset 0x04:
   Data = 0xAABBCCDD (on bits [31:0])
-  
-Alignment converter must place it on 64-bit slave at offset 0x04:
-  Slave sees: 0xXXXXAAAABBCCDD (on bits [63:0])
-  
-(The converter handles partial-byte-lane selection.)
+
+The converter picks the lane from the address, then ROW-ALIGNS the address:
+  slot      = addr[2]                 = 1      (SLOT_LSB=$clog2(4)=2, SLOT_W=$clog2(2)=1)
+  m_axi_wdata[63:32] = 0xAABBCCDD             (slot 1 -> the UPPER half)
+  m_axi_wstrb        = 0xF0                   (byte lanes 4..7)
+  m_axi_awaddr       = 0x04 & ~0x7 = 0x00     (row_addr_mask clears the lane bits)
+
+  Slave sees: 0xAABBCCDD_00000000 at address 0x00, WSTRB 0xF0
+
+The address the slave sees is 0x00, NOT 0x04: the lane bits move out of the
+address and into WSTRB. Byte lanes outside the strobe are don't-care, shown
+here as zero.
 ```
 
 ### Architecture
