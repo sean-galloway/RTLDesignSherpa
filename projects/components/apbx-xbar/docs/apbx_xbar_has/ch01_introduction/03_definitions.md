@@ -69,7 +69,7 @@
 | Signal | Direction | Description |
 |--------|-----------|-------------|
 | PCLK | Input | APB clock (all signals synchronous to rising edge) |
-| PRESETn | Input | Active-low reset. Assertion is synchronous unless the build defines `USE_ASYNC_RESET` (see 4.3) |
+| PRESETn | Input | Active-low reset. Assertion is asynchronous in every build; deassertion must be synchronised to PCLK (see 4.3) |
 | PADDR | Master to Slave | Address bus |
 | PSEL | Master to Slave | Peripheral select (one per slave) |
 | PENABLE | Master to Slave | Enable signal (high during data phase) |

@@ -5,7 +5,7 @@ summary: Task rollup for the NexysA7 characterization flows (stream-char/perf, m
 
 # NexysA7 tasks
 
-**Next ID: NEXYS-007** — never recycle a number, even when its task closed.
+**Next ID: NEXYS-008** — never recycle a number, even when its task closed.
 
 Board-campaign and characterization-flow tasks for
 `projects/NexysA7/` (stream characterization: `flows-stream-bridge` = perf/char,
@@ -34,6 +34,11 @@ Convention: [Tasks](../INDEX.md). Related handbook:
 - **NEXYS-006** (Medium) — RISC-V SoC on pumice running memory-controller
   stress benchmarks (STREAM, GUPS, pointer chase), and the pumice-vs-LiteDRAM
   A/B with identical binaries.
+- **NEXYS-007** (Low) — timing_characterization can no longer characterise
+  sync-reset cells: `ALWAYS_FF_RST` became unconditionally async repo-wide, so
+  the `USE_ASYNC_RESET` switch the README pointed at is a no-op. Fix is a
+  component-local characterization header under a DIFFERENT basename, not a
+  reintroduced global knob.
 
 ## Active (in progress)
 - _(none yet)_

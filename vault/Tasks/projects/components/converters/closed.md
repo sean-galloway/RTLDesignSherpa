@@ -146,3 +146,93 @@ AXIL4 slaves) to make the injection possible at all.
 
 Width family: 46 passed.
 
+### CONV-009: converters RTL used manual async reset, against the components mandate
+
+**Priority:** P2.
+**Status:** FIXED 2026-09-06. All 11 blocks across the four files are on
+`ALWAYS_FF_RST`, and the two AXI5-Lite wrappers that had deliberately matched
+the old style follow -- so the area is uniform and the mixed-reset
+SYNCASYNCNET on the axil4/axil5 chains is gone.
+
+The two `case` arms the macro cannot carry were handled without semantic
+change: the read path's folded into its no-op `default`; the write path's
+became `default: if (r_wr_state != WR_IDLE)` with its original `default` body
+verbatim in the `else`, because that one clears `r_aw_sent` and is not a no-op.
+
+**Verified:** every converter filelist lints clean in BOTH reset builds (the
+residual SYNCASYNCNET on the apb chains and UNDRIVEN in axi_data_upsize are
+pre-existing and in files this did not touch); converters suite 97 passed,
+0 failed.
+
+(The CONV-009 commit message says "149 passed". That was a miscount on my
+part -- 149 is the number of cocotb regression lines in the log, not pytest
+tests; several test files run more than one cocotb test. The pytest total is
+97, and nothing failed either way. Recorded here because the commit message
+cannot be corrected.)
+
+That suite was the point. At the time this was written the conversion was
+understood to flip 13 flops from asynchronous to SYNCHRONOUS reset in the
+default build, matching the rest of the area. **That is no longer what it
+does.** On 2026-09-07 `ALWAYS_FF_RST` became unconditionally asynchronous
+(`USE_ASYNC_RESET` is now a no-op), so the converted flops kept the
+asynchronous assertion the manual blocks always had. The conversion is now a
+pure re-spelling here, with no behavioural change at all.
+
+**Raised:** 2026-09-05. Found while adding the AXI5-Lite converters
+(`axi4_to_axil5{,_rd,_wr}`): writing the new flops with the mandated macro
+made Verilator report `SYNCASYNCNET` on `aresetn`, because the module they
+wrap does not use it.
+
+**The rule.** `/GLOBAL_REQUIREMENTS.md` section 1.1 is explicit and marked
+MANDATORY - NO EXCEPTIONS: all RTL under `projects/components/` uses
+`` `ALWAYS_FF_RST(clk, rst_n, ...) `` with `` `RST_ASSERTED ``, and
+`always_ff @(posedge clk or negedge rst_n)` is listed under NOT Allowed.
+
+**What actually violates it** — four files, eleven `always_ff` blocks:
+
+| File | blocks |
+|---|---|
+| `rtl/axi4_to_axil4_rd.sv` | 4 |
+| `rtl/axi4_to_axil4_wr.sv` | 4 |
+| `rtl/axi_data_upsize.sv` | 2 (the file already uses the macro elsewhere) |
+| `rtl/axi_data_dnsize.sv` | 1 (likewise) |
+
+`bin/update_resets.py` converts all eleven mechanically. That is not the
+work; the work is everything the conversion drags with it.
+
+**Why it is not a five-minute change.**
+
+1. ~~**It changes reset behaviour, it does not just re-spell it.**~~
+   **No longer true, and the reason is worth keeping.** The concern was that a
+   manual `posedge clk or negedge rst_n` block is asynchronous in every build
+   while `` `ALWAYS_FF_RST `` was asynchronous only under `USE_ASYNC_RESET`,
+   which sim and synth did not set — so the conversion would have flipped
+   eleven shipping flops from async to sync. `ALWAYS_FF_RST` is now
+   unconditionally asynchronous (see [[build-flows]]), so the two spellings
+   are equivalent and the conversion is behaviour-preserving. The suite was
+   run behind it regardless, which is why this is recorded as verified rather
+   than assumed.
+
+2. **Two `case` arms have to move.** The macro takes the whole body as a
+   macro ARGUMENT, so a comma at paren-depth zero inside it splits that
+   argument — Verilator says `Define passed too many arguments`. Both
+   `axi4_to_axil4_rd.sv` (`RD_BURST, RD_LAST_BEAT:`) and
+   `axi4_to_axil4_wr.sv` (`WR_BURST, WR_LAST_BEAT:`) have exactly that. This
+   is why no compliant file anywhere in the tree has a multi-label `case` arm
+   inside the macro — the macro cannot express one. The read path can fold
+   the arm into `default:` (its `default` is an explicit no-op); the write
+   path CANNOT, because its `default` does real work (`r_aw_sent <= 1'b0;`),
+   so that one needs a genuine restructure and a reviewer.
+
+3. **The MAS quotes this RTL verbatim.** qc round_41 confirmed the quoted
+   blocks in `converter_mas` are verbatim-accurate. Changing the reset
+   spelling and a `case` arm invalidates those quotes, so the book needs a
+   pass in the same change.
+
+**Do it as its own commit, with the converters suite run behind it.** Do not
+fold it into a feature change.
+
+**Superseded:** the three AXI5-Lite converters were written in the core's
+manual style so a single compiled design would not be half sync-reset and half
+async. That hazard no longer exists — every build is async — and those
+wrappers are on the macro too.

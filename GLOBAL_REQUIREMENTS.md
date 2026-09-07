@@ -57,11 +57,15 @@ end
 **Source:** `projects/components/CLAUDE.md` Rule #0, widened 2026-09-06 (Sean:
 "All flops should use the global macro").
 
-**The one exception, and it is structural:** `rtl/common/reset_sync.sv`. The
-macro is asynchronous only under `USE_ASYNC_RESET`, and a reset synchroniser
-whose assert waits for a clock edge is not a reset synchroniser. It is also
+**Reset is asynchronous on assertion. Always.** `ALWAYS_FF_RST` used to be
+conditional on `USE_ASYNC_RESET` and defaulted to SYNCHRONOUS, so `make lint`
+(which set the define) and simulation/synthesis (which did not) disagreed about
+what the design was. The define is now a no-op; passing it is harmless and
+changes nothing. Deassertion still has to be synchronised externally.
+
+**The one exception, and it is structural:** `rtl/common/reset_sync.sv`. It is
 active-HIGH, which the macro cannot express without `RESET_ACTIVE_HIGH` set
-globally. Documented at the flop itself. If you add another exception, document
+globally, so it keeps a raw `always_ff`. Documented at the flop itself. If you add another exception, document
 it there too and say WHY the async assert is load-bearing -- "it has always
 been like that" is not a reason.
 

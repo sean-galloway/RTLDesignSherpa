@@ -421,3 +421,48 @@ does not retire the instrument.
 **Deliverables:** the SoC build under `projects/fpga-systems/NexysA7/pumice/`,
 a bare-metal BSP, the ported benchmark set, and a results table against
 LiteDRAM on the same board with the same binaries.
+
+---
+
+### NEXYS-007: timing_characterization lost the ability to characterise sync-reset cells
+
+**Priority:** Low
+**Status:** Open. Capability gap, not a defect — nothing is broken, something
+is no longer measurable.
+
+**What happened.** `ALWAYS_FF_RST` was made unconditionally asynchronous on
+assertion repo-wide (2026-09-07). The old `USE_ASYNC_RESET` switch defaulted to
+SYNCHRONOUS while `make lint` set the define, so lint and the shipped bitstream
+disagreed about what the design was; making it unconditional removed a knob that
+let two tools hold different answers and both report success. That was the right
+call for the design.
+
+It has a side effect here. `projects/NexysA7/timing_characterization` exists to
+characterise a target ASIC cell library, and its README documented sync-reset
+numbers as coming from the macro-driven `rtl/` tree with `USE_ASYNC_RESET` left
+undefined. That is now impossible: the define is a no-op, so neither `rtl/` nor
+`rtl/asic_only/` can emit a synchronous-reset flop. A library with sync-reset
+cells cannot be characterised for them.
+
+Nothing consumed those numbers in-tree, which is why this is Low and not a
+regression — but the README claimed the capability, so the claim was corrected
+in the same change rather than left to be discovered by whoever needed it.
+
+**What a fix looks like.** Give this component its OWN reset header — a
+characterization knob, named so it is unmistakably not a copy of the design's
+header (`char_reset_defs.svh`, say, not another `reset_defs.svh`). The naming
+matters more than it sounds: this component already vendors a copy of
+`reset_defs.svh` into `rtl/common/` to keep its filelist self-contained, and
+that copy silently kept the OLD conditional after the canonical file changed —
+so its flops would have elaborated synchronous while the rest of the tree was
+async, with both trees compiling and passing. `bin/check_shared_include_copies.py`
+now fails on any tracked copy that has drifted, which is exactly why a
+deliberate local variant must not reuse the shared basename.
+
+**Do not** reintroduce `USE_ASYNC_RESET` in the shared header to get this back.
+The knob is what broke; a measurement harness wanting a second posture is not a
+reason to hand it back to the whole repo.
+
+**Related:** [[build-flows]] records the original lint/synth split and its
+resolution.
+

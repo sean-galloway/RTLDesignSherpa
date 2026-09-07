@@ -31,7 +31,7 @@
 |-------------|---------------|
 | Clock input | Single clock (pclk) |
 | Clock frequency | No minimum, technology-dependent maximum |
-| Reset input | Active-low (`presetn`); synchronous assertion unless the build defines `USE_ASYNC_RESET` |
+| Reset input | Active-low (`presetn`); asynchronous assertion, synchronous deassertion |
 | Reset duration | Minimum 2 clock cycles |
 
 : Clock and Reset Requirements
