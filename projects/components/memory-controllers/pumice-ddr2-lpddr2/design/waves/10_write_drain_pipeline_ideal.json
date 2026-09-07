@@ -1,0 +1,93 @@
+{
+  "signal": [
+    {
+      "name": "aclk",
+      "wave": "p..........."
+    },
+    [
+      "arbiter -> drain FIFO",
+      {
+        "name": "cmd_op_o (WR)",
+        "wave": "x4.4.x......",
+        "data": [
+          "WR b0 c0",
+          "WR b0 c1"
+        ]
+      },
+      {
+        "name": "commit_valid",
+        "wave": "01.1.0......"
+      },
+      {
+        "name": "commit_ready\n(drain room)",
+        "wave": "1..........."
+      },
+      {
+        "name": "drain FIFO cnt",
+        "wave": "=.=.=.=.=...",
+        "data": [
+          "0",
+          "1",
+          "1",
+          "1",
+          "0"
+        ]
+      }
+    ],
+    [
+      "drain -> DFI serializer",
+      {
+        "name": "cm_rd_valid",
+        "wave": "0.1...1...0."
+      },
+      {
+        "name": "cm_rd_ready\n(DFI wr_fire)",
+        "wave": "1..........."
+      },
+      {
+        "name": "wr_fire_i",
+        "wave": "0..1...1..0."
+      },
+      {
+        "name": "r_owed",
+        "wave": "=..=...=..=.",
+        "data": [
+          "0",
+          "1",
+          "1",
+          "0"
+        ]
+      }
+    ],
+    [
+      "DFI wrdata + B",
+      {
+        "name": "wd_valid",
+        "wave": "0..1.....0.."
+      },
+      {
+        "name": "dfi_wrdata_en",
+        "wave": "0..1.1.1.0.."
+      },
+      {
+        "name": "dfi_wrdata",
+        "wave": "x..5.5.5.x..",
+        "data": [
+          "w0",
+          "w1",
+          "w2"
+        ]
+      },
+      {
+        "name": "commit_done (B)",
+        "wave": "0.......1.0."
+      }
+    ]
+  ],
+  "head": {
+    "text": "IDEAL write drain: 2 same-bank WR columns pipeline at tCCD; drain FIFO stays shallow, cm_rd_ready/wr_fire keep pace, wrdata streams, one B per host burst. No stall on commit_ready."
+  },
+  "config": {
+    "hscale": 1
+  }
+}

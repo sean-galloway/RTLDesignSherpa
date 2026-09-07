@@ -104,3 +104,18 @@ cross-bank ACT pipelining (waves/04), i.e. ~500–600 MB/s.
 | `waves/07_pick_pipeline_ideal` | pipeline = latency, not rate (the correction) |
 | `waves/08_same_bank_outstanding_fix` | ≥2 same-bank columns in flight, forward-state + tagged return |
 | `waves/09_failure_stale_image_wedge` | the CURRENT failure chain (reference: what NOT to do) |
+| `kmaps/pumice_write_path_kmap.xlsx` | **write drain/commit detail**: DRAIN_HANDSHAKE, CM_RD_STALL_CANDIDATES (why the DFI stops accepting writes -- the same-bank-WR wedge), SERIALIZER_OWED, B_CONSOLIDATION |
+| `waves/10_write_drain_pipeline_ideal` | ideal write drain (2 same-bank WR pipelined, no stall) |
+| `waves/11_write_same_bank_wedge_ref` | the current write-path wedge (reference; drain FIFO fills, commit_ready drops) |
+
+
+## Correction (2026-09-07): the wedge is in the WRITE PATH, not the arbiter
+
+Four fixes targeting the arbiter -- including the full correct-by-construction
+shadow bank-state (design/kmaps FORWARD_STATE) -- all wedge IDENTICALLY at
+`gen_wr_done` in the WRITE-ONLY phase. A fundamental arbiter redesign failing the
+same way proves the wedge is downstream: the **write drain/commit path** when
+same-bank WR columns pipeline. The write-path spec above (`pumice_write_path_kmap`
++ waves 10/11) defines the ideal drain/commit signalling and scopes the fix to
+the CM_RD_STALL candidates. The shadow arbiter is sound and kept for reuse once
+the write path accepts the concurrency; it is not this bug.

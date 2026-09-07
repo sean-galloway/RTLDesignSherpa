@@ -1,0 +1,66 @@
+{
+  "signal": [
+    {
+      "name": "aclk",
+      "wave": "p..............."
+    },
+    [
+      "arbiter (same-bank WR pipelined)",
+      {
+        "name": "commit_valid",
+        "wave": "01............0."
+      },
+      {
+        "name": "commit_ready\n(drain room)",
+        "wave": "1........0.....",
+        "data": []
+      },
+      {
+        "name": "drain FIFO cnt",
+        "wave": "=.======......=",
+        "data": [
+          "0",
+          "1",
+          "2",
+          "3",
+          "4",
+          "8",
+          "8",
+          "8"
+        ]
+      }
+    ],
+    [
+      "DFI stops accepting (ROOT to MEASURE)",
+      {
+        "name": "cm_rd_ready\n(DFI wr_fire)",
+        "wave": "1......0......."
+      },
+      {
+        "name": "wr_fire_i",
+        "wave": "01.....0......."
+      },
+      {
+        "name": "dfi_wrdata_en",
+        "wave": "01.....0......."
+      }
+    ],
+    [
+      "result",
+      {
+        "name": "arbiter WR issue",
+        "wave": "1........0....."
+      },
+      {
+        "name": "gen_wr_done",
+        "wave": "0.............."
+      }
+    ]
+  ],
+  "head": {
+    "text": "CURRENT WEDGE (hypothesis, to confirm by waveform): same-bank WR pipelining fills the drain FIFO (8); cm_rd_ready (DFI accepting writes) stalls -> commit_ready=0 -> arbiter WR stops -> gen_wr_done never asserts. MEASURE which CM_RD_STALL candidate holds wr_fire off (see kmap sheet 2)."
+  },
+  "config": {
+    "hscale": 1
+  }
+}
