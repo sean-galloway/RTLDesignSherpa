@@ -20,6 +20,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
@@ -110,21 +111,15 @@ def test_axi4_slave_wr_crc_check(request, test_type, data_width, id_width,
 
     dut_name = "axi4_slave_wr_crc_check"
 
-    verilog_sources = [
-        # Common primitives
-        os.path.join(rtl_dict['rtl_common'], 'dataint_crc_xor_shift.sv'),
-        os.path.join(rtl_dict['rtl_common'], 'dataint_crc_xor_shift_cascade.sv'),
-        os.path.join(rtl_dict['rtl_common'], 'dataint_crc.sv'),
-        # AMBA infrastructure
-        os.path.join(rtl_dict['rtl_amba_gaxi'], 'gaxi_skid_buffer.sv'),
-        os.path.join(rtl_dict['rtl_amba_axi4'], 'axi4_slave_wr.sv'),
-        # DUT
-        os.path.join(rtl_dict['rtl_amba_shared'], 'axi4_slave_wr_crc_check.sv'),
-    ]
-
-    includes = [
-        rtl_dict['rtl_amba_includes'],
-    ]
+    # rtl/amba/filelists/axi4_slave_wr_crc_check.f owns this dependency graph -- the
+    # common CRC/LFSR primitives, the gaxi skid buffer, the axi4 slave and the
+    # DUT, plus the reset_defs include path the macro needs. Hand-listing them
+    # here duplicated it, so a dependency added in rtl/amba was invisible to
+    # this test until it failed. That is what happened to
+    # test_dma_address_gen.py on 2026-09-07.
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='rtl/amba/filelists/axi4_slave_wr_crc_check.f')
 
     dw_str = TBBase.format_dec(data_width, 3)
     iw_str = TBBase.format_dec(id_width, 2)

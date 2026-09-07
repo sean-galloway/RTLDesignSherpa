@@ -673,7 +673,15 @@ def cmd_blindspots(reg: dict, ratchet: bool = False,
     # picking library RTL out of the source tree is not. Only expressions that
     # actually flow into verilog_sources are judged.
     hand: list[tuple[str, str]] = []
-    for t in sorted(REPO_ROOT.glob("val/*/test_*.py")) + sorted(REPO_ROOT.glob("projects/**/dv/tests/test_*.py")):
+    # `dv/tests/**/test_*.py`, not `dv/tests/test_*.py`. Project tests live one
+    # level down in fub/ macro/ top/ (the Pattern B layout that
+    # /GLOBAL_REQUIREMENTS.md mandates), so the shallow glob saw 96 of 172
+    # tests and was blind to 76 -- including test_dma_address_gen.py, which
+    # hand-listed its source with includes=[] and therefore failed to BUILD,
+    # all 16 parametrisations, the day dma_address_gen.sv went on
+    # `ALWAYS_FF_RST and needed reset_defs.svh on the include path.
+    for t in (sorted(REPO_ROOT.glob("val/*/test_*.py"))
+              + sorted(REPO_ROOT.glob("projects/**/dv/tests/**/test_*.py"))):
         body = t.read_text(errors="ignore")
         if "verilog_sources" not in body:
             continue

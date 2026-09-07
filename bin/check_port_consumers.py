@@ -35,7 +35,12 @@ import subprocess
 import sys
 from pathlib import Path
 
-PIN_ERRORS = ("PINMISSING", "PINNOTFOUND", "PINCONNECTEMPTY")
+# NOT PINCONNECTEMPTY. This gate's own guidance tells you to fix a missing pin
+# with an explicit empty connection, `.port()`, when the consumer does not want
+# the signal -- so flagging that same form would contradict the advice in the
+# failure message. An explicit empty pin is deliberate and legible; an OMITTED
+# pin is the accident. See silent-fallbacks rule 10.
+PIN_ERRORS = ("PINMISSING", "PINNOTFOUND")
 
 # `module foo #(...) ( ... );` -- we only need the port NAME set, so match the
 # direction keyword and take the last identifier before , or ) or a comment.

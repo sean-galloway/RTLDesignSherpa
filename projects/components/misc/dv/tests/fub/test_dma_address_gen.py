@@ -33,6 +33,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
@@ -179,10 +180,17 @@ def test_dma_address_gen(request, test_type, addr_width, index_width,
 
     dut_name = "dma_address_gen"
 
-    # Build verilog sources directly (simple single-file module)
-    rtl_path = os.path.join(rtl_dict['rtl_misc'], 'dma_address_gen.sv')
-    verilog_sources = [rtl_path]
-    includes = []
+    # Resolve through the filelist, never by hand. dma_address_gen.sv uses
+    # `ALWAYS_FF_RST, so it needs reset_defs.svh compiled first AND
+    # rtl/amba/includes on the include path. The hand-built list below used to
+    # pass includes=[], so the day the module went on the macro every one of
+    # these 16 parametrisations failed to BUILD with
+    # "Cannot find include file: 'reset_defs.svh'".
+    # projects/components/misc/rtl/filelists/dma_address_gen.f already carries
+    # both, and is the single place to change when the dependency moves.
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/misc/rtl/filelists/dma_address_gen.f')
 
     # Format parameters for unique test name
     aw_str = TBBase.format_dec(addr_width, 2)
