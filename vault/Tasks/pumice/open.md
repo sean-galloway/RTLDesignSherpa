@@ -573,3 +573,22 @@ a checker of protocol.
 
 **Related:** [[TASK-078]], [[COMMON-025]], [[MATH-010]], [[CDC-001]] are the
 same task in the rtl/ areas.
+
+## PUMICE-021 — paging_sched_cross in_order static_close below the 45% floor (pre-existing)
+**Status:** open 2026-09-07 — pre-existing on clean main, deterministic
+
+`test_pumice_core_perf_paging_sched_cross` (ENHANCED build) fails its in_order
+floor: `static_close x order_in_order` reads util = 37.80% (stall=632) vs the
+IN_ORDER_FLOOR=0.45 the test enforces (comment expects ~56.3%). Verified
+PRE-EXISTING: clean HEAD (no local changes) gives the IDENTICAL 37.80% /
+stall=632 at SEED=49029 — it is NOT caused by the Phase 1 per-entry arbiter
+work (PUMICE-throughput), which was proven innocent by reverting to the exact
+clean column mask and still measuring 37.8%.
+
+Scope: ENHANCED-only. `sched_order_mode_i == 1` (in_order) exists only under
+`+define+PUMICE_ENHANCED`; the basic/board build compiles it out (always
+FR-FCFS), so this does NOT affect the board. Whoever last moved the in_order
+overlay or the static_close paging path should bisect: either the overlay
+regressed the CLOSE-page in_order throughput, or the 56.3%/45% floor was set
+against an older arbiter and needs re-calibrating for the current one. Repro:
+`SEED=49029 pytest test_pumice_core_dfi.py -k paging_sched_cross`.
