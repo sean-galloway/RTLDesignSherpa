@@ -93,7 +93,7 @@ def _mkaddr(bank, row, col):
     return ((row << (COL_WIDTH + 3)) | (bank << COL_WIDTH) | col) << 3
 
 
-async def _bring_up(dut, page_policy=0):
+async def _bring_up(dut, page_policy=0, read_latency=0, strict_read=False):
     """clocks + reset + config + strict DFISlavePHY(golden) + init -> returns memory."""
     cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
     cocotb.start_soon(Clock(dut.dfi_clk, 4, units="ns").start())
@@ -114,7 +114,8 @@ async def _bring_up(dut, page_policy=0):
                    timings=builtin_timings("ddr2-650-mt47h64m16hr"),
                    mapping=mapping, beats_per_burst=BL)
     slave = DFISlavePHY(dut, dut.dfi_clk, base=base, memory=memory,
-                        dfi_phase_bytes=DRAM_BEAT // 8)
+                        dfi_phase_bytes=DRAM_BEAT // 8,
+                        strict_read_timing=strict_read, read_latency=read_latency)
     slave.dram = DramStateModel(timings=base.timings, num_banks=NUM_BANKS,
                                 policy=ViolationPolicy(hard=frozenset()))
 
@@ -868,6 +869,125 @@ def _assert_stream_sane(m):
         f"window measures the testbench, not the design; do not quote it")
 
 
+async def _measure_read_stream(dut, *, t_refi, t_rfc, label, title, n=256,
+                               page_policy=0, read_latency=0, strict_read=False):
+    """Read-throughput CEILING: the DUT is the PRODUCER on R, so its own
+    throttle is !rvalid && rready (starvation in the tracker frame). Hold
+    rready continuously high (backtoback sink) and require the DUT to never
+    fail to hand over a beat the sink is waiting for. Mirror of
+    _measure_write_stream; the AR->first-R fill latency is excluded by only
+    counting once rvalid has first risen, so every counted starv cycle is a
+    genuine mid-stream read-datapath bubble.
+    """
+    from tbclasses.trackers import AxiChanTracker
+    from CocoTBFramework.components.dfi.dfi_packet import DRAMCommand as _DC
+
+    _memory, slave = await _bring_up(dut, page_policy=page_policy,
+                                     read_latency=read_latency,
+                                     strict_read=strict_read)
+    dut.t_refi_i.value = t_refi
+    dut.t_rfc_i.value = t_rfc
+    dut.ref_postpone_i.value = 0
+    dut.ref_pullin_i.value = 0
+    dut.ref_mode_i.value = 0
+    dut.refi_reload_i.value = 1
+    await ClockCycles(dut.aclk, 2)
+    dut.refi_reload_i.value = 0
+    await ClockCycles(dut.aclk, 2)
+
+    # preload the exact pages we will read back: page-hit stream, one row per
+    # bank (same address pattern the write ceiling streams).
+    rng = random.Random(int(os.environ.get("SEED", "7")))
+    reqs = []
+    for k in range(n):
+        addr = _mkaddr(k % NUM_BANKS, 0x11, (k // NUM_BANKS) * BL)
+        reqs.append((addr, [rng.randrange(1 << DW) for _ in range(BL_WORDS)]))
+    await _write_many(dut, reqs)
+    await ClockCycles(dut.aclk, 800)              # drain writes into golden
+    _set_r_profile(dut, "backtoback")             # sink always ready
+
+    # Start accounting only after the first R beat -- the AR->R fill is
+    # unavoidable latency, not a datapath bubble.
+    trk = AxiChanTracker(dut, 'r', valid="s_axi_rvalid", ready="s_axi_rready",
+                         last="s_axi_rlast", log=dut._log)
+    async def _track_after_fill():
+        while True:
+            await RisingEdge(dut.aclk)
+            if int(dut.s_axi_rvalid.value):
+                break
+        await trk.run()
+    cocotb.start_soon(_track_after_fill())
+
+    ref0 = slave.cmd_counts.get(_DC.REF, 0)
+    t0 = get_sim_time('ns')
+    results = await _read_many(dut, [a for a, _ in reqs])
+    elapsed = (get_sim_time('ns') - t0) / 10.0
+
+    m = {
+        'label': label, 'title': title, 'bursts': n, 'beats': n * BL_WORDS,
+        't_refi': t_refi, 't_rfc': t_rfc, 'elapsed': elapsed,
+        'prod': trk.prod, 'bp': trk.bp, 'starv': trk.starv, 'idle': trk.idle,
+        'refs': slave.cmd_counts.get(_DC.REF, 0) - ref0,
+        'max_run': max(trk.max_run, trk._run),
+        'max_starv_run': trk.max_starv_run,
+        'returned': len(results),
+    }
+    m['ready_cycles'] = m['prod'] + m['starv']    # cycles rready was high
+    m['util'] = (m['prod'] / m['ready_cycles']) if m['ready_cycles'] else 0.0
+    dut._log.info("=" * 66)
+    dut._log.info("%s", title)
+    dut._log.info("  t_refi=%d t_rfc=%d read_latency=%d strict=%s bursts=%d "
+                  "beats=%d window=%.0f cyc", t_refi, t_rfc, read_latency,
+                  strict_read, n, m['beats'], elapsed)
+    dut._log.info("  STEADY-STATE UTIL = %d beats / %d rready-cycles = %.2f%%",
+                  m['prod'], m['ready_cycles'], 100.0 * m['util'])
+    dut._log.info("  R prod=%d starv(DUT bubble)=%d bp(sink)=%d idle=%d  "
+                  "max_starv_run=%d REFs=%d", m['prod'], m['starv'], m['bp'],
+                  m['idle'], m['max_starv_run'], m['refs'])
+    return m
+
+
+def _assert_read_stream_sane(m):
+    assert m['returned'] == m['bursts'], (
+        f"only {m['returned']}/{m['bursts']} read bursts returned -- the "
+        f"stream did not complete")
+    assert m['prod'] >= m['beats'] - BL_WORDS, (
+        f"R channel moved {m['prod']} beats, expected ~{m['beats']} -- the "
+        f"accounting window does not cover the traffic")
+    # the sink is backtoback, so it must not be the limiter
+    assert m['bp'] == 0, (
+        f"sink dropped rready for {m['bp']} cycles -- this measures the "
+        f"testbench, not the DUT")
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_pumice_core_perf_read_ceiling(dut):
+    """Read-throughput CEILING: refresh parked, always-ready sink, page-hit
+    stream. The DUT must never drop rvalid on the sink after the pipeline
+    fills -- any mid-stream starv cycle is the read datapath failing to
+    sustain the stream. The R-channel mirror of the write ceiling.
+
+    DFI_READ_LATENCY / DFI_STRICT_TIMING (env) run it under board-faithful
+    read latency; at the default zero-latency loopback it exercises the ideal
+    datapath.
+    """
+    m = await _measure_read_stream(
+        dut, t_refi=0xFFFF, t_rfc=8, label="read_ceiling",
+        title="READ CEILING (refresh parked, page-hit stream, b2b sink)",
+        read_latency=int(os.environ.get("DFI_READ_LATENCY", "0")),
+        strict_read=(os.environ.get("DFI_STRICT_TIMING", "") in ("1", "true")))
+    _assert_read_stream_sane(m)
+    assert m['refs'] == 0, (
+        f"{m['refs']} refreshes fired inside the ceiling window -- "
+        f"maintenance is not parked, so the stall count is not pure datapath")
+    assert m['starv'] == 0, (
+        f"DUT dropped rvalid for {m['starv']} cycles with the sink ready and "
+        f"nothing to do but return read data (max run {m['max_starv_run']}) "
+        f"-- the read datapath cannot sustain the stream")
+    dut._log.info("PASS: read ceiling %.2f%% util, zero DUT stall cycles",
+                  100.0 * m['util'])
+
+
 @cocotb.test(timeout_time=60, timeout_unit="ms")
 async def cocotb_test_pumice_core_perf_write_ceiling(dut):
     """Write-throughput CEILING: refresh parked, so nothing but the write
@@ -1298,6 +1418,8 @@ def test_pumice_core_refresh_collide(request):
 def test_pumice_core_close(request): _run(request, "cocotb_test_pumice_core_close")
 def test_pumice_core_waw(request):   _run(request, "cocotb_test_pumice_core_waw")
 def test_pumice_core_b2b(request):   _run(request, "cocotb_test_pumice_core_b2b")
+def test_pumice_core_perf_read_ceiling(request):
+    _run(request, "cocotb_test_pumice_core_perf_read_ceiling")
 def test_pumice_core_perf_write_ceiling(request):
     _run(request, "cocotb_test_pumice_core_perf_write_ceiling")
 def test_pumice_core_perf_refresh_bubbles(request):
