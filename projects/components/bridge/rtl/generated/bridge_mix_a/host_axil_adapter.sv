@@ -10,7 +10,7 @@
 module host_axil_adapter
     import bridge_mix_a_pkg::*;
 #(
-    parameter NUM_SLAVES = 3,
+    parameter NUM_SLAVES = 4,
     parameter BRIDGE_ID = 1,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 1,
     parameter SKID_DEPTH_AW = 2,
@@ -98,7 +98,27 @@ module host_axil_adapter
 
     input  axi4_r_32b_t  host_axil_32b_r,
     input  logic         host_axil_32b_rvalid,
-    output logic         host_axil_32b_rready
+    output logic         host_axil_32b_rready,
+
+    output axi4_aw_t     host_axil_64b_aw,
+    output logic         host_axil_64b_awvalid,
+    input  logic         host_axil_64b_awready,
+
+    output axi4_w_64b_t  host_axil_64b_w,
+    output logic         host_axil_64b_wvalid,
+    input  logic         host_axil_64b_wready,
+
+    input  axi4_b_t      host_axil_64b_b,
+    input  logic         host_axil_64b_bvalid,
+    output logic         host_axil_64b_bready,
+
+    output axi4_ar_t     host_axil_64b_ar,
+    output logic         host_axil_64b_arvalid,
+    input  logic         host_axil_64b_arready,
+
+    input  axi4_r_64b_t  host_axil_64b_r,
+    input  logic         host_axil_64b_rvalid,
+    output logic         host_axil_64b_rready
 );
 
     // ================================================================
@@ -306,6 +326,7 @@ module host_axil_adapter
     // Address decode (slave selection) - Write
     // Slave 1 (axil_periph): 0x40000000 - 0x4000FFFF
     // Slave 2 (apb_periph): 0x40010000 - 0x4001FFFF
+    // Slave 3 (subtractive): 0x00000000 - 0xFFFFFFFF
     // ================================================================
     logic [NUM_SLAVES-1:0] comb_slave_select_aw;
     always_comb begin
@@ -316,6 +337,9 @@ module host_axil_adapter
         else if (fub_axi_awaddr >= 32'h40010000 && fub_axi_awaddr <= 32'h4001FFFF) begin
             comb_slave_select_aw[2] = 1'b1;  // apb_periph
         end
+        else begin  // Full address range (catch-all)
+            comb_slave_select_aw[3] = 1'b1;  // subtractive
+        end
     end
 
     // Bridge ID for write channel (constant - tied to BRIDGE_ID parameter)
@@ -325,6 +349,7 @@ module host_axil_adapter
     // Address decode (slave selection) - Read
     // Slave 1 (axil_periph): 0x40000000 - 0x4000FFFF
     // Slave 2 (apb_periph): 0x40010000 - 0x4001FFFF
+    // Slave 3 (subtractive): 0x00000000 - 0xFFFFFFFF
     // ================================================================
     logic [NUM_SLAVES-1:0] comb_slave_select_ar;
     always_comb begin
@@ -335,6 +360,9 @@ module host_axil_adapter
         else if (fub_axi_araddr >= 32'h40010000 && fub_axi_araddr <= 32'h4001FFFF) begin
             comb_slave_select_ar[2] = 1'b1;  // apb_periph
         end
+        else begin  // Full address range (catch-all)
+            comb_slave_select_ar[3] = 1'b1;  // subtractive
+        end
     end
 
     // Bridge ID for read channel (constant - tied to BRIDGE_ID parameter)
@@ -342,7 +370,7 @@ module host_axil_adapter
 
     // ================================================================
     // Width adaptation - Master: 32b
-    // Connected to slaves with widths: [32]
+    // Connected to slaves with widths: [32, 64]
     // ================================================================
 
     // Per-width path-active gates (see comment in adapter_generator.py).
@@ -358,6 +386,16 @@ module host_axil_adapter
     assign b_path_active_32b = b_slave_select[1] | b_slave_select[2];
     logic r_path_active_32b;
     assign r_path_active_32b = r_slave_select[1] | r_slave_select[2];
+    logic aw_path_active_64b;
+    assign aw_path_active_64b = (comb_slave_select_aw[3]) && aw_gate_ok;
+    logic w_path_active_64b;
+    assign w_path_active_64b = w_slave_select[3];
+    logic ar_path_active_64b;
+    assign ar_path_active_64b = (comb_slave_select_ar[3]) && ar_gate_ok;
+    logic b_path_active_64b;
+    assign b_path_active_64b = b_slave_select[3];
+    logic r_path_active_64b;
+    assign r_path_active_64b = r_slave_select[3];
 
     // ================================================================
     // Direct passthrough: 32b → 32b (no converter)
@@ -412,6 +450,137 @@ module host_axil_adapter
     // Ready gated by the response head — see r_path_active comment.
     assign host_axil_32b_rready = fub_axi_rready && r_path_active_32b;
     // rid, rdata, rresp, rlast, rvalid routed via MUX (user field ignored)
+
+    // ================================================================
+    // Width converter: 32b → 64b
+    // ================================================================
+
+    // Intermediate signals for 64b converter
+    logic conv_64b_awready;
+    logic conv_64b_wready;
+    logic [3:0] conv_64b_bid;
+    logic [1:0] conv_64b_bresp;
+    logic conv_64b_bvalid;
+    logic conv_64b_arready;
+    logic [3:0] conv_64b_rid;
+    logic [31:0] conv_64b_rdata;
+    logic [1:0] conv_64b_rresp;
+    logic conv_64b_rlast;
+    logic conv_64b_rvalid;
+
+    // Master-side AXIL alignment (no aggregation): every narrow
+    // single-beat AXIL write becomes one wide AXI4 single-beat with
+    // wdata/wstrb shifted by awaddr's low bits.
+    axil_to_axi4_wide_align_wr #(
+        .S_AXI_DATA_WIDTH(32),
+        .M_AXI_DATA_WIDTH(64),
+        .AXI_ID_WIDTH(4),
+        .AXI_ADDR_WIDTH(32),
+        .AXI_USER_WIDTH(1)
+    ) u_wr_conv_64b (
+        .aclk(aclk),
+        .aresetn(aresetn),
+        .s_axi_awid(fub_axi_awid),
+        .s_axi_awaddr(fub_axi_awaddr),
+        .s_axi_awlen(fub_axi_awlen),
+        .s_axi_awsize(fub_axi_awsize),
+        .s_axi_awburst(fub_axi_awburst),
+        .s_axi_awlock(fub_axi_awlock),
+        .s_axi_awcache(fub_axi_awcache),
+        .s_axi_awprot(fub_axi_awprot),
+        .s_axi_awqos(4'b0),
+        .s_axi_awregion(4'b0),
+        .s_axi_awuser(1'b0),
+        .s_axi_awvalid(fub_axi_awvalid && aw_path_active_64b),
+        .s_axi_awready(conv_64b_awready),
+        .s_axi_wdata(fub_axi_wdata),
+        .s_axi_wstrb(fub_axi_wstrb),
+        .s_axi_wlast(fub_axi_wlast),
+        .s_axi_wuser(1'b0),
+        .s_axi_wvalid(fub_axi_wvalid && w_path_active_64b),
+        .s_axi_wready(conv_64b_wready),
+        .s_axi_bid(conv_64b_bid),
+        .s_axi_bresp(conv_64b_bresp),
+        .s_axi_buser(),
+        .s_axi_bvalid(conv_64b_bvalid),
+        .s_axi_bready(fub_axi_bready && b_path_active_64b),
+        .m_axi_awid(host_axil_64b_aw.id),
+        .m_axi_awaddr(host_axil_64b_aw.addr),
+        .m_axi_awlen(host_axil_64b_aw.len),
+        .m_axi_awsize(host_axil_64b_aw.size),
+        .m_axi_awburst(host_axil_64b_aw.burst),
+        .m_axi_awlock(host_axil_64b_aw.lock),
+        .m_axi_awcache(host_axil_64b_aw.cache),
+        .m_axi_awprot(host_axil_64b_aw.prot),
+        .m_axi_awqos(host_axil_64b_aw.qos),
+        .m_axi_awregion(host_axil_64b_aw.region),
+        .m_axi_awuser(host_axil_64b_aw.user),
+        .m_axi_awvalid(host_axil_64b_awvalid),
+        .m_axi_awready(host_axil_64b_awready),
+        .m_axi_wdata(host_axil_64b_w.data),
+        .m_axi_wstrb(host_axil_64b_w.strb),
+        .m_axi_wlast(host_axil_64b_w.last),
+        .m_axi_wuser(host_axil_64b_w.user),
+        .m_axi_wvalid(host_axil_64b_wvalid),
+        .m_axi_wready(host_axil_64b_wready),
+        .m_axi_bid(host_axil_64b_b.id),
+        .m_axi_bresp(host_axil_64b_b.resp),
+        .m_axi_buser(host_axil_64b_b.user),
+        .m_axi_bvalid(host_axil_64b_bvalid),
+        .m_axi_bready(host_axil_64b_bready)
+    );
+
+    // Master-side AXIL alignment (read direction).
+    axil_to_axi4_wide_align_rd #(
+        .S_AXI_DATA_WIDTH(32),
+        .M_AXI_DATA_WIDTH(64),
+        .AXI_ID_WIDTH(4),
+        .AXI_ADDR_WIDTH(32),
+        .AXI_USER_WIDTH(1)
+    ) u_rd_conv_64b (
+        .aclk(aclk),
+        .aresetn(aresetn),
+        .s_axi_arid(fub_axi_arid),
+        .s_axi_araddr(fub_axi_araddr),
+        .s_axi_arlen(fub_axi_arlen),
+        .s_axi_arsize(fub_axi_arsize),
+        .s_axi_arburst(fub_axi_arburst),
+        .s_axi_arlock(fub_axi_arlock),
+        .s_axi_arcache(fub_axi_arcache),
+        .s_axi_arprot(fub_axi_arprot),
+        .s_axi_arqos(4'b0),
+        .s_axi_arregion(4'b0),
+        .s_axi_aruser(1'b0),
+        .s_axi_arvalid(fub_axi_arvalid && ar_path_active_64b),
+        .s_axi_arready(conv_64b_arready),
+        .s_axi_rid(conv_64b_rid),
+        .s_axi_rdata(conv_64b_rdata),
+        .s_axi_rresp(conv_64b_rresp),
+        .s_axi_rlast(conv_64b_rlast),
+        .s_axi_ruser(),
+        .s_axi_rvalid(conv_64b_rvalid),
+        .s_axi_rready(fub_axi_rready && r_path_active_64b),
+        .m_axi_arid(host_axil_64b_ar.id),
+        .m_axi_araddr(host_axil_64b_ar.addr),
+        .m_axi_arlen(host_axil_64b_ar.len),
+        .m_axi_arsize(host_axil_64b_ar.size),
+        .m_axi_arburst(host_axil_64b_ar.burst),
+        .m_axi_arlock(host_axil_64b_ar.lock),
+        .m_axi_arcache(host_axil_64b_ar.cache),
+        .m_axi_arprot(host_axil_64b_ar.prot),
+        .m_axi_arqos(host_axil_64b_ar.qos),
+        .m_axi_arregion(host_axil_64b_ar.region),
+        .m_axi_aruser(host_axil_64b_ar.user),
+        .m_axi_arvalid(host_axil_64b_arvalid),
+        .m_axi_arready(host_axil_64b_arready),
+        .m_axi_rid(host_axil_64b_r.id),
+        .m_axi_rdata(host_axil_64b_r.data),
+        .m_axi_rresp(host_axil_64b_r.resp),
+        .m_axi_rlast(host_axil_64b_r.last),
+        .m_axi_ruser(host_axil_64b_r.user),
+        .m_axi_rvalid(host_axil_64b_rvalid),
+        .m_axi_rready(host_axil_64b_rready)
+    );
 
     // ================================================================
     // Response MUX - Route responses from width-specific paths
@@ -558,11 +727,14 @@ module host_axil_adapter
     always_comb begin
         fub_axi_awready = 1'b0;
         case (comb_slave_select_aw)
-            3'b010: begin  // Slave 1 (32b)
+            4'b0010: begin  // Slave 1 (32b)
                 fub_axi_awready = host_axil_32b_awready;
             end
-            3'b100: begin  // Slave 2 (32b)
+            4'b0100: begin  // Slave 2 (32b)
                 fub_axi_awready = host_axil_32b_awready;
+            end
+            4'b1000: begin  // Slave 3 (64b)
+                fub_axi_awready = conv_64b_awready;
             end
             default: begin
                 // No slave selected
@@ -577,11 +749,14 @@ module host_axil_adapter
     always_comb begin
         fub_axi_wready = 1'b0;
         case (w_slave_select)
-            3'b010: begin  // Slave 1 (32b)
+            4'b0010: begin  // Slave 1 (32b)
                 fub_axi_wready = host_axil_32b_wready;
             end
-            3'b100: begin  // Slave 2 (32b)
+            4'b0100: begin  // Slave 2 (32b)
                 fub_axi_wready = host_axil_32b_wready;
+            end
+            4'b1000: begin  // Slave 3 (64b)
+                fub_axi_wready = conv_64b_wready;
             end
             default: begin
                 // No active W transaction
@@ -596,15 +771,20 @@ module host_axil_adapter
         fub_axi_bvalid = 1'b0;
 
         case (b_slave_select)
-            3'b010: begin  // Slave 1 (32b)
+            4'b0010: begin  // Slave 1 (32b)
                 fub_axi_bid = host_axil_32b_b.id[3:0];
                 fub_axi_bresp = host_axil_32b_b.resp;
                 fub_axi_bvalid = host_axil_32b_bvalid;
             end
-            3'b100: begin  // Slave 2 (32b)
+            4'b0100: begin  // Slave 2 (32b)
                 fub_axi_bid = host_axil_32b_b.id[3:0];
                 fub_axi_bresp = host_axil_32b_b.resp;
                 fub_axi_bvalid = host_axil_32b_bvalid;
+            end
+            4'b1000: begin  // Slave 3 (64b)
+                fub_axi_bid = conv_64b_bid;
+                fub_axi_bresp = conv_64b_bresp;
+                fub_axi_bvalid = conv_64b_bvalid;
             end
             default: begin
                 // No slave selected - hold defaults
@@ -616,11 +796,14 @@ module host_axil_adapter
     always_comb begin
         fub_axi_arready = 1'b0;
         case (comb_slave_select_ar)
-            3'b010: begin  // Slave 1 (32b)
+            4'b0010: begin  // Slave 1 (32b)
                 fub_axi_arready = host_axil_32b_arready;
             end
-            3'b100: begin  // Slave 2 (32b)
+            4'b0100: begin  // Slave 2 (32b)
                 fub_axi_arready = host_axil_32b_arready;
+            end
+            4'b1000: begin  // Slave 3 (64b)
+                fub_axi_arready = conv_64b_arready;
             end
             default: begin
                 // No slave selected
@@ -640,19 +823,26 @@ module host_axil_adapter
         fub_axi_rvalid = 1'b0;
 
         case (r_slave_select)
-            3'b010: begin  // Slave 1 (32b)
+            4'b0010: begin  // Slave 1 (32b)
                 fub_axi_rid = host_axil_32b_r.id[3:0];
                 fub_axi_rdata = host_axil_32b_r.data;
                 fub_axi_rresp = host_axil_32b_r.resp;
                 fub_axi_rlast = host_axil_32b_r.last;
                 fub_axi_rvalid = host_axil_32b_rvalid;
             end
-            3'b100: begin  // Slave 2 (32b)
+            4'b0100: begin  // Slave 2 (32b)
                 fub_axi_rid = host_axil_32b_r.id[3:0];
                 fub_axi_rdata = host_axil_32b_r.data;
                 fub_axi_rresp = host_axil_32b_r.resp;
                 fub_axi_rlast = host_axil_32b_r.last;
                 fub_axi_rvalid = host_axil_32b_rvalid;
+            end
+            4'b1000: begin  // Slave 3 (64b)
+                fub_axi_rid = conv_64b_rid;
+                fub_axi_rdata = conv_64b_rdata;
+                fub_axi_rresp = conv_64b_rresp;
+                fub_axi_rlast = conv_64b_rlast;
+                fub_axi_rvalid = conv_64b_rvalid;
             end
             default: begin
                 // No slave selected - hold defaults

@@ -10,7 +10,7 @@
 module cpu_wr_adapter
     import bridge_1x4_wr_pkg::*;
 #(
-    parameter NUM_SLAVES = 4,
+    parameter NUM_SLAVES = 5,
     parameter BRIDGE_ID = 0,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 1,
     parameter SKID_DEPTH_AW = 2,
@@ -209,6 +209,7 @@ module cpu_wr_adapter
     // Slave 1 (ddr_wr): 0x10000000 - 0x4FFFFFFF
     // Slave 2 (hbm_wr): 0x50000000 - 0x7FFFFFFF
     // Slave 3 (apb_periph): 0x80000000 - 0x8000FFFF
+    // Slave 4 (subtractive): 0x00000000 - 0xFFFFFFFF
     // ================================================================
     logic [NUM_SLAVES-1:0] comb_slave_select_aw;
     always_comb begin
@@ -224,6 +225,9 @@ module cpu_wr_adapter
         end
         else if (fub_axi_awaddr >= 32'h80000000 && fub_axi_awaddr <= 32'h8000FFFF) begin
             comb_slave_select_aw[3] = 1'b1;  // apb_periph
+        end
+        else begin  // Full address range (catch-all)
+            comb_slave_select_aw[4] = 1'b1;  // subtractive
         end
     end
 
@@ -250,11 +254,11 @@ module cpu_wr_adapter
     logic b_path_active_64b;
     assign b_path_active_64b = b_slave_select[1];
     logic aw_path_active_128b;
-    assign aw_path_active_128b = (comb_slave_select_aw[2]) && aw_gate_ok;
+    assign aw_path_active_128b = (comb_slave_select_aw[2] | comb_slave_select_aw[4]) && aw_gate_ok;
     logic w_path_active_128b;
-    assign w_path_active_128b = w_slave_select[2];
+    assign w_path_active_128b = w_slave_select[2] | w_slave_select[4];
     logic b_path_active_128b;
-    assign b_path_active_128b = b_slave_select[2];
+    assign b_path_active_128b = b_slave_select[2] | b_slave_select[4];
 
     // ================================================================
     // Width converter: 64b → 32b
@@ -545,16 +549,19 @@ module cpu_wr_adapter
     always_comb begin
         fub_axi_awready = 1'b0;
         case (comb_slave_select_aw)
-            4'b0001: begin  // Slave 0 (32b)
+            5'b00001: begin  // Slave 0 (32b)
                 fub_axi_awready = conv_32b_awready;
             end
-            4'b1000: begin  // Slave 3 (32b)
+            5'b01000: begin  // Slave 3 (32b)
                 fub_axi_awready = conv_32b_awready;
             end
-            4'b0010: begin  // Slave 1 (64b)
+            5'b00010: begin  // Slave 1 (64b)
                 fub_axi_awready = cpu_wr_64b_awready;
             end
-            4'b0100: begin  // Slave 2 (128b)
+            5'b00100: begin  // Slave 2 (128b)
+                fub_axi_awready = conv_128b_awready;
+            end
+            5'b10000: begin  // Slave 4 (128b)
                 fub_axi_awready = conv_128b_awready;
             end
             default: begin
@@ -570,16 +577,19 @@ module cpu_wr_adapter
     always_comb begin
         fub_axi_wready = 1'b0;
         case (w_slave_select)
-            4'b0001: begin  // Slave 0 (32b)
+            5'b00001: begin  // Slave 0 (32b)
                 fub_axi_wready = conv_32b_wready;
             end
-            4'b1000: begin  // Slave 3 (32b)
+            5'b01000: begin  // Slave 3 (32b)
                 fub_axi_wready = conv_32b_wready;
             end
-            4'b0010: begin  // Slave 1 (64b)
+            5'b00010: begin  // Slave 1 (64b)
                 fub_axi_wready = cpu_wr_64b_wready;
             end
-            4'b0100: begin  // Slave 2 (128b)
+            5'b00100: begin  // Slave 2 (128b)
+                fub_axi_wready = conv_128b_wready;
+            end
+            5'b10000: begin  // Slave 4 (128b)
                 fub_axi_wready = conv_128b_wready;
             end
             default: begin
@@ -595,22 +605,27 @@ module cpu_wr_adapter
         fub_axi_bvalid = 1'b0;
 
         case (b_slave_select)
-            4'b0001: begin  // Slave 0 (32b)
+            5'b00001: begin  // Slave 0 (32b)
                 fub_axi_bid = conv_32b_bid;
                 fub_axi_bresp = conv_32b_bresp;
                 fub_axi_bvalid = conv_32b_bvalid;
             end
-            4'b1000: begin  // Slave 3 (32b)
+            5'b01000: begin  // Slave 3 (32b)
                 fub_axi_bid = conv_32b_bid;
                 fub_axi_bresp = conv_32b_bresp;
                 fub_axi_bvalid = conv_32b_bvalid;
             end
-            4'b0010: begin  // Slave 1 (64b)
+            5'b00010: begin  // Slave 1 (64b)
                 fub_axi_bid = cpu_wr_64b_b.id[3:0];
                 fub_axi_bresp = cpu_wr_64b_b.resp;
                 fub_axi_bvalid = cpu_wr_64b_bvalid;
             end
-            4'b0100: begin  // Slave 2 (128b)
+            5'b00100: begin  // Slave 2 (128b)
+                fub_axi_bid = conv_128b_bid;
+                fub_axi_bresp = conv_128b_bresp;
+                fub_axi_bvalid = conv_128b_bvalid;
+            end
+            5'b10000: begin  // Slave 4 (128b)
                 fub_axi_bid = conv_128b_bid;
                 fub_axi_bresp = conv_128b_bresp;
                 fub_axi_bvalid = conv_128b_bvalid;

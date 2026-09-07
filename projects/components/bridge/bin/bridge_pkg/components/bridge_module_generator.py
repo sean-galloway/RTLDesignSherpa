@@ -11,6 +11,7 @@ Date: 2025-11-03
 """
 
 import os
+import re
 from typing import List, Dict
 from dataclasses import dataclass
 
@@ -321,6 +322,12 @@ class BridgeModuleGenerator:
             if m.channels in ('rd', 'rw'):
                 wrappers.append(MonitoredWrapper(m.name, m_idx, 'master', 'rd'))
         for s_idx, s in enumerate(self.slaves):
+            # The subtractive catch-all reports through its OWN monbus port
+            # (one ERROR packet per unmapped address), so wrapping it in the
+            # per-port monitor would double-count and burn an arbiter input
+            # on a path that never carries real traffic.
+            if getattr(s, 'internal', False):
+                continue
             connecting = self._get_masters_connecting_to_slave(s)
             has_write = any(m.channels in ('wr', 'rw') for m in connecting)
             has_read = any(m.channels in ('rd', 'rw') for m in connecting)
@@ -918,6 +925,13 @@ class BridgeModuleGenerator:
                 if self.use_cfg_regblock:
                     lines.extend(self._generate_cfg_net_decls(monitored))
 
+        # Internal (subtractive) slaves FIRST: the crossbar below wires
+        # subtractive_* nets, and a net must be declared before it is used --
+        # emitting this after the crossbar produced 2088 IMPLICIT warnings,
+        # which are fatal under the -Wall the bridge tests compile with.
+        # bin/check_sv_decl_order.py exists for exactly this class.
+        lines.extend(self._generate_internal_slave_instances())
+
         # Adapter instantiations
         lines.extend(self._generate_adapter_instantiations(monitored))
 
@@ -1038,15 +1052,23 @@ class BridgeModuleGenerator:
             lines.extend(master_ports)
             lines.append("")
 
-        # Slave ports
-        for i, slave in enumerate(self.slaves):
+        # Slave ports.
+        #
+        # INTERNAL slaves (the subtractive catch-all) are routable like any
+        # other slave but must not reach the bridge boundary: their nets are
+        # declared in the body and driven by an instance inside. Filtering
+        # first, rather than skipping inside the loop, keeps the trailing-comma
+        # arithmetic honest -- an internal slave in last place would otherwise
+        # leave a dangling comma before `);`.
+        external_slaves = [(i, sl) for i, sl in enumerate(self.slaves)
+                           if not getattr(sl, 'internal', False)]
+        for n, (i, slave) in enumerate(external_slaves):
             lines.append(f"    // Slave {i}: {slave.name}")
             slave_ports = self._generate_slave_ports(slave)
-            # Add comma if there are more slaves
-            if i < len(self.slaves) - 1:
+            if n < len(external_slaves) - 1:
                 slave_ports[-1] = slave_ports[-1] + ","
             lines.extend(slave_ports)
-            if i < len(self.slaves) - 1:
+            if n < len(external_slaves) - 1:
                 lines.append("")
 
         # Monitor side-band top ports (use_monitor=true only)
@@ -1222,6 +1244,102 @@ class BridgeModuleGenerator:
         if lines and lines[-1].endswith(','):
             lines[-1] = lines[-1][:-1]
 
+        return lines
+
+
+    def _generate_internal_slave_instances(self) -> List[str]:
+        """Declare the nets an internal slave's adapter drives, and terminate
+        them.
+
+        The net set is derived from _generate_slave_ports() rather than
+        written out by hand: the adapter connects to exactly those names, so
+        deriving guarantees the two stay in step. A hand-kept list would drift
+        the first time a sideband signal is added, and the failure would be an
+        undriven net rather than an error.
+        """
+        internal = [(i, sl) for i, sl in enumerate(self.slaves)
+                    if getattr(sl, 'internal', False)]
+        if not internal:
+            return []
+
+        lines: List[str] = []
+        for idx, slave in internal:
+            lines.append("")
+            lines.append(f"    // ---- Slave {idx}: {slave.name} "
+                         f"(subtractive catch-all, internal) ----")
+            lines.append("    // Unmapped addresses land here instead of "
+                         "selecting nothing and")
+            lines.append("    // stalling the master forever (BRIDGE-009). "
+                         "Always answers DECERR.")
+
+            # Port decls -> net decls. `input logic [7:0] foo` becomes
+            # `logic [7:0] foo;` regardless of direction.
+            for decl in self._generate_slave_ports(slave):
+                d = decl.strip().rstrip(',')
+                if not d or d.startswith('//'):
+                    continue
+                d = re.sub(r'^(input|output|inout)\s+', '', d)
+                lines.append(f"    {d};")
+
+            pfx = slave.prefix.rstrip('_')
+            has_write = any(m.channels in ('wr', 'rw') for m in self.masters)
+            has_read = any(m.channels in ('rd', 'rw') for m in self.masters)
+            lines.append(f"    logic {pfx}_monbus_valid;")
+            lines.append(f"    logic {pfx}_monbus_ready;")
+            lines.append(f"    monitor_common_pkg::monitor_packet_t {pfx}_monbus_packet;")
+            master_id_width = max((m.id_width for m in self.masters), default=4)
+            master_id_width = max(master_id_width, 1)
+            lines.append("")
+            lines.append("    axi4_subtractive_slave #(")
+            lines.append(f"        .AXI_ID_WIDTH   ({master_id_width}),")
+            lines.append(f"        .AXI_ADDR_WIDTH ({slave.addr_width}),")
+            lines.append(f"        .AXI_DATA_WIDTH ({slave.data_width}),")
+            lines.append("        .AXI_USER_WIDTH (1),")
+            lines.append(f"        .UNIT_ID        (8'd{idx}),")
+            lines.append("        .AGENT_ID       (16'h5B00)")
+            lines.append("    ) u_%s (" % pfx)
+            lines.append("        .aclk          (aclk),")
+            lines.append("        .aresetn       (aresetn),")
+            # Channel-aware. A read-only bridge declares no write-side nets
+            # (its adapter drives none), so connecting them by name would use
+            # signals that do not exist -- 2088 IMPLICIT warnings, fatal under
+            # the -Wall these tests build with. The module always has the full
+            # AXI port list, so an absent channel is tied off here instead.
+            wr_sigs = ('awid', 'awaddr', 'awlen', 'awvalid', 'awready',
+                       'wdata', 'wlast', 'wvalid', 'wready',
+                       'bid', 'bresp', 'buser', 'bvalid', 'bready')
+            rd_sigs = ('arid', 'araddr', 'arlen', 'arvalid', 'arready',
+                       'rid', 'rdata', 'rresp', 'rlast', 'ruser',
+                       'rvalid', 'rready')
+            # Inputs of the subtractive slave, for tie-off when unused.
+            drive_low = {'awid', 'awaddr', 'awlen', 'awvalid', 'wdata',
+                         'wlast', 'wvalid', 'bready',
+                         'arid', 'araddr', 'arlen', 'arvalid', 'rready'}
+            for sig in wr_sigs + rd_sigs:
+                present = (sig in wr_sigs and has_write) or \
+                          (sig in rd_sigs and has_read)
+                if present:
+                    conn = f"{pfx}_{sig}"
+                elif sig in drive_low:
+                    conn = "'0"
+                else:
+                    conn = ""      # unused output, explicitly open
+                lines.append(f"        .s_axi_{sig:<8}({conn}),")
+            lines.append(f"        .monbus_valid  ({pfx}_monbus_valid),")
+            lines.append(f"        .monbus_ready  ({pfx}_monbus_ready),")
+            lines.append(f"        .monbus_packet ({pfx}_monbus_packet)")
+            lines.append("    );")
+            # TODO(BRIDGE-009): make this an extra monbus_arbiter client so an
+            # unmapped access raises mon_irq_out. Until then the packet is
+            # produced and consumed here: sinking it keeps the DECERR
+            # behaviour (which is what stops the hang) independent of the
+            # reporting path, and an undriven ready would make every bridge
+            # fail its -Wall build.
+            lines.append(f"    assign {pfx}_monbus_ready = 1'b1;  // TODO: -> monbus_arbiter")
+            lines.append("    /* verilator lint_off UNUSED */")
+            lines.append(f"    wire _unused_{pfx}_monbus = "
+                         f"&{{1'b0, {pfx}_monbus_valid, {pfx}_monbus_packet}};")
+            lines.append("    /* verilator lint_on UNUSED */")
         return lines
 
     def _generate_slave_ports(self, slave: SlaveInfo) -> List[str]:

@@ -735,6 +735,7 @@ def _emit_bridge_variant(
             # AXI5 sideband features (A5-2 slice 1) -- validated upstream
             # by validate_axi5 to the nsaid/trace/mpam/mecid/unique set.
             axi5_features=list(getattr(slave_spec, 'axi5_features', []) or []),
+            internal=bool(getattr(slave_spec, 'internal', False)),
         )
         slave_infos.append(slave_info)
 
@@ -792,6 +793,15 @@ def _emit_bridge_variant(
                 addr_width=m.addr_width,
             ))
         for s_idx, s in enumerate(slave_infos):
+            # The subtractive catch-all has no monitor wrapper (it reports on
+            # its own monbus port), so it has nothing to configure. Emitting
+            # cfg for it added 52 fields and SHIFTED THE REGISTER LAYOUT --
+            # the monitor-enable writes then landed at the wrong offsets, no
+            # monitor turned on, and the monbus stress test saw pkts=0 while
+            # every other test passed. A register map is an ABI: adding a
+            # port must not renumber it.
+            if getattr(s, 'internal', False):
+                continue
             adapter_ports.append(CfgAdapterPort(
                 name=s.name, idx=s_idx,
                 has_wr=True, has_rd=True,
@@ -893,10 +903,22 @@ def _emit_bridge_variant(
     # `monitor_common_pkg::monitor_packet_t` and
     # `monitor_common_pkg::monbus_timestamp_t` by fully-qualified name, so
     # the package symbol has to be visible at adapter parse time.
-    if use_monitor:
-        filelist_lines.append("# Monitor packages (must precede any module that references them)")
-        filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/monitor_pkgs.f")
-        filelist_lines.append("")
+    # ...and UNCONDITIONALLY since the subtractive catch-all landed: every
+    # bridge now instantiates axi4_subtractive_slave, which reports unmapped
+    # addresses on the monitor bus and so references the same package. The
+    # packages are typedefs and constants -- no hardware -- so a non-monitor
+    # bridge pays nothing for compiling them. The alternative was a second
+    # copy of the 128-bit packet layout inside the subtractive slave, which is
+    # how layouts drift apart.
+    filelist_lines.append("# Monitor packages (must precede any module that references them)")
+    filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/monitor_pkgs.f")
+    filelist_lines.append("")
+
+    # The subtractive (catch-all) slave: terminates unmapped addresses with
+    # DECERR instead of leaving the master hanging (BRIDGE-009).
+    filelist_lines.append("# Subtractive catch-all slave (unmapped-address terminator)")
+    filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi4_subtractive_slave.f")
+    filelist_lines.append("")
 
     filelist_lines.append("# Bridge RTL files (generated)")
 

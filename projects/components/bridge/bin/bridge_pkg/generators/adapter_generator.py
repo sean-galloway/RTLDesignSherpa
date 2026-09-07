@@ -79,6 +79,9 @@ class SlaveInfo:
     protocol: str = 'axi4'  # Protocol type: 'axi4', 'axi5', 'apb', or 'axil'
     enable_ooo: bool = False  # Slave supports out-of-order responses (use CAM vs FIFO)
     use_monitor: bool = True  # Per-port USE_MONITOR override (see PortSpec)
+    # Internal slaves have no top-level pins -- the bridge instantiates
+    # something for them and wires the crossbar to it. See PortSpec.internal.
+    internal: bool = False
     # Reporter sub-block enables (preset + add - remove resolved upstream).
     # Keys: error/timeout/compl/threshold/perf. Default all True keeps
     # legacy behaviour; bridge generator overrides per-port from TOML.

@@ -12,7 +12,7 @@
 module bridge_1x4_rd_xbar
     import bridge_1x4_rd_pkg::*;
 #(
-    parameter int NUM_SLAVES = 4
+    parameter int NUM_SLAVES = 5
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -148,7 +148,34 @@ module bridge_1x4_rd_xbar
     input  logic         apb_periph_axi_rlast,
     input  logic         apb_periph_axi_ruser,
     input  logic         apb_periph_axi_rvalid,
-    output  logic         apb_periph_axi_rready
+    output  logic         apb_periph_axi_rready,
+
+    // Slave 4: subtractive
+    output logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_bridge_id_ar,
+    input  logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_rid_bridge_id,
+    input  logic                       subtractive_axi_rid_valid,
+
+    output  logic [3:0]  subtractive_axi_arid,
+    output  logic [31:0]  subtractive_axi_araddr,
+    output  logic [7:0]  subtractive_axi_arlen,
+    output  logic [2:0]  subtractive_axi_arsize,
+    output  logic [1:0]  subtractive_axi_arburst,
+    output  logic         subtractive_axi_arlock,
+    output  logic [3:0]  subtractive_axi_arcache,
+    output  logic [2:0]  subtractive_axi_arprot,
+    output  logic [3:0]  subtractive_axi_arqos,
+    output  logic [3:0]  subtractive_axi_arregion,
+    output  logic         subtractive_axi_aruser,
+    output  logic         subtractive_axi_arvalid,
+    input  logic         subtractive_axi_arready,
+
+    input  logic [3:0]  subtractive_axi_rid,
+    input  logic [127:0]  subtractive_axi_rdata,
+    input  logic [1:0]  subtractive_axi_rresp,
+    input  logic         subtractive_axi_rlast,
+    input  logic         subtractive_axi_ruser,
+    input  logic         subtractive_axi_rvalid,
+    output  logic         subtractive_axi_rready
 );
 
     // ================================================================
@@ -282,6 +309,37 @@ module bridge_1x4_rd_xbar
 
 
     // ================================================================
+    // Slave 4: subtractive (128b)
+    // ================================================================
+    // Single master: cpu_rd → subtractive
+    // Master width: 64b, Slave width: 128b
+    // Using 128b path from adapter
+
+    // AR channel (gated by address re-decode -- see _addr_decode_expr)
+    wire cpu_rd_128b_ar_to_subtractive = !(((cpu_rd_128b_ar.addr <= 32'h0fffffff)) || (((cpu_rd_128b_ar.addr >= 32'h10000000) && (cpu_rd_128b_ar.addr <= 32'h4fffffff))) || (((cpu_rd_128b_ar.addr >= 32'h50000000) && (cpu_rd_128b_ar.addr <= 32'h7fffffff))) || (((cpu_rd_128b_ar.addr >= 32'h80000000) && (cpu_rd_128b_ar.addr <= 32'h8000ffff))));
+    wire cpu_rd_128b_ar_gnt_subtractive = cpu_rd_128b_ar_to_subtractive;
+    assign subtractive_axi_arid     = cpu_rd_128b_ar_to_subtractive ? cpu_rd_128b_ar.id : '0;
+    assign subtractive_axi_araddr   = cpu_rd_128b_ar_to_subtractive ? cpu_rd_128b_ar.addr : '0;
+    assign subtractive_axi_arlen    = cpu_rd_128b_ar_to_subtractive ? cpu_rd_128b_ar.len : '0;
+    assign subtractive_axi_arsize   = cpu_rd_128b_ar_to_subtractive ? cpu_rd_128b_ar.size : '0;
+    assign subtractive_axi_arburst  = cpu_rd_128b_ar_to_subtractive ? cpu_rd_128b_ar.burst : '0;
+    assign subtractive_axi_arlock   = cpu_rd_128b_ar_to_subtractive ? cpu_rd_128b_ar.lock : '0;
+    assign subtractive_axi_arcache  = cpu_rd_128b_ar_to_subtractive ? cpu_rd_128b_ar.cache : '0;
+    assign subtractive_axi_arprot   = cpu_rd_128b_ar_to_subtractive ? cpu_rd_128b_ar.prot : '0;
+    assign subtractive_axi_arqos    = cpu_rd_128b_ar_to_subtractive ? cpu_rd_128b_ar.qos : '0;
+    assign subtractive_axi_arregion = cpu_rd_128b_ar_to_subtractive ? cpu_rd_128b_ar.region : '0;
+    assign subtractive_axi_aruser   = cpu_rd_128b_ar_to_subtractive ? cpu_rd_128b_ar.user : '0;
+    assign subtractive_axi_arvalid  = cpu_rd_128b_ar_to_subtractive && cpu_rd_128b_arvalid;
+
+    // Rready (master → slave) — gated on rid_valid so the path stays
+    // open through the entire R handshake, not just the AR phase.
+    assign subtractive_axi_rready = ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) ? cpu_rd_128b_rready : '0;
+
+    // Bridge ID (master → slave)
+    assign subtractive_axi_bridge_id_ar = cpu_rd_128b_ar_to_subtractive ? cpu_rd_bridge_id_ar : '0;
+
+
+    // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
     // ================================================================
@@ -343,25 +401,32 @@ module bridge_1x4_rd_xbar
 
     // Master: cpu_rd, Width path: 128b
     assign cpu_rd_128b_arready = 
-        (cpu_rd_128b_ar_gnt_hbm_rd ? hbm_rd_axi_arready : '0);
+        (cpu_rd_128b_ar_gnt_hbm_rd ? hbm_rd_axi_arready : '0) |
+        (cpu_rd_128b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign cpu_rd_128b_r.id = 
-        ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_rid : '0);
+        ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_rid : '0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
 
     assign cpu_rd_128b_r.data = 
-        ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_rdata : 128'b0);
+        ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_rdata : 128'b0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 128'b0);
 
     assign cpu_rd_128b_r.resp = 
-        ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_rresp : '0);
+        ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_rresp : '0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
 
     assign cpu_rd_128b_r.last = 
-        ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_rlast : '0);
+        ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_rlast : '0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
 
     assign cpu_rd_128b_r.user = 
-        ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_ruser : '0);
+        ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_ruser : '0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
 
     assign cpu_rd_128b_rvalid = 
-        ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_rvalid : '0);
+        ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_rvalid : '0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
 
 
 endmodule : bridge_1x4_rd_xbar

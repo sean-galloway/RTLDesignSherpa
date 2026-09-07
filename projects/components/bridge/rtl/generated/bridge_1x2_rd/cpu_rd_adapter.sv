@@ -10,7 +10,7 @@
 module cpu_rd_adapter
     import bridge_1x2_rd_pkg::*;
 #(
-    parameter NUM_SLAVES = 2,
+    parameter NUM_SLAVES = 3,
     parameter BRIDGE_ID = 0,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 1,
     parameter SKID_DEPTH_AR = 2,
@@ -158,6 +158,7 @@ module cpu_rd_adapter
     // Address decode (slave selection) - Read
     // Slave 0 (ddr_rd): 0x00000000 - 0x7FFFFFFF
     // Slave 1 (sram_rd): 0x80000000 - 0xFFFFFFFF
+    // Slave 2 (subtractive): 0x00000000 - 0xFFFFFFFF
     // ================================================================
     logic [NUM_SLAVES-1:0] comb_slave_select_ar;
     always_comb begin
@@ -167,6 +168,9 @@ module cpu_rd_adapter
         end
         else if (fub_axi_araddr >= 32'h80000000) begin
             comb_slave_select_ar[1] = 1'b1;  // sram_rd
+        end
+        else begin  // Full address range (catch-all)
+            comb_slave_select_ar[2] = 1'b1;  // subtractive
         end
     end
 
@@ -181,9 +185,9 @@ module cpu_rd_adapter
     // Per-width path-active gates (see comment in adapter_generator.py).
     logic ar_gate_ok;
     logic ar_path_active_32b;
-    assign ar_path_active_32b = (comb_slave_select_ar[0] | comb_slave_select_ar[1]) && ar_gate_ok;
+    assign ar_path_active_32b = (comb_slave_select_ar[0] | comb_slave_select_ar[1] | comb_slave_select_ar[2]) && ar_gate_ok;
     logic r_path_active_32b;
-    assign r_path_active_32b = r_slave_select[0] | r_slave_select[1];
+    assign r_path_active_32b = r_slave_select[0] | r_slave_select[1] | r_slave_select[2];
 
     // ================================================================
     // Direct passthrough: 32b → 32b (no converter)
@@ -275,10 +279,13 @@ module cpu_rd_adapter
     always_comb begin
         fub_axi_arready = 1'b0;
         case (comb_slave_select_ar)
-            2'b01: begin  // Slave 0 (32b)
+            3'b001: begin  // Slave 0 (32b)
                 fub_axi_arready = cpu_rd_32b_arready;
             end
-            2'b10: begin  // Slave 1 (32b)
+            3'b010: begin  // Slave 1 (32b)
+                fub_axi_arready = cpu_rd_32b_arready;
+            end
+            3'b100: begin  // Slave 2 (32b)
                 fub_axi_arready = cpu_rd_32b_arready;
             end
             default: begin
@@ -299,14 +306,21 @@ module cpu_rd_adapter
         fub_axi_rvalid = 1'b0;
 
         case (r_slave_select)
-            2'b01: begin  // Slave 0 (32b)
+            3'b001: begin  // Slave 0 (32b)
                 fub_axi_rid = cpu_rd_32b_r.id[3:0];
                 fub_axi_rdata = cpu_rd_32b_r.data;
                 fub_axi_rresp = cpu_rd_32b_r.resp;
                 fub_axi_rlast = cpu_rd_32b_r.last;
                 fub_axi_rvalid = cpu_rd_32b_rvalid;
             end
-            2'b10: begin  // Slave 1 (32b)
+            3'b010: begin  // Slave 1 (32b)
+                fub_axi_rid = cpu_rd_32b_r.id[3:0];
+                fub_axi_rdata = cpu_rd_32b_r.data;
+                fub_axi_rresp = cpu_rd_32b_r.resp;
+                fub_axi_rlast = cpu_rd_32b_r.last;
+                fub_axi_rvalid = cpu_rd_32b_rvalid;
+            end
+            3'b100: begin  // Slave 2 (32b)
                 fub_axi_rid = cpu_rd_32b_r.id[3:0];
                 fub_axi_rdata = cpu_rd_32b_r.data;
                 fub_axi_rresp = cpu_rd_32b_r.resp;

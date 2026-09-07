@@ -136,6 +136,11 @@ class PortSpec:
     # (poison/mte/chunking -> A5-2 native sideband) and atomics
     # (atomic -> A5-3) are rejected by validate_axi5.
     axi5_features: List[str] = field(default_factory=list)
+    # An internal port has no top-level pins: the generator instantiates
+    # something inside the bridge and wires the crossbar to it. Used by the
+    # subtractive (catch-all) slave, which must be routable like any other
+    # slave but must not appear on the bridge boundary.
+    internal: bool = False
 
     def get_mon_enables(self, preset: str) -> Dict[str, bool]:
         """Compute the 5 ENABLE_*_LOGIC values for this port: preset

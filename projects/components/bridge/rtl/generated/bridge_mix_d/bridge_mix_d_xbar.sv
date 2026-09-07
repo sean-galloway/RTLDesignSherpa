@@ -12,7 +12,7 @@
 module bridge_mix_d_xbar
     import bridge_mix_d_pkg::*;
 #(
-    parameter int NUM_SLAVES = 3
+    parameter int NUM_SLAVES = 4
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -265,7 +265,65 @@ module bridge_mix_d_xbar
     input  logic         apb_periph_axi_rlast,
     input  logic         apb_periph_axi_ruser,
     input  logic         apb_periph_axi_rvalid,
-    output  logic         apb_periph_axi_rready
+    output  logic         apb_periph_axi_rready,
+
+    // Slave 3: subtractive
+    output logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_bridge_id_aw,
+    input  logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_bid_bridge_id,
+    input  logic                       subtractive_axi_bid_valid,
+
+    output logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_bridge_id_ar,
+    input  logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_rid_bridge_id,
+    input  logic                       subtractive_axi_rid_valid,
+
+    output  logic [3:0]  subtractive_axi_awid,
+    output  logic [31:0]  subtractive_axi_awaddr,
+    output  logic [7:0]  subtractive_axi_awlen,
+    output  logic [2:0]  subtractive_axi_awsize,
+    output  logic [1:0]  subtractive_axi_awburst,
+    output  logic         subtractive_axi_awlock,
+    output  logic [3:0]  subtractive_axi_awcache,
+    output  logic [2:0]  subtractive_axi_awprot,
+    output  logic [3:0]  subtractive_axi_awqos,
+    output  logic [3:0]  subtractive_axi_awregion,
+    output  logic         subtractive_axi_awuser,
+    output  logic         subtractive_axi_awvalid,
+    input  logic         subtractive_axi_awready,
+
+    output  logic [63:0]  subtractive_axi_wdata,
+    output  logic [7:0]  subtractive_axi_wstrb,
+    output  logic         subtractive_axi_wlast,
+    output  logic         subtractive_axi_wuser,
+    output  logic         subtractive_axi_wvalid,
+    input  logic         subtractive_axi_wready,
+
+    input  logic [3:0]  subtractive_axi_bid,
+    input  logic [1:0]  subtractive_axi_bresp,
+    input  logic         subtractive_axi_buser,
+    input  logic         subtractive_axi_bvalid,
+    output  logic         subtractive_axi_bready,
+
+    output  logic [3:0]  subtractive_axi_arid,
+    output  logic [31:0]  subtractive_axi_araddr,
+    output  logic [7:0]  subtractive_axi_arlen,
+    output  logic [2:0]  subtractive_axi_arsize,
+    output  logic [1:0]  subtractive_axi_arburst,
+    output  logic         subtractive_axi_arlock,
+    output  logic [3:0]  subtractive_axi_arcache,
+    output  logic [2:0]  subtractive_axi_arprot,
+    output  logic [3:0]  subtractive_axi_arqos,
+    output  logic [3:0]  subtractive_axi_arregion,
+    output  logic         subtractive_axi_aruser,
+    output  logic         subtractive_axi_arvalid,
+    input  logic         subtractive_axi_arready,
+
+    input  logic [3:0]  subtractive_axi_rid,
+    input  logic [63:0]  subtractive_axi_rdata,
+    input  logic [1:0]  subtractive_axi_rresp,
+    input  logic         subtractive_axi_rlast,
+    input  logic         subtractive_axi_ruser,
+    input  logic         subtractive_axi_rvalid,
+    output  logic         subtractive_axi_rready
 );
 
     // ================================================================
@@ -279,10 +337,14 @@ module bridge_mix_d_xbar
     logic cpu_axi4_32b_w_sel_apb_periph;
     logic cpu_axi4_64b_w_to_ddr;
     logic cpu_axi4_64b_w_sel_ddr;
+    logic cpu_axi4_64b_w_to_subtractive;
+    logic cpu_axi4_64b_w_sel_subtractive;
     logic trace_axil_32b_w_to_doorbell;
     logic trace_axil_32b_w_sel_doorbell;
     logic trace_axil_64b_w_to_ddr;
     logic trace_axil_64b_w_sel_ddr;
+    logic trace_axil_64b_w_to_subtractive;
+    logic trace_axil_64b_w_sel_subtractive;
 
     // ================================================================
     // Slave 0: ddr (64b)
@@ -680,6 +742,172 @@ module bridge_mix_d_xbar
 
 
     // ================================================================
+    // Slave 3: subtractive (64b)
+    // ================================================================
+    // Multi-master (2 masters) → subtractive
+    //   - cpu_axi4 (rw)
+    //   - trace_axil (rw)
+
+    wire cpu_axi4_64b_aw_to_subtractive = !(((cpu_axi4_64b_aw.addr <= 32'h3fffffff)) || (((cpu_axi4_64b_aw.addr >= 32'h40000000) && (cpu_axi4_64b_aw.addr <= 32'h40000fff))) || (((cpu_axi4_64b_aw.addr >= 32'h40001000) && (cpu_axi4_64b_aw.addr <= 32'h40010fff))));
+    wire cpu_axi4_64b_ar_to_subtractive = !(((cpu_axi4_64b_ar.addr <= 32'h3fffffff)) || (((cpu_axi4_64b_ar.addr >= 32'h40000000) && (cpu_axi4_64b_ar.addr <= 32'h40000fff))) || (((cpu_axi4_64b_ar.addr >= 32'h40001000) && (cpu_axi4_64b_ar.addr <= 32'h40010fff))));
+    wire trace_axil_64b_aw_to_subtractive = !(((trace_axil_64b_aw.addr <= 32'h3fffffff)) || (((trace_axil_64b_aw.addr >= 32'h40000000) && (trace_axil_64b_aw.addr <= 32'h40000fff))));
+    wire trace_axil_64b_ar_to_subtractive = !(((trace_axil_64b_ar.addr <= 32'h3fffffff)) || (((trace_axil_64b_ar.addr >= 32'h40000000) && (trace_axil_64b_ar.addr <= 32'h40000fff))));
+
+    // ---- AW arbiter for subtractive: round-robin, lock until handshake ----
+    logic [1:0] subtractive_aw_arb_req;
+    assign subtractive_aw_arb_req = {trace_axil_64b_aw_to_subtractive && trace_axil_64b_awvalid, cpu_axi4_64b_aw_to_subtractive && cpu_axi4_64b_awvalid};
+    logic [0:0] subtractive_aw_arb_lock, subtractive_aw_arb_rr;
+    logic subtractive_aw_arb_locked;
+    wire [0:0] subtractive_aw_arb_pick = (subtractive_aw_arb_rr == 1'd0) ? (subtractive_aw_arb_req[0] ? 1'd0 : 1'd1) : 
+        subtractive_aw_arb_req[1] ? 1'd1 : 1'd0;
+    wire subtractive_aw_arb_gnt_valid = subtractive_aw_arb_locked || (|subtractive_aw_arb_req);
+    wire [0:0] subtractive_aw_arb_gnt = subtractive_aw_arb_locked ? subtractive_aw_arb_lock : subtractive_aw_arb_pick;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            subtractive_aw_arb_lock   <= '0;
+            subtractive_aw_arb_rr     <= '0;
+            subtractive_aw_arb_locked <= 1'b0;
+        end else begin
+            if (subtractive_axi_awvalid && subtractive_axi_awready) begin
+                subtractive_aw_arb_locked <= 1'b0;
+                subtractive_aw_arb_rr <= (subtractive_aw_arb_gnt == 1'd1) ? 1'd0 : subtractive_aw_arb_gnt + 1'b1;
+            end else if (subtractive_axi_awvalid) begin
+                subtractive_aw_arb_lock   <= subtractive_aw_arb_gnt;
+                subtractive_aw_arb_locked <= 1'b1;
+            end
+        end
+    )
+    wire cpu_axi4_64b_aw_gnt_subtractive = subtractive_aw_arb_gnt_valid && (subtractive_aw_arb_gnt == 1'd0) && subtractive_aw_arb_req[0];
+    wire trace_axil_64b_aw_gnt_subtractive = subtractive_aw_arb_gnt_valid && (subtractive_aw_arb_gnt == 1'd1) && subtractive_aw_arb_req[1];
+
+    // AW channel (arbitrated mux across writing masters)
+    assign subtractive_axi_awid = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.id : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw.id : '0);
+    assign subtractive_axi_awaddr = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.addr : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw.addr : '0);
+    assign subtractive_axi_awlen = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.len : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw.len : '0);
+    assign subtractive_axi_awsize = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.size : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw.size : '0);
+    assign subtractive_axi_awburst = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.burst : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw.burst : '0);
+    assign subtractive_axi_awlock = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.lock : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw.lock : '0);
+    assign subtractive_axi_awcache = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.cache : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw.cache : '0);
+    assign subtractive_axi_awprot = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.prot : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw.prot : '0);
+    assign subtractive_axi_awqos = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.qos : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw.qos : '0);
+    assign subtractive_axi_awregion = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.region : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw.region : '0);
+    assign subtractive_axi_awuser = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_64b_aw.user : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_64b_aw.user : '0);
+    assign subtractive_axi_awvalid = cpu_axi4_64b_aw_gnt_subtractive || trace_axil_64b_aw_gnt_subtractive;
+
+    // W owner FIFO: slave-side AW accept order owns the W channel
+    logic [0:0] subtractive_wowner_mem [16];
+    logic [4:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            subtractive_wowner_wptr <= '0;
+            subtractive_wowner_rptr <= '0;
+        end else begin
+            if (subtractive_axi_awvalid && subtractive_axi_awready) begin
+                subtractive_wowner_mem[subtractive_wowner_wptr[3:0]] <= subtractive_aw_arb_gnt;
+                subtractive_wowner_wptr <= subtractive_wowner_wptr + 1'b1;
+            end
+            if (subtractive_axi_wvalid && subtractive_axi_wready && subtractive_axi_wlast) begin
+                subtractive_wowner_rptr <= subtractive_wowner_rptr + 1'b1;
+            end
+        end
+    )
+    wire subtractive_wowner_valid = (subtractive_wowner_wptr != subtractive_wowner_rptr);
+    wire [0:0] subtractive_wowner_head = subtractive_wowner_mem[subtractive_wowner_rptr[3:0]];
+    assign cpu_axi4_64b_w_sel_subtractive = subtractive_wowner_valid && (subtractive_wowner_head == 1'd0) && cpu_axi4_64b_w_to_subtractive;
+    assign trace_axil_64b_w_sel_subtractive = subtractive_wowner_valid && (subtractive_wowner_head == 1'd1) && trace_axil_64b_w_to_subtractive;
+
+    // W channel (owner-gated mux across writing masters)
+    assign subtractive_axi_wdata = ((cpu_axi4_64b_w_sel_subtractive && cpu_axi4_64b_wvalid) ? cpu_axi4_64b_w.data : '0) |
+        ((trace_axil_64b_w_sel_subtractive && trace_axil_64b_wvalid) ? trace_axil_64b_w.data : '0);
+    assign subtractive_axi_wstrb = ((cpu_axi4_64b_w_sel_subtractive && cpu_axi4_64b_wvalid) ? cpu_axi4_64b_w.strb : '0) |
+        ((trace_axil_64b_w_sel_subtractive && trace_axil_64b_wvalid) ? trace_axil_64b_w.strb : '0);
+    assign subtractive_axi_wlast = ((cpu_axi4_64b_w_sel_subtractive && cpu_axi4_64b_wvalid) ? cpu_axi4_64b_w.last : '0) |
+        ((trace_axil_64b_w_sel_subtractive && trace_axil_64b_wvalid) ? trace_axil_64b_w.last : '0);
+    assign subtractive_axi_wuser = ((cpu_axi4_64b_w_sel_subtractive && cpu_axi4_64b_wvalid) ? cpu_axi4_64b_w.user : '0) |
+        ((trace_axil_64b_w_sel_subtractive && trace_axil_64b_wvalid) ? trace_axil_64b_w.user : '0);
+    assign subtractive_axi_wvalid = (cpu_axi4_64b_w_sel_subtractive && cpu_axi4_64b_wvalid) || (trace_axil_64b_w_sel_subtractive && trace_axil_64b_wvalid);
+
+    // Bready (slave → owning master, by bid_bridge_id)
+    assign subtractive_axi_bready = ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? cpu_axi4_64b_bready : '0) |
+        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? trace_axil_64b_bready : '0);
+
+    // Bridge ID (writes) — the granted master's id
+    assign subtractive_axi_bridge_id_aw = (cpu_axi4_64b_aw_gnt_subtractive ? cpu_axi4_bridge_id_aw : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? trace_axil_bridge_id_aw : '0);
+
+    // ---- AR arbiter for subtractive: round-robin, lock until handshake ----
+    logic [1:0] subtractive_ar_arb_req;
+    assign subtractive_ar_arb_req = {trace_axil_64b_ar_to_subtractive && trace_axil_64b_arvalid, cpu_axi4_64b_ar_to_subtractive && cpu_axi4_64b_arvalid};
+    logic [0:0] subtractive_ar_arb_lock, subtractive_ar_arb_rr;
+    logic subtractive_ar_arb_locked;
+    wire [0:0] subtractive_ar_arb_pick = (subtractive_ar_arb_rr == 1'd0) ? (subtractive_ar_arb_req[0] ? 1'd0 : 1'd1) : 
+        subtractive_ar_arb_req[1] ? 1'd1 : 1'd0;
+    wire subtractive_ar_arb_gnt_valid = subtractive_ar_arb_locked || (|subtractive_ar_arb_req);
+    wire [0:0] subtractive_ar_arb_gnt = subtractive_ar_arb_locked ? subtractive_ar_arb_lock : subtractive_ar_arb_pick;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            subtractive_ar_arb_lock   <= '0;
+            subtractive_ar_arb_rr     <= '0;
+            subtractive_ar_arb_locked <= 1'b0;
+        end else begin
+            if (subtractive_axi_arvalid && subtractive_axi_arready) begin
+                subtractive_ar_arb_locked <= 1'b0;
+                subtractive_ar_arb_rr <= (subtractive_ar_arb_gnt == 1'd1) ? 1'd0 : subtractive_ar_arb_gnt + 1'b1;
+            end else if (subtractive_axi_arvalid) begin
+                subtractive_ar_arb_lock   <= subtractive_ar_arb_gnt;
+                subtractive_ar_arb_locked <= 1'b1;
+            end
+        end
+    )
+    wire cpu_axi4_64b_ar_gnt_subtractive = subtractive_ar_arb_gnt_valid && (subtractive_ar_arb_gnt == 1'd0) && subtractive_ar_arb_req[0];
+    wire trace_axil_64b_ar_gnt_subtractive = subtractive_ar_arb_gnt_valid && (subtractive_ar_arb_gnt == 1'd1) && subtractive_ar_arb_req[1];
+
+    // AR channel (arbitrated mux across reading masters)
+    assign subtractive_axi_arid = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.id : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar.id : '0);
+    assign subtractive_axi_araddr = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.addr : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar.addr : '0);
+    assign subtractive_axi_arlen = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.len : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar.len : '0);
+    assign subtractive_axi_arsize = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.size : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar.size : '0);
+    assign subtractive_axi_arburst = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.burst : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar.burst : '0);
+    assign subtractive_axi_arlock = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.lock : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar.lock : '0);
+    assign subtractive_axi_arcache = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.cache : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar.cache : '0);
+    assign subtractive_axi_arprot = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.prot : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar.prot : '0);
+    assign subtractive_axi_arqos = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.qos : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar.qos : '0);
+    assign subtractive_axi_arregion = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.region : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar.region : '0);
+    assign subtractive_axi_aruser = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_64b_ar.user : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_64b_ar.user : '0);
+    assign subtractive_axi_arvalid = cpu_axi4_64b_ar_gnt_subtractive || trace_axil_64b_ar_gnt_subtractive;
+
+    // Rready (slave → owning master, by rid_bridge_id)
+    assign subtractive_axi_rready = ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? cpu_axi4_64b_rready : '0) |
+        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? trace_axil_64b_rready : '0);
+
+    // Bridge ID (reads) — the granted master's id
+    assign subtractive_axi_bridge_id_ar = (cpu_axi4_64b_ar_gnt_subtractive ? cpu_axi4_bridge_id_ar : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? trace_axil_bridge_id_ar : '0);
+
+
+    // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
     // cpu_axi4 32b path -> doorbell, apb_periph
@@ -707,10 +935,10 @@ module bridge_mix_d_xbar
     assign cpu_axi4_32b_w_to_doorbell = cpu_axi4_32b_wdest_valid && (cpu_axi4_32b_wdest_head == 1'd0);
     assign cpu_axi4_32b_w_to_apb_periph = cpu_axi4_32b_wdest_valid && (cpu_axi4_32b_wdest_head == 1'd1);
 
-    // cpu_axi4 64b path -> ddr
+    // cpu_axi4 64b path -> ddr, subtractive
     logic [0:0] cpu_axi4_64b_wdest_mem [16];
     logic [4:0] cpu_axi4_64b_wdest_wptr, cpu_axi4_64b_wdest_rptr;
-    wire [0:0] cpu_axi4_64b_wdest_enc = 1'd0;
+    wire [0:0] cpu_axi4_64b_wdest_enc = cpu_axi4_64b_aw_to_subtractive ? 1'd1 : 1'd0;
     wire cpu_axi4_64b_wdest_push = cpu_axi4_64b_awvalid && cpu_axi4_64b_awready;
     wire cpu_axi4_64b_wdest_pop  = cpu_axi4_64b_wvalid && cpu_axi4_64b_wready && cpu_axi4_64b_w.last;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -730,6 +958,7 @@ module bridge_mix_d_xbar
     wire cpu_axi4_64b_wdest_valid = (cpu_axi4_64b_wdest_wptr != cpu_axi4_64b_wdest_rptr);
     wire [0:0] cpu_axi4_64b_wdest_head = cpu_axi4_64b_wdest_mem[cpu_axi4_64b_wdest_rptr[3:0]];
     assign cpu_axi4_64b_w_to_ddr = cpu_axi4_64b_wdest_valid && (cpu_axi4_64b_wdest_head == 1'd0);
+    assign cpu_axi4_64b_w_to_subtractive = cpu_axi4_64b_wdest_valid && (cpu_axi4_64b_wdest_head == 1'd1);
 
     // trace_axil 32b path -> doorbell
     logic [0:0] trace_axil_32b_wdest_mem [16];
@@ -755,10 +984,10 @@ module bridge_mix_d_xbar
     wire [0:0] trace_axil_32b_wdest_head = trace_axil_32b_wdest_mem[trace_axil_32b_wdest_rptr[3:0]];
     assign trace_axil_32b_w_to_doorbell = trace_axil_32b_wdest_valid && (trace_axil_32b_wdest_head == 1'd0);
 
-    // trace_axil 64b path -> ddr
+    // trace_axil 64b path -> ddr, subtractive
     logic [0:0] trace_axil_64b_wdest_mem [16];
     logic [4:0] trace_axil_64b_wdest_wptr, trace_axil_64b_wdest_rptr;
-    wire [0:0] trace_axil_64b_wdest_enc = 1'd0;
+    wire [0:0] trace_axil_64b_wdest_enc = trace_axil_64b_aw_to_subtractive ? 1'd1 : 1'd0;
     wire trace_axil_64b_wdest_push = trace_axil_64b_awvalid && trace_axil_64b_awready;
     wire trace_axil_64b_wdest_pop  = trace_axil_64b_wvalid && trace_axil_64b_wready && trace_axil_64b_w.last;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -778,6 +1007,7 @@ module bridge_mix_d_xbar
     wire trace_axil_64b_wdest_valid = (trace_axil_64b_wdest_wptr != trace_axil_64b_wdest_rptr);
     wire [0:0] trace_axil_64b_wdest_head = trace_axil_64b_wdest_mem[trace_axil_64b_wdest_rptr[3:0]];
     assign trace_axil_64b_w_to_ddr = trace_axil_64b_wdest_valid && (trace_axil_64b_wdest_head == 1'd0);
+    assign trace_axil_64b_w_to_subtractive = trace_axil_64b_wdest_valid && (trace_axil_64b_wdest_head == 1'd1);
 
     // ================================================================
     // Response MUXes (OR together all slave responses)
@@ -839,43 +1069,56 @@ module bridge_mix_d_xbar
 
     // Master: cpu_axi4, Width path: 64b
     assign cpu_axi4_64b_awready = 
-        (cpu_axi4_64b_aw_gnt_ddr ? ddr_axi_awready : '0);
+        (cpu_axi4_64b_aw_gnt_ddr ? ddr_axi_awready : '0) |
+        (cpu_axi4_64b_aw_gnt_subtractive ? subtractive_axi_awready : '0);
 
     assign cpu_axi4_64b_wready = 
-        (cpu_axi4_64b_w_sel_ddr ? ddr_axi_wready : '0);
+        (cpu_axi4_64b_w_sel_ddr ? ddr_axi_wready : '0) |
+        (cpu_axi4_64b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign cpu_axi4_64b_b.id = 
-        ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bid : '0);
+        ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bid : '0) |
+        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
 
     assign cpu_axi4_64b_b.resp = 
-        ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bresp : '0);
+        ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bresp : '0) |
+        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
 
     assign cpu_axi4_64b_b.user = 
-        ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_buser : '0);
+        ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_buser : '0) |
+        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
 
     assign cpu_axi4_64b_bvalid = 
-        ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bvalid : '0);
+        ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bvalid : '0) |
+        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
 
     assign cpu_axi4_64b_arready = 
-        (cpu_axi4_64b_ar_gnt_ddr ? ddr_axi_arready : '0);
+        (cpu_axi4_64b_ar_gnt_ddr ? ddr_axi_arready : '0) |
+        (cpu_axi4_64b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign cpu_axi4_64b_r.id = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rid : '0);
+        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rid : '0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
 
     assign cpu_axi4_64b_r.data = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rdata : 64'b0);
+        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rdata : 64'b0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 64'b0);
 
     assign cpu_axi4_64b_r.resp = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rresp : '0);
+        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rresp : '0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
 
     assign cpu_axi4_64b_r.last = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rlast : '0);
+        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rlast : '0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
 
     assign cpu_axi4_64b_r.user = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_ruser : '0);
+        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_ruser : '0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
 
     assign cpu_axi4_64b_rvalid = 
-        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rvalid : '0);
+        ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rvalid : '0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
 
 
     // Master: trace_axil, Width path: 32b
@@ -921,43 +1164,56 @@ module bridge_mix_d_xbar
 
     // Master: trace_axil, Width path: 64b
     assign trace_axil_64b_awready = 
-        (trace_axil_64b_aw_gnt_ddr ? ddr_axi_awready : '0);
+        (trace_axil_64b_aw_gnt_ddr ? ddr_axi_awready : '0) |
+        (trace_axil_64b_aw_gnt_subtractive ? subtractive_axi_awready : '0);
 
     assign trace_axil_64b_wready = 
-        (trace_axil_64b_w_sel_ddr ? ddr_axi_wready : '0);
+        (trace_axil_64b_w_sel_ddr ? ddr_axi_wready : '0) |
+        (trace_axil_64b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign trace_axil_64b_b.id = 
-        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_bid : '0);
+        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_bid : '0) |
+        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
 
     assign trace_axil_64b_b.resp = 
-        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_bresp : '0);
+        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_bresp : '0) |
+        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
 
     assign trace_axil_64b_b.user = 
-        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_buser : '0);
+        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_buser : '0) |
+        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
 
     assign trace_axil_64b_bvalid = 
-        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_bvalid : '0);
+        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_bvalid : '0) |
+        ((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
 
     assign trace_axil_64b_arready = 
-        (trace_axil_64b_ar_gnt_ddr ? ddr_axi_arready : '0);
+        (trace_axil_64b_ar_gnt_ddr ? ddr_axi_arready : '0) |
+        (trace_axil_64b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign trace_axil_64b_r.id = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rid : '0);
+        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rid : '0) |
+        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
 
     assign trace_axil_64b_r.data = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rdata : 64'b0);
+        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rdata : 64'b0) |
+        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 64'b0);
 
     assign trace_axil_64b_r.resp = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rresp : '0);
+        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rresp : '0) |
+        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
 
     assign trace_axil_64b_r.last = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rlast : '0);
+        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rlast : '0) |
+        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
 
     assign trace_axil_64b_r.user = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_ruser : '0);
+        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_ruser : '0) |
+        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
 
     assign trace_axil_64b_rvalid = 
-        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rvalid : '0);
+        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rvalid : '0) |
+        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
 
 
 endmodule : bridge_mix_d_xbar

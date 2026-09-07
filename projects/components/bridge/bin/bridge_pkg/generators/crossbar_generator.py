@@ -837,6 +837,32 @@ class CrossbarGenerator:
         `*addr` reverts -- which happens as soon as the wrapper pops the
         skid, before the converter has finished pushing to the xbar.
         """
+        # SUBTRACTIVE slave: it claims what nobody else claimed, so its term
+        # is the NEGATION of every positively-decoded slave this master can
+        # reach -- not its address range. Its range is the full span, which
+        # would reduce to a tautological 1'b1 here and route EVERY
+        # transaction to both the real slave and the catch-all at once. The
+        # muxes OR their payloads, so the master would read back
+        # addr = real | catchall. That is the corruption, not a hang, and it
+        # is worse.
+        if getattr(slave, 'internal', False):
+            m = next((mm for mm in self.masters if mm.name == master_name), None)
+            reachable = set(getattr(m, 'slave_connections', []) or []) if m else set()
+            others = [sl for i, sl in enumerate(self.slaves)
+                      if not getattr(sl, 'internal', False) and i in reachable]
+            if not others:
+                return "1'b1"   # nothing else to claim; everything is unmapped
+            # Inline each range comparison rather than referencing the sibling
+            # `<master>_<suffix>_<channel>_to_<slave>` wires. Those are emitted
+            # per channel, so a slave with no read path from this master has no
+            # `ar_to_` wire at all and naming it is a compile error
+            # ("Can't find definition of variable"). Recomputing the comparison
+            # is a few gates the synthesiser CSEs away, and it cannot dangle.
+            terms = " || ".join(
+                f"({self._addr_decode_expr(master_name, suffix, channel, sl)})"
+                for sl in others)
+            return f"!({terms})"
+
         addr_sig = f"{master_name}_{suffix}_{channel}.addr"
         base = slave.base_addr
         end = slave.base_addr + slave.addr_range - 1

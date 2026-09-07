@@ -229,7 +229,7 @@ module bridge_1x2_rd_axi5s_mon
     output logic        mon_irq_out
 );
 
-    localparam NUM_SLAVES = 2;
+    localparam NUM_SLAVES = 3;
 
     // ============================================================
     // Effective per-wrapper USE_MONITOR (after global override)
@@ -303,6 +303,31 @@ module bridge_1x2_rd_axi5s_mon
     logic [BRIDGE_ID_WIDTH-1:0] sram_rd_axi_rid_bridge_id;
     logic                       sram_rd_axi_rid_valid;
 
+    // subtractive (AXI4, 32b AXI4 interface)
+    logic [3:0]            xbar_subtractive_axi_arid;
+    logic [31:0]               xbar_subtractive_axi_araddr;
+    logic [7:0]                xbar_subtractive_axi_arlen;
+    logic [2:0]                xbar_subtractive_axi_arsize;
+    logic [1:0]                xbar_subtractive_axi_arburst;
+    logic                      xbar_subtractive_axi_arlock;
+    logic [3:0]                xbar_subtractive_axi_arcache;
+    logic [2:0]                xbar_subtractive_axi_arprot;
+    logic [3:0]                xbar_subtractive_axi_arqos;
+    logic [3:0]                xbar_subtractive_axi_arregion;
+    logic                      xbar_subtractive_axi_aruser;
+    logic                      xbar_subtractive_axi_arvalid;
+    logic                      xbar_subtractive_axi_arready;
+    logic [3:0]            xbar_subtractive_axi_rid;
+    logic [31:0] xbar_subtractive_axi_rdata;
+    logic [1:0]                xbar_subtractive_axi_rresp;
+    logic                      xbar_subtractive_axi_rlast;
+    logic                      xbar_subtractive_axi_ruser;
+    logic                      xbar_subtractive_axi_rvalid;
+    logic                      xbar_subtractive_axi_rready;
+    logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_bridge_id_ar;
+    logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_rid_bridge_id;
+    logic                       subtractive_axi_rid_valid;
+
     // ============================================================
     // Per-wrapper monbus streams (adapter -> arbiter input)
     // ============================================================
@@ -328,6 +353,78 @@ module bridge_1x2_rd_axi5s_mon
     monitor_common_pkg::monitor_packet_t   mon_arb_monbus_packet;
     monitor_common_pkg::monbus_timestamp_t mon_arb_monbus_timestamp;
 
+
+    // ---- Slave 2: subtractive (subtractive catch-all, internal) ----
+    // Unmapped addresses land here instead of selecting nothing and
+    // stalling the master forever (BRIDGE-009). Always answers DECERR.
+    logic [3:0]  subtractive_arid;
+    logic [31:0]  subtractive_araddr;
+    logic [7:0]  subtractive_arlen;
+    logic [2:0]  subtractive_arsize;
+    logic [1:0]  subtractive_arburst;
+    logic         subtractive_arlock;
+    logic [3:0]  subtractive_arcache;
+    logic [2:0]  subtractive_arprot;
+    logic [3:0]  subtractive_arqos;
+    logic [3:0]  subtractive_arregion;
+    logic         subtractive_aruser;
+    logic         subtractive_arvalid;
+    logic         subtractive_arready;
+    logic [3:0]  subtractive_rid;
+    logic [31:0]  subtractive_rdata;
+    logic [1:0]  subtractive_rresp;
+    logic         subtractive_rlast;
+    logic         subtractive_ruser;
+    logic         subtractive_rvalid;
+    logic         subtractive_rready;
+    logic subtractive_monbus_valid;
+    logic subtractive_monbus_ready;
+    monitor_common_pkg::monitor_packet_t subtractive_monbus_packet;
+
+    axi4_subtractive_slave #(
+        .AXI_ID_WIDTH   (4),
+        .AXI_ADDR_WIDTH (32),
+        .AXI_DATA_WIDTH (32),
+        .AXI_USER_WIDTH (1),
+        .UNIT_ID        (8'd2),
+        .AGENT_ID       (16'h5B00)
+    ) u_subtractive (
+        .aclk          (aclk),
+        .aresetn       (aresetn),
+        .s_axi_awid    ('0),
+        .s_axi_awaddr  ('0),
+        .s_axi_awlen   ('0),
+        .s_axi_awvalid ('0),
+        .s_axi_awready (),
+        .s_axi_wdata   ('0),
+        .s_axi_wlast   ('0),
+        .s_axi_wvalid  ('0),
+        .s_axi_wready  (),
+        .s_axi_bid     (),
+        .s_axi_bresp   (),
+        .s_axi_buser   (),
+        .s_axi_bvalid  (),
+        .s_axi_bready  ('0),
+        .s_axi_arid    (subtractive_arid),
+        .s_axi_araddr  (subtractive_araddr),
+        .s_axi_arlen   (subtractive_arlen),
+        .s_axi_arvalid (subtractive_arvalid),
+        .s_axi_arready (subtractive_arready),
+        .s_axi_rid     (subtractive_rid),
+        .s_axi_rdata   (subtractive_rdata),
+        .s_axi_rresp   (subtractive_rresp),
+        .s_axi_rlast   (subtractive_rlast),
+        .s_axi_ruser   (subtractive_ruser),
+        .s_axi_rvalid  (subtractive_rvalid),
+        .s_axi_rready  (subtractive_rready),
+        .monbus_valid  (subtractive_monbus_valid),
+        .monbus_ready  (subtractive_monbus_ready),
+        .monbus_packet (subtractive_monbus_packet)
+    );
+    assign subtractive_monbus_ready = 1'b1;  // TODO: -> monbus_arbiter
+    /* verilator lint_off UNUSED */
+    wire _unused_subtractive_monbus = &{1'b0, subtractive_monbus_valid, subtractive_monbus_packet};
+    /* verilator lint_on UNUSED */
     // ================================================================
     // CPU_RD Adapter
     // ================================================================
@@ -467,7 +564,32 @@ module bridge_1x2_rd_axi5s_mon
         .sram_rd_axi_rtrace(xbar_sram_rd_axi_rtrace),
         .sram_rd_axi_bridge_id_ar(sram_rd_axi_bridge_id_ar),
         .sram_rd_axi_rid_bridge_id(sram_rd_axi_rid_bridge_id),
-        .sram_rd_axi_rid_valid(sram_rd_axi_rid_valid)
+        .sram_rd_axi_rid_valid(sram_rd_axi_rid_valid),
+
+        // Slave 2: subtractive
+        .subtractive_axi_arid(xbar_subtractive_axi_arid),
+        .subtractive_axi_araddr(xbar_subtractive_axi_araddr),
+        .subtractive_axi_arlen(xbar_subtractive_axi_arlen),
+        .subtractive_axi_arsize(xbar_subtractive_axi_arsize),
+        .subtractive_axi_arburst(xbar_subtractive_axi_arburst),
+        .subtractive_axi_arlock(xbar_subtractive_axi_arlock),
+        .subtractive_axi_arcache(xbar_subtractive_axi_arcache),
+        .subtractive_axi_arprot(xbar_subtractive_axi_arprot),
+        .subtractive_axi_arqos(xbar_subtractive_axi_arqos),
+        .subtractive_axi_arregion(xbar_subtractive_axi_arregion),
+        .subtractive_axi_aruser(xbar_subtractive_axi_aruser),
+        .subtractive_axi_arvalid(xbar_subtractive_axi_arvalid),
+        .subtractive_axi_arready(xbar_subtractive_axi_arready),
+        .subtractive_axi_rid(xbar_subtractive_axi_rid),
+        .subtractive_axi_rdata(xbar_subtractive_axi_rdata),
+        .subtractive_axi_rresp(xbar_subtractive_axi_rresp),
+        .subtractive_axi_rlast(xbar_subtractive_axi_rlast),
+        .subtractive_axi_ruser(xbar_subtractive_axi_ruser),
+        .subtractive_axi_rvalid(xbar_subtractive_axi_rvalid),
+        .subtractive_axi_rready(xbar_subtractive_axi_rready),
+        .subtractive_axi_bridge_id_ar(subtractive_axi_bridge_id_ar),
+        .subtractive_axi_rid_bridge_id(subtractive_axi_rid_bridge_id),
+        .subtractive_axi_rid_valid(subtractive_axi_rid_valid)
     );
 
     // ================================================================
@@ -646,6 +768,61 @@ module bridge_1x2_rd_axi5s_mon
         .cfg_rd_axi_perf_mask(cfg_sram_rd_1_rd_axi_perf_mask),
         .cfg_rd_axi_addr_mask(cfg_sram_rd_1_rd_axi_addr_mask),
         .cfg_rd_axi_debug_mask(cfg_sram_rd_1_rd_axi_debug_mask)
+    );
+
+    // subtractive adapter (AXI4, crossbar → external slave)
+    subtractive_adapter u_subtractive_adapter (
+        .aclk(aclk),
+        .aresetn(aresetn),
+
+        // Crossbar interface (xbar_subtractive_axi_*)
+        .xbar_subtractive_axi_arid(xbar_subtractive_axi_arid),
+        .xbar_subtractive_axi_araddr(xbar_subtractive_axi_araddr),
+        .xbar_subtractive_axi_arlen(xbar_subtractive_axi_arlen),
+        .xbar_subtractive_axi_arsize(xbar_subtractive_axi_arsize),
+        .xbar_subtractive_axi_arburst(xbar_subtractive_axi_arburst),
+        .xbar_subtractive_axi_arlock(xbar_subtractive_axi_arlock),
+        .xbar_subtractive_axi_arcache(xbar_subtractive_axi_arcache),
+        .xbar_subtractive_axi_arprot(xbar_subtractive_axi_arprot),
+        .xbar_subtractive_axi_arqos(xbar_subtractive_axi_arqos),
+        .xbar_subtractive_axi_arregion(xbar_subtractive_axi_arregion),
+        .xbar_subtractive_axi_aruser(xbar_subtractive_axi_aruser),
+        .xbar_subtractive_axi_arvalid(xbar_subtractive_axi_arvalid),
+        .xbar_subtractive_axi_arready(xbar_subtractive_axi_arready),
+        .xbar_subtractive_axi_rid(xbar_subtractive_axi_rid),
+        .xbar_subtractive_axi_rdata(xbar_subtractive_axi_rdata),
+        .xbar_subtractive_axi_rresp(xbar_subtractive_axi_rresp),
+        .xbar_subtractive_axi_rlast(xbar_subtractive_axi_rlast),
+        .xbar_subtractive_axi_ruser(xbar_subtractive_axi_ruser),
+        .xbar_subtractive_axi_rvalid(xbar_subtractive_axi_rvalid),
+        .xbar_subtractive_axi_rready(xbar_subtractive_axi_rready),
+
+        // External AXI4 interface (subtractive_*)
+        .subtractive_arid(subtractive_arid),
+        .subtractive_araddr(subtractive_araddr),
+        .subtractive_arlen(subtractive_arlen),
+        .subtractive_arsize(subtractive_arsize),
+        .subtractive_arburst(subtractive_arburst),
+        .subtractive_arlock(subtractive_arlock),
+        .subtractive_arcache(subtractive_arcache),
+        .subtractive_arprot(subtractive_arprot),
+        .subtractive_arqos(subtractive_arqos),
+        .subtractive_arregion(subtractive_arregion),
+        .subtractive_aruser(subtractive_aruser),
+        .subtractive_arvalid(subtractive_arvalid),
+        .subtractive_arready(subtractive_arready),
+        .subtractive_rid(subtractive_rid),
+        .subtractive_rdata(subtractive_rdata),
+        .subtractive_rresp(subtractive_rresp),
+        .subtractive_rlast(subtractive_rlast),
+        .subtractive_ruser(subtractive_ruser),
+        .subtractive_rvalid(subtractive_rvalid),
+        .subtractive_rready(subtractive_rready),
+
+        // Bridge ID tracking
+        .xbar_bridge_id_ar(subtractive_axi_bridge_id_ar),
+        .rid_bridge_id(subtractive_axi_rid_bridge_id),
+        .rid_valid(subtractive_axi_rid_valid)
     );
 
     // ============================================================

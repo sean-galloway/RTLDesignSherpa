@@ -10,7 +10,7 @@
 module descr_wr_master_adapter
     import bridge_5x3_channels_pkg::*;
 #(
-    parameter NUM_SLAVES = 3,
+    parameter NUM_SLAVES = 4,
     parameter BRIDGE_ID = 0,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 3,
     parameter SKID_DEPTH_AW = 2,
@@ -183,6 +183,7 @@ module descr_wr_master_adapter
     // Address decode (slave selection) - Write
     // Slave 0 (sram_buffer): 0x00000000 - 0x3FFFFFFF
     // Slave 1 (ddr_controller): 0x40000000 - 0xBFFFFFFF
+    // Slave 3 (subtractive): 0x00000000 - 0xFFFFFFFF
     // ================================================================
     logic [NUM_SLAVES-1:0] comb_slave_select_aw;
     always_comb begin
@@ -192,6 +193,9 @@ module descr_wr_master_adapter
         end
         else if (fub_axi_awaddr >= 32'h40000000 && fub_axi_awaddr <= 32'hBFFFFFFF) begin
             comb_slave_select_aw[1] = 1'b1;  // ddr_controller
+        end
+        else begin  // Full address range (catch-all)
+            comb_slave_select_aw[3] = 1'b1;  // subtractive
         end
     end
 
@@ -206,11 +210,11 @@ module descr_wr_master_adapter
     // Per-width path-active gates (see comment in adapter_generator.py).
     logic aw_gate_ok;
     logic aw_path_active_256b;
-    assign aw_path_active_256b = (comb_slave_select_aw[0] | comb_slave_select_aw[1]) && aw_gate_ok;
+    assign aw_path_active_256b = (comb_slave_select_aw[0] | comb_slave_select_aw[1] | comb_slave_select_aw[3]) && aw_gate_ok;
     logic w_path_active_256b;
-    assign w_path_active_256b = w_slave_select[0] | w_slave_select[1];
+    assign w_path_active_256b = w_slave_select[0] | w_slave_select[1] | w_slave_select[3];
     logic b_path_active_256b;
-    assign b_path_active_256b = b_slave_select[0] | b_slave_select[1];
+    assign b_path_active_256b = b_slave_select[0] | b_slave_select[1] | b_slave_select[3];
 
     // ================================================================
     // Direct passthrough: 256b → 256b (no converter)
@@ -347,10 +351,13 @@ module descr_wr_master_adapter
     always_comb begin
         fub_axi_awready = 1'b0;
         case (comb_slave_select_aw)
-            3'b001: begin  // Slave 0 (256b)
+            4'b0001: begin  // Slave 0 (256b)
                 fub_axi_awready = descr_wr_master_256b_awready;
             end
-            3'b010: begin  // Slave 1 (256b)
+            4'b0010: begin  // Slave 1 (256b)
+                fub_axi_awready = descr_wr_master_256b_awready;
+            end
+            4'b1000: begin  // Slave 3 (256b)
                 fub_axi_awready = descr_wr_master_256b_awready;
             end
             default: begin
@@ -366,10 +373,13 @@ module descr_wr_master_adapter
     always_comb begin
         fub_axi_wready = 1'b0;
         case (w_slave_select)
-            3'b001: begin  // Slave 0 (256b)
+            4'b0001: begin  // Slave 0 (256b)
                 fub_axi_wready = descr_wr_master_256b_wready;
             end
-            3'b010: begin  // Slave 1 (256b)
+            4'b0010: begin  // Slave 1 (256b)
+                fub_axi_wready = descr_wr_master_256b_wready;
+            end
+            4'b1000: begin  // Slave 3 (256b)
                 fub_axi_wready = descr_wr_master_256b_wready;
             end
             default: begin
@@ -385,12 +395,17 @@ module descr_wr_master_adapter
         fub_axi_bvalid = 1'b0;
 
         case (b_slave_select)
-            3'b001: begin  // Slave 0 (256b)
+            4'b0001: begin  // Slave 0 (256b)
                 fub_axi_bid = descr_wr_master_256b_b.id[7:0];
                 fub_axi_bresp = descr_wr_master_256b_b.resp;
                 fub_axi_bvalid = descr_wr_master_256b_bvalid;
             end
-            3'b010: begin  // Slave 1 (256b)
+            4'b0010: begin  // Slave 1 (256b)
+                fub_axi_bid = descr_wr_master_256b_b.id[7:0];
+                fub_axi_bresp = descr_wr_master_256b_b.resp;
+                fub_axi_bvalid = descr_wr_master_256b_bvalid;
+            end
+            4'b1000: begin  // Slave 3 (256b)
                 fub_axi_bid = descr_wr_master_256b_b.id[7:0];
                 fub_axi_bresp = descr_wr_master_256b_b.resp;
                 fub_axi_bvalid = descr_wr_master_256b_bvalid;

@@ -253,6 +253,15 @@ def validate_axi5_poison_connectivity(masters: List[PortSpec],
             others = [m for m, s in pairs if s.port_name == port.port_name]
             other_kind = 'master'
         for other in others:
+            # The subtractive catch-all is not a data path. It never services
+            # a transaction -- it REJECTS one, with DECERR, because no slave
+            # claimed the address. An AXI5 feature has nothing to be carried
+            # natively THROUGH: poison, atomics and the rest describe how a
+            # request is to be honoured, and this one is not being honoured.
+            # Requiring it to be AXI5 would force every AXI5 bridge to give
+            # its error terminator sideband it can never use.
+            if getattr(other, 'internal', False):
+                continue
             problems = []
             if other.protocol != 'axi5':
                 problems.append(f"protocol '{other.protocol}' (needs axi5)")
@@ -506,11 +515,18 @@ def validate_address_map(slaves: List[PortSpec]) -> None:
     Raises:
         ValidationError: If slave address ranges overlap
     """
-    for i, slave1 in enumerate(slaves):
+    # A SUBTRACTIVE slave overlaps everything by definition -- it claims the
+    # addresses no positively-decoded slave claimed, which is expressible only
+    # as the full span plus last-place in the decode chain. Comparing it for
+    # overlap asks the wrong question: the decode is if/else-if/else, so an
+    # address that matched an earlier arm never reaches it.
+    positional = [sl for sl in slaves if not sl.internal]
+
+    for i, slave1 in enumerate(positional):
         addr1_start = slave1.base_addr
         addr1_end = slave1.base_addr + slave1.addr_range - 1
 
-        for slave2 in slaves[i+1:]:
+        for slave2 in positional[i+1:]:
             addr2_start = slave2.base_addr
             addr2_end = slave2.base_addr + slave2.addr_range - 1
 

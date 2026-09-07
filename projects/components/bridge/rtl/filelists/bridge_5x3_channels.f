@@ -4,6 +4,12 @@
 # Reset macro header (`ALWAYS_FF_RST / `RST_ASSERTED)
 -f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
 
+# Monitor packages (must precede any module that references them)
+-f $REPO_ROOT/rtl/amba/filelists/monitor_pkgs.f
+
+# Subtractive catch-all slave (unmapped-address terminator)
+-f $REPO_ROOT/rtl/amba/filelists/axi4_subtractive_slave.f
+
 # Bridge RTL files (generated)
 $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_5x3_channels/bridge_5x3_channels_pkg.sv
 $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_5x3_channels/cpu_master_adapter.sv
@@ -16,6 +22,7 @@ $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_5x3_channels/bridge_5
 $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_5x3_channels/apb_periph_adapter.sv
 $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_5x3_channels/ddr_controller_adapter.sv
 $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_5x3_channels/sram_buffer_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_5x3_channels/subtractive_adapter.sv
 
 # AXI4 Wrapper modules (timing isolation)
 #

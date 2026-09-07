@@ -7,6 +7,9 @@
 # Monitor packages (must precede any module that references them)
 -f $REPO_ROOT/rtl/amba/filelists/monitor_pkgs.f
 
+# Subtractive catch-all slave (unmapped-address terminator)
+-f $REPO_ROOT/rtl/amba/filelists/axi4_subtractive_slave.f
+
 # Bridge RTL files (generated)
 $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_mix_b_mon/bridge_mix_b_mon_pkg.sv
 $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_mix_b_mon/cpu_axi4_adapter.sv
@@ -17,6 +20,7 @@ $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_mix_b_mon/bridge_mix_
 $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_mix_b_mon/apb_periph_adapter.sv
 $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_mix_b_mon/ddr_adapter.sv
 $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_mix_b_mon/scratch_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_mix_b_mon/subtractive_adapter.sv
 
 # AXI4 Wrapper modules (timing isolation)
 #

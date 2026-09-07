@@ -113,7 +113,7 @@ module bridge_1x2_wr_axi5a
     output  logic         sram_wr_axi_bready
 );
 
-    localparam NUM_SLAVES = 2;
+    localparam NUM_SLAVES = 3;
 
     // cpu_wr Adapter outputs
     logic [NUM_SLAVES-1:0] cpu_wr_slave_select_aw;
@@ -192,6 +192,111 @@ module bridge_1x2_wr_axi5a
     logic [BRIDGE_ID_WIDTH-1:0] sram_wr_axi_bid_bridge_id;
     logic                       sram_wr_axi_bid_valid;
 
+    // subtractive (AXI4, 32b AXI4 interface)
+    logic [3:0]            xbar_subtractive_axi_awid;
+    logic [31:0]               xbar_subtractive_axi_awaddr;
+    logic [7:0]                xbar_subtractive_axi_awlen;
+    logic [2:0]                xbar_subtractive_axi_awsize;
+    logic [1:0]                xbar_subtractive_axi_awburst;
+    logic                      xbar_subtractive_axi_awlock;
+    logic [3:0]                xbar_subtractive_axi_awcache;
+    logic [2:0]                xbar_subtractive_axi_awprot;
+    logic [3:0]                xbar_subtractive_axi_awqos;
+    logic [3:0]                xbar_subtractive_axi_awregion;
+    logic                      xbar_subtractive_axi_awuser;
+    logic                      xbar_subtractive_axi_awvalid;
+    logic                      xbar_subtractive_axi_awready;
+    logic [31:0] xbar_subtractive_axi_wdata;
+    logic [3:0] xbar_subtractive_axi_wstrb;
+    logic                      xbar_subtractive_axi_wlast;
+    logic                      xbar_subtractive_axi_wuser;
+    logic                      xbar_subtractive_axi_wvalid;
+    logic                      xbar_subtractive_axi_wready;
+    logic [3:0]            xbar_subtractive_axi_bid;
+    logic [1:0]                xbar_subtractive_axi_bresp;
+    logic                      xbar_subtractive_axi_buser;
+    logic                      xbar_subtractive_axi_bvalid;
+    logic                      xbar_subtractive_axi_bready;
+    logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_bridge_id_aw;
+    logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_bid_bridge_id;
+    logic                       subtractive_axi_bid_valid;
+
+
+    // ---- Slave 2: subtractive (subtractive catch-all, internal) ----
+    // Unmapped addresses land here instead of selecting nothing and
+    // stalling the master forever (BRIDGE-009). Always answers DECERR.
+    logic [3:0]  subtractive_awid;
+    logic [31:0]  subtractive_awaddr;
+    logic [7:0]  subtractive_awlen;
+    logic [2:0]  subtractive_awsize;
+    logic [1:0]  subtractive_awburst;
+    logic         subtractive_awlock;
+    logic [3:0]  subtractive_awcache;
+    logic [2:0]  subtractive_awprot;
+    logic [3:0]  subtractive_awqos;
+    logic [3:0]  subtractive_awregion;
+    logic         subtractive_awuser;
+    logic         subtractive_awvalid;
+    logic         subtractive_awready;
+    logic [31:0]  subtractive_wdata;
+    logic [3:0]  subtractive_wstrb;
+    logic         subtractive_wlast;
+    logic         subtractive_wuser;
+    logic         subtractive_wvalid;
+    logic         subtractive_wready;
+    logic [3:0]  subtractive_bid;
+    logic [1:0]  subtractive_bresp;
+    logic         subtractive_buser;
+    logic         subtractive_bvalid;
+    logic         subtractive_bready;
+    logic subtractive_monbus_valid;
+    logic subtractive_monbus_ready;
+    monitor_common_pkg::monitor_packet_t subtractive_monbus_packet;
+
+    axi4_subtractive_slave #(
+        .AXI_ID_WIDTH   (4),
+        .AXI_ADDR_WIDTH (32),
+        .AXI_DATA_WIDTH (32),
+        .AXI_USER_WIDTH (1),
+        .UNIT_ID        (8'd2),
+        .AGENT_ID       (16'h5B00)
+    ) u_subtractive (
+        .aclk          (aclk),
+        .aresetn       (aresetn),
+        .s_axi_awid    (subtractive_awid),
+        .s_axi_awaddr  (subtractive_awaddr),
+        .s_axi_awlen   (subtractive_awlen),
+        .s_axi_awvalid (subtractive_awvalid),
+        .s_axi_awready (subtractive_awready),
+        .s_axi_wdata   (subtractive_wdata),
+        .s_axi_wlast   (subtractive_wlast),
+        .s_axi_wvalid  (subtractive_wvalid),
+        .s_axi_wready  (subtractive_wready),
+        .s_axi_bid     (subtractive_bid),
+        .s_axi_bresp   (subtractive_bresp),
+        .s_axi_buser   (subtractive_buser),
+        .s_axi_bvalid  (subtractive_bvalid),
+        .s_axi_bready  (subtractive_bready),
+        .s_axi_arid    ('0),
+        .s_axi_araddr  ('0),
+        .s_axi_arlen   ('0),
+        .s_axi_arvalid ('0),
+        .s_axi_arready (),
+        .s_axi_rid     (),
+        .s_axi_rdata   (),
+        .s_axi_rresp   (),
+        .s_axi_rlast   (),
+        .s_axi_ruser   (),
+        .s_axi_rvalid  (),
+        .s_axi_rready  ('0),
+        .monbus_valid  (subtractive_monbus_valid),
+        .monbus_ready  (subtractive_monbus_ready),
+        .monbus_packet (subtractive_monbus_packet)
+    );
+    assign subtractive_monbus_ready = 1'b1;  // TODO: -> monbus_arbiter
+    /* verilator lint_off UNUSED */
+    wire _unused_subtractive_monbus = &{1'b0, subtractive_monbus_valid, subtractive_monbus_packet};
+    /* verilator lint_on UNUSED */
     // ================================================================
     // CPU_WR Adapter
     // ================================================================
@@ -324,7 +429,36 @@ module bridge_1x2_wr_axi5a
         .sram_wr_axi_awatop(xbar_sram_wr_axi_awatop),
         .sram_wr_axi_bridge_id_aw(sram_wr_axi_bridge_id_aw),
         .sram_wr_axi_bid_bridge_id(sram_wr_axi_bid_bridge_id),
-        .sram_wr_axi_bid_valid(sram_wr_axi_bid_valid)
+        .sram_wr_axi_bid_valid(sram_wr_axi_bid_valid),
+
+        // Slave 2: subtractive
+        .subtractive_axi_awid(xbar_subtractive_axi_awid),
+        .subtractive_axi_awaddr(xbar_subtractive_axi_awaddr),
+        .subtractive_axi_awlen(xbar_subtractive_axi_awlen),
+        .subtractive_axi_awsize(xbar_subtractive_axi_awsize),
+        .subtractive_axi_awburst(xbar_subtractive_axi_awburst),
+        .subtractive_axi_awlock(xbar_subtractive_axi_awlock),
+        .subtractive_axi_awcache(xbar_subtractive_axi_awcache),
+        .subtractive_axi_awprot(xbar_subtractive_axi_awprot),
+        .subtractive_axi_awqos(xbar_subtractive_axi_awqos),
+        .subtractive_axi_awregion(xbar_subtractive_axi_awregion),
+        .subtractive_axi_awuser(xbar_subtractive_axi_awuser),
+        .subtractive_axi_awvalid(xbar_subtractive_axi_awvalid),
+        .subtractive_axi_awready(xbar_subtractive_axi_awready),
+        .subtractive_axi_wdata(xbar_subtractive_axi_wdata),
+        .subtractive_axi_wstrb(xbar_subtractive_axi_wstrb),
+        .subtractive_axi_wlast(xbar_subtractive_axi_wlast),
+        .subtractive_axi_wuser(xbar_subtractive_axi_wuser),
+        .subtractive_axi_wvalid(xbar_subtractive_axi_wvalid),
+        .subtractive_axi_wready(xbar_subtractive_axi_wready),
+        .subtractive_axi_bid(xbar_subtractive_axi_bid),
+        .subtractive_axi_bresp(xbar_subtractive_axi_bresp),
+        .subtractive_axi_buser(xbar_subtractive_axi_buser),
+        .subtractive_axi_bvalid(xbar_subtractive_axi_bvalid),
+        .subtractive_axi_bready(xbar_subtractive_axi_bready),
+        .subtractive_axi_bridge_id_aw(subtractive_axi_bridge_id_aw),
+        .subtractive_axi_bid_bridge_id(subtractive_axi_bid_bridge_id),
+        .subtractive_axi_bid_valid(subtractive_axi_bid_valid)
     );
 
     // ================================================================
@@ -464,6 +598,69 @@ module bridge_1x2_wr_axi5a
         .xbar_bridge_id_aw(sram_wr_axi_bridge_id_aw),
         .bid_bridge_id(sram_wr_axi_bid_bridge_id),
         .bid_valid(sram_wr_axi_bid_valid)
+    );
+
+    // subtractive adapter (AXI4, crossbar → external slave)
+    subtractive_adapter u_subtractive_adapter (
+        .aclk(aclk),
+        .aresetn(aresetn),
+
+        // Crossbar interface (xbar_subtractive_axi_*)
+        .xbar_subtractive_axi_awid(xbar_subtractive_axi_awid),
+        .xbar_subtractive_axi_awaddr(xbar_subtractive_axi_awaddr),
+        .xbar_subtractive_axi_awlen(xbar_subtractive_axi_awlen),
+        .xbar_subtractive_axi_awsize(xbar_subtractive_axi_awsize),
+        .xbar_subtractive_axi_awburst(xbar_subtractive_axi_awburst),
+        .xbar_subtractive_axi_awlock(xbar_subtractive_axi_awlock),
+        .xbar_subtractive_axi_awcache(xbar_subtractive_axi_awcache),
+        .xbar_subtractive_axi_awprot(xbar_subtractive_axi_awprot),
+        .xbar_subtractive_axi_awqos(xbar_subtractive_axi_awqos),
+        .xbar_subtractive_axi_awregion(xbar_subtractive_axi_awregion),
+        .xbar_subtractive_axi_awuser(xbar_subtractive_axi_awuser),
+        .xbar_subtractive_axi_awvalid(xbar_subtractive_axi_awvalid),
+        .xbar_subtractive_axi_awready(xbar_subtractive_axi_awready),
+        .xbar_subtractive_axi_wdata(xbar_subtractive_axi_wdata),
+        .xbar_subtractive_axi_wstrb(xbar_subtractive_axi_wstrb),
+        .xbar_subtractive_axi_wlast(xbar_subtractive_axi_wlast),
+        .xbar_subtractive_axi_wuser(xbar_subtractive_axi_wuser),
+        .xbar_subtractive_axi_wvalid(xbar_subtractive_axi_wvalid),
+        .xbar_subtractive_axi_wready(xbar_subtractive_axi_wready),
+        .xbar_subtractive_axi_bid(xbar_subtractive_axi_bid),
+        .xbar_subtractive_axi_bresp(xbar_subtractive_axi_bresp),
+        .xbar_subtractive_axi_buser(xbar_subtractive_axi_buser),
+        .xbar_subtractive_axi_bvalid(xbar_subtractive_axi_bvalid),
+        .xbar_subtractive_axi_bready(xbar_subtractive_axi_bready),
+
+        // External AXI4 interface (subtractive_*)
+        .subtractive_awid(subtractive_awid),
+        .subtractive_awaddr(subtractive_awaddr),
+        .subtractive_awlen(subtractive_awlen),
+        .subtractive_awsize(subtractive_awsize),
+        .subtractive_awburst(subtractive_awburst),
+        .subtractive_awlock(subtractive_awlock),
+        .subtractive_awcache(subtractive_awcache),
+        .subtractive_awprot(subtractive_awprot),
+        .subtractive_awqos(subtractive_awqos),
+        .subtractive_awregion(subtractive_awregion),
+        .subtractive_awuser(subtractive_awuser),
+        .subtractive_awvalid(subtractive_awvalid),
+        .subtractive_awready(subtractive_awready),
+        .subtractive_wdata(subtractive_wdata),
+        .subtractive_wstrb(subtractive_wstrb),
+        .subtractive_wlast(subtractive_wlast),
+        .subtractive_wuser(subtractive_wuser),
+        .subtractive_wvalid(subtractive_wvalid),
+        .subtractive_wready(subtractive_wready),
+        .subtractive_bid(subtractive_bid),
+        .subtractive_bresp(subtractive_bresp),
+        .subtractive_buser(subtractive_buser),
+        .subtractive_bvalid(subtractive_bvalid),
+        .subtractive_bready(subtractive_bready),
+
+        // Bridge ID tracking
+        .xbar_bridge_id_aw(subtractive_axi_bridge_id_aw),
+        .bid_bridge_id(subtractive_axi_bid_bridge_id),
+        .bid_valid(subtractive_axi_bid_valid)
     );
 
 endmodule : bridge_1x2_wr_axi5a

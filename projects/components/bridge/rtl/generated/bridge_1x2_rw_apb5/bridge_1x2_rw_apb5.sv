@@ -142,7 +142,7 @@ module bridge_1x2_rw_apb5
     input  logic periph5_PBUSER
 );
 
-    localparam NUM_SLAVES = 2;
+    localparam NUM_SLAVES = 3;
 
     // cpu Adapter outputs
     logic [NUM_SLAVES-1:0] cpu_slave_select_aw;
@@ -271,6 +271,154 @@ module bridge_1x2_rw_apb5
     logic [BRIDGE_ID_WIDTH-1:0] periph5_axi_rid_bridge_id;
     logic                       periph5_axi_rid_valid;
 
+    // subtractive (AXI4, 32b AXI4 interface)
+    logic [3:0]            xbar_subtractive_axi_awid;
+    logic [31:0]               xbar_subtractive_axi_awaddr;
+    logic [7:0]                xbar_subtractive_axi_awlen;
+    logic [2:0]                xbar_subtractive_axi_awsize;
+    logic [1:0]                xbar_subtractive_axi_awburst;
+    logic                      xbar_subtractive_axi_awlock;
+    logic [3:0]                xbar_subtractive_axi_awcache;
+    logic [2:0]                xbar_subtractive_axi_awprot;
+    logic [3:0]                xbar_subtractive_axi_awqos;
+    logic [3:0]                xbar_subtractive_axi_awregion;
+    logic                      xbar_subtractive_axi_awuser;
+    logic                      xbar_subtractive_axi_awvalid;
+    logic                      xbar_subtractive_axi_awready;
+    logic [31:0] xbar_subtractive_axi_wdata;
+    logic [3:0] xbar_subtractive_axi_wstrb;
+    logic                      xbar_subtractive_axi_wlast;
+    logic                      xbar_subtractive_axi_wuser;
+    logic                      xbar_subtractive_axi_wvalid;
+    logic                      xbar_subtractive_axi_wready;
+    logic [3:0]            xbar_subtractive_axi_bid;
+    logic [1:0]                xbar_subtractive_axi_bresp;
+    logic                      xbar_subtractive_axi_buser;
+    logic                      xbar_subtractive_axi_bvalid;
+    logic                      xbar_subtractive_axi_bready;
+    logic [3:0]            xbar_subtractive_axi_arid;
+    logic [31:0]               xbar_subtractive_axi_araddr;
+    logic [7:0]                xbar_subtractive_axi_arlen;
+    logic [2:0]                xbar_subtractive_axi_arsize;
+    logic [1:0]                xbar_subtractive_axi_arburst;
+    logic                      xbar_subtractive_axi_arlock;
+    logic [3:0]                xbar_subtractive_axi_arcache;
+    logic [2:0]                xbar_subtractive_axi_arprot;
+    logic [3:0]                xbar_subtractive_axi_arqos;
+    logic [3:0]                xbar_subtractive_axi_arregion;
+    logic                      xbar_subtractive_axi_aruser;
+    logic                      xbar_subtractive_axi_arvalid;
+    logic                      xbar_subtractive_axi_arready;
+    logic [3:0]            xbar_subtractive_axi_rid;
+    logic [31:0] xbar_subtractive_axi_rdata;
+    logic [1:0]                xbar_subtractive_axi_rresp;
+    logic                      xbar_subtractive_axi_rlast;
+    logic                      xbar_subtractive_axi_ruser;
+    logic                      xbar_subtractive_axi_rvalid;
+    logic                      xbar_subtractive_axi_rready;
+    logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_bridge_id_aw;
+    logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_bid_bridge_id;
+    logic                       subtractive_axi_bid_valid;
+    logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_bridge_id_ar;
+    logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_rid_bridge_id;
+    logic                       subtractive_axi_rid_valid;
+
+
+    // ---- Slave 2: subtractive (subtractive catch-all, internal) ----
+    // Unmapped addresses land here instead of selecting nothing and
+    // stalling the master forever (BRIDGE-009). Always answers DECERR.
+    logic [3:0]  subtractive_awid;
+    logic [31:0]  subtractive_awaddr;
+    logic [7:0]  subtractive_awlen;
+    logic [2:0]  subtractive_awsize;
+    logic [1:0]  subtractive_awburst;
+    logic         subtractive_awlock;
+    logic [3:0]  subtractive_awcache;
+    logic [2:0]  subtractive_awprot;
+    logic [3:0]  subtractive_awqos;
+    logic [3:0]  subtractive_awregion;
+    logic         subtractive_awuser;
+    logic         subtractive_awvalid;
+    logic         subtractive_awready;
+    logic [31:0]  subtractive_wdata;
+    logic [3:0]  subtractive_wstrb;
+    logic         subtractive_wlast;
+    logic         subtractive_wuser;
+    logic         subtractive_wvalid;
+    logic         subtractive_wready;
+    logic [3:0]  subtractive_bid;
+    logic [1:0]  subtractive_bresp;
+    logic         subtractive_buser;
+    logic         subtractive_bvalid;
+    logic         subtractive_bready;
+    logic [3:0]  subtractive_arid;
+    logic [31:0]  subtractive_araddr;
+    logic [7:0]  subtractive_arlen;
+    logic [2:0]  subtractive_arsize;
+    logic [1:0]  subtractive_arburst;
+    logic         subtractive_arlock;
+    logic [3:0]  subtractive_arcache;
+    logic [2:0]  subtractive_arprot;
+    logic [3:0]  subtractive_arqos;
+    logic [3:0]  subtractive_arregion;
+    logic         subtractive_aruser;
+    logic         subtractive_arvalid;
+    logic         subtractive_arready;
+    logic [3:0]  subtractive_rid;
+    logic [31:0]  subtractive_rdata;
+    logic [1:0]  subtractive_rresp;
+    logic         subtractive_rlast;
+    logic         subtractive_ruser;
+    logic         subtractive_rvalid;
+    logic         subtractive_rready;
+    logic subtractive_monbus_valid;
+    logic subtractive_monbus_ready;
+    monitor_common_pkg::monitor_packet_t subtractive_monbus_packet;
+
+    axi4_subtractive_slave #(
+        .AXI_ID_WIDTH   (4),
+        .AXI_ADDR_WIDTH (32),
+        .AXI_DATA_WIDTH (32),
+        .AXI_USER_WIDTH (1),
+        .UNIT_ID        (8'd2),
+        .AGENT_ID       (16'h5B00)
+    ) u_subtractive (
+        .aclk          (aclk),
+        .aresetn       (aresetn),
+        .s_axi_awid    (subtractive_awid),
+        .s_axi_awaddr  (subtractive_awaddr),
+        .s_axi_awlen   (subtractive_awlen),
+        .s_axi_awvalid (subtractive_awvalid),
+        .s_axi_awready (subtractive_awready),
+        .s_axi_wdata   (subtractive_wdata),
+        .s_axi_wlast   (subtractive_wlast),
+        .s_axi_wvalid  (subtractive_wvalid),
+        .s_axi_wready  (subtractive_wready),
+        .s_axi_bid     (subtractive_bid),
+        .s_axi_bresp   (subtractive_bresp),
+        .s_axi_buser   (subtractive_buser),
+        .s_axi_bvalid  (subtractive_bvalid),
+        .s_axi_bready  (subtractive_bready),
+        .s_axi_arid    (subtractive_arid),
+        .s_axi_araddr  (subtractive_araddr),
+        .s_axi_arlen   (subtractive_arlen),
+        .s_axi_arvalid (subtractive_arvalid),
+        .s_axi_arready (subtractive_arready),
+        .s_axi_rid     (subtractive_rid),
+        .s_axi_rdata   (subtractive_rdata),
+        .s_axi_rresp   (subtractive_rresp),
+        .s_axi_rlast   (subtractive_rlast),
+        .s_axi_ruser   (subtractive_ruser),
+        .s_axi_rvalid  (subtractive_rvalid),
+        .s_axi_rready  (subtractive_rready),
+        .monbus_valid  (subtractive_monbus_valid),
+        .monbus_ready  (subtractive_monbus_ready),
+        .monbus_packet (subtractive_monbus_packet)
+    );
+    assign subtractive_monbus_ready = 1'b1;  // TODO: -> monbus_arbiter
+    /* verilator lint_off UNUSED */
+    wire _unused_subtractive_monbus = &{1'b0, subtractive_monbus_valid, subtractive_monbus_packet};
+    /* verilator lint_on UNUSED */
     // ================================================================
     // CPU Adapter
     // ================================================================
@@ -481,7 +629,60 @@ module bridge_1x2_rw_apb5
 
         .periph5_axi_bridge_id_ar(periph5_axi_bridge_id_ar),
         .periph5_axi_rid_bridge_id(periph5_axi_rid_bridge_id),
-        .periph5_axi_rid_valid(periph5_axi_rid_valid)
+        .periph5_axi_rid_valid(periph5_axi_rid_valid),
+
+        // Slave 2: subtractive
+        .subtractive_axi_awid(xbar_subtractive_axi_awid),
+        .subtractive_axi_awaddr(xbar_subtractive_axi_awaddr),
+        .subtractive_axi_awlen(xbar_subtractive_axi_awlen),
+        .subtractive_axi_awsize(xbar_subtractive_axi_awsize),
+        .subtractive_axi_awburst(xbar_subtractive_axi_awburst),
+        .subtractive_axi_awlock(xbar_subtractive_axi_awlock),
+        .subtractive_axi_awcache(xbar_subtractive_axi_awcache),
+        .subtractive_axi_awprot(xbar_subtractive_axi_awprot),
+        .subtractive_axi_awqos(xbar_subtractive_axi_awqos),
+        .subtractive_axi_awregion(xbar_subtractive_axi_awregion),
+        .subtractive_axi_awuser(xbar_subtractive_axi_awuser),
+        .subtractive_axi_awvalid(xbar_subtractive_axi_awvalid),
+        .subtractive_axi_awready(xbar_subtractive_axi_awready),
+        .subtractive_axi_wdata(xbar_subtractive_axi_wdata),
+        .subtractive_axi_wstrb(xbar_subtractive_axi_wstrb),
+        .subtractive_axi_wlast(xbar_subtractive_axi_wlast),
+        .subtractive_axi_wuser(xbar_subtractive_axi_wuser),
+        .subtractive_axi_wvalid(xbar_subtractive_axi_wvalid),
+        .subtractive_axi_wready(xbar_subtractive_axi_wready),
+        .subtractive_axi_bid(xbar_subtractive_axi_bid),
+        .subtractive_axi_bresp(xbar_subtractive_axi_bresp),
+        .subtractive_axi_buser(xbar_subtractive_axi_buser),
+        .subtractive_axi_bvalid(xbar_subtractive_axi_bvalid),
+        .subtractive_axi_bready(xbar_subtractive_axi_bready),
+        .subtractive_axi_arid(xbar_subtractive_axi_arid),
+        .subtractive_axi_araddr(xbar_subtractive_axi_araddr),
+        .subtractive_axi_arlen(xbar_subtractive_axi_arlen),
+        .subtractive_axi_arsize(xbar_subtractive_axi_arsize),
+        .subtractive_axi_arburst(xbar_subtractive_axi_arburst),
+        .subtractive_axi_arlock(xbar_subtractive_axi_arlock),
+        .subtractive_axi_arcache(xbar_subtractive_axi_arcache),
+        .subtractive_axi_arprot(xbar_subtractive_axi_arprot),
+        .subtractive_axi_arqos(xbar_subtractive_axi_arqos),
+        .subtractive_axi_arregion(xbar_subtractive_axi_arregion),
+        .subtractive_axi_aruser(xbar_subtractive_axi_aruser),
+        .subtractive_axi_arvalid(xbar_subtractive_axi_arvalid),
+        .subtractive_axi_arready(xbar_subtractive_axi_arready),
+        .subtractive_axi_rid(xbar_subtractive_axi_rid),
+        .subtractive_axi_rdata(xbar_subtractive_axi_rdata),
+        .subtractive_axi_rresp(xbar_subtractive_axi_rresp),
+        .subtractive_axi_rlast(xbar_subtractive_axi_rlast),
+        .subtractive_axi_ruser(xbar_subtractive_axi_ruser),
+        .subtractive_axi_rvalid(xbar_subtractive_axi_rvalid),
+        .subtractive_axi_rready(xbar_subtractive_axi_rready),
+        .subtractive_axi_bridge_id_aw(subtractive_axi_bridge_id_aw),
+        .subtractive_axi_bid_bridge_id(subtractive_axi_bid_bridge_id),
+        .subtractive_axi_bid_valid(subtractive_axi_bid_valid),
+
+        .subtractive_axi_bridge_id_ar(subtractive_axi_bridge_id_ar),
+        .subtractive_axi_rid_bridge_id(subtractive_axi_rid_bridge_id),
+        .subtractive_axi_rid_valid(subtractive_axi_rid_valid)
     );
 
     // ================================================================
@@ -672,6 +873,112 @@ module bridge_1x2_rw_apb5
         .xbar_bridge_id_ar(periph5_axi_bridge_id_ar),
         .rid_bridge_id(periph5_axi_rid_bridge_id),
         .rid_valid(periph5_axi_rid_valid)
+    );
+
+    // subtractive adapter (AXI4, crossbar → external slave)
+    subtractive_adapter u_subtractive_adapter (
+        .aclk(aclk),
+        .aresetn(aresetn),
+
+        // Crossbar interface (xbar_subtractive_axi_*)
+        .xbar_subtractive_axi_awid(xbar_subtractive_axi_awid),
+        .xbar_subtractive_axi_awaddr(xbar_subtractive_axi_awaddr),
+        .xbar_subtractive_axi_awlen(xbar_subtractive_axi_awlen),
+        .xbar_subtractive_axi_awsize(xbar_subtractive_axi_awsize),
+        .xbar_subtractive_axi_awburst(xbar_subtractive_axi_awburst),
+        .xbar_subtractive_axi_awlock(xbar_subtractive_axi_awlock),
+        .xbar_subtractive_axi_awcache(xbar_subtractive_axi_awcache),
+        .xbar_subtractive_axi_awprot(xbar_subtractive_axi_awprot),
+        .xbar_subtractive_axi_awqos(xbar_subtractive_axi_awqos),
+        .xbar_subtractive_axi_awregion(xbar_subtractive_axi_awregion),
+        .xbar_subtractive_axi_awuser(xbar_subtractive_axi_awuser),
+        .xbar_subtractive_axi_awvalid(xbar_subtractive_axi_awvalid),
+        .xbar_subtractive_axi_awready(xbar_subtractive_axi_awready),
+        .xbar_subtractive_axi_wdata(xbar_subtractive_axi_wdata),
+        .xbar_subtractive_axi_wstrb(xbar_subtractive_axi_wstrb),
+        .xbar_subtractive_axi_wlast(xbar_subtractive_axi_wlast),
+        .xbar_subtractive_axi_wuser(xbar_subtractive_axi_wuser),
+        .xbar_subtractive_axi_wvalid(xbar_subtractive_axi_wvalid),
+        .xbar_subtractive_axi_wready(xbar_subtractive_axi_wready),
+        .xbar_subtractive_axi_bid(xbar_subtractive_axi_bid),
+        .xbar_subtractive_axi_bresp(xbar_subtractive_axi_bresp),
+        .xbar_subtractive_axi_buser(xbar_subtractive_axi_buser),
+        .xbar_subtractive_axi_bvalid(xbar_subtractive_axi_bvalid),
+        .xbar_subtractive_axi_bready(xbar_subtractive_axi_bready),
+        .xbar_subtractive_axi_arid(xbar_subtractive_axi_arid),
+        .xbar_subtractive_axi_araddr(xbar_subtractive_axi_araddr),
+        .xbar_subtractive_axi_arlen(xbar_subtractive_axi_arlen),
+        .xbar_subtractive_axi_arsize(xbar_subtractive_axi_arsize),
+        .xbar_subtractive_axi_arburst(xbar_subtractive_axi_arburst),
+        .xbar_subtractive_axi_arlock(xbar_subtractive_axi_arlock),
+        .xbar_subtractive_axi_arcache(xbar_subtractive_axi_arcache),
+        .xbar_subtractive_axi_arprot(xbar_subtractive_axi_arprot),
+        .xbar_subtractive_axi_arqos(xbar_subtractive_axi_arqos),
+        .xbar_subtractive_axi_arregion(xbar_subtractive_axi_arregion),
+        .xbar_subtractive_axi_aruser(xbar_subtractive_axi_aruser),
+        .xbar_subtractive_axi_arvalid(xbar_subtractive_axi_arvalid),
+        .xbar_subtractive_axi_arready(xbar_subtractive_axi_arready),
+        .xbar_subtractive_axi_rid(xbar_subtractive_axi_rid),
+        .xbar_subtractive_axi_rdata(xbar_subtractive_axi_rdata),
+        .xbar_subtractive_axi_rresp(xbar_subtractive_axi_rresp),
+        .xbar_subtractive_axi_rlast(xbar_subtractive_axi_rlast),
+        .xbar_subtractive_axi_ruser(xbar_subtractive_axi_ruser),
+        .xbar_subtractive_axi_rvalid(xbar_subtractive_axi_rvalid),
+        .xbar_subtractive_axi_rready(xbar_subtractive_axi_rready),
+
+        // External AXI4 interface (subtractive_*)
+        .subtractive_awid(subtractive_awid),
+        .subtractive_awaddr(subtractive_awaddr),
+        .subtractive_awlen(subtractive_awlen),
+        .subtractive_awsize(subtractive_awsize),
+        .subtractive_awburst(subtractive_awburst),
+        .subtractive_awlock(subtractive_awlock),
+        .subtractive_awcache(subtractive_awcache),
+        .subtractive_awprot(subtractive_awprot),
+        .subtractive_awqos(subtractive_awqos),
+        .subtractive_awregion(subtractive_awregion),
+        .subtractive_awuser(subtractive_awuser),
+        .subtractive_awvalid(subtractive_awvalid),
+        .subtractive_awready(subtractive_awready),
+        .subtractive_wdata(subtractive_wdata),
+        .subtractive_wstrb(subtractive_wstrb),
+        .subtractive_wlast(subtractive_wlast),
+        .subtractive_wuser(subtractive_wuser),
+        .subtractive_wvalid(subtractive_wvalid),
+        .subtractive_wready(subtractive_wready),
+        .subtractive_bid(subtractive_bid),
+        .subtractive_bresp(subtractive_bresp),
+        .subtractive_buser(subtractive_buser),
+        .subtractive_bvalid(subtractive_bvalid),
+        .subtractive_bready(subtractive_bready),
+        .subtractive_arid(subtractive_arid),
+        .subtractive_araddr(subtractive_araddr),
+        .subtractive_arlen(subtractive_arlen),
+        .subtractive_arsize(subtractive_arsize),
+        .subtractive_arburst(subtractive_arburst),
+        .subtractive_arlock(subtractive_arlock),
+        .subtractive_arcache(subtractive_arcache),
+        .subtractive_arprot(subtractive_arprot),
+        .subtractive_arqos(subtractive_arqos),
+        .subtractive_arregion(subtractive_arregion),
+        .subtractive_aruser(subtractive_aruser),
+        .subtractive_arvalid(subtractive_arvalid),
+        .subtractive_arready(subtractive_arready),
+        .subtractive_rid(subtractive_rid),
+        .subtractive_rdata(subtractive_rdata),
+        .subtractive_rresp(subtractive_rresp),
+        .subtractive_rlast(subtractive_rlast),
+        .subtractive_ruser(subtractive_ruser),
+        .subtractive_rvalid(subtractive_rvalid),
+        .subtractive_rready(subtractive_rready),
+
+        // Bridge ID tracking
+        .xbar_bridge_id_aw(subtractive_axi_bridge_id_aw),
+        .bid_bridge_id(subtractive_axi_bid_bridge_id),
+        .bid_valid(subtractive_axi_bid_valid),
+        .xbar_bridge_id_ar(subtractive_axi_bridge_id_ar),
+        .rid_bridge_id(subtractive_axi_rid_bridge_id),
+        .rid_valid(subtractive_axi_rid_valid)
     );
 
 endmodule : bridge_1x2_rw_apb5

@@ -12,7 +12,7 @@
 module bridge_1x5_wr_xbar
     import bridge_1x5_wr_pkg::*;
 #(
-    parameter int NUM_SLAVES = 5
+    parameter int NUM_SLAVES = 6
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -209,7 +209,39 @@ module bridge_1x5_wr_xbar
     input  logic [1:0]  axil_periph_axi_bresp,
     input  logic         axil_periph_axi_buser,
     input  logic         axil_periph_axi_bvalid,
-    output  logic         axil_periph_axi_bready
+    output  logic         axil_periph_axi_bready,
+
+    // Slave 5: subtractive
+    output logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_bridge_id_aw,
+    input  logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_bid_bridge_id,
+    input  logic                       subtractive_axi_bid_valid,
+
+    output  logic [3:0]  subtractive_axi_awid,
+    output  logic [31:0]  subtractive_axi_awaddr,
+    output  logic [7:0]  subtractive_axi_awlen,
+    output  logic [2:0]  subtractive_axi_awsize,
+    output  logic [1:0]  subtractive_axi_awburst,
+    output  logic         subtractive_axi_awlock,
+    output  logic [3:0]  subtractive_axi_awcache,
+    output  logic [2:0]  subtractive_axi_awprot,
+    output  logic [3:0]  subtractive_axi_awqos,
+    output  logic [3:0]  subtractive_axi_awregion,
+    output  logic         subtractive_axi_awuser,
+    output  logic         subtractive_axi_awvalid,
+    input  logic         subtractive_axi_awready,
+
+    output  logic [127:0]  subtractive_axi_wdata,
+    output  logic [15:0]  subtractive_axi_wstrb,
+    output  logic         subtractive_axi_wlast,
+    output  logic         subtractive_axi_wuser,
+    output  logic         subtractive_axi_wvalid,
+    input  logic         subtractive_axi_wready,
+
+    input  logic [3:0]  subtractive_axi_bid,
+    input  logic [1:0]  subtractive_axi_bresp,
+    input  logic         subtractive_axi_buser,
+    input  logic         subtractive_axi_bvalid,
+    output  logic         subtractive_axi_bready
 );
 
     // ================================================================
@@ -227,6 +259,8 @@ module bridge_1x5_wr_xbar
     logic cpu_wr_64b_w_sel_ddr_wr;
     logic cpu_wr_128b_w_to_hbm_wr;
     logic cpu_wr_128b_w_sel_hbm_wr;
+    logic cpu_wr_128b_w_to_subtractive;
+    logic cpu_wr_128b_w_sel_subtractive;
 
     // ================================================================
     // Slave 0: periph_wr (32b)
@@ -429,6 +463,46 @@ module bridge_1x5_wr_xbar
 
 
     // ================================================================
+    // Slave 5: subtractive (128b)
+    // ================================================================
+    // Single master: cpu_wr → subtractive
+    // Master width: 64b, Slave width: 128b
+    // Using 128b path from adapter
+
+    // AW channel (gated by address re-decode -- see _addr_decode_expr)
+    wire cpu_wr_128b_aw_to_subtractive = !(((cpu_wr_128b_aw.addr <= 32'h0fffffff)) || (((cpu_wr_128b_aw.addr >= 32'h10000000) && (cpu_wr_128b_aw.addr <= 32'h4fffffff))) || (((cpu_wr_128b_aw.addr >= 32'h50000000) && (cpu_wr_128b_aw.addr <= 32'h7fffffff))) || (((cpu_wr_128b_aw.addr >= 32'h80000000) && (cpu_wr_128b_aw.addr <= 32'h8000ffff))) || (((cpu_wr_128b_aw.addr >= 32'h90000000) && (cpu_wr_128b_aw.addr <= 32'h9000ffff))));
+    wire cpu_wr_128b_aw_gnt_subtractive = cpu_wr_128b_aw_to_subtractive;
+    assign subtractive_axi_awid     = cpu_wr_128b_aw_to_subtractive ? cpu_wr_128b_aw.id : '0;
+    assign subtractive_axi_awaddr   = cpu_wr_128b_aw_to_subtractive ? cpu_wr_128b_aw.addr : '0;
+    assign subtractive_axi_awlen    = cpu_wr_128b_aw_to_subtractive ? cpu_wr_128b_aw.len : '0;
+    assign subtractive_axi_awsize   = cpu_wr_128b_aw_to_subtractive ? cpu_wr_128b_aw.size : '0;
+    assign subtractive_axi_awburst  = cpu_wr_128b_aw_to_subtractive ? cpu_wr_128b_aw.burst : '0;
+    assign subtractive_axi_awlock   = cpu_wr_128b_aw_to_subtractive ? cpu_wr_128b_aw.lock : '0;
+    assign subtractive_axi_awcache  = cpu_wr_128b_aw_to_subtractive ? cpu_wr_128b_aw.cache : '0;
+    assign subtractive_axi_awprot   = cpu_wr_128b_aw_to_subtractive ? cpu_wr_128b_aw.prot : '0;
+    assign subtractive_axi_awqos    = cpu_wr_128b_aw_to_subtractive ? cpu_wr_128b_aw.qos : '0;
+    assign subtractive_axi_awregion = cpu_wr_128b_aw_to_subtractive ? cpu_wr_128b_aw.region : '0;
+    assign subtractive_axi_awuser   = cpu_wr_128b_aw_to_subtractive ? cpu_wr_128b_aw.user : '0;
+    assign subtractive_axi_awvalid  = cpu_wr_128b_aw_to_subtractive && cpu_wr_128b_awvalid;
+
+    assign cpu_wr_128b_w_sel_subtractive = cpu_wr_128b_w_to_subtractive;
+
+    // W channel (gated by the W destination FIFO head)
+    assign subtractive_axi_wdata  = cpu_wr_128b_w_to_subtractive ? cpu_wr_128b_w.data : '0;
+    assign subtractive_axi_wstrb  = cpu_wr_128b_w_to_subtractive ? cpu_wr_128b_w.strb : '0;
+    assign subtractive_axi_wlast  = cpu_wr_128b_w_to_subtractive ? cpu_wr_128b_w.last : '0;
+    assign subtractive_axi_wuser  = cpu_wr_128b_w_to_subtractive ? cpu_wr_128b_w.user : '0;
+    assign subtractive_axi_wvalid = cpu_wr_128b_w_to_subtractive && cpu_wr_128b_wvalid;
+
+    // Bready (master → slave) — gated on bid_valid so the path stays
+    // open through the entire B handshake, not just the AW phase.
+    assign subtractive_axi_bready = ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) ? cpu_wr_128b_bready : '0;
+
+    // Bridge ID (master → slave)
+    assign subtractive_axi_bridge_id_aw = cpu_wr_128b_aw_to_subtractive ? cpu_wr_bridge_id_aw : '0;
+
+
+    // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
     // cpu_wr 32b path -> periph_wr, apb_periph, axil_periph
@@ -481,10 +555,10 @@ module bridge_1x5_wr_xbar
     wire [0:0] cpu_wr_64b_wdest_head = cpu_wr_64b_wdest_mem[cpu_wr_64b_wdest_rptr[3:0]];
     assign cpu_wr_64b_w_to_ddr_wr = cpu_wr_64b_wdest_valid && (cpu_wr_64b_wdest_head == 1'd0);
 
-    // cpu_wr 128b path -> hbm_wr
+    // cpu_wr 128b path -> hbm_wr, subtractive
     logic [0:0] cpu_wr_128b_wdest_mem [16];
     logic [4:0] cpu_wr_128b_wdest_wptr, cpu_wr_128b_wdest_rptr;
-    wire [0:0] cpu_wr_128b_wdest_enc = 1'd0;
+    wire [0:0] cpu_wr_128b_wdest_enc = cpu_wr_128b_aw_to_subtractive ? 1'd1 : 1'd0;
     wire cpu_wr_128b_wdest_push = cpu_wr_128b_awvalid && cpu_wr_128b_awready;
     wire cpu_wr_128b_wdest_pop  = cpu_wr_128b_wvalid && cpu_wr_128b_wready && cpu_wr_128b_w.last;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -504,6 +578,7 @@ module bridge_1x5_wr_xbar
     wire cpu_wr_128b_wdest_valid = (cpu_wr_128b_wdest_wptr != cpu_wr_128b_wdest_rptr);
     wire [0:0] cpu_wr_128b_wdest_head = cpu_wr_128b_wdest_mem[cpu_wr_128b_wdest_rptr[3:0]];
     assign cpu_wr_128b_w_to_hbm_wr = cpu_wr_128b_wdest_valid && (cpu_wr_128b_wdest_head == 1'd0);
+    assign cpu_wr_128b_w_to_subtractive = cpu_wr_128b_wdest_valid && (cpu_wr_128b_wdest_head == 1'd1);
 
     // ================================================================
     // Response MUXes (OR together all slave responses)
@@ -563,22 +638,28 @@ module bridge_1x5_wr_xbar
 
     // Master: cpu_wr, Width path: 128b
     assign cpu_wr_128b_awready = 
-        (cpu_wr_128b_aw_gnt_hbm_wr ? hbm_wr_axi_awready : '0);
+        (cpu_wr_128b_aw_gnt_hbm_wr ? hbm_wr_axi_awready : '0) |
+        (cpu_wr_128b_aw_gnt_subtractive ? subtractive_axi_awready : '0);
 
     assign cpu_wr_128b_wready = 
-        (cpu_wr_128b_w_sel_hbm_wr ? hbm_wr_axi_wready : '0);
+        (cpu_wr_128b_w_sel_hbm_wr ? hbm_wr_axi_wready : '0) |
+        (cpu_wr_128b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign cpu_wr_128b_b.id = 
-        ((hbm_wr_axi_bid_bridge_id == 0) && hbm_wr_axi_bid_valid ? hbm_wr_axi_bid : '0);
+        ((hbm_wr_axi_bid_bridge_id == 0) && hbm_wr_axi_bid_valid ? hbm_wr_axi_bid : '0) |
+        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
 
     assign cpu_wr_128b_b.resp = 
-        ((hbm_wr_axi_bid_bridge_id == 0) && hbm_wr_axi_bid_valid ? hbm_wr_axi_bresp : '0);
+        ((hbm_wr_axi_bid_bridge_id == 0) && hbm_wr_axi_bid_valid ? hbm_wr_axi_bresp : '0) |
+        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
 
     assign cpu_wr_128b_b.user = 
-        ((hbm_wr_axi_bid_bridge_id == 0) && hbm_wr_axi_bid_valid ? hbm_wr_axi_buser : '0);
+        ((hbm_wr_axi_bid_bridge_id == 0) && hbm_wr_axi_bid_valid ? hbm_wr_axi_buser : '0) |
+        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
 
     assign cpu_wr_128b_bvalid = 
-        ((hbm_wr_axi_bid_bridge_id == 0) && hbm_wr_axi_bid_valid ? hbm_wr_axi_bvalid : '0);
+        ((hbm_wr_axi_bid_bridge_id == 0) && hbm_wr_axi_bid_valid ? hbm_wr_axi_bvalid : '0) |
+        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
 
 
 endmodule : bridge_1x5_wr_xbar

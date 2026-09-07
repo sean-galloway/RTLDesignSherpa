@@ -456,6 +456,9 @@ def _convert_embedded_connectivity(conn_dict: Dict, masters: List[PortSpec], sla
     return connectivity
 
 
+SUBTRACTIVE_SLAVE_NAME = "subtractive"
+
+
 def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> BridgeConfig:
     """
     Load complete bridge configuration from TOML/YAML + CSV.
@@ -499,6 +502,50 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
         # Parse connectivity CSV (reuse existing parser)
         # This parser expects matrix format with 1/0 for connections
         connectivity = parse_connectivity_csv(connectivity_csv, masters, slaves)
+
+    # ---- subtractive (catch-all) slave -----------------------------------
+    # Appended LAST so the decode chain ends in an `else` that always matches.
+    # Without it the one-hot select is all-zero for an unmapped address, no
+    # slave sees AWVALID/ARVALID, READY never rises, and the master waits
+    # forever -- BRIDGE-009. A hang is the worst failure here because it
+    # destroys the evidence: no response to inspect and no error bit to read.
+    #
+    # It is `internal`, so it is routable exactly like any other slave but
+    # emits no top-level pins; the generator instantiates
+    # axi4_subtractive_slave for it, which answers DECERR + 0xDEADBEEF and
+    # reports the address on the monitor bus.
+    #
+    # Widths follow the WIDEST real slave so the crossbar needs no extra
+    # width conversion for a path that only ever carries error responses.
+    if slaves and not any(sl.internal for sl in slaves):
+        _widest = max(slaves, key=lambda sl: sl.data_width)
+        sub = PortSpec(
+            port_name=SUBTRACTIVE_SLAVE_NAME,
+            direction='slave',
+            protocol='axi4',
+            channels='rw',
+            prefix=SUBTRACTIVE_SLAVE_NAME,
+            data_width=_widest.data_width,
+            addr_width=max(sl.addr_width for sl in slaves),
+            id_width=max((sl.id_width for sl in slaves), default=8) or 8,
+            base_addr=0,
+            # FULL 32-bit span. The decode generator emits a bare `else` (its
+            # "Full address range (catch-all)" arm) only when base_addr == 0
+            # AND end_addr == the max address, which is what makes this the
+            # subtractive term rather than one more range to compare against.
+            addr_range=1 << 32,
+            use_monitor=False,     # it reports through its own monbus port
+            internal=True,
+        )
+        slaves.append(sub)
+        # Every master reaches it: an unmapped address from ANY master is the
+        # case this exists for.
+        for m in masters:
+            connectivity.setdefault(m.port_name, [])
+            if sub.port_name not in connectivity[m.port_name]:
+                connectivity[m.port_name].append(sub.port_name)
+        print(f"  Slave:  {sub.port_name} (subtractive catch-all, internal, "
+              f"{sub.data_width}b data) [DECERR on unmapped]")
 
     # Create BridgeConfig
     # Note: Slave addresses now come from YAML, not connectivity CSV

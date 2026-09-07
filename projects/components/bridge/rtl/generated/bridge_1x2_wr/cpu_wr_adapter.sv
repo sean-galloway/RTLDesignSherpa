@@ -10,7 +10,7 @@
 module cpu_wr_adapter
     import bridge_1x2_wr_pkg::*;
 #(
-    parameter NUM_SLAVES = 2,
+    parameter NUM_SLAVES = 3,
     parameter BRIDGE_ID = 0,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 1,
     parameter SKID_DEPTH_AW = 2,
@@ -183,6 +183,7 @@ module cpu_wr_adapter
     // Address decode (slave selection) - Write
     // Slave 0 (ddr_wr): 0x00000000 - 0x7FFFFFFF
     // Slave 1 (sram_wr): 0x80000000 - 0xFFFFFFFF
+    // Slave 2 (subtractive): 0x00000000 - 0xFFFFFFFF
     // ================================================================
     logic [NUM_SLAVES-1:0] comb_slave_select_aw;
     always_comb begin
@@ -192,6 +193,9 @@ module cpu_wr_adapter
         end
         else if (fub_axi_awaddr >= 32'h80000000) begin
             comb_slave_select_aw[1] = 1'b1;  // sram_wr
+        end
+        else begin  // Full address range (catch-all)
+            comb_slave_select_aw[2] = 1'b1;  // subtractive
         end
     end
 
@@ -206,11 +210,11 @@ module cpu_wr_adapter
     // Per-width path-active gates (see comment in adapter_generator.py).
     logic aw_gate_ok;
     logic aw_path_active_32b;
-    assign aw_path_active_32b = (comb_slave_select_aw[0] | comb_slave_select_aw[1]) && aw_gate_ok;
+    assign aw_path_active_32b = (comb_slave_select_aw[0] | comb_slave_select_aw[1] | comb_slave_select_aw[2]) && aw_gate_ok;
     logic w_path_active_32b;
-    assign w_path_active_32b = w_slave_select[0] | w_slave_select[1];
+    assign w_path_active_32b = w_slave_select[0] | w_slave_select[1] | w_slave_select[2];
     logic b_path_active_32b;
-    assign b_path_active_32b = b_slave_select[0] | b_slave_select[1];
+    assign b_path_active_32b = b_slave_select[0] | b_slave_select[1] | b_slave_select[2];
 
     // ================================================================
     // Direct passthrough: 32b → 32b (no converter)
@@ -347,10 +351,13 @@ module cpu_wr_adapter
     always_comb begin
         fub_axi_awready = 1'b0;
         case (comb_slave_select_aw)
-            2'b01: begin  // Slave 0 (32b)
+            3'b001: begin  // Slave 0 (32b)
                 fub_axi_awready = cpu_wr_32b_awready;
             end
-            2'b10: begin  // Slave 1 (32b)
+            3'b010: begin  // Slave 1 (32b)
+                fub_axi_awready = cpu_wr_32b_awready;
+            end
+            3'b100: begin  // Slave 2 (32b)
                 fub_axi_awready = cpu_wr_32b_awready;
             end
             default: begin
@@ -366,10 +373,13 @@ module cpu_wr_adapter
     always_comb begin
         fub_axi_wready = 1'b0;
         case (w_slave_select)
-            2'b01: begin  // Slave 0 (32b)
+            3'b001: begin  // Slave 0 (32b)
                 fub_axi_wready = cpu_wr_32b_wready;
             end
-            2'b10: begin  // Slave 1 (32b)
+            3'b010: begin  // Slave 1 (32b)
+                fub_axi_wready = cpu_wr_32b_wready;
+            end
+            3'b100: begin  // Slave 2 (32b)
                 fub_axi_wready = cpu_wr_32b_wready;
             end
             default: begin
@@ -385,12 +395,17 @@ module cpu_wr_adapter
         fub_axi_bvalid = 1'b0;
 
         case (b_slave_select)
-            2'b01: begin  // Slave 0 (32b)
+            3'b001: begin  // Slave 0 (32b)
                 fub_axi_bid = cpu_wr_32b_b.id[3:0];
                 fub_axi_bresp = cpu_wr_32b_b.resp;
                 fub_axi_bvalid = cpu_wr_32b_bvalid;
             end
-            2'b10: begin  // Slave 1 (32b)
+            3'b010: begin  // Slave 1 (32b)
+                fub_axi_bid = cpu_wr_32b_b.id[3:0];
+                fub_axi_bresp = cpu_wr_32b_b.resp;
+                fub_axi_bvalid = cpu_wr_32b_bvalid;
+            end
+            3'b100: begin  // Slave 2 (32b)
                 fub_axi_bid = cpu_wr_32b_b.id[3:0];
                 fub_axi_bresp = cpu_wr_32b_b.resp;
                 fub_axi_bvalid = cpu_wr_32b_bvalid;

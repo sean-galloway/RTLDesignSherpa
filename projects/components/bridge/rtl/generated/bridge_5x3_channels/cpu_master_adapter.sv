@@ -10,7 +10,7 @@
 module cpu_master_adapter
     import bridge_5x3_channels_pkg::*;
 #(
-    parameter NUM_SLAVES = 3,
+    parameter NUM_SLAVES = 4,
     parameter BRIDGE_ID = 4,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 3,
     parameter SKID_DEPTH_AW = 2,
@@ -324,6 +324,7 @@ module cpu_master_adapter
     // Slave 0 (sram_buffer): 0x00000000 - 0x3FFFFFFF
     // Slave 1 (ddr_controller): 0x40000000 - 0xBFFFFFFF
     // Slave 2 (apb_periph): 0xC0000000 - 0xCFFFFFFF
+    // Slave 3 (subtractive): 0x00000000 - 0xFFFFFFFF
     // ================================================================
     logic [NUM_SLAVES-1:0] comb_slave_select_aw;
     always_comb begin
@@ -337,6 +338,9 @@ module cpu_master_adapter
         else if (fub_axi_awaddr >= 32'hC0000000 && fub_axi_awaddr <= 32'hCFFFFFFF) begin
             comb_slave_select_aw[2] = 1'b1;  // apb_periph
         end
+        else begin  // Full address range (catch-all)
+            comb_slave_select_aw[3] = 1'b1;  // subtractive
+        end
     end
 
     // Bridge ID for write channel (constant - tied to BRIDGE_ID parameter)
@@ -347,6 +351,7 @@ module cpu_master_adapter
     // Slave 0 (sram_buffer): 0x00000000 - 0x3FFFFFFF
     // Slave 1 (ddr_controller): 0x40000000 - 0xBFFFFFFF
     // Slave 2 (apb_periph): 0xC0000000 - 0xCFFFFFFF
+    // Slave 3 (subtractive): 0x00000000 - 0xFFFFFFFF
     // ================================================================
     logic [NUM_SLAVES-1:0] comb_slave_select_ar;
     always_comb begin
@@ -359,6 +364,9 @@ module cpu_master_adapter
         end
         else if (fub_axi_araddr >= 32'hC0000000 && fub_axi_araddr <= 32'hCFFFFFFF) begin
             comb_slave_select_ar[2] = 1'b1;  // apb_periph
+        end
+        else begin  // Full address range (catch-all)
+            comb_slave_select_ar[3] = 1'b1;  // subtractive
         end
     end
 
@@ -384,15 +392,15 @@ module cpu_master_adapter
     logic r_path_active_32b;
     assign r_path_active_32b = r_slave_select[2];
     logic aw_path_active_256b;
-    assign aw_path_active_256b = (comb_slave_select_aw[0] | comb_slave_select_aw[1]) && aw_gate_ok;
+    assign aw_path_active_256b = (comb_slave_select_aw[0] | comb_slave_select_aw[1] | comb_slave_select_aw[3]) && aw_gate_ok;
     logic w_path_active_256b;
-    assign w_path_active_256b = w_slave_select[0] | w_slave_select[1];
+    assign w_path_active_256b = w_slave_select[0] | w_slave_select[1] | w_slave_select[3];
     logic ar_path_active_256b;
-    assign ar_path_active_256b = (comb_slave_select_ar[0] | comb_slave_select_ar[1]) && ar_gate_ok;
+    assign ar_path_active_256b = (comb_slave_select_ar[0] | comb_slave_select_ar[1] | comb_slave_select_ar[3]) && ar_gate_ok;
     logic b_path_active_256b;
-    assign b_path_active_256b = b_slave_select[0] | b_slave_select[1];
+    assign b_path_active_256b = b_slave_select[0] | b_slave_select[1] | b_slave_select[3];
     logic r_path_active_256b;
-    assign r_path_active_256b = r_slave_select[0] | r_slave_select[1];
+    assign r_path_active_256b = r_slave_select[0] | r_slave_select[1] | r_slave_select[3];
 
     // ================================================================
     // Width converter: 64b → 32b
@@ -819,13 +827,16 @@ module cpu_master_adapter
     always_comb begin
         fub_axi_awready = 1'b0;
         case (comb_slave_select_aw)
-            3'b100: begin  // Slave 2 (32b)
+            4'b0100: begin  // Slave 2 (32b)
                 fub_axi_awready = conv_32b_awready;
             end
-            3'b001: begin  // Slave 0 (256b)
+            4'b0001: begin  // Slave 0 (256b)
                 fub_axi_awready = conv_256b_awready;
             end
-            3'b010: begin  // Slave 1 (256b)
+            4'b0010: begin  // Slave 1 (256b)
+                fub_axi_awready = conv_256b_awready;
+            end
+            4'b1000: begin  // Slave 3 (256b)
                 fub_axi_awready = conv_256b_awready;
             end
             default: begin
@@ -841,13 +852,16 @@ module cpu_master_adapter
     always_comb begin
         fub_axi_wready = 1'b0;
         case (w_slave_select)
-            3'b100: begin  // Slave 2 (32b)
+            4'b0100: begin  // Slave 2 (32b)
                 fub_axi_wready = conv_32b_wready;
             end
-            3'b001: begin  // Slave 0 (256b)
+            4'b0001: begin  // Slave 0 (256b)
                 fub_axi_wready = conv_256b_wready;
             end
-            3'b010: begin  // Slave 1 (256b)
+            4'b0010: begin  // Slave 1 (256b)
+                fub_axi_wready = conv_256b_wready;
+            end
+            4'b1000: begin  // Slave 3 (256b)
                 fub_axi_wready = conv_256b_wready;
             end
             default: begin
@@ -863,17 +877,22 @@ module cpu_master_adapter
         fub_axi_bvalid = 1'b0;
 
         case (b_slave_select)
-            3'b100: begin  // Slave 2 (32b)
+            4'b0100: begin  // Slave 2 (32b)
                 fub_axi_bid = conv_32b_bid;
                 fub_axi_bresp = conv_32b_bresp;
                 fub_axi_bvalid = conv_32b_bvalid;
             end
-            3'b001: begin  // Slave 0 (256b)
+            4'b0001: begin  // Slave 0 (256b)
                 fub_axi_bid = conv_256b_bid;
                 fub_axi_bresp = conv_256b_bresp;
                 fub_axi_bvalid = conv_256b_bvalid;
             end
-            3'b010: begin  // Slave 1 (256b)
+            4'b0010: begin  // Slave 1 (256b)
+                fub_axi_bid = conv_256b_bid;
+                fub_axi_bresp = conv_256b_bresp;
+                fub_axi_bvalid = conv_256b_bvalid;
+            end
+            4'b1000: begin  // Slave 3 (256b)
                 fub_axi_bid = conv_256b_bid;
                 fub_axi_bresp = conv_256b_bresp;
                 fub_axi_bvalid = conv_256b_bvalid;
@@ -888,13 +907,16 @@ module cpu_master_adapter
     always_comb begin
         fub_axi_arready = 1'b0;
         case (comb_slave_select_ar)
-            3'b100: begin  // Slave 2 (32b)
+            4'b0100: begin  // Slave 2 (32b)
                 fub_axi_arready = conv_32b_arready;
             end
-            3'b001: begin  // Slave 0 (256b)
+            4'b0001: begin  // Slave 0 (256b)
                 fub_axi_arready = conv_256b_arready;
             end
-            3'b010: begin  // Slave 1 (256b)
+            4'b0010: begin  // Slave 1 (256b)
+                fub_axi_arready = conv_256b_arready;
+            end
+            4'b1000: begin  // Slave 3 (256b)
                 fub_axi_arready = conv_256b_arready;
             end
             default: begin
@@ -915,21 +937,28 @@ module cpu_master_adapter
         fub_axi_rvalid = 1'b0;
 
         case (r_slave_select)
-            3'b100: begin  // Slave 2 (32b)
+            4'b0100: begin  // Slave 2 (32b)
                 fub_axi_rid = conv_32b_rid;
                 fub_axi_rdata = conv_32b_rdata;
                 fub_axi_rresp = conv_32b_rresp;
                 fub_axi_rlast = conv_32b_rlast;
                 fub_axi_rvalid = conv_32b_rvalid;
             end
-            3'b001: begin  // Slave 0 (256b)
+            4'b0001: begin  // Slave 0 (256b)
                 fub_axi_rid = conv_256b_rid;
                 fub_axi_rdata = conv_256b_rdata;
                 fub_axi_rresp = conv_256b_rresp;
                 fub_axi_rlast = conv_256b_rlast;
                 fub_axi_rvalid = conv_256b_rvalid;
             end
-            3'b010: begin  // Slave 1 (256b)
+            4'b0010: begin  // Slave 1 (256b)
+                fub_axi_rid = conv_256b_rid;
+                fub_axi_rdata = conv_256b_rdata;
+                fub_axi_rresp = conv_256b_rresp;
+                fub_axi_rlast = conv_256b_rlast;
+                fub_axi_rvalid = conv_256b_rvalid;
+            end
+            4'b1000: begin  // Slave 3 (256b)
                 fub_axi_rid = conv_256b_rid;
                 fub_axi_rdata = conv_256b_rdata;
                 fub_axi_rresp = conv_256b_rresp;

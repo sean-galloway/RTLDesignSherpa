@@ -12,7 +12,7 @@
 module bridge_1x2_rw_apb5_xbar
     import bridge_1x2_rw_apb5_pkg::*;
 #(
-    parameter int NUM_SLAVES = 2
+    parameter int NUM_SLAVES = 3
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -153,7 +153,65 @@ module bridge_1x2_rw_apb5_xbar
     input  logic         periph5_axi_rlast,
     input  logic         periph5_axi_ruser,
     input  logic         periph5_axi_rvalid,
-    output  logic         periph5_axi_rready
+    output  logic         periph5_axi_rready,
+
+    // Slave 2: subtractive
+    output logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_bridge_id_aw,
+    input  logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_bid_bridge_id,
+    input  logic                       subtractive_axi_bid_valid,
+
+    output logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_bridge_id_ar,
+    input  logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_rid_bridge_id,
+    input  logic                       subtractive_axi_rid_valid,
+
+    output  logic [3:0]  subtractive_axi_awid,
+    output  logic [31:0]  subtractive_axi_awaddr,
+    output  logic [7:0]  subtractive_axi_awlen,
+    output  logic [2:0]  subtractive_axi_awsize,
+    output  logic [1:0]  subtractive_axi_awburst,
+    output  logic         subtractive_axi_awlock,
+    output  logic [3:0]  subtractive_axi_awcache,
+    output  logic [2:0]  subtractive_axi_awprot,
+    output  logic [3:0]  subtractive_axi_awqos,
+    output  logic [3:0]  subtractive_axi_awregion,
+    output  logic         subtractive_axi_awuser,
+    output  logic         subtractive_axi_awvalid,
+    input  logic         subtractive_axi_awready,
+
+    output  logic [31:0]  subtractive_axi_wdata,
+    output  logic [3:0]  subtractive_axi_wstrb,
+    output  logic         subtractive_axi_wlast,
+    output  logic         subtractive_axi_wuser,
+    output  logic         subtractive_axi_wvalid,
+    input  logic         subtractive_axi_wready,
+
+    input  logic [3:0]  subtractive_axi_bid,
+    input  logic [1:0]  subtractive_axi_bresp,
+    input  logic         subtractive_axi_buser,
+    input  logic         subtractive_axi_bvalid,
+    output  logic         subtractive_axi_bready,
+
+    output  logic [3:0]  subtractive_axi_arid,
+    output  logic [31:0]  subtractive_axi_araddr,
+    output  logic [7:0]  subtractive_axi_arlen,
+    output  logic [2:0]  subtractive_axi_arsize,
+    output  logic [1:0]  subtractive_axi_arburst,
+    output  logic         subtractive_axi_arlock,
+    output  logic [3:0]  subtractive_axi_arcache,
+    output  logic [2:0]  subtractive_axi_arprot,
+    output  logic [3:0]  subtractive_axi_arqos,
+    output  logic [3:0]  subtractive_axi_arregion,
+    output  logic         subtractive_axi_aruser,
+    output  logic         subtractive_axi_arvalid,
+    input  logic         subtractive_axi_arready,
+
+    input  logic [3:0]  subtractive_axi_rid,
+    input  logic [31:0]  subtractive_axi_rdata,
+    input  logic [1:0]  subtractive_axi_rresp,
+    input  logic         subtractive_axi_rlast,
+    input  logic         subtractive_axi_ruser,
+    input  logic         subtractive_axi_rvalid,
+    output  logic         subtractive_axi_rready
 );
 
     // ================================================================
@@ -165,6 +223,8 @@ module bridge_1x2_rw_apb5_xbar
     logic cpu_32b_w_sel_sram;
     logic cpu_32b_w_to_periph5;
     logic cpu_32b_w_sel_periph5;
+    logic cpu_32b_w_to_subtractive;
+    logic cpu_32b_w_sel_subtractive;
 
     // ================================================================
     // Slave 0: sram (32b)
@@ -293,12 +353,75 @@ module bridge_1x2_rw_apb5_xbar
 
 
     // ================================================================
+    // Slave 2: subtractive (32b)
+    // ================================================================
+    // Single master: cpu → subtractive
+    // Master width: 32b, Slave width: 32b
+    // Using 32b path from adapter
+
+    // AW channel (gated by address re-decode -- see _addr_decode_expr)
+    wire cpu_32b_aw_to_subtractive = !(((cpu_32b_aw.addr <= 32'h7fffffff)) || (((cpu_32b_aw.addr >= 32'h80000000) && (cpu_32b_aw.addr <= 32'h8000ffff))));
+    wire cpu_32b_aw_gnt_subtractive = cpu_32b_aw_to_subtractive;
+    assign subtractive_axi_awid     = cpu_32b_aw_to_subtractive ? cpu_32b_aw.id : '0;
+    assign subtractive_axi_awaddr   = cpu_32b_aw_to_subtractive ? cpu_32b_aw.addr : '0;
+    assign subtractive_axi_awlen    = cpu_32b_aw_to_subtractive ? cpu_32b_aw.len : '0;
+    assign subtractive_axi_awsize   = cpu_32b_aw_to_subtractive ? cpu_32b_aw.size : '0;
+    assign subtractive_axi_awburst  = cpu_32b_aw_to_subtractive ? cpu_32b_aw.burst : '0;
+    assign subtractive_axi_awlock   = cpu_32b_aw_to_subtractive ? cpu_32b_aw.lock : '0;
+    assign subtractive_axi_awcache  = cpu_32b_aw_to_subtractive ? cpu_32b_aw.cache : '0;
+    assign subtractive_axi_awprot   = cpu_32b_aw_to_subtractive ? cpu_32b_aw.prot : '0;
+    assign subtractive_axi_awqos    = cpu_32b_aw_to_subtractive ? cpu_32b_aw.qos : '0;
+    assign subtractive_axi_awregion = cpu_32b_aw_to_subtractive ? cpu_32b_aw.region : '0;
+    assign subtractive_axi_awuser   = cpu_32b_aw_to_subtractive ? cpu_32b_aw.user : '0;
+    assign subtractive_axi_awvalid  = cpu_32b_aw_to_subtractive && cpu_32b_awvalid;
+
+    assign cpu_32b_w_sel_subtractive = cpu_32b_w_to_subtractive;
+
+    // W channel (gated by the W destination FIFO head)
+    assign subtractive_axi_wdata  = cpu_32b_w_to_subtractive ? cpu_32b_w.data : '0;
+    assign subtractive_axi_wstrb  = cpu_32b_w_to_subtractive ? cpu_32b_w.strb : '0;
+    assign subtractive_axi_wlast  = cpu_32b_w_to_subtractive ? cpu_32b_w.last : '0;
+    assign subtractive_axi_wuser  = cpu_32b_w_to_subtractive ? cpu_32b_w.user : '0;
+    assign subtractive_axi_wvalid = cpu_32b_w_to_subtractive && cpu_32b_wvalid;
+
+    // Bready (master → slave) — gated on bid_valid so the path stays
+    // open through the entire B handshake, not just the AW phase.
+    assign subtractive_axi_bready = ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) ? cpu_32b_bready : '0;
+
+    // Bridge ID (master → slave)
+    assign subtractive_axi_bridge_id_aw = cpu_32b_aw_to_subtractive ? cpu_bridge_id_aw : '0;
+
+    // AR channel (gated by address re-decode -- see _addr_decode_expr)
+    wire cpu_32b_ar_to_subtractive = !(((cpu_32b_ar.addr <= 32'h7fffffff)) || (((cpu_32b_ar.addr >= 32'h80000000) && (cpu_32b_ar.addr <= 32'h8000ffff))));
+    wire cpu_32b_ar_gnt_subtractive = cpu_32b_ar_to_subtractive;
+    assign subtractive_axi_arid     = cpu_32b_ar_to_subtractive ? cpu_32b_ar.id : '0;
+    assign subtractive_axi_araddr   = cpu_32b_ar_to_subtractive ? cpu_32b_ar.addr : '0;
+    assign subtractive_axi_arlen    = cpu_32b_ar_to_subtractive ? cpu_32b_ar.len : '0;
+    assign subtractive_axi_arsize   = cpu_32b_ar_to_subtractive ? cpu_32b_ar.size : '0;
+    assign subtractive_axi_arburst  = cpu_32b_ar_to_subtractive ? cpu_32b_ar.burst : '0;
+    assign subtractive_axi_arlock   = cpu_32b_ar_to_subtractive ? cpu_32b_ar.lock : '0;
+    assign subtractive_axi_arcache  = cpu_32b_ar_to_subtractive ? cpu_32b_ar.cache : '0;
+    assign subtractive_axi_arprot   = cpu_32b_ar_to_subtractive ? cpu_32b_ar.prot : '0;
+    assign subtractive_axi_arqos    = cpu_32b_ar_to_subtractive ? cpu_32b_ar.qos : '0;
+    assign subtractive_axi_arregion = cpu_32b_ar_to_subtractive ? cpu_32b_ar.region : '0;
+    assign subtractive_axi_aruser   = cpu_32b_ar_to_subtractive ? cpu_32b_ar.user : '0;
+    assign subtractive_axi_arvalid  = cpu_32b_ar_to_subtractive && cpu_32b_arvalid;
+
+    // Rready (master → slave) — gated on rid_valid so the path stays
+    // open through the entire R handshake, not just the AR phase.
+    assign subtractive_axi_rready = ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) ? cpu_32b_rready : '0;
+
+    // Bridge ID (master → slave)
+    assign subtractive_axi_bridge_id_ar = cpu_32b_ar_to_subtractive ? cpu_bridge_id_ar : '0;
+
+
+    // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // cpu 32b path -> sram, periph5
-    logic [0:0] cpu_32b_wdest_mem [16];
+    // cpu 32b path -> sram, periph5, subtractive
+    logic [1:0] cpu_32b_wdest_mem [16];
     logic [4:0] cpu_32b_wdest_wptr, cpu_32b_wdest_rptr;
-    wire [0:0] cpu_32b_wdest_enc = cpu_32b_aw_to_periph5 ? 1'd1 : 1'd0;
+    wire [1:0] cpu_32b_wdest_enc = cpu_32b_aw_to_periph5 ? 2'd1 : cpu_32b_aw_to_subtractive ? 2'd2 : 2'd0;
     wire cpu_32b_wdest_push = cpu_32b_awvalid && cpu_32b_awready;
     wire cpu_32b_wdest_pop  = cpu_32b_wvalid && cpu_32b_wready && cpu_32b_w.last;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -316,9 +439,10 @@ module bridge_1x2_rw_apb5_xbar
         end
     )
     wire cpu_32b_wdest_valid = (cpu_32b_wdest_wptr != cpu_32b_wdest_rptr);
-    wire [0:0] cpu_32b_wdest_head = cpu_32b_wdest_mem[cpu_32b_wdest_rptr[3:0]];
-    assign cpu_32b_w_to_sram = cpu_32b_wdest_valid && (cpu_32b_wdest_head == 1'd0);
-    assign cpu_32b_w_to_periph5 = cpu_32b_wdest_valid && (cpu_32b_wdest_head == 1'd1);
+    wire [1:0] cpu_32b_wdest_head = cpu_32b_wdest_mem[cpu_32b_wdest_rptr[3:0]];
+    assign cpu_32b_w_to_sram = cpu_32b_wdest_valid && (cpu_32b_wdest_head == 2'd0);
+    assign cpu_32b_w_to_periph5 = cpu_32b_wdest_valid && (cpu_32b_wdest_head == 2'd1);
+    assign cpu_32b_w_to_subtractive = cpu_32b_wdest_valid && (cpu_32b_wdest_head == 2'd2);
 
     // ================================================================
     // Response MUXes (OR together all slave responses)
@@ -327,55 +451,68 @@ module bridge_1x2_rw_apb5_xbar
     // Master: cpu, Width path: 32b
     assign cpu_32b_awready = 
         (cpu_32b_aw_gnt_sram ? sram_axi_awready : '0) |
-        (cpu_32b_aw_gnt_periph5 ? periph5_axi_awready : '0);
+        (cpu_32b_aw_gnt_periph5 ? periph5_axi_awready : '0) |
+        (cpu_32b_aw_gnt_subtractive ? subtractive_axi_awready : '0);
 
     assign cpu_32b_wready = 
         (cpu_32b_w_sel_sram ? sram_axi_wready : '0) |
-        (cpu_32b_w_sel_periph5 ? periph5_axi_wready : '0);
+        (cpu_32b_w_sel_periph5 ? periph5_axi_wready : '0) |
+        (cpu_32b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign cpu_32b_b.id = 
         ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_bid : '0) |
-        ((periph5_axi_bid_bridge_id == 0) && periph5_axi_bid_valid ? periph5_axi_bid : '0);
+        ((periph5_axi_bid_bridge_id == 0) && periph5_axi_bid_valid ? periph5_axi_bid : '0) |
+        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
 
     assign cpu_32b_b.resp = 
         ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_bresp : '0) |
-        ((periph5_axi_bid_bridge_id == 0) && periph5_axi_bid_valid ? periph5_axi_bresp : '0);
+        ((periph5_axi_bid_bridge_id == 0) && periph5_axi_bid_valid ? periph5_axi_bresp : '0) |
+        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
 
     assign cpu_32b_b.user = 
         ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_buser : '0) |
-        ((periph5_axi_bid_bridge_id == 0) && periph5_axi_bid_valid ? periph5_axi_buser : '0);
+        ((periph5_axi_bid_bridge_id == 0) && periph5_axi_bid_valid ? periph5_axi_buser : '0) |
+        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
 
     assign cpu_32b_bvalid = 
         ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? sram_axi_bvalid : '0) |
-        ((periph5_axi_bid_bridge_id == 0) && periph5_axi_bid_valid ? periph5_axi_bvalid : '0);
+        ((periph5_axi_bid_bridge_id == 0) && periph5_axi_bid_valid ? periph5_axi_bvalid : '0) |
+        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
 
     assign cpu_32b_arready = 
         (cpu_32b_ar_gnt_sram ? sram_axi_arready : '0) |
-        (cpu_32b_ar_gnt_periph5 ? periph5_axi_arready : '0);
+        (cpu_32b_ar_gnt_periph5 ? periph5_axi_arready : '0) |
+        (cpu_32b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign cpu_32b_r.id = 
         ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rid : '0) |
-        ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid ? periph5_axi_rid : '0);
+        ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid ? periph5_axi_rid : '0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
 
     assign cpu_32b_r.data = 
         ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rdata : 32'b0) |
-        ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid ? periph5_axi_rdata : 32'b0);
+        ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid ? periph5_axi_rdata : 32'b0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 32'b0);
 
     assign cpu_32b_r.resp = 
         ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rresp : '0) |
-        ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid ? periph5_axi_rresp : '0);
+        ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid ? periph5_axi_rresp : '0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
 
     assign cpu_32b_r.last = 
         ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rlast : '0) |
-        ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid ? periph5_axi_rlast : '0);
+        ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid ? periph5_axi_rlast : '0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
 
     assign cpu_32b_r.user = 
         ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_ruser : '0) |
-        ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid ? periph5_axi_ruser : '0);
+        ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid ? periph5_axi_ruser : '0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
 
     assign cpu_32b_rvalid = 
         ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rvalid : '0) |
-        ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid ? periph5_axi_rvalid : '0);
+        ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid ? periph5_axi_rvalid : '0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
 
 
 endmodule : bridge_1x2_rw_apb5_xbar

@@ -7,6 +7,9 @@
 # Monitor packages (must precede any module that references them)
 -f $REPO_ROOT/rtl/amba/filelists/monitor_pkgs.f
 
+# Subtractive catch-all slave (unmapped-address terminator)
+-f $REPO_ROOT/rtl/amba/filelists/axi4_subtractive_slave.f
+
 # Bridge RTL files (generated)
 $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_1x2_rd_regblock_mon/bridge_1x2_rd_regblock_mon_pkg.sv
 $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_1x2_rd_regblock_mon/bridge_1x2_rd_regblock_mon_cfg_pkg.sv
@@ -16,6 +19,7 @@ $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_1x2_rd_regblock_mon/b
 $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_1x2_rd_regblock_mon/bridge_1x2_rd_regblock_mon_xbar.sv
 $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_1x2_rd_regblock_mon/ddr_rd_adapter.sv
 $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_1x2_rd_regblock_mon/sram_rd_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_1x2_rd_regblock_mon/subtractive_adapter.sv
 
 # Verilator waiver: PeakRDL field_combo MULTIDRIVEN (see file)
 $REPO_ROOT/projects/components/bridge/rtl/regs/bridge_regblock.vlt

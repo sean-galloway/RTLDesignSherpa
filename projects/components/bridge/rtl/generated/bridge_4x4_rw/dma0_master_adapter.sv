@@ -10,7 +10,7 @@
 module dma0_master_adapter
     import bridge_4x4_rw_pkg::*;
 #(
-    parameter NUM_SLAVES = 4,
+    parameter NUM_SLAVES = 5,
     parameter BRIDGE_ID = 1,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 2,
     parameter SKID_DEPTH_AW = 2,
@@ -138,7 +138,27 @@ module dma0_master_adapter
 
     input  axi4_r_128b_t  dma0_master_128b_r,
     input  logic         dma0_master_128b_rvalid,
-    output logic         dma0_master_128b_rready
+    output logic         dma0_master_128b_rready,
+
+    output axi4_aw_t     dma0_master_256b_aw,
+    output logic         dma0_master_256b_awvalid,
+    input  logic         dma0_master_256b_awready,
+
+    output axi4_w_256b_t  dma0_master_256b_w,
+    output logic         dma0_master_256b_wvalid,
+    input  logic         dma0_master_256b_wready,
+
+    input  axi4_b_t      dma0_master_256b_b,
+    input  logic         dma0_master_256b_bvalid,
+    output logic         dma0_master_256b_bready,
+
+    output axi4_ar_t     dma0_master_256b_ar,
+    output logic         dma0_master_256b_arvalid,
+    input  logic         dma0_master_256b_arready,
+
+    input  axi4_r_256b_t  dma0_master_256b_r,
+    input  logic         dma0_master_256b_rvalid,
+    output logic         dma0_master_256b_rready
 );
 
     // ================================================================
@@ -344,6 +364,7 @@ module dma0_master_adapter
     // Slave 0 (periph_slave): 0x00000000 - 0x3FFFFFFF
     // Slave 1 (ddr0_slave): 0x40000000 - 0x7FFFFFFF
     // Slave 2 (sram_slave): 0x80000000 - 0xBFFFFFFF
+    // Slave 4 (subtractive): 0x00000000 - 0xFFFFFFFF
     // ================================================================
     logic [NUM_SLAVES-1:0] comb_slave_select_aw;
     always_comb begin
@@ -357,6 +378,9 @@ module dma0_master_adapter
         else if (fub_axi_awaddr >= 32'h80000000 && fub_axi_awaddr <= 32'hBFFFFFFF) begin
             comb_slave_select_aw[2] = 1'b1;  // sram_slave
         end
+        else begin  // Full address range (catch-all)
+            comb_slave_select_aw[4] = 1'b1;  // subtractive
+        end
     end
 
     // Bridge ID for write channel (constant - tied to BRIDGE_ID parameter)
@@ -367,6 +391,7 @@ module dma0_master_adapter
     // Slave 0 (periph_slave): 0x00000000 - 0x3FFFFFFF
     // Slave 1 (ddr0_slave): 0x40000000 - 0x7FFFFFFF
     // Slave 2 (sram_slave): 0x80000000 - 0xBFFFFFFF
+    // Slave 4 (subtractive): 0x00000000 - 0xFFFFFFFF
     // ================================================================
     logic [NUM_SLAVES-1:0] comb_slave_select_ar;
     always_comb begin
@@ -380,6 +405,9 @@ module dma0_master_adapter
         else if (fub_axi_araddr >= 32'h80000000 && fub_axi_araddr <= 32'hBFFFFFFF) begin
             comb_slave_select_ar[2] = 1'b1;  // sram_slave
         end
+        else begin  // Full address range (catch-all)
+            comb_slave_select_ar[4] = 1'b1;  // subtractive
+        end
     end
 
     // Bridge ID for read channel (constant - tied to BRIDGE_ID parameter)
@@ -387,7 +415,7 @@ module dma0_master_adapter
 
     // ================================================================
     // Width adaptation - Master: 32b
-    // Connected to slaves with widths: [32, 64, 128]
+    // Connected to slaves with widths: [32, 64, 128, 256]
     // ================================================================
 
     // Per-width path-active gates (see comment in adapter_generator.py).
@@ -423,6 +451,16 @@ module dma0_master_adapter
     assign b_path_active_128b = b_slave_select[2];
     logic r_path_active_128b;
     assign r_path_active_128b = r_slave_select[2];
+    logic aw_path_active_256b;
+    assign aw_path_active_256b = (comb_slave_select_aw[4]) && aw_gate_ok;
+    logic w_path_active_256b;
+    assign w_path_active_256b = w_slave_select[4];
+    logic ar_path_active_256b;
+    assign ar_path_active_256b = (comb_slave_select_ar[4]) && ar_gate_ok;
+    logic b_path_active_256b;
+    assign b_path_active_256b = b_slave_select[4];
+    logic r_path_active_256b;
+    assign r_path_active_256b = r_slave_select[4];
 
     // ================================================================
     // Direct passthrough: 32b → 32b (no converter)
@@ -759,6 +797,146 @@ module dma0_master_adapter
     );
 
     // ================================================================
+    // Width converter: 32b → 256b
+    // ================================================================
+
+    // Intermediate signals for 256b converter
+    logic conv_256b_awready;
+    logic conv_256b_wready;
+    logic [3:0] conv_256b_bid;
+    logic [1:0] conv_256b_bresp;
+    logic conv_256b_bvalid;
+    logic conv_256b_arready;
+    logic [3:0] conv_256b_rid;
+    logic [31:0] conv_256b_rdata;
+    logic [1:0] conv_256b_rresp;
+    logic conv_256b_rlast;
+    logic conv_256b_rvalid;
+
+    axi4_dwidth_converter_wr #(
+        .S_AXI_DATA_WIDTH(32),
+        .M_AXI_DATA_WIDTH(256),
+        .AXI_ID_WIDTH(4),
+        .AXI_ADDR_WIDTH(32),
+        .AXI_USER_WIDTH(1),
+        .SKID_DEPTH_AW(2),
+        .SKID_DEPTH_W(4),
+        .SKID_DEPTH_B(2)
+    ) u_wr_conv_256b (
+        .aclk(aclk),
+        .aresetn(aresetn),
+
+        // Slave side (from wrapper) - BROADCAST requests; ready/B intercepted for FIFO
+        .s_axi_awid(fub_axi_awid),
+        .s_axi_awaddr(fub_axi_awaddr),
+        .s_axi_awlen(fub_axi_awlen),
+        .s_axi_awsize(fub_axi_awsize),
+        .s_axi_awburst(fub_axi_awburst),
+        .s_axi_awlock(fub_axi_awlock),
+        .s_axi_awcache(fub_axi_awcache),
+        .s_axi_awprot(fub_axi_awprot),
+        .s_axi_awqos(4'b0),
+        .s_axi_awregion(4'b0),
+        .s_axi_awuser(1'b0),
+        .s_axi_awvalid(fub_axi_awvalid && aw_path_active_256b),
+        .s_axi_awready(conv_256b_awready),
+        .s_axi_wdata(fub_axi_wdata),
+        .s_axi_wstrb(fub_axi_wstrb),
+        .s_axi_wlast(fub_axi_wlast),
+        .s_axi_wuser(1'b0),
+        .s_axi_wvalid(fub_axi_wvalid && w_path_active_256b),
+        .s_axi_wready(conv_256b_wready),
+        .s_axi_bid(conv_256b_bid),
+        .s_axi_bresp(conv_256b_bresp),
+        .s_axi_buser(),
+        .s_axi_bvalid(conv_256b_bvalid),
+        .s_axi_bready(fub_axi_bready && b_path_active_256b),
+
+        // Master side (to crossbar)
+        .m_axi_awid(dma0_master_256b_aw.id),
+        .m_axi_awaddr(dma0_master_256b_aw.addr),
+        .m_axi_awlen(dma0_master_256b_aw.len),
+        .m_axi_awsize(dma0_master_256b_aw.size),
+        .m_axi_awburst(dma0_master_256b_aw.burst),
+        .m_axi_awlock(dma0_master_256b_aw.lock),
+        .m_axi_awcache(dma0_master_256b_aw.cache),
+        .m_axi_awprot(dma0_master_256b_aw.prot),
+        .m_axi_awqos(dma0_master_256b_aw.qos),
+        .m_axi_awregion(dma0_master_256b_aw.region),
+        .m_axi_awuser(dma0_master_256b_aw.user),
+        .m_axi_awvalid(dma0_master_256b_awvalid),
+        .m_axi_awready(dma0_master_256b_awready),
+        .m_axi_wdata(dma0_master_256b_w.data),
+        .m_axi_wstrb(dma0_master_256b_w.strb),
+        .m_axi_wlast(dma0_master_256b_w.last),
+        .m_axi_wuser(dma0_master_256b_w.user),
+        .m_axi_wvalid(dma0_master_256b_wvalid),
+        .m_axi_wready(dma0_master_256b_wready),
+        .m_axi_bid(dma0_master_256b_b.id),
+        .m_axi_bresp(dma0_master_256b_b.resp),
+        .m_axi_buser(dma0_master_256b_b.user),
+        .m_axi_bvalid(dma0_master_256b_bvalid),
+        .m_axi_bready(dma0_master_256b_bready)
+    );
+
+    axi4_dwidth_converter_rd #(
+        .S_AXI_DATA_WIDTH(32),
+        .M_AXI_DATA_WIDTH(256),
+        .AXI_ID_WIDTH(4),
+        .AXI_ADDR_WIDTH(32),
+        .AXI_USER_WIDTH(1),
+        .SKID_DEPTH_AR(2),
+        .SKID_DEPTH_R(4)
+    ) u_rd_conv_256b (
+        .aclk(aclk),
+        .aresetn(aresetn),
+
+        // Slave side (from wrapper) - BROADCAST requests; arready/R intercepted for FIFO
+        .s_axi_arid(fub_axi_arid),
+        .s_axi_araddr(fub_axi_araddr),
+        .s_axi_arlen(fub_axi_arlen),
+        .s_axi_arsize(fub_axi_arsize),
+        .s_axi_arburst(fub_axi_arburst),
+        .s_axi_arlock(fub_axi_arlock),
+        .s_axi_arcache(fub_axi_arcache),
+        .s_axi_arprot(fub_axi_arprot),
+        .s_axi_arqos(4'b0),
+        .s_axi_arregion(4'b0),
+        .s_axi_aruser(1'b0),
+        .s_axi_arvalid(fub_axi_arvalid && ar_path_active_256b),
+        .s_axi_arready(conv_256b_arready),
+        .s_axi_rid(conv_256b_rid),
+        .s_axi_rdata(conv_256b_rdata),
+        .s_axi_rresp(conv_256b_rresp),
+        .s_axi_rlast(conv_256b_rlast),
+        .s_axi_ruser(),
+        .s_axi_rvalid(conv_256b_rvalid),
+        .s_axi_rready(fub_axi_rready && r_path_active_256b),
+
+        // Master side (to crossbar)
+        .m_axi_arid(dma0_master_256b_ar.id),
+        .m_axi_araddr(dma0_master_256b_ar.addr),
+        .m_axi_arlen(dma0_master_256b_ar.len),
+        .m_axi_arsize(dma0_master_256b_ar.size),
+        .m_axi_arburst(dma0_master_256b_ar.burst),
+        .m_axi_arlock(dma0_master_256b_ar.lock),
+        .m_axi_arcache(dma0_master_256b_ar.cache),
+        .m_axi_arprot(dma0_master_256b_ar.prot),
+        .m_axi_arqos(dma0_master_256b_ar.qos),
+        .m_axi_arregion(dma0_master_256b_ar.region),
+        .m_axi_aruser(dma0_master_256b_ar.user),
+        .m_axi_arvalid(dma0_master_256b_arvalid),
+        .m_axi_arready(dma0_master_256b_arready),
+        .m_axi_rid(dma0_master_256b_r.id),
+        .m_axi_rdata(dma0_master_256b_r.data),
+        .m_axi_rresp(dma0_master_256b_r.resp),
+        .m_axi_rlast(dma0_master_256b_r.last),
+        .m_axi_ruser(dma0_master_256b_r.user),
+        .m_axi_rvalid(dma0_master_256b_rvalid),
+        .m_axi_rready(dma0_master_256b_rready)
+    );
+
+    // ================================================================
     // Response MUX - Route responses from width-specific paths
     // back to fub_axi_* based on address decode
     //
@@ -903,14 +1081,17 @@ module dma0_master_adapter
     always_comb begin
         fub_axi_awready = 1'b0;
         case (comb_slave_select_aw)
-            4'b0001: begin  // Slave 0 (32b)
+            5'b00001: begin  // Slave 0 (32b)
                 fub_axi_awready = dma0_master_32b_awready;
             end
-            4'b0010: begin  // Slave 1 (64b)
+            5'b00010: begin  // Slave 1 (64b)
                 fub_axi_awready = conv_64b_awready;
             end
-            4'b0100: begin  // Slave 2 (128b)
+            5'b00100: begin  // Slave 2 (128b)
                 fub_axi_awready = conv_128b_awready;
+            end
+            5'b10000: begin  // Slave 4 (256b)
+                fub_axi_awready = conv_256b_awready;
             end
             default: begin
                 // No slave selected
@@ -925,14 +1106,17 @@ module dma0_master_adapter
     always_comb begin
         fub_axi_wready = 1'b0;
         case (w_slave_select)
-            4'b0001: begin  // Slave 0 (32b)
+            5'b00001: begin  // Slave 0 (32b)
                 fub_axi_wready = dma0_master_32b_wready;
             end
-            4'b0010: begin  // Slave 1 (64b)
+            5'b00010: begin  // Slave 1 (64b)
                 fub_axi_wready = conv_64b_wready;
             end
-            4'b0100: begin  // Slave 2 (128b)
+            5'b00100: begin  // Slave 2 (128b)
                 fub_axi_wready = conv_128b_wready;
+            end
+            5'b10000: begin  // Slave 4 (256b)
+                fub_axi_wready = conv_256b_wready;
             end
             default: begin
                 // No active W transaction
@@ -947,20 +1131,25 @@ module dma0_master_adapter
         fub_axi_bvalid = 1'b0;
 
         case (b_slave_select)
-            4'b0001: begin  // Slave 0 (32b)
+            5'b00001: begin  // Slave 0 (32b)
                 fub_axi_bid = dma0_master_32b_b.id[3:0];
                 fub_axi_bresp = dma0_master_32b_b.resp;
                 fub_axi_bvalid = dma0_master_32b_bvalid;
             end
-            4'b0010: begin  // Slave 1 (64b)
+            5'b00010: begin  // Slave 1 (64b)
                 fub_axi_bid = conv_64b_bid;
                 fub_axi_bresp = conv_64b_bresp;
                 fub_axi_bvalid = conv_64b_bvalid;
             end
-            4'b0100: begin  // Slave 2 (128b)
+            5'b00100: begin  // Slave 2 (128b)
                 fub_axi_bid = conv_128b_bid;
                 fub_axi_bresp = conv_128b_bresp;
                 fub_axi_bvalid = conv_128b_bvalid;
+            end
+            5'b10000: begin  // Slave 4 (256b)
+                fub_axi_bid = conv_256b_bid;
+                fub_axi_bresp = conv_256b_bresp;
+                fub_axi_bvalid = conv_256b_bvalid;
             end
             default: begin
                 // No slave selected - hold defaults
@@ -972,14 +1161,17 @@ module dma0_master_adapter
     always_comb begin
         fub_axi_arready = 1'b0;
         case (comb_slave_select_ar)
-            4'b0001: begin  // Slave 0 (32b)
+            5'b00001: begin  // Slave 0 (32b)
                 fub_axi_arready = dma0_master_32b_arready;
             end
-            4'b0010: begin  // Slave 1 (64b)
+            5'b00010: begin  // Slave 1 (64b)
                 fub_axi_arready = conv_64b_arready;
             end
-            4'b0100: begin  // Slave 2 (128b)
+            5'b00100: begin  // Slave 2 (128b)
                 fub_axi_arready = conv_128b_arready;
+            end
+            5'b10000: begin  // Slave 4 (256b)
+                fub_axi_arready = conv_256b_arready;
             end
             default: begin
                 // No slave selected
@@ -999,26 +1191,33 @@ module dma0_master_adapter
         fub_axi_rvalid = 1'b0;
 
         case (r_slave_select)
-            4'b0001: begin  // Slave 0 (32b)
+            5'b00001: begin  // Slave 0 (32b)
                 fub_axi_rid = dma0_master_32b_r.id[3:0];
                 fub_axi_rdata = dma0_master_32b_r.data;
                 fub_axi_rresp = dma0_master_32b_r.resp;
                 fub_axi_rlast = dma0_master_32b_r.last;
                 fub_axi_rvalid = dma0_master_32b_rvalid;
             end
-            4'b0010: begin  // Slave 1 (64b)
+            5'b00010: begin  // Slave 1 (64b)
                 fub_axi_rid = conv_64b_rid;
                 fub_axi_rdata = conv_64b_rdata;
                 fub_axi_rresp = conv_64b_rresp;
                 fub_axi_rlast = conv_64b_rlast;
                 fub_axi_rvalid = conv_64b_rvalid;
             end
-            4'b0100: begin  // Slave 2 (128b)
+            5'b00100: begin  // Slave 2 (128b)
                 fub_axi_rid = conv_128b_rid;
                 fub_axi_rdata = conv_128b_rdata;
                 fub_axi_rresp = conv_128b_rresp;
                 fub_axi_rlast = conv_128b_rlast;
                 fub_axi_rvalid = conv_128b_rvalid;
+            end
+            5'b10000: begin  // Slave 4 (256b)
+                fub_axi_rid = conv_256b_rid;
+                fub_axi_rdata = conv_256b_rdata;
+                fub_axi_rresp = conv_256b_rresp;
+                fub_axi_rlast = conv_256b_rlast;
+                fub_axi_rvalid = conv_256b_rvalid;
             end
             default: begin
                 // No slave selected - hold defaults

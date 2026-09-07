@@ -10,7 +10,7 @@
 module cpu_rd_adapter
     import bridge_1x5_rd_pkg::*;
 #(
-    parameter NUM_SLAVES = 5,
+    parameter NUM_SLAVES = 6,
     parameter BRIDGE_ID = 0,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 1,
     parameter SKID_DEPTH_AR = 2,
@@ -177,6 +177,7 @@ module cpu_rd_adapter
     // Slave 2 (hbm_rd): 0x50000000 - 0x7FFFFFFF
     // Slave 3 (apb_periph): 0x80000000 - 0x8000FFFF
     // Slave 4 (axil_periph): 0x90000000 - 0x9000FFFF
+    // Slave 5 (subtractive): 0x00000000 - 0xFFFFFFFF
     // ================================================================
     logic [NUM_SLAVES-1:0] comb_slave_select_ar;
     always_comb begin
@@ -195,6 +196,9 @@ module cpu_rd_adapter
         end
         else if (fub_axi_araddr >= 32'h90000000 && fub_axi_araddr <= 32'h9000FFFF) begin
             comb_slave_select_ar[4] = 1'b1;  // axil_periph
+        end
+        else begin  // Full address range (catch-all)
+            comb_slave_select_ar[5] = 1'b1;  // subtractive
         end
     end
 
@@ -217,9 +221,9 @@ module cpu_rd_adapter
     logic r_path_active_64b;
     assign r_path_active_64b = r_slave_select[1];
     logic ar_path_active_128b;
-    assign ar_path_active_128b = (comb_slave_select_ar[2]) && ar_gate_ok;
+    assign ar_path_active_128b = (comb_slave_select_ar[2] | comb_slave_select_ar[5]) && ar_gate_ok;
     logic r_path_active_128b;
-    assign r_path_active_128b = r_slave_select[2];
+    assign r_path_active_128b = r_slave_select[2] | r_slave_select[5];
 
     // ================================================================
     // Width converter: 64b → 32b
@@ -449,19 +453,22 @@ module cpu_rd_adapter
     always_comb begin
         fub_axi_arready = 1'b0;
         case (comb_slave_select_ar)
-            5'b00001: begin  // Slave 0 (32b)
+            6'b000001: begin  // Slave 0 (32b)
                 fub_axi_arready = conv_32b_arready;
             end
-            5'b01000: begin  // Slave 3 (32b)
+            6'b001000: begin  // Slave 3 (32b)
                 fub_axi_arready = conv_32b_arready;
             end
-            5'b10000: begin  // Slave 4 (32b)
+            6'b010000: begin  // Slave 4 (32b)
                 fub_axi_arready = conv_32b_arready;
             end
-            5'b00010: begin  // Slave 1 (64b)
+            6'b000010: begin  // Slave 1 (64b)
                 fub_axi_arready = cpu_rd_64b_arready;
             end
-            5'b00100: begin  // Slave 2 (128b)
+            6'b000100: begin  // Slave 2 (128b)
+                fub_axi_arready = conv_128b_arready;
+            end
+            6'b100000: begin  // Slave 5 (128b)
                 fub_axi_arready = conv_128b_arready;
             end
             default: begin
@@ -482,35 +489,42 @@ module cpu_rd_adapter
         fub_axi_rvalid = 1'b0;
 
         case (r_slave_select)
-            5'b00001: begin  // Slave 0 (32b)
+            6'b000001: begin  // Slave 0 (32b)
                 fub_axi_rid = conv_32b_rid;
                 fub_axi_rdata = conv_32b_rdata;
                 fub_axi_rresp = conv_32b_rresp;
                 fub_axi_rlast = conv_32b_rlast;
                 fub_axi_rvalid = conv_32b_rvalid;
             end
-            5'b01000: begin  // Slave 3 (32b)
+            6'b001000: begin  // Slave 3 (32b)
                 fub_axi_rid = conv_32b_rid;
                 fub_axi_rdata = conv_32b_rdata;
                 fub_axi_rresp = conv_32b_rresp;
                 fub_axi_rlast = conv_32b_rlast;
                 fub_axi_rvalid = conv_32b_rvalid;
             end
-            5'b10000: begin  // Slave 4 (32b)
+            6'b010000: begin  // Slave 4 (32b)
                 fub_axi_rid = conv_32b_rid;
                 fub_axi_rdata = conv_32b_rdata;
                 fub_axi_rresp = conv_32b_rresp;
                 fub_axi_rlast = conv_32b_rlast;
                 fub_axi_rvalid = conv_32b_rvalid;
             end
-            5'b00010: begin  // Slave 1 (64b)
+            6'b000010: begin  // Slave 1 (64b)
                 fub_axi_rid = cpu_rd_64b_r.id[3:0];
                 fub_axi_rdata = cpu_rd_64b_r.data;
                 fub_axi_rresp = cpu_rd_64b_r.resp;
                 fub_axi_rlast = cpu_rd_64b_r.last;
                 fub_axi_rvalid = cpu_rd_64b_rvalid;
             end
-            5'b00100: begin  // Slave 2 (128b)
+            6'b000100: begin  // Slave 2 (128b)
+                fub_axi_rid = conv_128b_rid;
+                fub_axi_rdata = conv_128b_rdata;
+                fub_axi_rresp = conv_128b_rresp;
+                fub_axi_rlast = conv_128b_rlast;
+                fub_axi_rvalid = conv_128b_rvalid;
+            end
+            6'b100000: begin  // Slave 5 (128b)
                 fub_axi_rid = conv_128b_rid;
                 fub_axi_rdata = conv_128b_rdata;
                 fub_axi_rresp = conv_128b_rresp;

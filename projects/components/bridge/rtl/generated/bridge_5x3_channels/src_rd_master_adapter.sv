@@ -10,7 +10,7 @@
 module src_rd_master_adapter
     import bridge_5x3_channels_pkg::*;
 #(
-    parameter NUM_SLAVES = 3,
+    parameter NUM_SLAVES = 4,
     parameter BRIDGE_ID = 2,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 3,
     parameter SKID_DEPTH_AR = 2,
@@ -158,6 +158,7 @@ module src_rd_master_adapter
     // Address decode (slave selection) - Read
     // Slave 0 (sram_buffer): 0x00000000 - 0x3FFFFFFF
     // Slave 1 (ddr_controller): 0x40000000 - 0xBFFFFFFF
+    // Slave 3 (subtractive): 0x00000000 - 0xFFFFFFFF
     // ================================================================
     logic [NUM_SLAVES-1:0] comb_slave_select_ar;
     always_comb begin
@@ -167,6 +168,9 @@ module src_rd_master_adapter
         end
         else if (fub_axi_araddr >= 32'h40000000 && fub_axi_araddr <= 32'hBFFFFFFF) begin
             comb_slave_select_ar[1] = 1'b1;  // ddr_controller
+        end
+        else begin  // Full address range (catch-all)
+            comb_slave_select_ar[3] = 1'b1;  // subtractive
         end
     end
 
@@ -181,9 +185,9 @@ module src_rd_master_adapter
     // Per-width path-active gates (see comment in adapter_generator.py).
     logic ar_gate_ok;
     logic ar_path_active_256b;
-    assign ar_path_active_256b = (comb_slave_select_ar[0] | comb_slave_select_ar[1]) && ar_gate_ok;
+    assign ar_path_active_256b = (comb_slave_select_ar[0] | comb_slave_select_ar[1] | comb_slave_select_ar[3]) && ar_gate_ok;
     logic r_path_active_256b;
-    assign r_path_active_256b = r_slave_select[0] | r_slave_select[1];
+    assign r_path_active_256b = r_slave_select[0] | r_slave_select[1] | r_slave_select[3];
 
     // ================================================================
     // Direct passthrough: 256b → 256b (no converter)
@@ -275,10 +279,13 @@ module src_rd_master_adapter
     always_comb begin
         fub_axi_arready = 1'b0;
         case (comb_slave_select_ar)
-            3'b001: begin  // Slave 0 (256b)
+            4'b0001: begin  // Slave 0 (256b)
                 fub_axi_arready = src_rd_master_256b_arready;
             end
-            3'b010: begin  // Slave 1 (256b)
+            4'b0010: begin  // Slave 1 (256b)
+                fub_axi_arready = src_rd_master_256b_arready;
+            end
+            4'b1000: begin  // Slave 3 (256b)
                 fub_axi_arready = src_rd_master_256b_arready;
             end
             default: begin
@@ -299,14 +306,21 @@ module src_rd_master_adapter
         fub_axi_rvalid = 1'b0;
 
         case (r_slave_select)
-            3'b001: begin  // Slave 0 (256b)
+            4'b0001: begin  // Slave 0 (256b)
                 fub_axi_rid = src_rd_master_256b_r.id[7:0];
                 fub_axi_rdata = src_rd_master_256b_r.data;
                 fub_axi_rresp = src_rd_master_256b_r.resp;
                 fub_axi_rlast = src_rd_master_256b_r.last;
                 fub_axi_rvalid = src_rd_master_256b_rvalid;
             end
-            3'b010: begin  // Slave 1 (256b)
+            4'b0010: begin  // Slave 1 (256b)
+                fub_axi_rid = src_rd_master_256b_r.id[7:0];
+                fub_axi_rdata = src_rd_master_256b_r.data;
+                fub_axi_rresp = src_rd_master_256b_r.resp;
+                fub_axi_rlast = src_rd_master_256b_r.last;
+                fub_axi_rvalid = src_rd_master_256b_rvalid;
+            end
+            4'b1000: begin  // Slave 3 (256b)
                 fub_axi_rid = src_rd_master_256b_r.id[7:0];
                 fub_axi_rdata = src_rd_master_256b_r.data;
                 fub_axi_rresp = src_rd_master_256b_r.resp;
