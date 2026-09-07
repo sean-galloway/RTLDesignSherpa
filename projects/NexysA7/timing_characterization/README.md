@@ -83,22 +83,17 @@ that frozen scaffold, each FUB exposes a specific combinational pattern
 that the slack reported for its path group is a clean, comparable measure
 of that pattern's depth in the target technology.
 
-The component ships in two source-equivalent flavours, both targeted at
-ASIC characterization:
+There is ONE source tree, `rtl/`, macro-driven, and it serves both FPGA and
+ASIC. It ships with an open-source Yosys + OpenSTA flow (`rtl/syn/`) plus
+reference scripts for Synopsys Design Compiler and Cadence Genus.
 
-- **`rtl/`** -- the default, macro-driven tree that supports compile-time
-  switches for reset polarity (`RESET_ACTIVE_HIGH`) and FIFO memory type.
-  Use this tree when the cell library has both active-low and active-high
-  reset cells and you want one source to characterise both.
-  **Reset is asynchronous on assertion in every build** as of 2026-09-07;
-  `USE_ASYNC_RESET` is a no-op and sync-reset flops can no longer be
-  characterised from this tree -- see section 12.
-- **`rtl/asic_only/`** -- a macro-free fork hard-wired to async-negedge
-  active-low reset.  Use this tree when the library has exactly one
-  flop topology (async, active-low) and you want the source you read
-  to match the gates that get built, with no preprocessor in the way.
-  Ships with an open-source Yosys + OpenSTA flow plus reference scripts
-  for Synopsys Design Compiler and Cadence Genus.
+There used to be a second tree, `rtl/asic_only/` -- a 37-file duplicate with
+`ALWAYS_FF_RST` expanded and `fifo_mem_t` hand-substituted for `int`. It was
+deleted on 2026-09-07 because it bought nothing. Synthesised through Yosys +
+slang against ASAP7, `char_top` from the two trees produced identical mapped
+netlists: 4753 cells, 4598 wires, all 50 cell-type counts matching. The macros
+exist to serve ASIC and FPGA both; a second copy of every module to spell reset
+differently is duplication, not portability.
 
 ---
 
@@ -223,45 +218,10 @@ shipped bitstream disagreed about what the design was. Making it
 unconditional fixed that, at the cost of this component's ability to
 characterise sync-reset cells from the shared macro -- see section 12.
 
-### 6.2 `rtl/asic_only/` -- the macro-free ASIC fork
-
-The asic_only fork strips all three abstractions:
-
-- `\`include "reset_defs.svh"` and `\`include "fifo_defs.svh"` removed
-- `\`ALWAYS_FF_RST(clk, rst, BODY)` rewritten to
-  `always_ff @(posedge clk or negedge rst) begin BODY end`
-- `\`RST_ASSERTED(rst)` rewritten to `!(rst)`
-- `fifo_mem_t` parameter type replaced with `int`; `FIFO_AUTO`, `FIFO_SRL`,
-  `FIFO_BRAM` inlined as `0`, `1`, `2`
-
-The behaviour is **identical** to the upstream tree at active-low reset --
-unconditionally so since 2026-09-07, because the upstream macro is now always
-asynchronous; the asic_only variant just bakes that single posture into source
-so every flop is one obvious `always_ff` block and every reset condition is one
-`!rst_n` test.  Use this tree when:
-
-- the target library exposes a single flop topology (async, active-low)
-  anyway, so the macro switches are dead options;
-- you want the source you read to match the netlist the tool builds, with
-  no preprocessor gates in between;
-- you want the open-source Yosys + OpenSTA flow without library-defs
-  in your include path.
-
----
-
-## 7. The synthesis flow
-
-![Synthesis flow back ends](assets/synth_flow.png)
-
-Three ASIC back ends are wired up: one open-source (Yosys + OpenSTA),
-two commercial (Synopsys DC, Cadence Genus).  All three source the same
-`char_top.sdc` so reports use the same path groups and are directly
-comparable.
-
-### 7.1 Open-source flow (Yosys + OpenSTA, asic_only tree)
+### 7.1 Open-source flow (Yosys + OpenSTA)
 
 ```bash
-cd projects/NexysA7/timing_characterization/rtl/asic_only/syn
+cd projects/NexysA7/timing_characterization/rtl/syn
 
 # Minimal invocation -- 500 MHz, every FUB enabled
 make report LIB_PATH=/path/to/stdcell.lib
@@ -286,11 +246,11 @@ Outputs land under `syn/build/`:
 | `build/area.rpt` | Hierarchical area |
 | `build/yosys.log` | Synthesis trace for diffing across runs |
 
-### 7.2 Commercial reference flows (asic_only tree)
+### 7.2 Commercial reference flows
 
 ```bash
-dc_shell -f rtl/asic_only/syn/dc_synth.tcl       # Synopsys DC
-genus    -files rtl/asic_only/syn/genus_synth.tcl # Cadence Genus
+dc_shell -f rtl/syn/dc_synth.tcl       # Synopsys DC
+genus    -files rtl/syn/genus_synth.tcl # Cadence Genus
 ```
 
 Both reference scripts source the same `char_top.sdc` and declare the
@@ -327,7 +287,7 @@ Sweep protocol:
 
 ### 8.1 Comparing technologies
 
-Run the same sweep against two libraries (asic_only flow):
+Run the same sweep against two libraries:
 
 ```bash
 make report LIB_PATH=lib_A.lib TARGET_FREQ_MHZ=500
@@ -400,20 +360,14 @@ projects/NexysA7/timing_characterization/
     ├── fub/                     9 FUBs
     ├── filelists/char_top.f     flat source list for the multi-flow tree
     ├── top/                     char_top.sv + nand_chain_top.sv
-    ├── syn/                     multi-flow SDC + SYNTHESIS_GUIDE
-    └── asic_only/               <-- macro-free ASIC fork
-        ├── common/              same primitives, macros expanded
-        ├── fub/                 same FUBs, macros expanded
-        ├── filelists/char_top.f flat source list (asic_only)
-        ├── top/                 char_top.sv + nand_chain_top.sv (asic_only)
-        └── syn/                 ASIC-only flow
-            ├── Makefile         Yosys + OpenSTA driver
-            ├── yosys_synth.ys
-            ├── sta_run.tcl
-            ├── dc_synth.tcl     Synopsys DC reference
-            ├── genus_synth.tcl  Cadence Genus reference
-            ├── char_top.sdc     ASIC-only SDC
-            └── SYNTHESIS_GUIDE.md
+    └── syn/                     ASIC + FPGA flow
+        ├── char_top.sdc         multi-flow constraints (asic/vivado/quartus)
+        ├── SYNTHESIS_GUIDE.md   per-FUB synthesis recipes
+        ├── Makefile             Yosys + OpenSTA driver
+        ├── yosys_synth.ys       reads via slang (typedef'd params + `include)
+        ├── sta_run.tcl
+        ├── dc_synth.tcl         Synopsys DC reference
+        └── genus_synth.tcl      Cadence Genus reference
 ```
 
 ### 10.1 Regenerating the diagrams
@@ -444,14 +398,12 @@ inside sandboxed environments and CI runners.
 - **No power numbers from the open-source flow.**  Add a switching
   activity file and a power-aware Liberty to extend the OpenSTA
   invocation with `report_power`.
-- **Both trees are async-reset only, and sync-reset characterization is
-  currently unavailable.**  The harness models the worst case (async reset
-  path through every flop) so the cell library's reset recovery / removal
-  delay is reflected in the report.  This used to be a property of
-  `asic_only` alone, with sync-reset numbers coming from the macro-driven
-  `rtl/` tree with `USE_ASYNC_RESET` left undefined.  That switch became a
-  no-op on 2026-09-07 when reset was made unconditionally asynchronous
-  repo-wide, so neither tree can produce sync-reset numbers today.
+- **Async-reset only; sync-reset characterization is currently
+  unavailable.**  The harness models the worst case (async reset path through
+  every flop) so the cell library's reset recovery / removal delay is
+  reflected in the report.  Sync-reset numbers used to come from this tree
+  with `USE_ASYNC_RESET` left undefined; that switch became a no-op on
+  2026-09-07 when reset was made unconditionally asynchronous repo-wide.
   Recovering the capability means giving this component its own
   characterization-local reset header rather than sharing
   `rtl/amba/includes/reset_defs.svh` -- deliberately, and named so it is
@@ -636,7 +588,7 @@ specific rows on sheets 2 / 3 by editing their `clock` cell.
 The numbers on sheet 1 come from a single Python driver
 [`work/timing_char_sweep.py`](work/timing_char_sweep.py) that:
 
-1. Reads the nine `asic_only/fub/*.sv` primitives.
+1. Reads the nine `rtl/fub/*.sv` primitives.
 2. Synthesizes each at two probe sizes (small + large) per corner
    through Yosys + ABC against ASAP7 RVT, using
    [`work/merge_lib_corner.py`](work/merge_lib_corner.py)'s merged
@@ -682,8 +634,8 @@ the workflow is a spreadsheet.
 - Task tracking: [`TASKS.md`](TASKS.md)
 - Per-FUB synthesis recipes: [`rtl/syn/SYNTHESIS_GUIDE.md`](rtl/syn/SYNTHESIS_GUIDE.md)
 - Multi-flow constraint file: [`rtl/syn/char_top.sdc`](rtl/syn/char_top.sdc)
-- ASIC-only constraint file: [`rtl/asic_only/syn/char_top.sdc`](rtl/asic_only/syn/char_top.sdc)
-- Open-source flow driver: [`rtl/asic_only/syn/Makefile`](rtl/asic_only/syn/Makefile)
+- Constraint file: [`rtl/syn/char_top.sdc`](rtl/syn/char_top.sdc)
+- Open-source flow driver: [`rtl/syn/Makefile`](rtl/syn/Makefile)
 - Design-time budget worksheet: [`work/asap7_characterization.xlsx`](work/asap7_characterization.xlsx)
 - Workbook generator: [`work/build_characterization_xlsx.py`](work/build_characterization_xlsx.py)
 - Per-primitive ASAP7 probe driver: [`work/timing_char_sweep.py`](work/timing_char_sweep.py)

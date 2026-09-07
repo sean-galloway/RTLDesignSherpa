@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Characterize timing_char asic_only primitives against ASAP7 RVT.
+"""Characterize timing_char primitives against ASAP7 RVT.
 
 For each (primitive, corner):
   - synthesize at two probe sizes (short & long)
@@ -11,7 +11,7 @@ Then for each (primitive, corner, freq):
   - budget = period_ps - Tflop
   - max_levels = floor(budget / per_level_delay)
 
-Covers all 9 chain/tree FUBs under rtl/asic_only/fub/.  The MULT row doubles
+Covers all 9 chain/tree FUBs under rtl/fub/.  The MULT row doubles
 as the recommended proxy for "mixed-bag" combinational logic since a real
 multiplier tree is structurally diverse (AND, XOR, full adder, carry).
 
@@ -27,9 +27,15 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-ASIC_ONLY = Path("/mnt/data/github/RTLDesignSherpa/projects/NexysA7/timing_characterization/rtl/asic_only")
-FUB = ASIC_ONLY / "fub"
-COMMON = ASIC_ONLY / "common"
+# The macro-driven tree is the ONLY tree. `ALWAYS_FF_RST` expands to
+# `always_ff @(posedge clk or negedge rst_n)` unconditionally, which is exactly
+# what an ASIC flow wants, so the old rtl/asic_only/ fork -- a 37-file duplicate
+# that differed from this one only in reset SPELLING -- was deleted. slang reads
+# `include natively; it needs INCDIR, not a fork.
+RTL = Path(__file__).resolve().parents[1] / "rtl"
+FUB = RTL / "fub"
+COMMON = RTL / "common"
+INCDIR = COMMON          # holds this component's reset_defs.svh / fifo_defs.svh
 LIB_DIR = Path.home() / "eda/asap7_merged"
 LIB = {c: LIB_DIR / f"asap7sc7p5t_RVT_{c}_nldm.lib" for c in ("TT", "FF", "SS")}
 
@@ -102,7 +108,7 @@ def build_ys(prim: Prim, value: int, corner: str, period_ps: int, work: Path) ->
     )
     ys = f"""\
 plugin -i slang
-read_slang -DUSE_ASYNC_RESET \\
+read_slang -I{INCDIR} \\
     --top {prim.name} {gparams} \\
         {sv_files}
 async2sync

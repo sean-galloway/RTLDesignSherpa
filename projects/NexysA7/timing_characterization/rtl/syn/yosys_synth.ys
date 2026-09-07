@@ -37,10 +37,19 @@ foreach item $REST {
 }
 
 # ---- Read sources ------------------------------------------------------------
-yosys log "==> read_verilog: [llength $SOURCES] source(s)"
-foreach src $SOURCES {
-    yosys read_verilog -sv -I $INCDIR {*}$DEFINES $src
-}
+# slang, not Yosys's native read_verilog. The sources use a typedef'd parameter
+# (`parameter fifo_mem_t MEM_STYLE = FIFO_AUTO`, from fifo_defs.svh) which
+# read_verilog rejects with "Non-constant width range on parameter decl", and
+# `include "reset_defs.svh" for the flop macro. slang handles both, and
+# work/timing_char_sweep.py already reads this same RTL through it.
+#
+# Until 2026-09-07 the workaround was rtl/asic_only/ -- a 37-file duplicate of
+# rtl/ with the macros expanded and fifo_mem_t hand-substituted for int. It
+# synthesised to a byte-identical ASAP7 netlist, so it bought nothing but a
+# second copy to keep in sync. Deleted; one frontend swap replaces it.
+yosys log "==> read_slang: [llength $SOURCES] source(s)"
+yosys plugin -i slang
+yosys read_slang -I $INCDIR --top $TOP {*}$DEFINES {*}$SOURCES
 
 # ---- Elaborate + early optimise ---------------------------------------------
 yosys hierarchy -check -top $TOP
