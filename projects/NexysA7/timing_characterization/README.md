@@ -87,10 +87,12 @@ The component ships in two source-equivalent flavours, both targeted at
 ASIC characterization:
 
 - **`rtl/`** -- the default, macro-driven tree that supports compile-time
-  switches for reset style (`USE_ASYNC_RESET`, `RESET_ACTIVE_HIGH`) and
-  FIFO memory type.  Use this tree when the cell library has multiple
-  flop topologies (sync / async reset, active-low / active-high) and
-  you want one source to characterise all of them.
+  switches for reset polarity (`RESET_ACTIVE_HIGH`) and FIFO memory type.
+  Use this tree when the cell library has both active-low and active-high
+  reset cells and you want one source to characterise both.
+  **Reset is asynchronous on assertion in every build** as of 2026-09-07;
+  `USE_ASYNC_RESET` is a no-op and sync-reset flops can no longer be
+  characterised from this tree -- see section 12.
 - **`rtl/asic_only/`** -- a macro-free fork hard-wired to async-negedge
   active-low reset.  Use this tree when the library has exactly one
   flop topology (async, active-low) and you want the source you read
@@ -207,14 +209,19 @@ source set covers every flop topology a target ASIC library might expose:
 
 | Switch | Effect |
 |---|---|
-| `\`USE_ASYNC_RESET` | Include `negedge rst` in the flop sensitivity list |
 | `\`RESET_ACTIVE_HIGH` | Flip reset polarity |
 | `MEM_STYLE = FIFO_{AUTO,SRL,BRAM}` | Drive the inferred memory style of `gaxi_fifo_sync` |
+| ~~`\`USE_ASYNC_RESET`~~ | **No longer a switch.** Reset is asynchronous on assertion in every build; the define parses and does nothing |
 
-Use this tree when the cell library you're characterising has more than
-one flop topology (sync-reset cells in addition to async, or active-high
-reset cells in addition to active-low) and you want a single source
-sweep all of them.
+Use this tree when the cell library you're characterising has both
+active-high and active-low reset cells and you want a single source to
+sweep both.
+
+`USE_ASYNC_RESET` was removed as a switch repo-wide on 2026-09-07: it
+defaulted to SYNCHRONOUS while `make lint` set the define, so lint and the
+shipped bitstream disagreed about what the design was. Making it
+unconditional fixed that, at the cost of this component's ability to
+characterise sync-reset cells from the shared macro -- see section 12.
 
 ### 6.2 `rtl/asic_only/` -- the macro-free ASIC fork
 
@@ -227,10 +234,11 @@ The asic_only fork strips all three abstractions:
 - `fifo_mem_t` parameter type replaced with `int`; `FIFO_AUTO`, `FIFO_SRL`,
   `FIFO_BRAM` inlined as `0`, `1`, `2`
 
-The behaviour is **identical** to the upstream tree when configured for
-`USE_ASYNC_RESET` + active-low; the asic_only variant just bakes that
-single posture into source so every flop is one obvious `always_ff` block
-and every reset condition is one `!rst_n` test.  Use this tree when:
+The behaviour is **identical** to the upstream tree at active-low reset --
+unconditionally so since 2026-09-07, because the upstream macro is now always
+asynchronous; the asic_only variant just bakes that single posture into source
+so every flop is one obvious `always_ff` block and every reset condition is one
+`!rst_n` test.  Use this tree when:
 
 - the target library exposes a single flop topology (async, active-low)
   anyway, so the macro switches are dead options;
@@ -436,11 +444,19 @@ inside sandboxed environments and CI runners.
 - **No power numbers from the open-source flow.**  Add a switching
   activity file and a power-aware Liberty to extend the OpenSTA
   invocation with `report_power`.
-- **asic_only is async-reset only.**  The harness models the worst case
-  (async reset path through every flop) so the cell library's reset
-  recovery / removal delay is reflected in the report.  Sync-reset
-  numbers come from the macro-driven `rtl/` tree with
-  `USE_ASYNC_RESET` left undefined.
+- **Both trees are async-reset only, and sync-reset characterization is
+  currently unavailable.**  The harness models the worst case (async reset
+  path through every flop) so the cell library's reset recovery / removal
+  delay is reflected in the report.  This used to be a property of
+  `asic_only` alone, with sync-reset numbers coming from the macro-driven
+  `rtl/` tree with `USE_ASYNC_RESET` left undefined.  That switch became a
+  no-op on 2026-09-07 when reset was made unconditionally asynchronous
+  repo-wide, so neither tree can produce sync-reset numbers today.
+  Recovering the capability means giving this component its own
+  characterization-local reset header rather than sharing
+  `rtl/amba/includes/reset_defs.svh` -- deliberately, and named so it is
+  obviously a measurement knob and not a copy of the design's header.
+  Tracked as CHAR-001.
 
 ---
 
