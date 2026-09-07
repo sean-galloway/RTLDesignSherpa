@@ -264,6 +264,10 @@ module apb5_slave #(
                     // or a CDC reset independently of this side.
                     if (r_rsp_valid) begin
                         r_rsp_ready <= 1'b1;   // pop and drop
+                        // synthesis translate_off
+                        $display("%t %m WARNING: orphan APB response discarded (prdata=0x%0h pslverr=%0b) -- no command outstanding. Check for duplicate backend responses or an independently-reset CDC.",
+                                 $time, r_rsp_prdata, r_rsp_pslverr);
+                        // synthesis translate_on
                     end
 
                     // Only capture on rising edge of PENABLE (SETUP->ACCESS transition)
