@@ -1484,7 +1484,7 @@ by construction:**
    gated-clock port, and two pipelines built on `axi5s_if`/`axi4s_if`
    interfaces this library does not define. 40 undeclared names across the
    four RTL books attributed to exactly two pages -- this one (34) and
-   `axis4/axis_master.md` (6). Fixed in `5c3daeb8`; all four books now report
+   `axis4/axis4_master.md` (6). Fixed in `5c3daeb8`; all four books now report
    zero. **The page a newcomer reads first is the page the process cannot
    see.** Worth a checker gate rather than a memory.
 
@@ -1838,11 +1838,40 @@ that actually exist as HAS/MAS today.
 
 | Book | Words | qc round | humanized |
 |---|---|---|---|
-| Bridge MAS | — | **none recorded** | 2026-08-11 (`93eed6f1`) |
-| Bridge HAS | — | **none recorded** | 2026-08-11 (`93eed6f1`) |
+| Bridge MAS | — | round_43 (2026-09-04, 3 parts, 21 findings, **never adjudicated**); round_44 sent 2026-09-07 after a generator-sync pass | 2026-08-11 (`93eed6f1`) — **before any qc**, so it is owed a re-humanize once correctness converges |
+| Bridge HAS | — | round_43 (2026-09-04, 2 parts, 22 findings, **never adjudicated**); round_44 sent 2026-09-07 | 2026-08-11 (`93eed6f1`) — same |
 | Converters MAS | — | **CONVERGED 2026-08-26**: rounds 1-6 (25→30→19→14→11→7 findings; last four rounds zero RTL defects) | **2026-08-26**, humanize round_1, all 19 pages, tag-survival 0 fatal |
 | APB Crossbar MAS | 7,154 (5 md) | **CONVERGED 2026-08-30**: rounds 7-15 (20→22→19→18→17→18→10→12→9; last two rounds no RTL defects) | **2026-08-30**, humanize round_2, 9 pages, tag-survival 0 fatal |
 | APB Crossbar HAS | 8,179 (20 md) | rounds 7-15, same batch | **2026-08-30**, humanize round_2, 23 pages, tag-survival 0 fatal |
+
+### Bridge status, measured 2026-09-07
+
+Measured against the tree, not inferred from commits (rule 4 of
+[[kimi-review-rounds]]):
+
+* **round_43 was partially integrated.** Of its 43 findings, 35 were addressed,
+  2 were still genuinely open (the PRD's comparison table claimed out-of-order
+  support — `bridge_cam` is instantiated in ZERO generated bridges and 95
+  generated files use in-order `bridge_id` FIFO tracking — and a requirements
+  line still said "hold grant until xlast" where the arbiters read "lock until
+  handshake"). Both fixed in `a31a5366`. A first pass called 6 open; 4 of those
+  were a quote-matcher firing on fragments out of context, which is a caution
+  about mechanical integration checks, not about the round.
+* **The books had drifted from the generator**, independently of round_43:
+  `monbus_axil_group` had not existed since `35036222` yet appeared in 37
+  comments across the generator and 4 doc sites, and — because the generator
+  emits those comments — in 86 comments inside generated RTL, reproduced on
+  every regenerate. AXI5-Lite sideband (FORWARDED/TIED/TERMINATED) and the
+  emitted `-f reset_defs.f` had no page at all. All three fixed and the family
+  regenerated; bridge 70/70 at FULL.
+* **round_44 is therefore the first bridge qc against a book that matches the
+  generator.** Its findings should be read in that light: round_43 reviewed
+  prose that was both un-qc'd and generator-stale.
+
+The humanize column stays as it is. Both books were voice-passed on
+2026-08-11 **before** any correctness round, so the 2026-08-11 date records
+what happened, not that the book is done. Neither is done until qc converges
+and a humanize round runs after it.
 
 ### Two problems, not one
 
