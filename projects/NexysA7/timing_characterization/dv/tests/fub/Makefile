@@ -5,7 +5,7 @@
 # Local test runner for FUB (Functional Unit Block) tests
 #
 # Usage:
-#   cd $REPO_ROOT/projects/components/timing_characterization/dv/tests/fub
+#   cd $REPO_ROOT/projects/NexysA7/timing_characterization/dv/tests/fub
 #   make <target>
 #
 # Quick start:

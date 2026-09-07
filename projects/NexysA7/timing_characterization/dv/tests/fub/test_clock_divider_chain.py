@@ -19,7 +19,7 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
-from projects.components.timing_characterization.dv.tbclasses.timing_char_tb import TimingCharTB
+from projects.NexysA7.timing_characterization.dv.tbclasses.timing_char_tb import TimingCharTB
 
 
 @cocotb.test(timeout_time=200, timeout_unit="ms")

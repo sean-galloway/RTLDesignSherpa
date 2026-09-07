@@ -114,7 +114,7 @@ dv/
 
 **Import pattern:**
 ```python
-from projects.components.timing_characterization.dv.tbclasses.timing_char_tb import (
+from projects.NexysA7.timing_characterization.dv.tbclasses.timing_char_tb import (
     TimingCharTB, lfsr_step, lfsr_sequence, bit,
 )
 from TBClasses.shared.tbbase import TBBase
@@ -334,7 +334,7 @@ end
 from val.common.test_shifter_lfsr_galois import simulate_galois_lfsr
 
 # CORRECT: Using left-shift model from timing_char_tb
-from projects.components.timing_characterization.dv.tbclasses.timing_char_tb import (
+from projects.NexysA7.timing_characterization.dv.tbclasses.timing_char_tb import (
     lfsr_step, lfsr_sequence,
 )
 ```

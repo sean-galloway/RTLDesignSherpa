@@ -5,7 +5,7 @@
 # Local test runner for char_top integration tests
 #
 # Usage:
-#   cd $REPO_ROOT/projects/components/timing_characterization/dv/tests/top
+#   cd $REPO_ROOT/projects/NexysA7/timing_characterization/dv/tests/top
 #   make <target>
 #
 # Quick start:
