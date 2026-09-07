@@ -239,6 +239,28 @@ This is rule 12 one level up. There the copies of `reset_defs.svh` had drifted;
 here the copies had not drifted at all, and were still wrong, because the
 reason for copying had.
 
+### 16. Check what your gate's glob actually matches
+`filelist_registry.py --blindspots` exists to find tests that hand-list RTL
+instead of taking a filelist. It reported PASS while three tests in one
+component were doing exactly that, one of which could not BUILD.
+
+Its glob was `projects/**/dv/tests/test_*.py`. Project tests live one level
+down, in `fub/`, `macro/`, `top/` -- the Pattern B layout
+`/GLOBAL_REQUIREMENTS.md` mandates. **The gate saw 96 of 172 tests and was
+blind to 76 of them, 44%**, and every one of the blind ones was in a level
+subdirectory, which is to say the normal case rather than an edge case.
+
+A gate that inspects a set is only as good as the set. Before trusting a PASS,
+print the population: how many files did it actually look at, and is that the
+number you expected? One line of arithmetic separates "no violations" from "no
+violations among the half I looked at". Widening this glob turned up two more
+real violations immediately, both latent rather than firing -- they pass today
+only because their DUTs' includes happen to be supplied by hand.
+
+Related: rule 1 (positive control), rule 10 (a gate that fails on everything
+reports nothing). This is the third variant: a gate that PASSES on almost
+nothing.
+
 ## The single question
 
 Before believing any zero, ask: **if the thing I am looking for were happening,
