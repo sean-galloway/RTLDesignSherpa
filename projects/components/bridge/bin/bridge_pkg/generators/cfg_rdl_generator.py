@@ -142,6 +142,7 @@ class CfgRdlGenerator:
             bridge_name=self.bridge_name,
             adapters=self.adapters,
             group_regs=self._build_group_regs(),
+            has_subtractive=getattr(self, 'has_subtractive', False),
         )
 
     def write_rdl(self, output_dir: Path) -> Path:

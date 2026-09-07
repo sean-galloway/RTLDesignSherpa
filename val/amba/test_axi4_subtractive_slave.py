@@ -11,6 +11,7 @@ import random
 
 import pytest
 import cocotb
+from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
@@ -78,6 +79,39 @@ async def subtractive_slave_test(dut):
                                       rid=rid, beats=n)
             assert len(got) == n and got[-1][3] == 1
     tb.log.info(f"{n_rand} randomised accesses all completed with DECERR")
+
+    # ---- 6. sticky status, first-address capture, saturation, clear ----
+    d = dut
+    assert int(d.o_hit_irq.value) == 1, \
+        "o_hit_irq must be SET after unmapped traffic -- an interrupt that " \
+        "never asserts is the hang in a different costume"
+    first_addr = int(d.o_hit_addr.value)
+    count_before = int(d.o_hit_count.value)
+    assert count_before > 0, "hit counter never incremented"
+    tb.log.info(f"sticky: irq=1 addr=0x{first_addr:x} count={count_before}")
+
+    # A later hit must NOT overwrite the first address.
+    await tb.read_burst(addr=0x7777_0000, rid=1, beats=1)
+    assert int(d.o_hit_addr.value) == first_addr, \
+        "a later fault overwrote the first address; the first one is the " \
+        "evidence that usually explains the rest"
+
+    # Clear, and confirm it actually clears.
+    d.i_hit_clear.value = 1
+    await RisingEdge(tb.aclk)
+    await RisingEdge(tb.aclk)
+    d.i_hit_clear.value = 0
+    await RisingEdge(tb.aclk)
+    assert int(d.o_hit_irq.value) == 0, "i_hit_clear did not clear o_hit_irq"
+    assert int(d.o_hit_count.value) == 0, "i_hit_clear did not reset the count"
+    assert int(d.o_hit_addr.value) == first_addr, \
+        "clearing the flag must leave the address readable"
+    tb.log.info("clear works; address survives the clear")
+
+    # And it re-arms.
+    await tb.read_burst(addr=0x8888_0000, rid=2, beats=1)
+    assert int(d.o_hit_irq.value) == 1, "status did not re-arm after a clear"
+    tb.log.info("status re-arms after clear")
 
 
 def generate_params():

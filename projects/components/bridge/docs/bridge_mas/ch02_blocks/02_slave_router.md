@@ -106,6 +106,54 @@ end
 logic oor = ~(|slave_match);  // No slaves matched
 ```
 
+### Subtractive decode: the `else` that removes the hang
+
+The pseudocode above computes an out-of-range flag; the generated RTL goes
+further and gives that case a destination. The emitted decode chain ends in a
+bare `else` selecting an internal catch-all slave:
+
+```systemverilog
+comb_slave_select_aw = '0;
+if      (fub_axi_awaddr <= 32'h3FFFFFFF)  comb_slave_select_aw[0] = 1'b1;  // ddr
+else if (fub_axi_awaddr >= 32'h40000000)  comb_slave_select_aw[1] = 1'b1;  // scratch
+else                                      comb_slave_select_aw[3] = 1'b1;  // subtractive
+```
+
+So the one-hot is **never all-zero**. Before 2026-09-07 there was no `else`:
+an unmapped address selected nothing, the AW-ready MUX fell through to
+`default: // No slave selected` with `awready` low, and the master hung
+forever. The hang is now impossible by construction rather than handled.
+
+### Three decoders, not one
+
+The catch-all is a synthetic slave appended last to the slave list, so it
+reuses the crossbar's routing rather than needing a new datapath. What made
+that harder than it sounds is that **three independent places derive the slave
+list for themselves**, and each needed telling:
+
+| Where | What it derives | What the catch-all needed |
+|---|---|---|
+| master adapter | the if/else decode above | nothing -- subtractive semantics come free from the `else` |
+| crossbar | its own per-slave `_to_` terms, from address RANGES | the term must be `!(other ranges)`; a full-span slave otherwise reduces to `1'b1` |
+| cfg regblock | per-slave configuration registers | exclusion -- it has no monitor wrapper to configure |
+
+The crossbar case is the instructive one. Its decode is derived from each
+slave's address range independently of the adapter's chain, so a full-span
+catch-all became `wire cpu_32b_aw_to_subtractive = 1'b1;` -- matching every
+address. Every transaction then routed to the real slave *and* the catch-all
+at once, and because the payload muxes OR their inputs, the master read back
+`addr = real | catchall`. Silent corruption, which is worse than the hang it
+replaced. The term is now the negation of the other ranges, **inlined** rather
+than referencing the sibling `<master>_<suffix>_<channel>_to_<slave>` wires:
+those are emitted per channel, so a slave with no read path from a given master
+has no `ar_to_` wire at all and naming it does not compile.
+
+The cfg regblock case cost a whole debug cycle for a subtler reason: emitting
+per-slave cfg for the catch-all added 52 fields and **renumbered every register
+after them**, which moved the monitor-enable bits. One monbus stress test saw
+`pkts=0` while all 69 other tests passed, because only that test depended on
+register offsets. A register map is an ABI.
+
 ### Power-of-Two Optimization
 
 For slaves with power-of-two sizes starting at aligned addresses, simplified decode:

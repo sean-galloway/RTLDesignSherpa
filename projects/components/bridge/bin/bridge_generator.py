@@ -820,6 +820,10 @@ def _emit_bridge_variant(
             adapters=adapter_ports,
             mon_group_cfg=_BridgeModGen._MON_GROUP_CFG,
         )
+        # The catch-all gets a status window + clear, appended after every
+        # existing register so the map is extended, never renumbered.
+        cfg_gen.has_subtractive = any(
+            getattr(sl, 'internal', False) for sl in slave_infos)
         from pathlib import Path as _Path
         cfg_out = cfg_gen.generate(_Path(bridge_dir), run_peakrdl=True)
         print(f"  ✓ Generated cfg RDL:      {cfg_out['rdl_path']}")

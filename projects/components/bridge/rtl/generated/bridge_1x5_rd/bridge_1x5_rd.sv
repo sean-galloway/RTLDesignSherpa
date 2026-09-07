@@ -139,7 +139,18 @@ module bridge_1x5_rd
     input  logic [31:0] axil_periph_axi_rdata,
     input  logic [1:0]            axil_periph_axi_rresp,
     input  logic                  axil_periph_axi_rvalid,
-    output logic                  axil_periph_axi_rready
+    output logic                  axil_periph_axi_rready,
+    // Unmapped-address status (subtractive slave).
+    // unmapped_irq is STICKY: it latches on the first
+    // unmapped access and holds until unmapped_clear,
+    // because a one-cycle pulse is gone before software
+    // can look, and this is precisely the access nobody
+    // expected. unmapped_addr holds that FIRST address
+    // and survives the clear.
+    output logic        unmapped_irq,
+    output logic [31:0] unmapped_addr,
+    output logic [7:0]  unmapped_count,
+    input  logic        unmapped_clear
 );
 
     localparam NUM_SLAVES = 6;
@@ -344,6 +355,8 @@ module bridge_1x5_rd
     logic         subtractive_ruser;
     logic         subtractive_rvalid;
     logic         subtractive_rready;
+    logic [31:0] subtractive_hit_addr;
+    logic        subtractive_hit_clear;
     logic subtractive_monbus_valid;
     logic subtractive_monbus_ready;
     monitor_common_pkg::monitor_packet_t subtractive_monbus_packet;
@@ -386,8 +399,14 @@ module bridge_1x5_rd
         .s_axi_rready  (subtractive_rready),
         .monbus_valid  (subtractive_monbus_valid),
         .monbus_ready  (subtractive_monbus_ready),
-        .monbus_packet (subtractive_monbus_packet)
+        .monbus_packet (subtractive_monbus_packet),
+        .o_hit_irq     (unmapped_irq),
+        .o_hit_addr    (subtractive_hit_addr),
+        .o_hit_count   (unmapped_count),
+        .i_hit_clear   (subtractive_hit_clear)
     );
+    assign unmapped_addr = subtractive_hit_addr;
+    assign subtractive_hit_clear = unmapped_clear;
     assign subtractive_monbus_ready = 1'b1;  // TODO: -> monbus_arbiter
     /* verilator lint_off UNUSED */
     wire _unused_subtractive_monbus = &{1'b0, subtractive_monbus_valid, subtractive_monbus_packet};

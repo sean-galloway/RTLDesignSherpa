@@ -149,4 +149,37 @@ addrmap {{ bridge_name }}_cfg {
     } {{ entry.reg }};
 
 {% endfor %}
+{% if has_subtractive %}
+    // ----------------------------------------------------------------
+    // Unmapped-address status (subtractive catch-all slave, BRIDGE-009).
+    //
+    // The STICKY bit lives in axi4_subtractive_slave, not here: one owner
+    // for one piece of state. These fields are a window onto it plus a
+    // clear. HIT and COUNT are hw-written mirrors; CLEAR is a software
+    // singlepulse that clears the flag and the count at the source.
+    //
+    // Appended LAST, deliberately. Inserting per-slave cfg for the
+    // catch-all earlier in the map added 52 fields and renumbered every
+    // register after it, which silently moved the monitor-enable bits and
+    // left the monitors switched off. A register map is an ABI.
+    // ----------------------------------------------------------------
+    reg {
+        name = "SUBTRACTIVE_STATUS";
+        desc = "Unmapped-address status. HIT latches on the first access
+                that matched no slave range and holds until CLEAR. COUNT
+                saturates at 255 rather than wrapping.";
+        field { sw = r; hw = w; } HIT[0:0];
+        field { sw = w; hw = r; singlepulse; reset = 1'b0; } CLEAR[1:1];
+        field { sw = r; hw = w; } COUNT[15:8];
+    } SUBTRACTIVE_STATUS;
+
+    reg {
+        name = "SUBTRACTIVE_ADDR";
+        desc = "Address of the FIRST unmapped access. Not overwritten by
+                later faults and not cleared by CLEAR, so it stays readable
+                as evidence after the flag is acknowledged.";
+        field { sw = r; hw = w; } ADDR[31:0];
+    } SUBTRACTIVE_ADDR;
+
+{% endif %}
 };

@@ -61,6 +61,7 @@
 - [APB Interface Overview](ch04_interfaces/02_apb_interface.md)
 - [Clock and Reset](ch04_interfaces/03_clock_reset.md)
 - [AXI5 and APB5 Interfaces (AMBA5)](ch04_interfaces/04_axi5_apb5_interfaces.md)
+- [Unmapped-Address Handling](ch04_interfaces/05_unmapped_address.md)
 
 ### Chapter 5: Performance
 

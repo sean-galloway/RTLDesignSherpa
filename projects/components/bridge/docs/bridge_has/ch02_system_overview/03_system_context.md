@@ -73,9 +73,20 @@ at `0x4000_1000`, and gaps between windows are legal (they decode-miss).
 
 ### Address Decode
 
-- **Parallel decode** - All slaves checked simultaneously
-- **One-hot result** - Exactly one slave selected per transaction
-- **Out-of-range detection** - DECERR for unmapped addresses
+- **Subtractive decode** - the ranges are tested in order and the chain ends
+  in an `else`, so the one-hot result is *never* all-zero
+- **One-hot result** - exactly one slave selected per transaction, always
+- **Out-of-range** - an address matching no slave range selects the internal
+  subtractive slave, which completes the transaction with **DECERR** and
+  `0xDEADBEEF` read data rather than leaving it unanswered
+
+Until 2026-09-07 the last bullet was aspirational: the decode chain had no
+`else`, so an unmapped address produced an all-zero select, no slave ever saw
+AWVALID/ARVALID, READY never rose, and **the master waited forever**. A hang is
+the worst available failure here because it destroys the evidence -- there is
+no response to inspect, no error bit to read, and the offending address is
+whatever the master still has latched. See 4.5 for the status/interrupt path
+that now reports it.
 
 ## Clock and Reset
 

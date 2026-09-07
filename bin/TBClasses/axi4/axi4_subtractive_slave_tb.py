@@ -62,7 +62,8 @@ class AXI4SubtractiveSlaveTB(TBBase):
         d = self.dut
         for sig, val in (('s_axi_awvalid', 0), ('s_axi_wvalid', 0),
                          ('s_axi_bready', 0), ('s_axi_arvalid', 0),
-                         ('s_axi_rready', 0), ('monbus_ready', 1)):
+                         ('s_axi_rready', 0), ('monbus_ready', 1),
+                         ('i_hit_clear', 0)):
             getattr(d, sig).value = val
         for sig in ('s_axi_awid', 's_axi_awaddr', 's_axi_awlen',
                     's_axi_wdata', 's_axi_wlast',

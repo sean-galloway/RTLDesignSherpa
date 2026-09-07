@@ -83,7 +83,7 @@ Slaves connecting to Bridge must:
 |-------------|---------------|
 | Slave ranges | Must not overlap |
 | Range alignment | Power-of-2 recommended |
-| Coverage | All master addresses must map to slaves or OOR |
+| Coverage | Gaps are permitted: an address in no slave range is claimed by the internal subtractive slave and answered with DECERR (see 4.5). It is still a fault -- it is reported, not tolerated. |
 
 : Table 6.4: Address Map Requirements
 
@@ -138,5 +138,5 @@ Slaves connecting to Bridge must:
 
 1. **Basic transaction test** - Read/write to each slave
 2. **Arbitration test** - Multi-master contention
-3. **Error handling test** - OOR address response
+3. **Error handling test** - unmapped-address response: DECERR + 0xDEADBEEF, `unmapped_irq` sticky, `SUBTRACTIVE_STATUS.CLEAR` clears it (see 4.5)
 4. **Performance validation** - Meet throughput targets

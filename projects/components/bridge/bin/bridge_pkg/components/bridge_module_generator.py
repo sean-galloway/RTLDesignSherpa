@@ -692,6 +692,25 @@ class BridgeModuleGenerator:
         lines.append(
             f"    {self.bridge_name}_cfg_pkg::{self.bridge_name}_cfg__out_t hwif_out;"
         )
+        has_sub = any(getattr(sl, 'internal', False) for sl in self.slaves)
+        if has_sub:
+            # hw-written status fields need an hwif_in. Driven from the
+            # subtractive slave's sticky outputs -- the module owns the state,
+            # these registers are only a window onto it.
+            lines.append(
+                f"    {self.bridge_name}_cfg_pkg::{self.bridge_name}_cfg__in_t hwif_in;"
+            )
+            # Per-field continuous assigns, NOT `hwif_in = '0` plus overrides.
+            # Verilator lowers the hwif struct to a C++ struct with no
+            # operator=(int), so a struct-wide '0 fails to COMPILE:
+            #   no match for 'operator=' (... and 'unsigned int')
+            # The same trap already has a workaround in this file's sibling,
+            # cfg_rdl_generator._patch_resp_buffer_reset, for PeakRDL's own
+            # struct reset. Every member of __in_t is driven here, so nothing
+            # is left undefined by dropping the blanket zero.
+            lines.append("    assign hwif_in.SUBTRACTIVE_STATUS.HIT.next   = unmapped_irq;")
+            lines.append("    assign hwif_in.SUBTRACTIVE_STATUS.COUNT.next = unmapped_count;")
+            lines.append("    assign hwif_in.SUBTRACTIVE_ADDR.ADDR.next    = unmapped_addr;")
         lines.append(f"    {self.bridge_name}_cfg u_bridge_cfg (")
         lines.append("        .clk            (aclk),")
         lines.append("        .rst            (~aresetn),")
@@ -714,6 +733,8 @@ class BridgeModuleGenerator:
         lines.append("        .s_axil_rready  (s_cfg_axil_rready),")
         lines.append("        .s_axil_rdata   (s_cfg_axil_rdata),")
         lines.append("        .s_axil_rresp   (s_cfg_axil_rresp),")
+        if has_sub:
+            lines.append("        .hwif_in        (hwif_in),")
         lines.append("        .hwif_out       (hwif_out)")
         lines.append("    );")
         lines.append("")
@@ -1078,6 +1099,24 @@ class BridgeModuleGenerator:
                 _ensure_trailing_comma(lines)
                 lines.extend(self._generate_monitor_top_ports(wrappers))
 
+        # Unmapped-address status. Emitted for EVERY bridge, monitored or not,
+        # because every bridge has the subtractive catch-all and an unmapped
+        # access is worth reporting whether or not the monitor subsystem is
+        # built. Last in the list, so nothing above it is renumbered.
+        if any(getattr(sl, 'internal', False) for sl in self.slaves):
+            _ensure_trailing_comma(lines)
+            lines.append("    // Unmapped-address status (subtractive slave).")
+            lines.append("    // unmapped_irq is STICKY: it latches on the first")
+            lines.append("    // unmapped access and holds until unmapped_clear,")
+            lines.append("    // because a one-cycle pulse is gone before software")
+            lines.append("    // can look, and this is precisely the access nobody")
+            lines.append("    // expected. unmapped_addr holds that FIRST address")
+            lines.append("    // and survives the clear.")
+            lines.append("    output logic        unmapped_irq,")
+            lines.append("    output logic [31:0] unmapped_addr,")
+            lines.append("    output logic [7:0]  unmapped_count,")
+            lines.append("    input  logic        unmapped_clear")
+
         lines.append(");")
         lines.append("")
 
@@ -1284,6 +1323,8 @@ class BridgeModuleGenerator:
             pfx = slave.prefix.rstrip('_')
             has_write = any(m.channels in ('wr', 'rw') for m in self.masters)
             has_read = any(m.channels in ('rd', 'rw') for m in self.masters)
+            lines.append(f"    logic [31:0] {pfx}_hit_addr;")
+            lines.append(f"    logic        {pfx}_hit_clear;")
             lines.append(f"    logic {pfx}_monbus_valid;")
             lines.append(f"    logic {pfx}_monbus_ready;")
             lines.append(f"    monitor_common_pkg::monitor_packet_t {pfx}_monbus_packet;")
@@ -1327,7 +1368,11 @@ class BridgeModuleGenerator:
                 lines.append(f"        .s_axi_{sig:<8}({conn}),")
             lines.append(f"        .monbus_valid  ({pfx}_monbus_valid),")
             lines.append(f"        .monbus_ready  ({pfx}_monbus_ready),")
-            lines.append(f"        .monbus_packet ({pfx}_monbus_packet)")
+            lines.append(f"        .monbus_packet ({pfx}_monbus_packet),")
+            lines.append(f"        .o_hit_irq     (unmapped_irq),")
+            lines.append(f"        .o_hit_addr    ({pfx}_hit_addr),")
+            lines.append(f"        .o_hit_count   (unmapped_count),")
+            lines.append(f"        .i_hit_clear   ({pfx}_hit_clear)")
             lines.append("    );")
             # TODO(BRIDGE-009): make this an extra monbus_arbiter client so an
             # unmapped access raises mon_irq_out. Until then the packet is
@@ -1335,6 +1380,15 @@ class BridgeModuleGenerator:
             # behaviour (which is what stops the hang) independent of the
             # reporting path, and an undriven ready would make every bridge
             # fail its -Wall build.
+            lines.append(f"    assign unmapped_addr = {pfx}_hit_addr;")
+            if self.enable_monitoring and self.use_cfg_regblock:
+                # Either path clears: the top-level pin for an SoC that wires
+                # its own control, or a write to SUBTRACTIVE_STATUS.CLEAR over
+                # the cfg AXIL/APB window. Neither disables the other.
+                lines.append(f"    assign {pfx}_hit_clear = unmapped_clear")
+                lines.append("                           | hwif_out.SUBTRACTIVE_STATUS.CLEAR.value;")
+            else:
+                lines.append(f"    assign {pfx}_hit_clear = unmapped_clear;")
             lines.append(f"    assign {pfx}_monbus_ready = 1'b1;  // TODO: -> monbus_arbiter")
             lines.append("    /* verilator lint_off UNUSED */")
             lines.append(f"    wire _unused_{pfx}_monbus = "

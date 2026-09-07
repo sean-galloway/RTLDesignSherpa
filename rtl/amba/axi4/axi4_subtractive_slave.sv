@@ -109,7 +109,20 @@ module axi4_subtractive_slave
     // ---- monitor bus -----------------------------------------------------
     output logic            monbus_valid,
     input  logic            monbus_ready,
-    output monitor_packet_t monbus_packet
+    output monitor_packet_t monbus_packet,
+
+    // ---- sticky status / interrupt ---------------------------------------
+    // o_hit_irq latches on the FIRST unmapped access and stays set until
+    // cleared, because an interrupt you can miss is not much better than no
+    // interrupt: a one-cycle pulse is gone before software can look, and the
+    // access that caused it is exactly the one nobody expected.
+    // o_hit_addr holds that first address; later hits raise the count but do
+    // not overwrite it, so the evidence is the FIRST fault rather than the
+    // most recent, which is usually the one that explains the rest.
+    output logic            o_hit_irq,
+    output logic [AW-1:0]   o_hit_addr,
+    output logic [7:0]      o_hit_count,
+    input  logic            i_hit_clear
 );
 
     localparam logic [1:0] RESP_DECERR = 2'b11;
@@ -283,6 +296,42 @@ module axi4_subtractive_slave
         assign monbus_valid  = 1'b0;
         assign monbus_packet = '0;
     end
+
+    // ---------------------------------------------------------------------
+    // STICKY STATUS
+    //
+    // Set on any accepted unmapped address phase. Cleared only by
+    // i_hit_clear (write-1-to-clear from the register block), never by a
+    // subsequent access -- so a burst of faults cannot hide the first one.
+    // The counter saturates rather than wrapping: "255+" is honest, a
+    // wrapped 3 is a lie.
+    // ---------------------------------------------------------------------
+    wire w_hit = w_aw_fire || w_ar_fire;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            o_hit_irq   <= 1'b0;
+            o_hit_addr  <= '0;
+            o_hit_count <= '0;
+        end else begin
+            // Clear loses a same-cycle hit only if the hit is also recorded;
+            // record first, so a fault is never dropped by a concurrent
+            // clear.
+            if (w_hit) begin
+                if (!o_hit_irq) begin
+                    o_hit_irq  <= 1'b1;
+                    o_hit_addr <= w_aw_fire ? s_axi_awaddr : s_axi_araddr;
+                end
+                if (o_hit_count != 8'hFF) o_hit_count <= o_hit_count + 8'd1;
+            end else if (i_hit_clear) begin
+                o_hit_irq   <= 1'b0;
+                o_hit_count <= '0;
+                // o_hit_addr deliberately NOT cleared: it stays readable
+                // alongside a cleared flag, so a late reader still learns
+                // where the fault was.
+            end
+        end
+    )
 
     // ---------------------------------------------------------------------
     // Deliberately unused inputs, named so the reason survives.

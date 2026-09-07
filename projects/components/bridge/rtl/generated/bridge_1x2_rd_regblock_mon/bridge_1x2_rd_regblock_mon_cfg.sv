@@ -25,6 +25,7 @@ module bridge_1x2_rd_regblock_mon_cfg (
         output logic [31:0] s_axil_rdata,
         output logic [1:0] s_axil_rresp,
 
+        input bridge_1x2_rd_regblock_mon_cfg_pkg::bridge_1x2_rd_regblock_mon_cfg__in_t hwif_in,
         output bridge_1x2_rd_regblock_mon_cfg_pkg::bridge_1x2_rd_regblock_mon_cfg__out_t hwif_out
     );
 
@@ -282,6 +283,8 @@ module bridge_1x2_rd_regblock_mon_cfg (
         logic MON_GROUP_PACK_11;
         logic MON_GROUP_PACK_12;
         logic MON_GROUP_COMPRESS_EN;
+        logic SUBTRACTIVE_STATUS;
+        logic SUBTRACTIVE_ADDR;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
     logic decoded_req;
@@ -342,6 +345,8 @@ module bridge_1x2_rd_regblock_mon_cfg (
         decoded_reg_strb.MON_GROUP_PACK_11 = cpuif_req_masked & (cpuif_addr == 8'hc4);
         decoded_reg_strb.MON_GROUP_PACK_12 = cpuif_req_masked & (cpuif_addr == 8'hc8);
         decoded_reg_strb.MON_GROUP_COMPRESS_EN = cpuif_req_masked & (cpuif_addr == 8'hcc);
+        decoded_reg_strb.SUBTRACTIVE_STATUS = cpuif_req_masked & (cpuif_addr == 8'hd0);
+        decoded_reg_strb.SUBTRACTIVE_ADDR = cpuif_req_masked & (cpuif_addr == 8'hd4);
     end
 
     // Pass down signals to next stage
@@ -974,6 +979,12 @@ module bridge_1x2_rd_regblock_mon_cfg (
                 logic load_next;
             } compress_en;
         } MON_GROUP_COMPRESS_EN;
+        struct {
+            struct {
+                logic next;
+                logic load_next;
+            } CLEAR;
+        } SUBTRACTIVE_STATUS;
     } field_combo_t;
     field_combo_t field_combo;
 
@@ -1469,6 +1480,11 @@ module bridge_1x2_rd_regblock_mon_cfg (
                 logic value;
             } compress_en;
         } MON_GROUP_COMPRESS_EN;
+        struct {
+            struct {
+                logic value;
+            } CLEAR;
+        } SUBTRACTIVE_STATUS;
     } field_storage_t;
     field_storage_t field_storage;
 
@@ -4439,6 +4455,32 @@ module bridge_1x2_rd_regblock_mon_cfg (
         end
     end
     assign hwif_out.MON_GROUP_COMPRESS_EN.compress_en.value = field_storage.MON_GROUP_COMPRESS_EN.compress_en.value;
+    // Field: bridge_1x2_rd_regblock_mon_cfg.SUBTRACTIVE_STATUS.CLEAR
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SUBTRACTIVE_STATUS.CLEAR.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SUBTRACTIVE_STATUS && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SUBTRACTIVE_STATUS.CLEAR.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.SUBTRACTIVE_STATUS.CLEAR.next = next_c;
+        field_combo.SUBTRACTIVE_STATUS.CLEAR.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SUBTRACTIVE_STATUS.CLEAR.value <= 1'h0;
+        end else begin
+            if(field_combo.SUBTRACTIVE_STATUS.CLEAR.load_next) begin
+                field_storage.SUBTRACTIVE_STATUS.CLEAR.value <= field_combo.SUBTRACTIVE_STATUS.CLEAR.next;
+            end
+        end
+    end
+    assign hwif_out.SUBTRACTIVE_STATUS.CLEAR.value = field_storage.SUBTRACTIVE_STATUS.CLEAR.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -4456,7 +4498,7 @@ module bridge_1x2_rd_regblock_mon_cfg (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[52];
+    logic [31:0] readback_array[54];
     assign readback_array[0][0:0] = (decoded_reg_strb.CPU_RD_0_RD_CTRL && !decoded_req_is_wr) ? field_storage.CPU_RD_0_RD_CTRL.monitor_enable.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.CPU_RD_0_RD_CTRL && !decoded_req_is_wr) ? field_storage.CPU_RD_0_RD_CTRL.error_enable.value : '0;
     assign readback_array[0][2:2] = (decoded_reg_strb.CPU_RD_0_RD_CTRL && !decoded_req_is_wr) ? field_storage.CPU_RD_0_RD_CTRL.timeout_enable.value : '0;
@@ -4603,6 +4645,11 @@ module bridge_1x2_rd_regblock_mon_cfg (
     assign readback_array[50][31:16] = (decoded_reg_strb.MON_GROUP_PACK_12 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_12.core_debug_mask.value : '0;
     assign readback_array[51][0:0] = (decoded_reg_strb.MON_GROUP_COMPRESS_EN && !decoded_req_is_wr) ? field_storage.MON_GROUP_COMPRESS_EN.compress_en.value : '0;
     assign readback_array[51][31:1] = '0;
+    assign readback_array[52][0:0] = (decoded_reg_strb.SUBTRACTIVE_STATUS && !decoded_req_is_wr) ? hwif_in.SUBTRACTIVE_STATUS.HIT.next : '0;
+    assign readback_array[52][7:1] = '0;
+    assign readback_array[52][15:8] = (decoded_reg_strb.SUBTRACTIVE_STATUS && !decoded_req_is_wr) ? hwif_in.SUBTRACTIVE_STATUS.COUNT.next : '0;
+    assign readback_array[52][31:16] = '0;
+    assign readback_array[53][31:0] = (decoded_reg_strb.SUBTRACTIVE_ADDR && !decoded_req_is_wr) ? hwif_in.SUBTRACTIVE_ADDR.ADDR.next : '0;
 
     // Reduce the array
     always_comb begin
@@ -4610,7 +4657,7 @@ module bridge_1x2_rd_regblock_mon_cfg (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<52; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<54; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 
