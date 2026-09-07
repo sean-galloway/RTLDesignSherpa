@@ -2026,3 +2026,72 @@ filed: the regblock BLKLOOPINIT above, and the two boundary probes in
 The gate gap is closed too: `make build-check` in projects/components/bridge/
 rtl now runs every variant through a real build with `--public-flat-rw`. See
 [[TASK-082]] for the three findings the repaired lint gate surfaced alongside.
+
+### TASK-083: monitor TIMEOUT packets saturate at ~table depth per reset
+
+**Priority:** P2. The class is proven reachable but its throughput is not, so
+no campaign can use timeout counts as evidence of anything.
+
+**Status:** open 2026-09-07. Scoped only, deliberately not fixed.
+
+**The measurement, which is the part worth keeping.** Genesys 2 `build-obs`
+(4ch, 60 MHz, three reps across both observers, slave response delayed 2048
+cycles so transactions genuinely expire) — one campaign, one traffic pattern,
+all seven classes keyed and 0 unexpected:
+
+| class | packets |
+|---|---|
+| perf | 1,138,364 |
+| compl | 13,470 |
+| debug | 13,212 |
+| addrmatch | 13,230 |
+| error | 13,206 |
+| threshold | 13,206 |
+| **timeout** | **21** |
+
+Timeout is three orders of magnitude below every other class **from the same
+stimulus**. The 13,206 threshold packets are the control: they come from the
+identical delayed traffic, so the stimulus and the keying are proven good and
+the shortfall is in the monitor. 21 is close to the transaction-table depth, which is
+the signature of "each slot reports at most once and is then never reusable for
+another timeout" rather than of packets being dropped or miscounted.
+
+**Why this is a task and not a bug report:** every link in the lifecycle exists,
+so something in it fails to close, and which one is a measurement question:
+
+    phase timer expires -> sticky per-slot detect
+      -> entry moves to TRANS_ERROR
+      -> the timeout reporter claims it
+      -> event_reported is set ONLY on an ACCEPTED monbus FIFO write
+      -> cleanup frees the slot (TRANS_ERROR is eligible, gated on that flag)
+      -> retire clears the sticky flag and the slot is reusable
+
+Ranked suspects, cheapest first: (1) reporter arbitration starvation — priority
+is error > timeout > compl and exactly ONE slot is marked per accepted FIFO
+write, so timeout may never win under completion traffic; (2) monbus FIFO
+backpressure, which stalls retirement and reporting together because they share
+the same accept; (3) a phase-pending that never drops. Instrument reporter
+grants per class and sample active_count before changing anything.
+
+**The wrong fix, recorded so it is not re-made:** do not retire the slot on
+TRANS_ERROR. A detected timeout is what puts the entry INTO that state; the
+error reporter masks slots whose timeout flag is set and the timeout reporter
+claims them, so clearing there erases the flag exactly when the reporter needs
+it and makes the timeout packet type unreachable entirely. That trade already
+happened once.
+
+**Scope:** shared `rtl/amba` monitor code, consumed by every `*_mon` variant and
+by pumice. Needs the monitor formal set plus the `val/amba` monitor subset, not
+a one-instance patch. Owner has simplification plans for the monitor, so treat
+the RTL pointers below as "true on 2026-09-07", not as durable addresses:
+`rtl/amba/monitor/axi_monitor_timeout.sv` carries the same note as
+`TODO(MON-TIMEOUT-CAP)` (commit d3643c04), with the lifecycle detail in
+`axi_monitor_reporter.sv` (the `w_fifo_wr_accept` marking) and
+`axi_monitor_trans_mgr.sv` (`w_can_cleanup`). **If the monitor is rewritten and
+those files change shape, this page is the surviving copy — re-point it, do not
+delete it, until a campaign shows timeout tracking the other classes.**
+
+**Done when:** a monitors-on campaign drives timeout packets into the same
+order of magnitude as the other classes from the same traffic, and
+`host_obs_matrix.py` clears its 1000-packet floor on 7/7 instead of 6/7.
+
