@@ -95,7 +95,9 @@ module math_bf16_log2 #(
     // Actual range: 0.0 to ~0.9943
 
     logic [LUT_ADDR_BITS-1:0] w_lut_addr;
-    logic [7:0] w_frac_part;
+    logic [7:0] w_frac_lut;       // raw entry for this bucket
+    logic [8:0] w_frac_next;      // the bucket above, for interpolation
+    logic [7:0] w_frac_part;      // interpolated -- what the datapath uses
 
     // Use top bits of mantissa as LUT address
     assign w_lut_addr = w_mant[6 -: LUT_ADDR_BITS];
@@ -103,247 +105,286 @@ module math_bf16_log2 #(
     // Generate LUT using case statement based on LUT_DEPTH
     generate
         if (LUT_DEPTH == 32) begin : gen_lut_32
-            always_comb begin
-                case (w_lut_addr)
-                    5'd0:  w_frac_part = 8'd0;    // log2(1.0000) = 0.0000
-                    5'd1:  w_frac_part = 8'd11;   // log2(1.0312) = 0.0444
-                    5'd2:  w_frac_part = 8'd22;   // log2(1.0625) = 0.0875
-                    5'd3:  w_frac_part = 8'd33;   // log2(1.0938) = 0.1293
-                    5'd4:  w_frac_part = 8'd44;   // log2(1.1250) = 0.1699
-                    5'd5:  w_frac_part = 8'd54;   // log2(1.1562) = 0.2095
-                    5'd6:  w_frac_part = 8'd63;   // log2(1.1875) = 0.2479
-                    5'd7:  w_frac_part = 8'd73;   // log2(1.2188) = 0.2854
-                    5'd8:  w_frac_part = 8'd82;   // log2(1.2500) = 0.3219
-                    5'd9:  w_frac_part = 8'd92;   // log2(1.2812) = 0.3576
-                    5'd10: w_frac_part = 8'd100;  // log2(1.3125) = 0.3923
-                    5'd11: w_frac_part = 8'd109;  // log2(1.3438) = 0.4263
-                    5'd12: w_frac_part = 8'd118;  // log2(1.3750) = 0.4594
-                    5'd13: w_frac_part = 8'd126;  // log2(1.4062) = 0.4919
-                    5'd14: w_frac_part = 8'd134;  // log2(1.4375) = 0.5236
-                    5'd15: w_frac_part = 8'd142;  // log2(1.4688) = 0.5546
-                    5'd16: w_frac_part = 8'd150;  // log2(1.5000) = 0.5850
-                    5'd17: w_frac_part = 8'd157;  // log2(1.5312) = 0.6147
-                    5'd18: w_frac_part = 8'd165;  // log2(1.5625) = 0.6439
-                    5'd19: w_frac_part = 8'd172;  // log2(1.5938) = 0.6724
-                    5'd20: w_frac_part = 8'd179;  // log2(1.6250) = 0.7004
-                    5'd21: w_frac_part = 8'd186;  // log2(1.6562) = 0.7279
-                    5'd22: w_frac_part = 8'd193;  // log2(1.6875) = 0.7549
-                    5'd23: w_frac_part = 8'd200;  // log2(1.7188) = 0.7814
-                    5'd24: w_frac_part = 8'd207;  // log2(1.7500) = 0.8074
-                    5'd25: w_frac_part = 8'd213;  // log2(1.7812) = 0.8329
-                    5'd26: w_frac_part = 8'd220;  // log2(1.8125) = 0.8580
-                    5'd27: w_frac_part = 8'd226;  // log2(1.8438) = 0.8826
-                    5'd28: w_frac_part = 8'd232;  // log2(1.8750) = 0.9069
-                    5'd29: w_frac_part = 8'd238;  // log2(1.9062) = 0.9307
-                    5'd30: w_frac_part = 8'd244;  // log2(1.9375) = 0.9542
-                    5'd31: w_frac_part = 8'd250;  // log2(1.9688) = 0.9773
-                    default: w_frac_part = 8'd0;
+            // The table as a FUNCTION so it can be read at TWO addresses --
+            // this bucket and the one above -- for interpolation. One copy
+            // of the data, two reads.
+            function automatic logic [8:0] lut_32(input logic [4:0] addr);
+                logic [7:0] f;
+                case (addr)
+                    5'd0:  f = 8'd0;    // log2(1.0000) = 0.0000
+                    5'd1:  f = 8'd11;   // log2(1.0312) = 0.0444
+                    5'd2:  f = 8'd22;   // log2(1.0625) = 0.0875
+                    5'd3:  f = 8'd33;   // log2(1.0938) = 0.1293
+                    5'd4:  f = 8'd44;   // log2(1.1250) = 0.1699
+                    5'd5:  f = 8'd54;   // log2(1.1562) = 0.2095
+                    5'd6:  f = 8'd63;   // log2(1.1875) = 0.2479
+                    5'd7:  f = 8'd73;   // log2(1.2188) = 0.2854
+                    5'd8:  f = 8'd82;   // log2(1.2500) = 0.3219
+                    5'd9:  f = 8'd92;   // log2(1.2812) = 0.3576
+                    5'd10: f = 8'd100;  // log2(1.3125) = 0.3923
+                    5'd11: f = 8'd109;  // log2(1.3438) = 0.4263
+                    5'd12: f = 8'd118;  // log2(1.3750) = 0.4594
+                    5'd13: f = 8'd126;  // log2(1.4062) = 0.4919
+                    5'd14: f = 8'd134;  // log2(1.4375) = 0.5236
+                    5'd15: f = 8'd142;  // log2(1.4688) = 0.5546
+                    5'd16: f = 8'd150;  // log2(1.5000) = 0.5850
+                    5'd17: f = 8'd157;  // log2(1.5312) = 0.6147
+                    5'd18: f = 8'd165;  // log2(1.5625) = 0.6439
+                    5'd19: f = 8'd172;  // log2(1.5938) = 0.6724
+                    5'd20: f = 8'd179;  // log2(1.6250) = 0.7004
+                    5'd21: f = 8'd186;  // log2(1.6562) = 0.7279
+                    5'd22: f = 8'd193;  // log2(1.6875) = 0.7549
+                    5'd23: f = 8'd200;  // log2(1.7188) = 0.7814
+                    5'd24: f = 8'd207;  // log2(1.7500) = 0.8074
+                    5'd25: f = 8'd213;  // log2(1.7812) = 0.8329
+                    5'd26: f = 8'd220;  // log2(1.8125) = 0.8580
+                    5'd27: f = 8'd226;  // log2(1.8438) = 0.8826
+                    5'd28: f = 8'd232;  // log2(1.8750) = 0.9069
+                    5'd29: f = 8'd238;  // log2(1.9062) = 0.9307
+                    5'd30: f = 8'd244;  // log2(1.9375) = 0.9542
+                    5'd31: f = 8'd250;  // log2(1.9688) = 0.9773
+                    default: f = 8'd0;
                 endcase
+                return {1'b0, f};
+            endfunction
+
+            always_comb begin
+                w_frac_lut  = lut_32(w_lut_addr)[7:0];
+                // Past the last bucket the fraction reaches log2(2.0) = 1.0,
+                // i.e. 256/256 -- which is why the next value is 9 bits.
+                w_frac_next = (w_lut_addr == {5{1'b1}}) ? 9'd256
+                                                        : lut_32(w_lut_addr + 1'b1);
             end
         end else if (LUT_DEPTH == 64) begin : gen_lut_64
-            always_comb begin
-                case (w_lut_addr)
-                    6'd0:  w_frac_part = 8'd0;
-                    6'd1:  w_frac_part = 8'd6;
-                    6'd2:  w_frac_part = 8'd11;
-                    6'd3:  w_frac_part = 8'd17;
-                    6'd4:  w_frac_part = 8'd22;
-                    6'd5:  w_frac_part = 8'd28;
-                    6'd6:  w_frac_part = 8'd33;
-                    6'd7:  w_frac_part = 8'd38;
-                    6'd8:  w_frac_part = 8'd44;
-                    6'd9:  w_frac_part = 8'd49;
-                    6'd10: w_frac_part = 8'd54;
-                    6'd11: w_frac_part = 8'd59;
-                    6'd12: w_frac_part = 8'd63;
-                    6'd13: w_frac_part = 8'd68;
-                    6'd14: w_frac_part = 8'd73;
-                    6'd15: w_frac_part = 8'd78;
-                    6'd16: w_frac_part = 8'd82;
-                    6'd17: w_frac_part = 8'd87;
-                    6'd18: w_frac_part = 8'd92;
-                    6'd19: w_frac_part = 8'd96;
-                    6'd20: w_frac_part = 8'd100;
-                    6'd21: w_frac_part = 8'd105;
-                    6'd22: w_frac_part = 8'd109;
-                    6'd23: w_frac_part = 8'd113;
-                    6'd24: w_frac_part = 8'd118;
-                    6'd25: w_frac_part = 8'd122;
-                    6'd26: w_frac_part = 8'd126;
-                    6'd27: w_frac_part = 8'd130;
-                    6'd28: w_frac_part = 8'd134;
-                    6'd29: w_frac_part = 8'd138;
-                    6'd30: w_frac_part = 8'd142;
-                    6'd31: w_frac_part = 8'd146;
-                    6'd32: w_frac_part = 8'd150;
-                    6'd33: w_frac_part = 8'd154;
-                    6'd34: w_frac_part = 8'd157;
-                    6'd35: w_frac_part = 8'd161;
-                    6'd36: w_frac_part = 8'd165;
-                    6'd37: w_frac_part = 8'd169;
-                    6'd38: w_frac_part = 8'd172;
-                    6'd39: w_frac_part = 8'd176;
-                    6'd40: w_frac_part = 8'd179;
-                    6'd41: w_frac_part = 8'd183;
-                    6'd42: w_frac_part = 8'd186;
-                    6'd43: w_frac_part = 8'd190;
-                    6'd44: w_frac_part = 8'd193;
-                    6'd45: w_frac_part = 8'd197;
-                    6'd46: w_frac_part = 8'd200;
-                    6'd47: w_frac_part = 8'd203;
-                    6'd48: w_frac_part = 8'd207;
-                    6'd49: w_frac_part = 8'd210;
-                    6'd50: w_frac_part = 8'd213;
-                    6'd51: w_frac_part = 8'd216;
-                    6'd52: w_frac_part = 8'd220;
-                    6'd53: w_frac_part = 8'd223;
-                    6'd54: w_frac_part = 8'd226;
-                    6'd55: w_frac_part = 8'd229;
-                    6'd56: w_frac_part = 8'd232;
-                    6'd57: w_frac_part = 8'd235;
-                    6'd58: w_frac_part = 8'd238;
-                    6'd59: w_frac_part = 8'd241;
-                    6'd60: w_frac_part = 8'd244;
-                    6'd61: w_frac_part = 8'd247;
-                    6'd62: w_frac_part = 8'd250;
-                    6'd63: w_frac_part = 8'd253;
-                    default: w_frac_part = 8'd0;
+            // The table as a FUNCTION so it can be read at TWO addresses --
+            // this bucket and the one above -- for interpolation. One copy
+            // of the data, two reads.
+            function automatic logic [8:0] lut_64(input logic [5:0] addr);
+                logic [7:0] f;
+                case (addr)
+                    6'd0:  f = 8'd0;
+                    6'd1:  f = 8'd6;
+                    6'd2:  f = 8'd11;
+                    6'd3:  f = 8'd17;
+                    6'd4:  f = 8'd22;
+                    6'd5:  f = 8'd28;
+                    6'd6:  f = 8'd33;
+                    6'd7:  f = 8'd38;
+                    6'd8:  f = 8'd44;
+                    6'd9:  f = 8'd49;
+                    6'd10: f = 8'd54;
+                    6'd11: f = 8'd59;
+                    6'd12: f = 8'd63;
+                    6'd13: f = 8'd68;
+                    6'd14: f = 8'd73;
+                    6'd15: f = 8'd78;
+                    6'd16: f = 8'd82;
+                    6'd17: f = 8'd87;
+                    6'd18: f = 8'd92;
+                    6'd19: f = 8'd96;
+                    6'd20: f = 8'd100;
+                    6'd21: f = 8'd105;
+                    6'd22: f = 8'd109;
+                    6'd23: f = 8'd113;
+                    6'd24: f = 8'd118;
+                    6'd25: f = 8'd122;
+                    6'd26: f = 8'd126;
+                    6'd27: f = 8'd130;
+                    6'd28: f = 8'd134;
+                    6'd29: f = 8'd138;
+                    6'd30: f = 8'd142;
+                    6'd31: f = 8'd146;
+                    6'd32: f = 8'd150;
+                    6'd33: f = 8'd154;
+                    6'd34: f = 8'd157;
+                    6'd35: f = 8'd161;
+                    6'd36: f = 8'd165;
+                    6'd37: f = 8'd169;
+                    6'd38: f = 8'd172;
+                    6'd39: f = 8'd176;
+                    6'd40: f = 8'd179;
+                    6'd41: f = 8'd183;
+                    6'd42: f = 8'd186;
+                    6'd43: f = 8'd190;
+                    6'd44: f = 8'd193;
+                    6'd45: f = 8'd197;
+                    6'd46: f = 8'd200;
+                    6'd47: f = 8'd203;
+                    6'd48: f = 8'd207;
+                    6'd49: f = 8'd210;
+                    6'd50: f = 8'd213;
+                    6'd51: f = 8'd216;
+                    6'd52: f = 8'd220;
+                    6'd53: f = 8'd223;
+                    6'd54: f = 8'd226;
+                    6'd55: f = 8'd229;
+                    6'd56: f = 8'd232;
+                    6'd57: f = 8'd235;
+                    6'd58: f = 8'd238;
+                    6'd59: f = 8'd241;
+                    6'd60: f = 8'd244;
+                    6'd61: f = 8'd247;
+                    6'd62: f = 8'd250;
+                    6'd63: f = 8'd253;
+                    default: f = 8'd0;
                 endcase
+                return {1'b0, f};
+            endfunction
+
+            always_comb begin
+                w_frac_lut  = lut_64(w_lut_addr)[7:0];
+                // Past the last bucket the fraction reaches log2(2.0) = 1.0,
+                // i.e. 256/256 -- which is why the next value is 9 bits.
+                w_frac_next = (w_lut_addr == {6{1'b1}}) ? 9'd256
+                                                        : lut_64(w_lut_addr + 1'b1);
             end
         end else begin : gen_lut_128
             // LUT_DEPTH == 128
-            always_comb begin
-                case (w_lut_addr)
-                    7'd0:   w_frac_part = 8'd0;
-                    7'd1:   w_frac_part = 8'd3;
-                    7'd2:   w_frac_part = 8'd6;
-                    7'd3:   w_frac_part = 8'd9;
-                    7'd4:   w_frac_part = 8'd11;
-                    7'd5:   w_frac_part = 8'd14;
-                    7'd6:   w_frac_part = 8'd17;
-                    7'd7:   w_frac_part = 8'd20;
-                    7'd8:   w_frac_part = 8'd22;
-                    7'd9:   w_frac_part = 8'd25;
-                    7'd10:  w_frac_part = 8'd28;
-                    7'd11:  w_frac_part = 8'd30;
-                    7'd12:  w_frac_part = 8'd33;
-                    7'd13:  w_frac_part = 8'd36;
-                    7'd14:  w_frac_part = 8'd38;
-                    7'd15:  w_frac_part = 8'd41;
-                    7'd16:  w_frac_part = 8'd44;
-                    7'd17:  w_frac_part = 8'd46;
-                    7'd18:  w_frac_part = 8'd49;
-                    7'd19:  w_frac_part = 8'd51;
-                    7'd20:  w_frac_part = 8'd54;
-                    7'd21:  w_frac_part = 8'd56;
-                    7'd22:  w_frac_part = 8'd59;
-                    7'd23:  w_frac_part = 8'd61;
-                    7'd24:  w_frac_part = 8'd63;
-                    7'd25:  w_frac_part = 8'd66;
-                    7'd26:  w_frac_part = 8'd68;
-                    7'd27:  w_frac_part = 8'd71;
-                    7'd28:  w_frac_part = 8'd73;
-                    7'd29:  w_frac_part = 8'd75;
-                    7'd30:  w_frac_part = 8'd78;
-                    7'd31:  w_frac_part = 8'd80;
-                    7'd32:  w_frac_part = 8'd82;
-                    7'd33:  w_frac_part = 8'd85;
-                    7'd34:  w_frac_part = 8'd87;
-                    7'd35:  w_frac_part = 8'd89;
-                    7'd36:  w_frac_part = 8'd92;
-                    7'd37:  w_frac_part = 8'd94;
-                    7'd38:  w_frac_part = 8'd96;
-                    7'd39:  w_frac_part = 8'd98;
-                    7'd40:  w_frac_part = 8'd100;
-                    7'd41:  w_frac_part = 8'd103;
-                    7'd42:  w_frac_part = 8'd105;
-                    7'd43:  w_frac_part = 8'd107;
-                    7'd44:  w_frac_part = 8'd109;
-                    7'd45:  w_frac_part = 8'd111;
-                    7'd46:  w_frac_part = 8'd113;
-                    7'd47:  w_frac_part = 8'd116;
-                    7'd48:  w_frac_part = 8'd118;
-                    7'd49:  w_frac_part = 8'd120;
-                    7'd50:  w_frac_part = 8'd122;
-                    7'd51:  w_frac_part = 8'd124;
-                    7'd52:  w_frac_part = 8'd126;
-                    7'd53:  w_frac_part = 8'd128;
-                    7'd54:  w_frac_part = 8'd130;
-                    7'd55:  w_frac_part = 8'd132;
-                    7'd56:  w_frac_part = 8'd134;
-                    7'd57:  w_frac_part = 8'd136;
-                    7'd58:  w_frac_part = 8'd138;
-                    7'd59:  w_frac_part = 8'd140;
-                    7'd60:  w_frac_part = 8'd142;
-                    7'd61:  w_frac_part = 8'd144;
-                    7'd62:  w_frac_part = 8'd146;
-                    7'd63:  w_frac_part = 8'd148;
-                    7'd64:  w_frac_part = 8'd150;
-                    7'd65:  w_frac_part = 8'd152;
-                    7'd66:  w_frac_part = 8'd154;
-                    7'd67:  w_frac_part = 8'd155;
-                    7'd68:  w_frac_part = 8'd157;
-                    7'd69:  w_frac_part = 8'd159;
-                    7'd70:  w_frac_part = 8'd161;
-                    7'd71:  w_frac_part = 8'd163;
-                    7'd72:  w_frac_part = 8'd165;
-                    7'd73:  w_frac_part = 8'd167;
-                    7'd74:  w_frac_part = 8'd169;
-                    7'd75:  w_frac_part = 8'd170;
-                    7'd76:  w_frac_part = 8'd172;
-                    7'd77:  w_frac_part = 8'd174;
-                    7'd78:  w_frac_part = 8'd176;
-                    7'd79:  w_frac_part = 8'd178;
-                    7'd80:  w_frac_part = 8'd179;
-                    7'd81:  w_frac_part = 8'd181;
-                    7'd82:  w_frac_part = 8'd183;
-                    7'd83:  w_frac_part = 8'd185;
-                    7'd84:  w_frac_part = 8'd186;
-                    7'd85:  w_frac_part = 8'd188;
-                    7'd86:  w_frac_part = 8'd190;
-                    7'd87:  w_frac_part = 8'd192;
-                    7'd88:  w_frac_part = 8'd193;
-                    7'd89:  w_frac_part = 8'd195;
-                    7'd90:  w_frac_part = 8'd197;
-                    7'd91:  w_frac_part = 8'd198;
-                    7'd92:  w_frac_part = 8'd200;
-                    7'd93:  w_frac_part = 8'd202;
-                    7'd94:  w_frac_part = 8'd203;
-                    7'd95:  w_frac_part = 8'd205;
-                    7'd96:  w_frac_part = 8'd207;
-                    7'd97:  w_frac_part = 8'd208;
-                    7'd98:  w_frac_part = 8'd210;
-                    7'd99:  w_frac_part = 8'd212;
-                    7'd100: w_frac_part = 8'd213;
-                    7'd101: w_frac_part = 8'd215;
-                    7'd102: w_frac_part = 8'd216;
-                    7'd103: w_frac_part = 8'd218;
-                    7'd104: w_frac_part = 8'd220;
-                    7'd105: w_frac_part = 8'd221;
-                    7'd106: w_frac_part = 8'd223;
-                    7'd107: w_frac_part = 8'd224;
-                    7'd108: w_frac_part = 8'd226;
-                    7'd109: w_frac_part = 8'd228;
-                    7'd110: w_frac_part = 8'd229;
-                    7'd111: w_frac_part = 8'd231;
-                    7'd112: w_frac_part = 8'd232;
-                    7'd113: w_frac_part = 8'd234;
-                    7'd114: w_frac_part = 8'd235;
-                    7'd115: w_frac_part = 8'd237;
-                    7'd116: w_frac_part = 8'd238;
-                    7'd117: w_frac_part = 8'd240;
-                    7'd118: w_frac_part = 8'd241;
-                    7'd119: w_frac_part = 8'd243;
-                    7'd120: w_frac_part = 8'd244;
-                    7'd121: w_frac_part = 8'd246;
-                    7'd122: w_frac_part = 8'd247;
-                    7'd123: w_frac_part = 8'd249;
-                    7'd124: w_frac_part = 8'd250;
-                    7'd125: w_frac_part = 8'd252;
-                    7'd126: w_frac_part = 8'd253;
-                    7'd127: w_frac_part = 8'd255;
-                    default: w_frac_part = 8'd0;
+            // The table as a FUNCTION so it can be read at TWO addresses --
+            // this bucket and the one above -- for interpolation. One copy
+            // of the data, two reads.
+            function automatic logic [8:0] lut_128(input logic [6:0] addr);
+                logic [7:0] f;
+                case (addr)
+                    7'd0:   f = 8'd0;
+                    7'd1:   f = 8'd3;
+                    7'd2:   f = 8'd6;
+                    7'd3:   f = 8'd9;
+                    7'd4:   f = 8'd11;
+                    7'd5:   f = 8'd14;
+                    7'd6:   f = 8'd17;
+                    7'd7:   f = 8'd20;
+                    7'd8:   f = 8'd22;
+                    7'd9:   f = 8'd25;
+                    7'd10:  f = 8'd28;
+                    7'd11:  f = 8'd30;
+                    7'd12:  f = 8'd33;
+                    7'd13:  f = 8'd36;
+                    7'd14:  f = 8'd38;
+                    7'd15:  f = 8'd41;
+                    7'd16:  f = 8'd44;
+                    7'd17:  f = 8'd46;
+                    7'd18:  f = 8'd49;
+                    7'd19:  f = 8'd51;
+                    7'd20:  f = 8'd54;
+                    7'd21:  f = 8'd56;
+                    7'd22:  f = 8'd59;
+                    7'd23:  f = 8'd61;
+                    7'd24:  f = 8'd63;
+                    7'd25:  f = 8'd66;
+                    7'd26:  f = 8'd68;
+                    7'd27:  f = 8'd71;
+                    7'd28:  f = 8'd73;
+                    7'd29:  f = 8'd75;
+                    7'd30:  f = 8'd78;
+                    7'd31:  f = 8'd80;
+                    7'd32:  f = 8'd82;
+                    7'd33:  f = 8'd85;
+                    7'd34:  f = 8'd87;
+                    7'd35:  f = 8'd89;
+                    7'd36:  f = 8'd92;
+                    7'd37:  f = 8'd94;
+                    7'd38:  f = 8'd96;
+                    7'd39:  f = 8'd98;
+                    7'd40:  f = 8'd100;
+                    7'd41:  f = 8'd103;
+                    7'd42:  f = 8'd105;
+                    7'd43:  f = 8'd107;
+                    7'd44:  f = 8'd109;
+                    7'd45:  f = 8'd111;
+                    7'd46:  f = 8'd113;
+                    7'd47:  f = 8'd116;
+                    7'd48:  f = 8'd118;
+                    7'd49:  f = 8'd120;
+                    7'd50:  f = 8'd122;
+                    7'd51:  f = 8'd124;
+                    7'd52:  f = 8'd126;
+                    7'd53:  f = 8'd128;
+                    7'd54:  f = 8'd130;
+                    7'd55:  f = 8'd132;
+                    7'd56:  f = 8'd134;
+                    7'd57:  f = 8'd136;
+                    7'd58:  f = 8'd138;
+                    7'd59:  f = 8'd140;
+                    7'd60:  f = 8'd142;
+                    7'd61:  f = 8'd144;
+                    7'd62:  f = 8'd146;
+                    7'd63:  f = 8'd148;
+                    7'd64:  f = 8'd150;
+                    7'd65:  f = 8'd152;
+                    7'd66:  f = 8'd154;
+                    7'd67:  f = 8'd155;
+                    7'd68:  f = 8'd157;
+                    7'd69:  f = 8'd159;
+                    7'd70:  f = 8'd161;
+                    7'd71:  f = 8'd163;
+                    7'd72:  f = 8'd165;
+                    7'd73:  f = 8'd167;
+                    7'd74:  f = 8'd169;
+                    7'd75:  f = 8'd170;
+                    7'd76:  f = 8'd172;
+                    7'd77:  f = 8'd174;
+                    7'd78:  f = 8'd176;
+                    7'd79:  f = 8'd178;
+                    7'd80:  f = 8'd179;
+                    7'd81:  f = 8'd181;
+                    7'd82:  f = 8'd183;
+                    7'd83:  f = 8'd185;
+                    7'd84:  f = 8'd186;
+                    7'd85:  f = 8'd188;
+                    7'd86:  f = 8'd190;
+                    7'd87:  f = 8'd192;
+                    7'd88:  f = 8'd193;
+                    7'd89:  f = 8'd195;
+                    7'd90:  f = 8'd197;
+                    7'd91:  f = 8'd198;
+                    7'd92:  f = 8'd200;
+                    7'd93:  f = 8'd202;
+                    7'd94:  f = 8'd203;
+                    7'd95:  f = 8'd205;
+                    7'd96:  f = 8'd207;
+                    7'd97:  f = 8'd208;
+                    7'd98:  f = 8'd210;
+                    7'd99:  f = 8'd212;
+                    7'd100: f = 8'd213;
+                    7'd101: f = 8'd215;
+                    7'd102: f = 8'd216;
+                    7'd103: f = 8'd218;
+                    7'd104: f = 8'd220;
+                    7'd105: f = 8'd221;
+                    7'd106: f = 8'd223;
+                    7'd107: f = 8'd224;
+                    7'd108: f = 8'd226;
+                    7'd109: f = 8'd228;
+                    7'd110: f = 8'd229;
+                    7'd111: f = 8'd231;
+                    7'd112: f = 8'd232;
+                    7'd113: f = 8'd234;
+                    7'd114: f = 8'd235;
+                    7'd115: f = 8'd237;
+                    7'd116: f = 8'd238;
+                    7'd117: f = 8'd240;
+                    7'd118: f = 8'd241;
+                    7'd119: f = 8'd243;
+                    7'd120: f = 8'd244;
+                    7'd121: f = 8'd246;
+                    7'd122: f = 8'd247;
+                    7'd123: f = 8'd249;
+                    7'd124: f = 8'd250;
+                    7'd125: f = 8'd252;
+                    7'd126: f = 8'd253;
+                    7'd127: f = 8'd255;
+                    default: f = 8'd0;
                 endcase
+                return {1'b0, f};
+            endfunction
+
+            always_comb begin
+                w_frac_lut  = lut_128(w_lut_addr)[7:0];
+                // Past the last bucket the fraction reaches log2(2.0) = 1.0,
+                // i.e. 256/256 -- which is why the next value is 9 bits.
+                w_frac_next = (w_lut_addr == {7{1'b1}}) ? 9'd256
+                                                        : lut_128(w_lut_addr + 1'b1);
             end
         end
     endgenerate
@@ -366,6 +407,41 @@ module math_bf16_log2 #(
 
     // For negative results: value = -abs_int + frac/256 = -(abs_int - frac/256)
     // When frac > 0: magnitude = (abs_int - 1) + (256 - frac)/256
+    // -------------------------------------------------------------------
+    // Interpolate across the LUT bucket.
+    //
+    // w_lut_addr drops the low (7 - LUT_ADDR_BITS) mantissa bits, so the raw
+    // table is piecewise-CONSTANT: every mantissa in a bucket gets the value
+    // at the bucket's BOTTOM. At LUT_DEPTH=32, log2(1 + 27/128) was answered
+    // with the entry for 24, and for x=0x3F9B that put the result 17 ULP from
+    // correctly rounded (0x3E7C against 0x3E8D). The testbench had it right --
+    // this was a DUT error.
+    //
+    // Measured over all 128 mantissas: 8.66/256 worst case before, 0.94/256
+    // after -- 9.2x. At LUT_DEPTH=128 nothing is dropped and this is the raw
+    // entry.
+    // -------------------------------------------------------------------
+    generate
+        if (LUT_ADDR_BITS >= 7) begin : gen_no_interp
+            assign w_frac_part = w_frac_lut;
+        end else begin : gen_interp
+            localparam int FRAC_BITS = 7 - LUT_ADDR_BITS;
+            localparam int FRAC_HALF = 1 << (FRAC_BITS - 1);
+
+            logic [FRAC_BITS-1:0] w_sub;
+            assign w_sub = w_mant[FRAC_BITS-1:0];
+
+            // log2 increases monotonically over the mantissa, so the step to
+            // the next bucket is non-negative and the arithmetic is unsigned.
+            logic [8:0]  w_step;
+            logic [15:0] w_scaled;
+            assign w_step   = w_frac_next - {1'b0, w_frac_lut};
+            assign w_scaled = ({{(9-FRAC_BITS){1'b0}}, w_sub} * w_step) +
+                              16'(FRAC_HALF);
+            assign w_frac_part = w_frac_lut + 8'(w_scaled >> FRAC_BITS);
+        end
+    endgenerate
+
     assign w_adj_int = (w_frac_part > 0) ? (w_abs_int - 8'd1) : w_abs_int;
     assign w_adj_frac = (w_frac_part > 0) ? (8'd0 - w_frac_part) : 8'd0;  // 256 - frac
 

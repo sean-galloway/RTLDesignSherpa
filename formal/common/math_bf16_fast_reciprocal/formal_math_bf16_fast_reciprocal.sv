@@ -27,6 +27,7 @@ module formal_math_bf16_fast_reciprocal (
     logic [15:0] recip;
     logic        is_zero, is_inf, is_nan, uflow;
     logic [6:0]  mant_approx;
+    logic [6:0]  mant_interp;
 
     math_bf16_fast_reciprocal #(
         .LUT_DEPTH(32)
@@ -37,7 +38,8 @@ module formal_math_bf16_fast_reciprocal (
         .ow_is_inf      (is_inf),
         .ow_is_nan      (is_nan),
         .ow_underflow   (uflow),
-        .ow_mant_approx (mant_approx)
+        .ow_mant_approx (mant_approx),
+        .ow_mant_interp (mant_interp)
     );
 
     // =========================================================================

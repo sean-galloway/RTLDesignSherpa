@@ -75,7 +75,12 @@ module math_bf16_newton_raphson_recip #(
         .ow_is_inf     (w_init_inf),
         .ow_is_nan     (w_init_nan),
         .ow_underflow  (w_init_underflow),
-        .ow_mant_approx(w_init_mant_approx)
+        .ow_mant_approx(w_init_mant_approx),
+        // Newton-Raphson refines the seed itself, so it takes the raw LUT
+        // mantissa and leaves the interpolated one unconnected. Wiring the
+        // interpolated seed in here would change this module's numerics; that
+        // is a separate decision, not a side effect of adding the port.
+        .ow_mant_interp()
     );
 
     // =========================================================================

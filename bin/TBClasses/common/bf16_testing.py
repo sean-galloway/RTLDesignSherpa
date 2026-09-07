@@ -4432,7 +4432,14 @@ class BF16GoldschmidtDivTB(TBBase):
         a_val = BF16Utils.bf16_to_float(a_bf16)
         b_val = BF16Utils.bf16_to_float(b_bf16)
         result = a_val / b_val
-        result_bf16 = BF16Utils.float_to_bf16(result)
+        # RNE, not the truncating float_to_bf16. Truncation always rounds
+        # TOWARD ZERO, so the reference sat up to 1 ULP below the correctly
+        # rounded answer and that error was charged to the DUT: with
+        # a=0x726D b=0x7F27 the exact quotient rounds to 0x32B6, this returned
+        # 0x32B5, and the DUT's 0x32BA -- 4 ULP out, inside its 4 ULP budget --
+        # was scored as 5 and failed. Same defect the ADDER reference had
+        # fixed (see float_to_bf16_rne); the divider was missed.
+        result_bf16 = BF16Utils.float_to_bf16_rne(result)
 
         # Apply FTZ (Flush-to-Zero) on output: if result is subnormal, return 0 with same sign
         if BF16Utils.bf16_is_subnormal(result_bf16):

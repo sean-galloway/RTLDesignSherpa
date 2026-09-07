@@ -24,6 +24,32 @@ module math_adder_brent_kung_grouppg_032 #(
     output logic [N:0] ow_pp
 );
 
+    // Per-bit scalars for the prefix chain, NOT bit-selects of ow_gg.
+    //
+    // This is a Brent-Kung prefix tree: bit 1 feeds 3 feeds 7 feeds 15,
+    // strictly forwards, never back. But when every bit is a select of the
+    // SAME output vector, Verilator schedules that vector as one node and
+    // "bit 3 reads bit 1" becomes ow_gg depending on itself -- reported as
+    // UNOPTFLAT: Circular combinational logic, which fails any build that
+    // treats warnings as errors. It failed all six Dadda/Wallace multiplier
+    // tests, which use this adder as their final CPA.
+    //
+    // `verilator split_var` is the usual answer and does NOT work here:
+    // cocotb builds with --public-flat-rw, and Verilator refuses to split a
+    // public variable (SPLITVAR). Scalars solve it structurally instead --
+    // each is its own net, and ow_gg is now only ever WRITTEN in this module,
+    // so no cycle can be inferred. Same logic, same connectivity.
+    logic w_gg_1, w_gg_2, w_gg_3, w_gg_4, w_gg_5, w_gg_6, w_gg_7, w_gg_8, w_gg_9, w_gg_10, w_gg_11, w_gg_12, w_gg_13, w_gg_14, w_gg_15, w_gg_16, w_gg_17, w_gg_18, w_gg_19, w_gg_20, w_gg_21, w_gg_22, w_gg_23, w_gg_24, w_gg_25, w_gg_26, w_gg_27, w_gg_28, w_gg_29, w_gg_30, w_gg_31, w_gg_32;
+
+    // `split_var` so Verilator schedules ow_gg PER BIT, not as one node.
+    // This is a Brent-Kung prefix tree: bit 1 feeds bit 3 feeds bit 7 feeds
+    // bit 15, strictly forwards. But every bit is driven by a different
+    // sub-instance of the SAME vector, so scheduling ow_gg as a single node
+    // makes "bit 3 reads bit 1" look like ow_gg depending on itself --
+    // reported as UNOPTFLAT: Circular combinational logic, which fails any
+    // build that treats warnings as errors. There is no loop; splitting the
+    // variable lets the scheduler see the real, acyclic dependency.
+    // The metacomment is a comment to every other tool.
     logic G_3_2;
     logic P_3_2;
     logic G_5_4;
@@ -80,7 +106,7 @@ module math_adder_brent_kung_grouppg_032 #(
         .i_g(i_g[1]),
         .i_p(i_p[1]),
         .i_g_km1(i_g[0]),
-        .ow_g(ow_gg[1])
+        .ow_g(w_gg_1)
     );
     math_adder_brent_kung_black black_block_3_2 (
         .i_g(i_g[3]),
@@ -205,8 +231,8 @@ module math_adder_brent_kung_grouppg_032 #(
     math_adder_brent_kung_gray gray_block_3_0 (
         .i_g(G_3_2),
         .i_p(P_3_2),
-        .i_g_km1(ow_gg[1]),
-        .ow_g(ow_gg[3])
+        .i_g_km1(w_gg_1),
+        .ow_g(w_gg_3)
     );
     math_adder_brent_kung_black black_block_7_4 (
         .i_g(G_7_6),
@@ -267,8 +293,8 @@ module math_adder_brent_kung_grouppg_032 #(
     math_adder_brent_kung_gray gray_block_7_0 (
         .i_g(G_7_4),
         .i_p(P_7_4),
-        .i_g_km1(ow_gg[3]),
-        .ow_g(ow_gg[7])
+        .i_g_km1(w_gg_3),
+        .ow_g(w_gg_7)
     );
     math_adder_brent_kung_black black_block_15_8 (
         .i_g(G_15_12),
@@ -297,8 +323,8 @@ module math_adder_brent_kung_grouppg_032 #(
     math_adder_brent_kung_gray gray_block_15_0 (
         .i_g(G_15_8),
         .i_p(P_15_8),
-        .i_g_km1(ow_gg[7]),
-        .ow_g(ow_gg[15])
+        .i_g_km1(w_gg_7),
+        .ow_g(w_gg_15)
     );
     math_adder_brent_kung_black black_block_31_16 (
         .i_g(G_31_24),
@@ -311,171 +337,204 @@ module math_adder_brent_kung_grouppg_032 #(
     math_adder_brent_kung_gray gray_block_31_0 (
         .i_g(G_31_16),
         .i_p(P_31_16),
-        .i_g_km1(ow_gg[15]),
-        .ow_g(ow_gg[31])
+        .i_g_km1(w_gg_15),
+        .ow_g(w_gg_31)
     );
     math_adder_brent_kung_gray gray_block_23_15 (
         .i_g(G_23_16),
         .i_p(P_23_16),
-        .i_g_km1(ow_gg[15]),
-        .ow_g(ow_gg[23])
+        .i_g_km1(w_gg_15),
+        .ow_g(w_gg_23)
     );
     math_adder_brent_kung_gray gray_block_11_7 (
         .i_g(G_11_8),
         .i_p(P_11_8),
-        .i_g_km1(ow_gg[7]),
-        .ow_g(ow_gg[11])
+        .i_g_km1(w_gg_7),
+        .ow_g(w_gg_11)
     );
     math_adder_brent_kung_gray gray_block_19_15 (
         .i_g(G_19_16),
         .i_p(P_19_16),
-        .i_g_km1(ow_gg[15]),
-        .ow_g(ow_gg[19])
+        .i_g_km1(w_gg_15),
+        .ow_g(w_gg_19)
     );
     math_adder_brent_kung_gray gray_block_27_23 (
         .i_g(G_27_24),
         .i_p(P_27_24),
-        .i_g_km1(ow_gg[23]),
-        .ow_g(ow_gg[27])
+        .i_g_km1(w_gg_23),
+        .ow_g(w_gg_27)
     );
     math_adder_brent_kung_gray gray_block_5_3 (
         .i_g(G_5_4),
         .i_p(P_5_4),
-        .i_g_km1(ow_gg[3]),
-        .ow_g(ow_gg[5])
+        .i_g_km1(w_gg_3),
+        .ow_g(w_gg_5)
     );
     math_adder_brent_kung_gray gray_block_9_7 (
         .i_g(G_9_8),
         .i_p(P_9_8),
-        .i_g_km1(ow_gg[7]),
-        .ow_g(ow_gg[9])
+        .i_g_km1(w_gg_7),
+        .ow_g(w_gg_9)
     );
     math_adder_brent_kung_gray gray_block_13_11 (
         .i_g(G_13_12),
         .i_p(P_13_12),
-        .i_g_km1(ow_gg[11]),
-        .ow_g(ow_gg[13])
+        .i_g_km1(w_gg_11),
+        .ow_g(w_gg_13)
     );
     math_adder_brent_kung_gray gray_block_17_15 (
         .i_g(G_17_16),
         .i_p(P_17_16),
-        .i_g_km1(ow_gg[15]),
-        .ow_g(ow_gg[17])
+        .i_g_km1(w_gg_15),
+        .ow_g(w_gg_17)
     );
     math_adder_brent_kung_gray gray_block_21_19 (
         .i_g(G_21_20),
         .i_p(P_21_20),
-        .i_g_km1(ow_gg[19]),
-        .ow_g(ow_gg[21])
+        .i_g_km1(w_gg_19),
+        .ow_g(w_gg_21)
     );
     math_adder_brent_kung_gray gray_block_25_23 (
         .i_g(G_25_24),
         .i_p(P_25_24),
-        .i_g_km1(ow_gg[23]),
-        .ow_g(ow_gg[25])
+        .i_g_km1(w_gg_23),
+        .ow_g(w_gg_25)
     );
     math_adder_brent_kung_gray gray_block_29_27 (
         .i_g(G_29_28),
         .i_p(P_29_28),
-        .i_g_km1(ow_gg[27]),
-        .ow_g(ow_gg[29])
+        .i_g_km1(w_gg_27),
+        .ow_g(w_gg_29)
     );
     math_adder_brent_kung_gray gray_block_2_1 (
         .i_g(i_g[2]),
         .i_p(i_p[2]),
-        .i_g_km1(ow_gg[1]),
-        .ow_g(ow_gg[2])
+        .i_g_km1(w_gg_1),
+        .ow_g(w_gg_2)
     );
     math_adder_brent_kung_gray gray_block_4_3 (
         .i_g(i_g[4]),
         .i_p(i_p[4]),
-        .i_g_km1(ow_gg[3]),
-        .ow_g(ow_gg[4])
+        .i_g_km1(w_gg_3),
+        .ow_g(w_gg_4)
     );
     math_adder_brent_kung_gray gray_block_6_5 (
         .i_g(i_g[6]),
         .i_p(i_p[6]),
-        .i_g_km1(ow_gg[5]),
-        .ow_g(ow_gg[6])
+        .i_g_km1(w_gg_5),
+        .ow_g(w_gg_6)
     );
     math_adder_brent_kung_gray gray_block_8_7 (
         .i_g(i_g[8]),
         .i_p(i_p[8]),
-        .i_g_km1(ow_gg[7]),
-        .ow_g(ow_gg[8])
+        .i_g_km1(w_gg_7),
+        .ow_g(w_gg_8)
     );
     math_adder_brent_kung_gray gray_block_10_9 (
         .i_g(i_g[10]),
         .i_p(i_p[10]),
-        .i_g_km1(ow_gg[9]),
-        .ow_g(ow_gg[10])
+        .i_g_km1(w_gg_9),
+        .ow_g(w_gg_10)
     );
     math_adder_brent_kung_gray gray_block_12_11 (
         .i_g(i_g[12]),
         .i_p(i_p[12]),
-        .i_g_km1(ow_gg[11]),
-        .ow_g(ow_gg[12])
+        .i_g_km1(w_gg_11),
+        .ow_g(w_gg_12)
     );
     math_adder_brent_kung_gray gray_block_14_13 (
         .i_g(i_g[14]),
         .i_p(i_p[14]),
-        .i_g_km1(ow_gg[13]),
-        .ow_g(ow_gg[14])
+        .i_g_km1(w_gg_13),
+        .ow_g(w_gg_14)
     );
     math_adder_brent_kung_gray gray_block_16_15 (
         .i_g(i_g[16]),
         .i_p(i_p[16]),
-        .i_g_km1(ow_gg[15]),
-        .ow_g(ow_gg[16])
+        .i_g_km1(w_gg_15),
+        .ow_g(w_gg_16)
     );
     math_adder_brent_kung_gray gray_block_18_17 (
         .i_g(i_g[18]),
         .i_p(i_p[18]),
-        .i_g_km1(ow_gg[17]),
-        .ow_g(ow_gg[18])
+        .i_g_km1(w_gg_17),
+        .ow_g(w_gg_18)
     );
     math_adder_brent_kung_gray gray_block_20_19 (
         .i_g(i_g[20]),
         .i_p(i_p[20]),
-        .i_g_km1(ow_gg[19]),
-        .ow_g(ow_gg[20])
+        .i_g_km1(w_gg_19),
+        .ow_g(w_gg_20)
     );
     math_adder_brent_kung_gray gray_block_22_21 (
         .i_g(i_g[22]),
         .i_p(i_p[22]),
-        .i_g_km1(ow_gg[21]),
-        .ow_g(ow_gg[22])
+        .i_g_km1(w_gg_21),
+        .ow_g(w_gg_22)
     );
     math_adder_brent_kung_gray gray_block_24_23 (
         .i_g(i_g[24]),
         .i_p(i_p[24]),
-        .i_g_km1(ow_gg[23]),
-        .ow_g(ow_gg[24])
+        .i_g_km1(w_gg_23),
+        .ow_g(w_gg_24)
     );
     math_adder_brent_kung_gray gray_block_26_25 (
         .i_g(i_g[26]),
         .i_p(i_p[26]),
-        .i_g_km1(ow_gg[25]),
-        .ow_g(ow_gg[26])
+        .i_g_km1(w_gg_25),
+        .ow_g(w_gg_26)
     );
     math_adder_brent_kung_gray gray_block_28_27 (
         .i_g(i_g[28]),
         .i_p(i_p[28]),
-        .i_g_km1(ow_gg[27]),
-        .ow_g(ow_gg[28])
+        .i_g_km1(w_gg_27),
+        .ow_g(w_gg_28)
     );
     math_adder_brent_kung_gray gray_block_30_29 (
         .i_g(i_g[30]),
         .i_p(i_p[30]),
-        .i_g_km1(ow_gg[29]),
-        .ow_g(ow_gg[30])
+        .i_g_km1(w_gg_29),
+        .ow_g(w_gg_30)
     );
     math_adder_brent_kung_gray gray_block_32_31 (
         .i_g(i_g[32]),
         .i_p(i_p[32]),
-        .i_g_km1(ow_gg[31]),
-        .ow_g(ow_gg[32])
+        .i_g_km1(w_gg_31),
+        .ow_g(w_gg_32)
     );
     assign ow_gg[0] = i_g[0];
     assign ow_pp[0] = i_p[0];
+    assign ow_gg[1] = w_gg_1;
+    assign ow_gg[2] = w_gg_2;
+    assign ow_gg[3] = w_gg_3;
+    assign ow_gg[4] = w_gg_4;
+    assign ow_gg[5] = w_gg_5;
+    assign ow_gg[6] = w_gg_6;
+    assign ow_gg[7] = w_gg_7;
+    assign ow_gg[8] = w_gg_8;
+    assign ow_gg[9] = w_gg_9;
+    assign ow_gg[10] = w_gg_10;
+    assign ow_gg[11] = w_gg_11;
+    assign ow_gg[12] = w_gg_12;
+    assign ow_gg[13] = w_gg_13;
+    assign ow_gg[14] = w_gg_14;
+    assign ow_gg[15] = w_gg_15;
+    assign ow_gg[16] = w_gg_16;
+    assign ow_gg[17] = w_gg_17;
+    assign ow_gg[18] = w_gg_18;
+    assign ow_gg[19] = w_gg_19;
+    assign ow_gg[20] = w_gg_20;
+    assign ow_gg[21] = w_gg_21;
+    assign ow_gg[22] = w_gg_22;
+    assign ow_gg[23] = w_gg_23;
+    assign ow_gg[24] = w_gg_24;
+    assign ow_gg[25] = w_gg_25;
+    assign ow_gg[26] = w_gg_26;
+    assign ow_gg[27] = w_gg_27;
+    assign ow_gg[28] = w_gg_28;
+    assign ow_gg[29] = w_gg_29;
+    assign ow_gg[30] = w_gg_30;
+    assign ow_gg[31] = w_gg_31;
+    assign ow_gg[32] = w_gg_32;
+
 endmodule
