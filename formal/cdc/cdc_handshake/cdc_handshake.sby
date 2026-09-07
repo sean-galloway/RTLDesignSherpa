@@ -13,10 +13,11 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
-read -formal -sv cdc_handshake.sv
+read -formal -sv -Iincludes cdc_handshake.sv
 read -formal -sv formal_cdc_handshake.sv
 prep -top formal_cdc_handshake
 
 [files]
 cdc_handshake.sv cdc_handshake_formal.sv
 formal_cdc_handshake.sv
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

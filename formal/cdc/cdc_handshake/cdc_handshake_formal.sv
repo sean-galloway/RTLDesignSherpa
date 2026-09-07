@@ -1,12 +1,22 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// Yosys-compatible copy of cdc_handshake.sv for formal verification.
-// Changes from original:
-//   - Replaced `include "reset_defs.svh" macros with explicit always_ff blocks
-//   - Everything else identical to rtl/amba/cdc/cdc_handshake.sv
+// cdc_handshake, for formal verification.
+//
+// This file used to describe itself as a "Yosys-compatible copy" that had
+// "replaced `include reset_defs.svh macros with explicit always_ff blocks".
+// Both halves of that were wrong. Yosys reads the macro perfectly well -- 92
+// other .sby units in this repo stage reset_defs.svh and read it with
+// -Iincludes; this unit's .sby simply never staged it. And there is no
+// original to be a copy of: rtl/amba/cdc/cdc_handshake.sv does not exist
+// anywhere in the tree. This IS cdc_handshake.
+//
+// So it is on `ALWAYS_FF_RST like everything else, and the .sby stages the
+// include the same way its 92 siblings do.
 
 `timescale 1ns / 1ps
+
+`include "reset_defs.svh"
 
 module cdc_handshake #(
     parameter int DATA_WIDTH = 8
@@ -49,19 +59,20 @@ module cdc_handshake #(
     dst_state_t r_dst_state;
 
     // Source Domain Synchronizer (Dest -> Source Ack)
-    always_ff @(posedge clk_src or negedge rst_src_n) begin
-        if (!rst_src_n) begin
+    `ALWAYS_FF_RST(clk_src, rst_src_n,
+        if (`RST_ASSERTED(rst_src_n)) begin
             r_ack_sync <= 3'b000;
         end else begin
             r_ack_sync <= {r_ack_sync[1:0], r_ack_dst};
         end
-    end
+    )
+
 
     assign w_ack_sync = r_ack_sync[2];
 
     // Source Domain Handshake FSM
-    always_ff @(posedge clk_src or negedge rst_src_n) begin
-        if (!rst_src_n) begin
+    `ALWAYS_FF_RST(clk_src, rst_src_n,
+        if (`RST_ASSERTED(rst_src_n)) begin
             r_src_state   <= S_IDLE;
             r_req_src     <= 1'b0;
             src_ready     <= 1'b0;
@@ -105,22 +116,24 @@ module cdc_handshake #(
                 end
             endcase
         end
-    end
+    )
+
 
     // Destination Domain Synchronizer (Source -> Dest Req)
-    always_ff @(posedge clk_dst or negedge rst_dst_n) begin
-        if (!rst_dst_n) begin
+    `ALWAYS_FF_RST(clk_dst, rst_dst_n,
+        if (`RST_ASSERTED(rst_dst_n)) begin
             r_req_sync <= 3'b000;
         end else begin
             r_req_sync <= {r_req_sync[1:0], r_req_src};
         end
-    end
+    )
+
 
     assign w_req_sync = r_req_sync[2];
 
     // Destination Domain Handshake FSM
-    always_ff @(posedge clk_dst or negedge rst_dst_n) begin
-        if (!rst_dst_n) begin
+    `ALWAYS_FF_RST(clk_dst, rst_dst_n,
+        if (`RST_ASSERTED(rst_dst_n)) begin
             r_dst_state <= D_IDLE;
             r_ack_dst   <= 1'b0;
             dst_valid   <= 1'b0;
@@ -164,7 +177,8 @@ module cdc_handshake #(
                 end
             endcase
         end
-    end
+    )
+
 
     assign dst_data = r_dst_data;
 
