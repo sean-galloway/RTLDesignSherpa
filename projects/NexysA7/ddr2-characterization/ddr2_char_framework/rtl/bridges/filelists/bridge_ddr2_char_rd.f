@@ -1,6 +1,9 @@
 # Include directories
 +incdir+$REPO_ROOT/rtl/amba/includes
 
+# Reset macro header (`ALWAYS_FF_RST / `RST_ASSERTED)
+-f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
+
 # Bridge RTL files (generated)
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/bridges/generated/bridge_ddr2_char_rd/bridge_ddr2_char_rd_pkg.sv
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/bridges/generated/bridge_ddr2_char_rd/rdgen0_adapter.sv

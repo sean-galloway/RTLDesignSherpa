@@ -6,6 +6,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 
 module bridge_stream_mon_axil_mon_xbar
     import bridge_stream_mon_axil_mon_pkg::*;
@@ -1174,8 +1176,8 @@ module bridge_stream_mon_axil_mon_xbar
     wire [0:0] desc_ram_aw_arb_pick = 1'd0;
     wire desc_ram_aw_arb_gnt_valid = desc_ram_aw_arb_locked || (|desc_ram_aw_arb_req);
     wire [0:0] desc_ram_aw_arb_gnt = desc_ram_aw_arb_locked ? desc_ram_aw_arb_lock : desc_ram_aw_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             desc_ram_aw_arb_lock   <= '0;
             desc_ram_aw_arb_rr     <= '0;
             desc_ram_aw_arb_locked <= 1'b0;
@@ -1188,7 +1190,7 @@ module bridge_stream_mon_axil_mon_xbar
                 desc_ram_aw_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire host_256b_aw_gnt_desc_ram = desc_ram_aw_arb_gnt_valid && (desc_ram_aw_arb_gnt == 1'd0) && desc_ram_aw_arb_req[0];
 
     // AW channel (arbitrated mux across writing masters)
@@ -1208,8 +1210,8 @@ module bridge_stream_mon_axil_mon_xbar
     // W owner FIFO: slave-side AW accept order owns the W channel
     logic [0:0] desc_ram_wowner_mem [16];
     logic [4:0] desc_ram_wowner_wptr, desc_ram_wowner_rptr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             desc_ram_wowner_wptr <= '0;
             desc_ram_wowner_rptr <= '0;
         end else begin
@@ -1221,7 +1223,7 @@ module bridge_stream_mon_axil_mon_xbar
                 desc_ram_wowner_rptr <= desc_ram_wowner_rptr + 1'b1;
             end
         end
-    end
+    )
     wire desc_ram_wowner_valid = (desc_ram_wowner_wptr != desc_ram_wowner_rptr);
     wire [0:0] desc_ram_wowner_head = desc_ram_wowner_mem[desc_ram_wowner_rptr[3:0]];
     assign host_256b_w_sel_desc_ram = desc_ram_wowner_valid && (desc_ram_wowner_head == 1'd0) && host_256b_w_to_desc_ram;
@@ -1248,8 +1250,8 @@ module bridge_stream_mon_axil_mon_xbar
         desc_ram_ar_arb_req[1] ? 1'd1 : 1'd0;
     wire desc_ram_ar_arb_gnt_valid = desc_ram_ar_arb_locked || (|desc_ram_ar_arb_req);
     wire [0:0] desc_ram_ar_arb_gnt = desc_ram_ar_arb_locked ? desc_ram_ar_arb_lock : desc_ram_ar_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             desc_ram_ar_arb_lock   <= '0;
             desc_ram_ar_arb_rr     <= '0;
             desc_ram_ar_arb_locked <= 1'b0;
@@ -1262,7 +1264,7 @@ module bridge_stream_mon_axil_mon_xbar
                 desc_ram_ar_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire host_256b_ar_gnt_desc_ram = desc_ram_ar_arb_gnt_valid && (desc_ram_ar_arb_gnt == 1'd0) && desc_ram_ar_arb_req[0];
     wire stream_desc_256b_ar_gnt_desc_ram = desc_ram_ar_arb_gnt_valid && (desc_ram_ar_arb_gnt == 1'd1) && desc_ram_ar_arb_req[1];
 
@@ -1383,8 +1385,8 @@ module bridge_stream_mon_axil_mon_xbar
         stream_tally_aw_arb_req[1] ? 1'd1 : 1'd0;
     wire stream_tally_aw_arb_gnt_valid = stream_tally_aw_arb_locked || (|stream_tally_aw_arb_req);
     wire [0:0] stream_tally_aw_arb_gnt = stream_tally_aw_arb_locked ? stream_tally_aw_arb_lock : stream_tally_aw_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             stream_tally_aw_arb_lock   <= '0;
             stream_tally_aw_arb_rr     <= '0;
             stream_tally_aw_arb_locked <= 1'b0;
@@ -1397,7 +1399,7 @@ module bridge_stream_mon_axil_mon_xbar
                 stream_tally_aw_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire host_64b_aw_gnt_stream_tally = stream_tally_aw_arb_gnt_valid && (stream_tally_aw_arb_gnt == 1'd0) && stream_tally_aw_arb_req[0];
     wire monbus_wr_64b_aw_gnt_stream_tally = stream_tally_aw_arb_gnt_valid && (stream_tally_aw_arb_gnt == 1'd1) && stream_tally_aw_arb_req[1];
 
@@ -1429,8 +1431,8 @@ module bridge_stream_mon_axil_mon_xbar
     // W owner FIFO: slave-side AW accept order owns the W channel
     logic [0:0] stream_tally_wowner_mem [16];
     logic [4:0] stream_tally_wowner_wptr, stream_tally_wowner_rptr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             stream_tally_wowner_wptr <= '0;
             stream_tally_wowner_rptr <= '0;
         end else begin
@@ -1442,7 +1444,7 @@ module bridge_stream_mon_axil_mon_xbar
                 stream_tally_wowner_rptr <= stream_tally_wowner_rptr + 1'b1;
             end
         end
-    end
+    )
     wire stream_tally_wowner_valid = (stream_tally_wowner_wptr != stream_tally_wowner_rptr);
     wire [0:0] stream_tally_wowner_head = stream_tally_wowner_mem[stream_tally_wowner_rptr[3:0]];
     assign host_64b_w_sel_stream_tally = stream_tally_wowner_valid && (stream_tally_wowner_head == 1'd0) && host_64b_w_to_stream_tally;
@@ -1475,8 +1477,8 @@ module bridge_stream_mon_axil_mon_xbar
     wire [0:0] stream_tally_ar_arb_pick = 1'd0;
     wire stream_tally_ar_arb_gnt_valid = stream_tally_ar_arb_locked || (|stream_tally_ar_arb_req);
     wire [0:0] stream_tally_ar_arb_gnt = stream_tally_ar_arb_locked ? stream_tally_ar_arb_lock : stream_tally_ar_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             stream_tally_ar_arb_lock   <= '0;
             stream_tally_ar_arb_rr     <= '0;
             stream_tally_ar_arb_locked <= 1'b0;
@@ -1489,7 +1491,7 @@ module bridge_stream_mon_axil_mon_xbar
                 stream_tally_ar_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire host_64b_ar_gnt_stream_tally = stream_tally_ar_arb_gnt_valid && (stream_tally_ar_arb_gnt == 1'd0) && stream_tally_ar_arb_req[0];
 
     // AR channel (arbitrated mux across reading masters)
@@ -1659,8 +1661,8 @@ module bridge_stream_mon_axil_mon_xbar
         slave_tally_aw_arb_req[1] ? 1'd1 : 1'd0;
     wire slave_tally_aw_arb_gnt_valid = slave_tally_aw_arb_locked || (|slave_tally_aw_arb_req);
     wire [0:0] slave_tally_aw_arb_gnt = slave_tally_aw_arb_locked ? slave_tally_aw_arb_lock : slave_tally_aw_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             slave_tally_aw_arb_lock   <= '0;
             slave_tally_aw_arb_rr     <= '0;
             slave_tally_aw_arb_locked <= 1'b0;
@@ -1673,7 +1675,7 @@ module bridge_stream_mon_axil_mon_xbar
                 slave_tally_aw_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire host_64b_aw_gnt_slave_tally = slave_tally_aw_arb_gnt_valid && (slave_tally_aw_arb_gnt == 1'd0) && slave_tally_aw_arb_req[0];
     wire slave_monbus_wr_64b_aw_gnt_slave_tally = slave_tally_aw_arb_gnt_valid && (slave_tally_aw_arb_gnt == 1'd1) && slave_tally_aw_arb_req[1];
 
@@ -1705,8 +1707,8 @@ module bridge_stream_mon_axil_mon_xbar
     // W owner FIFO: slave-side AW accept order owns the W channel
     logic [0:0] slave_tally_wowner_mem [16];
     logic [4:0] slave_tally_wowner_wptr, slave_tally_wowner_rptr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             slave_tally_wowner_wptr <= '0;
             slave_tally_wowner_rptr <= '0;
         end else begin
@@ -1718,7 +1720,7 @@ module bridge_stream_mon_axil_mon_xbar
                 slave_tally_wowner_rptr <= slave_tally_wowner_rptr + 1'b1;
             end
         end
-    end
+    )
     wire slave_tally_wowner_valid = (slave_tally_wowner_wptr != slave_tally_wowner_rptr);
     wire [0:0] slave_tally_wowner_head = slave_tally_wowner_mem[slave_tally_wowner_rptr[3:0]];
     assign host_64b_w_sel_slave_tally = slave_tally_wowner_valid && (slave_tally_wowner_head == 1'd0) && host_64b_w_to_slave_tally;
@@ -1751,8 +1753,8 @@ module bridge_stream_mon_axil_mon_xbar
     wire [0:0] slave_tally_ar_arb_pick = 1'd0;
     wire slave_tally_ar_arb_gnt_valid = slave_tally_ar_arb_locked || (|slave_tally_ar_arb_req);
     wire [0:0] slave_tally_ar_arb_gnt = slave_tally_ar_arb_locked ? slave_tally_ar_arb_lock : slave_tally_ar_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             slave_tally_ar_arb_lock   <= '0;
             slave_tally_ar_arb_rr     <= '0;
             slave_tally_ar_arb_locked <= 1'b0;
@@ -1765,7 +1767,7 @@ module bridge_stream_mon_axil_mon_xbar
                 slave_tally_ar_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire host_64b_ar_gnt_slave_tally = slave_tally_ar_arb_gnt_valid && (slave_tally_ar_arb_gnt == 1'd0) && slave_tally_ar_arb_req[0];
 
     // AR channel (arbitrated mux across reading masters)
@@ -1812,8 +1814,8 @@ module bridge_stream_mon_axil_mon_xbar
         comp_sram_aw_arb_req[2] ? 2'd2 : comp_sram_aw_arb_req[0] ? 2'd0 : 2'd1;
     wire comp_sram_aw_arb_gnt_valid = comp_sram_aw_arb_locked || (|comp_sram_aw_arb_req);
     wire [1:0] comp_sram_aw_arb_gnt = comp_sram_aw_arb_locked ? comp_sram_aw_arb_lock : comp_sram_aw_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             comp_sram_aw_arb_lock   <= '0;
             comp_sram_aw_arb_rr     <= '0;
             comp_sram_aw_arb_locked <= 1'b0;
@@ -1826,7 +1828,7 @@ module bridge_stream_mon_axil_mon_xbar
                 comp_sram_aw_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire host_64b_aw_gnt_comp_sram = comp_sram_aw_arb_gnt_valid && (comp_sram_aw_arb_gnt == 2'd0) && comp_sram_aw_arb_req[0];
     wire monbus_wr_64b_aw_gnt_comp_sram = comp_sram_aw_arb_gnt_valid && (comp_sram_aw_arb_gnt == 2'd1) && comp_sram_aw_arb_req[1];
     wire slave_monbus_wr_64b_aw_gnt_comp_sram = comp_sram_aw_arb_gnt_valid && (comp_sram_aw_arb_gnt == 2'd2) && comp_sram_aw_arb_req[2];
@@ -1870,8 +1872,8 @@ module bridge_stream_mon_axil_mon_xbar
     // W owner FIFO: slave-side AW accept order owns the W channel
     logic [1:0] comp_sram_wowner_mem [16];
     logic [4:0] comp_sram_wowner_wptr, comp_sram_wowner_rptr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             comp_sram_wowner_wptr <= '0;
             comp_sram_wowner_rptr <= '0;
         end else begin
@@ -1883,7 +1885,7 @@ module bridge_stream_mon_axil_mon_xbar
                 comp_sram_wowner_rptr <= comp_sram_wowner_rptr + 1'b1;
             end
         end
-    end
+    )
     wire comp_sram_wowner_valid = (comp_sram_wowner_wptr != comp_sram_wowner_rptr);
     wire [1:0] comp_sram_wowner_head = comp_sram_wowner_mem[comp_sram_wowner_rptr[3:0]];
     assign host_64b_w_sel_comp_sram = comp_sram_wowner_valid && (comp_sram_wowner_head == 2'd0) && host_64b_w_to_comp_sram;
@@ -1923,8 +1925,8 @@ module bridge_stream_mon_axil_mon_xbar
     wire [0:0] comp_sram_ar_arb_pick = 1'd0;
     wire comp_sram_ar_arb_gnt_valid = comp_sram_ar_arb_locked || (|comp_sram_ar_arb_req);
     wire [0:0] comp_sram_ar_arb_gnt = comp_sram_ar_arb_locked ? comp_sram_ar_arb_lock : comp_sram_ar_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             comp_sram_ar_arb_lock   <= '0;
             comp_sram_ar_arb_rr     <= '0;
             comp_sram_ar_arb_locked <= 1'b0;
@@ -1937,7 +1939,7 @@ module bridge_stream_mon_axil_mon_xbar
                 comp_sram_ar_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire host_64b_ar_gnt_comp_sram = comp_sram_ar_arb_gnt_valid && (comp_sram_ar_arb_gnt == 1'd0) && comp_sram_ar_arb_req[0];
 
     // AR channel (arbitrated mux across reading masters)
@@ -2096,8 +2098,8 @@ module bridge_stream_mon_axil_mon_xbar
     wire [2:0] host_32b_wdest_enc = host_32b_aw_to_slvmon_apb ? 3'd1 : host_32b_aw_to_stream_apb ? 3'd2 : host_32b_aw_to_harness_csr ? 3'd3 : host_32b_aw_to_stream_err ? 3'd4 : host_32b_aw_to_dma_axil ? 3'd5 : host_32b_aw_to_slave_err ? 3'd6 : 3'd0;
     wire host_32b_wdest_push = host_32b_awvalid && host_32b_awready;
     wire host_32b_wdest_pop  = host_32b_wvalid && host_32b_wready && host_32b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             host_32b_wdest_wptr <= '0;
             host_32b_wdest_rptr <= '0;
         end else begin
@@ -2109,7 +2111,7 @@ module bridge_stream_mon_axil_mon_xbar
                 host_32b_wdest_rptr <= host_32b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire host_32b_wdest_valid = (host_32b_wdest_wptr != host_32b_wdest_rptr);
     wire [2:0] host_32b_wdest_head = host_32b_wdest_mem[host_32b_wdest_rptr[3:0]];
     assign host_32b_w_to_obs_apb = host_32b_wdest_valid && (host_32b_wdest_head == 3'd0);
@@ -2126,8 +2128,8 @@ module bridge_stream_mon_axil_mon_xbar
     wire [2:0] host_64b_wdest_enc = host_64b_aw_to_slave_tally ? 3'd1 : host_64b_aw_to_comp_sram ? 3'd2 : host_64b_aw_to_stream_tally_cfg ? 3'd3 : host_64b_aw_to_slave_tally_cfg ? 3'd4 : 3'd0;
     wire host_64b_wdest_push = host_64b_awvalid && host_64b_awready;
     wire host_64b_wdest_pop  = host_64b_wvalid && host_64b_wready && host_64b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             host_64b_wdest_wptr <= '0;
             host_64b_wdest_rptr <= '0;
         end else begin
@@ -2139,7 +2141,7 @@ module bridge_stream_mon_axil_mon_xbar
                 host_64b_wdest_rptr <= host_64b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire host_64b_wdest_valid = (host_64b_wdest_wptr != host_64b_wdest_rptr);
     wire [2:0] host_64b_wdest_head = host_64b_wdest_mem[host_64b_wdest_rptr[3:0]];
     assign host_64b_w_to_stream_tally = host_64b_wdest_valid && (host_64b_wdest_head == 3'd0);
@@ -2154,8 +2156,8 @@ module bridge_stream_mon_axil_mon_xbar
     wire [0:0] host_256b_wdest_enc = 1'd0;
     wire host_256b_wdest_push = host_256b_awvalid && host_256b_awready;
     wire host_256b_wdest_pop  = host_256b_wvalid && host_256b_wready && host_256b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             host_256b_wdest_wptr <= '0;
             host_256b_wdest_rptr <= '0;
         end else begin
@@ -2167,7 +2169,7 @@ module bridge_stream_mon_axil_mon_xbar
                 host_256b_wdest_rptr <= host_256b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire host_256b_wdest_valid = (host_256b_wdest_wptr != host_256b_wdest_rptr);
     wire [0:0] host_256b_wdest_head = host_256b_wdest_mem[host_256b_wdest_rptr[3:0]];
     assign host_256b_w_to_desc_ram = host_256b_wdest_valid && (host_256b_wdest_head == 1'd0);
@@ -2178,8 +2180,8 @@ module bridge_stream_mon_axil_mon_xbar
     wire [0:0] monbus_wr_64b_wdest_enc = monbus_wr_64b_aw_to_comp_sram ? 1'd1 : 1'd0;
     wire monbus_wr_64b_wdest_push = monbus_wr_64b_awvalid && monbus_wr_64b_awready;
     wire monbus_wr_64b_wdest_pop  = monbus_wr_64b_wvalid && monbus_wr_64b_wready && monbus_wr_64b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             monbus_wr_64b_wdest_wptr <= '0;
             monbus_wr_64b_wdest_rptr <= '0;
         end else begin
@@ -2191,7 +2193,7 @@ module bridge_stream_mon_axil_mon_xbar
                 monbus_wr_64b_wdest_rptr <= monbus_wr_64b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire monbus_wr_64b_wdest_valid = (monbus_wr_64b_wdest_wptr != monbus_wr_64b_wdest_rptr);
     wire [0:0] monbus_wr_64b_wdest_head = monbus_wr_64b_wdest_mem[monbus_wr_64b_wdest_rptr[3:0]];
     assign monbus_wr_64b_w_to_stream_tally = monbus_wr_64b_wdest_valid && (monbus_wr_64b_wdest_head == 1'd0);
@@ -2203,8 +2205,8 @@ module bridge_stream_mon_axil_mon_xbar
     wire [0:0] slave_monbus_wr_64b_wdest_enc = slave_monbus_wr_64b_aw_to_comp_sram ? 1'd1 : 1'd0;
     wire slave_monbus_wr_64b_wdest_push = slave_monbus_wr_64b_awvalid && slave_monbus_wr_64b_awready;
     wire slave_monbus_wr_64b_wdest_pop  = slave_monbus_wr_64b_wvalid && slave_monbus_wr_64b_wready && slave_monbus_wr_64b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             slave_monbus_wr_64b_wdest_wptr <= '0;
             slave_monbus_wr_64b_wdest_rptr <= '0;
         end else begin
@@ -2216,7 +2218,7 @@ module bridge_stream_mon_axil_mon_xbar
                 slave_monbus_wr_64b_wdest_rptr <= slave_monbus_wr_64b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire slave_monbus_wr_64b_wdest_valid = (slave_monbus_wr_64b_wdest_wptr != slave_monbus_wr_64b_wdest_rptr);
     wire [0:0] slave_monbus_wr_64b_wdest_head = slave_monbus_wr_64b_wdest_mem[slave_monbus_wr_64b_wdest_rptr[3:0]];
     assign slave_monbus_wr_64b_w_to_slave_tally = slave_monbus_wr_64b_wdest_valid && (slave_monbus_wr_64b_wdest_head == 1'd0);

@@ -6,6 +6,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 
 module bridge_ddr2_char_rd_xbar
     import bridge_ddr2_char_rd_pkg::*;
@@ -90,8 +92,8 @@ module bridge_ddr2_char_rd_xbar
         pumice_rd_ar_arb_req[1] ? 1'd1 : 1'd0;
     wire pumice_rd_ar_arb_gnt_valid = pumice_rd_ar_arb_locked || (|pumice_rd_ar_arb_req);
     wire [0:0] pumice_rd_ar_arb_gnt = pumice_rd_ar_arb_locked ? pumice_rd_ar_arb_lock : pumice_rd_ar_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             pumice_rd_ar_arb_lock   <= '0;
             pumice_rd_ar_arb_rr     <= '0;
             pumice_rd_ar_arb_locked <= 1'b0;
@@ -104,7 +106,7 @@ module bridge_ddr2_char_rd_xbar
                 pumice_rd_ar_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire rdgen0_64b_ar_gnt_pumice_rd = pumice_rd_ar_arb_gnt_valid && (pumice_rd_ar_arb_gnt == 1'd0) && pumice_rd_ar_arb_req[0];
     wire rdgen1_64b_ar_gnt_pumice_rd = pumice_rd_ar_arb_gnt_valid && (pumice_rd_ar_arb_gnt == 1'd1) && pumice_rd_ar_arb_req[1];
 

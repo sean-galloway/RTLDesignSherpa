@@ -2715,7 +2715,7 @@ module bridge_stream_char_axil_mon
         .rst            (~aresetn),
         .s_axil_awvalid (s_cfg_axil_awvalid),
         .s_axil_awready (s_cfg_axil_awready),
-        .s_axil_awaddr  (s_cfg_axil_awaddr),
+        .s_axil_awaddr  (s_cfg_axil_awaddr[9:0]),  // in-window offset; base decoded upstream
         .s_axil_awprot  (s_cfg_axil_awprot),
         .s_axil_wvalid  (s_cfg_axil_wvalid),
         .s_axil_wready  (s_cfg_axil_wready),
@@ -2726,7 +2726,7 @@ module bridge_stream_char_axil_mon
         .s_axil_bresp   (s_cfg_axil_bresp),
         .s_axil_arvalid (s_cfg_axil_arvalid),
         .s_axil_arready (s_cfg_axil_arready),
-        .s_axil_araddr  (s_cfg_axil_araddr),
+        .s_axil_araddr  (s_cfg_axil_araddr[9:0]),  // in-window offset; base decoded upstream
         .s_axil_arprot  (s_cfg_axil_arprot),
         .s_axil_rvalid  (s_cfg_axil_rvalid),
         .s_axil_rready  (s_cfg_axil_rready),

@@ -4,6 +4,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 
 module stream_desc_adapter
     import bridge_stream_mon_axil_mon_pkg::*;
@@ -337,8 +339,8 @@ module stream_desc_adapter
     assign ar_trk_push = fub_axi_arvalid && fub_axi_arready;
     assign ar_trk_pop  = fub_axi_rvalid && fub_axi_rready && fub_axi_rlast;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             ar_trk_wptr <= '0;
             ar_trk_rptr <= '0;
         end else begin
@@ -350,7 +352,7 @@ module stream_desc_adapter
                 ar_trk_rptr <= ar_trk_rptr + 1'b1;
             end
         end
-    end
+    )
 
     assign r_slave_select = (ar_trk_wptr != ar_trk_rptr)
                           ? ar_trk_mem[ar_trk_rptr[AR_TRK_AW-1:0]]
@@ -358,13 +360,13 @@ module stream_desc_adapter
 
     // Single-outstanding-target (reads) — see aw_gate_ok comment.
     logic [NUM_SLAVES-1:0] r_ar_active_target;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_ar_active_target <= '0;
         end else if (ar_trk_push) begin
             r_ar_active_target <= comb_slave_select_ar;
         end
-    end
+    )
     assign ar_gate_ok = (ar_trk_wptr == ar_trk_rptr) ||
                         (comb_slave_select_ar == r_ar_active_target);
 

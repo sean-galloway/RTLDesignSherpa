@@ -6,6 +6,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 
 module bridge_ddr2_char_axil_xbar
     import bridge_ddr2_char_axil_pkg::*;
@@ -807,8 +809,8 @@ module bridge_ddr2_char_axil_xbar
     wire [2:0] host_32b_wdest_enc = host_32b_aw_to_harness_csr ? 3'd1 : host_32b_aw_to_dfi_mon_ram ? 3'd2 : host_32b_aw_to_obs_apb ? 3'd3 : host_32b_aw_to_chargen_apb ? 3'd4 : 3'd0;
     wire host_32b_wdest_push = host_32b_awvalid && host_32b_awready;
     wire host_32b_wdest_pop  = host_32b_wvalid && host_32b_wready && host_32b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             host_32b_wdest_wptr <= '0;
             host_32b_wdest_rptr <= '0;
         end else begin
@@ -820,7 +822,7 @@ module bridge_ddr2_char_axil_xbar
                 host_32b_wdest_rptr <= host_32b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire host_32b_wdest_valid = (host_32b_wdest_wptr != host_32b_wdest_rptr);
     wire [2:0] host_32b_wdest_head = host_32b_wdest_mem[host_32b_wdest_rptr[3:0]];
     assign host_32b_w_to_ddr2_apb = host_32b_wdest_valid && (host_32b_wdest_head == 3'd0);
@@ -835,8 +837,8 @@ module bridge_ddr2_char_axil_xbar
     wire [0:0] host_64b_wdest_enc = 1'd0;
     wire host_64b_wdest_push = host_64b_awvalid && host_64b_awready;
     wire host_64b_wdest_pop  = host_64b_wvalid && host_64b_wready && host_64b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             host_64b_wdest_wptr <= '0;
             host_64b_wdest_rptr <= '0;
         end else begin
@@ -848,7 +850,7 @@ module bridge_ddr2_char_axil_xbar
                 host_64b_wdest_rptr <= host_64b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire host_64b_wdest_valid = (host_64b_wdest_wptr != host_64b_wdest_rptr);
     wire [0:0] host_64b_wdest_head = host_64b_wdest_mem[host_64b_wdest_rptr[3:0]];
     assign host_64b_w_to_debug_sram = host_64b_wdest_valid && (host_64b_wdest_head == 1'd0);

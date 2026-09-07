@@ -6,6 +6,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 
 module bridge_ddr2_char_wr_xbar
     import bridge_ddr2_char_wr_pkg::*;
@@ -105,8 +107,8 @@ module bridge_ddr2_char_wr_xbar
         pumice_wr_aw_arb_req[1] ? 1'd1 : 1'd0;
     wire pumice_wr_aw_arb_gnt_valid = pumice_wr_aw_arb_locked || (|pumice_wr_aw_arb_req);
     wire [0:0] pumice_wr_aw_arb_gnt = pumice_wr_aw_arb_locked ? pumice_wr_aw_arb_lock : pumice_wr_aw_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             pumice_wr_aw_arb_lock   <= '0;
             pumice_wr_aw_arb_rr     <= '0;
             pumice_wr_aw_arb_locked <= 1'b0;
@@ -119,7 +121,7 @@ module bridge_ddr2_char_wr_xbar
                 pumice_wr_aw_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire wrgen0_64b_aw_gnt_pumice_wr = pumice_wr_aw_arb_gnt_valid && (pumice_wr_aw_arb_gnt == 1'd0) && pumice_wr_aw_arb_req[0];
     wire wrgen1_64b_aw_gnt_pumice_wr = pumice_wr_aw_arb_gnt_valid && (pumice_wr_aw_arb_gnt == 1'd1) && pumice_wr_aw_arb_req[1];
 
@@ -151,8 +153,8 @@ module bridge_ddr2_char_wr_xbar
     // W owner FIFO: slave-side AW accept order owns the W channel
     logic [0:0] pumice_wr_wowner_mem [16];
     logic [4:0] pumice_wr_wowner_wptr, pumice_wr_wowner_rptr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             pumice_wr_wowner_wptr <= '0;
             pumice_wr_wowner_rptr <= '0;
         end else begin
@@ -164,7 +166,7 @@ module bridge_ddr2_char_wr_xbar
                 pumice_wr_wowner_rptr <= pumice_wr_wowner_rptr + 1'b1;
             end
         end
-    end
+    )
     wire pumice_wr_wowner_valid = (pumice_wr_wowner_wptr != pumice_wr_wowner_rptr);
     wire [0:0] pumice_wr_wowner_head = pumice_wr_wowner_mem[pumice_wr_wowner_rptr[3:0]];
     assign wrgen0_64b_w_sel_pumice_wr = pumice_wr_wowner_valid && (pumice_wr_wowner_head == 1'd0) && wrgen0_64b_w_to_pumice_wr;
@@ -199,8 +201,8 @@ module bridge_ddr2_char_wr_xbar
     wire [0:0] wrgen0_64b_wdest_enc = 1'd0;
     wire wrgen0_64b_wdest_push = wrgen0_64b_awvalid && wrgen0_64b_awready;
     wire wrgen0_64b_wdest_pop  = wrgen0_64b_wvalid && wrgen0_64b_wready && wrgen0_64b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             wrgen0_64b_wdest_wptr <= '0;
             wrgen0_64b_wdest_rptr <= '0;
         end else begin
@@ -212,7 +214,7 @@ module bridge_ddr2_char_wr_xbar
                 wrgen0_64b_wdest_rptr <= wrgen0_64b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire wrgen0_64b_wdest_valid = (wrgen0_64b_wdest_wptr != wrgen0_64b_wdest_rptr);
     wire [0:0] wrgen0_64b_wdest_head = wrgen0_64b_wdest_mem[wrgen0_64b_wdest_rptr[3:0]];
     assign wrgen0_64b_w_to_pumice_wr = wrgen0_64b_wdest_valid && (wrgen0_64b_wdest_head == 1'd0);
@@ -223,8 +225,8 @@ module bridge_ddr2_char_wr_xbar
     wire [0:0] wrgen1_64b_wdest_enc = 1'd0;
     wire wrgen1_64b_wdest_push = wrgen1_64b_awvalid && wrgen1_64b_awready;
     wire wrgen1_64b_wdest_pop  = wrgen1_64b_wvalid && wrgen1_64b_wready && wrgen1_64b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             wrgen1_64b_wdest_wptr <= '0;
             wrgen1_64b_wdest_rptr <= '0;
         end else begin
@@ -236,7 +238,7 @@ module bridge_ddr2_char_wr_xbar
                 wrgen1_64b_wdest_rptr <= wrgen1_64b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire wrgen1_64b_wdest_valid = (wrgen1_64b_wdest_wptr != wrgen1_64b_wdest_rptr);
     wire [0:0] wrgen1_64b_wdest_head = wrgen1_64b_wdest_mem[wrgen1_64b_wdest_rptr[3:0]];
     assign wrgen1_64b_w_to_pumice_wr = wrgen1_64b_wdest_valid && (wrgen1_64b_wdest_head == 1'd0);
