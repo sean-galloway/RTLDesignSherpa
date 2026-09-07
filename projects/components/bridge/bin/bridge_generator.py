@@ -879,6 +879,15 @@ def _emit_bridge_variant(
     filelist_lines.append("+incdir+$REPO_ROOT/rtl/amba/includes")
     filelist_lines.append("")
 
+    # reset_defs.svh -- every generated adapter and crossbar uses
+    # `ALWAYS_FF_RST. The +incdir+ above already resolves the include, but the
+    # repo's rule is that a filelist declares its own closure rather than
+    # leaning on a directory that happens to be on the path; -f the header's
+    # own filelist so the dependency is stated, not inferred.
+    filelist_lines.append("# Reset macro header (`ALWAYS_FF_RST / `RST_ASSERTED)")
+    filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/reset_defs.f")
+    filelist_lines.append("")
+
     # Monitor packages MUST be compiled before the bridge adapters when
     # use_monitor=True — the adapter port lists reference
     # `monitor_common_pkg::monitor_packet_t` and

@@ -86,6 +86,8 @@ class CrossbarGenerator:
             "",
             "`timescale 1ns / 1ps",
             "",
+            '`include "reset_defs.svh"',   # ALWAYS_FF_RST / RST_ASSERTED
+            "",
             ""
         ]
 
@@ -470,8 +472,8 @@ class CrossbarGenerator:
             lines.append(f"    wire [{j-1}:0] {base}_enc = {enc};")
             lines.append(f"    wire {base}_push = {m.name}_{suffix}_awvalid && {m.name}_{suffix}_awready;")
             lines.append(f"    wire {base}_pop  = {m.name}_{suffix}_wvalid && {m.name}_{suffix}_wready && {m.name}_{suffix}_w.last;")
-            lines.append(f"    always_ff @(posedge aclk or negedge aresetn) begin")
-            lines.append(f"        if (!aresetn) begin")
+            lines.append(f"    `ALWAYS_FF_RST(aclk, aresetn,")
+            lines.append(f"        if (`RST_ASSERTED(aresetn)) begin")
             lines.append(f"            {base}_wptr <= '0;")
             lines.append(f"            {base}_rptr <= '0;")
             lines.append(f"        end else begin")
@@ -483,7 +485,7 @@ class CrossbarGenerator:
             lines.append(f"                {base}_rptr <= {base}_rptr + 1'b1;")
             lines.append(f"            end")
             lines.append(f"        end")
-            lines.append(f"    end")
+            lines.append(f"    )")
             lines.append(f"    wire {base}_valid = ({base}_wptr != {base}_rptr);")
             lines.append(f"    wire [{j-1}:0] {base}_head = {base}_mem[{base}_rptr[3:0]];")
             for code, s in enumerate(slaves):
@@ -589,8 +591,8 @@ class CrossbarGenerator:
             lines.append(f"    wire [{k-1}:0] {arb}_pick = {expr};")
         lines.append(f"    wire {arb}_gnt_valid = {arb}_locked || (|{arb}_req);")
         lines.append(f"    wire [{k-1}:0] {arb}_gnt = {arb}_locked ? {arb}_lock : {arb}_pick;")
-        lines.append(f"    always_ff @(posedge aclk or negedge aresetn) begin")
-        lines.append(f"        if (!aresetn) begin")
+        lines.append(f"    `ALWAYS_FF_RST(aclk, aresetn,")
+        lines.append(f"        if (`RST_ASSERTED(aresetn)) begin")
         lines.append(f"            {arb}_lock   <= '0;")
         lines.append(f"            {arb}_rr     <= '0;")
         lines.append(f"            {arb}_locked <= 1'b0;")
@@ -603,7 +605,7 @@ class CrossbarGenerator:
         lines.append(f"                {arb}_locked <= 1'b1;")
         lines.append(f"            end")
         lines.append(f"        end")
-        lines.append(f"    end")
+        lines.append(f"    )")
         for i, m in enumerate(masters):
             lines.append(f"    wire {m.name}_{suffix}_{channel}_gnt_{s} = "
                          f"{arb}_gnt_valid && ({arb}_gnt == {k}'d{i}) && {arb}_req[{i}];")
@@ -692,8 +694,8 @@ class CrossbarGenerator:
             lines.append(f"    // W owner FIFO: slave-side AW accept order owns the W channel")
             lines.append(f"    logic [{k-1}:0] {own}_mem [16];")
             lines.append(f"    logic [4:0] {own}_wptr, {own}_rptr;")
-            lines.append(f"    always_ff @(posedge aclk or negedge aresetn) begin")
-            lines.append(f"        if (!aresetn) begin")
+            lines.append(f"    `ALWAYS_FF_RST(aclk, aresetn,")
+            lines.append(f"        if (`RST_ASSERTED(aresetn)) begin")
             lines.append(f"            {own}_wptr <= '0;")
             lines.append(f"            {own}_rptr <= '0;")
             lines.append(f"        end else begin")
@@ -705,7 +707,7 @@ class CrossbarGenerator:
             lines.append(f"                {own}_rptr <= {own}_rptr + 1'b1;")
             lines.append(f"            end")
             lines.append(f"        end")
-            lines.append(f"    end")
+            lines.append(f"    )")
             lines.append(f"    wire {own}_valid = ({own}_wptr != {own}_rptr);")
             lines.append(f"    wire [{k-1}:0] {own}_head = {own}_mem[{own}_rptr[3:0]];")
             for i, m in enumerate(wr_masters):
