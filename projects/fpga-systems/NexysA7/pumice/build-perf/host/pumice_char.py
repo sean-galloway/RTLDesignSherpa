@@ -262,6 +262,10 @@ CONFIGS: Dict[str, ControllerConfig] = {
     "inorder": ControllerConfig(
         "inorder", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_CLOSE,
         lookahead=0, force_inorder=True, rd_in_order=True),
+    "open_interleave": ControllerConfig(
+        "open_interleave", scheme=dc.SCHEME_BANK_INTERLEAVE,
+        page_policy=dc.PAGE_POLICY_OPEN, lookahead=0, force_inorder=False,
+        rd_in_order=True),
     "reorder": ControllerConfig(
         "reorder", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_OPEN,
         lookahead=LOOKAHEAD_MAX, force_inorder=False, rd_in_order=False),
