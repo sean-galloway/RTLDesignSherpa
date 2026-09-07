@@ -488,6 +488,10 @@ def _run_stream_mon(request, profile=False, testcase="cocotb_test_stream_mon"):
             # The cocotb process gets ONLY extra_env, so a knob left out is
             # silently the default -- that has now cost three runs today
             # (OBS_ENABLE_MON_TAPS, DMA_XFER_BYTES, SCHED_CONFIG_OVERRIDE).
+            # TEST_MISS is READ by the TB (the ADDR_RANGE empty-error-bin
+            # repro) but was never listed here, so a shell TEST_MISS=1 never reached
+            # the cocotb process and the repro silently ran as TEST_MISS=0.
+            ('TEST_MISS', os.environ.get('TEST_MISS') or '0'),
             ('SCHED_CONFIG_OVERRIDE',
              os.environ.get('SCHED_CONFIG_OVERRIDE') or '0x0F'),
             ('DMA_NUM_CH', os.environ.get('DMA_NUM_CH') or '1'),

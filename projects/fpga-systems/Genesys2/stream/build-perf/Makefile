@@ -62,7 +62,14 @@ export STREAM_CLKOUT0_DIVIDE ?= 12
 # while build-mon, whose exports carry no inline comments, always has.
 # no monitor CAMs to fit, so all 8 channels
 export STREAM_NUM_CHANNELS ?= 8
-export MON_N_PROFILE       ?= 64
+# Tally CAM depth. 32, not 64: the host keys exactly 32 candidate tuples
+# (rd/wr x every EMITTABLE class, + 2 core), and 64 doubled the parallel
+# key-comparators in BOTH tallies for entries nothing could ever match --
+# perfwin/perfhist have no RTL emit path. The 64-entry CAM was a routing
+# congestion source in build-obs. Owner's decision 2026-09-07: never more
+# packet classes in flight than this. The host reads the tally's own sizing
+# at cfg+0x08 and aborts on a mismatch, so raising this needs both sides.
+export MON_N_PROFILE       ?= 32
 # irrelevant with monitors off; kept explicit
 export MON_ERROR_FLAVOR    ?= 0
 

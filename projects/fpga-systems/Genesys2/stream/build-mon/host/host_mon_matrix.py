@@ -50,7 +50,7 @@ STREAM_TALLY_RD  = 0x0004_0000   # count readback (ingest-window read port)
 STREAM_TALLY_CFG = 0x0010_0000   # CAM programming registers
 MON = 0x1000
 CAM_CLEAR_OFF, CAM_KEY_OFF, CAM_LOAD_OFF = 0x100, 0x108, 0x110
-MON_N_PROFILE = 64
+MON_N_PROFILE = 32   # tally CAM depth; never more packet classes in flight
 UNEXPECTED    = MON_N_PROFILE
 
 
@@ -67,9 +67,10 @@ def gen_candidates():
         # Perf rollup (reporter_perf): event 0x7=COMPLETED_COUNT, 0x8=ERROR_COUNT.
         c.append((ag, 0, 0x4, 0x7, f"{who}_perf_compl"))                 # Perf
         c.append((ag, 0, 0x4, 0x8, f"{who}_perf_err"))                   # Perf
-        # PerfWin window rollup (perfmon Stage A/B): 0x0=WIN_END is the anchor.
-        c.append((ag, 0, 0xD, 0x0, f"{who}_perfwin"))                    # PerfWin
-        c.append((ag, 0, 0xE, 0x0, f"{who}_perfhist"))                   # PerfHist
+        # PerfWin (0xD) / PerfHist (0xE) are NOT keyed. They are CSR-only: the
+        # packet types exist in the packages but nothing in the RTL ever emits
+        # them, so keying them burned 4 of the CAM's entries on tuples that can
+        # never match. Dropping them takes the set to exactly 32.
         for ev, nm in ((0x0, "slverr"), (0x1, "decerr"), (0xD, "addrrange")):
             c.append((ag, 0, 0x0, ev, f"{who}_err_{nm}"))                # Error
         for ev, nm in ((0x0, "cmd"), (0x1, "data"), (0x2, "resp")):
@@ -388,6 +389,22 @@ def main(argv=None):
     print(f"candidate legal set: {len(CANDIDATES)} tuples (bin0..{len(CANDIDATES)-1}, UNEXPECTED={UNEXPECTED})")
     with UARTAxiBridge(port, args.baud) as bridge:
         runner = CharacterizationRunner(bridge)
+        # --- verify the tally CAM depth against HARDWARE ---------------------------
+        # UNEXPECTED is the catch-all bin INDEX and equals the CAM depth, so a host
+        # constant that disagrees with the built hardware reads the wrong bin and
+        # reports 0 unexpected packets no matter what happened. The tally publishes
+        # its own sizing at cfg+0x08 as {N_PROFILE[31:16], TALLY_ADDR_BITS[15:0]};
+        # trust that over the constant.
+        _sizing = bridge.read(STREAM_TALLY_CFG + 0x08) or 0
+        _hw_profile = (_sizing >> 16) & 0xFFFF
+        if _hw_profile and _hw_profile != MON_N_PROFILE:
+            print(f'  WARNING: tally CAM depth is {_hw_profile} in hardware but the host '
+                  f'constant MON_N_PROFILE is {MON_N_PROFILE}; using the hardware value.')
+            globals()['UNEXPECTED'] = _hw_profile
+            LABELS[_hw_profile] = 'UNEXPECTED'
+            if len(CANDIDATES) > _hw_profile:
+                raise SystemExit(f'  ABORT: {len(CANDIDATES)} candidates exceed the '
+                                 f'{_hw_profile}-entry CAM built into this bitstream.')
         return run_matrix(bridge, runner, A, reps=args.reps, only=only)
 
 
