@@ -99,7 +99,7 @@ def generate_all_standard():
     print(f"\n✅ Generated {len(variants) + len(mixed)} crossbar variants")
 
 
-def generate_custom(masters, slaves, base_addr=0x10000000):
+def generate_custom(masters, slaves, base_addr=0x10000000, slave_size=0x10000):
     """Generate a custom crossbar variant."""
 
     # Canonical outputs live in rtl/ — the generator emits the final
@@ -115,7 +115,12 @@ def generate_custom(masters, slaves, base_addr=0x10000000):
         base_addr=base_addr,
         addr_width=32,
         data_width=32,
-        output_file=str(output_file)
+        output_file=str(output_file),
+        # Must be passed explicitly. The generator's own default is 4KB, so
+        # omitting it here gave a custom variant 4KB windows while every
+        # shipped variant above got 64KB -- same family, two address maps,
+        # and nothing said so.
+        slave_size=slave_size,
     )
 
     with open(output_file, 'w') as f:
@@ -150,12 +155,16 @@ Examples:
     parser.add_argument('--base-addr', '-b', type=lambda x: int(x, 0),
                         default=0x10000000,
                         help='Base address for slave address map (default 0x10000000)')
+    parser.add_argument('--slave-size', type=lambda x: int(x, 0),
+                        default=0x10000,
+                        help='Address space per slave: 0x1000=4KB, 0x10000=64KB '
+                             '(default 0x10000, matching the shipped variants)')
 
     args = parser.parse_args()
 
     if args.masters and args.slaves:
         # Generate custom variant
-        generate_custom(args.masters, args.slaves, args.base_addr)
+        generate_custom(args.masters, args.slaves, args.base_addr, args.slave_size)
     elif args.masters or args.slaves:
         print("❌ Error: Must specify both --masters and --slaves", file=sys.stderr)
         sys.exit(1)

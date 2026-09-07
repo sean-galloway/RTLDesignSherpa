@@ -135,7 +135,7 @@ python generate_xbars.py \
     --masters 3 \
     --slaves 6 \
     --base-addr 0x80000000 \
-   
+    --slave-size 0x10000
 ```
 
 | Option | Description | Default |
@@ -143,8 +143,20 @@ python generate_xbars.py \
 | --masters | Number of master ports | Required |
 | --slaves | Number of slave ports | Required |
 | --base-addr | Base address (hex) | 0x10000000 |
+| --slave-size | Address space per slave (0x1000 = 4KB, 0x10000 = 64KB) | 0x10000 |
 
 : Generator Command Line Options
+
+`--slave-size` decides which address bits select the slave: the crossbar
+decodes `offset[log2(slave_size) +: ceil(log2(S))]`, so 64KB windows give
+`offset[16 +: n]` and 4KB windows give `offset[12 +: n]`. Until 2026-09-07 this
+script did not pass the value through on the custom path, so a custom variant
+silently came out with 4KB windows while all four shipped variants had 64KB --
+one family, two address maps. It now defaults to 64KB to match them.
+
+The lower-level `apbx_xbar_generator.py` takes the same flag but keeps its own
+historical default of 4KB; prefer `generate_xbars.py` so the family stays
+consistent.
 
 ---
 
