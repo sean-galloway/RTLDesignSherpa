@@ -1,6 +1,6 @@
 # coverage — task rollup
 
-**Next ID: COV-002** — never recycle a number, even when its task closed.
+**Next ID: COV-003** — never recycle a number, even when its task closed.
 
 Verilator/functional coverage rollout across test areas. Migrated 2026-08-09
 from `val/COVERAGE_TODO.md` (dated 2026-03-20), classified against reality:
@@ -23,3 +23,4 @@ semantics, the monbus matrix); thresholds live in
 
 - **COV-001** — the three test areas still off the base `tests.mk` coverage
   path: apbx_xbar, retro_legacy_blocks, timing_characterization.
+

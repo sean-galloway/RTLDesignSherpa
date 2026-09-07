@@ -28,3 +28,6 @@ targets; that is the likely reason these three were deferred.
 
 Blocked variants, noted not tasked: `delta` and `hive` have no dv tests at
 all — coverage rollout there waits on tests existing.
+
+---
+
