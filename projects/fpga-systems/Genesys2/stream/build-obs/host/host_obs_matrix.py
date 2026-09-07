@@ -217,6 +217,22 @@ def run_class(bridge, name, args):
     runner = CharacterizationRunner(bridge)
     tally_rd = {"stream": W("stream_tally")[0], "slave": W("slave_tally")[0]}
     tally_cfg = {"stream": W("stream_tally_cfg")[0], "slave": W("slave_tally_cfg")[0]}
+
+    # UNEXPECTED is the catch-all bin INDEX and equals the tally CAM depth. This
+    # file hardcoded 64 while the build-obs bitstream is now built with
+    # MON_N_PROFILE=32, so every "unexpected" figure was read from a bin that
+    # does not exist in the hardware -- the counts were not a keying gap, they
+    # were nonsense. The tally publishes its own sizing at cfg+0x08 as
+    # {N_PROFILE[31:16], TALLY_ADDR_BITS[15:0]}; trust hardware over a constant.
+    _sizing = bridge.read(tally_cfg["stream"] + 0x08) or 0
+    _hw_profile = (_sizing >> 16) & 0xFFFF
+    if _hw_profile and _hw_profile != UNEXPECTED:
+        print(f"  NOTE: tally CAM depth is {_hw_profile} in hardware "
+              f"(host constant was {UNEXPECTED}); using the hardware value.")
+        globals()["UNEXPECTED"] = _hw_profile
+    if len(legal) > (_hw_profile or UNEXPECTED):
+        raise SystemExit(f"  ABORT: class {name!r} keys {len(legal)} tuples but the "
+                         f"CAM built into this bitstream holds {_hw_profile}.")
     labels = {i: t[4] for i, t in enumerate(legal)}
     labels[UNEXPECTED] = "UNEXPECTED"
 
