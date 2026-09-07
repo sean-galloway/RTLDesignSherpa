@@ -154,6 +154,70 @@ module axi_monitor_timeout
     end
 
     // -------------------------------------------------------------------------
+    // TODO(MON-TIMEOUT-CAP): Timeout packets saturate at a couple of dozen per
+    // reset; every other class reports thousands from the same traffic.
+    //
+    // MEASURED (Genesys 2 build-obs, 4ch, 60 MHz, 2026-09-07, three reps over
+    // both observers, slave response delayed 2048 cycles so transactions
+    // genuinely expire):
+    //
+    //     compl 13470   perf 1138364   addrmatch 13230   error 13206
+    //     threshold 13206   debug 13212   TIMEOUT 21
+    //
+    // 21 is the odd one out by three orders of magnitude, and it is close to
+    // the table depth -- which is the shape of "each slot reports at most once
+    // and is then never reusable for another timeout", not of a stimulus or
+    // keying problem. The stimulus is known good: the same run produced 13206
+    // threshold packets from the identical delayed traffic.
+    //
+    // DO NOT "fix" this by adding TRANS_ERROR to w_slot_retired above. That is
+    // deliberate and the comment there explains it: a detected timeout is what
+    // puts the entry INTO TRANS_ERROR, the error reporter masks slots whose
+    // r_timeout_detected is set and the timeout reporter claims them, so
+    // clearing on TRANS_ERROR erases the flag exactly when the reporter needs
+    // it and makes PktTypeTimeout unreachable entirely. That trade was already
+    // made once; do not re-make it.
+    //
+    // The intended lifecycle, which is what to instrument:
+    //     phase timer expires -> r_timeout_detected[idx] sticky
+    //     -> trans_mgr moves the entry to TRANS_ERROR
+    //     -> axi_monitor_reporter_timeout claims it (state == TRANS_ERROR &&
+    //        cfg_timeout_enable && timeout_detected[idx])
+    //     -> axi_monitor_reporter marks event_reported, but ONLY on
+    //        w_fifo_wr_accept (an ACCEPTED monbus FIFO write)
+    //     -> trans_mgr's w_can_cleanup frees the slot (TRANS_ERROR is in that
+    //        set, gated on event_reported)
+    //     -> w_slot_retired clears r_timeout_detected and the slot is reusable.
+    //
+    // Every link exists, so the loop should recycle indefinitely. Find which
+    // link does not close before changing anything. Prime suspects, cheapest
+    // first:
+    //   1. Reporter arbitration starvation. Priority in axi_monitor_reporter is
+    //      error > timeout > compl, and only ONE slot is marked per accepted
+    //      FIFO write. Under heavy completion traffic the timeout sub-block may
+    //      simply never win, leaving slots stuck in TRANS_ERROR unreported and
+    //      therefore unfreeable.
+    //   2. FIFO backpressure. event_reported is produced ONLY by
+    //      w_fifo_wr_accept, so a full monbus FIFO stalls retirement as well as
+    //      reporting; the entry stays terminal-but-unreported.
+    //   3. A genuinely stuck phase-pending: if w_addr/data/resp_pending never
+    //      drops for an expired entry, the slot is consumed even after report.
+    //
+    // Instrument, do not guess: the cosim harness can count reporter grants per
+    // class and sample active_count. If (1), the fix is a fairness/aging term in
+    // the reporter's priority mux, NOT a change to the retire policy here.
+    //
+    // Board-visible consequence today: timeout is the one class the obs
+    // campaign cannot drive above its 1000-packet floor, so host_obs_matrix.py
+    // exits 1 on an otherwise clean 6/7 run. Coverage of the class is proven
+    // (packets DO arrive, just not many); throughput of the class is not.
+    //
+    // Scope note: this file is shared rtl/amba, consumed by every *_mon variant
+    // and by pumice. Any change here needs the full monitor formal set plus the
+    // val/amba monitor subset, not just the Genesys 2 campaign.
+    // -------------------------------------------------------------------------
+
+    // -------------------------------------------------------------------------
     // Timeout detection logic
     //
     // Each timer counts timer_tick events while its phase is pending and is
