@@ -321,7 +321,10 @@ async def cocotb_test_ddr2_char_macro(dut):
     # goes to the same place, and reset before anything is staged.
     await _chargen(dut, log=tb.log).reset()
     tb.init_dfi_slave()
-    await tb.program_defaults(dfi_rate=DFI_RATE, dram_bl=DRAM_BL)
+    _pp = int(os.environ.get("CSR_PAGE_POLICY", "2"))
+    await tb.program_defaults(dfi_rate=DFI_RATE, dram_bl=DRAM_BL, page_policy=_pp,
+                              t_phy_wrlat=int(os.environ.get("TB_WRLAT", "1")),
+                              t_rddata_en=int(os.environ.get("TB_RDEN", "2")))
     tb.init_dfi_monitor()        # capture DFI cmd/wr-data/rd-data queues
     tb.start_axi_wr_snoop()      # snoop AXI WR side as WR-path ground truth
     tb.start_axi_rd_snoop()      # snoop AXI RD side for RD-path verify
@@ -900,6 +903,77 @@ def test_ddr2_char_macro_pacing_sweep(request, wr_gap, rd_gap):
 
 
 # ============================================================================
+def test_ddr2_char_macro_open_page(request):
+    """OPEN-page streaming under BOARD-FAITHFUL DFI read timing.
+
+    Regression gate for the arbiter same-bank column double-issue that
+    deadlocks open-page on silicon (reverted commit 4a997ff8). The real
+    pattern generators drive pumice at OPEN page policy (CSR_PAGE_POLICY=1)
+    with the a7ddrphy read-latency profile -- reads return `read_latency`
+    cycles after the command, as on the board, NOT the zero-latency loopback
+    that HIDES the bug. On the buggy per-entry arbiter the write engine wedges
+    (gen_wr_done never asserts); on the correct arbiter it completes clean.
+
+    This is the ONE combination the rest of the suite structurally misses:
+      * close-page auto-precharges every access, so no two columns are ever
+        in flight to one open row (the other macro/char tests + all CLOSE
+        configs);
+      * the default zero-latency DFI loopback returns reads before the next
+        same-bank column issues, so no overlap builds up (the char sim +
+        every other macro shape).
+    Verified 2026-09-07: good arbiter PASSES (~117s), per-entry arbiter WEDGES
+    (gen_wr_done timeout, ~330s).
+    """
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "ddr2_char_macro_tb_top"
+    test_name = "test_ddr2_char_macro_open_page"
+
+    filelist_path = ("projects/NexysA7/ddr2-characterization/"
+                     "ddr2_char_framework/dv/filelists/"
+                     "ddr2_char_macro_tb_top.f")
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root, filelist_path=filelist_path)
+
+    sim_build = sim_build_path(tests_dir, test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        "DUT": dut_name,
+        "TEST_TYPE": "kb4",              # n=128 bursts: sustains the stream
+        "MEM_TYPE": "DDR2",
+        "CSR_PAGE_POLICY": "1",         # OPEN (1); default 2=CLOSE hides the bug
+        "TB_RDEN": "6",                 # board tuple: t_rddata_en
+        "TB_WRLAT": "0",                #             t_phy_wrlat (pre-pull)
+        "DFI_PROFILE": "a7ddrphy",      # board read cadence, not zero-latency
+        "DFI_READ_LATENCY": "12",       # command->rddata_valid; forces same-bank overlap
+        "DFI_WRITE_LATENCY": "0",
+        "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
+        "COCOTB_LOG_LEVEL": "INFO",
+        "COCOTB_RESULTS_FILE":
+            os.path.join(log_dir, f"results_{test_name}.xml"),
+    }
+    parameters = {"NUM_RANKS": "1", "PAGE_POLICY": "1",
+                  "RD_DBG_FIFO_DEPTH": "32"}
+
+    compile_args = [
+        "+define+USE_ASYNC_RESET",
+        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
+        "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
+        "-Wno-CASEOVERLAP",
+    ]
+
+    run(python_search=[tests_dir],
+        verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module,
+        testcase="cocotb_test_ddr2_char_macro",
+        sim_build=sim_build, simulator="verilator",
+        extra_env=extra_env, parameters=parameters,
+        compile_args=compile_args, sim_args=[], plus_args=[],
+        keep_files=True, timescale="1ns/1ps")
+
+
 # Combined OOO + pacing + rd-start schmoo. 128-config matrix:
 #
 #   axi_id_base ∈ {0..15}                                  (16)
