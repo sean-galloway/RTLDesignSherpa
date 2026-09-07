@@ -416,3 +416,6 @@ class comment has to end up describing what the BFMs actually do -- a comment
 asserting a behaviour no BFM implements is what let this sit unnoticed.
 
 **Not a blocker for anything.** Routing is proven correct by the same run.
+
+---
+

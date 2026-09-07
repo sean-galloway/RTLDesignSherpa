@@ -198,3 +198,75 @@ pre-existing and unrelated by stashing this change and reproducing the
 identical failure at HEAD in 1.1 s, before any traffic runs. Tracked as
 [[BRIDGE-004]].
 
+### BRIDGE-009: an out-of-range address hangs the master forever; the docs promise DECERR
+
+**Status:** FIXED 2026-09-07 (1d442e76 + 24260594). An address matching no
+slave range is claimed by an internal subtractive slave and answered with
+DECERR + 0xDEADBEEF; the hit is sticky, carries the FIRST offending address and
+a saturating count, raises `unmapped_irq`, and is readable/clearable over the
+cfg APB window (`SUBTRACTIVE_STATUS`, `SUBTRACTIVE_ADDR`). Documented in HAS 4.5
+and MAS 2.2. Bridge suite 70/70 at FULL; all 24 variants elaborate clean.
+
+**What it cost, because the shape is worth remembering.** Seven defects, all
+mine, in three kinds:
+
+* *Verified narrow, shipped wide* (3): decl order, read-only variants, and the
+  first decode fix each passed on the one variant I checked and failed on
+  others. The check that finally held was all 24 filelists, not a
+  representative one.
+* *Assumed one owner where there were three* (2): the crossbar re-derives
+  decode from address RANGES (a full-span catch-all became `1'b1`, routing
+  every transaction to real slave AND catch-all, muxes ORing the payloads --
+  corruption, worse than the hang), and the cfg regblock enumerates slaves
+  separately (52 added fields RENUMBERED the map and switched the monitors
+  off).
+* *Wrong tool for the claim* (2): `--lint-only` elaborates without compiling
+  C++, so it could not see `hwif_in = '0` failing g++; and the first
+  W-before-AW test sent AW anyway, so it passed against a deliberately broken
+  slave.
+
+**Original report follows.**
+
+**Found by** bridge qc round_1 (2026-09-07), verified against generated RTL.
+
+**What the RTL does.** The adapter decodes the address into a one-hot slave
+select and has no else:
+
+```systemverilog
+comb_slave_select_aw = '0;
+if (fub_axi_awaddr <= 32'h3FFFFFFF)               comb_slave_select_aw[0] = 1'b1;  // ddr
+else if (fub_axi_awaddr >= 32'h40000000 && ...)   comb_slave_select_aw[1] = 1'b1;  // scratch
+```
+
+For an address in no range the select stays all-zero, the AW-ready MUX falls to
+`default: // No slave selected` leaving `fub_axi_awready = 1'b0`, and in the
+crossbar every `*_aw_to_*` decode wire is false, so no slave ever sees
+`awvalid`. Nothing generates a B or R response. **The master stalls forever.**
+
+The only `DECERR` in the whole generated set is two COMMENTS in
+`axi5_atomic_filter` about load-class atomics -- unrelated to address decode.
+Verified across every generated bridge, read and write paths.
+
+**What the docs claim.** `ch02_system_overview/03_system_context.md`:
+"**Out-of-range detection** - DECERR for unmapped addresses". The integration
+chapter plans an "Error handling test - OOR address response", and Table 6.4
+says "All master addresses must map to slaves or OOR". An integrator reads that
+and reasonably assumes a stray access is reported, not fatal.
+
+**There is a proven pattern in-repo.** `apbx-xbar` implements exactly this:
+`apbx_xbar_1to4.sv` carries 11 `decerr_pending` references and completes a
+decode miss locally with an error response instead of stalling. The bridge
+generator should emit the AXI equivalent -- a decode-miss path that accepts the
+address beat and returns `DECERR` on B/R with the right ID -- rather than
+leaving the one-hot all-zero.
+
+**Two things to decide, in order:**
+1. RTL: emit decode-miss completion in the generator (all variants, read and
+   write). Until then the behaviour is a hang.
+2. Docs: whatever is decided, the current text is wrong TODAY. Either it
+   describes behaviour that exists, or it says plainly that unmapped addresses
+   are a configuration error the fabric does not detect.
+
+**Do not** fix only the docs. "Unmapped addresses hang the fabric" is a
+defensible documented limitation only if someone chooses it deliberately; it is
+not the sort of thing to arrive at by editing a sentence.
