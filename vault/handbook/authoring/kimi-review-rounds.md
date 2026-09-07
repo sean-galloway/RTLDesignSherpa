@@ -447,6 +447,30 @@ Each one is here because ignoring it cost real work.
     instance lives: the APB twin of the fixed AXI checker had the identical
     defect and no test of its own.
 
+## Rebuild the bundle by its PARENT, and check the bundle, not the log
+
+`build_review_bundle.py` takes the PARENT of `books/` and does
+`rm -rf <parent>/books`. Hand it the books directory itself and it builds
+`<books>/books`, leaves the real bundle untouched, and still prints
+`bundle rebuilt at ... from current working tree`. The dispatch then reviews
+whatever was there before.
+
+That cost a bridge round on 2026-09-07. The tell was a finding quoting a table
+as `"axi4", "axi4lite", "apb"` when the tree said
+`axi4, axi5, axil, axil5, apb, apb5` — a fix that was already in. Confirmed by
+grepping `_bundle_snapshot`, which records exactly what was SENT: the stale
+text. The freshly built bundle also split the books differently (5 units → 7),
+which alone would have shown the previous one was not current.
+
+The script now refuses a path whose basename is `books`. Two habits survive it:
+
+* **Verify the bundle, never the log line.** `stat` a `parts/*/DOCS.md`, or
+  grep it for a string you know you just changed. "Rebuilt" is a claim about
+  what the script did, not about what the dispatcher will read.
+* **When a finding contradicts something you just fixed, suspect the bundle
+  before the reviewer.** `_bundle_snapshot/<unit>/DOCS.md` is the ground truth
+  for what the model actually saw, and it is in every round directory.
+
 ## Endpoint
 
 The key is never in a script. Locally the chain is

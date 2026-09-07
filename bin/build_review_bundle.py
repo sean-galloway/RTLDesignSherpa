@@ -18,7 +18,13 @@ from real ones: the reviewer reports defects that were already fixed, and you
 cannot tell from the output which is which. That has already cost one full review
 pass. Rebuilding everything is cheap; re-reviewing stale content is not.
 
-Usage: python3 bin/build_review_bundle.py [out_dir]
+Usage: python3 bin/build_review_bundle.py [parent_dir]
+
+`parent_dir` is the PARENT of `books/`, not `books/` itself -- the script
+writes to `<parent_dir>/books`. Handing it the books directory creates
+`books/books`, leaves the real bundle untouched and stale, and the next round
+reviews month-old prose while reporting findings that look exactly like new
+ones. That happened on 2026-09-07 and cost a round, so it is now refused.
 """
 import os, re, sys, glob, json, collections
 
@@ -35,6 +41,17 @@ if len(sys.argv) > 1 and sys.argv[1].startswith('-'):
     raise SystemExit(f"unknown option {sys.argv[1]!r}\n\n{__doc__.strip()}")
 
 OUT  = sys.argv[1] if len(sys.argv) > 1 else '/mnt/data/github/rtl-doc-review'
+
+# The argument is the PARENT of books/, because line ~162 does `rm -rf
+# {OUT}/books`. Handed the books directory itself, the script would build
+# <books>/books and leave the real bundle stale -- silently, since it still
+# prints "bundle rebuilt". Refuse instead: a stale bundle produces findings
+# indistinguishable from real ones (see the header).
+if os.path.basename(os.path.normpath(OUT)) == 'books':
+    raise SystemExit(
+        f"refusing: {OUT!r} is a books directory, but this script wants its PARENT\n"
+        f"  (it writes <parent>/books, so this would create {OUT}/books)\n"
+        f"  try: python3 bin/build_review_bundle.py {os.path.dirname(os.path.normpath(OUT))!r}")
 MD   = 'docs/markdown'
 LIMIT = 120_000 * 4          # chars; ~120k tokens per unit
 
