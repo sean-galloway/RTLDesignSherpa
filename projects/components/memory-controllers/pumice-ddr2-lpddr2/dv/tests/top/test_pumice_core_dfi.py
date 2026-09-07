@@ -606,14 +606,8 @@ async def cocotb_test_pumice_core_refresh_credit(dut):
     b = _refs()
     await _demand(480, 33)                       # ~5 ticks vs 8 credits
     refs_c2 = _refs() - b
-    # A faster command schedule can shift the tick/demand-window boundary by a
-    # cycle, letting at most ONE REF slip in at the edge before banked credit
-    # fully absorbs the stretch. The credit mechanism is still consuming -- this
-    # ~5-tick stretch fires ~5 REFs without it -- so tolerate the 1-REF boundary
-    # window rather than pin exactly zero.
-    assert refs_c2 <= 1, (f"pullin: {refs_c2} REFs during demand despite banked "
-                          f"credit (> the 1-REF boundary tolerance) -- ticks are "
-                          f"not consuming credit")
+    assert refs_c2 == 0, (f"pullin: {refs_c2} REFs during demand despite "
+                          f"banked credit -- ticks are not consuming credit")
     for addr in list(written)[-3:]:              # integrity spot-check
         got = await _read(dut, addr, 5)
         assert got[:BL_WORDS] == written[addr], f"data mismatch @ {addr:#x}"
