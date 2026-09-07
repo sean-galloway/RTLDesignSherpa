@@ -1,0 +1,66 @@
+{
+  "signal": [
+    {
+      "name": "aclk",
+      "wave": "p..........."
+    },
+    [
+      "command",
+      {
+        "name": "cmd_valid_o",
+        "wave": "01.......0.."
+      },
+      {
+        "name": "cmd_op_o",
+        "wave": "x4.4.4.4.x..",
+        "data": [
+          "WR b0",
+          "WR b0",
+          "WR b0",
+          "WR b0"
+        ]
+      }
+    ],
+    [
+      "dfi (write, wrlat=0)",
+      {
+        "name": "dfi_wrdata_en",
+        "wave": "01.......0.."
+      },
+      {
+        "name": "dfi_wrdata",
+        "wave": "x5555555x...",
+        "data": [
+          "w0",
+          "w0",
+          "w1",
+          "w1",
+          "w2",
+          "w2",
+          "w3"
+        ]
+      },
+      {
+        "name": "dfi_wrdata_mask",
+        "wave": "x0.......x.."
+      }
+    ],
+    [
+      "axi B",
+      {
+        "name": "s_axi_bvalid",
+        "wave": "0....1......."
+      },
+      {
+        "name": "s_axi_bready",
+        "wave": "1..........."
+      }
+    ]
+  ],
+  "head": {
+    "text": "IDEAL open-page WRITE stream: WR every tCCD=2, wrdata concurrent (write_latency=0), drain FIFO never empties. B per AXI burst on last sub-commit."
+  },
+  "config": {
+    "hscale": 1
+  }
+}

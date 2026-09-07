@@ -1,0 +1,65 @@
+{
+  "signal": [
+    {
+      "name": "aclk",
+      "wave": "p..............."
+    },
+    [
+      "issue (same bank, open row)",
+      {
+        "name": "cmd_op_o",
+        "wave": "x2.2.2.2.x......",
+        "data": [
+          "RD b0 c0",
+          "RD b0 c1",
+          "RD b0 c2",
+          "RD b0 c3"
+        ]
+      },
+      {
+        "name": "tccd_ok",
+        "wave": "1.0101010.1....."
+      },
+      {
+        "name": "outstanding[b0]",
+        "wave": "=.=.=.=.=.=.=.=.=",
+        "data": [
+          "0",
+          "1",
+          "2",
+          "3",
+          "4",
+          "3",
+          "2",
+          "1",
+          "0"
+        ]
+      },
+      {
+        "name": "can_issue (cnt<D=5 & tccd)",
+        "wave": "1.......1......."
+      }
+    ],
+    [
+      "return (in AR order, after round-trip)",
+      {
+        "name": "dfi_rddata_valid",
+        "wave": "0........1....0.."
+      },
+      {
+        "name": "s_axi_rvalid",
+        "wave": "0........1....0.."
+      },
+      {
+        "name": "s_axi_rlast",
+        "wave": "0.........10.10.1"
+      }
+    ]
+  ],
+  "head": {
+    "text": "DEADLOCK FIX: up to D=ceil((t_rddata_en+CL)/tCCD)=5 same-bank columns in flight; per-bank counter gates issue (cnt<D & tCCD), completion (R-last/B) decrements. Today one-per-bank is forced -> 15%% util. Return path (rd issue-FIFO, aligner MAX_OUTSTANDING) must hold D."
+  },
+  "config": {
+    "hscale": 1
+  }
+}

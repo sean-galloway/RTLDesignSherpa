@@ -1,0 +1,43 @@
+{
+  "signal": [
+    {
+      "name": "aclk",
+      "wave": "p........"
+    },
+    {
+      "name": "cmd_op_o",
+      "wave": "x1..2.2.x",
+      "data": [
+        "ACT b0",
+        "RD b0",
+        "RD b0"
+      ]
+    },
+    {
+      "name": "cmd_valid_o",
+      "wave": "01..1...0"
+    },
+    {
+      "name": "bank_row_active",
+      "wave": "0.1......"
+    },
+    {
+      "name": "bank_rdwr_ready\n(tRCD=3)",
+      "wave": "0...1...."
+    },
+    {
+      "name": "note",
+      "wave": "x1..2...x",
+      "data": [
+        "ACT opens row",
+        "column only after tRCD"
+      ]
+    }
+  ],
+  "head": {
+    "text": "PAGE MISS: ACT then wait tRCD=3 before the first column. First-access latency only -- subsequent hits stream at tCCD (see open_read_stream)."
+  },
+  "config": {
+    "hscale": 1
+  }
+}

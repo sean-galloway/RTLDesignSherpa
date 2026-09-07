@@ -1,0 +1,68 @@
+{
+  "signal": [
+    {
+      "name": "aclk",
+      "wave": "p........."
+    },
+    [
+      "3-flop pick pipeline (latency, NOT rate)",
+      {
+        "name": "stage1 snapshot",
+        "wave": "x2222x....",
+        "data": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ]
+      },
+      {
+        "name": "stage2 pre-pick",
+        "wave": "x.2222x...",
+        "data": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ]
+      },
+      {
+        "name": "stage3 output",
+        "wave": "x..2222x..",
+        "data": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ]
+      }
+    ],
+    {
+      "name": "cmd_valid_o",
+      "wave": "0..11110."
+    },
+    {
+      "name": "cmd_op_o",
+      "wave": "x..2222x..",
+      "data": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ]
+    },
+    {
+      "name": "issue rate",
+      "wave": "x..3...x..",
+      "data": [
+        "ONE command PER CYCLE"
+      ]
+    }
+  ],
+  "head": {
+    "text": "IDEAL pick pipeline: A,B,C,D advance one stage/cycle, one FIRES every cycle after a 3-cycle fill. Pipeline = LATENCY, not throughput. Today's bug: an occupancy mask blocks B until A drains -> 1 per 4 cycles. DELETE it; gate only on DRAM timers."
+  },
+  "config": {
+    "hscale": 1
+  }
+}

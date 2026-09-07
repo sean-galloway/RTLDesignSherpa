@@ -1,0 +1,40 @@
+{
+  "signal": [
+    {
+      "name": "aclk",
+      "wave": "p..........."
+    },
+    {
+      "name": "refresh_due",
+      "wave": "01.....0...."
+    },
+    {
+      "name": "cmd_op_o",
+      "wave": "x2.7.8...1.x",
+      "data": [
+        "RD",
+        "PREA",
+        "REF",
+        "ACT"
+      ]
+    },
+    {
+      "name": "cmd_valid_o",
+      "wave": "01........0."
+    },
+    {
+      "name": "any_row_active",
+      "wave": "1..0....1..."
+    },
+    {
+      "name": "trfc_ok\n(tRFC)",
+      "wave": "1...0...1..."
+    }
+  ],
+  "head": {
+    "text": "REFRESH: precharge-all -> REFab -> wait tRFC -> resume (re-ACT). The only maintenance bubble; postpone/pullin credits (PUMICE-006) move it out of demand windows."
+  },
+  "config": {
+    "hscale": 1
+  }
+}

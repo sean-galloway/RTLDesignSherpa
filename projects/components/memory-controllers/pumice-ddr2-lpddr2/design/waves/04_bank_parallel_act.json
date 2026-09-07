@@ -1,0 +1,52 @@
+{
+  "signal": [
+    {
+      "name": "aclk",
+      "wave": "p........."
+    },
+    {
+      "name": "cmd_op_o",
+      "wave": "x1.1.1.1.x",
+      "data": [
+        "ACT b0",
+        "ACT b1",
+        "ACT b2",
+        "ACT b3"
+      ]
+    },
+    {
+      "name": "cmd_valid_o",
+      "wave": "01......0."
+    },
+    {
+      "name": "trrd_ok\n(=2)",
+      "wave": "1.0101010."
+    },
+    {
+      "name": "tfaw_ok\n(<=4/win)",
+      "wave": "1.......0."
+    },
+    {
+      "name": "b0 rows",
+      "wave": "0.1......."
+    },
+    {
+      "name": "b1 rows",
+      "wave": "0...1....."
+    },
+    {
+      "name": "note",
+      "wave": "x1......2x",
+      "data": [
+        "ACTs pipeline across banks @tRRD",
+        "5th ACT waits tFAW"
+      ]
+    }
+  ],
+  "head": {
+    "text": "CROSS-BANK ACT pipelining: one ACT per tRRD=2, capped at 4 per tFAW window. Their tRCDs overlap so columns from multiple banks are ready together -> the 4x."
+  },
+  "config": {
+    "hscale": 1
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "signal": [
+    {
+      "name": "aclk",
+      "wave": "p................."
+    },
+    [
+      "command",
+      {
+        "name": "cmd_valid_o",
+        "wave": "01.......0......."
+      },
+      {
+        "name": "cmd_op_o",
+        "wave": "x2.2.2.2.x.......",
+        "data": [
+          "RD b0",
+          "RD b0",
+          "RD b0",
+          "RD b0"
+        ]
+      },
+      {
+        "name": "cmd_col_o",
+        "wave": "x2.2.2.2.x.......",
+        "data": [
+          "c0",
+          "c1",
+          "c2",
+          "c3"
+        ]
+      }
+    ],
+    [
+      "dfi (read window)",
+      {
+        "name": "dfi_rddata_en",
+        "wave": "0......1......0.."
+      },
+      {
+        "name": "dfi_rddata_valid",
+        "wave": "0......1......0.."
+      },
+      {
+        "name": "dfi_rddata",
+        "wave": "x......3333333x..",
+        "data": [
+          "d0",
+          "d0",
+          "d1",
+          "d1",
+          "d2",
+          "d2",
+          "d3"
+        ]
+      }
+    ],
+    [
+      "axi return",
+      {
+        "name": "s_axi_rvalid",
+        "wave": "0......1......0.."
+      },
+      {
+        "name": "s_axi_rready",
+        "wave": "1................"
+      },
+      {
+        "name": "s_axi_rlast",
+        "wave": "0.......10.10.10."
+      }
+    ]
+  ],
+  "head": {
+    "text": "IDEAL open-page READ stream: RD every tCCD=2, rvalid continuous after the fill (t_rddata_en+CL). ~100% bus util. NO occupancy stall between same-bank columns."
+  },
+  "config": {
+    "hscale": 1
+  }
+}
