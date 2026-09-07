@@ -50,8 +50,6 @@
 
 `timescale 1ns / 1ps
 
-`include "reset_defs.svh"
-
 module nand_chain_top #(
     // Sweep parameters
     parameter int MIN_LEVELS = 8,                      // Smallest tree depth
@@ -83,10 +81,10 @@ module nand_chain_top #(
 
     logic [31:0] r_lfsr;
 
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!(rst_n)) begin
             r_lfsr <= 32'hDEAD_BEEF;
-    ) else begin
+        end else begin
             if (i_seed_valid) begin
                 r_lfsr <= i_seed_data;
             end else begin

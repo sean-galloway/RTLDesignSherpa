@@ -15,8 +15,6 @@
 
 `timescale 1ns / 1ps
 
-`include "reset_defs.svh"
-
 //==============================================================================
 // Module: counter_bin
 //==============================================================================
@@ -192,12 +190,12 @@ module counter_bin #(
     end
 
     // Registered counter output
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n))
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
             counter_bin_curr <= 'b0;
         else
             counter_bin_curr <= counter_bin_next;
-    )
+        end
 
 
 endmodule : counter_bin

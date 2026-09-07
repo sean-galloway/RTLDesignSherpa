@@ -63,9 +63,22 @@ conditional on `USE_ASYNC_RESET` and defaulted to SYNCHRONOUS, so `make lint`
 what the design was. The define is now a no-op; passing it is harmless and
 changes nothing. Deassertion still has to be synchronised externally.
 
-**The one exception, and it is structural:** `rtl/common/reset_sync.sv`. It is
-active-HIGH, which the macro cannot express without `RESET_ACTIVE_HIGH` set
-globally, so it keeps a raw `always_ff`. Documented at the flop itself. If you add another exception, document
+**Exceptions, all structural, all documented at the source:**
+
+1. `rtl/common/reset_sync.sv` -- active-HIGH, which the macro cannot express
+   without `RESET_ACTIVE_HIGH` set globally, so it keeps a raw `always_ff`.
+2. **Deliberately macro-free forks.** `projects/NexysA7/timing_characterization/rtl/asic_only/`
+   and `formal/cdc/cdc_handshake/cdc_handshake_formal.sv` exist *because* they
+   carry no preprocessor: the asic_only tree is the readable
+   one-flop-one-`always_ff` source an ASIC flow is characterised against, and
+   the formal copy is Yosys-compatible, which the include is not. Both say so
+   in their own headers and in the timing_characterization README section 6.2.
+   Converting them is not a style improvement, it defeats their purpose --
+   and on 2026-09-07 a sweep did exactly that and left 12 of them unparseable.
+   If a tree documents itself as macro-free, leave it alone.
+
+Both exceptions are load-bearing. If you add another, document it at the flop
+and say WHY -- "it has always been like that" is not a reason. If you add another exception, document
 it there too and say WHY the async assert is load-bearing -- "it has always
 been like that" is not a reason.
 

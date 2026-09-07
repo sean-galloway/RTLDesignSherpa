@@ -39,8 +39,6 @@
 
 `timescale 1ns / 1ps
 
-`include "reset_defs.svh"
-
 module gray_counter_chain #(
     parameter int WIDTH = 32
 ) (
@@ -98,11 +96,11 @@ module gray_counter_chain #(
     `endif
     logic [WIDTH-1:0] r_out_gray;
 
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!(rst_n)) begin
             r_out_bin  <= '0;
             r_out_gray <= '0;
-    ) else begin
+        end else begin
             r_out_bin  <= w_counter_bin;
             r_out_gray <= w_counter_gray;
         end

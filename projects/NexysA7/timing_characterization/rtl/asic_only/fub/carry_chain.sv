@@ -38,8 +38,6 @@
 
 `timescale 1ns / 1ps
 
-`include "reset_defs.svh"
-
 module carry_chain #(
     parameter int WIDTH = 64
 ) (
@@ -73,11 +71,11 @@ module carry_chain #(
     `endif
     logic [WIDTH-1:0] r_input_b;
 
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!(rst_n)) begin
             r_input_a <= '0;
             r_input_b <= '0;
-    ) else begin
+        end else begin
             r_input_a <= i_data_a;
             r_input_b <= i_data_b;
         end
@@ -109,10 +107,10 @@ module carry_chain #(
     `endif
     logic [WIDTH:0] r_out_flops;
 
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!(rst_n)) begin
             r_out_flops <= '0;
-    ) else begin
+        end else begin
             r_out_flops <= w_sum;
         end
         end

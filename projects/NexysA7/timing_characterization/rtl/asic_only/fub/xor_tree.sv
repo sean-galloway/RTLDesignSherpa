@@ -37,8 +37,6 @@
 
 `timescale 1ns / 1ps
 
-`include "reset_defs.svh"
-
 module xor_tree #(
     parameter int LEVELS    = 3,
     parameter int NUM_FLOPS = 256,
@@ -70,10 +68,10 @@ module xor_tree #(
     `endif
     logic [ACTUAL_FLOPS-1:0] r_input_flops;
 
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!(rst_n)) begin
             r_input_flops <= '0;
-    ) else begin
+        end else begin
             r_input_flops <= i_data;
         end
         end
@@ -124,10 +122,10 @@ module xor_tree #(
     `endif
     logic r_out_flop;
 
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!(rst_n)) begin
             r_out_flop <= 1'b0;
-    ) else begin
+        end else begin
             r_out_flop <= gen_xor_tree[0].w_node;
         end
         end

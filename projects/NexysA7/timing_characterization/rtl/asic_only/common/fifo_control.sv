@@ -15,8 +15,6 @@
 
 `timescale 1ns / 1ps
 
-`include "reset_defs.svh"
-
 //==============================================================================
 // Module: fifo_control
 //==============================================================================
@@ -170,10 +168,10 @@ module fifo_control #(
             // FLOP mode: Use previous cycle's write pointer to match registered data timing
             logic [ADDR_WIDTH:0] r_rdom_wr_ptr_bin_delayed;
 
-            `ALWAYS_FF_RST(rd_clk, rd_rst_n,
-                if (`RST_ASSERTED(rd_rst_n)) begin
+            always_ff @(posedge rd_clk or negedge rd_rst_n) begin
+        if (!(rd_rst_n)) begin
                     r_rdom_wr_ptr_bin_delayed <= '0;
-            ) else begin
+                end else begin
                     r_rdom_wr_ptr_bin_delayed <= rdom_wr_ptr_bin;
                 end
                 end

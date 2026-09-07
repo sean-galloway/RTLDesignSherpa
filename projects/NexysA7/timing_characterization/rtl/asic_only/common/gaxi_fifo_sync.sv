@@ -15,8 +15,6 @@
 
 `timescale 1ns / 1ps
 
-`include "reset_defs.svh"
-
 
 // Parameterized Synchronous FIFO -- This works with any depth
 module gaxi_fifo_sync #(
@@ -145,11 +143,10 @@ module gaxi_fifo_sync #(
 
             // Read path
             if (REGISTERED != 0) begin : g_flop
-                `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-                    if (`RST_ASSERTED(axi_aresetn))
- w_rd_data <= '0;
+                always_ff @(posedge axi_aclk or negedge axi_aresetn) begin
+                    if (!axi_aresetn) w_rd_data <= '0;
                     else              w_rd_data <= mem[r_rd_addr];
-                )
+                    end
 
             end else begin : g_mux
                 always_comb w_rd_data = mem[r_rd_addr];
@@ -172,11 +169,10 @@ module gaxi_fifo_sync #(
             end
 
             // Synchronous read (flop output)
-            `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-                if (`RST_ASSERTED(axi_aresetn))
- w_rd_data <= '0;
+            always_ff @(posedge axi_aclk or negedge axi_aresetn) begin
+                if (!axi_aresetn) w_rd_data <= '0;
                 else              w_rd_data <= mem[r_rd_addr];
-            )
+                end
 
 
         end
@@ -191,11 +187,10 @@ module gaxi_fifo_sync #(
             end
 
             if (REGISTERED != 0) begin : g_flop
-                `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-                    if (`RST_ASSERTED(axi_aresetn))
- w_rd_data <= '0;
+                always_ff @(posedge axi_aclk or negedge axi_aresetn) begin
+                    if (!axi_aresetn) w_rd_data <= '0;
                     else              w_rd_data <= mem[r_rd_addr];
-                )
+                    end
 
             end else begin : g_mux
                 always_comb w_rd_data = mem[r_rd_addr];
