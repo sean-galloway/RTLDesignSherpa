@@ -6,6 +6,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 
 module bridge_mix_d_mon_xbar
     import bridge_mix_d_mon_pkg::*;
@@ -303,8 +305,8 @@ module bridge_mix_d_mon_xbar
         ddr_aw_arb_req[1] ? 1'd1 : 1'd0;
     wire ddr_aw_arb_gnt_valid = ddr_aw_arb_locked || (|ddr_aw_arb_req);
     wire [0:0] ddr_aw_arb_gnt = ddr_aw_arb_locked ? ddr_aw_arb_lock : ddr_aw_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             ddr_aw_arb_lock   <= '0;
             ddr_aw_arb_rr     <= '0;
             ddr_aw_arb_locked <= 1'b0;
@@ -317,7 +319,7 @@ module bridge_mix_d_mon_xbar
                 ddr_aw_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_axi4_64b_aw_gnt_ddr = ddr_aw_arb_gnt_valid && (ddr_aw_arb_gnt == 1'd0) && ddr_aw_arb_req[0];
     wire trace_axil_64b_aw_gnt_ddr = ddr_aw_arb_gnt_valid && (ddr_aw_arb_gnt == 1'd1) && ddr_aw_arb_req[1];
 
@@ -349,8 +351,8 @@ module bridge_mix_d_mon_xbar
     // W owner FIFO: slave-side AW accept order owns the W channel
     logic [0:0] ddr_wowner_mem [16];
     logic [4:0] ddr_wowner_wptr, ddr_wowner_rptr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             ddr_wowner_wptr <= '0;
             ddr_wowner_rptr <= '0;
         end else begin
@@ -362,7 +364,7 @@ module bridge_mix_d_mon_xbar
                 ddr_wowner_rptr <= ddr_wowner_rptr + 1'b1;
             end
         end
-    end
+    )
     wire ddr_wowner_valid = (ddr_wowner_wptr != ddr_wowner_rptr);
     wire [0:0] ddr_wowner_head = ddr_wowner_mem[ddr_wowner_rptr[3:0]];
     assign cpu_axi4_64b_w_sel_ddr = ddr_wowner_valid && (ddr_wowner_head == 1'd0) && cpu_axi4_64b_w_to_ddr;
@@ -396,8 +398,8 @@ module bridge_mix_d_mon_xbar
         ddr_ar_arb_req[1] ? 1'd1 : 1'd0;
     wire ddr_ar_arb_gnt_valid = ddr_ar_arb_locked || (|ddr_ar_arb_req);
     wire [0:0] ddr_ar_arb_gnt = ddr_ar_arb_locked ? ddr_ar_arb_lock : ddr_ar_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             ddr_ar_arb_lock   <= '0;
             ddr_ar_arb_rr     <= '0;
             ddr_ar_arb_locked <= 1'b0;
@@ -410,7 +412,7 @@ module bridge_mix_d_mon_xbar
                 ddr_ar_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_axi4_64b_ar_gnt_ddr = ddr_ar_arb_gnt_valid && (ddr_ar_arb_gnt == 1'd0) && ddr_ar_arb_req[0];
     wire trace_axil_64b_ar_gnt_ddr = ddr_ar_arb_gnt_valid && (ddr_ar_arb_gnt == 1'd1) && ddr_ar_arb_req[1];
 
@@ -469,8 +471,8 @@ module bridge_mix_d_mon_xbar
         doorbell_aw_arb_req[1] ? 1'd1 : 1'd0;
     wire doorbell_aw_arb_gnt_valid = doorbell_aw_arb_locked || (|doorbell_aw_arb_req);
     wire [0:0] doorbell_aw_arb_gnt = doorbell_aw_arb_locked ? doorbell_aw_arb_lock : doorbell_aw_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             doorbell_aw_arb_lock   <= '0;
             doorbell_aw_arb_rr     <= '0;
             doorbell_aw_arb_locked <= 1'b0;
@@ -483,7 +485,7 @@ module bridge_mix_d_mon_xbar
                 doorbell_aw_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_axi4_32b_aw_gnt_doorbell = doorbell_aw_arb_gnt_valid && (doorbell_aw_arb_gnt == 1'd0) && doorbell_aw_arb_req[0];
     wire trace_axil_32b_aw_gnt_doorbell = doorbell_aw_arb_gnt_valid && (doorbell_aw_arb_gnt == 1'd1) && doorbell_aw_arb_req[1];
 
@@ -515,8 +517,8 @@ module bridge_mix_d_mon_xbar
     // W owner FIFO: slave-side AW accept order owns the W channel
     logic [0:0] doorbell_wowner_mem [16];
     logic [4:0] doorbell_wowner_wptr, doorbell_wowner_rptr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             doorbell_wowner_wptr <= '0;
             doorbell_wowner_rptr <= '0;
         end else begin
@@ -528,7 +530,7 @@ module bridge_mix_d_mon_xbar
                 doorbell_wowner_rptr <= doorbell_wowner_rptr + 1'b1;
             end
         end
-    end
+    )
     wire doorbell_wowner_valid = (doorbell_wowner_wptr != doorbell_wowner_rptr);
     wire [0:0] doorbell_wowner_head = doorbell_wowner_mem[doorbell_wowner_rptr[3:0]];
     assign cpu_axi4_32b_w_sel_doorbell = doorbell_wowner_valid && (doorbell_wowner_head == 1'd0) && cpu_axi4_32b_w_to_doorbell;
@@ -562,8 +564,8 @@ module bridge_mix_d_mon_xbar
         doorbell_ar_arb_req[1] ? 1'd1 : 1'd0;
     wire doorbell_ar_arb_gnt_valid = doorbell_ar_arb_locked || (|doorbell_ar_arb_req);
     wire [0:0] doorbell_ar_arb_gnt = doorbell_ar_arb_locked ? doorbell_ar_arb_lock : doorbell_ar_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             doorbell_ar_arb_lock   <= '0;
             doorbell_ar_arb_rr     <= '0;
             doorbell_ar_arb_locked <= 1'b0;
@@ -576,7 +578,7 @@ module bridge_mix_d_mon_xbar
                 doorbell_ar_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_axi4_32b_ar_gnt_doorbell = doorbell_ar_arb_gnt_valid && (doorbell_ar_arb_gnt == 1'd0) && doorbell_ar_arb_req[0];
     wire trace_axil_32b_ar_gnt_doorbell = doorbell_ar_arb_gnt_valid && (doorbell_ar_arb_gnt == 1'd1) && doorbell_ar_arb_req[1];
 
@@ -686,8 +688,8 @@ module bridge_mix_d_mon_xbar
     wire [0:0] cpu_axi4_32b_wdest_enc = cpu_axi4_32b_aw_to_apb_periph ? 1'd1 : 1'd0;
     wire cpu_axi4_32b_wdest_push = cpu_axi4_32b_awvalid && cpu_axi4_32b_awready;
     wire cpu_axi4_32b_wdest_pop  = cpu_axi4_32b_wvalid && cpu_axi4_32b_wready && cpu_axi4_32b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             cpu_axi4_32b_wdest_wptr <= '0;
             cpu_axi4_32b_wdest_rptr <= '0;
         end else begin
@@ -699,7 +701,7 @@ module bridge_mix_d_mon_xbar
                 cpu_axi4_32b_wdest_rptr <= cpu_axi4_32b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire cpu_axi4_32b_wdest_valid = (cpu_axi4_32b_wdest_wptr != cpu_axi4_32b_wdest_rptr);
     wire [0:0] cpu_axi4_32b_wdest_head = cpu_axi4_32b_wdest_mem[cpu_axi4_32b_wdest_rptr[3:0]];
     assign cpu_axi4_32b_w_to_doorbell = cpu_axi4_32b_wdest_valid && (cpu_axi4_32b_wdest_head == 1'd0);
@@ -711,8 +713,8 @@ module bridge_mix_d_mon_xbar
     wire [0:0] cpu_axi4_64b_wdest_enc = 1'd0;
     wire cpu_axi4_64b_wdest_push = cpu_axi4_64b_awvalid && cpu_axi4_64b_awready;
     wire cpu_axi4_64b_wdest_pop  = cpu_axi4_64b_wvalid && cpu_axi4_64b_wready && cpu_axi4_64b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             cpu_axi4_64b_wdest_wptr <= '0;
             cpu_axi4_64b_wdest_rptr <= '0;
         end else begin
@@ -724,7 +726,7 @@ module bridge_mix_d_mon_xbar
                 cpu_axi4_64b_wdest_rptr <= cpu_axi4_64b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire cpu_axi4_64b_wdest_valid = (cpu_axi4_64b_wdest_wptr != cpu_axi4_64b_wdest_rptr);
     wire [0:0] cpu_axi4_64b_wdest_head = cpu_axi4_64b_wdest_mem[cpu_axi4_64b_wdest_rptr[3:0]];
     assign cpu_axi4_64b_w_to_ddr = cpu_axi4_64b_wdest_valid && (cpu_axi4_64b_wdest_head == 1'd0);
@@ -735,8 +737,8 @@ module bridge_mix_d_mon_xbar
     wire [0:0] trace_axil_32b_wdest_enc = 1'd0;
     wire trace_axil_32b_wdest_push = trace_axil_32b_awvalid && trace_axil_32b_awready;
     wire trace_axil_32b_wdest_pop  = trace_axil_32b_wvalid && trace_axil_32b_wready && trace_axil_32b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             trace_axil_32b_wdest_wptr <= '0;
             trace_axil_32b_wdest_rptr <= '0;
         end else begin
@@ -748,7 +750,7 @@ module bridge_mix_d_mon_xbar
                 trace_axil_32b_wdest_rptr <= trace_axil_32b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire trace_axil_32b_wdest_valid = (trace_axil_32b_wdest_wptr != trace_axil_32b_wdest_rptr);
     wire [0:0] trace_axil_32b_wdest_head = trace_axil_32b_wdest_mem[trace_axil_32b_wdest_rptr[3:0]];
     assign trace_axil_32b_w_to_doorbell = trace_axil_32b_wdest_valid && (trace_axil_32b_wdest_head == 1'd0);
@@ -759,8 +761,8 @@ module bridge_mix_d_mon_xbar
     wire [0:0] trace_axil_64b_wdest_enc = 1'd0;
     wire trace_axil_64b_wdest_push = trace_axil_64b_awvalid && trace_axil_64b_awready;
     wire trace_axil_64b_wdest_pop  = trace_axil_64b_wvalid && trace_axil_64b_wready && trace_axil_64b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             trace_axil_64b_wdest_wptr <= '0;
             trace_axil_64b_wdest_rptr <= '0;
         end else begin
@@ -772,7 +774,7 @@ module bridge_mix_d_mon_xbar
                 trace_axil_64b_wdest_rptr <= trace_axil_64b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire trace_axil_64b_wdest_valid = (trace_axil_64b_wdest_wptr != trace_axil_64b_wdest_rptr);
     wire [0:0] trace_axil_64b_wdest_head = trace_axil_64b_wdest_mem[trace_axil_64b_wdest_rptr[3:0]];
     assign trace_axil_64b_w_to_ddr = trace_axil_64b_wdest_valid && (trace_axil_64b_wdest_head == 1'd0);

@@ -6,6 +6,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 
 module bridge_mix_c_xbar
     import bridge_mix_c_pkg::*;
@@ -350,8 +352,8 @@ module bridge_mix_c_xbar
         cfg_regs_aw_arb_req[1] ? 1'd1 : 1'd0;
     wire cfg_regs_aw_arb_gnt_valid = cfg_regs_aw_arb_locked || (|cfg_regs_aw_arb_req);
     wire [0:0] cfg_regs_aw_arb_gnt = cfg_regs_aw_arb_locked ? cfg_regs_aw_arb_lock : cfg_regs_aw_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             cfg_regs_aw_arb_lock   <= '0;
             cfg_regs_aw_arb_rr     <= '0;
             cfg_regs_aw_arb_locked <= 1'b0;
@@ -364,7 +366,7 @@ module bridge_mix_c_xbar
                 cfg_regs_aw_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_axi4_32b_aw_gnt_cfg_regs = cfg_regs_aw_arb_gnt_valid && (cfg_regs_aw_arb_gnt == 1'd0) && cfg_regs_aw_arb_req[0];
     wire host_axil_32b_aw_gnt_cfg_regs = cfg_regs_aw_arb_gnt_valid && (cfg_regs_aw_arb_gnt == 1'd1) && cfg_regs_aw_arb_req[1];
 
@@ -396,8 +398,8 @@ module bridge_mix_c_xbar
     // W owner FIFO: slave-side AW accept order owns the W channel
     logic [0:0] cfg_regs_wowner_mem [16];
     logic [4:0] cfg_regs_wowner_wptr, cfg_regs_wowner_rptr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             cfg_regs_wowner_wptr <= '0;
             cfg_regs_wowner_rptr <= '0;
         end else begin
@@ -409,7 +411,7 @@ module bridge_mix_c_xbar
                 cfg_regs_wowner_rptr <= cfg_regs_wowner_rptr + 1'b1;
             end
         end
-    end
+    )
     wire cfg_regs_wowner_valid = (cfg_regs_wowner_wptr != cfg_regs_wowner_rptr);
     wire [0:0] cfg_regs_wowner_head = cfg_regs_wowner_mem[cfg_regs_wowner_rptr[3:0]];
     assign cpu_axi4_32b_w_sel_cfg_regs = cfg_regs_wowner_valid && (cfg_regs_wowner_head == 1'd0) && cpu_axi4_32b_w_to_cfg_regs;
@@ -443,8 +445,8 @@ module bridge_mix_c_xbar
         cfg_regs_ar_arb_req[1] ? 1'd1 : 1'd0;
     wire cfg_regs_ar_arb_gnt_valid = cfg_regs_ar_arb_locked || (|cfg_regs_ar_arb_req);
     wire [0:0] cfg_regs_ar_arb_gnt = cfg_regs_ar_arb_locked ? cfg_regs_ar_arb_lock : cfg_regs_ar_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             cfg_regs_ar_arb_lock   <= '0;
             cfg_regs_ar_arb_rr     <= '0;
             cfg_regs_ar_arb_locked <= 1'b0;
@@ -457,7 +459,7 @@ module bridge_mix_c_xbar
                 cfg_regs_ar_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_axi4_32b_ar_gnt_cfg_regs = cfg_regs_ar_arb_gnt_valid && (cfg_regs_ar_arb_gnt == 1'd0) && cfg_regs_ar_arb_req[0];
     wire host_axil_32b_ar_gnt_cfg_regs = cfg_regs_ar_arb_gnt_valid && (cfg_regs_ar_arb_gnt == 1'd1) && cfg_regs_ar_arb_req[1];
 
@@ -516,8 +518,8 @@ module bridge_mix_c_xbar
         apb_periph_aw_arb_req[1] ? 1'd1 : 1'd0;
     wire apb_periph_aw_arb_gnt_valid = apb_periph_aw_arb_locked || (|apb_periph_aw_arb_req);
     wire [0:0] apb_periph_aw_arb_gnt = apb_periph_aw_arb_locked ? apb_periph_aw_arb_lock : apb_periph_aw_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             apb_periph_aw_arb_lock   <= '0;
             apb_periph_aw_arb_rr     <= '0;
             apb_periph_aw_arb_locked <= 1'b0;
@@ -530,7 +532,7 @@ module bridge_mix_c_xbar
                 apb_periph_aw_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_axi4_32b_aw_gnt_apb_periph = apb_periph_aw_arb_gnt_valid && (apb_periph_aw_arb_gnt == 1'd0) && apb_periph_aw_arb_req[0];
     wire host_axil_32b_aw_gnt_apb_periph = apb_periph_aw_arb_gnt_valid && (apb_periph_aw_arb_gnt == 1'd1) && apb_periph_aw_arb_req[1];
 
@@ -562,8 +564,8 @@ module bridge_mix_c_xbar
     // W owner FIFO: slave-side AW accept order owns the W channel
     logic [0:0] apb_periph_wowner_mem [16];
     logic [4:0] apb_periph_wowner_wptr, apb_periph_wowner_rptr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             apb_periph_wowner_wptr <= '0;
             apb_periph_wowner_rptr <= '0;
         end else begin
@@ -575,7 +577,7 @@ module bridge_mix_c_xbar
                 apb_periph_wowner_rptr <= apb_periph_wowner_rptr + 1'b1;
             end
         end
-    end
+    )
     wire apb_periph_wowner_valid = (apb_periph_wowner_wptr != apb_periph_wowner_rptr);
     wire [0:0] apb_periph_wowner_head = apb_periph_wowner_mem[apb_periph_wowner_rptr[3:0]];
     assign cpu_axi4_32b_w_sel_apb_periph = apb_periph_wowner_valid && (apb_periph_wowner_head == 1'd0) && cpu_axi4_32b_w_to_apb_periph;
@@ -609,8 +611,8 @@ module bridge_mix_c_xbar
         apb_periph_ar_arb_req[1] ? 1'd1 : 1'd0;
     wire apb_periph_ar_arb_gnt_valid = apb_periph_ar_arb_locked || (|apb_periph_ar_arb_req);
     wire [0:0] apb_periph_ar_arb_gnt = apb_periph_ar_arb_locked ? apb_periph_ar_arb_lock : apb_periph_ar_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             apb_periph_ar_arb_lock   <= '0;
             apb_periph_ar_arb_rr     <= '0;
             apb_periph_ar_arb_locked <= 1'b0;
@@ -623,7 +625,7 @@ module bridge_mix_c_xbar
                 apb_periph_ar_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_axi4_32b_ar_gnt_apb_periph = apb_periph_ar_arb_gnt_valid && (apb_periph_ar_arb_gnt == 1'd0) && apb_periph_ar_arb_req[0];
     wire host_axil_32b_ar_gnt_apb_periph = apb_periph_ar_arb_gnt_valid && (apb_periph_ar_arb_gnt == 1'd1) && apb_periph_ar_arb_req[1];
 
@@ -670,8 +672,8 @@ module bridge_mix_c_xbar
     wire [0:0] cpu_axi4_32b_wdest_enc = cpu_axi4_32b_aw_to_apb_periph ? 1'd1 : 1'd0;
     wire cpu_axi4_32b_wdest_push = cpu_axi4_32b_awvalid && cpu_axi4_32b_awready;
     wire cpu_axi4_32b_wdest_pop  = cpu_axi4_32b_wvalid && cpu_axi4_32b_wready && cpu_axi4_32b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             cpu_axi4_32b_wdest_wptr <= '0;
             cpu_axi4_32b_wdest_rptr <= '0;
         end else begin
@@ -683,7 +685,7 @@ module bridge_mix_c_xbar
                 cpu_axi4_32b_wdest_rptr <= cpu_axi4_32b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire cpu_axi4_32b_wdest_valid = (cpu_axi4_32b_wdest_wptr != cpu_axi4_32b_wdest_rptr);
     wire [0:0] cpu_axi4_32b_wdest_head = cpu_axi4_32b_wdest_mem[cpu_axi4_32b_wdest_rptr[3:0]];
     assign cpu_axi4_32b_w_to_cfg_regs = cpu_axi4_32b_wdest_valid && (cpu_axi4_32b_wdest_head == 1'd0);
@@ -695,8 +697,8 @@ module bridge_mix_c_xbar
     wire [0:0] cpu_axi4_64b_wdest_enc = 1'd0;
     wire cpu_axi4_64b_wdest_push = cpu_axi4_64b_awvalid && cpu_axi4_64b_awready;
     wire cpu_axi4_64b_wdest_pop  = cpu_axi4_64b_wvalid && cpu_axi4_64b_wready && cpu_axi4_64b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             cpu_axi4_64b_wdest_wptr <= '0;
             cpu_axi4_64b_wdest_rptr <= '0;
         end else begin
@@ -708,7 +710,7 @@ module bridge_mix_c_xbar
                 cpu_axi4_64b_wdest_rptr <= cpu_axi4_64b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire cpu_axi4_64b_wdest_valid = (cpu_axi4_64b_wdest_wptr != cpu_axi4_64b_wdest_rptr);
     wire [0:0] cpu_axi4_64b_wdest_head = cpu_axi4_64b_wdest_mem[cpu_axi4_64b_wdest_rptr[3:0]];
     assign cpu_axi4_64b_w_to_ddr = cpu_axi4_64b_wdest_valid && (cpu_axi4_64b_wdest_head == 1'd0);
@@ -719,8 +721,8 @@ module bridge_mix_c_xbar
     wire [0:0] host_axil_32b_wdest_enc = host_axil_32b_aw_to_apb_periph ? 1'd1 : 1'd0;
     wire host_axil_32b_wdest_push = host_axil_32b_awvalid && host_axil_32b_awready;
     wire host_axil_32b_wdest_pop  = host_axil_32b_wvalid && host_axil_32b_wready && host_axil_32b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             host_axil_32b_wdest_wptr <= '0;
             host_axil_32b_wdest_rptr <= '0;
         end else begin
@@ -732,7 +734,7 @@ module bridge_mix_c_xbar
                 host_axil_32b_wdest_rptr <= host_axil_32b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire host_axil_32b_wdest_valid = (host_axil_32b_wdest_wptr != host_axil_32b_wdest_rptr);
     wire [0:0] host_axil_32b_wdest_head = host_axil_32b_wdest_mem[host_axil_32b_wdest_rptr[3:0]];
     assign host_axil_32b_w_to_cfg_regs = host_axil_32b_wdest_valid && (host_axil_32b_wdest_head == 1'd0);

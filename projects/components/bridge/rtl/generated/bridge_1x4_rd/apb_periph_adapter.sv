@@ -6,6 +6,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 
 module apb_periph_adapter
     import bridge_1x4_rd_pkg::*;
@@ -84,23 +86,23 @@ module apb_periph_adapter
     logic [$clog2(RD_FIFO_DEPTH):0] ar_ptr, r_ptr;
 
     // Push on AR (crossbar → adapter)
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             ar_ptr <= '0;
         end else if (xbar_apb_periph_axi_arvalid && xbar_apb_periph_axi_arready) begin
             rd_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= xbar_bridge_id_ar;
             ar_ptr <= ar_ptr + 1'b1;
         end
-    end
+    )
 
     // Pop on R response (converter_rvalid && converter_rready && converter_rlast)
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_ptr <= '0;
         end else if (converter_rvalid && converter_rready && converter_rlast) begin
             r_ptr <= r_ptr + 1'b1;
         end
-    end
+    )
 
     // rid_bridge_id / rid_valid drive the crossbar's response mux,
     // which gates R going BACK to the master on rid_valid. Earlier

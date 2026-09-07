@@ -6,6 +6,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 
 module bridge_5x3_channels_xbar
     import bridge_5x3_channels_pkg::*;
@@ -342,8 +344,8 @@ module bridge_5x3_channels_xbar
         sram_buffer_aw_arb_req[3] ? 2'd3 : sram_buffer_aw_arb_req[0] ? 2'd0 : sram_buffer_aw_arb_req[1] ? 2'd1 : 2'd2;
     wire sram_buffer_aw_arb_gnt_valid = sram_buffer_aw_arb_locked || (|sram_buffer_aw_arb_req);
     wire [1:0] sram_buffer_aw_arb_gnt = sram_buffer_aw_arb_locked ? sram_buffer_aw_arb_lock : sram_buffer_aw_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             sram_buffer_aw_arb_lock   <= '0;
             sram_buffer_aw_arb_rr     <= '0;
             sram_buffer_aw_arb_locked <= 1'b0;
@@ -356,7 +358,7 @@ module bridge_5x3_channels_xbar
                 sram_buffer_aw_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire descr_wr_master_256b_aw_gnt_sram_buffer = sram_buffer_aw_arb_gnt_valid && (sram_buffer_aw_arb_gnt == 2'd0) && sram_buffer_aw_arb_req[0];
     wire sink_wr_master_256b_aw_gnt_sram_buffer = sram_buffer_aw_arb_gnt_valid && (sram_buffer_aw_arb_gnt == 2'd1) && sram_buffer_aw_arb_req[1];
     wire stream_master_256b_aw_gnt_sram_buffer = sram_buffer_aw_arb_gnt_valid && (sram_buffer_aw_arb_gnt == 2'd2) && sram_buffer_aw_arb_req[2];
@@ -412,8 +414,8 @@ module bridge_5x3_channels_xbar
     // W owner FIFO: slave-side AW accept order owns the W channel
     logic [1:0] sram_buffer_wowner_mem [16];
     logic [4:0] sram_buffer_wowner_wptr, sram_buffer_wowner_rptr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             sram_buffer_wowner_wptr <= '0;
             sram_buffer_wowner_rptr <= '0;
         end else begin
@@ -425,7 +427,7 @@ module bridge_5x3_channels_xbar
                 sram_buffer_wowner_rptr <= sram_buffer_wowner_rptr + 1'b1;
             end
         end
-    end
+    )
     wire sram_buffer_wowner_valid = (sram_buffer_wowner_wptr != sram_buffer_wowner_rptr);
     wire [1:0] sram_buffer_wowner_head = sram_buffer_wowner_mem[sram_buffer_wowner_rptr[3:0]];
     assign descr_wr_master_256b_w_sel_sram_buffer = sram_buffer_wowner_valid && (sram_buffer_wowner_head == 2'd0) && descr_wr_master_256b_w_to_sram_buffer;
@@ -474,8 +476,8 @@ module bridge_5x3_channels_xbar
         sram_buffer_ar_arb_req[2] ? 2'd2 : sram_buffer_ar_arb_req[0] ? 2'd0 : 2'd1;
     wire sram_buffer_ar_arb_gnt_valid = sram_buffer_ar_arb_locked || (|sram_buffer_ar_arb_req);
     wire [1:0] sram_buffer_ar_arb_gnt = sram_buffer_ar_arb_locked ? sram_buffer_ar_arb_lock : sram_buffer_ar_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             sram_buffer_ar_arb_lock   <= '0;
             sram_buffer_ar_arb_rr     <= '0;
             sram_buffer_ar_arb_locked <= 1'b0;
@@ -488,7 +490,7 @@ module bridge_5x3_channels_xbar
                 sram_buffer_ar_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire src_rd_master_256b_ar_gnt_sram_buffer = sram_buffer_ar_arb_gnt_valid && (sram_buffer_ar_arb_gnt == 2'd0) && sram_buffer_ar_arb_req[0];
     wire stream_master_256b_ar_gnt_sram_buffer = sram_buffer_ar_arb_gnt_valid && (sram_buffer_ar_arb_gnt == 2'd1) && sram_buffer_ar_arb_req[1];
     wire cpu_master_256b_ar_gnt_sram_buffer = sram_buffer_ar_arb_gnt_valid && (sram_buffer_ar_arb_gnt == 2'd2) && sram_buffer_ar_arb_req[2];
@@ -569,8 +571,8 @@ module bridge_5x3_channels_xbar
         ddr_controller_aw_arb_req[3] ? 2'd3 : ddr_controller_aw_arb_req[0] ? 2'd0 : ddr_controller_aw_arb_req[1] ? 2'd1 : 2'd2;
     wire ddr_controller_aw_arb_gnt_valid = ddr_controller_aw_arb_locked || (|ddr_controller_aw_arb_req);
     wire [1:0] ddr_controller_aw_arb_gnt = ddr_controller_aw_arb_locked ? ddr_controller_aw_arb_lock : ddr_controller_aw_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             ddr_controller_aw_arb_lock   <= '0;
             ddr_controller_aw_arb_rr     <= '0;
             ddr_controller_aw_arb_locked <= 1'b0;
@@ -583,7 +585,7 @@ module bridge_5x3_channels_xbar
                 ddr_controller_aw_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire descr_wr_master_256b_aw_gnt_ddr_controller = ddr_controller_aw_arb_gnt_valid && (ddr_controller_aw_arb_gnt == 2'd0) && ddr_controller_aw_arb_req[0];
     wire sink_wr_master_256b_aw_gnt_ddr_controller = ddr_controller_aw_arb_gnt_valid && (ddr_controller_aw_arb_gnt == 2'd1) && ddr_controller_aw_arb_req[1];
     wire stream_master_256b_aw_gnt_ddr_controller = ddr_controller_aw_arb_gnt_valid && (ddr_controller_aw_arb_gnt == 2'd2) && ddr_controller_aw_arb_req[2];
@@ -639,8 +641,8 @@ module bridge_5x3_channels_xbar
     // W owner FIFO: slave-side AW accept order owns the W channel
     logic [1:0] ddr_controller_wowner_mem [16];
     logic [4:0] ddr_controller_wowner_wptr, ddr_controller_wowner_rptr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             ddr_controller_wowner_wptr <= '0;
             ddr_controller_wowner_rptr <= '0;
         end else begin
@@ -652,7 +654,7 @@ module bridge_5x3_channels_xbar
                 ddr_controller_wowner_rptr <= ddr_controller_wowner_rptr + 1'b1;
             end
         end
-    end
+    )
     wire ddr_controller_wowner_valid = (ddr_controller_wowner_wptr != ddr_controller_wowner_rptr);
     wire [1:0] ddr_controller_wowner_head = ddr_controller_wowner_mem[ddr_controller_wowner_rptr[3:0]];
     assign descr_wr_master_256b_w_sel_ddr_controller = ddr_controller_wowner_valid && (ddr_controller_wowner_head == 2'd0) && descr_wr_master_256b_w_to_ddr_controller;
@@ -701,8 +703,8 @@ module bridge_5x3_channels_xbar
         ddr_controller_ar_arb_req[2] ? 2'd2 : ddr_controller_ar_arb_req[0] ? 2'd0 : 2'd1;
     wire ddr_controller_ar_arb_gnt_valid = ddr_controller_ar_arb_locked || (|ddr_controller_ar_arb_req);
     wire [1:0] ddr_controller_ar_arb_gnt = ddr_controller_ar_arb_locked ? ddr_controller_ar_arb_lock : ddr_controller_ar_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             ddr_controller_ar_arb_lock   <= '0;
             ddr_controller_ar_arb_rr     <= '0;
             ddr_controller_ar_arb_locked <= 1'b0;
@@ -715,7 +717,7 @@ module bridge_5x3_channels_xbar
                 ddr_controller_ar_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire src_rd_master_256b_ar_gnt_ddr_controller = ddr_controller_ar_arb_gnt_valid && (ddr_controller_ar_arb_gnt == 2'd0) && ddr_controller_ar_arb_req[0];
     wire stream_master_256b_ar_gnt_ddr_controller = ddr_controller_ar_arb_gnt_valid && (ddr_controller_ar_arb_gnt == 2'd1) && ddr_controller_ar_arb_req[1];
     wire cpu_master_256b_ar_gnt_ddr_controller = ddr_controller_ar_arb_gnt_valid && (ddr_controller_ar_arb_gnt == 2'd2) && ddr_controller_ar_arb_req[2];
@@ -839,8 +841,8 @@ module bridge_5x3_channels_xbar
     wire [0:0] descr_wr_master_256b_wdest_enc = descr_wr_master_256b_aw_to_ddr_controller ? 1'd1 : 1'd0;
     wire descr_wr_master_256b_wdest_push = descr_wr_master_256b_awvalid && descr_wr_master_256b_awready;
     wire descr_wr_master_256b_wdest_pop  = descr_wr_master_256b_wvalid && descr_wr_master_256b_wready && descr_wr_master_256b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             descr_wr_master_256b_wdest_wptr <= '0;
             descr_wr_master_256b_wdest_rptr <= '0;
         end else begin
@@ -852,7 +854,7 @@ module bridge_5x3_channels_xbar
                 descr_wr_master_256b_wdest_rptr <= descr_wr_master_256b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire descr_wr_master_256b_wdest_valid = (descr_wr_master_256b_wdest_wptr != descr_wr_master_256b_wdest_rptr);
     wire [0:0] descr_wr_master_256b_wdest_head = descr_wr_master_256b_wdest_mem[descr_wr_master_256b_wdest_rptr[3:0]];
     assign descr_wr_master_256b_w_to_sram_buffer = descr_wr_master_256b_wdest_valid && (descr_wr_master_256b_wdest_head == 1'd0);
@@ -864,8 +866,8 @@ module bridge_5x3_channels_xbar
     wire [0:0] sink_wr_master_256b_wdest_enc = sink_wr_master_256b_aw_to_ddr_controller ? 1'd1 : 1'd0;
     wire sink_wr_master_256b_wdest_push = sink_wr_master_256b_awvalid && sink_wr_master_256b_awready;
     wire sink_wr_master_256b_wdest_pop  = sink_wr_master_256b_wvalid && sink_wr_master_256b_wready && sink_wr_master_256b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             sink_wr_master_256b_wdest_wptr <= '0;
             sink_wr_master_256b_wdest_rptr <= '0;
         end else begin
@@ -877,7 +879,7 @@ module bridge_5x3_channels_xbar
                 sink_wr_master_256b_wdest_rptr <= sink_wr_master_256b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire sink_wr_master_256b_wdest_valid = (sink_wr_master_256b_wdest_wptr != sink_wr_master_256b_wdest_rptr);
     wire [0:0] sink_wr_master_256b_wdest_head = sink_wr_master_256b_wdest_mem[sink_wr_master_256b_wdest_rptr[3:0]];
     assign sink_wr_master_256b_w_to_sram_buffer = sink_wr_master_256b_wdest_valid && (sink_wr_master_256b_wdest_head == 1'd0);
@@ -889,8 +891,8 @@ module bridge_5x3_channels_xbar
     wire [0:0] stream_master_256b_wdest_enc = stream_master_256b_aw_to_ddr_controller ? 1'd1 : 1'd0;
     wire stream_master_256b_wdest_push = stream_master_256b_awvalid && stream_master_256b_awready;
     wire stream_master_256b_wdest_pop  = stream_master_256b_wvalid && stream_master_256b_wready && stream_master_256b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             stream_master_256b_wdest_wptr <= '0;
             stream_master_256b_wdest_rptr <= '0;
         end else begin
@@ -902,7 +904,7 @@ module bridge_5x3_channels_xbar
                 stream_master_256b_wdest_rptr <= stream_master_256b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire stream_master_256b_wdest_valid = (stream_master_256b_wdest_wptr != stream_master_256b_wdest_rptr);
     wire [0:0] stream_master_256b_wdest_head = stream_master_256b_wdest_mem[stream_master_256b_wdest_rptr[3:0]];
     assign stream_master_256b_w_to_sram_buffer = stream_master_256b_wdest_valid && (stream_master_256b_wdest_head == 1'd0);
@@ -914,8 +916,8 @@ module bridge_5x3_channels_xbar
     wire [0:0] cpu_master_32b_wdest_enc = 1'd0;
     wire cpu_master_32b_wdest_push = cpu_master_32b_awvalid && cpu_master_32b_awready;
     wire cpu_master_32b_wdest_pop  = cpu_master_32b_wvalid && cpu_master_32b_wready && cpu_master_32b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             cpu_master_32b_wdest_wptr <= '0;
             cpu_master_32b_wdest_rptr <= '0;
         end else begin
@@ -927,7 +929,7 @@ module bridge_5x3_channels_xbar
                 cpu_master_32b_wdest_rptr <= cpu_master_32b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire cpu_master_32b_wdest_valid = (cpu_master_32b_wdest_wptr != cpu_master_32b_wdest_rptr);
     wire [0:0] cpu_master_32b_wdest_head = cpu_master_32b_wdest_mem[cpu_master_32b_wdest_rptr[3:0]];
     assign cpu_master_32b_w_to_apb_periph = cpu_master_32b_wdest_valid && (cpu_master_32b_wdest_head == 1'd0);
@@ -938,8 +940,8 @@ module bridge_5x3_channels_xbar
     wire [0:0] cpu_master_256b_wdest_enc = cpu_master_256b_aw_to_ddr_controller ? 1'd1 : 1'd0;
     wire cpu_master_256b_wdest_push = cpu_master_256b_awvalid && cpu_master_256b_awready;
     wire cpu_master_256b_wdest_pop  = cpu_master_256b_wvalid && cpu_master_256b_wready && cpu_master_256b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             cpu_master_256b_wdest_wptr <= '0;
             cpu_master_256b_wdest_rptr <= '0;
         end else begin
@@ -951,7 +953,7 @@ module bridge_5x3_channels_xbar
                 cpu_master_256b_wdest_rptr <= cpu_master_256b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire cpu_master_256b_wdest_valid = (cpu_master_256b_wdest_wptr != cpu_master_256b_wdest_rptr);
     wire [0:0] cpu_master_256b_wdest_head = cpu_master_256b_wdest_mem[cpu_master_256b_wdest_rptr[3:0]];
     assign cpu_master_256b_w_to_sram_buffer = cpu_master_256b_wdest_valid && (cpu_master_256b_wdest_head == 1'd0);

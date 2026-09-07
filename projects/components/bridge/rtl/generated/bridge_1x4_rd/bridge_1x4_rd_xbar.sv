@@ -6,6 +6,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 
 module bridge_1x4_rd_xbar
     import bridge_1x4_rd_pkg::*;

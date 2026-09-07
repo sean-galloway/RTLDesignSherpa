@@ -6,6 +6,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 
 module bridge_2x2_rw_xbar
     import bridge_2x2_rw_pkg::*;
@@ -211,8 +213,8 @@ module bridge_2x2_rw_xbar
         ddr_aw_arb_req[1] ? 1'd1 : 1'd0;
     wire ddr_aw_arb_gnt_valid = ddr_aw_arb_locked || (|ddr_aw_arb_req);
     wire [0:0] ddr_aw_arb_gnt = ddr_aw_arb_locked ? ddr_aw_arb_lock : ddr_aw_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             ddr_aw_arb_lock   <= '0;
             ddr_aw_arb_rr     <= '0;
             ddr_aw_arb_locked <= 1'b0;
@@ -225,7 +227,7 @@ module bridge_2x2_rw_xbar
                 ddr_aw_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_32b_aw_gnt_ddr = ddr_aw_arb_gnt_valid && (ddr_aw_arb_gnt == 1'd0) && ddr_aw_arb_req[0];
     wire dma_32b_aw_gnt_ddr = ddr_aw_arb_gnt_valid && (ddr_aw_arb_gnt == 1'd1) && ddr_aw_arb_req[1];
 
@@ -257,8 +259,8 @@ module bridge_2x2_rw_xbar
     // W owner FIFO: slave-side AW accept order owns the W channel
     logic [0:0] ddr_wowner_mem [16];
     logic [4:0] ddr_wowner_wptr, ddr_wowner_rptr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             ddr_wowner_wptr <= '0;
             ddr_wowner_rptr <= '0;
         end else begin
@@ -270,7 +272,7 @@ module bridge_2x2_rw_xbar
                 ddr_wowner_rptr <= ddr_wowner_rptr + 1'b1;
             end
         end
-    end
+    )
     wire ddr_wowner_valid = (ddr_wowner_wptr != ddr_wowner_rptr);
     wire [0:0] ddr_wowner_head = ddr_wowner_mem[ddr_wowner_rptr[3:0]];
     assign cpu_32b_w_sel_ddr = ddr_wowner_valid && (ddr_wowner_head == 1'd0) && cpu_32b_w_to_ddr;
@@ -304,8 +306,8 @@ module bridge_2x2_rw_xbar
         ddr_ar_arb_req[1] ? 1'd1 : 1'd0;
     wire ddr_ar_arb_gnt_valid = ddr_ar_arb_locked || (|ddr_ar_arb_req);
     wire [0:0] ddr_ar_arb_gnt = ddr_ar_arb_locked ? ddr_ar_arb_lock : ddr_ar_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             ddr_ar_arb_lock   <= '0;
             ddr_ar_arb_rr     <= '0;
             ddr_ar_arb_locked <= 1'b0;
@@ -318,7 +320,7 @@ module bridge_2x2_rw_xbar
                 ddr_ar_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_32b_ar_gnt_ddr = ddr_ar_arb_gnt_valid && (ddr_ar_arb_gnt == 1'd0) && ddr_ar_arb_req[0];
     wire dma_32b_ar_gnt_ddr = ddr_ar_arb_gnt_valid && (ddr_ar_arb_gnt == 1'd1) && ddr_ar_arb_req[1];
 
@@ -377,8 +379,8 @@ module bridge_2x2_rw_xbar
         sram_aw_arb_req[1] ? 1'd1 : 1'd0;
     wire sram_aw_arb_gnt_valid = sram_aw_arb_locked || (|sram_aw_arb_req);
     wire [0:0] sram_aw_arb_gnt = sram_aw_arb_locked ? sram_aw_arb_lock : sram_aw_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             sram_aw_arb_lock   <= '0;
             sram_aw_arb_rr     <= '0;
             sram_aw_arb_locked <= 1'b0;
@@ -391,7 +393,7 @@ module bridge_2x2_rw_xbar
                 sram_aw_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_32b_aw_gnt_sram = sram_aw_arb_gnt_valid && (sram_aw_arb_gnt == 1'd0) && sram_aw_arb_req[0];
     wire dma_32b_aw_gnt_sram = sram_aw_arb_gnt_valid && (sram_aw_arb_gnt == 1'd1) && sram_aw_arb_req[1];
 
@@ -423,8 +425,8 @@ module bridge_2x2_rw_xbar
     // W owner FIFO: slave-side AW accept order owns the W channel
     logic [0:0] sram_wowner_mem [16];
     logic [4:0] sram_wowner_wptr, sram_wowner_rptr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             sram_wowner_wptr <= '0;
             sram_wowner_rptr <= '0;
         end else begin
@@ -436,7 +438,7 @@ module bridge_2x2_rw_xbar
                 sram_wowner_rptr <= sram_wowner_rptr + 1'b1;
             end
         end
-    end
+    )
     wire sram_wowner_valid = (sram_wowner_wptr != sram_wowner_rptr);
     wire [0:0] sram_wowner_head = sram_wowner_mem[sram_wowner_rptr[3:0]];
     assign cpu_32b_w_sel_sram = sram_wowner_valid && (sram_wowner_head == 1'd0) && cpu_32b_w_to_sram;
@@ -470,8 +472,8 @@ module bridge_2x2_rw_xbar
         sram_ar_arb_req[1] ? 1'd1 : 1'd0;
     wire sram_ar_arb_gnt_valid = sram_ar_arb_locked || (|sram_ar_arb_req);
     wire [0:0] sram_ar_arb_gnt = sram_ar_arb_locked ? sram_ar_arb_lock : sram_ar_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             sram_ar_arb_lock   <= '0;
             sram_ar_arb_rr     <= '0;
             sram_ar_arb_locked <= 1'b0;
@@ -484,7 +486,7 @@ module bridge_2x2_rw_xbar
                 sram_ar_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_32b_ar_gnt_sram = sram_ar_arb_gnt_valid && (sram_ar_arb_gnt == 1'd0) && sram_ar_arb_req[0];
     wire dma_32b_ar_gnt_sram = sram_ar_arb_gnt_valid && (sram_ar_arb_gnt == 1'd1) && sram_ar_arb_req[1];
 
@@ -531,8 +533,8 @@ module bridge_2x2_rw_xbar
     wire [0:0] cpu_32b_wdest_enc = cpu_32b_aw_to_sram ? 1'd1 : 1'd0;
     wire cpu_32b_wdest_push = cpu_32b_awvalid && cpu_32b_awready;
     wire cpu_32b_wdest_pop  = cpu_32b_wvalid && cpu_32b_wready && cpu_32b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             cpu_32b_wdest_wptr <= '0;
             cpu_32b_wdest_rptr <= '0;
         end else begin
@@ -544,7 +546,7 @@ module bridge_2x2_rw_xbar
                 cpu_32b_wdest_rptr <= cpu_32b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire cpu_32b_wdest_valid = (cpu_32b_wdest_wptr != cpu_32b_wdest_rptr);
     wire [0:0] cpu_32b_wdest_head = cpu_32b_wdest_mem[cpu_32b_wdest_rptr[3:0]];
     assign cpu_32b_w_to_ddr = cpu_32b_wdest_valid && (cpu_32b_wdest_head == 1'd0);
@@ -556,8 +558,8 @@ module bridge_2x2_rw_xbar
     wire [0:0] dma_32b_wdest_enc = dma_32b_aw_to_sram ? 1'd1 : 1'd0;
     wire dma_32b_wdest_push = dma_32b_awvalid && dma_32b_awready;
     wire dma_32b_wdest_pop  = dma_32b_wvalid && dma_32b_wready && dma_32b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             dma_32b_wdest_wptr <= '0;
             dma_32b_wdest_rptr <= '0;
         end else begin
@@ -569,7 +571,7 @@ module bridge_2x2_rw_xbar
                 dma_32b_wdest_rptr <= dma_32b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire dma_32b_wdest_valid = (dma_32b_wdest_wptr != dma_32b_wdest_rptr);
     wire [0:0] dma_32b_wdest_head = dma_32b_wdest_mem[dma_32b_wdest_rptr[3:0]];
     assign dma_32b_w_to_ddr = dma_32b_wdest_valid && (dma_32b_wdest_head == 1'd0);

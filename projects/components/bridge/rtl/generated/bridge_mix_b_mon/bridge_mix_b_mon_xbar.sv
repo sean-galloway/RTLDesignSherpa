@@ -6,6 +6,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 
 module bridge_mix_b_mon_xbar
     import bridge_mix_b_mon_pkg::*;
@@ -361,8 +363,8 @@ module bridge_mix_b_mon_xbar
         ddr_aw_arb_req[1] ? 1'd1 : 1'd0;
     wire ddr_aw_arb_gnt_valid = ddr_aw_arb_locked || (|ddr_aw_arb_req);
     wire [0:0] ddr_aw_arb_gnt = ddr_aw_arb_locked ? ddr_aw_arb_lock : ddr_aw_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             ddr_aw_arb_lock   <= '0;
             ddr_aw_arb_rr     <= '0;
             ddr_aw_arb_locked <= 1'b0;
@@ -375,7 +377,7 @@ module bridge_mix_b_mon_xbar
                 ddr_aw_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_axi4_128b_aw_gnt_ddr = ddr_aw_arb_gnt_valid && (ddr_aw_arb_gnt == 1'd0) && ddr_aw_arb_req[0];
     wire dma_axi4_128b_aw_gnt_ddr = ddr_aw_arb_gnt_valid && (ddr_aw_arb_gnt == 1'd1) && ddr_aw_arb_req[1];
 
@@ -407,8 +409,8 @@ module bridge_mix_b_mon_xbar
     // W owner FIFO: slave-side AW accept order owns the W channel
     logic [0:0] ddr_wowner_mem [16];
     logic [4:0] ddr_wowner_wptr, ddr_wowner_rptr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             ddr_wowner_wptr <= '0;
             ddr_wowner_rptr <= '0;
         end else begin
@@ -420,7 +422,7 @@ module bridge_mix_b_mon_xbar
                 ddr_wowner_rptr <= ddr_wowner_rptr + 1'b1;
             end
         end
-    end
+    )
     wire ddr_wowner_valid = (ddr_wowner_wptr != ddr_wowner_rptr);
     wire [0:0] ddr_wowner_head = ddr_wowner_mem[ddr_wowner_rptr[3:0]];
     assign cpu_axi4_128b_w_sel_ddr = ddr_wowner_valid && (ddr_wowner_head == 1'd0) && cpu_axi4_128b_w_to_ddr;
@@ -454,8 +456,8 @@ module bridge_mix_b_mon_xbar
         ddr_ar_arb_req[1] ? 1'd1 : 1'd0;
     wire ddr_ar_arb_gnt_valid = ddr_ar_arb_locked || (|ddr_ar_arb_req);
     wire [0:0] ddr_ar_arb_gnt = ddr_ar_arb_locked ? ddr_ar_arb_lock : ddr_ar_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             ddr_ar_arb_lock   <= '0;
             ddr_ar_arb_rr     <= '0;
             ddr_ar_arb_locked <= 1'b0;
@@ -468,7 +470,7 @@ module bridge_mix_b_mon_xbar
                 ddr_ar_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_axi4_128b_ar_gnt_ddr = ddr_ar_arb_gnt_valid && (ddr_ar_arb_gnt == 1'd0) && ddr_ar_arb_req[0];
     wire dma_axi4_128b_ar_gnt_ddr = ddr_ar_arb_gnt_valid && (ddr_ar_arb_gnt == 1'd1) && ddr_ar_arb_req[1];
 
@@ -531,8 +533,8 @@ module bridge_mix_b_mon_xbar
         scratch_aw_arb_req[2] ? 2'd2 : scratch_aw_arb_req[0] ? 2'd0 : 2'd1;
     wire scratch_aw_arb_gnt_valid = scratch_aw_arb_locked || (|scratch_aw_arb_req);
     wire [1:0] scratch_aw_arb_gnt = scratch_aw_arb_locked ? scratch_aw_arb_lock : scratch_aw_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             scratch_aw_arb_lock   <= '0;
             scratch_aw_arb_rr     <= '0;
             scratch_aw_arb_locked <= 1'b0;
@@ -545,7 +547,7 @@ module bridge_mix_b_mon_xbar
                 scratch_aw_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_axi4_64b_aw_gnt_scratch = scratch_aw_arb_gnt_valid && (scratch_aw_arb_gnt == 2'd0) && scratch_aw_arb_req[0];
     wire dma_axi4_64b_aw_gnt_scratch = scratch_aw_arb_gnt_valid && (scratch_aw_arb_gnt == 2'd1) && scratch_aw_arb_req[1];
     wire host_axil_64b_aw_gnt_scratch = scratch_aw_arb_gnt_valid && (scratch_aw_arb_gnt == 2'd2) && scratch_aw_arb_req[2];
@@ -589,8 +591,8 @@ module bridge_mix_b_mon_xbar
     // W owner FIFO: slave-side AW accept order owns the W channel
     logic [1:0] scratch_wowner_mem [16];
     logic [4:0] scratch_wowner_wptr, scratch_wowner_rptr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             scratch_wowner_wptr <= '0;
             scratch_wowner_rptr <= '0;
         end else begin
@@ -602,7 +604,7 @@ module bridge_mix_b_mon_xbar
                 scratch_wowner_rptr <= scratch_wowner_rptr + 1'b1;
             end
         end
-    end
+    )
     wire scratch_wowner_valid = (scratch_wowner_wptr != scratch_wowner_rptr);
     wire [1:0] scratch_wowner_head = scratch_wowner_mem[scratch_wowner_rptr[3:0]];
     assign cpu_axi4_64b_w_sel_scratch = scratch_wowner_valid && (scratch_wowner_head == 2'd0) && cpu_axi4_64b_w_to_scratch;
@@ -644,8 +646,8 @@ module bridge_mix_b_mon_xbar
         scratch_ar_arb_req[2] ? 2'd2 : scratch_ar_arb_req[0] ? 2'd0 : 2'd1;
     wire scratch_ar_arb_gnt_valid = scratch_ar_arb_locked || (|scratch_ar_arb_req);
     wire [1:0] scratch_ar_arb_gnt = scratch_ar_arb_locked ? scratch_ar_arb_lock : scratch_ar_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             scratch_ar_arb_lock   <= '0;
             scratch_ar_arb_rr     <= '0;
             scratch_ar_arb_locked <= 1'b0;
@@ -658,7 +660,7 @@ module bridge_mix_b_mon_xbar
                 scratch_ar_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_axi4_64b_ar_gnt_scratch = scratch_ar_arb_gnt_valid && (scratch_ar_arb_gnt == 2'd0) && scratch_ar_arb_req[0];
     wire dma_axi4_64b_ar_gnt_scratch = scratch_ar_arb_gnt_valid && (scratch_ar_arb_gnt == 2'd1) && scratch_ar_arb_req[1];
     wire host_axil_64b_ar_gnt_scratch = scratch_ar_arb_gnt_valid && (scratch_ar_arb_gnt == 2'd2) && scratch_ar_arb_req[2];
@@ -731,8 +733,8 @@ module bridge_mix_b_mon_xbar
         apb_periph_aw_arb_req[1] ? 1'd1 : 1'd0;
     wire apb_periph_aw_arb_gnt_valid = apb_periph_aw_arb_locked || (|apb_periph_aw_arb_req);
     wire [0:0] apb_periph_aw_arb_gnt = apb_periph_aw_arb_locked ? apb_periph_aw_arb_lock : apb_periph_aw_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             apb_periph_aw_arb_lock   <= '0;
             apb_periph_aw_arb_rr     <= '0;
             apb_periph_aw_arb_locked <= 1'b0;
@@ -745,7 +747,7 @@ module bridge_mix_b_mon_xbar
                 apb_periph_aw_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_axi4_32b_aw_gnt_apb_periph = apb_periph_aw_arb_gnt_valid && (apb_periph_aw_arb_gnt == 1'd0) && apb_periph_aw_arb_req[0];
     wire host_axil_32b_aw_gnt_apb_periph = apb_periph_aw_arb_gnt_valid && (apb_periph_aw_arb_gnt == 1'd1) && apb_periph_aw_arb_req[1];
 
@@ -777,8 +779,8 @@ module bridge_mix_b_mon_xbar
     // W owner FIFO: slave-side AW accept order owns the W channel
     logic [0:0] apb_periph_wowner_mem [16];
     logic [4:0] apb_periph_wowner_wptr, apb_periph_wowner_rptr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             apb_periph_wowner_wptr <= '0;
             apb_periph_wowner_rptr <= '0;
         end else begin
@@ -790,7 +792,7 @@ module bridge_mix_b_mon_xbar
                 apb_periph_wowner_rptr <= apb_periph_wowner_rptr + 1'b1;
             end
         end
-    end
+    )
     wire apb_periph_wowner_valid = (apb_periph_wowner_wptr != apb_periph_wowner_rptr);
     wire [0:0] apb_periph_wowner_head = apb_periph_wowner_mem[apb_periph_wowner_rptr[3:0]];
     assign cpu_axi4_32b_w_sel_apb_periph = apb_periph_wowner_valid && (apb_periph_wowner_head == 1'd0) && cpu_axi4_32b_w_to_apb_periph;
@@ -824,8 +826,8 @@ module bridge_mix_b_mon_xbar
         apb_periph_ar_arb_req[1] ? 1'd1 : 1'd0;
     wire apb_periph_ar_arb_gnt_valid = apb_periph_ar_arb_locked || (|apb_periph_ar_arb_req);
     wire [0:0] apb_periph_ar_arb_gnt = apb_periph_ar_arb_locked ? apb_periph_ar_arb_lock : apb_periph_ar_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             apb_periph_ar_arb_lock   <= '0;
             apb_periph_ar_arb_rr     <= '0;
             apb_periph_ar_arb_locked <= 1'b0;
@@ -838,7 +840,7 @@ module bridge_mix_b_mon_xbar
                 apb_periph_ar_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_axi4_32b_ar_gnt_apb_periph = apb_periph_ar_arb_gnt_valid && (apb_periph_ar_arb_gnt == 1'd0) && apb_periph_ar_arb_req[0];
     wire host_axil_32b_ar_gnt_apb_periph = apb_periph_ar_arb_gnt_valid && (apb_periph_ar_arb_gnt == 1'd1) && apb_periph_ar_arb_req[1];
 
@@ -885,8 +887,8 @@ module bridge_mix_b_mon_xbar
     wire [0:0] cpu_axi4_32b_wdest_enc = 1'd0;
     wire cpu_axi4_32b_wdest_push = cpu_axi4_32b_awvalid && cpu_axi4_32b_awready;
     wire cpu_axi4_32b_wdest_pop  = cpu_axi4_32b_wvalid && cpu_axi4_32b_wready && cpu_axi4_32b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             cpu_axi4_32b_wdest_wptr <= '0;
             cpu_axi4_32b_wdest_rptr <= '0;
         end else begin
@@ -898,7 +900,7 @@ module bridge_mix_b_mon_xbar
                 cpu_axi4_32b_wdest_rptr <= cpu_axi4_32b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire cpu_axi4_32b_wdest_valid = (cpu_axi4_32b_wdest_wptr != cpu_axi4_32b_wdest_rptr);
     wire [0:0] cpu_axi4_32b_wdest_head = cpu_axi4_32b_wdest_mem[cpu_axi4_32b_wdest_rptr[3:0]];
     assign cpu_axi4_32b_w_to_apb_periph = cpu_axi4_32b_wdest_valid && (cpu_axi4_32b_wdest_head == 1'd0);
@@ -909,8 +911,8 @@ module bridge_mix_b_mon_xbar
     wire [0:0] cpu_axi4_64b_wdest_enc = 1'd0;
     wire cpu_axi4_64b_wdest_push = cpu_axi4_64b_awvalid && cpu_axi4_64b_awready;
     wire cpu_axi4_64b_wdest_pop  = cpu_axi4_64b_wvalid && cpu_axi4_64b_wready && cpu_axi4_64b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             cpu_axi4_64b_wdest_wptr <= '0;
             cpu_axi4_64b_wdest_rptr <= '0;
         end else begin
@@ -922,7 +924,7 @@ module bridge_mix_b_mon_xbar
                 cpu_axi4_64b_wdest_rptr <= cpu_axi4_64b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire cpu_axi4_64b_wdest_valid = (cpu_axi4_64b_wdest_wptr != cpu_axi4_64b_wdest_rptr);
     wire [0:0] cpu_axi4_64b_wdest_head = cpu_axi4_64b_wdest_mem[cpu_axi4_64b_wdest_rptr[3:0]];
     assign cpu_axi4_64b_w_to_scratch = cpu_axi4_64b_wdest_valid && (cpu_axi4_64b_wdest_head == 1'd0);
@@ -933,8 +935,8 @@ module bridge_mix_b_mon_xbar
     wire [0:0] cpu_axi4_128b_wdest_enc = 1'd0;
     wire cpu_axi4_128b_wdest_push = cpu_axi4_128b_awvalid && cpu_axi4_128b_awready;
     wire cpu_axi4_128b_wdest_pop  = cpu_axi4_128b_wvalid && cpu_axi4_128b_wready && cpu_axi4_128b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             cpu_axi4_128b_wdest_wptr <= '0;
             cpu_axi4_128b_wdest_rptr <= '0;
         end else begin
@@ -946,7 +948,7 @@ module bridge_mix_b_mon_xbar
                 cpu_axi4_128b_wdest_rptr <= cpu_axi4_128b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire cpu_axi4_128b_wdest_valid = (cpu_axi4_128b_wdest_wptr != cpu_axi4_128b_wdest_rptr);
     wire [0:0] cpu_axi4_128b_wdest_head = cpu_axi4_128b_wdest_mem[cpu_axi4_128b_wdest_rptr[3:0]];
     assign cpu_axi4_128b_w_to_ddr = cpu_axi4_128b_wdest_valid && (cpu_axi4_128b_wdest_head == 1'd0);
@@ -957,8 +959,8 @@ module bridge_mix_b_mon_xbar
     wire [0:0] dma_axi4_64b_wdest_enc = 1'd0;
     wire dma_axi4_64b_wdest_push = dma_axi4_64b_awvalid && dma_axi4_64b_awready;
     wire dma_axi4_64b_wdest_pop  = dma_axi4_64b_wvalid && dma_axi4_64b_wready && dma_axi4_64b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             dma_axi4_64b_wdest_wptr <= '0;
             dma_axi4_64b_wdest_rptr <= '0;
         end else begin
@@ -970,7 +972,7 @@ module bridge_mix_b_mon_xbar
                 dma_axi4_64b_wdest_rptr <= dma_axi4_64b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire dma_axi4_64b_wdest_valid = (dma_axi4_64b_wdest_wptr != dma_axi4_64b_wdest_rptr);
     wire [0:0] dma_axi4_64b_wdest_head = dma_axi4_64b_wdest_mem[dma_axi4_64b_wdest_rptr[3:0]];
     assign dma_axi4_64b_w_to_scratch = dma_axi4_64b_wdest_valid && (dma_axi4_64b_wdest_head == 1'd0);
@@ -981,8 +983,8 @@ module bridge_mix_b_mon_xbar
     wire [0:0] dma_axi4_128b_wdest_enc = 1'd0;
     wire dma_axi4_128b_wdest_push = dma_axi4_128b_awvalid && dma_axi4_128b_awready;
     wire dma_axi4_128b_wdest_pop  = dma_axi4_128b_wvalid && dma_axi4_128b_wready && dma_axi4_128b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             dma_axi4_128b_wdest_wptr <= '0;
             dma_axi4_128b_wdest_rptr <= '0;
         end else begin
@@ -994,7 +996,7 @@ module bridge_mix_b_mon_xbar
                 dma_axi4_128b_wdest_rptr <= dma_axi4_128b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire dma_axi4_128b_wdest_valid = (dma_axi4_128b_wdest_wptr != dma_axi4_128b_wdest_rptr);
     wire [0:0] dma_axi4_128b_wdest_head = dma_axi4_128b_wdest_mem[dma_axi4_128b_wdest_rptr[3:0]];
     assign dma_axi4_128b_w_to_ddr = dma_axi4_128b_wdest_valid && (dma_axi4_128b_wdest_head == 1'd0);
@@ -1005,8 +1007,8 @@ module bridge_mix_b_mon_xbar
     wire [0:0] host_axil_32b_wdest_enc = 1'd0;
     wire host_axil_32b_wdest_push = host_axil_32b_awvalid && host_axil_32b_awready;
     wire host_axil_32b_wdest_pop  = host_axil_32b_wvalid && host_axil_32b_wready && host_axil_32b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             host_axil_32b_wdest_wptr <= '0;
             host_axil_32b_wdest_rptr <= '0;
         end else begin
@@ -1018,7 +1020,7 @@ module bridge_mix_b_mon_xbar
                 host_axil_32b_wdest_rptr <= host_axil_32b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire host_axil_32b_wdest_valid = (host_axil_32b_wdest_wptr != host_axil_32b_wdest_rptr);
     wire [0:0] host_axil_32b_wdest_head = host_axil_32b_wdest_mem[host_axil_32b_wdest_rptr[3:0]];
     assign host_axil_32b_w_to_apb_periph = host_axil_32b_wdest_valid && (host_axil_32b_wdest_head == 1'd0);
@@ -1029,8 +1031,8 @@ module bridge_mix_b_mon_xbar
     wire [0:0] host_axil_64b_wdest_enc = 1'd0;
     wire host_axil_64b_wdest_push = host_axil_64b_awvalid && host_axil_64b_awready;
     wire host_axil_64b_wdest_pop  = host_axil_64b_wvalid && host_axil_64b_wready && host_axil_64b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             host_axil_64b_wdest_wptr <= '0;
             host_axil_64b_wdest_rptr <= '0;
         end else begin
@@ -1042,7 +1044,7 @@ module bridge_mix_b_mon_xbar
                 host_axil_64b_wdest_rptr <= host_axil_64b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire host_axil_64b_wdest_valid = (host_axil_64b_wdest_wptr != host_axil_64b_wdest_rptr);
     wire [0:0] host_axil_64b_wdest_head = host_axil_64b_wdest_mem[host_axil_64b_wdest_rptr[3:0]];
     assign host_axil_64b_w_to_scratch = host_axil_64b_wdest_valid && (host_axil_64b_wdest_head == 1'd0);

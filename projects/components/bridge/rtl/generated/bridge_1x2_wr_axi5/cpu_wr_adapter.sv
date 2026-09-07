@@ -4,6 +4,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 
 module cpu_wr_adapter
     import bridge_1x2_wr_axi5_pkg::*;
@@ -315,8 +317,8 @@ module cpu_wr_adapter
     assign aw_trk_push = fub_axi_awvalid && fub_axi_awready;
     assign aw_trk_pop  = fub_axi_bvalid && fub_axi_bready;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             aw_trk_wptr <= '0;
             aw_trk_rptr <= '0;
         end else begin
@@ -328,7 +330,7 @@ module cpu_wr_adapter
                 aw_trk_rptr <= aw_trk_rptr + 1'b1;
             end
         end
-    end
+    )
 
     assign b_slave_select = (aw_trk_wptr != aw_trk_rptr)
                           ? aw_trk_mem[aw_trk_rptr[AW_TRK_AW-1:0]]
@@ -341,13 +343,13 @@ module cpu_wr_adapter
     // writes from several masters can deadlock the heads against
     // each other. Same-slave pipelining is unaffected.
     logic [NUM_SLAVES-1:0] r_aw_active_target;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_aw_active_target <= '0;
         end else if (aw_trk_push) begin
             r_aw_active_target <= comb_slave_select_aw;
         end
-    end
+    )
     assign aw_gate_ok = (aw_trk_wptr == aw_trk_rptr) ||
                         (comb_slave_select_aw == r_aw_active_target);
 
@@ -364,8 +366,8 @@ module cpu_wr_adapter
     assign w_trk_push = fub_axi_awvalid && fub_axi_awready;
     assign w_trk_pop  = fub_axi_wvalid && fub_axi_wready && fub_axi_wlast;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             w_trk_wptr <= '0;
             w_trk_rptr <= '0;
         end else begin
@@ -377,7 +379,7 @@ module cpu_wr_adapter
                 w_trk_rptr <= w_trk_rptr + 1'b1;
             end
         end
-    end
+    )
 
     assign w_slave_select = (w_trk_wptr != w_trk_rptr)
                           ? w_trk_mem[w_trk_rptr[AW_TRK_AW-1:0]]

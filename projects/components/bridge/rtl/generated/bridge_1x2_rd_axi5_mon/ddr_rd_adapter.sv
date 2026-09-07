@@ -6,6 +6,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 
 module ddr_rd_adapter
     import bridge_1x2_rd_axi5_mon_pkg::*;
@@ -116,23 +118,23 @@ module ddr_rd_adapter
     logic [$clog2(RD_FIFO_DEPTH):0] ar_ptr, r_ptr;
 
     // Push on AR (crossbar → adapter)
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             ar_ptr <= '0;
         end else if (xbar_ddr_rd_axi_arvalid && xbar_ddr_rd_axi_arready) begin
             rd_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= xbar_bridge_id_ar;
             ar_ptr <= ar_ptr + 1'b1;
         end
-    end
+    )
 
     // Pop on R response (xbar_ddr_rd_axi_rvalid && xbar_ddr_rd_axi_rready && xbar_ddr_rd_axi_rlast)
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             r_ptr <= '0;
         end else if (xbar_ddr_rd_axi_rvalid && xbar_ddr_rd_axi_rready && xbar_ddr_rd_axi_rlast) begin
             r_ptr <= r_ptr + 1'b1;
         end
-    end
+    )
 
     // rid_bridge_id / rid_valid drive the crossbar's response mux,
     // which gates R going BACK to the master on rid_valid. Earlier

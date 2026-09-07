@@ -6,6 +6,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 
 module bridge_4x4_rw_xbar
     import bridge_4x4_rw_pkg::*;
@@ -537,8 +539,8 @@ module bridge_4x4_rw_xbar
         periph_slave_aw_arb_req[2] ? 2'd2 : periph_slave_aw_arb_req[0] ? 2'd0 : 2'd1;
     wire periph_slave_aw_arb_gnt_valid = periph_slave_aw_arb_locked || (|periph_slave_aw_arb_req);
     wire [1:0] periph_slave_aw_arb_gnt = periph_slave_aw_arb_locked ? periph_slave_aw_arb_lock : periph_slave_aw_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             periph_slave_aw_arb_lock   <= '0;
             periph_slave_aw_arb_rr     <= '0;
             periph_slave_aw_arb_locked <= 1'b0;
@@ -551,7 +553,7 @@ module bridge_4x4_rw_xbar
                 periph_slave_aw_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_master_32b_aw_gnt_periph_slave = periph_slave_aw_arb_gnt_valid && (periph_slave_aw_arb_gnt == 2'd0) && periph_slave_aw_arb_req[0];
     wire dma0_master_32b_aw_gnt_periph_slave = periph_slave_aw_arb_gnt_valid && (periph_slave_aw_arb_gnt == 2'd1) && periph_slave_aw_arb_req[1];
     wire gpu_master_32b_aw_gnt_periph_slave = periph_slave_aw_arb_gnt_valid && (periph_slave_aw_arb_gnt == 2'd2) && periph_slave_aw_arb_req[2];
@@ -595,8 +597,8 @@ module bridge_4x4_rw_xbar
     // W owner FIFO: slave-side AW accept order owns the W channel
     logic [1:0] periph_slave_wowner_mem [16];
     logic [4:0] periph_slave_wowner_wptr, periph_slave_wowner_rptr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             periph_slave_wowner_wptr <= '0;
             periph_slave_wowner_rptr <= '0;
         end else begin
@@ -608,7 +610,7 @@ module bridge_4x4_rw_xbar
                 periph_slave_wowner_rptr <= periph_slave_wowner_rptr + 1'b1;
             end
         end
-    end
+    )
     wire periph_slave_wowner_valid = (periph_slave_wowner_wptr != periph_slave_wowner_rptr);
     wire [1:0] periph_slave_wowner_head = periph_slave_wowner_mem[periph_slave_wowner_rptr[3:0]];
     assign cpu_master_32b_w_sel_periph_slave = periph_slave_wowner_valid && (periph_slave_wowner_head == 2'd0) && cpu_master_32b_w_to_periph_slave;
@@ -650,8 +652,8 @@ module bridge_4x4_rw_xbar
         periph_slave_ar_arb_req[2] ? 2'd2 : periph_slave_ar_arb_req[0] ? 2'd0 : 2'd1;
     wire periph_slave_ar_arb_gnt_valid = periph_slave_ar_arb_locked || (|periph_slave_ar_arb_req);
     wire [1:0] periph_slave_ar_arb_gnt = periph_slave_ar_arb_locked ? periph_slave_ar_arb_lock : periph_slave_ar_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             periph_slave_ar_arb_lock   <= '0;
             periph_slave_ar_arb_rr     <= '0;
             periph_slave_ar_arb_locked <= 1'b0;
@@ -664,7 +666,7 @@ module bridge_4x4_rw_xbar
                 periph_slave_ar_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_master_32b_ar_gnt_periph_slave = periph_slave_ar_arb_gnt_valid && (periph_slave_ar_arb_gnt == 2'd0) && periph_slave_ar_arb_req[0];
     wire dma0_master_32b_ar_gnt_periph_slave = periph_slave_ar_arb_gnt_valid && (periph_slave_ar_arb_gnt == 2'd1) && periph_slave_ar_arb_req[1];
     wire gpu_master_32b_ar_gnt_periph_slave = periph_slave_ar_arb_gnt_valid && (periph_slave_ar_arb_gnt == 2'd2) && periph_slave_ar_arb_req[2];
@@ -745,8 +747,8 @@ module bridge_4x4_rw_xbar
         ddr0_slave_aw_arb_req[3] ? 2'd3 : ddr0_slave_aw_arb_req[0] ? 2'd0 : ddr0_slave_aw_arb_req[1] ? 2'd1 : 2'd2;
     wire ddr0_slave_aw_arb_gnt_valid = ddr0_slave_aw_arb_locked || (|ddr0_slave_aw_arb_req);
     wire [1:0] ddr0_slave_aw_arb_gnt = ddr0_slave_aw_arb_locked ? ddr0_slave_aw_arb_lock : ddr0_slave_aw_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             ddr0_slave_aw_arb_lock   <= '0;
             ddr0_slave_aw_arb_rr     <= '0;
             ddr0_slave_aw_arb_locked <= 1'b0;
@@ -759,7 +761,7 @@ module bridge_4x4_rw_xbar
                 ddr0_slave_aw_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_master_64b_aw_gnt_ddr0_slave = ddr0_slave_aw_arb_gnt_valid && (ddr0_slave_aw_arb_gnt == 2'd0) && ddr0_slave_aw_arb_req[0];
     wire dma0_master_64b_aw_gnt_ddr0_slave = ddr0_slave_aw_arb_gnt_valid && (ddr0_slave_aw_arb_gnt == 2'd1) && ddr0_slave_aw_arb_req[1];
     wire dma1_master_64b_aw_gnt_ddr0_slave = ddr0_slave_aw_arb_gnt_valid && (ddr0_slave_aw_arb_gnt == 2'd2) && ddr0_slave_aw_arb_req[2];
@@ -815,8 +817,8 @@ module bridge_4x4_rw_xbar
     // W owner FIFO: slave-side AW accept order owns the W channel
     logic [1:0] ddr0_slave_wowner_mem [16];
     logic [4:0] ddr0_slave_wowner_wptr, ddr0_slave_wowner_rptr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             ddr0_slave_wowner_wptr <= '0;
             ddr0_slave_wowner_rptr <= '0;
         end else begin
@@ -828,7 +830,7 @@ module bridge_4x4_rw_xbar
                 ddr0_slave_wowner_rptr <= ddr0_slave_wowner_rptr + 1'b1;
             end
         end
-    end
+    )
     wire ddr0_slave_wowner_valid = (ddr0_slave_wowner_wptr != ddr0_slave_wowner_rptr);
     wire [1:0] ddr0_slave_wowner_head = ddr0_slave_wowner_mem[ddr0_slave_wowner_rptr[3:0]];
     assign cpu_master_64b_w_sel_ddr0_slave = ddr0_slave_wowner_valid && (ddr0_slave_wowner_head == 2'd0) && cpu_master_64b_w_to_ddr0_slave;
@@ -878,8 +880,8 @@ module bridge_4x4_rw_xbar
         ddr0_slave_ar_arb_req[3] ? 2'd3 : ddr0_slave_ar_arb_req[0] ? 2'd0 : ddr0_slave_ar_arb_req[1] ? 2'd1 : 2'd2;
     wire ddr0_slave_ar_arb_gnt_valid = ddr0_slave_ar_arb_locked || (|ddr0_slave_ar_arb_req);
     wire [1:0] ddr0_slave_ar_arb_gnt = ddr0_slave_ar_arb_locked ? ddr0_slave_ar_arb_lock : ddr0_slave_ar_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             ddr0_slave_ar_arb_lock   <= '0;
             ddr0_slave_ar_arb_rr     <= '0;
             ddr0_slave_ar_arb_locked <= 1'b0;
@@ -892,7 +894,7 @@ module bridge_4x4_rw_xbar
                 ddr0_slave_ar_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_master_64b_ar_gnt_ddr0_slave = ddr0_slave_ar_arb_gnt_valid && (ddr0_slave_ar_arb_gnt == 2'd0) && ddr0_slave_ar_arb_req[0];
     wire dma0_master_64b_ar_gnt_ddr0_slave = ddr0_slave_ar_arb_gnt_valid && (ddr0_slave_ar_arb_gnt == 2'd1) && ddr0_slave_ar_arb_req[1];
     wire dma1_master_64b_ar_gnt_ddr0_slave = ddr0_slave_ar_arb_gnt_valid && (ddr0_slave_ar_arb_gnt == 2'd2) && ddr0_slave_ar_arb_req[2];
@@ -983,8 +985,8 @@ module bridge_4x4_rw_xbar
         sram_slave_aw_arb_req[2] ? 2'd2 : sram_slave_aw_arb_req[0] ? 2'd0 : 2'd1;
     wire sram_slave_aw_arb_gnt_valid = sram_slave_aw_arb_locked || (|sram_slave_aw_arb_req);
     wire [1:0] sram_slave_aw_arb_gnt = sram_slave_aw_arb_locked ? sram_slave_aw_arb_lock : sram_slave_aw_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             sram_slave_aw_arb_lock   <= '0;
             sram_slave_aw_arb_rr     <= '0;
             sram_slave_aw_arb_locked <= 1'b0;
@@ -997,7 +999,7 @@ module bridge_4x4_rw_xbar
                 sram_slave_aw_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_master_128b_aw_gnt_sram_slave = sram_slave_aw_arb_gnt_valid && (sram_slave_aw_arb_gnt == 2'd0) && sram_slave_aw_arb_req[0];
     wire dma0_master_128b_aw_gnt_sram_slave = sram_slave_aw_arb_gnt_valid && (sram_slave_aw_arb_gnt == 2'd1) && sram_slave_aw_arb_req[1];
     wire dma1_master_128b_aw_gnt_sram_slave = sram_slave_aw_arb_gnt_valid && (sram_slave_aw_arb_gnt == 2'd2) && sram_slave_aw_arb_req[2];
@@ -1041,8 +1043,8 @@ module bridge_4x4_rw_xbar
     // W owner FIFO: slave-side AW accept order owns the W channel
     logic [1:0] sram_slave_wowner_mem [16];
     logic [4:0] sram_slave_wowner_wptr, sram_slave_wowner_rptr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             sram_slave_wowner_wptr <= '0;
             sram_slave_wowner_rptr <= '0;
         end else begin
@@ -1054,7 +1056,7 @@ module bridge_4x4_rw_xbar
                 sram_slave_wowner_rptr <= sram_slave_wowner_rptr + 1'b1;
             end
         end
-    end
+    )
     wire sram_slave_wowner_valid = (sram_slave_wowner_wptr != sram_slave_wowner_rptr);
     wire [1:0] sram_slave_wowner_head = sram_slave_wowner_mem[sram_slave_wowner_rptr[3:0]];
     assign cpu_master_128b_w_sel_sram_slave = sram_slave_wowner_valid && (sram_slave_wowner_head == 2'd0) && cpu_master_128b_w_to_sram_slave;
@@ -1096,8 +1098,8 @@ module bridge_4x4_rw_xbar
         sram_slave_ar_arb_req[2] ? 2'd2 : sram_slave_ar_arb_req[0] ? 2'd0 : 2'd1;
     wire sram_slave_ar_arb_gnt_valid = sram_slave_ar_arb_locked || (|sram_slave_ar_arb_req);
     wire [1:0] sram_slave_ar_arb_gnt = sram_slave_ar_arb_locked ? sram_slave_ar_arb_lock : sram_slave_ar_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             sram_slave_ar_arb_lock   <= '0;
             sram_slave_ar_arb_rr     <= '0;
             sram_slave_ar_arb_locked <= 1'b0;
@@ -1110,7 +1112,7 @@ module bridge_4x4_rw_xbar
                 sram_slave_ar_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_master_128b_ar_gnt_sram_slave = sram_slave_ar_arb_gnt_valid && (sram_slave_ar_arb_gnt == 2'd0) && sram_slave_ar_arb_req[0];
     wire dma0_master_128b_ar_gnt_sram_slave = sram_slave_ar_arb_gnt_valid && (sram_slave_ar_arb_gnt == 2'd1) && sram_slave_ar_arb_req[1];
     wire dma1_master_128b_ar_gnt_sram_slave = sram_slave_ar_arb_gnt_valid && (sram_slave_ar_arb_gnt == 2'd2) && sram_slave_ar_arb_req[2];
@@ -1187,8 +1189,8 @@ module bridge_4x4_rw_xbar
         gpu_mem_slave_aw_arb_req[2] ? 2'd2 : gpu_mem_slave_aw_arb_req[0] ? 2'd0 : 2'd1;
     wire gpu_mem_slave_aw_arb_gnt_valid = gpu_mem_slave_aw_arb_locked || (|gpu_mem_slave_aw_arb_req);
     wire [1:0] gpu_mem_slave_aw_arb_gnt = gpu_mem_slave_aw_arb_locked ? gpu_mem_slave_aw_arb_lock : gpu_mem_slave_aw_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             gpu_mem_slave_aw_arb_lock   <= '0;
             gpu_mem_slave_aw_arb_rr     <= '0;
             gpu_mem_slave_aw_arb_locked <= 1'b0;
@@ -1201,7 +1203,7 @@ module bridge_4x4_rw_xbar
                 gpu_mem_slave_aw_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_master_256b_aw_gnt_gpu_mem_slave = gpu_mem_slave_aw_arb_gnt_valid && (gpu_mem_slave_aw_arb_gnt == 2'd0) && gpu_mem_slave_aw_arb_req[0];
     wire dma1_master_256b_aw_gnt_gpu_mem_slave = gpu_mem_slave_aw_arb_gnt_valid && (gpu_mem_slave_aw_arb_gnt == 2'd1) && gpu_mem_slave_aw_arb_req[1];
     wire gpu_master_256b_aw_gnt_gpu_mem_slave = gpu_mem_slave_aw_arb_gnt_valid && (gpu_mem_slave_aw_arb_gnt == 2'd2) && gpu_mem_slave_aw_arb_req[2];
@@ -1245,8 +1247,8 @@ module bridge_4x4_rw_xbar
     // W owner FIFO: slave-side AW accept order owns the W channel
     logic [1:0] gpu_mem_slave_wowner_mem [16];
     logic [4:0] gpu_mem_slave_wowner_wptr, gpu_mem_slave_wowner_rptr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             gpu_mem_slave_wowner_wptr <= '0;
             gpu_mem_slave_wowner_rptr <= '0;
         end else begin
@@ -1258,7 +1260,7 @@ module bridge_4x4_rw_xbar
                 gpu_mem_slave_wowner_rptr <= gpu_mem_slave_wowner_rptr + 1'b1;
             end
         end
-    end
+    )
     wire gpu_mem_slave_wowner_valid = (gpu_mem_slave_wowner_wptr != gpu_mem_slave_wowner_rptr);
     wire [1:0] gpu_mem_slave_wowner_head = gpu_mem_slave_wowner_mem[gpu_mem_slave_wowner_rptr[3:0]];
     assign cpu_master_256b_w_sel_gpu_mem_slave = gpu_mem_slave_wowner_valid && (gpu_mem_slave_wowner_head == 2'd0) && cpu_master_256b_w_to_gpu_mem_slave;
@@ -1300,8 +1302,8 @@ module bridge_4x4_rw_xbar
         gpu_mem_slave_ar_arb_req[2] ? 2'd2 : gpu_mem_slave_ar_arb_req[0] ? 2'd0 : 2'd1;
     wire gpu_mem_slave_ar_arb_gnt_valid = gpu_mem_slave_ar_arb_locked || (|gpu_mem_slave_ar_arb_req);
     wire [1:0] gpu_mem_slave_ar_arb_gnt = gpu_mem_slave_ar_arb_locked ? gpu_mem_slave_ar_arb_lock : gpu_mem_slave_ar_arb_pick;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             gpu_mem_slave_ar_arb_lock   <= '0;
             gpu_mem_slave_ar_arb_rr     <= '0;
             gpu_mem_slave_ar_arb_locked <= 1'b0;
@@ -1314,7 +1316,7 @@ module bridge_4x4_rw_xbar
                 gpu_mem_slave_ar_arb_locked <= 1'b1;
             end
         end
-    end
+    )
     wire cpu_master_256b_ar_gnt_gpu_mem_slave = gpu_mem_slave_ar_arb_gnt_valid && (gpu_mem_slave_ar_arb_gnt == 2'd0) && gpu_mem_slave_ar_arb_req[0];
     wire dma1_master_256b_ar_gnt_gpu_mem_slave = gpu_mem_slave_ar_arb_gnt_valid && (gpu_mem_slave_ar_arb_gnt == 2'd1) && gpu_mem_slave_ar_arb_req[1];
     wire gpu_master_256b_ar_gnt_gpu_mem_slave = gpu_mem_slave_ar_arb_gnt_valid && (gpu_mem_slave_ar_arb_gnt == 2'd2) && gpu_mem_slave_ar_arb_req[2];
@@ -1375,8 +1377,8 @@ module bridge_4x4_rw_xbar
     wire [0:0] cpu_master_32b_wdest_enc = 1'd0;
     wire cpu_master_32b_wdest_push = cpu_master_32b_awvalid && cpu_master_32b_awready;
     wire cpu_master_32b_wdest_pop  = cpu_master_32b_wvalid && cpu_master_32b_wready && cpu_master_32b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             cpu_master_32b_wdest_wptr <= '0;
             cpu_master_32b_wdest_rptr <= '0;
         end else begin
@@ -1388,7 +1390,7 @@ module bridge_4x4_rw_xbar
                 cpu_master_32b_wdest_rptr <= cpu_master_32b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire cpu_master_32b_wdest_valid = (cpu_master_32b_wdest_wptr != cpu_master_32b_wdest_rptr);
     wire [0:0] cpu_master_32b_wdest_head = cpu_master_32b_wdest_mem[cpu_master_32b_wdest_rptr[3:0]];
     assign cpu_master_32b_w_to_periph_slave = cpu_master_32b_wdest_valid && (cpu_master_32b_wdest_head == 1'd0);
@@ -1399,8 +1401,8 @@ module bridge_4x4_rw_xbar
     wire [0:0] cpu_master_64b_wdest_enc = 1'd0;
     wire cpu_master_64b_wdest_push = cpu_master_64b_awvalid && cpu_master_64b_awready;
     wire cpu_master_64b_wdest_pop  = cpu_master_64b_wvalid && cpu_master_64b_wready && cpu_master_64b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             cpu_master_64b_wdest_wptr <= '0;
             cpu_master_64b_wdest_rptr <= '0;
         end else begin
@@ -1412,7 +1414,7 @@ module bridge_4x4_rw_xbar
                 cpu_master_64b_wdest_rptr <= cpu_master_64b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire cpu_master_64b_wdest_valid = (cpu_master_64b_wdest_wptr != cpu_master_64b_wdest_rptr);
     wire [0:0] cpu_master_64b_wdest_head = cpu_master_64b_wdest_mem[cpu_master_64b_wdest_rptr[3:0]];
     assign cpu_master_64b_w_to_ddr0_slave = cpu_master_64b_wdest_valid && (cpu_master_64b_wdest_head == 1'd0);
@@ -1423,8 +1425,8 @@ module bridge_4x4_rw_xbar
     wire [0:0] cpu_master_128b_wdest_enc = 1'd0;
     wire cpu_master_128b_wdest_push = cpu_master_128b_awvalid && cpu_master_128b_awready;
     wire cpu_master_128b_wdest_pop  = cpu_master_128b_wvalid && cpu_master_128b_wready && cpu_master_128b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             cpu_master_128b_wdest_wptr <= '0;
             cpu_master_128b_wdest_rptr <= '0;
         end else begin
@@ -1436,7 +1438,7 @@ module bridge_4x4_rw_xbar
                 cpu_master_128b_wdest_rptr <= cpu_master_128b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire cpu_master_128b_wdest_valid = (cpu_master_128b_wdest_wptr != cpu_master_128b_wdest_rptr);
     wire [0:0] cpu_master_128b_wdest_head = cpu_master_128b_wdest_mem[cpu_master_128b_wdest_rptr[3:0]];
     assign cpu_master_128b_w_to_sram_slave = cpu_master_128b_wdest_valid && (cpu_master_128b_wdest_head == 1'd0);
@@ -1447,8 +1449,8 @@ module bridge_4x4_rw_xbar
     wire [0:0] cpu_master_256b_wdest_enc = 1'd0;
     wire cpu_master_256b_wdest_push = cpu_master_256b_awvalid && cpu_master_256b_awready;
     wire cpu_master_256b_wdest_pop  = cpu_master_256b_wvalid && cpu_master_256b_wready && cpu_master_256b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             cpu_master_256b_wdest_wptr <= '0;
             cpu_master_256b_wdest_rptr <= '0;
         end else begin
@@ -1460,7 +1462,7 @@ module bridge_4x4_rw_xbar
                 cpu_master_256b_wdest_rptr <= cpu_master_256b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire cpu_master_256b_wdest_valid = (cpu_master_256b_wdest_wptr != cpu_master_256b_wdest_rptr);
     wire [0:0] cpu_master_256b_wdest_head = cpu_master_256b_wdest_mem[cpu_master_256b_wdest_rptr[3:0]];
     assign cpu_master_256b_w_to_gpu_mem_slave = cpu_master_256b_wdest_valid && (cpu_master_256b_wdest_head == 1'd0);
@@ -1471,8 +1473,8 @@ module bridge_4x4_rw_xbar
     wire [0:0] dma0_master_32b_wdest_enc = 1'd0;
     wire dma0_master_32b_wdest_push = dma0_master_32b_awvalid && dma0_master_32b_awready;
     wire dma0_master_32b_wdest_pop  = dma0_master_32b_wvalid && dma0_master_32b_wready && dma0_master_32b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             dma0_master_32b_wdest_wptr <= '0;
             dma0_master_32b_wdest_rptr <= '0;
         end else begin
@@ -1484,7 +1486,7 @@ module bridge_4x4_rw_xbar
                 dma0_master_32b_wdest_rptr <= dma0_master_32b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire dma0_master_32b_wdest_valid = (dma0_master_32b_wdest_wptr != dma0_master_32b_wdest_rptr);
     wire [0:0] dma0_master_32b_wdest_head = dma0_master_32b_wdest_mem[dma0_master_32b_wdest_rptr[3:0]];
     assign dma0_master_32b_w_to_periph_slave = dma0_master_32b_wdest_valid && (dma0_master_32b_wdest_head == 1'd0);
@@ -1495,8 +1497,8 @@ module bridge_4x4_rw_xbar
     wire [0:0] dma0_master_64b_wdest_enc = 1'd0;
     wire dma0_master_64b_wdest_push = dma0_master_64b_awvalid && dma0_master_64b_awready;
     wire dma0_master_64b_wdest_pop  = dma0_master_64b_wvalid && dma0_master_64b_wready && dma0_master_64b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             dma0_master_64b_wdest_wptr <= '0;
             dma0_master_64b_wdest_rptr <= '0;
         end else begin
@@ -1508,7 +1510,7 @@ module bridge_4x4_rw_xbar
                 dma0_master_64b_wdest_rptr <= dma0_master_64b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire dma0_master_64b_wdest_valid = (dma0_master_64b_wdest_wptr != dma0_master_64b_wdest_rptr);
     wire [0:0] dma0_master_64b_wdest_head = dma0_master_64b_wdest_mem[dma0_master_64b_wdest_rptr[3:0]];
     assign dma0_master_64b_w_to_ddr0_slave = dma0_master_64b_wdest_valid && (dma0_master_64b_wdest_head == 1'd0);
@@ -1519,8 +1521,8 @@ module bridge_4x4_rw_xbar
     wire [0:0] dma0_master_128b_wdest_enc = 1'd0;
     wire dma0_master_128b_wdest_push = dma0_master_128b_awvalid && dma0_master_128b_awready;
     wire dma0_master_128b_wdest_pop  = dma0_master_128b_wvalid && dma0_master_128b_wready && dma0_master_128b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             dma0_master_128b_wdest_wptr <= '0;
             dma0_master_128b_wdest_rptr <= '0;
         end else begin
@@ -1532,7 +1534,7 @@ module bridge_4x4_rw_xbar
                 dma0_master_128b_wdest_rptr <= dma0_master_128b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire dma0_master_128b_wdest_valid = (dma0_master_128b_wdest_wptr != dma0_master_128b_wdest_rptr);
     wire [0:0] dma0_master_128b_wdest_head = dma0_master_128b_wdest_mem[dma0_master_128b_wdest_rptr[3:0]];
     assign dma0_master_128b_w_to_sram_slave = dma0_master_128b_wdest_valid && (dma0_master_128b_wdest_head == 1'd0);
@@ -1543,8 +1545,8 @@ module bridge_4x4_rw_xbar
     wire [0:0] dma1_master_64b_wdest_enc = 1'd0;
     wire dma1_master_64b_wdest_push = dma1_master_64b_awvalid && dma1_master_64b_awready;
     wire dma1_master_64b_wdest_pop  = dma1_master_64b_wvalid && dma1_master_64b_wready && dma1_master_64b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             dma1_master_64b_wdest_wptr <= '0;
             dma1_master_64b_wdest_rptr <= '0;
         end else begin
@@ -1556,7 +1558,7 @@ module bridge_4x4_rw_xbar
                 dma1_master_64b_wdest_rptr <= dma1_master_64b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire dma1_master_64b_wdest_valid = (dma1_master_64b_wdest_wptr != dma1_master_64b_wdest_rptr);
     wire [0:0] dma1_master_64b_wdest_head = dma1_master_64b_wdest_mem[dma1_master_64b_wdest_rptr[3:0]];
     assign dma1_master_64b_w_to_ddr0_slave = dma1_master_64b_wdest_valid && (dma1_master_64b_wdest_head == 1'd0);
@@ -1567,8 +1569,8 @@ module bridge_4x4_rw_xbar
     wire [0:0] dma1_master_128b_wdest_enc = 1'd0;
     wire dma1_master_128b_wdest_push = dma1_master_128b_awvalid && dma1_master_128b_awready;
     wire dma1_master_128b_wdest_pop  = dma1_master_128b_wvalid && dma1_master_128b_wready && dma1_master_128b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             dma1_master_128b_wdest_wptr <= '0;
             dma1_master_128b_wdest_rptr <= '0;
         end else begin
@@ -1580,7 +1582,7 @@ module bridge_4x4_rw_xbar
                 dma1_master_128b_wdest_rptr <= dma1_master_128b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire dma1_master_128b_wdest_valid = (dma1_master_128b_wdest_wptr != dma1_master_128b_wdest_rptr);
     wire [0:0] dma1_master_128b_wdest_head = dma1_master_128b_wdest_mem[dma1_master_128b_wdest_rptr[3:0]];
     assign dma1_master_128b_w_to_sram_slave = dma1_master_128b_wdest_valid && (dma1_master_128b_wdest_head == 1'd0);
@@ -1591,8 +1593,8 @@ module bridge_4x4_rw_xbar
     wire [0:0] dma1_master_256b_wdest_enc = 1'd0;
     wire dma1_master_256b_wdest_push = dma1_master_256b_awvalid && dma1_master_256b_awready;
     wire dma1_master_256b_wdest_pop  = dma1_master_256b_wvalid && dma1_master_256b_wready && dma1_master_256b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             dma1_master_256b_wdest_wptr <= '0;
             dma1_master_256b_wdest_rptr <= '0;
         end else begin
@@ -1604,7 +1606,7 @@ module bridge_4x4_rw_xbar
                 dma1_master_256b_wdest_rptr <= dma1_master_256b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire dma1_master_256b_wdest_valid = (dma1_master_256b_wdest_wptr != dma1_master_256b_wdest_rptr);
     wire [0:0] dma1_master_256b_wdest_head = dma1_master_256b_wdest_mem[dma1_master_256b_wdest_rptr[3:0]];
     assign dma1_master_256b_w_to_gpu_mem_slave = dma1_master_256b_wdest_valid && (dma1_master_256b_wdest_head == 1'd0);
@@ -1615,8 +1617,8 @@ module bridge_4x4_rw_xbar
     wire [0:0] gpu_master_32b_wdest_enc = 1'd0;
     wire gpu_master_32b_wdest_push = gpu_master_32b_awvalid && gpu_master_32b_awready;
     wire gpu_master_32b_wdest_pop  = gpu_master_32b_wvalid && gpu_master_32b_wready && gpu_master_32b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             gpu_master_32b_wdest_wptr <= '0;
             gpu_master_32b_wdest_rptr <= '0;
         end else begin
@@ -1628,7 +1630,7 @@ module bridge_4x4_rw_xbar
                 gpu_master_32b_wdest_rptr <= gpu_master_32b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire gpu_master_32b_wdest_valid = (gpu_master_32b_wdest_wptr != gpu_master_32b_wdest_rptr);
     wire [0:0] gpu_master_32b_wdest_head = gpu_master_32b_wdest_mem[gpu_master_32b_wdest_rptr[3:0]];
     assign gpu_master_32b_w_to_periph_slave = gpu_master_32b_wdest_valid && (gpu_master_32b_wdest_head == 1'd0);
@@ -1639,8 +1641,8 @@ module bridge_4x4_rw_xbar
     wire [0:0] gpu_master_64b_wdest_enc = 1'd0;
     wire gpu_master_64b_wdest_push = gpu_master_64b_awvalid && gpu_master_64b_awready;
     wire gpu_master_64b_wdest_pop  = gpu_master_64b_wvalid && gpu_master_64b_wready && gpu_master_64b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             gpu_master_64b_wdest_wptr <= '0;
             gpu_master_64b_wdest_rptr <= '0;
         end else begin
@@ -1652,7 +1654,7 @@ module bridge_4x4_rw_xbar
                 gpu_master_64b_wdest_rptr <= gpu_master_64b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire gpu_master_64b_wdest_valid = (gpu_master_64b_wdest_wptr != gpu_master_64b_wdest_rptr);
     wire [0:0] gpu_master_64b_wdest_head = gpu_master_64b_wdest_mem[gpu_master_64b_wdest_rptr[3:0]];
     assign gpu_master_64b_w_to_ddr0_slave = gpu_master_64b_wdest_valid && (gpu_master_64b_wdest_head == 1'd0);
@@ -1663,8 +1665,8 @@ module bridge_4x4_rw_xbar
     wire [0:0] gpu_master_256b_wdest_enc = 1'd0;
     wire gpu_master_256b_wdest_push = gpu_master_256b_awvalid && gpu_master_256b_awready;
     wire gpu_master_256b_wdest_pop  = gpu_master_256b_wvalid && gpu_master_256b_wready && gpu_master_256b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             gpu_master_256b_wdest_wptr <= '0;
             gpu_master_256b_wdest_rptr <= '0;
         end else begin
@@ -1676,7 +1678,7 @@ module bridge_4x4_rw_xbar
                 gpu_master_256b_wdest_rptr <= gpu_master_256b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire gpu_master_256b_wdest_valid = (gpu_master_256b_wdest_wptr != gpu_master_256b_wdest_rptr);
     wire [0:0] gpu_master_256b_wdest_head = gpu_master_256b_wdest_mem[gpu_master_256b_wdest_rptr[3:0]];
     assign gpu_master_256b_w_to_gpu_mem_slave = gpu_master_256b_wdest_valid && (gpu_master_256b_wdest_head == 1'd0);

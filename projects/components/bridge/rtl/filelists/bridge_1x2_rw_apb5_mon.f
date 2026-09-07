@@ -1,6 +1,9 @@
 # Include directories
 +incdir+$REPO_ROOT/rtl/amba/includes
 
+# Reset macro header (`ALWAYS_FF_RST / `RST_ASSERTED)
+-f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
+
 # Monitor packages (must precede any module that references them)
 -f $REPO_ROOT/rtl/amba/filelists/monitor_pkgs.f
 

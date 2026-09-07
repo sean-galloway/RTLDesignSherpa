@@ -1,6 +1,9 @@
 # Include directories
 +incdir+$REPO_ROOT/rtl/amba/includes
 
+# Reset macro header (`ALWAYS_FF_RST / `RST_ASSERTED)
+-f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
+
 # Bridge RTL files (generated)
 $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_1x5_rd/bridge_1x5_rd_pkg.sv
 $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_1x5_rd/cpu_rd_adapter.sv

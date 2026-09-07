@@ -6,6 +6,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 
 module bridge_1x5_wr_xbar
     import bridge_1x5_wr_pkg::*;
@@ -435,8 +437,8 @@ module bridge_1x5_wr_xbar
     wire [1:0] cpu_wr_32b_wdest_enc = cpu_wr_32b_aw_to_apb_periph ? 2'd1 : cpu_wr_32b_aw_to_axil_periph ? 2'd2 : 2'd0;
     wire cpu_wr_32b_wdest_push = cpu_wr_32b_awvalid && cpu_wr_32b_awready;
     wire cpu_wr_32b_wdest_pop  = cpu_wr_32b_wvalid && cpu_wr_32b_wready && cpu_wr_32b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             cpu_wr_32b_wdest_wptr <= '0;
             cpu_wr_32b_wdest_rptr <= '0;
         end else begin
@@ -448,7 +450,7 @@ module bridge_1x5_wr_xbar
                 cpu_wr_32b_wdest_rptr <= cpu_wr_32b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire cpu_wr_32b_wdest_valid = (cpu_wr_32b_wdest_wptr != cpu_wr_32b_wdest_rptr);
     wire [1:0] cpu_wr_32b_wdest_head = cpu_wr_32b_wdest_mem[cpu_wr_32b_wdest_rptr[3:0]];
     assign cpu_wr_32b_w_to_periph_wr = cpu_wr_32b_wdest_valid && (cpu_wr_32b_wdest_head == 2'd0);
@@ -461,8 +463,8 @@ module bridge_1x5_wr_xbar
     wire [0:0] cpu_wr_64b_wdest_enc = 1'd0;
     wire cpu_wr_64b_wdest_push = cpu_wr_64b_awvalid && cpu_wr_64b_awready;
     wire cpu_wr_64b_wdest_pop  = cpu_wr_64b_wvalid && cpu_wr_64b_wready && cpu_wr_64b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             cpu_wr_64b_wdest_wptr <= '0;
             cpu_wr_64b_wdest_rptr <= '0;
         end else begin
@@ -474,7 +476,7 @@ module bridge_1x5_wr_xbar
                 cpu_wr_64b_wdest_rptr <= cpu_wr_64b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire cpu_wr_64b_wdest_valid = (cpu_wr_64b_wdest_wptr != cpu_wr_64b_wdest_rptr);
     wire [0:0] cpu_wr_64b_wdest_head = cpu_wr_64b_wdest_mem[cpu_wr_64b_wdest_rptr[3:0]];
     assign cpu_wr_64b_w_to_ddr_wr = cpu_wr_64b_wdest_valid && (cpu_wr_64b_wdest_head == 1'd0);
@@ -485,8 +487,8 @@ module bridge_1x5_wr_xbar
     wire [0:0] cpu_wr_128b_wdest_enc = 1'd0;
     wire cpu_wr_128b_wdest_push = cpu_wr_128b_awvalid && cpu_wr_128b_awready;
     wire cpu_wr_128b_wdest_pop  = cpu_wr_128b_wvalid && cpu_wr_128b_wready && cpu_wr_128b_w.last;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             cpu_wr_128b_wdest_wptr <= '0;
             cpu_wr_128b_wdest_rptr <= '0;
         end else begin
@@ -498,7 +500,7 @@ module bridge_1x5_wr_xbar
                 cpu_wr_128b_wdest_rptr <= cpu_wr_128b_wdest_rptr + 1'b1;
             end
         end
-    end
+    )
     wire cpu_wr_128b_wdest_valid = (cpu_wr_128b_wdest_wptr != cpu_wr_128b_wdest_rptr);
     wire [0:0] cpu_wr_128b_wdest_head = cpu_wr_128b_wdest_mem[cpu_wr_128b_wdest_rptr[3:0]];
     assign cpu_wr_128b_w_to_hbm_wr = cpu_wr_128b_wdest_valid && (cpu_wr_128b_wdest_head == 1'd0);

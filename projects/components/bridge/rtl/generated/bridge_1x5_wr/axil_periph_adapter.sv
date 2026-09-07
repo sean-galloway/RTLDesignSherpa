@@ -6,6 +6,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 
 module axil_periph_adapter
     import bridge_1x5_wr_pkg::*;
@@ -90,23 +92,23 @@ module axil_periph_adapter
     logic [$clog2(WR_FIFO_DEPTH):0] wr_ptr, rd_ptr;
 
     // Push on AW (crossbar → adapter)
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             wr_ptr <= '0;
         end else if (xbar_axil_periph_axi_awvalid && xbar_axil_periph_axi_awready) begin
             wr_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= xbar_bridge_id_aw;
             wr_ptr <= wr_ptr + 1'b1;
         end
-    end
+    )
 
     // Pop on B response (converter_bvalid && converter_bready)
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
             rd_ptr <= '0;
         end else if (converter_bvalid && converter_bready) begin
             rd_ptr <= rd_ptr + 1'b1;
         end
-    end
+    )
 
     // bid_bridge_id / bid_valid drive the crossbar's response mux,
     // which gates B going BACK to the master on bid_valid. Earlier
