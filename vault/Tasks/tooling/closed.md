@@ -152,3 +152,89 @@ standard the rest of this gate should be held to.
 
 See [[filelists]], TOOL-014 for the three gate blind spots fixed alongside.
 
+### TOOL-015: `--reruns 3` re-rolls the seed, so a seed-exposed RTL bug retries until it passes
+
+**Status:** FIXED 2026-09-07, commit 071711af. One repo-root `conftest.py`
+derives each test's seed from sha256(session base, node id), so a retry repeats
+the run it is retrying. The 338 wrappers were not touched -- they already read
+SEED from the environment.
+
+Verified separately: reruns reuse the seed (3 attempts, all 55072, also under
+xdist); `SEED=777` still wins; different tests differ; a new session re-rolls
+so exploration survives; the value reaches the simulator (conftest computed
+37611, sim log shows SEED=37611); collection unaffected in nine areas.
+FULL runs after the change, 0 reruns: math 401, common 945, cdc 352, amba 1728.
+
+`RDS_SEED_BASE` replays a whole run and the base prints in the pytest header.
+The first attempt at that was WRONG in a way worth recording: it read
+PYTEST_XDIST_TESTRUNUID, which the controller does not have when the header
+renders, so it printed a base no worker used and "replaying" produced a third
+seed space. A reproduction handle that does not reproduce is worse than none.
+Caught by testing the replay rather than reasoning about it.
+
+`--reruns 3` deliberately left in place, per the note below: it is also
+absorbing genuine infrastructure noise, and the budget can now be judged from
+evidence, because a seed-exposed failure will fail all four attempts and be
+reported with a recoverable seed.
+
+**The mechanism.** Every test wrapper picks its seed like this (338 files, one
+uniform pattern):
+
+```python
+seed = int(os.environ.get('SEED', str(random.randint(0, 100000))))
+```
+
+and `make/tests.mk:70` runs every area with `PYTEST_RERUNS ?= --reruns 3
+--reruns-delay 1`. `pytest-rerunfailures` re-executes the whole wrapper on a
+retry, so `random.randint` is called AGAIN and the retry runs a **different
+seed**. A failure that depends on the seed therefore gets up to three fresh
+chances to not happen, and the run reports `401 passed, 1 rerun`.
+
+The failing seed is not recorded anywhere. The per-test log is named for the
+test and worker (`logs/test_..._func_FULL_gw29.log`), so the passing retry
+**overwrites** the failing attempt's log on the same worker. `--tb=short`
+prints no traceback for a rerun that eventually passes. The evidence is gone in
+both places.
+
+**Observed 2026-09-07.** `val/math` FULL: `test_math_fp8_e4m3_fma[params1]`
+reran once and passed; the immediately preceding FULL run of the same suite
+passed it outright. Two runs, two seeds, two outcomes, and no way to reproduce
+the failing one. That is indistinguishable from a real intermittent RTL defect,
+which is why it cannot be waved off -- see [[feedback_no_flaky_dismissal]].
+
+**Why this is worse than a plain flake.** A rerun that passes is not evidence
+of a flake; it is the ABSENCE of evidence. Randomised stimulus exists to find
+bugs the directed tests miss, and a retry-until-green policy is precisely the
+policy that discards those finds. The suite is doing the search and then
+throwing away the hits.
+
+**The fix is small and central, because the indirection is already there.**
+Every wrapper reads `os.environ.get('SEED', ...)`, so nothing needs to change
+in the 338 files. A session-scoped autouse fixture in each area's existing
+`conftest.py` (`val/{math,amba,cdc,common}/conftest.py` already exist) can
+assign a seed per test NODEID and export it:
+
+```python
+@pytest.fixture(autouse=True)
+def _pin_seed(request):
+    # Same nodeid -> same seed, so a rerun repeats the run it is retrying
+    # instead of rolling a new one. Fresh per session, so randomised
+    # exploration across runs is unaffected.
+    key = request.node.nodeid
+    os.environ['SEED'] = str(_session_seeds.setdefault(key, random.randint(0, 100000)))
+```
+
+With that, a seed-exposed failure fails all four attempts, gets REPORTED, and
+its seed is in the log where `SEED=<n> pytest <test>` reproduces it.
+
+**Do not** simply drop `--reruns`: it is also absorbing genuine infrastructure
+noise (a killed worker, a busy machine), and removing it without the seed fix
+trades a silent hole for a noisy one. Pin the seed first, then judge how much
+of the rerun budget is still earning its keep.
+
+**Also worth fixing while in here:** include the seed in the per-test log
+filename, or refuse to overwrite a log from a failed attempt, so the failing
+run's log survives its own retry.
+
+**Related:** [[silent-fallbacks]] rule 11, [[seeds-and-determinism]],
+[[running-regressions]].

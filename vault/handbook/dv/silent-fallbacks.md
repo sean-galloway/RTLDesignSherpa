@@ -170,9 +170,27 @@ worker. Nothing survives to reproduce.
 Randomised stimulus exists to find what directed tests miss. Retry-until-green
 is exactly the policy that discards those finds -- the suite does the search
 and then throws away the hits. `1 rerun` in a green summary is not a flake
-reported; it is a result deleted. Pin the seed to the test NODEID so a retry
-repeats the run it is retrying, and only then judge how much rerun budget is
-still earning its keep. See [[TOOL-015]].
+reported; it is a result deleted.
+
+**FIXED 2026-09-07** (commit 071711af, [[TOOL-015]]). One repo-root
+`conftest.py` derives the seed from sha256(session base, node id), so a retry
+repeats the run it is retrying; `RDS_SEED_BASE` replays a whole run and prints
+in the pytest header. `--reruns 3` was deliberately left alone -- it also
+absorbs real infrastructure noise, and the budget can now be judged from
+evidence, because a seed-exposed failure fails all four attempts and is
+reported with a recoverable seed.
+
+Two things that fix taught, both worth more than the fix:
+
+* **sha256, not `hash()`.** `PYTHONHASHSEED` randomises str hashing per
+  process, so `hash(nodeid)` gives the same test a different seed in every
+  xdist worker -- silently destroying the exact property being built.
+* **Test the reproduction handle by reproducing.** The first version printed a
+  base taken from `PYTEST_XDIST_TESTRUNUID`, which the controller does not have
+  when the header renders, so the printed base was a per-process value no
+  worker used. Replaying with it produced a THIRD seed space. A handle that
+  does not reproduce is worse than offering none, and only an actual replay --
+  run it twice, diff the seeds -- catches that.
 
 ### 14. A mechanical sweep needs a mechanical check, and "it has no tests" is the reason to add one
 A single commit converted every remaining flop to `ALWAYS_FF_RST` and left
