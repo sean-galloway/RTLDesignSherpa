@@ -2,7 +2,7 @@
 
 # Tooling tasks
 
-**Next ID: TOOL-015** — never recycle a number, even when its task closed.
+**Next ID: TOOL-016** — never recycle a number, even when its task closed.
 
 Repo tooling, scripts, and process work.
 
@@ -43,6 +43,11 @@ Repo tooling, scripts, and process work.
   hardcoded paths.
 - **TOOL-012** — burn down `--blindspots`, then make it a gate.
 - **TOOL-014** — Scripts book link rot + DOCUMENTATION_INDEX refresh/retire.
+- **TOOL-015** (High) — `--reruns 3` re-rolls the per-test seed, so a
+  seed-exposed RTL bug is retried until it passes and its seed is destroyed
+  (the passing retry overwrites the failing attempt's log). Fix is an autouse
+  fixture in the existing per-area `conftest.py`; the 338 test files need no
+  change.
 
 ## Note
 

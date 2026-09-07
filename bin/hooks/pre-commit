@@ -81,6 +81,38 @@ if echo "$STAGED" | grep -qE '^docs/markdown/.*\.md$|\.sv$'; then
     fi
 fi
 
+# --- a changed port list must not break the module's consumers ---------------
+# Adding `ow_mant_interp` to math_bf16_fast_reciprocal left one of its three
+# consumers unconnected. PINMISSING is an ERROR under the flags cocotb passes,
+# so all five of that consumer's tests failed to BUILD -- they never simulated.
+# The FUNC subset never elaborated it, so raw pytest was green; only the FULL
+# matrix caught it, fifteen minutes later.
+if [ -n "$STAGED_SV" ]; then
+    if command -v verilator >/dev/null 2>&1; then
+        echo "[pre-commit] Checking consumers of changed port lists..."
+        if ! out=$("$PY" "$REPO_ROOT/bin/check_port_consumers.py" 2>&1); then
+            echo "$out" >&2
+            fail=1
+        fi
+    else
+        echo "[pre-commit] skipping port-consumer check (no verilator on PATH)" >&2
+    fi
+fi
+
+# --- a copy of a shared include must not diverge from the canonical -----------
+# reset_defs.svh decides whether every flop in the repo resets asynchronously.
+# When it was made unconditionally async, eight tracked copies kept the old
+# conditional -- one of them live in timing_characterization, whose flops would
+# have elaborated SYNCHRONOUS while the rest of the tree was async. Both trees
+# compiled and both passed; nothing diffed them.
+if echo "$STAGED" | grep -qE '\.svh$'; then
+    echo "[pre-commit] Checking shared-include copies..."
+    if ! out=$("$PY" "$REPO_ROOT/bin/check_shared_include_copies.py" 2>&1); then
+        echo "$out" >&2
+        fail=1
+    fi
+fi
+
 # --- filelist contract -------------------------------------------------------
 # The fast local mirror of .github/workflows/filelist-checks.yml. CI is the
 # authority; this saves the round trip.

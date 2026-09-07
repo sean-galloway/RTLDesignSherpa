@@ -118,6 +118,62 @@ deliberately-open pins. Nobody read it, so the real findings underneath were
 invisible too. Waive what is idiomatic so the signal survives -- but never
 waive the class you are hunting.
 
+### 11. A green suite is not a compiled design, and the subset chooses which
+A raw `pytest val/math -q` was green while five tests were failing to BUILD.
+`ow_mant_interp` had been added to `math_bf16_fast_reciprocal` and one of its
+three consumers was never reconnected; PINMISSING is an ERROR under the flags
+cocotb passes, so `math_bf16_newton_raphson_recip` never elaborated. Its tests
+did not fail an assertion -- they never ran, and "396 passed" counted the ones
+that did.
+
+What hid it was the LEVEL. `pytest <area>` runs the default `TEST_LEVEL=FUNC`
+subset, which never elaborated that module at all; `make run-all-full-parallel`
+does, and found it in fifteen minutes. So: **`make clean-all &&
+make run-all-full-parallel`, in every area, every time** -- the same two
+commands work in `val/common`, `val/math`, `val/amba` and every
+`<component>/dv/tests`, because they all include `make/tests.mk`. A raw pytest
+green is a statement about a subset, and never the one you want to publish.
+
+Cheaper than either: `bin/check_port_consumers.py` (pre-commit) lints exactly
+the filelists that list a .sv whose PORT SET changed, and reports only
+PINMISSING/PINNOTFOUND/PINCONNECTEMPTY. Narrow on purpose -- areas carry
+pre-existing warnings, and per rule 10 a gate that fails on those reports
+nothing.
+
+### 12. Two copies of one header are two designs
+`reset_defs.svh` decides whether every flop in the repo resets asynchronously.
+When it was made unconditionally async, EIGHT tracked copies kept the old
+conditional -- one of them live in `timing_characterization`, whose flops would
+have elaborated SYNCHRONOUS while the rest of the tree was async. Both trees
+compiled. Both passed. Nothing diffed them.
+
+Seven of the eight turned out to be dead artifacts, and deleting them is not
+the fix, because the reason they rotted -- nobody diffs a copy -- outlives the
+deletion. `bin/check_shared_include_copies.py` does the diff, and fails on any
+tracked copy that has drifted from the canonical file. A component may still
+vendor a shared header to keep its filelist self-contained; what it may not do
+is vendor one that DISAGREES. If a component genuinely needs different
+semantics, give it a different BASENAME so the divergence is declared rather
+than discovered -- see [[NEXYS-007]].
+
+### 13. A retry that re-rolls the seed is not a retry, it is a second lottery
+Every test wrapper draws `os.environ.get('SEED', str(random.randint(0,100000)))`
+and every area runs `--reruns 3`. `pytest-rerunfailures` re-executes the whole
+wrapper, so the retry draws a NEW seed: a seed-dependent failure gets up to
+three fresh chances not to happen, and the run prints `401 passed, 1 rerun`.
+
+Worse, the evidence is destroyed twice over. `--tb=short` prints no traceback
+for a rerun that ends up passing, and the per-test log is named for test and
+worker, so the passing retry OVERWRITES the failing attempt's log on that same
+worker. Nothing survives to reproduce.
+
+Randomised stimulus exists to find what directed tests miss. Retry-until-green
+is exactly the policy that discards those finds -- the suite does the search
+and then throws away the hits. `1 rerun` in a green summary is not a flake
+reported; it is a result deleted. Pin the seed to the test NODEID so a retry
+repeats the run it is retrying, and only then judge how much rerun budget is
+still earning its keep. See [[TOOL-015]].
+
 ## The single question
 
 Before believing any zero, ask: **if the thing I am looking for were happening,
