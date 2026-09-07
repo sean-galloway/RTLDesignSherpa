@@ -64,8 +64,46 @@ def normalize_body(inner_body: str, macro_indent: str) -> str:
     return '\n'.join(out).rstrip() + '\n'
 
 
+def _match_paren(s: str, i: int) -> int:
+    """s[i] is '('; return the index just past its matching ')', or -1."""
+    depth = 0
+    while i < len(s):
+        if s[i] == '(':
+            depth += 1
+        elif s[i] == ')':
+            depth -= 1
+            if depth == 0:
+                return i + 1
+        i += 1
+    return -1
+
+
 def rewrite_if_to_macro_cond(body_text: str, sync_rst: str) -> str:
-    return TOP_IF_RE.sub(f'if (`RST_ASSERTED({sync_rst})) begin', body_text, count=1)
+    r"""Rewrite the block's FIRST top-level `if (<cond>) begin` to use
+    `RST_ASSERTED.
+
+    Paren-matched rather than regex'd. The old TOP_IF_RE was
+    `^\s*if\s*\([^)]*\)\s*begin`, whose `[^)]*` cannot span a nested
+    paren -- so the overwhelmingly common `if (!(rst_n)) begin` did not
+    match and the condition was left as-is. The block still converted, so
+    the file compiled and the miss was invisible; it only showed up as
+    files that used `ALWAYS_FF_RST` without `RST_ASSERTED`, against
+    GLOBAL_REQUIREMENTS 1.1.
+    """
+    m = re.search(r'(?m)^([ \t]*)if\s*(?=\()', body_text)
+    if not m:
+        return body_text
+    open_paren = body_text.index('(', m.end())
+    close = _match_paren(body_text, open_paren)
+    if close == -1:
+        return body_text
+    rest = body_text[close:]
+    mb = re.match(r'\s*begin\b', rest)
+    if not mb:
+        return body_text
+    return (body_text[:m.start()]
+            + f'{m.group(1)}if (`RST_ASSERTED({sync_rst}))' + rest[:mb.end()]
+            + rest[mb.end():])
 
 
 def process_always_blocks(text: str) -> tuple[str, int]:

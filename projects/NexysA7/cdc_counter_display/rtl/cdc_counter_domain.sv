@@ -109,10 +109,10 @@ module cdc_counter_domain #(
     // Simple 2-FF synchronizer on the deassertion edge.
     logic [1:0] r_ctr_rstn_sync;
     `ALWAYS_FF_RST(ctr_clk, sys_rstn,
-        if (`RST_ASSERTED(sys_rstn))
- r_ctr_rstn_sync <= 2'b00;
+        if (!sys_rstn) r_ctr_rstn_sync <= 2'b00;
         else           r_ctr_rstn_sync <= {r_ctr_rstn_sync[0], 1'b1};
     )
+
     assign ctr_rstn = r_ctr_rstn_sync[1];
 
     // -----------------------------------------------------------------
@@ -155,6 +155,7 @@ module cdc_counter_domain #(
             r_auto_sync1   <= r_auto_sync0;
         end
     )
+
     assign ctr_cfg_init       = r_init_sync1;
     assign ctr_cfg_increment  = r_inc_sync1;
     assign ctr_cfg_freeze     = r_freeze_sync1;
@@ -208,6 +209,7 @@ module cdc_counter_domain #(
             r_btn_prev  <= r_btn_sync1;
         end
     )
+
     assign w_btn_edge = r_btn_sync1 && !r_btn_prev;
 
     // Combined press event (physical button rising edge + host inject).
@@ -235,7 +237,7 @@ module cdc_counter_domain #(
         end else begin
             // Free-running tick counter (counts ctr_clk edges since reset)
             r_clk_ticks <= r_clk_ticks + 1'b1;
-
+        
             if (ctr_load_pulse) begin
                 // Host requested counter reload
                 r_value <= ctr_cfg_init;
@@ -245,6 +247,7 @@ module cdc_counter_domain #(
             end
         end
     )
+
 
     // -----------------------------------------------------------------
     // CDC: r_value / r_press_count / r_clk_ticks (ctr_clk → sys_clk)
@@ -275,6 +278,7 @@ module cdc_counter_domain #(
         end
     )
 
+
     // 2-FF sync in sys_clk
     (* ASYNC_REG = "TRUE" *) logic [VAL_WIDTH-1:0]   r_value_gray_sync0,   r_value_gray_sync1;
     (* ASYNC_REG = "TRUE" *) logic [PRESS_WIDTH-1:0] r_press_gray_sync0,   r_press_gray_sync1;
@@ -294,6 +298,7 @@ module cdc_counter_domain #(
             r_ticks_gray_sync1 <= r_ticks_gray_sync0;
         end
     )
+
 
     // gray2bin (combinational) — output registered in sys_clk
     logic [VAL_WIDTH-1:0]   w_value_bin;
@@ -335,11 +340,10 @@ module cdc_counter_domain #(
     // ----- Mode 0 NO_CDC -----
     (* ASYNC_REG = "FALSE" *) logic [VAL_WIDTH-1:0] r_value_raw_sysclk;
     `ALWAYS_FF_RST(sys_clk, sys_rstn,
-        if (`RST_ASSERTED(sys_rstn))
- r_value_raw_sysclk <= '0;
-        else           r_value_raw_sysclk <= r_value;   // in
-    )tional CDC violation
-    end
+        if (!sys_rstn) r_value_raw_sysclk <= '0;
+        else           r_value_raw_sysclk <= r_value;   // intentional CDC violation
+    )
+
 
     // ----- Mode 1 STRETCH (cdc_open_loop) -----
     //
@@ -378,10 +382,10 @@ module cdc_counter_domain #(
     );
 
     `ALWAYS_FF_RST(sys_clk, sys_rstn,
-        if (`RST_ASSERTED(sys_rstn))
- r_value_stretch_sysclk <= '0;
+        if (!sys_rstn)                  r_value_stretch_sysclk <= '0;
         else if (w_stretch_dst_valid)   r_value_stretch_sysclk <= w_stretch_dst_data;
     )
+
 
     // ----- Mode 2 SYNC_FIFO (fifo_async) -----
     // Push every press_event from ctr_clk; pop continuously from
@@ -417,10 +421,10 @@ module cdc_counter_domain #(
     );
 
     `ALWAYS_FF_RST(sys_clk, sys_rstn,
-        if (`RST_ASSERTED(sys_rstn))
- r_value_fifo_sysclk <= '0;
+        if (!sys_rstn)        r_value_fifo_sysclk <= '0;
         else if (w_fifo_read) r_value_fifo_sysclk <= w_fifo_rd_data;
     )
+
 
     // ----- Modes 3 & 4: handshake snapshot driver -----
     // Both 2-phase and 4-phase share the same source-side state
@@ -456,6 +460,7 @@ module cdc_counter_domain #(
         end
     )
 
+
     // ----- Mode 3 TWO_PHASE handshake -----
     logic                  w_hs2p_dst_valid;
     logic [VAL_WIDTH-1:0]  w_hs2p_dst_data;
@@ -479,10 +484,10 @@ module cdc_counter_domain #(
     );
 
     `ALWAYS_FF_RST(sys_clk, sys_rstn,
-        if (`RST_ASSERTED(sys_rstn))
- r_value_hs2p_sysclk <= '0;
+        if (!sys_rstn)              r_value_hs2p_sysclk <= '0;
         else if (w_hs2p_dst_valid)  r_value_hs2p_sysclk <= w_hs2p_dst_data;
     )
+
 
     // ----- Mode 4 FOUR_PHASE handshake -----
     logic                  w_hs4p_dst_valid;
@@ -508,10 +513,10 @@ module cdc_counter_domain #(
     );
 
     `ALWAYS_FF_RST(sys_clk, sys_rstn,
-        if (`RST_ASSERTED(sys_rstn))
- r_value_hs4p_sysclk <= '0;
+        if (!sys_rstn)              r_value_hs4p_sysclk <= '0;
         else if (w_hs4p_dst_valid)  r_value_hs4p_sysclk <= w_hs4p_dst_data;
     )
+
 
     // -----------------------------------------------------------------
     // Mode select in sys_clk. 3-bit field, 5 valid modes (0..4); modes
@@ -519,10 +524,10 @@ module cdc_counter_domain #(
     // -----------------------------------------------------------------
     logic [2:0] r_cdc_mode_sysclk;
     `ALWAYS_FF_RST(sys_clk, sys_rstn,
-        if (`RST_ASSERTED(sys_rstn))
- r_cdc_mode_sysclk <= 3'b000;
+        if (!sys_rstn) r_cdc_mode_sysclk <= 3'b000;
         else           r_cdc_mode_sysclk <= i_cfg_cdc_mode;
     )
+
 
     logic [VAL_WIDTH-1:0] w_value_muxed;
     always_comb begin
@@ -547,6 +552,7 @@ module cdc_counter_domain #(
             o_clk_ticks   <= w_ticks_bin;
         end
     )
+
 
     // -----------------------------------------------------------------
     // CDC: press_event → alive_event (ctr_clk → sys_clk pulse)

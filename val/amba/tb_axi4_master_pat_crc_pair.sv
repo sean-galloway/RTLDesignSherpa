@@ -270,10 +270,10 @@ module tb_axi4_master_pat_crc_pair #(
             wr_bid         <= '0;
             wr_bresp       <= 2'b00;
             wr_buser       <= '0;
-    ) else begin
+        end else begin
             // B response handshake
             if (wr_bvalid && wr_bready) wr_bvalid <= 1'b0;
-
+        
             // AW accepted -> start the burst
             if (wr_awvalid && wr_awready) begin
                 wr_active_addr <= wr_awaddr;
@@ -281,7 +281,7 @@ module tb_axi4_master_pat_crc_pair #(
                 wr_active_left <= 9'(wr_awlen) + 9'd1;
                 wr_active_busy <= 1'b1;
             end
-
+        
             // W beat -> commit + advance
             if (wr_wvalid && wr_wready) begin
                 mem[beat_idx(wr_active_addr)] <= wr_wdata;
@@ -296,7 +296,8 @@ module tb_axi4_master_pat_crc_pair #(
                 end
             end
         end
-    end
+    )
+
 
     //==========================================================================
     // Reader-side slave stub — returns mem[idx] per R beat.
@@ -322,7 +323,7 @@ module tb_axi4_master_pat_crc_pair #(
             rd_rresp       <= 2'b00;
             rd_rlast       <= 1'b0;
             rd_ruser       <= '0;
-    ) else begin
+        end else begin
             // R handshake retires the current beat
             if (rd_rvalid && rd_rready) begin
                 rd_active_addr <= rd_active_addr + AW'(BYTES_PER_BEAT);
@@ -336,7 +337,7 @@ module tb_axi4_master_pat_crc_pair #(
                     rd_rlast <= (rd_active_left == 9'd2);
                 end
             end
-
+        
             // AR accepted -> start streaming R beats
             if (rd_arvalid && rd_arready) begin
                 rd_active_addr <= rd_araddr;
@@ -350,6 +351,7 @@ module tb_axi4_master_pat_crc_pair #(
                 rd_rlast       <= (rd_arlen == 8'd0);
             end
         end
-    end
+    )
+
 
 endmodule : tb_axi4_master_pat_crc_pair

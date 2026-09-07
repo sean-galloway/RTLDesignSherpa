@@ -163,6 +163,7 @@ module ddr2_char_harness
             r_rst_sync <= r_rst_meta;
         end
     )
+
     logic unit_aresetn;
     assign unit_aresetn = r_rst_sync;
 
@@ -635,12 +636,11 @@ module ddr2_char_harness
     // =========================================================================
     logic [3:0] r_soft_rst_cnt;
     `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn))
- r_soft_rst_cnt <= 4'd0;
+        if (!aresetn)                    r_soft_rst_cnt <= 4'd0;
         else if (w_soft_reset_pulse)     r_soft_rst_cnt <= 4'd15;   // stretch
-        else if (r_soft_rst_cnt != 4'd0) r_soft_rst_cnt <= r_soft_rst_cnt -
-    )1;
-    end
+        else if (r_soft_rst_cnt != 4'd0) r_soft_rst_cnt <= r_soft_rst_cnt - 4'd1;
+    )
+
     logic dp_aresetn;   // datapath reset: power-on reset OR soft-reset window
     assign dp_aresetn = unit_aresetn & (r_soft_rst_cnt == 4'd0);
 

@@ -81,6 +81,23 @@ if echo "$STAGED" | grep -qE '^docs/markdown/.*\.md$|\.sv$'; then
     fi
 fi
 
+# --- a staged .sv must PARSE -------------------------------------------------
+# Commit 1d25191f shipped SIXTEEN files Verilator cannot parse: the reset-macro
+# converter replaced the wrong `end` with the macro's closing paren. Ten test
+# failures surfaced a week later in ONE file; the other fifteen live in trees
+# no test references at all. Cheapest possible defect, and nothing looked.
+if [ -n "$STAGED_SV" ]; then
+    if command -v verilator >/dev/null 2>&1; then
+        echo "[pre-commit] Checking staged .sv parse..."
+        if ! out=$("$PY" "$REPO_ROOT/bin/check_sv_parses.py" 2>&1); then
+            echo "$out" >&2
+            fail=1
+        fi
+    else
+        echo "[pre-commit] skipping .sv parse check (no verilator on PATH)" >&2
+    fi
+fi
+
 # --- a changed port list must not break the module's consumers ---------------
 # Adding `ow_mant_interp` to math_bf16_fast_reciprocal left one of its three
 # consumers unconnected. PINMISSING is an ERROR under the flags cocotb passes,
