@@ -120,12 +120,59 @@ monbus_arbiter u_mon_arb0 (...);         // Aggregate master-side streams
 monbus_arbiter u_mon_arb1 (...);         // Aggregate slave-side streams
 
 // Monitor AXIL group at bridge top
-monbus_axil_group u_mon_group (
+monbus_axil4_axil4_group u_mon_group (
     .s_mon_axil_*(s_mon_axil_*),  // Slave AXIL for CPU
     .m_axil_mon_*(m_axil_mon_*),  // Master AXIL for DMA
     .stream_irq(stream_irq)        // IRQ output
 );
 ```
+
+## Reset Style and the Emitted Filelist
+
+Every generated adapter, crossbar and slave adapter opens with
+
+```systemverilog
+`include "reset_defs.svh"
+```
+
+and writes its flops through the macro, never a raw `always_ff`:
+
+```systemverilog
+`ALWAYS_FF_RST(aclk, aresetn,
+    if (`RST_ASSERTED(aresetn)) begin
+        ...
+    end else begin
+        ...
+    end
+)
+```
+
+Reset is **asynchronous on assertion in every build**. `ALWAYS_FF_RST` used to
+be conditional on `USE_ASYNC_RESET` and defaulted to synchronous, so `make
+lint` (which set the define) and simulation/synthesis (which did not)
+disagreed about what the design was. The define is now a no-op; passing it is
+harmless and changes nothing. Deassertion must still be synchronised
+externally.
+
+Because the emitted RTL depends on that header, the generator also emits the
+`-f` that supplies it, so a generated filelist resolves standalone:
+
+```
+# Include directories
++incdir+$REPO_ROOT/rtl/amba/includes
+
+# Reset macro header (`ALWAYS_FF_RST / `RST_ASSERTED)
+-f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
+
+# Monitor packages (must precede any module that references them)
+-f $REPO_ROOT/rtl/amba/filelists/monitor_pkgs.f
+```
+
+The `-f` matters as much as the `+incdir`: the header must be *compiled*
+ahead of the modules that expand the macro, not merely be findable. A
+consumer that hand-lists the generated `.sv` files instead of taking this
+filelist gets `Cannot find include file: 'reset_defs.svh'` — see
+`/GLOBAL_REQUIREMENTS.md` on resolving sources through filelists.
 
 ## Generated Variants
 

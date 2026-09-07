@@ -56,7 +56,7 @@ module cpu_rd_adapter
     input  logic         cpu_rd_32b_rvalid,
     output logic         cpu_rd_32b_rready,
 
-    // Shared free-running monitor-time (from monbus_axil_group.mon_time_out)
+    // Shared free-running monitor-time (from monbus_axil4_axil4_group.mon_time_out)
     input  monitor_common_pkg::monbus_timestamp_t i_mon_time,
 
     // Monitor side-band: rd wrapper

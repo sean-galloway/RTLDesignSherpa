@@ -68,7 +68,7 @@ module cpu_wr_adapter
     input  logic         cpu_wr_32b_bvalid,
     output logic         cpu_wr_32b_bready,
 
-    // Shared free-running monitor-time (from monbus_axil_group.mon_time_out)
+    // Shared free-running monitor-time (from monbus_axil4_axil4_group.mon_time_out)
     input  monitor_common_pkg::monbus_timestamp_t i_mon_time,
 
     // Monitor side-band: wr wrapper

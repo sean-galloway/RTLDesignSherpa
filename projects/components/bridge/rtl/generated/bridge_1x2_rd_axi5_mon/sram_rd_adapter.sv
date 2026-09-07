@@ -67,7 +67,7 @@ module sram_rd_adapter
     input  logic         sram_rd_axi_rvalid,
     output  logic         sram_rd_axi_rready,
 
-    // Shared free-running monitor-time (from monbus_axil_group.mon_time_out)
+    // Shared free-running monitor-time (from monbus_axil4_axil4_group.mon_time_out)
     input  monitor_common_pkg::monbus_timestamp_t i_mon_time,
 
     // Monitor side-band: rd wrapper

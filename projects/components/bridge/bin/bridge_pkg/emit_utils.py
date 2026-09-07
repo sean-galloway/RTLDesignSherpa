@@ -29,7 +29,7 @@ def generate_monitor_ports(channels_mode: str) -> List[str]:
     64-bit `monbus_<chan>_timestamp` side-band output (paired with
     the packet). A single shared `i_mon_time` input is declared once
     per adapter (not per channel) because every wrapper instance
-    consumes the same free-running counter from monbus_axil_group's
+    consumes the same free-running counter from monbus_axil4_axil4_group's
     `mon_time_out`.
 
     Args:
@@ -54,7 +54,7 @@ def generate_monitor_ports(channels_mode: str) -> List[str]:
     # internal wrapper instance. Always emit when monitoring is
     # enabled, regardless of which channel(s) are present.
     if channels:
-        lines.append("    // Shared free-running monitor-time (from monbus_axil_group.mon_time_out)")
+        lines.append("    // Shared free-running monitor-time (from monbus_axil4_axil4_group.mon_time_out)")
         lines.append("    input  monitor_common_pkg::monbus_timestamp_t i_mon_time,")
         lines.append("")
 

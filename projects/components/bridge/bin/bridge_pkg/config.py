@@ -198,12 +198,12 @@ class BridgeConfig:
     # internal_axil_group: per-bridge selector for the monbus
     # aggregation topology used by the "mon" variant. When True
     # (default, backward-compatible) the bridge instantiates its own
-    # monbus_arbiter + monbus_axil_group and exposes the group's AXIL
+    # monbus_arbiter + monbus_axil4_axil4_group and exposes the group's AXIL
     # slave/master, cfg, and IRQ at the bridge top. When False the
     # bridge still arbitrates per-port packets internally but skips
     # the AXIL group; it surfaces the arbiter's aggregated stream as
     # monbus_agg_* at the top so the integrator can merge with an
-    # existing external monbus_axil_group (e.g., STREAM's internal
+    # existing external monbus_axil4_axil4_group (e.g., STREAM's internal
     # group in the stream_char harness). Has no effect on the "no"
     # variant.
     internal_axil_group: bool = True
@@ -225,7 +225,7 @@ class BridgeConfig:
     #   use_no_monitors  = true  -> every wrapper USE_MONITOR=0
     #                               (overrides per-port `use_monitor=true`)
     # Per the user's spec: eventually, when use_no_monitors=true the
-    # bridge should also omit the monbus_arbiter + monbus_axil_group
+    # bridge should also omit the monbus_arbiter + monbus_axil4_axil4_group
     # entirely and tie off the top-level monitor surface. That second-
     # level optimisation is not implemented yet -- today the arbiter +
     # group are still emitted, but every client wrapper ties

@@ -68,15 +68,98 @@ def include_dirs(root: Path, path: Path) -> list[str]:
     return sorted(dirs)
 
 
-def parse_errors(root: Path, rel: str) -> list[str]:
-    path = root / rel
-    cmd = ["verilator", "--lint-only", "-sv", "--Wno-fatal"]
-    for d in include_dirs(root, path):
-        cmd.append(f"-I{d}")
-    cmd.append(str(path))
+def _syntax_errors(root: Path, cmd: list[str]) -> list[str]:
     r = subprocess.run(cmd, cwd=root, capture_output=True, text=True)
     return [ln for ln in (r.stdout + r.stderr).splitlines()
             if "syntax error" in ln]
+
+
+_FL_INDEX: dict[str, list[Path]] | None = None
+_FL_VERDICT: dict[str, list[str]] = {}
+
+
+def _filelist_index(root: Path) -> dict[str, list[Path]]:
+    """basename -> filelists that list it. Built ONCE.
+
+    Built lazily and cached because the naive form -- re-globbing every
+    filelist for every failing file -- made a 61-file commit exceed two
+    minutes and time out. A gate slow enough to hang a commit gets bypassed as
+    surely as one that cries wolf.
+    """
+    global _FL_INDEX
+    if _FL_INDEX is not None:
+        return _FL_INDEX
+    idx: dict[str, list[Path]] = {}
+    for pat in ("**/filelists/*.f", "**/lint_reports/verilator/*.f"):
+        for f in root.glob(pat):
+            try:
+                body = f.read_text(errors="ignore")
+            except OSError:
+                continue
+            for line in body.splitlines():
+                line = line.strip()
+                if line.endswith(".sv") and "/" in line:
+                    idx.setdefault(line.rsplit("/", 1)[1], []).append(f)
+    _FL_INDEX = idx
+    return idx
+
+
+def filelists_listing(root: Path, rel: str) -> list[Path]:
+    """Filelists that name this source (at most a few -- one is enough)."""
+    return _filelist_index(root).get(Path(rel).name, [])[:2]
+
+
+def parse_errors(root: Path, rel: str) -> list[str]:
+    """Syntax errors for one file, judged in a compilation unit that can
+    actually resolve its types.
+
+    Standalone first, because it is fast and covers most files. A file that
+    uses a type from a sibling package (`foo_pkg::bar_t`) CANNOT parse alone --
+    verilator says "unexpected IDENTIFIER, expecting TYPE-IDENTIFIER" and every
+    port after it cascades. Every generated bridge does this, so a
+    standalone-only gate called 61 healthy files broken while their suite
+    passed 70/70. Per silent-fallbacks rule 10, a gate that fires on correct
+    code is a gate people learn to bypass.
+
+    So when standalone fails, retry through a filelist that lists the file --
+    its real compilation unit -- and only report if it fails there too.
+    """
+    path = root / rel
+    try:
+        text = path.read_text(errors="ignore")
+    except OSError:
+        return []
+
+    # A file that imports or scope-resolves a package CANNOT parse alone, so
+    # the standalone attempt is guaranteed to fail and cost a verilator run
+    # each. Skipping it for those files took a 61-file generated-bridge commit
+    # from ~58s to a couple of seconds.
+    needs_unit = "::" in text or "import " in text
+
+    if not needs_unit:
+        cmd = ["verilator", "--lint-only", "-sv", "--Wno-fatal"]
+        for d in include_dirs(root, path):
+            cmd.append(f"-I{d}")
+        errs = _syntax_errors(root, cmd + [str(path)])
+        if not errs:
+            return []
+    else:
+        errs = [f"%Error: {rel}: needs its compilation unit (uses a package)"]
+
+    for fl in filelists_listing(root, rel):
+        key = str(fl)
+        if key not in _FL_VERDICT:
+            _FL_VERDICT[key] = _syntax_errors(
+                root, ["verilator", "--lint-only", "-sv", "--Wno-fatal",
+                       "-f", str(fl)])
+        if not _FL_VERDICT[key]:
+            return []      # parses in its real unit; standalone was the problem
+
+    if needs_unit and not filelists_listing(root, rel):
+        # No filelist lists it and it cannot stand alone -- we cannot judge it.
+        # Say nothing rather than cry wolf (silent-fallbacks rule 10).
+        return []
+    return errs
 
 
 def main(argv: list[str]) -> int:

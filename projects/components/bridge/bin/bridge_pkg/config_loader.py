@@ -331,7 +331,7 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
     # name = "bridge_5x3_channels" no longer produces "bridge_5x3_rw".
     bridge_name = bridge_data.get('name', '')
     # Optional per-bridge monbus topology selector (mon variant only).
-    # True = self-contained, internal monbus_axil_group.
+    # True = self-contained, internal monbus_axil4_axil4_group.
     # False = surface aggregated stream so an external group consumes it.
     internal_axil_group = bool(bridge_data.get('internal_axil_group', True))
     if 'internal_axil_group' in bridge_data:

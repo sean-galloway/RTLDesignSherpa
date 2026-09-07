@@ -92,11 +92,46 @@ The transfer protocol is unchanged from APB4, so the `axi4_to_apb5_shim`
 is a sideband wrapper over the APB4 conversion core; APB constraints
 (rw-only, 32-bit data) apply unchanged.
 
+## AXI5-Lite Slave Surface
+
+An `axil5` slave gets `axi4_to_axil5_{rd,wr}` at the boundary: the AXI4-Lite
+conversion core plus the AXI5-Lite sideband. Because the master side is AXI4,
+the sideband splits three ways, and which group a signal falls in is the whole
+story of what an AXI4 front end can and cannot express.
+
+| Group | Signals | Behaviour |
+|---|---|---|
+| **FORWARDED** | `awlock`, `awuser`, `wuser`, `arlock`, `aruser` (request); `buser`, `ruser` (response) | AXI4 has an equivalent, passed straight through and returned to the master. |
+| **TIED** | `awloop`, `awmecid`, `awmpam`, `awnsaid`, `awtrace`, `wpoison` (and the AR equivalents) | AXI5 additions with no AXI4 source. The port exists and is driven to `'0` — never left floating. There is deliberately no `ENABLE_` knob: there is nothing it could switch between. |
+| **TERMINATED** | `bloop`, `btrace` (and the R equivalents) | Completer-driven, with nothing on the AXI4 side to return them to. Accepted and dropped. |
+
+: AXI5-Lite sideband groups at an `axil5` slave boundary
+
+**The tied group is the honest limit of an AXI4 front end.** MPAM partition
+IDs, MECID encryption contexts and NSAID security IDs are properties of the
+*originating* master; a bridge whose masters speak AXI4 has nowhere to learn
+them, so it drives zeros rather than inventing values. If a design needs real
+MPAM or MECID at the slave, the master port has to be `axi5`, not `axi4`.
+
+**Sideband is held for the whole burst, not just the address beat.** AXI4
+presents `AWUSER`/`AWLOCK` once, with AW; AXI5-Lite needs them stable across
+every beat that follows. The shims capture on the address handshake and hold:
+
+```systemverilog
+wire w_aw_accept = s_axi_awvalid && s_axi_awready;
+wire [AXI_USER_WIDTH-1:0] w_awuser_sel = w_aw_accept ? s_axi_awuser
+                                                     : r_held_awuser;
+```
+
+A combinational passthrough here is a real defect rather than a style
+question: with two bursts in flight, burst A's later beats would carry burst
+B's `AWUSER`.
+
 ## Interop Matrix
 
-| Master \ Slave | axi4 | axi5 | apb / apb5 / axil |
-|---|---|---|---|
-| axi4 | native | base subset | via shim |
-| axi5 | sideband drops (warning) | **native sideband** when width-matched | sideband drops (warning) |
+| Master \ Slave | axi4 | axi5 | apb / apb5 / axil | axil5 |
+|---|---|---|---|---|
+| axi4 | native | base subset | via shim | via shim, sideband TIED to `'0` |
+| axi5 | sideband drops (warning) | **native sideband** when width-matched | sideband drops (warning) | forwarded where AXI4-expressible |
 
 Connectivity-gated features tighten the axi5→axi5 cell: they *require* it.

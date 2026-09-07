@@ -434,7 +434,7 @@ module bridge_mix_a_mon
     output logic         m_mon_axil_bready,
     input  logic [1:0] m_mon_axil_bresp,
 
-    // monbus_axil_group cfg
+    // monbus_axil4_axil4_group cfg
     input  logic [31:0] cfg_mon_group_base_addr,
     input  logic [31:0] cfg_mon_group_limit_addr,
     input  logic [15:0] cfg_mon_group_flush_watermark,
@@ -704,7 +704,7 @@ module bridge_mix_a_mon
     // ============================================================
     // Per-wrapper monbus streams (adapter -> arbiter input)
     // ============================================================
-    // Shared free-running timestamp from monbus_axil_group
+    // Shared free-running timestamp from monbus_axil4_axil4_group
     monitor_common_pkg::monbus_timestamp_t mon_time_w;
 
     logic                                  monbus_cpu_axi4_0_wr_valid;
@@ -748,7 +748,7 @@ module bridge_mix_a_mon
     monitor_common_pkg::monitor_packet_t   monbus_apb_periph_2_rd_packet;
     monitor_common_pkg::monbus_timestamp_t monbus_apb_periph_2_rd_timestamp;
 
-    // Arbiter output (-> monbus_axil_group input)
+    // Arbiter output (-> monbus_axil4_axil4_group input)
     logic                                  mon_arb_monbus_valid;
     logic                                  mon_arb_monbus_ready;
     monitor_common_pkg::monitor_packet_t   mon_arb_monbus_packet;

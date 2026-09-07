@@ -371,12 +371,16 @@ Masters (M)                                                    Slaves (S)
 **3. Data Multiplexing**
 - Mux master signals to selected slave
 - ID-based response routing (B, R channels)
-- Burst tracking (hold grant until xlast)
+- Burst tracking (grant held to the ADDRESS handshake, not to xlast -- the
+  generated arbiters read `lock until handshake`; see FR-6)
 
 **4. Transaction Tracking**
-- ID tables per slave for out-of-order support
-- Track {Master ID, Transaction ID} → Master mapping
+- In-order `bridge_id` FIFO per slave adapter (`Bridge ID Tracking - FIFO Mode
+  (In-Order)`), popped in AW/AR order
+- Track {Master ID, Transaction ID} -> Master mapping
 - Required for routing B/R channels back to correct master
+- ID tables for OUT-OF-ORDER support are not implemented: `bridge_cam.sv`
+  exists but is instantiated in zero generated bridges
 
 **5. Optional Performance Counters**
 - Transaction counts per master/slave
@@ -819,7 +823,7 @@ end
 | **Request generation** | Address ranges | TDEST decode | Address ranges |
 | **Response routing** | Grant-based | Grant-based | ID-based ★ |
 | **Burst support** | No | Packet (TLAST) | Yes (AWLEN/ARLEN) ★ |
-| **Out-of-order** | No | No | Yes (ID tables) ★ |
+| **Out-of-order** | No | No | No -- in-order `bridge_id` FIFO (`bridge_cam` unused) |
 | **Transaction tracking** | No | No | Yes ★ |
 | **Lines of Python** | ~500 | ~697 | **~900** (est.) |
 | **Lines of generated SV** | ~200 (4×4) | ~250 (4×4) | **~400** (4×4) (est.) |

@@ -7,7 +7,7 @@
 #   - A single s_cfg_axil_* AXIL slave appears in their place
 #   - The bridge top instantiates bridge_1x2_rd_regblock_cfg (regblock)
 #     and fans out hwif_out fields to every monitor and to the
-#     monbus_axil_group cfg
+#     monbus_axil4_axil4_group cfg
 #
 # This config exists explicitly to close the validation hole flagged
 # during stream_char_axil integration: prior to its addition NO config

@@ -745,10 +745,10 @@ def _emit_bridge_variant(
     #
     # internal_axil_group: from [bridge].internal_axil_group in the
     # TOML, defaults to True for backward compat. When False, the
-    # bridge skips its own monbus_axil_group instantiation and
+    # bridge skips its own monbus_axil4_axil4_group instantiation and
     # exposes the arbiter's aggregated stream as a top-level output
     # (monbus_agg_*) so the integrator can merge with an existing
-    # external monbus_axil_group -- the stream_char harness uses
+    # external monbus_axil4_axil4_group -- the stream_char harness uses
     # STREAM's internal group, for instance.
     internal_axil_group = getattr(config, 'internal_axil_group', True)
     gen = BridgeModuleGenerator(

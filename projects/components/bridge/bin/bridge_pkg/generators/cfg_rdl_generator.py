@@ -21,7 +21,7 @@ Design notes:
   - Address-range cfg is emitted only when n_addr_ranges > 0.
   - Group cfg (mon_group_*) is always emitted at the end of the
     addrmap; it's shared across all monitors at the
-    monbus_axil_group inside the bridge.
+    monbus_axil4_axil4_group inside the bridge.
 """
 
 from __future__ import annotations

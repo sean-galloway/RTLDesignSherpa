@@ -570,7 +570,7 @@ class Axi4TimingWrapper:
         After the 64->128-bit packet widening, every `_mon` wrapper also
         gets a 64-bit `monbus_timestamp` side-band output (captured by
         the arbiter alongside the packet) and an `i_mon_time` input that
-        carries the free-running time from monbus_axil_group's
+        carries the free-running time from monbus_axil4_axil4_group's
         `mon_time_out`. The default `mon_time_w` matches the shared net
         declared by BridgeModuleGenerator._generate_monitor_internal_signals().
         """

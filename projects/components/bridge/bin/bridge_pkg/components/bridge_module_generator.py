@@ -96,14 +96,14 @@ class BridgeModuleGenerator:
             enable_monitoring: Use *_mon wrapper versions
             internal_axil_group: When True (default, backward-compatible),
                 the bridge instantiates its own monbus_arbiter +
-                monbus_axil_group internally, and exposes the group's
+                monbus_axil4_axil4_group internally, and exposes the group's
                 AXIL slave/master, cfg, and IRQ at the bridge top --
                 drop-in monitoring for a fresh SoC. When False, the
                 bridge still instantiates the per-port arbiter but
                 skips the AXIL group; instead it exposes a single
                 aggregated monbus stream (monbus_agg_*) at the top
                 so the integrator can merge it with an EXTERNAL
-                monbus_axil_group that already exists in the SoC
+                monbus_axil4_axil4_group that already exists in the SoC
                 (the stream_char harness uses STREAM's internal
                 group, for example). When False, the bridge requires
                 `i_mon_time` as a top-level INPUT (fed from the
@@ -330,11 +330,11 @@ class BridgeModuleGenerator:
                 wrappers.append(MonitoredWrapper(s.name, s_idx, 'slave', 'rd'))
         return wrappers
 
-    # The monbus_axil_group's own port-level cfg signals (NOT the
+    # The monbus_axil4_axil4_group's own port-level cfg signals (NOT the
     # per-port wrapper cfg). Surfaced as `cfg_mon_group_<base>` at the
     # bridge top so the SoC integrator drives the post-arbiter filter
-    # behaviour. Mirrors monbus_axil_group's port list in
-    # rtl/amba/shared/monbus_axil_group.sv (unified location).
+    # behaviour. Mirrors monbus_axil4_axil4_group's port list in
+    # rtl/amba/monitor/monbus_axil4_axil4_group.sv (unified location).
     _MON_GROUP_CFG = (
         # Address window for the master write region
         ('base_addr',           32),
@@ -458,7 +458,7 @@ class BridgeModuleGenerator:
         return "       " if width == 1 else f"[{width-1}:0]"
 
     def _generate_monitor_top_ports(self, wrappers: List[MonitoredWrapper]) -> List[str]:
-        """Per-wrapper cfg inputs + monbus_axil_group's AXIL slave,
+        """Per-wrapper cfg inputs + monbus_axil4_axil4_group's AXIL slave,
         AXIL master, cfg_mon_group_*, and mon_irq_out ports. Caller has
         already ensured a trailing comma after the prior port group."""
         lines: List[str] = []
@@ -541,7 +541,7 @@ class BridgeModuleGenerator:
             # monbus group cfg — skipped when use_cfg_regblock=True
             # (the regblock backs these too; see _generate_cfg_regblock_*).
             if not self.use_cfg_regblock:
-                lines.append("    // monbus_axil_group cfg")
+                lines.append("    // monbus_axil4_axil4_group cfg")
                 for base, width in self._MON_GROUP_CFG:
                     width_decl = "       " if width == 1 else f"[{width-1}:0]"
                     lines.append(f"    input  logic {width_decl} cfg_mon_group_{base},")
@@ -551,19 +551,19 @@ class BridgeModuleGenerator:
         else:
             # External-aggregator mode: bridge does per-port monitoring +
             # arbitration but expects the integrator's existing
-            # monbus_axil_group to consume the merged stream. We surface
+            # monbus_axil4_axil4_group to consume the merged stream. We surface
             # the aggregated monbus output plus a free-running monitor-
             # time input the external group must drive.
             lines.append("    // ============================================================")
             lines.append("    // Aggregated monbus output (consumed by external axil_group)")
             lines.append("    // ============================================================")
             lines.append("    // Free-running monitor-time INPUT -- drive from external")
-            lines.append("    // monbus_axil_group's mon_time_out so every internal wrapper")
+            lines.append("    // monbus_axil4_axil4_group's mon_time_out so every internal wrapper")
             lines.append("    // and the external group share one timebase.")
             lines.append("    input  monitor_common_pkg::monbus_timestamp_t i_mon_time,")
             lines.append("")
             lines.append("    // Post-arbiter aggregated stream (merge externally with other")
-            lines.append("    // monbus sources, e.g. STREAM's monbus_axil_group input).")
+            lines.append("    // monbus sources, e.g. STREAM's monbus_axil4_axil4_group input).")
             lines.append("    output logic                                  monbus_agg_valid,")
             lines.append("    input  logic                                  monbus_agg_ready,")
             lines.append("    output monitor_common_pkg::monitor_packet_t   monbus_agg_packet,")
@@ -581,15 +581,15 @@ class BridgeModuleGenerator:
         side-band that travels alongside the packet.
 
         A single shared `mon_time_w` net is also declared here -- the
-        monbus_axil_group drives it (mon_time_out) and every wrapper
+        monbus_axil4_axil4_group drives it (mon_time_out) and every wrapper
         consumes it through its i_mon_time input."""
         lines: List[str] = []
         lines.append("    // ============================================================")
         lines.append("    // Per-wrapper monbus streams (adapter -> arbiter input)")
         lines.append("    // ============================================================")
-        # Shared timestamp net: monbus_axil_group's mon_time_out feeds
+        # Shared timestamp net: monbus_axil4_axil4_group's mon_time_out feeds
         # every wrapper's i_mon_time input.
-        lines.append("    // Shared free-running timestamp from monbus_axil_group")
+        lines.append("    // Shared free-running timestamp from monbus_axil4_axil4_group")
         lines.append("    monitor_common_pkg::monbus_timestamp_t mon_time_w;")
         lines.append("")
         for w in wrappers:
@@ -598,7 +598,7 @@ class BridgeModuleGenerator:
             lines.append(f"    monitor_common_pkg::monitor_packet_t   {w.monbus_packet};")
             lines.append(f"    monitor_common_pkg::monbus_timestamp_t {w.monbus_timestamp};")
         lines.append("")
-        lines.append("    // Arbiter output (-> monbus_axil_group input)")
+        lines.append("    // Arbiter output (-> monbus_axil4_axil4_group input)")
         lines.append("    logic                                  mon_arb_monbus_valid;")
         lines.append("    logic                                  mon_arb_monbus_ready;")
         lines.append("    monitor_common_pkg::monitor_packet_t   mon_arb_monbus_packet;")
@@ -614,7 +614,7 @@ class BridgeModuleGenerator:
 
         The shared `i_mon_time` net is bound once (not per channel) since
         the underlying wrappers share the same free-running counter from
-        monbus_axil_group's mon_time_out. The per-wrapper
+        monbus_axil4_axil4_group's mon_time_out. The per-wrapper
         `monbus_timestamp` side-band is paired with the matching packet
         wire so the arbiter can keep timestamps aligned with packets."""
         lines: List[str] = []
@@ -729,7 +729,7 @@ class BridgeModuleGenerator:
         return lines
 
     def _generate_monitor_aggregator(self, wrappers: List[MonitoredWrapper]) -> List[str]:
-        """Instantiate monbus_arbiter (always) and monbus_axil_group
+        """Instantiate monbus_arbiter (always) and monbus_axil4_axil4_group
         (only when internal_axil_group=True). With internal_axil_group=
         False the arbiter's aggregated output is surfaced at the bridge
         top via monbus_agg_* so the integrator can merge with an
@@ -861,10 +861,10 @@ class BridgeModuleGenerator:
             lines.append("    );")
             lines.append("")
         else:
-            # No internal monbus_axil_group: surface the arbiter's
+            # No internal monbus_axil4_axil4_group: surface the arbiter's
             # aggregated stream + shared timestamp net to the bridge top.
             lines.append("    // Surface the arbiter's aggregated monbus stream at the bridge top.")
-            lines.append("    // i_mon_time is an INPUT here (driven by external monbus_axil_group.mon_time_out)")
+            lines.append("    // i_mon_time is an INPUT here (driven by external monbus_axil4_axil4_group.mon_time_out)")
             lines.append("    // and is also assigned to the shared mon_time_w net that every wrapper")
             lines.append("    // consumes via its i_mon_time input.")
             lines.append("    assign mon_time_w           = i_mon_time;")
@@ -935,7 +935,7 @@ class BridgeModuleGenerator:
         if self.enable_monitoring and monitored and self.use_cfg_regblock:
             lines.extend(self._generate_cfg_regblock_instance(monitored))
 
-        # Monitor aggregator (monbus_arbiter + monbus_axil_group).
+        # Monitor aggregator (monbus_arbiter + monbus_axil4_axil4_group).
         if self.enable_monitoring and monitored:
             lines.extend(self._generate_monitor_aggregator(monitored))
 
