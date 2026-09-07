@@ -495,11 +495,17 @@ def _run_stream_mon(request, profile=False, testcase="cocotb_test_stream_mon"):
              or str(stream_levels.scale(2048, 8192, 65536))),
         )},
     }
+    # Monitors-on sim + the extra CAM-load/sweep UART traffic overruns the
+    # default 30-min real-time safety wall; give EVERY run through this helper
+    # room (this is a slow integration sim — real-time on the board).
+    #
+    # This was gated on `profile`, so test_stream_mon_compress ran under the
+    # 30-min default and was KILLED BY THE WALL at 33 min under load: no
+    # assertion, no mismatch, just FAILED, which reads as a compression defect.
+    # The rationale above applies to any monitors-on run here, not the profile
+    # one alone.
+    extra_env['TB_MAX_DURATION_MIN'] = '90'
     if profile:
-        # Monitors-on sim + the extra CAM-load/sweep UART traffic overruns the
-        # default 30-min real-time safety wall before the dense-bin sweep; give
-        # it room (this is a slow integration sim — real-time on the board).
-        extra_env['TB_MAX_DURATION_MIN'] = '90'
         extra_env['SIM_TIMEOUT_MS'] = '250'
     # WAVES support — follows the repo-standard pattern (test_stream_char.py):
     # --trace-fst in compile_args + waves= + sim_args + plus_args=['--trace'].
