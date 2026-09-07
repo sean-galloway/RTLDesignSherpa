@@ -267,6 +267,16 @@ def test_hpet(request, num_timers, vendor_id, revision_id, cdc_enable, test_leve
         "-Wno-GENUNNAMED",      # Unnamed generate blocks in PeakRDL output
         "-Wno-MULTIDRIVEN",     # Multiple drivers in PeakRDL field_combo
         "-Wno-UNUSEDPARAM",     # Unused parameters in package
+        # johnson2bin deliberately leaves leading_one_trailing_one's
+        # *_vector outputs open (`.leadingone_vector ()`), which is the
+        # explicit form -- omitting the pins entirely would be PINMISSING,
+        # which IS a real defect. Under -Wall the explicit form is fatal, so
+        # all six FULL-level hpet configs failed to build. Waiving the
+        # idiomatic case keeps the rest of -Wall readable; see
+        # vault/handbook/dv/silent-fallbacks.md rule 10, which records the
+        # bridge gate that failed 36 of 36 variants on exactly this and was
+        # therefore read by nobody.
+        "-Wno-PINCONNECTEMPTY",
     ]
     sim_args = [
         "--trace",
