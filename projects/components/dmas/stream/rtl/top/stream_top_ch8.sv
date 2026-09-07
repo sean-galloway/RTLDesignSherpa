@@ -1001,6 +1001,16 @@ module stream_top_ch8 #(
         // distinguished from "no error".
         hwif_in.SCHED_ERROR.SCHED_ERR.next = 8'(sched_error);
 
+        // Per-channel engine completion status. Same defect as SCHED_ERROR
+        // above: stream_core drives axi_{rd,wr}_all_complete, stream_top_ch8
+        // wires them to locals in BOTH generate branches, and then nothing
+        // connected them to their CSRs -- Vivado reported
+        // hwif_in[AXI_RD_COMPLETE][RD_COMPLETE][next] and its write twin as
+        // undriven nets. Both registers read 0 in every build, so a host could
+        // not tell "no transactions completed" from "this CSR is not wired".
+        hwif_in.AXI_RD_COMPLETE.RD_COMPLETE.next = 8'(axi_rd_all_complete);
+        hwif_in.AXI_WR_COMPLETE.WR_COMPLETE.next = 8'(axi_wr_all_complete);
+
         // Descriptor AXI monitor perf-window readback (RFC Stage E CSR route;
         // see DAXMON_PERF_CTRL @ 0x2D0 for the run control).
         hwif_in.MON.DAXMON_PERF_STATUS.WIN_ACTIVE.next  = dmon_perf_window_active;
