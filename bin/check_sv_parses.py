@@ -15,10 +15,10 @@ closing `end` was misindented to line up with the inner one -- and emitted
         end                     <-- and the real close is still an `end`
 
 Ten test failures surfaced a week later in one file, from one area's FULL run.
-The other fifteen were invisible because nothing in dv/ references them: the
-timing_characterization `asic_only` tree and a Yosys formal copy have no tests
-at all. A file that does not parse is not a subtle defect. It is the cheapest
-possible thing to detect, and it survived because nothing looked.
+The other fifteen were invisible because nothing in dv/ referenced them -- they
+sat in two "macro-free fork" trees that turned out to be duplicates and have
+since been deleted. A file that does not parse is not a subtle defect. It is
+the cheapest possible thing to detect, and it survived because nothing looked.
 
 Reports ONLY genuine syntax errors -- not missing modules, not width warnings,
 not lint opinions. A file is judged on whether it can be read, nothing more,
@@ -100,11 +100,7 @@ def main(argv: list[str]) -> int:
                 print(f"    {e.strip()}", file=sys.stderr)
             if len(errs) > 4:
                 print(f"    ... and {len(errs) - 4} more", file=sys.stderr)
-        print("\n  These cannot simulate, lint, or synthesise. If the file is a\n"
-              "  deliberately macro-free fork (the timing_characterization\n"
-              "  asic_only tree, a Yosys formal copy), it must NOT be converted\n"
-              "  to `ALWAYS_FF_RST at all -- revert it rather than repair it.",
-              file=sys.stderr)
+        print("\n  These cannot simulate, lint, or synthesise.", file=sys.stderr)
         return 1
 
     return 0

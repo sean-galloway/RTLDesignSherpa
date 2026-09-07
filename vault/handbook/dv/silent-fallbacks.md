@@ -182,9 +182,10 @@ misindented to line up with the inner one. Not a subtle defect: the files
 could not be READ.
 
 It survived a week because of where the damage landed. One file had a test,
-and that one area's FULL run reported ten failures. The other fifteen live in
-the `timing_characterization` asic_only tree and a Yosys formal copy, which
-have no tests at all. The blast radius of a sweep is every file it touches;
+and that one area's FULL run reported ten failures. The other fifteen lived in
+two trees nothing runs -- and that, chased one step further, turned out to be
+the more interesting finding: both were duplicates that should not have
+existed (see rule 15). The blast radius of a sweep is every file it touches;
 the observed radius is only the files something runs. Those are not the same
 set, and the difference is exactly where a sweep's damage goes to hide.
 
@@ -198,17 +199,45 @@ does real begin/end depth tracking. Re-deriving is verifiable; patching
 corruption is guesswork wearing a regex.
 
 **Ask whether the sweep should have touched the file at all.** Fifteen of the
-sixteen were in trees that are macro-free ON PURPOSE -- the asic_only fork is
-the preprocessor-free source an ASIC flow is characterised against, and the
-formal copy is Yosys-compatible, which the include is not. Both say so in
-their own headers. Those were reverted, not repaired, and
-`/GLOBAL_REQUIREMENTS.md` 1.1 now lists them as exceptions, because "all flops
-use the macro" and "this tree exists to have no macros" are both true and the
-second is invisible from the flop you are editing.
+sixteen were in trees that documented themselves as macro-free ON PURPOSE. I
+took that at face value and reverted them. That was wrong in a way rule 15
+covers: the documented reason had expired, and I had not tested it.
 
 `bin/check_sv_parses.py` (pre-commit) now fails any staged .sv that does not
 parse. It reports only genuine syntax errors -- not missing modules, not width
 warnings -- so per rule 10 it stays worth reading.
+
+### 15. A file that explains why it is a duplicate is still a duplicate
+Two trees in this repo declared themselves "macro-free forks" and gave reasons
+in their own headers. I read the reasons, believed them, and reverted a sweep
+that had touched them. Sean asked one question -- "the macros are designed to
+support asic and fpga" -- and both reasons collapsed.
+
+`timing_characterization/rtl/asic_only/` was 37 files, a full duplicate of
+`rtl/`, same module names, differing ONLY in reset spelling. Synthesised
+through Yosys + slang against ASAP7 it produced a byte-identical mapped
+netlist: 396 cells, 97 flops, every cell type matching. Its stated purpose --
+one source that can be characterised at several flop topologies -- had expired
+when `ALWAYS_FF_RST` became unconditionally async, and the flow reading it
+STILL passed `-DUSE_ASYNC_RESET`, a define meaningful only to the macro tree it
+was cloned from. That dead flag was the tell.
+
+`formal/cdc/cdc_handshake/cdc_handshake_formal.sv` claimed Yosys could not take
+the macro. Ninety-two other `.sby` units stage `reset_defs.svh` and read it
+with `-Iincludes`. Its own `.sby` had simply never staged it. Converted, staged,
+and it proves PASS. Its header also called itself a copy of
+`rtl/amba/cdc/cdc_handshake.sv` -- a file that does not exist anywhere.
+
+**The rule.** A duplicate's justification is written once, by whoever made it,
+and then never re-checked against a repo that keeps moving. Test the
+justification, do not read it: preprocess both copies, synthesise both, or run
+the tool the claim is about. Numbers settle it in minutes. And treat a dead
+flag -- a define the file cannot use, an option the flow ignores -- as evidence
+of where the file was cloned FROM.
+
+This is rule 12 one level up. There the copies of `reset_defs.svh` had drifted;
+here the copies had not drifted at all, and were still wrong, because the
+reason for copying had.
 
 ## The single question
 
