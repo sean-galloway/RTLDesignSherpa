@@ -334,6 +334,37 @@ module pumice_cmd_arbiter
             w_col_inflight_guard |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, wr_col_s));
     end
 
+    // PUMICE-PERF Phase 1: per-entry double-issue mask (blanket -> per-entry;
+    // lets different entries pipeline, 1/4 -> ~1/cycle).
+    logic [NUM_ENTRIES-1:0] w_rd_col_inflight_ent, w_wr_col_inflight_ent;
+    always_comb begin
+        w_rd_col_inflight_ent = '0;
+        w_wr_col_inflight_ent = '0;
+        if (w_sel_rd_col_f) w_rd_col_inflight_ent[w_sel_rd_col_s] = 1'b1;
+        if (w_sel_wr_col_f) w_wr_col_inflight_ent[w_sel_wr_col_s] = 1'b1;
+        if (rd_col_f)       w_rd_col_inflight_ent[rd_col_s]       = 1'b1;
+        if (wr_col_f)       w_wr_col_inflight_ent[wr_col_s]       = 1'b1;
+        if (r_pick_valid && r_do_rd) w_rd_col_inflight_ent[r_issue_slot]  = 1'b1;
+        if (r_pick_valid && r_do_wr) w_wr_col_inflight_ent[r_commit_slot] = 1'b1;
+    end
+    // AUTO-PRECHARGE same-bank serialization (CLOSE/AP): each RDA/WRA closes its
+    // bank, so a same-bank column may not issue until the close lands and the row
+    // is re-ACTed. Two spans, column masks ONLY, gated by f_ap(b):
+    //  * w_col_inflight_bank: a column to b anywhere in the pick pipeline --
+    //    reuses w_col_inflight_guard (selection + pre-pick; reads the REGISTERED
+    //    STAGE-1a snapshot for the selection term, so NO comb loop) plus the
+    //    output stage. Covers RDA1's ~3 pipeline cycles.
+    //  * r_ap_closing[b]: set on an AP-column fire, HELD until r_bank_row_active[b]
+    //    drops (measured 6 cyc RDA-fire->drop, > the pipeline depth) -- bridges
+    //    the stale-row window the pipeline span alone cannot. Together: continuous
+    //    coverage selection..close, so no same-bank AP read hits the closed row.
+    logic [NUM_BANKS-1:0] w_col_inflight_bank;
+    assign w_col_inflight_bank = w_col_inflight_guard
+                               | (w_inflight_col ? (NUM_BANKS'(1) << r_bank) : '0);
+    logic [NUM_BANKS-1:0] r_ap_closing, w_ap_fire_bank;
+    assign w_ap_fire_bank = (w_fire_out && (r_do_rd || r_do_wr) && r_ap_out)
+                          ? (NUM_BANKS'(1) << r_bank) : '0;
+
     assign w_guarded = r_guard0 | r_guard1 | w_prepick_guard | w_col_inflight_guard
                      | ((w_inflight_preact || w_inflight_col)
                         ? (NUM_BANKS'(1) << r_bank) : '0);
@@ -480,7 +511,8 @@ module pumice_cmd_arbiter
                 // parked-victim pattern in test_pumice_core_sched_order;
                 // latent since the bank-parallel refactor.
                 rd_col_m[e] = rhit && r_bank_rdwr_ready[RK0][rb] && tccd_ok_i && twtr_ok_i
-                              && rd_issue_ready_i && !w_inflight_col && !w_prepick_col
+                              && rd_issue_ready_i && !w_rd_col_inflight_ent[e]
+                                && !(f_ap(rb) && (w_col_inflight_bank[rb] || r_ap_closing[rb]))
                               && !w_rd_turn_block && !w_ap_col_guard[rb]
                               && !w_pre_col_guard[rb] && !w_preact_bank_guard[rb];
                 rd_act_m[e] = !r_bank_row_active[RK0][rb] && !w_guarded[rb]
@@ -495,7 +527,8 @@ module pumice_cmd_arbiter
             // DRAM) and the slot re-issues. ACT/PRE stay free.
             if (wr_sch_valid_i[e]) begin
                 wr_col_m[e] = whit && r_bank_rdwr_ready[RK0][wb] && tccd_ok_i && trtw_ok_i
-                              && wr_commit_ready_i && !w_inflight_col && !w_prepick_col
+                              && wr_commit_ready_i && !w_wr_col_inflight_ent[e]
+                                && !(f_ap(wb) && (w_col_inflight_bank[wb] || r_ap_closing[wb]))
                               && !w_wr_turn_block && !w_ap_col_guard[wb]
                               && !w_pre_col_guard[wb] && !w_preact_bank_guard[wb];
                 wr_act_m[e] = !r_bank_row_active[RK0][wb] && !w_guarded[wb]
@@ -1114,6 +1147,7 @@ module pumice_cmd_arbiter
         if (`RST_ASSERTED(aresetn)) begin
             r_guard0 <= '0;
             r_guard1 <= '0;
+            r_ap_closing <= '0;
             r_wrfire0 <= 1'b0; r_wrfire1 <= 1'b0;
             r_rdfire0 <= 1'b0; r_rdfire1 <= 1'b0;
             r_apguard0 <= '0;  r_apguard1 <= '0;
@@ -1121,6 +1155,7 @@ module pumice_cmd_arbiter
         end else begin
             r_guard1 <= r_guard0;
             r_guard0 <= '0;
+            r_ap_closing <= w_ap_fire_bank | (r_ap_closing & r_bank_row_active[RK0]);
             if (w_fire_out && (r_do_act || r_do_pre || r_do_rd || r_do_wr))
                 r_guard0 <= (NUM_BANKS'(1) << r_bank);
             r_preguard2 <= r_preguard1;
