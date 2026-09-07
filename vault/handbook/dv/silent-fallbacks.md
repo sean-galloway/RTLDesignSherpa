@@ -174,6 +174,42 @@ reported; it is a result deleted. Pin the seed to the test NODEID so a retry
 repeats the run it is retrying, and only then judge how much rerun budget is
 still earning its keep. See [[TOOL-015]].
 
+### 14. A mechanical sweep needs a mechanical check, and "it has no tests" is the reason to add one
+A single commit converted every remaining flop to `ALWAYS_FF_RST` and left
+SIXTEEN files Verilator cannot parse. The converter replaced the wrong `end`
+with the macro's closing paren, misled by sources whose closing `end` was
+misindented to line up with the inner one. Not a subtle defect: the files
+could not be READ.
+
+It survived a week because of where the damage landed. One file had a test,
+and that one area's FULL run reported ten failures. The other fifteen live in
+the `timing_characterization` asic_only tree and a Yosys formal copy, which
+have no tests at all. The blast radius of a sweep is every file it touches;
+the observed radius is only the files something runs. Those are not the same
+set, and the difference is exactly where a sweep's damage goes to hide.
+
+Two corollaries, both learned the expensive way here:
+
+**Repair from the last known-good version, not from the damaged text.** A
+first repair pattern-matched `) else` and destroyed four unrelated files'
+`assert property (...) else $error(...)`. The second took each file at the
+commit's PARENT and re-ran the repo's own converter, whose `find_block_end`
+does real begin/end depth tracking. Re-deriving is verifiable; patching
+corruption is guesswork wearing a regex.
+
+**Ask whether the sweep should have touched the file at all.** Fifteen of the
+sixteen were in trees that are macro-free ON PURPOSE -- the asic_only fork is
+the preprocessor-free source an ASIC flow is characterised against, and the
+formal copy is Yosys-compatible, which the include is not. Both say so in
+their own headers. Those were reverted, not repaired, and
+`/GLOBAL_REQUIREMENTS.md` 1.1 now lists them as exceptions, because "all flops
+use the macro" and "this tree exists to have no macros" are both true and the
+second is invisible from the flop you are editing.
+
+`bin/check_sv_parses.py` (pre-commit) now fails any staged .sv that does not
+parse. It reports only genuine syntax errors -- not missing modules, not width
+warnings -- so per rule 10 it stays worth reading.
+
 ## The single question
 
 Before believing any zero, ask: **if the thing I am looking for were happening,
