@@ -312,7 +312,7 @@ hists are to be RETIRED in favor of this observer (which also sidesteps
 the AMBA-HISTCH1 shared-primitive bug the bespoke path sits on — the
 observer instantiates the hist at NUM_CHANNELS=8); pumice keeps only the
 cheap counters (PAGE/SCHED/REF *_STATS, OBS_ROW_HIT, refresh-defer
-histograms). PUMICE-011 closed onto this task; the 1:1 accounting check
+histograms). PUMICE-020 closed onto this task; the 1:1 accounting check
 moves to the observer path when it lands.
 
 pumice rolls its own perf observation: `perf_rd_prod/bp/starv/idle`,

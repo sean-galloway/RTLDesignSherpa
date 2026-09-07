@@ -131,7 +131,7 @@ module axi_perf_latency_hist #(
     // reads vanish under Verilator: an LFSR-id run counted only the 33/64
     // even-id subset); synthesis truncates instead, so odd/even ids ALIAS
     // onto the single entry and same-cycle push/pop corrupt the occupancy
-    // count (AMBA-HISTCH1, surfaced on the pumice board as PUMICE-011's
+    // count (AMBA-HISTCH1, surfaced on the pumice board as PUMICE-020's
     // extra-returns side). NUM_CHANNELS>1 decodes are unchanged.
     assign w_ch_cmd  = (NUM_CHANNELS > 1) ? cmd_id [CW-1:0] : '0;
     assign w_ch_dat  = (NUM_CHANNELS > 1) ? data_id[CW-1:0] : '0;

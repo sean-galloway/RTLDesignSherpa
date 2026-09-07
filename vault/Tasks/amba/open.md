@@ -119,7 +119,7 @@ case.
 **Where to look next.** `SystemExit` from `cocotb_test.simulator.run` is what a
 failed BUILD raises. Under 16 concurrent Verilator invocations the likely
 mechanism is ccache or Verilator artifact contention — the same class as
-PUMICE-010 ("concurrent Verilator/ccache compiles destroy each other's
+PUMICE-019 ("concurrent Verilator/ccache compiles destroy each other's
 artifacts"), but that one was diagnosed for a SHARED sim_build and this one
 has per-worker directories, so the shared resource is something else (ccache
 itself is the obvious candidate). Capture the failing worker's build log:
@@ -1724,7 +1724,7 @@ channel index ID BIT 0 into a ONE-entry array:
   single entry — same-cycle push/pop hit the same registers, the occupancy
   count corrupts, and `r_burst_active` churn produces multiple "first
   beat" events per burst. This is the likely mechanism behind the pumice
-  board's EXTRA-returns side of PUMICE-011 (168409 vs 64000).
+  board's EXTRA-returns side of PUMICE-020 (168409 vs 64000).
 
 Fix when touched: `w_ch_* = (NUM_CHANNELS > 1) ? id[CW-1:0] : '0;` for the
 cmd/data/resp decodes. NUM_CHANNELS>1 instantiations (the stream observers

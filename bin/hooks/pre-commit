@@ -31,8 +31,9 @@ STAGED=$(git diff --cached --name-only --diff-filter=ACM)
 fail=0
 
 # --- task-tracker integrity (vault/Tasks/) ------------------------------------
-# Duplicate IDs make every [[LINK]] ambiguous. COMMON-021, PUMICE-010 and
-# PUMICE-011 each ended up naming two unrelated tasks this way.
+# Duplicate IDs make every [[LINK]] ambiguous. COMMON-021 (and, until they
+# were renumbered to 019/020 on 2026-09-06, PUMICE-010/-011) each ended up
+# naming two unrelated tasks this way.
 if echo "$STAGED" | grep -q '^vault/Tasks/.*\.md$'; then
     echo "[pre-commit] Checking task-tracker IDs..."
     if ! "$PY" "$REPO_ROOT/bin/check_task_ids.py"; then

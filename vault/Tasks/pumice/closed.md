@@ -135,7 +135,7 @@ framing) or the DFI CDC; add them if a front-end bug ever needs the same
 cross-structure view.
 
 ## PUMICE-001 — Runtime-config axes corrupt data (board + sim)
-**Status:** closed 2026-08-25 — board re-validated on the fresh bitstream; matrix 65/70 with the 5 residuals split to PUMICE-011 (observability only). Issue #42.
+**Status:** closed 2026-08-25 — board re-validated on the fresh bitstream; matrix 65/70 with the 5 residuals split to PUMICE-020 (observability only). Issue #42.
 
 **Fixes landed 2026-07-23 (commit fab57682):**
 - `pumice_cmd_arbiter`: auto-precharge column guard. Under CLOSE the xDA
@@ -194,7 +194,7 @@ releveled bitslip0/tap7/eye0..14):**
   col_major/col_interleave) so the address-hash stays cell-consistent —
   DRAM-visible behaviour unchanged. Sim regression both families tests green.
 - matrix@1000 re-run: **65/70 — every family x config DATA-CLEAN.** The 5 flags
-  are the multiid 1:1 hist anomaly only (data clean) → split to PUMICE-011.
+  are the multiid 1:1 hist anomaly only (data clean) → split to PUMICE-020.
 - tREFI soak gate: **0/15 dirty** (default / tiny 0x40 / huge 0xFFFF) — the
   PUMICE-004 refresh fix re-validated on the current bitstream.
 - Config-axis perf, all as designed: open_page/reorder 13–13.8x baseline on
@@ -502,8 +502,8 @@ Fix: fold WRA->WR and RDA->RD in `_handle_command` (auto-precharge already
 carried in addr bit 10 for both paths). All LPDDR2 traffic tests now pass;
 xfail removed.
 
-## PUMICE-010 — top-tier shared sim_build races under clean parallel runs
-**Status:** open 2026-08-23 — mechanism confirmed twice, serial run is the workaround
+## PUMICE-019 — top-tier shared sim_build races under clean parallel runs
+**Status:** closed 2026-08-26 — fixed via per-worker build dirs (was: open 2026-08-23, mechanism confirmed twice, serial run the workaround)
 
 `dv/tests/top/test_pumice_top.py::_run` shares one compiled sim per parameter
 set (`local_sim_build/shared_nr1` / `shared_nr2`) so the suite compiles ~twice
@@ -549,8 +549,8 @@ spurious FAILs / 126 reruns). Seed echo also landed: every wrapper prints
 `[seed] <tag> ...SEED=<n>` so pytest surfaces it for failing tests and a
 one-off red is reproducible after logs are cleaned.
 
-## PUMICE-011 — multiid read-return accounting: hist total != txn_count (data clean)
-**Status:** open 2026-08-25 — deterministic, observability-only
+## PUMICE-020 — multiid read-return accounting: hist total != txn_count (data clean)
+**Status:** closed 2026-08-26 — root cause found (AMBA-HISTCH1); 1:1 check moves to the observer path (PUMICE-016) (was: open 2026-08-25, deterministic, observability-only)
 
 `col_major_bl8_multiid` (id_mode=LFSR) at medium@1000 reports a 1:1 violation:
 latency-hist total 168409 vs txn_count 64000 (EXTRA returns) — while the DATA

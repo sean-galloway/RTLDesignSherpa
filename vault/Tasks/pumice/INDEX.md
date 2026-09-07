@@ -1,6 +1,6 @@
 # pumice — task rollup
 
-**Next ID: PUMICE-019** — never recycle a number, even when its task closed.
+**Next ID: PUMICE-021** — never recycle a number, even when its task closed.
 
 DDR2/LPDDR2 memory controller (`projects/components/memory-controllers/pumice-ddr2-lpddr2/`).
 
@@ -8,7 +8,7 @@ DDR2/LPDDR2 memory controller (`projects/components/memory-controllers/pumice-dd
 |---|---|
 | [active](active.md) | 0 |
 | [open](open.md) | 6 |
-| [closed](closed.md) | 12 |
+| [closed](closed.md) | 14 |
 | [dropped](dropped.md) | 1 |
 
 ## Active
@@ -42,20 +42,22 @@ as open, not active. See the caveat under the shortlist.)
   [[signal-contracts-and-kmaps]]. Not startable from the pumice side until
   the emitter learns the new form.
 
-## WARNING — task IDs 009-012 were REUSED
+## Task-ID reuse — RESOLVED 2026-09-06
 
-`closed.md` holds an ORIGINAL series (PUMICE-009 gearing, -010 addr-map
-single knob, -011 LPDDR2 MR init, -012 LPDDR2 write-AP dropped writes). A
-LATER series reused three of those numbers for unrelated work: "PUMICE-010"
-(per-worker sim_builds), "PUMICE-011" (AMBA-HISTCH1 + multiid hist
-accounting), and "PUMICE-012" (structure trackers). The later 010/011 were
-never filed as their own entries and survive only as prose here and in
-session memory.
+`closed.md` held an ORIGINAL series (PUMICE-009 gearing, -010 addr-map single
+knob, -011 LPDDR2 MR init, -012 LPDDR2 write-AP dropped writes). A LATER series
+had reused three of those numbers for unrelated work. All three are now
+renumbered to unique IDs (never recycled), with every reference updated:
 
-So **a bare `[[PUMICE-010]]` / `[[PUMICE-011]]` link is ambiguous** — check
-the date and subject before trusting it. Two renumbers on 2026-08-28: the trackers task 012 -> **PUMICE-015**
-(filed closed), and the live observer task 008 -> **PUMICE-016** so the only
-remaining PUMICE-008 is the dropped deskew task. Do not recycle an ID just because its task closed.
+- "PUMICE-012" (structure trackers) -> **PUMICE-015** (2026-08-28)
+- "PUMICE-010" (per-worker sim_builds / seed echo) -> **PUMICE-019** (2026-09-06)
+- "PUMICE-011" (AMBA-HISTCH1 + multiid hist accounting) -> **PUMICE-020** (2026-09-06)
+
+Code, DV, docs and session memory were updated in the same pass, and the pumice
+grandfathers were removed from `bin/check_task_ids.py`. A bare `[[PUMICE-010]]`
+/ `[[PUMICE-011]]` now unambiguously means the ORIGINAL addr-map / LPDDR2-init
+task. The 008 observer renumber (-> PUMICE-016) stands; the only remaining
+PUMICE-008 is the dropped deskew task. Do not recycle an ID.
 
 ## Reading order for someone picking this up
 

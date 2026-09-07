@@ -584,7 +584,7 @@ def _run(request, testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
     # whatever directory it is handed, so under `pytest -n` two workers
     # clobbered each other mid-build -- "make terminated with error 2", 13 of
     # 28. Every one of them passes in isolation, which is why it survived: the
-    # collision only exists with parallel workers (PUMICE-010: sharing is safe
+    # collision only exists with parallel workers (PUMICE-019: sharing is safe
     # only WITHIN one process).
     tag = request.node.name.replace("[", "_").replace("]", "").replace("-", "_")
     sim_build = sim_build_path(tests_dir, tag)

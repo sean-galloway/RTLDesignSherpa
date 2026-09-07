@@ -700,7 +700,7 @@ def _run(request, testcase, extra_env=None, params_over=None):
     # cocotb testcase is selected at runtime), so the full suite compiles ~twice
     # (nr1 + nr2) instead of once per test — the run is otherwise recompile-bound.
     #
-    # PUMICE-010: sharing is only safe WITHIN one process. cocotb_test's
+    # PUMICE-019: sharing is only safe WITHIN one process. cocotb_test's
     # Verilator path re-runs `verilator -cc` + make UNCONDITIONALLY on every
     # run() call (no staleness check), so two processes in one sim_build
     # regenerate the sources under each other's compiles/sims and destroy the
@@ -712,7 +712,7 @@ def _run(request, testcase, extra_env=None, params_over=None):
     build_key = "nr" + params["NUM_RANKS"] + (f"_{_worker}" if _worker else "")
     sim_build = sim_build_path(tests_dir, "shared_" + build_key)
     os.makedirs(sim_build, exist_ok=True)
-    # PUMICE-010: echo the per-test seed. pytest shows captured stdout for
+    # PUMICE-019: echo the per-test seed. pytest shows captured stdout for
     # FAILING tests, so a one-off red is reproducible with PUMICE_SEED=<n>
     # even after logs/ are cleaned.
     seed = os.environ.get("PUMICE_SEED", str(random.randint(0, 100000)))

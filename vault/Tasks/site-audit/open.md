@@ -7,13 +7,14 @@
 **Priority:** P3 — bookkeeping, but it makes the rollup counts lie
 **Area:** cross-cutting (common + pumice + amba) — filed here rather
 than in `common/` because it is not common-area work; most of the
-affected tasks happen to be COMMON-* but two are pumice and one amba.
+affected tasks happen to be COMMON-* and one amba. (The two pumice ones,
+PUMICE-010/-011, were renumbered to PUMICE-019/-020 and re-statused closed on
+2026-09-06 — no longer warnings.)
 
 `bin/check_task_ids.py` reports these as WARNINGS (it deliberately does not
 auto-fix them):
 
     common:  COMMON-010, -014, -015, -016, -017, -018, -019, -021
-    pumice:  PUMICE-010, PUMICE-011
     amba:    NEXYSA7-STREAM  (in closed.md, body says dropped)
 
 Each lives in a terminal page (`closed.md` / `dropped.md`) while its body

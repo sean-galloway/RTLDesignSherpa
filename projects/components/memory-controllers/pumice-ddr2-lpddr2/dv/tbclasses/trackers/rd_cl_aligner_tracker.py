@@ -90,7 +90,7 @@ class RdClAlignerTracker:
         emit_hs  = is_high(self.dut, 'rd_valid_o') and \
                    is_high(self.dut, 'rd_ready_i')
         # dfi_rddata_valid is fire-and-forget: a beat presented while the
-        # downstream FIFO is full is GONE (the PUMICE-011 sizing bug).
+        # downstream FIFO is full is GONE (the PUMICE-020 sizing bug).
         # The RTL asserts on it now; this makes it visible in the log too.
         if is_high(self.dut, 'rd_valid_o') and not is_high(self.dut, 'rd_ready_i'):
             self._push("EMIT_STALL", data="return FIFO full")

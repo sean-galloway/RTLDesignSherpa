@@ -1221,7 +1221,7 @@ async def cocotb_test_pumice_core_perf_paging_sched_cross(dut):
 
 
 def _echo_seed(tag):
-    # PUMICE-010: pytest shows captured stdout for FAILING tests, so a
+    # PUMICE-019: pytest shows captured stdout for FAILING tests, so a
     # one-off red is reproducible with SEED=<n> after the fact.
     sd = os.environ.get('SEED', str(random.randint(0, 100000)))
     print(f"[seed] {tag} SEED={sd}")

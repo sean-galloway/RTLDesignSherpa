@@ -247,7 +247,7 @@ async def latency_hist_ch1_odd_id_test(dut):
     transaction is simply not counted (an LFSR-id run counted exactly the
     even-id subset, 33/64); in synthesis the index truncates instead and
     odd/even ids alias onto the single entry, corrupting the occupancy count
-    (AMBA-HISTCH1, seen on the pumice board as PUMICE-011's extra returns).
+    (AMBA-HISTCH1, seen on the pumice board as PUMICE-020's extra returns).
 
     Runs only on the NUM_CHANNELS=1 build; the multi-channel builds decode
     real channel indices and are covered by the tests above.

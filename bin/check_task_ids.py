@@ -3,8 +3,9 @@
 
 Three failure modes this catches, all of which have actually happened:
 
-1. **Duplicate IDs within an area.** PUMICE-010/011 each name two unrelated
-   tasks; PUMICE-008 exists as both a dropped task and a live open one.
+1. **Duplicate IDs within an area.** PUMICE-010/011 each ONCE named two
+   unrelated tasks (renumbered 2026-09-06 to PUMICE-019/020); PUMICE-008
+   existed as both a dropped task and a live open one.
    A bare `[[PUMICE-011]]` link is then ambiguous and the rollup counts lie.
 2. **A stale `Next ID:` line.** Each area INDEX.md declares the next free
    number. If it is missing or <= the highest ID in use, the next person
@@ -51,8 +52,6 @@ KNOWN_COLLISIONS = {
     ("amba", "AMBA-INTEG"),
     ("common", "COMMON-021"),
     ("docs-review", "DOCREV-001"),
-    ("pumice", "PUMICE-010"),
-    ("pumice", "PUMICE-011"),
 }
 
 # closed.md / dropped.md bodies should not claim to be live.

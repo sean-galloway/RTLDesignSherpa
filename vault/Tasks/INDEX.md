@@ -38,8 +38,9 @@ note, a commit message, or a session memory has to keep meaning one thing
 five months later.
 
 This is enforced, because it already went wrong. `PUMICE-010` and
-`PUMICE-011` each name TWO unrelated tasks (per-worker sim_builds vs a
-single-knob address map; HISTCH1 accounting vs LPDDR2 MR init), and
+`PUMICE-011` each ONCE named TWO unrelated tasks (per-worker sim_builds vs a
+single-knob address map; HISTCH1 accounting vs LPDDR2 MR init) — the reused
+pair was renumbered to `PUMICE-019` / `PUMICE-020` on 2026-09-06. Also,
 `PUMICE-008` DID exist as both a dropped task and a live open one; the live
 one was renumbered to PUMICE-016 on 2026-08-28. The remaining collisions are
 historical (both sides terminal), so a bare link to them must be
