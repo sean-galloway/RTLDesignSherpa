@@ -54,7 +54,7 @@ def main() -> int:
 
           # In a working LiteX environment:
           python3 -m litedram.gen \\
-              --output-dir=projects/NexysA7/ddr2-characterization/flows-ours-vex/rtl-vivado/a7ddrphy/ \\
+              --output-dir=projects/fpga-systems/NexysA7/pumice/ddr2-characterization/flows-ours-vex/rtl-vivado/a7ddrphy/ \\
               --board=digilent_nexys_a7 \\
               --memtype=DDR2 \\
               --gen-phy-only

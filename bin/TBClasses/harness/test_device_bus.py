@@ -22,7 +22,7 @@ from TBClasses.harness.device import Device, DeviceBus   # noqa: E402
 
 PUMICE_REGMAP = str(_REPO / "projects/components/memory-controllers/"
                     "pumice-ddr2-lpddr2/dv/tbclasses/pumice_regmap.py")
-HARNESS_REGMAP = str(_REPO / "projects/fpga-systems/NexysA7/shared/"
+HARNESS_REGMAP = str(_REPO / "projects/fpga-systems/NexysA7/pumice/"
                      "ddr2_char_framework/dv/tbclasses/harness_csr_regmap.py")
 
 
