@@ -119,7 +119,9 @@ dv/tests/                        (flat layout, shared across blocks)
 - 16-bit down counter
 - Binary/BCD counting with proper decrement function
 - Mode 0: Interrupt on terminal count
-- LSB/MSB/both byte access state machines
+- Byte-lane handling for LSB/MSB/both write modes (the r_wr/rd_byte_state
+  machines are vestigial -- written, never read; RW=01/10 are single-write
+  paths and RW=11 is full-word)
 - GATE input control
 - OUT signal generation
 - Status reporting (NULL_COUNT, mode, RW mode, BCD, OUT)
@@ -216,7 +218,8 @@ CDC_ENABLE=0 and CDC_ENABLE=1, 6/6 passing.)
 3. **Mode 0 First**: Simplest mode, validates infrastructure before complex modes
 4. **Interrupt Array**: Direct OUT signals, following HPET timer_irq pattern
 5. **Edge Detection**: Control word write generates pulse, not level
-6. **Byte Access**: Full state machines for LSB/MSB/both modes
+6. **Byte Access**: single-write paths per RW mode (the byte-state
+   machines are vestigial dead code -- see #52)
 7. **BCD Support**: Implemented in decrement function, ready for testing
 
 ### Next Steps

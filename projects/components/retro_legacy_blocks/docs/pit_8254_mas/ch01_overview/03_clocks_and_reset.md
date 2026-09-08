@@ -128,7 +128,10 @@ end
 #### Reset Signal
 
 **presetn (Active-Low Asynchronous Reset):**
-- **Type:** Asynchronous assertion, synchronous deassertion
+- **Type:** Asynchronous assertion, synchronous deassertion (hand-written
+  logic). The generated register file (pit_regs.sv) is the exception: it
+  resets SYNCHRONOUSLY (plain always_ff with rst = ~rst_n), so its fields
+  do not reset until a clock edge arrives
 - **Polarity:** Active-low (standard APB convention)
 - **Domain:** Applied to all clock domains
 - **Purpose:** Initialize all state to known values
@@ -182,7 +185,8 @@ pclk   ───┐  ┐  ┐  ┐  ┐  ┐  ┐──
    - Occurs as soon as `presetn=0`
 
 2. **Hold Period:**
-   - Must hold `presetn=0` for minimum 2 clock cycles
+   - Must hold `presetn=0` for minimum 10 clock cycles of the slowest
+     clock (matches the top-level interface chapter)
    - Ensures all registers properly reset
    - Applies to slowest clock domain (if CDC enabled)
 

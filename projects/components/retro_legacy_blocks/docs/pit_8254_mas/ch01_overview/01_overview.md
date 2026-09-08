@@ -151,8 +151,8 @@ The APB PIT 8254 is architecturally compatible with the Intel 8254 but has key d
 | **Modes** | 0-5 | Mode 0 only (currently) |
 | **BCD Counting** | Supported | Implemented, not tested |
 | **Read/Write** | Byte-by-byte | Full 16-bit via APB |
-| **Latch Command** | Supported | Not implemented |
-| **Read-Back Command** | Supported | Simplified (status only) |
+| **Latch Command** | Supported | Deviant: latches on DATA write while RW=00, never releases until RW changes (see ch05) |
+| **Read-Back Command** | Supported | No-op (SC=11 ignored; status bytes are always live) |
 | **Clock Source** | External CLK pins | Configurable (`pit_clk`) |
 | **Integration** | Standalone chip | SoC peripheral block |
 

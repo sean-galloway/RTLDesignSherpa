@@ -36,7 +36,9 @@
 | `0x018` | COUNTER2_DATA | RW | Counter 2 value |
 
 The register block decodes only address bits [4:0], so this 32-byte window
-aliases every 0x20 throughout the 4 KB APB region. Unmapped/aliased accesses
+aliases every 0x20 throughout the 4 KB APB region -- for READS and
+PIT_CONFIG writes only; command/data writes must use base offsets (see
+the top-level interface chapter and #52). Unmapped/aliased accesses
 never raise PSLVERR (the error outputs are tied off); 0x01C reads as 0. See
 the top-level interface chapter for details.
 
@@ -68,9 +70,17 @@ the top-level interface chapter for details.
 | Bits | Name | Description |
 |------|------|-------------|
 | [7:6] | SC[1:0] | Counter Select<br>`00` = Counter 0<br>`01` = Counter 1<br>`10` = Counter 2<br>`11` = Read-back command (not implemented) |
-| [5:4] | RW[1:0] | Read/Write Mode<br>`00` = Counter latch (not implemented)<br>`01` = LSB only<br>`10` = MSB only<br>`11` = LSB then MSB (recommended) |
+| [5:4] | RW[1:0] | Read/Write Mode<br>`00` = Counter latch (implemented, but NOT 8254-style -- see the latch note below)<br>`01` = LSB only<br>`10` = MSB only<br>`11` = LSB then MSB (recommended) |
 | [3:1] | M[2:0] | Counter Mode<br>`000` = Mode 0 (Interrupt on terminal count)<br>`001`-`101` = Modes 1-5 (not implemented) |
 | [0] | BCD | Counting Mode<br>`0` = Binary (16-bit, 0-65535)<br>`1` = BCD (4 digits, 0-9999) |
+
+**Counter latch (RW=00) exists but deviates from the 8254.** The latch
+triggers on a COUNTERx_DATA WRITE while RW=00 (a real 8254 latches on
+the control word itself); reads then return the latched value, and the
+latch never releases while RW stays 00 (any RW!=00 control word
+releases it). Because RW resets to 00, a data write before any control
+word latches instead of loading -- and a counter left at RW=00 can
+never be loaded. Tracked with the RTL findings in #52.
 
 **Control Word Format (8254-Compatible):**
 ```
@@ -144,7 +154,11 @@ bool bcd = counter0_status & 0x1;
 | [15:0] | COUNT | RW | Counter value (16-bit) |
 
 **Write Behavior:**
-- Must program control word BEFORE writing counter data
+- Must program control word BEFORE writing counter data (RW resets to 00,
+  where every data write LATCHES instead of loading -- see the latch note)
+- RW=10 (MSB only) takes the count's HIGH byte from PWDATA[7:0] (the
+  write-side mirror of the documented read quirk): write 0x00AB to load
+  0xAB00; a natural 0xAB00 write loads zero
 - Counter loads value immediately
 - If `GATE` high and `PIT_ENABLE=1`, counter starts decrementing
 - Writes while counting update the reload value and restart counting

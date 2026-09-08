@@ -71,7 +71,7 @@ module apb4_pit_8254 #(
 | `s_apb_PENABLE` | Input | 1 | APB enable. Asserted in second cycle of transfer (access phase). |
 | `s_apb_PWRITE` | Input | 1 | APB write/read. 1=write, 0=read. |
 | `s_apb_PWDATA` | Input | 32 | APB write data. Valid only when `s_apb_PWRITE=1`. |
-| `s_apb_PSTRB` | Input | 4 | APB write strobes (byte lane enables). Carried through to the register block's bit-enables, so partial-word writes update only the strobed bytes. |
+| `s_apb_PSTRB` | Input | 4 | APB write strobes (byte lane enables). Honored by the register STORAGE, but the counter-load capture takes all 16 bits of PWDATA unconditionally -- a partial-word COUNTERx_DATA write loads bus garbage into the unstrobed byte while storage keeps only the strobed one (RTL asymmetry, #52). Write COUNTERx_DATA full-word only. |
 | `s_apb_PPROT` | Input | 3 | APB protection attributes. Accepted for protocol completeness; not used by the decode. |
 | `s_apb_PRDATA` | Output | 32 | APB read data. Valid when `s_apb_PREADY=1` and `s_apb_PWRITE=0`. |
 | `s_apb_PREADY` | Output | 1 | APB ready. The wrapper converts APB to an internal command/response handshake, so PREADY inserts wait states: typically 2-3 `pclk` cycles single-clock, 4-6 cycles across the CDC. |
@@ -93,8 +93,14 @@ module apb4_pit_8254 #(
 
 `s_apb_PADDR` is 12 bits, but the register block decodes only address bits
 [4:0], giving a 32-byte register window that ALIASES throughout the 4 KB
-region: every 0x20 stride repeats the same registers (0x020 decodes as
-PIT_CONFIG, 0x024 as PIT_CONTROL, and so on). Within the window, 0x01C is the
+region: every 0x20 stride repeats the same registers for READS (0x020
+reads PIT_CONFIG, and so on) -- but only for READS and for PIT_CONFIG writes: the command strobes
+(control-word execution, counter loads) compare the FULL 12-bit
+address, so a PIT_CONTROL or COUNTERx_DATA write through an alias
+(0x024, 0x210, ...) updates storage without configuring or loading
+anything -- a silent no-op (RTL asymmetry, #52). Use base offsets
+for all command/data writes.
+Within the window, 0x01C is the
 only unmapped word - it reads as 0 and ignores writes. No access ever raises
 PSLVERR (the error outputs are tied off).
 
@@ -265,7 +271,9 @@ pready  ───────────────┐   ┌──────
 There is none. The register block's error outputs are tied off
 (`cpuif_wr_err = '0`, `readback_err = '0`), so `s_apb_PSLVERR` stays low for
 every access: an unmapped or aliased address reads as 0 (or the aliased
-register's value) and writes take effect on whatever the [4:0] decode selects.
+register's value). Aliased WRITES are not symmetrical -- see the address-map
+note above: only PIT_CONFIG writes take effect through aliases; command and
+counter-data writes are silent no-ops off their base offsets.
 Software cannot rely on a bus error to catch a bad pointer into this window.
 
 #### Integration Example

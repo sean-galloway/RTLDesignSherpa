@@ -493,20 +493,17 @@ if (counts > 65535) {
 - Counter 1: Watchdog, secondary timeout
 - Counter 2: Profiling, debugging measurements
 
-**4. Handle Counter Wrap in Profiling**
+**4. No Wrap Handling Needed in Mode 0**
 ```c
-// Down-counter wraps through 0
-if (start >= end) {
-    elapsed = start - end;
-} else {
-    elapsed = start + (65535 - end) + 1;
-}
+// The counter STOPS at zero (never wraps), so the difference is always valid
+elapsed = start - end;
 ```
 
 **5. Clear Interrupts Properly**
 ```c
 void pit_isr(void) {
-    // Read status to acknowledge
+    // Status reads have NO side effect; the counter reload below is the
+    // acknowledge (clears OUT / the irq)
     uint32_t status = read_register(PIT_STATUS);
 
     // Reload counter if needed (Mode 0)

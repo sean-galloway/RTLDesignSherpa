@@ -25,7 +25,10 @@
 
 **Component:** APB 8254 Programmable Interval Timer
 **Version:** 0.1 (Design Sketch)
-**Status:** 📋 Planning Phase
+**Status:** Historical planning sketch (2025). The delivered RTL
+DIVERGES from this document: Mode 0 only (no pit_mode_fsm, no 6-mode
+support), latch is write-triggered rather than control-word-triggered,
+and GATE is start-enable only. The MAS chapters are the authority.
 **Date:** 2025-11-06
 **Based On:** HPET microarchitecture and design patterns
 

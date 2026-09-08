@@ -157,7 +157,8 @@ This specification is organized into five chapters covering all aspects of the A
 - Only Mode 0 currently implemented and tested
 - BCD counting implemented but not yet verified
 - Modes 1-5 not implemented
-- Counter latching not implemented
+- Counter latching deviates from the 8254 (write-triggered, sticky while
+  RW=00 -- see ch05)
 
 ---
 

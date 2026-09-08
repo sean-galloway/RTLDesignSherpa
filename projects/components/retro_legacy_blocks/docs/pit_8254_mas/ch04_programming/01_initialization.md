@@ -266,19 +266,18 @@ write_register(COUNTER0_DATA, 1000);
 write_register(PIT_CONFIG, 0x01);  // Enable after config
 ```
 
-**Error 2: Not Waiting for Count Load**
+**Error 2 (retracted): "Not Waiting for Count Load" is not a real hazard**
 
 ```c
-// ❌ WRONG: Enable immediately after write
+// FINE: the count load is not gated by PIT_ENABLE, back-to-back APB
+// writes are serialized, and counting starts on the enable && gate re-arm
 write_register(COUNTER0_DATA, 1000);
-write_register(PIT_CONFIG, 0x01);  // May enable before count fully loaded
-
-// ✅ CORRECT: Verify count loaded (or add small delay)
-write_register(COUNTER0_DATA, 1000);
-// Optional: verify NULL_COUNT cleared
-uint32_t status = read_register(PIT_STATUS);
-assert((status & 0x40) == 0);  // Counter 0 NULL_COUNT should be 0
 write_register(PIT_CONFIG, 0x01);
+
+// If you want confirmation anyway, NULL_COUNT (status bit 6) clears once
+// the counter has taken the load:
+uint32_t status = read_register(PIT_STATUS);
+assert((status & 0x40) == 0);
 ```
 
 **Error 3: Wrong Control Word Format**
