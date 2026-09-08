@@ -417,7 +417,8 @@ class Axi4TimingWrapper:
                                 user_connector: Optional[str] = None,
                                 wuser_connector: Optional[str] = None,
                                 buser_connector: Optional[str] = None,
-                                ruser_connector: Optional[str] = None) -> None:
+                                ruser_connector: Optional[str] = None,
+                                overrides: Optional[dict] = None) -> None:
         """Wire the bridge-internal (fub_axi_*) side. `connector_prefix`
         is appended in front of each base port name (e.g.
         `xbar_ddr_axi_` or `fub_axi_`). When the connector for qos /
@@ -447,6 +448,11 @@ class Axi4TimingWrapper:
         for k, v in explicit.items():
             if v is not None:
                 defaults[k] = v
+        # Arbitrary per-port overrides, applied last. Used to splice a gate
+        # into a handshake -- BRIDGE-011 binds awvalid/arvalid through a
+        # not-full term rather than straight to the crossbar signal.
+        if overrides:
+            defaults.update(overrides)
         pairs = self._build_section_pairs(prefix, connector_prefix, defaults)
         self._sections.append((
             f"Bridge-internal side ({prefix.rstrip('_')})",

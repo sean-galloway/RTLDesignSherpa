@@ -312,8 +312,12 @@ module cpu_wr_adapter
             r_aw_active_target <= comb_slave_select_aw;
         end
     )
-    assign aw_gate_ok = (aw_trk_wptr == aw_trk_rptr) ||
-                        (comb_slave_select_aw == r_aw_active_target);
+    logic aw_trk_full;
+    assign aw_trk_full = (aw_trk_wptr[AW_TRK_AW] != aw_trk_rptr[AW_TRK_AW]) &&
+                         (aw_trk_wptr[AW_TRK_AW-1:0] == aw_trk_rptr[AW_TRK_AW-1:0]);
+    assign aw_gate_ok = ((aw_trk_wptr == aw_trk_rptr) ||
+                         (comb_slave_select_aw == r_aw_active_target)) &&
+                        !aw_trk_full;
 
     // -------- AW->W slave_select tracking FIFO --------
     // Same push as AW (records slave_select at handshake);

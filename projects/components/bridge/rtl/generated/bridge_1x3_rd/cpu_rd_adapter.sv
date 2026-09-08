@@ -438,8 +438,12 @@ module cpu_rd_adapter
             r_ar_active_target <= comb_slave_select_ar;
         end
     )
-    assign ar_gate_ok = (ar_trk_wptr == ar_trk_rptr) ||
-                        (comb_slave_select_ar == r_ar_active_target);
+    logic ar_trk_full;
+    assign ar_trk_full = (ar_trk_wptr[AR_TRK_AW] != ar_trk_rptr[AR_TRK_AW]) &&
+                         (ar_trk_wptr[AR_TRK_AW-1:0] == ar_trk_rptr[AR_TRK_AW-1:0]);
+    assign ar_gate_ok = ((ar_trk_wptr == ar_trk_rptr) ||
+                         (comb_slave_select_ar == r_ar_active_target)) &&
+                        !ar_trk_full;
 
     // AR-ready MUX (request side: uses combinational comb_slave_select_ar)
     always_comb begin

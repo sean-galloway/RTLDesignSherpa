@@ -121,6 +121,10 @@ module subtractive_adapter
     // ================================================================
 
     // Write Channel FIFO (In-Order) - AXI4 Protocol
+    // BRIDGE-011 not-full gating: w_sub_awready is the sub-block's
+    // own ready, masked before it reaches the crossbar.
+    logic wr_trk_full;
+    logic w_sub_awready;
     localparam WR_FIFO_DEPTH = 16;
     logic [BRIDGE_ID_WIDTH-1:0] wr_fifo [WR_FIFO_DEPTH];
     logic [$clog2(WR_FIFO_DEPTH):0] wr_ptr, rd_ptr;
@@ -153,6 +157,17 @@ module subtractive_adapter
     // is open from the moment a B arrives.
     assign bid_bridge_id = wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];
     assign bid_valid     = (wr_ptr != rd_ptr);
+
+    // BRIDGE-011: this FIFO routes B by POSITION, so overrunning it
+    // misroutes responses -- past WR_FIFO_DEPTH a live entry is
+    // overwritten and its B goes to the wrong master; at twice the
+    // depth the pointers lap, (wr_ptr != rd_ptr) reads EMPTY and the
+    // response is never routed at all. Gate the AW handshake on
+    // not-full in BOTH directions. Draining never depends on
+    // accepting a further AW, so this cannot deadlock.
+    assign wr_trk_full = (wr_ptr[$clog2(WR_FIFO_DEPTH)] != rd_ptr[$clog2(WR_FIFO_DEPTH)]) &&
+                         (wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0] == rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]);
+    assign xbar_subtractive_axi_awready = w_sub_awready && !wr_trk_full;
 
     // AXI4 Master Write Timing Wrapper
     axi4_master_wr_mon #(
@@ -188,8 +203,8 @@ module subtractive_adapter
         .fub_axi_awqos(xbar_subtractive_axi_awqos),
         .fub_axi_awregion(xbar_subtractive_axi_awregion),
         .fub_axi_awuser(xbar_subtractive_axi_awuser),
-        .fub_axi_awvalid(xbar_subtractive_axi_awvalid),
-        .fub_axi_awready(xbar_subtractive_axi_awready),
+        .fub_axi_awvalid(xbar_subtractive_axi_awvalid && !wr_trk_full),
+        .fub_axi_awready(w_sub_awready),
         .fub_axi_wdata(xbar_subtractive_axi_wdata),
         .fub_axi_wstrb(xbar_subtractive_axi_wstrb),
         .fub_axi_wlast(xbar_subtractive_axi_wlast),

@@ -131,7 +131,8 @@ class Axi4ToApbShim:
                                   bvalid_intercept: Optional[str] = None,
                                   bready_intercept: Optional[str] = None,
                                   bid_intercept: Optional[str] = None,
-                                  bresp_intercept: Optional[str] = None) -> None:
+                                  bresp_intercept: Optional[str] = None,
+                                  gate_full: str = None) -> None:
         """Wire AW/W to the crossbar and B to either the crossbar or
         the supplied intercept signals (typically the adapter's
         `converter_bvalid` / `converter_bready` so the bridge_id-tracking
@@ -139,6 +140,15 @@ class Axi4ToApbShim:
         if not self.has_write:
             raise RuntimeError("Axi4ToApbShim: cannot connect write channel when has_write=False")
         pfx = crossbar_prefix
+        # BRIDGE-011: when this shim is the block FACING THE CROSSBAR
+        # (no timing wrapper ahead of it), it owns the not-full gate.
+        # With a wrapper present the wrapper is gated instead and these
+        # are the plain internal nets -- gating both would collapse two
+        # distinct nets onto one signal and multidrive it.
+        aw_valid_conn = (f'{pfx}awvalid && !{gate_full}'
+                         if gate_full else f'{pfx}awvalid')
+        aw_ready_conn = (f'w_sub_awready' if gate_full
+                         else f'{pfx}awready')
         pairs = [
             ('s_axi_awid', f'{pfx}awid'),
             ('s_axi_awaddr', f'{pfx}awaddr'),
@@ -151,8 +161,8 @@ class Axi4ToApbShim:
             ('s_axi_awqos', f'{pfx}awqos'),
             ('s_axi_awregion', f'{pfx}awregion'),
             ('s_axi_awuser', f'{pfx}awuser'),
-            ('s_axi_awvalid', f'{pfx}awvalid'),
-            ('s_axi_awready', f'{pfx}awready'),
+            ('s_axi_awvalid', aw_valid_conn),
+            ('s_axi_awready', aw_ready_conn),
             ('s_axi_wdata', f'{pfx}wdata'),
             ('s_axi_wstrb', f'{pfx}wstrb'),
             ('s_axi_wlast', f'{pfx}wlast'),
@@ -203,10 +213,20 @@ class Axi4ToApbShim:
     def connect_axi_read_channel(self, crossbar_prefix: str,
                                  rvalid_intercept: Optional[str] = None,
                                  rready_intercept: Optional[str] = None,
-                                 rlast_intercept: Optional[str] = None) -> None:
+                                 rlast_intercept: Optional[str] = None,
+                                  gate_full: str = None) -> None:
         if not self.has_read:
             raise RuntimeError("Axi4ToApbShim: cannot connect read channel when has_read=False")
         pfx = crossbar_prefix
+        # BRIDGE-011: when this shim is the block FACING THE CROSSBAR
+        # (no timing wrapper ahead of it), it owns the not-full gate.
+        # With a wrapper present the wrapper is gated instead and these
+        # are the plain internal nets -- gating both would collapse two
+        # distinct nets onto one signal and multidrive it.
+        ar_valid_conn = (f'{pfx}arvalid && !{gate_full}'
+                         if gate_full else f'{pfx}arvalid')
+        ar_ready_conn = (f'w_sub_arready' if gate_full
+                         else f'{pfx}arready')
         pairs = [
             ('s_axi_arid', f'{pfx}arid'),
             ('s_axi_araddr', f'{pfx}araddr'),
@@ -219,8 +239,8 @@ class Axi4ToApbShim:
             ('s_axi_arqos', f'{pfx}arqos'),
             ('s_axi_arregion', f'{pfx}arregion'),
             ('s_axi_aruser', f'{pfx}aruser'),
-            ('s_axi_arvalid', f'{pfx}arvalid'),
-            ('s_axi_arready', f'{pfx}arready'),
+            ('s_axi_arvalid', ar_valid_conn),
+            ('s_axi_arready', ar_ready_conn),
             ('s_axi_rid', f'{pfx}rid'),
             ('s_axi_rdata', f'{pfx}rdata'),
             ('s_axi_rresp', f'{pfx}rresp'),

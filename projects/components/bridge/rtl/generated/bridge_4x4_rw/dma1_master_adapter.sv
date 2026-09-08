@@ -828,8 +828,12 @@ module dma1_master_adapter
             r_aw_active_target <= comb_slave_select_aw;
         end
     )
-    assign aw_gate_ok = (aw_trk_wptr == aw_trk_rptr) ||
-                        (comb_slave_select_aw == r_aw_active_target);
+    logic aw_trk_full;
+    assign aw_trk_full = (aw_trk_wptr[AW_TRK_AW] != aw_trk_rptr[AW_TRK_AW]) &&
+                         (aw_trk_wptr[AW_TRK_AW-1:0] == aw_trk_rptr[AW_TRK_AW-1:0]);
+    assign aw_gate_ok = ((aw_trk_wptr == aw_trk_rptr) ||
+                         (comb_slave_select_aw == r_aw_active_target)) &&
+                        !aw_trk_full;
 
     // -------- AW->W slave_select tracking FIFO --------
     // Same push as AW (records slave_select at handshake);
@@ -904,8 +908,12 @@ module dma1_master_adapter
             r_ar_active_target <= comb_slave_select_ar;
         end
     )
-    assign ar_gate_ok = (ar_trk_wptr == ar_trk_rptr) ||
-                        (comb_slave_select_ar == r_ar_active_target);
+    logic ar_trk_full;
+    assign ar_trk_full = (ar_trk_wptr[AR_TRK_AW] != ar_trk_rptr[AR_TRK_AW]) &&
+                         (ar_trk_wptr[AR_TRK_AW-1:0] == ar_trk_rptr[AR_TRK_AW-1:0]);
+    assign ar_gate_ok = ((ar_trk_wptr == ar_trk_rptr) ||
+                         (comb_slave_select_ar == r_ar_active_target)) &&
+                        !ar_trk_full;
 
     // AW-ready MUX (combinational comb_slave_select_aw — awaddr is live during awvalid)
     always_comb begin

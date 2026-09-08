@@ -1235,8 +1235,20 @@ class AdapterGenerator:
             lines.append("            r_aw_active_target <= comb_slave_select_aw;")
             lines.append("        end")
             lines.append("    )")
-            lines.append("    assign aw_gate_ok = (aw_trk_wptr == aw_trk_rptr) ||")
-            lines.append("                        (comb_slave_select_aw == r_aw_active_target);")
+            # BRIDGE-011: the tracking FIFO has no full check of its own, and
+            # push is unconditional on the AW handshake. Past AW_TRK_DEPTH a
+            # live entry is overwritten; at 2*AW_TRK_DEPTH the pointers lap and
+            # `wr != rd` reads EMPTY, so b_slave_select falls to '0 and B stops
+            # flowing. Fold not-full into aw_gate_ok: it already gates BOTH the
+            # downstream awvalid (via aw_path_active_*) and the upstream
+            # awready, so one term closes both directions. Deepening the FIFO
+            # only moves the cliff.
+            lines.append("    logic aw_trk_full;")
+            lines.append("    assign aw_trk_full = (aw_trk_wptr[AW_TRK_AW] != aw_trk_rptr[AW_TRK_AW]) &&")
+            lines.append("                         (aw_trk_wptr[AW_TRK_AW-1:0] == aw_trk_rptr[AW_TRK_AW-1:0]);")
+            lines.append("    assign aw_gate_ok = ((aw_trk_wptr == aw_trk_rptr) ||")
+            lines.append("                         (comb_slave_select_aw == r_aw_active_target)) &&")
+            lines.append("                        !aw_trk_full;")
             lines.append("")
             lines.append("    // -------- AW->W slave_select tracking FIFO --------")
             lines.append("    // Same push as AW (records slave_select at handshake);")
@@ -1314,8 +1326,13 @@ class AdapterGenerator:
             lines.append("            r_ar_active_target <= comb_slave_select_ar;")
             lines.append("        end")
             lines.append("    )")
-            lines.append("    assign ar_gate_ok = (ar_trk_wptr == ar_trk_rptr) ||")
-            lines.append("                        (comb_slave_select_ar == r_ar_active_target);")
+            # BRIDGE-011, read side -- see the aw_gate_ok comment above.
+            lines.append("    logic ar_trk_full;")
+            lines.append("    assign ar_trk_full = (ar_trk_wptr[AR_TRK_AW] != ar_trk_rptr[AR_TRK_AW]) &&")
+            lines.append("                         (ar_trk_wptr[AR_TRK_AW-1:0] == ar_trk_rptr[AR_TRK_AW-1:0]);")
+            lines.append("    assign ar_gate_ok = ((ar_trk_wptr == ar_trk_rptr) ||")
+            lines.append("                         (comb_slave_select_ar == r_ar_active_target)) &&")
+            lines.append("                        !ar_trk_full;")
             lines.append("")
 
         # Write channel MUX

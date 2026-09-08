@@ -121,6 +121,9 @@ module sram_rd_adapter
     // ================================================================
 
     // Read Channel FIFO (In-Order) - AXI4 Protocol
+    // BRIDGE-011 not-full gating -- see the write channel.
+    logic rd_trk_full;
+    logic w_sub_arready;
     localparam RD_FIFO_DEPTH = 16;
     logic [BRIDGE_ID_WIDTH-1:0] rd_fifo [RD_FIFO_DEPTH];
     logic [$clog2(RD_FIFO_DEPTH):0] ar_ptr, r_ptr;
@@ -153,6 +156,11 @@ module sram_rd_adapter
     // is open from the moment an R arrives.
     assign rid_bridge_id = rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];
     assign rid_valid     = (ar_ptr != r_ptr);
+
+    // BRIDGE-011, read side -- see the write comment above.
+    assign rd_trk_full = (ar_ptr[$clog2(RD_FIFO_DEPTH)] != r_ptr[$clog2(RD_FIFO_DEPTH)]) &&
+                         (ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0] == r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]);
+    assign xbar_sram_rd_axi_arready = w_sub_arready && !rd_trk_full;
 
     // AXI5 Master Read Timing Wrapper
     axi5_master_rd_mon #(
@@ -194,8 +202,8 @@ module sram_rd_adapter
         .fub_axi_arprot(xbar_sram_rd_axi_arprot),
         .fub_axi_arqos(xbar_sram_rd_axi_arqos),
         .fub_axi_aruser(xbar_sram_rd_axi_aruser),
-        .fub_axi_arvalid(xbar_sram_rd_axi_arvalid),
-        .fub_axi_arready(xbar_sram_rd_axi_arready),
+        .fub_axi_arvalid(xbar_sram_rd_axi_arvalid && !rd_trk_full),
+        .fub_axi_arready(w_sub_arready),
         .fub_axi_arnsaid(xbar_sram_rd_axi_arnsaid),
         .fub_axi_artrace(xbar_sram_rd_axi_artrace),
         .fub_axi_armpam('0),

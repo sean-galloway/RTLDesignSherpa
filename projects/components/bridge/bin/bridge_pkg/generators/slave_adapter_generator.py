@@ -690,6 +690,10 @@ class SlaveAdapterGenerator:
             pop_condition = f"{crossbar_prefix}bvalid && {crossbar_prefix}bready"
             lines.append("    // Write Channel FIFO (In-Order) - AXI4 Protocol")
 
+        lines.append("    // BRIDGE-011 not-full gating: w_sub_awready is the sub-block's")
+        lines.append("    // own ready, masked before it reaches the crossbar.")
+        lines.append("    logic wr_trk_full;")
+        lines.append("    logic w_sub_awready;")
         lines.append("    localparam WR_FIFO_DEPTH = 16;")
         lines.append("    logic [BRIDGE_ID_WIDTH-1:0] wr_fifo [WR_FIFO_DEPTH];")
         lines.append("    logic [$clog2(WR_FIFO_DEPTH):0] wr_ptr, rd_ptr;")
@@ -722,6 +726,17 @@ class SlaveAdapterGenerator:
         lines.append("    // is open from the moment a B arrives.")
         lines.append("    assign bid_bridge_id = wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];")
         lines.append("    assign bid_valid     = (wr_ptr != rd_ptr);")
+        lines.append("")
+        lines.append("    // BRIDGE-011: this FIFO routes B by POSITION, so overrunning it")
+        lines.append("    // misroutes responses -- past WR_FIFO_DEPTH a live entry is")
+        lines.append("    // overwritten and its B goes to the wrong master; at twice the")
+        lines.append("    // depth the pointers lap, (wr_ptr != rd_ptr) reads EMPTY and the")
+        lines.append("    // response is never routed at all. Gate the AW handshake on")
+        lines.append("    // not-full in BOTH directions. Draining never depends on")
+        lines.append("    // accepting a further AW, so this cannot deadlock.")
+        lines.append("    assign wr_trk_full = (wr_ptr[$clog2(WR_FIFO_DEPTH)] != rd_ptr[$clog2(WR_FIFO_DEPTH)]) &&")
+        lines.append("                         (wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0] == rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]);")
+        lines.append(f"    assign {crossbar_prefix}awready = w_sub_awready && !wr_trk_full;")
         lines.append("")
 
         return lines
@@ -780,6 +795,9 @@ class SlaveAdapterGenerator:
             pop_condition = f"{crossbar_prefix}rvalid && {crossbar_prefix}rready && {crossbar_prefix}rlast"
             lines.append("    // Read Channel FIFO (In-Order) - AXI4 Protocol")
 
+        lines.append("    // BRIDGE-011 not-full gating -- see the write channel.")
+        lines.append("    logic rd_trk_full;")
+        lines.append("    logic w_sub_arready;")
         lines.append("    localparam RD_FIFO_DEPTH = 16;")
         lines.append("    logic [BRIDGE_ID_WIDTH-1:0] rd_fifo [RD_FIFO_DEPTH];")
         lines.append("    logic [$clog2(RD_FIFO_DEPTH):0] ar_ptr, r_ptr;")
@@ -812,6 +830,11 @@ class SlaveAdapterGenerator:
         lines.append("    // is open from the moment an R arrives.")
         lines.append("    assign rid_bridge_id = rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];")
         lines.append("    assign rid_valid     = (ar_ptr != r_ptr);")
+        lines.append("")
+        lines.append("    // BRIDGE-011, read side -- see the write comment above.")
+        lines.append("    assign rd_trk_full = (ar_ptr[$clog2(RD_FIFO_DEPTH)] != r_ptr[$clog2(RD_FIFO_DEPTH)]) &&")
+        lines.append("                         (ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0] == r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]);")
+        lines.append(f"    assign {crossbar_prefix}arready = w_sub_arready && !rd_trk_full;")
         lines.append("")
 
         return lines
@@ -887,7 +910,17 @@ class SlaveAdapterGenerator:
             native_sideband=bool(self._sb_feats()),
         )
         wrapper.connect_clocks_and_resets()
-        wrapper.connect_bridge_internal(connector_prefix=crossbar_prefix)
+        # BRIDGE-011: hold AW off while the bridge_id tracking FIFO is full.
+        # Both directions must be gated -- masking only the ready returned to
+        # the crossbar would let the wrapper accept the beat anyway, and the
+        # FIFO would still be overrun.
+        wrapper.connect_bridge_internal(
+            connector_prefix=crossbar_prefix,
+            overrides={
+                'awvalid': f"{crossbar_prefix}awvalid && !wr_trk_full",
+                'awready': "w_sub_awready",
+            },
+        )
         wrapper.connect_external(connector_prefix=slave_prefix)
         wrapper.add_status()
         if self.enable_monitoring:
@@ -935,7 +968,14 @@ class SlaveAdapterGenerator:
             native_sideband=bool(self._sb_feats()),
         )
         wrapper.connect_clocks_and_resets()
-        wrapper.connect_bridge_internal(connector_prefix=crossbar_prefix)
+        # BRIDGE-011, read side -- see the write wrapper above.
+        wrapper.connect_bridge_internal(
+            connector_prefix=crossbar_prefix,
+            overrides={
+                'arvalid': f"{crossbar_prefix}arvalid && !rd_trk_full",
+                'arready': "w_sub_arready",
+            },
+        )
         wrapper.connect_external(connector_prefix=slave_prefix)
         wrapper.add_status()
         if self.enable_monitoring:
@@ -996,6 +1036,7 @@ class SlaveAdapterGenerator:
         if self.has_write:
             shim.connect_axi_write_channel(
                 crossbar_prefix=shim_prefix,
+                gate_full=('wr_trk_full' if shim_prefix == xbar_prefix else None),
                 bvalid_intercept='converter_bvalid',
                 bready_intercept='converter_bready',
             )
@@ -1005,6 +1046,7 @@ class SlaveAdapterGenerator:
         if self.has_read:
             shim.connect_axi_read_channel(
                 crossbar_prefix=shim_prefix,
+                gate_full=('rd_trk_full' if shim_prefix == xbar_prefix else None),
                 rvalid_intercept='converter_rvalid',
                 rready_intercept='converter_rready',
                 rlast_intercept='converter_rlast',
@@ -1099,6 +1141,7 @@ class SlaveAdapterGenerator:
         if self.has_write:
             shim.connect_axi_write_channel(
                 crossbar_prefix=shim_prefix,
+                gate_full=('wr_trk_full' if shim_prefix == xbar_prefix else None),
                 bvalid_intercept='converter_bvalid',
                 bready_intercept='converter_bready',
             )
@@ -1106,6 +1149,7 @@ class SlaveAdapterGenerator:
         if self.has_read:
             shim.connect_axi_read_channel(
                 crossbar_prefix=shim_prefix,
+                gate_full=('rd_trk_full' if shim_prefix == xbar_prefix else None),
                 rvalid_intercept='converter_rvalid',
                 rready_intercept='converter_rready',
                 rlast_intercept='converter_rlast',

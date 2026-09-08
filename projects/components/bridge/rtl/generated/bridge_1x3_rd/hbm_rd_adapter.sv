@@ -83,6 +83,9 @@ module hbm_rd_adapter
     // ================================================================
 
     // Read Channel FIFO (In-Order) - AXI4 Protocol
+    // BRIDGE-011 not-full gating -- see the write channel.
+    logic rd_trk_full;
+    logic w_sub_arready;
     localparam RD_FIFO_DEPTH = 16;
     logic [BRIDGE_ID_WIDTH-1:0] rd_fifo [RD_FIFO_DEPTH];
     logic [$clog2(RD_FIFO_DEPTH):0] ar_ptr, r_ptr;
@@ -116,6 +119,11 @@ module hbm_rd_adapter
     assign rid_bridge_id = rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];
     assign rid_valid     = (ar_ptr != r_ptr);
 
+    // BRIDGE-011, read side -- see the write comment above.
+    assign rd_trk_full = (ar_ptr[$clog2(RD_FIFO_DEPTH)] != r_ptr[$clog2(RD_FIFO_DEPTH)]) &&
+                         (ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0] == r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]);
+    assign xbar_hbm_rd_axi_arready = w_sub_arready && !rd_trk_full;
+
     // AXI4 Master Read Timing Wrapper
     axi4_master_rd #(
         .SKID_DEPTH_AR(2),
@@ -140,8 +148,8 @@ module hbm_rd_adapter
         .fub_axi_arqos(xbar_hbm_rd_axi_arqos),
         .fub_axi_arregion(xbar_hbm_rd_axi_arregion),
         .fub_axi_aruser(xbar_hbm_rd_axi_aruser),
-        .fub_axi_arvalid(xbar_hbm_rd_axi_arvalid),
-        .fub_axi_arready(xbar_hbm_rd_axi_arready),
+        .fub_axi_arvalid(xbar_hbm_rd_axi_arvalid && !rd_trk_full),
+        .fub_axi_arready(w_sub_arready),
         .fub_axi_rid(xbar_hbm_rd_axi_rid),
         .fub_axi_rdata(xbar_hbm_rd_axi_rdata),
         .fub_axi_rresp(xbar_hbm_rd_axi_rresp),

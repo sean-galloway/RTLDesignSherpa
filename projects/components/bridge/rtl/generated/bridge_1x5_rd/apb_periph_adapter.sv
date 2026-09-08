@@ -81,6 +81,9 @@ module apb_periph_adapter
     // Read Channel FIFO (In-Order) - APB Protocol
     // NOTE: Monitors converter output (converter_rvalid), not crossbar input
     //       This ensures FIFO pops when converter actually produces response
+    // BRIDGE-011 not-full gating -- see the write channel.
+    logic rd_trk_full;
+    logic w_sub_arready;
     localparam RD_FIFO_DEPTH = 16;
     logic [BRIDGE_ID_WIDTH-1:0] rd_fifo [RD_FIFO_DEPTH];
     logic [$clog2(RD_FIFO_DEPTH):0] ar_ptr, r_ptr;
@@ -113,6 +116,11 @@ module apb_periph_adapter
     // is open from the moment an R arrives.
     assign rid_bridge_id = rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];
     assign rid_valid     = (ar_ptr != r_ptr);
+
+    // BRIDGE-011, read side -- see the write comment above.
+    assign rd_trk_full = (ar_ptr[$clog2(RD_FIFO_DEPTH)] != r_ptr[$clog2(RD_FIFO_DEPTH)]) &&
+                         (ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0] == r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]);
+    assign xbar_apb_periph_axi_arready = w_sub_arready && !rd_trk_full;
 
     // AXI4-to-APB converter shim
     axi4_to_apb4_shim #(
@@ -176,8 +184,8 @@ module apb_periph_adapter
         .s_axi_arqos(xbar_apb_periph_axi_arqos),
         .s_axi_arregion(xbar_apb_periph_axi_arregion),
         .s_axi_aruser(xbar_apb_periph_axi_aruser),
-        .s_axi_arvalid(xbar_apb_periph_axi_arvalid),
-        .s_axi_arready(xbar_apb_periph_axi_arready),
+        .s_axi_arvalid(xbar_apb_periph_axi_arvalid && !rd_trk_full),
+        .s_axi_arready(w_sub_arready),
         .s_axi_rid(xbar_apb_periph_axi_rid),
         .s_axi_rdata(xbar_apb_periph_axi_rdata),
         .s_axi_rresp(xbar_apb_periph_axi_rresp),

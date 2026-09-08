@@ -457,6 +457,20 @@ class Bridge2x2RwTB(TBBase):
         bytes_per_beat = master_dw // 8
         return (bytes_per_beat - 1).bit_length()
 
+    def set_slave_response_delay(self, slave_idx: int, cycles: int) -> None:
+        """Hold B/R off at slave[slave_idx] for `cycles` before responding.
+
+        The bridge tracks the originating master in a fixed-depth FIFO per
+        slave port and pops it on the response, so OUTSTANDING DEPTH is only
+        reachable when a slave is slow. The default BFM slave answers in ~1
+        cycle, which is why no existing test gets anywhere near the depth
+        where BRIDGE-011 bites.
+        """
+        if slave_idx in self.slave_wr:
+            self.slave_wr[slave_idx].response_delay_cycles = cycles
+        if slave_idx in self.slave_rd:
+            self.slave_rd[slave_idx].response_delay_cycles = cycles
+
     async def master_read(self, master_idx: int, address: int) -> int:
         """Single-beat read from master[master_idx]. Returns master-width int."""
         if master_idx in self.master_apb:
@@ -464,10 +478,20 @@ class Bridge2x2RwTB(TBBase):
         rd = self.master_rd[master_idx]
         return await rd.single_read(address, size=self._natural_arsize(master_idx))
 
-    async def master_write(self, master_idx: int, address: int, data: int) -> None:
-        """Single-beat write from master[master_idx]. `data` is master-width."""
+    async def master_write(self, master_idx: int, address: int, data: int,
+                           txn_id: int = None) -> None:
+        """Single-beat write from master[master_idx]. `data` is master-width.
+
+        `txn_id` sets AWID. Give each master a DISJOINT id range and the
+        returned BID identifies which master a response belongs to, which is
+        the only way to tell a correctly routed response from one that merely
+        arrived somewhere. APB has no id and ignores it.
+        """
         if master_idx in self.master_apb:
             await self.master_apb[master_idx].write(address, data)
             return
         wr = self.master_wr[master_idx]
-        await wr.single_write(address, data, size=self._natural_arsize(master_idx))
+        kwargs = {'size': self._natural_arsize(master_idx)}
+        if txn_id is not None:
+            kwargs['id'] = txn_id
+        await wr.single_write(address, data, **kwargs)

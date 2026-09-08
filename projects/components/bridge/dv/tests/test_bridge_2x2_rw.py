@@ -23,7 +23,7 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 import cocotb
-from cocotb.triggers import RisingEdge, ClockCycles
+from cocotb.triggers import ReadOnly, RisingEdge, ClockCycles
 from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
@@ -347,6 +347,151 @@ async def cocotb_test_bridge_2x2_rw_arbitration(dut):
     await ClockCycles(tb.clock, 100)
     tb.log.info("Arbitration test PASSED")
 
+
+@cocotb.test(timeout_time=2000, timeout_unit="ms")
+async def cocotb_test_bridge_2x2_rw_outstanding_overflow(dut):
+    """
+    BRIDGE-011: offer more concurrent writes to one slave than its
+    response-tracking FIFO is deep, and require the bridge to hold the line.
+
+    Each slave adapter records the ORIGINATING MASTER for every accepted AW in
+    a fixed-depth FIFO and pops it on the response, routing B by FIFO POSITION.
+    Push is unconditional on the AW handshake with no full check, so nothing
+    stops the pointer running past the reader:
+
+      * past DEPTH, live entries are overwritten -- a response is routed by a
+        stale entry, to the WRONG MASTER;
+      * at exactly 2*DEPTH the write pointer LAPS the read pointer, the
+        `wr_ptr != rd_ptr` occupancy test reads EMPTY, `bid_valid` drops and
+        the response is never routed at all -- the master waits forever.
+
+    The invariant asserted here is the one the fix establishes: occupancy NEVER
+    exceeds DEPTH, because awready is gated on the FIFO being not-full. That
+    holds on fixed RTL and is violated on broken RTL, so it works in both
+    directions -- unlike "occupancy exceeded DEPTH", which only a broken
+    bridge can satisfy.
+
+    Two conditions are needed and no other test in this suite has either: TWO
+    masters outstanding on ONE slave (a single master's entries are all
+    identical, so overwriting them is invisible), and a SLOW slave, since the
+    default BFM answers in about a cycle and never builds depth.
+    """
+    tb = Bridge2x2RwTB(dut)
+    await tb.setup_clocks_and_reset()
+
+    FIFO_DEPTH = 16    # WR_FIFO_DEPTH in ddr_adapter.sv
+    PER_MASTER = 40    # 80 concurrent -- well past both DEPTH and 2*DEPTH
+    B_DELAY    = 80    # cycles; must outlast the issue phase
+
+    tb.log.info("=" * 80)
+    tb.log.info(f"BRIDGE-011: {2 * PER_MASTER} concurrent writes to slave 0 "
+                f"(tracking FIFO is {FIFO_DEPTH} deep)")
+    tb.log.info("=" * 80)
+
+    tb.set_slave_response_delay(0, B_DELAY)
+
+    # Ground truth, straight off the adapter's own pointers. Port-level
+    # arithmetic was tried first and disagreed with itself: the FIFO pops on
+    # the CROSSBAR-side B, not the slave-port B, so counting handshakes at the
+    # slave port measures something else entirely.
+    fifo = {'peak': 0, 'probed': False}
+
+    async def _fifo_probe():
+        wr = tb.dut.u_ddr_adapter.wr_ptr
+        rd = tb.dut.u_ddr_adapter.rd_ptr
+        fifo['probed'] = True
+        while True:
+            await RisingEdge(tb.clock)
+            await ReadOnly()
+            occ = (int(wr.value) - int(rd.value)) & 0x1F
+            if occ > fifo['peak']:
+                fifo['peak'] = occ
+
+    cocotb.start_soon(_fifo_probe())
+
+    # Disjoint AWID ranges: bit 3 tags the owning master, so a response
+    # delivered to the wrong port is identifiable ON THE BUS. Counting
+    # completions cannot see it -- misroutes come in pairs and both masters
+    # still receive the right NUMBER of responses.
+    bad_route = []
+
+    async def _b_watch(master_idx, bid_sig, bvalid_sig, bready_sig):
+        while True:
+            await RisingEdge(tb.clock)
+            await ReadOnly()
+            if bvalid_sig.value == 1 and bready_sig.value == 1:
+                got = int(bid_sig.value)
+                if ((got >> 3) & 1) != master_idx:
+                    bad_route.append((master_idx, got))
+
+    cocotb.start_soon(_b_watch(0, tb.dut.cpu_m_axi_bid,
+                               tb.dut.cpu_m_axi_bvalid, tb.dut.cpu_m_axi_bready))
+    cocotb.start_soon(_b_watch(1, tb.dut.dma_m_axi_bid,
+                               tb.dut.dma_m_axi_bvalid, tb.dut.dma_m_axi_bready))
+
+    plan = []
+    for m in (0, 1):
+        for i in range(PER_MASTER):
+            plan.append((m,
+                         0x00001000 + (m * 0x400) + (i * 4),
+                         0xB0110000 | (m << 12) | i,
+                         (m << 3) | (i % 8)))
+
+    done = []
+
+    async def _issue(m, addr, data, txn_id):
+        await tb.master_write(m, addr, data, txn_id=txn_id)
+        done.append((m, addr, data))
+
+    # Launched before any of them awaits, so the offered load is 80
+    # concurrent writes by construction -- no runtime check needed to know
+    # the stimulus was strong enough.
+    for (m, addr, data, txn_id) in plan:
+        cocotb.start_soon(_issue(m, addr, data, txn_id))
+
+    for _ in range(6000):
+        if len(done) == len(plan):
+            break
+        await ClockCycles(tb.clock, 10)
+
+    assert fifo['probed'], "FIFO pointer probe never ran -- test proves nothing"
+
+    tb.log.info(f"peak tracking-FIFO occupancy: {fifo['peak']} "
+                f"(depth {FIFO_DEPTH}), completed {len(done)}/{len(plan)}")
+
+    # THE invariant. Gating awready on not-full makes this unconditional.
+    assert fifo['peak'] <= FIFO_DEPTH, (
+        f"BRIDGE-011: slave 0's tracking FIFO reached {fifo['peak']} entries "
+        f"with only {FIFO_DEPTH} slots. Past {FIFO_DEPTH} a live entry is "
+        f"overwritten and its response is routed to the wrong master; at "
+        f"{2 * FIFO_DEPTH} the pointers lap, occupancy reads EMPTY and the "
+        f"response is never routed at all. awready must be gated on not-full.")
+
+    assert not bad_route, (
+        f"BRIDGE-011: {len(bad_route)} response(s) delivered to the wrong "
+        f"master -- first, master port {bad_route[0][0]} received BID "
+        f"0x{bad_route[0][1]:x}.")
+
+    if len(done) != len(plan):
+        per_master = {0: 0, 1: 0}
+        for (m, _a, _d) in done:
+            per_master[m] += 1
+        raise AssertionError(
+            f"BRIDGE-011: only {len(done)}/{len(plan)} writes completed "
+            f"(master 0: {per_master[0]}/{PER_MASTER}, master 1: "
+            f"{per_master[1]}/{PER_MASTER}). A response was dropped or "
+            f"consumed by the wrong master.")
+
+    for (m, addr, data, _id) in plan:
+        actual = tb.slave_mem_read(0, addr, master_idx=m)
+        assert actual == data, (
+            f"slave 0 memory mismatch at 0x{addr:08x} (master {m}): "
+            f"got 0x{actual:08x}, expected 0x{data:08x}")
+
+    tb.log.info(f"All {len(plan)} writes completed; peak occupancy "
+                f"{fifo['peak']} stayed within the {FIFO_DEPTH}-entry FIFO")
+
+
 # ============================================================================
 # Pytest Wrapper Functions (collected by pytest, call specific cocotb_test_*)
 # ============================================================================
@@ -528,3 +673,58 @@ def test_bridge_2x2_rw_arbitration(request):
 if __name__ == "__main__":
     # Run pytest on this file
     pytest.main([__file__, '-v', '-s'])
+
+def test_bridge_2x2_rw_outstanding_overflow(request):
+    """Pytest wrapper for the BRIDGE-011 outstanding-depth test"""
+
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_bridge': '../../../../rtl/bridge',
+        'rtl_common': '../../../../rtl/common',
+        'rtl_amba': '../../../../rtl/amba'
+    })
+
+    dut_name = "bridge_2x2_rw"
+
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/bridge/rtl/filelists/bridge_2x2_rw.f'
+    )
+
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    worker_suffix = f"_{worker_id}" if worker_id else ""
+    test_name_plus_params = f"test_{dut_name}_outstanding_overflow"
+    sim_build_name = f"{test_name_plus_params}{worker_suffix}"
+
+    log_path = os.path.join(log_dir, f'{sim_build_name}.log')
+    results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
+    # sim_build_path(), not a hand-built join: it honours SIM_BUILD_ROOT so
+    # concurrent sessions do not share one build tree, and drops an advisory
+    # busy marker so a cleaner can tell "being built in right now" from
+    # "leftover". Hand-joining tests_dir/local_sim_build puts every session
+    # back in the same directory, which is what f01853fe was written to stop.
+    sim_build = sim_build_path(tests_dir, sim_build_name)
+    os.makedirs(log_dir, exist_ok=True)
+
+    waves = get_wave_config(sim_build)
+
+    extra_args = ['--assert', '--coverage'] + waves['extra_args']
+    extra_env = {
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'LOG_PATH': log_path,
+        'COCOTB_RESULTS_FILE': results_path,
+        **waves['extra_env'],
+    }
+
+    run(
+        python_search=[tests_dir],
+        verilog_sources=verilog_sources,
+        includes=includes,
+        toplevel=dut_name,
+        module=module,
+        testcase="cocotb_test_bridge_2x2_rw_outstanding_overflow",
+        sim_build=sim_build,
+        waves=False,
+        extra_args=extra_args,
+        plus_args=waves['sim_args'],
+        extra_env=extra_env
+    )

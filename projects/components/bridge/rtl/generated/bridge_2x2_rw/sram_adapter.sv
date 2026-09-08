@@ -141,6 +141,10 @@ module sram_adapter
     // ================================================================
 
     // Write Channel FIFO (In-Order) - AXI4 Protocol
+    // BRIDGE-011 not-full gating: w_sub_awready is the sub-block's
+    // own ready, masked before it reaches the crossbar.
+    logic wr_trk_full;
+    logic w_sub_awready;
     localparam WR_FIFO_DEPTH = 16;
     logic [BRIDGE_ID_WIDTH-1:0] wr_fifo [WR_FIFO_DEPTH];
     logic [$clog2(WR_FIFO_DEPTH):0] wr_ptr, rd_ptr;
@@ -174,7 +178,21 @@ module sram_adapter
     assign bid_bridge_id = wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];
     assign bid_valid     = (wr_ptr != rd_ptr);
 
+    // BRIDGE-011: this FIFO routes B by POSITION, so overrunning it
+    // misroutes responses -- past WR_FIFO_DEPTH a live entry is
+    // overwritten and its B goes to the wrong master; at twice the
+    // depth the pointers lap, (wr_ptr != rd_ptr) reads EMPTY and the
+    // response is never routed at all. Gate the AW handshake on
+    // not-full in BOTH directions. Draining never depends on
+    // accepting a further AW, so this cannot deadlock.
+    assign wr_trk_full = (wr_ptr[$clog2(WR_FIFO_DEPTH)] != rd_ptr[$clog2(WR_FIFO_DEPTH)]) &&
+                         (wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0] == rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]);
+    assign xbar_sram_axi_awready = w_sub_awready && !wr_trk_full;
+
     // Read Channel FIFO (In-Order) - AXI4 Protocol
+    // BRIDGE-011 not-full gating -- see the write channel.
+    logic rd_trk_full;
+    logic w_sub_arready;
     localparam RD_FIFO_DEPTH = 16;
     logic [BRIDGE_ID_WIDTH-1:0] rd_fifo [RD_FIFO_DEPTH];
     logic [$clog2(RD_FIFO_DEPTH):0] ar_ptr, r_ptr;
@@ -208,6 +226,11 @@ module sram_adapter
     assign rid_bridge_id = rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];
     assign rid_valid     = (ar_ptr != r_ptr);
 
+    // BRIDGE-011, read side -- see the write comment above.
+    assign rd_trk_full = (ar_ptr[$clog2(RD_FIFO_DEPTH)] != r_ptr[$clog2(RD_FIFO_DEPTH)]) &&
+                         (ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0] == r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]);
+    assign xbar_sram_axi_arready = w_sub_arready && !rd_trk_full;
+
     // AXI4 Master Write Timing Wrapper
     axi4_master_wr #(
         .SKID_DEPTH_AW(2),
@@ -233,8 +256,8 @@ module sram_adapter
         .fub_axi_awqos(xbar_sram_axi_awqos),
         .fub_axi_awregion(xbar_sram_axi_awregion),
         .fub_axi_awuser(xbar_sram_axi_awuser),
-        .fub_axi_awvalid(xbar_sram_axi_awvalid),
-        .fub_axi_awready(xbar_sram_axi_awready),
+        .fub_axi_awvalid(xbar_sram_axi_awvalid && !wr_trk_full),
+        .fub_axi_awready(w_sub_awready),
         .fub_axi_wdata(xbar_sram_axi_wdata),
         .fub_axi_wstrb(xbar_sram_axi_wstrb),
         .fub_axi_wlast(xbar_sram_axi_wlast),
@@ -301,8 +324,8 @@ module sram_adapter
         .fub_axi_arqos(xbar_sram_axi_arqos),
         .fub_axi_arregion(xbar_sram_axi_arregion),
         .fub_axi_aruser(xbar_sram_axi_aruser),
-        .fub_axi_arvalid(xbar_sram_axi_arvalid),
-        .fub_axi_arready(xbar_sram_axi_arready),
+        .fub_axi_arvalid(xbar_sram_axi_arvalid && !rd_trk_full),
+        .fub_axi_arready(w_sub_arready),
         .fub_axi_rid(xbar_sram_axi_rid),
         .fub_axi_rdata(xbar_sram_axi_rdata),
         .fub_axi_rresp(xbar_sram_axi_rresp),

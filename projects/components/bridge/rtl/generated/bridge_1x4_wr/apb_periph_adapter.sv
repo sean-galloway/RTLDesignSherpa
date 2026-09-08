@@ -84,6 +84,10 @@ module apb_periph_adapter
     // Write Channel FIFO (In-Order) - APB Protocol
     // NOTE: Monitors converter output (converter_bvalid), not crossbar input
     //       This ensures FIFO pops when converter actually produces response
+    // BRIDGE-011 not-full gating: w_sub_awready is the sub-block's
+    // own ready, masked before it reaches the crossbar.
+    logic wr_trk_full;
+    logic w_sub_awready;
     localparam WR_FIFO_DEPTH = 16;
     logic [BRIDGE_ID_WIDTH-1:0] wr_fifo [WR_FIFO_DEPTH];
     logic [$clog2(WR_FIFO_DEPTH):0] wr_ptr, rd_ptr;
@@ -116,6 +120,17 @@ module apb_periph_adapter
     // is open from the moment a B arrives.
     assign bid_bridge_id = wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];
     assign bid_valid     = (wr_ptr != rd_ptr);
+
+    // BRIDGE-011: this FIFO routes B by POSITION, so overrunning it
+    // misroutes responses -- past WR_FIFO_DEPTH a live entry is
+    // overwritten and its B goes to the wrong master; at twice the
+    // depth the pointers lap, (wr_ptr != rd_ptr) reads EMPTY and the
+    // response is never routed at all. Gate the AW handshake on
+    // not-full in BOTH directions. Draining never depends on
+    // accepting a further AW, so this cannot deadlock.
+    assign wr_trk_full = (wr_ptr[$clog2(WR_FIFO_DEPTH)] != rd_ptr[$clog2(WR_FIFO_DEPTH)]) &&
+                         (wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0] == rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]);
+    assign xbar_apb_periph_axi_awready = w_sub_awready && !wr_trk_full;
 
     // AXI4-to-APB converter shim
     axi4_to_apb4_shim #(
@@ -153,8 +168,8 @@ module apb_periph_adapter
         .s_axi_awqos(xbar_apb_periph_axi_awqos),
         .s_axi_awregion(xbar_apb_periph_axi_awregion),
         .s_axi_awuser(xbar_apb_periph_axi_awuser),
-        .s_axi_awvalid(xbar_apb_periph_axi_awvalid),
-        .s_axi_awready(xbar_apb_periph_axi_awready),
+        .s_axi_awvalid(xbar_apb_periph_axi_awvalid && !wr_trk_full),
+        .s_axi_awready(w_sub_awready),
         .s_axi_wdata(xbar_apb_periph_axi_wdata),
         .s_axi_wstrb(xbar_apb_periph_axi_wstrb),
         .s_axi_wlast(xbar_apb_periph_axi_wlast),
