@@ -35,7 +35,9 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-BANNER = re.compile(r'^<!-- SOURCE FILE: (\S+?) -->\s*$', re.M)
+# Tolerates both banner dialects: the docs/markdown bundler's bare form
+# and the RLB bundler's '= padded =' form.
+BANNER = re.compile(r'^<!-- (?:=+ )?SOURCE FILE: (\S+?)(?: =+)? -->\s*$', re.M)
 
 # A rewritten page below this fraction of the original is treated as suspect.
 # Voice edits move length by a few percent; a summary loses half or more.
@@ -61,6 +63,10 @@ def main() -> int:
     ap.add_argument('--results', required=True, help='round dir, e.g. .../humanize-kimi-k3/round_1')
     ap.add_argument('--only', default='', help='only units starting with this prefix')
     ap.add_argument('--dry-run', action='store_true')
+    ap.add_argument('--root', default=str(REPO_ROOT),
+                    help='directory the banner paths are relative to '
+                         '(the RLB bundle uses component-relative paths; '
+                         'default: repo root)')
     ap.add_argument('--force', action='store_true',
                     help='write even pages that shrank past the floor (say why in the commit)')
     args = ap.parse_args()
@@ -81,13 +87,13 @@ def main() -> int:
             continue
         print(f'  {u.name}: {len(sections)} page(s)')
         for rel, body in sections:
-            target = REPO_ROOT / rel
+            target = Path(args.root) / rel
             if not target.is_file():
                 # A page can move between the bundle being built and the round
                 # being applied -- a long round leaves plenty of time for it.
                 # Follow it by basename rather than discarding its rewrite, but
                 # only when the destination is unambiguous.
-                cands = sorted((REPO_ROOT / 'docs' / 'markdown').rglob(Path(rel).name))
+                cands = sorted(Path(args.root).rglob(Path(rel).name))
                 if len(cands) == 1:
                     target = cands[0]
                     print(f'      MOVED    {rel} -> {target.relative_to(REPO_ROOT)}')
