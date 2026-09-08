@@ -23,57 +23,51 @@
 
 # APB GPIO - Architecture
 
-## High-Level Block Diagram
+## Overview
+
+Two views of the same design: the top-level block diagram, and the module hierarchy underneath it.
 
 ### Figure 1.2: APB GPIO Top-Level Architecture
 
 ![APB GPIO Architecture](../assets/mermaid/gpio_block_diagram.png)
 
-## Module Hierarchy
-
 ### Figure 1.3: APB GPIO Module Hierarchy
 
 ![APB GPIO Module Hierarchy](../assets/mermaid/gpio_module_hierarchy.png)
 
-## Data Flow
+## Functional Description
 
-### Write Transaction Flow
+### Data Flow
 
-### Figure 1.4: Write Transaction Flow
+Three flows matter: APB writes, APB reads, and interrupts.
+
+#### Figure 1.4: Write Transaction Flow
 
 ![Write Transaction Flow](../assets/mermaid/gpio_write_flow.png)
 
-### Read Transaction Flow
-
-### Figure 1.5: Read Transaction Flow
+#### Figure 1.5: Read Transaction Flow
 
 ![Read Transaction Flow](../assets/mermaid/gpio_read_flow.png)
 
-### Interrupt Flow
-
-### Figure 1.6: Interrupt Flow
+#### Figure 1.6: Interrupt Flow
 
 ![Interrupt Flow](../assets/mermaid/gpio_interrupt_flow.png)
 
-## Clock Domains
+### Clock Domains
 
-### Synchronous Mode (CDC_ENABLE = 0)
-
-### Figure 1.7: Synchronous Mode Clock Domains
+#### Figure 1.7: Synchronous Mode Clock Domains
 
 ![Synchronous Mode](../assets/mermaid/gpio_sync_mode.png)
 
-In synchronous mode, all modules operate on the APB clock (pclk). Input synchronization remains active for external GPIO pins to prevent metastability.
+With CDC_ENABLE = 0, everything runs on the APB clock (pclk). Input synchronization stays active on the external GPIO pins — metastability doesn't care that your bus fabric is synchronous.
 
-### Asynchronous Mode (CDC_ENABLE = 1)
-
-### Figure 1.8: Asynchronous Mode Clock Domains
+#### Figure 1.8: Asynchronous Mode Clock Domains
 
 ![Asynchronous Mode](../assets/mermaid/gpio_async_mode.png)
 
-In asynchronous mode, the APB clock domain handles protocol conversion while the GPIO clock domain handles all register and I/O operations. Skid buffers provide safe clock domain crossing.
+With CDC_ENABLE = 1, the APB clock domain handles protocol conversion while the GPIO clock domain owns the registers and I/O. Skid buffers carry the crossing safely.
 
-## Parameterization
+## Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -85,7 +79,11 @@ In asynchronous mode, the APB clock domain handles protocol conversion while the
 
 : Table 1.1: GPIO Parameters
 
-## Resource Estimates
+## Design Notes
+
+### Resource Estimates
+
+Rough synthesis numbers for planning purposes:
 
 | Component | Flip-Flops | LUTs |
 |-----------|-----------|------|
@@ -100,5 +98,7 @@ In asynchronous mode, the APB clock domain handles protocol conversion while the
 : Table 1.2: Resource Estimates
 
 ---
+
+## Navigation
 
 **Next:** [03_clocks_and_reset.md](03_clocks_and_reset.md) - Clock and reset behavior

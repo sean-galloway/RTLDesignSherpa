@@ -23,7 +23,7 @@
 
 # APB GPIO - System Interface
 
-## Clock Signals
+## Ports
 
 ### pclk - APB Clock
 
@@ -50,8 +50,6 @@ Used for:
 - Input synchronization
 - Output register updates
 - Interrupt detection
-
-## Reset Signals
 
 ### presetn - APB Reset
 
@@ -84,9 +82,11 @@ Resets:
 - Input synchronizers
 - Interrupt state
 
-## Clock Configurations
+## Functional Description
 
-### Single Clock Domain (CDC_ENABLE = 0)
+### Clock Configurations
+
+#### Single Clock Domain (CDC_ENABLE = 0)
 
 ```mermaid
 flowchart LR
@@ -95,7 +95,7 @@ flowchart LR
 
 gpio_clk: Tie to pclk or leave unconnected
 
-### Dual Clock Domain (CDC_ENABLE = 1)
+#### Dual Clock Domain (CDC_ENABLE = 1)
 
 ```mermaid
 flowchart LR
@@ -104,9 +104,9 @@ flowchart LR
     D["gpio_clk"] --> C
 ```
 
-## Reset Sequence
+### Reset Sequence
 
-### Power-On Reset
+#### Power-On Reset
 
 1. Assert both presetn and gpio_rstn low
 2. Clocks may be running or stopped
@@ -116,7 +116,7 @@ flowchart LR
 6. Release presetn
 7. Wait 2 pclk cycles before APB access
 
-### Timing Diagram
+#### Timing Diagram
 
 ```
           ________________________________________
@@ -135,7 +135,7 @@ gpio_rstn ______________|
                  clocks    gclk    pclk
 ```
 
-## Constraints
+## Timing
 
 ### Clock Relationship
 
@@ -150,6 +150,8 @@ gpio_rstn ______________|
 - First APB transaction may start on 3rd cycle
 
 ---
+
+## Navigation
 
 **Back to:** [00_overview.md](00_overview.md) - Interfaces Overview
 

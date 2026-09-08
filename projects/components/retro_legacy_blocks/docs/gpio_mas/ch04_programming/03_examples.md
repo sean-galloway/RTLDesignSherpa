@@ -23,9 +23,13 @@
 
 # APB GPIO - Programming Examples
 
-## LED Control
+## Usage Example
 
-### Simple LED Blink
+Real recipes for the things people actually hang off a GPIO. Copy, paste, adjust the pin numbers.
+
+### LED Control
+
+#### Simple LED Blink
 
 ```c
 #define LED_PIN  (1 << 0)
@@ -53,7 +57,7 @@ GPIO_OUTPUT_SET/CLR/TGL registers are never used: GPIO_OUTPUT readback
 returns the last value written to it, not the live pin state, so mixing the
 two styles clobbers atomic results (Chapter 5, tracked RTL issue #44).
 
-### Multiple LED Control
+#### Multiple LED Control
 
 ```c
 #define LED_MASK  0x000000FF  // LEDs on pins 7:0
@@ -65,9 +69,9 @@ void leds_write(uint8_t pattern) {
 }
 ```
 
-## Button Input
+### Button Input
 
-### Simple Button Read
+#### Simple Button Read
 
 ```c
 #define BUTTON_PIN  (1 << 8)
@@ -82,7 +86,7 @@ bool button_pressed(void) {
 }
 ```
 
-### Button with Interrupt
+#### Button with Interrupt
 
 ```c
 #define BUTTON_PIN  (1 << 8)
@@ -109,9 +113,9 @@ void button_isr(void) {
 }
 ```
 
-## DIP Switch Reading
+### DIP Switch Reading
 
-### 8-Bit Switch Input
+#### 8-Bit Switch Input
 
 ```c
 #define SWITCH_MASK  0x00FF0000  // Switches on pins 23:16
@@ -127,9 +131,9 @@ uint8_t switch_read(void) {
 }
 ```
 
-## Parallel Data Interface
+### Parallel Data Interface
 
-### 8-Bit Output Port
+#### 8-Bit Output Port
 
 ```c
 #define DATA_MASK   0x000000FF  // Data on pins 7:0
@@ -153,7 +157,7 @@ void data_write(uint8_t data) {
 }
 ```
 
-### 8-Bit Input Port with Ready
+#### 8-Bit Input Port with Ready
 
 ```c
 #define DATA_MASK   0x000000FF  // Data on pins 7:0
@@ -174,9 +178,9 @@ uint8_t data_read(void) {
 }
 ```
 
-## PWM-Style Output
+### PWM-Style Output
 
-### Bit-Banged PWM (Low Frequency)
+#### Bit-Banged PWM (Low Frequency)
 
 ```c
 #define PWM_PIN  (1 << 0)
@@ -199,9 +203,9 @@ void pwm_update(uint8_t duty, uint8_t *counter) {
 }
 ```
 
-## Wake-On-Change
+### Wake-On-Change
 
-### Power Management Integration
+#### Power Management Integration
 
 ```c
 #define WAKE_PINS  0x0000000F  // Wake sources on pins 3:0
@@ -224,5 +228,7 @@ void enter_sleep(void) {
 ```
 
 ---
+
+## Navigation
 
 **Next:** [04_software_notes.md](04_software_notes.md) - Software Considerations

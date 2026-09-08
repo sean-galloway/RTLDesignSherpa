@@ -25,13 +25,13 @@
 
 ## Overview
 
-The APB interface provides the connection between the system APB bus and the GPIO register file.
+The APB interface is the bridge between the system APB bus and the GPIO register file — a small FSM that turns APB's two-phase transfers into the command/response handshake the register block speaks.
 
-## Block Diagram
+### Block Diagram
 
 ![APB Interface Block](../assets/svg/gpio_interfaces.png)
 
-## Interface Signals
+## Ports
 
 ### APB Slave Interface
 
@@ -48,7 +48,7 @@ The APB interface provides the connection between the system APB bus and the GPI
 | s_apb_PREADY | 1 | Output | Ready response |
 | s_apb_PSLVERR | 1 | Output | Error response |
 
-## Operation
+## Functional Description
 
 ### Read Transaction
 1. Master asserts `psel` and `paddr`
@@ -60,7 +60,9 @@ The APB interface provides the connection between the system APB bus and the GPI
 2. Master asserts `penable` on next cycle
 3. Slave samples data with `pready`
 
-## Timing Diagram
+## Timing
+
+A basic APB access, start to finish:
 
 ```
          _____       _____       _____
@@ -79,7 +81,7 @@ prdata  XXXXXXXXXX|  DATA |XXXXXXXXXXXXXXXXX
 pready  __________|       |_________________
 ```
 
-## Implementation Notes
+## Design Notes
 
 - PREADY-gated: the bridge FSM adds a few wait states per access (no
   stalls originate in the register block itself)
@@ -87,5 +89,7 @@ pready  __________|       |_________________
 - 32-bit aligned access only
 
 ---
+
+## Navigation
 
 **Next:** [02_register_file.md](02_register_file.md) - Register File

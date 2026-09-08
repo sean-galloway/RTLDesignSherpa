@@ -32,9 +32,9 @@ CDC irq are tracked in issue #44 (documented in ch05)
 
 ---
 
-## Document Organization
+## Overview
 
-This MAS is organized into five chapters covering the micro-architecture of the APB GPIO component:
+Five chapters, working from the block diagram down to the register map. Read them in order the first time; after that, Chapter 5 is the one you'll keep coming back to.
 
 ### Chapter 1: Overview
 - [01_overview.md](ch01_overview/01_overview.md) - Component overview, features, applications
@@ -68,9 +68,7 @@ This MAS is organized into five chapters covering the micro-architecture of the 
 ### Chapter 5: Registers
 - [01_register_map.md](ch05_registers/01_register_map.md) - Complete register address map and field descriptions
 
----
-
-## Version History
+### Version History
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|

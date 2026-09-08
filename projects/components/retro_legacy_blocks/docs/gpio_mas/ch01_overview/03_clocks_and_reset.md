@@ -23,36 +23,42 @@
 
 # APB GPIO - Clocks and Reset
 
-## Clock Signals
+## Overview
 
-### pclk (APB Clock)
+Two clocks, two resets, and one synchronizer chain you can't turn off. Here's what each piece does.
+
+### Clock Signals
+
+#### pclk (APB Clock)
 - **Purpose:** Primary APB bus clock
 - **Usage:** APB protocol, register access
 - **Typical Frequency:** 50-200 MHz
 
-### gpio_clk (GPIO Clock)
+#### gpio_clk (GPIO Clock)
 - **Purpose:** Optional separate GPIO clock domain
 - **Usage:** Only when `CDC_ENABLE=1`
 - **Relationship:** Can be asynchronous to pclk
 
-## Reset Signals
+### Reset Signals
 
-### presetn (APB Reset)
+#### presetn (APB Reset)
 - **Type:** Active-low asynchronous reset
   (exception: the PeakRDL-generated register file resets SYNCHRONOUSLY --
   see the note in ch03_interfaces/04_system.md)
 - **Scope:** APB interface logic
 - **Behavior:** Resets APB state machine, clears pending transactions
 
-### gpio_rstn (GPIO Reset)
+#### gpio_rstn (GPIO Reset)
 - **Type:** Active-low asynchronous reset
 - **Scope:** GPIO core logic
 - **Usage:** Only when `CDC_ENABLE=1`
 - **Behavior:** Resets GPIO outputs, interrupt state
 
-## Reset Behavior
+## Functional Description
 
-### Register Reset Values
+### Reset Behavior
+
+#### Register Reset Values
 
 | Register | Reset Value | Notes |
 |----------|-------------|-------|
@@ -67,34 +73,35 @@
 | GPIO_RAW_INT | 0 (live RO readback; depends on pins after reset) | No events |
 | GPIO_OUTPUT_SET/CLR/TGL | 0x00000000 | No pending atomic op |
 
-GPIO_CONTROL.ENABLE resets to 1, but every pin is still an input out of reset
-because GPIO_DIRECTION resets to 0 - so all pins are high-Z until software
-programs directions. The `irq` output stays deasserted until software sets
-GPIO_CONTROL.INT_ENABLE (bit 1), which resets to 0.
+GPIO_CONTROL.ENABLE resets to 1, but don't let that fool you into thinking
+pins drive out of reset: GPIO_DIRECTION resets to 0, so every pin is an
+input and high-Z until software programs directions. The `irq` output stays
+deasserted until software sets GPIO_CONTROL.INT_ENABLE (bit 1), which resets
+to 0.
 
-### Output Pin Behavior During Reset
+#### Output Pin Behavior During Reset
 
 During reset:
 - `gpio_out[31:0]` = 0
 - `gpio_oe[31:0]` = 0 (all high-Z)
 - `irq` = 0
 
-## Clock Domain Crossing
+### Clock Domain Crossing
 
-### When CDC_ENABLE = 0
+#### When CDC_ENABLE = 0
 - All logic runs on `pclk`
 - `gpio_clk` input is ignored
 - Connect `gpio_clk = pclk` for clean design
 
-### When CDC_ENABLE = 1
+#### When CDC_ENABLE = 1
 - APB interface uses `pclk`
 - GPIO core uses `gpio_clk`
 - Skid buffers handle CDC
 - Both resets must be asserted together at power-on
 
-## Input Synchronization
+### Input Synchronization
 
-GPIO inputs are always synchronized regardless of CDC setting:
+GPIO inputs are always synchronized, CDC setting or not:
 
 ```mermaid
 flowchart LR
@@ -105,17 +112,21 @@ flowchart LR
 - Prevents metastability from external signal transitions
 - Adds latency equal to SYNC_STAGES clock cycles
 
-## Timing Constraints
+## Timing
 
-### Synchronous Mode
+### Timing Constraints
+
+#### Synchronous Mode
 - Standard single-clock timing
 - All paths constrained to pclk
 
-### Asynchronous Mode
+#### Asynchronous Mode
 - Set false_path between pclk and gpio_clk domains
 - Set max_delay for CDC paths
 - Synchronizer FFs should have ASYNC_REG attribute
 
 ---
+
+## Navigation
 
 **Next:** [04_acronyms.md](04_acronyms.md) - Acronyms and terminology

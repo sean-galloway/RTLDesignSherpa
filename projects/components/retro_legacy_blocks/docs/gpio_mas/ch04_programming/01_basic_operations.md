@@ -23,9 +23,9 @@
 
 # APB GPIO - Basic Operations
 
-## Timing Diagrams
+## Waveforms
 
-The following diagrams show the internal signal flow for basic GPIO operations.
+Before the code, the timing. These diagrams show what actually happens inside the block for each basic operation.
 
 ### Direction Configuration
 
@@ -84,9 +84,11 @@ issue (#44).
 
 ---
 
-## Initialization
+## Usage Example
 
-### Reset State
+### Initialization
+
+#### Reset State
 
 After reset:
 - GPIO_CONTROL = 0x00000001 - output stage ENABLED, global interrupt enable
@@ -96,7 +98,7 @@ After reset:
 - No per-pin interrupts enabled; GPIO_INT_POLARITY resets to 0xFFFFFFFF
   (rising/active-high)
 
-### Enable GPIO
+#### Enable GPIO
 
 ```c
 // GPIO_CONTROL[0] (ENABLE) already resets to 1; write it explicitly if a
@@ -104,23 +106,23 @@ After reset:
 GPIO_CONTROL = 0x00000001;
 ```
 
-## Output Operations
+### Output Operations
 
-### Configure as Output
+#### Configure as Output
 
 ```c
 // Set pins 7:4 as outputs (bits = 1 for output)
 GPIO_DIRECTION = 0x000000F0;
 ```
 
-### Write Output Values
+#### Write Output Values
 
 ```c
 // Set pins 7:4 to value 0101
 GPIO_OUTPUT = 0x00000050;
 ```
 
-### Toggle Outputs
+#### Toggle Outputs
 
 ```c
 // Atomic toggle of pins 7:4 (see the change-detection caveat above:
@@ -129,7 +131,7 @@ GPIO_OUTPUT_TGL = 0x000000F0;
 GPIO_OUTPUT_TGL = 0x00000000;
 ```
 
-### Atomic Bit Operations
+#### Atomic Bit Operations
 
 ```c
 // Set specific bits (pins 5 and 7), then re-arm
@@ -146,16 +148,16 @@ atomic register has been used: GPIO_OUTPUT readback returns the last value
 written to THAT register, not the live pin state, so an RMW clobbers
 atomic-operation results (tracked RTL issue #44).
 
-## Input Operations
+### Input Operations
 
-### Configure as Input
+#### Configure as Input
 
 ```c
 // Set pins 3:0 as inputs (bits = 0 for input)
 GPIO_DIRECTION &= ~0x0000000F;
 ```
 
-### Read Input Values
+#### Read Input Values
 
 ```c
 // Read all inputs
@@ -167,23 +169,23 @@ if (inputs & 0x00000004) {
 }
 ```
 
-### Read with Mask
+#### Read with Mask
 
 ```c
 // Read only pins 3:0
 uint32_t low_nibble = GPIO_INPUT & 0x0000000F;
 ```
 
-## Mixed I/O Configuration
+### Mixed I/O Configuration
 
-### Configure Mixed Directions
+#### Configure Mixed Directions
 
 ```c
 // Pins 31:16 = outputs, pins 15:0 = inputs
 GPIO_DIRECTION = 0xFFFF0000;
 ```
 
-### Read-Modify-Write Pattern
+#### Read-Modify-Write Pattern
 
 ```c
 // Change only pins 11:8 to outputs
@@ -192,9 +194,9 @@ dir |= 0x00000F00;    // Set pins 11:8
 GPIO_DIRECTION = dir;
 ```
 
-## Output Enable Behavior
+### Output Enable Behavior
 
-### Hardware Interface
+#### Hardware Interface
 
 When direction bit is set:
 - `gpio_oe[i]` = 1 (output enabled)
@@ -204,7 +206,7 @@ When direction bit is clear:
 - `gpio_oe[i]` = 0 (high impedance)
 - `gpio_out[i]` = don't care
 
-### Glitch Considerations
+#### Glitch Considerations
 
 To avoid output glitches when switching direction:
 1. Set GPIO_OUTPUT to desired value
@@ -217,5 +219,7 @@ GPIO_DIRECTION |= pin_mask;     // Then enable output
 ```
 
 ---
+
+## Navigation
 
 **Next:** [02_interrupt_config.md](02_interrupt_config.md) - Interrupt Configuration

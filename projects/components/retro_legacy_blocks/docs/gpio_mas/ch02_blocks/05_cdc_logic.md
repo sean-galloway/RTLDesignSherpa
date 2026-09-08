@@ -25,17 +25,15 @@
 
 ## Overview
 
-Optional clock domain crossing logic enables GPIO core to run on a separate clock from the APB interface.
-
-## Block Diagram
+When you need the GPIO core on its own clock, asynchronous to the APB bus, `CDC_ENABLE` moves the whole register file across the domain boundary. Everything about the crossing lives in this one block.
 
 ### Figure 2.7: CDC Logic Block Diagram
 
 ![CDC Logic Block](../assets/mermaid/gpio_cdc_block.png)
 
-## Configuration
+## Parameters
 
-### Parameter: CDC_ENABLE
+### CDC_ENABLE
 
 | Value | Behavior |
 |-------|----------|
@@ -44,21 +42,19 @@ Optional clock domain crossing logic enables GPIO core to run on a separate cloc
 
 : Table 2.7: CDC Enable Parameter
 
-## Clock Domains
+## Functional Description
 
-### When CDC_ENABLE = 0
+### Clock Domains
 
-### Figure 2.8: Single Clock Domain (CDC Disabled)
+#### Figure 2.8: Single Clock Domain (CDC Disabled)
 
 ![CDC Disabled](../assets/mermaid/gpio_cdc_disabled.png)
 
-### When CDC_ENABLE = 1
-
-### Figure 2.9: Dual Clock Domain (CDC Enabled)
+#### Figure 2.9: Dual Clock Domain (CDC Enabled)
 
 ![CDC Enabled](../assets/mermaid/gpio_cdc_enabled.png)
 
-## CDC Implementation
+### CDC Implementation
 
 When CDC_ENABLE=1 the ENTIRE register file and GPIO core sit in the gpio_clk
 domain; no register value is individually synchronized. The only crossing is
@@ -68,7 +64,7 @@ therefore completes with CDC handshake latency, and once it lands in the
 gpio_clk domain every register behaves exactly as in the single-clock
 configuration.
 
-### The `irq` output
+### The `irq` Output
 
 `irq` is generated in the gpio_clk domain (`gpio_config_regs.sv`) and is
 driven out WITHOUT a synchronizer. When CDC_ENABLE=1 it is a gpio_clk-domain
@@ -77,7 +73,20 @@ clock domain (it is level-style and safe to double-flop). This is tracked as
 RTL issue #44; until the RTL synchronizes it internally, treat `irq` as
 asynchronous to pclk.
 
-## Timing Considerations
+### Coherency
+
+- No guaranteed atomicity across clock domains
+- Software must handle potential inconsistencies
+- Interrupt status always reflects gpio_clk domain
+
+### Reset Synchronization
+
+Both resets must be asserted at power-on:
+1. Assert both `presetn` and `gpio_rstn`
+2. Release `gpio_rstn` first
+3. Release `presetn` after gpio_clk domain stable
+
+## Timing
 
 ### Latency
 
@@ -89,20 +98,9 @@ asynchronous to pclk.
 
 : Table 2.8: CDC Latency
 
-### Coherency
-
-- No guaranteed atomicity across clock domains
-- Software must handle potential inconsistencies
-- Interrupt status always reflects gpio_clk domain
-
-## Reset Synchronization
-
-Both resets must be asserted at power-on:
-1. Assert both `presetn` and `gpio_rstn`
-2. Release `gpio_rstn` first
-3. Release `presetn` after gpio_clk domain stable
-
 ---
+
+## Navigation
 
 **Back to:** [00_overview.md](00_overview.md) - Block Descriptions Overview
 

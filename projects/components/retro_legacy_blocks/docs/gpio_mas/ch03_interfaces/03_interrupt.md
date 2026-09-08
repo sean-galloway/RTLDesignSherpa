@@ -23,15 +23,15 @@
 
 # APB GPIO - Interrupt Interface
 
-## Signal Description
+## Ports
 
-| Signal | Width | Dir | Description |
-|--------|-------|-----|-------------|
-| irq | 1 | O | Interrupt request (active high) |
+| Signal | Width | Direction | Description |
+|--------|-------|-----------|-------------|
+| irq | 1 | Output | Interrupt request (active high) |
 
-## Interrupt Generation
+## Functional Description
 
-### Aggregate Logic
+### Interrupt Generation
 
 ```
 per-pin effective status:
@@ -59,9 +59,9 @@ Each GPIO pin can generate interrupts independently:
 | GPIO_INT_BOTH | Both edges (edge mode only) |
 | GPIO_INT_STATUS | Current interrupt status |
 
-## Interrupt Modes
+### Interrupt Modes
 
-### Edge-Triggered
+#### Edge-Triggered
 
 GPIO_INT_TYPE[i] = 0
 
@@ -76,7 +76,7 @@ flowchart TD
 - Status bit latches until cleared by software
 - Both-edge mode ignores polarity setting
 
-### Level-Sensitive
+#### Level-Sensitive
 
 GPIO_INT_TYPE[i] = 1
 
@@ -93,7 +93,25 @@ flowchart TD
 - What follows the input level is `irq` itself, because level pins drive
   `irq` from the live detector rather than from GPIO_INT_STATUS
 
-## Interrupt Timing
+### Interrupt Handling
+
+#### Software Sequence
+
+1. IRQ asserts (hardware)
+2. CPU vectors to interrupt handler
+3. Read GPIO_INT_STATUS to identify sources
+4. Handle interrupt condition
+5. Write 1 to GPIO_INT_STATUS bits to clear
+6. IRQ deasserts if no other sources
+
+#### Clearing Interrupts
+
+| Mode | Clear Method |
+|------|--------------|
+| Edge | Write 1 to STATUS bit |
+| Level | Clear source, then write 1 to STATUS |
+
+## Timing
 
 ### Edge-Triggered Latency
 
@@ -119,30 +137,16 @@ flowchart LR
 Total: 2 clock cycles typical (level irq is combinational from the
 synchronizer output)
 
-## Interrupt Handling
+## Design Notes
 
-### Software Sequence
-
-1. IRQ asserts (hardware)
-2. CPU vectors to interrupt handler
-3. Read GPIO_INT_STATUS to identify sources
-4. Handle interrupt condition
-5. Write 1 to GPIO_INT_STATUS bits to clear
-6. IRQ deasserts if no other sources
-
-### Clearing Interrupts
-
-| Mode | Clear Method |
-|------|--------------|
-| Edge | Write 1 to STATUS bit |
-| Level | Clear source, then write 1 to STATUS |
-
-## Connection Guidelines
+### Connection Guidelines
 
 - Connect to interrupt controller input
 - Active-high, level-sensitive recommended at controller
 - Single IRQ covers all 32 GPIO pins
 
 ---
+
+## Navigation
 
 **Next:** [04_system.md](04_system.md) - System Interface

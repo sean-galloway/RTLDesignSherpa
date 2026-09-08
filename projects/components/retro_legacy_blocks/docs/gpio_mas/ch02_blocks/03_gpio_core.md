@@ -25,15 +25,25 @@
 
 ## Overview
 
-The GPIO core handles input synchronization, output driving, and direction control for all 32 GPIO pins.
+The core is where the pins live: input synchronization, output driving, and direction control for all 32 GPIOs.
 
-## Block Diagram
+### Block Diagram
 
 ![GPIO Core Block](../assets/svg/gpio_core.png)
 
-## Input Path
+## Ports
 
-### Synchronization
+| Signal | Width | Direction | Description |
+|--------|-------|-----------|-------------|
+| gpio_out | 32 | Output | Output data values |
+| gpio_oe | 32 | Output | Output enables (active high) |
+| gpio_in | 32 | Input | Input data values |
+
+## Functional Description
+
+### Input Path
+
+#### Synchronization
 
 External inputs pass through a dual flip-flop synchronizer:
 
@@ -46,35 +56,27 @@ flowchart LR
 - Configurable depth via `SYNC_STAGES` parameter
 - Adds SYNC_STAGES clock cycles of latency
 
-### Input Register
+#### Input Register
 
-Synchronized inputs are presented to software via `GPIO_INPUT` register.
+Synchronized inputs land in the `GPIO_INPUT` register, which is what software reads.
 
-## Output Path
+### Output Path
 
-### Output Register
+#### Output Register
 
-Software writes to `GPIO_OUTPUT` register to set output values.
+Software writes to `GPIO_OUTPUT` to set output values.
 
-### Output Enable
+#### Output Enable
 
-Direction register controls tri-state buffers:
+The direction register controls the tri-state buffers:
 - `direction[i] = 0`: Pin is input (high-Z output)
 - `direction[i] = 1`: Pin is output (driven)
 
-### External Signals
+### Direction Control
 
-| Signal | Width | Description |
-|--------|-------|-------------|
-| gpio_out | 32 | Output data values |
-| gpio_oe | 32 | Output enables (active high) |
-| gpio_in | 32 | Input data values |
+#### Per-Pin Configuration
 
-## Direction Control
-
-### Per-Pin Configuration
-
-Each pin independently configured:
+Each pin is configured independently:
 
 ```
 // gpio_oe = cfg_gpio_enable ? cfg_direction : '0;   (gpio_core.sv)
@@ -93,13 +95,13 @@ GPIO_CONTROL.ENABLE gates ONLY the output enables: when it is 0 every pin is
 high-Z, but output data, input synchronization, and interrupt
 detection/status all keep running.
 
-### Read-Back Behavior
+#### Read-Back Behavior
 
 Reading `GPIO_INPUT` returns:
 - For input pins: External signal value (synchronized)
 - For output pins: External signal value (may differ from output_reg if open-drain)
 
-## Implementation Notes
+## Design Notes
 
 - All 32 pins processed in parallel
 - Output updates one core-clock after the register write (registered
@@ -107,5 +109,7 @@ Reading `GPIO_INPUT` returns:
 - Input synchronization always active
 
 ---
+
+## Navigation
 
 **Next:** [04_interrupt_controller.md](04_interrupt_controller.md) - Interrupt Controller

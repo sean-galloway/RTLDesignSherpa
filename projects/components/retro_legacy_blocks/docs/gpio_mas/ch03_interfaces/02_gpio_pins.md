@@ -23,17 +23,17 @@
 
 # APB GPIO - GPIO Pin Interface
 
-## Signal Description
+## Ports
 
 ### GPIO Signals
 
-| Signal | Width | Dir | Description |
-|--------|-------|-----|-------------|
-| gpio_out | 32 | O | Output data values |
-| gpio_oe | 32 | O | Output enables |
-| gpio_in | 32 | I | Input data values |
+| Signal | Width | Direction | Description |
+|--------|-------|-----------|-------------|
+| gpio_out | 32 | Output | Output data values |
+| gpio_oe | 32 | Output | Output enables |
+| gpio_in | 32 | Input | Input data values |
 
-## Pin Behavior
+## Functional Description
 
 ### Output Mode (direction[i] = 1)
 
@@ -65,11 +65,9 @@ flowchart LR
 - gpio_out[i] = don't care
 - External value captured via synchronizer
 
-## Synchronization
+### Input Synchronization
 
-### Input Synchronizer
-
-All inputs pass through dual flip-flop synchronizer:
+All inputs pass through a dual flip-flop synchronizer:
 
 ```mermaid
 flowchart LR
@@ -82,15 +80,13 @@ flowchart LR
 - Prevents metastability from asynchronous inputs
 - All 32 inputs synchronized in parallel
 
-### Input Latency
-
-Input changes visible in GPIO_INPUT register after:
+Input changes show up in the GPIO_INPUT register after:
 - SYNC_STAGES cycles of gpio_clk (or pclk if CDC_ENABLE=0)
 - Plus APB read latency
 
-## Electrical Considerations
+### Electrical Considerations
 
-### Output Characteristics
+#### Output Characteristics
 
 | Parameter | Description |
 |-----------|-------------|
@@ -98,7 +94,7 @@ Input changes visible in GPIO_INPUT register after:
 | Slew | Defined by I/O cell |
 | Protection | ESD per I/O cell design |
 
-### Input Characteristics
+#### Input Characteristics
 
 | Parameter | Description |
 |-----------|-------------|
@@ -106,7 +102,7 @@ Input changes visible in GPIO_INPUT register after:
 | Hysteresis | Optional per I/O cell |
 | Pull-up/down | External to GPIO module |
 
-## Timing Constraints
+## Timing
 
 ### Output Path
 
@@ -120,5 +116,7 @@ Input changes visible in GPIO_INPUT register after:
 - Metastability resolved by synchronizer
 
 ---
+
+## Navigation
 
 **Next:** [03_interrupt.md](03_interrupt.md) - Interrupt Interface

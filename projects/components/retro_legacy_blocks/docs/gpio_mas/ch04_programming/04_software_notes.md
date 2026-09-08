@@ -23,9 +23,13 @@
 
 # APB GPIO - Software Considerations
 
-## Performance
+## Design Notes
 
-### Register Access Timing
+The stuff that separates a driver that works from a driver that works reliably. None of this is in the register map; all of it matters.
+
+### Performance
+
+#### Register Access Timing
 
 | Operation | APB Cycles | Notes |
 |-----------|------------|-------|
@@ -33,7 +37,7 @@
 | Write | 2 + wait states | PREADY-gated |
 | Read-Modify-Write | one read + one write | Each PREADY-gated |
 
-### Optimizing Access
+#### Optimizing Access
 
 **Batch operations when possible:**
 ```c
@@ -60,9 +64,9 @@ dir |= 0x0000000F;
 GPIO_DIRECTION = dir;
 ```
 
-## Synchronization
+### Synchronization
 
-### Input Latency
+#### Input Latency
 
 GPIO inputs have inherent latency:
 - SYNC_STAGES clock cycles (default 2)
@@ -70,14 +74,14 @@ GPIO inputs have inherent latency:
 
 **Account for latency in timing-critical code.**
 
-### Volatile Registers
+#### Volatile Registers
 
 Always declare GPIO registers as volatile:
 ```c
 #define GPIO_INPUT  (*(volatile uint32_t *)0xFEC0700C)
 ```
 
-### Multi-Core Considerations
+#### Multi-Core Considerations
 
 If multiple cores access GPIO:
 ```c
@@ -89,9 +93,9 @@ GPIO_OUTPUT = val;
 spin_unlock(&gpio_lock);
 ```
 
-## Interrupt Best Practices
+### Interrupt Best Practices
 
-### Clear Before Return
+#### Clear Before Return
 
 Always clear interrupt status before ISR return:
 ```c
@@ -102,7 +106,7 @@ void gpio_isr(void) {
 }
 ```
 
-### Avoid Spurious Interrupts
+#### Avoid Spurious Interrupts
 
 Disable interrupts during configuration:
 ```c
@@ -123,7 +127,7 @@ void reconfigure_interrupt(int pin) {
 }
 ```
 
-### Level-Sensitive Caution
+#### Level-Sensitive Caution
 
 Level interrupts can cause interrupt storms:
 ```c
@@ -137,15 +141,15 @@ void level_isr(void) {
 }
 ```
 
-## Error Handling
+### Error Handling
 
-### No Hardware Errors
+#### No Hardware Errors
 
 GPIO controller doesn't generate errors:
 - All addresses valid
 - pslverr always 0
 
-### Software Validation
+#### Software Validation
 
 Validate configuration in software:
 ```c
@@ -161,9 +165,9 @@ bool gpio_set_direction(uint32_t pin, bool output) {
 }
 ```
 
-## Debug Tips
+### Debug Tips
 
-### Read-Back Verification
+#### Read-Back Verification
 
 ```c
 void gpio_debug(void) {
@@ -175,7 +179,7 @@ void gpio_debug(void) {
 }
 ```
 
-### Loopback Testing
+#### Loopback Testing
 
 Connect output to input for self-test:
 ```c
@@ -198,6 +202,8 @@ bool gpio_loopback_test(int out_pin, int in_pin) {
 ```
 
 ---
+
+## Navigation
 
 **Back to:** [00_overview.md](00_overview.md) - Programming Model Overview
 

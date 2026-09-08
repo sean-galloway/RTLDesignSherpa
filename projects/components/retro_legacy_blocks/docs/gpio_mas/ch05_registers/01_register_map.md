@@ -23,7 +23,7 @@
 
 # APB GPIO - Register Map
 
-## Register Summary
+## Overview
 
 Thirteen registers, verified against the RTL decode (`gpio_regs.sv`) and
 `peakrdl/gpio_regs.rdl`. `GPIO_REGS_SIZE = 0x34`.
@@ -220,7 +220,9 @@ Atomic output toggle.
 
 ---
 
-## Atomic-register write semantics (applies to SET/CLR/TGL)
+## Design Notes
+
+### Atomic-Register Write Semantics (SET/CLR/TGL)
 
 The RTL detects an atomic operation by VALUE CHANGE, not by the write strobe
 (`gpio_config_regs.sv`): the operation fires only when the written value
@@ -246,9 +248,7 @@ written value. This behavior deviates from conventional self-clearing
 set/clear/toggle registers and is tracked as an RTL issue (#44); until the
 RTL changes, the workaround is required.
 
----
-
-## Address Calculation
+### Address Calculation
 
 For system address:
 ```
@@ -264,5 +264,7 @@ Example:
 ```
 
 ---
+
+## Navigation
 
 **Back to:** [GPIO Specification Index](../gpio_mas_index.md)

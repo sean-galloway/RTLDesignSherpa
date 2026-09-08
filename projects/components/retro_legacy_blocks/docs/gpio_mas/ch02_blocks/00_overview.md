@@ -23,13 +23,15 @@
 
 # APB GPIO - Block Descriptions Overview
 
-## Module Hierarchy
+## Overview
+
+The design splits into four blocks plus an optional CDC wrapper. Small enough to hold in your head, which is how a GPIO should be.
 
 ### Figure 2.1: APB GPIO Module Hierarchy
 
 ![Module Hierarchy](../assets/mermaid/gpio_block_overview.png)
 
-## Block Summary
+### Block Summary
 
 | Block | File | Description |
 |-------|------|-------------|
@@ -40,33 +42,35 @@
 
 : Table 2.1: Block Summary
 
-## Detailed Block Descriptions
+### In This Chapter
 
-### 1. APB Interface
+#### 1. APB Interface
 Handles APB protocol conversion and register access.
 
 **See:** [01_apb_interface.md](01_apb_interface.md)
 
-### 2. Register File
+#### 2. Register File
 PeakRDL-generated registers for configuration and status.
 
 **See:** [02_register_file.md](02_register_file.md)
 
-### 3. GPIO Core
+#### 3. GPIO Core
 Main GPIO functionality including I/O control and interrupts.
 
 **See:** [03_gpio_core.md](03_gpio_core.md)
 
-### 4. Interrupt Controller
+#### 4. Interrupt Controller
 Edge detection, level sensing, and interrupt aggregation.
 
 **See:** [04_interrupt_controller.md](04_interrupt_controller.md)
 
-### 5. CDC Logic
+#### 5. CDC Logic
 Optional clock domain crossing for asynchronous GPIO clock.
 
 **See:** [05_cdc_logic.md](05_cdc_logic.md)
 
 ---
+
+## Navigation
 
 **Next:** [01_apb_interface.md](01_apb_interface.md) - APB Interface details

@@ -23,27 +23,29 @@
 
 # APB GPIO - APB Slave Interface
 
-## Signal Description
+## Ports
 
 ### APB Slave Signals
 
-| Signal | Width | Dir | Description |
-|--------|-------|-----|-------------|
-| pclk | 1 | I | APB clock |
-| presetn | 1 | I | APB reset (active low) |
-| s_apb_PSEL | 1 | I | Peripheral select |
-| s_apb_PENABLE | 1 | I | Enable phase |
-| s_apb_PWRITE | 1 | I | Write transaction |
-| s_apb_PADDR | 12 | I | Address bus |
-| s_apb_PWDATA | 32 | I | Write data |
-| s_apb_PSTRB | 4 | I | Byte strobes |
-| s_apb_PRDATA | 32 | O | Read data |
-| s_apb_PREADY | 1 | O | Ready response |
-| s_apb_PSLVERR | 1 | O | Slave error |
+| Signal | Width | Direction | Description |
+|--------|-------|-----------|-------------|
+| pclk | 1 | Input | APB clock |
+| presetn | 1 | Input | APB reset (active low) |
+| s_apb_PSEL | 1 | Input | Peripheral select |
+| s_apb_PENABLE | 1 | Input | Enable phase |
+| s_apb_PWRITE | 1 | Input | Write transaction |
+| s_apb_PADDR | 12 | Input | Address bus |
+| s_apb_PWDATA | 32 | Input | Write data |
+| s_apb_PSTRB | 4 | Input | Byte strobes |
+| s_apb_PRDATA | 32 | Output | Read data |
+| s_apb_PREADY | 1 | Output | Ready response |
+| s_apb_PSLVERR | 1 | Output | Slave error |
 
-## Protocol Compliance
+## Functional Description
 
-### APB3/APB4 Features
+### Protocol Compliance
+
+APB3/APB4 feature support:
 
 | Feature | Support |
 |---------|---------|
@@ -57,6 +59,40 @@
 | PSLVERR | Yes (always 0) |
 | PSTRB | Yes |
 | PPROT | Present on the port (`s_apb_PPROT[2:0]`), accepted and ignored - no protection checking is performed |
+
+### Address Decoding
+
+| Offset | Name | Access |
+|--------|------|--------|
+| 0x000 | GPIO_CONTROL | RW |
+| 0x004 | GPIO_DIRECTION | RW |
+| 0x008 | GPIO_OUTPUT | RW |
+| 0x00C | GPIO_INPUT | RO |
+| 0x010 | GPIO_INT_ENABLE | RW |
+| 0x014 | GPIO_INT_TYPE | RW |
+| 0x018 | GPIO_INT_POLARITY | RW |
+| 0x01C | GPIO_INT_BOTH | RW |
+| 0x020 | GPIO_INT_STATUS | W1C |
+| 0x024 | GPIO_RAW_INT | RO |
+| 0x028 | GPIO_OUTPUT_SET | WO |
+| 0x02C | GPIO_OUTPUT_CLR | WO |
+| 0x030 | GPIO_OUTPUT_TGL | WO |
+
+Only PADDR[5:0] reaches the register block, so this map aliases every 64
+bytes across the 12-bit APB window; 0x034-0x03F read as zero. No address ever
+raises PSLVERR.
+
+### Byte Strobes
+
+Byte-granular writes supported:
+- pstrb[3:0] corresponds to pwdata[31:0]
+- Unselected bytes retain previous values
+
+### Error Handling
+
+- No address decode errors (all addresses valid)
+- No timeout errors
+- pslverr always 0
 
 ## Timing
 
@@ -89,42 +125,8 @@ prdata  --------|  D1   |---------------- (read)
 pready  ________|       |________________
 ```
 
-## Address Decoding
-
-### Address Map
-
-| Address | Register | Access |
-|---------|----------|--------|
-| 0x000 | GPIO_CONTROL | RW |
-| 0x004 | GPIO_DIRECTION | RW |
-| 0x008 | GPIO_OUTPUT | RW |
-| 0x00C | GPIO_INPUT | RO |
-| 0x010 | GPIO_INT_ENABLE | RW |
-| 0x014 | GPIO_INT_TYPE | RW |
-| 0x018 | GPIO_INT_POLARITY | RW |
-| 0x01C | GPIO_INT_BOTH | RW |
-| 0x020 | GPIO_INT_STATUS | W1C |
-| 0x024 | GPIO_RAW_INT | RO |
-| 0x028 | GPIO_OUTPUT_SET | WO |
-| 0x02C | GPIO_OUTPUT_CLR | WO |
-| 0x030 | GPIO_OUTPUT_TGL | WO |
-
-Only PADDR[5:0] reaches the register block, so this map aliases every 64
-bytes across the 12-bit APB window; 0x034-0x03F read as zero. No address ever
-raises PSLVERR.
-
-### Byte Strobes
-
-Byte-granular writes supported:
-- pstrb[3:0] corresponds to pwdata[31:0]
-- Unselected bytes retain previous values
-
-## Error Handling
-
-- No address decode errors (all addresses valid)
-- No timeout errors
-- pslverr always 0
-
 ---
+
+## Navigation
 
 **Next:** [02_gpio_pins.md](02_gpio_pins.md) - GPIO Pin Interface

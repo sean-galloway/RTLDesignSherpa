@@ -23,9 +23,9 @@
 
 # APB GPIO - Interrupt Configuration
 
-## Interrupt Timing Diagrams
+## Waveforms
 
-The following diagrams illustrate GPIO interrupt detection and handling.
+First, what the hardware does. These diagrams walk through detection and clearing, one mode at a time.
 
 ### Rising Edge Interrupt
 
@@ -77,9 +77,27 @@ Note: For level-sensitive interrupts, the external source must be cleared first,
 
 ---
 
-## Interrupt Setup
+## Functional Description
 
-### 1. Configure Interrupt Type
+### Interrupt Configuration Table
+
+Every combination of the three mode fields, in one place:
+
+| INT_TYPE | INT_POLARITY | INT_BOTH | Trigger |
+|----------|--------------|----------|---------|
+| 0 | 0 | 0 | Falling edge |
+| 0 | 1 | 0 | Rising edge |
+| 0 | X | 1 | Both edges |
+| 1 | 0 | X | Active low |
+| 1 | 1 | X | Active high |
+
+## Usage Example
+
+### Interrupt Setup
+
+Four steps, in order. Skipping step 4 is the classic mistake — the global enable resets to 0, so nothing ever interrupts.
+
+#### 1. Configure Interrupt Type
 
 ```c
 // Edge-triggered (0) or Level-sensitive (1)
@@ -87,7 +105,7 @@ Note: For level-sensitive interrupts, the external source must be cleared first,
 GPIO_INT_TYPE = 0x000000F0;
 ```
 
-### 2. Configure Polarity
+#### 2. Configure Polarity
 
 For edge mode:
 - 0 = falling edge
@@ -102,14 +120,14 @@ For level mode:
 GPIO_INT_POLARITY = 0x000000FF;
 ```
 
-### 3. Configure Both-Edge Mode (Edge Mode Only)
+#### 3. Configure Both-Edge Mode (Edge Mode Only)
 
 ```c
 // Enable both edges for pin 0
 GPIO_INT_BOTH = 0x00000001;
 ```
 
-### 4. Enable Interrupts
+#### 4. Enable Interrupts
 
 ```c
 // Enable interrupts on pins 7:0
@@ -120,19 +138,9 @@ GPIO_INT_ENABLE = 0x000000FF;
 GPIO_CONTROL |= 0x00000002;
 ```
 
-## Interrupt Configuration Table
+### Complete Setup Examples
 
-| INT_TYPE | INT_POLARITY | INT_BOTH | Trigger |
-|----------|--------------|----------|---------|
-| 0 | 0 | 0 | Falling edge |
-| 0 | 1 | 0 | Rising edge |
-| 0 | X | 1 | Both edges |
-| 1 | 0 | X | Active low |
-| 1 | 1 | X | Active high |
-
-## Complete Setup Examples
-
-### Rising Edge Interrupt
+#### Rising Edge Interrupt
 
 ```c
 // Configure pin 5 for rising edge interrupt
@@ -143,7 +151,7 @@ GPIO_INT_ENABLE |= (1 << 5);     // Per-pin enable
 GPIO_CONTROL |= 0x2;             // Global INT_ENABLE (resets to 0; irq never asserts without it)
 ```
 
-### Both-Edge Interrupt
+#### Both-Edge Interrupt
 
 ```c
 // Configure pin 3 for both-edge interrupt
@@ -153,7 +161,7 @@ GPIO_INT_ENABLE |= (1 << 3);     // Per-pin enable
 GPIO_CONTROL |= 0x2;             // Global INT_ENABLE
 ```
 
-### Active-Low Level Interrupt
+#### Active-Low Level Interrupt
 
 ```c
 // Configure pin 7 for active-low level interrupt
@@ -163,15 +171,15 @@ GPIO_INT_ENABLE |= (1 << 7);     // Per-pin enable
 GPIO_CONTROL |= 0x2;             // Global INT_ENABLE
 ```
 
-## Interrupt Handling
+### Interrupt Handling
 
-### Check Interrupt Status
+#### Check Interrupt Status
 
 ```c
 uint32_t status = GPIO_INT_STATUS;
 ```
 
-### Clear Interrupts (Write-1-to-Clear)
+#### Clear Interrupts (Write-1-to-Clear)
 
 ```c
 // Clear specific interrupt (pin 5)
@@ -181,7 +189,7 @@ GPIO_INT_STATUS = (1 << 5);
 GPIO_INT_STATUS = 0xFFFFFFFF;
 ```
 
-### Complete ISR Example
+#### Complete ISR Example
 
 ```c
 void gpio_isr(void) {
@@ -200,9 +208,9 @@ void gpio_isr(void) {
 }
 ```
 
-## Level-Sensitive Considerations
+### Level-Sensitive Considerations
 
-### Avoid Interrupt Storm
+#### Avoid Interrupt Storm
 
 For level-sensitive interrupts, the source must be cleared before the status:
 
@@ -220,7 +228,7 @@ void level_sensitive_isr(void) {
 }
 ```
 
-### Masking During Handling
+#### Masking During Handling
 
 Use the global enable, GPIO_CONTROL[1]. Clearing GPIO_INT_ENABLE does NOT
 mask an edge interrupt that has already latched into GPIO_INT_STATUS (the
@@ -239,5 +247,7 @@ GPIO_CONTROL |= 0x00000002;
 ```
 
 ---
+
+## Navigation
 
 **Next:** [03_examples.md](03_examples.md) - Programming Examples

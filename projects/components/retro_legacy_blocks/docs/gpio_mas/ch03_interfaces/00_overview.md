@@ -23,9 +23,9 @@
 
 # APB GPIO - Interfaces Overview
 
-## External Interfaces
+## Overview
 
-The APB GPIO module has the following external interfaces:
+Four external interfaces: the bus, the pins, the interrupt, and the clock/reset pair.
 
 | Interface | Type | Description |
 |-----------|------|-------------|
@@ -34,32 +34,34 @@ The APB GPIO module has the following external interfaces:
 | Interrupt | Signal | Aggregate interrupt output |
 | Clocks/Reset | System | Clock and reset inputs |
 
-## Interface Summary Diagram
+### Interface Summary Diagram
 
 ![GPIO Interfaces](../assets/svg/gpio_interfaces.png)
 
-## Chapter Contents
+### In This Chapter
 
-### APB Slave Interface
+#### APB Slave Interface
 Complete APB protocol interface for register access.
 
 **See:** [01_apb4_slave.md](01_apb4_slave.md)
 
-### GPIO Pin Interface
+#### GPIO Pin Interface
 External GPIO pin connections with tri-state control.
 
 **See:** [02_gpio_pins.md](02_gpio_pins.md)
 
-### Interrupt Interface
+#### Interrupt Interface
 Interrupt request output signal.
 
 **See:** [03_interrupt.md](03_interrupt.md)
 
-### System Interface
+#### System Interface
 Clock and reset signal requirements.
 
 **See:** [04_system.md](04_system.md)
 
 ---
+
+## Navigation
 
 **Next:** [01_apb4_slave.md](01_apb4_slave.md) - APB Slave Interface

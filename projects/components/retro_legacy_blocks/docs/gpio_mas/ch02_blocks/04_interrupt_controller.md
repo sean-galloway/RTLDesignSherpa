@@ -25,17 +25,17 @@
 
 ## Overview
 
-The interrupt controller provides flexible interrupt generation for each GPIO pin with support for edge and level triggering.
-
-## Block Diagram
+Per-pin interrupt generation with edge or level triggering and one aggregate `irq`. The logic is simple; the enable semantics are where people trip. There are two levels of enable and they don't mean the same thing — read that section twice.
 
 ### Figure 2.5: Interrupt Controller Block Diagram
 
 ![Interrupt Controller Block](../assets/mermaid/gpio_interrupt_block.png)
 
-## Interrupt Modes
+## Functional Description
 
-### Edge-Triggered Mode
+### Interrupt Modes
+
+#### Edge-Triggered Mode
 `GPIO_INT_TYPE[i] = 0`
 
 | GPIO_INT_POLARITY | GPIO_INT_BOTH | Trigger Condition |
@@ -46,7 +46,7 @@ The interrupt controller provides flexible interrupt generation for each GPIO pi
 
 : Table 2.5: Edge-Triggered Modes
 
-### Level-Sensitive Mode
+#### Level-Sensitive Mode
 `GPIO_INT_TYPE[i] = 1`
 
 | GPIO_INT_POLARITY | Trigger Condition |
@@ -56,15 +56,13 @@ The interrupt controller provides flexible interrupt generation for each GPIO pi
 
 : Table 2.6: Level-Sensitive Modes
 
-## Edge Detection Logic
+### Edge Detection Logic
 
-### Figure 2.6: Edge Detection Logic
+#### Figure 2.6: Edge Detection Logic
 
 ![Edge Detection Logic](../assets/mermaid/gpio_edge_detection.png)
 
-## Interrupt Status
-
-### Status Register
+### Interrupt Status
 
 - Each bit in `GPIO_INT_STATUS` corresponds to one pin
 - Set when the interrupt condition is detected on a pin whose
@@ -84,7 +82,7 @@ Two levels of enable exist:
 - `GPIO_CONTROL[1]` (global INT_ENABLE) gates the final `irq` output and is
   the only control that masks everything. It resets to 0.
 
-## Aggregate IRQ Output
+### Aggregate IRQ Output
 
 ```
 per-pin effective status:
@@ -99,7 +97,7 @@ irq = GPIO_CONTROL[1] && (| effective_status)
 level pin does not deassert `irq` while the level persists; and edge pins use
 the latched status without re-applying the current per-pin enable.
 
-## Interrupt Handling Flow
+### Interrupt Handling Flow
 
 1. Hardware detects condition, sets status bit
 2. IRQ asserted to processor
@@ -108,12 +106,14 @@ the latched status without re-applying the current per-pin enable.
 5. Software writes 1 to status bit to clear
 6. IRQ deasserts (if no other sources active)
 
-## Implementation Notes
+## Design Notes
 
 - Edge detection uses synchronized input
 - Level-sensitive interrupts re-trigger if not cleared
 - Status bits latch until software clears
 
 ---
+
+## Navigation
 
 **Next:** [05_cdc_logic.md](05_cdc_logic.md) - CDC Logic

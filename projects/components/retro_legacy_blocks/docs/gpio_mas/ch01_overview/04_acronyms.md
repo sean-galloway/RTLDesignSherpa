@@ -23,7 +23,11 @@
 
 # APB GPIO - Acronyms and Terminology
 
-## Protocol Acronyms
+## Overview
+
+The alphabet soup, collected in one place so the rest of the document doesn't have to stop and define itself.
+
+### Protocol Acronyms
 
 | Acronym | Full Name | Description |
 |---------|-----------|-------------|
@@ -31,7 +35,7 @@
 | AMBA | Advanced Microcontroller Bus Architecture | ARM standard bus protocols |
 | CDC | Clock Domain Crossing | Synchronization between clock domains |
 
-## Signal Acronyms
+### Signal Acronyms
 
 | Acronym | Full Name | Description |
 |---------|-----------|-------------|
@@ -40,7 +44,7 @@
 | OE | Output Enable | Tri-state buffer control |
 | IRQ | Interrupt Request | Hardware interrupt signal |
 
-## GPIO-Specific Terms
+### GPIO-Specific Terms
 
 | Term | Description |
 |------|-------------|
@@ -50,7 +54,7 @@
 | Direction | Input (0) or Output (1) configuration per pin |
 | Polarity | Active-high or active-low signal interpretation |
 
-## Interrupt Terms
+### Interrupt Terms
 
 | Term | Description |
 |------|-------------|
@@ -60,7 +64,7 @@
 | Falling edge | High-to-low transition |
 | Both edges | Either transition direction |
 
-## Register Terms
+### Register Terms
 
 | Term | Description |
 |------|-------------|
@@ -70,5 +74,7 @@
 | HWIF | Hardware Interface (PeakRDL generated) |
 
 ---
+
+## Navigation
 
 **Next:** [05_references.md](05_references.md) - Reference documents
