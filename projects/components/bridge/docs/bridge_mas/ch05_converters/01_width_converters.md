@@ -40,6 +40,9 @@ Convert narrow master data to wide slave interface.
 ### Implementation
 
 ```systemverilog
+// NOTE: there is no `width_upsize` module. The real converters are
+// `axi_data_upsize` / `axi_data_dnsize` (beat packing) wrapped by
+// `axi4_dwidth_converter_rd` / `axi4_dwidth_converter_wr`. Sketch only:
 module width_upsize #(
     parameter IN_WIDTH = 64,
     parameter OUT_WIDTH = 512

@@ -29,7 +29,8 @@
 > | Mechanism | Where | What it does |
 > |---|---|---|
 > | `DECERR` on unmapped access | `axi4_subtractive_slave` | answers, so an unmapped address cannot hang the master |
-> | `o_hit_irq` / `o_hit_addr` / `o_hit_count` | same | sticky first-fault address and saturating count, cleared by `i_hit_clear` |
+> | `o_hit_irq` / `o_hit_count` | same | sticky flag and saturating count, both cleared by `i_hit_clear` |
+> | `o_hit_addr` | same | FIRST fault address; deliberately RETAINED across a clear so the evidence survives |
 > | monbus error packet | `*_mon` builds only | reports the fault to a monitor bus |
 > | response-ordering check | simulation only | `$error` on a BID/RID that does not match the FIFO head (BRIDGE-010) |
 >
@@ -380,8 +381,23 @@ end
 
 There is none. `[bridge.error_handling]` is not a table the loader knows, and
 `enable_timeout` / `timeout_cycles` / `timeout_action` / `per_slave_timeout`
-are not keys -- `config_validator` rejects unknown keys, so a TOML written from
-the block this section used to contain does not load at all.
+are not keys.
+
+**What the loader actually does with a key it does not know** -- measured by
+feeding it a config carrying `cam_depth`, `pipeline_depth` and
+`internal_data_width`, not inferred from reading it. Three different
+behaviours, which is why other pages disagree:
+
+| Where | Behaviour |
+|---|---|
+| `[bridge.mon_group]` | HARD ERROR -- `ValueError` naming the offending keys and listing the valid ones |
+| `[bridge.defaults]` | WARNS: "`[bridge.defaults]` is not implemented -- section ignored" |
+| anywhere else | SILENTLY ACCEPTED and ignored; nothing warns |
+
+So a TOML written from the block this section used to contain loads fine and
+does nothing. An earlier revision of this paragraph claimed `config_validator`
+rejects unknown keys and the config "does not load at all"; that is true only
+of `mon_group`.
 
 A hung slave stalls its path indefinitely. If the system needs to survive that,
 the watchdog belongs outside the bridge.

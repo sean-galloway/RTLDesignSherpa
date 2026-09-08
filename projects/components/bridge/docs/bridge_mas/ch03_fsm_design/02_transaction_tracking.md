@@ -79,6 +79,11 @@ end
 
 ## Response Pending Counter
 
+> **Not built.** There is no per-master outstanding-transaction counter and no
+> flow control derived from one. Outstanding depth is bounded by the per-slave
+> bridge_id FIFO, whose fullness gates the address handshake (BRIDGE-011).
+> Searching the generated RTL for a response-pending counter returns nothing.
+
 ### Purpose
 
 Track number of outstanding transactions per master for flow control.
