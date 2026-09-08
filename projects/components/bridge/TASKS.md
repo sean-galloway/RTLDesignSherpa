@@ -919,7 +919,7 @@ NEITHER has a full check or applies backpressure:
 | FIFO | File | Depth | Routes |
 |---|---|---|---|
 | `wr_fifo` / `rd_fifo` | `<slave>_slave_adapter.sv` | `WR/RD_FIFO_DEPTH = 16` | B/R back to the originating MASTER |
-| `aw_trk_mem` / `w_trk_mem` | `<master>_master_adapter.sv` | `AW_TRK_DEPTH = 16` | B back to the originating SLAVE |
+| `aw_trk_mem` / `ar_trk_mem` | `<master>_master_adapter.sv` | `AW/AR_TRK_DEPTH = 16` | B/R back to the originating SLAVE |
 
 Push is unconditional on the address handshake:
 
@@ -930,10 +930,25 @@ end else if (xbar_..._awvalid && xbar_..._awready) begin
 end
 ```
 
-The 17th outstanding write wraps the 4-bit index and overwrites entry 0. The
-response for the 1st transaction is then routed by an entry belonging to the
-17th -- B/R delivered to the WRONG MASTER, with no error and no protocol
-violation on any port. Silent data corruption, not a hang.
+The 17th outstanding request wraps the 4-bit index and overwrites entry 0. The
+two FIFOs then fail DIFFERENTLY, and the difference matters:
+
+**Slave-side (`wr_fifo`/`rd_fifo`) -- silent misrouting.** These hold the
+originating MASTER id. Two masters may hold writes to the same slave at once
+(the per-master gate restricts each master to one slave, not one master per
+slave), so the entries are a genuine MIX. Overwriting entry 0 routes the 1st
+transaction's response by the 17th's entry: B/R delivered to the WRONG MASTER,
+no error, no protocol violation on any port. Needs >=2 masters on one slave.
+
+**Master-side (`aw_trk_mem`/`ar_trk_mem`) -- NOT a misroute; a stall at 32.**
+Corrected 2026-09-08: this was filed as a wrong-slave misroute and that was
+wrong. `aw_gate_ok` admits a new AW only while it targets `r_aw_active_target`,
+so every in-flight entry holds the IDENTICAL slave-select and the overwrite
+writes the same value back. The real failure is pointer lapping: the pointers
+are `[AW_TRK_AW:0]`, so at exactly 32 outstanding `aw_trk_wptr == aw_trk_rptr`
+reads as EMPTY, `b_slave_select` falls to `'0`, no slave is selected and B
+stops flowing. A hang, not corruption, and it needs 32 outstanding from ONE
+master.
 
 **Reachability -- verified, not inferred.** Nothing anywhere caps the count:
 
