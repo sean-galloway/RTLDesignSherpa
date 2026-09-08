@@ -1128,7 +1128,7 @@ an index, not storage). Most of the 366 `.f` follow this
 38). Sean, 2026-07-24: right now placement is inconsistent. The stragglers:
 
 **Naming -- not called `filelists/`:**
-- [ ] `projects/NexysA7/rapids_characterization/flows-rapids-beats/flists/`
+- [ ] `projects/fpga-systems/NexysA7/rapids_characterization/flows-rapids-beats/flists/`
       (3 files) -> `filelists/`
 - [ ] `projects/components/bridge/rtl/filelists_static/` -> fold into
       `filelists/` (or justify why "static" is a distinct dir)
@@ -1136,7 +1136,7 @@ an index, not storage). Most of the 366 `.f` follow this
 **Loose `.f` directly beside RTL, no `filelists/` subdir:**
 - [ ] `projects/components/retro_legacy_blocks/rtl/rlb_top/rlb_top.f`
 - [ ] `projects/components/retro_legacy_blocks/rtl/apbx_xbar/apbx_xbar_rlb_1to10.f`
-- [ ] `projects/fpga-systems/NexysA7/shared/ddr2_char_framework/rtl/ddr2_char_macro.f`
+- [ ] `projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/ddr2_char_macro.f`
 
 **TB/harness `.f` -- RESOLVED (Sean, 2026-07-24):** a testbench with its own
 harness gets its own filelist, co-located WITH the TB (its `filelists/` dir),
@@ -1160,7 +1160,7 @@ waits behind the RTL-area work (cdc reorg, amba cleanup). Re-check with
 Five generated bridges under the board-characterization frameworks are stale
 with respect to the bridge generator:
 
-    projects/fpga-systems/NexysA7/shared/ddr2_char_framework/rtl/bridges/generated/bridge_ddr2_char_axil
+    projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/bridges/generated/bridge_ddr2_char_axil
     projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_char_axil
     .../bridge_stream_char_axil_mon
     .../bridge_stream_mon_axil
@@ -2121,6 +2121,41 @@ datapath and the tally CAM.
   `addr_error`. The skip was pointless anyway, since `setup()` runs after it.
 - compression: inert here, the compressor is not built
   (`USE_COMPRESSION(0)`, `USE_MON_COMPRESSION(0)`), so `COMPRESS_EN` does nothing
+
+**Narrowed 2026-09-08 to the reset DOMAIN, with the register theory falsified.**
+
+Answering the obvious question first -- is there a reset that can be run between
+scenarios? Today, no. `CTRL` offers only START, CLEAR_STATS, FREEZE_TRACE,
+SOFT_RESET and CAM_CLEAR, and SOFT_RESET is the only reset.
+
+SOFT_RESET is NOT the problem it first looked like: it drives `unit_aresetn` for
+16 cycles, and `u_stream`, `u_dma_observer`, `u_slave_observer`, `u_stream_tally`
+and `u_slave_tally` are ALL on it. Monitors and tallies do get reset.
+
+What it deliberately excludes is the APB/config domain: `u_stream` is wired
+`.aclk(aclk), .aresetn(unit_aresetn), .pclk(aclk), .presetn(aresetn)`. The
+register side stays on the global `aresetn` so configuration survives the pulse
+-- which is correct and intended. Programming the bitstream asserts that global
+`aresetn`, which is exactly why only a reprogram recovers it.
+
+The state is NOT in a register. Measured: a golden snapshot of all 140 CSRs taken
+fresh from a program, then the perf scenario, showed 43 registers changed;
+restoring every one of them to its golden value before addr_error does not
+restore the packets. Separately, every monitor CSR's hardware reset value was
+confirmed to match its RDL default exactly (0 mismatches across 86 registers), so
+default-restore is faithful and still insufficient.
+
+Conclusion: sequential logic in the `presetn` domain inside `u_stream` (and/or
+the monbus group's config/CDC side) carries state across SOFT_RESET that no
+register write can clear.
+
+**Two candidate fixes, both RTL:** extend the soft reset to that domain's LOGIC
+while leaving the register storage intact, or add a dedicated monitor-reset
+control bit alongside CAM_CLEAR in `CTRL` that the campaign can pulse between
+scenarios. The second is the smaller change and gives the host the between-run
+reset it currently lacks.
+
+**Original finding retained below.**
 
 **The only thing that restores it is REPROGRAMMING THE BITSTREAM.** So the state
 that survives is not reachable from any monitor CSR: it is internal monitor state
