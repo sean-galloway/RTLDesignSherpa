@@ -26,7 +26,9 @@
 **Component:** APB General Purpose I/O (GPIO) Controller
 **Version:** 1.0
 **Last Updated:** 2026-01-04
-**Status:** Production Ready
+**Status:** RTL Functional - register interface and interrupt semantics
+validated; atomic-register change-detection quirks and the unsynchronized
+CDC irq are tracked in issue #44 (documented in ch05)
 
 ---
 

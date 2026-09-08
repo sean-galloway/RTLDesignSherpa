@@ -47,7 +47,7 @@ Baud Rate = pclk / (16 * Divisor)
 | Parameter | Value |
 |-----------|-------|
 | Polarity | Active low |
-| Type | Asynchronous assert, synchronous deassert |
+| Type | Asynchronous assert, synchronous deassert (hand-written logic; the generated register file resets synchronously) |
 | Scope | All UART logic |
 
 ## Reset Behavior

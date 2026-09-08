@@ -26,7 +26,9 @@
 **Component:** APB Programmable Interval Timer (PIT 8254)
 **Version:** 1.0
 **Last Updated:** 2025-11-08
-**Status:** Production Ready (6/6 tests 100% passing, both configurations)
+**Status:** Validated for Mode 0 (6/6 tests passing, both CDC configs,
+re-verified 2026-09-08); non-Mode-0 features deviate from the 8254 --
+see ch05 and issue #52
 
 ---
 

@@ -175,7 +175,7 @@ The APB PIT 8254 is architecturally compatible with the Intel 8254 but has key d
 - BCD counting verification
 
 **Implementation Quality:**
-- **Production Ready** for Mode 0 operation
+- **Validated** for Mode 0 operation (6/6 tests, both CDC configs)
 - **100% Test Pass Rate** (6/6 tests, both CDC configurations)
 - **Well-Documented** RTL and verification
 - **FPGA Verified** on Verilator simulation
@@ -184,4 +184,4 @@ The APB PIT 8254 is architecturally compatible with the Intel 8254 but has key d
 
 **Version:** 1.0
 **Last Updated:** 2025-11-08
-**Status:** Production Ready (Mode 0)
+**Status:** Validated (Mode 0; see the index and issue #52)

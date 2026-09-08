@@ -26,7 +26,9 @@
 **Component:** APB UART 16550 Compatible Serial Controller
 **Version:** 1.0
 **Last Updated:** 2025-12-01
-**Status:** Production Ready
+**Status:** RTL Partial - register interface and basic 8-bit TX/RX
+validated; FE/BI never assert, IER gates nothing, W1C never clears --
+see ch05 and issue #60
 
 ---
 

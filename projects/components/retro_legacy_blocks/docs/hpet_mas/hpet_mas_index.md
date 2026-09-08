@@ -26,7 +26,9 @@
 **Component:** APB High Precision Event Timer (HPET)
 **Version:** 1.0
 **Last Updated:** 2026-01-04
-**Status:** Production Ready
+**Status:** RTL Partial - register interface validated; STATUS clear-all
+W1C, unreset STATUS storage, dead parameters and other defects tracked
+in issue #46 (documented as deviations in ch05)
 
 ---
 

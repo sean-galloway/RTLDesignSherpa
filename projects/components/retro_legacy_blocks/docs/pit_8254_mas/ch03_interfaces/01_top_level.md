@@ -61,7 +61,7 @@ module apb4_pit_8254 #(
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `pclk` | Input | 1 | APB bus clock. All APB signals are synchronous to this clock. |
-| `presetn` | Input | 1 | APB reset, active-low. Asynchronous assertion, synchronous deassertion. |
+| `presetn` | Input | 1 | APB reset, active-low. Asynchronous assertion, synchronous deassertion (generated register file is the exception -- it resets synchronously; see ch01 clocks). |
 
 **APB Interface Signals:**
 | Signal | Direction | Width | Description |

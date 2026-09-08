@@ -25,6 +25,11 @@
 
 ## Introduction
 
+Top-level parameters on apb4_smbus: CDC_ENABLE (0 = single pclk domain,
+1 = separate core clock via apb4_slave_cdc), with USE_JOHNSON
+(CDC counter encoding, default 0) and SKID_DEPTH (default 2)
+forwarded to the CDC block.
+
 The APB SMBus controller provides System Management Bus communication with APB interface. It supports host controller functionality for accessing SMBus devices.
 
 ## Key Features

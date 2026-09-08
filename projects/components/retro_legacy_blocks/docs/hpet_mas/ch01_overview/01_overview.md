@@ -160,7 +160,7 @@ The design scales linearly with timer count. Each additional timer adds approxim
 
 #### Development Status
 
-**Status:** ✅ Production Ready
+**Status:** RTL Partial - see the index and issue #46
 
 **Completed Features:**
 - ✅ One-shot timer mode
