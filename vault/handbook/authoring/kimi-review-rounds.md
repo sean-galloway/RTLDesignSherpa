@@ -28,7 +28,7 @@ for one call are pre-split into `parts/part_NN`. Results land in
 `<results>/<mode>-<model>/round_N/` as `<unit>.md` + `<unit>.meta.json`,
 with the inputs snapshotted into `_bundle_snapshot/`.
 
-## The 13 rules
+## The 14 rules
 
 Each one is here because ignoring it cost real work.
 
@@ -668,6 +668,20 @@ table becomes the next source of phantom missing-module findings.
     Applied to a PRD I had already declared corrected, this found 17 more
     assertions. "I fixed the findings" is a report about effort; "the sweep
     returns zero" is a report about the file.
+
+14. **Count findings with a format-agnostic pattern, and sanity-check a
+    zero.** The round counter grepped `^\[CONFIRMED\]`. One unit emits its
+    findings as `**[CONFIRMED] ...**` inside numbered sections, so that unit
+    read as ZERO. I reported round 3 as 37 findings and called the unit clean;
+    it had 15, the largest in the round, and the true total was 53. The
+    reported trajectory 65 -> 53 -> 37 was really 65 -> 54 -> 53: convergence
+    had stalled and the metric hid it.
+
+    Use `grep -o` on the bare token rather than anchoring to line start, and
+    treat a unit reporting ZERO as a claim to verify, not a result to
+    celebrate. A reviewer that finds nothing in eight files is far more likely
+    to be a broken counter than a clean book -- the same reasoning as a test
+    that passes suspiciously fast.
 
 ## The order: correctness until clean, then voice
 

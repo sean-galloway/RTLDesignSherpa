@@ -62,7 +62,7 @@ The Bridge component is a CSV-driven generator that produces AXI4 crossbars with
 
 ### Chapter 4: ID Management
 
-- [CAM Architecture](ch04_id_management/01_cam_architecture.md)
+- [CAM Architecture](ch04_id_management/01_cam_architecture.md) -- describes a design that was NEVER BUILT; see [ID Tracking](ch04_id_management/02_id_tracking.md) for the mechanism actually generated
 - [ID Tracking Tables](ch04_id_management/02_id_tracking.md)
 
 ### Chapter 5: Converters

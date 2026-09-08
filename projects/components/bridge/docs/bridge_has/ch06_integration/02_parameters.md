@@ -42,11 +42,15 @@
 
 | Parameter | Formula | Example |
 |-----------|---------|---------|
-| BID_WIDTH | clog2(NUM_MASTERS) | 4 masters = 2 bits |
-| TOTAL_ID_WIDTH | ID_WIDTH + BID_WIDTH | 4 + 2 = 6 bits |
+| BRIDGE_ID_WIDTH | clog2(NUM_MASTERS) | 4 masters = 2 bits |
 | STRB_WIDTH | DATA_WIDTH / 8 | 64b = 8 strobes |
 
 : Table 6.9: Derived Parameters
+
+> `TOTAL_ID_WIDTH` was listed here as a derived parameter. It does not exist:
+> IDs are not extended, so there is nothing to widen. `BRIDGE_ID_WIDTH` sizes
+> the SIDEBAND master id carried beside the transaction, and is the only
+> derived width the generated package defines.
 
 ## Per-Port Configuration
 
@@ -220,8 +224,11 @@ Bridge includes optional assertions for:
     {name = "cpu", prefix = "cpu_axi", data_width = 64, channels = "rw"}
   ]
   slaves = [
-    {name = "mem", prefix = "mem_axi", protocol = "axi4", data_width = 512},
-    {name = "gpio", prefix = "gpio_apb", protocol = "apb", data_width = 32},
-    {name = "uart", prefix = "uart_apb", protocol = "apb", data_width = 32}
+    {name = "mem",  prefix = "mem_axi",  protocol = "axi4", data_width = 512,
+     base_addr = 0x00000000, addr_range = 0x80000000},
+    {name = "gpio", prefix = "gpio_apb", protocol = "apb",  data_width = 32,
+     base_addr = 0x80000000, addr_range = 0x00010000},
+    {name = "uart", prefix = "uart_apb", protocol = "apb",  data_width = 32,
+     base_addr = 0x80010000, addr_range = 0x00010000}
   ]
 ```
