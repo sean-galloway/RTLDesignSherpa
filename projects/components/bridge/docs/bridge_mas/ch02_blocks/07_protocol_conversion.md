@@ -924,11 +924,11 @@ When an AXI4-Lite master interfaces with a wider AXI4 slave (e.g., 32-bit AXIL m
 
 ### Planned Features
 
-**AXI4-Lite**:
-- Subset of AXI4
-- No burst support (ALEN=0 always)
-- Simpler than full AXI4
-- Common for control registers
+**AXI4-Lite** -- NOT future work; BUILT. `axi4_to_axil4_{rd,wr}` shims are
+emitted when `protocol = "axil"`, and `bridge_1x2_rw_axil5` and the `mix_*`
+configurations ship AXIL slaves with tests in the FULL regression. It was
+listed here as planned while the same page describes the shims that implement
+it.
 
 **AHB (AMBA High-performance Bus)**:
 - More capable than APB

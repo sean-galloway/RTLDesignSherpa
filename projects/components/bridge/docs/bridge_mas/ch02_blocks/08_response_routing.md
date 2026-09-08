@@ -30,7 +30,7 @@ Requests are easy to route — the address says where they go. Responses are har
 Response routing does five things:
 
 1. **Response Direction**: Routes R and B channel responses to correct master
-2. **ID-Based Routing**: Uses extracted Bridge IDs to determine destination
+2. **Position-Based Routing**: pops a per-slave in-order FIFO of sideband master ids; the returned BID/RID is not used
 3. **Multi-Slave Merging**: Combines responses from multiple slaves to single master
 4. **Flow Control**: Manages backpressure from master on response channels
 5. **Error Propagation**: Ensures error responses reach originating master
@@ -73,6 +73,12 @@ end
 - Prevents response loss due to stale address decodes
 
 ### BID Extraction
+
+> **Not built.** Nothing is extracted from the BID. IDs pass through the bridge
+> untouched at equal width, and the return path is chosen by the POSITION of a
+> per-slave in-order FIFO holding a sideband master id. The returned BID/RID is
+> never consulted -- which is exactly why a slave that reorders between IDs
+> misroutes here (BRIDGE-010).
 
 For ID-based routing, Bridge ID is extracted from response:
 
@@ -192,6 +198,12 @@ Solution: Arbitrate between slave responses
 
 ### Response Arbitration
 
+> **Not built.** Responses are not arbitrated and there are no response FIFOs.
+> The crossbar instantiates round-robin arbiters for AW and AR only; B and R
+> follow the selection recorded at the address handshake. Searching the
+> generated crossbar for a B or R arbiter, or for a response FIFO, returns
+> nothing.
+
 ```systemverilog
 // Arbitrate between multiple slave responses for same master
 logic [2:0] slave_has_response;  // Which slaves have responses for M0
@@ -302,7 +314,7 @@ Response path can stall when:
    → Non-selected slaves stalled
    → Selected slave proceeds
 
-3. Response FIFO full
+3. bridge_id tracking FIFO full -- the address handshake is gated on it (BRIDGE-011); there is no response DATA FIFO
    → Slave stalled until space available
 ```
 
@@ -315,9 +327,9 @@ Slave R response → Bridge → Master R channel
 
 Components:
 1. Slave response valid
-2. BID extraction (0 cycles, combinatorial)
+2. FIFO head read (0 cycles, combinatorial) -- no BID extraction
 3. Demux routing (0-1 cycles)
-4. Response arbitration (1 cycle if conflict)
+4. No response arbitration: B and R follow the address-phase selection
 5. Optional FIFO (0-1 cycles)
 6. Master adapter (1 cycle, skid buffer)
 

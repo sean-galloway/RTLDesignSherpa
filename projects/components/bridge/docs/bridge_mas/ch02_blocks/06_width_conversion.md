@@ -23,7 +23,7 @@
 
 # 2.6 Width Conversion
 
-Masters and slaves rarely agree on data width, and width conversion is how the bridge copes. The internal data path is 64 bits; conversion logic at the master and slave interfaces adapts whatever narrower or wider widths the ports bring.
+Masters and slaves rarely agree on data width, and width conversion is how the bridge copes. There is NO fixed internal width. Each path carries its port's own width and converters sit at the boundaries where two ports disagree -- `bridge_4x4_rw` alone instantiates paths at 32, 64, 128 and 256 bits.
 
 ## 2.6.1 Purpose and Function
 
@@ -463,7 +463,7 @@ Downsizer:
 
 ### Optimization Strategies
 
-1. **Match Common Widths**: Design masters/slaves to match internal width (64-bit)
+1. **Match Common Widths**: match a master to its slave's width, so no converter is inserted on that path. There is no single internal width to match.
 2. **Burst Sizing**: Use appropriate burst lengths for width ratios
 3. **Parallel Paths**: Multiple 32-bit masters can aggregate to 64-bit crossbar bandwidth
 4. **Selective Conversion**: Only convert where necessary
