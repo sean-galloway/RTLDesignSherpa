@@ -644,15 +644,15 @@ A block is considered "Production Ready" when:
 
 | Block | Priority | Status | Test Pass Rate | Documentation | Production Ready |
 |-------|----------|--------|----------------|---------------|------------------|
-| HPET | High | ✅ Complete | 5/6 at 100%, 1/6 at 92% | ✅ Complete | ✅ Yes |
-| 8259 PIC | High | 📋 Planned | N/A | N/A | ❌ No |
-| 8254 PIT | High | 📋 Planned | N/A | N/A | ❌ No |
-| GPIO | Medium | 📋 Planned | N/A | N/A | ❌ No |
-| RTC | Medium | 📋 Planned | N/A | N/A | ❌ No |
-| SMBus | Medium | 📋 Planned | N/A | N/A | ❌ No |
-| PM/ACPI | Medium | 📋 Planned | N/A | N/A | ❌ No |
-| IOAPIC | Medium | 📋 Planned | N/A | N/A | ❌ No |
-| UART | Medium | 📋 Planned | N/A | N/A | ❌ No |
+| HPET | High | ✅ Implemented | see dv/tests | MAS (ch1/2/5) | ❌ RTL defects open (#46) |
+| 8259 PIC | High | ✅ Implemented | see dv/tests | MAS (ch1/5) | ❌ ISR/EOI half inert (#50) |
+| 8254 PIT | High | ✅ Implemented | 6/6 both CDC configs | MAS (full) | Mode 0 only (#52) |
+| GPIO | Medium | ✅ Implemented | see dv/tests | MAS (full) | Functional; quirks tracked (#44) |
+| RTC | Medium | ✅ Implemented | see dv/tests | MAS (ch1/5) | ❌ Binary 24h only; time-set broken in production mode (#56) |
+| SMBus | Medium | ✅ Implemented | see dv/tests | MAS (ch1/5) | ❌ Transfer engine non-functional (#58) |
+| PM/ACPI | Medium | ✅ Implemented | see dv/tests | MAS (ch1/5) | ❌ Status/W1C/wake defects (#54) |
+| IOAPIC | Medium | ✅ Implemented | see dv/tests | MAS (ch1/2/5) | ❌ Double delivery + EOI hazards (#48) |
+| UART | Medium | ✅ Implemented | see dv/tests | MAS (full) | ❌ FE/BI dead, IER unwired (#60) |
 | SPI | Low | 📋 Planned | N/A | N/A | ❌ No |
 | I2C | Low | 📋 Planned | N/A | N/A | ❌ No |
 | Watchdog | Low | 📋 Planned | N/A | N/A | ❌ No |
