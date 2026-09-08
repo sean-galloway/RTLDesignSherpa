@@ -33,7 +33,8 @@ import os
 import time
 
 import ddr2_char as dc
-from ddr2_char import DDR2CharDriver
+from ddr2_char import DDR2CharDriver, harness_probe
+from boards import get_board
 from pumice_master import wait_engine
 
 SEED = 0x1234_5678          # address-hash seed -> phase/lane-distinct words
@@ -122,6 +123,7 @@ def longest_run(vals):
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--board", default="nexys_a7_100t")
     ap.add_argument("--port", default="auto")
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--bl", type=int,
@@ -141,7 +143,8 @@ def main():
     DDR2CharDriver.BOARD_DRAM_BL = args.bl
     DDR2CharDriver.BOARD_MR0 = args.mr0
 
-    args.port = dc.autodetect_port(args.baud, want=args.port)
+    board = get_board(args.board)
+    args.port = board.find_uart_port(probe=harness_probe(), want=args.port, label="pumice DDR2 char harness")
     d = DDR2CharDriver(port=args.port, baudrate=args.baud)
     print(f"BUILD_ID=0x{d.build_id():08X}  BL={args.bl} MR0=0x{args.mr0:04X}",
           flush=True)

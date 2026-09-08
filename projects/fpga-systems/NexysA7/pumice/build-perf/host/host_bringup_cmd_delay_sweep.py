@@ -10,7 +10,8 @@ import argparse
 import time
 
 import ddr2_char as dc
-from ddr2_char import DDR2CharDriver
+from ddr2_char import DDR2CharDriver, harness_probe
+from boards import get_board
 from pumice_master import wait_engine
 
 LANES = 0b11
@@ -55,6 +56,7 @@ def one_test(d, base, blen, txn, seed):
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--board", default="nexys_a7_100t")
     ap.add_argument("--port", default="auto")
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--cmd-delays", default="0,1,2,3,4,5,6,7,8")
@@ -69,7 +71,8 @@ def main():
     delays = [int(x) for x in args.cmd_delays.split(",")]
     total = args.blen * args.txn
 
-    args.port = dc.autodetect_port(args.baud, want=args.port)
+    board = get_board(args.board)
+    args.port = board.find_uart_port(probe=harness_probe(), want=args.port, label="pumice DDR2 char harness")
 
     d = DDR2CharDriver(port=args.port, baudrate=args.baud)
     print(f"BUILD_ID=0x{d.build_id():08X}  (full-mismatch = {total})", flush=True)

@@ -9,7 +9,8 @@ import argparse
 import time
 
 import ddr2_char as dc
-from ddr2_char import DDR2CharDriver
+from ddr2_char import DDR2CharDriver, harness_probe
+from boards import get_board
 from pumice_master import A7Leveling, wait_engine
 
 SEED = 0x1EAF_F00D
@@ -17,6 +18,7 @@ SEED = 0x1EAF_F00D
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--board", default="nexys_a7_100t")
     ap.add_argument("--port", default="auto")
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--base", type=lambda x: int(x, 0), default=0x0)
@@ -33,7 +35,8 @@ def main() -> int:
     rddly_list = [int(x) for x in args.rddly.split(",")]
     rdphase_list = [int(x) for x in args.rdphase.split(",")]
 
-    args.port = dc.autodetect_port(args.baud, want=args.port)
+    board = get_board(args.board)
+    args.port = board.find_uart_port(probe=harness_probe(), want=args.port, label="pumice DDR2 char harness")
     d = DDR2CharDriver(port=args.port, baudrate=args.baud)
     print(f"BUILD_ID=0x{d.build_id():08X}", flush=True)
 

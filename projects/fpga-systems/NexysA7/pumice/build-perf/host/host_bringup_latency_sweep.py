@@ -18,7 +18,8 @@ import argparse
 import time
 
 import ddr2_char as dc
-from ddr2_char import DDR2CharDriver
+from ddr2_char import DDR2CharDriver, harness_probe
+from boards import get_board
 from pumice_master import wait_engine
 
 LANES = 0b11          # x16 -> both byte lanes together
@@ -70,6 +71,7 @@ def try_point(drv: DDR2CharDriver, wrlat: int, rden: int, base: int,
 
 def main() -> None:
     ap = argparse.ArgumentParser()
+    ap.add_argument("--board", default="nexys_a7_100t")
     ap.add_argument("--port", default="auto")
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--bitslip", type=int, default=EYE_BITSLIP)
@@ -86,7 +88,8 @@ def main() -> None:
     wrlats = [int(x) for x in args.wrlat.split(",")]
     rdens = [int(x) for x in args.rden.split(",")]
 
-    args.port = dc.autodetect_port(args.baud, want=args.port)
+    board = get_board(args.board)
+    args.port = board.find_uart_port(probe=harness_probe(), want=args.port, label="pumice DDR2 char harness")
 
     drv = DDR2CharDriver(port=args.port, baudrate=args.baud)
     bid = drv.build_id()

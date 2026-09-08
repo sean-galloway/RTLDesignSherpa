@@ -24,15 +24,18 @@ defaults. 75 uses the native 115200 baud (PUMICE_SYS_75 sets FPGA_CLK_HZ=75M).
 import argparse
 import time
 
-import ddr2_char as dc
-from ddr2_char import DDR2CharDriver
+import ddr2_char as dc  # noqa: F401  (import side effect: fpga-systems/bin on sys.path)
+from ddr2_char import DDR2CharDriver, harness_probe
 from pumice_master import A7Leveling, wait_engine
+
+from boards import get_board
 
 SEED = 0x1EAFF00D
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.strip().splitlines()[0])
+    ap.add_argument("--board", default="nexys_a7_100t")
     ap.add_argument("--port", default="auto")
     ap.add_argument("--baud", type=int, default=129534,
                     help="75MHz clock with the 66.67 baud divisor (until a "
@@ -52,7 +55,9 @@ def main() -> int:
     ap.add_argument("--wrlats", default="0,1,2")
     args = ap.parse_args()
 
-    args.port = dc.autodetect_port(args.baud, want=args.port)
+    board = get_board(args.board)
+    args.port = board.find_uart_port(probe=harness_probe(), want=args.port,
+                                     label="pumice DDR2 char harness")
     d = DDR2CharDriver(port=args.port, baudrate=args.baud)
     print(f"BUILD_ID=0x{d.build_id():08X}", flush=True)
 

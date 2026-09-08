@@ -26,7 +26,8 @@ _SELF = os.path.join(_REPO, "projects/fpga-systems/NexysA7/pumice/build-perf")
 sys.path.insert(0, os.path.join(_SELF, "host"))
 
 import ddr2_char as dc                      # noqa: E402
-from ddr2_char import DDR2CharDriver        # noqa: E402
+from ddr2_char import DDR2CharDriver, harness_probe        # noqa: E402
+from boards import get_board
 from pumice_master import wait_engine       # noqa: E402
 
 SEED = 0xA5A5_1234
@@ -118,6 +119,7 @@ def drive_init(port, baud):
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--board", default="nexys_a7_100t")
     ap.add_argument("--port", default="auto")
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--out", default=os.path.join(_SELF, "reports/ila_capture.csv"))
@@ -150,7 +152,8 @@ def main():
         proc.wait(); sys.exit(1)
 
     time.sleep(1.0)  # let the arm settle
-    args.port = dc.autodetect_port(args.baud, want=args.port)
+    board = get_board(args.board)
+    args.port = board.find_uart_port(probe=harness_probe(), want=args.port, label="pumice DDR2 char harness")
     if args.trig == "lmr":
         drive_init(args.port, args.baud)
     else:
