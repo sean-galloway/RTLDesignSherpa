@@ -51,40 +51,19 @@ APB → apb4_slave[_cdc] → CMD/RSP → peakrdl_to_cmdrsp →
 |-----------|---------|-------------|
 | GPIO_WIDTH | 32 | GPIO port width |
 | SYNC_STAGES | 2 | Input synchronizer stages |
-| APB_ADDR_WIDTH | 16 | APB address width |
-| APB_DATA_WIDTH | 16 | APB data width |
 | CDC_ENABLE | 0 | 1=async clocks, 0=same clock |
 | SKID_DEPTH | 2 | CDC skid buffer depth |
 
+The APB port is fixed at 32-bit data / 12-bit address (localparams in
+`apb4_gpio.sv`); there are no APB width parameters.
+
 ## Register Map
 
-| Offset | Register | Access | Description |
-|--------|----------|--------|-------------|
-| 0x000 | GPIO_CONTROL | RW | Global enable, interrupt enable |
-| 0x004 | GPIO_DIRECTION_LO | RW | Direction [15:0] (1=out, 0=in) |
-| 0x006 | GPIO_DIRECTION_HI | RW | Direction [31:16] |
-| 0x008 | GPIO_OUTPUT_LO | RW | Output data [15:0] |
-| 0x00A | GPIO_OUTPUT_HI | RW | Output data [31:16] |
-| 0x00C | GPIO_INPUT_LO | RO | Input data [15:0] |
-| 0x00E | GPIO_INPUT_HI | RO | Input data [31:16] |
-| 0x010 | GPIO_INT_ENABLE_LO | RW | Interrupt enable [15:0] |
-| 0x012 | GPIO_INT_ENABLE_HI | RW | Interrupt enable [31:16] |
-| 0x014 | GPIO_INT_TYPE_LO | RW | 1=level, 0=edge [15:0] |
-| 0x016 | GPIO_INT_TYPE_HI | RW | 1=level, 0=edge [31:16] |
-| 0x018 | GPIO_INT_POLARITY_LO | RW | 1=high/rising, 0=low/falling [15:0] |
-| 0x01A | GPIO_INT_POLARITY_HI | RW | 1=high/rising, 0=low/falling [31:16] |
-| 0x01C | GPIO_INT_BOTH_LO | RW | 1=both edges [15:0] |
-| 0x01E | GPIO_INT_BOTH_HI | RW | 1=both edges [31:16] |
-| 0x020 | GPIO_INT_STATUS_LO | RW/W1C | Interrupt status [15:0] |
-| 0x022 | GPIO_INT_STATUS_HI | RW/W1C | Interrupt status [31:16] |
-| 0x024 | GPIO_RAW_INT_LO | RO | Raw interrupt (pre-mask) [15:0] |
-| 0x026 | GPIO_RAW_INT_HI | RO | Raw interrupt (pre-mask) [31:16] |
-| 0x028 | GPIO_OUTPUT_SET_LO | WO | Atomic set [15:0] |
-| 0x02A | GPIO_OUTPUT_SET_HI | WO | Atomic set [31:16] |
-| 0x02C | GPIO_OUTPUT_CLR_LO | WO | Atomic clear [15:0] |
-| 0x02E | GPIO_OUTPUT_CLR_HI | WO | Atomic clear [31:16] |
-| 0x030 | GPIO_OUTPUT_TGL_LO | WO | Atomic toggle [15:0] |
-| 0x032 | GPIO_OUTPUT_TGL_HI | WO | Atomic toggle [31:16] |
+Thirteen 32-bit registers at word offsets 0x000-0x030. The authoritative map,
+field definitions, and software caveats (atomic-register change detection,
+GPIO_OUTPUT readback) live in the MAS register chapter:
+`docs/gpio_mas/ch05_registers/01_register_map.md`. An earlier revision of
+this README carried a 16-bit LO/HI split map that never matched the RTL.
 
 ## FPGA Integration
 

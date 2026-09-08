@@ -113,6 +113,10 @@ GPIO_INT_BOTH = 0x00000001;
 ```c
 // Enable interrupts on pins 7:0
 GPIO_INT_ENABLE = 0x000000FF;
+
+// Set the GLOBAL interrupt enable, GPIO_CONTROL[1] - it resets to 0 and
+// gates the irq output, so without this step no interrupt ever asserts.
+GPIO_CONTROL |= 0x00000002;
 ```
 
 ## Interrupt Configuration Table
@@ -214,16 +218,20 @@ void level_sensitive_isr(void) {
 
 ### Masking During Handling
 
+Use the global enable, GPIO_CONTROL[1]. Clearing GPIO_INT_ENABLE does NOT
+mask an edge interrupt that has already latched into GPIO_INT_STATUS (the
+per-pin enable is only sampled when the event sets the sticky bit), so an
+enable-save/restore recipe leaves `irq` asserted for pending edge sources.
+
 ```c
-// Temporarily disable while handling
-uint32_t saved_enable = GPIO_INT_ENABLE;
-GPIO_INT_ENABLE = 0;  // Disable all
+// Temporarily mask everything while handling
+GPIO_CONTROL &= ~0x00000002;   // global interrupt enable off
 
 // Handle interrupt source
 handle_interrupt();
 
-// Re-enable
-GPIO_INT_ENABLE = saved_enable;
+// Unmask
+GPIO_CONTROL |= 0x00000002;
 ```
 
 ---

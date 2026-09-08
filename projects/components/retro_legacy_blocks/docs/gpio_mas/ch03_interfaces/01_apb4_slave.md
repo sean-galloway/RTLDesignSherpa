@@ -56,7 +56,7 @@
 | PREADY | Yes (always 1) |
 | PSLVERR | Yes (always 0) |
 | PSTRB | Yes |
-| PPROT | No |
+| PPROT | Present on the port (`s_apb_PPROT[2:0]`), accepted and ignored - no protection checking is performed |
 
 ## Timing
 
@@ -102,6 +102,14 @@ pready  ________|       |________________
 | 0x018 | GPIO_INT_POLARITY | RW |
 | 0x01C | GPIO_INT_BOTH | RW |
 | 0x020 | GPIO_INT_STATUS | W1C |
+| 0x024 | GPIO_RAW_INT | RO |
+| 0x028 | GPIO_OUTPUT_SET | RW |
+| 0x02C | GPIO_OUTPUT_CLR | RW |
+| 0x030 | GPIO_OUTPUT_TGL | RW |
+
+Only PADDR[5:0] reaches the register block, so this map aliases every 64
+bytes across the 12-bit APB window; 0x034-0x03F read as zero. No address ever
+raises PSLVERR.
 
 ### Byte Strobes
 

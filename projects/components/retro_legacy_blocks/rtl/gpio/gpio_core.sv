@@ -57,7 +57,8 @@ module gpio_core #(
     input  logic [GPIO_WIDTH-1:0]   cfg_int_polarity,   // 1=high/rising, 0=low/falling
     input  logic [GPIO_WIDTH-1:0]   cfg_int_both,       // 1=both edges
 
-    // Atomic Operations (active high, self-clearing)
+    // Atomic Operations (active high, one-cycle pulses from gpio_config_regs;
+    // pulses are change-detected there, not strobe-driven -- see issue #44)
     input  logic [GPIO_WIDTH-1:0]   cfg_output_set,     // Set output bits
     input  logic [GPIO_WIDTH-1:0]   cfg_output_clr,     // Clear output bits
     input  logic [GPIO_WIDTH-1:0]   cfg_output_tgl,     // Toggle output bits

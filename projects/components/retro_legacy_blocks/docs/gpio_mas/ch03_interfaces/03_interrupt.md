@@ -34,10 +34,18 @@
 ### Aggregate Logic
 
 ```
-irq = |(GPIO_INT_STATUS[31:0] & GPIO_INT_ENABLE[31:0])
+per-pin effective status:
+  level pin (TYPE=1): raw_detector[i] & GPIO_INT_ENABLE[i]   (live)
+  edge  pin (TYPE=0): GPIO_INT_STATUS[i]                     (sticky latch)
+
+irq = GPIO_CONTROL[1] && (| effective_status)
 ```
 
-IRQ is asserted when any enabled interrupt source is active.
+IRQ requires the global interrupt enable GPIO_CONTROL[1] (resets to 0). Level
+pins drive `irq` from the live detector output, bypassing GPIO_INT_STATUS;
+edge pins drive it from the latched status without re-applying the current
+per-pin enable, so clearing GPIO_INT_ENABLE does not mask an
+already-latched edge interrupt - only GPIO_CONTROL[1] does.
 
 ### Per-Pin Configuration
 
@@ -80,8 +88,10 @@ flowchart TD
 ```
 
 - Continuously compares input to polarity
-- Status follows input level
-- Re-triggers if not cleared while active
+- The STATUS bit is sticky: it latches on the (enabled) level event and stays
+  set after the level clears, until W1C - same latching as edge mode
+- What follows the input level is `irq` itself, because level pins drive
+  `irq` from the live detector rather than from GPIO_INT_STATUS
 
 ## Interrupt Timing
 

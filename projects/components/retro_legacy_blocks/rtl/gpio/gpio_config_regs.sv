@@ -103,11 +103,13 @@ module gpio_config_regs
     // ========================================================================
     // Atomic Operation Pulse Generation
     // ========================================================================
-    // These registers need ONE-SHOT behavior: when software writes a value,
-    // generate a pulse for each bit that's written as 1, then auto-clear.
-    //
-    // Solution: Track when the register value changes (any change), and use
-    // the NEW value as the pulse when the register changes.
+    // CAUTION (issue #44): the pulse fires on a VALUE CHANGE of the SET/CLR/
+    // TGL register, not on the write strobe, and the registers are plain
+    // storage (they do not self-clear). Writing the same mask twice performs
+    // the operation once; software must write 0 (or a different value)
+    // between operations. The MAS register chapter documents this contract.
+    // Intended behavior is strobe-driven self-clearing registers; do not
+    // copy this comment's old "auto-clear" claim into the docs.
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin

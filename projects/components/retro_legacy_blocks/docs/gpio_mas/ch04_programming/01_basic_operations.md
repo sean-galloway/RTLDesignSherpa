@@ -33,7 +33,10 @@ When software writes to GPIO_DIRECTION, the direction register updates and contr
 
 ![GPIO Direction Write](../assets/wavedrom/timing/gpio_direction_write.png)
 
-The APB write completes in a single cycle. The direction register (`r_gpio_direction`) updates on the clock edge following PREADY, and the output enable (`gpio_oe`) reflects the new configuration immediately.
+The APB write completes in the minimum two APB cycles (setup + access; see
+Chapter 3.1). The direction register updates on the clock edge following
+PREADY, and the output enable (`gpio_oe`) reflects the new configuration
+immediately.
 
 ### Output Write
 
@@ -66,9 +69,17 @@ The SET, CLEAR, and TOGGLE registers provide atomic bit manipulation without rea
 ![GPIO Atomic Operations](../assets/wavedrom/timing/gpio_atomic_operations.png)
 
 Three consecutive APB writes demonstrate:
-1. **GPIO_SET**: Sets bits where write data is 1, leaves others unchanged
-2. **GPIO_CLEAR**: Clears bits where write data is 1, leaves others unchanged
-3. **GPIO_TOGGLE**: Inverts bits where write data is 1, leaves others unchanged
+1. **GPIO_OUTPUT_SET (0x028)**: Sets bits where write data is 1, leaves others unchanged
+2. **GPIO_OUTPUT_CLR (0x02C)**: Clears bits where write data is 1, leaves others unchanged
+3. **GPIO_OUTPUT_TGL (0x030)**: Inverts bits where write data is 1, leaves others unchanged
+
+**Change-detection caveat:** the RTL fires an atomic operation only when the
+written value DIFFERS from what that register already holds (the registers
+store their last value and do not self-clear). Writing the same mask twice
+performs the operation once, and re-writing a mask still held from an earlier
+operation is dropped. Write 0 to the register between operations (or
+alternate values) - see Chapter 5 for the full semantics and the tracked RTL
+issue (#44).
 
 ---
 
@@ -76,15 +87,19 @@ Three consecutive APB writes demonstrate:
 
 ### Reset State
 
-After reset, all registers are 0:
-- GPIO disabled
-- All pins configured as inputs
-- No interrupts enabled
+After reset:
+- GPIO_CONTROL = 0x00000001 - output stage ENABLED, global interrupt enable
+  clear
+- All pins configured as inputs (GPIO_DIRECTION = 0), so every pin is high-Z
+  despite the enable
+- No per-pin interrupts enabled; GPIO_INT_POLARITY resets to 0xFFFFFFFF
+  (rising/active-high)
 
 ### Enable GPIO
 
 ```c
-// Enable GPIO controller
+// GPIO_CONTROL[0] (ENABLE) already resets to 1; write it explicitly if a
+// previous owner may have cleared it. ENABLE gates only the output drivers.
 GPIO_CONTROL = 0x00000001;
 ```
 
@@ -107,20 +122,28 @@ GPIO_OUTPUT = 0x00000050;
 ### Toggle Outputs
 
 ```c
-// Read current output, XOR to toggle
-uint32_t current = GPIO_OUTPUT;
-GPIO_OUTPUT = current ^ 0x000000F0;  // Toggle pins 7:4
+// Atomic toggle of pins 7:4 (see the change-detection caveat above:
+// clear the register between operations so the next write is seen)
+GPIO_OUTPUT_TGL = 0x000000F0;
+GPIO_OUTPUT_TGL = 0x00000000;
 ```
 
 ### Atomic Bit Operations
 
 ```c
-// Set specific bits (pins 5 and 7)
-GPIO_OUTPUT |= 0x000000A0;
+// Set specific bits (pins 5 and 7), then re-arm
+GPIO_OUTPUT_SET = 0x000000A0;
+GPIO_OUTPUT_SET = 0x00000000;
 
-// Clear specific bits (pins 4 and 6)
-GPIO_OUTPUT &= ~0x00000050;
+// Clear specific bits (pins 4 and 6), then re-arm
+GPIO_OUTPUT_CLR = 0x00000050;
+GPIO_OUTPUT_CLR = 0x00000000;
 ```
+
+Avoid read-modify-write of GPIO_OUTPUT (`GPIO_OUTPUT |= mask`) once any
+atomic register has been used: GPIO_OUTPUT readback returns the last value
+written to THAT register, not the live pin state, so an RMW clobbers
+atomic-operation results (tracked RTL issue #44).
 
 ## Input Operations
 

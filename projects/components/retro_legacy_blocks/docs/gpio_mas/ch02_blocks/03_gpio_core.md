@@ -77,16 +77,21 @@ Direction register controls tri-state buffers:
 Each pin independently configured:
 
 ```
-if (direction[i]) begin
+// gpio_oe = cfg_gpio_enable ? cfg_direction : '0;   (gpio_core.sv)
+if (gpio_enable && direction[i]) begin
     // Output mode
     gpio_oe[i] = 1'b1;
     gpio_out[i] = output_reg[i];
 end else begin
-    // Input mode
+    // Input mode, or GPIO_CONTROL.ENABLE == 0 (all pins high-Z)
     gpio_oe[i] = 1'b0;
     // gpio_out[i] = don't care
 end
 ```
+
+GPIO_CONTROL.ENABLE gates ONLY the output enables: when it is 0 every pin is
+high-Z, but output data, input synchronization, and interrupt
+detection/status all keep running.
 
 ### Read-Back Behavior
 

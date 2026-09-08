@@ -60,29 +60,22 @@ Optional clock domain crossing logic enables GPIO core to run on a separate cloc
 
 ## CDC Implementation
 
-### APB to GPIO Direction
+When CDC_ENABLE=1 the ENTIRE register file and GPIO core sit in the gpio_clk
+domain; no register value is individually synchronized. The only crossing is
+the APB command/response stream itself, carried through an `apb4_slave_cdc`
+instance at the bus boundary (`apb4_gpio.sv`, `gen_cdc`). An APB access
+therefore completes with CDC handshake latency, and once it lands in the
+gpio_clk domain every register behaves exactly as in the single-clock
+configuration.
 
-Register values synchronized to gpio_clk domain:
-- `gpio_direction`
-- `gpio_output`
-- `gpio_int_enable`
-- `gpio_int_type`
-- `gpio_int_polarity`
-- `gpio_int_both`
+### The `irq` output
 
-### GPIO to APB Direction
-
-Status values synchronized to pclk domain:
-- `gpio_input` (synchronized input values)
-- `gpio_int_status` (interrupt status)
-
-## Synchronization Method
-
-### Control Signals
-Dual flip-flop synchronizers for single-bit controls.
-
-### Multi-bit Data
-Skid buffers with handshake protocol for register transfers.
+`irq` is generated in the gpio_clk domain (`gpio_config_regs.sv`) and is
+driven out WITHOUT a synchronizer. When CDC_ENABLE=1 it is a gpio_clk-domain
+output: the integrator must synchronize it into the interrupt controller's
+clock domain (it is level-style and safe to double-flop). This is tracked as
+RTL issue #44; until the RTL synchronizes it internally, treat `irq` as
+asynchronous to pclk.
 
 ## Timing Considerations
 
@@ -90,9 +83,9 @@ Skid buffers with handshake protocol for register transfers.
 
 | Path | Latency |
 |------|---------|
-| Register write to GPIO output | 2-4 gpio_clk cycles |
-| GPIO input to register read | 2-4 pclk cycles |
-| Interrupt detection to IRQ | 2-4 pclk cycles |
+| APB write to gpio_clk-domain register | APB access + apb4_slave_cdc handshake (a few cycles of each clock) |
+| APB read of gpio_clk-domain state | Same crossing, in both directions |
+| Interrupt detection to IRQ | gpio_clk-domain only - `irq` is NOT synchronized to pclk (see above) |
 
 : Table 2.8: CDC Latency
 

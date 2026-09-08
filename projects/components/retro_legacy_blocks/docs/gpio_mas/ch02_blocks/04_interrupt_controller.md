@@ -67,22 +67,37 @@ The interrupt controller provides flexible interrupt generation for each GPIO pi
 ### Status Register
 
 - Each bit in `GPIO_INT_STATUS` corresponds to one pin
-- Set when interrupt condition detected
-- Cleared by writing 1 to the bit (W1C)
+- Set when the interrupt condition is detected on a pin whose
+  `GPIO_INT_ENABLE` bit is 1 - events on disabled pins set nothing
+  (`sts_int_pending = raw & enable` in `gpio_core.sv`)
+- Cleared by writing 1 to the bit (W1C); bits latch in both edge and level
+  modes until cleared
 
 ### Interrupt Enable
 
-- `GPIO_INT_ENABLE[i] = 1` enables interrupt for pin i
-- Disabled pins don't affect `irq` output
-- Status bits still set regardless of enable
+Two levels of enable exist:
+
+- `GPIO_INT_ENABLE[i] = 1` enables pin i. It is sampled at EVENT time: it
+  gates whether a status bit sets, and (for level pins) whether the pin
+  drives `irq`. Clearing it after an edge event has latched does NOT mask
+  that pending interrupt at `irq`.
+- `GPIO_CONTROL[1]` (global INT_ENABLE) gates the final `irq` output and is
+  the only control that masks everything. It resets to 0.
 
 ## Aggregate IRQ Output
 
 ```
-irq = |(gpio_int_status & gpio_int_enable)
+per-pin effective status:
+  level pin (TYPE=1): raw_detector & GPIO_INT_ENABLE   (live, bypasses STATUS)
+  edge  pin (TYPE=0): GPIO_INT_STATUS                  (sticky latch)
+
+irq = GPIO_CONTROL[1] && (| effective_status)
 ```
 
-Single IRQ output is OR of all enabled, active interrupts.
+(`gpio_config_regs.sv`.) Note the differences from a plain
+`|(STATUS & ENABLE)`: level pins bypass GPIO_INT_STATUS entirely, so W1C on a
+level pin does not deassert `irq` while the level persists; and edge pins use
+the latched status without re-applying the current per-pin enable.
 
 ## Interrupt Handling Flow
 

@@ -48,6 +48,11 @@ void led_toggle(void) {
 }
 ```
 
+The read-modify-write style above is safe only while the atomic
+GPIO_OUTPUT_SET/CLR/TGL registers are never used: GPIO_OUTPUT readback
+returns the last value written to it, not the live pin state, so mixing the
+two styles clobbers atomic results (Chapter 5, tracked RTL issue #44).
+
 ### Multiple LED Control
 
 ```c
@@ -92,7 +97,8 @@ void button_init_irq(void) {
     GPIO_INT_TYPE &= ~BUTTON_PIN;      // Edge mode
     GPIO_INT_POLARITY &= ~BUTTON_PIN;  // Falling edge
     GPIO_INT_BOTH &= ~BUTTON_PIN;      // Single edge
-    GPIO_INT_ENABLE |= BUTTON_PIN;     // Enable
+    GPIO_INT_ENABLE |= BUTTON_PIN;     // Enable pin
+    GPIO_CONTROL |= 0x2;               // Global interrupt enable (resets to 0)
 }
 
 void button_isr(void) {

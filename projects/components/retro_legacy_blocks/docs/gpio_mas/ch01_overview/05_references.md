@@ -26,8 +26,10 @@
 ## Internal Documentation
 
 ### RTL Source Files
-- `rtl/gpio/apb4_gpio.sv` - Main GPIO module
-- `rtl/gpio/gpio_regs.sv` - PeakRDL-generated register file
+- `rtl/gpio/apb4_gpio.sv` - Top-level module (APB port, CDC generate)
+- `rtl/gpio/gpio_config_regs.sv` - Register wrapper (atomic-op pulses, irq)
+- `rtl/gpio/gpio_core.sv` - Pin I/O, synchronizers, interrupt detection
+- `rtl/gpio/gpio_regs.sv` / `gpio_regs_pkg.sv` - PeakRDL-generated register file
 - `rtl/gpio/peakrdl/gpio_regs.rdl` - Register description source
 
 ### Related Specifications

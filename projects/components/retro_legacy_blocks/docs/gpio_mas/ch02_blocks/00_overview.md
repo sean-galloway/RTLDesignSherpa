@@ -34,7 +34,9 @@
 | Block | File | Description |
 |-------|------|-------------|
 | APB GPIO Top | apb4_gpio.sv | Top-level module with all GPIO functionality |
-| Register File | apb4_gpio_regs.sv | PeakRDL-generated control/status registers |
+| Register File | gpio_regs.sv (+ gpio_regs_pkg.sv) | PeakRDL-generated control/status registers |
+| Register Wrapper | gpio_config_regs.sv | Connects registers to the core; atomic-op pulses, irq |
+| GPIO Core | gpio_core.sv | Pin I/O, synchronizers, interrupt detection |
 
 : Table 2.1: Block Summary
 

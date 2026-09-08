@@ -54,14 +54,21 @@
 
 | Register | Reset Value | Notes |
 |----------|-------------|-------|
-| GPIO_CONTROL | 0x00000000 | GPIO disabled |
+| GPIO_CONTROL | 0x00000001 | GPIO enabled; global interrupt enable clear |
 | GPIO_DIRECTION | 0x00000000 | All inputs |
 | GPIO_OUTPUT | 0x00000000 | Outputs low |
 | GPIO_INT_ENABLE | 0x00000000 | No interrupts |
 | GPIO_INT_TYPE | 0x00000000 | Edge mode |
-| GPIO_INT_POLARITY | 0x00000000 | Falling/low |
+| GPIO_INT_POLARITY | 0xFFFFFFFF | Rising/high |
 | GPIO_INT_BOTH | 0x00000000 | Single edge |
 | GPIO_INT_STATUS | 0x00000000 | No pending |
+| GPIO_RAW_INT | 0x00000000 | No events |
+| GPIO_OUTPUT_SET/CLR/TGL | 0x00000000 | No pending atomic op |
+
+GPIO_CONTROL.ENABLE resets to 1, but every pin is still an input out of reset
+because GPIO_DIRECTION resets to 0 - so all pins are high-Z until software
+programs directions. The `irq` output stays deasserted until software sets
+GPIO_CONTROL.INT_ENABLE (bit 1), which resets to 0.
 
 ### Output Pin Behavior During Reset
 
