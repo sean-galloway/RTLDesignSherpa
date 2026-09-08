@@ -27,7 +27,14 @@ Unlike the original Intel 8259A, this block does **not** use the legacy two-port
 A0-based interface. It exposes a fully-decoded, 32-bit-aligned APB register file.
 Each ICW/OCW and every status register has its own dedicated offset; there is no
 A0 pin and no OCW3 read-select multiplexing. Only `regblk_addr[5:0]` is decoded,
-so the map repeats every 0x40 within the 4 KB APB window, and unmapped offsets
+so the map repeats every 0x40 within the 4 KB APB window -- but only for
+READS: the side-effect strobes (ICW sequence stepping, OCW2 execution, the
+IMR update path) compare the FULL 12-bit address, so a write through an
+alias (0x44, 0x104, ...) updates storage but fires no side effect -- an
+aliased ICW write never advances the init FSM, an aliased OCW2 never
+executes, and an aliased IMR write is silently reverted by the hardware
+mirror two cycles later (RTL asymmetry, #50). Use base addresses for all
+writes. Unmapped offsets
 (e.g. 0x2C) complete without `PSLVERR`.
 
 ## Register Map
@@ -57,9 +64,11 @@ return meaningful data on a read.
 
 ### PIC_CONFIG (Offset 0x00, RW)
 
-The PIC is disabled out of reset. Firmware **must** set `pic_enable` before any
-interrupt request can propagate - while `pic_enable=0` the core holds IRR at 0
-and forces `int_out` low.
+The PIC is disabled out of reset. Firmware **must** complete the ICW
+initialization sequence (through PIC_STATUS.init_complete=1) AND set
+`pic_enable` before any interrupt request can propagate - IRR only updates
+once the init FSM reaches INIT_COMPLETE, and while `pic_enable=0` the core
+holds IRR at 0 and forces `int_out` low.
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -67,6 +76,13 @@ and forces `int_out` low.
 | 1 | init_mode | RW | 0 | Initialization mode (0=operational, 1=init sequence) |
 | 2 | auto_reset_init | RW | 1 | Automatically clear init_mode after ICW4 is written |
 | 31:3 | Reserved | RO | 0 | Reserved |
+
+`init_mode` is not a gate on the ICW sequence (initialization runs
+fine with it at 0); instead, while it is 1 the FSM is FORCED out of
+INIT_COMPLETE back to INIT_IDLE. With `auto_reset_init=0` (which
+normally clears init_mode on the ICW4 write) initialization can
+therefore never complete until software clears the bit by hand (RTL
+quirk, #50). The default auto_reset_init=1 masks this.
 
 ---
 
@@ -133,6 +149,12 @@ stored but has no functional effect in the current RTL.
 
 Reset masks all eight interrupts.
 
+Read-after-write hazard: the register field mirrors the core's IMR copy,
+which updates one cycle behind the write, so a read landing exactly two
+cycles after a write can briefly return the PRE-write mask before the
+mirror catches up (one-cycle window; RTL quirk, #50). Back-to-back
+write-then-read sequences over APB are normally slower than this window.
+
 ### PIC_OCW2 (Offset 0x18, WO)
 
 | Bits | Name | Reset | Description |
@@ -149,6 +171,7 @@ Reset masks all eight interrupts.
 | 0 | 0 | 0 | Rotate on auto EOI (clear) |
 | 0 | 0 | 1 | Non-specific EOI |
 | 0 | 1 | 1 | Specific EOI (clears the IR selected by L2-L0) |
+| 0 | 1 | 0 | No operation (matches the RTL default arm and a real 8259A) |
 | 1 | 0 | 0 | Rotate on auto EOI (set) |
 | 1 | 0 | 1 | Rotate on non-specific EOI |
 | 1 | 1 | 0 | Set priority (L2-L0 becomes lowest priority) |
@@ -199,7 +222,7 @@ observe the init sequence progress from software.
 | 0 | init_complete | - | 1 = initialization complete, 0 = in init sequence |
 | 3:1 | icw_step | - | Current ICW step (0 = not initialized, 4 = complete) |
 | 4 | int_output | - | Current state of the INT output pin |
-| 7:5 | highest_priority | - | Currently highest-priority IRQ (0-7) |
+| 7:5 | highest_priority | - | Currently highest-priority pending IRQ (0-7); defaults to 0 when nothing is pending, so it is only meaningful while int_output=1 |
 | 31:8 | Reserved | 0 | Reserved |
 
 ---
@@ -215,9 +238,14 @@ core; they are documented here so firmware does not rely on them:
   interrupt vector internally but leaves it on an unconnected wire reserved for
   future INTA support; no register exposes it to software.
 - **ISR is never set (0x24 reads 0).** No acknowledge path sets an in-service
-  bit, so PIC_ISR always reads 0x00. As a consequence, all PIC_OCW2 EOI
-  variants, ISR-based interrupt nesting/blocking, and special mask mode have no
-  effect on live state.
+  bit, so PIC_ISR always reads 0x00. As a consequence, the ISR-CLEARING half
+  of every PIC_OCW2 EOI variant, ISR-based nesting/blocking, and special
+  mask mode have no effect on live state. The ROTATION half stays live:
+  rotate-on-specific-EOI (0xE0-0xE7) moves the priority base exactly like
+  set-priority, and rotate-on-non-specific-EOI (0xA0) sets the base to the
+  highest in-service IRQ -- always IRQ0, since ISR is never set. Classic
+  8259 drivers issuing 0xA0 after each interrupt silently pin the priority
+  base to 0.
 - **Edge-triggered IRR has no clear-on-acknowledge path.** In edge mode an IRR
   bit, once set, is only cleared by reset, an ICW1 write (re-initialization), or
   clearing `pic_enable`. Because EOI only touches the (always-zero) ISR, a
@@ -227,10 +255,13 @@ core; they are documented here so firmware does not rely on them:
   registers at 0x20/0x24; the OCW3 `read_reg_cmd`/poll fields are decoded but
   not used, so the dedicated addresses make the read-select mechanism
   unnecessary.
-- **Cascade, SFNM, buffered mode, and Auto EOI are stored but non-functional.**
-  ICW3 (cascade), ICW4 SFNM/BUF, and ICW4 AEOI are captured in registers but
-  have no functional effect in the current core (AEOI performs no
-  end-of-interrupt because ISR is never set).
+- **Cascade, SFNM and buffered mode are stored but non-functional.**
+  ICW3 (cascade) and ICW4 SFNM/BUF are captured in registers with no
+  functional effect. **AEOI is NOT harmless:** with rotate-on-AEOI armed
+  (OCW2 0x80), the core rotates the priority base EVERY CLOCK while
+  `int_out` is asserted -- with two or more pending IRQs the base,
+  `highest_priority` and the internal vector oscillate cycle-by-cycle
+  (RTL defect, #50). A real 8259A rotates once per AEOI.
 
 ---
 

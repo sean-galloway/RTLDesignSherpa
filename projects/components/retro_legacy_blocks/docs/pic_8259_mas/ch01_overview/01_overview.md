@@ -31,7 +31,10 @@ The APB PIC 8259 is an 8259A-compatible Programmable Interrupt Controller with a
 
 Implemented in the current RTL:
 
-- 8 interrupt inputs (`irq_in[7:0]`) with a single `int_out` line
+- 8 interrupt inputs (`irq_in[7:0]`) with a single `int_out` line.
+  `irq_in` is sampled with NO synchronizer stages -- inputs are assumed
+  synchronous to the core clock; asynchronous sources need external
+  synchronization
 - Fully-decoded 32-bit APB register file (no legacy A0 two-port model)
 - Programmable priority with rotation (set-priority / rotate-on-EOI)
 - Edge or level triggering
@@ -85,8 +88,12 @@ Software clears the in-service bit with an EOI command.
 
 Non-specific EOI (0x20) clears the highest priority ISR bit. Specific EOI (0x60-0x67) clears a designated IR.
 
-> Note: because the current RTL never sets an ISR bit, EOI commands (written via
-> PIC_OCW2 at offset 0x18) have no effect on live state today. See the register
+> Note: because the current RTL never sets an ISR bit, the ISR-CLEARING half
+> of EOI is inert -- but the ROTATION side effects are live: rotate-on-
+> specific-EOI (0xE0-0xE7) moves the priority base exactly like set-priority,
+> and rotate-on-non-specific-EOI (0xA0) sets the base to the highest
+> in-service IRQ, which is always IRQ0 because ISR is never set. Classic
+> 8259 code issuing 0xA0 silently scrambles arbitration. See the register
 > map implementation notes.
 
 ### Waveform 1.4: Cascade Mode
@@ -109,9 +116,11 @@ Automatic priority rotation for equal-service scheduling.
 
 Rotate-on-EOI (0xA0) makes the just-serviced IR the lowest priority, implementing round-robin scheduling among interrupt sources.
 
-> Note: the set-priority command (PIC_OCW2 = 0xC0-0xC7) does move the priority
-> base in the current RTL, but rotate-on-EOI depends on the EOI path, which is
-> inert because ISR is never set. See the register map implementation notes.
+> Note: set-priority (0xC0-0xC7) and rotate-on-specific-EOI (0xE0-0xE7)
+> both move the priority base in the current RTL (the latter ignores the
+> inert ISR-clear half). Rotate-on-non-specific-EOI (0xA0) always rotates
+> the base to 0 because ISR is never set -- NOT round-robin. See the
+> register map implementation notes.
 
 ## Register Summary
 
@@ -133,8 +142,11 @@ full field definitions.
 | 0x24 | PIC_ISR | RO | In-Service Register |
 | 0x28 | PIC_STATUS | RO | Initialization state / diagnostics |
 
-The PIC is disabled at reset - firmware must set `pic_enable` (PIC_CONFIG bit 0)
-before any interrupt can be requested or delivered.
+The PIC is disabled at reset - firmware must BOTH complete the ICW
+initialization sequence (ICW1 -> ICW2 -> ICW3 if cascaded -> ICW4 if
+requested; PIC_STATUS.init_complete=1) AND set `pic_enable` (PIC_CONFIG
+bit 0) before any interrupt can be requested or delivered -- out of reset
+the init FSM sits in INIT_IDLE and IRR never updates.
 
 ## Interrupt Priority
 

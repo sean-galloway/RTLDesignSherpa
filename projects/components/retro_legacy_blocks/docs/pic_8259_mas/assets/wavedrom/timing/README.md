@@ -31,11 +31,11 @@ This directory contains WaveDrom timing diagrams for PIC 8259 (Programmable Inte
 ### PIC Core (Internal)
 - **IRR (Interrupt Request Register):** `r_irr[7:0]` - Pending interrupts
 - **ISR (In-Service Register):** `r_isr[7:0]` - Currently servicing
-- **IMR (Interrupt Mask Register):** `imr[7:0]` - Masked interrupts
-- **Priority:** `w_pending`, `w_highest_pri`, `lowest_priority`, `priority_order`
-- **INTA:** `inta_cycle`, `vector_out`, `data_out`
-- **EOI:** `eoi_cmd`, `specific_eoi`, `highest_isr`
-- **Cascade:** `slave_int`, `slave_selected`, `master_ir[2]`
+- **IMR (Interrupt Mask Register):** `r_imr[7:0]` - Masked interrupts
+- **Priority:** `r_priority_base`, `highest_irq_comb` (no INTA, cascade or
+  vector-output signals exist in this RTL -- the internal vector
+  `w_int_vector` is computed but unconnected, and EOI decode is
+  `ocw2_eoi_cmd`/`highest_isr_comb`)
 
 ## Rendering to SVG
 

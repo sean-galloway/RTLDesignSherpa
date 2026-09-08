@@ -23,7 +23,8 @@
 
 # PIC_8259 Specification
 
-**Status:** 📋 Planned - Structure Created
+**Status:** Written (chapters 1 and 5) - see pic_8259_mas_index.md for the
+authoritative status and known-inert-feature notes
 
 ---
 

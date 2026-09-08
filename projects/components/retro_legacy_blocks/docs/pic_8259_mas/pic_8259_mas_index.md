@@ -26,7 +26,9 @@
 **Component:** APB 8259A-Compatible Programmable Interrupt Controller
 **Version:** 1.0
 **Last Updated:** 2025-12-01
-**Status:** Production Ready
+**Status:** RTL Partial - register interface validated; ISR/EOI/INTA/
+cascade are inert and edge-mode IRR has no clear-on-acknowledge (see the
+implementation notes and issue #50)
 
 ---
 
