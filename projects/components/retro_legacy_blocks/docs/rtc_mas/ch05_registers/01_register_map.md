@@ -34,8 +34,19 @@ aliased W1C clears only the register mirror.
 Behavioral notes: the alarm compare runs on the PRE-increment counters
 at the tick, so when alarm_flag sets, the time registers already read
 alarm+1s. The prescaler keeps running in time_set_mode, so second_tick
-status keeps setting during time-set. With clock_select=1 (test mode)
+status keeps setting during time-set. The alarm compare is also NOT gated
+by time_set_mode -- a stopped counter matching the alarm sets alarm_flag
+mid-programming (#56). With clock_select=1 (test mode)
 the tick rate is pclk/100, not 1 Hz.
+Two W1C hazards (#56): (1) the set sources (r_second_tick,
+r_alarm_match) are registered on the COUNTER clock, so in 32.768 kHz
+mode each set pulse is ~30.5 us wide -- a W1C issued inside that window
+is silently undone one pclk later and the interrupt re-fires (an ISR
+clearing promptly after the tick gets re-interrupted; invisible in
+clock_select=1 where pulses are one pclk). (2) Independently, the
+register mirror echoes the still-set core flag for one pclk after any
+W1C before the registered clear lands -- a read two cycles after the
+clear can still see the flag as 1.
 
 ## Register Summary
 
@@ -89,6 +100,14 @@ time-set protocol is used. To set the time:
    RTC_MONTH, and RTC_YEAR. A write to any time register (0x0C-0x20) latches the
    full set into the counters and sets `time_valid`.
 3. Write RTC_CONFIG again with `time_set_mode = 0` to resume counting.
+
+**Known RTL deviation (#56): this protocol only works with
+clock_select=1 (test mode).** The load strobe is one pclk cycle wide and
+is sampled by the counter clock -- with clock_select=0 the 32.768 kHz
+domain captures it with probability ~1/3000 per write, so in the
+production configuration the counters effectively never load and the
+RTC cannot be set (it free-runs from 2000-01-01). Until fixed, set the
+time in test mode, then switch clock_select back to 0.
 
 ---
 

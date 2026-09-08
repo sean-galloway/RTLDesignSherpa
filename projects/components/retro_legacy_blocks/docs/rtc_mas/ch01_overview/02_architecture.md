@@ -73,8 +73,13 @@ flowchart LR
 - NO CDC exists in the current RTL (issue #56): the pclk-domain status
   flops sample rtc-domain signals directly and the counter mirrors cross
   unsynchronized (multi-register reads can tear across a rollover). It
-  works in practice because one 32.768 kHz cycle spans many pclk cycles,
-  but rtc_clk must be much slower than pclk and treated as such
+  works in practice for the rtc->pclk DIRECTION ONLY (one 32.768 kHz
+  cycle spans many pclk cycles). The pclk->rtc direction has NO working
+  path at all: the time-set load strobe is a single pclk cycle sampled by
+  rtc_clk, so with clock_select=0 a time-set write is captured with
+  probability ~1/3000 -- the time-set protocol is effectively DEAD in the
+  production 32.768 kHz configuration and only functions in
+  clock_select=1 test mode, where everything runs on pclk (issue #56)
 
 ---
 

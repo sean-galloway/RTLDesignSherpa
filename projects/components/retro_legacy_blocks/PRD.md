@@ -206,7 +206,9 @@ The Retro Legacy Blocks (RLB) component provides production-quality implementati
 
 ### 3.4 RTC - Real-Time Clock
 
-**Status:** 📋 Planned
+**Status:** Implemented (apb4_rtc + MAS; see docs/rtc_mas -- binary
+24-hour timekeeping validated; BCD/12-hour modes and the production-mode
+time-set path are broken, tracked in issue #56)
 **Priority:** Medium
 **Effort:** 3-4 weeks
 **Address:** `0x4000_3000 - 0x4000_3FFF` (4KB window)

@@ -30,10 +30,13 @@ The APB RTC is a Real-Time Clock controller with an APB slave interface. It main
 ## Key Features
 
 ### Time Keeping
-- Seconds, minutes, hours (12/24-hour mode)
+- Seconds, minutes, hours (12/24-hour mode -- 12-hour modes are BROKEN
+  in the current RTL, #56)
 - Day of month (1-31), month, year (0-99, base year 2000 is hardcoded)
 - Leap year calculation (base 2000, valid through 2099); the year field wraps 99 to 00 with no century carry
-- Binary format by default, optional BCD format
+- Binary format by default; BCD format exists but its DATE cascade is
+  broken in the current RTL (#56) -- only binary 24-hour keeps a correct
+  calendar
 
 ### Alarm Function
 - Single programmable alarm

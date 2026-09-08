@@ -17,7 +17,8 @@ for the full field definitions.
 An earlier `rtc_update_in_progress` diagram was removed: this RTC has no UIP
 flag or time-latch protocol. Safe reads are done by setting
 RTC_CONFIG.time_set_mode (which stops the counter) or by re-reading around a
-tick; see `ch04_programming`.
+tick; the time-set protocol and its caveats are in
+`ch05_registers/01_register_map.md` (ch04 is not yet written).
 
 ## Signal Hierarchy
 

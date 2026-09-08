@@ -30,7 +30,8 @@ authoritative status and known-RTL-deviation notes
 
 ## Overview
 
-This directory will contain the complete specification for the RTC block.
+Specification for the RTC block (chapters 1 and 5 written; see
+rtc_mas_index.md for status and the known-RTL-deviation notes).
 
 ## Planned Documentation Structure
 
