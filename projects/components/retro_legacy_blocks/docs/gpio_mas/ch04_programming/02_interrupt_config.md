@@ -36,9 +36,10 @@ Edge-triggered interrupts detect transitions on input pins.
 The detection sequence:
 1. External input `gpio_in[0]` transitions from 0 to 1
 2. 2-stage synchronizer captures the transition (`w_gpio_sync`)
-3. Edge detector compares current vs. delayed value (`r_gpio_sync_d`)
+3. Edge detector compares current vs. delayed value (`r_gpio_prev`)
 4. Rising edge pulse (`w_rising_edge`) generated for one clock
-5. Raw interrupt latched in `r_raw_int[0]`
+5. Raw pulse (`w_raw_int[0]`, combinational) sets the sticky
+   GPIO_INT_STATUS bit in the register file
 6. Combined `irq` output asserts
 
 ### Falling Edge Interrupt
@@ -67,9 +68,9 @@ Write-1-to-Clear mechanism clears latched interrupts.
 ![GPIO Interrupt Clear](../assets/wavedrom/timing/gpio_interrupt_clear.png)
 
 The clear sequence:
-1. `r_raw_int[0]` is active (edge was detected)
+1. GPIO_INT_STATUS[0] is set (edge was detected and latched)
 2. Software writes 0x01 to INT_STATUS register
-3. W1C logic clears `r_int_status[0]`
+3. W1C logic clears the sticky status bit
 4. `irq` deasserts
 
 Note: For level-sensitive interrupts, the external source must be cleared first, otherwise the interrupt immediately re-asserts.
@@ -138,7 +139,8 @@ GPIO_CONTROL |= 0x00000002;
 GPIO_INT_TYPE &= ~(1 << 5);      // Edge mode
 GPIO_INT_POLARITY |= (1 << 5);   // Rising edge
 GPIO_INT_BOTH &= ~(1 << 5);      // Single edge
-GPIO_INT_ENABLE |= (1 << 5);     // Enable
+GPIO_INT_ENABLE |= (1 << 5);     // Per-pin enable
+GPIO_CONTROL |= 0x2;             // Global INT_ENABLE (resets to 0; irq never asserts without it)
 ```
 
 ### Both-Edge Interrupt
@@ -147,7 +149,8 @@ GPIO_INT_ENABLE |= (1 << 5);     // Enable
 // Configure pin 3 for both-edge interrupt
 GPIO_INT_TYPE &= ~(1 << 3);      // Edge mode
 GPIO_INT_BOTH |= (1 << 3);       // Both edges
-GPIO_INT_ENABLE |= (1 << 3);     // Enable
+GPIO_INT_ENABLE |= (1 << 3);     // Per-pin enable
+GPIO_CONTROL |= 0x2;             // Global INT_ENABLE
 ```
 
 ### Active-Low Level Interrupt
@@ -156,7 +159,8 @@ GPIO_INT_ENABLE |= (1 << 3);     // Enable
 // Configure pin 7 for active-low level interrupt
 GPIO_INT_TYPE |= (1 << 7);       // Level mode
 GPIO_INT_POLARITY &= ~(1 << 7);  // Active low
-GPIO_INT_ENABLE |= (1 << 7);     // Enable
+GPIO_INT_ENABLE |= (1 << 7);     // Per-pin enable
+GPIO_CONTROL |= 0x2;             // Global INT_ENABLE
 ```
 
 ## Interrupt Handling

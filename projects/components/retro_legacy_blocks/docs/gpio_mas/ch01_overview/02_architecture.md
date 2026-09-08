@@ -81,6 +81,7 @@ In asynchronous mode, the APB clock domain handles protocol conversion while the
 | `SYNC_STAGES` | int | 2 | Input synchronizer stages |
 | `CDC_ENABLE` | int | 0 | Enable clock domain crossing |
 | `SKID_DEPTH` | int | 2 | CDC skid buffer depth |
+| `USE_JOHNSON` | int | 0 | CDC counter encoding (forwarded to apb4_slave_cdc) |
 
 : Table 1.1: GPIO Parameters
 

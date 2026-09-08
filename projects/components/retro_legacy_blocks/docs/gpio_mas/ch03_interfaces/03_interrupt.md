@@ -100,23 +100,24 @@ flowchart TD
 ```mermaid
 flowchart LR
     A["External event"] -->|"2 cycles"| B["Synchronizer"]
-    B -->|"1 cycle"| C["Edge detect"]
-    C -->|"1 cycle"| D["STATUS set"]
+    B -->|"combinational"| C["Edge detect"]
+    C -->|"1 cycle"| D["STATUS set (sticky)"]
     D --> E["IRQ"]
 ```
 
-Total: 4 clock cycles typical
+Total: 3 clock cycles typical (SYNC_STAGES=2 + 1 sticky-flop; edge detect adds no cycle)
 
 ### Level-Sensitive Latency
 
 ```mermaid
 flowchart LR
     A["External level"] -->|"2 cycles"| B["Synchronizer"]
-    B -->|"1 cycle"| C["Level compare"]
+    B -->|"combinational"| C["Level compare"]
     C --> D["IRQ"]
 ```
 
-Total: 3 clock cycles typical
+Total: 2 clock cycles typical (level irq is combinational from the
+synchronizer output)
 
 ## Interrupt Handling
 

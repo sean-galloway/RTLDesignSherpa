@@ -60,11 +60,13 @@
 
 ## Timing
 
-### Zero Wait State
+### Access Timing
 
-All register accesses complete in minimum APB cycles:
-- Read: 2 cycles (setup + access)
-- Write: 2 cycles (setup + access)
+PREADY inserts wait states: the apb4_slave bridge is a small FSM that
+issues the command and returns the response over a registered cmd/rsp
+handshake, so an access takes several pclk beyond the 2-cycle APB minimum
+(more when CDC_ENABLE=1 crosses to gpio_clk). The register block itself
+never stalls (`cpuif_req_stall_* = 0`).
 
 ### Timing Diagram
 
@@ -103,9 +105,9 @@ pready  ________|       |________________
 | 0x01C | GPIO_INT_BOTH | RW |
 | 0x020 | GPIO_INT_STATUS | W1C |
 | 0x024 | GPIO_RAW_INT | RO |
-| 0x028 | GPIO_OUTPUT_SET | RW |
-| 0x02C | GPIO_OUTPUT_CLR | RW |
-| 0x030 | GPIO_OUTPUT_TGL | RW |
+| 0x028 | GPIO_OUTPUT_SET | WO |
+| 0x02C | GPIO_OUTPUT_CLR | WO |
+| 0x030 | GPIO_OUTPUT_TGL | WO |
 
 Only PADDR[5:0] reaches the register block, so this map aliases every 64
 bytes across the 12-bit APB window; 0x034-0x03F read as zero. No address ever

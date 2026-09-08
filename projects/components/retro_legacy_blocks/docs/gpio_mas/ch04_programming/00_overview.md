@@ -37,9 +37,9 @@
 | 0x01C | GPIO_INT_BOTH | RW | Both edges |
 | 0x020 | GPIO_INT_STATUS | W1C | Interrupt status |
 | 0x024 | GPIO_RAW_INT | RO | Raw (unlatched) event status |
-| 0x028 | GPIO_OUTPUT_SET | RW | Atomic output set |
-| 0x02C | GPIO_OUTPUT_CLR | RW | Atomic output clear |
-| 0x030 | GPIO_OUTPUT_TGL | RW | Atomic output toggle |
+| 0x028 | GPIO_OUTPUT_SET | WO | Atomic output set (reads return 0) |
+| 0x02C | GPIO_OUTPUT_CLR | WO | Atomic output clear (reads return 0) |
+| 0x030 | GPIO_OUTPUT_TGL | WO | Atomic output toggle (reads return 0) |
 
 ## Chapter Contents
 

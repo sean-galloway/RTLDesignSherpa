@@ -58,7 +58,7 @@ Used for:
 | Parameter | Value |
 |-----------|-------|
 | Polarity | Active low |
-| Type | Asynchronous assert, synchronous deassert |
+| Type | Asynchronous assert, synchronous deassert (see note) |
 | Scope | APB interface logic |
 
 Resets:
@@ -71,8 +71,13 @@ Resets:
 | Parameter | Value |
 |-----------|-------|
 | Polarity | Active low |
-| Type | Asynchronous assert, synchronous deassert |
+| Type | Asynchronous assert, synchronous deassert (see note) |
 | Usage | Only when CDC_ENABLE=1 |
+
+Note: the PeakRDL-generated register file (gpio_regs.sv) is the one
+exception -- it resets SYNCHRONOUSLY (plain always_ff @(posedge clk)
+with an active-high rst derived from the reset input), so its
+registers do not reset until a core-clock edge arrives.
 
 Resets:
 - GPIO output registers

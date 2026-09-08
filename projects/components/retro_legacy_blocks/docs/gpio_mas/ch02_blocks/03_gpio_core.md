@@ -102,7 +102,8 @@ Reading `GPIO_INPUT` returns:
 ## Implementation Notes
 
 - All 32 pins processed in parallel
-- Zero-latency output updates
+- Output updates one core-clock after the register write (registered
+  `r_output_data` behind the change detector)
 - Input synchronization always active
 
 ---

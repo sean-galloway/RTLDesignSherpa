@@ -80,7 +80,8 @@ pready  __________|       |_________________
 
 ## Implementation Notes
 
-- Zero wait-state operation for all registers
+- PREADY-gated: the bridge FSM adds a few wait states per access (no
+  stalls originate in the register block itself)
 - No error responses (pslverr always 0)
 - 32-bit aligned access only
 

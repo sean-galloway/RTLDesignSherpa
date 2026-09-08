@@ -29,9 +29,9 @@
 
 | Operation | APB Cycles | Notes |
 |-----------|------------|-------|
-| Read | 2 | Setup + access |
-| Write | 2 | Setup + access |
-| Read-Modify-Write | 4 | Read + write |
+| Read | 2 + wait states | PREADY-gated (bridge FSM + cmd/rsp handshake) |
+| Write | 2 + wait states | PREADY-gated |
+| Read-Modify-Write | one read + one write | Each PREADY-gated |
 
 ### Optimizing Access
 

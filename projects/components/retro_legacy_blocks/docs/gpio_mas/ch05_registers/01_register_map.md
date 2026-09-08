@@ -40,9 +40,9 @@ Thirteen registers, verified against the RTL decode (`gpio_regs.sv`) and
 | 0x01C | GPIO_INT_BOTH | RW | 0x00000000 | Both-edge enable |
 | 0x020 | GPIO_INT_STATUS | W1C | 0x00000000 | Latched interrupt status |
 | 0x024 | GPIO_RAW_INT | RO | 0x00000000 | Live (unlatched) event detector output |
-| 0x028 | GPIO_OUTPUT_SET | RW | 0x00000000 | Atomic output set |
-| 0x02C | GPIO_OUTPUT_CLR | RW | 0x00000000 | Atomic output clear |
-| 0x030 | GPIO_OUTPUT_TGL | RW | 0x00000000 | Atomic output toggle |
+| 0x028 | GPIO_OUTPUT_SET | WO | 0x00000000 | Atomic output set (reads return 0) |
+| 0x02C | GPIO_OUTPUT_CLR | WO | 0x00000000 | Atomic output clear (reads return 0) |
+| 0x030 | GPIO_OUTPUT_TGL | WO | 0x00000000 | Atomic output toggle (reads return 0) |
 
 **Address decode and aliasing:** only address bits [5:0] reach the register
 block (`gpio_config_regs.sv` passes `regblk_addr[5:0]`), so the 13-register
@@ -196,7 +196,7 @@ without a read-modify-write of GPIO_OUTPUT.
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
-| 31:0 | SET | RW | 0 | Set output pins (1=set) |
+| 31:0 | SET | WO | 0 | Set output pins (1=set); reads return 0 |
 
 ---
 
@@ -206,7 +206,7 @@ Atomic output clear.
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
-| 31:0 | CLR | RW | 0 | Clear output pins (1=clear) |
+| 31:0 | CLR | WO | 0 | Clear output pins (1=clear); reads return 0 |
 
 ---
 
@@ -216,7 +216,7 @@ Atomic output toggle.
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
-| 31:0 | TGL | RW | 0 | Toggle output pins (1=toggle) |
+| 31:0 | TGL | WO | 0 | Toggle output pins (1=toggle); reads return 0 |
 
 ---
 
@@ -234,6 +234,12 @@ Consequences software must plan for:
   first pass.
 - Alternating SET and CLR of the same mask drops the second SET (the SET
   register still holds the mask, so no change is detected).
+
+These registers are write-only by design (the RDL declares sw = w): reads
+at 0x028/0x02C/0x030 return 0, but the STORED value -- which the change
+detector compares against -- is not observable. A driver therefore cannot
+read back the held mask to predict whether its next write will be detected
+as a change; keep a software shadow copy per register.
 
 **Workaround:** write 0 to the register between operations, or alternate the
 written value. This behavior deviates from conventional self-clearing
