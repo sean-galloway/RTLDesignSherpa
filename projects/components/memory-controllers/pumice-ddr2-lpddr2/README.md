@@ -32,7 +32,7 @@ difference is isolated to a swappable encoder module.
 **Implemented and characterized** — the full controller RTL is in `rtl/`
 (`fub/`, `macro/`, `top/`) with cocotb suites under `dv/tests/{fub,macro,top}`.
 The design has been brought up on silicon on the Nexys A7 DDR2 board via the
-`projects/NexysA7/ddr2-characterization/` UART harness. Published specs:
+`projects/fpga-systems/NexysA7/pumice/ddr2-characterization/` UART harness. Published specs:
 `docs/DDR2_LPDDR2_HAS_v0.5.pdf` and `docs/DDR2_LPDDR2_MAS_v0.5.pdf`.
 
 ## Layout

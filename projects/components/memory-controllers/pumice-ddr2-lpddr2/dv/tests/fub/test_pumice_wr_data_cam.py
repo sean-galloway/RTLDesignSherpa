@@ -114,8 +114,55 @@ async def cocotb_test_pumice_wr_data_cam(dut):
             tb.cm_out.popleft()
             break
 
+    # ===== WAVE 10: pipelined same-bank drain -- commit_ready stays high =====
+    # design/waves/10: with the DFI accepting (cm_rd_ready=1), same-bank WR
+    # columns pipeline; the drain FIFO stays shallow, commit_ready never pins
+    # low, and every burst produces exactly one B. A drain that cannot keep
+    # pace fills the FIFO -> commit_ready drops -> the arbiter's WR issue stalls
+    # (the write-BW wedge).
+    from cocotb.triggers import RisingEdge
+    await tb.assert_reset()
+    await tb.deassert_reset()
+    tb.set_cm_rd_ready(True)                 # DFI accepts continuously
+    N = 8
+    for k in range(N):
+        await tb.write_entry(bank=0, row=0x33, col=0x10 + k, wid=k & 0xF,
+                             data=mkdata(0x10 + k))
+    await tb.wait_clocks('aclk', 2)
+    base = len(tb.cm_out)
+    ndone = [0]
+
+    async def _count_b():
+        while True:
+            await RisingEdge(tb.dut.aclk)
+            if int(tb.dut.commit_done_valid_o.value):
+                ndone[0] += 1
+
+    async def _commit_all():
+        for slot in range(N):
+            await tb.commit_issue(slot)     # BFM paces on commit_ready_o
+
+    cocotb.start_soon(_count_b())
+    cocotb.start_soon(_commit_all())
+    low = 0
+    budget = N * tb.BL * 2 + 60
+    for _ in range(budget):
+        await RisingEdge(tb.dut.aclk)
+        if int(tb.dut.commit_ready_o.value) == 0:
+            low += 1
+        if ndone[0] >= N:                # wait for the LAST B (consume-last)
+            break
+    drained = len(tb.cm_out) - base
+    tb.log.info("WAVE10: drained=%d/%d  commit_ready_low=%d/%d  B=%d",
+                drained, N, low, budget, ndone[0])
+    assert drained == N, f"wave10: only {drained}/{N} bursts drained -- drain wedged"
+    assert low < N, (f"wave10: commit_ready low {low} cycles -- drain FIFO "
+                     f"filling faster than it empties (the write-BW wedge)")
+    assert ndone[0] == N, f"wave10: {ndone[0]} B strobes for {N} bursts (one B/burst expected)"
+
     tb.log.info("PASS: insert/fill, oldest port, snarf youngest (WAW), snarf "
-                "limits (id/len/scheduled), sched oldest-match, commit+evict")
+                "limits (id/len/scheduled), sched oldest-match, commit+evict, "
+                "wave10 pipelined drain")
 
 
 def test_pumice_wr_data_cam(request):
