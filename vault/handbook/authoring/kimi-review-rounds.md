@@ -28,7 +28,7 @@ for one call are pre-split into `parts/part_NN`. Results land in
 `<results>/<mode>-<model>/round_N/` as `<unit>.md` + `<unit>.meta.json`,
 with the inputs snapshotted into `_bundle_snapshot/`.
 
-## The 12 rules
+## The 13 rules
 
 Each one is here because ignoring it cost real work.
 
@@ -648,6 +648,26 @@ table becomes the next source of phantom missing-module findings.
     file, and editing a chapter six times across a triage is how it became
     internally inconsistent to begin with. One round_1 finding was an
     inconsistency the triage itself had introduced hours earlier.
+
+13. **A claim is fixed when the re-grep returns zero ASSERTIONS, not when the
+    findings are addressed.** Rule 12 says fix by cluster and grep the other
+    books. That is necessary and it is not sufficient: it has no stopping
+    condition, so you stop when the edits feel done. In one bridge round I
+    followed it and still left the same claim standing three separate times --
+    ID extension (19 leftovers across 7 files), a non-existent transaction
+    timeout (4 sites, two of them in the very page whose opening paragraph I
+    had just corrected), and a wrong TOML table path (20 headers in 6 files).
+
+    The method with an endpoint: write the false claim down, grep every book
+    for it, fix each hit, re-grep, and require **zero assertions**. Mentions
+    inside corrective framing ("this was never built", "an earlier revision
+    said") are expected and must be excluded from the count -- so the grep
+    needs an exclusion list, and building that list is what forces you to
+    distinguish a correction from a survival.
+
+    Applied to a PRD I had already declared corrected, this found 17 more
+    assertions. "I fixed the findings" is a report about effort; "the sweep
+    returns zero" is a report about the file.
 
 ## The order: correctness until clean, then voice
 
