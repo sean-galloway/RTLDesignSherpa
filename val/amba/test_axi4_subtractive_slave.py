@@ -108,6 +108,45 @@ async def subtractive_slave_test(dut):
         "clearing the flag must leave the address readable"
     tb.log.info("clear works; address survives the clear")
 
+    # ---- 7. simultaneous AW+AR from idle: TWO faults, not one ----------
+    # From idle both readys are high (AWREADY = !r_b_pending,
+    # ARREADY = !r_r_active), so a master can present a write and a read to
+    # unmapped space in the SAME cycle. An earlier revision counted that as
+    # one hit and reported only the write -- and since the AR was accepted,
+    # the read fault was never re-offered and simply vanished.
+    d.i_hit_clear.value = 1
+    await RisingEdge(tb.aclk)
+    d.i_hit_clear.value = 0
+    await RisingEdge(tb.aclk)
+    assert int(d.o_hit_count.value) == 0, "precondition: counter not cleared"
+
+    reports = []
+    if hasattr(d, "monbus_valid"):
+        async def _collect():
+            while True:
+                await RisingEdge(tb.aclk)
+                if int(d.monbus_valid.value) and int(d.monbus_ready.value):
+                    reports.append(int(d.monbus_packet.value))
+        cocotb.start_soon(_collect())
+
+    await tb.concurrent_write_and_read(waddr=0x5150_0000, raddr=0x6160_0000)
+
+    assert int(d.o_hit_count.value) == 2, (
+        f"a same-cycle AW+AR to unmapped space is TWO faults; o_hit_count "
+        f"reads {int(d.o_hit_count.value)}. Counting it once under-reports "
+        f"exactly the case a master is most likely to hit from idle.")
+
+    if hasattr(d, "monbus_valid"):
+        for _ in range(40):
+            if len(reports) >= 2:
+                break
+            await RisingEdge(tb.aclk)
+        assert len(reports) >= 2, (
+            f"both the write and the read fault must be reported on monbus; "
+            f"got {len(reports)}. The read fault is unrecoverable once its AR "
+            f"has been accepted -- it is never presented again.")
+    tb.log.info("simultaneous AW+AR reports two faults and two monbus records")
+
     # And it re-arms.
     await tb.read_burst(addr=0x8888_0000, rid=2, beats=1)
     assert int(d.o_hit_irq.value) == 1, "status did not re-arm after a clear"

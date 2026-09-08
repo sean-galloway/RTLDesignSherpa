@@ -242,30 +242,66 @@ module axi4_subtractive_slave
     // decoders need no change.
     // ---------------------------------------------------------------------
     if (ENABLE_MONBUS) begin : g_monbus
-        logic          r_rpt_valid;
-        logic [AW-1:0] r_rpt_addr;
-        logic [IW-1:0] r_rpt_id;
+        wire           r_rpt_valid;
+        wire [AW-1:0]  r_rpt_addr;
+        wire [IW-1:0]  r_rpt_id;
 
-        // AW wins a same-cycle tie; the AR is reported when it is accepted,
-        // which cannot be the same cycle because ARREADY is low while a read
-        // is active and the tie only arises on a free cycle.
-        wire w_rpt_fire = w_aw_fire || w_ar_fire;
+        // One report slot PER CHANNEL, not one shared slot.
+        //
+        // An earlier revision kept a single slot and claimed a same-cycle
+        // AW+AR tie "cannot be the same cycle because ARREADY is low while a
+        // read is active". That was wrong: from idle both readys are high
+        // (AWREADY = !r_b_pending, ARREADY = !r_r_active), so a master
+        // targeting unmapped space with a write and a read in the same cycle
+        // got ONE report -- and because the AR was accepted, it was never
+        // re-offered, so the read fault vanished. The single slot was also
+        // overwritten unconditionally, so an AR arriving while an AW report
+        // was still undrained clobbered it even without the tie.
+        //
+        // Each channel can have at most one address phase in flight (AWREADY
+        // is held low until B drains, ARREADY until R completes), so one slot
+        // per channel makes both faults reportable. o_hit_count remains the
+        // AUTHORITATIVE fault tally; monbus is best-effort telemetry.
+        logic          r_rpt_w_valid, r_rpt_r_valid;
+        logic [AW-1:0] r_rpt_w_addr,  r_rpt_r_addr;
+        logic [IW-1:0] r_rpt_w_id,    r_rpt_r_id;
+
+        // Write reports drain first; a held read report is not lost, only
+        // delayed, because its slot cannot be reused until R completes.
+        wire w_rpt_drain = monbus_valid && monbus_ready;
+        wire w_drain_w   = w_rpt_drain && r_rpt_w_valid;
+        wire w_drain_r   = w_rpt_drain && !r_rpt_w_valid;
 
         `ALWAYS_FF_RST(aclk, aresetn,
             if (`RST_ASSERTED(aresetn)) begin
-                r_rpt_valid <= 1'b0;
-                r_rpt_addr  <= '0;
-                r_rpt_id    <= '0;
+                r_rpt_w_valid <= 1'b0;
+                r_rpt_r_valid <= 1'b0;
+                r_rpt_w_addr  <= '0;
+                r_rpt_r_addr  <= '0;
+                r_rpt_w_id    <= '0;
+                r_rpt_r_id    <= '0;
             end else begin
-                if (w_rpt_fire) begin
-                    r_rpt_valid <= 1'b1;
-                    r_rpt_addr  <= w_aw_fire ? s_axi_awaddr : s_axi_araddr;
-                    r_rpt_id    <= w_aw_fire ? s_axi_awid   : s_axi_arid;
-                end else if (monbus_valid && monbus_ready) begin
-                    r_rpt_valid <= 1'b0;
+                if (w_aw_fire) begin
+                    r_rpt_w_valid <= 1'b1;
+                    r_rpt_w_addr  <= s_axi_awaddr;
+                    r_rpt_w_id    <= s_axi_awid;
+                end else if (w_drain_w) begin
+                    r_rpt_w_valid <= 1'b0;
+                end
+
+                if (w_ar_fire) begin
+                    r_rpt_r_valid <= 1'b1;
+                    r_rpt_r_addr  <= s_axi_araddr;
+                    r_rpt_r_id    <= s_axi_arid;
+                end else if (w_drain_r) begin
+                    r_rpt_r_valid <= 1'b0;
                 end
             end
         )
+
+        assign r_rpt_valid = r_rpt_w_valid || r_rpt_r_valid;
+        assign r_rpt_addr  = r_rpt_w_valid ? r_rpt_w_addr : r_rpt_r_addr;
+        assign r_rpt_id    = r_rpt_w_valid ? r_rpt_w_id   : r_rpt_r_id;
 
         logic [8:0]  w_chan_id;
         logic [59:0] w_addr_payload;
@@ -322,7 +358,14 @@ module axi4_subtractive_slave
                     o_hit_irq  <= 1'b1;
                     o_hit_addr <= w_aw_fire ? s_axi_awaddr : s_axi_araddr;
                 end
-                if (o_hit_count != 8'hFF) o_hit_count <= o_hit_count + 8'd1;
+                // AW and AR can BOTH fire from idle, which is two faults.
+                // Incrementing by one there under-reported the fault count.
+                if (o_hit_count != 8'hFF) begin
+                    if (w_aw_fire && w_ar_fire && o_hit_count <= 8'hFD)
+                        o_hit_count <= o_hit_count + 8'd2;
+                    else
+                        o_hit_count <= o_hit_count + 8'd1;
+                end
             end else if (i_hit_clear) begin
                 o_hit_irq   <= 1'b0;
                 o_hit_count <= '0;

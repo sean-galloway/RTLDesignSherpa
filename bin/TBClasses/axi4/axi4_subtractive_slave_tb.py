@@ -15,7 +15,7 @@ tolerated stall.
 import os
 
 import cocotb
-from cocotb.triggers import RisingEdge, Timer
+from cocotb.triggers import ReadOnly, RisingEdge, Timer
 
 from TBClasses.shared.tbbase import TBBase
 
@@ -134,6 +134,80 @@ class AXI4SubtractiveSlaveTB(TBBase):
         raise AssertionError(
             f"no B response within 200 cycles for addr=0x{addr:x} id={wid} -- "
             "this is the hang BRIDGE-009 exists to prevent")
+
+    async def concurrent_write_and_read(self, waddr, raddr, wid=3, rid=4):
+        """Present AW and AR in the SAME cycle, then drain both responses.
+
+        From idle both readys are high, so this tie is reachable by any master
+        that issues a write and a read together. It is the case that used to
+        lose the read fault entirely -- once the AR is accepted it is never
+        presented again, so nothing downstream can recover it.
+
+        Asserts both handshakes actually landed on the same edge: if they did
+        not, the test would pass without ever creating the condition.
+        """
+        d = self.dut
+
+        # The tie is only reachable from IDLE -- AWREADY is low while a B is
+        # outstanding and ARREADY while a read is active, so a leftover
+        # response from an earlier phase makes the two handshakes land on
+        # different edges and the condition is never created. Drain first.
+        d.s_axi_bready.value = 1
+        d.s_axi_rready.value = 1
+        for _ in range(200):
+            await RisingEdge(self.aclk)
+            await ReadOnly()
+            idle = int(d.s_axi_awready.value) and int(d.s_axi_arready.value)
+            if idle:
+                break
+        await RisingEdge(self.aclk)
+        d.s_axi_bready.value = 0
+        d.s_axi_rready.value = 0
+        assert idle, "slave never returned to idle; the AW+AR tie needs both readys high"
+
+        d.s_axi_awid.value    = wid
+        d.s_axi_awaddr.value  = waddr
+        d.s_axi_awlen.value   = 0
+        d.s_axi_awvalid.value = 1
+        d.s_axi_arid.value    = rid
+        d.s_axi_araddr.value  = raddr
+        d.s_axi_arlen.value   = 0
+        d.s_axi_arvalid.value = 1
+
+        both = False
+        for _ in range(50):
+            await ReadOnly()
+            aw = (int(d.s_axi_awvalid.value) and int(d.s_axi_awready.value))
+            ar = (int(d.s_axi_arvalid.value) and int(d.s_axi_arready.value))
+            await RisingEdge(self.aclk)
+            if aw and ar:
+                both = True
+                break
+        d.s_axi_awvalid.value = 0
+        d.s_axi_arvalid.value = 0
+        assert both, (
+            "AW and AR never handshook on the same edge, so the same-cycle "
+            "tie was never created and this test proves nothing")
+
+        # Drain W, B and R so the slave returns to idle for later checks.
+        d.s_axi_wdata.value  = 0
+        d.s_axi_wlast.value  = 1
+        d.s_axi_wvalid.value = 1
+        d.s_axi_bready.value = 1
+        d.s_axi_rready.value = 1
+        for _ in range(200):
+            await RisingEdge(self.aclk)
+            if int(d.s_axi_wready.value):
+                d.s_axi_wvalid.value = 0
+                break
+        for _ in range(200):
+            await RisingEdge(self.aclk)
+            if int(d.s_axi_bvalid.value) and int(d.s_axi_rvalid.value):
+                break
+        await RisingEdge(self.aclk)
+        d.s_axi_bready.value = 0
+        d.s_axi_rready.value = 0
+        d.s_axi_wvalid.value = 0
 
     async def read_burst(self, addr, rid, beats):
         """One read. Returns list of (rid, rdata, rresp, rlast)."""
