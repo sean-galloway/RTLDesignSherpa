@@ -21,13 +21,15 @@
 
 <!-- End Header -->
 
-### APB IOAPIC - Overview
+# ioapic
 
-#### Introduction
+## Overview
 
-The APB I/O Advanced Programmable Interrupt Controller (IOAPIC) is a sophisticated interrupt routing peripheral designed for advanced system interrupt management. It provides 24 programmable interrupt inputs with flexible redirection to multiple CPUs, supporting both edge and level-triggered modes. The design implements Intel 82093AA-compatible indirect register access while integrating seamlessly with the RLB architecture via AMBA APB4 interface.
+### Introduction
 
-#### Key Features
+The APB I/O Advanced Programmable Interrupt Controller (IOAPIC) is the interrupt router you reach for when a plain 8259 won't cut it: 24 programmable interrupt inputs, flexible redirection to multiple CPUs, and both edge and level-triggered modes. Register access is Intel 82093AA-compatible (the IOREGSEL/IOWIN indirect dance), and the bus side is a standard AMBA APB4 interface, so it drops into the RLB architecture without any special pleading.
+
+### Key Features
 
 - **24 Independent IRQ Inputs**: IRQ0-IRQ23 with individual configuration per interrupt source
 - **Programmable Redirection Table**: 64-bit entry per IRQ defining vector, mode, destination, trigger, polarity
@@ -47,7 +49,7 @@ The APB I/O Advanced Programmable Interrupt Controller (IOAPIC) is a sophisticat
 - **PeakRDL Integration**: Register map generated from SystemRDL specification
 - **Intel 82093AA Compatible**: Register layout and behavior match Intel specification
 
-#### Applications
+### Applications
 
 **Multi-Processor Systems:**
 - Flexible interrupt routing to multiple CPUs
@@ -73,7 +75,9 @@ The APB I/O Advanced Programmable Interrupt Controller (IOAPIC) is a sophisticat
 - Remote IRR tracking
 - Flexible interrupt mapping
 
-#### Design Philosophy
+## Functional Description
+
+### Design Philosophy
 
 **Intel Compatibility:**
 The IOAPIC implements the Intel 82093AA indirect register access method (IOREGSEL/IOWIN) for compatibility with existing software. This allows software written for Intel chipsets to work with minimal modifications.
@@ -99,22 +103,22 @@ Each of the 24 IRQ inputs can be independently configured for trigger mode (edge
 **Modularity:**
 Clean separation between interrupt routing logic (ioapic_core), register interface (ioapic_config_regs), and bus interface (apb4_ioapic) enables easy customization and integration.
 
-#### Comparison with Intel 82093AA IOAPIC
+### Comparison with Intel 82093AA IOAPIC
 
 The APB IOAPIC draws directly from the Intel 82093AA I/O APIC specification with RLB architecture enhancements:
 
 | Feature | Intel 82093AA | APB IOAPIC |
-|---------|---------------|------------|
+| --- | --- | --- |
 | **Interface** | Memory-mapped | AMBA APB4 |
-| **Register Access** | Indirect (IOREGSEL/IOWIN) | Indirect (IOREGSEL/IOWIN) ✅ Same |
-| **IRQ Inputs** | 24 (IRQ0-23) | 24 (IRQ0-23) ✅ Same |
-| **Redirection Table** | 24 entries × 64-bit | 24 entries × 64-bit ✅ Same |
+| **Register Access** | Indirect (IOREGSEL/IOWIN) | Indirect (IOREGSEL/IOWIN) — Same |
+| **IRQ Inputs** | 24 (IRQ0-23) | 24 (IRQ0-23) — Same |
+| **Redirection Table** | 24 entries × 64-bit | 24 entries × 64-bit — Same |
 | **Delivery Modes** | Fixed, LowestPri, SMI, NMI, INIT, ExtINT | Fixed (MVP), others future |
 | **Destination Modes** | Physical, Logical | Physical (MVP), Logical future |
-| **Trigger Modes** | Edge, Level | Edge, Level ✅ Same |
-| **Polarity** | High, Low | High, Low ✅ Same |
-| **Version Register** | 0x11, Max Entry 0x17 | 0x11, Max Entry 0x17 ✅ Same |
-| **Remote IRR** | Level interrupts | Level interrupts ✅ Same |
+| **Trigger Modes** | Edge, Level | Edge, Level — Same |
+| **Polarity** | High, Low | High, Low — Same |
+| **Version Register** | 0x11, Max Entry 0x17 | 0x11, Max Entry 0x17 — Same |
+| **Remote IRR** | Level interrupts | Level interrupts — Same |
 | **Priority** | Implementation-defined | Static (lowest IRQ) |
 | **Multi-APIC** | Supported | Future enhancement |
 | **Clock Domains** | Single | Optional CDC support |
@@ -134,13 +138,61 @@ The APB IOAPIC draws directly from the Intel 82093AA I/O APIC specification with
 - Single IOAPIC (multi-IOAPIC arbitration future)
 
 **RLB Enhancements:**
--  APB4 bus interface (instead of direct memory-map)
+- APB4 bus interface (instead of direct memory-map)
 - Optional CDC for clock domain flexibility
 - PeakRDL register generation
 - Modern SystemVerilog coding practices
 - Comprehensive validation framework
 
-#### Timing Diagrams
+### Intel 82093AA Register Compatibility
+
+**Direct APB Registers:**
+- `0x00`: IOREGSEL - Register offset selector
+- `0x04`: IOWIN - Data window for selected register
+- (Implementation note: the internal register file is also directly decoded at
+  APB 0x08-0xD0, bypassing IOREGSEL/IOWIN. Portable 82093AA software uses only
+  the indirect pair; see Chapter 5 for the direct map.)
+
+**Internal Registers (via IOREGSEL/IOWIN):**
+- **0x00**: IOAPICID - I/O APIC identification
+- **0x01**: IOAPICVER - Version (0x11) and Max Entry (0x17 for 24 IRQs)
+- **0x02**: IOAPICARB - Arbitration priority (read-only)
+- **0x10-0x3F**: IOREDTBL - Redirection table (24 entries × 2 registers)
+
+Each redirection entry is 64 bits:
+- **LO register**: Vector, delivery mode, dest mode, polarity, trigger, mask, status fields
+- **HI register**: Destination CPU APIC ID
+
+This matches Intel's specification exactly for software compatibility.
+
+## Timing
+
+### Performance Characteristics
+
+**Interrupt Latency:**
+- IRQ detection: 3 clock cycles (synchronization)
+- Edge detection: 1 clock cycle
+- Arbitration: Combinational (<1 cycle)
+- Delivery initiation: 1 clock cycle
+- **Total:** ~5 clock cycles from IRQ assertion to delivery request
+
+**Register Access Performance:**
+- Direct APB access (IOREGSEL): 2 APB clock cycles
+- Indirect access (IOWIN): 2 APB clock cycles per register
+- Full redirection entry (LO+HI): 4 transactions (~8 cycles) via the
+  IOREGSEL/IOWIN indirect method; 2 transactions (~4 cycles) via the
+  direct decode at 0x014/0x018
+- With CDC: Add 2-4 cycles for synchronization
+
+**Resource Utilization (Post-Synthesis Estimates):**
+- No CDC: ~800-1000 LUTs, ~600-800 flip-flops
+- With CDC: ~1000-1200 LUTs, ~800-1000 flip-flops
+- BRAM: None (all logic-based)
+
+**Scalability:**
+Fixed 24 IRQ inputs per Intel specification. For more IRQs, use multiple IOAPIC instances with different APIC IDs.
+
+## Waveforms
 
 ### Waveform 1.1: Interrupt Delivery
 
@@ -179,55 +231,32 @@ Masked interrupts latch in IRR and deliver when unmasked.
 
 When an IRQ arrives while masked, the IRR bit latches but delivery is blocked. Upon unmask, the IOAPIC checks for pending interrupts and delivers them.
 
-#### Performance Characteristics
+## Testing
 
-**Interrupt Latency:**
-- IRQ detection: 3 clock cycles (synchronization)
-- Edge detection: 1 clock cycle
-- Arbitration: Combinational (<1 cycle)
-- Delivery initiation: 1 clock cycle
-- **Total:** ~5 clock cycles from IRQ assertion to delivery request
+### Verification Status
 
-**Register Access Performance:**
-- Direct APB access (IOREGSEL): 2 APB clock cycles
-- Indirect access (IOWIN): 2 APB clock cycles per register
-- Full redirection entry (LO+HI): 4 transactions (~8 cycles) via the
-  IOREGSEL/IOWIN indirect method; 2 transactions (~4 cycles) via the
-  direct decode at 0x014/0x018
-- With CDC: Add 2-4 cycles for synchronization
-
-**Resource Utilization (Post-Synthesis Estimates):**
-- No CDC: ~800-1000 LUTs, ~600-800 flip-flops
-- With CDC: ~1000-1200 LUTs, ~800-1000 flip-flops
-- BRAM: None (all logic-based)
-
-**Scalability:**
-Fixed 24 IRQ inputs per Intel specification. For more IRQs, use multiple IOAPIC instances with different APIC IDs.
-
-#### Verification Status
-
-**Implementation Status:** ✅ RTL Complete - Validation Pending
+**Implementation Status:** RTL Complete - Validation Pending
 
 **Completed Implementation:**
-- ✅ PeakRDL register specification with indirect access
-- ✅ Core interrupt routing logic (edge/level/polarity)
-- ✅ Priority arbitration (static)
-- ✅ Delivery state machine with EOI handling
-- ✅ Remote IRR management
-- ✅ Configuration register wrapper
-- ✅ APB top-level with CDC support
-- ✅ Complete filelist and documentation
+- [x] PeakRDL register specification with indirect access
+- [x] Core interrupt routing logic (edge/level/polarity)
+- [x] Priority arbitration (static)
+- [x] Delivery state machine with EOI handling
+- [x] Remote IRR management
+- [x] Configuration register wrapper
+- [x] APB top-level with CDC support
+- [x] Complete filelist and documentation
 
 **Validation Plan (Per TODO.md):**
-- ⏳ APB indirect register access tests
-- ⏳ Edge-triggered IRQ tests (all 24 inputs)
-- ⏳ Level-triggered IRQ tests with Remote IRR
-- ⏳ Polarity tests (active-high/low)
-- ⏳ Priority arbitration tests
-- ⏳ Delivery status tests
-- ⏳ EOI handling with level interrupts
-- ⏳ Redirection table configuration tests
-- ⏳ CDC mode validation
+- [ ] APB indirect register access tests
+- [ ] Edge-triggered IRQ tests (all 24 inputs)
+- [ ] Level-triggered IRQ tests with Remote IRR
+- [ ] Polarity tests (active-high/low)
+- [ ] Priority arbitration tests
+- [ ] Delivery status tests
+- [ ] EOI handling with level interrupts
+- [ ] Redirection table configuration tests
+- [ ] CDC mode validation
 
 **Test Infrastructure Needed:**
 - Python helper script (ioapic_helper.py)
@@ -236,53 +265,41 @@ Fixed 24 IRQ inputs per Intel specification. For more IRQs, use multiple IOAPIC 
 
 **Estimated Validation Time:** 5-7 days (per RLB_STATUS_AND_ROADMAP.md)
 
-#### Development Status
+### Development Status
 
-**Status:** ✅ MVP Complete - Ready for Validation
+**Status:** MVP Complete - Ready for Validation
 
 **MVP Scope Delivered:**
-- ✅ 24 IRQ inputs with synchronization
-- ✅ Edge and level trigger detection
-- ✅ Active high/low polarity support
-- ✅ Fixed delivery mode
-- ✅ Physical destination mode
-- ✅ Static priority arbitration
-- ✅ Remote IRR for level interrupts
-- ✅ EOI handling
-- ✅ Indirect register access (IOREGSEL/IOWIN)
-- ✅ Complete redirection table
-- ✅ Delivery status per IRQ
+- [x] 24 IRQ inputs with synchronization
+- [x] Edge and level trigger detection
+- [x] Active high/low polarity support
+- [x] Fixed delivery mode
+- [x] Physical destination mode
+- [x] Static priority arbitration
+- [x] Remote IRR for level interrupts
+- [x] EOI handling
+- [x] Indirect register access (IOREGSEL/IOWIN)
+- [x] Complete redirection table
+- [x] Delivery status per IRQ
 
 **Future Enhancements (Planned in TODO.md):**
-- ⏳ Logical destination mode
-- ⏳ LowestPriority delivery mode
-- ⏳ Additional delivery modes (SMI, NMI, INIT, ExtINT)
-- ⏳ Dynamic priority rotation
-- ⏳ Multi-IOAPIC support
-- ⏳ Boot interrupt delivery
+- [ ] Logical destination mode
+- [ ] LowestPriority delivery mode
+- [ ] Additional delivery modes (SMI, NMI, INIT, ExtINT)
+- [ ] Dynamic priority rotation
+- [ ] Multi-IOAPIC support
+- [ ] Boot interrupt delivery
 
-#### Intel 82093AA Register Compatibility
+## References
 
-**Direct APB Registers:**
-- `0x00`: IOREGSEL - Register offset selector
-- `0x04`: IOWIN - Data window for selected register
-- (Implementation note: the internal register file is also directly decoded at
-  APB 0x08-0xD0, bypassing IOREGSEL/IOWIN. Portable 82093AA software uses only
-  the indirect pair; see Chapter 5 for the direct map.)
+### Related Documentation
 
-**Internal Registers (via IOREGSEL/IOWIN):**
-- **0x00**: IOAPICID - I/O APIC identification
-- **0x01**: IOAPICVER - Version (0x11) and Max Entry (0x17 for 24 IRQs)
-- **0x02**: IOAPICARB - Arbitration priority (read-only)
-- **0x10-0x3F**: IOREDTBL - Redirection table (24 entries × 2 registers)
+- `../../rtl/ioapic/TODO.md` - Implementation roadmap
+- `../../rtl/ioapic/peakrdl/README.md` - Register generation guide
+- `../../rtl/RLB_STATUS_AND_ROADMAP.md` - System-wide planning
+- Intel 82093AA I/O APIC Datasheet
 
-Each redirection entry is 64 bits:
-- **LO register**: Vector, delivery mode, dest mode, polarity, trigger, mask, status fields
-- **HI register**: Destination CPU APIC ID
-
-This matches Intel's specification exactly for software compatibility.
-
-#### Documentation Organization
+## Navigation
 
 This specification document is organized as follows:
 
@@ -291,12 +308,6 @@ This specification document is organized as follows:
 - **Chapter 3**: Interface specifications (APB, indirect access, IRQ, EOI)
 - **Chapter 4**: Programming model (initialization, redirection table, edge/level handling)
 - **Chapter 5**: Register definitions (address map, indirect access, field descriptions)
-
-**Related Documentation:**
-- `../../rtl/ioapic/TODO.md` - Implementation roadmap
-- `../../rtl/ioapic/peakrdl/README.md` - Register generation guide
-- `../../rtl/RLB_STATUS_AND_ROADMAP.md` - System-wide planning
-- Intel 82093AA I/O APIC Datasheet
 
 ---
 

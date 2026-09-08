@@ -21,12 +21,18 @@
 
 <!-- End Header -->
 
-### APB IOAPIC - Acronyms and Terminology
+# ioapic
 
-#### Acronyms
+## Overview
+
+The alphabet soup, decoded. If you've worked with Intel interrupt controllers before, most of this is familiar — the IOAPIC-specific terms are the ones worth a skim.
+
+## References
+
+### Acronyms
 
 | Acronym | Full Name | Description |
-|---------|-----------|-------------|
+| --- | --- | --- |
 | **IOAPIC** | I/O Advanced Programmable Interrupt Controller | Intel's advanced interrupt routing controller |
 | **APB** | Advanced Peripheral Bus | AMBA low-power peripheral bus |
 | **AMBA** | Advanced Microcontroller Bus Architecture | ARM bus specification |
@@ -46,10 +52,10 @@
 | **INIT** | Initialization | Processor initialization sequence |
 | **ExtINT** | External Interrupt | 8259-compatible interrupt delivery |
 
-#### Register Names
+### Register Names
 
 | Name | Full Name | Description |
-|------|-----------|-------------|
+| --- | --- | --- |
 | **IOREGSEL** | I/O Register Select | Indirect access register selector |
 | **IOWIN** | I/O Window | Indirect access data window |
 | **IOAPICID** | I/O APIC Identification | IOAPIC ID register |
@@ -57,7 +63,7 @@
 | **IOAPICARB** | I/O APIC Arbitration | Bus arbitration priority register |
 | **IOREDTBL** | I/O Redirection Table | Interrupt redirection configuration |
 
-#### Key Terms
+### Key Terms
 
 **Redirection Table:**
 Array of 64-bit entries (one per IRQ) that configure how each interrupt is routed to CPUs. Contains vector, delivery mode, destination, trigger type, polarity, and mask.
@@ -95,7 +101,7 @@ When multiple IRQs are pending, hardware selects which to deliver first. Current
 **End-of-Interrupt (EOI):**
 Signal from CPU indicating interrupt service is complete. For level-triggered interrupts, clears Remote IRR and allows re-triggering if signal still asserted.
 
----
+## Navigation
 
 **See Also:**
 - [References](05_references.md) - External standards and specifications

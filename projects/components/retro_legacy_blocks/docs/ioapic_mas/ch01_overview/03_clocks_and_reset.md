@@ -21,96 +21,20 @@
 
 <!-- End Header -->
 
-### APB IOAPIC - Clocks and Reset
+# ioapic
 
-#### Clock Domains
+## Overview
 
-The IOAPIC supports both single and dual clock domain operation via the `CDC_ENABLE` parameter.
+The IOAPIC supports both single and dual clock domain operation via the `CDC_ENABLE` parameter. This chapter covers the clocking options, the reset behavior, and — the part that will bite you if you skip it — exactly which signals are synchronized and which are not.
 
-##### Single Clock Domain (CDC_ENABLE=0 - Default)
+## Functional Description
 
-**Configuration:**
-- Both APB interface and IOAPIC logic use same clock (`pclk`)
-- `ioapic_clk` parameter tied to `pclk`
-- No clock domain crossing logic instantiated
-
-**Advantages:**
-- Simplest configuration
-- Lowest latency (~2 APB cycles for register access)
-- Single clock timing constraints
-- Recommended for most applications
-
-**Clock Routing:**
-```
-pclk ──┬──► apb4_slave (APB protocol)
-       ├──► ioapic_config_regs (registers)
-       └──► ioapic_core (interrupt logic)
-```
-
-##### Dual Clock Domain (CDC_ENABLE=1)
-
-**Configuration:**
-- APB interface uses `pclk`
-- IOAPIC logic uses `ioapic_clk` (independent)
-- `apb4_slave_cdc` provides clock domain crossing
-- CMD/RSP signals cross domains via async FIFOs
-
-**Advantages:**
-- Independent clock frequencies
-- Can gate `pclk` while maintaining interrupt capability
-- Supports always-on interrupt handling
-- Useful for power-managed systems
-
-**Clock Routing:**
-```
-pclk ────► apb4_slave_cdc (APB protocol) ──┐
-                                           │ CDC
-ioapic_clk ──┬─────────────────────────────┴─► ioapic_config_regs
-             └────────────────────────────────► ioapic_core
-```
-
-**Latency Impact:**
-- Register access: +2-4 cycles for CDC handshake
-- Total: ~4-6 APB cycles vs ~2 cycles for non-CDC
-
-#### Clock Requirements
-
-**Frequency Constraints:**
-
-| Clock | Minimum | Typical | Maximum | Notes |
-|-------|---------|---------|---------|-------|
-| `pclk` | 1 MHz | 50-100 MHz | 200 MHz | APB bus clock |
-| `ioapic_clk` (CDC=0) | Same as pclk | Same as pclk | Same as pclk | Tied to pclk |
-| `ioapic_clk` (CDC=1) | 1 MHz | 25-100 MHz | 200 MHz | Independent |
-
-**Relationship (CDC=1):**
-- No fixed relationship required between `pclk` and `ioapic_clk`
-- Can be asynchronous
-- Ratio can be arbitrary
-- CDC logic handles all synchronization
-
-**Typical Configurations:**
-- **No CDC:** pclk = ioapic_clk = 100 MHz (system clock)
-- **With CDC:** pclk = 50 MHz (APB), ioapic_clk = 100 MHz (fast interrupts)
-- **Power-managed:** pclk = gatable, ioapic_clk = always-on 32 kHz
-
-#### Interrupt Response Time
-
-**From IRQ assertion to delivery request:**
-
-| Configuration | Synchronization | Edge Detect | Arbitration | Delivery | Total |
-|---------------|-----------------|-------------|-------------|----------|-------|
-| No CDC, 100 MHz | 30 ns (3 cycles) | 10 ns (1 cycle) | 0 ns (combinational) | 10 ns (1 cycle) | ~50 ns (5 cycles) |
-| CDC, pclk=50MHz, ioapic_clk=100MHz | 30 ns (3 cycles) | 10 ns (1 cycle) | 0 ns (combinational) | 10 ns (1 cycle) | ~50 ns (5 cycles) |
-
-**Note:** Above is from IRQ pin to `irq_out_valid`. CPU interrupt latency depends on LAPIC design.
-
-#### Reset Signals
+### Reset Signals
 
 **Reset Types:**
 
 | Signal | Polarity | Type | Domain | Purpose |
-|--------|----------|------|--------|---------|
+| --- | --- | --- | --- | --- |
 | `presetn` | Active Low | Async | APB | Resets APB interface |
 | `ioapic_resetn` | Active Low | Async | IOAPIC | Resets interrupt logic |
 
@@ -125,7 +49,7 @@ assign core_rst = (CDC_ENABLE[0]) ? ioapic_resetn : presetn;
 **CDC=0:** Both use `presetn`
 **CDC=1:** Both use `ioapic_resetn`
 
-#### Reset Behavior
+### Reset Behavior
 
 **On Reset Assertion:**
 
@@ -162,7 +86,7 @@ assign core_rst = (CDC_ENABLE[0]) ? ioapic_resetn : presetn;
 2. Configure each needed IRQ's redirection entry
 3. Unmask desired IRQs (clear mask bit)
 
-#### Reset Sequencing
+### Reset Sequencing
 
 **Power-On Reset:**
 ```
@@ -182,29 +106,89 @@ assign core_rst = (CDC_ENABLE[0]) ? ioapic_resetn : presetn;
 4. Software must reinitialize all config
 ```
 
-#### Clock Gating Considerations
+## Timing
 
-**With CDC_ENABLE=1:**
+### Clock Domains
 
-**Can gate pclk when:**
-- No APB accesses needed
-- Power saving mode
-- IOAPIC still operational on `ioapic_clk`
-- Interrupts continue to function
+#### Single Clock Domain (CDC_ENABLE=0 - Default)
 
-**Cannot gate ioapic_clk when:**
-- Interrupts must be serviced
-- Need real-time interrupt response
-- Unless entering deep power-down (then reinit required)
+**Configuration:**
+- Both APB interface and IOAPIC logic use same clock (`pclk`)
+- `ioapic_clk` parameter tied to `pclk`
+- No clock domain crossing logic instantiated
 
-**Integration with PM_ACPI:**
-If using PM_ACPI power management:
-- Connect IOAPIC to always-on power domain
-- Use `ioapic_clk` from always-on clock tree
-- Enable CDC (CDC_ENABLE=1)
-- IOAPIC continues operating in S1/S3 sleep states
+**Advantages:**
+- Simplest configuration
+- Lowest latency (~2 APB cycles for register access)
+- Single clock timing constraints
+- Recommended for most applications
 
-#### Timing Constraints
+**Clock Routing:**
+```
+pclk ──┬──► apb4_slave (APB protocol)
+       ├──► ioapic_config_regs (registers)
+       └──► ioapic_core (interrupt logic)
+```
+
+#### Dual Clock Domain (CDC_ENABLE=1)
+
+**Configuration:**
+- APB interface uses `pclk`
+- IOAPIC logic uses `ioapic_clk` (independent)
+- `apb4_slave_cdc` provides clock domain crossing
+- CMD/RSP signals cross domains via async FIFOs
+
+**Advantages:**
+- Independent clock frequencies
+- Can gate `pclk` while maintaining interrupt capability
+- Supports always-on interrupt handling
+- Useful for power-managed systems
+
+**Clock Routing:**
+```
+pclk ────► apb4_slave_cdc (APB protocol) ──┐
+                                           │ CDC
+ioapic_clk ──┬─────────────────────────────┴─► ioapic_config_regs
+             └────────────────────────────────► ioapic_core
+```
+
+**Latency Impact:**
+- Register access: +2-4 cycles for CDC handshake
+- Total: ~4-6 APB cycles vs ~2 cycles for non-CDC
+
+### Clock Requirements
+
+**Frequency Constraints:**
+
+| Clock | Minimum | Typical | Maximum | Notes |
+| --- | --- | --- | --- | --- |
+| `pclk` | 1 MHz | 50-100 MHz | 200 MHz | APB bus clock |
+| `ioapic_clk` (CDC=0) | Same as pclk | Same as pclk | Same as pclk | Tied to pclk |
+| `ioapic_clk` (CDC=1) | 1 MHz | 25-100 MHz | 200 MHz | Independent |
+
+**Relationship (CDC=1):**
+- No fixed relationship required between `pclk` and `ioapic_clk`
+- Can be asynchronous
+- Ratio can be arbitrary
+- CDC logic handles all synchronization
+
+**Typical Configurations:**
+- **No CDC:** pclk = ioapic_clk = 100 MHz (system clock)
+- **With CDC:** pclk = 50 MHz (APB), ioapic_clk = 100 MHz (fast interrupts)
+- **Power-managed:** pclk = gatable, ioapic_clk = always-on 32 kHz
+
+### Interrupt Response Time
+
+**From IRQ assertion to delivery request:**
+
+| Configuration | Synchronization | Edge Detect | Arbitration | Delivery | Total |
+| --- | --- | --- | --- | --- | --- |
+| No CDC, 100 MHz | 30 ns (3 cycles) | 10 ns (1 cycle) | 0 ns (combinational) | 10 ns (1 cycle) | ~50 ns (5 cycles) |
+| CDC, pclk=50MHz, ioapic_clk=100MHz | 30 ns (3 cycles) | 10 ns (1 cycle) | 0 ns (combinational) | 10 ns (1 cycle) | ~50 ns (5 cycles) |
+
+**Note:** Above is from IRQ pin to `irq_out_valid`. CPU interrupt latency depends on LAPIC design.
+
+### Timing Constraints
 
 **Critical Paths (for synthesis):**
 
@@ -227,7 +211,7 @@ If using PM_ACPI power management:
   delivery (see the note below and issue #48)
 - APB signals: Per APB specification
 
-#### Clock Jitter and Stability
+### Clock Jitter and Stability
 
 **IRQ Input Synchronization:**
 - 3-stage synchronizer handles moderate jitter
@@ -239,7 +223,31 @@ If using PM_ACPI power management:
 - Low jitter for timing-critical applications
 - FPGA PLLs/MMCMs acceptable
 
----
+## Design Notes
+
+### Clock Gating Considerations
+
+**With CDC_ENABLE=1:**
+
+**Can gate pclk when:**
+- No APB accesses needed
+- Power saving mode
+- IOAPIC still operational on `ioapic_clk`
+- Interrupts continue to function
+
+**Cannot gate ioapic_clk when:**
+- Interrupts must be serviced
+- Need real-time interrupt response
+- Unless entering deep power-down (then reinit required)
+
+**Integration with PM_ACPI:**
+If using PM_ACPI power management:
+- Connect IOAPIC to always-on power domain
+- Use `ioapic_clk` from always-on clock tree
+- Enable CDC (CDC_ENABLE=1)
+- IOAPIC continues operating in S1/S3 sleep states
+
+## Navigation
 
 **See Also:**
 - [Architecture](02_architecture.md) - Clock domain architecture diagrams

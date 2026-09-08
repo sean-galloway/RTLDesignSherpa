@@ -1,69 +1,58 @@
-# IOAPIC Specification - Graphviz Diagrams
+# ioapic
+
+## Overview
 
 This directory contains Graphviz source files for IOAPIC specification diagrams.
 
-## Available Diagrams
+### Available Diagrams
 
-### 1. delivery_fsm.dot
-**Interrupt Delivery State Machine**
+**1. delivery_fsm.dot — Interrupt Delivery State Machine**
 - Shows 3-state FSM: IDLE → DELIVER → WAIT_EOI
 - Illustrates edge vs level-triggered paths
 - Used in: Ch02 FSM Summary
 
-### 2. apb4_ioapic.gv
-**Top-Level Block Diagram**
+**2. apb4_ioapic.gv — Top-Level Block Diagram**
 - Shows complete module hierarchy
 - Illustrates data flow between blocks
 - Used in: Ch01 Architecture, Ch02 Block Overview
 
-### 3. indirect_access.gv
-**Indirect Register Access Method**
+**3. indirect_access.gv — Indirect Register Access Method**
 - Shows IOREGSEL/IOWIN mechanism
 - Illustrates Intel 82093AA compatibility
 - Used in: Ch03 Interfaces, Ch05 Registers
 
-## Generating Diagrams
+## Usage Example
 
-### Generate All Diagrams (PNG and SVG)
+### Generating Diagrams
+
+**Generate All Diagrams (PNG and SVG):**
 ```bash
 make all
 ```
 
-### Generate PNG Only
+**Generate PNG Only:**
 ```bash
 make png
 ```
 
-### Generate SVG Only
+**Generate SVG Only:**
 ```bash
 make svg
 ```
 
-### Clean Generated Files
+**Clean Generated Files:**
 ```bash
 make clean
 ```
 
-## Output Directories
-
-- **PNG**: `../png/` - Raster images for documentation
-- **SVG**: `../svg/` - Vector images for scalability
-
-## Tools Required
+### Tools Required
 
 - **Graphviz** (dot command)
   - Ubuntu/Debian: `sudo apt install graphviz`
   - macOS: `brew install graphviz`
   - Windows: Download from graphviz.org
 
-## Diagram Formats
-
-- `.dot` files: Standard Graphviz DOT language
-- `.gv` files: Graphviz format (same as .dot, different extension)
-
-Both are text-based and can be edited with any text editor.
-
-## Usage in Documentation
+### Usage in Documentation
 
 The generated PNG/SVG files are referenced in markdown documents:
 
@@ -77,7 +66,21 @@ Or for SVG (better for web):
 ![IOAPIC FSM](../assets/svg/delivery_fsm.png)
 ```
 
-## Diagram Style Guide
+## Design Notes
+
+### Output Directories
+
+- **PNG**: `../png/` - Raster images for documentation
+- **SVG**: `../svg/` - Vector images for scalability
+
+### Diagram Formats
+
+- `.dot` files: Standard Graphviz DOT language
+- `.gv` files: Graphviz format (same as .dot, different extension)
+
+Both are text-based and can be edited with any text editor.
+
+### Diagram Style Guide
 
 **Colors:**
 - Light blue: External interfaces, APB components
@@ -95,7 +98,7 @@ Or for SVG (better for web):
 - Normal: Secondary paths
 - Thin/dotted: Optional selections
 
----
+## Navigation
 
 **Related:**
 - [Specification Index](../../ioapic_index.md)

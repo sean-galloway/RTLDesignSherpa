@@ -21,9 +21,11 @@
 
 <!-- End Header -->
 
-### APB IOAPIC - Block Overview
+# ioapic
 
-#### Module Hierarchy
+## Overview
+
+### Module Hierarchy
 
 The APB IOAPIC consists of four primary blocks organized in a clean hierarchical structure:
 
@@ -36,10 +38,10 @@ apb4_ioapic (Top Level)
 └── ioapic_core (Core Interrupt Logic)
 ```
 
-#### Block Summary
+### Block Summary
 
 | Block | File | Lines | Purpose |
-|-------|------|-------|---------|
+| --- | --- | --- | --- |
 | **apb4_ioapic** | apb4_ioapic.sv | ~340 | Top-level integration, CDC selection |
 | **ioapic_config_regs** | ioapic_config_regs.sv | ~220 | Register interface, indirect access, hwif mapping |
 | **ioapic_regs** | ioapic_regs.sv | ~2500 | PeakRDL generated register block |
@@ -49,7 +51,7 @@ apb4_ioapic (Top Level)
 
 **Total Implementation:** ~900 lines of custom RTL + ~2700 lines generated/reused
 
-#### Block Descriptions
+### Block Descriptions
 
 **1. apb4_ioapic (Top Level)**
 - Selects APB slave type based on CDC_ENABLE parameter
@@ -83,7 +85,9 @@ apb4_ioapic (Top Level)
 - Remote IRR management
 - See: [ioapic_core.md](01_ioapic_core.md)
 
-#### Data Flow Between Blocks
+## Functional Description
+
+### Data Flow Between Blocks
 
 **Configuration Write Path:**
 
@@ -116,7 +120,7 @@ flowchart TD
     C --> D["CPU/LAPIC"]
 ```
 
-#### Interface Summary
+### Interface Summary
 
 **External Interfaces:**
 - APB4 slave (to CPU/interconnect)
@@ -130,7 +134,9 @@ flowchart TD
 - hwif between registers and config_regs
 - Config/status signals between config_regs and core
 
-#### Clock Domain Assignment
+## Timing
+
+### Clock Domain Assignment
 
 **CDC_ENABLE=0 (Single Clock):**
 - All blocks run on `pclk`
@@ -143,7 +149,9 @@ flowchart TD
 - core runs on `ioapic_clk` (IOAPIC domain)
 - CDC handled by apb4_slave_cdc module
 
-#### Module Dependencies
+## Related Modules
+
+### Module Dependencies
 
 **RLB Project Dependencies:**
 - `reset_defs.svh` - Reset macro definitions
@@ -157,7 +165,7 @@ flowchart TD
 **No External IP Required:**
 All dependencies are within the RLB project or generated from specifications.
 
----
+## Navigation
 
 **Chapter 2 Contents:**
 - [01_ioapic_core.md](01_ioapic_core.md) - Core interrupt logic

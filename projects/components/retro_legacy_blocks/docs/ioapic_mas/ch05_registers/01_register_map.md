@@ -21,19 +21,25 @@
 
 <!-- End Header -->
 
-### APB IOAPIC - Complete Register Map
+# ioapic
 
-#### Register Access Method
+## Overview
+
+### Register Access Method
 
 The IOAPIC uses **indirect register access** following Intel 82093AA specification:
 
 1. **Write to IOREGSEL** (APB address 0x00): Select internal register offset
 2. **Access IOWIN** (APB address 0x04): Read or write selected register data
 
-#### Direct APB Registers
+Two transactions for every internal register access. Yes, it's clunky. Yes, it's what Intel software expects, and that's the point.
+
+## Functional Description
+
+### Direct APB Registers
 
 | APB Address | Register | Type | Reset | Description |
-|-------------|----------|------|-------|-------------|
+| --- | --- | --- | --- | --- |
 | 0x000 | IOREGSEL | RW | 0x00 | Register offset selector (0x00-0x3F) |
 | 0x004 | IOWIN | RW | 0x00000000 | Data window for selected internal register |
 | 0x008 | IOAPICID | RW | 0x00000000 | Direct decode of the internal register file |
@@ -51,10 +57,10 @@ accessible at APB 0x008-0x0D0, bypassing IOREGSEL/IOWIN entirely. Intel
 not reserved. The indirect IOREGSEL/IOWIN pair remains the architecturally
 portable access method.
 
-#### IOREGSEL Register (APB 0x000)
+### IOREGSEL Register (APB 0x000)
 
 | Bits | Name | Type | Reset | Description |
-|------|------|------|-------|-------------|
+| --- | --- | --- | --- | --- |
 | [7:0] | regsel | RW | 0x00 | Internal register offset for indirect access |
 | [31:8] | Reserved | RO | 0x000000 | Reserved, read as 0 |
 
@@ -87,10 +93,10 @@ vector -- if software EOIs the wrong vector or never EOIs, no further
 interrupt (any IRQ, any mode) is ever delivered until reset. A real
 82093AA blocks only the affected pin (design limitation, #48).
 
-#### IOWIN Register (APB 0x004)
+### IOWIN Register (APB 0x004)
 
 | Bits | Name | Type | Reset | Description |
-|------|------|------|-------|-------------|
+| --- | --- | --- | --- | --- |
 | [31:0] | data | RW | 0x00000000 | Read/Write data for register selected by IOREGSEL |
 
 **Behavior:**
@@ -100,9 +106,7 @@ interrupt (any IRQ, any mode) is ever delivered until reset. A real
   to the same internal register need only one IOREGSEL write; write IOREGSEL
   again only to select a different register
 
----
-
-## Internal Registers (Accessed via IOREGSEL/IOWIN)
+### Internal Registers (Accessed via IOREGSEL/IOWIN)
 
 #### IOAPICID Register (Internal Offset 0x00)
 
@@ -113,7 +117,7 @@ interrupt (any IRQ, any mode) is ever delivered until reset. A real
 ```
 
 | Bits | Name | Type | Reset | Description |
-|------|------|------|-------|-------------|
+| --- | --- | --- | --- | --- |
 | [23:0] | Reserved | RO | 0x000000 | Reserved, read as 0 |
 | [27:24] | APIC ID | RW | 0x0 | 4-bit IOAPIC identifier for multi-IOAPIC systems |
 | [31:28] | Reserved | RO | 0x0 | Reserved, read as 0 |
@@ -129,7 +133,7 @@ uint32_t ver = *IOWIN;  // Read version
 ```
 
 | Bits | Name | Type | Reset | Description |
-|------|------|------|-------|-------------|
+| --- | --- | --- | --- | --- |
 | [7:0] | Version | RO | 0x11 | IOAPIC version (0x11 for 82093AA compatibility) |
 | [15:8] | Reserved | RO | 0x00 | Reserved, read as 0 |
 | [23:16] | Max Redir Entry | RO | 0x17 | Maximum redirection entry (0x17 = 23 for 24 IRQs) |
@@ -146,16 +150,14 @@ uint32_t arb = *IOWIN;  // Read arbitration ID
 ```
 
 | Bits | Name | Type | Reset | Description |
-|------|------|------|-------|-------------|
+| --- | --- | --- | --- | --- |
 | [23:0] | Reserved | RO | 0x000000 | Reserved, read as 0 |
 | [27:24] | Arbitration ID | RO | 0x0 | Bus arbitration priority (mirrors APIC ID) |
 | [31:28] | Reserved | RO | 0x0 | Reserved, read as 0 |
 
 **Purpose:** Multi-IOAPIC bus arbitration (read-only, matches APIC ID).
 
----
-
-## Redirection Table (Internal Offsets 0x10-0x3F)
+### Redirection Table (Internal Offsets 0x10-0x3F)
 
 Each of the 24 IRQ inputs has a 64-bit redirection entry consisting of two 32-bit registers (LO and HI).
 
@@ -180,7 +182,7 @@ uint8_t offset_hi = 0x10 + (n * 2) + 1;  // Odd offset
 ```
 
 | Bits | Name | Type | Reset | Description |
-|------|------|------|-------|-------------|
+| --- | --- | --- | --- | --- |
 | [7:0] | Vector | RW | 0x00 | Interrupt vector to deliver to CPU (0x00-0xFF) |
 | [10:8] | Delivery Mode | RW | 0b000 | 000=Fixed, 001=LowestPri, 010=SMI, 100=NMI, 101=INIT, 111=ExtINT |
 | [11] | Dest Mode | RW | 0 | Destination mode: 0=Physical, 1=Logical |
@@ -254,7 +256,7 @@ IRQ and wait for Remote IRR to read 0 before reprogramming its vector.
 ```
 
 | Bits | Name | Type | Reset | Description |
-|------|------|------|-------|-------------|
+| --- | --- | --- | --- | --- |
 | [23:0] | Reserved | RO | 0x000000 | Reserved, read as 0 |
 | [31:24] | Destination | RW | 0x00 | Destination: Physical APIC ID or Logical destination |
 
@@ -265,14 +267,12 @@ IRQ and wait for Remote IRR to read 0 before reprogramming its vector.
 - **Logical Mode (Dest Mode=1):** Logical destination for multi-cast (future)
 - For single-CPU systems, typically set to CPU's APIC ID (often 0x00 or 0x01)
 
----
+### Complete Register Address Map
 
-## Complete Register Address Map
-
-### Internal Register Offsets (via IOREGSEL)
+#### Internal Register Offsets (via IOREGSEL)
 
 | Offset | Register | Type | Description |
-|--------|----------|------|-------------|
+| --- | --- | --- | --- |
 | **System Registers** ||||
 | 0x00 | IOAPICID | RW | I/O APIC identification |
 | 0x01 | IOAPICVER | RO | Version and max entry |
@@ -289,10 +289,10 @@ IRQ and wait for Remote IRR to read 0 before reprogramming its vector.
 | 0x3E | IOREDTBL[23]_LO | RW | IRQ23 redirection entry low |
 | 0x3F | IOREDTBL[23]_HI | RW | IRQ23 redirection entry high |
 
-### Typical IRQ Assignments (PC-Compatible Systems)
+#### Typical IRQ Assignments (PC-Compatible Systems)
 
 | IRQ # | Offset (LO/HI) | Traditional Use | Typical Vector |
-|-------|----------------|-----------------|----------------|
+| --- | --- | --- | --- |
 | IRQ0 | 0x10/0x11 | System Timer | 0x20 |
 | IRQ1 | 0x12/0x13 | Keyboard | 0x21 |
 | IRQ2 | 0x14/0x15 | Cascade (PIC) | - |
@@ -311,9 +311,7 @@ IRQ and wait for Remote IRR to read 0 before reprogramming its vector.
 | IRQ15 | 0x2E/0x2F | Secondary IDE | 0x2F |
 | IRQ16-23 | 0x30-0x3F | PCI Interrupts, Additional devices | 0x30-0x37 |
 
----
-
-## Programming Examples
+## Usage Example
 
 ### Example 1: Configure IRQ14 (IDE) - Edge-Triggered
 
@@ -414,14 +412,14 @@ printf("IOAPIC Version: 0x%02X\n", version);
 printf("Number of IRQs: %d\n", num_irqs);
 ```
 
----
+## Design Notes
 
-## Register Field Summary
+### Register Field Summary
 
-### Control Fields (Software Writable)
+**Control Fields (Software Writable):**
 
 | Field | Register | Purpose |
-|-------|----------|---------|
+| --- | --- | --- |
 | Vector[7:0] | REDIR_LO | Interrupt vector number |
 | Delivery Mode[10:8] | REDIR_LO | How to deliver (Fixed, LowestPri, etc.) |
 | Dest Mode[11] | REDIR_LO | Physical vs Logical addressing |
@@ -431,19 +429,17 @@ printf("Number of IRQs: %d\n", num_irqs);
 | Destination[31:24] | REDIR_HI | Target CPU APIC ID |
 | APIC ID[27:24] | IOAPICID | This IOAPIC's identifier |
 
-### Status Fields (Read-Only)
+**Status Fields (Read-Only):**
 
 | Field | Register | Purpose |
-|-------|----------|---------|
+| --- | --- | --- |
 | Delivery Status[12] | REDIR_LO | Interrupt delivery in progress |
 | Remote IRR[14] | REDIR_LO | Level interrupt waiting for EOI |
 | Version[7:0] | IOAPICVER | IOAPIC version (0x11) |
 | Max Redir Entry[23:16] | IOAPICVER | Number of IRQs - 1 (0x17) |
 | Arbitration ID[27:24] | IOAPICARB | Bus arbitration priority |
 
----
-
-## Reset Values
+### Reset Values
 
 **After Reset:**
 - IOREGSEL = 0x00
@@ -461,7 +457,7 @@ printf("Number of IRQs: %d\n", num_irqs);
 
 **Software must unmask IRQs to enable interrupts.**
 
----
+## Navigation
 
 **See Also:**
 - [Chapter 4: Programming Model](../ch04_programming/01_initialization.md) - Detailed init sequences

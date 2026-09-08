@@ -21,21 +21,23 @@
 
 <!-- End Header -->
 
-### APB IOAPIC - FSM Summary
+# ioapic
 
-#### Interrupt Delivery State Machine
+## Overview
 
-The IOAPIC core implements a 3-state FSM for interrupt delivery management.
+The IOAPIC core implements a 3-state FSM for interrupt delivery management. Three states sounds trivial — and mostly is — but the edge/level split and the Remote IRR bookkeeping are where the corner cases live. This page is the state table you want open while reading `ioapic_core.sv`.
 
-##### State Definitions
+## Functional Description
+
+### State Definitions
 
 | State | Encoding | Description |
-|-------|----------|-------------|
+| --- | --- | --- |
 | **IDLE** | 2'b00 | No interrupt being delivered, arbitrating among pending IRQs |
 | **DELIVER** | 2'b01 | Presenting interrupt to CPU, waiting for acknowledgment |
 | **WAIT_EOI** | 2'b10 | Level interrupt delivered, waiting for End-of-Interrupt |
 
-##### State Transition Diagram
+### State Transition Diagram
 
 ```
                   ┌──────────────────────────────┐
@@ -80,10 +82,10 @@ The IOAPIC core implements a 3-state FSM for interrupt delivery management.
          └─────────────────┴─────────────────────┘
 ```
 
-##### State Transitions
+### State Transitions
 
 | Current State | Condition | Next State | Action |
-|---------------|-----------|------------|--------|
+| --- | --- | --- | --- |
 | **IDLE** | No pending IRQs | IDLE | Continue arbitration |
 | **IDLE** | Pending IRQ found | DELIVER | Latch IRQ info, assert irq_out_valid |
 | **DELIVER** | !irq_out_ready | DELIVER | Wait for CPU |
@@ -92,7 +94,7 @@ The IOAPIC core implements a 3-state FSM for interrupt delivery management.
 | **WAIT_EOI** | !(eoi_in && vector match) | WAIT_EOI | Continue waiting |
 | **WAIT_EOI** | eoi_in && vector match | IDLE | Clear Remote IRR, return |
 
-##### State Functions
+### State Functions
 
 **IDLE State:**
 - **Entry:** From WAIT_EOI (after EOI) or DELIVER (after edge interrupt)
@@ -137,19 +139,19 @@ The IOAPIC core implements a 3-state FSM for interrupt delivery management.
   - irq_out_valid = 0
 - **Exit:** When EOI received for this vector → IDLE
 
-##### Latched Signals
+### Latched Signals
 
 **Signals latched in IDLE → DELIVER transition:**
 
 | Signal | Source | Purpose |
-|--------|--------|---------|
+| --- | --- | --- |
 | current_irq[4:0] | selected_irq | IRQ number being delivered |
 | current_vector[7:0] | cfg_vector[selected_irq] | Vector for EOI matching |
 | current_is_level | cfg_trigger_mode[selected_irq] | Determines path (IDLE vs WAIT_EOI) |
 
 **These remain stable during DELIVER and WAIT_EOI states.**
 
-##### Edge vs Level Interrupt Paths
+### Edge vs Level Interrupt Paths
 
 **Edge-Triggered Interrupt:**
 ```
@@ -169,7 +171,7 @@ EOI received → Remote IRR cleared → IDLE →
 ```
 **Time:** Same as edge until WAIT_EOI, then waits for software ISR completion + EOI
 
-#### Arbitration Logic
+### Arbitration Logic
 
 **Priority Encoding (Static Priority):**
 ```systemverilog
@@ -192,7 +194,7 @@ irq_eligible[i] = irq_pending[i] && !cfg_mask[i];
 - Combinational logic (< 1 clock cycle)
 - Result available same cycle for IDLE → DELIVER transition
 
-#### Remote IRR Management
+### Remote IRR Management
 
 **Set Conditions:**
 ```systemverilog
@@ -219,7 +221,7 @@ irq_pending[i] = irq_active[i] && !irq_remote_irr[i];
 
 This prevents level interrupts from re-triggering while being serviced.
 
-#### Multiple Pending IRQs
+### Multiple Pending IRQs
 
 **Scenario:** Multiple IRQs asserted simultaneously
 
@@ -246,7 +248,7 @@ Time 13:  Arbitration selects IRQ7
 
 **Fairness:** Lower numbered IRQs starve higher if constantly asserting. This is intentional (priority system).
 
----
+## Navigation
 
 **See Also:**
 - [ioapic_core Block](01_ioapic_core.md) - Detailed FSM implementation

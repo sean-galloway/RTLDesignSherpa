@@ -21,32 +21,21 @@
 
 <!-- End Header -->
 
-# IOAPIC PeakRDL Register Specification
+# ioapic
+
+## Overview
 
 This directory contains the SystemRDL specification for IOAPIC (I/O Advanced Programmable Interrupt Controller) registers.
 
-## Register Generation
-
-To generate the SystemVerilog register files from the RDL specification:
-
-```bash
-cd projects/components/retro_legacy_blocks/rtl/ioapic/peakrdl
-python ../../../../../../bin/peakrdl_generate.py ioapic_regs.rdl
-```
-
-This will generate:
-- `../ioapic_regs.sv` - Register block implementation
-- `../ioapic_regs_pkg.sv` - Package with type definitions and structs
-
-## Register Map Overview
+### Register Map Overview
 
 The IOAPIC uses **indirect register access** following Intel 82093AA specification:
 
-### Direct APB Access (0x00-0x0F)
+**Direct APB Access (0x00-0x0F):**
 - **IOREGSEL** (0x00): Register select - write internal register offset here
 - **IOWIN** (0x04): Register window - read/write data for selected register
 
-### Internal Registers (accessed via IOREGSEL/IOWIN)
+**Internal Registers (accessed via IOREGSEL/IOWIN):**
 
 **System Registers:**
 - **IOAPICID** (offset 0x00): IOAPIC ID register
@@ -82,7 +71,22 @@ IRQ2:  LO=0x14, HI=0x15
 IRQ23: LO=0x3E, HI=0x3F
 ```
 
-## Indirect Access Example
+## Usage Example
+
+### Register Generation
+
+To generate the SystemVerilog register files from the RDL specification:
+
+```bash
+cd projects/components/retro_legacy_blocks/rtl/ioapic/peakrdl
+python ../../../../../../bin/peakrdl_generate.py ioapic_regs.rdl
+```
+
+This will generate:
+- `../ioapic_regs.sv` - Register block implementation
+- `../ioapic_regs_pkg.sv` - Package with type definitions and structs
+
+### Indirect Access Example
 
 To configure IRQ0 for edge-triggered, active-high, unmask, vector 0x20:
 
@@ -101,7 +105,9 @@ write_apb(IOREGSEL, 0x11);
 write_apb(IOWIN, 0x01000000);  // Destination APIC ID = 1
 ```
 
-## Key Features
+## Design Notes
+
+### Key Features
 
 - **Intel 82093AA Compatible**: Matches Intel IOAPIC register interface
 - **Indirect Access Method**: IOREGSEL/IOWIN register window
@@ -110,10 +116,10 @@ write_apb(IOWIN, 0x01000000);  // Destination APIC ID = 1
 - **Edge/Level Triggering**: Configurable per IRQ
 - **Active High/Low**: Polarity selection per IRQ
 - **Remote IRR**: Level-triggered interrupt tracking
-- **Delivery Status**:Interrupt delivery state
+- **Delivery Status**: Interrupt delivery state
 - **12-bit Address Space**: Matches RLB standard
 
-## Delivery Modes
+### Delivery Modes
 
 The IOAPIC supports multiple delivery modes (bits [10:8] of REDIR_LO):
 - **000 - Fixed**: Deliver to destination specified in REDIR_HI
@@ -125,15 +131,7 @@ The IOAPIC supports multiple delivery modes (bits [10:8] of REDIR_LO):
 
 **Note**: MVP implementation supports Fixed mode only. Other modes are future enhancements.
 
-## Integration
-
-The generated register files are used by:
-- `ioapic_config_regs.sv` - Maps hwif to ioapic_core interface with indirect access
-- `apb4_ioapic.sv` - Top-level APB wrapper
-
-See parent directory README.md for complete integration details.
-
-## Address Mapping Summary
+### Address Mapping Summary
 
 ```
 APB Address | Register  | Internal Offset | Description
@@ -150,3 +148,13 @@ Via IOREGSEL/IOWIN:
   0x02      | IOAPICARB | Bits[27:24]     | Arbitration ID
   0x10-0x3F | IOREDTBL  | 24 entries × 2  | Redirection table
 ```
+
+## Related Modules
+
+### Integration
+
+The generated register files are used by:
+- `ioapic_config_regs.sv` - Maps hwif to ioapic_core interface with indirect access
+- `apb4_ioapic.sv` - Top-level APB wrapper
+
+See parent directory README.md for complete integration details.

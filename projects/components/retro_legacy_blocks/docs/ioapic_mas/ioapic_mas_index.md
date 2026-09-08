@@ -21,16 +21,18 @@
 
 <!-- End Header -->
 
-# APB IOAPIC Specification - Table of Contents
+# ioapic
+
+## Overview
 
 **Component:** APB I/O Advanced Programmable Interrupt Controller (IOAPIC)  
 **Version:** 1.0  
 **Last Updated:** 2025-11-16  
 **Status:** RTL Complete - Validation Pending (spec partial; see Document Status below)
 
----
+This is the micro-architecture specification for the APB IOAPIC, laid out as five chapters. Before you start clicking links, know that only part of it exists today — the status note below is the honest map.
 
-## Document Organization
+### Document Organization
 
 This specification is organized into five chapters covering all aspects of the APB IOAPIC component:
 
@@ -82,31 +84,9 @@ This specification is organized into five chapters covering all aspects of the A
 - 02_indirect_access.md - IOREGSEL/IOWIN access method *(planned, not yet written)*
 - 03_redirection_table.md - Redirection table field descriptions *(planned, not yet written)*
 
----
+### Key Features
 
-## Quick Navigation
-
-### For Software Developers
-- Reference [Chapter 5: Registers](ch05_registers/01_register_map.md)
-- **Critical:** Understand the IOREGSEL/IOWIN indirect access method (see the register map; a dedicated indirect-access section is planned)
-
-### For Hardware Integrators
-- Start with [Chapter 1: Overview](ch01_overview/01_overview.md)
-- Chapter 3 (interfaces/signal list) is planned but not yet written; see `../../rtl/ioapic/apb4_ioapic.sv` for the current port list
-
-### For Verification Engineers
-- Start with [Chapter 2: Blocks](ch02_blocks/00_overview.md)
-- Reference [FSM Summary](ch02_blocks/05_fsm_summary.md)
-
-### For System Architects
-- Start with [Architecture Overview](ch01_overview/02_architecture.md)
-- Programming-model chapters (initialization, redirection table, use cases) are planned but not yet written
-
----
-
-## Key Features
-
-### Intel 82093AA Compatibility
+**Intel 82093AA Compatibility:**
 - Indirect register access via IOREGSEL/IOWIN
 - 24 interrupt input sources (IRQ0-IRQ23)
 - Programmable redirection table
@@ -115,49 +95,63 @@ This specification is organized into five chapters covering all aspects of the A
 - Priority-based arbitration
 - Remote IRR for level-triggered interrupts
 
-### Modern RLB Architecture
+**Modern RLB Architecture:**
 - APB4 slave interface with optional CDC
 - PeakRDL register generation
 - Clean SystemVerilog implementation
 - Comprehensive validation support
 - FPGA-optimized design
 
----
+## Design Notes
 
-## Document Conventions
+### Document Conventions
 
-### Notation
+**Notation:**
 - **bold** - Important terms, signal names
 - `code` - Register names, field names, code examples
 - *italic* - Emphasis, notes
 
-### Signal Naming
+**Signal Naming:**
 - `pclk` - APB clock
 - `ioapic_clk` - IOAPIC controller clock
 - `irq_in[23:0]` - Interrupt inputs
 - `irq_out_*` - Interrupt output signals
 
-### Register Notation
+**Register Notation:**
 - `IOREGSEL` - Direct APB register at 0x00
 - `IOWIN` - Direct APB register at 0x04
 - `IOAPICID` - Internal register at offset 0x00 (via IOREGSEL/IOWIN)
 - `IOREDTBL[n]` - Redirection table entry n (n=0-23)
 
-### Address Notation
+**Address Notation:**
 - **APB addresses:** Direct access from CPU (0x00, 0x04)
 - **Internal offsets:** Accessed via IOREGSEL/IOWIN (0x00, 0x01, 0x10-0x3F)
 
----
+## Testing
 
-## Version History
+### Document Status
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0 | 2025-11-16 | RTL Design Sherpa | Initial specification based on Intel 82093AA with RLB methodology |
+| Chapter | Status | Completion |
+| --- | --- | --- |
+| Chapter 1: Overview | Complete | 100% |
+| Chapter 2: Blocks | Partial (overview + FSM summary only) | 33% |
+| Chapter 3: Interfaces | Planned | 0% |
+| Chapter 4: Programming | Planned | 0% |
+| Chapter 5: Registers | Partial (register map only) | 33% |
 
----
+**Specification Status:** MVP RTL implemented; validation pending and one known
+RTL defects open under issue #48 (edge double-delivery, IOREGSEL shadow
+divergence, EOI-path hazards -- #48 is this block's RTL-findings umbrella)
 
-## Related Documentation
+**Next Steps:**
+1. Review specification for completeness
+2. Add timing diagrams as needed
+3. Expand use cases based on validation results
+4. Update with any implementation discoveries
+
+## References
+
+### Related Documentation
 
 **RLB Module Documentation:**
 - [TODO.md](../../rtl/ioapic/TODO.md) - Implementation roadmap and next steps
@@ -172,26 +166,28 @@ This specification is organized into five chapters covering all aspects of the A
 - [HPET Specification](../hpet_mas/hpet_mas_index.md) - Reference RLB module spec
 - Intel 82093AA I/O Advanced Programmable Interrupt Controller Datasheet
 
----
+### Version History
 
-## Document Status
+| Version | Date | Author | Changes |
+| --- | --- | --- | --- |
+| 1.0 | 2025-11-16 | RTL Design Sherpa | Initial specification based on Intel 82093AA with RLB methodology |
 
-| Chapter | Status | Completion |
-|---------|--------|------------|
-| Chapter 1: Overview | ✅ Complete | 100% |
-| Chapter 2: Blocks | 🟡 Partial (overview + FSM summary only) | 33% |
-| Chapter 3: Interfaces | 📋 Planned | 0% |
-| Chapter 4: Programming | 📋 Planned | 0% |
-| Chapter 5: Registers | 🟡 Partial (register map only) | 33% |
+## Navigation
 
-**Specification Status:** MVP RTL implemented; validation pending and one known
-RTL defects open under issue #48 (edge double-delivery, IOREGSEL shadow
-divergence, EOI-path hazards -- #48 is this block's RTL-findings umbrella)
+### Quick Navigation
 
----
+**For Software Developers:**
+- Reference [Chapter 5: Registers](ch05_registers/01_register_map.md)
+- **Critical:** Understand the IOREGSEL/IOWIN indirect access method (see the register map; a dedicated indirect-access section is planned)
 
-**Next Steps:**
-1. Review specification for completeness
-2. Add timing diagrams as needed
-3. Expand use cases based on validation results
-4. Update with any implementation discoveries
+**For Hardware Integrators:**
+- Start with [Chapter 1: Overview](ch01_overview/01_overview.md)
+- Chapter 3 (interfaces/signal list) is planned but not yet written; see `../../rtl/ioapic/apb4_ioapic.sv` for the current port list
+
+**For Verification Engineers:**
+- Start with [Chapter 2: Blocks](ch02_blocks/00_overview.md)
+- Reference [FSM Summary](ch02_blocks/05_fsm_summary.md)
+
+**For System Architects:**
+- Start with [Architecture Overview](ch01_overview/02_architecture.md)
+- Programming-model chapters (initialization, redirection table, use cases) are planned but not yet written

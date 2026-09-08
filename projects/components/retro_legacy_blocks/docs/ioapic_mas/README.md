@@ -21,51 +21,51 @@
 
 <!-- End Header -->
 
-# IOAPIC Specification
+# ioapic
+
+## Overview
 
 **Status:** Partial - Chapter 1 complete; Chapter 2 overview + FSM summary and
 the Chapter 5 register map written; Chapters 3-4 and the remaining block/register
 sections still planned. See [ioapic_mas_index.md](ioapic_mas_index.md) for the
 per-chapter status table.
 
----
-
-## Overview
-
 This directory holds the specification for the IOAPIC block.
 
-## Documentation Structure
+### Documentation Structure
 
-### Chapter 1: Overview
+**Chapter 1: Overview**
 - Block purpose and features
 - High-level architecture
 - Key specifications
 
-### Chapter 2: Block Diagrams
+**Chapter 2: Block Diagrams**
 - Top-level block diagram
 - Internal block diagrams
 - State machines
 - Pipeline diagrams
 
-### Chapter 3: Interfaces
+**Chapter 3: Interfaces**
 - APB interface specification
 - External signals
 - Interrupt outputs
 - Clock and reset
 
-### Chapter 4: Programming Guide
+**Chapter 4: Programming Guide**
 - Register programming sequences
 - Common operations
 - Example code
 - Best practices
 
-### Chapter 5: Register Map
+**Chapter 5: Register Map**
 - Complete register descriptions
 - Field definitions
 - Reset values
 - Access types
 
-## Document Generation
+## Usage Example
+
+### Document Generation
 
 Documentation will be written in Markdown and can be converted to PDF:
 
@@ -74,7 +74,9 @@ cd docs/
 ./generate_pdf.sh
 ```
 
-## Reference Documents
+## References
+
+### Reference Documents
 
 - Intel IOAPIC datasheet
 - ACPI specification (if applicable)

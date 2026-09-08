@@ -1,52 +1,47 @@
-# IOAPIC Timing Diagrams - WaveDrom JSON Files
+# ioapic
+
+## Overview
 
 This directory contains WaveDrom timing diagrams for IOAPIC (I/O Advanced Programmable Interrupt Controller) operational scenarios.
 
-## Files
+### Files
 
 | File | Scenario | Description |
-|------|----------|-------------|
+| --- | --- | --- |
 | `ioapic_interrupt_delivery.json` | Int Delivery | Edge-triggered IRQ to LAPIC message |
 | `ioapic_rte_write.json` | RTE Write | Indirect register access to RTE |
 | `ioapic_level_triggered.json` | Level Trigger | Level mode with Remote IRR and EOI |
 | `ioapic_mask_interrupt.json` | Int Masking | Masked interrupt latches, unmask delivers |
 
-## Signal Hierarchy
+### Signal Hierarchy
 
-### APB Interface (External)
+**APB Interface (External):**
 - `s_apb_PSEL`, `s_apb_PENABLE`, `s_apb_PREADY` - Control signals
 - `s_apb_PWRITE`, `s_apb_PADDR`, `s_apb_PWDATA`, `s_apb_PRDATA` - Data signals
 
-### IRQ Inputs (External)
+**IRQ Inputs (External):**
 - `irq_in[23:0]` - Interrupt request inputs (directly or inverted)
 
-### Message Interface (External)
+**Message Interface (External):**
 - `irq_out_valid` - Message valid to system bus
 - `irq_out_dest` - Destination APIC ID
 - `irq_out_vector` - Interrupt vector
 - `irq_out_deliv_mode` - Delivery mode (Fixed, LowPri, SMI, NMI, etc.)
 
-### EOI Interface (External)
+**EOI Interface (External):**
 - `eoi_in` - EOI broadcast received
 - `eoi_vector` - Vector being acknowledged
 
-### IOAPIC Core (Internal)
+**IOAPIC Core (Internal):**
 - **Index Register:** `ioregsel_value` (the functional shadow copy)
 - **Redirection Table:** `rte[n].vector`, `rte[n].dest`, `rte[n].mask`, `rte[n].trigger`
 - **IRQ State:** `irr[n]`, `remote_irr[n]`, `delivery_pending`
 
-## Rendering to SVG
+## Waveforms
 
-```bash
-# Render all files
-for f in *.json; do
-    wavedrom-cli -i "$f" > "${f%.json}.svg"
-done
-```
+### Scenarios Explained
 
-## Scenarios Explained
-
-### 1. Interrupt Delivery
+**1. Interrupt Delivery:**
 Shows edge-triggered interrupt flow:
 1. IRQ pin asserts (edge detected)
 2. IRR bit set for input
@@ -54,13 +49,13 @@ Shows edge-triggered interrupt flow:
 4. Interrupt message sent on system bus
 5. Destination LAPIC receives and asserts CPU interrupt
 
-### 2. RTE Write (Indirect Access)
+**2. RTE Write (Indirect Access):**
 Shows two-step indirect register access:
 1. Write index to IOREGSEL (selects RTE low or high word)
 2. Write data to IOWIN (updates selected RTE)
 3. Index 0x10-0x3F map to RTE[0-23] low/high words
 
-### 3. Level-Triggered Interrupt
+**3. Level-Triggered Interrupt:**
 Shows level mode with EOI requirement:
 1. IRQ asserts, IRR set
 2. Interrupt delivered, Remote IRR set
@@ -69,7 +64,7 @@ Shows level mode with EOI requirement:
 5. IOAPIC clears Remote IRR
 6. If IRQ still asserted, re-delivers
 
-### 4. Interrupt Masking
+**4. Interrupt Masking:**
 Shows masked interrupt behavior:
 1. IRQ arrives while masked
 2. IRR latched but delivery blocked
@@ -77,26 +72,42 @@ Shows masked interrupt behavior:
 4. IOAPIC checks pending IRR
 5. Delivers latched interrupt
 
-## Register Reference
+## Usage Example
 
-### IOAPIC Registers (Indirect Access)
+### Rendering to SVG
+
+```bash
+# Render all files
+for f in *.json; do
+    wavedrom-cli -i "$f" > "${f%.json}.svg"
+done
+```
+
+## References
+
+### Register Reference
+
+**IOAPIC Registers (Indirect Access):**
+
 | Index | Register | Description |
-|-------|----------|-------------|
+| --- | --- | --- |
 | 0x00 | IOAPICID | APIC ID |
 | 0x01 | IOAPICVER | Version and max RTE |
 | 0x02 | IOAPICARB | Arbitration ID |
 | 0x10-0x3F | IOREDTBL | Redirection Table (64-bit entries) |
 
-### Direct Access Registers
+**Direct Access Registers:**
+
 | Offset | Register | Description |
-|--------|----------|-------------|
+| --- | --- | --- |
 | 0x00 | IOREGSEL | Index register |
 | 0x04 | IOWIN | Data window |
 | - | (no EOI register in this block; EOI arrives on the eoi_in/eoi_vector ports) |
 
-### Redirection Table Entry (64-bit)
+**Redirection Table Entry (64-bit):**
+
 | Bits | Field | Description |
-|------|-------|-------------|
+| --- | --- | --- |
 | 7:0 | Vector | Interrupt vector (0x00-0xFF; no range restriction in RTL) |
 | 10:8 | Delivery Mode | Fixed, LowPri, SMI, NMI, INIT, ExtINT |
 | 11 | Dest Mode | Physical (0) or Logical (1) |
@@ -107,9 +118,10 @@ Shows masked interrupt behavior:
 | 16 | Mask | Masked (1) or Not Masked (0) |
 | 63:56 | Destination | APIC ID (physical) or set (logical) |
 
-### Delivery Modes
+**Delivery Modes:**
+
 | Mode | Value | Description |
-|------|-------|-------------|
+| --- | --- | --- |
 | Fixed | 000 | Deliver to listed processors |
 | Lowest | 001 | Deliver to lowest priority processor |
 | SMI | 010 | System Management Interrupt |
@@ -117,7 +129,7 @@ Shows masked interrupt behavior:
 | INIT | 101 | INIT signal |
 | ExtINT | 111 | External interrupt (8259 compatible) |
 
-## References
+### References
 
 - **IOAPIC RTL:** `rtl/ioapic/apb4_ioapic.sv`
 - **IOAPIC Testbench:** `dv/tbclasses/ioapic/ioapic_tb.py`

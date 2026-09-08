@@ -21,9 +21,15 @@
 
 <!-- End Header -->
 
-### APB IOAPIC - References
+# ioapic
 
-#### Primary Standards
+## Overview
+
+Everything this spec leans on: the standards, the sibling RLB documents, the tools, and — for the historically curious — how PC interrupt controllers got here.
+
+## References
+
+### Primary Standards
 
 1. **Intel 82093AA I/O Advanced Programmable Interrupt Controller (IOAPIC)**
    - Intel Corporation
@@ -43,7 +49,7 @@
    - **Purpose:** Register description language
    - **Relevance:** PeakRDL register generation from .rdl specifications
 
-#### Related RLB Documentation
+### Related RLB Documentation
 
 **Module-Specific:**
 - `../../rtl/ioapic/TODO.md` - Implementation tasks and enhancements
@@ -62,7 +68,7 @@
 - `../../rtl/pic_8259/README.md` - Legacy PIC implementation
 - `../../rtl/pm_acpi/README.md` - Power management and ACPI
 
-#### External Resources
+### External Resources
 
 **Intel APIC Architecture:**
 - Intel MultiProcessor Specification Version 1.4
@@ -80,7 +86,7 @@
 - SystemRDL 2.0 Language Reference Manual
 - **Relevance:** Register generator usage
 
-#### Design Methodology References
+### Design Methodology References
 
 **RLB Architecture Pattern:**
 ```
@@ -98,7 +104,7 @@ APB → apb4_slave[_cdc] → CMD/RSP → peakrdl_to_cmdrsp →
 - `../../converters/rtl/apb4_slave_cdc.sv` - APB slave with CDC
 - `../../converters/rtl/peakrdl_to_cmdrsp.sv` - PeakRDL adapter
 
-#### Historical Context
+### Historical Context
 
 **Evolution of PC Interrupt Controllers:**
 
@@ -125,7 +131,7 @@ APB → apb4_slave[_cdc] → CMD/RSP → peakrdl_to_cmdrsp →
 **APB IOAPIC Position:**
 Modern implementation of 82093AA specification using RLB methodology, suitable for soft-core SoCs, FPGA systems, and PC-compatible designs.
 
-#### Software Examples and Drivers
+### Software Examples and Drivers
 
 **Linux Kernel:**
 - `arch/x86/kernel/apic/io_apic.c` - Linux IOAPIC driver
@@ -142,7 +148,7 @@ Modern implementation of 82093AA specification using RLB methodology, suitable f
 - Shows boot-time configuration
 - Demonstrates hardware discovery
 
-#### Verification References
+### Verification References
 
 **Cocotb (Python-based Verification):**
 - Cocotb documentation: https://docs.cocotb.org/
@@ -154,7 +160,7 @@ Modern implementation of 82093AA specification using RLB methodology, suitable f
 - Test levels defined in RLB_STATUS_AND_ROADMAP.md
 - Estimated 5-7 days for complete validation
 
----
+## Navigation
 
 **Document Navigation:**
 - [Back to Index](../ioapic_index.md)

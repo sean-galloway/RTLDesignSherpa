@@ -21,9 +21,11 @@
 
 <!-- End Header -->
 
-### APB IOAPIC - Architecture
+# ioapic
 
-#### High-Level Architecture
+## Overview
+
+### High-Level Architecture
 
 The APB IOAPIC is organized as a hierarchical design with three primary layers:
 
@@ -73,7 +75,9 @@ The APB IOAPIC is organized as a hierarchical design with three primary layers:
 └──────────────────────────────────────────────────────────────┘
 ```
 
-#### Block Hierarchy
+## Functional Description
+
+### Block Hierarchy
 
 The design follows RLB architecture standards with clear functional separation:
 
@@ -107,7 +111,7 @@ The design follows RLB architecture standards with clear functional separation:
    - Redirection table: IOREDTBL[24] with LO/HI splits
    - Hardware interface structs (hwif_in, hwif_out)
 
-#### Data Flow
+### Data Flow
 
 **Configuration Path (APB Write):**
 ```
@@ -133,7 +137,7 @@ CPU EOI → eoi_in + eoi_vector → ioapic_core → Clear Remote IRR →
 → Re-enable interrupt if still asserted
 ```
 
-#### Intel Indirect Access Method
+### Intel Indirect Access Method
 
 The IOAPIC uses Intel's two-step indirect register access:
 
@@ -172,7 +176,63 @@ This indirect access method:
   (a shadow selector plus a case remapping only APB 0x004); the PeakRDL
   block just decodes the translated address
 
-#### Clock Domain Architecture
+### Interrupt Flow State Machine
+
+The IOAPIC core implements a simple 3-state FSM for interrupt delivery:
+
+```
+        ┌─────────────┐
+        │    IDLE     │◄──────────────────┐
+        └──────┬──────┘                   │
+               │ IRQ pending & unmasked   │
+               ▼                           │
+        ┌─────────────┐                   │
+        │   DELIVER   │                   │
+        └──────┬──────┘                   │
+               │ irq_out_ready            │
+               ▼                           │
+        ┌─────────────┐                   │
+        │  WAIT_EOI   │ (Level mode only) │
+        │             │                   │
+        └──────┬──────┘                   │
+               │ EOI received             │
+               └──────────────────────────┘
+```
+
+**States:**
+- **IDLE**: Arbitrating among pending IRQs, select highest priority
+- **DELIVER**: Presenting interrupt to CPU (irq_out_valid asserted)
+- **WAIT_EOI**: Waiting for End-of-Interrupt (level-triggered only)
+
+**Edge-triggered path:** IDLE → DELIVER → IDLE (no EOI wait)  
+**Level-triggered path:** IDLE → DELIVER → WAIT_EOI → IDLE
+
+### Address Space Organization
+
+**APB Address Space (12-bit: 0x000-0xFFF):**
+- 0x000: IOREGSEL (direct access)
+- 0x004: IOWIN (direct access)
+- 0x008-0x0D0: Internal register file, directly decoded (IOAPICID at 0x008,
+  IOAPICVER at 0x00C, IOAPICARB at 0x010, IOREDTBL[n] LO/HI at 0x014+8n /
+  0x018+8n). Only IOWIN accesses are remapped by the address translation; all
+  other addresses pass straight through to the register block, so software can
+  bypass the indirect mechanism. Use IOREGSEL/IOWIN for 82093AA-portable code.
+- 0x0D4-0x0FF: Unmapped (reads return 0, no error)
+- 0x100-0xFFF: aliases of 0x000-0x0FF every 256 bytes (addr bit 8+ truncated
+  before the register block; stray accesses hit live registers)
+
+**Internal Register Space (8-bit offset via IOREGSEL):**
+- 0x00: IOAPICID
+- 0x01: IOAPICVER
+- 0x02: IOAPICARB
+- 0x03-0x0F: Reserved
+- 0x10-0x3F: IOREDTBL[0-23] (LO/HI pairs)
+
+**Memory Footprint:** 4KB APB window (matches other RLB modules)
+
+## Timing
+
+### Clock Domain Architecture
 
 The IOAPIC supports two clock domain configurations via the CDC_ENABLE
 parameter (a companion USE_JOHNSON parameter, default 0, selects the CDC
@@ -210,7 +270,7 @@ ioapic_clk ──────────────┬──┴──► ioapi
 
 Both config_regs and core use the same clock (no internal CDC needed).
 
-#### Reset Architecture
+### Reset Architecture
 
 The IOAPIC uses standard RLB reset methodology:
 
@@ -232,38 +292,9 @@ The IOAPIC uses standard RLB reset methodology:
 - IOAPIC ID = 0x0
 - All redirection entries reset to safe defaults
 
-#### Interrupt Flow State Machine
+## Usage Example
 
-The IOAPIC core implements a simple 3-state FSM for interrupt delivery:
-
-```
-        ┌─────────────┐
-        │    IDLE     │◄──────────────────┐
-        └──────┬──────┘                   │
-               │ IRQ pending & unmasked   │
-               ▼                           │
-        ┌─────────────┐                   │
-        │   DELIVER   │                   │
-        └──────┬──────┘                   │
-               │ irq_out_ready            │
-               ▼                           │
-        ┌─────────────┐                   │
-        │  WAIT_EOI   │ (Level mode only) │
-        │             │                   │
-        └──────┬──────┘                   │
-               │ EOI received             │
-               └──────────────────────────┘
-```
-
-**States:**
-- **IDLE**: Arbitrating among pending IRQs, select highest priority
-- **DELIVER**: Presenting interrupt to CPU (irq_out_valid asserted)
-- **WAIT_EOI**: Waiting for End-of-Interrupt (level-triggered only)
-
-**Edge-triggered path:** IDLE → DELIVER → IDLE (no EOI wait)  
-**Level-triggered path:** IDLE → DELIVER → WAIT_EOI → IDLE
-
-#### Integration Guidelines
+### Integration Guidelines
 
 **Minimal Integration (Single CPU):**
 ```systemverilog
@@ -308,30 +339,9 @@ apb4_ioapic #(
 );
 ```
 
-#### Address Space Organization
+## Design Notes
 
-**APB Address Space (12-bit: 0x000-0xFFF):**
-- 0x000: IOREGSEL (direct access)
-- 0x004: IOWIN (direct access)
-- 0x008-0x0D0: Internal register file, directly decoded (IOAPICID at 0x008,
-  IOAPICVER at 0x00C, IOAPICARB at 0x010, IOREDTBL[n] LO/HI at 0x014+8n /
-  0x018+8n). Only IOWIN accesses are remapped by the address translation; all
-  other addresses pass straight through to the register block, so software can
-  bypass the indirect mechanism. Use IOREGSEL/IOWIN for 82093AA-portable code.
-- 0x0D4-0x0FF: Unmapped (reads return 0, no error)
-- 0x100-0xFFF: aliases of 0x000-0x0FF every 256 bytes (addr bit 8+ truncated
-  before the register block; stray accesses hit live registers)
-
-**Internal Register Space (8-bit offset via IOREGSEL):**
-- 0x00: IOAPICID
-- 0x01: IOAPICVER
-- 0x02: IOAPICARB
-- 0x03-0x0F: Reserved
-- 0x10-0x3F: IOREDTBL[0-23] (LO/HI pairs)
-
-**Memory Footprint:** 4KB APB window (matches other RLB modules)
-
-#### Design Trade-offs
+### Design Trade-offs
 
 **Indirect vs Direct Access:**
 - **Chosen**: Indirect access (IOREGSEL/IOWIN)
@@ -350,6 +360,8 @@ apb4_ioapic #(
 - **Reason**: Covers 90%+ of use cases, simpler implementation
 - **Cost**: Can't use LowestPri, SMI, NMI, etc. yet
 - **Benefit**: Clean implementation, extensible design
+
+## Navigation
 
 ---
 
