@@ -88,8 +88,37 @@ For each incoming packet:
 | `ADDR_WIDTH` | int | 32 | AXI address width |
 | `DATA_WIDTH` | int | 32 | AXI data width |
 | `NUM_PROTOCOLS` | int | 3 | AXI, AXIS, CORE |
+| `USE_COMPRESSION` | int | 0 | Build the bulk-trace compressor into the group. 0 compiles it out; the runtime `COMPRESS_EN` bit is then inert. |
+| `USE_HALFBEAT` | int | 0 | Pack two 30-bit slots per 64-bit beat. Only meaningful with `USE_COMPRESSION=1`. |
 
 : Parameters
+
+### Compression
+
+With `USE_COMPRESSION=0` the group emits RAW records: three 64-bit beats per
+128-bit packet (`{tag, timestamp}`, `packet[127:64]`, `packet[63:0]`). With it
+built and `COMPRESS_EN` set, it emits variable compressor slots with the tag in
+bits [63:60] instead.
+
+The two encodings are not interchangeable. A tally reassembles RAW records with
+a mod-3 beat counter and has no slot decoder, so compressed traffic aimed at a
+tally silently yields nothing; compressed traffic belongs in a capture memory
+that the host reads back and decodes. A capture measuring exactly 3.00 slots per
+packet is uncompressed, whatever the enable bits report.
+
+**Measured (cosim, 2026-09-08).** With the compressor built and half-beat packing
+on, a monitors-on DMA workload captured 36 slots for 32 decoded packets: **1.12
+slots per packet, 62.5% smaller** than the raw 3-beat encoding. The same workload
+with the compressor compiled out produced 96 slots for the same 32 packets --
+exactly 3.00, the raw ratio. Both decoded identically, so the difference is
+encoding alone.
+
+The encoder, slot format and half-beat packing are specified globally and are
+not restated here:
+
+- `docs/markdown/rtl-amba/monitor/monbus_compressor.md`
+- `docs/markdown/rtl-amba/monitor/monbus_halfbeat_packer.md`
+- `docs/markdown/rtl-amba/monitor/monbus_group_core.md` (beat layouts for both modes)
 
 ---
 

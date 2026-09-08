@@ -23,6 +23,21 @@
 
 # STREAM Register Map
 
+
+> **Scope of this chapter.** What follows is the narrative view: the register
+> groups, what they are for, and how a host drives them. It is NOT the complete
+> map and must not be read as one -- it hand-lists 47 of the 140 registers the
+> RDL defines, and the 93 it omits are not obscure: they are the whole monitor
+> programming surface the board campaigns depend on (the DAXMON/RDMON/WRMON
+> perf-window banks, the address-range checker, MON_GROUP routing, OBS_*,
+> HIST_*, KICK_ENABLE, CH_STATEn).
+>
+> The authoritative map is generated from `rtl/macro/stream_regs.rdl` into
+> `regs/generated/docs/stream_regs.md` and is stitched into this document
+> immediately after this chapter. Every address in the narrative below was
+> verified against that generated map (47/47 correct); when they disagree in
+> future, the generated one is right.
+
 ## Overview
 
 The STREAM DMA engine register interface consists of three distinct regions:

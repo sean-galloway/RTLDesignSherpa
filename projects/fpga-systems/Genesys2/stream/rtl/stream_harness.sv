@@ -2747,8 +2747,15 @@ module stream_harness #(
         // Harmless when USE_AXI_MONITORS=0 (the monitor wrapper omits the checker).
         .MON_N_ADDR_RANGES  (4),
         .MON_ADDR_RANGE_IS_ERROR (4'b1100),
-        .USE_MON_COMPRESSION(0),
-        .USE_MON_HALFBEAT   (0),
+        // Honour the harness parameters, which default to
+        // CFG_USE_MON_COMPRESSION / CFG_USE_MON_HALFBEAT (both 1). These were
+        // hardcoded 0 in c454d64c, so the in-core compressor was compiled OUT of
+        // every build while the parameter above still advertised it as on. The
+        // compression test kept passing because the tally/comp_sram path happily
+        // carries RAW 3-beat records -- it decoded 96 slots into 32 packets,
+        // exactly the 3:1 raw ratio, not a compressed one.
+        .USE_MON_COMPRESSION(USE_MON_COMPRESSION),
+        .USE_MON_HALFBEAT   (USE_MON_HALFBEAT),
         .CDC_ENABLE         (0),
         .AR_MAX_OUTSTANDING (AR_MAX_OUTSTANDING),
         .AW_MAX_OUTSTANDING (AW_MAX_OUTSTANDING),

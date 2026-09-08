@@ -83,6 +83,7 @@
 ### Chapter 4: Registers
 
 - [Register Map](ch04_registers/register_map.md)
+- [Complete Register Reference (generated from the RDL)](../../regs/generated/docs/stream_regs.md)
 
 ### Chapter 5: Programming
 

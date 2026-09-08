@@ -2122,6 +2122,37 @@ datapath and the tally CAM.
 - compression: inert here, the compressor is not built
   (`USE_COMPRESSION(0)`, `USE_MON_COMPRESSION(0)`), so `COMPRESS_EN` does nothing
 
+**CORRECTION 2026-09-08 (later): the reset-domain theory below is WRONG.**
+
+Proven in cosim, not on the board: `CTRL.SOFT_RESET` DOES clear the monitor
+configuration registers. `cocotb_test_soft_reset_scope` writes values different
+from each register's reset value to `RDMON_PKT_MASK`, `RDMON_ADDR_RANGE2_LOW`
+and `MON_GROUP_BASE_ADDR`, pulses SOFT_RESET, and all three come back at their
+reset values. Those CSRs are in the `unit_aresetn` domain, not the `presetn`
+domain the section below assumes.
+
+So there is no missing reset. A `CTRL.WARM_RESET[5]` bit was implemented to
+cover the supposedly-excluded domain, measured to be IDENTICAL to SOFT_RESET on
+all three registers, and REVERTED. Do not re-add it.
+
+**Where the bad diagnosis came from, because it is the reusable lesson:** the
+board check wrote `MON_GROUP_BASE_ADDR = 0x40000`, pulsed SOFT_RESET, read back
+`0x40000` and concluded "config survives". 0x40000 is also that register's RESET
+value, so the measurement could not distinguish "survived" from "was reset". Two
+successive diagnoses were built on it. The cosim test now asserts up front that
+every probe writes a value different from its reset value, so it cannot degrade
+the same way.
+
+**Still eliminated, and still unexplained.** Ruled out for the order dependence:
+registers (a golden snapshot of all 140 restored before the run changes
+nothing), monitor config surviving a reset (it does not), and reset coverage of
+the monitors and tallies (u_stream, both observers and both tallies are all on
+unit_aresetn). The cause remains unidentified. Next probe should be internal:
+instrument reporter grants and monbus group FIFO occupancy in cosim across two
+back-to-back scenarios, rather than reasoning from CSR reads.
+
+**Superseded analysis follows.**
+
 **Narrowed 2026-09-08 to the reset DOMAIN, with the register theory falsified.**
 
 Answering the obvious question first -- is there a reset that can be run between

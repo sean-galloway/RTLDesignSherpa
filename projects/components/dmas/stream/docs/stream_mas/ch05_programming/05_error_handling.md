@@ -61,7 +61,7 @@ This guide covers error detection, reporting, and recovery procedures for the ST
 | Error | Description | Detection |
 |-------|-------------|-----------|
 | Invalid descriptor | Valid bit not set | Channel enters ERROR state |
-| FIFO overflow | Internal FIFO full | MON_FIFO_STATUS register |
+| FIFO overflow | Internal FIFO full | (MON_FIFO_STATUS is unimplemented; see below) register |
 | ID conflict | Transaction ID reused | Monitor status registers |
 
 : Internal Errors
@@ -104,12 +104,24 @@ if ((ch_idle & ch_mask) && !(wr_complete & ch_mask)) {
 }
 ```
 
-### MON_FIFO_STATUS (0x180)
+### MON_FIFO_STATUS (0x1000)
+
+> **NOT IMPLEMENTED -- reads 0 in every build.** The register exists in the RDL
+> and decodes, but nothing in the design drives it: Vivado reports
+> `hwif_in[MON][MON_FIFO_STATUS][*]` as undriven nets, and there is no producer
+> for those values anywhere in the RTL. The same is true of MON_FIFO_COUNT.
+> Do not use either as evidence about monitor FIFO occupancy -- a zero means
+> "unwired", not "empty". (SCHED_ERROR, AXI_RD_COMPLETE and AXI_WR_COMPLETE were
+> undriven in the same way and have since been wired; these two were left alone
+> because no source signal exists to wire them to.)
+>
+> The address is 0x1000, not 0x180: the monitor block was relocated to a MON
+> regfile at 0x1000. The bit definitions below are the intended layout.
 
 Monitor FIFO status (if USE_AXI_MONITORS=1).
 
 ```c
-uint32_t mon_status = read32(STREAM_BASE + 0x180);
+uint32_t mon_status = read32(STREAM_BASE + 0x1000);   /* unimplemented: always 0 */
 
 #define MON_FIFO_FULL   (1 << 0)
 #define MON_FIFO_EMPTY  (1 << 1)

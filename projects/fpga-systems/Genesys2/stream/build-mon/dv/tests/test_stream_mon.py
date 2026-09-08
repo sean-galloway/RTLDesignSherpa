@@ -348,6 +348,59 @@ SIM_FPGA_CLK_HZ = 100_000_000
 SIM_UART_BAUD   = 12_500_000
 
 
+@cocotb.test(timeout_time=20, timeout_unit="ms")
+async def cocotb_test_soft_reset_scope(dut):
+    """Pin down WHAT CTRL.SOFT_RESET actually clears. Regression fence.
+
+    Written because a board experiment convinced me of the opposite. I wrote
+    MON_GROUP_BASE_ADDR = 0x40000, pulsed SOFT_RESET, read back 0x40000 and
+    concluded config SURVIVES the reset -- but 0x40000 is also that register's
+    reset value, so the check could not tell "survived" from "was reset". A
+    whole diagnosis (and a speculative CTRL.WARM_RESET bit, since reverted) was
+    built on that. Every probe here writes a value DIFFERENT from its reset
+    value, so the two outcomes are distinguishable.
+
+    Result: SOFT_RESET clears the monitor config registers -- they live in the
+    unit_aresetn domain. There is therefore no need for a second, "warmer"
+    reset to reach them, and the board's scenario-order dependence (TASK-084)
+    is NOT explained by configuration surviving between runs.
+    """
+    tb = StreamHarnessTB(dut)
+    await tb.setup_clocks_and_reset()
+
+    probes = [
+        (_MON_REG('RDMON_PKT_MASK'),         0x0000_5A5A),   # reset 0xFFFF
+        (_MON_REG('RDMON_ADDR_RANGE2_LOW'),  0xDEAD_0000),   # reset 0x0
+        (_MON_REG('MON_GROUP_BASE_ADDR'),    0x0009_0000),   # reset 0x40000
+    ]
+    resets = {}
+    for addr, _ in probes:
+        resets[addr] = await tb.uart_read(addr)
+    for addr, val in probes:
+        assert val != resets[addr], (
+            f"probe 0x{addr:04X} writes its own reset value {val:#x}; "
+            f"this test cannot distinguish preserved from cleared")
+        await tb.uart_write(addr, val)
+    for addr, val in probes:
+        got = await tb.uart_read(addr)
+        assert got == val, f"0x{addr:04X} did not take {val:#x}, read {got:#x}"
+
+    await tb.uart_write(CSR_CTRL, compose("CTRL", SOFT_RESET=1))
+    await tb.wait_clocks('aclk', 64)
+    for addr, val in probes:
+        got = await tb.uart_read(addr)
+        assert got == resets[addr], (
+            f"[soft-scope] 0x{addr:04X} was NOT cleared by SOFT_RESET "
+            f"(read {got:#x}, wrote {val:#x}, reset {resets[addr]:#x}). "
+            f"If this ever fires, monitor config now survives the soft reset and "
+            f"the campaign must reprogram it explicitly between scenarios.")
+        tb.log.info(f"[soft-scope] 0x{addr:04X} cleared to reset {resets[addr]:#x}")
+
+    assert await tb.ping_scratch(0xC0FFEE01), \
+        "[soft-scope] UART/CSR path did not survive SOFT_RESET"
+    tb.log.info("[soft-scope] SOFT_RESET clears monitor config; UART/CSR survive")
+
+
 def _run_stream_mon(request, profile=False, testcase="cocotb_test_stream_mon"):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'stream_harness': 'projects/fpga-systems/Genesys2/stream',
@@ -618,6 +671,33 @@ async def cocotb_test_stream_mon_compress(dut):
 
     bad = [p for p, _ts in decoded if ((p >> 124) & 0xF) > 0xF]
     assert not bad, f"{len(bad)} decoded packets carry an impossible packet_type"
+
+    # COMPRESSION RATIO -- the point of this test, and what makes it non-vacuous.
+    #
+    # A raw record is 3 x 64-bit beats per 128-bit packet, so an UNCOMPRESSED
+    # capture lands at exactly 3.00 slots/packet. That is what this test used to
+    # report while claiming to prove compression: 96 slots -> 32 packets, 3.00,
+    # because .USE_MON_COMPRESSION was hardcoded 0 at the u_stream instantiation
+    # and the compressor was never built. The decoder consumed raw records
+    # happily and the assertions above all passed.
+    #
+    # With the compressor in path (and half-beat packing, two 30-bit slots per
+    # 64-bit beat) the ratio must come in well under 3. Assert it, so this test
+    # cannot pass again on uncompressed data.
+    slots_per_pkt = len(populated) / len(decoded)
+    saving = 100.0 * (1.0 - slots_per_pkt / 3.0)
+    dut._log.info(f"[compress] {len(populated)} slots / {len(decoded)} packets "
+                  f"= {slots_per_pkt:.2f} slots per packet -> {saving:.1f}% "
+                  f"smaller than the raw 3-beat encoding")
+    assert slots_per_pkt < 3.0, (
+        f"[compress] {slots_per_pkt:.2f} slots/packet is the RAW 3-beat ratio: the "
+        f"capture is uncompressed. Check that the harness passes "
+        f"USE_MON_COMPRESSION through to u_stream instead of a literal 0.")
+
+
+def test_stream_soft_reset_scope(request):
+    """Pins what CTRL.SOFT_RESET clears; fences the bad board measurement."""
+    _run_stream_mon(request, testcase="cocotb_test_soft_reset_scope")
 
 
 def test_stream_mon(request):
