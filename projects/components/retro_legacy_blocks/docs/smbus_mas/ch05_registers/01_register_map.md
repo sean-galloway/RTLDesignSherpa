@@ -42,12 +42,12 @@ AC = self-clearing (hardware clears the bit after the action completes).
 | 0x10 | SMBUS_DATA | RW | 0x00000000 | Single data byte |
 | 0x14 | SMBUS_TX_FIFO | WO | 0x00000000 | Transmit FIFO write port |
 | 0x18 | SMBUS_RX_FIFO | RO | - | Receive FIFO read port (read pops) |
-| 0x1C | SMBUS_FIFO_STATUS | RO | 0x00000000 | TX/RX FIFO levels and flags |
+| 0x1C | SMBUS_FIFO_STATUS | RO | 0x00008080 (live) | TX/RX FIFO levels and flags (post-reset both FIFOs empty: tx_empty bit 7, rx_empty bit 15) |
 | 0x20 | SMBUS_CLK_DIV | RW | 0x000000F9 | SCL clock divider |
 | 0x24 | SMBUS_TIMEOUT | RW | 0x002625A0 | Timeout threshold (clocks) |
 | 0x28 | SMBUS_OWN_ADDR | RW | 0x00000000 | Own slave address (slave mode) |
 | 0x2C | SMBUS_INT_ENABLE | RW | 0x00000000 | Interrupt enable mask |
-| 0x30 | SMBUS_INT_STATUS | W1C | 0x00000000 | Interrupt status (write 1 to clear) |
+| 0x30 | SMBUS_INT_STATUS | W1C | 0x00000004 (live) | Interrupt status -- non-functional, see its section (#58); reads 0x4 post-reset because tx-empty is mirrored live |
 | 0x34 | SMBUS_PEC | RW | 0x00000000 | PEC value (CRC-8) |
 | 0x38 | SMBUS_BLOCK_COUNT | RW | 0x00000000 | Block transfer byte count |
 
@@ -73,17 +73,18 @@ consumed by `smbus_core` (soft reset resets nothing; SCL frequency depends solel
 
 ## SMBUS_STATUS (0x04)
 
-Read-only. Software writes to this register are dropped (no PSLVERR). The sticky, clearable
-interrupt flags live in SMBUS_INT_STATUS (0x30), not here.
+Read-only. Software writes to this register are dropped (no PSLVERR).
+SMBUS_INT_STATUS (0x30) is nominally the sticky, clearable flag set -- but
+see its section: in the current RTL it is NOT sticky (#58).
 
 | Bit | Name | Access | Description |
 |-----|------|--------|-------------|
 | 0 | busy | RO | Transaction in progress |
-| 1 | bus_error | RO | Bus error detected (e.g. NAK) |
+| 1 | bus_error | RO | Bus error detected (e.g. NAK). Live level of the M_ERROR state -- self-clears when the FSM leaves it; polling can miss it |
 | 2 | timeout_error | RO | Transaction timeout (see limitation below) |
 | 3 | pec_error | RO | PEC mismatch (see limitation below) |
 | 4 | arb_lost | RO | Multi-master arbitration lost (see limitation below) |
-| 5 | nak_received | RO | NAK received from slave |
+| 5 | nak_received | RO | NAK received from slave. Transient level covering only the address/command ACK phases -- data/PEC-phase NAKs do not set it, and it self-clears as the FSM advances |
 | 6 | slave_addressed | RO | Addressed as slave (see limitation below) |
 | 7 | complete | RO | Transaction completed |
 | 11:8 | fsm_state | RO | Current FSM state (debug) |
@@ -200,9 +201,12 @@ f_SCL = f_clk / (2 * (clk_div + 1)). The reset value of 249 yields 100 kHz at f_
 | 23:0 | timeout | RW | 0x2625A0 (2,500,000) | Timeout threshold in system-clock cycles |
 | 31:24 | Reserved | RO | 0 | Reads 0 |
 
-The reset value corresponds to ~25 ms at f_clk = 100 MHz. See Implementation Limitations
-below: the timeout counter is not currently enabled in `smbus_core`, so this threshold has
-no effect and `SMBUS_STATUS.timeout_error` never sets.
+The reset value corresponds to ~25 ms at f_clk = 100 MHz. See Implementation
+Limitations below: the timeout counter's enable (r_timeout_en) is UNDRIVEN,
+so the counter never counts and, at any nonzero threshold, timeout_error
+never sets. EXCEPTION: writing SMBUS_TIMEOUT = 0 makes the comparison
+(0 >= 0) permanently true and wedges the master FSM in M_ERROR with
+timeout_error set -- do not program 0 (#58).
 
 ---
 
@@ -222,8 +226,8 @@ no effect and `SMBUS_STATUS.timeout_error` never sets.
 |-----|------|--------|-------|-------------|
 | 0 | complete_en | RW | 0 | Interrupt on transaction complete |
 | 1 | error_en | RW | 0 | Interrupt on bus error |
-| 2 | tx_thresh_en | RW | 0 | Interrupt when TX FIFO below threshold |
-| 3 | rx_thresh_en | RW | 0 | Interrupt when RX FIFO above threshold |
+| 2 | tx_thresh_en | RW | 0 | Interrupt while TX FIFO is EMPTY (no programmable threshold exists) |
+| 3 | rx_thresh_en | RW | 0 | Interrupt while RX FIFO is NON-EMPTY (no programmable threshold exists) |
 | 4 | slave_addr_en | RW | 0 | Interrupt when addressed as slave |
 | 31:5 | Reserved | RO | 0 | Reads 0 |
 
@@ -231,14 +235,20 @@ no effect and `SMBUS_STATUS.timeout_error` never sets.
 
 ## SMBUS_INT_STATUS (0x30)
 
-Write 1 to a bit to clear it.
+Nominally W1C, but NON-FUNCTIONAL as an interrupt-status register in the
+current RTL (#58): every bit is reloaded from hardware each cycle, so
+complete_int/error_int are one-cycle self-clearing pulses (polling will
+routinely miss them), the 'threshold' bits just mirror live FIFO flags,
+and a W1C write has no lasting effect. The smb_interrupt pin is driven
+from RAW status ORs and never consumes this register, so clearing it
+cannot deassert the pin.
 
 | Bit | Name | Access | Reset | Description |
 |-----|------|--------|-------|-------------|
 | 0 | complete_int | W1C | 0 | Transaction completed |
 | 1 | error_int | W1C | 0 | Bus error occurred |
-| 2 | tx_thresh_int | W1C | 0 | TX FIFO below threshold |
-| 3 | rx_thresh_int | W1C | 0 | RX FIFO above threshold |
+| 2 | tx_thresh_int | W1C | 0 | Mirrors TX-FIFO-empty (live level, not latched) |
+| 3 | rx_thresh_int | W1C | 0 | Mirrors RX-FIFO-non-empty (live level, not latched) |
 | 4 | slave_addr_int | W1C | 0 | Device addressed as slave |
 | 31:5 | Reserved | RO | 0 | Reads 0 |
 
@@ -257,13 +267,17 @@ Write 1 to a bit to clear it.
 
 | Bit | Name | Access | Reset | Description |
 |-----|------|--------|-------|-------------|
-| 5:0 | block_count | RW | 0 | Byte count for block transfers (1-32) |
+| 5:0 | block_count | RW | 0 | Byte count for block transfers. SMBus-legal range is 1-32, but the field accepts 0-63 with no range check |
 | 31:6 | Reserved | RO | 0 | Reads 0 |
 
-Note: `block_count` semantics differ between reads and writes in the current RTL. On writes
-the first byte comes from SMBUS_DATA and `block_count` counts the additional FIFO bytes; on
-reads it counts the total byte count. The SMBus count byte is not placed on / consumed from
-the wire by the current logic.
+Note: `block_count` describes the INTENDED byte accounting; in the current
+RTL the byte-transfer engine never leaves the address phase (the ACK
+handler pre-marks the bit counter complete, so command/data/PEC bytes are
+never bit-banged and the block-write FIFO load is unreachable -- #58), so
+no multi-byte semantics are reachable on the wire. Also note r_bytes_total
+is loaded from block_count for ALL transaction types, not just block
+transfers -- at the reset value 0, Write/Read Word degenerate to one data
+byte. The SMBus count byte is not placed on / consumed from the wire.
 
 ---
 

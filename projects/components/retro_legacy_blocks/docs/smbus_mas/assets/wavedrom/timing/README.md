@@ -19,17 +19,21 @@ This directory contains WaveDrom timing diagrams for SMBus (System Management Bu
 - `s_apb_PWRITE`, `s_apb_PADDR`, `s_apb_PWDATA`, `s_apb_PRDATA` - Data signals
 
 ### SMBus Pins (External)
-- `scl` - Serial clock (open-drain, active low)
-- `sda` - Serial data (open-drain, bidirectional)
-- `smbalert_n` - SMBus alert (optional)
+Real ports on apb4_smbus: `smb_scl_i/o/oe` and `smb_sda_i/o/oe` (split
+input/output/output-enable, push-pull in the current RTL). There is no
+`smbalert_n` pin. The `scl`/`sda` traces in the diagrams are the composed
+wire view.
 
 ### SMBus Core (Internal)
-- **State Machine:** `r_state`, `r_bit_count`, `start_cond`, `stop_cond`
-- **TX Path:** `r_shift_reg`, `sda_out`, `tx_data_valid`
-- **RX Path:** `r_rx_data`, `rx_data_valid`, `r_shift_reg`
-- **Clock:** `scl_master`, `scl_slave`, `stretch_scl`, `wait_scl_high`
-- **Arbitration:** `sda_a_out`, `sda_b_out`, `arb_lost`
-- **PEC:** `pec_enable`, `r_pec_accum`, `pec_match`, `pec_error`
+Real signal names in smbus_core.sv:
+- **State Machine:** `r_master_state`, `r_bit_counter`
+- **TX/RX Path:** `r_shift_reg`, `r_rx_data`
+- **Clock:** `r_scl_gen` (generated but never reaches the pin -- see the
+  Implementation Limitations)
+- **PEC:** `w_pec_out` (CRC submodule output) with `w_pec_clear` (held clear during master
+  traffic -- PEC is non-functional, #58)
+(Names like scl_master/stretch_scl/pec_match in older diagram captions do
+not exist in the RTL.)
 
 ## Rendering to SVG
 
@@ -91,4 +95,5 @@ Legend: S=Start, Sr=Repeated Start, A=ACK, N=NACK, P=Stop
 - **SMBus RTL:** `rtl/smbus/apb4_smbus.sv`
 - **SMBus Testbench:** `dv/tbclasses/smbus/smbus_tb.py`
 - **Constraint Class:** none yet for the SMBus (see `bin/TBClasses/wavedrom_user/hpet.py` and `apb.py` for examples)
-- **SMBus Spec:** System Management Bus (SMBus) Specification Version 3.0
+- **SMBus Spec:** System Management Bus (SMBus) Specification Version 2.0
+  (the version Chapter 1 targets)

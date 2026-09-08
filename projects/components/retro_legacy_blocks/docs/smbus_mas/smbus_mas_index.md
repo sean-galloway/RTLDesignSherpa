@@ -26,7 +26,9 @@
 **Component:** APB System Management Bus (SMBus) Controller
 **Version:** 1.0
 **Last Updated:** 2025-12-01
-**Status:** Production Ready
+**Status:** RTL Partial - register interface validated; the byte-transfer
+engine, interrupt status, FIFO data path and PEC are non-functional or
+deviant in the current RTL (see ch05 and issue #58)
 
 ---
 

@@ -43,7 +43,10 @@ The APB SMBus controller provides System Management Bus communication with APB i
 > fully realized in the current RTL. Timeout detection, PEC generation/verification,
 > multi-master arbitration, clock stretching, and slave mode are present in the register
 > interface but not functional in `smbus_core` today. The timing diagrams below
-> (Waveforms 1.3-1.5 in particular) illustrate SMBus protocol intent, not current hardware
+> (ALL waveforms, 1.1-1.5) illustrate SMBus protocol intent, not current
+> hardware: beyond the disclosed no-SCL-toggling limitation, the current
+> engine never transmits command/data bytes after the address phase and
+> never issues a repeated START for reads (#58)
 > behavior. See the Implementation Limitations section of
 > [Chapter 5: Register Map](../ch05_registers/01_register_map.md) and
 > `rtl/smbus/IMPLEMENTATION_STATUS.md` for the tracked status.
