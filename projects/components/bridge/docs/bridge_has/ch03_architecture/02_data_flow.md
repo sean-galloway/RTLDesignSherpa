@@ -30,10 +30,10 @@
 1. **Master issues AW** - Address and control information
 2. **Bridge decodes address** - Determines target slave
 3. **Arbitration** - Grants access if multiple masters contend
-4. **AW forwarded to slave** - With extended ID (Bridge ID prepended)
+4. **AW forwarded to slave** - ID unchanged; the originating master is pushed onto the slave adapter's `bridge_id` FIFO
 5. **Master sends W data** - Following the granted AW
 6. **W forwarded to slave** - Using same grant
-7. **Slave returns B response** - With extended ID
+7. **Slave returns B response** - with the master's own ID; the FIFO head selects the destination
 8. **Bridge routes B to master** - Using ID to find originator
 
 ### Read Transaction Flow
@@ -41,7 +41,7 @@
 1. **Master issues AR** - Address and control information
 2. **Bridge decodes address** - Determines target slave
 3. **Arbitration** - Grants access if multiple masters contend
-4. **AR forwarded to slave** - With extended ID
+4. **AR forwarded to slave** - ID unchanged; master recorded in the read `bridge_id` FIFO
 5. **Slave returns R data** - Potentially multiple beats
 6. **Bridge routes R to master** - Using ID to find originator
 
@@ -73,7 +73,7 @@ Each AXI4 channel operates independently:
 
 ```
 Original Master ID: [ID_WIDTH-1:0]
-Extended ID: [BID | Original ID]
+AXI ID on the slave port: the master's original ID, unmodified
 BID Width: clog2(NUM_MASTERS)
 ```
 

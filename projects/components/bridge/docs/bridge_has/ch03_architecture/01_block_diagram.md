@@ -38,7 +38,7 @@ Bridge high-level block diagram showing master adapters, crossbar core, and slav
 Receives transactions from upstream masters:
 
 - **Skid buffer** - Pipeline registration for timing
-- **ID extension** - Prepend Bridge ID for response routing
+- **Response tracking** - the originating master is recorded in the slave adapter's in-order `bridge_id` FIFO; the AXI ID itself is passed through untouched
 - **Channel separation** - Route AW/W/AR independently
 
 ### Crossbar Core

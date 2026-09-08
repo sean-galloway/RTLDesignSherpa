@@ -21,11 +21,38 @@
 
 <!-- End Header -->
 
-# ID Tracking Tables
+# Response Tracking
 
 ## Overview
 
-ID tracking tables hold the mapping from extended IDs (external ID plus Bridge ID) back to the originating master — the information response routing needs in a multi-master system.
+A multi-master fabric has to know which master a response belongs to. This
+bridge records it **positionally**: each slave adapter pushes the originating
+master's `bridge_id` onto an in-order FIFO at the address handshake and pops it
+on the response, routing by FIFO head. The AXI ID is passed through untouched
+in both directions.
+
+```systemverilog
+wr_fifo[wr_ptr[...]] <= xbar_bridge_id_aw;      // push on AW accept
+assign bid_bridge_id  = wr_fifo[rd_ptr[...]];   // route by the HEAD
+```
+
+The consequence is a requirement the fabric does not check: **each slave port
+must return B/R in request order across ALL IDs.** AXI4 permits a slave to
+complete different-ID transactions out of order, and nothing here detects it --
+see BRIDGE-010.
+
+The rest of this page documents an **ID tracking table** design that was
+specified but never built: extended IDs formed by prepending a Bridge ID,
+per-slave lookup tables, out-of-order completion. `bridge_cam.sv` exists in the
+tree and is instantiated in zero generated bridges. It is kept because the
+positional scheme above is easy to mistake for it, and because several other
+pages once described it as real.
+
+---
+
+## HISTORICAL -- the unbuilt ID-table design
+
+Everything below this line describes the design that was NOT implemented.
 
 ## Table Structure
 
@@ -74,9 +101,10 @@ assign extended_id = {master_bid, external_id};
 // extended_id = 6'b10_1010
 ```
 
-### Slave-Side Presentation
+### Slave-Side Presentation (historical design -- not built)
 
-Extended ID goes to slave:
+In the unbuilt design an extended ID would have gone to the slave. In the RTL
+the slave receives the master's ID unchanged:
 
 ```systemverilog
 assign s_axi_arid = extended_id;  // 6 bits to slave
@@ -166,7 +194,7 @@ All three can be outstanding simultaneously!
 The extended ID ensures uniqueness.
 ```
 
-### Same Extended ID (Error)
+### Same Extended ID (historical design -- not built)
 
 This cannot happen:
 - Bridge ID is unique per master

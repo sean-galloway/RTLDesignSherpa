@@ -69,14 +69,14 @@ output logic        cpu_m_axi_awready,
 
 // Example: Slave 0 with prefix "ddr_s_axi_"
 output logic [31:0] ddr_s_axi_awaddr,
-output logic [7:0]  ddr_s_axi_awid,  // Extended ID
+output logic [3:0]  ddr_s_axi_awid,  // same width as the master port
 output logic        ddr_s_axi_awvalid,
 input  logic        ddr_s_axi_awready,
 ```
 
 ### ID Width Extension
 
-Slave-side IDs are wider than master-side:
+Slave-side IDs are the SAME width as master-side:
 
 ```
 Master ID Width: ID_WIDTH (configuration parameter)
