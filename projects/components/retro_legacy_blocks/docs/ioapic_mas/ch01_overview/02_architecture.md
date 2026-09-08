@@ -307,7 +307,12 @@ apb4_ioapic #(
 **APB Address Space (12-bit: 0x000-0xFFF):**
 - 0x000: IOREGSEL (direct access)
 - 0x004: IOWIN (direct access)
-- 0x008-0xFFF: Reserved
+- 0x008-0x0D0: Internal register file, directly decoded (IOAPICID at 0x008,
+  IOAPICVER at 0x00C, IOAPICARB at 0x010, IOREDTBL[n] LO/HI at 0x014+8n /
+  0x018+8n). Only IOWIN accesses are remapped by the address translation; all
+  other addresses pass straight through to the register block, so software can
+  bypass the indirect mechanism. Use IOREGSEL/IOWIN for 82093AA-portable code.
+- 0x0D4-0xFFF: Unmapped (reads return 0, no error)
 
 **Internal Register Space (8-bit offset via IOREGSEL):**
 - 0x00: IOAPICID

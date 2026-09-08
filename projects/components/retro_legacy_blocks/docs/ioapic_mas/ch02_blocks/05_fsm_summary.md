@@ -114,11 +114,16 @@ The IOAPIC core implements a 3-state FSM for interrupt delivery management.
   - Wait for CPU acknowledgment (irq_out_ready)
 - **Outputs:**
   - irq_out_valid = 1
-  - irq_out_vector = cfg_vector[selected_irq]
-  - irq_out_dest = cfg_destination[selected_irq]
-  - irq_out_deliv_mode = cfg_deliv_mode[selected_irq]
+  - irq_out_vector = cfg_vector[current_irq]
+  - irq_out_dest = cfg_destination[current_irq]
+  - irq_out_deliv_mode = cfg_deliv_mode[current_irq]
+  - (indexed by the *latched* current_irq, but reading the *live* config
+    fields - a mid-delivery RTE rewrite changes what is presented; see the
+    programming restriction in Chapter 5)
 - **Exit:** 
-  - Edge mode + irq_out_ready → IDLE
+  - Edge mode + irq_out_ready → IDLE (known deviation: the delayed
+    pending-clear lets arbitration re-select the same edge for one extra
+    DELIVER pass, so each edge is currently delivered twice - issue #48)
   - Level mode + irq_out_ready → WAIT_EOI
 
 **WAIT_EOI State (Level-Triggered Only):**

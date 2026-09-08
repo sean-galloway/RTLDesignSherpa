@@ -26,7 +26,7 @@
 **Component:** APB I/O Advanced Programmable Interrupt Controller (IOAPIC)  
 **Version:** 1.0  
 **Last Updated:** 2025-11-16  
-**Status:** Production Ready - MVP Complete
+**Status:** RTL Complete - Validation Pending (spec partial; see Document Status below)
 
 ---
 
@@ -184,7 +184,8 @@ This specification is organized into five chapters covering all aspects of the A
 | Chapter 4: Programming | 📋 Planned | 0% |
 | Chapter 5: Registers | 🟡 Partial (register map only) | 33% |
 
-**Specification Status:** Production Ready - MVP Implementation Complete
+**Specification Status:** MVP RTL implemented; validation pending and one known
+RTL defect open (edge interrupts delivered twice, issue #48)
 
 ---
 

@@ -23,15 +23,18 @@
 
 # IOAPIC Specification
 
-**Status:** 📋 Planned - Structure Created
+**Status:** Partial - Chapter 1 complete; Chapter 2 overview + FSM summary and
+the Chapter 5 register map written; Chapters 3-4 and the remaining block/register
+sections still planned. See [ioapic_mas_index.md](ioapic_mas_index.md) for the
+per-chapter status table.
 
 ---
 
 ## Overview
 
-This directory will contain the complete specification for the IOAPIC block.
+This directory holds the specification for the IOAPIC block.
 
-## Planned Documentation Structure
+## Documentation Structure
 
 ### Chapter 1: Overview
 - Block purpose and features

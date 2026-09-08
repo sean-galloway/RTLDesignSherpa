@@ -36,7 +36,19 @@ The IOAPIC uses **indirect register access** following Intel 82093AA specificati
 |-------------|----------|------|-------|-------------|
 | 0x000 | IOREGSEL | RW | 0x00 | Register offset selector (0x00-0x3F) |
 | 0x004 | IOWIN | RW | 0x00000000 | Data window for selected internal register |
-| 0x008-0xFFF | Reserved | - | - | Reserved for future expansion |
+| 0x008 | IOAPICID | RW | 0x00000000 | Direct decode of the internal register file |
+| 0x00C | IOAPICVER | RO | 0x00170011 | Direct decode |
+| 0x010 | IOAPICARB | RO | 0x00000000 | Direct decode |
+| 0x014-0x0D0 | IOREDTBL[n] LO/HI | RW | see below | Direct decode: LO at 0x014+8n, HI at 0x018+8n (n = 0-23; IRQ23 HI at 0x0D0) |
+| 0x0D4-0xFFF | Unmapped | - | - | Reads return 0; no error is raised |
+
+**Direct access note:** the address translation in `ioapic_config_regs.sv` only
+remaps accesses to APB 0x004 (IOWIN); every other address passes through to the
+register file unchanged. The internal registers are therefore also directly
+accessible at APB 0x008-0x0D0, bypassing IOREGSEL/IOWIN entirely. Intel
+82093AA-compatible software will never touch these addresses, but they are live,
+not reserved. The indirect IOREGSEL/IOWIN pair remains the architecturally
+portable access method.
 
 #### IOREGSEL Register (APB 0x000)
 
@@ -51,6 +63,13 @@ The IOAPIC uses **indirect register access** following Intel 82093AA specificati
 - 0x02: IOAPICARB
 - 0x10-0x3F: IOREDTBL entries (even=LO, odd=HI)
 
+**Invalid selector values alias to IOREGSEL itself.** For a selector in
+0x03-0x0F or at or above 0x40, the address translation steers the IOWIN access
+to APB 0x000 - so an IOWIN *write* with a stale or invalid selector silently
+overwrites `regsel` with the write data, and an IOWIN read returns the current
+selector. Software must not rely on invalid selectors being ignored; always
+load a valid selector before touching IOWIN.
+
 #### IOWIN Register (APB 0x004)
 
 | Bits | Name | Type | Reset | Description |
@@ -60,8 +79,9 @@ The IOAPIC uses **indirect register access** following Intel 82093AA specificati
 **Behavior:**
 - Reading IOWIN returns data from register selected by current IOREGSEL value
 - Writing IOWIN updates register selected by current IOREGSEL value
-- IOREGSEL must be written before each IOWIN access
-- IOREGSEL value persists until explicitly changed
+- IOREGSEL value persists until explicitly changed, so repeated IOWIN accesses
+  to the same internal register need only one IOREGSEL write; write IOREGSEL
+  again only to select a different register
 
 ---
 
@@ -189,6 +209,14 @@ uint8_t offset_hi = 0x10 + (n * 2) + 1;  // Odd offset
 - Only meaningful for level-triggered interrupts
 - Prevents re-triggering until EOI received
 - Cleared by EOI, set when interrupt delivered
+
+**Programming restriction - do not rewrite an RTE's vector while its interrupt
+is in flight** (delivered but not yet EOI'd). The Remote IRR clear compares the
+incoming EOI vector against the RTE's *current* vector field, while the CPU
+EOIs the vector it was *delivered*. If software changes the vector in that
+window, the EOI no longer matches, Remote IRR never clears, and that
+level-triggered input is blocked from further delivery until reset. Mask the
+IRQ and wait for Remote IRR to read 0 before reprogramming its vector.
 
 **Trigger Mode [15]:**
 - **0 (Edge):** Interrupt on rising edge of active signal

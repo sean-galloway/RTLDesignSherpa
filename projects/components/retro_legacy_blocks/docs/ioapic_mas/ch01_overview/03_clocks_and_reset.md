@@ -100,8 +100,8 @@ ioapic_clk ──┬────────────────────
 
 | Configuration | Synchronization | Edge Detect | Arbitration | Delivery | Total |
 |---------------|-----------------|-------------|-------------|----------|-------|
-| No CDC, 100 MHz | 30 ns | 10 ns | <10 ns | 10 ns | ~60 ns |
-| CDC, pclk=50MHz, ioapic_clk=100MHz | 30 ns | 10 ns | <10 ns | 10 ns | ~60 ns |
+| No CDC, 100 MHz | 30 ns (3 cycles) | 10 ns (1 cycle) | 0 ns (combinational) | 10 ns (1 cycle) | ~50 ns (5 cycles) |
+| CDC, pclk=50MHz, ioapic_clk=100MHz | 30 ns (3 cycles) | 10 ns (1 cycle) | 0 ns (combinational) | 10 ns (1 cycle) | ~50 ns (5 cycles) |
 
 **Note:** Above is from IRQ pin to `irq_out_valid`. CPU interrupt latency depends on LAPIC design.
 

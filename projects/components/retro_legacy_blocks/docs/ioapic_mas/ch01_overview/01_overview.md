@@ -33,7 +33,10 @@ The APB I/O Advanced Programmable Interrupt Controller (IOAPIC) is a sophisticat
 - **Programmable Redirection Table**: 64-bit entry per IRQ defining vector, mode, destination, trigger, polarity
 - **Indirect Register Access**: Intel-compatible IOREGSEL/IOWIN mechanism for register access
 - **Dual Trigger Modes**: 
-  - **Edge-triggered**: Latches interrupt on signal edge, fires once
+  - **Edge-triggered**: Latches interrupt on signal edge, fires once per edge
+    by design. (Known deviation: the current RTL's delayed pending-clear
+    re-opens the arbitration window and delivers each edge twice - tracked as
+    issue #48; fix pending.)
   - **Level-triggered**: Tracks signal level, uses Remote IRR, requires EOI
 - **Configurable Polarity**: Active-high or active-low per IRQ input
 - **Priority Arbitration**: Static priority (lowest IRQ number wins for MVP)
@@ -80,7 +83,8 @@ Each of the 24 IRQ inputs can be independently configured for trigger mode (edge
 
 **Reliability:**
 - 3-stage input synchronization prevents metastability
-- Edge detection with glitch immunity
+- Edge detection on the synchronized inputs (no dedicated glitch filter:
+  pulses shorter than the synchronizer depth are simply not seen)
 - Remote IRR prevents level interrupt re-triggering until EOI
 - Delivery status tracking ensures reliable interrupt delivery
 
@@ -258,6 +262,9 @@ Fixed 24 IRQ inputs per Intel specification. For more IRQs, use multiple IOAPIC 
 **Direct APB Registers:**
 - `0x00`: IOREGSEL - Register offset selector
 - `0x04`: IOWIN - Data window for selected register
+- (Implementation note: the internal register file is also directly decoded at
+  APB 0x08-0xD0, bypassing IOREGSEL/IOWIN. Portable 82093AA software uses only
+  the indirect pair; see Chapter 5 for the direct map.)
 
 **Internal Registers (via IOREGSEL/IOWIN):**
 - **0x00**: IOAPICID - I/O APIC identification

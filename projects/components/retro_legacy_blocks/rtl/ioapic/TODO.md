@@ -23,7 +23,13 @@
 
 # IOAPIC (I/O Advanced Programmable Interrupt Controller) TODO List
 
-## Status: Foundation Complete - Ready for Core Implementation
+## Status: RTL Complete - Validation Pending
+
+> 2026-09-08: the items below were written before the core landed and had
+> gone stale. ioapic_core.sv, ioapic_config_regs.sv, apb4_ioapic.sv and the
+> filelist all exist and are checked off; validation (cocotb suite) has not
+> started, and one known RTL defect is open (edge interrupts delivered
+> twice, issue #48).
 
 ### Completed ✅
 - [x] PeakRDL register specification (ioapic_regs.rdl)
@@ -38,7 +44,7 @@
 ### High Priority 🔴
 
 #### Core Implementation
-- [ ] **ioapic_core.sv** - Core interrupt controller logic
+- [x] **ioapic_core.sv** - Core interrupt controller logic
   - IRQ input synchronization (24 inputs)
   - Edge detection logic
   - Level sensing logic  
@@ -49,7 +55,7 @@
   - Delivery status tracking
 
 #### Configuration Registers with Indirect Access
-- [ ] **ioapic_config_regs.sv** - Special wrapper for indirect access
+- [x] **ioapic_config_regs.sv** - Special wrapper for indirect access
   - **IOREGSEL/IOWIN mechanism:**
     - Decode IOREGSEL to select internal register
     - Route IOWIN reads/writes based on IOREGSEL
@@ -64,7 +70,7 @@
   - **Handle indirect register access correctly**
 
 #### APB Wrapper
-- [ ] **apb4_ioapic.sv** - APB top-level with CDC support
+- [x] **apb4_ioapic.sv** - APB top-level with CDC support
   - CDC_ENABLE parameter (0=single, 1=dual clock)
   - Conditional apb4_slave vs apb4_slave_cdc
   - Instantiate ioapic_config_regs
@@ -73,7 +79,7 @@
   - Wire interrupt output from core
 
 #### Support Files
-- [ ] **filelists/apb4_ioapic.f** - Build filelist
+- [x] **filelists/apb4_ioapic.f** - Build filelist
 - [ ] **peakrdl/README.md** - Register access documentation
 - [ ] **README.md** - Update with implementation details
 - [ ] **IMPLEMENTATION_STATUS.md** - Status tracking
