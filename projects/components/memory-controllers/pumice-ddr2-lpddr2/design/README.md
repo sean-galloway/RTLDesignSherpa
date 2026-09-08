@@ -512,3 +512,20 @@ All RTL reverted to HEAD (the DFI backpressure adds a CDC token FIFO on the
 board-critical path for no benefit while the mask stays, and made mask-removed
 WORSE). HEAD remains the correct baseline; refresh works on it. The DFI
 backpressure patch is preserved in the session scratchpad if revisited.
+
+### CORRECTION 4 (2026-09-08): write side proven fully correct; residual is DFI WL alignment
+
+Logged every DFI WR command's {bank,row,col} at the arbiter for the mask-removed
+CLOSE run: all 64 are correct -- bank 3, one row, columns 0,8,16,...,504, all
+OP_WRA, 64 distinct. Combined with the earlier proofs (serializer drives all 64
+bursts with correct data, zero_bursts=0; 64 WR commands at the PHY; 64 CAM
+commits/fills), the ENTIRE write side is provably correct: address, data,
+command, and count all right. The corruption is therefore purely a DFI
+command<->wrdata WRITE-LATENCY alignment (or DFISlavePHY capture) effect: correct
+data is presented but the PHY writes zero for ~half the same-bank CLOSE-policy
+bursts when the occupancy mask is gone. Source-level fixes (write backpressure,
+fire pacing) did not resolve it. NEXT (decisive, not yet done): capture a VCD of
+one corrupted write and inspect dfi_wrdata / dfi_wrdata_en phase vs the DFI WR
+command at the DFISlavePHY -- a protocol-level look, the one diagnostic still
+outstanding. Until then w_col_inflight_bank stays and HEAD is the correct
+baseline (12/13, refresh working).
