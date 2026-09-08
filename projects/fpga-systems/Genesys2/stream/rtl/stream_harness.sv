@@ -1639,15 +1639,25 @@ module stream_harness #(
     // exists so neither path can be starved if both are ever armed at once.
     // Grant is LATCHED until B completes; an AXIL write is three handshakes and
     // interleaving two masters mid-burst would corrupt both.
-    logic r_s4_gr_bridge, r_s4_gr_obs, r_s4_busy;
+    // ROUND-ROBIN, not strict priority. This was `if (obs) else if (bridge)`,
+    // which grants the observer unconditionally: the grant is latched to B and
+    // re-arbitrated the moment it drops, so a continuous observer record stream
+    // re-wins every time and the bridge path NEVER gets the port. That is not a
+    // theoretical starvation -- on build-mon the tally received 384 observer
+    // packets (unit_id 0x10, agent 0) and ZERO from the in-core monitors
+    // (agents 9/10), which read as "the in-core ADDR_RANGE path is dead".
+    // r_s4_last_obs remembers who won last; when both ask, the other side goes
+    // first, which bounds either side's wait to one transfer.
+    logic r_s4_gr_bridge, r_s4_gr_obs, r_s4_busy, r_s4_last_obs;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_s4_gr_bridge <= 1'b0; r_s4_gr_obs <= 1'b0; r_s4_busy <= 1'b0;
+            r_s4_last_obs  <= 1'b0;
         end else if (!r_s4_busy) begin
-            if (dmamon_awvalid) begin
-                r_s4_gr_obs <= 1'b1; r_s4_busy <= 1'b1;
+            if (dmamon_awvalid && (!s4_awvalid || !r_s4_last_obs)) begin
+                r_s4_gr_obs <= 1'b1; r_s4_busy <= 1'b1; r_s4_last_obs <= 1'b1;
             end else if (s4_awvalid) begin
-                r_s4_gr_bridge <= 1'b1; r_s4_busy <= 1'b1;
+                r_s4_gr_bridge <= 1'b1; r_s4_busy <= 1'b1; r_s4_last_obs <= 1'b0;
             end
         end else if (tally_s4_bvalid && tally_s4_bready) begin
             r_s4_gr_bridge <= 1'b0; r_s4_gr_obs <= 1'b0; r_s4_busy <= 1'b0;
@@ -1694,15 +1704,25 @@ module stream_harness #(
     // exists so neither path can be starved if both are ever armed at once.
     // Grant is LATCHED until B completes; an AXIL write is three handshakes and
     // interleaving two masters mid-burst would corrupt both.
-    logic r_s6_gr_bridge, r_s6_gr_obs, r_s6_busy;
+    // ROUND-ROBIN, not strict priority. This was `if (obs) else if (bridge)`,
+    // which grants the observer unconditionally: the grant is latched to B and
+    // re-arbitrated the moment it drops, so a continuous observer record stream
+    // re-wins every time and the bridge path NEVER gets the port. That is not a
+    // theoretical starvation -- on build-mon the tally received 384 observer
+    // packets (unit_id 0x10, agent 0) and ZERO from the in-core monitors
+    // (agents 9/10), which read as "the in-core ADDR_RANGE path is dead".
+    // r_s6_last_obs remembers who won last; when both ask, the other side goes
+    // first, which bounds either side's wait to one transfer.
+    logic r_s6_gr_bridge, r_s6_gr_obs, r_s6_busy, r_s6_last_obs;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_s6_gr_bridge <= 1'b0; r_s6_gr_obs <= 1'b0; r_s6_busy <= 1'b0;
+            r_s6_last_obs  <= 1'b0;
         end else if (!r_s6_busy) begin
-            if (slmon_awvalid) begin
-                r_s6_gr_obs <= 1'b1; r_s6_busy <= 1'b1;
+            if (slmon_awvalid && (!s6_awvalid || !r_s6_last_obs)) begin
+                r_s6_gr_obs <= 1'b1; r_s6_busy <= 1'b1; r_s6_last_obs <= 1'b1;
             end else if (s6_awvalid) begin
-                r_s6_gr_bridge <= 1'b1; r_s6_busy <= 1'b1;
+                r_s6_gr_bridge <= 1'b1; r_s6_busy <= 1'b1; r_s6_last_obs <= 1'b0;
             end
         end else if (tally_s6_bvalid && tally_s6_bready) begin
             r_s6_gr_bridge <= 1'b0; r_s6_gr_obs <= 1'b0; r_s6_busy <= 1'b0;

@@ -235,7 +235,14 @@ def sc_addr_error(bridge, A, runner):
     # ERROR-flavored; a tiny high exclude window makes every access an allowlist
     # miss. CTRL: RANGE_EN[3:0]/CHECK_EN[4]/MATCH_EN[5]/MISS_EN[6] -- keep range0
     # match + range2 miss (= 0x75), same as the passing sim.
-    ctrl = 0x01 | (1 << 2) | (1 << 4) | (1 << 5) | (1 << 6)   # r0(match)+r2+check+match+miss
+    # range2 + CHECK + MISS ONLY -- no range0, no MATCH_EN. The comment above
+    # already said this ("Enable ONLY range2 + CHECK + MISS (no MATCH)") and the
+    # code did the opposite: it also set range0 match-all and MATCH_EN, so every
+    # accepted command produced an AddrMatch. addr_check is the LOWEST-priority
+    # monbus source, so that flood starved its own error stream and the class
+    # read as dead. Measured on build-mon: 0x75 -> 0 packets, 0x54 -> 384.
+    # build-obs has always keyed this class with range2 alone and emits 13,206.
+    ctrl = (1 << 2) | (1 << 4) | (1 << 6)                    # r2 + check + miss
     for m in ("RDMON", "WRMON"):
         # ERR_EN only (bit0): timeout/compl/thresh OFF so their cones don't flood
         # the monbus and starve the low-priority addr_check error stream. The miss
