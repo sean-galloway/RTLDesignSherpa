@@ -28,7 +28,7 @@ for one call are pre-split into `parts/part_NN`. Results land in
 `<results>/<mode>-<model>/round_N/` as `<unit>.md` + `<unit>.meta.json`,
 with the inputs snapshotted into `_bundle_snapshot/`.
 
-## The eleven rules
+## The 12 rules
 
 Each one is here because ignoring it cost real work.
 
@@ -633,6 +633,21 @@ tokens that way. `_meta` units are deliberately excluded: they are per-area and
 carry an inventory, not a book. The caption saying a multi-part book means the
 reviewer holds a SUBSET is regenerated with the table -- without it the correct
 table becomes the next source of phantom missing-module findings.
+
+12. **Fix by CLUSTER, not by finding, and grep the other books for the same
+    claim.** Bridge round_1 put 65 findings across 8 units, and the dominant
+    one was structural: a single unbuilt design -- bridge-ID prepending,
+    widened slave IDs, ID lookup tables, out-of-order support -- was documented
+    in FOUR places (PRD, HAS, MAS, CLAUDE.md) and reconciled with the RTL in
+    none. Fixing it finding-by-finding would have produced four different
+    descriptions of the same absence. Fixing it as one cluster, in four batched
+    passes, produced one. *Corollary:* when a finding says "the RTL does not do
+    X", grep every book for X before editing -- the claim propagated by copy,
+    so the fix has to as well.
+    A second reason to batch: five of the first fifteen findings landed on one
+    file, and editing a chapter six times across a triage is how it became
+    internally inconsistent to begin with. One round_1 finding was an
+    inconsistency the triage itself had introduced hours earlier.
 
 ## The order: correctness until clean, then voice
 
