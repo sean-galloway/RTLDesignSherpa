@@ -25,7 +25,7 @@ import time
 
 from ddr2_char import (
     DDR2CharDriver,
-    autodetect_port,
+    harness_probe,
     MEMTYPE_DDR2,
     ID_MODE_FIXED,
     AXI_SIZE_8,
@@ -36,9 +36,12 @@ from ddr2_char import (
     HIST_METRIC_1,
 )
 
+from boards import get_board  # after ddr2_char sets up sys.path
+
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.strip().splitlines()[0])
+    ap.add_argument("--board",      default="nexys_a7_100t")
     ap.add_argument("--port",       default="auto")
     ap.add_argument("--baud",       type=int, default=115200)
     ap.add_argument("--base-addr",  type=lambda s: int(s, 0), default=0x0)
@@ -57,7 +60,9 @@ def main() -> int:
                          "(board known-good = 8; sweep with sweep_rddata_delay.py)")
     args = ap.parse_args()
 
-    args.port = autodetect_port(args.baud, want=args.port)
+    board = get_board(args.board)
+    args.port = board.find_uart_port(probe=harness_probe(), want=args.port,
+                                     label="pumice DDR2 char harness")
     d = DDR2CharDriver(port=args.port, baudrate=args.baud)
 
     # 1. Identity ping. Bad BUILD_ID = wrong bitstream or dead UART.

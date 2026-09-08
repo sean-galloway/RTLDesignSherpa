@@ -60,6 +60,19 @@ def main(argv=None) -> int:
                     help="path to persist/reuse the leveled read window")
     ap.add_argument("--mem-mb", type=int, default=128,
                     help="device size for the memtest sequence")
+    # char / page_policy sequence knobs
+    ap.add_argument("--profile", default="smoke",
+                    help="pumice_char run profile (seq: char)")
+    ap.add_argument("--txn-scale", type=int, default=1000,
+                    help="char transaction multiplier on the board (seq: char)")
+    ap.add_argument("--char-csv", default=None,
+                    help="write char records to this CSV (seq: char)")
+    ap.add_argument("--families", default="incremental,row_major",
+                    help="scenario families for the page_policy A/B (comma list)")
+    ap.add_argument("--pp-txn", type=int, default=2000,
+                    help="txn_count for the page_policy A/B (seq: page_policy)")
+    ap.add_argument("--clk-mhz", type=float, default=100.0,
+                    help="board clock (MHz) for bandwidth math")
     args = ap.parse_args(argv)
 
     runner = build_runner()
@@ -100,6 +113,12 @@ def main(argv=None) -> int:
         "leveling": not args.no_leveling,
         "level_cache": args.level_cache,
         "mem_bytes": args.mem_mb << 20,
+        "profile": args.profile,
+        "txn_scale": args.txn_scale,
+        "char_csv": args.char_csv,
+        "families": [f.strip() for f in args.families.split(",") if f.strip()],
+        "pp_txn": args.pp_txn,
+        "clk_mhz": args.clk_mhz,
     }
 
     try:
