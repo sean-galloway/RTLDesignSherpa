@@ -239,7 +239,7 @@ size_t uart_read_available(uint8_t *data, size_t max_len) {
     size_t count = 0;
 
     while ((LSR & 0x01) && (count < max_len)) {
-        data[count++] = RBR;
+        data[count++] = (RBR >> 8) & 0xFF;  // received byte is at [15:8]
     }
 
     return count;

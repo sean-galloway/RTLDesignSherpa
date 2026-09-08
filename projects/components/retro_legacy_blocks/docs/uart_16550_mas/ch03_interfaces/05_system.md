@@ -112,10 +112,11 @@ presetn  ____________________|
 
 ### Clock Gating
 
-When idle (no TX/RX activity):
-- Internal clocks can be gated
-- APB interface remains responsive
-- Wake on new data or register access
+The block provides NO gating or wake hooks: there are no power-management
+ports, and the baud counter free-runs unconditionally. Any clock gating
+is the integrator's, done OUTSIDE the block -- and gating pclk kills the
+APB interface while gating uart_clk kills RX sampling. There is no
+wake-on-activity path.
 
 ### Low Power Hints
 

@@ -146,7 +146,8 @@ When LCR.BC=1:
 Detected when:
 - RXD = 0 for entire frame
 - Start + all data + parity + stop = 0
-- Sets BI bit in LSR
+- INTENDED to set the BI bit in LSR (never sets in the current RTL --
+  same overwrite defect as FE, #60)
 
 ## Line Status Error Detection
 
@@ -162,7 +163,8 @@ Error detection sequence:
 3. Framing error flag INTENDED to set (never does in the current RTL --
    the RX_STOP cleanup overwrites it the same cycle, #60)
 4. LSR[3] (FE) would update -- reads 0 forever on this RTL
-5. Line status interrupt asserted
+5. Line status interrupt would assert -- on this RTL it can only fire
+   from overrun or parity errors (#60)
 
 Error types:
 - **Framing Error (FE)**: Stop bit not 1 - indicates baud rate mismatch or noise

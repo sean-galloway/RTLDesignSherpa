@@ -88,8 +88,8 @@ logic in this RTL - they do not enable or mask any interrupt.
 Triggered by:
 - Overrun Error (OE)
 - Parity Error (PE)
-- Framing Error (FE)
-- Break Indicator (BI)
+- Framing Error (FE) -- never sets in the current RTL (#60)
+- Break Indicator (BI) -- never sets in the current RTL (#60)
 
 Cleared by writing 1 to the LSR error bits (W1C). (Known RTL issue: the clear
 strobes are not asserted, so these bits/interrupt persist until reset.)

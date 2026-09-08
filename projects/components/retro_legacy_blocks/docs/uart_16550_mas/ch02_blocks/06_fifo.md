@@ -42,7 +42,7 @@ The UART includes 16-byte TX and RX FIFOs that buffer data between software and 
 | 0 | FE | FIFO Enable |
 | 1 | RFR | RX FIFO Reset |
 | 2 | TFR | TX FIFO Reset |
-| 3 | DMS | DMA Mode Select |
+| 3 | DMS | DMA Mode Select (stored; no effect -- the core never reads it) |
 | 5:4 | Reserved | |
 | 7:6 | RTL | RX Trigger Level |
 
@@ -141,13 +141,14 @@ The interrupt sequence:
 - 16-byte FIFOs, trigger-level RX interrupt
 - IIR[7:6] = 11
 - (Character-timeout interrupt is not implemented in this RTL)
-- IIR[7:6] = 11
 
 ## Error Handling
 
 ### Per-Character Errors
 
-PE, FE, BI stored with each character in RX FIFO:
+PE, FE, BI slots exist in each RX FIFO entry, but only PE can actually
+be stored -- FE/BI never set in the current RTL, so entry bits [10:9]
+are always 0 (#60). Entry format:
 - Sticky LSR error flags are set at RECEIVE time (when the character
   enters the FIFO), not when it is later read out
 - LSR[7] reflects an error on the FIFO HEAD entry only, not 'any entry'
