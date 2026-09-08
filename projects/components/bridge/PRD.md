@@ -89,7 +89,12 @@ Features intentionally excluded for simplicity:
 - ~~No AXI4-Lite protocol variant~~ -- `axil` and `axil5` ARE supported slave protocols (`config_validator.valid_protocols`), converted at the boundary by `axi4_to_axil4_{rd,wr}`
 - No ACE protocol extensions (cache coherency)
 - No AXI5 features
-- ~~QoS, Region, User declared but not routed~~ -- **routed since `c2955863`/`2b229516`**; they carry real values end to end
+- QoS, Region and REQUEST-side User (AWUSER/ARUSER/WUSER) are routed since
+  `c2955863`/`2b229516`. RESPONSE-side User is not: `BUSER`/`RUSER` exist as
+  ports but the master adapters tie them to zero (`.fub_axi_buser(1'b0)`,
+  `.fub_axi_ruser(1'b0)`), so a slave's response User never reaches its
+  master. An earlier correction of this line said "end to end", which was
+  true only of the request side.
 
 **5. What We DO Support**
 

@@ -63,7 +63,9 @@ Three choices worth knowing about:
 ## Register access (cfg regblock builds)
 
 Bridges built with the cfg register block also expose the status over the
-cfg AXI4-Lite/APB window:
+cfg **AXI4-Lite** window. The port is `s_cfg_axil_*` -- AXI4-Lite, not APB. An
+APB-attached CPU reaches it through an `axi4_to_apb4_shim` upstream of the
+bridge, which is an integration choice and not part of this module:
 
 | Register | Field | Access | Meaning |
 |---|---|---|---|
