@@ -351,7 +351,7 @@ Masters (M)                                                    Slaves (S)
                                │
                      ┌──────────────────────────┐
                      │  Transaction Tracking    │
-                     │  (ID tables for OoO)     │
+                     │  (in-order bridge_id FIFO)│
                      └──────────────────────────┘
 ```
 
@@ -387,7 +387,7 @@ Masters (M)                                                    Slaves (S)
 - ID tables for OUT-OF-ORDER support are not implemented: `bridge_cam.sv`
   exists but is instantiated in zero generated bridges
 
-**5. Optional Performance Counters**
+**5. ~~Optional Performance Counters~~** -- NOT implemented, and no config key enables them
 - Transaction counts per master/slave
 - Arbitration conflict counts
 - Latency histograms
@@ -470,7 +470,7 @@ address_map = {
 - Full AXI4 burst protocol support
 
 **FR-9: Interleaving Constraints**
-- W channel locked to AW grant master
+- W channel follows the AW owner via a per-slave W-owner FIFO (not a held grant)
 - R channel routed by in-order `bridge_id` FIFO position, NOT by transaction ID. IDs are pass-through: the slave port is the same width as the master port. `bridge_cam.sv` exists but is instantiated in zero generated bridges.
 - ID-based interleaving is NOT supported. Each slave port must return B/R in request order across ALL IDs -- see BRIDGE-010.
 
@@ -502,7 +502,7 @@ address_map = {
 | Resource | Flat Crossbar | Notes |
 |----------|---------------|-------|
 | **LUTs** | ~2,500 | Address decode + arbiters + mux |
-| **FFs** | ~3,000 | Registered outputs + ID tables |
+| **FFs** | ~3,000 (hand estimate, unverified) | Registered outputs + the per-slave bridge_id FIFOs |
 | **BRAM** | 0 | No ID tables exist. Tracking is a small in-order FIFO per direction in each slave adapter. |
 | **DSP** | 0 | No arithmetic operations |
 
@@ -519,7 +519,7 @@ address_map = {
 **NFR-5: Verification**
 - CocoTB testbench framework
 - Transaction-level verification
-- Out-of-order test scenarios
+- ~~Out-of-order test scenarios~~ -- not applicable; ordering is structural (see FR-9)
 - Burst interleaving tests
 - >95% functional coverage
 
@@ -635,7 +635,7 @@ Single-Beat Read Latency:
 **Burst Transfer Throughput:**
 ```
 After address phase completes, data transfer is line-rate:
-  - W channel: 1 beat/cycle (locked to AW grant)
+  - W channel: 1 beat/cycle (routed by the W-owner FIFO)
   - R channel: 1 beat/cycle (ID-routed from slave)
 
 Example: 256-beat burst
@@ -680,7 +680,7 @@ LUTs ≈ 500 + 150 × 16 + 20 × 16 × 4
 | **AXI4 (Bridge)** | 2-3 cycles | High (burst) | **High** | Memory-mapped I/O |
 | **AXI4 + Slices** | 4-6 cycles | High (burst) | Very High | >400 MHz designs |
 
-**Bridge Sweet Spot:** High-performance memory-mapped interconnects where out-of-order and burst efficiency are critical.
+**Bridge Sweet Spot:** memory-mapped interconnects that need burst efficiency and mixed protocols. NOT a fit where out-of-order completion matters -- the fabric is in-order by construction (FR-9, BRIDGE-010).
 
 ---
 
@@ -718,7 +718,8 @@ class BridgeGenerator:
 
     def generate_w_channel_mux(self, slave_idx) -> str:
         """Generate write data channel multiplexer"""
-        # W channel follows AW grant (locked until WLAST)
+        # W channel follows the AW owner recorded in the per-slave W-owner
+        # FIFO. The arbiter grant itself released at the ADDRESS handshake.
 
     def generate_b_channel_demux(self, slave_idx) -> str:
         """Generate write response channel demultiplexer"""
@@ -735,7 +736,8 @@ class BridgeGenerator:
 
     def generate_crossbar(self) -> str:
         """Generate complete crossbar module"""
-        # Instantiate all arbiters, muxes, demuxes, ID tables
+        # Instantiate all arbiters, muxes, demuxes and the per-slave
+        # bridge_id FIFOs (there are no ID tables)
 ```
 
 ### 7.2 Address Map Configuration
@@ -807,7 +809,7 @@ end
 
 **Migration Effort from APB:**
 - ~120 minutes (vs ~75 min for AXIS, due to higher complexity)
-- Most time: ID table logic and response demuxing
+- Most time: response demuxing and the bridge_id FIFOs
 
 ### 8.2 Code Reuse from Delta Generator
 
@@ -915,7 +917,7 @@ Configuration:
 
 **ID Table Tests:**
 - Correct ID → master mapping
-- Out-of-order transaction handling
+- ~~Out-of-order transaction handling~~ -- not implemented; see FR-9
 - Table full condition
 
 **Mux/Demux Tests:**
@@ -928,7 +930,7 @@ Configuration:
 **Single-Master, Single-Slave:**
 - Basic read/write transactions
 - Burst transfers (various lengths)
-- Out-of-order completions
+- ~~Out-of-order completions~~ -- not applicable (in-order fabric)
 
 **Multi-Master, Single-Slave:**
 - Arbitration correctness
@@ -1098,8 +1100,8 @@ The shell scripts will automatically:
 
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
-| **ID table complexity** | Medium | High | Start with small ID_WIDTH (2-4), test thoroughly |
-| **Out-of-order corner cases** | High | High | Extensive CocoTB tests with random delays |
+| ~~ID table complexity~~ | -- | -- | Moot: no ID tables were built. The realised risk was the opposite -- the DOCS described tables for months while the RTL used an in-order FIFO. |
+| **Response-ordering assumption** | High | High | The fabric REQUIRES each slave to return B/R in request order across IDs and does not check it. Assert on a returned BID/RID that does not match the FIFO head -- see BRIDGE-010. |
 | **Fmax below target** | Low | Medium | Optional pipeline stages for timing closure |
 | **Resource usage exceeds** | Low | Low | Empirical formulas guide expectations |
 | **Burst interleaving bugs** | Medium | High | Separate test suite for burst scenarios |
@@ -1116,7 +1118,7 @@ The shell scripts will automatically:
 **Week 2-3: Core Implementation**
 - [ ] Day 1-3: Address decode + arbiter generation
 - [ ] Day 4-5: Data mux/demux generation
-- [ ] Day 6-8: ID table generation
+- [x] Day 6-8: response tracking (delivered as a per-slave in-order bridge_id FIFO, not ID tables)
 - [ ] Day 9-10: Integration and testing
 
 **Week 4: Verification and Examples**
@@ -1148,8 +1150,8 @@ The shell scripts will automatically:
 - **AXI4:** Advanced eXtensible Interface version 4 (AMBA standard)
 - **Burst:** Multi-beat transaction (AWLEN/ARLEN > 0)
 - **Crossbar:** Full M×N interconnect matrix
-- **ID:** Transaction identifier for out-of-order support
-- **Out-of-order:** Responses can return in different order than requests
+- **ID:** AXI transaction identifier. Passed through this bridge unchanged; it is NOT used for response routing here.
+- **Out-of-order:** responses returning in a different order than requested. AXI4 permits it between IDs; **this bridge does not support it** and does not detect a slave that does (BRIDGE-010).
 - **xlast:** WLAST (write) or RLAST (read) - last beat indicator
 
 ---
