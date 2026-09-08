@@ -38,7 +38,10 @@ assign bid_bridge_id  = wr_fifo[rd_ptr[...]];   // route by the HEAD
 
 The consequence is a requirement the fabric does not check: **each slave port
 must return B/R in request order across ALL IDs.** AXI4 permits a slave to
-complete different-ID transactions out of order, and nothing here detects it --
+complete different-ID transactions out of order. Every generated slave
+adapter now carries a SIMULATION-ONLY check that compares the returned BID/RID
+against the FIFO head and $error()s on a mismatch (BRIDGE-010); it cannot fire
+in silicon --
 see BRIDGE-010.
 
 The rest of this page documents an **ID tracking table** design that was

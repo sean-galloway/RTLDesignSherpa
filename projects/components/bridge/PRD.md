@@ -218,7 +218,10 @@ Bridge automates generation of AXI4 crossbar infrastructure:
   declare `cam_wr_allocate`/`cam_rd_allocate` without driving them.
 - [x] Supports burst lengths 1-256 beats
 - [x] Channel-specific masters (wr/rd/rw) for resource optimization (Phase 2)
-- [ ] APB converter integration (Phase 3 pending)
+- [x] APB converter integration -- DELIVERED. `axi4_to_apb4_shim` is
+      instantiated by `apb_periph_adapter.sv` in every mixed config, and
+      `bridge_1x2_rw_apb5`, `bridge_1x2_rw_apb5_mon` and the four `mix_*`
+      bridges ship with APB slaves.
 
 **Performance:**
 - [ ] Latency ≤ 3 cycles for single-beat transactions. **Unverified for the
@@ -277,13 +280,18 @@ The bridge generator now supports both TOML/CSV configuration and legacy array-i
 - Width converter awareness (only generate needed converters)
 - Example: 4-master bridge saves 35% signals with optimized channels
 
-**Phase 3: APB Converter Integration PENDING**
-- AXI2APB converter module (create or integrate existing)
-- APB signal packing/unpacking
-- APB converter instantiation in generated bridges
-- Width converter + APB converter chaining
-- End-to-end testing with APB slaves
-- Status: Placeholders in generated code with detailed TODO comments
+**Phase 3: APB Converter Integration -- DELIVERED**
+- AXI2APB converter module: `axi4_to_apb4_shim`, emitted by
+  `axi4_to_apb4_shim_component.py`
+- APB signal packing/unpacking: in the shim
+- APB converter instantiation in generated bridges: `apb_periph_adapter.sv`
+  and the `periph5_adapter.sv` variants
+- Width converter + APB converter chaining: the `*_mon` builds chain the AXI4
+  timing wrapper into the shim
+- End-to-end testing with APB slaves: `test_bridge_1x2_rw_apb5*` and the
+  `mix_*` suites, all in the 72-test FULL regression
+- The "placeholders with TODO comments" status was stale. This block said
+  PENDING while the shim it describes was shipping in six configurations.
 
 **Additional Resources:**
 - `models/bridge_model/bridge_model.py` - Performance modeling (V1 Flat implemented)
@@ -312,7 +320,10 @@ The bridge generator now supports both TOML/CSV configuration and legacy array-i
 | **Use Case** | Control registers | Data streaming | Memory-mapped I/O |
 
 **Bridge Complexity Sources:**
-1. **5 independent channels** requiring separate arbitration
+1. **5 independent channels**, of which TWO are arbitrated. The crossbar
+   instantiates a round-robin arbiter per slave for AW and AR only; W, R and B
+   follow the selection recorded at the address handshake, so they are routed,
+   not arbitrated.
 2. **`bridge_id` sideband routing**, in-order (the AXI ID is not used for routing)
 3. **Burst handling** with interleaving constraints
 4. **Write response tracking** (match AW with B channel)
@@ -382,7 +393,9 @@ Masters (M)                                                    Slaves (S)
 **4. Transaction Tracking**
 - In-order `bridge_id` FIFO per slave adapter (`Bridge ID Tracking - FIFO Mode
   (In-Order)`), popped in AW/AR order
-- Track {Master ID, Transaction ID} -> Master mapping
+- Track the originating master in a per-slave in-order FIFO, popped on the
+  response. There is no {Master ID, Transaction ID} map -- routing is by FIFO
+  POSITION and the AXI ID is not consulted.
 - Required for routing B/R channels back to correct master
 - ID tables for OUT-OF-ORDER support are not implemented: `bridge_cam.sv`
   exists but is instantiated in zero generated bridges
@@ -551,6 +564,7 @@ output logic                    s_axi_awready [NUM_MASTERS];
 input  logic [DATA_WIDTH-1:0]   s_axi_wdata  [NUM_MASTERS];
 input  logic [DATA_WIDTH/8-1:0] s_axi_wstrb  [NUM_MASTERS];  // Byte strobes
 input  logic                    s_axi_wlast  [NUM_MASTERS];  // Last beat
+input  logic [UW-1:0]           s_axi_wuser  [NUM_MASTERS];  // USER -- passed through
 input  logic                    s_axi_wvalid [NUM_MASTERS];
 output logic                    s_axi_wready [NUM_MASTERS];
 ```
@@ -559,6 +573,7 @@ output logic                    s_axi_wready [NUM_MASTERS];
 ```systemverilog
 output logic [ID_WIDTH-1:0]     s_axi_bid    [NUM_MASTERS];
 output logic [1:0]              s_axi_bresp  [NUM_MASTERS];  // OKAY/SLVERR/DECERR (EXOKAY never generated -- no exclusive monitor)
+output logic [UW-1:0]           s_axi_buser  [NUM_MASTERS];  // USER -- returned to the master
 output logic                    s_axi_bvalid [NUM_MASTERS];
 input  logic                    s_axi_bready [NUM_MASTERS];
 ```
@@ -586,6 +601,7 @@ output logic [DATA_WIDTH-1:0]   s_axi_rdata  [NUM_MASTERS];
 output logic [ID_WIDTH-1:0]     s_axi_rid    [NUM_MASTERS];
 output logic [1:0]              s_axi_rresp  [NUM_MASTERS];
 output logic                    s_axi_rlast  [NUM_MASTERS];
+output logic [UW-1:0]           s_axi_ruser  [NUM_MASTERS];  // USER -- returned to the master
 output logic                    s_axi_rvalid [NUM_MASTERS];
 input  logic                    s_axi_rready [NUM_MASTERS];
 ```
@@ -729,11 +745,13 @@ class BridgeGenerator:
 
     def generate_b_channel_demux(self, slave_idx) -> str:
         """Generate write response channel demultiplexer"""
-        # Route by ID: lookup master from {slave_idx, BID}
+        # Route by FIFO POSITION: pop the per-slave bridge_id FIFO.
+        # The returned BID is NOT consulted (see 4.2).
 
     def generate_r_channel_demux(self, slave_idx) -> str:
         """Generate read data channel demultiplexer"""
-        # Route by ID: lookup master from {slave_idx, RID}
+        # Route by FIFO POSITION: pop the per-slave bridge_id FIFO on RLAST.
+        # The returned RID is NOT consulted (see 4.2).
 
     def generate_bridge_id_fifo(self, slave_idx) -> str:
         """Generate transaction ID tracking table"""
@@ -1090,7 +1108,7 @@ The shell scripts will automatically:
 
 - [ ] **Optional pipeline stages** - For Fmax >400 MHz
 - [ ] **Weighted arbitration** - QoS support
-- [x] **Default slave** - unmapped address handling. Built 2026-09-07: a subtractive catch-all answers DECERR + 0xDEADBEEF, with a sticky status/IRQ and APB clear. See HAS 4.5 and BRIDGE-009.
+- [x] **Default slave** - unmapped address handling. Built 2026-09-07: a subtractive catch-all answers DECERR + 0xDEADBEEF, with a sticky status/IRQ cleared by the `unmapped_clear` INPUT PIN. There is no APB access to it -- the pin is the whole interface, and wiring it to a register is the integrator's job. See HAS 4.5 and BRIDGE-009.
 - [ ] **Exclusive monitor** - Full atomic operation support
 
 ### 13.2 Long-Term
@@ -1162,7 +1180,7 @@ The shell scripts will automatically:
 
 ---
 
-**Version:** 1.0
+**Version:** 2.1
 **Status:** Specification Complete - Ready for Implementation
 **Next Steps:** Create performance models, then implement generator
 
