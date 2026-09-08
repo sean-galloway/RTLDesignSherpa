@@ -78,6 +78,67 @@ async def _collect_b(dut, out, count):
 
 
 @cocotb.test(timeout_time=10, timeout_unit="ms")
+async def atomic_filter_held_decerr_test(dut):
+    """A swallowed atomic's DECERR held under backpressure must pop exactly once.
+
+    The filter answers a swallowed (read-returning) atomic locally with DECERR
+    from a small response queue, and holds the selection when the master
+    backpressures so the presented payload cannot change mid-beat.
+
+    The bug: the queue popped on `!m_bvalid && ... && s_bready` -- keyed on
+    downstream being IDLE rather than on which source the master ACCEPTED.
+    Hold a local DECERR with s_bready=0, let a downstream B arrive, then
+    release: the master takes the DECERR while m_bvalid=1, so the pop
+    condition is false and the SAME entry is presented again. The master gets
+    a second B with no matching AW.
+
+    Reproducing it needs all three: a swallowed atomic, backpressure across the
+    presentation, and a downstream B arriving during that window.
+    """
+    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    dut.aresetn.value = 0
+    dut.s_awvalid.value = 0
+    dut.s_wvalid.value = 0
+    dut.s_bready.value = 0
+    for _ in range(5):
+        await RisingEdge(dut.aclk)
+    dut.aresetn.value = 1
+    await RisingEdge(dut.aclk)
+
+    fwd_aw, bresp_queue = [], []
+    cocotb.start_soon(_downstream_model(dut, fwd_aw, bresp_queue))
+
+    # 1. A swallowed atomic (read-returning ATOP) -> local DECERR queued.
+    await _send_write(dut, awid=7, atop=0x32, beats=1)
+    # 2. A plain write -> a downstream B will come back.
+    await _send_write(dut, awid=9, atop=0x00, beats=1)
+
+    # 3. Hold the master OFF so the DECERR is presented and held while the
+    #    downstream B arrives underneath it.
+    dut.s_bready.value = 0
+    for _ in range(20):
+        await RisingEdge(dut.aclk)
+
+    # 4. Release and collect everything that comes out.
+    seen = []
+    dut.s_bready.value = 1
+    for _ in range(200):
+        await RisingEdge(dut.aclk)
+        if int(dut.s_bvalid.value) and int(dut.s_bready.value):
+            seen.append((int(dut.s_bid.value), int(dut.s_bresp.value)))
+
+    decerrs = [b for b in seen if b[1] == 3]
+    assert len(decerrs) == 1, (
+        f"expected exactly ONE DECERR for one swallowed atomic, saw "
+        f"{len(decerrs)}: {seen}. A held local DECERR was accepted while a "
+        f"downstream B was present, and the response queue was not popped, so "
+        f"the same entry was presented again -- a duplicate B with no AW.")
+    assert len(seen) == 2, (
+        f"expected exactly two B responses (one DECERR, one downstream OKAY), "
+        f"saw {len(seen)}: {seen}")
+
+
+@cocotb.test(timeout_time=10, timeout_unit="ms")
 async def atomic_filter_test(dut):
     cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
     for sig in ('s_awvalid', 's_wvalid', 's_wlast', 's_bready',
@@ -210,7 +271,7 @@ def test_axi5_atomic_filter(request):
         includes=includes,
         toplevel=dut_name,
         module=module,
-        testcase="atomic_filter_test",
+        testcase="atomic_filter_test,atomic_filter_held_decerr_test",
         sim_build=sim_build,
         waves=False,
         extra_args=['--assert'] + waves['extra_args'],

@@ -155,7 +155,18 @@ module axi5_atomic_filter #(
         end
     )
 
-    wire w_local_b_hs = !m_bvalid && !w_resp_empty && s_bready;
+    // Pop when the beat the master ACCEPTED came from the local queue --
+    // which is exactly !w_sel_ds, the same select that drove s_bid/s_bresp.
+    //
+    // This read `!m_bvalid && !w_resp_empty && s_bready`, keying the pop on
+    // downstream being IDLE rather than on which source was presented. Under
+    // the selection hold those differ: a local DECERR held through
+    // backpressure stays presented when a downstream B arrives (w_sel_ds=0,
+    // correctly), and when the master finally accepts it, m_bvalid is 1 -- so
+    // the queue was not popped for a beat the master had taken. The same
+    // DECERR was then presented again: a duplicate B with no matching AW, and
+    // every later swallowed atomic shifted behind a stale head.
+    wire w_local_b_hs = s_bvalid && s_bready && !w_sel_ds;
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
