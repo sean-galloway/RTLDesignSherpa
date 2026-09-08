@@ -784,9 +784,16 @@ cpu,1,1
 ```
 
 **Generated RTL Features:**
-- rapids_descr_wr: 37 signals (write channels only) vs 61 signals (full) = **39% reduction**
-- rapids_sink_wr: 37 signals (write channels only) vs 61 signals (full) = **39% reduction**
-- rapids_src_rd: 24 signals (read channels only) vs 61 signals (full) = **61% reduction**
+- rapids_descr_wr: write channels only
+- rapids_sink_wr: write channels only
+- rapids_src_rd: read channels only
+
+The specific counts this list used to give (37 wr / 24 rd against 61 full, for
+39% and 61% reductions) reproduce from no port structure in the tree and are
+not recoverable -- the RAPIDS bridges they describe are not in the generated
+set here. For scale, counted on the shipped variants: an AXI4 `rw` master port
+is 44 signals, a write-only master 24, a read-only master 20. Channel trimming
+is real and worth doing; the old percentages were not measurements.
 - cpu_master: Width converters for 64b→512b upsize (both wr and rd converters)
 - ddr_controller: Direct 512b connection (no conversion)
 - apb_periph0: APB slave -- `axi4_to_apb4_shim`, a real conversion
