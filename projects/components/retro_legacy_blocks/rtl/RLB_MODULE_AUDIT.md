@@ -26,6 +26,11 @@
 **Date:** 2025-11-16  
 **Purpose:** Ensure consistent use of apb4_slave_cdc and peakrdl_to_cmdrsp across all RLB modules
 
+> Status (2026-09-08): Historical snapshot from 2025-11-16. Claims below
+> (e.g. "ioapic - No APB wrapper yet") describe that date, not the tree:
+> all nine blocks now have apb4_* wrappers and dv/tests runners. See
+> RLB_STATUS_AND_ROADMAP.md and vault/Tasks/RLB/ for current status.
+
 ---
 
 ## Summary

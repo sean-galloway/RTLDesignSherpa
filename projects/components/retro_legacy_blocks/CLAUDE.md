@@ -478,14 +478,15 @@ timeout_us = (timeout_ns + 999) // 1000
 #### Rule #3: HPET Register Map
 
 ```
-0x000: HPET_CONFIG          (enable, legacy_mapping)
-0x004: HPET_STATUS          (timer interrupt status, W1C)
-0x008: HPET_COUNTER_LO      (main counter bits [31:0], RW)
-0x00C: HPET_COUNTER_HI      (main counter bits [63:32], RW)
-0x010: HPET_CAPABILITIES    (num_timers, vendor_id, revision_id, RO)
+0x000: HPET_ID              (num_tim_cap, vendor/revision fixed 0x01/0x01, RO)
+0x004: HPET_CONFIG          (hpet_enable; legacy_replacement bit stores, no HW effect)
+0x008: HPET_STATUS          (timer interrupt status, W1C)
+0x00C: RESERVED             (reads 0)
+0x010: HPET_COUNTER_LO      (main counter bits [31:0], RW)
+0x014: HPET_COUNTER_HI      (main counter bits [63:32], RW)
 
-Per-Timer Registers (i = 0 to NUM_TIMERS-1):
-0x100 + i*0x20: TIMER[i]_CONFIG         (enable, int_enable, type, size)
+Per-Timer Registers (i = 0 to NUM_TIMERS-1), fields at bits [6:2]:
+0x100 + i*0x20: TIMER[i]_CONFIG         (enable[2], int_enable[3], type[4], size[5])
 0x104 + i*0x20: TIMER[i]_COMPARATOR_LO  (bits [31:0], RW)
 0x108 + i*0x20: TIMER[i]_COMPARATOR_HI  (bits [63:32], RW)
 ```
@@ -506,11 +507,11 @@ Per-Timer Registers (i = 0 to NUM_TIMERS-1):
 
 **Issue: Timer Not Firing**
 1. ✅ HPET enabled? (HPET_CONFIG bit 0)
-2. ✅ Timer enabled? (TIMER_CONFIG bit 0)
+2. ✅ Timer enabled? (TIMER_CONFIG bit 2)
 3. ✅ Comparator set correctly?
 4. ✅ Counter incrementing?
 5. ✅ Counter will reach comparator?
-6. ✅ Interrupt enable set? (TIMER_CONFIG bit 1)
+6. ✅ Interrupt enable set? (TIMER_CONFIG bit 3)
 
 **Issue: Tests Failing Inconsistently**
 - Most common cause: Missing test cleanup (counter not reset)
@@ -529,14 +530,14 @@ Per-Timer Registers (i = 0 to NUM_TIMERS-1):
 | Block | Priority | Status | Address | Documentation |
 |-------|----------|--------|---------|---------------|
 | **HPET** | High | ✅ Production | 0x4000_0000-0x0FFF | ✅ Complete |
-| **8259 PIC** | High | 📋 Planned | 0x4000_1000-0x1FFF | N/A |
-| **8254 PIT** | High | 📋 Planned | 0x4000_2000-0x2FFF | N/A |
-| **RTC** | Medium | 📋 Planned | 0x4000_3000-0x3FFF | N/A |
-| **SMBus** | Medium | 📋 Planned | 0x4000_4000-0x4FFF | N/A |
-| **PM/ACPI** | Medium | 📋 Planned | 0x4000_5000-0x5FFF | N/A |
-| **IOAPIC** | Medium | 📋 Planned | 0x4000_6000-0x6FFF | N/A |
-| GPIO | Medium | 📋 Planned | TBD | N/A |
-| UART | Medium | 📋 Planned | TBD | N/A |
+| **8259 PIC** | High | ✅ Implemented | 0x4000_1000-0x1FFF | MAS (docs/pic_8259_mas) |
+| **8254 PIT** | High | ✅ Implemented | 0x4000_2000-0x2FFF | MAS (docs/pit_8254_mas) |
+| **RTC** | Medium | ✅ Implemented | 0x4000_3000-0x3FFF | MAS (docs/rtc_mas) |
+| **SMBus** | Medium | ✅ Implemented | 0x4000_4000-0x4FFF | MAS (docs/smbus_mas) |
+| **PM/ACPI** | Medium | ✅ Implemented | 0x4000_5000-0x5FFF | MAS (docs/pm_acpi_mas) |
+| **IOAPIC** | Medium | ✅ Implemented | 0x4000_6000-0x6FFF | MAS (docs/ioapic_mas) |
+| GPIO | Medium | ✅ Implemented | TBD | MAS (docs/gpio_mas) |
+| UART | Medium | ✅ Implemented | TBD | MAS (docs/uart_16550_mas) |
 | SPI | Low | 📋 Planned | TBD | N/A |
 | I2C | Low | 📋 Planned | TBD | N/A |
 | Watchdog | Low | 📋 Planned | TBD | N/A |
@@ -551,9 +552,7 @@ Per-Timer Registers (i = 0 to NUM_TIMERS-1):
 ```systemverilog
 apb4_hpet #(
     .NUM_TIMERS(3),
-    .VENDOR_ID(16'h8086),
-    .REVISION_ID(16'h0001),
-    .CDC_ENABLE(0)
+    .CDC_ENABLE(0)   // VENDOR_ID/REVISION_ID exist but are unwired (fixed 0x01/0x01)
 ) u_hpet (
     // APB interface
     .pclk         (apb_clk),
