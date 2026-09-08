@@ -90,7 +90,12 @@ def _filelist_index(root: Path) -> dict[str, list[Path]]:
     if _FL_INDEX is not None:
         return _FL_INDEX
     idx: dict[str, list[Path]] = {}
-    for pat in ("**/filelists/*.f", "**/lint_reports/verilator/*.f"):
+    # "**/filelists/**/*.f" also covers areas that nest their filelists in
+    # subdirectories (e.g. rlb hpet's filelists/{component,integration}/) --
+    # with only the flat pattern, no filelist is ever found for those files,
+    # so the retry-through-filelist path silently never fires and a healthy
+    # macro-using file is reported as a syntax error.
+    for pat in ("**/filelists/**/*.f", "**/lint_reports/verilator/*.f"):
         for f in root.glob(pat):
             try:
                 body = f.read_text(errors="ignore")
