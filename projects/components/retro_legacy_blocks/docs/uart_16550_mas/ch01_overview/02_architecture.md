@@ -68,7 +68,7 @@ apb4_uart_16550 (Top Level)
 flowchart TD
     A["1. Software Write to THR"] --> B["2. Data enters TX FIFO"]
     B --> C["3. TX Engine reads from FIFO"]
-    C --> D["4. Serializer generates:<br/>- Start bit (1 bit, low)<br/>- Data bits (5-8 bits, LSB first)<br/>- Parity bit (optional)<br/>- Stop bit(s) (1, 1.5, or 2 bits, high)"]
+    C --> D["4. Serializer generates:<br/>- Start bit (1 bit, low)<br/>- Data bits (5-8 bits, LSB first)<br/>- Parity bit (optional)<br/>- Stop bit(s) (1 or 2 bits, high; no 1.5)"]
     D --> E["5. TXD output to external device"]
 ```
 
@@ -96,7 +96,7 @@ flowchart TD
     D --> F
     E --> F
     F --> G["3. IRQ Asserted<br/>(if enabled in IER)"]
-    G --> H["4. Software reads IIR<br/>- Highest priority interrupt identified<br/>- Some sources auto-clear on read"]
+    G --> H["4. Software reads IIR<br/>- Highest priority interrupt identified<br/>- No source auto-clears on read (IIR reads have no side effect; LSR/MSR are W1C; THRE clears only on a THR write)"]
 ```
 
 ## Baud Rate Generation

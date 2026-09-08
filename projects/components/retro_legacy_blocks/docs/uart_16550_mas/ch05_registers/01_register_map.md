@@ -153,6 +153,12 @@ Reset value is **0x03** (8 data bits, 1 stop bit, no parity - 8N1).
 | 10 | 7 |
 | 11 | 8 |
 
+Known RTL deviation (#60): for 5/6/7-bit words the RECEIVED byte is
+MSB-justified with stale shift-register bits below it (the RX shift
+inserts at bit 7) -- software must shift right by (8 - N). TX sends
+bits [N-1:0] LSB-first as expected, so TX and RX disagree on
+justification.
+
 ### Parity Selection
 
 | PEN | EPS | SP | Parity |
@@ -187,8 +193,8 @@ Reset value is **0x03** (8 data bits, 1 stop bit, no parity - 8N1).
 | 0 | DR | RO | Data Ready |
 | 1 | OE | W1C | Overrun Error (write 1 to clear - see note) |
 | 2 | PE | W1C | Parity Error (write 1 to clear - see note) |
-| 3 | FE | W1C | Framing Error (write 1 to clear - see note) |
-| 4 | BI | W1C | Break Interrupt (write 1 to clear - see note) |
+| 3 | FE | W1C | Framing Error -- NEVER SETS in the current RTL (same-cycle overwrite defect, #60) |
+| 4 | BI | W1C | Break Interrupt -- NEVER SETS in the current RTL (#60) |
 | 5 | THRE | RO | Transmitter Holding Register Empty (TX FIFO empty) |
 | 6 | TEMT | RO | Transmitter Empty (FIFO and shift register empty) |
 | 7 | FIFOERR | RO | Error in RX FIFO head entry |

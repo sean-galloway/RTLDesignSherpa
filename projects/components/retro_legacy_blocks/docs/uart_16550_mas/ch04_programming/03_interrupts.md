@@ -115,11 +115,11 @@ void uart_handle_line_status(void) {
         stats.parity_err++;
     }
     if (lsr & 0x08) {
-        // Framing Error
+        // Framing Error -- DEAD CODE on the current RTL: FE never sets (#60)
         stats.framing_err++;
     }
     if (lsr & 0x10) {
-        // Break Indicator
+        // Break Indicator -- DEAD CODE on the current RTL: BI never sets (#60)
         handle_break();
     }
 
@@ -136,7 +136,7 @@ void uart_handle_line_status(void) {
 void uart_handle_rx_data(void) {
     // Read all available data from FIFO
     while (LSR & 0x01) {
-        uint8_t data = RBR;
+        uint8_t data = (RBR >> 8) & 0xFF;  // received byte is at [15:8]
         rx_buffer[rx_head++] = data;
 
         if (rx_head >= RX_BUFFER_SIZE) {

@@ -148,8 +148,9 @@ The interrupt sequence:
 ### Per-Character Errors
 
 PE, FE, BI stored with each character in RX FIFO:
-- Error appears in LSR when character read
-- LSR[7] indicates any error in FIFO
+- Sticky LSR error flags are set at RECEIVE time (when the character
+  enters the FIFO), not when it is later read out
+- LSR[7] reflects an error on the FIFO HEAD entry only, not 'any entry'
 
 ### Overrun Error
 

@@ -123,20 +123,14 @@ Cleared by writing 1 to the MSR delta bits (W1C), not by reading MSR.
 
 ## Interrupt Timing
 
-### Assertion
+IIR and `irq` are purely COMBINATIONAL from the core status flags: the
+cycle a condition's flag sets, IIR reflects it and `irq` asserts (gated by
+MCR.OUT2); the cycle the condition clears, both deassert. There are no
+pipeline stages in the interrupt path.
 
 ```
-Event --> Condition Met --> IIR Updated --> IRQ Asserted
-              |                  |              |
-              +--- 1 clock ------+-- 1 clock ---+
-```
-
-### Clearing
-
-```
-Clear Action --> Condition Cleared --> IIR Updated --> IRQ Deasserted
-                        |                    |               |
-                        +--- 1 clock --------+-- 1 clock ----+
+Event --> flag sets --> IIR + IRQ reflect it (same cycle, combinational)
+Clear --> flag clears --> IIR + IRQ deassert (same cycle)
 ```
 
 ## Software Handling

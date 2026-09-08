@@ -73,7 +73,7 @@ Baud Rate = pclk / (16 * Divisor)
 
 | Signal | Reset State |
 |--------|-------------|
-| txd | 1 (Mark/Idle) |
+| uart_tx | 1 (Mark/Idle) |
 | rts_n | 1 (Deasserted) |
 | dtr_n | 1 (Deasserted) |
 | out1_n | 1 (Deasserted) |
@@ -130,8 +130,9 @@ When idle (no TX/RX activity):
 
 ```
          +------------+
-pclk --->|            |---> txd    ---> RS-232
-presetn->|   UART     |<--- rxd    <--- Transceiver
+pclk --->|            |---> uart_tx ---> RS-232
+presetn->|   UART     |<--- uart_rx <--- Transceiver
+uart_clk/uart_rstn -> core domain when CDC_ENABLE=1 (see ch01 clocks)
          |   16550    |
 APB <===>|            |<--> Modem signals
          |            |---> irq    ---> Interrupt
@@ -142,7 +143,7 @@ APB <===>|            |<--> Modem signals
 ### Direct Connection (TTL)
 
 For TTL-level serial:
-- Connect txd/rxd directly to 3.3V/5V logic
+- Connect uart_tx/uart_rx directly to 3.3V/5V logic
 - No level conversion needed
 - Short cable runs recommended
 

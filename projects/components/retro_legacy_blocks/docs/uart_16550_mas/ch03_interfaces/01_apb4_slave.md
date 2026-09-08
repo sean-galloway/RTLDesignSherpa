@@ -71,9 +71,10 @@ Flat, DLAB-independent map (LCR[7] does not remap any address; DLL/DLM have dedi
 | PADDR | 12-bit |
 | PWDATA | 32-bit |
 | PRDATA | 32-bit |
-| PREADY | Yes (always 1) |
+| PREADY | Yes (inserts wait states -- see Access Timing above) |
 | PSLVERR | Yes (always 0) |
 | PSTRB | Yes |
+| PPROT | Present (s_apb_PPROT[2:0], accepted and unused) |
 
 ## Register Access
 
@@ -100,11 +101,12 @@ Note: A standard 16550 clears LSR/MSR sticky bits on read; this implementation u
 
 ## Timing
 
-### Zero Wait State
+### Access Timing
 
-All register accesses complete in minimum APB cycles:
-- Read: 2 cycles (setup + access)
-- Write: 2 cycles (setup + access)
+PREADY inserts wait states: the apb4_slave bridge is a small FSM that
+issues the command and returns the response over a registered cmd/rsp
+handshake, so an access takes several pclk beyond the 2-cycle APB minimum
+(more when CDC_ENABLE=1). The register block itself never stalls.
 
 ---
 

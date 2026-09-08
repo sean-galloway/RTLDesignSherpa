@@ -16,11 +16,11 @@
 //   - 16-byte TX and RX FIFOs
 //   - Programmable baud rate via 16-bit divisor
 //   - 5/6/7/8 data bits
-//   - 1/1.5/2 stop bits
+//   - 1 or 2 stop bits (no 1.5; 5-bit words always get 1)
 //   - None/Odd/Even/Mark/Space parity
 //   - Modem control signals
 //   - Loopback mode
-//   - Character timeout interrupt
+//   - Character timeout interrupt: NOT implemented (int_timeout tied 0)
 //
 // Documentation: projects/components/retro_legacy_blocks/rtl/uart_16550/README.md
 // Created: 2025-11-29

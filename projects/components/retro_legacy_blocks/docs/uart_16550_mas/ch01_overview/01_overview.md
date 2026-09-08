@@ -50,7 +50,8 @@ The APB UART 16550 is a 16550-compatible Universal Asynchronous Receiver/Transmi
 - Modem status changes
 
 ### Modem Control
-- Hardware flow control (CTS/RTS)
+- CTS/RTS modem signals (NOTE: automatic hardware flow control does not
+  exist -- AFE is unimplemented and CTS does not gate TX; see ch03/ch05)
 - Full modem signals (DTR, DSR, DCD, RI)
 - Programmable outputs (OUT1, OUT2)
 - Loopback mode for testing
@@ -106,7 +107,8 @@ This implementation uses a flat, DLAB-independent address map - each register ha
 | FIFO_DEPTH | 16 | TX/RX FIFO depth |
 | CDC_ENABLE | 0 | Clock domain crossing |
 | SYNC_STAGES | 2 | Synchronizer stages for CDC |
-| SKID_DEPTH | - | Skid-buffer depth for CDC path |
+| SKID_DEPTH | 2 | Skid-buffer depth for CDC path |
+| USE_JOHNSON | 0 | CDC counter encoding (forwarded to apb4_slave_cdc) |
 
 ---
 

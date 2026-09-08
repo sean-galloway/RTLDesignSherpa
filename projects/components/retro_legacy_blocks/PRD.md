@@ -251,7 +251,9 @@ The Retro Legacy Blocks (RLB) component provides production-quality implementati
 
 ### 3.6 UART - Universal Asynchronous Receiver/Transmitter
 
-**Status:** 📋 Planned
+**Status:** Implemented (apb4_uart_16550 + MAS; see docs/uart_16550_mas --
+note the shipped block has 1/2 stop bits only and no automatic flow
+control, and issue #60 tracks its RTL defects)
 **Priority:** Medium
 **Effort:** 4-5 weeks
 **Address:** TBD (not in primary ILB address map)

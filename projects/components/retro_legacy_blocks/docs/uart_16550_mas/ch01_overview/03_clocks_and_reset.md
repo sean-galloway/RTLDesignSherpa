@@ -70,7 +70,7 @@
 ### Serial Line State During Reset
 
 During reset:
-- `txd` = 1 (idle/mark state)
+- `uart_tx` = 1 (idle/mark state)
 - Receiver disabled
 - Transmitter disabled
 - FIFOs cleared
@@ -133,8 +133,8 @@ For reliable communication:
 
 | Signal | Timing | Notes |
 |--------|--------|-------|
-| txd | Output register | Clean edges |
-| rxd | Input synchronizer | 2-stage FF |
+| uart_tx | Output register | Clean edges |
+| uart_rx | Input synchronizer | 2-stage FF |
 | Modem signals | Input synchronizer | 2-stage FF |
 
 ---

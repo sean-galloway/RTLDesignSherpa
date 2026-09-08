@@ -39,15 +39,16 @@ The APB interface provides the connection between the system APB bus and the UAR
 
 | Signal | Width | Direction | Description |
 |--------|-------|-----------|-------------|
-| s_apb_psel | 1 | Input | Slave select |
-| s_apb_penable | 1 | Input | Enable phase |
-| s_apb_pwrite | 1 | Input | Write operation |
-| s_apb_paddr | 12 | Input | Address bus |
-| s_apb_pwdata | 32 | Input | Write data |
-| s_apb_pstrb | 4 | Input | Byte strobes |
-| s_apb_prdata | 32 | Output | Read data |
-| s_apb_pready | 1 | Output | Ready response |
-| s_apb_pslverr | 1 | Output | Error response |
+| s_apb_PSEL | 1 | Input | Slave select |
+| s_apb_PENABLE | 1 | Input | Enable phase |
+| s_apb_PWRITE | 1 | Input | Write operation |
+| s_apb_PADDR | 12 | Input | Address bus |
+| s_apb_PWDATA | 32 | Input | Write data |
+| s_apb_PSTRB | 4 | Input | Byte strobes |
+| s_apb_PPROT | 3 | Input | Protection attributes (accepted, unused) |
+| s_apb_PRDATA | 32 | Output | Read data |
+| s_apb_PREADY | 1 | Output | Ready response |
+| s_apb_PSLVERR | 1 | Output | Error response |
 
 ## Address Decoding
 
@@ -79,7 +80,7 @@ LCR[7] is a stored bit only. It plays **no** role in address decoding - DLL and 
 1. Master asserts `psel` and `paddr`
 2. Master asserts `penable` on next cycle
 3. Slave returns `prdata` with `pready`
-4. Some registers have side effects on read (IIR, RBR)
+4. Only RBR has a read side effect (the read pops the RX FIFO); IIR reads are side-effect-free
 
 ### Write Transaction
 1. Master asserts `psel`, `paddr`, `pwdata`, `pwrite`
@@ -89,7 +90,8 @@ LCR[7] is a stored bit only. It plays **no** role in address decoding - DLL and 
 
 ## Implementation Notes
 
-- Zero wait-state operation for all registers
+- PREADY-gated: the apb4_slave bridge FSM adds a few wait states per
+  access (no stalls originate in the register block itself)
 - 32-bit data width with 8-bit register access
 - Byte strobes select which byte to access
 - LSR/MSR are read-mostly: writes perform write-1-to-clear on the error/delta bits (not ignored)

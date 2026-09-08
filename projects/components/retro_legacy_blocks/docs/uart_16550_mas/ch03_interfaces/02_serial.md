@@ -27,8 +27,8 @@
 
 | Signal | Width | Dir | Description |
 |--------|-------|-----|-------------|
-| txd | 1 | O | Serial transmit data |
-| rxd | 1 | I | Serial receive data |
+| uart_tx | 1 | O | Serial transmit data |
+| uart_rx | 1 | I | Serial receive data |
 
 ## TXD (Transmit Data)
 
@@ -92,7 +92,7 @@ RXD --> FF1 --> FF2 --> Synchronized RXD
 | Parameter | Options |
 |-----------|---------|
 | Data bits | 5, 6, 7, or 8 |
-| Stop bits | 1, 1.5, or 2 |
+| Stop bits | 1 or 2 (no 1.5; and STB=1 with a 5-bit word still sends ONE stop bit) |
 | Parity | None, Even, Odd, Mark, Space |
 
 ### Frame Examples
@@ -109,10 +109,11 @@ START | D0 D1 D2 D3 D4 D5 D6 | EP | STOP
   0   |<---- 7 bits ------->|  P |  1
 ```
 
-**5N2 (5 data, No parity, 2 stop):**
+**5N1 (5 data, No parity, 1 stop)** -- note 5N2 does not exist in this
+RTL (a 5-bit word always gets one stop bit regardless of STB):
 ```
-START | D0 D1 D2 D3 D4 | STOP STOP
-  0   |<-- 5 bits --->|  1    1
+START | D0 D1 D2 D3 D4 | STOP
+  0   |<-- 5 bits --->|  1
 ```
 
 ## Electrical Interface
@@ -158,8 +159,9 @@ The following diagram shows framing error detection when a stop bit is sampled a
 Error detection sequence:
 1. RX frame received normally (start, data bits)
 2. Stop bit expected to be 1, but sampled as 0
-3. Framing error flag (`r_framing_error`) set
-4. LSR[3] (FE) updated
+3. Framing error flag INTENDED to set (never does in the current RTL --
+   the RX_STOP cleanup overwrites it the same cycle, #60)
+4. LSR[3] (FE) would update -- reads 0 forever on this RTL
 5. Line status interrupt asserted
 
 Error types:

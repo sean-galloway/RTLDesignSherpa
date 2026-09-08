@@ -98,15 +98,16 @@ int uart_getchar(void) {
         return -1;  // No data
     }
 
-    // Read data
-    return RBR;
+    // Read data (received byte lives at [15:8] on this RTL -- see the
+    // chapter header note)
+    return (RBR >> 8) & 0xFF;
 }
 
 int uart_getchar_blocking(void) {
     // Wait for data
     while ((LSR & 0x01) == 0);
 
-    return RBR;
+    return (RBR >> 8) & 0xFF;
 }
 ```
 
@@ -120,7 +121,7 @@ volatile uint8_t rx_tail = 0;
 // In ISR when RX data available:
 void uart_rx_isr(void) {
     while (LSR & 0x01) {
-        rx_buffer[rx_head++] = RBR;
+        rx_buffer[rx_head++] = (RBR >> 8) & 0xFF;
     }
 }
 

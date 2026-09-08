@@ -106,8 +106,8 @@ This specification is organized into five chapters covering all aspects of the A
 
 ### Signal Naming
 - `pclk` - APB clock
-- `txd` - Serial transmit data output
-- `rxd` - Serial receive data input
+- `uart_tx` - Serial transmit data output
+- `uart_rx` - Serial receive data input
 - `cts_n`, `rts_n` - Hardware flow control
 - `dtr_n`, `dsr_n`, `dcd_n`, `ri_n` - Modem signals
 - `irq` - Interrupt output
@@ -138,4 +138,5 @@ This specification is organized into five chapters covering all aspects of the A
 
 **Related Documentation:**
 - [PRD.md](../../PRD.md) - Product Requirements Document
-- [IMPLEMENTATION_STATUS.md](../IMPLEMENTATION_STATUS.md) - Test results and validation status
+- [IMPLEMENTATION_STATUS.md](../IMPLEMENTATION_STATUS.md) - test/validation
+  status file (currently HPET-only; no UART validation status is recorded)

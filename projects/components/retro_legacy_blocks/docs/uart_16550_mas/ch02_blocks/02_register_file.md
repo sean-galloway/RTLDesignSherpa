@@ -72,7 +72,7 @@ Fixed registers, not affected by DLAB:
 |--------|-------------|
 | thr_data | Data to transmit |
 | thr_we | THR write enable |
-| ier | Interrupt enables |
+| ier | Interrupt enables (stored, but the hwif outputs are UNCONNECTED -- IER gates nothing; see ch05 and #60) |
 | fcr | FIFO control |
 | lcr | Line control |
 | mcr | Modem control |
