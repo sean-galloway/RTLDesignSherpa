@@ -30,6 +30,7 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import generated testbench class
 from projects.components.bridge.dv.tbclasses.bridge_mix_ctb import BridgeMixCTB
+from projects.components.bridge.dv.tbclasses.bridge_arbitration import run_arbitration
 
 
 # ============================================================================
@@ -390,11 +391,8 @@ async def cocotb_test_bridge_mix_c_arbitration(dut):
     tb.log.info("Starting arbitration test")
     tb.log.info("=" * 80)
 
-    # TODO: Implement concurrent transaction test
-    # This requires cocotb.start_soon() for parallel master activity
-
-    await ClockCycles(tb.clock, 100)
-    tb.log.info("Arbitration test PASSED")
+    checked = await run_arbitration(tb)
+    tb.log.info(f"Arbitration test PASSED — {checked} concurrent transactions verified")
 
 # ============================================================================
 # Pytest Wrapper Functions (collected by pytest, call specific cocotb_test_*)

@@ -1,0 +1,126 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 sean galloway
+//
+// CDC Counter Demo Harness CSR — PeakRDL source (DESCRIPTOR ONLY)
+//
+// This RDL mirrors the HAND-WRITTEN register map in cdc_demo_harness.sv. The
+// RTL is NOT generated from this file — cdc_demo_harness.sv contains
+// self-clearing pulse bits (CFG_LOAD / HOST_PRESS), a live STATUS builder, and
+// per-counter fan-out that PeakRDL regblock cannot express. This RDL exists so
+// the host/sim flow gets by-name register access via
+// bin/TBClasses/apb/register_map.RegisterMap (through UartRegisterMap), the same
+// methodology the ddr2/stream char flows use — no hardcoded offsets.
+//
+// Keep in sync with cdc_demo_harness.sv; the host consistency test
+// (host/test_cdc_demo_regmap_consistency.py) parses the SV header + CTR_OFF_*
+// localparams and asserts they match the generated regmap.
+//
+// The four per-counter blocks are a regfile ARRAY (counter[4] @ 0x40 += 0x40),
+// so the generated regmap keys are COUNTER0_DIVISOR .. COUNTER3_AUTO_INC plus
+// the five globals (matches how peakrdl_generate.py unrolls array regfiles —
+// see bin/peakrdl_generate.py:_rm_reg_key_and_array).
+//
+// Regenerate the regmap collateral (regmap only, no RTL/docs):
+//   cd $REPO_ROOT && source env_python
+//   python3 bin/peakrdl_generate.py \
+//       projects/NexysA7/cdc_counter_display/rtl/cdc_demo_csr.rdl \
+//       --regmap --docs-only --no-html --no-markdown \
+//       --regmap-output projects/NexysA7/cdc_counter_display/dv/tbclasses/cdc_demo_csr_regmap.py
+//   (or: make -C projects/NexysA7/cdc_counter_display regmap)
+//
+// Address space: cdc_demo_harness is a single flat AXI4-Lite slave; the harness
+// base is 0x0 (UartRegisterMap start_address=0x0). Offsets below are absolute.
+// 32-bit registers, little-endian.
+
+addrmap cdc_demo_csr {
+    name = "CDC Counter Demo Harness CSR";
+    desc = "Global control/status + four per-counter config/status blocks";
+
+    default regwidth   = 32;
+    default accesswidth = 32;
+    default alignment  = 4;
+
+    //=========================================================================
+    // Global registers (0x000..0x03F)
+    //=========================================================================
+    reg { desc = "Bitstream identifier — ASCII \"CDC1\"";
+        field { sw = r; hw = w; } value[31:0] = 0x43434331;
+    } BUILD_ID @ 0x000;
+
+    reg {
+        desc = "Live harness status";
+        field { sw = r; hw = w; } alive0[0:0]      = 0;   // counter[i] toggled recently
+        field { sw = r; hw = w; } alive1[1:1]      = 0;
+        field { sw = r; hw = w; } alive2[2:2]      = 0;
+        field { sw = r; hw = w; } alive3[3:3]      = 0;
+        field { sw = r; hw = w; } uart_rx[4:4]     = 0;   // UART RX activity
+        field { sw = r; hw = w; } uart_tx[5:5]     = 0;   // UART TX activity
+        field { sw = r; hw = w; } any_written[6:6] = 0;   // any CSR written since reset
+        field { sw = r; hw = w; } reset_ok[31:31]  = 0;   // reset deasserted / alive
+    } STATUS @ 0x004;
+
+    reg {
+        desc = "Harness control";
+        field { sw = rw; hw = r; } soft_reset[0:0] = 0;   // pulse: full sys_clk reset
+        field { sw = rw; hw = r; } freeze[1:1]     = 0;   // freeze all counters
+        field { sw = rw; hw = r; } ignore_btn[2:2] = 0;   // host-press only
+    } CTRL @ 0x008;
+
+    reg { desc = "Which counter's VALUE drives the 7-seg display";
+        field { sw = rw; hw = r; } sel[1:0] = 0;
+    } DISP_SELECT @ 0x00C;
+
+    reg { desc = "Read-write scratch (host link sanity)";
+        field { sw = rw; hw = r; } value[31:0] = 0;
+    } SCRATCH @ 0x010;
+
+    //=========================================================================
+    // Per-counter block (repeated 4x @ 0x40 stride). VAL_WIDTH = 16.
+    //=========================================================================
+    regfile counter_blk {
+        desc = "One CDC counter's config + CDC'd status window";
+
+        reg { desc = "Clock source select + divided-clock pickoff";
+            field { sw = rw; hw = r; } clock_select[2:0] = 0;   // 0..3 MMCM, 4 divided
+            field { sw = rw; hw = r; } div_pickoff[12:8] = 0;   // used when clock_select=4
+        } DIVISOR @ 0x00;
+
+        reg { desc = "Initial counter value (loaded by CFG_LOAD)";
+            field { sw = rw; hw = r; } value[15:0] = 0;
+        } INIT @ 0x04;
+
+        reg { desc = "Advance amount per debounced press / HOST_PRESS";
+            field { sw = rw; hw = r; } value[15:0] = 0;
+        } INCREMENT @ 0x08;
+
+        reg { desc = "Pulse: load INIT into the counter";
+            field { sw = w; hw = r; } strobe[0:0] = 0;
+        } CFG_LOAD @ 0x0C;
+
+        reg { desc = "Pulse: inject one virtual button press";
+            field { sw = w; hw = r; } strobe[0:0] = 0;
+        } HOST_PRESS @ 0x10;
+
+        reg { desc = "Current counter value (CDC'd into sys_clk)";
+            field { sw = r; hw = w; } value[15:0] = 0;
+        } VALUE @ 0x14;
+
+        reg { desc = "Debounced press count (Gray-coded CDC)";
+            field { sw = r; hw = w; } value[15:0] = 0;
+        } PRESS_COUNT @ 0x18;
+
+        reg { desc = "Free-running ctr_clk tick counter (CDC'd)";
+            field { sw = r; hw = w; } value[31:0] = 0;
+        } CTR_CLK_TICKS @ 0x1C;
+
+        reg { desc = "CDC strategy for VALUE readback (0=no-cdc..4=four-phase)";
+            field { sw = rw; hw = r; } mode[2:0] = 0;
+        } CDC_MODE @ 0x20;
+
+        reg { desc = "1 = increment every ctr_clk edge (line-rate sweep)";
+            field { sw = rw; hw = r; } en[0:0] = 0;
+        } AUTO_INC @ 0x24;
+    };
+
+    counter_blk counter[4] @ 0x040 += 0x040;
+};

@@ -122,6 +122,31 @@ module apb_periph_adapter
                          (ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0] == r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]);
     assign xbar_apb_periph_axi_arready = w_sub_arready && !rd_trk_full;
 
+    // BRIDGE-010, read side -- see the write channel. Checked on the
+    // LAST beat, since that is when the FIFO entry is retired.
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    logic [4-1:0] rd_id_fifo [RD_FIFO_DEPTH];
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+        end else begin
+            if (xbar_apb_periph_axi_arvalid && xbar_apb_periph_axi_arready)
+                rd_id_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= xbar_apb_periph_axi_arid;
+            if (xbar_apb_periph_axi_rvalid && xbar_apb_periph_axi_rready && xbar_apb_periph_axi_rlast) begin
+                if (xbar_apb_periph_axi_rid !== rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]) begin
+                    $error("BRIDGE-010: slave returned R out of AR order -- ",
+                           "got RID=%0h, expected %0h. This bridge routes ",
+                           "responses by FIFO position and does not support ",
+                           "ID-based reordering; the data has gone to the ",
+                           "wrong master.", xbar_apb_periph_axi_rid,
+                           rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]);
+                end
+            end
+        end
+    )
+    // synthesis translate_on
+`endif
+
     // AXI4-to-APB converter shim
     axi4_to_apb4_shim #(
         .DEPTH_AW(2),

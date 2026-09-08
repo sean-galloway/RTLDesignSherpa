@@ -132,6 +132,36 @@ module apb_periph_adapter
                          (wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0] == rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]);
     assign xbar_apb_periph_axi_awready = w_sub_awready && !wr_trk_full;
 
+    // BRIDGE-010: this port routes B by FIFO POSITION, so it REQUIRES
+    // the slave to return B in AW order across all IDs. AXI4 permits a
+    // slave to reorder between IDs; such a slave silently misroutes
+    // here. Nothing detected that, so record the AWID alongside the
+    // master id and check the returned BID against the head. Sim-only:
+    // it is a contract check on the attached slave, not logic the
+    // bridge needs, and it must cost no gates.
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    logic [4-1:0] wr_id_fifo [WR_FIFO_DEPTH];
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+        end else begin
+            if (xbar_apb_periph_axi_awvalid && xbar_apb_periph_axi_awready)
+                wr_id_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= xbar_apb_periph_axi_awid;
+            if (xbar_apb_periph_axi_bvalid && xbar_apb_periph_axi_bready) begin
+                if (xbar_apb_periph_axi_bid !== wr_id_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]]) begin
+                    $error("BRIDGE-010: slave returned B out of AW order -- ",
+                           "got BID=%0h, expected %0h. This bridge routes ",
+                           "responses by FIFO position and does not support ",
+                           "ID-based reordering; the response has gone to the ",
+                           "wrong master.", xbar_apb_periph_axi_bid,
+                           wr_id_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]]);
+                end
+            end
+        end
+    )
+    // synthesis translate_on
+`endif
+
     // AXI4-to-APB converter shim
     axi4_to_apb4_shim #(
         .DEPTH_AW(2),

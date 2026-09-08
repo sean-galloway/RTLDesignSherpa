@@ -203,6 +203,36 @@ module cfg_adapter
                          (wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0] == rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]);
     assign xbar_cfg_axi_awready = w_sub_awready && !wr_trk_full;
 
+    // BRIDGE-010: this port routes B by FIFO POSITION, so it REQUIRES
+    // the slave to return B in AW order across all IDs. AXI4 permits a
+    // slave to reorder between IDs; such a slave silently misroutes
+    // here. Nothing detected that, so record the AWID alongside the
+    // master id and check the returned BID against the head. Sim-only:
+    // it is a contract check on the attached slave, not logic the
+    // bridge needs, and it must cost no gates.
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    logic [4-1:0] wr_id_fifo [WR_FIFO_DEPTH];
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+        end else begin
+            if (xbar_cfg_axi_awvalid && xbar_cfg_axi_awready)
+                wr_id_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= xbar_cfg_axi_awid;
+            if (xbar_cfg_axi_bvalid && xbar_cfg_axi_bready) begin
+                if (xbar_cfg_axi_bid !== wr_id_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]]) begin
+                    $error("BRIDGE-010: slave returned B out of AW order -- ",
+                           "got BID=%0h, expected %0h. This bridge routes ",
+                           "responses by FIFO position and does not support ",
+                           "ID-based reordering; the response has gone to the ",
+                           "wrong master.", xbar_cfg_axi_bid,
+                           wr_id_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]]);
+                end
+            end
+        end
+    )
+    // synthesis translate_on
+`endif
+
     // Read Channel FIFO (In-Order) - AXIL5 Protocol
     // NOTE: Monitors converter output (converter_rvalid), not crossbar input
     //       This ensures FIFO pops when converter actually produces response
@@ -246,6 +276,31 @@ module cfg_adapter
     assign rd_trk_full = (ar_ptr[$clog2(RD_FIFO_DEPTH)] != r_ptr[$clog2(RD_FIFO_DEPTH)]) &&
                          (ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0] == r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]);
     assign xbar_cfg_axi_arready = w_sub_arready && !rd_trk_full;
+
+    // BRIDGE-010, read side -- see the write channel. Checked on the
+    // LAST beat, since that is when the FIFO entry is retired.
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    logic [4-1:0] rd_id_fifo [RD_FIFO_DEPTH];
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+        end else begin
+            if (xbar_cfg_axi_arvalid && xbar_cfg_axi_arready)
+                rd_id_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= xbar_cfg_axi_arid;
+            if (xbar_cfg_axi_rvalid && xbar_cfg_axi_rready && xbar_cfg_axi_rlast) begin
+                if (xbar_cfg_axi_rid !== rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]) begin
+                    $error("BRIDGE-010: slave returned R out of AR order -- ",
+                           "got RID=%0h, expected %0h. This bridge routes ",
+                           "responses by FIFO position and does not support ",
+                           "ID-based reordering; the data has gone to the ",
+                           "wrong master.", xbar_cfg_axi_rid,
+                           rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]);
+                end
+            end
+        end
+    )
+    // synthesis translate_on
+`endif
 
     // AXI4-to-AXI4-Lite converter shim
     axi4_to_axil5_wr #(
