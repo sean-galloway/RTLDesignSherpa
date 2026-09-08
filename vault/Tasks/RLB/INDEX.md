@@ -10,23 +10,25 @@ pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
 | State | Count | Tasks |
 |---|---|---|
 | active | 1 | RLB-004 (RTL bugs — awaiting owner) |
-| open | 4 | RLB-003 (4 remaining MAS map fixes), RLB-005 (rtc wavedrom README) |
-| closed | 2 | RLB-001 (Kimi review), RLB-002 (5 wrong-map MAS fixes) |
+| open | 2 | RLB-006 (test scrub, after qc/humanize), RLB-007 (RDL relocation) |
+| closed | 4 | RLB-001 (Kimi review), RLB-002 (5 wrong-map MAS fixes), RLB-003 (4 targeted MAS fixes), RLB-005 (rtc wavedrom README) |
 | dropped | 0 | — |
 
 ## Shortlist
 
-- **Next up (RLB-003):** fix gpio #43, hpet #45, ioapic #47, pit_8254 #51 MAS
-  register docs against RTL — same verified method as the 5 already done.
-- **Quick loose end (RLB-005):** rtc wavedrom README still has a stale third map.
+- **In flight (2026-09-08):** confirming Kimi qc round_2 over the rebuilt
+  9-block bundle; humanize pass follows once it comes back clean.
 - **Blocked on owner (RLB-004):** 9 RTL bugs filed (#44–#60 even) need design
-  decisions before RTL changes.
+  decisions before RTL changes; each re-verified 2026-09-08 with a dated
+  issue comment.
+- **After qc/humanize (RLB-006):** test scrub. Then RLB-007 (RDL relocation).
 
 ## Done
 
-5 of 9 MAS register maps corrected + verified (pic_8259 #49, pm_acpi #53, rtc
-#55, smbus #57, uart_16550 #59), all committed scoped on `dmas-reorg-and-stream-perf`,
-unpushed. Register-map review filed as 18 issues + tracking #61.
+All 9 MAS register documentation issues fixed and closed (#43–#59 odd):
+RLB-002's five verified on main (their unpushed-branch limbo resolved by the
+branch merge), RLB-003's four integrated 2026-09-08 from the full round_1
+critiques. Review filed as 18 issues + tracking #61 (roll-up comment posted).
 
 > Note: this area supersedes the pre-migration
 > `projects/components/retro_legacy_blocks/TASKS.md`. The master
