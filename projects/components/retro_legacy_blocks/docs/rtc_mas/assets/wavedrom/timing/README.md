@@ -28,11 +28,14 @@ tick; see `ch04_programming`.
 
 ### Clocks and Reset (External)
 - `pclk` / `presetn` - APB domain
-- `rtc_clk` / `rtc_resetn` - 32.768 kHz crystal domain (a 1 Hz tick is derived
-  internally by a fixed divide-by-32768; there is no `rtc_1hz` input)
+- `rtc_clk` - 32.768 kHz crystal domain input (a 1 Hz tick is derived
+  internally by a fixed divide-by-32768; there is no `rtc_1hz` input).
+  The `rtc_resetn` port exists but is CONNECTED TO NOTHING in the current
+  RTL -- the rtc-domain logic is reset by `presetn` (issue #56)
 
 ### RTC Core (Internal)
-- **Tick:** `r_divider`, `r_second_tick` (1 Hz, one `rtc_clk` cycle wide)
+- **Tick:** `r_clk_div_counter`, `r_second_tick` (1 Hz, one `rtc_clk`
+  cycle wide)
 - **Time counters:** `r_seconds`, `r_minutes`, `r_hours`, `r_day`, `r_month`,
   `r_year` (no day-of-week; rollover cascade seconds -> minutes -> hours ->
   day/month/year)
@@ -74,8 +77,10 @@ name is historical.
 
 ## Register Reference
 
-Offsets from `rtl/rtc/peakrdl/rtc_regs.rdl` (13 registers, 0x00-0x30; address
-bits [5:0] decoded, reads at 0x34+ return 0 with no error):
+Offsets from `rtl/rtc/peakrdl/rtc_regs.rdl` (13 registers, 0x00-0x30; only
+PADDR[5:0] decoded, so the image repeats every 0x40 across the window --
+0x34-0x3F within each image reads 0 with no error; see ch05 for the
+aliased-write caveats):
 
 | Register | Offset | Description |
 |----------|--------|-------------|

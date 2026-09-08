@@ -1,7 +1,7 @@
 {
   "signal": [
     {"name": "rtc_clk", "wave": "p........"},
-    {"name": "r_divider", "wave": "234567890", "data": ["0", "1", "2", "...", "32766", "32767", "0", "1", "2"]},
+    {"name": "r_clk_div_counter", "wave": "234567890", "data": ["0", "1", "2", "...", "32766", "32767", "0", "1", "2"]},
     {"name": "r_second_tick", "wave": "0....10.."},
     {"name": "status_second_tick", "wave": "0....1..."},
     {"name": "rtc_second_irq", "wave": "0....1...", "node": ".....a"}

@@ -23,7 +23,8 @@
 
 # RTC Specification
 
-**Status:** 📋 Planned - Structure Created
+**Status:** Written (chapters 1 and 5) - see rtc_mas_index.md for the
+authoritative status and known-RTL-deviation notes
 
 ---
 

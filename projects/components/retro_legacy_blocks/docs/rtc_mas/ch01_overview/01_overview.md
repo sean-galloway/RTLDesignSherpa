@@ -44,7 +44,8 @@ The APB RTC is a Real-Time Clock controller with an APB slave interface. It main
 - Second-tick interrupt (fixed 1 Hz)
 
 ### Power Management
-- Low-power 32.768 kHz oscillator
+- External 32.768 kHz clock input (no oscillator or power-management
+  logic on chip)
 
 ## Applications
 

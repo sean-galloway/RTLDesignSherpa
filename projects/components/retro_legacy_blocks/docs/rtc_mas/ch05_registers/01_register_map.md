@@ -23,8 +23,19 @@
 
 # APB RTC - Register Map
 
-The register block occupies 0x34 bytes (13 registers). Only address bits [5:0]
-are decoded, so any read at 0x34 or above returns 0 with no error.
+The register block occupies 0x34 bytes (13 registers). Only PADDR[5:0] is
+decoded, so the 13-register image REPEATS every 0x40 bytes across the 4 KB
+window (0x40 aliases RTC_CONFIG, 0x4C aliases RTC_SECONDS, ...); within
+each image, 0x34-0x3F reads 0 / ignores writes with no error. Aliased
+WRITES are out of contract: the time-set and W1C strobes compare the full
+12-bit address, so an aliased time write never loads the counters and an
+aliased W1C clears only the register mirror.
+
+Behavioral notes: the alarm compare runs on the PRE-increment counters
+at the tick, so when alarm_flag sets, the time registers already read
+alarm+1s. The prescaler keeps running in time_set_mode, so second_tick
+status keeps setting during time-set. With clock_select=1 (test mode)
+the tick rate is pclk/100, not 1 Hz.
 
 ## Register Summary
 
@@ -98,7 +109,7 @@ time-set protocol is used. To set the time:
 |-----|------|--------|-------|-------------|
 | 0 | alarm_flag | W1C | 0 | Alarm triggered; write 1 to clear |
 | 1 | second_tick | W1C | 0 | 1 Hz tick occurred; write 1 to clear |
-| 2 | time_valid | RO | 0 | Time registers contain valid data (set after time-set) |
+| 2 | time_valid | RO | 0 | Set after a time-set load, and ALSO by the first second-tick even if the time was never programmed (reads 'valid' one second after enable, showing the reset default 2000-01-01) |
 | 3 | pm_indicator | RO | 0 | 12-hour mode: 0=AM, 1=PM (BCD 12-hour mode only) |
 | 31:4 | Reserved | RO | 0 | Reserved |
 
@@ -135,6 +146,19 @@ bit 2) is set, the same fields are stored in BCD:
 | Year | 0-99 | 0x00-0x99 |
 
 In 12-hour BCD mode, RTC_HOURS bit 7 carries the PM indicator.
+
+**Known RTL deviations (issue #56) -- only binary 24-hour mode keeps a
+correct calendar in the current RTL:**
+
+- **BCD mode calendar is broken**: a width truncation in days_in_month
+  reduces every month length to its ones digit (31 -> 1, 30 -> 0, 29 -> 9,
+  28 -> 8), so BCD dates roll the month after at most day 9. BCD
+  seconds/minutes/hours count correctly; the DATE cascade does not.
+- **12-hour BCD**: AM/PM toggles and the day carries at 12:59:59 -> 1:00
+  instead of 11:59:59 -> 12:00 -- pm_indicator reads inverted for one hour
+  in twelve and the date changes an hour after midnight.
+- **12-hour binary**: the day carries on EVERY pass through 11 -> 12 (twice
+  per day) and no AM/PM state exists at all.
 
 ---
 

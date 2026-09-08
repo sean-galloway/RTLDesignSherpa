@@ -70,7 +70,11 @@ flowchart LR
 
 - APB domain (pclk): Register access
 - RTC domain (32.768 kHz): Time counting
-- CDC when clocks are asynchronous
+- NO CDC exists in the current RTL (issue #56): the pclk-domain status
+  flops sample rtc-domain signals directly and the counter mirrors cross
+  unsynchronized (multi-register reads can tear across a rollover). It
+  works in practice because one 32.768 kHz cycle spans many pclk cycles,
+  but rtc_clk must be much slower than pclk and treated as such
 
 ---
 

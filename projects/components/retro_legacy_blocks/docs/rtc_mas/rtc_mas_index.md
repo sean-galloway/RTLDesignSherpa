@@ -26,7 +26,9 @@
 **Component:** APB Real-Time Clock (RTC) Controller
 **Version:** 1.0
 **Last Updated:** 2025-12-01
-**Status:** Production Ready
+**Status:** RTL Partial - register interface and binary 24-hour timekeeping
+validated; BCD and 12-hour modes are broken in the current RTL and no CDC
+exists (see ch05 deviations and issue #56)
 
 ---
 
