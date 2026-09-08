@@ -35,7 +35,7 @@
 
 **Bridge** is a Python-based AXI4 crossbar generator that produces simple, performant SystemVerilog RTL for connecting multiple AXI4 masters to multiple AXI4 slaves. The name follows the infrastructure theme - bridges connect different regions, enabling communication across divides, just like crossbars connect masters and slaves.
 
-**Design Philosophy:** A simple AMBA fabric that is performant, but makes no attempt to support all features. ID and address widths are PER PORT, set in the TOML (`id_width`, `addr_width`) -- see 12.1. An earlier revision of this line claimed hard 8-bit/64-bit limits; the generator has never enforced them, and the shipped configs use 2-, 4- and 8-bit IDs.
+**Design Philosophy:** A simple AMBA fabric that is performant, but makes no attempt to support all features. ID and address widths are PER PORT, set in the TOML (`id_width`, `addr_width`) -- see §5.3, "Configuration Is Generation-Time, Not Parameters". An earlier revision of this line claimed hard 8-bit/64-bit limits; the generator has never enforced them, and the shipped configs use 2-, 4- and 8-bit IDs.
 
 **Key Differentiator from Delta:**
 - **Delta:** AXI-Stream crossbar (streaming data, single channel, simple routing)
@@ -539,6 +539,9 @@ input  logic [1:0]              s_axi_awburst [NUM_MASTERS];  // INCR/WRAP/FIXED
 input  logic                    s_axi_awlock  [NUM_MASTERS];  // Exclusive access
 input  logic [3:0]              s_axi_awcache [NUM_MASTERS];  // Cache attributes
 input  logic [2:0]              s_axi_awprot  [NUM_MASTERS];  // Protection type
+input  logic [3:0]              s_axi_awqos   [NUM_MASTERS];  // QoS -- routed, not arbitrated on
+input  logic [3:0]              s_axi_awregion[NUM_MASTERS];  // Region -- passed through
+input  logic [UW-1:0]           s_axi_awuser  [NUM_MASTERS];  // USER -- passed through
 input  logic                    s_axi_awvalid [NUM_MASTERS];
 output logic                    s_axi_awready [NUM_MASTERS];
 ```
@@ -555,7 +558,7 @@ output logic                    s_axi_wready [NUM_MASTERS];
 **Write Response Channel (B):**
 ```systemverilog
 output logic [ID_WIDTH-1:0]     s_axi_bid    [NUM_MASTERS];
-output logic [1:0]              s_axi_bresp  [NUM_MASTERS];  // OKAY/EXOKAY/SLVERR/DECERR
+output logic [1:0]              s_axi_bresp  [NUM_MASTERS];  // OKAY/SLVERR/DECERR (EXOKAY never generated -- no exclusive monitor)
 output logic                    s_axi_bvalid [NUM_MASTERS];
 input  logic                    s_axi_bready [NUM_MASTERS];
 ```
@@ -570,6 +573,9 @@ input  logic [1:0]              s_axi_arburst [NUM_MASTERS];
 input  logic                    s_axi_arlock  [NUM_MASTERS];
 input  logic [3:0]              s_axi_arcache [NUM_MASTERS];
 input  logic [2:0]              s_axi_arprot  [NUM_MASTERS];
+input  logic [3:0]              s_axi_arqos   [NUM_MASTERS];  // QoS -- routed, not arbitrated on
+input  logic [3:0]              s_axi_arregion[NUM_MASTERS];  // Region -- passed through
+input  logic [UW-1:0]           s_axi_aruser  [NUM_MASTERS];  // USER -- passed through
 input  logic                    s_axi_arvalid [NUM_MASTERS];
 output logic                    s_axi_arready [NUM_MASTERS];
 ```

@@ -31,14 +31,15 @@ The generator turns configuration files into parameterized SystemVerilog modules
 
 ### Module Declaration
 
+The generated top level has NO PARAMETER LIST. Every width is fixed for the
+configuration at generation time and the only shared constants live in the
+per-bridge package, so there is nothing to override at instantiation. This is
+`bridge_2x2_rw.sv` as emitted:
+
 ```systemverilog
-module bridge_4x3 #(
-    parameter int NUM_MASTERS = 4,
-    parameter int NUM_SLAVES = 3,
-    parameter int ADDR_WIDTH = 32,
-    parameter int DATA_WIDTH = 64,
-    parameter int ID_WIDTH = 4
-) (
+module bridge_2x2_rw
+    import bridge_2x2_rw_pkg::*;
+(
     // Clock and reset
     input  logic aclk,
     input  logic aresetn,
@@ -79,15 +80,20 @@ Module Ports:
 ```systemverilog
 // Generated module internal structure
 
-// Master adapters (per master)
-master_adapter_rw u_m0_adapter (...);
-master_adapter_wr u_m1_adapter (...);
-master_adapter_rd u_m2_adapter (...);
-master_adapter_rw u_m3_adapter (...);
+// Adapters are named after the PORT, not the index -- there is no
+// master_adapter_rw / address_decoder module anywhere in the tree.
+// From bridge_2x2_rw.sv:
 
-// Address decoders (per master)
-address_decoder u_m0_decoder (...);
-address_decoder u_m1_decoder (...);
+axi4_subtractive_slave #(...) u_subtractive (...);   // unmapped-address default
+cpu_adapter            u_cpu_adapter (...);          // per-master, named for the master
+dma_adapter            u_dma_adapter (...);
+bridge_2x2_rw_xbar     u_xbar (...);                 // one crossbar
+ddr_adapter            u_ddr_adapter (...);          // per-slave, named for the slave
+sram_adapter           u_sram_adapter (...);
+subtractive_adapter    u_subtractive_adapter (...);
+
+// Address decode is INLINE in the crossbar and each master adapter --
+// there is no separate decoder module to instantiate.
 address_decoder u_m2_decoder (...);
 address_decoder u_m3_decoder (...);
 
@@ -293,6 +299,14 @@ bridge_{name}/
 ## Parameterization
 
 ### Compile-Time Parameters
+
+> **Not built.** The generated top has no parameters and no `BID_WIDTH` /
+> `TOTAL_ID_WIDTH` localparams: IDs are not extended, so there is nothing to
+> widen. The package carries exactly two constants --
+> `NUM_MASTERS` and `BRIDGE_ID_WIDTH = $clog2(NUM_MASTERS)` -- and
+> `BRIDGE_ID_WIDTH` sizes the SIDEBAND master id, not any AXI ID field.
+> Per-port widths are baked into the port declarations; there is no
+> `M0_DATA_WIDTH` localparam.
 
 ```systemverilog
 // Core parameters

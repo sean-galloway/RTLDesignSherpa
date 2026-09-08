@@ -66,7 +66,10 @@ The bridge now emits real AXI4-to-AXIL4 conversion shims (`axi4_to_axil4_{rd,wr}
 
 ### Future Support (Phase 2+)
 
-- **Real AXI4-Lite Conversion**: Enforce single-beat constraint, remove unused signals
+> AXI4-Lite conversion was listed here as future work while the section
+> directly above states it is built and names the shims. It is built; the
+> stale entry has been removed.
+
 - **AHB**: Advanced High-performance Bus
 - **Wishbone**: Open-source bus standard
 - **Custom**: User-defined protocols
@@ -105,7 +108,8 @@ Key Differences from Full AXI4:
 Similarities to AXI4:
 - Same 5 channels: AR, R, AW, W, B
 - Same valid/ready handshaking
-- Same response codes: OKAY, SLVERR, DECERR, EXOKAY
+- Response codes: OKAY, SLVERR, DECERR. NOT EXOKAY -- AXI4-Lite has no
+  exclusive access, so the code has no meaning on this interface.
 - Same data widths: 32 or 64 bits typically
 ```
 
