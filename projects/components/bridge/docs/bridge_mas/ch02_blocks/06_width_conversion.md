@@ -350,7 +350,7 @@ Resource usage scales primarily with:
 
 ```toml
 [bridge]
-internal_data_width = 64        # Crossbar width
+# internal_data_width: NOT A KEY -- there is no fixed internal crossbar width.
 enable_width_conversion = true  # Allow width differences
 
 [[bridge.masters]]

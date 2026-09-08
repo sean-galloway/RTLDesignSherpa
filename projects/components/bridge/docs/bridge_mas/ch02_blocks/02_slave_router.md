@@ -33,7 +33,10 @@ The router does five things:
 2. **Request Routing**: Directs AR/AW/W channels to the selected slave
 3. **Out-of-Range Detection**: Identifies addresses that don't map to any slave
 4. **Error Response Generation**: Creates DECERR responses for invalid addresses
-5. **Default Slave Support**: Routes unmapped addresses to optional default slave
+5. **Default Slave**: unmapped addresses go to an ALWAYS-PRESENT internal
+   subtractive slave (`axi4_subtractive_slave`), which answers DECERR and
+   returns `0xDEADBEEF` on reads. It is not optional and there is no
+   `default = true` TOML key -- the generator inserts it into every bridge.
 
 ## 2.2.2 Block Diagram
 

@@ -413,14 +413,16 @@ Typical critical paths in arbiter:
 
 ```toml
 [bridge]
-arbiter_type = "round_robin"    # "round_robin", "fixed_priority", "weighted"
+# arbiter_type: NOT A KEY. Every generated arbiter is ROUND-ROBIN with lock-
+# until-handshake; fixed_priority and weighted exist nowhere in bin/bridge_pkg/
+# or rtl/generated/.
 
 [bridge.arbitration]
 pipeline_stages = 1              # 1-3 (more = better timing, higher latency)
-enable_priority_aging = false    # Prevent starvation in fixed-priority
+# enable_priority_aging: NOT A KEY -- there is no aging logic.
 aging_threshold = 1000           # Cycles before priority boost
 
-# Weighted arbitration weights (only if arbiter_type = "weighted")
+# Weighted arbitration does not exist.
 [[bridge.arbitration.weights]]
 master = "cpu"
 weight = 4                       # Relative weight (1-255)

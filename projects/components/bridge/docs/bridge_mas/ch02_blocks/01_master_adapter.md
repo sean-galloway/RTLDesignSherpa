@@ -144,6 +144,16 @@ end
 
 ## 2.1.5 Bridge ID Management
 
+> **Not built.** IDs are NOT injected, extended or stripped anywhere in this
+> bridge. `cpu_m_axi_awid` and `ddr_s_axi_awid` are both 4 bits in
+> `bridge_2x2_rw`: the master's ID passes through untouched and comes back
+> untouched. The originating master travels as a SEPARATE SIDEBAND signal
+> (`xbar_bridge_id_aw`/`_ar`) into a per-slave in-order FIFO, and responses are
+> routed by that FIFO's POSITION -- the returned BID/RID is never consulted.
+> The section below describes the scheme that was replaced. See ch04
+> `02_id_tracking.md`.
+
+
 ### ID Width Calculation
 ```
 BID_WIDTH = clog2(num_masters)
@@ -306,17 +316,20 @@ Resource usage scales with:
 
 ### Latency
 
-**Request Path** (Master → Crossbar):
-- Minimum: 1 cycle (skid buffer)
-- With 4-stage pipeline: 4 cycles
-- With ID injection: +0 cycles (combinatorial within stage)
+**Request Path** (Master → Crossbar): 1 cycle -- one registered skid stage.
 
-**Response Path** (Crossbar → Master):
-- Minimum: 1 cycle (skid buffer)
-- With 4-stage pipeline: 4 cycles
-- With ID stripping: +0 cycles (combinatorial within stage)
+**Response Path** (Crossbar → Master): 1 cycle -- one registered skid stage.
 
-**Total Round-Trip Overhead**: 2-8 cycles (depending on pipeline depth)
+**Total**: 2 cycles each way through the bridge (one skid in the master
+adapter, one in the slave adapter). Measured, not derived: see HAS Table 5.7
+and `test_bridge_2x2_rw_latency`, which asserts 2 exactly.
+
+> **Depth is not latency.** This block read "with 4-stage pipeline: 4 cycles"
+> and a round trip of "2-8 cycles depending on pipeline depth". A
+> `gaxi_skid_buffer` presents its output one cycle after the write regardless
+> of DEPTH; the depth sets how many beats it can ABSORB under backpressure,
+> not how long a beat takes to cross it. There is also no ID injection or
+> stripping to cost anything -- IDs pass through untouched.
 
 ### Throughput
 
@@ -345,14 +358,15 @@ arid_width = 4               # External ID width
 awid_width = 4               # Can differ from ARID
 addr_width = 32              # Address bus width
 data_width = 64              # Data bus width
-pipeline_depth = 1           # Skid buffer stages (1-8)
+# pipeline_depth: NOT A KEY. Skid depth is set per channel by the generator;
+# the contract is 2..8 inclusive, so 1 is rejected.
 ```
 
 ### Global Parameters (affect all adapters)
 
 ```toml
 [bridge]
-internal_data_width = 64     # Crossbar data width
+# internal_data_width: NOT A KEY -- there is no fixed internal crossbar width.
 enable_width_conversion = true
 bid_width = 2                # Calculated: clog2(num_masters)
 ```

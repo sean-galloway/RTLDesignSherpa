@@ -953,7 +953,10 @@ pytest test_bridge_2x2_rw.py -v
 ```
 
 **For Mixed AXI4/APB:**
-APB converter placeholders need implementation before end-to-end testing.
+the APB path is complete: `axi4_to_apb4_shim` does real burst decomposition,
+width slicing and response mapping, and six configurations ship APB slaves with
+tests in the FULL regression. This line claimed placeholders long after the
+converter shipped.
 
 ---
 

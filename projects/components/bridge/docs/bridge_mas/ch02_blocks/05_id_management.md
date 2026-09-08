@@ -371,7 +371,7 @@ end
 ```toml
 [bridge]
 enable_cam = true
-cam_depth = 16              # Max outstanding transactions
+# cam_depth: NOT A KEY. No CAM exists and the loader does not know this name.
 
 [[bridge.masters]]
 name = "cpu"

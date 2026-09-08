@@ -195,6 +195,14 @@ This ensures:
 
 ### Bridge ID Extraction
 
+> **Not built.** Nothing is extracted from the BID. IDs pass through untouched
+> (`cpu_m_axi_awid` and `ddr_s_axi_awid` are both 4 bits in `bridge_2x2_rw`),
+> and the originating master travels as a separate sideband into a per-slave
+> in-order FIFO whose POSITION selects the return path. The returned BID/RID is
+> never consulted. The section below describes the replaced scheme; see ch04
+> `02_id_tracking.md`.
+
+
 Response routing uses the Bridge ID embedded in transaction IDs:
 
 ```
@@ -441,12 +449,13 @@ Block RAM:  0 (no CAM is built)
 [bridge]
 num_masters = 4
 num_slaves = 3
-internal_data_width = 64
+# internal_data_width: NOT A KEY -- the crossbar has no fixed internal width;
+# each path carries its own port width and converters sit at the boundaries.
 arbiter_type = "round_robin"       # "round_robin", "fixed_priority", "weighted"
 registered_mux = false             # true = +1 cycle, better timing
 registered_demux = false           # true = +1 cycle, better timing
 # NOTE: there is no enable_cam key -- the loader does not know it, and no CAM exists
-cam_depth = 16                     # Outstanding transactions tracked
+# cam_depth: NOT A KEY. No CAM exists and the loader does not know this name.
 ```
 
 ## 2.3.11 Debug and Observability
