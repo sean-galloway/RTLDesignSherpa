@@ -2095,3 +2095,48 @@ delete it, until a campaign shows timeout tracking the other classes.**
 order of magnitude as the other classes from the same traffic, and
 `host_obs_matrix.py` clears its 1000-packet floor on 7/7 instead of 6/7.
 
+### TASK-084: SOFT_RESET does not fully reset the monitor subsystem
+
+**Priority:** P2. It makes the board campaign order-dependent, so a packet class
+can read as broken purely because of what ran before it.
+
+**Status:** open 2026-09-08. Diagnosed to the boundary; NOT fixed.
+
+**The observation.** On Genesys 2 `build-mon`, the `addr_error` scenario emits
+129/122 ADDR_RANGE packets when it is the FIRST thing run after the bitstream is
+programmed, and ZERO if any other scenario ran first: `--only addr_error` passes,
+`--only perf,addr_error` does not. Every scenario already begins with
+`CTRL.SOFT_RESET`, which fans out to `unit_aresetn` and demonstrably clears the
+datapath and the tally CAM.
+
+**Ruled out -- all measured on the board, none of which fixes it:**
+
+- restoring every monitor CSR to its RDL default (86 registers). This makes it
+  WORSE: `PKT_MASK` resets to `0xFFFF` and `0` means allow, so the reset value
+  blocks every class and the campaign reports 0/6.
+- clearing the perf windows (`*_PERF_CTRL`, `*_PERF_WINDOW_CYCLES`)
+- restoring `*_TIMEOUT` and `*_LATENCY_THRESH`, which the perf scenario leaves at
+  5000 and 20 and nothing else ever rewrites
+- running `enable_monitors` for every scenario instead of skipping it for
+  `addr_error`. The skip was pointless anyway, since `setup()` runs after it.
+- compression: inert here, the compressor is not built
+  (`USE_COMPRESSION(0)`, `USE_MON_COMPRESSION(0)`), so `COMPRESS_EN` does nothing
+
+**The only thing that restores it is REPROGRAMMING THE BITSTREAM.** So the state
+that survives is not reachable from any monitor CSR: it is internal monitor state
+-- transaction table, monbus group FIFO, reporter arbitration or similar -- that
+`SOFT_RESET` does not clear. That is an RTL reset-coverage gap, not a host
+programming bug, which is why every host-side attempt failed.
+
+**Why it matters beyond tidiness:** the campaign reports mon at 5/6 classes when
+the hardware does 6/6 -- ADDR_RANGE is proven working at 129/122. Any future
+"class X is broken" result from this matrix is suspect until a scenario's result
+is independent of its predecessors.
+
+**Suggested next step:** in cosim, run two scenarios back to back and diff the
+monitor's internal state across the second `SOFT_RESET`. The waved runs from
+2026-09-07 (build-mon, 6 FST dumps) already contain sequenced traffic. Then
+extend whatever reset the monitor subsystem is missing.
+
+Related: TASK-083 (timeout saturation) is a different defect in the same
+subsystem. The owner has monitor simplification planned, which may subsume both.
