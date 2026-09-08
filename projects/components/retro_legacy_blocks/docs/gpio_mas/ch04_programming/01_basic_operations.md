@@ -33,7 +33,8 @@ When software writes to GPIO_DIRECTION, the direction register updates and contr
 
 ![GPIO Direction Write](../assets/wavedrom/timing/gpio_direction_write.png)
 
-The APB write completes in the minimum two APB cycles (setup + access; see
+The APB write is PREADY-gated -- a few pclk beyond the two-cycle APB
+minimum (see
 Chapter 3.1). The direction register updates on the clock edge following
 PREADY, and the output enable (`gpio_oe`) reflects the new configuration
 immediately.

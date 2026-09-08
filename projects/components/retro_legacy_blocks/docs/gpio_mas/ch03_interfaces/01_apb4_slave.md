@@ -31,15 +31,15 @@
 |--------|-------|-----|-------------|
 | pclk | 1 | I | APB clock |
 | presetn | 1 | I | APB reset (active low) |
-| s_apb_psel | 1 | I | Peripheral select |
-| s_apb_penable | 1 | I | Enable phase |
-| s_apb_pwrite | 1 | I | Write transaction |
-| s_apb_paddr | 12 | I | Address bus |
-| s_apb_pwdata | 32 | I | Write data |
-| s_apb_pstrb | 4 | I | Byte strobes |
-| s_apb_prdata | 32 | O | Read data |
-| s_apb_pready | 1 | O | Ready response |
-| s_apb_pslverr | 1 | O | Slave error |
+| s_apb_PSEL | 1 | I | Peripheral select |
+| s_apb_PENABLE | 1 | I | Enable phase |
+| s_apb_PWRITE | 1 | I | Write transaction |
+| s_apb_PADDR | 12 | I | Address bus |
+| s_apb_PWDATA | 32 | I | Write data |
+| s_apb_PSTRB | 4 | I | Byte strobes |
+| s_apb_PRDATA | 32 | O | Read data |
+| s_apb_PREADY | 1 | O | Ready response |
+| s_apb_PSLVERR | 1 | O | Slave error |
 
 ## Protocol Compliance
 
@@ -53,7 +53,7 @@
 | PADDR | 12-bit |
 | PWDATA | 32-bit |
 | PRDATA | 32-bit |
-| PREADY | Yes (always 1) |
+| PREADY | Yes (inserts wait states -- see Access Timing below) |
 | PSLVERR | Yes (always 0) |
 | PSTRB | Yes |
 | PPROT | Present on the port (`s_apb_PPROT[2:0]`), accepted and ignored - no protection checking is performed |

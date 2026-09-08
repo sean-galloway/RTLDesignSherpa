@@ -37,15 +37,16 @@ The APB interface provides the connection between the system APB bus and the GPI
 
 | Signal | Width | Direction | Description |
 |--------|-------|-----------|-------------|
-| s_apb_psel | 1 | Input | Slave select |
-| s_apb_penable | 1 | Input | Enable phase |
-| s_apb_pwrite | 1 | Input | Write operation |
-| s_apb_paddr | 12 | Input | Address bus |
-| s_apb_pwdata | 32 | Input | Write data |
-| s_apb_pstrb | 4 | Input | Byte strobes |
-| s_apb_prdata | 32 | Output | Read data |
-| s_apb_pready | 1 | Output | Ready response |
-| s_apb_pslverr | 1 | Output | Error response |
+| s_apb_PSEL | 1 | Input | Slave select |
+| s_apb_PENABLE | 1 | Input | Enable phase |
+| s_apb_PWRITE | 1 | Input | Write operation |
+| s_apb_PADDR | 12 | Input | Address bus |
+| s_apb_PWDATA | 32 | Input | Write data |
+| s_apb_PSTRB | 4 | Input | Byte strobes |
+| s_apb_PPROT | 3 | Input | Protection attributes (accepted, unused) |
+| s_apb_PRDATA | 32 | Output | Read data |
+| s_apb_PREADY | 1 | Output | Ready response |
+| s_apb_PSLVERR | 1 | Output | Error response |
 
 ## Operation
 

@@ -39,6 +39,8 @@
 
 ### presetn (APB Reset)
 - **Type:** Active-low asynchronous reset
+  (exception: the PeakRDL-generated register file resets SYNCHRONOUSLY --
+  see the note in ch03_interfaces/04_system.md)
 - **Scope:** APB interface logic
 - **Behavior:** Resets APB state machine, clears pending transactions
 
@@ -62,7 +64,7 @@
 | GPIO_INT_POLARITY | 0xFFFFFFFF | Rising/high |
 | GPIO_INT_BOTH | 0x00000000 | Single edge |
 | GPIO_INT_STATUS | 0x00000000 | No pending |
-| GPIO_RAW_INT | 0x00000000 | No events |
+| GPIO_RAW_INT | 0 (live RO readback; depends on pins after reset) | No events |
 | GPIO_OUTPUT_SET/CLR/TGL | 0x00000000 | No pending atomic op |
 
 GPIO_CONTROL.ENABLE resets to 1, but every pin is still an input out of reset

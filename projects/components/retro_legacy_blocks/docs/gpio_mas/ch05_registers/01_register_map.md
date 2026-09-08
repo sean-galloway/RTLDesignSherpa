@@ -39,7 +39,7 @@ Thirteen registers, verified against the RTL decode (`gpio_regs.sv`) and
 | 0x018 | GPIO_INT_POLARITY | RW | 0xFFFFFFFF | Interrupt polarity |
 | 0x01C | GPIO_INT_BOTH | RW | 0x00000000 | Both-edge enable |
 | 0x020 | GPIO_INT_STATUS | W1C | 0x00000000 | Latched interrupt status |
-| 0x024 | GPIO_RAW_INT | RO | 0x00000000 | Live (unlatched) event detector output |
+| 0x024 | GPIO_RAW_INT | RO | 0 (live) | Live (unlatched) event detector output -- reads 0 at reset only because type/polarity/sync all reset to 0; depends on pins thereafter |
 | 0x028 | GPIO_OUTPUT_SET | WO | 0x00000000 | Atomic output set (reads return 0) |
 | 0x02C | GPIO_OUTPUT_CLR | WO | 0x00000000 | Atomic output clear (reads return 0) |
 | 0x030 | GPIO_OUTPUT_TGL | WO | 0x00000000 | Atomic output toggle (reads return 0) |
