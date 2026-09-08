@@ -214,7 +214,9 @@ Latency: 4-6 pclk cycles (depending on clock ratios)
 
 **ONE_SHOT_COMPLETE -> ARMED:**
 - **Condition:** `timer_comp_write[i] = 1` (software reconfigures comparator)
-- **Action:** Resume monitoring with new comparator value
+- **Action:** Resume monitoring with new comparator value. Fire detection
+  is edge-based, so the new comparator must EXCEED the current counter or
+  no further fire occurs
 - **Trigger:** Comparator write strobe
 
 **ARMED -> IDLE:**

@@ -107,7 +107,8 @@ always_ff @(posedge pclk or negedge presetn) begin
     if (!presetn) begin
         // Global configuration
         HPET_CONFIG <= 32'h0;         // HPET disabled
-        HPET_STATUS <= 32'h0;         // All interrupts cleared
+        // HPET_STATUS: no reset in the generated RTL (defect, #46) --
+        // readback undefined until first fire/clear; intended 0
 
         // Per-timer configuration
         for (int i = 0; i < NUM_TIMERS; i++) begin
@@ -121,7 +122,7 @@ end
 | Register | Reset Value | Description |
 |----------|-------------|-------------|
 | `HPET_CONFIG` | 32'h0 | Global disable, no legacy mapping |
-| `HPET_STATUS` | 32'h0 | All interrupt flags cleared |
+| `HPET_STATUS` | undefined | Storage has no reset (RTL defect, #46); intended 32'h0 |
 | `HPET_COUNTER_LO` | 32'h0 | Read/write; reads return the live counter |
 | `HPET_COUNTER_HI` | 32'h0 | Read/write; reads return the live counter |
 | `HPET_ID` | Constant | RO identification: vendor/revision fixed 0x01/0x01, `num_tim_cap` = NUM_TIMERS-1 |

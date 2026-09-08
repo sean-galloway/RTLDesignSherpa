@@ -73,13 +73,16 @@ apb4_hpet
 | **VENDOR_ID** | int | 1 | -- | Currently unwired: the HPET_ID vendor byte is fixed 0x01 in the generated register block |
 | **REVISION_ID** | int | 1 | -- | Currently unwired: the HPET_ID revision byte is fixed 0x01 |
 | **NUM_TIMERS** | int | 2 | 2, 3, 8 | Number of independent timers in array |
+| **USE_JOHNSON** | int | 0 | 0, 1 | CDC counter encoding (forwarded to apb4_slave_cdc) |
 | **CDC_ENABLE** | int | 0 | 0, 1 | Clock domain crossing: 0=synchronous, 1=asynchronous |
 
 **Parameter Notes:**
 - **VENDOR_ID** and **REVISION_ID**: accepted at instantiation but never
   consumed -- the values are baked into the generated `hpet_regs` at
   generation time (0x01/0x01 in HPET_ID). Overriding them has no effect.
-- **NUM_TIMERS**: Must match PeakRDL generation (currently supports 2, 3, or 8)
+- **NUM_TIMERS**: Instantiation-time choice (2, 3, or 8). The generated
+  register block is fixed at 8 timer slots and reports the instantiated
+  count through HPET_ID.num_tim_cap -- no regeneration needed
 - **CDC_ENABLE**: Critical for system integration - determines clock relationship
 
 ##### Clock and Reset - Dual Domain

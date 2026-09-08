@@ -529,7 +529,9 @@ addrmap hpet_regs {
 1. Changing register addresses
 2. Adding/removing fields
 3. Modifying field access properties
-4. Updating VENDOR_ID, REVISION_ID, or NUM_TIMERS
+4. Updating VENDOR_ID or REVISION_ID (baked into the generated code;
+   NUM_TIMERS does NOT require regeneration -- the block is generated
+   with 8 slots and parameterized at instantiation)
 
 **Steps:**
 ```bash

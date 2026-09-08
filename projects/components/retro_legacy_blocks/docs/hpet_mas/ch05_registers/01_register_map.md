@@ -188,7 +188,7 @@ WRITE(HPET_CONFIG, 0x1);
 ### HPET_STATUS (0x008) - Interrupt Status Register
 
 **Access:** Read-Write (Write-1-to-Clear)
-**Reset Value:** 0x00000000
+**Reset Value:** undefined -- the HPET_STATUS storage flop has NO reset in the generated RTL (the only unreset field in hpet_regs.sv) -- readback is undefined until the first fire or clear (RTL defect, issue #46). The intended reset is 0.
 
 Interrupt status bits for all timers. Write 1 to a bit to clear the corresponding interrupt.
 
@@ -282,10 +282,16 @@ Upper 32 bits of the 64-bit free-running main counter.
 
 **Reading 64-bit Counter:**
 ```c
-// Read lower 32 bits first (in case of rollover during read)
-uint32_t lo = READ(HPET_COUNTER_LO);
-uint32_t hi = READ(HPET_COUNTER_HI);
-uint64_t counter = ((uint64_t)hi << 32) | lo;
+// LO-then-HI gives NO rollover protection (a carry between the reads
+// yields old-LO with new-HI). Use the HI/LO/HI retry loop from
+// ch01_overview/03_clocks_and_reset.md:
+uint32_t hi1, lo, hi2;
+do {
+    hi1 = READ(HPET_COUNTER_HI);
+    lo  = READ(HPET_COUNTER_LO);
+    hi2 = READ(HPET_COUNTER_HI);
+} while (hi1 != hi2);
+uint64_t counter = ((uint64_t)hi1 << 32) | lo;
 ```
 
 **Writing 64-bit Counter:**
@@ -449,7 +455,9 @@ while (!(READ(HPET_STATUS) & 0x1));
 // Clear interrupt
 WRITE(HPET_STATUS, 0x1);
 
-// Re-arm for next fire at 2000 cycles
+// Re-arm for next fire at 2000 cycles. Fire detection is edge-based
+// (match & ~prev_match), so the re-armed comparator must EXCEED the
+// current counter value or the timer never fires again.
 WRITE(TIMER0_COMPARATOR_LO, 2000);
 WRITE(TIMER0_CONFIG, 0x0C);
 ```
@@ -607,7 +615,8 @@ void hpet_interrupt_handler(void) {
 
 ### Reset Values
 
-- **Global registers:** Reset to 0x00000000 (except HPET_ID)
+- **Global registers:** Reset to 0x00000000 (except HPET_ID, and except
+  HPET_STATUS whose storage has no reset -- see its section and #46)
 - **HPET_ID:** Constant: vendor/revision fixed 0x01/0x01, num_tim_cap = NUM_TIMERS-1
 - **All timers:** Reset to disabled state (0x00000000)
 - **Main counter:** Reset to 0x00000000_00000000
@@ -628,9 +637,9 @@ compares against a mixed value -- disable the timer around comparator
 updates.
 
 **64-bit Register Reads:**
-1. Read lower 32 bits (LO) first
-2. Read upper 32 bits (HI) second
-3. Be aware of potential rollover during read (rare for slow reads)
+Use the HI/LO/HI retry sequence (read HI, read LO, re-read HI; retry if
+the two HI reads differ). A plain LO-then-HI read has no rollover
+protection.
 
 ---
 
@@ -691,13 +700,17 @@ updates.
 0x1FF  └─────────────────────────┘
 ```
 
+Only address bits [8:0] reach the register block, so 0x200-0xFFF alias
+back onto 0x000-0x1FF (0x200 reads HPET_ID, and so on). No error is
+raised for any address.
+
 ---
 
 ## Related Documentation
 
 - [Chapter 2: Blocks](../ch02_blocks/00_overview.md) - Block-level architecture
-- [Chapter 3: Interfaces](../ch03_interfaces/01_top_level.md) - Signal interfaces
-- [Chapter 4: Programming Model](../ch04_programming/01_initialization.md) - Software usage
+- Chapters 3 (Interfaces) and 4 (Programming Model) are planned and not
+  yet written -- see the index
 - [PeakRDL Specification](../../../rtl/hpet/peakrdl/hpet_regs.rdl) - SystemRDL register definition
 
 ### Additional Diagrams

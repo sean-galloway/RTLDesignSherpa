@@ -50,8 +50,8 @@ The `hpet_config_regs` module serves as the critical bridge between the PeakRDL-
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| `VENDOR_ID` | int | 1 | 0-65535 | Vendor identification (read-only in HPET_ID) |
-| `REVISION_ID` | int | 1 | 0-65535 | Revision identification (read-only in HPET_ID) |
+| `VENDOR_ID` | int | 1 | -- | UNWIRED: HPET_ID[31:24] reads fixed 0x01 regardless (#46) |
+| `REVISION_ID` | int | 1 | -- | UNWIRED: HPET_ID[23:16] reads fixed 0x01 regardless (#46) |
 | `NUM_TIMERS` | int | 2 | 2, 3, 8 | Number of independent timers in array |
 
 ##### Clock and Reset
@@ -336,6 +336,9 @@ including a write of 0x0, which per W1C semantics should be a no-op -- and
 clearing one timer's bit also clears the others' irq outputs, while the
 PeakRDL register itself (a correct per-bit W1C) can keep bits set that the
 core has already dropped.
+A narrower corollary of the same clear path: the core gives the clear
+priority over a same-cycle fire, so a timer firing in the exact cycle
+of an unrelated HPET_STATUS write has that fire silently discarded.
 
 **Timing:**
 ```

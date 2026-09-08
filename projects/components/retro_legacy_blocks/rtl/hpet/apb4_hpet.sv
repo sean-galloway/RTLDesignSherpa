@@ -135,7 +135,8 @@
  *   - Fixed 12-bit address width supports up to 4KB address space
  *   - Timer spacing of 32 bytes allows for future expansion
  *   - All configurations (2-8 timers) use the same address map
- *   - Unused timer addresses return 0 on reads, writes are ignored
+ *   - TIMER[2..7] registers above NUM_TIMERS are real decoded storage
+ *     (read back written values) but reach no core timer
  * ============================================================================
  */
 

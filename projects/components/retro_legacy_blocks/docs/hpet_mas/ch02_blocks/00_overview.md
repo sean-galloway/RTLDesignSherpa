@@ -368,8 +368,8 @@ When integrating APB HPET:
 
 **1. Parameter Selection:**
 - [ ] `NUM_TIMERS`: 2, 3, or 8 timers
-- [ ] `VENDOR_ID`: 16-bit vendor identification
-- [ ] `REVISION_ID`: 16-bit revision identification
+- [ ] `VENDOR_ID`: currently unwired -- HPET_ID reads fixed 0x01 (#46)
+- [ ] `REVISION_ID`: currently unwired -- HPET_ID reads fixed 0x01 (#46)
 - [ ] `CDC_ENABLE`: 0 for synchronous, 1 for asynchronous clocks
 
 **2. Clock Configuration:**

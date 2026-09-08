@@ -92,7 +92,8 @@ Edge-detected pulse generated when software writes to a timer configuration regi
 - Software can write the field
 - Software reads return undefined value
 - Hardware uses written value internally
-- Example: `HPET_COUNTER_LO/HI` (write from APB domain, read by HPET core)
+- Example: none in this block -- HPET_COUNTER_LO/HI are RW with live
+  readback; the HPET has no write-only registers
 
 **W1C (Write-1-to-Clear):**
 - Software writes 1 to clear the bit

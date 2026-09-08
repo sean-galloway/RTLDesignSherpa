@@ -213,9 +213,16 @@ for (genvar i = 0; i < NUM_TIMERS; i++) begin : gen_timer_comparators
             r_timer_comparator[i] <= 64'h0;
             r_timer_period[i] <= 64'h0;
         end else if (timer_comp_write[i]) begin
-            // Software write to comparator
-            r_timer_comparator[i] <= timer_comp_wdata[i];
-            r_timer_period[i] <= timer_comp_wdata[i];  // Store initial period
+            // Software write updates ONE 32-bit half per write, selected
+            // by timer_comp_write_high (after a periodic auto-advance, a
+            // lone LO write yields {auto-advanced HI, new LO})
+            if (timer_comp_write_high[i]) begin
+                r_timer_comparator[i][63:32] <= timer_comp_wdata[i][63:32];
+                r_timer_period[i][63:32]     <= timer_comp_wdata[i][63:32];
+            end else begin
+                r_timer_comparator[i][31:0] <= timer_comp_wdata[i][31:0];
+                r_timer_period[i][31:0]     <= timer_comp_wdata[i][31:0];
+            end
         end else if (w_timer_fire[i] && timer_type[i]) begin
             // Periodic mode auto-reload
             r_timer_comparator[i] <= r_timer_comparator[i] + r_timer_period[i];
@@ -246,14 +253,18 @@ end
 logic [NUM_TIMERS-1:0] w_timer_match;
 
 for (genvar i = 0; i < NUM_TIMERS; i++) begin : gen_timer_match
-    assign w_timer_match[i] = (r_main_counter >= r_timer_comparator[i]) &&
+    // timer_size (TIMER_CONFIG[5]) selects 64-bit or 32-bit compare
+    assign w_timer_match[i] = (timer_size[i]
+                               ? (r_main_counter >= r_timer_comparator[i])
+                               : (r_main_counter[31:0] >= r_timer_comparator[i][31:0])) &&
                               timer_enable[i] &&
                               hpet_enable;
 end
 ```
 
 **Match Conditions:**
-- Counter value >= comparator value
+- Counter value >= comparator value (full 64 bits when timer_size=1,
+  low 32 bits only when timer_size=0)
 - Timer individually enabled (`timer_enable[i] = 1`)
 - HPET globally enabled (`hpet_enable = 1`)
 

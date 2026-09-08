@@ -557,17 +557,17 @@ apb4_hpet #(
     // APB interface
     .pclk         (apb_clk),
     .presetn      (apb_rst_n),
-    .paddr        (paddr),
-    .psel         (psel_hpet),
-    .penable      (penable),
-    .pwrite       (pwrite),
-    .pwdata       (pwdata),
-    .prdata       (prdata_hpet),
-    .pready       (pready_hpet),
-    .pslverr      (pslverr_hpet),
+    .s_apb_PADDR   (paddr),
+    .s_apb_PSEL    (psel_hpet),
+    .s_apb_PENABLE (penable),
+    .s_apb_PWRITE  (pwrite),
+    .s_apb_PWDATA  (pwdata),
+    .s_apb_PRDATA  (prdata_hpet),
+    .s_apb_PREADY  (pready_hpet),
+    .s_apb_PSLVERR (pslverr_hpet),
     // Block-specific signals
     .hpet_clk     (timer_clk),
-    .hpet_rst_n   (timer_rst_n),
+    .hpet_resetn   (timer_rst_n),
     .timer_irq    (timer_irq[2:0])
 );
 ```

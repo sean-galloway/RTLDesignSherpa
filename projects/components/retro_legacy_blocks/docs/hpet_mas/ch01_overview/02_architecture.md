@@ -263,7 +263,7 @@ and the core reset from different domains.
 | `r_timer_comparator[i]` | 64'h0 | Comparators reset to zero |
 | `r_timer_period[i]` | 64'h0 | Period storage reset |
 | `HPET_CONFIG` | 32'h0 | Global enable cleared |
-| `HPET_STATUS` | 8'h0 | All interrupt flags cleared |
+| `HPET_STATUS` | undefined | Storage has no reset (RTL defect, #46); intended 8'h0 |
 | `TIMER[i]_CONFIG` | 32'h0 | All timers disabled |
 
 **Reset Sequence:**
@@ -353,11 +353,11 @@ assign timer_comp_wdata[2] = {hwif.timer2_comparator_hi.value,
 The APB address bus is fixed at 12 bits and the data bus at 32 bits; they are
 not parameters.
 
-**Derived Parameters:**
-```systemverilog
-localparam int TIMER_ADDR_OFFSET = 32'h20;  // 32-byte stride per timer
-localparam int TIMER_REGS_START = 32'h100;  // Timer register base address
-```
+**Address-map constants** (values from the generated decode in
+hpet_regs.sv -- there are no such localparams in the RTL):
+
+- Timer stride: 0x20 bytes per timer
+- Timer register base: 0x100
 
 **Configuration Examples:**
 
