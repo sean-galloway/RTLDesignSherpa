@@ -543,16 +543,23 @@ async def cocotb_test_bridge_2x2_rw_latency(dut):
     # and immune to whatever phase contention that caused.
     async def _sampler():
         n = 0
-        pairs = (('m_aw', d.cpu_m_axi_awvalid, d.cpu_m_axi_awready),
+        ports = (('m_aw', d.cpu_m_axi_awvalid, d.cpu_m_axi_awready),
                  ('s_aw', d.ddr_s_axi_awvalid, d.ddr_s_axi_awready),
                  ('s_b',  d.ddr_s_axi_bvalid,  d.ddr_s_axi_bready),
                  ('m_b',  d.cpu_m_axi_bvalid,  d.cpu_m_axi_bready))
         while True:
             await RisingEdge(tb.clock)
             n += 1
-            for name, v, r in pairs:
+            for name, v, r in ports:
                 if _hi(v) and _hi(r):
                     marks.setdefault(name, n)
+            # VALID arrival is the bridge's own propagation. ACCEPTANCE also
+            # counts however long the far side held READY low, which is the
+            # attached slave's behaviour, not the bridge's depth.
+            if _hi(d.ddr_s_axi_awvalid):
+                marks.setdefault('s_aw_valid', n)
+            if _hi(d.cpu_m_axi_bvalid):
+                marks.setdefault('m_b_valid', n)
 
     cocotb.start_soon(_sampler())
 
@@ -566,18 +573,33 @@ async def cocotb_test_bridge_2x2_rw_latency(dut):
     missing = {'m_aw', 's_aw', 's_b', 'm_b'} - marks.keys()
     assert not missing, f"never observed handshakes: {sorted(missing)}"
 
-    req = marks['s_aw'] - marks['m_aw']
-    rsp = marks['m_b'] - marks['s_b']
-    tb.log.info(f"LATENCY request(master AW -> slave AW) = {req} cycles")
-    tb.log.info(f"LATENCY response(slave B -> master B)  = {rsp} cycles")
+    # PROPAGATION is the bridge's own depth: how long a beat takes to appear
+    # on the far side. Accept-to-accept was measured first and was wrong for
+    # this purpose -- it also counts however long the far side held READY low,
+    # so it moved between runs (4/2 one run, 2/6 the next) and described the
+    # BFM's timing as much as the bridge's.
+    req = marks['s_aw_valid'] - marks['m_aw']
+    rsp = marks['m_b_valid'] - marks['s_b']
+    tb.log.info(f"LATENCY propagation request = {req} cycles")
+    if 's_aw_valid' in marks:
+        tb.log.info(f"LATENCY propagation request (AW accepted -> AWVALID at slave) = "
+                    f"{marks['s_aw_valid'] - marks['m_aw']} cycles")
+    if 'm_b_valid' in marks:
+        tb.log.info(f"LATENCY propagation response (B accepted -> BVALID at master) = "
+                    f"{marks['m_b_valid'] - marks['s_b']} cycles")
+    tb.log.info(f"LATENCY propagation response = {rsp} cycles")
 
-    # The response path is NOT a direct connection: it is registered. Assert a
-    # floor so a doc claiming zero cannot be reconciled with a passing test.
-    assert rsp >= 1, (
-        f"response path measured {rsp} cycles. The docs described master "
-        f"delivery as '0 (Direct connection)'; if that ever becomes true this "
-        f"assertion should be revisited deliberately, not silently.")
-    assert req >= 1, f"request path measured {req} cycles, expected >= 1"
+    # Both paths are two skid stages, so both are 2. Asserting the exact value
+    # (not just >= 1) is what makes this test able to catch a pipeline stage
+    # being added or removed, which is the drift the docs suffered from.
+    assert req == 2, (
+        f"request propagation measured {req} cycles, expected 2 "
+        f"(cpu_adapter AW skid -> ddr_adapter AW skid). A change here means a "
+        f"pipeline stage moved; update Table 5.7 in the same commit.")
+    assert rsp == 2, (
+        f"response propagation measured {rsp} cycles, expected 2. The docs "
+        f"once described master delivery as '0 (Direct connection)'; it is "
+        f"registered.")
 
 
 # ============================================================================

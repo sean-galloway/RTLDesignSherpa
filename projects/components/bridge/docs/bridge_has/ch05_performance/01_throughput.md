@@ -52,7 +52,20 @@ Peak Throughput = DATA_WIDTH (bits) × Frequency (Hz) / 8 bytes/bit
 | Factor | Impact | Mitigation |
 |--------|--------|------------|
 | Arbitration contention | Reduces per-master throughput | Increase slave ports |
-| Width conversion | 1-cycle penalty per direction | Match widths where possible |
+| Width conversion | UNVERIFIED -- see note | Match widths where possible |
+
+> **The width-conversion figure is not measured.** "1-cycle penalty per
+> direction" has no source: the converters (`axi_data_upsize`,
+> `axi_data_dnsize`, `axi4_dwidth_converter_{rd,wr}`) decompose or combine
+> beats, so the cost depends on the width RATIO and the burst length, and a
+> single constant cannot be right for 256b->32b and 64b->32b alike.
+>
+> It is left marked rather than replaced with a guess. Measuring it needs a
+> propagation measurement on a converted path in `bridge_4x4_rw`
+> (gpu 256b -> periph 32b) against a matched one (cpu 64b -> ddr0 64b), in the
+> style of `test_bridge_2x2_rw_latency`. An attempt at that test could not
+> reliably observe the master-side reference and was withdrawn rather than
+> committed half-working.
 | Protocol conversion | 2+ cycles for APB | Use AXI4 for high-bandwidth |
 | Response routing | Minimal (pipelined) | N/A |
 

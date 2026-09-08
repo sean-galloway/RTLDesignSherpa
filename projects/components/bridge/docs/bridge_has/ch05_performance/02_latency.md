@@ -59,24 +59,35 @@
 
 : Table 5.7: Response Path Latency
 
-> **Measured, not estimated.** `bridge_2x2_rw`, cpu master to ddr slave, idle
-> bridge, prompt slave, counted at the ports:
+> **Measured.** `bridge_2x2_rw`, cpu master to ddr slave, idle bridge:
 >
 > | Path | Cycles |
 > |---|---|
-> | master AW accepted -> AW accepted at the slave port | **4** |
-> | B accepted at the slave port -> B accepted at the master | **2** |
+> | AW accepted at the master -> AWVALID at the slave port | **2** |
+> | B accepted at the slave port -> BVALID at the master | **2** |
+>
+> Two skid stages each way: the master adapter's `axi4_slave_wr` AW skid, then
+> the slave adapter's `axi4_master_wr` AW skid. The response path has the same
+> structure, which is why the two figures match.
 >
 > The response row previously read "Master delivery 0 (Direct connection)",
-> giving a total of 1. It is registered, and the measured figure is 2. Both
-> numbers come from `test_bridge_2x2_rw_latency`, which asserts each path is
-> at least one cycle so a future edit cannot silently restore the zero. Figures
-> elsewhere quoting "2-3 cycles" describe the request path and understate it;
-> the measured value is 4 for this configuration.
+> total 1. It is registered, and the figure is 2.
+>
+> **What this measures, and what an earlier revision of this note got wrong.**
+> These are PROPAGATION times -- how long a beat takes to appear on the far
+> side. An earlier revision quoted 4 cycles for the request path, measured
+> accept-to-accept. That metric also counts however long the far side held
+> READY low, so it describes the attached slave's timing as much as the
+> bridge's, and it was not even stable: successive runs gave 4/2 and then 2/6.
+> Propagation is 2/2 on every run.
+>
+> `test_bridge_2x2_rw_latency` asserts both values EXACTLY, so adding or
+> removing a pipeline stage fails the test rather than silently ageing this
+> table.
 >
 > Other configurations differ -- width converters and the APB/AXIL shims add
-> stages -- so treat these as the measured floor for a direct AXI4 path, not a
-> universal constant.
+> stages -- so this is the figure for a direct AXI4 path, not a universal
+> constant.
 
 ## End-to-End Latency
 
