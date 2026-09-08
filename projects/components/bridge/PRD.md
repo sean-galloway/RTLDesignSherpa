@@ -35,7 +35,7 @@
 
 **Bridge** is a Python-based AXI4 crossbar generator that produces simple, performant SystemVerilog RTL for connecting multiple AXI4 masters to multiple AXI4 slaves. The name follows the infrastructure theme - bridges connect different regions, enabling communication across divides, just like crossbars connect masters and slaves.
 
-**Design Philosophy:** A simple AMBA fabric that is performant, but makes no attempt to support all features. We enforce hard limits (8-bit ID width, 64-bit address width) to eliminate unnecessary complexity, focusing only on what real hardware needs.
+**Design Philosophy:** A simple AMBA fabric that is performant, but makes no attempt to support all features. ID and address widths are PER PORT, set in the TOML (`id_width`, `addr_width`) -- see 12.1. An earlier revision of this line claimed hard 8-bit/64-bit limits; the generator has never enforced them, and the shipped configs use 2-, 4- and 8-bit IDs.
 
 **Key Differentiator from Delta:**
 - **Delta:** AXI-Stream crossbar (streaming data, single channel, simple routing)
@@ -86,10 +86,10 @@ Features intentionally excluded for simplicity:
 - (Both of these WERE excluded once and no longer are: ID width and address
   width are per-port generation inputs. Left here as history because the
   "design differentiator" argument above still cites them.)
-- No AXI4-Lite protocol variant (use standard AXI4 with len=0)
+- ~~No AXI4-Lite protocol variant~~ -- `axil` and `axil5` ARE supported slave protocols (`config_validator.valid_protocols`), converted at the boundary by `axi4_to_axil4_{rd,wr}`
 - No ACE protocol extensions (cache coherency)
 - No AXI5 features
-- No complete AXI4 sideband signal support (QoS, Region, User signals declared but not routed)
+- ~~QoS, Region, User declared but not routed~~ -- **routed since `c2955863`/`2b229516`**; they carry real values end to end
 
 **5. What We DO Support**
 
@@ -222,7 +222,7 @@ Bridge automates generation of AXI4 crossbar infrastructure:
   registers its output side, so an ideal zero-wait slave still costs >=4
   cycles of bridge-added latency before arbitration. The 2-3 cycle figure in
   6.1 describes the wrapperless flat crossbar, not what the generator emits.
-- [x] Throughput: All M×N paths can transfer concurrently
+- [ ] Throughput: M×N paths do NOT all transfer concurrently. Each master is held to ONE target slave at a time (`aw_gate_ok`/`ar_gate_ok`, "single-outstanding-target"), a deadlock fix, not an oversight. Concurrency is across MASTERS, not across a master's targets.
 - [x] Performance models implemented (bridge_model.py - V1 Flat)
 - [ ] Fmax ≥ 300 MHz on UltraScale+ FPGAs (pending synthesis validation)
 
@@ -365,7 +365,7 @@ Masters (M)                                                    Slaves (S)
     AW the slave accepted first.
   - B and R have no arbiter -- they are muxed combinationally on the
     `bridge_id` carried alongside the response.
-- Round-robin with burst locking
+- Round-robin, grant held to the ADDRESS handshake -- NOT to xlast. The generated arbiters read `lock until handshake`.
 - Separate read/write paths (no head-of-line blocking)
 
 **3. Data Multiplexing**
@@ -419,8 +419,8 @@ Masters (M)                                                    Slaves (S)
   slave and nothing more. Exclusives work only if the attached slave
   implements the monitor itself. 13.1 correctly lists the monitor as future
   work; this requirement previously read as though the bridge provided it.
-- Track exclusive monitor per slave
-- Generate BRESP/RRESP errors for failed exclusives
+- ~~Track exclusive monitor per slave~~ -- NOT implemented; see the corrected bullet above
+- ~~Generate BRESP/RRESP errors for failed exclusives~~ -- NOT implemented
 
 ### 3.2 Address Decoding
 
@@ -450,7 +450,7 @@ address_map = {
   not until xlast. The RTL comment reads "lock until handshake". Back-to-back
   AWs from different masters can therefore be accepted and their W bursts
   sequenced by the W-owner FIFO.
-- Configurable arbitration policy (round-robin default)
+- Round-robin arbitration, HARD-CODED. There is no TOML key and no parameter to change it; "configurable" was aspirational.
 
 **FR-7: Read/Write Independence**
 - Separate read and write paths
@@ -466,8 +466,8 @@ address_map = {
 
 **FR-9: Interleaving Constraints**
 - W channel locked to AW grant master
-- R channel routed by transaction ID
-- Support ID-based interleaving (slave-dependent)
+- R channel routed by in-order `bridge_id` FIFO position, NOT by transaction ID. IDs are pass-through: the slave port is the same width as the master port. `bridge_cam.sv` exists but is instantiated in zero generated bridges.
+- ID-based interleaving is NOT supported. Each slave port must return B/R in request order across ALL IDs -- see BRIDGE-010.
 
 ---
 
@@ -481,7 +481,7 @@ address_map = {
 - **Burst transfer:** No additional latency per beat (pipelined)
 
 **NFR-2: Throughput**
-- **Concurrent transfers:** All M×S paths can transfer simultaneously
+- **Concurrent transfers:** different masters to different slaves, yes; ONE master to several slaves, no -- see 1.3
 - **Burst efficiency:** Line-rate data transfer after address phase
 - **No artificial stalls:** Crossbar adds no wait states beyond arbitration
 
@@ -703,12 +703,13 @@ class BridgeGenerator:
     def generate_aw_arbiter(self, slave_idx) -> str:
         """Generate write address channel arbiter for one slave"""
         # Round-robin arbiter
-        # Grants locked until corresponding B response completes
+        # Grant held to the ADDRESS handshake, not to the B response.
+        # (This pseudocode described an abandoned lock-until-response design.)
 
     def generate_ar_arbiter(self, slave_idx) -> str:
         """Generate read address channel arbiter for one slave"""
         # Round-robin arbiter
-        # Grants locked until corresponding R response completes (RLAST)
+        # Grant held to the ADDRESS handshake, not to RLAST.
 
     def generate_w_channel_mux(self, slave_idx) -> str:
         """Generate write data channel multiplexer"""
@@ -748,8 +749,10 @@ bridge_config = {
         2: {'base': 0x50000000, 'size': 0x01000000, 'name': 'PCIE'},
         3: {'base': 0x60000000, 'size': 0x00010000, 'name': 'Peripherals'}
     },
-    'pipeline_outputs': True,
-    'enable_counters': True
+    # NOTE: 'pipeline_outputs' and 'enable_counters' are NOT real config
+    # keys -- config_validator rejects unknown keys, and 5.3 says the
+    # counters do not exist. Removed from this example rather than left
+    # for someone to copy.
 }
 ```
 
@@ -849,7 +852,7 @@ Configuration:
 
 **Benefits:**
 - Concurrent access to all slaves
-- Out-of-order completion for high-performance CPUs
+- in-order completion (see FR-9 -- out-of-order is NOT implemented)
 - Burst transfers for cache line fills
 - Separate read/write paths (no head-of-line blocking)
 
@@ -1074,7 +1077,7 @@ The shell scripts will automatically:
 
 - [ ] **Optional pipeline stages** - For Fmax >400 MHz
 - [ ] **Weighted arbitration** - QoS support
-- [ ] **Default slave** - Unmapped address handling
+- [x] **Default slave** - unmapped address handling. Built 2026-09-07: a subtractive catch-all answers DECERR + 0xDEADBEEF, with a sticky status/IRQ and APB clear. See HAS 4.5 and BRIDGE-009.
 - [ ] **Exclusive monitor** - Full atomic operation support
 
 ### 13.2 Long-Term

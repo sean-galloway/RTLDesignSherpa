@@ -86,6 +86,28 @@ midway through the map, which renumbered everything after it, silently moved
 the monitor-enable bits, and left the monitors switched off while every
 functional test still passed.
 
+## When it can never fire
+
+The catch-all is the `else` of the decode chain, so it is reachable only if
+the slave ranges leave a **gap**. A map that tiles the whole address space has
+no unmapped address to catch, and the `else` is unreachable logic that
+synthesis removes -- it costs nothing and reports nothing.
+
+Most shipped variants are in exactly that position. Of the 22 generated
+bridges, **18 tile the space completely** and 4 leave gaps. `bridge_2x2_rw` is
+typical of the first group: `ddr` takes `<= 0x7FFF_FFFF` and `sram` takes
+`>= 0x8000_0000`, between them the entire 32-bit range.
+
+This is worth knowing before wiring `unmapped_irq` to anything: on a
+fully-tiled bridge it is tied low by construction, and a test that expects it
+to assert will wait forever. Check your own address map, not this table --
+it changes with the TOML.
+
+The insurance is still worth having. A map is tiled *today*; the next slave
+added, or the next range narrowed, opens a gap, and the difference between
+"reports it" and "hangs the master" is decided at that moment rather than at
+integration time.
+
 ## What this does not do
 
 The catch-all does not make an unmapped access *correct*. It makes it
