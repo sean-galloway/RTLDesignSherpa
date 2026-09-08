@@ -84,8 +84,15 @@ module axi5_atomic_filter #(
     // B responses whenever the downstream B channel is idle.
     // -----------------------------------------------------------------
     logic [IW-1:0]        r_resp_mem [DEPTH];
-    logic [DEPTH_LG2:0]   r_resp_wptr, r_resp_rptr;
-    wire                  w_resp_empty = (r_resp_wptr == r_resp_rptr);
+    // r_resp_wptr reserves the slot at AW; r_resp_cptr COMMITS it once the
+    // swallowed burst's WLAST has been consumed. AXI forbids returning B
+    // before the write data has been received, and the response was
+    // previously visible the moment the AW was accepted -- so a master still
+    // mid-W-burst could see BVALID for that burst. Emptiness is judged on the
+    // COMMIT pointer, so nothing is presented early; fullness still uses the
+    // write pointer, so the slot is reserved as soon as it is claimed.
+    logic [DEPTH_LG2:0]   r_resp_wptr, r_resp_cptr, r_resp_rptr;
+    wire                  w_resp_empty = (r_resp_cptr == r_resp_rptr);
     wire                  w_resp_full  =
         (r_resp_wptr[DEPTH_LG2-1:0] == r_resp_rptr[DEPTH_LG2-1:0]) &&
         (r_resp_wptr[DEPTH_LG2]     != r_resp_rptr[DEPTH_LG2]);
@@ -173,6 +180,7 @@ module axi5_atomic_filter #(
             r_route_wptr <= '0;
             r_route_rptr <= '0;
             r_resp_wptr  <= '0;
+            r_resp_cptr  <= '0;
             r_resp_rptr  <= '0;
         end else begin
             if (w_aw_hs) begin
@@ -183,8 +191,13 @@ module axi5_atomic_filter #(
                     r_resp_wptr <= r_resp_wptr + 1'b1;
                 end
             end
-            if (w_w_hs_last)
+            if (w_w_hs_last) begin
                 r_route_rptr <= r_route_rptr + 1'b1;
+                // w_route_head is 1 for a swallowed burst: its DECERR becomes
+                // visible only now, once its write data has been consumed.
+                if (w_route_head)
+                    r_resp_cptr <= r_resp_cptr + 1'b1;
+            end
             if (w_local_b_hs)
                 r_resp_rptr <= r_resp_rptr + 1'b1;
         end

@@ -10,7 +10,7 @@ import os
 
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, ClockCycles
+from cocotb.triggers import RisingEdge, ClockCycles, ReadOnly
 from cocotb_test.simulator import run
 
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
@@ -75,6 +75,71 @@ async def _collect_b(dut, out, count):
         await RisingEdge(dut.aclk)
         if int(dut.s_bvalid.value) and int(dut.s_bready.value):
             out.append((int(dut.s_bid.value), int(dut.s_bresp.value)))
+
+
+@cocotb.test(timeout_time=10, timeout_unit="ms")
+async def atomic_filter_b_after_wlast_test(dut):
+    """A swallowed atomic's DECERR must not be presented before its WLAST.
+
+    AXI forbids returning a write response before the write data has been
+    received. The filter reserved its response-queue slot at AW ACCEPT and made
+    the DECERR visible immediately, so a master still driving W beats could see
+    BVALID for that very burst.
+    """
+    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    dut.aresetn.value = 0
+    dut.s_awvalid.value = 0
+    dut.s_wvalid.value = 0
+    dut.s_bready.value = 1
+    for _ in range(5):
+        await RisingEdge(dut.aclk)
+    dut.aresetn.value = 1
+    await RisingEdge(dut.aclk)
+
+    fwd_aw, bresp_queue = [], []
+    cocotb.start_soon(_downstream_model(dut, fwd_aw, bresp_queue))
+
+    early, wlast_seen = [], []
+
+    async def _watch():
+        while True:
+            await RisingEdge(dut.aclk)
+            await ReadOnly()
+            if int(dut.s_wvalid.value) and int(dut.s_wready.value) \
+                    and int(dut.s_wlast.value):
+                wlast_seen.append(1)
+            if int(dut.s_bvalid.value) and not wlast_seen:
+                early.append(1)
+
+    cocotb.start_soon(_watch())
+
+    dut.s_awid.value = 5
+    dut.s_awatop.value = 0x32
+    dut.s_awvalid.value = 1
+    while True:
+        await RisingEdge(dut.aclk)
+        if int(dut.s_awready.value):
+            break
+    dut.s_awvalid.value = 0
+
+    for i in range(4):
+        await ClockCycles(dut.aclk, 3)
+        dut.s_wlast.value = 1 if i == 3 else 0
+        dut.s_wvalid.value = 1
+        while True:
+            await RisingEdge(dut.aclk)
+            if int(dut.s_wready.value):
+                break
+        dut.s_wvalid.value = 0
+    dut.s_wlast.value = 0
+
+    await ClockCycles(dut.aclk, 20)
+
+    assert wlast_seen, "the W burst never completed; the test proved nothing"
+    assert not early, (
+        "BVALID asserted before the swallowed burst's WLAST. AXI requires the "
+        "write data to be received before a write response is returned; the "
+        "response slot must be COMMITTED at WLAST, not reserved at AW.")
 
 
 @cocotb.test(timeout_time=10, timeout_unit="ms")
@@ -271,7 +336,7 @@ def test_axi5_atomic_filter(request):
         includes=includes,
         toplevel=dut_name,
         module=module,
-        testcase="atomic_filter_test,atomic_filter_held_decerr_test",
+        testcase="atomic_filter_test,atomic_filter_held_decerr_test,atomic_filter_b_after_wlast_test",
         sim_build=sim_build,
         waves=False,
         extra_args=['--assert'] + waves['extra_args'],
