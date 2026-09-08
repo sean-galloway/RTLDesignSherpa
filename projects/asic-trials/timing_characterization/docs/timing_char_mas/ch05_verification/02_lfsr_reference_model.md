@@ -49,7 +49,7 @@ def bit(val, idx):
 
 ### Figure 5.2: Pipeline Alignment for Verification
 
-![Pipeline Alignment](../assets/wavedrom/pipeline_alignment.svg)
+![Pipeline Alignment](../assets/wavedrom/pipeline_alignment.png)
 
 The output at cycle C corresponds to f(lfsr[C-2]). The verification index formula is: lfsr_idx = settle_cycles + cyc - 2.
 

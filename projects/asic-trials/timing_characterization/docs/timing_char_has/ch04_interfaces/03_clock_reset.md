@@ -59,7 +59,7 @@ standard reset macros:
 
 ### Figure 4.1: Reset Timing
 
-![Reset Timing](../assets/wavedrom/reset_timing.svg)
+![Reset Timing](../assets/wavedrom/reset_timing.png)
 
 ### Reset in SDC
 

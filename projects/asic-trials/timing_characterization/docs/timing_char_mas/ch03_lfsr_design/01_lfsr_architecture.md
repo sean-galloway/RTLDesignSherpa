@@ -23,7 +23,7 @@ The shared 32-bit Galois LFSR uses a left-shift architecture with polynomial
 
 ### Figure 3.2: LFSR Shift Operation Timing
 
-![LFSR Shift Operation](../assets/wavedrom/lfsr_shift_operation.svg)
+![LFSR Shift Operation](../assets/wavedrom/lfsr_shift_operation.png)
 
 The MSB (bit 31) feeds back through XOR taps at positions 0, 1, 2, and 22 (polynomial 0x0040_0007). Each cycle: shift left, XOR feedback into tap positions, new LSB = old MSB.
 

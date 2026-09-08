@@ -33,7 +33,7 @@ All FUBs share a common 3-stage pipeline structure:
 
 ### Figure 3.4: Pipeline Timing (3-Edge Latency)
 
-![Pipeline Timing](../assets/wavedrom/pipeline_timing.svg)
+![Pipeline Timing](../assets/wavedrom/pipeline_timing.png)
 
 The output at cycle C reflects the LFSR state from cycle C-2.
 
