@@ -909,6 +909,62 @@ ergonomic prefixes (`host_awvalid`, `dma_axil_awvalid`,
 
 ---
 
+### BRIDGE-011: Response-tracking FIFOs overflow silently (HIGH)
+
+**Status:** OPEN -- found 2026-09-08 while checking BRIDGE-010's reachability.
+
+Every generated bridge carries two 16-entry response-tracking FIFOs, and
+NEITHER has a full check or applies backpressure:
+
+| FIFO | File | Depth | Routes |
+|---|---|---|---|
+| `wr_fifo` / `rd_fifo` | `<slave>_slave_adapter.sv` | `WR/RD_FIFO_DEPTH = 16` | B/R back to the originating MASTER |
+| `aw_trk_mem` / `w_trk_mem` | `<master>_master_adapter.sv` | `AW_TRK_DEPTH = 16` | B back to the originating SLAVE |
+
+Push is unconditional on the address handshake:
+
+```systemverilog
+end else if (xbar_..._awvalid && xbar_..._awready) begin
+    wr_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= xbar_bridge_id_aw;
+    wr_ptr <= wr_ptr + 1'b1;
+end
+```
+
+The 17th outstanding write wraps the 4-bit index and overwrites entry 0. The
+response for the 1st transaction is then routed by an entry belonging to the
+17th -- B/R delivered to the WRONG MASTER, with no error and no protocol
+violation on any port. Silent data corruption, not a hang.
+
+**Reachability -- verified, not inferred.** Nothing anywhere caps the count:
+
+1. `axi4_master_wr.sv:156` -- `assign int_skid_awready = m_axi_awready;`
+   Straight passthrough. No outstanding counter in the module at all.
+2. Master adapter `aw_gate_ok` gates on WHICH slave, never HOW MANY:
+   `(aw_trk_wptr == aw_trk_rptr) || (comb_slave_select_aw == r_aw_active_target)`
+   Same-slave pipelining is explicitly unlimited -- the comment says so.
+3. `grep -niE "outstanding|credit|max_txn|in_flight|throttle"` over every
+   generated `.sv` in `bridge_4x4_rw` returns only the aw_gate_ok comments.
+
+So the bound is whatever the attached slave accepts. A DDR controller that
+takes 32 outstanding writes -- ordinary -- overflows this on every run. The
+slave-side FIFO sees the SUM across masters, so it fills faster still.
+
+**Why no test caught it.** The 70-test FULL regression passes because the AXI4
+BFM slaves return B/R promptly, so depth stays far under 16. The bug needs a
+slow slave plus a deep pipeline, which no current bridge test builds.
+
+**Recommended fix:** gate `awready`/`arready` on the tracking FIFO being
+not-full. No deadlock risk -- entries drain on responses, which never depend
+on accepting a further request. Deepening the FIFO is NOT a fix; it moves the
+cliff. An assertion alone detects it in sim but leaves silicon corrupting.
+
+Needs a test that holds B off while issuing >16 -- that test should be written
+FIRST and shown RED, since a test whose stimulus cannot reach depth 17 passes
+against the broken RTL.
+
+Related: BRIDGE-010 (ordering, same FIFOs). Both are consequences of routing
+by FIFO position rather than by returned ID.
+
 ## Recently Completed Tasks
 
 ### ✅ Phase 2: Channel-Specific Masters (Complete - 2025-10-26)
