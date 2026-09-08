@@ -201,15 +201,21 @@ filelist_dirs = ["projects/fpga-systems/NexysA7/rapids_characterization/flows-ra
 name = "nexys_cdc_display"
 kind = "board"
 rtl_roots = []
-filelist_dirs = ["projects/fpga-systems/NexysA7/cdc_counter_display/dv/filelists"]
+filelist_dirs = [
+    "projects/fpga-systems/NexysA7/cdc_counter_display/build-demo/rtl/filelists",
+    "projects/fpga-systems/NexysA7/cdc_counter_display/build-demo/dv/filelists",
+    "projects/fpga-systems/NexysA7/cdc_counter_display/build-phase1/rtl/filelists",
+]
 
 [[area]]
-name = "nexys_timing_char"
-kind = "board"
+# Renamed from "nexys_timing_char": this was never a board project, it is an
+# ASIC run, and it moved to projects/asic-trials/ (f5a4a50b). The asic_only
+# filelist dir is gone with the 37-file duplicate deleted in 3f9bd3ea.
+name = "asic_trials_timing_char"
+kind = "asic"
 rtl_roots = []
 filelist_dirs = [
-    "projects/NexysA7/timing_characterization/rtl/filelists",
-    "projects/NexysA7/timing_characterization/rtl/asic_only/filelists",
+    "projects/asic-trials/timing_characterization/rtl/filelists",
 ]
 
 [[area]]

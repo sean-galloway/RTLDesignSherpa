@@ -37,7 +37,7 @@ This is a comprehensive, production-quality FPGA project demonstrating safe Cloc
 
 ### RTL Design (1 file, 450 lines)
 
-**`rtl/cdc_counter_display_top.sv`**
+**`build-phase1/rtl/cdc_counter_display_top.sv`**
 - Top-level integration
 - Two independent clock domains (btn_clk @ 10Hz, disp_clk @ 1kHz)
 - CDC pulse handshake
@@ -52,7 +52,7 @@ This is a comprehensive, production-quality FPGA project demonstrating safe Cloc
 
 ### Constraints (1 file, 180 lines)
 
-**`constraints/nexys_a7_100t.xdc`**
+**`build-phase1/fpga/constraints/nexys_a7_100t.xdc`**
 - Pin assignments for Nexys A7-100T
 - Clock definitions (sys_clk, btn_clk, disp_clk)
 - Asynchronous clock groups
@@ -61,28 +61,27 @@ This is a comprehensive, production-quality FPGA project demonstrating safe Cloc
 - Max delay constraints
 - Multi-cycle paths for slow clocks
 
-### Build Scripts (3 files, 250 lines)
+### Build Scripts (build-phase1/fpga/tcl/)
 
-**`tcl/create_project.tcl`**
-- Vivado project creation
+**`create_project.tcl`**
+- Vivado project creation from the build's filelist
 - Source file management
 - Synthesis/implementation strategies
 - Board part configuration
 
-**`tcl/build_all.tcl`**
+**`build_all.tcl`**
 - Complete build flow automation
 - Synthesis → Implementation → Bitstream
-- Report generation (timing, utilization, CDC, power)
-- Bitstream copy to convenient location
+- Report generation (timing, utilization, CDC)
+- Bitstream copy to `fpga/bitstream/`
 
-**`tcl/program_fpga.tcl`**
-- Hardware manager automation
-- FPGA programming
-- Usage instructions
+**Programming** goes through the shared board layer
+(`projects/fpga-systems/bin/fpga_board.py`, `make program`) -- the registry
+pins the JTAG serial, so there is no per-project programming tcl.
 
 ### Simulation (1 file, 150 lines)
 
-**`sim/test_cdc_counter_display.py`**
+**`build-phase1/dv/tests/test_cdc_counter_display.py`**
 - CocoTB testbench
 - 4 test scenarios:
   - Basic increment and CDC crossing
@@ -114,15 +113,15 @@ This is a comprehensive, production-quality FPGA project demonstrating safe Cloc
 - File summary
 - Design metrics
 
-### Build Automation (1 file)
+### Build Automation
 
-**`Makefile`**
-- Convenient build targets
-- `make sim` - Run simulation
-- `make build` - Build bitstream
-- `make program` - Program FPGA
-- `make lint` - Verilator lint check
-- `make clean` - Clean build files
+**`Makefile`** (component dispatcher; build Makefiles are variables +
+the global `make/fpga_flow.mk`). Phase-1 targets take `BUILD=phase1`:
+- `make sim BUILD=phase1` - Run simulation
+- `make bitstream BUILD=phase1` - Build bitstream
+- `make program BUILD=phase1` - Program FPGA
+- `make lint BUILD=phase1` - Verilator lint check
+- `make clean` - Clean build files (both builds)
 
 ---
 
@@ -288,13 +287,13 @@ Easy modifications for experimentation:
 
 1. **Lint Check**
    ```bash
-   make lint
+   make lint BUILD=phase1
    ```
    Verify no Verilator warnings
 
 2. **Simulation**
    ```bash
-   make sim
+   make sim BUILD=phase1
    ```
    Confirm all 4 tests pass
 

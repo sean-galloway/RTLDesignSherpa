@@ -6,7 +6,7 @@
 # Subsystem: framework
 #
 # sync_pulse had NO simulation test at all until 2026-08-07, despite being
-# LIVE: projects/fpga-systems/NexysA7/cdc_counter_display/rtl/cdc_counter_domain.sv
+# LIVE: projects/fpga-systems/NexysA7/cdc_counter_display/build-demo/rtl/cdc_counter_domain.sv
 # instantiates it three times (u_load_sync, u_host_press_sync, u_alive_sync)
 # to carry pulses between the system and counter clock domains. It also has a
 # formal harness (formal/cdc/sync_pulse).

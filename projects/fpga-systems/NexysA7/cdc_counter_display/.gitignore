@@ -1,45 +1,33 @@
-# Vivado Build Artifacts
-vivado_project/
+# Vivado build trees (per build; fpga/bitstream + fpga/reports keep .gitkeep)
+build-*/fpga/build/
+build-*/fpga/bitstream/*
+!build-*/fpga/bitstream/.gitkeep
+build-*/fpga/reports/*
+!build-*/fpga/reports/.gitkeep
+build-*/.flat_filelist.f
+build-*/.decl_order_files.txt
+build-*/.vivado-build.lock
 .Xil/
 *.log
 *.jou
 *.str
 *.xpr.user
 
-# Synthesis and Implementation
-.srcs/
-.cache/
-.hw/
-.ip_user_files/
-.sim/
+# Simulation build + log artifacts
+build-*/dv/tests/local_sim_build/
+build-*/dv/tests/logs/
+build-*/dv/tests/__pycache__/
+build-*/dv/tests/.pytest_cache/
 
-# Reports (optional - may want to track these)
-# reports/
+# PeakRDL default output dir (only dv/tbclasses/*_regmap.py is kept)
+build-*/rtl/generated/
 
-# Bitstream
+# Bitstreams never live in git
 *.bit
 *.bin
 *.mcs
 
-# Simulation
-sim/sim_build/
-sim/obj_dir/
-sim/*.vcd
-sim/*.fst
-sim/logs/*.log
-sim/__pycache__/
-sim/.pytest_cache/
-
-# Phase-2 UART-equivalence sim (dv/) build + log artifacts
-dv/tests/local_sim_build/
-dv/tests/logs/
-dv/tests/__pycache__/
-dv/tests/.pytest_cache/
-
-# PeakRDL default output dir (only dv/tbclasses/*_regmap.py is kept)
-rtl/generated/
-
-# Waveforms (optional - usually too large)
+# Waveforms
 *.vcd
 *.fst
 *.ghw

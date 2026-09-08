@@ -168,12 +168,14 @@ This flow follows the NexysA7 UART-characterization methodology (`bin/TBClasses/
 identically on the FPGA and in a cocotb sim.** The equivalence boundary is the ASCII
 `W/R` byte stream on the UART wire.
 
+All build-demo paths below are relative to `build-demo/`.
+
 | Layer | File | Notes |
 |---|---|---|
 | CSR descriptor (by-name) | `rtl/cdc_demo_csr.rdl` → `dv/tbclasses/cdc_demo_csr_regmap.py` | PeakRDL regmap; **no hardcoded offsets**. Regen: `make regmap`. |
 | Driver | `host/cdc_demo.py` (`CdcDemoDriver`) | Wraps `UARTAxiBridge` + `UartRegisterMap`. Bridge is **injectable** (`bridge=`) so the same driver runs on pyserial or a cocotb channel. |
 | Programs | `host/cdc_programs.py` | `smoke / press / cfg_load / cdc_mode_check / watch_fail` — authored once. |
-| CLI | `host/run_cdc_demo.py` | Thin front-end over the programs. |
+| CLI | `host/host_cdc_demo.py` | Thin front-end over the programs (`make host-cdc_demo ARGS=...`). |
 | Sim tb_top | `dv/tb/cdc_demo_uart_tb_top.sv` | Real `uart_axil_bridge` + `cdc_demo_harness` + 4× `cdc_counter_domain`; `ctr_clk`s driven behaviorally (the MMCM/BUFGMUX tree does not simulate). |
 | Sim test | `dv/tests/test_cdc_demo_uart.py` | Runs the UNMODIFIED programs via `make_uart_channel` + `cocotb.external`. |
 | Drift guard | `host/test_cdc_demo_regmap_consistency.py` | regmap vs SV header + `CTR_OFF_*`. |
@@ -183,13 +185,13 @@ identically on the FPGA and in a cocotb sim.** The equivalence boundary is the A
 make regmap && make consistency
 
 # Prove the harness in sim (same programs the FPGA runs, over the real bridge RTL)
-make sim-demo
+make sim
 
 # Build + program the board (one-time, ~5 min), then run the SAME programs on silicon
-make build-demo && make program-demo
-python3 host/run_cdc_demo.py --port /dev/ttyUSB1 smoke
-python3 host/run_cdc_demo.py --port /dev/ttyUSB1 press --counter 2 --count 1000
-python3 host/run_cdc_demo.py --port /dev/ttyUSB1 monitor
+make bitstream && make program
+make host-cdc_demo ARGS=smoke
+make host-cdc_demo ARGS="press --counter 2 --count 1000"
+make host-cdc_demo ARGS=monitor
 ```
 
 ---

@@ -1,0 +1,38 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Tue Sep  8 07:55:07 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_cdc -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/NexysA7/cdc_counter_display/build-demo/fpga/reports/cdc.txt
+| Design       : cdc_demo_top
+| Device       : 7a100t-csg324
+| Speed File   : -1  PRODUCTION 1.23 2018-06-13
+| Design State : Routed
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+CDC Report
+
+Severity  Source Clock      Destination Clock  CDC Type                 Exceptions           Endpoints  Safe  Unsafe  Unknown  No ASYNC_REG  
+--------  ----------------  -----------------  -----------------------  -------------------  ---------  ----  ------  -------  ------------  
+Critical  clk_mmcm_27m_raw  clk_mmcm_12m_raw   User Ignored             Asynch Clock Groups       2528   536     548     1444             0  
+Critical  clk_mmcm_6m_raw   clk_mmcm_12m_raw   User Ignored             Asynch Clock Groups       2528   536     548     1444             0  
+Critical  clk_mmcm_72m_raw  clk_mmcm_12m_raw   User Ignored             Asynch Clock Groups       2528   536     548     1444             0  
+Critical  sys_clk_pin       clk_mmcm_12m_raw   User Ignored             Asynch Clock Groups        192   168      24        0            24  
+Critical  clk_mmcm_12m_raw  clk_mmcm_27m_raw   User Ignored             Asynch Clock Groups       2528   536     548     1444             0  
+Critical  clk_mmcm_6m_raw   clk_mmcm_27m_raw   User Ignored             Asynch Clock Groups       2528   536     548     1444             0  
+Critical  clk_mmcm_72m_raw  clk_mmcm_27m_raw   User Ignored             Asynch Clock Groups       2528   536     548     1444             0  
+Critical  sys_clk_pin       clk_mmcm_27m_raw   User Ignored             Asynch Clock Groups        192   168      24        0            24  
+Critical  clk_mmcm_12m_raw  clk_mmcm_6m_raw    User Ignored             Asynch Clock Groups       2528   536     548     1444             0  
+Critical  clk_mmcm_27m_raw  clk_mmcm_6m_raw    User Ignored             Asynch Clock Groups       2528   536     548     1444             0  
+Critical  clk_mmcm_72m_raw  clk_mmcm_6m_raw    User Ignored             Asynch Clock Groups       2528   536     548     1444             0  
+Critical  sys_clk_pin       clk_mmcm_6m_raw    User Ignored             Asynch Clock Groups        192   168      24        0            24  
+Critical  clk_mmcm_12m_raw  clk_mmcm_72m_raw   User Ignored             Asynch Clock Groups       2528   536     548     1444             0  
+Critical  clk_mmcm_27m_raw  clk_mmcm_72m_raw   User Ignored             Asynch Clock Groups       2528   536     548     1444             0  
+Critical  clk_mmcm_6m_raw   clk_mmcm_72m_raw   User Ignored             Asynch Clock Groups       2528   536     548     1444             0  
+Critical  sys_clk_pin       clk_mmcm_72m_raw   User Ignored             Asynch Clock Groups        192   168      24        0            24  
+Critical  clk_mmcm_12m_raw  sys_clk_pin        User Ignored             Asynch Clock Groups        548   484       0       64            24  
+Critical  clk_mmcm_27m_raw  sys_clk_pin        User Ignored             Asynch Clock Groups        548   484       0       64            24  
+Critical  clk_mmcm_6m_raw   sys_clk_pin        User Ignored             Asynch Clock Groups        548   484       0       64            24  
+Critical  clk_mmcm_72m_raw  sys_clk_pin        User Ignored             Asynch Clock Groups        548   484       0       64            24  
+Critical  input port clock  sys_clk_pin        No Common Primary Clock  False Path                  38     5       0       33             0  
+

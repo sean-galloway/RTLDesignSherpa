@@ -6,15 +6,15 @@
 
 ## Two builds in one project
 
-| Phase | Top | Build | Program | Demo |
+| Build | Top | Build | Program | Demo |
 |---|---|---|---|---|
-| **Phase 1 (original)** — button-only, one counter, pulse-based handshake CDC | `cdc_counter_display_top` | `make build` | `make program` | Press BTNC → counter +1 → 7-seg updates. Standalone, no host required. |
-| **Phase 2 (UART harness)** — four counters, four buttons, host-controlled clock divisors, switchable proper-vs-broken CDC, watch-it-fail demo | `cdc_demo_top` | `make build-demo` | `make program-demo` | `make host-watch-fail` runs the headline demo: take one counter to NO-CDC mode, sweep its clock from slow → fast, watch the 7-seg flicker garbage at high speeds while the other counters stay clean. |
+| **build-phase1 (original)** — button-only, one counter, pulse-based handshake CDC | `cdc_counter_display_top` | `make bitstream BUILD=phase1` | `make program BUILD=phase1` | Press BTNC → counter +1 → 7-seg updates. Standalone, no host required. |
+| **build-demo (UART harness, default)** — four counters, four buttons, host-controlled clock divisors, switchable proper-vs-broken CDC, watch-it-fail demo | `cdc_demo_top` | `make bitstream` | `make program` | `make host-cdc_demo ARGS="watch-fail --counter 2"` runs the headline demo: take one counter to NO-CDC mode, sweep its clock from slow → fast, watch the 7-seg flicker garbage at high speeds while the other counters stay clean. |
 
-**Phase-2 docs:** [`docs/HARNESS.md`](docs/HARNESS.md) (CSR map + scripted demo procedure).
-**Phase-2 background:** [`docs/CDC_DEMO_TODO.md`](docs/CDC_DEMO_TODO.md) (taxonomy of CDC failure modes + "why it sometimes works anyway" pitfalls).
+**Demo-build docs:** [`docs/HARNESS.md`](docs/HARNESS.md) (CSR map + scripted demo procedure).
+**Demo-build background:** [`docs/CDC_DEMO_TODO.md`](docs/CDC_DEMO_TODO.md) (taxonomy of CDC failure modes + "why it sometimes works anyway" pitfalls).
 
-Both builds coexist — `cdc_counter_display_top.sv` (phase 1) and `cdc_demo_top.sv` (phase 2) live side-by-side in `rtl/`, with separate XDC, separate TCL project scripts, and separate Vivado project subdirectories.
+Each build is its own `build-*` directory (`build-phase1/` and `build-demo/`) with its own RTL top, filelist, XDC and Vivado project tree. The component Makefile is a dispatcher: targets go to `build-demo` by default, `BUILD=phase1` selects the other. All flow logic lives in the global `make/fpga_flow.mk` — the build Makefiles are variables only.
 
 ---
 
@@ -77,7 +77,7 @@ cd /path/to/rtldesignsherpa
 
 ```bash
 cd projects/fpga-systems/NexysA7/cdc_counter_display
-vivado -mode batch -source tcl/build_all.tcl
+make bitstream BUILD=phase1
 ```
 
 This will:
@@ -93,12 +93,12 @@ Build time: ~5-10 minutes (depending on your system)
 
 ```bash
 # Connect Nexys A7 board via USB and power it on
-vivado -mode batch -source tcl/program_fpga.tcl
+make program BUILD=phase1   # shared board layer: registry-pinned JTAG serial
 ```
 
 Or use Vivado GUI:
 ```bash
-vivado vivado_project/cdc_counter_display.xpr
+vivado build-phase1/fpga/build/vivado_project/cdc_counter_display.xpr
 # Hardware Manager → Open Target → Auto Connect → Program Device
 ```
 
@@ -247,20 +247,30 @@ sync_2ff #(.WIDTH(8)) u_sync (
 
 ```
 projects/fpga-systems/NexysA7/cdc_counter_display/
-├── rtl/
-│   └── cdc_counter_display_top.sv    # Top-level design
-├── constraints/
-│   └── nexys_a7_100t.xdc            # Pin assignments & timing
-├── tcl/
-│   ├── create_project.tcl            # Project creation
-│   ├── build_all.tcl                 # Complete build flow
-│   └── program_fpga.tcl              # FPGA programming
-├── docs/
-│   ├── CDC_ANALYSIS.md               # CDC safety analysis
-│   └── TIMING_ANALYSIS.md            # Timing analysis
-├── sim/
-│   └── test_cdc_counter_display.py   # CocoTB testbench
-└── README.md                         # This file
+├── Makefile                          # Area dispatcher (BUILD=demo|phase1)
+├── docs/                             # Guides, analysis, transcripts
+├── stable/                           # Last kept build's reports (make keep)
+├── build-demo/                       # UART harness build (default)
+│   ├── Makefile                      # Variables only + make/fpga_flow.mk
+│   ├── rtl/                          # cdc_demo_top, harness, counter domain, RDL
+│   │   └── filelists/cdc_demo_top.f  # The build's compile closure
+│   ├── dv/                           # UART-equivalence cocotb sim (tb, tests, tbclasses)
+│   ├── host/                         # host_cdc_demo.py + driver + programs
+│   └── fpga/
+│       ├── tcl/                      # create_project / build_all / synth_only
+│       ├── constraints/cdc_demo.xdc
+│       ├── bitstream/                # build output
+│       └── reports/
+└── build-phase1/                     # Button-only build
+    ├── Makefile
+    ├── rtl/cdc_counter_display_top.sv
+    │   └── filelists/cdc_counter_display_top.f
+    ├── dv/tests/test_cdc_counter_display.py   # CocoTB testbench
+    └── fpga/
+        ├── tcl/
+        ├── constraints/nexys_a7_100t.xdc
+        ├── bitstream/
+        └── reports/
 ```
 
 ---
@@ -286,41 +296,41 @@ This project demonstrates proper reuse of the rtldesignsherpa common library:
 
 ## Simulation
 
-**Phase 1** (`cdc_counter_display_top`) — CocoTB testbench for pre-implementation
-verification:
+**build-phase1** (`cdc_counter_display_top`) — CocoTB testbench for
+pre-implementation verification:
 
 ```bash
-make sim          # cd sim && pytest test_cdc_counter_display.py -v
+make sim BUILD=phase1   # pytest build-phase1/dv/tests
 ```
 
 Verifies clock generation, button debouncing, counter increment, CDC pulse
 transfer, and display update.
 
-**Phase 2** (`cdc_demo_top`) — UART-characterization **equivalence** sim: wraps the
+**build-demo** (`cdc_demo_top`) — UART-characterization **equivalence** sim: wraps the
 real `uart_axil_bridge` + `cdc_demo_harness` and runs the **same host programs**
-that drive the FPGA (`host/cdc_programs.py`) over a cocotb UART master, so sim and
-silicon are byte-for-byte identical at the wire. See [`docs/HARNESS.md`](docs/HARNESS.md).
+that drive the FPGA (`build-demo/host/cdc_programs.py`) over a cocotb UART master,
+so sim and silicon are byte-for-byte identical at the wire. See
+[`docs/HARNESS.md`](docs/HARNESS.md).
 
 ```bash
-make regmap       # regenerate the by-name regmap from rtl/cdc_demo_csr.rdl
+make regmap       # regenerate the by-name regmap from build-demo/rtl/cdc_demo_csr.rdl
 make consistency  # guard: regmap vs hand-written harness SV
-make sim-demo     # smoke / press / cfg_load / cdc_mode over the real bridge RTL
+make sim          # smoke / press / cfg_load / cdc_mode over the real bridge RTL
 ```
 
 ---
 
 ## Build Reports
 
-After running `build_all.tcl`, reports are generated in `reports/`:
+After `make bitstream`, reports are generated in the build's `fpga/reports/`
+(`make utilization` and `make timing` print the summaries):
 
 | Report | File | Contents |
 |--------|------|----------|
 | **Timing Summary** | `timing_summary.txt` | Setup/hold timing, WNS/WHS |
-| **Timing Detailed** | `timing_detailed.txt` | Critical paths |
-| **Utilization** | `utilization.txt` | LUT/FF/BRAM usage |
+| **Utilization** | `utilization_synth.txt` / `utilization_impl.txt` | LUT/FF/BRAM usage |
 | **Clock Interaction** | `clock_interaction.txt` | Clock domain analysis |
-| **CDC Report** | `cdc_report.txt` | CDC crossing analysis |
-| **Power** | `power.txt` | Power estimation |
+| **CDC Report** | `cdc.txt` | CDC crossing analysis |
 | **DRC** | `drc.txt` | Design rule checks |
 
 ### Expected Resource Usage
@@ -368,7 +378,7 @@ This design is very lightweight!
 **Cause:** Missing dependencies
 **Solution:**
 - Ensure rtldesignsherpa common library accessible
-- Check file paths in create_project.tcl
+- Check the build's `rtl/filelists/*.f` closure (`make lint` flattens the same list)
 - Verify Vivado version (2020.2+)
 
 ---

@@ -75,15 +75,15 @@ CSR configuration.
 
 | Target | Phase | What it does |
 |--------|-------|--------------|
-| `make sim` | 1 | Phase-1 CocoTB sim (`cdc_counter_display_top`) |
-| `make sim-demo` | 2 | UART-equivalence sim (real bridge + harness; runs host programs) |
-| `make regmap` | 2 | Regenerate the by-name regmap from `rtl/cdc_demo_csr.rdl` |
+| `make sim BUILD=phase1` | 1 | Phase-1 CocoTB sim (`cdc_counter_display_top`) |
+| `make sim` | 2 | UART-equivalence sim (real bridge + harness; runs host programs) |
+| `make regmap` | 2 | Regenerate the by-name regmap from `build-demo/rtl/cdc_demo_csr.rdl` |
 | `make consistency` | 2 | Guard: regmap vs hand-written harness SV |
-| `make build-demo` | 2 | Build the phase-2 bitstream (`cdc_demo.bit`) |
-| `make program-demo` | 2 | Flash the board |
-| `make lint-demo` | 2 | Verilator lint (Xilinx primitives stubbed) |
+| `make bitstream` | 2 | Build the demo bitstream (`build-demo/fpga/bitstream/cdc_demo.bit`) |
+| `make program` | 2 | Flash the board |
+| `make lint` | 2 | Verilator lint (Xilinx primitives stubbed) |
 
-### Host CLI (`host/run_cdc_demo.py`)
+### Host CLI (`build-demo/host/host_cdc_demo.py`, via `make host-cdc_demo ARGS=...`)
 
 | Subcommand | Purpose |
 |------------|---------|

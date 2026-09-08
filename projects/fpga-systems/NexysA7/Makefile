@@ -39,9 +39,12 @@ SHELL := /bin/bash
 CLEAN_ALL_DIRS =
 
 
-# Sub-projects that support only `clean` (lighter cleanup or single-target):
-CLEAN_ONLY_DIRS = \
-    cdc_counter_display
+# Sub-projects that support only `clean` (lighter cleanup or single-target).
+# Migrated fpga_flow.mk components (pumice, cdc_counter_display) are NOT
+# listed: their `clean` is the flow's clean, which deletes Vivado artifacts,
+# reports and the bitstream -- heavier than the light clean promised here.
+# Clean them from their own directory when that is what you mean.
+CLEAN_ONLY_DIRS =
 
 # All dirs that we'll visit for the light `clean` target (superset of both).
 CLEAN_DIRS = $(CLEAN_ALL_DIRS) $(CLEAN_ONLY_DIRS)

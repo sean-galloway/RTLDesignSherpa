@@ -37,19 +37,19 @@ instances and collects their CDC'd status back.
 ## What you need
 
 - Nexys A7-100T board (XC7A100T-1CSG324C) + USB cable.
-- Xilinx Vivado (for `build-demo` / `program-demo`).
+- Xilinx Vivado (for `make bitstream` / `make program`).
 - A Python environment sourced from `env_python` (for the host CLI and sim).
 
 ## Where things live
 
 | Path | Contents |
 |------|----------|
-| `rtl/cdc_demo_top.sv` | Board top: clocking tree, buttons, harness, display |
-| `rtl/cdc_demo_harness.sv` | AXI4-Lite CSR + per-counter fan-out |
-| `rtl/cdc_counter_domain.sv` | One counter + its CDC paths (5 modes) |
-| `rtl/cdc_demo_csr.rdl` | Register descriptor (generates the by-name regmap) |
-| `host/` | `cdc_demo.py` driver, `cdc_programs.py`, `run_cdc_demo.py` CLI |
-| `dv/` | UART-equivalence cocotb sim (tb, tests, filelist, regmap) |
+| `build-demo/rtl/cdc_demo_top.sv` | Board top: clocking tree, buttons, harness, display |
+| `build-demo/rtl/cdc_demo_harness.sv` | AXI4-Lite CSR + per-counter fan-out |
+| `build-demo/rtl/cdc_counter_domain.sv` | One counter + its CDC paths (5 modes) |
+| `build-demo/rtl/cdc_demo_csr.rdl` | Register descriptor (generates the by-name regmap) |
+| `build-demo/host/` | `cdc_demo.py` driver, `cdc_programs.py`, `host_cdc_demo.py` CLI |
+| `build-demo/dv/` | UART-equivalence cocotb sim (tb, tests, filelist, regmap) |
 | `Makefile` | Build / sim / program / host targets |
 
 : Project file layout

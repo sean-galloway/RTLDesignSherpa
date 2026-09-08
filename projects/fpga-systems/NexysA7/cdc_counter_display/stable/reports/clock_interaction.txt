@@ -1,0 +1,47 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Tue Sep  8 07:54:57 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_clock_interaction -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/NexysA7/cdc_counter_display/build-demo/fpga/reports/clock_interaction.txt
+| Design       : cdc_demo_top
+| Device       : 7a100t-csg324
+| Speed File   : -1  PRODUCTION 1.23 2018-06-13
+| Design State : Routed
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Clock Interaction Report
+
+Clock Interaction Table
+-----------------------
+
+                                    WNS                            TNS Failing  TNS Total    WNS Path         Clock-Pair           Inter-Clock          
+From Clock        To Clock          Clock Edges  WNS(ns)  TNS(ns)    Endpoints    Endpoints  Requirement(ns)  Classification       Constraints          
+----------------  ----------------  -----------  -------  -------  -----------  -----------  ---------------  -------------------  -------------------  
+clk_mmcm_12m_raw  clk_mmcm_12m_raw  rise - rise    75.71     0.00            0         3180            83.75  Clean                Timed                
+clk_mmcm_12m_raw  clk_mmcm_27m_raw                                           0         3180                   Ignored              Asynchronous Groups  
+clk_mmcm_12m_raw  clk_mmcm_6m_raw                                            0         3180                   Ignored              Asynchronous Groups  
+clk_mmcm_12m_raw  clk_mmcm_72m_raw                                           0         3180                   Ignored              Asynchronous Groups  
+clk_mmcm_12m_raw  sys_clk_pin                                                0          548                   Ignored              Asynchronous Groups  
+clk_mmcm_27m_raw  clk_mmcm_12m_raw                                           0         3180                   Ignored              Asynchronous Groups  
+clk_mmcm_27m_raw  clk_mmcm_27m_raw  rise - rise    28.23     0.00            0         3180            36.25  Clean                Timed                
+clk_mmcm_27m_raw  clk_mmcm_6m_raw                                            0         3180                   Ignored              Asynchronous Groups  
+clk_mmcm_27m_raw  clk_mmcm_72m_raw                                           0         3180                   Ignored              Asynchronous Groups  
+clk_mmcm_27m_raw  sys_clk_pin                                                0          548                   Ignored              Asynchronous Groups  
+clk_mmcm_6m_raw   clk_mmcm_12m_raw                                           0         3180                   Ignored              Asynchronous Groups  
+clk_mmcm_6m_raw   clk_mmcm_27m_raw                                           0         3180                   Ignored              Asynchronous Groups  
+clk_mmcm_6m_raw   clk_mmcm_6m_raw   rise - rise   151.95     0.00            0         3180           160.00  Clean                Timed                
+clk_mmcm_6m_raw   clk_mmcm_72m_raw                                           0         3180                   Ignored              Asynchronous Groups  
+clk_mmcm_6m_raw   sys_clk_pin                                                0          548                   Ignored              Asynchronous Groups  
+clk_mmcm_72m_raw  clk_mmcm_12m_raw                                           0         3180                   Ignored              Asynchronous Groups  
+clk_mmcm_72m_raw  clk_mmcm_27m_raw                                           0         3180                   Ignored              Asynchronous Groups  
+clk_mmcm_72m_raw  clk_mmcm_6m_raw                                            0         3180                   Ignored              Asynchronous Groups  
+clk_mmcm_72m_raw  clk_mmcm_72m_raw  rise - rise     5.74     0.00            0         3180            13.75  Clean                Timed                
+clk_mmcm_72m_raw  sys_clk_pin                                                0          548                   Ignored              Asynchronous Groups  
+sys_clk_pin       clk_mmcm_12m_raw                                           0          196                   Ignored              Asynchronous Groups  
+sys_clk_pin       clk_mmcm_27m_raw                                           0          196                   Ignored              Asynchronous Groups  
+sys_clk_pin       clk_mmcm_6m_raw                                            0          196                   Ignored              Asynchronous Groups  
+sys_clk_pin       clk_mmcm_72m_raw                                           0          196                   Ignored              Asynchronous Groups  
+sys_clk_pin       sys_clk_pin       rise - rise     3.22     0.00            0         6308            10.00  Clean                Partial False Path   
+
+

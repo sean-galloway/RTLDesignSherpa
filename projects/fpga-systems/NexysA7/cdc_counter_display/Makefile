@@ -1,207 +1,80 @@
 #==============================================================================
-# Makefile for CDC Counter Display Project
+# cdc_counter_display on Nexys A7 -- area dispatcher
 #==============================================================================
-# Provides convenient targets for building, simulating, and programming
+# One entry point for the whole component. Per-build work is delegated to the
+# build's own Makefile (which is variables + the global make/fpga_flow.mk), so
+# nothing here re-implements flow logic.
+#
+#   make                        this message
+#   make bitstream              BUILD=demo (default) -- or BUILD=phase1
+#   make <target> BUILD=phase1  any build target against the other build
+#   make -C build-demo help     the full per-build target list
 #==============================================================================
 
-.PHONY: help build sim program clean cleanall lint
-.PHONY: build-demo sim-demo program-demo lint-demo create-demo cleanall-demo host-smoke host-watch-fail
-.PHONY: regmap consistency
+SELF_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+RDS_ROOT := $(if $(REPO_ROOT),$(REPO_ROOT),$(shell git rev-parse --show-toplevel))
+PYTHON   ?= python3
 
-# Default target
+BUILDS   := demo phase1
+BUILD    ?= demo
+BUILD_DIR = $(SELF_DIR)/build-$(BUILD)
+
+BOARD    ?= nexys_a7_100t
+
+.DEFAULT_GOAL := help
+.PHONY: help builds regmap consistency clean clean-all
+
 help:
-	@echo "========================================================================"
-	@echo "CDC Counter Display - Nexys A7 FPGA Project"
-	@echo "========================================================================"
-	@echo "Available targets:"
+	@echo "cdc_counter_display on Nexys A7 (BUILD=$(BUILD), BOARD=$(BOARD))"
 	@echo ""
-	@echo "Phase 1 (button-only, original cdc_counter_display_top):"
-	@echo "  make sim          - Run CocoTB simulation"
-	@echo "  make build        - Build FPGA bitstream"
-	@echo "  make program      - Program FPGA with bitstream"
-	@echo "  make lint         - Verilator lint check"
-	@echo "  make clean        - Clean simulation files"
-	@echo "  make cleanall     - Clean all generated files"
+	@echo "  Builds:"
+	@echo "    build-demo/     UART harness + 4 CDC counters -- the headline demo"
+	@echo "    build-phase1/   button-only starter (no UART)"
 	@echo ""
-	@echo "Phase 2 (UART harness, cdc_demo_top — 4 counters, NO-CDC demo):"
-	@echo "  make regmap           - Regenerate cdc_demo_csr regmap from the RDL"
-	@echo "  make consistency      - Check RDL/regmap vs hand-written harness SV"
-	@echo "  make sim-demo         - UART-equivalence CocoTB sim (runs host programs)"
-	@echo "  make build-demo       - Build phase-2 bitstream (~5-10 min)"
-	@echo "  make program-demo     - Flash phase-2 bitstream"
-	@echo "  make lint-demo        - Verilator lint of the harness RTL"
-	@echo "  make create-demo      - Create Vivado project only (no build)"
-	@echo "  make cleanall-demo    - Wipe phase-2 build artifacts"
-	@echo "  make host-smoke       - python3 host/run_cdc_demo.py ... smoke"
-	@echo "  make host-watch-fail  - python3 host/run_cdc_demo.py ... watch-fail"
+	@echo "  Any build target, against either build:"
+	@echo "    make bitstream                 # BUILD=demo by default"
+	@echo "    make bitstream BUILD=phase1"
+	@echo "    make program lint sim utilization timing clean"
+	@echo "    make host-cdc_demo ARGS=smoke  # host CLI (build-demo)"
+	@echo "    make -C build-demo help        # full per-build target list"
 	@echo ""
-	@echo "Quick start (Phase 2):"
-	@echo "  1. make sim-demo            # Verify the harness in simulation"
-	@echo "  2. make build-demo          # Generate bitstream"
-	@echo "  3. make program-demo        # Flash the board"
-	@echo "  4. make host-watch-fail     # Run the 'watch CDC break' demo"
-	@echo "========================================================================"
+	@echo "  Area-wide:"
+	@echo "    make regmap        Regenerate cdc_demo_csr regmap from the RDL"
+	@echo "    make consistency   Check RDL/regmap vs the hand-written harness SV"
+	@echo "    make builds        List builds"
 
-# Run CocoTB simulation
-sim:
-	@echo "Running CocoTB simulation..."
-	cd sim && pytest test_cdc_counter_display.py -v -s
-	@echo ""
-	@echo "Simulation completed. Waveforms available in sim/sim_build/"
-
-# Build FPGA bitstream
-build:
-	@echo "Building FPGA bitstream with Vivado..."
-	@echo "This will take approximately 5-10 minutes..."
-	vivado -mode batch -source tcl/build_all.tcl
-	@echo ""
-	@echo "Build completed!"
-	@echo "Bitstream: cdc_counter_display.bit"
-	@echo "Reports:   reports/"
-
-# Program FPGA
-program:
-	@echo "Programming Nexys A7 FPGA..."
-	@echo "Make sure your board is connected and powered on."
-	vivado -mode batch -source tcl/program_fpga.tcl
-	@echo ""
-	@echo "Programming completed!"
-	@echo "Try pressing the center button (BTNC) to increment the counter."
-
-# Lint RTL with Verilator
-lint:
-	@echo "Running Verilator lint check..."
-	verilator --lint-only -Wall \
-		-I../../../rtl/common \
-		rtl/cdc_counter_display_top.sv \
-		../../../rtl/common/clock_divider.sv \
-		../../../rtl/common/debounce.sv \
-		../../../rtl/cdc/sync_pulse.sv \
-		../../../rtl/common/hex_to_7seg.sv
-	@echo "Lint check completed."
-
-# Clean simulation files
-clean:
-	@echo "Cleaning simulation files..."
-	rm -rf sim/sim_build
-	rm -rf sim/__pycache__
-	rm -f sim/*.vcd
-	rm -f sim/results.xml
-	@echo "Simulation files cleaned."
-
-# Clean all generated files
-cleanall: clean
-	@echo "Cleaning all generated files..."
-	rm -rf vivado_project
-	rm -rf reports
-	rm -f cdc_counter_display.bit
-	rm -f .Xil
-	rm -f vivado*.log
-	rm -f vivado*.jou
-	@echo "All generated files cleaned."
-
-# Development shortcuts
-.PHONY: test quick rebuild
-
-# Quick test (alias for sim)
-test: sim
-
-# Quick rebuild (clean + build)
-rebuild: cleanall build
-
-# Create project only (no build)
-create:
-	@echo "Creating Vivado project..."
-	vivado -mode batch -source tcl/create_project.tcl
-	@echo ""
-	@echo "Project created: vivado_project/cdc_counter_display.xpr"
-	@echo "Open with: vivado vivado_project/cdc_counter_display.xpr"
-
-#==============================================================================
-# Phase 2 — UART harness build (cdc_demo_top)
-#==============================================================================
-REPO_ROOT := $(abspath ../../..)
-PORT      ?= /dev/ttyUSB1
+builds:
+	@for b in $(BUILDS); do echo "  $$b"; done
 
 # Regenerate the PeakRDL regmap from the RDL descriptor (CRITICAL RULE #0:
-# generated collateral — never hand-edit dv/tbclasses/cdc_demo_csr_regmap.py).
+# generated collateral -- never hand-edit dv/tbclasses/cdc_demo_csr_regmap.py).
+# Deliberately NOT a PREBUILD step: it writes DV collateral, and a build step
+# that rewrites DV has destroyed committed fixes before (see the handbook).
 regmap:
 	@echo "Regenerating cdc_demo_csr regmap from RDL..."
-	cd $(REPO_ROOT) && python3 bin/peakrdl_generate.py \
-		projects/fpga-systems/NexysA7/cdc_counter_display/rtl/cdc_demo_csr.rdl \
+	cd $(RDS_ROOT) && $(PYTHON) bin/peakrdl_generate.py \
+		projects/fpga-systems/NexysA7/cdc_counter_display/build-demo/rtl/cdc_demo_csr.rdl \
 		--regmap --docs-only --no-html --no-markdown \
-		--regmap-output projects/fpga-systems/NexysA7/cdc_counter_display/dv/tbclasses/cdc_demo_csr_regmap.py
-	@echo "Done. dv/tbclasses/cdc_demo_csr_regmap.py"
+		--regmap-output projects/fpga-systems/NexysA7/cdc_counter_display/build-demo/dv/tbclasses/cdc_demo_csr_regmap.py
+	@echo "Done. build-demo/dv/tbclasses/cdc_demo_csr_regmap.py"
 
 # Guard: generated regmap must match the hand-written harness SV + RDL.
 consistency:
-	python3 -m pytest host/test_cdc_demo_regmap_consistency.py -q
+	$(PYTHON) -m pytest $(SELF_DIR)/build-demo/host/test_cdc_demo_regmap_consistency.py -q
 
-# UART-equivalence CocoTB sim: wraps the real uart_axil_bridge + harness and runs
-# the UNMODIFIED host programs (cdc_programs.*) via cocotb.external — the same
-# programs run_cdc_demo.py runs on the FPGA. See docs/HARNESS.md.
-sim-demo:
-	@echo "Running UART-equivalence CocoTB sim (dv/tests)..."
-	cd dv/tests && python3 -m pytest test_cdc_demo_uart.py -v -s
-	@echo "Done. Build dir: dv/tests/local_sim_build/"
+# The NexysA7 aggregator visits this component for clean; fan out to builds.
+clean:
+	@for b in $(BUILDS); do $(MAKE) --no-print-directory -C $(SELF_DIR)/build-$$b clean; done
 
-# Verilator lint of just the harness RTL + counter domain + top
-lint-demo:
-	@echo "Running Verilator lint (phase 2)..."
-	verilator --lint-only -Wno-fatal -Wno-WIDTH -Wno-UNUSEDSIGNAL -Wno-UNUSEDPARAM -Wno-DECLFILENAME \
-		-I$(REPO_ROOT)/rtl/amba/includes \
-		--top-module cdc_demo_top \
-		rtl/verilator_xilinx_stubs.sv \
-		$(REPO_ROOT)/rtl/common/clock_divider.sv \
-		$(REPO_ROOT)/rtl/common/gray2bin.sv \
-		$(REPO_ROOT)/rtl/common/bin2gray.sv \
-		$(REPO_ROOT)/rtl/cdc/sync_pulse.sv \
-		$(REPO_ROOT)/rtl/common/fifo_sync.sv \
-		$(REPO_ROOT)/rtl/common/fifo_async.sv \
-		$(REPO_ROOT)/rtl/common/fifo_control.sv \
-		$(REPO_ROOT)/rtl/common/counter_bin.sv \
-		$(REPO_ROOT)/rtl/common/counter_bin_load.sv \
-		$(REPO_ROOT)/rtl/common/counter_bingray.sv \
-		$(REPO_ROOT)/rtl/cdc/glitch_free_n_dff_arn.sv \
-		$(REPO_ROOT)/rtl/amba/cdc/cdc_open_loop.sv \
-		$(REPO_ROOT)/rtl/amba/cdc/cdc_2_phase_handshake.sv \
-		$(REPO_ROOT)/rtl/amba/cdc/cdc_4_phase_handshake.sv \
-		$(REPO_ROOT)/rtl/amba/cdc/cdc_synchronizer.sv \
-		$(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
-		$(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
-		$(REPO_ROOT)/rtl/amba/axil4/axil4_master_rd.sv \
-		$(REPO_ROOT)/rtl/amba/axil4/axil4_master_wr.sv \
-		$(REPO_ROOT)/projects/components/converters/rtl/uart_to_axil4/uart_rx.sv \
-		$(REPO_ROOT)/projects/components/converters/rtl/uart_to_axil4/uart_tx.sv \
-		$(REPO_ROOT)/projects/components/converters/rtl/uart_to_axil4/uart_axil_bridge.sv \
-		rtl/cdc_demo_harness.sv rtl/cdc_counter_domain.sv rtl/cdc_demo_top.sv
+clean-all:
+	@for b in $(BUILDS); do $(MAKE) --no-print-directory -C $(SELF_DIR)/build-$$b clean-all; done
 
-# Build phase-2 bitstream
-build-demo:
-	@echo "Building phase-2 bitstream (cdc_demo_top) — ~5-10 min..."
-	vivado -mode batch -source tcl/build_demo.tcl
-	@echo "Done. Bitstream: cdc_demo.bit"
+# Anything else is a per-build target: forward it to the selected build.
+# The two no-op rules stop the catch-all from trying to "remake" the makefiles
+# themselves, which would recurse.
+Makefile: ;
+%.mk: ;
 
-# Program FPGA with phase-2 bitstream
-program-demo:
-	@echo "Programming Nexys A7 with cdc_demo.bit..."
-	vivado -mode batch -source tcl/program_fpga_demo.tcl
-	@echo "Done. Connect: python3 host/run_cdc_demo.py --port $(PORT) smoke"
-
-# Create phase-2 project only
-create-demo:
-	@echo "Creating Vivado phase-2 project..."
-	vivado -mode batch -source tcl/create_project_demo.tcl
-	@echo "Project: vivado_project_demo/cdc_demo.xpr"
-
-# Clean phase-2 artifacts
-cleanall-demo:
-	rm -rf vivado_project_demo reports_demo cdc_demo.bit
-	rm -f vivado*.log vivado*.jou .Xil
-
-# Host script convenience
-host-smoke:
-	python3 host/run_cdc_demo.py --port $(PORT) smoke
-
-host-watch-fail:
-	python3 host/run_cdc_demo.py --port $(PORT) watch-fail --counter 2
+%:
+	@[ -d $(BUILD_DIR) ] || (echo "No such build: $(BUILD) (have: $(BUILDS))" && false)
+	@$(MAKE) --no-print-directory -C $(BUILD_DIR) $@
