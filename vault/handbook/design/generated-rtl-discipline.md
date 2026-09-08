@@ -156,6 +156,44 @@ that owns it, and consumers reference it from a filelist (or at most take a
 copy) — they never generate their own. `obs_regs` is consumed by both Genesys 2
 stream and NexysA7 pumice this way.*
 
+## A generator edit must be checked against every TOPOLOGY it emits, not every file
+
+Fixing BRIDGE-011 (gate `awready` on the tracking FIFO being not-full) took
+THREE regressions to land, and all three were the same mistake: I validated the
+change on `bridge_2x2_rw` -- one config, all-AXI4, read and write -- and
+generalised to 36 configs whose adapters are not shaped like it.
+
+| break | what I assumed | what was true |
+|---|---|---|
+| 44 failed | every adapter has a write channel | read-only bridges have no write block, and I had put BOTH channels' declarations in it |
+| 44 failed | the crossbar-facing block is the AXI4 timing wrapper | APB/AXIL slaves use a SHIM instead, so the gated ready had no driver |
+| 5 failed | a shim's `pfx` means "the crossbar" | in `*_mon` variants it is the INTERNAL wrapper-to-shim net; gating both collapsed two nets onto one signal (MULTIDRIVEN) |
+
+The generator emits a small number of TOPOLOGIES -- wrapper only, shim only,
+wrapper->shim chained, read-only, write-only -- and a change to a handshake
+has to be reasoned about in each. "It regenerated cleanly and 2x2 passes" is
+evidence about one topology.
+
+Cheap check that finds all three in seconds, no simulation:
+
+```bash
+for f in */*.sv; do
+  grep -q "logic w_sub_awready;" "$f" || continue
+  n=$(grep -cE "\.(fub_axi_|s_axi_)awready\(w_sub_awready\)" "$f")
+  [ "$n" -eq 1 ] || echo "DRIVERS=$n $f"      # 0 = undriven, 2 = multidriven
+done
+```
+
+Requiring EXACTLY ONE driver catches the undriven case and the multidriven case
+in the same sweep. A regression run costs five minutes and reports these as
+`SystemExit`, which looks like a test failure rather than what it is.
+
+*The rule: after changing a generator, enumerate the topologies it emits and
+assert a structural invariant over ALL generated output before simulating.
+The blast radius of a generator edit is every shape it can produce, not the
+one you were looking at.* See [[feedback_confirm_scope_shared_rtl]] for the
+same failure in hand-written shared RTL.
+
 Related: [[filelists]] (the same one-source rule for compile closures);
 the kimi-review-rounds rule 6 case in `vault/handbook/authoring/` — "fix the
 source comment or the doc error regrows" is this note's rule applied to prose.
