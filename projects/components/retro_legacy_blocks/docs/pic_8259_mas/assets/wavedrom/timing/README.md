@@ -96,8 +96,10 @@ IRR/ISR/STATUS are dedicated read-only registers at 0x20/0x24/0x28.
 ### OCW2 Commands
 | Value | Command |
 |-------|---------|
+| 0x00 | Rotate on auto EOI (clear) |
 | 0x20 | Non-specific EOI |
 | 0x60-0x67 | Specific EOI (IR0-IR7) |
+| 0x80 | Rotate on auto EOI (set) -- arms the defective AEOI rotation, see ch05/#50 |
 | 0xA0 | Rotate on non-specific EOI |
 | 0xE0-0xE7 | Rotate on specific EOI |
 | 0xC0-0xC7 | Set priority (IR# becomes lowest) |

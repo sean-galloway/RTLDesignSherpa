@@ -41,9 +41,12 @@ Implemented in the current RTL:
 - Interrupt masking (IMR / OCW1)
 
 Register bits exist but are **not** functional in the current core (see the
-register map implementation notes): Master/Slave cascade (ICW3), Automatic EOI
-(ICW4 AEOI), polling mode (OCW3), special fully nested mode (ICW4 SFNM), and
-buffered mode (ICW4 BUF). There is also no INTA handshake or vector-output pin.
+register map implementation notes): Master/Slave cascade (ICW3), polling
+mode (OCW3), special fully nested mode (ICW4 SFNM), and buffered mode
+(ICW4 BUF). Automatic EOI (ICW4 AEOI) performs no end-of-interrupt but is
+NOT inert: it arms a defective rotation path (with OCW2 0x80 the priority
+base rotates every clock while int_out is asserted -- see Chapter 5 and
+issue #50). There is also no INTA handshake or vector-output pin.
 
 ## Applications
 

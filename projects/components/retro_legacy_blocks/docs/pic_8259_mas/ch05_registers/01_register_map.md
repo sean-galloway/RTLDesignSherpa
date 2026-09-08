@@ -84,6 +84,14 @@ normally clears init_mode on the ICW4 write) initialization can
 therefore never complete until software clears the bit by hand (RTL
 quirk, #50). The default auto_reset_init=1 masks this.
 
+Re-initialization deviations from a real 8259A: an ICW1 write while the
+init FSM is mid-sequence (WAIT_ICW2/3/4) clears IRR/ISR but does NOT
+restart the sequence (only INIT_IDLE and INIT_COMPLETE honor it); ICW1
+re-init does not restore priority-base 7 or clear rotate-on-AEOI /
+special-mask state (stale rotation state survives re-init); and IC4=0
+leaves ICW4 storage at its reset values (uPM=1) rather than the 8259A's
+assumed zeros -- harmless today since uPM is unused.
+
 ---
 
 ## Initialization Command Words (ICW)
@@ -98,7 +106,7 @@ All ICW registers are write-only; reading them returns 0.
 | 1 | SNGL | 0 | 1 = single mode (no cascade), 0 = cascade mode |
 | 2 | ADI | 0 | Call address interval (8080/8085 mode only) |
 | 3 | LTIM | 0 | 1 = level triggered, 0 = edge triggered |
-| 4 | ICW1 Marker | 1 | Always 1 to identify ICW1 (8259A compatibility) |
+| 4 | ICW1 Marker | 1 | Resets to 1 (8259A ICW1 identifier); plain writable storage -- hardware does not enforce or check it |
 | 31:5 | Reserved | 0 | Reserved (the RTL implements no bits above bit 4) |
 
 Note: the RTL stores only bits [4:0]. The legacy A7-A5 vector bits of an MCS-80
@@ -183,7 +191,7 @@ write-then-read sequences over APB are normally slower than this window.
 |------|------|-------|-------------|
 | 1:0 | read_reg_cmd (RIS,RR) | 00 | Read-register select: 00=no action, 10=read IRR, 11=read ISR (see implementation note) |
 | 2 | P | 0 | Poll command (see implementation note) |
-| 4:3 | OCW3 Marker | 01 | Always 01 to identify OCW3 |
+| 4:3 | OCW3 Marker | 01 | Resets to 01 (OCW3 identifier); plain writable storage -- not enforced or checked |
 | 6:5 | ESMM,SMM | 00 | Special mask mode: 10=reset special mask, 11=set special mask |
 | 31:7 | Reserved | 0 | Reserved |
 
