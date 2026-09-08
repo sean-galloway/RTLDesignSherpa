@@ -21,13 +21,13 @@ This directory contains WaveDrom timing diagrams for IOAPIC (I/O Advanced Progra
 - `irq_in[23:0]` - Interrupt request inputs (directly or inverted)
 
 ### Message Interface (External)
-- `msg_valid` - Message valid to system bus
-- `msg_dest` - Destination APIC ID
+- `irq_out_valid` - Message valid to system bus
+- `irq_out_dest` - Destination APIC ID
 - `msg_vector` - Interrupt vector
 - `msg_type` - Delivery mode (Fixed, LowPri, SMI, NMI, etc.)
 
 ### EOI Interface (External)
-- `eoi_write` - EOI broadcast received
+- `eoi_in` - EOI broadcast received
 - `eoi_vector` - Vector being acknowledged
 
 ### IOAPIC Core (Internal)
@@ -91,13 +91,13 @@ Shows masked interrupt behavior:
 | Offset | Register | Description |
 |--------|----------|-------------|
 | 0x00 | IOREGSEL | Index register |
-| 0x10 | IOWIN | Data window |
-| 0x40 | IOEOI | EOI register (some implementations) |
+| 0x04 | IOWIN | Data window |
+| - | (no EOI register in this block; EOI arrives on the eoi_in/eoi_vector ports) |
 
 ### Redirection Table Entry (64-bit)
 | Bits | Field | Description |
 |------|-------|-------------|
-| 7:0 | Vector | Interrupt vector (0x10-0xFE) |
+| 7:0 | Vector | Interrupt vector (0x00-0xFF; no range restriction in RTL) |
 | 10:8 | Delivery Mode | Fixed, LowPri, SMI, NMI, INIT, ExtINT |
 | 11 | Dest Mode | Physical (0) or Logical (1) |
 | 12 | Delivery Status | Idle (0) or Send Pending (1) |
@@ -105,7 +105,7 @@ Shows masked interrupt behavior:
 | 14 | Remote IRR | Level-triggered: set on delivery, cleared on EOI |
 | 15 | Trigger Mode | Edge (0) or Level (1) |
 | 16 | Mask | Masked (1) or Not Masked (0) |
-| 55:56 | Destination | APIC ID (physical) or set (logical) |
+| 63:56 | Destination | APIC ID (physical) or set (logical) |
 
 ### Delivery Modes
 | Mode | Value | Description |

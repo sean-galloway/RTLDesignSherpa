@@ -140,7 +140,9 @@ APB Address | Register  | Internal Offset | Description
 ------------|-----------|-----------------|---------------------------
 0x000       | IOREGSEL  | N/A             | Register offset selector
 0x004       | IOWIN     | N/A             | Data window for selected reg
-0x008-0xFFF | Reserved  | N/A             | Future expansion
+0x008-0x0D0 | Direct    | direct decode   | IOAPICID/VER/ARB + IOREDTBL[n] (see MAS ch05)
+0x0D4-0x0FF | Unmapped  | N/A             | Reads return 0
+0x100-0xFFF | Aliases   | addr[7:0] only  | File repeats every 256 bytes
 
 Via IOREGSEL/IOWIN:
   0x00      | IOAPICID  | Bits[27:24]     | APIC ID

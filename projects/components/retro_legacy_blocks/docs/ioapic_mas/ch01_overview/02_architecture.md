@@ -171,7 +171,9 @@ This indirect access method:
 
 #### Clock Domain Architecture
 
-The IOAPIC supports two clock domain configurations via CDC_ENABLE parameter:
+The IOAPIC supports two clock domain configurations via the CDC_ENABLE
+parameter (a companion USE_JOHNSON parameter, default 0, selects the CDC
+FIFO pointer encoding and is forwarded to apb4_slave_cdc):
 
 **Single Clock Domain (CDC_ENABLE=0 - Default):**
 ```
@@ -312,7 +314,9 @@ apb4_ioapic #(
   0x018+8n). Only IOWIN accesses are remapped by the address translation; all
   other addresses pass straight through to the register block, so software can
   bypass the indirect mechanism. Use IOREGSEL/IOWIN for 82093AA-portable code.
-- 0x0D4-0xFFF: Unmapped (reads return 0, no error)
+- 0x0D4-0x0FF: Unmapped (reads return 0, no error)
+- 0x100-0xFFF: aliases of 0x000-0x0FF every 256 bytes (addr bit 8+ truncated
+  before the register block; stray accesses hit live registers)
 
 **Internal Register Space (8-bit offset via IOREGSEL):**
 - 0x00: IOAPICID

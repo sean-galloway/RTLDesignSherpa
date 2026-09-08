@@ -169,7 +169,8 @@ end
 ```
 
 **Edge vs Level Handling:**
-- **Edge:** Latch on rising/falling edge, clear on EOI
+- **Edge:** Latch on rising edge of the active level; cleared on delivery
+  acknowledge (edge delivery never uses EOI)
 - **Level:** Track input level, Remote IRR=1 when accepted, clear on EOI
 - **Polarity:** Invert input if active-low configured
 
@@ -256,4 +257,4 @@ IRQ15 (IDE)       -> Vector 0x2F, Edge, Active High
 ---
 
 **Last Updated:** 2025-11-16  
-**Status:** Foundation Complete - Core Implementation Needed
+**Status:** Implemented (see the dated note above; core, config_regs, APB top and tests all exist)

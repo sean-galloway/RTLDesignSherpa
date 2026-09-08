@@ -88,7 +88,7 @@ The IOAPIC core implements a 3-state FSM for interrupt delivery management.
 | **IDLE** | Pending IRQ found | DELIVER | Latch IRQ info, assert irq_out_valid |
 | **DELIVER** | !irq_out_ready | DELIVER | Wait for CPU |
 | **DELIVER** | irq_out_ready && edge mode | IDLE | Complete, return to arbitration |
-| **DELIVER** | irq_out_ready && level mode | WAIT_EOI | Set Remote IRR, wait for EOI |
+| **DELIVER** | irq_out_ready && level mode | WAIT_EOI | Wait for EOI (Remote IRR was already set at IDLE->DELIVER) |
 | **WAIT_EOI** | !(eoi_in && vector match) | WAIT_EOI | Continue waiting |
 | **WAIT_EOI** | eoi_in && vector match | IDLE | Clear Remote IRR, return |
 

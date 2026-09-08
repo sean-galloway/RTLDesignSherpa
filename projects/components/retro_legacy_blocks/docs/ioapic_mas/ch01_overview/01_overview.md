@@ -189,7 +189,9 @@ When an IRQ arrives while masked, the IRR bit latches but delivery is blocked. U
 **Register Access Performance:**
 - Direct APB access (IOREGSEL): 2 APB clock cycles
 - Indirect access (IOWIN): 2 APB clock cycles per register
-- Full redirection entry (LO+HI): 4 APB clock cycles total
+- Full redirection entry (LO+HI): 4 transactions (~8 cycles) via the
+  IOREGSEL/IOWIN indirect method; 2 transactions (~4 cycles) via the
+  direct decode at 0x014/0x018
 - With CDC: Add 2-4 cycles for synchronization
 
 **Resource Utilization (Post-Synthesis Estimates):**

@@ -40,7 +40,8 @@ The IOAPIC uses **indirect register access** following Intel 82093AA specificati
 | 0x00C | IOAPICVER | RO | 0x00170011 | Direct decode |
 | 0x010 | IOAPICARB | RO | 0x00000000 | Direct decode |
 | 0x014-0x0D0 | IOREDTBL[n] LO/HI | RW | see below | Direct decode: LO at 0x014+8n, HI at 0x018+8n (n = 0-23; IRQ23 HI at 0x0D0) |
-| 0x0D4-0xFFF | Unmapped | - | - | Reads return 0; no error is raised |
+| 0x0D4-0x0FF | Unmapped | - | - | Reads return 0; no error is raised |
+| 0x100-0xFFF | ALIASES | - | - | Only addr[7:0] reaches the register block (bit 8+ truncated), so the whole file repeats every 256 bytes: 0x108 hits IOAPICID, 0x114 hits IOREDTBL[0] LO, 0x104 hits the dead IOWIN storage. Stray accesses here read/corrupt live registers |
 
 **Direct access note:** the address translation in `ioapic_config_regs.sv` only
 remaps accesses to APB 0x004 (IOWIN); every other address passes through to the
@@ -65,10 +66,20 @@ portable access method.
 
 **Invalid selector values alias to IOREGSEL itself.** For a selector in
 0x03-0x0F or at or above 0x40, the address translation steers the IOWIN access
-to APB 0x000 - so an IOWIN *write* with a stale or invalid selector silently
-overwrites `regsel` with the write data, and an IOWIN read returns the current
-selector. Software must not rely on invalid selectors being ignored; always
-load a valid selector before touching IOWIN.
+to APB 0x000. The RTL keeps TWO copies of the selector (a functional shadow
+that drives translation, and the register-block copy that drives readback),
+and this path updates only the READBACK copy: after an invalid-selector
+IOWIN write, reading IOREGSEL returns the garbage just written while IOWIN
+still accesses the previously selected internal register. The copies also
+diverge on byte-enable handling (the shadow ignores strobes). Tracked as an
+RTL issue (#48); software must not rely on invalid selectors being ignored -
+always load a valid selector before touching IOWIN.
+
+**Mask before reprogramming polarity or trigger mode.** Toggling
+INTPOL or the trigger mode on a live input flips the internal active
+level and can manufacture a spurious edge, latching a phantom pending
+interrupt. Set the mask bit, reprogram, clear pending if needed, then
+unmask (same caveat as the real 82093AA).
 
 #### IOWIN Register (APB 0x004)
 
