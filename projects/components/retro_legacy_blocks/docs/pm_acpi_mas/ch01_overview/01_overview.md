@@ -25,10 +25,13 @@
 
 ## Introduction
 
+pm_interrupt is driven from the CORE clock domain (pm_clk when
+CDC_ENABLE=1) -- synchronize it externally if consumed on another clock.
+
 Top-level parameters on apb4_pm_acpi: CDC_ENABLE (0 = single pclk domain,
-1 = separate core clock via apb4_slave_cdc), with USE_JOHNSON
-(CDC counter encoding, default 0) and SKID_DEPTH (default 2)
-forwarded to the CDC block.
+1 = separate core clock via apb4_slave_cdc) and USE_JOHNSON (CDC counter
+encoding, default 0). There is no depth parameter -- the CDC FIFO depth
+is hardcoded to 2 at the apb4_slave_cdc instantiation.
 
 The APB PM/ACPI controller provides ACPI-compatible power management functionality with an APB interface. It handles system power states, events, and timer functionality.
 
@@ -74,7 +77,8 @@ The sequence:
 1. Software writes PM1_CONTROL with sleep_type (0=S0, 1=S1, 3=S3) and sleep_enable
 2. The PM core FSM enters the requested sleep state (S1 or S3)
 3. Clock gating / power domain outputs are updated for the target state
-4. On completion, state_transition status is set
+4. On completion, state_transition status is INTENDED to set (the W1C
+   status registers are non-functional in the current RTL -- see ch05, #54)
 
 ### Waveform 1.2: Wake Event
 
@@ -103,7 +107,9 @@ Free-running PM timer for timing services.
 The 32-bit free-running counter (PM_TIMER_VALUE, 0x020) increments at
 ~3.571 MHz from a 100 MHz pm_clk using the PM_TIMER_CONFIG divider
 (default 0x001B, divide-by-28; 0.23% below the ACPI-standard
-3.579545 MHz). Overflow sets the timer_overflow / tmr_sts status.
+3.579545 MHz). Overflow is INTENDED to set timer_overflow / tmr_sts
+(non-functional W1C status in the current RTL, #54); on the pin, the
+overflow term of pm_interrupt is a one-cycle pulse.
 
 ### Waveform 1.4: General Purpose Event (GPE)
 

@@ -48,6 +48,7 @@ base address. All registers are 32 bits wide with 32-bit access.
 | 0x020 | PM_TIMER_VALUE | RO | 0x00000000 | PM Timer current value (32-bit) |
 | 0x024 | PM_TIMER_CONFIG | RW | 0x0000001B | PM Timer clock divider |
 | 0x028-0x02C | (Reserved) | - | - | Reserved |
+| 0x040-0x04C | (Reserved) | - | - | Reserved (undecoded, reads 0) |
 | 0x030 | GPE0_STATUS_LO | W1C | 0x00000000 | GPE0 status bits [15:0] |
 | 0x034 | GPE0_STATUS_HI | W1C | 0x00000000 | GPE0 status bits [31:16] |
 | 0x038 | GPE0_ENABLE_LO | RW | 0x00000000 | GPE0 enable bits [15:0] |
@@ -68,7 +69,8 @@ Only PADDR[6:0] reaches the register block (the config layer slices
 [8:0] into a 7-bit port, truncating the rest), so the whole map ALIASES
 every 0x80 bytes across the 4 KB window -- a write to nominally-reserved
 0x080 writes ACPI_CONTROL (RTL hazard, #54). Within each 128-byte tile,
-only 0x070-0x07C read as zero. The register block only decodes
+the undecoded offsets 0x01C, 0x028-0x02C, 0x040-0x04C and 0x070-0x07C
+read as zero. The register block only decodes
 the offsets listed above; unmapped reads in the decoded range return 0.
 
 ---
@@ -261,7 +263,7 @@ second GPE bank (no GPE1).
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
-| 31:0 | clk_gate_status | RO | 0 | Actual clock gate state per block (hardware-updated) |
+| 31:0 | clk_gate_status | RO | 0xFFFFFFFF (live) | Actual clock gate state per block (reads the core register, which resets all-enabled) |
 
 ---
 
@@ -278,8 +280,14 @@ second GPE bank (no GPE1).
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
-| 7:0 | pwr_domain_status | RO | 0 | Actual power domain state (hardware-updated) |
+| 7:0 | pwr_domain_status | RO | 0xFF (live) | Actual power domain state (reads the core register, which resets all-powered) |
 | 31:8 | reserved | RO | 0 | Reserved |
+
+Sleep states override the CTRL values: in S1 the core forces
+clock_gate_en = CLOCK_GATE_CTRL & 0x3 (only blocks 0-1 may stay on);
+in S3 clock_gate_en = 0 and power_domain_en = POWER_DOMAIN_CTRL & 0x1
+(domain 0 always-on). The STATUS registers therefore read back values
+software never wrote while sleeping.
 
 ---
 
@@ -349,7 +357,10 @@ does not rely on behavior the current RTL does not provide:
   a usable value (any edge sets all 16 bits for one cycle, then the field
   self-clears -- see the register sections), and the core's internal GPE
   sticky status has no clear path, so once an enabled GPE fires the
-  aggregated interrupt stays asserted until reset.
+  aggregated interrupt stays asserted until reset -- and, because the
+  sticky status also feeds any_wake_event when gpe_wake_en=1, SLEEP ENTRY
+  IS PERMANENTLY BLOCKED after the first enabled GPE (the transition
+  state always resolves back to S0).
 - W1C status fields (ACPI_STATUS, ACPI_INT_STATUS, PM1_STATUS, WAKE_STATUS)
   are NON-FUNCTIONAL in the current build: their hardware-update `next`
   input is undriven and the generated field reloads it EVERY cycle, so the
