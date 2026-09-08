@@ -32,9 +32,19 @@ in issue #46 (documented as deviations in ch05)
 
 ---
 
-## Document Organization
+## Overview
 
-This MAS is organized into five chapters covering the micro-architecture of the APB HPET component:
+This MAS describes the APB HPET as the RTL exists today -- not as anyone wishes it did. Where the implementation diverges from the intent (and it does, in a few interesting places), the divergence is documented in-line where you'll trip over it, and tracked centrally in issue #46. The spec is organized into five chapters covering the micro-architecture of the APB HPET component.
+
+| Version | Date | Author | Changes |
+|---------|------|--------|---------|
+| 1.0 | 2026-01-04 | RTL Design Sherpa | Initial MAS release |
+
+: Table: Version History
+
+---
+
+## Navigation
 
 ### Chapter 1: Overview
 - [01_overview.md](ch01_overview/01_overview.md) - Component overview, features, applications
@@ -67,13 +77,3 @@ This MAS is organized into five chapters covering the micro-architecture of the 
 
 ### Chapter 5: Registers
 - [01_register_map.md](ch05_registers/01_register_map.md) - Complete register address map and field descriptions
-
----
-
-## Version History
-
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0 | 2026-01-04 | RTL Design Sherpa | Initial MAS release |
-
-: Table: Version History

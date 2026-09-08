@@ -21,11 +21,13 @@
 
 <!-- End Header -->
 
-### APB HPET Blocks - Overview
+# APB HPET Blocks
 
-#### Block Hierarchy
+## Overview
 
-The APB HPET component consists of four primary SystemVerilog modules organized in a hierarchical structure:
+The APB HPET component consists of four primary SystemVerilog modules organized in a hierarchical structure. This chapter walks through what each one owns and how they talk to each other.
+
+### Block Hierarchy
 
 ```
 apb4_hpet (Top Level)
@@ -49,90 +51,13 @@ apb4_hpet (Top Level)
     +-- Interrupt Generation [NUM_TIMERS]
 ```
 
-#### Timer Operation Waveforms
-
-##### Configuration Write
-
-When software writes to HPET_CONFIG to enable the timer, the enable signal propagates through the register file to the core.
-
-### Waveform 2.1: HPET Config Write
-
-![HPET Config Write](../assets/wavedrom/timing/hpet_config_write.png)
-
-The APB write to address 0x004 (HPET_CONFIG) sets `hpet_enable`, which starts the main counter incrementing.
-
-##### Counter Read
-
-Reading the main counter returns the current 64-bit counter value.
-
-### Waveform 2.2: HPET Counter Read
-
-![HPET Counter Read](../assets/wavedrom/timing/hpet_counter_read.png)
-
-The counter value is captured during the APB read transaction and returned on PRDATA.
-
-##### One-Shot Timer Fire
-
-In one-shot mode, the timer fires once when the counter reaches the comparator value.
-
-### Waveform 2.3: HPET One-Shot Timer Fire
-
-![HPET One-Shot Timer Fire](../assets/wavedrom/timing/hpet_timer_fire_oneshot.png)
-
-When `r_main_counter` equals `r_timer_comparator[0]`, the match signal asserts, triggering `w_timer_fire[0]`. The interrupt output `timer_irq[0]` asserts and remains active until software clears it.
-
-##### Periodic Timer Fire
-
-In periodic mode, the timer fires repeatedly, automatically adding the period to the comparator.
-
-### Waveform 2.4: HPET Periodic Timer Fire
-
-![HPET Periodic Timer Fire](../assets/wavedrom/timing/hpet_timer_fire_periodic.png)
-
-After each fire event, the comparator is updated: `comparator += period`. This allows continuous periodic interrupts without software intervention.
-
-##### Interrupt Clear (W1C)
-
-Software clears timer interrupts by writing 1 to the corresponding bit in HPET_STATUS.
-
-### Waveform 2.5: HPET Interrupt Clear
-
-![HPET Interrupt Clear](../assets/wavedrom/timing/hpet_interrupt_clear.png)
-
-The W1C (Write-1-to-Clear) mechanism is INTENDED for per-bit clearing;
-in the current RTL any HPET_STATUS write clears ALL pending core bits
-(deviation #46, detailed later in this chapter).
-
-##### Timer Setup Sequence
-
-Configuring a timer requires multiple APB writes: config register, then comparator low/high words.
-
-### Waveform 2.6: HPET Timer Setup
-
-![HPET Timer Setup](../assets/wavedrom/timing/hpet_timer_setup.png)
-
-The sequence shows three consecutive writes:
-1. TIMER_CONFIG (0x100): Enable, interrupt enable, periodic mode
-2. TIMER_COMPARATOR_LO (0x104): Lower 32 bits of comparator
-3. TIMER_COMPARATOR_HI (0x108): Upper 32 bits of comparator
-
-##### Clock Domain Crossing (CDC Mode)
-
-When CDC_ENABLE=1, APB transactions cross from pclk to hpet_clk through a
-pair of async FIFOs inside apb4_slave_cdc (Gray/Johnson pointers per
-USE_JOHNSON) -- not per-signal synchronizers.
-
-### Waveform 2.7: HPET CDC Crossing
-
-![HPET CDC Crossing](../assets/wavedrom/timing/hpet_cdc_crossing.png)
-
-The diagram shows the latency introduced by CDC synchronization. Configuration changes in the APB domain take 2-3 hpet_clk cycles to affect the timer core
-
 ---
 
-#### Module Responsibilities
+## Functional Description
 
-##### 1. apb4_hpet (Top Level Integration)
+### Module Responsibilities
+
+#### 1. apb4_hpet (Top Level Integration)
 **File:** `rtl/hpet/apb4_hpet.sv`
 **Purpose:** System integration and CDC selection
 
@@ -148,7 +73,7 @@ The diagram shows the latency introduced by CDC synchronization. Configuration c
 - Parameter propagation to child modules
 - Single-point configuration
 
-##### 2. hpet_config_regs (Register Wrapper)
+#### 2. hpet_config_regs (Register Wrapper)
 **File:** `rtl/hpet/hpet_config_regs.sv`
 **Purpose:** Bridge between PeakRDL registers and HPET core
 
@@ -165,7 +90,7 @@ The diagram shows the latency introduced by CDC synchronization. Configuration c
 - Counter write capture from APB domain
 - W1C interrupt clearing support
 
-##### 3. hpet_regs (PeakRDL Generated)
+#### 3. hpet_regs (PeakRDL Generated)
 **File:** `rtl/hpet/hpet_regs.sv`
 **Purpose:** Auto-generated register file from SystemRDL specification
 
@@ -181,7 +106,7 @@ The diagram shows the latency introduced by CDC synchronization. Configuration c
 - Comprehensive field control
 - Standard passthrough CPU interface
 
-##### 4. hpet_core (Timer Logic)
+#### 4. hpet_core (Timer Logic)
 **File:** `rtl/hpet/hpet_core.sv`
 **Purpose:** Core timer functionality and comparison logic
 
@@ -199,9 +124,9 @@ The diagram shows the latency introduced by CDC synchronization. Configuration c
 - Edge-based fire detection
 - Configurable timer count (2, 3, or 8 timers)
 
-#### Data Flow Overview
+### Data Flow Overview
 
-##### APB Write Transaction Flow
+#### APB Write Transaction Flow
 
 ```
 APB Master
@@ -218,7 +143,7 @@ hpet_core (Timer Logic)
     -> Counter/Comparator update
 ```
 
-##### APB Read Transaction Flow
+#### APB Read Transaction Flow
 
 ```
 APB Master
@@ -237,7 +162,7 @@ APB Slave (or APB Slave CDC)
 APB Master
 ```
 
-##### Timer Fire Flow
+#### Timer Fire Flow
 
 ```
 hpet_core
@@ -266,9 +191,9 @@ hpet_core
     -> timer_irq[i] deasserts
 ```
 
-#### Clock Domain Organization
+### Clock Domain Organization
 
-##### Synchronous Mode (CDC_ENABLE=0)
+#### Synchronous Mode (CDC_ENABLE=0)
 
 ```
 APB Clock Domain (pclk)
@@ -281,7 +206,7 @@ All modules use pclk
 No clock domain crossing required
 ```
 
-##### Asynchronous Mode (CDC_ENABLE=1)
+#### Asynchronous Mode (CDC_ENABLE=1)
 
 ```
 APB Clock Domain (pclk)
@@ -297,9 +222,9 @@ HPET Clock Domain (hpet_clk)
 CDC synchronization between pclk and hpet_clk
 ```
 
-#### Module Communication
+### Module Communication
 
-##### hpet_config_regs -> hpet_core Interface
+#### hpet_config_regs -> hpet_core Interface
 
 **Control Signals (hpet_config_regs -> hpet_core):**
 ```systemverilog
@@ -325,7 +250,7 @@ input  logic [NUM_TIMERS-1:0]   timer_int_status;       // Per-timer fire status
 output logic [NUM_TIMERS-1:0]   timer_int_clear;        // Clear sticky status
 ```
 
-##### hpet_config_regs -> hpet_regs Interface
+#### hpet_config_regs -> hpet_regs Interface
 
 Uses PeakRDL-generated structs:
 ```systemverilog
@@ -336,7 +261,94 @@ input  hpet_regs_pkg::hpet_regs__in_t  hwif_in;
 output hpet_regs_pkg::hpet_regs__out_t hwif_out;
 ```
 
-#### Resource Allocation
+---
+
+## Waveforms
+
+### Timer Operation Waveforms
+
+#### Configuration Write
+
+When software writes to HPET_CONFIG to enable the timer, the enable signal propagates through the register file to the core.
+
+### Waveform 2.1: HPET Config Write
+
+![HPET Config Write](../assets/wavedrom/timing/hpet_config_write.png)
+
+The APB write to address 0x004 (HPET_CONFIG) sets `hpet_enable`, which starts the main counter incrementing.
+
+#### Counter Read
+
+Reading the main counter returns the current 64-bit counter value.
+
+### Waveform 2.2: HPET Counter Read
+
+![HPET Counter Read](../assets/wavedrom/timing/hpet_counter_read.png)
+
+The counter value is captured during the APB read transaction and returned on PRDATA.
+
+#### One-Shot Timer Fire
+
+In one-shot mode, the timer fires once when the counter reaches the comparator value.
+
+### Waveform 2.3: HPET One-Shot Timer Fire
+
+![HPET One-Shot Timer Fire](../assets/wavedrom/timing/hpet_timer_fire_oneshot.png)
+
+When `r_main_counter` equals `r_timer_comparator[0]`, the match signal asserts, triggering `w_timer_fire[0]`. The interrupt output `timer_irq[0]` asserts and remains active until software clears it.
+
+#### Periodic Timer Fire
+
+In periodic mode, the timer fires repeatedly, automatically adding the period to the comparator.
+
+### Waveform 2.4: HPET Periodic Timer Fire
+
+![HPET Periodic Timer Fire](../assets/wavedrom/timing/hpet_timer_fire_periodic.png)
+
+After each fire event, the comparator is updated: `comparator += period`. This allows continuous periodic interrupts without software intervention.
+
+#### Interrupt Clear (W1C)
+
+Software clears timer interrupts by writing 1 to the corresponding bit in HPET_STATUS.
+
+### Waveform 2.5: HPET Interrupt Clear
+
+![HPET Interrupt Clear](../assets/wavedrom/timing/hpet_interrupt_clear.png)
+
+The W1C (Write-1-to-Clear) mechanism is INTENDED for per-bit clearing;
+in the current RTL any HPET_STATUS write clears ALL pending core bits
+(deviation #46, detailed later in this chapter).
+
+#### Timer Setup Sequence
+
+Configuring a timer requires multiple APB writes: config register, then comparator low/high words.
+
+### Waveform 2.6: HPET Timer Setup
+
+![HPET Timer Setup](../assets/wavedrom/timing/hpet_timer_setup.png)
+
+The sequence shows three consecutive writes:
+1. TIMER_CONFIG (0x100): Enable, interrupt enable, periodic mode
+2. TIMER_COMPARATOR_LO (0x104): Lower 32 bits of comparator
+3. TIMER_COMPARATOR_HI (0x108): Upper 32 bits of comparator
+
+#### Clock Domain Crossing (CDC Mode)
+
+When CDC_ENABLE=1, APB transactions cross from pclk to hpet_clk through a
+pair of async FIFOs inside apb4_slave_cdc (Gray/Johnson pointers per
+USE_JOHNSON) -- not per-signal synchronizers.
+
+### Waveform 2.7: HPET CDC Crossing
+
+![HPET CDC Crossing](../assets/wavedrom/timing/hpet_cdc_crossing.png)
+
+The diagram shows the latency introduced by CDC synchronization. Configuration changes in the APB domain take 2-3 hpet_clk cycles to affect the timer core
+
+---
+
+## Design Notes
+
+### Resource Allocation
 
 **Per-Configuration Estimates (Post-Synthesis):**
 
@@ -366,7 +378,11 @@ output hpet_regs_pkg::hpet_regs__out_t hwif_out;
 
 **Scaling:** Resource usage is primarily driven by `NUM_TIMERS` parameter. Each additional timer adds ~128 FF and ~85 LUTs.
 
-#### Integration Checklist
+---
+
+## Testing
+
+### Integration Checklist
 
 When integrating APB HPET:
 
@@ -405,5 +421,7 @@ When integrating APB HPET:
 - [ ] Validate CDC if enabled
 
 ---
+
+## Navigation
 
 **Next:** [Chapter 2.2 - hpet_config_regs](02_hpet_config_regs.md)

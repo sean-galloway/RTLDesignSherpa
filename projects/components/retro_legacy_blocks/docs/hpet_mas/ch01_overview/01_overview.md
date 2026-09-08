@@ -21,17 +21,19 @@
 
 <!-- End Header -->
 
-### APB HPET - Overview
+# APB HPET
 
-#### Introduction
+## Overview
 
-The APB High Precision Event Timer (HPET) is a configurable multi-timer peripheral designed for precise timing and event generation in embedded systems. It provides up to 8 independent hardware timers with one-shot and periodic modes, accessible via APB interface with optional clock domain crossing support.
+### Introduction
+
+The APB High Precision Event Timer (HPET) is a configurable multi-timer peripheral built for precise timing and event generation in embedded systems. You get up to 8 independent hardware timers with one-shot and periodic modes, an APB register interface, and optional clock domain crossing for the cases where your timer clock doesn't come from the bus clock.
 
 ### Figure 1.1: APB HPET Block Diagram
 
 ![APB HPET Block Diagram](../assets/draw.io/apb4_hpet_blocks.png)
 
-#### Key Features
+### Key Features
 
 - **Multiple Independent Timers**: 2, 3, or 8 configurable hardware timers per instance
 - **64-bit Main Counter**: High-resolution timestamp with configurable clock source
@@ -46,7 +48,7 @@ The APB High Precision Event Timer (HPET) is a configurable multi-timer peripher
 - **Per-Timer Write Data Buses**: Dedicated data paths prevent timer corruption
 - **Individual Interrupts**: Separate interrupt output per timer with W1C status clearing
 
-#### Applications
+### Applications
 
 **Real-Time Operating Systems:**
 - System tick generation for RTOS schedulers
@@ -72,10 +74,31 @@ The APB High Precision Event Timer (HPET) is a configurable multi-timer peripher
 - Sensor sampling intervals
 - Control loop timing
 
-#### Design Philosophy
+---
+
+## Timing
+
+### Timing Accuracy
+
+- Counter increment: Every HPET clock cycle (deterministic)
+- Timer fire latency: 1 HPET clock cycle from counter match
+- Interrupt assertion: Registered, one HPET clock after the fire event (`timer_irq` is a flop in `hpet_core`, gated by `timer_int_enable` sampled at fire time)
+
+### Register Access Latency
+
+- No CDC: 2 APB clock cycles (APB protocol minimum)
+- With CDC: 4-6 APB clock cycles (handshake synchronization overhead)
+
+---
+
+## Design Notes
+
+### Design Philosophy
+
+Every block makes trade-offs; here's where this one landed.
 
 **Configurability:**
-The HPET component prioritizes configurability to support diverse use cases. Timer count and CDC enablement are parameterizable at synthesis time, allowing customization for specific applications without RTL changes. (The `VENDOR_ID`/`REVISION_ID` parameters exist on the top level but are currently unwired -- the HPET_ID vendor and revision bytes are fixed at 0x01/0x01 in the generated register block. See Chapter 5.)
+The HPET component prioritizes configurability to support diverse use cases. Timer count and CDC enablement are parameterizable at synthesis time, so you can tailor an instance for your application without touching the RTL. (The `VENDOR_ID`/`REVISION_ID` parameters exist on the top level but are currently unwired -- the HPET_ID vendor and revision bytes are fixed at 0x01/0x01 in the generated register block. See Chapter 5.)
 
 **Reliability:**
 Extensive testing (5/6 configurations at 100% pass rate) validates core functionality. The design includes per-timer data buses to prevent corruption. (Note: the register block never raises PSLVERR -- unmapped addresses alias or read 0.)
@@ -88,7 +111,7 @@ Extensive testing (5/6 configurations at 100% pass rate) validates core function
 **Reusability:**
 Clean module hierarchy and well-defined interfaces enable easy integration. Optional CDC support allows flexible clock domain configuration without design changes.
 
-#### Comparison with IA-PC HPET
+### Comparison with IA-PC HPET
 
 The APB HPET draws architectural inspiration from the IA-PC HPET specification (Intel/Microsoft) but is **not** a drop-in replacement. Key differences:
 
@@ -114,40 +137,70 @@ The APB HPET draws architectural inspiration from the IA-PC HPET specification (
 - Legacy PIT/RTC replacement (not needed in modern designs)
 - Main counter period configuration (use clock divider instead)
 
-#### Performance Characteristics
+### Resource Utilization (Post-Synthesis Estimates)
 
-**Timing Accuracy:**
-- Counter increment: Every HPET clock cycle (deterministic)
-- Timer fire latency: 1 HPET clock cycle from counter match
-- Interrupt assertion: Registered, one HPET clock after the fire event (`timer_irq` is a flop in `hpet_core`, gated by `timer_int_enable` sampled at fire time)
-
-**Register Access Latency:**
-- No CDC: 2 APB clock cycles (APB protocol minimum)
-- With CDC: 4-6 APB clock cycles (handshake synchronization overhead)
-
-**Resource Utilization (Post-Synthesis Estimates):**
 - 2-timer (no CDC): ~500 LUTs, ~300 flip-flops
 - 3-timer (no CDC): ~650 LUTs, ~400 flip-flops
 - 8-timer (with CDC): ~1200 LUTs, ~800 flip-flops
 
-**Scalability:**
+### Scalability
+
 The design scales linearly with timer count. Each additional timer adds approximately:
 - 150 LUTs (comparator, control logic, interrupt generation)
 - 100 flip-flops (timer state, configuration registers)
 - Minimal timing impact (no critical path through timer array)
 
-#### Verification Status
+### Development Status
+
+**Status:** RTL Partial - see the index and issue #46
+
+**Completed Features:**
+- One-shot timer mode
+- Periodic timer mode
+- Timer mode switching
+- 64-bit counter read/write
+- 64-bit comparators
+- Multiple independent timers
+- Clock domain crossing (optional)
+- PeakRDL register generation
+- Per-timer write data buses (corruption fix)
+- Comprehensive test suite (3-level hierarchy)
+
+**Outstanding Items:**
+- 8-timer stress test timeout (minor, likely test configuration)
+
+**Future Enhancements (Not Planned):**
+- Live comparator readback (reads return the last software-written value; periodic auto-increments are not reflected)
+- FSB interrupt delivery (use dedicated IRQ signals)
+- Legacy mode emulation (not needed in modern designs)
+- 64-bit atomic counter reads (current implementation requires two 32-bit reads)
+
+---
+
+## Related Modules
+
+**Related Documentation:**
+- `../../PRD.md` - Product Requirements Document
+- `../../CLAUDE.md` - AI integration guide
+- `../../TASKS.md` - Development task tracking
+- `../IMPLEMENTATION_STATUS.md` - Test results and validation status
+
+---
+
+## Testing
+
+### Verification Status
 
 **Test Coverage:** 5 of 6 configurations achieve 100% test pass rate
 
 | Configuration | Basic | Medium | Full | Overall |
 |---------------|-------|--------|------|---------|
-| 2-timer Intel-like (no CDC) | 4/4 ✅ | 5/5 ✅ | 3/3 ✅ | 12/12 ✅ |
-| 3-timer AMD-like (no CDC) | 4/4 ✅ | 5/5 ✅ | 3/3 ✅ | 12/12 ✅ |
-| 8-timer custom (no CDC) | 4/4 ✅ | 5/5 ✅ | 2/3 ⚠️ | 11/12 ⚠️ |
-| 2-timer Intel-like (CDC) | 4/4 ✅ | 5/5 ✅ | 3/3 ✅ | 12/12 ✅ |
-| 3-timer AMD-like (CDC) | 4/4 ✅ | 5/5 ✅ | 3/3 ✅ | 12/12 ✅ |
-| 8-timer custom (CDC) | 4/4 ✅ | 5/5 ✅ | 3/3 ✅ | 12/12 ✅ |
+| 2-timer Intel-like (no CDC) | 4/4 | 5/5 | 3/3 | 12/12 |
+| 3-timer AMD-like (no CDC) | 4/4 | 5/5 | 3/3 | 12/12 |
+| 8-timer custom (no CDC) | 4/4 | 5/5 | 2/3 (known issue) | 11/12 (known issue) |
+| 2-timer Intel-like (CDC) | 4/4 | 5/5 | 3/3 | 12/12 |
+| 3-timer AMD-like (CDC) | 4/4 | 5/5 | 3/3 | 12/12 |
+| 8-timer custom (CDC) | 4/4 | 5/5 | 3/3 | 12/12 |
 
 **Known Issue:** 8-timer non-CDC "All Timers Stress" test has timeout issue (minor, likely test configuration)
 
@@ -158,32 +211,9 @@ The design scales linearly with timer count. Each additional timer adds approxim
 
 **See:** `IMPLEMENTATION_STATUS.md` for complete test results
 
-#### Development Status
+---
 
-**Status:** RTL Partial - see the index and issue #46
-
-**Completed Features:**
-- ✅ One-shot timer mode
-- ✅ Periodic timer mode
-- ✅ Timer mode switching
-- ✅ 64-bit counter read/write
-- ✅ 64-bit comparators
-- ✅ Multiple independent timers
-- ✅ Clock domain crossing (optional)
-- ✅ PeakRDL register generation
-- ✅ Per-timer write data buses (corruption fix)
-- ✅ Comprehensive test suite (3-level hierarchy)
-
-**Outstanding Items:**
-- ⚠️ 8-timer stress test timeout (minor, likely test configuration)
-
-**Future Enhancements (Not Planned):**
-- Live comparator readback (reads return the last software-written value; periodic auto-increments are not reflected)
-- FSB interrupt delivery (use dedicated IRQ signals)
-- Legacy mode emulation (not needed in modern designs)
-- 64-bit atomic counter reads (current implementation requires two 32-bit reads)
-
-#### Documentation Organization
+## Navigation
 
 This specification document is organized as follows:
 
@@ -192,13 +222,5 @@ This specification document is organized as follows:
 - **Chapter 3**: Interface specifications (planned, not yet written)
 - **Chapter 4**: Programming model (planned, not yet written)
 - **Chapter 5**: Register definitions (address map, field descriptions)
-
-**Related Documentation:**
-- `../../PRD.md` - Product Requirements Document
-- `../../CLAUDE.md` - AI integration guide
-- `../../TASKS.md` - Development task tracking
-- `../IMPLEMENTATION_STATUS.md` - Test results and validation status
-
----
 
 **Next:** [Chapter 1.2 - Architecture](02_architecture.md)

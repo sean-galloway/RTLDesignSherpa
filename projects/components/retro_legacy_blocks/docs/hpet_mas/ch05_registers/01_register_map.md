@@ -39,34 +39,6 @@ The APB HPET provides a memory-mapped register interface accessible via the APB 
 
 Each timer occupies a 32-byte (0x20) register block, supporting up to 8 timers.
 
-**Timing Diagrams:**
-
-The following timing diagrams illustrate key register access sequences:
-
-### Waveform 5.1: APB Write Timer Config
-
-![APB Write Timer Config](../assets/svg/apb_write_timer_config.png)
-
-APB write to TIMER0_CONFIG register (0x100). [Source: assets/wavedrom/apb_write_timer_config.json](../assets/wavedrom/apb_write_timer_config.json)
-
-### Waveform 5.2: APB Read Counter
-
-![APB Read Counter](../assets/svg/apb_read_counter.png)
-
-APB read of 64-bit counter (two 32-bit reads from COUNTER_LO and COUNTER_HI). [Source: assets/wavedrom/apb_read_counter.json](../assets/wavedrom/apb_read_counter.json)
-
-### Waveform 5.3: Interrupt W1C Sequence
-
-![Interrupt W1C Sequence](../assets/svg/interrupt_w1c_sequence.png)
-
-Timer interrupt generation and W1C (Write-1-to-Clear) status clearing sequence. [Source: assets/wavedrom/interrupt_w1c_sequence.json](../assets/wavedrom/interrupt_w1c_sequence.json)
-
-### Waveform 5.4: Timer Setup Sequence
-
-![Timer Setup Sequence](../assets/svg/timer_setup_sequence.png)
-
-Complete timer setup sequence: disable HPET, reset counter, configure comparator, enable timer, enable HPET. [Source: assets/wavedrom/timer_setup_sequence.json](../assets/wavedrom/timer_setup_sequence.json)
-
 ### Figure 5.1: APB HPET Block Diagram
 
 ![APB HPET Block Diagram](../assets/draw.io/apb4_hpet_blocks.png)
@@ -75,9 +47,11 @@ APB HPET top-level architecture showing APB interface, configuration registers, 
 
 ---
 
-## Register Address Map Summary
+## Functional Description
 
-### Global Registers
+### Register Address Map Summary
+
+#### Global Registers
 
 | Offset | Register Name | Access | Width | Description |
 |--------|---------------|--------|-------|-------------|
@@ -89,7 +63,7 @@ APB HPET top-level architecture showing APB interface, configuration registers, 
 | 0x014 | HPET_COUNTER_HI | RW | 32b | Main counter bits [63:32] |
 | 0x018-0x0FF | RESERVED | RO | - | Reserved for future use |
 
-### Per-Timer Registers
+#### Per-Timer Registers
 
 Each timer (N = 0 to NUM_TIMERS-1) has a 32-byte register block at base address `0x100 + N*0x20`.
 
@@ -116,11 +90,9 @@ Each timer (N = 0 to NUM_TIMERS-1) has a 32-byte register block at base address 
 | 6 | 0x1C0 | 0x1C0 | 0x1C4 | 0x1C8 |
 | 7 | 0x1E0 | 0x1E0 | 0x1E4 | 0x1E8 |
 
----
+### Global Register Descriptions
 
-## Global Register Descriptions
-
-### HPET_ID (0x000) - Identification Register
+#### HPET_ID (0x000) - Identification Register
 
 **Access:** Read-Only
 **Reset Value:** `0x0101_0000 | ((NUM_TIMERS-1) << 8) | 0xA0`
@@ -146,9 +118,7 @@ are fixed 0x01/0x01 in the generated register block (the top-level
 - 3 timers: `0x010102A0` (num_tim_cap=2)
 - 8 timers: `0x010107A0` (num_tim_cap=7)
 
----
-
-### HPET_CONFIG (0x004) - Configuration Register
+#### HPET_CONFIG (0x004) - Configuration Register
 
 **Access:** Read-Write
 **Reset Value:** 0x00000000
@@ -183,9 +153,7 @@ WRITE(HPET_COUNTER_HI, 0x0);
 WRITE(HPET_CONFIG, 0x1);
 ```
 
----
-
-### HPET_STATUS (0x008) - Interrupt Status Register
+#### HPET_STATUS (0x008) - Interrupt Status Register
 
 **Access:** Read-Write (Write-1-to-Clear)
 **Reset Value:** undefined -- the HPET_STATUS storage flop has NO reset in the generated RTL (the only unreset field in hpet_regs.sv) -- readback is undefined until the first fire or clear (RTL defect, issue #46). The intended reset is 0.
@@ -237,9 +205,7 @@ if (status & 0x1) {
 WRITE(HPET_STATUS, status);  // Write back read value clears all set bits
 ```
 
----
-
-### HPET_COUNTER_LO (0x010) - Main Counter Low
+#### HPET_COUNTER_LO (0x010) - Main Counter Low
 
 **Access:** Read-Write
 **Reset Value:** 0x00000000
@@ -264,9 +230,7 @@ Lower 32 bits of the 64-bit free-running main counter.
 - Counter write takes effect immediately (on next `hpet_clk`)
 - All timers compare against this counter value
 
----
-
-### HPET_COUNTER_HI (0x014) - Main Counter High
+#### HPET_COUNTER_HI (0x014) - Main Counter High
 
 **Access:** Read-Write
 **Reset Value:** 0x00000000
@@ -302,13 +266,11 @@ WRITE(HPET_COUNTER_LO, 0x00000000);
 WRITE(HPET_COUNTER_HI, 0x00000000);
 ```
 
----
-
-## Per-Timer Register Descriptions
+### Per-Timer Register Descriptions
 
 Each timer has a dedicated 32-byte register block. The following descriptions apply to Timer N at base address `0x100 + N*0x20`.
 
-### TIMER_CONFIG (Timer Base + 0x00) - Timer Configuration
+#### TIMER_CONFIG (Timer Base + 0x00) - Timer Configuration
 
 **Access:** Read-Write
 **Reset Value:** 0x00000000
@@ -362,9 +324,7 @@ WRITE(TIMER0_CONFIG, 0x1C);  // bits [4:3:2] = periodic | int_enable | enable
 WRITE(TIMER0_CONFIG, 0x2C);  // bits [5:3:2] = 64-bit | int_enable | enable
 ```
 
----
-
-### TIMER_COMPARATOR_LO (Timer Base + 0x04) - Comparator Low
+#### TIMER_COMPARATOR_LO (Timer Base + 0x04) - Comparator Low
 
 **Access:** Read-Write
 **Reset Value:** 0x00000000
@@ -390,9 +350,7 @@ WRITE(TIMER0_COMPARATOR_LO, 1000);
 WRITE(TIMER0_COMPARATOR_HI, 0);
 ```
 
----
-
-### TIMER_COMPARATOR_HI (Timer Base + 0x08) - Comparator High
+#### TIMER_COMPARATOR_HI (Timer Base + 0x08) - Comparator High
 
 **Access:** Read-Write
 **Reset Value:** 0x00000000
@@ -414,11 +372,9 @@ WRITE(TIMER1_COMPARATOR_LO, 0x00000000);
 WRITE(TIMER1_COMPARATOR_HI, 0x00000001);
 ```
 
----
+### Timer Operation Modes
 
-## Timer Operation Modes
-
-### One-Shot Mode (timer_type = 0)
+#### One-Shot Mode (timer_type = 0)
 
 ### Figure 5.2: One-Shot Timer Operation
 
@@ -463,9 +419,7 @@ WRITE(TIMER0_COMPARATOR_LO, 2000);
 WRITE(TIMER0_CONFIG, 0x0C);
 ```
 
----
-
-### Periodic Mode (timer_type = 1)
+#### Periodic Mode (timer_type = 1)
 
 ### Figure 5.3: Periodic Timer Operation
 
@@ -518,9 +472,146 @@ void timer1_isr(void) {
 }
 ```
 
+### Register Access Conventions
+
+#### Access Types
+
+| Type | Description | Behavior |
+|------|-------------|----------|
+| **RO** | Read-Only | Software can read, writes ignored |
+| **RW** | Read-Write | Software can read and write |
+| **W1C** | Write-1-to-Clear | Write 1 to clear bit, write 0 has no effect |
+| **RW/W1C** | Read-Write with W1C | Readable, writable, with W1C clear behavior |
+
+#### Reset Values
+
+- **Global registers:** Reset to 0x00000000 (except HPET_ID, and except
+  HPET_STATUS whose storage has no reset -- see its section and #46)
+- **HPET_ID:** Constant: vendor/revision fixed 0x01/0x01, num_tim_cap = NUM_TIMERS-1
+- **All timers:** Reset to disabled state (0x00000000)
+- **Main counter:** Reset to 0x00000000_00000000
+
+#### Read/Write Ordering
+
+**64-bit Register Writes:**
+1. Write lower 32 bits (LO) first
+2. Write upper 32 bits (HI) second
+
+**Known RTL deviation (issue #46):** the 64-bit counter load is NOT atomic.
+The core samples the capture flops on the same edge they update, so each
+write applies the PREVIOUSLY captured halves: after LO-then-HI the counter
+holds {old HI, new LO}, and the new HI half only lands on a subsequent
+write. Writing zero to both halves only works while the capture flops
+still hold zero (e.g. straight out of reset) -- after any earlier nonzero
+HI write, the zeroing sequence leaves {old_HI, 0}. Comparators
+half-update per 32-bit write, so between the LO and HI writes the timer
+compares against a mixed value -- disable the timer around comparator
+updates.
+
+**64-bit Register Reads:**
+Use the HI/LO/HI retry sequence (read HI, read LO, re-read HI; retry if
+the two HI reads differ). A plain LO-then-HI read has no rollover
+protection.
+
+### Memory Map Diagram
+
+```
+0x000  ┌─────────────────────────┐
+       │ HPET_ID (RO)            │  Vendor, revision, capabilities
+0x004  ├─────────────────────────┤
+       │ HPET_CONFIG (RW)        │  Global enable, legacy mode
+0x008  ├─────────────────────────┤
+       │ HPET_STATUS (RW/W1C)    │  Timer interrupt status
+0x00C  ├─────────────────────────┤
+       │ RESERVED (RO)           │
+0x010  ├─────────────────────────┤
+       │ HPET_COUNTER_LO (RW)    │  Main counter [31:0]
+0x014  ├─────────────────────────┤
+       │ HPET_COUNTER_HI (RW)    │  Main counter [63:32]
+0x018  ├─────────────────────────┤
+       │                         │
+       │ RESERVED                │
+       │                         │
+0x0FF  ├─────────────────────────┤
+
+0x100  ┌─────────────────────────┐
+       │ TIMER0_CONFIG (RW)      │  Timer 0 configuration
+0x104  ├─────────────────────────┤
+       │ TIMER0_COMPARATOR_LO    │  Timer 0 comparator [31:0]
+0x108  ├─────────────────────────┤
+       │ TIMER0_COMPARATOR_HI    │  Timer 0 comparator [63:32]
+0x10C  ├─────────────────────────┤
+       │ RESERVED                │
+       │                         │
+0x11F  ├─────────────────────────┤
+
+0x120  ┌─────────────────────────┐
+       │ TIMER1_CONFIG (RW)      │  Timer 1 configuration
+0x124  ├─────────────────────────┤
+       │ TIMER1_COMPARATOR_LO    │  Timer 1 comparator [31:0]
+0x128  ├─────────────────────────┤
+       │ TIMER1_COMPARATOR_HI    │  Timer 1 comparator [63:32]
+0x12C  ├─────────────────────────┤
+       │ RESERVED                │
+       │                         │
+0x13F  ├─────────────────────────┤
+
+       │         ...             │
+
+0x1E0  ┌─────────────────────────┐
+       │ TIMER7_CONFIG (RW)      │  Timer 7 configuration (if 8 timers)
+0x1E4  ├─────────────────────────┤
+       │ TIMER7_COMPARATOR_LO    │  Timer 7 comparator [31:0]
+0x1E8  ├─────────────────────────┤
+       │ TIMER7_COMPARATOR_HI    │  Timer 7 comparator [63:32]
+0x1EC  ├─────────────────────────┤
+       │ RESERVED                │
+       │                         │
+0x1FF  └─────────────────────────┘
+```
+
+Only address bits [8:0] reach the register block, so 0x200-0xFFF alias
+back onto 0x000-0x1FF (0x200 reads HPET_ID, and so on). No error is
+raised for any address.
+
+Timer slots at or above NUM_TIMERS (e.g. 0x140-0x1FF on a 2-timer
+build) are REAL decoded storage: they read back written values but
+reach no core timer. Probe HPET_ID.num_tim_cap, not register
+writability, to discover the timer count.
+
 ---
 
-## Register Access Examples
+## Waveforms
+
+The following timing diagrams illustrate key register access sequences:
+
+### Waveform 5.1: APB Write Timer Config
+
+![APB Write Timer Config](../assets/svg/apb_write_timer_config.png)
+
+APB write to TIMER0_CONFIG register (0x100). [Source: assets/wavedrom/apb_write_timer_config.json](../assets/wavedrom/apb_write_timer_config.json)
+
+### Waveform 5.2: APB Read Counter
+
+![APB Read Counter](../assets/svg/apb_read_counter.png)
+
+APB read of 64-bit counter (two 32-bit reads from COUNTER_LO and COUNTER_HI). [Source: assets/wavedrom/apb_read_counter.json](../assets/wavedrom/apb_read_counter.json)
+
+### Waveform 5.3: Interrupt W1C Sequence
+
+![Interrupt W1C Sequence](../assets/svg/interrupt_w1c_sequence.png)
+
+Timer interrupt generation and W1C (Write-1-to-Clear) status clearing sequence. [Source: assets/wavedrom/interrupt_w1c_sequence.json](../assets/wavedrom/interrupt_w1c_sequence.json)
+
+### Waveform 5.4: Timer Setup Sequence
+
+![Timer Setup Sequence](../assets/svg/timer_setup_sequence.png)
+
+Complete timer setup sequence: disable HPET, reset counter, configure comparator, enable timer, enable HPET. [Source: assets/wavedrom/timer_setup_sequence.json](../assets/wavedrom/timer_setup_sequence.json)
+
+---
+
+## Usage Example
 
 ### Initialization Sequence
 
@@ -603,118 +694,7 @@ void hpet_interrupt_handler(void) {
 
 ---
 
-## Register Access Conventions
-
-### Access Types
-
-| Type | Description | Behavior |
-|------|-------------|----------|
-| **RO** | Read-Only | Software can read, writes ignored |
-| **RW** | Read-Write | Software can read and write |
-| **W1C** | Write-1-to-Clear | Write 1 to clear bit, write 0 has no effect |
-| **RW/W1C** | Read-Write with W1C | Readable, writable, with W1C clear behavior |
-
-### Reset Values
-
-- **Global registers:** Reset to 0x00000000 (except HPET_ID, and except
-  HPET_STATUS whose storage has no reset -- see its section and #46)
-- **HPET_ID:** Constant: vendor/revision fixed 0x01/0x01, num_tim_cap = NUM_TIMERS-1
-- **All timers:** Reset to disabled state (0x00000000)
-- **Main counter:** Reset to 0x00000000_00000000
-
-### Read/Write Ordering
-
-**64-bit Register Writes:**
-1. Write lower 32 bits (LO) first
-2. Write upper 32 bits (HI) second
-
-**Known RTL deviation (issue #46):** the 64-bit counter load is NOT atomic.
-The core samples the capture flops on the same edge they update, so each
-write applies the PREVIOUSLY captured halves: after LO-then-HI the counter
-holds {old HI, new LO}, and the new HI half only lands on a subsequent
-write. Writing zero to both halves only works while the capture flops
-still hold zero (e.g. straight out of reset) -- after any earlier nonzero
-HI write, the zeroing sequence leaves {old_HI, 0}. Comparators
-half-update per 32-bit write, so between the LO and HI writes the timer
-compares against a mixed value -- disable the timer around comparator
-updates.
-
-**64-bit Register Reads:**
-Use the HI/LO/HI retry sequence (read HI, read LO, re-read HI; retry if
-the two HI reads differ). A plain LO-then-HI read has no rollover
-protection.
-
----
-
-## Memory Map Diagram
-
-```
-0x000  ┌─────────────────────────┐
-       │ HPET_ID (RO)            │  Vendor, revision, capabilities
-0x004  ├─────────────────────────┤
-       │ HPET_CONFIG (RW)        │  Global enable, legacy mode
-0x008  ├─────────────────────────┤
-       │ HPET_STATUS (RW/W1C)    │  Timer interrupt status
-0x00C  ├─────────────────────────┤
-       │ RESERVED (RO)           │
-0x010  ├─────────────────────────┤
-       │ HPET_COUNTER_LO (RW)    │  Main counter [31:0]
-0x014  ├─────────────────────────┤
-       │ HPET_COUNTER_HI (RW)    │  Main counter [63:32]
-0x018  ├─────────────────────────┤
-       │                         │
-       │ RESERVED                │
-       │                         │
-0x0FF  ├─────────────────────────┤
-
-0x100  ┌─────────────────────────┐
-       │ TIMER0_CONFIG (RW)      │  Timer 0 configuration
-0x104  ├─────────────────────────┤
-       │ TIMER0_COMPARATOR_LO    │  Timer 0 comparator [31:0]
-0x108  ├─────────────────────────┤
-       │ TIMER0_COMPARATOR_HI    │  Timer 0 comparator [63:32]
-0x10C  ├─────────────────────────┤
-       │ RESERVED                │
-       │                         │
-0x11F  ├─────────────────────────┤
-
-0x120  ┌─────────────────────────┐
-       │ TIMER1_CONFIG (RW)      │  Timer 1 configuration
-0x124  ├─────────────────────────┤
-       │ TIMER1_COMPARATOR_LO    │  Timer 1 comparator [31:0]
-0x128  ├─────────────────────────┤
-       │ TIMER1_COMPARATOR_HI    │  Timer 1 comparator [63:32]
-0x12C  ├─────────────────────────┤
-       │ RESERVED                │
-       │                         │
-0x13F  ├─────────────────────────┤
-
-       │         ...             │
-
-0x1E0  ┌─────────────────────────┐
-       │ TIMER7_CONFIG (RW)      │  Timer 7 configuration (if 8 timers)
-0x1E4  ├─────────────────────────┤
-       │ TIMER7_COMPARATOR_LO    │  Timer 7 comparator [31:0]
-0x1E8  ├─────────────────────────┤
-       │ TIMER7_COMPARATOR_HI    │  Timer 7 comparator [63:32]
-0x1EC  ├─────────────────────────┤
-       │ RESERVED                │
-       │                         │
-0x1FF  └─────────────────────────┘
-```
-
-Only address bits [8:0] reach the register block, so 0x200-0xFFF alias
-back onto 0x000-0x1FF (0x200 reads HPET_ID, and so on). No error is
-raised for any address.
-
-Timer slots at or above NUM_TIMERS (e.g. 0x140-0x1FF on a 2-timer
-build) are REAL decoded storage: they read back written values but
-reach no core timer. Probe HPET_ID.num_tim_cap, not register
-writability, to discover the timer count.
-
----
-
-## Related Documentation
+## Related Modules
 
 - [Chapter 2: Blocks](../ch02_blocks/00_overview.md) - Block-level architecture
 - Chapters 3 (Interfaces) and 4 (Programming Model) are planned and not

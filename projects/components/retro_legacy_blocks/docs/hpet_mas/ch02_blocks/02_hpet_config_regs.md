@@ -21,13 +21,11 @@
 
 <!-- End Header -->
 
-### HPET Configuration Registers - PeakRDL Wrapper
+# hpet_config_regs
 
-#### Overview
+## Overview
 
-The `hpet_config_regs` module serves as the critical bridge between the PeakRDL-generated register file (`hpet_regs.sv`) and the HPET core timer logic (`hpet_core.sv`). This wrapper handles interface adaptation, per-timer data bus isolation, and register write edge detection.
-
-**Block Diagram:**
+The `hpet_config_regs` module is the bridge between the PeakRDL-generated register file (`hpet_regs.sv`) and the HPET core timer logic (`hpet_core.sv`). The wrapper exists because the generated register interface and the core's expectations don't line up on their own: it handles interface adaptation, per-timer data bus isolation, and register write edge detection.
 
 ### Figure 2.14: HPET Config Registers Block Diagram
 
@@ -35,7 +33,7 @@ The `hpet_config_regs` module serves as the critical bridge between the PeakRDL-
 
 *Figure: HPET Config Registers architecture showing APB interface, PeakRDL registers, edge detection, per-timer data buses, and W1C logic. [Source: assets/graphviz/hpet_config_regs.gv](../assets/graphviz/hpet_config_regs.gv) | [SVG](../assets/svg/hpet_config_regs.svg)*
 
-#### Key Responsibilities
+### Key Responsibilities
 
 1. **PeakRDL Integration:** Instantiates `hpet_regs.sv` and `peakrdl_to_cmdrsp` adapter
 2. **Interface Mapping:** Converts PeakRDL hardware interface to HPET core signals
@@ -44,9 +42,9 @@ The `hpet_config_regs` module serves as the critical bridge between the PeakRDL-
 5. **Counter Write Handling:** Captures software writes to counter registers
 6. **Interrupt Management:** Handles W1C status clearing and interrupt feedback
 
-#### Interface Specification
+---
 
-##### Parameters
+## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
@@ -54,14 +52,18 @@ The `hpet_config_regs` module serves as the critical bridge between the PeakRDL-
 | `REVISION_ID` | int | 1 | -- | UNWIRED: HPET_ID[23:16] reads fixed 0x01 regardless (#46) |
 | `NUM_TIMERS` | int | 2 | 2, 3, 8 | Number of independent timers in array |
 
-##### Clock and Reset
+---
+
+## Ports
+
+### Clock and Reset
 
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|----------------|
 | **clk** | logic | 1 | Input | Configuration clock (pclk or hpet_clk based on CDC_ENABLE) |
 | **rst_n** | logic | 1 | Input | Active-low asynchronous reset |
 
-##### Command/Response Interface (from APB Slave)
+### Command/Response Interface (from APB Slave)
 
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|-------------|
@@ -76,7 +78,7 @@ The `hpet_config_regs` module serves as the critical bridge between the PeakRDL-
 | **rsp_prdata** | logic | 32 | Output | Response read data |
 | **rsp_pslverr** | logic | 1 | Output | Response error flag |
 
-##### HPET Core Interface (to hpet_core.sv)
+### HPET Core Interface (to hpet_core.sv)
 
 **Global Configuration:**
 | Signal Name | Type | Width | Direction | Description |
@@ -114,9 +116,13 @@ The `hpet_config_regs` module serves as the critical bridge between the PeakRDL-
 | **timer_int_status[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Input | Per-timer fire status (from hpet_core) |
 | **timer_int_clear[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer status clear (W1C pulse) |
 
-#### Internal Architecture
+---
 
-##### Component Instantiation
+## Functional Description
+
+### Internal Architecture
+
+#### Component Instantiation
 
 **1. Protocol Adapter:**
 ```systemverilog
@@ -160,9 +166,9 @@ hpet_regs u_hpet_regs (
 );
 ```
 
-#### Mapping Logic Details
+### Mapping Logic Details
 
-##### Global Configuration Mapping
+#### Global Configuration Mapping
 
 Direct assignment from PeakRDL outputs:
 ```systemverilog
@@ -170,7 +176,7 @@ assign hpet_enable = hwif_out.HPET_CONFIG.hpet_enable.value;
 assign legacy_replacement = hwif_out.HPET_CONFIG.legacy_replacement.value;
 ```
 
-##### Counter Write Detection
+#### Counter Write Detection
 
 Uses address-based detection and data capture:
 ```systemverilog
@@ -227,7 +233,7 @@ documented "write LO, then HI" sequence the counter holds {old HI, new LO};
 the new HI half only reaches the counter on a subsequent write. Writing 0 to
 both halves works by accident (stale value equals new value).
 
-##### Timer Configuration Mapping
+#### Timer Configuration Mapping
 
 Per-timer array mapping:
 ```systemverilog
@@ -242,7 +248,7 @@ generate
 endgenerate
 ```
 
-##### Per-Timer Data Bus Architecture (Corruption Fix)
+#### Per-Timer Data Bus Architecture (Corruption Fix)
 
 **The Problem:**
 Early designs shared a single 64-bit bus for all timer comparators. Rapid writes to different timers caused corruption when one timer's data overwrote another timer's registers.
@@ -251,7 +257,7 @@ Early designs shared a single 64-bit bus for all timer comparators. Rapid writes
 Each timer gets a dedicated 64-bit data bus, preventing any possibility of cross-timer corruption:
 
 ```systemverilog
-// ✅ CORRECT: Per-timer dedicated data buses
+// CORRECT: Per-timer dedicated data buses
 generate
     for (genvar i = 0; i < NUM_TIMERS; i++) begin : g_timer_wdata
         assign timer_comp_wdata[i] = {
@@ -291,7 +297,7 @@ Timer 2:  hwif.TIMER[2].COMP_LO/HI -> timer_comp_wdata[2] -> hpet_core timer 2 O
 No shared bus -> No corruption possible
 ```
 
-##### Interrupt Status Handling
+#### Interrupt Status Handling
 
 **Edge Detection for Sticky Interrupts:**
 
@@ -369,7 +375,7 @@ timer_int_status   +-------+
 Note: Edge detection + W1C clearing flow
 ```
 
-#### Register-to-Core Signal Summary
+### Register-to-Core Signal Summary
 
 **Critical Signals:**
 
@@ -386,7 +392,11 @@ Note: Edge detection + W1C clearing flow
 - **Pulse Signals:** Edge-detected from register changes (write strobes, clears)
 - **Data Buses:** Captured or combined register values (counter, comparators)
 
-#### Resource Utilization
+---
+
+## Design Notes
+
+### Resource Utilization
 
 **Configuration Register Logic (hpet_config_regs only, excluding hpet_regs):**
 
@@ -400,5 +410,7 @@ Note: Edge detection + W1C clearing flow
 **Scaling:** Primarily driven by number of timers. Each additional timer adds ~35 FF and ~70 LUTs for mapping and edge detection logic.
 
 ---
+
+## Navigation
 
 **Next:** [Chapter 2.3 - hpet_regs (PeakRDL)](03_hpet_regs.md)

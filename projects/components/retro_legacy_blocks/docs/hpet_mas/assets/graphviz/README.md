@@ -1,8 +1,8 @@
 # HPET Flow Diagrams - Graphviz
 
-This directory contains Graphviz flowcharts for HPET software and operational flows.
+## Overview
 
-## Files
+This directory contains Graphviz flowcharts for HPET software and operational flows.
 
 | File | Description |
 |------|-------------|
@@ -15,9 +15,107 @@ This directory contains Graphviz flowcharts for HPET software and operational fl
 | **cdc_handshake.dot** | Clock domain crossing handshake protocol |
 | **Makefile** | Build script to render all diagrams |
 
-## Rendering Diagrams
+---
 
-### Option 1: Using Makefile (Recommended)
+## Functional Description
+
+### Diagram Descriptions
+
+#### 1. Software Initialization (software_init.dot)
+
+Shows the complete software initialization sequence:
+- Disable HPET
+- Reset counter
+- Read capabilities
+- Configure timers
+- Enable HPET
+
+**Use Case:** Understanding how to initialize HPET from software
+
+#### 2. One-Shot Timer (oneshot_timer.dot)
+
+Detailed flow of one-shot timer operation:
+- Timer enable
+- Counter comparison
+- Fire detection
+- IRQ assertion
+- Timer goes idle
+
+**Use Case:** Understanding one-shot timer behavior
+
+#### 3. Periodic Timer (periodic_timer.dot)
+
+Complete periodic timer operation:
+- Timer enable
+- Counter comparison
+- Fire detection
+- Auto-increment comparator
+- Continuous operation
+
+**Use Case:** Understanding periodic timer auto-reload
+
+#### 4. Interrupt Handling (interrupt_handling.dot)
+
+ISR (Interrupt Service Routine) flow:
+- Read STATUS register
+- Check which timers fired
+- Handle each timer
+- Clear interrupts (W1C)
+- Verify all cleared
+
+**Use Case:** Implementing interrupt service routines
+
+#### 5. Timer Mode Switching (timer_mode_switch.dot)
+
+Switching between one-shot and periodic modes:
+- From one-shot → periodic
+- From periodic → one-shot
+- Critical: disable timer first
+- Comparator meaning changes
+
+**Use Case:** Dynamic timer reconfiguration
+
+#### 6. Multi-Timer Concurrent (multi_timer_concurrent.dot)
+
+Multiple timers operating simultaneously:
+- Timer 0: one-shot at 100
+- Timer 1: periodic at 200, 400, 600...
+- Timer 2: one-shot at 700
+- Independent operation
+- Shared counter
+
+**Use Case:** Understanding concurrent timer behavior
+
+#### 7. CDC Handshake (cdc_handshake.dot)
+
+Clock domain crossing protocol (CDC_ENABLE=1):
+- APB clock domain
+- HPET clock domain
+- Handshake synchronization
+- Latency impact (4-6 cycles)
+
+**Use Case:** Understanding asynchronous clock operation
+
+### Color Coding
+
+The diagrams use consistent color coding:
+
+- **Light Green**: Start/End states, successful operations
+- **Light Blue**: Normal processing steps
+- **Light Yellow**: Decision points, checks, waiting states
+- **Light Cyan**: Configuration/setup steps
+- **Light Coral**: Events (timer fires, errors)
+- **Red/Orange**: Interrupts, critical states
+- **White**: Wait cycles, idle states
+- **Yellow Notes**: Important information, best practices
+
+---
+
+## Usage Example
+
+### Rendering Diagrams
+
+#### Option 1: Using Makefile (Recommended)
 
 ```bash
 # Render all diagrams to PNG
@@ -33,7 +131,7 @@ make software_init.png
 make clean
 ```
 
-### Option 2: Manual Rendering
+#### Option 2: Manual Rendering
 
 ```bash
 # Render to PNG
@@ -46,7 +144,7 @@ dot -Tsvg software_init.dot -o software_init.svg
 dot -Tpdf software_init.dot -o software_init.pdf
 ```
 
-### Option 3: Interactive Viewing
+#### Option 3: Interactive Viewing
 
 ```bash
 # Install xdot for interactive viewing
@@ -58,105 +156,15 @@ brew install xdot  # macOS
 xdot software_init.dot
 ```
 
-### Option 4: Online Viewer
+#### Option 4: Online Viewer
 
 1. Copy the .dot file contents
 2. Go to https://dreampuf.github.io/GraphvizOnline/
 3. Paste and view
 
-## Diagram Descriptions
+### Embedding in Documentation
 
-### 1. Software Initialization (software_init.dot)
-
-Shows the complete software initialization sequence:
-- Disable HPET
-- Reset counter
-- Read capabilities
-- Configure timers
-- Enable HPET
-
-**Use Case:** Understanding how to initialize HPET from software
-
-### 2. One-Shot Timer (oneshot_timer.dot)
-
-Detailed flow of one-shot timer operation:
-- Timer enable
-- Counter comparison
-- Fire detection
-- IRQ assertion
-- Timer goes idle
-
-**Use Case:** Understanding one-shot timer behavior
-
-### 3. Periodic Timer (periodic_timer.dot)
-
-Complete periodic timer operation:
-- Timer enable
-- Counter comparison
-- Fire detection
-- Auto-increment comparator
-- Continuous operation
-
-**Use Case:** Understanding periodic timer auto-reload
-
-### 4. Interrupt Handling (interrupt_handling.dot)
-
-ISR (Interrupt Service Routine) flow:
-- Read STATUS register
-- Check which timers fired
-- Handle each timer
-- Clear interrupts (W1C)
-- Verify all cleared
-
-**Use Case:** Implementing interrupt service routines
-
-### 5. Timer Mode Switching (timer_mode_switch.dot)
-
-Switching between one-shot and periodic modes:
-- From one-shot → periodic
-- From periodic → one-shot
-- Critical: disable timer first
-- Comparator meaning changes
-
-**Use Case:** Dynamic timer reconfiguration
-
-### 6. Multi-Timer Concurrent (multi_timer_concurrent.dot)
-
-Multiple timers operating simultaneously:
-- Timer 0: one-shot at 100
-- Timer 1: periodic at 200, 400, 600...
-- Timer 2: one-shot at 700
-- Independent operation
-- Shared counter
-
-**Use Case:** Understanding concurrent timer behavior
-
-### 7. CDC Handshake (cdc_handshake.dot)
-
-Clock domain crossing protocol (CDC_ENABLE=1):
-- APB clock domain
-- HPET clock domain
-- Handshake synchronization
-- Latency impact (4-6 cycles)
-
-**Use Case:** Understanding asynchronous clock operation
-
-## Color Coding
-
-The diagrams use consistent color coding:
-
-- **Light Green**: Start/End states, successful operations
-- **Light Blue**: Normal processing steps
-- **Light Yellow**: Decision points, checks, waiting states
-- **Light Cyan**: Configuration/setup steps
-- **Light Coral**: Events (timer fires, errors)
-- **Red/Orange**: Interrupts, critical states
-- **White**: Wait cycles, idle states
-- **Yellow Notes**: Important information, best practices
-
-## Embedding in Documentation
-
-### Markdown
+#### Markdown
 
 ```markdown
 ### Software Initialization Flow
@@ -166,14 +174,14 @@ The diagrams use consistent color coding:
 See [software_init.dot](assets/graphviz/software_init.dot) for details.
 ```
 
-### HTML
+#### HTML
 
 ```html
 <h3>Software Initialization Flow</h3>
 <img src="assets/graphviz/software_init.svg" alt="Software Init Flow">
 ```
 
-### LaTeX
+#### LaTeX
 
 ```latex
 \begin{figure}
@@ -182,7 +190,7 @@ See [software_init.dot](assets/graphviz/software_init.dot) for details.
 \end{figure}
 ```
 
-## Updating Diagrams
+### Updating Diagrams
 
 To modify flows:
 
@@ -191,7 +199,7 @@ To modify flows:
 3. Verify changes visually
 4. Commit both .dot and generated image files
 
-## Graphviz Syntax Tips
+### Graphviz Syntax Tips
 
 ```dot
 // Node styles
@@ -216,12 +224,14 @@ subgraph cluster_name {
 {rank=same; node1; node2;}
 ```
 
-## Dependencies
+### Dependencies
 
 - **graphviz** package required
   - Ubuntu/Debian: `sudo apt-get install graphviz`
   - macOS: `brew install graphviz`
   - Windows: Download from https://graphviz.org/download/
+
+---
 
 ## References
 

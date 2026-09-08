@@ -21,9 +21,11 @@
 
 <!-- End Header -->
 
-### APB HPET - Acronyms and Terminology
+# APB HPET Acronyms and Terminology
 
-#### Acronyms
+## Overview
+
+The vocabulary used across this MAS, collected in one place so the rest of the chapters can stay terse.
 
 | Acronym | Full Term | Description |
 |---------|-----------|-------------|
@@ -43,7 +45,11 @@
 | **W1C** | Write-1-to-Clear | Register field cleared by writing 1, writing 0 has no effect |
 | **WO** | Write-Only | Register field can only be written, reads return undefined |
 
-#### Terminology
+---
+
+## Functional Description
+
+### Terminology
 
 **64-bit Counter:**
 The main free-running counter that increments on every HPET clock cycle. Provides high-resolution timestamp and comparison base for all timers.
@@ -75,7 +81,7 @@ Historical bug where shared data bus allowed one timer's configuration to overwr
 **Write Strobe:**
 Edge-detected pulse generated when software writes to a timer configuration register. Used to sample comparator and configuration data atomically.
 
-#### Register Field Access Types
+### Register Field Access Types
 
 **RO (Read-Only):**
 - Software can read the field
@@ -101,7 +107,11 @@ Edge-detected pulse generated when software writes to a timer configuration regi
 - Hardware can set the bit
 - Example: `HPET_STATUS` interrupt flags
 
-#### Signal Naming Conventions
+---
+
+## Design Notes
+
+### Signal Naming Conventions
 
 **APB Signals:**
 All APB signals use standard AMBA naming with `p` prefix:
@@ -131,7 +141,7 @@ Timer-related signals use descriptive names:
 - `cfg_` - Configuration input
 - `hwif_` - PeakRDL hardware interface signal
 
-#### Common Abbreviations in Code
+### Common Abbreviations in Code
 
 | Abbreviation | Meaning | Example |
 |--------------|---------|---------|
@@ -146,5 +156,7 @@ Timer-related signals use descriptive names:
 | `clr` | Clear | `status_clr` |
 
 ---
+
+## Navigation
 
 **Next:** [Chapter 1.5 - References](05_references.md)

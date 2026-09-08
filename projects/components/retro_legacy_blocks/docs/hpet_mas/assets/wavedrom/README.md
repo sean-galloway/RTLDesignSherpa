@@ -1,8 +1,10 @@
 # HPET WaveDrom Diagrams
 
+## Overview
+
 This directory contains WaveDrom diagrams for HPET documentation.
 
-## Directory Structure
+### Directory Structure
 
 ```
 wavedrom/
@@ -20,13 +22,13 @@ wavedrom/
       └── hpet_cdc_crossing.json
 ```
 
-## Diagram Types
+### Diagram Types
 
-### Register Layouts (this directory)
+#### Register Layouts (this directory)
 - **hpet_registers.json** - Complete register bit-field definitions
 - **hpet_registers.html** - Standalone HTML viewer for all registers
 
-### Timing Diagrams (timing/ subdirectory)
+#### Timing Diagrams (timing/ subdirectory)
 - **hpet_config_write.json** - APB write to enable HPET
 - **hpet_counter_read.json** - APB read of main counter
 - **hpet_timer_fire_oneshot.json** - One-shot timer fire event
@@ -35,37 +37,13 @@ wavedrom/
 - **hpet_timer_setup.json** - Timer configuration sequence
 - **hpet_cdc_crossing.json** - Clock domain crossing
 
-## Viewing the Diagrams
+---
 
-### Option 1: Open HTML Viewer (Easiest)
+## Functional Description
 
-```bash
-# Open in your browser
-firefox hpet_registers.html
-# or
-google-chrome hpet_registers.html
-```
+### Register Descriptions
 
-### Option 2: Online WaveDrom Editor
-
-1. Go to https://wavedrom.com/editor.html
-2. Copy a register diagram from `hpet_registers.json`
-3. Paste into the editor
-4. View the rendered diagram
-
-### Option 3: Command Line (wavedrom-cli)
-
-```bash
-# Install wavedrom-cli
-npm install -g wavedrom-cli
-
-# Render a specific register
-wavedrom-cli -i hpet_config.json -o hpet_config.svg
-```
-
-## Register Descriptions
-
-### Global Registers (0x000 - 0x014)
+#### Global Registers (0x000 - 0x014)
 
 | Offset | Register | Access | Description |
 |--------|----------|--------|-------------|
@@ -76,7 +54,7 @@ wavedrom-cli -i hpet_config.json -o hpet_config.svg
 | 0x010 | HPET_COUNTER_LO | RW | Main counter [31:0] |
 | 0x014 | HPET_COUNTER_HI | RW | Main counter [63:32] |
 
-### Per-Timer Registers (0x100 + i*0x20)
+#### Per-Timer Registers (0x100 + i*0x20)
 
 Each timer has 4 registers with 0x20 byte stride:
 
@@ -93,9 +71,9 @@ Each timer has 4 registers with 0x20 byte stride:
 - Timer 2: Base = 0x140 (0x100 + 2*0x20)
 - Timer 7: Base = 0x1E0 (0x100 + 7*0x20)
 
-## Key Register Fields
+### Key Register Fields
 
-### HPET_ID (0x000) - Read Only
+#### HPET_ID (0x000) - Read Only
 - **bits[4:0]**: Reserved
 - **bit[5]**: leg_rt_cap (reads 1; feature not implemented)
 - **bit[6]**: Reserved
@@ -105,16 +83,16 @@ Each timer has 4 registers with 0x20 byte stride:
 - **bits[23:16]**: rev_id (fixed 0x01)
 - **bits[31:24]**: vendor_id (fixed 0x01)
 
-### HPET_CONFIG (0x004)
+#### HPET_CONFIG (0x004)
 - **bit[0]**: hpet_enable - Enable HPET globally
 - **bit[1]**: legacy_replacement - stored, no hardware effect
 - **bits[31:2]**: Reserved
 
-### HPET_STATUS (0x008) - Write 1 to Clear
+#### HPET_STATUS (0x008) - Write 1 to Clear
 - **bit[i]**: Timer[i] interrupt status (fixed 8-bit field)
 - Write 1 to clear the interrupt flag
 
-### TIMER_CONFIG (0x100 + i*0x20)
+#### TIMER_CONFIG (0x100 + i*0x20)
 - **bits[1:0]**: Reserved
 - **bit[2]**: timer_enable - Enable timer
 - **bit[3]**: timer_int_enable - Enable interrupt generation
@@ -123,7 +101,39 @@ Each timer has 4 registers with 0x20 byte stride:
 - **bit[6]**: timer_value_set - stored, no hardware effect
 - **bits[31:7]**: Reserved
 
-## Usage in Documentation
+---
+
+## Usage Example
+
+### Viewing the Diagrams
+
+#### Option 1: Open HTML Viewer (Easiest)
+
+```bash
+# Open in your browser
+firefox hpet_registers.html
+# or
+google-chrome hpet_registers.html
+```
+
+#### Option 2: Online WaveDrom Editor
+
+1. Go to https://wavedrom.com/editor.html
+2. Copy a register diagram from `hpet_registers.json`
+3. Paste into the editor
+4. View the rendered diagram
+
+#### Option 3: Command Line (wavedrom-cli)
+
+```bash
+# Install wavedrom-cli
+npm install -g wavedrom-cli
+
+# Render a specific register
+wavedrom-cli -i hpet_config.json -o hpet_config.svg
+```
+
+### Usage in Documentation
 
 To embed these diagrams in markdown documentation:
 
@@ -142,7 +152,7 @@ To embed these diagrams in markdown documentation:
 \`\`\`
 ```
 
-## Updating Diagrams
+### Updating Diagrams
 
 To modify register layouts:
 
@@ -150,6 +160,8 @@ To modify register layouts:
 2. Update the corresponding "diagram" object
 3. Refresh `hpet_registers.html` in browser to see changes
 4. Commit updated JSON to repository
+
+---
 
 ## References
 

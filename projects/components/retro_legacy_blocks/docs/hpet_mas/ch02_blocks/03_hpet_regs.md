@@ -21,13 +21,13 @@
 
 <!-- End Header -->
 
-### HPET Registers - PeakRDL Generated Register File
+# hpet_regs
 
-#### Overview
+## Overview
 
 The `hpet_regs` module is auto-generated from the SystemRDL specification (`rtl/hpet/peakrdl/hpet_regs.rdl`) using the PeakRDL toolchain. It implements the complete HPET register file with proper field access semantics (RO, RW, W1C), hardware interface integration, and CPU interface protocol handling.
 
-**Single Source of Truth:** All register definitions, addresses, field widths, and access properties are specified in the SystemRDL file. The generated RTL is deterministic and regeneratable.
+**Single Source of Truth:** All register definitions, addresses, field widths, and access properties are specified in the SystemRDL file. The generated RTL is deterministic and regeneratable -- which means the .rdl file is where you make changes, never the generated output.
 
 **Generation Command:**
 ```bash
@@ -39,9 +39,9 @@ peakrdl regblock hpet_regs.rdl --cpuif passthrough -o ../
 - `hpet_regs.sv` - Register implementation
 - `hpet_regs_pkg.sv` - Package with structs and parameters
 
-#### Module Interface
+---
 
-##### Parameters
+## Parameters
 
 No user-configurable parameters. All configuration is baked into the generated code from SystemRDL.
 
@@ -54,16 +54,20 @@ localparam NUM_TIMERS = 8;        // From RDL: TIMER[0:7] array size
 
 **Note:** These values are fixed at generation time. To change them, modify `hpet_regs.rdl` and regenerate.
 
-##### Clock and Reset
+---
+
+## Ports
+
+### Clock and Reset
 
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|-------------|
 | **clk** | wire | 1 | Input | Register clock (pclk or hpet_clk based on CDC_ENABLE) |
 | **rst** | wire | 1 | Input | **Active-high** reset (PeakRDL convention) |
 
-**⚠️ Important:** PeakRDL uses active-high reset. The wrapper (`hpet_config_regs.sv`) inverts `rst_n` before connecting.
+Caveat: PeakRDL uses active-high reset. The wrapper (`hpet_config_regs.sv`) inverts `rst_n` before connecting.
 
-##### CPU Interface (Passthrough Protocol)
+### CPU Interface (Passthrough Protocol)
 
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|-------------|
@@ -85,7 +89,7 @@ localparam NUM_TIMERS = 8;        // From RDL: TIMER[0:7] array size
 - **Stalls:** Never stall (HPET registers have single-cycle access)
 - **Errors:** None -- both error outputs are tied to 0 (`cpuif_wr_err = 0`, `readback_err = 0`); no address raises PSLVERR, and addresses above 0x1FF alias the map (only addr[8:0] is decoded)
 
-##### Hardware Interface (Structs)
+### Hardware Interface (Structs)
 
 ```systemverilog
 input  hpet_regs_pkg::hpet_regs__in_t  hwif_in;   // From hardware to registers
@@ -165,9 +169,13 @@ package hpet_regs_pkg;
 endpackage
 ```
 
-#### Register Implementation
+---
 
-##### Address Decoding
+## Functional Description
+
+### Register Implementation
+
+#### Address Decoding
 
 PeakRDL generates a decoded register strobe struct:
 
@@ -213,7 +221,7 @@ always_comb begin
 end
 ```
 
-##### Field Logic
+#### Field Logic
 
 Each field is implemented with:
 - **Combo Logic:** Determines next value based on SW write, HW input, or current value
@@ -334,7 +342,7 @@ assign hwif_out.HPET_COUNTER_LO.counter_lo.swmod =
     decoded_reg_strb.HPET_COUNTER_LO && decoded_req_is_wr && |(decoded_wr_biten[31:0]);
 ```
 
-##### Read Response Logic
+#### Read Response Logic
 
 PeakRDL generates readback arrays for all registers:
 
@@ -384,9 +392,9 @@ assign cpuif_rd_data = readback_data;
 assign cpuif_rd_err = readback_err;
 ```
 
-#### Field Access Semantics
+### Field Access Semantics
 
-##### Read-Only (RO)
+#### Read-Only (RO)
 
 **Characteristics:**
 - Software reads return hardware-driven value
@@ -399,7 +407,7 @@ assign cpuif_rd_err = readback_err;
 // Software can read, but writes have no effect
 ```
 
-##### Read-Write (RW)
+#### Read-Write (RW)
 
 **Characteristics:**
 - Software can read and write
@@ -413,7 +421,7 @@ assign cpuif_rd_err = readback_err;
 // Reset value: 0 (disabled)
 ```
 
-##### Write-1-to-Clear (W1C)
+#### Write-1-to-Clear (W1C)
 
 **Characteristics:**
 - Software writes 1 to clear bit
@@ -427,7 +435,7 @@ assign cpuif_rd_err = readback_err;
 // Hardware sets via hwif_in.HPET_STATUS.timer_int_status.hwset
 ```
 
-##### Hardware Write with Software Precedence
+#### Hardware Write with Software Precedence
 
 **Characteristics:**
 - Hardware continuously writes value via `hwif_in.next`
@@ -441,7 +449,7 @@ assign cpuif_rd_err = readback_err;
 // Software write overrides hardware write
 ```
 
-#### SystemRDL Specification
+### SystemRDL Specification
 
 **Source File:** `rtl/hpet/peakrdl/hpet_regs.rdl`
 
@@ -528,7 +536,11 @@ addrmap hpet_regs {
 };
 ```
 
-#### Regeneration Procedure
+---
+
+## Usage Example
+
+### Regeneration Procedure
 
 **When to Regenerate:**
 1. Changing register addresses
@@ -558,8 +570,10 @@ git diff ../hpet_regs.sv ../hpet_regs_pkg.sv
 pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 ```
 
-**⚠️ Important:** Do not manually edit generated files! All changes must be made in `hpet_regs.rdl` and regenerated.
+Caveat: Do not manually edit generated files! All changes must be made in `hpet_regs.rdl` and regenerated.
 
 ---
+
+## Navigation
 
 **Next:** [Chapter 2.4 - apb4_hpet (Top Level)](04_apb4_hpet_top.md)

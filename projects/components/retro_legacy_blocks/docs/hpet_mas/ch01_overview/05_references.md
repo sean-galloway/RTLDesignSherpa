@@ -21,9 +21,13 @@
 
 <!-- End Header -->
 
-### APB HPET - References
+# APB HPET References
 
-#### External Standards and Specifications
+Everything this MAS leaned on, plus the pointers you'll want when you need to go deeper than the spec itself.
+
+## References
+
+### External Standards and Specifications
 
 **AMBA Protocol Specifications:**
 - **AMBA APB Protocol Specification v2.0**
@@ -51,7 +55,7 @@
   - Relevance: Architectural inspiration (APB HPET is NOT IA-PC HPET compliant)
   - **Note:** Used as reference for timer concepts only. APB HPET uses APB interface (not memory-mapped), different register layout, and does not support legacy modes or FSB delivery.
 
-#### Internal Project Documentation
+### Internal Project Documentation
 
 **Component-Specific Documentation:**
 - [PRD.md](../../../PRD.md) - Product Requirements Document
@@ -96,7 +100,7 @@
 - `known_issues/README.md` - Issue tracking overview
 - Timer counter-cleanup fix details: see TASK-001 in [TASKS.md](../../../TASKS.md) (the old standalone `known_issues/resolved/timer_cleanup_issue.md` page was not carried over into retro_legacy_blocks)
 
-#### Repository-Wide Documentation
+### Repository-Wide Documentation
 
 **Root Documentation:**
 - `/README.md` - Repository overview and setup
@@ -113,7 +117,7 @@
   - Queue-based vs memory model verification
   - Mandatory testbench methods
 
-#### Related RTL Components
+### Related RTL Components
 
 **APB Infrastructure:**
 - `rtl/amba/apb4/apb4_slave.sv` - Standard APB slave
@@ -129,7 +133,7 @@
 - Edge detection for write strobes is implemented inline in `rtl/hpet/hpet_config_regs.sv` (the old standalone `rtl/common/edge_detect.sv` module no longer exists)
 - `rtl/common/counter_bin.sv` - Binary counter (similar to HPET main counter)
 
-#### Design Tools
+### Design Tools
 
 **Simulation:**
 - Verilator 5.0+ - RTL simulator
@@ -144,7 +148,7 @@
 - GTKWave - VCD waveform viewer
 - GTKW files available in `dv/GTKW/` directory
 
-#### Industry Best Practices References
+### Industry Best Practices References
 
 **RTL Coding:**
 - *Synthesis and Simulation Design Guide* - Xilinx UG901
@@ -171,7 +175,7 @@
   - Protocol checkers
   - Example testbenches
 
-#### Version Control and Issue Tracking
+### Version Control and Issue Tracking
 
 **Git Repository:**
 - Main branch: Production-ready code
@@ -184,7 +188,7 @@
 - `documentation` - Documentation updates
 - `testing` - Test infrastructure improvements
 
-#### Related Projects
+### Related Projects
 
 **RTL Design Sherpa Components:**
 - APB HPET (this component)
@@ -196,5 +200,7 @@
 - None - APB HPET is fully self-contained within RTL Design Sherpa
 
 ---
+
+## Navigation
 
 **Next:** [Chapter 2 - Blocks](../ch02_blocks/00_overview.md)

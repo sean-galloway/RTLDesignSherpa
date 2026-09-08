@@ -21,13 +21,13 @@
 
 <!-- End Header -->
 
-### APB HPET - Clocks and Reset
+# APB HPET Clocks and Reset
 
-#### Clock Domains
+## Overview
 
-The APB HPET operates in one or two clock domains depending on CDC configuration:
+The APB HPET operates in one or two clock domains depending on CDC configuration. Pick the mode that matches your system; the trade is latency versus clock freedom.
 
-##### Single Clock Domain (CDC_ENABLE = 0)
+### Single Clock Domain (CDC_ENABLE = 0)
 
 **Configuration:**
 - `pclk = hpet_clk` (same physical clock)
@@ -40,7 +40,7 @@ The APB HPET operates in one or two clock domains depending on CDC configuration
 - Resource-constrained designs (CDC overhead not needed)
 - Minimal latency requirements
 
-##### Dual Clock Domains (CDC_ENABLE = 1)
+### Dual Clock Domains (CDC_ENABLE = 1)
 
 **Configuration:**
 - `pclk` and `hpet_clk` are independent, asynchronous clocks
@@ -53,9 +53,13 @@ The APB HPET operates in one or two clock domains depending on CDC configuration
 - HPET clock derived from external crystal/oscillator
 - Power management scenarios (clock gating one domain)
 
-#### Clock Specifications
+---
 
-##### APB Clock (`pclk`)
+## Functional Description
+
+### Clock Specifications
+
+#### APB Clock (`pclk`)
 
 **Purpose:** APB interface protocol clock
 
@@ -70,7 +74,7 @@ The APB HPET operates in one or two clock domains depending on CDC configuration
 - PeakRDL register file and register configuration logic ONLY when
   CDC_ENABLE=0 (with CDC_ENABLE=1 they run on hpet_clk)
 
-##### HPET Clock (`hpet_clk`)
+#### HPET Clock (`hpet_clk`)
 
 **Purpose:** Timer counter increment and comparator evaluation
 
@@ -91,9 +95,9 @@ The APB HPET operates in one or two clock domains depending on CDC configuration
 - 1 MHz -> 1µs resolution
 - 1 kHz -> 1ms resolution
 
-#### Reset Domains
+### Reset Domains
 
-##### APB Reset (`presetn`)
+#### APB Reset (`presetn`)
 
 **Type:** Asynchronous active-low reset
 
@@ -130,7 +134,7 @@ end
 | `TIMER[i]_COMPARATOR_LO` | 32'h0 | Read/write; reads return the last software-written value |
 | `TIMER[i]_COMPARATOR_HI` | 32'h0 | Read/write; reads return the last software-written value |
 
-##### HPET Reset (`hpet_resetn`)
+#### HPET Reset (`hpet_resetn`)
 
 **Type:** Asynchronous active-low reset
 
@@ -163,54 +167,9 @@ end
 | `r_timer_period[i]` | 64'h0 | Period storage cleared |
 | `r_interrupt_status[i]` | 1'b0 | Interrupt status cleared |
 
-#### Reset Coordination
+### Clock Domain Crossing Details
 
-##### Synchronous Mode (CDC_ENABLE = 0)
-
-**Requirement:** `presetn` and `hpet_resetn` should be asserted/deasserted together
-
-**Recommended Connection:**
-```systemverilog
-assign hpet_resetn = presetn;  // Same reset for both domains
-```
-
-**Reset Sequence:**
-```
-1. Assert presetn = 0 (also asserts hpet_resetn = 0)
-2. Hold for >= 10 clock cycles
-3. Deassert presetn = 1 (also deasserts hpet_resetn = 1)
-4. Wait >= 5 clock cycles before first register access
-```
-
-##### Asynchronous Mode (CDC_ENABLE = 1)
-
-**Requirement:** Both resets can be independent but must overlap during power-on
-
-**Recommended Sequence:**
-```
-1. Assert both presetn = 0 and hpet_resetn = 0
-2. Hold presetn for >= 10 pclk cycles
-3. Hold hpet_resetn for >= 10 hpet_clk cycles
-4. Deassert resets (order not critical, but both must be stable)
-5. Wait for CDC handshake to stabilize (>= 6 pclk cycles)
-6. Begin register accesses
-```
-
-**Reset Timing Diagram (CDC Mode):**
-```
-           +-------------------------------------
-presetn    +                                    (>=10 pclk cycles in reset)
-
-                  +---------------------------------
-hpet_resetn        +                              (>=10 hpet_clk cycles in reset)
-
-                           +-------------------------
-APB Access                 + Safe to access       (Wait for CDC stabilization)
-```
-
-#### Clock Domain Crossing Details
-
-##### CDC Synchronization
+#### CDC Synchronization
 
 When `CDC_ENABLE = 1`, the `apb4_slave_cdc` module handles all clock domain crossing:
 
@@ -245,7 +204,7 @@ Latency: 4-6 pclk cycles
   combinationally
 - No toggle handshake exists; ordering and stability come from the FIFO
 
-##### Counter Read Atomicity
+### Counter Read Atomicity
 
 **Problem:** 64-bit counter spans two 32-bit APB registers
 
@@ -274,7 +233,7 @@ uint64_t read_hpet_counter(void) {
 
 **Note:** Hardware atomic read not implemented (future enhancement)
 
-#### Clock Gating Considerations
+### Clock Gating Considerations
 
 **APB Clock Gating:**
 - Safe to gate `pclk` when no APB transactions pending
@@ -302,9 +261,58 @@ match edge -- every completed one-shot re-fires the moment step 5 runs,
 setting status and irq. After any re-enable, clear HPET_STATUS and/or
 rewrite the comparators of expired timers before unmasking interrupts.
 
-#### Timing Constraints
+---
 
-##### Setup/Hold Requirements
+## Timing
+
+### Reset Coordination
+
+#### Synchronous Mode (CDC_ENABLE = 0)
+
+**Requirement:** `presetn` and `hpet_resetn` should be asserted/deasserted together
+
+**Recommended Connection:**
+```systemverilog
+assign hpet_resetn = presetn;  // Same reset for both domains
+```
+
+**Reset Sequence:**
+```
+1. Assert presetn = 0 (also asserts hpet_resetn = 0)
+2. Hold for >= 10 clock cycles
+3. Deassert presetn = 1 (also deasserts hpet_resetn = 1)
+4. Wait >= 5 clock cycles before first register access
+```
+
+#### Asynchronous Mode (CDC_ENABLE = 1)
+
+**Requirement:** Both resets can be independent but must overlap during power-on
+
+**Recommended Sequence:**
+```
+1. Assert both presetn = 0 and hpet_resetn = 0
+2. Hold presetn for >= 10 pclk cycles
+3. Hold hpet_resetn for >= 10 hpet_clk cycles
+4. Deassert resets (order not critical, but both must be stable)
+5. Wait for CDC handshake to stabilize (>= 6 pclk cycles)
+6. Begin register accesses
+```
+
+**Reset Timing Diagram (CDC Mode):**
+```
+           +-------------------------------------
+presetn    +                                    (>=10 pclk cycles in reset)
+
+                  +---------------------------------
+hpet_resetn        +                              (>=10 hpet_clk cycles in reset)
+
+                           +-------------------------
+APB Access                 + Safe to access       (Wait for CDC stabilization)
+```
+
+### Timing Constraints
+
+#### Setup/Hold Requirements
 
 **APB Interface (Synchronous):**
 ```
@@ -318,7 +326,7 @@ No setup/hold requirements between pclk and hpet_clk
 CDC synchronizers handle all timing
 ```
 
-##### Maximum Operating Frequencies
+#### Maximum Operating Frequencies
 
 **Technology-Dependent Estimates (Post-Synthesis):**
 - APB clock: 200+ MHz (typical modern process)
@@ -330,5 +338,7 @@ CDC synchronizers handle all timing
 - HPET clock: 1-50 MHz (sufficient for most timing applications)
 
 ---
+
+## Navigation
 
 **Next:** [Chapter 1.4 - Acronyms and Terminology](04_acronyms.md)

@@ -21,13 +21,11 @@
 
 <!-- End Header -->
 
-### APB HPET Top Level - System Integration
+# apb4_hpet
 
-#### Overview
+## Overview
 
-The `apb4_hpet` module is the top-level system integration point that combines APB slave interface, configuration registers, and timer core into a complete HPET peripheral. It provides parameterized clock domain crossing (CDC) support and exposes a unified external interface.
-
-**Top-Level Block Diagram:**
+The `apb4_hpet` module is the top-level system integration point. It combines the APB slave interface, configuration registers, and timer core into a complete HPET peripheral, provides parameterized clock domain crossing (CDC) support, and exposes a unified external interface. It's mostly wiring -- but wiring with opinions, particularly about which clock each block runs on.
 
 ### Figure 2.15: APB HPET Top-Level Block Diagram
 
@@ -42,7 +40,7 @@ The `apb4_hpet` module is the top-level system integration point that combines A
 - Timer interrupt aggregation
 - Single-point system configuration
 
-#### Module Hierarchy
+### Module Hierarchy
 
 ```
 apb4_hpet
@@ -64,9 +62,9 @@ apb4_hpet
     +-- Interrupt generation [NUM_TIMERS]
 ```
 
-#### Interface Specification
+---
 
-##### Parameters
+## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
@@ -85,7 +83,11 @@ apb4_hpet
   count through HPET_ID.num_tim_cap -- no regeneration needed
 - **CDC_ENABLE**: Critical for system integration - determines clock relationship
 
-##### Clock and Reset - Dual Domain
+---
+
+## Ports
+
+### Clock and Reset - Dual Domain
 
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|-------------|
@@ -102,7 +104,7 @@ apb4_hpet
 - **CDC_ENABLE=0:** `presetn` and `hpet_resetn` should be asserted/deasserted together
 - **CDC_ENABLE=1:** Both resets must overlap during power-on, can be independent afterward
 
-##### APB4 Slave Interface (Low Frequency Domain)
+### APB4 Slave Interface (Low Frequency Domain)
 
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|-------------|
@@ -124,7 +126,7 @@ apb4_hpet
   the register block, so e.g. a read at 0x200 returns HPET_ID. No address
   ever raises PSLVERR -- the register block ties both error outputs to 0.
 
-##### Timer Interrupt Outputs (High Frequency Domain)
+### Timer Interrupt Outputs (High Frequency Domain)
 
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|-------------|
@@ -139,9 +141,13 @@ apb4_hpet
   read 1 while timer_irq is 0
 - **W1C clearing** (software writes 1 to HPET_STATUS to clear)
 
-#### Internal Signal Interfaces
+---
 
-##### CDC Command/Response Interface
+## Functional Description
+
+### Internal Signal Interfaces
+
+#### CDC Command/Response Interface
 
 **Between APB Slave and Configuration Registers:**
 
@@ -164,7 +170,7 @@ logic                    w_rsp_pslverr;
 - **CDC_ENABLE=0:** Runs on `pclk`
 - **CDC_ENABLE=1:** Runs on `hpet_clk` (synchronized from pclk)
 
-##### Configuration Register Interface
+#### Configuration Register Interface
 
 **Between hpet_config_regs and hpet_core:**
 
@@ -196,11 +202,11 @@ logic [NUM_TIMERS-1:0]   w_timer_int_status;
 logic [NUM_TIMERS-1:0]   w_timer_int_clear;
 ```
 
-#### APB Slave Conditional Generation
+### APB Slave Conditional Generation
 
 The top-level module uses a SystemVerilog `generate` block to conditionally instantiate the appropriate APB slave variant:
 
-##### Non-CDC Configuration (CDC_ENABLE=0)
+#### Non-CDC Configuration (CDC_ENABLE=0)
 
 ```systemverilog
 generate
@@ -254,7 +260,7 @@ endgenerate
 - **Clock:** Single `pclk` domain
 - **Resources:** ~20 FF, ~50 LUTs
 
-##### CDC Configuration (CDC_ENABLE=1)
+#### CDC Configuration (CDC_ENABLE=1)
 
 ```systemverilog
 generate
@@ -314,7 +320,7 @@ endgenerate
 - **Clocks:** Dual domains (pclk and hpet_clk)
 - **Resources:** ~100 FF, ~150 LUTs (additional CDC logic)
 
-#### Clock Domain Assignment
+### Clock Domain Assignment
 
 Configuration registers and HPET core run in a clock domain determined by `CDC_ENABLE`:
 
@@ -348,9 +354,11 @@ hpet_core #(
 
 **Rationale:** Configuration registers and timer core must run in the same domain. APB slave handles the clock crossing (if needed).
 
-#### Integration Examples
+---
 
-##### Example 1: Synchronous Configuration (CDC_ENABLE=0)
+## Usage Example
+
+### Example 1: Synchronous Configuration (CDC_ENABLE=0)
 
 ```systemverilog
 apb4_hpet #(
@@ -383,7 +391,7 @@ apb4_hpet #(
 assign irq_sources[31:30] = hpet_irq[1:0];
 ```
 
-##### Example 2: Asynchronous Configuration (CDC_ENABLE=1)
+### Example 2: Asynchronous Configuration (CDC_ENABLE=1)
 
 ```systemverilog
 apb4_hpet #(
@@ -408,7 +416,11 @@ apb4_hpet #(
 );
 ```
 
-#### Resource Utilization Summary
+---
+
+## Design Notes
+
+### Resource Utilization Summary
 
 **Total Resource Usage by Configuration:**
 
@@ -427,7 +439,11 @@ apb4_hpet #(
 - **Config Registers:** Scales with NUM_TIMERS (~35 FF + ~70 LUTs per timer)
 - **HPET Core:** Scales with NUM_TIMERS (~128 FF + ~85 LUTs per timer)
 
-#### Verification Checklist
+---
+
+## Testing
+
+### Verification Checklist
 
 **Integration Validation:**
 
@@ -462,5 +478,7 @@ apb4_hpet #(
   - [ ] Proper handshake protocol
 
 ---
+
+## Navigation
 
 **Next:** [Chapter 2.5 - FSM Summary](05_fsm_summary.md)

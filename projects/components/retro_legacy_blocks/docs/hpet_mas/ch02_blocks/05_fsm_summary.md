@@ -21,13 +21,13 @@
 
 <!-- End Header -->
 
-### APB HPET - FSM Summary
+# APB HPET FSM Summary
 
-#### Finite State Machines Overview
+## Overview
 
-The APB HPET component contains multiple state machines across different modules. This chapter summarizes all FSMs, their states, transitions, and interactions.
+The APB HPET component contains multiple state machines across different modules. This chapter collects all of them -- states, transitions, and interactions -- in one place so you don't have to chase them across the block pages.
 
-#### FSM Inventory
+### FSM Inventory
 
 | Module | FSM Name | Type | States | Purpose |
 |--------|----------|------|--------|---------|
@@ -38,6 +38,8 @@ The APB HPET component contains multiple state machines across different modules
 **Note:** The hpet_config_regs and hpet_regs modules use combinational and sequential logic without explicit state machines.
 
 ---
+
+## Functional Description
 
 ### 1. APB Slave Protocol FSM
 
@@ -266,6 +268,8 @@ flowchart TD
 
 ---
 
+## Design Notes
+
 ### State Machine Design Patterns
 
 #### Pattern 1: Explicit State Register (APB Slave)
@@ -338,6 +342,8 @@ end
 
 ---
 
+## Testing
+
 ### FSM Verification Considerations
 
 #### State Coverage
@@ -374,5 +380,7 @@ end
 - [ ] Mode switch (one-shot ↔ periodic) mid-operation
 
 ---
+
+## Navigation
 
 **Next:** [Chapter 3 - Interfaces](../ch03_interfaces/01_top_level.md)

@@ -21,13 +21,11 @@
 
 <!-- End Header -->
 
-### HPET Core - Timer Logic
+# hpet_core
 
-#### Overview
+## Overview
 
-The HPET core (`hpet_core.sv`) implements the fundamental timer functionality: a 64-bit free-running counter, per-timer comparators, and interrupt generation. This module operates entirely in the `hpet_clk` domain and contains all timing-critical logic.
-
-**Block Diagram:**
+The HPET core (`hpet_core.sv`) is where the timing actually happens: a 64-bit free-running counter, per-timer comparators, and interrupt generation. This module operates entirely in the `hpet_clk` domain and contains all timing-critical logic.
 
 ### Figure 2.8: HPET Core Block Diagram
 
@@ -35,7 +33,7 @@ The HPET core (`hpet_core.sv`) implements the fundamental timer functionality: a
 
 HPET Core architecture showing main counter, timer comparators, match detection, and interrupt generation.
 
-#### Key Features
+### Key Features
 
 - **64-bit Free-Running Counter**: Increments every HPET clock cycle, provides timestamp base
 - **Configurable Timer Array**: 2, 3, or 8 independent timers (compile-time parameter)
@@ -45,22 +43,26 @@ HPET Core architecture showing main counter, timer comparators, match detection,
 - **Individual Interrupts**: Separate fire flag and interrupt output per timer
 - **Counter Read/Write Access**: Software can read and write counter value via config registers
 
-#### Interface Specification
+---
 
-##### Parameters
+## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | `NUM_TIMERS` | int | 3 | 2, 3, 8 | Number of independent timers in array (the `apb4_hpet` top-level default is 2) |
 
-##### Clock and Reset
+---
+
+## Ports
+
+### Clock and Reset
 
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|-------------|
 | **clk** | logic | 1 | Input | Core clock (hpet_clk or pclk, selected by CDC_ENABLE at the top level) |
 | **rst_n** | logic | 1 | Input | Active-low asynchronous reset |
 
-##### Configuration Interface (from hpet_config_regs)
+### Configuration Interface (from hpet_config_regs)
 
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|-------------|
@@ -75,7 +77,7 @@ HPET Core architecture showing main counter, timer comparators, match detection,
 | **timer_comp_wdata[NUM_TIMERS]** | logic [63:0] | NUM_TIMERS x 64 | Input | Per-timer comparator write data |
 | **timer_comp_write_high** | logic | 1 | Input | Selects which 32-bit half a comparator write updates |
 
-##### Status Interface (to hpet_config_regs)
+### Status Interface (to hpet_config_regs)
 
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|-------------|
@@ -84,13 +86,17 @@ HPET Core architecture showing main counter, timer comparators, match detection,
 | **timer_int_status[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer sticky interrupt status (to HPET_STATUS) |
 | **timer_int_clear[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Input | Status clear strobes from the register wrapper (W1C) |
 
-##### Interrupt Interface
+### Interrupt Interface
 
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|-------------|
 | **timer_irq[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer interrupt outputs (active-high) |
 
-#### Per-Timer State Machine
+---
+
+## Functional Description
+
+### Per-Timer State Machine
 
 Each timer instance implements an identical FSM controlling its operation:
 
@@ -98,7 +104,7 @@ Each timer instance implements an identical FSM controlling its operation:
 
 ![Timer FSM](../assets/svg/hpet_core_fsm.png)
 
-##### FSM States
+#### FSM States
 
 | State | Encoding | Description |
 |-------|----------|-------------|
@@ -110,7 +116,7 @@ Each timer instance implements an identical FSM controlling its operation:
 
 **Note:** FSM is **conceptual** - implementation uses combinational logic rather than explicit state registers for simplicity and timing.
 
-##### State Transitions
+#### State Transitions
 
 **IDLE -> ARMED:**
 - Condition: `hpet_enable && timer_enable[i]`
@@ -152,9 +158,9 @@ Each timer instance implements an identical FSM controlling its operation:
   cleared by disabling -- it holds until software W1C or reset.
 - Duration: Immediate
 
-#### Main Counter Logic
+### Main Counter Logic
 
-##### Counter Increment
+#### Counter Increment
 
 ```systemverilog
 // 64-bit free-running counter
@@ -183,7 +189,7 @@ assign counter_rdata = r_main_counter;
 - **Increment**: Counter increments every clock when `hpet_enable = 1`
 - **Overflow**: Counter wraps from 64'hFFFF_FFFF_FFFF_FFFF to 64'h0 naturally
 
-##### Counter Timing
+#### Counter Timing
 
 ```
 Clock:      --+ +-+ +-+ +-+ +-+ +-
@@ -198,9 +204,9 @@ r_main_counter
 Latency: 1 cycle from enable to first increment
 ```
 
-#### Timer Comparator Logic
+### Timer Comparator Logic
 
-##### Comparator Storage (Per-Timer)
+#### Comparator Storage (Per-Timer)
 
 ```systemverilog
 // Per-timer comparator and period storage
@@ -238,7 +244,7 @@ end
 - **Periodic Mode**: Comparator auto-increments by period value on each fire
 - **One-Shot Mode**: Comparator remains constant after initial write
 
-##### Match Detection
+#### Match Detection
 
 **64-bit Comparator Match Waveform:**
 
@@ -268,9 +274,9 @@ end
 - Timer individually enabled (`timer_enable[i] = 1`)
 - HPET globally enabled (`hpet_enable = 1`)
 
-#### Timer Fire Logic
+### Timer Fire Logic
 
-##### Fire Detection (Rising Edge)
+#### Fire Detection (Rising Edge)
 
 ```systemverilog
 // Per-timer previous match state for edge detection
@@ -318,7 +324,7 @@ timer_int_status[i]  +--------
 Note: Fire edge is 1-cycle pulse on rising edge of match
 ```
 
-##### Fire Flag Management
+#### Fire Flag Management
 
 ```systemverilog
 // Per-timer sticky interrupt status -- identical in BOTH modes
@@ -347,7 +353,7 @@ assign timer_int_status = r_interrupt_status;
   the status per period; from the first fire it stays asserted until W1C,
   while the comparator keeps auto-advancing in the background.
 
-#### Interrupt Generation
+### Interrupt Generation
 
 **Interrupt Generation and Acknowledgment Waveform:**
 
@@ -357,7 +363,7 @@ assign timer_int_status = r_interrupt_status;
 
 *Use [WaveDrom Editor](https://wavedrom.com/editor.html) to view/edit, or generate SVG with `wavedrom-cli`*
 
-##### Interrupt Output Logic
+#### Interrupt Output Logic
 
 ```systemverilog
 // Per-timer interrupt output -- a flop, gated by int_enable AT FIRE TIME
@@ -393,7 +399,7 @@ RTL deviation tracked in issue #46: the wrapper's clear strobe fires on ANY
 HPET_STATUS write, clearing every pending core status bit rather than only
 the bits written with 1.
 
-#### Periodic Mode Details
+### Periodic Mode Details
 
 **Periodic Timer Waveform:**
 
@@ -403,7 +409,7 @@ the bits written with 1.
 
 *Use [WaveDrom Editor](https://wavedrom.com/editor.html) to view/edit, or generate SVG with `wavedrom-cli`*
 
-##### Period Storage and Auto-Reload
+#### Period Storage and Auto-Reload
 
 **Initial Comparator Write:**
 ```
@@ -431,7 +437,7 @@ Fire edge detected
 
 **Process repeats indefinitely until timer disabled**
 
-##### Periodic Mode Timing Example
+#### Periodic Mode Timing Example
 
 ```
 Clock Cycles:   0   1000 1001 2000 2001 3000 3001 ...
@@ -454,7 +460,7 @@ each period, but status/irq do NOT pulse per fire -- they stay asserted from
 the first fire until software clears HPET_STATUS.
 ```
 
-#### One-Shot Mode Details
+### One-Shot Mode Details
 
 **One-Shot Timer Waveform:**
 
@@ -464,7 +470,7 @@ the first fire until software clears HPET_STATUS.
 
 *Use [WaveDrom Editor](https://wavedrom.com/editor.html) to view/edit, or generate SVG with `wavedrom-cli`*
 
-##### Fire-Once Behavior
+#### Fire-Once Behavior
 
 **Initial Comparator Write:**
 ```
@@ -498,7 +504,7 @@ Result:
   Timer re-arms, waits for counter = 10000
 ```
 
-##### One-Shot Mode Timing Example
+#### One-Shot Mode Timing Example
 
 ```
 Clock Cycles:   0   5000 5001 5002 ...
@@ -524,7 +530,11 @@ timer_int_status: --+     +-
 Fire only once, interrupt sticky until software clear
 ```
 
-#### Resource Utilization
+---
+
+## Design Notes
+
+### Resource Utilization
 
 **Per-Timer Resources (Estimated):**
 - 64-bit comparator register: 64 flip-flops
@@ -542,5 +552,7 @@ Fire only once, interrupt sticky until software clear
 - LUTs: 80 + (85 × 3) = 335 LUTs
 
 ---
+
+## Navigation
 
 **Next:** [Chapter 2.2 - hpet_config_regs](02_hpet_config_regs.md)

@@ -21,9 +21,13 @@
 
 <!-- End Header -->
 
-### APB HPET - Architecture
+# APB HPET Architecture
 
-#### High-Level Block Diagram
+## Overview
+
+Three blocks do the work: an APB slave (with or without CDC), a register wrapper that adapts the PeakRDL register file to the core, and the timer core itself. The block diagram shows how they fit together.
+
+### High-Level Block Diagram
 
 ```
 +-------------------------------------------------------------------+
@@ -77,7 +81,7 @@
 +--------------------------------------------------------------------+
 ```
 
-#### Module Hierarchy
+### Module Hierarchy
 
 ```
 apb4_hpet (Top Level)
@@ -109,9 +113,59 @@ apb4_hpet (Top Level)
     +-- Interrupt generation
 ```
 
-#### Data Flow
+---
 
-##### Write Transaction Flow (APB -> HPET Core)
+## Parameters
+
+### Compile-Time Parameters
+
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| `NUM_TIMERS` | int | 2 | 2, 3, 8 | Number of independent timers |
+| `VENDOR_ID` | int | 1 | -- | Currently unwired: HPET_ID vendor byte is fixed 0x01 in the generated register block |
+| `REVISION_ID` | int | 1 | -- | Currently unwired: HPET_ID revision byte is fixed 0x01 |
+| `CDC_ENABLE` | int | 0 | 0, 1 | Enable clock domain crossing |
+| `USE_JOHNSON` | int | 0 | 0, 1 | CDC FIFO pointer encoding (0 = Gray, 1 = Johnson) |
+
+The APB address bus is fixed at 12 bits and the data bus at 32 bits; they are
+not parameters.
+
+**Address-map constants** (values from the generated decode in
+hpet_regs.sv -- there are no such localparams in the RTL):
+
+- Timer stride: 0x20 bytes per timer
+- Timer register base: 0x100
+
+---
+
+## Ports
+
+### Interface Summary
+
+**APB Interface:** Standard AMBA APB4
+- Address width: Fixed 12-bit (4KB space)
+- Data width: Fixed 32-bit
+- Protocol: APB4 (with PREADY support)
+
+**HPET Clock Interface:** Separate timer clock domain
+- Independent from APB clock (if CDC enabled)
+- Free-running 64-bit counter
+- Configurable clock frequency
+
+**Interrupt Interface:** Per-timer dedicated outputs
+- `timer_irq[NUM_TIMERS-1:0]` - Active-high interrupt signals
+- Registered output from core state (one hpet_clk after fire)
+- W1C clearing via HPET_STATUS register
+
+**See:** Chapter 3 - Interface Specifications for detailed signal descriptions
+
+---
+
+## Functional Description
+
+### Data Flow
+
+#### Write Transaction Flow (APB -> HPET Core)
 
 ```
 1. APB Master Write
@@ -141,7 +195,7 @@ apb4_hpet (Top Level)
    - Clear interrupt (if HPET_STATUS write with W1C)
 ```
 
-##### Read Transaction Flow (HPET Core -> APB)
+#### Read Transaction Flow (HPET Core -> APB)
 
 ```
 1. APB Master Read
@@ -170,7 +224,7 @@ apb4_hpet (Top Level)
 6. APB Slave returns PRDATA to master
 ```
 
-##### Timer Operation Flow
+#### Timer Operation Flow
 
 ```
 1. Counter Increment (every hpet_clk)
@@ -207,7 +261,7 @@ apb4_hpet (Top Level)
    copy of HPET_STATUS.
 ```
 
-#### Clock Domains
+### Clock Domains
 
 **Synchronous Mode (CDC_ENABLE = 0):**
 ```
@@ -243,7 +297,7 @@ Note: pclk = hpet_clk (same clock domain)
 Note: pclk and hpet_clk are asynchronous, CDC required
 ```
 
-#### Reset Domains
+### Reset Domains
 
 **Reset Signals:**
 - `presetn` - APB reset (active-low, asynchronous)
@@ -293,13 +347,43 @@ end
 **CDC Reset Coordination:**
 When CDC is enabled, both reset signals must be properly synchronized and coordinated to prevent metastability and ensure clean initialization.
 
-#### Per-Timer Data Bus Architecture
+---
+
+## Usage Example
+
+### Configuration Examples
+
+**2-Timer Configuration (synchronous clocks):**
+```systemverilog
+apb4_hpet #(
+    .NUM_TIMERS(2),
+    .CDC_ENABLE(0)
+) u_hpet_2t (...);
+```
+
+**8-Timer Configuration with CDC:**
+```systemverilog
+apb4_hpet #(
+    .NUM_TIMERS(8),
+    .CDC_ENABLE(1)          // Asynchronous clocks
+) u_hpet_8t (...);
+```
+
+Setting `VENDOR_ID`/`REVISION_ID` at instantiation is accepted but has no
+effect on the hardware: HPET_ID always reads back vendor 0x01 / revision
+0x01 (see Chapter 5).
+
+---
+
+## Design Notes
+
+### Per-Timer Data Bus Architecture
 
 **Problem:** Initial implementation had timer corruption due to shared data bus
 
 **Root Cause:**
 ```systemverilog
-// ❌ WRONG: Shared data bus for all timers
+// WRONG: Shared data bus for all timers
 wire [63:0] timer_comp_wdata;  // Single 64-bit bus
 
 // Multiple timers try to sample from same bus
@@ -313,7 +397,7 @@ end
 
 **Solution:** Per-timer dedicated data buses
 ```systemverilog
-// ✅ CORRECT: Dedicated data bus per timer
+// CORRECT: Dedicated data bus per timer
 wire [63:0] timer_comp_wdata [NUM_TIMERS-1:0];  // Array of 64-bit buses
 
 // Each timer has dedicated data path
@@ -339,68 +423,8 @@ assign timer_comp_wdata[2] = {hwif.timer2_comparator_hi.value,
 
 **Verification:** All timer corruption issues resolved after per-timer bus implementation
 
-#### Parameterization
-
-**Compile-Time Parameters:**
-
-| Parameter | Type | Default | Range | Description |
-|-----------|------|---------|-------|-------------|
-| `NUM_TIMERS` | int | 2 | 2, 3, 8 | Number of independent timers |
-| `VENDOR_ID` | int | 1 | -- | Currently unwired: HPET_ID vendor byte is fixed 0x01 in the generated register block |
-| `REVISION_ID` | int | 1 | -- | Currently unwired: HPET_ID revision byte is fixed 0x01 |
-| `CDC_ENABLE` | int | 0 | 0, 1 | Enable clock domain crossing |
-| `USE_JOHNSON` | int | 0 | 0, 1 | CDC FIFO pointer encoding (0 = Gray, 1 = Johnson) |
-
-The APB address bus is fixed at 12 bits and the data bus at 32 bits; they are
-not parameters.
-
-**Address-map constants** (values from the generated decode in
-hpet_regs.sv -- there are no such localparams in the RTL):
-
-- Timer stride: 0x20 bytes per timer
-- Timer register base: 0x100
-
-**Configuration Examples:**
-
-**2-Timer Configuration (synchronous clocks):**
-```systemverilog
-apb4_hpet #(
-    .NUM_TIMERS(2),
-    .CDC_ENABLE(0)
-) u_hpet_2t (...);
-```
-
-**8-Timer Configuration with CDC:**
-```systemverilog
-apb4_hpet #(
-    .NUM_TIMERS(8),
-    .CDC_ENABLE(1)          // Asynchronous clocks
-) u_hpet_8t (...);
-```
-
-Setting `VENDOR_ID`/`REVISION_ID` at instantiation is accepted but has no
-effect on the hardware: HPET_ID always reads back vendor 0x01 / revision
-0x01 (see Chapter 5).
-
-#### Interface Summary
-
-**APB Interface:** Standard AMBA APB4
-- Address width: Fixed 12-bit (4KB space)
-- Data width: Fixed 32-bit
-- Protocol: APB4 (with PREADY support)
-
-**HPET Clock Interface:** Separate timer clock domain
-- Independent from APB clock (if CDC enabled)
-- Free-running 64-bit counter
-- Configurable clock frequency
-
-**Interrupt Interface:** Per-timer dedicated outputs
-- `timer_irq[NUM_TIMERS-1:0]` - Active-high interrupt signals
-- Registered output from core state (one hpet_clk after fire)
-- W1C clearing via HPET_STATUS register
-
-**See:** Chapter 3 - Interface Specifications for detailed signal descriptions
-
 ---
+
+## Navigation
 
 **Next:** [Chapter 1.3 - Clocks and Reset](03_clocks_and_reset.md)
