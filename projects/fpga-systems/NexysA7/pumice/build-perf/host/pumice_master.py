@@ -40,7 +40,8 @@ from typing import Dict, List, Optional, Tuple
 # The driver lives alongside this file.
 sys.path.insert(0, __file__.rsplit("/", 1)[0])
 import ddr2_char as dc
-from ddr2_char import DDR2CharDriver
+from ddr2_char import DDR2CharDriver, harness_probe
+from boards import get_board
 
 
 # =============================================================================
@@ -785,6 +786,7 @@ class FullCharacterization:
 # =============================================================================
 def main() -> int:
     ap = argparse.ArgumentParser(description="pumice DDR2 characterization master")
+    ap.add_argument("--board", default="nexys_a7_100t", help="board registry name")
     ap.add_argument("--port", default="auto", help="UART device")
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--base", type=lambda x: int(x, 0), default=0x0,
@@ -861,7 +863,9 @@ def main() -> int:
                            "(incremental / row-major / col-major page attack)")
     args = ap.parse_args()
 
-    args.port = dc.autodetect_port(args.baud, want=args.port)
+    board = get_board(args.board)
+    args.port = board.find_uart_port(probe=harness_probe(), want=args.port,
+                                     label="pumice DDR2 char harness")
 
     drv = DDR2CharDriver(port=args.port, baudrate=args.baud)
     bid = drv.build_id()
