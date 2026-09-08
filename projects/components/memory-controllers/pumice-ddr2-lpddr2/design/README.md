@@ -406,3 +406,41 @@ the checker unreliable under back-pressure and should gate on valid && ready.
 NEXT (for the throughput push, when resumed): make the refresh drain robust to a
 live same-bank column stream so w_col_inflight_bank can be dropped -- that is the
 real wave-07/08 work, and it is a refresh-sequencing change, NOT a read-path one.
+
+### CORRECTION 2 (2026-09-08): refresh_collide is NOT a refresh bug -- it is a same-bank in-flight-column data hazard
+
+Pursuing the "refresh-sequencing fix" turned up conclusive data that the failure
+is mis-named. With the occupancy mask removed, refresh_collide fails, but:
+
+  * CMD_HISTORY (u_cmd_history, instantiated with .cmd_valid_i(cmd_valid_o &&
+    cmd_ready_i) -- i.e. correctly READY-GATED, it audits the accepted DRAM-bound
+    stream) reports ZERO REFab-while-row-open violations (106 REF debug prints,
+    0 $fatal). Sequencing is LEGAL. The test's own assertion text ("see
+    CMD_HISTORY assertions for the REFab-while-row-open violation") is the
+    author's HYPOTHESIS, not what fires -- the golden DATA compare is what fails.
+    (page_policy=1/CLOSE means every access is ACT+RDA, so no REF ever meets an
+    open row; the refresh angle is a red herring for this failure.)
+
+  * Spacing-independent: t_ccd_i = 1, 2 and 4 (clean rebuilds) ALL fail at the
+    byte-identical sim time (30690000). So it is NOT a DQ / column-spacing
+    collision -- forward-tCCD (a global, pick-timed tCCD gate) does not change
+    it. (The core test's t_ccd_i=1 is separately unphysical for BL8 and should be
+    a realistic 2-4; the board regmap default is 4. But that is not the cause.)
+
+  * ONLY w_col_inflight_bank (the per-bank "a column to this bank is already in
+    the pick pipeline" block) prevents it. Restoring just that mask -> pass.
+
+Conclusion: the hazard is TWO same-bank column accesses in flight at once
+corrupting through shared per-bank state (open-row / auto-precharge bookkeeping
+in bank_timer, or the wr_data_cam/rd_cmd_cam same-bank path), NOT refresh and
+NOT the DQ bus. The occupancy mask serialises same-bank accesses and hides it.
+
+Therefore the wave-07 win (drop the mask for tCCD-rate same-bank streaming) is
+blocked on a per-bank same-bank-pipelining interlock -- allow same-bank columns
+to pipeline on open-page HITS while serialising the ACT+auto-precharge sequence
+-- NOT on any refresh-path change. This supersedes the "refresh-sequencing fix"
+framing. NEXT: localise the shared per-bank state that two in-flight same-bank
+CLOSE-policy accesses corrupt (bank_timer row/ap bookkeeping is the prime
+suspect), reproduce it in a bank_timer/arbiter FUB test at realistic t_ccd, fix
+the interlock, THEN drop w_col_inflight_bank and re-run the full core suite +
+board-validate (with refresh on -- HEAD refresh is already correct).
