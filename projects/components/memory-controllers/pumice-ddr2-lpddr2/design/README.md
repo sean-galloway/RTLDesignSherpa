@@ -444,3 +444,71 @@ CLOSE-policy accesses corrupt (bank_timer row/ap bookkeeping is the prime
 suspect), reproduce it in a bank_timer/arbiter FUB test at realistic t_ccd, fix
 the interlock, THEN drop w_col_inflight_bank and re-run the full core suite +
 board-validate (with refresh on -- HEAD refresh is already correct).
+
+### ROOT CAUSE FOUND (2026-09-08): DFI WR command has no write-data backpressure
+
+Instrumented the mask-removed CLOSE-policy failure end to end. Boundary counts
+are ALL 64 (nothing is dropped at any handshake): CAM fills(wd_last)=64,
+CAM commit_done=64, serializer wr_fires=64, serializer burst_lasts=64, DFI
+WR=64. The serializer drives all 64 bursts with CORRECT non-zero data
+(zero_bursts=0, data_or = k<<16|0xab3 per burst k). Yet 32 (odd) writes land as
+ZERO at the PHY. The smoking gun: SER_DBG STARVE_CYC=463 -- the serializer is
+"owed a drive but wd_valid=0" for 463 cycles, i.e. it drives LATE, past the
+fixed write latency the PHY samples at, so the PHY captures zero for the
+misaligned bursts.
+
+Mechanism: the DFI CDC (pumice_dfi_cdc) crosses the COMMAND stream and the WRITE
+DATA on TWO SEPARATE async FIFOs. On dfi_clk the serializer drains 1 DFI word/
+cycle -- FASTER than the CAM fills the wd FIFO on the slower ctl/aclk -- so if a
+WR command is issued before its whole burst is staged, the serializer runs dry
+mid-burst and drives late. pumice_dfi_cmd_path gates READ issue on rd_op_ready_i
+(the aligner has a slot) but has NO symmetric gate for WRITES -- it issues WR
+commands blind to write-data readiness. The occupancy mask (w_col_inflight_bank)
+was incidentally throttling the commit cadence enough to keep the wd FIFO ahead;
+removing it lets the command outrun its data. CLOSE-policy-only because OPEN
+streams same-row writes back-to-back keeping the wd FIFO full, whereas CLOSE's
+ACT+auto-precharge cadence lets the command path get ahead. Spacing-independent
+(t_ccd 1/2/4 identical) and NOT refresh (CMD_HISTORY, ready-gated, 0 violations;
+it also does not even check tCCD). This is a REAL board bug, not a model artifact.
+
+FIX (in progress): add a symmetric write-data backpressure. A "write burst
+staged" token (pushed in the CDC on each wd_last entering the wd FIFO, crossed to
+dfi_clk via a token FIFO like the init/level ones) gates the cmd_path WR issue:
+w_gate &&= (!w_is_wr || wr_burst_ready_i); pop one token per WR fire. The WR
+command then never precedes its fully-staged burst, the serializer never starves,
+and the fixed-WL contract holds -- so w_col_inflight_bank can finally be dropped.
+
+### CORRECTION 3 (2026-09-08): DFI write-backpressure fixed starvation but NOT the corruption
+
+Implemented the write-data backpressure (a "write burst staged" token FIFO in
+pumice_dfi_cdc gating pumice_dfi_cmd_path's WR issue, symmetric to the read
+rd_op_ready_i). It WORKS at what it targets: STARVE_CYC 463 -> 0 (the serializer
+no longer drives dry), and it passes with the occupancy mask still present (full
+compile, refresh_collide 22s, no regression). It is a genuine latent bug -- the
+write path lacked the read path's backpressure -- worth revisiting.
+
+But it does NOT fix the mask-removed corruption: golden bad = 44/64 (WORSE than
+the 32/64 without it), with STARVE=0. So starvation was real but not the cause.
+And the fire spacing is already correct: pumice_dfi_cmd_path paces column FIRES
+by COL_BURST_CYC = BL_WORDS (r_col_pace), so bursts are >= BL_WORDS apart and the
+serializer's owed count stays 1 -- no contiguous-drive misalignment. Yet with
+data staged, fires paced, owed=1, and each burst driven at its own t_phy_wrlat,
+32-44 same-bank CLOSE-policy writes still land as ZERO at the PHY.
+
+So the remaining cause is NOT: refresh (CMD_HISTORY clean), command drop (all 64
+WR issue), serializer content (drives all 64 correct, zero_bursts=0), serializer
+starvation (fixed, =0), DQ/tCCD spacing (t_ccd 1/2/4 identical; COL_BURST_CYC ok),
+or fill-vs-commit (CAM sch_valid already requires r_fdone). It is CLOSE-policy-
+specific (OPEN passes mask-removed) and only w_col_inflight_bank prevents it.
+Prime remaining suspects: (a) write ADDRESS/column mis-computed for a pipelined
+same-bank second access (data written to the wrong column -> read of the right
+column returns zero), or (b) the CLOSE auto-precharge state (r_ap_closing / the
+ACT-WRA-autoPRE sequence) corrupting when a second same-bank access enters the
+pipeline before the first's precharge resolves. NEXT DIAGNOSTIC: log the actual
+DFI WR command {bank,row,col} vs the AXI write address for the bad (odd) writes
+-- if the column differs, it is (a); capture at the DFISlavePHY write handler.
+
+All RTL reverted to HEAD (the DFI backpressure adds a CDC token FIFO on the
+board-critical path for no benefit while the mask stays, and made mask-removed
+WORSE). HEAD remains the correct baseline; refresh works on it. The DFI
+backpressure patch is preserved in the session scratchpad if revisited.
