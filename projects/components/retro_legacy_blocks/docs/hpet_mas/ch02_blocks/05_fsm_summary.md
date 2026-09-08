@@ -97,73 +97,20 @@ Latency: 2 cycles (SETUP + ACCESS)
 
 ---
 
-### 2. APB Slave CDC Handshake FSM
+### 2. APB Slave CDC (async-FIFO crossing)
 
 **Module:** `apb4_slave_cdc.sv`
 **Clock Domains:** `pclk` (APB side) and `aclk` (application side)
-**Implementation:** Dual FSMs with handshake synchronization
+**Implementation:** NOT a handshake FSM. The wrapper instantiates the plain
+`apb4_slave` in the pclk domain and crosses its command and response streams
+through two `gaxi_fifo_async` instances (`u_cmd_cdc_fifo`, `u_rsp_cdc_fifo`,
+DEPTH=2 here), with Gray- or Johnson-coded pointers selected by the
+USE_JOHNSON parameter. There are no request/acknowledge toggle FSMs and no
+per-signal 2-stage synchronizers on the data path -- the FIFO pointer
+synchronizers are the only crossing logic.
 
-#### pclk Domain States
-
-| State | Encoding | Description |
-|-------|----------|-------------|
-| **IDLE** | 2'b00 | Waiting for APB transaction |
-| **WAIT_REQ_ACK** | 2'b01 | Request sent, waiting for ACK from aclk domain |
-| **WAIT_RSP** | 2'b10 | ACK received, waiting for response from aclk domain |
-| **COMPLETE** | 2'b11 | Response received, completing APB transaction |
-
-#### aclk Domain States
-
-| State | Encoding | Description |
-|-------|----------|-------------|
-| **IDLE** | 2'b00 | Waiting for synchronized request from pclk domain |
-| **REQ_PEND** | 2'b01 | Request detected, processing command |
-| **WAIT_APP_RSP** | 2'b10 | Command sent to application, waiting for response |
-| **RSP_READY** | 2'b11 | Response ready, waiting for pclk domain acknowledgment |
-
-#### Cross-Domain Handshake Timing
-
-```
-pclk Domain:
-Clock:      -+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-
-pclk        +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-
-
-PSEL:       ---+               +-------------------
-            +-------------------+
-
-PENABLE:    -------+           +-------------------
-            +-------------------+
-
-State:      [IDLE][WAIT_REQ_ACK][WAIT_RSP][COMPLETE][IDLE]
-
-req_toggle: ---+       (toggles to signal request)
-            +---------------------------------------
-
-PREADY:     -----------------------+ +-------------
-            +-----------------------+
-
-aclk Domain:
-Clock:      --+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-
-aclk        +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-
-
-State:      [IDLE][REQ_PEND][WAIT_APP_RSP][RSP_READY][IDLE]
-
-cmd_valid:  -------+       +-----------------------
-            +---------------+
-
-rsp_valid:  ---------------+       +---------------
-            +-----------------------+
-
-ack_toggle: -------------------+   (toggles to ack response)
-            +---------------------------------------
-
-Latency: 4-6 pclk cycles (depending on clock ratios)
-```
-
-**Key Mechanisms:**
-- **Toggle-based handshake:** Avoids pulse synchronization issues
-- **2-stage synchronizers:** All cross-domain signals synchronized
-- **Request/acknowledge protocol:** Ensures data stability before sampling
+Latency per access spans the apb4_slave FSM plus one FIFO traversal each
+way (a few cycles of each clock domain, ratio-dependent).
 
 ---
 
@@ -212,7 +159,9 @@ Latency: 4-6 pclk cycles (depending on clock ratios)
 - **Action:** Resume monitoring with new comparator value
 - **Trigger:** Immediate (next clock cycle)
 
-**ONE_SHOT_COMPLETE -> ARMED:**
+**ONE_SHOT_COMPLETE -> ARMED** (deviation #46: a 0->1 of hpet_enable
+or timer_enable while counter >= comparator also re-enters FIRE
+immediately -- the conceptual FSM has no fired-state latch):
 - **Condition:** `timer_comp_write[i] = 1` (software reconfigures comparator)
 - **Action:** Resume monitoring with new comparator value. Fire detection
   is edge-based, so the new comparator must EXCEED the current counter or

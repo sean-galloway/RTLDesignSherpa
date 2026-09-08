@@ -99,8 +99,13 @@ The package defines comprehensive structs for all registers and fields. Key exce
 ```systemverilog
 package hpet_regs_pkg;
 
-    // Hardware input struct (hardware -> registers)
-    typedef struct packed {
+    // ILLUSTRATIVE SKETCH -- the generated package uses UNPACKED structs
+    // with per-field typedef names (hpet_regs__<REG>__<field>__in_t); see
+    // rtl/hpet/hpet_regs_pkg.sv for the literal shapes. Two notable
+    // differences from this sketch: the counter/comparator OUT structs
+    // carry only swmod (no value member -- values live in hwif_in), and
+    // the timer array is hpet_regs__timer_regfile__out_t TIMER[8].
+    typedef struct {
         struct packed {
             logic [4:0] next;  // num_tim_cap field value
         } num_tim_cap;

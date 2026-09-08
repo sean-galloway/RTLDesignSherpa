@@ -274,7 +274,8 @@ always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
         // Register file
         HPET_CONFIG <= '0;
-        HPET_STATUS <= '0;
+        // HPET_STATUS: no reset exists in the RTL (defect #46) --
+        // readback undefined until first load
         for (int i = 0; i < NUM_TIMERS; i++) begin
             TIMER_CONFIG[i] <= '0;
         end

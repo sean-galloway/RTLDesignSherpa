@@ -194,8 +194,9 @@ Interrupt status bits for all timers. Write 1 to a bit to clear the correspondin
 
 | Bits | Field | Access | Reset | Description |
 |------|-------|--------|-------|-------------|
-| [31:NUM_TIMERS] | reserved | RO | 0 | Reserved (unused timer bits) |
-| [NUM_TIMERS-1:0] | timer_int_status | RW/W1C | 0 | Timer interrupt status bits |
+| [7:NUM_TIMERS] | (unused timer bits) | RW/W1C | undefined | Real storage in the fixed 8-bit field -- settable via the hwset-all deviation, W1C-clearable |
+| [31:8] | reserved | RO | 0 | Hard zero |
+| [NUM_TIMERS-1:0] | timer_int_status | RW/W1C | undefined | Timer interrupt status bits (storage has no reset -- see above and #46) |
 
 **Per-Timer Status Bit:**
 - **Bit[N]** = Timer N interrupt status
@@ -631,7 +632,9 @@ void hpet_interrupt_handler(void) {
 The core samples the capture flops on the same edge they update, so each
 write applies the PREVIOUSLY captured halves: after LO-then-HI the counter
 holds {old HI, new LO}, and the new HI half only lands on a subsequent
-write. Writing zero to both halves works (stale equals new). Comparators
+write. Writing zero to both halves only works while the capture flops
+still hold zero (e.g. straight out of reset) -- after any earlier nonzero
+HI write, the zeroing sequence leaves {old_HI, 0}. Comparators
 half-update per 32-bit write, so between the LO and HI writes the timer
 compares against a mixed value -- disable the timer around comparator
 updates.
@@ -703,6 +706,11 @@ protection.
 Only address bits [8:0] reach the register block, so 0x200-0xFFF alias
 back onto 0x000-0x1FF (0x200 reads HPET_ID, and so on). No error is
 raised for any address.
+
+Timer slots at or above NUM_TIMERS (e.g. 0x140-0x1FF on a 2-timer
+build) are REAL decoded storage: they read back written values but
+reach no core timer. Probe HPET_ID.num_tim_cap, not register
+writability, to discover the timer count.
 
 ---
 

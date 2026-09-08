@@ -133,7 +133,10 @@ apb4_hpet
 **Interrupt Characteristics:**
 - **Active-high level-sensitive**
 - **One interrupt per timer** (independent)
-- **Follows HPET_STATUS register** (sticky until cleared)
+- Core interrupt state, NOT a copy of HPET_STATUS: set at fire time when
+  int_enable is 1, cleared by the (any-write) clear strobe or when the
+  core status falls -- under the #46 clear-all deviation HPET_STATUS can
+  read 1 while timer_irq is 0
 - **W1C clearing** (software writes 1 to HPET_STATUS to clear)
 
 #### Internal Signal Interfaces
@@ -262,7 +265,8 @@ generate
             .DATA_WIDTH(32),
             .STRB_WIDTH(4),
             .PROT_WIDTH(3),
-            .DEPTH     (2)
+            .DEPTH     (2),
+            .USE_JOHNSON(USE_JOHNSON)
         ) u_apb4_slave_cdc (
             // APB Clock Domain
             .pclk                 (pclk),

@@ -99,7 +99,9 @@ Software clears timer interrupts by writing 1 to the corresponding bit in HPET_S
 
 ![HPET Interrupt Clear](../assets/wavedrom/timing/hpet_interrupt_clear.png)
 
-The W1C (Write-1-to-Clear) mechanism allows atomic clearing of individual timer interrupts.
+The W1C (Write-1-to-Clear) mechanism is INTENDED for per-bit clearing;
+in the current RTL any HPET_STATUS write clears ALL pending core bits
+(deviation #46, detailed later in this chapter).
 
 ##### Timer Setup Sequence
 
@@ -116,7 +118,9 @@ The sequence shows three consecutive writes:
 
 ##### Clock Domain Crossing (CDC Mode)
 
-When CDC_ENABLE=1, APB transactions cross from pclk to hpet_clk domain via 2-stage synchronizers.
+When CDC_ENABLE=1, APB transactions cross from pclk to hpet_clk through a
+pair of async FIFOs inside apb4_slave_cdc (Gray/Johnson pointers per
+USE_JOHNSON) -- not per-signal synchronizers.
 
 ### Waveform 2.7: HPET CDC Crossing
 

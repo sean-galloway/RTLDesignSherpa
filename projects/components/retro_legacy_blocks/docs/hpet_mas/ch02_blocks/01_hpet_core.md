@@ -216,7 +216,7 @@ for (genvar i = 0; i < NUM_TIMERS; i++) begin : gen_timer_comparators
             // Software write updates ONE 32-bit half per write, selected
             // by timer_comp_write_high (after a periodic auto-advance, a
             // lone LO write yields {auto-advanced HI, new LO})
-            if (timer_comp_write_high[i]) begin
+            if (timer_comp_write_high) begin  // 1-bit port: |timer_comp_hi_write
                 r_timer_comparator[i][63:32] <= timer_comp_wdata[i][63:32];
                 r_timer_period[i][63:32]     <= timer_comp_wdata[i][63:32];
             end else begin

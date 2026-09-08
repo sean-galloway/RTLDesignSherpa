@@ -66,9 +66,9 @@ The APB HPET operates in one or two clock domains depending on CDC configuration
 - No specific minimum/maximum frequency enforced in RTL
 
 **Driven Blocks:**
-- APB slave (or APB CDC wrapper)
-- PeakRDL register file
-- Register configuration logic
+- APB slave (or the pclk side of the APB CDC wrapper)
+- PeakRDL register file and register configuration logic ONLY when
+  CDC_ENABLE=0 (with CDC_ENABLE=1 they run on hpet_clk)
 
 ##### HPET Clock (`hpet_clk`)
 
@@ -218,9 +218,10 @@ When `CDC_ENABLE = 1`, the `apb4_slave_cdc` module handles all clock domain cros
 ```
 1. APB write on pclk
 2. Command written to APB-side holding registers
-3. Handshake synchronizer transfers command to hpet_clk domain
+3. Command crosses to the hpet_clk domain through the async command FIFO
+   (gaxi_fifo_async inside apb4_slave_cdc)
 4. hpet_clk-side logic applies write to timer registers
-5. Acknowledgment synchronized back to pclk
+5. Response crosses back through the async response FIFO
 6. APB PREADY asserted (transaction complete)
 
 Latency: 4-6 pclk cycles
@@ -239,9 +240,10 @@ Latency: 4-6 pclk cycles
 ```
 
 **Metastability Protection:**
-- All CDC signals pass through 2-stage synchronizers
-- Handshake protocol ensures data stability before sampling
-- No combinational paths cross clock domains
+- The crossing is a pair of async FIFOs (Gray/Johnson-coded pointers);
+  only the FIFO pointers are synchronized -- data words never cross
+  combinationally
+- No toggle handshake exists; ordering and stability come from the FIFO
 
 ##### Counter Read Atomicity
 
@@ -292,6 +294,13 @@ uint64_t read_hpet_counter(void) {
 4. APB registers remain accessible (pclk still running)
 5. To resume: Ungate hpet_clk, then write HPET_CONFIG[0] = 1
 ```
+
+**Known RTL deviation (#46): re-enabling fires expired timers.** The fire
+detector is an edge on (match && enables), so any 0->1 of HPET_CONFIG[0]
+(or a timer's own enable) while counter >= comparator creates a fresh
+match edge -- every completed one-shot re-fires the moment step 5 runs,
+setting status and irq. After any re-enable, clear HPET_STATUS and/or
+rewrite the comparators of expired timers before unmasking interrupts.
 
 #### Timing Constraints
 
