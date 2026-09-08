@@ -81,7 +81,13 @@ Slave-side IDs are wider than master-side:
 ```
 Master ID Width: ID_WIDTH (configuration parameter)
 Bridge ID Width: clog2(NUM_MASTERS)
-Slave ID Width: ID_WIDTH + clog2(NUM_MASTERS)
+Slave ID Width: EQUAL to the master ID width -- IDs are pass-through.
+
+There is no bridge_id prepended to the slave-side ID and no width extension.
+Responses are routed back to the originating master by an in-order bridge_id
+FIFO in each slave adapter, keyed on FIFO POSITION rather than on the returned
+BID/RID. That imposes a requirement the fabric does not check: each slave port
+must return B/R in request order across ALL IDs. See BRIDGE-010.
 ```
 
 ## Channel-Specific Interfaces

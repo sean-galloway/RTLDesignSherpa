@@ -77,58 +77,74 @@ Extended ID: [BID | Original ID]
 BID Width: clog2(NUM_MASTERS)
 ```
 
-### Example: 4 Masters, 4-bit ID
+### IDs are pass-through, not extended
 
+The generated RTL does **not** widen or prepend anything. A master's ID reaches
+the slave unchanged, and the slave port is declared at the same width:
+
+```systemverilog
+input  logic [3:0]  cpu_axi4_awid     // master side
+output logic [3:0]  ddr_s_axi_awid    // slave side -- same width
 ```
-Master 0 ID = 4'b0101
-Extended ID = 6'b00_0101  (BID=00, prepended)
 
-Master 3 ID = 4'b1100
-Extended ID = 6'b11_1100  (BID=11, prepended)
-```
+The generator says so itself: *"Master id_width drives the slave-port ID width
+(pass-through)."*
 
-### ID Flow
-
-```mermaid
-graph LR
-    M0["Master 0: ID=5"] -->|Extend| S0["Slave: ID=0x05"] -->|Response| B0["B.ID=0x05"] -->|Extract| M0OUT["Master 0"]
-    M1["Master 1: ID=5"] -->|Extend| S1["Slave: ID=0x15"] -->|Response| B1["B.ID=0x15"] -->|Extract| M1OUT["Master 1"]
-```
+Earlier revisions of this page described a bridge-ID-prepend scheme, with
+`4'b0101` becoming `6'b00_0101` and the upper bits extracted on the response.
+That design was never built. It is documented here only because the mechanism
+that replaced it has a consequence worth understanding.
 
 ## Response Routing
 
+Each slave adapter keeps an **in-order FIFO** of the originating master's
+`bridge_id`: pushed on the address handshake, popped on the response.
+
+```systemverilog
+wr_fifo[wr_ptr[...]] <= xbar_bridge_id_aw;      // push on AW accept
+assign bid_bridge_id  = wr_fifo[rd_ptr[...]];   // route by FIFO HEAD
+```
+
 ### B Channel (Write Response)
 
-1. Slave issues B with extended ID
-2. Bridge extracts BID from upper bits
-3. BID determines destination master
-4. Original ID (lower bits) returned to master
+1. Slave issues B carrying the master's own (unmodified) ID
+2. The slave adapter pops its `bridge_id` FIFO
+3. That FIFO entry -- **not** anything in the BID -- selects the master
+4. The B beat is forwarded unchanged
 
 ### R Channel (Read Data)
 
-1. Slave issues R with extended ID
-2. Bridge extracts BID from upper bits
-3. BID determines destination master
-4. Original ID (lower bits) returned to master
-5. RLAST indicates final beat
+1. Slave issues R carrying the master's own (unmodified) ID
+2. The slave adapter's read FIFO selects the master, popped on RLAST
+3. RLAST indicates the final beat
 
-## Out-of-Order Support
+### The requirement this creates
 
-### Transaction Interleaving
+Because routing is keyed on FIFO *position* rather than on the returned ID,
+**each slave port must return B/R in request order across ALL IDs.** AXI4
+permits a slave to complete different-ID transactions out of order, and a
+multi-ported memory controller normally does; nothing in the fabric detects
+or prevents it. Two masters with writes outstanding at one slave are enough to
+expose it -- the response goes to the wrong master, carrying an ID that master
+never issued. Tracked as BRIDGE-010.
 
-Bridge supports out-of-order completion:
+## Ordering: what the fabric actually guarantees
 
-- Different IDs can complete in any order
-- Same ID must complete in order (AXI4 rule)
-- ID tracking tables manage outstanding transactions
+**Out-of-order completion is not supported.** There are no ID tracking tables;
+`bridge_cam.sv` exists in the tree but is instantiated in zero generated
+bridges. Ordering is enforced structurally instead, in two places:
 
-### Example Sequence
+**Per master -- one target at a time.** A master may not have transactions
+outstanding to more than one slave simultaneously. `aw_gate_ok`/`ar_gate_ok`
+hold off a new address phase until every outstanding transaction targets the
+same slave. This is a deadlock fix: the response mux replays in address-issue
+order, slaves respond in their own order, and cross-slave outstanding
+transactions from several masters can wedge the heads against each other.
+Same-slave pipelining is unaffected.
 
-```
-Time 0: Master 0 issues AR (ID=1) to Slave 0
-Time 1: Master 0 issues AR (ID=2) to Slave 1
-Time 2: Slave 1 returns R (ID=2) - fast slave
-Time 3: Slave 0 returns R (ID=1) - slow slave
+**Per slave -- responses must come back in order.** See "The requirement this
+creates" above, and BRIDGE-010.
 
-Result: ID=2 response arrives before ID=1 - valid OOO
-```
+The sequence an earlier revision of this page offered as a worked example --
+master 0 issuing to slave 0 and slave 1 concurrently, then the fast slave
+answering first -- is exactly what `aw_gate_ok` prevents. It cannot occur.

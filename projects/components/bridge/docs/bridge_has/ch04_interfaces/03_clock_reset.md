@@ -45,7 +45,11 @@ All masters and slaves must be in the same clock domain as Bridge.
 
 ### No Clock Domain Crossing
 
-Bridge does not include CDC logic:
+The bridge FABRIC does not include CDC logic. One exception matters: an
+`apb`/`apb5` slave gets `axi4_to_apb4_shim`, whose core contains two
+gray-pointer async FIFOs (`u_cmd_cdc_fifo`, `u_rsp_cdc_fifo`) and its own
+`pclk`/`presetn`. So a bridge WITH an APB slave does cross clock domains, at
+that slave boundary only. For the AXI fabric itself:
 
 - All inputs sampled on aclk rising edge
 - All outputs generated on aclk rising edge

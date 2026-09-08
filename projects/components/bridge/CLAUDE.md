@@ -899,7 +899,9 @@ cpu,1,1,1              # Connects to all three
 7. **APB Converters** - Placeholder TODO comments (Phase 3)
 
 **Example Output Size:**
-- Simple 2x2 bridge: ~400 lines
+- Simple 2x2 bridge: ~1,240 lines for the top file alone (plus per-master
+  and per-slave adapters, a crossbar and a package). The "~400" this line
+  used to claim predates monitors, the cfg subsystem and sideband routing.
 - Complex 5x3 with mixed protocols: ~900 lines
 - Includes comprehensive comments and structure
 
@@ -1008,17 +1010,33 @@ The Bridge AXI4 crossbar connects multiple AXI4 masters to multiple slaves:
 
 1. **Address Decode (AW/AR):** Routes master requests to appropriate slave based on address
 2. **Write Path:** AW → arbitration → slave, W follows locked grant
-3. **Read Path:** AR → arbitration → slave, R returns via ID table
+3. **Read Path:** AR → arbitration → slave, R returns via the slave adapter's
+   in-order `bridge_id` FIFO
 4. **Arbitration:** Per-slave round-robin, AW and AR only, with the grant
    locked until the ADDRESS handshake -- not until burst complete. W is
    owned via a FIFO; B and R have no arbiter.
-5. **Response Routing:** B/R responses use ID lookup tables (not grant-based)
+5. **Response Routing:** each slave adapter keeps an IN-ORDER FIFO of the
+   originating master's `bridge_id`, pushed on the address handshake and
+   popped on the response. Routing is keyed on FIFO POSITION, not on the
+   returned BID/RID -- IDs are pass-through and never widened. There are no
+   ID lookup tables; `bridge_cam.sv` is instantiated in zero generated
+   bridges.
 
 **Key Features:**
-- Out-of-order response support via ID tracking
-- Burst-aware arbitration (grant locked until WLAST/RLAST)
 - Configurable NxM topology
-- Single-clock domain
+- Single-clock AXI fabric (an `apb`/`apb5` slave crosses domains inside its
+  own shim, which contains two async FIFOs)
+- Subtractive catch-all: an unmapped address gets DECERR + 0xDEADBEEF and a
+  sticky status/IRQ instead of hanging the master (HAS 4.5)
+
+**Deliberately NOT supported** -- these were claimed here for months and none
+of them is built:
+- Out-of-order responses. Ordering is structural: one target slave per master
+  at a time (`aw_gate_ok`), and each slave port must return B/R in request
+  order across all IDs (BRIDGE-010).
+- Burst-locked arbitration. The grant releases at the address handshake, as
+  item 4 above already said -- this bullet contradicted it directly.
+- Configurable arbitration policy. Round-robin is hard-coded.
 
 **See:**
 - `projects/components/bridge/PRD.md` - Complete specification

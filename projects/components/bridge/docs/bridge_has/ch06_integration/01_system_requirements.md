@@ -124,7 +124,10 @@ Slaves connecting to Bridge must:
 
 1. **RTL lint clean** - No Verilator warnings
 2. **Parameter validation** - All parameters in valid range
-3. **Address map review** - No overlaps, complete coverage
+3. **Address map review** - no overlaps. Complete coverage is NOT required: a
+   gap is claimed by the subtractive slave and answered with DECERR (4.5). Decide
+   deliberately which you want -- a gap that is meant to be a gap is fine, a gap
+   you did not know about is a bug the fabric will now report.
 4. **ID width calculation** - Sufficient for NUM_MASTERS
 
 ### Integration Checks
