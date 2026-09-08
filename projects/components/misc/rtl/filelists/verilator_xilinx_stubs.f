@@ -2,7 +2,7 @@
 # Location: projects/components/misc/rtl/filelists/verilator_xilinx_stubs.f
 #
 # Lint/sim-only pass-through stubs for the Xilinx clocking primitives a board
-# top instantiates (BUFG / IBUFDS / MMCME2_BASE). Everything in the file is
+# top instantiates (BUFG / IBUF / IBUFDS / BUFGMUX_CTRL / MMCME2_BASE). Everything in the file is
 # wrapped in `ifdef VERILATOR, so Vivado never sees it and substitutes the real
 # unisims at synthesis.
 #

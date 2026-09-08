@@ -31,6 +31,26 @@ module BUFG (
     assign O = I;
 endmodule : BUFG
 
+// Single-ended input buffer: a plain board clock pin enters here.
+module IBUF (
+    input  logic I,
+    output logic O
+);
+    assign O = I;
+endmodule : IBUF
+
+// Glitchless 2:1 clock mux -- S selects I1 when high, I0 when low. The real
+// primitive guarantees a glitch-free switch; for lint the select semantics are
+// all that matters.
+module BUFGMUX_CTRL (
+    input  logic I0,
+    input  logic I1,
+    input  logic S,
+    output logic O
+);
+    assign O = S ? I1 : I0;
+endmodule : BUFGMUX_CTRL
+
 // Differential input buffer: the board's LVDS system clock enters here.
 module IBUFDS #(
     parameter DIFF_TERM    = "FALSE",
@@ -59,6 +79,12 @@ module MMCME2_BASE #(
     parameter CLKOUT6_DIVIDE     = 1,
     parameter real CLKOUT0_DUTY_CYCLE = 0.500,
     parameter real CLKOUT0_PHASE      = 0.000,
+    parameter real CLKOUT1_DUTY_CYCLE = 0.500,
+    parameter real CLKOUT1_PHASE      = 0.000,
+    parameter real CLKOUT2_DUTY_CYCLE = 0.500,
+    parameter real CLKOUT2_PHASE      = 0.000,
+    parameter real CLKOUT3_DUTY_CYCLE = 0.500,
+    parameter real CLKOUT3_PHASE      = 0.000,
     parameter real DIVCLK_DIVIDE      = 1,
     parameter real REF_JITTER1        = 0.010,
     parameter STARTUP_WAIT       = "FALSE"
