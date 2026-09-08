@@ -97,7 +97,12 @@ When the bridge TOML configuration sets `use_monitor = true` for a master port, 
 Each wrapper:
 - Samples all channel signals and timestamp at handshake points
 - Emits 128-bit monitor packets on internal monbus
-- Passes all signals through transparently (no stall)
+- Passes signals through transparently in the common case, but it CAN stall:
+  `axi4_master_rd_mon` gates the address channel on the monitor's back-pressure,
+  `assign w_gated_arvalid = fub_axi_arvalid & (w_block_ready | ~cfg_monitor_enable);`
+  so a saturated transaction table holds off new addresses until it drains.
+  With `cfg_monitor_enable` low the gate is bypassed and the path really is
+  transparent.
 - Is instantiated only when requested (generator-time configuration)
 
 The generated per-port monbus streams are later aggregated by a tree of `monbus_arbiter` instances at the bridge top.
@@ -125,8 +130,11 @@ end
 - No combinatorial paths between upstream and downstream
 
 ### Pipeline Depth
-- Default: 1 stage (skid buffer)
-- Configurable: Up to 8 stages for high-frequency designs
+- Default: 2 (the `gaxi_skid_buffer` minimum)
+- Range: **2..8 inclusive, any integer**. The value is the skid buffer's
+  `DEPTH`, and its elaboration guard rejects anything outside that:
+  `if (DEPTH < 2 || DEPTH > 8) $error(...)`. A depth of 1 does not elaborate,
+  so the "default 1" this line used to claim was never buildable.
 - Trade-off: Latency vs. timing closure
 
 **Performance Impact**:
@@ -401,4 +409,4 @@ For ILA or waveform capture:
 - Section 2.3: Crossbar Core (interconnect architecture)
 - Section 2.4: Arbitration (how adapters compete for slaves)
 - Section 2.5: ID Management (CAM structures for response routing)
-- Section 3.2: Master Port Interface (signal-level specifications)
+- HAS ch04_interfaces/01_axi4_interface.md (port signals)

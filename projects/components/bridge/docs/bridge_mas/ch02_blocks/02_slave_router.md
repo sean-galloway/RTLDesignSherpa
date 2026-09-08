@@ -348,7 +348,7 @@ name = "ddr_memory"
 base_address = 0x8000_0000
 size = 0x4000_0000           # 1 GB
 default = false
-oor_data_pattern = 0xDEAD    # Pattern for OOR reads
+# (no oor_data_pattern knob: READ_FILL is a module parameter, 0xDEADBEEF)
 ```
 
 ### Global Parameters
@@ -357,7 +357,8 @@ oor_data_pattern = 0xDEAD    # Pattern for OOR reads
 [bridge]
 enable_default_slave = false      # Allow default slave
 strict_address_decode = true      # Flag overlapping ranges as errors
-oor_response_latency = 2          # Cycles for OOR error response (2-4)
+# (no oor_response_latency knob: the responder answers as fast as the
+#  handshake allows; there is nothing to tune)
 ```
 
 ## 2.2.9 Resource Utilization
@@ -539,4 +540,4 @@ Note: Requires RAM resources
 - Section 2.1: Master Adapter (upstream from router)
 - Section 2.3: Crossbar Core (downstream arbitration)
 - Section 2.4: Arbitration (how routed requests compete)
-- Section 3.3: Slave Port Interface (target of routed requests)
+- HAS ch04_interfaces/01_axi4_interface.md (slave port signals)

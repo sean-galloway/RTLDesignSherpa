@@ -487,5 +487,5 @@ Downsizer:
 **Related Sections**:
 - Section 2.1: Master Adapter (upsizing location)
 - Section 2.3: Crossbar Core (internal data width)
-- Section 3.2: Master Port Interface (width specifications)
-- Section 3.3: Slave Port Interface (width specifications)
+- HAS ch06_integration/02_parameters.md (per-port data_width)
+- HAS ch06_integration/02_parameters.md (per-port data_width)

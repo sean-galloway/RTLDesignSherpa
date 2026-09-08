@@ -638,4 +638,4 @@ Common critical paths in response routing:
 - Section 2.3: Crossbar Core (response path architecture)
 - Section 2.5: ID Management (BID extraction details)
 - Section 2.4: Arbitration (response arbitration algorithms)
-- Section 3.2: Master Port Interface (response channel signals)
+- HAS ch04_interfaces/01_axi4_interface.md (response channel signals)

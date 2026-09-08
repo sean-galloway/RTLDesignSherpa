@@ -598,4 +598,4 @@ CAM (if enabled):
 - Section 2.1: Master Adapter (BID injection location)
 - Section 2.3: Crossbar Core (BID extraction, response routing)
 - Section 2.8: Response Routing (detailed routing logic)
-- Section 3.2: Master Port Interface (ID width specifications)
+- HAS ch04_interfaces/01_axi4_interface.md (ID widths -- note IDs are pass-through)

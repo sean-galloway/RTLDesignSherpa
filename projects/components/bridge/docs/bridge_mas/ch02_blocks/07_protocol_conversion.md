@@ -975,6 +975,6 @@ Best: Use AXI4-Lite slave for registers
 
 **Related Sections**:
 - Section 2.3: Crossbar Core (protocol integration point)
-- Section 3.3: Slave Port Interface (APB signal specifications)
+- HAS ch04_interfaces/01_axi4_interface.md (port signals)
 - Chapter 4: Programming (configuring protocol conversion)
 - Appendix A: Generator Deep Dive (protocol converter generation)

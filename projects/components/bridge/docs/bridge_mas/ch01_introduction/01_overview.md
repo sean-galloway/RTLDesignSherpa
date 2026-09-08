@@ -74,12 +74,14 @@ Bridge NxM
 │   ├── Address decode
 │   ├── Per-slave arbiters
 │   └── Channel muxes
-├── Slave Routers (N instances)
-│   ├── Protocol converters
-│   └── Width converters
+├── Slave Adapters (N instances)
+│   ├── Protocol shims (axi4_to_apb4_shim / axi4_to_axil4_*)
+│   └── In-order bridge_id FIFO (response tracking)
+├── Subtractive slave (always present, internal)
+│   └── Answers unmapped addresses: DECERR + 0xDEADBEEF + sticky status
 └── Response Routing
-    ├── ID extraction
-    └── Master demux
+    ├── bridge_id FIFO head selects the master
+    └── Master demux (the AXI ID is passed through untouched)
 ```
 
 ### Signal Flow
