@@ -149,9 +149,9 @@ filelist_dirs = [
 name = "nexys_ddr2_char_bridges"
 kind = "board"
 generated = true
-regen = "projects/NexysA7/ddr2-characterization/ddr2_char_framework/bin/regen_bridges.sh"
+regen = "projects/fpga-systems/NexysA7/shared/ddr2_char_framework/bin/regen_bridges.sh"
 rtl_roots = []
-filelist_dirs = ["projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/bridges/filelists"]
+filelist_dirs = ["projects/fpga-systems/NexysA7/shared/ddr2_char_framework/rtl/bridges/filelists"]
 
 [[area]]
 name = "genesys2_stream_bridges"
@@ -183,12 +183,12 @@ name = "nexys_ddr2_char"
 kind = "board"
 rtl_roots = []
 filelist_dirs = [
-    "projects/NexysA7/ddr2-characterization/ddr2_char_framework/dv/filelists",
+    "projects/fpga-systems/NexysA7/shared/ddr2_char_framework/dv/filelists",
     "projects/fpga-systems/NexysA7/pumice/build-perf/rtl/filelists",
     "projects/NexysA7/ddr2-characterization/flows-litedram-uart/rtl/filelists",
     # ddr2_char_macro.f lives at the rtl root (not a filelists/ subdir);
     # registered here so the blindspot ratchet sees it.
-    "projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl",
+    "projects/fpga-systems/NexysA7/shared/ddr2_char_framework/rtl",
 ]
 
 [[area]]

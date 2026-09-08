@@ -37,7 +37,6 @@ SHELL := /bin/bash
 
 # Sub-projects that support `clean-all` (the aggressive cleanup):
 CLEAN_ALL_DIRS = \
-    ddr2-characterization/ddr2_char_framework/dv/tests \
     stream_characterization/flows-stream-bridge/dv/tests \
     stream_characterization/flows-stream-bridge \
     stream_characterization/flows-vivado-mcdma \

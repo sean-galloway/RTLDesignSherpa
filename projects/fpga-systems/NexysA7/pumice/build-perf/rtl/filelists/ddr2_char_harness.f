@@ -10,10 +10,10 @@
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/uart_axil_bridge.f
 
 # Generated 1 -> 5 AXIL bridge for the DDR2 harness
--f $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/bridges/filelists/bridge_ddr2_char_axil.f
+-f $REPO_ROOT/projects/fpga-systems/NexysA7/shared/ddr2_char_framework/rtl/bridges/filelists/bridge_ddr2_char_axil.f
 
 # ddr2_char_macro (WR pattern-gen + RD CRC-check + pumice controller top)
--f $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/ddr2_char_macro.f
+-f $REPO_ROOT/projects/fpga-systems/NexysA7/shared/ddr2_char_framework/rtl/ddr2_char_macro.f
 
 # AXIL SRAM slave used for debug_sram + dfi_mon_ram
 -f $REPO_ROOT/rtl/amba/filelists/axil4_slave_wr.f
@@ -31,18 +31,18 @@
 # Flat DFI -> per-phase adapter + a7ddrphy black-box stub. Vivado excludes
 # a7ddrphy_stub.sv and substitutes the LiteDRAM-generated a7ddrphy.v at
 # build time; the stub is here so verilator / cocotb can lint the top.
-$REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/dfi_cmd_delay.sv
-$REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/dfi_rddata_delay.sv
-$REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/dfi_v21_flat_to_a7ddrphy.sv
-$REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/a7ddrphy_stub.sv
+$REPO_ROOT/projects/fpga-systems/NexysA7/shared/ddr2_char_framework/rtl/dfi_cmd_delay.sv
+$REPO_ROOT/projects/fpga-systems/NexysA7/shared/ddr2_char_framework/rtl/dfi_rddata_delay.sv
+$REPO_ROOT/projects/fpga-systems/NexysA7/shared/ddr2_char_framework/rtl/dfi_v21_flat_to_a7ddrphy.sv
+$REPO_ROOT/projects/fpga-systems/NexysA7/shared/ddr2_char_framework/rtl/a7ddrphy_stub.sv
 
 # Framework blocks: harness_csr + board displays. axi_response_delay is
 # committed under ddr2_char_framework/rtl/ but not yet instantiated in
 # the harness — kept here so future response-delay wiring is a one-line
 # swap-in.
-$REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/harness_csr.sv
-$REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/led_status_driver.sv
-$REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/seven_seg_4digit.sv
+$REPO_ROOT/projects/fpga-systems/NexysA7/shared/ddr2_char_framework/rtl/harness_csr.sv
+$REPO_ROOT/projects/fpga-systems/NexysA7/shared/ddr2_char_framework/rtl/led_status_driver.sv
+$REPO_ROOT/projects/fpga-systems/NexysA7/shared/ddr2_char_framework/rtl/seven_seg_4digit.sv
 
 # Flow-specific harness + FPGA pin-level top
 $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/build-perf/rtl/ddr2_char_harness.sv

@@ -55,7 +55,7 @@ def _pumice_regmap() -> str:
 
 
 def _harness_regmap() -> str:
-    return os.path.join(_repo_root(), "projects/NexysA7/ddr2-characterization/"
+    return os.path.join(_repo_root(), "projects/fpga-systems/NexysA7/shared/"
                         "ddr2_char_framework/dv/tbclasses/harness_csr_regmap.py")
 
 

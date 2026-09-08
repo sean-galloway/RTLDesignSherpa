@@ -11,13 +11,13 @@
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/uart_axil_bridge.f
 
 # Engines (WR pattern-gen + RD CRC-check) + axi_bus_meter + pumice_pkg + deps
--f $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/ddr2_char_macro.f
+-f $REPO_ROOT/projects/fpga-systems/NexysA7/shared/ddr2_char_framework/rtl/ddr2_char_macro.f
 
 # 7-segment glyph decoder + framework blocks
 -f $REPO_ROOT/rtl/common/filelists/hex_to_7seg.f
-$REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/harness_csr.sv
-$REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/led_status_driver.sv
-$REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/seven_seg_4digit.sv
+$REPO_ROOT/projects/fpga-systems/NexysA7/shared/ddr2_char_framework/rtl/harness_csr.sv
+$REPO_ROOT/projects/fpga-systems/NexysA7/shared/ddr2_char_framework/rtl/led_status_driver.sv
+$REPO_ROOT/projects/fpga-systems/NexysA7/shared/ddr2_char_framework/rtl/seven_seg_4digit.sv
 
 # DUT-agnostic engine harness + LiteDRAM pin-level top
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/flows-litedram-uart/rtl/char_engine_harness.sv

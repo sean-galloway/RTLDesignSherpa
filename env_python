@@ -27,7 +27,7 @@ export STREAM_ROOT=$REPO_ROOT/projects/components/dmas/stream
 # wrong for the other flow. Filelists should use the unambiguous names below.
 export STREAM_CHAR_ROOT=$REPO_ROOT/projects/NexysA7/stream_characterization/flows-stream-bridge
 export STREAM_CHAR_FRAMEWORK_ROOT=$REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework
-export DDR2_CHAR_FRAMEWORK_ROOT=$REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework
+export DDR2_CHAR_FRAMEWORK_ROOT=$REPO_ROOT/projects/fpga-systems/NexysA7/shared/ddr2_char_framework
 export TIMING_CHAR_ROOT=$REPO_ROOT/projects/NexysA7/timing_characterization
 
 # Activate venv (use absolute path from REPO_ROOT)

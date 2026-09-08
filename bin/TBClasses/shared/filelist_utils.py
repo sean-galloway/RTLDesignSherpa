@@ -98,7 +98,6 @@ def get_sources_from_filelist(repo_root, filelist_path):
     components_root = os.path.join(repo_root, 'projects', 'components')
     nexys_root = os.path.join(repo_root, 'projects', 'NexysA7')
     stream_char = os.path.join(nexys_root, 'stream_characterization')
-    ddr2_char = os.path.join(nexys_root, 'ddr2-characterization')
 
     genesys2_stream = os.path.join(repo_root, 'projects', 'fpga-systems', 'Genesys2', 'stream')
 
@@ -116,7 +115,7 @@ def get_sources_from_filelist(repo_root, filelist_path):
         # the Genesys 2 flow that absorbed the collateral.
         'STREAM_CHAR_ROOT': genesys2_stream,
         'STREAM_CHAR_FRAMEWORK_ROOT': genesys2_stream,
-        'DDR2_CHAR_FRAMEWORK_ROOT': os.path.join(ddr2_char, 'ddr2_char_framework'),
+        'DDR2_CHAR_FRAMEWORK_ROOT': os.path.join(repo_root, 'projects', 'fpga-systems', 'NexysA7', 'shared', 'ddr2_char_framework'),
         'TIMING_CHAR_ROOT': os.path.join(nexys_root, 'timing_characterization'),
     }
     for var, value in defaults.items():

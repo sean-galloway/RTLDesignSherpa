@@ -1136,7 +1136,7 @@ an index, not storage). Most of the 366 `.f` follow this
 **Loose `.f` directly beside RTL, no `filelists/` subdir:**
 - [ ] `projects/components/retro_legacy_blocks/rtl/rlb_top/rlb_top.f`
 - [ ] `projects/components/retro_legacy_blocks/rtl/apbx_xbar/apbx_xbar_rlb_1to10.f`
-- [ ] `projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/ddr2_char_macro.f`
+- [ ] `projects/fpga-systems/NexysA7/shared/ddr2_char_framework/rtl/ddr2_char_macro.f`
 
 **TB/harness `.f` -- RESOLVED (Sean, 2026-07-24):** a testbench with its own
 harness gets its own filelist, co-located WITH the TB (its `filelists/` dir),
@@ -1160,7 +1160,7 @@ waits behind the RTL-area work (cdc reorg, amba cleanup). Re-check with
 Five generated bridges under the board-characterization frameworks are stale
 with respect to the bridge generator:
 
-    projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/bridges/generated/bridge_ddr2_char_axil
+    projects/fpga-systems/NexysA7/shared/ddr2_char_framework/rtl/bridges/generated/bridge_ddr2_char_axil
     projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_char_axil
     .../bridge_stream_char_axil_mon
     .../bridge_stream_mon_axil
