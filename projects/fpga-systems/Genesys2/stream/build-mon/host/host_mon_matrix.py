@@ -172,6 +172,51 @@ def enable_monitors(bridge, A, classes):
     bridge.write(A("MON_GROUP_FLUSH_WATERMARK"), 0x0)
 
 
+def reset_monitor_state(bridge):
+    """Put every monitor CSR back to its RDL reset value.
+
+    The scenarios are NOT self-contained: each one writes only the registers it
+    cares about, so anything a predecessor set survives into the next run. That
+    made results order-dependent -- `perf` passes in the full sequence but fails
+    as `--only perf,addr_error`, and `addr_error` (which deliberately skips
+    enable_monitors, so it overwrites least) came out empty in sequence while
+    scoring 129/122 packets run on its own. A scenario matrix whose answer
+    depends on what ran before it is not measuring the hardware.
+
+    SOFT_RESET does not cover this: it fans out to unit_aresetn and clears the
+    datapath and the tally CAM, but the monitor configuration registers are
+    programmed over APB and hold their values through it (verified on the board:
+    MON_GROUP_BASE_ADDR survives a SOFT_RESET).
+
+    Restores the RDL default rather than zeroing, so fields whose reset value is
+    nonzero (WRMON_ENABLE.COMPRESS_EN resets to 1, MON_GROUP_BASE_ADDR to the
+    tally window) come back to the value the hardware boots with, not to 0.
+    """
+    from stream_addrs import _regmap
+    regs = _regmap().registers
+    restored = 0
+    for name, info in regs.items():
+        if not name.startswith(("RDMON_", "WRMON_", "DAXMON_", "MON_")):
+            continue
+        value, writable = 0, False
+        for fname, f in info.items():
+            if not isinstance(f, dict) or f.get("type") != "field":
+                continue
+            if f.get("sw") != "rw":
+                continue           # read-only field: not ours to restore
+            writable = True
+            off = str(f.get("offset", "0"))
+            lsb = int(off.split(":")[-1])
+            value |= (int(str(f.get("default", "0")), 0) & 0xFFFFFFFF) << lsb
+        if writable:
+            try:
+                bridge.write(A(name), value)
+                restored += 1
+            except Exception:
+                pass               # register absent in this build: skip
+    return restored
+
+
 # --- scenario setup hooks (applied AFTER enable_monitors, BEFORE the DMA) ---
 def _mons(A, reg):
     return [A(f"{m}_{reg}") for m in ("RDMON", "WRMON")]
@@ -281,6 +326,12 @@ def run_scenario(bridge, runner, A, sc, per_run_timeout_s):
     # burst size is read from env by configure_stream.
     os.environ["XFER_BEATS"] = str(beats)
     bridge.write(H("CTRL"), compose("CTRL", SOFT_RESET=1)); time.sleep(0.01)
+    # Clean slate between scenarios: NOT ENABLED YET -- see reset_monitor_state.
+    # Restoring RDL defaults blindly silences every class (measured: 0/6), so the
+    # campaign baseline has to be re-established after it. Left wired out until
+    # that baseline is written, because a matrix that reports nothing is worse
+    # than one that reports order-dependent results.
+    #   reset_monitor_state(bridge)
     runner.clear_stats()
     runner.set_resp_delay(0, 0)                            # reset delay each scenario
     runner.configure_stream(channels)
