@@ -119,6 +119,12 @@ void example_timeout(void) {
  * @param clock_freq_hz PIT clock frequency
  * @return 0 on success, -1 on error
  */
+// Tick period constant: the ISR must reload the ORIGINAL count. Reading
+// COUNTER0_DATA at terminal count returns the CURRENT value, which is 0 -
+// reloading that would make the next "period" a single clock and produce an
+// interrupt storm.
+static uint32_t pit_tick_counts;
+
 int pit_rtos_tick_init(uint32_t tick_rate_hz, uint32_t clock_freq_hz) {
     // Calculate counts per tick
     uint32_t counts = clock_freq_hz / tick_rate_hz;
@@ -127,6 +133,7 @@ int pit_rtos_tick_init(uint32_t tick_rate_hz, uint32_t clock_freq_hz) {
         printf("ERROR: Tick rate too slow for 16-bit counter\n");
         return -1;
     }
+    pit_tick_counts = counts;
 
     // Use Counter 0 for system tick
     write_register(PIT_CONFIG, 0x00);  // Disable
@@ -148,15 +155,16 @@ int pit_rtos_tick_init(uint32_t tick_rate_hz, uint32_t clock_freq_hz) {
 
 /**
  * RTOS tick interrupt handler
+ *
+ * Note: PIT_STATUS reads have NO side effect - nothing here "clears" the
+ * interrupt by reading. OUT (and so timer_irq) stays high from terminal
+ * count until the reload below drives it low again; the reload IS the
+ * acknowledge.
  */
 void pit_tick_isr(void) {
-    // Clear interrupt by reading status
-    uint32_t status = read_register(PIT_STATUS);
-
-    // Reload counter for next tick (one-shot mode requires manual reload)
-    // Note: In Mode 0, must reload after each terminal count
-    uint32_t counts = read_register(COUNTER0_DATA) & 0xFFFF;
-    write_register(COUNTER0_DATA, counts);
+    // Reload the ORIGINAL tick period (one-shot Mode 0 requires a manual
+    // reload after each terminal count; the reload also deasserts OUT).
+    write_register(COUNTER0_DATA, pit_tick_counts);
 
     // Call RTOS tick handler
     rtos_tick();
@@ -353,13 +361,11 @@ uint32_t pit_profile_stop(void) {
     uint32_t end_count = read_register(COUNTER2_DATA) & 0xFFFF;
 
     // Calculate elapsed counts (counter counts down)
-    uint32_t elapsed_counts;
-    if (profiler.start_count >= end_count) {
-        elapsed_counts = profiler.start_count - end_count;
-    } else {
-        // Counter wrapped through zero
-        elapsed_counts = profiler.start_count + (65535 - end_count) + 1;
-    }
+    // In Mode 0 the counter STOPS at zero (it never wraps), so a down-count
+    // difference is always valid. If end_count is 0 with OUT high, the
+    // measured interval hit terminal count and the result is a floor, not
+    // an exact time - use a larger start count for longer intervals.
+    uint32_t elapsed_counts = profiler.start_count - end_count;
 
     // Convert to microseconds
     uint32_t elapsed_us = (elapsed_counts * 1000000ULL) / profiler.clock_freq;
@@ -406,9 +412,12 @@ void example_profiling(void) {
  */
 #define WATCHDOG_TIMEOUT_MS 1000  // 1 second timeout
 
+static uint32_t watchdog_counts;  // shared with pit_watchdog_pet()
+
 void pit_watchdog_init(uint32_t clock_freq_hz) {
     // Calculate counts for timeout
     uint32_t counts = (WATCHDOG_TIMEOUT_MS * clock_freq_hz) / 1000;
+    watchdog_counts = counts;
 
     write_register(PIT_CONFIG, 0x00);
 
@@ -426,9 +435,9 @@ void pit_watchdog_init(uint32_t clock_freq_hz) {
  * Pet the watchdog (reset timer)
  */
 void pit_watchdog_pet(void) {
-    // Reload counter to reset timeout
-    uint32_t counts = (WATCHDOG_TIMEOUT_MS * 10000000U) / 1000;
-    write_register(COUNTER1_DATA, counts);
+    // Reload counter to reset timeout (same clock_freq_hz-derived value the
+    // init computed - never a hardcoded clock frequency)
+    write_register(COUNTER1_DATA, watchdog_counts);
 }
 
 /**

@@ -23,15 +23,18 @@
 
 # PIT_8254 Specification
 
-**Status:** 📋 Planned - Structure Created
+**Status:** Written - see [pit_8254_mas_index.md](pit_8254_mas_index.md) for
+the chapter list and which planned sections remain unwritten
 
 ---
 
 ## Overview
 
-This directory will contain the complete specification for the PIT_8254 block.
+This directory contains the specification for the PIT_8254 block. The index
+is the authoritative table of contents; the outline below is the intended
+full structure (some subsections are still planned).
 
-## Planned Documentation Structure
+## Documentation Structure
 
 ### Chapter 1: Overview
 - Block purpose and features
@@ -64,7 +67,7 @@ This directory will contain the complete specification for the PIT_8254 block.
 
 ## Document Generation
 
-Documentation will be written in Markdown and can be converted to PDF:
+Documentation is written in Markdown and can be converted to PDF:
 
 ```bash
 cd docs/

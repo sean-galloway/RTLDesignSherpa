@@ -35,6 +35,11 @@
 | `0x014` | COUNTER1_DATA | RW | Counter 1 value |
 | `0x018` | COUNTER2_DATA | RW | Counter 2 value |
 
+The register block decodes only address bits [4:0], so this 32-byte window
+aliases every 0x20 throughout the 4 KB APB region. Unmapped/aliased accesses
+never raise PSLVERR (the error outputs are tied off); 0x01C reads as 0. See
+the top-level interface chapter for details.
+
 ---
 
 #### PIT_CONFIG (0x000) - Global Configuration
@@ -90,7 +95,7 @@ write_register(PIT_CONTROL, control_word);  // Write 0x30
 #### PIT_STATUS (0x008) - Status Readback
 
 **Access:** Read-Only
-**Reset Value:** `0x303030` (all counters in reset state)
+**Reset Value:** `0x00404040` (all counters in reset state: OUT=0, NULL_COUNT=1, RW_MODE/MODE/BCD=0 -> 0x40 per status byte)
 
 | Bits | Name | Description |
 |------|------|-------------|
@@ -112,7 +117,7 @@ write_register(PIT_CONTROL, control_word);  // Write 0x30
 | [7] | OUT | Counter OUT pin state<br>`0` = OUT low (counting)<br>`1` = OUT high (terminal count reached) |
 | [6] | NULL_COUNT | No count loaded flag<br>`0` = Count value loaded<br>`1` = No count loaded yet |
 | [5:4] | RW_MODE | Read/Write mode (mirrors control word) |
-| [3:1] | MODE | Counter mode (mirrors control word) |
+| [3:1] | MODE | Counter mode (mirrors control word). WARNING: this mirrors whatever mode was WRITTEN, but the counter logic implements Mode 0 only - firmware that programs Mode 2 reads back "Mode 2" while getting Mode 0 behavior. |
 | [0] | BCD | BCD/Binary mode (mirrors control word) |
 
 **Reading Example:**
@@ -145,6 +150,11 @@ bool bcd = counter0_status & 0x1;
 - Writes while counting update the reload value and restart counting
 
 **Read Behavior:**
+- The value returned depends on the counter's programmed RW mode:
+  - `RW=01` (LSB only): returns `{8'h00, count[7:0]}`
+  - `RW=10` (MSB only): returns `{8'h00, count[15:8]}` - the HIGH byte of the
+    count appears in the LOW byte of the read data
+  - `RW=11` (LSB then MSB): returns the full 16-bit current count
 - Returns current counter value (not reload value)
 - Counter continues decrementing while being read
 - For stable reads, disable PIT first or use very fast access

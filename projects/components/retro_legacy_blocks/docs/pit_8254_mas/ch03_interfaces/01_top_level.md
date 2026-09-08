@@ -27,33 +27,31 @@
 
 ```systemverilog
 module apb4_pit_8254 #(
-    parameter int NUM_COUNTERS = 3,      // Number of counters (fixed at 3)
-    parameter int CDC_ENABLE   = 0       // 0=single clock, 1=dual clock with CDC
+    parameter int NUM_COUNTERS = 3,  // Number of counters (fixed at 3)
+    parameter bit CDC_ENABLE   = 0,  // 0=single clock, 1=dual clock with CDC
+    parameter int USE_JOHNSON  = 0   // CDC FIFO pointer encoding: 0=Gray, 1=Johnson
 ) (
-    // APB Clock and Reset
-    input  logic        pclk,
-    input  logic        presetn,
+    // Clock and Reset - Dual Domain
+    input  wire                    pclk,        // APB clock domain
+    input  wire                    presetn,     // APB reset (active low)
+    input  wire                    pit_clk,     // PIT clock domain (CDC_ENABLE=1)
+    input  wire                    pit_resetn,  // PIT reset (active low)
 
-    // APB Interface
-    input  logic [31:0] paddr,
-    input  logic        psel,
-    input  logic        penable,
-    input  logic        pwrite,
-    input  logic [31:0] pwdata,
-    input  logic [3:0]  pstrb,
-    output logic [31:0] prdata,
-    output logic        pready,
-    output logic        pslverr,
+    // APB4 Slave Interface
+    input  wire                    s_apb_PSEL,
+    input  wire                    s_apb_PENABLE,
+    output wire                    s_apb_PREADY,
+    input  wire [11:0]             s_apb_PADDR,
+    input  wire                    s_apb_PWRITE,
+    input  wire [31:0]             s_apb_PWDATA,
+    input  wire [3:0]              s_apb_PSTRB,
+    input  wire [2:0]              s_apb_PPROT,
+    output wire [31:0]             s_apb_PRDATA,
+    output wire                    s_apb_PSLVERR,
 
-    // PIT Clock and Reset (used when CDC_ENABLE=1)
-    input  logic        pit_clk,
-    input  logic        pit_rst_n,
-
-    // Counter GATE Inputs
-    input  logic [2:0]  gate_in,
-
-    // Timer Interrupt Outputs
-    output logic [2:0]  timer_irq
+    // Timer Interface
+    input  wire [NUM_COUNTERS-1:0] gate_in,     // GATE inputs for counters
+    output wire [NUM_COUNTERS-1:0] timer_irq    // Interrupt outputs
 );
 ```
 
@@ -68,31 +66,37 @@ module apb4_pit_8254 #(
 **APB Interface Signals:**
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `paddr` | Input | 32 | APB address. Only bits [7:0] are decoded (256-byte address space). |
-| `psel` | Input | 1 | APB select. Asserted by interconnect when this peripheral is accessed. |
-| `penable` | Input | 1 | APB enable. Asserted in second cycle of transfer (access phase). |
-| `pwrite` | Input | 1 | APB write/read. 1=write, 0=read. |
-| `pwdata` | Input | 32 | APB write data. Valid only when `pwrite=1`. |
-| `pstrb` | Input | 4 | APB write strobe (byte lane enables). Currently unused, all writes are 32-bit. |
-| `prdata` | Output | 32 | APB read data. Valid when `pready=1` and `pwrite=0`. |
-| `pready` | Output | 1 | APB ready. Asserted when peripheral completes transaction. Always 1 for this design (zero wait states). |
-| `pslverr` | Output | 1 | APB slave error. Asserted for invalid address access. |
+| `s_apb_PADDR` | Input | 12 | APB address. The register block decodes only bits [4:0] (32-byte window); see Address Map below. |
+| `s_apb_PSEL` | Input | 1 | APB select. Asserted by interconnect when this peripheral is accessed. |
+| `s_apb_PENABLE` | Input | 1 | APB enable. Asserted in second cycle of transfer (access phase). |
+| `s_apb_PWRITE` | Input | 1 | APB write/read. 1=write, 0=read. |
+| `s_apb_PWDATA` | Input | 32 | APB write data. Valid only when `s_apb_PWRITE=1`. |
+| `s_apb_PSTRB` | Input | 4 | APB write strobes (byte lane enables). Carried through to the register block's bit-enables, so partial-word writes update only the strobed bytes. |
+| `s_apb_PPROT` | Input | 3 | APB protection attributes. Accepted for protocol completeness; not used by the decode. |
+| `s_apb_PRDATA` | Output | 32 | APB read data. Valid when `s_apb_PREADY=1` and `s_apb_PWRITE=0`. |
+| `s_apb_PREADY` | Output | 1 | APB ready. The wrapper converts APB to an internal command/response handshake, so PREADY inserts wait states: typically 2-3 `pclk` cycles single-clock, 4-6 cycles across the CDC. |
+| `s_apb_PSLVERR` | Output | 1 | APB slave error. Never asserted by this design: the register block's error outputs are tied off, so unmapped reads return 0 and unmapped writes are silently ignored. |
 
 **PIT Clock and Reset:**
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `pit_clk` | Input | 1 | Timer clock. Used when `CDC_ENABLE=1` for independent timer clock domain. Ignored when `CDC_ENABLE=0`. |
-| `pit_rst_n` | Input | 1 | Timer reset, active-low. Used when `CDC_ENABLE=1`. Should be synchronous to `pit_clk`. Ignored when `CDC_ENABLE=0`. |
+| `pit_resetn` | Input | 1 | Timer reset, active-low. Used when `CDC_ENABLE=1`. Should be synchronous to `pit_clk`. Ignored when `CDC_ENABLE=0`. |
 
 **Counter Control and Status:**
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `gate_in[2:0]` | Input | 3 | GATE inputs for counters 0, 1, 2. When high, corresponding counter is enabled (if also globally enabled). When low, counter pauses. |
+| `gate_in[2:0]` | Input | 3 | GATE inputs for counters 0, 1, 2. GATE is a start enable: it is sampled when a count is loaded (and when re-arming after terminal count). Once a count is in progress, GATE transitions have no effect - the counter does NOT pause. This deviates from the Intel 8254, where Mode 0 counting suspends while GATE is low (tracked as an RTL issue). |
 | `timer_irq[2:0]` | Output | 3 | Timer interrupt outputs. Driven by OUT signals from counters 0, 1, 2. High when terminal count reached (Mode 0). |
 
 #### Address Map
 
-The APB PIT 8254 decodes only the lower 8 bits of `paddr`, providing a 256-byte address space:
+`s_apb_PADDR` is 12 bits, but the register block decodes only address bits
+[4:0], giving a 32-byte register window that ALIASES throughout the 4 KB
+region: every 0x20 stride repeats the same registers (0x020 decodes as
+PIT_CONFIG, 0x024 as PIT_CONTROL, and so on). Within the window, 0x01C is the
+only unmapped word - it reads as 0 and ignores writes. No access ever raises
+PSLVERR (the error outputs are tied off).
 
 | Address Range | Register | Access | Description |
 |---------------|----------|--------|-------------|
@@ -103,7 +107,8 @@ The APB PIT 8254 decodes only the lower 8 bits of `paddr`, providing a 256-byte 
 | `0x010` | COUNTER0_DATA | RW | Counter 0 value |
 | `0x014` | COUNTER1_DATA | RW | Counter 1 value |
 | `0x018` | COUNTER2_DATA | RW | Counter 2 value |
-| `0x01C-0x0FF` | - | - | Unmapped (returns SLVERR) |
+| `0x01C` | - | - | Unmapped (reads 0, writes ignored, no error) |
+| `0x020-0xFFF` | - | - | Aliases of the 32-byte window above (decode is [4:0]) |
 
 **Integration Note:** When integrating into a larger address space, these addresses are relative to the base address assigned to the PIT. For example, if the PIT is assigned base address `0x4000_2000`, then PIT_CONFIG would be at absolute address `0x4000_2000`.
 
@@ -117,13 +122,21 @@ The APB PIT 8254 decodes only the lower 8 bits of `paddr`, providing a 256-byte 
 - **Note:** While parameterized, current implementation only supports 3 counters
 
 **CDC_ENABLE:**
-- **Type:** Integer parameter
+- **Type:** Bit parameter
 - **Default:** 0
 - **Valid Values:** 0 (single clock), 1 (dual clock with CDC)
 - **Purpose:** Selects between single-clock and dual-clock configuration
 - **Impact:**
-  - `CDC_ENABLE=0`: Uses `apb4_slave`, ignores `pit_clk` and `pit_rst_n`
-  - `CDC_ENABLE=1`: Uses `apb4_slave_cdc`, requires `pit_clk` and `pit_rst_n`
+  - `CDC_ENABLE=0`: Uses `apb4_slave`, ignores `pit_clk` and `pit_resetn`
+  - `CDC_ENABLE=1`: Uses `apb4_slave_cdc`, requires `pit_clk` and `pit_resetn`
+
+**USE_JOHNSON:**
+- **Type:** Integer parameter
+- **Default:** 0
+- **Valid Values:** 0 (Gray-coded CDC FIFO pointers), 1 (Johnson-coded)
+- **Purpose:** Forwarded to the CDC block's async FIFOs. Gray requires a
+  power-of-2 depth; Johnson allows any depth. Only meaningful when
+  `CDC_ENABLE=1`.
 
 #### Clock Domain Configuration
 
@@ -137,7 +150,7 @@ pit_config_regs uses: pclk, presetn
 pit_core       uses: pclk, presetn
 pit_counter[*] uses: pclk, presetn
 
-// pit_clk and pit_rst_n are not used
+// pit_clk and pit_resetn are not used
 ```
 
 **Use Cases:**
@@ -152,12 +165,12 @@ pit_counter[*] uses: pclk, presetn
 ```systemverilog
 // APB interface uses pclk
 apb4_slave_cdc uses: pclk for APB side, pit_clk for timer side
-                    presetn for APB reset, pit_rst_n for timer reset
+                    presetn for APB reset, pit_resetn for timer reset
 
 // Timer logic uses pit_clk
-pit_config_regs uses: pit_clk, pit_rst_n
-pit_core       uses: pit_clk, pit_rst_n
-pit_counter[*] uses: pit_clk, pit_rst_n
+pit_config_regs uses: pit_clk, pit_resetn
+pit_core       uses: pit_clk, pit_resetn
+pit_counter[*] uses: pit_clk, pit_resetn
 ```
 
 **Use Cases:**
@@ -178,7 +191,7 @@ pit_counter[*] uses: pit_clk, pit_rst_n
 1. Assert both resets:
    ```
    presetn = 0
-   pit_rst_n = 0  (if CDC_ENABLE=1)
+   pit_resetn = 0  (if CDC_ENABLE=1)
    ```
 
 2. Hold for minimum 10 clock cycles (of slowest clock):
@@ -192,7 +205,7 @@ pit_counter[*] uses: pit_clk, pit_rst_n
    presetn = 1
 
    // On rising edge of pit_clk (if CDC_ENABLE=1)
-   pit_rst_n = 1
+   pit_resetn = 1
    ```
 
 4. Wait for reset propagation:
@@ -212,7 +225,7 @@ If resetting during operation:
 
 #### APB Protocol Timing
 
-**Write Transaction (Zero Wait States):**
+**Write Transaction:**
 
 ```
         ┌───┐   ┌───┐   ┌───┐   ┌───┐
@@ -230,7 +243,7 @@ pready  ───────────────┐   ┌──────
                        └───┘
 ```
 
-**Read Transaction (Zero Wait States):**
+**Read Transaction:**
 
 ```
         ┌───┐   ┌───┐   ┌───┐   ┌───┐
@@ -247,22 +260,13 @@ pready  ───────────────┐   ┌──────
                        └───┘
 ```
 
-**Error Response (Invalid Address):**
+**Error Response:**
 
-```
-        ┌───┐   ┌───┐   ┌───┐   ┌───┐
-pclk    ┘   └───┘   └───┘   └───┘   └───
-          SETUP   ACCESS
-psel    ───────┐           ┌───────────
-               └───────────┘
-penable ───────────┐   ┌───────────────
-                   └───┘
-paddr   ═══X0x01C══════════X═══════════  (unmapped)
-pready  ───────────────┐   ┌───────────
-                       └───┘
-pslverr ───────────────┐   ┌───────────
-                       └───┘
-```
+There is none. The register block's error outputs are tied off
+(`cpuif_wr_err = '0`, `readback_err = '0`), so `s_apb_PSLVERR` stays low for
+every access: an unmapped or aliased address reads as 0 (or the aliased
+register's value) and writes take effect on whatever the [4:0] decode selects.
+Software cannot rely on a bus error to catch a bad pointer into this window.
 
 #### Integration Example
 
@@ -272,27 +276,23 @@ pslverr ───────────────┐   ┌──────
 apb4_pit_8254 #(
     .NUM_COUNTERS(3),
     .CDC_ENABLE(0)
-) u_pit (
-    // APB interface
-    .pclk       (apb_clk),
-    .presetn    (apb_rst_n),
-    .paddr      (paddr),
-    .psel       (psel_pit),
-    .penable    (penable),
-    .pwrite     (pwrite),
-    .pwdata     (pwdata),
-    .pstrb      (pstrb),
-    .prdata     (prdata_pit),
-    .pready     (pready_pit),
-    .pslverr    (pslverr_pit),
-
-    // PIT clock (unused in single-clock mode, tie to apb_clk)
-    .pit_clk    (apb_clk),
-    .pit_rst_n  (apb_rst_n),
-
-    // External signals
-    .gate_in    (3'b111),           // All counters enabled
-    .timer_irq  (pit_interrupts)
+) u_apb4_pit_8254 (
+    .pclk                  (pclk),
+    .presetn               (presetn),
+    .pit_clk               (pit_clk),
+    .pit_resetn            (pit_resetn),
+    .s_apb_PSEL            (s_apb_PSEL),
+    .s_apb_PENABLE         (s_apb_PENABLE),
+    .s_apb_PREADY          (s_apb_PREADY),
+    .s_apb_PADDR           (s_apb_PADDR),
+    .s_apb_PWRITE          (s_apb_PWRITE),
+    .s_apb_PWDATA          (s_apb_PWDATA),
+    .s_apb_PSTRB           (s_apb_PSTRB),
+    .s_apb_PPROT           (s_apb_PPROT),
+    .s_apb_PRDATA          (s_apb_PRDATA),
+    .s_apb_PSLVERR         (s_apb_PSLVERR),
+    .gate_in               (gate_in),
+    .timer_irq             (timer_irq)
 );
 ```
 
@@ -302,27 +302,23 @@ apb4_pit_8254 #(
 apb4_pit_8254 #(
     .NUM_COUNTERS(3),
     .CDC_ENABLE(1)
-) u_pit (
-    // APB interface (system clock domain)
-    .pclk       (system_clk),         // 100 MHz
-    .presetn    (system_rst_n),
-    .paddr      (paddr),
-    .psel       (psel_pit),
-    .penable    (penable),
-    .pwrite     (pwrite),
-    .pwdata     (pwdata),
-    .pstrb      (pstrb),
-    .prdata     (prdata_pit),
-    .pready     (pready_pit),
-    .pslverr    (pslverr_pit),
-
-    // PIT clock (dedicated timer clock domain)
-    .pit_clk    (timer_clk),          // 10 MHz (independent)
-    .pit_rst_n  (timer_rst_n),
-
-    // External signals
-    .gate_in    (pit_gate_controls),  // From external logic
-    .timer_irq  (pit_interrupts)
+) u_apb4_pit_8254 (
+    .pclk                  (pclk),
+    .presetn               (presetn),
+    .pit_clk               (pit_clk),
+    .pit_resetn            (pit_resetn),
+    .s_apb_PSEL            (s_apb_PSEL),
+    .s_apb_PENABLE         (s_apb_PENABLE),
+    .s_apb_PREADY          (s_apb_PREADY),
+    .s_apb_PADDR           (s_apb_PADDR),
+    .s_apb_PWRITE          (s_apb_PWRITE),
+    .s_apb_PWDATA          (s_apb_PWDATA),
+    .s_apb_PSTRB           (s_apb_PSTRB),
+    .s_apb_PPROT           (s_apb_PPROT),
+    .s_apb_PRDATA          (s_apb_PRDATA),
+    .s_apb_PSLVERR         (s_apb_PSLVERR),
+    .gate_in               (gate_in),
+    .timer_irq             (timer_irq)
 );
 ```
 

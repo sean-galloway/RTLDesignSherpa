@@ -151,7 +151,7 @@ r_bcd           <= 1'b0;        // Binary mode
 **Register Reset Values:**
 ```
 PIT_CONFIG    = 0x00000000  (PIT disabled)
-PIT_STATUS    = 0x00303030  (all counters NULL_COUNT=1, OUT=0)
+PIT_STATUS    = 0x00404040  (all counters NULL_COUNT=1, OUT=0)
 COUNTER0_DATA = 0x00000000  (no count loaded)
 COUNTER1_DATA = 0x00000000  (no count loaded)
 COUNTER2_DATA = 0x00000000  (no count loaded)
@@ -203,7 +203,7 @@ wait_us(10);  // Allow settling
 
 // 3. Verify reset state
 assert(read_register(PIT_CONFIG) == 0x00000000);
-assert(read_register(PIT_STATUS) == 0x00303030);
+assert(read_register(PIT_STATUS) == 0x00404040);
 
 // 4. Configure PIT
 write_register(PIT_CONTROL, 0x30);  // Counter 0, Mode 0

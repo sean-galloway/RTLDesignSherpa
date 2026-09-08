@@ -9,8 +9,8 @@ This directory contains WaveDrom timing diagrams for PIT 8254 (Programmable Inte
 | `pit_mode0_terminal_count.json` | Mode 0 | Terminal count - one-shot interrupt |
 | `pit_mode2_rate_generator.json` | Mode 2 | Rate generator - divide-by-N |
 | `pit_mode3_square_wave.json` | Mode 3 | Square wave generator - 50% duty cycle |
-| `pit_gate_control.json` | Gate Control | Gate signal suspends/resumes counting |
-| `pit_readback.json` | Readback | Latch counter value while running |
+| `pit_gate_control.json` | Gate Control | Gate suspend/resume (8254 reference; RTL treats GATE as start enable only) |
+| `pit_readback.json` | Readback | Latch counter while running (8254 reference; not implemented, SC=11 is a no-op) |
 
 ## Signal Hierarchy
 
@@ -38,6 +38,11 @@ done
 ```
 
 ## Operating Modes
+
+NOTE: the delivered RTL implements Mode 0 only. Modes 1-5 below, the
+mode-dependent GATE table, and the readback command are Intel 8254 REFERENCE
+behavior kept for context; programming those modes yields Mode 0 counting,
+GATE never suspends an in-progress count, and SC=11 is a no-op.
 
 ### Mode 0: Terminal Count (Interrupt on Terminal Count)
 - OUT initially low

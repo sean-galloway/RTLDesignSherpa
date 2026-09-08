@@ -10,7 +10,7 @@
 // Top-level integration module providing:
 // - APB4 slave interface
 // - 3 independent 16-bit counters
-// - 6 operating modes per counter
+// - Mode 0 (interrupt on terminal count); modes 1-5 not implemented
 // - Binary or BCD counting
 // - Interrupt outputs
 // - Optional clock domain crossing
@@ -299,14 +299,12 @@ module apb4_pit_8254 #(
     );
 
     //========================================================================
-    // CDC Support (Future Enhancement)
+    // CDC note
     //========================================================================
 
-    // If CDC_ENABLE=1, would add clock domain crossing for:
-    // - Configuration signals (pclk -> pit_clk)
-    // - Status signals (pit_clk -> pclk)
-    // - Counter data (bidirectional)
-    //
-    // For now, CDC_ENABLE=0 is the default (same clock domain)
+    // CDC_ENABLE=1 is implemented above: apb4_slave_cdc carries the whole
+    // cmd/rsp stream across pclk <-> pit_clk, and the config regs + core run
+    // entirely on pit_clk, so no per-signal crossings are needed here.
+    // CDC_ENABLE=0 (default) runs everything on pclk via apb4_slave.
 
 endmodule

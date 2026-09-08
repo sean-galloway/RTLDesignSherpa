@@ -32,7 +32,7 @@ After power-on or reset, verify the PIT is in expected reset state:
 ```c
 // Expected reset values
 assert(read_register(PIT_CONFIG) == 0x00000000);    // PIT disabled
-assert(read_register(PIT_STATUS) == 0x00303030);    // All counters: NULL_COUNT=1, OUT=0
+assert(read_register(PIT_STATUS) == 0x00404040);    // All counters: NULL_COUNT=1 (bit 6 of each status byte), OUT=0
 assert(read_register(COUNTER0_DATA) == 0x00000000); // No count loaded
 assert(read_register(COUNTER1_DATA) == 0x00000000);
 assert(read_register(COUNTER2_DATA) == 0x00000000);

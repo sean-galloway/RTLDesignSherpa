@@ -41,42 +41,49 @@ In Mode 0, the counter counts down from the loaded value and asserts OUT when re
 
 The counter loads with the programmed value and decrements on each clock. When terminal count (0) is reached, OUT goes high and remains high until a new count is loaded.
 
-### Waveform 1.2: Mode 2 Rate Generator
+### Waveform 1.2: Mode 2 Rate Generator (reference only - not implemented)
 
-Mode 2 produces a divide-by-N clock output.
+Mode 2 on a real 8254 produces a divide-by-N clock output. This waveform is
+Intel 8254 reference behavior: the RTL implements Mode 0 only, and a control
+word selecting Mode 2 still yields Mode 0 counting (see Known Limitations).
 
 ![PIT Mode 2 Rate Generator](../assets/wavedrom/timing/pit_mode2_rate_generator.png)
 
 OUT is normally high, going low for one clock when the counter reaches 1. The counter auto-reloads, creating a periodic pulse train.
 
-### Waveform 1.3: Mode 3 Square Wave Generator
+### Waveform 1.3: Mode 3 Square Wave Generator (reference only - not implemented)
 
-Mode 3 produces a 50% duty cycle square wave.
+Mode 3 on a real 8254 produces a 50% duty cycle square wave. As with Mode 2,
+this is reference behavior only - the RTL runs Mode 0 regardless of the
+programmed mode.
 
 ![PIT Mode 3 Square Wave](../assets/wavedrom/timing/pit_mode3_square_wave.png)
 
 OUT toggles every N/2 clocks, producing a symmetric square wave output.
 
-### Waveform 1.4: Gate Control
+### Waveform 1.4: Gate Control (deviates from RTL)
 
-The GATE input controls counter operation.
+On a real 8254, GATE suspends and resumes Mode 0 counting. The delivered RTL
+treats GATE as a START enable only: it is sampled when a count is loaded (and
+when re-arming after terminal count), and once counting is in progress GATE
+transitions have no effect. The suspend/resume shown below is the Intel
+reference behavior, not this implementation (tracked as an RTL issue).
 
 ![PIT Gate Control](../assets/wavedrom/timing/pit_gate_control.png)
 
-When GATE goes low, counting suspends. When GATE returns high, counting resumes from the current value (not reloaded).
+### Waveform 1.5: Readback Command (reference only - not implemented)
 
-### Waveform 1.5: Readback Command
-
-The readback command latches counter value and status while the counter continues running.
+On a real 8254, the readback command (SC=11) latches counter value and status
+while the counter continues running. In the delivered RTL, SC=11 is a NO-OP -
+no latch is reachable through any documented sequence (consistent with Known
+Limitations below). The waveform shows the Intel reference behavior.
 
 ![PIT Readback](../assets/wavedrom/timing/pit_readback.png)
-
-This allows software to read a consistent counter value without stopping the timer.
 
 #### Key Features
 
 - **Three Independent Counters**: Three fully independent 16-bit down-counters
-- **16-bit Count Values**: Each counter supports counts from 1 to 65,536
+- **16-bit Count Values**: Each counter supports counts from 1 to 65,535 (1 to 9,999 in BCD). A count of 0 is degenerate: it reaches terminal count on the next enabled clock, NOT the 8254's 0-means-65,536 convention
 - **Mode 0 Implementation**: Interrupt on terminal count (one-shot operation)
 - **Binary Counting**: Standard binary countdown (BCD implemented but not yet tested)
 - **GATE Control**: Individual GATE inputs for external counter control

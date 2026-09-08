@@ -124,7 +124,7 @@ flowchart TD
 
 | From Block | To Block | Interface | Signals |
 |------------|----------|-----------|---------|
-| apb4_pit_8254 | apb4_slave | APB4 | psel, penable, pwrite, paddr, pwdata, prdata, pready, pslverr |
+| apb4_pit_8254 | apb4_slave | APB4 | s_apb_PSEL, s_apb_PENABLE, s_apb_PWRITE, s_apb_PADDR, s_apb_PWDATA, s_apb_PSTRB, s_apb_PPROT, s_apb_PRDATA, s_apb_PREADY, s_apb_PSLVERR |
 | apb4_slave | pit_config_regs | cmd/rsp | cmd_addr, cmd_wdata, cmd_wen, rsp_rdata, rsp_valid |
 | pit_config_regs | pit_regs | cpuif_apb | Various PeakRDL interface signals |
 | pit_regs | pit_config_regs | hwif | hwif_out, hwif_in (struct interfaces) |

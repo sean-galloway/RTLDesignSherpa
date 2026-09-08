@@ -99,52 +99,28 @@ Counter Value → count_reg_out → PIT Core → Config Regs →
 → APB Slave → APB Read Data
 ```
 
-#### Counter State Machine
+#### Counter Control State
 
-Each `pit_counter` module implements a simple state machine for Mode 0:
+There is no explicit state machine in `pit_counter`. Counter control is two
+flags plus the count itself:
 
-```
-                    ┌──────────┐
-                    │          │
-                    │  RESET   │
-                    │          │
-                    └────┬─────┘
-                         │ rst_n
-                         ▼
-                    ┌──────────┐
-        ┌───────────│          │
-        │           │   IDLE   │◀──────────────┐
-        │  ┌────────│          │               │
-        │  │        └────┬─────┘               │
-        │  │             │ reload_pending      │
-        │  │ NULL_COUNT  ▼                     │
-        │  │        ┌──────────┐               │
-        │  │        │          │               │
-        │  └───────▶│  LOADED  │               │
-        │           │          │               │
-        │           └────┬─────┘               │
-        │                │ GATE && CLK_EN      │
-        │                ▼                     │
-        │           ┌──────────┐               │
-        │           │          │               │
-        └──────────▶│ COUNTING │               │
-                    │          │               │
-                    └────┬─────┘               │
-                         │ count==0            │
-                         ▼                     │
-                    ┌──────────┐               │
-                    │          │               │
-                    │ TERMINAL │───────────────┘
-                    │          │  (OUT=1)
-                    └──────────┘
-```
+- **`r_null_count`** - set at reset, cleared by the first count load, and
+  never set again. There is no path back to a "no count loaded" state short
+  of a hardware reset.
+- **`r_counting`** - set when a load occurs with `GATE=1` and the clock
+  enabled (or when GATE/enable arrive after a load); cleared when the count
+  reaches zero (terminal count, OUT goes high).
 
-**States:**
-- **RESET**: All registers cleared
-- **IDLE**: Waiting for count value load (NULL_COUNT=1)
-- **LOADED**: Count loaded but not counting yet
-- **COUNTING**: Actively decrementing counter
-- **TERMINAL**: Count reached zero, OUT signal high
+Behavior over a Mode 0 cycle:
+
+1. Reset: `r_null_count=1`, `r_counting=0`, `OUT=0`.
+2. Count load: count captured, `r_null_count` cleared, OUT driven low;
+   counting starts immediately if `GATE=1` and the PIT is enabled, otherwise
+   it starts when they next are (GATE is sampled here, not monitored during
+   the count).
+3. Counting: decrement on each enabled clock; GATE transitions are ignored.
+4. Terminal count: at count 0, OUT goes high and `r_counting` clears. OUT
+   stays high until the next load drives it low again.
 
 #### Clock Domains
 
@@ -184,7 +160,8 @@ pit_clk ────────────────────────
 - All count values cleared
 
 **Soft Reset (PIT disable):**
-- Counters stop counting (counting=0)
+- Counting pauses (the clock enable is gated; the internal counting flag is
+  NOT cleared, so counting resumes where it left off on re-enable)
 - Count values preserved
 - OUT signals remain in current state
 - NULL_COUNT flags unchanged

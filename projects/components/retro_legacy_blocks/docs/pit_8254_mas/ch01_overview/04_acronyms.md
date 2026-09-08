@@ -76,7 +76,7 @@ AMBA APB4 is a simple synchronous protocol for low-bandwidth peripheral access. 
 - **Response**: `pready=1` when slave completes transaction
 
 **BCD Counting:**
-Binary-Coded Decimal mode where each 4-bit nibble represents 0-9. For 16-bit counter, BCD mode supports counts from 0000 to 9999 (4 decimal digits). Currently implemented but not yet tested.
+Binary-Coded Decimal mode where each 4-bit nibble represents 0-9. For a 16-bit counter, BCD mode supports counts from 1 to 9999 (4 decimal digits); a count of 0 is degenerate (terminal count on the next enabled clock - there is no 0-means-10000 convention). Currently implemented but not yet tested.
 
 **Binary Counting:**
 Standard binary mode where full 16-bit range is used: 0 to 65,535 counts.
@@ -100,7 +100,7 @@ An 8-bit value written to `PIT_CONTROL` register to configure counter operation.
 A 16-bit down-counter that decrements on each clock cycle when enabled. The PIT contains three independent counters (Counter 0, Counter 1, Counter 2).
 
 **GATE Input:**
-Per-counter enable signal. When `gate_in[N]=1`, counter N can count (if also enabled globally). When `gate_in[N]=0`, counter N is paused.
+Per-counter start enable. Sampled when a count is loaded (and when re-arming after terminal count): a load with `gate_in[N]=1` starts counting. Once counting is in progress, GATE transitions have no effect - unlike the Intel 8254, GATE does not pause a running counter (tracked as an RTL issue).
 
 **Interrupt on Terminal Count (Mode 0):**
 Counter operation mode where OUT signal goes high when count reaches zero, typically used to generate interrupts.

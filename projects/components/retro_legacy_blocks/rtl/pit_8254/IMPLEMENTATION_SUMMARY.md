@@ -190,9 +190,10 @@ WAVES=1 pytest test_apb4_pit_8254.py -v -s
 
 **Advanced Features (Future Work):**
 - Read-back command (counter_select = 3)
-- Medium and Full test suites
-- CDC testing (multi-clock domain)
 - BCD counting comprehensive tests
+
+(CDC is implemented and tested: the pytest matrix runs gate/func/full at both
+CDC_ENABLE=0 and CDC_ENABLE=1, 6/6 passing.)
 
 ### Implementation Timeline
 
