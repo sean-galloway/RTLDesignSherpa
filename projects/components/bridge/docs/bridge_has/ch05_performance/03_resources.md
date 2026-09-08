@@ -127,6 +127,17 @@
 
 - Estimates include all converters and adapters
 - Actual results vary by synthesis tool and FPGA family
+
+**These are hand estimates, and they do not reconcile.** Summing the
+per-component tables above for the same configuration does not reproduce the
+summary figures in Table 5.18, and neither has been checked against a synthesis
+report. Treat every number on this page as an order-of-magnitude guide, not a
+budget: use it to tell "a few thousand LUTs" from "a few hundred", and run
+synthesis for anything finer.
+
+The honest fix is a synthesis run per shipped variant with the numbers
+replaced by measurements, which nobody has done. Saying so is better than
+leaving arithmetic that looks authoritative and is not.
 - Block RAM usage depends on ID table implementation
 - DSP usage is zero (no multiplication/division)
 

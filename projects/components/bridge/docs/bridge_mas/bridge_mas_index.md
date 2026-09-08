@@ -24,8 +24,8 @@
 # Bridge Micro-Architecture Specification Index
 
 **Component:** Bridge (Multi-Protocol Crossbar Generator)
-**Version:** 1.1
-**Date:** 2026-06-04
+**Version:** 1.2
+**Date:** 2026-09-07
 **Purpose:** Detailed micro-architecture specification for Bridge component
 
 ---
@@ -185,6 +185,17 @@ What happens to a transaction depends on the master/slave protocol pairing:
 
 ## Version History
 
+**Version 1.2 (2026-09-07):** qc round_1/round_2 correctness pass. Retired the
+ID-extension architecture from every page that claimed it (IDs are
+pass-through; responses route by an in-order `bridge_id` FIFO -- see
+BRIDGE-010 for the ordering requirement that creates). Corrected the
+out-of-range responder against `axi4_subtractive_slave` (RLAST on the final
+beat only, DECERR, 0xDEADBEEF), the monbus group instantiation, the transaction
+timeout that does not exist, and the strobe-mapping example. Documented the
+subtractive catch-all and its status/IRQ path.
+
+**Version 1.1 (2026-06-04):** content sync to RTL state at that date.
+
 **Version 1.0 (2026-01-03):**
 - Initial specification release
 - Restructured from single spec to HAS/MAS format
@@ -193,5 +204,5 @@ What happens to a transaction depends on the master/slave protocol pairing:
 
 ---
 
-**Last Updated:** 2026-01-03
+**Last Updated:** 2026-09-07
 **Maintained By:** RTL Design Sherpa Project

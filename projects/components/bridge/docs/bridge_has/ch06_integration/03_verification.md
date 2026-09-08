@@ -79,8 +79,8 @@ from TBClasses.shared.tbbase import TBBase
 class BridgeTB(TBBase):
     def __init__(self, dut):
         super().__init__(dut)
-        self.masters = [AXI4Master(dut, dut.clk, f"m{i}_axi") for i in range(NUM_MASTERS)]
-        self.slaves = [MemoryModel(dut, dut.clk, f"s{i}_axi") for i in range(NUM_SLAVES)]
+        self.masters = [AXI4Master(dut, dut.aclk, f"m{i}_axi") for i in range(NUM_MASTERS)]
+        self.slaves = [MemoryModel(dut, dut.aclk, f"s{i}_axi") for i in range(NUM_SLAVES)]
 
 @cocotb.test()
 async def cocotb_test_basic_write(dut):
