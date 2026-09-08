@@ -136,9 +136,14 @@ end
 
 ### Implementation Status
 
-**Current State:** Fixed-width crossbar with master-side upsizing (Phase 1 architecture)
-**Target State:** Intelligent per-master multi-width routing (your vision)
-**Migration:** Requires generator architecture rework (see TASKS.md)
+**Current State:** Intelligent per-master multi-width routing -- DELIVERED.
+`cpu_master_adapter.sv` in `bridge_4x4_rw` carries separate 32b, 64b, 128b and
+256b paths and converts only where a master and its slave disagree. There is no
+fixed internal crossbar width.
+
+This block described the Phase-1 fixed-width crossbar as current and the
+per-width routing as a future migration "requiring generator architecture
+rework". That rework has happened; the block outlived it.
 
 ---
 

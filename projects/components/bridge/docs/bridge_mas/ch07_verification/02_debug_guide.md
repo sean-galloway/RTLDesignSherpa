@@ -114,7 +114,7 @@ print(f"BREADY: {dut.s0_axi_bready.value}")
 ```python
 # The AXI ID passes through UNCHANGED -- there is no ID extension.
 print(f"Master AWID : {dut.cpu_m_axi_awid.value}")
-print(f"Slave  AWID : {dut.ddr_axi_awid.value}")     # same value
+print(f"Slave  AWID : {dut.ddr_s_axi_awid.value}")   # same value
 
 # Routing is by the bridge_id sideband, not the ID:
 print(f"B routed to bridge_id: {dut.u_xbar.ddr_axi_bid_bridge_id.value}")
@@ -140,8 +140,11 @@ print(f"R routed to bridge_id: {dut.u_xbar.ddr_axi_rid_bridge_id.value}")
 
 ```python
 # Check width conversion
-print(f"Master data width: {dut.M0_DATA_WIDTH.value}")
-print(f"Slave data width: {dut.S0_DATA_WIDTH.value}")
+# There are no M0_DATA_WIDTH / S0_DATA_WIDTH parameters: the generated top
+# has NO parameter list at all and widths are baked into the port
+# declarations. Read the width off a port instead:
+print(f"Master data width: {len(dut.cpu_m_axi_wdata.value)}")
+print(f"Slave data width:  {len(dut.ddr_s_axi_wdata.value)}")
 
 # Check strobe packing
 print(f"Master WSTRB: {dut.m0_axi_wstrb.value}")

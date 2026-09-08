@@ -114,7 +114,8 @@ Core AXI4 features that matter:
 
 ### Architecture Philosophy
 
-**Target:** Intelligent width-aware routing, not fixed-width crossbar
+**Delivered:** Intelligent width-aware routing, not a fixed-width crossbar.
+The generated adapters carry per-width paths and convert only at a mismatch.
 
 **OLD Approach (What We're Moving Away From):**
 ```
@@ -316,7 +317,7 @@ The bridge generator now supports both TOML/CSV configuration and legacy array-i
 | **Out-of-Order** | No (sequential) | No (streaming order) | No (in-order, `bridge_id` routed) |
 | **Burst Support** | No | Packet (via TLAST) | Yes (AWLEN/ARLEN) |
 | **Complexity** | Low | Medium | **High** |
-| **Latency** | 1-2 cycles | 2 cycles | 2-3 cycles |
+| **Latency** | 1-2 cycles | 2 cycles | 2 cycles each way (measured; HAS Table 5.7) |
 | **Use Case** | Control registers | Data streaming | Memory-mapped I/O |
 
 **Bridge Complexity Sources:**
@@ -661,7 +662,7 @@ After address phase completes, data transfer is line-rate:
   - R channel: 1 beat/cycle (ID-routed from slave)
 
 Example: 256-beat burst
-  Address phase:  2-3 cycles (one-time)
+  Address phase:  2 cycles (measured, one-time)
   Data phase:     256 cycles (line-rate)
   Total:          258-259 cycles
   Efficiency:     98.8%
@@ -699,7 +700,7 @@ LUTs ≈ 500 + 150 × 16 + 20 × 16 × 4
 |---------------|---------|------------|------------|----------|
 | **APB** | 1-2 cycles | Low (serialized) | Low | Control registers |
 | **AXI-Stream (Delta)** | 2 cycles | High (streaming) | Medium | Data streaming |
-| **AXI4 (Bridge)** | 2-3 cycles | High (burst) | **High** | Memory-mapped I/O |
+| **AXI4 (Bridge)** | 2 cycles each way | High (burst) | **High** | Memory-mapped I/O |
 | **AXI4 + Slices** | 4-6 cycles | High (burst) | Very High | >400 MHz designs |
 
 **Bridge Sweet Spot:** memory-mapped interconnects that need burst efficiency and mixed protocols. NOT a fit where out-of-order completion matters -- the fabric is in-order by construction (FR-9, BRIDGE-010).
