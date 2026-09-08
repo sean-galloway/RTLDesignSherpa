@@ -159,7 +159,14 @@ bool bcd = counter0_status & 0x1;
 - RW=10 (MSB only) takes the count's HIGH byte from PWDATA[7:0] (the
   write-side mirror of the documented read quirk): write 0x00AB to load
   0xAB00; a natural 0xAB00 write loads zero
-- Counter loads value immediately
+- Counter loads the written value on the SECOND request cycle: the
+  cmd/rsp adapter holds the request for two cycles, and the load strobe
+  fires on both -- the first strobe loads the PREVIOUS capture (a
+  one-cycle phantom load of stale data, 0 after reset) and the second
+  loads the correct value (verified against peakrdl_to_cmdrsp.sv;
+  RTL hazard #52). Net effect for software: the right count lands, but
+  reloading a RUNNING counter passes through one cycle of stale count --
+  with a stale value of 0 that can pulse OUT/irq spuriously
 - If `GATE` high and `PIT_ENABLE=1`, counter starts decrementing
 - Writes while counting update the reload value and restart counting
 
@@ -197,7 +204,8 @@ uint32_t count = read_register(COUNTER0_DATA) & 0xFFFF;
 
 **Write Timing:**
 ```
-APB Write → Register Update (1 cycle) → Counter Load (1 cycle) → Start Counting
+APB Write → strobe cycle 1 (phantom load of stale capture) → strobe
+cycle 2 (correct value loads) → Start Counting  [see the note above, #52]
 ```
 
 **Read Timing:**

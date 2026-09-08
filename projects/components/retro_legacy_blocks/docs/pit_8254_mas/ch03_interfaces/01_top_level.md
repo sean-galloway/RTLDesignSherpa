@@ -86,7 +86,7 @@ module apb4_pit_8254 #(
 **Counter Control and Status:**
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `gate_in[2:0]` | Input | 3 | GATE inputs for counters 0, 1, 2. GATE is a start enable: it is sampled when a count is loaded (and when re-arming after terminal count). Once a count is in progress, GATE transitions have no effect - the counter does NOT pause. This deviates from the Intel 8254, where Mode 0 counting suspends while GATE is low (tracked as an RTL issue). |
+| `gate_in[2:0]` | Input | 3 | GATE inputs for counters 0, 1, 2. GATE is a start enable: it is sampled when a count is loaded (and when re-arming after terminal count). Once a count is in progress, GATE transitions have no effect - the counter does NOT pause. This deviates from the Intel 8254, where Mode 0 counting suspends while GATE is low (tracked as an RTL issue). GATE has NO synchronizer into the pit_clk domain -- with CDC_ENABLE=1 it must be driven synchronously to pit_clk or externally synchronized (#52). |
 | `timer_irq[2:0]` | Output | 3 | Timer interrupt outputs. Driven by OUT signals from counters 0, 1, 2. High when terminal count reached (Mode 0). |
 
 #### Address Map

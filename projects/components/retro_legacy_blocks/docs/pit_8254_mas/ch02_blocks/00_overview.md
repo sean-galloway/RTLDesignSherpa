@@ -85,17 +85,19 @@ flowchart TD
 - Top-level I/O connection
 
 **apb4_slave / apb4_slave_cdc (APB Interface)**
-- APB protocol state machine
-- Address decode and transaction control
+- APB protocol state machine and transaction control (register-address
+  decode lives in the generated pit_regs.sv)
 - Optional CDC when `CDC_ENABLE=1`
-- Error response generation
+- No error responses: the register block ties its error outputs off, so
+  PSLVERR never asserts (see ch03)
 
 **pit_config_regs (Configuration Registers)**
 - PeakRDL register file instantiation
 - Protocol adaptation (cmd/rsp ↔ cpuif_apb)
 - Edge detection for write strobes
 - Counter readback connection
-- Control word decode and routing
+- Control-word and counter-load write strobes (the counter-select decode
+  of the control word itself is in pit_core.sv)
 
 **pit_regs (PeakRDL Generated)**
 - Register storage (flip-flops)
@@ -125,7 +127,7 @@ flowchart TD
 | From Block | To Block | Interface | Signals |
 |------------|----------|-----------|---------|
 | apb4_pit_8254 | apb4_slave | APB4 | s_apb_PSEL, s_apb_PENABLE, s_apb_PWRITE, s_apb_PADDR, s_apb_PWDATA, s_apb_PSTRB, s_apb_PPROT, s_apb_PRDATA, s_apb_PREADY, s_apb_PSLVERR |
-| apb4_slave | pit_config_regs | cmd/rsp | cmd_addr, cmd_wdata, cmd_wen, rsp_rdata, rsp_valid |
+| apb4_slave | pit_config_regs | cmd/rsp | cmd_valid/ready, cmd_pwrite, cmd_paddr, cmd_pwdata, cmd_pstrb; rsp_valid/ready, rsp_prdata, rsp_pslverr |
 | pit_config_regs | pit_regs | cpuif_apb | Various PeakRDL interface signals |
 | pit_regs | pit_config_regs | hwif | hwif_out, hwif_in (struct interfaces) |
 | pit_config_regs | pit_core | Control | pit_enable, control_word, control_wr, counter_data, counter_wr |
@@ -148,7 +150,7 @@ CPU writes 0x30 to PIT_CONTROL (0x004)
     ↓
 APB transaction on paddr=0x004, pwdata=0x30, pwrite=1
     ↓
-apb4_slave asserts cmd_wen, cmd_addr=0x004, cmd_wdata=0x30
+apb4_slave asserts cmd_valid with cmd_pwrite=1, cmd_paddr=0x004, cmd_pwdata=0x30
     ↓
 peakrdl_to_cmdrsp converts to cpuif_apb protocol
     ↓
@@ -169,7 +171,7 @@ CPU reads from COUNTER1_DATA (0x014)
     ↓
 APB read transaction on paddr=0x014, pwrite=0
     ↓
-apb4_slave asserts cmd_addr=0x014, cmd_wen=0 (read)
+apb4_slave asserts cmd_valid with cmd_pwrite=0, cmd_paddr=0x014 (read)
     ↓
 peakrdl_to_cmdrsp converts to cpuif_apb read
     ↓
