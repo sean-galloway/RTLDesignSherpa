@@ -279,6 +279,42 @@ Related: rule 1 (positive control), rule 10 (a gate that fails on everything
 reports nothing). This is the third variant: a gate that PASSES on almost
 nothing.
 
+### 17. A cycle sampler beside the BFMs drops samples -- so make it prove it looked
+
+A cocotb coroutine that watches a bus for violations and finds none is
+INDISTINGUISHABLE from one that never sampled. Both report clean.
+
+Measured on the bridge BRIDGE-011 test: a B-channel watcher checking that each
+response carried its owner's ID observed **16 of 80** responses. Four
+concurrent watchers each awaiting `ReadOnly()` were competing with the BFMs for
+the same phase. Consolidating all four probes into ONE coroutine raised it to
+27 of 80 -- better, still two thirds blind. The test had already been committed
+reporting "no misroutes", which was true only of the fifth of the traffic it
+happened to see.
+
+Three things follow:
+
+1. **Assert the watcher was alive.** `assert b_seen, "the watcher never
+   observed a single response, so its 'no misroutes' result carries no
+   information"`. This is rule 1 (positive control) applied to the observer
+   rather than the stimulus, and it is cheap.
+2. **Say what the check is worth.** If sampling is partial, the check reports
+   only violations it SAW; it is not proof of absence. Label it supplementary
+   in the code, and make the primary detector something that does not depend on
+   sampling at all -- for BRIDGE-011 that is the FIFO occupancy invariant read
+   straight off the pointers, which cannot miss a cycle it is not watching for.
+3. **Prefer state over events.** An invariant on a register (`occupancy <=
+   DEPTH`) is robust where counting handshakes is not. Events need every cycle;
+   state only needs the peak.
+
+A related trap on the way in: `int(sig.value)` raises `ValueError` on an X, and
+an exception inside `cocotb.start_soon` kills that coroutine SILENTLY. Wrap
+sampling in a helper that returns False on an unresolvable value. Note the
+diagnosis order though -- in this case the X theory was WRONG (the signals
+resolved fine; the real cause was a mis-ordered `ReadOnly`/`RisingEdge`), and
+believing it cost a debugging round. Instrument and print the actual values
+before adopting an explanation for why a watcher saw nothing.
+
 ## The single question
 
 Before believing any zero, ask: **if the thing I am looking for were happening,
