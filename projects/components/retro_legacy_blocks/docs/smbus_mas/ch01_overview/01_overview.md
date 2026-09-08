@@ -28,11 +28,14 @@
 Top-level parameters on apb4_smbus: FIFO_DEPTH (default 32, the SMBus 2.0
 block size), CDC_ENABLE (0 = single pclk domain, 1 = separate core clock
 via apb4_slave_cdc) and USE_JOHNSON (CDC counter encoding, default 0).
-There is no skid-depth parameter.
+There is no skid-depth parameter. Note that with CDC_ENABLE=1 the
+smb_interrupt aggregation samples core-domain status directly on pclk
+with no synchronizers -- a known CDC gap (#58).
 
 The APB SMBus controller provides System Management Bus communication with APB interface. It supports host controller functionality for accessing SMBus devices.
 
-## Key Features
+## Key Features (design targets -- see the status note below: several
+are non-functional in the current RTL, #58)
 
 - SMBus 2.0 compatible
 - Host controller mode
@@ -138,4 +141,5 @@ definitions, reset values, and implementation limitations.
 
 ---
 
-**Next:** [02_architecture.md](02_architecture.md)
+**Next:** Chapter 2 (Architecture) is planned and not yet written -- see
+the index

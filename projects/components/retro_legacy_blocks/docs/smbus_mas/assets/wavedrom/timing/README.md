@@ -19,15 +19,15 @@ This directory contains WaveDrom timing diagrams for SMBus (System Management Bu
 - `s_apb_PWRITE`, `s_apb_PADDR`, `s_apb_PWDATA`, `s_apb_PRDATA` - Data signals
 
 ### SMBus Pins (External)
-Real ports on apb4_smbus: `smb_scl_i/o/oe` and `smb_sda_i/o/oe` (split
-input/output/output-enable, push-pull in the current RTL). There is no
+Real ports on apb4_smbus: `smb_scl_i/o/t` and `smb_sda_i/o/t` (split
+input/output/tristate-enable, 1=input; push-pull in the current RTL). There is no
 `smbalert_n` pin. The `scl`/`sda` traces in the diagrams are the composed
 wire view.
 
 ### SMBus Core (Internal)
 Real signal names in smbus_core.sv:
 - **State Machine:** `r_master_state`, `r_bit_counter`
-- **TX/RX Path:** `r_shift_reg`, `r_rx_data`
+- **TX/RX Path:** `r_shift_reg`, `r_rx_bit`
 - **Clock:** `r_scl_gen` (generated but never reaches the pin -- see the
   Implementation Limitations)
 - **PEC:** `w_pec_out` (CRC submodule output) with `w_pec_clear` (held clear during master
@@ -86,7 +86,7 @@ Legend: S=Start, Sr=Repeated Start, A=ACK, N=NACK, P=Stop
 | t_LOW | 4.7 | - | us |
 | t_HIGH | 4.0 | - | us |
 | t_SU:STA | 4.7 | - | us |
-| t_HD:DAT | 0 | - | us |
+| t_HD:DAT | 300 ns | - | us | (SMBus 2.0; the I2C value is 0)
 | t_SU:DAT | 250 | - | ns |
 | t_SU:STO | 4.0 | - | us |
 

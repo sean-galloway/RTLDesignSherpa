@@ -138,7 +138,7 @@ is no writable R/W bit at bit 7; writes to bit 7 are ignored and it reads back 0
 
 | Bit | Name | Access | Reset | Description |
 |-----|------|--------|-------|-------------|
-| 7:0 | data | RW | 0 | Single data byte for Send/Receive/Write/Read Byte-Word |
+| 7:0 | data | RW | 0 | Single data byte for Send/Receive/Write/Read Byte-Word. NON-FUNCTIONAL as a command staging register (#58): the field is reloaded from the core shift register every non-write cycle, so a software-written byte survives exactly one clock -- write-then-read returns live core data, and the staged TX byte can never actually be programmed |
 | 31:8 | Reserved | RO | 0 | Reads 0 |
 
 ---
@@ -258,7 +258,7 @@ cannot deassert the pin.
 
 | Bit | Name | Access | Reset | Description |
 |-----|------|--------|-------|-------------|
-| 7:0 | pec | RW | 0 | Current/expected PEC value (CRC-8, polynomial 0x07) |
+| 7:0 | pec | RW | 0 | Current/expected PEC value (CRC-8, polynomial 0x07). Same clobber defect as SMBUS_DATA (#58): reloaded from the CRC accumulator every non-write cycle (held 0 by the near-permanent PEC clear), so an expected-PEC value cannot be programmed |
 | 31:8 | Reserved | RO | 0 | Reads 0 |
 
 ---
