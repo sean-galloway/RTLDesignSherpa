@@ -209,7 +209,7 @@ peakrdl_to_cmdrsp Adapter
 hpet_regs (PeakRDL)
     ↓ hwif_out (register values)
 hpet_config_regs (Mapping)
-    ↓ timer_enable, timer_comparator_wr, timer_comparator_data[i]
+    ↓ timer_enable, timer_comp_write, timer_comp_wdata[i]
 hpet_core (Timer Logic)
     -> Counter/Comparator update
 ```
@@ -239,8 +239,8 @@ APB Master
 hpet_core
     ← Counter increments
     -> Comparator match detected
-    -> timer_fired[i] asserts
-    -> timer_irq[i] asserts
+    -> timer_int_status[i] asserts (sticky)
+    -> timer_irq[i] asserts one clock later (if int_enable was set at fire)
         ↓
 hpet_config_regs
     -> hwif_in.HPET_STATUS.timer_int_status (edge pulse)
@@ -253,9 +253,12 @@ Software writes W1C to clear
     ↓
 hpet_config_regs
     -> timer_int_clear[i] asserts
+       (known RTL deviation, issue #46: the clear strobe fires on ANY
+       HPET_STATUS write and clears every pending core status bit, not
+       only the bits written with 1)
         ↓
 hpet_core
-    -> timer_fired[i] clears
+    -> timer_int_status[i] clears
     -> timer_irq[i] deasserts
 ```
 
@@ -315,7 +318,7 @@ input  logic [NUM_TIMERS-1:0]   timer_int_status;       // Per-timer fire status
 
 **Interrupt Clearing (hpet_config_regs -> hpet_core):**
 ```systemverilog
-output logic [NUM_TIMERS-1:0]   timer_int_clear;        // Clear fire flags
+output logic [NUM_TIMERS-1:0]   timer_int_clear;        // Clear sticky status
 ```
 
 ##### hpet_config_regs -> hpet_regs Interface
@@ -377,7 +380,7 @@ When integrating APB HPET:
 
 **3. Reset Coordination:**
 - [ ] Assert `presetn` (APB reset, active-low)
-- [ ] Assert `hpet_rst_n` (HPET reset, active-low)
+- [ ] Assert `hpet_resetn` (HPET reset, active-low)
 - [ ] If `CDC_ENABLE=1`: Ensure both resets overlap at power-on
 - [ ] Hold resets for >=10 clock cycles
 

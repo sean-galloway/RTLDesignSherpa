@@ -70,13 +70,15 @@ apb4_hpet
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| **VENDOR_ID** | int | 1 | 0-65535 | Vendor identification (read-only in HPET_ID register) |
-| **REVISION_ID** | int | 1 | 0-65535 | Revision identification (read-only in HPET_ID register) |
+| **VENDOR_ID** | int | 1 | -- | Currently unwired: the HPET_ID vendor byte is fixed 0x01 in the generated register block |
+| **REVISION_ID** | int | 1 | -- | Currently unwired: the HPET_ID revision byte is fixed 0x01 |
 | **NUM_TIMERS** | int | 2 | 2, 3, 8 | Number of independent timers in array |
 | **CDC_ENABLE** | int | 0 | 0, 1 | Clock domain crossing: 0=synchronous, 1=asynchronous |
 
 **Parameter Notes:**
-- **VENDOR_ID** and **REVISION_ID**: Informational only, visible in HPET_CAPABILITIES register
+- **VENDOR_ID** and **REVISION_ID**: accepted at instantiation but never
+  consumed -- the values are baked into the generated `hpet_regs` at
+  generation time (0x01/0x01 in HPET_ID). Overriding them has no effect.
 - **NUM_TIMERS**: Must match PeakRDL generation (currently supports 2, 3, or 8)
 - **CDC_ENABLE**: Critical for system integration - determines clock relationship
 
@@ -115,7 +117,9 @@ apb4_hpet
 **Address Space:** 12-bit addressing supports up to 4KB (0x000-0xFFF)
 - Global registers: 0x000-0x0FF
 - Timer registers: 0x100-0x1FF (32-byte spacing per timer)
-- Reserved: 0x200-0xFFF
+- 0x200-0xFFF: ALIASES of the 0x000-0x1FF map. Only address bits [8:0] reach
+  the register block, so e.g. a read at 0x200 returns HPET_ID. No address
+  ever raises PSLVERR -- the register block ties both error outputs to 0.
 
 ##### Timer Interrupt Outputs (High Frequency Domain)
 
@@ -343,9 +347,7 @@ hpet_core #(
 
 ```systemverilog
 apb4_hpet #(
-    .VENDOR_ID(16'h8086),      // Intel vendor ID
-    .REVISION_ID(16'h0001),
-    .NUM_TIMERS(2),
+    .NUM_TIMERS(2),            // VENDOR_ID/REVISION_ID left at defaults (unwired)
     .CDC_ENABLE(0)              // ← Synchronous clocks
 ) u_hpet (
     // Use same clock for both domains
@@ -378,45 +380,25 @@ assign irq_sources[31:30] = hpet_irq[1:0];
 
 ```systemverilog
 apb4_hpet #(
-    .VENDOR_ID(16'h1022),      // AMD vendor ID
-    .REVISION_ID(16'h0002),
-    .NUM_TIMERS(3),
+    .NUM_TIMERS(3),            // VENDOR_ID/REVISION_ID left at defaults (unwired)
     .CDC_ENABLE(1)              // ← Asynchronous clocks
-) u_hpet (
-    // APB domain (slow system clock)
-    .pclk           (apb_clk),         // 50 MHz APB clock
-    .presetn        (apb_rst_n),
-
-    // HPET domain (high-precision timer clock)
-    .hpet_clk       (timer_clk),       // 100 MHz timer clock (async)
-    .hpet_resetn    (timer_rst_n),
-
-    // APB Interface
-    .s_apb_PSEL     (apb_psel),
-    .s_apb_PENABLE  (apb_penable),
-    .s_apb_PREADY   (apb_pready),
-    .s_apb_PADDR    (apb_paddr[11:0]),
-    .s_apb_PWRITE   (apb_pwrite),
-    .s_apb_PWDATA   (apb_pwdata),
-    .s_apb_PSTRB    (apb_pstrb),
-    .s_apb_PPROT    (apb_pprot),
-    .s_apb_PRDATA   (apb_prdata),
-    .s_apb_PSLVERR  (apb_pslverr),
-
-    // Timer Interrupts (hpet_clk domain)
-    .timer_irq      (hpet_irq[2:0])
+) u_apb4_hpet (
+    .pclk                  (pclk),
+    .presetn               (presetn),
+    .hpet_clk              (hpet_clk),
+    .hpet_resetn           (hpet_resetn),
+    .s_apb_PSEL            (s_apb_PSEL),
+    .s_apb_PENABLE         (s_apb_PENABLE),
+    .s_apb_PREADY          (s_apb_PREADY),
+    .s_apb_PADDR           (s_apb_PADDR),
+    .s_apb_PWRITE          (s_apb_PWRITE),
+    .s_apb_PWDATA          (s_apb_PWDATA),
+    .s_apb_PSTRB           (s_apb_PSTRB),
+    .s_apb_PPROT           (s_apb_PPROT),
+    .s_apb_PRDATA          (s_apb_PRDATA),
+    .s_apb_PSLVERR         (s_apb_PSLVERR),
+    .timer_irq             (timer_irq)
 );
-
-// Synchronize interrupts to system clock domain
-sync_2ff #(.WIDTH(3)) u_irq_sync (
-    .i_clk   (system_clk),
-    .i_rst_n (system_rst_n),
-    .i_data  (hpet_irq[2:0]),
-    .o_data  (hpet_irq_sync[2:0])
-);
-
-// Connect synchronized interrupts to interrupt controller
-assign irq_sources[33:31] = hpet_irq_sync[2:0];
 ```
 
 #### Resource Utilization Summary

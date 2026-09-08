@@ -97,9 +97,11 @@ The APB HPET operates in one or two clock domains depending on CDC configuration
 
 **Type:** Asynchronous active-low reset
 
-**Scope:** APB interface and configuration registers
+**Scope:** The APB front-end always; with `CDC_ENABLE=0` also the register
+file and timer core (everything runs on `pclk` in that mode)
 
-**Reset Behavior:**
+**Reset Behavior** (illustrative; with `CDC_ENABLE=1` the register file
+resets from `hpet_clk`/`hpet_resetn` instead):
 ```systemverilog
 always_ff @(posedge pclk or negedge presetn) begin
     if (!presetn) begin
@@ -120,23 +122,25 @@ end
 |----------|-------------|-------------|
 | `HPET_CONFIG` | 32'h0 | Global disable, no legacy mapping |
 | `HPET_STATUS` | 32'h0 | All interrupt flags cleared |
-| `HPET_COUNTER_LO` | N/A | Write-only from APB domain |
-| `HPET_COUNTER_HI` | N/A | Write-only from APB domain |
-| `HPET_CAPABILITIES` | Read-only | Contains NUM_TIMERS, VENDOR_ID, REVISION_ID |
+| `HPET_COUNTER_LO` | 32'h0 | Read/write; reads return the live counter |
+| `HPET_COUNTER_HI` | 32'h0 | Read/write; reads return the live counter |
+| `HPET_ID` | Constant | RO identification: vendor/revision fixed 0x01/0x01, `num_tim_cap` = NUM_TIMERS-1 |
 | `TIMER[i]_CONFIG` | 32'h0 | Timer disabled, one-shot mode |
-| `TIMER[i]_COMPARATOR_LO` | N/A | Write-only |
-| `TIMER[i]_COMPARATOR_HI` | N/A | Write-only |
+| `TIMER[i]_COMPARATOR_LO` | 32'h0 | Read/write; reads return the last software-written value |
+| `TIMER[i]_COMPARATOR_HI` | 32'h0 | Read/write; reads return the last software-written value |
 
-##### HPET Reset (`hpet_rst_n`)
+##### HPET Reset (`hpet_resetn`)
 
 **Type:** Asynchronous active-low reset
 
-**Scope:** Timer counter and timer logic
+**Scope:** With `CDC_ENABLE=1`, the register file and timer core (both run on
+`hpet_clk` in that mode). With `CDC_ENABLE=0` this reset is unused by the
+core logic, which runs on `pclk`/`presetn`.
 
 **Reset Behavior:**
 ```systemverilog
-always_ff @(posedge hpet_clk or negedge hpet_rst_n) begin
-    if (!hpet_rst_n) begin
+always_ff @(posedge hpet_clk or negedge hpet_resetn) begin
+    if (!hpet_resetn) begin
         // Main counter
         r_main_counter <= 64'h0;
 
@@ -144,7 +148,7 @@ always_ff @(posedge hpet_clk or negedge hpet_rst_n) begin
         for (int i = 0; i < NUM_TIMERS; i++) begin
             r_timer_comparator[i] <= 64'h0;
             r_timer_period[i] <= 64'h0;
-            r_timer_fired[i] <= 1'b0;
+            r_interrupt_status[i] <= 1'b0;
         end
     end
 end
@@ -156,24 +160,24 @@ end
 | `r_main_counter` | 64'h0 | Counter starts at zero |
 | `r_timer_comparator[i]` | 64'h0 | Comparators cleared |
 | `r_timer_period[i]` | 64'h0 | Period storage cleared |
-| `r_timer_fired[i]` | 1'b0 | Fire flags cleared |
+| `r_interrupt_status[i]` | 1'b0 | Interrupt status cleared |
 
 #### Reset Coordination
 
 ##### Synchronous Mode (CDC_ENABLE = 0)
 
-**Requirement:** `presetn` and `hpet_rst_n` should be asserted/deasserted together
+**Requirement:** `presetn` and `hpet_resetn` should be asserted/deasserted together
 
 **Recommended Connection:**
 ```systemverilog
-assign hpet_rst_n = presetn;  // Same reset for both domains
+assign hpet_resetn = presetn;  // Same reset for both domains
 ```
 
 **Reset Sequence:**
 ```
-1. Assert presetn = 0 (also asserts hpet_rst_n = 0)
+1. Assert presetn = 0 (also asserts hpet_resetn = 0)
 2. Hold for >= 10 clock cycles
-3. Deassert presetn = 1 (also deasserts hpet_rst_n = 1)
+3. Deassert presetn = 1 (also deasserts hpet_resetn = 1)
 4. Wait >= 5 clock cycles before first register access
 ```
 
@@ -183,9 +187,9 @@ assign hpet_rst_n = presetn;  // Same reset for both domains
 
 **Recommended Sequence:**
 ```
-1. Assert both presetn = 0 and hpet_rst_n = 0
+1. Assert both presetn = 0 and hpet_resetn = 0
 2. Hold presetn for >= 10 pclk cycles
-3. Hold hpet_rst_n for >= 10 hpet_clk cycles
+3. Hold hpet_resetn for >= 10 hpet_clk cycles
 4. Deassert resets (order not critical, but both must be stable)
 5. Wait for CDC handshake to stabilize (>= 6 pclk cycles)
 6. Begin register accesses
@@ -197,7 +201,7 @@ assign hpet_rst_n = presetn;  // Same reset for both domains
 presetn    +                                    (>=10 pclk cycles in reset)
 
                   +---------------------------------
-hpet_rst_n        +                              (>=10 hpet_clk cycles in reset)
+hpet_resetn        +                              (>=10 hpet_clk cycles in reset)
 
                            +-------------------------
 APB Access                 + Safe to access       (Wait for CDC stabilization)

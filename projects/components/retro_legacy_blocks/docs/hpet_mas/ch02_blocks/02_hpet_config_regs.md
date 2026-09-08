@@ -98,7 +98,7 @@ The `hpet_config_regs` module serves as the critical bridge between the PeakRDL-
 | **timer_int_enable[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer interrupt enable (from TIMER_CONFIG[3]) |
 | **timer_type[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer mode: 0=One-shot, 1=Periodic (from TIMER_CONFIG[4]) |
 | **timer_size[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer size: 0=32-bit, 1=64-bit (from TIMER_CONFIG[5]) |
-| **timer_value_set[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer accumulator mode (from TIMER_CONFIG[6]) |
+| **timer_value_set[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | From TIMER_CONFIG[6]. Currently unconsumed: the wire dead-ends at the top level (hpet_core has no such input), so the bit stores and reads back with no hardware effect |
 
 **Per-Timer Comparator (Dedicated Buses):**
 | Signal Name | Type | Width | Direction | Description |
@@ -220,6 +220,13 @@ counter_write:----+ +-----
 Note: 1-cycle pulse when software writes
 ```
 
+**Known RTL deviation (issue #46):** `counter_write` pulses on the same cycle
+the write lands, but `last_sw_counter_lo/hi` are captured into flops on that
+same edge -- so the core samples the PREVIOUSLY captured halves. After the
+documented "write LO, then HI" sequence the counter holds {old HI, new LO};
+the new HI half only reaches the counter on a subsequent write. Writing 0 to
+both halves works by accident (stale value equals new value).
+
 ##### Timer Configuration Mapping
 
 Per-timer array mapping:
@@ -321,6 +328,14 @@ When software writes 1 to HPET_STATUS bit to clear (W1C), the wrapper generates 
 // PeakRDL swmod signal pulses when SW modifies the field
 assign timer_int_clear = {NUM_TIMERS{hwif_out.HPET_STATUS.timer_int_status.swmod}} & timer_int_status;
 ```
+
+**Known RTL deviation (issue #46):** `swmod` pulses on ANY write to
+HPET_STATUS regardless of the data, and it is replicated across all timers.
+So every pending core status bit is cleared by any HPET_STATUS write --
+including a write of 0x0, which per W1C semantics should be a no-op -- and
+clearing one timer's bit also clears the others' irq outputs, while the
+PeakRDL register itself (a correct per-bit W1C) can keep bits set that the
+core has already dropped.
 
 **Timing:**
 ```

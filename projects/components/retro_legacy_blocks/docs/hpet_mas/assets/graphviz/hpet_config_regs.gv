@@ -11,7 +11,7 @@ digraph hpet_config_regs {
     apb_if [label="APB Interface\nPSEL, PENABLE\nPADDR, PWDATA\nPRDATA, PREADY", shape=doubleoctagon, fillcolor=lightgreen];
 
     // PeakRDL Generated Registers
-    peak_regs [label="hpet_regs\n(PeakRDL Generated)\n\nHPET_CONFIG\nHPET_STATUS (W1C)\nHPET_COUNTER_LO/HI\nHPET_CAPABILITIES\nTIMER[i]_CONFIG\nTIMER[i]_COMPARATOR_LO/HI", fillcolor=lightyellow];
+    peak_regs [label="hpet_regs\n(PeakRDL Generated)\n\nHPET_CONFIG\nHPET_STATUS (W1C)\nHPET_COUNTER_LO/HI\nHPET_ID (RO)\nTIMER[i]_CONFIG\nTIMER[i]_COMPARATOR_LO/HI", fillcolor=lightyellow];
 
     // Edge Detection Logic
     subgraph cluster_edge {

@@ -37,8 +37,9 @@
  *   Global Registers:
  *   ----------------
  *   0x000: HPET_ID - Capabilities and ID (Read-Only)
- *          [31:24] Vendor ID (parameterized, default 0x01)
- *          [23:16] Revision ID (parameterized, default 0x01)
+ *          [31:24] Vendor ID (fixed 0x01 in generated hpet_regs; the
+ *                  VENDOR_ID parameter is currently unwired)
+ *          [23:16] Revision ID (fixed 0x01; REVISION_ID likewise unwired)
  *          [15:13] Reserved
  *          [12:8]  Number of Timers - 1 (e.g., 0x01 for 2 timers)
  *          [7]     64-bit Counter Capable (1=yes, 0=no)
@@ -97,7 +98,9 @@
  *   ---------------------------
  *   TIMER_CONFIG Register:
  *          [31:7]  Reserved
- *          [6]     Value Set Mode (1=comparator acts as accumulator, 0=normal)
+ *          [6]     Value Set (stored and readable, but NOT consumed by any
+ *                  logic -- the wire dead-ends at this level; no accumulator
+ *                  mode exists)
  *          [5]     Size (1=64-bit comparison, 0=32-bit comparison)
  *          [4]     Type (1=periodic mode, 0=one-shot mode)
  *          [3]     Interrupt Enable (1=enable interrupt, 0=disable interrupt)
@@ -126,7 +129,7 @@
  *   0x1A0-0x1BF      | Timer 5 registers (if NUM_TIMERS >= 6)
  *   0x1C0-0x1DF      | Timer 6 registers (if NUM_TIMERS >= 7)
  *   0x1E0-0x1FF      | Timer 7 registers (if NUM_TIMERS = 8)
- *   0x200-0xFFF      | Reserved for future expansion
+ *   0x200-0xFFF      | Aliases of 0x000-0x1FF (only addr[8:0] decoded)
  *
  * NOTES:
  *   - Fixed 12-bit address width supports up to 4KB address space

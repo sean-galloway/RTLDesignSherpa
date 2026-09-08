@@ -194,7 +194,7 @@ Latency: 4-6 pclk cycles (depending on clock ratios)
 
 **ARMED -> FIRE:**
 - **Condition:** `counter >= comparator[i]`
-- **Action:** Assert `timer_fired[i]` flag, generate interrupt
+- **Action:** Assert `timer_int_status[i]` (sticky), interrupt output one cycle later
 - **Trigger:** Counter comparison (combinational)
 
 **FIRE -> PERIODIC_RELOAD:**
@@ -204,7 +204,7 @@ Latency: 4-6 pclk cycles (depending on clock ratios)
 
 **FIRE -> ONE_SHOT_COMPLETE:**
 - **Condition:** `timer_type[i] = 0` (one-shot mode)
-- **Action:** Hold `timer_fired[i]` flag, interrupt remains asserted
+- **Action:** Hold `timer_int_status[i]`, interrupt remains asserted
 - **Trigger:** Immediate (next clock cycle after fire)
 
 **PERIODIC_RELOAD -> ARMED:**
@@ -213,18 +213,19 @@ Latency: 4-6 pclk cycles (depending on clock ratios)
 - **Trigger:** Immediate (next clock cycle)
 
 **ONE_SHOT_COMPLETE -> ARMED:**
-- **Condition:** `timer_comparator_wr[i] = 1` (software reconfigures comparator)
+- **Condition:** `timer_comp_write[i] = 1` (software reconfigures comparator)
 - **Action:** Resume monitoring with new comparator value
 - **Trigger:** Comparator write strobe
 
 **ARMED -> IDLE:**
 - **Condition:** `hpet_enable = 0 OR timer_enable[i] = 0`
-- **Action:** Clear timer state, stop monitoring
+- **Action:** Stop match generation. A pending interrupt status/output is
+  NOT cleared by disabling -- it holds until software W1C or reset.
 - **Trigger:** Falling edge of enable signals
 
 **ONE_SHOT_COMPLETE -> IDLE:**
 - **Condition:** `timer_enable[i] = 0`
-- **Action:** Clear timer state
+- **Action:** Stop monitoring (pending status, if any, holds until W1C)
 - **Trigger:** Timer disable
 
 #### FSM Timing Examples
@@ -243,7 +244,7 @@ Comparator: [5] [5] [5] [5] [5] [5] [5] [5] [5] [5] [5]
 
 State:      [IDLE][ARMED][ARMED][ARMED][ARMED][FIRE][ONE_SHOT_COMPLETE][IDLE]
 
-timer_fired:---------------------+           +-------
+timer_int_status:----------------+           +-------
             +-----------------------------------+
 
 timer_irq:  ---------------------+           +-------
@@ -268,15 +269,19 @@ Comparator: [10][10][10][13][13][13][16][16][16][19]
 
 State:      [ARMED][ARMED][FIRE][RELOAD][ARMED][ARMED][FIRE][RELOAD]...
 
-timer_fired:--------+ +---------+ +---------+ +---
-            +-------+ +---------+ +---------+
+timer_int_status: --+
+                    +------------------------------... (sticky: set at
+                                                        Fire 1, holds until
+                                                        software W1C)
 
-timer_irq:  --------+ +---------+ +---------+ +---
-            +-------+ +---------+ +---------+
+timer_irq:        --+
+                    +------------------------------... (same, one cycle later)
 
 Period:     [3] [3] [3] [3] [3] [3] [3] [3] [3] [3]
 
-Note: Fire every 3 counts, comparator auto-increments by period
+Note: The comparator auto-increments by the period every fire, but the
+status/irq do NOT pulse per fire -- there is no timer_type term in the
+interrupt logic. From the first fire they stay asserted until W1C.
 ```
 
 ---
@@ -288,12 +293,12 @@ Note: Fire every 3 counts, comparator auto-increments by period
 ```mermaid
 flowchart TD
     A["APB Slave FSM<br/>(pclk)"] -->|"cmd_valid"| B["hpet_config_regs<br/>(combinational mapping)"]
-    B -->|"timer_enable,<br/>timer_comparator_wr"| C["HPET Core Timer FSM<br/>(hpet_clk)"]
-    C -->|"timer_fired"| D["hpet_config_regs<br/>(interrupt edge detection)"]
+    B -->|"timer_enable,<br/>timer_comp_write"| C["HPET Core Timer FSM<br/>(hpet_clk)"]
+    C -->|"timer_int_status"| D["hpet_config_regs<br/>(interrupt edge detection)"]
     D -->|"hwif_in.timer_int_status.hwset"| E["PeakRDL Registers<br/>(status latch)"]
     E -->|"software read HPET_STATUS<br/>software write W1C to clear"| F["hpet_config_regs<br/>(clear pulse generation)"]
     F -->|"timer_int_clear"| G["HPET Core Timer FSM"]
-    G -->|"timer_fired clears"| H["Complete"]
+    G -->|"timer_int_status clears"| H["Complete"]
 ```
 
 #### Clock Domain Considerations
@@ -353,24 +358,23 @@ end
 assign w_timer_match[i] = (counter >= comparator[i]) && timer_enable[i] && hpet_enable;
 
 // Previous match state (for edge detection)
-always_ff @(posedge hpet_clk or negedge hpet_rst_n) begin
-    if (!hpet_rst_n) r_timer_match_prev[i] <= 1'b0;
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) r_timer_match_prev[i] <= 1'b0;
     else             r_timer_match_prev[i] <= w_timer_match[i];
 end
 
 // Fire edge (rising edge of match)
 assign w_timer_fire_edge[i] = w_timer_match[i] && !r_timer_match_prev[i];
 
-// Fire flag storage (sticky vs pulse based on mode)
-always_ff @(posedge hpet_clk or negedge hpet_rst_n) begin
-    if (!hpet_rst_n || !timer_enable[i]) begin
-        r_timer_fired[i] <= 1'b0;
-    end else if (w_timer_fire_edge[i]) begin
-        r_timer_fired[i] <= 1'b1;
-    end else if (timer_type[i]) begin  // Periodic: clear after 1 cycle
-        r_timer_fired[i] <= 1'b0;
+// Sticky interrupt status -- identical in BOTH modes (no timer_type term)
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        r_interrupt_status[i] <= 1'b0;
+    end else if (timer_int_clear[i]) begin
+        r_interrupt_status[i] <= 1'b0;   // Software W1C
+    end else if (w_timer_fire[i]) begin
+        r_interrupt_status[i] <= 1'b1;   // Set on fire edge
     end
-    // One-shot: hold until status cleared (implicit)
 end
 ```
 

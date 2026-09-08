@@ -20,7 +20,7 @@ The diagrams show external-to-internal signal relationships:
 
 ### Clock Domains
 - **pclk**: APB clock domain (slower, 50-100 MHz typical)
-- **hpet_clk**: HPET clock domain (faster, 100-500 MHz typical)
+- **hpet_clk**: HPET clock domain (typically 1-50 MHz; see Chapter 1.3)
 
 ### APB Interface (External)
 - `s_apb_PSEL`, `s_apb_PENABLE`, `s_apb_PREADY` - Control signals

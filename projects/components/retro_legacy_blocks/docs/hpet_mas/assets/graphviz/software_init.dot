@@ -21,7 +21,7 @@ digraph hpet_software_init {
     reset_counter [label="Reset Counter to 0\nWRITE(HPET_COUNTER_LO, 0x0)\nWRITE(HPET_COUNTER_HI, 0x0)"];
     reset_counter -> check_caps;
 
-    check_caps [label="Read Capabilities\nREAD(HPET_CAPABILITIES)\nGet num_timers, vendor_id", fillcolor=lightyellow];
+    check_caps [label="Read Identification\nREAD(HPET_ID)\nGet num_tim_cap", fillcolor=lightyellow];
     check_caps -> config_timer0;
 
     config_timer0 [label="Configure Timer 0\n1. Set comparator value\n2. Set mode (one-shot/periodic)\n3. Enable interrupt", fillcolor=lightcyan];

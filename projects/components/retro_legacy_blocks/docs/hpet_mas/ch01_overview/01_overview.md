@@ -75,10 +75,10 @@ The APB High Precision Event Timer (HPET) is a configurable multi-timer peripher
 #### Design Philosophy
 
 **Configurability:**
-The HPET component prioritizes configurability to support diverse use cases. Timer count, vendor ID, and CDC enablement are all parameterizable at synthesis time, allowing customization for specific applications without RTL changes.
+The HPET component prioritizes configurability to support diverse use cases. Timer count and CDC enablement are parameterizable at synthesis time, allowing customization for specific applications without RTL changes. (The `VENDOR_ID`/`REVISION_ID` parameters exist on the top level but are currently unwired -- the HPET_ID vendor and revision bytes are fixed at 0x01/0x01 in the generated register block. See Chapter 5.)
 
 **Reliability:**
-Extensive testing (5/6 configurations at 100% pass rate) validates core functionality. The design includes per-timer data buses to prevent corruption and comprehensive error detection in configuration registers.
+Extensive testing (5/6 configurations at 100% pass rate) validates core functionality. The design includes per-timer data buses to prevent corruption. (Note: the register block never raises PSLVERR -- unmapped addresses alias or read 0.)
 
 **Standards Compliance:**
 - **APB Protocol**: Full AMBA APB4 specification compliance
@@ -99,9 +99,9 @@ The APB HPET draws architectural inspiration from the IA-PC HPET specification (
 | **FSB Delivery** | Supported | Not supported |
 | **Legacy Replacement** | PIT/RTC emulation | Not supported |
 | **Counter Size** | 64-bit mandatory | 64-bit |
-| **Comparator Size** | 64-bit or 32-bit | 64-bit only |
+| **Comparator Size** | 64-bit or 32-bit | 64-bit or 32-bit (per-timer `timer_size`) |
 | **Clock Source** | 10 MHz minimum | User-configurable |
-| **Vendor ID** | Read from capability | Configurable parameter |
+| **Vendor ID** | Read from capability | Fixed 0x01 (parameters currently unwired) |
 
 **Retained Concepts:**
 - 64-bit free-running counter
@@ -119,7 +119,7 @@ The APB HPET draws architectural inspiration from the IA-PC HPET specification (
 **Timing Accuracy:**
 - Counter increment: Every HPET clock cycle (deterministic)
 - Timer fire latency: 1 HPET clock cycle from counter match
-- Interrupt assertion: Combinational (same cycle as timer fire)
+- Interrupt assertion: Registered, one HPET clock after the fire event (`timer_irq` is a flop in `hpet_core`, gated by `timer_int_enable` sampled at fire time)
 
 **Register Access Latency:**
 - No CDC: 2 APB clock cycles (APB protocol minimum)
@@ -178,7 +178,7 @@ The design scales linearly with timer count. Each additional timer adds approxim
 - ⚠️ 8-timer stress test timeout (minor, likely test configuration)
 
 **Future Enhancements (Not Planned):**
-- Comparator readback (currently write-only)
+- Live comparator readback (reads return the last software-written value; periodic auto-increments are not reflected)
 - FSB interrupt delivery (use dedicated IRQ signals)
 - Legacy mode emulation (not needed in modern designs)
 - 64-bit atomic counter reads (current implementation requires two 32-bit reads)
@@ -189,8 +189,8 @@ This specification document is organized as follows:
 
 - **Chapter 1 (this chapter)**: Overview, features, applications
 - **Chapter 2**: Detailed block specifications (hpet_core, config_regs, PeakRDL integration)
-- **Chapter 3**: Interface specifications (APB, HPET clock, interrupts)
-- **Chapter 4**: Programming model (initialization, configuration, use cases)
+- **Chapter 3**: Interface specifications (planned, not yet written)
+- **Chapter 4**: Programming model (planned, not yet written)
 - **Chapter 5**: Register definitions (address map, field descriptions)
 
 **Related Documentation:**

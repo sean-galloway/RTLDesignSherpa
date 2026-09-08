@@ -91,7 +91,7 @@ apb4_hpet (Top Level)
 |   |   +-- HPET_CONFIG register
 |   |   +-- HPET_STATUS register (W1C)
 |   |   +-- HPET_COUNTER_LO/HI registers
-|   |   +-- HPET_CAPABILITIES register (RO)
+|   |   +-- HPET_ID register (RO, capabilities/identification)
 |   |   +-- TIMER[i]_* registers (per-timer)
 |   |
 |   +-- edge_detect (x NUM_TIMERS) - Write strobe generation
@@ -130,7 +130,7 @@ apb4_hpet (Top Level)
    ▼
 4. hpet_config_regs
    - Edge detection on swacc signals
-   - Generate write strobes (timer_comparator_wr[i])
+   - Generate write strobes (timer_comp_write[i])
    - Route per-timer data buses
    |
    ▼
@@ -201,7 +201,10 @@ apb4_hpet (Top Level)
    |
    ▼
 5. Interrupt Output
-   timer_irq[i] = HPET_STATUS[i] (combinational)
+   timer_irq[i] is a flop in hpet_core: set one hpet_clk after the fire
+   event when timer_int_enable[i] was set at fire time; cleared by the
+   same W1C that clears the status. It is core state, not a combinational
+   copy of HPET_STATUS.
 ```
 
 #### Clock Domains
@@ -244,42 +247,43 @@ Note: pclk and hpet_clk are asynchronous, CDC required
 
 **Reset Signals:**
 - `presetn` - APB reset (active-low, asynchronous)
-- `hpet_rst_n` - HPET reset (active-low, asynchronous)
+- `hpet_resetn` - HPET reset (active-low, asynchronous)
 
 **Reset Behavior:**
 
-| Signal | Reset Domain | Reset Value | Notes |
-|--------|--------------|-------------|-------|
-| `r_main_counter` | hpet_clk | 64'h0 | Counter reset to zero |
-| `r_timer_comparator[i]` | hpet_clk | 64'h0 | Comparators reset to zero |
-| `r_timer_period[i]` | hpet_clk | 64'h0 | Period storage reset |
-| `HPET_CONFIG` | pclk | Disabled | Global enable cleared |
-| `HPET_STATUS` | pclk | 8'h0 | All interrupt flags cleared |
-| `TIMER[i]_CONFIG` | pclk | Disabled | All timers disabled |
+The register file and the timer core always share ONE clock/reset domain,
+selected by `CDC_ENABLE`: with `CDC_ENABLE=0` both run on `pclk`/`presetn`;
+with `CDC_ENABLE=1` both run on `hpet_clk`/`hpet_resetn` and only the APB
+front-end stays on `pclk`. There is no configuration in which the registers
+and the core reset from different domains.
+
+| Signal | Reset Value | Notes |
+|--------|-------------|-------|
+| `r_main_counter` | 64'h0 | Counter reset to zero |
+| `r_timer_comparator[i]` | 64'h0 | Comparators reset to zero |
+| `r_timer_period[i]` | 64'h0 | Period storage reset |
+| `HPET_CONFIG` | 32'h0 | Global enable cleared |
+| `HPET_STATUS` | 8'h0 | All interrupt flags cleared |
+| `TIMER[i]_CONFIG` | 32'h0 | All timers disabled |
 
 **Reset Sequence:**
 ```systemverilog
-// APB domain reset
-always_ff @(posedge pclk or negedge presetn) begin
-    if (!presetn) begin
-        // Reset APB-accessible registers
+// Illustrative only. clk/rst_n are the selected domain:
+// CDC_ENABLE=0 -> pclk/presetn; CDC_ENABLE=1 -> hpet_clk/hpet_resetn.
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        // Register file
         HPET_CONFIG <= '0;
         HPET_STATUS <= '0;
         for (int i = 0; i < NUM_TIMERS; i++) begin
             TIMER_CONFIG[i] <= '0;
         end
-    end
-end
-
-// HPET domain reset
-always_ff @(posedge hpet_clk or negedge hpet_rst_n) begin
-    if (!hpet_rst_n) begin
-        // Reset timer logic
+        // Timer core
         r_main_counter <= 64'h0;
         for (int i = 0; i < NUM_TIMERS; i++) begin
             r_timer_comparator[i] <= 64'h0;
             r_timer_period[i] <= 64'h0;
-            r_timer_fired[i] <= 1'b0;
+            r_interrupt_status[i] <= 1'b0;
         end
     end
 end
@@ -295,13 +299,13 @@ When CDC is enabled, both reset signals must be properly synchronized and coordi
 **Root Cause:**
 ```systemverilog
 // ❌ WRONG: Shared data bus for all timers
-wire [63:0] timer_comparator_data;  // Single 64-bit bus
+wire [63:0] timer_comp_wdata;  // Single 64-bit bus
 
 // Multiple timers try to sample from same bus
 always_ff @(posedge hpet_clk) begin
-    if (timer_comparator_wr[0]) r_timer_comparator[0] <= timer_comparator_data;
-    if (timer_comparator_wr[1]) r_timer_comparator[1] <= timer_comparator_data;
-    if (timer_comparator_wr[2]) r_timer_comparator[2] <= timer_comparator_data;
+    if (timer_comp_write[0]) r_timer_comparator[0] <= timer_comp_wdata;
+    if (timer_comp_write[1]) r_timer_comparator[1] <= timer_comp_wdata;
+    if (timer_comp_write[2]) r_timer_comparator[2] <= timer_comp_wdata;
     // If write strobes overlap, wrong timer gets wrong data!
 end
 ```
@@ -309,13 +313,13 @@ end
 **Solution:** Per-timer dedicated data buses
 ```systemverilog
 // ✅ CORRECT: Dedicated data bus per timer
-wire [63:0] timer_comparator_data [NUM_TIMERS-1:0];  // Array of 64-bit buses
+wire [63:0] timer_comp_wdata [NUM_TIMERS-1:0];  // Array of 64-bit buses
 
 // Each timer has dedicated data path
 always_ff @(posedge hpet_clk) begin
-    if (timer_comparator_wr[0]) r_timer_comparator[0] <= timer_comparator_data[0];
-    if (timer_comparator_wr[1]) r_timer_comparator[1] <= timer_comparator_data[1];
-    if (timer_comparator_wr[2]) r_timer_comparator[2] <= timer_comparator_data[2];
+    if (timer_comp_write[0]) r_timer_comparator[0] <= timer_comp_wdata[0];
+    if (timer_comp_write[1]) r_timer_comparator[1] <= timer_comp_wdata[1];
+    if (timer_comp_write[2]) r_timer_comparator[2] <= timer_comp_wdata[2];
     // Each timer reads from its own dedicated bus - no corruption possible
 end
 ```
@@ -323,11 +327,11 @@ end
 **Implementation in hpet_config_regs.sv:**
 ```systemverilog
 // Dedicated data buses prevent corruption
-assign timer_comparator_data[0] = {hwif.timer0_comparator_hi.value,
+assign timer_comp_wdata[0] = {hwif.timer0_comparator_hi.value,
                                    hwif.timer0_comparator_lo.value};
-assign timer_comparator_data[1] = {hwif.timer1_comparator_hi.value,
+assign timer_comp_wdata[1] = {hwif.timer1_comparator_hi.value,
                                    hwif.timer1_comparator_lo.value};
-assign timer_comparator_data[2] = {hwif.timer2_comparator_hi.value,
+assign timer_comp_wdata[2] = {hwif.timer2_comparator_hi.value,
                                    hwif.timer2_comparator_lo.value};
 // ... one data bus per timer
 ```
@@ -341,11 +345,13 @@ assign timer_comparator_data[2] = {hwif.timer2_comparator_hi.value,
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | `NUM_TIMERS` | int | 2 | 2, 3, 8 | Number of independent timers |
-| `VENDOR_ID` | int (16-bit) | 0x8086 | 0x0000-0xFFFF | Vendor identification |
-| `REVISION_ID` | int (16-bit) | 0x0001 | 0x0000-0xFFFF | Hardware revision |
-| `CDC_ENABLE` | bit | 0 | 0, 1 | Enable clock domain crossing |
-| `ADDR_WIDTH` | int | 12 | >= 12 | APB address bus width |
-| `DATA_WIDTH` | int | 32 | 32 | APB data bus width (fixed) |
+| `VENDOR_ID` | int | 1 | -- | Currently unwired: HPET_ID vendor byte is fixed 0x01 in the generated register block |
+| `REVISION_ID` | int | 1 | -- | Currently unwired: HPET_ID revision byte is fixed 0x01 |
+| `CDC_ENABLE` | int | 0 | 0, 1 | Enable clock domain crossing |
+| `USE_JOHNSON` | int | 0 | 0, 1 | CDC FIFO pointer encoding (0 = Gray, 1 = Johnson) |
+
+The APB address bus is fixed at 12 bits and the data bus at 32 bits; they are
+not parameters.
 
 **Derived Parameters:**
 ```systemverilog
@@ -355,40 +361,30 @@ localparam int TIMER_REGS_START = 32'h100;  // Timer register base address
 
 **Configuration Examples:**
 
-**2-Timer "Intel-like" Configuration:**
+**2-Timer Configuration (synchronous clocks):**
 ```systemverilog
 apb4_hpet #(
     .NUM_TIMERS(2),
-    .VENDOR_ID(16'h8086),   // Intel
-    .REVISION_ID(16'h0001),
-    .CDC_ENABLE(0)          // Synchronous clocks
-) u_hpet_intel (...);
-```
-
-**3-Timer "AMD-like" Configuration:**
-```systemverilog
-apb4_hpet #(
-    .NUM_TIMERS(3),
-    .VENDOR_ID(16'h1022),   // AMD
-    .REVISION_ID(16'h0002),
     .CDC_ENABLE(0)
-) u_hpet_amd (...);
+) u_hpet_2t (...);
 ```
 
-**8-Timer Custom with CDC:**
+**8-Timer Configuration with CDC:**
 ```systemverilog
 apb4_hpet #(
     .NUM_TIMERS(8),
-    .VENDOR_ID(16'hABCD),   // Custom vendor
-    .REVISION_ID(16'h0010),
     .CDC_ENABLE(1)          // Asynchronous clocks
-) u_hpet_custom (...);
+) u_hpet_8t (...);
 ```
+
+Setting `VENDOR_ID`/`REVISION_ID` at instantiation is accepted but has no
+effect on the hardware: HPET_ID always reads back vendor 0x01 / revision
+0x01 (see Chapter 5).
 
 #### Interface Summary
 
 **APB Interface:** Standard AMBA APB4
-- Address width: Configurable (default 12-bit for 4KB space)
+- Address width: Fixed 12-bit (4KB space)
 - Data width: Fixed 32-bit
 - Protocol: APB4 (with PREADY support)
 
@@ -399,7 +395,7 @@ apb4_hpet #(
 
 **Interrupt Interface:** Per-timer dedicated outputs
 - `timer_irq[NUM_TIMERS-1:0]` - Active-high interrupt signals
-- Combinational output (driven by STATUS register)
+- Registered output from core state (one hpet_clk after fire)
 - W1C clearing via HPET_STATUS register
 
 **See:** Chapter 3 - Interface Specifications for detailed signal descriptions

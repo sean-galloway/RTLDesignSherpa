@@ -166,8 +166,8 @@ To modify the register map:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `VENDOR_ID` | int | 1 | Vendor identifier (reported in HPET_ID) |
-| `REVISION_ID` | int | 1 | Revision identifier (reported in HPET_ID) |
+| `VENDOR_ID` | int | 1 | Currently unwired: HPET_ID vendor byte is fixed 0x01 in generated RTL |
+| `REVISION_ID` | int | 1 | Currently unwired: HPET_ID revision byte is fixed 0x01 |
 | `NUM_TIMERS` | int | 2 | Number of timer channels (2-8) |
 | `CDC_ENABLE` | int | 0 | Clock domain crossing enable (0=same clock, 1=async clocks) |
 
@@ -189,12 +189,14 @@ To modify the register map:
 
 ### Configuration Examples
 
+Note: the `VENDOR_ID`/`REVISION_ID` parameters are currently unwired -- the
+HPET_ID vendor and revision bytes are fixed 0x01/0x01 in the generated
+register block, so the examples below leave them at their defaults.
+
 **Intel-like (2 timers, no CDC):**
 ```systemverilog
 apb4_hpet #(
     .NUM_TIMERS(2),
-    .VENDOR_ID(16'h8086),
-    .REVISION_ID(8'h01),
     .CDC_ENABLE(0)
 ) u_hpet (...);
 ```
@@ -203,8 +205,6 @@ apb4_hpet #(
 ```systemverilog
 apb4_hpet #(
     .NUM_TIMERS(3),
-    .VENDOR_ID(16'h1022),
-    .REVISION_ID(8'h02),
     .CDC_ENABLE(1)
 ) u_hpet (...);
 ```
@@ -213,8 +213,6 @@ apb4_hpet #(
 ```systemverilog
 apb4_hpet #(
     .NUM_TIMERS(8),
-    .VENDOR_ID(16'hABCD),
-    .REVISION_ID(8'h10),
     .CDC_ENABLE(1)
 ) u_hpet (...);
 ```
@@ -261,13 +259,14 @@ Each timer occupies 32 bytes (0x20) starting at 0x100:
 
 #### HPET_ID (0x000) - Read Only
 ```
-[31:24] VENDOR_ID     - Vendor identifier (parameter)
-[23:16] REV_ID        - Revision identifier (parameter)
+[31:24] VENDOR_ID     - Vendor identifier (fixed 0x01 in generated RTL)
+[23:16] REV_ID        - Revision identifier (fixed 0x01 in generated RTL)
 [15:13] Reserved
 [12:8]  NUM_TIM_CAP   - Number of timers - 1 (hardware-driven)
 [7]     COUNT_SIZE_CAP - 1 = 64-bit counter capable
 [6]     Reserved
-[5]     LEG_RT_CAP    - 1 = Legacy replacement capable
+[5]     LEG_RT_CAP    - Reads 1, but legacy replacement is NOT implemented
+                        (the HPET_CONFIG bit stores and dead-ends)
 [4:0]   Reserved
 ```
 
@@ -294,7 +293,7 @@ Each timer occupies 32 bytes (0x20) starting at 0x100:
 #### TIMER_CONFIG (+0x00) - Read/Write
 ```
 [31:7] Reserved
-[6]    TIMER_VALUE_SET    - Write 1 to update comparator
+[6]    TIMER_VALUE_SET    - Stored, no hardware effect (unconsumed)
 [5]    TIMER_SIZE         - 0=32-bit, 1=64-bit comparator
 [4]    TIMER_TYPE         - 0=one-shot, 1=periodic
 [3]    TIMER_INT_ENABLE   - Interrupt enable
@@ -317,8 +316,6 @@ module my_system (
     // Instantiate HPET with 2 timers, no CDC
     apb4_hpet #(
         .NUM_TIMERS(2),
-        .VENDOR_ID(16'h8086),
-        .REVISION_ID(8'h01),
         .CDC_ENABLE(0)  // Same clock domain
     ) u_hpet (
         // Clocks - both use same clock
@@ -359,8 +356,6 @@ module high_precision_system (
     // Instantiate HPET with 8 timers and CDC
     apb4_hpet #(
         .NUM_TIMERS(8),
-        .VENDOR_ID(16'hABCD),
-        .REVISION_ID(8'h10),
         .CDC_ENABLE(1)  // Enable CDC for async clocks
     ) u_hpet (
         // APB clock domain (slow)

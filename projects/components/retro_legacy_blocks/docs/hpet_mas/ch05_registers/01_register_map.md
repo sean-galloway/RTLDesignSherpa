@@ -123,25 +123,28 @@ Each timer (N = 0 to NUM_TIMERS-1) has a 32-byte register block at base address 
 ### HPET_ID (0x000) - Identification Register
 
 **Access:** Read-Only
-**Reset Value:** Parameterized (VENDOR_ID, REVISION_ID, NUM_TIMERS)
+**Reset Value:** `0x0101_0000 | ((NUM_TIMERS-1) << 8) | 0xA0`
 
-Contains capability information and identification fields.
+Contains capability information and identification fields. Only
+`num_tim_cap` varies with the instantiation; the vendor and revision bytes
+are fixed 0x01/0x01 in the generated register block (the top-level
+`VENDOR_ID`/`REVISION_ID` parameters are currently unwired).
 
 | Bits | Field | Access | Reset | Description |
 |------|-------|--------|-------|-------------|
-| [31:24] | vendor_id | RO | VENDOR_ID | Vendor identifier (parameterized) |
-| [23:16] | rev_id | RO | REVISION_ID | Revision identifier (parameterized) |
+| [31:24] | vendor_id | RO | 0x01 | Vendor identifier (fixed in generated RTL) |
+| [23:16] | rev_id | RO | 0x01 | Revision identifier (fixed in generated RTL) |
 | [15:13] | reserved | RO | 0 | Reserved |
 | [12:8] | num_tim_cap | RO | NUM_TIMERS-1 | Number of timers minus 1 (e.g., 7 for 8 timers) |
 | [7] | count_size_cap | RO | 1 | Counter size capability (1 = 64-bit counter) |
 | [6] | reserved | RO | 0 | Reserved |
-| [5] | leg_rt_cap | RO | 1 | Legacy replacement capable (1 = supported) |
+| [5] | leg_rt_cap | RO | 1 | Legacy-replacement capability bit reads 1, but the feature is NOT implemented (the HPET_CONFIG bit dead-ends; see HPET_CONFIG below) |
 | [4:0] | reserved | RO | 0 | Reserved |
 
-**Example Values:**
-- 2-timer Intel-like: `0x80860001_00000171` (vendor=0x8086, rev=1, timers=1)
-- 3-timer AMD-like: `0x10220002_00000271` (vendor=0x1022, rev=2, timers=2)
-- 8-timer custom: `0x12340001_000007F1` (vendor=0x1234, rev=1, timers=7)
+**Example Values (32-bit register):**
+- 2 timers: `0x010101A0` (num_tim_cap=1)
+- 3 timers: `0x010102A0` (num_tim_cap=2)
+- 8 timers: `0x010107A0` (num_tim_cap=7)
 
 ---
 
@@ -155,13 +158,14 @@ Global enable and configuration control.
 | Bits | Field | Access | Reset | Description |
 |------|-------|--------|-------|-------------|
 | [31:2] | reserved | RO | 0 | Reserved |
-| [1] | legacy_replacement | RW | 0 | Legacy replacement mode enable (0=disabled, 1=enabled) |
+| [1] | legacy_replacement | RW | 0 | Stores and reads back, but has NO hardware effect (nothing consumes the signal; legacy replacement is not implemented) |
 | [0] | hpet_enable | RW | 0 | HPET main counter enable (0=stopped, 1=running) |
 
 **Usage Notes:**
 - Write `hpet_enable=1` to start the main counter
 - Write `hpet_enable=0` to stop the main counter (value preserved)
-- `legacy_replacement` enables mapping to legacy timer interrupt lines (implementation-specific)
+- `legacy_replacement` is a no-op: the bit stores and reads back, but no
+  logic consumes it (despite HPET_ID.leg_rt_cap reading 1)
 - Counter must be enabled for any timer to fire
 
 **Example Configuration Sequence:**
@@ -198,10 +202,22 @@ Interrupt status bits for all timers. Write 1 to a bit to clear the correspondin
   - 0 = No interrupt pending
   - 1 = Timer N has fired, interrupt pending
 
-**Write-1-to-Clear (W1C) Behavior:**
+**Write-1-to-Clear (W1C) Behavior (intended):**
 - Write 1 to bit[N] to clear Timer N interrupt status
 - Write 0 has no effect
 - Reading returns current interrupt status
+
+**Known RTL deviation (issue #46):** the register wrapper's clear strobe
+fires on ANY write to HPET_STATUS regardless of data, clearing EVERY pending
+core status bit (and irq). A write of 0x0 -- a no-op per W1C -- clears
+everything, and clearing one timer's bit also drops the other timers' irq
+outputs while the register-side W1C (which is per-bit correct) can keep
+their bits reading 1. A second deviation: if a timer fires while another
+timer's status bit is still set, the register's hwset path sets ALL 8 status
+bits, including bits above NUM_TIMERS-1. Until fixed, clear-all is the only
+reliable pattern: read HPET_STATUS, handle every set bit, then write the
+read value back. The status field is also a fixed 8 bits wide regardless of
+NUM_TIMERS.
 
 **Example Interrupt Handling:**
 ```c
@@ -235,7 +251,9 @@ Lower 32 bits of the 64-bit free-running main counter.
 
 **Behavior:**
 - **Read:** Returns current counter value [31:0]
-- **Write:** Sets counter value [31:0] (writes both LO and HI together)
+- **Write:** Captures the value for the 64-bit counter load (see the 64-bit
+  write ordering note below -- the load applies the PREVIOUSLY captured
+  halves, a known RTL deviation)
 - Counter increments every `hpet_clk` cycle when `HPET_CONFIG.hpet_enable=1`
 - Software can write to reset or set counter to specific value
 
@@ -293,7 +311,7 @@ Configuration and control for individual timer.
 | Bits | Field | Access | Reset | Description |
 |------|-------|--------|-------|-------------|
 | [31:7] | reserved | RO | 0 | Reserved |
-| [6] | timer_value_set | RW | 0 | Write 1 to set timer value (implementation-specific) |
+| [6] | timer_value_set | RW | 0 | Stores and reads back, but has NO hardware effect (the signal dead-ends at the top level) |
 | [5] | timer_size | RW | 0 | Timer size (0=32-bit, 1=64-bit) |
 | [4] | timer_type | RW | 0 | Timer mode (0=one-shot, 1=periodic) |
 | [3] | timer_int_enable | RW | 0 | Interrupt enable (0=disabled, 1=enabled) |
@@ -321,8 +339,9 @@ Configuration and control for individual timer.
 - APB HPET supports 64-bit by default
 
 **timer_value_set (bit 6):**
-- Implementation-specific flag for timer value updates
-- Writing 1 may trigger immediate comparator reload (implementation-dependent)
+- No hardware effect: the register bit stores and reads back, but nothing
+  consumes it (`hpet_core` has no such input; the wire dead-ends at the top
+  level). Documented for completeness only.
 
 **Common Configurations:**
 ```c
@@ -352,7 +371,9 @@ Lower 32 bits of the 64-bit timer comparator value.
 **Behavior:**
 - Timer fires when `main_counter >= comparator`
 - For **one-shot mode:** Comparator value stays unchanged after fire
-- For **periodic mode:** Comparator auto-increments by period value on fire
+- For **periodic mode:** the CORE's working comparator auto-increments by the
+  period on each fire, but this is not reflected back into the register --
+  reads always return the last software-written value
 - Software writes to set initial comparator value
 
 **Usage:**
@@ -587,7 +608,7 @@ void hpet_interrupt_handler(void) {
 ### Reset Values
 
 - **Global registers:** Reset to 0x00000000 (except HPET_ID)
-- **HPET_ID:** Reset to parameterized values (VENDOR_ID, REVISION_ID, NUM_TIMERS)
+- **HPET_ID:** Constant: vendor/revision fixed 0x01/0x01, num_tim_cap = NUM_TIMERS-1
 - **All timers:** Reset to disabled state (0x00000000)
 - **Main counter:** Reset to 0x00000000_00000000
 
@@ -596,7 +617,15 @@ void hpet_interrupt_handler(void) {
 **64-bit Register Writes:**
 1. Write lower 32 bits (LO) first
 2. Write upper 32 bits (HI) second
-3. Hardware applies full 64-bit value atomically
+
+**Known RTL deviation (issue #46):** the 64-bit counter load is NOT atomic.
+The core samples the capture flops on the same edge they update, so each
+write applies the PREVIOUSLY captured halves: after LO-then-HI the counter
+holds {old HI, new LO}, and the new HI half only lands on a subsequent
+write. Writing zero to both halves works (stale equals new). Comparators
+half-update per 32-bit write, so between the LO and HI writes the timer
+compares against a mixed value -- disable the timer around comparator
+updates.
 
 **64-bit Register Reads:**
 1. Read lower 32 bits (LO) first

@@ -69,11 +69,12 @@ wavedrom-cli -i hpet_config.json -o hpet_config.svg
 
 | Offset | Register | Access | Description |
 |--------|----------|--------|-------------|
-| 0x000 | HPET_CONFIG | RW | Global enable, legacy routing |
-| 0x004 | HPET_STATUS | RW (W1C) | Timer interrupt status |
-| 0x008 | HPET_COUNTER_LO | RW | Main counter [31:0] |
-| 0x00C | HPET_COUNTER_HI | RW | Main counter [63:32] |
-| 0x010 | HPET_CAPABILITIES | RO | Hardware capabilities |
+| 0x000 | HPET_ID | RO | Identification and capabilities |
+| 0x004 | HPET_CONFIG | RW | Global enable |
+| 0x008 | HPET_STATUS | RW (W1C) | Timer interrupt status |
+| 0x00C | RESERVED | RO | Reads 0 |
+| 0x010 | HPET_COUNTER_LO | RW | Main counter [31:0] |
+| 0x014 | HPET_COUNTER_HI | RW | Main counter [63:32] |
 
 ### Per-Timer Registers (0x100 + i*0x20)
 
@@ -94,39 +95,46 @@ Each timer has 4 registers with 0x20 byte stride:
 
 ## Key Register Fields
 
-### HPET_CONFIG (0x000)
-- **bit[0]**: enable - Enable HPET globally
-- **bit[1]**: legacy - Legacy interrupt routing
+### HPET_ID (0x000) - Read Only
+- **bits[4:0]**: Reserved
+- **bit[5]**: leg_rt_cap (reads 1; feature not implemented)
+- **bit[6]**: Reserved
+- **bit[7]**: count_size_cap (1 = 64-bit counter)
+- **bits[12:8]**: num_tim_cap - Number of timers minus 1
+- **bits[15:13]**: Reserved
+- **bits[23:16]**: rev_id (fixed 0x01)
+- **bits[31:24]**: vendor_id (fixed 0x01)
+
+### HPET_CONFIG (0x004)
+- **bit[0]**: hpet_enable - Enable HPET globally
+- **bit[1]**: legacy_replacement - stored, no hardware effect
 - **bits[31:2]**: Reserved
 
-### HPET_STATUS (0x004) - Write 1 to Clear
-- **bit[i]**: Timer[i] interrupt status
+### HPET_STATUS (0x008) - Write 1 to Clear
+- **bit[i]**: Timer[i] interrupt status (fixed 8-bit field)
 - Write 1 to clear the interrupt flag
 
-### HPET_CAPABILITIES (0x010) - Read Only
-- **bits[4:0]**: num_timers - Number of timers (2, 3, or 8)
-- **bits[15:5]**: Reserved
-- **bits[31:16]**: vendor_id - Vendor identification
-
 ### TIMER_CONFIG (0x100 + i*0x20)
-- **bit[0]**: enable - Enable timer
-- **bit[1]**: int_enable - Enable interrupt generation
-- **bit[2]**: type - 0=One-shot, 1=Periodic
-- **bit[3]**: size - Reserved
-- **bits[31:4]**: Reserved
+- **bits[1:0]**: Reserved
+- **bit[2]**: timer_enable - Enable timer
+- **bit[3]**: timer_int_enable - Enable interrupt generation
+- **bit[4]**: timer_type - 0=One-shot, 1=Periodic
+- **bit[5]**: timer_size - 0=32-bit, 1=64-bit compare
+- **bit[6]**: timer_value_set - stored, no hardware effect
+- **bits[31:7]**: Reserved
 
 ## Usage in Documentation
 
 To embed these diagrams in markdown documentation:
 
 ```markdown
-### HPET_CONFIG Register (0x000)
+### HPET_CONFIG Register (0x004)
 
 \`\`\`wavedrom
 {
   "reg": [
-    {"bits": 1, "name": "enable", "attr": "Enable HPET"},
-    {"bits": 1, "name": "legacy", "attr": "Legacy routing"},
+    {"bits": 1, "name": "hpet_enable", "attr": "Enable HPET"},
+    {"bits": 1, "name": "legacy_replacement", "attr": "Stored, no HW effect"},
     {"bits": 30, "name": "reserved", "attr": "Reserved", "type": 1}
   ],
   "config": {"hspace": 800, "bits": 32, "lanes": 1}

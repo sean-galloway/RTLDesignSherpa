@@ -81,7 +81,7 @@ Edge-detected pulse generated when software writes to a timer configuration regi
 - Software can read the field
 - Software writes are ignored
 - Hardware controls the value
-- Example: `HPET_CAPABILITIES` register
+- Example: `HPET_ID` register
 
 **RW (Read-Write):**
 - Software can read and write the field
@@ -118,7 +118,7 @@ All APB signals use standard AMBA naming with `p` prefix:
 **HPET Domain Signals:**
 Timer-related signals use descriptive names:
 - `hpet_clk` - HPET timer clock
-- `hpet_rst_n` - HPET reset (active-low)
+- `hpet_resetn` - HPET reset (active-low)
 - `timer_irq[N]` - Timer interrupt outputs
 - `r_main_counter` - Internal 64-bit counter
 - `r_timer_comparator[i]` - Per-timer comparator value
@@ -136,7 +136,7 @@ Timer-related signals use descriptive names:
 |--------------|---------|---------|
 | `cfg` | Configuration | `cfg_initial_credit` |
 | `cmp` | Comparator | `timer_cmp_data` |
-| `wr` | Write | `timer_comparator_wr` |
+| `wr` | Write | `timer_comp_write` |
 | `rd` | Read | `counter_rd_data` |
 | `hi` | High (upper 32 bits) | `HPET_COUNTER_HI` |
 | `lo` | Low (lower 32 bits) | `HPET_COUNTER_LO` |

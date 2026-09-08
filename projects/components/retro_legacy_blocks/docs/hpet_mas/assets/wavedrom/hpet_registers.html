@@ -108,11 +108,11 @@
         <ul>
             <li><strong>Global Registers</strong>
                 <ul>
-                    <li><a href="#hpet_config">HPET_CONFIG (0x000)</a></li>
-                    <li><a href="#hpet_status">HPET_STATUS (0x004)</a></li>
-                    <li><a href="#hpet_counter_lo">HPET_COUNTER_LO (0x008)</a></li>
-                    <li><a href="#hpet_counter_hi">HPET_COUNTER_HI (0x00C)</a></li>
-                    <li><a href="#hpet_capabilities">HPET_CAPABILITIES (0x010)</a></li>
+                    <li><a href="#hpet_capabilities">HPET_ID (0x000)</a></li>
+                    <li><a href="#hpet_config">HPET_CONFIG (0x004)</a></li>
+                    <li><a href="#hpet_status">HPET_STATUS (0x008)</a></li>
+                    <li><a href="#hpet_counter_lo">HPET_COUNTER_LO (0x010)</a></li>
+                    <li><a href="#hpet_counter_hi">HPET_COUNTER_HI (0x014)</a></li>
                 </ul>
             </li>
             <li><strong>Per-Timer Registers</strong>
@@ -132,7 +132,7 @@
         <div class="register-header">
             <div class="register-name">HPET_CONFIG</div>
             <div class="register-info">
-                <span>Offset: 0x000</span>
+                <span>Offset: 0x004</span>
                 <span>Access: RW</span>
             </div>
         </div>
@@ -156,7 +156,7 @@
         <div class="register-header">
             <div class="register-name">HPET_STATUS</div>
             <div class="register-info">
-                <span>Offset: 0x004</span>
+                <span>Offset: 0x008</span>
                 <span>Access: RW (W1C)</span>
             </div>
         </div>
@@ -189,7 +189,7 @@
         <div class="register-header">
             <div class="register-name">HPET_COUNTER_LO</div>
             <div class="register-info">
-                <span>Offset: 0x008</span>
+                <span>Offset: 0x010</span>
                 <span>Access: RW</span>
             </div>
         </div>
@@ -211,7 +211,7 @@
         <div class="register-header">
             <div class="register-name">HPET_COUNTER_HI</div>
             <div class="register-info">
-                <span>Offset: 0x00C</span>
+                <span>Offset: 0x014</span>
                 <span>Access: RW</span>
             </div>
         </div>
@@ -231,34 +231,39 @@
         </div>
     </div>
 
-    <!-- HPET_CAPABILITIES -->
+    <!-- HPET_ID -->
     <div class="register-section" id="hpet_capabilities">
         <div class="register-header">
-            <div class="register-name">HPET_CAPABILITIES</div>
+            <div class="register-name">HPET_ID</div>
             <div class="register-info">
-                <span>Offset: 0x010</span>
+                <span>Offset: 0x000</span>
                 <span>Access: RO</span>
             </div>
         </div>
-        <div class="register-description">Hardware capabilities - Number of timers, vendor ID, revision (read-only)</div>
+        <div class="register-description">Identification and capabilities (read-only). Vendor/revision fixed 0x01/0x01 in the generated RTL.</div>
         <div class="wavedrom-container">
             <script type="WaveDrom">
 {
   "reg": [
-    {"bits": 8, "name": "num_timers", "attr": "Number of timers"},
-    {"bits": 8, "name": "revision_id", "attr": "Revision ID"},
-    {"bits": 16, "name": "vendor_id", "attr": "Vendor ID"}
+    {"bits": 5, "name": "reserved", "type": 1},
+    {"bits": 1, "name": "leg_rt_cap", "attr": "Reads 1 (not implemented)"},
+    {"bits": 1, "name": "reserved", "type": 1},
+    {"bits": 1, "name": "count_size_cap", "attr": "1 = 64-bit counter"},
+    {"bits": 5, "name": "num_tim_cap", "attr": "Timers - 1"},
+    {"bits": 3, "name": "reserved", "type": 1},
+    {"bits": 8, "name": "rev_id", "attr": "Fixed 0x01"},
+    {"bits": 8, "name": "vendor_id", "attr": "Fixed 0x01"}
   ],
   "config": {"hspace": 800, "bits": 32, "lanes": 1}
 }
             </script>
         </div>
         <div class="note">
-            <strong>Typical Values:</strong>
+            <strong>Values:</strong>
             <ul>
-                <li><strong>num_timers:</strong> 2, 3, or 8 (number of independent timers)</li>
-                <li><strong>vendor_id:</strong> 0x8086 (Intel), 0x1022 (AMD), or custom</li>
-                <li><strong>revision_id:</strong> Hardware revision number</li>
+                <li><strong>num_tim_cap:</strong> NUM_TIMERS - 1 (1, 2, or 7)</li>
+                <li><strong>vendor_id / rev_id:</strong> fixed 0x01/0x01 (the top-level parameters are currently unwired)</li>
+                <li>2 timers read 0x010101A0; 3 timers 0x010102A0; 8 timers 0x010107A0</li>
             </ul>
         </div>
     </div>
@@ -290,11 +295,13 @@
             <script type="WaveDrom">
 {
   "reg": [
-    {"bits": 1, "name": "enable", "attr": "Timer enable"},
-    {"bits": 1, "name": "int_en", "attr": "Interrupt enable"},
-    {"bits": 1, "name": "type", "attr": "0=One-shot, 1=Periodic"},
-    {"bits": 1, "name": "size", "attr": "Size (reserved)"},
-    {"bits": 28, "name": "reserved", "attr": "Reserved", "type": 1}
+    {"bits": 2, "name": "reserved", "type": 1},
+    {"bits": 1, "name": "timer_enable", "attr": "Timer enable"},
+    {"bits": 1, "name": "timer_int_enable", "attr": "Interrupt enable"},
+    {"bits": 1, "name": "timer_type", "attr": "0=One-shot, 1=Periodic"},
+    {"bits": 1, "name": "timer_size", "attr": "0=32-bit, 1=64-bit"},
+    {"bits": 1, "name": "timer_value_set", "attr": "Stored, no HW effect"},
+    {"bits": 25, "name": "reserved", "type": 1}
   ],
   "config": {"hspace": 800, "bits": 32, "lanes": 1}
 }

@@ -1,15 +1,34 @@
 {
-  "description": "HPET Register Map - WaveDrom Definitions",
+  "description": "HPET register bit-field layouts (WaveDrom reg format). Matches the RTL decode in rtl/hpet/hpet_regs.sv.",
   "registers": [
     {
-      "name": "HPET_CONFIG",
+      "name": "HPET_ID",
       "offset": "0x000",
-      "access": "RW",
-      "description": "Global configuration register",
+      "access": "RO",
+      "description": "Identification and capabilities (read-only). Vendor/revision are fixed 0x01/0x01 in the generated RTL.",
       "diagram": {
         "reg": [
-          {"bits": 1, "name": "enable", "attr": "Enable HPET"},
-          {"bits": 1, "name": "legacy", "attr": "Legacy routing"},
+          {"bits": 5, "name": "reserved", "attr": "Reserved", "type": 1},
+          {"bits": 1, "name": "leg_rt_cap", "attr": "Reads 1 (feature not implemented)"},
+          {"bits": 1, "name": "reserved", "attr": "Reserved", "type": 1},
+          {"bits": 1, "name": "count_size_cap", "attr": "1 = 64-bit counter"},
+          {"bits": 5, "name": "num_tim_cap", "attr": "Timers - 1"},
+          {"bits": 3, "name": "reserved", "attr": "Reserved", "type": 1},
+          {"bits": 8, "name": "rev_id", "attr": "Fixed 0x01"},
+          {"bits": 8, "name": "vendor_id", "attr": "Fixed 0x01"}
+        ],
+        "config": {"hspace": 800, "bits": 32, "lanes": 1}
+      }
+    },
+    {
+      "name": "HPET_CONFIG",
+      "offset": "0x004",
+      "access": "RW",
+      "description": "Global configuration",
+      "diagram": {
+        "reg": [
+          {"bits": 1, "name": "hpet_enable", "attr": "Enable HPET"},
+          {"bits": 1, "name": "legacy_replacement", "attr": "Stored, no HW effect"},
           {"bits": 30, "name": "reserved", "attr": "Reserved", "type": 1}
         ],
         "config": {"hspace": 800, "bits": 32, "lanes": 1}
@@ -17,9 +36,9 @@
     },
     {
       "name": "HPET_STATUS",
-      "offset": "0x004",
+      "offset": "0x008",
       "access": "RW (W1C)",
-      "description": "Timer interrupt status (write 1 to clear)",
+      "description": "Timer interrupt status (fixed 8-bit field regardless of NUM_TIMERS)",
       "diagram": {
         "reg": [
           {"bits": 1, "name": "T0", "attr": "Timer 0 IRQ"},
@@ -36,10 +55,22 @@
       }
     },
     {
+      "name": "RESERVED",
+      "offset": "0x00C",
+      "access": "RO",
+      "description": "Reserved, reads 0",
+      "diagram": {
+        "reg": [
+          {"bits": 32, "name": "reserved", "attr": "Reads 0", "type": 1}
+        ],
+        "config": {"hspace": 800, "bits": 32, "lanes": 1}
+      }
+    },
+    {
       "name": "HPET_COUNTER_LO",
-      "offset": "0x008",
+      "offset": "0x010",
       "access": "RW",
-      "description": "Main counter bits [31:0]",
+      "description": "Main counter [31:0]",
       "diagram": {
         "reg": [
           {"bits": 32, "name": "counter[31:0]", "attr": "Counter lower 32 bits"}
@@ -49,40 +80,12 @@
     },
     {
       "name": "HPET_COUNTER_HI",
-      "offset": "0x00C",
+      "offset": "0x014",
       "access": "RW",
-      "description": "Main counter bits [63:32]",
+      "description": "Main counter [63:32]",
       "diagram": {
         "reg": [
           {"bits": 32, "name": "counter[63:32]", "attr": "Counter upper 32 bits"}
-        ],
-        "config": {"hspace": 800, "bits": 32, "lanes": 1}
-      }
-    },
-    {
-      "name": "HPET_CAPABILITIES",
-      "offset": "0x010",
-      "access": "RO",
-      "description": "Hardware capabilities (read-only)",
-      "diagram": {
-        "reg": [
-          {"bits": 5, "name": "num_timers", "attr": "Number of timers"},
-          {"bits": 11, "name": "reserved", "attr": "Reserved", "type": 1},
-          {"bits": 16, "name": "vendor_id", "attr": "Vendor ID"}
-        ],
-        "config": {"hspace": 800, "bits": 32, "lanes": 1}
-      }
-    },
-    {
-      "name": "HPET_CAPABILITIES_FULL",
-      "offset": "0x010",
-      "access": "RO",
-      "description": "Hardware capabilities with revision (alternate view)",
-      "diagram": {
-        "reg": [
-          {"bits": 8, "name": "num_timers[7:0]", "attr": "Number of timers"},
-          {"bits": 8, "name": "revision_id[7:0]", "attr": "Revision ID"},
-          {"bits": 16, "name": "vendor_id[15:0]", "attr": "Vendor ID"}
         ],
         "config": {"hspace": 800, "bits": 32, "lanes": 1}
       }
@@ -94,11 +97,13 @@
       "description": "Per-timer configuration (i = timer index)",
       "diagram": {
         "reg": [
-          {"bits": 1, "name": "enable", "attr": "Timer enable"},
-          {"bits": 1, "name": "int_en", "attr": "Interrupt enable"},
-          {"bits": 1, "name": "type", "attr": "0=One-shot, 1=Periodic"},
-          {"bits": 1, "name": "size", "attr": "Size (reserved)"},
-          {"bits": 28, "name": "reserved", "attr": "Reserved", "type": 1}
+          {"bits": 2, "name": "reserved", "attr": "Reserved", "type": 1},
+          {"bits": 1, "name": "timer_enable", "attr": "Timer enable"},
+          {"bits": 1, "name": "timer_int_enable", "attr": "Interrupt enable"},
+          {"bits": 1, "name": "timer_type", "attr": "0=One-shot, 1=Periodic"},
+          {"bits": 1, "name": "timer_size", "attr": "0=32-bit, 1=64-bit compare"},
+          {"bits": 1, "name": "timer_value_set", "attr": "Stored, no HW effect"},
+          {"bits": 25, "name": "reserved", "attr": "Reserved", "type": 1}
         ],
         "config": {"hspace": 800, "bits": 32, "lanes": 1}
       }
@@ -107,7 +112,7 @@
       "name": "TIMER_COMPARATOR_LO",
       "offset": "0x104 + i*0x20",
       "access": "RW",
-      "description": "Per-timer comparator bits [31:0]",
+      "description": "Per-timer comparator bits [31:0] (reads return last software-written value)",
       "diagram": {
         "reg": [
           {"bits": 32, "name": "comparator[31:0]", "attr": "Comparator lower 32 bits"}
@@ -119,7 +124,7 @@
       "name": "TIMER_COMPARATOR_HI",
       "offset": "0x108 + i*0x20",
       "access": "RW",
-      "description": "Per-timer comparator bits [63:32]",
+      "description": "Per-timer comparator bits [63:32] (reads return last software-written value)",
       "diagram": {
         "reg": [
           {"bits": 32, "name": "comparator[63:32]", "attr": "Comparator upper 32 bits"}
@@ -130,37 +135,18 @@
   ],
   "register_map_summary": {
     "global_registers": [
-      {"offset": "0x000", "name": "HPET_CONFIG", "description": "Global enable and legacy routing"},
-      {"offset": "0x004", "name": "HPET_STATUS", "description": "Timer interrupt status (W1C)"},
-      {"offset": "0x008", "name": "HPET_COUNTER_LO", "description": "Main counter [31:0]"},
-      {"offset": "0x00C", "name": "HPET_COUNTER_HI", "description": "Main counter [63:32]"},
-      {"offset": "0x010", "name": "HPET_CAPABILITIES", "description": "Hardware capabilities (RO)"}
+      {"offset": "0x000", "name": "HPET_ID", "description": "Identification and capabilities (RO)"},
+      {"offset": "0x004", "name": "HPET_CONFIG", "description": "Global enable"},
+      {"offset": "0x008", "name": "HPET_STATUS", "description": "Timer interrupt status (W1C)"},
+      {"offset": "0x00C", "name": "RESERVED", "description": "Reads 0"},
+      {"offset": "0x010", "name": "HPET_COUNTER_LO", "description": "Main counter [31:0]"},
+      {"offset": "0x014", "name": "HPET_COUNTER_HI", "description": "Main counter [63:32]"}
     ],
     "per_timer_registers": [
-      {"offset": "0x100 + i*0x20", "name": "TIMER_CONFIG", "description": "Timer enable, interrupt, mode"},
+      {"offset": "0x100 + i*0x20", "name": "TIMER_CONFIG", "description": "Timer enable, interrupt, mode, size"},
       {"offset": "0x104 + i*0x20", "name": "TIMER_COMPARATOR_LO", "description": "Comparator [31:0]"},
       {"offset": "0x108 + i*0x20", "name": "TIMER_COMPARATOR_HI", "description": "Comparator [63:32]"},
-      {"offset": "0x10C + i*0x20", "name": "Reserved", "description": "Reserved for future use"}
-    ],
-    "timer_stride": "0x20 bytes (32 bytes) per timer",
-    "examples": {
-      "timer0_base": "0x100",
-      "timer1_base": "0x120",
-      "timer2_base": "0x140",
-      "timer7_base": "0x1E0"
-    }
-  },
-  "usage_notes": {
-    "rendering": [
-      "Use WaveDrom editor or CLI to render these diagrams",
-      "Online editor: https://wavedrom.com/editor.html",
-      "Each 'diagram' object can be rendered independently"
-    ],
-    "markdown_integration": [
-      "In markdown: ```wavedrom",
-      "Paste the 'diagram' JSON object",
-      "Close with ```"
-    ],
-    "example_markdown": "```wavedrom\n{\n  \"reg\": [\n    {\"bits\": 1, \"name\": \"enable\", \"attr\": \"Enable HPET\"},\n    {\"bits\": 1, \"name\": \"legacy\", \"attr\": \"Legacy routing\"},\n    {\"bits\": 30, \"name\": \"reserved\", \"attr\": \"Reserved\", \"type\": 1}\n  ],\n  \"config\": {\"hspace\": 800, \"bits\": 32, \"lanes\": 1}\n}\n```"
+      {"offset": "0x10C + i*0x20", "name": "RESERVED", "description": "Reserved per timer"}
+    ]
   }
 }

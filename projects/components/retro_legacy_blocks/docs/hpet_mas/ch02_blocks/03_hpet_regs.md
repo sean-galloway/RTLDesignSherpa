@@ -83,7 +83,7 @@ localparam NUM_TIMERS = 8;        // From RDL: TIMER[0:7] array size
 **Protocol Characteristics:**
 - **Latency:** 1 cycle for both reads and writes
 - **Stalls:** Never stall (HPET registers have single-cycle access)
-- **Errors:** Read error on unmapped address, writes always succeed
+- **Errors:** None -- both error outputs are tied to 0 (`cpuif_wr_err = 0`, `readback_err = 0`); no address raises PSLVERR, and addresses above 0x1FF alias the map (only addr[8:0] is decoded)
 
 ##### Hardware Interface (Structs)
 
