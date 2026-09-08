@@ -23,15 +23,15 @@ This directory contains WaveDrom timing diagrams for IOAPIC (I/O Advanced Progra
 ### Message Interface (External)
 - `irq_out_valid` - Message valid to system bus
 - `irq_out_dest` - Destination APIC ID
-- `msg_vector` - Interrupt vector
-- `msg_type` - Delivery mode (Fixed, LowPri, SMI, NMI, etc.)
+- `irq_out_vector` - Interrupt vector
+- `irq_out_deliv_mode` - Delivery mode (Fixed, LowPri, SMI, NMI, etc.)
 
 ### EOI Interface (External)
 - `eoi_in` - EOI broadcast received
 - `eoi_vector` - Vector being acknowledged
 
 ### IOAPIC Core (Internal)
-- **Index Register:** `r_ioregsel`
+- **Index Register:** `ioregsel_value` (the functional shadow copy)
 - **Redirection Table:** `rte[n].vector`, `rte[n].dest`, `rte[n].mask`, `rte[n].trigger`
 - **IRQ State:** `irr[n]`, `remote_irr[n]`, `delivery_pending`
 

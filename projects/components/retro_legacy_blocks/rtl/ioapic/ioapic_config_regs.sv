@@ -295,7 +295,8 @@ module ioapic_config_regs
     //========================================================================
     
     // Note: The indirect access mechanism (IOREGSEL at 0x00, IOWIN at 0x04)
-    // is handled by the PeakRDL-generated logic. Software writes to IOREGSEL
+    // is implemented HERE (shadow selector + translation case above), not in
+    // the PeakRDL-generated block. Software writes to IOREGSEL
     // to select the internal register, then accesses IOWIN to read/write the
     // selected register's data.
     //

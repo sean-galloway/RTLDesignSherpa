@@ -93,7 +93,8 @@ The design follows RLB architecture standards with clear functional separation:
 3. **ioapic_core.sv** (Core Logic)
    - IRQ input synchronization (3-stage, metastability prevention)
    - Polarity inversion (active-high/active-low handling)
-   - Edge detection (rising/falling edge with filtering)
+   - Edge detection (rising edge of the polarity-adjusted signal only;
+     falling-edge detect exists but is unused, and there is no filtering)
    - Level sensing (continuous level tracking)
    - Priority arbitration (static: lowest IRQ wins)
    - Interrupt delivery state machine (IDLE → DELIVER → WAIT_EOI)
@@ -167,7 +168,9 @@ This indirect access method:
 - Reduces address space (only 2 APB registers instead of 50+)
 - Matches Intel specification for software compatibility
 - Allows 256 internal registers with 8-bit offset
-- PeakRDL generated logic handles routing automatically
+- The IOREGSEL/IOWIN routing is handwritten in ioapic_config_regs.sv
+  (a shadow selector plus a case remapping only APB 0x004); the PeakRDL
+  block just decodes the translated address
 
 #### Clock Domain Architecture
 
@@ -265,7 +268,8 @@ The IOAPIC core implements a simple 3-state FSM for interrupt delivery:
 **Minimal Integration (Single CPU):**
 ```systemverilog
 apb4_ioapic #(
-    .NUM_IRQS    (24),
+    .NUM_IRQS    (24),  // must remain 24: the generated decode and
+                        // IOAPICVER (MaxRedirEntry=0x17) are hardwired
     .CDC_ENABLE  (0)   // Single clock domain
 ) u_ioapic (
     .pclk              (sys_clk),

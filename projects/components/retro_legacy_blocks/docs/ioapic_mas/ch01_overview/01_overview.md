@@ -92,7 +92,9 @@ Each of the 24 IRQ inputs can be independently configured for trigger mode (edge
 - **APB Protocol**: Full AMBA APB4 specification compliance
 - **PeakRDL**: Industry-standard SystemRDL for register generation
 - **Intel 82093AA**: Register layout and access method compatibility
-- **Reset Convention**: Consistent active-low asynchronous reset
+- **Reset Convention**: mixed -- hand-written logic uses active-low
+  asynchronous reset; the generated ioapic_regs.sv resets SYNCHRONOUSLY
+  (active-high, derived from the reset input)
 
 **Modularity:**
 Clean separation between interrupt routing logic (ioapic_core), register interface (ioapic_config_regs), and bus interface (apb4_ioapic) enables easy customization and integration.

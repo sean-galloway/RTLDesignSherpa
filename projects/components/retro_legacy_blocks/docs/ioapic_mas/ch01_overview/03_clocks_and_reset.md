@@ -221,7 +221,10 @@ If using PM_ACPI power management:
 
 **Setup/Hold:**
 - IRQ inputs: Externally synchronized, 3-stage internal sync
-- EOI inputs: Should be synchronous to ioapic_clk if possible
+- EOI inputs: MUST be synchronous to ioapic_clk -- eoi_in/eoi_vector
+  cross with NO synchronizer (unlike irq_in's 3 stages), a one-cycle
+  pulse can be missed or go metastable, and a missed EOI stalls ALL
+  delivery (see the note below and issue #48)
 - APB signals: Per APB specification
 
 #### Clock Jitter and Stability

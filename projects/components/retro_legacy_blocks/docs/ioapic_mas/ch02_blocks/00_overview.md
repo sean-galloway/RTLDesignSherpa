@@ -67,8 +67,10 @@ apb4_ioapic (Top Level)
 
 **3. ioapic_regs (PeakRDL Generated)**
 - Generated from ioapic_regs.rdl SystemRDL specification
-- Implements IOREGSEL/IOWIN indirect access
-- Provides hwif_in/hwif_out structs
+- Provides hwif_in/hwif_out structs (the IOREGSEL/IOWIN indirect-access
+  translation is HANDWRITTEN in ioapic_config_regs.sv -- the generated
+  block only holds standalone IOREGSEL/IOWIN registers, and its IOWIN
+  storage is dead: 0x004 accesses are always translated away)
 - Handles register read/write/reset
 - See: [ioapic_regs.md](03_ioapic_regs.md)
 

@@ -105,7 +105,7 @@ APB → apb4_slave[_cdc] → CMD/RSP → peakrdl_to_cmdrsp →
 1. **Intel 8259A PIC (1976-1990s)**
    - 8 IRQ inputs, cascadable to 15
    - Fixed priority
-   - Edge-triggered only
+   - Edge-triggered by default (ICW1 LTIM selects a level-triggered mode)
    - Direct memory-mapped access
 
 2. **Intel 82093AA IOAPIC (1996-present)**

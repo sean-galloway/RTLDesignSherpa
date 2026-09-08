@@ -185,7 +185,8 @@ This specification is organized into five chapters covering all aspects of the A
 | Chapter 5: Registers | 🟡 Partial (register map only) | 33% |
 
 **Specification Status:** MVP RTL implemented; validation pending and one known
-RTL defect open (edge interrupts delivered twice, issue #48)
+RTL defects open under issue #48 (edge double-delivery, IOREGSEL shadow
+divergence, EOI-path hazards -- #48 is this block's RTL-findings umbrella)
 
 ---
 

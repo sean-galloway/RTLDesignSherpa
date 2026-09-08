@@ -81,6 +81,12 @@ level and can manufacture a spurious edge, latching a phantom pending
 interrupt. Set the mask bit, reprogram, clear pending if needed, then
 unmask (same caveat as the real 82093AA).
 
+**A lost or wrong-vector EOI stalls ALL delivery.** There is one global
+delivery engine, and WAIT_EOI exits only on an EOI matching the latched
+vector -- if software EOIs the wrong vector or never EOIs, no further
+interrupt (any IRQ, any mode) is ever delivered until reset. A real
+82093AA blocks only the affected pin (design limitation, #48).
+
 #### IOWIN Register (APB 0x004)
 
 | Bits | Name | Type | Reset | Description |
