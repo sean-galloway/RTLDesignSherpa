@@ -49,7 +49,7 @@ Slave router architecture showing address decoding, routing matrix, and out-of-r
 
 Each slave is configured with:
 ```toml
-[[slaves]]
+[[bridge.slaves]]
 name = "memory"
 base_address = 0x4000_0000
 size = 0x1000_0000        # 256 MB
@@ -291,7 +291,7 @@ software can read it without decoding it out of the data bus.
 ### Configuration
 
 ```toml
-[[slaves]]
+[[bridge.slaves]]
 name = "error_responder"
 base_address = 0x0        # Ignored for default slave
 size = 0x0                # Ignored for default slave
@@ -314,12 +314,12 @@ When a default slave is configured:
 
 If configuration has overlapping ranges:
 ```toml
-[[slaves]]
+[[bridge.slaves]]
 name = "fast_cache"
 base_address = 0x8000_0000
 size = 0x1000_0000
 
-[[slaves]]
+[[bridge.slaves]]
 name = "slow_memory"
 base_address = 0x8000_0000  # Same base!
 size = 0x4000_0000
@@ -343,7 +343,7 @@ Legitimate uses of overlapping ranges:
 ```toml
 # Router behavior is defined by slave configurations
 
-[[slaves]]
+[[bridge.slaves]]
 name = "ddr_memory"
 base_address = 0x8000_0000
 size = 0x4000_0000           # 1 GB

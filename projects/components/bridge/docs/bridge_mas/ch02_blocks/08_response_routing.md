@@ -403,7 +403,7 @@ response_arbiter_type = "round_robin"  # "round_robin", "fixed_priority"
 registered_demux = false            # Register demux output (+1 cycle)
 
 # Per-master response credits (optional)
-[[masters]]
+[[bridge.masters]]
 name = "cpu"
 max_response_credits = 16           # Outstanding responses allowed
 ```

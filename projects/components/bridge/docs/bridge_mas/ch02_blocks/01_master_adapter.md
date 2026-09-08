@@ -338,7 +338,7 @@ Typical critical paths (if skid buffers not used):
 ### Per-Master Parameters (from TOML/CSV)
 
 ```toml
-[[masters]]
+[[bridge.masters]]
 name = "cpu"
 channels = "rw"              # "rd", "wr", or "rw"
 arid_width = 4               # External ID width

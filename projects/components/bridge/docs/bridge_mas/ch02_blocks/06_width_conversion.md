@@ -353,26 +353,26 @@ Resource usage scales primarily with:
 internal_data_width = 64        # Crossbar width
 enable_width_conversion = true  # Allow width differences
 
-[[masters]]
+[[bridge.masters]]
 name = "cpu_32bit"
 data_width = 32                 # Narrower than crossbar (upsizing)
 addr_width = 32
 
-[[masters]]
+[[bridge.masters]]
 name = "dma_64bit"
 data_width = 64                 # Matches crossbar (no conversion)
 addr_width = 32
 
-[[masters]]
+[[bridge.masters]]
 name = "gpu_128bit"
 data_width = 128                # Wider than crossbar (downsizing)
 addr_width = 36
 
-[[slaves]]
+[[bridge.slaves]]
 name = "memory_64bit"
 data_width = 64                 # Matches crossbar (no conversion)
 
-[[slaves]]
+[[bridge.slaves]]
 name = "periph_32bit"
 data_width = 32                 # Narrower than crossbar (downsizing)
 ```

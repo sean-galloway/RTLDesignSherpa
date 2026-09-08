@@ -318,16 +318,13 @@ end
 
 ### Timeout Configuration
 
-```toml
-[bridge.error_handling]
-enable_timeout = true
-timeout_cycles = 10000         # Max cycles before timeout
-timeout_action = "decerr"      # "decerr", "slverr", or "hang"
-per_slave_timeout = [          # Optional per-slave overrides
-    {name = "slow_periph", timeout = 50000},
-    {name = "fast_mem", timeout = 1000}
-]
-```
+There is none. `[bridge.error_handling]` is not a table the loader knows, and
+`enable_timeout` / `timeout_cycles` / `timeout_action` / `per_slave_timeout`
+are not keys -- `config_validator` rejects unknown keys, so a TOML written from
+the block this section used to contain does not load at all.
+
+A hung slave stalls its path indefinitely. If the system needs to survive that,
+the watchdog belongs outside the bridge.
 
 ## 2.9.7 Error Logging and Reporting
 
@@ -423,17 +420,16 @@ Optional error log (16 entries): +2KB BRAM
 ```toml
 [bridge.error_handling]
 # OOR handling
-enable_oor_errors = true
-oor_response_type = "decerr"      # "decerr", "slverr"
-oor_read_pattern = 0xDEADCAFE     # Data pattern for OOR reads
-
-# Timeout detection
-enable_timeout = true
-timeout_cycles = 10000
-timeout_response = "decerr"
-
-# Protocol checking
-enable_protocol_checker = true
+# NOT REAL KEYS. Out-of-range handling is fixed, not configured: the
+# subtractive slave always answers DECERR with READ_FILL (0xDEADBEEF), there
+# is no timeout anywhere in the bridge, and there is no protocol checker.
+# Kept visible rather than deleted because several pages once described these
+# as configuration, and a reader who saw them elsewhere should find out here
+# that they do not exist.
+#
+#   enable_oor_errors / oor_response_type / oor_read_pattern
+#   enable_timeout / timeout_cycles / timeout_response
+#   enable_protocol_checker
 protocol_checker_mode = "log"     # "log", "error", "ignore"
 
 # Error logging

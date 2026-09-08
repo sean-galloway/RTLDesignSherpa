@@ -346,7 +346,7 @@ end
 enable_cam = true
 cam_depth = 16              # Max outstanding transactions
 
-[[masters]]
+[[bridge.masters]]
 name = "cpu"
 max_outstanding_reads = 8   # Per-master limit
 max_outstanding_writes = 8
@@ -466,16 +466,17 @@ enable_cam = false              # Use CAM for ID tracking
 cam_type = "parallel"           # "parallel", "bram", "sequential"
 cam_depth = 16                  # Outstanding transaction capacity
 
-[bridge.id_management]
-registered_injection = false    # Register ID injection (+1 cycle)
-registered_extraction = false   # Register ID extraction (+1 cycle)
-enable_timeout = true           # Detect hung transactions
-timeout_cycles = 10000          # Cycles before timeout error
+# NONE of the keys below exist. There is no [bridge.id_management] table,
+# no ID injection/extraction (IDs are pass-through) and no timeout anywhere
+# in the bridge -- see 2.9. config_validator rejects unknown keys, so a TOML
+# written from this block does not load.
+#
+# The real per-port keys are id_width / addr_width / data_width under
+# [[bridge.masters]] and [[bridge.slaves]]:
 
-[[masters]]
+[[bridge.masters]]
 name = "cpu"
-arid_width = 4                  # External ID width
-awid_width = 4
+id_width = 4
 max_outstanding_reads = 8       # CAM allocation limit
 max_outstanding_writes = 8
 ```
@@ -570,13 +571,10 @@ CAM (if enabled):
 - Verify CAM correctly routes each
 ```
 
-5. **CAM Timeout**:
-```
-- Issue transaction
-- Slave doesn't respond within timeout_cycles
-- Verify timeout error signaled
-- Verify CAM entry deallocated (or flagged)
-```
+5. **~~CAM Timeout~~** -- not testable: there is no timeout to trigger and no
+   CAM in the generated bridges (`bridge_cam.sv` is instantiated in zero of
+   them). A hung slave stalls its path indefinitely; the system-level answer is
+   a watchdog outside the bridge.
 
 ## 2.5.16 Future Enhancements
 

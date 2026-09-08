@@ -672,14 +672,14 @@ APB suitable only for low-bandwidth peripherals
 ### Protocol Conversion Configuration (TOML)
 
 ```toml
-[[slaves]]
+[[bridge.slaves]]
 name = "uart_peripheral"
 protocol = "apb"            # "axi4", "apb", "ahb" (future)
 base_address = 0xF000_0000
 size = 0x1000
 data_width = 32
 
-[[slaves]]
+[[bridge.slaves]]
 name = "ddr_memory"
 protocol = "axi4"           # Native, no conversion
 base_address = 0x8000_0000
@@ -804,23 +804,23 @@ Use Case         Peripherals      Memory, DMA
 num_masters = 2
 num_slaves = 3
 
-[[masters]]
+[[bridge.masters]]
 name = "cpu"
 protocol = "axi4"
 
-[[masters]]
+[[bridge.masters]]
 name = "dma"
 protocol = "axi4"
 
-[[slaves]]
+[[bridge.slaves]]
 name = "ddr_memory"
 protocol = "axi4"          # High bandwidth
 
-[[slaves]]
+[[bridge.slaves]]
 name = "sram"
 protocol = "axi4"          # Medium bandwidth
 
-[[slaves]]
+[[bridge.slaves]]
 name = "peripherals"
 protocol = "apb"           # Low bandwidth, simple
 ```
