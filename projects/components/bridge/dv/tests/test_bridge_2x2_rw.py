@@ -46,6 +46,22 @@ from projects.components.bridge.dv.tbclasses.bridge_arbitration import run_arbit
 # fail in the full regression). Stream's per-module naming was the
 # reference.
 
+
+def _hi(sig):
+    """True when `sig` reads as 1, False when it is 0 OR UNRESOLVABLE.
+
+    int(sig.value) raises ValueError on an X, and an exception inside a
+    cocotb.start_soon watcher kills that watcher SILENTLY -- the test then
+    reports "no violations found" when what actually happened is "nothing was
+    ever sampled". Outputs read X before the first transaction, so every
+    watcher started right after reset hits this.
+    """
+    try:
+        return int(sig.value) == 1
+    except ValueError:
+        return False
+
+
 @cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_bridge_2x2_rw_basic_connectivity(dut):
     """
@@ -393,39 +409,35 @@ async def cocotb_test_bridge_2x2_rw_outstanding_overflow(dut):
     # the CROSSBAR-side B, not the slave-port B, so counting handshakes at the
     # slave port measures something else entirely.
     fifo = {'peak': 0, 'probed': False}
+    bad_route = []
+    b_seen = []
 
-    async def _fifo_probe():
+    # ONE probe coroutine for everything sampled per cycle.
+    #
+    # This started as four concurrent coroutines each awaiting ReadOnly(). That
+    # DROPS SAMPLES: the B-channel watchers between them saw 16 of 80
+    # responses, and a watcher that misses traffic reports "no misroutes"
+    # identically to a clean run. One sampler sees every cycle.
+    async def _probe():
         wr = tb.dut.u_ddr_adapter.wr_ptr
         rd = tb.dut.u_ddr_adapter.rd_ptr
         fifo['probed'] = True
+        ports = ((0, tb.dut.cpu_m_axi_bid, tb.dut.cpu_m_axi_bvalid, tb.dut.cpu_m_axi_bready),
+                 (1, tb.dut.dma_m_axi_bid, tb.dut.dma_m_axi_bvalid, tb.dut.dma_m_axi_bready))
         while True:
             await RisingEdge(tb.clock)
             await ReadOnly()
             occ = (int(wr.value) - int(rd.value)) & 0x1F
             if occ > fifo['peak']:
                 fifo['peak'] = occ
+            for idx, bid, bv, br in ports:
+                if _hi(bv) and _hi(br):
+                    b_seen.append(idx)
+                    got = int(bid.value)
+                    if ((got >> 3) & 1) != idx:
+                        bad_route.append((idx, got))
 
-    cocotb.start_soon(_fifo_probe())
-
-    # Disjoint AWID ranges: bit 3 tags the owning master, so a response
-    # delivered to the wrong port is identifiable ON THE BUS. Counting
-    # completions cannot see it -- misroutes come in pairs and both masters
-    # still receive the right NUMBER of responses.
-    bad_route = []
-
-    async def _b_watch(master_idx, bid_sig, bvalid_sig, bready_sig):
-        while True:
-            await RisingEdge(tb.clock)
-            await ReadOnly()
-            if bvalid_sig.value == 1 and bready_sig.value == 1:
-                got = int(bid_sig.value)
-                if ((got >> 3) & 1) != master_idx:
-                    bad_route.append((master_idx, got))
-
-    cocotb.start_soon(_b_watch(0, tb.dut.cpu_m_axi_bid,
-                               tb.dut.cpu_m_axi_bvalid, tb.dut.cpu_m_axi_bready))
-    cocotb.start_soon(_b_watch(1, tb.dut.dma_m_axi_bid,
-                               tb.dut.dma_m_axi_bvalid, tb.dut.dma_m_axi_bready))
+    cocotb.start_soon(_probe())
 
     plan = []
     for m in (0, 1):
@@ -465,6 +477,20 @@ async def cocotb_test_bridge_2x2_rw_outstanding_overflow(dut):
         f"{2 * FIFO_DEPTH} the pointers lap, occupancy reads EMPTY and the "
         f"response is never routed at all. awready must be gated on not-full.")
 
+    # The BID check is SUPPLEMENTARY and best-effort: a cycle sampler running
+    # beside the BFMs does not catch every handshake (measured: roughly a third
+    # of them), so "bad_route is empty" is not proof of clean routing. It only
+    # ever reports misroutes it actually saw. The occupancy invariant below is
+    # the primary detector and does not depend on sampling at all.
+    #
+    # What IS asserted here: the watcher was alive and sampling. A dead watcher
+    # and a clean run are otherwise indistinguishable.
+    assert b_seen, (
+        "the B-channel watcher never observed a single response, so its "
+        "'no misroutes' result carries no information at all")
+    tb.log.info(f"BID check sampled {len(b_seen)}/{len(plan)} responses "
+                f"(best-effort; the occupancy invariant is the real detector)")
+
     assert not bad_route, (
         f"BRIDGE-011: {len(bad_route)} response(s) delivered to the wrong "
         f"master -- first, master port {bad_route[0][0]} received BID "
@@ -488,6 +514,70 @@ async def cocotb_test_bridge_2x2_rw_outstanding_overflow(dut):
 
     tb.log.info(f"All {len(plan)} writes completed; peak occupancy "
                 f"{fifo['peak']} stayed within the {FIFO_DEPTH}-entry FIFO")
+
+
+
+@cocotb.test(timeout_time=200, timeout_unit="ms")
+async def cocotb_test_bridge_2x2_rw_latency(dut):
+    """Measure request and response latency through the bridge, in cycles.
+
+    The performance chapters quote figures like "2-3 cycles" and describe a
+    master-delivery stage as "0 (Direct connection)". Nothing measured them, so
+    they drifted from the RTL -- the response path is registered where the
+    docs said it was not.
+
+    Measured here at the PORTS, on an idle bridge with a prompt slave, so the
+    numbers are the structural pipeline depth and not a queuing artifact:
+      request  = master AW accepted -> AW presented at the slave port
+      response = slave B accepted   -> B presented at the master port
+    """
+    tb = Bridge2x2RwTB(dut)
+    await tb.setup_clocks_and_reset()
+    tb.set_slave_response_delay(0, 1)
+
+    marks = {}
+    d = dut
+
+    # ONE sampler for all four ports. Four concurrent coroutines each awaiting
+    # ReadOnly() recorded nothing at all -- a single sampler is both simpler
+    # and immune to whatever phase contention that caused.
+    async def _sampler():
+        n = 0
+        pairs = (('m_aw', d.cpu_m_axi_awvalid, d.cpu_m_axi_awready),
+                 ('s_aw', d.ddr_s_axi_awvalid, d.ddr_s_axi_awready),
+                 ('s_b',  d.ddr_s_axi_bvalid,  d.ddr_s_axi_bready),
+                 ('m_b',  d.cpu_m_axi_bvalid,  d.cpu_m_axi_bready))
+        while True:
+            await RisingEdge(tb.clock)
+            n += 1
+            for name, v, r in pairs:
+                if _hi(v) and _hi(r):
+                    marks.setdefault(name, n)
+
+    cocotb.start_soon(_sampler())
+
+    await tb.master_write(0, 0x00002000, 0x1A7E0001)
+
+    for _ in range(50):
+        if {'m_aw', 's_aw', 's_b', 'm_b'} <= marks.keys():
+            break
+        await ClockCycles(tb.clock, 1)
+
+    missing = {'m_aw', 's_aw', 's_b', 'm_b'} - marks.keys()
+    assert not missing, f"never observed handshakes: {sorted(missing)}"
+
+    req = marks['s_aw'] - marks['m_aw']
+    rsp = marks['m_b'] - marks['s_b']
+    tb.log.info(f"LATENCY request(master AW -> slave AW) = {req} cycles")
+    tb.log.info(f"LATENCY response(slave B -> master B)  = {rsp} cycles")
+
+    # The response path is NOT a direct connection: it is registered. Assert a
+    # floor so a doc claiming zero cannot be reconciled with a passing test.
+    assert rsp >= 1, (
+        f"response path measured {rsp} cycles. The docs described master "
+        f"delivery as '0 (Direct connection)'; if that ever becomes true this "
+        f"assertion should be revisited deliberately, not silently.")
+    assert req >= 1, f"request path measured {req} cycles, expected >= 1"
 
 
 # ============================================================================
@@ -720,6 +810,62 @@ def test_bridge_2x2_rw_outstanding_overflow(request):
         toplevel=dut_name,
         module=module,
         testcase="cocotb_test_bridge_2x2_rw_outstanding_overflow",
+        sim_build=sim_build,
+        waves=False,
+        extra_args=extra_args,
+        plus_args=waves['sim_args'],
+        extra_env=extra_env
+    )
+
+
+def test_bridge_2x2_rw_latency(request):
+    """Pytest wrapper for the measured-latency test"""
+
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_bridge': '../../../../rtl/bridge',
+        'rtl_common': '../../../../rtl/common',
+        'rtl_amba': '../../../../rtl/amba'
+    })
+
+    dut_name = "bridge_2x2_rw"
+
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/bridge/rtl/filelists/bridge_2x2_rw.f'
+    )
+
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    worker_suffix = f"_{worker_id}" if worker_id else ""
+    test_name_plus_params = f"test_{dut_name}_latency"
+    sim_build_name = f"{test_name_plus_params}{worker_suffix}"
+
+    log_path = os.path.join(log_dir, f'{sim_build_name}.log')
+    results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
+    # sim_build_path(), not a hand-built join: it honours SIM_BUILD_ROOT so
+    # concurrent sessions do not share one build tree, and drops an advisory
+    # busy marker so a cleaner can tell "being built in right now" from
+    # "leftover". Hand-joining tests_dir/local_sim_build puts every session
+    # back in the same directory, which is what f01853fe was written to stop.
+    sim_build = sim_build_path(tests_dir, sim_build_name)
+    os.makedirs(log_dir, exist_ok=True)
+
+    waves = get_wave_config(sim_build)
+
+    extra_args = ['--assert', '--coverage'] + waves['extra_args']
+    extra_env = {
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'LOG_PATH': log_path,
+        'COCOTB_RESULTS_FILE': results_path,
+        **waves['extra_env'],
+    }
+
+    run(
+        python_search=[tests_dir],
+        verilog_sources=verilog_sources,
+        includes=includes,
+        toplevel=dut_name,
+        module=module,
+        testcase="cocotb_test_bridge_2x2_rw_latency",
         sim_build=sim_build,
         waves=False,
         extra_args=extra_args,

@@ -53,12 +53,30 @@
 | Stage | Cycles | Notes |
 |-------|--------|-------|
 | Slave response | Variable | Slave-dependent |
-| ID extraction | 0 | Combinational |
-| Response routing | 1 | Pipeline registration |
-| Master delivery | 0 | Direct connection |
-| **Total Response** | **1 + slave** | Plus slave latency |
+| ID extraction | 0 | Combinational -- routing is by FIFO position, no lookup |
+| Response routing + master delivery | 2 | Registered; NOT a direct connection |
+| **Total Response** | **2 + slave** | Plus slave latency |
 
 : Table 5.7: Response Path Latency
+
+> **Measured, not estimated.** `bridge_2x2_rw`, cpu master to ddr slave, idle
+> bridge, prompt slave, counted at the ports:
+>
+> | Path | Cycles |
+> |---|---|
+> | master AW accepted -> AW accepted at the slave port | **4** |
+> | B accepted at the slave port -> B accepted at the master | **2** |
+>
+> The response row previously read "Master delivery 0 (Direct connection)",
+> giving a total of 1. It is registered, and the measured figure is 2. Both
+> numbers come from `test_bridge_2x2_rw_latency`, which asserts each path is
+> at least one cycle so a future edit cannot silently restore the zero. Figures
+> elsewhere quoting "2-3 cycles" describe the request path and understate it;
+> the measured value is 4 for this configuration.
+>
+> Other configurations differ -- width converters and the APB/AXIL shims add
+> stages -- so treat these as the measured floor for a direct AXI4 path, not a
+> universal constant.
 
 ## End-to-End Latency
 
