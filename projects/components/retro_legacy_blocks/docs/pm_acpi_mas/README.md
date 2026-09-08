@@ -23,7 +23,8 @@
 
 # PM_ACPI Specification
 
-**Status:** 📋 Planned - Structure Created
+**Status:** Written (chapters 1 and 5) - see pm_acpi_mas_index.md for the
+authoritative status and the known-RTL-deviation notes
 
 ---
 

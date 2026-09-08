@@ -26,7 +26,9 @@
 **Component:** APB Power Management / ACPI Controller
 **Version:** 1.0
 **Last Updated:** 2025-12-01
-**Status:** Production Ready
+**Status:** RTL Partial - register layout validated; GPE status, the W1C
+status fields, power-button wake and RESET_STATUS are non-functional or
+deviant in the current RTL (see ch05 Implementation Notes and issue #54)
 
 ---
 

@@ -53,9 +53,9 @@ base address. All registers are 32 bits wide with 32-bit access.
 | 0x038 | GPE0_ENABLE_LO | RW | 0x00000000 | GPE0 enable bits [15:0] |
 | 0x03C | GPE0_ENABLE_HI | RW | 0x00000000 | GPE0 enable bits [31:16] |
 | 0x050 | CLOCK_GATE_CTRL | RW | 0xFFFFFFFF | Clock gating control [31:0] |
-| 0x054 | CLOCK_GATE_STATUS | RO | 0x00000000 | Clock gate status |
+| 0x054 | CLOCK_GATE_STATUS | RO | 0xFFFFFFFF | Clock gate status (reads the live core state; all gates enabled at reset) |
 | 0x058 | POWER_DOMAIN_CTRL | RW | 0x000000FF | Power domain control [7:0] |
-| 0x05C | POWER_DOMAIN_STATUS | RO | 0x00000000 | Power domain status |
+| 0x05C | POWER_DOMAIN_STATUS | RO | 0x000000FF | Power domain status (reads the live core state; all domains powered at reset) |
 | 0x060 | WAKE_STATUS | W1C | 0x00000000 | Wake event sources |
 | 0x064 | WAKE_ENABLE | RW | 0x00000000 | Wake event enable mask |
 | 0x068 | RESET_CTRL | RW | 0x00000000 | Reset generation control |
@@ -64,7 +64,11 @@ base address. All registers are 32 bits wide with 32-bit access.
 Access legend: RW = read/write, RO = read-only (hardware-updated),
 W1C = read status / write 1 to clear.
 
-Addresses 0x070-0xFFF are decoded as reserved. The register block only decodes
+Only PADDR[6:0] reaches the register block (the config layer slices
+[8:0] into a 7-bit port, truncating the rest), so the whole map ALIASES
+every 0x80 bytes across the 4 KB window -- a write to nominally-reserved
+0x080 writes ACPI_CONTROL (RTL hazard, #54). Within each 128-byte tile,
+only 0x070-0x07C read as zero. The register block only decodes
 the offsets listed above; unmapped reads in the decoded range return 0.
 
 ---
@@ -76,8 +80,8 @@ the offsets listed above; unmapped reads in the decoded range return 0.
 | 0 | acpi_enable | RW | 0 | Enable ACPI functionality (0=disabled, 1=enabled) |
 | 1 | pm_timer_enable | RW | 0 | Enable PM Timer (0=stopped, 1=running) |
 | 2 | gpe_enable | RW | 0 | Enable GPE event processing |
-| 5:4 | current_state | RO | 0 | Current power state (0=S0, 1=S1, 3=S3), hardware-updated |
-| 6 | low_power_req | RW | 0 | Request low power mode entry |
+| 5:4 | current_state | RO | 0 | Current power state (0=S0, 1=S1, 3=S3), hardware-updated; reads 0 (S0) while the FSM is in its transition state |
+| 6 | low_power_req | RW | 0 | Request low power mode entry; auto-clears one cycle after the write (like soft_reset) and is unused by the core |
 | 7 | soft_reset | RW | 0 | Soft reset PM controller (write 1, auto-clears) |
 | 31:8 | reserved | RO | 0 | Reserved |
 
@@ -121,7 +125,7 @@ Write 1 to clear each bit.
 | 1 | wake_int | W1C | 0 | Wake interrupt pending |
 | 2 | timer_ovf_int | W1C | 0 | Timer overflow interrupt pending |
 | 3 | state_trans_int | W1C | 0 | State transition interrupt pending |
-| 4 | pm1_int | W1C | 0 | PM1 interrupt pending |
+| 4 | pm1_int | W1C | 0 | PM1 interrupt pending. NOTE: this bit is set only from timer/power-button/sleep-button edges, but the core's pm1 interrupt term ALSO includes RTC and wake -- an RTC-only or wake-only event can assert pm_interrupt without ever setting this bit (#54) |
 | 5 | gpe_int | W1C | 0 | GPE interrupt pending |
 | 31:6 | reserved | RO | 0 | Reserved |
 
@@ -173,8 +177,10 @@ Write 1 to clear each bit.
 | 31:0 | timer_value | RO | 0 | Current 32-bit PM timer count (hardware-updated) |
 
 The counter is 32 bits and increments at a divided clock rate (see
-PM_TIMER_CONFIG). At the default divider it advances at a 3.579545 MHz
-equivalent rate and rolls over roughly every 1200 seconds.
+PM_TIMER_CONFIG). At the default divider it advances at ~3.571 MHz from a
+100 MHz pm_clk (100/28 -- 0.23% below the ACPI-standard 3.579545 MHz; an
+exact tick needs pm_clk = 100.227 MHz) and rolls over roughly every 1200
+seconds.
 
 ---
 
@@ -185,14 +191,19 @@ equivalent rate and rolls over roughly every 1200 seconds.
 | 15:0 | timer_div | RW | 0x001B | Clock divider: timer_clk = pm_clk / (timer_div + 1) |
 | 31:16 | reserved | RO | 0 | Reserved |
 
-Reset value 0x001B (27 decimal) divides by 28, yielding the 3.579545 MHz
-equivalent tick for a ~100 MHz pm_clk.
+Reset value 0x001B (27 decimal) divides by 28, yielding a 3.5714 MHz tick
+from a 100.000 MHz pm_clk -- 0.23% below the ACPI-standard 3.579545 MHz
+(an exact tick needs pm_clk = 100.227 MHz or a fractional divider).
 
 ---
 
 ## GPE0_STATUS_LO (0x030)
 
-Write 1 to clear. Covers GPE sources 0-15.
+Nominally W1C per the RDL, but NON-FUNCTIONAL in the current RTL (#54):
+on any new GPE edge the generated hwset path sets ALL 16 bits for one
+cycle, and every other cycle the field reloads the (one-cycle-pulse)
+input -- i.e. self-clears. Software can never read which source fired,
+and W1C writes are moot. Covers GPE sources 0-15.
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -203,7 +214,8 @@ Write 1 to clear. Covers GPE sources 0-15.
 
 ## GPE0_STATUS_HI (0x034)
 
-Write 1 to clear. Covers GPE sources 16-31.
+Same non-functional behavior as GPE0_STATUS_LO (#54). Covers GPE
+sources 16-31.
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -311,10 +323,10 @@ Write 1 to clear each bit.
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
-| 0 | por_reset | RO | 0 | Last reset was power-on reset |
-| 1 | wdt_reset | RO | 0 | Last reset was watchdog timeout |
-| 2 | sw_reset | RO | 0 | Last reset was software initiated |
-| 3 | ext_reset | RO | 0 | Last reset was external pin |
+| 0 | por_reset | RO | 0 | Pulses for ONE cycle after reset deassertion; any realistic read returns 0 (no latched last-reset-source exists, #54) |
+| 1 | wdt_reset | RO | 0 | Hardwired 0 (no watchdog input) |
+| 2 | sw_reset | RO | 0 | Hardwired 0 |
+| 3 | ext_reset | RO | 0 | Hardwired 0 |
 | 31:4 | reserved | RO | 0 | Reserved |
 
 ---
@@ -333,12 +345,23 @@ does not rely on behavior the current RTL does not provide:
   (bits 4/5) are decoded but unused by the core.
 - PM1_ENABLE per-source enables (tmr_en/pwrbtn_en/slpbtn_en/rtc_en) are decoded
   but do not currently gate PM1 status or the PM1 interrupt.
-- Clearing GPE0_STATUS_LO/HI clears the register bits, but the core's internal
-  GPE sticky status has no clear path, so the aggregated GPE interrupt source can
-  remain asserted until reset.
-- W1C status fields (ACPI_STATUS, ACPI_INT_STATUS, PM1_STATUS, WAKE_STATUS) have
-  a hardware-update path whose `next` input is undriven in the current build;
-  treat set-and-hold behavior of these status bits as unreliable until fixed.
+- GPE0_STATUS_LO/HI are broken at BOTH ends: the register side never holds
+  a usable value (any edge sets all 16 bits for one cycle, then the field
+  self-clears -- see the register sections), and the core's internal GPE
+  sticky status has no clear path, so once an enabled GPE fires the
+  aggregated interrupt stays asserted until reset.
+- W1C status fields (ACPI_STATUS, ACPI_INT_STATUS, PM1_STATUS, WAKE_STATUS)
+  are NON-FUNCTIONAL in the current build: their hardware-update `next`
+  input is undriven and the generated field reloads it EVERY cycle, so the
+  bits never hold any value (X in simulation from the first post-reset
+  clock). Do not use them until #54 is fixed.
+- Power-button wake cannot exit S1/S3: the wake event is a one-cycle pulse
+  and the transition state re-samples the still-programmed sleep_type, so
+  the FSM re-enters sleep. Level wakes (GPE, RTC alarm while held,
+  ext_wake_n while held) do work (#54).
+- RESET_STATUS does not provide last-reset-source: por_reset pulses for
+  ONE cycle after reset deassertion (any realistic read returns 0) and
+  wdt/sw/ext_reset are hardwired 0.
 
 ---
 

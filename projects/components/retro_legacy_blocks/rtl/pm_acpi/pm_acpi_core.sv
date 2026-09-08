@@ -30,7 +30,8 @@
  *
  * PM TIMER:
  *   - 32-bit free-running counter
- *   - Configurable divider for 3.579545 MHz equivalent
+ *   - Configurable divider targeting the ACPI 3.579545 MHz rate
+ *     (default /28 from 100 MHz = ~3.571 MHz, 0.23% low)
  *   - Rolls over ~1200 seconds at standard frequency
  *   - Generates overflow interrupt
  *

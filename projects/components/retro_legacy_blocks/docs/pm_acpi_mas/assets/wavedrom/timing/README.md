@@ -7,7 +7,7 @@ This directory contains WaveDrom timing diagrams for PM/ACPI (Power Management /
 | File | Scenario | Description |
 |------|----------|-------------|
 | `pm_sleep_entry.json` | Sleep Entry | PM1_CONTROL write initiates S3 suspend |
-| `pm_wake_event.json` | Wake Event | Power button triggers wake from S3 |
+| `pm_wake_event.json` | Wake Event | Wake from S3 (drawn with the power button; in the current RTL only LEVEL sources -- GPE/RTC/ext_wake_n -- actually reach S0, see #54) |
 | `pm_timer.json` | PM Timer | PM timer read for OS timing |
 | `pm_gpe_event.json` | GPE Event | General Purpose Event raises pm_interrupt |
 
@@ -63,7 +63,8 @@ Shows the sleep sequence:
 4. state_transition status is set on completion
 
 ### 2. Wake Event
-Shows wake from S3 via power button:
+Shows the INTENDED wake from S3 via power button (deviant in the current
+RTL -- the one-cycle button pulse cannot exit S1/S3; see #54):
 1. System in S3 sleep (power domains off)
 2. Enabled wake source (power button) detected
 3. Wake status latched in WAKE_STATUS / PM1_STATUS.wak_sts
@@ -73,7 +74,8 @@ Shows wake from S3 via power button:
 ### 3. PM Timer
 Shows PM timer operation:
 - 32-bit free-running counter (PM_TIMER_VALUE, 0x020)
-- 3.579545 MHz equivalent via PM_TIMER_CONFIG divider (default divide-by-28)
+- ~3.571 MHz via PM_TIMER_CONFIG divider (default divide-by-28 from
+  100 MHz; ACPI target 3.579545 MHz)
 - OS reads for high-resolution timing
 - Overflow generates tmr_sts / timer_overflow event if enabled
 

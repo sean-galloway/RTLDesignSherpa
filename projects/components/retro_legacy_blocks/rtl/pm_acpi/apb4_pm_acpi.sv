@@ -40,11 +40,12 @@
  *   0x020-0x02F: PM Timer
  *   0x030-0x04F: GPE registers
  *   0x050-0x06F: Clock gating and power domain control
- *   0x070-0xFFF: Reserved
+ *   Only PADDR[6:0] decoded: the map aliases every 0x80 across the 4 KB
+ *   window (0x080 hits ACPI_CONTROL); 0x070-0x07C read 0 (see #54)
  *
  * POWER MANAGEMENT FEATURES:
  *   - ACPI-compatible PM1 control/status
- *   - 32-bit PM Timer (3.579545 MHz equivalent)
+ *   - 32-bit PM Timer (~3.571 MHz at default divider; ACPI target 3.579545 MHz)
  *   - 32 GPE event sources
  *   - 32 clock gate controls
  *   - 8 power domain controls
@@ -116,7 +117,8 @@ module apb4_pm_acpi #(
     output logic                    sys_reset_req,
     output logic                    periph_reset_req,
     
-    // PM interrupt output (APB clock domain)
+    // PM interrupt output (pm_clk domain when CDC_ENABLE=1 -- driven by
+    // the core; synchronize externally if consumed on another clock)
     output logic                    pm_interrupt
 );
 

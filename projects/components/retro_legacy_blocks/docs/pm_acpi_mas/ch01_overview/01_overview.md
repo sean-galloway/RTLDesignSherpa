@@ -31,7 +31,8 @@ The APB PM/ACPI controller provides ACPI-compatible power management functionali
 
 - ACPI-style power management events
 - Single PM1 control/status/enable block (no separate PM1a/PM1b)
-- PM timer (32-bit, 3.579545 MHz equivalent via configurable divider)
+- PM timer (32-bit, ~3.571 MHz at the default divider; 3.579545 MHz is
+  the ACPI target -- exact only with pm_clk = 100.227 MHz)
 - GPE (General Purpose Events) support: 32 sources in one bank
 - Clock gating control (32 domains) and power domain control (8 domains)
 - System sleep state control (S0/S1/S3)
@@ -77,10 +78,16 @@ A wake source triggers a return to S0 from sleep.
 ![PM Wake Event](../assets/wavedrom/timing/pm_wake_event.png)
 
 Wake sequence:
-1. Enabled wake source detected (power button, RTC alarm, external, or GPE)
+1. Enabled wake source detected (RTC alarm, external, or GPE -- all level
+   sources)
 2. Wake status latched in WAKE_STATUS / PM1_STATUS.wak_sts
 3. The FSM transitions back to S0
 4. `pm_interrupt` asserts if the corresponding enable is set
+
+> Known RTL deviation (#54): POWER-BUTTON wake does not work as drawn --
+> the button event is a one-cycle pulse and the transition state re-samples
+> the still-programmed sleep_type, so the FSM re-enters sleep. Only level
+> wake sources (GPE, RTC alarm while held, ext_wake_n while held) reach S0.
 
 ### Waveform 1.3: PM Timer
 
@@ -88,9 +95,10 @@ Free-running PM timer for timing services.
 
 ![PM Timer](../assets/wavedrom/timing/pm_timer.png)
 
-The 32-bit free-running counter (PM_TIMER_VALUE, 0x020) increments at a
-3.579545 MHz equivalent rate using the PM_TIMER_CONFIG divider (default 0x001B,
-divide-by-28). Overflow sets the timer_overflow / tmr_sts status.
+The 32-bit free-running counter (PM_TIMER_VALUE, 0x020) increments at
+~3.571 MHz from a 100 MHz pm_clk using the PM_TIMER_CONFIG divider
+(default 0x001B, divide-by-28; 0.23% below the ACPI-standard
+3.579545 MHz). Overflow sets the timer_overflow / tmr_sts status.
 
 ### Waveform 1.4: General Purpose Event (GPE)
 
@@ -98,9 +106,12 @@ External events set a GPE status bit and can raise `pm_interrupt`.
 
 ![PM GPE Event](../assets/wavedrom/timing/pm_gpe_event.png)
 
-A GPE input edge sets a bit in GPE0_STATUS_LO/HI. If the matching GPE0_ENABLE_LO/HI
-bit is set, the aggregated GPE interrupt asserts `pm_interrupt`. Software reads
-status, services the event, then writes 1-to-clear the status bit.
+A GPE input edge is INTENDED to set a bit in GPE0_STATUS_LO/HI for
+software to read and W1C -- but in the current RTL the register never
+holds a usable value (any edge sets all 16 bits for one cycle, then the
+field self-clears) and the core's sticky GPE status has no clear path,
+so `pm_interrupt` latches until reset once an enabled GPE fires (#54).
+The waveform shows the intended flow.
 
 ## Register Summary
 
@@ -133,4 +144,5 @@ complete map, fields, resets, and access types.
 
 ---
 
-**Next:** [02_architecture.md](02_architecture.md)
+**Next:** Chapter 2 (Architecture) is planned and not yet written -- see
+the index

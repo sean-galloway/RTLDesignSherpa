@@ -76,7 +76,8 @@ The PM_ACPI register map provides ACPI-compatible power management functionality
 ## Key Features
 
 - **ACPI Compatibility**: PM1 registers follow ACPI specification pattern
-- **32-bit PM Timer**: Configurable divider for 3.579545 MHz equivalent
+- **32-bit PM Timer**: Configurable divider targeting ACPI 3.579545 MHz
+  (~3.571 MHz at the default /28 from 100 MHz)
 - **32 GPE Events**: General Purpose Events with W1C status and enable masks
 - **Clock Gating**: 32 clock gate control bits
 - **Power Domains**: 8 power domain control bits
@@ -94,7 +95,8 @@ The PM_ACPI controller supports simplified ACPI power states:
 ## PM Timer
 
 The PM timer is a 32-bit free-running counter that:
-- Increments at 3.579545 MHz equivalent (configurable via divider)
+- Increments at ~3.571 MHz with the default divider (ACPI target
+  3.579545 MHz; configurable)
 - Rolls over approximately every 1200 seconds (20 minutes)
 - Generates overflow interrupt when reaching 0xFFFFFFFF
 - Read-only from software perspective
