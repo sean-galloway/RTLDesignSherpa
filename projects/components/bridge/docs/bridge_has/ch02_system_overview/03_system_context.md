@@ -113,4 +113,4 @@ that now reports it.
 
 - Width converters (only if widths mismatch)
 - Protocol converters (only if protocols differ)
-- ID tracking CAM (only if OOO support needed)
+- Per-slave in-order bridge_id FIFO (no CAM; OOO is not supported)

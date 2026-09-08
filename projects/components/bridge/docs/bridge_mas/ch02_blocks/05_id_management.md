@@ -23,7 +23,34 @@
 
 # 2.5 ID Management
 
-ID Management is how the bridge remembers which master sent each outstanding transaction, so the response can find its way back. Three pieces do the work: Bridge ID injection, Content Addressable Memory (CAM) structures, and ID translation logic.
+ID Management is how the bridge remembers which master sent each outstanding transaction, so the response can find its way back.
+> **What the generated bridge actually does.** There is no CAM, no ID table and
+> no ID injection. `bridge_cam.sv` exists in the tree and is instantiated in
+> **zero** generated bridges. AXI IDs pass through UNTOUCHED and at equal width
+> -- `cpu_m_axi_awid` and `ddr_s_axi_awid` are both 4 bits in `bridge_2x2_rw`,
+> with nothing prepended and nothing stripped.
+>
+> The originating master travels as a SIDEBAND signal (`xbar_bridge_id_aw` /
+> `xbar_bridge_id_ar`) beside the transaction. Each slave adapter pushes it
+> into an in-order FIFO on the address handshake, pops it on the response, and
+> routes the response by FIFO POSITION -- never by the returned BID/RID.
+>
+> Two consequences follow, and both are tracked:
+> * each slave port REQUIRES responses in request order across all IDs; a slave
+>   that reorders between IDs misroutes here (BRIDGE-010, now detected by a
+>   simulation-only check that compares the returned BID/RID against the FIFO
+>   head);
+> * the FIFO is fixed-depth, so the address handshake is gated on it being
+>   not-full (BRIDGE-011).
+>
+> Out-of-order response routing is therefore NOT supported and NOT implemented.
+>
+> ---
+>
+> **Everything below this line describes a design that was never built.** It is
+> retained because the mechanism that replaced it is easy to mistake for it.
+
+The unbuilt design described three pieces: Bridge ID injection, Content Addressable Memory (CAM) structures, and ID translation logic.
 
 ## 2.5.1 Purpose and Function
 

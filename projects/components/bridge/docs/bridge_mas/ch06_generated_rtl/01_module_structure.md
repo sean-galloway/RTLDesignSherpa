@@ -254,7 +254,7 @@ grant_aw_s{N}[M-1:0]   - AW grants for slave N
 grant_ar_s{N}[M-1:0]   - AR grants for slave N
 
 // ID tracking signals
-id_table_s{N}[...]     - ID table for slave N
+wr_fifo/rd_fifo[...]   - per-slave bridge_id FIFO (no ID table exists)
 ```
 
 ## Generated File Structure

@@ -69,7 +69,7 @@ Bridge inserts converters automatically:
 Bridge NxM
 ├── Master Adapters (M instances)
 │   ├── Skid buffers
-│   └── ID extension
+│   └── sideband bridge_id (AXI IDs pass through unchanged)
 ├── Crossbar Core
 │   ├── Address decode
 │   ├── Per-slave arbiters

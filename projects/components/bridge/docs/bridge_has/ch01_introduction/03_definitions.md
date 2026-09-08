@@ -79,7 +79,7 @@ An NxM interconnect allowing any master to communicate with any connected slave.
 **Grant Locking:**
 Mechanism that holds arbitration grant until transaction completes.
 
-**Out-of-Order Response:**
+**Out-of-Order Response:** (defined for completeness; NOT supported by this bridge)
 Responses returned in different order than requests were issued.
 
 **Protocol Conversion:**

@@ -32,7 +32,7 @@ Complete AMBA AXI4 protocol support:
 - **5 channels:** AW, W, B, AR, R
 - **Burst transactions:** FIXED, INCR, WRAP
 - **Transaction IDs:** Configurable width
-- **Out-of-order:** Response reordering supported
+- **Out-of-order:** NOT supported -- responses must return in request order (BRIDGE-010)
 - **Data widths:** 32, 64, 128, 256, 512 bits
 
 ### AXI4-Lite

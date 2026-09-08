@@ -83,6 +83,13 @@ Action: Force transaction completion
 ```
 
 **CAM Overflow**:
+
+> **Not built.** No generated bridge contains a CAM -- `bridge_cam.sv` is
+> instantiated in zero of them. Responses are routed by the POSITION of an
+> in-order per-slave FIFO holding a sideband master id, so out-of-order
+> completion is not supported and the section below describes an option
+> that was never implemented. See ch04 `02_id_tracking.md`.
+
 ```
 Too many outstanding transactions (CAM full)
 Response: Backpressure master (ARREADY/AWREADY=0)
@@ -105,7 +112,7 @@ Response: Generation error, fail early
 
 ![Error Handling System](assets/graphviz/error_handling.png)
 
-Error handling system showing detection (OOR, protocol, timeout, CAM), generation, and logging subsystems.
+Error handling system showing detection (OOR, protocol, timeout, bridge_id FIFO), generation, and logging subsystems.
 
 ## 2.9.4 Out-of-Range Address Handling
 
@@ -339,7 +346,7 @@ Error Status Register (Read/Clear):
 │ 1    │ OOR Write Error                      │
 │ 2    │ Protocol Violation                   │
 │ 3    │ Timeout Error                        │
-│ 4    │ CAM Overflow                         │
+│ 4    │ bridge_id FIFO overflow (gated off)  │
 │ 5    │ Slave Error (SLVERR received)        │
 │ 6    │ Decode Error (DECERR received)       │
 │ 7    │ ID Match Error                       │
@@ -450,7 +457,7 @@ Error Detection:
 - OOR flags (per master)
 - Protocol violation flags
 - Timeout counters
-- CAM occupancy
+- bridge_id FIFO occupancy
 
 Error Response:
 - Error response generation FSM states
@@ -478,7 +485,7 @@ Error Logging:
 - Timeout detection enabled?
 - Slave responsiveness
 - Protocol violations upstream
-- CAM overflow
+- bridge_id FIFO overflow (prevented by the not-full gate, BRIDGE-011)
 
 **Symptom**: Error log filling quickly  
 **Check**:
@@ -543,7 +550,7 @@ OOR Errors:
 
 Timeout Errors:
   - Force transaction completion
-  - Free CAM entry
+  - Pop the bridge_id FIFO
   - Allow new transactions
 
 Protocol Violations:
@@ -555,9 +562,9 @@ Protocol Violations:
 ### Manual Recovery
 
 ```
-CAM Stuck:
+bridge_id FIFO stuck:
   - Software reset via control register
-  - Clear CAM entries
+  - Reset the bridge_id FIFO pointers
   - Restart affected masters
 
 Persistent Errors:
@@ -626,6 +633,6 @@ target_slave = 2
 
 **Related Sections**:
 - Section 2.2: Slave Router (OOR detection)
-- Section 2.5: ID Management (CAM overflow)
+- Section 2.5: ID Management (bridge_id FIFO depth)
 - Section 2.8: Response Routing (error response paths)
 - Chapter 5: Verification (error testing strategies)

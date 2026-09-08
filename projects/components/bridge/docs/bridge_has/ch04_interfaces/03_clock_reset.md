@@ -80,7 +80,7 @@ During reset (aresetn = 0):
 | Component | State |
 |-----------|-------|
 | Arbiters | Cleared (no grants) |
-| ID tables | Cleared (no outstanding) |
+| bridge_id FIFOs | Pointers cleared (no outstanding) |
 | FIFOs | Emptied |
 | Outputs | Deasserted (VALID = 0) |
 

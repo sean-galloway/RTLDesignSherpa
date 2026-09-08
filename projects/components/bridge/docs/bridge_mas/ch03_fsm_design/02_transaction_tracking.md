@@ -25,7 +25,7 @@
 
 ## Overview
 
-Several small FSMs track outstanding transactions so responses route correctly. They work alongside the ID management CAM, each holding one piece of the transaction state.
+Several small FSMs track outstanding transactions so responses route correctly. They work alongside the per-slave in-order bridge_id FIFO -- not a CAM, which was never built -- each holding one piece of the transaction state.
 
 ## Write Data Tracking FSM
 
@@ -152,4 +152,4 @@ end
 ## Related Documentation
 
 - [Arbiter FSMs](01_arbiter_fsms.md) - Address channel arbitration
-- [ID Management](../ch04_id_management/01_cam_architecture.md) - CAM for response tracking
+- [ID Management](../ch04_id_management/02_id_tracking.md) - the in-order FIFO actually built; 01_cam_architecture.md documents an unbuilt CAM for response tracking

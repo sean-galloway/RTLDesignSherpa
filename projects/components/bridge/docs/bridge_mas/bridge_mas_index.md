@@ -138,7 +138,7 @@ Diagram sources and their renders live in two directories:
 - **CSV-Driven Configuration:** Human-readable port and connectivity definitions
 - **Channel-Specific Masters:** Write-only (wr), read-only (rd), or full (rw) support
 - **Automatic Width Conversion:** Upsize/downsize for data width mismatches
-- **Out-of-Order Support:** ID-based response routing with CAM tracking
+- **Out-of-Order Support:** NONE. Responses route by in-order bridge_id FIFO position; a slave that reorders between IDs misroutes (BRIDGE-010)
 - **Custom Signal Prefixes:** Unique prefixes per port for clean integration
 
 ### Protocol Conversion Matrix

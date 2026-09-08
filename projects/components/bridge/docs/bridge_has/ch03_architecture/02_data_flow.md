@@ -67,7 +67,7 @@ Each AXI4 channel operates independently:
 - Different masters can access different slaves in parallel
 - Same slave serializes access via arbitration
 
-## ID Extension
+## Bridge ID (there is no ID extension)
 
 ### Bridge ID (BID) Concept
 

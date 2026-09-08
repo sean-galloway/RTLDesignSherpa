@@ -661,10 +661,10 @@ Throughput @ 100 MHz, 512-bit data:
 
 **LUT Usage Formula (empirical):**
 ```
-LUTs ≈ 500 (base) + 150 × M × S + 20 × ID_TABLE_DEPTH
+LUTs ≈ 500 (base) + 150 × M × S + 20 × FIFO_DEPTH × BRIDGE_ID_WIDTH
 ```
 
-**Example (4×4 crossbar, ID_WIDTH=4, ID_TABLE_DEPTH=16 per slave):**
+**Example (4×4 crossbar, ID_WIDTH=4, bridge_id FIFO depth 16 per slave):**
 ```
 LUTs ≈ 500 + 150 × 16 + 20 × 16 × 4
      ≈ 500 + 2,400 + 1,280
@@ -729,7 +729,7 @@ class BridgeGenerator:
         """Generate read data channel demultiplexer"""
         # Route by ID: lookup master from {slave_idx, RID}
 
-    def generate_id_table(self, slave_idx) -> str:
+    def generate_bridge_id_fifo(self, slave_idx) -> str:
         """Generate transaction ID tracking table"""
         # Maps {slave, transaction_id} → master_id
         # Indexed on AW/AR grant, looked up on B/R response
@@ -915,7 +915,7 @@ Configuration:
 - Grant locking to the ADDRESS handshake (not xlast -- see FR-6)
 - Starvation prevention
 
-**ID Table Tests:**
+**bridge_id FIFO Tests:**
 - Correct ID → master mapping
 - ~~Out-of-order transaction handling~~ -- not implemented; see FR-9
 - Table full condition

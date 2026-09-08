@@ -46,7 +46,7 @@ This Micro-Architecture Specification (MAS) documents how the Bridge component i
 
 - Block-level architecture and internal structure
 - FSM state diagrams and transition tables
-- ID management and CAM architecture
+- ID management (and the CAM architecture that was never built)
 - Signal-level interface details
 - Width and protocol converter implementation
 - Timing diagrams and debug information

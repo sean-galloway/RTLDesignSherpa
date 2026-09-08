@@ -225,7 +225,7 @@ When you update a generator, you don't selectively regenerate - you **delete all
 ### Exception: Hand-Written RTL
 
 These files are **never** regenerated:
-- `bridge_cam.sv` - CAM module (hand-written)
+- `bridge_cam.sv` - CAM module (hand-written; instantiated in ZERO generated bridges)
 - Any file in `rtl/` that is NOT generated
 
 Check file headers. Each generated file names the class that emitted it, so
@@ -339,7 +339,7 @@ projects/components/bridge/
 │       ├── conftest.py            # Pytest configuration (MANDATORY)
 │       └── test_bridge_*.py       # Per-config tests (test_bridge_2x2_rw.py, ...)
 ├── rtl/                           # RTL source files
-│   ├── bridge_cam.sv              # Hand-written CAM
+│   ├── bridge_cam.sv              # Hand-written CAM (unused by every generated bridge)
 │   ├── filelists/                 # Generated filelists
 │   └── generated/                 # Generated bridges (one subdir per config)
 ├── CLAUDE.md                      # This file
@@ -590,7 +590,7 @@ memory_model = MemoryModel()  # Unnecessary complexity
 **When to Use Memory Models:**
 - Simple in-order tests → Use queue access
 - Single-master systems → Use queue access
-- Complex out-of-order scenarios → Memory model may help
+- Complex out-of-order scenarios → not supported; slaves must respond in request order
 - Multi-master with address overlap → Memory model tracks state
 
 ---

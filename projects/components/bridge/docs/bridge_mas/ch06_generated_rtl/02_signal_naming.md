@@ -135,7 +135,7 @@ logic [TOTAL_ID_WIDTH-1:0] xbar_m0_awid;  // BID + external ID
 logic [TOTAL_ID_WIDTH-1:0] xbar_s0_bid;   // Response with BID
 
 // External IDs (to master)
-logic [ID_WIDTH-1:0] cpu_m_axi_bid;       // Stripped ID
+logic [ID_WIDTH-1:0] cpu_m_axi_bid;       // ID passes through unchanged
 ```
 
 ## Debug Signal Naming

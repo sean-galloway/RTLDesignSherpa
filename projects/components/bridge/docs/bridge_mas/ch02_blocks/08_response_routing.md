@@ -96,6 +96,13 @@ end
 
 ### CAM-Based Extraction
 
+> **Not built.** No generated bridge contains a CAM -- `bridge_cam.sv` is
+> instantiated in zero of them. Responses are routed by the POSITION of an
+> in-order per-slave FIFO holding a sideband master id, so out-of-order
+> completion is not supported and the section below describes an option
+> that was never implemented. See ch04 `02_id_tracking.md`.
+
+
 For complex configurations with OOO or ID reordering:
 
 ```systemverilog
@@ -442,7 +449,7 @@ FIFOs (if enabled):
 - Response stall cycles (master not ready)
 - Average response latency per master
 - FIFO overflow counts
-- CAM hits/misses (if CAM enabled)
+- bridge_id FIFO push/pop counts
 ```
 
 ## 2.8.13 Common Issues and Debug
@@ -458,12 +465,12 @@ FIFOs (if enabled):
 **Check**:
 - BID values (verify each master has unique BID)
 - BID width calculation (clog2 correct?)
-- CAM contents (if used)
+- bridge_id FIFO contents (wr_fifo/rd_fifo)
 - ID corruption in transit
 
 **Symptom**: Response ordering incorrect  
 **Check**:
-- CAM lookup (should preserve order)
+- FIFO head (routing is by position, so order IS the mechanism)
 - Arbitration fairness (round-robin working?)
 - Multiple outstanding transactions per master
 
@@ -510,7 +517,7 @@ FIFOs (if enabled):
 ```
 - Issue transactions: ID=1, ID=2, ID=3
 - Return responses: ID=3, ID=1, ID=2
-- Verify CAM correctly routes each
+- Verify the FIFO head routes each
 - Check response order at master
 ```
 
@@ -556,6 +563,13 @@ Best for: Real-time systems
 ## 2.8.16 Advanced Features
 
 ### Response Reordering (Future)
+
+> **Not built.** No generated bridge contains a CAM -- `bridge_cam.sv` is
+> instantiated in zero of them. Responses are routed by the POSITION of an
+> in-order per-slave FIFO holding a sideband master id, so out-of-order
+> completion is not supported and the section below describes an option
+> that was never implemented. See ch04 `02_id_tracking.md`.
+
 
 Allow bridge to reorder responses for efficiency:
 
@@ -614,7 +628,7 @@ Common critical paths in response routing:
 ```
 - Register demux outputs (+1 cycle, breaks path)
 - Pipeline arbitration (+1-2 cycles, multi-stage)
-- Use CAM for complex ID scenarios (parallel lookup)
+- Complex ID scenarios are unsupported: routing is positional, not ID-keyed
 - Limit response buffering depth (less MUX levels)
 ```
 

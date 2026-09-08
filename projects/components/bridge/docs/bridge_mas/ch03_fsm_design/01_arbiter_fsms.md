@@ -64,7 +64,7 @@ Round-robin access keeps any master from starving, and two states keep the behav
 - **Behavior:**
   - Hold grant until AW handshake completes (`AWVALID && AWREADY`)
   - W channel data multiplexing follows AW grant
-  - B channel response uses ID table (not grant-based)
+  - B channel response routes by bridge_id FIFO position (no ID table, not grant-based)
 
 **State Transitions:**
 
@@ -103,7 +103,7 @@ Round-robin access keeps any master from starving, and two states keep the behav
 - **Behavior:**
   - Hold grant until AR handshake completes (`ARVALID && ARREADY`)
   - R channel data multiplexing follows AR grant
-  - R channel response uses ID table for routing
+  - R channel response routes by bridge_id FIFO position (no ID table)
 
 **State Transitions:**
 

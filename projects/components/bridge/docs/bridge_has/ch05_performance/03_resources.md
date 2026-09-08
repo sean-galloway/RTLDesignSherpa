@@ -31,7 +31,7 @@
 |----------|-------|-------|
 | LUTs | ~2,000-3,000 | Logic and routing |
 | Registers | ~1,500-2,000 | Pipeline stages |
-| Block RAM | 0-1 | Optional ID CAM |
+| Block RAM | 0 | No CAM or ID table is built |
 | DSP | 0 | No arithmetic |
 
 : Table 5.11: Baseline Resource Requirements
@@ -55,7 +55,7 @@
 | Component | LUTs | Registers |
 |-----------|------|-----------|
 | Skid buffer | ~50-100 | ~DATA_WIDTH |
-| ID extension | ~20 | ~ID_WIDTH |
+| bridge_id FIFO (per slave) | ~16 x BRIDGE_ID_WIDTH | in LUTs, not BRAM |
 | Channel mux | ~100 | ~50 |
 | **Per Master Total** | ~200-300 | ~DATA_WIDTH + 100 |
 
@@ -138,7 +138,7 @@ synthesis for anything finer.
 The honest fix is a synthesis run per shipped variant with the numbers
 replaced by measurements, which nobody has done. Saying so is better than
 leaving arithmetic that looks authoritative and is not.
-- Block RAM usage depends on ID table implementation
+- Block RAM usage is zero: the per-slave bridge_id FIFOs are small LUT arrays
 - DSP usage is zero (no multiplication/division)
 
 ## Optimization Strategies
@@ -148,14 +148,14 @@ leaving arithmetic that looks authoritative and is not.
 1. **Use channel-specific masters** - 40-60% port reduction
 2. **Match data widths** - Avoid converter logic
 3. **Use APB sparingly** - Reduces AXI4 overhead
-4. **Limit outstanding transactions** - Smaller ID tables
+4. **Limit outstanding transactions** - shallower per-slave bridge_id FIFOs
 
 ### Performance/Resource Trade-off
 
 | Feature | Resource Impact | Performance Impact |
 |---------|-----------------|-------------------|
 | Deeper skid buffers | +registers | +timing margin |
-| Larger ID tables | +BRAM | +OOO depth |
+| Deeper bridge_id FIFOs | +LUTs | +outstanding depth (no OOO support) |
 | Pipeline stages | +registers | +frequency |
 | Wider data paths | +routing | +throughput |
 

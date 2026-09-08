@@ -25,7 +25,34 @@
 
 ## Overview
 
-The CAM is what makes out-of-order response routing possible: it records which master owns each outstanding transaction ID, and a lookup answers the routing question in one shot.
+**This chapter describes a design that was NEVER BUILT.**
+> **What the generated bridge actually does.** There is no CAM, no ID table and
+> no ID injection. `bridge_cam.sv` exists in the tree and is instantiated in
+> **zero** generated bridges. AXI IDs pass through UNTOUCHED and at equal width
+> -- `cpu_m_axi_awid` and `ddr_s_axi_awid` are both 4 bits in `bridge_2x2_rw`,
+> with nothing prepended and nothing stripped.
+>
+> The originating master travels as a SIDEBAND signal (`xbar_bridge_id_aw` /
+> `xbar_bridge_id_ar`) beside the transaction. Each slave adapter pushes it
+> into an in-order FIFO on the address handshake, pops it on the response, and
+> routes the response by FIFO POSITION -- never by the returned BID/RID.
+>
+> Two consequences follow, and both are tracked:
+> * each slave port REQUIRES responses in request order across all IDs; a slave
+>   that reorders between IDs misroutes here (BRIDGE-010, now detected by a
+>   simulation-only check that compares the returned BID/RID against the FIFO
+>   head);
+> * the FIFO is fixed-depth, so the address handshake is gated on it being
+>   not-full (BRIDGE-011).
+>
+> Out-of-order response routing is therefore NOT supported and NOT implemented.
+>
+> ---
+>
+> **Everything below this line describes a design that was never built.** It is
+> retained because the mechanism that replaced it is easy to mistake for it.
+
+The CAM was to make out-of-order response routing possible: it would record which master owns each outstanding transaction ID, so a lookup answers the routing question in one shot.
 
 ## CAM Purpose
 

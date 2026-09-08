@@ -89,7 +89,7 @@ Slave 0 Response Outputs (R, B channels):
   - Route to corresponding master (M0, M1, M2, or M3)
   - Strip Bridge ID before delivering to master adapter
   
-Uses CAM (Content Addressable Memory) for fast ID lookup
+Routes responses by the position of a per-slave in-order bridge_id FIFO (no CAM)
 ```
 
 ## 2.3.4 Request Path Architecture
@@ -211,6 +211,13 @@ B Channel:
 
 ### CAM-Based Routing (Optional)
 
+> **Not built.** No generated bridge contains a CAM -- `bridge_cam.sv` is
+> instantiated in zero of them. Responses are routed by the POSITION of an
+> in-order per-slave FIFO holding a sideband master id, so out-of-order
+> completion is not supported and the section below describes an option
+> that was never implemented. See ch04 `02_id_tracking.md`.
+
+
 For large master counts or OOO responses, a CAM tracks outstanding transactions:
 
 ```
@@ -226,7 +233,7 @@ Lookup:
   Latency: 1 cycle (registered CAM)
 ```
 
-**Benefit**: Handles complex scenarios like ID reordering, burst interleaving
+**Benefit** (of the unbuilt CAM): would have handled ID reordering and burst interleaving
 
 ### Response Demultiplexers
 
@@ -291,8 +298,15 @@ The crossbar maintains AXI ordering rules:
 
 ### Out-of-Order (OOO) Completion
 
+> **Not built.** No generated bridge contains a CAM -- `bridge_cam.sv` is
+> instantiated in zero of them. Responses are routed by the POSITION of an
+> in-order per-slave FIFO holding a sideband master id, so out-of-order
+> completion is not supported and the section below describes an option
+> that was never implemented. See ch04 `02_id_tracking.md`.
+
+
 **Allowed**: 
-- Read responses can return out-of-order (different RIDs)
+- Read responses must return IN ORDER; a slave that reorders between RIDs misroutes (BRIDGE-010)
 - Reads to different slaves can complete in any order
 - Writes to different slaves can complete in any order
 
@@ -333,7 +347,7 @@ The `monbus_axil4_axil4_group` instance:
 ```
 Logic Elements:  ~2000-3500 LEs
 Registers:       ~800-1200 regs
-Block RAM:       0-4 KB (if CAM used)
+Block RAM:       0 (no CAM is built)
 
 Breakdown per slave:
 - Arbiter (4 masters, RR):        ~200 LEs, ~50 regs
@@ -354,7 +368,7 @@ Plus routing overhead: +500 LEs
 **Example**: 8 masters × 6 slaves
 ```
 Estimated:  ~12,000 LEs, ~3000 regs
-Block RAM:  ~8 KB (for CAM if enabled)
+Block RAM:  0 (no CAM is built)
 ```
 
 ### Optimization Techniques
@@ -431,7 +445,7 @@ internal_data_width = 64
 arbiter_type = "round_robin"       # "round_robin", "fixed_priority", "weighted"
 registered_mux = false             # true = +1 cycle, better timing
 registered_demux = false           # true = +1 cycle, better timing
-enable_cam = false                 # true = CAM-based routing
+# NOTE: there is no enable_cam key -- the loader does not know it, and no CAM exists
 cam_depth = 16                     # Outstanding transactions tracked
 ```
 
@@ -450,7 +464,7 @@ Global:
 - Active transactions count
 - Stall counters (arbiter conflicts)
 - BID extraction errors
-- CAM hit/miss (if enabled)
+- bridge_id FIFO occupancy (wr_ptr/rd_ptr)
 ```
 
 ### Performance Counters
@@ -475,7 +489,7 @@ Useful metrics for profiling:
 **Symptom**: Response goes to wrong master  
 **Check**:
 - Bridge ID values (verify correct BID per master)
-- CAM contents (if used)
+- bridge_id FIFO contents (wr_fifo/rd_fifo)
 - BID extraction logic (check bit positions)
 
 **Symptom**: Throughput lower than expected  
@@ -531,5 +545,5 @@ Useful metrics for profiling:
 - Section 2.1: Master Adapter (request sources)
 - Section 2.2: Slave Router (address decode before arbitration)
 - Section 2.4: Arbitration (detailed arbiter algorithms)
-- Section 2.5: ID Management (CAM structures, Bridge ID tracking)
+- Section 2.5: ID Management (sideband bridge_id tracking; its CAM was never built)
 - Section 3.1: Top-Level Integration (crossbar instantiation)

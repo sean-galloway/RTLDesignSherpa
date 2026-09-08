@@ -282,7 +282,7 @@ Input Channels (from crossbar):
 ```
 Logic Elements:  ~200-400 (depending on ID width and features)
 Registers:       ~150-250 (pipeline stages + control)
-Block RAM:       0 (CAM is in crossbar core)
+Block RAM:       0 (no CAM anywhere in the design)
 
 Breakdown:
 - Skid buffers (5 channels × ~30 regs each): ~150 regs
@@ -408,5 +408,5 @@ For ILA or waveform capture:
 **Related Sections**:
 - Section 2.3: Crossbar Core (interconnect architecture)
 - Section 2.4: Arbitration (how adapters compete for slaves)
-- Section 2.5: ID Management (CAM structures for response routing)
+- Section 2.5: ID Management (sideband bridge_id; the CAM it describes was never built)
 - HAS ch04_interfaces/01_axi4_interface.md (port signals)

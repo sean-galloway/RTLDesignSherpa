@@ -76,7 +76,7 @@ Delivers transactions to downstream slaves:
 | NUM_MASTERS | 1-32 | Linear MUX growth |
 | NUM_SLAVES | 1-256 | Linear decoder growth |
 | DATA_WIDTH | 32-512 | Linear data path growth |
-| ID_WIDTH | 1-16 | Logarithmic CAM growth |
+| ID_WIDTH | 1-16 | Pass-through; scales the ID wires only (no CAM) |
 
 : Table 3.1: Topology Parameter Scaling
 

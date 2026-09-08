@@ -31,7 +31,7 @@ Test individual Bridge components:
 
 | Component | Test Focus |
 |-----------|------------|
-| Master Adapter | Skid buffer, ID extension |
+| Master Adapter | Skid buffer, sideband bridge_id (IDs pass through) |
 | Slave Router | Address decode, arbitration |
 | Width Converter | Upsize/downsize correctness |
 | Protocol Converter | AXI4 to APB timing |
