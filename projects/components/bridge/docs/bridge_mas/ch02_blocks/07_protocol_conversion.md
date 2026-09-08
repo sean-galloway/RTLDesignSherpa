@@ -57,7 +57,7 @@ Protocol conversion does five things:
 
 ### Current Limitation: AXI4-Lite Conversion
 
-**IMPORTANT**: AXI4-Lite slaves are currently treated as full AXI4 slaves internally. The bridge does NOT perform real AXI4-Lite protocol conversion (single-beat restriction, no ARLEN/AWLEN, etc.). AXIL slaves:
+**Superseded.** This paragraph said AXIL slaves were treated as full AXI4 internally with no real conversion; the very next paragraph, and the RTL, say otherwise -- `axi4_to_axil4_{rd,wr}.sv` perform genuine burst decomposition into single-beat AXI4-Lite transactions. Kept only so the contradiction is not silently deleted. The old text read:
 - Use the standard AXI4 timing wrapper (same as AXI4 slaves)
 - Expose full 5-channel AXI4 interface at the bridge boundary
 - Are documented as "axil" for user reference only

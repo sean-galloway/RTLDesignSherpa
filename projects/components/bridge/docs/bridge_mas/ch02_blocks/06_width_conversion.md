@@ -187,17 +187,25 @@ Master R beat (merged):
 
 ### Strobe Mapping (Downsizing)
 
+A 128-bit bus has 16 strobe bits, one per byte lane; a 64-bit bus has 8. On a
+2:1 downsize each wide beat becomes two narrow beats, and the strobes split
+along the same boundary as the data -- the low 8 bits go with beat 0, the high
+8 with beat 1. No bit is recomputed; the slice is positional.
+
 ```
-128-bit WSTRB → 64-bit WSTRB (split):
+128-bit WSTRB → 64-bit WSTRB (2:1 split):
 
-128-bit WSTRB = 16'hF0F0_0FF0
+  wide WSTRB = 16'b1111_0000_0000_1111   (bytes 15:12 and 3:0 written)
 
-Beat 0 (bytes 7:0):
-  64-bit WSTRB = 8'b0000_1111_1111_0000 = 8'h0F0 → 8'hF0
-
-Beat 1 (bytes 15:8):
-  64-bit WSTRB = 8'b1111_0000_1111_0000 = 8'hF0F0 >> 8 → 8'hF0
+  Beat 0 (bytes  7:0) = wide[7:0]  = 8'b0000_1111
+  Beat 1 (bytes 15:8) = wide[15:8] = 8'b1111_0000
 ```
+
+The example this replaces was arithmetically impossible: it wrote a 32-bit
+value (`16'hF0F0_0FF0`) into a 16-bit literal, then gave both beats the same
+result (`8'hF0`) from different bit patterns, one of them an 8-bit literal
+holding three hex digits (`8'h0F0`). Nothing in the RTL was needed to see it
+was wrong.
 
 ## 2.6.6 Address Alignment
 

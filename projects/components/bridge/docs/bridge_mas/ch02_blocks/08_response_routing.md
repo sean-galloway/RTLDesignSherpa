@@ -299,7 +299,7 @@ Response path can stall when:
    → Slave stalled until space available
 ```
 
-## 2.8.7 Response Path Latency
+## 2.8.8 Response Path Latency
 
 ### End-to-End R Channel
 
@@ -325,7 +325,7 @@ Similar to R channel:
   Total: 2-4 cycles
 ```
 
-## 2.8.8 Error Response Routing
+## 2.8.9 Error Response Routing
 
 ### Slave Error Responses
 
@@ -356,7 +356,7 @@ Process:
 4. Routes to master using BID
 ```
 
-## 2.8.9 Resource Utilization
+## 2.8.10 Resource Utilization
 
 ### Response Router Resources
 
@@ -387,7 +387,7 @@ Resource usage scales with:
 - FIFO depth: Linear (deeper = more BRAM)
 ```
 
-## 2.8.10 Configuration Parameters
+## 2.8.11 Configuration Parameters
 
 ### Response Routing Configuration (TOML)
 
@@ -408,7 +408,7 @@ name = "cpu"
 max_response_credits = 16           # Outstanding responses allowed
 ```
 
-## 2.8.11 Debug and Observability
+## 2.8.12 Debug and Observability
 
 ### Recommended Debug Signals
 
@@ -445,7 +445,7 @@ FIFOs (if enabled):
 - CAM hits/misses (if CAM enabled)
 ```
 
-## 2.8.12 Common Issues and Debug
+## 2.8.13 Common Issues and Debug
 
 **Symptom**: Response not reaching master  
 **Check**:
@@ -473,7 +473,7 @@ FIFOs (if enabled):
 - Dropped responses during arbitration conflicts
 - Protocol violations (slave not following AXI rules)
 
-## 2.8.13 Verification Considerations
+## 2.8.14 Verification Considerations
 
 ### Test Scenarios
 
@@ -522,7 +522,7 @@ FIFOs (if enabled):
 - Verify responses flow
 ```
 
-## 2.8.14 Performance Optimization
+## 2.8.15 Performance Optimization
 
 ### Techniques
 
@@ -553,7 +553,7 @@ Benefit: Guaranteed low latency for critical masters
 Best for: Real-time systems
 ```
 
-## 2.8.15 Advanced Features
+## 2.8.16 Advanced Features
 
 ### Response Reordering (Future)
 
@@ -592,7 +592,7 @@ Implementation: Weighted arbitration in response path
 Use case: RT masters need bounded response latency
 ```
 
-## 2.8.16 Timing Considerations
+## 2.8.17 Timing Considerations
 
 ### Critical Paths
 
@@ -618,7 +618,7 @@ Common critical paths in response routing:
 - Limit response buffering depth (less MUX levels)
 ```
 
-## 2.8.17 Future Enhancements
+## 2.8.18 Future Enhancements
 
 ### Planned Features
 - **Dynamic Response Buffering**: Adjust FIFO depth based on utilization

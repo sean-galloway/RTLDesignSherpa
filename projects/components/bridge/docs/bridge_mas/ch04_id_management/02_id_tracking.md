@@ -29,7 +29,21 @@ ID tracking tables hold the mapping from extended IDs (external ID plus Bridge I
 
 ## Table Structure
 
-### Per-Slave ID Table
+### Not implemented: the per-slave ID table
+
+**What follows describes a design that was never built.** It is retained
+because the mechanism that replaced it is easy to mistake for it.
+
+The generated RTL has no ID tables and no CAM: `bridge_cam.sv` exists in the
+tree and is instantiated in zero generated bridges. IDs are pass-through --
+the slave port is declared at the same width as the master port, and nothing
+is prepended. Each slave adapter instead keeps an **in-order FIFO** of the
+originating master's `bridge_id`, pushed on the address handshake and popped
+on the response, and routes by FIFO POSITION rather than by the returned
+BID/RID. The consequence -- each slave port must return B/R in request order
+across all IDs -- is tracked as BRIDGE-010.
+
+### Per-Slave ID Table (historical)
 
 Each slave has its own ID tracking table:
 

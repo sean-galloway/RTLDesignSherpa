@@ -64,8 +64,19 @@ Action: Bridge forwards error to master unchanged
 
 ### System Errors
 
-**Timeout Conditions**:
+**Timeout Conditions**: there are none. The bridge has NO transaction
+timeout -- not on the AXI path and not in the APB shim, where 2.7 states it
+three times ("There is no PREADY timeout anywhere in the path"). A slave that
+never responds stalls that path indefinitely; nothing in the fabric detects or
+breaks the stall.
+
+This block previously described a configurable timeout returning DECERR. No
+such mechanism was ever built, and believing in it is worse than knowing it is
+absent -- an integrator counting on the fabric to time out will not add the
+watchdog that actually protects the system.
+
 ```
+(retained for contrast -- NOT implemented)
 Slave fails to respond within configured timeout
 Response: DECERR after timeout expires
 Action: Force transaction completion

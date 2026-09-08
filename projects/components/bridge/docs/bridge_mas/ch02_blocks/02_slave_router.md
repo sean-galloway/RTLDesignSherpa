@@ -225,57 +225,66 @@ Error Handling:
 
 ### Detection
 
-An address is out-of-range (OOR) if:
-```
-∀ slaves[i]: (address < base[i]) OR (address > end[i])
-```
-
-Unless a default slave is configured.
+An address is out-of-range if it matches no slave's range. The decode chain
+ends in an `else`, so such an address is not "detected and handled" -- it is
+*routed*, to an internal subtractive slave that always answers.
 
 ### Error Response Generation
 
-When OOR is detected:
+The responder is `rtl/amba/axi4/axi4_subtractive_slave.sv`, instantiated by
+the generator as the last (internal) slave. It emits no top-level pins of its
+own; its behaviour is fixed, not configurable.
 
-**Read Transactions (AR → R)**:
-```
-1. Accept ARVALID (assert ARREADY) 
-2. Do NOT forward to any slave
-3. Generate R response internally:
-   - RID = Original ARID (with BID preserved)
-   - RDATA = 0xBADDCAFE_DEADBEEF (debug pattern) or all zeros
-   - RRESP = 2'b11 (DECERR)
-   - RLAST = 1 (for each beat if burst)
-4. Latency: Typically 2-3 cycles after AR acceptance
-```
-
-**Write Transactions (AW/W → B)**:
-```
-1. Accept AWVALID (assert AWREADY)
-2. Accept all W beats until WLAST (sink the data)
-3. Do NOT forward to any slave
-4. Generate B response internally:
-   - BID = Original AWID (with BID preserved)
-   - BRESP = 2'b11 (DECERR)
-5. Latency: Typically 2-3 cycles after WLAST
-```
-
-### Debug Data Patterns
-
-For OOR read responses, configurable data patterns aid debugging:
+**Read (AR -> R)**
 
 ```
-Option 1: All zeros (default)
-  RDATA = 64'h0000_0000_0000_0000
-
-Option 2: Debug signature
-  RDATA = 64'hBADD_CAFE_DEAD_BEEF
-
-Option 3: Address echo (LSBs)
-  RDATA = {32'hBADD_ADDR, ARADDR[31:0]}
-
-Option 4: Master/Slave ID indicator  
-  RDATA = {8'hEE, Master_ID[7:0], Slave_ID[7:0], ARADDR[47:0]}
+1. Accept ARVALID (ARREADY high while no read is active)
+2. Return exactly ARLEN+1 beats:
+     RID   = ARID, unmodified (IDs are pass-through -- nothing is prepended)
+     RDATA = 0xDEADBEEF, replicated to the data width
+     RRESP = 2'b11 (DECERR)
+     RLAST = 1 on the FINAL beat only
 ```
+
+`RLAST` on every beat -- which an earlier revision of this page specified --
+would make a burst master terminate early. The RTL asserts it as
+`r_r_active && (r_beats_left == 0)`, and the module test checks that it appears
+on the last beat and no other.
+
+**Write (AW/W -> B)**
+
+```
+1. WREADY is unconditionally high -- W beats are sunk whether or not AW has
+   arrived yet. AXI4 permits write data before its address, and gating WREADY
+   on having seen AW deadlocks such a master.
+2. One B per AW:
+     BID   = AWID, unmodified
+     BRESP = 2'b11 (DECERR)
+3. Write data is discarded. There is nowhere for it to go.
+```
+
+**Status.** The first unmapped access latches a sticky flag with its address
+and a saturating count, raised on `unmapped_irq` and, on cfg-regblock builds,
+readable and clearable via `SUBTRACTIVE_STATUS` / `SUBTRACTIVE_ADDR`. See
+HAS 4.5.
+
+**Reachability.** The catch-all is the decode `else`, so it can only fire if
+the slave ranges leave a gap. Of the 22 generated bridges, 18 tile the address
+space completely and the branch is unreachable logic that synthesis removes.
+
+### Read data pattern
+
+`READ_FILL`, a module parameter, defaults to `32'hDEAD_BEEF` and is replicated
+to the bus width. It is not run-time configurable and there is no menu of
+options: an earlier revision of this page offered four (zeros, a debug
+signature, an address echo, a master/slave ID indicator), none of which was
+ever built.
+
+The value matters more than the choice. Zeros are indistinguishable from real
+memory, so an all-zero error return reads as a plausible value and the fault
+stays hidden; `0xDEADBEEF` in a dump is unambiguous. Address-echo variants
+sound useful but the address is already captured in `SUBTRACTIVE_ADDR`, where
+software can read it without decoding it out of the data bus.
 
 ## 2.2.6 Default Slave Support
 

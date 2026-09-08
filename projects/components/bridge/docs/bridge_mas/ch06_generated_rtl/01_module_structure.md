@@ -120,10 +120,26 @@ monbus_arbiter u_mon_arb0 (...);         // Aggregate master-side streams
 monbus_arbiter u_mon_arb1 (...);         // Aggregate slave-side streams
 
 // Monitor AXIL group at bridge top
-monbus_axil4_axil4_group u_mon_group (
-    .s_mon_axil_*(s_mon_axil_*),  // Slave AXIL for CPU
-    .m_axil_mon_*(m_axil_mon_*),  // Master AXIL for DMA
-    .stream_irq(stream_irq)        // IRQ output
+monbus_axil4_axil4_group #(
+    .FIFO_DEPTH_ERR      (64),
+    .FIFO_DEPTH_WRITE    (96),   // in BEATS, not packets
+    .ADDR_WIDTH          (32),
+    .FLUSH_TIMEOUT_CYCLES(1024),
+    .NUM_PROTOCOLS       (3),
+    .USE_COMPRESSION     (0)
+) u_mon_axil_group (
+    .axi_aclk         (aclk),
+    .axi_aresetn      (aresetn),
+    // the monbus_arbiter's output is the group's single input
+    .monbus_valid     (mon_arb_monbus_valid),
+    .monbus_ready     (mon_arb_monbus_ready),
+    .monbus_packet    (mon_arb_monbus_packet),
+    .monbus_timestamp (mon_arb_monbus_timestamp),
+    // free-running time, fanned out to every wrapper's i_mon_time
+    .mon_time_out     (mon_time_w),
+    .s_axil_*         (s_mon_axil_*),   // slave read port (CPU access)
+    .m_axil_*         (m_mon_axil_*),   // master write port (bulk DMA)
+    .irq_out          (mon_irq_out)
 );
 ```
 

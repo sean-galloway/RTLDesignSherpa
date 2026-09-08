@@ -68,7 +68,7 @@ input  logic        cpu_m_axi_awuser,
 output logic        ddr_s_axi_awvalid,
 input  logic        ddr_s_axi_awready,
 output logic [31:0] ddr_s_axi_awaddr,
-output logic [5:0]  ddr_s_axi_awid,   // Extended ID
+output logic [3:0]  ddr_s_axi_awid,   // SAME width as the master port -- IDs are pass-through
 output logic [7:0]  ddr_s_axi_awlen,
 output logic [2:0]  ddr_s_axi_awsize,
 // ...
@@ -129,7 +129,8 @@ logic [$clog2(NUM_MASTERS)-1:0] aw_last_grant_s0;  // Round-robin state
 ### ID Signals
 
 ```systemverilog
-// Extended IDs (internal)
+// bridge_id: an INTERNAL routing tag carried alongside the transaction,
+// never prepended to the AXI ID on the slave port
 logic [TOTAL_ID_WIDTH-1:0] xbar_m0_awid;  // BID + external ID
 logic [TOTAL_ID_WIDTH-1:0] xbar_s0_bid;   // Response with BID
 
@@ -142,14 +143,14 @@ logic [ID_WIDTH-1:0] cpu_m_axi_bid;       // Stripped ID
 ### Pattern
 
 ```
-dbg_{category}_{description}
+dbg_{category}_{description}   // NOT EMITTED -- see below
 ```
 
 ### Debug Signal Examples
 
 ```systemverilog
 // Arbitration debug
-output logic [NUM_MASTERS-1:0] dbg_aw_grant_s0,
+output logic [NUM_MASTERS-1:0] dbg_aw_grant_s0,   // illustrative only
 output logic [NUM_MASTERS-1:0] dbg_ar_grant_s0,
 
 // Transaction debug
