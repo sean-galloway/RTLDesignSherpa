@@ -385,6 +385,38 @@ class Pumice(Device):
         if kw:
             self._wr("SCHED_TUNING", **kw)
 
+    def set_sched_policy(self, *, order_mode: Optional[int] = None,
+                         age_thresh: Optional[int] = None,
+                         prio_sub: Optional[int] = None,
+                         row_sel: Optional[int] = None,
+                         col_sel: Optional[int] = None,
+                         access_pref: Optional[int] = None,
+                         qos_en: Optional[bool] = None) -> None:
+        """SCHED_POLICY (Axis 1). order_mode: 0=build default (FR-FCFS),
+        1=in_order, 3=age_threshold; age_thresh in MC cycles/16 (0 = off).
+        On a BASE bitstream in_order is per-channel FIFO (each CAM issues its
+        oldest entry; the arbiter's read/write preference picks the side);
+        global read-vs-write age order needs the PUMICE_ENHANCED build.
+        NOTE: SCHED_TUNING.force_inorder / lookahead_active are legacy fields
+        the rearchitected RTL no longer consumes -- use this."""
+        kw: Dict[str, int] = {}
+        if order_mode is not None:
+            kw["order_mode"] = order_mode & 0x3
+        if age_thresh is not None:
+            kw["age_thresh"] = age_thresh & 0xFF
+        if prio_sub is not None:
+            kw["prio_sub"] = prio_sub & 0x3
+        if row_sel is not None:
+            kw["row_sel"] = row_sel & 0x3
+        if col_sel is not None:
+            kw["col_sel"] = col_sel & 0x3
+        if access_pref is not None:
+            kw["access_pref"] = access_pref & 0x3
+        if qos_en is not None:
+            kw["qos_en"] = 1 if qos_en else 0
+        if kw:
+            self._wr("SCHED_POLICY", **kw)
+
     def get_lookahead_max(self) -> int:
         """Build-time max reorder-window depth (SCHED_TUNING.lookahead_max_obs)."""
         return self.regs.field("SCHED_TUNING", "lookahead_max_obs")

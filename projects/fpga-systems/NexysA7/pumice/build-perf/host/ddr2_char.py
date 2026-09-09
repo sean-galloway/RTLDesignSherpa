@@ -512,6 +512,9 @@ class DDR2CharDriver:
                                   age_max=age_max,
                                   txn_high_water=txn_high_water)
 
+    def set_sched_policy(self, **kw) -> None:
+        self.pumice.set_sched_policy(**kw)
+
     def get_lookahead_max(self) -> int:
         return self.pumice.get_lookahead_max()
 

@@ -140,6 +140,7 @@ module pumice_rd_cmd_cam #(
     logic [NUM_ENTRIES-1:0] r_older [NUM_ENTRIES];
 
     logic [AGE_WIDTH-1:0] w_rel [NUM_ENTRIES];
+    logic [NUM_ENTRIES-1:0] r_age_exceed;   // registered age flags (see sch_age_exceed_o)
     always_comb
         for (int i = 0; i < NUM_ENTRIES; i++)
             w_rel[i] = r_age_ctr - r_age[i];
@@ -243,12 +244,26 @@ module pumice_rd_cmd_cam #(
             sch_col_o  [i*COL_WIDTH +: COL_WIDTH] = r_col[i];
             sch_older_o[i*NUM_ENTRIES +: NUM_ENTRIES] = r_older[i];
             sch_qos_o[i*4 +: 4] = r_qos[i];
-            sch_age_exceed_o[i] = r_valid[i]
-                                && (age_thresh_i != 8'd0)
-                                && (w_rel[i] >= AGE_WIDTH'({age_thresh_i, 4'h0}));
+            // Registered (one cycle stale): the 16-bit subtract+compare per
+            // entry is otherwise a straight shot from r_age into the
+            // arbiter's mask cone. A boost that engages a cycle late is a
+            // preference, not a hazard guard; r_valid masks the flag of a
+            // freed slot and the allocation clears it (below).
+            sch_age_exceed_o[i] = r_valid[i] && r_age_exceed[i];
         end
         sch_head_rel_o = w_sho_found ? w_rel[w_sho_slot] : '0;
     end
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_age_exceed <= '0;
+        end else begin
+            for (int i = 0; i < NUM_ENTRIES; i++)
+                r_age_exceed[i] <= r_valid[i] && (age_thresh_i != 8'd0)
+                                && (w_rel[i] >= AGE_WIDTH'({age_thresh_i, 4'h0}));
+            if (w_ins_fire) r_age_exceed[w_free_slot] <= 1'b0;
+        end
+    )
 
     always_comb begin
         busy_o = 1'b0;

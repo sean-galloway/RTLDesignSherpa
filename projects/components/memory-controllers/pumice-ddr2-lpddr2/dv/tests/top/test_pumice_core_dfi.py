@@ -1460,7 +1460,10 @@ def _run(request, testcase, params_over=None, enhanced=False):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_core_tb_top"
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
-    sim_build = sim_build_path(tests_dir, testcase)
+    # The enhanced and base builds of one testcase are different netlists;
+    # give them separate build trees so they cannot race (a shared tree
+    # produced a g++ segfault when both compiled at once, 2026-09-09).
+    sim_build = sim_build_path(tests_dir, testcase + ("" if enhanced else "_base"))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     params = {"AXI_ID_WIDTH": "8", "AXI_ADDR_WIDTH": "32", "NUM_RANKS": "1",
@@ -1472,10 +1475,11 @@ def _run(request, testcase, params_over=None, enhanced=False):
               "RD_RET_DEPTH": os.environ.get("PUMICE_RD_RET_DEPTH", "32")}
     if params_over:
         params.update(params_over)
-    extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{testcase}.log"),
+    tag = testcase + ("" if enhanced else "_base")
+    extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{tag}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",
-                 "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{testcase}.xml"),
-                 "SEED": _echo_seed(testcase),
+                 "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{tag}.xml"),
+                 "SEED": _echo_seed(tag),
                  "TEST_LEVEL": os.environ.get("TEST_LEVEL", "basic")}
     extra_env.update(params)
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
@@ -1504,6 +1508,11 @@ def test_pumice_core_refresh_credit(request):
 
 def test_pumice_core_sched_order(request):
     _run(request, "cocotb_test_pumice_core_sched_order", enhanced=True)
+def test_pumice_core_sched_order_base(request):
+    # BASE build (no PUMICE_ENHANCED): in_order is per-channel FIFO and
+    # age_threshold uses the CAMs' registered flags (2026-09-09). Same
+    # parked-victim sweep, so the base bitstream's order modes are covered.
+    _run(request, "cocotb_test_pumice_core_sched_order", enhanced=False)
 
 
 def test_pumice_core_refresh_collide(request):

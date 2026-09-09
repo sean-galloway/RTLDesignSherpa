@@ -204,6 +204,7 @@ module pumice_wr_data_cam #(
 
     // relative age (how long ago inserted) — wrap-safe ordering
     logic [AGE_WIDTH-1:0]    w_rel [NUM_ENTRIES];
+    logic [NUM_ENTRIES-1:0]  r_age_exceed;   // registered age flags (see sch_age_exceed_o)
     always_comb
         for (int i = 0; i < NUM_ENTRIES; i++)
             w_rel[i] = r_age_ctr - r_age[i];
@@ -455,12 +456,25 @@ module pumice_wr_data_cam #(
             sch_col_o  [i*COL_WIDTH +: COL_WIDTH] = r_col[i];
             sch_older_o[i*NUM_ENTRIES +: NUM_ENTRIES] = r_older[i];
             sch_qos_o[i*4 +: 4] = r_qos[i];
+            // Registered (one cycle stale) -- see pumice_rd_cmd_cam: the
+            // per-entry 16-bit age compare stays inside the CAM behind a
+            // flop instead of feeding the arbiter's mask cone directly.
             sch_age_exceed_o[i] = r_valid[i] && r_fdone[i] && !r_sched[i]
-                                && (age_thresh_i != 8'd0)
-                                && (w_rel[i] >= AGE_WIDTH'({age_thresh_i, 4'h0}));
+                                && r_age_exceed[i];
         end
         sch_head_rel_o = w_sho_found ? w_rel[w_sho_slot] : '0;
     end
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_age_exceed <= '0;
+        end else begin
+            for (int i = 0; i < NUM_ENTRIES; i++)
+                r_age_exceed[i] <= r_valid[i] && (age_thresh_i != 8'd0)
+                                && (w_rel[i] >= AGE_WIDTH'({age_thresh_i, 4'h0}));
+            if (w_ins_fire) r_age_exceed[w_free_slot] <= 1'b0;
+        end
+    )
 
     // ---- snarf-stream request FIFO (slots to stream, in accept order) ------
     logic            w_sq_wr_valid, w_sq_wr_ready, w_sq_rd_valid, w_sq_rd_ready;

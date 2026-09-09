@@ -192,7 +192,9 @@ class ControllerConfig:
     scheme:        Optional[int] = None     # dc.SCHEME_* (paging)
     page_policy:   Optional[int] = None     # dc.PAGE_POLICY_*
     lookahead:     Optional[int] = None     # reorder-window depth (0=off)
-    force_inorder: Optional[bool] = None    # 1 = FIFO-only (no row-hit reorder)
+    force_inorder: Optional[bool] = None    # LEGACY SCHED_TUNING bit; the RTL no longer reads it
+    order_mode:    Optional[int] = None     # SCHED_POLICY.order_mode (1=in_order, 3=age_threshold)
+    age_thresh:    Optional[int] = None     # SCHED_POLICY.age_thresh (MC cycles/16)
     page_mode:     Optional[int] = None     # PAGE_POLICY_CFG.policy_mode (0=legacy)
     page_tr_init:  Optional[int] = None     # PAGE_TIMEOUT_CFG.tr_init
     page_access:   Optional[Dict[str, int]] = None  # mode 5 table (set_page_access_cfg kw)
@@ -267,6 +269,9 @@ class ControllerConfig:
             drv.set_page_mode(self.page_mode, tr_init=self.page_tr_init)
         if sched:
             drv.set_scheduler(**sched)
+        if self.order_mode is not None or self.age_thresh is not None:
+            drv.set_sched_policy(order_mode=self.order_mode,
+                                 age_thresh=self.age_thresh)
 
 
 # Presets -- each changes ONE main lever from `baseline` (except `reorder` /
@@ -283,9 +288,18 @@ CONFIGS: Dict[str, ControllerConfig] = {
     "open_page": ControllerConfig(
         "open_page", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_OPEN,
         lookahead=0, force_inorder=False, rd_in_order=True),
+    # in_order = SCHED_POLICY.order_mode 1 (per-channel FIFO on the base
+    # build). force_inorder is kept only so the legacy bit is still written;
+    # the RTL reads order_mode.
     "inorder": ControllerConfig(
         "inorder", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_CLOSE,
-        lookahead=0, force_inorder=True, rd_in_order=True),
+        lookahead=0, force_inorder=True, order_mode=1, rd_in_order=True),
+    # age_threshold on the reorder config: FR-FCFS until a reference is
+    # older than 16*age_thresh MC cycles, then only boosted entries issue.
+    "age_thr": ControllerConfig(
+        "age_thr", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_OPEN,
+        lookahead=LOOKAHEAD_MAX, force_inorder=False, order_mode=3, age_thresh=8,
+        rd_in_order=False),
     "open_interleave": ControllerConfig(
         "open_interleave", scheme=dc.SCHEME_BANK_INTERLEAVE,
         page_policy=dc.PAGE_POLICY_OPEN, lookahead=0, force_inorder=False,
@@ -731,6 +745,10 @@ RUN_PROFILES: Dict[str, dict] = {
     # is the sim gate for the restored modes' CSR path.
     "paging": dict(configs=["adapt_time", "adapt_access", "rbl_static", "rbl_dyn"],
                    level="basic", families=(FAM_INCREMENTAL, FAM_COL_MAJOR)),
+    # Axis-1 order modes on the base build: per-channel in_order vs
+    # age_threshold vs plain reorder, streaming vs page-thrash.
+    "order": dict(configs=["reorder", "inorder", "age_thr"],
+                  level="basic", families=(FAM_INCREMENTAL, FAM_COL_MAJOR)),
     # Everything: every preset (incl. refresh + adapt_time) x the full grid.
     "full": dict(configs="all", level="full", families=None),
 }

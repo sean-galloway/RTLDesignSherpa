@@ -641,21 +641,28 @@ module pumice_cmd_arbiter
     localparam logic [1:0] ORDER_IN_ORDER = 2'd1;
     localparam logic [1:0] ORDER_AGE_THR  = 2'd3;
 
-    // BASIC vs ENHANCED build gate. Basic pumice is FR-FCFS ONLY (the build
-    // default, 8 of 9 board-char configs). The in_order / age_threshold overlays
-    // below are an ENHANCED-build feature: they need the cross-CAM global-age
-    // compare (w_rd_head_wins), a ~26-level, 78%-route cone (wr_cam -> arbiter ->
-    // rd_cam) that is the FPGA timing wall. So the overlays are compiled OUT by
-    // default -- the whole cone (and the CAMs' sch_head_rel export) constant-
-    // propagates away, which is what lets the basic build close timing. An
-    // ENHANCED build opts in with +define+PUMICE_ENHANCED to get in_order +
-    // age_threshold. NOTE: on a basic bitstream a software write of
-    // SCHED_POLICY.order_mode = in_order/age_threshold is a no-op (runs FR-FCFS)
-    // -- the host must not report those as tested.
+    // ORDER_MODE tiers. in_order and age_threshold are BASE-build modes
+    // (2026-09-09): in_order masks each CAM down to its oldest entry (two
+    // levels off the older matrix FR-FCFS already reads) and lets the
+    // arbiter's normal read/write preference (drain watermarks, round robin,
+    // age-boost tiebreak) choose the side -- each channel is strictly FIFO,
+    // which is what the mode is for as a test baseline; AXI orders nothing
+    // between AR and AW, and the read-after-write hazard is the CAM snarf's.
+    // age_threshold ANDs the CAMs' registered age flags into the masks.
+    //
+    // What stays ENHANCED (+define+PUMICE_ENHANCED) is GLOBAL age order in
+    // in_order: read-head vs write-head decided by comparing the two CAMs'
+    // oldest relative ages (w_rd_head_wins). That compare -- CAM older
+    // matrix -> oldest select -> 16-bit rel-age mux -> export -> compare ->
+    // mask -> pick -- is the cone that missed 75 MHz by 21 ps (PUMICE-024);
+    // without the define the sch_head_rel export constant-propagates away.
+    // On a base bitstream in_order therefore orders WITHIN each channel and
+    // may issue a read behind a younger write (or vice versa) at the
+    // arbiter's preference; the host reports it as "in_order per channel".
 `ifdef PUMICE_ENHANCED
-    localparam bit SUPPORT_ORDER_MODES = 1'b1;
+    localparam bit SUPPORT_GLOBAL_ORDER = 1'b1;
 `else
-    localparam bit SUPPORT_ORDER_MODES = 1'b0;
+    localparam bit SUPPORT_GLOBAL_ORDER = 1'b0;
 `endif
 
     logic [NUM_ENTRIES-1:0] w_rd_head, w_wr_head;
@@ -693,17 +700,21 @@ module pumice_cmd_arbiter
     always_comb begin
         rd_col_me = rd_col_m; rd_act_me = rd_act_m; rd_pre_me = rd_pre_m;
         wr_col_me = wr_col_m; wr_act_me = wr_act_m; wr_pre_me = wr_pre_m;
-        if (SUPPORT_ORDER_MODES && sched_order_mode_i == ORDER_IN_ORDER) begin
-            if (w_rd_head_wins) begin
-                rd_col_me &= w_rd_head; rd_act_me &= w_rd_head;
-                rd_pre_me &= w_rd_head;
-                wr_col_me = '0; wr_act_me = '0; wr_pre_me = '0;
-            end else begin
-                wr_col_me &= w_wr_head; wr_act_me &= w_wr_head;
-                wr_pre_me &= w_wr_head;
-                rd_col_me = '0; rd_act_me = '0; rd_pre_me = '0;
+        if (sched_order_mode_i == ORDER_IN_ORDER) begin
+            // per-channel FIFO: only each CAM's oldest entry is a candidate
+            rd_col_me &= w_rd_head; rd_act_me &= w_rd_head;
+            rd_pre_me &= w_rd_head;
+            wr_col_me &= w_wr_head; wr_act_me &= w_wr_head;
+            wr_pre_me &= w_wr_head;
+            if (SUPPORT_GLOBAL_ORDER) begin
+                // global age order: the younger head waits
+                if (w_rd_head_wins) begin
+                    wr_col_me = '0; wr_act_me = '0; wr_pre_me = '0;
+                end else begin
+                    rd_col_me = '0; rd_act_me = '0; rd_pre_me = '0;
+                end
             end
-        end else if (SUPPORT_ORDER_MODES && sched_order_mode_i == ORDER_AGE_THR && w_boost_any) begin
+        end else if (sched_order_mode_i == ORDER_AGE_THR && w_boost_any) begin
             rd_col_me &= rd_sch_age_exceed_i; rd_act_me &= rd_sch_age_exceed_i;
             rd_pre_me &= rd_sch_age_exceed_i;
             wr_col_me &= wr_sch_age_exceed_i; wr_act_me &= wr_sch_age_exceed_i;

@@ -976,3 +976,31 @@ Tier A result (PUMICE_ENHANCED=1, same 75 MHz flow): does NOT close.
   with the candidate fix (register the head compare one stage earlier); the
   overlays stay an env opt-in and the board build is the base tier.
 
+### ORDER MODES IN THE BASE BUILD (2026-09-09): in_order per channel, age_threshold registered
+
+Sean: "full in-order can be a CSR mode on top of FR-FCFS and age should also
+work" -- build it, straight to bitstream. The enhanced-tier miss (PUMICE-024)
+was entirely the GLOBAL read-vs-write age compare; in_order itself is two
+logic levels off the older matrix FR-FCFS already reads. So:
+
+  * in_order (SCHED_POLICY.order_mode=1) is now a BASE-build mode: each CAM
+    is masked to its oldest entry and the arbiter's normal read/write
+    preference (drain watermarks, round robin, age-boost tiebreak) picks the
+    side. Each channel is strictly FIFO; AXI orders nothing between AR and
+    AW and the RAW hazard is the CAM snarf's. The global age compare
+    (w_rd_head_wins, sch_head_rel export) stays behind +define+PUMICE_ENHANCED
+    as "global in_order": with it the younger head waits.
+  * age_threshold (order_mode=3) is a BASE-build mode: the CAMs register
+    their per-entry age flags (r_age_exceed, cleared on allocation, masked by
+    validity) so the 16-bit subtract+compare never enters the arbiter's mask
+    cone. A boost engaging a cycle late is a preference, not a guard.
+  * Host: Pumice.set_sched_policy (SCHED_POLICY by name), presets inorder
+    (order_mode=1) and age_thr (order_mode=3, thresh 8), RUN_PROFILES["order"].
+    SCHED_TUNING.force_inorder / lookahead_active are legacy fields the
+    rearchitected RTL does not read -- the old "inorder" preset was a no-op on
+    the board. Their retirement from the RDL is a follow-up (regen + host).
+  * DV: test_pumice_core_sched_order_base runs the parked-victim order sweep
+    on the BASE netlist (the enhanced/base builds of one testcase now get
+    separate sim_build trees -- sharing one produced a g++ segfault when the
+    regression and a standalone run compiled it at once).
+
