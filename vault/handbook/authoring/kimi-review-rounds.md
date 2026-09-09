@@ -541,6 +541,19 @@ The three commands, serial, correctness before voice:
     # drop --dry-run to send. Serial; a 20-unit round takes well over an hour.
     # --resume N re-enters round_N and sends only its missing units.
 
+**Run the round detached, and resume rather than restart.** A round is an
+hour-plus of serial calls, and the process that launched it is the weakest
+link: a closed terminal, a compaction, or a power cut kills it mid-unit.
+`--resume N` makes that cheap -- it re-reads round_N, keeps every unit whose
+`.md` landed, and re-sends only the gaps -- but only if the driver was
+launched with `nohup`/`setsid` from a one-line script that itself passes
+`--resume` (the RLB tree's `bin/run_humanize_resumable.sh` is the template).
+*Case (2026-09-08): a workstation power outage killed the RLB humanize
+driver on unit 8 of 9; seven applied units survived on disk and the re-run
+cost the in-flight unit only.* Check the proxy first after any reboot -- the
+litellm process on `localhost:4000` is not a service and comes back only via
+the launch recipe above.
+
 **`--books` takes `<OUT>/books`, not `<OUT>`.** The bundler is given the parent
 and creates `books/` underneath it; pointing `--books` at the parent matches no
 units and the run exits with a bare `no units matched` -- which reads like an
