@@ -16,12 +16,18 @@ pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
 
 ## Shortlist
 
-- **In flight (2026-09-08):** confirming Kimi qc round_2 over the rebuilt
-  9-block bundle; humanize pass follows once it comes back clean.
+- **qc + humanize arc DONE (2026-09-08):** Kimi qc round_2 and round_3
+  findings integrated for all 9 blocks; humanize round_1 applied to every
+  book (book pages only -- PRD/IMPLEMENTATION_STATUS/design-sketch pages
+  reverted), each block committed separately with tag-survival 0 fatal,
+  0 suspect, emoji 0 and its `#NN` deviation references counted before and
+  after. A power outage killed the driver mid-smbus; `run_humanize_resumable.sh`
+  re-sent only smbus + uart_16550 (results in
+  `results/humanize-kimi-k2/round_1/`). RLB-006 is now unblocked.
 - **Blocked on owner (RLB-004):** 9 RTL bugs filed (#44–#60 even) need design
   decisions before RTL changes; each re-verified 2026-09-08 with a dated
   issue comment.
-- **After qc/humanize (RLB-006):** test scrub. Then RLB-007 (RDL relocation).
+- **Next (RLB-006):** test scrub via `run_batch.py testqc`. Then RLB-007 (RDL relocation).
 
 ## Done
 
