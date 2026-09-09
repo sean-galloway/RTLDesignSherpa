@@ -1838,40 +1838,44 @@ that actually exist as HAS/MAS today.
 
 | Book | Words | qc round | humanized |
 |---|---|---|---|
-| Bridge MAS | — | round_43 (2026-09-04, 3 parts, 21 findings, **never adjudicated**); round_44 sent 2026-09-07 after a generator-sync pass | 2026-08-11 (`93eed6f1`) — **before any qc**, so it is owed a re-humanize once correctness converges |
-| Bridge HAS | — | round_43 (2026-09-04, 2 parts, 22 findings, **never adjudicated**); round_44 sent 2026-09-07 | 2026-08-11 (`93eed6f1`) — same |
+| Bridge MAS | — | **STOPPED 2026-09-08 by decision, not convergence**: fresh-dir rounds 1-4 (65 → 54 → 53 → 57 findings; every finding triaged and fixed; four RTL defects, all mutation-checked); Sean: "Switch please" to voice after the flat-count report | **2026-09-08**, humanize round_1, 22 pages, tag-survival 0 fatal, correctness annotations count-exact (`6408d76dd`) |
+| Bridge HAS | — | same rounds 1-4 | **2026-09-08**, humanize round_1, 17 pages, same gates (`6408d76dd`) |
 | Converters MAS | — | **CONVERGED 2026-08-26**: rounds 1-6 (25→30→19→14→11→7 findings; last four rounds zero RTL defects) | **2026-08-26**, humanize round_1, all 19 pages, tag-survival 0 fatal |
 | APB Crossbar MAS | 7,154 (5 md) | **CONVERGED 2026-08-30**: rounds 7-15 (20→22→19→18→17→18→10→12→9; last two rounds no RTL defects) | **2026-08-30**, humanize round_2, 9 pages, tag-survival 0 fatal |
 | APB Crossbar HAS | 8,179 (20 md) | rounds 7-15, same batch | **2026-08-30**, humanize round_2, 23 pages, tag-survival 0 fatal |
 
-### Bridge status, measured 2026-09-07
+### Bridge status, measured 2026-09-08 -- arc complete as of `6408d76dd`
 
-Measured against the tree, not inferred from commits (rule 4 of
-[[kimi-review-rounds]]):
+Rule 11 applies: complete as of that commit, not forever.
 
-* **round_43 was partially integrated.** Of its 43 findings, 35 were addressed,
-  2 were still genuinely open (the PRD's comparison table claimed out-of-order
-  support — `bridge_cam` is instantiated in ZERO generated bridges and 95
-  generated files use in-order `bridge_id` FIFO tracking — and a requirements
-  line still said "hold grant until xlast" where the arbiters read "lock until
-  handshake"). Both fixed in `a31a5366`. A first pass called 6 open; 4 of those
-  were a quote-matcher firing on fragments out of context, which is a caution
-  about mechanical integration checks, not about the round.
-* **The books had drifted from the generator**, independently of round_43:
-  `monbus_axil_group` had not existed since `35036222` yet appeared in 37
-  comments across the generator and 4 doc sites, and — because the generator
-  emits those comments — in 86 comments inside generated RTL, reproduced on
-  every regenerate. AXI5-Lite sideband (FORWARDED/TIED/TERMINATED) and the
-  emitted `-f reset_defs.f` had no page at all. All three fixed and the family
-  regenerated; bridge 70/70 at FULL.
-* **round_44 is therefore the first bridge qc against a book that matches the
-  generator.** Its findings should be read in that light: round_43 reviewed
-  prose that was both un-qc'd and generator-stale.
-
-The humanize column stays as it is. Both books were voice-passed on
-2026-08-11 **before** any correctness round, so the 2026-08-11 date records
-what happened, not that the book is done. Neither is done until qc converges
-and a humanize round runs after it.
+* **Results tree.** The fresh results dir (`~/rtl-doc-review/results`,
+  `qc-kimi-k2/round_1..4`, `humanize-kimi-k2/round_1`) restarted numbering at
+  round_1; the round_43/44 numbers above it in the history refer to the old
+  tree and were never adjudicated. Round_1 of the fresh tree was the first
+  bridge qc against a generator-synced book.
+* **Trajectory 65 → 54 → 53 → 57** (round_4 had one more unit). A broken
+  line-anchored counter reported round_3 as 37 and one unit as clean; the
+  recount (rule 14) showed convergence had stalled at rounds 2→3. Round_4's
+  findings were lower-severity (stale probe names, a units mismatch) while its
+  RTL yield rose (three defects in one round). The recommendation was one more
+  RTL-adjacent round; Sean chose to switch to voice. The residual is the
+  humanize reviewer's to catch.
+* **RTL yield of the four rounds**, each mutation-checked: BRIDGE-011
+  response-FIFO overrun → misroute then stall (`c64660f47`);
+  `axi4_subtractive_slave` simultaneous AW+AR lost a fault (`37e19daf`);
+  `axi5_atomic_filter` duplicate B for a held DECERR (`53b6dedbf`) and B
+  before the swallowed burst's WLAST (`f73698397`). Plus 7 vacuous arbitration
+  tests made real and latency measured rather than asserted. Bridge 72/72 at
+  FULL after the last fix.
+* **Humanize round_1** ran across a machine shutdown: units 1-7 landed
+  2026-09-08 15:53-18:26, the driver died mid-unit-8, and the round was
+  resumed gap-fill (rule 3) the same evening for units 8-10. Units 11-12 were
+  deliberately not run and the has_part_04/05 outputs not applied: all four
+  were the component PRD.md and CLAUDE.md, pulled in twice by the bundler
+  following the index's Related Documents links -- rule 15, fixed in
+  `ebfa49d8f`. 39 book pages applied, gates in the commit message.
+* **Books rebuilt at rev 1.2** (`Bridge_HAS_v1.2.pdf`, `Bridge_MAS_v1.2.pdf`)
+  with a revision-history entry naming the four rounds and the four defects.
 
 ### Two problems, not one
 

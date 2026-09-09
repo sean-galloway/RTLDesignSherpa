@@ -30,8 +30,8 @@
 | Property | Value |
 |---|---|
 | Document Title | Bridge Micro-Architecture Specification |
-| Version | 1.1 |
-| Date | June 4, 2026 |
+| Version | 1.2 |
+| Date | September 8, 2026 |
 | Status | Released |
 | Classification | Open Source - MIT License |
 
@@ -63,6 +63,7 @@ Yes, the CAM gets called out in its own bullet — it was documented, never buil
 |---|---|---|---|
 | 1.0 | 2026-01-03 | RTL Design Sherpa | Initial release - restructured from single spec |
 | 1.1 | 2026-06-04 | RTL Design Sherpa | Content sync to RTL state at 2026-06-04. Adds (1) monitor-aggregation discussion in the crossbar-core chapter — per-port `axi4_{master,slave}_{rd,wr}_mon` wrappers feed a `monbus_arbiter` tree into a single bridge-top `monbus_axil4_axil4_group`, packet+timestamp carried atomically through a 192-bit skid; references the canonical 128-bit packet spec at `docs/markdown/rtl-amba/includes/monitor_package_spec.md`; (2) generator-emitted protocol-conversion shims at the slave boundary — `axi4_to_axil4_{rd,wr}` for AXIL slaves, chained with the AXIL→APB shim for APB slaves; (3) AXIL→wider-slave master-side alignment converters in the width-converters chapter (`axil_to_axi4_wide_align_{rd,wr}` — partial-word alignment, not protocol bridging); (4) generated-RTL chapter now lists monitor-variant module emission and per-port `(UNIT_ID, AGENT_ID)` assignment conventions; (5) verification-strategy chapter rewritten for protocol-BFM-only TBs with memory-backed slaves, the new `boundary_probe` test pattern, and the four `test_bridge_*_monitor_*.py` canonical patterns (smoke/capture/error_inject/irq); (6) response-routing chapter notes the independent W-tracker FIFO + split AW/W-ready MUX fix (commit `d24bd617`) that closed an interleaved-master deadlock. |
+| 1.2 | 2026-09-08 | RTL Design Sherpa | Correctness and voice pass. Four external qc rounds (65/54/53/57 findings, all triaged against rtl/generated and the generator) removed the planned-but-never-built ID-table/CAM out-of-order scheme, the fixed 64-bit internal path, response arbitration/FIFOs and the AXI4-Lite-as-future-work status from the text; annotated the TOML keys the loader has never known and its three-tier unknown-key behaviour; replaced asserted latency figures with measured ones. Four RTL defects found by the rounds are fixed and mutation-checked (BRIDGE-011 response-FIFO overrun, axi4_subtractive_slave simultaneous AW+AR fault loss, axi5_atomic_filter duplicate B and B-before-WLAST). Prose then voice-passed with all correctness annotations preserved. |
 
 ## References
 
