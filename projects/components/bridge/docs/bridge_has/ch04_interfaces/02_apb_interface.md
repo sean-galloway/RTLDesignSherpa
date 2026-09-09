@@ -21,9 +21,13 @@
 
 <!-- End Header -->
 
-# APB Interface Overview
+# APB Interface
 
-## APB Protocol Summary
+## Overview
+
+APB is where the slow things live: UARTs, GPIO, configuration registers. This page covers the bridge's APB surface — the signal set, the port-naming convention, transaction timing, and what the AXI4-to-APB conversion actually does.
+
+## Ports
 
 ### Signal Definition
 
@@ -41,8 +45,6 @@
 | PREADY | 1 | Input | Slave ready |
 
 : Table 4.1: APB Signal Definitions
-
-## APB Slave Interface
 
 ### Signal Naming
 
@@ -62,7 +64,41 @@ input  logic        uart_apb_pslverr,
 input  logic        uart_apb_pready
 ```
 
-## APB Transaction Timing
+## Functional Description
+
+### AXI4 to APB Conversion
+
+When an AXI4 master accesses an APB slave, the bridge:
+
+1. **Burst splitting** - AXI4 bursts become multiple APB transfers
+2. **Channel mapping** - AW+W combined into PADDR+PWDATA
+3. **Response generation** - APB PSLVERR maps to AXI4 BRESP/RRESP
+4. **Timing adaptation** - Insert wait states as needed
+
+### Burst Handling
+
+| AXI4 AWLEN | APB Transfers |
+|------------|---------------|
+| 0 (1 beat) | 1 transfer |
+| 1 (2 beats) | 2 transfers |
+| N (N+1 beats) | N+1 transfers |
+
+: Table 4.2: AXI4 to APB Burst Conversion
+
+### Error Mapping
+
+| APB PSLVERR | AXI4 BRESP/RRESP |
+|-------------|------------------|
+| 0 (OK) | 2'b00 (OKAY) |
+| 1 (Error) | 2'b10 (SLVERR) |
+
+: Table 4.3: APB to AXI4 Error Mapping
+
+## Timing
+
+Every APB transfer pays for a setup phase plus an access phase, so the floor is two cycles per transfer. There is no pipelining — transfers run sequentially — and no bursts: each beat requires the full handshake.
+
+## Waveforms
 
 ### Write Transaction
 
@@ -101,45 +137,7 @@ PREADY  ________|    |________________
 PRDATA xxxxxxxx|_____|xxxxxxxxxxxxxxxx
 ```
 
-## AXI4 to APB Conversion
-
-### Conversion Requirements
-
-When an AXI4 master accesses an APB slave, the bridge:
-
-1. **Burst splitting** - AXI4 bursts become multiple APB transfers
-2. **Channel mapping** - AW+W combined into PADDR+PWDATA
-3. **Response generation** - APB PSLVERR maps to AXI4 BRESP/RRESP
-4. **Timing adaptation** - Insert wait states as needed
-
-### Burst Handling
-
-| AXI4 AWLEN | APB Transfers |
-|------------|---------------|
-| 0 (1 beat) | 1 transfer |
-| 1 (2 beats) | 2 transfers |
-| N (N+1 beats) | N+1 transfers |
-
-: Table 4.2: AXI4 to APB Burst Conversion
-
-### Error Mapping
-
-| APB PSLVERR | AXI4 BRESP/RRESP |
-|-------------|------------------|
-| 0 (OK) | 2'b00 (OKAY) |
-| 1 (Error) | 2'b10 (SLVERR) |
-
-: Table 4.3: APB to AXI4 Error Mapping
-
-## Performance Implications
-
-### APB Limitations
-
-- **Minimum 2 cycles per transfer** (setup + access phase)
-- **No pipelining** (sequential transfers only)
-- **No bursts** (each beat requires full handshake)
-
-### Design Recommendations
+## Design Notes
 
 - Use APB only for slow peripherals (UART, GPIO, config registers)
 - Group APB slaves behind dedicated sub-crossbar

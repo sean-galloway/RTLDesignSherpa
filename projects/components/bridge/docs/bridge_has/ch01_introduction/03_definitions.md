@@ -71,7 +71,7 @@ Selecting which master gets a slave when several masters contend for it.
 Internal routing tag carried ALONGSIDE a transaction inside the fabric, never prepended to the AXI ID. Width = clog2(NUM_MASTERS). Slave-side AXI IDs are the same width as master-side ones; the tag lives in the slave adapter's in-order FIFO, not on the bus.
 
 **Channel-Specific Master:**
-A master that only uses subset of AXI4 channels (write-only or read-only).
+A master that uses only a subset of AXI4 channels (write-only or read-only).
 
 **Crossbar:**
 An NxM interconnect allowing any master to communicate with any connected slave.

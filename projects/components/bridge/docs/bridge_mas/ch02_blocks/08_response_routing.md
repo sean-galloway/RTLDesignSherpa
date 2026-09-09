@@ -23,7 +23,7 @@
 
 # 2.8 Response Routing
 
-Requests are easy to route — the address says where they go. Responses are harder: read data and write acknowledgments have to find their way back to whichever master asked. Response routing does that with Bridge IDs, demultiplexing logic, and optional CAM structures.
+Requests are easy to route — the address says where they go. Responses are harder: read data and write acknowledgments have to find their way back to whichever master asked, and by then the address that launched the transaction is ancient history. Response routing does that with Bridge IDs, demultiplexing logic, and optional CAM structures.
 
 ## 2.8.1 Purpose and Function
 
@@ -108,7 +108,6 @@ end
 > completion is not supported and the section below describes an option
 > that was never implemented. See ch04 `02_id_tracking.md`.
 
-
 For complex configurations with OOO or ID reordering:
 
 ```systemverilog
@@ -185,7 +184,7 @@ end
 
 ### Problem Statement
 
-When multiple slaves can respond to same master simultaneously:
+When multiple slaves can respond to the same master in the same cycle:
 
 ```
 Scenario:
@@ -286,7 +285,7 @@ end
 
 ### Ready Signal Routing
 
-Master RREADY/BREADY must reach correct slave:
+The master's RREADY/BREADY has to find its way back to the correct slave:
 
 ```systemverilog
 // Route master ready back to slaves
@@ -581,7 +580,6 @@ Best for: Real-time systems
 > in-order per-slave FIFO holding a sideband master id, so out-of-order
 > completion is not supported and the section below describes an option
 > that was never implemented. See ch04 `02_id_tracking.md`.
-
 
 Allow bridge to reorder responses for efficiency:
 

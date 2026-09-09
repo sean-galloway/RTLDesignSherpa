@@ -42,7 +42,7 @@
 
 ## Document Purpose
 
-This Hardware Architecture Specification (HAS) is the high-level view of the Bridge component. It covers:
+This Hardware Architecture Specification (HAS) is the high-level view of the Bridge component — the map you read before you integrate, not the schematic. It covers:
 
 - System-level architecture and data flow
 - Protocol support (AXI4, AXI4-Lite, APB)

@@ -25,39 +25,25 @@
 
 ## Overview
 
-A multi-master fabric has to know which master a response belongs to. This
-bridge records it **positionally**: each slave adapter pushes the originating
-master's `bridge_id` onto an in-order FIFO at the address handshake and pops it
-on the response, routing by FIFO head. The AXI ID is passed through untouched
-in both directions.
+A multi-master fabric has to know which master a response belongs to. This bridge records it **positionally**: each slave adapter pushes the originating master's `bridge_id` onto an in-order FIFO at the address handshake and pops it on the response, routing by FIFO head. The AXI ID passes through untouched in both directions.
 
 ```systemverilog
 wr_fifo[wr_ptr[...]] <= xbar_bridge_id_aw;      // push on AW accept
 assign bid_bridge_id  = wr_fifo[rd_ptr[...]];   // route by the HEAD
 ```
 
-The consequence is a requirement the fabric does not check: **each slave port
-must return B/R in request order across ALL IDs.** AXI4 permits a slave to
-complete different-ID transactions out of order. Every generated slave
-adapter now carries a SIMULATION-ONLY check that compares the returned BID/RID
-against the FIFO head and $error()s on a mismatch (BRIDGE-010); it cannot fire
-in silicon --
+The consequence is a requirement the fabric does not check: **each slave port must return B/R in request order across ALL IDs.** AXI4 permits a slave to complete different-ID transactions out of order. Every generated slave adapter now carries a SIMULATION-ONLY check that compares the returned BID/RID against the FIFO head and $error()s on a mismatch (BRIDGE-010); it cannot fire in silicon --
 see BRIDGE-010.
 
-The rest of this page documents an **ID tracking table** design that was
-specified but never built: extended IDs formed by prepending a Bridge ID,
-per-slave lookup tables, out-of-order completion. `bridge_cam.sv` exists in the
-tree and is instantiated in zero generated bridges. It is kept because the
-positional scheme above is easy to mistake for it, and because several other
-pages once described it as real.
+The rest of this page documents an **ID tracking table** design that was specified but never built: extended IDs formed by prepending a Bridge ID, per-slave lookup tables, out-of-order completion. `bridge_cam.sv` exists in the tree and is instantiated in zero generated bridges. It is kept because the positional scheme above is easy to mistake for it, and because several other pages once described it as real.
 
 ---
 
-## HISTORICAL -- the unbuilt ID-table design
+## Functional Description
+
+### HISTORICAL -- the unbuilt ID-table design
 
 Everything below this line describes the design that was NOT implemented.
-
-## Table Structure
 
 ### Not implemented: the per-slave ID table
 
@@ -75,7 +61,7 @@ across all IDs -- is tracked as BRIDGE-010.
 
 ### Per-Slave ID Table (historical)
 
-Each slave has its own ID tracking table:
+Each slave was to have its own ID tracking table:
 
 ### Figure 4.2: ID Table Structure
 
@@ -88,11 +74,11 @@ Entries = MAX_OUTSTANDING_PER_SLAVE
 Width = TOTAL_ID_WIDTH + clog2(NUM_MASTERS) + 1 (valid)
 ```
 
-## ID Extension
+### ID Extension
 
-### Master-Side Extension
+#### Master-Side Extension
 
-When transaction enters Bridge:
+When a transaction enters the bridge, its ID would have been extended with the Bridge ID (master index):
 
 ```systemverilog
 // Extend ID with Bridge ID (master index)
@@ -104,7 +90,7 @@ assign extended_id = {master_bid, external_id};
 // extended_id = 6'b10_1010
 ```
 
-### Slave-Side Presentation (historical design -- not built)
+#### Slave-Side Presentation (historical design -- not built)
 
 In the unbuilt design an extended ID would have gone to the slave. In the RTL
 the slave receives the master's ID unchanged:
@@ -114,11 +100,11 @@ assign s_axi_arid = extended_id;  // 6 bits to slave
 assign s_axi_awid = extended_id;  // 6 bits to slave
 ```
 
-## ID Extraction
+### ID Extraction
 
-### Response Parsing
+#### Response Parsing
 
-When response returns from slave:
+When the response returns from the slave, the extended ID splits back apart — the upper bits pick the master, the lower bits go home as the ID:
 
 ```systemverilog
 // Extract Bridge ID and external ID
@@ -133,9 +119,11 @@ assign m_rvalid[bridge_id] = s_rvalid;
 assign m_rid[bridge_id] = external_id;  // Strip Bridge ID
 ```
 
-## Table Operations
+### Table Operations
 
-### Allocation (AR/AW Phase)
+#### Allocation (AR/AW Phase)
+
+On the address handshake, find a free entry and claim it:
 
 ```systemverilog
 always_ff @(posedge clk) begin
@@ -153,7 +141,9 @@ always_ff @(posedge clk) begin
 end
 ```
 
-### Lookup (R/B Phase)
+#### Lookup (R/B Phase)
+
+The lookup is combinational across the whole table, producing a one-hot master select:
 
 ```systemverilog
 // Combinational lookup
@@ -168,7 +158,9 @@ always_comb begin
 end
 ```
 
-### Deallocation (Response Complete)
+#### Deallocation (Response Complete)
+
+When the last beat lands, invalidate the matching entry:
 
 ```systemverilog
 always_ff @(posedge clk) begin
@@ -184,9 +176,9 @@ always_ff @(posedge clk) begin
 end
 ```
 
-## Multi-ID Considerations
+### Multi-ID Considerations
 
-### Same External ID, Different Masters
+#### Same External ID, Different Masters
 
 ```
 Master 0 issues ID=5 → Extended: 00_0101
@@ -197,17 +189,22 @@ All three can be outstanding simultaneously!
 The extended ID ensures uniqueness.
 ```
 
-### Same Extended ID (historical design -- not built)
+That was the whole point of the extension — three masters can each have ID=5 outstanding at once, and the prepended Bridge ID keeps them distinct.
+
+#### Same Extended ID (historical design -- not built)
 
 This cannot happen:
+
 - Bridge ID is unique per master
 - Extended ID = {unique BID, external ID}
 - Same extended ID implies same master + same external ID
 - AXI4 requires unique IDs per master for outstanding transactions
 
-## Resource Utilization
+## Design Notes
 
-### Table Resources
+### Resource Utilization
+
+What the tables would have cost, for the record:
 
 ```
 4 masters, 4-bit external ID, 16 outstanding per slave:
@@ -225,7 +222,7 @@ Implementation:
   Block RAM: 1 BRAM (minimum)
 ```
 
-## Related Documentation
+## Related Modules
 
 - [CAM Architecture](01_cam_architecture.md) - CAM implementation details
 - [Response Routing](../ch02_blocks/08_response_routing.md) - Using tables for routing

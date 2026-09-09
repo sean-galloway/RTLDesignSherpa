@@ -23,7 +23,9 @@
 
 # System Requirements
 
-## Hardware Requirements
+## Overview
+
+Everything your system owes the bridge before it will do its job: one clean clock, an asynchronous active-low reset, a single power domain, interfaces that follow the AXI4 rules, and an address map with no overlaps. Gaps in the map are allowed — the bridge answers those addresses itself — and the checklist at the end tells you how to prove all of it.
 
 ### Clock Infrastructure
 
@@ -54,28 +56,7 @@
 
 : Table 6.3: Power Requirements
 
-## Interface Requirements
-
-### Master Requirements
-
-Masters connecting to Bridge must:
-
-1. **Comply with AXI4 protocol** - Valid/ready handshake
-2. **Use correct ID width** - Match configured ID_WIDTH
-3. **Use correct data width** - Match configured DATA_WIDTH
-4. **Use correct address width** - Match configured ADDR_WIDTH
-5. **Stay within address range** - Target valid slave addresses
-
-### Slave Requirements
-
-Slaves connecting to Bridge must:
-
-1. **Comply with AXI4/APB protocol** - Based on configuration
-2. **Accept the master ID width unchanged** - the bridge does not widen IDs; a slave sees exactly the width its master drives
-3. **Match configured data width** - Or use width conversion
-4. **Respond to all transactions** - No hanging
-
-## Configuration Requirements
+## Parameters
 
 ### Address Map
 
@@ -96,7 +77,28 @@ Slaves connecting to Bridge must:
 
 : Table 6.5: Connectivity Requirements
 
-## Timing Requirements
+## Ports
+
+### Master Requirements
+
+Masters connecting to Bridge must:
+
+1. **Comply with AXI4 protocol** - Valid/ready handshake
+2. **Use correct ID width** - Match configured ID_WIDTH
+3. **Use correct data width** - Match configured DATA_WIDTH
+4. **Use correct address width** - Match configured ADDR_WIDTH
+5. **Stay within address range** - Target valid slave addresses
+
+### Slave Requirements
+
+Slaves connecting to Bridge must:
+
+1. **Comply with AXI4/APB protocol** - Based on configuration
+2. **Accept the master ID width unchanged** - the bridge does not widen IDs; a slave sees exactly the width its master drives
+3. **Match configured data width** - Or use width conversion
+4. **Respond to all transactions** - No hanging
+
+## Timing
 
 ### Setup/Hold
 
@@ -118,7 +120,7 @@ Slaves connecting to Bridge must:
 
 : Table 6.7: Recommended Timing Margins
 
-## Verification Requirements
+## Testing
 
 ### Pre-Integration Checks
 

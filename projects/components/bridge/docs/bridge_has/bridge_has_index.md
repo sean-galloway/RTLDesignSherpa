@@ -23,13 +23,23 @@
 
 # Bridge Hardware Architecture Specification Index
 
+## Overview
+
 **Version:** 1.1
 **Date:** 2026-06-04
 **Purpose:** High-level hardware architecture specification for Bridge component
 
 ---
 
-## Document Organization
+## Related Modules
+
+- **[Bridge MAS](../bridge_mas/bridge_mas_index.md)** - Micro-Architecture Specification (detailed block-level)
+- **[PRD.md](../../PRD.md)** - Product requirements and overview
+- **[CLAUDE.md](../../CLAUDE.md)** - AI development guide
+
+---
+
+## Navigation
 
 **Note:** Every chapter below is one source file; the document build assembles the spec from these links.
 
@@ -74,14 +84,6 @@
 - [System Requirements](ch06_integration/01_system_requirements.md)
 - [Parameter Configuration](ch06_integration/02_parameters.md)
 - [Verification Strategy](ch06_integration/03_verification.md)
-
----
-
-## Related Documentation
-
-- **[Bridge MAS](../bridge_mas/bridge_mas_index.md)** - Micro-Architecture Specification (detailed block-level)
-- **[PRD.md](../../PRD.md)** - Product requirements and overview
-- **[CLAUDE.md](../../CLAUDE.md)** - AI development guide
 
 ---
 

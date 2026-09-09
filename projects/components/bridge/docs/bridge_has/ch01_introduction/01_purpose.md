@@ -25,7 +25,7 @@
 
 ## What is Bridge?
 
-**Bridge** is a Python-based multi-protocol crossbar generator that turns human-readable configuration files into parameterized SystemVerilog RTL. The generated AXI4 crossbars come with automatic support for:
+**Bridge** is a Python-based multi-protocol crossbar generator. You describe the interconnect in human-readable configuration files; it hands you back parameterized SystemVerilog RTL. The generated AXI4 crossbars come with automatic support for:
 
 - **Protocol conversion** - AXI4, AXI4-Lite, and APB slave interfaces
 - **Width conversion** - Automatic upsize/downsize for data width mismatches
@@ -42,6 +42,8 @@
 5. Inserting width converters for data width mismatches
 6. Inserting protocol converters for APB/AXI4-Lite mixed systems
 7. Wiring hundreds of signals with consistent naming
+
+Every item on that list is a place a bug can sit quietly until integration. I've chased most of them at least once.
 
 **Bridge automates all of it:**
 

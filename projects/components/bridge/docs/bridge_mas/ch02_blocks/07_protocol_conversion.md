@@ -27,7 +27,7 @@ The crossbar speaks AXI4 internally. Protocol conversion is what lets the bridge
 
 ## 2.7.1 Purpose and Function
 
-Protocol conversion does five things:
+Protocol conversion has five jobs:
 
 1. **Protocol Translation**: Converts AXI4 transactions to target protocol (e.g., APB)
 2. **Handshake Mapping**: Translates ready/valid to protocol-specific handshakes
@@ -94,7 +94,7 @@ Protocol conversion showing AXI4 to APB conversion with state machine, burst dec
 
 ### AXI4-Lite Protocol Overview
 
-AXI4-Lite is a simplified subset of AXI4 designed for simple control/status register access:
+AXI4-Lite is a simplified subset of AXI4 aimed at simple control/status register access:
 
 ```
 Key Differences from Full AXI4:
@@ -115,7 +115,7 @@ Similarities to AXI4:
 
 ### Conversion Requirements
 
-To adapt AXI4-Lite masters to the full AXI4 crossbar, the adapter must:
+Adapting an AXI4-Lite master to the full AXI4 crossbar takes three things:
 
 1. **Add Missing Signals**: Provide default values for burst-related signals
 2. **Validate Constraints**: Ensure single-beat assumption holds
@@ -188,7 +188,7 @@ axi4_bid (opt)        →     axi4lite_bid (opt)
 
 ### Implementation
 
-The AXI4-Lite adapter is extremely simple, primarily providing constant values:
+The adapter itself is almost embarrassingly simple — mostly wires, with constants tied off for everything AXI4-Lite doesn't have:
 
 ```systemverilog
 // AXI4-Lite to AXI4 Adapter (simplified)
@@ -350,7 +350,7 @@ data_width = 32
 user_width = 1
 ```
 
-Field names are `id_width` / `addr_width` / `data_width` -- one `id_width` per
+Mind the field names: they are `id_width` / `addr_width` / `data_width` -- one `id_width` per
 port, not the `arid_width` / `awid_width` pair an earlier revision of this page
 showed, which the loader does not read. The table is `[[bridge.masters]]`, not
 `[[masters]]`. Compare `bin/test_configs/bridge_1x5_wr_axil.toml` for a config
@@ -383,7 +383,7 @@ Solution: Adapter provides wlast=1 to crossbar, strips rlast
 
 ### APB Protocol Overview
 
-APB is a simple, low-power bus protocol:
+APB is a simple, low-power bus protocol — it earns its keep on area and power, not speed:
 
 ```
 Characteristics:
@@ -418,7 +418,7 @@ Response:
 
 ### APB State Machine
 
-APB requires a 2-phase handshake:
+Every APB transfer is a 2-phase handshake — SETUP, then ACCESS:
 
 ```
 IDLE:
@@ -496,7 +496,7 @@ Beat 1:
 
 ### Burst Handling
 
-APB does not support bursts, so:
+APB has no burst concept, so the converter decomposes:
 
 ```
 AXI Burst: AWLEN = 15 (16 beats)
@@ -671,6 +671,8 @@ AXI4: 1 transaction/cycle (burst mode)
 APB suitable only for low-bandwidth peripherals
 ```
 
+No amount of buffering fixes that — the 2-3 cycle protocol itself is the bottleneck.
+
 ## 2.7.10 Configuration Parameters
 
 ### Protocol Conversion Configuration (TOML)
@@ -831,6 +833,8 @@ protocol = "apb"           # Low bandwidth, simple
 
 ### Routing Optimization
 
+Walk the routes and you can see exactly where the conversion cost lands:
+
 ```
 CPU → DDR Memory: AXI4-to-AXI4 (native, fast)
 CPU → Peripherals: AXI4-to-APB (converted, slower)
@@ -871,7 +875,7 @@ Use Case             Control registers          Peripherals
 
 ## 2.7.16 Generator-Emitted Conversion Shims
 
-The bridge generator automatically emits protocol conversion shims at the slave boundary based on the TOML configuration. These shims are instantiated between the crossbar core (uniformly AXI4 internally) and the external slave port.
+You don't instantiate any of these converters by hand. The bridge generator automatically emits protocol conversion shims at the slave boundary based on the TOML configuration. These shims are instantiated between the crossbar core (uniformly AXI4 internally) and the external slave port.
 
 ### AXI4 to AXI4-Lite Conversion
 

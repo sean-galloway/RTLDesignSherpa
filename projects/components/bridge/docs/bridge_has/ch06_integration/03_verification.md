@@ -23,9 +23,15 @@
 
 # Verification Strategy
 
-## Verification Levels
+## Overview
 
-### Unit Level
+Bridge gets verified at three levels — unit, integration, and system — and all of it runs on CocoTB with protocol BFMs doing the driving. This chapter lays out the test infrastructure, the execution model, the coverage targets, the debug hooks, and the regression schedule, then closes with the gaps we know about.
+
+## Testing
+
+### Verification Levels
+
+#### Unit Level
 
 Test individual Bridge components:
 
@@ -39,7 +45,7 @@ Test individual Bridge components:
 
 : Table 6.13: Unit Level Test Focus
 
-### Integration Level
+#### Integration Level
 
 Test complete Bridge functionality:
 
@@ -53,7 +59,7 @@ Test complete Bridge functionality:
 
 : Table 6.14: Integration Test Coverage
 
-### System Level
+#### System Level
 
 Test Bridge in target system:
 
@@ -66,9 +72,9 @@ Test Bridge in target system:
 
 : Table 6.15: System Level Tests
 
-## Test Infrastructure
+### Test Infrastructure
 
-### CocoTB Framework with Protocol-BFM-Only Driving
+#### CocoTB Framework with Protocol-BFM-Only Driving
 
 Bridge verification runs on CocoTB with protocol BFMs only: **all test stimulus is driven through protocol BFMs (AXI4Master, AXI4Slave, etc.) with no direct DUT signal manipulation**. Each slave port is backed by an in-memory model (`MemoryModel`), and checking is assertion-based (readback matches write) rather than routing-based.
 
@@ -95,7 +101,7 @@ async def cocotb_test_basic_write(dut):
     assert readback == 0xDEADBEEF
 ```
 
-### Test Categories
+#### Test Categories
 
 | Category | Description | Example |
 |----------|-------------|---------|
@@ -109,9 +115,9 @@ async def cocotb_test_basic_write(dut):
 
 : Table 6.16: Test Categories
 
-## Test Execution Model
+### Test Execution Model
 
-### Serial Execution
+#### Serial Execution
 
 Bridge tests run **serially only** (no parallel execution via pytest-xdist). Each test function is named per-module to avoid cross-test cocotb function name pollution:
 
@@ -124,7 +130,7 @@ def test_bridge_4x4_rw_concurrent(request):    # Concurrent test on 4x4
 
 Cocotb test functions inside each file follow the same naming pattern but with `cocotb_test_*` prefix to avoid pytest collection conflicts.
 
-### Boundary Probe Testing
+#### Boundary Probe Testing
 
 Address-window boundary testing probes the **top, middle, and bottom** of each slave's address window to catch address-decode logic errors at window edges:
 
@@ -140,9 +146,9 @@ for slave_idx, (base, window_size) in enumerate(slave_windows):
     await master.write(base + window_size - 1, data)
 ```
 
-## Coverage Goals
+### Coverage Goals
 
-### Functional Coverage
+#### Functional Coverage
 
 | Category | Target |
 |----------|--------|
@@ -153,7 +159,7 @@ for slave_idx, (base, window_size) in enumerate(slave_windows):
 
 : Table 6.17: Functional Coverage Goals
 
-### Code Coverage
+#### Code Coverage
 
 | Metric | Target |
 |--------|--------|
@@ -164,9 +170,9 @@ for slave_idx, (base, window_size) in enumerate(slave_windows):
 
 : Table 6.18: Code Coverage Goals
 
-## Debug Features
+### Debug Features
 
-### Waveform Capture
+#### Waveform Capture
 
 Bridge tests support VCD/FST waveform dumps:
 
@@ -175,7 +181,7 @@ pytest test_bridge.py --vcd=waves.vcd
 gtkwave waves.vcd
 ```
 
-### Debug Signals
+#### Debug Signals
 
 Bridge includes optional debug signals:
 
@@ -188,9 +194,9 @@ Bridge includes optional debug signals:
 
 : Table 6.19: Debug Signals
 
-## Regression Testing
+### Regression Testing
 
-### Continuous Integration
+#### Continuous Integration
 
 | Stage | Tests | Frequency |
 |-------|-------|-----------|
@@ -200,7 +206,7 @@ Bridge includes optional debug signals:
 
 : Table 6.20: CI Test Schedule
 
-### Test Matrix
+#### Test Matrix
 
 | Config | Data Width | Protocol | Tested |
 |--------|-----------|----------|--------|
@@ -212,9 +218,9 @@ Bridge includes optional debug signals:
 
 : Table 6.21: Configuration Test Matrix
 
-## Known Limitations
+### Known Limitations
 
-### Test Gaps
+#### Test Gaps
 
 | Gap | Status | Plan |
 |-----|--------|------|
@@ -224,7 +230,7 @@ Bridge includes optional debug signals:
 
 : Table 6.22: Known Test Gaps
 
-### Simulator Support
+#### Simulator Support
 
 | Simulator | Status |
 |-----------|--------|

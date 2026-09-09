@@ -23,12 +23,18 @@
 
 # AXI5 and APB5 Interfaces (AMBA5 Support)
 
+## Overview
+
 The bridge remains AMBA4-shaped internally — the crossbar fabric is always
 AXI4 — but any master or slave port can be declared AMBA5. This chapter
 covers the external surfaces; the mechanism lives in the MAS
 ([AMBA5 Boundary and Native Sideband](../../bridge_mas/ch02_blocks/10_amba5_boundary.md)).
 
-## Declaring AMBA5 Ports
+## Parameters
+
+### Declaring AMBA5 Ports
+
+AMBA5 is declared per port, in the TOML:
 
 ```toml
 [[bridge.masters]]
@@ -43,7 +49,9 @@ protocol = "apb5"                      # APB5 peripheral via the apb5 shim
 channels = "rw"                        # APB rules unchanged (rw-only, 32-bit)
 ```
 
-## AXI5 Port Surface
+## Ports
+
+### AXI5 Port Surface
 
 An `axi5` port exposes the AXI4 signal set **minus AW/ARREGION** (AXI5
 removed REGION) **plus** the enabled features' sideband signals. Disabled
@@ -61,6 +69,37 @@ off internally.
 | `atomic` | `awatop[5:0]` | **Connectivity-gated** (store-class only) |
 | `mte`, `chunking` | — | Rejected at config time (deferred) |
 
+### APB5 Slave Surface
+
+An `apb5` slave exposes the APB4 requester surface plus the APB5 sideband,
+mirroring `rtl/amba/apb5/apb5_slave.sv` pin-for-pin:
+
+| Direction | Signals |
+|---|---|
+| Requester → completer | APB4 set + `PAUSER`, `PWUSER` (driven `'0` — nothing upstream sources them) |
+| Completer → requester | APB4 set + `PWAKEUP`, `PRUSER`, `PBUSER` (accepted and terminated) |
+
+The transfer protocol is unchanged from APB4, so the `axi4_to_apb5_shim`
+is a sideband wrapper over the APB4 conversion core; APB constraints
+(rw-only, 32-bit data) apply unchanged.
+
+### AXI5-Lite Slave Surface
+
+An `axil5` slave gets `axi4_to_axil5_{rd,wr}` at the boundary: the AXI4-Lite
+conversion core plus the AXI5-Lite sideband. Because the master side is AXI4,
+the sideband splits three ways, and which group a signal falls in is the whole
+story of what an AXI4 front end can and cannot express.
+
+| Group | Signals | Behaviour |
+|---|---|---|
+| **FORWARDED** | `awlock`, `awuser`, `wuser`, `arlock`, `aruser` (request); `buser`, `ruser` (response) | AXI4 has an equivalent, passed straight through and returned to the master. |
+| **TIED** | `awloop`, `awmecid`, `awmpam`, `awnsaid`, `awtrace`, `wpoison` (and the AR equivalents) | AXI5 additions with no AXI4 source. The port exists and is driven to `'0` — never left floating. There is deliberately no `ENABLE_` knob: there is nothing it could switch between. |
+| **TERMINATED** | `bloop`, `btrace` (and the R equivalents) | Completer-driven, with nothing on the AXI4 side to return them to. Accepted and dropped. |
+
+: AXI5-Lite sideband groups at an `axil5` slave boundary
+
+## Functional Description
+
 **Droppable sideband** passes natively end-to-end when both ends of a path
 are AXI5, feature-enabled, and width-matched; on any other path it
 terminates at the fabric boundary with a generation-time warning.
@@ -77,35 +116,6 @@ AtomicSwap/Compare `11000x`) return their data on the R channel of a path
 the split-wr/rd fabric cannot route, so the master boundary's
 `axi5_atomic_filter` answers them locally with **DECERR** — no slave-side
 AW handshake, no memory side effect.
-
-## APB5 Slave Surface
-
-An `apb5` slave exposes the APB4 requester surface plus the APB5 sideband,
-mirroring `rtl/amba/apb5/apb5_slave.sv` pin-for-pin:
-
-| Direction | Signals |
-|---|---|
-| Requester → completer | APB4 set + `PAUSER`, `PWUSER` (driven `'0` — nothing upstream sources them) |
-| Completer → requester | APB4 set + `PWAKEUP`, `PRUSER`, `PBUSER` (accepted and terminated) |
-
-The transfer protocol is unchanged from APB4, so the `axi4_to_apb5_shim`
-is a sideband wrapper over the APB4 conversion core; APB constraints
-(rw-only, 32-bit data) apply unchanged.
-
-## AXI5-Lite Slave Surface
-
-An `axil5` slave gets `axi4_to_axil5_{rd,wr}` at the boundary: the AXI4-Lite
-conversion core plus the AXI5-Lite sideband. Because the master side is AXI4,
-the sideband splits three ways, and which group a signal falls in is the whole
-story of what an AXI4 front end can and cannot express.
-
-| Group | Signals | Behaviour |
-|---|---|---|
-| **FORWARDED** | `awlock`, `awuser`, `wuser`, `arlock`, `aruser` (request); `buser`, `ruser` (response) | AXI4 has an equivalent, passed straight through and returned to the master. |
-| **TIED** | `awloop`, `awmecid`, `awmpam`, `awnsaid`, `awtrace`, `wpoison` (and the AR equivalents) | AXI5 additions with no AXI4 source. The port exists and is driven to `'0` — never left floating. There is deliberately no `ENABLE_` knob: there is nothing it could switch between. |
-| **TERMINATED** | `bloop`, `btrace` (and the R equivalents) | Completer-driven, with nothing on the AXI4 side to return them to. Accepted and dropped. |
-
-: AXI5-Lite sideband groups at an `axil5` slave boundary
 
 **The tied group is the honest limit of an AXI4 front end.** MPAM partition
 IDs, MECID encryption contexts and NSAID security IDs are properties of the
@@ -127,7 +137,7 @@ A combinational passthrough here is a real defect rather than a style
 question: with two bursts in flight, burst A's later beats would carry burst
 B's `AWUSER`.
 
-## Interop Matrix
+### Interop Matrix
 
 | Master \ Slave | axi4 | axi5 | apb / apb5 / axil | axil5 |
 |---|---|---|---|---|

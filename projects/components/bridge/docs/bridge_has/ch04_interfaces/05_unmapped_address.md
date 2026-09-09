@@ -2,7 +2,9 @@
 
 # Unmapped-Address Handling
 
-## Why the bridge answers an address no slave owns
+## Overview
+
+### Why the bridge answers an address no slave owns
 
 A positively-decoded fabric answers only addresses that fall inside some
 slave's range. An address in none of them selects nothing: the one-hot select
@@ -17,7 +19,32 @@ becomes a wedged interconnect with nothing to point at the cause.
 The bridge therefore ends its decode chain in an `else` -- subtractive decode
 -- and that `else` selects an internal slave that always answers.
 
-## Behaviour
+## Ports
+
+### Status, interrupt and clearing
+
+The catch-all latches its status. Every bridge exposes:
+
+| Port | Dir | Meaning |
+|---|---|---|
+| `unmapped_irq` | out | **sticky**: set by the first unmapped access, held until cleared |
+| `unmapped_addr[31:0]` | out | address of that **first** access |
+| `unmapped_count[7:0]` | out | number of unmapped accesses, saturating at 255 |
+| `unmapped_clear` | in | pulse to clear the flag and the count |
+
+Three choices worth knowing about:
+
+* **Sticky, not a pulse.** A one-cycle pulse is gone before software can look,
+  and this is precisely the access nobody expected.
+* **The first address wins.** A later fault does not overwrite it; the first
+  one is usually what explains the rest.
+* **The address survives the clear**, so a late reader still learns where the
+  fault was after the flag is acknowledged. The count saturates rather than
+  wrapping -- "255+" is honest, a wrapped 3 is not.
+
+## Functional Description
+
+### Behaviour
 
 | | |
 |---|---|
@@ -39,28 +66,7 @@ plausible value.
 Write data is discarded. There is nowhere for it to go, and inventing a
 destination would be worse than saying so.
 
-## Status, interrupt and clearing
-
-The catch-all latches its status. Every bridge exposes:
-
-| Port | Dir | Meaning |
-|---|---|---|
-| `unmapped_irq` | out | **sticky**: set by the first unmapped access, held until cleared |
-| `unmapped_addr[31:0]` | out | address of that **first** access |
-| `unmapped_count[7:0]` | out | number of unmapped accesses, saturating at 255 |
-| `unmapped_clear` | in | pulse to clear the flag and the count |
-
-Three choices worth knowing about:
-
-* **Sticky, not a pulse.** A one-cycle pulse is gone before software can look,
-  and this is precisely the access nobody expected.
-* **The first address wins.** A later fault does not overwrite it; the first
-  one is usually what explains the rest.
-* **The address survives the clear**, so a late reader still learns where the
-  fault was after the flag is acknowledged. The count saturates rather than
-  wrapping -- "255+" is honest, a wrapped 3 is not.
-
-## Register access (cfg regblock builds)
+### Register access (cfg regblock builds)
 
 Bridges built with the cfg register block also expose the status over the
 cfg **AXI4-Lite** window. The port is `s_cfg_axil_*` -- AXI4-Lite, not APB. An
@@ -88,7 +94,7 @@ midway through the map, which renumbered everything after it, silently moved
 the monitor-enable bits, and left the monitors switched off while every
 functional test still passed.
 
-## When it can never fire
+### When it can never fire
 
 The catch-all is the `else` of the decode chain, so it is reachable only if
 the slave ranges leave a **gap**. A map that tiles the whole address space has
@@ -110,11 +116,13 @@ added, or the next range narrowed, opens a gap, and the difference between
 "reports it" and "hangs the master" is decided at that moment rather than at
 integration time.
 
-## What this does not do
+### What this does not do
 
 The catch-all does not make an unmapped access *correct*. It makes it
 **visible and survivable**: the master gets an error instead of stalling, and
 software gets an address instead of a puzzle. An address that reaches it is
 still a configuration or software fault.
+
+## Navigation
 
 **Previous:** [AXI5 and APB5 Interfaces](04_axi5_apb5_interfaces.md)

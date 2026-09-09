@@ -25,7 +25,7 @@
 
 When several masters ask for the same slave in the same cycle, something has to pick a winner — that's the arbiter. Each slave gets dedicated arbiters for its read and write channels, so the pick is fair and nothing queues behind the wrong channel.
 
-## 2.4.1 Purpose and Function
+## Overview
 
 The arbiter does five things:
 
@@ -35,7 +35,36 @@ The arbiter does five things:
 4. **Grant Management**: Maintains grants for burst transactions
 5. **Priority Enforcement**: Supports priority-based access policies (optional)
 
-## 2.4.2 Arbitration Architecture
+## Parameters
+
+Arbiter configuration from the TOML — though here the comments carry the real story, since two of the three policies documented later in this chapter exist nowhere in the generated RTL:
+
+```toml
+[bridge]
+# arbiter_type: NOT A KEY. Every generated arbiter is ROUND-ROBIN with lock-
+# until-handshake; fixed_priority and weighted exist nowhere in bin/bridge_pkg/
+# or rtl/generated/.
+
+[bridge.arbitration]
+pipeline_stages = 1              # 1-3 (more = better timing, higher latency)
+# enable_priority_aging: NOT A KEY -- there is no aging logic.
+aging_threshold = 1000           # Cycles before priority boost
+
+# Weighted arbitration does not exist.
+[[bridge.arbitration.weights]]
+master = "cpu"
+weight = 4                       # Relative weight (1-255)
+
+[[bridge.arbitration.weights]]
+master = "dma"
+weight = 2
+
+[[bridge.arbitration.weights]]
+master = "periph"
+weight = 1
+```
+
+## Functional Description
 
 ### Per-Slave, Per-Channel Arbiters
 
@@ -83,9 +112,9 @@ graph LR
     AL --> GRANT["GRANT[1:0]<br/>(Master Select)<br/>To Slave (via MUX)"]
 ```
 
-## 2.4.3 Round-Robin Arbitration
+### Round-Robin Arbitration
 
-### Algorithm
+#### Algorithm
 
 The **Round-Robin (RR)** arbiter cycles through masters in order, giving each master one opportunity to access the slave:
 
@@ -98,7 +127,7 @@ Priority Order (rotates after each grant):
   Cycle 4: M0 > M1 > M2 > M3  (M3 was granted, cycle repeats)
 ```
 
-### Implementation
+#### Implementation
 
 ```systemverilog
 // Simplified Round-Robin arbiter (4 masters)
@@ -140,7 +169,7 @@ always_comb begin
 end
 ```
 
-### Characteristics
+#### Characteristics
 
 **Fairness**: Excellent - Each master gets equal access over time  
 **Latency**: Bounded - Maximum wait = (N-1) × transaction_time  
@@ -152,9 +181,9 @@ end
 - General-purpose interconnects
 - Default choice for most bridges
 
-## 2.4.4 Fixed-Priority Arbitration
+### Fixed-Priority Arbitration
 
-### Algorithm
+#### Algorithm
 
 The **Fixed-Priority** arbiter always grants to the highest-priority requesting master:
 
@@ -169,7 +198,7 @@ Grant Decision:
   else if (M3_VALID) → Grant = M3
 ```
 
-### Implementation
+#### Implementation
 
 ```systemverilog
 // Fixed-priority arbiter (4 masters)
@@ -186,7 +215,7 @@ always_comb begin
 end
 ```
 
-### Characteristics
+#### Characteristics
 
 **Fairness**: Poor - Low-priority masters can starve  
 **Latency**: Variable - High-priority: minimal, Low-priority: unbounded  
@@ -198,7 +227,7 @@ end
 - CPU (high) vs. DMA (low) scenarios
 - Time-critical masters need guaranteed access
 
-### Starvation Prevention
+#### Starvation Prevention
 
 Optional enhancement: **Priority aging**
 ```
@@ -211,9 +240,9 @@ Example:
   M1 age = 5 cycles   → Normal priority
 ```
 
-## 2.4.5 Weighted Arbitration
+### Weighted Arbitration
 
-### Algorithm
+#### Algorithm
 
 The **Weighted** arbiter assigns different access rates to masters based on weights:
 
@@ -229,7 +258,7 @@ Grant Sequence (repeating pattern):
   M0 gets 4/8, M1 gets 2/8, M2 gets 1/8, M3 gets 1/8
 ```
 
-### Implementation
+#### Implementation
 
 ```systemverilog
 // Weighted arbiter using credit counter
@@ -262,7 +291,7 @@ always_comb begin
 end
 ```
 
-### Characteristics
+#### Characteristics
 
 **Fairness**: Configurable - Proportional to weights  
 **Latency**: Bounded - Depends on weight ratio  
@@ -274,9 +303,9 @@ end
 - Mixed workload (video + CPU + DMA)
 - Service-level agreements
 
-## 2.4.6 Burst Handling
+### Burst Handling
 
-### Grant Locking
+#### Grant Locking
 
 Once granted, a master **holds the grant** until its burst completes:
 
@@ -294,7 +323,7 @@ AW/W Channel Burst:
   4. Other masters blocked during W data transfer
 ```
 
-### Implementation
+#### Implementation
 
 ```systemverilog
 // Burst grant locking
@@ -319,7 +348,7 @@ end
 assign grant = grant_locked ? locked_master : arbiter_decision;
 ```
 
-### Fairness Considerations
+#### Fairness Considerations
 
 Long bursts can block other masters:
 - Maximum AXI burst: 256 beats
@@ -331,9 +360,38 @@ Long bursts can block other masters:
 - Use burst interleaving (complex, not implemented in Phase 1)
 - Monitor arbiter stall counters
 
-## 2.4.7 Resource Utilization
+## Timing
 
-### Per-Arbiter Resources
+### Arbitration Latency
+
+**Single-Cycle Arbitration** (default):
+```
+Request → Grant Decision: 1 cycle
+Grant Decision → MUX Output: 0 cycles (combinatorial)
+Total: 1 cycle
+```
+
+**Multi-Cycle Arbitration** (high frequency):
+```
+Request → Grant Decision: 2-3 cycles (pipelined)
+Improves timing at cost of latency
+```
+
+### Critical Paths
+
+Typical critical paths in the arbiter:
+1. **Request collection**: All master VALID signals → Arbiter input
+2. **Priority encode**: Compare all requests → Grant decision
+3. **Grant propagate**: Grant → MUX select → Slave interface
+
+**Path Depth**:
+- 4 masters: ~6-8 logic levels
+- 8 masters: ~8-12 logic levels
+- 16 masters: ~12-16 logic levels
+
+## Design Notes
+
+### Resource Utilization
 
 **Round-Robin (4 masters)**:
 ```
@@ -363,9 +421,7 @@ Registers:       ~60 regs
 Additional credit counters and comparison logic
 ```
 
-### Scaling with Master Count
-
-Resource usage scales approximately **O(N²)** where N = master count:
+**Scaling with Master Count** — resource usage grows approximately **O(N²)** where N = master count:
 
 ```
 2 masters:  ~50 LEs
@@ -378,67 +434,42 @@ The N² scaling comes from:
 - Priority encoder: Compares all pairs of masters
 - Grant MUX: N-to-1 multiplexing increases with N
 
-## 2.4.8 Timing Characteristics
+### Performance Impact
 
-### Arbitration Latency
+**Round-Robin**:
+- **Pros**: Fair, starvation-free, predictable latency
+- **Cons**: Cannot prioritize time-critical masters
+- **Use**: General-purpose, peer masters
 
-**Single-Cycle Arbitration** (default):
+**Fixed-Priority**:
+- **Pros**: Guaranteed low latency for high-priority masters
+- **Cons**: Low-priority can starve, unpredictable for low-priority
+- **Use**: Real-time, priority-sensitive systems
+
+**Weighted**:
+- **Pros**: Configurable bandwidth allocation, QoS support
+- **Cons**: More complex, small overhead
+- **Use**: Mixed workload, SLA requirements
+
+**Arbiter Efficiency** — assuming all masters request the same slave continuously:
+
 ```
-Request → Grant Decision: 1 cycle
-Grant Decision → MUX Output: 0 cycles (combinatorial)
-Total: 1 cycle
-```
+Best Case: 100% efficiency (one master)
+  - No arbitration conflicts
+  - Zero idle cycles
 
-**Multi-Cycle Arbitration** (high frequency):
-```
-Request → Grant Decision: 2-3 cycles (pipelined)
-Improves timing at cost of latency
-```
+Typical Case: 25-50% per-master efficiency (4 masters, round-robin)
+  - Each master gets ~25% of time grants
+  - Load balancing to other slaves improves
 
-### Critical Paths
-
-Typical critical paths in arbiter:
-1. **Request collection**: All master VALID signals → Arbiter input
-2. **Priority encode**: Compare all requests → Grant decision
-3. **Grant propagate**: Grant → MUX select → Slave interface
-
-**Path Depth**:
-- 4 masters: ~6-8 logic levels
-- 8 masters: ~8-12 logic levels
-- 16 masters: ~12-16 logic levels
-
-## 2.4.9 Configuration Parameters
-
-### Arbiter Configuration (TOML)
-
-```toml
-[bridge]
-# arbiter_type: NOT A KEY. Every generated arbiter is ROUND-ROBIN with lock-
-# until-handshake; fixed_priority and weighted exist nowhere in bin/bridge_pkg/
-# or rtl/generated/.
-
-[bridge.arbitration]
-pipeline_stages = 1              # 1-3 (more = better timing, higher latency)
-# enable_priority_aging: NOT A KEY -- there is no aging logic.
-aging_threshold = 1000           # Cycles before priority boost
-
-# Weighted arbitration does not exist.
-[[bridge.arbitration.weights]]
-master = "cpu"
-weight = 4                       # Relative weight (1-255)
-
-[[bridge.arbitration.weights]]
-master = "dma"
-weight = 2
-
-[[bridge.arbitration.weights]]
-master = "periph"
-weight = 1
+Worst Case: Heavy contention
+  - 4 masters to 1 slave: 25% efficiency per master
+  - Solution: Add slaves or use more slaves in parallel
 ```
 
-## 2.4.10 Debug and Observability
+### Debug and Observability
 
-### Recommended Debug Signals
+Recommended debug signals and counters:
 
 ```
 Per Arbiter:
@@ -454,7 +485,7 @@ Performance Counters:
 - Arbiter conflict cycles (multiple requests, one grant)
 ```
 
-### Common Issues and Debug
+### Common Issues
 
 **Symptom**: Master never gets grant (starvation)  
 **Check**:
@@ -474,7 +505,28 @@ Performance Counters:
 - Pipeline depth (excessive arbitration latency)
 - Burst efficiency (short bursts waste cycles)
 
-## 2.4.11 Verification Considerations
+### Future Enhancements
+
+**Planned Features**:
+- **Dynamic Weight Adjustment**: Runtime-configurable weights via registers
+- **QoS Classes**: Multiple priority levels with configurable policies
+- **Deadline-Based Arbitration**: Grant based on transaction deadlines
+- **Predictive Arbitration**: Speculative grants to reduce latency
+
+**Under Consideration**:
+- **Multi-Level Arbitration**: Hierarchical for >16 masters
+- **Token Bucket**: Rate limiting per master
+- **History-Based**: Learn access patterns and optimize grants
+- **ECC Protection**: For arbitration state (safety-critical systems)
+
+## Related Modules
+
+- Section 2.3: Crossbar Core (arbiter integration)
+- Section 2.1: Master Adapter (request sources)
+- Section 2.5: ID Management (transaction tracking during grants)
+- Chapter 6: Performance (arbiter impact on throughput)
+
+## Testing
 
 ### Test Scenarios
 
@@ -516,62 +568,3 @@ Performance Counters:
 - Master drops request after arbiter latency (stale grant)
 - Maximum length burst (256 beats blocking)
 ```
-
-## 2.4.12 Performance Impact
-
-### Arbiter Choice Impact
-
-**Round-Robin**:
-- **Pros**: Fair, starvation-free, predictable latency
-- **Cons**: Cannot prioritize time-critical masters
-- **Use**: General-purpose, peer masters
-
-**Fixed-Priority**:
-- **Pros**: Guaranteed low latency for high-priority masters
-- **Cons**: Low-priority can starve, unpredictable for low-priority
-- **Use**: Real-time, priority-sensitive systems
-
-**Weighted**:
-- **Pros**: Configurable bandwidth allocation, QoS support
-- **Cons**: More complex, small overhead
-- **Use**: Mixed workload, SLA requirements
-
-### Arbiter Efficiency
-
-Assuming all masters request same slave continuously:
-
-```
-Best Case: 100% efficiency (one master)
-  - No arbitration conflicts
-  - Zero idle cycles
-
-Typical Case: 25-50% per-master efficiency (4 masters, round-robin)
-  - Each master gets ~25% of time grants
-  - Load balancing to other slaves improves
-
-Worst Case: Heavy contention
-  - 4 masters to 1 slave: 25% efficiency per master
-  - Solution: Add slaves or use more slaves in parallel
-```
-
-## 2.4.13 Future Enhancements
-
-### Planned Features
-- **Dynamic Weight Adjustment**: Runtime-configurable weights via registers
-- **QoS Classes**: Multiple priority levels with configurable policies
-- **Deadline-Based Arbitration**: Grant based on transaction deadlines
-- **Predictive Arbitration**: Speculative grants to reduce latency
-
-### Under Consideration
-- **Multi-Level Arbitration**: Hierarchical for >16 masters
-- **Token Bucket**: Rate limiting per master
-- **History-Based**: Learn access patterns and optimize grants
-- **ECC Protection**: For arbitration state (safety-critical systems)
-
----
-
-**Related Sections**:
-- Section 2.3: Crossbar Core (arbiter integration)
-- Section 2.1: Master Adapter (request sources)
-- Section 2.5: ID Management (transaction tracking during grants)
-- Chapter 6: Performance (arbiter impact on throughput)

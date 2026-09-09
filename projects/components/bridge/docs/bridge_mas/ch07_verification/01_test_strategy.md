@@ -27,9 +27,16 @@
 
 Bridge verification is CocoTB-based and parameterized: the same infrastructure covers every bridge topology and protocol combination.
 
-## Test Categories
+## Related Modules
 
-### Unit Tests
+- [Debug Guide](02_debug_guide.md) - Debugging failed tests
+- [Signal Naming](../ch06_generated_rtl/02_signal_naming.md) - Pattern matching for BFMs
+
+## Testing
+
+### Test Categories
+
+#### Unit Tests
 
 Per-block verification:
 
@@ -53,7 +60,7 @@ Unit Test Coverage:
     └── Burst handling
 ```
 
-### Integration Tests
+#### Integration Tests
 
 Full bridge verification:
 
@@ -73,9 +80,9 @@ Integration Test Matrix:
     └── Protocol mixing
 ```
 
-## Test Parameterization
+### Test Parameterization
 
-### Configuration Matrix
+#### Configuration Matrix
 
 Which parameters get swept, and why:
 
@@ -89,7 +96,7 @@ Which parameters get swept, and why:
 
 : Table 7.1: Test Parameter Matrix
 
-### Protocol Combinations
+#### Protocol Combinations
 
 ```python
 # Test protocol matrix
@@ -100,11 +107,11 @@ PROTOCOL_COMBOS = [
 ]
 ```
 
-## Protocol-BFM-Only Testing with Memory-Backed Slaves
+### Protocol-BFM-Only Testing with Memory-Backed Slaves
 
-Modern bridge tests use **protocol BFMs only** (no direct DUT signal manipulation) with **memory-backed slave models**:
+Modern bridge tests use **protocol BFMs only** (no direct DUT signal manipulation) with **memory-backed slave models**. If you find yourself poking a DUT signal in a test, stop — drive the protocol and check the memory instead.
 
-### BFM Instantiation and Slave Models
+#### BFM Instantiation and Slave Models
 
 ```python
 from CocoTBFramework.components.axi4 import AXI4Master, AXI4Slave
@@ -141,7 +148,7 @@ class BridgeTB(TBBase):
             self.slaves.append(slave)
 ```
 
-### Transaction Generation and Assertion
+#### Transaction Generation and Assertion
 
 ```python
 async def cocotb_test_concurrent_writes(dut):
@@ -172,7 +179,7 @@ async def cocotb_test_concurrent_writes(dut):
             f"Master {i} readback mismatch at {addr:#x}"
 ```
 
-### Boundary Probe Testing
+#### Boundary Probe Testing
 
 Address-window boundary probes catch address-decode errors at slave page edges:
 
@@ -206,9 +213,9 @@ async def test_boundary_probes(self):
         assert rb_top == top
 ```
 
-## Coverage Goals
+### Coverage Goals
 
-### Functional Coverage
+#### Functional Coverage
 
 ```
 Coverage Targets:
@@ -230,7 +237,7 @@ Coverage Targets:
     └── Backpressure saturation
 ```
 
-### Code Coverage
+#### Code Coverage
 
 ```
 Code Coverage Targets:
@@ -240,9 +247,9 @@ Code Coverage Targets:
 └── Toggle Coverage: >85%
 ```
 
-## Test Execution
+### Test Execution
 
-### Serial Execution (No Parallel xdist)
+#### Serial Execution (No Parallel xdist)
 
 Bridge tests execute **serially only** (pytest-xdist parallelization is not supported). Each cocotb test function is named with a `cocotb_test_*` prefix to avoid cross-test name collisions when multiple test modules are loaded.
 
@@ -261,7 +268,7 @@ pytest --cov=bridge -v
 WAVES=1 pytest test_bridge_2x2_rd_basic.py -v
 ```
 
-### Test Naming Convention
+#### Test Naming Convention
 
 Cocotb test functions follow the pattern: `cocotb_test_{N}x{M}_{variant}_{scenario}`
 
@@ -285,7 +292,7 @@ def test_bridge_4x4_mon_capture(request):
     )
 ```
 
-### Test Levels and Variants
+#### Test Levels and Variants
 
 | Level | Duration | Coverage | Use Case |
 |-------|----------|----------|----------|
@@ -301,8 +308,3 @@ def test_bridge_4x4_mon_capture(request):
 - `test_bridge_1x2_rd_monitor_capture`: Packet parsing and verification
 - `test_bridge_1x2_rd_monitor_error_inject`: SLVERR packet collection
 - `test_bridge_1x2_rd_monitor_irq`: IRQ assertion on error FIFO
-
-## Related Documentation
-
-- [Debug Guide](02_debug_guide.md) - Debugging failed tests
-- [Signal Naming](../ch06_generated_rtl/02_signal_naming.md) - Pattern matching for BFMs

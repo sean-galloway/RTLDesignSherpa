@@ -42,7 +42,6 @@
 > does not know the `error_handling` table name, so such a section is silently
 > ignored. Those parts are retained as design intent and each is marked.
 
-
 Error handling is everything the bridge does when something goes wrong: detecting the problem, answering with the right AXI error response, logging what happened, and keeping the rest of the system running. The covered failure modes are protocol violations, out-of-range addresses, timeout conditions, and configuration errors.
 
 ## 2.9.1 Purpose and Function
@@ -221,7 +220,6 @@ end
 > config that contains one is silently ignored. To change the pattern today,
 > override the parameter at instantiation.
 
-
 ```toml
 [bridge.error_handling]
 oor_read_data_pattern = 0xDEADCAFE  # Pattern for OOR reads
@@ -266,7 +264,6 @@ Action: Truncate or error (configurable)
 > was never implemented. Protocol violations by an attached master or slave are
 > not detected -- with one exception, the BRIDGE-010 response-ordering check,
 > which is simulation-only and cannot fire in silicon.
-
 
 ```systemverilog
 // AXI4 protocol checker (simplified)
@@ -332,7 +329,6 @@ endmodule
 > cycle count. It reports; it does not intervene. A hung slave still hangs the
 > bridge -- the monitor just tells you it happened.
 
-
 ```systemverilog
 // Timeout detector for outstanding transactions
 typedef struct packed {
@@ -374,10 +370,10 @@ end
 ```
 
 ### Timeout Configuration
+
 > **Not built.** No watchdog exists to configure. In `*_mon` builds the
 > `cfg_*_timeout_*` inputs configure the AXI MONITOR's reporting threshold,
 > not any bridge behaviour.
-
 
 There is none. `[bridge.error_handling]` is not a table the loader knows, and
 `enable_timeout` / `timeout_cycles` / `timeout_action` / `per_slave_timeout`
@@ -405,10 +401,10 @@ the watchdog belongs outside the bridge.
 ## 2.9.7 Error Logging and Reporting
 
 ### Error Status Register
+
 > **Not built.** No generated file contains an error status register. The
 > nearest real thing is the subtractive slave's `o_hit_irq` / `o_hit_addr` /
 > `o_hit_count`, which are module PORTS, not a memory-mapped register.
-
 
 ```
 Error Status Register (Read/Clear):
@@ -429,9 +425,9 @@ Error Status Register (Read/Clear):
 ```
 
 ### Error History Buffer
+
 > **Not built.** There is no history buffer. Only the FIRST fault address is
 > retained (`o_hit_addr`), plus a saturating count.
-
 
 ```systemverilog
 // Circular buffer for error history
@@ -463,10 +459,10 @@ end
 ```
 
 ### Error Interrupts
+
 > **Not built as a block.** The only interrupt is `o_hit_irq` from the
 > subtractive slave: one sticky bit, cleared by `i_hit_clear`. There is no
 > interrupt controller, mask register or priority logic.
-
 
 ```
 Optional interrupt generation:
@@ -484,10 +480,10 @@ Clear on status register read or explicit clear
 ## 2.9.8 Resource Utilization
 
 ### Error Handling Resources
+
 > **Not built.** These figures price a protocol checker, watchdog and error
 > registers that do not exist. The real cost is the subtractive slave plus a
 > few status flops.
-
 
 ```
 Logic Elements:  ~800-1200 LEs
@@ -507,11 +503,11 @@ Optional error log (16 entries): +2KB BRAM
 ## 2.9.9 Configuration Parameters
 
 ### Error Handling Configuration (TOML)
+
 > **Not built.** The loader does not know a `[bridge.error_handling]` table.
 > A config containing one is silently ignored -- nothing warns. The read fill
 > pattern is the `READ_FILL` parameter of `axi4_subtractive_slave`, which the
 > generator never overrides.
-
 
 ```toml
 [bridge.error_handling]

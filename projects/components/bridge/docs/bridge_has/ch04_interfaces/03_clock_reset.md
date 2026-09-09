@@ -23,11 +23,13 @@
 
 # Clock and Reset
 
-## Clock Requirements
+## Overview
 
-### Single Clock Domain
+One clock, one reset. The AXI fabric runs in a single synchronous domain — there is exactly one exception, at an APB slave boundary, and it gets its own discussion below — and the reset is asynchronous, active-low. This page covers what that means for your clock tree, your reset strategy, and your constraint file.
 
-Bridge operates in a single synchronous clock domain:
+## Ports
+
+### Clock
 
 | Signal | Description | Requirements |
 |--------|-------------|--------------|
@@ -37,7 +39,19 @@ Bridge operates in a single synchronous clock domain:
 
 : Table 4.4: Clock Requirements
 
-### Figure 4.1: Clock Distribution
+### Reset
+
+| Signal | Description | Polarity |
+|--------|-------------|----------|
+| aresetn | Async reset | Active-low |
+
+: Table 4.5: Reset Signal
+
+## Functional Description
+
+### Single Clock Domain
+
+#### Figure 4.1: Clock Distribution
 
 ![Clock Distribution](../assets/mermaid/clock_distribution.png)
 
@@ -55,19 +69,9 @@ that slave boundary only. For the AXI fabric itself:
 - All outputs generated on aclk rising edge
 - External CDC required if masters/slaves use different clocks
 
-## Reset Requirements
-
-### Asynchronous Active-Low Reset
-
-| Signal | Description | Polarity |
-|--------|-------------|----------|
-| aresetn | Async reset | Active-low |
-
-: Table 4.5: Reset Signal
-
 ### Reset Behavior
 
-### Figure 4.3: Reset Timing
+#### Figure 4.3: Reset Timing
 
 ![Reset Timing](../assets/wavedrom/reset_timing.png)
 
@@ -102,7 +106,7 @@ After reset release (aresetn = 1):
 2. All state machines start in IDLE
 3. No residual grants or locks
 
-## Timing Constraints
+## Timing
 
 ### Setup and Hold
 
@@ -135,6 +139,8 @@ that is assigned in an `ALWAYS_FF_RST` block. A master budgeting a
 combinational ready path against this bridge would be wrong by a register
 stage.
 
+## Usage Example
+
 ### Recommended Constraints
 
 ```tcl
@@ -145,13 +151,13 @@ create_clock -period 10 [get_ports aclk]  ;# 100 MHz
 set_false_path -from [get_ports aresetn]
 ```
 
-## Multi-Clock Systems
+## Design Notes
 
 ### External CDC Required
 
 For systems with multiple clock domains:
 
-### Figure 4.2: Multi-Clock CDC
+#### Figure 4.2: Multi-Clock CDC
 
 ![Multi-Clock CDC](../assets/mermaid/multi_clock_cdc.png)
 

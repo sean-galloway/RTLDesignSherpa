@@ -36,7 +36,7 @@ The W channel carries no address of its own, so this FSM remembers which slave t
 ### States
 
 | State | Description |
-|-------|-------------|
+|---|---|
 | IDLE | Waiting for AW handshake |
 | WRITING | Routing W beats to target slave |
 
@@ -126,7 +126,7 @@ Track burst beat count for responses spanning multiple cycles.
 ### States
 
 | State | Description |
-|-------|-------------|
+|---|---|
 | IDLE | No burst in progress |
 | COUNTING | Tracking burst beats |
 

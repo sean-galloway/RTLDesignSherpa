@@ -23,9 +23,11 @@
 
 # 2.2 Slave Router
 
+## Overview
+
 Every master gets its own Slave Router. The router examines each request address, steers the transaction to one of the configured slaves, and produces the error response itself when the address lands nowhere.
 
-## 2.2.1 Purpose and Function
+### Purpose and Function
 
 The router does five things:
 
@@ -38,17 +40,42 @@ The router does five things:
    returns `0xDEADBEEF` on reads. It is not optional and there is no
    `default = true` TOML key -- the generator inserts it into every bridge.
 
-## 2.2.2 Block Diagram
-
 ### Figure 2.2: Slave Router Architecture
 
 ![Slave Router Architecture](assets/graphviz/slave_router.png)
 
 Slave router architecture showing address decoding, routing matrix, and out-of-range detection for AW and AR channels.
 
-## 2.2.3 Address Decoding Algorithm
+## Parameters
 
-### Configuration-Based Address Maps
+### Per-Router Parameters
+
+```toml
+# Router behavior is defined by slave configurations
+
+[[bridge.slaves]]
+name = "ddr_memory"
+base_address = 0x8000_0000
+size = 0x4000_0000           # 1 GB
+default = false
+# (no oor_data_pattern knob: READ_FILL is a module parameter, 0xDEADBEEF)
+```
+
+### Global Parameters
+
+```toml
+[bridge]
+enable_default_slave = false      # Allow default slave
+strict_address_decode = true      # Flag overlapping ranges as errors
+# (no oor_response_latency knob: the responder answers as fast as the
+#  handshake allows; there is nothing to tune)
+```
+
+## Functional Description
+
+### Address Decoding Algorithm
+
+#### Configuration-Based Address Maps
 
 Each slave is configured with:
 ```toml
@@ -65,7 +92,7 @@ Start Address = base_address
 End Address   = base_address + size - 1
 ```
 
-### Decoding Priority
+#### Decoding Priority
 
 When multiple slaves have overlapping address ranges, the router uses **first-match priority**:
 
@@ -80,7 +107,7 @@ Example:
 Address 0x1000_5000 → Matches Slave 1
 ```
 
-### Range Checking Logic
+#### Range Checking Logic
 
 For each address, the router performs:
 
@@ -109,7 +136,7 @@ end
 logic oor = ~(|slave_match);  // No slaves matched
 ```
 
-### Subtractive decode: the `else` that removes the hang
+#### Subtractive decode: the `else` that removes the hang
 
 The pseudocode above computes an out-of-range flag; the generated RTL goes
 further and gives that case a destination. The emitted decode chain ends in a
@@ -127,7 +154,7 @@ an unmapped address selected nothing, the AW-ready MUX fell through to
 `default: // No slave selected` with `awready` low, and the master hung
 forever. The hang is now impossible by construction rather than handled.
 
-### Three decoders, not one
+#### Three decoders, not one
 
 The catch-all is a synthetic slave appended last to the slave list, so it
 reuses the crossbar's routing rather than needing a new datapath. What made
@@ -157,7 +184,7 @@ after them**, which moved the monitor-enable bits. One monbus stress test saw
 `pkts=0` while all 69 other tests passed, because only that test depended on
 register offsets. A register map is an ABI.
 
-### Power-of-Two Optimization
+#### Power-of-Two Optimization
 
 For slaves with power-of-two sizes starting at aligned addresses, simplified decode:
 
@@ -169,9 +196,9 @@ logic match = (addr[31:28] == 4'h8);  // Much simpler than range check
 
 The generator automatically detects and applies this optimization.
 
-## 2.2.4 Request Routing
+### Request Routing
 
-### AR Channel Routing
+#### AR Channel Routing
 
 Read address routing flow:
 1. **Decode**: Determine target slave from ARADDR
@@ -185,7 +212,7 @@ graph LR
     DEC -- "If OOR" --> ERR[Error Response Generator]
 ```
 
-### AW/W Channel Routing
+#### AW/W Channel Routing
 
 Write transactions require coordinated routing:
 
@@ -207,7 +234,7 @@ graph LR
     STORE --> WSAME
 ```
 
-### Write Data Tracking FSM
+#### Write Data Tracking FSM
 
 ```
 State Machine for W Channel Routing:
@@ -224,15 +251,15 @@ Error Handling:
   - If AW was OOR: Discard W beats, generate BRESP error
 ```
 
-## 2.2.5 Out-of-Range Handling
+### Out-of-Range Handling
 
-### Detection
+#### Detection
 
 An address is out-of-range if it matches no slave's range. The decode chain
 ends in an `else`, so such an address is not "detected and handled" -- it is
 *routed*, to an internal subtractive slave that always answers.
 
-### Error Response Generation
+#### Error Response Generation
 
 The responder is `rtl/amba/axi4/axi4_subtractive_slave.sv`, instantiated by
 the generator as the last (internal) slave. It emits no top-level pins of its
@@ -275,7 +302,7 @@ HAS 4.5.
 the slave ranges leave a gap. Of the 22 generated bridges, 18 tile the address
 space completely and the branch is unreachable logic that synthesis removes.
 
-### Read data pattern
+#### Read data pattern
 
 `READ_FILL`, a module parameter, defaults to `32'hDEAD_BEEF` and is replicated
 to the bus width. It is not run-time configurable and there is no menu of
@@ -289,9 +316,9 @@ stays hidden; `0xDEADBEEF` in a dump is unambiguous. Address-echo variants
 sound useful but the address is already captured in `SUBTRACTIVE_ADDR`, where
 software can read it without decoding it out of the data bus.
 
-## 2.2.6 Default Slave Support
+### Default Slave Support
 
-### Configuration
+#### Configuration
 
 ```toml
 [[bridge.slaves]]
@@ -301,7 +328,7 @@ size = 0x0                # Ignored for default slave
 default = true            # Catch-all for unmapped addresses
 ```
 
-### Behavior
+#### Behavior
 
 When a default slave is configured:
 - Addresses that don't match any specific slave → Routed to default slave
@@ -311,9 +338,9 @@ When a default slave is configured:
 
 **Note**: Only ONE default slave allowed per bridge.
 
-## 2.2.7 Address Aliasing
+### Address Aliasing
 
-### Multiple Slaves, Same Address
+#### Multiple Slaves, Same Address
 
 If configuration has overlapping ranges:
 ```toml
@@ -332,69 +359,14 @@ size = 0x4000_0000
 
 **Warning**: Generator can optionally flag this as error in DRC mode.
 
-### Intentional Aliasing Use-Cases
+#### Intentional Aliasing Use-Cases
 
 Legitimate uses of overlapping ranges:
 1. **Cache hierarchy**: Small fast cache shadows larger slow memory
 2. **Memory remapping**: Different views of same physical memory
 3. **Peripheral mirroring**: Register block appears at multiple addresses
 
-## 2.2.8 Configuration Parameters
-
-### Per-Router Parameters
-
-```toml
-# Router behavior is defined by slave configurations
-
-[[bridge.slaves]]
-name = "ddr_memory"
-base_address = 0x8000_0000
-size = 0x4000_0000           # 1 GB
-default = false
-# (no oor_data_pattern knob: READ_FILL is a module parameter, 0xDEADBEEF)
-```
-
-### Global Parameters
-
-```toml
-[bridge]
-enable_default_slave = false      # Allow default slave
-strict_address_decode = true      # Flag overlapping ranges as errors
-# (no oor_response_latency knob: the responder answers as fast as the
-#  handshake allows; there is nothing to tune)
-```
-
-## 2.2.9 Resource Utilization
-
-### Per-Router Resources (Typical)
-
-**4-slave configuration (32-bit address)**:
-```
-Logic Elements:  ~150-200 LEs
-Registers:       ~50 regs
-Block RAM:       0
-
-Breakdown:
-- Address comparators (4 slaves × ~30 LEs): ~120 LEs
-- Priority encoder: ~20 LEs
-- W channel FSM: ~30 regs, ~20 LEs
-- OOR error generator: ~20 regs, ~10 LEs
-```
-
-**8-slave configuration**:
-```
-Logic Elements:  ~250-350 LEs (scales roughly with slave count)
-Registers:       ~60 regs
-```
-
-### Scaling Considerations
-
-Resource usage scales with:
-- **Number of slaves**: Linear (each slave adds comparator logic)
-- **Address width**: Minimal impact (wider comparators, but same structure)
-- **Optimizations**: Power-of-two sizes reduce logic significantly
-
-## 2.2.10 Timing Characteristics
+## Timing
 
 ### Decode Latency
 
@@ -426,76 +398,39 @@ Typical critical paths:
 - Use power-of-two slave sizes (simplified compare)
 - Synthesizer optimization directives
 
-## 2.2.11 Debug and Observability
+## Design Notes
 
-### Recommended Debug Signals
+### Resource Utilization
 
+#### Per-Router Resources (Typical)
+
+**4-slave configuration (32-bit address)**:
 ```
-- Address decode outputs (which slave matched)
-- OOR flags (per channel)
-- Default slave hit counter
-- W channel FSM state
-- Routing decision storage (for W tracking)
-```
+Logic Elements:  ~150-200 LEs
+Registers:       ~50 regs
+Block RAM:       0
 
-### Common Issues and Debug
-
-**Symptom**: Reads return all zeros  
-**Check**:
-- Is address out-of-range?
-- Check slave base/size configuration
-- Verify address decode logic in waveform
-
-**Symptom**: Write data goes to wrong slave  
-**Check**:
-- W channel tracking FSM state
-- Did AW routing complete before W started?
-- Check for AWVALID/AWREADY handshake
-
-**Symptom**: Unexpected DECERR responses  
-**Check**:
-- Address decode configuration
-- Overlapping slave ranges (wrong priority)
-- Off-by-one in size calculations
-
-## 2.2.12 Verification Considerations
-
-### Address Decode Tests
-
-Critical test scenarios:
-1. **Boundary conditions**: base_address, base_address + size - 1
-2. **Just out-of-range**: base_address - 1, base_address + size
-3. **Each slave**: Verify routing to correct slave
-4. **Overlapping ranges**: Verify priority encoding
-5. **Default slave**: Unmapped addresses route correctly
-
-### Write Tracking Tests
-
-W channel FSM testing:
-1. **Simple write**: Single AW, single W (WLAST=1)
-2. **Burst write**: AW with AWLEN=7, eight W beats
-3. **Back-to-back writes**: New AW before previous W completes
-4. **Interleaved masters**: Multiple masters writing simultaneously (if supported)
-
-### OOR Error Tests
-
-```
-Test: Read from unmapped address
-- Send AR to 0xFFFF_FFFF (assuming unmapped)
-- Verify R response with RRESP = DECERR
-- Verify RID matches ARID
-- Check response latency
-
-Test: Write to unmapped address
-- Send AW to invalid address
-- Send W data
-- Verify B response with BRESP = DECERR
-- Verify BID matches AWID
+Breakdown:
+- Address comparators (4 slaves × ~30 LEs): ~120 LEs
+- Priority encoder: ~20 LEs
+- W channel FSM: ~30 regs, ~20 LEs
+- OOR error generator: ~20 regs, ~10 LEs
 ```
 
-## 2.2.13 Performance Optimization
+**8-slave configuration**:
+```
+Logic Elements:  ~250-350 LEs (scales roughly with slave count)
+Registers:       ~60 regs
+```
 
-### Techniques
+#### Scaling Considerations
+
+Resource usage scales with:
+- **Number of slaves**: Linear (each slave adds comparator logic)
+- **Address width**: Minimal impact (wider comparators, but same structure)
+- **Optimizations**: Power-of-two sizes reduce logic significantly
+
+### Performance Optimization
 
 **1. Registered Decode (High Frequency)**
 ```
@@ -524,23 +459,91 @@ Best for: >16 slaves, non-contiguous ranges
 Note: Requires RAM resources
 ```
 
-## 2.2.14 Future Enhancements
+### Future Enhancements
 
-### Planned Features
+#### Planned Features
 - **Dynamic Address Remapping**: Runtime-configurable slave ranges
 - **Transaction Filtering**: Block certain address ranges per-master
 - **Priority Hints**: QoS-based prioritization (beyond first-match)
 - **Address Translation**: Offset/mask transformations before slave routing
 
-### Under Consideration
+#### Under Consideration
 - **Multi-region Slaves**: Slave spans multiple non-contiguous ranges
 - **Secure Address Spaces**: Per-master access control lists
 - **Debug Address Capture**: Log invalid addresses to register
 
----
+## Related Modules
 
-**Related Sections**:
 - Section 2.1: Master Adapter (upstream from router)
 - Section 2.3: Crossbar Core (downstream arbitration)
 - Section 2.4: Arbitration (how routed requests compete)
 - HAS ch04_interfaces/01_axi4_interface.md (slave port signals)
+
+## Testing
+
+### Debug and Observability
+
+#### Recommended Debug Signals
+
+```
+- Address decode outputs (which slave matched)
+- OOR flags (per channel)
+- Default slave hit counter
+- W channel FSM state
+- Routing decision storage (for W tracking)
+```
+
+#### Common Issues and Debug
+
+**Symptom**: Reads return all zeros  
+**Check**:
+- Is address out-of-range?
+- Check slave base/size configuration
+- Verify address decode logic in waveform
+
+**Symptom**: Write data goes to wrong slave  
+**Check**:
+- W channel tracking FSM state
+- Did AW routing complete before W started?
+- Check for AWVALID/AWREADY handshake
+
+**Symptom**: Unexpected DECERR responses  
+**Check**:
+- Address decode configuration
+- Overlapping slave ranges (wrong priority)
+- Off-by-one in size calculations
+
+### Verification Considerations
+
+#### Address Decode Tests
+
+Critical test scenarios:
+1. **Boundary conditions**: base_address, base_address + size - 1
+2. **Just out-of-range**: base_address - 1, base_address + size
+3. **Each slave**: Verify routing to correct slave
+4. **Overlapping ranges**: Verify priority encoding
+5. **Default slave**: Unmapped addresses route correctly
+
+#### Write Tracking Tests
+
+W channel FSM testing:
+1. **Simple write**: Single AW, single W (WLAST=1)
+2. **Burst write**: AW with AWLEN=7, eight W beats
+3. **Back-to-back writes**: New AW before previous W completes
+4. **Interleaved masters**: Multiple masters writing simultaneously (if supported)
+
+#### OOR Error Tests
+
+```
+Test: Read from unmapped address
+- Send AR to 0xFFFF_FFFF (assuming unmapped)
+- Verify R response with RRESP = DECERR
+- Verify RID matches ARID
+- Check response latency
+
+Test: Write to unmapped address
+- Send AW to invalid address
+- Send W data
+- Verify B response with BRESP = DECERR
+- Verify BID matches AWID
+```

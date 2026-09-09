@@ -23,18 +23,18 @@
 
 # Overview
 
-## Bridge Micro-Architecture
+## Overview
+
+### Bridge Micro-Architecture
 
 Bridge is a multi-protocol AXI4 crossbar generator: it turns CSV/TOML configuration files into parameterized SystemVerilog RTL. This document describes what that RTL looks like on the inside.
-
-## Key Capabilities
 
 ### Multi-Protocol Support
 
 Bridge supports three AMBA protocols:
 
 | Protocol | Use Case | Conversion |
-|----------|----------|------------|
+|---|---|---|
 | AXI4 Full | High-bandwidth memory | Direct or width convert |
 | AXI4-Lite | Register access | Protocol downgrade |
 | APB | Low-speed peripherals | Full conversion |
@@ -46,7 +46,7 @@ Bridge supports three AMBA protocols:
 Masters that only read or only write don't pay for the channels they never use:
 
 | Type | Channels | Signals | Use Case |
-|------|----------|---------|----------|
+|---|---|---|---|
 | Full (rw) | AW, W, B, AR, R | 100% | CPU, config master |
 | Write-only (wr) | AW, W, B | ~60% | DMA write engine |
 | Read-only (rd) | AR, R | ~40% | DMA read engine |
@@ -61,7 +61,9 @@ Bridge inserts converters automatically:
 - **Protocol converters** - AXI4 to APB conversion
 - **Per-path optimization** - Only where needed
 
-## Architecture Summary
+You never instantiate these by hand; the generator looks at each master/slave pairing and drops in exactly the conversion that path needs.
+
+## Functional Description
 
 ### Block Organization
 
@@ -92,10 +94,20 @@ graph LR
     S --> CVR[Converter] --> RS[Response] --> IE[ID Extract] --> DM[Demux] --> M
 ```
 
-## Document Organization
+## References
+
+### Related Documentation
+
+- **Bridge HAS** - High-level architecture and integration
+- **PRD.md** - Product requirements
+- **Generator source** - `bin/bridge_generator.py` (with `bin/bridge_pkg/`)
+
+## Navigation
+
+### Document Organization
 
 | Chapter | Content |
-|---------|---------|
+|---|---|
 | Ch 2 | Block Descriptions |
 | Ch 3 | FSM Design |
 | Ch 4 | ID Management |
@@ -104,9 +116,3 @@ graph LR
 | Ch 7 | Verification |
 
 : Table 1.3: Document Organization
-
-## Related Documentation
-
-- **Bridge HAS** - High-level architecture and integration
-- **PRD.md** - Product requirements
-- **Generator source** - `bin/bridge_generator.py` (with `bin/bridge_pkg/`)

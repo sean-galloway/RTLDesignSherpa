@@ -27,7 +27,7 @@
 
 ### CSV/TOML Configuration
 
-Bridge is configured with human-readable text files:
+Everything about a Bridge instance is set in human-readable text files:
 
 - **ports configuration** - Define each master and slave port
 - **connectivity matrix** - Specify which masters connect to which slaves

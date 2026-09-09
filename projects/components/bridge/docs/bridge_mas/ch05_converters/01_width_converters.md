@@ -25,19 +25,21 @@
 
 ## Overview
 
-When a master and slave disagree on data width, a converter sits between them: an upsizer for narrow-to-wide, a downsizer for wide-to-narrow. The generator inserts them automatically wherever the configuration needs one.
+When a master and slave disagree on data width, a converter sits between them: an upsizer for narrow-to-wide, a downsizer for wide-to-narrow. The generator inserts them automatically wherever the configuration needs one — you never instantiate these by hand.
 
-## Upsize Converter
+## Functional Description
 
-### Purpose
+### Upsize Converter
 
-Convert narrow master data to wide slave interface.
+**Purpose.** Convert narrow master data to wide slave interface.
 
 ### Figure 5.1: Upsize Converter (64-bit to 512-bit)
 
 ![Upsize Converter](../assets/mermaid/upsize_converter.png)
 
 ### Implementation
+
+The packing loop is simple in principle: fill a wide buffer one narrow beat at a time, then drain it. One thing before you read the sketch — there is no `width_upsize` module in the tree. The real converters are `axi_data_upsize` / `axi_data_dnsize` (beat packing) wrapped by `axi4_dwidth_converter_rd` / `axi4_dwidth_converter_wr`:
 
 ```systemverilog
 // NOTE: there is no `width_upsize` module. The real converters are
@@ -93,6 +95,8 @@ endmodule
 
 ### Burst Length Conversion
 
+The burst math follows directly — eight narrow beats pack into one wide beat:
+
 | Master AWLEN | Master Beats | Slave AWLEN | Slave Beats |
 |--------------|--------------|-------------|-------------|
 | 7 (8 beats) | 8 × 64b | 0 (1 beat) | 1 × 512b |
@@ -101,17 +105,17 @@ endmodule
 
 : Table 5.3: Burst Length Conversion Examples
 
-## Downsize Converter
+### Downsize Converter
 
-### Purpose
-
-Convert wide master data to narrow slave interface.
+**Purpose.** Convert wide master data to narrow slave interface.
 
 ### Figure 5.2: Downsize Converter (512-bit to 64-bit)
 
 ![Downsize Converter](../assets/mermaid/downsize_converter.png)
 
 ### Implementation
+
+The downsizer is the mirror image: latch one wide word, then slice it out one narrow beat at a time.
 
 ```systemverilog
 module width_downsize #(
@@ -169,9 +173,11 @@ module width_downsize #(
 endmodule
 ```
 
-## Strobe Handling
+### Strobe Handling
 
-### Upsize Strobe Packing
+Data isn't the only thing that rescales — the byte strobes pack and split right alongside it.
+
+#### Upsize Strobe Packing
 
 ```systemverilog
 // Pack 8-byte strobes into 64-byte strobes
@@ -185,7 +191,7 @@ always_ff @(posedge clk) begin
 end
 ```
 
-### Downsize Strobe Splitting
+#### Downsize Strobe Splitting
 
 ```systemverilog
 // Split 64-byte strobes into 8-byte strobes
@@ -195,27 +201,13 @@ logic [7:0] out_strb;  // 64-bit output
 assign out_strb = in_strb[r_count * 8 +: 8];
 ```
 
-## Resource Utilization
-
-### Upsize Converter (64 to 512)
-
-```
-Registers: ~520 (buffer + control)
-Logic: ~200 LEs (packing + control)
-```
-
-### Downsize Converter (512 to 64)
-
-```
-Registers: ~520 (buffer + control)
-Logic: ~150 LEs (selection + control)
-```
-
-## AXIL-to-Wider-Slave Master-Side Alignment Converters
+### AXIL-to-Wider-Slave Master-Side Alignment Converters
 
 An AXI4-Lite master talking to a wider AXI4 slave through the bridge has an alignment problem: AXIL single-beat transactions don't know where they land in a wide word. The bridge generator emits master-side alignment converters (`axil_to_axi4_wide_align_{rd,wr}.sv`) to handle partial-word alignment on the AXIL side while producing properly-aligned transactions on the wide slave side.
 
-### Use Case Example
+#### Use Case Example
+
+A concrete write makes the lane math clear:
 
 ```
 32-bit AXIL Master → Bridge → 64-bit AXI4 Slave
@@ -236,7 +228,7 @@ address and into WSTRB. Byte lanes outside the strobe are don't-care, shown
 here as zero.
 ```
 
-### Architecture
+#### Architecture
 
 **Read Path**:
 - Master issues AXIL read (no burst, single beat)
@@ -251,14 +243,34 @@ here as zero.
 - Converter sends full 64-bit write to slave
 - Slave performs a 64-bit write with byte strobes
 
-### Modules
+#### Modules
 
 - **`axil_to_axi4_wide_align_rd.sv`**: Read path (address → data conversion)
 - **`axil_to_axi4_wide_align_wr.sv`**: Write path (strobe expansion, data placement)
 
 **Note**: These converters handle **width alignment**, not **protocol bridging**. Protocol conversion (AXIL→AXI4 burst restriction) is applied separately at the slave boundary (via `axi4_to_axil4_*` shims if needed).
 
-## Related Documentation
+## Design Notes
+
+### Resource Utilization
+
+**Upsize Converter (64 to 512):**
+
+```
+Registers: ~520 (buffer + control)
+Logic: ~200 LEs (packing + control)
+```
+
+**Downsize Converter (512 to 64):**
+
+```
+Registers: ~520 (buffer + control)
+Logic: ~150 LEs (selection + control)
+```
+
+The register counts are dominated by the data buffer — 512 bits of storage plus control, in either direction.
+
+## Related Modules
 
 - [Width Conversion Block](../ch02_blocks/06_width_conversion.md) - Block-level description
 - [APB Converters](02_apb_converters.md) - Protocol conversion

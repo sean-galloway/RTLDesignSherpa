@@ -27,9 +27,11 @@
 
 APB converters turn AXI4 transactions into APB transfers — the price a high-performance master pays to talk to a low-speed peripheral.
 
-## Conversion Requirements
+## Functional Description
 
-### Protocol Differences
+### Conversion Requirements
+
+#### Protocol Differences
 
 The two protocols differ in ways that force real work on the converter:
 
@@ -42,20 +44,24 @@ The two protocols differ in ways that force real work on the converter:
 
 : Table 5.1: AXI4 vs APB Protocol Comparison
 
-### Conversion Strategy
+#### Conversion Strategy
+
+The recipe, then:
 
 1. Split AXI4 bursts into individual APB transfers
 2. Serialize AW+W into APB write sequence
 3. Convert AR into APB read sequence
 4. Generate AXI4 responses from APB completions
 
-## Write Conversion
+### Write Conversion
 
 ### Figure 5.3: AXI4 Write to APB Write
 
 ![AXI4 to APB Write](../assets/mermaid/axi4_to_apb4_write.png)
 
-### State Machine
+#### State Machine
+
+The write path walks each beat through the two-cycle APB handshake:
 
 ```systemverilog
 typedef enum logic [2:0] {
@@ -103,13 +109,15 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 ```
 
-## Read Conversion
+### Read Conversion
 
 ### Figure 5.4: AXI4 Read to APB Read
 
 ![AXI4 to APB Read](../assets/mermaid/axi4_to_apb4_read.png)
 
-### Read State Machine
+#### Read State Machine
+
+The read path is the same shape, minus the W channel:
 
 ```systemverilog
 typedef enum logic [2:0] {
@@ -121,9 +129,11 @@ typedef enum logic [2:0] {
 } apb_rd_state_t;
 ```
 
-## Burst Handling
+### Burst Handling
 
-### Burst to Single Conversion
+#### Burst to Single Conversion
+
+Bursts don't exist on APB, so each beat becomes its own transfer with its own address:
 
 ```
 AXI4 Burst (AWLEN=7, 8 beats):
@@ -140,7 +150,9 @@ APB Sequence:
   Transfer 7: PADDR = AWADDR + 7×SIZE
 ```
 
-### Address Calculation
+#### Address Calculation
+
+Address generation honors all three burst types:
 
 ```systemverilog
 // Calculate APB address for each beat
@@ -156,9 +168,11 @@ always_comb begin
 end
 ```
 
-## Error Handling
+### Error Handling
 
-### APB Error to AXI4 Response
+#### APB Error to AXI4 Response
+
+One error bit in, one of two response codes out:
 
 | APB PSLVERR | AXI4 Response |
 |-------------|---------------|
@@ -167,7 +181,9 @@ end
 
 : Table 5.2: APB to AXI4 Error Mapping
 
-### Error Propagation
+#### Error Propagation
+
+Errors latch on first sight and ride along to the final response — one bad beat fails the burst:
 
 ```systemverilog
 // Latch first error in burst
@@ -184,7 +200,9 @@ end
 assign bresp = r_error_seen ? 2'b10 : 2'b00;
 ```
 
-## Performance Considerations
+## Timing
+
+APB costs you on both axes, and it's inherent to the two-cycle transfer — not something you can pipeline around.
 
 ### Throughput Impact
 
@@ -206,9 +224,9 @@ AXI4-to-APB read: 4+ cycles minimum
   - 1 cycle: R generate
 ```
 
-## Resource Utilization
+## Design Notes
 
-### APB Converter Resources
+### Resource Utilization
 
 ```
 Logic Elements: ~300-400 LEs
@@ -222,7 +240,7 @@ Breakdown:
 - Data buffering: ~100 LEs, ~DATA_WIDTH regs
 ```
 
-## Related Documentation
+## Related Modules
 
 - [Protocol Conversion Block](../ch02_blocks/07_protocol_conversion.md) - Block description
 - [Width Converters](01_width_converters.md) - Data width conversion

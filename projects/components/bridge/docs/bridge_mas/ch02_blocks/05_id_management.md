@@ -24,6 +24,11 @@
 # 2.5 ID Management
 
 ID Management is how the bridge remembers which master sent each outstanding transaction, so the response can find its way back.
+
+## Overview
+
+Before anything else in this chapter, read this — it colors everything below:
+
 > **What the generated bridge actually does.** There is no CAM, no ID table and
 > no ID injection. `bridge_cam.sv` exists in the tree and is instantiated in
 > **zero** generated bridges. AXI IDs pass through UNTOUCHED and at equal width
@@ -52,8 +57,6 @@ ID Management is how the bridge remembers which master sent each outstanding tra
 
 The unbuilt design described three pieces: Bridge ID injection, Content Addressable Memory (CAM) structures, and ID translation logic.
 
-## 2.5.1 Purpose and Function
-
 The ID management system does five things:
 
 1. **Transaction Tracking**: Maintains association between requests and originating masters
@@ -62,11 +65,41 @@ The ID management system does five things:
 4. **ID Space Isolation**: Prevents ID conflicts between multiple masters
 5. **Burst Management**: Tracks multi-beat bursts through the bridge
 
-## 2.5.2 Bridge ID Concept
+### Figure 2.5: ID Management Architecture
 
-### Problem Statement
+![ID Management Architecture](assets/graphviz/id_management.png)
 
-Without ID management, the bridge cannot determine which master originated a transaction:
+ID management architecture showing CAM and FIFO modes for transaction tracking and response routing.
+
+## Parameters
+
+```toml
+[bridge]
+num_masters = 4
+enable_cam = false              # Use CAM for ID tracking
+cam_type = "parallel"           # "parallel", "bram", "sequential"
+cam_depth = 16                  # Outstanding transaction capacity
+
+# NONE of the keys below exist. There is no [bridge.id_management] table,
+# no ID injection/extraction (IDs are pass-through) and no timeout anywhere
+# in the bridge -- see 2.9. config_validator rejects unknown keys, so a TOML
+# written from this block does not load.
+#
+# The real per-port keys are id_width / addr_width / data_width under
+# [[bridge.masters]] and [[bridge.slaves]]:
+
+[[bridge.masters]]
+name = "cpu"
+id_width = 4
+max_outstanding_reads = 8       # CAM allocation limit
+max_outstanding_writes = 8
+```
+
+## Functional Description
+
+### Bridge ID Concept
+
+**Problem Statement** — without ID management, the bridge cannot determine which master originated a transaction:
 
 ```
 Scenario: Two masters with overlapping IDs
@@ -77,9 +110,7 @@ When slave responds with RID = 4'h5, which master gets the response?
   → Ambiguous! Need additional information.
 ```
 
-### Solution: Bridge ID Injection
-
-The bridge adds a **Bridge ID (BID)** to each transaction ID:
+**Solution: Bridge ID Injection** — the bridge adds a **Bridge ID (BID)** to each transaction ID:
 
 ```
 Internal ID = {Bridge_ID, Original_ID}
@@ -94,17 +125,9 @@ Now responses with RID = 6'b00_0101 → Route to Master 0
                     RID = 6'b01_0101 → Route to Master 1
 ```
 
-## 2.5.3 Block Diagram
+### Bridge ID Width Calculation
 
-### Figure 2.5: ID Management Architecture
-
-![ID Management Architecture](assets/graphviz/id_management.png)
-
-ID management architecture showing CAM and FIFO modes for transaction tracking and response routing.
-
-## 2.5.4 Bridge ID Width Calculation
-
-### Formula
+**Formula**:
 
 ```
 BID_WIDTH = clog2(NUM_MASTERS)
@@ -112,7 +135,7 @@ BID_WIDTH = clog2(NUM_MASTERS)
 Where clog2(x) = ceiling(log2(x))
 ```
 
-### Examples
+**Examples**:
 
 ```
 2 masters:  clog2(2)  = 1 bit   (BID: 0, 1)
@@ -123,7 +146,7 @@ Where clog2(x) = ceiling(log2(x))
 16 masters: clog2(16) = 4 bits  (BID: 0000-1111)
 ```
 
-### ID Width Growth
+**ID Width Growth**:
 
 ```
 Configuration: 4 masters, external ARID_WIDTH = 4
@@ -137,7 +160,7 @@ Master sees 4-bit IDs
 Bridge translates between them
 ```
 
-## 2.5.4a Multi-Master OR-Merge Gating
+### Multi-Master OR-Merge Gating
 
 When multiple masters drive address and ID signals toward a slave, an OR-merge combines them. To prevent idle masters with stale addresses from corrupting the routing tag, every OR-merge term is gated on both the slave_select condition AND the valid signal:
 
@@ -159,9 +182,9 @@ assign s0_bridge_id_aw = (m0_slave_select_aw && m0_awvalid ? m0_bridge_id_aw : '
 - bridge_id_aw/ar signals gated by corresponding `<channel>valid`
 - Prevents any idle master from affecting the OR-merge result
 
-## 2.5.5 ID Injection (Request Path)
+### ID Injection (Request Path)
 
-### Read Address Channel (AR)
+#### Read Address Channel (AR)
 
 ```systemverilog
 // ID injection at master adapter
@@ -176,7 +199,7 @@ assign internal_arid = {master_bid, external_arid};
 // internal_arid = {2'b10, 4'h7} = 6'b10_0111
 ```
 
-### Write Address Channel (AW)
+#### Write Address Channel (AW)
 
 ```systemverilog
 // ID injection for write transactions
@@ -189,7 +212,7 @@ assign internal_awid = {master_bid, external_awid};
 // Note: AWID and ARID widths can differ per master
 ```
 
-### Injection Timing
+#### Injection Timing
 
 **Combinatorial** (default):
 - ID concatenation done in same cycle as VALID assertion
@@ -201,9 +224,9 @@ assign internal_awid = {master_bid, external_awid};
 - +1 cycle latency
 - Breaks critical path
 
-## 2.5.6 ID Extraction (Response Path)
+### ID Extraction (Response Path)
 
-### Read Data Channel (R)
+#### Read Data Channel (R)
 
 ```systemverilog
 // ID extraction at crossbar response router
@@ -228,7 +251,7 @@ always_comb begin
 end
 ```
 
-### Write Response Channel (B)
+#### Write Response Channel (B)
 
 ```systemverilog
 // Similar extraction for write responses
@@ -242,9 +265,9 @@ assign external_bid = internal_bid[BID_WIDTH-1:0];
 // Route to originating master
 ```
 
-## 2.5.7 Content Addressable Memory (CAM)
+### Content Addressable Memory (CAM)
 
-### When to Use CAM
+**When to Use CAM**:
 
 **Simple Configurations** (No CAM needed):
 - Single master (BID unnecessary)
@@ -257,7 +280,7 @@ assign external_bid = internal_bid[BID_WIDTH-1:0];
 - Multiple outstanding transactions per master
 - ID reordering within slave
 
-### CAM Structure
+**CAM Structure**:
 
 ```
 Entry Format:
@@ -272,7 +295,7 @@ Total per entry: ~30 bits
 CAM depth: 16-64 entries typical
 ```
 
-### CAM Operations
+**CAM Operations**:
 
 **Allocation** (Request Path):
 ```
@@ -302,9 +325,9 @@ CAM depth: 16-64 entries typical
 - Match found → Returns master index
 - No match → Error condition (protocol violation)
 
-## 2.5.8 CAM Implementation
+### CAM Implementation
 
-### Parallel CAM (Fast, Resource-Intensive)
+#### Parallel CAM (Fast, Resource-Intensive)
 
 ```systemverilog
 // Parallel CAM structure (16 entries)
@@ -332,7 +355,7 @@ assign match_idx = find_first_set(match);
 assign routed_master = cam[match_idx].master_idx;
 ```
 
-### Sequential CAM (Slow, Resource-Efficient)
+#### Sequential CAM (Slow, Resource-Efficient)
 
 ```systemverilog
 // Sequential CAM search (multi-cycle)
@@ -364,9 +387,9 @@ end
 - Parallel: 1-cycle, ~2000 LEs for 16 entries
 - Sequential: 16 cycles, ~200 LEs for 16 entries
 
-## 2.5.9 Outstanding Transaction Limits
+### Outstanding Transaction Limits
 
-### Configuration
+**Configuration**:
 
 ```toml
 [bridge]
@@ -379,9 +402,8 @@ max_outstanding_reads = 8   # Per-master limit
 max_outstanding_writes = 8
 ```
 
-### Enforcement
+**Enforcement** — when the CAM is full:
 
-When CAM full:
 ```
 1. Master issues new request
 2. Check CAM for free entry
@@ -392,7 +414,7 @@ When CAM full:
    - Accept new request
 ```
 
-### Sizing Guidelines
+**Sizing Guidelines**:
 
 ```
 CAM Depth = Σ(max_outstanding per master) + Safety margin
@@ -402,49 +424,7 @@ Example: 4 masters, 4 outstanding each
   Recommended depth = 20 entries (25% margin)
 ```
 
-## 2.5.10 Resource Utilization
-
-### ID Injection/Extraction Only
-
-**Per Master** (no CAM):
-```
-Logic Elements:  ~20-50 LEs
-Registers:       ~10 regs
-
-Simple bit concatenation and extraction
-Minimal overhead
-```
-
-### With CAM
-
-**CAM Resources** (16 entries, 6-bit IDs):
-```
-Parallel CAM:
-  Logic Elements:  ~2000 LEs
-  Registers:       ~500 regs
-  Block RAM:       0 (distributed)
-
-BRAM-Based CAM:
-  Logic Elements:  ~500 LEs
-  Registers:       ~100 regs
-  Block RAM:       1-2 KB
-
-Sequential CAM:
-  Logic Elements:  ~200 LEs
-  Registers:       ~100 regs
-  Block RAM:       0
-```
-
-### Scaling
-
-```
-CAM Depth      Parallel      BRAM         Sequential
-16 entries     ~2000 LEs     ~500 LEs     ~200 LEs
-32 entries     ~4000 LEs     ~800 LEs     ~250 LEs
-64 entries     ~8000 LEs     ~1200 LEs    ~300 LEs
-```
-
-## 2.5.11 Timing Characteristics
+## Timing
 
 ### ID Injection Latency
 
@@ -482,35 +462,49 @@ Configuration: Parallel CAM, registered
   Total: 2 cycles overhead
 ```
 
-## 2.5.12 Configuration Parameters
+## Design Notes
 
-### ID Management Configuration (TOML)
+### Resource Utilization
 
-```toml
-[bridge]
-num_masters = 4
-enable_cam = false              # Use CAM for ID tracking
-cam_type = "parallel"           # "parallel", "bram", "sequential"
-cam_depth = 16                  # Outstanding transaction capacity
+**Per Master** (ID injection/extraction only, no CAM):
+```
+Logic Elements:  ~20-50 LEs
+Registers:       ~10 regs
 
-# NONE of the keys below exist. There is no [bridge.id_management] table,
-# no ID injection/extraction (IDs are pass-through) and no timeout anywhere
-# in the bridge -- see 2.9. config_validator rejects unknown keys, so a TOML
-# written from this block does not load.
-#
-# The real per-port keys are id_width / addr_width / data_width under
-# [[bridge.masters]] and [[bridge.slaves]]:
-
-[[bridge.masters]]
-name = "cpu"
-id_width = 4
-max_outstanding_reads = 8       # CAM allocation limit
-max_outstanding_writes = 8
+Simple bit concatenation and extraction
+Minimal overhead
 ```
 
-## 2.5.13 Debug and Observability
+**CAM Resources** (16 entries, 6-bit IDs):
+```
+Parallel CAM:
+  Logic Elements:  ~2000 LEs
+  Registers:       ~500 regs
+  Block RAM:       0 (distributed)
 
-### Recommended Debug Signals
+BRAM-Based CAM:
+  Logic Elements:  ~500 LEs
+  Registers:       ~100 regs
+  Block RAM:       1-2 KB
+
+Sequential CAM:
+  Logic Elements:  ~200 LEs
+  Registers:       ~100 regs
+  Block RAM:       0
+```
+
+**Scaling**:
+
+```
+CAM Depth      Parallel      BRAM         Sequential
+16 entries     ~2000 LEs     ~500 LEs     ~200 LEs
+32 entries     ~4000 LEs     ~800 LEs     ~250 LEs
+64 entries     ~8000 LEs     ~1200 LEs    ~300 LEs
+```
+
+### Debug and Observability
+
+Recommended debug signals:
 
 ```
 ID Injection:
@@ -530,7 +524,7 @@ CAM (if enabled):
 - Timeout events
 ```
 
-### Performance Counters
+Performance counters:
 
 ```
 - Total transactions tracked
@@ -542,7 +536,7 @@ CAM (if enabled):
 - ID width overhead (bits added per transaction)
 ```
 
-## 2.5.14 Common Issues and Debug
+### Common Issues
 
 **Symptom**: Response goes to wrong master  
 **Check**:
@@ -564,7 +558,28 @@ CAM (if enabled):
 - ID corruption in transit
 - Race condition (deallocation before response complete)
 
-## 2.5.15 Verification Considerations
+### Future Enhancements
+
+**Planned Features**:
+- **Dynamic CAM Depth**: Runtime adjustment based on utilization
+- **Per-Master CAM Partition**: Guaranteed entries per master
+- **ID Compression**: Reduce internal ID width for slaves with limited ID support
+- **Transaction Ordering**: CAM tracks issue order for reordering enforcement
+
+**Under Consideration**:
+- **Multi-Level CAM**: Hierarchical for large transaction counts
+- **TCAM Support**: Partial ID matching (wildcards)
+- **Error Injection**: Debug mode to test error handling
+- **CAM Mirrors**: Redundant CAMs for fail-safe operation
+
+## Related Modules
+
+- Section 2.1: Master Adapter (BID injection location)
+- Section 2.3: Crossbar Core (BID extraction, response routing)
+- Section 2.8: Response Routing (detailed routing logic)
+- HAS ch04_interfaces/01_axi4_interface.md (ID widths -- note IDs are pass-through)
+
+## Testing
 
 ### Test Scenarios
 
@@ -602,25 +617,3 @@ CAM (if enabled):
    CAM in the generated bridges (`bridge_cam.sv` is instantiated in zero of
    them). A hung slave stalls its path indefinitely; the system-level answer is
    a watchdog outside the bridge.
-
-## 2.5.16 Future Enhancements
-
-### Planned Features
-- **Dynamic CAM Depth**: Runtime adjustment based on utilization
-- **Per-Master CAM Partition**: Guaranteed entries per master
-- **ID Compression**: Reduce internal ID width for slaves with limited ID support
-- **Transaction Ordering**: CAM tracks issue order for reordering enforcement
-
-### Under Consideration
-- **Multi-Level CAM**: Hierarchical for large transaction counts
-- **TCAM Support**: Partial ID matching (wildcards)
-- **Error Injection**: Debug mode to test error handling
-- **CAM Mirrors**: Redundant CAMs for fail-safe operation
-
----
-
-**Related Sections**:
-- Section 2.1: Master Adapter (BID injection location)
-- Section 2.3: Crossbar Core (BID extraction, response routing)
-- Section 2.8: Response Routing (detailed routing logic)
-- HAS ch04_interfaces/01_axi4_interface.md (ID widths -- note IDs are pass-through)

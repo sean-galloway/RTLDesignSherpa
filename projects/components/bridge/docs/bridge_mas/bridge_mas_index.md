@@ -30,107 +30,9 @@
 
 ---
 
-## Document Organization
+## Overview
 
-The Bridge component is a CSV-driven generator that produces AXI4 crossbars with automatic width conversion, protocol conversion (AXI4, AXI4-Lite, APB), and channel-specific masters (read-only, write-only, or full). Each chapter below is one source file.
-
-### Front Matter
-
-- [Document Information](ch00_front_matter/00_document_info.md)
-
-### Chapter 1: Introduction
-
-- [Overview](ch01_introduction/01_overview.md)
-
-### Chapter 2: Block Descriptions
-
-- [Master Adapter](ch02_blocks/01_master_adapter.md)
-- [Slave Router](ch02_blocks/02_slave_router.md)
-- [Crossbar Core](ch02_blocks/03_crossbar_core.md)
-- [Arbitration](ch02_blocks/04_arbitration.md)
-- [ID Management](ch02_blocks/05_id_management.md)
-- [Width Conversion](ch02_blocks/06_width_conversion.md)
-- [Protocol Conversion](ch02_blocks/07_protocol_conversion.md)
-- [Response Routing](ch02_blocks/08_response_routing.md)
-- [Error Handling](ch02_blocks/09_error_handling.md)
-- [AMBA5 Boundary and Native Sideband](ch02_blocks/10_amba5_boundary.md)
-
-### Chapter 3: FSM Design
-
-- [Arbiter FSMs](ch03_fsm_design/01_arbiter_fsms.md)
-- [Transaction Tracking](ch03_fsm_design/02_transaction_tracking.md)
-
-### Chapter 4: ID Management
-
-- [CAM Architecture](ch04_id_management/01_cam_architecture.md) -- describes a design that was NEVER BUILT; see [ID Tracking](ch04_id_management/02_id_tracking.md) for the mechanism actually generated
-- [ID Tracking Tables](ch04_id_management/02_id_tracking.md)
-
-### Chapter 5: Converters
-
-- [Width Converters](ch05_converters/01_width_converters.md)
-- [APB Converters](ch05_converters/02_apb_converters.md)
-
-### Chapter 6: Generated RTL
-
-- [Module Structure](ch06_generated_rtl/01_module_structure.md)
-- [Signal Naming](ch06_generated_rtl/02_signal_naming.md)
-
-### Chapter 7: Verification
-
-- [Test Strategy](ch07_verification/01_test_strategy.md)
-- [Debug Guide](ch07_verification/02_debug_guide.md)
-
----
-
-## Quick Navigation
-
-### For New Users
-
-1. Start with [Overview](ch01_introduction/01_overview.md) for a tour of what Bridge can do
-2. Read [Block Diagram](ch02_blocks/03_crossbar_core.md) for the architecture
-3. Study [Arbitration](ch02_blocks/04_arbitration.md) for operational details
-4. Reference [Module Structure](ch06_generated_rtl/01_module_structure.md) for generated RTL
-
-### For Integration
-
-- **Protocol support:** See [Protocol Conversion](ch02_blocks/07_protocol_conversion.md) for AXI4/APB/AXI-Lite
-- **Width handling:** See [Width Conversion](ch02_blocks/06_width_conversion.md) for data width mismatches
-- **ID management:** See [ID Management](ch02_blocks/05_id_management.md) for transaction tracking
-- **Error handling:** See [Error Handling](ch02_blocks/09_error_handling.md) for OOR and timeout
-
----
-
-## Visual Assets
-
-Diagram sources and their renders live in two directories:
-
-- **Source Files:**
-  - `assets/graphviz/*.gv` - Graphviz source diagrams
-  - `assets/puml/*.puml` - PlantUML FSM diagrams
-
-- **Rendered Files:**
-  - `assets/graphviz/*.png` - Rendered block diagrams
-  - `assets/puml/*.png` - Rendered FSM diagrams
-
-### Architecture Diagrams
-
-1. **Master Adapter** - [assets/graphviz/master_adapter.png](assets/graphviz/master_adapter.png)
-2. **Slave Router** - [assets/graphviz/slave_router.png](assets/graphviz/slave_router.png)
-3. **Crossbar Core** - [assets/graphviz/crossbar_core.png](assets/graphviz/crossbar_core.png)
-4. **ID Management** - [assets/graphviz/id_management.png](assets/graphviz/id_management.png)
-5. **Width Conversion** - [assets/graphviz/width_conversion.png](assets/graphviz/width_conversion.png)
-6. **Protocol Conversion** - [assets/graphviz/protocol_conversion_apb.png](assets/graphviz/protocol_conversion_apb.png)
-7. **Response Routing** - [assets/graphviz/response_routing.png](assets/graphviz/response_routing.png)
-8. **Error Handling** - [assets/graphviz/error_handling.png](assets/graphviz/error_handling.png)
-
-### FSM Diagrams
-
-1. **AW Arbiter FSM** - [assets/puml/aw_arbiter_fsm.png](assets/puml/aw_arbiter_fsm.png)
-2. **AR Arbiter FSM** - [assets/puml/ar_arbiter_fsm.png](assets/puml/ar_arbiter_fsm.png)
-
----
-
-## Component Overview
+Bridge is a CSV-driven generator that produces AXI4 crossbars with automatic width conversion, protocol conversion (AXI4, AXI4-Lite, APB), and channel-specific masters (read-only, write-only, or full). This is the internals document — the one you open when you need to know what the generated RTL actually does, block by block, rather than what the brochure says.
 
 ### Key Features
 
@@ -141,12 +43,14 @@ Diagram sources and their renders live in two directories:
 - **Out-of-Order Support:** NONE. Responses route by in-order bridge_id FIFO position; a slave that reorders between IDs misroutes (BRIDGE-010)
 - **Custom Signal Prefixes:** Unique prefixes per port for clean integration
 
+That out-of-order bullet is the one people skim past and regret. The bridge does not sort responses back into order — it trusts the FIFO position, so the trust has to be mutual.
+
 ### Protocol Conversion Matrix
 
 What happens to a transaction depends on the master/slave protocol pairing:
 
 | Master Protocol | Slave Protocol | Conversion |
-|-----------------|----------------|------------|
+|---|---|---|
 | AXI4 | AXI4 | Direct or width convert |
 | AXI4 | AXI4-Lite | Protocol downgrade |
 | AXI4 | APB | Full protocol conversion |
@@ -163,27 +67,9 @@ What happens to a transaction depends on the master/slave protocol pairing:
 - Per-path width converters instead of global conversion
 - Minimal logic for matching-width connections
 
----
+## Design Notes
 
-## Related Documentation
-
-### Companion Specifications
-
-- **[Bridge HAS](../bridge_has/bridge_has_index.md)** - Hardware Architecture Specification (high-level)
-
-### Project-Level
-
-- **PRD.md:** [../../PRD.md](../../PRD.md) - Complete product requirements document
-- **CLAUDE.md:** [../../CLAUDE.md](../../CLAUDE.md) - AI assistant integration guide
-
-### Generator
-
-- **Generator:** `../../bin/bridge_generator.py` - CSV/TOML-based generator script (with `../../bin/bridge_pkg/`)
-- **Test Configs:** `../../bin/test_configs/` - Example TOML/CSV configurations
-
----
-
-## Version History
+### Version History
 
 **Version 1.2 (2026-09-07):** qc round_1/round_2 correctness pass. Retired the
 ID-extension architecture from every page that claimed it (IDs are
@@ -201,6 +87,118 @@ subtractive catch-all and its status/IRQ path.
 - Restructured from single spec to HAS/MAS format
 - Complete block-level documentation
 - FSM and ID management details
+
+## References
+
+### Visual Assets
+
+Diagram sources and their renders live in two directories:
+
+- **Source Files:**
+  - `assets/graphviz/*.gv` - Graphviz source diagrams
+  - `assets/puml/*.puml` - PlantUML FSM diagrams
+
+- **Rendered Files:**
+  - `assets/graphviz/*.png` - Rendered block diagrams
+  - `assets/puml/*.png` - Rendered FSM diagrams
+
+#### Architecture Diagrams
+
+1. **Master Adapter** - [assets/graphviz/master_adapter.png](assets/graphviz/master_adapter.png)
+2. **Slave Router** - [assets/graphviz/slave_router.png](assets/graphviz/slave_router.png)
+3. **Crossbar Core** - [assets/graphviz/crossbar_core.png](assets/graphviz/crossbar_core.png)
+4. **ID Management** - [assets/graphviz/id_management.png](assets/graphviz/id_management.png)
+5. **Width Conversion** - [assets/graphviz/width_conversion.png](assets/graphviz/width_conversion.png)
+6. **Protocol Conversion** - [assets/graphviz/protocol_conversion_apb.png](assets/graphviz/protocol_conversion_apb.png)
+7. **Response Routing** - [assets/graphviz/response_routing.png](assets/graphviz/response_routing.png)
+8. **Error Handling** - [assets/graphviz/error_handling.png](assets/graphviz/error_handling.png)
+
+#### FSM Diagrams
+
+1. **AW Arbiter FSM** - [assets/puml/aw_arbiter_fsm.png](assets/puml/aw_arbiter_fsm.png)
+2. **AR Arbiter FSM** - [assets/puml/ar_arbiter_fsm.png](assets/puml/ar_arbiter_fsm.png)
+
+### Companion Specifications
+
+- **[Bridge HAS](../bridge_has/bridge_has_index.md)** - Hardware Architecture Specification (high-level)
+
+### Project-Level
+
+- **PRD.md:** [../../PRD.md](../../PRD.md) - Complete product requirements document
+- **CLAUDE.md:** [../../CLAUDE.md](../../CLAUDE.md) - AI assistant integration guide
+
+### Generator
+
+- **Generator:** `../../bin/bridge_generator.py` - CSV/TOML-based generator script (with `../../bin/bridge_pkg/`)
+- **Test Configs:** `../../bin/test_configs/` - Example TOML/CSV configurations
+
+## Navigation
+
+### Document Organization
+
+Each chapter below is one source file.
+
+#### Front Matter
+
+- [Document Information](ch00_front_matter/00_document_info.md)
+
+#### Chapter 1: Introduction
+
+- [Overview](ch01_introduction/01_overview.md)
+
+#### Chapter 2: Block Descriptions
+
+- [Master Adapter](ch02_blocks/01_master_adapter.md)
+- [Slave Router](ch02_blocks/02_slave_router.md)
+- [Crossbar Core](ch02_blocks/03_crossbar_core.md)
+- [Arbitration](ch02_blocks/04_arbitration.md)
+- [ID Management](ch02_blocks/05_id_management.md)
+- [Width Conversion](ch02_blocks/06_width_conversion.md)
+- [Protocol Conversion](ch02_blocks/07_protocol_conversion.md)
+- [Response Routing](ch02_blocks/08_response_routing.md)
+- [Error Handling](ch02_blocks/09_error_handling.md)
+- [AMBA5 Boundary and Native Sideband](ch02_blocks/10_amba5_boundary.md)
+
+#### Chapter 3: FSM Design
+
+- [Arbiter FSMs](ch03_fsm_design/01_arbiter_fsms.md)
+- [Transaction Tracking](ch03_fsm_design/02_transaction_tracking.md)
+
+#### Chapter 4: ID Management
+
+- [CAM Architecture](ch04_id_management/01_cam_architecture.md) -- describes a design that was NEVER BUILT; see [ID Tracking](ch04_id_management/02_id_tracking.md) for the mechanism actually generated
+- [ID Tracking Tables](ch04_id_management/02_id_tracking.md)
+
+#### Chapter 5: Converters
+
+- [Width Converters](ch05_converters/01_width_converters.md)
+- [APB Converters](ch05_converters/02_apb_converters.md)
+
+#### Chapter 6: Generated RTL
+
+- [Module Structure](ch06_generated_rtl/01_module_structure.md)
+- [Signal Naming](ch06_generated_rtl/02_signal_naming.md)
+
+#### Chapter 7: Verification
+
+- [Test Strategy](ch07_verification/01_test_strategy.md)
+- [Debug Guide](ch07_verification/02_debug_guide.md)
+
+### Quick Navigation
+
+#### For New Users
+
+1. Start with [Overview](ch01_introduction/01_overview.md) for a tour of what Bridge can do
+2. Read [Block Diagram](ch02_blocks/03_crossbar_core.md) for the architecture
+3. Study [Arbitration](ch02_blocks/04_arbitration.md) for operational details
+4. Reference [Module Structure](ch06_generated_rtl/01_module_structure.md) for generated RTL
+
+#### For Integration
+
+- **Protocol support:** See [Protocol Conversion](ch02_blocks/07_protocol_conversion.md) for AXI4/APB/AXI-Lite
+- **Width handling:** See [Width Conversion](ch02_blocks/06_width_conversion.md) for data width mismatches
+- **ID management:** See [ID Management](ch02_blocks/05_id_management.md) for transaction tracking
+- **Error handling:** See [Error Handling](ch02_blocks/09_error_handling.md) for OOR and timeout
 
 ---
 

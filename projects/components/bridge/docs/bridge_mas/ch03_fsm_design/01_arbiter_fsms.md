@@ -21,20 +21,20 @@
 
 <!-- End Header -->
 
-### Bridge Arbiter Finite State Machines
+# Bridge Arbiter Finite State Machines
 
-#### Overview
+## Overview
 
-The Bridge AXI4 crossbar arbitrates per slave, and each arbiter is a simple 2-state finite state machine (FSM). Each slave has two dedicated arbiters:
+The Bridge AXI4 crossbar arbitrates per slave, not per master — each slave owns two dedicated arbiters:
 
 - **AW Arbiter** - Write Address channel arbitration
 - **AR Arbiter** - Read Address channel arbitration
 
 **Total FSM Count:** `2 × NUM_SLAVES`
 
-Round-robin access keeps any master from starving, and two states keep the behavior easy to reason about.
+Each arbiter is a simple 2-state FSM. Round-robin access keeps any master from starving, and two states keep the behavior easy to reason about — there's real value in an arbiter you can hold in your head.
 
-#### AW Channel Arbiter FSM
+## AW Channel Arbiter FSM
 
 **Purpose:** Arbitrate write address requests from multiple masters to a single slave
 
@@ -69,11 +69,11 @@ Round-robin access keeps any master from starving, and two states keep the behav
 **State Transitions:**
 
 | From | To | Condition | Description |
-|------|-----|-----------|-------------|
+|---|---|---|---|
 | IDLE | GRANT_ACTIVE | `\|aw_request_matrix[s]\| > 0` | At least one master requesting access |
 | GRANT_ACTIVE | IDLE | `m_axi_awvalid[s] && m_axi_awready[s]` | AW handshake complete |
 
-#### AR Channel Arbiter FSM
+## AR Channel Arbiter FSM
 
 **Purpose:** Arbitrate read address requests from multiple masters to a single slave
 
@@ -108,15 +108,15 @@ Round-robin access keeps any master from starving, and two states keep the behav
 **State Transitions:**
 
 | From | To | Condition | Description |
-|------|-----|-----------|-------------|
+|---|---|---|---|
 | IDLE | GRANT_ACTIVE | `\|ar_request_matrix[s]\| > 0` | At least one master requesting read |
 | GRANT_ACTIVE | IDLE | `m_axi_arvalid[s] && m_axi_arready[s]` | AR handshake complete |
 
-#### Round-Robin Arbitration Algorithm
+## Round-Robin Arbitration Algorithm
 
 **Algorithm Description:**
 
-Both AW and AR arbiters use the same fair round-robin arbitration algorithm:
+Both AW and AR arbiters use the same fair round-robin arbitration algorithm — learn it once and you've learned both:
 
 ```
 Pseudocode:
@@ -159,7 +159,7 @@ Arbitration Sequence:
 3. **Predictable Latency** - Maximum wait time = (NUM_MASTERS - 1) × grant_duration
 4. **Equal Opportunity** - All masters treated equally
 
-#### Grant Locking Mechanism
+## Grant Locking Mechanism
 
 **Purpose:** Prevent grant changes mid-transaction
 
@@ -218,9 +218,9 @@ end
 3. **Response Routing** - B/R channels need consistent transaction tracking
 4. **Simplicity** - Single grant active per slave prevents mux conflicts
 
-#### Independent Read/Write Arbitration
+## Independent Read/Write Arbitration
 
-**Key Design Feature:** AW and AR arbiters operate completely independently
+Here's the design decision that pays for itself: the AW and AR arbiters operate completely independently.
 
 **Benefits:**
 
@@ -253,7 +253,7 @@ Time T1: Master 1 issues read to Slave 0 (during Master 0 write)
 Result: Read and write happen in parallel - no blocking
 ```
 
-#### FSM Instance Breakdown by Configuration
+## FSM Instance Breakdown by Configuration
 
 **2×2 Configuration (2 masters, 2 slaves):**
 - Slave 0 AW Arbiter: 1 FSM
@@ -273,7 +273,7 @@ Result: Read and write happen in parallel - no blocking
 - Arbitration complexity scales with NUM_MASTERS (search time)
 - Synthesis impact minimal for up to 16×16 configurations
 
-#### Performance Characteristics
+## Performance Characteristics
 
 **Latency:**
 
@@ -291,10 +291,10 @@ Result: Read and write happen in parallel - no blocking
 - **Guaranteed:** Every master gets grant within (NUM_MASTERS - 1) arbitration cycles
 - **No Priority:** All masters treated equally (can be extended for QoS)
 
-#### Comparison with Other Crossbar Arbiters
+## Comparison with Other Crossbar Arbiters
 
 | Feature | Bridge Arbiter | APB Crossbar | Commercial Tools |
-|---------|----------------|--------------|------------------|
+|---|---|---|---|
 | **States** | 2 (IDLE, GRANT_ACTIVE) | 1 (passthrough) | 3-5 (complex) |
 | **Algorithm** | Round-robin | N/A (APB is 1:1) | Priority, QoS, weighted |
 | **Grant Locking** | Yes (until handshake) | N/A | Burst-aware locking |
@@ -314,7 +314,7 @@ Result: Read and write happen in parallel - no blocking
   - No priority levels
   - No weighted arbitration
 
-#### Future Enhancements (Phase 3+)
+## Future Enhancements (Phase 3+)
 
 **QoS Support:**
 ```systemverilog
@@ -347,7 +347,7 @@ parameter int MASTER_WEIGHTS [NUM_MASTERS] = '{1, 2, 1, 4};
 // Enhanced: Lock until WLAST (write) or RLAST (read)
 ```
 
----
+## Related Documentation
 
 **See Also:**
 - [1.1 - Introduction](../ch01_overview/01_introduction.md) - Bridge overview
@@ -356,7 +356,5 @@ parameter int MASTER_WEIGHTS [NUM_MASTERS] = '{1, 2, 1, 4};
 
 **Reference:**
 - ARM AMBA AXI4 Specification (IHI 0022E) - Section A7 (Arbitration)
-
----
 
 **Next:** [3.3 - Crossbar Core](03_crossbar_core.md)

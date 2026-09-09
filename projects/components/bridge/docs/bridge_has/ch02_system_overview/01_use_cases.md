@@ -27,7 +27,7 @@
 
 ### SoC Interconnects
 
-Bridge acts as the main interconnect fabric in SoC designs:
+In SoC designs, Bridge is the main interconnect fabric:
 
 - **Multi-core processor memory subsystems** - Connect multiple CPU cores to shared memory
 - **Accelerator integration** - Route GPU, DSP, or custom accelerator traffic

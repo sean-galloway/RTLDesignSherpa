@@ -23,9 +23,13 @@
 
 # Throughput Characteristics
 
-## Peak Throughput
+## Overview
 
-### Single Master to Single Slave
+What the fabric can move when everything goes right, and what eats into that number when it doesn't. The short version: bursts and matched widths win; conversions and contention cost you.
+
+## Functional Description
+
+### Peak Throughput
 
 One master driving one slave — no contention, no conversion:
 
@@ -45,14 +49,16 @@ One master driving one slave — no contention, no conversion:
 Peak Throughput = DATA_WIDTH (bits) × Frequency (Hz) / 8 bytes/bit
 ```
 
-## Sustained Throughput
-
 ### Factors Affecting Throughput
 
 | Factor | Impact | Mitigation |
 |--------|--------|------------|
 | Arbitration contention | Reduces per-master throughput | Increase slave ports |
 | Width conversion | UNVERIFIED -- see note | Match widths where possible |
+| Protocol conversion | 2+ cycles for APB | Use AXI4 for high-bandwidth |
+| Response routing | Minimal (pipelined) | N/A |
+
+: Table 5.2: Factors Affecting Throughput
 
 > **The width-conversion figure is not measured.** "1-cycle penalty per
 > direction" has no source: the converters (`axi_data_upsize`,
@@ -66,10 +72,6 @@ Peak Throughput = DATA_WIDTH (bits) × Frequency (Hz) / 8 bytes/bit
 > style of `test_bridge_2x2_rw_latency`. An attempt at that test could not
 > reliably observe the master-side reference and was withdrawn rather than
 > committed half-working.
-| Protocol conversion | 2+ cycles for APB | Use AXI4 for high-bandwidth |
-| Response routing | Minimal (pipelined) | N/A |
-
-: Table 5.2: Factors Affecting Throughput
 
 ### Multi-Master Scaling
 
@@ -79,7 +81,7 @@ With fair round-robin arbitration:
 Per-Master Throughput = Peak Throughput / Active Masters (to same slave)
 ```
 
-### Example: 4 Masters, 2 Slaves
+#### Example: 4 Masters, 2 Slaves
 
 ```
 All 4 masters accessing Slave 0:
@@ -89,9 +91,7 @@ All 4 masters accessing Slave 0:
   Per-master = Peak / 2 (full parallelism)
 ```
 
-## Burst Efficiency
-
-### Burst vs Single-Beat
+### Burst Efficiency
 
 | Transaction Type | Overhead | Efficiency |
 |------------------|----------|------------|
@@ -102,15 +102,9 @@ All 4 masters accessing Slave 0:
 
 : Table 5.3: Burst Efficiency Comparison
 
-### Recommendation
+### Width Conversion Impact
 
-- Use bursts whenever possible
-- AXI4 supports up to 256 beats per burst
-- APB does not support bursts (split internally)
-
-## Width Conversion Impact
-
-### Upsize (Narrow to Wide)
+#### Upsize (Narrow to Wide)
 
 ```
 64-bit to 512-bit (8:1 ratio):
@@ -121,7 +115,7 @@ Throughput: Preserved (same data, fewer beats)
 Latency: +1 cycle (packing delay)
 ```
 
-### Downsize (Wide to Narrow)
+#### Downsize (Wide to Narrow)
 
 ```
 512-bit to 64-bit (8:1 ratio):
@@ -132,9 +126,7 @@ Throughput: Preserved (same data, more beats)
 Latency: +7 cycles (sequential output)
 ```
 
-## Protocol Conversion Impact
-
-### AXI4 to APB
+### Protocol Conversion Impact
 
 | Metric | AXI4 Direct | AXI4 to APB |
 |--------|-------------|-------------|
@@ -145,7 +137,15 @@ Latency: +7 cycles (sequential output)
 
 : Table 5.4: AXI4 vs APB Protocol Impact
 
-### Recommendation
+## Design Notes
+
+Bursts buy you efficiency:
+
+- Use bursts whenever possible
+- AXI4 supports up to 256 beats per burst
+- APB does not support bursts (split internally)
+
+And protocol choice matters more than most people expect:
 
 - Keep high-bandwidth traffic on AXI4 paths
 - Use APB only for low-bandwidth peripherals

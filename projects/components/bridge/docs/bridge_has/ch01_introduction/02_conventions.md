@@ -37,7 +37,7 @@
 
 ## Signal Naming
 
-Bridge uses consistent signal prefixes:
+Bridge uses consistent signal prefixes — learn them once and every generated interface reads the same way:
 
 | Prefix | Meaning |
 |--------|---------|

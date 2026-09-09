@@ -23,11 +23,11 @@
 
 # 2.6 Width Conversion
 
-Masters and slaves rarely agree on data width, and width conversion is how the bridge copes. There is NO fixed internal width. Each path carries its port's own width and converters sit at the boundaries where two ports disagree -- `bridge_4x4_rw` alone instantiates paths at 32, 64, 128 and 256 bits.
+Masters and slaves rarely agree on data width, and width conversion is how the bridge copes. There is NO fixed internal width — each path carries its port's own width, and converters sit only at the boundaries where two ports disagree. `bridge_4x4_rw` alone instantiates paths at 32, 64, 128 and 256 bits.
 
 ## 2.6.1 Purpose and Function
 
-Width conversion does five things:
+Width conversion has five jobs:
 
 1. **Data Path Adaptation**: Converts between different data widths (8, 16, 32, 64, 128, 256 bits)
 2. **Burst Splitting**: Divides wide transactions into multiple narrow transactions
@@ -51,6 +51,8 @@ Rationale:
 
 ### Width Conversion Locations
 
+Converters live at the port boundaries, so a path only pays for conversion when its two ends actually disagree:
+
 ```
 Master (32-bit) → [Upsizer] → Crossbar (64-bit) → [Downsizer] → Slave (32-bit)
 Master (64-bit) → [No conversion] → Crossbar (64-bit) → [No conversion] → Slave (64-bit)
@@ -69,7 +71,7 @@ Width conversion architecture showing data upsizing and downsizing with beat cou
 
 ### Overview
 
-**Upsizing** converts narrow data to wide data by buffering multiple narrow beats into a single wide beat.
+**Upsizing** converts narrow data to wide data by buffering multiple narrow beats into a single wide beat:
 
 ```
 Example: 32-bit master → 64-bit crossbar
@@ -80,7 +82,7 @@ Example: 32-bit master → 64-bit crossbar
 
 ### Write Upsizing
 
-**Burst of 4 (32-bit) → Burst of 2 (64-bit)**:
+**Burst of 4 (32-bit) → Burst of 2 (64-bit)** — two master beats pack into each crossbar beat, and the burst length halves:
 
 ```
 Master AW: AWADDR = 0x1000, AWLEN = 3, AWSIZE = 2 (4 bytes)
@@ -98,7 +100,7 @@ Crossbar W beats:
 
 ### Read Upsizing
 
-**Burst of 8 (32-bit) → Burst of 4 (64-bit)**:
+**Burst of 8 (32-bit) → Burst of 4 (64-bit)** — the same trick in reverse, where each wide crossbar beat fans back out into two narrow master beats:
 
 ```
 Master AR: ARADDR = 0x2000, ARLEN = 7, ARSIZE = 2 (4 bytes)
@@ -124,6 +126,8 @@ Master R beats (split from crossbar):
 
 ### Strobe Mapping (Upsizing)
 
+Strobes accumulate right alongside the data — each narrow WSTRB lands in the half of the wide word its beat occupied:
+
 ```
 32-bit WSTRB → 64-bit WSTRB:
 
@@ -141,7 +145,7 @@ Combined:
 
 ### Overview
 
-**Downsizing** converts wide data to narrow data by splitting a single wide beat into multiple narrow beats.
+**Downsizing** converts wide data to narrow data by splitting a single wide beat into multiple narrow beats:
 
 ```
 Example: 128-bit master → 64-bit crossbar
@@ -189,7 +193,7 @@ Master R beat (merged):
 
 A 128-bit bus has 16 strobe bits, one per byte lane; a 64-bit bus has 8. On a
 2:1 downsize each wide beat becomes two narrow beats, and the strobes split
-along the same boundary as the data -- the low 8 bits go with beat 0, the high
+along the same boundary as the data — the low 8 bits go with beat 0, the high
 8 with beat 1. No bit is recomputed; the slice is positional.
 
 ```
@@ -211,7 +215,7 @@ was wrong.
 
 ### Address Adjustment for Width
 
-When changing widths, addresses must align to the new width:
+Change the width and the address has to align to the new beat size:
 
 ```
 32-bit (4-byte) aligned address: 0x1004
@@ -224,6 +228,8 @@ Narrow access at 0x1004 within 64-bit word:
 ```
 
 ### Unaligned Access Handling
+
+When a master issues an access that isn't aligned to its own width, there are three ways to play it:
 
 ```
 Master: 32-bit, unaligned access at 0x1002
@@ -241,6 +247,8 @@ Bridge default: Option 2 (use WSTRB)
 
 ### Length Calculation
 
+The AXI length field is beats-minus-one, so the conversion works out like this:
+
 ```
 Formula:
   New_Length = (Old_Length + 1) × (Old_Width / New_Width) - 1
@@ -256,7 +264,7 @@ Example: Downsizing 128→64
 
 ### Odd Burst Lengths
 
-When burst doesn't divide evenly:
+When the burst doesn't divide evenly, the last wide beat runs partial and the strobes say which bytes are real:
 
 ```
 Example: 3 beats of 32-bit → 64-bit
@@ -307,7 +315,8 @@ Larger data paths, more complex MUX
 
 ### Scaling
 
-Resource usage scales primarily with:
+Three things drive the cost:
+
 - **Width ratio**: 2:1 vs. 4:1 vs. 8:1 conversion
 - **Data width**: 128-bit vs. 256-bit buffers
 - **Buffering depth**: Single vs. multi-beat buffering
@@ -343,6 +352,8 @@ Resource usage scales primarily with:
   Crossbar: 64 bits/cycle = 8 bytes/cycle
   Throughput halved (crossbar becomes bottleneck)
 ```
+
+Upsizing is free; downsizing costs you the width ratio. Keep that asymmetry in mind when you pick port widths.
 
 ## 2.6.10 Configuration Parameters
 
@@ -380,6 +391,8 @@ data_width = 32                 # Narrower than crossbar (downsizing)
 ## 2.6.11 Debug and Observability
 
 ### Recommended Debug Signals
+
+When a conversion path misbehaves, these are the signals to pull into the waveform first:
 
 ```
 Upsizer:

@@ -23,7 +23,11 @@
 
 # Latency Analysis
 
-## Latency Components
+## Overview
+
+Where the cycles go on the way through the bridge: address path, data path, response path, then the end-to-end best cases and the conversion costs. The headline numbers for a direct AXI4 path are measured, not estimated — the note after Table 5.7 explains how, and why an earlier version of that table was wrong.
+
+## Timing
 
 ### Address Path Latency
 
@@ -89,9 +93,9 @@
 > stages -- so this is the figure for a direct AXI4 path, not a universal
 > constant.
 
-## End-to-End Latency
+### End-to-End Latency
 
-### Write Transaction (Best Case)
+#### Write Transaction (Best Case)
 
 ```
 Cycle 0: AW arrives at Bridge
@@ -105,7 +109,7 @@ Cycle 4: B routed back to Master
 Total: 4 cycles (minimum)
 ```
 
-### Read Transaction (Best Case)
+#### Read Transaction (Best Case)
 
 ```
 Cycle 0: AR arrives at Bridge
@@ -116,7 +120,7 @@ Cycle 3: R routed back to Master
 Total: 3 cycles (minimum)
 ```
 
-### Contention Latency
+#### Contention Latency
 
 When multiple masters contend for same slave:
 
@@ -128,9 +132,9 @@ Example: 4 masters requesting same slave
   Average case: Wait for 1.5 masters = 1-2 extra cycles
 ```
 
-## Width Conversion Latency
+### Width Conversion Latency
 
-### Upsize Latency
+#### Upsize Latency
 
 | Ratio | Extra Cycles | Notes |
 |-------|--------------|-------|
@@ -141,7 +145,7 @@ Example: 4 masters requesting same slave
 
 : Table 5.8: Upsize Latency by Ratio
 
-### Downsize Latency
+#### Downsize Latency
 
 | Ratio | Extra Cycles | Notes |
 |-------|--------------|-------|
@@ -152,9 +156,7 @@ Example: 4 masters requesting same slave
 
 : Table 5.9: Downsize Latency by Ratio
 
-## Protocol Conversion Latency
-
-### AXI4 to APB
+### Protocol Conversion Latency
 
 | Phase | Cycles |
 |-------|--------|
@@ -166,7 +168,7 @@ Example: 4 masters requesting same slave
 
 : Table 5.10: AXI4 to APB Conversion Latency
 
-### APB Wait States
+#### APB Wait States
 
 APB slaves may insert wait states:
 
@@ -176,7 +178,7 @@ Typical UART/GPIO: 0-2 wait states
 Slow peripherals: May have many wait states
 ```
 
-## Latency Optimization
+## Design Notes
 
 ### Design Recommendations
 

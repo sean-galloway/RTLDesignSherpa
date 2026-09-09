@@ -26,6 +26,7 @@
 ## Overview
 
 **This chapter describes a design that was NEVER BUILT.**
+
 > **What the generated bridge actually does.** There is no CAM, no ID table and
 > no ID injection. `bridge_cam.sv` exists in the tree and is instantiated in
 > **zero** generated bridges. AXI IDs pass through UNTOUCHED and at equal width
@@ -52,31 +53,31 @@
 > **Everything below this line describes a design that was never built.** It is
 > retained because the mechanism that replaced it is easy to mistake for it.
 
-The CAM was to make out-of-order response routing possible: it would record which master owns each outstanding transaction ID, so a lookup answers the routing question in one shot.
+The CAM existed to make out-of-order response routing possible: it would record which master owns each outstanding transaction ID, so a single lookup answers the routing question in one shot. Here's what was on the whiteboard.
 
-## CAM Purpose
+## Functional Description
 
-### Transaction Tracking
+### What the CAM Was Meant to Do
 
-The CAM stores:
+**Transaction tracking.** The CAM stores:
+
 - Transaction ID (key)
 - Originating master index (value)
 - Transaction metadata (optional)
 
-### Response Routing
+**Response routing.** When a response arrives:
 
-When a response arrives:
 1. Extract transaction ID from response
 2. CAM lookup returns originating master
 3. Route response to correct master
-
-## CAM Structure
 
 ### Figure 4.1: CAM Entry Format
 
 ![CAM Entry Format](../assets/mermaid/cam_entry_format.png)
 
 ### CAM Sizing
+
+Depth scales with total outstanding transactions; width scales with everything the entry has to hold:
 
 ```
 CAM Depth = MAX_OUTSTANDING × NUM_MASTERS
@@ -93,9 +94,9 @@ CAM Width = TOTAL_ID_WIDTH + BID_WIDTH + METADATA_WIDTH
   CAM Width = 6 + 2 + 8 = 16 bits
 ```
 
-## CAM Operations
-
 ### Insertion (AR/AW Acceptance)
+
+On the AR handshake, the CAM writes the key (`{bid, arid}`) against the value (`master_idx`):
 
 ```systemverilog
 // On AR handshake
@@ -107,6 +108,8 @@ end
 ```
 
 ### Lookup (R/B Response)
+
+When a response comes back from the slave, the lookup is one shot. A miss means the response belongs to no outstanding transaction — that's an error, full stop.
 
 ```systemverilog
 // On R response from slave
@@ -124,6 +127,8 @@ end
 
 ### Deletion (Response Complete)
 
+Entries free up when the transaction completes — the last R beat, or the B beat:
+
 ```systemverilog
 // On RLAST or B response
 if ((rvalid && rready && rlast) || (bvalid && bready)) begin
@@ -132,11 +137,13 @@ if ((rvalid && rready && rlast) || (bvalid && bready)) begin
 end
 ```
 
-## Implementation Options
+### Implementation Options
 
-### Distributed RAM CAM
+Two ways to build it, picked by depth.
 
-For small outstanding counts (< 16 entries):
+#### Distributed RAM CAM
+
+For small outstanding counts (< 16 entries), a parallel comparator array does the lookup combinationally — every entry compared at once, logic cost scaling with depth:
 
 ```systemverilog
 // Parallel comparator-based CAM
@@ -151,9 +158,9 @@ for (genvar i = 0; i < DEPTH; i++) begin
 end
 ```
 
-### Block RAM CAM
+#### Block RAM CAM
 
-For larger outstanding counts (> 16 entries):
+For larger outstanding counts (> 16 entries), the parallel approach gets expensive, so the design falls back to a sequential search — one entry per cycle until a match or the end of the table:
 
 ```systemverilog
 // Sequential search CAM (saves logic)
@@ -173,9 +180,9 @@ always_ff @(posedge clk) begin
 end
 ```
 
-## CAM Overflow Handling
+### CAM Overflow Handling
 
-### Prevention
+**Prevention.** The CAM never overflows because it backpressures first:
 
 ```systemverilog
 // Backpressure when CAM full
@@ -183,14 +190,15 @@ assign ar_ready = !cam_full && downstream_ready;
 assign aw_ready = !cam_full && downstream_ready;
 ```
 
-### Error Response
+**Error response.** If CAM overflow would occur:
 
-If CAM overflow would occur:
 1. Assert backpressure (ARREADY/AWREADY = 0)
 2. Wait for responses to free entries
 3. Never drop transactions
 
-## Related Documentation
+Worth repeating: none of this exists. The generated bridge gates the address handshake on the tracking FIFO being not-full instead (BRIDGE-011), and it routes responses strictly in order.
+
+## Related Modules
 
 - [ID Tracking](02_id_tracking.md) - ID table implementation
 - [Response Routing](../ch02_blocks/08_response_routing.md) - Using CAM for routing

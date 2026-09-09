@@ -23,7 +23,11 @@
 
 # Resource Estimates
 
-## FPGA Resource Summary
+## Overview
+
+Rough silicon cost for the bridge and its converters — per master, per slave, per converter, and for a few complete configurations. Treat every number on this page as an order of magnitude, not a budget line: the note after Table 5.18 explains why, and it is worth reading before any of these figures make it into a spreadsheet.
+
+## Functional Description
 
 ### Baseline Configuration (2x2, 64-bit)
 
@@ -47,8 +51,6 @@
 | Width converters | O(per-path ratio) |
 
 : Table 5.12: Resource Scaling Factors
-
-## Component Breakdown
 
 ### Per-Master Resources
 
@@ -84,7 +86,7 @@
 
 : Table 5.15: Crossbar Core Resources
 
-## Width Converter Resources
+### Width Converter Resources
 
 | Ratio | LUTs | Registers | Notes |
 |-------|------|-----------|-------|
@@ -97,9 +99,9 @@
 
 : Table 5.16: Width Converter Resources
 
-## Protocol Converter Resources
+### Protocol Converter Resources
 
-### AXI4 to APB
+#### AXI4 to APB
 
 | Component | LUTs | Registers |
 |-----------|------|-----------|
@@ -111,7 +113,7 @@
 
 : Table 5.17: AXI4 to APB Converter Resources
 
-## Example Configurations
+### Example Configurations
 
 | Config | Masters | Slaves | Data | LUTs | Registers |
 |--------|---------|--------|------|------|-----------|
@@ -123,10 +125,12 @@
 
 : Table 5.18: Complete Bridge Resource Estimates
 
-### Notes
+#### Notes
 
 - Estimates include all converters and adapters
 - Actual results vary by synthesis tool and FPGA family
+- Block RAM usage is zero: the per-slave bridge_id FIFOs are small LUT arrays
+- DSP usage is zero (no multiplication/division)
 
 **These are hand estimates, and they do not reconcile.** Summing the
 per-component tables above for the same configuration does not reproduce the
@@ -138,10 +142,8 @@ synthesis for anything finer.
 The honest fix is a synthesis run per shipped variant with the numbers
 replaced by measurements, which nobody has done. Saying so is better than
 leaving arithmetic that looks authoritative and is not.
-- Block RAM usage is zero: the per-slave bridge_id FIFOs are small LUT arrays
-- DSP usage is zero (no multiplication/division)
 
-## Optimization Strategies
+## Design Notes
 
 ### Resource Reduction
 

@@ -23,19 +23,21 @@
 
 # Signal Naming
 
-## Naming Convention Overview
+## Overview
 
-Signal names in generated RTL follow one convention, which is what makes pattern-based verification and painless integration possible.
+Signal names in generated RTL follow one convention, which is what makes pattern-based verification and painless integration possible. Learn the pattern once and you can drive any generated port without opening the file.
 
-## External Port Naming
+## Ports
 
-### Pattern
+### External Port Naming
+
+**Pattern:**
 
 ```
 {prefix}_{channel}{signal}
 ```
 
-### Components
+**Components:**
 
 | Component | Description | Example |
 |-----------|-------------|---------|
@@ -74,15 +76,15 @@ output logic [2:0]  ddr_s_axi_awsize,
 // ...
 ```
 
-## APB Port Naming
+### APB Port Naming
 
-### Pattern
+**Pattern:**
 
 ```
 {prefix}p{signal}
 ```
 
-### APB Signal Examples
+**APB Signal Examples:**
 
 ```systemverilog
 // APB slave with prefix "uart_apb_"
@@ -98,9 +100,11 @@ input  logic        uart_apb_pslverr,
 input  logic        uart_apb_pready,
 ```
 
-## Internal Signal Naming
+## Functional Description
 
-### Crossbar Signals
+### Internal Signal Naming
+
+#### Crossbar Signals
 
 ```systemverilog
 // Master to crossbar
@@ -114,7 +118,7 @@ logic        xbar_s0_awready;
 logic [31:0] xbar_s0_awaddr;
 ```
 
-### Arbitration Signals
+#### Arbitration Signals
 
 ```systemverilog
 // Request/grant matrices
@@ -126,7 +130,7 @@ logic aw_grant_active_s0;               // Grant locked
 logic [$clog2(NUM_MASTERS)-1:0] aw_last_grant_s0;  // Round-robin state
 ```
 
-### ID Signals
+#### ID Signals
 
 ```systemverilog
 // bridge_id: an INTERNAL routing tag carried alongside the transaction,
@@ -138,15 +142,15 @@ logic [TOTAL_ID_WIDTH-1:0] xbar_s0_bid;   // Response with BID
 logic [ID_WIDTH-1:0] cpu_m_axi_bid;       // ID passes through unchanged
 ```
 
-## Debug Signal Naming
+### Debug Signal Naming
 
-### Pattern
+**Pattern:**
 
 ```
 dbg_{category}_{description}   // NOT EMITTED -- see below
 ```
 
-### Debug Signal Examples
+One caveat before you go looking for these in a waveform: they're illustrative only. The generator emits no `dbg_*` ports — the debug guide covers what you can actually reach.
 
 ```systemverilog
 // Arbitration debug
@@ -162,11 +166,11 @@ output logic [1:0] dbg_aw_state_s0,
 output logic [1:0] dbg_ar_state_s0,
 ```
 
-## Verification Pattern Matching
+### Verification Pattern Matching
 
-### Factory Pattern Support
+#### Factory Pattern Support
 
-Signal naming enables automatic BFM connection:
+The naming convention is what makes automatic BFM connection work:
 
 ```python
 # CocoTB/GAXI pattern matching
@@ -177,13 +181,13 @@ master = AXI4Master(
 )
 ```
 
-### Pattern Rules
+#### Pattern Rules
 
 1. Prefix must end with underscore or be directly followed by channel code
 2. Channel codes are lowercase (aw, w, b, ar, r)
 3. Signal names match AXI4 specification (valid, ready, addr, data, etc.)
 
-## Related Documentation
+## Related Modules
 
 - [Module Structure](01_module_structure.md) - Overall RTL organization
 - [Verification](../ch07_verification/01_test_strategy.md) - Pattern-based testing

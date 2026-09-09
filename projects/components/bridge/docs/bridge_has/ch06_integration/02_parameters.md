@@ -23,7 +23,13 @@
 
 # Parameter Configuration
 
-## Core Parameters
+## Overview
+
+Every bridge the generator emits starts here: port counts, bus widths, per-port configuration, and the address map. This chapter collects the full parameter set — the core knobs, the widths the generator derives from them, the per-port fields, the monitor options, and the checks the generator runs before it accepts your configuration.
+
+## Parameters
+
+### Core Parameters
 
 | Parameter | Type | Range | Default | Description |
 |-----------|------|-------|---------|-------------|
@@ -36,9 +42,9 @@
 
 : Table 6.8: Bridge Core Parameters
 
-## Derived Parameters
+### Derived Parameters
 
-### Calculated by Generator
+The generator works these out from the core set — you never write them yourself:
 
 | Parameter | Formula | Example |
 |-----------|---------|---------|
@@ -52,9 +58,11 @@
 > the SIDEBAND master id carried beside the transaction, and is the only
 > derived width the generated package defines.
 
-## Per-Port Configuration
+### Per-Port Configuration
 
-### Master Port Configuration
+Each master and slave port carries its own field set in the configuration file.
+
+#### Master Port Configuration
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -67,7 +75,7 @@
 
 : Table 6.10: Master Port Configuration
 
-### Slave Port Configuration
+#### Slave Port Configuration
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -106,12 +114,15 @@ Rule 3: Non-Overlapping Windows
 ```
 
 **Why This Rule Exists:**
+
 - Real memory systems use 4K page boundaries (virtual memory, MMU)
 - Linker scripts and memory maps assume 4K granularity
 - Address decoders simplify to bit masks with 4K alignment
 - Prevents ambiguity in address decode logic
 
-## Top-Level Monitor Configuration
+There's nothing arbitrary about the 4K requirement — it's the granularity the rest of the system already assumes.
+
+### Top-Level Monitor Configuration
 
 When monitor collection is desired, the bridge TOML configuration includes:
 
@@ -119,7 +130,7 @@ When monitor collection is desired, the bridge TOML configuration includes:
 |-------|------|-------------|
 | variants | list | List of bridge variants to generate. Supported: `["no"]` (no monitor), `["mon"]` (monitor only), `["no", "mon"]` (both). Default: `["no"]` |
 
-### Monitor Identifiers
+#### Monitor Identifiers
 
 Each monitored port gets a unique `(UNIT_ID, AGENT_ID)` pair for identification in monitor packets:
 
@@ -134,11 +145,39 @@ AGENT_ID Assignment (per port):
   - Example: Master port 2, write direction → AGENT_ID = (2 << 4) | 1 = 0x21
 ```
 
-### AXIL→Wider-Slave Master-Side Alignment
+#### AXIL→Wider-Slave Master-Side Alignment
 
 When an AXI4-Lite master connects to a wider AXI4 slave through the bridge (e.g., 32-bit AXIL master to 64-bit AXI4 slave), the generator emits a master-side alignment converter (the `axil_to_axi4_wide_align_{rd,wr}` modules) between the master adapter and the crossbar core. The converter handles partial-word alignment on the narrow side while preserving AXIL's single-beat semantics; the protocol stays AXIL — protocol shims are a slave-boundary concern, applied separately.
 
-## Configuration File Format
+### Parameter Validation
+
+#### Generator Checks
+
+The generator checks every configuration against these rules:
+
+| Check | Error Condition |
+|-------|-----------------|
+| NUM_MASTERS | < 1 or > 32 |
+| NUM_SLAVES | < 1 or > 256 |
+| DATA_WIDTH | Not power of 2 |
+| Address overlap | Slave ranges intersect |
+| Connectivity | Master with no slaves |
+| ID width | Insufficient for masters |
+
+: Table 6.12: Generator Validation Checks
+
+#### Runtime Validation
+
+Bridge includes optional assertions for:
+
+- Address alignment
+- Burst boundary crossing
+- Protocol violations
+- ID mismatch
+
+## Usage Example
+
+A complete configuration is two parts: the TOML file that describes the bridge, and the CSV that describes the connectivity.
 
 ### TOML Configuration
 
@@ -174,31 +213,7 @@ cpu,1,1
 dma,1,0
 ```
 
-## Parameter Validation
-
-### Generator Checks
-
-| Check | Error Condition |
-|-------|-----------------|
-| NUM_MASTERS | < 1 or > 32 |
-| NUM_SLAVES | < 1 or > 256 |
-| DATA_WIDTH | Not power of 2 |
-| Address overlap | Slave ranges intersect |
-| Connectivity | Master with no slaves |
-| ID width | Insufficient for masters |
-
-: Table 6.12: Generator Validation Checks
-
-### Runtime Validation
-
-Bridge includes optional assertions for:
-
-- Address alignment
-- Burst boundary crossing
-- Protocol violations
-- ID mismatch
-
-## Example Configurations
+Two configurations to use as starting points:
 
 ### Simple 2x2
 

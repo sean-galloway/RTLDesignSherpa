@@ -23,11 +23,51 @@
 
 # Module Structure
 
-## Generated RTL Overview
+## Overview
 
-The generator turns configuration files into parameterized SystemVerilog modules, and every topology gets the same internal structure. Once you've read one generated bridge, you can find your way around any of them.
+The generator turns configuration files into parameterized SystemVerilog modules, and every topology gets the same internal structure. Parameterized at generation time, mind you — not at elaboration, as the next section makes clear. Once you've read one generated bridge, you can find your way around any of them.
 
-## Top-Level Module
+## Parameters
+
+### Compile-Time Parameters
+
+> **Not built.** The generated top has no parameters and no `BID_WIDTH` /
+> `TOTAL_ID_WIDTH` localparams: IDs are not extended, so there is nothing to
+> widen. The package carries exactly two constants --
+> `NUM_MASTERS` and `BRIDGE_ID_WIDTH = $clog2(NUM_MASTERS)` -- and
+> `BRIDGE_ID_WIDTH` sizes the SIDEBAND master id, not any AXI ID field.
+> Per-port widths are baked into the port declarations; there is no
+> `M0_DATA_WIDTH` localparam.
+
+What the template would have emitted, had that design survived:
+
+```systemverilog
+// Core parameters
+parameter int NUM_MASTERS = 4;
+parameter int NUM_SLAVES = 3;
+parameter int ADDR_WIDTH = 32;
+parameter int DATA_WIDTH = 64;
+parameter int ID_WIDTH = 4;
+
+// Derived parameters
+localparam int BID_WIDTH = $clog2(NUM_MASTERS);
+localparam int TOTAL_ID_WIDTH = ID_WIDTH + BID_WIDTH;
+localparam int STRB_WIDTH = DATA_WIDTH / 8;
+```
+
+### Per-Port Parameters
+
+```systemverilog
+// Generated per-port widths
+localparam int M0_DATA_WIDTH = 64;
+localparam int M1_DATA_WIDTH = 256;
+localparam int S0_DATA_WIDTH = 512;
+localparam int S1_DATA_WIDTH = 32;  // APB
+```
+
+In the real output these widths are baked straight into the port declarations — there are no localparams to override.
+
+## Ports
 
 ### Module Declaration
 
@@ -73,9 +113,47 @@ Module Ports:
     └── R Channel
 ```
 
-## Internal Structure
+Note the conditional channels on the master side — a write-only master gets no AR/R, a read-only master gets no AW/W/B.
+
+### Master-Side Signals (External)
+
+```
+{prefix}_aw{signal}    - Write address channel
+{prefix}_w{signal}     - Write data channel
+{prefix}_b{signal}     - Write response channel
+{prefix}_ar{signal}    - Read address channel
+{prefix}_r{signal}     - Read data channel
+
+Example (prefix = "cpu_m_axi"):
+  cpu_m_axi_awvalid
+  cpu_m_axi_awready
+  cpu_m_axi_awaddr
+  cpu_m_axi_wdata
+  cpu_m_axi_bvalid
+```
+
+### Slave-Side Signals (External)
+
+```
+{prefix}_aw{signal}    - Write address channel
+{prefix}_w{signal}     - Write data channel
+{prefix}_b{signal}     - Write response channel
+{prefix}_ar{signal}    - Read address channel
+{prefix}_r{signal}     - Read data channel
+
+Example (prefix = "ddr_s_axi"):
+  ddr_s_axi_awvalid
+  ddr_s_axi_awready
+  ddr_s_axi_awaddr
+  ddr_s_axi_wdata
+  ddr_s_axi_bvalid
+```
+
+## Functional Description
 
 ### Component Instantiation
+
+Adapters are named after the port, not the index — and several modules you might go looking for (`master_adapter_rw`, a standalone `address_decoder`) don't exist anywhere in the tree. Address decode is inline in the crossbar and each master adapter. From `bridge_2x2_rw.sv`:
 
 ```systemverilog
 // Generated module internal structure
@@ -149,7 +227,24 @@ monbus_axil4_axil4_group #(
 );
 ```
 
-## Reset Style and the Emitted Filelist
+### Internal Signals
+
+```
+// Crossbar internal signals
+xbar_m{N}_aw_{signal}  - Master N to crossbar AW
+xbar_m{N}_ar_{signal}  - Master N to crossbar AR
+xbar_s{N}_aw_{signal}  - Crossbar to slave N AW
+xbar_s{N}_ar_{signal}  - Crossbar to slave N AR
+
+// Arbitration signals
+grant_aw_s{N}[M-1:0]   - AW grants for slave N
+grant_ar_s{N}[M-1:0]   - AR grants for slave N
+
+// ID tracking signals
+wr_fifo/rd_fifo[...]   - per-slave bridge_id FIFO (no ID table exists)
+```
+
+### Reset Style and the Emitted Filelist
 
 Every generated adapter, crossbar and slave adapter opens with
 
@@ -196,9 +291,9 @@ consumer that hand-lists the generated `.sv` files instead of taking this
 filelist gets `Cannot find include file: 'reset_defs.svh'` — see
 `/GLOBAL_REQUIREMENTS.md` on resolving sources through filelists.
 
-## Generated Variants
+### Generated Variants
 
-When `variants` list in the bridge TOML includes multiple entries, the generator produces one complete `.sv` file per variant:
+When the `variants` list in the bridge TOML includes multiple entries, the generator produces one complete `.sv` file per variant:
 
 ```
 variants = ["no", "mon"]
@@ -210,62 +305,9 @@ Generated files:
 
 Each variant is a complete, standalone bridge module. Both can coexist in the same design or be selected at compile time.
 
-## Signal Naming Convention
+### Generated File Structure
 
-### Master-Side Signals (External)
-
-```
-{prefix}_aw{signal}    - Write address channel
-{prefix}_w{signal}     - Write data channel
-{prefix}_b{signal}     - Write response channel
-{prefix}_ar{signal}    - Read address channel
-{prefix}_r{signal}     - Read data channel
-
-Example (prefix = "cpu_m_axi"):
-  cpu_m_axi_awvalid
-  cpu_m_axi_awready
-  cpu_m_axi_awaddr
-  cpu_m_axi_wdata
-  cpu_m_axi_bvalid
-```
-
-### Slave-Side Signals (External)
-
-```
-{prefix}_aw{signal}    - Write address channel
-{prefix}_w{signal}     - Write data channel
-{prefix}_b{signal}     - Write response channel
-{prefix}_ar{signal}    - Read address channel
-{prefix}_r{signal}     - Read data channel
-
-Example (prefix = "ddr_s_axi"):
-  ddr_s_axi_awvalid
-  ddr_s_axi_awready
-  ddr_s_axi_awaddr
-  ddr_s_axi_wdata
-  ddr_s_axi_bvalid
-```
-
-### Internal Signals
-
-```
-// Crossbar internal signals
-xbar_m{N}_aw_{signal}  - Master N to crossbar AW
-xbar_m{N}_ar_{signal}  - Master N to crossbar AR
-xbar_s{N}_aw_{signal}  - Crossbar to slave N AW
-xbar_s{N}_ar_{signal}  - Crossbar to slave N AR
-
-// Arbitration signals
-grant_aw_s{N}[M-1:0]   - AW grants for slave N
-grant_ar_s{N}[M-1:0]   - AR grants for slave N
-
-// ID tracking signals
-wr_fifo/rd_fifo[...]   - per-slave bridge_id FIFO (no ID table exists)
-```
-
-## Generated File Structure
-
-### Single-File Output
+#### Single-File Output
 
 ```
 bridge_{name}.sv
@@ -281,7 +323,7 @@ bridge_{name}.sv
 └── Debug signals (optional)
 ```
 
-### Multi-File Output (Optional)
+#### Multi-File Output (Optional)
 
 ```
 bridge_{name}/
@@ -296,43 +338,7 @@ bridge_{name}/
 └── response_router.sv      - Response routing
 ```
 
-## Parameterization
-
-### Compile-Time Parameters
-
-> **Not built.** The generated top has no parameters and no `BID_WIDTH` /
-> `TOTAL_ID_WIDTH` localparams: IDs are not extended, so there is nothing to
-> widen. The package carries exactly two constants --
-> `NUM_MASTERS` and `BRIDGE_ID_WIDTH = $clog2(NUM_MASTERS)` -- and
-> `BRIDGE_ID_WIDTH` sizes the SIDEBAND master id, not any AXI ID field.
-> Per-port widths are baked into the port declarations; there is no
-> `M0_DATA_WIDTH` localparam.
-
-```systemverilog
-// Core parameters
-parameter int NUM_MASTERS = 4;
-parameter int NUM_SLAVES = 3;
-parameter int ADDR_WIDTH = 32;
-parameter int DATA_WIDTH = 64;
-parameter int ID_WIDTH = 4;
-
-// Derived parameters
-localparam int BID_WIDTH = $clog2(NUM_MASTERS);
-localparam int TOTAL_ID_WIDTH = ID_WIDTH + BID_WIDTH;
-localparam int STRB_WIDTH = DATA_WIDTH / 8;
-```
-
-### Per-Port Parameters
-
-```systemverilog
-// Generated per-port widths
-localparam int M0_DATA_WIDTH = 64;
-localparam int M1_DATA_WIDTH = 256;
-localparam int S0_DATA_WIDTH = 512;
-localparam int S1_DATA_WIDTH = 32;  // APB
-```
-
-## Related Documentation
+## Related Modules
 
 - [Signal Naming](02_signal_naming.md) - Detailed naming conventions
 - [Generator Usage](../../CLAUDE.md) - How to run the generator

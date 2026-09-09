@@ -23,9 +23,9 @@
 
 # 2.3 Crossbar Core
 
-The Crossbar Core is the fabric itself: any master can reach any slave through it. Arbitration, request routing, and response management — the machinery that makes any-to-any work — all live here.
+The crossbar core is the fabric itself — any master can reach any slave through it. Arbitration, request routing, and response management, the machinery that makes any-to-any work, all live here.
 
-## 2.3.1 Purpose and Function
+## Overview
 
 The core does five things:
 
@@ -35,17 +35,32 @@ The core does five things:
 4. **Transaction Ordering**: Maintains AXI ordering requirements within address dependencies
 5. **Backpressure Management**: Handles flow control across multiple concurrent transactions
 
-## 2.3.2 Block Diagram
-
 ### Figure 2.3: Crossbar Core Architecture
 
 ![Crossbar Core Architecture](assets/graphviz/crossbar_core.png)
 
 Crossbar core architecture showing complete M×S switching fabric with address decode, per-slave arbitration, data path multiplexing, and ID-based response routing.
 
-## 2.3.3 Connectivity Matrix
+## Parameters
 
-### Full N×M Crossbar
+The crossbar-level knobs come straight from the TOML. Read the comments as carefully as the keys — several entries you'd expect to find here don't exist, and the file says so:
+
+```toml
+[bridge]
+num_masters = 4
+num_slaves = 3
+# internal_data_width: NOT A KEY -- the crossbar has no fixed internal width;
+# each path carries its own port width and converters sit at the boundaries.
+arbiter_type = "round_robin"       # "round_robin", "fixed_priority", "weighted"
+registered_mux = false             # true = +1 cycle, better timing
+registered_demux = false           # true = +1 cycle, better timing
+# NOTE: there is no enable_cam key -- the loader does not know it, and no CAM exists
+# cam_depth: NOT A KEY. No CAM exists and the loader does not know this name.
+```
+
+## Functional Description
+
+### Connectivity Matrix
 
 The bridge implements a **non-blocking crossbar** where:
 - N masters can each access different slaves simultaneously
@@ -92,8 +107,6 @@ Slave 0 Response Outputs (R, B channels):
 Routes responses by the position of a per-slave in-order bridge_id FIFO (no CAM)
 ```
 
-## 2.3.4 Request Path Architecture
-
 ### Per-Slave Request Arbitration
 
 Each slave has **independent arbiters** for:
@@ -107,7 +120,7 @@ This separation allows:
 
 ### Request Multiplexers with Stable Address Gating
 
-After arbitration, multiplexers select granted master's signals. AR/AW gating uses **inline address re-decode** on the stable m_axi address bus (held stable across the full handshake):
+After arbitration, multiplexers select the granted master's signals. AR/AW gating uses **inline address re-decode** on the stable m_axi address bus (held stable across the full handshake):
 
 ```systemverilog
 // Inline address re-decode for stable gating (replaces slave_select_* gating)
@@ -179,7 +192,7 @@ end
 
 ### Backpressure Propagation
 
-Ready signals flow back from slave through arbiter to granted master:
+Ready signals flow back from slave through arbiter to the granted master:
 
 ```
 Slave S0 ARREADY → Arbiter → Granted Master ARREADY
@@ -190,8 +203,6 @@ This ensures:
 - Only granted master sees READY from slave
 - Non-granted masters see READY = 0 (backpressure)
 - No combinatorial loops in ready path (registered arbitration)
-
-## 2.3.5 Response Path Architecture
 
 ### Bridge ID Extraction
 
@@ -245,7 +256,7 @@ Lookup:
 
 ### Response Demultiplexers
 
-Based on extracted Bridge ID, responses are routed:
+Based on the extracted Bridge ID, responses are routed:
 
 ```systemverilog
 // Simplified R channel DEMUX from Slave 0
@@ -283,11 +294,11 @@ When multiple slaves can respond simultaneously, arbitration ensures:
 - Fair arbitration if multiple slaves have responses for same master
 - No response loss (responses queued until master ready)
 
-## 2.3.6 AXI Ordering Requirements
+### AXI Ordering Requirements
 
-The crossbar maintains AXI ordering rules:
+The crossbar maintains AXI ordering rules.
 
-### Read-After-Write (RAW) Ordering
+#### Read-After-Write (RAW) Ordering
 
 **Rule**: Read from address must see data from earlier write to same address
 
@@ -296,7 +307,7 @@ The crossbar maintains AXI ordering rules:
 - Crossbar does NOT reorder transactions to same slave from same master
 - Different masters to same slave: No ordering guaranteed (slave must handle)
 
-### Write-After-Write (WAW) Ordering
+#### Write-After-Write (WAW) Ordering
 
 **Rule**: Writes to overlapping addresses must complete in issue order
 
@@ -304,7 +315,7 @@ The crossbar maintains AXI ordering rules:
 - Same master to same slave: Order preserved by arbiter (FIFO grant queue)
 - Different masters to same slave: Slave responsible for write ordering
 
-### Out-of-Order (OOO) Completion
+#### Out-of-Order (OOO) Completion
 
 > **Not built.** No generated bridge contains a CAM -- `bridge_cam.sv` is
 > instantiated in zero of them. Responses are routed by the POSITION of an
@@ -323,7 +334,7 @@ The crossbar maintains AXI ordering rules:
 - Master sees responses in slave-determined order
 - Multi-master OOO requires careful slave design
 
-## 2.3.7 Monitor Aggregation at Bridge Top (when `variants` includes `mon`)
+### Monitor Aggregation at Bridge Top (when `variants` includes `mon`)
 
 When monitor collection is enabled, per-port monitor streams from `axi4_master_{rd,wr}_mon` and `axi4_slave_{rd,wr}_mon` wrappers are aggregated through a tree of `monbus_arbiter` instances. The final aggregated stream feeds a single `monbus_axil4_axil4_group` instance at the bridge top level:
 
@@ -346,46 +357,7 @@ The `monbus_axil4_axil4_group` instance:
 
 **Reference**: See `docs/markdown/rtl-amba/_book_monitor_index.md` (monitor documentation book, with per-module pages under `docs/markdown/rtl-amba/monitor/`) for complete monitor design-surface documentation and `docs/markdown/rtl-amba/includes/monitor_package_spec.md` for the packet layout.
 
-## 2.3.8 Resource Utilization
-
-### Crossbar Core Resources
-
-**4 masters × 3 slaves configuration (64-bit data, 32-bit addr)**:
-
-```
-Logic Elements:  ~2000-3500 LEs
-Registers:       ~800-1200 regs
-Block RAM:       0 (no CAM is built)
-
-Breakdown per slave:
-- Arbiter (4 masters, RR):        ~200 LEs, ~50 regs
-- Request MUX (AR/AW/W):          ~400 LEs, ~100 regs
-- Response DEMUX (R/B):           ~300 LEs, ~80 regs
-- Control FSMs:                   ~100 LEs, ~50 regs
-
-Total for 3 slaves: 3 × 1000 LEs = ~3000 LEs
-Plus routing overhead: +500 LEs
-```
-
-### Scaling with Masters and Slaves
-
-**Linear scaling**:
-- Adding 1 master: +~500 LEs per slave (new arbiter input)
-- Adding 1 slave: +~1000 LEs (complete new slave port)
-
-**Example**: 8 masters × 6 slaves
-```
-Estimated:  ~12,000 LEs, ~3000 regs
-Block RAM:  0 (no CAM is built)
-```
-
-### Optimization Techniques
-
-1. **Read-Only/Write-Only Masters**: Reduces arbiter complexity by 40-50%
-2. **Power-of-Two Master Count**: Simplifies BID width and routing logic
-3. **Pipeline Stages**: Trading latency for frequency (deeper pipelines)
-
-## 2.3.8 Timing Characteristics
+## Timing
 
 ### Latency
 
@@ -419,9 +391,9 @@ Block RAM:  0 (no CAM is built)
 - Once granted, bursts flow at 1 beat/cycle
 - Grant held until burst completes (RLAST or WLAST)
 
-## 2.3.9 Critical Paths
+### Critical Paths
 
-### Common Critical Paths
+The paths that will bite you first:
 
 1. **Arbiter Request → Grant**:
    - All masters' VALID signals → Arbiter logic → Grant decision
@@ -435,32 +407,52 @@ Block RAM:  0 (no CAM is built)
    - Slave RDATA/RID → BID extraction → Master select → Master RDATA
    - Depth: ~6-10 logic levels for 64-bit data
 
-### Mitigation Strategies
+**Mitigation Strategies**:
 
 1. **Registered MUX/DEMUX**: +1 cycle latency, breaks paths
 2. **Pipelined Arbitration**: Multi-cycle arbiter for >8 masters
 3. **Hierarchical Crossbar**: For >16 masters, use tree structure
 
-## 2.3.10 Configuration Parameters
+## Design Notes
 
-### Crossbar Parameters (from TOML)
+### Resource Utilization
 
-```toml
-[bridge]
-num_masters = 4
-num_slaves = 3
-# internal_data_width: NOT A KEY -- the crossbar has no fixed internal width;
-# each path carries its own port width and converters sit at the boundaries.
-arbiter_type = "round_robin"       # "round_robin", "fixed_priority", "weighted"
-registered_mux = false             # true = +1 cycle, better timing
-registered_demux = false           # true = +1 cycle, better timing
-# NOTE: there is no enable_cam key -- the loader does not know it, and no CAM exists
-# cam_depth: NOT A KEY. No CAM exists and the loader does not know this name.
+**4 masters × 3 slaves configuration (64-bit data, 32-bit addr)**:
+
+```
+Logic Elements:  ~2000-3500 LEs
+Registers:       ~800-1200 regs
+Block RAM:       0 (no CAM is built)
+
+Breakdown per slave:
+- Arbiter (4 masters, RR):        ~200 LEs, ~50 regs
+- Request MUX (AR/AW/W):          ~400 LEs, ~100 regs
+- Response DEMUX (R/B):           ~300 LEs, ~80 regs
+- Control FSMs:                   ~100 LEs, ~50 regs
+
+Total for 3 slaves: 3 × 1000 LEs = ~3000 LEs
+Plus routing overhead: +500 LEs
 ```
 
-## 2.3.11 Debug and Observability
+**Scaling with Masters and Slaves** — linear:
+- Adding 1 master: +~500 LEs per slave (new arbiter input)
+- Adding 1 slave: +~1000 LEs (complete new slave port)
 
-### Recommended Debug Signals
+**Example**: 8 masters × 6 slaves
+```
+Estimated:  ~12,000 LEs, ~3000 regs
+Block RAM:  0 (no CAM is built)
+```
+
+**Optimization Techniques**:
+
+1. **Read-Only/Write-Only Masters**: Reduces arbiter complexity by 40-50%
+2. **Power-of-Two Master Count**: Simplifies BID width and routing logic
+3. **Pipeline Stages**: Trading latency for frequency (deeper pipelines)
+
+### Debug and Observability
+
+Recommended debug signals:
 
 ```
 Per Slave:
@@ -476,9 +468,8 @@ Global:
 - bridge_id FIFO occupancy (wr_ptr/rd_ptr)
 ```
 
-### Performance Counters
-
 Useful metrics for profiling:
+
 ```
 - Transactions per slave (read, write separate)
 - Arbiter conflict rate (requests denied due to grant  contention)
@@ -487,7 +478,7 @@ Useful metrics for profiling:
 - Utilization per slave (% cycles busy)
 ```
 
-## 2.3.12 Common Issues and Debug
+### Common Issues
 
 **Symptom**: Master hangs with VALID=1, READY=0  
 **Check**:
@@ -507,7 +498,29 @@ Useful metrics for profiling:
 - Pipeline depth (excessive latency reducing effective bandwidth?)
 - Burst efficiency (are bursts being granted properly?)
 
-## 2.3.13 Verification Considerations
+### Future Enhancements
+
+**Planned Features**:
+- **Weighted Round-Robin**: QoS support with configurable priorities
+- **Slave-Side Arbitration Policies**: Per-slave arbiter configuration
+- **Grant Prediction**: Speculative grant for lower latency
+- **Congestion Control**: Throttling to prevent hotspots
+
+**Under Consideration**:
+- **Partial Crossbar**: Configurable master-to-slave connectivity (not full mesh)
+- **Multi-Tier Hierarchy**: For 32+ masters/slaves
+- **Virtual Channels**: Separate channels for different traffic classes
+- **Register Slicing**: Automatic pipeline insertion for timing
+
+## Related Modules
+
+- Section 2.1: Master Adapter (request sources)
+- Section 2.2: Slave Router (address decode before arbitration)
+- Section 2.4: Arbitration (detailed arbiter algorithms)
+- Section 2.5: ID Management (sideband bridge_id tracking; its CAM was never built)
+- Section 3.1: Top-Level Integration (crossbar instantiation)
+
+## Testing
 
 ### Functional Tests
 
@@ -533,26 +546,3 @@ Useful metrics for profiling:
 - Verify no READY → VALID dependencies (AXI violation)
 - Check ID preservation through crossbar (modulo Bridge ID)
 - Verify LAST signal handling
-
-## 2.3.14 Future Enhancements
-
-### Planned Features
-- **Weighted Round-Robin**: QoS support with configurable priorities
-- **Slave-Side Arbitration Policies**: Per-slave arbiter configuration
-- **Grant Prediction**: Speculative grant for lower latency
-- **Congestion Control**: Throttling to prevent hotspots
-
-### Under Consideration
-- **Partial Crossbar**: Configurable master-to-slave connectivity (not full mesh)
-- **Multi-Tier Hierarchy**: For 32+ masters/slaves
-- **Virtual Channels**: Separate channels for different traffic classes
-- **Register Slicing**: Automatic pipeline insertion for timing
-
----
-
-**Related Sections**:
-- Section 2.1: Master Adapter (request sources)
-- Section 2.2: Slave Router (address decode before arbitration)
-- Section 2.4: Arbitration (detailed arbiter algorithms)
-- Section 2.5: ID Management (sideband bridge_id tracking; its CAM was never built)
-- Section 3.1: Top-Level Integration (crossbar instantiation)

@@ -23,9 +23,11 @@
 
 # 2.1 Master Adapter
 
+## Overview
+
 Every master port in the bridge gets its own Master Adapter. The adapter sits between the master and the crossbar core, and it exists to make the crossbar's life simple: timing is isolated at the boundary, channels are specialized to what the master actually uses, and every transaction carries a Bridge ID before it enters the fabric.
 
-## 2.1.1 Purpose and Function
+### Purpose and Function
 
 Concretely, the adapter does five things:
 
@@ -35,225 +37,42 @@ Concretely, the adapter does five things:
 4. **Protocol Normalization**: Ensures all transactions meet crossbar assumptions and constraints
 5. **Backpressure Management**: Handles ready/valid handshaking with single-cycle latency
 
-## 2.1.2 Block Diagram
-
 ### Figure 2.1: Master Adapter Architecture
 
 ![Master Adapter Architecture](assets/graphviz/master_adapter.png)
 
 The figure shows Master Adapter architecture with per-master skid buffers, bridge ID injection/stripping, and channel specialization for rd/wr/rw configurations.
 
-## 2.1.3 Channel Specialization
+## Parameters
 
-The Bridge generator creates three types of master adapters based on the channel usage specified in the configuration:
+Everything here comes straight out of the TOML/CSV configuration — the generator does the arithmetic, you just declare the ports.
 
-### Read-Only Masters
-**Channels**: AR (Address Read), R (Read Data)
+### Per-Master Parameters (from TOML/CSV)
 
-```
-Configuration: "rd" or "read"
-RTL Generated: adapter_master_rd_<id>.sv
-
-Optimizations:
-- No write address channel logic
-- No write data channel logic
-- No write response channel logic
-- Reduced arbitration participation (read path only)
-```
-
-### Write-Only Masters
-**Channels**: AW (Address Write), W (Write Data), B (Write Response)
-
-```
-Configuration: "wr" or "write"
-RTL Generated: adapter_master_wr_<id>.sv
-
-Optimizations:
-- No read address channel logic
-- No read data channel logic
-- Reduced arbitration participation (write path only)
+```toml
+[[bridge.masters]]
+name = "cpu"
+channels = "rw"              # "rd", "wr", or "rw"
+arid_width = 4               # External ID width
+awid_width = 4               # Can differ from ARID
+addr_width = 32              # Address bus width
+data_width = 64              # Data bus width
+# pipeline_depth: NOT A KEY. Skid depth is set per channel by the generator;
+# the contract is 2..8 inclusive, so 1 is rejected.
 ```
 
-### Read-Write Masters
-**Channels**: AR, R, AW, W, B (Full AXI4 interface)
+### Global Parameters (affect all adapters)
 
-```
-Configuration: "rw" or "readwrite"
-RTL Generated: adapter_master_rw_<id>.sv
-
-Full Functionality:
-- All five AXI4 channels implemented
-- Participates in both read and write arbitration
-- Maximum flexibility but larger resource footprint
+```toml
+[bridge]
+# internal_data_width: NOT A KEY -- there is no fixed internal crossbar width.
+enable_width_conversion = true
+bid_width = 2                # Calculated: clog2(num_masters)
 ```
 
-## 2.1.3b Per-Port Monitor Wrappers (when `use_monitor = true`)
+## Ports
 
-When the bridge TOML configuration sets `use_monitor = true` for a master port, the generator instantiates per-direction monitor wrappers immediately downstream of the master adapter:
-
-- **`axi4_master_rd_mon`**: Wraps the AR/R channels, emits packets with `UNIT_ID=1`
-- **`axi4_master_wr_mon`**: Wraps the AW/W/B channels, emits packets with `UNIT_ID=1`
-
-Each wrapper:
-- Samples all channel signals and timestamp at handshake points
-- Emits 128-bit monitor packets on internal monbus
-- Passes signals through transparently in the common case, but it CAN stall:
-  `axi4_master_rd_mon` gates the address channel on the monitor's back-pressure,
-  `assign w_gated_arvalid = fub_axi_arvalid & (w_block_ready | ~cfg_monitor_enable);`
-  so a saturated transaction table holds off new addresses until it drains.
-  With `cfg_monitor_enable` low the gate is bypassed and the path really is
-  transparent.
-- Is instantiated only when requested (generator-time configuration)
-
-The generated per-port monbus streams are later aggregated by a tree of `monbus_arbiter` instances at the bridge top.
-
-## 2.1.4 Skid Buffer Architecture
-
-Each AXI4 channel passes through a skid buffer for timing isolation. The skid buffer implements:
-
-### Registered Forward Path
-```systemverilog
-// Simplified skid buffer concept
-always_ff @(posedge clk) begin
-    if (!rst_n) begin
-        valid_reg <= 1'b0;
-    end else if (!valid_reg || ready_out) begin
-        valid_reg <= valid_in;
-        data_reg  <= data_in;
-    end
-end
-```
-
-### Single-Cycle Backpressure Response
-- When downstream is not ready, accepts one additional beat into holding register
-- Signals ready_in = 0 in same cycle to upstream
-- No combinatorial paths between upstream and downstream
-
-### Pipeline Depth
-- Default: 2 (the `gaxi_skid_buffer` minimum)
-- Range: **2..8 inclusive, any integer**. The value is the skid buffer's
-  `DEPTH`, and its elaboration guard rejects anything outside that:
-  `if (DEPTH < 2 || DEPTH > 8) $error(...)`. A depth of 1 does not elaborate,
-  so the "default 1" this line used to claim was never buildable.
-- Trade-off: Latency vs. timing closure
-
-**Performance Impact**:
-- Adds 1 cycle latency per channel
-- Enables higher clock frequencies
-- Prevents critical paths through crossbar
-
-## 2.1.5 Bridge ID Management
-
-> **Not built.** IDs are NOT injected, extended or stripped anywhere in this
-> bridge. `cpu_m_axi_awid` and `ddr_s_axi_awid` are both 4 bits in
-> `bridge_2x2_rw`: the master's ID passes through untouched and comes back
-> untouched. The originating master travels as a SEPARATE SIDEBAND signal
-> (`xbar_bridge_id_aw`/`_ar`) into a per-slave in-order FIFO, and responses are
-> routed by that FIFO's POSITION -- the returned BID/RID is never consulted.
-> The section below describes the scheme that was replaced. See ch04
-> `02_id_tracking.md`.
-
-
-### ID Width Calculation
-```
-BID_WIDTH = clog2(num_masters)
-
-Examples:
-- 2 masters  → BID_WIDTH = 1
-- 4 masters  → BID_WIDTH = 2
-- 8 masters  → BID_WIDTH = 3
-- 16 masters → BID_WIDTH = 4
-```
-
-### ID Injection (Request Path)
-
-For each master adapter, a unique constant Bridge ID is appended to the AXI transaction ID:
-
-```
-AR Channel:
-  Internal ARID = {MASTER_BID[BID_WIDTH-1:0], External ARID[ARID_WIDTH-1:0]}
-  Internal ARID Width = BID_WIDTH + ARID_WIDTH
-
-AW Channel:
-  Internal AWID = {MASTER_BID[BID_WIDTH-1:0], External AWID[AWID_WIDTH-1:0]}
-  Internal AWID Width = BID_WIDTH + AWID_WIDTH
-```
-
-**Example**: 4-master system, external ARID_WIDTH = 4
-```
-Master 0: BID = 2'b00, External ID = 4'h3 → Internal ID = 6'b00_0011
-Master 1: BID = 2'b01, External ID = 4'h3 → Internal ID = 6'b01_0011
-Master 2: BID = 2'b10, External ID = 4'h5 → Internal ID = 6'b10_0101
-Master 3: BID = 2'b11, External ID = 4'hA → Internal ID = 6'b11_1010
-```
-
-### ID Stripping (Response Path)
-
-The Bridge ID is removed from responses before returning to the master:
-
-```
-R Channel:
-  External RID = Internal RID[ARID_WIDTH-1:0]
-  Bridge routes based on Internal RID[BID_WIDTH+ARID_WIDTH-1:ARID_WIDTH]
-
-B Channel:
-  External BID = Internal BID[AWID_WIDTH-1:0]
-  Bridge routes based on Internal BID[BID_WIDTH+AWID_WIDTH-1:AWID_WIDTH]
-```
-
-This ensures:
-- Master sees original transaction IDs
-- Bridge internally tracks which master originated each transaction
-- Responses route back to correct master even with ID reuse across masters
-
-## 2.1.6 Protocol Normalization
-
-The Master Adapter enforces several protocol requirements:
-
-### Valid Address Ranges
-- Checks addresses against slave address maps
-- Flags out-of-range accesses for error handling
-- Prevents deadlocks from illegal addresses
-
-### Burst Constraints
-- Validates ARLEN/AWLEN vs. 4KB boundary rules
-- Ensures burst types are supported (FIXED, INCR, WRAP)
-- Checks SIZE vs. DATA_WIDTH compatibility
-
-### Signal Defaults
-- Provides default values for unused signals
-- Ensures ARCACHE/AWCACHE have legal values
-- Sets ARPROT/AWPROT based on configuration
-
-## 2.1.6 Response Path Slave Selection Tracking
-
-### Problem: Stale Slave Select Decode
-
-Here's the part that bites people. The master adapter decodes the incoming address combinationally to pick a target slave. When the wrapper's skid buffer pops and `fub_axi_awaddr`/`fub_axi_araddr` reverts, the decode changes even though the converter is still in flight pushing the request to the crossbar. This causes the response MUX to route read/write responses from the wrong slave.
-
-### Solution: Per-Channel Response-Tracking FIFOs
-
-Added separate FIFOs for AR and AW channels that capture the slave index (`comb_slave_select_ar/aw`) at the moment of the FUB-level handshake:
-
-```systemverilog
-// At request time (when fub_axi_arvalid && fub_axi_arready)
-ar_trk_push <= comb_slave_select_ar;  // Capture decoded slave index
-
-// At response time (when m_axi_rvalid && m_axi_rready && m_axi_rlast)
-r_slave_select <= ar_trk_pop;  // Stable slave index for response MUX
-```
-
-**Benefits**:
-- R/B responses route correctly even after address reverts
-- Supports multi-slave masters spanning different widths
-- Stable path for both data width and target slave
-
-**Implementation**:
-- One FIFO per (master, AW/AR channel)
-- Width: `clog2(NUM_SLAVES)` bits (4 bits typical for 16-slave systems)
-- Depth: Matches maximum outstanding transactions (8-16 typical)
-
-## 2.1.7 Interface Specifications
+Two interfaces per adapter: one facing the master, one facing the fabric. Note the ID widths change across that boundary — wider on the inside.
 
 ### External Master Interface (per master)
 ```
@@ -284,35 +103,219 @@ Input Channels (from crossbar):
 - B* signals + Internal BID (wider)
 ```
 
-## 2.1.8 Resource Utilization
+## Functional Description
 
-### Per-Master Adapter Resources (Typical)
+### Channel Specialization
 
-**Read-Write Master (64-bit data, 32-bit addr, 4-bit ID)**:
+The Bridge generator creates three types of master adapters based on the channel usage specified in the configuration:
+
+#### Read-Only Masters
+**Channels**: AR (Address Read), R (Read Data)
+
 ```
-Logic Elements:  ~200-400 (depending on ID width and features)
-Registers:       ~150-250 (pipeline stages + control)
-Block RAM:       0 (no CAM anywhere in the design)
+Configuration: "rd" or "read"
+RTL Generated: adapter_master_rd_<id>.sv
 
-Breakdown:
-- Skid buffers (5 channels × ~30 regs each): ~150 regs
-- ID manipulation logic: ~50 LEs
-- Control FSMs: ~100 LEs
-- Routing logic: ~50 LEs
+Optimizations:
+- No write address channel logic
+- No write data channel logic
+- No write response channel logic
+- Reduced arbitration participation (read path only)
 ```
 
-**Read-Only Master**: ~60% of read-write resources  
-**Write-Only Master**: ~65% of read-write resources
+#### Write-Only Masters
+**Channels**: AW (Address Write), W (Write Data), B (Write Response)
 
-### Scaling Considerations
+```
+Configuration: "wr" or "write"
+RTL Generated: adapter_master_wr_<id>.sv
 
-Resource usage scales with:
-- Number of masters (linear scaling, one adapter per master)
-- ID width (logarithmic: +BID_WIDTH bits per transaction)
-- Pipeline depth (linear: deeper pipelines = more registers)
-- Data width (linear: wider data = wider skid buffers)
+Optimizations:
+- No read address channel logic
+- No read data channel logic
+- Reduced arbitration participation (write path only)
+```
 
-## 2.1.9 Timing Characteristics
+#### Read-Write Masters
+**Channels**: AR, R, AW, W, B (Full AXI4 interface)
+
+```
+Configuration: "rw" or "readwrite"
+RTL Generated: adapter_master_rw_<id>.sv
+
+Full Functionality:
+- All five AXI4 channels implemented
+- Participates in both read and write arbitration
+- Maximum flexibility but larger resource footprint
+```
+
+### Per-Port Monitor Wrappers (when `use_monitor = true`)
+
+When the bridge TOML configuration sets `use_monitor = true` for a master port, the generator instantiates per-direction monitor wrappers immediately downstream of the master adapter:
+
+- **`axi4_master_rd_mon`**: Wraps the AR/R channels, emits packets with `UNIT_ID=1`
+- **`axi4_master_wr_mon`**: Wraps the AW/W/B channels, emits packets with `UNIT_ID=1`
+
+Each wrapper:
+- Samples all channel signals and timestamp at handshake points
+- Emits 128-bit monitor packets on internal monbus
+- Passes signals through transparently in the common case, but it CAN stall:
+  `axi4_master_rd_mon` gates the address channel on the monitor's back-pressure,
+  `assign w_gated_arvalid = fub_axi_arvalid & (w_block_ready | ~cfg_monitor_enable);`
+  so a saturated transaction table holds off new addresses until it drains.
+  With `cfg_monitor_enable` low the gate is bypassed and the path really is
+  transparent.
+- Is instantiated only when requested (generator-time configuration)
+
+The generated per-port monbus streams are later aggregated by a tree of `monbus_arbiter` instances at the bridge top.
+
+### Skid Buffer Architecture
+
+Each AXI4 channel passes through a skid buffer for timing isolation. The skid buffer implements:
+
+#### Registered Forward Path
+```systemverilog
+// Simplified skid buffer concept
+always_ff @(posedge clk) begin
+    if (!rst_n) begin
+        valid_reg <= 1'b0;
+    end else if (!valid_reg || ready_out) begin
+        valid_reg <= valid_in;
+        data_reg  <= data_in;
+    end
+end
+```
+
+#### Single-Cycle Backpressure Response
+- When downstream is not ready, accepts one additional beat into holding register
+- Signals ready_in = 0 in same cycle to upstream
+- No combinatorial paths between upstream and downstream
+
+#### Pipeline Depth
+- Default: 2 (the `gaxi_skid_buffer` minimum)
+- Range: **2..8 inclusive, any integer**. The value is the skid buffer's
+  `DEPTH`, and its elaboration guard rejects anything outside that:
+  `if (DEPTH < 2 || DEPTH > 8) $error(...)`. A depth of 1 does not elaborate,
+  so the "default 1" this line used to claim was never buildable.
+- Trade-off: Latency vs. timing closure
+
+**Performance Impact**:
+- Adds 1 cycle latency per channel
+- Enables higher clock frequencies
+- Prevents critical paths through crossbar
+
+### Bridge ID Management
+
+> **Not built.** IDs are NOT injected, extended or stripped anywhere in this
+> bridge. `cpu_m_axi_awid` and `ddr_s_axi_awid` are both 4 bits in
+> `bridge_2x2_rw`: the master's ID passes through untouched and comes back
+> untouched. The originating master travels as a SEPARATE SIDEBAND signal
+> (`xbar_bridge_id_aw`/`_ar`) into a per-slave in-order FIFO, and responses are
+> routed by that FIFO's POSITION -- the returned BID/RID is never consulted.
+> The section below describes the scheme that was replaced. See ch04
+> `02_id_tracking.md`.
+
+
+#### ID Width Calculation
+```
+BID_WIDTH = clog2(num_masters)
+
+Examples:
+- 2 masters  → BID_WIDTH = 1
+- 4 masters  → BID_WIDTH = 2
+- 8 masters  → BID_WIDTH = 3
+- 16 masters → BID_WIDTH = 4
+```
+
+#### ID Injection (Request Path)
+
+For each master adapter, a unique constant Bridge ID is appended to the AXI transaction ID:
+
+```
+AR Channel:
+  Internal ARID = {MASTER_BID[BID_WIDTH-1:0], External ARID[ARID_WIDTH-1:0]}
+  Internal ARID Width = BID_WIDTH + ARID_WIDTH
+
+AW Channel:
+  Internal AWID = {MASTER_BID[BID_WIDTH-1:0], External AWID[AWID_WIDTH-1:0]}
+  Internal AWID Width = BID_WIDTH + AWID_WIDTH
+```
+
+**Example**: 4-master system, external ARID_WIDTH = 4
+```
+Master 0: BID = 2'b00, External ID = 4'h3 → Internal ID = 6'b00_0011
+Master 1: BID = 2'b01, External ID = 4'h3 → Internal ID = 6'b01_0011
+Master 2: BID = 2'b10, External ID = 4'h5 → Internal ID = 6'b10_0101
+Master 3: BID = 2'b11, External ID = 4'hA → Internal ID = 6'b11_1010
+```
+
+#### ID Stripping (Response Path)
+
+The Bridge ID is removed from responses before returning to the master:
+
+```
+R Channel:
+  External RID = Internal RID[ARID_WIDTH-1:0]
+  Bridge routes based on Internal RID[BID_WIDTH+ARID_WIDTH-1:ARID_WIDTH]
+
+B Channel:
+  External BID = Internal BID[AWID_WIDTH-1:0]
+  Bridge routes based on Internal BID[BID_WIDTH+AWID_WIDTH-1:AWID_WIDTH]
+```
+
+This ensures:
+- Master sees original transaction IDs
+- Bridge internally tracks which master originated each transaction
+- Responses route back to correct master even with ID reuse across masters
+
+### Protocol Normalization
+
+The Master Adapter enforces several protocol requirements:
+
+#### Valid Address Ranges
+- Checks addresses against slave address maps
+- Flags out-of-range accesses for error handling
+- Prevents deadlocks from illegal addresses
+
+#### Burst Constraints
+- Validates ARLEN/AWLEN vs. 4KB boundary rules
+- Ensures burst types are supported (FIXED, INCR, WRAP)
+- Checks SIZE vs. DATA_WIDTH compatibility
+
+#### Signal Defaults
+- Provides default values for unused signals
+- Ensures ARCACHE/AWCACHE have legal values
+- Sets ARPROT/AWPROT based on configuration
+
+### Response Path Slave Selection Tracking
+
+#### Problem: Stale Slave Select Decode
+
+Here's the part that bites people. The master adapter decodes the incoming address combinationally to pick a target slave. When the wrapper's skid buffer pops and `fub_axi_awaddr`/`fub_axi_araddr` reverts, the decode changes even though the converter is still in flight pushing the request to the crossbar. This causes the response MUX to route read/write responses from the wrong slave.
+
+#### Solution: Per-Channel Response-Tracking FIFOs
+
+Added separate FIFOs for AR and AW channels that capture the slave index (`comb_slave_select_ar/aw`) at the moment of the FUB-level handshake:
+
+```systemverilog
+// At request time (when fub_axi_arvalid && fub_axi_arready)
+ar_trk_push <= comb_slave_select_ar;  // Capture decoded slave index
+
+// At response time (when m_axi_rvalid && m_axi_rready && m_axi_rlast)
+r_slave_select <= ar_trk_pop;  // Stable slave index for response MUX
+```
+
+**Benefits**:
+- R/B responses route correctly even after address reverts
+- Supports multi-slave masters spanning different widths
+- Stable path for both data width and target slave
+
+**Implementation**:
+- One FIFO per (master, AW/AR channel)
+- Width: `clog2(NUM_SLAVES)` bits (4 bits typical for 16-slave systems)
+- Depth: Matches maximum outstanding transactions (8-16 typical)
+
+## Timing
 
 ### Latency
 
@@ -346,34 +349,61 @@ Typical critical paths (if skid buffers not used):
 
 **Solution**: Skid buffers break all these paths at the cost of 1-cycle latency.
 
-## 2.1.10 Configuration Parameters
+## Design Notes
 
-### Per-Master Parameters (from TOML/CSV)
+### Resource Utilization
 
-```toml
-[[bridge.masters]]
-name = "cpu"
-channels = "rw"              # "rd", "wr", or "rw"
-arid_width = 4               # External ID width
-awid_width = 4               # Can differ from ARID
-addr_width = 32              # Address bus width
-data_width = 64              # Data bus width
-# pipeline_depth: NOT A KEY. Skid depth is set per channel by the generator;
-# the contract is 2..8 inclusive, so 1 is rejected.
+#### Per-Master Adapter Resources (Typical)
+
+**Read-Write Master (64-bit data, 32-bit addr, 4-bit ID)**:
+```
+Logic Elements:  ~200-400 (depending on ID width and features)
+Registers:       ~150-250 (pipeline stages + control)
+Block RAM:       0 (no CAM anywhere in the design)
+
+Breakdown:
+- Skid buffers (5 channels × ~30 regs each): ~150 regs
+- ID manipulation logic: ~50 LEs
+- Control FSMs: ~100 LEs
+- Routing logic: ~50 LEs
 ```
 
-### Global Parameters (affect all adapters)
+**Read-Only Master**: ~60% of read-write resources  
+**Write-Only Master**: ~65% of read-write resources
 
-```toml
-[bridge]
-# internal_data_width: NOT A KEY -- there is no fixed internal crossbar width.
-enable_width_conversion = true
-bid_width = 2                # Calculated: clog2(num_masters)
-```
+#### Scaling Considerations
 
-## 2.1.11 Debug and Observability
+Resource usage scales with:
+- Number of masters (linear scaling, one adapter per master)
+- ID width (logarithmic: +BID_WIDTH bits per transaction)
+- Pipeline depth (linear: deeper pipelines = more registers)
+- Data width (linear: wider data = wider skid buffers)
 
-### Recommended Debug Signals
+### Future Enhancements
+
+#### Planned Features
+- **Dynamic Pipeline Depth**: Adjust depth based on operating frequency
+- **FIFO Mode**: Deeper buffering (16-256 entries) for burst-intensive masters
+- **QoS Support**: Priority-based arbitration hints
+- **Performance Counters**: Transaction counts, stall cycles, utilization metrics
+
+#### Under Consideration
+- **Clock Domain Crossing**: Per-master clock domains with async FIFOs
+- **Width Conversion at Adapter**: Move width logic to adapters for distributed conversion
+- **Outstanding Transaction Tracking**: Windowing for improved OOO performance
+
+## Related Modules
+
+- Section 2.3: Crossbar Core (interconnect architecture)
+- Section 2.4: Arbitration (how adapters compete for slaves)
+- Section 2.5: ID Management (sideband bridge_id; the CAM it describes was never built)
+- HAS ch04_interfaces/01_axi4_interface.md (port signals)
+
+## Testing
+
+### Debug and Observability
+
+#### Recommended Debug Signals
 
 For ILA or waveform capture:
 ```
@@ -384,7 +414,7 @@ For ILA or waveform capture:
 - Backpressure events (ready = 0 while valid = 1)
 ```
 
-### Common Issues and Debug
+#### Common Issues and Debug
 
 **Symptom**: Master hangs waiting for READY  
 **Check**: 
@@ -403,24 +433,3 @@ For ILA or waveform capture:
 - Increase pipeline_depth parameter
 - Verify clock frequency vs. design complexity
 - Check for combinatorial loops
-
-## 2.1.12 Future Enhancements
-
-### Planned Features
-- **Dynamic Pipeline Depth**: Adjust depth based on operating frequency
-- **FIFO Mode**: Deeper buffering (16-256 entries) for burst-intensive masters
-- **QoS Support**: Priority-based arbitration hints
-- **Performance Counters**: Transaction counts, stall cycles, utilization metrics
-
-### Under Consideration
-- **Clock Domain Crossing**: Per-master clock domains with async FIFOs
-- **Width Conversion at Adapter**: Move width logic to adapters for distributed conversion
-- **Outstanding Transaction Tracking**: Windowing for improved OOO performance
-
----
-
-**Related Sections**:
-- Section 2.3: Crossbar Core (interconnect architecture)
-- Section 2.4: Arbitration (how adapters compete for slaves)
-- Section 2.5: ID Management (sideband bridge_id; the CAM it describes was never built)
-- HAS ch04_interfaces/01_axi4_interface.md (port signals)
