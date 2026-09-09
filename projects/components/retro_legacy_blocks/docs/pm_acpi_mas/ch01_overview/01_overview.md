@@ -21,21 +21,15 @@
 
 <!-- End Header -->
 
-# APB PM/ACPI - Overview
+# pm_acpi -- Overview
 
-## Introduction
+## Overview
 
-pm_interrupt is driven from the CORE clock domain (pm_clk when
-CDC_ENABLE=1) -- synchronize it externally if consumed on another clock.
+The APB PM/ACPI controller provides ACPI-compatible power management
+functionality with an APB interface. It handles system power states, events,
+and timer functionality.
 
-Top-level parameters on apb4_pm_acpi: CDC_ENABLE (0 = single pclk domain,
-1 = separate core clock via apb4_slave_cdc) and USE_JOHNSON (CDC counter
-encoding, default 0). There is no depth parameter -- the CDC FIFO depth
-is hardcoded to 2 at the apb4_slave_cdc instantiation.
-
-The APB PM/ACPI controller provides ACPI-compatible power management functionality with an APB interface. It handles system power states, events, and timer functionality.
-
-## Key Features
+Key features:
 
 - ACPI-style power management events
 - Single PM1 control/status/enable block (no separate PM1a/PM1b)
@@ -46,20 +40,65 @@ The APB PM/ACPI controller provides ACPI-compatible power management functionali
 - System sleep state control (S0/S1/S3)
 - Single active-high `pm_interrupt` output (no separate SCI/SMI outputs)
 
-## Applications
+Applications:
 
 - System power management
 - Sleep state transitions (S0/S1/S3)
 - Wake event handling
 - Power button events
 
-## Block Diagram
-
 ### Figure 1.1: PM/ACPI Block Diagram
 
 ![PM/ACPI Block Diagram](../assets/svg/pm_acpi_top.png)
 
-## Timing Diagrams
+## Parameters
+
+Top-level parameters on apb4_pm_acpi:
+
+| Parameter | Description |
+|-----------|-------------|
+| `CDC_ENABLE` | 0 = single pclk domain, 1 = separate core clock via apb4_slave_cdc |
+| `USE_JOHNSON` | CDC counter encoding (default 0) |
+
+There is no depth parameter -- the CDC FIFO depth is hardcoded to 2 at the
+apb4_slave_cdc instantiation.
+
+One clocking caveat up front, because it bites: `pm_interrupt` is driven from
+the CORE clock domain (pm_clk when CDC_ENABLE=1) -- synchronize it externally
+if you consume it on another clock.
+
+## Functional Description
+
+### Register Summary
+
+Selected registers; see [Chapter 5](../ch05_registers/01_register_map.md) for the
+complete map, fields, resets, and access types.
+
+| Offset | Name | Access | Description |
+|--------|------|--------|-------------|
+| 0x000 | ACPI_CONTROL | RW | Global control and power state |
+| 0x004 | ACPI_STATUS | W1C | Global status and power events |
+| 0x008 | ACPI_INT_ENABLE | RW | Interrupt enable mask |
+| 0x00C | ACPI_INT_STATUS | W1C | Interrupt status |
+| 0x010 | PM1_CONTROL | RW | PM1 control (sleep, button override) |
+| 0x014 | PM1_STATUS | W1C | PM1 status flags |
+| 0x018 | PM1_ENABLE | RW | PM1 event enable mask |
+| 0x020 | PM_TIMER_VALUE | RO | PM Timer current value (32-bit) |
+| 0x024 | PM_TIMER_CONFIG | RW | PM Timer clock divider |
+| 0x030 | GPE0_STATUS_LO | W1C | GPE status bits [15:0] |
+| 0x034 | GPE0_STATUS_HI | W1C | GPE status bits [31:16] |
+| 0x038 | GPE0_ENABLE_LO | RW | GPE enable bits [15:0] |
+| 0x03C | GPE0_ENABLE_HI | RW | GPE enable bits [31:16] |
+| 0x050 | CLOCK_GATE_CTRL | RW | Clock gating control [31:0] |
+| 0x054 | CLOCK_GATE_STATUS | RO | Clock gate status |
+| 0x058 | POWER_DOMAIN_CTRL | RW | Power domain control [7:0] |
+| 0x05C | POWER_DOMAIN_STATUS | RO | Power domain status |
+| 0x060 | WAKE_STATUS | W1C | Wake event sources |
+| 0x064 | WAKE_ENABLE | RW | Wake event enable mask |
+| 0x068 | RESET_CTRL | RW | Reset generation control |
+| 0x06C | RESET_STATUS | RO | Reset source information |
+
+## Waveforms
 
 > Note: The rendered waveforms use illustrative, ACPI-generic signal names
 > (for example SLP_S3#, SCI#) that do not all correspond to RTL ports. The RTL
@@ -93,10 +132,10 @@ Wake sequence:
 3. The FSM transitions back to S0
 4. `pm_interrupt` asserts if the corresponding enable is set
 
-> Known RTL deviation (#54): POWER-BUTTON wake does not work as drawn --
-> the button event is a one-cycle pulse and the transition state re-samples
-> the still-programmed sleep_type, so the FSM re-enters sleep. Only level
-> wake sources (GPE, RTC alarm while held, ext_wake_n while held) reach S0.
+> Known RTL deviation (#54): power-button wake does not work as drawn. The
+> button event is a one-cycle pulse, and the transition state re-samples the
+> still-programmed sleep_type, so the FSM re-enters sleep. Only level wake
+> sources (GPE, RTC alarm while held, ext_wake_n while held) reach S0.
 
 ### Waveform 1.3: PM Timer
 
@@ -124,36 +163,9 @@ field self-clears) and the core's sticky GPE status has no clear path,
 so `pm_interrupt` latches until reset once an enabled GPE fires (#54).
 The waveform shows the intended flow.
 
-## Register Summary
-
-Selected registers; see [Chapter 5](../ch05_registers/01_register_map.md) for the
-complete map, fields, resets, and access types.
-
-| Offset | Name | Access | Description |
-|--------|------|--------|-------------|
-| 0x000 | ACPI_CONTROL | RW | Global control and power state |
-| 0x004 | ACPI_STATUS | W1C | Global status and power events |
-| 0x008 | ACPI_INT_ENABLE | RW | Interrupt enable mask |
-| 0x00C | ACPI_INT_STATUS | W1C | Interrupt status |
-| 0x010 | PM1_CONTROL | RW | PM1 control (sleep, button override) |
-| 0x014 | PM1_STATUS | W1C | PM1 status flags |
-| 0x018 | PM1_ENABLE | RW | PM1 event enable mask |
-| 0x020 | PM_TIMER_VALUE | RO | PM Timer current value (32-bit) |
-| 0x024 | PM_TIMER_CONFIG | RW | PM Timer clock divider |
-| 0x030 | GPE0_STATUS_LO | W1C | GPE status bits [15:0] |
-| 0x034 | GPE0_STATUS_HI | W1C | GPE status bits [31:16] |
-| 0x038 | GPE0_ENABLE_LO | RW | GPE enable bits [15:0] |
-| 0x03C | GPE0_ENABLE_HI | RW | GPE enable bits [31:16] |
-| 0x050 | CLOCK_GATE_CTRL | RW | Clock gating control [31:0] |
-| 0x054 | CLOCK_GATE_STATUS | RO | Clock gate status |
-| 0x058 | POWER_DOMAIN_CTRL | RW | Power domain control [7:0] |
-| 0x05C | POWER_DOMAIN_STATUS | RO | Power domain status |
-| 0x060 | WAKE_STATUS | W1C | Wake event sources |
-| 0x064 | WAKE_ENABLE | RW | Wake event enable mask |
-| 0x068 | RESET_CTRL | RW | Reset generation control |
-| 0x06C | RESET_STATUS | RO | Reset source information |
-
 ---
+
+## Navigation
 
 **Next:** Chapter 2 (Architecture) is planned and not yet written -- see
 the index

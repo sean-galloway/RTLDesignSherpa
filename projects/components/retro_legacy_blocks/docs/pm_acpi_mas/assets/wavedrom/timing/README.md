@@ -1,8 +1,8 @@
-# PM/ACPI Timing Diagrams - WaveDrom JSON Files
+# pm_acpi Timing Diagrams
+
+## Overview
 
 This directory contains WaveDrom timing diagrams for PM/ACPI (Power Management / Advanced Configuration and Power Interface) operational scenarios.
-
-## Files
 
 | File | Scenario | Description |
 |------|----------|-------------|
@@ -11,7 +11,7 @@ This directory contains WaveDrom timing diagrams for PM/ACPI (Power Management /
 | `pm_timer.json` | PM Timer | PM timer read for OS timing |
 | `pm_gpe_event.json` | GPE Event | General Purpose Event raises pm_interrupt |
 
-## Signal Hierarchy
+## Waveforms
 
 > Note: The signal names below are ACPI-generic illustrations for the diagrams.
 > Several do not exist as RTL ports: there are no dedicated `slp_s3_n/slp_s4_n/slp_s5_n`
@@ -44,7 +44,7 @@ This directory contains WaveDrom timing diagrams for PM/ACPI (Power Management /
 - **Timer:** `r_pm_timer`, `tmr_overflow`
 - **GPE:** `gpe_sync`, `gpe_edge`, `gpe_en`, `GPE0_STS`, `gpe_active`
 
-## Rendering to SVG
+### Rendering to SVG
 
 ```bash
 # Render all files
@@ -52,8 +52,6 @@ for f in *.json; do
     wavedrom-cli -i "$f" > "${f%.json}.svg"
 done
 ```
-
-## Scenarios Explained
 
 ### 1. Sleep Entry (S3 Suspend)
 Shows the sleep sequence:
@@ -88,13 +86,13 @@ Shows General Purpose Event handling:
 5. OS writes 1-to-clear status bit
 6. pm_interrupt deasserted (subject to the GPE sticky-clear limitation noted in Chapter 5)
 
-## Register Reference
+### Register Reference
 
 > These tables reflect the RTL register map. See
 > `docs/pm_acpi_mas/ch05_registers/01_register_map.md` for the authoritative
 > map. The diagrams above use ACPI-generic labels that differ from these names.
 
-### PM1 Status (PM1_STATUS, 0x014, W1C)
+#### PM1 Status (PM1_STATUS, 0x014, W1C)
 | Bit | Name | Description |
 |-----|------|-------------|
 | 4 | wak_sts | System wake event |
@@ -103,7 +101,7 @@ Shows General Purpose Event handling:
 | 1 | pwrbtn_sts | Power button pressed |
 | 0 | tmr_sts | PM timer carry/overflow |
 
-### PM1 Enable (PM1_ENABLE, 0x018, RW)
+#### PM1 Enable (PM1_ENABLE, 0x018, RW)
 | Bit | Name | Description |
 |-----|------|-------------|
 | 3 | rtc_en | RTC alarm enable |
@@ -111,7 +109,7 @@ Shows General Purpose Event handling:
 | 1 | pwrbtn_en | Power button enable |
 | 0 | tmr_en | PM timer enable |
 
-### PM1 Control (PM1_CONTROL, 0x010, RW)
+#### PM1 Control (PM1_CONTROL, 0x010, RW)
 | Bits | Name | Description |
 |------|------|-------------|
 | 5 | slpbtn_ovr | Sleep button override |
@@ -119,7 +117,7 @@ Shows General Purpose Event handling:
 | 3 | sleep_enable | Enter sleep (write 1, auto-clears) |
 | 2:0 | sleep_type | Sleep type (0=S0, 1=S1, 3=S3) |
 
-### Sleep Types
+#### Sleep Types
 | sleep_type | State | Description |
 |------------|-------|-------------|
 | 000 | S0 | Working |

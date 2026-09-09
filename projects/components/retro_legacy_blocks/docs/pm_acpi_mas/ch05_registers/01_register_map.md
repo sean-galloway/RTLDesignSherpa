@@ -21,7 +21,9 @@
 
 <!-- End Header -->
 
-# APB PM/ACPI - Register Map
+# pm_acpi -- Register Map
+
+## Overview
 
 This register map is generated from the PeakRDL specification
 (`rtl/pm_acpi/peakrdl/pm_acpi_regs.rdl`) and matches the synthesized register
@@ -33,7 +35,7 @@ base address. All registers are 32 bits wide with 32-bit access.
 > PeakRDL register file. Fields such as BM_STS, GBL_STS, GBL_EN, SCI_EN, BM_RLD,
 > GBL_RLS and a second GPE bank (GPE1) do not exist in the RTL.
 
-## Register Summary
+### Register Summary
 
 | Offset | Name | Access | Reset | Description |
 |--------|------|--------|-------|-------------|
@@ -65,17 +67,21 @@ base address. All registers are 32 bits wide with 32-bit access.
 Access legend: RW = read/write, RO = read-only (hardware-updated),
 W1C = read status / write 1 to clear.
 
-Only PADDR[6:0] reaches the register block (the config layer slices
-[8:0] into a 7-bit port, truncating the rest), so the whole map ALIASES
-every 0x80 bytes across the 4 KB window -- a write to nominally-reserved
-0x080 writes ACPI_CONTROL (RTL hazard, #54). Within each 128-byte tile,
-the undecoded offsets 0x01C, 0x028-0x02C, 0x040-0x04C and 0x070-0x07C
-read as zero. The register block only decodes
-the offsets listed above; unmapped reads in the decoded range return 0.
+Here's the part that bites. Only PADDR[6:0] reaches the register block (the
+config layer slices [8:0] into a 7-bit port, truncating the rest), so the whole
+map ALIASES every 0x80 bytes across the 4 KB window -- a write to
+nominally-reserved 0x080 writes ACPI_CONTROL (RTL hazard, #54). Within each
+128-byte tile, the undecoded offsets 0x01C, 0x028-0x02C, 0x040-0x04C and
+0x070-0x07C read as zero. The register block only decodes the offsets listed
+above; unmapped reads in the decoded range return 0.
 
 ---
 
-## ACPI_CONTROL (0x000)
+## Functional Description
+
+Bit-level definitions, one section per register.
+
+### ACPI_CONTROL (0x000)
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -89,7 +95,7 @@ the offsets listed above; unmapped reads in the decoded range return 0.
 
 ---
 
-## ACPI_STATUS (0x004)
+### ACPI_STATUS (0x004)
 
 Write 1 to clear each bit.
 
@@ -103,7 +109,7 @@ Write 1 to clear each bit.
 
 ---
 
-## ACPI_INT_ENABLE (0x008)
+### ACPI_INT_ENABLE (0x008)
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -117,7 +123,7 @@ Write 1 to clear each bit.
 
 ---
 
-## ACPI_INT_STATUS (0x00C)
+### ACPI_INT_STATUS (0x00C)
 
 Write 1 to clear each bit.
 
@@ -133,7 +139,7 @@ Write 1 to clear each bit.
 
 ---
 
-## PM1_CONTROL (0x010)
+### PM1_CONTROL (0x010)
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -145,7 +151,7 @@ Write 1 to clear each bit.
 
 ---
 
-## PM1_STATUS (0x014)
+### PM1_STATUS (0x014)
 
 Write 1 to clear each bit.
 
@@ -160,7 +166,7 @@ Write 1 to clear each bit.
 
 ---
 
-## PM1_ENABLE (0x018)
+### PM1_ENABLE (0x018)
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -172,7 +178,7 @@ Write 1 to clear each bit.
 
 ---
 
-## PM_TIMER_VALUE (0x020)
+### PM_TIMER_VALUE (0x020)
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -186,7 +192,7 @@ seconds.
 
 ---
 
-## PM_TIMER_CONFIG (0x024)
+### PM_TIMER_CONFIG (0x024)
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -199,7 +205,7 @@ from a 100.000 MHz pm_clk -- 0.23% below the ACPI-standard 3.579545 MHz
 
 ---
 
-## GPE0_STATUS_LO (0x030)
+### GPE0_STATUS_LO (0x030)
 
 Nominally W1C per the RDL, but NON-FUNCTIONAL in the current RTL (#54):
 on any new GPE edge the generated hwset path sets ALL 16 bits for one
@@ -214,7 +220,7 @@ and W1C writes are moot. Covers GPE sources 0-15.
 
 ---
 
-## GPE0_STATUS_HI (0x034)
+### GPE0_STATUS_HI (0x034)
 
 Same non-functional behavior as GPE0_STATUS_LO (#54). Covers GPE
 sources 16-31.
@@ -226,7 +232,7 @@ sources 16-31.
 
 ---
 
-## GPE0_ENABLE_LO (0x038)
+### GPE0_ENABLE_LO (0x038)
 
 Covers GPE sources 0-15.
 
@@ -237,7 +243,7 @@ Covers GPE sources 0-15.
 
 ---
 
-## GPE0_ENABLE_HI (0x03C)
+### GPE0_ENABLE_HI (0x03C)
 
 Covers GPE sources 16-31.
 
@@ -251,7 +257,7 @@ second GPE bank (no GPE1).
 
 ---
 
-## CLOCK_GATE_CTRL (0x050)
+### CLOCK_GATE_CTRL (0x050)
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -259,7 +265,7 @@ second GPE bank (no GPE1).
 
 ---
 
-## CLOCK_GATE_STATUS (0x054)
+### CLOCK_GATE_STATUS (0x054)
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -267,7 +273,7 @@ second GPE bank (no GPE1).
 
 ---
 
-## POWER_DOMAIN_CTRL (0x058)
+### POWER_DOMAIN_CTRL (0x058)
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -276,7 +282,7 @@ second GPE bank (no GPE1).
 
 ---
 
-## POWER_DOMAIN_STATUS (0x05C)
+### POWER_DOMAIN_STATUS (0x05C)
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -291,7 +297,7 @@ software never wrote while sleeping.
 
 ---
 
-## WAKE_STATUS (0x060)
+### WAKE_STATUS (0x060)
 
 Write 1 to clear each bit.
 
@@ -305,7 +311,7 @@ Write 1 to clear each bit.
 
 ---
 
-## WAKE_ENABLE (0x064)
+### WAKE_ENABLE (0x064)
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -317,7 +323,7 @@ Write 1 to clear each bit.
 
 ---
 
-## RESET_CTRL (0x068)
+### RESET_CTRL (0x068)
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -327,7 +333,7 @@ Write 1 to clear each bit.
 
 ---
 
-## RESET_STATUS (0x06C)
+### RESET_STATUS (0x06C)
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -339,12 +345,16 @@ Write 1 to clear each bit.
 
 ---
 
-## Implementation Notes (known RTL deviations)
+## Design Notes
 
-The register file decodes and stores these registers, but several software-visible
-behaviors are not yet wired through to the PM core. These are RTL issues tracked
-separately (not fixed in documentation); they are documented here so software
-does not rely on behavior the current RTL does not provide:
+### Known RTL Deviations
+
+The tables above are the intent; the bullets below are the silicon you
+actually have. The register file decodes and stores these registers, but
+several software-visible behaviors are not yet wired through to the PM core.
+These are RTL issues tracked separately (not fixed in documentation); they are
+documented here so software does not rely on behavior the current RTL does not
+provide:
 
 - ACPI_CONTROL.soft_reset (bit 7) and RESET_CTRL.sys_reset/periph_reset are not
   connected to the core; the reset-request outputs are hardwired to 0. Writing
@@ -375,5 +385,7 @@ does not rely on behavior the current RTL does not provide:
   wdt/sw/ext_reset are hardwired 0.
 
 ---
+
+## Navigation
 
 **Back to:** [PM/ACPI Specification Index](../pm_acpi_mas_index.md)

@@ -21,22 +21,37 @@
 
 <!-- End Header -->
 
-# APB PM/ACPI Specification - Table of Contents
+# pm_acpi MAS -- Micro Architecture Specification
 
 **Component:** APB Power Management / ACPI Controller
 **Version:** 1.0
 **Last Updated:** 2025-12-01
-**Status:** RTL Partial - register layout validated; GPE status, the W1C
-status fields, power-button wake and RESET_STATUS are non-functional or
-deviant in the current RTL (see ch05 Implementation Notes and issue #54)
+**Status:** RTL Partial -- the register layout is validated, but GPE status,
+the W1C status fields, power-button wake and RESET_STATUS are non-functional
+or deviant in the current RTL. Read the Chapter 5 Design Notes and issue #54
+before you trust any of them.
 
 ---
 
-## Document Organization
+## Overview
 
-> Status (2026-07-22): Only the Chapter 1 overview and the Chapter 5 register map exist
-> in this tree today. The remaining chapters listed below are planned but not yet
-> written; they are shown without links.
+> Status (2026-07-22): Only the Chapter 1 overview and the Chapter 5 register
+> map exist in this tree today. The remaining chapters listed below are planned
+> but not yet written; they are shown without links.
+
+### Block Diagram
+
+![PM/ACPI Block Diagram](assets/svg/pm_acpi_top.png)
+
+### Version History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|---------|
+| 1.0 | 2025-12-01 | RTL Design Sherpa | Initial specification |
+
+---
+
+## Navigation
 
 ### Chapter 1: Overview
 - [01_overview.md](ch01_overview/01_overview.md) - Component overview
@@ -53,17 +68,3 @@ deviant in the current RTL (see ch05 Implementation Notes and issue #54)
 
 ### Chapter 5: Registers
 - [01_register_map.md](ch05_registers/01_register_map.md) - Register map
-
----
-
-## Block Diagram
-
-![PM/ACPI Block Diagram](assets/svg/pm_acpi_top.png)
-
----
-
-## Version History
-
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0 | 2025-12-01 | RTL Design Sherpa | Initial specification |

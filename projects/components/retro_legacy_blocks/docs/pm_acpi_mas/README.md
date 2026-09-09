@@ -21,10 +21,10 @@
 
 <!-- End Header -->
 
-# PM_ACPI Specification
+# pm_acpi Specification
 
-**Status:** Written (chapters 1 and 5) - see pm_acpi_mas_index.md for the
-authoritative status and the known-RTL-deviation notes
+**Status:** Written (chapters 1 and 5) -- see pm_acpi_mas_index.md for the
+authoritative status and the known-RTL-deviation notes.
 
 ---
 
@@ -32,38 +32,20 @@ authoritative status and the known-RTL-deviation notes
 
 This directory will contain the complete specification for the PM_ACPI block.
 
-## Planned Documentation Structure
+### Planned Documentation Structure
 
-### Chapter 1: Overview
-- Block purpose and features
-- High-level architecture
-- Key specifications
+- **Chapter 1: Overview** -- block purpose and features, high-level
+  architecture, key specifications
+- **Chapter 2: Block Diagrams** -- top-level block diagram, internal block
+  diagrams, state machines, pipeline diagrams
+- **Chapter 3: Interfaces** -- APB interface specification, external signals,
+  interrupt outputs, clock and reset
+- **Chapter 4: Programming Guide** -- register programming sequences, common
+  operations, example code, best practices
+- **Chapter 5: Register Map** -- complete register descriptions, field
+  definitions, reset values, access types
 
-### Chapter 2: Block Diagrams
-- Top-level block diagram
-- Internal block diagrams
-- State machines
-- Pipeline diagrams
-
-### Chapter 3: Interfaces
-- APB interface specification
-- External signals
-- Interrupt outputs
-- Clock and reset
-
-### Chapter 4: Programming Guide
-- Register programming sequences
-- Common operations
-- Example code
-- Best practices
-
-### Chapter 5: Register Map
-- Complete register descriptions
-- Field definitions
-- Reset values
-- Access types
-
-## Document Generation
+### Document Generation
 
 Documentation will be written in Markdown and can be converted to PDF:
 
@@ -72,7 +54,7 @@ cd docs/
 ./generate_pdf.sh
 ```
 
-## Reference Documents
+## References
 
 - Intel PM_ACPI datasheet
 - ACPI specification (if applicable)
