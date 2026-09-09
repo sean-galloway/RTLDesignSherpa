@@ -24,22 +24,22 @@
 # pic_8259 MAS -- Micro Architecture Specification
 
 **Component:** APB 8259A-Compatible Programmable Interrupt Controller
-**Version:** 1.0
-**Last Updated:** 2025-12-01
-**Status:** RTL Partial -- register interface validated; ISR/INTA/cascade
-are inert, the ISR-clearing half of EOI is inert while its ROTATION side
-effects stay live (0xA0 pins the priority base to 0), and edge-mode IRR
-has no clear-on-acknowledge (see the implementation notes and issue #50)
+**Version:** 1.1
+**Last Updated:** 2026-09-09
+**Status:** RTL Functional -- acknowledge by read (PIC_INTA), live ISR with
+fully nested priority, all EOI/rotation variants, special mask mode, strict
+address decode with PSLVERR and a synchronized `irq_in` (issue #50 fixes,
+2026-09-09). Cascade, buffered mode, SFNM and OCW3 poll/read-select are
+software-visible storage only.
 
 ## Overview
 
 This is the micro-architecture specification for the pic_8259, an APB
-8259A-compatible Programmable Interrupt Controller. Read the status line
-above twice before you design against anything in here. The register
-interface is validated; several classic-8259A behaviors are not, and every
-chapter in this set is written to describe the RTL as it exists -- not the
-8259A you remember from the datasheet. Where a register name implies a
-feature the hardware doesn't have, the text says so, plainly.
+8259A-compatible Programmable Interrupt Controller. The register interface
+and the interrupt semantics are validated; every chapter in this set
+describes the RTL as it exists -- not the 8259A you remember from the
+datasheet. Where the two part ways (there is no INTA pin, so the acknowledge
+is a read; there is no cascade, so ICW3 is storage) the text says so, plainly.
 
 ![PIC 8259 Block Diagram](assets/svg/pic_8259_top.png)
 
@@ -48,6 +48,7 @@ feature the hardware doesn't have, the text says so, plainly.
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2025-12-01 | RTL Design Sherpa | Initial specification |
+| 1.1 | 2026-09-09 | RTL Design Sherpa | Issue #50 fixes: PIC_INTA acknowledge-by-read with pre-acknowledge vector and spurious IRQ7, live ISR (nesting, non-specific/specific/rotating EOI, set-priority, one-shot rotate-on-AEOI), in-service and special-mask blocking rules, single-copy IMR, OCW2/OCW3 gated on init_complete and pic_enable, edge-taken init_mode with hardware-precedence auto-clear, strict decode with PSLVERR (no aliases), SYNC_STAGES irq_in synchronizer; storage-only fields stated |
 
 ## Navigation
 

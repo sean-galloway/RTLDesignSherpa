@@ -71,6 +71,18 @@ class PIC8259RegisterMap:
     PIC_ISR = 0x024     # In-Service Register
     PIC_STATUS = 0x028  # Status and diagnostics
 
+    # GitHub #50: PIC_INTA is the acknowledge-by-read register (PL190-VIC
+    # style substitute for the missing INTA pin) that C3/C4 and
+    # round_2/round_3 required. It is now a real register in
+    # pic_8259_regs.rdl / pic_8259_regmap.py (0x02C) - defined here anyway
+    # (TB-side) to match the by-address pattern pic_8259_tb.py already uses
+    # for every other register, rather than importing the generated regmap.
+    #
+    # History: authored before the GitHub #50 fix landed, when PIC_INTA did
+    # not exist yet - a read at this offset fell through PeakRDL's decode
+    # (which only matched 6'h0..6'h28) to the always-0, no-error default.
+    PIC_INTA = 0x02C    # Interrupt acknowledge (read-only, side-effecting)
+
     @staticmethod
     def get_register_offset(reg_name: str) -> int:
         """Get register offset by name."""
@@ -196,7 +208,11 @@ class PIC8259TB(TBBase):
             data: Value to write (32-bit)
 
         Returns:
-            APBPacket containing the write transaction
+            APBPacket containing the write transaction. ``.pslverr`` (and
+            equivalently ``.fields['pslverr']``) carries the APB slave error
+            response sampled by the framework APB master BFM
+            (APBMaster._finish_xmit) once the transaction completes - same
+            pattern as ioapic_tb.py's write_apb_register().
         """
         write_packet = APBPacket(
             pwrite=1,
@@ -227,7 +243,15 @@ class PIC8259TB(TBBase):
             self.log.error(f"APB write timeout at address 0x{addr:03X}")
 
         await RisingEdge(self.dut.pclk)
-        self.log.info(f"Write 0x{addr:03X} = 0x{data:08X}")
+
+        # Expose the completed transaction's PSLVERR response. write_packet
+        # is the exact object queued into APBMaster.send() above, and
+        # APBMaster._finish_xmit already wrote fields['pslverr'] from
+        # s_apb_PSLVERR before the PSEL&&PENABLE&&PREADY handshake this
+        # method waited for above completed, so it is settled by this point.
+        write_packet.pslverr = write_packet.fields.get('pslverr', 0)
+        self.log.info(
+            f"Write 0x{addr:03X} = 0x{data:08X} (pslverr={write_packet.pslverr})")
 
         return write_packet
 
@@ -239,7 +263,11 @@ class PIC8259TB(TBBase):
             addr: Register address offset
 
         Returns:
-            Tuple of (APBPacket, read_value)
+            Tuple of (APBPacket, read_value). The packet's ``.pslverr`` (and
+            equivalently ``.fields['pslverr']``) carries the APB slave error
+            response sampled by the framework APB master BFM
+            (APBMaster._finish_xmit) once the transaction completes - same
+            pattern as ioapic_tb.py's read_apb_register().
         """
         read_packet = APBPacket(
             pwrite=0,
@@ -273,9 +301,84 @@ class PIC8259TB(TBBase):
 
         await RisingEdge(self.dut.pclk)
         read_packet.prdata = read_data
-        self.log.info(f"Read 0x{addr:03X} = 0x{read_data:08X}")
+
+        # Expose the completed transaction's PSLVERR response (see
+        # write_register for the same-timing rationale).
+        read_packet.pslverr = read_packet.fields.get('pslverr', 0)
+        self.log.info(
+            f"Read 0x{addr:03X} = 0x{read_data:08X} (pslverr={read_packet.pslverr})")
 
         return read_packet, read_data
+
+    async def read_inta(self) -> dict:
+        """
+        Issue the interrupt-acknowledge read at PIC_INTA (0x02C).
+
+        GitHub #50: reading PIC_INTA is the acknowledge cycle (PL190-VIC
+        style substitute for the missing INTA pin). If an unmasked,
+        unblocked request is pending it returns {valid=1 at bit 8,
+        vector[7:0] = ICW2 base[7:3] | irq}, sets ISR[irq], clears IRR[irq]
+        in edge mode (level mode: IRR follows the pin), and in AEOI mode
+        immediately clears ISR again (rotating the priority base once if
+        rotate-on-AEOI is set). If nothing is pending it returns valid=0
+        with the spurious vector (base | 7) and no side effects.
+
+        History: before the GitHub #50 fix landed, this offset was
+        unmapped in pic_8259_regs (PeakRDL decode only matched
+        6'h0..6'h28), so the read always came back 0x00000000 with no side
+        effects and no PSLVERR - valid always read 0 and vector always
+        read 0.
+
+        Returns:
+            dict with keys: raw, valid, vector, pslverr
+        """
+        packet, raw = await self.read_register(PIC8259RegisterMap.PIC_INTA)
+        return {
+            'raw': raw,
+            'valid': (raw >> 8) & 0x1,
+            'vector': raw & 0xFF,
+            'pslverr': getattr(packet, 'pslverr', 0),
+        }
+
+    async def read_status_fields(self) -> dict:
+        """
+        Read PIC_STATUS (0x028) and decode it into its named fields.
+
+        Field layout (pic_8259_regs.rdl):
+            bit 0     init_complete
+            bits 3:1  icw_step
+            bit 4     int_output
+            bits 7:5  highest_priority
+
+        Returns:
+            dict with keys: raw, init_complete, icw_step, int_output,
+            highest_priority
+        """
+        _, raw = await self.read_register(PIC8259RegisterMap.PIC_STATUS)
+        return {
+            'raw': raw,
+            'init_complete': raw & 0x1,
+            'icw_step': (raw >> 1) & 0x7,
+            'int_output': (raw >> 4) & 0x1,
+            'highest_priority': (raw >> 5) & 0x7,
+        }
+
+    async def reset_dut(self):
+        """
+        Perform a full DUT reset and re-initialize inputs to a known idle
+        state, without relying on any state left over from a previous test
+        in the suite (ioapic_tb.py's reset_dut() precedent).
+        """
+        await self.assert_reset()
+        await self.wait_clocks('pclk', 10)
+        await self.deassert_reset()
+        await self.wait_clocks('pclk', 5)
+
+        self.dut.irq_in.value = 0x00
+
+        await self.wait_clocks('pclk', 2)
+
+        self.log.info("PIC 8259 DUT reset (defect-test clean state)")
 
     async def assert_irq(self, irq_num: int):
         """

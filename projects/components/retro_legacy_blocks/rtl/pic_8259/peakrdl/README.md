@@ -36,22 +36,39 @@ Defines the complete register map for the APB 8259 PIC including:
 - Interrupt Request Register (IRR)
 - In-Service Register (ISR)
 - Status register
+- Interrupt acknowledge register (PIC_INTA, 0x02C) - read-only and
+  side-effecting: reading it performs the acknowledge
 
 ## Generation Command
 
+Use the repository wrapper, NOT `peakrdl regblock` directly: the wrapper emits
+the RTL, the docs and the RegisterMap export in lockstep, and a raw
+`peakrdl regblock` leaves `pic_8259_regmap.py` behind (handbook:
+[[feedback_peakrdl_generate_bin]]).
+
 ```bash
-# From repository root with venv activated
-source venv/bin/activate
+source env_python
 cd projects/components/retro_legacy_blocks/rtl/pic_8259/peakrdl
-peakrdl regblock pic_8259_regs.rdl --cpuif passthrough -o ../
+
+# 1. RTL + package, copied into the block directory the filelist reads from
+python3 $REPO_ROOT/bin/peakrdl_generate.py pic_8259_regs.rdl --copy-rtl .. --no-html
+
+# 2. RegisterMap export, under the name pic_8259_helper.py imports
+python3 $REPO_ROOT/bin/peakrdl_generate.py pic_8259_regs.rdl --docs-only \
+        --no-html --no-markdown --regmap --regmap-output ../pic_8259_regmap.py
+
+# 3. Delete the scratch output directory - nothing consumes it, and an
+#    orphaned second copy of generated output is a live trap
+rm -rf generated
 ```
 
 ## Generated Files
 
-The command generates two files in the parent directory:
+Three files, all in the parent directory:
 
 1. **pic_8259_regs.sv** - Register implementation with CPU interface
 2. **pic_8259_regs_pkg.sv** - Package with struct definitions
+3. **pic_8259_regmap.py** - RegisterMap export (by-name register access in DV)
 
 ## Register Map
 
@@ -68,15 +85,25 @@ The command generates two files in the parent directory:
 | 0x020 | PIC_IRR | RO | Interrupt Request Register |
 | 0x024 | PIC_ISR | RO | In-Service Register |
 | 0x028 | PIC_STATUS | RO | Status register |
+| 0x02C | PIC_INTA | RO | Interrupt acknowledge BY READ - reading it acknowledges |
+
+Nothing else in the 4 KB window is decoded; `pic_8259_config_regs.sv` drops
+every other address with PSLVERR.
 
 ## Notes
 
 - Uses `passthrough` CPU interface (like HPET and PIT 8254)
 - 32-bit register width with 8-bit ICW/OCW fields
 - ICW registers are write-only, hardware-readable (`sw = w`, `hw = r`)
-- OCW1 (IMR) is bidirectional (`sw = rw`, `hw = rw`) for read-modify-write
+- OCW1 (IMR) is `sw = rw`, `hw = r`: the regblock field is the ONE copy of
+  the mask, so a read-after-write can never see a stale hardware mirror
 - IRR/ISR/STATUS registers use `hw = w` for hardware updates
-- init_mode field in PIC_CONFIG is bidirectional (`sw = rw`, `hw = rw`) for auto-clear
+- init_mode in PIC_CONFIG is `sw = rw`, `hw = r`, `hwclr`, `precedence = hw`:
+  the auto-clear after ICW4 is a hardware clear that beats a coincident
+  software write, which a `hw = rw` write-back mirror could not do
+- PIC_INTA's fields are `sw = r`, `hw = w` with NO storage, so the readback is
+  combinational from `hwif_in.*.next` - that is what makes the value returned
+  the PRE-acknowledge one. `vector` carries `swacc`, the acknowledge strobe
 
 ## 8259A Compatibility
 

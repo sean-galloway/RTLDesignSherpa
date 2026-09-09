@@ -1,25 +1,31 @@
 %%{init: {'theme': 'neutral'}}%%
 flowchart LR
-    subgraph APB_PIC["APB PIC 8259"]
+    subgraph APB_PIC["APB PIC 8259 (apb4_pic_8259)"]
         APB["APB Slave"]
-        CFG["pic_8259_config_regs"]
+        CFG["pic_8259_config_regs<br/>(strict decode, PSLVERR,<br/>write strobes)"]
         REGS["pic_8259_regs<br/>(PeakRDL)"]
         CORE["pic_8259_core"]
+        SYNC["irq_in synchronizer<br/>(SYNC_STAGES)"]
         IRR["Interrupt Request<br/>Register (IRR)"]
         ISR["In-Service<br/>Register (ISR)"]
-        IMR["Interrupt Mask<br/>Register (IMR)"]
-        PRIO["Priority Resolver"]
+        IMR["Interrupt Mask<br/>Register (IMR, OCW1)"]
+        PRIO["Priority Resolver<br/>(rotating base, ISR block)"]
+        INTA["PIC_INTA<br/>acknowledge by read"]
     end
 
     BUS["APB Bus"] --> APB
     APB --> CFG
     CFG --> REGS
     CFG --> CORE
+    REGS --> IMR
     CORE --> IRR
     CORE --> ISR
-    CORE --> IMR
-    CORE --> PRIO
+    IRR --> PRIO
+    ISR --> PRIO
+    IMR --> PRIO
 
-    IRQ_IN["IRQ Inputs<br/>[7:0]"] --> CORE
-    PRIO --> INT["INT"]
-    PRIO --> INTA["INTA"]
+    IRQ_IN["IRQ Inputs<br/>[7:0]"] --> SYNC
+    SYNC --> CORE
+    PRIO --> INT["int_out"]
+    PRIO -- "vector, valid" --> INTA
+    INTA -- "read 0x02C: set ISR,<br/>clear IRR (edge)" --> CORE

@@ -45,6 +45,7 @@ sys.path.insert(0, repo_root)
 # Import from PROJECT AREA (not framework!)
 from projects.components.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_tb import PIC8259TB, PIC8259RegisterMap
 from projects.components.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_tests_basic import PIC8259BasicTests
+from projects.components.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_tests_medium import PIC8259MediumTests
 
 
 @cocotb.test(timeout_time=500, timeout_unit="us")
@@ -74,8 +75,9 @@ async def pic_8259_test(dut):
     tb.log.info(f"Starting {test_level.upper()} PIC 8259 test...")
     tb.log.info("Configuration: 8 IRQs, edge/level triggered, priority control")
 
-    # Create test suite
+    # Create test suites
     basic_tests = PIC8259BasicTests(tb)
+    medium_tests = PIC8259MediumTests(tb)
 
     # Run all tests - test list varies by test level
     results = []
@@ -94,6 +96,21 @@ async def pic_8259_test(dut):
     medium_test_methods = [
         ('Level-Triggered Mode', basic_tests.test_level_triggered_mode),
         ('Priority Rotation', basic_tests.test_priority_rotation),
+        # GitHub #50 defect-regression: expected RED against current RTL
+        ('GH50 C3 ISR Set By Acknowledge', medium_tests.test_c3_isr_set_by_acknowledge),
+        ('GH50 C4 Edge IRR Clears On Acknowledge', medium_tests.test_c4_edge_irr_clears_on_acknowledge),
+        ('GH50 EOI + Nesting After Acknowledge', medium_tests.test_eoi_and_nesting_after_acknowledge),
+        ('GH50 SMM Allows Lower Priority During Service', medium_tests.test_special_mask_mode_allows_lower_priority_during_service),
+        ('GH50 Rotate-on-Non-Specific-EOI Base', medium_tests.test_rotate_on_nonspecific_eoi_changes_priority_base),
+        ('GH50 Rotate-on-AEOI Once Per Acknowledge', medium_tests.test_rotate_on_aeoi_rotates_once_per_acknowledge),
+        ('GH50 OCW2/OCW3 Gated Before Init', medium_tests.test_ocw2_ocw3_gated_before_init),
+        ('GH50 init_mode=1/auto_reset_init=0 Hold', medium_tests.test_init_mode_manual_hold_stays_complete),
+        ('GH50 Address Decode Aliases Dropped With PSLVERR', medium_tests.test_address_decode_aliases_dropped_with_pslverr),
+        ('GH50 IMR Read-After-Write', medium_tests.test_imr_read_after_write_no_stale_window),
+        ('GH50 int_out Deassert After Ack+EOI, Masked No-Assert', medium_tests.test_int_out_deasserts_after_last_ack_eoi_and_masked_irq_no_assert),
+        # GH50 RTL-review findings on the uncommitted fix: expected RED against current RTL
+        ('GH50 Non-Specific EOI Under SMM Retires Unmasked Level', medium_tests.test_nonspecific_eoi_under_smm_retires_unmasked_level),
+        ('GH50 Edge Inside Disabled Window Is Not Lost', medium_tests.test_edge_inside_disabled_window_is_not_lost),
     ]
 
     # Full tests (full level only)

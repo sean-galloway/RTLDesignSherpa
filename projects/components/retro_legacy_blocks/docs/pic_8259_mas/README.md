@@ -23,8 +23,9 @@
 
 # pic_8259 -- Specification
 
-**Status:** Written (chapters 1 and 5) - see pic_8259_mas_index.md for the
-authoritative status and known-inert-feature notes
+**Status:** Written (chapters 1 and 5), current to the 2026-09-09 RTL (issue
+#50 fixes) - see pic_8259_mas_index.md for the authoritative status and the
+list of storage-only fields
 
 ---
 
@@ -83,4 +84,4 @@ cd docs/
 
 ---
 
-**Last Updated:** 2025-10-29
+**Last Updated:** 2026-09-09

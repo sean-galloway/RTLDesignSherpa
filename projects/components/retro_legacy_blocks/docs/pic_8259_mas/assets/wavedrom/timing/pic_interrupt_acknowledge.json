@@ -1,11 +1,16 @@
 {
   "signal": [
     {"name": "pclk", "wave": "p........"},
-    {"name": "int", "wave": "1........"},
-    {"name": "inta_n", "wave": "1.0..1..."},
-    {"name": "irr[3]", "wave": "1.0......"},
-    {"name": "isr[3]", "wave": "0.1......"},
-    {"name": "vector", "wave": "x.2.....x", "data": ["0x0B"]}
+    {"name": "int_out", "wave": "1....0..."},
+    {},
+    {"name": "psel", "wave": "0..1.0..."},
+    {"name": "penable", "wave": "0...10..."},
+    {"name": "pwrite", "wave": "0........"},
+    {"name": "paddr", "wave": "x..2.x...", "data": ["PIC_INTA"]},
+    {"name": "prdata", "wave": "x...2x...", "data": ["0x10B"]},
+    {},
+    {"name": "irr[3]", "wave": "1....0..."},
+    {"name": "isr[3]", "wave": "0....1..."}
   ],
-  "head": {"text": "PIC 8259 Interrupt Acknowledge"}
+  "head": {"text": "PIC 8259 Acknowledge by Read (PIC_INTA, IRQ3)"}
 }

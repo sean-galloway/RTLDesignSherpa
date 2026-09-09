@@ -4,15 +4,16 @@ digraph pic_8259_top {
     node [shape=box, style="rounded,filled", fillcolor=lightblue];
 
     apb_in [label="APB Slave\nInterface", shape=ellipse, fillcolor=lightgreen];
-    irq_in [label="IR[7:0]\nInterrupt\nRequests", shape=ellipse, fillcolor=lightgreen];
-    cascade_in [label="CAS[2:0]\n(from master)", shape=ellipse, fillcolor=lightgreen];
+    irq_in [label="irq_in[7:0]\nInterrupt\nRequests (async)", shape=ellipse, fillcolor=lightgreen];
 
     subgraph cluster_pic {
         label="apb4_pic_8259";
         style=rounded;
 
-        apb_if [label="APB\nInterface", fillcolor=lightyellow];
+        apb_if [label="APB\nInterface\n(strict decode,\nPSLVERR)", fillcolor=lightyellow];
         regs [label="Control\nRegisters\n(ICW/OCW)", fillcolor=lightyellow];
+        inta [label="PIC_INTA\n(acknowledge\nby read)", fillcolor=lightyellow];
+        sync [label="Synchronizer\n(SYNC_STAGES)", fillcolor=lightcyan];
         irr [label="IRR\n(Request)", fillcolor=lightcyan];
         isr [label="ISR\n(In-Service)", fillcolor=lightcyan];
         imr [label="IMR\n(Mask)", fillcolor=lightcyan];
@@ -20,22 +21,22 @@ digraph pic_8259_top {
         vector [label="Vector\nGenerator", fillcolor=lightcyan];
     }
 
-    int_out [label="INT\n(to CPU)", shape=ellipse, fillcolor=pink];
-    cascade_out [label="CAS[2:0]\n(to slave)", shape=ellipse, fillcolor=pink];
-    ack_in [label="INTA\n(from CPU)", shape=ellipse, fillcolor=lightgreen];
+    int_out [label="int_out\n(to CPU)", shape=ellipse, fillcolor=pink];
 
     apb_in -> apb_if;
     apb_if -> regs;
-    irq_in -> irr;
+    apb_if -> inta [label="read 0x02C"];
+    irq_in -> sync;
+    sync -> irr;
     irr -> priority;
     imr -> priority;
     isr -> priority;
     regs -> imr;
-    regs -> isr;
+    regs -> isr [label="EOI"];
+    regs -> priority [label="rotate /\nset priority"];
     priority -> int_out;
-    ack_in -> vector;
-    vector -> isr;
-    regs -> vector;
-    cascade_in -> priority [style=dashed];
-    priority -> cascade_out [style=dashed];
+    priority -> vector;
+    vector -> inta [label="vector, valid"];
+    inta -> isr [label="set"];
+    inta -> irr [label="clear (edge)"];
 }

@@ -22,7 +22,11 @@
 //   Layer 2: pic_8259_config_regs - Register wrapper with edge detection
 //   Layer 3: pic_8259_core - Interrupt controller logic
 //
-// Register Map (32-bit aligned):
+// Parameters:
+//   - SYNC_STAGES: irq_in input synchronizer depth, >= 2. Default 2.
+//
+// Register Map (32-bit aligned). NOTHING ELSE in the 4 KB window is decoded:
+// every other address is dropped with PSLVERR (pic_8259_config_regs.sv).
 //   0x000: PIC_CONFIG      - Global configuration and control
 //   0x004: PIC_ICW1        - Initialization Command Word 1
 //   0x008: PIC_ICW2        - Initialization Command Word 2
@@ -34,12 +38,19 @@
 //   0x020: PIC_IRR         - Interrupt Request Register (read-only)
 //   0x024: PIC_ISR         - In-Service Register (read-only)
 //   0x028: PIC_STATUS      - Status register (read-only)
+//   0x02C: PIC_INTA        - Interrupt acknowledge BY READ (read-only, and
+//                            reading it has side effects - see pic_8259_core.sv)
+//
+// Updated: 2026-09-09 - GitHub #50: PIC_INTA acknowledge-by-read, strict
+//                       address decode with PSLVERR, irq_in synchronizer
 
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
 
-module apb4_pic_8259 (
+module apb4_pic_8259 #(
+    parameter int SYNC_STAGES = 2   // irq_in input synchronizer depth, >= 2
+) (
     //========================================================================
     // Clock and Reset
     //========================================================================
@@ -63,7 +74,7 @@ module apb4_pic_8259 (
     //========================================================================
     // Interrupt Interface
     //========================================================================
-    input  wire [7:0]              irq_in,         // IRQ inputs (IRQ0-7)
+    input  wire [7:0]              irq_in,         // IRQ inputs (IRQ0-7, async)
     output wire                    int_out         // Interrupt output (INT pin)
 );
 
@@ -128,40 +139,35 @@ module apb4_pic_8259 (
     // Configuration Register Interface Signals
     //========================================================================
 
-    wire        w_pic_enable;
-    wire        w_init_mode;
-    wire        w_auto_reset_init;
-    wire        w_ic4;
-    wire        w_sngl;
-    wire        w_ltim;
-    wire [7:0]  w_vector_base;
-    wire [7:0]  w_cascade;
-    wire        w_aeoi;
-    wire [1:0]  w_buf_mode;
-    wire        w_sfnm;
-    wire        w_icw1_wr;
-    wire        w_icw2_wr;
-    wire        w_icw3_wr;
-    wire        w_icw4_wr;
-    wire        w_ocw2_wr;
-    wire        w_ocw3_wr;
-    wire [2:0]  w_ocw2_irq_level;
-    wire [2:0]  w_ocw2_eoi_cmd;
-    wire [1:0]  w_ocw3_read_reg_cmd;
-    wire        w_ocw3_poll_cmd;
-    wire [1:0]  w_ocw3_smm_cmd;
-    wire        w_imr_reg_wr;
-    wire [7:0]  w_imr_reg_out;
-    wire [7:0]  w_imr_reg_in;
-    wire [7:0]  w_irr;
-    wire [7:0]  w_isr;
-    wire        w_init_complete;
-    wire [2:0]  w_icw_step;
-    wire        w_int_output;
-    wire [2:0]  w_highest_priority;
+    logic        w_pic_enable;
+    logic        w_init_mode;
+    logic        w_ic4;
+    logic        w_sngl;
+    logic        w_ltim;
+    logic [7:0]  w_vector_base;
+    logic        w_aeoi;
+    logic [7:0]  w_imr;
+    logic        w_icw1_wr;
+    logic        w_icw2_wr;
+    logic        w_icw3_wr;
+    logic        w_icw4_wr;
+    logic        w_ocw2_wr;
+    logic        w_ocw3_wr;
+    logic [2:0]  w_ocw2_irq_level;
+    logic [2:0]  w_ocw2_eoi_cmd;
+    logic [1:0]  w_ocw3_smm_cmd;
+    logic        w_inta_ack;
+    logic [7:0]  w_inta_vector;
+    logic        w_inta_valid;
+    logic [7:0]  w_irr;
+    logic [7:0]  w_isr;
+    logic        w_init_complete;
+    logic [2:0]  w_icw_step;
+    logic        w_int_output;
+    logic [2:0]  w_highest_priority;
 
     //========================================================================
-    // Configuration Registers Module
+    // Configuration Registers
     //========================================================================
 
     pic_8259_config_regs u_config_regs (
@@ -181,18 +187,17 @@ module apb4_pic_8259 (
         .rsp_prdata            (w_rsp_prdata),
         .rsp_pslverr           (w_rsp_pslverr),
 
-        // PIC Core Interface
+        // Configuration to the core
         .pic_enable            (w_pic_enable),
         .init_mode             (w_init_mode),
-        .auto_reset_init       (w_auto_reset_init),
         .ic4                   (w_ic4),
         .sngl                  (w_sngl),
         .ltim                  (w_ltim),
         .vector_base           (w_vector_base),
-        .cascade               (w_cascade),
         .aeoi                  (w_aeoi),
-        .buf_mode              (w_buf_mode),
-        .sfnm                  (w_sfnm),
+        .imr                   (w_imr),
+
+        // Write strobes and command values
         .icw1_wr               (w_icw1_wr),
         .icw2_wr               (w_icw2_wr),
         .icw3_wr               (w_icw3_wr),
@@ -201,12 +206,14 @@ module apb4_pic_8259 (
         .ocw3_wr               (w_ocw3_wr),
         .ocw2_irq_level        (w_ocw2_irq_level),
         .ocw2_eoi_cmd          (w_ocw2_eoi_cmd),
-        .ocw3_read_reg_cmd     (w_ocw3_read_reg_cmd),
-        .ocw3_poll_cmd         (w_ocw3_poll_cmd),
         .ocw3_smm_cmd          (w_ocw3_smm_cmd),
-        .imr_reg_wr            (w_imr_reg_wr),
-        .imr_reg_out           (w_imr_reg_out),
-        .imr_reg_in            (w_imr_reg_in),
+
+        // Acknowledge by read
+        .inta_ack              (w_inta_ack),
+        .inta_vector           (w_inta_vector),
+        .inta_valid            (w_inta_valid),
+
+        // Status from the core
         .irr_in                (w_irr),
         .isr_in                (w_isr),
         .init_complete         (w_init_complete),
@@ -219,25 +226,22 @@ module apb4_pic_8259 (
     // PIC Core (Interrupt Controller Logic)
     //========================================================================
 
-    wire [7:0] w_int_vector;  // For future INTA cycle support
-
-    pic_8259_core u_pic_core (
+    pic_8259_core #(
+        .SYNC_STAGES         (SYNC_STAGES)
+    ) u_pic_core (
         .clk                 (pclk),
-        .rst                 (~presetn),  // Convert active-low to active-high
-        
+        .rst_n               (presetn),
+
         // Configuration
         .cfg_pic_enable      (w_pic_enable),
         .cfg_init_mode       (w_init_mode),
-        .cfg_auto_reset_init (w_auto_reset_init),
         .cfg_ic4             (w_ic4),
         .cfg_sngl            (w_sngl),
         .cfg_ltim            (w_ltim),
         .cfg_vector_base     (w_vector_base),
-        .cfg_cascade         (w_cascade),
         .cfg_aeoi            (w_aeoi),
-        .cfg_buf_mode        (w_buf_mode),
-        .cfg_sfnm            (w_sfnm),
-        
+        .cfg_imr             (w_imr),
+
         // ICW/OCW write strobes
         .icw1_wr             (w_icw1_wr),
         .icw2_wr             (w_icw2_wr),
@@ -245,19 +249,15 @@ module apb4_pic_8259 (
         .icw4_wr             (w_icw4_wr),
         .ocw2_wr             (w_ocw2_wr),
         .ocw3_wr             (w_ocw3_wr),
-        
-        // OCW2/OCW3 commands
         .ocw2_irq_level      (w_ocw2_irq_level),
         .ocw2_eoi_cmd        (w_ocw2_eoi_cmd),
-        .ocw3_read_reg_cmd   (w_ocw3_read_reg_cmd),
-        .ocw3_poll_cmd       (w_ocw3_poll_cmd),
         .ocw3_smm_cmd        (w_ocw3_smm_cmd),
-        
-        // IMR bidirectional
-        .imr_reg_in          (w_imr_reg_out),
-        .imr_reg_wr          (w_imr_reg_wr),
-        .imr_reg_out         (w_imr_reg_in),
-        
+
+        // Acknowledge by read
+        .inta_ack            (w_inta_ack),
+        .inta_vector         (w_inta_vector),
+        .inta_valid          (w_inta_valid),
+
         // Status outputs
         .irr_out             (w_irr),
         .isr_out             (w_isr),
@@ -265,10 +265,9 @@ module apb4_pic_8259 (
         .icw_step            (w_icw_step),
         .int_output          (w_int_output),
         .highest_priority    (w_highest_priority),
-        
+
         // Hardware interface
-        .irq_in              (irq_in),
-        .int_vector          (w_int_vector)
+        .irq_in              (irq_in)
     );
 
     //========================================================================

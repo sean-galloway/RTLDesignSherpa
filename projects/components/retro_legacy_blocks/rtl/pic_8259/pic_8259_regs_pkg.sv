@@ -5,23 +5,15 @@ package pic_8259_regs_pkg;
 
     localparam PIC_8259_REGS_DATA_WIDTH = 32;
     localparam PIC_8259_REGS_MIN_ADDR_WIDTH = 6;
-    localparam PIC_8259_REGS_SIZE = 'h2c;
+    localparam PIC_8259_REGS_SIZE = 'h30;
 
     typedef struct {
-        logic next;
+        logic hwclr;
     } pic_8259_regs__PIC_CONFIG__init_mode__in_t;
 
     typedef struct {
         pic_8259_regs__PIC_CONFIG__init_mode__in_t init_mode;
     } pic_8259_regs__PIC_CONFIG__in_t;
-
-    typedef struct {
-        logic [7:0] next;
-    } pic_8259_regs__PIC_OCW1__imr__in_t;
-
-    typedef struct {
-        pic_8259_regs__PIC_OCW1__imr__in_t imr;
-    } pic_8259_regs__PIC_OCW1__in_t;
 
     typedef struct {
         logic [7:0] next;
@@ -63,11 +55,24 @@ package pic_8259_regs_pkg;
     } pic_8259_regs__PIC_STATUS__in_t;
 
     typedef struct {
+        logic [7:0] next;
+    } pic_8259_regs__PIC_INTA__vector__in_t;
+
+    typedef struct {
+        logic next;
+    } pic_8259_regs__PIC_INTA__valid__in_t;
+
+    typedef struct {
+        pic_8259_regs__PIC_INTA__vector__in_t vector;
+        pic_8259_regs__PIC_INTA__valid__in_t valid;
+    } pic_8259_regs__PIC_INTA__in_t;
+
+    typedef struct {
         pic_8259_regs__PIC_CONFIG__in_t PIC_CONFIG;
-        pic_8259_regs__PIC_OCW1__in_t PIC_OCW1;
         pic_8259_regs__PIC_IRR__in_t PIC_IRR;
         pic_8259_regs__PIC_ISR__in_t PIC_ISR;
         pic_8259_regs__PIC_STATUS__in_t PIC_STATUS;
+        pic_8259_regs__PIC_INTA__in_t PIC_INTA;
     } pic_8259_regs__in_t;
 
     typedef struct {
@@ -200,6 +205,14 @@ package pic_8259_regs_pkg;
     } pic_8259_regs__PIC_OCW3__out_t;
 
     typedef struct {
+        logic swacc;
+    } pic_8259_regs__PIC_INTA__vector__out_t;
+
+    typedef struct {
+        pic_8259_regs__PIC_INTA__vector__out_t vector;
+    } pic_8259_regs__PIC_INTA__out_t;
+
+    typedef struct {
         pic_8259_regs__PIC_CONFIG__out_t PIC_CONFIG;
         pic_8259_regs__PIC_ICW1__out_t PIC_ICW1;
         pic_8259_regs__PIC_ICW2__out_t PIC_ICW2;
@@ -208,5 +221,6 @@ package pic_8259_regs_pkg;
         pic_8259_regs__PIC_OCW1__out_t PIC_OCW1;
         pic_8259_regs__PIC_OCW2__out_t PIC_OCW2;
         pic_8259_regs__PIC_OCW3__out_t PIC_OCW3;
+        pic_8259_regs__PIC_INTA__out_t PIC_INTA;
     } pic_8259_regs__out_t;
 endpackage

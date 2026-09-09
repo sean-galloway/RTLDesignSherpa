@@ -77,6 +77,7 @@ module pic_8259_regs (
         logic PIC_IRR;
         logic PIC_ISR;
         logic PIC_STATUS;
+        logic PIC_INTA;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
     logic decoded_req;
@@ -96,6 +97,7 @@ module pic_8259_regs (
         decoded_reg_strb.PIC_IRR = cpuif_req_masked & (cpuif_addr == 6'h20);
         decoded_reg_strb.PIC_ISR = cpuif_req_masked & (cpuif_addr == 6'h24);
         decoded_reg_strb.PIC_STATUS = cpuif_req_masked & (cpuif_addr == 6'h28);
+        decoded_reg_strb.PIC_INTA = cpuif_req_masked & (cpuif_addr == 6'h2c);
     end
 
     // Pass down signals to next stage
@@ -323,11 +325,11 @@ module pic_8259_regs (
         automatic logic load_next_c;
         next_c = field_storage.PIC_CONFIG.init_mode.value;
         load_next_c = '0;
-        if(decoded_reg_strb.PIC_CONFIG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.PIC_CONFIG.init_mode.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+        if(hwif_in.PIC_CONFIG.init_mode.hwclr) begin // HW Clear
+            next_c = '0;
             load_next_c = '1;
-        end else begin // HW Write
-            next_c = hwif_in.PIC_CONFIG.init_mode.next;
+        end else if(decoded_reg_strb.PIC_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PIC_CONFIG.init_mode.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
             load_next_c = '1;
         end
         field_combo.PIC_CONFIG.init_mode.next = next_c;
@@ -628,9 +630,6 @@ module pic_8259_regs (
         if(decoded_reg_strb.PIC_OCW1 && decoded_req_is_wr) begin // SW write
             next_c = (field_storage.PIC_OCW1.imr.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
             load_next_c = '1;
-        end else begin // HW Write
-            next_c = hwif_in.PIC_OCW1.imr.next;
-            load_next_c = '1;
         end
         field_combo.PIC_OCW1.imr.next = next_c;
         field_combo.PIC_OCW1.imr.load_next = load_next_c;
@@ -783,6 +782,7 @@ module pic_8259_regs (
         end
     end
     assign hwif_out.PIC_OCW3.smm_cmd.value = field_storage.PIC_OCW3.smm_cmd.value;
+    assign hwif_out.PIC_INTA.vector.swacc = decoded_reg_strb.PIC_INTA;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -800,7 +800,7 @@ module pic_8259_regs (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[11];
+    logic [31:0] readback_array[12];
     assign readback_array[0][0:0] = (decoded_reg_strb.PIC_CONFIG && !decoded_req_is_wr) ? field_storage.PIC_CONFIG.pic_enable.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.PIC_CONFIG && !decoded_req_is_wr) ? field_storage.PIC_CONFIG.init_mode.value : '0;
     assign readback_array[0][2:2] = (decoded_reg_strb.PIC_CONFIG && !decoded_req_is_wr) ? field_storage.PIC_CONFIG.auto_reset_init.value : '0;
@@ -830,6 +830,9 @@ module pic_8259_regs (
     assign readback_array[10][4:4] = (decoded_reg_strb.PIC_STATUS && !decoded_req_is_wr) ? hwif_in.PIC_STATUS.int_output.next : '0;
     assign readback_array[10][7:5] = (decoded_reg_strb.PIC_STATUS && !decoded_req_is_wr) ? hwif_in.PIC_STATUS.highest_priority.next : '0;
     assign readback_array[10][31:8] = (decoded_reg_strb.PIC_STATUS && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[11][7:0] = (decoded_reg_strb.PIC_INTA && !decoded_req_is_wr) ? hwif_in.PIC_INTA.vector.next : '0;
+    assign readback_array[11][8:8] = (decoded_reg_strb.PIC_INTA && !decoded_req_is_wr) ? hwif_in.PIC_INTA.valid.next : '0;
+    assign readback_array[11][31:9] = (decoded_reg_strb.PIC_INTA && !decoded_req_is_wr) ? 23'h0 : '0;
 
     // Reduce the array
     always_comb begin
@@ -837,7 +840,7 @@ module pic_8259_regs (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<11; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<12; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

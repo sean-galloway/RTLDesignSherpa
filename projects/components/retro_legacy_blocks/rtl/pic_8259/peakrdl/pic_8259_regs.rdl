@@ -30,7 +30,17 @@
  *   0x020: PIC_IRR         - Interrupt Request Register (read-only)
  *   0x024: PIC_ISR         - In-Service Register (read-only)
  *   0x028: PIC_STATUS      - Status register (initialization state)
- *   0x02C-0xFFF: Reserved for future expansion
+ *   0x02C: PIC_INTA        - Interrupt acknowledge by read (read-only, side-effecting)
+ *   0x030-0xFFF: NOT DECODED - dropped with PSLVERR (see pic_8259_config_regs.sv)
+ *
+ * ACKNOWLEDGE BY READ (GitHub #50)
+ *   The original 8259A takes its acknowledge from the CPU's INTA bus cycle,
+ *   which APB has no equivalent of. PIC_INTA replaces it: a READ of 0x02C is
+ *   the acknowledge, the way the ARM PL190 VIC's VICVectAddr read is. See
+ *   pic_8259_core.sv for the full semantics; the register only has to be
+ *   read-only, side-effecting, and NOT storage - its readback must present the
+ *   pre-acknowledge vector combinationally in the same cycle the side effect
+ *   is taken.
  */
 
 addrmap pic_8259_regs {
@@ -59,9 +69,20 @@ addrmap pic_8259_regs {
 
         field {
             name = "Init Mode";
-            desc = "Initialization mode (0=operational, 1=initialization sequence)";
+            desc = "Start/allow an initialization sequence. Set it, then write
+                    ICW1: the ICW1 write CONSUMES the request. It is not a level
+                    that holds the core out of INIT_COMPLETE, so leaving it set
+                    with auto_reset_init=0 is legal (GitHub #50 round_2 item 3).
+                    Cleared by hardware after ICW4 when auto_reset_init=1.";
             sw = rw;
-            hw = rw;
+            hw = r;
+            hwclr;              // auto-clear after ICW4; see precedence below
+            precedence = hw;    // GitHub #50 round_3 item 2: a software
+                                // PIC_CONFIG write landing in the same cycle as
+                                // the auto-clear must NOT swallow it. The clear
+                                // is a hardware event, so hardware wins - which
+                                // is the whole reason this is `hwclr` and not a
+                                // hw-writeback mirror through hwif_in.next.
         } init_mode[1:1] = 1'b0;
 
         field {
@@ -225,7 +246,13 @@ addrmap pic_8259_regs {
             name = "Interrupt Mask";
             desc = "Mask bits for IRQ0-7: 1=masked (disabled), 0=unmasked (enabled)";
             sw = rw;
-            hw = rw;
+            hw = r;     // GitHub #50 round_2 item 4: the regblock field is the
+                        // ONE copy of the IMR. It used to be hw = rw with
+                        // pic_8259_core holding a mirror that was written back
+                        // through hwif_in.next every cycle, which made the
+                        // readback lag the write by a cycle and silently
+                        // reverted any write the core's strobe did not see.
+                        // The core now reads this field directly.
         } imr[7:0] = 8'hFF;  // Default: all masked
 
         field {
@@ -396,5 +423,48 @@ addrmap pic_8259_regs {
         } reserved[31:8] = 24'h0;
 
     } PIC_STATUS @ 0x028;
+
+    //========================================================================
+    // Interrupt Acknowledge (0x02C) - READING THIS REGISTER HAS SIDE EFFECTS
+    //========================================================================
+
+    reg {
+        name = "Interrupt Acknowledge";
+        desc = "Acknowledge-by-read replacement for the 8259A INTA bus cycle
+                (GitHub #50). A READ performs the acknowledge; a write is
+                ignored. Both fields are wires, not storage: PeakRDL emits the
+                readback straight from hwif_in.*.next, so the value returned is
+                the state BEFORE the acknowledge that same read performs.";
+
+        field {
+            name = "Interrupt Vector";
+            desc = "ICW2 vector_base[7:3] concatenated with the acknowledged IRQ
+                    level when valid=1; the spurious vector base[7:3] | 7 when
+                    valid=0 (8259A spurious-IRQ7 convention)";
+            sw = r;
+            hw = w;
+            swacc;      // the acknowledge strobe. It is a LEVEL two cycles wide
+                        // behind peakrdl_to_cmdrsp (which holds its request
+                        // until acked), so pic_8259_config_regs rising-edge
+                        // detects it - one read, one acknowledge.
+        } vector[7:0];
+
+        field {
+            name = "Acknowledge Valid";
+            desc = "1=an unmasked, unblocked request was acknowledged and
+                    vector names it; 0=nothing was pending, vector is the
+                    spurious IRQ7 vector and the read had no side effects";
+            sw = r;
+            hw = w;
+        } valid[8:8];
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:9] = 23'h0;
+
+    } PIC_INTA @ 0x02C;
 
 };
