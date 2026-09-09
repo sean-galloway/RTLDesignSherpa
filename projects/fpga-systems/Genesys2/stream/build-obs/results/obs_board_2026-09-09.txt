@@ -1,0 +1,100 @@
+--- program obs f3d7f93d593cfc02
+Programming xc7k325t_0 with /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/stream/build-obs/fpga/bitstream/stream_mon_4ch_obs_obsmaster_obsslave.bit
+Program complete.
+--- host_obs_campaign.py --iters 5
+[07:03:11]   Trace: 0 packets, overflow=no
+[004] stream pass=True rd_compl=1107 wr_compl=1107 rd_perf=1293269 wr_perf=1293263
+[004] slave  pass=True rd_compl=1106 wr_compl=1107 rd_perf=1293270 wr_perf=1293263
+
+==== cumulative ====
+stream total=12942107  rd_compl=5536 wr_compl=5534 rd_perf=6465532 wr_perf=6465505
+slave  total=12942107  rd_compl=5533 wr_compl=5533 rd_perf=6465535 wr_perf=6465506
+
+TOTAL PACKETS BINNED: 25884214
+UART connection closed
+campaign exit: 0
+--- host_obs_matrix.py
+[autodetect] stream harness found on /dev/ttyUSB0
+packet-class matrix: 7 classes, 3 iterations each
+[07:03:12] --- compl: 1ch x 8desc x 64KB ---
+[07:03:14]   DMA completed in 0.064s
+[07:03:14]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[07:03:14] --- compl: 1ch x 8desc x 64KB ---
+[07:03:16]   DMA completed in 0.064s
+[07:03:16]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[07:03:17] --- compl: 1ch x 8desc x 64KB ---
+[07:03:19]   DMA completed in 0.064s
+[07:03:19]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+  [OK ] compl      keyed=13470     unexpected=0       rd_compl=3369, wr_compl=3369
+[07:03:19] --- perf: 1ch x 8desc x 64KB ---
+[07:03:21]   DMA completed in 0.064s
+[07:03:21]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[07:03:22] --- perf: 1ch x 8desc x 64KB ---
+[07:03:24]   DMA completed in 0.064s
+[07:03:24]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[07:03:25] --- perf: 1ch x 8desc x 64KB ---
+[07:03:27]   DMA completed in 0.064s
+[07:03:27]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+  [OK ] perf       keyed=15532742  unexpected=0       rd_perf=3879872, wr_perf=3879857, rd_compl=3321, wr_comp
+[07:03:28] --- addrmatch: 1ch x 8desc x 64KB ---
+[07:03:30]   DMA completed in 0.064s
+[07:03:30]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[07:03:30] --- addrmatch: 1ch x 8desc x 64KB ---
+[07:03:32]   DMA completed in 0.064s
+[07:03:33]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[07:03:33] --- addrmatch: 1ch x 8desc x 64KB ---
+[07:03:35]   DMA completed in 0.064s
+[07:03:35]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+  [OK ] addrmatch  keyed=13230     unexpected=0       rd_addrmatch=1647, wr_addrmatch=1641, rd_debug_side=1665
+[07:03:36] --- error: 1ch x 8desc x 64KB ---
+[07:03:38]   DMA completed in 0.064s
+[07:03:38]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[07:03:39] --- error: 1ch x 8desc x 64KB ---
+[07:03:41]   DMA completed in 0.064s
+[07:03:41]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[07:03:41] --- error: 1ch x 8desc x 64KB ---
+[07:03:43]   DMA completed in 0.064s
+[07:03:43]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+  [OK ] error      keyed=13206     unexpected=0       rd_err_addrrange=3303, wr_err_addrrange=3300
+           every command MISSES the allowlist -> Error/ADDR_RANGE
+[07:03:44] --- timeout: 1ch x 8desc x 64KB ---
+[07:03:46]   DMA completed in 0.064s
+[07:03:46]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[07:03:46] --- timeout: 1ch x 8desc x 64KB ---
+[07:03:48]   DMA completed in 0.064s
+[07:03:48]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[07:03:49] --- timeout: 1ch x 8desc x 64KB ---
+[07:03:51]   DMA completed in 0.064s
+[07:03:51]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+  [LOW] timeout    keyed=21        unexpected=0       
+[07:03:51] --- threshold: 1ch x 8desc x 64KB ---
+[07:03:53]   DMA completed in 0.064s
+[07:03:54]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[07:03:54] --- threshold: 1ch x 8desc x 64KB ---
+[07:03:56]   DMA completed in 0.064s
+[07:03:56]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[07:03:57] --- threshold: 1ch x 8desc x 64KB ---
+[07:03:59]   DMA completed in 0.064s
+[07:03:59]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+  [OK ] threshold  keyed=13206     unexpected=0       rd_thr_latency=3306, wr_thr_latency=3297
+[07:04:00] --- debug: 1ch x 8desc x 64KB ---
+[07:04:02]   DMA completed in 0.064s
+[07:04:02]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[07:04:02] --- debug: 1ch x 8desc x 64KB ---
+[07:04:04]   DMA completed in 0.064s
+[07:04:04]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+[07:04:05] --- debug: 1ch x 8desc x 64KB ---
+[07:04:07]   DMA completed in 0.064s
+[07:04:07]   CRC MATCH (rd=0x04D55BAE wr=0x04D55BAE)
+  [OK ] debug      keyed=13212     unexpected=0       rd_debug=3297, wr_debug=3309
+==== summary ====
+  compl          13470 keyed        0 unexpected
+  perf        15532742 keyed        0 unexpected
+  addrmatch      13230 keyed        0 unexpected
+  error          13206 keyed        0 unexpected
+  timeout           21 keyed        0 unexpected
+  threshold      13206 keyed        0 unexpected
+  debug          13212 keyed        0 unexpected
+6/7 classes above the 1000-packet floor
+matrix exit: 1
+end Wed Sep  9 07:04:07 AM PDT 2026
