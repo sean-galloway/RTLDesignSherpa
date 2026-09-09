@@ -62,6 +62,7 @@ This specification covers the Converters component — the configurable data-wid
 - [PeakRDL Adapter](ch03_protocol_blocks/05_peakrdl_adapter.md)
 - [UART to AXI4-Lite Bridge](ch03_protocol_blocks/07_uart_to_axil4.md)
 - [Width-plus-Protocol Chains](ch03_protocol_blocks/08_dwidth_chains.md)
+- [AXI4-Lite to Wishbone B4](ch03_protocol_blocks/10_axil4_to_wb4.md)
 
 ### Chapter 4: FSM Design
 

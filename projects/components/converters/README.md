@@ -412,6 +412,25 @@ axi4_to_apb4_convert #(
 
 ---
 
+### 4a. AXI4-Lite-to-Wishbone Bridge (axil4_to_wb4.sv)
+
+**Purpose:** AXI4-Lite slave in, Wishbone B4 master out (pipelined, or classic with `CLASSIC=1`)
+
+**Key Features:**
+- Built from the AXI4-Lite slave skids, a small in-order conversion core and `wb4_master`
+- Write and read paths merged into one command queue; responses routed back by issue order (a B4 rule), no IDs, no FSM
+- Alternates between a pending write and a pending read, so neither starves
+- ACK -> OKAY, ERR -> SLVERR, RTY -> `RTY_RESP` (SLVERR by default; AXI has no retry)
+- Same address and data width both sides; use the width converters in front when they differ
+
+**Use Cases:**
+- AXI4-Lite interconnects reaching Wishbone peripherals
+- Wishbone IP reuse behind an AXI4-Lite register fabric
+
+See the MAS chapter `docs/converter_mas/ch03_protocol_blocks/10_axil4_to_wb4.md`.
+
+---
+
 ### 5. PeakRDL-to-CmdRsp Adapter (peakrdl_to_cmdrsp.sv)
 
 **Purpose:** Convert PeakRDL-generated register interface to custom command/response protocol

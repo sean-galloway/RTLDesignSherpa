@@ -72,6 +72,7 @@ has no standalone PRD — this book is the authoritative document.)
 | Version | Date | Author | Description |
 | --- | --- | --- | --- |
 | 1.0 | 2026-01-03 | RTL Design Sherpa | Initial MAS release |
+| 1.2 | 2026-09-09 | RTL Design Sherpa | Added chapter 3.10, AXI4-Lite to Wishbone B4 |
 
 : Table 0.3: Revision History
 

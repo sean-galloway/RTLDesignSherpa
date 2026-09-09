@@ -3,6 +3,6 @@
 
 +incdir+$REPO_ROOT/rtl/amba/includes
 
-$REPO_ROOT/rtl/amba/wb4/wb4_pkg.sv
+-f $REPO_ROOT/rtl/amba/filelists/wb4_pkg.f
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/wb4/wb4_master.sv
