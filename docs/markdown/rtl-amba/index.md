@@ -37,6 +37,15 @@ This directory contains documentation for the AMBA (Advanced Microcontroller Bus
 
 AMBA 4 modules provide the foundation for high-performance SoC interconnect, widely deployed in production systems. These modules are mature, fully verified, and optimized for synthesis.
 
+### WB4 (Wishbone B4, pipelined)
+
+Open-standard peripheral bus; the pair speaks B4 pipelined mode behind the same command/response queues as the APB4 pair. There is no Wishbone B5.
+
+**[Wishbone B4 Module Documentation](wb4/README.md)**
+
+- **[wb4_master](wb4/wb4_master.md)** - Pipelined Wishbone master with command/response queues; credit-gated issue, RTY reported as status
+- **[wb4_slave](wb4/wb4_slave.md)** - Pipelined Wishbone slave with command/response queues; in-order registered termination, orphan-response guard
+
 ### APB4 (Advanced Peripheral Bus)
 
 Simple, low-power peripheral bus for control registers and low-bandwidth devices.

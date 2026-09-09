@@ -395,10 +395,11 @@ shifter_lfsr_galois, sort, debounce, pwm, reset_sync, cdc_handshake, cdc_synchro
 - IEEE754: 10/10 (fp16 + fp32 adder/multiplier/fma/exponent_adder/mantissa_mult)
 - Other: 4/4 (compressor_4to2, prefix_cell, prefix_cell_gray, int_to_bf16)
 
-### rtl/amba/ -- 41 of 44 PASS
+### rtl/amba/ -- 43 of 46 PASS
 
+wb4_master, wb4_slave (2026-09-09, in-RTL properties, sv2v flatten),
 apb4_master, apb4_slave, apb5_master, apb5_slave, apb4_monitor, apb5_monitor,
-apb4_slave_cdc, apb5_slave_cdc, axis_master, axis_slave, axi_split_combi (prove only),
+apb4_slave_cdc, apb5_slave_cdc, axis4_master, axis4_slave, axi_split_combi (prove only),
 cdc_handshake, cdc_synchronizer, monbus_arbiter (via common),
 axi4_master_rd, axi4_master_wr, axi4_slave_rd, axi4_slave_wr,
 axi4_master_rd_cg, axi4_master_wr_cg, axi4_slave_rd_cg, axi4_slave_wr_cg,

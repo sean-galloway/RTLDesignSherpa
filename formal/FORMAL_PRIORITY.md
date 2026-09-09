@@ -330,6 +330,13 @@ Status: PASSING = proved (prove+cover), PROVE = prove-only PASS, ERROR = prove f
 | apb5_master        | 2        | PASSING | APB5 variant                            |
 | apb5_slave         | 2        | PASSING | APB5 variant                            |
 | apb5_monitor       | 2        | PASSING | APB5 variant                            |
+
+### Wishbone Modules
+
+| Module             | Priority | Status | Notes                                   |
+| ------------------ | -------- | ------ | --------------------------------------- |
+| wb4_master         | 2        | PASSING | B4 pipelined: STB->CYC, stalled request held, credit invariant, termination always enqueued; 3 mutations FAIL |
+| wb4_slave          | 2        | PASSING | B4 pipelined: one-hot termination only inside a cycle for an outstanding transfer; abort covered; mutation FAILs |
 | apb4_slave_cdc      | 2        | PASSING | CDC variant — prove safe crossing       |
 | apb5_slave_cdc     | 2        | PASSING | APB5 CDC variant                        |
 | apb_*_cg / *_stub  | 0        |        | CG/stub variants                        |
@@ -339,8 +346,8 @@ Status: PASSING = proved (prove+cover), PROVE = prove-only PASS, ERROR = prove f
 
 | Module                 | Priority | Status | Notes                              |
 | ---------------------- | -------- | ------ | ---------------------------------- |
-| axis_master            | 2        | PASSING | Prove TVALID/TREADY/TLAST protocol |
-| axis_slave             | 2        | PASSING | Same                               |
+| axis4_master            | 2        | PASSING | Prove TVALID/TREADY/TLAST protocol |
+| axis4_slave             | 2        | PASSING | Same                               |
 | axis5_master           | 3        |        | AXIS5 variant                      |
 | axis5_slave            | 3        |        | AXIS5 variant                      |
 | axis_*_cg / axis5_*_cg | 0        |        | CG variants                        |

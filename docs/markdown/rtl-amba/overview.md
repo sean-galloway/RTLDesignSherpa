@@ -94,7 +94,7 @@ AMBA Protocol Family
 ### Implementation Architecture
 
 ```
-RTL AMBA Library Architecture (131 modules under rtl/amba/)
+RTL AMBA Library Architecture (134 modules under rtl/amba/)
  AMBA 4 Protocol Implementations (45 modules)
     APB4 (9 modules) -- rtl/amba/apb4/
       Masters, slaves, clock-gating and CDC variants, test stubs
@@ -104,6 +104,10 @@ RTL AMBA Library Architecture (131 modules under rtl/amba/)
       Read/write masters and slaves, clock-gating and monitored variants
     AXI4-Stream (4 modules) -- rtl/amba/axis4/
        Masters and slaves, clock-gating variants
+
+ Other bus protocols (3 modules)
+    Wishbone B4 (3 modules) -- rtl/amba/wb4/
+      Pipelined master and slave behind the APB4-style command/response queues, status package
 
  AMBA 5 Protocol Implementations (30 modules)
     APB5 (9 modules) -- rtl/amba/apb5/

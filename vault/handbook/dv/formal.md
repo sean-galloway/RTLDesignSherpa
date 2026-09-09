@@ -36,3 +36,20 @@ Rules - each guards against a proof that PASSES while checking nothing:
 - Formal at small N is blind to synthesis pathology
   ([[priority-logic-depth]]) - synthesis is its own gate.
 Trackers: formal/FORMAL_TODO.md, formal/FORMAL_PRIORITY.md.
+
+## Two sv2v/yosys traps met on wb4 (2026-09-09)
+
+- **`'0` inside `$past()` does not flatten.** `$past(x) != '0` becomes
+  `{$bits(type($past)) {1'sb0}}` and yosys fails with "Can't resolve function
+  name `\type'". Write `$past(x) != 0`.
+- **`// synthesis translate_off` is not a guard for yosys.** A `$display` in a
+  translate_off block becomes a `$check` cell and async2sync refuses it
+  ("TRG_WIDTH > 1"). Wrap simulation-only report blocks in `` `ifndef FORMAL ``
+  as well; the flatten runs with `--define=FORMAL`.
+- **A sim loop cannot reach what the peer never does.** The wb4 master/slave
+  loop test caught two of three RTL mutations; "slave terminates outside
+  CYC" survived because wb4_master never drops CYC with transfers in flight.
+  The slave harness's FREE master reaches that abort (cover `cp_abort`,
+  step 5) and the mutation FAILs the proof. When the DV peer is a
+  well-behaved sibling block, the environment-rule properties belong in
+  formal with a free peer, not in the loop.
