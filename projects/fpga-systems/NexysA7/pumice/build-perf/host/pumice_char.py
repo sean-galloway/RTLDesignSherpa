@@ -195,6 +195,8 @@ class ControllerConfig:
     force_inorder: Optional[bool] = None    # 1 = FIFO-only (no row-hit reorder)
     page_mode:     Optional[int] = None     # PAGE_POLICY_CFG.policy_mode (0=legacy)
     page_tr_init:  Optional[int] = None     # PAGE_TIMEOUT_CFG.tr_init
+    page_access:   Optional[Dict[str, int]] = None  # mode 5 table (set_page_access_cfg kw)
+    page_rbl:      Optional[Dict[str, int]] = None  # modes 6/7 table (set_page_rbl_cfg kw)
     rd_in_order:   bool = True              # R-channel return ordering (harness cfg)
     t_refi:        Optional[int] = None      # refresh interval (MC cycles)
     # PHY data timing: MUST match the board-validated bring-up tuple
@@ -255,6 +257,12 @@ class ControllerConfig:
             sched["lookahead"] = la
         if self.force_inorder is not None:
             sched["force_inorder"] = self.force_inorder
+        # table shape first, then the mode select (predictors read the shape
+        # at entry -- see Pumice.set_page_mode)
+        if self.page_access is not None:
+            drv.set_page_access_cfg(**self.page_access)
+        if self.page_rbl is not None:
+            drv.set_page_rbl_cfg(**self.page_rbl)
         if self.page_mode is not None:
             drv.set_page_mode(self.page_mode, tr_init=self.page_tr_init)
         if sched:
@@ -290,6 +298,25 @@ CONFIGS: Dict[str, ControllerConfig] = {
     "adapt_time": ControllerConfig(
         "adapt_time", scheme=dc.SCHEME_ROW_MAJOR,
         page_policy=dc.PAGE_POLICY_OPEN, page_mode=4, page_tr_init=24,
+        lookahead=LOOKAHEAD_MAX, force_inorder=False, rd_in_order=False),
+    # Restored 2026-09-09 (were set aside for timing): per-row access
+    # predictor and the RBLA miss-counter table, both on the reorder config.
+    # Sim-validated shapes: acc ctr_open_max=2/ctr_init=0 (test_pumice_core_acc),
+    # rbl miss_thresh=2 no epochs (test_pumice_core_rbl); rbl_dyn wants epochs.
+    "adapt_access": ControllerConfig(
+        "adapt_access", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, page_mode=5,
+        page_access={"ctr_open_max": 2, "ctr_init": 0},
+        lookahead=LOOKAHEAD_MAX, force_inorder=False, rd_in_order=False),
+    "rbl_static": ControllerConfig(
+        "rbl_static", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, page_mode=6,
+        page_rbl={"miss_thresh": 2, "ways_log2": 0, "sets_log2": 0, "reset_interval": 0},
+        lookahead=LOOKAHEAD_MAX, force_inorder=False, rd_in_order=False),
+    "rbl_dyn": ControllerConfig(
+        "rbl_dyn", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, page_mode=7,
+        page_rbl={"miss_thresh": 2, "ways_log2": 0, "sets_log2": 0, "reset_interval": 256},
         lookahead=LOOKAHEAD_MAX, force_inorder=False, rd_in_order=False),
     "fast_refresh": ControllerConfig(
         "fast_refresh", scheme=dc.SCHEME_ROW_MAJOR,
@@ -699,6 +726,11 @@ RUN_PROFILES: Dict[str, dict] = {
     # hist-vs-txn_count check is the assertion under investigation.
     "multiid_min": dict(configs=["baseline"], level="medium",
                         families=(FAM_COL_MAJOR,)),
+    # Axis-2 page-policy predictors (modes 4..7) on the reorder config, over
+    # the pattern pair that separates them (streaming vs page-thrash). This
+    # is the sim gate for the restored modes' CSR path.
+    "paging": dict(configs=["adapt_time", "adapt_access", "rbl_static", "rbl_dyn"],
+                   level="basic", families=(FAM_INCREMENTAL, FAM_COL_MAJOR)),
     # Everything: every preset (incl. refresh + adapt_time) x the full grid.
     "full": dict(configs="all", level="full", families=None),
 }

@@ -638,3 +638,18 @@ overlay or the static_close paging path should bisect: either the overlay
 regressed the CLOSE-page in_order throughput, or the 56.3%/45% floor was set
 against an older arbiter and needs re-calibrating for the current one. Repro:
 `SEED=49029 pytest test_pumice_core_dfi.py -k paging_sched_cross`.
+
+**Update 2026-09-09.** Two things moved under this test since bb1c152d3 (the
+write-lead block); neither is a new RTL bug and both are recorded here so the
+next reader does not re-derive them:
+- `pref_row_first` under the CLOSE-biased paging modes reads 80.33% (static_close,
+  rbl_static) / 84.96% (rbl_dyn) instead of 100%. Mechanism: ACT beats COL by
+  definition of the mode, so an ACT-ready entry takes the one cycle in tCCD (4 at
+  BL8) when the next column becomes eligible and the column slides one cycle: a
+  5-cycle period, 4/5. It read 100% only while the test poked the unphysical
+  tCCD=1. The test now exempts pref_row_first from the 100% gate with its own
+  0.75 floor (same treatment as in_order); open-page modes stay at 100%.
+- The restored modes (5/6/7, see the 2026-09-09 restoration commit) add
+  `rbl_static x in_order` 37.87% and `rbl_dyn x in_order` 44.14% to the in_order
+  floor failure -- same class as static_close (each is close-biased). The floor
+  assertion is left in place; this task is still the tracker.

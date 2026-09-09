@@ -147,6 +147,20 @@ if {[info exists ::env(PUMICE_SYS_75)] && $::env(PUMICE_SYS_75) ne "" && $::env(
     lappend current_defines "PUMICE_SYS_75"
     puts "verilog_define: PUMICE_SYS_75 (75 MHz / DDR2-300 profile)"
 }
+# Scheduling tier: env PUMICE_ENHANCED=1 compiles the arbiter's ORDER_MODE
+# overlays (in_order / age_threshold, SCHED_POLICY.order_mode). Default off:
+# the overlays add the cross-CAM global-oldest compare to the pick cone, so
+# they are a timing-gated opt-in (see pumice_cmd_arbiter.sv).
+if {[info exists ::env(PUMICE_ENHANCED)] && $::env(PUMICE_ENHANCED) ne "" && $::env(PUMICE_ENHANCED) ne "0"} {
+    lappend current_defines "PUMICE_ENHANCED"
+    puts "verilog_define: PUMICE_ENHANCED (order-mode overlays built)"
+}
+# Scheduler tier: env PUMICE_BANK_SCHED=1 selects the two-stage bank-partitioned
+# scheduler in place of the flat FR-FCFS arbiter (timing-gated opt-in).
+if {[info exists ::env(PUMICE_BANK_SCHED)] && $::env(PUMICE_BANK_SCHED) ne "" && $::env(PUMICE_BANK_SCHED) ne "0"} {
+    lappend current_defines "PUMICE_BANK_SCHED"
+    puts "verilog_define: PUMICE_BANK_SCHED (two-stage bank scheduler)"
+}
 set_property verilog_define $current_defines $src_fs
 
 set top_name ddr2_char_top

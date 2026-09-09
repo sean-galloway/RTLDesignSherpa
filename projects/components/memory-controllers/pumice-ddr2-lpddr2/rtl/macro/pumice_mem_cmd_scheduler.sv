@@ -78,6 +78,12 @@ module pumice_mem_cmd_scheduler
     input  logic [3:0]                page_mc_low_i,
     input  logic [3:0]                page_mc_init_i,
     input  logic [15:0]               page_check_ivl_i,
+    input  logic [3:0]                page_ctr_thresh_i,
+    input  logic [3:0]                page_ctr_init_i,
+    input  logic [7:0]                page_rbl_thresh_i,
+    input  logic [1:0]                page_rbl_ways_i,
+    input  logic [3:0]                page_rbl_sets_i,
+    input  logic [15:0]               page_rbl_ivl_i,
     output logic [31:0]               stat_page_hit_o,
     output logic [31:0]               stat_page_miss_o,
     output logic [31:0]               stat_page_empty_o,
@@ -394,10 +400,21 @@ module pumice_mem_cmd_scheduler
         .mc_low_thr_i      (page_mc_low_i),
         .mc_init_i         (page_mc_init_i),
         .check_interval_i  (page_check_ivl_i),
-        .cmd_valid_i       (cmd_valid_o && cmd_ready_i),
-        .cmd_op_i          (cmd_op_o),
-        .cmd_bank_i        (cmd_bank_o),
-        .cmd_row_i         (cmd_row_o),
+        .ctr_thresh_i      (page_ctr_thresh_i),
+        .ctr_init_i        (page_ctr_init_i),
+        .rbl_miss_thresh_i (page_rbl_thresh_i),
+        .rbl_ways_i        (page_rbl_ways_i),
+        .rbl_sets_i        (page_rbl_sets_i),
+        .rbl_reset_ivl_i   (page_rbl_ivl_i),
+        // Taps the ARBITER's accept (pre-FIFO), not the FIFO output: the
+        // predictors correlate each command with the LIVE bank image, and the
+        // cmd FIFO now releases CMD_DELAY cycles later -- a command seen that
+        // late no longer matches the row it acted on (adapt_access learned
+        // nothing: 12 vs 11 PREs, 2026-09-09).
+        .cmd_valid_i       (a_cmd_valid && a_cmd_ready),
+        .cmd_op_i          (a_cmd_op),
+        .cmd_bank_i        (a_cmd_bank),
+        .cmd_row_i         (a_cmd_row),
         .bank_row_active_i (w_bank_row_active[0]),
         .bank_open_row_i   (w_bank_open_row[0]),
         .ap_mode_en_o      (w_pp_ap_en),

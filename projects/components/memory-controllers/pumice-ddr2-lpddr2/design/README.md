@@ -902,3 +902,66 @@ REFs now reach the DFI through the delay AFTER init_done -- they were counted
 "inside a parked window"); the write-stream TB-starvation metric is AW-aware
 (W offering nothing while the DUT holds AW is the DUT's back-pressure) with an
 8% budget for the engine's per-burst refill gap under a physical tCCD.
+
+### PAGING MODES RESTORED (2026-09-09): adapt_access / rbl_static / rbl_dyn back in the base build
+
+User ask: "add more paging and scheduling options from the ones removed if
+timing passes now". Three tiers, each gated on the 75 MHz post-route build:
+
+  B. PAGE_POLICY_CFG.policy_mode 5/6/7 (pumice_row_pred_table, pumice_rbl_table,
+     the PAGE_RBL_CFG register and the ctr_width/ctr_open_max/ctr_init fields)
+     -- reverted ae8678975 + 1151b1c57 back in. DONE, see below.
+  A. The ORDER_MODE overlays (in_order / age_threshold, +define+PUMICE_ENHANCED)
+     in the board bitstream -- env PUMICE_ENHANCED=1 on create_project.tcl.
+  C. The two-stage bank scheduler (rtl/OLD/pumice_bank_cmd_picker +
+     pumice_bank_sched_core) as +define+PUMICE_BANK_SCHED. NOT restored: every
+     hazard fix of the last two sessions (AP-gated occupancy mask, forward
+     tCCD, live output re-checks, refresh column block, per-entry double-issue
+     guard, ring issue notify, decision-time commit ready) lives in the flat
+     arbiter's pick pipeline and would have to be re-derived inside the two-
+     stage picker. That is a port, not a revert; held for a go/no-go.
+
+TIMING CORRECTION FIRST. Every synth/route number quoted above this section
+("+1.117 ns at 75 MHz", "+0.885 ns at 75 MHz", this morning's post-route
++0.083 ns) was measured on the DEFAULT profile: the clock table in those
+reports shows w_sys_i at 15.000 ns = 66.67 MHz. The 75 MHz / DDR2-300 profile
+is +define+PUMICE_SYS_75, selected by env PUMICE_SYS_75=1 on `make bitstream`
+(create_project.tcl prints `verilog_define: PUMICE_SYS_75` when it is on --
+grep the build log for that line before believing a number). Only the
+numbers in this section are 75 MHz numbers.
+
+One more build-hygiene note: a build in a detached worktree still reads the
+pumice sources from the MAIN tree unless REPO_ROOT is overridden (env_python
+exports REPO_ROOT and the sub-filelists resolve through it), and the
+fpga_flow lock refuses to start while ANY vivado is running, so A/B builds are
+serial.
+
+Restoration findings:
+  1. The predictors learned nothing (adapt_access: 12 PREs vs baseline 11).
+     page_policy's command taps were fed from the scheduler's FIFO OUTPUT
+     (`cmd_valid_o && cmd_ready_i`), which now releases CMD_DELAY cycles after
+     the arbiter's decision (13 in the BL8 sim), while the bank image the
+     predictors correlate against (`bank_row_active_i`/`bank_open_row_i`) is
+     live. Moved the taps to the arbiter's accept (`a_cmd_valid && a_cmd_ready`
+     + a_cmd_op/bank/row) -- the same stream the scheduler's own ready-gated
+     history checker watches. rbl / acc / fixed_open pass.
+  2. paging_sched_cross: `pref_row_first` under the CLOSE-biased modes reads
+     80.33% (static_close, rbl_static) / 84.96% (rbl_dyn). ACT beats COL by the
+     mode's definition, so an ACT-ready entry takes the one cycle in tCCD (4 at
+     BL8) when the next column becomes eligible: 5-cycle period, 4/5. It was
+     100% only while the test poked tCCD=1. Exempted with a 0.75 floor (same
+     treatment as in_order). The in_order floor failure (PUMICE-021, 37.87%)
+     is unchanged and gains the two close-biased restored modes.
+  3. Host: Pumice.set_page_access_cfg / set_page_rbl_cfg (shadowed full-word
+     writes, shape BEFORE mode), presets adapt_access / rbl_static / rbl_dyn
+     on the reorder config, and RUN_PROFILES["paging"] (modes 4..7 x
+     incremental + col_major) as the sim gate for the CSR path.
+
+Results (restored tree):
+  * pumice suites (clean-all, run-all-full-parallel): fub 96 / macro 3 /
+    top 117 pass, 1 fail = PUMICE-021 (in_order floor, pre-existing).
+  * char sim, TEST_CHAR_PROFILE=paging: families + families_x16 pass.
+  * 75 MHz post-route, PUMICE_SYS_75=1: WNS +0.020 ns, 0 failing of 72888
+    endpoints, LUT 52.9% (33550), worst path unchanged in kind -- the
+    arbiter's r_rd_pop -> r_bank pre-pick-to-output register, not the
+    predictor tables.

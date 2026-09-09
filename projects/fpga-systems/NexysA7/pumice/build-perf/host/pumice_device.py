@@ -298,11 +298,33 @@ class Pumice(Device):
 
     def set_page_mode(self, mode: int, tr_init: Optional[int] = None) -> None:
         """PAGE_POLICY_CFG.policy_mode (0=legacy, 1=static_open, 2=static_close,
-        3=fixed_open, 4=adapt_time; 5..7 reserved until their modes land) and,
-        optionally, PAGE_TIMEOUT_CFG.tr_init for the timeout policies."""
-        self.regs.write("PAGE_POLICY_CFG", policy_mode=mode & 0x7)
+        3=fixed_open, 4=adapt_time, 5=adapt_access, 6=rbl_static, 7=rbl_dyn)
+        and, optionally, PAGE_TIMEOUT_CFG.tr_init for the timeout policies.
+        Modes 5..7 take their table shape from set_page_access_cfg() /
+        set_page_rbl_cfg(); program those BEFORE selecting the mode so the
+        predictor starts from a known table."""
+        self._wr("PAGE_POLICY_CFG", policy_mode=mode & 0x7)
         if tr_init is not None:
             self.regs.write("PAGE_TIMEOUT_CFG", tr_init=tr_init & 0xFF)
+
+    def set_page_access_cfg(self, *, ctr_open_max: int, ctr_init: int = 0,
+                            ctr_width: int = 0) -> None:
+        """adapt_access (mode 5) counter shape, PAGE_POLICY_CFG upper fields:
+        ctr_open_max = count at/above which a row is CLOSED (auto-precharge),
+        ctr_init = cold-table value (higher = close-biased), ctr_width = 0 for
+        the 2-bit counter. Shares the word with policy_mode via the shadow."""
+        self._wr("PAGE_POLICY_CFG", ctr_open_max=ctr_open_max & 0xF,
+                 ctr_init=ctr_init & 0xF, ctr_width=ctr_width & 0x3)
+
+    def set_page_rbl_cfg(self, *, miss_thresh: int, ways_log2: int = 0,
+                         sets_log2: int = 0, reset_interval: int = 0) -> None:
+        """rbl_static / rbl_dyn (modes 6/7) miss-counter table, PAGE_RBL_CFG:
+        miss_thresh = misses above which a row is low-locality (auto-
+        precharge), ways/sets = log2 table shape, reset_interval = epoch
+        length in MC cycles (0 = counters never reset; rbl_dyn wants epochs)."""
+        self._wr("PAGE_RBL_CFG", miss_thresh=miss_thresh & 0xFF,
+                 ways=ways_log2 & 0x3, sets=sets_log2 & 0xF,
+                 reset_interval=reset_interval & 0xFFFF)
 
     def set_refresh(self, *, refpb_policy: Optional[int] = None,
                     refresh_defer: Optional[int] = None,
