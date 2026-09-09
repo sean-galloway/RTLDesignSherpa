@@ -30,8 +30,8 @@ authoritative status and known-RTL-deviation notes
 
 ## Overview
 
-Specification for the RTC block (chapters 1 and 5 written; see
-rtc_mas_index.md for status and the known-RTL-deviation notes).
+Specification for the RTC block. Chapters 1 and 5 are written; see
+rtc_mas_index.md for status and the known-RTL-deviation notes.
 
 ## Planned Documentation Structure
 
@@ -66,14 +66,14 @@ rtc_mas_index.md for status and the known-RTL-deviation notes).
 
 ## Document Generation
 
-Documentation will be written in Markdown and can be converted to PDF:
+Documentation is written in Markdown and can be converted to PDF:
 
 ```bash
 cd docs/
 ./generate_pdf.sh
 ```
 
-## Reference Documents
+## References
 
 - Intel RTC datasheet
 - ACPI specification (if applicable)

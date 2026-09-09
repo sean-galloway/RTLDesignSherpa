@@ -23,19 +23,25 @@
 
 # APB RTC - Overview
 
-## Introduction
+## Overview
 
-The APB RTC is a Real-Time Clock controller with an APB slave interface. It maintains time and date and provides alarm and 1 Hz tick interrupt capabilities.
+The APB RTC is a real-time clock controller with an APB slave interface. It keeps time and date, and it raises two kinds of interrupts: a programmable alarm and a fixed 1 Hz tick.
 
-## Key Features
+### Figure 1.1: RTC Block Diagram
+
+![RTC Block Diagram](../assets/svg/rtc_top.png)
+
+## Functional Description
+
+The feature set is short — and the caveats are called out where they matter, because some of these features are broken in the current RTL and you need to know that up front.
 
 ### Time Keeping
-- Seconds, minutes, hours (12/24-hour mode -- 12-hour modes are BROKEN
+- Seconds, minutes, hours (12/24-hour mode — 12-hour modes are BROKEN
   in the current RTL, #56)
 - Day of month (1-31), month, year (0-99, base year 2000 is hardcoded)
 - Leap year calculation (base 2000, valid through 2099); the year field wraps 99 to 00 with no century carry
 - Binary format by default; BCD format exists but its DATE cascade is
-  broken in the current RTL (#56) -- only binary 24-hour keeps a correct
+  broken in the current RTL (#56) — only binary 24-hour keeps a correct
   calendar
 
 ### Alarm Function
@@ -50,7 +56,7 @@ The APB RTC is a Real-Time Clock controller with an APB slave interface. It main
 - External 32.768 kHz clock input (no oscillator or power-management
   logic on chip)
 
-## Applications
+### Applications
 
 - System timekeeping
 - Scheduled wake-up
@@ -58,45 +64,7 @@ The APB RTC is a Real-Time Clock controller with an APB slave interface. It main
 - Calendar functions
 - Alarm clock
 
-## Block Diagram
-
-### Figure 1.1: RTC Block Diagram
-
-![RTC Block Diagram](../assets/svg/rtc_top.png)
-
-## Timing Diagrams
-
-### Waveform 1.1: Time Register Read
-
-Reading the time registers returns the current time value.
-
-![RTC Time Read](../assets/wavedrom/timing/rtc_time_read.png)
-
-### Waveform 1.2: Time Increment with Rollover
-
-Shows the cascade of time registers as seconds overflow to minutes, minutes to hours, etc.
-
-![RTC Time Increment](../assets/wavedrom/timing/rtc_time_increment.png)
-
-The 1Hz tick from the 32.768kHz prescaler triggers the seconds counter. Each overflow cascades to the next register, demonstrating the 23:59:59 to 00:00:00 rollover.
-
-### Waveform 1.3: Alarm Match
-
-When the current time matches the alarm setting, an interrupt is generated.
-
-![RTC Alarm Match](../assets/wavedrom/timing/rtc_alarm_match.png)
-
-All configured alarm fields (seconds, minutes, hours) must match simultaneously for the alarm to trigger.
-
-### Waveform 1.4: Second-Tick Interrupt
-
-The RTC generates a fixed 1 Hz tick interrupt when enabled by `second_int_enable`.
-
-![RTC Periodic Interrupt](../assets/wavedrom/timing/rtc_periodic_interrupt.png)
-
-The 1 Hz tick is derived from the 32.768 kHz oscillator by a fixed divide-by-32768; there is no programmable rate selector. Each tick sets the `second_tick` status flag and, when enabled, asserts the second-tick interrupt.
-
-## Register Summary
+### Register Summary
 
 | Offset | Name | Access | Description |
 |--------|------|--------|-------------|
@@ -116,6 +84,42 @@ The 1 Hz tick is derived from the 32.768 kHz oscillator by a fixed divide-by-327
 
 See [ch05 Register Map](../ch05_registers/01_register_map.md) for full bit-level definitions and the time-set protocol.
 
+## Timing
+
+The four scenarios below cover normal operation: reading the time, watching it roll over, and the two interrupt sources.
+
+### Waveform 1.1: Time Register Read
+
+Reading the time registers returns the current time value.
+
+![RTC Time Read](../assets/wavedrom/timing/rtc_time_read.png)
+
+### Waveform 1.2: Time Increment with Rollover
+
+Shows the cascade of time registers as seconds overflow to minutes, minutes to hours, etc.
+
+![RTC Time Increment](../assets/wavedrom/timing/rtc_time_increment.png)
+
+The 1 Hz tick from the 32.768 kHz prescaler triggers the seconds counter. Each overflow cascades to the next register, demonstrating the 23:59:59 to 00:00:00 rollover.
+
+### Waveform 1.3: Alarm Match
+
+When the current time matches the alarm setting, an interrupt is generated.
+
+![RTC Alarm Match](../assets/wavedrom/timing/rtc_alarm_match.png)
+
+All configured alarm fields (seconds, minutes, hours) must match simultaneously for the alarm to trigger.
+
+### Waveform 1.4: Second-Tick Interrupt
+
+The RTC generates a fixed 1 Hz tick interrupt when enabled by `second_int_enable`.
+
+![RTC Periodic Interrupt](../assets/wavedrom/timing/rtc_periodic_interrupt.png)
+
+The 1 Hz tick is derived from the 32.768 kHz oscillator by a fixed divide-by-32768; there is no programmable rate selector. Each tick sets the `second_tick` status flag and, when enabled, asserts the second-tick interrupt.
+
 ---
+
+## Navigation
 
 **Next:** [02_architecture.md](02_architecture.md) - Architecture details

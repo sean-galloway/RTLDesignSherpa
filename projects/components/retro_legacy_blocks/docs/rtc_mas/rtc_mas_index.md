@@ -34,7 +34,7 @@ exists (see ch05 deviations and issue #56)
 
 ## Document Organization
 
-This specification is organized into five chapters covering all aspects of the APB RTC component:
+The specification is organized into five chapters covering the APB RTC end to end:
 
 > Status (2026-07-22): Only the Chapter 1 overview and architecture sections and the
 > Chapter 5 register map exist in this tree today. The remaining sections listed below
@@ -88,17 +88,6 @@ This specification is organized into five chapters covering all aspects of the A
 
 ---
 
-## Quick Navigation
-
-### For Software Developers
-- Reference [Chapter 5: Registers](ch05_registers/01_register_map.md) (the programming-model chapter is planned but not yet written)
-
-### For Hardware Integrators
-- Start with [Chapter 1: Overview](ch01_overview/01_overview.md)
-- The interfaces chapter is planned but not yet written; see `../../rtl/rtc/apb4_rtc.sv` for the current port list
-
----
-
 ## Version History
 
 | Version | Date | Author | Changes |
@@ -107,5 +96,14 @@ This specification is organized into five chapters covering all aspects of the A
 
 ---
 
-**Related Documentation:**
+## Navigation
+
+### For Software Developers
+- Reference [Chapter 5: Registers](ch05_registers/01_register_map.md) (the programming-model chapter is planned but not yet written)
+
+### For Hardware Integrators
+- Start with [Chapter 1: Overview](ch01_overview/01_overview.md)
+- The interfaces chapter is planned but not yet written; see `../../rtl/rtc/apb4_rtc.sv` for the current port list
+
+### Related Documentation
 - [PRD.md](../../PRD.md) - Product Requirements Document

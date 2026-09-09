@@ -23,30 +23,18 @@
 
 # APB RTC - Register Map
 
-The register block occupies 0x34 bytes (13 registers). Only PADDR[5:0] is
-decoded, so the 13-register image REPEATS every 0x40 bytes across the 4 KB
-window (0x40 aliases RTC_CONFIG, 0x4C aliases RTC_SECONDS, ...); within
-each image, 0x34-0x3F reads 0 / ignores writes with no error. Aliased
-WRITES are out of contract: the time-set and W1C strobes compare the full
-12-bit address, so an aliased time write never loads the counters and an
-aliased W1C clears only the register mirror.
+## Overview
 
-Behavioral notes: the alarm compare runs on the PRE-increment counters
-at the tick, so when alarm_flag sets, the time registers already read
-alarm+1s. The prescaler keeps running in time_set_mode, so second_tick
-status keeps setting during time-set. The alarm compare is also NOT gated
-by time_set_mode -- a stopped counter matching the alarm sets alarm_flag
-mid-programming (#56). With clock_select=1 (test mode)
-the tick rate is pclk/100, not 1 Hz.
-Two W1C hazards (#56): (1) the set sources (r_second_tick,
-r_alarm_match) are registered on the COUNTER clock, so in 32.768 kHz
-mode each set pulse is ~30.5 us wide -- a W1C issued inside that window
-is silently undone one pclk later and the interrupt re-fires (an ISR
-clearing promptly after the tick gets re-interrupted; invisible in
-clock_select=1 where pulses are one pclk). (2) Independently, the
-register mirror echoes the still-set core flag for one pclk after any
-W1C before the registered clear lands -- a read two cycles after the
-clear can still see the flag as 1.
+The register block occupies 0x34 bytes (13 registers). Only PADDR[5:0] is decoded, so the 13-register image REPEATS every 0x40 bytes across the 4 KB window — 0x40 aliases RTC_CONFIG, 0x4C aliases RTC_SECONDS, and so on. Within each image, 0x34-0x3F reads 0 and ignores writes, with no error.
+
+Aliased WRITES are out of contract: the time-set and W1C strobes compare the full 12-bit address, so an aliased time write never loads the counters and an aliased W1C clears only the register mirror.
+
+A few behaviors worth knowing before you program this thing. The alarm compare runs on the PRE-increment counters at the tick, so when alarm_flag sets, the time registers already read alarm+1s. The prescaler keeps running in time_set_mode, so second_tick status keeps setting during time-set. The alarm compare is also NOT gated by time_set_mode — a stopped counter matching the alarm sets alarm_flag mid-programming (#56). With clock_select=1 (test mode) the tick rate is pclk/100, not 1 Hz.
+
+Two W1C hazards (#56) deserve your attention:
+
+1. The set sources (r_second_tick, r_alarm_match) are registered on the COUNTER clock, so in 32.768 kHz mode each set pulse is ~30.5 us wide — a W1C issued inside that window is silently undone one pclk later and the interrupt re-fires. An ISR clearing promptly after the tick gets re-interrupted. This is invisible in clock_select=1, where pulses are one pclk.
+2. Independently, the register mirror echoes the still-set core flag for one pclk after any W1C before the registered clear lands — a read two cycles after the clear can still see the flag as 1.
 
 ## Register Summary
 
@@ -103,7 +91,7 @@ time-set protocol is used. To set the time:
 
 **Known RTL deviation (#56): this protocol only works with
 clock_select=1 (test mode).** The load strobe is one pclk cycle wide and
-is sampled by the counter clock -- with clock_select=0 the 32.768 kHz
+is sampled by the counter clock — with clock_select=0 the 32.768 kHz
 domain captures it with probability ~1/3000 per write, so in the
 production configuration the counters effectively never load and the
 RTC cannot be set (it free-runs from 2000-01-01). Until fixed, set the
@@ -166,7 +154,7 @@ bit 2) is set, the same fields are stored in BCD:
 
 In 12-hour BCD mode, RTC_HOURS bit 7 carries the PM indicator.
 
-**Known RTL deviations (issue #56) -- only binary 24-hour mode keeps a
+**Known RTL deviations (issue #56) — only binary 24-hour mode keeps a
 correct calendar in the current RTL:**
 
 - **BCD mode calendar is broken**: a width truncation in days_in_month
@@ -174,11 +162,13 @@ correct calendar in the current RTL:**
   28 -> 8), so BCD dates roll the month after at most day 9. BCD
   seconds/minutes/hours count correctly; the DATE cascade does not.
 - **12-hour BCD**: AM/PM toggles and the day carries at 12:59:59 -> 1:00
-  instead of 11:59:59 -> 12:00 -- pm_indicator reads inverted for one hour
+  instead of 11:59:59 -> 12:00 — pm_indicator reads inverted for one hour
   in twelve and the date changes an hour after midnight.
 - **12-hour binary**: the day carries on EVERY pass through 11 -> 12 (twice
   per day) and no AM/PM state exists at all.
 
 ---
+
+## Navigation
 
 **Back to:** [RTC Specification Index](../rtc_mas_index.md)

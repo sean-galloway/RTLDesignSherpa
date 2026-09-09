@@ -23,13 +23,15 @@
 
 # APB RTC - Architecture
 
-## High-Level Block Diagram
+## Overview
 
 ### Figure 1.2: RTC Architecture
 
 ![RTC Architecture](../assets/svg/rtc_top.png)
 
-## Module Hierarchy
+The design splits the way you'd expect: the APB slave and register wrapper up top, the timekeeping core underneath.
+
+### Module Hierarchy
 
 ```
 apb4_rtc (Top Level)
@@ -44,7 +46,7 @@ apb4_rtc (Top Level)
     +-- BCD Logic
 ```
 
-## Data Flow
+## Functional Description
 
 ### Time Update Flow
 
@@ -66,21 +68,15 @@ flowchart LR
     D -->|"if enabled"| E["IRQ"]
 ```
 
-## Clock Domains
+### Clock Domains
 
 - APB domain (pclk): Register access
 - RTC domain (32.768 kHz): Time counting
-- NO CDC exists in the current RTL (issue #56): the pclk-domain status
-  flops sample rtc-domain signals directly and the counter mirrors cross
-  unsynchronized (multi-register reads can tear across a rollover). It
-  works in practice for the rtc->pclk DIRECTION ONLY (one 32.768 kHz
-  cycle spans many pclk cycles). The pclk->rtc direction has NO working
-  path at all: the time-set load strobe is a single pclk cycle sampled by
-  rtc_clk, so with clock_select=0 a time-set write is captured with
-  probability ~1/3000 -- the time-set protocol is effectively DEAD in the
-  production 32.768 kHz configuration and only functions in
-  clock_select=1 test mode, where everything runs on pclk (issue #56)
+
+Here's the part that bites. There is NO CDC in the current RTL (issue #56): the pclk-domain status flops sample rtc-domain signals directly, and the counter mirrors cross unsynchronized, so multi-register reads can tear across a rollover. In practice this works for the rtc->pclk DIRECTION ONLY — one 32.768 kHz cycle spans many pclk cycles, so the slow side looks stable to the fast side. The pclk->rtc direction has NO working path at all: the time-set load strobe is a single pclk cycle sampled by rtc_clk, so with clock_select=0 a time-set write is captured with probability ~1/3000. The time-set protocol is effectively DEAD in the production 32.768 kHz configuration and only functions in clock_select=1 test mode, where everything runs on pclk (issue #56).
 
 ---
+
+## Navigation
 
 **Next:** [03_clocks_and_reset.md](03_clocks_and_reset.md)
