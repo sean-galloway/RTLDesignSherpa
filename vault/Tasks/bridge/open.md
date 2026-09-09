@@ -330,6 +330,70 @@ that generated tests must be regenerated, never hand-edited (CRITICAL RULE #0).
 **Related:** [[TASK-078]], [[COMMON-025]], [[MATH-010]], [[CDC-001]] are the
 same task in the rtl/ areas.
 
+**Audit 2026-09-09, AMBA5 focus (hand audit against the checklist; the
+testqc round has still not been run).** Measured on a clean FULL run:
+72 passed / 0 failed / 0 reruns, 40 files, 6m08s. 63/63 generator unit
+tests, 21 of them AMBA5 validator rules.
+
+*Premise check first.* "Full AMBA5" is not what the tree does, and the
+tests match the tree, not the phrase. Support is the interop scope:
+AXI5 master and slave ports with native sideband (nsaid/trace/mpam/mecid/
+unique/poison) and STORE-class atomics; AtomicLoad/Swap/Compare are
+DECERR'd at the master boundary by `axi5_atomic_filter` (A5-3 read-return
+routing is still not built); mte/chunking rejected by the validator;
+axil5 and apb5 are slave-only. Every AMBA5 fixture is 1x2, single
+master, all ports 32-bit.
+
+Findings, in impact order:
+
+1. **Levels: 0 of 40 compliant** (`check_test_levels.py`). The jinja
+   template `bridge_test_file.py.j2` never reads REG_LEVEL, never exports
+   TEST_LEVEL, and the TBs never read it -- so `run-all-gate`, `-func` and
+   `-full` run the identical suite. Both halves of the HARD REQUIREMENT
+   are missing, suite-wide, from one template. One fix, 40 files
+   (regenerate, never hand-edit).
+2. **No SEED anywhere.** No generated test or TB reads SEED or seeds an
+   RNG; the only env reads are the boundary-probe mode and the xdist
+   worker id. Same template.
+3. **One test drives an AXI5 port with the AXI5 BFM**
+   (`test_bridge_1x2_rd_axi5_bfm5`: `AXI5MasterRead` + compliance
+   checker, 6 reads, read side only). Every other AXI5 fixture is driven
+   by the AXI4 BFMs; `AXI5MasterWrite`, `AXI5SlaveRead/Write` and the
+   write-side compliance checker (ATOP_*, POISON_PROPAGATION,
+   TRACE_CONSISTENCY, NSAID/MPAM/MECID checks all exist in it) are never
+   instantiated. The AXI5-only inputs (awatop, awtrace, arnsaid, wpoison
+   ...) are left undriven on those fixtures -- Verilator zeros them, which
+   is why it works.
+4. **Sideband and atomics are hand-poked.** The two `_sideband` tests and
+   the `_atomics` test set `dut.cpu_*_axi_awatop/awtrace/wpoison/arnsaid`
+   directly beside an AXI4 BFM and sample the far side with a pin
+   sampler. They do check values end-to-end (nsaid/trace/unique on AR,
+   rtrace on R, wpoison on W, btrace on B; STORE routed with data
+   verified in memory, LOAD and SWAP DECERR'd) -- but Compare
+   (`0b11xxx1`) is not exercised, and the protocol-level checks the BFM
+   would add (ATOP burst-length, atop-vs-response) are absent. This is
+   the [[feedback_always_use_axi4_bfms]] rule's AXI5 twin.
+5. **APB5 slave driven by the APB4 BFM.** `bridge1x2_rw_apb5_tb` imports
+   only `APBMaster/APBSlave`; the framework has `APB5Slave/APB5Monitor`.
+   The A5-3 note's "hand-written check against the apb5 slave BFM" does
+   not exist in the tree. axil5 is correct (`AXIL5SlaveRead/Write`).
+6. **Untested shapes:** AXI5 through arbitration (no multi-master AXI5
+   fixture, so sideband muxing in the xbar's b/r return is unexercised);
+   AXI5 across a width converter (droppable sideband terminating mid-path
+   is only a generation-time warning, never simulated); mte/chunking
+   rejection is unit-tested only, which is correct for a rejection.
+
+Clean on the checklist: TB separation (dv/tbclasses, three reset methods
+present), sources from `.f` filelists, every `cocotb_test_*` is pinned by
+exactly one `run()` (no hidden tests), memory-backed slaves verify DATA
+not just routing, boundary probes cover decode edges.
+
+Recommended order: (1)+(2) in the template and regenerate all 40; then
+an AXI5-BFM write-side test with the compliance checker on `wr_axi5a`
+(atomics incl. Compare) and `wr_axi5n` (poison/trace), and an APB5 BFM
+on `rw_apb5`; then a 2x2 AXI5 fixture. Then the testqc round.
+
+
 ---
 
 ### BRIDGE-008: the two slave BFMs disagree about an out-of-range access
