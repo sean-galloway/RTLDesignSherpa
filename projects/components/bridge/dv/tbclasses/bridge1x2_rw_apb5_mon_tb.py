@@ -47,6 +47,7 @@ from CocoTBFramework.components.axil4.axil4_interfaces import (
     AXIL4MasterRead, AXIL4MasterWrite, AXIL4SlaveRead, AXIL4SlaveWrite,
 )
 from CocoTBFramework.components.apb.apb_components import APBMaster, APBSlave
+from CocoTBFramework.components.apb5.apb5_components import APB5Slave
 
 # Memory model — shared across all protocol slave BFMs (every slave gets
 # its own instance, pre-seeded with a distinct pattern).
@@ -125,6 +126,8 @@ class Bridge1x2RwApb5MonTB(TBBase):
         self.master_wr = {}
         # APB master (one handle per APB master port).
         self.master_apb = {}
+        # AXI5ComplianceChecker per AXI5 master port (see _setup_master_*).
+        self.compliance = {}
 
         self._setup_slave_0_sram()
         self._setup_slave_1_periph5()
@@ -173,8 +176,14 @@ class Bridge1x2RwApb5MonTB(TBBase):
     # on a drop. Cost is 9 bytes per addressable byte (uint8 data + two uint32
     # access maps) = ~576 KB per slave, against the multi-GB windows the cap
     # exists to stop. A slave larger than this is still capped, and a probe
-    # past the cap on one still relies on the BFM's out-of-range behaviour --
-    # tracked as BRIDGE-008.
+    # past the cap is answered by the ONE out-of-range contract every slave
+    # BFM now follows (RDS-DV shared/memory_model.py, BRIDGE-008 closed
+    # 2026-09-09): SLVERR, nothing written, 0xDEADDEAD data, one warning.
+    # The probe still proves routing -- the error comes back from the slave
+    # the address decodes to -- and is data-checked only inside the seeded
+    # region. That is the model's limit; an address the bridge does not
+    # decode at all is the subtractive slave's DECERR (BRIDGE-009), a
+    # different thing.
     SLAVE_MEM_CAP_BYTES = 64 * 1024
 
     # Bridge page granularity. The slave-window validator already aligns
@@ -417,14 +426,24 @@ class Bridge1x2RwApb5MonTB(TBBase):
         # APB slave — APBSlave manages its own internal memory; pre-seed
         # it with the slave-specific pattern via direct memory writes.
         preset = self._build_preset(1, 0x00010000, 32)
-        self.slave_apb[1] = APBSlave(
+        # APB5 port: the APB5 BFM binds PAUSER/PWUSER/PRUSER/PBUSER (and
+        # PWAKEUP) at the port's user width. Driven by the APB4 BFM until
+        # 2026-09-09, which left those pins unbound.
+        self.slave_apb[1] = APB5Slave(
             entity=self.dut,
-            title="APB_S1",
+            title="APB5_S1",
             prefix="periph5_",
             clock=self.clock,
             registers=list(preset),
             bus_width=32,
             addr_width=32,
+            # The generator emits the APB5 USER pins 1 bit wide (slave
+            # adapter generator, PAUSER/PWUSER/PRUSER/PBUSER), whatever the
+            # TOML says; the BFM must bind at that width.
+            auser_width=1,
+            wuser_width=1,
+            ruser_width=1,
+            buser_width=1,
             log=self.log,
         )
 
@@ -438,6 +457,30 @@ class Bridge1x2RwApb5MonTB(TBBase):
         await self.wait_clocks(self.clock_name, 10)
         await self.deassert_reset()
         await self.wait_clocks(self.clock_name, 5)
+        for idx, checker in self.compliance.items():
+            checker.setup_monitors()
+            cocotb.start_soon(checker.monitor_transactions())
+            cocotb.start_soon(checker.monitor_handshakes())
+            self.log.info(f"AXI5 compliance checker armed on master {idx}")
+
+    def assert_compliance(self) -> dict:
+        """Every AXI5 master port's checker must report zero violations.
+        Called by each generated test before it declares PASSED, so a
+        protocol error on the AXI5 boundary fails the test that caused it
+        even when the data still round-tripped. Returns the reports."""
+        reports = {}
+        for idx, checker in self.compliance.items():
+            report = checker.get_compliance_report()
+            reports[idx] = report
+            violations = report.get('total_violations', 0)
+            if isinstance(violations, (list, tuple)):
+                violations = len(violations)
+            self.log.info(f"AXI5 compliance master {idx}: {violations} violation(s), "
+                          f"{report.get('statistics', {}).get('checks_performed', '?')} checks")
+            assert not violations, (
+                f"AXI5 compliance violations on master {idx}: "
+                f"{report.get('violation_summary', report)}")
+        return reports
 
     async def assert_reset(self):
         self.reset_n.value = 0
@@ -513,4 +556,10 @@ class Bridge1x2RwApb5MonTB(TBBase):
         kwargs = {'size': self._natural_arsize(master_idx)}
         if txn_id is not None:
             kwargs['id'] = txn_id
-        await wr.single_write(address, data, **kwargs)
+        result = await wr.single_write(address, data, **kwargs)
+        # single_write does NOT raise on an error response -- it reports it
+        # in the returned dict -- so a SLVERR/DECERR write used to pass
+        # straight through this helper unnoticed. Raise, the way single_read
+        # does, so a caller that expects the write to land finds out.
+        if isinstance(result, dict) and not result.get('success', True):
+            raise RuntimeError(f"AXI write error at 0x{address:08x}: {result.get('error', result)}")

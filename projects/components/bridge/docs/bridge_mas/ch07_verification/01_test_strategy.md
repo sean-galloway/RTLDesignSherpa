@@ -104,12 +104,33 @@ PROTOCOL_COMBOS = [
     {"masters": ["axi4"], "slaves": ["axi4"]},
     {"masters": ["axi4"], "slaves": ["axi4", "apb"]},
     {"masters": ["axi4", "axil"], "slaves": ["axi4", "apb"]},
+    {"masters": ["axi5"], "slaves": ["axi4", "axi5"]},         # interop + native
+    {"masters": ["axi5", "axi5"], "slaves": ["axi4", "axi5"]}, # sideband through the arbiter
 ]
 ```
 
+The AMBA5 fixtures in `bin/test_configs/`, each generated with its own
+tests and TB class:
+
+| Fixture | Shape | What it exercises |
+|---|---|---|
+| `bridge_1x2_{rd,wr}_axi5` | AXI5 master, AXI4 slaves | interop boundary; sideband terminates |
+| `bridge_1x2_rd_axi5s` | AXI4 master, one AXI5 slave | AXI5 slave ports |
+| `bridge_1x2_{rd,wr}_axi5n` | AXI5 both ends | native sideband values, poison (wr) |
+| `bridge_1x2_wr_axi5a` | AXI5 both ends, `atomic` | store-class forwards; load/swap/compare DECERR |
+| `bridge_1x2_rw_axil5`, `bridge_1x2_rw_apb5` | AXI4 master, AXI5-Lite / APB5 slave | the Lite and APB5 shims |
+| `bridge_2x2_axi5` | two AXI5 masters, AXI5 + AXI4 slaves | sideband through arbitration |
+| `bridge_1x2_rd_axi5w` | AXI5 32b master, 64b AXI4 + 32b AXI5 slaves | sideband across a width converter |
+
+: Table 7.1a: AMBA5 Fixtures
+
 ### Protocol-BFM-Only Testing with Memory-Backed Slaves
 
-Modern bridge tests use **protocol BFMs only** (no direct DUT signal manipulation) with **memory-backed slave models**. If you find yourself poking a DUT signal in a test, stop — drive the protocol and check the memory instead.
+Modern bridge tests use **protocol BFMs only** (no direct DUT signal manipulation) with **memory-backed slave models**. If you find yourself poking a DUT signal in a test, stop — drive the protocol and check the memory instead. That includes AMBA5 sideband and atomics: the AXI5 BFMs take `nsaid`/`trace`/`unique`/`poison`/`atop` as transaction keyword arguments (`write_transaction`, `read_transaction`, `atomic_operation`), and the generated TB returns the echoed `trace` in the BFM's result.
+
+The generated TB picks the BFM family from each port's protocol: AXI4 ports get the AXI4 BFMs, `axi5` ports the AXI5 BFMs (which declare every AMBA5 sideband field as optional, so one BFM binds to any feature subset), `axil5` ports the AXIL5 BFMs, and `apb5` ports `APB5Slave` at the generator's 1-bit USER widths. Every AXI5 master port also gets an `AXI5ComplianceChecker` on the same prefix, armed in `setup_clocks_and_reset` and read by `tb.assert_compliance()`, which every generated test calls before it declares PASSED -- a protocol violation on the AXI5 boundary fails the test that caused it even when the data still round-tripped.
+
+Slave memory models are capped at 64 KB per slave (`SLAVE_MEM_CAP_BYTES`). A probe past the model is answered by the one out-of-range contract every slave BFM follows (RDS-DV `shared/memory_model.py`): SLVERR, nothing written, `0xDEADDEAD` read data, one warning. The boundary probe swallows that error only for probes past the seeded region -- the error coming back from the slave the address decodes to is the routing evidence -- and `master_write` raises on any error response, so a SLVERR write never passes through a helper unnoticed. The model's limit is not the design's: an address the bridge does not decode at all is the subtractive slave's DECERR.
 
 #### BFM Instantiation and Slave Models
 
@@ -249,24 +270,28 @@ Code Coverage Targets:
 
 ### Test Execution
 
-#### Serial Execution (No Parallel xdist)
+#### Running the Suite
 
-Bridge tests execute **serially only** (pytest-xdist parallelization is not supported). Each cocotb test function is named with a `cocotb_test_*` prefix to avoid cross-test name collisions when multiple test modules are loaded.
+The bridge runs through the same four-line Makefile every val area uses
+(`make/tests.mk`): always a clean build first, then one of three levels.
 
 ```bash
-# Run all bridge tests (serial)
 cd projects/components/bridge/dv/tests
-pytest -v
-
-# Run specific configuration test
-pytest test_bridge_4x4_rw_basic.py -v
-
-# Run with coverage
-pytest --cov=bridge -v
-
-# Run with waveforms
-WAVES=1 pytest test_bridge_2x2_rd_basic.py -v
+make clean-all && make run-all-gate-parallel        # smoke: 72 cells
+make clean-all && make run-all-func-parallel        # development: 144 cells
+make clean-all && make run-all-full-parallel        # sign-off: 216 cells
+make clean-all && make run-all-full-parallel-waves  # same, with dump.fst per cell
+make run-bridge_2x2_rw-gate-parallel               # one file, by its glob stem
 ```
+
+`REG_LEVEL` (set by the target) selects the grid in each wrapper: GATE runs
+one `gate` cell per test, FUNC `gate`+`func`, FULL `gate`+`func`+`full`.
+Each cell exports `TEST_LEVEL` and a `SEED` (pinned per test node, so a
+rerun replays the same run) and the TB scales its work from the level
+profile in `dv/tbclasses/bridge_levels.py`. Sibling cells of one test log
+different `TEST_LEVEL=<x>` banners and different wall-clock -- that is the
+evidence the grid is real. A raw `pytest` run works but is the FUNC subset
+with no clean, and a sub-second "passed" on a stale build is a fiction.
 
 #### Test Naming Convention
 
@@ -292,16 +317,23 @@ def test_bridge_4x4_mon_capture(request):
     )
 ```
 
-#### Test Levels and Variants
+#### Test Levels
 
-| Level | Duration | Coverage | Use Case |
-|-------|----------|----------|----------|
-| basic | ~30s | Smoke test (single transaction) | Quick verification |
-| medium | ~90s | Core paths (concurrent, multi-slave) | Development |
-| full | ~180s | Comprehensive (stress, boundary probes) | Pre-commit |
-| monitor | ~120s | Monitor system validation | Monitor-specific scenarios |
+What each depth does, per the profile in `bridge_levels.py`. Every count in
+the suite is read from here; nothing hardcodes one.
 
-: Table 7.2: Test Level and Variant Definitions
+| Level | Connectivity | Boundary probe | Arbitration | Monitor stress | Slaves |
+|-------|--------------|----------------|-------------|----------------|--------|
+| gate | 1 offset/pair | boundary pages, low offset only | 4 txn/master | 128 reads/phase | prompt |
+| func | 4 offsets/pair | boundary pages, low/mid/high | 8 txn/master | 256 reads/phase | prompt |
+| full | 16 offsets/pair | every seeded page, low/mid/high | 24 txn/master | 512 reads/phase | 24-cycle response delay |
+
+: Table 7.2: Test Level Depth Profile
+
+Measured on the 4x4 boundary probe: 4 s, 5 s and 40 s per cell. The FULL
+run's monitor stress count of 128 at gate is deliberate -- the monbus err
+FIFO is 64 deep and the ERR_BP phase asserts it saturates, which at exactly
+64 reads was a race against the drain pump.
 
 **Monitor Tests** (when `variants` includes `"mon"`):
 - `test_bridge_1x2_rd_monitor_smoke`: Basic packet emission

@@ -121,6 +121,7 @@ async def cocotb_test_bridge_1x4_rd_basic_connectivity(dut):
             f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
 
     await ClockCycles(tb.clock, 20)
+    tb.assert_compliance()
     tb.log.info("=" * 80)
     tb.log.info("Basic connectivity test PASSED")
     tb.log.info("=" * 80)
@@ -149,12 +150,14 @@ async def cocotb_test_bridge_1x4_rd_boundary_probe(dut):
 
     Routing IS the data round-trip: a misroute lands the write at a
     different slave or different offset and the seed pattern shows
-    through instead of the tagged write data. Data verification is
-    skipped for probes past the SLAVE_MEM_CAP_BYTES seeded region —
-    the slave BFM silently drops OOR writes and fakes reads with
-    data=addr, so OOR probes still exercise the decoder pathway but
-    can't be data-checked. If/when we want explicit AW/AR routing
-    monitors, wire them up at the bridge slave ports separately.
+    through instead of the tagged write data. Probes past the
+    SLAVE_MEM_CAP_BYTES seeded region are answered SLVERR by the slave
+    BFM (the one out-of-range contract every slave family follows since
+    2026-09-09 -- nothing written, 0xDEADDEAD data); they still exercise
+    the decode path, and the error coming back from the addressed slave
+    is the routing evidence, so they are not data-checked. If/when we
+    want explicit AW/AR routing monitors, wire them up at the bridge
+    slave ports separately.
 
     Set BRIDGE_BOUNDARY_PROBE_MODE=all in the environment to walk every
     page instead of bottom/mid/top — useful for small-window slaves
@@ -184,12 +187,10 @@ async def cocotb_test_bridge_1x4_rd_boundary_probe(dut):
         for probe_idx, probe_off in enumerate(in_page_0_0):
             addr = page_base + probe_off
             # For seeded probes: full data round-trip is the routing
-            # check. For non-seeded probes: just exercise the decode
-            # pathway. The AXIL slave BFM returns SLVERR for OOR reads
-            # (the AXI4 slave BFM silently returns OKAY+fallback —
-            # asymmetric framework behavior); single_read raises
-            # RuntimeError on SLVERR, so swallow it for non-seeded
-            # probes where the error is expected and meaningless.
+            # check. For non-seeded probes: the slave BFM answers SLVERR
+            # (the one out-of-range contract, every family), single_read
+            # raises RuntimeError on it, and that error coming back from
+            # the addressed slave IS the routing evidence -- swallow it.
             seeded = tb.is_seeded(0, addr)
             try:
                 got = await tb.master_read(0, addr)
@@ -215,12 +216,10 @@ async def cocotb_test_bridge_1x4_rd_boundary_probe(dut):
         for probe_idx, probe_off in enumerate(in_page_0_1):
             addr = page_base + probe_off
             # For seeded probes: full data round-trip is the routing
-            # check. For non-seeded probes: just exercise the decode
-            # pathway. The AXIL slave BFM returns SLVERR for OOR reads
-            # (the AXI4 slave BFM silently returns OKAY+fallback —
-            # asymmetric framework behavior); single_read raises
-            # RuntimeError on SLVERR, so swallow it for non-seeded
-            # probes where the error is expected and meaningless.
+            # check. For non-seeded probes: the slave BFM answers SLVERR
+            # (the one out-of-range contract, every family), single_read
+            # raises RuntimeError on it, and that error coming back from
+            # the addressed slave IS the routing evidence -- swallow it.
             seeded = tb.is_seeded(1, addr)
             try:
                 got = await tb.master_read(0, addr)
@@ -246,12 +245,10 @@ async def cocotb_test_bridge_1x4_rd_boundary_probe(dut):
         for probe_idx, probe_off in enumerate(in_page_0_2):
             addr = page_base + probe_off
             # For seeded probes: full data round-trip is the routing
-            # check. For non-seeded probes: just exercise the decode
-            # pathway. The AXIL slave BFM returns SLVERR for OOR reads
-            # (the AXI4 slave BFM silently returns OKAY+fallback —
-            # asymmetric framework behavior); single_read raises
-            # RuntimeError on SLVERR, so swallow it for non-seeded
-            # probes where the error is expected and meaningless.
+            # check. For non-seeded probes: the slave BFM answers SLVERR
+            # (the one out-of-range contract, every family), single_read
+            # raises RuntimeError on it, and that error coming back from
+            # the addressed slave IS the routing evidence -- swallow it.
             seeded = tb.is_seeded(2, addr)
             try:
                 got = await tb.master_read(0, addr)
@@ -277,12 +274,10 @@ async def cocotb_test_bridge_1x4_rd_boundary_probe(dut):
         for probe_idx, probe_off in enumerate(in_page_0_3):
             addr = page_base + probe_off
             # For seeded probes: full data round-trip is the routing
-            # check. For non-seeded probes: just exercise the decode
-            # pathway. The AXIL slave BFM returns SLVERR for OOR reads
-            # (the AXI4 slave BFM silently returns OKAY+fallback —
-            # asymmetric framework behavior); single_read raises
-            # RuntimeError on SLVERR, so swallow it for non-seeded
-            # probes where the error is expected and meaningless.
+            # check. For non-seeded probes: the slave BFM answers SLVERR
+            # (the one out-of-range contract, every family), single_read
+            # raises RuntimeError on it, and that error coming back from
+            # the addressed slave IS the routing evidence -- swallow it.
             seeded = tb.is_seeded(3, addr)
             try:
                 got = await tb.master_read(0, addr)
@@ -301,6 +296,7 @@ async def cocotb_test_bridge_1x4_rd_boundary_probe(dut):
                     f"got 0x{got:08x}, expected 0x{exp:08x}")
 
     await ClockCycles(tb.clock, 20)
+    tb.assert_compliance()
     tb.log.info("=" * 80)
     tb.log.info("Boundary probe test PASSED")
     tb.log.info("=" * 80)

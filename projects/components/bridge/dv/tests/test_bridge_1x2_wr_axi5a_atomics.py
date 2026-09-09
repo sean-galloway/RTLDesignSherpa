@@ -35,6 +35,7 @@ from projects.components.bridge.dv.tbclasses.bridge1x2_wr_axi5a_tb import (
 ATOP_STORE = 0b010000
 ATOP_LOAD = 0b100000
 ATOP_SWAP = 0b110000
+ATOP_COMPARE = 0b110001
 
 
 class AtomicSampler:
@@ -72,38 +73,44 @@ async def cocotb_test_bridge_1x2_wr_axi5a_atomics(dut):
     tb.log.info("A5-3a sign-off: ATOP through the fabric + boundary filter")
     tb.log.info("=" * 80)
 
-    # Depth (TEST_LEVEL): the five-op sequence (plain, store, load, swap,
-    # plain) is repeated `rounds` times on page-separated windows -- gate 1,
-    # func 2, full 8 -- so the filter's swallow/answer path is exercised
-    # back-to-back across rounds, not once from reset.
+    # Depth (TEST_LEVEL): the six-op sequence (plain, store, load, swap,
+    # compare, plain) is repeated `rounds` times on page-separated windows
+    # -- gate 1, func 2, full 8 -- so the filter's swallow/answer path is
+    # exercised back-to-back across rounds, not once from reset.
     rounds = max(1, tb.level_cfg['sideband_beats'] // 3)
-    tb.log.info(f"  level={tb.level}: {rounds} round(s) of 5 ops")
+    tb.log.info(f"  level={tb.level}: {rounds} round(s) of 6 ops")
     landed, swallowed = [], []
     for r in range(rounds):
         base = 0x0000_0000 + r * 0x1000
         tag = 0xA5A5_0000 | (r << 8)
 
+        wr = tb.master_wr[0]
+
         # 1. Plain write (atop=0) forwards.
-        dut.cpu_wr_axi_awatop.value = 0
-        await tb.master_write(0, base + 0x100, tag | 1)
+        r = await wr.write_transaction(base + 0x100, tag | 1, size=2)
+        assert r.get('success') and r.get('response') == 0, f"plain write: {r}"
 
         # 2. AtomicStore forwards with the atop value intact.
-        dut.cpu_wr_axi_awatop.value = ATOP_STORE
-        await tb.master_write(0, base + 0x200, tag | 2)
+        r = await wr.atomic_operation(base + 0x200, tag | 2, ATOP_STORE, size=2)
+        assert r.get('success') and r.get('response') == 0, f"AtomicStore: {r}"
 
-        # 3/4. Read-return classes: swallowed + local DECERR. The AXI4 BFM
-        # still completes because the filter answers the B channel.
-        dut.cpu_wr_axi_awatop.value = ATOP_LOAD
-        await tb.master_write(0, base + 0x300, tag | 3)
-        dut.cpu_wr_axi_awatop.value = ATOP_SWAP
-        await tb.master_write(0, base + 0x400, tag | 4)
+        # 3/4/5. Read-return classes: swallowed + local DECERR. The filter
+        # answers the B channel, so the transaction completes -- with the
+        # error response the BFM reports in its result. DECERR IS the
+        # expected outcome here, and anything else is a failure.
+        for atop, off, idx in ((ATOP_LOAD, 0x300, 3), (ATOP_SWAP, 0x400, 4),
+                               (ATOP_COMPARE, 0x600, 6)):
+            r = await wr.atomic_operation(base + off, tag | idx, atop, size=2)
+            assert r.get('response') == 3, (
+                f"read-return atomic {atop:#08b} answered resp={r.get('response')} "
+                f"({r}); the boundary filter should answer DECERR")
 
-        # 5. Plain write after the swallows still forwards and completes.
-        dut.cpu_wr_axi_awatop.value = 0
-        await tb.master_write(0, base + 0x500, tag | 5)
+        # 6. Plain write after the swallows still forwards and completes.
+        r = await wr.write_transaction(base + 0x500, tag | 5, size=2)
+        assert r.get('success') and r.get('response') == 0, f"plain write after swallows: {r}"
 
         landed += [(base + 0x100, tag | 1), (base + 0x200, tag | 2), (base + 0x500, tag | 5)]
-        swallowed += [base + 0x300, base + 0x400]
+        swallowed += [base + 0x300, base + 0x400, base + 0x600]
 
     await ClockCycles(tb.clock, 50)
 
@@ -111,11 +118,11 @@ async def cocotb_test_bridge_1x2_wr_axi5a_atomics(dut):
     assert sampler.ddr_aw_atop == [0, ATOP_STORE, 0] * rounds, (
         f"forwarded atop stream wrong: {[bin(x) for x in sampler.ddr_aw_atop]}")
 
-    # Five B responses per round: writes 1/2/5 OKAY, 3/4 DECERR.
+    # Six B responses per round: writes 1/2/6 OKAY, 3/4/5 DECERR.
     resps = [r for _i, r in sampler.master_b]
-    assert len(resps) == 5 * rounds, f"expected {5 * rounds} B responses, saw {sampler.master_b}"
-    assert resps.count(3) == 2 * rounds, (
-        f"expected exactly {2 * rounds} DECERRs (read-return atomics): {sampler.master_b}")
+    assert len(resps) == 6 * rounds, f"expected {6 * rounds} B responses, saw {sampler.master_b}"
+    assert resps.count(3) == 3 * rounds, (
+        f"expected exactly {3 * rounds} DECERRs (read-return atomics): {sampler.master_b}")
     assert resps.count(0) == 3 * rounds, (
         f"expected {3 * rounds} OKAYs (plain + store-class): {sampler.master_b}")
 
@@ -129,8 +136,9 @@ async def cocotb_test_bridge_1x2_wr_axi5a_atomics(dut):
         assert (got >> 16) != 0xA5A5, (
             f"swallowed atomic leaked into slave mem @0x{addr:x}: 0x{got:08x}")
 
+    tb.assert_compliance()
     tb.log.info("=" * 80)
-    tb.log.info(f"A5-3a atomics test PASSED ({3 * rounds} forwarded / {2 * rounds} DECERRed)")
+    tb.log.info(f"A5-3a atomics test PASSED ({3 * rounds} forwarded / {3 * rounds} DECERRed)")
     tb.log.info("=" * 80)
 
 

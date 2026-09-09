@@ -51,7 +51,22 @@ from CocoTBFramework.components.axil5.axil5_interfaces import (
     AXIL5SlaveRead, AXIL5SlaveWrite,
 )
 {% endif %}
+{% if (masters + slaves) | selectattr('protocol', 'equalto', 'axi5') | list %}
+# AXI5 ports are driven by the AXI5 BFMs, which declare every AMBA5 sideband
+# field as optional (bind-to-nothing reads 0), so one BFM fits any feature
+# subset -- and every AXI5 MASTER port gets an AXI5ComplianceChecker on the
+# same prefix. Until 2026-09-09 these ports were driven by the AXI4 BFMs with
+# the AXI5-only inputs left undriven, and only one hand-written test ever
+# attached the checker.
+from CocoTBFramework.components.axi5.axi5_interfaces import (
+    AXI5MasterRead, AXI5MasterWrite, AXI5SlaveRead, AXI5SlaveWrite,
+)
+from CocoTBFramework.components.axi5.axi5_compliance_checker import AXI5ComplianceChecker
+{% endif %}
 from CocoTBFramework.components.apb.apb_components import APBMaster, APBSlave
+{% if slaves | selectattr('protocol', 'equalto', 'apb5') | list %}
+from CocoTBFramework.components.apb5.apb5_components import APB5Slave
+{% endif %}
 
 # Memory model — shared across all protocol slave BFMs (every slave gets
 # its own instance, pre-seeded with a distinct pattern).
@@ -129,6 +144,8 @@ class {{ tb_class_name }}(TBBase):
         self.master_wr = {}
         # APB master (one handle per APB master port).
         self.master_apb = {}
+        # AXI5ComplianceChecker per AXI5 master port (see _setup_master_*).
+        self.compliance = {}
 
 {% for slave in slaves %}        self._setup_slave_{{ loop.index0 }}_{{ slave.port_name }}()
 {% endfor %}
@@ -178,8 +195,14 @@ class {{ tb_class_name }}(TBBase):
     # on a drop. Cost is 9 bytes per addressable byte (uint8 data + two uint32
     # access maps) = ~576 KB per slave, against the multi-GB windows the cap
     # exists to stop. A slave larger than this is still capped, and a probe
-    # past the cap on one still relies on the BFM's out-of-range behaviour --
-    # tracked as BRIDGE-008.
+    # past the cap is answered by the ONE out-of-range contract every slave
+    # BFM now follows (RDS-DV shared/memory_model.py, BRIDGE-008 closed
+    # 2026-09-09): SLVERR, nothing written, 0xDEADDEAD data, one warning.
+    # The probe still proves routing -- the error comes back from the slave
+    # the address decodes to -- and is data-checked only inside the seeded
+    # region. That is the model's limit; an address the bridge does not
+    # decode at all is the subtractive slave's DECERR (BRIDGE-009), a
+    # different thing.
     SLAVE_MEM_CAP_BYTES = 64 * 1024
 
     # Bridge page granularity. The slave-window validator already aligns
@@ -387,8 +410,9 @@ class {{ tb_class_name }}(TBBase):
         )
 {% endif %}
 {% else %}
+{% set is_axi5 = master.protocol.lower() == 'axi5' %}
 {% if master.has_read_channels() %}
-        self.master_rd[{{ loop.index0 }}] = AXI4MasterRead(
+        self.master_rd[{{ loop.index0 }}] = {{ 'AXI5MasterRead' if is_axi5 else 'AXI4MasterRead' }}(
             self.dut, self.clock,
             prefix="{{ master.prefix }}",
             log=self.log,
@@ -397,14 +421,10 @@ class {{ tb_class_name }}(TBBase):
             id_width={{ 1 if master.id_width == 0 else master.id_width }},
             user_width=1,
             multi_sig=True,
-{% if master.protocol.lower().startswith('axi5') or master.protocol.lower() == 'axi5' %}
-            # AMBA5 removed AxREGION; declared fields otherwise bind fatally.
-            optional_fields=('region',),
-{% endif %}
         )
 {% endif %}
 {% if master.has_write_channels() %}
-        self.master_wr[{{ loop.index0 }}] = AXI4MasterWrite(
+        self.master_wr[{{ loop.index0 }}] = {{ 'AXI5MasterWrite' if is_axi5 else 'AXI4MasterWrite' }}(
             self.dut, self.clock,
             prefix="{{ master.prefix }}",
             log=self.log,
@@ -413,10 +433,21 @@ class {{ tb_class_name }}(TBBase):
             id_width={{ 1 if master.id_width == 0 else master.id_width }},
             user_width=1,
             multi_sig=True,
-{% if master.protocol.lower().startswith('axi5') or master.protocol.lower() == 'axi5' %}
-            # AMBA5 removed AxREGION; declared fields otherwise bind fatally.
-            optional_fields=('region',),
+        )
 {% endif %}
+{% if is_axi5 %}
+        # Protocol checker on the AXI5 boundary: handshake, burst, ID and
+        # AMBA5 feature rules (ATOP encoding/response, poison propagation,
+        # trace consistency, NSAID/MPAM/MECID). Started in
+        # setup_clocks_and_reset; assert_compliance() reads the verdict.
+        self.compliance[{{ loop.index0 }}] = AXI5ComplianceChecker(
+            self.dut, self.clock,
+            prefix="{{ master.prefix }}",
+            log=self.log,
+            data_width={{ master.data_width }},
+            addr_width={{ master.addr_width }},
+            id_width={{ 1 if master.id_width == 0 else master.id_width }},
+            user_width=1,
         )
 {% endif %}
 {% endif %}
@@ -433,6 +464,28 @@ class {{ tb_class_name }}(TBBase):
         # APB slave — APBSlave manages its own internal memory; pre-seed
         # it with the slave-specific pattern via direct memory writes.
         preset = self._build_preset({{ loop.index0 }}, {{ '0x%08x' % slave.addr_range }}, {{ slave.data_width }})
+{% if slave.protocol.lower() == 'apb5' %}
+        # APB5 port: the APB5 BFM binds PAUSER/PWUSER/PRUSER/PBUSER (and
+        # PWAKEUP) at the port's user width. Driven by the APB4 BFM until
+        # 2026-09-09, which left those pins unbound.
+        self.slave_apb[{{ loop.index0 }}] = APB5Slave(
+            entity=self.dut,
+            title="APB5_S{{ loop.index0 }}",
+            prefix="{{ slave.prefix }}",
+            clock=self.clock,
+            registers=list(preset),
+            bus_width={{ slave.data_width }},
+            addr_width={{ slave.addr_width }},
+            # The generator emits the APB5 USER pins 1 bit wide (slave
+            # adapter generator, PAUSER/PWUSER/PRUSER/PBUSER), whatever the
+            # TOML says; the BFM must bind at that width.
+            auser_width=1,
+            wuser_width=1,
+            ruser_width=1,
+            buser_width=1,
+            log=self.log,
+        )
+{% else %}
         self.slave_apb[{{ loop.index0 }}] = APBSlave(
             entity=self.dut,
             title="APB_S{{ loop.index0 }}",
@@ -443,6 +496,7 @@ class {{ tb_class_name }}(TBBase):
             addr_width={{ slave.addr_width }},
             log=self.log,
         )
+{% endif %}
 {% elif slave.protocol.lower() in ('axil', 'axil5') %}
         # AXIL slave — own MemoryModel pre-seeded with the slave-specific
         # pattern; AXIL4SlaveRead/Write auto-responds from it honoring
@@ -508,8 +562,9 @@ class {{ tb_class_name }}(TBBase):
             preset_values=list(preset),
             log=self.log,
         )
+{% set s_axi5 = slave.protocol.lower() == 'axi5' %}
 {% if slave.has_read_channels() %}
-        self.slave_rd[{{ loop.index0 }}] = AXI4SlaveRead(
+        self.slave_rd[{{ loop.index0 }}] = {{ 'AXI5SlaveRead' if s_axi5 else 'AXI4SlaveRead' }}(
             self.dut, self.clock,
             prefix="{{ slave.prefix }}",
             log=self.log,
@@ -520,14 +575,10 @@ class {{ tb_class_name }}(TBBase):
             multi_sig=True,
             memory_model=self.slave_memory[{{ loop.index0 }}],
             base_addr={{ '0x%08x' % slave.base_addr }},
-{% if slave.protocol.lower().startswith('axi5') %}
-            # AMBA5 removed AxREGION; declared fields otherwise bind fatally.
-            optional_fields=('region',),
-{% endif %}
         )
 {% endif %}
 {% if slave.has_write_channels() %}
-        self.slave_wr[{{ loop.index0 }}] = AXI4SlaveWrite(
+        self.slave_wr[{{ loop.index0 }}] = {{ 'AXI5SlaveWrite' if s_axi5 else 'AXI4SlaveWrite' }}(
             self.dut, self.clock,
             prefix="{{ slave.prefix }}",
             log=self.log,
@@ -538,10 +589,6 @@ class {{ tb_class_name }}(TBBase):
             multi_sig=True,
             memory_model=self.slave_memory[{{ loop.index0 }}],
             base_addr={{ '0x%08x' % slave.base_addr }},
-{% if slave.protocol.lower().startswith('axi5') %}
-            # AMBA5 removed AxREGION; declared fields otherwise bind fatally.
-            optional_fields=('region',),
-{% endif %}
         )
 {% endif %}
 {% endif %}
@@ -557,6 +604,30 @@ class {{ tb_class_name }}(TBBase):
         await self.wait_clocks(self.clock_name, 10)
         await self.deassert_reset()
         await self.wait_clocks(self.clock_name, 5)
+        for idx, checker in self.compliance.items():
+            checker.setup_monitors()
+            cocotb.start_soon(checker.monitor_transactions())
+            cocotb.start_soon(checker.monitor_handshakes())
+            self.log.info(f"AXI5 compliance checker armed on master {idx}")
+
+    def assert_compliance(self) -> dict:
+        """Every AXI5 master port's checker must report zero violations.
+        Called by each generated test before it declares PASSED, so a
+        protocol error on the AXI5 boundary fails the test that caused it
+        even when the data still round-tripped. Returns the reports."""
+        reports = {}
+        for idx, checker in self.compliance.items():
+            report = checker.get_compliance_report()
+            reports[idx] = report
+            violations = report.get('total_violations', 0)
+            if isinstance(violations, (list, tuple)):
+                violations = len(violations)
+            self.log.info(f"AXI5 compliance master {idx}: {violations} violation(s), "
+                          f"{report.get('statistics', {}).get('checks_performed', '?')} checks")
+            assert not violations, (
+                f"AXI5 compliance violations on master {idx}: "
+                f"{report.get('violation_summary', report)}")
+        return reports
 
     async def assert_reset(self):
         self.reset_n.value = 0
@@ -632,5 +703,11 @@ class {{ tb_class_name }}(TBBase):
         kwargs = {'size': self._natural_arsize(master_idx)}
         if txn_id is not None:
             kwargs['id'] = txn_id
-        await wr.single_write(address, data, **kwargs)
+        result = await wr.single_write(address, data, **kwargs)
+        # single_write does NOT raise on an error response -- it reports it
+        # in the returned dict -- so a SLVERR/DECERR write used to pass
+        # straight through this helper unnoticed. Raise, the way single_read
+        # does, so a caller that expects the write to land finds out.
+        if isinstance(result, dict) and not result.get('success', True):
+            raise RuntimeError(f"AXI write error at 0x{address:08x}: {result.get('error', result)}")
 

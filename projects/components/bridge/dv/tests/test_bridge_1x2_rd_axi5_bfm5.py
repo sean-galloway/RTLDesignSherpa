@@ -4,12 +4,11 @@
 #
 # HAND-WRITTEN (not generated): BRIDGE-002 A5-1 sign-off test.
 #
-# The generated test drives the AXI5 master port with the AXI4 BFM
-# (base-subset interop). This test closes the sign-off gap: the port
-# is driven by the real AXI5MasterRead BFM with the
-# AXI5ComplianceChecker attached to the same prefix, proving the
-# generated AXI5 boundary speaks AXI5 to an AXI5 agent while the
-# fabric behind stays AXI4.
+# Since 2026-09-09 every generated TB drives an AXI5 port with the AXI5 BFM
+# and arms an AXI5ComplianceChecker on it, so this test no longer needs its
+# own subclass; it is the read-side sign-off that drives sideband VALUES
+# through the BFM (nsaid/trace/unique per transaction) into both AXI4
+# slaves and requires the checker's verdict to be clean.
 
 import os
 import sys
@@ -28,56 +27,17 @@ from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
-from CocoTBFramework.components.axi5.axi5_interfaces import AXI5MasterRead
-from CocoTBFramework.components.axi5.axi5_compliance_checker import (
-    AXI5ComplianceChecker,
-)
-
 from projects.components.bridge.dv.tbclasses.bridge1x2_rd_axi5_tb import (
     Bridge1x2RdAxi5TB,
 )
-
-
-class Bridge1x2RdAxi5Bfm5TB(Bridge1x2RdAxi5TB):
-    """Generated TB with the AXI5 master port driven by the AXI5 BFM.
-
-    Only the master-side setup changes; slave BFMs, memory seeding,
-    clocking, and the read helpers are inherited unchanged.
-    """
-
-    def _setup_master_0_cpu_rd(self):
-        self.master_rd[0] = AXI5MasterRead(
-            self.dut, self.clock,
-            prefix="cpu_rd_axi_",
-            log=self.log,
-            data_width=32,
-            addr_width=32,
-            id_width=4,
-            user_width=1,
-            multi_sig=True,
-        )
 
 
 @cocotb.test(timeout_time=2000, timeout_unit="ms")
 async def cocotb_test_bridge_1x2_rd_axi5_bfm5(dut):
     """AXI5 BFM reads through the AXI5 boundary into both AXI4 slaves,
     with the AXI5 compliance checker watching the port."""
-    tb = Bridge1x2RdAxi5Bfm5TB(dut)
+    tb = Bridge1x2RdAxi5TB(dut)
     await tb.setup_clocks_and_reset()
-
-    # Attach the compliance checker to the AXI5 port.
-    checker = AXI5ComplianceChecker(
-        dut, tb.clock,
-        prefix="cpu_rd_axi_",
-        log=tb.log,
-        data_width=32,
-        addr_width=32,
-        id_width=4,
-        user_width=1,
-    )
-    checker.setup_monitors()
-    cocotb.start_soon(checker.monitor_transactions())
-    cocotb.start_soon(checker.monitor_handshakes())
 
     tb.log.info("=" * 80)
     tb.log.info("A5-1 sign-off: AXI5 BFM + compliance checker on the AXI5 port")
@@ -96,10 +56,14 @@ async def cocotb_test_bridge_1x2_rd_axi5_bfm5(dut):
             if o not in offs:
                 offs.append(o)
         tb.log.info(f"  slave {slave_idx}: {len(offs)} AXI5-BFM reads (level={tb.level})")
-        for off in offs:
+        for i, off in enumerate(offs):
             addr = base + off
             expected = tb.slave_mem_read(slave_idx, addr, master_idx=0)
-            actual = await tb.master_read(0, addr)
+            resp = await tb.master_rd[0].read_transaction(
+                addr, size=2, id=i % 8, trace=1, unique=(i & 1))
+            actual = resp[0]['data']
+            assert resp[0].get('trace', 0) == 0, (
+                f"AXI4 slave {slave_idx} returned rtrace={resp[0].get('trace')}; it has no trace")
             assert actual == expected, (
                 f"AXI5-BFM read mismatch slave {slave_idx} @ 0x{addr:08x}: "
                 f"got 0x{actual:08x}, expected 0x{expected:08x}"
@@ -108,15 +72,7 @@ async def cocotb_test_bridge_1x2_rd_axi5_bfm5(dut):
                         f"data=0x{actual:08x} OK")
 
     await ClockCycles(tb.clock, 50)
-
-    # Compliance verdict — zero violations.
-    report = checker.get_compliance_report()
-    tb.log.info(f"AXI5 compliance report: {report}")
-    violations = report.get("total_violations",
-                            report.get("violations", 0))
-    if isinstance(violations, (list, tuple)):
-        violations = len(violations)
-    assert not violations, f"AXI5 compliance violations: {report}"
+    tb.assert_compliance()
 
     tb.log.info("=" * 80)
     tb.log.info("A5-1 sign-off test PASSED")

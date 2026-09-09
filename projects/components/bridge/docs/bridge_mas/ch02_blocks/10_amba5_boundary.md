@@ -104,10 +104,19 @@ keeps the APB4 transfer protocol.
 
 - Generator unit tests: `bin/tests/test_generator_pkg.py` (feature
   gating, poison/atomic connectivity rules, generation smoke).
-- Sideband **values** end-to-end:
-  `dv/tests/test_bridge_1x2_{rd,wr}_axi5n_sideband.py`.
-- Atomics: `dv/tests/test_bridge_1x2_wr_axi5a_atomics.py` and
-  `val/amba/test_axi5_atomic_filter.py`.
-- AXI5 compliance at the boundary:
-  `dv/tests/test_bridge_1x2_rd_axi5_bfm5.py` (AXI5 BFM +
-  AXI5ComplianceChecker, zero violations).
+- Sideband **values** end-to-end, driven per transaction by the AXI5
+  master BFM: `dv/tests/test_bridge_1x2_{rd,wr}_axi5n_sideband.py`
+  (native path and drop path; the AXI5 slave BFM echoes trace on B/R).
+- Sideband **through the arbiter**: `dv/tests/test_bridge_2x2_axi5_sideband_arb.py`
+  -- two AXI5 masters with distinct NSAIDs contend for the AXI5 slave; every
+  slave-side AW/AR NSAID must belong to its issuing master and the counts
+  must match.
+- Sideband **across a width converter**: `dv/tests/test_bridge_1x2_rd_axi5w_sideband.py`
+  -- 32b AXI5 master into a 64b AXI4 slave; data round-trips, trace returns 0.
+- Atomics: `dv/tests/test_bridge_1x2_wr_axi5a_atomics.py` (store forwards;
+  load, swap AND compare answered DECERR by the filter, via
+  `atomic_operation`) and `val/amba/test_axi5_atomic_filter.py`.
+- AXI5 compliance at the boundary: every generated TB arms an
+  `AXI5ComplianceChecker` on each AXI5 master port and every generated test
+  asserts zero violations before PASSED; `dv/tests/test_bridge_1x2_rd_axi5_bfm5.py`
+  is the read-side sign-off.

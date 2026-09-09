@@ -1,0 +1,51 @@
+# Bridge Configuration: 1x2 read-only bridge, AXI5 master (32b, native
+# sideband) into a 64b AXI4 slave (width converter, sideband DROPS) and a
+# 32b AXI5 slave (native).
+#
+# The first AXI5 fixture with a width mismatch (BRIDGE-007 finding 6,
+# 2026-09-09): droppable sideband terminating at a dwidth-converter path was
+# a generation-time warning that no simulation ever exercised. A hand-written
+# test drives sideband from the AXI5 BFM into both slaves and checks the wide
+# AXI4 slave has no sideband pins, data round-trips through the converter,
+# and rtrace returns 0 from it while returning 1 from the native slave.
+# Connectivity comes from bridge_1x2_rd_axi5w_connectivity.csv.
+
+[bridge]
+name = "bridge_1x2_rd_axi5w"
+variants = ["no"]
+description = "AXI5 32b master x (64b AXI4 + 32b AXI5) slave rd bridge, sideband across a width converter"
+
+[[bridge.masters]]
+name = "cpu_rd"
+prefix = "cpu_rd_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rd"
+protocol = "axi5"
+axi5_features = ["nsaid", "trace", "unique"]
+
+[[bridge.slaves]]
+name = "ddr_rd"  # AXI4, 64b: upsize converter, sideband drops with a warning
+prefix = "ddr_rd_axi_"
+id_width = 4
+addr_width = 32
+data_width = 64
+user_width = 1
+channels = "rd"
+base_addr = "0x00000000"
+addr_range = "0x80000000"
+
+[[bridge.slaves]]
+name = "sram_rd"  # AXI5 32b: native path
+prefix = "sram_rd_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rd"
+protocol = "axi5"
+axi5_features = ["nsaid", "trace", "unique"]
+base_addr = "0x80000000"
+addr_range = "0x80000000"

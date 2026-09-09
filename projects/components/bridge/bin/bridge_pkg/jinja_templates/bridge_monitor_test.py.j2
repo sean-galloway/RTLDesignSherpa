@@ -47,6 +47,7 @@ async def cocotb_test_{{ rtl_module_name }}_monitor(dut):
         has_compl=HAS_COMPL,
         is_regblock=IS_REGBLOCK,
     )
+    tb.assert_compliance()
 
 
 def generate_bridge_levels():

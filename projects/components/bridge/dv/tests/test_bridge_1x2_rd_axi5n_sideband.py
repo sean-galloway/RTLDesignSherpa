@@ -36,7 +36,7 @@ from projects.components.bridge.dv.tbclasses.bridge1x2_rd_axi5n_tb import (
 )
 
 ARNSAID = 0xA
-RTRACE_DRIVE = 1
+RTRACE_DRIVE = 1   # the AXI5 slave BFM echoes AR trace on R
 
 
 class SidebandSampler:
@@ -77,12 +77,11 @@ async def cocotb_test_bridge_1x2_rd_axi5n_sideband(dut):
 
     await tb.setup_clocks_and_reset()
 
-    # Drive constant, distinctive sideband on the AXI5 master port and
-    # a live rtrace from the external AXI5 slave.
-    dut.cpu_rd_axi_arnsaid.value = ARNSAID
-    dut.cpu_rd_axi_artrace.value = 1
-    dut.cpu_rd_axi_arunique.value = 1
-    dut.sram_rd_axi_rtrace.value = RTRACE_DRIVE
+    async def read(slave_idx, addr):
+        """One AXI5 BFM read carrying the distinctive sideband; returns (data, rtrace)."""
+        resp = await tb.master_rd[0].read_transaction(
+            addr, size=2, nsaid=ARNSAID, trace=1, unique=1)
+        return resp[0]['data'], resp[0].get('trace', 0)
 
     sampler = SidebandSampler(dut, tb.clock)
     cocotb.start_soon(sampler.run())
@@ -101,10 +100,12 @@ async def cocotb_test_bridge_1x2_rd_axi5n_sideband(dut):
         if o not in offs:
             offs.append(o)
     tb.log.info(f"  level={tb.level}: {len(offs)} native-path reads")
+    r_native = []
     for off in offs:
         addr = 0x8000_0000 + off
         expected = tb.slave_mem_read(1, addr, master_idx=0)
-        actual = await tb.master_read(0, addr)
+        actual, rtrace = await read(1, addr)
+        r_native.append(rtrace)
         assert actual == expected, (
             f"read mismatch @ 0x{addr:08x}: got 0x{actual:08x}, "
             f"expected 0x{expected:08x}")
@@ -117,7 +118,9 @@ async def cocotb_test_bridge_1x2_rd_axi5n_sideband(dut):
             f"sram AR sideband sample {i} corrupted: {s}")
     assert sampler.master_r_samples, "no master R beats sampled"
     assert all(v == RTRACE_DRIVE for v in sampler.master_r_samples), (
-        f"rtrace lost on native path: {sampler.master_r_samples}")
+        f"rtrace lost on native path (pins): {sampler.master_r_samples}")
+    assert all(v == RTRACE_DRIVE for v in r_native), (
+        f"rtrace lost on native path (BFM response): {r_native}")
     tb.log.info(f"  native path OK: {len(sampler.sram_ar_samples)} AR "
                 f"handshakes carried nsaid=0x{ARNSAID:x}/trace/unique; "
                 f"{len(sampler.master_r_samples)} R beats returned rtrace=1")
@@ -129,13 +132,16 @@ async def cocotb_test_bridge_1x2_rd_axi5n_sideband(dut):
         o = tb.rng.randrange(0, tb._slave_mem_bytes(0), 4)
         if o not in offs:
             offs.append(o)
+    r_drop = []
     for off in offs:
         addr = 0x0000_0000 + off
         expected = tb.slave_mem_read(0, addr, master_idx=0)
-        actual = await tb.master_read(0, addr)
+        actual, rtrace = await read(0, addr)
+        r_drop.append(rtrace)
         assert actual == expected, (
             f"read mismatch @ 0x{addr:08x}: got 0x{actual:08x}, "
             f"expected 0x{expected:08x}")
+    assert all(v == 0 for v in r_drop), f"rtrace nonzero in BFM responses from the AXI4 slave: {r_drop}"
 
     await ClockCycles(tb.clock, 20)
     assert sampler.master_r_samples, "no master R beats on ddr reads"
@@ -144,6 +150,7 @@ async def cocotb_test_bridge_1x2_rd_axi5n_sideband(dut):
     tb.log.info(f"  drop path OK: {len(sampler.master_r_samples)} R beats "
                 f"from the AXI4 slave returned rtrace=0")
 
+    tb.assert_compliance()
     tb.log.info("=" * 80)
     tb.log.info("A5-2 slice 2 rd sideband test PASSED")
     tb.log.info("=" * 80)

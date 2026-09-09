@@ -77,9 +77,11 @@ async def cocotb_test_bridge_1x2_wr_axi5n_sideband(dut):
 
     await tb.setup_clocks_and_reset()
 
-    dut.cpu_wr_axi_awtrace.value = 1
-    dut.cpu_wr_axi_wpoison.value = 1
-    dut.ddr_wr_axi_btrace.value = 1
+    async def write(addr, data):
+        """One AXI5 BFM write carrying trace + poison; returns the B trace."""
+        r = await tb.master_wr[0].write_transaction(addr, data, size=2, trace=1, poison=1)
+        assert r.get('success'), f"write @0x{addr:08x} failed: {r}"
+        return r.get('trace', 0)
 
     sampler = WrSidebandSampler(dut, tb.clock)
     cocotb.start_soon(sampler.run())
@@ -98,10 +100,12 @@ async def cocotb_test_bridge_1x2_wr_axi5n_sideband(dut):
         if o not in offs:
             offs.append(o)
     tb.log.info(f"  level={tb.level}: {len(offs)} native-path writes")
+    b_native = []
     for i, off in enumerate(offs):
-        await tb.master_write(0, 0x0000_0000 + off, 0xA5A5_0000 + i)
+        b_native.append(await write(0x0000_0000 + off, 0xA5A5_0000 + i))
 
     await ClockCycles(tb.clock, 30)
+    assert all(v == 1 for v in b_native), f"btrace not echoed in BFM results: {b_native}"
     assert len(sampler.ddr_aw) >= n and all(v == 1 for v in sampler.ddr_aw), (
         f"awtrace lost on native path: {sampler.ddr_aw}")
     assert len(sampler.ddr_w) >= n and all(v == 1 for v in sampler.ddr_w), (
@@ -119,10 +123,12 @@ async def cocotb_test_bridge_1x2_wr_axi5n_sideband(dut):
         o = tb.rng.randrange(0, tb._slave_mem_bytes(1), 4)
         if o not in offs:
             offs.append(o)
+    b_sram = []
     for i, off in enumerate(offs):
-        await tb.master_write(0, 0x8000_0000 + off, 0x5A5A_0000 + i)
+        b_sram.append(await write(0x8000_0000 + off, 0x5A5A_0000 + i))
 
     await ClockCycles(tb.clock, 30)
+    assert all(v == 0 for v in b_sram), f"btrace nonzero from the trace-less slave (BFM results): {b_sram}"
     assert len(sampler.sram_w) >= m and all(v == 1 for v in sampler.sram_w), (
         f"wpoison lost on sram path: {sampler.sram_w}")
     # sram has no btrace source, so the master's btrace must read 0 for
@@ -132,6 +138,7 @@ async def cocotb_test_bridge_1x2_wr_axi5n_sideband(dut):
     tb.log.info(f"  sram path OK: wpoison x{len(sampler.sram_w)}, "
                 f"btrace=0 x{len(sampler.master_b)}")
 
+    tb.assert_compliance()
     tb.log.info("=" * 80)
     tb.log.info("A5-2 slice 2 wr sideband test PASSED")
     tb.log.info("=" * 80)

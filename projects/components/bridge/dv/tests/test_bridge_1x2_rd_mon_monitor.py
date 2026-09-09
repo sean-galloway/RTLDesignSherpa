@@ -47,6 +47,7 @@ async def cocotb_test_bridge_1x2_rd_mon_monitor(dut):
         has_compl=HAS_COMPL,
         is_regblock=IS_REGBLOCK,
     )
+    tb.assert_compliance()
 
 
 def generate_bridge_levels():

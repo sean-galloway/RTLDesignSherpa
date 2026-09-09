@@ -1,0 +1,61 @@
+# Bridge Configuration: 2x2 read/write bridge, BOTH masters AXI5 with native
+# sideband, one AXI5 slave (native path) + one AXI4 slave (drop path).
+#
+# The first multi-master AXI5 fixture (BRIDGE-007 finding 6, 2026-09-09):
+# until it existed no test drove AXI5 sideband THROUGH the arbiter, so the
+# crossbar's b/r sideband return mux was never exercised under contention.
+# Both masters carry nsaid/trace/unique; a hand-written test drives distinct
+# NSAID values from each master concurrently and checks the slave-side AR/AW
+# see only values belonging to the issuing master.
+# Connectivity comes from bridge_2x2_axi5_connectivity.csv.
+
+[bridge]
+name = "bridge_2x2_axi5"
+variants = ["no"]
+description = "2 AXI5 masters x (1 AXI5 + 1 AXI4) slaves rw bridge, native sideband through arbitration"
+
+[[bridge.masters]]
+name = "cpu"
+prefix = "cpu_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+protocol = "axi5"
+axi5_features = ["nsaid", "trace", "unique"]
+
+[[bridge.masters]]
+name = "dma"
+prefix = "dma_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+protocol = "axi5"
+axi5_features = ["nsaid", "trace", "unique"]
+
+[[bridge.slaves]]
+name = "ddr"  # stays AXI4: the sideband drop path
+prefix = "ddr_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+base_addr = "0x00000000"
+addr_range = "0x80000000"
+
+[[bridge.slaves]]
+name = "sram"  # AXI5, same features + width as the masters: native path
+prefix = "sram_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+protocol = "axi5"
+axi5_features = ["nsaid", "trace", "unique"]
+base_addr = "0x80000000"
+addr_range = "0x80000000"
