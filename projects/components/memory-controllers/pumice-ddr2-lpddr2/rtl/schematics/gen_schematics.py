@@ -88,8 +88,14 @@ def build_one(top):
         return ("bbox", top, ncells)
 
     svg = HERE / f"{top}.svg"
-    r = subprocess.run(["netlistsvg", str(json_out), "-o", str(svg)],
-                       capture_output=True, text=True, timeout=300)
+    skin = HERE / "skin" / "rds-skin.svg"
+    cmd = ["netlistsvg", str(json_out), "-o", str(svg)]
+    if skin.exists():                      # make_skin.py generates it
+        cmd += ["--skin", str(skin)]
+    else:
+        print(f"[warn] {skin.name} missing -- run make_skin.py; "
+              f"$pmux/$adff/$eqx will render as generic boxes")
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     if r.returncode != 0 or not svg.exists():
         print(f"[FAIL] {top:<28} netlistsvg: {r.stderr.strip()[:80]}"); return None
 
