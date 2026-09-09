@@ -57,8 +57,8 @@ apb4_pit_8254 (Top Level)
 | apb4_slave | pit_config_regs | cmd/rsp | cmd_valid/ready, cmd_pwrite, cmd_paddr, cmd_pwdata, cmd_pstrb; rsp_valid/ready, rsp_prdata, rsp_pslverr |
 | pit_config_regs | pit_regs | cpuif_apb | Various PeakRDL interface signals |
 | pit_regs | pit_config_regs | hwif | hwif_out, hwif_in (struct interfaces) |
-| pit_config_regs | pit_core | Control | pit_enable, control_word, control_wr, counter_data, counter_wr |
-| pit_core | pit_counter | Per-Counter | reload, mode, rw_mode, bcd, gate, clk_en, out, status |
+| pit_config_regs | pit_core | Control | pit_enable, control_word, control_wr, counter_data, counter_wr, counter_rd |
+| pit_core | pit_counter | Per-Counter | count_reg_in/wr/rd, mode, rw_mode, bcd, control_wr, latch_cmd, gate (synchronized), clk_en, out, status |
 
 **External Interfaces:**
 
@@ -111,17 +111,23 @@ flowchart TD
 - Top-level I/O connection
 
 **apb4_slave / apb4_slave_cdc (APB Interface)**
-- APB protocol state machine and transaction control (register-address
-  decode lives in the generated pit_regs.sv)
+- APB protocol state machine and transaction control (the address decode
+  lives in pit_config_regs)
 - Optional CDC when `CDC_ENABLE=1`
-- No error responses: the register block ties its error outputs off, so
-  PSLVERR never asserts (see ch03)
+- Carries PSLVERR back to the bus for any address pit_config_regs drops
+  (see ch03)
 
 **pit_config_regs (Configuration Registers)**
 - PeakRDL register file instantiation
 - Protocol adaptation (cmd/rsp ↔ cpuif_apb)
-- Edge detection for write strobes
-- Counter readback connection
+- Strict address decode: the seven mapped registers pass through, every
+  other address in the 4 KB window is acknowledged locally as a dropped
+  access (write ignored, read 0, PSLVERR)
+- One-cycle command strobes, edge-detected from the adapter's held request
+  and delayed one flop so they line up with the stored field value -- one
+  write, one load, byte strobes already merged
+- Counter readback connection, plus a data-read strobe per counter that
+  releases the latch
 - Control-word and counter-load write strobes (the counter-select decode
   of the control word itself is in pit_core.sv)
 
@@ -133,18 +139,22 @@ flowchart TD
 
 **pit_core (Core Logic)**
 - Counter instance management (3 counters)
-- Control word routing to selected counter
+- Control word routing to selected counter, split into a program strobe
+  (RW != 00) and a latch command (RW = 00)
+- GATE input synchronizer, SYNC_STAGES flops per counter, unconditional in
+  both clocking configurations
 - Data routing to/from selected counter
 - Global enable (clock enable) distribution
 - Status aggregation from all counters
 
 **pit_counter (Individual Counter)**
-- 16-bit down-counter logic
-- Mode 0 state machine
-- GATE input control
-- OUT signal generation
+- 16-bit down-counter logic, binary or BCD; count 0 means 65536
+- Mode 0 counting -- two flags and the count, no state machine
+- GATE pause/resume (GATE sits in the decrement condition)
+- Counter latch: frozen copy plus a latched flag, released by the data read
+- OUT signal generation, one steady state after terminal count
 - Control word storage (mode, RW mode, BCD flag)
-- Count value reload logic
+- Count load on the RW-selected byte lane
 
 ### Signal Flow Examples
 
@@ -160,13 +170,13 @@ peakrdl_to_cmdrsp converts to cpuif_apb protocol
     ↓
 pit_regs.PIT_CONTROL field updates (hwif_out)
     ↓
-pit_config_regs detects edge on PIT_CONTROL write
+pit_config_regs fires the one-cycle PIT_CONTROL strobe, aligned to the stored field
     ↓
-Decodes: SC=00 (Counter 0), RW=11, MODE=000, BCD=0
+pit_core decodes: SC=00 (Counter 0), RW=11 (a program, not a latch), MODE=000, BCD=0
     ↓
-Asserts control_word_wr[0], routes control_word to pit_core
+Asserts cfg_control_wr on counter 0 (RW=00 would assert cfg_latch_cmd instead)
     ↓
-pit_core updates counter0_mode, counter0_rw_mode, counter0_bcd
+pit_counter[0] shadows mode/RW/BCD, sets NULL_COUNT, drives OUT low, aborts any count in progress
 ```
 
 **Example 2: Reading Counter 1 Value**
@@ -196,15 +206,16 @@ prdata returns current counter 1 value to CPU
 ```
 pit_counter instance in COUNTING state
     ↓
-i_clk_en=1 (PIT enabled), i_gate=1 (GATE high)
+i_clk_en=1 (PIT enabled), i_gate=1 (synchronized GATE high)
+    ↓
+w_tick = r_counting && i_clk_en && i_gate   // GATE low: no tick, count holds
     ↓
 On rising edge of clk:
-    if (r_counting && i_clk_en) begin
-        if (r_count == 16'd0) begin
-            r_out <= 1'b1;        // Terminal count
-            r_counting <= 1'b0;
-        end else begin
-            r_count <= r_count - 16'd1;
+    if (w_tick) begin
+        r_count <= w_next_count;             // decremented value (binary or BCD)
+        if (w_next_count == 16'd0) begin     // terminal count, tested AFTER the decrement
+            r_out      <= 1'b1;              //   so a load of 0 counts 65536
+            r_counting <= 1'b0;              //   and nothing re-arms it but a new load
         end
     end
     ↓

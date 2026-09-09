@@ -46,9 +46,10 @@ sys.path.insert(0, repo_root)
 # Import from PROJECT AREA (not framework!)
 from projects.components.retro_legacy_blocks.dv.tbclasses.pit_8254.pit_tb import PITTB, PITRegisterMap
 from projects.components.retro_legacy_blocks.dv.tbclasses.pit_8254.pit_tests_basic import PITBasicTests
+from projects.components.retro_legacy_blocks.dv.tbclasses.pit_8254.pit_tests_medium import PITMediumTests
 
 
-@cocotb.test(timeout_time=200, timeout_unit="us")
+@cocotb.test(timeout_time=500, timeout_unit="us")
 async def pit_test(dut):
     """Main test function for PIT module with modular test structure"""
     tb = PITTB(dut)
@@ -75,8 +76,9 @@ async def pit_test(dut):
     tb.log.info(f"Starting {test_level.upper()} PIT test...")
     tb.log.info(f"Configuration: {tb.num_counters} counters")
 
-    # Create test suite
+    # Create test suites
     basic_tests = PITBasicTests(tb)
+    medium_tests = PITMediumTests(tb)
 
     # Run all tests - test list varies by test level
     results = []
@@ -95,6 +97,20 @@ async def pit_test(dut):
     medium_test_methods = [
         ('Counter Mode 2 Rate Generator', basic_tests.test_counter_mode2_rate_generator),
         ('Counter Mode 3 Square Wave', basic_tests.test_counter_mode3_square_wave),
+        # GitHub #52 defect-regression: expected RED against current RTL
+        ('GH52-A GATE Pause/Resume', medium_tests.test_gh52_gate_pause_resume),
+        ('GH52-B Count 0 Means 65536', medium_tests.test_gh52_count_zero_is_65536),
+        ('GH52-C Counter Latch Command', medium_tests.test_gh52_counter_latch_command),
+        ('GH52-C Counter Load At Reset RW=00', medium_tests.test_gh52_counter_load_at_reset_rw00),
+        ('GH52-D Counter Load Byte Lanes', medium_tests.test_gh52_counter_load_byte_lanes),
+        ('GH52-E Counter Load Glitch-Free', medium_tests.test_gh52_counter_load_glitch_free),
+        ('GH52-F No Oscillation After Terminal', medium_tests.test_gh52_no_oscillation_after_terminal),
+        ('GH52-G Address Decode Aliasing', medium_tests.test_gh52_address_decode_aliasing),
+        ('GH52-H GATE CDC Load-Time Guard', medium_tests.test_gh52_gate_cdc_load_time_guard),
+        # Found reviewing the landed #52 RTL fix (not part of the original issue thread)
+        ('GH52-I Control Word On Terminal Tick No Spurious OUT',
+         medium_tests.test_gh52_control_word_on_terminal_tick_no_spurious_out),
+        ('GH52-J Latch Cleared By Reprogram', medium_tests.test_gh52_latch_cleared_by_reprogram),
     ]
 
     # Full tests (full level only)
@@ -212,6 +228,17 @@ def test_pit(request, cdc_enable, test_level, description):
         'CDC_ENABLE': str(cdc_enable),
     }
 
+    # Clock periods: pclk is fixed at 10ns. When CDC_ENABLE=1, pit_clk runs at
+    # a non-unity, non-integer ratio to pclk (10ns:7ns, same convention as
+    # gpio/ioapic) so the CDC bridge (apb4_slave_cdc) and the GitHub #52
+    # medium suite's GATE/glitch/oscillation white-box checks actually cross
+    # a real clock-domain boundary instead of running edge-aligned. When
+    # CDC_ENABLE=0 the RTL ties w_timer_clk to pclk internally (see
+    # apb4_pit_8254.sv's `wire w_timer_clk = CDC_ENABLE ? pit_clk : pclk;`),
+    # so pit_clk must match pclk exactly.
+    apb_clock_period_ns = 10
+    pit_clock_period_ns = 7 if cdc_enable else apb_clock_period_ns
+
     # Environment variables
     extra_env = {
         'TRACE_FILE': f"{sim_build}/dump.fst",
@@ -222,6 +249,11 @@ def test_pit(request, cdc_enable, test_level, description):
         'COCOTB_RESULTS_FILE': results_path,
         'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_LEVEL': test_level,
+
+        # DUT-specific parameters
+        'TEST_CDC_ENABLE': str(cdc_enable),
+        'TEST_APB_CLOCK_PERIOD': str(apb_clock_period_ns),
+        'TEST_PIT_CLOCK_PERIOD': str(pit_clock_period_ns),
     }
 
     # WAVES support

@@ -158,13 +158,37 @@ class PITTB(TBBase):
         # Test tracking
         self.interrupt_events = [[] for _ in range(self.num_counters)]
 
-    async def setup_clocks_and_reset(self):
-        """Complete initialization - clocks and reset (MANDATORY METHOD)."""
-        # Start APB clock (100 MHz = 10ns period)
-        await self.start_clock('pclk', freq=10, units='ns')
+        # CDC_ENABLE mirror of the RTL parameter, plumbed by the runner via
+        # TEST_CDC_ENABLE (same pattern as gpio_tb.py/ioapic_tb.py). Needed so
+        # white-box tests can sample counter internals on the clock the core
+        # actually runs on (pit_clk when CDC_ENABLE=1, pclk when 0 - see
+        # apb4_pit_8254.sv's `wire w_timer_clk = CDC_ENABLE ? pit_clk : pclk;`).
+        self.cdc_enable = bool(int(os.environ.get('TEST_CDC_ENABLE', '0')))
+        self.core_clk = None  # set in setup_clocks_and_reset
 
-        # Start PIT timer clock (100 MHz = 10ns period)
-        await self.start_clock('pit_clk', freq=10, units='ns')
+    async def setup_clocks_and_reset(self):
+        """Complete initialization - clocks and reset (MANDATORY METHOD).
+
+        Clock periods are read from TEST_APB_CLOCK_PERIOD / TEST_PIT_CLOCK_PERIOD
+        (plumbed by the test runner), same pattern as gpio_tb.py/ioapic_tb.py.
+
+        GitHub #52 medium suite: an earlier version of this TB started pclk
+        and pit_clk both at 10ns from the same sim time, so every
+        CDC_ENABLE=1 configuration ran with edge-identical clocks and never
+        crossed a real clock-domain boundary. The runner now drives pit_clk
+        at a non-unity, non-integer ratio to pclk (10ns:7ns) whenever
+        CDC_ENABLE=1. When CDC_ENABLE=0 the RTL ties w_timer_clk to pclk
+        internally, so pit_clk is started at the same period as pclk to
+        match (it exists as a port either way, just unused internally).
+        """
+        apb_clock_period_ns = int(os.environ.get('TEST_APB_CLOCK_PERIOD', '10'))
+        pit_clock_period_ns = int(os.environ.get('TEST_PIT_CLOCK_PERIOD', str(apb_clock_period_ns)))
+
+        # Start APB clock
+        await self.start_clock('pclk', freq=apb_clock_period_ns, units='ns')
+
+        # Start PIT timer clock (possibly a different, non-integer-ratio period)
+        await self.start_clock('pit_clk', freq=pit_clock_period_ns, units='ns')
 
         # Set GATE inputs high (counters enabled)
         self.dut.gate_in.value = 0x7  # All 3 GATE inputs high
@@ -174,6 +198,11 @@ class PITTB(TBBase):
         await self.wait_clocks('pclk', 10)
         await self.deassert_reset()
         await self.wait_clocks('pclk', 5)
+
+        # Core clock: the clock pit_core/pit_counter/pit_config_regs actually
+        # run on (apb4_pit_8254.sv w_timer_clk). White-box sampling of
+        # counter internals (r_count, r_counting, r_out) must use this edge.
+        self.core_clk = self.dut.pit_clk if self.cdc_enable else self.dut.pclk
 
     async def setup_components(self):
         """Initialize APB components (call after setup_clocks_and_reset)."""
@@ -216,15 +245,32 @@ class PITTB(TBBase):
     # Register Access Methods
     # ========================================================================
 
-    async def write_register(self, addr: int, data: int) -> APBPacket:
-        """Write to PIT register using correct APB master API (copied from HPET)."""
+    async def write_register(self, addr: int, data: int, pstrb: int = 0xF) -> APBPacket:
+        """Write to PIT register using correct APB master API (copied from HPET).
+
+        Args:
+            addr: APB address (12-bit)
+            data: 32-bit write data (PWDATA) - bytes not covered by pstrb are
+                still driven onto the bus (matching real APB masters/#52 item
+                D, which needs a write where the unstrobed byte carries
+                distinguishable "garbage" so a design that ignores PSTRB can
+                be caught merging it into storage)
+            pstrb: 4-bit byte-strobe mask (default 0xF = all bytes valid)
+
+        Returns:
+            APBPacket. ``.pslverr`` (and equivalently ``.fields['pslverr']``)
+            carries the APB slave error response sampled by the framework APB
+            master BFM (APBMaster._finish_xmit) once the transaction
+            completes - it is NOT read by poking s_apb_PSLVERR here (same
+            convention as ioapic_tb.py/write_apb_register).
+        """
         try:
             # Create APB packet with proper field configuration
             write_packet = APBPacket(
                 pwrite=1,
                 paddr=addr,
                 pwdata=data,
-                pstrb=0xF,  # All 4 bytes enabled for 32-bit
+                pstrb=pstrb,
                 pprot=0,
                 data_width=32,  # Fixed 32-bit data
                 addr_width=12,  # Fixed 12-bit addressing
@@ -255,6 +301,12 @@ class PITTB(TBBase):
             # Wait one more cycle for transaction to fully complete
             await RisingEdge(self.dut.pclk)
 
+            # GitHub #52 item G: expose the completed transaction's PSLVERR
+            # response as a plain attribute (fields['pslverr'] is settled by
+            # this point because APBMaster._finish_xmit wrote it before the
+            # PSEL&&PENABLE&&PREADY handshake above completed).
+            write_packet.pslverr = write_packet.fields.get('pslverr', 0)
+
             return write_packet
 
         except Exception as e:
@@ -262,7 +314,13 @@ class PITTB(TBBase):
             raise
 
     async def read_register(self, addr: int) -> Tuple[APBPacket, int]:
-        """Read from PIT register using correct APB master API (copied from HPET)."""
+        """Read from PIT register using correct APB master API (copied from HPET).
+
+        Returns:
+            Tuple of (APBPacket, read_value). The packet's ``.pslverr`` (and
+            equivalently ``.fields['pslverr']``) carries the APB slave error
+            response, same convention as write_register()/ioapic_tb.py.
+        """
         try:
             # Create APB packet with proper field configuration
             read_packet = APBPacket(
@@ -304,11 +362,47 @@ class PITTB(TBBase):
             # Wait one more cycle for transaction to fully complete
             await RisingEdge(self.dut.pclk)
 
+            # GitHub #52 item G: expose PSLVERR (see write_register for the
+            # same-timing rationale).
+            read_packet.pslverr = read_packet.fields.get('pslverr', 0)
+
             return read_packet, read_data
 
         except Exception as e:
             self.log.error(f"Read register failed: {e}")
             raise
+
+    def set_gate(self, counter_id: int, level: int):
+        """
+        Drive a single counter's GATE input without disturbing the others.
+
+        Args:
+            counter_id: Counter number (0-2)
+            level: 0 or 1
+        """
+        current = int(self.dut.gate_in.value)
+        if level:
+            current |= (1 << counter_id)
+        else:
+            current &= ~(1 << counter_id) & 0x7
+        self.dut.gate_in.value = current
+
+    def counter_internal(self, counter_id: int):
+        """
+        Hierarchical handle to a pit_counter instance for white-box checks.
+
+        Path: apb4_pit_8254.u_pit_core.u_counter{0,1,2} (see pit_core.sv).
+        Exposes r_count / r_counting / r_out for GitHub #52 items E and F,
+        which require sampling internal state every core clock - no signal
+        at the register or top-level interface carries this information.
+
+        Args:
+            counter_id: Counter number (0-2)
+
+        Returns:
+            cocotb handle for the selected pit_counter instance
+        """
+        return getattr(self.dut.u_pit_core, f'u_counter{counter_id}')
 
     async def enable_pit(self, enable: bool = True):
         """

@@ -17,17 +17,36 @@
 //
 // Follows HPET 3-layer architecture:
 //   Layer 1: apb4_pit_8254 (this module) - APB interface and CDC
-//   Layer 2: pit_config_regs - Register wrapper with edge detection
-//   Layer 3: pit_core - Counter array logic
+//   Layer 2: pit_config_regs - Register wrapper, decode and command strobes
+//   Layer 3: pit_core - Counter array, GATE synchronizer
 //
-// Register Map (32-bit aligned):
+// Parameters:
+//   - NUM_COUNTERS: fixed at 3 (the register map is generated for 3 counters)
+//   - CDC_ENABLE:   1 = counters run on pit_clk, the whole cmd/rsp stream
+//                   crosses pclk <-> pit_clk in apb4_slave_cdc
+//                   0 = everything runs on pclk
+//   - USE_JOHNSON:  async-FIFO pointer encoding for the CDC block
+//   - SYNC_STAGES:  gate_in input synchronizer depth, >= 2. Default 2.
+//
+// Register Map (32-bit aligned). NOTHING ELSE in the 4 KB window is decoded:
+// every other address is dropped with PSLVERR (pit_config_regs.sv).
 //   0x000: PIT_CONFIG      - Global configuration (enable, clock select)
-//   0x004: PIT_CONTROL     - Control word (8254-compatible)
+//   0x004: PIT_CONTROL     - Control word (8254-compatible); RW = 00 is the
+//                            counter-latch COMMAND, not a read/write mode
 //   0x008: PIT_STATUS      - Read-back status (3x 8-bit status bytes)
-//   0x00C: RESERVED        - Reserved
-//   0x010: COUNTER0_DATA   - Counter 0 value (16-bit)
+//   0x00C: RESERVED        - Reserved, reads zero
+//   0x010: COUNTER0_DATA   - Counter 0 value (16-bit); write loads, read
+//                            returns the live (or latched) count
 //   0x014: COUNTER1_DATA   - Counter 1 value (16-bit)
 //   0x018: COUNTER2_DATA   - Counter 2 value (16-bit)
+//
+// gate_in is asynchronous in BOTH configurations and is synchronized in
+// pit_core with SYNC_STAGES flops - see that file's header for why the
+// synchronizer is not gated on CDC_ENABLE.
+//
+// Updated: 2026-09-09 - GitHub #52: GATE pause/resume, count 0 = 65536,
+//                       latch-as-command, strict decode with PSLVERR, aligned
+//                       one-cycle strobes, gate_in synchronizer
 
 `timescale 1ns / 1ps
 
@@ -39,7 +58,8 @@ module apb4_pit_8254 #(
     // Async-FIFO pointer encoding, forwarded to the CDC block: 0 = Gray
     // (power-of-2 depth only), 1 = Johnson (any depth, DEPTH-bit pointers).
     // Gray by default -- Johnson is opt-in.
-    parameter int USE_JOHNSON = 0
+    parameter int USE_JOHNSON  = 0,
+    parameter int SYNC_STAGES  = 2   // gate_in input synchronizer depth, >= 2
 ) (
     //========================================================================
     // Clock and Reset - Dual Domain
@@ -182,18 +202,13 @@ module apb4_pit_8254 #(
     // Clock and Reset Selection
     //========================================================================
 
-    wire w_timer_clk;
-    wire w_timer_rst;
-
-    generate
-        if (CDC_ENABLE) begin : gen_cdc_clocks
-            assign w_timer_clk = pit_clk;
-            assign w_timer_rst = ~pit_resetn;  // Convert active-low to active-high
-        end else begin : gen_same_clock
-            assign w_timer_clk = pclk;
-            assign w_timer_rst = ~presetn;     // Convert active-low to active-high
-        end
-    endgenerate
+    // CDC_ENABLE is a parameter, so this is a constant select the tools fold
+    // away - not a runtime clock mux. Written as a ternary rather than a
+    // generate so pit_clk/pit_resetn stay referenced in BOTH configurations
+    // (a generate leaves them dangling at CDC_ENABLE = 0, which lint reports
+    // as unused top-level inputs).
+    wire w_timer_clk   = CDC_ENABLE ? pit_clk    : pclk;
+    wire w_timer_rst_n = CDC_ENABLE ? pit_resetn : presetn;
 
     //========================================================================
     // Configuration Register Interface
@@ -218,11 +233,14 @@ module apb4_pit_8254 #(
     wire        w_counter0_reg_wr;
     wire        w_counter1_reg_wr;
     wire        w_counter2_reg_wr;
+    wire        w_counter0_reg_rd;
+    wire        w_counter1_reg_rd;
+    wire        w_counter2_reg_rd;
 
     pit_config_regs u_config_regs (
-        // Clock and Reset - conditional based on CDC_ENABLE
-        .clk                   (CDC_ENABLE ? pit_clk : pclk),
-        .rst_n                 (CDC_ENABLE ? pit_resetn : presetn),
+        // Clock and Reset - the counting domain, same selection as the core
+        .clk                   (w_timer_clk),
+        .rst_n                 (w_timer_rst_n),
 
         // CMD/RSP interface
         .cmd_valid             (w_cmd_valid),
@@ -248,12 +266,15 @@ module apb4_pit_8254 #(
         .counter_select        (w_counter_select),
 
         .counter0_data_wr      (w_counter0_reg_wr),
+        .counter0_data_rd      (w_counter0_reg_rd),
         .counter0_data         (w_counter0_reg_in),
         .counter0_readback     (w_counter0_reg_out),
         .counter1_data_wr      (w_counter1_reg_wr),
+        .counter1_data_rd      (w_counter1_reg_rd),
         .counter1_data         (w_counter1_reg_in),
         .counter1_readback     (w_counter1_reg_out),
         .counter2_data_wr      (w_counter2_reg_wr),
+        .counter2_data_rd      (w_counter2_reg_rd),
         .counter2_data         (w_counter2_reg_in),
         .counter2_readback     (w_counter2_reg_out),
 
@@ -267,10 +288,11 @@ module apb4_pit_8254 #(
     //========================================================================
 
     pit_core #(
-        .NUM_COUNTERS(NUM_COUNTERS)
+        .NUM_COUNTERS(NUM_COUNTERS),
+        .SYNC_STAGES (SYNC_STAGES)
     ) u_pit_core (
         .clk                 (w_timer_clk),
-        .rst                 (w_timer_rst),
+        .rst_n               (w_timer_rst_n),
         // Configuration
         .cfg_pit_enable      (w_pit_enable),
         .cfg_clock_select    (w_clock_select),
@@ -286,6 +308,9 @@ module apb4_pit_8254 #(
         .counter0_reg_wr     (w_counter0_reg_wr),
         .counter1_reg_wr     (w_counter1_reg_wr),
         .counter2_reg_wr     (w_counter2_reg_wr),
+        .counter0_reg_rd     (w_counter0_reg_rd),
+        .counter1_reg_rd     (w_counter1_reg_rd),
+        .counter2_reg_rd     (w_counter2_reg_rd),
         .counter0_reg_out    (w_counter0_reg_out),
         .counter1_reg_out    (w_counter1_reg_out),
         .counter2_reg_out    (w_counter2_reg_out),
@@ -304,7 +329,11 @@ module apb4_pit_8254 #(
 
     // CDC_ENABLE=1 is implemented above: apb4_slave_cdc carries the whole
     // cmd/rsp stream across pclk <-> pit_clk, and the config regs + core run
-    // entirely on pit_clk, so no per-signal crossings are needed here.
+    // entirely on pit_clk, so the bus needs no per-signal crossings here.
     // CDC_ENABLE=0 (default) runs everything on pclk via apb4_slave.
+    //
+    // gate_in is the ONE signal that is not covered by that argument: it is a
+    // pin, asynchronous to whichever clock the counters end up on. It crosses
+    // in pit_core's SYNC_STAGES-deep synchronizer, unconditionally.
 
 endmodule

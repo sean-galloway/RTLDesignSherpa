@@ -35,12 +35,10 @@
 | `0x014` | COUNTER1_DATA | RW | Counter 1 value |
 | `0x018` | COUNTER2_DATA | RW | Counter 2 value |
 
-The register block decodes only address bits [4:0], so this 32-byte window
-aliases every 0x20 throughout the 4 KB APB region -- for READS and
-PIT_CONFIG writes only; command/data writes must use base offsets (see
-the top-level interface chapter and #52). Unmapped/aliased accesses
-never raise PSLVERR (the error outputs are tied off); 0x01C reads as 0. See
-the top-level interface chapter for details.
+These seven registers are the only software-visible addresses in the 4 KB
+window. Every other address -- 0x01C, 0x020 and up -- is dropped with
+PSLVERR: the write is ignored and the read returns 0. There are no aliases.
+See the top-level interface chapter for the decode policy.
 
 ---
 
@@ -52,7 +50,7 @@ the top-level interface chapter for details.
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
 | [31:2] | RESERVED | RO | 0 | Reserved, read as 0 |
-| [1] | CLOCK_SELECT | RW | 0 | Clock source select (future use) |
+| [1] | CLOCK_SELECT | RW | 0 | Clock source select. Storage only: there is one counting clock and no divider behind this bit, so it reads back what was written and changes nothing |
 | [0] | PIT_ENABLE | RW | 0 | Global PIT enable<br>0 = PIT disabled (counters paused)<br>1 = PIT enabled (counters active) |
 
 **Programming Notes:**
@@ -70,17 +68,23 @@ the top-level interface chapter for details.
 | Bits | Name | Description |
 |------|------|-------------|
 | [7:6] | SC[1:0] | Counter Select<br>`00` = Counter 0<br>`01` = Counter 1<br>`10` = Counter 2<br>`11` = Read-back command (not implemented) |
-| [5:4] | RW[1:0] | Read/Write Mode<br>`00` = Counter latch (implemented, but NOT 8254-style -- see the latch note below)<br>`01` = LSB only<br>`10` = MSB only<br>`11` = LSB then MSB (recommended) |
+| [5:4] | RW[1:0] | Read/Write Mode<br>`00` = Counter latch command (see the latch note below)<br>`01` = LSB only, bits [7:0]<br>`10` = MSB only, bits [15:8]<br>`11` = LSB then MSB, full 16-bit word (recommended) |
 | [3:1] | M[2:0] | Counter Mode<br>`000` = Mode 0 (Interrupt on terminal count)<br>`001`-`101` = Modes 1-5 (not implemented) |
 | [0] | BCD | Counting Mode<br>`0` = Binary (16-bit, 0-65535)<br>`1` = BCD (4 digits, 0-9999) |
 
-**Counter latch (RW=00) exists but deviates from the 8254.** The latch
-triggers on a COUNTERx_DATA WRITE while RW=00 (a real 8254 latches on
-the control word itself); reads then return the latched value, and the
-latch never releases while RW stays 00 (any RW!=00 control word
-releases it). Because RW resets to 00, a data write before any control
-word latches instead of loading -- and a counter left at RW=00 can
-never be loaded. Tracked with the RTL findings in #52.
+**Counter latch (RW=00) is the 8254 command.** A control word with RW=00
+freezes the selected counter's current count while the counter keeps
+running; it does not touch the counter's mode, RW mode or BCD programming.
+The next read of that counter's COUNTERx_DATA returns the frozen value and
+releases the latch, so reads after that see the live count again. A second
+latch command before the read is ignored -- the first latched value
+survives. The latch is also released, without a read, when the counter is
+reprogrammed (a control word that programs it) or reloaded (a data write),
+so the first read after a new program returns the new program's live
+count, never a stale snapshot of the old one. A data write never latches: RW=00 is the latch opcode, not a
+read/write mode, so a counter still at its reset RW=00 takes a data write
+as a full 16-bit load. (This replaced the write-triggered, sticky latch
+of issue #52 on 2026-09-09.)
 
 **Control Word Format (8254-Compatible):**
 ```
@@ -154,31 +158,45 @@ bool bcd = counter0_status & 0x1;
 | [15:0] | COUNT | RW | Counter value (16-bit) |
 
 **Write Behavior:**
-- Must program control word BEFORE writing counter data (RW resets to 00,
-  where every data write LATCHES instead of loading -- see the latch note)
-- RW=10 (MSB only) takes the count's HIGH byte from PWDATA[7:0] (the
-  write-side mirror of the documented read quirk): write 0x00AB to load
-  0xAB00; a natural 0xAB00 write loads zero
-- Counter loads the written value on the SECOND request cycle: the
-  cmd/rsp adapter holds the request for two cycles, and the load strobe
-  fires on both -- the first strobe loads the PREVIOUS capture (a
-  one-cycle phantom load of stale data, 0 after reset) and the second
-  loads the correct value (verified against peakrdl_to_cmdrsp.sv;
-  RTL hazard #52). Net effect for software: the right count lands, but
-  reloading a RUNNING counter passes through one cycle of stale count --
-  with a stale value of 0 that can pulse OUT/irq spuriously
-- If `GATE` high and `PIT_ENABLE=1`, counter starts decrementing
-- Writes while counting update the reload value and restart counting
+- Program the control word first so the RW mode is what you intend. A
+  counter that has never seen a control word (RW=00 out of reset) takes a
+  data write as a full 16-bit load -- it never latches
+- The byte the counter loads follows the RW mode, on its natural lane:
+  - `RW=11` (or reset RW=00): all 16 bits, `count = PWDATA[15:0]`
+  - `RW=01` (LSB only): `count = {8'h00, PWDATA[7:0]}`
+  - `RW=10` (MSB only): `count = {PWDATA[15:8], 8'h00}` -- write 0xAB00 to
+    load 0xAB00
+- PSTRB is honoured: the register block merges the strobed bytes into the
+  stored value and the load takes that merged value, so a PSTRB=0x1 write
+  loads {stored high byte, new low byte}
+- The stored value that a byte-strobed write merges with is the field's
+  mirror of the LIVE count, not the value software last wrote, so a partial
+  load on a running counter takes the other byte from wherever the count is
+  that cycle. Disable the PIT or use a full 16-bit write when the result
+  must be deterministic.
+- One write, one load: the load strobe fires once, aligned to the stored
+  value, so the count goes old to new in a single cycle with no stale
+  intermediate value and no spurious OUT or interrupt. A running counter can
+  be reloaded safely
+- A count of 0 means 65536 (10000 in BCD): terminal count after a full wrap
+- The load clears NULL_COUNT and drives OUT low; the counter then counts
+  whenever `GATE` is high and `PIT_ENABLE=1`. GATE low pauses it, GATE high
+  resumes it from where it stopped
+- Writes while counting replace the count and restart from the new value
 
 **Read Behavior:**
-- The value returned depends on the counter's programmed RW mode:
+- The value returned depends on the counter's programmed RW mode, on the
+  same lane the write uses:
   - `RW=01` (LSB only): returns `{8'h00, count[7:0]}`
-  - `RW=10` (MSB only): returns `{8'h00, count[15:8]}` - the HIGH byte of the
-    count appears in the LOW byte of the read data
+  - `RW=10` (MSB only): returns `{count[15:8], 8'h00}` -- the high byte in
+    bits [15:8], bits [7:0] read 0
   - `RW=11` (LSB then MSB): returns the full 16-bit current count
-- Returns current counter value (not reload value)
-- Counter continues decrementing while being read
-- For stable reads, disable PIT first or use very fast access
+- Returns the live count -- or, if a latch command is pending, the latched
+  count; that read releases the latch (see PIT_CONTROL)
+- After terminal count the counter parks at 0 with OUT high; it does not
+  keep decrementing past zero the way a real 8254 does (stated deviation)
+- The counter continues decrementing while being read; for an atomic
+  snapshot use the latch command, or disable the PIT first
 
 **Programming Example:**
 ```c
@@ -204,8 +222,8 @@ uint32_t count = read_register(COUNTER0_DATA) & 0xFFFF;
 
 **Write Timing:**
 ```
-APB Write → strobe cycle 1 (phantom load of stale capture) → strobe
-cycle 2 (correct value loads) → Start Counting  [see the note above, #52]
+APB Write → field storage updates (PSTRB merged) → one aligned load strobe,
+next cycle → counter holds the new value → counting while GATE high and PIT enabled
 ```
 
 **Read Timing:**
@@ -262,5 +280,5 @@ write_register(PIT_CONFIG, 0x01);
 
 ---
 
-**Version:** 1.0
-**Last Updated:** 2025-11-08
+**Version:** 1.1
+**Last Updated:** 2026-09-09

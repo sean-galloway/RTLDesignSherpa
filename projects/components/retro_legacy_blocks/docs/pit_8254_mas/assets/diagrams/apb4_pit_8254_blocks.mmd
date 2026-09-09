@@ -11,5 +11,5 @@ flowchart LR
         end
     end
     IF --> RF --> CTRS
-    GATE["gate[2:0]"] --> CTRS
+    GATE["gate[2:0]"] --> SYNC["GATE synchronizer<br/>SYNC_STAGES flops (default 2)<br/>on the counting clock"] --> CTRS
     CTRS --> OUTP["out[2:0]<br/>asserted at terminal count"]

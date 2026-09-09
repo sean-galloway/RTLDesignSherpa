@@ -11,8 +11,8 @@ This directory contains WaveDrom timing diagrams for PIT 8254 (Programmable Inte
 | `pit_mode0_terminal_count.json` | Mode 0 | Terminal count - one-shot interrupt |
 | `pit_mode2_rate_generator.json` | Mode 2 | Rate generator - divide-by-N |
 | `pit_mode3_square_wave.json` | Mode 3 | Square wave generator - 50% duty cycle |
-| `pit_gate_control.json` | Gate Control | Gate suspend/resume (8254 reference; RTL treats GATE as start enable only) |
-| `pit_readback.json` | Readback | Latch counter while running (8254 reference; not implemented, SC=11 is a no-op) |
+| `pit_gate_control.json` | Gate Control | Gate suspend/resume in Mode 0 -- matches the RTL (GATE low pauses, GATE high resumes, no reload) |
+| `pit_readback.json` | Readback | Read-back command (8254 reference; SC=11 is a no-op in the RTL -- the count is latched through the RW=00 control word instead) |
 
 ### Rendering to SVG
 
@@ -39,14 +39,15 @@ done
 - **Config:** `cfg_mode`, `cfg_count`, `cfg_rw_mode`, `cfg_bcd`
 - **Counters:** `r_counter0`, `r_counter1`, `r_counter2`
 - **Control:** `counting`, `reload`, `half_period`
-- **Latch:** `count_latched`, `r_latch_value`, `status_latched`, `r_status_latch`
+- **Latch:** `r_count_latched`, `r_count_latch` (the count only; status is always live)
 
 ### Operating Modes
 
 NOTE: the delivered RTL implements Mode 0 only. Modes 1-5 below, the
-mode-dependent GATE table, and the readback command are Intel 8254 REFERENCE
-behavior kept for context; programming those modes yields Mode 0 counting,
-GATE never suspends an in-progress count, and SC=11 is a no-op.
+non-Mode-0 rows of the GATE table, and the readback command are Intel 8254
+REFERENCE behavior kept for context; programming those modes yields Mode 0
+counting, and SC=11 is a no-op. The Mode 0 row of the GATE table is what the
+RTL does: GATE low suspends the count, GATE high resumes it.
 
 **Mode 0: Terminal Count (Interrupt on Terminal Count)**
 - OUT initially low

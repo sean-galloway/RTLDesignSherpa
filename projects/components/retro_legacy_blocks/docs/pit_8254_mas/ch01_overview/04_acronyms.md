@@ -78,10 +78,10 @@ AMBA APB4 is a simple synchronous protocol for low-bandwidth peripheral access. 
 - **Response**: `pready=1` when slave completes transaction
 
 **BCD Counting:**
-Binary-Coded Decimal mode where each 4-bit nibble represents 0-9. For a 16-bit counter, BCD mode supports counts from 1 to 9999 (4 decimal digits); a count of 0 is degenerate (terminal count on the next enabled clock - there is no 0-means-10000 convention). Currently implemented but not yet tested.
+Binary-Coded Decimal mode where each 4-bit nibble represents 0-9. For a 16-bit counter, BCD mode counts 1 to 9999 (4 decimal digits) and a load of 0 counts 10000, the BCD counterpart of the binary 0-means-65536 rule (the counter borrows from 0x0000 to 0x9999 and reaches terminal count on the decremented value).
 
 **Binary Counting:**
-Standard binary mode where full 16-bit range is used: 0 to 65,535 counts.
+Standard binary mode where the full 16-bit range is used: a load of N counts N, and a load of 0 counts 65,536.
 
 **Clock Domain Crossing (CDC):**
 Transfer of signals between two asynchronous clock domains. When `CDC_ENABLE=1`, the APB PIT includes synchronization logic to safely cross between `pclk` (APB clock) and `pit_clk` (timer clock).
@@ -93,7 +93,7 @@ A signal (`i_clk_en`) that gates counter operation without stopping the clock. W
 An 8-bit value written to `PIT_CONTROL` register to configure counter operation. Format follows Intel 8254 specification:
 ```
 [7:6] SC   - Counter Select (00=Counter 0, 01=Counter 1, 10=Counter 2)
-[5:4] RW   - Read/Write mode (01=LSB only, 10=MSB only, 11=LSB then MSB)
+[5:4] RW   - Read/Write mode (00=counter latch command, 01=LSB only, 10=MSB only, 11=LSB then MSB)
 [3:1] MODE - Counter mode (000=Mode 0, 001-101=Modes 1-5)
 [0]   BCD  - 0=Binary, 1=BCD
 ```
@@ -102,15 +102,15 @@ An 8-bit value written to `PIT_CONTROL` register to configure counter operation.
 A 16-bit down-counter that decrements on each clock cycle when enabled. The PIT contains three independent counters (Counter 0, Counter 1, Counter 2).
 
 **GATE Input:**
-Per-counter start enable. Sampled when a count is loaded (and when re-arming after terminal count): a load with `gate_in[N]=1` starts counting. Once counting is in progress, GATE transitions have no effect - unlike the Intel 8254, GATE does not pause a running counter (tracked as an RTL issue).
+Per-counter count enable, as on the Intel 8254 in Mode 0: while `gate_in[N]` is low the counter holds its value, and when it goes high again counting resumes from that value with no reload. A load is not gated. The pin passes a SYNC_STAGES-flop synchronizer (default 2) on the counting clock, so a transition takes effect two clocks after it happens.
 
 **Interrupt on Terminal Count (Mode 0):**
 Counter operation mode where OUT signal goes high when count reaches zero, typically used to generate interrupts.
 
 **LSB/MSB Access:**
-8254 compatibility feature for byte-by-byte access:
-- **LSB only (RW=01)**: Only lower 8 bits accessible
-- **MSB only (RW=10)**: Only upper 8 bits accessible
+8254 compatibility feature for byte-by-byte access. Each byte lives on its own lane of COUNTERx_DATA for both write and read:
+- **LSB only (RW=01)**: the low byte, in bits [7:0]; a load leaves the high byte 0
+- **MSB only (RW=10)**: the high byte, in bits [15:8]; a load leaves the low byte 0, and a read returns 0 in [7:0]
 - **LSB then MSB (RW=11)**: Full 16-bit access (recommended for APB)
 
 **NULL_COUNT Flag:**

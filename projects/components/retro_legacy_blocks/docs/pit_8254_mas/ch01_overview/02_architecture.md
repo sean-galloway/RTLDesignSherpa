@@ -75,15 +75,17 @@ Following the HPET design pattern, the PIT uses a clean three-layer architecture
 
 **Layer 2: Configuration Registers (pit_config_regs)**
 - Register file integration
-- Edge detection for write strobes
-- Counter readback connection
+- Strict address decode: only the seven mapped registers are visible, everything else in the 4 KB window is dropped with PSLVERR
+- One-cycle command strobes, aligned to the stored field value so a load takes the byte-strobe-merged register contents
+- Counter readback connection and data-read strobes for the latch
 - Status feedback aggregation
 
 **Layer 3: Core Logic (pit_core + pit_counter)**
+- Control-word split: RW != 00 programs the selected counter, RW = 00 latches it
 - Counter control and data routing
 - Three independent pit_counter instances
 - Mode 0 counting logic
-- GATE/OUT signal management
+- GATE synchronizer (SYNC_STAGES flops) and OUT signal management
 
 ## Functional Description
 
@@ -108,31 +110,41 @@ Counter Value → count_reg_out → PIT Core → Config Regs →
 There is no explicit state machine in `pit_counter`. Counter control is two
 flags plus the count itself:
 
-- **`r_null_count`** - set at reset, cleared by the first count load, and
-  never set again. There is no path back to a "no count loaded" state short
-  of a hardware reset.
-- **`r_counting`** - set when a load occurs with `GATE=1` and the clock
-  enabled (or when GATE/enable arrive after a load); cleared when the count
-  reaches zero (terminal count, OUT goes high).
+- **`r_null_count`** - set at reset and by every control-word program of
+  this counter, cleared by a count load. It reads back as the NULL_COUNT
+  status bit.
+- **`r_counting`** - set by a count load, cleared when the decremented count
+  reaches zero (terminal count, OUT goes high). Nothing else sets it: there
+  is no re-arm path, so after terminal count the counter sits in one steady
+  state (`r_counting=0`, count 0, OUT high) until the next load.
+
+A cycle actually counts when `r_counting`, the PIT enable and the
+synchronized GATE are all high -- that single condition is the whole GATE
+story in Mode 0.
 
 Behavior over a Mode 0 cycle:
 
 1. Reset: `r_null_count=1`, `r_counting=0`, `OUT=0`.
-2. Count load: count captured, `r_null_count` cleared, OUT driven low;
-   counting starts immediately if `GATE=1` and the PIT is enabled, otherwise
-   it starts when they next are (GATE is sampled here, not monitored during
-   the count).
-3. Counting: decrement on each enabled clock; GATE transitions are ignored.
-4. Terminal count: at count 0, OUT goes high and `r_counting` clears. OUT
-   stays high until the next load drives it low again.
+2. Count load: count captured in one cycle (no intermediate value),
+   `r_null_count` cleared, OUT driven low, `r_counting` set. The load is not
+   gated by GATE or by the PIT enable -- only the decrement is.
+3. Counting: decrement on each clock while the PIT is enabled and GATE is
+   high. GATE low pauses the count where it stands; GATE high resumes it
+   from that value with no reload.
+4. Terminal count: detected on the decremented value, so a load of N counts
+   N clocks and a load of 0 counts 65536 (10000 in BCD). OUT goes high and
+   `r_counting` clears; the count parks at 0 and OUT stays high until the
+   next load drives it low again.
 
 ### Control Flow
 
 **Counter Programming Sequence:**
 1. Write `PIT_CONTROL` with control word (counter select, mode, RW mode)
-2. Control word decoded and routed to selected counter
-3. Write `COUNTERx_DATA` with 16-bit count value
-4. Counter loads value and starts counting (if GATE high and PIT enabled)
+2. Control word decoded and routed to selected counter (RW != 00 programs
+   it; RW = 00 is the latch command and leaves the programming alone)
+3. Write `COUNTERx_DATA` with the count on the lane the RW mode selects
+4. Counter loads the value and counts whenever GATE is high and the PIT is
+   enabled
 5. Counter decrements on each clock cycle
 6. When count reaches 0, OUT goes high
 
@@ -158,6 +170,11 @@ pclk ────▶ APB Slave ──▶ CDC ──┐
 pit_clk ────────────────────────┴──▶ Counters
 ```
 
+`gate_in` is a pin and is asynchronous to the counting clock in both modes,
+so it always passes a SYNC_STAGES-flop synchronizer (default 2) inside
+`pit_core` before it reaches the counters: a GATE transition takes effect
+SYNC_STAGES counting clocks after the pin moves, in either configuration.
+
 ## Design Notes
 
 ### Reset Behavior
@@ -176,5 +193,5 @@ pit_clk ────────────────────────
 
 ---
 
-**Version:** 1.0
-**Last Updated:** 2025-11-08
+**Version:** 1.1
+**Last Updated:** 2026-09-09

@@ -272,7 +272,8 @@ write_register(PIT_CONFIG, 0x01);  // Enable after config
 
 ```c
 // FINE: the count load is not gated by PIT_ENABLE, back-to-back APB
-// writes are serialized, and counting starts on the enable && gate re-arm
+// writes are serialized, and counting proceeds whenever PIT_ENABLE and
+// GATE are both high
 write_register(COUNTER0_DATA, 1000);
 write_register(PIT_CONFIG, 0x01);
 

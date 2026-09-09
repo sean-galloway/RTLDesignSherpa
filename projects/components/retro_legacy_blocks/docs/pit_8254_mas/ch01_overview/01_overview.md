@@ -36,14 +36,15 @@ The APB Programmable Interval Timer (PIT 8254) is an Intel 8254-compatible timer
 ### Key Features
 
 - **Three Independent Counters**: Three fully independent 16-bit down-counters
-- **16-bit Count Values**: Each counter supports counts from 1 to 65,535 (1 to 9,999 in BCD). A count of 0 is degenerate: it reaches terminal count on the next enabled clock, NOT the 8254's 0-means-65,536 convention
+- **16-bit Count Values**: Each counter supports counts from 1 to 65,535 (1 to 9,999 in BCD), and a count of 0 means 65,536 (10,000 in BCD) -- the 8254 convention, terminal count after a full wrap
 - **Mode 0 Implementation**: Interrupt on terminal count (one-shot operation)
 - **Binary Counting**: Standard binary countdown (BCD implemented but not yet tested)
-- **GATE Control**: Individual GATE inputs for external counter control
+- **GATE Control**: Individual GATE inputs; in Mode 0 a low GATE pauses the count and a high GATE resumes it from where it stopped, through a SYNC_STAGES synchronizer
 - **OUT Signals**: Individual OUT outputs indicating terminal count reached
 - **APB Interface**: Standard AMBA APB4 compliant register interface
 - **Clock Domain Crossing**: Optional CDC support for independent APB and timer clocks
 - **PeakRDL Integration**: Register map generated from SystemRDL specification
+- **Counter Latch**: A control word with RW=00 freezes the selected count for an atomic read, the 8254 way
 - **Status Readback**: Per-counter status including mode, RW mode, NULL_COUNT, and OUT state
 - **Control Word Programming**: Intel 8254-compatible control word format
 
@@ -82,7 +83,7 @@ The PIT follows the Intel 8254 specification for control word format, counter be
 The original 8254 hangs off separate port I/O addresses. This implementation uses a unified APB register interface instead, which is what you want for modern SoC integration.
 
 **Reliability:**
-Comprehensive testing (6/6 tests at 100% pass rate in both configurations) validates the core functionality. The design includes proper clock enable gating and readback paths.
+A 30-test suite (gate, func and full levels, both CDC configurations) validates the core functionality, including a dedicated regression for every issue #52 finding. The design includes proper clock enable gating and readback paths.
 
 **Standards Compliance:**
 - **APB Protocol**: Full AMBA APB4 specification compliance
@@ -122,22 +123,26 @@ programmed mode.
 
 OUT toggles every N/2 clocks, producing a symmetric square wave output.
 
-### Waveform 1.4: Gate Control (deviates from RTL)
+### Waveform 1.4: Gate Control
 
-On a real 8254, GATE suspends and resumes Mode 0 counting. The delivered RTL
-treats GATE as a START enable only: it is sampled when a count is loaded (and
-when re-arming after terminal count), and once counting is in progress GATE
-transitions have no effect. The suspend/resume shown below is the Intel
-reference behavior, not this implementation (tracked as an RTL issue).
+In Mode 0 GATE is an enable, not a trigger: while it is low the counter holds
+its value, and when it goes high again counting resumes from that value with
+no reload. A load lands whatever GATE is doing -- only the decrement is
+gated. GATE reaches the counter through a SYNC_STAGES-flop synchronizer
+(default 2), so a transition takes effect two counting clocks after the pin
+moves. This is the 8254 behaviour, and since the issue #52 fixes
+(2026-09-09) it is what the RTL does.
 
 ![PIT Gate Control](../assets/wavedrom/timing/pit_gate_control.png)
 
 ### Waveform 1.5: Readback Command (reference only - not implemented)
 
 On a real 8254, the readback command (SC=11) latches counter value and status
-while the counter continues running. In the delivered RTL, SC=11 is a NO-OP -
-no latch is reachable through any documented sequence (consistent with Known
-Limitations below). The waveform shows the Intel reference behavior.
+while the counter continues running. In the delivered RTL, SC=11 is a NO-OP:
+status is always live in PIT_STATUS, and the count is latched through the
+ordinary counter-latch command instead (a control word with RW=00, released
+by the next COUNTERx_DATA read or by reprogramming the counter -- see ch05). The waveform shows the Intel
+reference behavior for the read-back command itself.
 
 ![PIT Readback](../assets/wavedrom/timing/pit_readback.png)
 
@@ -154,8 +159,8 @@ The APB PIT 8254 is architecturally compatible with the Intel 8254 but has key d
 | **Counter Size** | 16-bit | 16-bit |
 | **Modes** | 0-5 | Mode 0 only (currently) |
 | **BCD Counting** | Supported | Implemented, not tested |
-| **Read/Write** | Byte-by-byte | Full 16-bit via APB |
-| **Latch Command** | Supported | Deviant: latches on DATA write while RW=00, never releases until RW changes (see ch05) |
+| **Read/Write** | Byte-by-byte on D7-D0 | 16-bit word, or one byte on its own lane: RW=01 in [7:0], RW=10 in [15:8] (write and read) |
+| **Latch Command** | Supported | Supported: control word with RW=00 latches; the next data read returns the value and releases, and a reprogram or reload releases it too (see ch05) |
 | **Read-Back Command** | Supported | No-op (SC=11 ignored; status bytes are always live) |
 | **Clock Source** | External CLK pins | Configurable (`pit_clk`) |
 | **Integration** | Standalone chip | SoC peripheral block |
@@ -168,24 +173,25 @@ The APB PIT 8254 is architecturally compatible with the Intel 8254 but has key d
 - Control word programming
 - Counter data writes
 - Status readback
-- GATE input control
+- Counter latch command
+- GATE pause/resume with input synchronizer
 - OUT signal generation
 - Optional clock domain crossing
 
 **Not Yet Implemented:**
 - Modes 1-5 (Retriggerable One-Shot, Rate Generator, Square Wave, etc.)
-- Counter latching
 - Full read-back command support
 - BCD counting verification
 
 **Implementation Quality:**
-- **Validated** for Mode 0 operation (6/6 tests, both CDC configs)
-- **100% Test Pass Rate** (6/6 tests, both CDC configurations)
+- **Validated** for Mode 0 operation (30 tests, both CDC configs; one
+  test-tolerance gap, see the index)
+- **Issue #52 closed** (fixed 2026-09-09) with a regression test per finding
 - **Well-Documented** RTL and verification
 - **FPGA Verified** on Verilator simulation
 
 ---
 
-**Version:** 1.0
-**Last Updated:** 2025-11-08
-**Status:** Validated (Mode 0; see the index and issue #52)
+**Version:** 1.1
+**Last Updated:** 2026-09-09
+**Status:** RTL Functional (Mode 0; issue #52 fixed 2026-09-09; see the index)

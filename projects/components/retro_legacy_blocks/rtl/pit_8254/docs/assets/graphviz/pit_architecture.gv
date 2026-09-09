@@ -30,12 +30,12 @@ digraph pit_architecture {
         apb4_slave [label="APB Slave\n(apb4_slave.sv or\napb4_slave_cdc.sv)\n\nProtocol conversion\nOptional CDC", fillcolor=lightcyan];
         
         // Config Registers
-        config_regs [label="Config Registers\n(pit_config_regs.sv)\n\nPeakRDL wrapper\nControl word decode\nEdge detection", fillcolor=wheat];
+        config_regs [label="Config Registers\n(pit_config_regs.sv)\n\nPeakRDL wrapper\nStrict decode + PSLVERR\nAligned 1-cycle strobes", fillcolor=wheat];
         
         peakrdl_regs [label="Register Block\n(pit_regs.sv)\n\nPeakRDL-generated\n\nCONTROL (WO)\nSTATUS (RO)\nCOUNTER_DATA (RW)", fillcolor=khaki];
         
         // PIT Core
-        pit_core [label="PIT Core\n(pit_core.sv)\n\n3-counter array\nControl decode\nGate handling", fillcolor=lightsteelblue];
+        pit_core [label="PIT Core\n(pit_core.sv)\n\n3-counter array\nLatch vs program decode\nGATE synchronizer", fillcolor=lightsteelblue];
         
         // Individual Counters
         counter0 [label="Counter 0\n(pit_counter.sv)\n\n16-bit\nMode 0", fillcolor=lightyellow];
@@ -49,7 +49,7 @@ digraph pit_architecture {
         style=filled;
         fillcolor=wheat;
         
-        gates [label="GATE[2:0]\nInputs\n\nHW triggers", fillcolor=khaki];
+        gates [label="GATE[2:0]\nInputs (async)\n\nMode 0: counting enable\nlow = pause, high = resume", fillcolor=khaki];
     }
 
     // Outputs
@@ -76,9 +76,9 @@ digraph pit_architecture {
     pit_core -> counter2 [label="Counter 2\ncontrol", color=green];
     
     // Gates to Counters
-    gates -> counter0 [label="GATE[0]", color=orange, style=dotted];
-    gates -> counter1 [label="GATE[1]", color=orange, style=dotted];
-    gates -> counter2 [label="GATE[2]", color=orange, style=dotted];
+    gates -> counter0 [label="GATE[0]\n(synchronized)", color=orange, style=dotted];
+    gates -> counter1 [label="GATE[1]\n(synchronized)", color=orange, style=dotted];
+    gates -> counter2 [label="GATE[2]\n(synchronized)", color=orange, style=dotted];
     
     // Counter Outputs to Interrupts
     counter0 -> interrupts [label="OUT[0]", color=red, style=bold];

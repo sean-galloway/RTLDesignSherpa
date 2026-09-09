@@ -24,17 +24,18 @@
 # APB PIT 8254 Specification
 
 **Component:** APB Programmable Interval Timer (PIT 8254)
-**Version:** 1.0
-**Last Updated:** 2025-11-08
-**Status:** Validated for Mode 0 (6/6 tests passing, both CDC configs,
-re-verified 2026-09-08); non-Mode-0 features deviate from the 8254 --
-see ch05 and issue #52
+**Version:** 1.1
+**Last Updated:** 2026-09-09
+**Status:** RTL Functional -- Mode 0 with 8254 GATE pause/resume, count
+0 = 65536, the counter-latch command, byte-lane loads and strict address
+decode with PSLVERR (issue #52 fixes, 2026-09-09). Modes 1-5 and the
+read-back command are not implemented; see Known Limitations below.
 
 ---
 
 ## Overview
 
-This is the micro architecture specification for the APB PIT 8254, an Intel 8254-compatible timer peripheral with an AMBA APB4 register interface. It's organized into five chapters that walk from "what is this block" down to "which bits do I write." Read the status line above before you read anything else -- Mode 0 is validated; several other 8254 behaviors are documented here as reference material, not as things this RTL does.
+This is the micro architecture specification for the APB PIT 8254, an Intel 8254-compatible timer peripheral with an AMBA APB4 register interface. It's organized into five chapters that walk from "what is this block" down to "which bits do I write." Read the status line above before you read anything else -- Mode 0 is what this RTL does, and it does it the 8254 way; Modes 1-5 and the read-back command are documented here as reference material, not as things this RTL does.
 
 > Status (2026-07-22): Chapter 1, the Chapter 2 overview, the Chapter 3 top-level signal
 > list, the Chapter 4 initialization and use-case sections, and the Chapter 5 register map
@@ -107,16 +108,22 @@ This is the micro architecture specification for the APB PIT 8254, an Intel 8254
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2025-11-08 | RTL Design Sherpa | Initial production release, all tests passing |
+| 1.1 | 2026-09-09 | RTL Design Sherpa | Issue #52 fixes: GATE pauses and resumes Mode 0 counting through a SYNC_STAGES synchronizer, a count of 0 means 65536, counter latch is the RW=00 control-word command (released by the next data read), loads honour PSTRB and the RW byte lanes on both write and read, one glitch-free load per write with a single post-terminal steady state, strict seven-register decode with PSLVERR (no aliases); remaining limitations stated as such |
 
 ---
 
 ## Testing
 
 ### Test Results
-- **Basic Tests:** 6/6 passing (100%)
-- **Test Configurations:** 2/2 passing (100%)
+- **Suite:** 30 tests across the gate, func and full levels, run in both
+  configurations -- 30/30 in all six runs (2026-09-09)
+- **Test Configurations:**
   - Standard configuration (NUM_COUNTERS=3, CDC_ENABLE=0)
-  - CDC configuration (NUM_COUNTERS=3, CDC_ENABLE=1)
+  - CDC configuration (NUM_COUNTERS=3, CDC_ENABLE=1, pit_clk at 7 ns
+    against a 10 ns pclk so the crossing is exercised)
+- The GATE pause/resume test samples the counter white-box around the GATE
+  edge; an earlier draft measured it through an APB read whose own round
+  trip exceeded the bound, which said nothing about the design.
 
 ### Passing Tests
 1. Register Access - Read/write verification (with PIT disabled)
@@ -125,29 +132,37 @@ This is the micro architecture specification for the APB PIT 8254, an Intel 8254
 4. Counter Mode 0 Simple - Basic counting and terminal count
 5. Multiple Counters - Concurrent counter operation
 6. Status Register - Status readback verification
+7. Issue #52 regression - count 0 = 65536, latch command, load at reset
+   with RW=00, byte lanes, glitch-free load, no post-terminal oscillation,
+   strict address decode, GATE synchronizer
 
 ### Supported Features
 - 3 independent 16-bit counters
 - Mode 0: Interrupt on terminal count
 - Binary counting (BCD not yet tested)
-- LSB+MSB byte access (RW_MODE=3)
+- 16-bit, LSB-only and MSB-only data lanes (RW=11, 01, 10), byte-strobe correct
+- Counter latch command (control word with RW=00)
 - Optional clock domain crossing
 - Status readback for each counter
-- Configurable GATE inputs
+- GATE pause/resume, synchronized through SYNC_STAGES flops
 
 ### Known Limitations
-- Only Mode 0 currently implemented and tested
-- BCD counting implemented but not yet verified
-- Modes 1-5 not implemented
-- Counter latching deviates from the 8254 (write-triggered, sticky while
-  RW=00 -- see ch05)
+These are scope boundaries, not defects:
+- Only Mode 0 is implemented. Modes 1-5 are stored and reported by
+  PIT_STATUS, but every mode counts like Mode 0
+- Read-back command (control word SC=11) is not implemented -- PIT_STATUS
+  carries the same information as a plain register
+- `PIT_CONFIG.CLOCK_SELECT` is storage only; there is one counting clock and
+  no divider behind it
+- After terminal count the counter parks at 0 with OUT high instead of
+  wrapping the way a real 8254 does (see ch05)
 
 ---
 
 ## References
 
 - **RTL Implementation:** `../../rtl/pit_8254/`
-- **Implementation Summary:** `../../rtl/pit_8254/IMPLEMENTATION_SUMMARY.md`
+- **RTL README (status, deviations, test gap):** `../../rtl/pit_8254/README.md`
 - **Test Suite:** `../../dv/tests/test_apb4_pit_8254.py`
 - **Testbench Classes:** `../../dv/tbclasses/pit_8254/`
 
@@ -165,7 +180,7 @@ This is the micro architecture specification for the APB PIT 8254, an Intel 8254
 
 ### For Verification Engineers
 - Start with [Chapter 2: Blocks](ch02_blocks/00_overview.md)
-- See test results in [Implementation Summary](../../rtl/pit_8254/IMPLEMENTATION_SUMMARY.md)
+- See test results in the [RTL README](../../rtl/pit_8254/README.md)
 
 ### For System Architects
 - Start with [Architecture Overview](ch01_overview/02_architecture.md)
