@@ -21,9 +21,11 @@
 
 <!-- End Header -->
 
-### APB PIT 8254 - Architecture
+# APB PIT 8254 - Architecture
 
-#### High-Level Block Diagram
+## Overview
+
+### High-Level Block Diagram
 
 ```
                                   apb4_pit_8254 (Top Level)
@@ -45,7 +47,7 @@
     APB Interface                            GATE[2:0], OUT[2:0]
 ```
 
-#### Module Hierarchy
+### Module Hierarchy
 
 ```
 apb4_pit_8254
@@ -61,7 +63,7 @@ apb4_pit_8254
     └── pit_counter (Counter 2)
 ```
 
-#### Three-Layer Architecture
+### Three-Layer Architecture
 
 Following the HPET design pattern, the PIT uses a clean three-layer architecture:
 
@@ -83,7 +85,9 @@ Following the HPET design pattern, the PIT uses a clean three-layer architecture
 - Mode 0 counting logic
 - GATE/OUT signal management
 
-#### Data Flow
+## Functional Description
+
+### Data Flow
 
 **Write Path:**
 ```
@@ -99,7 +103,7 @@ Counter Value → count_reg_out → PIT Core → Config Regs →
 → APB Slave → APB Read Data
 ```
 
-#### Counter Control State
+### Counter Control State
 
 There is no explicit state machine in `pit_counter`. Counter control is two
 flags plus the count itself:
@@ -122,22 +126,7 @@ Behavior over a Mode 0 cycle:
 4. Terminal count: at count 0, OUT goes high and `r_counting` clears. OUT
    stays high until the next load drives it low again.
 
-#### Clock Domains
-
-**Single Clock Mode (CDC_ENABLE=0):**
-```
-pclk ──┬──▶ APB Slave
-       └──▶ Registers ──▶ Counters
-```
-
-**Dual Clock Mode (CDC_ENABLE=1):**
-```
-pclk ────▶ APB Slave ──▶ CDC ──┐
-                                ├──▶ Registers
-pit_clk ────────────────────────┴──▶ Counters
-```
-
-#### Control Flow
+### Control Flow
 
 **Counter Programming Sequence:**
 1. Write `PIT_CONTROL` with control word (counter select, mode, RW mode)
@@ -152,7 +141,26 @@ pit_clk ────────────────────────
 2. Returns 3 bytes (one per counter) with packed status fields
 3. Status includes: OUT state, NULL_COUNT, RW mode, counter mode, BCD flag
 
-#### Reset Behavior
+## Timing
+
+### Clock Domains
+
+**Single Clock Mode (CDC_ENABLE=0):**
+```
+pclk ──┬──▶ APB Slave
+       └──▶ Registers ──▶ Counters
+```
+
+**Dual Clock Mode (CDC_ENABLE=1):**
+```
+pclk ────▶ APB Slave ──▶ CDC ──┐
+                                ├──▶ Registers
+pit_clk ────────────────────────┴──▶ Counters
+```
+
+## Design Notes
+
+### Reset Behavior
 
 **Power-On Reset:**
 - All counters: NULL_COUNT=1, counting=0, OUT=0

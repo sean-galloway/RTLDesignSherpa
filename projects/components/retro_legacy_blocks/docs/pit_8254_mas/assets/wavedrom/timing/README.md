@@ -1,8 +1,10 @@
 # PIT 8254 Timing Diagrams - WaveDrom JSON Files
 
+## Overview
+
 This directory contains WaveDrom timing diagrams for PIT 8254 (Programmable Interval Timer) operational scenarios.
 
-## Files
+### Files
 
 | File | Scenario | Description |
 |------|----------|-------------|
@@ -12,23 +14,7 @@ This directory contains WaveDrom timing diagrams for PIT 8254 (Programmable Inte
 | `pit_gate_control.json` | Gate Control | Gate suspend/resume (8254 reference; RTL treats GATE as start enable only) |
 | `pit_readback.json` | Readback | Latch counter while running (8254 reference; not implemented, SC=11 is a no-op) |
 
-## Signal Hierarchy
-
-### APB Interface (External)
-- `s_apb_PSEL`, `s_apb_PENABLE`, `s_apb_PREADY` - Control signals
-- `s_apb_PWRITE`, `s_apb_PADDR`, `s_apb_PWDATA`, `s_apb_PRDATA` - Data signals
-
-### PIT Pins (External)
-- `gate0`, `gate1`, `gate2` - Gate inputs (active high)
-- `out0`, `out1`, `out2` - Timer outputs
-
-### PIT Core (Internal)
-- **Config:** `cfg_mode`, `cfg_count`, `cfg_rw_mode`, `cfg_bcd`
-- **Counters:** `r_counter0`, `r_counter1`, `r_counter2`
-- **Control:** `counting`, `reload`, `half_period`
-- **Latch:** `count_latched`, `r_latch_value`, `status_latched`, `r_status_latch`
-
-## Rendering to SVG
+### Rendering to SVG
 
 ```bash
 # Render all files
@@ -37,41 +23,59 @@ for f in *.json; do
 done
 ```
 
-## Operating Modes
+## Waveforms
+
+### Signal Hierarchy
+
+**APB Interface (External):**
+- `s_apb_PSEL`, `s_apb_PENABLE`, `s_apb_PREADY` - Control signals
+- `s_apb_PWRITE`, `s_apb_PADDR`, `s_apb_PWDATA`, `s_apb_PRDATA` - Data signals
+
+**PIT Pins (External):**
+- `gate0`, `gate1`, `gate2` - Gate inputs (active high)
+- `out0`, `out1`, `out2` - Timer outputs
+
+**PIT Core (Internal):**
+- **Config:** `cfg_mode`, `cfg_count`, `cfg_rw_mode`, `cfg_bcd`
+- **Counters:** `r_counter0`, `r_counter1`, `r_counter2`
+- **Control:** `counting`, `reload`, `half_period`
+- **Latch:** `count_latched`, `r_latch_value`, `status_latched`, `r_status_latch`
+
+### Operating Modes
 
 NOTE: the delivered RTL implements Mode 0 only. Modes 1-5 below, the
 mode-dependent GATE table, and the readback command are Intel 8254 REFERENCE
 behavior kept for context; programming those modes yields Mode 0 counting,
 GATE never suspends an in-progress count, and SC=11 is a no-op.
 
-### Mode 0: Terminal Count (Interrupt on Terminal Count)
+**Mode 0: Terminal Count (Interrupt on Terminal Count)**
 - OUT initially low
 - Counter counts down from loaded value
 - OUT goes high when counter reaches 0
 - One-shot behavior, requires reload for next cycle
 
-### Mode 2: Rate Generator (Divide-by-N)
+**Mode 2: Rate Generator (Divide-by-N)**
 - OUT normally high
 - OUT goes low for 1 clock when counter reaches 1
 - Counter auto-reloads from initial value
 - Produces periodic pulse train
 
-### Mode 3: Square Wave Generator
+**Mode 3: Square Wave Generator**
 - 50% duty cycle output
 - OUT high for N/2 clocks, low for N/2 clocks
 - Counter decrements by 2 each clock
 - Auto-reload at terminal count
 
-### Mode 1: Hardware Retriggerable One-Shot
+**Mode 1: Hardware Retriggerable One-Shot**
 - Similar to Mode 0 but gate rising edge retriggers
 
-### Mode 4: Software Triggered Strobe
+**Mode 4: Software Triggered Strobe**
 - OUT pulses low for 1 clock at terminal count
 
-### Mode 5: Hardware Triggered Strobe
+**Mode 5: Hardware Triggered Strobe**
 - Like Mode 4 but gate rising edge triggers
 
-## Gate Signal Behavior
+### Gate Signal Behavior
 
 | Mode | Gate=0 | Gate Rising | Gate=1 |
 |------|--------|-------------|--------|
@@ -82,7 +86,7 @@ GATE never suspends an in-progress count, and SC=11 is a no-op.
 | 4 | Disable counting | No effect | Enable counting |
 | 5 | No effect | Reload and start | No effect |
 
-## Readback Command
+### Readback Command
 
 The readback command (0xC0-0xFF) latches count and/or status:
 - Bit 5: Latch count (0=latch)

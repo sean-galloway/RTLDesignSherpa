@@ -21,17 +21,78 @@
 
 <!-- End Header -->
 
-### APB PIT 8254 - Overview
+# APB PIT 8254 - Overview
 
-#### Introduction
+## Overview
 
-The APB Programmable Interval Timer (PIT 8254) is an Intel 8254-compatible timer peripheral designed for precise interval timing and event generation in embedded systems. It provides 3 independent 16-bit hardware counters with Mode 0 (Interrupt on Terminal Count) operation, accessible via APB interface with optional clock domain crossing support.
+The APB Programmable Interval Timer (PIT 8254) is an Intel 8254-compatible timer peripheral for precise interval timing and event generation in embedded systems. You get 3 independent 16-bit hardware counters running Mode 0 (Interrupt on Terminal Count), sitting behind an APB interface, with optional clock domain crossing if your timer ticks in its own clock domain.
 
 ### Figure 1.1: APB PIT 8254 Block Diagram
 
 ![APB PIT 8254 Block Diagram](../assets/diagrams/apb4_pit_8254_blocks.png)
 
-#### Timing Diagrams
+## Functional Description
+
+### Key Features
+
+- **Three Independent Counters**: Three fully independent 16-bit down-counters
+- **16-bit Count Values**: Each counter supports counts from 1 to 65,535 (1 to 9,999 in BCD). A count of 0 is degenerate: it reaches terminal count on the next enabled clock, NOT the 8254's 0-means-65,536 convention
+- **Mode 0 Implementation**: Interrupt on terminal count (one-shot operation)
+- **Binary Counting**: Standard binary countdown (BCD implemented but not yet tested)
+- **GATE Control**: Individual GATE inputs for external counter control
+- **OUT Signals**: Individual OUT outputs indicating terminal count reached
+- **APB Interface**: Standard AMBA APB4 compliant register interface
+- **Clock Domain Crossing**: Optional CDC support for independent APB and timer clocks
+- **PeakRDL Integration**: Register map generated from SystemRDL specification
+- **Status Readback**: Per-counter status including mode, RW mode, NULL_COUNT, and OUT state
+- **Control Word Programming**: Intel 8254-compatible control word format
+
+### Applications
+
+**Real-Time Operating Systems:**
+- Periodic tick generation for RTOS schedulers
+- Timeout implementation
+- Task deadline enforcement
+- System time tracking
+
+**Performance Profiling:**
+- Code execution timing
+- Event interval measurement
+- Timeout detection
+- Profiling counters
+
+**Multi-Rate Timing:**
+- Multiple simultaneous timing domains
+- Independent periodic tasks
+- Asynchronous event generation
+- Programmable delay generation
+
+**Legacy System Compatibility:**
+- PC/AT timer emulation
+- Retro system peripherals
+- Sound generation base timer
+- Speaker control timing
+
+### Design Philosophy
+
+**8254 Compatibility:**
+The PIT follows the Intel 8254 specification for control word format, counter behavior, and status readback. It is not a cycle-exact clone -- it holds functional compatibility for Mode 0 operation, and where it deviates, this document says so out loud.
+
+**Modern Integration:**
+The original 8254 hangs off separate port I/O addresses. This implementation uses a unified APB register interface instead, which is what you want for modern SoC integration.
+
+**Reliability:**
+Comprehensive testing (6/6 tests at 100% pass rate in both configurations) validates the core functionality. The design includes proper clock enable gating and readback paths.
+
+**Standards Compliance:**
+- **APB Protocol**: Full AMBA APB4 specification compliance
+- **PeakRDL**: Industry-standard SystemRDL for register generation
+- **Reset Convention**: Consistent active-low asynchronous reset (`presetn`)
+
+**Reusability:**
+Clean module hierarchy and well-defined interfaces make integration straightforward. Optional CDC support gives you flexible clock domain configuration without design changes.
+
+## Waveforms
 
 ### Waveform 1.1: Mode 0 Terminal Count
 
@@ -80,66 +141,9 @@ Limitations below). The waveform shows the Intel reference behavior.
 
 ![PIT Readback](../assets/wavedrom/timing/pit_readback.png)
 
-#### Key Features
+## Design Notes
 
-- **Three Independent Counters**: Three fully independent 16-bit down-counters
-- **16-bit Count Values**: Each counter supports counts from 1 to 65,535 (1 to 9,999 in BCD). A count of 0 is degenerate: it reaches terminal count on the next enabled clock, NOT the 8254's 0-means-65,536 convention
-- **Mode 0 Implementation**: Interrupt on terminal count (one-shot operation)
-- **Binary Counting**: Standard binary countdown (BCD implemented but not yet tested)
-- **GATE Control**: Individual GATE inputs for external counter control
-- **OUT Signals**: Individual OUT outputs indicating terminal count reached
-- **APB Interface**: Standard AMBA APB4 compliant register interface
-- **Clock Domain Crossing**: Optional CDC support for independent APB and timer clocks
-- **PeakRDL Integration**: Register map generated from SystemRDL specification
-- **Status Readback**: Per-counter status including mode, RW mode, NULL_COUNT, and OUT state
-- **Control Word Programming**: Intel 8254-compatible control word format
-
-#### Applications
-
-**Real-Time Operating Systems:**
-- Periodic tick generation for RTOS schedulers
-- Timeout implementation
-- Task deadline enforcement
-- System time tracking
-
-**Performance Profiling:**
-- Code execution timing
-- Event interval measurement
-- Timeout detection
-- Profiling counters
-
-**Multi-Rate Timing:**
-- Multiple simultaneous timing domains
-- Independent periodic tasks
-- Asynchronous event generation
-- Programmable delay generation
-
-**Legacy System Compatibility:**
-- PC/AT timer emulation
-- Retro system peripherals
-- Sound generation base timer
-- Speaker control timing
-
-#### Design Philosophy
-
-**8254 Compatibility:**
-The PIT component follows Intel 8254 specifications for control word format, counter behavior, and status readback. While not a cycle-exact clone, it maintains functional compatibility for Mode 0 operation.
-
-**Modern Integration:**
-Unlike the original 8254 (with separate port I/O addresses), this implementation uses a unified APB register interface, making it suitable for modern SoC integration.
-
-**Reliability:**
-Comprehensive testing (6/6 tests at 100% pass rate in both configurations) validates core functionality. The design includes proper clock enable gating and readback paths.
-
-**Standards Compliance:**
-- **APB Protocol**: Full AMBA APB4 specification compliance
-- **PeakRDL**: Industry-standard SystemRDL for register generation
-- **Reset Convention**: Consistent active-low asynchronous reset (`presetn`)
-
-**Reusability:**
-Clean module hierarchy and well-defined interfaces enable easy integration. Optional CDC support allows flexible clock domain configuration without design changes.
-
-#### Comparison with Intel 8254
+### Comparison with Intel 8254
 
 The APB PIT 8254 is architecturally compatible with the Intel 8254 but has key differences:
 
@@ -156,7 +160,7 @@ The APB PIT 8254 is architecturally compatible with the Intel 8254 but has key d
 | **Clock Source** | External CLK pins | Configurable (`pit_clk`) |
 | **Integration** | Standalone chip | SoC peripheral block |
 
-#### Design Scope
+### Design Scope
 
 **Currently Implemented:**
 - Mode 0 (Interrupt on Terminal Count)

@@ -21,9 +21,9 @@
 
 <!-- End Header -->
 
-### APB PIT 8254 - Block Hierarchy Overview
+# APB PIT 8254 - Block Hierarchy
 
-#### Module Hierarchy
+## Overview
 
 The APB PIT 8254 follows a clean three-layer architecture for maintainability and clarity:
 
@@ -45,7 +45,33 @@ apb4_pit_8254 (Top Level)
     └── pit_counter (Counter 2)
 ```
 
-#### Dataflow Between Blocks
+## Ports
+
+### Interface Summary
+
+**Between Blocks:**
+
+| From Block | To Block | Interface | Signals |
+|------------|----------|-----------|---------|
+| apb4_pit_8254 | apb4_slave | APB4 | s_apb_PSEL, s_apb_PENABLE, s_apb_PWRITE, s_apb_PADDR, s_apb_PWDATA, s_apb_PSTRB, s_apb_PPROT, s_apb_PRDATA, s_apb_PREADY, s_apb_PSLVERR |
+| apb4_slave | pit_config_regs | cmd/rsp | cmd_valid/ready, cmd_pwrite, cmd_paddr, cmd_pwdata, cmd_pstrb; rsp_valid/ready, rsp_prdata, rsp_pslverr |
+| pit_config_regs | pit_regs | cpuif_apb | Various PeakRDL interface signals |
+| pit_regs | pit_config_regs | hwif | hwif_out, hwif_in (struct interfaces) |
+| pit_config_regs | pit_core | Control | pit_enable, control_word, control_wr, counter_data, counter_wr |
+| pit_core | pit_counter | Per-Counter | reload, mode, rw_mode, bcd, gate, clk_en, out, status |
+
+**External Interfaces:**
+
+| Interface | Direction | Purpose |
+|-----------|-----------|---------|
+| APB4 | Bidirectional | Register access from CPU |
+| GATE[2:0] | Input | External counter enable controls |
+| timer_irq[2:0] | Output | Interrupt outputs (driven by OUT signals) |
+| pit_clk | Input | Timer clock (when CDC_ENABLE=1) |
+
+## Functional Description
+
+### Dataflow Between Blocks
 
 **Write Path (Software → Hardware):**
 
@@ -76,7 +102,7 @@ flowchart TD
     H --> I["APB Read Data<br/>(prdata)"]
 ```
 
-#### Block Responsibilities
+### Block Responsibilities
 
 **apb4_pit_8254 (Top Level)**
 - Module instantiation and parameter propagation
@@ -120,29 +146,7 @@ flowchart TD
 - Control word storage (mode, RW mode, BCD flag)
 - Count value reload logic
 
-#### Interface Summary
-
-**Between Blocks:**
-
-| From Block | To Block | Interface | Signals |
-|------------|----------|-----------|---------|
-| apb4_pit_8254 | apb4_slave | APB4 | s_apb_PSEL, s_apb_PENABLE, s_apb_PWRITE, s_apb_PADDR, s_apb_PWDATA, s_apb_PSTRB, s_apb_PPROT, s_apb_PRDATA, s_apb_PREADY, s_apb_PSLVERR |
-| apb4_slave | pit_config_regs | cmd/rsp | cmd_valid/ready, cmd_pwrite, cmd_paddr, cmd_pwdata, cmd_pstrb; rsp_valid/ready, rsp_prdata, rsp_pslverr |
-| pit_config_regs | pit_regs | cpuif_apb | Various PeakRDL interface signals |
-| pit_regs | pit_config_regs | hwif | hwif_out, hwif_in (struct interfaces) |
-| pit_config_regs | pit_core | Control | pit_enable, control_word, control_wr, counter_data, counter_wr |
-| pit_core | pit_counter | Per-Counter | reload, mode, rw_mode, bcd, gate, clk_en, out, status |
-
-**External Interfaces:**
-
-| Interface | Direction | Purpose |
-|-----------|-----------|---------|
-| APB4 | Bidirectional | Register access from CPU |
-| GATE[2:0] | Input | External counter enable controls |
-| timer_irq[2:0] | Output | Interrupt outputs (driven by OUT signals) |
-| pit_clk | Input | Timer clock (when CDC_ENABLE=1) |
-
-#### Signal Flow Examples
+### Signal Flow Examples
 
 **Example 1: Writing Counter 0 Control Word**
 ```
@@ -209,7 +213,26 @@ Updated r_count value available at count_reg_out
 Updated r_out value propagates to OUT signal and timer_irq output
 ```
 
-#### Reset Behavior Flow
+## Timing
+
+### Clock Domain Considerations
+
+**Single Clock Configuration (CDC_ENABLE=0):**
+- All blocks use `pclk`
+- No domain crossing required
+- Direct connections throughout hierarchy
+- Lowest latency (2-3 cycle register access)
+
+**Dual Clock Configuration (CDC_ENABLE=1):**
+- `apb4_slave_cdc` uses `pclk` for APB interface
+- `pit_config_regs` and `pit_core` use `pit_clk`
+- CDC logic inside `apb4_slave_cdc` handles crossing
+- Higher latency (4-6 cycle register access)
+- Independent timer clock frequency
+
+## Design Notes
+
+### Reset Behavior Flow
 
 **Power-On Reset (presetn asserted):**
 ```
@@ -246,21 +269,6 @@ Counters remain idle (r_null_count=1) until programmed
     ↓
 Ready to accept APB transactions
 ```
-
-#### Clock Domain Considerations
-
-**Single Clock Configuration (CDC_ENABLE=0):**
-- All blocks use `pclk`
-- No domain crossing required
-- Direct connections throughout hierarchy
-- Lowest latency (2-3 cycle register access)
-
-**Dual Clock Configuration (CDC_ENABLE=1):**
-- `apb4_slave_cdc` uses `pclk` for APB interface
-- `pit_config_regs` and `pit_core` use `pit_clk`
-- CDC logic inside `apb4_slave_cdc` handles crossing
-- Higher latency (4-6 cycle register access)
-- Independent timer clock frequency
 
 ---
 

@@ -21,9 +21,9 @@
 
 <!-- End Header -->
 
-### APB PIT 8254 - Register Map
+# APB PIT 8254 - Register Map
 
-#### Address Map Overview
+## Overview
 
 | Address | Name | Access | Description |
 |---------|------|--------|-------------|
@@ -44,7 +44,7 @@ the top-level interface chapter for details.
 
 ---
 
-#### PIT_CONFIG (0x000) - Global Configuration
+## PIT_CONFIG (0x000) - Global Configuration
 
 **Access:** Read/Write
 **Reset Value:** `0x00000000`
@@ -62,7 +62,7 @@ the top-level interface chapter for details.
 
 ---
 
-#### PIT_CONTROL (0x004) - Control Word
+## PIT_CONTROL (0x004) - Control Word
 
 **Access:** Write-Only
 **Reset Value:** N/A
@@ -102,7 +102,7 @@ write_register(PIT_CONTROL, control_word);  // Write 0x30
 
 ---
 
-#### PIT_STATUS (0x008) - Status Readback
+## PIT_STATUS (0x008) - Status Readback
 
 **Access:** Read-Only
 **Reset Value:** `0x00404040` (all counters in reset state: OUT=0, NULL_COUNT=1, RW_MODE/MODE/BCD=0 -> 0x40 per status byte)
@@ -143,7 +143,7 @@ bool bcd = counter0_status & 0x1;
 
 ---
 
-#### COUNTERx_DATA (0x010, 0x014, 0x018) - Counter Values
+## COUNTERx_DATA (0x010, 0x014, 0x018) - Counter Values
 
 **Access:** Read/Write
 **Reset Value:** `0x00000000`
@@ -200,7 +200,7 @@ uint32_t count = read_register(COUNTER0_DATA) & 0xFFFF;
 
 ---
 
-#### Register Access Timing
+## Timing
 
 **Write Timing:**
 ```
@@ -217,7 +217,7 @@ APB Read → Counter Sample (1 cycle) → Register Read (1 cycle) → APB Respon
 
 ---
 
-#### Programming Sequences
+## Usage Example
 
 **Basic Counter Start:**
 ```c

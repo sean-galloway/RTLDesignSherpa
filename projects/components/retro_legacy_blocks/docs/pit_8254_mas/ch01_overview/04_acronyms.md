@@ -21,9 +21,11 @@
 
 <!-- End Header -->
 
-### APB PIT 8254 - Acronyms and Terminology
+# APB PIT 8254 - Acronyms and Terminology
 
-#### Acronyms
+## References
+
+### Acronyms
 
 | Acronym | Definition |
 |---------|-----------|
@@ -61,7 +63,7 @@
 | **W1C** | Write-1-to-Clear |
 | **WO** | Write-Only |
 
-#### Terminology
+### Terminology
 
 **8254 Compatibility:**
 The Intel 8254 Programmable Interval Timer is the original reference specification. APB PIT 8254 maintains functional compatibility for Mode 0 operation while adapting the interface from port I/O to APB protocol.
@@ -131,7 +133,7 @@ The state when a counter reaches zero. In Mode 0, this sets the OUT signal high 
 **Timer Interrupt:**
 In this implementation, `timer_irq[N]` outputs are driven by the corresponding OUT signals, providing interrupt capability for system integration.
 
-#### Register Field Access Types
+### Register Field Access Types
 
 **RO (Read-Only):**
 Software can read this field, but writes have no effect. Hardware controls the value.
@@ -145,7 +147,7 @@ Software can read and write this field. Hardware may also update the value (e.g.
 **W1C (Write-1-to-Clear):**
 Software writes 1 to clear the bit, writes 0 have no effect. Used for interrupt/status flags. (Note: Not used in PIT, but common in other peripherals)
 
-#### SystemRDL Concepts
+### SystemRDL Concepts
 
 **hwif (Hardware Interface):**
 The interface between PeakRDL-generated register file and custom RTL logic. Provides:
@@ -158,7 +160,7 @@ SystemRDL construct representing a collection of related registers.
 **field:**
 Smallest addressable unit within a register, representing specific bits with defined access semantics.
 
-#### Design Architecture Terms
+### Design Architecture Terms
 
 **Three-Layer Architecture:**
 The PIT uses a clean separation:

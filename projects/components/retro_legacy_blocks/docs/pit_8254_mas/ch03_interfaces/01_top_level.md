@@ -21,9 +21,23 @@
 
 <!-- End Header -->
 
-### APB PIT 8254 - Top-Level Interface
+# APB PIT 8254 - Top-Level Interface
 
-#### Module Declaration
+## Overview
+
+`apb4_pit_8254` is the top-level module: an APB4 slave on one side, GATE inputs and interrupt outputs on the other, and a parameter-selected clocking scheme in the middle. This chapter is the integration contract -- pin list, parameters, address decode, and the reset sequence your SoC has to honor.
+
+## Parameters
+
+| Parameter | Type | Default | Valid Values | Description |
+|-----------|------|---------|--------------|-------------|
+| `NUM_COUNTERS` | int | 3 | Currently fixed at 3 | Number of independent counters. Parameterized, but the current implementation only supports 3. |
+| `CDC_ENABLE` | bit | 0 | 0 = single clock, 1 = dual clock with CDC | Selects the clocking scheme. `CDC_ENABLE=0` uses `apb4_slave` and ignores `pit_clk`/`pit_resetn`; `CDC_ENABLE=1` uses `apb4_slave_cdc` and requires both. |
+| `USE_JOHNSON` | int | 0 | 0 = Gray-coded CDC FIFO pointers, 1 = Johnson-coded | Forwarded to the CDC block's async FIFOs. Gray requires a power-of-2 depth; Johnson allows any depth. Only meaningful when `CDC_ENABLE=1`. |
+
+## Ports
+
+### Module Declaration
 
 ```systemverilog
 module apb4_pit_8254 #(
@@ -55,7 +69,7 @@ module apb4_pit_8254 #(
 );
 ```
 
-#### Signal Groups
+### Signal Groups
 
 **APB Clock and Reset:**
 | Signal | Direction | Width | Description |
@@ -89,7 +103,9 @@ module apb4_pit_8254 #(
 | `gate_in[2:0]` | Input | 3 | GATE inputs for counters 0, 1, 2. GATE is a start enable: it is sampled when a count is loaded (and when re-arming after terminal count). Once a count is in progress, GATE transitions have no effect - the counter does NOT pause. This deviates from the Intel 8254, where Mode 0 counting suspends while GATE is low (tracked as an RTL issue). GATE has NO synchronizer into the pit_clk domain -- with CDC_ENABLE=1 it must be driven synchronously to pit_clk or externally synchronized (#52). |
 | `timer_irq[2:0]` | Output | 3 | Timer interrupt outputs. Driven by OUT signals from counters 0, 1, 2. High when terminal count reached (Mode 0). |
 
-#### Address Map
+## Functional Description
+
+### Address Map
 
 `s_apb_PADDR` is 12 bits, but the register block decodes only address bits
 [4:0], giving a 32-byte register window that ALIASES throughout the 4 KB
@@ -118,33 +134,19 @@ PSLVERR (the error outputs are tied off).
 
 **Integration Note:** When integrating into a larger address space, these addresses are relative to the base address assigned to the PIT. For example, if the PIT is assigned base address `0x4000_2000`, then PIT_CONFIG would be at absolute address `0x4000_2000`.
 
-#### Parameter Configuration
+### Error Response
 
-**NUM_COUNTERS:**
-- **Type:** Integer parameter
-- **Default:** 3
-- **Valid Values:** Currently fixed at 3
-- **Purpose:** Defines number of independent counters
-- **Note:** While parameterized, current implementation only supports 3 counters
+There is none. The register block's error outputs are tied off
+(`cpuif_wr_err = '0`, `readback_err = '0`), so `s_apb_PSLVERR` stays low for
+every access: an unmapped or aliased address reads as 0 (or the aliased
+register's value). Aliased WRITES are not symmetrical -- see the address-map
+note above: only PIT_CONFIG writes take effect through aliases; command and
+counter-data writes are silent no-ops off their base offsets.
+Software cannot rely on a bus error to catch a bad pointer into this window.
 
-**CDC_ENABLE:**
-- **Type:** Bit parameter
-- **Default:** 0
-- **Valid Values:** 0 (single clock), 1 (dual clock with CDC)
-- **Purpose:** Selects between single-clock and dual-clock configuration
-- **Impact:**
-  - `CDC_ENABLE=0`: Uses `apb4_slave`, ignores `pit_clk` and `pit_resetn`
-  - `CDC_ENABLE=1`: Uses `apb4_slave_cdc`, requires `pit_clk` and `pit_resetn`
+## Timing
 
-**USE_JOHNSON:**
-- **Type:** Integer parameter
-- **Default:** 0
-- **Valid Values:** 0 (Gray-coded CDC FIFO pointers), 1 (Johnson-coded)
-- **Purpose:** Forwarded to the CDC block's async FIFOs. Gray requires a
-  power-of-2 depth; Johnson allows any depth. Only meaningful when
-  `CDC_ENABLE=1`.
-
-#### Clock Domain Configuration
+### Clock Domain Configuration
 
 **Single Clock Mode (CDC_ENABLE=0):**
 
@@ -190,7 +192,7 @@ pit_counter[*] uses: pit_clk, pit_resetn
 - Both clocks must be free-running during transactions
 - Ensure proper reset sequencing (both domains reset before use)
 
-#### Reset Requirements
+### Reset Requirements
 
 **Power-On Reset Sequence:**
 
@@ -229,7 +231,7 @@ If resetting during operation:
 - Assert reset
 - Follow power-on reset sequence from step 2
 
-#### APB Protocol Timing
+### APB Protocol Timing
 
 **Write Transaction:**
 
@@ -266,19 +268,9 @@ pready  ───────────────┐   ┌──────
                        └───┘
 ```
 
-**Error Response:**
+## Usage Example
 
-There is none. The register block's error outputs are tied off
-(`cpuif_wr_err = '0`, `readback_err = '0`), so `s_apb_PSLVERR` stays low for
-every access: an unmapped or aliased address reads as 0 (or the aliased
-register's value). Aliased WRITES are not symmetrical -- see the address-map
-note above: only PIT_CONFIG writes take effect through aliases; command and
-counter-data writes are silent no-ops off their base offsets.
-Software cannot rely on a bus error to catch a bad pointer into this window.
-
-#### Integration Example
-
-**Single Clock Integration:**
+### Single Clock Integration
 
 ```systemverilog
 apb4_pit_8254 #(
@@ -304,7 +296,7 @@ apb4_pit_8254 #(
 );
 ```
 
-**Dual Clock Integration:**
+### Dual Clock Integration
 
 ```systemverilog
 apb4_pit_8254 #(

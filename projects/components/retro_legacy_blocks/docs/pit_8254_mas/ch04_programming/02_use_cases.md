@@ -21,9 +21,11 @@
 
 <!-- End Header -->
 
-### APB PIT 8254 - Common Use Cases
+# APB PIT 8254 - Common Use Cases
 
-#### Use Case 1: Simple Timeout Timer
+Five recipes cover most of what people build with this block. Each one is self-contained -- lift the code, adjust the clock frequency, and go.
+
+## Use Case 1: Simple Timeout Timer
 
 **Application:** Generate an interrupt after a fixed delay
 
@@ -106,7 +108,7 @@ void example_timeout(void) {
 }
 ```
 
-#### Use Case 2: RTOS System Tick
+## Use Case 2: RTOS System Tick
 
 **Application:** Generate periodic interrupt for RTOS scheduler
 
@@ -194,7 +196,7 @@ void example_rtos_tick(void) {
 
 Mode 0 is one-shot by design. For periodic operation, the interrupt handler must reload the counter after each terminal count. Future PIT implementations may add Mode 2 or Mode 3 for automatic periodic operation.
 
-#### Use Case 3: Multiple Independent Timers
+## Use Case 3: Multiple Independent Timers
 
 **Application:** Three different timeout values running concurrently
 
@@ -308,7 +310,7 @@ void example_multi_timer(void) {
 }
 ```
 
-#### Use Case 4: Performance Profiling
+## Use Case 4: Performance Profiling
 
 **Application:** Measure code execution time with microsecond precision
 
@@ -400,7 +402,7 @@ void example_profiling(void) {
 }
 ```
 
-#### Use Case 5: Watchdog Timer
+## Use Case 5: Watchdog Timer
 
 **Application:** Detect system lockup
 
@@ -471,7 +473,7 @@ void example_watchdog(void) {
 }
 ```
 
-#### Best Practices Summary
+## Best Practices Summary
 
 **1. Always Disable PIT During Configuration**
 ```c

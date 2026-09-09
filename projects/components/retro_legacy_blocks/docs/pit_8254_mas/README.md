@@ -30,42 +30,40 @@ the chapter list and which planned sections remain unwritten
 
 ## Overview
 
-This directory contains the specification for the PIT_8254 block. The index
-is the authoritative table of contents; the outline below is the intended
-full structure (some subsections are still planned).
+This directory holds the specification for the PIT_8254 block. The index is the authoritative table of contents; the outline below is the intended full structure, and some subsections are still planned.
 
-## Documentation Structure
+### Documentation Structure
 
-### Chapter 1: Overview
+**Chapter 1: Overview**
 - Block purpose and features
 - High-level architecture
 - Key specifications
 
-### Chapter 2: Block Diagrams
+**Chapter 2: Block Diagrams**
 - Top-level block diagram
 - Internal block diagrams
 - State machines
 - Pipeline diagrams
 
-### Chapter 3: Interfaces
+**Chapter 3: Interfaces**
 - APB interface specification
 - External signals
 - Interrupt outputs
 - Clock and reset
 
-### Chapter 4: Programming Guide
+**Chapter 4: Programming Guide**
 - Register programming sequences
 - Common operations
 - Example code
 - Best practices
 
-### Chapter 5: Register Map
+**Chapter 5: Register Map**
 - Complete register descriptions
 - Field definitions
 - Reset values
 - Access types
 
-## Document Generation
+### Document Generation
 
 Documentation is written in Markdown and can be converted to PDF:
 
@@ -74,7 +72,7 @@ cd docs/
 ./generate_pdf.sh
 ```
 
-## Reference Documents
+## References
 
 - Intel PIT_8254 datasheet
 - ACPI specification (if applicable)

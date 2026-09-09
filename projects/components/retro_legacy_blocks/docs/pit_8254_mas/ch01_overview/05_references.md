@@ -21,9 +21,11 @@
 
 <!-- End Header -->
 
-### APB PIT 8254 - References
+# APB PIT 8254 - References
 
-#### Primary Specifications
+## References
+
+### Primary Specifications
 
 **Intel 8254 Programmable Interval Timer**
 - **Document**: Intel 8254 Datasheet
@@ -42,7 +44,7 @@
 - **Relevance**: Register description language used for PIT register definition
 - **URL**: https://www.accellera.org/downloads/standards/systemrdl
 
-#### Related RTL Design Sherpa Documentation
+### Related RTL Design Sherpa Documentation
 
 **APB HPET Specification**
 - **Location**: `projects/components/retro_legacy_blocks/docs/hpet_mas/`
@@ -68,7 +70,7 @@
 - **Relevance**: Mandatory requirements for all RTL and testbench code
 - **See**: Reset macro standards, FPGA attributes, array syntax, SRAM standards
 
-#### RTL Implementation Files
+### RTL Implementation Files
 
 **Top-Level Module**
 - **File**: `rtl/pit_8254/apb4_pit_8254.sv`
@@ -97,7 +99,7 @@
 - **File**: `rtl/pit_8254/IMPLEMENTATION_SUMMARY.md`
 - **Description**: Detailed implementation notes, test results, and status
 
-#### Testbench and Verification Files
+### Testbench and Verification Files
 
 **Testbench Class**
 - **File**: `dv/tbclasses/pit_8254/pit_tb.py`
@@ -115,7 +117,7 @@
 - **File**: `dv/tests/conftest.py`
 - **Description**: Pytest configuration, logging setup, markers
 
-#### Tools and Frameworks
+### Tools and Frameworks
 
 **PeakRDL**
 - **Tool**: peakrdl-regblock
@@ -146,7 +148,7 @@
 - **Purpose**: Bridge between pytest and CocoTB simulation
 - **Documentation**: https://github.com/themperek/cocotb-test
 
-#### Design Patterns and Standards
+### Design Patterns and Standards
 
 **Reset Macro Standards**
 - **File**: `rtl/amba/includes/reset_defs.svh`
@@ -164,7 +166,7 @@
 - **Location**: `dv/tbclasses/{block}/` for TB classes, `dv/tests/{block}/` for runners
 - **Rationale**: Reusability, maintainability, composition
 
-#### External Resources
+### External Resources
 
 **Intel 8254 Historical Context**
 - **Platform**: IBM PC/AT and compatibles
@@ -176,7 +178,7 @@
 - ARM Cortex-M system timer examples
 - Open-source APB peripheral repositories
 
-#### Version Control and Issue Tracking
+### Version Control and Issue Tracking
 
 **Repository**
 - **URL**: https://github.com/sean-galloway/rtldesignsherpa (if public)
@@ -187,7 +189,7 @@
 - Implementation tracked via TASKS.md in component directory
 - Known issues documented in IMPLEMENTATION_SUMMARY.md
 
-#### Change History
+### Change History
 
 This specification is version-controlled with the RTL implementation. See git history for detailed change tracking:
 
@@ -197,7 +199,7 @@ git log --follow -- projects/components/retro_legacy_blocks/rtl/pit_8254/
 git log --follow -- projects/components/retro_legacy_blocks/docs/pit_8254_mas/
 ```
 
-#### Related Components
+### Related Components
 
 **APB HPET (High Precision Event Timer)**
 - **Status**: Production ready
@@ -224,4 +226,3 @@ git log --follow -- projects/components/retro_legacy_blocks/docs/pit_8254_mas/
 - Check `IMPLEMENTATION_SUMMARY.md` for latest implementation details
 - Review `README.md` for integration examples
 - Consult `PRD.md` for requirements and roadmap
-

@@ -21,9 +21,11 @@
 
 <!-- End Header -->
 
-### APB PIT 8254 - Initialization and Programming Guide
+# APB PIT 8254 - Initialization and Programming Guide
 
-#### Power-On Initialization Sequence
+Bring-up is seven steps, and the order matters. Disable first, program everything, verify, then enable. The full sequence is below, followed by a complete function you can lift as-is.
+
+## Power-On Initialization Sequence
 
 **Step 1: Verify Reset State**
 
@@ -133,7 +135,7 @@ while (1) {
 }
 ```
 
-#### Complete Initialization Function
+## Complete Initialization Function
 
 ```c
 /**
@@ -187,7 +189,7 @@ int pit_initialize(uint16_t counter0_count, uint16_t counter1_count, uint16_t co
 }
 ```
 
-#### Usage Example
+## Usage Example
 
 ```c
 int main(void) {
@@ -223,7 +225,7 @@ int main(void) {
 }
 ```
 
-#### Runtime Configuration Changes
+## Runtime Configuration Changes
 
 **Changing Count Value During Operation:**
 
@@ -249,17 +251,17 @@ write_register(PIT_CONFIG, 0x01);
 write_register(COUNTER0_DATA, new_count);  // Counter reloads and restarts
 ```
 
-#### Common Initialization Errors
+## Common Initialization Errors
 
 **Error 1: Enabling PIT Before Programming**
 
 ```c
-// ❌ WRONG: Enable before configuration
+// WRONG: Enable before configuration
 write_register(PIT_CONFIG, 0x01);  // Enable too early!
 write_register(PIT_CONTROL, 0x30);
 write_register(COUNTER0_DATA, 1000);
 
-// ✅ CORRECT: Configure first, then enable
+// CORRECT: Configure first, then enable
 write_register(PIT_CONFIG, 0x00);  // Disable during config
 write_register(PIT_CONTROL, 0x30);
 write_register(COUNTER0_DATA, 1000);
@@ -283,19 +285,19 @@ assert((status & 0x40) == 0);
 **Error 3: Wrong Control Word Format**
 
 ```c
-// ❌ WRONG: Incorrect bit positions
+// WRONG: Incorrect bit positions
 uint32_t cw = (0 << 0) |  // Counter select in wrong position!
               (3 << 6) |  // RW in wrong position!
               (0 << 4);   // Mode in wrong position!
 
-// ✅ CORRECT: Proper bit positions per Intel 8254 spec
+// CORRECT: Proper bit positions per Intel 8254 spec
 uint32_t cw = (0 << 6) |  // SC[7:6] = Counter select
               (3 << 4) |  // RW[5:4] = Read/Write mode
               (0 << 1) |  // M[3:1] = Mode
               (0 << 0);   // BCD[0] = Counting mode
 ```
 
-#### Debugging Initialization Issues
+## Debugging Initialization Issues
 
 **Check 1: Verify Register Access**
 

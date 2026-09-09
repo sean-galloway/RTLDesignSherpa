@@ -21,11 +21,11 @@
 
 <!-- End Header -->
 
-### APB PIT 8254 - Clocks and Reset
+# APB PIT 8254 - Clocks and Reset
 
-#### Clock Domains
+## Overview
 
-The APB PIT 8254 supports two clock domain configurations controlled by the `CDC_ENABLE` parameter:
+The APB PIT 8254 supports two clock domain configurations controlled by the `CDC_ENABLE` parameter. Pick the single-clock variant when your timer can run off the APB clock; pick the dual-clock variant when the timer needs its own timebase.
 
 **Single Clock Configuration (CDC_ENABLE=0):**
 ```
@@ -41,7 +41,9 @@ pclk (APB clock) ────► APB Slave Interface ──► CDC Logic ──�
 pit_clk (Timer clock) ───────────────────────────────────────┴──► Counter Logic
 ```
 
-#### Clock Signals
+## Ports
+
+### Clock Signals
 
 **pclk (APB Clock):**
 - **Purpose:** APB bus interface timing
@@ -56,52 +58,14 @@ pit_clk (Timer clock) ───────────────────�
 - **Usage:** Clocks counter logic when separate from APB domain
 - **Note:** When `CDC_ENABLE=0`, counters use `pclk` directly
 
-#### Clock Domain Crossing (CDC)
+## Functional Description
 
-**When CDC_ENABLE=1:**
-
-The design includes clock domain crossing infrastructure to safely transfer data between APB and timer clock domains:
-
-**CDC Components:**
-- `apb4_slave_cdc` module provides safe crossing from `pclk` to `pit_clk`
-- Command/response interface synchronized using gray-code FIFOs
-- Handshaking ensures no data loss across domains
-- Status signals synchronized back to `pclk` domain
-
-**CDC Timing:**
-```
-APB Write → pclk domain → CDC FIFO → pit_clk domain → Register Update
-                (1-2 cycles)        (2-3 cycles)      (1 cycle)
-Total latency: 4-6 pit_clk cycles
-```
-
-**CDC Verification:**
-- All 6/6 tests pass with `CDC_ENABLE=1` configuration
-- No metastability issues observed in simulation
-- Proper handshaking verified with stress tests
-
-**When CDC_ENABLE=0:**
-
-The design uses a single clock domain with `apb4_slave` module (no CDC):
-
-**Direct Connection:**
-- APB slave converts APB protocol to cmd/rsp interface
-- No domain crossing required
-- Lower latency (2-3 cycle register access)
-
-**Single Clock Timing:**
-```
-APB Write → pclk domain → Register Update
-                (1-2 cycles)
-Total latency: 2-3 pclk cycles
-```
-
-#### Clock Enable Signal
+### Clock Enable Signal
 
 **i_clk_en (Clock Enable):**
 - **Purpose:** Global enable/disable for counter operation
 - **Source:** `PIT_CONFIG.PIT_ENABLE` register bit
-- **Effect:** Gates counter decrement logic without stopping clock
+- **Effect:** Gates counter decrement logic without stopping the clock
 - **Behavior:**
   - `i_clk_en=0`: Counters hold current value
   - `i_clk_en=1`: Counters decrement normally (if GATE high)
@@ -125,7 +89,7 @@ end
 - No clock domain crossing issues
 - Synchronous control
 
-#### Reset Signal
+### Reset Signal
 
 **presetn (Active-Low Asynchronous Reset):**
 - **Type:** Asynchronous assertion, synchronous deassertion (hand-written
@@ -136,7 +100,7 @@ end
 - **Domain:** Applied to all clock domains
 - **Purpose:** Initialize all state to known values
 
-**Reset Behavior:**
+That synchronous-reset exception in the generated file is the kind of detail that only bites you once -- after that you check for it in every PeakRDL block you integrate.
 
 **Power-On Reset:**
 ```systemverilog
@@ -215,37 +179,51 @@ write_register(COUNTER0_DATA, 1000);
 write_register(PIT_CONFIG, 0x01);   // Enable PIT
 ```
 
-#### Clock Gating
+## Timing
 
-**Dynamic Clock Gating:**
+### Clock Domain Crossing (CDC)
 
-The PIT does NOT implement dynamic clock gating at the module level. Clock gating (if desired) should be implemented at the integration level:
+**When CDC_ENABLE=1:**
 
-**Integration-Level Gating Example:**
-```systemverilog
-// External clock gate (system integrator's responsibility)
-logic gated_pclk;
-assign gated_pclk = pclk & pit_clock_enable;
+The design includes clock domain crossing infrastructure to safely transfer data between the APB and timer clock domains:
 
-apb4_pit_8254 #(
-    .CDC_ENABLE(0)
-) u_pit (
-    .pclk       (gated_pclk),  // Gated clock
-    // ...
-);
+**CDC Components:**
+- `apb4_slave_cdc` module provides safe crossing from `pclk` to `pit_clk`
+- Command/response interface synchronized using gray-code FIFOs
+- Handshaking ensures no data loss across domains
+- Status signals synchronized back to `pclk` domain
+
+**CDC Timing:**
+```
+APB Write → pclk domain → CDC FIFO → pit_clk domain → Register Update
+                (1-2 cycles)        (2-3 cycles)      (1 cycle)
+Total latency: 4-6 pit_clk cycles
 ```
 
-**Static Clock Enable:**
+**CDC Verification:**
+- All 6/6 tests pass with `CDC_ENABLE=1` configuration
+- No metastability issues observed in simulation
+- Proper handshaking verified with stress tests
 
-When `PIT_ENABLE=0`, counters use clock enable gating internally:
-- Clock still toggles (no clock tree gating)
-- Counter logic uses `if (i_clk_en)` conditions
-- Reduces dynamic power by preventing state changes
-- No glitches or timing issues
+**When CDC_ENABLE=0:**
 
-#### Multi-Clock Timing Constraints
+The design uses a single clock domain with `apb4_slave` module (no CDC):
 
-**For CDC_ENABLE=1 configurations, apply these timing constraints:**
+**Direct Connection:**
+- APB slave converts APB protocol to cmd/rsp interface
+- No domain crossing required
+- Lower latency (2-3 cycle register access)
+
+**Single Clock Timing:**
+```
+APB Write → pclk domain → Register Update
+                (1-2 cycles)
+Total latency: 2-3 pclk cycles
+```
+
+### Multi-Clock Timing Constraints
+
+For CDC_ENABLE=1 configurations, apply these timing constraints:
 
 **Clock Definitions:**
 ```tcl
@@ -273,6 +251,36 @@ set_false_path -from [get_clocks pit_clk] -to [get_clocks pclk]
 # Reset must be synchronized to each clock domain
 set_false_path -from [get_ports presetn] -to [all_registers]
 ```
+
+## Design Notes
+
+### Clock Gating
+
+**Dynamic Clock Gating:**
+
+The PIT does NOT implement dynamic clock gating at the module level. If you want clock gating, implement it at the integration level:
+
+**Integration-Level Gating Example:**
+```systemverilog
+// External clock gate (system integrator's responsibility)
+logic gated_pclk;
+assign gated_pclk = pclk & pit_clock_enable;
+
+apb4_pit_8254 #(
+    .CDC_ENABLE(0)
+) u_pit (
+    .pclk       (gated_pclk),  // Gated clock
+    // ...
+);
+```
+
+**Static Clock Enable:**
+
+When `PIT_ENABLE=0`, counters use clock enable gating internally:
+- Clock still toggles (no clock tree gating)
+- Counter logic uses `if (i_clk_en)` conditions
+- Reduces dynamic power by preventing state changes
+- No glitches or timing issues
 
 ---
 

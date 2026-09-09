@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-# APB PIT 8254 Specification - Table of Contents
+# APB PIT 8254 Specification
 
 **Component:** APB Programmable Interval Timer (PIT 8254)
 **Version:** 1.0
@@ -32,9 +32,9 @@ see ch05 and issue #52
 
 ---
 
-## Document Organization
+## Overview
 
-This specification is organized into five chapters covering all aspects of the APB PIT 8254 component:
+This is the micro architecture specification for the APB PIT 8254, an Intel 8254-compatible timer peripheral with an AMBA APB4 register interface. It's organized into five chapters that walk from "what is this block" down to "which bits do I write." Read the status line above before you read anything else -- Mode 0 is validated; several other 8254 behaviors are documented here as reference material, not as things this RTL does.
 
 > Status (2026-07-22): Chapter 1, the Chapter 2 overview, the Chapter 3 top-level signal
 > list, the Chapter 4 initialization and use-case sections, and the Chapter 5 register map
@@ -82,47 +82,27 @@ This specification is organized into five chapters covering all aspects of the A
 
 ---
 
-## Quick Navigation
+## Design Notes
 
-### For Software Developers
-- Start with [Chapter 4: Programming Model](ch04_programming/01_initialization.md)
-- Reference [Chapter 5: Registers](ch05_registers/01_register_map.md)
+### Document Conventions
 
-### For Hardware Integrators
-- Start with [Chapter 1: Overview](ch01_overview/01_overview.md)
-- Reference [Chapter 3: Interfaces](ch03_interfaces/01_top_level.md)
-
-### For Verification Engineers
-- Start with [Chapter 2: Blocks](ch02_blocks/00_overview.md)
-- See test results in [Implementation Summary](../../rtl/pit_8254/IMPLEMENTATION_SUMMARY.md)
-
-### For System Architects
-- Start with [Architecture Overview](ch01_overview/02_architecture.md)
-- Reference [Use Cases](ch04_programming/02_use_cases.md)
-
----
-
-## Document Conventions
-
-### Notation
+**Notation:**
 - **bold** - Important terms, signal names
 - `code` - Register names, field names, code examples
 - *italic* - Emphasis, notes
 
-### Signal Naming
+**Signal naming:**
 - `pclk` - APB clock
 - `pit_clk` - PIT timer clock
 - `gate_in[N]` - GATE input controls
 - `timer_irq[N]` - Timer OUT/interrupt outputs
 
-### Register Notation
+**Register notation:**
 - `PIT_CONFIG` - Register name
 - `PIT_CONFIG[0]` - Specific bit field
 - `0x000` - Register address (hexadecimal)
 
----
-
-## Version History
+### Version History
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
@@ -130,7 +110,7 @@ This specification is organized into five chapters covering all aspects of the A
 
 ---
 
-## Implementation Status
+## Testing
 
 ### Test Results
 - **Basic Tests:** 6/6 passing (100%)
@@ -164,12 +144,32 @@ This specification is organized into five chapters covering all aspects of the A
 
 ---
 
-## Related Documentation
+## References
 
 - **RTL Implementation:** `../../rtl/pit_8254/`
 - **Implementation Summary:** `../../rtl/pit_8254/IMPLEMENTATION_SUMMARY.md`
 - **Test Suite:** `../../dv/tests/test_apb4_pit_8254.py`
 - **Testbench Classes:** `../../dv/tbclasses/pit_8254/`
+
+---
+
+## Navigation
+
+### For Software Developers
+- Start with [Chapter 4: Programming Model](ch04_programming/01_initialization.md)
+- Reference [Chapter 5: Registers](ch05_registers/01_register_map.md)
+
+### For Hardware Integrators
+- Start with [Chapter 1: Overview](ch01_overview/01_overview.md)
+- Reference [Chapter 3: Interfaces](ch03_interfaces/01_top_level.md)
+
+### For Verification Engineers
+- Start with [Chapter 2: Blocks](ch02_blocks/00_overview.md)
+- See test results in [Implementation Summary](../../rtl/pit_8254/IMPLEMENTATION_SUMMARY.md)
+
+### For System Architects
+- Start with [Architecture Overview](ch01_overview/02_architecture.md)
+- Reference [Use Cases](ch04_programming/02_use_cases.md)
 
 ---
 
