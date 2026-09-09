@@ -5,17 +5,86 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: pm_acpi_config_regs
-// Purpose: Configuration register wrapper for PM_ACPI - PeakRDL Wrapper
+// Purpose: Configuration register wrapper for PM_ACPI - PeakRDL wrapper
 //
-// Wrapper that instantiates PeakRDL-generated register block and adapter,
-// mapping between the generated hwif signals and the PM_ACPI core interface.
+// Documentation: projects/components/retro_legacy_blocks/rtl/pm_acpi/README.md
+// Subsystem: pm_acpi
 //
-// ARCHITECTURE:
-//   cmd/rsp --> peakrdl_to_cmdrsp adapter --> pm_acpi_regs (PeakRDL) --> hwif --> mapping --> PM_ACPI core
-//
-// Follows HPET/SMBus pattern exactly - uses existing peakrdl_to_cmdrsp from converters/rtl/
+// Author: sean galloway
+// Created: 2025-11-16
+// Updated: 2026-09-09 - GitHub #54: strict decode with PSLVERR, per-bit W1C
+//          mask decode, status fields become live mirrors
+
+/**
+ * ============================================================================
+ * PM_ACPI Configuration Registers - PeakRDL Wrapper
+ * ============================================================================
+ *
+ * ARCHITECTURE:
+ *   cmd/rsp --> peakrdl_to_cmdrsp --> decode gate --> pm_acpi_regs (PeakRDL)
+ *                                                 --> hwif --> pm_acpi_core
+ *
+ * ADDRESS DECODE POLICY (issue #54 round_2 item 4)
+ *   Only the twenty-one mapped registers decode. Equality is on the WHOLE
+ *   12-bit address, register by register: everything else in the 4 KB window
+ *   is DROPPED - the write is ignored, the read returns zero, and PSLVERR is
+ *   raised. This is the policy ioapic, pic_8259 and pit_8254 already use.
+ *
+ *   What it replaces: this module used to hand regblk_addr[8:0] to a 7-bit
+ *   s_cpuif_addr port, so only PADDR[6:0] was ever compared and the map
+ *   aliased every 0x80 across the window - a write to 'reserved' 0x080 landed
+ *   on ACPI_CONTROL. The generated block ties both of its error outputs to 0,
+ *   so nothing reported it either.
+ *
+ *   A dropped access is acknowledged LOCALLY (w_drop_ack) in the same
+ *   combinational form the register block uses, because peakrdl_to_cmdrsp
+ *   HOLDS its request until it is acked; without the local ack a dropped
+ *   access would hang the bus rather than error.
+ *
+ * PER-BIT W1C (issue #54 C2, round_2 items 1-2)
+ *   pm_acpi_core OWNS every sticky status bit. The generated fields are live
+ *   mirrors (sw=rw, hw=w, precedence=sw, onwrite=woclr, no hwset), driven from
+ *   the core's level every cycle, and the software write is turned into a
+ *   per-bit CLEAR PULSE into the core.
+ *
+ *   The clear mask is `regblk_wr_data & regblk_wr_biten` at the register's own
+ *   address, so a bit clears only if software wrote a 1 to it, a write of 0 is
+ *   the no-op W1C requires, and a byte-strobed write cannot clear bits outside
+ *   the enabled bytes.
+ *
+ *   The write is detected by MIRRORING the register block's own decode rather
+ *   than by using swmod, for the reason gpio_config_regs documents: swmod
+ *   carries an extra `|biten` term the regblock's write branch does not, so
+ *   the two are not interchangeable as a decode. a_w1c_swmod_mirrored is the
+ *   drift guard.
+ *
+ *   The clear is narrowed to ONE cycle (rising edge of the mirrored decode).
+ *   peakrdl_to_cmdrsp holds regblk_req for the accept cycle plus
+ *   CMD_WAIT_ACK, and a two-cycle clear would undo a hardware set that landed
+ *   in the first of them; one cycle plus set-wins-over-clear in the core
+ *   closes that window.
+ *
+ * SELF-CLEARING REQUEST BITS
+ *   ACPI_CONTROL.soft_reset, PM1_CONTROL.sleep_enable and
+ *   RESET_CTRL.sys_reset/periph_reset are `singlepulse` in the RDL, so the
+ *   register block clears them itself and this module no longer ties their
+ *   `next` inputs to zero to fake an auto-clear. They reach pm_acpi_core as
+ *   short levels and are edge-detected there.
+ *
+ * STORAGE-ONLY FIELDS
+ *   ACPI_CONTROL.low_power_req and PM1_CONTROL.pwrbtn_ovr/slpbtn_ovr are
+ *   software-visible storage with no hardware effect (issue #54 H3). They are
+ *   NOT routed to pm_acpi_core: a register that does nothing should look like
+ *   one, not like a connected input nobody reads. Their RDL descriptions say
+ *   so as well.
+ * ============================================================================
+ */
 
 `timescale 1ns / 1ps
+
+/* verilator lint_off SYNCASYNCNET */
+// Note: rst_n feeds both async-reset flops here and peakrdl_to_cmdrsp's
+// sync-reset macros. Intentional - both uses are in the same clock domain.
 
 `include "reset_defs.svh"
 
@@ -42,11 +111,9 @@ module pm_acpi_config_regs
     output logic        cfg_acpi_enable,
     output logic        cfg_pm_timer_enable,
     output logic        cfg_gpe_enable,
-    output logic        cfg_low_power_req,
+    output logic        cfg_soft_reset,
     output logic [2:0]  cfg_sleep_type,
     output logic        cfg_sleep_enable,
-    output logic        cfg_pwrbtn_ovr,
-    output logic        cfg_slpbtn_ovr,
     output logic        cfg_pm1_tmr_en,
     output logic        cfg_pm1_pwrbtn_en,
     output logic        cfg_pm1_slpbtn_en,
@@ -65,58 +132,113 @@ module pm_acpi_config_regs
     output logic        cfg_state_trans_enable,
     output logic        cfg_pm1_enable,
     output logic        cfg_gpe_int_enable,
+    output logic        cfg_sys_reset,
+    output logic        cfg_periph_reset,
 
-    // Status inputs (from pm_acpi_core)
+    // Per-bit W1C clear pulses to pm_acpi_core (one cycle per transaction)
+    output logic [3:0]  sw_clr_acpi_status,
+    output logic [5:0]  sw_clr_acpi_int_status,
+    output logic [4:0]  sw_clr_pm1_status,
+    output logic [3:0]  sw_clr_wake_status,
+    output logic [31:0] sw_clr_gpe_status,
+
+    // Status inputs (from pm_acpi_core) - sticky, mirrored into the regblock
     input  logic [1:0]  status_current_state,
-    input  logic        status_pme,
-    input  logic        status_wake,
-    input  logic        status_timer_overflow,
-    input  logic        status_state_transition,
-    input  logic        status_pm1_tmr,
-    input  logic        status_pm1_pwrbtn,
-    input  logic        status_pm1_slpbtn,
-    input  logic        status_pm1_rtc,
-    input  logic        status_pm1_wake,
+    input  logic [3:0]  status_acpi,
+    input  logic [5:0]  status_acpi_int,
+    input  logic [4:0]  status_pm1,
+    input  logic [3:0]  status_wake_src,
+    input  logic [31:0] status_gpe,
+    input  logic [3:0]  status_reset_src,
     input  logic [31:0] status_pm_timer_value,
-    input  logic [31:0] status_gpe_status,
     input  logic [31:0] status_clk_gate_status,
-    input  logic [7:0]  status_pwr_domain_status,
-    input  logic        status_gpe_wake,
-    input  logic        status_pwrbtn_wake,
-    input  logic        status_rtc_wake,
-    input  logic        status_ext_wake,
-    input  logic        status_por_reset,
-    input  logic        status_wdt_reset,
-    input  logic        status_sw_reset,
-    input  logic        status_ext_reset
+    input  logic [7:0]  status_pwr_domain_status
 );
 
     //========================================================================
-    // Internal Signals for PeakRDL Passthrough Interface
+    // Local Parameters
     //========================================================================
 
-    logic                regblk_req;
-    logic                regblk_req_is_wr;
-    logic [11:0]         regblk_addr;
-    logic [31:0]         regblk_wr_data;
-    logic [31:0]         regblk_wr_biten;
-    logic                regblk_req_stall_wr;
-    logic                regblk_req_stall_rd;
-    logic                regblk_rd_ack;
-    logic                regblk_rd_err;
-    logic [31:0]         regblk_rd_data;
-    logic                regblk_wr_ack;
-    logic                regblk_wr_err;
+    // Register offsets, as the generated block decodes them (7 bits). These
+    // MUST track pm_acpi_regs.rdl - a_regblk_addr_mapped below is the guard.
+    localparam logic [6:0] ADDR_ACPI_CONTROL        = 7'h00;
+    localparam logic [6:0] ADDR_ACPI_STATUS         = 7'h04;
+    localparam logic [6:0] ADDR_ACPI_INT_ENABLE     = 7'h08;
+    localparam logic [6:0] ADDR_ACPI_INT_STATUS     = 7'h0C;
+    localparam logic [6:0] ADDR_PM1_CONTROL         = 7'h10;
+    localparam logic [6:0] ADDR_PM1_STATUS          = 7'h14;
+    localparam logic [6:0] ADDR_PM1_ENABLE          = 7'h18;
+    localparam logic [6:0] ADDR_PM_TIMER_VALUE      = 7'h20;
+    localparam logic [6:0] ADDR_PM_TIMER_CONFIG     = 7'h24;
+    localparam logic [6:0] ADDR_GPE0_STATUS_LO      = 7'h30;
+    localparam logic [6:0] ADDR_GPE0_STATUS_HI      = 7'h34;
+    localparam logic [6:0] ADDR_GPE0_ENABLE_LO      = 7'h38;
+    localparam logic [6:0] ADDR_GPE0_ENABLE_HI      = 7'h3C;
+    localparam logic [6:0] ADDR_CLOCK_GATE_CTRL     = 7'h50;
+    localparam logic [6:0] ADDR_CLOCK_GATE_STATUS   = 7'h54;
+    localparam logic [6:0] ADDR_POWER_DOMAIN_CTRL   = 7'h58;
+    localparam logic [6:0] ADDR_POWER_DOMAIN_STATUS = 7'h5C;
+    localparam logic [6:0] ADDR_WAKE_STATUS         = 7'h60;
+    localparam logic [6:0] ADDR_WAKE_ENABLE         = 7'h64;
+    localparam logic [6:0] ADDR_RESET_CTRL          = 7'h68;
+    localparam logic [6:0] ADDR_RESET_STATUS        = 7'h6C;
+
+    // The five W1C register windows, one index each. GPE0_STATUS is two
+    // registers over one 32-bit core vector, hence six indices.
+    localparam int W1C_ACPI_STATUS     = 0;
+    localparam int W1C_ACPI_INT_STATUS = 1;
+    localparam int W1C_PM1_STATUS      = 2;
+    localparam int W1C_WAKE_STATUS     = 3;
+    localparam int W1C_GPE_LO          = 4;
+    localparam int W1C_GPE_HI          = 5;
+    localparam int W1C_COUNT           = 6;
 
     //========================================================================
-    // Hardware Interface Structs
+    // Signals
     //========================================================================
 
+    // From the protocol adapter, before the decode gate
+    logic        adapter_req;
+    logic        adapter_req_is_wr;
+    logic [11:0] adapter_addr;
+    logic [31:0] adapter_wr_data;
+    logic [31:0] adapter_wr_biten;
+    logic        adapter_req_stall_wr;
+    logic        adapter_req_stall_rd;
+    logic        adapter_rd_ack;
+    logic        adapter_rd_err;
+    logic [31:0] adapter_rd_data;
+    logic        adapter_wr_ack;
+    logic        adapter_wr_err;
+
+    // To the register block, after the decode gate
+    logic        regblk_req;
+    logic [6:0]  regblk_addr;
+    logic        regblk_req_stall_wr;
+    logic        regblk_req_stall_rd;
+    logic        regblk_rd_ack;
+    logic        regblk_rd_err;
+    logic [31:0] regblk_rd_data;
+    logic        regblk_wr_ack;
+    logic        regblk_wr_err;
+
+    // Decode
+    logic        w_addr_mapped;
+    logic        w_drop;
+    logic        w_drop_ack;
+
+    // W1C write detect: mirrored decode level, its delayed copy, the edge
+    logic [W1C_COUNT-1:0] w_w1c_level;
+    logic [W1C_COUNT-1:0] r_w1c_level_d;
+    logic [W1C_COUNT-1:0] w_w1c_event;
+    logic [15:0]          w_w1c_mask;
+
+    // Hardware interface structs
     pm_acpi_regs__in_t  hwif_in;
     pm_acpi_regs__out_t hwif_out;
 
     //========================================================================
-    // Instantiate Protocol Adapter (from converters/rtl/)
+    // CMD/RSP to PeakRDL Adapter
     //========================================================================
 
     peakrdl_to_cmdrsp #(
@@ -139,20 +261,66 @@ module pm_acpi_config_regs
         .rsp_prdata         (rsp_prdata),
         .rsp_pslverr        (rsp_pslverr),
 
-        // PeakRDL passthrough interface (to register block)
-        .regblk_req         (regblk_req),
-        .regblk_req_is_wr   (regblk_req_is_wr),
-        .regblk_addr        (regblk_addr),
-        .regblk_wr_data     (regblk_wr_data),
-        .regblk_wr_biten    (regblk_wr_biten),
-        .regblk_req_stall_wr(regblk_req_stall_wr),
-        .regblk_req_stall_rd(regblk_req_stall_rd),
-        .regblk_rd_ack      (regblk_rd_ack),
-        .regblk_rd_err      (regblk_rd_err),
-        .regblk_rd_data     (regblk_rd_data),
-        .regblk_wr_ack      (regblk_wr_ack),
-        .regblk_wr_err      (regblk_wr_err)
+        // PeakRDL passthrough interface (to the decode gate)
+        .regblk_req         (adapter_req),
+        .regblk_req_is_wr   (adapter_req_is_wr),
+        .regblk_addr        (adapter_addr),
+        .regblk_wr_data     (adapter_wr_data),
+        .regblk_wr_biten    (adapter_wr_biten),
+        .regblk_req_stall_wr(adapter_req_stall_wr),
+        .regblk_req_stall_rd(adapter_req_stall_rd),
+        .regblk_rd_ack      (adapter_rd_ack),
+        .regblk_rd_err      (adapter_rd_err),
+        .regblk_rd_data     (adapter_rd_data),
+        .regblk_wr_ack      (adapter_wr_ack),
+        .regblk_wr_err      (adapter_wr_err)
     );
+
+    //========================================================================
+    // Strict Address Decode
+    //========================================================================
+    // Equality on all 12 bits. The 7-bit alias at 0x080 shares its low seven
+    // bits with ACPI_CONTROL and is exactly what this rejects.
+
+    always_comb begin
+        w_addr_mapped = (adapter_addr == {5'h00, ADDR_ACPI_CONTROL})        ||
+                        (adapter_addr == {5'h00, ADDR_ACPI_STATUS})         ||
+                        (adapter_addr == {5'h00, ADDR_ACPI_INT_ENABLE})     ||
+                        (adapter_addr == {5'h00, ADDR_ACPI_INT_STATUS})     ||
+                        (adapter_addr == {5'h00, ADDR_PM1_CONTROL})         ||
+                        (adapter_addr == {5'h00, ADDR_PM1_STATUS})          ||
+                        (adapter_addr == {5'h00, ADDR_PM1_ENABLE})          ||
+                        (adapter_addr == {5'h00, ADDR_PM_TIMER_VALUE})      ||
+                        (adapter_addr == {5'h00, ADDR_PM_TIMER_CONFIG})     ||
+                        (adapter_addr == {5'h00, ADDR_GPE0_STATUS_LO})      ||
+                        (adapter_addr == {5'h00, ADDR_GPE0_STATUS_HI})      ||
+                        (adapter_addr == {5'h00, ADDR_GPE0_ENABLE_LO})      ||
+                        (adapter_addr == {5'h00, ADDR_GPE0_ENABLE_HI})      ||
+                        (adapter_addr == {5'h00, ADDR_CLOCK_GATE_CTRL})     ||
+                        (adapter_addr == {5'h00, ADDR_CLOCK_GATE_STATUS})   ||
+                        (adapter_addr == {5'h00, ADDR_POWER_DOMAIN_CTRL})   ||
+                        (adapter_addr == {5'h00, ADDR_POWER_DOMAIN_STATUS}) ||
+                        (adapter_addr == {5'h00, ADDR_WAKE_STATUS})         ||
+                        (adapter_addr == {5'h00, ADDR_WAKE_ENABLE})         ||
+                        (adapter_addr == {5'h00, ADDR_RESET_CTRL})          ||
+                        (adapter_addr == {5'h00, ADDR_RESET_STATUS});
+    end
+
+    assign w_drop      = !w_addr_mapped;
+    assign regblk_req  = adapter_req && !w_drop;
+    assign regblk_addr = adapter_addr[6:0];
+
+    // Local acknowledge for a dropped access, in the same combinational form
+    // the register block uses. The adapter holds its request until acked.
+    assign w_drop_ack = adapter_req && w_drop;
+
+    assign adapter_req_stall_wr = regblk_req_stall_wr;
+    assign adapter_req_stall_rd = regblk_req_stall_rd;
+    assign adapter_rd_ack  = regblk_rd_ack | (w_drop_ack & ~adapter_req_is_wr);
+    assign adapter_rd_err  = regblk_rd_err | (w_drop_ack & ~adapter_req_is_wr);
+    assign adapter_rd_data = w_drop_ack ? 32'h0 : regblk_rd_data;
+    assign adapter_wr_ack  = regblk_wr_ack | (w_drop_ack & adapter_req_is_wr);
+    assign adapter_wr_err  = regblk_wr_err | (w_drop_ack & adapter_req_is_wr);
 
     //========================================================================
     // Instantiate PeakRDL-Generated Register Block
@@ -164,10 +332,10 @@ module pm_acpi_config_regs
 
         // Passthrough CPU interface
         .s_cpuif_req        (regblk_req),
-        .s_cpuif_req_is_wr  (regblk_req_is_wr),
-        .s_cpuif_addr       (regblk_addr[8:0]),  // Lower 9 bits for PM_ACPI address space
-        .s_cpuif_wr_data    (regblk_wr_data),
-        .s_cpuif_wr_biten   (regblk_wr_biten),
+        .s_cpuif_req_is_wr  (adapter_req_is_wr),
+        .s_cpuif_addr       (regblk_addr),
+        .s_cpuif_wr_data    (adapter_wr_data),
+        .s_cpuif_wr_biten   (adapter_wr_biten),
         .s_cpuif_req_stall_wr(regblk_req_stall_wr),
         .s_cpuif_req_stall_rd(regblk_req_stall_rd),
         .s_cpuif_rd_ack     (regblk_rd_ack),
@@ -182,220 +350,250 @@ module pm_acpi_config_regs
     );
 
     //========================================================================
-    // Map PeakRDL hwif Outputs to PM_ACPI Core Configuration Inputs
+    // hwif_out -> pm_acpi_core Configuration
     //========================================================================
 
     // ACPI Control register
-    assign cfg_acpi_enable = hwif_out.ACPI_CONTROL.acpi_enable.value;
+    assign cfg_acpi_enable     = hwif_out.ACPI_CONTROL.acpi_enable.value;
     assign cfg_pm_timer_enable = hwif_out.ACPI_CONTROL.pm_timer_enable.value;
-    assign cfg_gpe_enable = hwif_out.ACPI_CONTROL.gpe_enable.value;
-    assign cfg_low_power_req = hwif_out.ACPI_CONTROL.low_power_req.value;
+    assign cfg_gpe_enable      = hwif_out.ACPI_CONTROL.gpe_enable.value;
+    assign cfg_soft_reset      = hwif_out.ACPI_CONTROL.soft_reset.value;
 
-    // PM1 Control register
-    assign cfg_sleep_type = hwif_out.PM1_CONTROL.sleep_type.value;
+    // PM1 Control register. pwrbtn_ovr / slpbtn_ovr are storage only and are
+    // deliberately not read here (see the header).
+    assign cfg_sleep_type   = hwif_out.PM1_CONTROL.sleep_type.value;
     assign cfg_sleep_enable = hwif_out.PM1_CONTROL.sleep_enable.value;
-    assign cfg_pwrbtn_ovr = hwif_out.PM1_CONTROL.pwrbtn_ovr.value;
-    assign cfg_slpbtn_ovr = hwif_out.PM1_CONTROL.slpbtn_ovr.value;
 
     // PM1 Enable register
-    assign cfg_pm1_tmr_en = hwif_out.PM1_ENABLE.tmr_en.value;
+    assign cfg_pm1_tmr_en    = hwif_out.PM1_ENABLE.tmr_en.value;
     assign cfg_pm1_pwrbtn_en = hwif_out.PM1_ENABLE.pwrbtn_en.value;
     assign cfg_pm1_slpbtn_en = hwif_out.PM1_ENABLE.slpbtn_en.value;
-    assign cfg_pm1_rtc_en = hwif_out.PM1_ENABLE.rtc_en.value;
+    assign cfg_pm1_rtc_en    = hwif_out.PM1_ENABLE.rtc_en.value;
 
     // PM Timer configuration
     assign cfg_pm_timer_div = hwif_out.PM_TIMER_CONFIG.timer_div.value;
 
-    // GPE enables (combine low and high)
-    assign cfg_gpe_enables = {hwif_out.GPE0_ENABLE_HI.gpe_enable.value, 
+    // GPE enables (HI concatenated above LO - the same order status_gpe uses)
+    assign cfg_gpe_enables = {hwif_out.GPE0_ENABLE_HI.gpe_enable.value,
                               hwif_out.GPE0_ENABLE_LO.gpe_enable.value};
 
-    // Clock gate control
-    assign cfg_clk_gate_ctrl = hwif_out.CLOCK_GATE_CTRL.clk_gate_ctrl.value;
-
-    // Power domain control
+    // Clock gate and power domain control
+    assign cfg_clk_gate_ctrl   = hwif_out.CLOCK_GATE_CTRL.clk_gate_ctrl.value;
     assign cfg_pwr_domain_ctrl = hwif_out.POWER_DOMAIN_CTRL.pwr_domain_ctrl.value;
 
     // Wake enables
-    assign cfg_gpe_wake_en = hwif_out.WAKE_ENABLE.gpe_wake_en.value;
+    assign cfg_gpe_wake_en    = hwif_out.WAKE_ENABLE.gpe_wake_en.value;
     assign cfg_pwrbtn_wake_en = hwif_out.WAKE_ENABLE.pwrbtn_wake_en.value;
-    assign cfg_rtc_wake_en = hwif_out.WAKE_ENABLE.rtc_wake_en.value;
-    assign cfg_ext_wake_en = hwif_out.WAKE_ENABLE.ext_wake_en.value;
+    assign cfg_rtc_wake_en    = hwif_out.WAKE_ENABLE.rtc_wake_en.value;
+    assign cfg_ext_wake_en    = hwif_out.WAKE_ENABLE.ext_wake_en.value;
 
     // Interrupt enables
-    assign cfg_pme_enable = hwif_out.ACPI_INT_ENABLE.pme_enable.value;
-    assign cfg_wake_enable = hwif_out.ACPI_INT_ENABLE.wake_enable.value;
-    assign cfg_timer_ovf_enable = hwif_out.ACPI_INT_ENABLE.timer_ovf_enable.value;
+    assign cfg_pme_enable         = hwif_out.ACPI_INT_ENABLE.pme_enable.value;
+    assign cfg_wake_enable        = hwif_out.ACPI_INT_ENABLE.wake_enable.value;
+    assign cfg_timer_ovf_enable   = hwif_out.ACPI_INT_ENABLE.timer_ovf_enable.value;
     assign cfg_state_trans_enable = hwif_out.ACPI_INT_ENABLE.state_trans_enable.value;
-    assign cfg_pm1_enable = hwif_out.ACPI_INT_ENABLE.pm1_enable.value;
-    assign cfg_gpe_int_enable = hwif_out.ACPI_INT_ENABLE.gpe_int_enable.value;
+    assign cfg_pm1_enable         = hwif_out.ACPI_INT_ENABLE.pm1_enable.value;
+    assign cfg_gpe_int_enable     = hwif_out.ACPI_INT_ENABLE.gpe_int_enable.value;
+
+    // Reset control requests
+    assign cfg_sys_reset    = hwif_out.RESET_CTRL.sys_reset.value;
+    assign cfg_periph_reset = hwif_out.RESET_CTRL.periph_reset.value;
 
     //========================================================================
-    // Map PM_ACPI Core Outputs to PeakRDL hwif Inputs
+    // W1C Write Decode - mirror of the register block's own decode
+    //========================================================================
+    // pm_acpi_regs.sv decodes
+    //   decoded_reg_strb.<REG> = cpuif_req_masked & (cpuif_addr == <ADDR>)
+    // on the same seven address bits this module feeds it, and both cpuif
+    // stalls are tied low inside the block, so cpuif_req_masked == regblk_req.
+    // a_w1c_swmod_mirrored fires if a regenerated block changes that decode.
+
+    always_comb begin
+        w_w1c_level = '0;
+        w_w1c_level[W1C_ACPI_STATUS]     = regblk_req && adapter_req_is_wr &&
+                                           (regblk_addr == ADDR_ACPI_STATUS);
+        w_w1c_level[W1C_ACPI_INT_STATUS] = regblk_req && adapter_req_is_wr &&
+                                           (regblk_addr == ADDR_ACPI_INT_STATUS);
+        w_w1c_level[W1C_PM1_STATUS]      = regblk_req && adapter_req_is_wr &&
+                                           (regblk_addr == ADDR_PM1_STATUS);
+        w_w1c_level[W1C_WAKE_STATUS]     = regblk_req && adapter_req_is_wr &&
+                                           (regblk_addr == ADDR_WAKE_STATUS);
+        w_w1c_level[W1C_GPE_LO]          = regblk_req && adapter_req_is_wr &&
+                                           (regblk_addr == ADDR_GPE0_STATUS_LO);
+        w_w1c_level[W1C_GPE_HI]          = regblk_req && adapter_req_is_wr &&
+                                           (regblk_addr == ADDR_GPE0_STATUS_HI);
+    end
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_w1c_level_d <= '0;
+        end else begin
+            r_w1c_level_d <= w_w1c_level;
+        end
+    )
+
+    // One clear event per transaction: the request is held for the whole
+    // transaction, and a two-cycle clear would undo a set the core accepted in
+    // the first of them.
+    assign w_w1c_event = w_w1c_level & ~r_w1c_level_d;
+
+    // The write data and byte enables are combinational into the register
+    // block's decode, so during the request they ARE the mask of the write
+    // being committed.
+    // Only the low half-word is ever needed: the widest W1C field group is
+    // GPE0_STATUS_LO/HI at 16 bits, and every other status register fits in
+    // six. Taking the full word would leave the top half unread.
+    assign w_w1c_mask = adapter_wr_data[15:0] & adapter_wr_biten[15:0];
+
+    assign sw_clr_acpi_status     = w_w1c_event[W1C_ACPI_STATUS]     ?
+                                    w_w1c_mask[3:0] : 4'h0;
+    assign sw_clr_acpi_int_status = w_w1c_event[W1C_ACPI_INT_STATUS] ?
+                                    w_w1c_mask[5:0] : 6'h0;
+    assign sw_clr_pm1_status      = w_w1c_event[W1C_PM1_STATUS]      ?
+                                    w_w1c_mask[4:0] : 5'h0;
+    assign sw_clr_wake_status     = w_w1c_event[W1C_WAKE_STATUS]     ?
+                                    w_w1c_mask[3:0] : 4'h0;
+
+    // GPE0_STATUS_HI carries core bits [31:16] in its OWN bits [15:0]; the two
+    // halves are independent transactions and are never written together.
+    assign sw_clr_gpe_status[15:0]  = w_w1c_event[W1C_GPE_LO] ?
+                                      w_w1c_mask[15:0] : 16'h0;
+    assign sw_clr_gpe_status[31:16] = w_w1c_event[W1C_GPE_HI] ?
+                                      w_w1c_mask[15:0] : 16'h0;
+
+    //========================================================================
+    // pm_acpi_core -> hwif_in (every member of pm_acpi_regs__in_t is driven)
     //========================================================================
 
-    // ACPI Control - current state (hardware writes)
+    // ACPI Control - current power state
     assign hwif_in.ACPI_CONTROL.current_state.next = status_current_state;
 
-    // ACPI Status - edge detection for W1C fields
-    logic r_status_pme_prev;
-    logic r_status_wake_prev;
-    logic r_status_timer_ovf_prev;
-    logic r_status_state_trans_prev;
-    
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
-            r_status_pme_prev <= 1'b0;
-            r_status_wake_prev <= 1'b0;
-            r_status_timer_ovf_prev <= 1'b0;
-            r_status_state_trans_prev <= 1'b0;
-        end else begin
-            r_status_pme_prev <= status_pme;
-            r_status_wake_prev <= status_wake;
-            r_status_timer_ovf_prev <= status_timer_overflow;
-            r_status_state_trans_prev <= status_state_transition;
-        end
-    )
+    // ACPI_STATUS mirror (bit order matches pm_acpi_core's STATUS BIT MAP)
+    assign hwif_in.ACPI_STATUS.pme_status.next      = status_acpi[0];
+    assign hwif_in.ACPI_STATUS.wake_status.next     = status_acpi[1];
+    assign hwif_in.ACPI_STATUS.timer_overflow.next  = status_acpi[2];
+    assign hwif_in.ACPI_STATUS.state_transition.next = status_acpi[3];
 
-    // Edge detection for sticky status bits
-    logic w_pme_edge, w_wake_edge, w_timer_ovf_edge, w_state_trans_edge;
-    assign w_pme_edge = status_pme && !r_status_pme_prev;
-    assign w_wake_edge = status_wake && !r_status_wake_prev;
-    assign w_timer_ovf_edge = status_timer_overflow && !r_status_timer_ovf_prev;
-    assign w_state_trans_edge = status_state_transition && !r_status_state_trans_prev;
+    // ACPI_INT_STATUS mirror
+    assign hwif_in.ACPI_INT_STATUS.pme_int.next         = status_acpi_int[0];
+    assign hwif_in.ACPI_INT_STATUS.wake_int.next        = status_acpi_int[1];
+    assign hwif_in.ACPI_INT_STATUS.timer_ovf_int.next   = status_acpi_int[2];
+    assign hwif_in.ACPI_INT_STATUS.state_trans_int.next = status_acpi_int[3];
+    assign hwif_in.ACPI_INT_STATUS.pm1_int.next         = status_acpi_int[4];
+    assign hwif_in.ACPI_INT_STATUS.gpe_int.next         = status_acpi_int[5];
 
-    // Feed edges to PeakRDL W1C status fields
-    assign hwif_in.ACPI_STATUS.pme_status.hwset = w_pme_edge;
-    assign hwif_in.ACPI_STATUS.wake_status.hwset = w_wake_edge;
-    assign hwif_in.ACPI_STATUS.timer_overflow.hwset = w_timer_ovf_edge;
-    assign hwif_in.ACPI_STATUS.state_transition.hwset = w_state_trans_edge;
+    // PM1_STATUS mirror
+    assign hwif_in.PM1_STATUS.tmr_sts.next    = status_pm1[0];
+    assign hwif_in.PM1_STATUS.pwrbtn_sts.next = status_pm1[1];
+    assign hwif_in.PM1_STATUS.slpbtn_sts.next = status_pm1[2];
+    assign hwif_in.PM1_STATUS.rtc_sts.next    = status_pm1[3];
+    assign hwif_in.PM1_STATUS.wak_sts.next    = status_pm1[4];
 
-    // ACPI Interrupt Status - edge detection for W1C fields
-    assign hwif_in.ACPI_INT_STATUS.pme_int.hwset = w_pme_edge;
-    assign hwif_in.ACPI_INT_STATUS.wake_int.hwset = w_wake_edge;
-    assign hwif_in.ACPI_INT_STATUS.timer_ovf_int.hwset = w_timer_ovf_edge;
-    assign hwif_in.ACPI_INT_STATUS.state_trans_int.hwset = w_state_trans_edge;
-    
-    // PM1 status also sets interrupt bits
-    logic r_status_pm1_prev;
-    logic r_status_gpe_prev;
-    
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
-            r_status_pm1_prev <= 1'b0;
-            r_status_gpe_prev <= 1'b0;
-        end else begin
-            r_status_pm1_prev <= status_pm1_tmr || status_pm1_pwrbtn || status_pm1_slpbtn;
-            r_status_gpe_prev <= |status_gpe_status;
-        end
-    )
+    // WAKE_STATUS mirror
+    assign hwif_in.WAKE_STATUS.gpe_wake.next    = status_wake_src[0];
+    assign hwif_in.WAKE_STATUS.pwrbtn_wake.next = status_wake_src[1];
+    assign hwif_in.WAKE_STATUS.rtc_wake.next    = status_wake_src[2];
+    assign hwif_in.WAKE_STATUS.ext_wake.next    = status_wake_src[3];
 
-    logic w_pm1_edge, w_gpe_edge;
-    assign w_pm1_edge = (status_pm1_tmr || status_pm1_pwrbtn || status_pm1_slpbtn) && !r_status_pm1_prev;
-    assign w_gpe_edge = (|status_gpe_status) && !r_status_gpe_prev;
+    // GPE0_STATUS mirror (LO = core [15:0], HI = core [31:16])
+    assign hwif_in.GPE0_STATUS_LO.gpe_status.next = status_gpe[15:0];
+    assign hwif_in.GPE0_STATUS_HI.gpe_status.next = status_gpe[31:16];
 
-    assign hwif_in.ACPI_INT_STATUS.pm1_int.hwset = w_pm1_edge;
-    assign hwif_in.ACPI_INT_STATUS.gpe_int.hwset = w_gpe_edge;
+    // RESET_STATUS mirror
+    assign hwif_in.RESET_STATUS.por_reset.next = status_reset_src[0];
+    assign hwif_in.RESET_STATUS.wdt_reset.next = status_reset_src[1];
+    assign hwif_in.RESET_STATUS.sw_reset.next  = status_reset_src[2];
+    assign hwif_in.RESET_STATUS.ext_reset.next = status_reset_src[3];
 
-    // PM1 Status - edge detection for W1C fields
-    logic r_pm1_tmr_prev, r_pm1_pwrbtn_prev, r_pm1_slpbtn_prev, r_pm1_rtc_prev, r_pm1_wake_prev;
-    
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
-            r_pm1_tmr_prev <= 1'b0;
-            r_pm1_pwrbtn_prev <= 1'b0;
-            r_pm1_slpbtn_prev <= 1'b0;
-            r_pm1_rtc_prev <= 1'b0;
-            r_pm1_wake_prev <= 1'b0;
-        end else begin
-            r_pm1_tmr_prev <= status_pm1_tmr;
-            r_pm1_pwrbtn_prev <= status_pm1_pwrbtn;
-            r_pm1_slpbtn_prev <= status_pm1_slpbtn;
-            r_pm1_rtc_prev <= status_pm1_rtc;
-            r_pm1_wake_prev <= status_pm1_wake;
-        end
-    )
-
-    assign hwif_in.PM1_STATUS.tmr_sts.hwset = status_pm1_tmr && !r_pm1_tmr_prev;
-    assign hwif_in.PM1_STATUS.pwrbtn_sts.hwset = status_pm1_pwrbtn && !r_pm1_pwrbtn_prev;
-    assign hwif_in.PM1_STATUS.slpbtn_sts.hwset = status_pm1_slpbtn && !r_pm1_slpbtn_prev;
-    assign hwif_in.PM1_STATUS.rtc_sts.hwset = status_pm1_rtc && !r_pm1_rtc_prev;
-    assign hwif_in.PM1_STATUS.wak_sts.hwset = status_pm1_wake && !r_pm1_wake_prev;
-
-    // PM Timer value (hardware writes, read-only from SW)
-    assign hwif_in.PM_TIMER_VALUE.timer_value.next = status_pm_timer_value;
-
-    // GPE Status - Edge detection on the sticky status from pm_acpi_core.
-    // When hwset is asserted, the PeakRDL register latches the 'next' value as a SET
-    // (not a replace), so we pass the edge bits to 'next'. The W1C behavior in PeakRDL
-    // handles clearing. We don't want to continuously re-assert from the sticky status.
-    logic [31:0] r_gpe_status_prev;
-    logic [31:0] w_gpe_status_edge;
-
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
-            r_gpe_status_prev <= 32'h0;
-        end else begin
-            r_gpe_status_prev <= status_gpe_status;
-        end
-    )
-
-    // Detect new bits being set in the sticky status from pm_acpi_core
-    assign w_gpe_status_edge = status_gpe_status & ~r_gpe_status_prev;
-
-    // GPE status to registers (split into low and high)
-    // hwset triggers when any new bit is set in edge detection
-    // next provides the specific edge bits (not the full sticky status)
-    // This allows W1C to clear bits that aren't being newly set
-    assign hwif_in.GPE0_STATUS_LO.gpe_status.hwset = |w_gpe_status_edge[15:0];
-    assign hwif_in.GPE0_STATUS_LO.gpe_status.next = w_gpe_status_edge[15:0];
-
-    assign hwif_in.GPE0_STATUS_HI.gpe_status.hwset = |w_gpe_status_edge[31:16];
-    assign hwif_in.GPE0_STATUS_HI.gpe_status.next = w_gpe_status_edge[31:16];
-
-    // Clock gate status (read-only)
-    assign hwif_in.CLOCK_GATE_STATUS.clk_gate_status.next = status_clk_gate_status;
-
-    // Power domain status (read-only)
+    // Read-only hardware mirrors
+    assign hwif_in.PM_TIMER_VALUE.timer_value.next          = status_pm_timer_value;
+    assign hwif_in.CLOCK_GATE_STATUS.clk_gate_status.next   = status_clk_gate_status;
     assign hwif_in.POWER_DOMAIN_STATUS.pwr_domain_status.next = status_pwr_domain_status;
 
-    // Wake Status - edge detection for W1C fields
-    logic r_gpe_wake_prev, r_pwrbtn_wake_prev, r_rtc_wake_prev, r_ext_wake_prev;
-    
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
-            r_gpe_wake_prev <= 1'b0;
-            r_pwrbtn_wake_prev <= 1'b0;
-            r_rtc_wake_prev <= 1'b0;
-            r_ext_wake_prev <= 1'b0;
-        end else begin
-            r_gpe_wake_prev <= status_gpe_wake;
-            r_pwrbtn_wake_prev <= status_pwrbtn_wake;
-            r_rtc_wake_prev <= status_rtc_wake;
-            r_ext_wake_prev <= status_ext_wake;
-        end
-    )
-
-    assign hwif_in.WAKE_STATUS.gpe_wake.hwset = status_gpe_wake && !r_gpe_wake_prev;
-    assign hwif_in.WAKE_STATUS.pwrbtn_wake.hwset = status_pwrbtn_wake && !r_pwrbtn_wake_prev;
-    assign hwif_in.WAKE_STATUS.rtc_wake.hwset = status_rtc_wake && !r_rtc_wake_prev;
-    assign hwif_in.WAKE_STATUS.ext_wake.hwset = status_ext_wake && !r_ext_wake_prev;
-
-    // Reset Status (read-only)
-    assign hwif_in.RESET_STATUS.por_reset.next = status_por_reset;
-    assign hwif_in.RESET_STATUS.wdt_reset.next = status_wdt_reset;
-    assign hwif_in.RESET_STATUS.sw_reset.next = status_sw_reset;
-    assign hwif_in.RESET_STATUS.ext_reset.next = status_ext_reset;
-
     //========================================================================
-    // Auto-Clear Fields (soft_reset, low_power_req, sleep_enable)
+    // Simulation-only contract checks
     //========================================================================
+`ifndef SYNTHESIS
+`ifndef VERILATOR
+    // Drift guard for the mirrored W1C decode. swmod is that same decode ANDed
+    // with |wr_biten, so swmod high with the mirror low is impossible unless
+    // the generated block's decode has changed under this module - at which
+    // point W1C silently stops reaching pm_acpi_core.
+    a_w1c_swmod_mirrored: assert property (
+        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
+        (hwif_out.ACPI_STATUS.pme_status.swmod        |-> w_w1c_level[W1C_ACPI_STATUS]) and
+        (hwif_out.ACPI_INT_STATUS.pme_int.swmod       |-> w_w1c_level[W1C_ACPI_INT_STATUS]) and
+        (hwif_out.PM1_STATUS.tmr_sts.swmod            |-> w_w1c_level[W1C_PM1_STATUS]) and
+        (hwif_out.WAKE_STATUS.gpe_wake.swmod          |-> w_w1c_level[W1C_WAKE_STATUS]) and
+        (hwif_out.GPE0_STATUS_LO.gpe_status.swmod     |-> w_w1c_level[W1C_GPE_LO]) and
+        (hwif_out.GPE0_STATUS_HI.gpe_status.swmod     |-> w_w1c_level[W1C_GPE_HI])
+    ) else $error("pm_acpi_config_regs: a W1C swmod asserted without the ",
+                  "mirrored regblock decode -- w_w1c_level has drifted from ",
+                  "pm_acpi_regs.sv and the per-bit W1C no longer reaches the core");
 
-    // These fields auto-clear after being set
-    assign hwif_in.ACPI_CONTROL.soft_reset.next = 1'b0;
-    assign hwif_in.ACPI_CONTROL.low_power_req.next = 1'b0;
-    assign hwif_in.PM1_CONTROL.sleep_enable.next = 1'b0;
-    assign hwif_in.RESET_CTRL.sys_reset.next = 1'b0;
-    assign hwif_in.RESET_CTRL.periph_reset.next = 1'b0;
+    // One clear per transaction. peakrdl_to_cmdrsp holds regblk_req for the
+    // accept cycle plus CMD_WAIT_ACK - two cycles - then drops it. Three
+    // consecutive cycles means the cpuif has become pipelined and two writes
+    // are being merged into one clear.
+    property p_w1c_max_two(logic level);
+        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
+        not (level [*3]);
+    endproperty
 
-endmodule
+    for (genvar gi = 0; gi < W1C_COUNT; gi++) begin : g_w1c_len_assert
+        a_w1c_level_len: assert property (p_w1c_max_two(w_w1c_level[gi]))
+            else $error("pm_acpi_config_regs: a W1C write request was held >2 ",
+                        "cycles -- the cpuif no longer drops regblk_req between ",
+                        "writes, so the rising-edge detect merges them");
+    end
+
+    // Every address presented to the register block must be one its generated
+    // decode recognises.
+    logic w_regblk_addr_mapped;
+    always_comb begin
+        w_regblk_addr_mapped = (regblk_addr == ADDR_ACPI_CONTROL)        ||
+                               (regblk_addr == ADDR_ACPI_STATUS)         ||
+                               (regblk_addr == ADDR_ACPI_INT_ENABLE)     ||
+                               (regblk_addr == ADDR_ACPI_INT_STATUS)     ||
+                               (regblk_addr == ADDR_PM1_CONTROL)         ||
+                               (regblk_addr == ADDR_PM1_STATUS)          ||
+                               (regblk_addr == ADDR_PM1_ENABLE)          ||
+                               (regblk_addr == ADDR_PM_TIMER_VALUE)      ||
+                               (regblk_addr == ADDR_PM_TIMER_CONFIG)     ||
+                               (regblk_addr == ADDR_GPE0_STATUS_LO)      ||
+                               (regblk_addr == ADDR_GPE0_STATUS_HI)      ||
+                               (regblk_addr == ADDR_GPE0_ENABLE_LO)      ||
+                               (regblk_addr == ADDR_GPE0_ENABLE_HI)      ||
+                               (regblk_addr == ADDR_CLOCK_GATE_CTRL)     ||
+                               (regblk_addr == ADDR_CLOCK_GATE_STATUS)   ||
+                               (regblk_addr == ADDR_POWER_DOMAIN_CTRL)   ||
+                               (regblk_addr == ADDR_POWER_DOMAIN_STATUS) ||
+                               (regblk_addr == ADDR_WAKE_STATUS)         ||
+                               (regblk_addr == ADDR_WAKE_ENABLE)         ||
+                               (regblk_addr == ADDR_RESET_CTRL)          ||
+                               (regblk_addr == ADDR_RESET_STATUS);
+    end
+
+    a_regblk_addr_mapped: assert property (
+        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
+        regblk_req |-> w_regblk_addr_mapped
+    ) else $error({"pm_acpi_config_regs: presented address 0x%0h that the ",
+                   "generated decode does not recognise - the RDL layout has ",
+                   "drifted from the localparams in this file"}, regblk_addr);
+
+    // A dropped access must never reach the register block, and must always be
+    // acknowledged locally, or the held request hangs the bus.
+    a_drop_never_reaches_regblk: assert property (
+        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
+        (adapter_req && w_drop) |-> !regblk_req
+    ) else $error("pm_acpi_config_regs: a dropped access reached the register block");
+
+    a_drop_is_acked: assert property (
+        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
+        (adapter_req && w_drop) |-> (adapter_rd_ack || adapter_wr_ack)
+    ) else $error("pm_acpi_config_regs: a dropped access was not acknowledged");
+`endif
+`endif
+
+/* verilator lint_on SYNCASYNCNET */
+endmodule : pm_acpi_config_regs

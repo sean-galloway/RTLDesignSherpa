@@ -50,6 +50,7 @@ from projects.components.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tb imp
 from projects.components.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tests_basic import PMACPIBasicTests
 from projects.components.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tests_medium import PMACPIMediumTests
 from projects.components.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tests_full import PMACPIFullTests
+from projects.components.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tests_gh54 import PMACPIGH54Tests
 
 
 @cocotb.test(timeout_time=10000, timeout_unit="us")
@@ -91,13 +92,23 @@ async def pm_acpi_test(dut):
         basic_tests = PMACPIBasicTests(tb)
         basic_passed = await run_basic_tests(basic_tests, tb)
 
+        medium_passed = False
+        gh54_passed = False
         if basic_passed:
             # Run medium tests
             medium_tests = PMACPIMediumTests(tb)
             medium_passed = await medium_tests.run_all_medium_tests()
-            passed = basic_passed and medium_passed
+
+            # GH#54 defect-encoding suite (registered at medium/full - see
+            # PMACPIGH54Tests). Runs regardless of medium_passed so a medium
+            # regression doesn't hide GH#54 status, but overall `passed`
+            # still requires everything green.
+            gh54_tests = PMACPIGH54Tests(tb)
+            gh54_passed = await gh54_tests.run_all_gh54_tests()
+
+            passed = basic_passed and medium_passed and gh54_passed
         else:
-            tb.log.error("Basic tests failed, skipping medium tests")
+            tb.log.error("Basic tests failed, skipping medium/GH#54 tests")
             passed = False
 
     else:  # full
@@ -115,7 +126,15 @@ async def pm_acpi_test(dut):
             full_tests = PMACPIFullTests(tb)
             full_passed = await full_tests.run_all_full_tests()
 
-        passed = basic_passed and medium_passed and full_passed
+        # GH#54 defect-encoding suite (registered at medium/full). Runs
+        # whenever basic passed, independent of medium/full results, so a
+        # regression elsewhere doesn't hide GH#54 status.
+        gh54_passed = False
+        if basic_passed:
+            gh54_tests = PMACPIGH54Tests(tb)
+            gh54_passed = await gh54_tests.run_all_gh54_tests()
+
+        passed = basic_passed and medium_passed and full_passed and gh54_passed
 
         if not basic_passed:
             tb.log.error("Basic tests failed")
@@ -123,6 +142,8 @@ async def pm_acpi_test(dut):
             tb.log.error("Medium tests failed")
         if not full_passed:
             tb.log.error("Full tests failed")
+        if not gh54_passed:
+            tb.log.error("GH#54 tests failed")
 
     # Overall result
     if passed:
@@ -227,6 +248,13 @@ def test_pm_acpi(request, cdc_enable, test_level, description):
         filelist_path='projects/components/retro_legacy_blocks/rtl/pm_acpi/filelists/apb4_pm_acpi.f'
     )
 
+    # GH#54: give the CDC arm a non-unity, non-integer clock ratio (10ns:7ns)
+    # so CDC_ENABLE=1 configurations actually cross a real clock-domain
+    # boundary instead of running edge-identical pclk/pm_clk (same pattern
+    # as test_apb4_pit_8254.py's pclk/pit_clk ratio).
+    apb_clock_period_ns = 10
+    pm_clock_period_ns = 7 if cdc_enable else apb_clock_period_ns
+
     # RTL parameters - CDC_ENABLE is parameterized
     rtl_parameters = {
         'CDC_ENABLE': str(cdc_enable),
@@ -252,6 +280,8 @@ def test_pm_acpi(request, cdc_enable, test_level, description):
 
         # DUT-specific parameters
         'TEST_CDC_ENABLE': str(cdc_enable),
+        'TEST_APB_CLOCK_PERIOD': str(apb_clock_period_ns),
+        'TEST_PM_CLOCK_PERIOD': str(pm_clock_period_ns),
 
         # Test configuration
         'TEST_MAX_TIME': '500000',  # Increased for full tests

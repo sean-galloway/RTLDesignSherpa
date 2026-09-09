@@ -27,16 +27,53 @@ This directory contains the SystemRDL specification for PM_ACPI (Power Managemen
 
 ## Register Generation
 
-To generate the SystemVerilog register files from the RDL specification:
+`pm_acpi_regs.rdl` is the source of truth. `../pm_acpi_regs.sv` and
+`../pm_acpi_regs_pkg.sv` are GENERATED - never hand-edit them, or the next
+regeneration silently reverts the edit.
 
 ```bash
 cd projects/components/retro_legacy_blocks/rtl/pm_acpi/peakrdl
-python ../../../../../../bin/peakrdl_generate.py pm_acpi_regs.rdl
+python ../../../../../../bin/peakrdl_generate.py pm_acpi_regs.rdl \
+    --copy-rtl .. --no-html --no-regmap
 ```
 
-This will generate:
+This writes into a local `generated/` scratch directory, copies the RTL up to
+`../pm_acpi_regs.sv` and `../pm_acpi_regs_pkg.sv`, and leaves the Markdown in
+`generated/docs/pm_acpi_regs.md`. Afterwards:
+
+1. Refresh the checked-in `pm_acpi_regs.md` by keeping its first 23 lines (the
+   house documentation header) and appending the newly generated body.
+2. Delete `generated/` - a second, orphaned copy of generated output drifts
+   silently and captures the next regeneration.
+
+`--no-regmap` is deliberate: unlike hpet/pit/pic, no DV code imports a
+`pm_acpi_regmap.py`, so emitting one would create a file nothing keeps in sync.
+Add it (and drop the flag) if a helper script ever needs it.
+
+Generated outputs:
 - `../pm_acpi_regs.sv` - Register block implementation
 - `../pm_acpi_regs_pkg.sv` - Package with type definitions and structs
+- `pm_acpi_regs.md` - Register documentation (checked in, header preserved)
+
+## Field conventions this map relies on (GitHub #54)
+
+- **Every W1C status field is a live MIRROR**, not storage:
+  `sw=rw; hw=w; precedence=sw; onwrite=woclr; swmod;` with reset 0.
+  `pm_acpi_core` owns the sticky bit and `pm_acpi_config_regs` turns the
+  software write into a per-bit clear pulse. `hwset` was REMOVED because it
+  ignores `next` entirely - a multi-bit `hwset` sets ALL bits of the field, and
+  the non-hwset branch reloads `next` every cycle, so a single-bit status could
+  not hold state at all.
+- **Self-clearing request bits are `singlepulse`**: `ACPI_CONTROL.soft_reset`,
+  `PM1_CONTROL.sleep_enable`, `RESET_CTRL.sys_reset` and `.periph_reset`. The
+  wrapper no longer ties their `next` inputs to zero to fake an auto-clear.
+- **Storage-only fields say so in their descriptions**:
+  `ACPI_CONTROL.low_power_req`, `PM1_CONTROL.pwrbtn_ovr` and `.slpbtn_ovr`.
+  They are not routed to the core.
+- **The address decode is strict.** `pm_acpi_config_regs` compares the whole
+  12-bit address against the twenty-one register offsets and drops everything
+  else with PSLVERR. If you MOVE or ADD a register here, update the `ADDR_*`
+  localparams in that file; the `a_regblk_addr_mapped` assertion is the guard.
 
 ## Register Map Overview
 

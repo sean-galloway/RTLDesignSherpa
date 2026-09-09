@@ -87,14 +87,27 @@ class PMACPIRegisterMap:
     RESET_STATUS = 0x06C        # 0x06C: Reset status (RO)
 
     # ACPI_CONTROL bit definitions
+    #
+    # GH#54: bits below were audited against peakrdl/pm_acpi_regs.rdl's actual
+    # field ranges after gh54 sleep-entry tests (test_gh54_pwrbtn_wake_latches_in_s0
+    # / test_gh54_level_wake_guard) polled current_state via APB and never saw
+    # anything but 0, even though a whitebox read of pm_acpi_core.current_pwr_state
+    # proved the FSM really was in S3 and staying there. Root cause: this class
+    # had current_state at [7:6] and low_power_req/soft_reset at [3]/[4], but the
+    # RDL places them at current_state[5:4], low_power_req[6:6], soft_reset[7:7]
+    # (bit 3 is an unnamed gap between gpe_enable[2:2] and current_state[5:4]).
+    # Every pre-existing test only ever checked current_state at reset (=0,
+    # indistinguishable under either mask) and never exercised low_power_req/
+    # soft_reset's real bit position, so the wrong mask was never caught.
     CONTROL_ACPI_ENABLE = (1 << 0)
     CONTROL_PM_TIMER_ENABLE = (1 << 1)
     CONTROL_GPE_ENABLE = (1 << 2)
-    CONTROL_LOW_POWER_REQ = (1 << 3)
-    CONTROL_SOFT_RESET = (1 << 4)
-    # Bits 7:6 = current_state (read-only)
-    CONTROL_CURRENT_STATE_MASK = 0xC0
-    CONTROL_CURRENT_STATE_SHIFT = 6
+    # Bit 3 is an unnamed reserved gap (no RDL field covers it).
+    # Bits 5:4 = current_state (read-only)
+    CONTROL_CURRENT_STATE_MASK = 0x30
+    CONTROL_CURRENT_STATE_SHIFT = 4
+    CONTROL_LOW_POWER_REQ = (1 << 6)
+    CONTROL_SOFT_RESET = (1 << 7)
 
     # ACPI_STATUS bit definitions (W1C)
     STATUS_PME = (1 << 0)
@@ -198,13 +211,34 @@ class PMACPITB(TBBase):
         self.power_state_changes = []
         self.gpe_events = []
 
-    async def setup_clocks_and_reset(self):
-        """Complete initialization - clocks and reset (MANDATORY METHOD)."""
-        # Start APB clock (100 MHz = 10ns period)
-        await self.start_clock('pclk', freq=10, units='ns')
+        # CDC_ENABLE mirror of the RTL parameter, plumbed by the runner via
+        # TEST_CDC_ENABLE (same pattern as pit_8254_tb.py/gpio_tb.py). Needed
+        # so GH#54 whitebox tests can sample/poke pm_acpi_core internals on
+        # the clock the core actually runs on (pm_clk when CDC_ENABLE=1, pclk
+        # when 0 - see apb4_pm_acpi.sv's `CDC_ENABLE[0] ? pm_clk : pclk`).
+        self.cdc_enable = bool(int(os.environ.get('TEST_CDC_ENABLE', '0')))
+        self.core_clk = None  # set in setup_clocks_and_reset
 
-        # Start PM clock (same as APB for non-CDC mode)
-        await self.start_clock('pm_clk', freq=10, units='ns')
+    async def setup_clocks_and_reset(self):
+        """Complete initialization - clocks and reset (MANDATORY METHOD).
+
+        Clock periods are read from TEST_APB_CLOCK_PERIOD / TEST_PM_CLOCK_PERIOD
+        (plumbed by the test runner), same pattern as pit_8254_tb.py. GH#54:
+        the runner drives pm_clk at a non-unity, non-integer ratio to pclk
+        (10ns:7ns) whenever CDC_ENABLE=1, so a CDC configuration actually
+        crosses a real clock-domain boundary instead of running edge-identical
+        clocks. When CDC_ENABLE=0 the RTL ties both internal instances to
+        pclk, so pm_clk is started at the same period as pclk to match (it
+        exists as a port either way, just unused internally).
+        """
+        apb_clock_period_ns = int(os.environ.get('TEST_APB_CLOCK_PERIOD', '10'))
+        pm_clock_period_ns = int(os.environ.get('TEST_PM_CLOCK_PERIOD', str(apb_clock_period_ns)))
+
+        # Start APB clock (100 MHz = 10ns period by default)
+        await self.start_clock('pclk', freq=apb_clock_period_ns, units='ns')
+
+        # Start PM clock (same period as APB unless the runner requests a CDC ratio)
+        await self.start_clock('pm_clk', freq=pm_clock_period_ns, units='ns')
 
         # Initialize external inputs to inactive state
         self.dut.gpe_events.value = 0
@@ -218,6 +252,11 @@ class PMACPITB(TBBase):
         await self.wait_clocks('pclk', 10)
         await self.deassert_reset()
         await self.wait_clocks('pclk', 5)
+
+        # Core clock: the clock pm_acpi_core/pm_acpi_config_regs actually run
+        # on (apb4_pm_acpi.sv CDC_ENABLE[0] ? pm_clk : pclk). Whitebox
+        # sampling/poking of core internals must use this edge.
+        self.core_clk = self.dut.pm_clk if self.cdc_enable else self.dut.pclk
 
     async def setup_components(self):
         """Initialize APB components (call after setup_clocks_and_reset)."""
@@ -261,7 +300,14 @@ class PMACPITB(TBBase):
     # ========================================================================
 
     async def write_register(self, addr: int, data: int) -> APBPacket:
-        """Write to PM_ACPI register using correct APB master API."""
+        """Write to PM_ACPI register using correct APB master API.
+
+        GH#54: the returned packet's ``.pslverr`` (and equivalently
+        ``.fields['pslverr']``) carries the APB slave error response sampled
+        by the framework APB master BFM (APBMaster._finish_xmit) once the
+        transaction completes - same pattern as pic_8259_tb.py/pit_tb.py's
+        write_register().
+        """
         try:
             # Create APB packet
             write_packet = APBPacket(
@@ -293,6 +339,13 @@ class PMACPITB(TBBase):
                 timeout += 1
 
             await RisingEdge(self.dut.pclk)
+
+            # Expose the completed transaction's PSLVERR response. write_packet
+            # is the exact object queued into APBMaster.send() above, and
+            # APBMaster._finish_xmit already wrote fields['pslverr'] from
+            # s_apb_PSLVERR before the PSEL&&PENABLE&&PREADY handshake waited
+            # for above completed, so it is settled by this point.
+            write_packet.pslverr = write_packet.fields.get('pslverr', 0)
             return write_packet
 
         except Exception as e:
@@ -336,6 +389,10 @@ class PMACPITB(TBBase):
             read_packet.fields['prdata'] = read_data
 
             await RisingEdge(self.dut.pclk)
+
+            # Expose the completed transaction's PSLVERR response (see
+            # write_register for the same-timing rationale).
+            read_packet.pslverr = read_packet.fields.get('pslverr', 0)
             return read_packet, read_data
 
         except Exception as e:
@@ -726,3 +783,67 @@ class PMACPITB(TBBase):
             8-bit power domain enable mask
         """
         return int(self.dut.power_domain_en.value)
+
+    # ========================================================================
+    # GH#54 Helpers (whitebox stimulus + interrupt-pin sampling)
+    # ========================================================================
+
+    async def force_pm_timer_near_overflow(self, remaining_ticks: int = 2):
+        """
+        Whitebox-poke pm_acpi_core.r_pm_timer_count close to 2**32-1.
+
+        There is no software path to force a PM Timer overflow quickly:
+        PM_TIMER_VALUE is read-only (sw=r) and the counter is a genuine
+        32-bit free-runner, so waiting for a natural overflow would take
+        billions of sim cycles. This directly drives the internal counter
+        register (a stimulus injection, not a hand-rolled protocol driver)
+        so cfg_pm_timer_div=0 ticks it over within `remaining_ticks` core
+        clock edges.
+
+        Caller is responsible for enabling ACPI + PM timer (divider=0)
+        first so cfg_acpi_enable && cfg_pm_timer_enable is true and the
+        forced value is not immediately overwritten.
+
+        History: the flop was pm_timer_count until the 2026-09-09 prefix-rule
+        pass (issue #54 review F7) renamed it r_pm_timer_count; this reference
+        follows the RTL name.
+        """
+        target = (2 ** 32) - remaining_ticks
+        self.dut.u_pm_acpi_core.r_pm_timer_count.value = target
+        self.log.info(f"  [whitebox] forced r_pm_timer_count -> 0x{target:08X}")
+
+    async def sample_signal_over(self, signal, cycles: int, clock=None) -> List[bool]:
+        """
+        Sample an arbitrary 1-bit signal once per clock edge for `cycles`
+        edges, returning the list of sampled values (oldest first).
+
+        Args:
+            signal: a cocotb signal handle (e.g. self.dut.pm_interrupt)
+            cycles: number of clock edges to sample
+            clock: clock handle to sample on (defaults to self.pclk)
+        """
+        clk = clock if clock is not None else self.pclk
+        samples = []
+        for _ in range(cycles):
+            await RisingEdge(clk)
+            samples.append(bool(signal.value))
+        return samples
+
+    async def sample_pm_interrupt_over(self, cycles: int, clock=None) -> List[bool]:
+        """Sample the pm_interrupt output pin - see sample_signal_over()."""
+        return await self.sample_signal_over(self.dut.pm_interrupt, cycles, clock)
+
+    async def force_power_state_s0(self):
+        """
+        GH#54 test cleanup: unconditionally return the FSM to PWR_S0_WORKING
+        regardless of any wake/sleep bug under test. pm_acpi_core's next-state
+        logic forces next_pwr_state = PWR_S0_WORKING whenever cfg_acpi_enable
+        is low, independent of sleep_type/any_wake_event, so this is a clean
+        way to leave the DUT in a known state between GH#54 test methods
+        without depending on the very wake logic some of those tests exercise.
+        """
+        await self.write_register(PMACPIRegisterMap.PM1_CONTROL, 0)
+        await self.write_register(PMACPIRegisterMap.ACPI_CONTROL, 0)  # acpi_enable=0
+        await ClockCycles(self.pclk, 10)
+        await self.write_register(PMACPIRegisterMap.ACPI_CONTROL, 0)  # stay disabled
+        await ClockCycles(self.pclk, 5)

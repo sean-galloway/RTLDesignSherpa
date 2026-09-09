@@ -24,12 +24,16 @@
 # pm_acpi MAS -- Micro Architecture Specification
 
 **Component:** APB Power Management / ACPI Controller
-**Version:** 1.0
-**Last Updated:** 2025-12-01
-**Status:** RTL Partial -- the register layout is validated, but GPE status,
-the W1C status fields, power-button wake and RESET_STATUS are non-functional
-or deviant in the current RTL. Read the Chapter 5 Design Notes and issue #54
-before you trust any of them.
+**Version:** 1.1
+**Last Updated:** 2026-09-09
+**Status:** RTL Functional -- per-bit sticky W1C status owned by the core
+(ACPI_STATUS, ACPI_INT_STATUS, PM1_STATUS, WAKE_STATUS, GPE0_STATUS), a GPE
+clear path that drops the interrupt and unblocks sleep, PM1_ENABLE gating the
+interrupt, a level `pm_interrupt`, a latched wake request so a pulsed source
+lands in S0 and stays, SYNC_STAGES input synchronizers, strict address decode
+with PSLVERR and a sticky RESET_STATUS (issue #54 fixes, 2026-09-09).
+Clock-gate and power-domain transitions are instant, there is no S5 and GPE is
+edge-only; that deferred work is tracked as RLB-009.
 
 ---
 
@@ -48,6 +52,7 @@ before you trust any of them.
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2025-12-01 | RTL Design Sherpa | Initial specification |
+| 1.1 | 2026-09-09 | RTL Design Sherpa | Issue #54 fixes: sticky per-bit W1C status moved into pm_acpi_core with set-wins-over-clear and PSTRB-honoured clears, GPE status on the synchronized edge with a W1C clear that drops gpe_int and unblocks sleep, PM1_ENABLE per-source interrupt gating (wak_sts has no enable), level pm_interrupt over enabled sticky bits, latched wake outranking sleep_type with a one-shot sleep_enable, SYNC_STAGES synchronizers on rtc_alarm/ext_wake_n/gpe_events, strict 21-register decode with PSLVERR (no 0x80 aliasing), sticky por_reset/sw_reset with wired RESET_CTRL requests and a soft_reset that clears all status; storage-only fields stated; deferred work moved to RLB-009 |
 
 ---
 

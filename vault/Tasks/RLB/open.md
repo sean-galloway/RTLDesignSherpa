@@ -150,3 +150,42 @@ directed test before anyone relies on the priority scheme, and
 with NUM_IRQS -- the mismatch is caught today only by a simulation-time
 `$error` in `ioapic_config_regs`. Making the RDL entry count generated from
 the same parameter would remove the guard's reason to exist.
+
+### RLB-009: PM_ACPI features deferred past the #54 fix
+
+**Priority:** P3. The block is functionally complete for its MVP scope and
+6/6 configurations green at FULL (basic 8/8, medium 10/10, full 12/12, GH#54
+17/17); nothing here is a defect.
+**Status:** open 2026-09-09. Raised while closing issue #54. These items were
+the surviving content of `rtl/pm_acpi/TODO.md`, which was deleted with that
+fix: most of it described work already done (the DV suite, the helper-script
+plan) or behaviour the fix changed (the "W1C edge detection / auto-clear
+fields" architecture note, the "reset tracking simplified" limitation), so
+keeping it would have meant maintaining a stale tracker next to the code.
+Same disposition as [[RLB-008]] for ioapic.
+
+**Deferred by design (MVP scope, stated in `rtl/pm_acpi/README.md`):**
+
+- Clock-gate and power-domain transitions are INSTANT. No ramp, no sequencing
+  delay, no per-domain ordering. Real silicon wants a sequencer with
+  programmable inter-domain delays and an acknowledge per rail.
+- No S5 (soft off). The FSM is S0/S1/S3 plus a transition state.
+- GPE is rising-edge only and one bank of 32. No level mode, no per-event
+  edge/level choice, no GPE1, no run-vs-wake split.
+- PM timer is 32-bit with a single divider. No 64-bit mode, no prescaler
+  options, no comparators.
+- Buttons get a 3-flop synchronizer, not a debouncer: no configurable
+  threshold and no long-press (the ACPI 4-second power-button override) --
+  which is why `PM1_CONTROL.pwrbtn_ovr` is documented storage-only rather
+  than wired to an invented meaning.
+- `RESET_STATUS.wdt_reset` / `.ext_reset` always read 0. Making them real
+  needs new device pins on `apb4_pm_acpi` (a watchdog-expired input and an
+  external-reset input); the fields are documented as unobservable instead.
+- Legacy replacement routing (IRQ0 timer, IRQ8 RTC) and processor C/P-state
+  hints are out of scope.
+
+**Worth doing sooner than the rest:** the power-domain sequencer. Instant
+`power_domain_en` transitions are the one MVP simplification that a real
+integration cannot paper over, because rail ordering is a board-level
+correctness property, not a performance one. It is a behaviour change with new
+register state, so it was deliberately not smuggled into #54.

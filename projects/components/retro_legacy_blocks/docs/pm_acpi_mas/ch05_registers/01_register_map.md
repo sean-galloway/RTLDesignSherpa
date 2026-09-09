@@ -46,15 +46,15 @@ base address. All registers are 32 bits wide with 32-bit access.
 | 0x010 | PM1_CONTROL | RW | 0x00000000 | PM1 control (sleep, button override) |
 | 0x014 | PM1_STATUS | W1C | 0x00000000 | PM1 status flags |
 | 0x018 | PM1_ENABLE | RW | 0x00000000 | PM1 event enable mask |
-| 0x01C | (Reserved) | - | - | Reserved |
+| 0x01C | (Reserved) | - | - | Not decoded: dropped with PSLVERR |
 | 0x020 | PM_TIMER_VALUE | RO | 0x00000000 | PM Timer current value (32-bit) |
 | 0x024 | PM_TIMER_CONFIG | RW | 0x0000001B | PM Timer clock divider |
-| 0x028-0x02C | (Reserved) | - | - | Reserved |
-| 0x040-0x04C | (Reserved) | - | - | Reserved (undecoded, reads 0) |
+| 0x028-0x02C | (Reserved) | - | - | Not decoded: dropped with PSLVERR |
 | 0x030 | GPE0_STATUS_LO | W1C | 0x00000000 | GPE0 status bits [15:0] |
 | 0x034 | GPE0_STATUS_HI | W1C | 0x00000000 | GPE0 status bits [31:16] |
 | 0x038 | GPE0_ENABLE_LO | RW | 0x00000000 | GPE0 enable bits [15:0] |
 | 0x03C | GPE0_ENABLE_HI | RW | 0x00000000 | GPE0 enable bits [31:16] |
+| 0x040-0x04C | (Reserved) | - | - | Not decoded: dropped with PSLVERR |
 | 0x050 | CLOCK_GATE_CTRL | RW | 0xFFFFFFFF | Clock gating control [31:0] |
 | 0x054 | CLOCK_GATE_STATUS | RO | 0xFFFFFFFF | Clock gate status (reads the live core state; all gates enabled at reset) |
 | 0x058 | POWER_DOMAIN_CTRL | RW | 0x000000FF | Power domain control [7:0] |
@@ -62,18 +62,28 @@ base address. All registers are 32 bits wide with 32-bit access.
 | 0x060 | WAKE_STATUS | W1C | 0x00000000 | Wake event sources |
 | 0x064 | WAKE_ENABLE | RW | 0x00000000 | Wake event enable mask |
 | 0x068 | RESET_CTRL | RW | 0x00000000 | Reset generation control |
-| 0x06C | RESET_STATUS | RO | 0x00000000 | Reset source information |
+| 0x06C | RESET_STATUS | RO | 0x00000001 | Reset source information (por_reset reads 1 out of reset) |
+| 0x070-0xFFC | (Reserved) | - | - | Not decoded: dropped with PSLVERR |
 
 Access legend: RW = read/write, RO = read-only (hardware-updated),
 W1C = read status / write 1 to clear.
 
-Here's the part that bites. Only PADDR[6:0] reaches the register block (the
-config layer slices [8:0] into a 7-bit port, truncating the rest), so the whole
-map ALIASES every 0x80 bytes across the 4 KB window -- a write to
-nominally-reserved 0x080 writes ACPI_CONTROL (RTL hazard, #54). Within each
-128-byte tile, the undecoded offsets 0x01C, 0x028-0x02C, 0x040-0x04C and
-0x070-0x07C read as zero. The register block only decodes the offsets listed
-above; unmapped reads in the decoded range return 0.
+The decode is strict. Only the twenty-one mapped registers are visible to
+software, compared on the whole 12-bit address, register by register.
+Everything else in the 4 KB window -- the gaps at 0x01C, 0x028-0x02C and
+0x040-0x04C as much as the space above 0x070 -- is dropped: the write is
+ignored, the read returns 0, and the access is answered with PSLVERR. There
+is no aliasing anywhere in the window (the map used to repeat every 0x80
+bytes because only PADDR[6:0] reached the register block; fixed 2026-09-09,
+issue #54).
+
+Every W1C status register in this map is a live mirror of a register that
+pm_acpi_core owns. The hardware event sets a bit and it holds until software
+writes a 1 to that bit; a write of 0 is a no-op, a write to one status
+register never touches another, PSTRB is honoured so a byte-strobed write
+can only clear bits inside the enabled bytes, and a set that lands in the
+same cycle as a clear wins. ACPI_CONTROL.soft_reset clears all of them at
+once.
 
 ---
 
@@ -85,26 +95,27 @@ Bit-level definitions, one section per register.
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
-| 0 | acpi_enable | RW | 0 | Enable ACPI functionality (0=disabled, 1=enabled) |
+| 0 | acpi_enable | RW | 0 | SCI_EN-like master enable. Gates GPE event capture (no GPE0_STATUS bit sets while it is 0) and the `pm_interrupt` pin (held low while it is 0). PM1_STATUS and WAKE_STATUS still record their events while it is 0, so software can see what happened before it enabled the block |
 | 1 | pm_timer_enable | RW | 0 | Enable PM Timer (0=stopped, 1=running) |
 | 2 | gpe_enable | RW | 0 | Enable GPE event processing |
 | 5:4 | current_state | RO | 0 | Current power state (0=S0, 1=S1, 3=S3), hardware-updated; reads 0 (S0) while the FSM is in its transition state |
-| 6 | low_power_req | RW | 0 | Request low power mode entry; auto-clears one cycle after the write (like soft_reset) and is unused by the core |
-| 7 | soft_reset | RW | 0 | Soft reset PM controller (write 1, auto-clears) |
+| 6 | low_power_req | RW | 0 | Storage only, no hardware effect. There is no low-power mode distinct from S1/S3; sleep entry goes through PM1_CONTROL. Reads back what was written |
+| 7 | soft_reset | RW | 0 | Write 1 to soft-reset the PM controller (self-clearing, always reads 0). Exactly one core-clock pulse per write, however many cycles the bus holds the write -- the wrapper edge-detects the field. Clears every sticky status register (ACPI_STATUS, ACPI_INT_STATUS, PM1_STATUS, WAKE_STATUS, GPE0_STATUS_LO/HI), drops the latched wake request, returns the FSM to S0 and switches RESET_STATUS from por_reset to sw_reset. Configuration registers are untouched |
 | 31:8 | reserved | RO | 0 | Reserved |
 
 ---
 
 ### ACPI_STATUS (0x004)
 
-Write 1 to clear each bit.
+Write 1 to clear each bit. Each bit, ANDed with its ACPI_INT_ENABLE bit,
+is one term of `pm_interrupt`.
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
-| 0 | pme_status | W1C | 0 | Power Management Event occurred |
-| 1 | wake_status | W1C | 0 | System woke from low power state |
+| 0 | pme_status | W1C | 0 | Power Management Event occurred: a button press, an enabled wake event or a completed state transition |
+| 1 | wake_status | W1C | 0 | An enabled wake event occurred |
 | 2 | timer_overflow | W1C | 0 | PM Timer overflow occurred |
-| 3 | state_transition | W1C | 0 | Power state transition complete |
+| 3 | state_transition | W1C | 0 | Power state transition complete (the cycle the FSM leaves TRANSITION) |
 | 31:4 | reserved | RO | 0 | Reserved |
 
 ---
@@ -125,16 +136,22 @@ Write 1 to clear each bit.
 
 ### ACPI_INT_STATUS (0x00C)
 
-Write 1 to clear each bit.
+Write 1 to clear each bit. This register is an unconditional per-source
+event log: each bit sets when its event occurs, whether or not the
+corresponding enable is set, and each bit is cleared by its own W1C
+independently of ACPI_STATUS, PM1_STATUS and GPE0_STATUS. It does not feed
+`pm_interrupt` (the enabled bits of those three do), so dropping an
+interrupt means clearing one register, not two, and this one can be cleared
+before or after the register that owns the interrupt.
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
-| 0 | pme_int | W1C | 0 | PME interrupt pending |
-| 1 | wake_int | W1C | 0 | Wake interrupt pending |
-| 2 | timer_ovf_int | W1C | 0 | Timer overflow interrupt pending |
-| 3 | state_trans_int | W1C | 0 | State transition interrupt pending |
-| 4 | pm1_int | W1C | 0 | PM1 interrupt pending. NOTE: this bit is set only from timer/power-button/sleep-button edges, but the core's pm1 interrupt term ALSO includes RTC and wake -- an RTC-only or wake-only event can assert pm_interrupt without ever setting this bit (#54) |
-| 5 | gpe_int | W1C | 0 | GPE interrupt pending |
+| 0 | pme_int | W1C | 0 | PME event recorded |
+| 1 | wake_int | W1C | 0 | Wake event recorded |
+| 2 | timer_ovf_int | W1C | 0 | Timer overflow event recorded |
+| 3 | state_trans_int | W1C | 0 | State transition event recorded |
+| 4 | pm1_int | W1C | 0 | PM1 event recorded: set whenever any PM1_STATUS bit sets (timer, power button, sleep button, RTC alarm, wake), enabled or not |
+| 5 | gpe_int | W1C | 0 | GPE event recorded: set from the GPE edge events, not from the GPE pending level, so it can be cleared before or after GPE0_STATUS |
 | 31:6 | reserved | RO | 0 | Reserved |
 
 ---
@@ -143,17 +160,23 @@ Write 1 to clear each bit.
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
-| 2:0 | sleep_type | RW | 0 | Sleep type (0=S0, 1=S1, 3=S3) |
-| 3 | sleep_enable | RW | 0 | Enter sleep state (write 1; hardware auto-clears one cycle later) |
-| 4 | pwrbtn_ovr | RW | 0 | Override power button behavior |
-| 5 | slpbtn_ovr | RW | 0 | Override sleep button behavior |
+| 2:0 | sleep_type | RW | 0 | Sleep type (0=S0, 1=S1, 3=S3); other values are treated as 0 and the FSM stays in S0 |
+| 3 | sleep_enable | RW | 0 | Write 1 to request entry to the state in sleep_type. One-shot: self-clearing (always reads 0) and rising-edge detected in the core, so one write is one sleep request and a wake that returns the machine to S0 is not undone by the still-programmed sleep_type |
+| 4 | pwrbtn_ovr | RW | 0 | Storage only, no hardware effect. The power button always sets PM1_STATUS.pwrbtn_sts; mask its interrupt with PM1_ENABLE.pwrbtn_en and its wake with WAKE_ENABLE.pwrbtn_wake_en |
+| 5 | slpbtn_ovr | RW | 0 | Storage only, no hardware effect. Mask the sleep button's interrupt with PM1_ENABLE.slpbtn_en |
 | 31:6 | reserved | RO | 0 | Reserved |
 
 ---
 
 ### PM1_STATUS (0x014)
 
-Write 1 to clear each bit.
+Write 1 to clear each bit. The event is recorded whether or not its
+PM1_ENABLE bit is set, and whether or not ACPI_CONTROL.acpi_enable is set;
+the enables only gate the interrupt. rtc_sts is edge-latched: `rtc_alarm`
+passes the synchronizer and then a rising-edge detector, and the edge sets
+the bit. A W1C clears it even while the alarm is still asserted, and the
+alarm must deassert and reassert to set it again -- the same rule as the
+GPE bits and the buttons.
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -161,12 +184,15 @@ Write 1 to clear each bit.
 | 1 | pwrbtn_sts | W1C | 0 | Power button pressed |
 | 2 | slpbtn_sts | W1C | 0 | Sleep button pressed |
 | 3 | rtc_sts | W1C | 0 | RTC alarm occurred |
-| 4 | wak_sts | W1C | 0 | System wake event |
+| 4 | wak_sts | W1C | 0 | System wake event. Has no PM1_ENABLE bit (ACPI reports a wake, it is not an interrupt source on its own), so it never contributes to `pm_interrupt` |
 | 31:5 | reserved | RO | 0 | Reserved |
 
 ---
 
 ### PM1_ENABLE (0x018)
+
+Each bit gates its source's contribution to `pm_interrupt` (together with
+ACPI_INT_ENABLE.pm1_enable); PM1_STATUS still records the event either way.
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -207,11 +233,14 @@ from a 100.000 MHz pm_clk -- 0.23% below the ACPI-standard 3.579545 MHz
 
 ### GPE0_STATUS_LO (0x030)
 
-Nominally W1C per the RDL, but NON-FUNCTIONAL in the current RTL (#54):
-on any new GPE edge the generated hwset path sets ALL 16 bits for one
-cycle, and every other cycle the field reloads the (one-cycle-pulse)
-input -- i.e. self-clears. Software can never read which source fired,
-and W1C writes are moot. Covers GPE sources 0-15.
+Covers GPE sources 0-15. A bit sets on a rising edge of its synchronized
+`gpe_events` input while ACPI_CONTROL.acpi_enable and gpe_enable are both
+set, and holds until software writes a 1 to it. Clearing is never gated by
+the enables, so the register can always be drained. Each bit ANDed with its
+GPE0_ENABLE bit is a pending GPE; the OR of those, gated by
+ACPI_INT_ENABLE.gpe_int_enable, is the GPE term of `pm_interrupt`, and the
+same OR gated by WAKE_ENABLE.gpe_wake_en is the GPE wake. Clearing the bit
+therefore drops the interrupt and unblocks the next sleep entry.
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -222,8 +251,8 @@ and W1C writes are moot. Covers GPE sources 0-15.
 
 ### GPE0_STATUS_HI (0x034)
 
-Same non-functional behavior as GPE0_STATUS_LO (#54). Covers GPE
-sources 16-31.
+Covers GPE sources 16-31, with the same set, hold and clear rules as
+GPE0_STATUS_LO.
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -299,7 +328,15 @@ software never wrote while sleeping.
 
 ### WAKE_STATUS (0x060)
 
-Write 1 to clear each bit.
+Write 1 to clear each bit. A bit sets when its source fires while the
+matching WAKE_ENABLE bit is set, whatever ACPI_CONTROL.acpi_enable holds;
+the same event sets PM1_STATUS.wak_sts and ACPI_STATUS.wake_status and arms
+the core's latched wake request. The RTC and external sources are
+edge-latched: `rtc_alarm` and `ext_wake_n` pass their synchronizers and
+then a rising-edge detector, and the edge sets the bit, so a W1C clears it
+while the pin is still asserted and the pin must deassert and reassert to
+set it again -- the same rule as GPE and the buttons. The GPE wake request
+itself stays pending until its GPE0_STATUS bit is cleared.
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -325,10 +362,15 @@ Write 1 to clear each bit.
 
 ### RESET_CTRL (0x068)
 
+Both request fields are one-shots. A write of 1 produces exactly one
+core-clock pulse on the output, however many cycles the bus holds the write,
+because the wrapper edge-detects the singlepulse field; the same rule
+applies to ACPI_CONTROL.soft_reset.
+
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
-| 0 | sys_reset | RW | 0 | Generate system reset (write 1, auto-clears) |
-| 1 | periph_reset | RW | 0 | Generate peripheral reset (write 1, auto-clears) |
+| 0 | sys_reset | RW | 0 | Write 1 to pulse the `sys_reset_req` output for exactly one core-clock cycle per write (self-clearing, always reads 0). What the system does with the request is outside this block |
+| 1 | periph_reset | RW | 0 | Write 1 to pulse the `periph_reset_req` output for exactly one core-clock cycle per write (self-clearing, always reads 0) |
 | 31:2 | reserved | RO | 0 | Reserved |
 
 ---
@@ -337,52 +379,81 @@ Write 1 to clear each bit.
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
-| 0 | por_reset | RO | 0 | Pulses for ONE cycle after reset deassertion; any realistic read returns 0 (no latched last-reset-source exists, #54) |
-| 1 | wdt_reset | RO | 0 | Hardwired 0 (no watchdog input) |
-| 2 | sw_reset | RO | 0 | Hardwired 0 |
-| 3 | ext_reset | RO | 0 | Hardwired 0 |
+| 0 | por_reset | RO | 1 | Sticky level: reads 1 from hardware reset until ACPI_CONTROL.soft_reset executes, which hands the last-reset title to sw_reset |
+| 1 | wdt_reset | RO | 0 | Always reads 0: this block has no watchdog input pin, so a watchdog reset is not observable here |
+| 2 | sw_reset | RO | 0 | Sticky level: reads 1 once ACPI_CONTROL.soft_reset has executed since the last hardware reset (por_reset drops in the same cycle) |
+| 3 | ext_reset | RO | 0 | Always reads 0: this block has no external-reset input pin, so an external reset is indistinguishable from a power-on reset here |
 | 31:4 | reserved | RO | 0 | Reserved |
 
 ---
 
 ## Design Notes
 
-### Known RTL Deviations
+### Where the status lives
 
-The tables above are the intent; the bullets below are the silicon you
-actually have. The register file decodes and stores these registers, but
-several software-visible behaviors are not yet wired through to the PM core.
-These are RTL issues tracked separately (not fixed in documentation); they are
-documented here so software does not rely on behavior the current RTL does not
-provide:
+The register block stores configuration and mirrors status. Every W1C bit
+-- ACPI_STATUS, ACPI_INT_STATUS, PM1_STATUS, WAKE_STATUS and
+GPE0_STATUS_LO/HI -- is a flop in pm_acpi_core of the shape
+`(status & ~software_clear) | hardware_set`, and pm_acpi_config_regs turns a
+software write into a one-cycle per-bit clear mask (write data ANDed with
+the byte enables, at that register's own address). That is why a set wins
+over a same-cycle clear, why a write to one register cannot disturb another,
+and why PSTRB is honoured. This replaced a register block that held the
+state itself with an undriven update input, so that single-bit status could
+not hold and a GPE edge set all sixteen bits at once (fixed 2026-09-09,
+issue #54).
 
-- ACPI_CONTROL.soft_reset (bit 7) and RESET_CTRL.sys_reset/periph_reset are not
-  connected to the core; the reset-request outputs are hardwired to 0. Writing
-  them auto-clears but has no effect.
-- ACPI_CONTROL.low_power_req (bit 6) and PM1_CONTROL.pwrbtn_ovr/slpbtn_ovr
-  (bits 4/5) are decoded but unused by the core.
-- PM1_ENABLE per-source enables (tmr_en/pwrbtn_en/slpbtn_en/rtc_en) are decoded
-  but do not currently gate PM1 status or the PM1 interrupt.
-- GPE0_STATUS_LO/HI are broken at BOTH ends: the register side never holds
-  a usable value (any edge sets all 16 bits for one cycle, then the field
-  self-clears -- see the register sections), and the core's internal GPE
-  sticky status has no clear path, so once an enabled GPE fires the
-  aggregated interrupt stays asserted until reset -- and, because the
-  sticky status also feeds any_wake_event when gpe_wake_en=1, SLEEP ENTRY
-  IS PERMANENTLY BLOCKED after the first enabled GPE (the transition
-  state always resolves back to S0).
-- W1C status fields (ACPI_STATUS, ACPI_INT_STATUS, PM1_STATUS, WAKE_STATUS)
-  are NON-FUNCTIONAL in the current build: their hardware-update `next`
-  input is undriven and the generated field reloads it EVERY cycle, so the
-  bits never hold any value (X in simulation from the first post-reset
-  clock). Do not use them until #54 is fixed.
-- Power-button wake cannot exit S1/S3: the wake event is a one-cycle pulse
-  and the transition state re-samples the still-programmed sleep_type, so
-  the FSM re-enters sleep. Level wakes (GPE, RTC alarm while held,
-  ext_wake_n while held) do work (#54).
-- RESET_STATUS does not provide last-reset-source: por_reset pulses for
-  ONE cycle after reset deassertion (any realistic read returns 0) and
-  wdt/sw/ext_reset are hardwired 0.
+### What feeds pm_interrupt
+
+`pm_interrupt` is a level, the OR of these enabled sticky bits, and it
+deasserts only when software has cleared every enabled source:
+
+| Term | Status | Enable |
+|------|--------|--------|
+| PME, wake, timer overflow, state transition | ACPI_STATUS bit N | ACPI_INT_ENABLE bit N |
+| PM1 | PM1_STATUS bit N (wak_sts excluded) | PM1_ENABLE bit N, then ACPI_INT_ENABLE.pm1_enable |
+| GPE | GPE0_STATUS bit N | GPE0_ENABLE bit N, then ACPI_INT_ENABLE.gpe_int_enable |
+
+ACPI_CONTROL.acpi_enable sits in front of the pin, SCI_EN-like: while it
+is 0 `pm_interrupt` stays low and no GPE event is captured, but PM1_STATUS
+and WAKE_STATUS keep recording their events, so software can see what
+happened before it enabled the block.
+
+ACPI_INT_STATUS is not in that OR. It is an unconditional per-source event
+log: each bit sets when its event occurs whether or not the corresponding
+enable is set (gpe_int from the GPE edge events, not from the GPE pending
+level), and each bit is cleared by its own W1C independently, so it can be
+cleared before or after the register that feeds the pin.
+
+### Sleep and wake
+
+PM1_CONTROL.sleep_enable is a one-shot: from S0, one write with sleep_type
+1 or 3 takes the FSM through TRANSITION into S1 or S3. In S1 or S3 any
+enabled wake source takes it through TRANSITION back to S0, and the core
+latches the wake request so that in TRANSITION a latched or live wake
+outranks the still-programmed sleep_type. A one-cycle power-button press
+lands in S0 and stays there; software does not have to unprogram sleep_type
+after a wake. The latch drops on reaching S0 and on the next sleep request.
+One corner: a wake event that lands in the exact cycle of the sleep request
+is not latched as a wake -- the sticky status bit and the level interrupt
+still record it, the machine enters the programmed sleep state, and the next
+wake event brings it back.
+
+### Storage-only fields
+
+ACPI_CONTROL.low_power_req and PM1_CONTROL.pwrbtn_ovr/slpbtn_ovr read and
+write but are not routed to the core; there is no low-power mode distinct
+from S1/S3, and "override the button" never named a concrete effect. They
+are documented as storage, not as defects. RESET_STATUS.wdt_reset and
+ext_reset read 0 for the same kind of reason: the block has no pin that
+could report them.
+
+### Deferred
+
+Clock-gate and power-domain transitions are instant, there is no S5 state,
+GPE is edge-only with a single bank, the timer is 32-bit only, and the
+buttons get a synchronizer rather than a real debouncer. None of these are
+defects; they are tracked as RLB-009 in `vault/Tasks/RLB/open.md`.
 
 ---
 

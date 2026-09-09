@@ -7,7 +7,7 @@ This directory contains WaveDrom timing diagrams for PM/ACPI (Power Management /
 | File | Scenario | Description |
 |------|----------|-------------|
 | `pm_sleep_entry.json` | Sleep Entry | PM1_CONTROL write initiates S3 suspend |
-| `pm_wake_event.json` | Wake Event | Wake from S3 (drawn with the power button; in the current RTL only LEVEL sources -- GPE/RTC/ext_wake_n -- actually reach S0, see #54) |
+| `pm_wake_event.json` | Wake Event | Wake from S3 (drawn with the power button, a one-cycle source; the latched wake request lands it in S0) |
 | `pm_timer.json` | PM Timer | PM timer read for OS timing |
 | `pm_gpe_event.json` | GPE Event | General Purpose Event raises pm_interrupt |
 
@@ -61,13 +61,12 @@ Shows the sleep sequence:
 4. state_transition status is set on completion
 
 ### 2. Wake Event
-Shows the INTENDED wake from S3 via power button (deviant in the current
-RTL -- the one-cycle button pulse cannot exit S1/S3; see #54):
+Shows the wake from S3 via the power button, a one-cycle source:
 1. System in S3 sleep (power domains off)
-2. Enabled wake source (power button) detected
-3. Wake status latched in WAKE_STATUS / PM1_STATUS.wak_sts
-4. FSM transitions back to S0
-5. Power restored, system resumes to S0; pm_interrupt asserts if enabled
+2. Enabled wake source (power button press, after its 3-flop synchronizer) detected
+3. Wake status set in WAKE_STATUS / PM1_STATUS.wak_sts and the wake request latched in the core
+4. FSM passes through TRANSITION back to S0; the latched request outranks the still-programmed sleep_type
+5. Power restored, system stays in S0; pm_interrupt asserts if enabled and holds until the status is cleared
 
 ### 3. PM Timer
 Shows PM timer operation:
@@ -79,12 +78,12 @@ Shows PM timer operation:
 
 ### 4. GPE Event
 Shows General Purpose Event handling:
-1. External GPE input edge detected
-2. GPE status bit set in GPE0_STATUS_LO/HI
-3. If GPE enabled (GPE0_ENABLE_LO/HI), pm_interrupt asserted
+1. External GPE input rising edge detected, after its SYNC_STAGES synchronizer
+2. That one GPE status bit set in GPE0_STATUS_LO/HI, and held
+3. If GPE enabled (GPE0_ENABLE_LO/HI and ACPI_INT_ENABLE.gpe_int_enable), pm_interrupt asserted
 4. OS reads status, services event
 5. OS writes 1-to-clear status bit
-6. pm_interrupt deasserted (subject to the GPE sticky-clear limitation noted in Chapter 5)
+6. pm_interrupt deasserted; the same clear unblocks the next sleep entry
 
 ### Register Reference
 
@@ -112,9 +111,9 @@ Shows General Purpose Event handling:
 #### PM1 Control (PM1_CONTROL, 0x010, RW)
 | Bits | Name | Description |
 |------|------|-------------|
-| 5 | slpbtn_ovr | Sleep button override |
-| 4 | pwrbtn_ovr | Power button override |
-| 3 | sleep_enable | Enter sleep (write 1, auto-clears) |
+| 5 | slpbtn_ovr | Sleep button override (storage only) |
+| 4 | pwrbtn_ovr | Power button override (storage only) |
+| 3 | sleep_enable | Enter sleep (write 1, one-shot, auto-clears) |
 | 2:0 | sleep_type | Sleep type (0=S0, 1=S1, 3=S3) |
 
 #### Sleep Types

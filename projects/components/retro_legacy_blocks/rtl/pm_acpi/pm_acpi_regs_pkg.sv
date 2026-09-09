@@ -12,37 +12,23 @@ package pm_acpi_regs_pkg;
     } pm_acpi_regs__ACPI_CONTROL__current_state__in_t;
 
     typedef struct {
-        logic next;
-    } pm_acpi_regs__ACPI_CONTROL__low_power_req__in_t;
-
-    typedef struct {
-        logic next;
-    } pm_acpi_regs__ACPI_CONTROL__soft_reset__in_t;
-
-    typedef struct {
         pm_acpi_regs__ACPI_CONTROL__current_state__in_t current_state;
-        pm_acpi_regs__ACPI_CONTROL__low_power_req__in_t low_power_req;
-        pm_acpi_regs__ACPI_CONTROL__soft_reset__in_t soft_reset;
     } pm_acpi_regs__ACPI_CONTROL__in_t;
 
     typedef struct {
         logic next;
-        logic hwset;
     } pm_acpi_regs__ACPI_STATUS__pme_status__in_t;
 
     typedef struct {
         logic next;
-        logic hwset;
     } pm_acpi_regs__ACPI_STATUS__wake_status__in_t;
 
     typedef struct {
         logic next;
-        logic hwset;
     } pm_acpi_regs__ACPI_STATUS__timer_overflow__in_t;
 
     typedef struct {
         logic next;
-        logic hwset;
     } pm_acpi_regs__ACPI_STATUS__state_transition__in_t;
 
     typedef struct {
@@ -54,32 +40,26 @@ package pm_acpi_regs_pkg;
 
     typedef struct {
         logic next;
-        logic hwset;
     } pm_acpi_regs__ACPI_INT_STATUS__pme_int__in_t;
 
     typedef struct {
         logic next;
-        logic hwset;
     } pm_acpi_regs__ACPI_INT_STATUS__wake_int__in_t;
 
     typedef struct {
         logic next;
-        logic hwset;
     } pm_acpi_regs__ACPI_INT_STATUS__timer_ovf_int__in_t;
 
     typedef struct {
         logic next;
-        logic hwset;
     } pm_acpi_regs__ACPI_INT_STATUS__state_trans_int__in_t;
 
     typedef struct {
         logic next;
-        logic hwset;
     } pm_acpi_regs__ACPI_INT_STATUS__pm1_int__in_t;
 
     typedef struct {
         logic next;
-        logic hwset;
     } pm_acpi_regs__ACPI_INT_STATUS__gpe_int__in_t;
 
     typedef struct {
@@ -93,35 +73,22 @@ package pm_acpi_regs_pkg;
 
     typedef struct {
         logic next;
-    } pm_acpi_regs__PM1_CONTROL__sleep_enable__in_t;
-
-    typedef struct {
-        pm_acpi_regs__PM1_CONTROL__sleep_enable__in_t sleep_enable;
-    } pm_acpi_regs__PM1_CONTROL__in_t;
-
-    typedef struct {
-        logic next;
-        logic hwset;
     } pm_acpi_regs__PM1_STATUS__tmr_sts__in_t;
 
     typedef struct {
         logic next;
-        logic hwset;
     } pm_acpi_regs__PM1_STATUS__pwrbtn_sts__in_t;
 
     typedef struct {
         logic next;
-        logic hwset;
     } pm_acpi_regs__PM1_STATUS__slpbtn_sts__in_t;
 
     typedef struct {
         logic next;
-        logic hwset;
     } pm_acpi_regs__PM1_STATUS__rtc_sts__in_t;
 
     typedef struct {
         logic next;
-        logic hwset;
     } pm_acpi_regs__PM1_STATUS__wak_sts__in_t;
 
     typedef struct {
@@ -142,7 +109,6 @@ package pm_acpi_regs_pkg;
 
     typedef struct {
         logic [15:0] next;
-        logic hwset;
     } pm_acpi_regs__GPE0_STATUS_LO__gpe_status__in_t;
 
     typedef struct {
@@ -151,7 +117,6 @@ package pm_acpi_regs_pkg;
 
     typedef struct {
         logic [15:0] next;
-        logic hwset;
     } pm_acpi_regs__GPE0_STATUS_HI__gpe_status__in_t;
 
     typedef struct {
@@ -176,22 +141,18 @@ package pm_acpi_regs_pkg;
 
     typedef struct {
         logic next;
-        logic hwset;
     } pm_acpi_regs__WAKE_STATUS__gpe_wake__in_t;
 
     typedef struct {
         logic next;
-        logic hwset;
     } pm_acpi_regs__WAKE_STATUS__pwrbtn_wake__in_t;
 
     typedef struct {
         logic next;
-        logic hwset;
     } pm_acpi_regs__WAKE_STATUS__rtc_wake__in_t;
 
     typedef struct {
         logic next;
-        logic hwset;
     } pm_acpi_regs__WAKE_STATUS__ext_wake__in_t;
 
     typedef struct {
@@ -200,19 +161,6 @@ package pm_acpi_regs_pkg;
         pm_acpi_regs__WAKE_STATUS__rtc_wake__in_t rtc_wake;
         pm_acpi_regs__WAKE_STATUS__ext_wake__in_t ext_wake;
     } pm_acpi_regs__WAKE_STATUS__in_t;
-
-    typedef struct {
-        logic next;
-    } pm_acpi_regs__RESET_CTRL__sys_reset__in_t;
-
-    typedef struct {
-        logic next;
-    } pm_acpi_regs__RESET_CTRL__periph_reset__in_t;
-
-    typedef struct {
-        pm_acpi_regs__RESET_CTRL__sys_reset__in_t sys_reset;
-        pm_acpi_regs__RESET_CTRL__periph_reset__in_t periph_reset;
-    } pm_acpi_regs__RESET_CTRL__in_t;
 
     typedef struct {
         logic next;
@@ -241,7 +189,6 @@ package pm_acpi_regs_pkg;
         pm_acpi_regs__ACPI_CONTROL__in_t ACPI_CONTROL;
         pm_acpi_regs__ACPI_STATUS__in_t ACPI_STATUS;
         pm_acpi_regs__ACPI_INT_STATUS__in_t ACPI_INT_STATUS;
-        pm_acpi_regs__PM1_CONTROL__in_t PM1_CONTROL;
         pm_acpi_regs__PM1_STATUS__in_t PM1_STATUS;
         pm_acpi_regs__PM_TIMER_VALUE__in_t PM_TIMER_VALUE;
         pm_acpi_regs__GPE0_STATUS_LO__in_t GPE0_STATUS_LO;
@@ -249,7 +196,6 @@ package pm_acpi_regs_pkg;
         pm_acpi_regs__CLOCK_GATE_STATUS__in_t CLOCK_GATE_STATUS;
         pm_acpi_regs__POWER_DOMAIN_STATUS__in_t POWER_DOMAIN_STATUS;
         pm_acpi_regs__WAKE_STATUS__in_t WAKE_STATUS;
-        pm_acpi_regs__RESET_CTRL__in_t RESET_CTRL;
         pm_acpi_regs__RESET_STATUS__in_t RESET_STATUS;
     } pm_acpi_regs__in_t;
 
@@ -280,6 +226,29 @@ package pm_acpi_regs_pkg;
         pm_acpi_regs__ACPI_CONTROL__low_power_req__out_t low_power_req;
         pm_acpi_regs__ACPI_CONTROL__soft_reset__out_t soft_reset;
     } pm_acpi_regs__ACPI_CONTROL__out_t;
+
+    typedef struct {
+        logic swmod;
+    } pm_acpi_regs__ACPI_STATUS__pme_status__out_t;
+
+    typedef struct {
+        logic swmod;
+    } pm_acpi_regs__ACPI_STATUS__wake_status__out_t;
+
+    typedef struct {
+        logic swmod;
+    } pm_acpi_regs__ACPI_STATUS__timer_overflow__out_t;
+
+    typedef struct {
+        logic swmod;
+    } pm_acpi_regs__ACPI_STATUS__state_transition__out_t;
+
+    typedef struct {
+        pm_acpi_regs__ACPI_STATUS__pme_status__out_t pme_status;
+        pm_acpi_regs__ACPI_STATUS__wake_status__out_t wake_status;
+        pm_acpi_regs__ACPI_STATUS__timer_overflow__out_t timer_overflow;
+        pm_acpi_regs__ACPI_STATUS__state_transition__out_t state_transition;
+    } pm_acpi_regs__ACPI_STATUS__out_t;
 
     typedef struct {
         logic value;
@@ -315,6 +284,39 @@ package pm_acpi_regs_pkg;
     } pm_acpi_regs__ACPI_INT_ENABLE__out_t;
 
     typedef struct {
+        logic swmod;
+    } pm_acpi_regs__ACPI_INT_STATUS__pme_int__out_t;
+
+    typedef struct {
+        logic swmod;
+    } pm_acpi_regs__ACPI_INT_STATUS__wake_int__out_t;
+
+    typedef struct {
+        logic swmod;
+    } pm_acpi_regs__ACPI_INT_STATUS__timer_ovf_int__out_t;
+
+    typedef struct {
+        logic swmod;
+    } pm_acpi_regs__ACPI_INT_STATUS__state_trans_int__out_t;
+
+    typedef struct {
+        logic swmod;
+    } pm_acpi_regs__ACPI_INT_STATUS__pm1_int__out_t;
+
+    typedef struct {
+        logic swmod;
+    } pm_acpi_regs__ACPI_INT_STATUS__gpe_int__out_t;
+
+    typedef struct {
+        pm_acpi_regs__ACPI_INT_STATUS__pme_int__out_t pme_int;
+        pm_acpi_regs__ACPI_INT_STATUS__wake_int__out_t wake_int;
+        pm_acpi_regs__ACPI_INT_STATUS__timer_ovf_int__out_t timer_ovf_int;
+        pm_acpi_regs__ACPI_INT_STATUS__state_trans_int__out_t state_trans_int;
+        pm_acpi_regs__ACPI_INT_STATUS__pm1_int__out_t pm1_int;
+        pm_acpi_regs__ACPI_INT_STATUS__gpe_int__out_t gpe_int;
+    } pm_acpi_regs__ACPI_INT_STATUS__out_t;
+
+    typedef struct {
         logic [2:0] value;
     } pm_acpi_regs__PM1_CONTROL__sleep_type__out_t;
 
@@ -336,6 +338,34 @@ package pm_acpi_regs_pkg;
         pm_acpi_regs__PM1_CONTROL__pwrbtn_ovr__out_t pwrbtn_ovr;
         pm_acpi_regs__PM1_CONTROL__slpbtn_ovr__out_t slpbtn_ovr;
     } pm_acpi_regs__PM1_CONTROL__out_t;
+
+    typedef struct {
+        logic swmod;
+    } pm_acpi_regs__PM1_STATUS__tmr_sts__out_t;
+
+    typedef struct {
+        logic swmod;
+    } pm_acpi_regs__PM1_STATUS__pwrbtn_sts__out_t;
+
+    typedef struct {
+        logic swmod;
+    } pm_acpi_regs__PM1_STATUS__slpbtn_sts__out_t;
+
+    typedef struct {
+        logic swmod;
+    } pm_acpi_regs__PM1_STATUS__rtc_sts__out_t;
+
+    typedef struct {
+        logic swmod;
+    } pm_acpi_regs__PM1_STATUS__wak_sts__out_t;
+
+    typedef struct {
+        pm_acpi_regs__PM1_STATUS__tmr_sts__out_t tmr_sts;
+        pm_acpi_regs__PM1_STATUS__pwrbtn_sts__out_t pwrbtn_sts;
+        pm_acpi_regs__PM1_STATUS__slpbtn_sts__out_t slpbtn_sts;
+        pm_acpi_regs__PM1_STATUS__rtc_sts__out_t rtc_sts;
+        pm_acpi_regs__PM1_STATUS__wak_sts__out_t wak_sts;
+    } pm_acpi_regs__PM1_STATUS__out_t;
 
     typedef struct {
         logic value;
@@ -369,6 +399,22 @@ package pm_acpi_regs_pkg;
     } pm_acpi_regs__PM_TIMER_CONFIG__out_t;
 
     typedef struct {
+        logic swmod;
+    } pm_acpi_regs__GPE0_STATUS_LO__gpe_status__out_t;
+
+    typedef struct {
+        pm_acpi_regs__GPE0_STATUS_LO__gpe_status__out_t gpe_status;
+    } pm_acpi_regs__GPE0_STATUS_LO__out_t;
+
+    typedef struct {
+        logic swmod;
+    } pm_acpi_regs__GPE0_STATUS_HI__gpe_status__out_t;
+
+    typedef struct {
+        pm_acpi_regs__GPE0_STATUS_HI__gpe_status__out_t gpe_status;
+    } pm_acpi_regs__GPE0_STATUS_HI__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } pm_acpi_regs__GPE0_ENABLE_LO__gpe_enable__out_t;
 
@@ -399,6 +445,29 @@ package pm_acpi_regs_pkg;
     typedef struct {
         pm_acpi_regs__POWER_DOMAIN_CTRL__pwr_domain_ctrl__out_t pwr_domain_ctrl;
     } pm_acpi_regs__POWER_DOMAIN_CTRL__out_t;
+
+    typedef struct {
+        logic swmod;
+    } pm_acpi_regs__WAKE_STATUS__gpe_wake__out_t;
+
+    typedef struct {
+        logic swmod;
+    } pm_acpi_regs__WAKE_STATUS__pwrbtn_wake__out_t;
+
+    typedef struct {
+        logic swmod;
+    } pm_acpi_regs__WAKE_STATUS__rtc_wake__out_t;
+
+    typedef struct {
+        logic swmod;
+    } pm_acpi_regs__WAKE_STATUS__ext_wake__out_t;
+
+    typedef struct {
+        pm_acpi_regs__WAKE_STATUS__gpe_wake__out_t gpe_wake;
+        pm_acpi_regs__WAKE_STATUS__pwrbtn_wake__out_t pwrbtn_wake;
+        pm_acpi_regs__WAKE_STATUS__rtc_wake__out_t rtc_wake;
+        pm_acpi_regs__WAKE_STATUS__ext_wake__out_t ext_wake;
+    } pm_acpi_regs__WAKE_STATUS__out_t;
 
     typedef struct {
         logic value;
@@ -438,14 +507,20 @@ package pm_acpi_regs_pkg;
 
     typedef struct {
         pm_acpi_regs__ACPI_CONTROL__out_t ACPI_CONTROL;
+        pm_acpi_regs__ACPI_STATUS__out_t ACPI_STATUS;
         pm_acpi_regs__ACPI_INT_ENABLE__out_t ACPI_INT_ENABLE;
+        pm_acpi_regs__ACPI_INT_STATUS__out_t ACPI_INT_STATUS;
         pm_acpi_regs__PM1_CONTROL__out_t PM1_CONTROL;
+        pm_acpi_regs__PM1_STATUS__out_t PM1_STATUS;
         pm_acpi_regs__PM1_ENABLE__out_t PM1_ENABLE;
         pm_acpi_regs__PM_TIMER_CONFIG__out_t PM_TIMER_CONFIG;
+        pm_acpi_regs__GPE0_STATUS_LO__out_t GPE0_STATUS_LO;
+        pm_acpi_regs__GPE0_STATUS_HI__out_t GPE0_STATUS_HI;
         pm_acpi_regs__GPE0_ENABLE_LO__out_t GPE0_ENABLE_LO;
         pm_acpi_regs__GPE0_ENABLE_HI__out_t GPE0_ENABLE_HI;
         pm_acpi_regs__CLOCK_GATE_CTRL__out_t CLOCK_GATE_CTRL;
         pm_acpi_regs__POWER_DOMAIN_CTRL__out_t POWER_DOMAIN_CTRL;
+        pm_acpi_regs__WAKE_STATUS__out_t WAKE_STATUS;
         pm_acpi_regs__WAKE_ENABLE__out_t WAKE_ENABLE;
         pm_acpi_regs__RESET_CTRL__out_t RESET_CTRL;
     } pm_acpi_regs__out_t;

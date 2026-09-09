@@ -79,7 +79,11 @@ Don't override. Generated from: $root
 
 #### acpi_enable field
 
-<p>Enable ACPI functionality (0=disabled, 1=enabled)</p>
+<p>This block's SCI_EN. Gates GPE event CAPTURE and the
+pm_interrupt PIN: with it clear the pin is held low. It
+does NOT gate PM1 or WAKE status recording, so events that
+happen while ACPI is disabled are still there to read once
+it is enabled.</p>
 
 #### pm_timer_enable field
 
@@ -95,11 +99,24 @@ Don't override. Generated from: $root
 
 #### low_power_req field
 
-<p>Request low power mode entry</p>
+<p>STORAGE ONLY - no hardware effect (GH#54 H3). The bit is
+readable and writable and nothing in pm_acpi_core consumes
+it: there is no separate 'low power mode' distinct from the
+S1/S3 states, and the RDL never specified one. Sleep entry
+is requested through PM1_CONTROL.sleep_type + sleep_enable.
+The field is kept for register-map compatibility and is
+documented as software scratch rather than being silently
+routed to an unused core input.</p>
 
 #### soft_reset field
 
-<p>Soft reset PM controller (write 1, auto-clears)</p>
+<p>Write 1 to soft-reset the PM controller (self-clearing, so
+it always reads 0). One pulse clears every sticky status
+register (ACPI_STATUS, ACPI_INT_STATUS, PM1_STATUS,
+WAKE_STATUS, GPE0_STATUS_LO/HI), drops the latched wake
+request, forces the power-state FSM back to S0 and switches
+RESET_STATUS from por_reset to sw_reset. Configuration
+registers are NOT affected.</p>
 
 #### reserved field
 
@@ -193,7 +210,14 @@ Don't override. Generated from: $root
 - Base Offset: 0xC
 - Size: 0x4
 
-<p>Interrupt status for ACPI events (write 1 to clear)</p>
+<p>UNCONDITIONAL per-source EVENT LOG (write 1 to clear). Every
+bit records its event whether or not the matching
+ACPI_INT_ENABLE bit is set, and each clears independently.
+This register does NOT drive the pm_interrupt pin - that is
+the OR of ENABLED bits in ACPI_STATUS, PM1_STATUS and
+GPE0_STATUS - so clearing an interrupt does not mean clearing
+two registers. Read it to find out WHAT happened; clear the
+status register to make the pin drop.</p>
 
 |Bits|   Identifier  |  Access |Reset|           Name           |
 |----|---------------|---------|-----|--------------------------|
@@ -207,27 +231,27 @@ Don't override. Generated from: $root
 
 #### pme_int field
 
-<p>PME interrupt pending (W1C)</p>
+<p>PME event recorded (W1C). Set by a power/sleep button press, a wake event or a completed power-state transition.</p>
 
 #### wake_int field
 
-<p>Wake interrupt pending (W1C)</p>
+<p>Wake event recorded (W1C). Set by any enabled wake source.</p>
 
 #### timer_ovf_int field
 
-<p>Timer overflow interrupt pending (W1C)</p>
+<p>PM timer overflow event recorded (W1C).</p>
 
 #### state_trans_int field
 
-<p>State transition interrupt pending (W1C)</p>
+<p>Power-state transition event recorded (W1C).</p>
 
 #### pm1_int field
 
-<p>PM1 interrupt pending (W1C)</p>
+<p>PM1 event recorded (W1C). Set by any of the five PM1_STATUS sources - the SAME sources the PM1 interrupt term uses - regardless of PM1_ENABLE.</p>
 
 #### gpe_int field
 
-<p>GPE interrupt pending (W1C)</p>
+<p>GPE event recorded (W1C). Set by a captured GPE EDGE, not by the pending level, so it can be dismissed before GPE0_STATUS_LO/HI is drained. Independent of the GPE0_ENABLE mask; it does follow GPE capture being enabled at all (ACPI_CONTROL.acpi_enable and .gpe_enable), because a GPE this block was told not to watch is not an event it observed.</p>
 
 #### reserved field
 
@@ -255,15 +279,34 @@ Don't override. Generated from: $root
 
 #### sleep_enable field
 
-<p>Enable sleep state entry (write 1 to enter sleep)</p>
+<p>Write 1 to request entry to the state selected by
+sleep_type. This is a ONE-SHOT request (self-clearing, so it
+always reads 0) and pm_acpi_core rising-edge detects it, so
+a wake event that returns the machine to S0 cannot be undone
+by the still-programmed sleep_type: software does not have
+to rewrite sleep_type after a wake (GH#54 H5).
+Corner: a wake landing in the EXACT cycle of this write is
+not latched - it is still recorded in ACPI_STATUS,
+PM1_STATUS and WAKE_STATUS and still raises pm_interrupt if
+enabled, but the machine sleeps and the NEXT wake returns
+it to S0.</p>
 
 #### pwrbtn_ovr field
 
-<p>Override power button behavior</p>
+<p>STORAGE ONLY - no hardware effect (GH#54 H3). 'Override
+power button behavior' never named a concrete effect (no
+target state, no mask semantics), so rather than invent one
+the field is documented as software scratch and is not
+routed to pm_acpi_core. The power button always sets
+PM1_STATUS.pwrbtn_sts; mask its interrupt with
+PM1_ENABLE.pwrbtn_en and its wake with
+WAKE_ENABLE.pwrbtn_wake_en.</p>
 
 #### slpbtn_ovr field
 
-<p>Override sleep button behavior</p>
+<p>STORAGE ONLY - no hardware effect (GH#54 H3), for the same
+reason as pwrbtn_ovr. Mask the sleep button's interrupt with
+PM1_ENABLE.slpbtn_en.</p>
 
 #### reserved field
 
@@ -300,7 +343,10 @@ Don't override. Generated from: $root
 
 #### rtc_sts field
 
-<p>RTC alarm occurred (W1C)</p>
+<p>RTC alarm occurred (W1C). Set on the synchronized rtc_alarm
+ASSERTION EDGE, not the level, so a W1C clears it even
+while the pin is still held; the pin must deassert and
+reassert to record another alarm.</p>
 
 #### wak_sts field
 
@@ -316,7 +362,12 @@ Don't override. Generated from: $root
 - Base Offset: 0x18
 - Size: 0x4
 
-<p>PM1 event enable mask</p>
+<p>PM1 event enable mask. Each bit gates its source's contribution
+to pm_interrupt; PM1_STATUS still records the event either way
+(GH#54 H3 - before the fix these bits were routed to
+pm_acpi_core and never used). PM1_STATUS.wak_sts has no enable
+bit, matching ACPI: a wake is reported but is not an interrupt
+source on its own.</p>
 
 |Bits|Identifier|Access|Reset|        Name       |
 |----|----------|------|-----|-------------------|
@@ -567,11 +618,14 @@ Don't override. Generated from: $root
 
 #### rtc_wake field
 
-<p>Woke from RTC alarm (W1C)</p>
+<p>RTC alarm wake source asserted (W1C). Edge-set, like
+PM1_STATUS.rtc_sts.</p>
 
 #### ext_wake field
 
-<p>Woke from external signal (W1C)</p>
+<p>External wake source asserted (W1C). Set on the
+synchronized ext_wake_n ASSERTION EDGE, not the level, so a
+W1C clears it even while the pin is still held low.</p>
 
 #### reserved field
 
@@ -629,11 +683,14 @@ Don't override. Generated from: $root
 
 #### sys_reset field
 
-<p>Generate system reset (write 1, auto-clears)</p>
+<p>Write 1 to pulse the sys_reset_req output for one PM-clock
+cycle (self-clearing, so it always reads 0). What the system
+does with that request is outside this block.</p>
 
 #### periph_reset field
 
-<p>Generate peripheral reset (write 1, auto-clears)</p>
+<p>Write 1 to pulse the periph_reset_req output for one
+PM-clock cycle (self-clearing, so it always reads 0).</p>
 
 #### reserved field
 
@@ -657,19 +714,31 @@ Don't override. Generated from: $root
 
 #### por_reset field
 
-<p>Last reset was power-on reset</p>
+<p>Reads 1 while the last reset of this block was the
+power-on/system reset (a STICKY LEVEL, not the one-cycle
+pulse it used to be - software could never observe that
+through APB latency, GH#54 round_2 item 7). Cleared only
+when ACPI_CONTROL.soft_reset executes, which hands the
+'last reset' title to sw_reset.</p>
 
 #### wdt_reset field
 
-<p>Last reset was watchdog timeout</p>
+<p>ALWAYS READS 0 - apb4_pm_acpi has no watchdog input port, so
+a watchdog reset is not observable here (GH#54 round_2 item
+7). Kept for register-map compatibility; wiring it would
+take a new device pin.</p>
 
 #### sw_reset field
 
-<p>Last reset was software initiated</p>
+<p>Reads 1 once ACPI_CONTROL.soft_reset has been executed at
+least since the last hardware reset (sticky level; por_reset
+drops in the same cycle).</p>
 
 #### ext_reset field
 
-<p>Last reset was external pin</p>
+<p>ALWAYS READS 0 - apb4_pm_acpi has no external-reset input
+port, so an external reset is indistinguishable from a
+power-on reset here (GH#54 round_2 item 7).</p>
 
 #### reserved field
 

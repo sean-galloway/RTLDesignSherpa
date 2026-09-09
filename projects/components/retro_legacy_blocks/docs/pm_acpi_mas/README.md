@@ -24,7 +24,8 @@
 # pm_acpi Specification
 
 **Status:** Written (chapters 1 and 5) -- see pm_acpi_mas_index.md for the
-authoritative status and the known-RTL-deviation notes.
+authoritative status. The RTL is functional against issue #54 as of
+2026-09-09; the chapters describe the fixed hardware.
 
 ---
 
@@ -63,4 +64,4 @@ cd docs/
 
 ---
 
-**Last Updated:** 2025-10-29
+**Last Updated:** 2026-09-09

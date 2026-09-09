@@ -12,6 +12,8 @@
 //
 // Author: sean galloway
 // Created: 2025-11-16
+// Updated: 2026-09-09 - GitHub #54: strict decode, sticky status vectors,
+//          SYNC_STAGES parameter, reset-request outputs wired
 
 /**
  * ============================================================================
@@ -35,13 +37,15 @@
  *   - CDC_ENABLE=1: Dual clock (pclk != pm_clk, CDC enabled)
  *
  * REGISTER MAP: (12-bit address space, 0x000-0xFFF)
- *   0x000-0x00F: ACPI control and status
- *   0x010-0x01F: PM1 registers
- *   0x020-0x02F: PM Timer
- *   0x030-0x04F: GPE registers
- *   0x050-0x06F: Clock gating and power domain control
- *   Only PADDR[6:0] decoded: the map aliases every 0x80 across the 4 KB
- *   window (0x080 hits ACPI_CONTROL); 0x070-0x07C read 0 (see #54)
+ *   0x000-0x00C: ACPI control, status, interrupt enable/status
+ *   0x010-0x018: PM1 control, status, enable
+ *   0x020-0x024: PM Timer value and configuration
+ *   0x030-0x03C: GPE0 status and enable, low and high halves
+ *   0x050-0x05C: Clock gate and power domain control/status
+ *   0x060-0x06C: Wake status/enable, reset control/status
+ *   Only these twenty-one addresses decode. EVERY other address in the 4 KB
+ *   window - the old 7-bit alias at 0x080 included - is dropped (write
+ *   ignored, read 0) and answered with PSLVERR (see #54 round_2 item 4).
  *
  * POWER MANAGEMENT FEATURES:
  *   - ACPI-compatible PM1 control/status
@@ -49,8 +53,15 @@
  *   - 32 GPE event sources
  *   - 32 clock gate controls
  *   - 8 power domain controls
- *   - Wake event handling
+ *   - Wake event handling with a latched wake request
  *   - Power state FSM (S0/S1/S3)
+ *
+ * ASYNCHRONOUS DEVICE PINS:
+ *   gpe_events, power_button_n, sleep_button_n, rtc_alarm and ext_wake_n are
+ *   all synchronized inside pm_acpi_core, unconditionally, in both CDC_ENABLE
+ *   settings. SYNC_STAGES sets the depth for the first, fourth and fifth of
+ *   those; the two buttons keep a 3-flop chain that also feeds their press
+ *   edge detect. Drive any of them for at least two PM-clock periods.
  *
  * ============================================================================
  */
@@ -66,12 +77,15 @@ module apb4_pm_acpi #(
     // Async-FIFO pointer encoding, forwarded to the CDC block: 0 = Gray
     // (power-of-2 depth only), 1 = Johnson (any depth, DEPTH-bit pointers).
     // Gray by default -- Johnson is opt-in.
-    parameter int USE_JOHNSON = 0
+    parameter int USE_JOHNSON = 0,
+    // Depth of the rtc_alarm / ext_wake_n / gpe_events synchronizers in
+    // pm_acpi_core. >= 2.
+    parameter int SYNC_STAGES = 2
 )(
     // ========================================================================
     // Clock and Reset - Dual Domain
     // ========================================================================
-    input  logic                    pclk,          // APB clock domain (always used for APB interface)
+    input  logic                    pclk,          // APB clock domain (APB interface)
     input  logic                    presetn,       // APB reset (active low)
     input  logic                    pm_clk,        // PM clock domain (used for PM logic)
     input  logic                    pm_resetn,     // PM reset (active low)
@@ -93,30 +107,30 @@ module apb4_pm_acpi #(
     // ========================================================================
     // External Power Management Interfaces (PM Clock Domain)
     // ========================================================================
-    
-    // GPE event inputs (from system peripherals)
+
+    // GPE event inputs (from system peripherals, asynchronous)
     input  logic [31:0]             gpe_events,
-    
-    // Power/sleep buttons (active low)
+
+    // Power/sleep buttons (active low, asynchronous)
     input  logic                    power_button_n,
     input  logic                    sleep_button_n,
-    
-    // RTC alarm input
+
+    // RTC alarm input (asynchronous)
     input  logic                    rtc_alarm,
-    
-    // External wake input (active low)
+
+    // External wake input (active low, asynchronous)
     input  logic                    ext_wake_n,
-    
+
     // Clock gate outputs (to system clock gates)
     output logic [31:0]             clock_gate_en,
-    
+
     // Power domain outputs (to power switches)
     output logic [7:0]              power_domain_en,
-    
-    // Reset request outputs
+
+    // Reset request outputs (one pm_clk pulse per RESET_CTRL write)
     output logic                    sys_reset_req,
     output logic                    periph_reset_req,
-    
+
     // PM interrupt output (pm_clk domain when CDC_ENABLE=1 -- driven by
     // the core; synchronize externally if consumed on another clock)
     output logic                    pm_interrupt
@@ -144,11 +158,9 @@ module apb4_pm_acpi #(
     logic        w_cfg_acpi_enable;
     logic        w_cfg_pm_timer_enable;
     logic        w_cfg_gpe_enable;
-    logic        w_cfg_low_power_req;
+    logic        w_cfg_soft_reset;
     logic [2:0]  w_cfg_sleep_type;
     logic        w_cfg_sleep_enable;
-    logic        w_cfg_pwrbtn_ovr;
-    logic        w_cfg_slpbtn_ovr;
     logic        w_cfg_pm1_tmr_en;
     logic        w_cfg_pm1_pwrbtn_en;
     logic        w_cfg_pm1_slpbtn_en;
@@ -167,30 +179,27 @@ module apb4_pm_acpi #(
     logic        w_cfg_state_trans_enable;
     logic        w_cfg_pm1_enable;
     logic        w_cfg_gpe_int_enable;
+    logic        w_cfg_sys_reset;
+    logic        w_cfg_periph_reset;
 
-    // Status signals from core
+    // Per-bit W1C clear pulses, config_regs -> core
+    logic [3:0]  w_sw_clr_acpi_status;
+    logic [5:0]  w_sw_clr_acpi_int_status;
+    logic [4:0]  w_sw_clr_pm1_status;
+    logic [3:0]  w_sw_clr_wake_status;
+    logic [31:0] w_sw_clr_gpe_status;
+
+    // Sticky status vectors, core -> config_regs
     logic [1:0]  w_status_current_state;
-    logic        w_status_pme;
-    logic        w_status_wake;
-    logic        w_status_timer_overflow;
-    logic        w_status_state_transition;
-    logic        w_status_pm1_tmr;
-    logic        w_status_pm1_pwrbtn;
-    logic        w_status_pm1_slpbtn;
-    logic        w_status_pm1_rtc;
-    logic        w_status_pm1_wake;
+    logic [3:0]  w_status_acpi;
+    logic [5:0]  w_status_acpi_int;
+    logic [4:0]  w_status_pm1;
+    logic [3:0]  w_status_wake_src;
+    logic [31:0] w_status_gpe;
+    logic [3:0]  w_status_reset_src;
     logic [31:0] w_status_pm_timer_value;
-    logic [31:0] w_status_gpe_status;
     logic [31:0] w_status_clk_gate_status;
     logic [7:0]  w_status_pwr_domain_status;
-    logic        w_status_gpe_wake;
-    logic        w_status_pwrbtn_wake;
-    logic        w_status_rtc_wake;
-    logic        w_status_ext_wake;
-    logic        w_status_por_reset;
-    logic        w_status_wdt_reset;
-    logic        w_status_sw_reset;
-    logic        w_status_ext_reset;
 
     // ========================================================================
     // APB Slave - CDC or Non-CDC based on parameter
@@ -310,11 +319,9 @@ module apb4_pm_acpi #(
         .cfg_acpi_enable          (w_cfg_acpi_enable),
         .cfg_pm_timer_enable      (w_cfg_pm_timer_enable),
         .cfg_gpe_enable           (w_cfg_gpe_enable),
-        .cfg_low_power_req        (w_cfg_low_power_req),
+        .cfg_soft_reset           (w_cfg_soft_reset),
         .cfg_sleep_type           (w_cfg_sleep_type),
         .cfg_sleep_enable         (w_cfg_sleep_enable),
-        .cfg_pwrbtn_ovr           (w_cfg_pwrbtn_ovr),
-        .cfg_slpbtn_ovr           (w_cfg_slpbtn_ovr),
         .cfg_pm1_tmr_en           (w_cfg_pm1_tmr_en),
         .cfg_pm1_pwrbtn_en        (w_cfg_pm1_pwrbtn_en),
         .cfg_pm1_slpbtn_en        (w_cfg_pm1_slpbtn_en),
@@ -333,30 +340,27 @@ module apb4_pm_acpi #(
         .cfg_state_trans_enable   (w_cfg_state_trans_enable),
         .cfg_pm1_enable           (w_cfg_pm1_enable),
         .cfg_gpe_int_enable       (w_cfg_gpe_int_enable),
+        .cfg_sys_reset            (w_cfg_sys_reset),
+        .cfg_periph_reset         (w_cfg_periph_reset),
+
+        // Per-bit W1C clear pulses to the core
+        .sw_clr_acpi_status       (w_sw_clr_acpi_status),
+        .sw_clr_acpi_int_status   (w_sw_clr_acpi_int_status),
+        .sw_clr_pm1_status        (w_sw_clr_pm1_status),
+        .sw_clr_wake_status       (w_sw_clr_wake_status),
+        .sw_clr_gpe_status        (w_sw_clr_gpe_status),
 
         // Status inputs from core
         .status_current_state     (w_status_current_state),
-        .status_pme               (w_status_pme),
-        .status_wake              (w_status_wake),
-        .status_timer_overflow    (w_status_timer_overflow),
-        .status_state_transition  (w_status_state_transition),
-        .status_pm1_tmr           (w_status_pm1_tmr),
-        .status_pm1_pwrbtn        (w_status_pm1_pwrbtn),
-        .status_pm1_slpbtn        (w_status_pm1_slpbtn),
-        .status_pm1_rtc           (w_status_pm1_rtc),
-        .status_pm1_wake          (w_status_pm1_wake),
+        .status_acpi              (w_status_acpi),
+        .status_acpi_int          (w_status_acpi_int),
+        .status_pm1               (w_status_pm1),
+        .status_wake_src          (w_status_wake_src),
+        .status_gpe               (w_status_gpe),
+        .status_reset_src         (w_status_reset_src),
         .status_pm_timer_value    (w_status_pm_timer_value),
-        .status_gpe_status        (w_status_gpe_status),
         .status_clk_gate_status   (w_status_clk_gate_status),
-        .status_pwr_domain_status (w_status_pwr_domain_status),
-        .status_gpe_wake          (w_status_gpe_wake),
-        .status_pwrbtn_wake       (w_status_pwrbtn_wake),
-        .status_rtc_wake          (w_status_rtc_wake),
-        .status_ext_wake          (w_status_ext_wake),
-        .status_por_reset         (w_status_por_reset),
-        .status_wdt_reset         (w_status_wdt_reset),
-        .status_sw_reset          (w_status_sw_reset),
-        .status_ext_reset         (w_status_ext_reset)
+        .status_pwr_domain_status (w_status_pwr_domain_status)
     );
 
     // ========================================================================
@@ -364,7 +368,9 @@ module apb4_pm_acpi #(
     // CDC_ENABLE=0: Uses pclk (same clock as APB)
     // CDC_ENABLE=1: Uses pm_clk (async clock, for always-on operation)
     // ========================================================================
-    pm_acpi_core u_pm_acpi_core (
+    pm_acpi_core #(
+        .SYNC_STAGES (SYNC_STAGES)
+    ) u_pm_acpi_core (
         // Clock and Reset - conditional based on CDC_ENABLE
         .clk                  (CDC_ENABLE[0] ? pm_clk : pclk),
         .rst_n                (CDC_ENABLE[0] ? pm_resetn : presetn),
@@ -373,11 +379,9 @@ module apb4_pm_acpi #(
         .cfg_acpi_enable          (w_cfg_acpi_enable),
         .cfg_pm_timer_enable      (w_cfg_pm_timer_enable),
         .cfg_gpe_enable           (w_cfg_gpe_enable),
-        .cfg_low_power_req        (w_cfg_low_power_req),
+        .cfg_soft_reset           (w_cfg_soft_reset),
         .cfg_sleep_type           (w_cfg_sleep_type),
         .cfg_sleep_enable         (w_cfg_sleep_enable),
-        .cfg_pwrbtn_ovr           (w_cfg_pwrbtn_ovr),
-        .cfg_slpbtn_ovr           (w_cfg_slpbtn_ovr),
         .cfg_pm1_tmr_en           (w_cfg_pm1_tmr_en),
         .cfg_pm1_pwrbtn_en        (w_cfg_pm1_pwrbtn_en),
         .cfg_pm1_slpbtn_en        (w_cfg_pm1_slpbtn_en),
@@ -396,30 +400,27 @@ module apb4_pm_acpi #(
         .cfg_state_trans_enable   (w_cfg_state_trans_enable),
         .cfg_pm1_enable           (w_cfg_pm1_enable),
         .cfg_gpe_int_enable       (w_cfg_gpe_int_enable),
+        .cfg_sys_reset            (w_cfg_sys_reset),
+        .cfg_periph_reset         (w_cfg_periph_reset),
+
+        // Per-bit W1C clear pulses from the register wrapper
+        .sw_clr_acpi_status       (w_sw_clr_acpi_status),
+        .sw_clr_acpi_int_status   (w_sw_clr_acpi_int_status),
+        .sw_clr_pm1_status        (w_sw_clr_pm1_status),
+        .sw_clr_wake_status       (w_sw_clr_wake_status),
+        .sw_clr_gpe_status        (w_sw_clr_gpe_status),
 
         // Status outputs
         .status_current_state     (w_status_current_state),
-        .status_pme               (w_status_pme),
-        .status_wake              (w_status_wake),
-        .status_timer_overflow    (w_status_timer_overflow),
-        .status_state_transition  (w_status_state_transition),
-        .status_pm1_tmr           (w_status_pm1_tmr),
-        .status_pm1_pwrbtn        (w_status_pm1_pwrbtn),
-        .status_pm1_slpbtn        (w_status_pm1_slpbtn),
-        .status_pm1_rtc           (w_status_pm1_rtc),
-        .status_pm1_wake          (w_status_pm1_wake),
+        .status_acpi              (w_status_acpi),
+        .status_acpi_int          (w_status_acpi_int),
+        .status_pm1               (w_status_pm1),
+        .status_wake_src          (w_status_wake_src),
+        .status_gpe               (w_status_gpe),
+        .status_reset_src         (w_status_reset_src),
         .status_pm_timer_value    (w_status_pm_timer_value),
-        .status_gpe_status        (w_status_gpe_status),
         .status_clk_gate_status   (w_status_clk_gate_status),
         .status_pwr_domain_status (w_status_pwr_domain_status),
-        .status_gpe_wake          (w_status_gpe_wake),
-        .status_pwrbtn_wake       (w_status_pwrbtn_wake),
-        .status_rtc_wake          (w_status_rtc_wake),
-        .status_ext_wake          (w_status_ext_wake),
-        .status_por_reset         (w_status_por_reset),
-        .status_wdt_reset         (w_status_wdt_reset),
-        .status_sw_reset          (w_status_sw_reset),
-        .status_ext_reset         (w_status_ext_reset),
 
         // External interfaces
         .gpe_events_in        (gpe_events),

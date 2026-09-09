@@ -31,6 +31,7 @@ Test Levels:
 - full: Comprehensive stress and edge case testing
 """
 
+import cocotb
 from cocotb.triggers import ClockCycles, Timer
 
 from projects.components.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tb import (
@@ -562,39 +563,54 @@ class PMACPIBasicTests:
             self.log.error(f"Wake enable configuration test failed with exception: {e}")
             return False
 
-    async def test_external_wake(self) -> bool:
-        """Test reset control register configuration.
+    async def test_reset_control(self) -> bool:
+        """Test RESET_CTRL request pulses.
 
-        NOTE: Wake status detection has architectural limitations.
-        This test verifies reset control register functionality.
+        GH#54 follow-up (F4): this method was `test_external_wake` and only
+        wrote RESET_CTRL and returned True with no assertion at all - it
+        never actually tested anything (external wake is covered instead by
+        pm_acpi_tests_gh54.py's level/wake tests). Renamed and rewritten to
+        assert the real contract: writing RESET_CTRL.sys_reset/periph_reset
+        must each produce exactly one core-clock cycle of
+        sys_reset_req/periph_reset_req. Today (H6) these outputs are
+        hardwired to 0, so this is expected RED - see
+        pm_acpi_tests_gh54.py test_gh54_reset_requests_are_one_cycle for the
+        GH#54-registered version of the same contract.
         """
-        self.log.info("Testing reset control configuration...")
+        self.log.info("Testing RESET_CTRL request pulses...")
 
         try:
-            # Enable ACPI
             await self.tb.enable_acpi(enable=True, pm_timer=False, gpe=False)
             await ClockCycles(self.tb.pclk, 5)
 
-            # Test reset control register (read-only bits)
-            _, reset_status = await self.tb.read_register(PMACPIRegisterMap.RESET_STATUS)
-            self.log.info(f"  Reset status: 0x{reset_status:02X}")
+            for name, bit, signal in [
+                ('sys', PMACPIRegisterMap.RESET_CTRL_SYS, self.tb.dut.sys_reset_req),
+                ('periph', PMACPIRegisterMap.RESET_CTRL_PERIPH, self.tb.dut.periph_reset_req),
+            ]:
+                sample_task = cocotb.start_soon(
+                    self.tb.sample_signal_over(signal, 40, clock=self.tb.core_clk))
+                await self.tb.write_register(PMACPIRegisterMap.RESET_CTRL, bit)
+                samples = await sample_task
+                high_count = sum(1 for s in samples if s)
 
-            # First cycle after reset should show POR
-            # (This may or may not be set depending on when we read)
+                if high_count != 1:
+                    self.log.error(
+                        f"{name}_reset_req was high for {high_count} core-clock "
+                        f"cycles after the RESET_CTRL.{name}_reset write (expected "
+                        f"exactly 1). samples={samples}")
+                    return False
 
-            # Test reset control write (even if it has no effect)
-            test_val = 0x03
-            await self.tb.write_register(PMACPIRegisterMap.RESET_CTRL, test_val)
-            await ClockCycles(self.tb.pclk, 5)
-
+            # The auto-clear field itself must self-clear regardless.
             _, read_val = await self.tb.read_register(PMACPIRegisterMap.RESET_CTRL)
-            self.log.info(f"  Reset control: 0x{read_val:02X}")
+            if read_val != 0:
+                self.log.error(f"RESET_CTRL did not auto-clear: 0x{read_val:02X}")
+                return False
 
-            self.log.info("Reset control configuration test PASSED")
+            self.log.info("RESET_CTRL request pulses test PASSED")
             return True
 
         except Exception as e:
-            self.log.error(f"Reset control configuration test failed with exception: {e}")
+            self.log.error(f"RESET_CTRL request pulses test failed with exception: {e}")
             return False
 
     # ========================================================================
