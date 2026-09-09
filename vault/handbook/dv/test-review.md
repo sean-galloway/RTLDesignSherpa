@@ -111,6 +111,42 @@ interface headers are enough for "does the test drive real ports".
    32/48, math 119/119, amba 55/117 and 68/117, and the common figures in it
    were wrong in both directions, so treat the rest as unmeasured until the
    tool is run on them.
+
+   **The chain must follow Pattern B imports (fixed 2026-09-09).** `tb_chain`
+   resolved only `TBClasses...` imports, so for a projects/components test
+   whose TB lives in its own `dv/tbclasses` the depth read was invisible:
+   a TB that read TEST_LEVEL and one that never did both printed
+   `depth:never-read`. The bridge audit's 0 of 40 was right for the wrong
+   reason and would have stayed 0 of 41 after the fix. It now follows
+   `projects....` imports as well, one level plus their own. Re-measured
+   with that: **bridge 41 of 41**, stream fub 2 of 7, apbx-xbar 0 of 6 --
+   those two are real, and unmeasured before.
+
+   **The grid is per file, not per area.** The house form (every val/common
+   wrapper) is a generator in the test file that reads REG_LEVEL and
+   branches on GATE/FUNC/FULL. A shared helper imported from a tbclasses
+   module is DRY and invisible to the check, and the check is the
+   enforcement; the bridge keeps its depth PROFILE shared in
+   `bridge_levels.py` and its 8-line grid inline in each wrapper (generated
+   files get it from the template).
+
+   **A generated suite is only as current as the last regenerate, and the
+   audit has to regenerate to know.** The bridge template had drifted from
+   its 36 generated tests for months: the tree carried the real arbitration
+   test that a43b032dd hand-edited into seven generated files (the template
+   still emitted the TODO stub), two hand-written tests inside the generated
+   2x2 file, and a TB method the template lacked -- and the template itself
+   had a defect that made regeneration impossible, the BRIDGE-009 internal
+   subtractive slave templated as a real slave with a BFM on pins that do
+   not exist. Nobody regenerated because regenerating broke everything, and
+   because it broke everything nobody found out why. Measure it by rendering
+   into a scratch directory and diffing; note the bridge batch manifest
+   carries its own output paths, so `--bulk` writes into the tree whatever
+   `--output-*` says (that measurement overwrote 72 files once; `git
+   checkout` recovered them). Hand-written tests for a generated DUT go in
+   their own hand-written file beside the generated one
+   (`test_bridge_2x2_rw_tracking.py`), never inside it.
+
 2. **Structure -- TB separation is a HARD REQUIREMENT (Sean, 2026-08-03).**
    The TB class lives OUT of the test runner (bin/TBClasses/ for shared,
    project dv/tbclasses/ for project-specific); the runner is a thin

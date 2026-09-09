@@ -95,6 +95,20 @@ Timeouts scale off the same axis: `base_timeout * multiplier[test_level] *
 max_factor`. A test that times out only at FULL is usually a missing multiplier,
 not a hang.
 
+**A conftest must never stamp TEST_LEVEL into os.environ (2026-09-09).**
+`cocotb_test.simulator.set_env` applies `extra_env` first and then copies
+EVERY `os.environ` entry over it, so the process environment beats the
+per-cell export. Thirteen component conftests carried a "REG_LEVEL ->
+TEST_LEVEL bridge" that did exactly that at import, written for wrappers
+that exported nothing. The first leveled bridge FULL run showed the
+consequence: 216 cells, a gate/func/full triple per test, every one logging
+`level=full` with identical wall-clock -- the grid existed only in pytest's
+collection. The AST level check cannot see this (the wrapper IS exporting),
+so `check_test_levels.py` now reports the stamp beside its per-file lines,
+and the bridge conftest no longer has it. The evidence that catches it is
+the TB's own banner: a leveled TB logs `TEST_LEVEL=<x>: {profile}` on
+construction, and three cells that print the same line are one cell.
+
 ## One build directory per parameter set
 
 The wrapper composes a human-readable identifier and derives everything from it:

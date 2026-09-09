@@ -155,7 +155,15 @@ def grid_levels(tree):
 
 
 def tb_chain(p):
-    """Resolved TBClasses files this test imports (one level, plus their own)."""
+    """Resolved TB files this test imports (one level, plus their own).
+
+    Two import roots: ``TBClasses...`` (bin/, Pattern A) and
+    ``projects....`` (a component's own dv/tbclasses, Pattern B). The second
+    was missing until 2026-09-09: a Pattern B test whose TB read TEST_LEVEL
+    in its project tbclasses file was reported depth:never-read, and one
+    whose TB never read it at all got the same line -- the check could not
+    tell them apart, so its bridge verdict (0 of 40) was right by accident
+    and would have stayed 0 of 41 after the fix."""
     out, seen = [], set()
     pending = [p]
     while pending:
@@ -164,13 +172,18 @@ def tb_chain(p):
             s = open(cur, encoding='utf-8', errors='replace').read()
         except OSError:
             continue
+        cands = []
         for imp in set(re.findall(r'^\s*(?:from|import)\s+(TBClasses[\w.]*)', s, re.M)):
             rel = imp.replace('.', '/')
-            for c in (f'bin/{rel}.py', f'bin/{rel}/__init__.py'):
-                if os.path.isfile(c) and c not in seen:
-                    seen.add(c)
-                    out.append(c)
-                    pending.append(c)
+            cands += [f'bin/{rel}.py', f'bin/{rel}/__init__.py']
+        for imp in set(re.findall(r'^\s*(?:from|import)\s+(projects\.[\w.]*)', s, re.M)):
+            rel = imp.replace('.', '/')
+            cands += [f'{rel}.py', f'{rel}/__init__.py']
+        for c in cands:
+            if os.path.isfile(c) and c not in seen:
+                seen.add(c)
+                out.append(c)
+                pending.append(c)
     return out
 
 
@@ -211,11 +224,44 @@ def check(p):
     return bad
 
 
+def conftest_stamps_level(area):
+    """True if the area's conftest assigns os.environ['TEST_LEVEL'].
+
+    cocotb_test.simulator.set_env copies every os.environ entry over
+    extra_env AFTER extra_env is applied, so a conftest that stamps
+    TEST_LEVEL into the process environment overrides the per-cell value
+    every wrapper exports: the grid still expands to gate/func/full cells,
+    and every cell runs at the stamped depth. Found 2026-09-09 on the
+    bridge's first leveled FULL run -- 216 cells, all `level=full`. The AST
+    checks above cannot see it (the wrapper IS exporting), so it is reported
+    beside the per-file lines."""
+    cf = os.path.join(area, 'conftest.py')
+    if not os.path.isfile(cf):
+        return False
+    try:
+        tree = ast.parse(open(cf, encoding='utf-8', errors='replace').read())
+    except SyntaxError:
+        return False
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Assign):
+            for t in n.targets:
+                if (isinstance(t, ast.Subscript) and _is_environ(t.value)):
+                    sl = t.slice.value if isinstance(t.slice, ast.Index) else t.slice
+                    if isinstance(sl, ast.Constant) and sl.value == 'TEST_LEVEL':
+                        return True
+    return False
+
+
 def main():
     area = sys.argv[1] if len(sys.argv) > 1 else 'val/common'
     files = sorted(glob.glob(f'{area}/test_*.py'))
     bad = [(os.path.basename(p), r) for p in files if (r := check(p))]
     print(f"{area}: {len(files) - len(bad)} of {len(files)} compliant")
+    if conftest_stamps_level(area):
+        print(f"  WARNING conftest.py assigns os.environ['TEST_LEVEL']: cocotb_test lets "
+              f"os.environ override extra_env, so every cell runs at that depth "
+              f"and the per-cell export above is dead")
+        bad.append(('conftest.py', ['stamps TEST_LEVEL into os.environ']))
     for n, reasons in bad:
         print(f"  MISSING {n:46} {', '.join(reasons)}")
     sys.exit(1 if bad else 0)
