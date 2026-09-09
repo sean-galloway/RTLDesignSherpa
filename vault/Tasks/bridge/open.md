@@ -432,96 +432,37 @@ Also fixed: the gate monitor stress count sat exactly at the 64-entry err
 FIFO depth, so the ERR_BP saturation assertion was a race against the drain
 pump (11 variants won, mix_d peaked at 58); gate uses 2x depth.
 
-Findings (3)-(6) remain open as written.
+**(3)-(6) DONE 2026-09-09 (Sean: "beef up the tests").** Template-level, so
+every fixture got it, verified FULL 237/237 (45 files, 0 reruns):
 
+* **(3) AXI5 ports are driven by the AXI5 BFMs.** The TB template picks the
+  BFM family per port protocol -- `axi5` -> `AXI5Master/Slave{Read,Write}`
+  (every AMBA5 sideband field is optional in the framework's binding rule,
+  so one BFM fits any feature subset), `apb5` -> `APB5Slave` at the
+  generator's 1-bit USER widths -- and arms an `AXI5ComplianceChecker` on
+  every AXI5 master port; every generated test calls `tb.assert_compliance()`
+  before PASSED. 14 TBs now drive AXI5 BFMs, 2 drive APB5.
+* **(4) No pin pokes.** The sideband and atomics tests drive
+  nsaid/trace/unique/poison/atop as BFM transaction arguments and read the
+  echoed trace from the BFM result; the slave-side samplers stay as
+  observation. Compare (`0b110001`) added: store forwards, load/swap/compare
+  answered DECERR by the filter, asserted as the EXPECTED response.
+* **(5) APB5 slave on the APB5 BFM** (template).
+* **(6) Two new fixtures**, generated with their own tests plus a
+  hand-written sideband test each: `bridge_2x2_axi5` (two AXI5 masters with
+  distinct NSAIDs contending for an AXI5 slave -- every slave-side AW/AR
+  NSAID must belong to its issuing master and the counts must match; trace
+  echoes from the AXI5 slave, returns 0 from the AXI4 one) and
+  `bridge_1x2_rd_axi5w` (32b AXI5 master into a 64b AXI4 slave -- data
+  round-trips through the converter, trace returns 0; native path echoes).
 
----
+Two framework findings on the way, both fixed in RDS-DV: the out-of-range
+disagreement ([[BRIDGE-008]], closed) and `write_transaction` returning
+`response=None` on an error B (19f866b) -- the generated `master_write` now
+raises on an error response, which is how the atomics test caught that a
+DECERR used to pass through the helper silently.
 
-### BRIDGE-008: the two slave BFMs disagree about an out-of-range access
+Still owed on this task: the external testqc review round.
 
-**Priority:** P3, downgraded 2026-09-05. The two red tests are FIXED and the
-suite is 70/70; what remains open is the BFM asymmetry itself, which still
-applies to any slave whose window exceeds the TB's memory model.
-
-**The tests were fixed by widening the model, not by resolving the
-disagreement.** SLAVE_MEM_CAP_BYTES went 4 KB -> 64 KB so a peripheral window
-is covered whole and those probes now land in real memory (they verify DATA as
-well as routing as a result). A slave larger than the cap still depends on
-whatever the BFM does out of range -- which is the thing below, still unsettled.
-**Status:** open 2026-09-05. Surfaced by the axil5 work (A5-3d): fixing the
-`logic [-1:0]` build failure on AXI4-Lite MASTER ports made mix_a..d compile
-for the first time, and two simulation failures appeared behind it.
-
-**Failing:** `test_bridge_mix_a_boundary_probe`, `test_bridge_mix_c_boundary_probe`.
-
-**The discriminator is exact** -- it is the AXI4-Lite SLAVE's region size:
-
-| bridge | AXI4-Lite slave | region | result |
-|---|---|---|---|
-| mix_a | `axil_periph` | 64 KB | FAIL |
-| mix_c | `cfg_regs` | 64 KB | FAIL |
-| mix_d | `doorbell` | 4 KB (= the cap) | pass |
-| mix_b | none | -- | pass |
-
-**Mechanism.** The generated TB seeds only `SLAVE_MEM_CAP_BYTES = 4096` of each
-slave's MemoryModel, and its class comment states the premise this rests on:
-
-> Routing-only probes (address_decode beyond page 0) work outside the cap --
-> the framework slave BFMs silently drop OOR writes and fall back to
-> addr-as-data on OOR reads, so the AW/AR routing assertion still fires.
-
-That premise is false for the AXI4-Lite slave BFM. `AXIL4SlaveWrite`'s response
-path does:
-
-```python
-except Exception as e:
-    if self.log: self.log.warning(f"Memory write failed at 0x{address:08X}: {e}")
-    resp = 2  # SLVERR
-```
-
-So a probe at `base + 0x8000` on a 64 KB axil slave reaches the right slave --
-routing is CORRECT, which is what the probe set out to test -- and is then
-answered SLVERR because the model holds 4 KB. The AXI4 master's
-`write_transaction` raises on the error response and the test dies.
-
-**The two slave BFMs genuinely disagree, and the TB comment describes the
-AXI4 one.** Confirmed by reading both (2026-09-05):
-
-```python
-# AXI4SlaveWrite -- logs and leaves resp alone. Silent drop, answers OKAY.
-except Exception as mem_error:
-    if self.log:
-        self.log.warning(f"AXI4SlaveWrite: Memory write failed for txn ...")
-
-# AXIL4SlaveWrite -- same situation, different answer.
-except Exception as e:
-    if self.log: self.log.warning(f"Memory write failed at 0x{address:08X}: {e}")
-    resp = 2  # SLVERR
-```
-
-So this is not a case of the TB believing something no BFM does -- it is one
-BFM behaving one way, its AXI4-Lite sibling the other, and the TB written
-against the first. That asymmetry is the actual defect; the two red tests are
-a symptom.
-
-**Two candidate fixes, and they are not equivalent:**
-
-1. **Cap the probe addresses** to the modelled window for protocols whose BFM
-   errors out of range. Smallest change, but it narrows what the boundary
-   probe covers -- and covering the far edge of the window is the point of
-   the test.
-2. **Make `AXIL4SlaveWrite`/`AXIL4SlaveRead` behave as the TB comment says**
-   (drop OOR writes, addr-as-data on OOR reads), matching the AXI4 slave BFM.
-   This is the fix that makes the comment true, but it lives in RDS-DV and
-   changes behaviour every AXIL test sees -- so it needs its own check that
-   nothing was relying on the SLVERR.
-
-Decide which contract is right before writing either. Whichever wins, the TB's
-class comment has to end up describing what the BFMs actually do -- a comment
-asserting a behaviour no BFM implements is what let this sit unnoticed.
-
-**Not a blocker for anything.** Routing is proven correct by the same run.
-
----
 
 ---

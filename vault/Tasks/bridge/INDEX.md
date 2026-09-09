@@ -8,8 +8,8 @@ generator, its generated wrappers/xbars/adapters, and their DV.
 | State | Count |
 |---|---|
 | [active](active.md) | 0 |
-| [open](open.md) | 3 |
-| [closed](closed.md) | 8 |
+| [open](open.md) | 2 |
+| [closed](closed.md) | 9 |
 | [dropped](dropped.md) | 0 |
 
 ## Open

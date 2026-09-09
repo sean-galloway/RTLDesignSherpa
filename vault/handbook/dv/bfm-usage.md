@@ -53,3 +53,37 @@ Traps (each cost real debug time):
 - Don't spawn private _monitor_recv on self-registering components.
 - TB classes live in the PROJECT area (projects/**/dv/tbclasses), never in
   the shared framework.
+
+## Out of range means one thing (2026-09-09)
+
+Every memory-backed slave BFM -- AXI4, AXI5, AXIL4, AXIL5 `Slave{Read,Write}`
+and `APB`/`APB5 Slave` -- answers an access beyond its `MemoryModel` the
+same way: **SLVERR** (`PSLVERR` on APB), **nothing written** (an AXI write
+burst is checked whole before any beat lands), **read data 0xDEADDEAD**
+replicated to the beat width, **one WARNING** naming the slave, the address
+and the model size. It is one code path, `MemoryModel.in_range` /
+`oor_warning` / `oor_read_data` in RDS-DV `shared/memory_model.py`, and a
+structural unit test there asserts every family calls it.
+
+*Case: before this, the four families disagreed -- AXI4/AXI5 answered OKAY,
+dropped the write and returned the ADDRESS as read data; AXIL answered
+SLVERR; APB grew its memory. The bridge's boundary probe reached the right
+slave past its 4 KB model, got OKAY from an AXI4 slave and SLVERR from an
+AXIL one, and the TB comment that called the silent OKAY "the framework
+behaviour" was true of one slave type. The tests were first "fixed" by
+widening the model (BRIDGE-008); the disagreement stayed until this.*
+
+Two consequences for a TB:
+
+- `single_write` / `write_transaction` do **not** raise on an error response;
+  they report it in the returned dict. A helper that awaits the write and
+  drops the dict passes a SLVERR write silently -- the bridge's generated
+  `master_write` did exactly that. Check `result['success']` (or raise).
+- The model's limit is not the design's. An address the RTL does not decode
+  at all is the design's own error path (the bridge's subtractive slave
+  answers DECERR); a probe past the model is answered by the slave the
+  address decodes to, and that SLVERR coming back from the right port is
+  routing evidence, not a failure.
+
+`APBSlave(error_overflow=False)` keeps the old grow-the-memory behaviour for
+a slave meant to accept any address; the default is now the error.

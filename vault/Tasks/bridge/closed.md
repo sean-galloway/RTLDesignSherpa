@@ -425,3 +425,110 @@ against the broken RTL.
 
 Related: BRIDGE-010 (ordering, same FIFOs). Both are consequences of routing
 by FIFO position rather than by returned ID.
+
+### BRIDGE-008: the two slave BFMs disagree about an out-of-range access
+
+**Status:** CLOSED 2026-09-09 -- unified in the framework (RDS-DV `fc0112e`),
+Sean: "unify what out of range means". One contract, every memory-backed
+slave BFM (AXI4/AXI5/AXIL4/AXIL5 Slave{Read,Write}, APB/APB5 Slave): an
+access beyond the model answers SLVERR (PSLVERR on APB), nothing is written
+(AXI write bursts are checked whole first), read data is 0xDEADDEAD
+replicated to the beat width, one WARNING names the slave, address and
+model size. Implemented as ONE code path -- `MemoryModel.in_range` /
+`oor_warning` / `oor_read_data` in `shared/memory_model.py` -- with a
+structural unit test that every family calls it. APB's grow-the-memory
+behaviour is now opt-in (`error_overflow=False`); the default is the error.
+On the bridge side the generated `master_write` now raises on an error
+response (single_write only reported it in a dict, so a SLVERR write used to
+pass through unnoticed), the boundary probe swallows the SLVERR only for
+probes past the seeded region, and the TB/test comments that described the
+AXI4 slave's old silent-OKAY as "the framework behaviour" are rewritten.
+The model's limit is distinct from the design's: an address the bridge does
+not decode at all is the subtractive slave's DECERR (BRIDGE-009).
+
+**Priority (as filed):** P3, downgraded 2026-09-05. The two red tests are FIXED and the
+suite is 70/70; what remains open is the BFM asymmetry itself, which still
+applies to any slave whose window exceeds the TB's memory model.
+
+**The tests were fixed by widening the model, not by resolving the
+disagreement.** SLAVE_MEM_CAP_BYTES went 4 KB -> 64 KB so a peripheral window
+is covered whole and those probes now land in real memory (they verify DATA as
+well as routing as a result). A slave larger than the cap still depends on
+whatever the BFM does out of range -- which is the thing below, still unsettled.
+**Status:** open 2026-09-05. Surfaced by the axil5 work (A5-3d): fixing the
+`logic [-1:0]` build failure on AXI4-Lite MASTER ports made mix_a..d compile
+for the first time, and two simulation failures appeared behind it.
+
+**Failing:** `test_bridge_mix_a_boundary_probe`, `test_bridge_mix_c_boundary_probe`.
+
+**The discriminator is exact** -- it is the AXI4-Lite SLAVE's region size:
+
+| bridge | AXI4-Lite slave | region | result |
+|---|---|---|---|
+| mix_a | `axil_periph` | 64 KB | FAIL |
+| mix_c | `cfg_regs` | 64 KB | FAIL |
+| mix_d | `doorbell` | 4 KB (= the cap) | pass |
+| mix_b | none | -- | pass |
+
+**Mechanism.** The generated TB seeds only `SLAVE_MEM_CAP_BYTES = 4096` of each
+slave's MemoryModel, and its class comment states the premise this rests on:
+
+> Routing-only probes (address_decode beyond page 0) work outside the cap --
+> the framework slave BFMs silently drop OOR writes and fall back to
+> addr-as-data on OOR reads, so the AW/AR routing assertion still fires.
+
+That premise is false for the AXI4-Lite slave BFM. `AXIL4SlaveWrite`'s response
+path does:
+
+```python
+except Exception as e:
+    if self.log: self.log.warning(f"Memory write failed at 0x{address:08X}: {e}")
+    resp = 2  # SLVERR
+```
+
+So a probe at `base + 0x8000` on a 64 KB axil slave reaches the right slave --
+routing is CORRECT, which is what the probe set out to test -- and is then
+answered SLVERR because the model holds 4 KB. The AXI4 master's
+`write_transaction` raises on the error response and the test dies.
+
+**The two slave BFMs genuinely disagree, and the TB comment describes the
+AXI4 one.** Confirmed by reading both (2026-09-05):
+
+```python
+# AXI4SlaveWrite -- logs and leaves resp alone. Silent drop, answers OKAY.
+except Exception as mem_error:
+    if self.log:
+        self.log.warning(f"AXI4SlaveWrite: Memory write failed for txn ...")
+
+# AXIL4SlaveWrite -- same situation, different answer.
+except Exception as e:
+    if self.log: self.log.warning(f"Memory write failed at 0x{address:08X}: {e}")
+    resp = 2  # SLVERR
+```
+
+So this is not a case of the TB believing something no BFM does -- it is one
+BFM behaving one way, its AXI4-Lite sibling the other, and the TB written
+against the first. That asymmetry is the actual defect; the two red tests are
+a symptom.
+
+**Two candidate fixes, and they are not equivalent:**
+
+1. **Cap the probe addresses** to the modelled window for protocols whose BFM
+   errors out of range. Smallest change, but it narrows what the boundary
+   probe covers -- and covering the far edge of the window is the point of
+   the test.
+2. **Make `AXIL4SlaveWrite`/`AXIL4SlaveRead` behave as the TB comment says**
+   (drop OOR writes, addr-as-data on OOR reads), matching the AXI4 slave BFM.
+   This is the fix that makes the comment true, but it lives in RDS-DV and
+   changes behaviour every AXIL test sees -- so it needs its own check that
+   nothing was relying on the SLVERR.
+
+Decide which contract is right before writing either. Whichever wins, the TB's
+class comment has to end up describing what the BFMs actually do -- a comment
+asserting a behaviour no BFM implements is what let this sit unnoticed.
+
+**Not a blocker for anything.** Routing is proven correct by the same run.
+
+---
+
+---
