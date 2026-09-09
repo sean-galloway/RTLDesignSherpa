@@ -53,6 +53,7 @@
 - [Architecture and Datapath](ch01_overview/01_architecture.md)
 - [Top-Level Port List](ch01_overview/02_port_list.md)
 - [Clocks and Reset](ch01_overview/03_clocks_and_reset.md)
+- [Pipeline Latency and Mux-Level Schematics](ch01_overview/04_pipeline_latency.md)
 
 ### Chapter 2: Functional Blocks
 

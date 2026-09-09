@@ -43,14 +43,59 @@ LATCH      = {"$dlatch","$adlatch"}
 CTRL_RE = re.compile(r"(^|_)(a?clk|clock|.*rst.*|.*reset.*|aresetn)($|_)", re.I)
 
 
+FLAT_YS = """\
+read_verilog {flat}
+hierarchy -top {top} -check
+proc
+flatten
+opt_expr
+opt_clean
+memory_collect
+memory -nomap
+wreduce
+write_json {json_out}
+"""
+
+
 def load(top):
-    p = BUILD / f"{top}.json"
-    if not p.exists():
-        sys.exit(f"no {p} -- run gen_schematics.py --module {top} first "
-                 f"(it emits the Yosys JSON this reads)")
-    mods = json.loads(p.read_text())["modules"]
-    key = top if top in mods else next(m for m in mods if top in m)
-    return mods[key]
+    """Elaborate a FLATTENED netlist for this module.
+
+    The mux-level view deliberately does NOT flatten -- it wants the original
+    instance names. The latency view MUST, and this bit me: a parameterised
+    submodule instance has a Yosys cell type of `$paramod\\<name>\\<params>`,
+    which starts with '$' and so slipped past every "is this a primitive"
+    check. Instances were walked as if COMBINATIONAL, so every register inside
+    a child module vanished and hierarchical blocks under-reported their
+    latency -- pumice_bank_timers read 0 registers / depth 0, which is plainly
+    impossible for a timer. Flattening removes the whole class of error rather
+    than adding another type check.
+
+    Reuses the sv2v output gen_schematics.py already produced.
+    """
+    flat_json = BUILD / f"{top}.flat.json"
+    src_v = BUILD / f"{top}.v"
+    if not src_v.exists():
+        sys.exit(f"no {src_v} -- run gen_schematics.py --module {top} first "
+                 f"(it runs sv2v and leaves the flattened Verilog here)")
+    if not flat_json.exists() or flat_json.stat().st_mtime < src_v.stat().st_mtime:
+        ys = BUILD / f"{top}.flat.ys"
+        ys.write_text(FLAT_YS.format(flat=src_v, top=top, json_out=flat_json))
+        r = subprocess.run(["yosys", "-q", "-s", str(ys)],
+                           capture_output=True, text=True)
+        if r.returncode != 0:
+            sys.exit(f"yosys (flatten) failed for {top}: "
+                     f"{r.stderr.strip().splitlines()[-1:]}")
+    mods = json.loads(flat_json.read_text())["modules"]
+    if top not in mods:
+        sys.exit(f"{top} not in the flattened JSON (got {list(mods)[:4]})")
+    m = mods[top]
+    leftover = sorted({c["type"] for c in m.get("cells", {}).values()
+                       if c["type"].startswith("$paramod") or
+                       not c["type"].startswith("$")})
+    if leftover:
+        print(f"[warn] {top}: unflattened instances remain, latency will be "
+              f"UNDER-reported for paths through them: {leftover[:4]}")
+    return m
 
 
 def build_graph(mod):

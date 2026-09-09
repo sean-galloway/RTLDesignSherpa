@@ -63,10 +63,21 @@ from the picture), `--min-flops 1` (drop the combinational feedthroughs),
 Combinational feedthroughs are reported separately and named -- those are the
 timing paths, not latency.
 
-Whole-design profile (2026-09-09): page_policy 7 clocks, rbl_table 6,
-cmd_arbiter 4, rd_return_ring 4, wr_data_cam 4, bank_timers 3, refresh_ctrl 3,
-rd_cmd_cam 2, dfi_cdc 1; addr_mapper / dfi_cmd_formatter / wr_intake are purely
-combinational (0).
+This view builds its OWN Yosys JSON with `flatten` (reusing the sv2v output
+gen_schematics already made). It must: a parameterised submodule instance has
+a cell type of `$paramod\<name>\<params>`, which starts with `$` and so slips
+past any "is this a primitive" test, and an instance walked as combinational
+hides every register inside it. Unflattened, `pumice_bank_timers` reported 0
+registers and depth 0 -- impossible for a timer. The generator warns if any
+instance survives flattening.
+
+Whole-design profile (2026-09-09, flattened): wr_intake and page_policy 7
+clocks, rbl_table 6, rd_return_ring and wr_data_cam 5, row_pred_table 4,
+cmd_arbiter / bank_timers / rd_cmd_cam / rd_intake / refresh_ctrl / powerdown 3,
+dfi_cdc / rd_aligner / wr_serializer / wr_splitter 2, global_timers /
+mode_register 1; addr_mapper, dfi_cmd_formatter and dfi_signal_pack are purely
+combinational (0). The full table is in the MAS, ch01 "Pipeline Latency and
+Mux-Level Schematics".
 
 ## The skin -- `make_skin.py`
 
