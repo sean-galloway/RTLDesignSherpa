@@ -35,19 +35,25 @@ void configure_refresh(refresh_config_t* cfg) {
     csr_write(TIMINGS_RFC_REFI, REFI_PACK(cfg->trfc, cfg->trefi));
 
     // REFRESH_TUNING packs deferral count, page/refpb policy, ZQCS interval.
-    uint32_t v = REFRESH_DEFER_ACTIVE(cfg->defer_active);   // 1..8
+    // JEDEC refresh credits: how many REFs may be postponed under demand and
+    // pulled in when idle (0..8 each; 0 = strict tREFI).
+    uint32_t v = POSTPONE_LIMIT(cfg->postpone) | PULLIN_LIMIT(cfg->pullin);
 
-    // REFpb policy override (LPDDR2 only): 01 RR, 10 OLDEST_FIRST, 11 DARP
-    if (cfg->refpb_policy == DARP)             v |= REFPB_POLICY_OR(3);
-    else if (cfg->refpb_policy == OLDEST)      v |= REFPB_POLICY_OR(2);
-    else if (cfg->refpb_policy == ROUND_ROBIN) v |= REFPB_POLICY_OR(1);
+    // Refresh mode: 01 REFab, 02 REFpb round-robin (LPDDR2; needs the
+    // REF_CTRL.perbank_supported capability strap). 0 = build default.
+    v |= MODE(cfg->refpb ? 2 : 1);
 
-    // Periodic ZQCS interval in Hz (0 = disable)
-    v |= ZQCS_FREQ_HZ(cfg->zqcs_freq_hz);
-
-    csr_write(REFRESH_TUNING, v);   // live on the next refresh event boundary
+    csr_write(REF_CTRL, v);   // live on the next refresh event boundary
 }
 ```
+
+> **Updated 2026-09-09.** This recipe previously programmed
+> `REFRESH_TUNING.refresh_defer_active`, `.refpb_policy_or` and `.zqcs_freq_hz`.
+> All three are retired and reserved: refresh mode and the JEDEC credits are
+> `REF_CTRL`, and no ZQCS engine ever consumed the interval. Writing the old
+> fields was a silent no-op. The DARP and OLDEST_FIRST per-bank policies are
+> not commodity-legal on this part and were never built — see
+> `ADVANCED_MODES_ROADMAP.md`.
 
 `PHY_TIMING.refresh_burst` (1..8) additionally controls how many REFs are drained per refresh request.
 

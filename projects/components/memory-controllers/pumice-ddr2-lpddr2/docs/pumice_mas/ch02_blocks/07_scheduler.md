@@ -84,10 +84,25 @@ all gated on the command sink accepting the push:
    bank-parallel refactor; PRE-only because the general `w_guarded` also
    covers RD/WR fires and would throttle same-bank column streaming).
    The `SCHED_POLICY.order_mode` overlay (Axis 1) NARROWS the FR-FCFS
-   class masks before the pick: `1 in_order` keeps only the head-of-CAM
-   entry of the older CAM (relative-age compare across CAMs); `3
+   class masks before the pick. `1 in_order` keeps only each CAM's
+   head-of-queue entry, so every channel is strictly FIFO; the arbiter's
+   normal read-versus-write preference then chooses the side. `3
    age_threshold` narrows every class to aged entries whenever any exist
-   (per-entry 1-bit flags from the CAMs at `SCHED_POLICY.age_thresh`).
+   (per-entry 1-bit flags from the CAMs at `SCHED_POLICY.age_thresh`, and
+   those flags are registered inside the CAMs so the 16-bit age compare
+   never enters the mask cone).
+
+   **Build tier (2026-09-09).** Both modes are in the BASE build. What is
+   gated on `+define+PUMICE_ENHANCED` is *global* in_order: comparing the two
+   CAMs' oldest relative ages (`w_rd_head_wins`) so the younger head waits.
+   That compare — CAM older-matrix, oldest select, 16-bit rel-age mux,
+   export, compare, mask, pick — is the cone that misses 75 MHz by about
+   20 ps, so it is compiled out by default and the export constant-propagates
+   away. On a base bitstream in_order therefore orders *within* each channel
+   and may issue a read behind a younger write at the arbiter's preference.
+   AXI orders nothing between AR and AW and the read-after-write hazard is
+   the write CAM's snarf, so this is a legal ordering; it is simply not the
+   global one. Software cannot tell by readback — check the build.
    `SCHED_POLICY.qos_en` makes AxQOS the OUTER pick key: each class first
    narrows to its max-QoS candidates (the CAMs carry AxQOS per entry from
    the AR/AW handshake), then row_sel/col_sel and the oldest tie-break run
@@ -137,12 +152,38 @@ For each bank `j` the arbiter drives the CAM lookups with `{bank j, that bank's
 open row}` (`bank_open_row_i`), gated valid by `bank_row_active_i`. A returned hit
 is issuable when:
 
-- **RD**: `rd_lu_hit && bank_rdwr_ready && tccd_ok && twtr_ok`
-- **WR**: `wr_lu_hit && bank_rdwr_ready && tccd_ok && trtw_ok`
+- **RD**: `rd_lu_hit && bank_rdwr_ready && w_tccd_fwd_ok && twtr_ok`
+- **WR**: `wr_lu_hit && bank_rdwr_ready && w_tccd_fwd_ok && trtw_ok`
+
+plus three guards added with the 2026-09-08/09 bandwidth work:
+
+- **Auto-precharge stale-image guard** — `!(f_ap(b) && w_col_inflight_bank[b])
+  && !r_ap_closing[b]`. A column to a bank with an auto-precharge column
+  already in flight would be picked against a row image the AP is about to
+  invalidate. The mask is gated on `f_ap(b)` so it costs nothing when the
+  access is not auto-precharging; an ungated version throttled same-bank
+  column streaming.
+- **Forward tCCD** — `w_tccd_fwd_ok` replaces the flopped global `tccd_ok` on
+  the column masks. The counter reloads on column **selection** (not on fire)
+  and compares `<= 1`, so the period is exactly tCCD. Stacking the old
+  fire-reloaded gate on top of it made the period tCCD+4 and halved read
+  throughput at tCCD=4.
+- **Refresh column block** — `w_ref_col_block[b]`: columns to the banks a
+  pending refresh is going to close are not selectable (all banks for REFab,
+  the rotor bank for REFpb). Without it the x16 reorder case livelocked —
+  refresh pending, bank 0 open, eight row-hit entries, and the pick pipeline
+  re-selecting a bank-0 column every cycle whose in-flight guard blocked the
+  very PRE the refresh was waiting for.
 
 The oldest issuable RD (max `rd_lu_age`) and oldest issuable WR are scanned in
 parallel across all `N_LU = NUM_BANKS` lookups; read-priority then selects RD over
 WR if both exist.
+
+The output stage re-checks `wr_commit_ready_i`, `rd_issue_ready_i` and the ACT
+gate **live**, because the pick pipeline is three stages deep and a readiness
+that was true at selection can be false at issue. The ACT case was found by
+probe: an ACT selected in the one cycle between a refresh's tRFC expiring and
+the next pulled-in REF firing reached the output with `rfc_busy` set.
 
 ### Auto-precharge (inline page policy)
 
@@ -179,6 +220,47 @@ occupancy (a BL burst owns the DQ bus for `BL/DFI_RATE` dfi cycles) is a
 `dfi_clk`-domain constraint enforced **downstream** in `pumice_dfi_cmd_path`
 (`COL_BURST_CYC`), not here — the CDC decouples `aclk` command issue from
 `dfi_clk` DQ timing.
+
+## Write data must lead the command
+
+**The command stream cannot be back-pressured to wait for write data.** JEDEC
+spacing (tRFC, tRP, tCCD) is enforced by the timers at the arbiter, but the
+command then crosses the in-order scheduler command FIFO and the command CDC.
+Any stall downstream of the timers **compresses** the spacing of everything
+already queued behind it: commands that the arbiter separated correctly arrive
+at the DRAM bunched together. Holding a write command until its data showed up
+is exactly such a stall, and it produced real tRFC and tRP violations.
+
+So the invariant is inverted: the data is made to lead the command, and nothing
+downstream ever has to wait. Four mechanisms, all landed 2026-09-09:
+
+1. **Rate-matched commit.** `pumice_wr_data_cam` only accepts a commit when the
+   DFI write-data path has room for it, evaluated at **decision time** rather
+   than after the fact (`WR_DRAIN_AHEAD`, with the occupancy counter
+   registered). An earlier version predicated on the *current* occupancy and,
+   with the one-cycle decision-to-fire latency, refused commits it had already
+   promised — the CAM and the arbiter deadlocked for 29373 cycles.
+2. **Fixed command delay.** The scheduler's command FIFO releases each command
+   a fixed `CMD_DELAY` cycles after the arbiter's decision. Because *every*
+   command is delayed alike, spacing is preserved exactly; only latency moves,
+   by `+CMD_DELAY`. `CMD_DELAY = 0` selects the automatic
+   `5 + 2 * BURST_WORDS`, which is the write-data lead a burst needs; a fixed 6
+   was not enough at BL8.
+3. **Staged-token gate as a checked invariant.** `pumice_dfi_cmd_path` still
+   holds a write command until its data is staged, but with (1) and (2) in
+   place that gate should never engage. It is instrumented rather than trusted:
+   the block counts the cycles it holds and the throughput tests assert the
+   count is **zero**. A non-zero count means the lead has been lost upstream.
+4. **Free at fetch-last.** The write CAM frees its entry when the data is
+   *fetched* out, not when it is consumed at the DFI. With the command delayed,
+   consume-last held each entry about 30 cycles, and eight entries cannot cover
+   a burst every four — W back-pressured for 222 cycles in the write ceiling
+   test. The B response rides the skid tag, so nothing needs the entry after
+   the fetch.
+
+This is structurally what LiteDRAM does: its multiplexer drives the DFI
+directly and only chooses a write command once that write's data is at the head
+of the write FIFO. There is no command queue downstream of the timing decision.
 
 ## Interface (arbiter)
 

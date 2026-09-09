@@ -56,10 +56,18 @@ The register map is a SystemRDL source, `rtl/macro/pumice_csr.rdl`. It is compil
 | 0x030  | `PASR_BANK_MASK_RANK0`    | LPDDR2 PASR per-bank mask (rank 0)                        |
 | 0x034  | `PASR_SEG_MASK_RANK0`     | LPDDR2 PASR segment mask (rank 0)                         |
 | 0x038  | `TEMP_DERATE_RANK0`       | LPDDR2 MR4 temperature class (rank 0, RO)                 |
-| 0x040  | `SCHED_TUNING`            | Scheduler runtime knobs                                    |
+| 0x040  | `SCHED_TUNING`            | Retired — reserved in full (scheduling is `SCHED_POLICY`)  |
 | 0x044  | (unmapped)                | was `PAGE_PRED_TUNING` — retired with the HAPPY predictor |
-| 0x048  | `REFRESH_TUNING`          | Refresh policy + page-policy override + ZQCS interval     |
+| 0x048  | `REFRESH_TUNING`          | Page-policy override (the refresh fields are retired)     |
 | 0x04C  | `ADDR_MAP`                | Address-map: bank_lsb + XOR-hash (replaces ADDR_MAP_TUNING) |
+| 0x068  | `SCHED_POLICY`            | Axis 1 scheduling: order_mode / prio_sub / row_sel / col_sel / access_pref / qos_en / age_thresh |
+| 0x06C  | `SCHED_WR_WM`             | Write-batching drain watermarks                            |
+| 0x070  | `PAGE_POLICY_CFG`         | Axis 2 paging mode select + adapt_access counter shape     |
+| 0x074  | `PAGE_TIMEOUT_CFG`        | fixed_open / adapt_time timeout bounds                     |
+| 0x078  | `PAGE_ADAPT_CFG`          | adapt_time mistake-counter thresholds                      |
+| 0x07C  | `PAGE_RBL_CFG`            | RBLA miss-counter table shape (modes 6/7)                  |
+| 0x140  | `REF_CTRL`                | Axis 3 refresh mode + JEDEC postpone/pull-in credits       |
+| 0x144  | `REF_TIMING_PB`           | REFpb intervals                                            |
 | 0x050  | `INIT_TUNING`             | ZQ retries + per-step init timeout                        |
 | 0x054  | `TIMINGS_RTP_RTW`         | tRTP / tRTW                                               |
 | 0x058  | `INIT_TIMING0`            | Init waits: tINIT / tDLLK                                 |
@@ -164,16 +172,24 @@ All registers are 32-bit; unlisted bits are reserved (`RSVD`, `sw = r`). "Defaul
 |------|--------------|---------------------------------------------------|
 | 1:0  | `temp_class` | LPDDR2 MR4: 00 nominal, 01 2x refresh, 10 4x refresh |
 
-### SCHED_TUNING @ 0x040 (rw)
+### SCHED_TUNING @ 0x040 (retired — reserved in full)
 
-| Bits  | Field                  | Default | Access | Notes                                        |
-|-------|------------------------|---------|--------|----------------------------------------------|
-| 3:0   | `lookahead_active`     | 0       | rw     | Active lookahead window (0 disables)         |
-| 4     | `force_inorder`        | 0       | rw     | 1 = force first-ready FIFO                    |
-| 5     | `RSVD_5`               | 0       | r      | Reserved (was `happy_enable` — retired)      |
-| 15:8  | `age_max_runtime`      | 0       | rw     | Runtime AGE_MAX override (0 = build default) |
-| 23:16 | `txn_queue_high_water` | 0       | rw     | Backpressure threshold                        |
-| 27:24 | `lookahead_max_obs`    | 0       | RO     | Echo of build-time LOOKAHEAD_DEPTH_MAX       |
+| Bits  | Field  | Default | Access | Notes                                    |
+|-------|--------|---------|--------|------------------------------------------|
+| 31:0  | `RSVD` | 0       | r      | Reserved (retired scheduler knobs)        |
+
+> **RETIRED 2026-09-09.** Every field of this register belonged to the
+> pre-rearchitecture scheduler: `lookahead_active`, `force_inorder`,
+> `age_max_runtime`, `txn_queue_high_water` and the `lookahead_max_obs` echo
+> (plus `happy_enable`, retired earlier with the HAPPY predictor). The
+> CAM + arbiter scheduler has never read any of them, so a write here was a
+> silent no-op — the host's `inorder` characterization preset was programming
+> this bit and getting FR-FCFS on silicon.
+>
+> Scheduling is [`SCHED_POLICY` @ 0x068](#sched_policy--0x068-rw):
+> `order_mode` selects in_order / age_threshold, and FR-FCFS reorders across
+> the whole CAM so there is no lookahead window to size. The address is kept
+> reserved rather than reused so the map does not shift.
 
 ### PAGE_PRED_TUNING @ 0x044 (rw)
 
@@ -184,12 +200,17 @@ All registers are 32-bit; unlisted bits are reserved (`RSVD`, `sw = r`). "Defaul
 
 ### REFRESH_TUNING @ 0x048 (rw)
 
-| Bits  | Field                  | Default | Notes                                          |
-|-------|------------------------|---------|------------------------------------------------|
-| 1:0   | `refpb_policy_or`      | 0       | 00 build-time, 01 RR, 10 OLDEST_FIRST, 11 DARP |
-| 3:2   | `page_policy_or`       | 0       | 00 build-time, 01 OPEN, 10 CLOSE, 11 reserved (was HYBRID) |
-| 7:4   | `refresh_defer_active` | 1       | Active refresh deferral count                   |
-| 31:16 | `zqcs_freq_hz`         | 1       | Periodic ZQCS interval in Hz (0 disables)       |
+| Bits  | Field            | Default | Access | Notes                                          |
+|-------|------------------|---------|--------|------------------------------------------------|
+| 1:0   | `RSVD_1_0`       | 0       | r      | Reserved (was `refpb_policy_or`) |
+| 3:2   | `page_policy_or` | 0       | rw     | 00 build-time, 01 OPEN, 10 CLOSE, 11 reserved (was HYBRID) |
+| 15:4  | `RSVD_15_4`      | 0       | r      | Reserved (was `refresh_defer_active`) |
+| 31:16 | `RSVD_31_16`     | 0       | r      | Reserved (was `zqcs_freq_hz`) |
+
+> **PARTIALLY RETIRED 2026-09-09.** `page_policy_or` is live and is the static
+> OPEN/CLOSE override. The three refresh fields are not: refresh mode and the
+> JEDEC postpone/pull-in credits are [`REF_CTRL` @ 0x140](#ref_ctrl--0x140-rw),
+> and no ZQCS engine ever consumed the interval.
 
 ### ADDR_MAP @ 0x04C (rw) — replaces the retired ADDR_MAP_TUNING
 
@@ -247,6 +268,116 @@ Sliced to `clog2(DFI_RATE)` bits downstream; upper bits ignored when `DFI_RATE` 
 | 15:8  | `t_rddata_en`   | 6             | RD cmd -> dfi_rddata_en window           |
 | 16    | `memtype`       | 0             | 0 = DDR2, 1 = LPDDR2                      |
 | 23:20 | `refresh_burst` | 1             | REFs drained per request (1..8)          |
+
+### Advanced-mode registers (0x068-0x07C, 0x140-0x144)
+
+> **Added to this chapter 2026-09-09.** These registers have existed in
+> `pumice_csr.rdl` since the PUMICE-006 mode work and are cited by
+> [ch02/07 Command Arbiter](../ch02_blocks/07_scheduler.md) and
+> [ch02/08 Page Policy](../ch02_blocks/08_page_policy.md), but the register map
+> never listed them. They are the three mode axes: scheduling (`SCHED_POLICY`,
+> `SCHED_WR_WM`), paging (`PAGE_*_CFG`) and refresh (`REF_*`). Every field
+> encodes 0 as "build default", so a zeroed register block is bit-identical to
+> the pre-mode controller.
+
+### SCHED_POLICY @ 0x068 (rw)
+
+Axis 1 (Rixner FR-FCFS variants). All fields 0 = build default.
+
+| Bits  | Field | Default | Access | Notes |
+|-------|-------|---------|--------|-------|
+| 1:0 | `order_mode` | 0x0 | rw | 0=build default, 1=in_order, 2=fr_fcfs, 3=age_threshold |
+| 3:2 | `prio_sub` | 0x0 | rw | Priority sub-policy: 0=default, 1=none, 2=load_over_store, 3=age_boost |
+| 5:4 | `row_sel` | 0x0 | rw | Row-arbiter select: 0=default(oldest), 1=most_pending, 2=fewest_pending |
+| 7:6 | `col_sel` | 0x0 | rw | Column-arbiter select: 0=default(oldest), 1=most_pending, 2=fewest_pending |
+| 9:8 | `access_pref` | 0x0 | rw | Address-arbiter class preference: 0=default, 1=column_first, 2=row_first, 3=precharge_first |
+| 10:10 | `RSVD_10` | 0x0 | r | Reserved (was auto_precharge_en, never consumed: auto-precharge is driven by PAGE_POLICY_CFG.policy_mode -- static_close and the modes 5..7 predictors) |
+| 11:11 | `qos_en` | 0x0 | rw | 1 = factor AxQOS into the pick (highest ready first, age tie-break) |
+| 15:12 | `RSVD_15_12` | 0x0 | r | Reserved |
+| 23:16 | `age_thresh` | 0x0 | rw | age_threshold mode: age (MC cycles/16) above which a reference is boosted |
+| 31:24 | `RSVD_31_24` | 0x0 | r | Reserved |
+
+### SCHED_WR_WM @ 0x06C (rw)
+
+Write-batching drain hysteresis. 0/0 = build default (no batching).
+
+| Bits  | Field | Default | Access | Notes |
+|-------|-------|---------|--------|-------|
+| 7:0 | `wr_high_wm` | 0x0 | rw | Start back-to-back write drain when the write buffer crosses this |
+| 15:8 | `wr_low_wm` | 0x0 | rw | Stop the drain when occupancy falls to this |
+| 31:16 | `RSVD` | 0x0 | r | Reserved |
+
+### PAGE_POLICY_CFG @ 0x070 (rw)
+
+Axis 2 mode select + adapt_access counter shape. 0 = build default.
+
+| Bits  | Field | Default | Access | Notes |
+|-------|-------|---------|--------|-------|
+| 2:0 | `policy_mode` | 0x0 | rw | 0=build default, 1=static_open, 2=static_close, 3=fixed_open, 4=adapt_time, 5=adapt_access, 6=rbl_static, 7=rbl_dyn |
+| 3:3 | `policy_scope` | 0x0 | rw | 0 = per-bank decision state, 1 = global |
+| 5:4 | `RSVD_5_4` | 0x0 | r | Reserved (was ctr_width; the adapt_access counter is the 2-bit saturating counter of the paper, not selectable) |
+| 9:6 | `ctr_open_max` | 0x0 | rw | adapt_access: counter value at/above which the row is CLOSED |
+| 13:10 | `ctr_init` | 0x0 | rw | adapt_access: counter init value |
+| 31:14 | `RSVD` | 0x0 | r | Reserved |
+
+### PAGE_TIMEOUT_CFG @ 0x074 (rw)
+
+fixed_open / adapt_time timeout register bounds (MC cycles).
+
+| Bits  | Field | Default | Access | Notes |
+|-------|-------|---------|--------|-------|
+| 7:0 | `tr_init` | 0x0 | rw | TR init (fixed_open uses this alone; ~tRC) |
+| 15:8 | `tr_min` | 0x0 | rw | adapt_time TR lower clamp |
+| 23:16 | `tr_max` | 0x0 | rw | adapt_time TR upper clamp |
+| 31:24 | `tr_step` | 0x0 | rw | adapt_time TR adjustment step |
+
+### PAGE_ADAPT_CFG @ 0x078 (rw)
+
+adapt_time (Happy adaptive-timeout) mistake-counter thresholds.
+
+| Bits  | Field | Default | Access | Notes |
+|-------|-------|---------|--------|-------|
+| 3:0 | `mc_high_thr` | 0x0 | rw | MC high threshold (TR += step above) |
+| 7:4 | `mc_low_thr` | 0x0 | rw | MC low threshold (TR -= step below) |
+| 11:8 | `mc_init` | 0x0 | rw | MC init value |
+| 15:12 | `RSVD` | 0x0 | r | Reserved |
+| 31:16 | `check_interval` | 0x0 | rw | Cycles between MC evaluations |
+
+### PAGE_RBL_CFG @ 0x07C (rw)
+
+RBLA/Yoon miss-counter table shape. rbl_dyn hill-climb weights land with that mode.
+
+| Bits  | Field | Default | Access | Notes |
+|-------|-------|---------|--------|-------|
+| 7:0 | `miss_thresh` | 0x0 | rw | Miss count above which a row is low-locality (auto-precharge) |
+| 9:8 | `ways` | 0x0 | rw | log2 table ways |
+| 13:10 | `sets` | 0x0 | rw | log2 table sets |
+| 15:14 | `RSVD` | 0x0 | r | Reserved |
+| 31:16 | `reset_interval` | 0x0 | rw | Epoch length: counters reset every N cycles (0=never) |
+
+### REF_CTRL @ 0x140 (rw)
+
+Axis 3 mode + JEDEC +-8 credit limits. tREFI/tRFCab live in TIMINGS_RFC_REFI (not duplicated).
+
+| Bits  | Field | Default | Access | Notes |
+|-------|-------|---------|--------|-------|
+| 1:0 | `mode` | 0x0 | rw | 0=build default (REFab), 1=REFab, 2=REFpb round-robin (LPDDR2) |
+| 3:2 | `RSVD_3_2` | 0x0 | r | Reserved |
+| 7:4 | `postpone_limit` | 0x0 | rw | Max refreshes postponed under demand (0..8; 0 = strict) |
+| 11:8 | `pullin_limit` | 0x0 | rw | Max refreshes pulled in on idle (0..8; 0 = strict) |
+| 12:12 | `perbank_supported` | 0 | r | Capability strap: 1 = the DRAM supports per-bank refresh |
+| 31:13 | `RSVD_31_13` | 0x0 | r | Reserved |
+
+### REF_TIMING_PB @ 0x144 (rw)
+
+REFpb intervals (MC cycles). All-bank tREFI/tRFCab stay in TIMINGS_RFC_REFI.
+
+| Bits  | Field | Default | Access | Notes |
+|-------|-------|---------|--------|-------|
+| 15:0 | `trefi_pb` | 0x0 | rw | tREFIpb (~tREFI/8; 0 = derive from tREFI) |
+| 23:16 | `trfc_pb` | 0x0 | rw | tRFCpb recovery |
+| 31:24 | `RSVD` | 0x0 | r | Reserved |
+
 
 ### Observation registers (RO)
 

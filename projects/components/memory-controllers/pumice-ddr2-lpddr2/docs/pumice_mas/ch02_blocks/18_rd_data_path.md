@@ -21,27 +21,37 @@
 
 <!-- End Header -->
 
-# Read Data Path (`pumice_rd_cmd_cam` + `pumice_dfi_rd_aligner`)
+# Read Data Path (`pumice_dfi_rd_aligner` + `pumice_rd_return_ring`)
 
-**Modules:** `pumice_rd_cmd_cam.sv`, `pumice_dfi_rd_aligner.sv`
+**Modules:** `pumice_dfi_rd_aligner.sv`, `pumice_rd_return_ring.sv`, `pumice_rd_cmd_cam.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parents:** `pumice_axi4_ifc` (CAM), `pumice_dfi_layer` (aligner)
+**Parents:** `pumice_dfi_layer` (aligner), `pumice_axi4_ifc` (ring, CAM)
 **Status:** implemented
 
 > The old single-block `rd_cl_aligner` / `rd_data_path_fub` no longer
 > exists. In the rearchitected controller the read data path is split
-> across two clock domains and two FUBs:
+> across two clock domains and three FUBs:
 >
 > - `pumice_dfi_rd_aligner` (DFI domain, inside `pumice_dfi_layer`) —
 >   drives `dfi_rddata_en` at the right cycle for an issued READ and
 >   captures `dfi_rddata` words into the read return FIFO.
-> - `pumice_rd_cmd_cam` (MC domain, inside `pumice_axi4_ifc`) — an
->   outstanding-read reorder buffer: DRAM data returns in *issue* order
->   and buffers per entry; it drains to `pumice_rd_intake` in *AR* order.
+> - `pumice_rd_return_ring` (MC domain, inside `pumice_axi4_ifc`) — the
+>   outstanding-read reorder buffer. Returns arrive in *issue* order into
+>   the slot named by the read's ticket, and the ring drains from its head
+>   in *AR* order to `pumice_rd_intake`. See §22.
+> - `pumice_rd_cmd_cam` (MC domain, inside `pumice_axi4_ifc`) — the
+>   scheduling window only. Its entry is freed the cycle the column issues.
 >
-> The single clock-domain crossing between them is `pumice_dfi_cdc`
-> (async gaxi FIFOs). This chapter documents both halves.
+> **Corrected 2026-09-09.** This chapter previously said the CAM was the
+> reorder buffer and buffered returned data per entry. That was true before
+> the return ring landed (2026-09-08) and is not now: holding the read in the
+> CAM for its whole round trip made the CAM depth the in-flight limit and
+> capped read bandwidth by Little's law at roughly 180 MB/s on the board.
+>
+> The single clock-domain crossing between the domains is `pumice_dfi_cdc`
+> (async gaxi FIFOs). This chapter documents the aligner half and the
+> hand-off; the ring has its own chapter.
 
 > Architectural context: HAS §3.7 and `_SWEEP_GROUND_TRUTH.md` §8. The CAM
 > has no datapath FSM — the movers are burst beat-counters over the SRAM.

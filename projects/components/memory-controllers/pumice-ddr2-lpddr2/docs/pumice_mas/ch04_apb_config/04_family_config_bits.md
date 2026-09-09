@@ -42,25 +42,31 @@
 
 Fields below are the real CSR fields in `rtl/macro/pumice_csr.rdl` (see §4.2). "DDR2 / LPDDR2" notes whether the field is meaningful on each family in this build.
 
-### SCHED_TUNING (0x040)
+### SCHED_TUNING (0x040) — RETIRED, reserved in full
 
-| Field                  | Applicability                                                        |
-|------------------------|----------------------------------------------------------------------|
-| `lookahead_active`     | Both; scheduler lookahead window (0 disables)                        |
-| `force_inorder`        | Both; forces first-ready FIFO ordering                               |
-| `happy_enable`         | Both, only meaningful when the HAPPY predictor is synthesized/selected |
-| `age_max_runtime`      | Both; anti-starvation AGE_MAX override                               |
-| `txn_queue_high_water` | Both; backpressure threshold                                        |
-| `lookahead_max_obs`    | RO echo of build-time LOOKAHEAD_DEPTH_MAX                            |
+Every field of this register belonged to the pre-rearchitecture scheduler and
+the CAM + arbiter has never read any of them (retired 2026-09-09). Scheduling
+applicability is `SCHED_POLICY` below.
+
+### SCHED_POLICY (0x068)
+
+| Field         | Applicability                                                        |
+|---------------|----------------------------------------------------------------------|
+| `order_mode`  | Both; 0 FR-FCFS, 1 in_order, 3 age_threshold. **Build-tiered:** in_order is per-channel FIFO on the base build; GLOBAL read-vs-write age order additionally requires `+define+PUMICE_ENHANCED` |
+| `age_thresh`  | Both; age (MC cycles / 16) above which a reference is boosted, for `order_mode` 3 |
+| `prio_sub`    | Both; read-vs-write key within a class (load_over_store / none / age_boost) |
+| `row_sel` / `col_sel` | Both; most- / fewest-pending row and column selection            |
+| `access_pref` | Both; column_first (default), row_first, precharge_first             |
+| `qos_en`      | Both; makes AxQOS the outer pick key                                 |
 
 ### REFRESH_TUNING (0x048)
 
 | Field                  | Applicability                                                        |
 |------------------------|----------------------------------------------------------------------|
-| `page_policy_or`       | Both; drives `page_policy_i` (00 build-time, 01 OPEN, 10 CLOSE, 11 HAPPY_HYBRID) |
-| `refresh_defer_active` | Both; refresh deferral / batching count                             |
-| `zqcs_freq_hz`         | Both; periodic ZQCS interval (DDR2 has no ZQCL, but ZQCS calibration short is JEDEC) |
-| `refpb_policy_or`      | **LPDDR2-relevant** (per-bank refresh); DDR2 uses all-bank REFab only |
+| `page_policy_or`       | Both; drives `page_policy_i` (00 build-time, 01 OPEN, 10 CLOSE, 11 reserved — was HYBRID) |
+| `refresh_defer_active` | **Retired 2026-09-09** — reserved; the JEDEC credits are `REF_CTRL.postpone_limit` / `pullin_limit` |
+| `zqcs_freq_hz`         | **Retired 2026-09-09** — reserved; no ZQCS engine consumed it        |
+| `refpb_policy_or`      | **Retired 2026-09-09** — reserved; refresh mode is `REF_CTRL.mode` (02 = REFpb round-robin, LPDDR2) |
 
 ### ADDR_MAP (0x04C) — family-agnostic
 

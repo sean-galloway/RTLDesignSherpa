@@ -31,12 +31,21 @@
 
 > **Rearchitected:** the SWAG CAM was keyed by AXI ID and drove a `match_pending`
 > vector with per-slot beat counters and an issue FSM. The live
-> `pumice_rd_cmd_cam` is keyed by `{bank, row}` with a free-running age, exposes
-> `N_SCHED_LU` parallel scheduler lookups plus an oldest port, and is a **read
-> reorder buffer**: DRAM read data returns in *issue* order into per-entry SRAM
-> slots and drains to the intake in *AR (insert)* order. The drain has **no**
-> active/slot state latch — a burst beat-counter and the combinational
-> oldest-valid pick are the only sequencing.
+> `pumice_rd_cmd_cam` is keyed by `{bank, row}` with a free-running age and
+> exposes `N_SCHED_LU` parallel scheduler lookups plus an oldest port.
+>
+> **Corrected 2026-09-09.** This CAM is a **scheduling window only**. It no
+> longer buffers returned read data and is no longer the reorder buffer: it
+> carries the read's *ticket* (`ins_ticket_i`), hands that ticket to
+> [`pumice_rd_return_ring`](22_rd_return_ring.md) when the column issues, and
+> **frees the entry at issue**. The ring holds the read for its DRAM round trip
+> and drains in AR order.
+>
+> Why the split: with the CAM holding a read from insert to R-drain, its entry
+> count was the in-flight read limit, and Little's law capped read bandwidth at
+> roughly 180 MB/s on the board regardless of scheduling quality. The CAM now
+> only has to be as deep as the *scheduling* window; in-flight depth is the
+> ring's `RD_RET_DEPTH`.
 
 ---
 

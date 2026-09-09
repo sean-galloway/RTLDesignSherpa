@@ -75,7 +75,7 @@ There is no rank-interleave mode. Software-managed rank interleaving (the OS str
 Per HAS §3.4 and MAS §2 (`refresh_ctrl`, intended multi-rank extension):
 
 - REFab dispatches per-rank in round-robin (not all-rank simultaneously)
-- REFpb (LPDDR2) selects (rank, bank) tuples via the `REFRESH_TUNING.refpb_policy_or` policy
+- REFpb (LPDDR2) selects (rank, bank) tuples via `REF_CTRL.mode` = 2 (round-robin), gated by the `REF_CTRL.perbank_supported` capability strap. (`REFRESH_TUNING.refpb_policy_or` was retired 2026-09-09.)
 - Per-rank PASR masks are honored independently
 
 A multi-rank system distributes refresh across the timeline so any single rank only blocks for tRFC per refresh — non-target ranks keep operating.

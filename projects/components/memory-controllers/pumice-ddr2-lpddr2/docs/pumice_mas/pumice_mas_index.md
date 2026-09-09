@@ -68,6 +68,7 @@
 - [AXI4 Intakes (`pumice_wr_intake`, `pumice_rd_intake`)](ch02_blocks/02_axi4_slave.md)
 - [Address Mapper (`addr_mapper`, bank_lsb)](ch02_blocks/03_addr_mapper.md)
 - [Read Command CAM (`pumice_rd_cmd_cam`)](ch02_blocks/04_rd_cmd_cam.md)
+- [Read Return Ring](ch02_blocks/22_rd_return_ring.md)
 - [Write Data CAM (`pumice_wr_data_cam`)](ch02_blocks/05_wr_cmd_cam.md)
 - [Write-to-Read Forward (snarf in `pumice_wr_data_cam`)](ch02_blocks/21_wr2rd_forward.md)
 
@@ -83,7 +84,7 @@
 
 **Data Path FUBs (in CAMs + DFI layer):**
 - [Write Data Path (`pumice_wr_data_cam` + `pumice_dfi_wr_serializer`)](ch02_blocks/17_wr_data_path.md)
-- [Read Data Path (`pumice_rd_cmd_cam` + `pumice_dfi_rd_aligner`)](ch02_blocks/18_rd_data_path.md)
+- [Read Data Path (`pumice_dfi_rd_aligner` + `pumice_rd_return_ring`)](ch02_blocks/18_rd_data_path.md)
 
 **DFI v2.1 FUBs (`pumice_dfi_layer`):**
 - [DFI Command Formatter (`dfi_cmd_formatter`)](ch02_blocks/14_cmd_encoder.md)
