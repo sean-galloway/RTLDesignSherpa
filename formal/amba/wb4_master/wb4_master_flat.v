@@ -121,6 +121,7 @@ module wb4_master (
 	parameter signed [31:0] DATA_WIDTH = 32;
 	parameter signed [31:0] CMD_DEPTH = 4;
 	parameter signed [31:0] RSP_DEPTH = 4;
+	parameter signed [31:0] CLASSIC = 0;
 	parameter signed [31:0] SEL_WIDTH = DATA_WIDTH / 8;
 	parameter signed [31:0] AW = ADDR_WIDTH;
 	parameter signed [31:0] DW = DATA_WIDTH;
@@ -210,9 +211,19 @@ module wb4_master (
 	endfunction
 	assign w_issue = r_cmd_valid && (sv2v_cast_32(r_reserved) < RSP_DEPTH);
 	assign m_wb_STB = w_issue;
-	assign m_wb_CYC = w_issue || (r_inflight != {CW {1'sb0}});
-	assign w_cmd_pop = m_wb_STB && !m_wb_STALL;
 	assign w_term = m_wb_CYC && ((m_wb_ACK || m_wb_ERR) || m_wb_RTY);
+	generate
+		if (CLASSIC != 0) begin : g_classic
+			assign w_cmd_pop = m_wb_STB && w_term;
+			assign m_wb_CYC = m_wb_STB;
+			wire w_stall_unused;
+			assign w_stall_unused = m_wb_STALL;
+		end
+		else begin : g_pipelined
+			assign w_cmd_pop = m_wb_STB && !m_wb_STALL;
+			assign m_wb_CYC = w_issue || (r_inflight != {CW {1'sb0}});
+		end
+	endgenerate
 	assign w_rsp_push = w_term;
 	assign w_rsp_pop = rsp_valid && rsp_ready;
 	function automatic [CW - 1:0] sv2v_cast_3D2D3;
@@ -235,9 +246,18 @@ module wb4_master (
 		if ((f_past_valid && aresetn) && $past(aresetn)) begin
 			assert ((r_inflight == {CW {1'sb0}}) || m_wb_CYC) ;
 			assert (!m_wb_STB || m_wb_CYC) ;
-			if (($past(m_wb_STB) && $past(m_wb_STALL)) && $past(m_wb_CYC)) begin
-				assert (m_wb_STB) ;
-				assert ((($stable(m_wb_ADR) && $stable(m_wb_DAT_W)) && $stable(m_wb_SEL)) && $stable(m_wb_WE)) ;
+			if (CLASSIC == 0) begin
+				if (($past(m_wb_STB) && $past(m_wb_STALL)) && $past(m_wb_CYC)) begin
+					assert (m_wb_STB) ;
+					assert ((($stable(m_wb_ADR) && $stable(m_wb_DAT_W)) && $stable(m_wb_SEL)) && $stable(m_wb_WE)) ;
+				end
+			end
+			else begin
+				if ($past(m_wb_STB) && !$past(w_term)) begin
+					assert (m_wb_STB) ;
+					assert ((($stable(m_wb_ADR) && $stable(m_wb_DAT_W)) && $stable(m_wb_SEL)) && $stable(m_wb_WE)) ;
+				end
+				assert (r_inflight == 0) ;
 			end
 			assert (sv2v_cast_32(r_reserved) <= RSP_DEPTH) ;
 			assert (r_inflight <= r_reserved) ;

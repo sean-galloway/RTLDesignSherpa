@@ -335,8 +335,8 @@ Status: PASSING = proved (prove+cover), PROVE = prove-only PASS, ERROR = prove f
 
 | Module             | Priority | Status | Notes                                   |
 | ------------------ | -------- | ------ | --------------------------------------- |
-| wb4_master         | 2        | PASSING | B4 pipelined: STB->CYC, stalled request held, credit invariant, termination always enqueued; 3 mutations FAIL |
-| wb4_slave          | 2        | PASSING | B4 pipelined: one-hot termination only inside a cycle for an outstanding transfer; abort covered; mutation FAILs |
+| wb4_master         | 2        | PASSING | B4 pipelined + classic (prove/cover x2 tasks): STB->CYC, request held while stalled / until terminated, credit invariant, termination always enqueued; 3 mutations FAIL |
+| wb4_slave          | 2        | PASSING | B4 pipelined + classic (prove/cover x2 tasks): one-hot termination only inside a cycle for an outstanding transfer; classic accept-once (double-accept bug caught by prove_classic); abort covered; mutation FAILs |
 | apb4_slave_cdc      | 2        | PASSING | CDC variant — prove safe crossing       |
 | apb5_slave_cdc     | 2        | PASSING | APB5 CDC variant                        |
 | apb_*_cg / *_stub  | 0        |        | CG/stub variants                        |

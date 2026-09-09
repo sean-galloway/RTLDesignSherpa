@@ -45,6 +45,7 @@ register.
 | CMD_DEPTH | int | 2 | Command queue depth in **entries**, 2..8 |
 | RSP_DEPTH | int | 2 | Response queue depth in **entries**, 2..8 |
 | MAX_OUTSTANDING | int | 16 | Transfers accepted but not yet terminated before `STALL` asserts |
+| CLASSIC | int | 0 | 0 = B4 pipelined; 1 = B4 standard ("classic") mode, see the [family README](README.md). Match the peer: the modes do not mix |
 | SEL_WIDTH | int | DATA_WIDTH/8 | Byte-select width (derived) |
 
 `MAX_OUTSTANDING` bounds the FUB's in-order pipeline, not the master's: a
@@ -63,6 +64,7 @@ module wb4_slave
     parameter int CMD_DEPTH       = 2,
     parameter int RSP_DEPTH       = 2,
     parameter int MAX_OUTSTANDING = 16,
+    parameter int CLASSIC         = 0,
     parameter int SEL_WIDTH       = DATA_WIDTH / 8,
     // Short Parameters
     parameter int AW  = ADDR_WIDTH,
@@ -154,9 +156,14 @@ STALL  = !cmd queue room || r_outstanding == MAX_OUTSTANDING
 accept = CYC && STB && !STALL     -> push {we, adr, dat, sel}, r_outstanding++
 term   = rsp head valid && r_outstanding != 0 && CYC
          -> register ACK|ERR|RTY from status, DAT_R, pop, r_outstanding--
-orphan = rsp head valid && r_outstanding == 0 -> pop and drop
-abort  = !CYC && r_outstanding != 0 -> r_outstanding <= 0
+orphan = rsp head valid && (r_outstanding == 0 || r_abandoned != 0) -> pop and drop
+abort  = !CYC && r_outstanding != 0 -> r_abandoned += r_outstanding, r_outstanding <= 0
 ```
+
+**Classic mode** (`CLASSIC=1`): `STALL` is driven low; a request is
+accepted when nothing is outstanding and no termination is on the wire
+this clock, so a held presentation is taken exactly once; `MAX_OUTSTANDING`
+is effectively 1.
 
 **Orphan guard.** A response with nothing outstanding cannot belong to any
 transfer (a duplicate from the FUB, or a response to a transfer the master
@@ -165,8 +172,13 @@ would terminate the *next* transfer and every later response would be off by
 one: the positional mis-pairing `apb4_slave`'s guard exists for.
 
 **Abort.** A master that drops `CYC` with transfers outstanding has ended the
-cycle. The outstanding count clears; the FUB's late responses arrive as
-orphans and are dropped. Terminations are only ever driven inside a cycle.
+cycle. The outstanding count moves to an *abandoned* count, and that many
+later responses from the FUB are dropped as they arrive, even if the master
+has started a new cycle by then. Without that, a late response for an
+abandoned transfer would terminate the new cycle's first transfer, which is
+exactly what the slave test's abort phase caught before the count existed.
+Terminations are only ever driven inside a cycle, and never while a
+response is still owed to an abandoned transfer.
 
 ### Timing
 

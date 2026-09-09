@@ -69,31 +69,39 @@ async def wb4_slave_test(dut):
     tb.done = True
     passed = tb.report()
     assert passed, f"{len(tb.errors)} error(s); first: {tb.errors[0] if tb.errors else ''}"
-    assert peak > 1, f"max_inflight={peak}: never pipelined"
+    if tb.classic:
+        assert peak == 1, f"max_inflight={peak}: classic mode must hold one request at a time"
+    else:
+        assert peak > 1, f"max_inflight={peak}: never pipelined"
     assert tb.mon.aborts >= 1, "the abort phase never dropped CYC with requests outstanding"
     s = tb.stats
     assert s['ack'] and s['err'] and s['rty'], f"not every status exercised: {s}"
 
 
 def generate_test_params():
+    """(addr_width, data_width, cmd_depth, rsp_depth, max_outstanding, classic, test_level)"""
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
     if reg_level == 'GATE':
-        return [(32, 32, 2, 2, 16, 'gate')]
+        return [(32, 32, 2, 2, 16, 0, 'gate'), (32, 32, 2, 2, 16, 1, 'gate')]
     if reg_level == 'FUNC':
-        return [(32, 32, 2, 2, 16, 'func'), (32, 64, 4, 4, 4, 'func'), (32, 32, 2, 8, 2, 'func')]
-    return list(product([32], [32, 64], [2, 4], [2, 4, 8], [2, 4, 16], ['full']))
+        return [(32, 32, 2, 2, 16, 0, 'func'), (32, 64, 4, 4, 4, 0, 'func'), (32, 32, 2, 8, 2, 0, 'func'),
+                (32, 32, 2, 2, 16, 1, 'func'), (32, 64, 4, 4, 4, 1, 'func')]
+    return list(product([32], [32, 64], [2, 4], [2, 4, 8], [2, 4, 16], [0, 1], ['full']))
 
 
-@pytest.mark.parametrize("addr_width, data_width, cmd_depth, rsp_depth, max_outstanding, test_level",
+@pytest.mark.parametrize("addr_width, data_width, cmd_depth, rsp_depth, max_outstanding, classic, test_level",
                          generate_test_params())
-def test_wb4_slave(request, addr_width, data_width, cmd_depth, rsp_depth, max_outstanding, test_level):
-    """wb4_slave (rtl/amba/wb4/wb4_slave.sv) against the framework Wishbone master."""
-    tag = f"aw{addr_width:03d}_dw{data_width:03d}_cd{cmd_depth}_rd{rsp_depth}_mo{max_outstanding}_{test_level}"
+def test_wb4_slave(request, addr_width, data_width, cmd_depth, rsp_depth, max_outstanding, classic, test_level):
+    """wb4_slave (rtl/amba/wb4/wb4_slave.sv) against the framework Wishbone master
+    in the same mode (pipelined, or classic with CLASSIC=1)."""
+    tag = (f"aw{addr_width:03d}_dw{data_width:03d}_cd{cmd_depth}_rd{rsp_depth}_mo{max_outstanding}"
+           f"_{'classic' if classic else 'pipe'}_{test_level}")
     _run(request, "wb4_slave", "rtl/amba/filelists/wb4_slave.f", tag,
          {'ADDR_WIDTH': str(addr_width), 'DATA_WIDTH': str(data_width),
-          'CMD_DEPTH': str(cmd_depth), 'RSP_DEPTH': str(rsp_depth), 'MAX_OUTSTANDING': str(max_outstanding)},
+          'CMD_DEPTH': str(cmd_depth), 'RSP_DEPTH': str(rsp_depth),
+          'MAX_OUTSTANDING': str(max_outstanding), 'CLASSIC': str(classic)},
          {'TEST_LEVEL': test_level, 'ADDR_WIDTH': str(addr_width), 'DATA_WIDTH': str(data_width),
-          'MAX_OUTSTANDING': str(max_outstanding)})
+          'MAX_OUTSTANDING': str(max_outstanding), 'CLASSIC': str(classic)})
 
 def _run(request, dut_name, filelist, tag, rtl_parameters, extra_env):
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')

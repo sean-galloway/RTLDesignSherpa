@@ -16,13 +16,22 @@ DEPS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv
 
 DUT := $(REPO_ROOT)/rtl/amba/wb4/wb4_slave.sv
 
-.PHONY: prove cover clean
+.PHONY: prove cover prove_classic cover_classic all clean
+
+all: prove cover prove_classic cover_classic
 
 prove: wb4_slave_flat.v
 	sby -f wb4_slave.sby prove
 
 cover: wb4_slave_flat.v
 	sby -f wb4_slave.sby cover
+
+# CLASSIC=1 (B4 standard mode) via chparam on the harness top.
+prove_classic: wb4_slave_flat.v
+	sby -f wb4_slave.sby prove_classic
+
+cover_classic: wb4_slave_flat.v
+	sby -f wb4_slave.sby cover_classic
 
 # --define=FORMAL keeps the in-RTL properties; --exclude=Assert keeps sv2v
 # from deleting the immediate assertions (see vault/handbook/dv/formal.md).
@@ -31,4 +40,4 @@ wb4_slave_flat.v: $(DUT) $(PKGS) $(DEPS)
 	@echo "asserts in flat: $$(grep -c 'assert' $@)"
 
 clean:
-	rm -rf *_flat.v *_prove *_cover
+	rm -rf *_flat.v *_prove *_cover *_prove_classic *_cover_classic

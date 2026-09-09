@@ -44,6 +44,7 @@ master never retries on its own. No `CTI`/`BTE`, `LOCK` or tag signals.
 | DATA_WIDTH | int | 32 | Wishbone data width (port size) |
 | CMD_DEPTH | int | 4 | Command queue depth in **entries**, 2..8 |
 | RSP_DEPTH | int | 4 | Response queue depth in **entries**, 2..8; also the maximum transfers in flight |
+| CLASSIC | int | 0 | 0 = B4 pipelined; 1 = B4 standard ("classic") mode, see the [family README](README.md). Match the peer: the modes do not mix |
 | SEL_WIDTH | int | DATA_WIDTH/8 | Byte-select width (derived) |
 
 **RSP_DEPTH is the outstanding limit.** Wishbone gives a master no way to
@@ -62,6 +63,7 @@ module wb4_master
     parameter int DATA_WIDTH = 32,
     parameter int CMD_DEPTH  = 4,
     parameter int RSP_DEPTH  = 4,
+    parameter int CLASSIC    = 0,
     parameter int SEL_WIDTH  = DATA_WIDTH / 8,
     // Short Parameters
     parameter int AW  = ADDR_WIDTH,
@@ -165,6 +167,11 @@ response queue, which is exactly what can occupy that queue in the worst
 case. Reserving at issue rather than reading the queue's count back avoids
 the "count is stale by one" reasoning the APB master's back-to-back path
 needs.
+
+**Classic mode** (`CLASSIC=1`): the command retires with its termination
+(`accept = term`), so nothing is in flight between clocks; `CYC` follows
+`STB`; `STALL` is ignored. The credit gate still guarantees the push at
+termination has room, since `r_reserved` then counts only queued responses.
 
 `ERR` and `RTY` are mutually exclusive in the specification. If a slave
 asserts both, `ERR` wins, so a broken slave reads as an error rather than a

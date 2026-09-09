@@ -12,7 +12,8 @@
 module formal_wb4_master #(
     parameter int AW = 8,
     parameter int DW = 16,
-    parameter int RSP_DEPTH = 3
+    parameter int RSP_DEPTH = 3,
+    parameter int CLASSIC = 0
 ) (
     input logic clk,
     input logic rst_n,
@@ -36,7 +37,8 @@ module formal_wb4_master #(
     logic [DW/8-1:0] m_wb_SEL;
     logic [1:0] rsp_status;
 
-    wb4_master #(.ADDR_WIDTH(AW), .DATA_WIDTH(DW), .CMD_DEPTH(2), .RSP_DEPTH(RSP_DEPTH)) dut (
+    wb4_master #(.ADDR_WIDTH(AW), .DATA_WIDTH(DW), .CMD_DEPTH(2), .RSP_DEPTH(RSP_DEPTH),
+                 .CLASSIC(CLASSIC)) dut (
         .clk(clk), .aresetn(rst_n),
         .m_wb_CYC(m_wb_CYC), .m_wb_STB(m_wb_STB), .m_wb_WE(m_wb_WE),
         .m_wb_ADR(m_wb_ADR), .m_wb_DAT_W(m_wb_DAT_W), .m_wb_SEL(m_wb_SEL),
@@ -53,21 +55,33 @@ module formal_wb4_master #(
     initial assume (!rst_n);
     always @(posedge clk) if (f_past_valid >= 2) assume (rst_n);
 
-    // ---- Slave model: terminate only what was accepted, one per clock ----
+    // ---- Slave model ----
+    // Pipelined: terminate only what was accepted, one per clock. Classic:
+    // no STALL exists (held at 0); a termination may only come while the
+    // request is presented, and each presentation is terminated once.
     logic       w_accept, w_term;
     reg  [7:0]  f_open;      // accepted, not yet terminated (slave's view)
-    assign w_accept = m_wb_CYC && m_wb_STB && !m_wb_STALL;
     assign w_term   = m_wb_ACK || m_wb_ERR || m_wb_RTY;
+    generate if (CLASSIC != 0) begin : g_cs
+        // Classic: a presentation opens one request (the held STB on later
+        // clocks is the same request); it may terminate in the same clock.
+        assign w_accept = m_wb_CYC && m_wb_STB && (f_open == 0);
+    end else begin : g_ps
+        assign w_accept = m_wb_CYC && m_wb_STB && !m_wb_STALL;
+    end endgenerate
     always @(posedge clk) begin
         if (!rst_n) f_open <= 0;
         else        f_open <= f_open + w_accept - w_term;
     end
     always @(*) begin
         assume ((m_wb_ACK + m_wb_ERR + m_wb_RTY) <= 1);
-        // A termination needs an accepted transfer; a same-clock accept
-        // cannot terminate in the same clock (registered slave).
-        if (f_open == 0) assume (!w_term);
-        if (!m_wb_CYC)   assume (!w_term);
+        if (!m_wb_CYC) assume (!w_term);
+        if (CLASSIC != 0) begin
+            assume (!m_wb_STALL);
+            if (!m_wb_STB) assume (!w_term);
+        end else begin
+            if (f_open == 0) assume (!w_term);
+        end
     end
 
     // ---- FUB model: valid/ready contract on the command side ----
@@ -89,16 +103,31 @@ module formal_wb4_master #(
         // one) unless the queue already held earlier responses.
         if ($past(w_term) && $past(m_wb_CYC))
             ap_term_visible: assert (rsp_valid);
+        // Classic mode never has more than one request open on the bus, and
+        // a request stays presented until its termination.
+        if (CLASSIC != 0) begin
+            ap_classic_one: assert (f_open <= 1);
+            if ($past(m_wb_STB) && !$past(w_term))
+                ap_classic_held: assert (m_wb_STB && $stable(m_wb_ADR) && $stable(m_wb_WE));
+        end
     end
 
     // ---- Covers: the pipelined mode is reachable, every status appears ----
     reg [7:0] f_seen_depth = 0;
     always @(posedge clk) if (rst_n && f_open > f_seen_depth) f_seen_depth <= f_open;
     always @(posedge clk) if (rst_n) begin
-        cp_pipelined:  cover (f_open == RSP_DEPTH);
-        cp_backtoback: cover ($past(w_accept) && w_accept);
         cp_rsp_err:    cover (rsp_valid && rsp_status == 2'd1);
         cp_rsp_rty:    cover (rsp_valid && rsp_status == 2'd2);
         cp_cyc_drop:   cover (f_past_valid > 3 && $past(m_wb_CYC) && !m_wb_CYC);
+        if (CLASSIC == 0) begin
+            cp_pipelined:  cover (f_open == RSP_DEPTH);
+            cp_backtoback: cover ($past(w_accept) && w_accept);
+        end else begin
+            // Classic back-to-back: the next request is on STB the clock
+            // after the previous termination.
+            cp_classic_b2b: cover ($past(w_term) && m_wb_STB);
+            // The slave made it wait several clocks and it held.
+            cp_classic_wait: cover (f_past_valid > 4 && m_wb_STB && $past(m_wb_STB) && $past(m_wb_STB, 2) && !$past(w_term) && !$past(w_term, 2));
+        end
     end
 endmodule

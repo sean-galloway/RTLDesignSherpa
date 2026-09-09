@@ -57,6 +57,7 @@ class WB4MasterTB(TBBase):
         self.AW = self.convert_to_int(os.environ.get('ADDR_WIDTH', '32'))
         self.DW = self.convert_to_int(os.environ.get('DATA_WIDTH', '32'))
         self.SW = self.DW // 8
+        self.classic = os.environ.get('CLASSIC', '0') == '1'   # DUT built CLASSIC=1
         self.sent = deque()          # commands queued by the TB, in order
         self.got = deque()           # (status, dat) seen on rsp_*
         self.errors = []
@@ -85,12 +86,15 @@ class WB4MasterTB(TBBase):
             memory_model=None, log=self.log, multi_sig=True)
         self.rsp.add_callback(self._on_rsp)
 
+        # The peer must be the same mode as the DUT (B4 chapter 5): a classic
+        # master against a pipelined slave would have its held STB accepted
+        # again every clock.
         self.slave = create_wb4_slave(
             dut, 'WB Slave', 'm_wb', self.clk, addr_width=self.AW, data_width=self.DW,
             num_lines=MEM_LINES, max_outstanding=16, status_hook=self._status_hook,
-            randomizer=FlexRandomizer(SLAVE_PROFILES['fixed']), log=self.log)
-        self.mon = create_wb4_monitor(dut, 'WB Mon', 'm_wb', self.clk,
-                                      addr_width=self.AW, data_width=self.DW, log=self.log)
+            randomizer=FlexRandomizer(SLAVE_PROFILES['fixed']), classic=self.classic, log=self.log)
+        self.mon = create_wb4_monitor(dut, 'WB Mon', 'm_wb', self.clk, addr_width=self.AW,
+                                      data_width=self.DW, classic=self.classic, log=self.log)
 
     # ---- mandatory ------------------------------------------------------
     async def setup_clocks_and_reset(self):

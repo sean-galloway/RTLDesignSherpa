@@ -131,8 +131,9 @@ class WB4MasterSlaveLoopTB(TBBase):
         self.m_rsp.add_callback(self._on_master_rsp)
         # The framework's Wishbone monitor on the wires between the two blocks.
         # The wrapper's own checkers stay as the second opinion; the two must agree.
-        self.mon = create_wb4_monitor(self.dut, 'WB Mon', 'wb', self.clk,
-                                      addr_width=self.AW, data_width=self.DW, log=self.log)
+        self.mon = create_wb4_monitor(self.dut, 'WB Mon', 'wb', self.clk, addr_width=self.AW,
+                                      data_width=self.DW, classic=os.environ.get('CLASSIC', '0') == '1',
+                                      log=self.log)
 
     # ---- mandatory TB methods ---------------------------------------------
     async def setup_clocks_and_reset(self):

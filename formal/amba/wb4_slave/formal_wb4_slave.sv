@@ -9,7 +9,8 @@
 module formal_wb4_slave #(
     parameter int AW = 8,
     parameter int DW = 16,
-    parameter int MAX_OUTSTANDING = 3
+    parameter int MAX_OUTSTANDING = 3,
+    parameter int CLASSIC = 0
 ) (
     input logic clk,
     input logic rst_n,
@@ -32,7 +33,7 @@ module formal_wb4_slave #(
     logic [DW/8-1:0] cmd_sel;
 
     wb4_slave #(.ADDR_WIDTH(AW), .DATA_WIDTH(DW), .CMD_DEPTH(2), .RSP_DEPTH(2),
-                .MAX_OUTSTANDING(MAX_OUTSTANDING)) dut (
+                .MAX_OUTSTANDING(MAX_OUTSTANDING), .CLASSIC(CLASSIC)) dut (
         .clk(clk), .aresetn(rst_n),
         .s_wb_CYC(s_wb_CYC), .s_wb_STB(s_wb_STB), .s_wb_WE(s_wb_WE),
         .s_wb_ADR(s_wb_ADR), .s_wb_DAT_W(s_wb_DAT_W), .s_wb_SEL(s_wb_SEL),
@@ -49,12 +50,22 @@ module formal_wb4_slave #(
     initial assume (!rst_n);
     always @(posedge clk) if (f_past_valid >= 2) assume (rst_n);
 
-    // ---- Master model: STB implies CYC; a stalled request is held ----
+    // ---- Master model: STB implies CYC; a stalled request is held.
+    // Classic: the request is held on STB until the termination.
+    logic w_term_o;
+    assign w_term_o = s_wb_ACK || s_wb_ERR || s_wb_RTY;
     always @(*) assume (!s_wb_STB || s_wb_CYC);
     always @(posedge clk) if (f_past_valid > 0 && rst_n && $past(rst_n)) begin
-        if ($past(s_wb_CYC && s_wb_STB && s_wb_STALL)) begin
-            assume (s_wb_CYC && s_wb_STB);
-            assume ($stable(s_wb_WE) && $stable(s_wb_ADR) && $stable(s_wb_DAT_W) && $stable(s_wb_SEL));
+        if (CLASSIC == 0) begin
+            if ($past(s_wb_CYC && s_wb_STB && s_wb_STALL)) begin
+                assume (s_wb_CYC && s_wb_STB);
+                assume ($stable(s_wb_WE) && $stable(s_wb_ADR) && $stable(s_wb_DAT_W) && $stable(s_wb_SEL));
+            end
+        end else begin
+            if ($past(s_wb_CYC && s_wb_STB) && !$past(w_term_o)) begin
+                assume (s_wb_CYC && s_wb_STB);
+                assume ($stable(s_wb_WE) && $stable(s_wb_ADR) && $stable(s_wb_DAT_W) && $stable(s_wb_SEL));
+            end
         end
     end
     // FUB: a response, once offered, is held until taken.
@@ -67,11 +78,23 @@ module formal_wb4_slave #(
 
     // ---- Port-level properties ----
     logic w_accept;
-    assign w_accept = s_wb_CYC && s_wb_STB && !s_wb_STALL;
     reg [7:0] f_open;   // the master's view of accepted-not-terminated
+    generate if (CLASSIC != 0) begin : g_cm
+        // Classic: a presentation opens one request; it stays open until terminated.
+        assign w_accept = s_wb_CYC && s_wb_STB && (f_open == 0);
+    end else begin : g_pm
+        assign w_accept = s_wb_CYC && s_wb_STB && !s_wb_STALL;
+    end endgenerate
     always @(posedge clk) begin
         if (!rst_n || !s_wb_CYC) f_open <= 0;
-        else f_open <= f_open + w_accept - (s_wb_ACK || s_wb_ERR || s_wb_RTY);
+        else f_open <= f_open + w_accept - w_term_o;
+    end
+    // Responses still owed for transfers the master abandoned (harness view).
+    reg [7:0] f_abandoned;
+    always @(posedge clk) begin
+        if (!rst_n) f_abandoned <= 0;
+        else if (!s_wb_CYC) f_abandoned <= f_abandoned + f_open - ((rsp_valid && rsp_ready && f_abandoned != 0) ? 1 : 0);
+        else f_abandoned <= f_abandoned - ((rsp_valid && rsp_ready && f_abandoned != 0) ? 1 : 0);
     end
     always @(posedge clk) if (f_past_valid > 0 && rst_n && $past(rst_n)) begin
         // Command side honours valid/ready: sticky valid, stable payload.
@@ -84,6 +107,11 @@ module formal_wb4_slave #(
         ap_no_overterm: assert (!(s_wb_ACK || s_wb_ERR || s_wb_RTY) || $past(f_open) != 0 || $past(w_accept));
         // Reset leaves the bus quiet.
         if ($past(!rst_n)) ap_quiet: assert (!s_wb_ACK && !s_wb_ERR && !s_wb_RTY);
+        // Classic: the held request is terminated exactly once, STALL never rises.
+        if (CLASSIC != 0) begin
+            ap_classic_stall: assert (!s_wb_STALL);
+            ap_classic_once: assert (!w_term_o || $past(f_open) == 1 || $past(w_accept));
+        end
     end
 
     // ---- Covers ----
@@ -91,8 +119,18 @@ module formal_wb4_slave #(
         cp_ack:       cover (s_wb_ACK);
         cp_err:       cover (s_wb_ERR);
         cp_rty:       cover (s_wb_RTY);
-        cp_stall_full: cover (s_wb_STALL && s_wb_STB);
         cp_abort:     cover (f_past_valid > 3 && $past(s_wb_CYC) && !s_wb_CYC && $past(f_open) != 0);
-        cp_backtoback: cover ($past(w_accept) && w_accept);
+        // A response owed to an aborted transfer is taken off rsp_* while a
+        // NEW cycle already has a request open (port-level: no hierarchical
+        // reference into the DUT, which yosys would not resolve).
+        if (CLASSIC == 0)   // the classic master model holds its request until terminated, so it never aborts mid-request
+            cp_abandoned_late: cover (f_abandoned != 0 && rsp_valid && rsp_ready && f_open != 0 && s_wb_CYC);
+        if (CLASSIC == 0) begin
+            cp_stall_full: cover (s_wb_STALL && s_wb_STB);
+            cp_backtoback: cover ($past(w_accept) && w_accept);
+        end else begin
+            cp_classic_b2b:  cover ($past(w_term_o) && w_accept);
+            cp_classic_wait: cover (f_past_valid > 4 && s_wb_STB && $past(s_wb_STB) && $past(s_wb_STB, 2) && !$past(w_term_o) && !$past(w_term_o, 2));
+        end
     end
 endmodule

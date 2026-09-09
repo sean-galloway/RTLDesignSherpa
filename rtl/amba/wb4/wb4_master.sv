@@ -5,9 +5,9 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: wb4_master
-// Purpose: Wishbone B4 pipelined master behind a valid/ready command queue
-//          and a valid/ready response queue (the same FUB-side contract as
-//          apb4_master).
+// Purpose: Wishbone B4 master (pipelined, or classic with CLASSIC=1) behind
+//          a valid/ready command queue and a valid/ready response queue (the
+//          same FUB-side contract as apb4_master).
 //
 // Documentation: docs/markdown/rtl-amba/wb4/wb4_master.md
 // Subsystem: amba
@@ -41,7 +41,15 @@
 //   SEL_WIDTH:   byte-select width, DATA_WIDTH/8 (derived)
 //   CMD_DEPTH:   command queue depth in ENTRIES, 2..8 (gaxi_skid_buffer)
 //   RSP_DEPTH:   response queue depth in ENTRIES, 2..8; also the maximum
-//                number of transfers in flight on the bus
+//                number of transfers in flight on the bus (pipelined mode)
+//   CLASSIC:     0 = B4 pipelined (default). 1 = B4 standard ("classic")
+//                mode for classic slaves, which have no STALL: the request
+//                is held on STB/CYC until the slave terminates it, one
+//                transfer at a time, and the STALL input is ignored. A
+//                classic master must not be wired to a PIPELINED slave --
+//                the slave would accept the held STB again every clock --
+//                and a pipelined master must not be wired to a classic
+//                slave; match the mode to the peer (B4 chapter 5).
 //
 //------------------------------------------------------------------------------
 // Ports:
@@ -70,6 +78,8 @@
 //   rsp pop  = rsp_valid && rsp_ready  -> r_reserved--
 //   r_reserved counts transfers issued and not yet CONSUMED downstream
 //   (in flight + queued), so it is the only gate a termination needs.
+//   CLASSIC=1: accept = term (the request retires with its termination, so
+//   nothing is ever in flight between clocks), CYC = STB, STALL ignored.
 //
 //------------------------------------------------------------------------------
 // Related Modules:
@@ -95,6 +105,7 @@ module wb4_master
     parameter int DATA_WIDTH = 32,
     parameter int CMD_DEPTH  = 4,
     parameter int RSP_DEPTH  = 4,
+    parameter int CLASSIC    = 0,
     parameter int SEL_WIDTH  = DATA_WIDTH / 8,
     // Short Parameters
     parameter int AW  = ADDR_WIDTH,
@@ -218,9 +229,26 @@ module wb4_master
     // about: the reservation is taken at issue, not read back from the skid.
     assign w_issue   = r_cmd_valid && (32'(r_reserved) < RSP_DEPTH);
     assign m_wb_STB  = w_issue;
-    assign m_wb_CYC  = w_issue || (r_inflight != '0);
-    assign w_cmd_pop = m_wb_STB && !m_wb_STALL;
     assign w_term    = m_wb_CYC && (m_wb_ACK || m_wb_ERR || m_wb_RTY);
+
+    generate
+        if (CLASSIC != 0) begin : g_classic
+            // B4 standard mode: no STALL exists on the peer. The request stays
+            // on STB/CYC until the slave terminates it, so the command retires
+            // WITH its termination and r_inflight is always zero between
+            // clocks -- r_reserved then counts only queued responses, and the
+            // credit gate still guarantees the push at termination has room.
+            assign w_cmd_pop = m_wb_STB && w_term;
+            assign m_wb_CYC  = m_wb_STB;
+            /* verilator lint_off UNUSEDSIGNAL */
+            logic w_stall_unused;
+            assign w_stall_unused = m_wb_STALL;
+            /* verilator lint_on UNUSEDSIGNAL */
+        end else begin : g_pipelined
+            assign w_cmd_pop = m_wb_STB && !m_wb_STALL;
+            assign m_wb_CYC  = w_issue || (r_inflight != '0);
+        end
+    endgenerate
     assign w_rsp_push = w_term;
     assign w_rsp_pop  = rsp_valid && rsp_ready;
 
@@ -267,11 +295,20 @@ module wb4_master
         assert (!(r_inflight != '0) || m_wb_CYC);
         // STB implies CYC (B4 rule 3.25).
         assert (!m_wb_STB || m_wb_CYC);
-        // A stalled STB holds its request stable (B4 rule 3.60-ish for
-        // pipelined: the master may not change ADR/DAT/SEL/WE while stalled).
-        if ($past(m_wb_STB) && $past(m_wb_STALL) && $past(m_wb_CYC)) begin
-            assert (m_wb_STB);
-            assert ($stable(m_wb_ADR) && $stable(m_wb_DAT_W) && $stable(m_wb_SEL) && $stable(m_wb_WE));
+        // The request is held stable until accepted: while STALLed in
+        // pipelined mode, until terminated in classic mode.
+        if (CLASSIC == 0) begin
+            if ($past(m_wb_STB) && $past(m_wb_STALL) && $past(m_wb_CYC)) begin
+                assert (m_wb_STB);
+                assert ($stable(m_wb_ADR) && $stable(m_wb_DAT_W) && $stable(m_wb_SEL) && $stable(m_wb_WE));
+            end
+        end else begin
+            if ($past(m_wb_STB) && !$past(w_term)) begin
+                assert (m_wb_STB);
+                assert ($stable(m_wb_ADR) && $stable(m_wb_DAT_W) && $stable(m_wb_SEL) && $stable(m_wb_WE));
+            end
+            // One transfer at a time: nothing is ever in flight between clocks.
+            assert (r_inflight == 0);
         end
         // The credit invariant: never more reserved than the response skid holds.
         assert (32'(r_reserved) <= RSP_DEPTH);

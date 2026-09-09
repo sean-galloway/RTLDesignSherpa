@@ -25,6 +25,7 @@ module wb4_master_slave_loop
     parameter int S_CMD_DEPTH     = 2,
     parameter int S_RSP_DEPTH     = 2,
     parameter int MAX_OUTSTANDING = 16,
+    parameter int CLASSIC         = 0,     // both sides: cross-mode pairs are not legal
     parameter int AW  = ADDR_WIDTH,
     parameter int DW  = DATA_WIDTH,
     parameter int SW  = DATA_WIDTH / 8,
@@ -73,7 +74,7 @@ module wb4_master_slave_loop
 
     wb4_master #(
         .ADDR_WIDTH (AW), .DATA_WIDTH (DW),
-        .CMD_DEPTH  (M_CMD_DEPTH), .RSP_DEPTH (M_RSP_DEPTH)
+        .CMD_DEPTH  (M_CMD_DEPTH), .RSP_DEPTH (M_RSP_DEPTH), .CLASSIC (CLASSIC)
     ) u_master (
         .clk        (clk),         .aresetn    (aresetn),
         .m_wb_CYC   (wb_CYC),      .m_wb_STB   (wb_STB),
@@ -92,7 +93,7 @@ module wb4_master_slave_loop
     wb4_slave #(
         .ADDR_WIDTH (AW), .DATA_WIDTH (DW),
         .CMD_DEPTH  (S_CMD_DEPTH), .RSP_DEPTH (S_RSP_DEPTH),
-        .MAX_OUTSTANDING (MAX_OUTSTANDING)
+        .MAX_OUTSTANDING (MAX_OUTSTANDING), .CLASSIC (CLASSIC)
     ) u_slave (
         .clk        (clk),         .aresetn    (aresetn),
         .s_wb_CYC   (wb_CYC),      .s_wb_STB   (wb_STB),
@@ -113,7 +114,7 @@ module wb4_master_slave_loop
     // These are what a Wishbone BFM monitor would check; until one exists in
     // the framework they live here, in test collateral, not in the blocks.
     // ------------------------------------------------------------------------
-    logic           r_stb_q, r_stall_q, r_cyc_q, r_we_q;
+    logic           r_stb_q, r_stall_q, r_cyc_q, r_we_q, r_term_q;
     logic [AW-1:0]  r_adr_q;
     logic [DW-1:0]  r_dat_q;
     logic [SW-1:0]  r_sel_q;
@@ -123,13 +124,15 @@ module wb4_master_slave_loop
 
     `ALWAYS_FF_RST(clk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_stb_q <= 1'b0; r_stall_q <= 1'b0; r_cyc_q <= 1'b0; r_we_q <= 1'b0;
+            r_stb_q <= 1'b0; r_stall_q <= 1'b0; r_cyc_q <= 1'b0; r_we_q <= 1'b0; r_term_q <= 1'b0;
             r_adr_q <= '0; r_dat_q <= '0; r_sel_q <= '0;
             accepted <= 0; terminated <= 0; violations <= 0; max_inflight <= 0;
         end else begin
             r_stb_q <= wb_STB; r_stall_q <= wb_STALL; r_cyc_q <= wb_CYC; r_we_q <= wb_WE;
+            r_term_q <= wb_ACK || wb_ERR || wb_RTY;
             r_adr_q <= wb_ADR; r_dat_q <= wb_DAT_W; r_sel_q <= wb_SEL;
-            if (wb_CYC && wb_STB && !wb_STALL) accepted <= accepted + 1;
+            if (wb_CYC && wb_STB && ((CLASSIC == 0) ? !wb_STALL : (accepted == terminated)))
+                accepted <= accepted + 1;
             if (wb_ACK || wb_ERR || wb_RTY)    terminated <= terminated + 1;
             if (accepted - terminated > max_inflight) max_inflight <= accepted - terminated;
 
@@ -138,8 +141,9 @@ module wb4_master_slave_loop
                 violations <= violations + 1;
                 $error("%m WB: STB asserted without CYC");
             end
-            // A stalled request must be held, unchanged, until accepted
-            if (r_stb_q && r_stall_q && r_cyc_q) begin
+            // A pending request must be held, unchanged: while stalled
+            // (pipelined) or until terminated (classic).
+            if (r_stb_q && r_cyc_q && ((CLASSIC == 0) ? r_stall_q : !r_term_q)) begin
                 if (!wb_STB || wb_WE != r_we_q || wb_ADR != r_adr_q ||
                     wb_SEL != r_sel_q || (wb_WE && wb_DAT_W != r_dat_q)) begin
                     violations <= violations + 1;
@@ -157,7 +161,7 @@ module wb4_master_slave_loop
             end
             // Never more terminations than accepted requests
             if (terminated + int'(wb_ACK || wb_ERR || wb_RTY) >
-                accepted + int'(wb_CYC && wb_STB && !wb_STALL)) begin
+                accepted + int'(wb_CYC && wb_STB && ((CLASSIC == 0) ? !wb_STALL : (accepted == terminated)))) begin
                 violations <= violations + 1;
                 $error("%m WB: termination without an accepted request");
             end

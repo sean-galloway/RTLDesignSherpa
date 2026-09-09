@@ -82,31 +82,35 @@ async def wb4_master_slave_loop_test(dut):
     passed = tb.report()
     assert passed, f"{len(tb.errors)} error(s); first: {tb.errors[0] if tb.errors else ''}"
     # Non-vacuity: the back-to-back phase must have had more than one transfer
-    # in flight, or the pipelined mode was never exercised.
-    assert peak > 1, f"max_inflight={peak}: the bus never pipelined"
+    # in flight, or the pipelined mode was never exercised (classic: exactly one).
+    if os.environ.get('CLASSIC', '0') == '1':
+        assert peak == 1, f"max_inflight={peak}: classic mode holds one request at a time"
+    else:
+        assert peak > 1, f"max_inflight={peak}: the bus never pipelined"
     assert tb.stats['ack'] and tb.stats['err'] and tb.stats['rty'], \
         f"not every status exercised: {tb.stats}"
 
 
 def generate_test_params():
-    """(addr_width, data_width, m_depth, s_depth, max_outstanding, test_level)"""
+    """(addr_width, data_width, m_depth, s_depth, max_outstanding, classic, test_level)"""
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
     if reg_level == 'GATE':
-        return [(32, 32, 4, 2, 16, 'gate')]
+        return [(32, 32, 4, 2, 16, 0, 'gate'), (32, 32, 4, 2, 16, 1, 'gate')]
     if reg_level == 'FUNC':
-        return [(32, 32, 4, 2, 16, 'func'),
-                (32, 64, 2, 2, 4, 'func'),
-                (32, 32, 8, 4, 8, 'func')]
-    return list(product([32], [32, 64], [2, 4, 8], [2, 4], [2, 16], ['full']))
+        return [(32, 32, 4, 2, 16, 0, 'func'),
+                (32, 64, 2, 2, 4, 0, 'func'),
+                (32, 32, 8, 4, 8, 0, 'func'),
+                (32, 32, 4, 2, 16, 1, 'func')]
+    return list(product([32], [32, 64], [2, 4, 8], [2, 4], [2, 16], [0, 1], ['full']))
 
 
 params = generate_test_params()
 
 
-@pytest.mark.parametrize("addr_width, data_width, m_depth, s_depth, max_outstanding, test_level",
+@pytest.mark.parametrize("addr_width, data_width, m_depth, s_depth, max_outstanding, classic, test_level",
                          params)
 def test_wb4_master_slave_loop(request, addr_width, data_width, m_depth, s_depth,
-                               max_outstanding, test_level):
+                               max_outstanding, classic, test_level):
     """wb4_master + wb4_slave back to back (rtl/amba/testcode/wb4_master_slave_loop.sv)."""
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -119,7 +123,7 @@ def test_wb4_master_slave_loop(request, addr_width, data_width, m_depth, s_depth
         filelist_path="rtl/amba/filelists/wb4_master_slave_loop.f")
 
     tag = (f"aw{TBBase.format_dec(addr_width, 3)}_dw{TBBase.format_dec(data_width, 3)}"
-           f"_md{m_depth}_sd{s_depth}_mo{max_outstanding}_{test_level}")
+           f"_md{m_depth}_sd{s_depth}_mo{max_outstanding}_{'classic' if classic else 'pipe'}_{test_level}")
     test_name_plus_params = f"test_{worker_id}_{dut_name}_{tag}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = sim_build_path(tests_dir, test_name_plus_params)
@@ -131,7 +135,7 @@ def test_wb4_master_slave_loop(request, addr_width, data_width, m_depth, s_depth
         'ADDR_WIDTH': str(addr_width), 'DATA_WIDTH': str(data_width),
         'M_CMD_DEPTH': str(m_depth), 'M_RSP_DEPTH': str(m_depth),
         'S_CMD_DEPTH': str(s_depth), 'S_RSP_DEPTH': str(s_depth),
-        'MAX_OUTSTANDING': str(max_outstanding),
+        'MAX_OUTSTANDING': str(max_outstanding), 'CLASSIC': str(classic),
     }
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     extra_env = {
@@ -145,6 +149,7 @@ def test_wb4_master_slave_loop(request, addr_width, data_width, m_depth, s_depth
         'TEST_LEVEL': test_level,
         'ADDR_WIDTH': str(addr_width),
         'DATA_WIDTH': str(data_width),
+        'CLASSIC': str(classic),
     }
     compile_args = [
         "--trace-fst" if enable_waves else "",

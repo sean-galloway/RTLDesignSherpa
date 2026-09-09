@@ -50,10 +50,18 @@ AMBA 4 APB.
 | `STALL` | receives | drives (combinational from state, never from `STB`) |
 | `ACK`, `ERR`, `RTY`, `DAT_R` (DAT_I) | receives | drives (registered) |
 
-- **Pipelined mode only.** A new `STB` every clock while `STALL` is low, and
-  in-order termination. Classic (one-outstanding) masters and slaves
-  interoperate with these blocks by construction: a classic slave simply
-  never accepts more than one, and a classic master never issues more.
+- **Pipelined by default, classic by parameter.** With `CLASSIC=0` a new
+  `STB` every clock while `STALL` is low, and in-order termination. With
+  `CLASSIC=1` the blocks speak B4 standard ("classic") mode: the master holds
+  the request on `STB`/`CYC` until the termination and ignores `STALL`; the
+  slave never drives `STALL`, accepts a presentation once, and refuses an
+  accept in the clock its termination is on the wire (the held `STB` is
+  still there, and would otherwise be taken twice).
+- **Match the mode to the peer.** The two modes do not mix, in either
+  direction: a pipelined master drops `STB` after one clock, which a classic
+  slave never accepts, and a classic master's held `STB` is accepted again
+  every clock by a pipelined slave (B4 chapter 5). Both tests and both
+  formal harnesses run each mode against a peer of the same mode.
 - **RTY is a status, not a retry.** Every termination is returned to the FUB
   as `rsp_status` = ACK (0), ERR (1) or RTY (2). The master does not re-issue
   on RTY; the FUB decides. The encoding is `wb4_pkg`.

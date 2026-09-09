@@ -1,20 +1,30 @@
 [tasks]
 prove
 cover
+prove_classic
+cover_classic
 
 [options]
 prove: mode bmc
 prove: depth 20
 cover: mode cover
 cover: depth 24
+prove_classic: mode bmc
+prove_classic: depth 20
+cover_classic: mode cover
+cover_classic: depth 24
 
 [engines]
 prove: smtbmc z3
 cover: smtbmc z3
+prove_classic: smtbmc z3
+cover_classic: smtbmc z3
 
 [script]
 read_verilog -formal wb4_master_flat.v
 read -formal -sv formal_wb4_master.sv
+prove_classic: chparam -set CLASSIC 1 formal_wb4_master
+cover_classic: chparam -set CLASSIC 1 formal_wb4_master
 hierarchy -top formal_wb4_master
 proc
 flatten

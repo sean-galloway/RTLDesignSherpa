@@ -57,6 +57,7 @@ class WB4SlaveTB(TBBase):
         self.DW = self.convert_to_int(os.environ.get('DATA_WIDTH', '32'))
         self.SW = self.DW // 8
         self.max_outstanding = self.convert_to_int(os.environ.get('MAX_OUTSTANDING', '16'))
+        self.classic = os.environ.get('CLASSIC', '0') == '1'   # DUT built CLASSIC=1
         self.mem = {}
         self.issued = deque()        # requests the master BFM was given, in order
         self.expected = deque()      # (status, dat_r) decided by the responder, in order
@@ -90,12 +91,14 @@ class WB4SlaveTB(TBBase):
             memory_model=None, log=self.log, multi_sig=True)
         self.cmd.add_callback(self._on_cmd)
 
+        # Same mode as the DUT (B4 chapter 5): a pipelined master would drop
+        # STB after one clock, which a classic slave never accepts.
         self.master = create_wb4_master(dut, 'WB Master', 's_wb', self.clk, addr_width=self.AW,
-                                        data_width=self.DW, max_outstanding=8,
+                                        data_width=self.DW, max_outstanding=8, classic=self.classic,
                                         randomizer=FlexRandomizer(MASTER_PROFILES['fixed']), log=self.log)
         self.master.add_callback(self._on_complete)
-        self.mon = create_wb4_monitor(dut, 'WB Mon', 's_wb', self.clk,
-                                      addr_width=self.AW, data_width=self.DW, log=self.log)
+        self.mon = create_wb4_monitor(dut, 'WB Mon', 's_wb', self.clk, addr_width=self.AW,
+                                      data_width=self.DW, classic=self.classic, log=self.log)
 
     # ---- mandatory ------------------------------------------------------
     async def setup_clocks_and_reset(self):

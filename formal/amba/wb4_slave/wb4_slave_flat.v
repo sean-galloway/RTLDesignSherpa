@@ -122,6 +122,7 @@ module wb4_slave (
 	parameter signed [31:0] CMD_DEPTH = 2;
 	parameter signed [31:0] RSP_DEPTH = 2;
 	parameter signed [31:0] MAX_OUTSTANDING = 16;
+	parameter signed [31:0] CLASSIC = 0;
 	parameter signed [31:0] SEL_WIDTH = DATA_WIDTH / 8;
 	parameter signed [31:0] AW = ADDR_WIDTH;
 	parameter signed [31:0] DW = DATA_WIDTH;
@@ -154,7 +155,11 @@ module wb4_slave (
 	input wire [STW - 1:0] rsp_status;
 	input wire [DW - 1:0] rsp_dat;
 	localparam signed [31:0] OW = $clog2(MAX_OUTSTANDING + 1);
+	localparam signed [31:0] ABW = OW + 1;
+	localparam signed [31:0] AB_MAX = (1 << ABW) - 1;
 	reg [OW - 1:0] r_outstanding;
+	reg [ABW - 1:0] r_abandoned;
+	wire w_drop_abandoned;
 	wire w_accept;
 	wire w_term;
 	wire w_orphan;
@@ -167,8 +172,16 @@ module wb4_slave (
 		input reg [31:0] inp;
 		sv2v_cast_32 = inp;
 	endfunction
-	assign s_wb_STALL = !w_cmd_room || (sv2v_cast_32(r_outstanding) >= MAX_OUTSTANDING);
-	assign w_accept = (s_wb_CYC && s_wb_STB) && !s_wb_STALL;
+	generate
+		if (CLASSIC != 0) begin : g_classic
+			assign s_wb_STALL = 1'b0;
+			assign w_accept = (((s_wb_CYC && s_wb_STB) && w_cmd_room) && (r_outstanding == {OW {1'sb0}})) && !((s_wb_ACK || s_wb_ERR) || s_wb_RTY);
+		end
+		else begin : g_pipelined
+			assign s_wb_STALL = !w_cmd_room || (sv2v_cast_32(r_outstanding) >= MAX_OUTSTANDING);
+			assign w_accept = (s_wb_CYC && s_wb_STB) && !s_wb_STALL;
+		end
+	endgenerate
 	gaxi_skid_buffer #(
 		.DATA_WIDTH(CPW),
 		.DEPTH(CMD_DEPTH)
@@ -207,12 +220,21 @@ module wb4_slave (
 		.count(),
 		.rd_count()
 	);
-	assign w_term = (r_rsp_valid && (r_outstanding != {OW {1'sb0}})) && s_wb_CYC;
-	assign w_orphan = r_rsp_valid && (r_outstanding == {OW {1'sb0}});
+	assign w_drop_abandoned = r_rsp_valid && (r_abandoned != {ABW {1'sb0}});
+	assign w_term = ((r_rsp_valid && (r_outstanding != {OW {1'sb0}})) && s_wb_CYC) && (r_abandoned == {ABW {1'sb0}});
+	assign w_orphan = r_rsp_valid && ((r_outstanding == {OW {1'sb0}}) || w_drop_abandoned);
 	assign w_rsp_pop = w_term || w_orphan;
 	function automatic [1:0] sv2v_cast_1AA03;
 		input reg [1:0] inp;
 		sv2v_cast_1AA03 = inp;
+	endfunction
+	function automatic signed [ABW - 1:0] sv2v_cast_5B7D2_signed;
+		input reg signed [ABW - 1:0] inp;
+		sv2v_cast_5B7D2_signed = inp;
+	endfunction
+	function automatic [ABW - 1:0] sv2v_cast_5B7D2;
+		input reg [ABW - 1:0] inp;
+		sv2v_cast_5B7D2 = inp;
 	endfunction
 	function automatic [OW - 1:0] sv2v_cast_0975F;
 		input reg [OW - 1:0] inp;
@@ -221,6 +243,7 @@ module wb4_slave (
 	always @(posedge clk or negedge aresetn)
 		if (!aresetn) begin
 			r_outstanding <= 1'sb0;
+			r_abandoned <= 1'sb0;
 			s_wb_ACK <= 1'b0;
 			s_wb_ERR <= 1'b0;
 			s_wb_RTY <= 1'b0;
@@ -232,10 +255,17 @@ module wb4_slave (
 			s_wb_RTY <= w_term && (r_rsp_status == sv2v_cast_1AA03(2'b10));
 			if (w_term)
 				s_wb_DAT_R <= r_rsp_dat;
-			if (!s_wb_CYC)
+			if (!s_wb_CYC) begin
 				r_outstanding <= 1'sb0;
-			else
+				if (((sv2v_cast_32(r_abandoned) + sv2v_cast_32(r_outstanding)) - sv2v_cast_32(w_drop_abandoned)) > AB_MAX)
+					r_abandoned <= sv2v_cast_5B7D2_signed(AB_MAX);
+				else
+					r_abandoned <= (r_abandoned + sv2v_cast_5B7D2(r_outstanding)) - sv2v_cast_5B7D2(w_drop_abandoned);
+			end
+			else begin
 				r_outstanding <= (r_outstanding + sv2v_cast_0975F(w_accept)) - sv2v_cast_0975F(w_term);
+				r_abandoned <= r_abandoned - sv2v_cast_5B7D2(w_drop_abandoned);
+			end
 		end
 	reg f_past_valid;
 	initial f_past_valid = 1'b0;
@@ -247,5 +277,12 @@ module wb4_slave (
 				assert ($past(s_wb_CYC) && ($past(r_outstanding) != 0)) ;
 			assert (sv2v_cast_32(r_outstanding) <= MAX_OUTSTANDING) ;
 			assert (!w_accept || w_cmd_room) ;
+			assert (!w_term || (r_abandoned == 0)) ;
+			if ($past(!s_wb_CYC) && ($past(r_outstanding) != 0))
+				assert (r_abandoned != 0) ;
+			if (CLASSIC != 0) begin
+				assert (r_outstanding <= 1) ;
+				assert (!s_wb_STALL) ;
+			end
 		end
 endmodule
