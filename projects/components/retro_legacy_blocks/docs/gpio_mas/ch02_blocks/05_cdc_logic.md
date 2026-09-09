@@ -66,12 +66,26 @@ configuration.
 
 ### The `irq` Output
 
-`irq` is generated in the gpio_clk domain (`gpio_config_regs.sv`) and is
-driven out WITHOUT a synchronizer. When CDC_ENABLE=1 it is a gpio_clk-domain
-output: the integrator must synchronize it into the interrupt controller's
-clock domain (it is level-style and safe to double-flop). This is tracked as
-RTL issue #44; until the RTL synchronizes it internally, treat `irq` as
-asynchronous to pclk.
+`irq` is generated in the core clock domain (`gpio_config_regs.sv`), which
+is gpio_clk when CDC_ENABLE=1. `apb4_gpio.sv` (`gen_irq_sync`) then passes it
+through a 2-flop synchronizer (`glitch_free_n_dff_arn`, FLOP_COUNT=2) clocked
+by pclk, so the output pin is safe to consume in the pclk domain with no
+external synchronizer. It is a level, so a plain synchronizer is the right
+primitive; there is no handshake and no pulse stretching. The cost is two
+pclk cycles of latency. When CDC_ENABLE=0 the synchronizer is bypassed
+(`gen_irq_direct`) and `irq` keeps the zero-latency behaviour of the
+single-clock configuration.
+
+One contract comes with that choice. For an edge-mode pin the sticky status
+bit holds `irq` asserted until software clears it, so the synchronizer
+always sees it. For a level-mode pin `irq` is only as wide as the input
+level itself, and a level that de-asserts within about two pclk periods
+(plus the input synchronizer depth) can pass between the synchronizer's
+samples and never reach the pin. The event is not lost -- GPIO_INT_STATUS
+still latches it and polling sees it -- but no interrupt fires. Hold
+level-mode inputs for at least two pclk periods when CDC_ENABLE=1, or use
+edge mode for short pulses. With CDC_ENABLE=0 every core-clock assertion is
+visible, so the constraint only exists in the asynchronous configuration.
 
 ### Coherency
 
@@ -94,7 +108,7 @@ Both resets must be asserted at power-on:
 |------|---------|
 | APB write to gpio_clk-domain register | APB access + apb4_slave_cdc handshake (a few cycles of each clock) |
 | APB read of gpio_clk-domain state | Same crossing, in both directions |
-| Interrupt detection to IRQ | gpio_clk-domain only - `irq` is NOT synchronized to pclk (see above) |
+| Interrupt detection to IRQ | gpio_clk-domain detection (Chapter 3.3) + 2 pclk cycles through the irq synchronizer |
 
 : Table 2.8: CDC Latency
 

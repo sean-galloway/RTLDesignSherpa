@@ -36,7 +36,8 @@
 Used for:
 - APB protocol timing
 - Register file access
-- IRQ generation (single-clock mode)
+- `irq` output (generated on pclk when CDC_ENABLE=0; synchronized into pclk
+  when CDC_ENABLE=1)
 
 ### gpio_clk - GPIO Clock
 

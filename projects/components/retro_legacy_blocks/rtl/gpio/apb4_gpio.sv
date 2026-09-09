@@ -30,9 +30,25 @@
 //       .T     (~gpio_oe)        // Tristate control (active low for IOBUF)
 //   );
 //
+// Interrupt Clock Domain (issue #44):
+//   gpio_config_regs produces irq in the CORE clock domain, which is gpio_clk
+//   when CDC_ENABLE=1. That output is consumed by an interrupt controller in
+//   the pclk domain, so with CDC_ENABLE=1 it is passed through a 2-flop
+//   synchronizer into pclk. With CDC_ENABLE=0 the two domains are the same
+//   clock and the synchronizer is bypassed, so the zero-latency behaviour of
+//   the single-clock configuration is unchanged.
+//
+//   The observability contract that follows from that synchronizer -- see the
+//   comment at the instance below for the full statement -- is that EDGE-mode
+//   pins are always observed on irq, while LEVEL-mode pins require the input
+//   to be held long enough for the synchronizer to sample it.
+//
 // Documentation: projects/components/retro_legacy_blocks/rtl/gpio/README.md
 // Created: 2025-11-29
 // Updated: 2025-11-30 - Changed to 32-bit APB and s_apb_* naming
+// Updated: 2026-09-08 - issue #44: synchronize irq into pclk when CDC_ENABLE=1
+// Updated: 2026-09-08 - issue #44 review: state the irq observability contract
+//                       per interrupt mode, add the GPIO_WIDTH elaboration guard
 
 `timescale 1ns / 1ps
 
@@ -90,6 +106,18 @@ module apb4_gpio #(
     localparam int APB_STRB_WIDTH = APB_DATA_WIDTH / 8;
     localparam int APB_PROT_WIDTH = 3;
 
+    // ========================================================================
+    // Elaboration-time parameter validation
+    // ========================================================================
+    // Every GPIO register field is 32 bits wide, so a wider port would silently
+    // truncate; a zero/negative width has no legal slice.
+    initial begin : param_check
+        if (GPIO_WIDTH > APB_DATA_WIDTH || GPIO_WIDTH < 1) begin
+            $error("apb4_gpio: GPIO_WIDTH=%0d out of range [1,%0d]",
+                   GPIO_WIDTH, APB_DATA_WIDTH);
+        end
+    end
+
     // CMD/RSP interface (APB slave to peakrdl_to_cmdrsp)
     logic                       w_cmd_valid;
     logic                       w_cmd_ready;
@@ -121,14 +149,18 @@ module apb4_gpio #(
     logic w_core_clk;
     logic w_core_rstn;
 
-    assign w_core_clk  = CDC_ENABLE ? gpio_clk  : pclk;
-    assign w_core_rstn = CDC_ENABLE ? gpio_rstn : presetn;
+    // Aggregate interrupt, in the CORE clock domain (gpio_clk when
+    // CDC_ENABLE=1), before the synchronizer below.
+    logic w_irq_core;
+
+    assign w_core_clk  = (CDC_ENABLE != 0) ? gpio_clk  : pclk;
+    assign w_core_rstn = (CDC_ENABLE != 0) ? gpio_rstn : presetn;
 
     // ========================================================================
     // APB Slave - CMD/RSP Conversion
     // ========================================================================
     generate
-        if (CDC_ENABLE) begin : gen_cdc
+        if (CDC_ENABLE != 0) begin : gen_cdc
             apb4_slave_cdc #(
                 .ADDR_WIDTH (APB_ADDR_WIDTH),
                 .DATA_WIDTH (APB_DATA_WIDTH),
@@ -267,8 +299,48 @@ module apb4_gpio #(
         .gpio_out           (gpio_out),
         .gpio_oe            (gpio_oe),
 
-        // Interrupt
-        .irq                (irq)
+        // Interrupt (core clock domain)
+        .irq                (w_irq_core)
     );
+
+    // ========================================================================
+    // Interrupt Synchronization to pclk
+    // ========================================================================
+    // irq is a LEVEL, and a plain 2-flop synchronizer neither handshakes nor
+    // stretches: it samples. What that costs is per interrupt mode, and this is
+    // the contract, not an implementation note.
+    //
+    //   EDGE mode: the event is latched in GPIO_INT_STATUS (sticky, W1C), so
+    //   the core-domain irq stays asserted until software clears the bit. It is
+    //   always observed on the pclk-domain irq, whatever the pulse width was.
+    //
+    //   LEVEL mode: irq is exactly as wide as the SYNCHRONIZED input level, so
+    //   with CDC_ENABLE=1 an assertion must hold for at least 2 pclk periods
+    //   (this synchronizer) plus SYNC_STAGES gpio_clk periods (gpio_core's
+    //   input synchronizer) to be guaranteed visible on irq. A level shorter
+    //   than that may never be sampled here. Use EDGE mode for short pulses.
+    //
+    //   Either way software polling GPIO_INT_STATUS sees the event: the sticky
+    //   bit is set from the core-domain status path and is not gated by this
+    //   synchronizer.
+    //
+    // With CDC_ENABLE=0 there is no sampling loss at all -- the domains are the
+    // same clock and the synchronizer is bypassed.
+    generate
+        if (CDC_ENABLE != 0) begin : gen_irq_sync
+            glitch_free_n_dff_arn #(
+                .FLOP_COUNT (2),
+                .WIDTH      (1)
+            ) u_irq_sync (
+                .clk    (pclk),
+                .rst_n  (presetn),
+                .d      (w_irq_core),
+                .q      (irq)
+            );
+        end else begin : gen_irq_direct
+            // Same clock domain -- crossing would only add latency.
+            assign irq = w_irq_core;
+        end
+    endgenerate
 
 endmodule : apb4_gpio

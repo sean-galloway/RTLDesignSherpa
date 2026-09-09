@@ -82,13 +82,15 @@ Output data register. Values driven when pin configured as output.
 |------|------|--------|-------|-------------|
 | 31:0 | DATA | RW | 0 | Output values per pin |
 
-**Readback caveat:** reads return the last value software wrote to this
-register, not the live pin state. After any atomic operation
-(GPIO_OUTPUT_SET/CLR/TGL) the pins and this register diverge, and a
-read-modify-write of GPIO_OUTPUT then overwrites the atomic result. A second
-write of the value the register already holds is also dropped by the
-change-detection logic (see the atomic registers below). Track output state
-in software, or use only one style of output update.
+**Readback:** reads return the live output latch (`r_output_data` in
+`gpio_core.sv`), not merely the last value software wrote. After any atomic
+operation (GPIO_OUTPUT_SET/CLR/TGL) the core writes its latch back into this
+register one cycle later, so the register and the pins stay in agreement:
+write 0xFF here, then 0x0F to GPIO_OUTPUT_CLR, and a read returns 0xF0. A
+read-modify-write of GPIO_OUTPUT therefore mixes safely with the atomic
+registers. The write itself is strobe-driven, so writing the value the
+register already holds still lands, and a software write wins over a
+coincident hardware write-back.
 
 ---
 
@@ -169,10 +171,12 @@ Latched interrupt status register.
 - The `irq` output uses this register only for edge-mode pins. Level-mode
   pins drive `irq` from the live detector output, so W1C on a level pin does
   not deassert `irq` while the level persists (see Chapter 3.3).
-- A W1C write that lands in the same cycle as a new hardware event takes
-  priority over the event for the whole register: the coincident event is
-  lost (its set is discarded, and edge pulses are one cycle wide). Re-read
-  GPIO_RAW_INT after clearing if events may be arriving continuously.
+- A W1C write that lands in the same cycle as a new hardware event is merged
+  per bit, `next = (value | hw_set) & ~w1c_mask`: bits the write is not
+  clearing keep the coincident event (`gpio_config_regs.sv` holds the set in
+  a one-cycle deferred-set register and applies it once the write completes),
+  and a bit the write IS clearing is cleared, as in any W1C register. No
+  event is lost on a bit software did not ask to clear.
 
 ---
 
@@ -224,29 +228,35 @@ Atomic output toggle.
 
 ### Atomic-Register Write Semantics (SET/CLR/TGL)
 
-The RTL detects an atomic operation by VALUE CHANGE, not by the write strobe
-(`gpio_config_regs.sv`): the operation fires only when the written value
-differs from what the register already holds, and the registers are plain
-storage - they do not self-clear.
+Every write performs the operation, driven by the register's write strobe
+(`gpio_config_regs.sv`). The regblock exports `swmod` for each register; it
+is a level held for the whole command-bridge transaction and it leads the
+field storage by one cycle, so the wrapper takes its rising edge (one write,
+one event), delays it one flop to line up with the stored mask, and gates
+the mask with that one-cycle strobe to form the pulse gpio_core acts on:
 
-Consequences software must plan for:
+```
+assign w_set_wr_event = w_set_swmod & ~r_set_swmod_d;   // rising edge
+r_set_stb <= w_set_wr_event;                            // align to field
+assign w_output_set = r_set_stb ? GPIO_OUTPUT_SET.set_bits.value : '0;
+```
 
-- Writing the same mask twice in a row performs the operation ONCE. A toggle
-  loop writing `GPIO_OUTPUT_TGL = mask` each iteration toggles only on the
-  first pass.
-- Alternating SET and CLR of the same mask drops the second SET (the SET
-  register still holds the mask, so no change is detected).
+SystemRDL restricts `singlepulse` to 1-bit fields, which is why the 32-bit
+masks are pulsed this way rather than self-clearing.
 
-These registers are write-only by design (the RDL declares sw = w): reads
-at 0x028/0x02C/0x030 return 0, but the STORED value -- which the change
-detector compares against -- is not observable. A driver therefore cannot
-read back the held mask to predict whether its next write will be detected
-as a change; keep a software shadow copy per register.
+What software can rely on:
 
-**Workaround:** write 0 to the register between operations, or alternate the
-written value. This behavior deviates from conventional self-clearing
-set/clear/toggle registers and is tracked as an RTL issue (#44); until the
-RTL changes, the workaround is required.
+- Writing the same mask twice performs the operation twice. A toggle loop
+  writing `GPIO_OUTPUT_TGL = mask` each iteration toggles on every pass.
+- Alternating SET and CLR of the same mask performs every operation; nothing
+  needs to be written in between, and no software shadow of the mask is
+  needed.
+- The registers are write-only by design (the RDL declares sw = w): reads
+  at 0x028/0x02C/0x030 return 0. The result of an operation is observable
+  in GPIO_OUTPUT, which reads back the live latch.
+
+These are the conventional set/clear/toggle semantics (fixed 2026-09-08,
+issue #44).
 
 ### Address Calculation
 

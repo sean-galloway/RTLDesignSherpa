@@ -9,6 +9,15 @@ package gpio_regs_pkg;
 
     typedef struct {
         logic [31:0] next;
+        logic we;
+    } gpio_regs__GPIO_OUTPUT__output_data__in_t;
+
+    typedef struct {
+        gpio_regs__GPIO_OUTPUT__output_data__in_t output_data;
+    } gpio_regs__GPIO_OUTPUT__in_t;
+
+    typedef struct {
+        logic [31:0] next;
     } gpio_regs__GPIO_INPUT__input_data__in_t;
 
     typedef struct {
@@ -32,6 +41,7 @@ package gpio_regs_pkg;
     } gpio_regs__GPIO_RAW_INT__in_t;
 
     typedef struct {
+        gpio_regs__GPIO_OUTPUT__in_t GPIO_OUTPUT;
         gpio_regs__GPIO_INPUT__in_t GPIO_INPUT;
         gpio_regs__GPIO_INT_STATUS__in_t GPIO_INT_STATUS;
         gpio_regs__GPIO_RAW_INT__in_t GPIO_RAW_INT;
@@ -60,6 +70,7 @@ package gpio_regs_pkg;
 
     typedef struct {
         logic [31:0] value;
+        logic swmod;
     } gpio_regs__GPIO_OUTPUT__output_data__out_t;
 
     typedef struct {
@@ -100,6 +111,7 @@ package gpio_regs_pkg;
 
     typedef struct {
         logic [31:0] value;
+        logic swmod;
     } gpio_regs__GPIO_INT_STATUS__int_status__out_t;
 
     typedef struct {
@@ -108,6 +120,7 @@ package gpio_regs_pkg;
 
     typedef struct {
         logic [31:0] value;
+        logic swmod;
     } gpio_regs__GPIO_OUTPUT_SET__set_bits__out_t;
 
     typedef struct {
@@ -116,6 +129,7 @@ package gpio_regs_pkg;
 
     typedef struct {
         logic [31:0] value;
+        logic swmod;
     } gpio_regs__GPIO_OUTPUT_CLR__clear_bits__out_t;
 
     typedef struct {
@@ -124,6 +138,7 @@ package gpio_regs_pkg;
 
     typedef struct {
         logic [31:0] value;
+        logic swmod;
     } gpio_regs__GPIO_OUTPUT_TGL__toggle_bits__out_t;
 
     typedef struct {

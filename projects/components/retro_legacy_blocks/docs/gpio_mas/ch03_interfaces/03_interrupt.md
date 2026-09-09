@@ -35,17 +35,17 @@
 
 ```
 per-pin effective status:
-  level pin (TYPE=1): raw_detector[i] & GPIO_INT_ENABLE[i]   (live)
-  edge  pin (TYPE=0): GPIO_INT_STATUS[i]                     (sticky latch)
+  level pin (TYPE=1): raw_detector[i] & GPIO_INT_ENABLE[i]     (live)
+  edge  pin (TYPE=0): GPIO_INT_STATUS[i] & GPIO_INT_ENABLE[i]  (sticky latch)
 
 irq = GPIO_CONTROL[1] && (| effective_status)
 ```
 
 IRQ requires the global interrupt enable GPIO_CONTROL[1] (resets to 0). Level
 pins drive `irq` from the live detector output, bypassing GPIO_INT_STATUS;
-edge pins drive it from the latched status without re-applying the current
-per-pin enable, so clearing GPIO_INT_ENABLE does not mask an
-already-latched edge interrupt - only GPIO_CONTROL[1] does.
+edge pins drive it from the latched status re-gated by the current per-pin
+enable, so clearing GPIO_INT_ENABLE[i] masks an already-latched edge
+interrupt on that pin without disturbing its status bit.
 
 ### Per-Pin Configuration
 
@@ -137,6 +137,11 @@ flowchart LR
 Total: 2 clock cycles typical (level irq is combinational from the
 synchronizer output)
 
+Both totals are core-clock cycles. With CDC_ENABLE=1 the core clock is
+gpio_clk and `irq` then crosses a 2-flop synchronizer into pclk
+(`apb4_gpio.sv`, `gen_irq_sync`), adding two pclk cycles; with CDC_ENABLE=0
+there is no crossing and nothing is added.
+
 ## Design Notes
 
 ### Connection Guidelines
@@ -144,6 +149,8 @@ synchronizer output)
 - Connect to interrupt controller input
 - Active-high, level-sensitive recommended at controller
 - Single IRQ covers all 32 GPIO pins
+- Already in the pclk domain when CDC_ENABLE=1 (synchronized inside
+  `apb4_gpio`); no external synchronizer needed
 
 ---
 

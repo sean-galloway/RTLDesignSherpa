@@ -325,6 +325,9 @@ module gpio_regs (
         if(decoded_reg_strb.GPIO_OUTPUT && decoded_req_is_wr) begin // SW write
             next_c = (field_storage.GPIO_OUTPUT.output_data.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
             load_next_c = '1;
+        end else if(hwif_in.GPIO_OUTPUT.output_data.we) begin // HW Write - we
+            next_c = hwif_in.GPIO_OUTPUT.output_data.next;
+            load_next_c = '1;
         end
         field_combo.GPIO_OUTPUT.output_data.next = next_c;
         field_combo.GPIO_OUTPUT.output_data.load_next = load_next_c;
@@ -339,6 +342,7 @@ module gpio_regs (
         end
     end
     assign hwif_out.GPIO_OUTPUT.output_data.value = field_storage.GPIO_OUTPUT.output_data.value;
+    assign hwif_out.GPIO_OUTPUT.output_data.swmod = decoded_reg_strb.GPIO_OUTPUT && decoded_req_is_wr && |(decoded_wr_biten[31:0]);
     // Field: gpio_regs.GPIO_INT_ENABLE.int_enable
     always_comb begin
         automatic logic [31:0] next_c;
@@ -457,6 +461,7 @@ module gpio_regs (
         end
     end
     assign hwif_out.GPIO_INT_STATUS.int_status.value = field_storage.GPIO_INT_STATUS.int_status.value;
+    assign hwif_out.GPIO_INT_STATUS.int_status.swmod = decoded_reg_strb.GPIO_INT_STATUS && decoded_req_is_wr && |(decoded_wr_biten[31:0]);
     // Field: gpio_regs.GPIO_OUTPUT_SET.set_bits
     always_comb begin
         automatic logic [31:0] next_c;
@@ -480,6 +485,7 @@ module gpio_regs (
         end
     end
     assign hwif_out.GPIO_OUTPUT_SET.set_bits.value = field_storage.GPIO_OUTPUT_SET.set_bits.value;
+    assign hwif_out.GPIO_OUTPUT_SET.set_bits.swmod = decoded_reg_strb.GPIO_OUTPUT_SET && decoded_req_is_wr && |(decoded_wr_biten[31:0]);
     // Field: gpio_regs.GPIO_OUTPUT_CLR.clear_bits
     always_comb begin
         automatic logic [31:0] next_c;
@@ -503,6 +509,7 @@ module gpio_regs (
         end
     end
     assign hwif_out.GPIO_OUTPUT_CLR.clear_bits.value = field_storage.GPIO_OUTPUT_CLR.clear_bits.value;
+    assign hwif_out.GPIO_OUTPUT_CLR.clear_bits.swmod = decoded_reg_strb.GPIO_OUTPUT_CLR && decoded_req_is_wr && |(decoded_wr_biten[31:0]);
     // Field: gpio_regs.GPIO_OUTPUT_TGL.toggle_bits
     always_comb begin
         automatic logic [31:0] next_c;
@@ -526,6 +533,7 @@ module gpio_regs (
         end
     end
     assign hwif_out.GPIO_OUTPUT_TGL.toggle_bits.value = field_storage.GPIO_OUTPUT_TGL.toggle_bits.value;
+    assign hwif_out.GPIO_OUTPUT_TGL.toggle_bits.swmod = decoded_reg_strb.GPIO_OUTPUT_TGL && decoded_req_is_wr && |(decoded_wr_biten[31:0]);
 
     //--------------------------------------------------------------------------
     // Write response

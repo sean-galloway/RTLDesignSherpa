@@ -18,6 +18,8 @@
 // Documentation: projects/components/retro_legacy_blocks/rtl/gpio/README.md
 // Created: 2025-11-29
 // Updated: 2025-11-30 - Changed to 32-bit register width
+// Updated: 2026-09-08 - issue #44: strobe-driven atomics (singlepulse), live
+//                       GPIO_OUTPUT readback (hw=rw + we), GPIO_INT_STATUS swmod
 
 addrmap gpio_regs {
     name = "GPIO Controller Registers";
@@ -82,9 +84,20 @@ addrmap gpio_regs {
 
         field {
             name = "Output Data [31:0]";
-            desc = "Data to drive on output pins";
+            desc = "Data to drive on output pins. Reads return the LIVE output
+                    latch, so the result of an atomic SET/CLR/TGL is visible
+                    here; a software write drives the pins directly and wins
+                    over the hardware write-back in the same cycle.";
             sw = rw;
-            hw = r;
+            hw = rw;            // hw reads the value out, and writes the live
+                                // output latch back in (gated by we)
+            we;                 // write-back only when gpio_core actually
+                                // changed the latch (an atomic op) -- an
+                                // unconditional write-back would stomp the
+                                // software value while it propagates
+            precedence = sw;    // software write beats the hardware write-back
+            swmod;              // one-cycle strobe on ANY software write,
+                                // including a write of the same value
         } output_data[31:0] = 32'h00000000;
 
     } GPIO_OUTPUT @ 0x008;
@@ -183,6 +196,10 @@ addrmap gpio_regs {
             hw = rw;     // hardware can set bits (write) and read back sticky status
             stickybit;   // each bit is sticky - set by next[i] going high
             onwrite = woclr;
+            swmod;       // W1C write strobe; gpio_config_regs uses it to defer
+                         // a hardware set that lands in the same cycle (the
+                         // regblock resolves sw-write vs hw-set for the WHOLE
+                         // register, so an uncaught coincident edge is lost)
         } int_status[31:0] = 32'h00000000;
 
     } GPIO_INT_STATUS @ 0x020;
@@ -212,9 +229,16 @@ addrmap gpio_regs {
 
         field {
             name = "Set Bits [31:0]";
-            desc = "Write 1 to set output bit (read returns 0)";
+            desc = "Write 1 to set output bit (read returns 0). The operation is
+                    driven by the WRITE STROBE, not by a change in the stored
+                    mask, so repeated writes of the SAME mask each take
+                    effect.";
             sw = w;
             hw = r;
+            swmod;          // write strobe; SystemRDL restricts `singlepulse`
+                            // to 1-bit fields, so gpio_config_regs registers
+                            // swmod by one cycle and gates the stored mask
+                            // with it to build the operation pulse
             // Write-only, reading returns 0
         } set_bits[31:0] = 32'h00000000;
 
@@ -229,9 +253,16 @@ addrmap gpio_regs {
 
         field {
             name = "Clear Bits [31:0]";
-            desc = "Write 1 to clear output bit (read returns 0)";
+            desc = "Write 1 to clear output bit (read returns 0). The operation is
+                    driven by the WRITE STROBE, not by a change in the stored
+                    mask, so repeated writes of the SAME mask each take
+                    effect.";
             sw = w;
             hw = r;
+            swmod;          // write strobe; SystemRDL restricts `singlepulse`
+                            // to 1-bit fields, so gpio_config_regs registers
+                            // swmod by one cycle and gates the stored mask
+                            // with it to build the operation pulse
         } clear_bits[31:0] = 32'h00000000;
 
     } GPIO_OUTPUT_CLR @ 0x02C;
@@ -245,9 +276,16 @@ addrmap gpio_regs {
 
         field {
             name = "Toggle Bits [31:0]";
-            desc = "Write 1 to toggle output bit (read returns 0)";
+            desc = "Write 1 to toggle output bit (read returns 0). The operation is
+                    driven by the WRITE STROBE, not by a change in the stored
+                    mask, so repeated writes of the SAME mask each take
+                    effect.";
             sw = w;
             hw = r;
+            swmod;          // write strobe; SystemRDL restricts `singlepulse`
+                            // to 1-bit fields, so gpio_config_regs registers
+                            // swmod by one cycle and gates the stored mask
+                            // with it to build the operation pulse
         } toggle_bits[31:0] = 32'h00000000;
 
     } GPIO_OUTPUT_TGL @ 0x030;

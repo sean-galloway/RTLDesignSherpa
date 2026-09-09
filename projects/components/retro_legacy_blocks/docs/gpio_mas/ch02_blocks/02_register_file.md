@@ -40,7 +40,8 @@ Signals the RTL drives into the register file:
 | Signal | Width | Description |
 |--------|-------|-------------|
 | GPIO_INPUT.input_data | 32 | Current GPIO input values |
-| GPIO_INT_STATUS.int_status | 32 | Interrupt status set requests (sticky) |
+| GPIO_OUTPUT.output_data | 32 | Live output latch write-back (we-gated, the cycle after an atomic op) |
+| GPIO_INT_STATUS.int_status | 32 | Interrupt status set requests (sticky; includes the deferred W1C-coincident set) |
 | GPIO_RAW_INT.raw_status | 32 | Live raw event-detector status |
 
 ### Software-to-Hardware (reg2hw)
@@ -52,14 +53,15 @@ Signals the register file drives out to the RTL:
 | GPIO_CONTROL.gpio_enable | 1 | GPIO output enable (gates gpio_oe only; resets 1) |
 | GPIO_CONTROL.int_enable | 1 | Global interrupt enable (gates irq; resets 0) |
 | GPIO_DIRECTION.direction | 32 | Pin direction (0=in, 1=out) |
-| GPIO_OUTPUT.output_data | 32 | Output values |
+| GPIO_OUTPUT.output_data | 32 | Output values (+ swmod write strobe) |
 | GPIO_INT_ENABLE.int_enable | 32 | Interrupt enable per pin |
 | GPIO_INT_TYPE.int_type | 32 | Interrupt type (0=edge, 1=level) |
 | GPIO_INT_POLARITY.int_polarity | 32 | Polarity (0=fall/low, 1=rise/high) |
 | GPIO_INT_BOTH.int_both | 32 | Both edges enable |
-| GPIO_OUTPUT_SET.set_bits | 32 | Atomic set mask (change-detected) |
-| GPIO_OUTPUT_CLR.clear_bits | 32 | Atomic clear mask (change-detected) |
-| GPIO_OUTPUT_TGL.toggle_bits | 32 | Atomic toggle mask (change-detected) |
+| GPIO_OUTPUT_SET.set_bits | 32 | Atomic set mask (+ swmod write strobe) |
+| GPIO_OUTPUT_CLR.clear_bits | 32 | Atomic clear mask (+ swmod write strobe) |
+| GPIO_OUTPUT_TGL.toggle_bits | 32 | Atomic toggle mask (+ swmod write strobe) |
+| GPIO_INT_STATUS.int_status | 32 | Sticky status value (+ swmod W1C write strobe) |
 
 ## Functional Description
 
@@ -87,6 +89,10 @@ All registers support byte-granular writes via pstrb:
 - Registers reset to 0 except GPIO_CONTROL.GPIO_ENABLE (resets to 1) and
   GPIO_INT_POLARITY (resets to 0xFFFFFFFF); reset is synchronous inside
   the generated block
+- `swmod` on GPIO_OUTPUT, GPIO_OUTPUT_SET/CLR/TGL and GPIO_INT_STATUS is a
+  level held for the whole command-bridge transaction and leads the field
+  storage by one cycle; `gpio_config_regs` edge-detects and re-aligns it
+  before use, so every write is one operation (see Chapter 5)
 
 ---
 

@@ -197,3 +197,45 @@ same failure in hand-written shared RTL.
 Related: [[filelists]] (the same one-source rule for compile closures);
 the kimi-review-rounds rule 6 case in `vault/handbook/authoring/` — "fix the
 source comment or the doc error regrows" is this note's rule applied to prose.
+
+## `swmod` behind `peakrdl_to_cmdrsp` is a LEVEL, not a pulse
+
+PeakRDL-regblock's `swmod` output is documented as "asserted when software
+modifies the field". It is combinational on the cpuif request:
+`decoded_reg_strb & req_is_wr`. Behind an interface that presents one request
+per cycle that is a one-cycle pulse. Behind `peakrdl_to_cmdrsp` it is not:
+the bridge HOLDS `regblk_req` from the accept cycle through `CMD_WAIT_ACK`
+(its header says why -- shortening it once broke every register read through
+the bridge), so every write presents to the regblock for TWO cycles and
+`swmod` is a two-cycle level. The field storage itself loads at the end of
+the first cycle, so it also lags the first `swmod` cycle by one.
+
+Consumers that treat `swmod` as a pulse therefore execute their side effect
+twice. That is invisible when the side effect is idempotent -- a W1C clear, a
+counter load, a set or clear mask -- and fatal when it is not: a TOGGLE mask
+applied twice cancels itself. *Case (2026-09-08, gpio #44): the strobe-driven
+rewrite of GPIO_OUTPUT_TGL passed SET, SET-again and CLEAR and failed only
+TOGGLE, `expected 0x0000FF0F, got 0x000000F0`. hpet consumes the same signal
+as a level today and is correct only because both its uses are idempotent;
+the pit_8254 round_3 review traced the same two-cycle request from the
+counter-load side ("each COUNTERx_DATA write strobes TWICE").*
+
+The shape that works, in the config_regs wrapper (never in the generated
+file): rising-edge-detect the `swmod` level (one transaction, one pulse),
+then delay the pulse ONE flop so it lines up with the field storage the
+write landed in. Read the strobe's data from the field value in that aligned
+cycle, or from `regblk_wr_data & regblk_wr_biten` in the level cycle if the
+consumer needs the pre-storage value. The gpio wrapper
+(`projects/components/retro_legacy_blocks/rtl/gpio/gpio_config_regs.sv`) is
+the reference; its header explains the alignment.
+
+Two things this rule is NOT: it is not a reason to shorten the bridge's
+request (see the bridge header), and `singlepulse` is not the escape hatch
+for a mask register -- SystemRDL restricts `singlepulse` to one-bit fields.
+
+*The rule: a generated strobe's width is a property of the cpuif it sits
+behind, not of the generator. Before consuming `swmod`, `swacc` or any
+`decoded_reg_strb`-derived signal, read the bridge that drives `s_cpuif_req`
+and count the cycles; if the side effect is not idempotent, edge-detect and
+align.* Related: [[fsm-discipline]] (the converter's WAIT_ACK is the
+state that makes the level), [[registers-by-name]].

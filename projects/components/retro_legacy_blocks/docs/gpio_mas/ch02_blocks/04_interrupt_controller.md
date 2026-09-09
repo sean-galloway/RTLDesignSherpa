@@ -70,6 +70,9 @@ Per-pin interrupt generation with edge or level triggering and one aggregate `ir
   (`sts_int_pending = raw & enable` in `gpio_core.sv`)
 - Cleared by writing 1 to the bit (W1C); bits latch in both edge and level
   modes until cleared
+- A W1C write and a hardware event in the same cycle merge per bit
+  (`next = (value | hw_set) & ~w1c_mask`, `gpio_config_regs.sv`): the event
+  survives on every bit the write does not clear
 
 ### Interrupt Enable
 
@@ -87,15 +90,17 @@ Two levels of enable exist:
 ```
 per-pin effective status:
   level pin (TYPE=1): raw_detector & GPIO_INT_ENABLE   (live, bypasses STATUS)
-  edge  pin (TYPE=0): GPIO_INT_STATUS                  (sticky latch)
+  edge  pin (TYPE=0): GPIO_INT_STATUS & GPIO_INT_ENABLE (sticky latch, re-gated)
 
 irq = GPIO_CONTROL[1] && (| effective_status)
 ```
 
-(`gpio_config_regs.sv`.) Note the differences from a plain
-`|(STATUS & ENABLE)`: level pins bypass GPIO_INT_STATUS entirely, so W1C on a
-level pin does not deassert `irq` while the level persists; and edge pins use
-the latched status without re-applying the current per-pin enable.
+(`gpio_config_regs.sv`.) One difference from a plain `|(STATUS & ENABLE)`
+remains: level pins bypass GPIO_INT_STATUS entirely, so W1C on a level pin
+does not deassert `irq` while the level persists. Edge pins re-apply the
+current per-pin enable, so clearing GPIO_INT_ENABLE[i] masks an
+already-latched edge interrupt on pin i (the status bit stays set until W1C
+and `irq` re-asserts if the enable is set again).
 
 ### Interrupt Handling Flow
 

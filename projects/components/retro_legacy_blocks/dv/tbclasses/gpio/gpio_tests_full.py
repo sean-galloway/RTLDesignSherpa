@@ -24,6 +24,7 @@ Comprehensive stress testing of GPIO functionality including:
 """
 
 import random
+import cocotb
 from cocotb.triggers import ClockCycles
 
 
@@ -54,6 +55,9 @@ class GPIOFullTests:
             ('Walking Ones Output', self.test_walking_ones_output),
             ('Walking Ones Input', self.test_walking_ones_input),
             ('Mixed Mode Stress', self.test_mixed_mode),
+            # issue #44 qc round_3: GPIO_INT_STATUS W1C-vs-hwset race is
+            # whole-register scoped, not per-bit.
+            ('INT_STATUS W1C-vs-HWSET Race', self.test_int_status_w1c_race_same_cycle),
         ]
 
         self.log.info("=" * 80)
@@ -416,6 +420,117 @@ class GPIOFullTests:
 
         except Exception as e:
             self.log.error(f"Mixed mode exception: {e}")
+            passed = False
+
+        return passed
+
+    async def test_int_status_w1c_race_same_cycle(self) -> bool:
+        """issue #44 qc round_3: a software W1C write to GPIO_INT_STATUS must
+        be scoped PER-BIT. A coincident hardware-set edge on a bit not being
+        cleared by that write must survive even when it lands in the exact
+        same cycle as the write's commit -- correct behavior is
+        `next = (value | hw_set) & ~w1c_mask`, which confines the loss to the
+        bits actually being cleared. History: the original RTL took the
+        `if(decoded_reg_strb.GPIO_INT_STATUS && decoded_req_is_wr)` branch
+        for the ENTIRE register on a software W1C write, so a coincident
+        hardware-set edge on a different bit landing in the same cycle was
+        discarded rather than merged -- and since edge pulses are one cycle
+        wide, the event was permanently lost.
+
+        Deterministic construction: race a rising edge on bit_j against a
+        W1C write that clears only bit_i, sweeping the cycle offset between
+        starting the write and injecting the edge across a window wide
+        enough to bracket the internal coincidence point. No sleeps-for-luck
+        and no random timing -- the APB master runs the 'fixed' (single,
+        deterministic delay) randomizer profile, so a given offset lands on
+        the same internal cycle relationship every run. Every offset in the
+        window must observe bit_j survive, including the offset(s) that land
+        exactly on the write-commit cycle -- those are the ones a
+        whole-register-scoped W1C implementation would lose.
+        """
+        self.log.info("Testing GPIO_INT_STATUS W1C-vs-hwset same-cycle race "
+                       "(issue #44 qc round_3)...")
+        passed = True
+
+        bit_i = 0    # bit software W1C-clears
+        bit_j = 5    # bit that receives a coincident hardware-set edge
+        num_offsets = 20
+        # Settle margin, in pclk cycles, after the race: must clear the
+        # input synchronizer (SYNC_STAGES) on the core clock, the irq/status
+        # commit, and (with CDC_ENABLE=1) the CDC round trip back to pclk for
+        # the status read. Widened from a same-clock-derived value once
+        # gpio_clk stopped being edge-aligned with pclk (see setup_clocks_and_reset).
+        settle_cycles = 20
+
+        offsets_lost_bit_j = []
+        offsets_bad_setup = []
+
+        try:
+            await self.tb.enable_gpio(True, True)
+            await self.tb.set_direction(0x00000000)  # all inputs
+
+            mask = (1 << bit_i) | (1 << bit_j)
+            await self.tb.set_interrupt_enable(mask)
+            await self.tb.set_interrupt_type(0x00000000)   # edge mode, both bits
+            await self.tb.set_interrupt_polarity(mask)      # rising edge, both bits
+            await self.tb.set_interrupt_both_edge(0x00000000)
+            self.tb.set_gpio_input(0)
+            await self.tb.clear_interrupt_status(0xFFFFFFFF)
+            await ClockCycles(self.tb.pclk, 10)
+
+            for offset in range(num_offsets):
+                # Arm bit_i's sticky status with a rising edge, then verify
+                # the trial starts from a known-clean state.
+                await self.tb.create_rising_edge(bit_i)
+                await ClockCycles(self.tb.pclk, 5)
+                pre_status = await self.tb.get_interrupt_status()
+                if not (pre_status & (1 << bit_i)) or (pre_status & (1 << bit_j)):
+                    self.log.error(f"offset={offset}: bad setup, status=0x{pre_status:08X} "
+                                    f"(expected bit_i set, bit_j clear)")
+                    offsets_bad_setup.append(offset)
+                    passed = False
+                    continue
+
+                # Race: start the W1C write on bit_i as a background task, then
+                # inject the bit_j rising edge `offset` cycles later.
+                write_task = cocotb.start_soon(self.tb.clear_interrupt_status(1 << bit_i))
+                await ClockCycles(self.tb.pclk, offset)
+                cur_in = int(self.tb.dut.gpio_in.value)
+                self.tb.dut.gpio_in.value = cur_in | (1 << bit_j)
+                await write_task
+                await ClockCycles(self.tb.pclk, settle_cycles)
+
+                status = await self.tb.get_interrupt_status()
+                bit_i_cleared = not bool(status & (1 << bit_i))
+                bit_j_seen = bool(status & (1 << bit_j))
+
+                if not bit_i_cleared:
+                    self.log.error(f"offset={offset}: W1C did not clear bit_i "
+                                    f"(status=0x{status:08X})")
+                    passed = False
+                if not bit_j_seen:
+                    self.log.error(f"offset={offset}: coincident edge on bit_j LOST "
+                                    f"(status=0x{status:08X}, expected bit {bit_j} set) -- "
+                                    f"GPIO_INT_STATUS W1C race (issue #44 qc round_3)")
+                    offsets_lost_bit_j.append(offset)
+                    passed = False
+
+                # Reset for the next trial.
+                cur_in = int(self.tb.dut.gpio_in.value)
+                self.tb.dut.gpio_in.value = cur_in & ~(1 << bit_j)
+                await self.tb.clear_interrupt_status(0xFFFFFFFF)
+                await ClockCycles(self.tb.pclk, 10)
+
+            if offsets_bad_setup:
+                self.log.error(f"Trial setup failed at offsets: {offsets_bad_setup}")
+            if offsets_lost_bit_j:
+                self.log.error(f"bit_j lost at offsets {offsets_lost_bit_j} of "
+                                f"{num_offsets} (0..{num_offsets - 1})")
+            elif passed:
+                self.log.info(f"W1C-vs-hwset race: OK across {num_offsets} offsets")
+
+        except Exception as e:
+            self.log.error(f"W1C race test exception: {e}")
             passed = False
 
         return passed

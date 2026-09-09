@@ -119,13 +119,33 @@ class GPIOTB(TBBase):
         self.interrupt_events = []
 
     async def setup_clocks_and_reset(self):
-        """Complete initialization - clocks and reset (MANDATORY METHOD)."""
-        # Start APB clock (100 MHz = 10ns period)
-        await self.start_clock('pclk', freq=10, units='ns')
+        """Complete initialization - clocks and reset (MANDATORY METHOD).
 
-        # For CDC mode, start GPIO clock
+        Clock periods are read from TEST_APB_CLOCK_PERIOD / TEST_GPIO_CLOCK_PERIOD
+        (plumbed by the test runner in dv/tests/test_apb4_gpio.py, same pattern
+        as the HPET TB's TEST_APB_CLOCK_PERIOD/TEST_HPET_CLOCK_PERIOD), rather
+        than hardcoded here.
+
+        Review finding: an earlier version of this TB started pclk and
+        gpio_clk both at 10ns from the same sim time, so every CDC_ENABLE=1
+        configuration ran with edge-identical clocks -- the async FIFO, the
+        irq synchronizer, and the W1C-race offset sweep were all exercised as
+        if synchronous, which made the CDC arm of the test matrix vacuous.
+        The runner now drives gpio_clk at a non-unity, non-integer ratio to
+        pclk (10ns:7ns) whenever CDC_ENABLE=1, so those paths cross a real
+        clock-domain boundary. When CDC_ENABLE=0 the RTL ties w_core_clk to
+        pclk internally, so the runner sets gpio_clk to the same period as
+        pclk to match.
+        """
+        apb_clock_period_ns = int(os.environ.get('TEST_APB_CLOCK_PERIOD', '10'))
+        gpio_clock_period_ns = int(os.environ.get('TEST_GPIO_CLOCK_PERIOD', str(apb_clock_period_ns)))
+
+        # Start APB clock
+        await self.start_clock('pclk', freq=apb_clock_period_ns, units='ns')
+
+        # For CDC mode, start GPIO clock (possibly at a different period)
         if hasattr(self.dut, 'gpio_clk'):
-            await self.start_clock('gpio_clk', freq=10, units='ns')
+            await self.start_clock('gpio_clk', freq=gpio_clock_period_ns, units='ns')
 
         # Initialize GPIO inputs to 0
         self.dut.gpio_in.value = 0

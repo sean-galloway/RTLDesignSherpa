@@ -45,7 +45,7 @@ Writing to GPIO_OUTPUT sets the output data register, which drives the external 
 
 ![GPIO Output Write](../assets/wavedrom/timing/gpio_output_write.png)
 
-The write data flows through the APB interface to the output register. When `gpio_oe[n]` is high (output mode), `gpio_out[n]` drives the written value to the external pin.
+The write data flows through the APB interface to the output register. When `gpio_oe[n]` is high (output mode), `gpio_out[n]` drives the written value to the external pin. The write is strobe-driven, so writing the value the register already holds is still a write and still lands.
 
 ### Input Read
 
@@ -74,13 +74,11 @@ Three consecutive APB writes demonstrate:
 2. **GPIO_OUTPUT_CLR (0x02C)**: Clears bits where write data is 1, leaves others unchanged
 3. **GPIO_OUTPUT_TGL (0x030)**: Inverts bits where write data is 1, leaves others unchanged
 
-**Change-detection caveat:** the RTL fires an atomic operation only when the
-written value DIFFERS from what that register already holds (the registers
-store their last value and do not self-clear). Writing the same mask twice
-performs the operation once, and re-writing a mask still held from an earlier
-operation is dropped. Write 0 to the register between operations (or
-alternate values) - see Chapter 5 for the full semantics and the tracked RTL
-issue (#44).
+Each write performs its operation: the RTL fires the atomic pulse from the
+register's write strobe, so writing the same mask twice performs the
+operation twice, and nothing needs to be written between operations. The
+registers are write-only and read as 0; GPIO_OUTPUT reads back the live
+result. See Chapter 5 for the full semantics.
 
 ---
 
@@ -125,28 +123,26 @@ GPIO_OUTPUT = 0x00000050;
 #### Toggle Outputs
 
 ```c
-// Atomic toggle of pins 7:4 (see the change-detection caveat above:
-// clear the register between operations so the next write is seen)
+// Atomic toggle of pins 7:4; every write toggles, so a loop that
+// writes this each iteration toggles on every pass
 GPIO_OUTPUT_TGL = 0x000000F0;
-GPIO_OUTPUT_TGL = 0x00000000;
 ```
 
 #### Atomic Bit Operations
 
 ```c
-// Set specific bits (pins 5 and 7), then re-arm
+// Set specific bits (pins 5 and 7)
 GPIO_OUTPUT_SET = 0x000000A0;
-GPIO_OUTPUT_SET = 0x00000000;
 
-// Clear specific bits (pins 4 and 6), then re-arm
+// Clear specific bits (pins 4 and 6)
 GPIO_OUTPUT_CLR = 0x00000050;
-GPIO_OUTPUT_CLR = 0x00000000;
 ```
 
-Avoid read-modify-write of GPIO_OUTPUT (`GPIO_OUTPUT |= mask`) once any
-atomic register has been used: GPIO_OUTPUT readback returns the last value
-written to THAT register, not the live pin state, so an RMW clobbers
-atomic-operation results (tracked RTL issue #44).
+Read-modify-write of GPIO_OUTPUT (`GPIO_OUTPUT |= mask`) mixes safely with
+the atomic registers: GPIO_OUTPUT reads back the live output latch, so after
+`GPIO_OUTPUT = 0xFF` and `GPIO_OUTPUT_CLR = 0x0F` a read returns 0xF0 and an
+RMW builds on the real pin state. Prefer the atomic registers where two
+contexts may update outputs concurrently -- that is what they are for.
 
 ### Input Operations
 

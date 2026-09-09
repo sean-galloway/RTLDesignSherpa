@@ -52,10 +52,17 @@ void led_toggle(void) {
 }
 ```
 
-The read-modify-write style above is safe only while the atomic
-GPIO_OUTPUT_SET/CLR/TGL registers are never used: GPIO_OUTPUT readback
-returns the last value written to it, not the live pin state, so mixing the
-two styles clobbers atomic results (Chapter 5, tracked RTL issue #44).
+The read-modify-write style above is fine alongside the atomic
+GPIO_OUTPUT_SET/CLR/TGL registers: GPIO_OUTPUT reads back the live output
+latch, so an RMW always starts from what the pins are actually driving
+(Chapter 5). Where two contexts may update outputs at once, the atomic
+registers avoid the RMW race entirely, and every write takes effect:
+
+```c
+void led_on(void)     { GPIO_OUTPUT_SET = LED_PIN; }
+void led_off(void)    { GPIO_OUTPUT_CLR = LED_PIN; }
+void led_toggle(void) { GPIO_OUTPUT_TGL = LED_PIN; }
+```
 
 #### Multiple LED Control
 

@@ -52,6 +52,13 @@ class GPIOMediumTests:
             ('Multiple Interrupt Sources', self.test_multiple_interrupts),
             ('W1C Interrupt Clear', self.test_w1c_clear),
             ('Raw vs Masked Status', self.test_raw_vs_masked),
+            # issue #44 H4: atomic/direct-write pulse is value-change detected,
+            # not write-strobe driven -- each covers one distinct repeated-write
+            # scenario from the issue so a partial fix stays visible.
+            ('Atomic TGL Repeated Same Mask', self.test_atomic_toggle_repeated_same_mask),
+            ('Atomic SET/CLR/SET Same Mask', self.test_atomic_set_clear_set_same_mask),
+            ('Direct Write After Atomic Divergence', self.test_direct_write_after_atomic_divergence),
+            ('GPIO_OUTPUT Readback After Atomic Op', self.test_output_readback_after_atomic_op),
         ]
 
         self.log.info("=" * 80)
@@ -473,6 +480,225 @@ class GPIOMediumTests:
 
         except Exception as e:
             self.log.error(f"Raw vs masked test exception: {e}")
+            passed = False
+
+        return passed
+
+    # ========================================================================
+    # issue #44 H4 -- atomic/direct-write repeated-value contract
+    # ========================================================================
+    # Contract: GPIO_OUTPUT_SET/CLR/TGL and the direct GPIO_OUTPUT write must
+    # each pulse on the write STROBE, independent of whether the written
+    # value equals what was last written to that register. Each test below
+    # reproduces one of the three repeated-write scenarios named in the issue
+    # by construction (no "write 0 between operations" workaround -- that
+    # would just encode the documented workaround for the bug, not the fix).
+    # History: the original RTL pulsed SET/CLR/TGL (and the direct write) on
+    # a VALUE CHANGE of the stored register instead, so a second write of an
+    # identical value was silently dropped.
+
+    async def test_atomic_toggle_repeated_same_mask(self) -> bool:
+        """issue #44 H4.1: GPIO_OUTPUT_TGL=mask written twice in a row must
+        toggle TWICE (pins end where they started) -- each write to the
+        atomic register is a strobe, not a value-change event, so a second
+        write of the identical mask must still pulse. History: the original
+        RTL's change detector dropped the second identical write, so pins
+        got stuck at the toggled value instead of returning to baseline."""
+        self.log.info("Testing atomic TOGGLE with the same mask written twice "
+                       "in a row (issue #44 H4.1)...")
+        passed = True
+
+        try:
+            await self.tb.enable_gpio(True, False)
+            await self.tb.set_direction(0xFFFFFFFF)
+            await self.tb.set_output(0x00000000)
+            await ClockCycles(self.tb.pclk, 5)
+
+            baseline = self.tb.get_gpio_output()
+            mask = 0x0000FFFF
+
+            await self.tb.atomic_toggle(mask)
+            await ClockCycles(self.tb.pclk, 5)
+            after_first = self.tb.get_gpio_output()
+            if after_first != (baseline ^ mask):
+                self.log.error(f"First TGL failed: expected 0x{baseline ^ mask:08X}, "
+                                f"got 0x{after_first:08X}")
+                passed = False
+
+            # Second write with the IDENTICAL mask -- must toggle again.
+            await self.tb.atomic_toggle(mask)
+            await ClockCycles(self.tb.pclk, 5)
+            after_second = self.tb.get_gpio_output()
+            if after_second != baseline:
+                self.log.error(f"Second (repeated) TGL was dropped: expected pins back "
+                                f"at baseline 0x{baseline:08X}, got 0x{after_second:08X}")
+                passed = False
+            else:
+                self.log.info("Repeated atomic TOGGLE: OK")
+
+            await self.tb.set_output(0x00000000)
+
+        except Exception as e:
+            self.log.error(f"Repeated atomic TOGGLE test exception: {e}")
+            passed = False
+
+        return passed
+
+    async def test_atomic_set_clear_set_same_mask(self) -> bool:
+        """issue #44 H4.2: SET=m, CLR=m, SET=m must leave the pins SET --
+        GPIO_OUTPUT_SET must pulse on every write strobe, so the third write
+        (an identical mask to the first SET) must set the pins again rather
+        than being suppressed because the register's stored value did not
+        change. History: the original RTL's SET register still held `m` from
+        the first write, so the third write was not detected as a change and
+        the pulse never fired, leaving the pins cleared."""
+        self.log.info("Testing atomic SET/CLR/SET with the same mask "
+                       "(issue #44 H4.2)...")
+        passed = True
+
+        try:
+            await self.tb.enable_gpio(True, False)
+            await self.tb.set_direction(0xFFFFFFFF)
+            await self.tb.set_output(0x00000000)
+            await ClockCycles(self.tb.pclk, 5)
+
+            mask = 0x0000000F
+
+            await self.tb.atomic_set(mask)
+            await ClockCycles(self.tb.pclk, 5)
+            after_set1 = self.tb.get_gpio_output()
+            if (after_set1 & mask) != mask:
+                self.log.error(f"First SET failed: expected bits 0x{mask:08X} set, "
+                                f"got 0x{after_set1:08X}")
+                passed = False
+
+            await self.tb.atomic_clear(mask)
+            await ClockCycles(self.tb.pclk, 5)
+            after_clr = self.tb.get_gpio_output()
+            if (after_clr & mask) != 0:
+                self.log.error(f"CLEAR failed: expected bits 0x{mask:08X} clear, "
+                                f"got 0x{after_clr:08X}")
+                passed = False
+
+            # Repeat the SET with the IDENTICAL mask -- must set again.
+            await self.tb.atomic_set(mask)
+            await ClockCycles(self.tb.pclk, 5)
+            after_set2 = self.tb.get_gpio_output()
+            if (after_set2 & mask) != mask:
+                self.log.error(f"Repeated SET (same mask as first SET) was dropped: "
+                                f"expected bits 0x{mask:08X} set, got 0x{after_set2:08X}")
+                passed = False
+            else:
+                self.log.info("SET/CLR/SET same mask: OK")
+
+            await self.tb.set_output(0x00000000)
+
+        except Exception as e:
+            self.log.error(f"SET/CLR/SET test exception: {e}")
+            passed = False
+
+        return passed
+
+    async def test_direct_write_after_atomic_divergence(self) -> bool:
+        """issue #44 H4.3: write GPIO_OUTPUT=0xFF, then GPIO_OUTPUT_CLR=0x0F
+        (pins now 0xF0), then write GPIO_OUTPUT=0xFF again -- the direct
+        write must land (pins 0xFF), because a direct GPIO_OUTPUT write is a
+        strobe-driven update of the live pin state, not a value-change event
+        against the last software write. History: the original RTL's direct
+        write never observed the intervening CLR (it only changed
+        gpio_core's internal r_output_data, never GPIO_OUTPUT.output_data),
+        so the second identical direct write was not detected as a change
+        and gpio_out stayed stuck at 0xF0."""
+        self.log.info("Testing direct GPIO_OUTPUT write after atomic-op "
+                       "divergence (issue #44 H4.3)...")
+        passed = True
+
+        try:
+            await self.tb.enable_gpio(True, False)
+            await self.tb.set_direction(0xFFFFFFFF)
+            # Baseline distinct from 0xFF so the first direct write below is a
+            # genuine change and is guaranteed to land.
+            await self.tb.set_output(0x00000000)
+            await ClockCycles(self.tb.pclk, 5)
+
+            await self.tb.set_output(0xFF)
+            await ClockCycles(self.tb.pclk, 5)
+            after_write1 = self.tb.get_gpio_output()
+            if after_write1 != 0xFF:
+                self.log.error(f"First direct write failed: expected 0xFF, "
+                                f"got 0x{after_write1:08X}")
+                passed = False
+
+            await self.tb.atomic_clear(0x0F)
+            await ClockCycles(self.tb.pclk, 5)
+            after_clr = self.tb.get_gpio_output()
+            if after_clr != 0xF0:
+                self.log.error(f"CLR failed: expected 0xF0, got 0x{after_clr:08X}")
+                passed = False
+
+            # Direct write of the SAME value (0xFF) as the earlier direct write
+            # -- register storage never tracked the CLR, so this must still land.
+            await self.tb.set_output(0xFF)
+            await ClockCycles(self.tb.pclk, 5)
+            after_write2 = self.tb.get_gpio_output()
+            if after_write2 != 0xFF:
+                self.log.error(f"Second direct write (0xFF again) was dropped: "
+                                f"expected pins 0xFF, got 0x{after_write2:08X}")
+                passed = False
+            else:
+                self.log.info("Direct write after atomic divergence: OK")
+
+            await self.tb.set_output(0x00000000)
+
+        except Exception as e:
+            self.log.error(f"Direct write divergence test exception: {e}")
+            passed = False
+
+        return passed
+
+    async def test_output_readback_after_atomic_op(self) -> bool:
+        """issue #44 (readback): after GPIO_OUTPUT=0xFF then
+        GPIO_OUTPUT_CLR=0x0F, reading GPIO_OUTPUT must return the LIVE output
+        value 0xF0, not the stale 0xFF that was last written directly --
+        GPIO_OUTPUT readback must reflect the current pin state regardless of
+        whether that state was reached via a direct write or an atomic op.
+        History: the original RTL never wired gpio_core's live output state
+        back into the GPIO_OUTPUT register's read path, so readback only
+        ever reflected the last raw software write, not atomic-op results."""
+        self.log.info("Testing GPIO_OUTPUT readback reflects live value after "
+                       "an atomic op (issue #44)...")
+        passed = True
+
+        try:
+            await self.tb.enable_gpio(True, False)
+            await self.tb.set_direction(0xFFFFFFFF)
+            await self.tb.set_output(0x00000000)
+            await ClockCycles(self.tb.pclk, 5)
+
+            await self.tb.set_output(0xFF)
+            await ClockCycles(self.tb.pclk, 5)
+
+            await self.tb.atomic_clear(0x0F)
+            await ClockCycles(self.tb.pclk, 5)
+
+            live_pins = self.tb.get_gpio_output()
+            readback = await self.tb.get_output()
+
+            if live_pins != 0xF0:
+                self.log.error(f"Live pins mismatch: expected 0xF0, got 0x{live_pins:08X}")
+                passed = False
+
+            if readback != 0xF0:
+                self.log.error(f"GPIO_OUTPUT readback stale: expected 0xF0 (live value), "
+                                f"got 0x{readback:08X}")
+                passed = False
+            else:
+                self.log.info("GPIO_OUTPUT readback after atomic op: OK")
+
+            await self.tb.set_output(0x00000000)
+
+        except Exception as e:
+            self.log.error(f"Output readback test exception: {e}")
             passed = False
 
         return passed

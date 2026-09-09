@@ -230,6 +230,15 @@ def test_gpio(request, cdc_enable, test_level, description):
         'CDC_ENABLE': str(cdc_enable),
     }
 
+    # Clock periods: pclk is fixed at 10ns. When CDC_ENABLE=1, gpio_clk runs
+    # at a non-unity, non-integer ratio to pclk (10ns:7ns) so the async FIFO,
+    # the irq synchronizer, and the W1C-race offset sweep actually cross real
+    # clock-domain boundaries instead of running edge-aligned. When
+    # CDC_ENABLE=0 the RTL ties w_core_clk to pclk, so gpio_clk must match
+    # pclk exactly.
+    apb_clock_period_ns = 10
+    gpio_clock_period_ns = 7 if cdc_enable else apb_clock_period_ns
+
     # Calculate timeout based on test complexity
     timeout_multipliers = {'gate': 1, 'func': 3, 'full': 8}
     complexity_factor = timeout_multipliers.get(test_level, 1)
@@ -250,6 +259,8 @@ def test_gpio(request, cdc_enable, test_level, description):
 
         # DUT-specific parameters
         'TEST_CDC_ENABLE': str(cdc_enable),
+        'TEST_APB_CLOCK_PERIOD': str(apb_clock_period_ns),
+        'TEST_GPIO_CLOCK_PERIOD': str(gpio_clock_period_ns),
 
         # Test configuration
         'TEST_MAX_TIME': '500000',  # Increased for full tests
@@ -281,7 +292,8 @@ def test_gpio(request, cdc_enable, test_level, description):
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
-    cdc_mode = "CDC enabled (async clocks)" if cdc_enable else "No CDC (same clock)"
+    cdc_mode = (f"CDC enabled (pclk={apb_clock_period_ns}ns, gpio_clk={gpio_clock_period_ns}ns)"
+                if cdc_enable else "No CDC (same clock)")
     print(f"\n{'='*80}")
     print(f"Running {test_level.upper()} GPIO test: {description}")
     print(f"Configuration: 32-bit GPIO with per-pin direction and interrupts")

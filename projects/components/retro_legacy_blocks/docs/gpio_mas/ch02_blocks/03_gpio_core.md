@@ -64,7 +64,19 @@ Synchronized inputs land in the `GPIO_INPUT` register, which is what software re
 
 #### Output Register
 
-Software writes to `GPIO_OUTPUT` to set output values.
+Software writes to `GPIO_OUTPUT` to set output values. The write reaches the
+core as a one-cycle strobe (`cfg_output_wr_stb`, built in `gpio_config_regs`
+from the register's write strobe) alongside the data, so it is a write
+whether or not the value changed. A direct write takes priority over an
+atomic operation in the same cycle (direct > toggle > set > clear):
+
+```
+if (cfg_output_wr_stb)        r_output_data <= cfg_output_data;
+else                          // toggle, then set, then clear
+```
+
+`r_output_data` drives the pins and is written back into `GPIO_OUTPUT` after
+each atomic operation, so the register reads the live value.
 
 #### Output Enable
 
@@ -104,8 +116,11 @@ Reading `GPIO_INPUT` returns:
 ## Design Notes
 
 - All 32 pins processed in parallel
-- Output updates one core-clock after the register write (registered
-  `r_output_data` behind the change detector)
+- Output updates one core-clock after the GPIO_OUTPUT field updates (the
+  write strobe is aligned to the field, and `r_output_data` registers it)
+- The core exports `sts_raw_int` and `sts_int_pending` only; the aggregate
+  `irq` is built in `gpio_config_regs` from the sticky status register and
+  the live level pins. The core has no irq output and no global-enable input
 - Input synchronization always active
 
 ---

@@ -20,6 +20,23 @@
 //   - Atomic set/clear/toggle operations
 //   - Per-bit direction control
 //
+// Output Latch Contract (issue #44):
+//   r_output_data is the single output latch. A direct software write to
+//   GPIO_OUTPUT is signalled by cfg_output_wr_stb, a one-cycle STROBE aligned
+//   with cfg_output_data by gpio_config_regs -- it is not derived from
+//   cfg_output_data changing value, so writing the same value twice writes
+//   twice. Priority within a cycle is direct write > toggle > set > clear.
+//   gpio_config_regs writes r_output_data back into the GPIO_OUTPUT register
+//   after an atomic op, so the register and this latch stay in agreement.
+//
+// Interrupt Aggregation:
+//   This module does NOT produce the aggregate irq. It exports sts_raw_int and
+//   sts_int_pending; gpio_config_regs builds irq from the STICKY status
+//   register for edge pins and the live level for level pins. A local
+//   `raw & pin_enable` irq used to exist here, was never connected, and
+//   diverged from the wrapper's edge semantics -- it was removed rather than
+//   left as a trap for a future integrator (issue #44).
+//
 // I/O Buffer Notes:
 //   This module does NOT instantiate FPGA I/O primitives.
 //   The top-level wrapper (apb4_gpio.sv) or FPGA top-level should:
@@ -29,6 +46,8 @@
 //
 // Documentation: projects/components/retro_legacy_blocks/rtl/gpio/README.md
 // Created: 2025-11-29
+// Updated: 2026-09-08 - issue #44: strobe-driven direct write, unconnected
+//                       irq output removed
 
 `timescale 1ns / 1ps
 
@@ -49,16 +68,17 @@ module gpio_core #(
 
     // Configuration Interface (from registers)
     input  logic                    cfg_gpio_enable,    // Global enable
-    input  logic                    cfg_int_enable,     // Global interrupt enable
     input  logic [GPIO_WIDTH-1:0]   cfg_direction,      // 1=output, 0=input
-    input  logic [GPIO_WIDTH-1:0]   cfg_output_data,    // Output data
+    input  logic [GPIO_WIDTH-1:0]   cfg_output_data,    // Output data (GPIO_OUTPUT)
+    input  logic                    cfg_output_wr_stb,  // 1-cycle strobe: software
+                                                        // wrote GPIO_OUTPUT
     input  logic [GPIO_WIDTH-1:0]   cfg_int_enable_pins,// Per-pin interrupt enable
     input  logic [GPIO_WIDTH-1:0]   cfg_int_type,       // 1=level, 0=edge
     input  logic [GPIO_WIDTH-1:0]   cfg_int_polarity,   // 1=high/rising, 0=low/falling
     input  logic [GPIO_WIDTH-1:0]   cfg_int_both,       // 1=both edges
 
-    // Atomic Operations (active high, one-cycle pulses from gpio_config_regs;
-    // pulses are change-detected there, not strobe-driven -- see issue #44)
+    // Atomic Operations (active high, one-cycle strobe-driven pulses built in
+    // gpio_config_regs from each register's swmod write strobe)
     input  logic [GPIO_WIDTH-1:0]   cfg_output_set,     // Set output bits
     input  logic [GPIO_WIDTH-1:0]   cfg_output_clr,     // Clear output bits
     input  logic [GPIO_WIDTH-1:0]   cfg_output_tgl,     // Toggle output bits
@@ -66,16 +86,13 @@ module gpio_core #(
     // Status Interface (to registers)
     output logic [GPIO_WIDTH-1:0]   sts_input_data,     // Synchronized input data
     output logic [GPIO_WIDTH-1:0]   sts_raw_int,        // Raw interrupt status
-    output logic [GPIO_WIDTH-1:0]   sts_int_pending,    // Interrupt pending (for IRQ)
-
-    // Aggregate Interrupt Output
-    output logic                    irq                 // Aggregate interrupt
+    output logic [GPIO_WIDTH-1:0]   sts_int_pending     // Interrupt pending (for IRQ)
 );
 
     // ========================================================================
     // Input Synchronization
     // ========================================================================
-    logic [GPIO_WIDTH-1:0] r_sync_stage [SYNC_STAGES-1:0];
+    logic [GPIO_WIDTH-1:0] r_sync_stage [SYNC_STAGES];  // index 0 = first stage
     logic [GPIO_WIDTH-1:0] w_gpio_sync;
 
     // Multi-stage synchronizer for metastability protection
@@ -99,30 +116,15 @@ module gpio_core #(
     // Output Data with Atomic Operations
     // ========================================================================
     logic [GPIO_WIDTH-1:0] r_output_data;
-    logic [GPIO_WIDTH-1:0] r_cfg_output_data_prev;
-
-    // Track previous cfg_output_data to detect direct register writes
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
-            r_cfg_output_data_prev <= '0;
-        end else begin
-            r_cfg_output_data_prev <= cfg_output_data;
-        end
-    )
-
-    // Detect when software directly writes to output register
-    // This is a pulse that goes high for one cycle when cfg_output_data changes
-    logic w_cfg_output_write;
-    assign w_cfg_output_write = (cfg_output_data != r_cfg_output_data_prev);
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             r_output_data <= '0;
         end else begin
-            // Priority: Direct write (when register changes) > Toggle > Set > Clear
+            // Priority: Direct write (strobe) > Toggle > Set > Clear
             // When software writes to output register, ALL bits are updated from that write.
             // Atomic ops only apply when there's no direct register write happening.
-            if (w_cfg_output_write) begin
+            if (cfg_output_wr_stb) begin
                 // Software wrote to output register - update ALL bits from new value
                 r_output_data <= cfg_output_data;
             end else begin
@@ -218,10 +220,8 @@ module gpio_core #(
     assign sts_raw_int = w_raw_int;
 
     // Interrupt pending output (raw & enable - for IRQ generation)
-    // Note: The W1C sticky behavior is handled by PeakRDL gpio_regs
+    // Note: The W1C sticky behavior is handled by PeakRDL gpio_regs, and the
+    // aggregate irq is built in gpio_config_regs (see the header).
     assign sts_int_pending = w_raw_int & cfg_int_enable_pins;
-
-    // Aggregate interrupt output
-    assign irq = cfg_int_enable && (|sts_int_pending);
 
 endmodule : gpio_core
