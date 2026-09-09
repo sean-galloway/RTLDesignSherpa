@@ -1,8 +1,8 @@
-# PIC 8259 Timing Diagrams - WaveDrom JSON Files
+# pic_8259 -- Timing Diagrams
 
 This directory contains WaveDrom timing diagrams for PIC 8259 (Programmable Interrupt Controller) operational scenarios.
 
-## Files
+## Overview
 
 | File | Scenario | Description |
 |------|----------|-------------|
@@ -12,7 +12,7 @@ This directory contains WaveDrom timing diagrams for PIC 8259 (Programmable Inte
 | `pic_cascade.json` | Cascade Mode | Master-slave interrupt routing via CAS lines |
 | `pic_priority_rotation.json` | Priority Rotate | Rotate-on-EOI for round-robin scheduling |
 
-## Signal Hierarchy
+## Ports
 
 ### APB Interface (External)
 - `s_apb_PSEL`, `s_apb_PENABLE`, `s_apb_PREADY` - Control signals
@@ -28,6 +28,8 @@ This directory contains WaveDrom timing diagrams for PIC 8259 (Programmable Inte
 > classic-8259A context only; in this RTL ISR is never set. See the Chapter 5
 > register map implementation notes.
 
+## Functional Description
+
 ### PIC Core (Internal)
 - **IRR (Interrupt Request Register):** `r_irr[7:0]` - Pending interrupts
 - **ISR (In-Service Register):** `r_isr[7:0]` - Currently servicing
@@ -37,16 +39,43 @@ This directory contains WaveDrom timing diagrams for PIC 8259 (Programmable Inte
   `w_int_vector` is computed but unconnected, and EOI decode is
   `ocw2_eoi_cmd`/`highest_isr_comb`)
 
-## Rendering to SVG
+### Register Reference
 
-```bash
-# Render all files
-for f in *.json; do
-    wavedrom-cli -i "$f" > "${f%.json}.svg"
-done
-```
+This block uses a fully-decoded 32-bit APB register file, not the legacy A0
+two-port model. Offsets below are the actual RTL decode; see
+[Chapter 5: Register Map](../../../ch05_registers/01_register_map.md) for full
+field definitions.
 
-## Scenarios Explained
+#### Initialization Command Words (ICW)
+| ICW | Offset | Description |
+|-----|--------|-------------|
+| ICW1 | 0x04 | Edge/level, single/cascade, ICW4 needed |
+| ICW2 | 0x08 | Vector base address |
+| ICW3 | 0x0C | Cascade configuration (master/slave; stored but inert) |
+| ICW4 | 0x10 | 8086 mode, auto EOI, buffered, nested |
+
+#### Operation Command Words (OCW)
+| OCW | Offset | Description |
+|-----|--------|-------------|
+| OCW1 | 0x14 | IMR - Interrupt Mask Register |
+| OCW2 | 0x18 | EOI commands, rotation |
+| OCW3 | 0x1C | Read IRR/ISR, special mask mode |
+
+Global control (PIC_CONFIG) is at 0x00 and gates all operation via `pic_enable`;
+IRR/ISR/STATUS are dedicated read-only registers at 0x20/0x24/0x28.
+
+#### OCW2 Commands
+| Value | Command |
+|-------|---------|
+| 0x00 | Rotate on auto EOI (clear) |
+| 0x20 | Non-specific EOI |
+| 0x60-0x67 | Specific EOI (IR0-IR7) |
+| 0x80 | Rotate on auto EOI (set) -- arms the defective AEOI rotation, see ch05/#50 |
+| 0xA0 | Rotate on non-specific EOI |
+| 0xE0-0xE7 | Rotate on specific EOI |
+| 0xC0-0xC7 | Set priority (IR# becomes lowest) |
+
+## Waveforms
 
 ### 1. Interrupt Request
 Shows IR pin assertion triggering IRR bit set. IMR checked for masking. Priority resolver selects highest priority pending interrupt. INT output asserts to CPU.
@@ -68,41 +97,16 @@ Shows master-slave cascade configuration:
 ### 5. Priority Rotation
 Shows automatic priority rotation (OCW2 = 0xA0). After EOI, serviced IR becomes lowest priority. Enables round-robin scheduling among same-priority devices.
 
-## Register Reference
+## Usage Example
 
-This block uses a fully-decoded 32-bit APB register file, not the legacy A0
-two-port model. Offsets below are the actual RTL decode; see
-[Chapter 5: Register Map](../../../ch05_registers/01_register_map.md) for full
-field definitions.
+Render every JSON file in this directory to SVG with `wavedrom-cli`:
 
-### Initialization Command Words (ICW)
-| ICW | Offset | Description |
-|-----|--------|-------------|
-| ICW1 | 0x04 | Edge/level, single/cascade, ICW4 needed |
-| ICW2 | 0x08 | Vector base address |
-| ICW3 | 0x0C | Cascade configuration (master/slave; stored but inert) |
-| ICW4 | 0x10 | 8086 mode, auto EOI, buffered, nested |
-
-### Operation Command Words (OCW)
-| OCW | Offset | Description |
-|-----|--------|-------------|
-| OCW1 | 0x14 | IMR - Interrupt Mask Register |
-| OCW2 | 0x18 | EOI commands, rotation |
-| OCW3 | 0x1C | Read IRR/ISR, special mask mode |
-
-Global control (PIC_CONFIG) is at 0x00 and gates all operation via `pic_enable`;
-IRR/ISR/STATUS are dedicated read-only registers at 0x20/0x24/0x28.
-
-### OCW2 Commands
-| Value | Command |
-|-------|---------|
-| 0x00 | Rotate on auto EOI (clear) |
-| 0x20 | Non-specific EOI |
-| 0x60-0x67 | Specific EOI (IR0-IR7) |
-| 0x80 | Rotate on auto EOI (set) -- arms the defective AEOI rotation, see ch05/#50 |
-| 0xA0 | Rotate on non-specific EOI |
-| 0xE0-0xE7 | Rotate on specific EOI |
-| 0xC0-0xC7 | Set priority (IR# becomes lowest) |
+```bash
+# Render all files
+for f in *.json; do
+    wavedrom-cli -i "$f" > "${f%.json}.svg"
+done
+```
 
 ## References
 

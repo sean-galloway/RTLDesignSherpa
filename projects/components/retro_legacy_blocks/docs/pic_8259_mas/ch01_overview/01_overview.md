@@ -21,13 +21,14 @@
 
 <!-- End Header -->
 
-# APB PIC 8259 - Overview
+# pic_8259 -- Overview
 
-## Introduction
+## Overview
 
-The APB PIC 8259 is an 8259A-compatible Programmable Interrupt Controller with an APB interface. It provides interrupt management for legacy PC-compatible systems.
-
-## Key Features
+The pic_8259 is an 8259A-compatible Programmable Interrupt Controller with an
+APB interface. It handles interrupt management for legacy PC-compatible
+systems: eight request lines in, one interrupt line out, with masking,
+priority resolution, and an initialization sequence in between.
 
 Implemented in the current RTL:
 
@@ -40,27 +41,77 @@ Implemented in the current RTL:
 - Edge or level triggering
 - Interrupt masking (IMR / OCW1)
 
-Register bits exist but are **not** functional in the current core (see the
-register map implementation notes): Master/Slave cascade (ICW3), polling
-mode (OCW3), special fully nested mode (ICW4 SFNM), and buffered mode
-(ICW4 BUF). Automatic EOI (ICW4 AEOI) performs no end-of-interrupt but is
-NOT inert: it arms a defective rotation path (with OCW2 0x80 the priority
-base rotates every clock while int_out is asserted -- see Chapter 5 and
-issue #50). There is also no INTA handshake or vector-output pin.
+Now the other half of the story. Register bits exist but are **not**
+functional in the current core (see the register map implementation notes):
 
-## Applications
+- Master/Slave cascade (ICW3)
+- Polling mode (OCW3)
+- Special fully nested mode (ICW4 SFNM)
+- Buffered mode (ICW4 BUF)
+
+Automatic EOI (ICW4 AEOI) performs no end-of-interrupt but is NOT inert:
+it arms a defective rotation path (with OCW2 0x80 the priority base rotates
+every clock while int_out is asserted -- see Chapter 5 and issue #50). There
+is also no INTA handshake or vector-output pin.
+
+### Applications
 
 - PC-compatible interrupt management
 - Legacy device support
 - x86 system integration
 
-## Block Diagram
+## Functional Description
 
 ### Figure 1.1: PIC 8259 Block Diagram
 
 ![PIC 8259 Block Diagram](../assets/svg/pic_8259_top.png)
 
-## Timing Diagrams
+### Register Summary
+
+The block uses a fully-decoded 32-bit register file, not the legacy A0 two-port
+model. See [Chapter 5: Register Map](../ch05_registers/01_register_map.md) for
+full field definitions.
+
+| Offset | Register | Access | Description |
+|--------|----------|--------|-------------|
+| 0x00 | PIC_CONFIG | RW | Global configuration (pic_enable, init_mode, auto_reset_init) |
+| 0x04 | PIC_ICW1 | WO | Initialization Command Word 1 |
+| 0x08 | PIC_ICW2 | WO | Initialization Command Word 2 (vector base) |
+| 0x0C | PIC_ICW3 | WO | Initialization Command Word 3 (cascade; inert) |
+| 0x10 | PIC_ICW4 | WO | Initialization Command Word 4 |
+| 0x14 | PIC_OCW1 | RW | Interrupt Mask Register (IMR) |
+| 0x18 | PIC_OCW2 | WO | EOI / priority command |
+| 0x1C | PIC_OCW3 | WO | Special mask / read-select / poll |
+| 0x20 | PIC_IRR | RO | Interrupt Request Register |
+| 0x24 | PIC_ISR | RO | In-Service Register |
+| 0x28 | PIC_STATUS | RO | Initialization state / diagnostics |
+
+The PIC is disabled at reset - firmware must BOTH complete the ICW
+initialization sequence (ICW1 -> ICW2 -> ICW3 if cascaded -> ICW4 if
+requested; PIC_STATUS.init_complete=1) AND set `pic_enable` (PIC_CONFIG
+bit 0) before any interrupt can be requested or delivered -- out of reset
+the init FSM sits in INIT_IDLE and IRR never updates.
+
+### Interrupt Priority
+
+| IRQ | Default Priority |
+|-----|-----------------|
+| IR0 | Highest (0) |
+| IR1 | 1 |
+| IR2 | 2 (cascade input in a classic master; cascade not implemented here) |
+| IR3 | 3 |
+| IR4 | 4 |
+| IR5 | 5 |
+| IR6 | 6 |
+| IR7 | Lowest (7) |
+
+### Priority Modes
+
+- **Fixed Priority**: IR0 highest, IR7 lowest
+- **Rotating Priority**: Lowest priority rotates after EOI
+- **Specific Priority**: Programmable lowest priority
+
+## Waveforms
 
 ### Waveform 1.1: Interrupt Request
 
@@ -125,51 +176,6 @@ Rotate-on-EOI (0xA0) makes the just-serviced IR the lowest priority, implementin
 > the base to 0 because ISR is never set -- NOT round-robin. See the
 > register map implementation notes.
 
-## Register Summary
-
-The block uses a fully-decoded 32-bit register file, not the legacy A0 two-port
-model. See [Chapter 5: Register Map](../ch05_registers/01_register_map.md) for
-full field definitions.
-
-| Offset | Register | Access | Description |
-|--------|----------|--------|-------------|
-| 0x00 | PIC_CONFIG | RW | Global configuration (pic_enable, init_mode, auto_reset_init) |
-| 0x04 | PIC_ICW1 | WO | Initialization Command Word 1 |
-| 0x08 | PIC_ICW2 | WO | Initialization Command Word 2 (vector base) |
-| 0x0C | PIC_ICW3 | WO | Initialization Command Word 3 (cascade; inert) |
-| 0x10 | PIC_ICW4 | WO | Initialization Command Word 4 |
-| 0x14 | PIC_OCW1 | RW | Interrupt Mask Register (IMR) |
-| 0x18 | PIC_OCW2 | WO | EOI / priority command |
-| 0x1C | PIC_OCW3 | WO | Special mask / read-select / poll |
-| 0x20 | PIC_IRR | RO | Interrupt Request Register |
-| 0x24 | PIC_ISR | RO | In-Service Register |
-| 0x28 | PIC_STATUS | RO | Initialization state / diagnostics |
-
-The PIC is disabled at reset - firmware must BOTH complete the ICW
-initialization sequence (ICW1 -> ICW2 -> ICW3 if cascaded -> ICW4 if
-requested; PIC_STATUS.init_complete=1) AND set `pic_enable` (PIC_CONFIG
-bit 0) before any interrupt can be requested or delivered -- out of reset
-the init FSM sits in INIT_IDLE and IRR never updates.
-
-## Interrupt Priority
-
-| IRQ | Default Priority |
-|-----|-----------------|
-| IR0 | Highest (0) |
-| IR1 | 1 |
-| IR2 | 2 (cascade input in a classic master; cascade not implemented here) |
-| IR3 | 3 |
-| IR4 | 4 |
-| IR5 | 5 |
-| IR6 | 6 |
-| IR7 | Lowest (7) |
-
-## Priority Modes
-
-- **Fixed Priority**: IR0 highest, IR7 lowest
-- **Rotating Priority**: Lowest priority rotates after EOI
-- **Specific Priority**: Programmable lowest priority
-
----
+## Navigation
 
 **Next:** 02_architecture.md *(planned, not yet written)*

@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-# PIC_8259 Specification
+# pic_8259 -- Specification
 
 **Status:** Written (chapters 1 and 5) - see pic_8259_mas_index.md for the
 authoritative status and known-inert-feature notes
@@ -30,49 +30,51 @@ authoritative status and known-inert-feature notes
 
 ## Overview
 
-This directory will contain the complete specification for the PIC_8259 block.
+This directory is the home of the complete specification for the PIC_8259
+block -- or will be, once the planned chapters below all exist. The status
+line above tells you where things actually stand today.
 
-## Planned Documentation Structure
+### Planned Documentation Structure
 
-### Chapter 1: Overview
+#### Chapter 1: Overview
 - Block purpose and features
 - High-level architecture
 - Key specifications
 
-### Chapter 2: Block Diagrams
+#### Chapter 2: Block Diagrams
 - Top-level block diagram
 - Internal block diagrams
 - State machines
 - Pipeline diagrams
 
-### Chapter 3: Interfaces
+#### Chapter 3: Interfaces
 - APB interface specification
 - External signals
 - Interrupt outputs
 - Clock and reset
 
-### Chapter 4: Programming Guide
+#### Chapter 4: Programming Guide
 - Register programming sequences
 - Common operations
 - Example code
 - Best practices
 
-### Chapter 5: Register Map
+#### Chapter 5: Register Map
 - Complete register descriptions
 - Field definitions
 - Reset values
 - Access types
 
-## Document Generation
+### Document Generation
 
-Documentation will be written in Markdown and can be converted to PDF:
+Documentation is written in Markdown and can be converted to PDF:
 
 ```bash
 cd docs/
 ./generate_pdf.sh
 ```
 
-## Reference Documents
+## References
 
 - Intel PIC_8259 datasheet
 - ACPI specification (if applicable)

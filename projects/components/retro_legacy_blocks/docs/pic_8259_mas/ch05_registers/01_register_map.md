@@ -21,23 +21,28 @@
 
 <!-- End Header -->
 
-# APB PIC 8259 - Register Map
+# pic_8259 -- Register Map
 
-Unlike the original Intel 8259A, this block does **not** use the legacy two-port
-A0-based interface. It exposes a fully-decoded, 32-bit-aligned APB register file.
-Each ICW/OCW and every status register has its own dedicated offset; there is no
-A0 pin and no OCW3 read-select multiplexing. Only `regblk_addr[5:0]` is decoded,
-so the map repeats every 0x40 within the 4 KB APB window -- but only for
-READS: the side-effect strobes (ICW sequence stepping, OCW2 execution, the
-IMR update path) compare the FULL 12-bit address, so a write through an
-alias (0x44, 0x104, ...) updates storage but fires no side effect -- an
-aliased ICW write never advances the init FSM, an aliased OCW2 never
-executes, and an aliased IMR write is silently reverted by the hardware
-mirror two cycles later (RTL asymmetry, #50). Use base addresses for all
-writes. Unmapped offsets
+## Overview
+
+Forget the legacy two-port, A0-based interface of the original Intel 8259A --
+this block doesn't have one. What you get is a fully-decoded, 32-bit-aligned
+APB register file: each ICW/OCW and every status register sits at its own
+dedicated offset, with no A0 pin and no OCW3 read-select multiplexing.
+
+Here's the part that bites. Only `regblk_addr[5:0]` is decoded, so the map
+repeats every 0x40 within the 4 KB APB window -- but only for READS. The
+side-effect strobes (ICW sequence stepping, OCW2 execution, the IMR update
+path) compare the FULL 12-bit address, so a write through an alias (0x44,
+0x104, ...) updates storage but fires no side effect -- an aliased ICW write
+never advances the init FSM, an aliased OCW2 never executes, and an aliased
+IMR write is silently reverted by the hardware mirror two cycles later (RTL
+asymmetry, #50). Use base addresses for all writes. Unmapped offsets
 (e.g. 0x2C) complete without `PSLVERR`.
 
-## Register Map
+## Functional Description
+
+### Register Map
 
 | Offset | Register | Access | Reset | Description |
 |--------|----------|--------|-------|-------------|
@@ -58,11 +63,9 @@ RTL - their read-back paths are tied to zero, so reading these offsets returns
 0x0000_0000. Only PIC_CONFIG, PIC_OCW1 (IMR), PIC_IRR, PIC_ISR, and PIC_STATUS
 return meaningful data on a read.
 
----
+### Global Configuration
 
-## Global Configuration
-
-### PIC_CONFIG (Offset 0x00, RW)
+#### PIC_CONFIG (Offset 0x00, RW)
 
 The PIC is disabled out of reset. Firmware **must** complete the ICW
 initialization sequence (through PIC_STATUS.init_complete=1) AND set
@@ -84,21 +87,19 @@ normally clears init_mode on the ICW4 write) initialization can
 therefore never complete until software clears the bit by hand (RTL
 quirk, #50). The default auto_reset_init=1 masks this.
 
-Re-initialization deviations from a real 8259A: an ICW1 write while the
-init FSM is mid-sequence (WAIT_ICW2/3/4) clears IRR/ISR but does NOT
-restart the sequence (only INIT_IDLE and INIT_COMPLETE honor it); ICW1
+Re-initialization deviates from a real 8259A in three ways: an ICW1 write
+while the init FSM is mid-sequence (WAIT_ICW2/3/4) clears IRR/ISR but does
+NOT restart the sequence (only INIT_IDLE and INIT_COMPLETE honor it); ICW1
 re-init does not restore priority-base 7 or clear rotate-on-AEOI /
 special-mask state (stale rotation state survives re-init); and IC4=0
 leaves ICW4 storage at its reset values (uPM=1) rather than the 8259A's
 assumed zeros -- harmless today since uPM is unused.
 
----
-
-## Initialization Command Words (ICW)
+### Initialization Command Words (ICW)
 
 All ICW registers are write-only; reading them returns 0.
 
-### PIC_ICW1 (Offset 0x04, WO)
+#### PIC_ICW1 (Offset 0x04, WO)
 
 | Bit | Name | Reset | Description |
 |-----|------|-------|-------------|
@@ -112,14 +113,14 @@ All ICW registers are write-only; reading them returns 0.
 Note: the RTL stores only bits [4:0]. The legacy A7-A5 vector bits of an MCS-80
 8259A are not implemented here.
 
-### PIC_ICW2 (Offset 0x08, WO)
+#### PIC_ICW2 (Offset 0x08, WO)
 
 | Bits | Name | Reset | Description |
 |------|------|-------|-------------|
 | 7:0 | vector_base | 0x00 | Interrupt vector base. The delivered vector is `{vector_base[7:3], irq[2:0]}` |
 | 31:8 | Reserved | 0 | Reserved |
 
-### PIC_ICW3 (Offset 0x0C, WO)
+#### PIC_ICW3 (Offset 0x0C, WO)
 
 Cascade configuration. See the implementation note below - this register is
 stored but has no functional effect in the current RTL.
@@ -134,7 +135,7 @@ stored but has no functional effect in the current RTL.
 |------|-------------|
 | 2:0 | Slave ID (cascade input number 0-7) |
 
-### PIC_ICW4 (Offset 0x10, WO)
+#### PIC_ICW4 (Offset 0x10, WO)
 
 | Bit | Name | Reset | Description |
 |-----|------|-------|-------------|
@@ -144,11 +145,9 @@ stored but has no functional effect in the current RTL.
 | 4 | SFNM | 0 | Special fully nested mode (see implementation note) |
 | 31:5 | Reserved | 0 | Reserved |
 
----
+### Operation Command Words (OCW)
 
-## Operation Command Words (OCW)
-
-### PIC_OCW1 - Interrupt Mask Register (Offset 0x14, RW)
+#### PIC_OCW1 - Interrupt Mask Register (Offset 0x14, RW)
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -163,7 +162,7 @@ cycles after a write can briefly return the PRE-write mask before the
 mirror catches up (one-cycle window; RTL quirk, #50). Back-to-back
 write-then-read sequences over APB are normally slower than this window.
 
-### PIC_OCW2 (Offset 0x18, WO)
+#### PIC_OCW2 (Offset 0x18, WO)
 
 | Bits | Name | Reset | Description |
 |------|------|-------|-------------|
@@ -185,7 +184,7 @@ write-then-read sequences over APB are normally slower than this window.
 | 1 | 1 | 0 | Set priority (L2-L0 becomes lowest priority) |
 | 1 | 1 | 1 | Rotate on specific EOI |
 
-### PIC_OCW3 (Offset 0x1C, WO)
+#### PIC_OCW3 (Offset 0x1C, WO)
 
 | Bits | Name | Reset | Description |
 |------|------|-------|-------------|
@@ -195,11 +194,9 @@ write-then-read sequences over APB are normally slower than this window.
 | 6:5 | ESMM,SMM | 00 | Special mask mode: 10=reset special mask, 11=set special mask |
 | 31:7 | Reserved | 0 | Reserved |
 
----
+### Status / Readback Registers
 
-## Status / Readback Registers
-
-### PIC_IRR - Interrupt Request Register (Offset 0x20, RO)
+#### PIC_IRR - Interrupt Request Register (Offset 0x20, RO)
 
 | Bits | Name | Reset | Description |
 |------|------|-------|-------------|
@@ -210,7 +207,7 @@ IRR reflects requests before masking. In level mode the bits follow the IRQ
 pins; in edge mode they are set on a rising edge. See the implementation note
 below regarding clearing edge-triggered requests.
 
-### PIC_ISR - In-Service Register (Offset 0x24, RO)
+#### PIC_ISR - In-Service Register (Offset 0x24, RO)
 
 | Bits | Name | Reset | Description |
 |------|------|-------|-------------|
@@ -220,7 +217,7 @@ below regarding clearing edge-triggered requests.
 See the implementation note below - in the current RTL no path ever sets an
 ISR bit, so this register reads 0x00.
 
-### PIC_STATUS (Offset 0x28, RO)
+#### PIC_STATUS (Offset 0x28, RO)
 
 Initialization-state and diagnostic readback. This register is the only way to
 observe the init sequence progress from software.
@@ -233,9 +230,7 @@ observe the init sequence progress from software.
 | 7:5 | highest_priority | - | Currently highest-priority pending IRQ (0-7); defaults to 0 when nothing is pending, so it is only meaningful while int_output=1 |
 | 31:8 | Reserved | 0 | Reserved |
 
----
-
-## Implementation Notes (RTL vs. classic 8259A)
+## Design Notes
 
 The register file above matches the RTL exactly. Several classic-8259A
 behaviors implied by the register names are **not** implemented in the current
@@ -271,6 +266,6 @@ core; they are documented here so firmware does not rely on them:
   `highest_priority` and the internal vector oscillate cycle-by-cycle
   (RTL defect, #50). A real 8259A rotates once per AEOI.
 
----
+## Navigation
 
 **Back to:** [PIC 8259 Specification Index](../pic_8259_mas_index.md)
