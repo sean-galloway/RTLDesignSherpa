@@ -36,6 +36,18 @@ from typing import Optional, Callable, Dict, Any
 
 import cocotb
 from cocotb.triggers import RisingEdge, FallingEdge, Timer, Edge, with_timeout
+from typing import cast
+
+
+def sim_timer(time: "int | float", units: str = 'ps') -> Timer:
+    """`Timer(delay, units)` with the argument cast for the type checker.
+
+    cocotb 1.9's Timer types `time` as `numbers.Real | Decimal`, and typeshed
+    does not register int or float against the numbers ABCs, so every literal
+    delay in the tree is a false positive -- 100, 100.0 and float(n) all
+    fail; only Decimal passes. Behaviour is identical; the cast lives here
+    once instead of on every call site."""
+    return Timer(cast(Any, time), units=units)
 from cocotb.clock import Clock
 from cocotb.utils import get_sim_time
 
@@ -103,12 +115,13 @@ class TBBase:
         self.dut = dut
 
         # Setup logging FIRST (needed by other init methods)
-        self.log_path = os.environ.get('LOG_PATH')
-        if not self.log_path:
+        _log_path = os.environ.get('LOG_PATH')
+        if not _log_path:
             log_dir = os.path.join(os.getcwd(), 'logs')
             os.makedirs(log_dir, exist_ok=True)
-            self.log_path = os.path.join(log_dir, 'default_cocotb.log')
-            print(f"WARNING: LOG_PATH not specified. Using default: {self.log_path}")
+            _log_path = os.path.join(log_dir, 'default_cocotb.log')
+            print(f"WARNING: LOG_PATH not specified. Using default: {_log_path}")
+        self.log_path: str = _log_path
 
         self.dut_name = os.environ.get('DUT', 'unknown_dut')
         self.log_count = 0
@@ -150,10 +163,9 @@ class TBBase:
         # SEED at all -- leaving those on OS entropy means the first randomized
         # thing added to them is silently irreproducible. Draw one and say so,
         # so every run is replayable whether or not the runner remembered.
-        self.seed = os.environ.get('SEED')
-        _drawn = self.seed is None
-        if _drawn:
-            self.seed = str(random.randrange(2**31))
+        _seed_env = os.environ.get('SEED')
+        _drawn = _seed_env is None
+        self.seed: str = _seed_env if _seed_env is not None else str(random.randrange(2**31))
         try:
             random.seed(int(self.seed))
         except (TypeError, ValueError):
@@ -223,8 +235,8 @@ class TBBase:
 
         for env_var, limit_key in env_mappings.items():
             if env_var in os.environ:
+                value = os.environ[env_var]
                 try:
-                    value = os.environ[env_var]
                     if limit_key == 'enable_safety_monitoring':
                         self.safety_limits[limit_key] = value.lower() in ['true', '1', 'yes']
                     else:
@@ -255,7 +267,7 @@ class TBBase:
                 await self._check_async_safety()
 
                 # Wait before next check
-                await Timer(self.safety_limits['safety_check_interval_s'] * 1000, units='ms')
+                await sim_timer(self.safety_limits['safety_check_interval_s'] * 1000, units='ms')
 
         except Exception as e:
             self.log.error(f"Async safety monitor error: {e}")
@@ -374,7 +386,7 @@ class TBBase:
         self.shutdown_requested = True
 
         # Give some time for cleanup
-        await Timer(1000, units='ms')
+        await sim_timer(1000, units='ms')
 
         # Raise the error to stop the test
         raise error
@@ -456,7 +468,7 @@ class TBBase:
                 async def wait_operation():
                     for i in range(count):
                         await RisingEdge(clk_signal)
-                        await Timer(delay, units=units)
+                        await sim_timer(delay, units=units)
 
                         # # Mark progress every 100 cycles
                         # if i % 100 == 0:
@@ -491,7 +503,7 @@ class TBBase:
         with self.safe_operation(f"wait_time({delay} {units})"):
             try:
                 # FIXED: Use integer timeout to avoid precision issues
-                await with_timeout(Timer(delay, units=units), timeout_ms, 'ms')
+                await with_timeout(sim_timer(delay, units=units), timeout_ms, 'ms')
             except asyncio.TimeoutError:
                 raise TestbenchTimeout(f"wait_time timeout after {timeout_ms}ms")
 
@@ -636,7 +648,7 @@ class TBBase:
             self.log.debug(f"Starting clock {clk_name} with frequency {freq} {units}")
             clk_signal = getattr(self.dut, clk_name)
             cocotb.start_soon(Clock(clk_signal, freq, units=units).start())
-            await Timer(100, units='ps')
+            await sim_timer(100, units='ps')
             self.mark_progress(f"Clock {clk_name} started")
 
     def clock_gen(self, clk_signal, period: int = 10, units: str = 'ns'):
@@ -668,7 +680,7 @@ class TBBase:
             clk_signal = getattr(self.dut, clk_name)
             for i in range(count):
                 await FallingEdge(clk_signal)
-                await Timer(delay, units=units)
+                await sim_timer(delay, units=units)
                 if i % 1000 == 0:
                     self.mark_progress(f"wait_falling_clocks {i}/{count}")
 
