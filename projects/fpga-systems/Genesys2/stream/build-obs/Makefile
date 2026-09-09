@@ -71,7 +71,18 @@ export STREAM_VCO_MHZ        ?= 1200
 export STREAM_CLKOUT0_DIVIDE ?= 20
 
 # ---- Build geometry (Vivado generics) --------------------------------------
-export STREAM_NUM_CHANNELS ?= 8
+# FOUR channels, not the design point's eight. obs is the only flavour that
+# builds both observers with every monitor cone, and it has outgrown the
+# xc7k325t: 8ch synthesizes at 99.3% of the LUTs and the placer fails
+# (measured 2026-09-07 with the 64-entry CAM at 100.01%, and again 2026-09-09
+# with the 32-entry CAM at 99.33% -- "Placer could not place all instances").
+# 6ch places but does not route. 4ch + CAM 32 routes clean with +0.6 ns.
+# Owner's decision 2026-09-07, recorded in ../stable-obs/MANIFEST.md; it was
+# applied on the command line and never written here, so the next plain
+# `make bitstream` rebuilt the 8ch flavour that cannot fit. The channel count
+# is part of the artifact name, so a 4ch and an 8ch obs bitstream can never
+# be confused on disk.
+export STREAM_NUM_CHANNELS ?= 4
 # Tally CAM depth. 32, not 64: the host keys exactly 32 candidate tuples
 # (rd/wr x every EMITTABLE class, + 2 core), and 64 doubled the parallel
 # key-comparators in BOTH tallies for entries nothing could ever match --
