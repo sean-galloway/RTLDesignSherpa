@@ -2,11 +2,13 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
 """
-Testbench for `pumice_rd_cmd_cam` — outstanding-read reorder buffer.
+Testbench for `pumice_rd_cmd_cam` -- the read SCHEDULING window.
 
-Key check: inserts in AR order, ISSUE in a different order (row-hit reorder),
-DFI returns in ISSUE order, and drain releases in AR order (the reorder).
-Also: oldest not-issued port + scheduler oldest-match lookups.
+Since 2026-09-08 the CAM no longer buffers read data: an entry lives from
+insert to ISSUE, carrying the return ring's ticket. Key checks: inserts in AR
+order carry their tickets; the scheduling vectors / oldest / lookups see the
+valid entries; an issue frees the entry (sch_valid drops, the slot is reusable)
+and forwards the entry's ticket on iss_*; a full window backpressures insert.
 """
 
 import os
@@ -40,11 +42,11 @@ class PumiceRdCmdCamTB(TBBase):
         self.ROW_WIDTH   = self.convert_to_int(os.environ.get('ROW_WIDTH', '14'))
         self.COL_WIDTH   = self.convert_to_int(os.environ.get('COL_WIDTH', '10'))
         self.AXI_ID_WIDTH = self.convert_to_int(os.environ.get('AXI_ID_WIDTH', '8'))
-        self.AXI_DATA_WIDTH = self.convert_to_int(os.environ.get('AXI_DATA_WIDTH', '64'))
-        self.BL = self.convert_to_int(os.environ.get('AXI_BEATS_PER_BURST', '4'))
-        self.BKW = max(1, (self.NUM_BANKS - 1).bit_length())
+        self.RD_RET_DEPTH = self.convert_to_int(os.environ.get('RD_RET_DEPTH', '32'))
+        self.BKW  = max(1, (self.NUM_BANKS - 1).bit_length())
         self.PTRW = max(1, (self.NUM_ENTRIES - 1).bit_length())
-        self.drain_out = deque()   # completed drain bursts: list of (id,data,resp)
+        self.TW   = max(1, (self.RD_RET_DEPTH - 1).bit_length())
+        self.iss_out = deque()     # tickets forwarded on iss_*, in issue order
 
     async def setup_clocks_and_reset(self):
         await self.start_clock('aclk', freq=10, units='ns')
@@ -54,7 +56,7 @@ class PumiceRdCmdCamTB(TBBase):
         await self.wait_clocks('aclk', 5)
         await self.deassert_reset()
         await self.wait_clocks('aclk', 5)
-        cocotb.start_soon(self._mon_drain())
+        cocotb.start_soon(self._mon_iss())
 
     async def assert_reset(self):
         self.dut.aresetn.value = 0
@@ -63,60 +65,55 @@ class PumiceRdCmdCamTB(TBBase):
         self.dut.aresetn.value = 1
 
     def _drive_idle(self):
-        # ins / issue / dfi_ret / drain are BFM-owned (see _build_bfms).
-        # sched_lu_* is NOT a handshake -- sched_lu_valid_i has no matching
-        # ready, it is a combinational lookup request -- so it stays here.
+        # sched_lu_* is a combinational lookup request (no ready) -- not a
+        # handshake, so it stays TB-driven. age_thresh is a config level.
         self.dut.sched_lu_valid_i.value = 0
         self.dut.sched_lu_bank_i.value = 0
         self.dut.sched_lu_row_i.value = 0
+        self.dut.age_thresh_i.value = 0
 
     def _build_bfms(self, profile="backtoback"):
         self.ins_bfm = fub_producer(
             self.dut, "ins", self.dut.aclk, profile=profile, log=self.log,
             valid="ins_valid_i", ready="ins_ready_o",
-            fields={'bank': ("ins_bank_i", max(1, len(self.dut.ins_bank_i))),
-                    'row':  ("ins_row_i",  max(1, len(self.dut.ins_row_i))),
-                    'col':  ("ins_col_i",  max(1, len(self.dut.ins_col_i))),
-                    'id':   ("ins_id_i",   max(1, len(self.dut.ins_id_i)))})
+            fields={'bank':   ("ins_bank_i",   max(1, len(self.dut.ins_bank_i))),
+                    'row':    ("ins_row_i",    max(1, len(self.dut.ins_row_i))),
+                    'col':    ("ins_col_i",    max(1, len(self.dut.ins_col_i))),
+                    'id':     ("ins_id_i",     max(1, len(self.dut.ins_id_i))),
+                    'qos':    ("ins_qos_i",    4),
+                    'ticket': ("ins_ticket_i", max(1, len(self.dut.ins_ticket_i)))})
         self.issue_bfm = fub_producer(
             self.dut, "issue", self.dut.aclk, profile=profile, log=self.log,
             valid="issue_valid_i", ready="issue_ready_o",
             fields={'slot': ("issue_slot_i", max(1, len(self.dut.issue_slot_i)))})
-        self.dfi_ret_bfm = fub_producer(
-            self.dut, "dfi_ret", self.dut.aclk, profile=profile, log=self.log,
-            valid="dfi_ret_valid_i", ready="dfi_ret_ready_o",
-            fields={'data': ("dfi_ret_data_i", max(1, len(self.dut.dfi_ret_data_i))),
-                    'resp': ("dfi_ret_resp_i", 2),
-                    'last': ("dfi_ret_last_i", 1)})
-        self.drain_bfm = fub_consumer(
-            self.dut, "drain", self.dut.aclk, profile=profile, log=self.log,
-            valid="drain_valid_o", ready="drain_ready_i",
-            fields={'id':   ("drain_id_o",   max(1, len(self.dut.drain_id_o))),
-                    'data': ("drain_data_o", max(1, len(self.dut.drain_data_o))),
-                    'resp': ("drain_resp_o", 2),
-                    'last': ("drain_last_o", 1)})
+        self.iss_bfm = fub_consumer(
+            self.dut, "iss", self.dut.aclk, profile=profile, log=self.log,
+            valid="iss_valid_o", ready="iss_ready_i",
+            fields={'ticket': ("iss_ticket_o", max(1, len(self.dut.iss_ticket_o)))})
 
-    def set_drain_ready(self, accepting: bool):
-        """Consumer-side backpressure on drain, through the BFM."""
-        self.drain_bfm.set_ready_policy('always' if accepting else 'stall')
+    def set_iss_ready(self, accepting: bool):
+        """Downstream (ring issue_q) backpressure, through the BFM."""
+        self.iss_bfm.set_ready_policy('always' if accepting else 'stall')
 
-    async def _mon_drain(self):
-        """Reshape the drain BFM's captures into per-burst lists."""
-        cur = []
+    async def _mon_iss(self):
         while True:
             await RisingEdge(self.dut.aclk)
-            while self.drain_bfm._recvQ:
-                p = self.drain_bfm._recvQ.popleft()
-                cur.append((p.id, p.data, p.resp))
-                if p.last:
-                    self.drain_out.append(cur)
-                    cur = []
+            while self.iss_bfm._recvQ:
+                p = self.iss_bfm._recvQ.popleft()
+                self.iss_out.append(p.ticket)
 
-    async def insert(self, bank, row, col, rid):
-        """Insert via the BFM, which holds valid until ins_ready_o -- what
-        the protocol requires of a producer."""
+    async def insert(self, bank, row, col, rid, ticket=0, qos=0):
         await self.ins_bfm.send(self.ins_bfm.create_packet(
-            bank=bank, row=row, col=col, id=rid))
+            bank=bank, row=row, col=col, id=rid, qos=qos, ticket=ticket))
+
+    async def issue(self, slot):
+        await self.issue_bfm.send(self.issue_bfm.create_packet(slot=slot))
+
+    def sch_valid(self):
+        return int(self.dut.sch_valid_o.value)
+
+    def ins_ready(self):
+        return int(self.dut.ins_ready_o.value)
 
     def oldest(self):
         return (int(self.dut.oldest_valid_o.value),
@@ -127,12 +124,7 @@ class PumiceRdCmdCamTB(TBBase):
                 int(self.dut.oldest_slot_o.value))
 
     def head_rel(self):
-        """Relative age of the OLDEST SCHEDULABLE entry (valid && !issued).
-
-        Zero when nothing is schedulable. The age counter free-runs, so for a
-        fixed set of entries this increments by exactly one per clock -- which
-        is what makes it checkable without knowing the CAM's internal latency.
-        """
+        """Relative age of the OLDEST SCHEDULABLE (valid) entry, 0 when none."""
         return int(self.dut.sch_head_rel_o.value)
 
     async def sched_query(self, queries):
@@ -159,11 +151,9 @@ class PumiceRdCmdCamTB(TBBase):
         self.dut.sched_lu_valid_i.value = 0
         return out
 
-    async def issue(self, slot):
-        await self.issue_bfm.send(self.issue_bfm.create_packet(slot=slot))
-
-    async def dfi_return(self, data, resp=0):
-        n = len(data)
-        for i, d in enumerate(data):
-            await self.dfi_ret_bfm.send(self.dfi_ret_bfm.create_packet(
-                data=d, resp=resp, last=1 if i == n - 1 else 0))
+    async def wait_iss(self, n, limit=200):
+        for _ in range(limit):
+            if len(self.iss_out) >= n:
+                return
+            await RisingEdge(self.dut.aclk)
+        raise AssertionError(f"only {len(self.iss_out)}/{n} tickets forwarded on iss_*")

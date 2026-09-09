@@ -44,6 +44,7 @@ module pumice_core
     parameter int DRAM_BL             = 8,        // burst length, JEDEC device beats (MR0)
     parameter int NUM_ENTRIES    = 8,
     parameter int N_SRAM_SLOTS   = NUM_ENTRIES,
+    parameter int RD_RET_DEPTH   = 32,   // reads in flight (return ring), power of 2
     parameter int AGE_WIDTH      = 16,
     // DV knob: arm the scheduler's command-history scoreboard (JEDEC same-bank
     // sequencing audit, $fatal on violation). 0 = generate-off, zero cost.
@@ -310,6 +311,7 @@ module pumice_core
         .AXI_BEATS_PER_BURST   (BURST_WORDS),
         .NUM_ENTRIES      (NUM_ENTRIES),
         .N_SRAM_SLOTS     (N_SRAM_SLOTS),
+        .RD_RET_DEPTH     (RD_RET_DEPTH),
         .N_SCHED_LU       (N_LU),
         .AGE_WIDTH        (AGE_WIDTH)
     ) u_ifc (
@@ -528,7 +530,13 @@ module pumice_core
         .SUB_COL_STRIDE  (SUB_COL_STRIDE),
         .SUB_PHASE_STRIDE(SUB_PHASE_STRIDE),
         .SUBW_MAX        (SUBW_MAX),
-        .BURST_WORDS     (BURST_WORDS)
+        .BURST_WORDS     (BURST_WORDS),
+        // The read return has NO backpressure at the PHY (rddata_valid cannot
+        // stall), so the aligner's tracking and the return CDC FIFO must cover
+        // every read the ring can hold in flight: RD_RET_DEPTH reads x
+        // BURST_WORDS DFI words each. Sized here, asserted in the aligner.
+        .RD_MAX_OUTSTANDING(RD_RET_DEPTH),
+        .RD_FIFO_DEPTH   (RD_RET_DEPTH * BURST_WORDS)
     ) u_dfi (
         .ctl_clk            (aclk),
         .ctl_rstn           (aresetn),

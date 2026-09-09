@@ -29,6 +29,7 @@ module pumice_top
     parameter int DRAM_BL             = 8,
     parameter int NUM_ENTRIES    = 8,
     parameter int N_SRAM_SLOTS   = NUM_ENTRIES,
+    parameter int RD_RET_DEPTH   = 32,   // reads in flight (return ring), power of 2
     parameter int CMD_HISTORY_EN = 0,  // DV: arm the scheduler's history scoreboard
 
     parameter int DW  = DRAM_BEAT_WIDTH * DFI_RATE,
@@ -185,6 +186,7 @@ module pumice_top
         .DRAM_BL               (DRAM_BL),
         .NUM_ENTRIES      (NUM_ENTRIES),
         .N_SRAM_SLOTS     (N_SRAM_SLOTS),
+        .RD_RET_DEPTH     (RD_RET_DEPTH),
         .CMD_HISTORY_EN   (CMD_HISTORY_EN)
     ) u_core (
         .aclk               (aclk),

@@ -5,20 +5,25 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: pumice_rd_cmd_cam
-// Purpose: Outstanding-DRAM-read tracker for the AXI4 interface (the MISS
-//          path). Mirror of pumice_wr_data_cam: entries keyed {bank,row,col}
-//          with a free-running age, an oldest port, and N scheduler lookups so
-//          reads row-hit-schedule like writes. Acts as a REORDER BUFFER:
-//          DRAM read data returns in ISSUE order and is buffered per entry;
-//          it drains to pumice_rd_intake in AR (insert) order.
+// Purpose: Read SCHEDULING window for the AXI4 interface (the MISS path).
+//          Mirror of pumice_wr_data_cam's scheduling side: entries keyed
+//          {bank,row,col} with a free-running age, an age-order matrix, and the
+//          per-entry scheduling vectors the arbiter picks from.
 //
-// Data direction (vs the wr CAM): data comes IN from the DFI read return and
-// drains OUT to rd_intake. There is no snarf port (that is a write-CAM concept).
+//          An entry lives from INSERT to ISSUE only. The read's return is owned
+//          by pumice_rd_return_ring: the ring hands out a TICKET at insert (AR
+//          order), the CAM stores it, and on the arbiter's issue notify the CAM
+//          frees the entry and forwards the ticket to the ring's issue-order
+//          FIFO. So NUM_ENTRIES is the scheduling window and nothing else; the
+//          in-flight read count is the ring's DEPTH.
+//
+//          (Until 2026-09-08 this CAM also buffered the returned data and
+//          drained it in AR order, so an entry lived for the whole DRAM round
+//          trip and eight entries bounded read bandwidth by Little's law to
+//          ~180 MB/s on the board. See design/README.md.)
 //
 // Age (wrap-safe via rel = age_ctr - entry_age):
-//   * issue-side oldest/lookups -> oldest NOT-YET-ISSUED entry [max rel]
-//   * drain-side                -> oldest valid entry, gated on data-ready
-//                                  (enforces AR-order release / reorder)
+//   * issue-side oldest/lookups -> oldest valid entry [max rel]
 //
 // Documentation: rtl/PUMICE_AXI4_IFC_UARCH.md
 `timescale 1ns / 1ps
@@ -32,23 +37,19 @@ module pumice_rd_cmd_cam #(
     parameter int ROW_WIDTH       = 14,
     parameter int COL_WIDTH       = 10,
     parameter int AXI_ID_WIDTH    = 8,
-    parameter int AXI_DATA_WIDTH  = 64,
-    parameter int AXI_BEATS_PER_BURST              = 4,
     parameter int AGE_WIDTH       = 16,
-    parameter int N_SRAM_SLOTS    = NUM_ENTRIES,
+    parameter int RD_RET_DEPTH    = 32,   // pumice_rd_return_ring DEPTH (ticket space)
 
     parameter int IW    = AXI_ID_WIDTH,
-    parameter int DW    = AXI_DATA_WIDTH,
     parameter int BKW   = $clog2(NUM_BANKS),
     parameter int PTRW  = $clog2(NUM_ENTRIES),
-    parameter int SPTRW = $clog2(N_SRAM_SLOTS),
-    parameter int BCW   = (AXI_BEATS_PER_BURST > 1) ? $clog2(AXI_BEATS_PER_BURST) : 1   // beat-counter width (AXI_BEATS_PER_BURST=1 => 1b)
+    parameter int TW    = $clog2(RD_RET_DEPTH)
 ) (
     input  logic                          aclk,
     input  logic                          aresetn,
 
     //=========================================================================
-    // Insert (from pumice_rd_intake ar_push, in AR order)
+    // Insert (from pumice_rd_intake ar_push, in AR order) + the ring's ticket
     //=========================================================================
     input  logic                          ins_valid_i,
     output logic                          ins_ready_o,
@@ -57,9 +58,10 @@ module pumice_rd_cmd_cam #(
     input  logic [COL_WIDTH-1:0]          ins_col_i,
     input  logic [IW-1:0]                 ins_id_i,
     input  logic [3:0]                    ins_qos_i,     // AxQOS (QOS_EN pick)
+    input  logic [TW-1:0]                 ins_ticket_i,  // return-ring slot
 
     //=========================================================================
-    // Scheduler lookups (N generic, keyed {bank,row}) — oldest NOT-ISSUED match
+    // Scheduler lookups (N generic, keyed {bank,row}) — oldest match
     //=========================================================================
     input  logic [N_SCHED_LU-1:0]             sched_lu_valid_i,
     input  logic [N_SCHED_LU*BKW-1:0]         sched_lu_bank_i,
@@ -73,7 +75,7 @@ module pumice_rd_cmd_cam #(
     //=========================================================================
     // Per-entry scheduling vectors (registered fields; the scheduler does the
     // match + argmax itself -> bank-parallel activation, no lookup round-trip).
-    // Indexed by entry slot. sch_valid = schedulable (valid, not yet issued).
+    // Indexed by entry slot. sch_valid = schedulable (valid; issue frees).
     //=========================================================================
     output logic [NUM_ENTRIES-1:0]              sch_valid_o,
     output logic [NUM_ENTRIES*BKW-1:0]          sch_bank_o,
@@ -95,7 +97,7 @@ module pumice_rd_cmd_cam #(
     output logic [AGE_WIDTH-1:0]                sch_head_rel_o,
 
     //=========================================================================
-    // Oldest not-issued port (scheduler fallback)
+    // Oldest port (scheduler fallback)
     //=========================================================================
     output logic                          oldest_valid_o,
     output logic [BKW-1:0]                oldest_bank_o,
@@ -106,30 +108,15 @@ module pumice_rd_cmd_cam #(
 
     //=========================================================================
     // Issue notify (scheduler tells the CAM which slot it issued to DRAM).
-    // Records issue order so returns fill the right slot.
+    // Frees the entry and forwards its ticket to the return ring, which is
+    // where issue_ready comes from (the ring's issue-order FIFO).
     //=========================================================================
     input  logic                          issue_valid_i,
     output logic                          issue_ready_o,
     input  logic [PTRW-1:0]               issue_slot_i,
-
-    //=========================================================================
-    // DFI read return (data in, ISSUE order) -> buffered into the issued slot
-    //=========================================================================
-    input  logic                          dfi_ret_valid_i,
-    output logic                          dfi_ret_ready_o,
-    input  logic [DW-1:0]                 dfi_ret_data_i,
-    input  logic [1:0]                    dfi_ret_resp_i,
-    input  logic                          dfi_ret_last_i,
-
-    //=========================================================================
-    // Drain to rd_intake dfi_rd source (AR order, oldest-first, ready-gated)
-    //=========================================================================
-    output logic                          drain_valid_o,
-    input  logic                          drain_ready_i,
-    output logic [DW-1:0]                 drain_data_o,
-    output logic [IW-1:0]                 drain_id_o,
-    output logic [1:0]                    drain_resp_o,
-    output logic                          drain_last_o,
+    output logic                          iss_valid_o,
+    input  logic                          iss_ready_i,
+    output logic [TW-1:0]                 iss_ticket_o,
 
     output logic                          busy_o
 );
@@ -138,84 +125,24 @@ module pumice_rd_cmd_cam #(
 
     // ---- entry state -------------------------------------------------------
     logic                 r_valid  [NUM_ENTRIES];
-    logic                 r_issued [NUM_ENTRIES];
-    logic                 r_ready  [NUM_ENTRIES];   // data complete
     logic [BKW-1:0]       r_bank   [NUM_ENTRIES];
     logic [ROW_WIDTH-1:0] r_row    [NUM_ENTRIES];
     logic [COL_WIDTH-1:0] r_col    [NUM_ENTRIES];
     logic [IW-1:0]        r_id     [NUM_ENTRIES];
     logic [3:0]           r_qos    [NUM_ENTRIES];
-    logic [1:0]           r_resp   [NUM_ENTRIES];
+    logic [TW-1:0]        r_ticket [NUM_ENTRIES];
     logic [AGE_WIDTH-1:0] r_age    [NUM_ENTRIES];
-    logic [SPTRW-1:0]     r_ptr    [NUM_ENTRIES];   // SRAM slot; set on 1st return
-    logic                 r_pv     [NUM_ENTRIES];   // ptr_valid
     logic [AGE_WIDTH-1:0] r_age_ctr;
 
     // Age-order matrix: r_older[i][j] = entry i inserted strictly before j (i
     // older). Maintained on INSERT only; replaces the 16-bit age argmax key on
-    // the scheduler path with 1-bit compares (r_age kept for the drain-order
-    // oldest pick, which is off the scheduler critical path).
+    // the scheduler path with 1-bit compares.
     logic [NUM_ENTRIES-1:0] r_older [NUM_ENTRIES];
 
     logic [AGE_WIDTH-1:0] w_rel [NUM_ENTRIES];
     always_comb
         for (int i = 0; i < NUM_ENTRIES; i++)
             w_rel[i] = r_age_ctr - r_age[i];
-
-    // SRAM slot occupancy (pre-allocator), 1 = occupied
-    logic [N_SRAM_SLOTS-1:0] r_sram_occ;
-    logic                    w_slot_free_found;
-    logic [SPTRW-1:0]        w_slot_free;
-    always_comb begin
-        w_slot_free_found = 1'b0;
-        w_slot_free       = '0;
-        for (int s = N_SRAM_SLOTS-1; s >= 0; s--)
-            if (!r_sram_occ[s]) begin
-                w_slot_free_found = 1'b1;
-                w_slot_free       = SPTRW'(s);
-            end
-    end
-
-    // Read-return buffer: was a distributed flop array with a COMBINATIONAL read
-    // (LUT-heavy read mux, 0 BRAM). Now a registered-read BRAM -- one write port
-    // (DFI return) + one read port (drain), synchronous read -> infers block RAM.
-    // The synchronous read has 1-cycle latency; a 2-DEEP PREFETCH SKID (below)
-    // decouples fetch from consume so the read port stays busy across burst
-    // boundaries (beat-0 of the next AR-order burst prefetches while the current
-    // tail drains -> no per-burst bubble). Read data carries no strobes -> DW word.
-    (* ram_style = "block" *)
-    logic [DW-1:0] r_mem [N_SRAM_SLOTS*AXI_BEATS_PER_BURST];
-    logic [DW-1:0] r_rd_q;    // BRAM read-data register (output of the sync read)
-    logic [BCW-1:0] r_fbeat;  // fetch beat pointer (next beat to issue)
-
-    // Per-entry "fully fetched" flag: set at fetch-last, cleared on evict/insert.
-    // The fetch-side oldest pick skips fetched-but-still-draining entries so the
-    // NEXT AR-order burst can prefetch while the current one's tail drains.
-    logic          r_fetched [NUM_ENTRIES];
-
-    // ---- 2-deep prefetch skid FIFO (cross-burst) ---------------------------
-    // Each entry carries a full tag so the consume side never needs the current
-    // fetch pick (which has advanced to the next burst). One BRAM read port,
-    // 1-cycle latency, tracked by an in-flight register (r_if_*); a credit count
-    // bounds (outstanding + buffered) <= SKID_DEPTH so a stalled consumer never
-    // loses a beat. Drain order = fetch order = AR (oldest) order.
-    localparam int SKID_DEPTH = 2;
-    logic [DW-1:0]   r_sk_data  [SKID_DEPTH];
-    logic [PTRW-1:0] r_sk_slot  [SKID_DEPTH]; // entry slot (eviction / SRAM free)
-    logic            r_sk_blast [SKID_DEPTH]; // last beat of the burst
-    logic [IW-1:0]   r_sk_id    [SKID_DEPTH]; // r_id  of the entry
-    logic [1:0]      r_sk_resp  [SKID_DEPTH]; // r_resp of the entry
-    logic            r_sk_rd;                 // head pointer (1 bit; DEPTH=2)
-    logic            r_sk_wr;                 // tail pointer
-    logic [1:0]      r_sk_cnt;                // occupancy 0..2
-    logic [1:0]      r_credits;               // SKID_DEPTH - (outstanding + buffered)
-
-    // in-flight read (issued last cycle; its data lands in r_rd_q this cycle)
-    logic            r_if_valid;
-    logic [PTRW-1:0] r_if_slot;
-    logic            r_if_blast;
-    logic [IW-1:0]   r_if_id;
-    logic [1:0]      r_if_resp;
 
     // ---- free-slot allocation ----------------------------------------------
     logic            w_have_free;
@@ -234,51 +161,21 @@ module pumice_rd_cmd_cam #(
     assign ins_ready_o = w_have_free;
     assign w_ins_fire  = ins_valid_i && ins_ready_o;
 
-    // ---- issue-order FIFO (slots awaiting DFI return) ----------------------
-    logic            w_iq_wr_valid, w_iq_wr_ready, w_iq_rd_valid, w_iq_rd_ready;
-    logic [PTRW-1:0] w_iq_rd_slot;
-
-    assign issue_ready_o = w_iq_wr_ready;
-    assign w_iq_wr_valid = issue_valid_i;
-
-    gaxi_fifo_sync #(.DATA_WIDTH(PTRW), .DEPTH(NUM_ENTRIES)) u_issue_q (
-        .axi_aclk   (aclk),
-        .axi_aresetn(aresetn),
-        .wr_valid   (w_iq_wr_valid),
-        .wr_ready   (w_iq_wr_ready),
-        .wr_data    (issue_slot_i),
-        .rd_ready   (w_iq_rd_ready),
-        .count      (),
-        .rd_valid   (w_iq_rd_valid),
-        .rd_data    (w_iq_rd_slot)
-    );
-
+    // ---- issue: free the entry, forward its ticket -------------------------
     logic w_issue_fire;
-    assign w_issue_fire = issue_valid_i && issue_ready_o;
+    assign issue_ready_o = iss_ready_i;
+    assign w_issue_fire  = issue_valid_i && issue_ready_o;
+    assign iss_valid_o   = issue_valid_i;
+    assign iss_ticket_o  = r_ticket[issue_slot_i];
 
-    // ---- return-fill engine : write DFI data into issue_q head slot --------
-    // Pre-allocate a free SRAM slot on the first return beat.
-    logic [BCW-1:0] r_ret_beat;
-    logic            w_ret_first;
-    logic [SPTRW-1:0] w_ret_slot;
-    assign w_ret_first = (r_ret_beat == '0);
-    assign w_ret_slot  = w_ret_first ? w_slot_free : r_ptr[w_iq_rd_slot];
-    assign dfi_ret_ready_o = w_iq_rd_valid && (r_ret_beat != '0 || w_slot_free_found);
-    logic w_ret_fire;
-    assign w_ret_fire     = dfi_ret_valid_i && dfi_ret_ready_o;
-    assign w_iq_rd_ready  = w_ret_fire && dfi_ret_last_i;
-
-    logic [31:0] w_ret_idx;
-    assign w_ret_idx = 32'(w_ret_slot) * 32'(AXI_BEATS_PER_BURST) + 32'(r_ret_beat);
-
-    // ---- issue-side oldest NOT-ISSUED (max rel among valid && !issued) -----
+    // ---- issue-side oldest valid (max rel) ---------------------------------
     logic            w_old_found;
     logic [PTRW-1:0] w_old_slot;
     logic [AGE_WIDTH-1:0] w_old_best;
     always_comb begin
         w_old_found = 1'b0; w_old_slot = '0; w_old_best = '0;
         for (int i = 0; i < NUM_ENTRIES; i++)
-            if (r_valid[i] && !r_issued[i] && (!w_old_found || w_rel[i] > w_old_best)) begin
+            if (r_valid[i] && (!w_old_found || w_rel[i] > w_old_best)) begin
                 w_old_found = 1'b1; w_old_best = w_rel[i]; w_old_slot = PTRW'(i);
             end
     end
@@ -289,7 +186,7 @@ module pumice_rd_cmd_cam #(
     assign oldest_col_o   = r_col[w_old_slot];
     assign oldest_id_o    = r_id[w_old_slot];
 
-    // ---- scheduler lookups : oldest NOT-ISSUED match per port --------------
+    // ---- scheduler lookups : oldest match per port -------------------------
     always_comb begin
         for (int j = 0; j < N_SCHED_LU; j++) begin
             logic                 found;
@@ -301,7 +198,7 @@ module pumice_rd_cmd_cam #(
             qbank = sched_lu_bank_i[j*BKW +: BKW];
             qrow  = sched_lu_row_i [j*ROW_WIDTH +: ROW_WIDTH];
             for (int i = 0; i < NUM_ENTRIES; i++)
-                if (r_valid[i] && !r_issued[i] && r_bank[i] == qbank && r_row[i] == qrow)
+                if (r_valid[i] && r_bank[i] == qbank && r_row[i] == qrow)
                     if (!found || w_rel[i] > best) begin
                         found = 1'b1; best = w_rel[i]; slot = PTRW'(i);
                     end
@@ -314,32 +211,22 @@ module pumice_rd_cmd_cam #(
     end
 
     // ---- scheduler-side oldest SCHEDULABLE entry, via the age-order matrix --
-    // Same idiom as the drain-side oldest-valid pick above, and for the same
-    // reason: the obvious form -- a max-reduce over w_rel[] -- is a SERIAL
-    // chain of NUM_ENTRIES x (AGE_WIDTH subtract + compare + mux), and it puts
-    // the free-running r_age_ctr straight onto the w_sys_i scheduling path.
-    //
-    // That is not theoretical. It was the worst path in the whole design on
-    // the first synthesis since the mode work landed: 63.6 ns against a 15 ns
-    // period, 89 logic levels, 30 carry chains, and 17.8 ns of LOGIC alone --
-    // unfixable by placement. See PUMICE-017.
-    //
-    // The matrix is registered and its compares are 1 bit, so finding the
+    // The obvious form -- a max-reduce over w_rel[] -- is a SERIAL chain of
+    // NUM_ENTRIES x (AGE_WIDTH subtract + compare + mux) that puts the
+    // free-running r_age_ctr straight onto the w_sys_i scheduling path (63.6 ns
+    // against a 15 ns period on the first synthesis after the mode work,
+    // PUMICE-017). The matrix is registered and its compares are 1 bit, so the
     // oldest costs a shallow NUM_ENTRIES^2 AND-reduce; only the winner's
-    // relative age needs the AGE_WIDTH subtract. Identical value, no pipeline
-    // stage, no staleness.
+    // relative age needs the AGE_WIDTH subtract.
     logic            w_sho_found;
     logic [PTRW-1:0] w_sho_slot;
     always_comb begin
-        automatic logic [NUM_ENTRIES-1:0] w_sho_sched;
         automatic logic [NUM_ENTRIES-1:0] w_sho_is;
-        for (int i = 0; i < NUM_ENTRIES; i++)
-            w_sho_sched[i] = r_valid[i] && !r_issued[i];
         for (int i = 0; i < NUM_ENTRIES; i++) begin
             automatic logic ge_all = 1'b1;
             for (int j = 0; j < NUM_ENTRIES; j++)
-                if ((j != i) && w_sho_sched[j] && !r_older[i][j]) ge_all = 1'b0;
-            w_sho_is[i] = w_sho_sched[i] && ge_all;
+                if ((j != i) && r_valid[j] && !r_older[i][j]) ge_all = 1'b0;
+            w_sho_is[i] = r_valid[i] && ge_all;
         end
         w_sho_found = |w_sho_is;
         w_sho_slot  = '0;
@@ -350,97 +237,32 @@ module pumice_rd_cmd_cam #(
     // ---- per-entry scheduling vectors (registered fields, 1-level derive) ---
     always_comb begin
         for (int i = 0; i < NUM_ENTRIES; i++) begin
-            sch_valid_o[i]                        = r_valid[i] && !r_issued[i];
+            sch_valid_o[i]                        = r_valid[i];
             sch_bank_o [i*BKW       +: BKW]       = r_bank[i];
             sch_row_o  [i*ROW_WIDTH +: ROW_WIDTH] = r_row[i];
             sch_col_o  [i*COL_WIDTH +: COL_WIDTH] = r_col[i];
             sch_older_o[i*NUM_ENTRIES +: NUM_ENTRIES] = r_older[i];
             sch_qos_o[i*4 +: 4] = r_qos[i];
-            sch_age_exceed_o[i] = r_valid[i] && !r_issued[i]
+            sch_age_exceed_o[i] = r_valid[i]
                                 && (age_thresh_i != 8'd0)
                                 && (w_rel[i] >= AGE_WIDTH'({age_thresh_i, 4'h0}));
         end
         sch_head_rel_o = w_sho_found ? w_rel[w_sho_slot] : '0;
     end
 
-    // ---- fetch-side oldest NOT-FETCHED valid entry, via the age-order matrix -
-    // The fetch pick = the oldest entry that is valid and not yet fully fetched
-    // (1-bit compares; r_age_ctr stays off this path). Fetched-but-still-draining
-    // entries are skipped so the NEXT AR-order burst can prefetch while the
-    // current tail drains. AR order is preserved: the pick is always the OLDEST
-    // not-fetched entry, and the fetch is gated on its data-ready, so a younger
-    // ready entry never jumps ahead of an older not-ready one.
-    logic            w_fro_found;
-    logic [PTRW-1:0] w_fro_slot;
     always_comb begin
-        automatic logic [NUM_ENTRIES-1:0] w_fro_cand;
-        automatic logic [NUM_ENTRIES-1:0] w_fro_is;
+        busy_o = 1'b0;
         for (int i = 0; i < NUM_ENTRIES; i++)
-            w_fro_cand[i] = r_valid[i] && !r_fetched[i];
-        for (int i = 0; i < NUM_ENTRIES; i++) begin
-            automatic logic ge_all = 1'b1;
-            for (int j = 0; j < NUM_ENTRIES; j++)
-                if ((j != i) && w_fro_cand[j] && !r_older[i][j]) ge_all = 1'b0;
-            w_fro_is[i] = w_fro_cand[i] && ge_all;
-        end
-        w_fro_found = |w_fro_is;
-        w_fro_slot  = '0;
-        for (int i = NUM_ENTRIES-1; i >= 0; i--)
-            if (w_fro_is[i]) w_fro_slot = PTRW'(i);
+            if (r_valid[i]) busy_o = 1'b1;
     end
-
-    // ---- 2-deep prefetch skid over the synchronous-read BRAM ----------------
-    // The consume side reads the skid head; its carried tag drives id/resp/last
-    // and the eviction. The fetch side runs the oldest not-fetched entry.
-    logic            w_hd_vld, w_hd_blast;
-    logic [DW-1:0]   w_hd_data;
-    logic [PTRW-1:0] w_hd_slot;
-    logic [IW-1:0]   w_hd_id;
-    logic [1:0]      w_hd_resp;
-    assign w_hd_vld   = (r_sk_cnt != 2'd0);
-    assign w_hd_data  = r_sk_data [r_sk_rd];
-    assign w_hd_slot  = r_sk_slot [r_sk_rd];
-    assign w_hd_blast = r_sk_blast[r_sk_rd];
-    assign w_hd_id    = r_sk_id   [r_sk_rd];
-    assign w_hd_resp  = r_sk_resp [r_sk_rd];
-
-    logic        w_dr_fire, w_pop, w_room, w_fetch;
-    logic [31:0] w_dr_idx;
-    assign drain_valid_o = w_hd_vld;
-    assign drain_data_o  = w_hd_data;
-    assign drain_id_o    = w_hd_id;
-    assign drain_resp_o  = w_hd_resp;
-    assign drain_last_o  = w_hd_blast;
-    assign w_dr_fire     = drain_valid_o && drain_ready_i;
-    assign w_pop         = w_dr_fire;
-
-    // issue only when a credit is free (or a pop frees one this cycle) AND the
-    // oldest not-fetched entry has its data fully staged (AR-order gate).
-    assign w_room  = (r_credits != 2'd0) || w_pop;
-    assign w_fetch = w_room && w_fro_found && r_ready[w_fro_slot];
-    assign w_dr_idx = 32'(r_ptr[w_fro_slot]) * 32'(AXI_BEATS_PER_BURST) + 32'(r_fbeat);
-
-    assign busy_o = w_fro_found || w_iq_rd_valid || w_hd_vld || r_if_valid;
 
     // ---- sequential --------------------------------------------------------
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_age_ctr   <= '0;
-            r_ret_beat  <= '0;
-            r_fbeat     <= '0;
-            r_sram_occ  <= '0;
-            r_sk_rd     <= 1'b0;
-            r_sk_wr     <= 1'b0;
-            r_sk_cnt    <= 2'd0;
-            r_credits   <= 2'(SKID_DEPTH);
-            r_if_valid  <= 1'b0;
+            r_age_ctr <= '0;
             for (int i = 0; i < NUM_ENTRIES; i++) begin
-                r_valid[i]   <= 1'b0;
-                r_issued[i]  <= 1'b0;
-                r_ready[i]   <= 1'b0;
-                r_pv[i]      <= 1'b0;
-                r_fetched[i] <= 1'b0;
-                r_older[i]   <= '0;
+                r_valid[i] <= 1'b0;
+                r_older[i] <= '0;
             end
         end else begin
             r_age_ctr <= r_age_ctr + 1'b1;
@@ -448,15 +270,13 @@ module pumice_rd_cmd_cam #(
             // insert
             if (w_ins_fire) begin
                 r_valid [w_free_slot] <= 1'b1;
-                r_issued[w_free_slot] <= 1'b0;
-                r_ready [w_free_slot] <= 1'b0;
                 r_bank  [w_free_slot] <= ins_bank_i;
                 r_row   [w_free_slot] <= ins_row_i;
                 r_col   [w_free_slot] <= ins_col_i;
                 r_id    [w_free_slot] <= ins_id_i;
-                r_qos  [w_free_slot] <= ins_qos_i;
+                r_qos   [w_free_slot] <= ins_qos_i;
+                r_ticket[w_free_slot] <= ins_ticket_i;
                 r_age   [w_free_slot] <= r_age_ctr;
-                r_fetched[w_free_slot] <= 1'b0;
                 // age matrix: new slot is YOUNGEST -> older than nobody, and
                 // every other slot is older than it.
                 for (int j = 0; j < NUM_ENTRIES; j++) begin
@@ -465,90 +285,18 @@ module pumice_rd_cmd_cam #(
                 end
             end
 
-            // issue notify -> mark issued (issue_q push is handled by the FIFO)
+            // issue -> the entry is done here; the ring owns the return
             if (w_issue_fire)
-                r_issued[issue_slot_i] <= 1'b1;
-
-            // return-fill : allocate SRAM slot on first beat, then write
-            if (w_ret_fire) begin
-                if (w_ret_first) begin
-                    r_ptr[w_iq_rd_slot] <= w_slot_free;
-                    r_pv [w_iq_rd_slot] <= 1'b1;
-                    r_sram_occ[w_slot_free] <= 1'b1;
-                end
-                if (dfi_ret_last_i) begin
-                    r_ready[w_iq_rd_slot] <= 1'b1;
-                    r_resp [w_iq_rd_slot] <= dfi_ret_resp_i;
-                    r_ret_beat <= '0;
-                end else begin
-                    r_ret_beat <= r_ret_beat + 1'b1;
-                end
-            end
-
-            // ---- 2-deep prefetch skid pipeline --------------------------------
-            // Stage 1 (issue): pick the oldest not-fetched ready entry, issue the
-            // BRAM read, latch its tag as in-flight, mark it fetched at the last
-            // beat so the fetch pick advances to the next AR-order burst. Stage 2
-            // (capture, next cycle): r_rd_q holds the data and r_if_* the tag ->
-            // push into the skid FIFO. Credits bound (outstanding + buffered).
-            r_if_valid <= w_fetch;
-            if (w_fetch) begin
-                r_if_slot  <= w_fro_slot;
-                r_if_blast <= (r_fbeat == BCW'(AXI_BEATS_PER_BURST-1));
-                r_if_id    <= r_id  [w_fro_slot];
-                r_if_resp  <= r_resp[w_fro_slot];
-                if (r_fbeat == BCW'(AXI_BEATS_PER_BURST-1)) begin
-                    r_fbeat               <= '0;
-                    r_fetched[w_fro_slot] <= 1'b1;   // burst fully fetched into pipe
-                end else begin
-                    r_fbeat <= r_fbeat + 1'b1;
-                end
-            end
-
-            // push the captured in-flight beat into the skid FIFO tail
-            if (r_if_valid) begin
-                r_sk_data [r_sk_wr] <= r_rd_q;
-                r_sk_slot [r_sk_wr] <= r_if_slot;
-                r_sk_blast[r_sk_wr] <= r_if_blast;
-                r_sk_id   [r_sk_wr] <= r_if_id;
-                r_sk_resp [r_sk_wr] <= r_if_resp;
-                r_sk_wr             <= r_sk_wr + 1'b1;
-            end
-            if (w_pop) r_sk_rd <= r_sk_rd + 1'b1;
-            r_sk_cnt  <= r_sk_cnt  + (r_if_valid ? 2'd1 : 2'd0) - (w_pop  ? 2'd1 : 2'd0);
-            r_credits <= r_credits - (w_fetch    ? 2'd1 : 2'd0) + (w_pop  ? 2'd1 : 2'd0);
-
-            // evict the entry when the consumer takes its last beat, sourced from
-            // the CARRIED tag (head slot), NOT the fetch pick (already advanced).
-            if (w_dr_fire && w_hd_blast) begin
-                r_valid  [w_hd_slot] <= 1'b0;            // evict entry
-                r_pv     [w_hd_slot] <= 1'b0;
-                r_fetched[w_hd_slot] <= 1'b0;
-                r_sram_occ[r_ptr[w_hd_slot]] <= 1'b0;    // free SRAM slot
-            end
+                r_valid[issue_slot_i] <= 1'b0;
         end
     )
 
-    // -------------------------------------------------------------------------
-    // Data storage: a dedicated, RESET-FREE clocked process so Vivado maps it to
-    // Block RAM. A memory written inside an async-reset process (the design
-    // compiles with +define+USE_ASYNC_RESET) reports "RAM is sensitive to
-    // asynchronous reset signal" and dissolves into fabric flip-flops. One write
-    // port + one registered read port = simple dual-port BRAM. Behaviour is
-    // identical to keeping these in the RST block: r_mem is never reset and the
-    // read is registered the same cycle.
-    //
-    // READ LATENCY IS EXACTLY 1 CYCLE and the read-side pipeline depends on it:
-    // combinational address w_dr_idx + single output register r_rd_q, so data
-    // for the address issued in cycle T lands in r_rd_q in T+1 -- when the 1-deep
-    // in-flight tag (r_if_*) is paired with it and pushed into the skid. Do NOT
-    // register the read address or add an output-register stage unless you
-    // deepen the r_if_* tag pipeline to match, or every captured beat pairs with
-    // the WRONG tag (slot/last/id/resp) -> silent data corruption, no error.
-    // -------------------------------------------------------------------------
-    always_ff @(posedge aclk) begin
-        if (w_ret_fire) r_mem[w_ret_idx] <= dfi_ret_data_i;
-        if (w_fetch)    r_rd_q           <= r_mem[w_dr_idx];
-    end
+`ifndef SYNTHESIS
+    always @(posedge aclk)
+        if (aresetn) begin
+            assert (!(w_issue_fire && !r_valid[issue_slot_i]))
+              else $error("RD_CAM @%0t: issue of slot %0d which is NOT valid", $time, issue_slot_i);
+        end
+`endif
 
 endmodule : pumice_rd_cmd_cam

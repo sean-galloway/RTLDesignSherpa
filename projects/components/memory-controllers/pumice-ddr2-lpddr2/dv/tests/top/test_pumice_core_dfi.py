@@ -988,6 +988,46 @@ async def cocotb_test_pumice_core_perf_read_ceiling(dut):
                   100.0 * m['util'])
 
 
+@cocotb.test(timeout_time=120, timeout_unit="ms")
+async def cocotb_test_pumice_core_perf_read_inflight(dut):
+    """Reads in flight BEYOND the scheduling window (pumice_rd_return_ring).
+
+    Strict DFI read timing with a LONG read latency (200 DFI cycles after
+    rddata_en = 80 aclk at this TB's 2.5x DFI clock) and a page-hit stream
+    into an always-ready sink. Before the ring (2026-09-08) a read occupied
+    its 8-entry CAM slot from AR to R-drain, so at most 8 reads = 32 R beats
+    could be in flight per ~90-cycle round trip: Little's law caps util near
+    0.35 and the R channel shows the DUT starving the sink. With
+    RD_RET_DEPTH=32 the CAM entry frees at issue and the ring holds the
+    returns (128 beats in flight), so the stream saturates.
+
+    Mutation check: PUMICE_RD_RET_DEPTH=8 (the old in-flight bound) must FAIL
+    the floor -- a floor that does not move with the ring depth measures
+    nothing.
+    """
+    lat = int(os.environ.get("DFI_READ_LATENCY", "200"))
+    m = await _measure_read_stream(
+        dut, t_refi=0xFFFF, t_rfc=8, label="read_inflight",
+        title=f"READ IN-FLIGHT (strict DFI read latency {lat}, page-hit stream, b2b sink)",
+        read_latency=lat, strict_read=True)
+    _assert_read_stream_sane(m)
+    assert m['refs'] == 0, f"{m['refs']} refreshes fired inside the window"
+    # The BFM sink's rready FOLLOWS rvalid, so a DUT that runs dry shows up as
+    # `idle` (both low), not `starv`; the R-channel util is blind to it. The
+    # honest number is window throughput: beats moved over the whole read
+    # phase in cycles. Measured 2026-09-08: RD_RET_DEPTH=32 -> 1024/1126 =
+    # 0.91; RD_RET_DEPTH=8 (the old bound) -> 1024/3265 = 0.31.
+    thr = m['beats'] / m['elapsed'] if m['elapsed'] else 0.0
+    floor = float(os.environ.get("READ_INFLIGHT_THR_FLOOR", "0.85"))
+    assert thr >= floor, (
+        f"read window throughput {thr:.2f} beats/cycle < {floor:.2f} floor under "
+        f"{lat}-cycle read latency (window {m['elapsed']:.0f} cyc, idle={m['idle']}) "
+        f"-- the controller is not keeping enough reads in flight to cover the "
+        f"round trip (RD_RET_DEPTH / issue gating)")
+    dut._log.info("PASS: read in-flight throughput %.2f beats/cycle at latency %d "
+                  "(window %.0f cyc, idle=%d)", thr, lat, m['elapsed'], m['idle'])
+
+
 @cocotb.test(timeout_time=60, timeout_unit="ms")
 async def cocotb_test_pumice_core_perf_write_ceiling(dut):
     """Write-throughput CEILING: refresh parked, so nothing but the write
@@ -1370,7 +1410,8 @@ def _run(request, testcase, params_over=None, enhanced=False):
               "COL_WIDTH": str(COL_WIDTH), "DFI_RATE": str(DFI_RATE),
               "DRAM_BEAT_WIDTH": str(DRAM_BEAT), "DRAM_BL": str(BL),
               "NUM_ENTRIES": os.environ.get("PUMICE_NUM_ENTRIES", "8"),
-              "N_SRAM_SLOTS": os.environ.get("PUMICE_NUM_ENTRIES", "8")}
+              "N_SRAM_SLOTS": os.environ.get("PUMICE_NUM_ENTRIES", "8"),
+              "RD_RET_DEPTH": os.environ.get("PUMICE_RD_RET_DEPTH", "32")}
     if params_over:
         params.update(params_over)
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{testcase}.log"),
@@ -1422,6 +1463,8 @@ def test_pumice_core_perf_read_ceiling(request):
     _run(request, "cocotb_test_pumice_core_perf_read_ceiling")
 def test_pumice_core_perf_write_ceiling(request):
     _run(request, "cocotb_test_pumice_core_perf_write_ceiling")
+def test_pumice_core_perf_read_inflight(request):
+    _run(request, "cocotb_test_pumice_core_perf_read_inflight")
 def test_pumice_core_perf_refresh_bubbles(request):
     _run(request, "cocotb_test_pumice_core_perf_refresh_bubbles")
 def test_pumice_core_perf_paging_sweep(request):

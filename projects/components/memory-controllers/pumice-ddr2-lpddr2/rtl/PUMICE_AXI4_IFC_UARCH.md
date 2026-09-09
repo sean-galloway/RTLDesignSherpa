@@ -93,12 +93,31 @@ cycle, picks the globally-oldest hit (issue WR, no ACT), and **falls back to the
 `oldest` port** when all N miss. The chosen `slot` is driven back on `commit_slot`
 to evict after the write commits. These are external ports of `pumice_axi4_ifc`.
 
-## pumice_rd_cmd_cam (inside the ifc — mirror, for consistency)
+## pumice_rd_cmd_cam + pumice_rd_return_ring (inside the ifc)
 
-Tracks outstanding DRAM reads (the MISS path). Allocated on `ar_push`, matched by
-the returning DFI read data, and feeds the **DFI side of the source arbiter** in
-`pumice_rd_intake`. (In-order commit ⇒ this can be a FIFO-ordered tracker; kept as
-a CAM for symmetry / future read reorder — nail the internal form when we build it.)
+The MISS path is TWO blocks with different lifetimes (2026-09-08):
+
+- **`pumice_rd_cmd_cam` — the scheduling window.** Allocated on `ar_push`
+  (AR order), keyed `{bank,row,col}` with the age-order matrix and the
+  per-entry `sch_*` vectors the arbiter picks from. An entry lives from insert
+  to **ISSUE only**: on the arbiter's issue notify it frees and forwards the
+  read's ticket. `NUM_ENTRIES` sizes the reorder window and nothing else.
+- **`pumice_rd_return_ring` — the reads in flight.** A ring of `RD_RET_DEPTH`
+  slots allocated in AR order (the ticket = slot index, handed to the CAM at
+  insert). The issue-order ticket FIFO tells the return-fill which slot each
+  DFI burst belongs to (the DFI path returns in issue order); a slot's ready
+  bit is set on its last beat; the drain releases the HEAD slot in AR order
+  once it is complete and frees it on the last drained beat. FSM-free: two
+  pointers, a ready bit per slot, one FIFO, one BRAM.
+
+A read is admitted only when BOTH have room. The in-flight count is therefore
+`RD_RET_DEPTH` (32), not the CAM depth: before the split a read held its CAM
+entry for the whole DRAM round trip and eight entries bounded read bandwidth by
+Little's law (8 x 8 B / ~27 cyc = ~180 MB/s on the board). Sizing contract: the
+DFI layer's `RD_MAX_OUTSTANDING` and return CDC FIFO (`RD_RET_DEPTH x
+BURST_WORDS`) must cover every in-flight read, because `dfi_rddata_valid` has no
+backpressure; `pumice_dfi_rd_aligner` asserts it. `pumice_rd_intake`'s order
+FIFO is sized `RD_RET_DEPTH + 8` so admission is never throttled below the ring.
 
 ## FUB 3 — pumice_axi4_ifc (holds BOTH intakes + BOTH CAMs)
 
@@ -106,7 +125,8 @@ a CAM for symmetry / future read reorder — nail the internal form when we buil
 host AXI4 → [wr/rd splitter] → pumice_wr_intake ─┐
                              → pumice_rd_intake ─┤
    pumice_wr_data_cam  (snarf source, wr commit) ┘
-   pumice_rd_cmd_cam   (outstanding-read tracker, DFI-read side of arbiter)
+   pumice_rd_cmd_cam   (read scheduling window; frees at issue)
+   pumice_rd_return_ring (reads in flight, AR-order return; DFI-read side)
 
 external ports:  host AXI4 (pre-split);
                  command stream → scheduler (writes + reads);

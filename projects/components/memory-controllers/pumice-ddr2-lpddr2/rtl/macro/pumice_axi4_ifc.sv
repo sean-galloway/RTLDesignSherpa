@@ -50,6 +50,10 @@ module pumice_axi4_ifc #(
     parameter int N_SRAM_SLOTS    = NUM_ENTRIES,
     parameter int N_SCHED_LU      = 4,
     parameter int AGE_WIDTH       = 16,
+    // Reads the controller can hold IN FLIGHT (pumice_rd_return_ring DEPTH).
+    // Independent of NUM_ENTRIES (the scheduling window): a read's CAM entry
+    // frees at issue, its ring slot at R-drain. Power of 2.
+    parameter int RD_RET_DEPTH    = 32,
 
     // Derived
     parameter int IW   = AXI_ID_WIDTH,
@@ -291,6 +295,9 @@ module pumice_axi4_ifc #(
     logic                snarf_rd_valid, snarf_rd_ready, snarf_rd_last;
     logic [DW-1:0]       snarf_rd_data;
     logic                ar_push_valid, ar_push_ready;
+    logic                rt_alloc_ready, rd_cam_ins_ready;
+    logic [$clog2(RD_RET_DEPTH)-1:0] rt_alloc_ticket, rd_iss_ticket;
+    logic                rd_iss_valid, rd_iss_ready;
     logic [BKW-1:0]      ar_push_bank;  logic [ROW_WIDTH-1:0] ar_push_row;
     logic [COL_WIDTH-1:0] ar_push_col;  logic [IW-1:0]        ar_push_id;
     logic [3:0]           ar_push_qos;   logic [3:0]           aw_push_qos;
@@ -457,7 +464,10 @@ module pumice_axi4_ifc #(
         .ROW_WIDTH        (ROW_WIDTH),
         .COL_WIDTH        (COL_WIDTH),
         .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH),
-        .AXI_BEATS_PER_BURST               (AXI_BEATS_PER_BURST)
+        .AXI_BEATS_PER_BURST               (AXI_BEATS_PER_BURST),
+        // one order-FIFO slot per read the ring can hold in flight, plus the
+        // snarf hits that never enter the ring
+        .ORDER_FIFO_DEPTH (RD_RET_DEPTH + 8)
     ) u_rd_intake (
         .aclk          (aclk),
         .aresetn       (aresetn),
@@ -516,7 +526,11 @@ module pumice_axi4_ifc #(
         .busy_o             (w_rdi_busy)
     );
 
-    // ---- RD cmd CAM ----
+    // ---- RD cmd CAM (scheduling window) + return ring (in-flight reads) ----
+    // A read is admitted when BOTH have room; the ring's tail ticket rides
+    // into the CAM entry and comes back out on issue.
+    assign ar_push_ready = rd_cam_ins_ready && rt_alloc_ready;
+
     pumice_rd_cmd_cam #(
         .NUM_ENTRIES   (NUM_ENTRIES),
         .N_SCHED_LU    (N_SCHED_LU),
@@ -524,20 +538,19 @@ module pumice_axi4_ifc #(
         .ROW_WIDTH     (ROW_WIDTH),
         .COL_WIDTH     (COL_WIDTH),
         .AXI_ID_WIDTH  (IW),
-        .AXI_DATA_WIDTH(DW),
-        .AXI_BEATS_PER_BURST            (AXI_BEATS_PER_BURST),
         .AGE_WIDTH     (AGE_WIDTH),
-        .N_SRAM_SLOTS  (N_SRAM_SLOTS)
+        .RD_RET_DEPTH  (RD_RET_DEPTH)
     ) u_rd_cam (
         .aclk       (aclk),
         .aresetn    (aresetn),
-        .ins_valid_i(ar_push_valid),
-        .ins_ready_o(ar_push_ready),
+        .ins_valid_i(ar_push_valid && rt_alloc_ready),
+        .ins_ready_o(rd_cam_ins_ready),
         .ins_bank_i (ar_push_bank),
         .ins_row_i  (ar_push_row),
         .ins_col_i  (ar_push_col),
         .ins_id_i   (ar_push_id),
         .ins_qos_i  (ar_push_qos),
+        .ins_ticket_i(rt_alloc_ticket),
         // legacy sched-lookup / oldest ports unused (scheduler reads sch_*).
         .sched_lu_valid_i('0),
         .sched_lu_bank_i ('0),
@@ -565,6 +578,26 @@ module pumice_axi4_ifc #(
         .issue_valid_i   (rd_issue_valid_i),
         .issue_ready_o   (rd_issue_ready_o),
         .issue_slot_i    (rd_issue_slot_i),
+        .iss_valid_o     (rd_iss_valid),
+        .iss_ready_i     (rd_iss_ready),
+        .iss_ticket_o    (rd_iss_ticket),
+        .busy_o          (w_rdc_busy)
+    );
+
+    logic w_rdr_busy;
+    pumice_rd_return_ring #(
+        .DEPTH              (RD_RET_DEPTH),
+        .AXI_DATA_WIDTH     (DW),
+        .AXI_BEATS_PER_BURST(AXI_BEATS_PER_BURST)
+    ) u_rd_ring (
+        .aclk            (aclk),
+        .aresetn         (aresetn),
+        .alloc_valid_i   (ar_push_valid && rd_cam_ins_ready),
+        .alloc_ready_o   (rt_alloc_ready),
+        .alloc_ticket_o  (rt_alloc_ticket),
+        .issue_valid_i   (rd_iss_valid),
+        .issue_ready_o   (rd_iss_ready),
+        .issue_ticket_i  (rd_iss_ticket),
         .dfi_ret_valid_i (rd_dfi_ret_valid_i),
         .dfi_ret_ready_o (rd_dfi_ret_ready_o),
         .dfi_ret_data_i  (rd_dfi_ret_data_i),
@@ -573,12 +606,12 @@ module pumice_axi4_ifc #(
         .drain_valid_o   (drain_valid),
         .drain_ready_i   (drain_ready),
         .drain_data_o    (drain_data),
-        .drain_id_o      (),
         .drain_resp_o    (drain_resp),
         .drain_last_o    (drain_last),
-        .busy_o          (w_rdc_busy)
+        .occ_o           (),
+        .busy_o          (w_rdr_busy)
     );
 
-    assign busy_o = w_wri_busy || w_rdi_busy || w_wrc_busy || w_rdc_busy;
+    assign busy_o = w_wri_busy || w_rdi_busy || w_wrc_busy || w_rdc_busy || w_rdr_busy;
 
 endmodule : pumice_axi4_ifc

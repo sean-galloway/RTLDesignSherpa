@@ -695,3 +695,45 @@ produced the ILA 3-columns-then-9-idle cadence (33% write duty); and refresh ran
 `PUMICE_MC_CLK_HZ` selects the clock -- 100 MHz default is never-fewer-cycles
 safe on the 75 MHz board). tWTR/tRTW are command-to-command distances (what the
 RTL's global counters measure), derived as WL+BL/2+tWTR and CL+BL/2+2-WL.
+
+### READ RETURN RING (2026-09-08): in-flight reads decoupled from the scheduling CAM
+
+Board read bandwidth was a Little's-law bound, not an issue-rate problem: a
+read held its `pumice_rd_cmd_cam` entry from AR to R-drain, so 8 entries over a
+~27-cycle DRAM round trip cap at 8 x 8 B / 27 = ~180 MB/s -- the measured
+179.9. (The ILA's "reads starved at issue, r_outstanding mean 0.37" was a window
+where the single-outstanding read generator had nothing to offer; see below.)
+
+Split (Sean's direction: "free the CAM entry if the response can be assigned
+when the data returns"):
+  * `pumice_rd_cmd_cam` = scheduling window only. Entry lives insert -> ISSUE,
+    carries a TICKET. Issue frees it and forwards the ticket.
+  * `pumice_rd_return_ring` (new fub) = the reads in flight. AR-order ring,
+    ticket = slot; issue-order FIFO maps each returning DFI burst to its slot;
+    per-slot ready bit; head drains in AR order when complete; frees on the last
+    drained beat. FSM-free (two pointers + ready bits + one FIFO + one BRAM), no
+    age matrix. A fetch pointer runs ahead of the head through the 2-deep BRAM
+    skid so one-beat slots (the board) stream at a beat per cycle.
+  * `RD_RET_DEPTH` (32) is a new top parameter; the DFI aligner tracking and the
+    return CDC FIFO scale with it (RD_RET_DEPTH x BURST_WORDS), because
+    dfi_rddata_valid has no backpressure -- caught by the aligner's own sizing
+    assertion on the first run (return FIFO still 32 words, 11 reads x 4 words
+    in flight at the TB's 2.5x DFI clock).
+  Spec: `waves/12_rd_return_ring.json`.
+
+Verified: ring FUB test (reorder, AR-order hold, partial head, full/free, 3x
+wrap under drain backpressure; DEPTH 8/32, 1 and 4 beats); rd_cmd_cam FUB test
+(ticket forward, free-at-issue, slot reuse, window full, iss backpressure,
+head_rel); axi4_ifc macro; new core test `perf_read_inflight` (strict DFI read
+latency 200 = 80 aclk, page-hit stream): RD_RET_DEPTH=32 -> 0.91 beats/cycle,
+RD_RET_DEPTH=8 (the old bound, mutation) -> 0.31 RED.
+
+**What the board can show.** The char harness has ONE read generator whose
+LFSR checker allows ONE outstanding AR (`axi4_master_rd_crc_check` v1: rlast
+gates the next AR), so board read BW = AR bytes / AR latency regardless of the
+controller: at bl16 (128 B) with a ~53-cycle AR->RLAST that is the 180 MB/s
+measured, and the ring can only shorten the latency to ~(16 + 27) cycles ->
+~225 MB/s. The 450 MB/s target on THIS harness needs longer ARs (bl128 = 1 KB:
+~(128+27) cycles -> ~500 MB/s; burst_len is 1..256 in the chargen CSR) or the
+v2 multi-outstanding checker. Writes have no such cap (the write generator
+keeps AWs queued).

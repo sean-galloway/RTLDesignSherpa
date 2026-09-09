@@ -138,7 +138,8 @@ module pumice_dfi_rd_aligner #(
     // dfi_rddata_valid carries no backpressure: a beat presented while the
     // downstream FIFO is full is GONE, the burst framing goes short, and
     // the AR-order drain wedges behind it. The sizing contract (return
-    // FIFO >= CAM depth x BL_WORDS) makes this unreachable; the assertion
+    // FIFO >= reads-in-flight (pumice_rd_return_ring DEPTH) x BL_WORDS)
+    // makes this unreachable; the assertion
     // turns any future sizing break into a hard failure instead of a
     // silent data drop.
 `ifndef SYNTHESIS

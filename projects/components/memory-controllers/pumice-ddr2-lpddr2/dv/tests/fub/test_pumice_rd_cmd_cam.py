@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
-"""Pattern-B runner for `pumice_rd_cmd_cam` (read reorder buffer)."""
+"""Pattern-B runner for `pumice_rd_cmd_cam` (read scheduling window)."""
 
 import os
 import sys
@@ -28,77 +28,87 @@ _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
 async def cocotb_test_pumice_rd_cmd_cam(dut):
     tb = PumiceRdCmdCamTB(dut)
     await tb.setup_clocks_and_reset()
-    BL = tb.BL
+    N = tb.NUM_ENTRIES
 
-    def mkdata(tag):
-        return [(tag << 8) | i for i in range(BL)]
-
-    dA, dB, dC = mkdata(0xA0), mkdata(0xB0), mkdata(0xC0)
-
-    # insert A,B,C in AR order -> deterministic slots 0,1,2
-    await tb.insert(bank=1, row=10, col=5, rid=0xA)  # slot 0
-    await tb.insert(bank=2, row=20, col=6, rid=0xB)  # slot 1
-    await tb.insert(bank=1, row=10, col=7, rid=0xC)  # slot 2
+    # insert A,B,C in AR order -> deterministic slots 0,1,2, tickets 10,11,12
+    await tb.insert(bank=1, row=10, col=5, rid=0xA, ticket=10)  # slot 0
+    await tb.insert(bank=2, row=20, col=6, rid=0xB, ticket=11)  # slot 1
+    await tb.insert(bank=1, row=10, col=7, rid=0xC, ticket=12)  # slot 2
     await tb.wait_clocks('aclk', 2)
+    assert tb.sch_valid() == 0b111, f"sch_valid {tb.sch_valid():#b} != 0b111"
 
-    # oldest not-issued = A
+    # oldest = A
     ov, ob, orow, ocol, oid, oslot = tb.oldest()
     assert ov == 1 and oid == 0xA and oslot == 0, f"oldest {(ov,oid,oslot)} != A/slot0"
 
-    # sched {bank1,row10} oldest not-issued = A (col5)
+    # sched {bank1,row10} oldest = A (col5)
     res = await tb.sched_query([(1, 1, 10), (1, 2, 20), (1, 5, 5)])
     assert res[0][0] == 1 and res[0][2] == 5 and res[0][3] == 0xA, f"sched A {res[0]}"
     assert res[1][0] == 1 and res[1][3] == 0xB, f"sched B {res[1]}"
     assert res[2][0] == 0, "sched {bank5,row5} miss"
 
-    # ISSUE in reordered order: B, A, C
-    await tb.issue(1)   # B
-    await tb.issue(0)   # A
-    await tb.issue(2)   # C
+    # ISSUE B (reordered): its TICKET goes out on iss_*, its entry FREES
+    await tb.issue(1)
+    await tb.wait_iss(1)
+    assert list(tb.iss_out) == [11], f"iss tickets {list(tb.iss_out)} != [11]"
+    await tb.wait_clocks('aclk', 1)
+    assert tb.sch_valid() == 0b101, f"sch_valid {tb.sch_valid():#b} != 0b101 after issuing slot 1"
+    # oldest is still A; {bank2,row20} now misses
+    assert tb.oldest()[4] == 0xA
+    res = await tb.sched_query([(1, 2, 20)])
+    assert res[0][0] == 0, "issued entry still matched a sched lookup"
+
+    # the freed slot is reusable: D lands in slot 1 with its own ticket
+    await tb.insert(bank=3, row=30, col=8, rid=0xD, ticket=13)
     await tb.wait_clocks('aclk', 2)
+    assert tb.sch_valid() == 0b111, f"sch_valid {tb.sch_valid():#b} != 0b111 after reuse"
+    res = await tb.sched_query([(1, 3, 30)])
+    assert res[0][0] == 1 and res[0][1] == 1 and res[0][3] == 0xD, f"D not in slot 1: {res[0]}"
 
-    # everything issued -> oldest not-issued empty
-    assert tb.oldest()[0] == 0, "oldest not-issued should be empty after all issued"
+    # issue A, C, D -> tickets in issue order, window empty
+    await tb.issue(0)
+    await tb.issue(2)
+    await tb.issue(1)
+    await tb.wait_iss(4)
+    assert list(tb.iss_out) == [11, 10, 12, 13], f"iss tickets {list(tb.iss_out)}"
+    await tb.wait_clocks('aclk', 1)
+    assert tb.sch_valid() == 0 and tb.oldest()[0] == 0, "window not empty after issuing all"
+    tb.iss_out.clear()
 
-    # DFI returns in ISSUE order: B, A, C
-    await tb.dfi_return(dB)
-    await tb.dfi_return(dA)
-    await tb.dfi_return(dC)
+    # ---- window full: N inserts block the (N+1)th until an issue frees one --
+    for k in range(N):
+        await tb.insert(bank=k % tb.NUM_BANKS, row=100 + k, col=k, rid=0x20 + k, ticket=k)
+    await tb.wait_clocks('aclk', 2)
+    assert tb.sch_valid() == (1 << N) - 1
+    assert tb.ins_ready() == 0, f"ins_ready still 1 with {N}/{N} entries"
+    await tb.issue(3)
+    await tb.wait_iss(1)
+    assert list(tb.iss_out) == [3]
+    await tb.wait_clocks('aclk', 1)
+    assert tb.ins_ready() == 1, "ins_ready did not return after an issue freed a slot"
+    tb.iss_out.clear()
 
-    # drain must release in AR order: A, B, C (the reorder)
-    for _ in range(400):
-        if len(tb.drain_out) >= 3:
-            break
-        await tb.wait_clocks('aclk', 1)
-    assert len(tb.drain_out) == 3, f"drain bursts {len(tb.drain_out)} != 3"
-
-    exp = [(0xA, dA), (0xB, dB), (0xC, dC)]
-    for k, (want_id, want_data) in enumerate(exp):
-        burst = tb.drain_out[k]
-        got_ids = {b[0] for b in burst}
-        got_data = [b[1] for b in burst]
-        assert got_ids == {want_id}, f"drain {k}: id {got_ids} != {want_id}"
-        assert got_data == want_data, f"drain {k}: data {got_data} != {want_data}"
+    # ---- downstream backpressure on iss_* holds issue_ready (no ticket lost) --
+    tb.set_iss_ready(False)
+    await tb.wait_clocks('aclk', 2)
+    assert int(dut.issue_ready_o.value) == 0, "issue_ready must follow iss_ready (ring issue_q)"
+    tb.set_iss_ready(True)
+    for k in range(N):
+        if k != 3:
+            await tb.issue(k)
+    await tb.wait_iss(N - 1)
+    assert sorted(tb.iss_out) == sorted(k for k in range(N) if k != 3), f"tickets {list(tb.iss_out)}"
+    await tb.wait_clocks('aclk', 1)
+    assert tb.sch_valid() == 0
 
     # =====================================================================
     # sch_head_rel_o -- the scheduler's cross-CAM ordering key
     # =====================================================================
-    # This output had NO value coverage: every test drove it as an arbiter
-    # INPUT and nothing checked the CAM's computation of it. It was rewritten
-    # (PUMICE-017) from a serial max-reduce over w_rel[] -- which put the
-    # free-running age counter on the scheduling critical path and cost the
-    # design 63.6 ns against a 15 ns period -- to an oldest-via-age-order-matrix
-    # pick plus a single subtract. Identical value, so it needs a test that
-    # would notice if it were not.
-    #
-    # Checked behaviourally rather than against absolute cycle counts, so the
-    # test does not encode the CAM's internal insert latency:
+    # Checked behaviourally rather than against absolute cycle counts:
     #   1. nothing schedulable                 -> 0
     #   2. one entry, then a younger one       -> tracks the OLDER
     #   3. free-running                        -> +1 per clock, exactly
-    #   4. retire the oldest                   -> DROPS to the younger's age
-    # Pulse reset to clear the entries the earlier phases left behind. NOT
-    # setup_clocks_and_reset() -- that would start a second clock driver.
+    #   4. issue the oldest                    -> DROPS to the younger's age
     await tb.assert_reset()
     await tb.wait_clocks('aclk', 4)
     await tb.deassert_reset()
@@ -107,9 +117,9 @@ async def cocotb_test_pumice_rd_cmd_cam(dut):
     assert tb.head_rel() == 0, (
         f"empty CAM must report head_rel 0, got {tb.head_rel()}")
 
-    await tb.insert(bank=3, row=30, col=1, rid=0x1)     # older
+    await tb.insert(bank=3, row=30, col=1, rid=0x1, ticket=1)     # older
     await tb.wait_clocks('aclk', 8)
-    await tb.insert(bank=4, row=40, col=2, rid=0x2)     # younger
+    await tb.insert(bank=4, row=40, col=2, rid=0x2, ticket=2)     # younger
     await tb.wait_clocks('aclk', 2)
 
     h_old = tb.head_rel()
@@ -117,16 +127,11 @@ async def cocotb_test_pumice_rd_cmd_cam(dut):
         f"head_rel must track the OLDER entry (inserted 10+ cycles ago), "
         f"got {h_old} -- a value near 0 means it is reporting the YOUNGER one")
 
-    # Free-running: exactly +1 per clock. This is the property that separates
-    # a real age from a constant or a stale capture.
     await tb.wait_clocks('aclk', 1)
     h_next = tb.head_rel()
     assert h_next == h_old + 1, (
         f"head_rel must advance exactly 1 per clock: {h_old} -> {h_next}")
 
-    # Retire the older entry. head_rel must fall back to the younger one, which
-    # is strictly newer -- so the value DROPS. A selector stuck on slot 0, or
-    # one ignoring the schedulable predicate, keeps climbing here.
     await tb.issue(0)
     await tb.wait_clocks('aclk', 2)
     h_after = tb.head_rel()
@@ -135,12 +140,8 @@ async def cocotb_test_pumice_rd_cmd_cam(dut):
         f"age: {h_next} -> {h_after}")
     assert h_after > 0, f"the younger entry is still schedulable, got {h_after}"
 
-    tb.log.info("PASS: sch_head_rel_o tracks the oldest schedulable entry "
-                "(older=%d, +1/clk=%d, after-retire=%d)",
-                h_old, h_next, h_after)
-
-    tb.log.info("PASS: insert(AR) / issue(reordered B,A,C) / return(issue-order) "
-                "-> drain(AR-order A,B,C); oldest + sched lookups verified")
+    tb.log.info("PASS: insert(AR)+ticket / issue frees + forwards ticket / reuse / "
+                "full window / iss backpressure / oldest + sched lookups / head_rel")
 
 
 def test_pumice_rd_cmd_cam(request):
@@ -164,8 +165,7 @@ def test_pumice_rd_cmd_cam(request):
         "ROW_WIDTH":     "14",
         "COL_WIDTH":     "10",
         "AXI_ID_WIDTH":  "8",
-        "AXI_DATA_WIDTH": "64",
-        "AXI_BEATS_PER_BURST":            "4",
+        "RD_RET_DEPTH":  "32",
     }
     extra_env = {
         "DUT": dut_name,
