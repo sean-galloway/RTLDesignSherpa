@@ -347,6 +347,45 @@ rather than DRAM-side behaviour; the DFI meters stay as they are.
 not as a standalone change — it touches the bridge map and the harness CSR
 readback, and pumice bitstreams are on the critical path for the DDR2 work.
 
+## PUMICE-022 — board validation of the 2026-09-08 bandwidth work (arbiter mask, JEDEC timings, read ring, write gate)
+**Status:** open 2026-09-08  **Priority:** P1 — the 510 MB/s write / 450 MB/s read targets at 75 MHz
+
+Four sim-proven changes have not been on silicon:
+1. `a68856cb6` arbiter: occupancy mask gated on auto-precharge + AP carried
+   with the pick (same-bank OPEN columns at tCCD; issue-rate FUB 0.5 -> 1.0).
+2. host: `set_jedec_timings()` applied by every `pumice_char` config. Until
+   now the board ran every TIMINGS_* CSR at its RDL reset (tRCD/tRP 15 cycles
+   = 200 ns, tCCD 4 = 8 CK, tREFI 1950 = 26 us). `PUMICE_MC_CLK_HZ=75000000`
+   for the 75 MHz build; the 100 MHz default is never-fewer-cycles safe.
+3. `8123ac1f3` read return ring (RD_RET_DEPTH=32): CAM frees at issue.
+4. write-burst-staged gate in the DFI layer (WR held until its data crossed).
+
+Post-synth at 75 MHz after 3: WNS +0.025, 0 failing endpoints, LUT 45%.
+
+**What to measure** (`pumice_char.measure`, open_interleave + baseline):
+write BW before/after 1+2 (ILA cadence was 3 columns then ~9 idle = the
+tCCD=4 gate); read BW after 3 -- but NOTE the harness's single read generator
+allows ONE outstanding AR (v1 LFSR checker), so read BW = AR bytes / AR
+latency: bl16 lifts from ~180 to ~225 MB/s at best. To see 450 MB/s on this
+harness use bl128/bl256 ARs (chargen burst_len is 1..256) or land the v2
+multi-outstanding checker (`axi4_master_rd_crc_check` header lists the plan).
+Then a fresh ILA of `w_cmd_v` duty. Rebuild the bitstream first
+(build-perf `make bitstream`); the current one predates all four.
+
+## PUMICE-023 — the char-framework sim is the board gate and must run before any pumice RTL commit
+**Status:** open 2026-09-08  **Priority:** P1
+
+`ddr2_char_framework/dv/tests` (test_ddr2_char_uart + test_ddr2_char_char) is
+the only suite that builds the board's x16 / strict-timing configuration. The
+arbiter fix passed all 213 pumice fub/macro/top tests and failed 7 there
+(write side, fixed by the write-staged gate). Its Makefile `run-all-*` targets
+were being swallowed by the `run-%` pattern into a nonexistent test id, so the
+area had silently stopped gating; aliases added 2026-09-08. Pre-existing
+failures to triage: `smoke_rate2_faithful`, `smoke_rate2_rdphase1`,
+`smoke_rate2_strict`, `pagehit_rate2_x16_free_earlyen` (all fail at
+79fb58a66, before this session). Add this directory to the pumice regression
+convention (`regressions` skill) and to the components master Makefile.
+
 ## PUMICE-CLEANUP — doc + filelist cleanup (push from workstation)
 **Status:** open 2026-07-24 — deferred (project cleanup; see TOOL-010)
 **Priority:** P2

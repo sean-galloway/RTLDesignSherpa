@@ -512,7 +512,14 @@ module pumice_cmd_arbiter
                 // parked-victim pattern in test_pumice_core_sched_order;
                 // latent since the bank-parallel refactor.
                 rd_col_m[e] = rhit && r_bank_rdwr_ready[RK0][rb] && tccd_ok_i && twtr_ok_i
-                              && rd_issue_ready_i && !(f_ap(rb) && w_col_inflight_bank[rb]) && !r_ap_closing[rb] && !w_rd_col_inflight_ent[e]
+                              // STOPGAP 2026-09-08: the occupancy mask stays UNCONDITIONAL on
+                              // both column classes. AP-gating it (columns at tCCD on OPEN
+                              // rows: issue-rate FUB 0.5 -> 1.0) is correct for reads but
+                              // the WRITE data path cannot follow (see the write mask below),
+                              // and gating only reads lets a read front-run a masked write
+                              // inside the write-batching drain (cmd_arbiter FUB). Both lift
+                              // together in the "WRITE DATA MUST LEAD" block (design/README).
+                              && rd_issue_ready_i && !w_col_inflight_bank[rb] && !r_ap_closing[rb] && !w_rd_col_inflight_ent[e]
                               && !w_rd_turn_block && !w_ap_col_guard[rb]
                               && !w_pre_col_guard[rb] && !w_preact_bank_guard[rb];
                 rd_act_m[e] = !r_bank_row_active[RK0][rb] && !w_guarded[rb]
@@ -527,7 +534,15 @@ module pumice_cmd_arbiter
             // DRAM) and the slot re-issues. ACT/PRE stay free.
             if (wr_sch_valid_i[e]) begin
                 wr_col_m[e] = whit && r_bank_rdwr_ready[RK0][wb] && tccd_ok_i && trtw_ok_i
-                              && wr_commit_ready_i && !(f_ap(wb) && w_col_inflight_bank[wb]) && !r_ap_closing[wb] && !w_wr_col_inflight_ent[e]
+                              // WRITE columns: same-bank writes at tCCD expose the write-data
+                              // path: the WR command runs up to 16 commands
+                              // ahead of its data through the cmd FIFOs (measured lag 20
+                              // aclk in perf_write_ceiling), and a DFI-side "data staged"
+                              // gate stalls the in-order command stream and compresses the
+                              // spacing of everything queued behind it (tRFC/tRP fatals).
+                              // Lifting this needs the data to LEAD the command -- see
+                              // design/README.md "WRITE DATA MUST LEAD" (next block).
+                              && wr_commit_ready_i && !w_col_inflight_bank[wb] && !r_ap_closing[wb] && !w_wr_col_inflight_ent[e]
                               && !w_wr_turn_block && !w_ap_col_guard[wb]
                               && !w_pre_col_guard[wb] && !w_preact_bank_guard[wb];
                 wr_act_m[e] = !r_bank_row_active[RK0][wb] && !w_guarded[wb]

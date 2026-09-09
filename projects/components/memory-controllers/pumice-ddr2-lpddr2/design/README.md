@@ -737,3 +737,79 @@ measured, and the ring can only shorten the latency to ~(16 + 27) cycles ->
 ~(128+27) cycles -> ~500 MB/s; burst_len is 1..256 in the chargen CSR) or the
 v2 multi-outstanding checker. Writes have no such cap (the write generator
 keeps AWs queued).
+
+### WRITE-BURST-STAGED GATE (2026-09-08): the char sim caught what the pumice suites did not
+
+The arbiter fix (a68856cb6) passed every pumice fub/macro/top suite and then
+FAILED 7 tests of the ddr2_char_framework sim -- all x16 (the BOARD device
+config: DRAM_DEVICE_WIDTH=16, strict write timing, t_phy_wrlat=0) plus
+`concurrent`. Bisected in a detached worktree: pre-session 4 pre-existing
+failures (faithful / rdphase1 / strict / x16_free_earlyen); the arbiter commit
+adds 7; the ring commit adds none; JEDEC timings add `char_families_x16`.
+Symptom: `engine did not finish: wr True, rd False, mism 12..25` -- reads hang.
+
+Isolation by experiment (one mask at a time restored to unconditional):
+    read mask restored only   -> still FAILS
+    write mask restored only  -> PASSES
+So it is the WRITE side: under OPEN policy same-bank WR columns now issue every
+cycle, the WR command crosses the cmd CDC FIFO and reaches pumice_dfi_cmd_path
+before its data has crossed the (separate) wrdata CDC FIFO, and the serializer
+drives late. At t_phy_wrlat=0 the strict PHY captures whatever is on the bus.
+The occupancy mask had been hiding this by spacing same-bank writes ~3 cycles
+apart. pumice_dfi_cmd_path gated READs on the aligner's rd_op_ready_i and had
+NO write equivalent -- the "genuine latent bug" the log above found and set
+aside as not-this-failure.
+
+First fix tried: a DFI-side gate -- pumice_dfi_cdc pushes a "burst staged"
+token on the ctl edge that accepts a burst's LAST wrdata word (data and token
+FIFOs accept atomically, same N_FLOP_CROSS synchronizer so the token is never
+visible before the data); pumice_dfi_cmd_path holds a WR until a token is
+present and pops it on accept. It fixed the x16 smoke (PASS; fails without) and
+the dfi FUB/macro tests -- and then the top suite failed refresh_credit and
+perf_refresh_bubbles with the TB command-history checker fatal ("ACT only 1
+cyc after REFab", "ACT 3 cyc after PRE"), READY-gated (the checker is now bound
+to the accepted stream; its valid-only binding was the latent fault the log
+above flagged). Not an artifact: the scheduler's cmd FIFO (8) + the cmd CDC
+(8) sit between the timing-enforcing arbiter and the DFI. A stalled WR at the
+DFI head lets up to 16 commands queue with their arbiter spacing intact, and
+when the stall clears they drain back-to-back -- tRFC/tRP compressed at the
+DRAM. ANY stall the arbiter's timers do not see does this; the write gate just
+made stalls frequent (rd_op_ready and COL_BURST_CYC pacing are the other two
+sources and are config-avoidable).
+
+Measured why the gate stalls so much (probe in pumice_core, perf_write_ceiling,
+BL8): the burst's last data word lands in the wrdata CDC **20 aclk after** its
+WR command entered the cmd CDC, in steady state (241/256; 5 cycles for the
+first few before the queue builds). The arbiter runs the command stream up to
+the FIFO capacity ahead of the data, which drains at the DFI's own rate.
+
+STOPGAP (this commit): BOTH column masks return to unconditional (the AP
+carry and the per-entry double-issue guards stay). Gating only the read side
+let a read front-run a masked same-bank write inside the write-batching drain
+(cmd_arbiter FUB "wm 3/1 fire order"), so the two lift together. The DFI gate
+is NOT merged. The issue-rate FUB floor is parked at 0.5 (measured 1.000 with
+the AP-gated masks; restore the 0.95 floor with the next block). HEAD is green
+on the pumice suites AND the char sim.
+
+NEXT BLOCK -- "WRITE DATA MUST LEAD" (design, for Sean's review):
+  1. Rate-match the WR commit to the drain: wr_commit_ready = drain queue has
+     at most ONE burst queued (today: 8). The data path then never trails by a
+     queue, only by its fixed pipeline latency L_d (~5 aclk at BL8, ~2 at BL4
+     x16). No bandwidth cost: one WR per BL_WORDS cycles is the DQ rate.
+  2. A fixed D-stage delay on the WHOLE command stream (scheduler -> cmd CDC),
+     D >= L_d - L_cmd, so every WR reaches the DFI no earlier than its data.
+     Spacing is preserved exactly (every command delayed alike); latency +D.
+  3. Keep the staged-token gate as a CHECKED invariant (never expected to
+     stall; count engagements, assert zero in the ceiling tests).
+  4. Keep t_ccd >= BURST_WORDS so COL_BURST_CYC pacing never stalls either
+     (the core sim's t_ccd=1 at BL8 is the unphysical case).
+  This is what LiteDRAM does structurally: the multiplexer drives the DFI
+  directly and a write command is only chosen once its data is at the head of
+  the write FIFO -- no command queue downstream of the timing decision.
+
+LESSON (for the regressions rule): the pumice component suites do NOT run the
+board's x16 / strict-timing configuration. `ddr2_char_framework/dv/tests`
+(test_ddr2_char_uart + test_ddr2_char_char) is the board gate and must run
+before any pumice RTL commit; its Makefile's run-all target points at a test
+name that no longer exists (`test_ddr2_char_macro[all-full-parallel]`), so it
+had silently stopped being a gate.

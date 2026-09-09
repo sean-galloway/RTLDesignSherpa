@@ -45,6 +45,15 @@ run:
 run-smoke:
 	$(PYTEST) test_ddr2_char_macro.py -k "smoke" -v --tb=short
 
+# Repo-wide convention (make/tests.mk areas): run-all-{gate,func,full}-parallel.
+# Declared BEFORE the run-% pattern so it is not swallowed into a nonexistent
+# test_ddr2_char_macro[all-full-parallel] id -- which is how this area silently
+# stopped being a regression gate (2026-09-08).
+.PHONY: run-all-gate-parallel run-all-func-parallel run-all-full-parallel
+run-all-gate-parallel: run-gate-parallel
+run-all-func-parallel: run-func-parallel
+run-all-full-parallel: run-full-parallel
+
 run-%:
 	$(PYTEST) "test_ddr2_char_macro.py::test_ddr2_char_macro[$*]" -v --tb=short
 

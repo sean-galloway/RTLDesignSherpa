@@ -246,7 +246,11 @@ module pumice_core_tb_top
     ) u_cmd_history (
         .clk        (aclk),
         .rst_n      (aresetn),
-        .cmd_valid_i(u_core.w_cmd_v),
+        // READY-gated: model the ACCEPTED stream. Under cmd back-pressure (real since
+        // the write-staged gate, 2026-09-08) a held command is presented for several
+        // cycles; a valid-only sample records it every cycle and then reports the
+        // next command as "1 cycle after" it (tRFC/tRP false fatals).
+        .cmd_valid_i(u_core.w_cmd_v && u_core.w_cmd_rdy),
         .cmd_op_i   (u_core.w_cmd_op),
         .cmd_rank_i (u_core.w_cmd_rank),
         .cmd_bank_i (u_core.w_cmd_bank)
