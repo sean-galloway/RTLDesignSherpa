@@ -43,7 +43,8 @@ package monitor_common_pkg;
         PROTOCOL_AXIS   = 4'h1,  // AXI4-Stream
         PROTOCOL_APB    = 4'h2,  // Advanced Peripheral Bus
         PROTOCOL_ARB    = 4'h3,  // Arbiter specific packets
-        PROTOCOL_CORE   = 4'h4   // Core specific packets
+        PROTOCOL_CORE   = 4'h4,  // Core specific packets
+        PROTOCOL_WB     = 4'h5   // Wishbone B4 (event codes: monitor_wb4_pkg)
     } protocol_type_t;
 
     // Monitor bus packet types (used in packet_type field [127:124])
@@ -278,6 +279,7 @@ package monitor_common_pkg;
             PROTOCOL_APB   : return "APB";
             PROTOCOL_ARB   : return "ARB";
             PROTOCOL_CORE  : return "CORE";
+            PROTOCOL_WB    : return "WB";
             default        : return "UNKNOWN";
         endcase
     endfunction

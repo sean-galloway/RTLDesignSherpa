@@ -70,6 +70,7 @@ read/write direction bit.
 | ADDR_WIDTH | int | 32 | APB address width |
 | UNIT_ID | logic [7:0] | 8'h00 | Unit id stamped into emitted packets |
 | AGENT_ID | logic [15:0] | 16'h0000 | Agent id stamped into emitted packets |
+| PROTOCOL | logic [3:0] | PROTOCOL_APB | Protocol tag on the emitted packet. `wb4_monitor` reuses the checker on its command queue with `PROTOCOL_WB`; the event code `8'h08` is `*_ERR_ADDR_RANGE` in both packages |
 | M | int | ADDR_WIDTH | Internal address-width alias |
 
 ---
@@ -133,7 +134,7 @@ Each range has a pending bit. On a hit, the range's pending bit sets and its add
 The emitted packet is the standard 128-bit MonBus format with a 64-bit `event_data` field, assembled via `create_monitor_packet`:
 
 - **packet_type** = `PktTypeError` (`4'h0`)
-- **protocol** = `PROTOCOL_APB` (`4'h2`)
+- **protocol** = `PROTOCOL` parameter: `PROTOCOL_APB` (`4'h2`) by default, `PROTOCOL_WB` (`4'h5`) inside `wb4_monitor`
 - **event_code** = `APB_ERR_ADDR_RANGE` (`8'h08`)
 - **channel_id** = 0 (APB has no ID concept)
 - **unit_id** = `UNIT_ID`, **agent_id** = `AGENT_ID`

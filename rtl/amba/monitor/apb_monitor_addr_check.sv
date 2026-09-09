@@ -50,6 +50,10 @@ module apb_monitor_addr_check
     parameter int ADDR_WIDTH    = 32,
     parameter logic [7:0]  UNIT_ID  = 8'h00,
     parameter logic [15:0] AGENT_ID = 16'h0000,
+    // Protocol tag on the emitted packet. APB by default; wb4_monitor reuses
+    // this checker on its cmd_* queue and tags PROTOCOL_WB (the event code
+    // 8'h08 = *_ERR_ADDR_RANGE is the same in both packages).
+    parameter logic [3:0]  PROTOCOL = PROTOCOL_APB,
 
     parameter int M = ADDR_WIDTH
 )
@@ -226,7 +230,7 @@ module apb_monitor_addr_check
     // event_data[59]    = is_read flag
     // event_data[58: 0] = cmd_paddr (zero-padded if narrower than 59 bits)
     localparam logic [3:0] PKT_TYPE_FIELD = PktTypeError;
-    localparam logic [3:0] PROTOCOL_FIELD = PROTOCOL_APB;            // 4'h2
+    localparam logic [3:0] PROTOCOL_FIELD = PROTOCOL;                // 4'h2 APB (default), 4'h5 WB
     localparam logic [7:0] EVENT_CODE     = APB_ERR_ADDR_RANGE;      // 8'h08
 
     logic [M-1:0]  emit_addr;

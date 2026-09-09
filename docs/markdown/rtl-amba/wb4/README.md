@@ -25,13 +25,13 @@
 
 **Location:** `rtl/amba/wb4/`
 **Test Location:** `val/amba/`
-**Status:** New (2026-09-09); sim and formal collateral in place
+**Status:** New (2026-09-09); master, slave and monitor with sim and formal collateral
 
 ---
 
 ## Overview
 
-A Wishbone B4 master and slave pair, both in the **pipelined** mode the B4
+A Wishbone B4 master and slave pair (and a monitor for either), both in the **pipelined** mode the B4
 revision added, behind the same FUB-side contract the APB4 pair uses: a
 command queue and a response queue, each a valid/ready handshake through a
 `gaxi_skid_buffer`. A FUB that already talks to `apb4_master` through
@@ -76,7 +76,11 @@ AMBA 4 APB.
   can always be enqueued
 - **[wb4_slave](wb4_slave.md)** - pipelined Wishbone in, command/response
   queues out; in-order registered termination with an orphan-response guard
-- `wb4_pkg` - the response-status encoding shared by both and the DV
+- **[wb4_monitor](wb4_monitor.md)** - watches either block's queues and
+  reports completions, errors, timeouts, latency and address-range hits as
+  monitor bus packets tagged `PROTOCOL_WB`; in-order tracking queue, since
+  B4 terminates in issue order
+- `wb4_pkg` - the response-status encoding shared by all three and the DV
 
 ### Reset and clock naming
 

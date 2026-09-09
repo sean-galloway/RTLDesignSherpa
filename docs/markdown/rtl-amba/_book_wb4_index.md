@@ -5,3 +5,4 @@
 - [Wishbone B4 Modules](wb4/README.md)
 - [wb4_master](wb4/wb4_master.md)
 - [wb4_slave](wb4/wb4_slave.md)
+- [wb4_monitor](wb4/wb4_monitor.md)

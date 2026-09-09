@@ -44,3 +44,18 @@ summary: Stability rules; observers gate commands only, never responses.
   req_cost; a back-to-back client presenting its next frame's cost was
   debited the wrong frame. Caught by the TB's deficit mirror, fixed with a
   one-deep cost pipeline (r_cost_arb).*
+- **A registered-read FIFO hands over its data the clock AFTER the
+  handshake.** `gaxi_fifo_sync` with `REGISTERED=1` loads its output
+  register from the current read pointer, so `rd_data` lags a pop by one
+  clock; the BFM calls this `fifo_flop` mode and captures data one cycle
+  after `rd_valid && rd_ready`. A consumer that builds its output from
+  `rd_data` in the handshake clock sees the popped entry AGAIN on the next
+  clock of a back-to-back read and never sees the one after it: one packet
+  duplicated, one lost, no counter moving. Use `REGISTERED=0` (mux read,
+  data valid in the handshake clock) when the data is consumed
+  combinationally, or capture `rd_data` the clock after. *Case
+  (2026-09-09): wb4_monitor's first test, with the event FIFO wired exactly
+  like apb4_monitor's, wrote completion / timeout / completion on three
+  consecutive clocks and emitted completion, the same completion, timeout.
+  apb4_monitor, apb5_monitor and axi_monitor_reporter share the wiring:
+  TASK-086 in vault/Tasks/amba/open.md.*

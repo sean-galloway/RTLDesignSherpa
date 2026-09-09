@@ -145,27 +145,27 @@ class MonbusPacket:
 
     def is_error_packet(self) -> bool:
         """Check if this is an error packet"""
-        return self.pkt_type == PktType.ERROR.value
+        return self.pkt_type == PktType.PktTypeError.value
 
     def is_timeout_packet(self) -> bool:
         """Check if this is a timeout packet"""
-        return self.pkt_type == PktType.TIMEOUT.value
+        return self.pkt_type == PktType.PktTypeTimeout.value
 
     def is_completion_packet(self) -> bool:
         """Check if this is a completion packet"""
-        return self.pkt_type == PktType.COMPLETION.value
+        return self.pkt_type == PktType.PktTypeCompletion.value
 
     def is_threshold_packet(self) -> bool:
         """Check if this is a threshold packet"""
-        return self.pkt_type == PktType.THRESHOLD.value
+        return self.pkt_type == PktType.PktTypeThreshold.value
 
     def is_perf_packet(self) -> bool:
         """Check if this is a performance packet"""
-        return self.pkt_type == PktType.PERF.value
+        return self.pkt_type == PktType.PktTypePerf.value
 
     def is_debug_packet(self) -> bool:
         """Check if this is a debug packet"""
-        return self.pkt_type == PktType.DEBUG.value
+        return self.pkt_type == PktType.PktTypeDebug.value
 
     def is_axi_protocol(self) -> bool:
         """Check if this is an AXI protocol packet"""
@@ -186,6 +186,10 @@ class MonbusPacket:
     def is_core_protocol(self) -> bool:
         """Check if this is a CORE protocol packet - NEW"""
         return self.protocol == ProtocolType.PROTOCOL_CORE.value
+
+    def is_wb_protocol(self) -> bool:
+        """Check if this is a Wishbone B4 protocol packet"""
+        return self.protocol == ProtocolType.PROTOCOL_WB.value
 
     def get_protocol_name(self) -> str:
         """Get human-readable protocol name"""
@@ -302,7 +306,7 @@ def create_arb_error_packet(error_code, channel_id: int = 0, unit_id: int = 0,
                            agent_id: int = 0x10, data: int = 0) -> Dict[str, Any]:
     """Create ARB error packet fields for testing"""
     return {
-        'pkt_type': PktType.ERROR.value,
+        'pkt_type': PktType.PktTypeError.value,
         'protocol': ProtocolType.PROTOCOL_ARB.value,
         'event_code': error_code.value if hasattr(error_code, 'value') else error_code,
         'channel_id': channel_id,
@@ -316,7 +320,7 @@ def create_arb_completion_packet(completion_code, channel_id: int = 0, unit_id: 
                                agent_id: int = 0x10, data: int = 0) -> Dict[str, Any]:
     """Create ARB completion packet fields for testing"""
     return {
-        'pkt_type': PktType.COMPLETION.value,
+        'pkt_type': PktType.PktTypeCompletion.value,
         'protocol': ProtocolType.PROTOCOL_ARB.value,
         'event_code': completion_code.value if hasattr(completion_code, 'value') else completion_code,
         'channel_id': channel_id,
@@ -330,7 +334,7 @@ def create_arb_performance_packet(perf_code, channel_id: int = 0, unit_id: int =
                                 agent_id: int = 0x10, data: int = 0) -> Dict[str, Any]:
     """Create ARB performance packet fields for testing"""
     return {
-        'pkt_type': PktType.PERF.value,
+        'pkt_type': PktType.PktTypePerf.value,
         'protocol': ProtocolType.PROTOCOL_ARB.value,
         'event_code': perf_code.value if hasattr(perf_code, 'value') else perf_code,
         'channel_id': channel_id,
@@ -344,7 +348,7 @@ def create_core_error_packet(error_code, channel_id: int = 0, unit_id: int = 1, 
                            agent_id: int = 0x20, data: int = 0) -> Dict[str, Any]:
     """Create CORE error packet fields for testing"""
     return {
-        'pkt_type': PktType.ERROR.value,
+        'pkt_type': PktType.PktTypeError.value,
         'protocol': ProtocolType.PROTOCOL_CORE.value,
         'event_code': error_code.value if hasattr(error_code, 'value') else error_code,
         'channel_id': channel_id,

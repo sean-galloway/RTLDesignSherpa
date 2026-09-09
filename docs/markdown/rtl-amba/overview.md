@@ -105,9 +105,9 @@ RTL AMBA Library Architecture (134 modules under rtl/amba/)
     AXI4-Stream (4 modules) -- rtl/amba/axis4/
        Masters and slaves, clock-gating variants
 
- Other bus protocols (3 modules)
-    Wishbone B4 (3 modules) -- rtl/amba/wb4/
-      Pipelined master and slave behind the APB4-style command/response queues, status package
+ Other bus protocols (4 modules)
+    Wishbone B4 (4 modules) -- rtl/amba/wb4/
+      Pipelined master and slave behind the APB4-style command/response queues, monitor, status package
 
  AMBA 5 Protocol Implementations (30 modules)
     APB5 (9 modules) -- rtl/amba/apb5/

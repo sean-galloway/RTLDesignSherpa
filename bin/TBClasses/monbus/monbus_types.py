@@ -47,7 +47,8 @@ class ProtocolType(IntEnum):
     PROTOCOL_APB  = 0b010  # 0x2
     PROTOCOL_ARB  = 0b011  # 0x3
     PROTOCOL_CORE = 0b100  # 0x4
-    # 0b101-0b111 reserved for future use
+    PROTOCOL_WB   = 0b101  # 0x5  Wishbone B4 (event codes: monitor_wb4_pkg.sv)
+    # 0b110-0b111 reserved for future use
 
 
 # =============================================================================
@@ -608,6 +609,110 @@ class AXISStreamCode(IntEnum):
 
 
 # =============================================================================
+# WISHBONE B4 EVENT CODES (monitor_wb4_pkg.sv) - PROTOCOL_WB
+# =============================================================================
+
+class WBErrorCode(IntEnum):
+    """Auto-extracted from monitor_wb4_pkg::wb_error_code_t."""
+    WB_ERR_ERR                     = 0x0  # Slave terminated with ERR
+    WB_ERR_ORPHAN_RSP              = 0x1  # Response with no request outstanding
+    WB_ERR_TRACK_LOST              = 0x2  # Request accepted with no free tracking slot
+    WB_ERR_RESERVED_3              = 0x3
+    WB_ERR_RESERVED_4              = 0x4
+    WB_ERR_RESERVED_5              = 0x5
+    WB_ERR_RESERVED_6              = 0x6
+    WB_ERR_RESERVED_7              = 0x7
+    WB_ERR_ADDR_RANGE              = 0x8  # Address-range violation (apb_monitor_addr_check)
+    WB_ERR_RESERVED_9              = 0x9
+    WB_ERR_RESERVED_A              = 0xA
+    WB_ERR_RESERVED_B              = 0xB
+    WB_ERR_RESERVED_C              = 0xC
+    WB_ERR_RESERVED_D              = 0xD
+    WB_ERR_RESERVED_E              = 0xE
+    WB_ERR_USER_DEFINED            = 0xF
+
+
+class WBTimeoutCode(IntEnum):
+    """Auto-extracted from monitor_wb4_pkg::wb_timeout_code_t."""
+    WB_TIMEOUT_CMD                 = 0x0  # cmd_valid not taken for cfg_cmd_timeout_cnt clocks
+    WB_TIMEOUT_RSP                 = 0x1  # Oldest outstanding request unterminated for cfg_rsp_timeout_cnt clocks
+    WB_TIMEOUT_RESERVED_2          = 0x2
+    WB_TIMEOUT_RESERVED_3          = 0x3
+    WB_TIMEOUT_RESERVED_4          = 0x4
+    WB_TIMEOUT_RESERVED_5          = 0x5
+    WB_TIMEOUT_RESERVED_6          = 0x6
+    WB_TIMEOUT_RESERVED_7          = 0x7
+    WB_TIMEOUT_RESERVED_8          = 0x8
+    WB_TIMEOUT_RESERVED_9          = 0x9
+    WB_TIMEOUT_RESERVED_A          = 0xA
+    WB_TIMEOUT_RESERVED_B          = 0xB
+    WB_TIMEOUT_RESERVED_C          = 0xC
+    WB_TIMEOUT_RESERVED_D          = 0xD
+    WB_TIMEOUT_RESERVED_E          = 0xE
+    WB_TIMEOUT_USER_DEFINED        = 0xF
+
+
+class WBCompletionCode(IntEnum):
+    """Auto-extracted from monitor_wb4_pkg::wb_completion_code_t."""
+    WB_COMPL_ACK                   = 0x0  # Terminated ACK
+    WB_COMPL_READ                  = 0x1  # Read terminated ACK
+    WB_COMPL_WRITE                 = 0x2  # Write terminated ACK
+    WB_COMPL_RTY                   = 0x3  # Terminated RTY (not an error)
+    WB_COMPL_RESERVED_4            = 0x4
+    WB_COMPL_RESERVED_5            = 0x5
+    WB_COMPL_RESERVED_6            = 0x6
+    WB_COMPL_RESERVED_7            = 0x7
+    WB_COMPL_RESERVED_8            = 0x8
+    WB_COMPL_RESERVED_9            = 0x9
+    WB_COMPL_RESERVED_A            = 0xA
+    WB_COMPL_RESERVED_B            = 0xB
+    WB_COMPL_RESERVED_C            = 0xC
+    WB_COMPL_RESERVED_D            = 0xD
+    WB_COMPL_RESERVED_E            = 0xE
+    WB_COMPL_USER_DEFINED          = 0xF
+
+
+class WBPerformanceCode(IntEnum):
+    """Auto-extracted from monitor_wb4_pkg::wb_perf_code_t."""
+    WB_PERF_READ_LATENCY           = 0x0  # Read latency over cfg_latency_threshold
+    WB_PERF_WRITE_LATENCY          = 0x1  # Write latency over cfg_latency_threshold
+    WB_PERF_RESERVED_2             = 0x2
+    WB_PERF_RESERVED_3             = 0x3
+    WB_PERF_RESERVED_4             = 0x4
+    WB_PERF_RESERVED_5             = 0x5
+    WB_PERF_RESERVED_6             = 0x6
+    WB_PERF_RESERVED_7             = 0x7
+    WB_PERF_RESERVED_8             = 0x8
+    WB_PERF_RESERVED_9             = 0x9
+    WB_PERF_RESERVED_A             = 0xA
+    WB_PERF_RESERVED_B             = 0xB
+    WB_PERF_RESERVED_C             = 0xC
+    WB_PERF_RESERVED_D             = 0xD
+    WB_PERF_RESERVED_E             = 0xE
+    WB_PERF_USER_DEFINED           = 0xF
+
+
+class WBDebugCode(IntEnum):
+    """Auto-extracted from monitor_wb4_pkg::wb_debug_code_t."""
+    WB_DEBUG_QUEUE_ACTIVE          = 0x0  # Tracking queue went non-empty
+    WB_DEBUG_QUEUE_IDLE            = 0x1  # Tracking queue drained
+    WB_DEBUG_RESERVED_2            = 0x2
+    WB_DEBUG_RESERVED_3            = 0x3
+    WB_DEBUG_RESERVED_4            = 0x4
+    WB_DEBUG_RESERVED_5            = 0x5
+    WB_DEBUG_RESERVED_6            = 0x6
+    WB_DEBUG_RESERVED_7            = 0x7
+    WB_DEBUG_RESERVED_8            = 0x8
+    WB_DEBUG_RESERVED_9            = 0x9
+    WB_DEBUG_RESERVED_A            = 0xA
+    WB_DEBUG_RESERVED_B            = 0xB
+    WB_DEBUG_RESERVED_C            = 0xC
+    WB_DEBUG_RESERVED_D            = 0xD
+    WB_DEBUG_RESERVED_E            = 0xE
+    WB_DEBUG_USER_DEFINED          = 0xF
+
+
+# =============================================================================
 # PACKET FIELD EXTRACTION FUNCTIONS — 128-bit format
 # =============================================================================
 #
@@ -726,6 +831,11 @@ _EVENT_CODE_ENUM_LOOKUP = {
     (ProtocolType.PROTOCOL_AXIS, PktType.PktTypeCredit):     AXISCreditCode,
     (ProtocolType.PROTOCOL_AXIS, PktType.PktTypeChannel):    AXISChannelCode,
     (ProtocolType.PROTOCOL_AXIS, PktType.PktTypeStream):     AXISStreamCode,
+    (ProtocolType.PROTOCOL_WB,   PktType.PktTypeError):      WBErrorCode,
+    (ProtocolType.PROTOCOL_WB,   PktType.PktTypeTimeout):    WBTimeoutCode,
+    (ProtocolType.PROTOCOL_WB,   PktType.PktTypeCompletion): WBCompletionCode,
+    (ProtocolType.PROTOCOL_WB,   PktType.PktTypePerf):       WBPerformanceCode,
+    (ProtocolType.PROTOCOL_WB,   PktType.PktTypeDebug):      WBDebugCode,
 }
 
 
