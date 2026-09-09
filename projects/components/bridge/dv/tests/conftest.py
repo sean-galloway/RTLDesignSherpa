@@ -1,46 +1,50 @@
-"""Bridge Validation Test Configuration for pytest.
+"""Validation test configuration for pytest -- projects/components/bridge/dv/tests.
 
-Configures the test environment for AXI4 Bridge crossbar validation.
-The boilerplate (log dir setup, coverage aggregation, scratch-dir
-ignore) lives in ``bin/cov_utils/conftest_base.py``; this file just
-declares the bridge-specific bits.
+The area name is DERIVED from this file's location (the component directory
+three levels up), never typed, for the same reason val/<area> derives it:
+a copied conftest that announces the wrong area cannot drift like that.
 
-Coverage Features:
-- Set COVERAGE=1 to enable code coverage collection
-- Set COVERAGE_PROTOCOL=1 to enable protocol coverage collection
-- Coverage reports are aggregated at session end
+Coverage/log boilerplate (log dir, coverage collection + session-end
+aggregation, scratch-dir ignore) lives in ``bin/cov_utils/conftest_base.py``
+-- the SAME shared base every val area uses. This file is the val/common
+conftest plus the two path entries a Pattern B area needs, and nothing else.
+It used to carry 100 more lines: parametrization fixtures for an RTL-
+parameterised bridge that has never existed (the fabrics are generated per
+config), a marker auto-tagger nothing selected on, and a REG_LEVEL ->
+os.environ['TEST_LEVEL'] stamp that overrode every per-cell TEST_LEVEL the
+wrappers export (cocotb_test copies os.environ over extra_env) -- the first
+leveled FULL run executed all 216 cells at full depth because of it.
+
+Coverage: `COVERAGE=1` (Verilator line/toggle), aggregated at session end via
+the shared base. Report: `make coverage-report`. Env: `REG_LEVEL` (GATE|FUNC|
+FULL, drives the grid in each wrapper's generate_bridge_levels) / `TEST_LEVEL`
+(per-cell depth, exported by the wrapper, read by the TB). Waves: `WAVES=1`
+(the `-waves` make targets), honoured through TBClasses.shared.utilities.
+get_wave_config in every wrapper.
 """
 
 import os
 import sys
 
-# Add repository paths before any test imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..'))
-sys.path.insert(0, repo_root)
-sys.path.insert(0, os.path.join(repo_root, 'bin'))
+_TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
+_REPO_ROOT = os.path.abspath(os.path.join(_TESTS_DIR, '../../../../..'))
+AREA = os.path.basename(os.path.abspath(os.path.join(_TESTS_DIR, '../..')))  # 'bridge' -- derived
+sys.path.insert(0, os.path.join(_REPO_ROOT, 'bin'))
+# Pattern B: tests and TB classes import `projects.components.bridge...`, so
+# the repo root must resolve at collection time too.
+sys.path.insert(0, _REPO_ROOT)
 # This directory too: the _mon tests do `from monitor_stress_common import ...`,
 # a sibling module. pytest only prepends a test file's own directory when it is
 # invoked from inside it, so collecting from the repo root used to fail with
-# ModuleNotFoundError on all six _mon tests.
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# ModuleNotFoundError on every _mon test.
+sys.path.insert(0, _TESTS_DIR)
 
-import pytest
-from cov_utils.conftest_base import configure, sessionfinish, ignore_collect
-from cov_utils.conftest_coverage import get_coverage_compile_args  # noqa: F401 — re-exported for test files
+import pytest  # noqa: E402
+from cov_utils.conftest_base import configure, sessionfinish, ignore_collect  # noqa: E402
+from cov_utils.conftest_coverage import get_coverage_compile_args  # noqa: E402,F401 — re-exported for test wrappers
 
-AREA_NAME = 'Bridge'
-LOG_BASENAME = 'pytest_bridge.log'
-
-MARKERS = (
-    'bridge: Bridge crossbar tests',
-    'basic: Basic functionality tests',
-    'routing: Address decode and routing tests',
-    'arbitration: Round-robin arbitration tests',
-    'concurrent: Concurrent path tests',
-    'stress: Stress testing',
-    'coverage: Tests that collect coverage data',
-    'protocol_coverage: Tests that collect protocol coverage',
-)
+LOG_BASENAME = 'pytest_run.log'
+MARKERS = ('coverage: Tests that collect coverage data',)
 
 
 def pytest_configure(config):
@@ -49,109 +53,20 @@ def pytest_configure(config):
 
 @pytest.hookimpl(trylast=True)
 def pytest_sessionfinish(session, exitstatus):
-    sessionfinish(__file__, AREA_NAME)
+    sessionfinish(__file__, AREA)
 
 
 def pytest_ignore_collect(collection_path, config):
     return ignore_collect(collection_path)
 
 
-def pytest_collection_modifyitems(config, items):
-    """Auto-tag tests with bridge-specific markers based on node-id substrings."""
-    for item in items:
-        nid = item.nodeid
-        if 'routing' in nid:
-            item.add_marker(pytest.mark.routing)
-        elif 'arbitration' in nid:
-            item.add_marker(pytest.mark.arbitration)
-        elif 'concurrent' in nid:
-            item.add_marker(pytest.mark.concurrent)
-        elif 'stress' in nid:
-            item.add_marker(pytest.mark.stress)
-        elif 'basic' in nid:
-            item.add_marker(pytest.mark.basic)
+@pytest.fixture(scope="function")
+def test_level():
+    """Test level (TEST_LEVEL override; REG_LEVEL drives parametrization in tests)."""
+    return os.environ.get('TEST_LEVEL', 'gate').lower()
 
 
-# ----------------------------------------------------------------------
-# Bridge-specific parametrization fixtures (kept local to this area).
-# ----------------------------------------------------------------------
-
-@pytest.fixture(scope='module', params=[
-    # (num_masters, num_slaves, data_width, addr_width, id_width)
-    (2, 2, 32, 32, 4),   # Basic 2x2 crossbar
-    (2, 4, 32, 32, 4),   # 2 masters, 4 slaves
-    (4, 2, 32, 32, 4),   # 4 masters, 2 slaves
-    (4, 4, 32, 32, 4),   # Full 4x4 crossbar
-])
-def bridge_config(request):
-    """Bridge crossbar configuration parameters."""
-    num_masters, num_slaves, data_width, addr_width, id_width = request.param
-    return {
-        'NUM_MASTERS': num_masters,
-        'NUM_SLAVES': num_slaves,
-        'DATA_WIDTH': data_width,
-        'ADDR_WIDTH': addr_width,
-        'ID_WIDTH': id_width,
-    }
-
-
-@pytest.fixture(scope='module', params=[
-    # (level, transaction_count, timeout_factor)
-    ('gate', 10, 1.0),
-    ('func', 50, 1.5),
-    ('full', 200, 2.0),
-])
-def bridge_test_level(request):
-    """Bridge test level configuration; ``TEST_LEVEL`` env var overrides."""
-    level, transaction_count, timeout_factor = request.param
-    env_level = os.environ.get('TEST_LEVEL', level).lower()
-    if env_level in ['gate', 'func', 'full']:
-        level = env_level
-    return {
-        'level': level,
-        'transaction_count': transaction_count,
-        'timeout_factor': timeout_factor,
-    }
-
-
-def get_bridge_env_config():
-    """Bridge configuration from environment variables."""
-    return {
-        'NUM_MASTERS': int(os.environ.get('BRIDGE_NUM_MASTERS', '2')),
-        'NUM_SLAVES': int(os.environ.get('BRIDGE_NUM_SLAVES', '2')),
-        'DATA_WIDTH': int(os.environ.get('BRIDGE_DATA_WIDTH', '32')),
-        'ADDR_WIDTH': int(os.environ.get('BRIDGE_ADDR_WIDTH', '32')),
-        'ID_WIDTH': int(os.environ.get('BRIDGE_ID_WIDTH', '4')),
-        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate').lower(),
-        'ENABLE_WAVEDUMP': os.environ.get('ENABLE_WAVEDUMP', '1') == '1',
-    }
-
-
-@pytest.fixture(scope='function')
+@pytest.fixture(scope="function")
 def coverage_enabled():
     """Whether coverage collection is enabled for this run."""
     return os.environ.get('COVERAGE', '0') == '1'
-
-
-@pytest.fixture(scope='function')
-def test_level():
-    """Test level (overridable via ``TEST_LEVEL`` env var)."""
-    return os.environ.get('TEST_LEVEL', 'gate')
-
-# ----------------------------------------------------------------------
-# NO REG_LEVEL -> TEST_LEVEL stamp here -- it silently killed the grid.
-# ----------------------------------------------------------------------
-# This file used to copy REG_LEVEL into os.environ['TEST_LEVEL'] at import
-# ("REG_LEVEL wins over TEST_LEVEL, matching stream's conftest"). That was
-# written for wrappers that never exported TEST_LEVEL. Once a wrapper does
-# export it per cell, the stamp overrides it: cocotb_test.simulator.set_env
-# copies EVERY os.environ entry over extra_env AFTER extra_env is applied, so
-# a process-level TEST_LEVEL beats the per-cell one. Measured 2026-09-09 on
-# the first leveled FULL run: all 216 cells -- the gate, func and full cell of
-# every test -- logged `level=full`, identical wall-clock, while the grid
-# reported three levels. REG_LEVEL selects the grid in each wrapper's
-# generate_bridge_levels(); TEST_LEVEL reaches the sim only via extra_env.
-#
-# The same block still exists in twelve other conftests (misc, retro_legacy
-# _blocks, apbx-xbar, converters, rapids x5, pumice x3) and has the same
-# effect on any leveled wrapper there -- TOOL task filed 2026-09-09.
