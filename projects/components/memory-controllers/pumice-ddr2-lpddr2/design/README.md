@@ -1048,3 +1048,53 @@ Host (pumice_char.py): every preset knob is now a CSR the RTL reads.
 DV: test_pumice_top configure_via_csr / wr_rd_ooo_multi_id and the char
   uart sweep use SCHED_POLICY.order_mode; the host unit test covers
   set_sched_policy + set_refresh(REF_CTRL).
+
+### THE TWO STANDING FAILURES, DIAGNOSED (2026-09-09)
+
+Sean asked whether the two failures I had been calling "pre-existing" were
+test issues or RTL bugs. Both are TEST issues, and both were masking
+something. Measured, not argued:
+
+1. `pagehit_rate2_x16_free_earlyen` was not failing -- it was XPASSING. It is
+   a strict xfail (a negative model: an rddata_en->valid strobe decoupled from
+   the data must be SEEN as mismatches), so "FAILED" meant the injected fault
+   was no longer detected. That is the dangerous direction, so the first
+   question was whether the METRIC had gone blind. It has not. A latency
+   sweep settles it:
+
+       a7_read_valid_lat   5   6   7   8   10  12
+       result             ok  ok  ok  MISM MISM MISM   (read_latency = 8)
+
+   The read path absorbs an early valid up to lat 7 and the check still flags
+   everything at 8 and beyond. The tolerance window simply widened past the
+   model's calibration point -- the return ring pairs a DFI return with its
+   ticket by ISSUE ORDER, so a valid that leads the data still lands in the
+   right slot. Fix: the lat-6 case becomes a positive test that pins the
+   absorption, a new `_edge` case pins the far edge at 7 so a narrowing of the
+   window fails loudly, and the strict-xfail negative model moves to lat 10,
+   two cycles clear of the boundary.
+
+2. PUMICE-021's in_order floor is a MISCALIBRATED FLOOR. Discriminator across
+   the eight paging modes under in_order is exact: every mode that drives
+   auto-precharge reads 37.87-44.14%, every mode that does not reads exactly
+   80.33% / stall=94. A command-cadence probe on the same window gives the
+   mechanism:
+
+       static_open  x in_order  89.51%  ops {ACT:8, WR:64}    gaps 4x63, 8x8
+       static_close x in_order  36.89%  ops {ACT:26, WRA:26}  gaps 4x25, 8x34
+
+   Non-AP paging activates once and streams columns at tCCD: one command per
+   access, gap 4. AP paging makes every access two DEPENDENT commands, ACT
+   then column-with-auto-precharge: ACT->col is tRCD (gap 4), col->next ACT is
+   the head advancing through the arbiter's 3-stage pick pipeline (gap 8). A
+   12-cycle period instead of 4. FR-FCFS fills those gaps from other banks
+   (hence 100% in the same windows); strict ordering cannot, by definition.
+   The 0.45 floor and its "expected 56.3%" note predate the pipelined arbiter.
+   Fix: floors split by mechanism, 0.75 non-AP / 0.30 AP, with the probe
+   numbers in the comment and an assertion that the AP modes are present so
+   the split cannot cover an empty set. PUMICE-021 closed.
+
+The col->ACT head advance is the one real performance lead here: shortening it
+lifts every AP-paging number under strict ordering. It is the same pre-pick
+stage that owns the 75 MHz critical path, so it is one change with both
+payoffs -- tracked under PUMICE-024, not treated as a defect.

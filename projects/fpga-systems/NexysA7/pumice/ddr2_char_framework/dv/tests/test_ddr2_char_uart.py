@@ -852,18 +852,46 @@ def test_ddr2_char_uart_pagehit_rate2_x16_free(request):
          a7_read_free=True, a7_read_valid_lat=5)
 
 
-@pytest.mark.xfail(strict=True, reason="deliberate valid/data decoupling "
-                   "(valid_lat=6 vs data-anchored cadence) must be SEEN as "
-                   "mismatches. On the board this class is aligned by the "
-                   "t_rddata_en/rddata_delay tuple, not RTL — see TASK-BRINGUP.")
 def test_ddr2_char_uart_pagehit_rate2_x16_free_earlyen(request):
-    # NEGATIVE model (strict xfail): the rddata_en->valid strobe DECOUPLED from
-    # the command-anchored data by one DFI cycle -> read N's data lands in read
-    # N+1's slot (beats_mismatched == 2*txn, the historical ILA signature).
+    # POSITIVE: an EARLY rddata_en->valid strobe (valid_lat 6 vs data anchored
+    # at read_latency 8) is ABSORBED -- the read path pairs the return with its
+    # ticket by issue order, so a valid that leads the data still lands in the
+    # right slot. This was a strict-xfail negative model until 2026-09-09, when
+    # it started XPASSing: a latency sweep (5,6,7 clean / 8,10,12 mismatched)
+    # showed the tolerance window had widened past this point, so the case now
+    # pins the behaviour instead of asserting a fault that no longer occurs.
+    # The fault the metric MUST still see is the late-enable model below.
     _run(request, "cocotb_test_uart_pagehit", dfi_rate=2, dram_beat_width=32,
          dram_device_width=16, strict_write_timing=True, write_latency=0,
          strict_read_timing=True, read_latency=8, t_phy_wrlat=0,
          a7_read_free=True, a7_read_valid_lat=6)
+
+
+def test_ddr2_char_uart_pagehit_rate2_x16_free_earlyen_edge(request):
+    # The far edge of the measured tolerance window (valid_lat 7). Pins it, so
+    # a change that NARROWS the window fails here rather than silently eating
+    # the margin the board's t_rddata_en/rddata_delay tuple is trimmed against.
+    _run(request, "cocotb_test_uart_pagehit", dfi_rate=2, dram_beat_width=32,
+         dram_device_width=16, strict_write_timing=True, write_latency=0,
+         strict_read_timing=True, read_latency=8, t_phy_wrlat=0,
+         a7_read_free=True, a7_read_valid_lat=7)
+
+
+@pytest.mark.xfail(strict=True, reason="deliberate valid/data decoupling "
+                   "(valid_lat=10, outside the measured tolerance window) must "
+                   "be SEEN as mismatches. On the board this class is aligned "
+                   "by the t_rddata_en/rddata_delay tuple, not RTL — see "
+                   "TASK-BRINGUP.")
+def test_ddr2_char_uart_pagehit_rate2_x16_free_lateen(request):
+    # NEGATIVE model (strict xfail): the rddata_en->valid strobe decoupled the
+    # OTHER way -- valid trails the data-anchored cadence -> read N's data lands
+    # in read N+1's slot (beats_mismatched == 2*txn, the historical ILA
+    # signature). Replaces the valid_lat=6 negative model, which the read path
+    # now absorbs; 10 is two cycles clear of the measured boundary at 8.
+    _run(request, "cocotb_test_uart_pagehit", dfi_rate=2, dram_beat_width=32,
+         dram_device_width=16, strict_write_timing=True, write_latency=0,
+         strict_read_timing=True, read_latency=8, t_phy_wrlat=0,
+         a7_read_free=True, a7_read_valid_lat=10)
 
 
 @pytest.mark.xfail(strict=True, reason="deliberate fault injection: a "

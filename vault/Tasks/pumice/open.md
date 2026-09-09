@@ -670,37 +670,3 @@ a checker of protocol.
 
 **Related:** [[TASK-078]], [[COMMON-025]], [[MATH-010]], [[CDC-001]] are the
 same task in the rtl/ areas.
-
-## PUMICE-021 — paging_sched_cross in_order static_close below the 45% floor (pre-existing)
-**Status:** open 2026-09-07 — pre-existing on clean main, deterministic
-
-`test_pumice_core_perf_paging_sched_cross` (ENHANCED build) fails its in_order
-floor: `static_close x order_in_order` reads util = 37.80% (stall=632) vs the
-IN_ORDER_FLOOR=0.45 the test enforces (comment expects ~56.3%). Verified
-PRE-EXISTING: clean HEAD (no local changes) gives the IDENTICAL 37.80% /
-stall=632 at SEED=49029 — it is NOT caused by the Phase 1 per-entry arbiter
-work (PUMICE-throughput), which was proven innocent by reverting to the exact
-clean column mask and still measuring 37.8%.
-
-Scope: ENHANCED-only. `sched_order_mode_i == 1` (in_order) exists only under
-`+define+PUMICE_ENHANCED`; the basic/board build compiles it out (always
-FR-FCFS), so this does NOT affect the board. Whoever last moved the in_order
-overlay or the static_close paging path should bisect: either the overlay
-regressed the CLOSE-page in_order throughput, or the 56.3%/45% floor was set
-against an older arbiter and needs re-calibrating for the current one. Repro:
-`SEED=49029 pytest test_pumice_core_dfi.py -k paging_sched_cross`.
-
-**Update 2026-09-09.** Two things moved under this test since bb1c152d3 (the
-write-lead block); neither is a new RTL bug and both are recorded here so the
-next reader does not re-derive them:
-- `pref_row_first` under the CLOSE-biased paging modes reads 80.33% (static_close,
-  rbl_static) / 84.96% (rbl_dyn) instead of 100%. Mechanism: ACT beats COL by
-  definition of the mode, so an ACT-ready entry takes the one cycle in tCCD (4 at
-  BL8) when the next column becomes eligible and the column slides one cycle: a
-  5-cycle period, 4/5. It read 100% only while the test poked the unphysical
-  tCCD=1. The test now exempts pref_row_first from the 100% gate with its own
-  0.75 floor (same treatment as in_order); open-page modes stay at 100%.
-- The restored modes (5/6/7, see the 2026-09-09 restoration commit) add
-  `rbl_static x in_order` 37.87% and `rbl_dyn x in_order` 44.14% to the in_order
-  floor failure -- same class as static_close (each is close-biased). The floor
-  assertion is left in place; this task is still the tracker.
