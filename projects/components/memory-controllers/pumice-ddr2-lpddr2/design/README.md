@@ -1004,3 +1004,9 @@ logic levels off the older matrix FR-FCFS already reads. So:
     separate sim_build trees -- sharing one produced a g++ segfault when the
     regression and a standalone run compiled it at once).
 
+75 MHz post-route with the order modes in the base build: -0.046 ns on 4
+endpoints (flow placer), -0.085 ns on 12 (ExtraTimingOpt) -- all the
+arbiter's own r_*_pop -> r_bank pre-pick path, the +-0.05 ns band seen in
+every build today. The -0.046 build is in the tree for the board run;
+PUMICE-024 carries the real fix (shorten the pre-pick stage).
+

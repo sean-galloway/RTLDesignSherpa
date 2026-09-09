@@ -420,6 +420,26 @@ non-optimal pick per boundary. Needs the full pumice + char gate and a
 (`create_project.tcl`), and a SCHED_POLICY.order_mode write on the board
 bitstream is a no-op (runs FR-FCFS), as the arbiter note says.
 
+**Update 2026-09-09 (863a3f9c3).** Sean's call: in_order as a CSR mode on top of
+FR-FCFS. in_order (per-channel FIFO: per-CAM head masks + the arbiter's rd/wr
+preference) and age_threshold (CAM-registered flags) are now BASE-build modes;
+only the global rd-vs-wr age compare stays behind PUMICE_ENHANCED. 75 MHz
+post-route of the base build with them in:
+
+| placer directive            | WNS       | TNS    | failing endpoints |
+|-----------------------------|-----------|--------|-------------------|
+| AltSpreadLogic_high (flow)  | -0.046 ns | -0.137 | 4 of 72912        |
+| ExtraTimingOpt              | -0.085 ns | -0.706 | 12 of 72912       |
+
+Every failing endpoint is the arbiter's own `r_{rd,wr}_pop -> r_bank/r_op/
+r_do_pre` pre-pick-to-output path (14-15 levels), the same path that read
++0.020 / -0.044 / -0.046 / -0.085 across today's four builds of near-identical
+netlists: it sits in a +-0.05 ns placement band. The order-mode masks add an
+AND at the input side of the cone, not a level in series. The -0.046 build is
+the one in the tree (fpga/bitstream/ddr2_char.bit) for board characterization;
+closing this path for real means shortening the pre-pick stage (a design
+change on the flat arbiter), which is the remaining item of this task.
+
 Two-stage bank scheduler (`PUMICE_BANK_SCHED`, rtl/OLD): not attempted --
 it needs every hazard fix of the flat arbiter ported into its picker (see
 design/README.md "PAGING MODES RESTORED"); go/no-go with Sean.
