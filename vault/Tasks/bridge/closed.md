@@ -270,3 +270,158 @@ leaving the one-hot all-zero.
 **Do not** fix only the docs. "Unmapped addresses hang the fabric" is a
 defensible documented limitation only if someone chooses it deliberately; it is
 not the sort of thing to arrive at by editing a sentence.
+
+### BRIDGE-010: slave-port response routing assumes in-order completion, and nothing says so
+
+**Status:** RESOLVED 2026-09-08 by way (1) below -- document the constraint
+and make the violation loud. The constraint is now stated in the PRD
+(comparison table, risk register, glossary), HAS, MAS and `CLAUDE.md`; every
+generated slave adapter carries a `BRIDGE-010` comment and an `$error`
+assertion that fires when a returned B/R does not match the FIFO head; the
+arbitration tests were made real and detect the ordering (`a43b032dd`); the
+out-of-order/CAM/ID-table claims were swept to zero across both books
+(`a71a4c989`, `a31a5366`). Way (2), ID-keyed tracking via `bridge_cam`, is
+NOT chosen: it is a design change, and the books now say so instead of
+describing it as built. Reopen as a new task if OOO support is ever wanted.
+
+**Priority (as filed):** High. Silent misroute, not a hang -- a master receives another
+master's response, carrying that master's BID.
+
+**Found by** bridge qc round_1 (2026-09-07), verified against generated RTL.
+
+**The mechanism.** Each generated slave adapter tracks the originating master
+in a plain in-order FIFO -- push on the address handshake, pop on the response:
+
+```systemverilog
+// push
+wr_fifo[wr_ptr[...]] <= xbar_bridge_id_aw;   // on AW accept
+// route the response by the FIFO HEAD, not by the returned BID
+assign bid_bridge_id = wr_fifo[rd_ptr[...]];
+```
+
+IDs are **pass-through** -- the slave port is the same width as the master
+port, with no `bridge_id` prepended (confirmed: `input logic [3:0]
+cpu_axi4_awid` -> `output logic [3:0] ddr_s_axi_awid`, and the generator
+comment says "Master id_width drives the slave-port ID width (pass-through)").
+So the FIFO *is* the return path. It only works if responses come back in
+request order.
+
+**Why it is reachable.** Two masters can have writes outstanding at one slave
+simultaneously: `bridge_2x2_rw` connects both `cpu` and `dma` to `ddr`, the
+crossbar's W-owner FIFO explicitly supports interleaved AW ownership, and the
+arbiter releases its grant at the ADDRESS handshake rather than the response.
+The per-master single-outstanding-target gate prevents one master spanning
+several slaves; it does not prevent several masters sharing one. AXI4 permits a
+slave to complete different-ID transactions out of order, so a reordering
+slave -- a multi-ported DDR controller is the normal case -- makes the head
+stale. The response then goes to the wrong master AND carries an ID that master
+never issued, which is an AXI violation at its port.
+
+**Nothing detects it.** No assertion, no ID comparison, no check that the
+returned BID/RID matches the head. The failure is silent data misattribution.
+
+**And the docs claim the opposite.** The HAS documents out-of-order completion
+as a supported feature, with a BID-prepend/extract scheme and slave IDs widened
+by `clog2(NUM_MASTERS)`. None of that is built (same finding cluster as
+round_1 findings 1-3). So an integrator is told the fabric handles reordering
+when in fact reordering breaks it.
+
+**Two ways out, and the choice is a design decision:**
+1. **Document the constraint** -- "each slave port must return B/R in request
+   order across ALL IDs" -- and add a simulation assertion that fires when a
+   returned BID/RID does not match the FIFO head. Cheap, honest, and makes the
+   limitation loud instead of silent. `bridge_cam.sv` exists but is
+   instantiated in zero generated bridges, so the in-order design is the real
+   one.
+2. **Make tracking ID-keyed** (use `bridge_cam`, or prepend `bridge_id` to the
+   slave-side ID as the docs already claim). Larger change; buys real OOO
+   support.
+
+Whichever is chosen, the HAS/PRD claims must match it. Today they describe (2)
+while the RTL implements (1) without saying so.
+
+**Related:** [[BRIDGE-009]] (the other round_1 RTL finding, fixed). The
+in-order `bridge_id` FIFO is the same structure both touch.
+
+### BRIDGE-011: Response-tracking FIFOs overflow silently (HIGH)
+
+**Status:** FIXED 2026-09-08 (`c64660f47`, master-side analysis corrected in
+`6a824aeb2`). `awready`/`arready` now gate on the tracking FIFO being not-full
+on both sides: the master adapter folds not-full into `aw_gate_ok`/`ar_gate_ok`,
+the slave adapter splices it into the sub-block handshake (valid and ready
+together). Test: 80 concurrent writes from two masters to one slave with B
+held off, asserting occupancy never exceeds depth -- RED 3/3 before (peak 31),
+GREEN 3/3 after (peak 16). Bridge 71/71 at FULL. Filed by bridge qc round_1's
+follow-up (2026-09-08); this entry was first written into the legacy
+`projects/components/bridge/TASKS.md` and moved here 2026-09-08.
+
+Original filing follows.
+
+**Found** 2026-09-08 while checking BRIDGE-010's reachability.
+
+Every generated bridge carries two 16-entry response-tracking FIFOs, and
+NEITHER has a full check or applies backpressure:
+
+| FIFO | File | Depth | Routes |
+|---|---|---|---|
+| `wr_fifo` / `rd_fifo` | `<slave>_slave_adapter.sv` | `WR/RD_FIFO_DEPTH = 16` | B/R back to the originating MASTER |
+| `aw_trk_mem` / `ar_trk_mem` | `<master>_master_adapter.sv` | `AW/AR_TRK_DEPTH = 16` | B/R back to the originating SLAVE |
+
+Push is unconditional on the address handshake:
+
+```systemverilog
+end else if (xbar_..._awvalid && xbar_..._awready) begin
+    wr_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= xbar_bridge_id_aw;
+    wr_ptr <= wr_ptr + 1'b1;
+end
+```
+
+The 17th outstanding request wraps the 4-bit index and overwrites entry 0. The
+two FIFOs then fail DIFFERENTLY, and the difference matters:
+
+**Slave-side (`wr_fifo`/`rd_fifo`) -- silent misrouting.** These hold the
+originating MASTER id. Two masters may hold writes to the same slave at once
+(the per-master gate restricts each master to one slave, not one master per
+slave), so the entries are a genuine MIX. Overwriting entry 0 routes the 1st
+transaction's response by the 17th's entry: B/R delivered to the WRONG MASTER,
+no error, no protocol violation on any port. Needs >=2 masters on one slave.
+
+**Master-side (`aw_trk_mem`/`ar_trk_mem`) -- NOT a misroute; a stall at 32.**
+Corrected 2026-09-08: this was filed as a wrong-slave misroute and that was
+wrong. `aw_gate_ok` admits a new AW only while it targets `r_aw_active_target`,
+so every in-flight entry holds the IDENTICAL slave-select and the overwrite
+writes the same value back. The real failure is pointer lapping: the pointers
+are `[AW_TRK_AW:0]`, so at exactly 32 outstanding `aw_trk_wptr == aw_trk_rptr`
+reads as EMPTY, `b_slave_select` falls to `'0`, no slave is selected and B
+stops flowing. A hang, not corruption, and it needs 32 outstanding from ONE
+master.
+
+**Reachability -- verified, not inferred.** Nothing anywhere caps the count:
+
+1. `axi4_master_wr.sv:156` -- `assign int_skid_awready = m_axi_awready;`
+   Straight passthrough. No outstanding counter in the module at all.
+2. Master adapter `aw_gate_ok` gates on WHICH slave, never HOW MANY:
+   `(aw_trk_wptr == aw_trk_rptr) || (comb_slave_select_aw == r_aw_active_target)`
+   Same-slave pipelining is explicitly unlimited -- the comment says so.
+3. `grep -niE "outstanding|credit|max_txn|in_flight|throttle"` over every
+   generated `.sv` in `bridge_4x4_rw` returns only the aw_gate_ok comments.
+
+So the bound is whatever the attached slave accepts. A DDR controller that
+takes 32 outstanding writes -- ordinary -- overflows this on every run. The
+slave-side FIFO sees the SUM across masters, so it fills faster still.
+
+**Why no test caught it.** The 70-test FULL regression passes because the AXI4
+BFM slaves return B/R promptly, so depth stays far under 16. The bug needs a
+slow slave plus a deep pipeline, which no current bridge test builds.
+
+**Recommended fix:** gate `awready`/`arready` on the tracking FIFO being
+not-full. No deadlock risk -- entries drain on responses, which never depend
+on accepting a further request. Deepening the FIFO is NOT a fix; it moves the
+cliff. An assertion alone detects it in sim but leaves silicon corrupting.
+
+Needs a test that holds B off while issuing >16 -- that test should be written
+FIRST and shown RED, since a test whose stimulus cannot reach depth 17 passes
+against the broken RTL.
+
+Related: BRIDGE-010 (ordering, same FIFOs). Both are consequences of routing
+by FIFO position rather than by returned ID.
