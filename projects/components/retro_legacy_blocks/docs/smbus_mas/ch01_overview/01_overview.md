@@ -23,19 +23,14 @@
 
 # APB SMBus - Overview
 
-## Introduction
+## Overview
 
-Top-level parameters on apb4_smbus: FIFO_DEPTH (default 32, the SMBus 2.0
-block size), CDC_ENABLE (0 = single pclk domain, 1 = separate core clock
-via apb4_slave_cdc) and USE_JOHNSON (CDC counter encoding, default 0).
-There is no skid-depth parameter. Note that with CDC_ENABLE=1 the
-smb_interrupt aggregation samples core-domain status directly on pclk
-with no synchronizers -- a known CDC gap (#58).
+The APB SMBus controller provides System Management Bus communication with an
+APB interface. It supports host controller functionality for accessing SMBus
+devices -- software programs registers over APB, and the core handles the
+two-wire protocol.
 
-The APB SMBus controller provides System Management Bus communication with APB interface. It supports host controller functionality for accessing SMBus devices.
-
-## Key Features (design targets -- see the status note below: several
-are non-functional in the current RTL, #58)
+### Key Features (design targets -- see the status note below: several are non-functional in the current RTL, #58)
 
 - SMBus 2.0 compatible
 - Host controller mode
@@ -59,7 +54,11 @@ are non-functional in the current RTL, #58)
 > [Chapter 5: Register Map](../ch05_registers/01_register_map.md) and
 > `rtl/smbus/IMPLEMENTATION_STATUS.md` for the tracked status.
 
-## Applications
+Treat that blockquote as the ground rules for this whole chapter. The register
+interface is real; a good portion of the protocol machinery behind it is not,
+yet. The waveforms below show where the design is going, not where it is.
+
+### Applications
 
 - Temperature monitoring
 - Voltage monitoring
@@ -68,13 +67,56 @@ are non-functional in the current RTL, #58)
 - Power management
 - System health monitoring
 
-## Block Diagram
+### Block Diagram
 
-### Figure 1.1: SMBus Block Diagram
+#### Figure 1.1: SMBus Block Diagram
 
 ![SMBus Block Diagram](../assets/svg/smbus_top.png)
 
-## Timing Diagrams
+### Register Summary
+
+| Offset | Name | Access | Description |
+|--------|------|--------|-------------|
+| 0x00 | SMBUS_CONTROL | RW | Global control (enable, mode, PEC, resets) |
+| 0x04 | SMBUS_STATUS | RO | Status flags and FSM state |
+| 0x08 | SMBUS_COMMAND | RW | Transaction type, command byte, start/stop |
+| 0x0C | SMBUS_SLAVE_ADDR | RW | Target slave address |
+| 0x10 | SMBUS_DATA | RW | Single data byte |
+| 0x14 | SMBUS_TX_FIFO | WO | Transmit FIFO write port |
+| 0x18 | SMBUS_RX_FIFO | RO | Receive FIFO read port |
+| 0x1C | SMBUS_FIFO_STATUS | RO | TX/RX FIFO levels and flags |
+| 0x20 | SMBUS_CLK_DIV | RW | SCL clock divider |
+| 0x24 | SMBUS_TIMEOUT | RW | Timeout threshold |
+| 0x28 | SMBUS_OWN_ADDR | RW | Own slave address (slave mode) |
+| 0x2C | SMBUS_INT_ENABLE | RW | Interrupt enable mask |
+| 0x30 | SMBUS_INT_STATUS | W1C | Interrupt status |
+| 0x34 | SMBUS_PEC | RW | PEC value (CRC-8) |
+| 0x38 | SMBUS_BLOCK_COUNT | RW | Block transfer byte count |
+
+See [Chapter 5: Register Map](../ch05_registers/01_register_map.md) for full field
+definitions, reset values, and implementation limitations.
+
+## Parameters
+
+`apb4_smbus` takes three top-level parameters:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `FIFO_DEPTH` | 32 | FIFO depth; the default is the SMBus 2.0 block size |
+| `CDC_ENABLE` | -- | 0 = single `pclk` domain, 1 = separate core clock via `apb4_slave_cdc` |
+| `USE_JOHNSON` | 0 | CDC counter encoding |
+
+There is no skid-depth parameter.
+
+One thing to know before you reach for the CDC option: with `CDC_ENABLE=1`, the
+`smb_interrupt` aggregation samples core-domain status directly on `pclk` with
+no synchronizers -- a known CDC gap (#58).
+
+## Waveforms
+
+Five diagrams walk the protocol this controller is designed to speak. Per the
+status note above, every one of them illustrates SMBus protocol intent, not
+current hardware behavior.
 
 ### Waveform 1.1: Byte Write (Start + Address)
 
@@ -116,30 +158,8 @@ CRC-8 error detection for data integrity.
 
 PEC is calculated over address, command, and data bytes using CRC-8. The PEC byte is transmitted after data and verified by the receiver to detect transmission errors.
 
-## Register Summary
-
-| Offset | Name | Access | Description |
-|--------|------|--------|-------------|
-| 0x00 | SMBUS_CONTROL | RW | Global control (enable, mode, PEC, resets) |
-| 0x04 | SMBUS_STATUS | RO | Status flags and FSM state |
-| 0x08 | SMBUS_COMMAND | RW | Transaction type, command byte, start/stop |
-| 0x0C | SMBUS_SLAVE_ADDR | RW | Target slave address |
-| 0x10 | SMBUS_DATA | RW | Single data byte |
-| 0x14 | SMBUS_TX_FIFO | WO | Transmit FIFO write port |
-| 0x18 | SMBUS_RX_FIFO | RO | Receive FIFO read port |
-| 0x1C | SMBUS_FIFO_STATUS | RO | TX/RX FIFO levels and flags |
-| 0x20 | SMBUS_CLK_DIV | RW | SCL clock divider |
-| 0x24 | SMBUS_TIMEOUT | RW | Timeout threshold |
-| 0x28 | SMBUS_OWN_ADDR | RW | Own slave address (slave mode) |
-| 0x2C | SMBUS_INT_ENABLE | RW | Interrupt enable mask |
-| 0x30 | SMBUS_INT_STATUS | W1C | Interrupt status |
-| 0x34 | SMBUS_PEC | RW | PEC value (CRC-8) |
-| 0x38 | SMBUS_BLOCK_COUNT | RW | Block transfer byte count |
-
-See [Chapter 5: Register Map](../ch05_registers/01_register_map.md) for full field
-definitions, reset values, and implementation limitations.
-
 ---
 
-**Next:** Chapter 2 (Architecture) is planned and not yet written -- see
-the index
+## Navigation
+
+**Next:** Chapter 2 (Architecture) is planned and not yet written -- see the index

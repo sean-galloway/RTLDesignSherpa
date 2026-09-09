@@ -32,11 +32,29 @@ deviant in the current RTL (see ch05 and issue #58)
 
 ---
 
-## Document Organization
+## Overview
 
 > Status (2026-07-22): Only the Chapter 1 overview and the Chapter 5 register map exist
 > in this tree today. The remaining chapters listed below are planned but not yet
 > written; they are shown without links.
+
+So the reading strategy is simple: Chapter 1 tells you what this controller is
+meant to be, and Chapter 5 tells you what the RTL actually does today -- including
+every place those two disagree. When in doubt, believe Chapter 5.
+
+### Block Diagram
+
+![SMBus Block Diagram](assets/svg/smbus_top.png)
+
+### Version History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|---------|
+| 1.0 | 2025-12-01 | RTL Design Sherpa | Initial specification |
+
+---
+
+## Navigation
 
 ### Chapter 1: Overview
 - [01_overview.md](ch01_overview/01_overview.md) - Component overview
@@ -53,17 +71,3 @@ deviant in the current RTL (see ch05 and issue #58)
 
 ### Chapter 5: Registers
 - [01_register_map.md](ch05_registers/01_register_map.md) - Register map
-
----
-
-## Block Diagram
-
-![SMBus Block Diagram](assets/svg/smbus_top.png)
-
----
-
-## Version History
-
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0 | 2025-12-01 | RTL Design Sherpa | Initial specification |

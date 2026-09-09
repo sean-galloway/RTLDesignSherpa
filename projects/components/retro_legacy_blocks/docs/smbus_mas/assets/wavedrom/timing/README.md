@@ -1,8 +1,10 @@
 # SMBus Timing Diagrams - WaveDrom JSON Files
 
+## Overview
+
 This directory contains WaveDrom timing diagrams for SMBus (System Management Bus) operational scenarios.
 
-## Files
+### Files
 
 | File | Scenario | Description |
 |------|----------|-------------|
@@ -12,7 +14,10 @@ This directory contains WaveDrom timing diagrams for SMBus (System Management Bu
 | `smbus_arbitration.json` | Arbitration | Multi-master arbitration via SDA comparison |
 | `smbus_pec.json` | PEC | Packet Error Check CRC-8 calculation |
 
-## Signal Hierarchy
+## Ports
+
+Waveform captions are only useful if the signal names are real. These are --
+from the external pins down to the core internals the traces refer to.
 
 ### APB Interface (External)
 - `s_apb_PSEL`, `s_apb_PENABLE`, `s_apb_PREADY` - Control signals
@@ -35,33 +40,10 @@ Real signal names in smbus_core.sv:
 (Names like scl_master/stretch_scl/pec_match in older diagram captions do
 not exist in the RTL.)
 
-## Rendering to SVG
+## Timing
 
-```bash
-# Render all files
-for f in *.json; do
-    wavedrom-cli -i "$f" > "${f%.json}.svg"
-done
-```
-
-## Scenarios Explained
-
-### 1. Byte Write
-Shows START condition (SDA falling while SCL high), followed by 7-bit address and R/W bit (W=0 for write). Slave with matching address responds with ACK by pulling SDA low during 9th clock.
-
-### 2. Byte Read
-Shows slave-to-master data transfer. Slave drives 8 data bits, master samples each on SCL rising edge. Master sends ACK (SDA low) for more data, or NACK (SDA high) for last byte.
-
-### 3. Clock Stretching
-Shows slave flow control mechanism. When slave needs processing time, it holds SCL low after master releases it. Master detects stretched clock and waits. Transfer resumes when slave releases SCL.
-
-### 4. Multi-Master Arbitration
-Shows collision resolution when two masters start simultaneously. Both monitor SDA while transmitting. Master driving 1 but reading 0 (due to other master's 0) loses arbitration and backs off. Wired-AND ensures 0 wins.
-
-### 5. Packet Error Check (PEC)
-Shows CRC-8 error detection. PEC byte calculated over address, command, and data bytes using polynomial x^8+x^2+x+1. Transmitted after data, verified by receiver. Detects bit errors in transfer.
-
-## SMBus Protocol Reference
+The protocol formats the diagrams follow, and the timing budget they are drawn
+against.
 
 ### Transaction Types
 | Protocol | Format |
@@ -86,9 +68,41 @@ Legend: S=Start, Sr=Repeated Start, A=ACK, N=NACK, P=Stop
 | t_LOW | 4.7 | - | us |
 | t_HIGH | 4.0 | - | us |
 | t_SU:STA | 4.7 | - | us |
-| t_HD:DAT | 300 ns | - | us | (SMBus 2.0; the I2C value is 0)
+| t_HD:DAT | 300 | - | ns |
 | t_SU:DAT | 250 | - | ns |
 | t_SU:STO | 4.0 | - | us |
+
+The t_HD:DAT minimum of 300 ns is the SMBus 2.0 value; the I2C value is 0.
+
+## Waveforms
+
+What each scenario shows, and the mechanism behind it.
+
+### 1. Byte Write
+Shows START condition (SDA falling while SCL high), followed by 7-bit address and R/W bit (W=0 for write). Slave with matching address responds with ACK by pulling SDA low during 9th clock.
+
+### 2. Byte Read
+Shows slave-to-master data transfer. Slave drives 8 data bits, master samples each on SCL rising edge. Master sends ACK (SDA low) for more data, or NACK (SDA high) for last byte.
+
+### 3. Clock Stretching
+Shows slave flow control mechanism. When slave needs processing time, it holds SCL low after master releases it. Master detects stretched clock and waits. Transfer resumes when slave releases SCL.
+
+### 4. Multi-Master Arbitration
+Shows collision resolution when two masters start simultaneously. Both monitor SDA while transmitting. Master driving 1 but reading 0 (due to other master's 0) loses arbitration and backs off. Wired-AND ensures 0 wins.
+
+### 5. Packet Error Check (PEC)
+Shows CRC-8 error detection. PEC byte calculated over address, command, and data bytes using polynomial x^8+x^2+x+1. Transmitted after data, verified by receiver. Detects bit errors in transfer.
+
+## Usage Example
+
+Render the JSON files to SVG with wavedrom-cli:
+
+```bash
+# Render all files
+for f in *.json; do
+    wavedrom-cli -i "$f" > "${f%.json}.svg"
+done
+```
 
 ## References
 

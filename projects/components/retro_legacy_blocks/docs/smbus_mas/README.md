@@ -31,8 +31,26 @@ authoritative status and known-RTL-deviation notes
 ## Overview
 
 This directory will contain the complete specification for the SMBUS block.
+Chapters 1 and 5 are written today; the rest is planned, and the planned
+layout is under Navigation below.
 
-## Planned Documentation Structure
+## Usage Example
+
+Documentation is written in Markdown and can be converted to PDF:
+
+```bash
+cd docs/
+./generate_pdf.sh
+```
+
+## References
+
+- Intel SMBUS datasheet
+- ACPI specification (if applicable)
+- Legacy peripheral architecture specifications
+- APB protocol specification
+
+## Navigation
 
 ### Chapter 1: Overview
 - Block purpose and features
@@ -62,22 +80,6 @@ This directory will contain the complete specification for the SMBUS block.
 - Field definitions
 - Reset values
 - Access types
-
-## Document Generation
-
-Documentation will be written in Markdown and can be converted to PDF:
-
-```bash
-cd docs/
-./generate_pdf.sh
-```
-
-## Reference Documents
-
-- Intel SMBUS datasheet
-- ACPI specification (if applicable)
-- Legacy peripheral architecture specifications
-- APB protocol specification
 
 ---
 

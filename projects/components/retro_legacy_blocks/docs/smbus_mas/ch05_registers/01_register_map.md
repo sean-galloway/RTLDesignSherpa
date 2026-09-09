@@ -23,15 +23,22 @@
 
 # APB SMBus - Register Map
 
+## Overview
+
 The register map below is generated from `rtl/smbus/peakrdl/smbus_regs.rdl` and matches
 the decode in `rtl/smbus/smbus_regs.sv`. The register block decodes 6 address bits, so
 only offsets 0x00-0x3F are valid; higher offsets alias back onto this range. Undefined
 offsets read as 0, drop writes, and do not assert PSLVERR.
 
+Generated, not hand-drawn -- so this page describes the hardware as built,
+including the parts where the hardware doesn't yet do what SMBus says. Where a
+register promises more than the core delivers, the discrepancy is flagged in
+place and collected in the Design Notes at the end.
+
 Access legend: RW = read/write, RO = read-only, WO = write-only, W1C = write-1-to-clear,
 AC = self-clearing (hardware clears the bit after the action completes).
 
-## Register Summary
+### Register Summary
 
 | Offset | Name | Access | Reset | Description |
 |--------|------|--------|-------|-------------|
@@ -53,7 +60,12 @@ AC = self-clearing (hardware clears the bit after the action completes).
 
 ---
 
-## SMBUS_CONTROL (0x00)
+## Functional Description
+
+Every register, in offset order, with field-level tables. The access legend
+above applies throughout.
+
+### SMBUS_CONTROL (0x00)
 
 | Bit | Name | Access | Reset | Description |
 |-----|------|--------|-------|-------------|
@@ -71,7 +83,7 @@ consumed by `smbus_core` (soft reset resets nothing; SCL frequency depends solel
 
 ---
 
-## SMBUS_STATUS (0x04)
+### SMBUS_STATUS (0x04)
 
 Read-only. Software writes to this register are dropped (no PSLVERR).
 SMBUS_INT_STATUS (0x30) is nominally the sticky, clearable flag set -- but
@@ -92,7 +104,7 @@ see its section: in the current RTL it is NOT sticky (#58).
 
 ---
 
-## SMBUS_COMMAND (0x08)
+### SMBUS_COMMAND (0x08)
 
 | Bit | Name | Access | Reset | Description |
 |-----|------|--------|-------|-------------|
@@ -103,7 +115,7 @@ see its section: in the current RTL it is NOT sticky (#58).
 | 17 | stop | RW/AC | 0 | Force stop/abort transaction (write 1, auto-clears) |
 | 31:18 | Reserved | RO | 0 | Reads 0 |
 
-### Transaction Types
+#### Transaction Types
 
 `trans_type` is a 4-bit field. Block Write and Block Read are separate encodings.
 
@@ -122,7 +134,7 @@ see its section: in the current RTL it is NOT sticky (#58).
 
 ---
 
-## SMBUS_SLAVE_ADDR (0x0C)
+### SMBUS_SLAVE_ADDR (0x0C)
 
 | Bit | Name | Access | Reset | Description |
 |-----|------|--------|-------|-------------|
@@ -134,7 +146,7 @@ is no writable R/W bit at bit 7; writes to bit 7 are ignored and it reads back 0
 
 ---
 
-## SMBUS_DATA (0x10)
+### SMBUS_DATA (0x10)
 
 | Bit | Name | Access | Reset | Description |
 |-----|------|--------|-------|-------------|
@@ -143,7 +155,7 @@ is no writable R/W bit at bit 7; writes to bit 7 are ignored and it reads back 0
 
 ---
 
-## SMBUS_TX_FIFO (0x14)
+### SMBUS_TX_FIFO (0x14)
 
 Write-only port into the 32-byte transmit FIFO. Each write pushes one byte. Reads return 0.
 
@@ -154,7 +166,7 @@ Write-only port into the 32-byte transmit FIFO. Each write pushes one byte. Read
 
 ---
 
-## SMBUS_RX_FIFO (0x18)
+### SMBUS_RX_FIFO (0x18)
 
 Read-only port from the 32-byte receive FIFO. Each read pops one byte.
 
@@ -165,7 +177,7 @@ Read-only port from the 32-byte receive FIFO. Each read pops one byte.
 
 ---
 
-## SMBUS_FIFO_STATUS (0x1C)
+### SMBUS_FIFO_STATUS (0x1C)
 
 Read-only FIFO level and flag register.
 
@@ -181,7 +193,7 @@ Read-only FIFO level and flag register.
 
 ---
 
-## SMBUS_CLK_DIV (0x20)
+### SMBUS_CLK_DIV (0x20)
 
 | Bit | Name | Access | Reset | Description |
 |-----|------|--------|-------|-------------|
@@ -194,7 +206,7 @@ f_SCL = f_clk / (2 * (clk_div + 1)). The reset value of 249 yields 100 kHz at f_
 
 ---
 
-## SMBUS_TIMEOUT (0x24)
+### SMBUS_TIMEOUT (0x24)
 
 | Bit | Name | Access | Reset | Description |
 |-----|------|--------|-------|-------------|
@@ -210,7 +222,7 @@ timeout_error set -- do not program 0 (#58).
 
 ---
 
-## SMBUS_OWN_ADDR (0x28)
+### SMBUS_OWN_ADDR (0x28)
 
 | Bit | Name | Access | Reset | Description |
 |-----|------|--------|-------|-------------|
@@ -220,7 +232,7 @@ timeout_error set -- do not program 0 (#58).
 
 ---
 
-## SMBUS_INT_ENABLE (0x2C)
+### SMBUS_INT_ENABLE (0x2C)
 
 | Bit | Name | Access | Reset | Description |
 |-----|------|--------|-------|-------------|
@@ -233,7 +245,7 @@ timeout_error set -- do not program 0 (#58).
 
 ---
 
-## SMBUS_INT_STATUS (0x30)
+### SMBUS_INT_STATUS (0x30)
 
 Nominally W1C, but NON-FUNCTIONAL as an interrupt-status register in the
 current RTL (#58): every bit is reloaded from hardware each cycle, so
@@ -254,7 +266,7 @@ cannot deassert the pin.
 
 ---
 
-## SMBUS_PEC (0x34)
+### SMBUS_PEC (0x34)
 
 | Bit | Name | Access | Reset | Description |
 |-----|------|--------|-------|-------------|
@@ -263,7 +275,7 @@ cannot deassert the pin.
 
 ---
 
-## SMBUS_BLOCK_COUNT (0x38)
+### SMBUS_BLOCK_COUNT (0x38)
 
 | Bit | Name | Access | Reset | Description |
 |-----|------|--------|-------|-------------|
@@ -281,11 +293,12 @@ byte. The SMBus count byte is not placed on / consumed from the wire.
 
 ---
 
-## Implementation Limitations
+## Design Notes
 
-The register interface above matches the RTL, but several protocol features implied by these
-registers are not fully realized in the current `smbus_core` logic. These are noted so the
-register map does not promise behavior the hardware does not yet deliver:
+**Implementation Limitations.** The register interface above matches the RTL,
+but several protocol features implied by these registers are not fully realized
+in the current `smbus_core` logic. These are noted so the register map does not
+promise behavior the hardware does not yet deliver:
 
 - **Timeout detection is inactive.** The timeout counter enable is never driven, so
   SMBUS_TIMEOUT has no effect and `SMBUS_STATUS.timeout_error` cannot set.
@@ -304,5 +317,7 @@ For the authoritative, tracked status of these items see
 `rtl/smbus/IMPLEMENTATION_STATUS.md` and `rtl/smbus/TODO.md`.
 
 ---
+
+## Navigation
 
 **Back to:** [SMBus Specification Index](../smbus_mas_index.md)
