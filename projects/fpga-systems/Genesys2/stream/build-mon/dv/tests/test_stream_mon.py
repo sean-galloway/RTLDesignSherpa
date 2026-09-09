@@ -562,6 +562,10 @@ def _run_stream_mon(request, profile=False, testcase="cocotb_test_stream_mon"):
     # The rationale above applies to any monitors-on run here, not the profile
     # one alone.
     extra_env['TB_MAX_DURATION_MIN'] = '90'
+    # The board program's completion poll is 120 s of WALL clock, sized for
+    # silicon; in this sim a UART round trip costs seconds, so give the runner
+    # the whole safety budget and let TB_MAX_DURATION_MIN be the wall.
+    extra_env['CHAR_POLL_TIMEOUT_S'] = '5000'
     if profile:
         extra_env['SIM_TIMEOUT_MS'] = '250'
     # WAVES support — follows the repo-standard pattern (test_stream_char.py):
@@ -607,92 +611,61 @@ def _run_stream_mon(request, profile=False, testcase="cocotb_test_stream_mon"):
 
 @cocotb.test(timeout_time=int(os.environ.get('SIM_TIMEOUT_MS', '80')), timeout_unit="ms")
 async def cocotb_test_stream_mon_compress(dut):
-    """COMPRESSED records -> comp_sram, decoded with the reference model.
+    """COMPRESSED records -> comp_sram, decoded with the reference model --
+    by running the BOARD'S program (bin/mon_compress.measure_compression) over
+    the cosim's UART channel.
 
-    The other mon run points the monbus group at the tally with compression OFF,
-    because the tally reassembles RAW 3-beat records. This exercises the other
-    half of the flow the hardware supports: compression ON, records landing in
-    comp_sram, read back, and decoded.
+    The other mon run points the monbus group at the tally with compression
+    OFF, because the tally reassembles RAW 3-beat records. This exercises the
+    other half of the flow the hardware supports: compression ON, records
+    landing in comp_sram, read back, and decoded.
 
     The check that matters is not "bytes arrived" -- it is that the stream
-    DECODES. monbus_compressor.Decoder is a bit-exact mirror of the RTL encoder
-    and evolves the same CAM state, so a template/escape/delta mistake shows up
-    as a decode that desynchronises rather than as a plausible-looking buffer.
+    DECODES and that the ratio is below the raw 3 slots/packet. This test used
+    to report 3.00 (96 slots -> 32 packets) while claiming to prove compression:
+    .USE_MON_COMPRESSION was hardcoded 0 at the u_stream instantiation, the
+    compressor was never built, and the decoder consumed raw records happily.
+
+    The program is the same object the board runs: CharacterizationRunner
+    .run_config with the MonitorProgram applied inside configure_stream and the
+    capture routing in pre_kick. A hand-rolled cosim sequence proved nothing
+    about the host program that then failed on the board with the wrong
+    packet mask.
     """
-    from TBClasses.monbus.monbus_compressor import Decoder
+    import mon_compress
 
     tb = StreamHarnessTB(dut)
     await tb.setup_clocks_and_reset()
     assert await tb.run_ping_test(), "ping failed - harness not alive over UART"
 
-    cap_base, cap_limit = bridge_windows.W('comp_sram')
-    dut._log.info(f"[compress] capture window comp_sram "
-                  f"0x{cap_base:06X}..0x{cap_limit:06X} (by name)")
+    # Fixed, small workload: the point is decode + ratio, not volume. The
+    # board default (4 x 16 KB) is what host_mon_compress.py runs.
+    ndesc = int(os.environ.get('COMPRESS_DESC', '1'))
+    xfer = int(os.environ.get('COMPRESS_XFER_BYTES', '4096'))
+    log = tb.log
 
-    # Queued so they land AFTER run_dma_test's SOFT_RESET, like every other
-    # post-reset write -- programming them before the reset loses them silently.
-    capture_writes = [
-        (_MON_REG('MON_GROUP_BASE_ADDR'),  cap_base),
-        (_MON_REG('MON_GROUP_LIMIT_ADDR'), cap_limit),
-    ]
+    def run():
+        # The runner is built in the worker thread: its constructor reads
+        # BUILD_CLK_HZ over the bridge, which is a cocotb.function call and
+        # must not be made from the scheduler's thread.
+        return mon_compress.measure_compression(
+            tb.bridge, descriptors=ndesc, xfer_bytes=xfer, max_slots=256,
+            log=lambda m: log.info(f"[compress] {m}"))
 
-    ok = await tb.run_dma_test(
-        num_channels=1, descriptors_per_channel=1, transfer_bytes=4096,
-        timeout_clocks=400_000, mon_err_cfg=0, compress_en=True,
-        addr_range_writes=capture_writes)
-    assert ok, "DMA workload did not complete"
+    res = await cocotb.external(run)()
 
-    # Read the head of the capture window and stop at the first empty 64-bit
-    # slot. There is no group write-pointer register, and decoding trailing
-    # zeros would manufacture packets that were never emitted.
-    N_WORDS32 = 512
-    words32 = []
-    for i in range(N_WORDS32):
-        w = await tb.uart_read(cap_base + 4 * i)
-        words32.append(0 if w is None else w)
-    slots = [(words32[i + 1] << 32) | words32[i] for i in range(0, len(words32) - 1, 2)]
-    populated = []
-    for sl in slots:
-        if sl == 0:
-            break
-        populated.append(sl)
-
-    decoded = list(Decoder().decode(populated))
-    dut._log.info(f"[compress] {len(populated)} populated slots -> "
-                  f"{len(decoded)} decoded packets")
-
-    assert populated, (
-        f"comp_sram @0x{cap_base:06X} is EMPTY after a completed DMA with "
-        f"compress_en=True. Either the group never wrote there (check that "
-        f"MON_GROUP_BASE_ADDR survived the SOFT_RESET) or nothing was emitted.")
-    assert decoded, (
-        f"{len(populated)} slots captured but NOTHING decoded: the compressed "
-        f"stream does not match the reference decoder's CAM evolution.")
-
-    bad = [p for p, _ts in decoded if ((p >> 124) & 0xF) > 0xF]
-    assert not bad, f"{len(bad)} decoded packets carry an impossible packet_type"
-
-    # COMPRESSION RATIO -- the point of this test, and what makes it non-vacuous.
-    #
-    # A raw record is 3 x 64-bit beats per 128-bit packet, so an UNCOMPRESSED
-    # capture lands at exactly 3.00 slots/packet. That is what this test used to
-    # report while claiming to prove compression: 96 slots -> 32 packets, 3.00,
-    # because .USE_MON_COMPRESSION was hardcoded 0 at the u_stream instantiation
-    # and the compressor was never built. The decoder consumed raw records
-    # happily and the assertions above all passed.
-    #
-    # With the compressor in path (and half-beat packing, two 30-bit slots per
-    # 64-bit beat) the ratio must come in well under 3. Assert it, so this test
-    # cannot pass again on uncompressed data.
-    slots_per_pkt = len(populated) / len(decoded)
-    saving = 100.0 * (1.0 - slots_per_pkt / 3.0)
-    dut._log.info(f"[compress] {len(populated)} slots / {len(decoded)} packets "
-                  f"= {slots_per_pkt:.2f} slots per packet -> {saving:.1f}% "
+    assert res['dma_pass'], f"[compress] DMA workload did not pass: {res.get('reason')}"
+    assert res['populated'], (
+        f"[compress] comp_sram is EMPTY after a completed DMA with compression on: "
+        f"{res.get('reason')}")
+    assert res['decoded'], f"[compress] {res.get('reason')}"
+    assert res['ok'], f"[compress] {res.get('reason')}"
+    saving = res['saving_pct']
+    dut._log.info(f"[compress] {res['populated']} slots / {res['decoded']} packets "
+                  f"= {res['slots_per_pkt']:.2f} slots per packet -> {saving:.1f}% "
                   f"smaller than the raw 3-beat encoding")
-    assert slots_per_pkt < 3.0, (
-        f"[compress] {slots_per_pkt:.2f} slots/packet is the RAW 3-beat ratio: the "
-        f"capture is uncompressed. Check that the harness passes "
-        f"USE_MON_COMPRESSION through to u_stream instead of a literal 0.")
+    assert res['slots_per_pkt'] < 3.0, (
+        f"[compress] {res['slots_per_pkt']:.2f} slots/packet is the RAW 3-beat ratio")
 
 
 def test_stream_soft_reset_scope(request):

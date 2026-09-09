@@ -40,12 +40,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 import stream_env  # noqa: F401,E402
 from harness_addrs import H, autodetect_port, compose  # noqa: E402
 from uart_axi_bridge import UARTAxiBridge  # noqa: E402
-from bridge_windows import W  # noqa: E402
-from characterization import CharacterizationRunner  # noqa: E402
-from stream_device import build_stream_bus  # noqa: E402
+from characterization import CharacterizationRunner, CharConfig  # noqa: E402
 import obs_addrs as OBS  # noqa: E402
+import tally  # noqa: E402
 
-CAM_CLEAR_OFF, CAM_KEY_OFF, CAM_LOAD_OFF = 0x100, 0x108, 0x110
 AGENT_RD, AGENT_WR = 0x00, 0x10
 PROTO_AXI = 0
 UNEXPECTED = 64
@@ -177,27 +175,6 @@ SLAVE_DELAY = {
 }
 
 
-def cam_key(agent, proto, ptype, evc):
-    return (((agent & 0xFFFF) << 16) | ((proto & 0xF) << 12)
-            | ((ptype & 0xF) << 8) | (evc & 0xFF))
-
-
-def program_cam(bridge, cfg_base, legal):
-    bridge.write(cfg_base + CAM_CLEAR_OFF, 0)
-    for i, t in enumerate(legal):
-        bridge.write(cfg_base + CAM_KEY_OFF, cam_key(*t[:4]))
-        bridge.write(cfg_base + CAM_LOAD_OFF, (1 << 31) | i)
-
-
-def sweep_dense(bridge, rd_base, n_legal):
-    counts = {}
-    for b in list(range(n_legal)) + [UNEXPECTED]:
-        v = bridge.read(rd_base + b * 8) or 0
-        if v:
-            counts[b] = v
-    return counts
-
-
 def configure_observers(bridge, mon_ctrl, rng, tuning):
     """Arm BOTH observers for ONE class."""
     for base in (OBS.OBS_APB_BASE, OBS.SLAVE_OBS_APB_BASE):
@@ -215,56 +192,42 @@ def configure_observers(bridge, mon_ctrl, rng, tuning):
 def run_class(bridge, name, args):
     mon_ctrl, legal, rng, why = MATRIX[name]
     runner = CharacterizationRunner(bridge)
-    tally_rd = {"stream": W("stream_tally")[0], "slave": W("slave_tally")[0]}
-    tally_cfg = {"stream": W("stream_tally_cfg")[0], "slave": W("slave_tally_cfg")[0]}
+    tally_rd, tally_cfg = tally.windows()
 
     # UNEXPECTED is the catch-all bin INDEX and equals the tally CAM depth. This
-    # file hardcoded 64 while the build-obs bitstream is now built with
+    # file hardcoded 64 while the build-obs bitstream is built with
     # MON_N_PROFILE=32, so every "unexpected" figure was read from a bin that
-    # does not exist in the hardware -- the counts were not a keying gap, they
-    # were nonsense. The tally publishes its own sizing at cfg+0x08 as
-    # {N_PROFILE[31:16], TALLY_ADDR_BITS[15:0]}; trust hardware over a constant.
-    _sizing = bridge.read(tally_cfg["stream"] + 0x08) or 0
-    _hw_profile = (_sizing >> 16) & 0xFFFF
-    if _hw_profile and _hw_profile != UNEXPECTED:
-        print(f"  NOTE: tally CAM depth is {_hw_profile} in hardware "
-              f"(host constant was {UNEXPECTED}); using the hardware value.")
-        globals()["UNEXPECTED"] = _hw_profile
-    if len(legal) > (_hw_profile or UNEXPECTED):
-        raise SystemExit(f"  ABORT: class {name!r} keys {len(legal)} tuples but the "
-                         f"CAM built into this bitstream holds {_hw_profile}.")
-    labels = {i: t[4] for i, t in enumerate(legal)}
-    labels[UNEXPECTED] = "UNEXPECTED"
+    # does not exist in the hardware. The tally publishes its own sizing;
+    # trust hardware over a constant.
+    unexpected = tally.check_capacity(bridge, tally_cfg["stream"], legal, UNEXPECTED)
+    labels = tally.labels(legal, unexpected)
 
+    # Everything the observers and the tally need is armed INSIDE the board's
+    # program, after its reset_stream() and STREAM config, before the kick:
+    # both blocks sit on the unit_aresetn line that reset pulses, so anything
+    # written earlier is silently undone.
+    def pre_kick(br):
+        rd_dly, wr_dly = SLAVE_DELAY.get(name, (0, 0))
+        runner.set_resp_delay(rd_dly, wr_dly)        # by name; cleared for other classes
+        configure_observers(br, mon_ctrl, rng, TUNING.get(name))
+        for k in tally_cfg:
+            tally.program_cam(br, tally_cfg[k], legal)
+
+    cfg = CharConfig(name=name, num_channels=1, channels=[args.channel],
+                     descriptors_per_channel=args.descriptors,
+                     transfer_bytes=args.xfer_bytes)
+    os.environ["CHAR_POLL_TIMEOUT_S"] = "30"
     totals = {k: {} for k in tally_rd}
     for _ in range(args.iters):
-        bridge.write(H("CTRL"), compose("CTRL", SOFT_RESET=1))
-        time.sleep(0.01)
-        runner.clear_stats()
-        runner.configure_stream([args.channel])
-        # AFTER the soft reset: it clears the register blocks, so anything
-        # programmed before it is silently lost.
-        rd_dly, wr_dly = SLAVE_DELAY.get(name, (0, 0))
-        bridge.write(H("RESP_DELAY"), ((wr_dly & 0xFFFF) << 16) | (rd_dly & 0xFFFF))
-        configure_observers(bridge, mon_ctrl, rng, TUNING.get(name))
-        for k in tally_cfg:
-            program_cam(bridge, tally_cfg[k], legal)
-
-        stream = build_stream_bus(bridge)["stream"]
-        kick = stream.load_chain(args.channel, num_descriptors=args.descriptors,
-                                 transfer_bytes=args.xfer_bytes)
-        runner.setup_timer(args.descriptors * args.xfer_bytes)
-        runner.kick_channels({args.channel: kick})
-        runner.poll_completion(timeout_s=30.0)
-
+        runner.run_config(cfg, pre_kick=pre_kick)
         bridge.write(H("CTRL"), compose("CTRL", FREEZE_TRACE=1))
         time.sleep(0.02)
         for k in tally_rd:
-            for b, c in sweep_dense(bridge, tally_rd[k], len(legal)).items():
+            for b, c in tally.sweep_dense(bridge, tally_rd[k], len(legal), unexpected).items():
                 totals[k][b] = totals[k].get(b, 0) + c
 
-    keyed = sum(v for k in totals for b, v in totals[k].items() if b != UNEXPECTED)
-    unexp = sum(totals[k].get(UNEXPECTED, 0) for k in totals)
+    keyed = sum(v for k in totals for b, v in totals[k].items() if b != unexpected)
+    unexp = sum(totals[k].get(unexpected, 0) for k in totals)
     detail = ", ".join(f"{labels.get(b, b)}={v}"
                        for k in ("stream",) for b, v in sorted(totals[k].items()))
     status = "OK " if keyed >= args.min_packets else "LOW"
@@ -274,7 +237,7 @@ def run_class(bridge, name, args):
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap = argparse.ArgumentParser(description=(__doc__ or "").split("\n")[0])
     ap.add_argument("--port", default=None)
     ap.add_argument("--iters", type=int, default=3)
     ap.add_argument("--channel", type=int, default=0)

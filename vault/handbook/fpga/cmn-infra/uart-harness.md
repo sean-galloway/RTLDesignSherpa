@@ -58,3 +58,33 @@ hand-maintained lookalike of the runner the board runs.
 Same failure shape as [[one-source-config]] one layer up: a second
 implementation beside a shared one, with nothing comparing them. The rule is
 the same - inject the transport, run the ONE program.
+
+## Instrumentation goes INSIDE the board's program, not around it
+
+The board's program for a DMA campaign is `CharacterizationRunner.run_config`:
+reset_stream, load_descriptors, configure_stream, setup_timer, kick, poll,
+CRC. Its first step is `CTRL.SOFT_RESET`, and that reset reaches every
+instrument: the in-core monitor CSRs, both observers and both tallies sit in
+the `unit_aresetn` domain (pinned by `cocotb_test_soft_reset_scope`, written
+after a board probe that wrote a register's own reset value "proved" config
+survived). So there are exactly two places per-run instrumentation can go:
+
+- `runner.mon_config = MonitorProgram(...)` (`bin/stream_monitors.py`) -- the
+  in-core cone set, applied INSIDE `configure_stream()` after the reset,
+  where the runner would otherwise program its own legacy defaults.
+- `runner.run_config(cfg, pre_kick=fn)` -- everything else: monbus routing,
+  address ranges, timeouts, the tally CAM, observer arming. Runs after
+  configure_stream and before the kick.
+
+What it cost (STREAM Genesys 2, 2026-09-08). Five mon-build host programs
+each hand-rolled reset/configure/kick and carried their own monitor
+programming; they disagreed on the packet mask (one allowed every type, which
+admits the ~1.1M-packet perf stream, floods the group and wedged the UART),
+on the ENABLE bit layout (hardcoded from a stale comment), and on the routing
+(records sent to the capture memory while the tally was swept). Each
+disagreement read as a monitor defect and the board was "broken" for a day.
+The obs campaign, which called `run_config`, worked -- but its observer and
+CAM writes went BEFORE the call, where the reset undid them; it was binning
+on reset-default cones. One program, one hook, proven in the cosim first:
+`test_stream_mon_compress` runs `bin/mon_compress.measure_compression` over
+the sim channel, the same function `host_mon_compress.py` runs on the board.

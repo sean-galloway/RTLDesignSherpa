@@ -24,14 +24,17 @@ are [[flow-layout]]; this is the object model those rules arrange.
 | `rw_perf` / `desc_perf` | `bin/` | in-core RDMON/WRMON/DAXMON windows | library + `main()` |
 | `stream_ext_suite` | `bin/stream_ext_suite.py` | row/col traversal cases over `Stream` | library + `main()` |
 | `stream_ext_report` | `bin/stream_ext_report.py` | nothing -- formats results | pure formatter |
+| `MonitorProgram` + `route_monbus` / `arm_addr_ranges` / `set_timeouts` | `bin/stream_monitors.py` | the in-core DAXMON/RDMON/WRMON cones, group routing, addr-range checker | library (runner hooks) |
+| `tally` | `bin/tally.py` | `monbus_tally_axil` CAM load + dense-bin sweep, depth from hardware | library |
+| `mon_compress` | `bin/mon_compress.py` | compression measurement over the runner | library + `main()` |
 | `StreamHarnessTB` | `dv/tbclasses/stream_harness_tb.py` | `stream_harness` over UART | testbench (both builds) |
 | `MonbusGroupHarness` | `bin/TBClasses/scoreboards/monbus_group/` | a monbus group's drain/trace/irq | shared TB collateral |
 | `host_*.py` | `build-<n>/host/` | one campaign each | program |
 
 ### When a module is BOTH a library and a program
 
-`bus_meters`, `rw_perf`, `desc_perf` and `stream_ext_suite` each carry a
-`main()` AND get imported by other programs (`host_ext_char` imports
+`bus_meters`, `rw_perf`, `desc_perf`, `stream_ext_suite` and `mon_compress` each
+carry a `main()` AND get imported by other programs (`host_ext_char` imports
 `bus_meters.read_meter`). They cannot sit in a build's `host/`: only entry
 points live there, and only one build would have them.
 
@@ -51,7 +54,11 @@ not carry the `host_` prefix -- a runnable library named `run_*` was the
 mistake that produced this rule.
 
 Everything in `bin/` is shared by BOTH builds. Everything in `build-*/host/` is
-that build's own. The split is not cosmetic: `characterization.py` and the
+that build's own -- and only that build's: `host_mon_*` (in-core monitors)
+live in `build-mon/host/` alone, `host_obs_*` (observer taps) in
+`build-obs/host/` alone, because each needs an instrument the other build
+does not ship. Copies of the mon programs in build-obs (and of the obs
+campaign in build-mon) drifted apart within days and were removed. The split is not cosmetic: `characterization.py` and the
 `*_addrs` libraries are imported by monitor-side programs as well as perf-side
 ones, which is why they are component-level.
 
@@ -117,6 +124,9 @@ Ask which layer it belongs to before writing it:
 - Talks to a register-mapped block? -> a `Device` subclass in `bin/`, with a
   generated regmap. Not a pile of `bridge.write(0x…)` calls.
 - Orchestrates a campaign over devices? -> a runner/library in `bin/`.
+- Programs an instrument around a DMA run? -> a `CharacterizationRunner`
+  hook (`mon_config`, `pre_kick`), never a hand-rolled reset/configure/kick.
+  See [[uart-harness]] "Instrumentation goes INSIDE the board's program".
 - Is one runnable investigation? -> `host_*.py` in the build that owns it.
 - Wire-level orchestration of a monbus group? -> it already exists, and it is
   `MonbusGroupHarness`. Drain, trace, fifo counters and IRQ are done; decode is

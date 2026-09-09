@@ -38,6 +38,7 @@ import os
 import sys
 import time
 import json
+from typing import Any, Callable, Optional
 from datetime import datetime
 from pathlib import Path
 
@@ -270,7 +271,11 @@ class CharacterizationRunner:
         self.compression = compression
         # Named monitor preset (mon_configs.CONFIGS) or None for the
         # legacy "allow basic types" programming.
-        self.mon_config = mon_cfg.get(mon_config) if mon_config else None
+        # Any object with .apply(write) / .name / .cones / .compress -- a
+        # mon_configs preset or a stream_monitors.MonitorProgram -- or None.
+        self.mon_config: Optional[Any] = mon_cfg.get(mon_config) if mon_config else None
+        # Hosts and the cosim redirect the narrative (cocotb log, a file).
+        self.log: Callable[[str], object] = self._log_default
         # poll_interval_s is the gap between TIMER_STATUS polls in the
         # host-side completion loop. Was hard-coded at 50 ms (5e-2),
         # which dominated dma_time_s for short transfers (a 1 MB DMA
@@ -305,7 +310,7 @@ class CharacterizationRunner:
                       f"will be wrong if the board is not at that frequency")
         self.aclk_hz = aclk_hz
 
-    def log(self, msg: str):
+    def _log_default(self, msg: str):
         ts = datetime.now().strftime('%H:%M:%S')
         print(f"[{ts}] {msg}")
 
@@ -907,11 +912,21 @@ class CharacterizationRunner:
     # Run a single configuration
     # -----------------------------------------------------------------
 
-    def run_config(self, config: CharConfig) -> dict:
+    def run_config(self, config: CharConfig, pre_kick=None) -> dict:
         """
         Execute one characterization configuration.
 
         Returns result dict with pass/fail, CRC, timing, etc.
+
+        `pre_kick(bridge)`, when given, runs after configure_stream() and
+        before the kick. It is the ONE place for per-run instrumentation that
+        the runner has no notion of -- monbus routing, address ranges, the
+        tally CAM, observer arming. Those registers sit in the unit_aresetn
+        domain that reset_stream() (step 1) pulses, so writing them before
+        run_config silently loses them, and writing them from a hand-rolled
+        reset/configure/kick sequence is a second copy of this program. The
+        in-core monitor cones themselves go through `self.mon_config`, which
+        configure_stream() applies at the same point.
         """
         channels = config.channel_list()
         # Per-channel HW arrays (CRC, meters) are indexed by physical channel,
@@ -970,6 +985,11 @@ class CharacterizationRunner:
             _open_perf_windows(self.bridge)
         except ImportError:
             pass
+
+        # 4c. Caller's per-run instrumentation (see docstring): after the
+        # reset and the STREAM config, before anything moves.
+        if pre_kick is not None:
+            pre_kick(self.bridge)
 
         # 5. Kick channels
         t0 = time.time()
