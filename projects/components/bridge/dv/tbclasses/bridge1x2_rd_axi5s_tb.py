@@ -463,8 +463,9 @@ class Bridge1x2RdAxi5sTB(TBBase):
             violations = report.get('total_violations', 0)
             if isinstance(violations, (list, tuple)):
                 violations = len(violations)
-            self.log.info(f"AXI5 compliance master {idx}: {violations} violation(s), "
-                          f"{report.get('statistics', {}).get('checks_performed', '?')} checks")
+            stats = report.get('statistics', {})
+            self.log.info(f"AXI5 compliance master {idx}: {violations} violation(s); "
+                          f"stats={ {k: v for k, v in stats.items() if v} }")
             assert not violations, (
                 f"AXI5 compliance violations on master {idx}: "
                 f"{report.get('violation_summary', report)}")

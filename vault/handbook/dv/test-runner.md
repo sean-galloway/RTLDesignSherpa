@@ -182,3 +182,24 @@ conftest and relative filelist paths are per-area, so the run either fails to
 collect or quietly tests the wrong sources.
 
 Related: [[seeds-and-determinism]], [[coverage]], [[cloud-sandbox]].
+
+## Two `@cocotb.test()` functions in one runner module need `testcase=` on every `run()`
+
+cocotb discovers every `@cocotb.test()` in the module it is pointed at and
+runs all of them in every build, unless the `cocotb_test` `run()` call names
+one with `testcase=`. So a second cocotb test added to a runner for a
+different DUT parameterisation (an RTL parameter override the main suite
+must not see) silently runs inside the main suite's build too, and the main
+suite runs inside the override build.
+
+*Case (rtc, 2026-09-09):* a `COMMIT_TIMEOUT_CYCLES=200` sweep test added
+beside the main `rtc_test` gave a nondeterministic pass/fail (12 of 16 false
+passes, reproducible under `JOBS=1`) because both cocotb tests shared each
+build's simulation state, and every build ran the other's whole suite. With
+`testcase="rtc_test"` and `testcase="rtc_gh56_timeout_sweep_test"` on the
+two `run()` calls the failure became deterministic and the area run dropped
+from ~5 minutes to ~70 seconds.
+
+*The rule:* one runner module may carry more than one cocotb test only if
+every `run()` in it names its `testcase`. A pass that appears or disappears
+with the number of tests in the module is this, not a flake.
