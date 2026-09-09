@@ -334,39 +334,9 @@ module pumice_csr (
         } PASR_SEG_MASK_RANK0;
         struct {
             struct {
-                logic [3:0] next;
-                logic load_next;
-            } lookahead_active;
-            struct {
-                logic next;
-                logic load_next;
-            } force_inorder;
-            struct {
-                logic [7:0] next;
-                logic load_next;
-            } age_max_runtime;
-            struct {
-                logic [7:0] next;
-                logic load_next;
-            } txn_queue_high_water;
-        } SCHED_TUNING;
-        struct {
-            struct {
-                logic [1:0] next;
-                logic load_next;
-            } refpb_policy_or;
-            struct {
                 logic [1:0] next;
                 logic load_next;
             } page_policy_or;
-            struct {
-                logic [3:0] next;
-                logic load_next;
-            } refresh_defer_active;
-            struct {
-                logic [15:0] next;
-                logic load_next;
-            } zqcs_freq_hz;
         } REFRESH_TUNING;
         struct {
             struct {
@@ -486,10 +456,6 @@ module pumice_csr (
             struct {
                 logic next;
                 logic load_next;
-            } auto_precharge_en;
-            struct {
-                logic next;
-                logic load_next;
             } qos_en;
             struct {
                 logic [7:0] next;
@@ -515,10 +481,6 @@ module pumice_csr (
                 logic next;
                 logic load_next;
             } policy_scope;
-            struct {
-                logic [1:0] next;
-                logic load_next;
-            } ctr_width;
             struct {
                 logic [3:0] next;
                 logic load_next;
@@ -723,31 +685,8 @@ module pumice_csr (
         } PASR_SEG_MASK_RANK0;
         struct {
             struct {
-                logic [3:0] value;
-            } lookahead_active;
-            struct {
-                logic value;
-            } force_inorder;
-            struct {
-                logic [7:0] value;
-            } age_max_runtime;
-            struct {
-                logic [7:0] value;
-            } txn_queue_high_water;
-        } SCHED_TUNING;
-        struct {
-            struct {
-                logic [1:0] value;
-            } refpb_policy_or;
-            struct {
                 logic [1:0] value;
             } page_policy_or;
-            struct {
-                logic [3:0] value;
-            } refresh_defer_active;
-            struct {
-                logic [15:0] value;
-            } zqcs_freq_hz;
         } REFRESH_TUNING;
         struct {
             struct {
@@ -841,9 +780,6 @@ module pumice_csr (
             } access_pref;
             struct {
                 logic value;
-            } auto_precharge_en;
-            struct {
-                logic value;
             } qos_en;
             struct {
                 logic [7:0] value;
@@ -864,9 +800,6 @@ module pumice_csr (
             struct {
                 logic value;
             } policy_scope;
-            struct {
-                logic [1:0] value;
-            } ctr_width;
             struct {
                 logic [3:0] value;
             } ctr_open_max;
@@ -1569,121 +1502,6 @@ module pumice_csr (
         end
     end
     assign hwif_out.PASR_SEG_MASK_RANK0.pasr_segs.value = field_storage.PASR_SEG_MASK_RANK0.pasr_segs.value;
-    // Field: pumice_csr.SCHED_TUNING.lookahead_active
-    always_comb begin
-        automatic logic [3:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.SCHED_TUNING.lookahead_active.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.SCHED_TUNING && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.SCHED_TUNING.lookahead_active.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
-            load_next_c = '1;
-        end
-        field_combo.SCHED_TUNING.lookahead_active.next = next_c;
-        field_combo.SCHED_TUNING.lookahead_active.load_next = load_next_c;
-    end
-    always_ff @(posedge clk) begin
-        if(rst) begin
-            field_storage.SCHED_TUNING.lookahead_active.value <= 4'h0;
-        end else begin
-            if(field_combo.SCHED_TUNING.lookahead_active.load_next) begin
-                field_storage.SCHED_TUNING.lookahead_active.value <= field_combo.SCHED_TUNING.lookahead_active.next;
-            end
-        end
-    end
-    assign hwif_out.SCHED_TUNING.lookahead_active.value = field_storage.SCHED_TUNING.lookahead_active.value;
-    // Field: pumice_csr.SCHED_TUNING.force_inorder
-    always_comb begin
-        automatic logic [0:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.SCHED_TUNING.force_inorder.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.SCHED_TUNING && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.SCHED_TUNING.force_inorder.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
-            load_next_c = '1;
-        end
-        field_combo.SCHED_TUNING.force_inorder.next = next_c;
-        field_combo.SCHED_TUNING.force_inorder.load_next = load_next_c;
-    end
-    always_ff @(posedge clk) begin
-        if(rst) begin
-            field_storage.SCHED_TUNING.force_inorder.value <= 1'h0;
-        end else begin
-            if(field_combo.SCHED_TUNING.force_inorder.load_next) begin
-                field_storage.SCHED_TUNING.force_inorder.value <= field_combo.SCHED_TUNING.force_inorder.next;
-            end
-        end
-    end
-    assign hwif_out.SCHED_TUNING.force_inorder.value = field_storage.SCHED_TUNING.force_inorder.value;
-    // Field: pumice_csr.SCHED_TUNING.age_max_runtime
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.SCHED_TUNING.age_max_runtime.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.SCHED_TUNING && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.SCHED_TUNING.age_max_runtime.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
-            load_next_c = '1;
-        end
-        field_combo.SCHED_TUNING.age_max_runtime.next = next_c;
-        field_combo.SCHED_TUNING.age_max_runtime.load_next = load_next_c;
-    end
-    always_ff @(posedge clk) begin
-        if(rst) begin
-            field_storage.SCHED_TUNING.age_max_runtime.value <= 8'h0;
-        end else begin
-            if(field_combo.SCHED_TUNING.age_max_runtime.load_next) begin
-                field_storage.SCHED_TUNING.age_max_runtime.value <= field_combo.SCHED_TUNING.age_max_runtime.next;
-            end
-        end
-    end
-    assign hwif_out.SCHED_TUNING.age_max_runtime.value = field_storage.SCHED_TUNING.age_max_runtime.value;
-    // Field: pumice_csr.SCHED_TUNING.txn_queue_high_water
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.SCHED_TUNING.txn_queue_high_water.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.SCHED_TUNING && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.SCHED_TUNING.txn_queue_high_water.value & ~decoded_wr_biten[23:16]) | (decoded_wr_data[23:16] & decoded_wr_biten[23:16]);
-            load_next_c = '1;
-        end
-        field_combo.SCHED_TUNING.txn_queue_high_water.next = next_c;
-        field_combo.SCHED_TUNING.txn_queue_high_water.load_next = load_next_c;
-    end
-    always_ff @(posedge clk) begin
-        if(rst) begin
-            field_storage.SCHED_TUNING.txn_queue_high_water.value <= 8'h0;
-        end else begin
-            if(field_combo.SCHED_TUNING.txn_queue_high_water.load_next) begin
-                field_storage.SCHED_TUNING.txn_queue_high_water.value <= field_combo.SCHED_TUNING.txn_queue_high_water.next;
-            end
-        end
-    end
-    assign hwif_out.SCHED_TUNING.txn_queue_high_water.value = field_storage.SCHED_TUNING.txn_queue_high_water.value;
-    // Field: pumice_csr.REFRESH_TUNING.refpb_policy_or
-    always_comb begin
-        automatic logic [1:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.REFRESH_TUNING.refpb_policy_or.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.REFRESH_TUNING && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.REFRESH_TUNING.refpb_policy_or.value & ~decoded_wr_biten[1:0]) | (decoded_wr_data[1:0] & decoded_wr_biten[1:0]);
-            load_next_c = '1;
-        end
-        field_combo.REFRESH_TUNING.refpb_policy_or.next = next_c;
-        field_combo.REFRESH_TUNING.refpb_policy_or.load_next = load_next_c;
-    end
-    always_ff @(posedge clk) begin
-        if(rst) begin
-            field_storage.REFRESH_TUNING.refpb_policy_or.value <= 2'h0;
-        end else begin
-            if(field_combo.REFRESH_TUNING.refpb_policy_or.load_next) begin
-                field_storage.REFRESH_TUNING.refpb_policy_or.value <= field_combo.REFRESH_TUNING.refpb_policy_or.next;
-            end
-        end
-    end
-    assign hwif_out.REFRESH_TUNING.refpb_policy_or.value = field_storage.REFRESH_TUNING.refpb_policy_or.value;
     // Field: pumice_csr.REFRESH_TUNING.page_policy_or
     always_comb begin
         automatic logic [1:0] next_c;
@@ -1707,52 +1525,6 @@ module pumice_csr (
         end
     end
     assign hwif_out.REFRESH_TUNING.page_policy_or.value = field_storage.REFRESH_TUNING.page_policy_or.value;
-    // Field: pumice_csr.REFRESH_TUNING.refresh_defer_active
-    always_comb begin
-        automatic logic [3:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.REFRESH_TUNING.refresh_defer_active.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.REFRESH_TUNING && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.REFRESH_TUNING.refresh_defer_active.value & ~decoded_wr_biten[7:4]) | (decoded_wr_data[7:4] & decoded_wr_biten[7:4]);
-            load_next_c = '1;
-        end
-        field_combo.REFRESH_TUNING.refresh_defer_active.next = next_c;
-        field_combo.REFRESH_TUNING.refresh_defer_active.load_next = load_next_c;
-    end
-    always_ff @(posedge clk) begin
-        if(rst) begin
-            field_storage.REFRESH_TUNING.refresh_defer_active.value <= 4'h1;
-        end else begin
-            if(field_combo.REFRESH_TUNING.refresh_defer_active.load_next) begin
-                field_storage.REFRESH_TUNING.refresh_defer_active.value <= field_combo.REFRESH_TUNING.refresh_defer_active.next;
-            end
-        end
-    end
-    assign hwif_out.REFRESH_TUNING.refresh_defer_active.value = field_storage.REFRESH_TUNING.refresh_defer_active.value;
-    // Field: pumice_csr.REFRESH_TUNING.zqcs_freq_hz
-    always_comb begin
-        automatic logic [15:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.REFRESH_TUNING.zqcs_freq_hz.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.REFRESH_TUNING && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.REFRESH_TUNING.zqcs_freq_hz.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
-            load_next_c = '1;
-        end
-        field_combo.REFRESH_TUNING.zqcs_freq_hz.next = next_c;
-        field_combo.REFRESH_TUNING.zqcs_freq_hz.load_next = load_next_c;
-    end
-    always_ff @(posedge clk) begin
-        if(rst) begin
-            field_storage.REFRESH_TUNING.zqcs_freq_hz.value <= 16'h1;
-        end else begin
-            if(field_combo.REFRESH_TUNING.zqcs_freq_hz.load_next) begin
-                field_storage.REFRESH_TUNING.zqcs_freq_hz.value <= field_combo.REFRESH_TUNING.zqcs_freq_hz.next;
-            end
-        end
-    end
-    assign hwif_out.REFRESH_TUNING.zqcs_freq_hz.value = field_storage.REFRESH_TUNING.zqcs_freq_hz.value;
     // Field: pumice_csr.ADDR_MAP.bank_lsb
     always_comb begin
         automatic logic [4:0] next_c;
@@ -2328,29 +2100,6 @@ module pumice_csr (
         end
     end
     assign hwif_out.SCHED_POLICY.access_pref.value = field_storage.SCHED_POLICY.access_pref.value;
-    // Field: pumice_csr.SCHED_POLICY.auto_precharge_en
-    always_comb begin
-        automatic logic [0:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.SCHED_POLICY.auto_precharge_en.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.SCHED_POLICY && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.SCHED_POLICY.auto_precharge_en.value & ~decoded_wr_biten[10:10]) | (decoded_wr_data[10:10] & decoded_wr_biten[10:10]);
-            load_next_c = '1;
-        end
-        field_combo.SCHED_POLICY.auto_precharge_en.next = next_c;
-        field_combo.SCHED_POLICY.auto_precharge_en.load_next = load_next_c;
-    end
-    always_ff @(posedge clk) begin
-        if(rst) begin
-            field_storage.SCHED_POLICY.auto_precharge_en.value <= 1'h0;
-        end else begin
-            if(field_combo.SCHED_POLICY.auto_precharge_en.load_next) begin
-                field_storage.SCHED_POLICY.auto_precharge_en.value <= field_combo.SCHED_POLICY.auto_precharge_en.next;
-            end
-        end
-    end
-    assign hwif_out.SCHED_POLICY.auto_precharge_en.value = field_storage.SCHED_POLICY.auto_precharge_en.value;
     // Field: pumice_csr.SCHED_POLICY.qos_en
     always_comb begin
         automatic logic [0:0] next_c;
@@ -2489,29 +2238,6 @@ module pumice_csr (
         end
     end
     assign hwif_out.PAGE_POLICY_CFG.policy_scope.value = field_storage.PAGE_POLICY_CFG.policy_scope.value;
-    // Field: pumice_csr.PAGE_POLICY_CFG.ctr_width
-    always_comb begin
-        automatic logic [1:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.PAGE_POLICY_CFG.ctr_width.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.PAGE_POLICY_CFG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.PAGE_POLICY_CFG.ctr_width.value & ~decoded_wr_biten[5:4]) | (decoded_wr_data[5:4] & decoded_wr_biten[5:4]);
-            load_next_c = '1;
-        end
-        field_combo.PAGE_POLICY_CFG.ctr_width.next = next_c;
-        field_combo.PAGE_POLICY_CFG.ctr_width.load_next = load_next_c;
-    end
-    always_ff @(posedge clk) begin
-        if(rst) begin
-            field_storage.PAGE_POLICY_CFG.ctr_width.value <= 2'h0;
-        end else begin
-            if(field_combo.PAGE_POLICY_CFG.ctr_width.load_next) begin
-                field_storage.PAGE_POLICY_CFG.ctr_width.value <= field_combo.PAGE_POLICY_CFG.ctr_width.next;
-            end
-        end
-    end
-    assign hwif_out.PAGE_POLICY_CFG.ctr_width.value = field_storage.PAGE_POLICY_CFG.ctr_width.value;
     // Field: pumice_csr.PAGE_POLICY_CFG.ctr_open_max
     always_comb begin
         automatic logic [3:0] next_c;
@@ -3040,19 +2766,11 @@ module pumice_csr (
     assign readback_array[12][31:8] = (decoded_reg_strb.PASR_SEG_MASK_RANK0 && !decoded_req_is_wr) ? 24'h0 : '0;
     assign readback_array[13][1:0] = (decoded_reg_strb.TEMP_DERATE_RANK0 && !decoded_req_is_wr) ? hwif_in.TEMP_DERATE_RANK0.temp_class.next : '0;
     assign readback_array[13][31:2] = (decoded_reg_strb.TEMP_DERATE_RANK0 && !decoded_req_is_wr) ? 30'h0 : '0;
-    assign readback_array[14][3:0] = (decoded_reg_strb.SCHED_TUNING && !decoded_req_is_wr) ? field_storage.SCHED_TUNING.lookahead_active.value : '0;
-    assign readback_array[14][4:4] = (decoded_reg_strb.SCHED_TUNING && !decoded_req_is_wr) ? field_storage.SCHED_TUNING.force_inorder.value : '0;
-    assign readback_array[14][5:5] = (decoded_reg_strb.SCHED_TUNING && !decoded_req_is_wr) ? 1'h0 : '0;
-    assign readback_array[14][7:6] = (decoded_reg_strb.SCHED_TUNING && !decoded_req_is_wr) ? 2'h0 : '0;
-    assign readback_array[14][15:8] = (decoded_reg_strb.SCHED_TUNING && !decoded_req_is_wr) ? field_storage.SCHED_TUNING.age_max_runtime.value : '0;
-    assign readback_array[14][23:16] = (decoded_reg_strb.SCHED_TUNING && !decoded_req_is_wr) ? field_storage.SCHED_TUNING.txn_queue_high_water.value : '0;
-    assign readback_array[14][27:24] = (decoded_reg_strb.SCHED_TUNING && !decoded_req_is_wr) ? hwif_in.SCHED_TUNING.lookahead_max_obs.next : '0;
-    assign readback_array[14][31:28] = (decoded_reg_strb.SCHED_TUNING && !decoded_req_is_wr) ? 4'h0 : '0;
-    assign readback_array[15][1:0] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? field_storage.REFRESH_TUNING.refpb_policy_or.value : '0;
+    assign readback_array[14][31:0] = (decoded_reg_strb.SCHED_TUNING && !decoded_req_is_wr) ? 32'h0 : '0;
+    assign readback_array[15][1:0] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? 2'h0 : '0;
     assign readback_array[15][3:2] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? field_storage.REFRESH_TUNING.page_policy_or.value : '0;
-    assign readback_array[15][7:4] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? field_storage.REFRESH_TUNING.refresh_defer_active.value : '0;
-    assign readback_array[15][15:8] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[15][31:16] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? field_storage.REFRESH_TUNING.zqcs_freq_hz.value : '0;
+    assign readback_array[15][15:4] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? 12'h0 : '0;
+    assign readback_array[15][31:16] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? 16'h0 : '0;
     assign readback_array[16][4:0] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? field_storage.ADDR_MAP.bank_lsb.value : '0;
     assign readback_array[16][7:5] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? 3'h0 : '0;
     assign readback_array[16][8:8] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? field_storage.ADDR_MAP.hash_en.value : '0;
@@ -3089,7 +2807,7 @@ module pumice_csr (
     assign readback_array[23][5:4] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.row_sel.value : '0;
     assign readback_array[23][7:6] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.col_sel.value : '0;
     assign readback_array[23][9:8] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.access_pref.value : '0;
-    assign readback_array[23][10:10] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.auto_precharge_en.value : '0;
+    assign readback_array[23][10:10] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 1'h0 : '0;
     assign readback_array[23][11:11] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.qos_en.value : '0;
     assign readback_array[23][15:12] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 4'h0 : '0;
     assign readback_array[23][23:16] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.age_thresh.value : '0;
@@ -3099,7 +2817,7 @@ module pumice_csr (
     assign readback_array[24][31:16] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? 16'h0 : '0;
     assign readback_array[25][2:0] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.policy_mode.value : '0;
     assign readback_array[25][3:3] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.policy_scope.value : '0;
-    assign readback_array[25][5:4] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.ctr_width.value : '0;
+    assign readback_array[25][5:4] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? 2'h0 : '0;
     assign readback_array[25][9:6] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.ctr_open_max.value : '0;
     assign readback_array[25][13:10] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.ctr_init.value : '0;
     assign readback_array[25][31:14] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? 18'h0 : '0;

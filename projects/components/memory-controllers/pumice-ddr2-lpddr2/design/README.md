@@ -1010,3 +1010,41 @@ arbiter's own r_*_pop -> r_bank pre-pick path, the +-0.05 ns band seen in
 every build today. The -0.046 build is in the tree for the board run;
 PUMICE-024 carries the real fix (shorten the pre-pick stage).
 
+
+### CONFIG CLEANUP (2026-09-09): the CSR map and the host presets match the current architecture
+
+Sean: "clean up the configs so they make sense with the latest arch". Audit
+method: every `sw = rw` field in pumice_csr.rdl vs every `hwif_out.<reg>.
+<field>` pumice_top.sv actually reads. Dead and now RETIRED (fields become
+RSVD, addresses kept so the map does not shift):
+
+  * SCHED_TUNING @0x040, all of it: lookahead_active, force_inorder,
+    age_max_runtime, txn_queue_high_water, lookahead_max_obs. They belonged
+    to the pre-rearchitecture scheduler; the CAM+arbiter never read them, so
+    the host's `inorder` preset and the harness's rd_in_order forwarding
+    were silent no-ops on the board. Scheduling is SCHED_POLICY.
+  * REFRESH_TUNING.refpb_policy_or / refresh_defer_active / zqcs_freq_hz:
+    refresh mode and the JEDEC credits are REF_CTRL @0x140; no ZQCS engine.
+    page_policy_or stays (it is the static OPEN/CLOSE override).
+  * SCHED_POLICY.auto_precharge_en: AP is the page policy's (static_close and
+    the mode 5..7 predictors drive ap_mode_en).
+  * PAGE_POLICY_CFG.ctr_width: the adapt_access counter is the paper's 2-bit
+    saturating counter, not selectable.
+  Left alone (dead but not "config"): INIT_TUNING.zq_retries/init_timeout_ms,
+  TIMINGS_CL_CWL_WR.CL/CWL/tRFCpb, the PASR masks -- init/memory-type
+  plumbing for another pass.
+
+Host (pumice_char.py): every preset knob is now a CSR the RTL reads.
+  levers: scheme (ADDR_MAP), page_policy (static), page_mode (predictors
+  4..7), order_mode (0 FR-FCFS / 1 in_order / 3 age_threshold), t_refi,
+  refresh (REF_CTRL credits). Removed: reorder (== open_page, FR-FCFS
+  reorders by default), lever_lookahead / lever_rdooo (== baseline),
+  lever_open (== open_page), LOOKAHEAD_MAX, set_scheduler /
+  get_lookahead_max. Added: inorder_open, refresh_credit, profiles
+  open_min / refresh; smoke = baseline/bank_interleave/open_page/inorder;
+  matrix = + age_thr. set_refresh() now programs REF_CTRL.
+  rd_in_order stays as the HARNESS check-engine bit (CTRLR_CFG[24]); it no
+  longer touches the controller.
+DV: test_pumice_top configure_via_csr / wr_rd_ooo_multi_id and the char
+  uart sweep use SCHED_POLICY.order_mode; the host unit test covers
+  set_sched_policy + set_refresh(REF_CTRL).

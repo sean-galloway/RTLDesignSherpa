@@ -338,41 +338,9 @@ addrmap pumice_csr {
 
     reg {
         name = "Scheduler Tuning";
-        desc = "Runtime scheduler knobs (effective at next quiet point)";
+        desc = "RETIRED 2026-09-09. lookahead_active / force_inorder / age_max_runtime / txn_queue_high_water / lookahead_max_obs belonged to the pre-rearchitecture scheduler; nothing has consumed them since the CAM+arbiter scheduler (pumice_mem_cmd_scheduler) landed, so a write here was a silent no-op. Scheduling is SCHED_POLICY (order_mode selects in_order / age_threshold; FR-FCFS is the default and reorders across the whole CAM, so there is no lookahead window to size). The address is kept so the map does not shift.";
 
-        field {
-            sw = rw; hw = r;
-            desc = "Active lookahead window (0..LOOKAHEAD_DEPTH_MAX). 0 disables.";
-        } lookahead_active[3:0] = 4'h0;
-
-        field {
-            sw = rw; hw = r;
-            desc = "1 = force first-ready FIFO (disable row-hit reordering)";
-        } force_inorder = 1'b0;
-
-        field {
-            sw = r; hw = na;
-            desc = "Reserved (was happy_enable; the HAPPY predictor is retired -- adaptive paging is PAGE_POLICY_CFG.policy_mode)";
-        } RSVD_5 = 1'b0;
-
-        field { sw = r; hw = na; desc = "Reserved"; } RSVD_7_6[7:6] = 2'h0;
-
-        field {
-            sw = rw; hw = r;
-            desc = "Runtime AGE_MAX override (0 = use build-time default)";
-        } age_max_runtime[15:8] = 8'h0;
-
-        field {
-            sw = rw; hw = r;
-            desc = "Backpressure-assertion threshold for txn queue";
-        } txn_queue_high_water[23:16] = 8'h0;
-
-        field {
-            sw = r; hw = w;
-            desc = "Echo of build-time LOOKAHEAD_DEPTH_MAX";
-        } lookahead_max_obs[27:24];
-
-        field { sw = r; hw = na; desc = "Reserved"; } RSVD_31_28[31:28] = 4'h0;
+        field { sw = r; hw = na; desc = "Reserved (retired scheduler knobs)"; } RSVD[31:0] = 32'h0;
 
     } SCHED_TUNING @ 0x040;
 
@@ -382,29 +350,18 @@ addrmap pumice_csr {
 
     reg {
         name = "Refresh Tuning";
-        desc = "Refresh policy + ZQCS interval";
+        desc = "Page-policy override. The refresh fields that lived here (refpb_policy_or, refresh_defer_active, zqcs_freq_hz) were retired 2026-09-09: refresh mode and the JEDEC postpone/pull-in credits are REF_CTRL, and no ZQCS engine consumed the interval. The address is kept so the map does not shift.";
 
-        field {
-            sw = rw; hw = r;
-            desc = "00=build-time, 01=RR, 10=OLDEST_FIRST, 11=DARP";
-        } refpb_policy_or[1:0] = 2'h0;
+        field { sw = r; hw = na; desc = "Reserved (was refpb_policy_or; see REF_CTRL.mode)"; } RSVD_1_0[1:0] = 2'h0;
 
         field {
             sw = rw; hw = r;
             desc = "00=build-time, 01=OPEN, 10=CLOSE, 11=reserved (was HYBRID; maps to build default)";
         } page_policy_or[3:2] = 2'h0;
 
-        field {
-            sw = rw; hw = r;
-            desc = "Active refresh deferral count (1..REFRESH_DEFER_MAX)";
-        } refresh_defer_active[7:4] = 4'h1;
+        field { sw = r; hw = na; desc = "Reserved (was refresh_defer_active; see REF_CTRL.postpone_limit)"; } RSVD_15_4[15:4] = 12'h0;
 
-        field { sw = r; hw = na; desc = "Reserved"; } RSVD_15_8[15:8] = 8'h0;
-
-        field {
-            sw = rw; hw = r;
-            desc = "Periodic ZQCS interval in Hz (0 = disabled)";
-        } zqcs_freq_hz[31:16] = 16'd1;
+        field { sw = r; hw = na; desc = "Reserved (was zqcs_freq_hz; no ZQCS engine)"; } RSVD_31_16[31:16] = 16'h0;
 
     } REFRESH_TUNING @ 0x048;
 
@@ -625,10 +582,7 @@ addrmap pumice_csr {
             desc = "Address-arbiter class preference: 0=default, 1=column_first, 2=row_first, 3=precharge_first";
         } access_pref[9:8] = 2'h0;
 
-        field {
-            sw = rw; hw = r;
-            desc = "1 = fuse auto-precharge into the last column op of a row";
-        } auto_precharge_en[10:10] = 1'b0;
+        field { sw = r; hw = na; desc = "Reserved (was auto_precharge_en, never consumed: auto-precharge is driven by PAGE_POLICY_CFG.policy_mode -- static_close and the modes 5..7 predictors)"; } RSVD_10[10:10] = 1'b0;
 
         field {
             sw = rw; hw = r;
@@ -678,10 +632,7 @@ addrmap pumice_csr {
             desc = "0 = per-bank decision state, 1 = global";
         } policy_scope[3:3] = 1'b0;
 
-        field {
-            sw = rw; hw = r;
-            desc = "adapt_access counter width select (0=2-bit)";
-        } ctr_width[5:4] = 2'h0;
+        field { sw = r; hw = na; desc = "Reserved (was ctr_width; the adapt_access counter is the 2-bit saturating counter of the paper, not selectable)"; } RSVD_5_4[5:4] = 2'h0;
 
         field {
             sw = rw; hw = r;

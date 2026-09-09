@@ -307,14 +307,14 @@ class Pumice(Device):
         if tr_init is not None:
             self.regs.write("PAGE_TIMEOUT_CFG", tr_init=tr_init & 0xFF)
 
-    def set_page_access_cfg(self, *, ctr_open_max: int, ctr_init: int = 0,
-                            ctr_width: int = 0) -> None:
+    def set_page_access_cfg(self, *, ctr_open_max: int, ctr_init: int = 0) -> None:
         """adapt_access (mode 5) counter shape, PAGE_POLICY_CFG upper fields:
         ctr_open_max = count at/above which a row is CLOSED (auto-precharge),
-        ctr_init = cold-table value (higher = close-biased), ctr_width = 0 for
-        the 2-bit counter. Shares the word with policy_mode via the shadow."""
+        ctr_init = cold-table value (higher = close-biased). The counter is the
+        paper's 2-bit saturating counter (ctr_width was retired 2026-09-09).
+        Shares the word with policy_mode via the shadow."""
         self._wr("PAGE_POLICY_CFG", ctr_open_max=ctr_open_max & 0xF,
-                 ctr_init=ctr_init & 0xF, ctr_width=ctr_width & 0x3)
+                 ctr_init=ctr_init & 0xF)
 
     def set_page_rbl_cfg(self, *, miss_thresh: int, ways_log2: int = 0,
                          sets_log2: int = 0, reset_interval: int = 0) -> None:
@@ -326,19 +326,23 @@ class Pumice(Device):
                  ways=ways_log2 & 0x3, sets=sets_log2 & 0xF,
                  reset_interval=reset_interval & 0xFFFF)
 
-    def set_refresh(self, *, refpb_policy: Optional[int] = None,
-                    refresh_defer: Optional[int] = None,
-                    zqcs_freq_hz: Optional[int] = None) -> None:
-        """Refresh scheduling knobs (REFRESH_TUNING); only supplied fields change."""
+    def set_refresh(self, *, mode: Optional[int] = None,
+                    postpone: Optional[int] = None,
+                    pullin: Optional[int] = None) -> None:
+        """REF_CTRL (Axis 3): mode 0=build default (REFab), 1=REFab, 2=REFpb
+        round-robin (LPDDR2, needs the perbank_supported strap); postpone /
+        pullin = JEDEC refresh credits (0..8, 0 = strict). Only supplied
+        fields change. (REFRESH_TUNING's refpb_policy_or / refresh_defer_active
+        / zqcs_freq_hz were retired 2026-09-09: nothing consumed them.)"""
         kw: Dict[str, int] = {}
-        if refpb_policy is not None:
-            kw["refpb_policy_or"] = refpb_policy & 0x3
-        if refresh_defer is not None:
-            kw["refresh_defer_active"] = refresh_defer & 0xF
-        if zqcs_freq_hz is not None:
-            kw["zqcs_freq_hz"] = zqcs_freq_hz & 0xFFFF
+        if mode is not None:
+            kw["mode"] = mode & 0x3
+        if postpone is not None:
+            kw["postpone_limit"] = postpone & 0xF
+        if pullin is not None:
+            kw["pullin_limit"] = pullin & 0xF
         if kw:
-            self._wr("REFRESH_TUNING", **kw)
+            self._wr("REF_CTRL", **kw)
 
     def set_refresh_interval(self, t_refi: int) -> None:
         """tREFI in MC cycles (TIMINGS_RFC_REFI.tREFI); rmw preserves tRFC."""
@@ -368,23 +372,9 @@ class Pumice(Device):
         return applied
 
     # ----- command scheduler ------------------------------------------------
-    def set_scheduler(self, *, lookahead: Optional[int] = None,
-                      force_inorder: Optional[bool] = None,
-                      age_max: Optional[int] = None,
-                      txn_high_water: Optional[int] = None) -> None:
-        """SCHED_TUNING knobs; only supplied fields change (rmw)."""
-        kw: Dict[str, int] = {}
-        if lookahead is not None:
-            kw["lookahead_active"] = lookahead & 0xF
-        if force_inorder is not None:
-            kw["force_inorder"] = 1 if force_inorder else 0
-        if age_max is not None:
-            kw["age_max_runtime"] = age_max & 0xFF
-        if txn_high_water is not None:
-            kw["txn_queue_high_water"] = txn_high_water & 0xFF
-        if kw:
-            self._wr("SCHED_TUNING", **kw)
-
+    # (set_scheduler / get_lookahead_max were retired 2026-09-09 with the
+    # SCHED_TUNING fields they wrote: the CAM+arbiter scheduler never read
+    # lookahead_active / force_inorder / age_max_runtime / txn_queue_high_water.)
     def set_sched_policy(self, *, order_mode: Optional[int] = None,
                          age_thresh: Optional[int] = None,
                          prio_sub: Optional[int] = None,
@@ -397,8 +387,7 @@ class Pumice(Device):
         On a BASE bitstream in_order is per-channel FIFO (each CAM issues its
         oldest entry; the arbiter's read/write preference picks the side);
         global read-vs-write age order needs the PUMICE_ENHANCED build.
-        NOTE: SCHED_TUNING.force_inorder / lookahead_active are legacy fields
-        the rearchitected RTL no longer consumes -- use this."""
+        FR-FCFS (0) reorders across the whole CAM; there is no window to size."""
         kw: Dict[str, int] = {}
         if order_mode is not None:
             kw["order_mode"] = order_mode & 0x3
@@ -416,10 +405,6 @@ class Pumice(Device):
             kw["qos_en"] = 1 if qos_en else 0
         if kw:
             self._wr("SCHED_POLICY", **kw)
-
-    def get_lookahead_max(self) -> int:
-        """Build-time max reorder-window depth (SCHED_TUNING.lookahead_max_obs)."""
-        return self.regs.field("SCHED_TUNING", "lookahead_max_obs")
 
     # ----- status -----------------------------------------------------------
     def init_done(self) -> bool:

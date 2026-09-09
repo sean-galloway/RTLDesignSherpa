@@ -57,14 +57,6 @@ package pumice_csr_pkg;
     } pumice_csr__TEMP_DERATE_RANK0__in_t;
 
     typedef struct {
-        logic [3:0] next;
-    } pumice_csr__SCHED_TUNING__lookahead_max_obs__in_t;
-
-    typedef struct {
-        pumice_csr__SCHED_TUNING__lookahead_max_obs__in_t lookahead_max_obs;
-    } pumice_csr__SCHED_TUNING__in_t;
-
-    typedef struct {
         logic [31:0] next;
     } pumice_csr__OBS_ROW_HIT__ROW_HIT__VAL__in_t;
 
@@ -240,7 +232,6 @@ package pumice_csr_pkg;
         pumice_csr__STATUS__in_t STATUS;
         pumice_csr__STATUS_HISTORY__in_t STATUS_HISTORY;
         pumice_csr__TEMP_DERATE_RANK0__in_t TEMP_DERATE_RANK0;
-        pumice_csr__SCHED_TUNING__in_t SCHED_TUNING;
         pumice_csr__OBS_ROW_HIT__in_t OBS_ROW_HIT[8];
         pumice_csr__OBS_REF_LATENCY__in_t OBS_REF_LATENCY[8];
         pumice_csr__OBS_TXN_QUEUE_DEPTH_MAX__in_t OBS_TXN_QUEUE_DEPTH_MAX;
@@ -435,49 +426,11 @@ package pumice_csr_pkg;
     } pumice_csr__PASR_SEG_MASK_RANK0__out_t;
 
     typedef struct {
-        logic [3:0] value;
-    } pumice_csr__SCHED_TUNING__lookahead_active__out_t;
-
-    typedef struct {
-        logic value;
-    } pumice_csr__SCHED_TUNING__force_inorder__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } pumice_csr__SCHED_TUNING__age_max_runtime__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } pumice_csr__SCHED_TUNING__txn_queue_high_water__out_t;
-
-    typedef struct {
-        pumice_csr__SCHED_TUNING__lookahead_active__out_t lookahead_active;
-        pumice_csr__SCHED_TUNING__force_inorder__out_t force_inorder;
-        pumice_csr__SCHED_TUNING__age_max_runtime__out_t age_max_runtime;
-        pumice_csr__SCHED_TUNING__txn_queue_high_water__out_t txn_queue_high_water;
-    } pumice_csr__SCHED_TUNING__out_t;
-
-    typedef struct {
-        logic [1:0] value;
-    } pumice_csr__REFRESH_TUNING__refpb_policy_or__out_t;
-
-    typedef struct {
         logic [1:0] value;
     } pumice_csr__REFRESH_TUNING__page_policy_or__out_t;
 
     typedef struct {
-        logic [3:0] value;
-    } pumice_csr__REFRESH_TUNING__refresh_defer_active__out_t;
-
-    typedef struct {
-        logic [15:0] value;
-    } pumice_csr__REFRESH_TUNING__zqcs_freq_hz__out_t;
-
-    typedef struct {
-        pumice_csr__REFRESH_TUNING__refpb_policy_or__out_t refpb_policy_or;
         pumice_csr__REFRESH_TUNING__page_policy_or__out_t page_policy_or;
-        pumice_csr__REFRESH_TUNING__refresh_defer_active__out_t refresh_defer_active;
-        pumice_csr__REFRESH_TUNING__zqcs_freq_hz__out_t zqcs_freq_hz;
     } pumice_csr__REFRESH_TUNING__out_t;
 
     typedef struct {
@@ -623,10 +576,6 @@ package pumice_csr_pkg;
 
     typedef struct {
         logic value;
-    } pumice_csr__SCHED_POLICY__auto_precharge_en__out_t;
-
-    typedef struct {
-        logic value;
     } pumice_csr__SCHED_POLICY__qos_en__out_t;
 
     typedef struct {
@@ -639,7 +588,6 @@ package pumice_csr_pkg;
         pumice_csr__SCHED_POLICY__row_sel__out_t row_sel;
         pumice_csr__SCHED_POLICY__col_sel__out_t col_sel;
         pumice_csr__SCHED_POLICY__access_pref__out_t access_pref;
-        pumice_csr__SCHED_POLICY__auto_precharge_en__out_t auto_precharge_en;
         pumice_csr__SCHED_POLICY__qos_en__out_t qos_en;
         pumice_csr__SCHED_POLICY__age_thresh__out_t age_thresh;
     } pumice_csr__SCHED_POLICY__out_t;
@@ -666,10 +614,6 @@ package pumice_csr_pkg;
     } pumice_csr__PAGE_POLICY_CFG__policy_scope__out_t;
 
     typedef struct {
-        logic [1:0] value;
-    } pumice_csr__PAGE_POLICY_CFG__ctr_width__out_t;
-
-    typedef struct {
         logic [3:0] value;
     } pumice_csr__PAGE_POLICY_CFG__ctr_open_max__out_t;
 
@@ -680,7 +624,6 @@ package pumice_csr_pkg;
     typedef struct {
         pumice_csr__PAGE_POLICY_CFG__policy_mode__out_t policy_mode;
         pumice_csr__PAGE_POLICY_CFG__policy_scope__out_t policy_scope;
-        pumice_csr__PAGE_POLICY_CFG__ctr_width__out_t ctr_width;
         pumice_csr__PAGE_POLICY_CFG__ctr_open_max__out_t ctr_open_max;
         pumice_csr__PAGE_POLICY_CFG__ctr_init__out_t ctr_init;
     } pumice_csr__PAGE_POLICY_CFG__out_t;
@@ -797,7 +740,6 @@ package pumice_csr_pkg;
         pumice_csr__MR3__out_t MR3;
         pumice_csr__PASR_BANK_MASK_RANK0__out_t PASR_BANK_MASK_RANK0;
         pumice_csr__PASR_SEG_MASK_RANK0__out_t PASR_SEG_MASK_RANK0;
-        pumice_csr__SCHED_TUNING__out_t SCHED_TUNING;
         pumice_csr__REFRESH_TUNING__out_t REFRESH_TUNING;
         pumice_csr__ADDR_MAP__out_t ADDR_MAP;
         pumice_csr__INIT_TUNING__out_t INIT_TUNING;

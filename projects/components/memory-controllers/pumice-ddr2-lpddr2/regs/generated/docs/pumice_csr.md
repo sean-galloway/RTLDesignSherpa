@@ -489,50 +489,15 @@ pulse CTRL.init_force_restart.</p>
 - Base Offset: 0x40
 - Size: 0x4
 
-<p>Runtime scheduler knobs (effective at next quiet point)</p>
+<p>RETIRED 2026-09-09. lookahead_active / force_inorder / age_max_runtime / txn_queue_high_water / lookahead_max_obs belonged to the pre-rearchitecture scheduler; nothing has consumed them since the CAM+arbiter scheduler (pumice_mem_cmd_scheduler) landed, so a write here was a silent no-op. Scheduling is SCHED_POLICY (order_mode selects in_order / age_threshold; FR-FCFS is the default and reorders across the whole CAM, so there is no lookahead window to size). The address is kept so the map does not shift.</p>
 
-| Bits|     Identifier     |Access|Reset|Name|
-|-----|--------------------|------|-----|----|
-| 3:0 |  lookahead_active  |  rw  | 0x0 |  — |
-|  4  |    force_inorder   |  rw  | 0x0 |  — |
-|  5  |       RSVD_5       |   r  | 0x0 |  — |
-| 7:6 |      RSVD_7_6      |   r  | 0x0 |  — |
-| 15:8|   age_max_runtime  |  rw  | 0x0 |  — |
-|23:16|txn_queue_high_water|  rw  | 0x0 |  — |
-|27:24|  lookahead_max_obs |   r  |  —  |  — |
-|31:28|     RSVD_31_28     |   r  | 0x0 |  — |
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   RSVD   |   r  | 0x0 |  — |
 
-#### lookahead_active field
+#### RSVD field
 
-<p>Active lookahead window (0..LOOKAHEAD_DEPTH_MAX). 0 disables.</p>
-
-#### force_inorder field
-
-<p>1 = force first-ready FIFO (disable row-hit reordering)</p>
-
-#### RSVD_5 field
-
-<p>Reserved (was happy_enable; the HAPPY predictor is retired -- adaptive paging is PAGE_POLICY_CFG.policy_mode)</p>
-
-#### RSVD_7_6 field
-
-<p>Reserved</p>
-
-#### age_max_runtime field
-
-<p>Runtime AGE_MAX override (0 = use build-time default)</p>
-
-#### txn_queue_high_water field
-
-<p>Backpressure-assertion threshold for txn queue</p>
-
-#### lookahead_max_obs field
-
-<p>Echo of build-time LOOKAHEAD_DEPTH_MAX</p>
-
-#### RSVD_31_28 field
-
-<p>Reserved</p>
+<p>Reserved (retired scheduler knobs)</p>
 
 ### REFRESH_TUNING register
 
@@ -540,35 +505,30 @@ pulse CTRL.init_force_restart.</p>
 - Base Offset: 0x48
 - Size: 0x4
 
-<p>Refresh policy + ZQCS interval</p>
+<p>Page-policy override. The refresh fields that lived here (refpb_policy_or, refresh_defer_active, zqcs_freq_hz) were retired 2026-09-09: refresh mode and the JEDEC postpone/pull-in credits are REF_CTRL, and no ZQCS engine consumed the interval. The address is kept so the map does not shift.</p>
 
-| Bits|     Identifier     |Access|Reset|Name|
-|-----|--------------------|------|-----|----|
-| 1:0 |   refpb_policy_or  |  rw  | 0x0 |  — |
-| 3:2 |   page_policy_or   |  rw  | 0x0 |  — |
-| 7:4 |refresh_defer_active|  rw  | 0x1 |  — |
-| 15:8|      RSVD_15_8     |   r  | 0x0 |  — |
-|31:16|    zqcs_freq_hz    |  rw  | 0x1 |  — |
+| Bits|  Identifier  |Access|Reset|Name|
+|-----|--------------|------|-----|----|
+| 1:0 |   RSVD_1_0   |   r  | 0x0 |  — |
+| 3:2 |page_policy_or|  rw  | 0x0 |  — |
+| 15:4|   RSVD_15_4  |   r  | 0x0 |  — |
+|31:16|  RSVD_31_16  |   r  | 0x0 |  — |
 
-#### refpb_policy_or field
+#### RSVD_1_0 field
 
-<p>00=build-time, 01=RR, 10=OLDEST_FIRST, 11=DARP</p>
+<p>Reserved (was refpb_policy_or; see REF_CTRL.mode)</p>
 
 #### page_policy_or field
 
 <p>00=build-time, 01=OPEN, 10=CLOSE, 11=reserved (was HYBRID; maps to build default)</p>
 
-#### refresh_defer_active field
+#### RSVD_15_4 field
 
-<p>Active refresh deferral count (1..REFRESH_DEFER_MAX)</p>
+<p>Reserved (was refresh_defer_active; see REF_CTRL.postpone_limit)</p>
 
-#### RSVD_15_8 field
+#### RSVD_31_16 field
 
-<p>Reserved</p>
-
-#### zqcs_freq_hz field
-
-<p>Periodic ZQCS interval in Hz (0 = disabled)</p>
+<p>Reserved (was zqcs_freq_hz; no ZQCS engine)</p>
 
 ### ADDR_MAP register
 
@@ -823,18 +783,18 @@ request. All hw-readable so they drive the controller core.</p>
 
 <p>Axis 1 (Rixner FR-FCFS variants). All fields 0 = build default.</p>
 
-| Bits|    Identifier   |Access|Reset|Name|
-|-----|-----------------|------|-----|----|
-| 1:0 |    order_mode   |  rw  | 0x0 |  — |
-| 3:2 |     prio_sub    |  rw  | 0x0 |  — |
-| 5:4 |     row_sel     |  rw  | 0x0 |  — |
-| 7:6 |     col_sel     |  rw  | 0x0 |  — |
-| 9:8 |   access_pref   |  rw  | 0x0 |  — |
-|  10 |auto_precharge_en|  rw  | 0x0 |  — |
-|  11 |      qos_en     |  rw  | 0x0 |  — |
-|15:12|    RSVD_15_12   |   r  | 0x0 |  — |
-|23:16|    age_thresh   |  rw  | 0x0 |  — |
-|31:24|    RSVD_31_24   |   r  | 0x0 |  — |
+| Bits| Identifier|Access|Reset|Name|
+|-----|-----------|------|-----|----|
+| 1:0 | order_mode|  rw  | 0x0 |  — |
+| 3:2 |  prio_sub |  rw  | 0x0 |  — |
+| 5:4 |  row_sel  |  rw  | 0x0 |  — |
+| 7:6 |  col_sel  |  rw  | 0x0 |  — |
+| 9:8 |access_pref|  rw  | 0x0 |  — |
+|  10 |  RSVD_10  |   r  | 0x0 |  — |
+|  11 |   qos_en  |  rw  | 0x0 |  — |
+|15:12| RSVD_15_12|   r  | 0x0 |  — |
+|23:16| age_thresh|  rw  | 0x0 |  — |
+|31:24| RSVD_31_24|   r  | 0x0 |  — |
 
 #### order_mode field
 
@@ -856,9 +816,9 @@ request. All hw-readable so they drive the controller core.</p>
 
 <p>Address-arbiter class preference: 0=default, 1=column_first, 2=row_first, 3=precharge_first</p>
 
-#### auto_precharge_en field
+#### RSVD_10 field
 
-<p>1 = fuse auto-precharge into the last column op of a row</p>
+<p>Reserved (was auto_precharge_en, never consumed: auto-precharge is driven by PAGE_POLICY_CFG.policy_mode -- static_close and the modes 5..7 predictors)</p>
 
 #### qos_en field
 
@@ -914,7 +874,7 @@ request. All hw-readable so they drive the controller core.</p>
 |-----|------------|------|-----|----|
 | 2:0 | policy_mode|  rw  | 0x0 |  — |
 |  3  |policy_scope|  rw  | 0x0 |  — |
-| 5:4 |  ctr_width |  rw  | 0x0 |  — |
+| 5:4 |  RSVD_5_4  |   r  | 0x0 |  — |
 | 9:6 |ctr_open_max|  rw  | 0x0 |  — |
 |13:10|  ctr_init  |  rw  | 0x0 |  — |
 |31:14|    RSVD    |   r  | 0x0 |  — |
@@ -927,9 +887,9 @@ request. All hw-readable so they drive the controller core.</p>
 
 <p>0 = per-bank decision state, 1 = global</p>
 
-#### ctr_width field
+#### RSVD_5_4 field
 
-<p>adapt_access counter width select (0=2-bit)</p>
+<p>Reserved (was ctr_width; the adapt_access counter is the 2-bit saturating counter of the paper, not selectable)</p>
 
 #### ctr_open_max field
 

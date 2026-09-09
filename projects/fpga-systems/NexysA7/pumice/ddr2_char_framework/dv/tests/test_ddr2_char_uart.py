@@ -502,11 +502,11 @@ async def cocotb_test_uart_sequences(dut):
 async def cocotb_test_uart_sweep(dut):
     """Short BOTH-ORDERINGS functional smoke over the COMMON harness. Runs a
     ~SWEEP_NPKT (default 20) packet write->read integrity pass twice:
-      * in-order : force_inorder=1, single AXI id
-      * ooo      : force_inorder=0, multi-id id-spread (id_mode=COUNTER) so the
-                   scheduler reorders across ids
+      * in-order : SCHED_POLICY.order_mode=1 (in_order), single AXI id
+      * ooo      : order_mode=0 (FR-FCFS), multi-id id-spread (id_mode=COUNTER)
+                   so the scheduler reorders across ids
     Responses always return in AR order (the rd CAM is a reorder buffer), so the
-    engine's per-beat LFSR check is valid for both legs. One init; force_inorder
+    engine's per-beat LFSR check is valid for both legs. One init; order_mode
     is a runtime scheduler knob flipped between legs; the ooo leg uses a separate
     address region so it can't alias the in-order data. Parametrized over the DFI
     build configs by the pytest wrappers (gear-1 / rate4 / beat32 / x16)."""
@@ -518,7 +518,7 @@ async def cocotb_test_uart_sweep(dut):
     SEED   = 0xABCD1234
 
     def _leg(base, force_inorder, id_mode):
-        drv.set_scheduler(force_inorder=force_inorder)   # runtime, next quiet pt
+        drv.set_sched_policy(order_mode=1 if force_inorder else 0)   # runtime
         drv.program_wr_engine(start_addr=base, burst_len=BURST, txn_count=NPKT,
                               stride_0=STRIDE, lfsr_seed=SEED,
                               axi_size=dc.AXI_SIZE_8, id_mode=id_mode)

@@ -817,8 +817,8 @@ def main() -> int:
                     help="controller configs to cross against every generator "
                          "scenario: 'baseline' (default, single), 'matrix' (the "
                          "isolating set: baseline/bank_interleave/open_page/"
-                         "inorder/reorder), 'all', or a comma-separated list of "
-                         "preset names (paging/OOO/refresh)")
+                         "inorder/age_thr), 'all', or a comma-separated list of "
+                         "preset names (map/page/order/predictor/refresh)")
     ap.add_argument("--char-profile", default=None,
                     help="run a named RUN_PROFILES matrix (smoke/matrix/full) -- "
                          "the SAME definition the sim harness pulls, so a board "

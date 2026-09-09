@@ -412,10 +412,11 @@ async def cocotb_test_pumice_top(dut):
 
     if test_type == "configure_via_csr":
         await tb.csr_write_field("REFRESH_TUNING", "page_policy_or", 0x2)
-        await tb.csr_write_field("SCHED_TUNING", "force_inorder", 0x1)
+        await tb.csr_write_field("SCHED_POLICY", "order_mode", 0x1)
         rt = await tb.csr_read_field("REFRESH_TUNING", "page_policy_or")
-        st = await tb.csr_read_field("SCHED_TUNING", "force_inorder")
+        st = await tb.csr_read_field("SCHED_POLICY", "order_mode")
         assert rt == 0x2 and st == 0x1, f"readback rt={rt} st={st}"
+        await tb.csr_write_field("SCHED_POLICY", "order_mode", 0x0)
         tb.log.info("PASS configure_via_csr: fields program+readback by name")
         return
 
@@ -522,7 +523,7 @@ async def cocotb_test_pumice_top(dut):
 
     # ---- out-of-order multi-id reads ----
     if test_type == "wr_rd_ooo_multi_id":
-        await tb.csr_write_field("SCHED_TUNING", "force_inorder", 0x0)
+        await tb.csr_write_field("SCHED_POLICY", "order_mode", 0x0)   # FR-FCFS
         n = 8
         addrs = [BASE + k * 0x10000 + (k % NUM_BANKS) * 0x2000 for k in range(n)]
         wr, rd, exp = build_addr_pattern_sequences(

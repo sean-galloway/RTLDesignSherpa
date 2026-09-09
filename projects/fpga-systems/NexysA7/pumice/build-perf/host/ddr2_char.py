@@ -171,7 +171,7 @@ PAGE_POLICY_OPEN    = 1
 PAGE_POLICY_CLOSE   = 2
 # 3 was PAGE_POLICY_HYBRID -- retired (maps to build default in RTL); the
 # adaptive policies are PAGE_POLICY_CFG.policy_mode via set_page_mode().
-# Per-bank/all-bank refresh policy (REFRESH_TUNING.refpb_policy_or).
+# Refresh mode + JEDEC credits (REF_CTRL; set_refresh).
 REFPB_DEFAULT = 0
 REFPB_RR      = 1
 REFPB_OLDEST  = 2
@@ -408,7 +408,8 @@ class DDR2CharDriver:
         CSR-driven, so this must land BEFORE init is released."""
         self.pumice.set_phy_timing(memtype=memtype, t_phy_wrlat=t_phy_wrlat,
                                    t_rddata_en=t_rddata_en)
-        self.pumice.set_scheduler(force_inorder=rd_in_order)
+        # rd_in_order is the HARNESS CTRLR_CFG bit (the check engine's R
+        # ordering); the controller's ordering is set_sched_policy().
 
     def set_jedec_timings(self, mc_clk_hz: float) -> dict:
         """Program the controller's JEDEC DDR2 timing CSRs (MC cycles) derived
@@ -494,29 +495,17 @@ class DDR2CharDriver:
     def set_page_rbl_cfg(self, **kw: int) -> None:
         self.pumice.set_page_rbl_cfg(**kw)
 
-    def set_refresh(self, *, refpb_policy: Optional[int] = None,
-                    refresh_defer: Optional[int] = None,
-                    zqcs_freq_hz: Optional[int] = None) -> None:
-        self.pumice.set_refresh(refpb_policy=refpb_policy,
-                                refresh_defer=refresh_defer,
-                                zqcs_freq_hz=zqcs_freq_hz)
+    def set_sched_policy(self, **kw) -> None:
+        """SCHED_POLICY: order_mode / age_thresh / row_sel / col_sel /
+        access_pref / prio_sub / qos_en -- see Pumice.set_sched_policy."""
+        self.pumice.set_sched_policy(**kw)
+
+    def set_refresh(self, **kw) -> None:
+        """REF_CTRL: mode / postpone / pullin -- see Pumice.set_refresh."""
+        self.pumice.set_refresh(**kw)
 
     def set_refresh_interval(self, t_refi: int) -> None:
         self.pumice.set_refresh_interval(t_refi)
-
-    def set_scheduler(self, *, lookahead: Optional[int] = None,
-                      force_inorder: Optional[bool] = None,
-                      age_max: Optional[int] = None,
-                      txn_high_water: Optional[int] = None) -> None:
-        self.pumice.set_scheduler(lookahead=lookahead, force_inorder=force_inorder,
-                                  age_max=age_max,
-                                  txn_high_water=txn_high_water)
-
-    def set_sched_policy(self, **kw) -> None:
-        self.pumice.set_sched_policy(**kw)
-
-    def get_lookahead_max(self) -> int:
-        return self.pumice.get_lookahead_max()
 
     # ----- a7ddrphy calibration CSR (leveling knobs) ----------------------
     def phy_poke(self, knob: int, val: int = 1) -> None:

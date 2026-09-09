@@ -52,8 +52,11 @@ def test_pumice_device_field_ops():
     assert p.field("DFI_PHASE", "rd_phase") == 1
     p.set_page_policy(2)                       # CLOSE, via read-modify-write
     assert p.field("REFRESH_TUNING", "page_policy_or") == 2
-    p.set_scheduler(force_inorder=1)
-    assert p.field("SCHED_TUNING", "force_inorder") == 1
+    p.set_sched_policy(order_mode=1)
+    assert p.field("SCHED_POLICY", "order_mode") == 1
+    p.set_refresh(postpone=4, pullin=2)
+    assert p.field("REF_CTRL", "postpone_limit") == 4
+    assert p.field("REF_CTRL", "pullin_limit") == 2
     # attribute sugar reaches the same word
     b.mem[p.addr("STATUS")] = 1 << 0           # init_done (pumice STATUS bit 0)
     assert p.init_done() is True

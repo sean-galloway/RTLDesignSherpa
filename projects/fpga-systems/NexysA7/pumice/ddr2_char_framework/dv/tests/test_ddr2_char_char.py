@@ -123,14 +123,15 @@ async def _bringup(dut, *, init_complete_delay: int = 20):
 async def cocotb_test_char_families(dut):
     """Cross a few controller configs against a couple of access families;
     assert the mechanism + integrity. Exercises the paging-scheme switch
-    (BANK_INTERLEAVE) and the scheduler/OOO CSRs (reorder), proving they
+    (BANK_INTERLEAVE), the page policy (open_page) and the scheduling order
+    CSR (inorder = SCHED_POLICY.order_mode), proving they
     round-trip clean over the loopback. Perf ordering is NOT asserted -- the
     loopback models no DDR2 page timing (see module docstring)."""
     drv, chan, _dfi, _mem = await _bringup(dut)
 
     # Pull the SAME run definition the board CLI uses (RUN_PROFILES["smoke"]);
     # the only difference from an FPGA run is txn_scale (sim=1 for speed, the
-    # board uses ~1000). "smoke" crosses baseline/bank_interleave/reorder with
+    # board uses ~1000). "smoke" crosses baseline/bank_interleave/open_page/inorder with
     # the incremental + col_major families -- enough to exercise the
     # config-apply CSR path (scheme switch + scheduler) and the perf read-back.
     profile = os.environ.get("TEST_CHAR_PROFILE", "smoke")

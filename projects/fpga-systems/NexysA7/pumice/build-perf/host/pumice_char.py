@@ -157,8 +157,8 @@ class Scenario:
     run_matrix -- so every generator setup is exercised under every config.
     id_mode stays here because it is how the pattern gen forms AW/AR ids
     (FIXED = single id; LFSR = multi-id traffic); whether the controller then
-    returns/schedules those out of order is the config's rd_in_order /
-    force_inorder / lookahead.
+    schedules those out of order is the config's order_mode (FR-FCFS reorders
+    across the whole CAM; in_order does not), and R always returns in AR order.
     """
     name:      str
     family:    str
@@ -175,9 +175,9 @@ class Scenario:
 # =============================================================================
 # Controller configuration axis (paging / scheduling / refresh)
 # =============================================================================
-# Sentinel: request the deepest reorder window; apply() clamps to the build's
-# SCHED_TUNING.lookahead_max_obs read from the device.
-LOOKAHEAD_MAX = 0xF
+# (There is no reorder-window knob: the CAM+arbiter scheduler reorders across
+# every entry under FR-FCFS, and SCHED_POLICY.order_mode is the only lever
+# that changes that -- 1 = in_order, 3 = age_threshold.)
 
 
 @dataclass(frozen=True)
@@ -191,15 +191,14 @@ class ControllerConfig:
     name:          str
     scheme:        Optional[int] = None     # dc.SCHEME_* (paging)
     page_policy:   Optional[int] = None     # dc.PAGE_POLICY_*
-    lookahead:     Optional[int] = None     # reorder-window depth (0=off)
-    force_inorder: Optional[bool] = None    # LEGACY SCHED_TUNING bit; the RTL no longer reads it
-    order_mode:    Optional[int] = None     # SCHED_POLICY.order_mode (1=in_order, 3=age_threshold)
+    order_mode:    Optional[int] = None     # SCHED_POLICY.order_mode (0=FR-FCFS, 1=in_order, 3=age_threshold)
     age_thresh:    Optional[int] = None     # SCHED_POLICY.age_thresh (MC cycles/16)
     page_mode:     Optional[int] = None     # PAGE_POLICY_CFG.policy_mode (0=legacy)
     page_tr_init:  Optional[int] = None     # PAGE_TIMEOUT_CFG.tr_init
     page_access:   Optional[Dict[str, int]] = None  # mode 5 table (set_page_access_cfg kw)
     page_rbl:      Optional[Dict[str, int]] = None  # modes 6/7 table (set_page_rbl_cfg kw)
-    rd_in_order:   bool = True              # R-channel return ordering (harness cfg)
+    rd_in_order:   bool = True              # HARNESS check-engine R ordering (CTRLR_CFG bit; pumice R is always AR-order)
+    refresh:       Optional[Dict[str, int]] = None  # REF_CTRL (set_refresh kw: mode/postpone/pullin)
     t_refi:        Optional[int] = None      # refresh interval (MC cycles)
     # PHY data timing: MUST match the board-validated bring-up tuple
     # (TASK-BRINGUP: t_phy_wrlat=1 / t_rddata_en=6; sim loopback overrides via
@@ -251,14 +250,8 @@ class ControllerConfig:
             drv.set_page_policy(self.page_policy)
         if self.t_refi is not None:
             drv.set_refresh_interval(self.t_refi)
-        sched: Dict[str, object] = {}
-        if self.lookahead is not None:
-            la = self.lookahead
-            if la > 0:
-                la = min(la, drv.get_lookahead_max())    # HW-clamp to build max
-            sched["lookahead"] = la
-        if self.force_inorder is not None:
-            sched["force_inorder"] = self.force_inorder
+        if self.refresh is not None:
+            drv.set_refresh(**self.refresh)
         # table shape first, then the mode select (predictors read the shape
         # at entry -- see Pumice.set_page_mode)
         if self.page_access is not None:
@@ -267,93 +260,97 @@ class ControllerConfig:
             drv.set_page_rbl_cfg(**self.page_rbl)
         if self.page_mode is not None:
             drv.set_page_mode(self.page_mode, tr_init=self.page_tr_init)
-        if sched:
-            drv.set_scheduler(**sched)
         if self.order_mode is not None or self.age_thresh is not None:
             drv.set_sched_policy(order_mode=self.order_mode,
                                  age_thresh=self.age_thresh)
 
 
-# Presets -- each changes ONE main lever from `baseline` (except `reorder` /
-# `adapt_time`, the combined high-performance configs, and the *_refresh pair
-# which stress refresh bandwidth). XOR_HASH is omitted (not synthesized).
+# Presets. Every knob here is a CSR the CURRENT controller reads (2026-09-09
+# cleanup: the pre-rearchitecture lookahead / force_inorder knobs and the
+# presets that only differed by them -- reorder, lever_* -- are gone; a
+# "reorder" run is `open_page`, since FR-FCFS reorders by default).
+#
+# Levers, one per axis:
+#   scheme       ADDR_MAP.bank_lsb        ROW_MAJOR | BANK_INTERLEAVE
+#   page_policy  REFRESH_TUNING.policy_or CLOSE | OPEN   (static policies)
+#   page_mode    PAGE_POLICY_CFG.mode     4 adapt_time, 5 adapt_access, 6 rbl_static, 7 rbl_dyn
+#   order_mode   SCHED_POLICY.order_mode  0 FR-FCFS | 1 in_order | 3 age_threshold
+#   t_refi       TIMINGS_RFC_REFI.tREFI   refresh-bandwidth stress
+#   refresh      REF_CTRL                 mode / postpone / pullin credits
+# `baseline` = row-major, close-page, FR-FCFS; every other preset changes one
+# lever from it, except the predictor set, which sits on open_page (a
+# predictor's job is deciding when to close an open row).
 CONFIGS: Dict[str, ControllerConfig] = {
     "baseline": ControllerConfig(
         "baseline", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_CLOSE,
-        lookahead=0, force_inorder=False, rd_in_order=True),
+        order_mode=0, rd_in_order=True),
+    # ---- axis: address map ------------------------------------------------
     "bank_interleave": ControllerConfig(
         "bank_interleave", scheme=dc.SCHEME_BANK_INTERLEAVE,
-        page_policy=dc.PAGE_POLICY_CLOSE, lookahead=0, force_inorder=False,
-        rd_in_order=True),
+        page_policy=dc.PAGE_POLICY_CLOSE, order_mode=0, rd_in_order=True),
+    # ---- axis: page policy (static) --------------------------------------
     "open_page": ControllerConfig(
         "open_page", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_OPEN,
-        lookahead=0, force_inorder=False, rd_in_order=True),
-    # in_order = SCHED_POLICY.order_mode 1 (per-channel FIFO on the base
-    # build). force_inorder is kept only so the legacy bit is still written;
-    # the RTL reads order_mode.
-    "inorder": ControllerConfig(
-        "inorder", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_CLOSE,
-        lookahead=0, force_inorder=True, order_mode=1, rd_in_order=True),
-    # age_threshold on the reorder config: FR-FCFS until a reference is
-    # older than 16*age_thresh MC cycles, then only boosted entries issue.
-    "age_thr": ControllerConfig(
-        "age_thr", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_OPEN,
-        lookahead=LOOKAHEAD_MAX, force_inorder=False, order_mode=3, age_thresh=8,
-        rd_in_order=False),
+        order_mode=0, rd_in_order=True),
     "open_interleave": ControllerConfig(
         "open_interleave", scheme=dc.SCHEME_BANK_INTERLEAVE,
-        page_policy=dc.PAGE_POLICY_OPEN, lookahead=0, force_inorder=False,
-        rd_in_order=True),
-    "reorder": ControllerConfig(
-        "reorder", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_OPEN,
-        lookahead=LOOKAHEAD_MAX, force_inorder=False, rd_in_order=False),
-    # (was "happy_hybrid" -- the HAPPY predictor is retired; its successor is
-    # the Happy Intel-adaptive timeout policy, PAGE_POLICY_CFG.policy_mode=4.)
+        page_policy=dc.PAGE_POLICY_OPEN, order_mode=0, rd_in_order=True),
+    # ---- axis: scheduling order ------------------------------------------
+    # in_order: per-channel FIFO on the base bitstream (each CAM issues its
+    # oldest entry; the arbiter's read/write preference picks the side);
+    # global read-vs-write age order needs the PUMICE_ENHANCED build.
+    "inorder": ControllerConfig(
+        "inorder", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_CLOSE,
+        order_mode=1, rd_in_order=True),
+    "inorder_open": ControllerConfig(
+        "inorder_open", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_OPEN,
+        order_mode=1, rd_in_order=True),
+    # age_threshold: FR-FCFS until a reference is older than 16*age_thresh
+    # MC cycles, then only boosted entries issue (a starvation bound).
+    "age_thr": ControllerConfig(
+        "age_thr", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_OPEN,
+        order_mode=3, age_thresh=8, rd_in_order=True),
+    # ---- axis: page-policy predictors (Axis 2 modes 4..7, on open_page) --
     "adapt_time": ControllerConfig(
         "adapt_time", scheme=dc.SCHEME_ROW_MAJOR,
         page_policy=dc.PAGE_POLICY_OPEN, page_mode=4, page_tr_init=24,
-        lookahead=LOOKAHEAD_MAX, force_inorder=False, rd_in_order=False),
-    # Restored 2026-09-09 (were set aside for timing): per-row access
-    # predictor and the RBLA miss-counter table, both on the reorder config.
+        order_mode=0, rd_in_order=True),
     # Sim-validated shapes: acc ctr_open_max=2/ctr_init=0 (test_pumice_core_acc),
     # rbl miss_thresh=2 no epochs (test_pumice_core_rbl); rbl_dyn wants epochs.
     "adapt_access": ControllerConfig(
         "adapt_access", scheme=dc.SCHEME_ROW_MAJOR,
         page_policy=dc.PAGE_POLICY_OPEN, page_mode=5,
         page_access={"ctr_open_max": 2, "ctr_init": 0},
-        lookahead=LOOKAHEAD_MAX, force_inorder=False, rd_in_order=False),
+        order_mode=0, rd_in_order=True),
     "rbl_static": ControllerConfig(
         "rbl_static", scheme=dc.SCHEME_ROW_MAJOR,
         page_policy=dc.PAGE_POLICY_OPEN, page_mode=6,
         page_rbl={"miss_thresh": 2, "ways_log2": 0, "sets_log2": 0, "reset_interval": 0},
-        lookahead=LOOKAHEAD_MAX, force_inorder=False, rd_in_order=False),
+        order_mode=0, rd_in_order=True),
     "rbl_dyn": ControllerConfig(
         "rbl_dyn", scheme=dc.SCHEME_ROW_MAJOR,
         page_policy=dc.PAGE_POLICY_OPEN, page_mode=7,
         page_rbl={"miss_thresh": 2, "ways_log2": 0, "sets_log2": 0, "reset_interval": 256},
-        lookahead=LOOKAHEAD_MAX, force_inorder=False, rd_in_order=False),
+        order_mode=0, rd_in_order=True),
+    # ---- axis: refresh ----------------------------------------------------
     "fast_refresh": ControllerConfig(
         "fast_refresh", scheme=dc.SCHEME_ROW_MAJOR,
-        page_policy=dc.PAGE_POLICY_CLOSE, t_refi=0x0100, rd_in_order=True),
+        page_policy=dc.PAGE_POLICY_CLOSE, order_mode=0, t_refi=0x0100,
+        rd_in_order=True),
     "slow_refresh": ControllerConfig(
         "slow_refresh", scheme=dc.SCHEME_ROW_MAJOR,
-        page_policy=dc.PAGE_POLICY_CLOSE, t_refi=0x7FFF, rd_in_order=True),
-    # ---- #42 lever-isolation configs (each = baseline + ONE reorder lever) --
-    "lever_open": ControllerConfig(
-        "lever_open", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_OPEN,
-        lookahead=0, force_inorder=False, rd_in_order=True),
-    "lever_lookahead": ControllerConfig(
-        "lever_lookahead", scheme=dc.SCHEME_ROW_MAJOR,
-        page_policy=dc.PAGE_POLICY_CLOSE, lookahead=LOOKAHEAD_MAX,
-        force_inorder=False, rd_in_order=True),
-    "lever_rdooo": ControllerConfig(
-        "lever_rdooo", scheme=dc.SCHEME_ROW_MAJOR,
-        page_policy=dc.PAGE_POLICY_CLOSE, lookahead=0, force_inorder=False,
-        rd_in_order=False),
+        page_policy=dc.PAGE_POLICY_CLOSE, order_mode=0, t_refi=0x7FFF,
+        rd_in_order=True),
+    # JEDEC refresh credits: postpone up to 8 under demand, pull in up to 8
+    # on idle (REF_CTRL) -- the refresh-elasticity lever vs strict tREFI.
+    "refresh_credit": ControllerConfig(
+        "refresh_credit", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_CLOSE, order_mode=0,
+        refresh={"postpone": 8, "pullin": 8}, rd_in_order=True),
 }
 BASELINE = CONFIGS["baseline"]
-# The default matrix isolates the main levers (scheme, page policy, reorder).
-DEFAULT_MATRIX = ["baseline", "bank_interleave", "open_page", "inorder", "reorder"]
+# The default matrix isolates one lever per axis (map, page policy, order).
+DEFAULT_MATRIX = ["baseline", "bank_interleave", "open_page", "inorder", "age_thr"]
 
 
 def resolve_configs(spec) -> List[ControllerConfig]:
@@ -650,9 +647,9 @@ def build_suite(level: str = "medium", txn_scale: int = 1,
 
     # Generator-side stress variants. Multi-id (id_mode=LFSR) creates the
     # out-of-order-capable traffic; whether it is actually reordered is the
-    # controller config's job (rd_in_order / force_inorder / lookahead), so the
-    # matrix cross of these against the `reorder`/`inorder` configs is what
-    # exercises OOO. The gap variant probes idle-recovery. (Only added when
+    # controller config's job (order_mode), so the matrix cross of these
+    # against the `open_page`/`inorder` configs is what exercises OOO. The
+    # gap variant probes idle-recovery. (Only added when
     # their family is in scope.)
     if level in ("medium", "full") and FAM_COL_MAJOR in fams:
         suite.append(Scenario(name="col_major_bl8_multiid", family=FAM_COL_MAJOR,
@@ -722,19 +719,15 @@ def run_suite(drv: DDR2CharDriver, *, level: str = "medium", txn_scale: int = 1,
 RUN_PROFILES: Dict[str, dict] = {
     # Sim CI + quick board check: covers the config-apply path (scheme switch +
     # scheduler CSRs) and the best-case/worst-case access patterns. Small.
-    "smoke": dict(configs=["baseline", "bank_interleave", "reorder"],
+    "smoke": dict(configs=["baseline", "bank_interleave", "open_page", "inorder"],
                   level="basic", families=(FAM_INCREMENTAL, FAM_COL_MAJOR)),
     # The isolating config matrix over the full family/burst grid.
     "matrix": dict(configs=DEFAULT_MATRIX, level="medium", families=None),
-    # Minimal #42 repro: the reorder config x col_major only (the deterministic
-    # two-burst-swap sim failure) — tight wave-debug iteration.
-    "reorder_min": dict(configs=["reorder"], level="basic",
-                        families=(FAM_COL_MAJOR,)),
+    # Minimal repros: one config x col_major only -- tight wave-debug iteration.
+    "open_min": dict(configs=["open_page"], level="basic",
+                     families=(FAM_COL_MAJOR,)),
     "baseline_min": dict(configs=["baseline"], level="basic",
                          families=(FAM_COL_MAJOR,)),
-    # one lever at a time vs the reorder failure
-    "levers": dict(configs=["lever_lookahead", "lever_rdooo", "lever_open"],
-                   level="basic", families=(FAM_COL_MAJOR,)),
     # PUMICE-020 repro: the multiid (LFSR-id) scenario only — medium level is
     # what adds col_major_bl8_multiid to the suite. baseline config; the 1:1
     # hist-vs-txn_count check is the assertion under investigation.
@@ -747,9 +740,12 @@ RUN_PROFILES: Dict[str, dict] = {
                    level="basic", families=(FAM_INCREMENTAL, FAM_COL_MAJOR)),
     # Axis-1 order modes on the base build: per-channel in_order vs
     # age_threshold vs plain reorder, streaming vs page-thrash.
-    "order": dict(configs=["reorder", "inorder", "age_thr"],
+    "order": dict(configs=["open_page", "inorder", "inorder_open", "age_thr"],
                   level="basic", families=(FAM_INCREMENTAL, FAM_COL_MAJOR)),
-    # Everything: every preset (incl. refresh + adapt_time) x the full grid.
+    # Refresh elasticity: strict vs credited vs the tREFI extremes.
+    "refresh": dict(configs=["baseline", "refresh_credit", "fast_refresh", "slow_refresh"],
+                    level="basic", families=(FAM_INCREMENTAL, FAM_COL_MAJOR)),
+    # Everything: every preset x the full grid.
     "full": dict(configs="all", level="full", families=None),
 }
 
