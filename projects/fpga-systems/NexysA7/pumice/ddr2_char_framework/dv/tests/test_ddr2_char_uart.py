@@ -290,6 +290,11 @@ async def cocotb_test_uart_pagehit(dut):
         drv.set_dfi_phase(rd_phase=int(os.environ.get("TEST_RD_PHASE", "0")),
                           wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
                           gear_ratio=GEAR_RATIO, bl=DRAM_BL)
+        # Read-data realign tap (harness DFI_TUNING.rddata_delay): delays
+        # dfi_rddata to meet a LATE rddata_valid. 0 = passthrough, which is
+        # what every case here ran at until 2026-09-09; the knob is reachable
+        # now so the valid/data alignment window can be swept from a test.
+        drv.set_dfi_rddata_delay(int(os.environ.get("TEST_RDDATA_DELAY", "0")))
         seed = 0xABCD1234
         stride = 4 * 8   # BL * bytes_per_beat -> consecutive columns, same row
         drv.program_wr_engine(start_addr=0x0, burst_len=4, txn_count=NTXN,
@@ -853,14 +858,20 @@ def test_ddr2_char_uart_pagehit_rate2_x16_free(request):
 
 
 def test_ddr2_char_uart_pagehit_rate2_x16_free_earlyen(request):
-    # POSITIVE: an EARLY rddata_en->valid strobe (valid_lat 6 vs data anchored
-    # at read_latency 8) is ABSORBED -- the read path pairs the return with its
-    # ticket by issue order, so a valid that leads the data still lands in the
-    # right slot. This was a strict-xfail negative model until 2026-09-09, when
-    # it started XPASSing: a latency sweep (5,6,7 clean / 8,10,12 mismatched)
-    # showed the tolerance window had widened past this point, so the case now
-    # pins the behaviour instead of asserting a fault that no longer occurs.
-    # The fault the metric MUST still see is the late-enable model below.
+    # POSITIVE, mid-window. Full sweep of the valid strobe against data
+    # anchored at read_latency=8, realign tap 0 (2026-09-09):
+    #
+    #   valid_lat   0  1  2  3 | 4  5  6  7 | 8  10  12
+    #   result      X  X  X  X | ok ok ok ok| X   X   X
+    #
+    # The capture window is a 4-cycle BAND, not a tolerance for an early
+    # strobe. Its edges are physical: below 4 the strobe precedes the data
+    # (t_rddata_en=4 + valid_lat vs data at 8 -- nothing on the bus to capture
+    # yet), and at 8 the next pipelined page-hit read has already overwritten
+    # the held DQ bus. This case was a strict-xfail negative model until it
+    # began XPASSing; the window is centred where it should be, so it now pins
+    # the behaviour rather than asserting a fault that cannot occur. Both
+    # edges are pinned below, and the real fault by the late-enable model.
     _run(request, "cocotb_test_uart_pagehit", dfi_rate=2, dram_beat_width=32,
          dram_device_width=16, strict_write_timing=True, write_latency=0,
          strict_read_timing=True, read_latency=8, t_phy_wrlat=0,
@@ -868,17 +879,29 @@ def test_ddr2_char_uart_pagehit_rate2_x16_free_earlyen(request):
 
 
 def test_ddr2_char_uart_pagehit_rate2_x16_free_earlyen_edge(request):
-    # The far edge of the measured tolerance window (valid_lat 7). Pins it, so
-    # a change that NARROWS the window fails here rather than silently eating
-    # the margin the board's t_rddata_en/rddata_delay tuple is trimmed against.
+    # UPPER edge of the capture window (valid_lat 7): the last cycle before the
+    # next read overwrites the bus. Pinned so a change that NARROWS the window
+    # fails here rather than silently eating the margin the board's
+    # t_rddata_en/rddata_delay tuple is trimmed against.
     _run(request, "cocotb_test_uart_pagehit", dfi_rate=2, dram_beat_width=32,
          dram_device_width=16, strict_write_timing=True, write_latency=0,
          strict_read_timing=True, read_latency=8, t_phy_wrlat=0,
          a7_read_free=True, a7_read_valid_lat=7)
 
 
+def test_ddr2_char_uart_pagehit_rate2_x16_free_earlyen_lowedge(request):
+    # LOWER edge of the capture window (valid_lat 4): the strobe coincides with
+    # data arrival. Pinned so a change that shifts the window UP -- which would
+    # eat the margin on the early side without any test noticing -- fails here.
+    _run(request, "cocotb_test_uart_pagehit", dfi_rate=2, dram_beat_width=32,
+         dram_device_width=16, strict_write_timing=True, write_latency=0,
+         strict_read_timing=True, read_latency=8, t_phy_wrlat=0,
+         a7_read_free=True, a7_read_valid_lat=4)
+
+
 @pytest.mark.xfail(strict=True, reason="deliberate valid/data decoupling "
-                   "(valid_lat=10, outside the measured tolerance window) must "
+                   "(valid_lat=10, past the point where the next pipelined "
+                   "read overwrites the held DQ bus) must "
                    "be SEEN as mismatches. On the board this class is aligned "
                    "by the t_rddata_en/rddata_delay tuple, not RTL — see "
                    "TASK-BRINGUP.")
@@ -886,8 +909,11 @@ def test_ddr2_char_uart_pagehit_rate2_x16_free_lateen(request):
     # NEGATIVE model (strict xfail): the rddata_en->valid strobe decoupled the
     # OTHER way -- valid trails the data-anchored cadence -> read N's data lands
     # in read N+1's slot (beats_mismatched == 2*txn, the historical ILA
-    # signature). Replaces the valid_lat=6 negative model, which the read path
-    # now absorbs; 10 is two cycles clear of the measured boundary at 8.
+    # signature). Replaces the valid_lat=6 negative model, which sits INSIDE
+    # the capture window; 10 is two cycles clear of the boundary at 8. NOT
+    # recoverable by the read-data realign tap: swept sel 0..15 at this
+    # latency and every one still mismatches, so this is a real misalignment
+    # the metric must keep seeing, not a knob left untrimmed.
     _run(request, "cocotb_test_uart_pagehit", dfi_rate=2, dram_beat_width=32,
          dram_device_width=16, strict_write_timing=True, write_latency=0,
          strict_read_timing=True, read_latency=8, t_phy_wrlat=0,

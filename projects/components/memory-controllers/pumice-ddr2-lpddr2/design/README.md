@@ -1065,14 +1065,23 @@ something. Measured, not argued:
        a7_read_valid_lat   5   6   7   8   10  12
        result             ok  ok  ok  MISM MISM MISM   (read_latency = 8)
 
-   The read path absorbs an early valid up to lat 7 and the check still flags
-   everything at 8 and beyond. The tolerance window simply widened past the
-   model's calibration point -- the return ring pairs a DFI return with its
-   ticket by ISSUE ORDER, so a valid that leads the data still lands in the
-   right slot. Fix: the lat-6 case becomes a positive test that pins the
-   absorption, a new `_edge` case pins the far edge at 7 so a narrowing of the
-   window fails loudly, and the strict-xfail negative model moves to lat 10,
-   two cycles clear of the boundary.
+   CORRECTION to the first reading of this: it is not "the design tolerates an
+   early strobe". Sweeping the full range gives a 4-cycle BAND --
+
+       valid_lat   0  1  2  3 | 4  5  6  7 | 8  10  12
+       result      X  X  X  X | ok ok ok ok| X   X   X
+
+   -- and both edges are physical. Below 4 the strobe precedes the data
+   (t_rddata_en=4 + valid_lat against data anchored at read_latency=8: there
+   is nothing on the bus yet). At 8 the next pipelined page-hit read has
+   already overwritten the held DQ bus. The window is centred exactly where a
+   correct PHY contract puts it, and the metric flags everything outside it.
+   The late side is NOT recoverable by the read-data realign tap either: the
+   full sel 0..15 sweep at valid_lat=10 mismatches at every tap, so those
+   points are a genuine misalignment rather than an untrimmed knob. Fix: the
+   lat-6 case becomes a positive mid-window test, `_edge` (7) and `_lowedge`
+   (4) pin both edges so a window that shifts or narrows fails loudly, and the
+   strict-xfail negative model moves to lat 10.
 
 2. PUMICE-021's in_order floor is a MISCALIBRATED FLOOR. Discriminator across
    the eight paging modes under in_order is exact: every mode that drives
