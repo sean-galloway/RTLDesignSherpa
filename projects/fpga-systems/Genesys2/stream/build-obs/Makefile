@@ -71,7 +71,10 @@ export STREAM_VCO_MHZ        ?= 1200
 export STREAM_CLKOUT0_DIVIDE ?= 20
 
 # ---- Build geometry (Vivado generics) --------------------------------------
-# FOUR channels, not the design point's eight. obs is the only flavour that
+# FOUR channels, not the perf design point's eight. The channel requirement
+# belongs to the perf flavour; obs exists to exercise the monitor code through
+# the interface observers, and how many channels feed them is incidental
+# (owner, 2026-09-09). obs is the only flavour that
 # builds both observers with every monitor cone, and it has outgrown the
 # xc7k325t: 8ch synthesizes at 99.3% of the LUTs and the placer fails
 # (measured 2026-09-07 with the 64-entry CAM at 100.01%, and again 2026-09-09
