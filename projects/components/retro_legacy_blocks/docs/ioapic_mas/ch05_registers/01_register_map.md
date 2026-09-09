@@ -42,20 +42,17 @@ Two transactions for every internal register access. Yes, it's clunky. Yes, it's
 | --- | --- | --- | --- | --- |
 | 0x000 | IOREGSEL | RW | 0x00 | Register offset selector (0x00-0x3F) |
 | 0x004 | IOWIN | RW | 0x00000000 | Data window for selected internal register |
-| 0x008 | IOAPICID | RW | 0x00000000 | Direct decode of the internal register file |
-| 0x00C | IOAPICVER | RO | 0x00170011 | Direct decode |
-| 0x010 | IOAPICARB | RO | 0x00000000 | Direct decode |
-| 0x014-0x0D0 | IOREDTBL[n] LO/HI | RW | see below | Direct decode: LO at 0x014+8n, HI at 0x018+8n (n = 0-23; IRQ23 HI at 0x0D0) |
-| 0x0D4-0x0FF | Unmapped | - | - | Reads return 0; no error is raised |
-| 0x100-0xFFF | ALIASES | - | - | Only addr[7:0] reaches the register block (bit 8+ truncated), so the whole file repeats every 256 bytes: 0x108 hits IOAPICID, 0x114 hits IOREDTBL[0] LO, 0x104 hits the dead IOWIN storage. Stray accesses here read/corrupt live registers |
+| 0x008-0x0FF | Not decoded | - | - | Dropped before the register block and acknowledged locally with PSLVERR; reads return 0, writes touch nothing. There is no direct path to the internal register file |
+| 0x100-0xFFF | Not decoded | - | - | Same treatment: dropped with PSLVERR, reads return 0. (Fixed 2026-09-09, issue #48: these used to alias onto 0x000-0x0FF every 256 bytes) |
 
-**Direct access note:** the address translation in `ioapic_config_regs.sv` only
-remaps accesses to APB 0x004 (IOWIN); every other address passes through to the
-register file unchanged. The internal registers are therefore also directly
-accessible at APB 0x008-0x0D0, bypassing IOREGSEL/IOWIN entirely. Intel
-82093AA-compatible software will never touch these addresses, but they are live,
-not reserved. The indirect IOREGSEL/IOWIN pair remains the architecturally
-portable access method.
+**No direct path to the register block.** IOREGSEL and IOWIN are the only two
+software-visible addresses in the 4 KB window - 82093AA semantics. Every other
+address, 0x008 upward, inside the first 256 bytes as much as above them, is
+dropped in `ioapic_config_regs.sv` before the register block ever sees it: the
+write is ignored, the read returns 0, and the access is answered with PSLVERR.
+IOAPICID, IOAPICVER, IOAPICARB and the redirection table are reachable only
+through the IOREGSEL/IOWIN pair. The one dropped access that does not raise
+PSLVERR is an IOWIN access with an unmapped selector, described next.
 
 ### IOREGSEL Register (APB 0x000)
 
@@ -70,28 +67,34 @@ portable access method.
 - 0x02: IOAPICARB
 - 0x10-0x3F: IOREDTBL entries (even=LO, odd=HI)
 
-**Invalid selector values alias to IOREGSEL itself.** For a selector in
-0x03-0x0F or at or above 0x40, the address translation steers the IOWIN access
-to APB 0x000. The RTL keeps TWO copies of the selector (a functional shadow
-that drives translation, and the register-block copy that drives readback),
-and this path updates only the READBACK copy: after an invalid-selector
-IOWIN write, reading IOREGSEL returns the garbage just written while IOWIN
-still accesses the previously selected internal register. The copies also
-diverge on byte-enable handling (the shadow ignores strobes). Tracked as an
-RTL issue (#48); software must not rely on invalid selectors being ignored -
-always load a valid selector before touching IOWIN.
+**Unmapped selector values are stored, readable, and inert.** A selector in
+0x03-0x0F or at or above 0x40 is accepted by IOREGSEL and reads back as
+written (there is exactly one copy of the selector - the register block's
+`regsel` field drives both readback and the IOWIN translation, and byte
+strobes are honoured by the register block). An IOWIN access made while the
+selector is unmapped is dropped: reads return 0, writes touch nothing, no
+PSLVERR (the address is legal; the selector merely names a register the
+82093AA does not implement). The selector itself is unaffected by the
+dropped access. (Fixed 2026-09-09, issue #48: a second, functional copy of
+the selector used to diverge from the readback copy on this path.)
 
-**Mask before reprogramming polarity or trigger mode.** Toggling
-INTPOL or the trigger mode on a live input flips the internal active
-level and can manufacture a spurious edge, latching a phantom pending
-interrupt. Set the mask bit, reprogram, clear pending if needed, then
-unmask (same caveat as the real 82093AA).
+**Changing polarity on an idle pin is safe; mask before changing trigger
+mode.** Flipping INTPOL inverts the internal active level, which would read
+as a rising edge - so the edge detector for that pin is suppressed for one
+cycle after the polarity bit changes, and the flip itself never latches a
+pending interrupt. Switching trigger mode on a live input has no such guard:
+an asserted input that becomes level-triggered is delivered at once, which
+is correct but may not be what you intended. Set the mask bit, reprogram,
+then unmask (same sequence the real 82093AA asks for).
 
-**A lost or wrong-vector EOI stalls ALL delivery.** There is one global
-delivery engine, and WAIT_EOI exits only on an EOI matching the latched
-vector -- if software EOIs the wrong vector or never EOIs, no further
-interrupt (any IRQ, any mode) is ever delivered until reset. A real
-82093AA blocks only the affected pin (design limitation, #48).
+**A lost or wrong-vector EOI blocks only its own pin.** Accepting a level
+interrupt sets that pin's Remote IRR and frees the delivery stage at once;
+the pin stays out of arbitration until an EOI carrying the vector it was
+delivered arrives, and every other pin keeps delivering meanwhile. If
+software EOIs the wrong vector or never EOIs, that one input is blocked
+until the right EOI arrives, or until it is reprogrammed through a reset -
+the same behaviour as the 82093AA. (Fixed 2026-09-09, issue #48: the old
+engine froze every IRQ in the block on one lost EOI.)
 
 ### IOWIN Register (APB 0x004)
 
@@ -213,29 +216,41 @@ uint8_t offset_hi = 0x10 + (n * 2) + 1;  // Odd offset
 - **1 (Logical):** Use Destination field as logical destination (future)
 
 **Delivery Status [12] (Read-Only):**
-- **0 (Idle):** No delivery in progress for this IRQ
-- **1 (Send Pending):** Interrupt being delivered or waiting for EOI
-- Hardware-controlled, indicates interrupt delivery state
+- **0 (Idle):** This IRQ is not in the delivery stage
+- **1 (Send Pending):** This IRQ is presented on `irq_out_valid` and not yet
+  accepted. It drops on the accept; a level interrupt waiting for its EOI
+  shows in Remote IRR, not here
+- Hardware-controlled, at most one IRQ reports Send Pending at a time
 
 **Polarity [13]:**
 - **0 (Active High):** IRQ asserted when input is high
 - **1 (Active Low):** IRQ asserted when input is low
 - Allows direct connection to active-low interrupt sources
+- Changing this bit does not fabricate an edge: the pin's edge detector is
+  suppressed for one cycle after the polarity bit changes, so software may
+  flip polarity on an idle pin without a spurious interrupt
 
 **Remote IRR [14] (Read-Only, Level Mode Only):**
 - **0:** No interrupt or interrupt serviced
 - **1:** Level interrupt accepted by CPU, waiting for EOI
 - Only meaningful for level-triggered interrupts
-- Prevents re-triggering until EOI received
-- Cleared by EOI, set when interrupt delivered
+- Prevents re-triggering of this pin until EOI received; other pins are not
+  affected
+- Set when the CPU accepts the delivery (`irq_out_valid && irq_out_ready`),
+  not when it is presented - an EOI that arrives before the accept is
+  dropped
+- Cleared by an EOI whose vector equals the vector that was *delivered* for
+  this pin (latched at accept), not the RTE's current vector field
+- The compare runs on every pin at once: one EOI clears Remote IRR on *every*
+  pin whose delivered vector matches, so two pins sharing a vector both leave
+  service on one EOI (82093AA behaviour)
 
-**Programming restriction - do not rewrite an RTE's vector while its interrupt
-is in flight** (delivered but not yet EOI'd). The Remote IRR clear compares the
-incoming EOI vector against the RTE's *current* vector field, while the CPU
-EOIs the vector it was *delivered*. If software changes the vector in that
-window, the EOI no longer matches, Remote IRR never clears, and that
-level-triggered input is blocked from further delivery until reset. Mask the
-IRQ and wait for Remote IRR to read 0 before reprogramming its vector.
+**Rewriting an RTE's vector while its interrupt is in flight is safe.** The
+CPU EOIs the vector it was delivered, and that is what the clear compares
+against, so the EOI still lands; the next delivery of the pin uses the new
+vector. (Fixed 2026-09-09, issue #48: the clear used to compare against the
+live RTE field, which turned a mid-service rewrite into a permanently
+blocked pin and forced a mask-and-wait rule on software.)
 
 **Trigger Mode [15]:**
 - **0 (Edge):** Interrupt on rising edge of active signal

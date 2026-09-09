@@ -118,3 +118,35 @@ rather than moving these along with the sources.
 through `bin/peakrdl_generate.py` rather than hand-editing any generated
 output -- it emits RTL, docs and regmap in lockstep, and a raw `peakrdl
 regblock` desyncs the regmap. Run the RLB tests afterwards.
+
+### RLB-008: IOAPIC features deferred past the #48 fix
+
+**Priority:** P3. The block is functionally complete for its MVP scope and
+36/36 green in all six configurations; nothing here is a defect.
+**Status:** open 2026-09-09. Raised while closing issue #48. These items were
+the surviving content of `rtl/ioapic/TODO.md`, which was deleted with that fix
+along with `INTERRUPT_DELIVERY_DEBUG.md` -- both described the delivery FSM
+that the #48 fix removed, so keeping them in sync would have meant rewriting
+two stale trackers next to the code instead of recording the open work here.
+
+**Deferred by design (82093AA features the MVP does not implement):**
+
+- Logical destination mode. `dest_mode` is stored in the RTE and forwarded to
+  the core, which ignores it -- `cfg_dest_mode` is deliberately unused and
+  shows as UNUSEDSIGNAL in lint. Physical delivery only.
+- LowestPriority delivery mode: needs CPU priority tracking the block has no
+  interface for. The mode bits are carried on `irq_out_deliv_mode` unmodified,
+  so SMI/NMI/INIT/ExtINT are already "supported" in the sense the DV suite
+  tests -- the IOAPIC forwards them, it does not act on them.
+- Dynamic priority rotation. Arbitration is static, lowest IRQ number wins,
+  and a continuously asserted high-priority level pin can starve the rest
+  whenever software EOIs it promptly. Round-robin would fix it; that is a
+  behaviour change, not a bug fix, so it is not being smuggled into #48.
+- Multi-IOAPIC routing, boot-interrupt (INIT-SIPI-SIPI) delivery, MSI/MSI-X.
+
+**Worth doing sooner than the rest:** the starvation note above deserves a
+directed test before anyone relies on the priority scheme, and
+`ioapic_regs.rdl` fixes the table at 24 entries while `ioapic_core` scales
+with NUM_IRQS -- the mismatch is caught today only by a simulation-time
+`$error` in `ioapic_config_regs`. Making the RDL entry count generated from
+the same parameter would remove the guard's reason to exist.

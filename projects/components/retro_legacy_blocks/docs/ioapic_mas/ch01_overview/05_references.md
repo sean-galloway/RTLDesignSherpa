@@ -52,7 +52,7 @@ Everything this spec leans on: the standards, the sibling RLB documents, the too
 ### Related RLB Documentation
 
 **Module-Specific:**
-- `../../rtl/ioapic/TODO.md` - Implementation tasks and enhancements
+- `../../rtl/ioapic/README.md` - Block summary; deferred features are RLB-008 in `vault/Tasks/RLB/open.md`
 - `../../rtl/ioapic/peakrdl/README.md` - PeakRDL register generation guide
 - `../../rtl/ioapic/peakrdl/ioapic_regs.rdl` - SystemRDL source specification
 

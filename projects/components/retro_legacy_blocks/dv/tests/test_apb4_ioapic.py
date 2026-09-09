@@ -46,6 +46,7 @@ sys.path.insert(0, repo_root)
 # Import from PROJECT AREA (not framework!)
 from projects.components.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_tb import IOAPICTB, IOAPICRegisterMap
 from projects.components.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_tests_basic import IOAPICBasicTests
+from projects.components.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_tests_medium import IOAPICMediumTests
 
 
 @cocotb.test(timeout_time=500, timeout_unit="us")
@@ -75,8 +76,9 @@ async def ioapic_test(dut):
     tb.log.info(f"Starting {test_level.upper()} IOAPIC test...")
     tb.log.info(f"Configuration: {tb.num_irqs} IRQs with redirection table")
 
-    # Create test suite
+    # Create test suites
     basic_tests = IOAPICBasicTests(tb)
+    medium_tests = IOAPICMediumTests(tb)
 
     # Run all tests - test list varies by test level
     results = []
@@ -95,6 +97,13 @@ async def ioapic_test(dut):
     medium_test_methods = [
         ('Level-Triggered Interrupt', basic_tests.test_level_triggered_interrupt),
         ('Polarity Inversion', basic_tests.test_polarity_inversion),
+        # GitHub #48 defect-regression: expected RED against current RTL
+        ('GH48 C1 Edge Double-Delivery Count', medium_tests.test_c1_edge_double_delivery_count),
+        ('GH48 C1 No Park After Single Ready Pulse', medium_tests.test_c1_no_park_after_single_ready_pulse),
+        ('GH48 IOREGSEL Invalid-Selector Readback', medium_tests.test_ioregsel_invalid_selector_readback),
+        ('GH48 Address Decode No Aliasing >= 0x100', medium_tests.test_address_decode_no_aliasing_above_0x100),
+        # Review finding M1: in-window backdoor (0x008-0x0FF), expected RED
+        ('GH48 M1 APB In-Window Backdoor Dropped With PSLVERR', medium_tests.test_apb_backdoor_dropped_with_slverr),
     ]
 
     # Full tests (full level only)
@@ -120,6 +129,14 @@ async def ioapic_test(dut):
         ('EOI Broadcast Behavior', basic_tests.test_eoi_broadcast),
         ('IOAPIC ID Programming', basic_tests.test_ioapic_id_programming),
         ('Arbitration ID Read', basic_tests.test_arbitration_id_read),
+        # GitHub #48 defect-regression: expected RED against current RTL
+        ('GH48 Per-Pin Block (edge B) + EOI Redelivery', medium_tests.test_per_pin_block_edge_b_and_eoi_redelivery),
+        ('GH48 Per-Pin Block (level B) + EOI Clears', medium_tests.test_per_pin_block_level_b_and_eoi_clears),
+        ('GH48 Wrong-Vector EOI Does Not Stall B', medium_tests.test_wrong_vector_eoi_does_not_stall_b),
+        ('GH48 EOI-During-DELIVER Does Not Wedge', medium_tests.test_eoi_during_deliver_does_not_wedge),
+        ('GH48 RTE Vector Rewrite Mid-Delivery', medium_tests.test_rte_vector_rewrite_mid_delivery),
+        # GitHub #48 item 9: informational, NOT expected to go RED (see docstring)
+        ('GH48 CDC EOI Single-pclk-Cycle Honored', medium_tests.test_cdc_eoi_single_pclk_cycle_honored),
     ]
 
     # Select test methods based on level
@@ -218,6 +235,16 @@ def test_ioapic(request, cdc_enable, test_level, description):
         'CDC_ENABLE': str(cdc_enable),
     }
 
+    # Clock periods: pclk is fixed at 10ns. When CDC_ENABLE=1, ioapic_clk runs
+    # at a non-unity, non-integer ratio to pclk (10ns:7ns, same convention as
+    # gpio_tb.py's TEST_GPIO_CLOCK_PERIOD) so eoi_in/eoi_vector - which have no
+    # synchronizer into the ioapic_clk domain (GitHub #48 qc round_3, item 2) -
+    # actually cross a real clock-domain boundary instead of running
+    # edge-aligned. When CDC_ENABLE=0 the RTL ties the core/config-regs clock
+    # to pclk, so ioapic_clk must match pclk exactly.
+    apb_clock_period_ns = 10
+    ioapic_clock_period_ns = 7 if cdc_enable else apb_clock_period_ns
+
     # Environment variables
     extra_env = {
         'TRACE_FILE': f"{sim_build}/dump.fst",
@@ -228,6 +255,11 @@ def test_ioapic(request, cdc_enable, test_level, description):
         'COCOTB_RESULTS_FILE': results_path,
         'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_LEVEL': test_level,
+
+        # DUT-specific parameters
+        'TEST_CDC_ENABLE': str(cdc_enable),
+        'TEST_APB_CLOCK_PERIOD': str(apb_clock_period_ns),
+        'TEST_IOAPIC_CLOCK_PERIOD': str(ioapic_clock_period_ns),
     }
 
     # WAVES support

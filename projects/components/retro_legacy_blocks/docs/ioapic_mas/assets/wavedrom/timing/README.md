@@ -33,9 +33,9 @@ This directory contains WaveDrom timing diagrams for IOAPIC (I/O Advanced Progra
 - `eoi_vector` - Vector being acknowledged
 
 **IOAPIC Core (Internal):**
-- **Index Register:** `ioregsel_value` (the functional shadow copy)
+- **Index Register:** `IOREGSEL.regsel` (the one selector copy, in the register block)
 - **Redirection Table:** `rte[n].vector`, `rte[n].dest`, `rte[n].mask`, `rte[n].trigger`
-- **IRQ State:** `irr[n]`, `remote_irr[n]`, `delivery_pending`
+- **IRQ State:** `irr[n]` (edge pending latch), `remote_irr[n]`, `r_out_valid` (delivery stage)
 
 ## Waveforms
 
@@ -57,12 +57,12 @@ Shows two-step indirect register access:
 
 **3. Level-Triggered Interrupt:**
 Shows level mode with EOI requirement:
-1. IRQ asserts, IRR set
-2. Interrupt delivered, Remote IRR set
-3. Remote IRR blocks re-delivery while set
-4. CPU sends EOI broadcast when handler completes
+1. IRQ asserts; the synchronized level is the request
+2. Interrupt delivered; the CPU's accept sets Remote IRR and frees the stage
+3. Remote IRR blocks re-delivery of this pin while set (other pins unaffected)
+4. CPU sends EOI with the delivered vector when handler completes
 5. IOAPIC clears Remote IRR
-6. If IRQ still asserted, re-delivers
+6. If IRQ still asserted, re-delivers, once
 
 **4. Interrupt Masking:**
 Shows masked interrupt behavior:
@@ -113,7 +113,7 @@ done
 | 11 | Dest Mode | Physical (0) or Logical (1) |
 | 12 | Delivery Status | Idle (0) or Send Pending (1) |
 | 13 | Pin Polarity | Active High (0) or Active Low (1) |
-| 14 | Remote IRR | Level-triggered: set on delivery, cleared on EOI |
+| 14 | Remote IRR | Level-triggered: set when the delivery is accepted, cleared by an EOI carrying the delivered vector |
 | 15 | Trigger Mode | Edge (0) or Level (1) |
 | 16 | Mask | Masked (1) or Not Masked (0) |
 | 63:56 | Destination | APIC ID (physical) or set (logical) |

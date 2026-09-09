@@ -23,7 +23,7 @@
 
 # I/O Advanced Programmable Interrupt Controller (IOAPIC)
 
-**Status:** 📋 Planned - Structure Created
+**Status:** Implemented - 37/37 in all six DV configurations (2026-09-09)
 **Priority:** Medium
 **Address:** `0x4000_6000 - 0x4000_6FFF` (4KB window)
 
@@ -31,51 +31,70 @@
 
 ## Overview
 
-I/O APIC CSR model (register-based interface) for advanced interrupt routing.
+Intel 82093AA-compatible interrupt router: 24 IRQ inputs, a programmable
+redirection table reached through the IOREGSEL/IOWIN indirect window, and a
+single valid/ready delivery interface to the CPU/LAPIC.
 
-## Planned Features
+## What is implemented
 
-- I/O APIC CSR model (register-based interface)
-- Multiple interrupt inputs (24+)
-- Programmable interrupt routing
-- Edge and level triggered modes
-- Priority-based arbitration
-- Interrupt masking per input
-- APB register interface for configuration
-- Redirection table entries
+- 24 IRQ inputs, asynchronous, three-stage synchronized in `ioapic_core`
+- Edge and level trigger modes, active-high/active-low polarity, per-pin mask
+- Static-priority arbitration: lowest IRQ number wins
+- One outstanding delivery on a valid/ready handshake - no delivery FSM
+- Per-pin Remote IRR: a level interrupt blocks ITS OWN pin until EOI, other
+  pins keep delivering, and a lost or wrong-vector EOI cannot stall the block
+- EOI matched against the vector actually DELIVERED on that pin, so an RTE may
+  be re-pointed between delivery and EOI
+- IOREGSEL/IOWIN indirect access. Only APB `0x000` (IOREGSEL) and `0x004`
+  (IOWIN) are software-visible in the 4 KB window; the indirect pair is the
+  only path to the register file. Three classes of access never reach the
+  register block:
+  - an address above `0x0FF` - dropped, PSLVERR (it would otherwise alias onto
+    the 8-bit register address modulo `0x100`)
+  - an address inside `0x000-0x0FF` that is neither IOREGSEL nor IOWIN -
+    dropped, PSLVERR. This was a backdoor: such an address used to reach the
+    register block at its raw offset, so a direct write to `0x008` rewrote
+    IOAPICID and one to `0x014` rewrote IOREDTBL[0].REDIR_LO
+  - IOWIN with a selector the 82093AA does not implement - dropped, and NOT an
+    error: the address is legal, the register is not, and the architectural
+    answer is a read of zero
+- CDC_ENABLE=1: the whole CPU/LAPIC-facing interface is presented in pclk and
+  crosses into ioapic_clk through matched-latency synchronizers
 
-## Applications
+## Not implemented (see vault/Tasks/RLB/open.md, RLB-009)
 
-- Advanced interrupt routing
-- Multi-processor interrupt distribution
-- Flexible interrupt mapping
-- Legacy IRQ redirection
-- PC-compatible systems
-- System interrupt aggregation
+Logical destination mode (`cfg_dest_mode` is stored and software-readable, and
+nothing reads it - it is not forwarded to the delivery interface either, which
+carries vector, destination and delivery mode only), LowestPriority arbitration, dynamic priority rotation, multi-IOAPIC
+routing, boot-interrupt delivery, MSI/MSI-X. Delivery modes other than Fixed
+are forwarded on `irq_out_deliv_mode` unmodified.
 
-## Files (To Be Created)
+## Files
 
-- `apb4_ioapic.sv` - Top-level wrapper with APB interface
-- `ioapic_core.sv` - Core IOAPIC logic
-- `ioapic_routing.sv` - Interrupt routing logic
-- `ioapic_arbiter.sv` - Priority arbitration logic
-- `ioapic_config_regs.sv` - Register wrapper
-- `ioapic_regs.sv` - PeakRDL generated registers
-- `ioapic_regs_pkg.sv` - PeakRDL generated package
+| File | Role |
+|---|---|
+| `apb4_ioapic.sv` | Top level: APB slave (CDC or not), LAPIC interface crossing |
+| `ioapic_core.sv` | Synchronization, edge/level tracking, arbitration, Remote IRR |
+| `ioapic_config_regs.sv` | IOREGSEL/IOWIN translation, PeakRDL wrapper, hwif mapping |
+| `ioapic_regs.sv`, `ioapic_regs_pkg.sv` | PeakRDL generated - regenerate only via `bin/peakrdl_generate.py` |
+| `peakrdl/ioapic_regs.rdl` | Register source of truth (fixed at 24 entries) |
+| `filelists/apb4_ioapic.f` | Compile closure |
 
-## Development Status
+## Verification
 
-- [ ] SystemRDL register specification
-- [ ] Interrupt routing logic implementation
-- [ ] Priority arbitration logic
-- [ ] Redirection table implementation
-- [ ] Core IOAPIC logic implementation
-- [ ] APB wrapper
-- [ ] Basic testbench
-- [ ] Medium testbench
-- [ ] Full testbench
-- [ ] Documentation
+`projects/components/retro_legacy_blocks/dv/tests/test_apb4_ioapic.py`, six
+configurations (CDC off/on x gate/func/full). The defect-regression suite for
+GitHub issue #48 is `dv/tbclasses/ioapic/ioapic_tests_medium.py`.
+
+```bash
+cd projects/components/retro_legacy_blocks/dv/tests
+make clean-all && make run-apb4_ioapic-full
+```
+
+## Specification
+
+`projects/components/retro_legacy_blocks/docs/ioapic_mas/`
 
 ---
 
-**Last Updated:** 2025-10-29
+**Last Updated:** 2026-09-09

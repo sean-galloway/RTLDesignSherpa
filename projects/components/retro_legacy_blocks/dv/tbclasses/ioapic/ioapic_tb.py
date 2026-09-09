@@ -33,6 +33,8 @@ Architecture:
                   Interrupt delivery interface
 """
 
+import os
+
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer
@@ -148,12 +150,32 @@ class IOAPICTB(TBBase):
         Setup clocks and perform reset sequence.
 
         Required by TBBase contract.
-        """
-        # Start APB clock (100 MHz, 10ns period)
-        await self.start_clock('pclk', freq=10, units='ns')
 
-        # Start IOAPIC clock (100 MHz, 10ns period)
-        await self.start_clock('ioapic_clk', freq=10, units='ns')
+        Clock periods are read from TEST_APB_CLOCK_PERIOD / TEST_IOAPIC_CLOCK_PERIOD
+        (plumbed by the test runner in dv/tests/test_apb4_ioapic.py), same pattern
+        as the GPIO TB's TEST_APB_CLOCK_PERIOD/TEST_GPIO_CLOCK_PERIOD.
+
+        Review finding (GitHub #48 qc round_3, item 2): an earlier version of
+        this TB started pclk and ioapic_clk both at 10ns from the same sim
+        time, so every CDC_ENABLE=1 configuration ran with edge-identical
+        clocks - eoi_in/eoi_vector (which have no synchronizer into the
+        ioapic_clk domain; they pass combinationally through
+        ioapic_config_regs) were exercised as if synchronous, which made the
+        CDC arm of the matrix unable to expose a missed/metastable EOI. The
+        runner now drives ioapic_clk at a non-unity, non-integer ratio to
+        pclk (10ns:7ns) whenever CDC_ENABLE=1, matching gpio_tb.py's
+        TEST_GPIO_CLOCK_PERIOD precedent. When CDC_ENABLE=0 the RTL ties the
+        core/config-regs clock to pclk internally, so the runner sets
+        ioapic_clk to the same period as pclk to match.
+        """
+        apb_clock_period_ns = int(os.environ.get('TEST_APB_CLOCK_PERIOD', '10'))
+        ioapic_clock_period_ns = int(os.environ.get('TEST_IOAPIC_CLOCK_PERIOD', str(apb_clock_period_ns)))
+
+        # Start APB clock
+        await self.start_clock('pclk', freq=apb_clock_period_ns, units='ns')
+
+        # Start IOAPIC clock (possibly a different, non-integer-ratio period)
+        await self.start_clock('ioapic_clk', freq=ioapic_clock_period_ns, units='ns')
 
         # Assert reset
         await self.assert_reset()
@@ -235,14 +257,20 @@ class IOAPICTB(TBBase):
 
     async def write_apb_register(self, addr: int, data: int) -> APBPacket:
         """
-        Write to a direct APB register (IOREGSEL or IOWIN).
+        Write to a direct APB register (IOREGSEL or IOWIN, or any other
+        offset in the 4KB window - GitHub #48 review M1 exercises the rest
+        of the window directly).
 
         Args:
             addr: APB address offset (0x00 for IOREGSEL, 0x04 for IOWIN)
             data: Value to write (32-bit)
 
         Returns:
-            APBPacket containing the write transaction
+            APBPacket containing the write transaction. ``.pslverr`` (and
+            equivalently ``.fields['pslverr']``) carries the APB slave error
+            response sampled by the framework APB master BFM
+            (APBMaster._finish_xmit) once the transaction completes - it is
+            NOT read by poking ``s_apb_PSLVERR`` here.
         """
         write_packet = APBPacket(
             pwrite=1,
@@ -273,19 +301,34 @@ class IOAPICTB(TBBase):
             self.log.error(f"APB write timeout at address 0x{addr:03X}")
 
         await RisingEdge(self.dut.pclk)
-        self.log.debug(f"APB Write 0x{addr:03X} = 0x{data:08X}")
+
+        # GitHub #48 review M1: expose the completed transaction's PSLVERR
+        # response as a plain attribute. write_packet is the exact object
+        # queued into APBMaster.send() above, and APBMaster._finish_xmit
+        # already wrote fields['pslverr'] from s_apb_PSLVERR before the
+        # PSEL&&PENABLE&&PREADY handshake this method waited for above
+        # completed, so it is settled by this point.
+        write_packet.pslverr = write_packet.fields.get('pslverr', 0)
+        self.log.debug(
+            f"APB Write 0x{addr:03X} = 0x{data:08X} (pslverr={write_packet.pslverr})")
 
         return write_packet
 
     async def read_apb_register(self, addr: int) -> Tuple[APBPacket, int]:
         """
-        Read from a direct APB register (IOREGSEL or IOWIN).
+        Read from a direct APB register (IOREGSEL or IOWIN, or any other
+        offset in the 4KB window - GitHub #48 review M1 exercises the rest
+        of the window directly).
 
         Args:
             addr: APB address offset (0x00 for IOREGSEL, 0x04 for IOWIN)
 
         Returns:
-            Tuple of (APBPacket, read_value)
+            Tuple of (APBPacket, read_value). The packet's ``.pslverr``
+            (and equivalently ``.fields['pslverr']``) carries the APB slave
+            error response sampled by the framework APB master BFM
+            (APBMaster._finish_xmit) once the transaction completes - it is
+            NOT read by poking ``s_apb_PSLVERR`` here.
         """
         read_packet = APBPacket(
             pwrite=0,
@@ -319,7 +362,15 @@ class IOAPICTB(TBBase):
 
         await RisingEdge(self.dut.pclk)
         read_packet.prdata = read_data
-        self.log.debug(f"APB Read 0x{addr:03X} = 0x{read_data:08X}")
+
+        # GitHub #48 review M1: expose the completed transaction's PSLVERR
+        # response as a plain attribute (see write_apb_register for the
+        # same-timing rationale - fields['pslverr'] is settled by this
+        # point because APBMaster._finish_xmit wrote it before the
+        # PSEL&&PENABLE&&PREADY handshake this method waited for above).
+        read_packet.pslverr = read_packet.fields.get('pslverr', 0)
+        self.log.debug(
+            f"APB Read 0x{addr:03X} = 0x{read_data:08X} (pslverr={read_packet.pslverr})")
 
         return read_packet, read_data
 
@@ -584,3 +635,72 @@ class IOAPICTB(TBBase):
         if drained > 0:
             self.log.info(f"Drained {drained} pending interrupt(s)")
         return drained
+
+    async def reset_dut(self):
+        """
+        Perform a full DUT reset and re-initialize inputs to a known idle state.
+
+        The delivery path has no state machine to wedge: it is a one-entry
+        valid/ready pipeline stage with a per-pin Remote IRR block, and EOI
+        is honoured in any state (see ioapic_core.sv). Even so, the
+        ioapic_tests_medium.py suite starts every test from a guaranteed-clean
+        DUT rather than relying on drain_pending_interrupts() to recover
+        arbitrary IRQ/Remote-IRR state left over from the previous test.
+
+        History: prior to the GitHub #48 fix, delivery was a single global
+        FSM whose WAIT_EOI state blocked every IRQ (not just the one
+        missing its EOI), which is why this method exists as a hard reset
+        rather than a best-effort drain.
+        """
+        await self.assert_reset()
+        await self.wait_clocks('pclk', 10)
+        await self.deassert_reset()
+        await self.wait_clocks('pclk', 5)
+
+        self.dut.irq_in.value = 0x000000
+        self.dut.irq_out_ready.value = 0
+        self.dut.eoi_in.value = 0
+        self.dut.eoi_vector.value = 0
+
+        await self.wait_clocks('pclk', 2)
+
+        self._last_int_vector = None
+        self._last_int_dest = None
+
+        self.log.info("IOAPIC DUT reset (defect-test clean state)")
+
+    async def count_irq_out_handshakes(self, window_cycles: int, ready: int = 1,
+                                        vector_filter: Optional[int] = None) -> List[int]:
+        """
+        Observe irq_out_valid/irq_out_vector for window_cycles pclk cycles while
+        driving irq_out_ready to a fixed value, and record the vector delivered
+        on every cycle where a valid&ready handshake is seen.
+
+        Unlike wait_for_interrupt(), which captures the FIRST handshake and then
+        actively pulses irq_out_ready low again, this keeps ready fixed for the
+        whole window and counts every handshake in it - the only way to observe
+        a duplicate delivery (GitHub #48 C1) rather than accidentally
+        terminating the window right after the first one.
+
+        Args:
+            window_cycles: number of pclk cycles to observe
+            ready: value to drive on irq_out_ready for the whole window
+            vector_filter: if set, only record handshakes for this vector
+
+        Returns:
+            List of vectors seen, one entry per handshake (len() == count)
+        """
+        self.dut.irq_out_ready.value = ready
+        handshakes = []
+        for _ in range(window_cycles):
+            await RisingEdge(self.dut.pclk)
+            if self.dut.irq_out_valid.value == 1 and self.dut.irq_out_ready.value == 1:
+                vec = self.dut.irq_out_vector.value.integer
+                if vector_filter is None or vec == vector_filter:
+                    handshakes.append(vec)
+        return handshakes
+
+    async def read_remote_irr(self, irq: int) -> int:
+        """Read the Remote IRR (bit 14) of a redirection table entry."""
+        redir_lo, _ = await self.read_redirection_entry(irq)
+        return (redir_lo >> IOAPICRegisterMap.REDIR_REMOTE_IRR_BIT) & 0x1

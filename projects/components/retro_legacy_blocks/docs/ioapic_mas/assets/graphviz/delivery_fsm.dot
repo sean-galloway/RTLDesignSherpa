@@ -1,50 +1,78 @@
-// IOAPIC Interrupt Delivery FSM
+// IOAPIC Interrupt Delivery Stage
 // Graphviz DOT format
-// Generate PNG: dot -Tpng delivery_fsm.dot -o delivery_fsm.png
+//
+// There is no delivery state machine any more (issue #48, 2026-09-09). The
+// delivery path is a one-entry valid/ready output stage fed by the arbiter,
+// with a Remote IRR bit per pin gating level interrupts. The file keeps its
+// old name (delivery_fsm) so that existing links continue to resolve.
+//
+// Generate: dot -Tsvg delivery_fsm.dot -o ../svg/delivery_fsm.svg
+//           dot -Tpng delivery_fsm.dot -o ../svg/delivery_fsm.png
 
-digraph ioapic_delivery_fsm {
+digraph ioapic_delivery_stage {
     // Graph attributes
-    rankdir=TB;
+    rankdir=LR;
     bgcolor="white";
     fontname="Arial";
     fontsize=12;
-    
+    nodesep=0.5;
+    ranksep=0.7;
+
     // Node defaults
     node [shape=box, style="rounded,filled", fillcolor="lightblue", fontname="Arial", fontsize=11];
-    
+
     // Edge defaults
     edge [fontname="Arial", fontsize=10];
-    
-    // States
-    IDLE [label="IDLE\n\n• Arbitrate pending IRQs\n• Select highest priority\n• irq_out_valid = 0", fillcolor="lightgreen"];
-    DELIVER [label="DELIVER\n\n• Assert irq_out_valid\n• Present vector, dest\n• Wait for irq_out_ready", fillcolor="lightyellow"];
-    WAIT_EOI [label="WAIT_EOI\n\n• Remote IRR set\n• Wait for EOI\n• irq_out_valid = 0", fillcolor="lightcoral"];
-    
-    // Transitions
-    IDLE -> IDLE [label="No pending IRQs\n(continue arbitration)", color="blue"];
-    IDLE -> DELIVER [label="Pending IRQ found\n(latch IRQ info)", color="darkgreen", penwidth=2];
-    
-    DELIVER -> DELIVER [label="!irq_out_ready\n(wait for CPU)", color="blue"];
-    DELIVER -> IDLE [label="irq_out_ready &&\nEDGE mode\n(complete)", color="darkgreen", penwidth=2];
-    DELIVER -> WAIT_EOI [label="irq_out_ready &&\nLEVEL mode\n(set Remote IRR)", color="darkorange", penwidth=2];
-    
-    WAIT_EOI -> WAIT_EOI [label="Waiting for EOI\n(or vector mismatch)", color="blue"];
-    WAIT_EOI -> IDLE [label="eoi_in &&\nvector match\n(clear Remote IRR)", color="darkgreen", penwidth=2];
-    
+
+    // Per-pin request side
+    subgraph cluster_pins {
+        label="Per pin i (x24)";
+        style="dashed";
+        fontname="Arial";
+        fontsize=11;
+        color="gray40";
+
+        PIN_EDGE  [label="Edge pin\nr_irq_pending[i]\nset on rising edge\ncleared on accept\n(set wins)", fillcolor="lightgreen"];
+        PIN_LEVEL [label="Level pin\nw_irq_active[i]\nlive synchronized level\n(no latch)", fillcolor="lightgreen"];
+        RIRR  [label="Remote IRR[i]\nset on accept of a level delivery\ncleared by eoi_in &&\neoi_vector == delivered vector[i]", fillcolor="lightcoral"];
+        ELIG  [label="w_irq_eligible[i] =\nrequest && !mask[i]\n&& !Remote IRR[i]\n&& !(accept && r_out_irq == i)", fillcolor="lightyellow"];
+
+        PIN_EDGE  -> ELIG [label="request", color="darkgreen"];
+        PIN_LEVEL -> ELIG [label="request", color="darkgreen"];
+        RIRR  -> ELIG [label="masks ONLY pin i", color="darkorange", penwidth=2];
+    }
+
+    // Arbiter and output stage
+    ARB   [label="Static-priority arbiter\nlowest eligible IRQ wins\n(combinational)", fillcolor="lightyellow"];
+    STAGE [label="Output stage (one entry)\nr_out_valid, r_out_irq\nr_out_vector / dest / deliv_mode\nregistered payload, stable while full", fillcolor="lightblue"];
+    CPU   [label="CPU / LAPIC\nirq_out_valid -->\n<-- irq_out_ready\neoi_in, eoi_vector", shape=box, style="filled", fillcolor="white"];
+
+    ELIG  -> ARB   [label="eligible[23:0]", color="darkgreen", penwidth=2];
+    ARB   -> STAGE [label="load when\n!r_out_valid || irq_out_ready", color="darkgreen", penwidth=2];
+    STAGE -> CPU   [label="irq_out_valid + payload", color="darkgreen", penwidth=2];
+    CPU   -> STAGE [label="irq_out_ready", color="blue"];
+
+    // Retirement on the accept (valid && ready), same cycle
+    STAGE -> PIN_EDGE  [label="accept, edge pin:\nclear pending", color="darkgreen", style="dashed"];
+    STAGE -> RIRR  [label="accept, level pin:\nset Remote IRR,\nlatch delivered vector", color="darkorange", style="dashed", penwidth=2];
+    CPU   -> RIRR  [label="EOI (vector match)\nclears; no-op if\nRemote IRR already 0", color="blue", style="dashed"];
+
     // Legend
     {
         rank=sink;
         legend [shape=none, margin=0, label=<
             <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
                 <tr><td bgcolor="lightblue"><b>Legend</b></td></tr>
-                <tr><td align="left"><font color="blue">■</font> Stay in state</td></tr>
-                <tr><td align="left"><font color="darkgreen">■</font> State transition</td></tr>
-                <tr><td align="left"><font color="darkorange">■</font> Level-triggered path</td></tr>
+                <tr><td align="left"><font color="darkgreen">solid</font> Request / delivery path</td></tr>
+                <tr><td align="left"><font color="blue">solid</font> CPU handshake and EOI</td></tr>
+                <tr><td align="left">dashed: retirement on accept (valid &amp;&amp; ready)</td></tr>
+                <tr><td align="left"><font color="darkorange">orange</font> Level-triggered path (per-pin block)</td></tr>
+                <tr><td align="left">No FSM: stage empty/full is r_out_valid</td></tr>
             </table>
         >];
     }
-    
+
     // Title
     labelloc="t";
-    label="IOAPIC Interrupt Delivery State Machine";
+    label="IOAPIC Interrupt Delivery Stage (valid/ready, per-pin Remote IRR gating)";
 }

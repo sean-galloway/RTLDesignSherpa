@@ -26,9 +26,11 @@
 ## Overview
 
 **Component:** APB I/O Advanced Programmable Interrupt Controller (IOAPIC)  
-**Version:** 1.0  
-**Last Updated:** 2025-11-16  
-**Status:** RTL Complete - Validation Pending (spec partial; see Document Status below)
+**Version:** 1.1  
+**Last Updated:** 2026-09-09  
+**Status:** RTL Functional - 36/36 in all six DV configurations; issue #48
+delivery, IOREGSEL and address-decode defects fixed 2026-09-09 (spec partial;
+see Document Status below)
 
 This is the micro-architecture specification for the APB IOAPIC, laid out as five chapters. Before you start clicking links, know that only part of it exists today — the status note below is the honest map.
 
@@ -139,9 +141,13 @@ This specification is organized into five chapters covering all aspects of the A
 | Chapter 4: Programming | Planned | 0% |
 | Chapter 5: Registers | Partial (register map only) | 33% |
 
-**Specification Status:** MVP RTL implemented; validation pending and one known
-RTL defects open under issue #48 (edge double-delivery, IOREGSEL shadow
-divergence, EOI-path hazards -- #48 is this block's RTL-findings umbrella)
+**Specification Status:** MVP RTL implemented and validated (36/36, CDC
+off/on x gate/func/full). The issue #48 defects - edge double-delivery,
+global EOI block, live-vector Remote IRR clear, IOREGSEL shadow divergence,
+address aliasing above 0x0FF, unsynchronized EOI - were fixed 2026-09-09 and
+this revision of the spec describes the fixed hardware. Deferred features
+(logical destination mode, lowest-priority delivery, priority rotation) are
+tracked as RLB-008 in `vault/Tasks/RLB/open.md`.
 
 **Next Steps:**
 1. Review specification for completeness
@@ -154,7 +160,8 @@ divergence, EOI-path hazards -- #48 is this block's RTL-findings umbrella)
 ### Related Documentation
 
 **RLB Module Documentation:**
-- [TODO.md](../../rtl/ioapic/TODO.md) - Implementation roadmap and next steps
+- [README.md](../../rtl/ioapic/README.md) - Block summary and verification entry point
+- `vault/Tasks/RLB/open.md` (RLB-008) - Deferred IOAPIC features
 - [PeakRDL README](../../rtl/ioapic/peakrdl/README.md) - Register generation guide
 
 **RLB System Documentation:**
@@ -171,6 +178,7 @@ divergence, EOI-path hazards -- #48 is this block's RTL-findings umbrella)
 | Version | Date | Author | Changes |
 | --- | --- | --- | --- |
 | 1.0 | 2025-11-16 | RTL Design Sherpa | Initial specification based on Intel 82093AA with RLB methodology |
+| 1.1 | 2026-09-09 | RTL Design Sherpa | Issue #48 fixes: delivery FSM replaced by a one-entry valid/ready stage (one delivery per edge, no parked valid), per-pin Remote IRR blocking with EOI matched against the delivered vector, single IOREGSEL copy with unmapped selectors and 0x100+ accesses dropped, IOWIN tie-off, LAPIC interface presented in pclk and crossed with matched-latency synchronizers when CDC_ENABLE=1 |
 
 ## Navigation
 

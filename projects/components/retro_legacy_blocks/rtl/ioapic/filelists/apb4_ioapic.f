@@ -22,6 +22,10 @@
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_2_phase_handshake.f
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_4_phase_handshake.f
 
+# LAPIC interface crossing (CDC_ENABLE=1): request level + accept/EOI pulses
+-f $REPO_ROOT/rtl/cdc/filelists/sync_pulse.f
+-f $REPO_ROOT/rtl/cdc/filelists/cdc_synchronizer.f
+
 # PeakRDL adapter
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 

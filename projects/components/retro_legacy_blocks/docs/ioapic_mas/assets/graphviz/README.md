@@ -6,9 +6,11 @@ This directory contains Graphviz source files for IOAPIC specification diagrams.
 
 ### Available Diagrams
 
-**1. delivery_fsm.dot — Interrupt Delivery State Machine**
-- Shows 3-state FSM: IDLE → DELIVER → WAIT_EOI
-- Illustrates edge vs level-triggered paths
+**1. delivery_fsm.dot — Interrupt Delivery Stage**
+- Shows the one-entry valid/ready output stage and the per-pin Remote IRR
+  gating that replaced the old three-state delivery machine (issue #48,
+  fixed 2026-09-09); the file name is kept so existing links hold
+- Illustrates edge vs level-triggered retirement on the accept
 - Used in: Ch02 FSM Summary
 
 **2. apb4_ioapic.gv — Top-Level Block Diagram**
@@ -63,7 +65,7 @@ The generated PNG/SVG files are referenced in markdown documents:
 Or for SVG (better for web):
 
 ```markdown
-![IOAPIC FSM](../assets/svg/delivery_fsm.png)
+![IOAPIC Delivery Stage](../assets/svg/delivery_fsm.png)
 ```
 
 ## Design Notes

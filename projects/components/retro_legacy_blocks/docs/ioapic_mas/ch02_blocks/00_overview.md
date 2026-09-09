@@ -42,14 +42,14 @@ apb4_ioapic (Top Level)
 
 | Block | File | Lines | Purpose |
 | --- | --- | --- | --- |
-| **apb4_ioapic** | apb4_ioapic.sv | ~340 | Top-level integration, CDC selection |
-| **ioapic_config_regs** | ioapic_config_regs.sv | ~220 | Register interface, indirect access, hwif mapping |
-| **ioapic_regs** | ioapic_regs.sv | ~2500 | PeakRDL generated register block |
-| **ioapic_core** | ioapic_core.sv | ~290 | Interrupt routing, edge/level detection, arbitration |
+| **apb4_ioapic** | apb4_ioapic.sv | ~560 | Top-level integration, CDC selection, LAPIC interface crossing |
+| **ioapic_config_regs** | ioapic_config_regs.sv | ~410 | Register interface, indirect access, window decode, hwif mapping |
+| **ioapic_regs** | ioapic_regs.sv | ~500 | PeakRDL generated register block |
+| **ioapic_core** | ioapic_core.sv | ~460 | Interrupt routing, edge/level detection, arbitration, delivery stage |
 | **peakrdl_to_cmdrsp** | (external) | ~150 | CMD/RSP to PeakRDL passthrough adapter |
 | **apb4_slave[_cdc]** | (external) | ~200 | APB protocol handler |
 
-**Total Implementation:** ~900 lines of custom RTL + ~2700 lines generated/reused
+**Total Implementation:** ~1400 lines of custom RTL + ~1000 lines generated/reused
 
 ### Block Descriptions
 
@@ -58,11 +58,18 @@ apb4_ioapic (Top Level)
 - Routes clocks and resets to submodules
 - Instantiates config_regs and core
 - Connects external IRQ and EOI interfaces
+- CDC_ENABLE=1: presents the whole LAPIC-facing interface in pclk and
+  crosses it into ioapic_clk (four-phase delivery request, 3-stage accept
+  synchronizer, 3-stage EOI pulse synchronizer with the vector registered)
 - See: [apb4_ioapic_top.md](04_apb4_ioapic_top.md)
 
 **2. ioapic_config_regs (Register Wrapper)**
 - Instantiates peakrdl_to_cmdrsp adapter
 - Instantiates PeakRDL generated registers
+- Translates IOWIN accesses through the one selector copy (the regblock's
+  IOREGSEL field); drops IOWIN accesses with an unmapped selector (read 0,
+  no error) and any access to an address other than 0x000/0x004 (PSLVERR),
+  acknowledging both locally
 - Maps hwif signals to/from ioapic_core
 - Handles array mapping for 24 redirection entries
 - See: [ioapic_config_regs.md](02_ioapic_config_regs.md)
@@ -71,8 +78,10 @@ apb4_ioapic (Top Level)
 - Generated from ioapic_regs.rdl SystemRDL specification
 - Provides hwif_in/hwif_out structs (the IOREGSEL/IOWIN indirect-access
   translation is HANDWRITTEN in ioapic_config_regs.sv -- the generated
-  block only holds standalone IOREGSEL/IOWIN registers, and its IOWIN
-  storage is dead: 0x004 accesses are always translated away)
+  block only holds standalone IOREGSEL/IOWIN registers; its IOWIN storage
+  is never reached through the bus, since 0x004 accesses are always
+  translated away, and its hardware input is tied to zero so the field is
+  defined rather than X)
 - Handles register read/write/reset
 - See: [ioapic_regs.md](03_ioapic_regs.md)
 
@@ -81,8 +90,8 @@ apb4_ioapic (Top Level)
 - Polarity handling (active-high/low)
 - Edge/level detection
 - Priority arbitration (static)
-- Interrupt delivery FSM (IDLE/DELIVER/WAIT_EOI)
-- Remote IRR management
+- One-entry valid/ready delivery stage (no state machine)
+- Remote IRR management, per pin, EOI matched against the delivered vector
 - See: [ioapic_core.md](01_ioapic_core.md)
 
 ## Functional Description
@@ -115,18 +124,20 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["External IRQ assertion"] --> B["ioapic_core<br/>(sync → polarity → detect → arbitrate → deliver)"]
-    B -->|"irq_out_valid, irq_out_vector, irq_out_dest"| C["apb4_ioapic<br/>(top-level signals)"]
+    A["External IRQ assertion"] --> B["ioapic_core<br/>(sync → polarity → detect → arbitrate → output stage)"]
+    B -->|"irq_out_valid, irq_out_vector, irq_out_dest"| C["apb4_ioapic<br/>(direct, or LAPIC crossing when CDC_ENABLE=1)"]
     C --> D["CPU/LAPIC"]
+    D -->|"irq_out_ready (accept), eoi_in + eoi_vector"| C
+    C -->|"accept strobe, EOI strobe"| B
 ```
 
 ### Interface Summary
 
 **External Interfaces:**
 - APB4 slave (to CPU/interconnect)
-- 24 IRQ inputs (from interrupt sources)
-- Interrupt output (to CPU/LAPIC)
-- EOI input (from CPU/LAPIC)
+- 24 IRQ inputs (from interrupt sources, asynchronous)
+- Interrupt output, valid/ready (to CPU/LAPIC, pclk domain)
+- EOI input (from CPU/LAPIC, pclk domain)
 
 **Internal Interfaces:**
 - CMD/RSP between APB slave and config_regs
@@ -147,7 +158,10 @@ flowchart TD
 - apb4_slave_cdc runs on `pclk` (APB domain)
 - config_regs runs on `ioapic_clk` (IOAPIC domain)
 - core runs on `ioapic_clk` (IOAPIC domain)
-- CDC handled by apb4_slave_cdc module
+- APB CDC handled by apb4_slave_cdc module
+- LAPIC interface CDC handled in apb4_ioapic (delivery request, accept and
+  EOI cross through matched-latency synchronizers; the external ports stay
+  in `pclk`)
 
 ## Related Modules
 

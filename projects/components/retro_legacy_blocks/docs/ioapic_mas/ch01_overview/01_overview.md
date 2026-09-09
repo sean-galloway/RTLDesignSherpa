@@ -35,10 +35,10 @@ The APB I/O Advanced Programmable Interrupt Controller (IOAPIC) is the interrupt
 - **Programmable Redirection Table**: 64-bit entry per IRQ defining vector, mode, destination, trigger, polarity
 - **Indirect Register Access**: Intel-compatible IOREGSEL/IOWIN mechanism for register access
 - **Dual Trigger Modes**: 
-  - **Edge-triggered**: Latches interrupt on signal edge, fires once per edge
-    by design. (Known deviation: the current RTL's delayed pending-clear
-    re-opens the arbitration window and delivers each edge twice - tracked as
-    issue #48; fix pending.)
+  - **Edge-triggered**: Latches interrupt on signal edge, delivered exactly
+    once per edge - the pending latch clears on the CPU's accept, and a new
+    edge landing in that same cycle sets it again rather than being lost
+    (fixed 2026-09-09, issue #48)
   - **Level-triggered**: Tracks signal level, uses Remote IRR, requires EOI
 - **Configurable Polarity**: Active-high or active-low per IRQ input
 - **Priority Arbitration**: Static priority (lowest IRQ number wins for MVP)
@@ -89,7 +89,10 @@ Each of the 24 IRQ inputs can be independently configured for trigger mode (edge
 - 3-stage input synchronization prevents metastability
 - Edge detection on the synchronized inputs (no dedicated glitch filter:
   pulses shorter than the synchronizer depth are simply not seen)
-- Remote IRR prevents level interrupt re-triggering until EOI
+- Remote IRR prevents level interrupt re-triggering until EOI, per pin: a
+  level interrupt that is never EOI'd blocks only its own input
+- EOI is matched against the vector that was actually delivered, so an RTE
+  can be re-pointed while its interrupt is in flight
 - Delivery status tracking ensures reliable interrupt delivery
 
 **Standards Compliance:**
@@ -149,9 +152,9 @@ The APB IOAPIC draws directly from the Intel 82093AA I/O APIC specification with
 **Direct APB Registers:**
 - `0x00`: IOREGSEL - Register offset selector
 - `0x04`: IOWIN - Data window for selected register
-- (Implementation note: the internal register file is also directly decoded at
-  APB 0x08-0xD0, bypassing IOREGSEL/IOWIN. Portable 82093AA software uses only
-  the indirect pair; see Chapter 5 for the direct map.)
+- Nothing else in the 4 KB window is decoded: any other address, 0x08 upward,
+  is dropped with PSLVERR (reads 0), so the indirect pair is the only way to
+  the internal register file - 82093AA semantics, see Chapter 5
 
 **Internal Registers (via IOREGSEL/IOWIN):**
 - **0x00**: IOAPICID - I/O APIC identification
@@ -179,9 +182,8 @@ This matches Intel's specification exactly for software compatibility.
 **Register Access Performance:**
 - Direct APB access (IOREGSEL): 2 APB clock cycles
 - Indirect access (IOWIN): 2 APB clock cycles per register
-- Full redirection entry (LO+HI): 4 transactions (~8 cycles) via the
-  IOREGSEL/IOWIN indirect method; 2 transactions (~4 cycles) via the
-  direct decode at 0x014/0x018
+- Full redirection entry (LO+HI): 4 transactions (~8 cycles) through
+  IOREGSEL/IOWIN; there is no direct decode to shortcut it
 - With CDC: Add 2-4 cycles for synchronization
 
 **Resource Utilization (Post-Synthesis Estimates):**
@@ -220,7 +222,7 @@ Level mode with Remote IRR and EOI handling.
 
 For level-triggered interrupts:
 - Remote IRR set on delivery, blocking re-delivery
-- EOI broadcast clears Remote IRR
+- EOI clears Remote IRR on every pin delivered with that vector
 - If IRQ still asserted, re-delivery occurs
 
 ### Waveform 1.4: Interrupt Masking
@@ -235,39 +237,37 @@ When an IRQ arrives while masked, the IRR bit latches but delivery is blocked. U
 
 ### Verification Status
 
-**Implementation Status:** RTL Complete - Validation Pending
+**Implementation Status:** RTL Complete - 36/36 in all six DV configurations
+(CDC off/on x gate/func/full, 2026-09-09)
 
 **Completed Implementation:**
 - [x] PeakRDL register specification with indirect access
 - [x] Core interrupt routing logic (edge/level/polarity)
 - [x] Priority arbitration (static)
-- [x] Delivery state machine with EOI handling
+- [x] One-entry valid/ready delivery stage with per-pin EOI handling
 - [x] Remote IRR management
 - [x] Configuration register wrapper
-- [x] APB top-level with CDC support
+- [x] APB top-level with CDC support, LAPIC interface presented in pclk
 - [x] Complete filelist and documentation
 
-**Validation Plan (Per TODO.md):**
-- [ ] APB indirect register access tests
-- [ ] Edge-triggered IRQ tests (all 24 inputs)
-- [ ] Level-triggered IRQ tests with Remote IRR
-- [ ] Polarity tests (active-high/low)
-- [ ] Priority arbitration tests
-- [ ] Delivery status tests
-- [ ] EOI handling with level interrupts
-- [ ] Redirection table configuration tests
-- [ ] CDC mode validation
-
-**Test Infrastructure Needed:**
-- Python helper script (ioapic_helper.py)
-- Cocotb testbench (ioapic_tb.py)
-- Test suite (test_apb4_ioapic.py)
-
-**Estimated Validation Time:** 5-7 days (per RLB_STATUS_AND_ROADMAP.md)
+**Validation Coverage (`dv/tests/test_apb4_ioapic.py`):**
+- [x] APB indirect register access tests
+- [x] Edge-triggered IRQ tests (all 24 inputs)
+- [x] Level-triggered IRQ tests with Remote IRR
+- [x] Polarity tests (active-high/low)
+- [x] Priority arbitration tests
+- [x] Delivery status tests
+- [x] EOI handling with level interrupts
+- [x] Redirection table configuration tests
+- [x] CDC mode validation
+- [x] Issue #48 defect regressions (`dv/tbclasses/ioapic/ioapic_tests_medium.py`):
+  single delivery per edge, no parked valid, per-pin blocking, wrong-vector
+  EOI, EOI before accept, mid-service vector rewrite, unmapped selector
+  readback, no aliasing above 0x0FF, single-pclk EOI through the CDC
 
 ### Development Status
 
-**Status:** MVP Complete - Ready for Validation
+**Status:** MVP Complete - issue #48 defects fixed 2026-09-09
 
 **MVP Scope Delivered:**
 - [x] 24 IRQ inputs with synchronization
@@ -282,11 +282,12 @@ When an IRQ arrives while masked, the IRR bit latches but delivery is blocked. U
 - [x] Complete redirection table
 - [x] Delivery status per IRQ
 
-**Future Enhancements (Planned in TODO.md):**
-- [ ] Logical destination mode
+**Deferred features (tracked as RLB-008 in `vault/Tasks/RLB/open.md`, not defects):**
+- [ ] Logical destination mode (`cfg_dest_mode` is stored and software-readable; no logic reads it)
 - [ ] LowestPriority delivery mode
-- [ ] Additional delivery modes (SMI, NMI, INIT, ExtINT)
-- [ ] Dynamic priority rotation
+- [ ] Additional delivery modes acted on rather than forwarded (SMI, NMI, INIT, ExtINT)
+- [ ] Dynamic priority rotation (static priority can starve a low-numbered,
+      promptly-EOI'd level pin's neighbours)
 - [ ] Multi-IOAPIC support
 - [ ] Boot interrupt delivery
 
@@ -294,7 +295,8 @@ When an IRQ arrives while masked, the IRR bit latches but delivery is blocked. U
 
 ### Related Documentation
 
-- `../../rtl/ioapic/TODO.md` - Implementation roadmap
+- `../../rtl/ioapic/README.md` - Block summary and verification entry point
+- `vault/Tasks/RLB/open.md` - RLB-008, deferred IOAPIC features
 - `../../rtl/ioapic/peakrdl/README.md` - Register generation guide
 - `../../rtl/RLB_STATUS_AND_ROADMAP.md` - System-wide planning
 - Intel 82093AA I/O APIC Datasheet

@@ -99,7 +99,7 @@ Determines how interrupt is delivered to CPU:
 When multiple IRQs are pending, hardware selects which to deliver first. Current implementation uses static priority (lowest IRQ number wins).
 
 **End-of-Interrupt (EOI):**
-Signal from CPU indicating interrupt service is complete. For level-triggered interrupts, clears Remote IRR and allows re-triggering if signal still asserted.
+Signal from CPU indicating interrupt service is complete. For level-triggered interrupts, clears Remote IRR on every pin delivered with that vector and allows re-triggering if signal still asserted.
 
 ## Navigation
 

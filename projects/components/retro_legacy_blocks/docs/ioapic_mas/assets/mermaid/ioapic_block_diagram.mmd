@@ -2,19 +2,22 @@
 flowchart LR
     subgraph APB_IOAPIC["APB I/O APIC"]
         APB["APB Slave"]
-        CFG["ioapic_config_regs"]
+        CFG["ioapic_config_regs<br/>(IOREGSEL/IOWIN translation)"]
         REGS["ioapic_regs<br/>(PeakRDL)"]
         CORE["ioapic_core"]
         REDIR["Redirection Table<br/>(24 entries)"]
-        ROUTE["IRQ Router"]
+        STAGE["Delivery Stage<br/>(valid/ready, per-pin Remote IRR)"]
+        XING["LAPIC Crossing<br/>(CDC_ENABLE=1)"]
     end
 
     BUS["APB Bus"] --> APB
     APB --> CFG
     CFG --> REGS
-    CFG --> CORE
-    CORE --> REDIR
-    CORE --> ROUTE
+    REGS --> REDIR
+    REDIR --> CORE
+    CORE --> STAGE
+    STAGE --> XING
 
     IRQ_IN["IRQ Inputs<br/>[23:0]"] --> CORE
-    ROUTE --> INT_OUT["INT Output"]
+    XING -->|"irq_out_valid / vector / dest"| LAPIC["CPU / LAPIC"]
+    LAPIC -->|"irq_out_ready, eoi_in / eoi_vector"| XING

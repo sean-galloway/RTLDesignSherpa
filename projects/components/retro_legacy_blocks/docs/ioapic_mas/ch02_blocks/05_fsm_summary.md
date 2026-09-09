@@ -25,233 +25,234 @@
 
 ## Overview
 
-The IOAPIC core implements a 3-state FSM for interrupt delivery management. Three states sounds trivial — and mostly is — but the edge/level split and the Remote IRR bookkeeping are where the corner cases live. This page is the state table you want open while reading `ioapic_core.sv`.
+The IOAPIC core has no delivery state machine. The delivery path is a one-entry valid/ready output stage fed by the arbiter, and the only other state that matters is a Remote IRR bit per pin. That is a smaller thing than the three-state FSM this chapter used to describe (idle / deliver / wait-for-EOI, retired with issue #48 on 2026-09-09), and it is smaller for a reason: the three states carried nothing the handshake and the per-pin bits do not. The corner cases still live in the edge/level split and the Remote IRR bookkeeping, so this is still the page to have open while reading `ioapic_core.sv`.
 
 ## Functional Description
 
 ### State Definitions
 
-| State | Encoding | Description |
+| State | Where it lives | Description |
 | --- | --- | --- |
-| **IDLE** | 2'b00 | No interrupt being delivered, arbitrating among pending IRQs |
-| **DELIVER** | 2'b01 | Presenting interrupt to CPU, waiting for acknowledgment |
-| **WAIT_EOI** | 2'b10 | Level interrupt delivered, waiting for End-of-Interrupt |
+| **Stage empty** | `r_out_valid = 0` | Nothing presented to the CPU; the arbiter's pick, if any, loads next cycle |
+| **Stage full** | `r_out_valid = 1` | One delivery presented on `irq_out_valid`/vector/dest; waiting for `irq_out_ready` |
+| **In service** | `r_remote_irr[i] = 1` | Level pin `i` has been accepted and not yet EOI'd; that pin alone is masked from arbitration |
+
+The old encoding mapped onto these as: idle = stage empty, deliver = stage full, and wait-for-EOI = "some pin in service". The difference is that the old wait state blocked everything, and "in service" blocks one pin.
 
 ### State Transition Diagram
 
 ```
-                  ┌──────────────────────────────┐
-                  │                              │
-                  ▼                              │
-          ┌───────────────┐                      │
-          │     IDLE      │                      │
-          │               │                      │
-          │ • Arbitrate   │                      │
-          │ • Select IRQ  │                      │
-          └───────┬───────┘                      │
-                  │                              │
-                  │ IRQ pending &                │
-                  │ unmasked                     │
-                  ▼                              │
-          ┌───────────────┐                      │
-          │    DELIVER    │                      │
-          │               │                      │
-          │ • Assert      │                      │
-          │   irq_out_    │                      │
-          │   valid       │                      │
-          └───────┬───────┘                      │
-                  │                              │
-         ┌────────┴────────┐                     │
-         │                 │                     │
-    Edge │                 │ Level               │
-    Mode │                 │ Mode                │
-         │                 │                     │
-         │                 ▼                     │
-         │         ┌───────────────┐             │
-         │         │   WAIT_EOI    │             │
-         │         │               │             │
-         │         │ • Remote IRR  │             │
-         │         │   set         │             │
-         │         │ • Wait for    │             │
-         │         │   EOI         │             │
-         │         └───────┬───────┘             │
-         │                 │                     │
-         │                 │ eoi_in &&           │
-         │                 │ vector match        │
-         │                 │                     │
-         └─────────────────┴─────────────────────┘
+                     w_sel_valid && (!r_out_valid || irq_out_ready)
+                     (arbiter has a pick, stage empty or emptying)
+          ┌──────────────────────────────────────────────────────┐
+          │                                                      │
+          ▼                                                      │
+  ┌───────────────┐   irq_out_ready && no new pick   ┌───────────┴───┐
+  │  STAGE EMPTY  │◄─────────────────────────────────│  STAGE FULL   │
+  │ r_out_valid=0 │                                  │ r_out_valid=1 │
+  │               │─────────────────────────────────►│ irq_out_valid │
+  └───────────────┘   load pick                      └───────┬───────┘
+                                                             │ accept =
+                                                             │ r_out_valid && irq_out_ready
+                                                             ▼
+                                   ┌─────────────────────────┴──────────────────────────┐
+                                   │ retiring pin i, this cycle:                        │
+                                   │  - edge : r_irq_pending[i] <= 0 (a new edge wins)  │
+                                   │  - level: r_remote_irr[i]  <= 1 (pin in service)   │
+                                   │  - both : r_delivered_vector[i] <= r_out_vector    │
+                                   │  - pin i masked from this cycle's arbitration      │
+                                   └────────────────────────────────────────────────────┘
+
+  Per level pin, independent of the stage:
+     r_remote_irr[i]: 0 ──(accept, level)──► 1 ──(eoi_in && eoi_vector == r_delivered_vector[i])──► 0
 ```
 
 ### State Transitions
 
 | Current State | Condition | Next State | Action |
 | --- | --- | --- | --- |
-| **IDLE** | No pending IRQs | IDLE | Continue arbitration |
-| **IDLE** | Pending IRQ found | DELIVER | Latch IRQ info, assert irq_out_valid |
-| **DELIVER** | !irq_out_ready | DELIVER | Wait for CPU |
-| **DELIVER** | irq_out_ready && edge mode | IDLE | Complete, return to arbitration |
-| **DELIVER** | irq_out_ready && level mode | WAIT_EOI | Wait for EOI (Remote IRR was already set at IDLE->DELIVER) |
-| **WAIT_EOI** | !(eoi_in && vector match) | WAIT_EOI | Continue waiting |
-| **WAIT_EOI** | eoi_in && vector match | IDLE | Clear Remote IRR, return |
+| **Stage empty** | No eligible pin | Stage empty | Keep arbitrating |
+| **Stage empty** | Eligible pin found | Stage full | Register pick: index, vector, dest, delivery mode, trigger mode |
+| **Stage full** | !irq_out_ready | Stage full | Hold; outputs are registered and do not change |
+| **Stage full** | irq_out_ready, another pin eligible | Stage full | Accept the current one, load the next in the same cycle (no bubble) |
+| **Stage full** | irq_out_ready, nothing eligible | Stage empty | Accept, drop `irq_out_valid` |
+| **Remote IRR[i] = 0** | Accept of level pin i | Remote IRR[i] = 1 | Pin i leaves arbitration; the stage is free immediately |
+| **Remote IRR[i] = 1** | eoi_in && eoi_vector == delivered vector of pin i | Remote IRR[i] = 0 | Pin i re-enters arbitration next cycle if still asserted |
+| **Remote IRR[i] = 1** | EOI with any other vector | Remote IRR[i] = 1 | Other pins unaffected; only pin i stays blocked |
 
 ### State Functions
 
-**IDLE State:**
-- **Entry:** From WAIT_EOI (after EOI) or DELIVER (after edge interrupt)
+**Stage empty:**
+- **Entry:** From stage full when the CPU accepts and no other pin is eligible; from reset
 - **Operations:**
-  - Scan all 24 IRQs for pending, unmasked interrupts
+  - Scan all 24 pins for eligible requests (requesting, unmasked, not in service, not being retired this cycle)
   - Apply priority arbitration (lowest IRQ number wins)
-  - Select highest priority IRQ if any
+  - Load the winner into the output stage
 - **Outputs:**
-  - irq_out_valid = 0 (no interrupt being presented)
-- **Exit:** When pending IRQ found → DELIVER
+  - irq_out_valid = 0; vector, dest and delivery mode read as 0
+- **Exit:** When an eligible pin exists
 
-**DELIVER State:**
-- **Entry:** From IDLE when pending IRQ exists
+**Stage full:**
+- **Entry:** From stage empty on a load, or from stage full when an accept and a load coincide
 - **Operations:**
-  - Assert irq_out_valid
-  - Present irq_out_vector (from selected IRQ's redirection entry)
-  - Present irq_out_dest (destination APIC ID)
-  - Present irq_out_deliv_mode (delivery mode)
-  - Wait for CPU acknowledgment (irq_out_ready)
+  - Hold irq_out_valid with the registered vector, destination and delivery mode
+  - Wait for the CPU (irq_out_ready)
 - **Outputs:**
   - irq_out_valid = 1
-  - irq_out_vector = cfg_vector[current_irq]
-  - irq_out_dest = cfg_destination[current_irq]
-  - irq_out_deliv_mode = cfg_deliv_mode[current_irq]
-  - (indexed by the *latched* current_irq, but reading the *live* config
-    fields - a mid-delivery RTE rewrite changes what is presented; see the
-    programming restriction in Chapter 5)
-- **Exit:** 
-  - Edge mode + irq_out_ready → IDLE (known deviation: the delayed
-    pending-clear lets arbitration re-select the same edge for one extra
-    DELIVER pass, so each edge is currently delivered twice - issue #48)
-  - Level mode + irq_out_ready → WAIT_EOI
+  - irq_out_vector = the vector registered at load time
+  - irq_out_dest = the destination registered at load time
+  - irq_out_deliv_mode = the delivery mode registered at load time
+  - (registered, so a mid-delivery RTE rewrite does NOT change what is presented; the next delivery of that pin uses the new values)
+- **Exit:** On accept (`r_out_valid && irq_out_ready`), every time - one accept retires exactly one delivery. Edge pins clear their pending latch on that accept, in the same cycle, which is what makes each edge deliver once.
 
-**WAIT_EOI State (Level-Triggered Only):**
-- **Entry:** From DELIVER after CPU accepts level interrupt
+**In service (level pins, per pin):**
+- **Entry:** Accept of a level delivery - not presentation. An EOI that arrives while the delivery is still unaccepted finds Remote IRR clear and is dropped rather than pre-clearing anything
 - **Operations:**
-  - Monitor eoi_in signal
-  - Compare eoi_vector with current_vector
-  - Remote IRR remains set (prevents re-trigger)
-  - IRQ input still synchronized but masked by Remote IRR
+  - Remote IRR set; the pin is masked from arbitration
+  - The input is still synchronized, so its live level is visible the moment Remote IRR clears
+  - Every other pin keeps arbitrating and delivering
 - **Outputs:**
-  - irq_out_valid = 0
-- **Exit:** When EOI received for this vector → IDLE
+  - status_remote_irr[i] = 1
+- **Exit:** EOI whose vector equals the vector delivered on this pin (latched at accept). The compare runs on every pin, so one EOI clears every pin delivered with that vector - two pins sharing a vector leave service together. A lost or wrong-vector EOI leaves this pin, and only this pin, blocked.
 
 ### Latched Signals
 
-**Signals latched in IDLE → DELIVER transition:**
+**Signals registered when the stage loads:**
 
 | Signal | Source | Purpose |
 | --- | --- | --- |
-| current_irq[4:0] | selected_irq | IRQ number being delivered |
-| current_vector[7:0] | cfg_vector[selected_irq] | Vector for EOI matching |
-| current_is_level | cfg_trigger_mode[selected_irq] | Determines path (IDLE vs WAIT_EOI) |
+| r_out_irq[4:0] | w_sel_irq | Pin being delivered; selects which pending/Remote IRR bit the accept touches |
+| r_out_vector[7:0] | cfg_vector[w_sel_irq] | Presented on irq_out_vector; copied into r_delivered_vector on accept |
+| r_out_dest[7:0] | cfg_destination[w_sel_irq] | Presented on irq_out_dest |
+| r_out_deliv_mode[2:0] | cfg_deliv_mode[w_sel_irq] | Presented on irq_out_deliv_mode |
 
-**These remain stable during DELIVER and WAIT_EOI states.**
+**Signal registered on accept, per pin:**
+
+| Signal | Source | Purpose |
+| --- | --- | --- |
+| r_delivered_vector[i][7:0] | r_out_vector | The vector the CPU actually received; the EOI is matched against this, not the live RTE |
+
+**These remain stable while the stage is full; the delivered vector stays until the pin's next accept.**
 
 ### Edge vs Level Interrupt Paths
 
 **Edge-Triggered Interrupt:**
 ```
-IRQ asserts → Edge detected → IRQ pending flag set →
-Arbitration selects it → IDLE → DELIVER → 
-CPU acknowledges → Pending cleared → IDLE
+IRQ asserts -> rising edge of the polarity-adjusted level -> r_irq_pending set ->
+arbitration selects it -> stage loads -> irq_out_valid ->
+CPU accepts -> pending cleared (same cycle; a coincident new edge sets instead) -> done
 ```
-**Time:** Depends on arbitration delay, typically 1-2 cycles in IDLE then 1+ cycles in DELIVER
+**Time:** 3 sync cycles + 1 edge-detect cycle + 1 load cycle to `irq_out_valid`; the delivery retires on the first cycle the CPU holds `irq_out_ready`.
+
+**Polarity:** flipping an RTE's polarity bit inverts the active level, which would read as a rising edge - so the edge detector for that pin is suppressed for one cycle after the bit changes, and the flip itself never latches a pending interrupt. Software may change polarity on an idle pin without a spurious delivery.
 
 **Level-Triggered Interrupt:**
 ```
-IRQ asserts → Level sensed → IRQ pending (if !Remote IRR) →
-Arbitration selects it → IDLE → DELIVER → 
-CPU acknowledges → Remote IRR set → WAIT_EOI →
-EOI received → Remote IRR cleared → IDLE →
-(If IRQ still asserted, pending again)
+IRQ asserts -> synchronized level is the request (no latch, gated by Remote IRR) ->
+arbitration selects it -> stage loads -> irq_out_valid ->
+CPU accepts -> Remote IRR set, delivered vector latched, stage free ->
+(other pins deliver meanwhile) ->
+EOI with the delivered vector -> Remote IRR cleared ->
+if the level is still asserted, it re-requests the next cycle and is delivered again, once
 ```
-**Time:** Same as edge until WAIT_EOI, then waits for software ISR completion + EOI
+**Time:** Same as edge to the accept; the pin then waits for the ISR and its EOI, but the block does not.
 
 ### Arbitration Logic
 
 **Priority Encoding (Static Priority):**
 ```systemverilog
 // In ioapic_core.sv
-for (int j = 0; j < 24; j++) begin
-    if (irq_eligible[j]) begin  // Pending and not masked
-        selected_irq = j;
-        irq_selected_valid = 1;
-        break;  // Stop at first match (lowest wins)
+for (int j = 0; j < NUM_IRQS; j++) begin
+    if (w_irq_eligible[j]) begin
+        w_sel_irq   = IRQ_IDX_W'(j);
+        w_sel_valid = 1'b1;
+        break;  // Stop at first match (lowest number)
     end
 end
 ```
 
 **Eligibility Criteria:**
 ```systemverilog
-irq_eligible[i] = irq_pending[i] && !cfg_mask[i];
+// Edge pins request from the latch, level pins from the live synchronized level
+assign w_irq_request[i]  = cfg_trigger_mode[i] ? w_irq_active[i] : r_irq_pending[i];
+
+assign w_irq_eligible[i] = w_irq_request[i]
+                         && !cfg_mask[i]
+                         && !r_remote_irr[i]
+                         && !(w_deliv_accept && (r_out_irq == IRQ_IDX_W'(i)));
 ```
 
+The last term masks the pin being accepted from the arbitration happening in the same cycle. Without it the retiring pin is still requesting while its latch is being cleared (or its Remote IRR set) and wins one more round - exactly the double delivery of issue #48.
+
 **Arbitration Timing:**
-- Combinational logic (< 1 clock cycle)
-- Result available same cycle for IDLE → DELIVER transition
+- Combinational (< 1 clock cycle)
+- Result loads into the output stage on the next edge whenever the stage is empty or being accepted:
+```systemverilog
+assign w_out_load = w_sel_valid && (!r_out_valid || irq_out_ready);
+```
 
 ### Remote IRR Management
 
 **Set Conditions:**
 ```systemverilog
-// For level-triggered IRQs only
-if (cfg_trigger_mode[i] == 1'b1) begin  // Level mode
-    if (irq_selected_valid && selected_irq == i && state == IDLE) begin
-        remote_irr[i] <= 1'b1;  // Set when starting delivery
+// For level-triggered IRQs only, on the ACCEPT of this pin's delivery.
+// The LIVE trigger mode arms this branch, not a copy sampled at load:
+// an edge->level rewrite during an in-flight delivery must still land
+// in service, or the live level would re-deliver forever.
+if (cfg_trigger_mode[i] == 1'b1) begin
+    if (w_deliv_accept && (r_out_irq == IRQ_IDX_W'(i))) begin
+        r_remote_irr[i] <= 1'b1;
     end
-end
 ```
 
 **Clear Conditions:**
 ```systemverilog
-if (eoi_in && eoi_vector == cfg_vector[i]) begin
-    remote_irr[i] <= 1'b0;  // Clear on EOI
+    end else if (eoi_in && (eoi_vector == r_delivered_vector[i])) begin
+        r_remote_irr[i] <= 1'b0;   // matched against the DELIVERED vector, not cfg_vector
+    end
 end
 ```
 
-**Effect on Pending:**
+An accept and a matching EOI in the same cycle: the accept wins, because the pin has just re-entered service. An EOI for a pin whose Remote IRR is already clear is a no-op. The compare is per pin and every pin runs it on the same EOI, so two level pins delivered with the same vector both clear on one EOI, as on the 82093AA - sharing a vector is legal, it just means one EOI retires both.
+
+**Effect on Eligibility:**
 ```systemverilog
-// Level mode: Pending only if active AND Remote IRR clear
-irq_pending[i] = irq_active[i] && !irq_remote_irr[i];
+// Level mode: the live level requests, but only while this pin is not in service
+w_irq_eligible[i] = w_irq_active[i] && !cfg_mask[i] && !r_remote_irr[i] && ...;
 ```
 
-This prevents level interrupts from re-triggering while being serviced.
+This prevents a level interrupt from re-triggering while it is being serviced, and stops there: nothing about pin i's service state touches pin j.
 
 ### Multiple Pending IRQs
 
 **Scenario:** Multiple IRQs asserted simultaneously
 
 **Behavior:**
-1. Arbitration selects lowest numbered IRQ
-2. FSM delivers that interrupt (IDLE → DELIVER [→ WAIT_EOI])
-3. Other IRQs remain pending
-4. After current delivery complete, FSM returns to IDLE
-5. Arbitration runs again, selects next lowest
-6. Process repeats until all serviced
+1. Arbitration selects the lowest numbered eligible pin
+2. The stage presents it (`irq_out_valid`)
+3. Other pins remain requesting
+4. On accept, the retiring pin drops out (latch cleared or Remote IRR set) and the next lowest loads in the same cycle
+5. Level pins in service are skipped; their EOIs arrive whenever the ISRs finish and do not gate anyone else
+6. Process repeats until nothing is eligible
 
 **Example Timeline:**
 ```
-Time 0:   IRQ3, IRQ5, IRQ7 all assert
-Time 1:   Arbitration selects IRQ3 (lowest)
-Time 2-5: Deliver IRQ3, wait if level
-Time 6:   Return to IDLE
-Time 7:   Arbitration selects IRQ5 (next lowest)
-Time 8-11: Deliver IRQ5, wait if level
-Time 12:  Return to IDLE
-Time 13:  Arbitration selects IRQ7
+Cycle 0:   IRQ3 (level), IRQ5 (edge), IRQ7 (level) all become eligible
+Cycle 1:   Stage loads IRQ3
+Cycle 2:   CPU accepts IRQ3 -> Remote IRR[3] set; stage loads IRQ5 the same cycle
+Cycle 3:   CPU accepts IRQ5 -> pending[5] cleared; stage loads IRQ7
+Cycle 4:   CPU accepts IRQ7 -> Remote IRR[7] set; stage empty
 ...
+Cycle N:   EOI(vector of IRQ7) -> Remote IRR[7] clears; IRQ3 still in service, unaffected
+Cycle N+1: IRQ7 re-requests if its level is still asserted
 ```
 
-**Fairness:** Lower numbered IRQs starve higher if constantly asserting. This is intentional (priority system).
+**Fairness:** Lower numbered IRQs starve higher ones if they keep requesting, and a low-numbered level pin that is EOI'd promptly can hold the stage indefinitely. Static priority is the design choice; round-robin is tracked as RLB-008 in `vault/Tasks/RLB/open.md`, not as a defect.
 
 ## Navigation
 
 **See Also:**
-- [ioapic_core Block](01_ioapic_core.md) - Detailed FSM implementation
-- [Programming: Level Interrupts](../ch04_programming/04_level_triggered_irq.md) - FSM from software perspective
+- [ioapic_core Block](01_ioapic_core.md) - Detailed delivery-stage implementation
+- [Programming: Level Interrupts](../ch04_programming/04_level_triggered_irq.md) - The stage from the software perspective
 
 **Back to:** [Index](../ioapic_index.md) | [Block Overview](00_overview.md)
