@@ -79,12 +79,23 @@ reset macros inside the blocks are polarity-agnostic.
 
 ### Test
 
-`val/amba/test_wb4_master_slave_loop.py` wires a master to a slave
-(`rtl/amba/testcode/wb4_master_slave_loop.sv`) and drives both entirely
-through the four FUB-side queues with the GAXI BFMs under independent timing
-profiles. The wrapper carries the pipelined-protocol checks a Wishbone BFM
-monitor would perform: `STB` implies `CYC`, a stalled request is held
-unchanged, at most one termination per clock, none outside a cycle, never
-more terminations than accepted requests. It also records the peak
-in-flight count, which the test asserts is above one so the pipelined mode
-is proven exercised rather than assumed.
+Three tests in `val/amba/`, all through the RDS-DV framework's Wishbone B4
+BFMs (`CocoTBFramework.components.wb4`: `WB4Master`, `WB4Slave`,
+`WB4Monitor`) and the GAXI BFMs on the FUB-side queues:
+
+- `test_wb4_master.py` - the master alone: the framework slave answers on
+  the bus from a memory model with ERR and RTY address windows, the monitor
+  checks the wires, and every response on `rsp_*` is paired in order with
+  the termination the slave produced.
+- `test_wb4_slave.py` - the slave alone: the framework master drives the bus
+  and the test is the FUB. Includes the abort case (CYC dropped with requests
+  outstanding), which a master-slave loop can never produce, and proves the
+  slave discards the late responses instead of pairing them with the next
+  cycle.
+- `test_wb4_master_slave_loop.py` - both back to back
+  (`rtl/amba/testcode/wb4_master_slave_loop.sv`); the framework monitor and
+  the wrapper's own protocol checks must agree.
+
+Each asserts the peak in-flight count exceeds one, so the pipelined mode is
+proven exercised rather than assumed. Formal: `formal/amba/wb4_master/` and
+`formal/amba/wb4_slave/`.

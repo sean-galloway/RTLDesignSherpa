@@ -219,5 +219,8 @@ wb4_slave #(
 
 ## Test
 
-`val/amba/test_wb4_master_slave_loop.py` (master and slave back to back, see
-the [family README](README.md)). Formal: `formal/amba/wb4_slave/`.
+`val/amba/test_wb4_slave.py` drives the block alone against the framework's Wishbone
+BFMs (`CocoTBFramework.components.wb4`), with the GAXI BFMs on the queues;
+`val/amba/test_wb4_master_slave_loop.py` runs it back to back with its
+counterpart. See the [family README](README.md). Formal:
+`formal/amba/wb4_slave/`.

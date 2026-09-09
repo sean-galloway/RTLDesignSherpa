@@ -2206,3 +2206,33 @@ extend whatever reset the monitor subsystem is missing.
 
 Related: TASK-083 (timeout saturation) is a different defect in the same
 subsystem. The owner has monitor simplification planned, which may subsume both.
+
+### TASK-085: two val/amba tests fail deterministically on specific seeds
+
+**Priority:** P2. A GATE regression that passes or fails depending on the
+seed base is a regression nobody can trust; both tests survived three
+reruns of the same seed, so this is not a flake.
+
+**Status:** open 2026-09-09. Found by the val/amba GATE run that landed the
+Wishbone B4 tests (seed base 3266401392: 2 failed, 714 passed); the run two
+hours earlier with another base was 714/714. Reproduced standalone from a
+clean build with the per-test seed, and reproduced again with the pre-edit
+`TBBase` (24b4387d5~1) swapped in, so neither the Wishbone work nor the
+type-check edits are the cause.
+
+- `val/amba/test_apb4_master.py::test_apb4_master_wavedrom[32-32-6-6]`,
+  `SEED=56798 REG_LEVEL=GATE pytest test_apb4_master.py -k wavedrom`: fails
+  (SystemExit from cocotb); passes with other seeds.
+- `val/amba/test_axil4_master_rd_mon.py::test_axil4_master_rd_mon[gate]`,
+  `SEED=66068 REG_LEVEL=GATE pytest test_axil4_master_rd_mon.py`: "TEST 1:
+  Basic Connectivity" sees 0 monitor packets and raises
+  `RuntimeError: Monitor not generating packets`; passes with SEED=14399.
+
+**Suspect:** a randomizer draw that the seed steers into a configuration the
+test does not handle (a zero-length or all-masked basic transfer, a timing
+profile that leaves the monitor idle for the whole check window) rather
+than a DUT defect -- but that is a guess until the seed is bisected.
+[[seeds-and-determinism]]: replay with the seed above, do not re-roll.
+
+**Done when:** both seeds pass, the cause is recorded here, and the fix is
+in the test (or the DUT, if the seed really found one), not in the seed.

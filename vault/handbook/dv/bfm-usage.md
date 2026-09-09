@@ -15,6 +15,7 @@ BFM = add it to RDS-DV, never inline.
 | custom valid/ready | GAXIMaster/GAXISlave (components.gaxi) |
 | AXI4 | axi4 factories + AXI4Sequence (never hand-poke s_axi_*) |
 | AXI4-Lite / APB / AXIS | axil4 / apb / axis4+axis5 factories |
+| Wishbone B4 (pipelined) | wb4 factories (components.wb4): WB4Master / WB4Slave / WB4Monitor; STALL, CYC and in-order termination are why it is not a GAXI composition |
 | MonBus receive | TBClasses.monbus.MonbusSlave |
 | MonBus decode | TBClasses.monbus.parse() ONLY |
 | MonBus groups | MonbusGroupHarness (scoreboards.monbus_group) |
@@ -27,7 +28,7 @@ Decision line: standard protocol -> factory; custom valid/ready -> GAXI;
 
 Factory entry points, per family (count = callables in that file):
 `gaxi_factories` 8, `axi4_factories` 17, `axil4_factories` 18,
-`apb_factories` 7, `axis_factories` 11, `fifo_factories` 14. DFI, UART and
+`apb_factories` 7, `axis_factories` 11, `fifo_factories` 14, `wb4_factories` 3. DFI, UART and
 SMBus have no factory module - construct their components directly
 (`dfi_master_mc.py`, `uart_components.py`, `smbus_components.py`).
 

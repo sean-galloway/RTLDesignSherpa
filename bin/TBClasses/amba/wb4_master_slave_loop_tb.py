@@ -44,6 +44,7 @@ from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDef
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master, create_gaxi_slave
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
+from CocoTBFramework.components.wb4.wb4_factories import create_wb4_monitor
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
 
@@ -128,6 +129,10 @@ class WB4MasterSlaveLoopTB(TBBase):
             memory_model=None, log=self.log, multi_sig=True)
         self.s_cmd.add_callback(self._on_slave_cmd)
         self.m_rsp.add_callback(self._on_master_rsp)
+        # The framework's Wishbone monitor on the wires between the two blocks.
+        # The wrapper's own checkers stay as the second opinion; the two must agree.
+        self.mon = create_wb4_monitor(self.dut, 'WB Mon', 'wb', self.clk,
+                                      addr_width=self.AW, data_width=self.DW, log=self.log)
 
     # ---- mandatory TB methods ---------------------------------------------
     async def setup_clocks_and_reset(self):
@@ -237,13 +242,18 @@ class WB4MasterSlaveLoopTB(TBBase):
     async def run_traffic(self, count, rng, mix=0.2, timeout_clocks=20000):
         """Send `count` random commands, then wait for every response."""
         start = self.stats['responses']
+        # send_burst: queue the phase, then drive at the profile's pace (a
+        # per-packet send() drains the driver pipeline each time and throttles
+        # the producer to one command per ~3 clocks regardless of profile).
+        pkts = []
         for _ in range(count):
             we, adr, dat, sel = self._random_cmd(rng, mix)
             self.sent.append((we, adr, dat, sel))
             pkt = GAXIPacket(self.cmd_fc)
             pkt.we, pkt.adr, pkt.dat, pkt.sel = we, adr, dat, sel
             self.stats['sent'] += 1
-            await self.m_cmd.send(pkt)
+            pkts.append(pkt)
+        await self.m_cmd.send_burst(pkts)
         waited = 0
         while self.stats['responses'] - start < count:
             await RisingEdge(self.clk)
@@ -264,7 +274,15 @@ class WB4MasterSlaveLoopTB(TBBase):
         if a != expected_total or t != expected_total:
             self.errors.append(f"wire counts accepted={a} terminated={t}, expected {expected_total}")
         peak = int(self.dut.max_inflight.value)
-        self.log.info(f"wires: accepted={a} terminated={t} violations={v} max_inflight={peak}")
+        mv = self.mon.total_violations()
+        if mv:
+            self.errors.append(f"WB4Monitor flagged {mv} violation(s): {self.mon.violations}")
+        if (self.mon.accepted, self.mon.terminated, self.mon.max_inflight) != (a, t, peak):
+            self.errors.append(f"WB4Monitor ({self.mon.accepted}, {self.mon.terminated}, "
+                               f"{self.mon.max_inflight}) disagrees with the wrapper ({a}, {t}, {peak})")
+        self.log.info(f"wires: accepted={a} terminated={t} violations={v} max_inflight={peak} "
+                      f"| monitor: accepted={self.mon.accepted} terminated={self.mon.terminated} "
+                      f"max_inflight={self.mon.max_inflight} violations={mv}")
         return peak
 
     def report(self):
