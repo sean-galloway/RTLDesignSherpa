@@ -965,3 +965,14 @@ Results (restored tree):
     endpoints, LUT 52.9% (33550), worst path unchanged in kind -- the
     arbiter's r_rd_pop -> r_bank pre-pick-to-output register, not the
     predictor tables.
+
+Tier A result (PUMICE_ENHANCED=1, same 75 MHz flow): does NOT close.
+  AltSpreadLogic_high: WNS -0.053 ns, TNS -0.221, 8 failing of 72894.
+  ExtraTimingOpt:      WNS -0.021 ns, TNS -0.048, 4 failing of 72894.
+  Failing endpoints = the cross-CAM global-oldest cone (u_rd_cam/r_older ->
+  u_arbiter/r_{rd,wr}_col_q, 16 levels) the arbiter's BASIC/ENHANCED note
+  names, plus the base build's own r_*_pop -> r_bank paths that sit within
+  +-0.05 ns of zero in every build (placement noise). Tracked as PUMICE-024
+  with the candidate fix (register the head compare one stage earlier); the
+  overlays stay an env opt-in and the board build is the base tier.
+

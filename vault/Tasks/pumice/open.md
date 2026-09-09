@@ -393,6 +393,37 @@ failures to triage: `smoke_rate2_faithful`, `smoke_rate2_rdphase1`,
 79fb58a66, before this session). Add this directory to the pumice regression
 convention (`regressions` skill) and to the components master Makefile.
 
+## PUMICE-024 — ORDER_MODE overlays (PUMICE_ENHANCED) miss 75 MHz by 21 ps
+**Status:** open 2026-09-09  **Priority:** P2 — opt-in tier, board build unaffected
+
+`PUMICE_SYS_75=1 PUMICE_ENHANCED=1 make bitstream` (in_order / age_threshold
+overlays compiled in) does not close post-route at 75 MHz:
+
+| placer directive            | WNS       | TNS    | failing endpoints |
+|-----------------------------|-----------|--------|-------------------|
+| AltSpreadLogic_high (flow)  | -0.053 ns | -0.221 | 8 of 72894        |
+| ExtraTimingOpt              | -0.021 ns | -0.048 | 4 of 72894        |
+
+The base build (predictor modes 5/6/7 restored, d411e9f08) closes at
++0.020 ns on the same flow. The failing endpoints are the cross-CAM
+global-oldest cone the arbiter's BASIC/ENHANCED note predicts:
+`u_rd_cam/r_older_reg[*] -> u_arbiter/r_{rd,wr}_col_q_reg[*]` (16 levels),
+plus one or two of the base build's own `r_*_pop -> r_bank` paths that sit
+within +-0.05 ns of zero either way (placement noise, not the overlay).
+
+Candidate fix, NOT started (a design change, not a restore): register the
+cross-CAM head compare (`w_rd_head_wins` and the sch_head_rel export) one
+stage earlier so in_order / age_threshold decide on a one-cycle-stale
+oldest -- a preference, not a hazard guard, so it costs at most one
+non-optimal pick per boundary. Needs the full pumice + char gate and a
+75 MHz build. Until then the overlays stay an env opt-in
+(`create_project.tcl`), and a SCHED_POLICY.order_mode write on the board
+bitstream is a no-op (runs FR-FCFS), as the arbiter note says.
+
+Two-stage bank scheduler (`PUMICE_BANK_SCHED`, rtl/OLD): not attempted --
+it needs every hazard fix of the flat arbiter ported into its picker (see
+design/README.md "PAGING MODES RESTORED"); go/no-go with Sean.
+
 ## PUMICE-CLEANUP — doc + filelist cleanup (push from workstation)
 **Status:** open 2026-07-24 — deferred (project cleanup; see TOOL-010)
 **Priority:** P2
