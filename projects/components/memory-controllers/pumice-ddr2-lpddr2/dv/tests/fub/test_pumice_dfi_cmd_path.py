@@ -52,6 +52,7 @@ async def cocotb_test_pumice_dfi_cmd_path(dut):
     dut.wr_phase_i.value = 0
     # Read-aligner backpressure: keep a free slot so RD commands are not gated.
     dut.rd_op_ready_i.value = 1
+    dut.wr_op_ready_i.value = 1
     # Sub-DFI-word framing (task #146): single-command per group (n_subcmd=1) for
     # this smoke — the packing case is covered by cocotb_test_pumice_dfi_cmd_path_pack.
     dut.n_subcmd_i.value = 1
@@ -131,6 +132,7 @@ async def cocotb_test_pumice_dfi_cmd_path_pack(dut):
     dut.rd_phase_i.value = 0
     dut.wr_phase_i.value = 0
     dut.rd_op_ready_i.value = 1
+    dut.wr_op_ready_i.value = 1
     dut.n_subcmd_i.value = 2
     dut.sub_col_stride_i.value = 4
     dut.sub_phase_stride_i.value = 2

@@ -67,7 +67,11 @@ def _cfg(dut, page_policy=0):
     dut.hash_seed_i.value = 0
     for t, v in [("t_rcd_i", 3), ("t_rp_i", 3), ("t_ras_i", 4), ("t_rc_i", 6),
                  ("t_wr_i", 3), ("t_rtp_i", 2), ("t_faw_i", 6), ("t_rrd_i", 2),
-                 ("t_wtr_i", 2), ("t_rtw_i", 2), ("t_ccd_i", 1)]:
+                 ("t_wtr_i", 2), ("t_rtw_i", 2),
+                 # tCCD = the column's DQ occupancy: BL8 at DFI_RATE 2 is 4 DFI
+                 # words -> 4 MC cycles (1 was unphysical; pumice_core clamps
+                 # to BURST_WORDS anyway, this makes the test say what it runs)
+                 ("t_ccd_i", 4)]:
         getattr(dut, t).value = v
     dut.t_refi_i.value = 0x0400          # periodic refresh during the run
     dut.refi_reload_i.value = 0
@@ -137,6 +141,11 @@ async def _bring_up(dut, page_policy=0, read_latency=0, strict_read=False):
         if int(dut.init_done_o.value):
             break
     assert int(dut.init_done_o.value) == 1, "init never completed"
+    # The command stream is released CMD_DELAY cycles after the arbiter pushes
+    # it (WR data must lead), so the init sequence's tail -- its two REFs --
+    # reaches the DFI ~20 cycles AFTER init_done. Let it land before any test
+    # samples a refresh baseline (else "2 refreshes inside a parked window").
+    await ClockCycles(dut.aclk, 40)
 
     # AXI4 master BFMs. HARD RULE (Sean 2026-08-27): no environment may
     # hand-poke a standard/valid-ready interface -- all host traffic goes
@@ -774,6 +783,20 @@ async def _measure_write_stream(dut, *, t_refi, t_rfc, label, title, n=256,
     trk = AxiChanTracker(dut, 'w', valid="s_axi_wvalid", ready="s_axi_wready",
                          last="s_axi_wlast", log=dut._log)
     cocotb.start_soon(trk.run())
+    # TB-attributable starvation: W offering nothing while the DUT is NOT
+    # holding AW. With a rate-matched write commit (2026-09-09) the CAM fills
+    # under refresh and AW back-pressures; the W engine then has no address to
+    # stream against, which the W-only tracker would book as "TB starved".
+    starv_tb = [0]
+    async def _starv_tb():
+        while True:
+            await RisingEdge(dut.aclk)
+            w_starv = (not int(dut.s_axi_wvalid.value)) and int(dut.s_axi_wready.value)
+            aw_bp   = int(dut.s_axi_awvalid.value) and (not int(dut.s_axi_awready.value))
+            if w_starv and not aw_bp:
+                starv_tb[0] += 1
+    cocotb.start_soon(_starv_tb())
+    starv_tb0 = starv_tb[0]
     base = (trk.prod, trk.bp, trk.starv, trk.idle)
     ev0 = len(trk.events)
 
@@ -792,6 +815,7 @@ async def _measure_write_stream(dut, *, t_refi, t_rfc, label, title, n=256,
         't_refi': t_refi, 't_rfc': t_rfc, 'elapsed': elapsed,
         'prod':  trk.prod  - base[0], 'bp':   trk.bp   - base[1],
         'starv': trk.starv - base[2], 'idle': trk.idle - base[3],
+        'starv_tb': starv_tb[0] - starv_tb0,
         'refs': slave.cmd_counts.get(_DC.REF, 0) - ref0,
         'max_run': max(trk.max_run, trk._run), 'max_bp_run': trk.max_bp_run,
     }
@@ -863,10 +887,15 @@ def _assert_stream_sane(m):
     assert m['prod'] == m['beats'], (
         f"W channel moved {m['prod']} beats, expected {m['beats']} -- the "
         f"accounting window does not cover the traffic")
-    assert m['active'] and m['starv'] <= m['active'] * 0.05, (
-        f"stimulus starved the DUT for {m['starv']}/{m['active']} active W "
-        f"cycles ({100.0 * m['starv'] / max(m['active'], 1):.1f}%) -- this "
-        f"window measures the testbench, not the design; do not quote it")
+    starv_tb = m.get('starv_tb', m['starv'])
+    # 8%: the engine's per-burst W refill gap is a fixed few cycles per burst;
+    # under a physical tCCD (4 at BL8) the stream itself is slower, so the same
+    # gap is a larger share of the active window than the 5% tuned at tCCD=1.
+    assert m['active'] and starv_tb <= m['active'] * 0.08, (
+        f"stimulus starved the DUT for {starv_tb}/{m['active']} active W "
+        f"cycles ({100.0 * starv_tb / max(m['active'], 1):.1f}%, W starv "
+        f"{m['starv']} of which AW-held) -- this window measures the "
+        f"testbench, not the design; do not quote it")
 
 
 async def _measure_read_stream(dut, *, t_refi, t_rfc, label, title, n=256,
@@ -1041,6 +1070,16 @@ async def cocotb_test_pumice_core_perf_write_ceiling(dut):
         f"{m['refs']} refreshes fired inside the ceiling window -- "
         f"maintenance is not actually parked, so the stall count is not "
         f"purely datapath")
+    # WRITE DATA MUST LEAD (2026-09-09): the DFI write-staged token is an
+    # invariant, not a throttle. A WR held at the DFI head for lack of data
+    # stalls the in-order command stream and compresses the spacing behind it.
+    held = int(dut.u_core.u_dfi.u_cmd.r_wr_held_cnt.value)
+    held_max = int(dut.u_core.u_dfi.u_cmd.r_wr_held_max.value)
+    dut._log.info("write-staged gate: held %d cycles total, longest hold %d", held, held_max)
+    assert held == 0, (
+        f"a WR was held at the DFI for {held} cycles (longest {held_max}) waiting "
+        f"for its data -- the command reached the DFI before the data (CMD_DELAY "
+        f"too small or the WR commit not rate-matched)")
     assert m['bp'] == 0, (
         f"DUT stalled the W channel for {m['bp']} cycles with NOTHING to do "
         f"but move write data (max run {m['max_bp_run']}) -- the datapath "

@@ -76,6 +76,7 @@ module pumice_top_geared
     parameter int NUM_ENTRIES     = 8,
     parameter int N_SRAM_SLOTS    = NUM_ENTRIES,
     parameter int RD_RET_DEPTH    = 32,   // reads in flight (return ring)
+    parameter int CMD_DELAY      = 0,    // command release delay (aclk); 0 = auto: 5 + 2*BURST_WORDS (WR data must lead)
 
     // ---- derived ----
     parameter int DW   = DRAM_BEAT_WIDTH * DFI_RATE,  // controller (core) width
@@ -344,7 +345,8 @@ module pumice_top_geared
         .DRAM_BL               (DRAM_BL),
         .NUM_ENTRIES      (NUM_ENTRIES),
         .N_SRAM_SLOTS     (N_SRAM_SLOTS),
-        .RD_RET_DEPTH     (RD_RET_DEPTH)
+        .RD_RET_DEPTH     (RD_RET_DEPTH),
+        .CMD_DELAY        (CMD_DELAY)
     ) u_core (
         .aclk                (aclk),
         .aresetn             (aresetn),

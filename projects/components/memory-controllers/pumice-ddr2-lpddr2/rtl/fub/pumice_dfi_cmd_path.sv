@@ -115,6 +115,14 @@ module pumice_dfi_cmd_path
     output logic                       wr_fire_o,   // WR / WRA issued
     output logic                       rd_fire_o,   // RD / RDA issued
     input  logic                       rd_op_ready_i, // rd aligner has a free slot
+    // A complete write burst is staged on the DFI side (pumice_dfi_cdc token).
+    // A WR/WRA is held until then and wr_accept_o pops the token the cycle the
+    // command is accepted -- the mirror of rd_op_ready_i. With the controller's
+    // rate-matched commit + CMD_DELAY the hold NEVER happens (a hold stalls the
+    // in-order command stream and compresses the spacing behind it); the
+    // r_wr_held_* counters below make that an observable invariant.
+    input  logic                       wr_op_ready_i,
+    output logic                       wr_accept_o,
     output logic [RKW-1:0]             fire_rank_o
 );
 
@@ -145,7 +153,8 @@ module pumice_dfi_cmd_path
     // backpressure: hold a RD command if the read aligner's tracking queue is
     // full so no return is ever untracked. Sized so it never fires in steady
     // state (MAX_OUTSTANDING >= RD_CAM_DEPTH).
-    assign w_gate   = ((!w_is_col) || w_col_ok) && (!w_is_rd || rd_op_ready_i);
+    assign w_gate   = ((!w_is_col) || w_col_ok) && (!w_is_rd || rd_op_ready_i)
+                    && (!w_is_wr || wr_op_ready_i);
 
     // ---- sub-DFI-word burst packing (task #146) ----------------------------
     // A column command that packs n_subcmd_i JEDEC bursts into one DFI word is
@@ -272,6 +281,34 @@ module pumice_dfi_cmd_path
 
     // Pop the FIFO once for the whole packed group (single cycle).
     assign cmd_ready_o = w_fmt_ready && w_gate;
+    // ...and the staged-burst token with an accepted WR (same cycle).
+    assign wr_accept_o = w_fire && w_is_wr;
+
+    // ---- invariant observability: cycles a WR sat at the head without data --
+    // Read hierarchically by the DV (r_wr_held_cnt total, r_wr_held_max longest
+    // single hold). Simulation-only.
+`ifndef SYNTHESIS
+    logic [31:0] r_wr_held_cnt;
+    logic [15:0] r_wr_held_run, r_wr_held_max;
+    logic        w_wr_held;
+    assign w_wr_held = cmd_valid_i && w_is_wr && !wr_op_ready_i
+                     && ((!w_is_col) || w_col_ok) && w_fmt_ready;
+    `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
+        if (`RST_ASSERTED(dfi_rstn)) begin
+            r_wr_held_cnt <= '0; r_wr_held_run <= '0; r_wr_held_max <= '0;
+        end else begin
+            if (w_wr_held) begin
+                r_wr_held_cnt <= r_wr_held_cnt + 1;
+                r_wr_held_run <= r_wr_held_run + 1;
+                if (r_wr_held_run + 1 > r_wr_held_max) r_wr_held_max <= r_wr_held_run + 1;
+            end else begin
+                r_wr_held_run <= '0;
+            end
+        end
+    )
+    final $display("PUMICE_DFI_CMD_PATH: write-staged gate held %0d cycles total, longest hold %0d",
+                   r_wr_held_cnt, r_wr_held_max);
+`endif
 
     // DQ-occupancy pacing counter: loaded to COL_BURST_CYC-1 on the accepted
     // column group. COL_BURST_CYC==1 => loads 0 => never blocks. The packed

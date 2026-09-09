@@ -107,6 +107,7 @@ class PumiceCmdArbiterTB(TBBase):
         self.dut.twtr_ok_i.value = 1
         self.dut.trtw_ok_i.value = 1
         self.dut.tccd_ok_i.value = 1
+        self.dut.t_ccd_i.value = 1
         for pfx in ('wr', 'rd'):
             getattr(self.dut, f'{pfx}_sch_valid_i').value = 0
             getattr(self.dut, f'{pfx}_sch_bank_i').value = 0

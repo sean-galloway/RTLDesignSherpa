@@ -45,6 +45,7 @@ module pumice_core
     parameter int NUM_ENTRIES    = 8,
     parameter int N_SRAM_SLOTS   = NUM_ENTRIES,
     parameter int RD_RET_DEPTH   = 32,   // reads in flight (return ring), power of 2
+    parameter int CMD_DELAY      = 0,    // command release delay (aclk); 0 = auto: 5 + 2*BURST_WORDS (WR data must lead)
     parameter int AGE_WIDTH      = 16,
     // DV knob: arm the scheduler's command-history scoreboard (JEDEC same-bank
     // sequencing audit, $fatal on violation). 0 = generate-off, zero cost.
@@ -236,6 +237,16 @@ module pumice_core
     // config, never a synth mismatch. Board/default (bl_i==DRAM_BL, gear==log2 rate)
     // => n_subcmd==N_SUBCMD, stride==SUB_COL_STRIDE => bit-identical framing.
     localparam int SUBW_MAX = $clog2(N_SUBCMD + 1);
+    // Command release delay so a WR's data (rate-matched drain: fixed pipeline
+    // ~5 + its own BURST_WORDS fetch + at most one burst queued ahead) reaches
+    // the DFI before the command. Measured: BL8/4-word bursts held up to 6
+    // cycles at CMD_DELAY=6 -> 13; BL4 x16 (1 word) needs 7.
+    localparam int CMD_DELAY_EFF = (CMD_DELAY == 0) ? (5 + 2 * BURST_WORDS) : CMD_DELAY;
+    // tCCD can never be shorter than a column's DQ occupancy (BURST_WORDS DFI
+    // words); a smaller CSR value only makes the arbiter bunch columns into the
+    // DFI cmd path's COL_BURST_CYC pacing (a stall, hence spacing compression).
+    logic [7:0] w_t_ccd_eff;
+    assign w_t_ccd_eff = (t_ccd_i < 8'(BURST_WORDS)) ? 8'(BURST_WORDS) : t_ccd_i;
     logic [3:0]          w_bl_pumice;
     logic [4:0]          w_active_rate;
     logic [SUBW_MAX-1:0] w_n_subcmd;
@@ -413,7 +424,8 @@ module pumice_core
         .AXI_ID_WIDTH  (IW),
         .NUM_ENTRIES   (NUM_ENTRIES),
         .AGE_WIDTH     (AGE_WIDTH),
-        .CMD_HISTORY_EN(CMD_HISTORY_EN)
+        .CMD_HISTORY_EN(CMD_HISTORY_EN),
+        .CMD_DELAY     (CMD_DELAY_EFF)
     ) u_sched (
         .aclk               (aclk),
         .aresetn            (aresetn),
@@ -445,7 +457,7 @@ module pumice_core
         .t_rrd_i            (t_rrd_i),
         .t_wtr_i            (t_wtr_i),
         .t_rtw_i            (t_rtw_i),
-        .t_ccd_i            (t_ccd_i),
+        .t_ccd_i            (w_t_ccd_eff),
         .t_refi_i           (t_refi_i),
         .refi_reload_i      (refi_reload_i),
         .t_rfc_i            (t_rfc_i),
@@ -536,7 +548,11 @@ module pumice_core
         // every read the ring can hold in flight: RD_RET_DEPTH reads x
         // BURST_WORDS DFI words each. Sized here, asserted in the aligner.
         .RD_MAX_OUTSTANDING(RD_RET_DEPTH),
-        .RD_FIFO_DEPTH   (RD_RET_DEPTH * BURST_WORDS)
+        .RD_FIFO_DEPTH   (RD_RET_DEPTH * BURST_WORDS),
+        // Write data is STAGED for CMD_DELAY cycles before its command arrives
+        // (that is the point), so the wrdata CDC must hold CMD_DELAY/BURST_WORDS
+        // + 2 bursts without stalling the CAM drain -- or the lag comes back.
+        .WD_FIFO_DEPTH   (32)
     ) u_dfi (
         .ctl_clk            (aclk),
         .ctl_rstn           (aresetn),

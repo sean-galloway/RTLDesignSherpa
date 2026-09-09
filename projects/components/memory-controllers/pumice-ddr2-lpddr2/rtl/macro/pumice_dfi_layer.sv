@@ -167,6 +167,7 @@ module pumice_dfi_layer
 
     // ---- fire strobes ----
     logic               w_wr_fire, w_rd_fire, w_rd_op_ready;
+    logic               w_wr_staged, w_wr_accept;
     logic [RKW-1:0]     w_fire_rank;
 
     // ---- active-gear phase mask ------------------------------------------
@@ -221,6 +222,7 @@ module pumice_dfi_layer
         .wd_valid_i      (wd_valid_i),
         .wd_ready_o      (wd_ready_o),
         .wd_data_i       (wd_data_i),
+        .wd_last_i       (wd_data_i[WD_DW-1]),   // {last, strb, data}: last is the MSB
         .init_start_i    (init_start_i),
         .rd_valid_o      (rd_valid_o),
         .rd_ready_i      (rd_ready_i),
@@ -234,6 +236,8 @@ module pumice_dfi_layer
         .pwd_valid_o     (pwd_valid),
         .pwd_ready_i     (pwd_ready),
         .pwd_data_o      (pwd_data),
+        .pwr_staged_valid_o(w_wr_staged),
+        .pwr_staged_pop_i(w_wr_accept),
         .pinit_start_o   (pinit_start),
         .prd_valid_i     (prd_valid),
         .prd_ready_o     (prd_ready),
@@ -282,7 +286,9 @@ module pumice_dfi_layer
         .wr_fire_o         (w_wr_fire),
         .rd_fire_o         (w_rd_fire),
         .fire_rank_o       (w_fire_rank),
-        .rd_op_ready_i     (w_rd_op_ready)
+        .rd_op_ready_i     (w_rd_op_ready),
+        .wr_op_ready_i     (w_wr_staged),
+        .wr_accept_o       (w_wr_accept)
     );
 
     // ======================================================================

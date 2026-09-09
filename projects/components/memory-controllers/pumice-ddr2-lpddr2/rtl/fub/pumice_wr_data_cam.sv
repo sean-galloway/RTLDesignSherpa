@@ -32,6 +32,8 @@ module pumice_wr_data_cam #(
     parameter int AXI_BEATS_PER_BURST              = 4,
     parameter int AGE_WIDTH       = 16,
     parameter int N_SRAM_SLOTS    = NUM_ENTRIES,  // may be < NUM_ENTRIES
+    // bursts allowed in the commit drain queue, incl. the one being fetched
+    parameter int WR_DRAIN_AHEAD  = 2,
 
     // Derived
     parameter int IW    = AXI_ID_WIDTH,
@@ -486,10 +488,35 @@ module pumice_wr_data_cam #(
     logic            w_dq_wr_valid, w_dq_wr_ready, w_dq_rd_valid, w_dq_rd_ready;
     logic [PTRW-1:0] w_dq_rd_slot;
 
-    logic w_commit_fire;
-    assign w_commit_fire = commit_valid_i && commit_ready_o;
-    assign commit_ready_o = w_dq_wr_ready;    // room in the drain FIFO
-    assign w_dq_wr_valid  = commit_valid_i;
+    logic [PTRW:0]   r_dq_occ;       // registered drain-queue occupancy (no FIFO-count loop)
+
+    // RATE-MATCHED commit (2026-09-09): a WR may commit only while fewer than
+    // WR_DRAIN_AHEAD bursts sit in the drain queue (the head is the burst being
+    // fetched, popped at its last beat). The data path then trails its command
+    // by a FIXED pipeline latency, never by a queue -- with the old "room in
+    // the FIFO" gate the command stream ran up to 16 commands ahead of the
+    // data (measured 20 aclk), and no downstream gate can fix that without
+    // stalling the in-order command stream. One WR per BL_WORDS cycles is the
+    // DQ rate, so this costs no bandwidth. Pairs with the scheduler's fixed
+    // command delay (CMD_DELAY) and the DFI write-staged token invariant.
+    // Two predicates, one cycle apart. The arbiter DECIDES a write one cycle
+    // before it FIRES, so commit_ready_o answers "will a commit decided now be
+    // accepted next cycle": occupancy after this cycle's own accept and pop.
+    // The accept itself (w_commit_fire) uses the current occupancy -- a fire
+    // that the decision-time predicate allowed can only find more room, never
+    // less (only pops happen in between). Without the split, two back-to-back
+    // writes let the second fire into the cmd FIFO while the CAM refused it:
+    // a DRAM WR whose data never drains (the DFI staged gate then holds for
+    // ever -- measured 29373-cycle hold, AW/W/AR timeouts).
+    logic w_commit_fire, w_dq_pop;
+    logic [PTRW:0] w_dq_occ_next;
+    assign w_commit_fire = commit_valid_i && w_dq_wr_ready
+                         && (r_dq_occ < (PTRW+1)'(WR_DRAIN_AHEAD));
+    assign w_dq_wr_valid = w_commit_fire;
+    assign w_dq_pop      = w_dq_rd_valid && w_dq_rd_ready;
+    assign w_dq_occ_next = r_dq_occ + (w_commit_fire ? (PTRW+1)'(1) : (PTRW+1)'(0))
+                                    - (w_dq_pop      ? (PTRW+1)'(1) : (PTRW+1)'(0));
+    assign commit_ready_o = w_dq_wr_ready && (w_dq_occ_next < (PTRW+1)'(WR_DRAIN_AHEAD));
 
     gaxi_fifo_sync #(.DATA_WIDTH(PTRW), .DEPTH(NUM_ENTRIES)) u_drain_q (
         .axi_aclk   (aclk),
@@ -502,6 +529,11 @@ module pumice_wr_data_cam #(
         .rd_valid   (w_dq_rd_valid),
         .rd_data    (w_dq_rd_slot)
     );
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) r_dq_occ <= '0;
+        else                        r_dq_occ <= w_dq_occ_next;
+    )
 
     // Fill target SRAM slot: allocate a free slot on the first beat, else reuse
     // the slot already recorded in the entry's ptr.
@@ -537,12 +569,10 @@ module pumice_wr_data_cam #(
     // consumer of one stream can head-of-line-block a beat of the other.
     logic            w_hd_vld, w_hd_iscm, w_hd_blast, w_hd_agg, w_hd_slast;
     logic [SRW-1:0]  w_hd_data;
-    logic [PTRW-1:0] w_hd_slot;
     logic [IW-1:0]   w_hd_id;
     assign w_hd_vld   = (r_sk_cnt != 2'd0);
     assign w_hd_data  = r_sk_data [r_sk_rd];
     assign w_hd_iscm  = r_sk_iscm [r_sk_rd];
-    assign w_hd_slot  = r_sk_slot [r_sk_rd];
     assign w_hd_blast = r_sk_blast[r_sk_rd];
     assign w_hd_agg   = r_sk_agg  [r_sk_rd];
     assign w_hd_slast = r_sk_slast[r_sk_rd];
@@ -707,16 +737,21 @@ module pumice_wr_data_cam #(
             if (w_commit_fire)
                 r_sched[commit_slot_i] <= 1'b1;
 
-            // commit DRAIN evict on the last CONSUMED beat, sourced from the
-            // CARRIED tag (head slot), NOT the drain FIFO head (already popped at
-            // fetch-last). Frees the entry and its SRAM slot; the fetch address
-            // side has already moved on to the next burst.
-            if (w_cm_fire && w_hd_blast) begin
-                r_valid[w_hd_slot]  <= 1'b0;             // evict entry
-                r_pv   [w_hd_slot]  <= 1'b0;
-                r_fdone[w_hd_slot]  <= 1'b0;
-                r_sched[w_hd_slot]  <= 1'b0;
-                r_sram_occ[r_ptr[w_hd_slot]] <= 1'b0;    // free SRAM slot
+            // commit DRAIN evict at FETCH-last (2026-09-09): the burst's last
+            // word is read out of the SRAM this cycle, so the entry and its
+            // slot are free from the next edge. The B strobe and its id/agg/
+            // last ride the skid tag, so the response needs no entry. Freeing
+            // here instead of at consume-last takes the whole command delay +
+            // CDC + serializer wait out of the entry lifetime; with the
+            // rate-matched commit that lifetime was ~30 cycles, and 8 entries
+            // could not cover a burst every 4 -- the W channel stalled (bp 222
+            // in the write ceiling). Little's law on the write side.
+            if (w_dq_rd_valid && w_dq_rd_ready) begin
+                r_valid[w_dq_rd_slot]  <= 1'b0;          // evict entry
+                r_pv   [w_dq_rd_slot]  <= 1'b0;
+                r_fdone[w_dq_rd_slot]  <= 1'b0;
+                r_sched[w_dq_rd_slot]  <= 1'b0;
+                r_sram_occ[r_ptr[w_dq_rd_slot]] <= 1'b0;  // free SRAM slot
             end
         end
     )

@@ -40,7 +40,13 @@ module pumice_mem_cmd_scheduler
     parameter int AXI_ID_WIDTH = 8,
     parameter int NUM_ENTRIES = 8,
     parameter int AGE_WIDTH   = 16,
-    parameter int CMD_FIFO_DEPTH = 8,
+    parameter int CMD_FIFO_DEPTH = 16,
+    // Fixed release delay of the command stream, aclk cycles (0 = none). Every
+    // command leaves the cmd FIFO exactly CMD_DELAY cycles after it entered
+    // (absent DFI back-pressure), so the spacing the arbiter enforced is kept
+    // while a WR's data -- committed with the command, drained at a fixed
+    // latency -- reaches the DFI no later than the command does.
+    parameter int CMD_DELAY      = 6,
     parameter int N_LU  = NUM_BANKS,
     parameter int RKW   = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     parameter int BKW   = $clog2(NUM_BANKS),
@@ -444,6 +450,7 @@ module pumice_mem_cmd_scheduler
         .twtr_ok_i          (w_twtr_ok),
         .trtw_ok_i          (w_trtw_ok),
         .tccd_ok_i          (w_tccd_ok),
+        .t_ccd_i            (t_ccd_i),
         .wr_sch_valid_i     (wr_sch_valid_i),
         .wr_sch_bank_i      (wr_sch_bank_i),
         .wr_sch_row_i       (wr_sch_row_i),
@@ -500,7 +507,7 @@ module pumice_mem_cmd_scheduler
     assign w_cmd_wr_data = {a_cmd_ap, a_cmd_col, a_cmd_row, a_cmd_bank, a_cmd_rank,
                             a_cmd_op};
 
-    logic w_cmd_rd_valid;
+    logic w_cmd_rd_valid, w_cmd_pop;
     dram_op_e w_rd_op;
     gaxi_fifo_sync #(.DATA_WIDTH(CMD_W), .DEPTH(CMD_FIFO_DEPTH)) u_cmd_fifo (
         .axi_aclk   (aclk),
@@ -508,15 +515,44 @@ module pumice_mem_cmd_scheduler
         .wr_valid   (a_cmd_valid),
         .wr_ready   (a_cmd_ready),
         .wr_data    (w_cmd_wr_data),
-        .rd_ready   (cmd_ready_i),
+        .rd_ready   (w_cmd_pop),
         .count      (),
         .rd_valid   (w_cmd_rd_valid),
         .rd_data    (w_cmd_rd_data)
     );
 
+    // ---- fixed-delay release (CMD_DELAY) ------------------------------------
+    // A token enters a CMD_DELAY-stage shift register with every push; the FIFO
+    // head may leave only once a token has matured. Matured-but-unpopped tokens
+    // are counted, so under DFI back-pressure nothing is lost -- the stream then
+    // degrades to back-to-back release, which the DFI write-staged gate is
+    // designed never to cause (its held counters prove it).
+    localparam int TOKW = $clog2(CMD_FIFO_DEPTH + 1);
+    logic            w_cmd_push, w_tok_mature;
+    logic [TOKW-1:0] r_tok_cnt;
+    assign w_cmd_push = a_cmd_valid && a_cmd_ready;
+    generate if (CMD_DELAY > 0) begin : g_cmd_delay
+        logic [CMD_DELAY-1:0] r_tok_shift;
+        `ALWAYS_FF_RST(aclk, aresetn,
+            if (`RST_ASSERTED(aresetn)) r_tok_shift <= '0;
+            else if (CMD_DELAY > 1)     r_tok_shift <= {r_tok_shift[CMD_DELAY-2:0], w_cmd_push};
+            else                        r_tok_shift <= CMD_DELAY'(w_cmd_push);
+        )
+        assign w_tok_mature = r_tok_shift[CMD_DELAY-1];
+    end else begin : g_cmd_nodelay
+        assign w_tok_mature = w_cmd_push;
+    end endgenerate
+
+    assign cmd_valid_o = w_cmd_rd_valid && ((r_tok_cnt != '0) || w_tok_mature);
+    assign w_cmd_pop   = cmd_valid_o && cmd_ready_i;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) r_tok_cnt <= '0;
+        else r_tok_cnt <= r_tok_cnt + (w_tok_mature ? TOKW'(1) : TOKW'(0))
+                                    - (w_cmd_pop    ? TOKW'(1) : TOKW'(0));
+    )
+
     assign {cmd_ap_o, cmd_col_o, cmd_row_o, cmd_bank_o, cmd_rank_o, w_rd_op} = w_cmd_rd_data;
     assign cmd_op_o    = w_rd_op;
-    assign cmd_valid_o = w_cmd_rd_valid;
 
     assign busy_o = !init_done || refresh_req || w_cmd_rd_valid
                  || (|w_bank_row_active[0]);

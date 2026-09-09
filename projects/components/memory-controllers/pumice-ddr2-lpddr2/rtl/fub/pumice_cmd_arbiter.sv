@@ -146,6 +146,9 @@ module pumice_cmd_arbiter
     input  logic                      twtr_ok_i,
     input  logic                      trtw_ok_i,
     input  logic                      tccd_ok_i,
+    // tCCD in MC cycles, for the FORWARD column-spacing gate below (the
+    // flopped tccd_ok_i alone is 3 pick-pipeline cycles stale at classify).
+    input  logic [7:0]                t_ccd_i,
 
     // ---- wr CAM per-entry vectors (registered) + commit ----
     input  logic [NUM_ENTRIES-1:0]              wr_sch_valid_i,
@@ -362,6 +365,53 @@ module pumice_cmd_arbiter
     logic [NUM_BANKS-1:0] w_col_inflight_bank;
     assign w_col_inflight_bank = w_col_inflight_guard
                                | (w_inflight_col ? (NUM_BANKS'(1) << r_bank) : '0);
+
+    // ---- FORWARD tCCD (column spacing at classify time) --------------------
+    // tccd_ok_i is a flop that reloads on the column FIRE, 3 pipeline cycles
+    // after the column was classified, so up to 3-4 columns classify against
+    // a still-ok tCCD and fire back-to-back. Harmless when tCCD == 1 MC cycle
+    // (the board: BL4 x16 at DFI_RATE 2, one DFI word per column), but at
+    // tCCD > 1 the bunch runs into the DFI cmd path's COL_BURST_CYC pacing and
+    // STALLS the in-order command stream -- and any stall downstream of these
+    // timers compresses the spacing of everything queued behind it (with
+    // CMD_DELAY holding a rolling window of commands, that is a tRFC/tRP fatal
+    // in the BL8 core sims). So reload a forward counter the cycle a column is
+    // SELECTED (STAGE-1b), and, for tCCD > 1, also refuse a column classify in
+    // the very cycle another column is being selected (the register gap).
+    // This REPLACES the flopped global tccd_ok_i on the column masks: that
+    // one reloads at FIRE, 3 cycles after selection, so stacking the two
+    // gates made the column period tCCD + ~4 (read throughput halved at
+    // tCCD=4). tccd_ok_i stays an input for observability only.
+    // ---- refresh-pending column block ------------------------------------
+    // While a refresh is pending the refresh branch has absolute priority and
+    // no column can issue -- but the pick pipeline kept SELECTING row-hit
+    // columns to the open banks every cycle, and a selected column guards its
+    // bank (w_col_inflight_guard), which blocks the very PRE the refresh needs
+    // to close that bank: a livelock (families_x16 reorder, tCCD=1, 2026-09-09;
+    // the unconditional occupancy mask used to break it by accident, since a
+    // re-selected same-bank column blocked itself the next cycle). So columns
+    // to the banks the refresh will close are simply not selectable while it
+    // is pending: every bank for REFab, only the rotor bank for REFpb.
+    logic [NUM_BANKS-1:0] w_ref_col_block;
+    always_comb begin
+        for (int b = 0; b < NUM_BANKS; b++)
+            w_ref_col_block[b] = (refresh_req_i || refresh_drain_i)
+                               && (!refresh_kind_i || (BKW'(b) == refresh_bank_i));
+    end
+
+    logic [7:0] r_tccd_fwd;
+    logic       w_col_sel_now, w_tccd_fwd_ok;
+    assign w_col_sel_now = w_sel_rd_col_f || w_sel_wr_col_f;
+    // <= 1, not == 0: a column classified while the counter reads 1 is
+    // SELECTED the next cycle, exactly tCCD after the previous selection
+    // (== 0 gave a period of tCCD + 1). The same-cycle term covers the
+    // cycle of selection itself, when the counter has not reloaded yet.
+    assign w_tccd_fwd_ok = (r_tccd_fwd <= 8'd1) && !(w_col_sel_now && (t_ccd_i > 8'd1));
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn))      r_tccd_fwd <= '0;
+        else if (w_col_sel_now)          r_tccd_fwd <= (t_ccd_i > 8'd1) ? (t_ccd_i - 8'd1) : 8'd0;
+        else if (r_tccd_fwd != 8'd0)     r_tccd_fwd <= r_tccd_fwd - 8'd1;
+    )
     logic [NUM_BANKS-1:0] r_ap_closing, w_ap_fire_bank;
     assign w_ap_fire_bank = (w_fire_out && (r_do_rd || r_do_wr) && r_ap_out)
                           ? (NUM_BANKS'(1) << r_bank) : '0;
@@ -511,15 +561,15 @@ module pumice_cmd_arbiter
                 // throttle back-to-back same-bank columns. Found by the
                 // parked-victim pattern in test_pumice_core_sched_order;
                 // latent since the bank-parallel refactor.
-                rd_col_m[e] = rhit && r_bank_rdwr_ready[RK0][rb] && tccd_ok_i && twtr_ok_i
-                              // STOPGAP 2026-09-08: the occupancy mask stays UNCONDITIONAL on
-                              // both column classes. AP-gating it (columns at tCCD on OPEN
-                              // rows: issue-rate FUB 0.5 -> 1.0) is correct for reads but
-                              // the WRITE data path cannot follow (see the write mask below),
-                              // and gating only reads lets a read front-run a masked write
-                              // inside the write-batching drain (cmd_arbiter FUB). Both lift
-                              // together in the "WRITE DATA MUST LEAD" block (design/README).
-                              && rd_issue_ready_i && !w_col_inflight_bank[rb] && !r_ap_closing[rb] && !w_rd_col_inflight_ent[e]
+                rd_col_m[e] = rhit && r_bank_rdwr_ready[RK0][rb] && w_tccd_fwd_ok && twtr_ok_i
+                              // The per-bank occupancy mask is the AUTO-PRECHARGE pre-fire
+                              // guard only (a column to a closing bank until r_ap_closing
+                              // engages); on OPEN rows columns stream at tCCD (issue-rate
+                              // FUB 1.0). Lifted for writes too once the write-data path was
+                              // made to LEAD the command (rate-matched commit + CMD_DELAY +
+                              // the DFI staged-token invariant, 2026-09-09).
+                              && rd_issue_ready_i && !(f_ap(rb) && w_col_inflight_bank[rb]) && !r_ap_closing[rb] && !w_rd_col_inflight_ent[e]
+                              && !w_ref_col_block[rb]
                               && !w_rd_turn_block && !w_ap_col_guard[rb]
                               && !w_pre_col_guard[rb] && !w_preact_bank_guard[rb];
                 rd_act_m[e] = !r_bank_row_active[RK0][rb] && !w_guarded[rb]
@@ -533,16 +583,9 @@ module pumice_cmd_arbiter
             // else the write issues to DRAM but its data never drains (stale
             // DRAM) and the slot re-issues. ACT/PRE stay free.
             if (wr_sch_valid_i[e]) begin
-                wr_col_m[e] = whit && r_bank_rdwr_ready[RK0][wb] && tccd_ok_i && trtw_ok_i
-                              // WRITE columns: same-bank writes at tCCD expose the write-data
-                              // path: the WR command runs up to 16 commands
-                              // ahead of its data through the cmd FIFOs (measured lag 20
-                              // aclk in perf_write_ceiling), and a DFI-side "data staged"
-                              // gate stalls the in-order command stream and compresses the
-                              // spacing of everything queued behind it (tRFC/tRP fatals).
-                              // Lifting this needs the data to LEAD the command -- see
-                              // design/README.md "WRITE DATA MUST LEAD" (next block).
-                              && wr_commit_ready_i && !w_col_inflight_bank[wb] && !r_ap_closing[wb] && !w_wr_col_inflight_ent[e]
+                wr_col_m[e] = whit && r_bank_rdwr_ready[RK0][wb] && w_tccd_fwd_ok && trtw_ok_i
+                              && wr_commit_ready_i && !(f_ap(wb) && w_col_inflight_bank[wb]) && !r_ap_closing[wb] && !w_wr_col_inflight_ent[e]
+                              && !w_ref_col_block[wb]
                               && !w_wr_turn_block && !w_ap_col_guard[wb]
                               && !w_pre_col_guard[wb] && !w_preact_bank_guard[wb];
                 wr_act_m[e] = !r_bank_row_active[RK0][wb] && !w_guarded[wb]
@@ -1058,26 +1101,38 @@ module pumice_cmd_arbiter
             end else if (w_ref_safe) begin
                 w_valid = 1'b1; w_op = OP_REF; w_grant = 1'b1;
             end
-        end else if (w_pick_class == CL_COL && rd_col_f
-                     && !(w_col_wrf && wr_col_f)) begin
+        end else if (w_pick_class == CL_COL && rd_col_f && rd_issue_ready_i
+                     && !(w_col_wrf && wr_col_f && wr_commit_ready_i)) begin
             // 3a. READ row-hit (read-priority). The AP verdict is the one the
             // column mask saw at classify time (carried with the pick).
+            // rd_issue_ready_i / wr_commit_ready_i are re-checked LIVE here:
+            // the classify-time check is 3 pipeline cycles stale, and a column
+            // fired while its CAM refuses the issue/commit would push a DRAM
+            // command whose data never drains (the write-staged DFI gate then
+            // holds forever). Rate-matched commits make that refusal common.
             w_bank = f_bank(rd_sch_bank_i, rd_col_s); w_col = f_col(rd_sch_col_i, rd_col_s);
             w_valid = 1'b1; w_op = rd_col_ap ? OP_RDA : OP_RD;
             w_ap_out = rd_col_ap; w_do_rd = 1'b1; w_rd_issue = 1'b1; w_issue_slot = rd_col_s;
-        end else if (w_pick_class == CL_COL && wr_col_f) begin
-            // 3b. WRITE row-hit.
+        end else if (w_pick_class == CL_COL && wr_col_f && wr_commit_ready_i) begin
+            // 3b. WRITE row-hit (live commit-ready re-check, see 3a).
             w_bank = f_bank(wr_sch_bank_i, wr_col_s); w_col = f_col(wr_sch_col_i, wr_col_s);
             w_valid = 1'b1; w_op = wr_col_ap ? OP_WRA : OP_WR;
             w_ap_out = wr_col_ap; w_do_wr = 1'b1; w_wr_commit = 1'b1; w_commit_slot = wr_col_s;
-        end else if (w_pick_class == CL_ACT && rd_act_f
+        end else if (w_pick_class == CL_ACT && rd_act_f && w_act_gate_live
                      && !(w_act_wrf && wr_act_f)) begin
             // 4a. ACTIVATE the oldest pending READ's idle bank (bank-parallel).
+            // w_act_gate_live (tRFC / tFAW / tRRD) is re-checked HERE as well as
+            // at STAGE-1b: an ACT selected in the one cycle between a refresh's
+            // tRFC expiring and the NEXT REF firing (pulled-in refreshes 10
+            // cycles apart) reached this stage with rfc_busy already set, and
+            // the refresh branch no longer shielded it because the pull-in path
+            // drops refresh_req the cycle after the grant. Probed 2026-09-09:
+            // REF pushed at 39480 ns, ACT bank7 at 39500 ns -- 2 cycles.
             w_valid = 1'b1; w_op = OP_ACT;
             w_bank = f_bank(rd_sch_bank_i, rd_act_s); w_row = f_row(rd_sch_row_i, rd_act_s);
             w_do_act = 1'b1;
-        end else if (w_pick_class == CL_ACT && wr_act_f) begin
-            // 4b. ACTIVATE the oldest pending WRITE's idle bank.
+        end else if (w_pick_class == CL_ACT && wr_act_f && w_act_gate_live) begin
+            // 4b. ACTIVATE the oldest pending WRITE's idle bank (live gate, see 4a).
             w_valid = 1'b1; w_op = OP_ACT;
             w_bank = f_bank(wr_sch_bank_i, wr_act_s); w_row = f_row(wr_sch_row_i, wr_act_s);
             w_do_act = 1'b1;

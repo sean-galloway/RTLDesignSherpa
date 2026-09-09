@@ -358,10 +358,8 @@ Four sim-proven changes have not been on silicon:
    = 200 ns, tCCD 4 = 8 CK, tREFI 1950 = 26 us). `PUMICE_MC_CLK_HZ=75000000`
    for the 75 MHz build; the 100 MHz default is never-fewer-cycles safe.
 3. `8123ac1f3` read return ring (RD_RET_DEPTH=32): CAM frees at issue.
-4. NOT on the board yet and NOT merged: the AP-gated column mask (parked in
-   32c3a9cdc -- the write-data path must lead the command first; design in
-   design/README.md "WRITE DATA MUST LEAD"). Change 1 above therefore ships
-   with both masks unconditional; only the AP carry + per-entry guards are live.
+4. the AP-gated column mask, parked in 32c3a9cdc and re-enabled by the
+   write-lead block (item 5 below).
 
 Post-synth at 75 MHz on 32c3a9cdc (fresh timing_summary_synth.txt -- NOT the
 `make timing` summary, which prints the last POST-ROUTE report, this morning's
@@ -370,13 +368,16 @@ Post-route will be tighter; `make bitstream` is the real gate.
 
 **What to measure** (`pumice_char.measure`, open_interleave + baseline):
 write BW before/after 1+2 (ILA cadence was 3 columns then ~9 idle = the
-tCCD=4 gate); read BW after 3 -- but NOTE the harness's single read generator
-allows ONE outstanding AR (v1 LFSR checker), so read BW = AR bytes / AR
-latency: bl16 lifts from ~180 to ~225 MB/s at best. To see 450 MB/s on this
-harness use bl128/bl256 ARs (chargen burst_len is 1..256) or land the v2
-multi-outstanding checker (`axi4_master_rd_crc_check` header lists the plan).
+tCCD=4 gate); read BW after 3 (the 180 MB/s was the controller's 8-entry
+Little's-law bound -- the generator's "one outstanding AR" note was a stale
+header comment; its AR path is decoupled and both generators now carry a
+`MAX_OUTSTANDING` parameter, default 8, `GEN_MAX_OUTSTANDING` on the macro).
 Then a fresh ILA of `w_cmd_v` duty. Rebuild the bitstream first
-(build-perf `make bitstream`); the current one predates all four.
+(build-perf `make bitstream`); the current one predates all of this.
+5. (2026-09-09) the write-lead block: rate-matched WR commit
+   (`WR_DRAIN_AHEAD`=2), fixed command release delay (`CMD_DELAY`=6), the
+   DFI write-staged token as a counted invariant, live commit/issue re-check
+   at the arbiter output -- and with it both column masks AP-gated again.
 
 ## PUMICE-023 — the char-framework sim is the board gate and must run before any pumice RTL commit
 **Status:** open 2026-09-08  **Priority:** P1

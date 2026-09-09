@@ -29,6 +29,7 @@ and the SINGLE clock-domain crossing.
 | rddata  | phy→ctl | opaque RD_DW  = {data,resp,last} |
 | init_start   | ctl→phy | 1-bit EVENT TOKEN (rising edge -> latch pinit_start) |
 | init_complete| phy→ctl | 1-bit EVENT TOKEN (rising edge -> latch init_complete) |
+| wr_staged | ctl→phy | 1-bit token per COMPLETE write burst in the wrdata FIFO; the cmd path holds a WR until one is present and pops it on accept (mirror of the read aligner's op_ready). An invariant, not a throttle: the controller rate-matches the WR commit and delays the command stream (CMD_DELAY) so the data always leads |
 
 Level signals (init_start/init_complete) cross as **event tokens** (edge-detect →
 push token → pop → set latch), so there are literally zero standalone

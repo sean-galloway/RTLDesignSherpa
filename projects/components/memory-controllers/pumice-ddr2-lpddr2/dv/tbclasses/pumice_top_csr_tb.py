@@ -300,6 +300,12 @@ class PumiceTopCsrTB:
             await RisingEdge(self.dut.aclk)
             if int(self.dut.init_done_o.value):
                 self.log.info("init_done observed")
+                # The command stream leaves the scheduler CMD_DELAY cycles after
+                # it enters (WR data must lead), so the init sequence's tail
+                # (its MRW/MRS + REFs) reaches the DFI ~20 cycles AFTER
+                # init_done: settle before a test reads the decoded MRs or
+                # samples a refresh baseline.
+                await ClockCycles(self.dut.aclk, 40)
                 return
         raise AssertionError("init_done never asserted within timeout")
 

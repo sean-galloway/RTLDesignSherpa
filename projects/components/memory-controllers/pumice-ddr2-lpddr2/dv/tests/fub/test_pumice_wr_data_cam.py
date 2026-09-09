@@ -156,8 +156,14 @@ async def cocotb_test_pumice_wr_data_cam(dut):
     tb.log.info("WAVE10: drained=%d/%d  commit_ready_low=%d/%d  B=%d",
                 drained, N, low, budget, ndone[0])
     assert drained == N, f"wave10: only {drained}/{N} bursts drained -- drain wedged"
-    assert low < N, (f"wave10: commit_ready low {low} cycles -- drain FIFO "
-                     f"filling faster than it empties (the write-BW wedge)")
+    # RATE-MATCHED commit (2026-09-09): commit_ready is LOW while the drain
+    # queue already holds WR_DRAIN_AHEAD bursts, i.e. it follows the drain's
+    # own pace (one burst per BL beats) instead of a FIFO's room. A wedge
+    # would show as low >> N*BL (commit_ready pinned); the contract is that it
+    # never drops for longer than one burst's fetch per committed burst.
+    assert low <= N * tb.BL + N, (f"wave10: commit_ready low {low} cycles for {N} "
+                                  f"bursts of {tb.BL} beats -- drain not keeping pace "
+                                  f"(rate-matched budget {N * tb.BL + N})")
     assert ndone[0] == N, f"wave10: {ndone[0]} B strobes for {N} bursts (one B/burst expected)"
 
     tb.log.info("PASS: insert/fill, oldest port, snarf youngest (WAW), snarf "

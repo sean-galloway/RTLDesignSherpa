@@ -45,7 +45,7 @@ async def cocotb_test_pumice_mem_cmd_scheduler(dut):
         await tb.wait_clocks('aclk', 1)
         if tb.rd_issued:
             break
-    await tb.wait_clocks('aclk', 4)   # drain the cmd FIFO to tb.cmds
+    await tb.wait_clocks('aclk', 12)  # drain the cmd FIFO to tb.cmds (CMD_DELAY=6 release + FIFO hop)
 
     acts = [c for c in tb.cmds if c['op'] == OP_ACT and c['bank'] == 5]
     rds  = [c for c in tb.cmds if c['op'] == OP_RD and c['bank'] == 5]
@@ -75,7 +75,7 @@ async def cocotb_test_pumice_mem_cmd_scheduler(dut):
         await tb.wait_clocks('aclk', 1)
         if tb.wr_committed:
             break
-    await tb.wait_clocks('aclk', 4)   # drain the cmd FIFO to tb.cmds
+    await tb.wait_clocks('aclk', 12)  # drain the cmd FIFO to tb.cmds (CMD_DELAY=6 release + FIFO hop)
     wrs = [c for c in tb.cmds if c['op'] == OP_WR and c['bank'] == 5]
     assert wrs, f"no WR to bank5 (row already open); cmds={tb.cmds}"
     assert wrs[0]['col'] == 0x80, f"WR col {wrs[0]['col']:#x} != 0x80"

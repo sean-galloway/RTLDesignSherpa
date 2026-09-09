@@ -728,15 +728,15 @@ head_rel); axi4_ifc macro; new core test `perf_read_inflight` (strict DFI read
 latency 200 = 80 aclk, page-hit stream): RD_RET_DEPTH=32 -> 0.91 beats/cycle,
 RD_RET_DEPTH=8 (the old bound, mutation) -> 0.31 RED.
 
-**What the board can show.** The char harness has ONE read generator whose
-LFSR checker allows ONE outstanding AR (`axi4_master_rd_crc_check` v1: rlast
-gates the next AR), so board read BW = AR bytes / AR latency regardless of the
-controller: at bl16 (128 B) with a ~53-cycle AR->RLAST that is the 180 MB/s
-measured, and the ring can only shorten the latency to ~(16 + 27) cycles ->
-~225 MB/s. The 450 MB/s target on THIS harness needs longer ARs (bl128 = 1 KB:
-~(128+27) cycles -> ~500 MB/s; burst_len is 1..256 in the chargen CSR) or the
-v2 multi-outstanding checker. Writes have no such cap (the write generator
-keeps AWs queued).
+**CORRECTION (2026-09-09).** The "one outstanding AR" caveat first written
+here came from the read generator's STALE header comment. Its AR path is
+decoupled from R (`fub_arvalid` does not wait for rlast) and issues as long as
+the slave accepts, so the board's 180 MB/s really was the controller's 8-entry
+Little's-law bound, which the ring lifts. Both generators now carry a
+`MAX_OUTSTANDING` parameter (default 8; `GEN_MAX_OUTSTANDING` on
+ddr2_char_macro) so the in-flight window a DUT sees is explicit and bounded.
+Reads still assume R bursts arrive in AR order (same-id, or a controller that
+returns in AR order, which pumice does).
 
 ### WRITE-BURST-STAGED GATE (2026-09-08): the char sim caught what the pumice suites did not
 
@@ -819,3 +819,86 @@ board's x16 / strict-timing configuration. `ddr2_char_framework/dv/tests`
 before any pumice RTL commit; its Makefile's run-all target points at a test
 name that no longer exists (`test_ddr2_char_macro[all-full-parallel]`), so it
 had silently stopped being a gate.
+
+### WRITE DATA MUST LEAD -- implemented (2026-09-09)
+
+Sean: "Rate match the write." Three pieces, each a few lines:
+
+  1. `pumice_wr_data_cam`: `commit_ready` = drain-queue occupancy <
+     `WR_DRAIN_AHEAD` (2): a WR commits only while at most one burst waits
+     behind the one being fetched, so its data trails the command by a fixed
+     pipeline latency, never by a queue. Occupancy is a registered counter
+     (the FIFO's combinational `count` made a Verilator UNOPTFLAT loop).
+  2. `pumice_mem_cmd_scheduler`: every command leaves the cmd FIFO exactly
+     `CMD_DELAY` (6) cycles after it entered -- a token shift register + a
+     matured-token counter gate the FIFO head. Spacing preserved exactly, and
+     a WR's data reaches the DFI before the command does. CMD_FIFO_DEPTH 16.
+  3. `pumice_dfi_cdc` / `pumice_dfi_cmd_path`: the write-burst-staged token
+     gate, now an INVARIANT: `r_wr_held_cnt` / `r_wr_held_max` count the
+     cycles a WR ever waits at the DFI head; the write-ceiling core test
+     asserts zero and every sim prints them at `final`.
+
+One more arbiter fix fell out: the CAM's `commit_ready` / the ring's
+`issue_ready` were checked at CLASSIFY only. With a rate-matched commit they
+drop often, so a write could FIRE into the cmd FIFO while the CAM refused the
+commit -- a DRAM WR whose data never drains, and the staged gate then holds
+forever (AW/W/AR timeouts in four core tests). Both readies are re-checked
+LIVE at the output stage (a bubble, re-picked next round).
+
+Four more things the core suite then forced, each found from a measurement:
+
+  4. `CMD_DELAY` scales with the burst: at BL8 (4 DFI words) the token needs
+     the LAST word, so the lag is ~5 + 2 x BURST_WORDS (13; the board's BL4
+     x16 needs 7). Default 0 = auto in pumice_core. And the wrdata CDC must
+     hold the bursts staged during that delay: WD_FIFO_DEPTH 16 -> 32, else
+     it fills, the drain stalls and the lag is back (held 6 at D=13).
+  5. The commit predicate is DECISION-time: the arbiter decides a write one
+     cycle before it fires, so `commit_ready` reports the occupancy after
+     this cycle's own accept and pop. Without it two back-to-back writes let
+     the second fire into the cmd FIFO while the CAM refused it -- a DRAM WR
+     with no data behind it, and the staged gate held for 29373 cycles.
+     The arbiter also re-checks `wr_commit_ready_i` / `rd_issue_ready_i`
+     LIVE at its output stage, and (same class, found by probe) the ACT
+     gate `w_act_gate_live`: an ACT selected in the one cycle between a
+     refresh's tRFC expiring and the next pulled-in REF firing reached the
+     output with rfc_busy set -- "ACT only 2 cyc after REFab".
+  6. The write CAM frees its entry at FETCH-last, not consume-last (the
+     prior session's Fix B, then a null result; now load-bearing): with the
+     command delayed, consume-last held each entry ~30 cycles and 8 entries
+     could not cover a burst every 4 -- W back-pressure 222 cycles in the
+     write ceiling. The B strobe rides the skid tag, so nothing needs the
+     entry after fetch.
+  7. Forward tCCD (the prior session's layer-1 fix) REPLACES the flopped
+     global `tccd_ok_i` on the column masks: reload on column SELECTION,
+     `<= 1` so the period is exactly tCCD, plus a same-cycle-selection term
+     for tCCD > 1. Stacked with the fire-reloaded gate the period was tCCD+4
+     (read throughput halved at tCCD=4). pumice_core clamps t_ccd to
+     >= BURST_WORDS and the core tests now poke the physical 4 for BL8 (the
+     old 1 bunched columns into COL_BURST_CYC stalls -- a compression source).
+
+  8. Refresh-pending column block. With the AP-gated masks and tCCD=1 the
+     x16 `reorder` scenario LIVELOCKED: refresh pending, bank 0 open, eight
+     row-hit entries. The refresh branch has absolute priority and waits for
+     a PRE of bank 0, but the pick pipeline re-selects a bank-0 column every
+     cycle and that selection's in-flight guard blocks that PRE. The old
+     unconditional mask broke the loop by accident (a re-selected same-bank
+     column masked itself the next cycle). Now columns to the banks a pending
+     refresh will close are not selectable (all banks for REFab, the rotor
+     bank for REFpb). Found from the final-state probe: refresh_req=1,
+     row_active=00000001, wr/rd_sch_valid=11111111, pick_valid=0.
+
+With that, BOTH column masks are AP-gated again (columns at tCCD on OPEN rows,
+issue-rate FUB floor back to 0.95), and:
+  * x16 char smoke / concurrent / sweep_x16 / pagehit_x16 (strict write,
+    t_phy_wrlat=0): PASS, gate held 0 cycles in every one.
+  * core: write ceiling (held 0 asserted), read in-flight, refresh_credit,
+    refresh_bubbles, core_dfi, refresh_collide, waw, b2b: pass.
+  * dfi cmd_path/cdc FUB, wr_data_cam FUB (WAVE10 re-scoped to the rate-
+    matched contract), arbiter FUBs (issue rate 1.000), macros: pass.
+  Full suite + char A/B + synth results: see the commit.
+
+Test-side notes: `_bring_up` settles 40 cycles after init_done (the init's two
+REFs now reach the DFI through the delay AFTER init_done -- they were counted
+"inside a parked window"); the write-stream TB-starvation metric is AW-aware
+(W offering nothing while the DUT holds AW is the DUT's back-pressure) with an
+8% budget for the engine's per-burst refill gap under a physical tCCD.

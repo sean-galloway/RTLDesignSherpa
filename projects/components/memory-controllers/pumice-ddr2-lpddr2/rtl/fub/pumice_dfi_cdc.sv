@@ -51,10 +51,12 @@ module pumice_dfi_cdc #(
     input  logic              cmd_valid_i,
     output logic              cmd_ready_o,
     input  logic [CMD_DW-1:0] cmd_data_i,
-    // wrdata ctl -> phy
+    // wrdata ctl -> phy. wd_last_i marks the final DFI word of a burst: it is
+    // what pushes the "burst staged" token below (the payload stays opaque).
     input  logic              wd_valid_i,
     output logic              wd_ready_o,
     input  logic [WD_DW-1:0]  wd_data_i,
+    input  logic              wd_last_i,
     // init start (level) ctl -> phy
     input  logic              init_start_i,
     // rddata phy -> ctl
@@ -78,6 +80,16 @@ module pumice_dfi_cdc #(
     output logic              pwd_valid_o,
     input  logic              pwd_ready_i,
     output logic [WD_DW-1:0]  pwd_data_o,
+    // write-burst-staged tokens (phy): one per COMPLETE burst that has crossed
+    // into the wrdata FIFO. The command path pops one per WR it accepts, so a
+    // WR command can never reach the PHY ahead of its data (the write analog
+    // of the read aligner's op_ready backpressure). Pushed on the ctl edge that
+    // accepts the burst's LAST word, through the same N_FLOP_CROSS synchronizer
+    // as the data pointer, so never visible on dfi_clk before the data is.
+    // With the controller's rate-matched commit + CMD_DELAY this gate is an
+    // INVARIANT (never holds); the counters in pumice_dfi_cmd_path prove it.
+    output logic              pwr_staged_valid_o,
+    input  logic              pwr_staged_pop_i,
     // init start (level) phy (sticky latch)
     output logic              pinit_start_o,
     // rddata in (phy)
@@ -108,6 +120,12 @@ module pumice_dfi_cdc #(
     );
 
     // ---- wrdata : ctl -> phy ------------------------------------------------
+    // The data word and (on the burst's last word) its staged token are
+    // accepted together: both FIFOs must have room, so neither can run ahead.
+    logic w_wd_data_ready, w_wtok_ready, w_wtok_push;
+    assign wd_ready_o  = w_wd_data_ready && w_wtok_ready;
+    assign w_wtok_push = wd_valid_i && wd_last_i && w_wd_data_ready;
+
     gaxi_fifo_async #(
         .DATA_WIDTH  (WD_DW),
         .DEPTH       (WD_DEPTH),
@@ -118,12 +136,31 @@ module pumice_dfi_cdc #(
         .axi_wr_aresetn(ctl_rstn),
         .axi_rd_aclk   (dfi_clk),
         .axi_rd_aresetn(dfi_rstn),
-        .wr_valid      (wd_valid_i),
-        .wr_ready      (wd_ready_o),
+        .wr_valid      (wd_valid_i && w_wtok_ready),
+        .wr_ready      (w_wd_data_ready),
         .wr_data       (wd_data_i),
         .rd_ready      (pwd_ready_i),
         .rd_valid      (pwd_valid_o),
         .rd_data       (pwd_data_o)
+    );
+
+    // Sized WD_DEPTH: at most one token per data word can ever be staged.
+    gaxi_fifo_async #(
+        .DATA_WIDTH  (1),
+        .DEPTH       (WD_DEPTH),
+        .USE_JOHNSON (USE_JOHNSON),
+        .N_FLOP_CROSS(N_FLOP_CROSS)
+    ) u_wtok_fifo (
+        .axi_wr_aclk   (ctl_clk),
+        .axi_wr_aresetn(ctl_rstn),
+        .axi_rd_aclk   (dfi_clk),
+        .axi_rd_aresetn(dfi_rstn),
+        .wr_valid      (w_wtok_push),
+        .wr_ready      (w_wtok_ready),
+        .wr_data       (1'b1),
+        .rd_ready      (pwr_staged_pop_i),
+        .rd_valid      (pwr_staged_valid_o),
+        .rd_data       ()
     );
 
     // ---- rddata : phy -> ctl ------------------------------------------------

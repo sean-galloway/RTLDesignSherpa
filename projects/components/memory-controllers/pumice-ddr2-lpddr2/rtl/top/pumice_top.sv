@@ -30,6 +30,7 @@ module pumice_top
     parameter int NUM_ENTRIES    = 8,
     parameter int N_SRAM_SLOTS   = NUM_ENTRIES,
     parameter int RD_RET_DEPTH   = 32,   // reads in flight (return ring), power of 2
+    parameter int CMD_DELAY      = 0,    // command release delay (aclk); 0 = auto: 5 + 2*BURST_WORDS (WR data must lead)
     parameter int CMD_HISTORY_EN = 0,  // DV: arm the scheduler's history scoreboard
 
     parameter int DW  = DRAM_BEAT_WIDTH * DFI_RATE,
@@ -187,6 +188,7 @@ module pumice_top
         .NUM_ENTRIES      (NUM_ENTRIES),
         .N_SRAM_SLOTS     (N_SRAM_SLOTS),
         .RD_RET_DEPTH     (RD_RET_DEPTH),
+        .CMD_DELAY        (CMD_DELAY),
         .CMD_HISTORY_EN   (CMD_HISTORY_EN)
     ) u_core (
         .aclk               (aclk),
