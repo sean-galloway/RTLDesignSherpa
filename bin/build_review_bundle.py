@@ -229,8 +229,17 @@ for idx in sorted(glob.glob('projects/components/*/docs/*/*_index.md')):
     if not re.search(r'_(has|mas)$', key): continue
     title = next((l[2:].strip() for l in open(idx, encoding='utf-8') if l.startswith('# ')), key)
     docs = []
+    # A book is the pages UNDER its own directory. The index also links out --
+    # a "Related Documents" tail pointing at ../../PRD.md, ../../CLAUDE.md and
+    # the sibling book's index -- and following those made each foreign page a
+    # unit of BOTH books: the bridge PRD and CLAUDE.md were reviewed twice per
+    # round for four qc rounds and a humanize pass, and the voice pass then
+    # rewrote a status tracker and an operational-rules file as if they were
+    # prose chapters. Two units per book, every round, spent on pages the book
+    # does not own. Cross-links stay in the index; they do not enter the bundle.
     for m in re.finditer(r'\]\(([^)]+\.md)\)', open(idx, encoding='utf-8').read()):
         pth = os.path.normpath(os.path.join(base, m.group(1)))
+        if not pth.startswith(base + os.sep): continue   # foreign page, not ours
         if os.path.exists(pth) and pth not in docs: docs.append(pth)
     if not docs: continue
     docs.insert(0, idx)                               # index prose is part of the doc

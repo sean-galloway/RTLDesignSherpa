@@ -696,6 +696,25 @@ table becomes the next source of phantom missing-module findings.
     to be a broken counter than a clean book -- the same reasoning as a test
     that passes suspiciously fast.
 
+15. **A book is the pages under its own directory; the bundler must not follow
+    the index's cross-links.** Every HAS/MAS index ends with a "Related
+    Documents" tail: the sibling book's index, `../../PRD.md`, `../../CLAUDE.md`,
+    sometimes a status tracker or roadmap. The bundler collected every `.md`
+    link on the index page, so each of those became a unit of the book -- and
+    of the sibling book, which links the same files. Measured 2026-09-08: the
+    bridge PRD and CLAUDE.md were reviewed twice per round for four qc rounds
+    and then voice-passed twice (units `bridge_has_part_04/05` and
+    `bridge_mas_part_06/07` were the SAME two files); ioapic carried six
+    foreign pages including the RLB roadmap and module audit; pit and uart
+    carried their implementation-status trackers. The RLB humanize pass had
+    to revert the PRD, `IMPLEMENTATION_SUMMARY` and `IMPLEMENTATION_STATUS`
+    rewrites by hand -- a voice pass on a tracker rewrites history, and one on
+    CLAUDE.md rewrites operating rules.
+
+    `build_review_bundle.py` now keeps only links that resolve under the
+    book's directory. When a round's unit list shows a page the book does not
+    own, that is a bundler defect, not a page to triage.
+
 ## The order: correctness until clean, then voice
 
 **An area runs `qc` rounds until a round comes back clean or with nothing but
