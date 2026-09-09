@@ -529,3 +529,41 @@ one corrupted write and inspect dfi_wrdata / dfi_wrdata_en phase vs the DFI WR
 command at the DFISlavePHY -- a protocol-level look, the one diagnostic still
 outstanding. Until then w_col_inflight_bank stays and HEAD is the correct
 baseline (12/13, refresh working).
+
+### VCD DIVE (2026-09-08): corruption is DFI read-DATA-RETURN alignment, not the write path
+
+Instrumented the DFISlavePHY write commit (DFI_WR_TRACE) and read serve, plus the
+arbiter WR/RD command addresses, for the mask-removed CLOSE run. Findings, in
+order, each proven:
+
+  * WRITE side is fully CORRECT. Arbiter WR commands: bank 3, one row, cols
+    0,8,16,...,504, all OP_WRA. DFISlavePHY commits: every write's real data
+    lands at its byte address (0x56000=AB0, 0x56040=1AB0, ...), committed exactly
+    ONCE, no clobber. (Each DFI cycle carries 2 device words: phase0 = real data,
+    phase1 = zero -- that interleave is the normal layout; k=0 reads phase0 and
+    passes.)
+  * READ COMMANDS are fully CORRECT. Arbiter RD commands: bank 3, cols
+    0,8,16,...,504, all OP_RDA -- IDENTICAL columns to the writes. So the read
+    addresses/decode are right; the data is in memory at those addresses.
+  * Yet the golden AXI read for every ODD k returns ALL-ZERO (not the interleave)
+    while EVEN k is correct. Command right + data-in-memory right + read all-zero
+    => the loss is in the DFI read-DATA-RETURN path (pumice_dfi_rd_aligner /
+    pumice_rd_cmd_cam), NOT the write path and NOT addressing.
+
+This is the READ ANALOG of the write-serializer starvation found earlier: the
+DFISlavePHY drives rddata at command_cycle + read_latency; the rd_aligner
+captures at t_rddata_en_i -- a fixed-latency contract. When same-bank reads
+pipeline (mask removed), that capture misaligns for alternate reads and their
+data is lost -> all-zero. So BOTH DFI data paths (wr serializer, rd aligner) have
+the same class of fixed-latency-vs-pipelined-cadence hazard, and w_col_inflight_bank
+(the occupancy mask) is the blunt throttle that keeps both aligned.
+
+CONCLUSION: removing the mask for same-bank throughput (wave-07) requires
+DFI-layer data-alignment hardening on BOTH paths -- the write-burst-staged
+backpressure prototype (this turn) for writes, and an equivalent read-return
+alignment/backpressure for reads -- not a single localized fix. This is a real
+DFI-layer project, distinct from refresh (which is correct) and the arbiter.
+HEAD stays the correct baseline (12/13, refresh + reads/writes all correct with
+the mask in place). NEXT: design the read-return alignment (rd_aligner capture
+gated to the actual return, mirroring the write token), validate both paths on
+the FUB tests, then drop w_col_inflight_bank and re-run core + board.
