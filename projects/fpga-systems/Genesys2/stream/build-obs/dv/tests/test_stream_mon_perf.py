@@ -61,9 +61,27 @@ def _workload_env() -> dict:
         func=(4, 8192),         # the previous hardcoded default
         full=(16, 65536),       # the depth the board scenarios use
     )
+    # The three WALL/SIM budgets have to scale with the workload or the level
+    # silently turns into a timeout test. Measured 2026-09-08, full dma_8ch
+    # (8ch x 16desc x 64KB, monitors ON): the 1024 descriptor writes alone take
+    # 26 min of wall over the simulated UART and ~10 ms of sim; the DMA had
+    # moved ~11 ms of sim and completed 3 channels' reads when the runner's
+    # default 120 s host-side poll (CHAR_POLL_TIMEOUT_S) gave up -- reported
+    # as "TIMEOUT" with zero errors and every channel busy: a harness limit
+    # wearing the costume of a DUT hang. The tb's 30-min safety wall
+    # (TB_MAX_DURATION_MIN) and the cocotb 50 ms sim cap (SIM_TIMEOUT_MS) bind
+    # the same way one step later. All three are sized here, from the level.
+    poll_s, wall_min, sim_ms = stream_levels.scale(
+        gate=(300, 30, 50),
+        func=(1800, 90, 150),
+        full=(5400, 240, 400),
+    )
     return {
         'DMA_DESC_PER_CH': os.environ.get('DMA_DESC_PER_CH', str(desc)),
         'DMA_XFER_BYTES': os.environ.get('DMA_XFER_BYTES', str(xfer)),
+        'CHAR_POLL_TIMEOUT_S': os.environ.get('CHAR_POLL_TIMEOUT_S', str(poll_s)),
+        'TB_MAX_DURATION_MIN': os.environ.get('TB_MAX_DURATION_MIN', str(wall_min)),
+        'SIM_TIMEOUT_MS': os.environ.get('SIM_TIMEOUT_MS', str(sim_ms)),
     }
 
 _BUILD_HOST = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
