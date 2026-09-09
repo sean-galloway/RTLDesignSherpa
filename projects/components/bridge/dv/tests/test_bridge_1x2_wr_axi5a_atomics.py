@@ -14,6 +14,8 @@
 
 import os
 import sys
+import random
+import pytest
 
 from TBClasses.shared.utilities import get_repo_root, sim_build_path
 
@@ -56,7 +58,7 @@ class AtomicSampler:
                                       int(d.cpu_wr_axi_bresp.value)))
 
 
-@cocotb.test(timeout_time=200, timeout_unit="ms")
+@cocotb.test(timeout_time=2000, timeout_unit="ms")
 async def cocotb_test_bridge_1x2_wr_axi5a_atomics(dut):
     """Store-class atomics forward natively; read-return classes DECERR
     at the boundary filter without reaching the slave."""
@@ -70,52 +72,65 @@ async def cocotb_test_bridge_1x2_wr_axi5a_atomics(dut):
     tb.log.info("A5-3a sign-off: ATOP through the fabric + boundary filter")
     tb.log.info("=" * 80)
 
-    # 1. Plain write (atop=0) forwards.
-    dut.cpu_wr_axi_awatop.value = 0
-    await tb.master_write(0, 0x0000_0100, 0xA5A5_0001)
+    # Depth (TEST_LEVEL): the five-op sequence (plain, store, load, swap,
+    # plain) is repeated `rounds` times on page-separated windows -- gate 1,
+    # func 2, full 8 -- so the filter's swallow/answer path is exercised
+    # back-to-back across rounds, not once from reset.
+    rounds = max(1, tb.level_cfg['sideband_beats'] // 3)
+    tb.log.info(f"  level={tb.level}: {rounds} round(s) of 5 ops")
+    landed, swallowed = [], []
+    for r in range(rounds):
+        base = 0x0000_0000 + r * 0x1000
+        tag = 0xA5A5_0000 | (r << 8)
 
-    # 2. AtomicStore forwards with the atop value intact.
-    dut.cpu_wr_axi_awatop.value = ATOP_STORE
-    await tb.master_write(0, 0x0000_0200, 0xA5A5_0002)
+        # 1. Plain write (atop=0) forwards.
+        dut.cpu_wr_axi_awatop.value = 0
+        await tb.master_write(0, base + 0x100, tag | 1)
 
-    # 3/4. Read-return classes: swallowed + local DECERR. The AXI4 BFM
-    # still completes because the filter answers the B channel.
-    dut.cpu_wr_axi_awatop.value = ATOP_LOAD
-    await tb.master_write(0, 0x0000_0300, 0xA5A5_0003)
-    dut.cpu_wr_axi_awatop.value = ATOP_SWAP
-    await tb.master_write(0, 0x0000_0400, 0xA5A5_0004)
+        # 2. AtomicStore forwards with the atop value intact.
+        dut.cpu_wr_axi_awatop.value = ATOP_STORE
+        await tb.master_write(0, base + 0x200, tag | 2)
 
-    # 5. Plain write after the swallows still forwards and completes.
-    dut.cpu_wr_axi_awatop.value = 0
-    await tb.master_write(0, 0x0000_0500, 0xA5A5_0005)
+        # 3/4. Read-return classes: swallowed + local DECERR. The AXI4 BFM
+        # still completes because the filter answers the B channel.
+        dut.cpu_wr_axi_awatop.value = ATOP_LOAD
+        await tb.master_write(0, base + 0x300, tag | 3)
+        dut.cpu_wr_axi_awatop.value = ATOP_SWAP
+        await tb.master_write(0, base + 0x400, tag | 4)
+
+        # 5. Plain write after the swallows still forwards and completes.
+        dut.cpu_wr_axi_awatop.value = 0
+        await tb.master_write(0, base + 0x500, tag | 5)
+
+        landed += [(base + 0x100, tag | 1), (base + 0x200, tag | 2), (base + 0x500, tag | 5)]
+        swallowed += [base + 0x300, base + 0x400]
 
     await ClockCycles(tb.clock, 50)
 
-    # Slave saw exactly the three forwarded AWs, with atop intact.
-    assert sampler.ddr_aw_atop == [0, ATOP_STORE, 0], (
+    # Slave saw exactly the three forwarded AWs per round, with atop intact.
+    assert sampler.ddr_aw_atop == [0, ATOP_STORE, 0] * rounds, (
         f"forwarded atop stream wrong: {[bin(x) for x in sampler.ddr_aw_atop]}")
 
-    # Five B responses: writes 1/2/5 OKAY, 3/4 DECERR.
+    # Five B responses per round: writes 1/2/5 OKAY, 3/4 DECERR.
     resps = [r for _i, r in sampler.master_b]
-    assert len(resps) == 5, f"expected 5 B responses, saw {sampler.master_b}"
-    assert resps.count(3) == 2, (
-        f"expected exactly 2 DECERRs (read-return atomics): {sampler.master_b}")
-    assert resps.count(0) == 3, (
-        f"expected 3 OKAYs (plain + store-class): {sampler.master_b}")
+    assert len(resps) == 5 * rounds, f"expected {5 * rounds} B responses, saw {sampler.master_b}"
+    assert resps.count(3) == 2 * rounds, (
+        f"expected exactly {2 * rounds} DECERRs (read-return atomics): {sampler.master_b}")
+    assert resps.count(0) == 3 * rounds, (
+        f"expected {3 * rounds} OKAYs (plain + store-class): {sampler.master_b}")
 
     # Forwarded writes actually landed in the slave memory.
-    for addr, data in ((0x100, 0xA5A5_0001), (0x200, 0xA5A5_0002),
-                      (0x500, 0xA5A5_0005)):
+    for addr, data in landed:
         got = tb.slave_mem_read(0, addr, master_idx=0)
         assert got == data, f"@0x{addr:x}: 0x{got:08x} != 0x{data:08x}"
     # Swallowed writes did NOT land.
-    for addr in (0x300, 0x400):
+    for addr in swallowed:
         got = tb.slave_mem_read(0, addr, master_idx=0)
         assert (got >> 16) != 0xA5A5, (
             f"swallowed atomic leaked into slave mem @0x{addr:x}: 0x{got:08x}")
 
     tb.log.info("=" * 80)
-    tb.log.info("A5-3a atomics test PASSED (3 forwarded / 2 DECERRed)")
+    tb.log.info(f"A5-3a atomics test PASSED ({3 * rounds} forwarded / {2 * rounds} DECERRed)")
     tb.log.info("=" * 80)
 
 
@@ -124,7 +139,25 @@ async def cocotb_test_bridge_1x2_wr_axi5a_atomics(dut):
 # ============================================================================
 
 
-def test_bridge_1x2_wr_axi5a_atomics(request):
+
+def generate_bridge_levels():
+    """REG_LEVEL selects the grid: the test_level cells this wrapper expands to.
+
+    GATE 1 (gate), FUNC 2 (gate, func), FULL 3 (gate, func, full) -- different
+    counts, so the three make targets run different matrices. The depth each
+    cell runs at is read by the TB from TEST_LEVEL (bridge_levels.PROFILE)."""
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        return ['gate']
+    if reg_level == 'FUNC':
+        return ['gate', 'func']
+    return ['gate', 'func', 'full']
+
+
+bridge_levels = generate_bridge_levels()
+
+@pytest.mark.parametrize("test_level", bridge_levels)
+def test_bridge_1x2_wr_axi5a_atomics(request, test_level):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_bridge': '../../../../rtl/bridge',
         'rtl_common': '../../../../rtl/common',
@@ -140,7 +173,8 @@ def test_bridge_1x2_wr_axi5a_atomics(request):
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    test_name_plus_params = f"test_{dut_name}_atomics"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{dut_name}_atomics_{test_level}_{reg_level}"
     sim_build_name = f"{test_name_plus_params}{worker_suffix}"
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
@@ -156,6 +190,8 @@ def test_bridge_1x2_wr_axi5a_atomics(request):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_LEVEL': test_level,
         **waves['extra_env'],
     }
 

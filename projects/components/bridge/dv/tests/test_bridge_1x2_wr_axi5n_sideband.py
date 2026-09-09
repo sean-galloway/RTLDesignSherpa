@@ -18,6 +18,8 @@
 
 import os
 import sys
+import random
+import pytest
 
 from TBClasses.shared.utilities import get_repo_root, sim_build_path
 
@@ -61,7 +63,7 @@ class WrSidebandSampler:
                 self.master_b.append(int(d.cpu_wr_axi_btrace.value))
 
 
-@cocotb.test(timeout_time=200, timeout_unit="ms")
+@cocotb.test(timeout_time=2000, timeout_unit="ms")
 async def cocotb_test_bridge_1x2_wr_axi5n_sideband(dut):
     """Native AXI5 wr-channel sideband (incl. poison) end-to-end."""
     tb = Bridge1x2WrAxi5nTB(dut)
@@ -87,13 +89,22 @@ async def cocotb_test_bridge_1x2_wr_axi5n_sideband(dut):
     tb.log.info("=" * 80)
 
     # --- Full-native path: writes into ddr_wr (trace + poison) --------
-    for i, off in enumerate((0x100, 0x1F4, 0x0FC)):
+    # Depth (TEST_LEVEL): `sideband_beats` writes (gate 3, func 8, full 24)
+    # -- the three fixed offsets first, then RNG-drawn aligned seeded ones.
+    n = tb.level_cfg['sideband_beats']
+    offs = [0x100, 0x1F4, 0x0FC]
+    while len(offs) < n:
+        o = tb.rng.randrange(0, tb._slave_mem_bytes(0), 4)
+        if o not in offs:
+            offs.append(o)
+    tb.log.info(f"  level={tb.level}: {len(offs)} native-path writes")
+    for i, off in enumerate(offs):
         await tb.master_write(0, 0x0000_0000 + off, 0xA5A5_0000 + i)
 
     await ClockCycles(tb.clock, 30)
-    assert len(sampler.ddr_aw) >= 3 and all(v == 1 for v in sampler.ddr_aw), (
+    assert len(sampler.ddr_aw) >= n and all(v == 1 for v in sampler.ddr_aw), (
         f"awtrace lost on native path: {sampler.ddr_aw}")
-    assert len(sampler.ddr_w) >= 3 and all(v == 1 for v in sampler.ddr_w), (
+    assert len(sampler.ddr_w) >= n and all(v == 1 for v in sampler.ddr_w), (
         f"wpoison lost on native path: {sampler.ddr_w}")
     assert sampler.master_b and all(v == 1 for v in sampler.master_b), (
         f"btrace lost on return path: {sampler.master_b}")
@@ -102,11 +113,17 @@ async def cocotb_test_bridge_1x2_wr_axi5n_sideband(dut):
 
     # --- Poison-only path: writes into sram_wr ------------------------
     sampler.master_b.clear()
-    for i, off in enumerate((0x40, 0x80)):
+    m = max(2, n // 2)
+    offs = [0x40, 0x80]
+    while len(offs) < m:
+        o = tb.rng.randrange(0, tb._slave_mem_bytes(1), 4)
+        if o not in offs:
+            offs.append(o)
+    for i, off in enumerate(offs):
         await tb.master_write(0, 0x8000_0000 + off, 0x5A5A_0000 + i)
 
     await ClockCycles(tb.clock, 30)
-    assert len(sampler.sram_w) >= 2 and all(v == 1 for v in sampler.sram_w), (
+    assert len(sampler.sram_w) >= m and all(v == 1 for v in sampler.sram_w), (
         f"wpoison lost on sram path: {sampler.sram_w}")
     # sram has no btrace source, so the master's btrace must read 0 for
     # these responses.
@@ -125,7 +142,25 @@ async def cocotb_test_bridge_1x2_wr_axi5n_sideband(dut):
 # ============================================================================
 
 
-def test_bridge_1x2_wr_axi5n_sideband(request):
+
+def generate_bridge_levels():
+    """REG_LEVEL selects the grid: the test_level cells this wrapper expands to.
+
+    GATE 1 (gate), FUNC 2 (gate, func), FULL 3 (gate, func, full) -- different
+    counts, so the three make targets run different matrices. The depth each
+    cell runs at is read by the TB from TEST_LEVEL (bridge_levels.PROFILE)."""
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        return ['gate']
+    if reg_level == 'FUNC':
+        return ['gate', 'func']
+    return ['gate', 'func', 'full']
+
+
+bridge_levels = generate_bridge_levels()
+
+@pytest.mark.parametrize("test_level", bridge_levels)
+def test_bridge_1x2_wr_axi5n_sideband(request, test_level):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_bridge': '../../../../rtl/bridge',
         'rtl_common': '../../../../rtl/common',
@@ -141,7 +176,8 @@ def test_bridge_1x2_wr_axi5n_sideband(request):
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    test_name_plus_params = f"test_{dut_name}_sideband"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{dut_name}_sideband_{test_level}_{reg_level}"
     sim_build_name = f"{test_name_plus_params}{worker_suffix}"
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
@@ -157,6 +193,8 @@ def test_bridge_1x2_wr_axi5n_sideband(request):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_LEVEL': test_level,
         **waves['extra_env'],
     }
 

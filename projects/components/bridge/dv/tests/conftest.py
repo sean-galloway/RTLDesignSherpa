@@ -139,20 +139,19 @@ def test_level():
     return os.environ.get('TEST_LEVEL', 'gate')
 
 # ----------------------------------------------------------------------
-# REG_LEVEL -> TEST_LEVEL bridge
+# NO REG_LEVEL -> TEST_LEVEL stamp here -- it silently killed the grid.
 # ----------------------------------------------------------------------
-# make/tests.mk drives the regression level through REG_LEVEL; this area's test
-# modules read TEST_LEVEL, and most read it at MODULE IMPORT time. conftest is
-# imported before any test module, so setting it here is early enough.
+# This file used to copy REG_LEVEL into os.environ['TEST_LEVEL'] at import
+# ("REG_LEVEL wins over TEST_LEVEL, matching stream's conftest"). That was
+# written for wrappers that never exported TEST_LEVEL. Once a wrapper does
+# export it per cell, the stamp overrides it: cocotb_test.simulator.set_env
+# copies EVERY os.environ entry over extra_env AFTER extra_env is applied, so
+# a process-level TEST_LEVEL beats the per-cell one. Measured 2026-09-09 on
+# the first leveled FULL run: all 216 cells -- the gate, func and full cell of
+# every test -- logged `level=full`, identical wall-clock, while the grid
+# reported three levels. REG_LEVEL selects the grid in each wrapper's
+# generate_bridge_levels(); TEST_LEVEL reaches the sim only via extra_env.
 #
-# WITHOUT THIS BRIDGE THE MAKEFILE CONVERGENCE SILENTLY REDUCES COVERAGE: the
-# 4-line area Makefile sets REG_LEVEL=full, nothing reads it, TEST_LEVEL falls
-# back to its default, and `make run-all-full-parallel` quietly runs a smaller
-# matrix while still reporting "passed". Measured on pumice fub during this
-# conversion: 91 tests -> 79.
-#
-# REG_LEVEL wins over TEST_LEVEL, matching stream's conftest: the make target
-# you typed is more explicit than an inherited environment variable.
-_reg_level = os.environ.get('REG_LEVEL')
-if _reg_level:
-    os.environ['TEST_LEVEL'] = _reg_level.upper()
+# The same block still exists in twelve other conftests (misc, retro_legacy
+# _blocks, apbx-xbar, converters, rapids x5, pumice x3) and has the same
+# effect on any leveled wrapper there -- TOOL task filed 2026-09-09.

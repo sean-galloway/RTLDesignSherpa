@@ -253,13 +253,22 @@ def generate_tests(ports_file, connectivity_file, bridge_name, output_tb_dir, ou
         tb_class_name = build_tb_class_name(bridge_name, channel_type)
         tb_class_module = build_tb_module_name(tb_class_name)
 
-        # Build template context
+        # Build template context.
+        #
+        # The TB drives PINS, so it sees external ports only. The subtractive
+        # catch-all (BRIDGE-009) is appended to config.slaves as an INTERNAL
+        # slave with no boundary pins; templating it as a real slave emitted
+        # an AXI4SlaveWrite on prefix "subtractive" and probes into a 4 GB
+        # window at 0x0 -- every regenerated test failed at TB construction,
+        # which is why the tests were never regenerated after 1d442e76 and
+        # drifted from this template.
+        slaves = [s for s in config.slaves if not getattr(s, 'internal', False)]
         master_names = ', '.join(m.port_name for m in config.masters)
-        slave_names = ', '.join(s.port_name for s in config.slaves)
+        slave_names = ', '.join(s.port_name for s in slaves)
 
         data_width = max(
             max((m.data_width for m in config.masters), default=32),
-            max((s.data_width for s in config.slaves), default=32)
+            max((s.data_width for s in slaves), default=32)
         )
 
         # HARD LIMIT: All agents use 64-bit address width
@@ -307,11 +316,11 @@ def generate_tests(ports_file, connectivity_file, bridge_name, output_tb_dir, ou
             'tb_import_block': _tb_import_block(
                 tb_import_pkg, tb_class_module, tb_class_name),
             'num_masters': len(config.masters),
-            'num_slaves': len(config.slaves),
+            'num_slaves': len(slaves),
             'channel_type': channel_type,
             'enable_ooo': enable_ooo,
             'masters': config.masters,
-            'slaves': config.slaves,
+            'slaves': slaves,
             'master_names': master_names,
             'slave_names': slave_names,
             'connectivity': config.connectivity,
@@ -405,11 +414,15 @@ def generate_monitor_tests(ports_file, connectivity_file, bridge_name,
         tb_class_name = build_tb_class_name(bridge_name, channel_type)
         tb_class_module = build_tb_module_name(tb_class_name)
 
+        # External ports only -- same filter as generate_tests. The internal
+        # subtractive slave has no monitor wrapper and no cfg_* pins, so a
+        # cfg prefix for it names registers that do not exist.
+        slaves = [s for s in config.slaves if not getattr(s, 'internal', False)]
         master_names = ', '.join(m.port_name for m in config.masters)
-        slave_names = ', '.join(s.port_name for s in config.slaves)
+        slave_names = ', '.join(s.port_name for s in slaves)
         data_width = max(
             max((m.data_width for m in config.masters), default=32),
-            max((s.data_width for s in config.slaves), default=32))
+            max((s.data_width for s in slaves), default=32))
 
         try:
             tb_dir_abs = Path(output_tb_dir).resolve()
@@ -437,7 +450,7 @@ def generate_monitor_tests(ports_file, connectivity_file, bridge_name,
                 cfg_prefixes.append(f"{m.port_name}_{i}_rd")
             if m.has_write_channels():
                 cfg_prefixes.append(f"{m.port_name}_{i}_wr")
-        for j, s in enumerate(config.slaves):
+        for j, s in enumerate(slaves):
             if s.has_read_channels():
                 cfg_prefixes.append(f"{s.port_name}_{j}_rd")
             if s.has_write_channels():
@@ -464,14 +477,14 @@ def generate_monitor_tests(ports_file, connectivity_file, bridge_name,
         def _conn(s):
             return s.port_name in m0_conn
 
-        reachable_slaves = [j for j, s in enumerate(config.slaves)
+        reachable_slaves = [j for j, s in enumerate(slaves)
                             if _conn(s) and s.protocol == 'axi4' and s.data_width == m0_dw]
         if not reachable_slaves:
-            reachable_slaves = [j for j, s in enumerate(config.slaves)
+            reachable_slaves = [j for j, s in enumerate(slaves)
                                 if _conn(s) and s.protocol == 'axi4']
         if not reachable_slaves:
-            reachable_slaves = [j for j, s in enumerate(config.slaves)
-                                if s.protocol == 'axi4'] or list(range(len(config.slaves)))
+            reachable_slaves = [j for j, s in enumerate(slaves)
+                                if s.protocol == 'axi4'] or list(range(len(slaves)))
 
         # Whether completion monitoring logic is instantiated (mon_preset +
         # per-port mon_add). error_only presets have no compl reporter, so
@@ -479,7 +492,7 @@ def generate_monitor_tests(ports_file, connectivity_file, bridge_name,
         try:
             has_compl = any(
                 p.get_mon_enables(config.mon_preset).get('compl', False)
-                for p in (list(config.masters) + list(config.slaves)))
+                for p in (list(config.masters) + list(slaves)))
         except Exception:
             has_compl = True
 
@@ -497,11 +510,11 @@ def generate_monitor_tests(ports_file, connectivity_file, bridge_name,
             'tb_import_block': _tb_import_block(
                 tb_import_pkg, tb_class_module, tb_class_name),
             'num_masters': len(config.masters),
-            'num_slaves': len(config.slaves),
+            'num_slaves': len(slaves),
             'channel_type': channel_type,
             'enable_ooo': True,
             'masters': config.masters,
-            'slaves': config.slaves,
+            'slaves': slaves,
             'master_names': master_names,
             'slave_names': slave_names,
             'connectivity': config.connectivity,

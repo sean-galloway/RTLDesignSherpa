@@ -13,6 +13,8 @@
 
 import os
 import sys
+import random
+import pytest
 import logging
 
 from TBClasses.shared.utilities import get_repo_root, sim_build_path
@@ -56,7 +58,7 @@ class Bridge1x2RdAxi5Bfm5TB(Bridge1x2RdAxi5TB):
         )
 
 
-@cocotb.test(timeout_time=200, timeout_unit="ms")
+@cocotb.test(timeout_time=2000, timeout_unit="ms")
 async def cocotb_test_bridge_1x2_rd_axi5_bfm5(dut):
     """AXI5 BFM reads through the AXI5 boundary into both AXI4 slaves,
     with the AXI5 compliance checker watching the port."""
@@ -83,8 +85,18 @@ async def cocotb_test_bridge_1x2_rd_axi5_bfm5(dut):
 
     # Reads against both slaves' seeded patterns, several offsets each,
     # so AR/R see back-to-back traffic (not just one transaction).
+    # Depth (TEST_LEVEL): the three fixed offsets, then RNG-drawn aligned
+    # seeded offsets up to `sideband_beats` per slave (gate 3, func 8,
+    # full 24), with the compliance checker watching all of it.
+    want = tb.level_cfg['sideband_beats']
     for slave_idx, base in ((0, 0x0000_0000), (1, 0x8000_0000)):
-        for off in (0x100, 0x1F4, 0x0FC):
+        offs = [0x100, 0x1F4, 0x0FC]
+        while len(offs) < want:
+            o = tb.rng.randrange(0, tb._slave_mem_bytes(slave_idx), 4)
+            if o not in offs:
+                offs.append(o)
+        tb.log.info(f"  slave {slave_idx}: {len(offs)} AXI5-BFM reads (level={tb.level})")
+        for off in offs:
             addr = base + off
             expected = tb.slave_mem_read(slave_idx, addr, master_idx=0)
             actual = await tb.master_read(0, addr)
@@ -116,7 +128,25 @@ async def cocotb_test_bridge_1x2_rd_axi5_bfm5(dut):
 # ============================================================================
 
 
-def test_bridge_1x2_rd_axi5_bfm5(request):
+
+def generate_bridge_levels():
+    """REG_LEVEL selects the grid: the test_level cells this wrapper expands to.
+
+    GATE 1 (gate), FUNC 2 (gate, func), FULL 3 (gate, func, full) -- different
+    counts, so the three make targets run different matrices. The depth each
+    cell runs at is read by the TB from TEST_LEVEL (bridge_levels.PROFILE)."""
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        return ['gate']
+    if reg_level == 'FUNC':
+        return ['gate', 'func']
+    return ['gate', 'func', 'full']
+
+
+bridge_levels = generate_bridge_levels()
+
+@pytest.mark.parametrize("test_level", bridge_levels)
+def test_bridge_1x2_rd_axi5_bfm5(request, test_level):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_bridge': '../../../../rtl/bridge',
         'rtl_common': '../../../../rtl/common',
@@ -132,7 +162,8 @@ def test_bridge_1x2_rd_axi5_bfm5(request):
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    test_name_plus_params = f"test_{dut_name}_bfm5"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{dut_name}_bfm5_{test_level}_{reg_level}"
     sim_build_name = f"{test_name_plus_params}{worker_suffix}"
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
@@ -148,6 +179,8 @@ def test_bridge_1x2_rd_axi5_bfm5(request):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_LEVEL': test_level,
         **waves['extra_env'],
     }
 

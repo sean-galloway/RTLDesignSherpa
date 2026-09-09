@@ -51,6 +51,9 @@ from CocoTBFramework.components.apb.apb_components import APBMaster, APBSlave
 # Memory model — shared across all protocol slave BFMs (every slave gets
 # its own instance, pre-seeded with a distinct pattern).
 from CocoTBFramework.components.shared.memory_model import MemoryModel
+from projects.components.bridge.dv.tbclasses.bridge_levels import (
+    PROFILE, current_level, seeded_rng,
+)
 
 
 class Bridge1x2RdAxi5nTB(TBBase):
@@ -83,6 +86,15 @@ class Bridge1x2RdAxi5nTB(TBBase):
         self.data_width = 32
         self.addr_width = 64
         self.id_width = 8
+
+        # Depth: TEST_LEVEL (exported by the pytest wrapper) picks the profile
+        # every count in the tests is read from; SEED (pinned per test node
+        # by the repo-root conftest) seeds the one RNG the tests draw from.
+        # Both are logged so a failing cell names how to replay it.
+        self.level = current_level()
+        self.level_cfg = PROFILE[self.level]
+        self.seed, self.rng = seeded_rng(self.log)
+        self.log.info(f"TEST_LEVEL={self.level}: {self.level_cfg}")
 
         # Per-slave metadata used by misroute checks and pattern computation.
         # slave_info[i] = (protocol, base_addr, addr_range, data_width)
@@ -209,27 +221,66 @@ class Bridge1x2RdAxi5nTB(TBBase):
             return [base + i * self.PAGE_SIZE for i in range(num_pages)]
         # boundary (default)
         if num_pages == 1:
-            return [base]
-        if num_pages == 2:
-            return [base, base + self.PAGE_SIZE]
-        mid = (num_pages // 2) * self.PAGE_SIZE
-        last = (num_pages - 1) * self.PAGE_SIZE
-        return [base, base + mid, base + last]
+            boundary = [base]
+        elif num_pages == 2:
+            boundary = [base, base + self.PAGE_SIZE]
+        else:
+            mid = (num_pages // 2) * self.PAGE_SIZE
+            last = (num_pages - 1) * self.PAGE_SIZE
+            boundary = [base, base + mid, base + last]
+        if mode != 'seeded':
+            return boundary
+        # 'seeded' (the full level): the boundary pages plus EVERY page whose
+        # data can be verified -- the seeded region is capped at
+        # SLAVE_MEM_CAP_BYTES, so this walks at most 16 pages per slave
+        # however large the window, unlike 'all'.
+        seeded_pages = min(num_pages, self._slave_mem_bytes(slave_idx) // self.PAGE_SIZE)
+        pages = [base + i * self.PAGE_SIZE for i in range(seeded_pages)]
+        return pages + [pg for pg in boundary if pg not in pages]
 
-    def page_probe_offsets(self, slave_idx: int, master_idx: int = 0) -> list:
-        """Return three in-page byte offsets [low, mid, high] for probing,
-        each aligned to max(master_width, slave_width). Catches address
-        decoders that ignore low bits (low probe), mid-bit decoders
-        (middle), and decoders that off-by-one at the page boundary
-        (high — last aligned word in the page)."""
+    def _probe_align(self, slave_idx: int, master_idx: int = 0) -> int:
+        """Byte alignment a probe must honour: max(master_width, slave_width)."""
         master_bytes = self.master_data_width[master_idx] // 8
         slave_bytes = self.slave_info[slave_idx][3] // 8
-        align = max(master_bytes, slave_bytes)
+        return max(master_bytes, slave_bytes)
+
+    def page_probe_offsets(self, slave_idx: int, master_idx: int = 0,
+                           count: int = None) -> list:
+        """Return in-page byte offsets [low, mid, high] for probing, each
+        aligned to max(master_width, slave_width). Catches address decoders
+        that ignore low bits (low probe), mid-bit decoders (middle), and
+        decoders that off-by-one at the page boundary (high — last aligned
+        word in the page). `count` (from the level profile) takes the first
+        N of the three: gate probes low only, func and full all three."""
+        align = self._probe_align(slave_idx, master_idx)
         align_mask = ~(align - 1) & 0xFFFFFFFFFFFFFFFF
         low = 0
         mid = (self.PAGE_SIZE // 2) & align_mask
         high = (self.PAGE_SIZE - align) & align_mask
-        return [low, mid, high]
+        offsets = [low, mid, high]
+        if count is None:
+            count = self.level_cfg['in_page_probes']
+        return offsets[:max(1, count)]
+
+    def connectivity_addrs(self, slave_idx: int, master_idx: int = 0) -> list:
+        """Addresses the connectivity test touches for one (master, slave)
+        pair: the fixed +0x100 probe first (every level, so gate is the old
+        test exactly), then `connectivity_offsets - 1` further aligned,
+        seeded, distinct offsets drawn from this TB's RNG. Verifiable by
+        construction: all inside the seeded region."""
+        _, base, _, _ = self.slave_info[slave_idx]
+        align = self._probe_align(slave_idx, master_idx)
+        seeded = self._slave_mem_bytes(slave_idx)
+        want = max(1, self.level_cfg['connectivity_offsets'])
+        addrs = [base + 0x100] if seeded > 0x100 + align else [base]
+        slots = max(1, seeded // align)
+        tries = 0
+        while len(addrs) < want and tries < 64 * want:
+            tries += 1
+            a = base + self.rng.randrange(slots) * align
+            if a not in addrs:
+                addrs.append(a)
+        return addrs
 
     def is_seeded(self, slave_idx: int, addr: int) -> bool:
         """True if `addr` falls inside slave_idx's seeded MemoryModel
@@ -388,6 +439,35 @@ class Bridge1x2RdAxi5nTB(TBBase):
         self.reset_n.value = 1
 
     # ----------------------------------------------------------------------
+    # Slave backpressure (depth knob)
+    # ----------------------------------------------------------------------
+
+    def set_slave_response_delay(self, slave_idx: int, cycles: int) -> None:
+        """Hold B/R off at slave[slave_idx] for `cycles` before responding.
+
+        The bridge tracks the originating master in a fixed-depth FIFO per
+        slave port and pops it on the response, so OUTSTANDING DEPTH is only
+        reachable when a slave is slow. The default BFM slave answers in ~1
+        cycle, which is why no test got anywhere near the depth where
+        BRIDGE-011 bit until this knob existed. APB slaves have no such
+        attribute and are left alone.
+        """
+        for container in (self.slave_wr, self.slave_rd):
+            bfm = container.get(slave_idx)
+            if bfm is not None and hasattr(bfm, 'response_delay_cycles'):
+                bfm.response_delay_cycles = cycles
+
+    def apply_level_slave_delay(self) -> int:
+        """Apply the level profile's slave_delay to every slave (full: 24
+        cycles, so requests queue in the fabric; gate/func: 0). Returns it."""
+        cycles = self.level_cfg['slave_delay']
+        if cycles:
+            for idx in self.slave_info:
+                self.set_slave_response_delay(idx, cycles)
+            self.log.info(f"level {self.level}: slave response delay {cycles} cycles on all slaves")
+        return cycles
+
+    # ----------------------------------------------------------------------
     # Transaction helpers — thin wrappers over protocol BFMs
     # ----------------------------------------------------------------------
 
@@ -410,10 +490,20 @@ class Bridge1x2RdAxi5nTB(TBBase):
         rd = self.master_rd[master_idx]
         return await rd.single_read(address, size=self._natural_arsize(master_idx))
 
-    async def master_write(self, master_idx: int, address: int, data: int) -> None:
-        """Single-beat write from master[master_idx]. `data` is master-width."""
+    async def master_write(self, master_idx: int, address: int, data: int,
+                           txn_id: int = None) -> None:
+        """Single-beat write from master[master_idx]. `data` is master-width.
+
+        `txn_id` sets AWID. Give each master a DISJOINT id range and the
+        returned BID identifies which master a response belongs to, which is
+        the only way to tell a correctly routed response from one that merely
+        arrived somewhere. APB has no id and ignores it.
+        """
         if master_idx in self.master_apb:
             await self.master_apb[master_idx].write(address, data)
             return
         wr = self.master_wr[master_idx]
-        await wr.single_write(address, data, size=self._natural_arsize(master_idx))
+        kwargs = {'size': self._natural_arsize(master_idx)}
+        if txn_id is not None:
+            kwargs['id'] = txn_id
+        await wr.single_write(address, data, **kwargs)

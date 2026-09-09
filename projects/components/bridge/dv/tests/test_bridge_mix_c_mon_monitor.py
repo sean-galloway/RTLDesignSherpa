@@ -13,6 +13,7 @@
 
 import os
 import sys
+import random
 
 from TBClasses.shared.utilities import get_repo_root
 
@@ -20,6 +21,7 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 import cocotb
+import pytest
 from cocotb_test.simulator import run  # noqa: F401
 
 from TBClasses.shared.utilities import get_paths
@@ -47,7 +49,25 @@ async def cocotb_test_bridge_mix_c_mon_monitor(dut):
     )
 
 
-def test_bridge_mix_c_mon_monitor(request):
+def generate_bridge_levels():
+    """REG_LEVEL selects the grid: the test_level cells this wrapper expands to.
+
+    GATE 1 (gate), FUNC 2 (gate, func), FULL 3 (gate, func, full) -- different
+    counts, so the three make targets run different matrices. The depth each
+    cell runs at is read by the TB from TEST_LEVEL (bridge_levels.PROFILE)."""
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        return ['gate']
+    if reg_level == 'FUNC':
+        return ['gate', 'func']
+    return ['gate', 'func', 'full']
+
+
+bridge_levels = generate_bridge_levels()
+
+
+@pytest.mark.parametrize("test_level", bridge_levels)
+def test_bridge_mix_c_mon_monitor(request, test_level):
     module, repo_root_, tests_dir, log_dir, _ = get_paths({
         'rtl_amba': '../../../../rtl/amba',
     })
@@ -56,4 +76,9 @@ def test_bridge_mix_c_mon_monitor(request):
         dut_name="bridge_mix_c_mon",
         testcase="cocotb_test_bridge_mix_c_mon_monitor",
         filelist='projects/components/bridge/rtl/filelists/bridge_mix_c_mon.f',
+        test_level=test_level,
+        extra_env={
+            'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+            'TEST_LEVEL': test_level,
+        },
     )

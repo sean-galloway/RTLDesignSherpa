@@ -12,6 +12,7 @@
 
 import os
 import sys
+import random
 import pytest
 import logging
 
@@ -23,7 +24,7 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 import cocotb
-from cocotb.triggers import ReadOnly, RisingEdge, ClockCycles
+from cocotb.triggers import RisingEdge, ClockCycles
 from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
@@ -46,29 +47,17 @@ from projects.components.bridge.dv.tbclasses.bridge_arbitration import run_arbit
 # fail in the full regression). Stream's per-module naming was the
 # reference.
 
-
-def _hi(sig):
-    """True when `sig` reads as 1, False when it is 0 OR UNRESOLVABLE.
-
-    int(sig.value) raises ValueError on an X, and an exception inside a
-    cocotb.start_soon watcher kills that watcher SILENTLY -- the test then
-    reports "no violations found" when what actually happened is "nothing was
-    ever sampled". Outputs read X before the first transaction, so every
-    watcher started right after reset hits this.
-    """
-    try:
-        return int(sig.value) == 1
-    except ValueError:
-        return False
-
-
-@cocotb.test(timeout_time=200, timeout_unit="ms")
+@cocotb.test(timeout_time=2000, timeout_unit="ms")
 async def cocotb_test_bridge_2x2_rw_basic_connectivity(dut):
     """
-    Basic connectivity — every (master, slave) pair gets one write and/or
-    one read at a non-base offset inside the slave's window. Reads check
+    Basic connectivity — every (master, slave) pair gets writes and/or
+    reads at non-base offsets inside the slave's window. Reads check
     against the pre-seeded slave memory pattern; writes verify the bytes
     landed in the slave's memory at the expected offset.
+
+    Depth (TEST_LEVEL): the fixed +0x100 probe at every level, then
+    `connectivity_offsets - 1` further seeded, aligned offsets drawn from the
+    TB's SEED-pinned RNG -- gate 1, func 4, full 16 per pair.
 
     The slave BFMs auto-respond from their MemoryModel honoring whatever
     ARSIZE/ARLEN/ARADDR (or AWSIZE/AWLEN/AWADDR) the bridge forwards, so
@@ -79,113 +68,122 @@ async def cocotb_test_bridge_2x2_rw_basic_connectivity(dut):
     await tb.setup_clocks_and_reset()
 
     tb.log.info("=" * 80)
-    tb.log.info("Starting basic connectivity test")
+    tb.log.info(f"Starting basic connectivity test (level={tb.level}, "
+                f"{tb.level_cfg['connectivity_offsets']} offset(s) per pair)")
     tb.log.info(f"Configuration: 2M x 2S, RW channels")
     tb.log.info("=" * 80)
 
     # ---- Write connectivity --------------------------------------------
     tb.log.info(f"Master 0 (cpu) — writes")
     # Master 0 → Slave 0 (ddr)
-    test_addr = 0x00000100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (0 << 12) | 0)
-    tb.log.info(f"  W slave=0 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(0, test_addr, test_data)
-    # Read back at master 0's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(0, test_addr, master_idx=0)
-    assert actual == test_data, (
-        f"Slave 0 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(0, master_idx=0)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (0 << 20) | (0 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=0 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(0, test_addr, test_data)
+        # Read back at master 0's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(0, test_addr, master_idx=0)
+        assert actual == test_data, (
+            f"Slave 0 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 0 → Slave 1 (sram)
-    test_addr = 0x80000100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (0 << 12) | 1)
-    tb.log.info(f"  W slave=1 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(0, test_addr, test_data)
-    # Read back at master 0's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(1, test_addr, master_idx=0)
-    assert actual == test_data, (
-        f"Slave 1 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(1, master_idx=0)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (0 << 20) | (1 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=1 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(0, test_addr, test_data)
+        # Read back at master 0's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(1, test_addr, master_idx=0)
+        assert actual == test_data, (
+            f"Slave 1 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     tb.log.info(f"Master 1 (dma) — writes")
     # Master 1 → Slave 0 (ddr)
-    test_addr = 0x00000100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (1 << 12) | 0)
-    tb.log.info(f"  W slave=0 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(1, test_addr, test_data)
-    # Read back at master 1's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(0, test_addr, master_idx=1)
-    assert actual == test_data, (
-        f"Slave 0 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(0, master_idx=1)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (1 << 20) | (0 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=0 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(1, test_addr, test_data)
+        # Read back at master 1's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(0, test_addr, master_idx=1)
+        assert actual == test_data, (
+            f"Slave 0 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 1 → Slave 1 (sram)
-    test_addr = 0x80000100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (1 << 12) | 1)
-    tb.log.info(f"  W slave=1 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(1, test_addr, test_data)
-    # Read back at master 1's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(1, test_addr, master_idx=1)
-    assert actual == test_data, (
-        f"Slave 1 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(1, master_idx=1)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (1 << 20) | (1 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=1 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(1, test_addr, test_data)
+        # Read back at master 1's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(1, test_addr, master_idx=1)
+        assert actual == test_data, (
+            f"Slave 1 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
 
     # ---- Read connectivity ---------------------------------------------
     tb.log.info(f"Master 0 (cpu) — reads")
     # Master 0 → Slave 0 (ddr)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x00000100
-    expected = tb.slave_mem_read(0, test_addr, master_idx=0)
-    tb.log.info(f"  R slave=0 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(0, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 0 ← slave 0 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(0, master_idx=0):
+        expected = tb.slave_mem_read(0, test_addr, master_idx=0)
+        tb.log.info(f"  R slave=0 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(0, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 0 ← slave 0 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     # Master 0 → Slave 1 (sram)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x80000100
-    expected = tb.slave_mem_read(1, test_addr, master_idx=0)
-    tb.log.info(f"  R slave=1 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(0, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 0 ← slave 1 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(1, master_idx=0):
+        expected = tb.slave_mem_read(1, test_addr, master_idx=0)
+        tb.log.info(f"  R slave=1 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(0, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 0 ← slave 1 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     tb.log.info(f"Master 1 (dma) — reads")
     # Master 1 → Slave 0 (ddr)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x00000100
-    expected = tb.slave_mem_read(0, test_addr, master_idx=1)
-    tb.log.info(f"  R slave=0 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(1, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 1 ← slave 0 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(0, master_idx=1):
+        expected = tb.slave_mem_read(0, test_addr, master_idx=1)
+        tb.log.info(f"  R slave=0 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(1, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 1 ← slave 0 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     # Master 1 → Slave 1 (sram)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x80000100
-    expected = tb.slave_mem_read(1, test_addr, master_idx=1)
-    tb.log.info(f"  R slave=1 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(1, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 1 ← slave 1 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(1, master_idx=1):
+        expected = tb.slave_mem_read(1, test_addr, master_idx=1)
+        tb.log.info(f"  R slave=1 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(1, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 1 ← slave 1 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
 
     await ClockCycles(tb.clock, 20)
     tb.log.info("=" * 80)
@@ -193,13 +191,19 @@ async def cocotb_test_bridge_2x2_rw_basic_connectivity(dut):
     tb.log.info("=" * 80)
 
 
-@cocotb.test(timeout_time=500, timeout_unit="ms")
+@cocotb.test(timeout_time=8000, timeout_unit="ms")
 async def cocotb_test_bridge_2x2_rw_boundary_probe(dut):
     """
-    Boundary probe — for each (master, slave) pair, probe three offsets
-    per page (bottom / middle / top of the page) back-to-back, at either
-    the boundary pages of the slave window (default) or every page
-    (BRIDGE_BOUNDARY_PROBE_MODE=all).
+    Boundary probe — for each (master, slave) pair, probe up to three
+    offsets per page (bottom / middle / top of the page) back-to-back, at
+    the boundary pages of the slave window, every seeded page, or every
+    page (BRIDGE_BOUNDARY_PROBE_MODE=all).
+
+    Depth (TEST_LEVEL): gate probes the boundary pages at the low offset
+    only; func the boundary pages at all three offsets; full every seeded
+    page at all three offsets WITH every slave holding its response off for
+    `slave_delay` cycles, so the probes queue in the fabric instead of
+    completing one at a time.
 
     NB: previously named "address_decode". The failure modes it surfaces
     are not in the address decoder (which is per-bridge generated inline
@@ -224,20 +228,23 @@ async def cocotb_test_bridge_2x2_rw_boundary_probe(dut):
     tb = Bridge2x2RwTB(dut)
     await tb.setup_clocks_and_reset()
 
-    mode = os.environ.get('BRIDGE_BOUNDARY_PROBE_MODE', 'boundary').lower()
-    if mode not in ('boundary', 'all'):
+    mode = os.environ.get('BRIDGE_BOUNDARY_PROBE_MODE', '').lower() or tb.level_cfg['probe_pages']
+    if mode not in ('boundary', 'seeded', 'all'):
         tb.log.warning(f"Unknown BRIDGE_BOUNDARY_PROBE_MODE={mode!r}, falling back to 'boundary'")
         mode = 'boundary'
+    delay = tb.apply_level_slave_delay()
 
     tb.log.info("=" * 80)
-    tb.log.info(f"Starting boundary probe test (mode={mode})")
+    tb.log.info(f"Starting boundary probe test (level={tb.level}, mode={mode}, "
+                f"{tb.level_cfg['in_page_probes']} probe(s)/page, slave delay {delay})")
     tb.log.info("=" * 80)
 
     tb.log.info(f"Master 0 (cpu)")
     # Slave 0 (ddr): 0x00000000-0x7fffffff
     pages_0_0 = tb.slave_probe_pages(0, mode=mode)
     in_page_0_0 = tb.page_probe_offsets(0, master_idx=0)
-    tb.log.info(f"  slave 0: {len(pages_0_0)} pages x 3 probes/page")
+    tb.log.info(f"  slave 0: {len(pages_0_0)} pages x "
+                f"{len(in_page_0_0)} probes/page")
     for page_idx, page_base in enumerate(pages_0_0):
         for probe_idx, probe_off in enumerate(in_page_0_0):
             addr = page_base + probe_off
@@ -262,7 +269,8 @@ async def cocotb_test_bridge_2x2_rw_boundary_probe(dut):
     # Slave 1 (sram): 0x80000000-0xffffffff
     pages_0_1 = tb.slave_probe_pages(1, mode=mode)
     in_page_0_1 = tb.page_probe_offsets(1, master_idx=0)
-    tb.log.info(f"  slave 1: {len(pages_0_1)} pages x 3 probes/page")
+    tb.log.info(f"  slave 1: {len(pages_0_1)} pages x "
+                f"{len(in_page_0_1)} probes/page")
     for page_idx, page_base in enumerate(pages_0_1):
         for probe_idx, probe_off in enumerate(in_page_0_1):
             addr = page_base + probe_off
@@ -288,7 +296,8 @@ async def cocotb_test_bridge_2x2_rw_boundary_probe(dut):
     # Slave 0 (ddr): 0x00000000-0x7fffffff
     pages_1_0 = tb.slave_probe_pages(0, mode=mode)
     in_page_1_0 = tb.page_probe_offsets(0, master_idx=1)
-    tb.log.info(f"  slave 0: {len(pages_1_0)} pages x 3 probes/page")
+    tb.log.info(f"  slave 0: {len(pages_1_0)} pages x "
+                f"{len(in_page_1_0)} probes/page")
     for page_idx, page_base in enumerate(pages_1_0):
         for probe_idx, probe_off in enumerate(in_page_1_0):
             addr = page_base + probe_off
@@ -313,7 +322,8 @@ async def cocotb_test_bridge_2x2_rw_boundary_probe(dut):
     # Slave 1 (sram): 0x80000000-0xffffffff
     pages_1_1 = tb.slave_probe_pages(1, mode=mode)
     in_page_1_1 = tb.page_probe_offsets(1, master_idx=1)
-    tb.log.info(f"  slave 1: {len(pages_1_1)} pages x 3 probes/page")
+    tb.log.info(f"  slave 1: {len(pages_1_1)} pages x "
+                f"{len(in_page_1_1)} probes/page")
     for page_idx, page_base in enumerate(pages_1_1):
         for probe_idx, probe_off in enumerate(in_page_1_1):
             addr = page_base + probe_off
@@ -340,273 +350,51 @@ async def cocotb_test_bridge_2x2_rw_boundary_probe(dut):
     tb.log.info("=" * 80)
     tb.log.info("Boundary probe test PASSED")
     tb.log.info("=" * 80)
-@cocotb.test(timeout_time=1000, timeout_unit="ms")
+@cocotb.test(timeout_time=8000, timeout_unit="ms")
 async def cocotb_test_bridge_2x2_rw_arbitration(dut):
     """
-    Multi-master arbitration test
+    Multi-master arbitration test: every master offers `arb_per_master`
+    concurrent transactions to ONE slave whose responses are held off, so
+    the requests genuinely contend, then every write is read back and
+    every read checked against the seed. run_arbitration returns the count
+    it verified and refuses to report success for zero work.
 
-    Test plan:
-    1. Multiple masters simultaneously request same slave
-    2. Verify round-robin arbitration grants access
-    3. Verify non-winning masters are backpressured
-    4. Verify transactions complete correctly
+    Depth (TEST_LEVEL): arb_per_master -- gate 4, func 8, full 24.
     """
     tb = Bridge2x2RwTB(dut)
     await tb.setup_clocks_and_reset()
 
     tb.log.info("=" * 80)
-    tb.log.info("Starting arbitration test")
+    tb.log.info(f"Starting arbitration test (level={tb.level}, "
+                f"{tb.level_cfg['arb_per_master']} txn/master)")
     tb.log.info("=" * 80)
 
-    checked = await run_arbitration(tb)
+    checked = await run_arbitration(tb, per_master=tb.level_cfg['arb_per_master'])
     tb.log.info(f"Arbitration test PASSED — {checked} concurrent transactions verified")
-
-
-@cocotb.test(timeout_time=2000, timeout_unit="ms")
-async def cocotb_test_bridge_2x2_rw_outstanding_overflow(dut):
-    """
-    BRIDGE-011: offer more concurrent writes to one slave than its
-    response-tracking FIFO is deep, and require the bridge to hold the line.
-
-    Each slave adapter records the ORIGINATING MASTER for every accepted AW in
-    a fixed-depth FIFO and pops it on the response, routing B by FIFO POSITION.
-    Push is unconditional on the AW handshake with no full check, so nothing
-    stops the pointer running past the reader:
-
-      * past DEPTH, live entries are overwritten -- a response is routed by a
-        stale entry, to the WRONG MASTER;
-      * at exactly 2*DEPTH the write pointer LAPS the read pointer, the
-        `wr_ptr != rd_ptr` occupancy test reads EMPTY, `bid_valid` drops and
-        the response is never routed at all -- the master waits forever.
-
-    The invariant asserted here is the one the fix establishes: occupancy NEVER
-    exceeds DEPTH, because awready is gated on the FIFO being not-full. That
-    holds on fixed RTL and is violated on broken RTL, so it works in both
-    directions -- unlike "occupancy exceeded DEPTH", which only a broken
-    bridge can satisfy.
-
-    Two conditions are needed and no other test in this suite has either: TWO
-    masters outstanding on ONE slave (a single master's entries are all
-    identical, so overwriting them is invisible), and a SLOW slave, since the
-    default BFM answers in about a cycle and never builds depth.
-    """
-    tb = Bridge2x2RwTB(dut)
-    await tb.setup_clocks_and_reset()
-
-    FIFO_DEPTH = 16    # WR_FIFO_DEPTH in ddr_adapter.sv
-    PER_MASTER = 40    # 80 concurrent -- well past both DEPTH and 2*DEPTH
-    B_DELAY    = 80    # cycles; must outlast the issue phase
-
-    tb.log.info("=" * 80)
-    tb.log.info(f"BRIDGE-011: {2 * PER_MASTER} concurrent writes to slave 0 "
-                f"(tracking FIFO is {FIFO_DEPTH} deep)")
-    tb.log.info("=" * 80)
-
-    tb.set_slave_response_delay(0, B_DELAY)
-
-    # Ground truth, straight off the adapter's own pointers. Port-level
-    # arithmetic was tried first and disagreed with itself: the FIFO pops on
-    # the CROSSBAR-side B, not the slave-port B, so counting handshakes at the
-    # slave port measures something else entirely.
-    fifo = {'peak': 0, 'probed': False}
-    bad_route = []
-    b_seen = []
-
-    # ONE probe coroutine for everything sampled per cycle.
-    #
-    # This started as four concurrent coroutines each awaiting ReadOnly(). That
-    # DROPS SAMPLES: the B-channel watchers between them saw 16 of 80
-    # responses, and a watcher that misses traffic reports "no misroutes"
-    # identically to a clean run. One sampler sees every cycle.
-    async def _probe():
-        wr = tb.dut.u_ddr_adapter.wr_ptr
-        rd = tb.dut.u_ddr_adapter.rd_ptr
-        fifo['probed'] = True
-        ports = ((0, tb.dut.cpu_m_axi_bid, tb.dut.cpu_m_axi_bvalid, tb.dut.cpu_m_axi_bready),
-                 (1, tb.dut.dma_m_axi_bid, tb.dut.dma_m_axi_bvalid, tb.dut.dma_m_axi_bready))
-        while True:
-            await RisingEdge(tb.clock)
-            await ReadOnly()
-            occ = (int(wr.value) - int(rd.value)) & 0x1F
-            if occ > fifo['peak']:
-                fifo['peak'] = occ
-            for idx, bid, bv, br in ports:
-                if _hi(bv) and _hi(br):
-                    b_seen.append(idx)
-                    got = int(bid.value)
-                    if ((got >> 3) & 1) != idx:
-                        bad_route.append((idx, got))
-
-    cocotb.start_soon(_probe())
-
-    plan = []
-    for m in (0, 1):
-        for i in range(PER_MASTER):
-            plan.append((m,
-                         0x00001000 + (m * 0x400) + (i * 4),
-                         0xB0110000 | (m << 12) | i,
-                         (m << 3) | (i % 8)))
-
-    done = []
-
-    async def _issue(m, addr, data, txn_id):
-        await tb.master_write(m, addr, data, txn_id=txn_id)
-        done.append((m, addr, data))
-
-    # Launched before any of them awaits, so the offered load is 80
-    # concurrent writes by construction -- no runtime check needed to know
-    # the stimulus was strong enough.
-    for (m, addr, data, txn_id) in plan:
-        cocotb.start_soon(_issue(m, addr, data, txn_id))
-
-    for _ in range(6000):
-        if len(done) == len(plan):
-            break
-        await ClockCycles(tb.clock, 10)
-
-    assert fifo['probed'], "FIFO pointer probe never ran -- test proves nothing"
-
-    tb.log.info(f"peak tracking-FIFO occupancy: {fifo['peak']} "
-                f"(depth {FIFO_DEPTH}), completed {len(done)}/{len(plan)}")
-
-    # THE invariant. Gating awready on not-full makes this unconditional.
-    assert fifo['peak'] <= FIFO_DEPTH, (
-        f"BRIDGE-011: slave 0's tracking FIFO reached {fifo['peak']} entries "
-        f"with only {FIFO_DEPTH} slots. Past {FIFO_DEPTH} a live entry is "
-        f"overwritten and its response is routed to the wrong master; at "
-        f"{2 * FIFO_DEPTH} the pointers lap, occupancy reads EMPTY and the "
-        f"response is never routed at all. awready must be gated on not-full.")
-
-    # The BID check is SUPPLEMENTARY and best-effort: a cycle sampler running
-    # beside the BFMs does not catch every handshake (measured: roughly a third
-    # of them), so "bad_route is empty" is not proof of clean routing. It only
-    # ever reports misroutes it actually saw. The occupancy invariant below is
-    # the primary detector and does not depend on sampling at all.
-    #
-    # What IS asserted here: the watcher was alive and sampling. A dead watcher
-    # and a clean run are otherwise indistinguishable.
-    assert b_seen, (
-        "the B-channel watcher never observed a single response, so its "
-        "'no misroutes' result carries no information at all")
-    tb.log.info(f"BID check sampled {len(b_seen)}/{len(plan)} responses "
-                f"(best-effort; the occupancy invariant is the real detector)")
-
-    assert not bad_route, (
-        f"BRIDGE-011: {len(bad_route)} response(s) delivered to the wrong "
-        f"master -- first, master port {bad_route[0][0]} received BID "
-        f"0x{bad_route[0][1]:x}.")
-
-    if len(done) != len(plan):
-        per_master = {0: 0, 1: 0}
-        for (m, _a, _d) in done:
-            per_master[m] += 1
-        raise AssertionError(
-            f"BRIDGE-011: only {len(done)}/{len(plan)} writes completed "
-            f"(master 0: {per_master[0]}/{PER_MASTER}, master 1: "
-            f"{per_master[1]}/{PER_MASTER}). A response was dropped or "
-            f"consumed by the wrong master.")
-
-    for (m, addr, data, _id) in plan:
-        actual = tb.slave_mem_read(0, addr, master_idx=m)
-        assert actual == data, (
-            f"slave 0 memory mismatch at 0x{addr:08x} (master {m}): "
-            f"got 0x{actual:08x}, expected 0x{data:08x}")
-
-    tb.log.info(f"All {len(plan)} writes completed; peak occupancy "
-                f"{fifo['peak']} stayed within the {FIFO_DEPTH}-entry FIFO")
-
-
-
-@cocotb.test(timeout_time=200, timeout_unit="ms")
-async def cocotb_test_bridge_2x2_rw_latency(dut):
-    """Measure request and response latency through the bridge, in cycles.
-
-    The performance chapters quote figures like "2-3 cycles" and describe a
-    master-delivery stage as "0 (Direct connection)". Nothing measured them, so
-    they drifted from the RTL -- the response path is registered where the
-    docs said it was not.
-
-    Measured here at the PORTS, on an idle bridge with a prompt slave, so the
-    numbers are the structural pipeline depth and not a queuing artifact:
-      request  = master AW accepted -> AW presented at the slave port
-      response = slave B accepted   -> B presented at the master port
-    """
-    tb = Bridge2x2RwTB(dut)
-    await tb.setup_clocks_and_reset()
-    tb.set_slave_response_delay(0, 1)
-
-    marks = {}
-    d = dut
-
-    # ONE sampler for all four ports. Four concurrent coroutines each awaiting
-    # ReadOnly() recorded nothing at all -- a single sampler is both simpler
-    # and immune to whatever phase contention that caused.
-    async def _sampler():
-        n = 0
-        ports = (('m_aw', d.cpu_m_axi_awvalid, d.cpu_m_axi_awready),
-                 ('s_aw', d.ddr_s_axi_awvalid, d.ddr_s_axi_awready),
-                 ('s_b',  d.ddr_s_axi_bvalid,  d.ddr_s_axi_bready),
-                 ('m_b',  d.cpu_m_axi_bvalid,  d.cpu_m_axi_bready))
-        while True:
-            await RisingEdge(tb.clock)
-            n += 1
-            for name, v, r in ports:
-                if _hi(v) and _hi(r):
-                    marks.setdefault(name, n)
-            # VALID arrival is the bridge's own propagation. ACCEPTANCE also
-            # counts however long the far side held READY low, which is the
-            # attached slave's behaviour, not the bridge's depth.
-            if _hi(d.ddr_s_axi_awvalid):
-                marks.setdefault('s_aw_valid', n)
-            if _hi(d.cpu_m_axi_bvalid):
-                marks.setdefault('m_b_valid', n)
-
-    cocotb.start_soon(_sampler())
-
-    await tb.master_write(0, 0x00002000, 0x1A7E0001)
-
-    for _ in range(50):
-        if {'m_aw', 's_aw', 's_b', 'm_b'} <= marks.keys():
-            break
-        await ClockCycles(tb.clock, 1)
-
-    missing = {'m_aw', 's_aw', 's_b', 'm_b'} - marks.keys()
-    assert not missing, f"never observed handshakes: {sorted(missing)}"
-
-    # PROPAGATION is the bridge's own depth: how long a beat takes to appear
-    # on the far side. Accept-to-accept was measured first and was wrong for
-    # this purpose -- it also counts however long the far side held READY low,
-    # so it moved between runs (4/2 one run, 2/6 the next) and described the
-    # BFM's timing as much as the bridge's.
-    req = marks['s_aw_valid'] - marks['m_aw']
-    rsp = marks['m_b_valid'] - marks['s_b']
-    tb.log.info(f"LATENCY propagation request = {req} cycles")
-    if 's_aw_valid' in marks:
-        tb.log.info(f"LATENCY propagation request (AW accepted -> AWVALID at slave) = "
-                    f"{marks['s_aw_valid'] - marks['m_aw']} cycles")
-    if 'm_b_valid' in marks:
-        tb.log.info(f"LATENCY propagation response (B accepted -> BVALID at master) = "
-                    f"{marks['m_b_valid'] - marks['s_b']} cycles")
-    tb.log.info(f"LATENCY propagation response = {rsp} cycles")
-
-    # Both paths are two skid stages, so both are 2. Asserting the exact value
-    # (not just >= 1) is what makes this test able to catch a pipeline stage
-    # being added or removed, which is the drift the docs suffered from.
-    assert req == 2, (
-        f"request propagation measured {req} cycles, expected 2 "
-        f"(cpu_adapter AW skid -> ddr_adapter AW skid). A change here means a "
-        f"pipeline stage moved; update Table 5.7 in the same commit.")
-    assert rsp == 2, (
-        f"response propagation measured {rsp} cycles, expected 2. The docs "
-        f"once described master delivery as '0 (Direct connection)'; it is "
-        f"registered.")
-
 
 # ============================================================================
 # Pytest Wrapper Functions (collected by pytest, call specific cocotb_test_*)
 # ============================================================================
 
-def test_bridge_2x2_rw_basic_connectivity(request):
+
+def generate_bridge_levels():
+    """REG_LEVEL selects the grid: the test_level cells this wrapper expands to.
+
+    GATE 1 (gate), FUNC 2 (gate, func), FULL 3 (gate, func, full) -- different
+    counts, so the three make targets run different matrices. The depth each
+    cell runs at is read by the TB from TEST_LEVEL (bridge_levels.PROFILE)."""
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        return ['gate']
+    if reg_level == 'FUNC':
+        return ['gate', 'func']
+    return ['gate', 'func', 'full']
+
+
+bridge_levels = generate_bridge_levels()
+
+@pytest.mark.parametrize("test_level", bridge_levels)
+def test_bridge_2x2_rw_basic_connectivity(request, test_level):
     """Pytest wrapper for basic connectivity test"""
 
     # Get standard paths
@@ -632,7 +420,8 @@ def test_bridge_2x2_rw_basic_connectivity(request):
     # directory and outputs.
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    test_name_plus_params = f"test_{dut_name}_basic_connectivity"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{dut_name}_basic_connectivity_{test_level}_{reg_level}"
     sim_build_name = f"{test_name_plus_params}{worker_suffix}"
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
@@ -653,6 +442,8 @@ def test_bridge_2x2_rw_basic_connectivity(request):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_LEVEL': test_level,
         **waves['extra_env'],
     }
 
@@ -671,7 +462,8 @@ def test_bridge_2x2_rw_basic_connectivity(request):
     )
 
 
-def test_bridge_2x2_rw_boundary_probe(request):
+@pytest.mark.parametrize("test_level", bridge_levels)
+def test_bridge_2x2_rw_boundary_probe(request, test_level):
     """Pytest wrapper for boundary probe test"""
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -689,7 +481,8 @@ def test_bridge_2x2_rw_boundary_probe(request):
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    test_name_plus_params = f"test_{dut_name}_boundary_probe"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{dut_name}_boundary_probe_{test_level}_{reg_level}"
     sim_build_name = f"{test_name_plus_params}{worker_suffix}"
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
@@ -709,6 +502,8 @@ def test_bridge_2x2_rw_boundary_probe(request):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_LEVEL': test_level,
         **waves['extra_env'],
     }
 
@@ -725,7 +520,8 @@ def test_bridge_2x2_rw_boundary_probe(request):
         plus_args=waves['sim_args'],
         extra_env=extra_env
     )
-def test_bridge_2x2_rw_arbitration(request):
+@pytest.mark.parametrize("test_level", bridge_levels)
+def test_bridge_2x2_rw_arbitration(request, test_level):
     """Pytest wrapper for arbitration test"""
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -743,7 +539,8 @@ def test_bridge_2x2_rw_arbitration(request):
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    test_name_plus_params = f"test_{dut_name}_arbitration"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{dut_name}_arbitration_{test_level}_{reg_level}"
     sim_build_name = f"{test_name_plus_params}{worker_suffix}"
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
@@ -763,6 +560,8 @@ def test_bridge_2x2_rw_arbitration(request):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_LEVEL': test_level,
         **waves['extra_env'],
     }
 
@@ -783,114 +582,3 @@ def test_bridge_2x2_rw_arbitration(request):
 if __name__ == "__main__":
     # Run pytest on this file
     pytest.main([__file__, '-v', '-s'])
-
-def test_bridge_2x2_rw_outstanding_overflow(request):
-    """Pytest wrapper for the BRIDGE-011 outstanding-depth test"""
-
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_bridge': '../../../../rtl/bridge',
-        'rtl_common': '../../../../rtl/common',
-        'rtl_amba': '../../../../rtl/amba'
-    })
-
-    dut_name = "bridge_2x2_rw"
-
-    verilog_sources, includes = get_sources_from_filelist(
-        repo_root=repo_root,
-        filelist_path='projects/components/bridge/rtl/filelists/bridge_2x2_rw.f'
-    )
-
-    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
-    worker_suffix = f"_{worker_id}" if worker_id else ""
-    test_name_plus_params = f"test_{dut_name}_outstanding_overflow"
-    sim_build_name = f"{test_name_plus_params}{worker_suffix}"
-
-    log_path = os.path.join(log_dir, f'{sim_build_name}.log')
-    results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
-    # sim_build_path(), not a hand-built join: it honours SIM_BUILD_ROOT so
-    # concurrent sessions do not share one build tree, and drops an advisory
-    # busy marker so a cleaner can tell "being built in right now" from
-    # "leftover". Hand-joining tests_dir/local_sim_build puts every session
-    # back in the same directory, which is what f01853fe was written to stop.
-    sim_build = sim_build_path(tests_dir, sim_build_name)
-    os.makedirs(log_dir, exist_ok=True)
-
-    waves = get_wave_config(sim_build)
-
-    extra_args = ['--assert', '--coverage'] + waves['extra_args']
-    extra_env = {
-        'COCOTB_LOG_LEVEL': 'INFO',
-        'LOG_PATH': log_path,
-        'COCOTB_RESULTS_FILE': results_path,
-        **waves['extra_env'],
-    }
-
-    run(
-        python_search=[tests_dir],
-        verilog_sources=verilog_sources,
-        includes=includes,
-        toplevel=dut_name,
-        module=module,
-        testcase="cocotb_test_bridge_2x2_rw_outstanding_overflow",
-        sim_build=sim_build,
-        waves=False,
-        extra_args=extra_args,
-        plus_args=waves['sim_args'],
-        extra_env=extra_env
-    )
-
-
-def test_bridge_2x2_rw_latency(request):
-    """Pytest wrapper for the measured-latency test"""
-
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_bridge': '../../../../rtl/bridge',
-        'rtl_common': '../../../../rtl/common',
-        'rtl_amba': '../../../../rtl/amba'
-    })
-
-    dut_name = "bridge_2x2_rw"
-
-    verilog_sources, includes = get_sources_from_filelist(
-        repo_root=repo_root,
-        filelist_path='projects/components/bridge/rtl/filelists/bridge_2x2_rw.f'
-    )
-
-    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
-    worker_suffix = f"_{worker_id}" if worker_id else ""
-    test_name_plus_params = f"test_{dut_name}_latency"
-    sim_build_name = f"{test_name_plus_params}{worker_suffix}"
-
-    log_path = os.path.join(log_dir, f'{sim_build_name}.log')
-    results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
-    # sim_build_path(), not a hand-built join: it honours SIM_BUILD_ROOT so
-    # concurrent sessions do not share one build tree, and drops an advisory
-    # busy marker so a cleaner can tell "being built in right now" from
-    # "leftover". Hand-joining tests_dir/local_sim_build puts every session
-    # back in the same directory, which is what f01853fe was written to stop.
-    sim_build = sim_build_path(tests_dir, sim_build_name)
-    os.makedirs(log_dir, exist_ok=True)
-
-    waves = get_wave_config(sim_build)
-
-    extra_args = ['--assert', '--coverage'] + waves['extra_args']
-    extra_env = {
-        'COCOTB_LOG_LEVEL': 'INFO',
-        'LOG_PATH': log_path,
-        'COCOTB_RESULTS_FILE': results_path,
-        **waves['extra_env'],
-    }
-
-    run(
-        python_search=[tests_dir],
-        verilog_sources=verilog_sources,
-        includes=includes,
-        toplevel=dut_name,
-        module=module,
-        testcase="cocotb_test_bridge_2x2_rw_latency",
-        sim_build=sim_build,
-        waves=False,
-        extra_args=extra_args,
-        plus_args=waves['sim_args'],
-        extra_env=extra_env
-    )

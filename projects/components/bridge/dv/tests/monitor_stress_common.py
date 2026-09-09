@@ -34,6 +34,9 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_wave_config, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from projects.components.bridge.dv.tbclasses.bridge_levels import (
+    PROFILE, current_level,
+)
 
 from TBClasses.monbus import PktType, ProtocolType
 from TBClasses.monbus.monbus_types import AXIErrorCode
@@ -141,11 +144,15 @@ def init_group_cfg(dut, *, err_select=0, base=_GROUP_BASE, limit=_GROUP_LIMIT,
     _set(dut, "cfg_mon_group_axi_err_select", err_select)
 
 
-def stress_count(default=256):
-    n = int(os.environ.get("STRESS_READS", str(default)))
-    if os.environ.get("REG_LEVEL", "").upper() == "FULL":
-        n = max(n, 512)
-    return n
+def stress_count(default=None):
+    """Reads per stress phase, from TEST_LEVEL (gate 64 / func 256 / full 512).
+
+    STRESS_READS overrides for a one-off. This used to read REG_LEVEL, which
+    is the GRID knob and never reached the cocotb process on a single-cell
+    run; TEST_LEVEL is what the wrapper exports."""
+    if default is None:
+        default = PROFILE[current_level()]['mon_count']
+    return int(os.environ.get("STRESS_READS", str(default)))
 
 
 # --------------------------------------------------------------------------- #
@@ -516,14 +523,18 @@ def install_slverr_override(slave, force_resp: int = 2) -> None:
 # --------------------------------------------------------------------------- #
 def run_monitor_sim(*, module, repo_root, tests_dir, log_dir, dut_name, testcase,
                     filelist, extra_sources=(), parameters=None,
-                    extra_no_warn=()):
+                    extra_no_warn=(), test_level='gate', extra_env=None):
+    """Build + run one monitor stress cell. The wrapper names `test_level`
+    (build/log naming) and hands TEST_LEVEL + SEED in `extra_env`, which the
+    cocotb side reads to scale stress_count."""
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist)
     verilog_sources = list(verilog_sources) + list(extra_sources)
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    sim_build_name = f"{testcase}{worker_suffix}"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    sim_build_name = f"{testcase}_{test_level}_{reg_level}{worker_suffix}"
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
     results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
     sim_build = sim_build_path(tests_dir, sim_build_name)
@@ -545,6 +556,7 @@ def run_monitor_sim(*, module, repo_root, tests_dir, log_dir, dut_name, testcase
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
+        **(extra_env or {}),
         **waves['extra_env'],
     }
 

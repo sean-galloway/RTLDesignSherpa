@@ -12,6 +12,7 @@
 
 import os
 import sys
+import random
 import pytest
 import logging
 
@@ -45,13 +46,17 @@ from projects.components.bridge.dv.tbclasses.bridge1x5_rd_tb import Bridge1x5RdT
 # fail in the full regression). Stream's per-module naming was the
 # reference.
 
-@cocotb.test(timeout_time=200, timeout_unit="ms")
+@cocotb.test(timeout_time=2000, timeout_unit="ms")
 async def cocotb_test_bridge_1x5_rd_basic_connectivity(dut):
     """
-    Basic connectivity — every (master, slave) pair gets one write and/or
-    one read at a non-base offset inside the slave's window. Reads check
+    Basic connectivity — every (master, slave) pair gets writes and/or
+    reads at non-base offsets inside the slave's window. Reads check
     against the pre-seeded slave memory pattern; writes verify the bytes
     landed in the slave's memory at the expected offset.
+
+    Depth (TEST_LEVEL): the fixed +0x100 probe at every level, then
+    `connectivity_offsets - 1` further seeded, aligned offsets drawn from the
+    TB's SEED-pinned RNG -- gate 1, func 4, full 16 per pair.
 
     The slave BFMs auto-respond from their MemoryModel honoring whatever
     ARSIZE/ARLEN/ARADDR (or AWSIZE/AWLEN/AWADDR) the bridge forwards, so
@@ -62,7 +67,8 @@ async def cocotb_test_bridge_1x5_rd_basic_connectivity(dut):
     await tb.setup_clocks_and_reset()
 
     tb.log.info("=" * 80)
-    tb.log.info("Starting basic connectivity test")
+    tb.log.info(f"Starting basic connectivity test (level={tb.level}, "
+                f"{tb.level_cfg['connectivity_offsets']} offset(s) per pair)")
     tb.log.info(f"Configuration: 1M x 5S, RD channels")
     tb.log.info("=" * 80)
 
@@ -70,55 +76,60 @@ async def cocotb_test_bridge_1x5_rd_basic_connectivity(dut):
     # ---- Read connectivity ---------------------------------------------
     tb.log.info(f"Master 0 (cpu_rd) — reads")
     # Master 0 → Slave 0 (periph_rd)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x00000100
-    expected = tb.slave_mem_read(0, test_addr, master_idx=0)
-    tb.log.info(f"  R slave=0 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(0, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 0 ← slave 0 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(0, master_idx=0):
+        expected = tb.slave_mem_read(0, test_addr, master_idx=0)
+        tb.log.info(f"  R slave=0 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(0, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 0 ← slave 0 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     # Master 0 → Slave 1 (ddr_rd)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x10000100
-    expected = tb.slave_mem_read(1, test_addr, master_idx=0)
-    tb.log.info(f"  R slave=1 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(0, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 0 ← slave 1 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(1, master_idx=0):
+        expected = tb.slave_mem_read(1, test_addr, master_idx=0)
+        tb.log.info(f"  R slave=1 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(0, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 0 ← slave 1 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     # Master 0 → Slave 2 (hbm_rd)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x50000100
-    expected = tb.slave_mem_read(2, test_addr, master_idx=0)
-    tb.log.info(f"  R slave=2 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(0, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 0 ← slave 2 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(2, master_idx=0):
+        expected = tb.slave_mem_read(2, test_addr, master_idx=0)
+        tb.log.info(f"  R slave=2 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(0, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 0 ← slave 2 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     # Master 0 → Slave 3 (apb_periph)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x80000100
-    expected = tb.slave_mem_read(3, test_addr, master_idx=0)
-    tb.log.info(f"  R slave=3 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(0, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 0 ← slave 3 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(3, master_idx=0):
+        expected = tb.slave_mem_read(3, test_addr, master_idx=0)
+        tb.log.info(f"  R slave=3 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(0, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 0 ← slave 3 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     # Master 0 → Slave 4 (axil_periph)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x90000100
-    expected = tb.slave_mem_read(4, test_addr, master_idx=0)
-    tb.log.info(f"  R slave=4 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(0, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 0 ← slave 4 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(4, master_idx=0):
+        expected = tb.slave_mem_read(4, test_addr, master_idx=0)
+        tb.log.info(f"  R slave=4 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(0, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 0 ← slave 4 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
 
     await ClockCycles(tb.clock, 20)
     tb.log.info("=" * 80)
@@ -126,13 +137,19 @@ async def cocotb_test_bridge_1x5_rd_basic_connectivity(dut):
     tb.log.info("=" * 80)
 
 
-@cocotb.test(timeout_time=500, timeout_unit="ms")
+@cocotb.test(timeout_time=8000, timeout_unit="ms")
 async def cocotb_test_bridge_1x5_rd_boundary_probe(dut):
     """
-    Boundary probe — for each (master, slave) pair, probe three offsets
-    per page (bottom / middle / top of the page) back-to-back, at either
-    the boundary pages of the slave window (default) or every page
-    (BRIDGE_BOUNDARY_PROBE_MODE=all).
+    Boundary probe — for each (master, slave) pair, probe up to three
+    offsets per page (bottom / middle / top of the page) back-to-back, at
+    the boundary pages of the slave window, every seeded page, or every
+    page (BRIDGE_BOUNDARY_PROBE_MODE=all).
+
+    Depth (TEST_LEVEL): gate probes the boundary pages at the low offset
+    only; func the boundary pages at all three offsets; full every seeded
+    page at all three offsets WITH every slave holding its response off for
+    `slave_delay` cycles, so the probes queue in the fabric instead of
+    completing one at a time.
 
     NB: previously named "address_decode". The failure modes it surfaces
     are not in the address decoder (which is per-bridge generated inline
@@ -157,20 +174,23 @@ async def cocotb_test_bridge_1x5_rd_boundary_probe(dut):
     tb = Bridge1x5RdTB(dut)
     await tb.setup_clocks_and_reset()
 
-    mode = os.environ.get('BRIDGE_BOUNDARY_PROBE_MODE', 'boundary').lower()
-    if mode not in ('boundary', 'all'):
+    mode = os.environ.get('BRIDGE_BOUNDARY_PROBE_MODE', '').lower() or tb.level_cfg['probe_pages']
+    if mode not in ('boundary', 'seeded', 'all'):
         tb.log.warning(f"Unknown BRIDGE_BOUNDARY_PROBE_MODE={mode!r}, falling back to 'boundary'")
         mode = 'boundary'
+    delay = tb.apply_level_slave_delay()
 
     tb.log.info("=" * 80)
-    tb.log.info(f"Starting boundary probe test (mode={mode})")
+    tb.log.info(f"Starting boundary probe test (level={tb.level}, mode={mode}, "
+                f"{tb.level_cfg['in_page_probes']} probe(s)/page, slave delay {delay})")
     tb.log.info("=" * 80)
 
     tb.log.info(f"Master 0 (cpu_rd)")
     # Slave 0 (periph_rd): 0x00000000-0x0fffffff
     pages_0_0 = tb.slave_probe_pages(0, mode=mode)
     in_page_0_0 = tb.page_probe_offsets(0, master_idx=0)
-    tb.log.info(f"  slave 0: {len(pages_0_0)} pages x 3 probes/page")
+    tb.log.info(f"  slave 0: {len(pages_0_0)} pages x "
+                f"{len(in_page_0_0)} probes/page")
     for page_idx, page_base in enumerate(pages_0_0):
         for probe_idx, probe_off in enumerate(in_page_0_0):
             addr = page_base + probe_off
@@ -200,7 +220,8 @@ async def cocotb_test_bridge_1x5_rd_boundary_probe(dut):
     # Slave 1 (ddr_rd): 0x10000000-0x4fffffff
     pages_0_1 = tb.slave_probe_pages(1, mode=mode)
     in_page_0_1 = tb.page_probe_offsets(1, master_idx=0)
-    tb.log.info(f"  slave 1: {len(pages_0_1)} pages x 3 probes/page")
+    tb.log.info(f"  slave 1: {len(pages_0_1)} pages x "
+                f"{len(in_page_0_1)} probes/page")
     for page_idx, page_base in enumerate(pages_0_1):
         for probe_idx, probe_off in enumerate(in_page_0_1):
             addr = page_base + probe_off
@@ -230,7 +251,8 @@ async def cocotb_test_bridge_1x5_rd_boundary_probe(dut):
     # Slave 2 (hbm_rd): 0x50000000-0x7fffffff
     pages_0_2 = tb.slave_probe_pages(2, mode=mode)
     in_page_0_2 = tb.page_probe_offsets(2, master_idx=0)
-    tb.log.info(f"  slave 2: {len(pages_0_2)} pages x 3 probes/page")
+    tb.log.info(f"  slave 2: {len(pages_0_2)} pages x "
+                f"{len(in_page_0_2)} probes/page")
     for page_idx, page_base in enumerate(pages_0_2):
         for probe_idx, probe_off in enumerate(in_page_0_2):
             addr = page_base + probe_off
@@ -260,7 +282,8 @@ async def cocotb_test_bridge_1x5_rd_boundary_probe(dut):
     # Slave 3 (apb_periph): 0x80000000-0x8000ffff
     pages_0_3 = tb.slave_probe_pages(3, mode=mode)
     in_page_0_3 = tb.page_probe_offsets(3, master_idx=0)
-    tb.log.info(f"  slave 3: {len(pages_0_3)} pages x 3 probes/page")
+    tb.log.info(f"  slave 3: {len(pages_0_3)} pages x "
+                f"{len(in_page_0_3)} probes/page")
     for page_idx, page_base in enumerate(pages_0_3):
         for probe_idx, probe_off in enumerate(in_page_0_3):
             addr = page_base + probe_off
@@ -290,7 +313,8 @@ async def cocotb_test_bridge_1x5_rd_boundary_probe(dut):
     # Slave 4 (axil_periph): 0x90000000-0x9000ffff
     pages_0_4 = tb.slave_probe_pages(4, mode=mode)
     in_page_0_4 = tb.page_probe_offsets(4, master_idx=0)
-    tb.log.info(f"  slave 4: {len(pages_0_4)} pages x 3 probes/page")
+    tb.log.info(f"  slave 4: {len(pages_0_4)} pages x "
+                f"{len(in_page_0_4)} probes/page")
     for page_idx, page_base in enumerate(pages_0_4):
         for probe_idx, probe_off in enumerate(in_page_0_4):
             addr = page_base + probe_off
@@ -327,7 +351,25 @@ async def cocotb_test_bridge_1x5_rd_boundary_probe(dut):
 # Pytest Wrapper Functions (collected by pytest, call specific cocotb_test_*)
 # ============================================================================
 
-def test_bridge_1x5_rd_basic_connectivity(request):
+
+def generate_bridge_levels():
+    """REG_LEVEL selects the grid: the test_level cells this wrapper expands to.
+
+    GATE 1 (gate), FUNC 2 (gate, func), FULL 3 (gate, func, full) -- different
+    counts, so the three make targets run different matrices. The depth each
+    cell runs at is read by the TB from TEST_LEVEL (bridge_levels.PROFILE)."""
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        return ['gate']
+    if reg_level == 'FUNC':
+        return ['gate', 'func']
+    return ['gate', 'func', 'full']
+
+
+bridge_levels = generate_bridge_levels()
+
+@pytest.mark.parametrize("test_level", bridge_levels)
+def test_bridge_1x5_rd_basic_connectivity(request, test_level):
     """Pytest wrapper for basic connectivity test"""
 
     # Get standard paths
@@ -353,7 +395,8 @@ def test_bridge_1x5_rd_basic_connectivity(request):
     # directory and outputs.
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    test_name_plus_params = f"test_{dut_name}_basic_connectivity"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{dut_name}_basic_connectivity_{test_level}_{reg_level}"
     sim_build_name = f"{test_name_plus_params}{worker_suffix}"
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
@@ -374,6 +417,8 @@ def test_bridge_1x5_rd_basic_connectivity(request):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_LEVEL': test_level,
         **waves['extra_env'],
     }
 
@@ -392,7 +437,8 @@ def test_bridge_1x5_rd_basic_connectivity(request):
     )
 
 
-def test_bridge_1x5_rd_boundary_probe(request):
+@pytest.mark.parametrize("test_level", bridge_levels)
+def test_bridge_1x5_rd_boundary_probe(request, test_level):
     """Pytest wrapper for boundary probe test"""
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -410,7 +456,8 @@ def test_bridge_1x5_rd_boundary_probe(request):
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    test_name_plus_params = f"test_{dut_name}_boundary_probe"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{dut_name}_boundary_probe_{test_level}_{reg_level}"
     sim_build_name = f"{test_name_plus_params}{worker_suffix}"
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
@@ -430,6 +477,8 @@ def test_bridge_1x5_rd_boundary_probe(request):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_LEVEL': test_level,
         **waves['extra_env'],
     }
 

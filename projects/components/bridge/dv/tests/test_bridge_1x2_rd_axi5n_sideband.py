@@ -17,6 +17,8 @@
 
 import os
 import sys
+import random
+import pytest
 
 from TBClasses.shared.utilities import get_repo_root, sim_build_path
 
@@ -63,7 +65,7 @@ class SidebandSampler:
                     int(self.dut.cpu_rd_axi_rtrace.value))
 
 
-@cocotb.test(timeout_time=200, timeout_unit="ms")
+@cocotb.test(timeout_time=2000, timeout_unit="ms")
 async def cocotb_test_bridge_1x2_rd_axi5n_sideband(dut):
     """Native AXI5 sideband values traverse the AMBA4 fabric structs."""
     tb = Bridge1x2RdAxi5nTB(dut)
@@ -90,7 +92,16 @@ async def cocotb_test_bridge_1x2_rd_axi5n_sideband(dut):
     tb.log.info("=" * 80)
 
     # --- Native path: reads into the AXI5 slave -----------------------
-    for off in (0x100, 0x1F4, 0x0FC):
+    # Depth (TEST_LEVEL): `sideband_beats` reads (gate 3, func 8, full 24)
+    # -- the three fixed offsets first, then RNG-drawn aligned seeded ones.
+    n = tb.level_cfg['sideband_beats']
+    offs = [0x100, 0x1F4, 0x0FC]
+    while len(offs) < n:
+        o = tb.rng.randrange(0, tb._slave_mem_bytes(1), 4)
+        if o not in offs:
+            offs.append(o)
+    tb.log.info(f"  level={tb.level}: {len(offs)} native-path reads")
+    for off in offs:
         addr = 0x8000_0000 + off
         expected = tb.slave_mem_read(1, addr, master_idx=0)
         actual = await tb.master_read(0, addr)
@@ -99,8 +110,8 @@ async def cocotb_test_bridge_1x2_rd_axi5n_sideband(dut):
             f"expected 0x{expected:08x}")
 
     await ClockCycles(tb.clock, 20)
-    assert len(sampler.sram_ar_samples) >= 3, (
-        f"expected >=3 sram AR handshakes, saw {len(sampler.sram_ar_samples)}")
+    assert len(sampler.sram_ar_samples) >= n, (
+        f"expected >={n} sram AR handshakes, saw {len(sampler.sram_ar_samples)}")
     for i, s in enumerate(sampler.sram_ar_samples):
         assert s == {'nsaid': ARNSAID, 'trace': 1, 'unique': 1}, (
             f"sram AR sideband sample {i} corrupted: {s}")
@@ -113,7 +124,12 @@ async def cocotb_test_bridge_1x2_rd_axi5n_sideband(dut):
 
     # --- Drop path: reads into the AXI4 slave --------------------------
     sampler.master_r_samples.clear()
-    for off in (0x40, 0x80):
+    offs = [0x40, 0x80]
+    while len(offs) < max(2, n // 2):
+        o = tb.rng.randrange(0, tb._slave_mem_bytes(0), 4)
+        if o not in offs:
+            offs.append(o)
+    for off in offs:
         addr = 0x0000_0000 + off
         expected = tb.slave_mem_read(0, addr, master_idx=0)
         actual = await tb.master_read(0, addr)
@@ -138,7 +154,25 @@ async def cocotb_test_bridge_1x2_rd_axi5n_sideband(dut):
 # ============================================================================
 
 
-def test_bridge_1x2_rd_axi5n_sideband(request):
+
+def generate_bridge_levels():
+    """REG_LEVEL selects the grid: the test_level cells this wrapper expands to.
+
+    GATE 1 (gate), FUNC 2 (gate, func), FULL 3 (gate, func, full) -- different
+    counts, so the three make targets run different matrices. The depth each
+    cell runs at is read by the TB from TEST_LEVEL (bridge_levels.PROFILE)."""
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        return ['gate']
+    if reg_level == 'FUNC':
+        return ['gate', 'func']
+    return ['gate', 'func', 'full']
+
+
+bridge_levels = generate_bridge_levels()
+
+@pytest.mark.parametrize("test_level", bridge_levels)
+def test_bridge_1x2_rd_axi5n_sideband(request, test_level):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_bridge': '../../../../rtl/bridge',
         'rtl_common': '../../../../rtl/common',
@@ -154,7 +188,8 @@ def test_bridge_1x2_rd_axi5n_sideband(request):
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    test_name_plus_params = f"test_{dut_name}_sideband"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{dut_name}_sideband_{test_level}_{reg_level}"
     sim_build_name = f"{test_name_plus_params}{worker_suffix}"
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
@@ -170,6 +205,8 @@ def test_bridge_1x2_rd_axi5n_sideband(request):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_LEVEL': test_level,
         **waves['extra_env'],
     }
 

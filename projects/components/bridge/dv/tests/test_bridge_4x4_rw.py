@@ -12,6 +12,7 @@
 
 import os
 import sys
+import random
 import pytest
 import logging
 
@@ -46,13 +47,17 @@ from projects.components.bridge.dv.tbclasses.bridge_arbitration import run_arbit
 # fail in the full regression). Stream's per-module naming was the
 # reference.
 
-@cocotb.test(timeout_time=200, timeout_unit="ms")
+@cocotb.test(timeout_time=2000, timeout_unit="ms")
 async def cocotb_test_bridge_4x4_rw_basic_connectivity(dut):
     """
-    Basic connectivity — every (master, slave) pair gets one write and/or
-    one read at a non-base offset inside the slave's window. Reads check
+    Basic connectivity — every (master, slave) pair gets writes and/or
+    reads at non-base offsets inside the slave's window. Reads check
     against the pre-seeded slave memory pattern; writes verify the bytes
     landed in the slave's memory at the expected offset.
+
+    Depth (TEST_LEVEL): the fixed +0x100 probe at every level, then
+    `connectivity_offsets - 1` further seeded, aligned offsets drawn from the
+    TB's SEED-pinned RNG -- gate 1, func 4, full 16 per pair.
 
     The slave BFMs auto-respond from their MemoryModel honoring whatever
     ARSIZE/ARLEN/ARADDR (or AWSIZE/AWLEN/AWADDR) the bridge forwards, so
@@ -63,333 +68,360 @@ async def cocotb_test_bridge_4x4_rw_basic_connectivity(dut):
     await tb.setup_clocks_and_reset()
 
     tb.log.info("=" * 80)
-    tb.log.info("Starting basic connectivity test")
+    tb.log.info(f"Starting basic connectivity test (level={tb.level}, "
+                f"{tb.level_cfg['connectivity_offsets']} offset(s) per pair)")
     tb.log.info(f"Configuration: 4M x 4S, RW channels")
     tb.log.info("=" * 80)
 
     # ---- Write connectivity --------------------------------------------
     tb.log.info(f"Master 0 (cpu_master) — writes")
     # Master 0 → Slave 0 (periph_slave)
-    test_addr = 0x00000100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (0 << 12) | 0)
-    tb.log.info(f"  W slave=0 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(0, test_addr, test_data)
-    # Read back at master 0's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(0, test_addr, master_idx=0)
-    assert actual == test_data, (
-        f"Slave 0 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(0, master_idx=0)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (0 << 20) | (0 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=0 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(0, test_addr, test_data)
+        # Read back at master 0's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(0, test_addr, master_idx=0)
+        assert actual == test_data, (
+            f"Slave 0 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 0 → Slave 1 (ddr0_slave)
-    test_addr = 0x40000100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (0 << 12) | 1)
-    tb.log.info(f"  W slave=1 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(0, test_addr, test_data)
-    # Read back at master 0's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(1, test_addr, master_idx=0)
-    assert actual == test_data, (
-        f"Slave 1 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(1, master_idx=0)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (0 << 20) | (1 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=1 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(0, test_addr, test_data)
+        # Read back at master 0's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(1, test_addr, master_idx=0)
+        assert actual == test_data, (
+            f"Slave 1 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 0 → Slave 2 (sram_slave)
-    test_addr = 0x80000100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (0 << 12) | 2)
-    tb.log.info(f"  W slave=2 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(0, test_addr, test_data)
-    # Read back at master 0's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(2, test_addr, master_idx=0)
-    assert actual == test_data, (
-        f"Slave 2 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(2, master_idx=0)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (0 << 20) | (2 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=2 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(0, test_addr, test_data)
+        # Read back at master 0's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(2, test_addr, master_idx=0)
+        assert actual == test_data, (
+            f"Slave 2 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 0 → Slave 3 (gpu_mem_slave)
-    test_addr = 0xc0000100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (0 << 12) | 3)
-    tb.log.info(f"  W slave=3 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(0, test_addr, test_data)
-    # Read back at master 0's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(3, test_addr, master_idx=0)
-    assert actual == test_data, (
-        f"Slave 3 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(3, master_idx=0)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (0 << 20) | (3 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=3 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(0, test_addr, test_data)
+        # Read back at master 0's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(3, test_addr, master_idx=0)
+        assert actual == test_data, (
+            f"Slave 3 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     tb.log.info(f"Master 1 (dma0_master) — writes")
     # Master 1 → Slave 0 (periph_slave)
-    test_addr = 0x00000100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (1 << 12) | 0)
-    tb.log.info(f"  W slave=0 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(1, test_addr, test_data)
-    # Read back at master 1's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(0, test_addr, master_idx=1)
-    assert actual == test_data, (
-        f"Slave 0 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(0, master_idx=1)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (1 << 20) | (0 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=0 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(1, test_addr, test_data)
+        # Read back at master 1's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(0, test_addr, master_idx=1)
+        assert actual == test_data, (
+            f"Slave 0 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 1 → Slave 1 (ddr0_slave)
-    test_addr = 0x40000100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (1 << 12) | 1)
-    tb.log.info(f"  W slave=1 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(1, test_addr, test_data)
-    # Read back at master 1's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(1, test_addr, master_idx=1)
-    assert actual == test_data, (
-        f"Slave 1 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(1, master_idx=1)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (1 << 20) | (1 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=1 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(1, test_addr, test_data)
+        # Read back at master 1's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(1, test_addr, master_idx=1)
+        assert actual == test_data, (
+            f"Slave 1 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 1 → Slave 2 (sram_slave)
-    test_addr = 0x80000100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (1 << 12) | 2)
-    tb.log.info(f"  W slave=2 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(1, test_addr, test_data)
-    # Read back at master 1's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(2, test_addr, master_idx=1)
-    assert actual == test_data, (
-        f"Slave 2 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(2, master_idx=1)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (1 << 20) | (2 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=2 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(1, test_addr, test_data)
+        # Read back at master 1's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(2, test_addr, master_idx=1)
+        assert actual == test_data, (
+            f"Slave 2 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     tb.log.info(f"Master 2 (dma1_master) — writes")
     # Master 2 → Slave 1 (ddr0_slave)
-    test_addr = 0x40000100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (2 << 12) | 1)
-    tb.log.info(f"  W slave=1 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(2, test_addr, test_data)
-    # Read back at master 2's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(1, test_addr, master_idx=2)
-    assert actual == test_data, (
-        f"Slave 1 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(1, master_idx=2)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (2 << 20) | (1 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=1 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(2, test_addr, test_data)
+        # Read back at master 2's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(1, test_addr, master_idx=2)
+        assert actual == test_data, (
+            f"Slave 1 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 2 → Slave 2 (sram_slave)
-    test_addr = 0x80000100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (2 << 12) | 2)
-    tb.log.info(f"  W slave=2 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(2, test_addr, test_data)
-    # Read back at master 2's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(2, test_addr, master_idx=2)
-    assert actual == test_data, (
-        f"Slave 2 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(2, master_idx=2)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (2 << 20) | (2 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=2 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(2, test_addr, test_data)
+        # Read back at master 2's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(2, test_addr, master_idx=2)
+        assert actual == test_data, (
+            f"Slave 2 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 2 → Slave 3 (gpu_mem_slave)
-    test_addr = 0xc0000100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (2 << 12) | 3)
-    tb.log.info(f"  W slave=3 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(2, test_addr, test_data)
-    # Read back at master 2's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(3, test_addr, master_idx=2)
-    assert actual == test_data, (
-        f"Slave 3 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(3, master_idx=2)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (2 << 20) | (3 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=3 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(2, test_addr, test_data)
+        # Read back at master 2's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(3, test_addr, master_idx=2)
+        assert actual == test_data, (
+            f"Slave 3 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     tb.log.info(f"Master 3 (gpu_master) — writes")
     # Master 3 → Slave 0 (periph_slave)
-    test_addr = 0x00000100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (3 << 12) | 0)
-    tb.log.info(f"  W slave=0 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(3, test_addr, test_data)
-    # Read back at master 3's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(0, test_addr, master_idx=3)
-    assert actual == test_data, (
-        f"Slave 0 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(0, master_idx=3)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (3 << 20) | (0 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=0 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(3, test_addr, test_data)
+        # Read back at master 3's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(0, test_addr, master_idx=3)
+        assert actual == test_data, (
+            f"Slave 0 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 3 → Slave 1 (ddr0_slave)
-    test_addr = 0x40000100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (3 << 12) | 1)
-    tb.log.info(f"  W slave=1 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(3, test_addr, test_data)
-    # Read back at master 3's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(1, test_addr, master_idx=3)
-    assert actual == test_data, (
-        f"Slave 1 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(1, master_idx=3)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (3 << 20) | (1 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=1 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(3, test_addr, test_data)
+        # Read back at master 3's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(1, test_addr, master_idx=3)
+        assert actual == test_data, (
+            f"Slave 1 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 3 → Slave 3 (gpu_mem_slave)
-    test_addr = 0xc0000100
-    # Non-pattern data: upper byte 0xDE so it can't be confused with any
-    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
-    # the slave ID). Lower byte tags the (master, slave) pair for debug.
-    test_data = (0xDE000000 | (3 << 12) | 3)
-    tb.log.info(f"  W slave=3 addr=0x{test_addr:08x} data=0x{test_data:08x}")
-    await tb.master_write(3, test_addr, test_data)
-    # Read back at master 3's width — only the bytes the master
-    # actually wrote should be compared; trailing bytes are still the seed.
-    actual = tb.slave_mem_read(3, test_addr, master_idx=3)
-    assert actual == test_data, (
-        f"Slave 3 memory mismatch at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    for k, test_addr in enumerate(tb.connectivity_addrs(3, master_idx=3)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (3 << 20) | (3 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=3 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(3, test_addr, test_data)
+        # Read back at master 3's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(3, test_addr, master_idx=3)
+        assert actual == test_data, (
+            f"Slave 3 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
 
     # ---- Read connectivity ---------------------------------------------
     tb.log.info(f"Master 0 (cpu_master) — reads")
     # Master 0 → Slave 0 (periph_slave)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x00000100
-    expected = tb.slave_mem_read(0, test_addr, master_idx=0)
-    tb.log.info(f"  R slave=0 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(0, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 0 ← slave 0 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(0, master_idx=0):
+        expected = tb.slave_mem_read(0, test_addr, master_idx=0)
+        tb.log.info(f"  R slave=0 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(0, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 0 ← slave 0 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     # Master 0 → Slave 1 (ddr0_slave)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x40000100
-    expected = tb.slave_mem_read(1, test_addr, master_idx=0)
-    tb.log.info(f"  R slave=1 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(0, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 0 ← slave 1 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(1, master_idx=0):
+        expected = tb.slave_mem_read(1, test_addr, master_idx=0)
+        tb.log.info(f"  R slave=1 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(0, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 0 ← slave 1 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     # Master 0 → Slave 2 (sram_slave)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x80000100
-    expected = tb.slave_mem_read(2, test_addr, master_idx=0)
-    tb.log.info(f"  R slave=2 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(0, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 0 ← slave 2 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(2, master_idx=0):
+        expected = tb.slave_mem_read(2, test_addr, master_idx=0)
+        tb.log.info(f"  R slave=2 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(0, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 0 ← slave 2 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     # Master 0 → Slave 3 (gpu_mem_slave)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0xc0000100
-    expected = tb.slave_mem_read(3, test_addr, master_idx=0)
-    tb.log.info(f"  R slave=3 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(0, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 0 ← slave 3 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(3, master_idx=0):
+        expected = tb.slave_mem_read(3, test_addr, master_idx=0)
+        tb.log.info(f"  R slave=3 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(0, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 0 ← slave 3 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     tb.log.info(f"Master 1 (dma0_master) — reads")
     # Master 1 → Slave 0 (periph_slave)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x00000100
-    expected = tb.slave_mem_read(0, test_addr, master_idx=1)
-    tb.log.info(f"  R slave=0 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(1, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 1 ← slave 0 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(0, master_idx=1):
+        expected = tb.slave_mem_read(0, test_addr, master_idx=1)
+        tb.log.info(f"  R slave=0 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(1, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 1 ← slave 0 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     # Master 1 → Slave 1 (ddr0_slave)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x40000100
-    expected = tb.slave_mem_read(1, test_addr, master_idx=1)
-    tb.log.info(f"  R slave=1 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(1, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 1 ← slave 1 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(1, master_idx=1):
+        expected = tb.slave_mem_read(1, test_addr, master_idx=1)
+        tb.log.info(f"  R slave=1 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(1, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 1 ← slave 1 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     # Master 1 → Slave 2 (sram_slave)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x80000100
-    expected = tb.slave_mem_read(2, test_addr, master_idx=1)
-    tb.log.info(f"  R slave=2 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(1, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 1 ← slave 2 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(2, master_idx=1):
+        expected = tb.slave_mem_read(2, test_addr, master_idx=1)
+        tb.log.info(f"  R slave=2 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(1, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 1 ← slave 2 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     tb.log.info(f"Master 2 (dma1_master) — reads")
     # Master 2 → Slave 1 (ddr0_slave)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x40000100
-    expected = tb.slave_mem_read(1, test_addr, master_idx=2)
-    tb.log.info(f"  R slave=1 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(2, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 2 ← slave 1 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(1, master_idx=2):
+        expected = tb.slave_mem_read(1, test_addr, master_idx=2)
+        tb.log.info(f"  R slave=1 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(2, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 2 ← slave 1 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     # Master 2 → Slave 2 (sram_slave)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x80000100
-    expected = tb.slave_mem_read(2, test_addr, master_idx=2)
-    tb.log.info(f"  R slave=2 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(2, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 2 ← slave 2 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(2, master_idx=2):
+        expected = tb.slave_mem_read(2, test_addr, master_idx=2)
+        tb.log.info(f"  R slave=2 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(2, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 2 ← slave 2 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     # Master 2 → Slave 3 (gpu_mem_slave)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0xc0000100
-    expected = tb.slave_mem_read(3, test_addr, master_idx=2)
-    tb.log.info(f"  R slave=3 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(2, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 2 ← slave 3 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(3, master_idx=2):
+        expected = tb.slave_mem_read(3, test_addr, master_idx=2)
+        tb.log.info(f"  R slave=3 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(2, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 2 ← slave 3 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     tb.log.info(f"Master 3 (gpu_master) — reads")
     # Master 3 → Slave 0 (periph_slave)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x00000100
-    expected = tb.slave_mem_read(0, test_addr, master_idx=3)
-    tb.log.info(f"  R slave=0 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(3, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 3 ← slave 0 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(0, master_idx=3):
+        expected = tb.slave_mem_read(0, test_addr, master_idx=3)
+        tb.log.info(f"  R slave=0 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(3, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 3 ← slave 0 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     # Master 3 → Slave 1 (ddr0_slave)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0x40000100
-    expected = tb.slave_mem_read(1, test_addr, master_idx=3)
-    tb.log.info(f"  R slave=1 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(3, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 3 ← slave 1 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(1, master_idx=3):
+        expected = tb.slave_mem_read(1, test_addr, master_idx=3)
+        tb.log.info(f"  R slave=1 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(3, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 3 ← slave 1 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     # Master 3 → Slave 3 (gpu_mem_slave)
-    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
-    # +0x100 is always safely inside the slave's window.
-    test_addr = 0xc0000100
-    expected = tb.slave_mem_read(3, test_addr, master_idx=3)
-    tb.log.info(f"  R slave=3 addr=0x{test_addr:08x} expect=0x{expected:08x}")
-    actual = await tb.master_read(3, test_addr)
-    assert actual == expected, (
-        f"Read mismatch master 3 ← slave 3 at 0x{test_addr:08x}: "
-        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Non-base offsets; addr_range is 4 KB-aligned by validator so +0x100
+    # is always safely inside the slave's window, and the RNG-drawn extras
+    # stay inside the seeded region so every read is data-checked.
+    for test_addr in tb.connectivity_addrs(3, master_idx=3):
+        expected = tb.slave_mem_read(3, test_addr, master_idx=3)
+        tb.log.info(f"  R slave=3 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+        actual = await tb.master_read(3, test_addr)
+        assert actual == expected, (
+            f"Read mismatch master 3 ← slave 3 at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
 
     await ClockCycles(tb.clock, 20)
     tb.log.info("=" * 80)
@@ -397,13 +429,19 @@ async def cocotb_test_bridge_4x4_rw_basic_connectivity(dut):
     tb.log.info("=" * 80)
 
 
-@cocotb.test(timeout_time=500, timeout_unit="ms")
+@cocotb.test(timeout_time=8000, timeout_unit="ms")
 async def cocotb_test_bridge_4x4_rw_boundary_probe(dut):
     """
-    Boundary probe — for each (master, slave) pair, probe three offsets
-    per page (bottom / middle / top of the page) back-to-back, at either
-    the boundary pages of the slave window (default) or every page
-    (BRIDGE_BOUNDARY_PROBE_MODE=all).
+    Boundary probe — for each (master, slave) pair, probe up to three
+    offsets per page (bottom / middle / top of the page) back-to-back, at
+    the boundary pages of the slave window, every seeded page, or every
+    page (BRIDGE_BOUNDARY_PROBE_MODE=all).
+
+    Depth (TEST_LEVEL): gate probes the boundary pages at the low offset
+    only; func the boundary pages at all three offsets; full every seeded
+    page at all three offsets WITH every slave holding its response off for
+    `slave_delay` cycles, so the probes queue in the fabric instead of
+    completing one at a time.
 
     NB: previously named "address_decode". The failure modes it surfaces
     are not in the address decoder (which is per-bridge generated inline
@@ -428,20 +466,23 @@ async def cocotb_test_bridge_4x4_rw_boundary_probe(dut):
     tb = Bridge4x4RwTB(dut)
     await tb.setup_clocks_and_reset()
 
-    mode = os.environ.get('BRIDGE_BOUNDARY_PROBE_MODE', 'boundary').lower()
-    if mode not in ('boundary', 'all'):
+    mode = os.environ.get('BRIDGE_BOUNDARY_PROBE_MODE', '').lower() or tb.level_cfg['probe_pages']
+    if mode not in ('boundary', 'seeded', 'all'):
         tb.log.warning(f"Unknown BRIDGE_BOUNDARY_PROBE_MODE={mode!r}, falling back to 'boundary'")
         mode = 'boundary'
+    delay = tb.apply_level_slave_delay()
 
     tb.log.info("=" * 80)
-    tb.log.info(f"Starting boundary probe test (mode={mode})")
+    tb.log.info(f"Starting boundary probe test (level={tb.level}, mode={mode}, "
+                f"{tb.level_cfg['in_page_probes']} probe(s)/page, slave delay {delay})")
     tb.log.info("=" * 80)
 
     tb.log.info(f"Master 0 (cpu_master)")
     # Slave 0 (periph_slave): 0x00000000-0x3fffffff
     pages_0_0 = tb.slave_probe_pages(0, mode=mode)
     in_page_0_0 = tb.page_probe_offsets(0, master_idx=0)
-    tb.log.info(f"  slave 0: {len(pages_0_0)} pages x 3 probes/page")
+    tb.log.info(f"  slave 0: {len(pages_0_0)} pages x "
+                f"{len(in_page_0_0)} probes/page")
     for page_idx, page_base in enumerate(pages_0_0):
         for probe_idx, probe_off in enumerate(in_page_0_0):
             addr = page_base + probe_off
@@ -466,7 +507,8 @@ async def cocotb_test_bridge_4x4_rw_boundary_probe(dut):
     # Slave 1 (ddr0_slave): 0x40000000-0x7fffffff
     pages_0_1 = tb.slave_probe_pages(1, mode=mode)
     in_page_0_1 = tb.page_probe_offsets(1, master_idx=0)
-    tb.log.info(f"  slave 1: {len(pages_0_1)} pages x 3 probes/page")
+    tb.log.info(f"  slave 1: {len(pages_0_1)} pages x "
+                f"{len(in_page_0_1)} probes/page")
     for page_idx, page_base in enumerate(pages_0_1):
         for probe_idx, probe_off in enumerate(in_page_0_1):
             addr = page_base + probe_off
@@ -491,7 +533,8 @@ async def cocotb_test_bridge_4x4_rw_boundary_probe(dut):
     # Slave 2 (sram_slave): 0x80000000-0xbfffffff
     pages_0_2 = tb.slave_probe_pages(2, mode=mode)
     in_page_0_2 = tb.page_probe_offsets(2, master_idx=0)
-    tb.log.info(f"  slave 2: {len(pages_0_2)} pages x 3 probes/page")
+    tb.log.info(f"  slave 2: {len(pages_0_2)} pages x "
+                f"{len(in_page_0_2)} probes/page")
     for page_idx, page_base in enumerate(pages_0_2):
         for probe_idx, probe_off in enumerate(in_page_0_2):
             addr = page_base + probe_off
@@ -516,7 +559,8 @@ async def cocotb_test_bridge_4x4_rw_boundary_probe(dut):
     # Slave 3 (gpu_mem_slave): 0xc0000000-0xffffffff
     pages_0_3 = tb.slave_probe_pages(3, mode=mode)
     in_page_0_3 = tb.page_probe_offsets(3, master_idx=0)
-    tb.log.info(f"  slave 3: {len(pages_0_3)} pages x 3 probes/page")
+    tb.log.info(f"  slave 3: {len(pages_0_3)} pages x "
+                f"{len(in_page_0_3)} probes/page")
     for page_idx, page_base in enumerate(pages_0_3):
         for probe_idx, probe_off in enumerate(in_page_0_3):
             addr = page_base + probe_off
@@ -542,7 +586,8 @@ async def cocotb_test_bridge_4x4_rw_boundary_probe(dut):
     # Slave 0 (periph_slave): 0x00000000-0x3fffffff
     pages_1_0 = tb.slave_probe_pages(0, mode=mode)
     in_page_1_0 = tb.page_probe_offsets(0, master_idx=1)
-    tb.log.info(f"  slave 0: {len(pages_1_0)} pages x 3 probes/page")
+    tb.log.info(f"  slave 0: {len(pages_1_0)} pages x "
+                f"{len(in_page_1_0)} probes/page")
     for page_idx, page_base in enumerate(pages_1_0):
         for probe_idx, probe_off in enumerate(in_page_1_0):
             addr = page_base + probe_off
@@ -567,7 +612,8 @@ async def cocotb_test_bridge_4x4_rw_boundary_probe(dut):
     # Slave 1 (ddr0_slave): 0x40000000-0x7fffffff
     pages_1_1 = tb.slave_probe_pages(1, mode=mode)
     in_page_1_1 = tb.page_probe_offsets(1, master_idx=1)
-    tb.log.info(f"  slave 1: {len(pages_1_1)} pages x 3 probes/page")
+    tb.log.info(f"  slave 1: {len(pages_1_1)} pages x "
+                f"{len(in_page_1_1)} probes/page")
     for page_idx, page_base in enumerate(pages_1_1):
         for probe_idx, probe_off in enumerate(in_page_1_1):
             addr = page_base + probe_off
@@ -592,7 +638,8 @@ async def cocotb_test_bridge_4x4_rw_boundary_probe(dut):
     # Slave 2 (sram_slave): 0x80000000-0xbfffffff
     pages_1_2 = tb.slave_probe_pages(2, mode=mode)
     in_page_1_2 = tb.page_probe_offsets(2, master_idx=1)
-    tb.log.info(f"  slave 2: {len(pages_1_2)} pages x 3 probes/page")
+    tb.log.info(f"  slave 2: {len(pages_1_2)} pages x "
+                f"{len(in_page_1_2)} probes/page")
     for page_idx, page_base in enumerate(pages_1_2):
         for probe_idx, probe_off in enumerate(in_page_1_2):
             addr = page_base + probe_off
@@ -618,7 +665,8 @@ async def cocotb_test_bridge_4x4_rw_boundary_probe(dut):
     # Slave 1 (ddr0_slave): 0x40000000-0x7fffffff
     pages_2_1 = tb.slave_probe_pages(1, mode=mode)
     in_page_2_1 = tb.page_probe_offsets(1, master_idx=2)
-    tb.log.info(f"  slave 1: {len(pages_2_1)} pages x 3 probes/page")
+    tb.log.info(f"  slave 1: {len(pages_2_1)} pages x "
+                f"{len(in_page_2_1)} probes/page")
     for page_idx, page_base in enumerate(pages_2_1):
         for probe_idx, probe_off in enumerate(in_page_2_1):
             addr = page_base + probe_off
@@ -643,7 +691,8 @@ async def cocotb_test_bridge_4x4_rw_boundary_probe(dut):
     # Slave 2 (sram_slave): 0x80000000-0xbfffffff
     pages_2_2 = tb.slave_probe_pages(2, mode=mode)
     in_page_2_2 = tb.page_probe_offsets(2, master_idx=2)
-    tb.log.info(f"  slave 2: {len(pages_2_2)} pages x 3 probes/page")
+    tb.log.info(f"  slave 2: {len(pages_2_2)} pages x "
+                f"{len(in_page_2_2)} probes/page")
     for page_idx, page_base in enumerate(pages_2_2):
         for probe_idx, probe_off in enumerate(in_page_2_2):
             addr = page_base + probe_off
@@ -668,7 +717,8 @@ async def cocotb_test_bridge_4x4_rw_boundary_probe(dut):
     # Slave 3 (gpu_mem_slave): 0xc0000000-0xffffffff
     pages_2_3 = tb.slave_probe_pages(3, mode=mode)
     in_page_2_3 = tb.page_probe_offsets(3, master_idx=2)
-    tb.log.info(f"  slave 3: {len(pages_2_3)} pages x 3 probes/page")
+    tb.log.info(f"  slave 3: {len(pages_2_3)} pages x "
+                f"{len(in_page_2_3)} probes/page")
     for page_idx, page_base in enumerate(pages_2_3):
         for probe_idx, probe_off in enumerate(in_page_2_3):
             addr = page_base + probe_off
@@ -694,7 +744,8 @@ async def cocotb_test_bridge_4x4_rw_boundary_probe(dut):
     # Slave 0 (periph_slave): 0x00000000-0x3fffffff
     pages_3_0 = tb.slave_probe_pages(0, mode=mode)
     in_page_3_0 = tb.page_probe_offsets(0, master_idx=3)
-    tb.log.info(f"  slave 0: {len(pages_3_0)} pages x 3 probes/page")
+    tb.log.info(f"  slave 0: {len(pages_3_0)} pages x "
+                f"{len(in_page_3_0)} probes/page")
     for page_idx, page_base in enumerate(pages_3_0):
         for probe_idx, probe_off in enumerate(in_page_3_0):
             addr = page_base + probe_off
@@ -719,7 +770,8 @@ async def cocotb_test_bridge_4x4_rw_boundary_probe(dut):
     # Slave 1 (ddr0_slave): 0x40000000-0x7fffffff
     pages_3_1 = tb.slave_probe_pages(1, mode=mode)
     in_page_3_1 = tb.page_probe_offsets(1, master_idx=3)
-    tb.log.info(f"  slave 1: {len(pages_3_1)} pages x 3 probes/page")
+    tb.log.info(f"  slave 1: {len(pages_3_1)} pages x "
+                f"{len(in_page_3_1)} probes/page")
     for page_idx, page_base in enumerate(pages_3_1):
         for probe_idx, probe_off in enumerate(in_page_3_1):
             addr = page_base + probe_off
@@ -744,7 +796,8 @@ async def cocotb_test_bridge_4x4_rw_boundary_probe(dut):
     # Slave 3 (gpu_mem_slave): 0xc0000000-0xffffffff
     pages_3_3 = tb.slave_probe_pages(3, mode=mode)
     in_page_3_3 = tb.page_probe_offsets(3, master_idx=3)
-    tb.log.info(f"  slave 3: {len(pages_3_3)} pages x 3 probes/page")
+    tb.log.info(f"  slave 3: {len(pages_3_3)} pages x "
+                f"{len(in_page_3_3)} probes/page")
     for page_idx, page_base in enumerate(pages_3_3):
         for probe_idx, probe_off in enumerate(in_page_3_3):
             addr = page_base + probe_off
@@ -771,32 +824,51 @@ async def cocotb_test_bridge_4x4_rw_boundary_probe(dut):
     tb.log.info("=" * 80)
     tb.log.info("Boundary probe test PASSED")
     tb.log.info("=" * 80)
-@cocotb.test(timeout_time=1000, timeout_unit="ms")
+@cocotb.test(timeout_time=8000, timeout_unit="ms")
 async def cocotb_test_bridge_4x4_rw_arbitration(dut):
     """
-    Multi-master arbitration test
+    Multi-master arbitration test: every master offers `arb_per_master`
+    concurrent transactions to ONE slave whose responses are held off, so
+    the requests genuinely contend, then every write is read back and
+    every read checked against the seed. run_arbitration returns the count
+    it verified and refuses to report success for zero work.
 
-    Test plan:
-    1. Multiple masters simultaneously request same slave
-    2. Verify round-robin arbitration grants access
-    3. Verify non-winning masters are backpressured
-    4. Verify transactions complete correctly
+    Depth (TEST_LEVEL): arb_per_master -- gate 4, func 8, full 24.
     """
     tb = Bridge4x4RwTB(dut)
     await tb.setup_clocks_and_reset()
 
     tb.log.info("=" * 80)
-    tb.log.info("Starting arbitration test")
+    tb.log.info(f"Starting arbitration test (level={tb.level}, "
+                f"{tb.level_cfg['arb_per_master']} txn/master)")
     tb.log.info("=" * 80)
 
-    checked = await run_arbitration(tb)
+    checked = await run_arbitration(tb, per_master=tb.level_cfg['arb_per_master'])
     tb.log.info(f"Arbitration test PASSED — {checked} concurrent transactions verified")
 
 # ============================================================================
 # Pytest Wrapper Functions (collected by pytest, call specific cocotb_test_*)
 # ============================================================================
 
-def test_bridge_4x4_rw_basic_connectivity(request):
+
+def generate_bridge_levels():
+    """REG_LEVEL selects the grid: the test_level cells this wrapper expands to.
+
+    GATE 1 (gate), FUNC 2 (gate, func), FULL 3 (gate, func, full) -- different
+    counts, so the three make targets run different matrices. The depth each
+    cell runs at is read by the TB from TEST_LEVEL (bridge_levels.PROFILE)."""
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        return ['gate']
+    if reg_level == 'FUNC':
+        return ['gate', 'func']
+    return ['gate', 'func', 'full']
+
+
+bridge_levels = generate_bridge_levels()
+
+@pytest.mark.parametrize("test_level", bridge_levels)
+def test_bridge_4x4_rw_basic_connectivity(request, test_level):
     """Pytest wrapper for basic connectivity test"""
 
     # Get standard paths
@@ -822,7 +894,8 @@ def test_bridge_4x4_rw_basic_connectivity(request):
     # directory and outputs.
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    test_name_plus_params = f"test_{dut_name}_basic_connectivity"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{dut_name}_basic_connectivity_{test_level}_{reg_level}"
     sim_build_name = f"{test_name_plus_params}{worker_suffix}"
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
@@ -843,6 +916,8 @@ def test_bridge_4x4_rw_basic_connectivity(request):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_LEVEL': test_level,
         **waves['extra_env'],
     }
 
@@ -861,7 +936,8 @@ def test_bridge_4x4_rw_basic_connectivity(request):
     )
 
 
-def test_bridge_4x4_rw_boundary_probe(request):
+@pytest.mark.parametrize("test_level", bridge_levels)
+def test_bridge_4x4_rw_boundary_probe(request, test_level):
     """Pytest wrapper for boundary probe test"""
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -879,7 +955,8 @@ def test_bridge_4x4_rw_boundary_probe(request):
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    test_name_plus_params = f"test_{dut_name}_boundary_probe"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{dut_name}_boundary_probe_{test_level}_{reg_level}"
     sim_build_name = f"{test_name_plus_params}{worker_suffix}"
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
@@ -899,6 +976,8 @@ def test_bridge_4x4_rw_boundary_probe(request):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_LEVEL': test_level,
         **waves['extra_env'],
     }
 
@@ -915,7 +994,8 @@ def test_bridge_4x4_rw_boundary_probe(request):
         plus_args=waves['sim_args'],
         extra_env=extra_env
     )
-def test_bridge_4x4_rw_arbitration(request):
+@pytest.mark.parametrize("test_level", bridge_levels)
+def test_bridge_4x4_rw_arbitration(request, test_level):
     """Pytest wrapper for arbitration test"""
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -933,7 +1013,8 @@ def test_bridge_4x4_rw_arbitration(request):
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    test_name_plus_params = f"test_{dut_name}_arbitration"
+    reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    test_name_plus_params = f"test_{dut_name}_arbitration_{test_level}_{reg_level}"
     sim_build_name = f"{test_name_plus_params}{worker_suffix}"
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
@@ -953,6 +1034,8 @@ def test_bridge_4x4_rw_arbitration(request):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_LEVEL': test_level,
         **waves['extra_env'],
     }
 
