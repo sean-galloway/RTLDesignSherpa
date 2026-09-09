@@ -1,0 +1,23 @@
+{
+  "// why": "Host programs reach their libraries through <area>/bin/<area>_env.py (a runtime sys.path setup a static checker cannot follow). Each executionEnvironment below is the static twin of one *_env.py. Everything else resolves through the PYTHONPATH that env_python exports.",
+  "executionEnvironments": [
+    {
+      "root": "projects/fpga-systems/Genesys2/stream",
+      "extraPaths": [
+        "projects/fpga-systems/bin",
+        "projects/fpga-systems/Genesys2/stream/bin",
+        "bin",
+        "."
+      ]
+    },
+    {
+      "root": "projects/fpga-systems/NexysA7/pumice",
+      "extraPaths": [
+        "projects/fpga-systems/bin",
+        "projects/fpga-systems/NexysA7/pumice/bin",
+        "bin",
+        "."
+      ]
+    }
+  ]
+}

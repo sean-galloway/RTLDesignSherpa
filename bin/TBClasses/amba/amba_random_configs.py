@@ -13,7 +13,17 @@
 # Author: sean galloway
 # Created: 2025-10-18
 
-APB_MASTER_RANDOMIZER_CONFIGS = {
+from typing import Callable, Dict, List, Tuple, Union
+
+# The constraints dict FlexRandomizer.__init__ takes, keyed by delay field.
+RandomizerConstraints = Dict[str, Union[Tuple, List, Callable]]
+# Flat presets: profile name -> constraints (APB master / slave).
+RandomizerConfigs = Dict[str, RandomizerConstraints]
+# Role presets: profile name -> {'master': constraints, 'slave': constraints}
+# (AXI / GAXI, where one profile names both sides of the handshake).
+RoleRandomizerConfigs = Dict[str, Dict[str, RandomizerConstraints]]
+
+APB_MASTER_RANDOMIZER_CONFIGS: RandomizerConfigs = {
     'fixed': {
         'psel': ([(1, 1)], [1]),
         'penable': ([(1, 1)], [1])
@@ -41,7 +51,7 @@ APB_MASTER_RANDOMIZER_CONFIGS = {
 }
 
 # APB Slave Randomizer Configurations
-APB_SLAVE_RANDOMIZER_CONFIGS = {
+APB_SLAVE_RANDOMIZER_CONFIGS: RandomizerConfigs = {
     'fixed': {
         'ready': ([(1, 1)], [1]),
         'error': ([(0, 0)], [1])
@@ -73,7 +83,7 @@ APB_SLAVE_RANDOMIZER_CONFIGS = {
 }
 
 # AXI Randomizer Configurations
-AXI_RANDOMIZER_CONFIGS = {
+AXI_RANDOMIZER_CONFIGS: RoleRandomizerConfigs = {
     'fixed': {
         'master': {
             'valid_delay': ([(1, 1)], [1])
@@ -144,7 +154,7 @@ AXI_RANDOMIZER_CONFIGS = {
 # on either interface family. The 'gaxi_*' block carries the GAXI-specific
 # patterns proven in TBClasses/gaxi/gaxi_buffer.py (stress, backpressure, etc.),
 # applied symmetrically to both valid_delay and ready_delay.
-GAXI_RANDOMIZER_CONFIGS = {
+GAXI_RANDOMIZER_CONFIGS: RoleRandomizerConfigs = {
     'fixed': {
         'master': {'valid_delay': ([(1, 1)], [1])},
         'slave':  {'ready_delay': ([(1, 1)], [1])}

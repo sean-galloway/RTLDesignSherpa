@@ -41,7 +41,7 @@ quiescent Phase-2 control masters, the AXIS master (s_axis, sink ingress) and
 the AXIS egress capture (m_axis, source egress) -- is the core rig verbatim,
 retargeted to aclk/aresetn.
 
-MonBus egress: the top always instantiates monbus_axil_axil_group, which
+MonBus egress: the top always instantiates monbus_axil4_axil4_group, which
 consumes the core's single merged MonBus stream (so the core can never stall on
 monbus backpressure). The group's bulk-capture AXI-Lite MASTER (m_axil_mon_*)
 is backed by a trivial always-accept write responder so any flushed trace record
@@ -332,6 +332,13 @@ class RapidsBeatsTopTB(TBBase):
         addr = self.reg_abs(half, reg_name)
         return await self.read_apb(addr, reg_name=f"{half.upper()}.{reg_name}")
 
+    def _apb_master(self):
+        """The APB master BFM; it only exists after init_apb4_master()."""
+        if self.apb4_master is None:
+            raise RuntimeError("APB master not initialized: call "
+                               "setup_clocks_and_reset() first")
+        return self.apb4_master
+
     async def write_apb(self, addr: int, data: int, reg_name=None):
         """APB write using the framework APB master (blocking)."""
         from CocoTBFramework.components.apb.apb_packet import APBPacket
@@ -340,7 +347,7 @@ class RapidsBeatsTopTB(TBBase):
             data_width=self.apb_data_width, addr_width=self.apb_addr_width,
             strb_width=self.apb_data_width // 8,
         )
-        await self.apb4_master.busy_send(packet)
+        await self._apb_master().busy_send(packet)
         await RisingEdge(self.clk)
         name = reg_name or f"0x{addr:04X}"
         self.log.info(f"APB WRITE: {name} (0x{addr:04X}) = 0x{data:08X}")
@@ -352,7 +359,7 @@ class RapidsBeatsTopTB(TBBase):
             data_width=self.apb_data_width, addr_width=self.apb_addr_width,
             strb_width=self.apb_data_width // 8,
         )
-        await self.apb4_master.busy_send(packet)
+        await self._apb_master().busy_send(packet)
         await RisingEdge(self.clk)
         data = int(packet.fields.get('prdata', 0))
         name = reg_name or f"0x{addr:04X}"
@@ -505,6 +512,9 @@ class RapidsBeatsTopTB(TBBase):
 
     async def send_axis_packet(self, channel, beats: List[int]):
         """Drive a sink-ingress packet on s_axis (tid=channel; tlast on final)."""
+        if self.axis_master is None:
+            raise RuntimeError("AXIS master not created: call "
+                               "setup_clocks_and_reset() first")
         axis = self.axis_master['interface']
         n = len(beats)
         for i, val in enumerate(beats):

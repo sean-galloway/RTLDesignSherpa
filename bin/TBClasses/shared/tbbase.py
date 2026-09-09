@@ -710,13 +710,13 @@ class TBBase:
                 return default
         return value
 
-    def assert_reset(self):
-        """Base method to assert reset"""
+    async def assert_reset(self):
+        """Base method to assert reset (override as a coroutine)"""
         self.mark_progress("assert_reset")
         self.log.info("Base assert_reset called - should be overridden")
 
-    def deassert_reset(self):
-        """Base method to deassert reset"""
+    async def deassert_reset(self):
+        """Base method to deassert reset (override as a coroutine)"""
         self.mark_progress("deassert_reset")
         self.log.info("Base deassert_reset called - should be overridden")
 
