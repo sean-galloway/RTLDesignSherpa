@@ -318,3 +318,38 @@ handbook when /TESTING.md was retired 2026-08-09).
 
 ---
 
+## TOOL-016 — Twelve component conftests stamp TEST_LEVEL into os.environ, which kills every per-cell depth export
+**Status:** open 2026-09-09 (found while leveling the bridge suite, BRIDGE-007)
+**Priority:** P2. Any Pattern B area that has a real REG_LEVEL grid runs
+every cell of a FULL run at full depth and every cell of a GATE run at
+gate depth -- the grid exists in pytest collection only.
+
+**Mechanism.** `cocotb_test.simulator.set_env` applies `extra_env` and
+then copies EVERY `os.environ` entry over it, so the process environment
+beats the per-cell value a wrapper exports. A "REG_LEVEL -> TEST_LEVEL
+bridge" block -- `os.environ['TEST_LEVEL'] = _reg_level.upper()` at
+conftest import, written for wrappers that exported nothing -- was copied
+into thirteen conftests. The bridge's copy is removed (this task's
+evidence); the other twelve remain:
+
+    projects/components/misc/dv/tests/fub/conftest.py
+    projects/components/retro_legacy_blocks/dv/tests/conftest.py
+    projects/components/apbx-xbar/dv/tests/conftest.py
+    projects/components/converters/dv/tests/conftest.py
+    projects/components/dmas/rapids/dv/tests/{fub,fub_beats,macro,macro_beats,top_beats}/conftest.py
+    projects/components/memory-controllers/pumice-ddr2-lpddr2/dv/tests/{fub,macro,top}/conftest.py
+
+**Evidence.** First leveled bridge FULL run, 2026-09-09: 216 cells, the
+gate/func/full triple of every test, all logging `level=full` with
+identical wall-clock. Removing the stamp and re-running one test at
+REG_LEVEL=FULL gave gate/func/full cells at 1/4/16 offsets.
+
+**What to do per area.** Delete the stamp; make sure every wrapper in the
+area exports TEST_LEVEL in `extra_env` from a REG_LEVEL-branching grid
+(the stamp was the crutch for wrappers that did not); run
+`python3 bin/review/check_test_levels.py <area>` -- it now reports the
+stamp as a WARNING beside the per-file lines -- and confirm with the TB
+banner (`TEST_LEVEL=<x>: {...}`) that sibling cells log different levels.
+Per-area, one commit each; rapids is out of scope until its suite is
+green again. Handbook: [[test-runner]] (the cocotb_test precedence
+note), [[test-review]] (Pattern B chain).

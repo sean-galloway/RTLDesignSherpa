@@ -393,6 +393,47 @@ an AXI5-BFM write-side test with the compliance checker on `wr_axi5a`
 (atomics incl. Compare) and `wr_axi5n` (poison/trace), and an APB5 BFM
 on `rw_apb5`; then a 2x2 AXI5 fixture. Then the testqc round.
 
+**(1)+(2) DONE 2026-09-09 (Sean: "fix levels please").** 41 of 41 compliant;
+grid GATE 72 / FUNC 144 / FULL 216 cells; clean runs at every level with 0
+reruns (GATE 72/72 5m10s, FUNC 144/144 9m47s, FULL 216/216 9m38s), and the
+FULL run's sibling cells prove distinct depth: 4x4 boundary probe 4s / 5s /
+40s, arbitration 16 / 32 / 96 transactions, monitor ERR_BP 128 / 256 / 512
+reads, BRIDGE-011 40 / 80 / 128 writes, atomics 1 / 2 / 8 rounds. Depth
+profile lives in `dv/tbclasses/bridge_levels.py`; the 8-line REG_LEVEL grid
+is per wrapper file (the val/common form); SEED is exported per cell and
+seeds one RNG per TB. Three things had to be fixed on the way, each worth
+more than the levels:
+
+* **The generator could not regenerate its own tests.** BRIDGE-009's
+  internal subtractive slave was templated as a real slave (a BFM on
+  prefix "subtractive", probes into a 4 GB window at 0x0), so every
+  regenerated test failed at TB construction -- which is why nobody had
+  regenerated since 1d442e76, and why the tree carried the real arbitration
+  test that a43b032dd hand-edited into seven generated files while the
+  template still emitted the TODO stub, two hand-written tests inside the
+  generated 2x2 file, and a TB method the template lacked. Fixed: test and
+  monitor-test generation see external ports only; the template emits the
+  real arbitration test and the `set_slave_response_delay` / `txn_id`
+  helpers; the 2x2 tracking tests moved to hand-written
+  `test_bridge_2x2_rw_tracking.py`. All 36 tests + 36 TB classes are
+  regenerated from the template, RTL byte-identical.
+* **The bridge conftest stamped REG_LEVEL into `os.environ['TEST_LEVEL']`,
+  and cocotb_test lets the environment override `extra_env`** -- so the
+  first leveled FULL run executed all 216 cells at full depth while the
+  grid reported three levels. Stamp removed here; the same block is in
+  twelve other conftests: [[TOOL-016]].
+* **`check_test_levels.py` never followed Pattern B imports**, so a project
+  TB that read TEST_LEVEL and one that never did both printed
+  `depth:never-read`. Fixed, plus a WARNING for the conftest stamp. Under
+  the fixed tool: stream fub 2 of 7, apbx-xbar 0 of 6, misc 0 of 4, rlb 0
+  of 9 -- unmeasured before, real now.
+
+Also fixed: the gate monitor stress count sat exactly at the 64-entry err
+FIFO depth, so the ERR_BP saturation assertion was a race against the drain
+pump (11 variants won, mix_d peaked at 58); gate uses 2x depth.
+
+Findings (3)-(6) remain open as written.
+
 
 ---
 

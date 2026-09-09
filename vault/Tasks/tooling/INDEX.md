@@ -2,7 +2,7 @@
 
 # Tooling tasks
 
-**Next ID: TOOL-016** — never recycle a number, even when its task closed.
+**Next ID: TOOL-017** — never recycle a number, even when its task closed.
 
 Repo tooling, scripts, and process work.
 
@@ -26,6 +26,10 @@ Repo tooling, scripts, and process work.
 
 ## Open
 
+- **TOOL-016** (P2) — twelve component conftests stamp `TEST_LEVEL` into
+  `os.environ`; cocotb_test lets the environment override `extra_env`, so
+  every cell of a leveled run executes at REG_LEVEL's depth. Bridge fixed;
+  misc, rlb, apbx-xbar, converters, rapids, pumice remain.
 - **TOOL-003** — one gate that actually runs `filelist_registry --check`.
   Shared deliverable for COMMON-010 / AMBA TASK-026; today nothing runs it.
 - **TOOL-002** — migrate the 7 remaining method docs out of `bin/` into the
