@@ -567,3 +567,131 @@ HEAD stays the correct baseline (12/13, refresh + reads/writes all correct with
 the mask in place). NEXT: design the read-return alignment (rd_aligner capture
 gated to the actual return, mirroring the write token), validate both paths on
 the FUB tests, then drop w_col_inflight_bank and re-run core + board.
+
+### CORRECTION 5 (2026-09-08, session restart): the "DFI read-return alignment" residual is the arbiter's auto-precharge stale-image hazard -- proven with the model's own command trace
+
+The VCD-dive conclusion above was an inference ("commands correct + data in
+memory + reads zero => return path"). "Commands correct" only meant the ADDRESSES
+were right. The DFISlavePHY has a direct detector for the real hazard that was
+never consulted: `DFI_CMD_TRACE=1` logs every decoded command with the bank's
+open row at decode time, and prints `open_row=closed` when a column command hits
+a bank with no open row. On such a read the model serves `.row or 0` -> ROW 0,
+which was never written -> ALL-ZERO. `no_act_before_rd` is a SOFT violation and
+the core test demotes everything to soft, so it only ever logged a warning.
+
+Run A (HEAD, `!w_col_inflight_bank` deleted from both column masks, the dead
+per-entry `w_*_col_inflight_ent` masks wired in), refresh_collide, CLOSE policy:
+
+    @30566ns RD  bank=3 addr=0x400 open_row=0x5      <- k=0, its own ACT
+    @30582ns RD  bank=3 addr=0x408 open_row=closed   <- k=1: NO ACT, bank closed by k=0's RDA
+    @30598ns RD  bank=3 addr=0x410 open_row=closed
+    @30614ns RD  bank=3 addr=0x418 open_row=closed
+
+The previous "byte-identical failure timestamp 30690000" is 30690 ns -- the
+golden compare firing right after these. Mechanism: k=0 is RDA (A10 set); the
+model (correctly, and the real device effectively) closes the bank; the arbiter
+classified k=1..3 as row HITS against the REGISTERED row image (still "open",
+`r_ap_closing` only engages at FIRE, ~3 pipeline cycles after k=0's classify),
+so they issue as columns to a closed bank with no re-ACT. The occupancy mask
+was the only thing covering that pre-fire window -- exactly what its own comment
+says ("Covers RDA1's ~3 pipeline cycles ... gated by f_ap(b)"), except the code
+applied it UNCONDITIONALLY, which is the same-bank throughput cap.
+
+Raw mask removal alone (no per-entry mask) fails earlier and differently: the
+FIRST write fires three times (`WR addr=0x400 open_row=0x5`, then twice more
+`open_row=closed` 4 and 8 cycles later) -- the per-entry re-pick double-issue --
+and every odd write times out waiting for B. So "odd writes / odd reads are
+zero" was the per-entry double-issue and the AP stale-image hazard, seen from
+two different fix states. Nothing in the DFI layer is implicated.
+
+FIX (run B, both column masks): keep the occupancy mask ONLY when the bank's
+column would auto-precharge, and wire the per-entry mask:
+
+    rd_col_m[e] = ... && !(f_ap(rb) && w_col_inflight_bank[rb]) && !r_ap_closing[rb] && !w_rd_col_inflight_ent[e] ...
+    wr_col_m[e] = ... && !(f_ap(wb) && w_col_inflight_bank[wb]) && !r_ap_closing[wb] && !w_wr_col_inflight_ent[e] ...
+
+Under CLOSE this is bit-identical to HEAD (the AP sequence ACT->xDA->PRE cannot
+pipeline same-bank columns anyway); under OPEN same-bank columns stream.
+Verified (clean builds, DFI_CMD_TRACE on):
+  * refresh_collide (CLOSE): PASS, 64 reads, 75 REFs, 0 columns to a closed bank, 148 ACTs on bank 3.
+  * core_dfi (OPEN, the run that deadlocked with the earlier f_ap-only attempt): PASS.
+  * test_pumice_arbiter_issue_rate: 200 fires / 200 cycles = 1.000 (HEAD ~0.5).
+  * cmd_arbiter FUB: PASS.
+  * top suite (make clean-all && make run-all-full-parallel): 114 passed, 1 failed = the pre-existing perf_paging_sched_cross (static_close x in_order 37.8%, byte-identical to HEAD, PUMICE-021).
+Open design point: `f_ap(b)` is evaluated at classify time but the emitted op's
+AP bit is decided at the output stage; with the adaptive page-policy modes
+(`ap_close_i[b]` changing mid-pipeline) there is a <=3-cycle window where a
+column classified with f_ap=0 can follow an in-flight column that outputs as
+xDA. Carrying the AP decision with the pick (decide at classify, emit what was
+decided) closes it; not needed for static OPEN/CLOSE.
+
+Forward-tCCD (layer 1) is NOT part of this fix: the core tests run t_ccd_i=1 and
+the board's BL4 @ DFI_RATE=2 makes one column per aclk the legal rate, so the
+DFI cmd_path's exact COL_BURST_CYC pacing is the real DQ-occupancy guard.
+
+### BOARD FINDING (2026-09-08): the tCCD CSR is never programmed -- default 4 aclk = 8 CK
+
+`pumice_csr.rdl` TIMINGS_RRD_FAW_WTR_CCD.tCCD resets to 4 (aclk cycles). No
+host path writes that register (only TIMINGS_RFC_REFI and PHY_TIMING are
+programmed), so every board measurement to date ran with a GLOBAL (all banks,
+both directions) column-to-column gate of 4 aclk = 8 DRAM CK, against a JEDEC
+DDR2 tCCD of 2 CK = 1 aclk. `global_timers` reloads one shared counter on every
+column FIRE and the arbiter checks the flopped `tccd_ok_i` at CLASSIFY (3
+pipeline stages earlier), so the gate is porous for the pipeline depth then
+closed for ~4+3 cycles: bursts of 3-4 columns then an ~8-9 cycle bubble. That is
+the ILA cadence measured above (1054x gap-1 / 259x gap-9, 33% duty), on a
+bank-ROTATING workload the same-bank mask does not touch. The sim never sees
+this because the core tests poke t_ccd_i=1 directly. Zero-RTL experiment:
+program tCCD=1 (or 0, letting COL_BURST_CYC pace) and re-measure.
+
+### LiteDRAM cross-check (2026-09-08): no DFI data-path alignment hardening is needed
+
+Checked against the reference that reaches ~85% on this board
+(`litedram/core/multiplexer.py`, `phy/s7ddrphy.py`, `modules.py`):
+  * `MT47H64M16` declares `tCCD=(2 CK)`; `ck_to_cycles` at 1:2 gives ONE
+    controller cycle. `tXXDController(tCCD)` is the only column gate
+    (`cas_allowed`); columns issue every cycle.
+  * The multiplexer drives `phase.rddata_en` / `wrdata_en` from `is_read` /
+    `is_write` of the chosen command ON THE SAME PHASE as the CAS. There is no
+    per-read tracking and no alignment logic in the controller.
+  * The PHY returns `rddata_valid` as `rddata_en` delayed by a fixed
+    `read_latency = cl_sys_latency + 6`; the data path is a pure fixed-latency
+    pipeline that tolerates any command cadence.
+`pumice_dfi_rd_aligner`'s rddata_en shift-register delay line and per-read
+capture counter are the same construct, and `pumice_dfi_wr_serializer` drives
+at a fixed t_phy_wrlat. Both were already verified cadence-agnostic by their
+FUB tests. The "alignment issue" in the log above was the arbiter's closed-bank
+column (CORRECTION 5), never the DFI layer. The dfi_layer block is CLOSED as
+not needed; the wave-01/02/10 cadences are what the layer already does.
+
+### TIMING AUDIT (2026-09-08): the board runs every JEDEC timing at the RDL reset
+
+`pumice_top.sv:224-234` wires the timers straight from `hwif_out.TIMINGS_*`;
+`pumice_device.py` wrote only PHY_TIMING / DFI_PHASE / MRx / ADDR_MAP / PAGE_* /
+SCHED_TUNING / REFRESH_TUNING / tREFI. The sim pokes its own set. In MC cycles
+(75 MHz, 2 CK per cycle, MT47H64M16HR ns values as in RDS-DV jedec/ddr2-*.csv):
+
+    param   RDL reset  sim poke  JEDEC@75MHz  LiteDRAM@75MHz   note
+    tRCD       15         3          2             2            reset = 200 ns vs 15 ns
+    tRP        15         3          2             2
+    tRAS       40         4          4             (unenforced)
+    tRC        60         6          5             (unenforced)
+    tWR        15         3          2             2
+    tRTP        4         2          1             (unenforced)  2 CK min
+    tRRD        6         2          1             (unenforced)  2 CK min
+    tFAW       35         6          4             (unenforced)
+    tRFC       16         8         10            11
+    tREFI    1950      1024        585           586            reset = 26 us vs 7.8 us
+    tCCD        4         1          1             1            reset = 8 CK vs 2 CK
+    tWTR        4         2          3 (cmd->cmd)  4
+    tRTW        6         2          3 (cmd->cmd)  (RTW FSM)
+
+Consequences on the board: every page miss paid ~200 ns of tRCD and ~200 ns of
+tRP (the "OPEN policy 8.8x" win was mostly this); the porous global tCCD=4 gate
+produced the ILA 3-columns-then-9-idle cadence (33% write duty); and refresh ran
+3.3x slower than JEDEC. Host fix (the host commit that follows): `ddr2_timings_mc_cycles()` +
+`Pumice.set_jedec_timings()` in pumice_device.py, applied by every
+`pumice_char.ControllerConfig` (default ON, `TEST_JEDEC_TIMINGS=0` for an A/B,
+`PUMICE_MC_CLK_HZ` selects the clock -- 100 MHz default is never-fewer-cycles
+safe on the 75 MHz board). tWTR/tRTW are command-to-command distances (what the
+RTL's global counters measure), derived as WL+BL/2+tWTR and CL+BL/2+2-WL.

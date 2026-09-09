@@ -227,6 +227,7 @@ module pumice_cmd_arbiter
     // here because the schedulable mask reads the guards derived from them.
     logic            rd_col_f, wr_col_f, rd_act_f, wr_act_f, rd_pre_f, wr_pre_f;
     logic [PTRW-1:0] rd_col_s, wr_col_s, rd_act_s, wr_act_s, rd_pre_s, wr_pre_s;
+    logic            rd_col_ap, wr_col_ap;   // AP verdict carried with the column pick
 
     // arg_sel COMBINATIONAL result (STAGE 1b), one cycle before the pre-pick
     // flop above latches it. Declared here (not with the arg_sel always_comb)
@@ -511,7 +512,7 @@ module pumice_cmd_arbiter
                 // parked-victim pattern in test_pumice_core_sched_order;
                 // latent since the bank-parallel refactor.
                 rd_col_m[e] = rhit && r_bank_rdwr_ready[RK0][rb] && tccd_ok_i && twtr_ok_i
-                              && rd_issue_ready_i && !w_col_inflight_bank[rb] && !r_ap_closing[rb]
+                              && rd_issue_ready_i && !(f_ap(rb) && w_col_inflight_bank[rb]) && !r_ap_closing[rb] && !w_rd_col_inflight_ent[e]
                               && !w_rd_turn_block && !w_ap_col_guard[rb]
                               && !w_pre_col_guard[rb] && !w_preact_bank_guard[rb];
                 rd_act_m[e] = !r_bank_row_active[RK0][rb] && !w_guarded[rb]
@@ -526,7 +527,7 @@ module pumice_cmd_arbiter
             // DRAM) and the slot re-issues. ACT/PRE stay free.
             if (wr_sch_valid_i[e]) begin
                 wr_col_m[e] = whit && r_bank_rdwr_ready[RK0][wb] && tccd_ok_i && trtw_ok_i
-                              && wr_commit_ready_i && !w_col_inflight_bank[wb] && !r_ap_closing[wb]
+                              && wr_commit_ready_i && !(f_ap(wb) && w_col_inflight_bank[wb]) && !r_ap_closing[wb] && !w_wr_col_inflight_ent[e]
                               && !w_wr_turn_block && !w_ap_col_guard[wb]
                               && !w_pre_col_guard[wb] && !w_preact_bank_guard[wb];
                 wr_act_m[e] = !r_bank_row_active[RK0][wb] && !w_guarded[wb]
@@ -771,12 +772,21 @@ module pumice_cmd_arbiter
     logic [POPW-1:0]                    r_rd_pop [NUM_ENTRIES];
     logic [POPW-1:0]                    r_wr_pop [NUM_ENTRIES];
     logic [1:0]                         r_col_sel, r_row_sel;
+    // Per-bank auto-precharge verdict, snapshotted WITH the masks. The column
+    // masks read f_ap(b) live (the AP-only occupancy span is gated on it), so
+    // the op that eventually fires must carry the SAME verdict the mask saw:
+    // with the runtime page-policy engines ap_close_i[b] can change during the
+    // 3 pick-pipeline cycles, and deciding RD-vs-RDA at the output stage would
+    // let a column classified "row stays open" follow one that closes it.
+    // The verdict rides with the pick (r_ap_snap -> *_col_ap -> r_ap_out).
+    logic [NUM_BANKS-1:0]               r_ap_snap;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_rd_col_q <= '0; r_rd_act_q <= '0; r_rd_pre_q <= '0;
             r_wr_col_q <= '0; r_wr_act_q <= '0; r_wr_pre_q <= '0;
             r_rd_older <= '0; r_wr_older <= '0;
             r_col_sel  <= '0; r_row_sel  <= '0;
+            r_ap_snap  <= '0;
             for (int i = 0; i < NUM_ENTRIES; i++) begin
                 r_rd_pop[i] <= '0; r_wr_pop[i] <= '0;
             end
@@ -788,6 +798,7 @@ module pumice_cmd_arbiter
             for (int i = 0; i < NUM_ENTRIES; i++) begin
                 r_rd_pop[i] <= rd_pop[i]; r_wr_pop[i] <= wr_pop[i];
             end
+            for (int b = 0; b < NUM_BANKS; b++) r_ap_snap[b] <= f_ap(BKW'(b));
         end
     )
 
@@ -857,9 +868,12 @@ module pumice_cmd_arbiter
         if (`RST_ASSERTED(aresetn)) begin
             rd_col_f <= 1'b0; wr_col_f <= 1'b0; rd_act_f <= 1'b0;
             wr_act_f <= 1'b0; rd_pre_f <= 1'b0; wr_pre_f <= 1'b0;
+            rd_col_ap <= 1'b0; wr_col_ap <= 1'b0;
         end else if (w_out_ready) begin
             rd_col_f <= w_sel_rd_col_f; rd_col_s <= w_sel_rd_col_s;
             wr_col_f <= w_sel_wr_col_f; wr_col_s <= w_sel_wr_col_s;
+            rd_col_ap <= r_ap_snap[f_bank(rd_sch_bank_i, w_sel_rd_col_s)];
+            wr_col_ap <= r_ap_snap[f_bank(wr_sch_bank_i, w_sel_wr_col_s)];
             rd_act_f <= w_sel_rd_act_f; rd_act_s <= w_sel_rd_act_s;
             wr_act_f <= w_sel_wr_act_f; wr_act_s <= w_sel_wr_act_s;
             rd_pre_f <= w_sel_rd_pre_f; rd_pre_s <= w_sel_rd_pre_s;
@@ -1031,16 +1045,16 @@ module pumice_cmd_arbiter
             end
         end else if (w_pick_class == CL_COL && rd_col_f
                      && !(w_col_wrf && wr_col_f)) begin
-            // 3a. READ row-hit (read-priority). ap is per-bank when the
-            // runtime page-policy engine is active.
+            // 3a. READ row-hit (read-priority). The AP verdict is the one the
+            // column mask saw at classify time (carried with the pick).
             w_bank = f_bank(rd_sch_bank_i, rd_col_s); w_col = f_col(rd_sch_col_i, rd_col_s);
-            w_valid = 1'b1; w_op = f_ap(w_bank) ? OP_RDA : OP_RD;
-            w_ap_out = f_ap(w_bank); w_do_rd = 1'b1; w_rd_issue = 1'b1; w_issue_slot = rd_col_s;
+            w_valid = 1'b1; w_op = rd_col_ap ? OP_RDA : OP_RD;
+            w_ap_out = rd_col_ap; w_do_rd = 1'b1; w_rd_issue = 1'b1; w_issue_slot = rd_col_s;
         end else if (w_pick_class == CL_COL && wr_col_f) begin
             // 3b. WRITE row-hit.
             w_bank = f_bank(wr_sch_bank_i, wr_col_s); w_col = f_col(wr_sch_col_i, wr_col_s);
-            w_valid = 1'b1; w_op = f_ap(w_bank) ? OP_WRA : OP_WR;
-            w_ap_out = f_ap(w_bank); w_do_wr = 1'b1; w_wr_commit = 1'b1; w_commit_slot = wr_col_s;
+            w_valid = 1'b1; w_op = wr_col_ap ? OP_WRA : OP_WR;
+            w_ap_out = wr_col_ap; w_do_wr = 1'b1; w_wr_commit = 1'b1; w_commit_slot = wr_col_s;
         end else if (w_pick_class == CL_ACT && rd_act_f
                      && !(w_act_wrf && wr_act_f)) begin
             // 4a. ACTIVATE the oldest pending READ's idle bank (bank-parallel).
