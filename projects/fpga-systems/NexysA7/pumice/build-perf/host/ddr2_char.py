@@ -410,6 +410,13 @@ class DDR2CharDriver:
                                    t_rddata_en=t_rddata_en)
         self.pumice.set_scheduler(force_inorder=rd_in_order)
 
+    def set_jedec_timings(self, mc_clk_hz: float) -> dict:
+        """Program the controller's JEDEC DDR2 timing CSRs (MC cycles) derived
+        from the board part and the MC clock -- see pumice_device.
+        ddr2_timings_mc_cycles(). Returns the applied dict for the log."""
+        from pumice_device import ddr2_timings_mc_cycles
+        return self.pumice.set_jedec_timings(ddr2_timings_mc_cycles(mc_clk_hz))
+
     def set_controller_cap(self, cap_lookahead_max: int,
                            cap_synth_mask: int) -> None:
         self.regs.write("CTRLR_CAP",

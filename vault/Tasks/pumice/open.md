@@ -358,9 +358,15 @@ Four sim-proven changes have not been on silicon:
    = 200 ns, tCCD 4 = 8 CK, tREFI 1950 = 26 us). `PUMICE_MC_CLK_HZ=75000000`
    for the 75 MHz build; the 100 MHz default is never-fewer-cycles safe.
 3. `8123ac1f3` read return ring (RD_RET_DEPTH=32): CAM frees at issue.
-4. write-burst-staged gate in the DFI layer (WR held until its data crossed).
+4. NOT on the board yet and NOT merged: the AP-gated column mask (parked in
+   32c3a9cdc -- the write-data path must lead the command first; design in
+   design/README.md "WRITE DATA MUST LEAD"). Change 1 above therefore ships
+   with both masks unconditional; only the AP carry + per-entry guards are live.
 
-Post-synth at 75 MHz after 3: WNS +0.025, 0 failing endpoints, LUT 45%.
+Post-synth at 75 MHz on 32c3a9cdc (fresh timing_summary_synth.txt -- NOT the
+`make timing` summary, which prints the last POST-ROUTE report, this morning's
+bitstream): WNS +0.885, 0 failing endpoints of 86376, LUT 45.5%, FF 20.7%.
+Post-route will be tighter; `make bitstream` is the real gate.
 
 **What to measure** (`pumice_char.measure`, open_interleave + baseline):
 write BW before/after 1+2 (ILA cadence was 3 columns then ~9 idle = the

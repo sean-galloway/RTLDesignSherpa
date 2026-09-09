@@ -212,6 +212,15 @@ class ControllerConfig:
     rddata_delay:  int = int(os.environ.get("TEST_RDDATA_DELAY", "7"))
     rd_phase:      int = 0
     wr_phase:      int = 0
+    # JEDEC DDR2 timings (MC cycles) derived from the part + the MC clock.
+    # Until 2026-09-08 nothing programmed TIMINGS_*, so every board number was
+    # taken on the RDL resets (tRCD/tRP 15 cycles, tCCD 4 = 8 CK, tREFI 1950
+    # cycles = 26 us at 75 MHz). Default ON; TEST_JEDEC_TIMINGS=0 restores the
+    # reset values for an A/B. PUMICE_MC_CLK_HZ selects the derivation clock;
+    # the 100 MHz default is safe (never fewer cycles) on any slower board clock,
+    # and the 75 MHz board build should export PUMICE_MC_CLK_HZ=75000000.
+    jedec_timings: bool = os.environ.get("TEST_JEDEC_TIMINGS", "1") != "0"
+    mc_clk_hz:     int = int(float(os.environ.get("PUMICE_MC_CLK_HZ", "100000000")))
 
     def apply(self, drv: DDR2CharDriver) -> None:
         # rd_in_order + the DFI latencies live on the harness CTRLR_CFG (one
@@ -225,6 +234,13 @@ class ControllerConfig:
         # one cycle off valid mismatches 100%.
         drv.set_dfi_phase(rd_phase=self.rd_phase, wr_phase=self.wr_phase)
         drv.set_dfi_rddata_delay(self.rddata_delay)
+        # JEDEC timings BEFORE the per-config refresh override below, so a
+        # config's deliberate t_refi (the *_refresh pair) still wins.
+        if self.jedec_timings:
+            applied = drv.set_jedec_timings(self.mc_clk_hz)
+            print(f"[config {self.name}] jedec timings @ {self.mc_clk_hz/1e6:.2f} MHz: "
+                  + " ".join(f"{k}={v}" for k, v in applied.items()),
+                  file=sys.stderr, flush=True)
         if self.scheme is not None:
             drv.set_addr_map_scheme(self.scheme)
         if self.page_policy is not None:

@@ -30,10 +30,61 @@ import os
 from typing import Dict, Optional
 
 from TBClasses.harness.device import Device, DeviceBus
+from math import ceil
 
 
 # Register-window base addresses in the char-harness bridge map.
 DDR2_APB_BASE    = 0x0000_0000   # pumice controller CSR (APB slave)
+
+# ----- JEDEC DDR2 timings for the board device --------------------------------
+# Micron MT47H64M16HR-25 (Nexys A7), ns unless noted -- the SAME numbers the
+# RDS-DV DFI model reads from jedec/ddr2-*.csv. The controller's TIMINGS_* CSRs
+# are in MC (aclk) cycles and their RDL reset values are NOT derived from these
+# (tRCD/tRP reset to 15 cycles = 200 ns at 75 MHz, tCCD to 4 cycles = 8 CK
+# against a JEDEC 2 CK); until 2026-09-08 no host path ever wrote them, so every
+# board measurement ran on those defaults. Derive them here from the part and
+# the MC clock instead.
+DDR2_MT47H64M16_NS = dict(tRCD=15.0, tRP=15.0, tRAS=45.0, tRC=60.0, tWR=15.0,
+                          tWTR=7.5, tRTP=7.5, tRRD=7.5, tFAW=45.0, tRFC=127.5,
+                          tREFI=7800.0)
+DDR2_CK_MIN        = dict(tCCD=2, tRTP=2, tRRD=2, tWTR=2)   # JESD79-2 minimum CK
+DDR2_BL            = 4                                        # board burst length
+
+
+def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
+                           part: Dict[str, float] = DDR2_MT47H64M16_NS) -> Dict[str, int]:
+    """JEDEC DDR2 timings in MC cycles for a controller at ``mc_clk_hz`` driving
+    the DRAM at ``ck_per_mc`` CK per MC cycle (DFI_RATE=2 -> 2). Every ns value
+    rounds UP; every CK minimum rounds up too and the larger of the two wins.
+    Turnarounds are command-to-command distances, which is what the RTL's global
+    counters measure (reload on the column FIRE, ok at zero):
+      tWTR: WR cmd -> RD cmd = WL + BL/2 + tWTR        (WL = CL-1 for DDR2)
+      tRTW: RD cmd -> WR cmd = CL + BL/2 + 2 - WL      (JESD79-2 read-to-write)
+    A HIGHER mc_clk_hz yields more cycles, so a 100 MHz derivation is always safe
+    on a slower board clock -- the ns-bound rows just get conservative."""
+    period_ns = 1e9 / float(mc_clk_hz)
+
+    def ns(x: float) -> int:
+        return max(1, ceil(x / period_ns))
+
+    def ck(c: float) -> int:
+        return max(1, ceil(c / ck_per_mc))
+
+    def ns_or_ck(name: str) -> int:
+        return max(ns(part[name]), ck(DDR2_CK_MIN[name]))
+
+    wl = cl - 1
+    half_bl = DDR2_BL // 2
+    twtr_ck = max(ceil(part["tWTR"] * ck_per_mc / period_ns), DDR2_CK_MIN["tWTR"])
+    return dict(
+        tRCD=ns(part["tRCD"]), tRP=ns(part["tRP"]), tRAS=ns(part["tRAS"]),
+        tRC=ns(part["tRC"]), tWR=ns(part["tWR"]),
+        tRTP=ns_or_ck("tRTP"), tRRD=ns_or_ck("tRRD"), tFAW=ns(part["tFAW"]),
+        tRFC=ns(part["tRFC"]), tREFI=int(part["tREFI"] / period_ns),   # floor: never late
+        tCCD=ck(DDR2_CK_MIN["tCCD"]),
+        tWTR=ck(wl + half_bl + twtr_ck),
+        tRTW=ck(cl + half_bl + 2 - wl),
+    )
 HARNESS_CSR_BASE = 0x0001_0000   # char-harness control block
 
 
@@ -270,6 +321,29 @@ class Pumice(Device):
     def set_refresh_interval(self, t_refi: int) -> None:
         """tREFI in MC cycles (TIMINGS_RFC_REFI.tREFI); rmw preserves tRFC."""
         self._wr("TIMINGS_RFC_REFI", tREFI=t_refi & 0xFFFF)
+
+    # ----- JEDEC timings ----------------------------------------------------
+    def set_jedec_timings(self, timings: Dict[str, int]) -> Dict[str, int]:
+        """Program the TIMINGS_* CSRs (MC cycles) from a dict as produced by
+        ddr2_timings_mc_cycles(). Only the keys present are written; each
+        register is a shadowed full-word write, so CL/CWL/tRFCpb and any key
+        left out keep their current value. Program while the controller is
+        idle (before traffic); a later set_refresh_interval() still overrides
+        tREFI on its own. Returns the dict that was applied."""
+        groups = {
+            "TIMINGS_RC_RCD_RP_RAS":  ("tRC", "tRCD", "tRP", "tRAS"),
+            "TIMINGS_RFC_REFI":       ("tRFC", "tREFI"),
+            "TIMINGS_RRD_FAW_WTR_CCD": ("tRRD", "tFAW", "tWTR", "tCCD"),
+            "TIMINGS_CL_CWL_WR":      ("tWR",),
+            "TIMINGS_RTP_RTW":        ("tRTP", "tRTW"),
+        }
+        applied: Dict[str, int] = {}
+        for reg, keys in groups.items():
+            kw = {k: int(timings[k]) for k in keys if k in timings}
+            if kw:
+                self._wr(reg, **kw)
+                applied.update(kw)
+        return applied
 
     # ----- command scheduler ------------------------------------------------
     def set_scheduler(self, *, lookahead: Optional[int] = None,

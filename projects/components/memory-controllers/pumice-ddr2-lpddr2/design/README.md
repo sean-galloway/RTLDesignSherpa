@@ -803,6 +803,12 @@ NEXT BLOCK -- "WRITE DATA MUST LEAD" (design, for Sean's review):
      stall; count engagements, assert zero in the ceiling tests).
   4. Keep t_ccd >= BURST_WORDS so COL_BURST_CYC pacing never stalls either
      (the core sim's t_ccd=1 at BL8 is the unphysical case).
+  Timing note: `make synth` ends by printing `make timing`, which shows the
+  LATEST POST-ROUTE report (fpga/reports/timing_summary.txt) -- this morning's
+  bitstream, not the synthesis just run. The fresh post-synth numbers are in
+  fpga/reports/timing_summary_synth.txt: 32c3a9cdc = WNS +0.885 ns at 75 MHz,
+  0 failing endpoints of 86376, LUT 45.5%, FF 20.7%.
+
   This is what LiteDRAM does structurally: the multiplexer drives the DFI
   directly and a write command is only chosen once its data is at the head of
   the write FIFO -- no command queue downstream of the timing decision.
