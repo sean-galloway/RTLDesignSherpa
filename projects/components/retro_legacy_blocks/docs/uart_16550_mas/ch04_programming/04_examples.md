@@ -21,11 +21,17 @@
 
 <!-- End Header -->
 
-# APB UART 16550 - Programming Examples
+# APB UART 16550 — Programming Examples
 
-## Debug Console
+## Overview
 
-### Simple Polling Implementation
+Complete, working examples that pull together everything from the previous pages: a polled debug console, an interrupt-driven ring buffer, a small command-line interface, a loopback self-test, and manual flow control. All of them already account for this RTL's quirks — RBR at [15:8], no DLAB, IER inert — so you can lift them directly.
+
+## Usage Example
+
+### Debug Console
+
+#### Simple Polling Implementation
 
 ```c
 #define UART_BASE   0xFEC08000
@@ -77,7 +83,7 @@ int debug_getchar(void) {
 }
 ```
 
-## Ring Buffer Implementation
+### Ring Buffer Implementation
 
 ```c
 #define RX_BUF_SIZE 256
@@ -149,7 +155,7 @@ size_t uart_read(uint8_t *data, size_t max) {
 }
 ```
 
-## Command Line Interface
+### Command Line Interface
 
 ```c
 #define CMD_BUF_SIZE 128
@@ -204,7 +210,7 @@ void cli_execute(const char *cmd) {
 }
 ```
 
-## Loopback Test
+### Loopback Test
 
 ```c
 bool uart_loopback_test(void) {
@@ -248,7 +254,7 @@ bool uart_loopback_test(void) {
 }
 ```
 
-## Flow Control (manual)
+### Flow Control (manual)
 
 ```c
 void uart_init_flow_control(void) {
@@ -267,6 +273,8 @@ void uart_init_flow_control(void) {
 ```
 
 ---
+
+## Navigation
 
 **Back to:** [00_overview.md](00_overview.md) - Programming Model Overview
 

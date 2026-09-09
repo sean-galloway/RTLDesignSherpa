@@ -21,9 +21,15 @@
 
 <!-- End Header -->
 
-# APB UART 16550 - Acronyms and Terminology
+# APB UART 16550 — Acronyms and Terminology
 
-## Protocol Acronyms
+## Overview
+
+Every acronym and term of art used in this specification, collected in one place. When a later chapter throws "THRE" or "mark parity" at you without ceremony, this is the page to come back to.
+
+## Design Notes
+
+### Protocol Acronyms
 
 | Acronym | Full Name | Description |
 |---------|-----------|-------------|
@@ -32,7 +38,7 @@
 | RS-232 | Recommended Standard 232 | Serial communication standard |
 | TTL | Transistor-Transistor Logic | Logic voltage levels |
 
-## Register Acronyms
+### Register Acronyms
 
 | Acronym | Full Name | Description |
 |---------|-----------|-------------|
@@ -49,7 +55,7 @@
 | DLL | Divisor Latch LSB | Baud rate low byte |
 | DLM | Divisor Latch MSB | Baud rate high byte |
 
-## Signal Acronyms
+### Signal Acronyms
 
 | Acronym | Full Name | Description |
 |---------|-----------|-------------|
@@ -62,7 +68,7 @@
 | DCD | Data Carrier Detect | Modem status input |
 | RI | Ring Indicator | Modem status input |
 
-## FIFO Terms
+### FIFO Terms
 
 | Term | Description |
 |------|-------------|
@@ -73,7 +79,7 @@
 | THRE | Transmitter Holding Register Empty |
 | TEMT | Transmitter Empty (shift register too) |
 
-## Data Format Terms
+### Data Format Terms
 
 | Term | Description |
 |------|-------------|
@@ -85,7 +91,7 @@
 | Space | Logic 0 |
 | Break | Extended space condition |
 
-## Error Terms
+### Error Terms
 
 | Term | Description |
 |------|-------------|
@@ -94,7 +100,7 @@
 | Overrun Error | New data arrived before previous read |
 | Break Interrupt | Extended low condition detected |
 
-## Timing Terms
+### Timing Terms
 
 | Term | Description |
 |------|-------------|
@@ -104,5 +110,7 @@
 | 16x Clock | Internal oversample clock (16x baud) |
 
 ---
+
+## Navigation
 
 **Next:** [05_references.md](05_references.md) - Reference documents

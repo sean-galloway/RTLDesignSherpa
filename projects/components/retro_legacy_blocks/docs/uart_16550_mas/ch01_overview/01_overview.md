@@ -21,42 +21,42 @@
 
 <!-- End Header -->
 
-# APB UART 16550 - Overview
+# APB UART 16550 — Overview
 
-## Introduction
+## Overview
 
-The APB UART 16550 is a 16550-compatible Universal Asynchronous Receiver/Transmitter with an APB slave interface. It provides standard serial communication with configurable baud rates, data formats, and FIFO buffering.
+The APB UART 16550 is a 16550-compatible Universal Asynchronous Receiver/Transmitter sitting behind an APB slave interface. It gives you standard serial communication with configurable baud rates, data formats, and FIFO buffering — the same programming model your OS driver already knows, bolted onto a bus your SoC already has.
 
-## Key Features
+### Key Features
 
-### Serial Communication
+#### Serial Communication
 - Full-duplex asynchronous serial operation
 - Configurable baud rates (up to 3 Mbps at 48 MHz clock)
 - 5, 6, 7, or 8 data bits
 - 1 or 2 stop bits (2 stop bits only for 6/7/8-bit words; 1.5 stop bits is not implemented)
 - Even, odd, mark, space, or no parity
 
-### FIFO Buffering
+#### FIFO Buffering
 - 16-byte transmit FIFO
 - 16-byte receive FIFO
 - Configurable trigger levels (1, 4, 8, 14 bytes)
 - FIFOs are always 16 deep; FCR.FE only changes IIR[7:6] and the RX-data interrupt condition (there is no true FIFO-disable / single-byte 8250 mode)
 
-### Interrupt System
+#### Interrupt System
 - Prioritized interrupts
 - Receive data available
 - Transmitter holding register empty
 - Receiver line status (errors)
 - Modem status changes
 
-### Modem Control
+#### Modem Control
 - CTS/RTS modem signals (NOTE: automatic hardware flow control does not
   exist -- AFE is unimplemented and CTS does not gate TX; see ch03/ch05)
 - Full modem signals (DTR, DSR, DCD, RI)
 - Programmable outputs (OUT1, OUT2)
 - Loopback mode for testing
 
-## Applications
+### Applications
 
 - Debug consoles
 - System management interfaces
@@ -64,25 +64,23 @@ The APB UART 16550 is a 16550-compatible Universal Asynchronous Receiver/Transmi
 - Embedded system UART
 - Modem interfaces
 
-## Block Diagram
+## Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| FIFO_DEPTH | 16 | TX/RX FIFO depth |
+| CDC_ENABLE | 0 | Clock domain crossing |
+| SYNC_STAGES | 2 | Synchronizer stages for CDC |
+| SKID_DEPTH | 2 | Skid-buffer depth for CDC path |
+| USE_JOHNSON | 0 | CDC counter encoding (forwarded to apb4_slave_cdc) |
+
+## Functional Description
 
 ### Figure 1.1: UART 16550 Block Diagram
 
 ![UART 16550 Block Diagram](../assets/svg/uart_top.png)
 
-## Compatibility
-
-The design is register-compatible with:
-- National Semiconductor PC16550D
-- TI TL16C550C
-- Standard 16550 UART cores
-
-### Differences from Original 16550
-- APB interface instead of ISA/parallel bus
-- Configurable clock domain crossing support
-- PeakRDL-generated register file
-
-## Register Summary
+### Register Summary
 
 This implementation uses a flat, DLAB-independent address map - each register has a unique offset and LCR[7] (DLAB) does not remap any address. See [Chapter 5](../ch05_registers/01_register_map.md) for full field detail.
 
@@ -100,16 +98,22 @@ This implementation uses a flat, DLAB-independent address map - each register ha
 | 0x24 | DLL | RW | Divisor Latch LSB |
 | 0x28 | DLM | RW | Divisor Latch MSB |
 
-## Parameters
+## Design Notes
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| FIFO_DEPTH | 16 | TX/RX FIFO depth |
-| CDC_ENABLE | 0 | Clock domain crossing |
-| SYNC_STAGES | 2 | Synchronizer stages for CDC |
-| SKID_DEPTH | 2 | Skid-buffer depth for CDC path |
-| USE_JOHNSON | 0 | CDC counter encoding (forwarded to apb4_slave_cdc) |
+### Compatibility
+
+The design is register-compatible with:
+- National Semiconductor PC16550D
+- TI TL16C550C
+- Standard 16550 UART cores
+
+#### Differences from Original 16550
+- APB interface instead of ISA/parallel bus
+- Configurable clock domain crossing support
+- PeakRDL-generated register file
 
 ---
+
+## Navigation
 
 **Next:** [02_architecture.md](02_architecture.md) - Architecture details

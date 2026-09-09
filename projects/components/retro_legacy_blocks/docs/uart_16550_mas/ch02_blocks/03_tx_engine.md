@@ -21,19 +21,19 @@
 
 <!-- End Header -->
 
-# APB UART 16550 - TX Engine Block
+# APB UART 16550 — TX Engine Block
 
 ## Overview
 
-The TX engine handles transmit data buffering, serialization, and TXD signal generation.
+The TX engine is the straightforward half of the UART: it buffers transmit data, serializes it with start/stop/parity framing, and drives TXD one baud tick at a time. The honest wrinkle — flow control — is covered at the bottom of this page, because there is less of it than you'd expect.
 
-## Block Diagram
+## Functional Description
 
 ### Figure 2.3: TX Engine Block
 
 ![TX Engine Block](../assets/svg/uart_tx_engine.png)
 
-## Data Path
+### Data Path
 
 ```mermaid
 flowchart LR
@@ -43,9 +43,9 @@ flowchart LR
     B --> E["LSR Status<br/>(THRE, TEMT)"]
 ```
 
-## TX FIFO
+### TX FIFO
 
-### Characteristics
+#### Characteristics
 
 | Parameter | Value |
 |-----------|-------|
@@ -54,14 +54,14 @@ flowchart LR
 | Write | THR register write |
 | Read | TX shift register ready |
 
-### Status Signals
+#### Status Signals
 
 - **THRE (THR Empty)**: TX FIFO **empty** (`sts_tx_holding_empty = tx_fifo_empty`), not merely "has space"
 - **TEMT (Transmitter Empty)**: TX FIFO and shift register both empty
 
-## TX Serializer
+### TX Serializer
 
-### Frame Format
+#### Frame Format
 
 ```
    Start  Data Bits       Parity  Stop
@@ -72,7 +72,7 @@ TXD  |0| D0 D1 D2 D3 D4 [D5 D6 D7] [P] |1|1|
      |<-------- Bit Time --------->|
 ```
 
-### Configuration (from LCR)
+#### Configuration (from LCR)
 
 | LCR Bits | Setting |
 |----------|---------|
@@ -83,7 +83,7 @@ TXD  |0| D0 D1 D2 D3 D4 [D5 D6 D7] [P] |1|1|
 | [5] | Stick parity |
 | [6] | Break control |
 
-## State Machine
+### State Machine
 
 ```mermaid
 flowchart TD
@@ -94,7 +94,43 @@ flowchart TD
     E --> A
 ```
 
+### Flow Control
+
+#### Hardware (CTS)
+
+Auto flow control (AFE) is **not implemented** - CTS does not gate the
+transmitter. Monitor MSR.CTS in software and withhold THR writes to pause TX.
+
+#### Software (THRE interrupt)
+
+- THRE = TX FIFO **empty** (not merely "not full")
+- Software writes more data when THRE is set
+
+### Break Generation
+
+When LCR.BC=1:
+- TXD forced low
+- Maintained until BC cleared
+- Used for attention/reset signaling
+
 ## Timing
+
+### Bit Timing
+
+Each bit takes 16 clocks of 16x baud clock:
+- Sample point at clock 8 (mid-bit)
+- Transition at clock 0
+
+### Frame Timing Example (8N1 at 115200)
+
+| Component | Bits | Time |
+|-----------|------|------|
+| Start | 1 | 8.68 us |
+| Data | 8 | 69.44 us |
+| Stop | 1 | 8.68 us |
+| **Total** | 10 | 86.8 us |
+
+## Waveforms
 
 ### Waveform 2.1: TX Byte Transmission
 
@@ -131,40 +167,8 @@ In loopback mode:
 - External TXD held high (idle)
 - Allows self-test without external connection
 
-### Bit Timing
-
-Each bit takes 16 clocks of 16x baud clock:
-- Sample point at clock 8 (mid-bit)
-- Transition at clock 0
-
-### Frame Timing Example (8N1 at 115200)
-
-| Component | Bits | Time |
-|-----------|------|------|
-| Start | 1 | 8.68 us |
-| Data | 8 | 69.44 us |
-| Stop | 1 | 8.68 us |
-| **Total** | 10 | 86.8 us |
-
-## Flow Control
-
-### Hardware (CTS)
-
-Auto flow control (AFE) is **not implemented** - CTS does not gate the
-transmitter. Monitor MSR.CTS in software and withhold THR writes to pause TX.
-
-### Software (THRE interrupt)
-
-- THRE = TX FIFO **empty** (not merely "not full")
-- Software writes more data when THRE is set
-
-## Break Generation
-
-When LCR.BC=1:
-- TXD forced low
-- Maintained until BC cleared
-- Used for attention/reset signaling
-
 ---
+
+## Navigation
 
 **Next:** [04_rx_engine.md](04_rx_engine.md) - RX Engine

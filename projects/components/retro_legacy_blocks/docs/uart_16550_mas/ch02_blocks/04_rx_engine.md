@@ -21,19 +21,19 @@
 
 <!-- End Header -->
 
-# APB UART 16550 - RX Engine Block
+# APB UART 16550 — RX Engine Block
 
 ## Overview
 
-The RX engine handles input synchronization, start bit detection, deserialization, error detection, and receive FIFO buffering.
+The RX engine is where the asynchronous outside world meets your clean synchronous design: input synchronization, start bit detection, deserialization, error detection, and receive FIFO buffering all live here. It's also where the ugliest known RTL deviation lives (issue #60), so read the error-detection section before you trust LSR.
 
-## Block Diagram
+## Functional Description
 
 ### Figure 2.4: RX Engine Block
 
 ![RX Engine Block](../assets/svg/uart_rx_engine.png)
 
-## Data Path
+### Data Path
 
 ```mermaid
 flowchart LR
@@ -45,9 +45,9 @@ flowchart LR
     D --> G["Error Flags<br/>(PE, FE, BI, OE)"]
 ```
 
-## Input Synchronizer
+### Input Synchronizer
 
-### Metastability Prevention
+#### Metastability Prevention
 
 ```mermaid
 flowchart LR
@@ -60,22 +60,9 @@ flowchart LR
 - Prevents metastability from asynchronous input
 - Adds 2 clock cycles latency
 
-### Waveform 2.4: RX Byte Reception
+### Start Bit Detection
 
-The following diagram shows the complete RX path from serial input to FIFO.
-
-![UART RX Byte](../assets/wavedrom/timing/uart_rx_byte.png)
-
-The reception sequence:
-1. Start bit detected (falling edge on `rx_sync`)
-2. 16x oversampling locates bit center
-3. Data sampled at mid-bit on each baud tick
-4. After stop bit, byte written to RX FIFO
-5. `rx_data_ready` signals data available
-
-## Start Bit Detection
-
-### Detection Algorithm
+#### Detection Algorithm
 
 1. Monitor for falling edge (1 -> 0)
 2. Wait 8 clocks (half bit time)
@@ -83,20 +70,20 @@ The reception sequence:
 4. If still 0, valid start bit
 5. If 1, false start, return to idle
 
-### Start-Bit Validation
+#### Start-Bit Validation
 
 The start bit is revalidated at the mid-bit sample (clock 8 of 16); if it is no
 longer 0, the start is treated as false and the receiver returns to idle. There
 is no dedicated "reject pulses < 4 clocks" glitch filter.
 
-## RX Deserializer
+### RX Deserializer
 
-### Sampling
+#### Sampling
 
 - Sample each bit at mid-point (clock 8 of 16)
 - Single mid-bit sample per bit (no majority voting is implemented)
 
-### Frame Reception
+#### Frame Reception
 
 ```mermaid
 flowchart LR
@@ -110,9 +97,9 @@ flowchart LR
     E -->|"Check framing"| H["Frame Checker"]
 ```
 
-## RX FIFO
+### RX FIFO
 
-### Characteristics
+#### Characteristics
 
 | Parameter | Value |
 |-----------|-------|
@@ -121,7 +108,7 @@ flowchart LR
 | Write | Deserializer complete |
 | Read | RBR register read |
 
-### FIFO Entry Format
+#### FIFO Entry Format
 
 | Bits | Content |
 |------|---------|
@@ -130,7 +117,7 @@ flowchart LR
 | [9] | Framing Error (FE) |
 | [10] | Break Indicator (BI) |
 
-### Trigger Levels (FCR)
+#### Trigger Levels (FCR)
 
 | FCR[7:6] | Trigger Level |
 |----------|---------------|
@@ -139,20 +126,20 @@ flowchart LR
 | 10 | 8 bytes |
 | 11 | 14 bytes |
 
-## Error Detection
+### Error Detection
 
-### Parity Error (PE)
+#### Parity Error (PE)
 
 - Calculated parity vs received parity
 - Set in LSR when the errored character is **received** (written into the RX
   FIFO), not when it is later read out
 
-### Framing Error (FE)
+#### Framing Error (FE)
 
 - Stop bit not at expected logic 1
 - Indicates baud rate mismatch or noise
 
-### Break Indicator (BI)
+#### Break Indicator (BI)
 
 - RXD low for entire character time
 - Start + data + parity + stop all zero
@@ -168,20 +155,37 @@ line-status interrupt can fire only from overrun or parity errors
 for 5/6/7-bit words is also MSB-justified with stale low bits (shift
 register inserts at bit 7) -- software must shift right by (8 - N).
 
-### Overrun Error (OE)
+#### Overrun Error (OE)
 
 - RX FIFO full when new character arrives
 - Previous data preserved, new data lost
 - Set immediately in LSR (not FIFO-based)
 
-## Timeout Detection
+### Timeout Detection
 
-### Character Timeout - not implemented
+#### Character Timeout - not implemented
 
 This RTL does **not** implement the character-timeout timer (`int_timeout` is
 tied to 0). There is no 4-character-time timeout and IIR never reads 0x0C. Use a
 software inactivity timeout on LSR.DR instead.
 
+## Waveforms
+
+### Waveform 2.4: RX Byte Reception
+
+The following diagram shows the complete RX path from serial input to FIFO.
+
+![UART RX Byte](../assets/wavedrom/timing/uart_rx_byte.png)
+
+The reception sequence:
+1. Start bit detected (falling edge on `rx_sync`)
+2. 16x oversampling locates bit center
+3. Data sampled at mid-bit on each baud tick
+4. After stop bit, byte written to RX FIFO
+5. `rx_data_ready` signals data available
+
 ---
+
+## Navigation
 
 **Next:** [05_baud_generator.md](05_baud_generator.md) - Baud Generator

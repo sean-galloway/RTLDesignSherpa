@@ -21,7 +21,11 @@
 
 <!-- End Header -->
 
-# APB UART 16550 - Data Transfer
+# APB UART 16550 — Data Transfer
+
+## Overview
+
+Moving bytes in and out of this UART is ordinary 16550 fare with three local twists, summarized below and repeated wherever they bite. The examples in this page already account for all three.
 
 > Implementation notes for this RTL: reading offset 0x00 (RBR) returns the
 > received byte in bits **[15:8]** (read as 16-bit, then `>> 8`); LSR/MSR
@@ -29,9 +33,11 @@
 > (interrupt-driven examples below rely on the level-based sources and require
 > MCR.OUT2 = 1 to route irq to the pin). See Chapter 5 for detail.
 
-## Transmitting Data
+## Usage Example
 
-### Polling Mode
+### Transmitting Data
+
+#### Polling Mode
 
 ```c
 void uart_putchar(uint8_t c) {
@@ -49,7 +55,7 @@ void uart_puts(const char *s) {
 }
 ```
 
-### Interrupt-Driven TX
+#### Interrupt-Driven TX
 
 ```c
 volatile uint8_t tx_buffer[256];
@@ -78,7 +84,7 @@ void uart_tx_isr(void) {
 }
 ```
 
-### Waiting for TX Complete
+#### Waiting for TX Complete
 
 ```c
 void uart_flush(void) {
@@ -87,9 +93,9 @@ void uart_flush(void) {
 }
 ```
 
-## Receiving Data
+### Receiving Data
 
-### Polling Mode
+#### Polling Mode
 
 ```c
 int uart_getchar(void) {
@@ -111,7 +117,7 @@ int uart_getchar_blocking(void) {
 }
 ```
 
-### Interrupt-Driven RX
+#### Interrupt-Driven RX
 
 ```c
 volatile uint8_t rx_buffer[256];
@@ -134,9 +140,9 @@ int uart_read(uint8_t *data, size_t max_len) {
 }
 ```
 
-## Error Handling
+### Error Handling
 
-### Checking Line Status
+#### Checking Line Status
 
 ```c
 uint8_t uart_check_errors(void) {
@@ -152,7 +158,7 @@ uint8_t uart_check_errors(void) {
 }
 ```
 
-### Handling Errors in RX ISR
+#### Handling Errors in RX ISR
 
 ```c
 void uart_rx_error_isr(void) {
@@ -177,9 +183,9 @@ void uart_rx_error_isr(void) {
 }
 ```
 
-## FIFO Management
+### FIFO Management
 
-### FIFO Status
+#### FIFO Status
 
 ```c
 bool uart_tx_fifo_empty(void) {
@@ -199,7 +205,7 @@ bool uart_rx_fifo_error(void) {
 }
 ```
 
-### FIFO Reset
+#### FIFO Reset
 
 ```c
 void uart_reset_fifos(void) {
@@ -209,9 +215,9 @@ void uart_reset_fifos(void) {
 }
 ```
 
-## Bulk Transfer
+### Bulk Transfer
 
-### Efficient TX (FIFO-aware)
+#### Efficient TX (FIFO-aware)
 
 ```c
 size_t uart_write(const uint8_t *data, size_t len) {
@@ -232,7 +238,7 @@ size_t uart_write(const uint8_t *data, size_t len) {
 }
 ```
 
-### Efficient RX (FIFO-aware)
+#### Efficient RX (FIFO-aware)
 
 ```c
 size_t uart_read_available(uint8_t *data, size_t max_len) {
@@ -247,5 +253,7 @@ size_t uart_read_available(uint8_t *data, size_t max_len) {
 ```
 
 ---
+
+## Navigation
 
 **Next:** [03_interrupts.md](03_interrupts.md) - Interrupts

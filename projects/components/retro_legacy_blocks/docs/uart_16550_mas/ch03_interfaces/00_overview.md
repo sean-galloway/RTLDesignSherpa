@@ -21,11 +21,15 @@
 
 <!-- End Header -->
 
-# APB UART 16550 - Interfaces Overview
+# APB UART 16550 — Interfaces
 
-## External Interfaces
+## Overview
 
-The APB UART 16550 module has the following external interfaces:
+Five external interfaces define how this block talks to the rest of your system: the APB slave port, the serial pins, the modem pins, the interrupt output, and the clock/reset inputs. This chapter specifies each one.
+
+## Ports
+
+### External Interfaces
 
 | Interface | Type | Description |
 |-----------|------|-------------|
@@ -35,35 +39,37 @@ The APB UART 16550 module has the following external interfaces:
 | Interrupt | Signal | IRQ output |
 | Clocks/Reset | System | Clock and reset inputs |
 
-## Interface Summary Diagram
+## Functional Description
 
 ### Figure 3.1: UART Interface Summary
 
 ![UART Interfaces](../assets/svg/uart_interfaces.png)
 
-## Chapter Contents
+## Navigation
 
-### APB Slave Interface
+### Chapter Contents
+
+#### APB Slave Interface
 Complete APB protocol interface for register access.
 
 **See:** [01_apb4_slave.md](01_apb4_slave.md)
 
-### Serial Interface
+#### Serial Interface
 TXD and RXD serial data connections.
 
 **See:** [02_serial.md](02_serial.md)
 
-### Modem Interface
+#### Modem Interface
 Hardware flow control and modem signals.
 
 **See:** [03_modem.md](03_modem.md)
 
-### Interrupt Interface
+#### Interrupt Interface
 Interrupt request output signal.
 
 **See:** [04_interrupt.md](04_interrupt.md)
 
-### System Interface
+#### System Interface
 Clock and reset signal requirements.
 
 **See:** [05_system.md](05_system.md)

@@ -21,9 +21,13 @@
 
 <!-- End Header -->
 
-# APB UART 16550 - APB Slave Interface
+# APB UART 16550 — APB Slave Interface
 
-## Signal Description
+## Overview
+
+This is the bus-level view of the block: the APB signals, the address map they reach, and the side effects each register access triggers. The side-effect table is the part worth memorizing — reads and writes here are not always free of consequences.
+
+## Ports
 
 ### APB Slave Signals
 
@@ -41,7 +45,9 @@
 | s_apb_pready | 1 | O | Ready response |
 | s_apb_pslverr | 1 | O | Slave error |
 
-## Address Map
+## Functional Description
+
+### Address Map
 
 Flat, DLAB-independent map (LCR[7] does not remap any address; DLL/DLM have dedicated offsets). Only `paddr[5:0]` is decoded, so the block aliases every 0x40 bytes across the window.
 
@@ -59,9 +65,9 @@ Flat, DLAB-independent map (LCR[7] does not remap any address; DLL/DLM have dedi
 | 0x24 | DLL | DLL |
 | 0x28 | DLM | DLM |
 
-## Protocol Compliance
+### Protocol Compliance
 
-### APB3/APB4 Features
+#### APB3/APB4 Features
 
 | Feature | Support |
 |---------|---------|
@@ -76,15 +82,15 @@ Flat, DLAB-independent map (LCR[7] does not remap any address; DLL/DLM have dedi
 | PSTRB | Yes |
 | PPROT | Present (s_apb_PPROT[2:0], accepted and unused) |
 
-## Register Access
+### Register Access
 
-### Byte Access
+#### Byte Access
 
 32-bit APB with 8-bit registers:
 - pstrb[0]: Access register at paddr
 - Other strobes: No effect (registers are 8-bit)
 
-### Side Effects
+#### Side Effects
 
 Some registers have read/write side effects:
 
@@ -109,5 +115,7 @@ handshake, so an access takes several pclk beyond the 2-cycle APB minimum
 (more when CDC_ENABLE=1). The register block itself never stalls.
 
 ---
+
+## Navigation
 
 **Next:** [02_serial.md](02_serial.md) - Serial Interface

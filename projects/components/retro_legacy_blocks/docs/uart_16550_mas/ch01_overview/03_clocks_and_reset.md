@@ -21,36 +21,44 @@
 
 <!-- End Header -->
 
-# APB UART 16550 - Clocks and Reset
+# APB UART 16550 — Clocks and Reset
 
-## Clock Signals
+## Overview
 
-### pclk (APB Clock)
+Clocking and reset are where most integrations go wrong, so this page lays out exactly what the block expects: one clock in the simple case, two when you ask for CDC, and active-low asynchronous resets. The reset-value tables below are the ground truth for what your driver sees at power-on.
+
+## Ports
+
+### Clock Signals
+
+#### pclk (APB Clock)
 - **Purpose:** Primary APB bus clock
 - **Usage:** APB protocol, register access
 - **Typical Frequency:** 50-200 MHz
 
-### uart_clk (Optional)
+#### uart_clk (Optional)
 - **Purpose:** UART baud rate reference clock
 - **Usage:** Only when CDC_ENABLE=1
 - **Typical Frequency:** 1.8432 MHz, 14.7456 MHz, or higher
 
-## Reset Signals
+### Reset Signals
 
-### presetn (APB Reset)
+#### presetn (APB Reset)
 - **Type:** Active-low asynchronous reset
 - **Scope:** APB interface logic
 - **Behavior:** Resets APB state machine, clears pending transactions
 
-### uart_rstn (Optional)
+#### uart_rstn (Optional)
 - **Type:** Active-low asynchronous reset
 - **Scope:** UART core logic
 - **Usage:** Only when CDC_ENABLE=1
 - **Behavior:** Resets TX/RX engines, FIFOs, baud generator
 
-## Reset Behavior
+## Functional Description
 
-### Register Reset Values
+### Reset Behavior
+
+#### Register Reset Values
 
 | Register | Reset Value | Notes |
 |----------|-------------|-------|
@@ -67,7 +75,7 @@
 | DLL | 0x01 | Divisor LSB = 1 |
 | DLM | 0x00 | Divisor MSB = 0 |
 
-### Serial Line State During Reset
+#### Serial Line State During Reset
 
 During reset:
 - `uart_tx` = 1 (idle/mark state)
@@ -75,28 +83,30 @@ During reset:
 - Transmitter disabled
 - FIFOs cleared
 
-## Clock Domain Crossing
+### Clock Domain Crossing
 
-### When CDC_ENABLE = 0
+#### When CDC_ENABLE = 0
 - All logic runs on `pclk`
 - Baud generator derives timing from `pclk`
 - Best for systems where pclk is stable
 
-### When CDC_ENABLE = 1
+#### When CDC_ENABLE = 1
 - APB interface uses `pclk`
 - UART core uses `uart_clk`
 - Skid buffers handle CDC
 - Allows dedicated baud reference clock
 
-## Baud Rate Considerations
+## Timing
 
-### Clock Accuracy
+### Baud Rate Considerations
+
+#### Clock Accuracy
 
 For reliable communication:
 - Baud rate error should be < 2%
 - Combined TX+RX error < 4%
 
-### Common Clock Frequencies
+#### Common Clock Frequencies
 
 | Clock | Exact Baud Rates | Notes |
 |-------|-----------------|-------|
@@ -105,7 +115,7 @@ For reliable communication:
 | 48 MHz | Most rates with small error | System clock compatible |
 | 50 MHz | Most rates with small error | Common FPGA clock |
 
-### Example: 48 MHz Clock
+#### Example: 48 MHz Clock
 
 | Baud Rate | Divisor | Actual Rate | Error |
 |-----------|---------|-------------|-------|
@@ -118,18 +128,18 @@ For reliable communication:
 | 460800 | 7 | 428571.4 | -6.99% |
 | 921600 | 3 | 1000000 | +8.51% |
 
-## Timing Constraints
+### Timing Constraints
 
-### Synchronous Mode
+#### Synchronous Mode
 - Standard single-clock timing
 - All paths constrained to pclk
 
-### Asynchronous Mode
+#### Asynchronous Mode
 - Set false_path between pclk and uart_clk domains
 - Set max_delay for CDC paths
 - RXD input should have IOB register
 
-### External Interface Timing
+#### External Interface Timing
 
 | Signal | Timing | Notes |
 |--------|--------|-------|
@@ -138,5 +148,7 @@ For reliable communication:
 | Modem signals | Input synchronizer | 2-stage FF |
 
 ---
+
+## Navigation
 
 **Next:** [04_acronyms.md](04_acronyms.md) - Acronyms and terminology

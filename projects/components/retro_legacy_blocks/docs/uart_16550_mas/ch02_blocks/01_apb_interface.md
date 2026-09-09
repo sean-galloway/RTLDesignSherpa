@@ -21,19 +21,13 @@
 
 <!-- End Header -->
 
-# APB UART 16550 - APB Interface Block
+# APB UART 16550 — APB Interface Block
 
 ## Overview
 
-The APB interface provides the connection between the system APB bus and the UART register file.
+The APB interface is the front door: it sits between the system APB bus and the UART register file, turning APB phases into register reads and writes. Everything software does to this block comes through here.
 
-## Block Diagram
-
-### Figure 2.1: APB Interface Block
-
-![APB Interface Block](../assets/svg/uart_apb_interface.png)
-
-## Interface Signals
+## Ports
 
 ### APB Slave Interface
 
@@ -50,9 +44,15 @@ The APB interface provides the connection between the system APB bus and the UAR
 | s_apb_PREADY | 1 | Output | Ready response |
 | s_apb_PSLVERR | 1 | Output | Error response |
 
-## Address Decoding
+## Functional Description
 
-### UART Register Addresses
+### Figure 2.1: APB Interface Block
+
+![APB Interface Block](../assets/svg/uart_apb_interface.png)
+
+### Address Decoding
+
+#### UART Register Addresses
 
 Flat, DLAB-independent decode - each register has a unique offset. Only `paddr[5:0]` is decoded.
 
@@ -70,25 +70,27 @@ Flat, DLAB-independent decode - each register has a unique offset. Only `paddr[5
 | 0x24 | DLL | DLL |
 | 0x28 | DLM | DLM |
 
-### DLAB (Divisor Latch Access Bit)
+#### DLAB (Divisor Latch Access Bit)
 
 LCR[7] is a stored bit only. It plays **no** role in address decoding - DLL and DLM are always accessible at their own offsets 0x24 and 0x28. The classic 16550 DLAB remapping of addresses 0x00/0x04 is **not** implemented.
 
-## Operation
+### Operation
 
-### Read Transaction
+#### Read Transaction
 1. Master asserts `psel` and `paddr`
 2. Master asserts `penable` on next cycle
 3. Slave returns `prdata` with `pready`
 4. Only RBR has a read side effect (the read pops the RX FIFO); IIR reads are side-effect-free
 
-### Write Transaction
+#### Write Transaction
 1. Master asserts `psel`, `paddr`, `pwdata`, `pwrite`
 2. Master asserts `penable` on next cycle
 3. Slave samples data with `pready`
 4. THR write pushes the TX FIFO; FCR writes take effect (FCR is also readable)
 
-## Implementation Notes
+## Design Notes
+
+### Implementation Notes
 
 - PREADY-gated: the apb4_slave bridge FSM adds a few wait states per
   access (no stalls originate in the register block itself)
@@ -97,5 +99,7 @@ LCR[7] is a stored bit only. It plays **no** role in address decoding - DLL and 
 - LSR/MSR are read-mostly: writes perform write-1-to-clear on the error/delta bits (not ignored)
 
 ---
+
+## Navigation
 
 **Next:** [02_register_file.md](02_register_file.md) - Register File

@@ -21,11 +21,15 @@
 
 <!-- End Header -->
 
-# APB UART 16550 - Register Map
+# APB UART 16550 — Register Map
 
-## Register Summary
+## Overview
 
-This implementation uses a **flat, DLAB-independent** address map: every register has its own unique offset. Unlike a classic 16550, the Divisor Latch Access Bit (LCR[7]) does **not** remap any address. LCR[7] is a stored bit with no effect on address decoding, and DLL/DLM have their own dedicated offsets (0x24/0x28). Register offsets are byte offsets; only `paddr[5:0]` is decoded (see Address Calculation).
+This is the definitive register reference, and it documents what the RTL actually does — not what a 16550 datasheet says it should do. The single biggest difference: this implementation uses a **flat, DLAB-independent** address map. Every register has its own unique offset. Unlike a classic 16550, the Divisor Latch Access Bit (LCR[7]) does **not** remap any address. LCR[7] is a stored bit with no effect on address decoding, and DLL/DLM have their own dedicated offsets (0x24/0x28). Register offsets are byte offsets; only `paddr[5:0]` is decoded (see Address Calculation).
+
+## Functional Description
+
+### Register Summary
 
 | Offset | Register | Access | Reset | Description |
 |--------|----------|--------|-------|-------------|
@@ -45,7 +49,7 @@ Offsets 0x2C-0x3F are unused and acknowledge reads as zero.
 
 ---
 
-## RBR - Receiver Buffer Register (0x00, Read)
+### RBR - Receiver Buffer Register (0x00, Read)
 
 | Bits | Name | Access | Description |
 |------|------|--------|-------------|
@@ -56,7 +60,7 @@ Offsets 0x2C-0x3F are unused and acknowledge reads as zero.
 
 ---
 
-## THR - Transmitter Holding Register (0x00, Write)
+### THR - Transmitter Holding Register (0x00, Write)
 
 | Bits | Name | Access | Description |
 |------|------|--------|-------------|
@@ -66,7 +70,7 @@ Offsets 0x2C-0x3F are unused and acknowledge reads as zero.
 
 ---
 
-## IER - Interrupt Enable Register (0x04, R/W)
+### IER - Interrupt Enable Register (0x04, R/W)
 
 | Bit | Name | Access | Reset | Description |
 |-----|------|--------|-------|-------------|
@@ -80,7 +84,7 @@ Offsets 0x2C-0x3F are unused and acknowledge reads as zero.
 
 ---
 
-## IIR - Interrupt Identification Register (0x08, Read Only)
+### IIR - Interrupt Identification Register (0x08, Read Only)
 
 | Bits | Name | Access | Description |
 |------|------|--------|-------------|
@@ -89,7 +93,7 @@ Offsets 0x2C-0x3F are unused and acknowledge reads as zero.
 | 5:4 | Reserved | RO | Reserved |
 | 7:6 | FIFOEN | RO | 11=FIFOs enabled, 00=disabled |
 
-### Interrupt ID Encoding
+#### Interrupt ID Encoding
 
 IIR[0]=IPEND (0 = interrupt pending). IIR[3:1]=IID. IIR[3] (timeout) is always 0 in this implementation.
 
@@ -104,7 +108,7 @@ IIR[0]=IPEND (0 = interrupt pending). IIR[3:1]=IID. IIR[3] (timeout) is always 0
 
 ---
 
-## FCR - FIFO Control Register (0x0C, R/W)
+### FCR - FIFO Control Register (0x0C, R/W)
 
 FCR is fully readable in this implementation (a standard 16550 FCR is write-only).
 
@@ -117,7 +121,7 @@ FCR is fully readable in this implementation (a standard 16550 FCR is write-only
 | 5:4 | Reserved | RO | Reserved (read as 0) |
 | 7:6 | RTL | RW | RX Trigger Level |
 
-### RX Trigger Level
+#### RX Trigger Level
 
 | RTL[1:0] | Trigger Level |
 |----------|---------------|
@@ -128,7 +132,7 @@ FCR is fully readable in this implementation (a standard 16550 FCR is write-only
 
 ---
 
-## LCR - Line Control Register (0x10, R/W)
+### LCR - Line Control Register (0x10, R/W)
 
 Reset value is **0x03** (8 data bits, 1 stop bit, no parity - 8N1).
 
@@ -144,7 +148,7 @@ Reset value is **0x03** (8 data bits, 1 stop bit, no parity - 8N1).
 
 **Note (DLAB):** LCR[7] is stored and read back but has **no effect** - it does not remap any address. DLL/DLM are always at 0x24/0x28. **Note (STB):** STB=1 selects 2 stop bits for 6/7/8-bit words; 1.5 stop bits (for 5-bit words) is **not implemented** - a 5-bit word with STB=1 still produces 1 stop bit.
 
-### Word Length
+#### Word Length
 
 | WLS[1:0] | Data Bits |
 |----------|-----------|
@@ -159,7 +163,7 @@ inserts at bit 7) -- software must shift right by (8 - N). TX sends
 bits [N-1:0] LSB-first as expected, so TX and RX disagree on
 justification.
 
-### Parity Selection
+#### Parity Selection
 
 | PEN | EPS | SP | Parity |
 |-----|-----|-----|--------|
@@ -171,7 +175,7 @@ justification.
 
 ---
 
-## MCR - Modem Control Register (0x14, R/W)
+### MCR - Modem Control Register (0x14, R/W)
 
 | Bit | Name | Access | Reset | Description |
 |-----|------|--------|-------|-------------|
@@ -186,7 +190,7 @@ justification.
 
 ---
 
-## LSR - Line Status Register (0x18, Read / W1C)
+### LSR - Line Status Register (0x18, Read / W1C)
 
 | Bit | Name | Access | Description |
 |-----|------|--------|-------------|
@@ -203,7 +207,7 @@ justification.
 
 ---
 
-## MSR - Modem Status Register (0x1C, Read / W1C)
+### MSR - Modem Status Register (0x1C, Read / W1C)
 
 | Bit | Name | Access | Description |
 |-----|------|--------|-------------|
@@ -220,7 +224,7 @@ justification.
 
 ---
 
-## SCR - Scratch Register (0x20, R/W)
+### SCR - Scratch Register (0x20, R/W)
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -228,7 +232,7 @@ justification.
 
 ---
 
-## DLL - Divisor Latch LSB (0x24, R/W)
+### DLL - Divisor Latch LSB (0x24, R/W)
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -238,7 +242,7 @@ justification.
 
 ---
 
-## DLM - Divisor Latch MSB (0x28, R/W)
+### DLM - Divisor Latch MSB (0x28, R/W)
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
@@ -248,7 +252,7 @@ justification.
 
 ---
 
-## Address Calculation
+### Address Calculation
 
 ```
 Register_Address = BASE_ADDR + Register_Offset
@@ -265,5 +269,7 @@ Example (BASE_ADDR = 0xFEC08000):
 ```
 
 ---
+
+## Navigation
 
 **Back to:** [UART 16550 Specification Index](../uart_16550_index.md)

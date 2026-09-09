@@ -21,11 +21,44 @@
 
 <!-- End Header -->
 
-# APB UART 16550 - Initialization
+# APB UART 16550 — Initialization
 
-## Basic Initialization Sequence
+## Overview
 
-### Step 1: Set Baud Rate
+Four steps stand between reset and a working serial link: baud rate, line format, FIFOs, and interrupts. Each step below is short, and each has at least one place where this RTL differs from a textbook 16550 — the comments call those out.
+
+## Functional Description
+
+### Baud Rate Calculation
+
+#### Formula
+
+```
+Divisor = Clock_Frequency / (16 * Baud_Rate)
+```
+
+#### Divisor Calculator Function
+
+```c
+uint16_t uart_calculate_divisor(uint32_t clock_hz, uint32_t baud) {
+    // Round to nearest
+    return (clock_hz + (8 * baud)) / (16 * baud);
+}
+```
+
+#### Common Clock Frequencies
+
+| Clock | 9600 | 19200 | 38400 | 57600 | 115200 |
+|-------|------|-------|-------|-------|--------|
+| 48 MHz | 312 | 156 | 78 | 52 | 26 |
+| 50 MHz | 326 | 163 | 81 | 54 | 27 |
+| 100 MHz | 651 | 326 | 163 | 109 | 54 |
+
+## Usage Example
+
+### Basic Initialization Sequence
+
+#### Step 1: Set Baud Rate
 
 ```c
 void uart_set_baud(uint16_t divisor) {
@@ -35,7 +68,7 @@ void uart_set_baud(uint16_t divisor) {
 }
 ```
 
-### Step 2: Configure Line Format
+#### Step 2: Configure Line Format
 
 ```c
 void uart_set_format(uint8_t data_bits, uint8_t parity, uint8_t stop_bits) {
@@ -60,7 +93,7 @@ void uart_set_format(uint8_t data_bits, uint8_t parity, uint8_t stop_bits) {
 }
 ```
 
-### Step 3: Configure FIFOs
+#### Step 3: Configure FIFOs
 
 ```c
 void uart_configure_fifo(uint8_t trigger_level) {
@@ -76,7 +109,7 @@ void uart_configure_fifo(uint8_t trigger_level) {
 }
 ```
 
-### Step 4: Enable Interrupts
+#### Step 4: Enable Interrupts
 
 ```c
 void uart_enable_interrupts(uint8_t mask) {
@@ -88,7 +121,7 @@ void uart_enable_interrupts(uint8_t mask) {
 }
 ```
 
-## Complete Initialization Example
+### Complete Initialization Example
 
 ```c
 // Common baud rate divisors for 48 MHz clock
@@ -123,32 +156,7 @@ void uart_init_115200_8n1(void) {
 }
 ```
 
-## Baud Rate Calculation
-
-### Formula
-
-```
-Divisor = Clock_Frequency / (16 * Baud_Rate)
-```
-
-### Divisor Calculator Function
-
-```c
-uint16_t uart_calculate_divisor(uint32_t clock_hz, uint32_t baud) {
-    // Round to nearest
-    return (clock_hz + (8 * baud)) / (16 * baud);
-}
-```
-
-### Common Clock Frequencies
-
-| Clock | 9600 | 19200 | 38400 | 57600 | 115200 |
-|-------|------|-------|-------|-------|--------|
-| 48 MHz | 312 | 156 | 78 | 52 | 26 |
-| 50 MHz | 326 | 163 | 81 | 54 | 27 |
-| 100 MHz | 651 | 326 | 163 | 109 | 54 |
-
-## Flow Control Setup (manual)
+### Flow Control Setup (manual)
 
 Auto Flow Control (AFE, MCR[5]) is NOT implemented in this RTL. Assert RTS in
 software and monitor MSR.CTS to gate transmission manually.
@@ -161,7 +169,7 @@ void uart_assert_rts(void) {
 }
 ```
 
-## Loopback Mode Setup
+### Loopback Mode Setup
 
 ```c
 void uart_enable_loopback(void) {
@@ -172,5 +180,7 @@ void uart_enable_loopback(void) {
 ```
 
 ---
+
+## Navigation
 
 **Next:** [02_data_transfer.md](02_data_transfer.md) - Data Transfer

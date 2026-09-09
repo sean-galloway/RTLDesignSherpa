@@ -21,9 +21,13 @@
 
 <!-- End Header -->
 
-# APB UART 16550 - Modem Interface
+# APB UART 16550 — Modem Interface
 
-## Signal Description
+## Overview
+
+The modem interface carries the classic flow-control and status pins: RTS/DTR/OUT1/OUT2 out, CTS/DSR/DCD/RI in. Manage your expectations here — the automatic flow control you'd get from a real TL16C550C does not exist in this RTL, so software does the work.
+
+## Ports
 
 ### Modem Control Outputs (Active Low)
 
@@ -43,9 +47,11 @@
 | dcd_n | 1 | I | Data Carrier Detect |
 | ri_n | 1 | I | Ring Indicator |
 
-## Modem Control Register (MCR)
+## Functional Description
 
-### Output Control
+### Modem Control Register (MCR)
+
+#### Output Control
 
 | Bit | Name | Signal | Active When |
 |-----|------|--------|-------------|
@@ -58,16 +64,16 @@
 MCR is only 5 bits wide in this RTL (bit 5/AFE does not exist). OUT2 additionally
 gates the `irq` output: the pin can assert only when MCR.OUT2 = 1.
 
-### Auto Flow Control (AFE) - not implemented
+#### Auto Flow Control (AFE) - not implemented
 
 Auto Flow Control is **not implemented** in this RTL. MCR[5] does not exist
 (writes are dropped), RTS is not auto-driven by RX FIFO level, and CTS does not
 gate the transmitter. Use manual flow control (drive MCR.RTS and monitor
 MSR.CTS in software).
 
-## Modem Status Register (MSR)
+### Modem Status Register (MSR)
 
-### Current State (Read-Only)
+#### Current State (Read-Only)
 
 | Bit | Name | Source | Meaning |
 |-----|------|--------|---------|
@@ -76,7 +82,7 @@ MSR.CTS in software).
 | 6 | RI | ri_n | Current RI state |
 | 7 | DCD | dcd_n | Current DCD state |
 
-### Delta Bits (Write-1-to-Clear)
+#### Delta Bits (Write-1-to-Clear)
 
 These bits are W1C (write 1 to clear), not clear-on-read. Note: the current RTL
 does not assert the internal clear strobes, so once set a delta bit persists
@@ -89,9 +95,9 @@ until full reset (known RTL issue).
 | 2 | TERI | RI changed from low to high |
 | 3 | DDCD | DCD changed since last cleared |
 
-## Hardware Flow Control
+### Hardware Flow Control
 
-### RTS/CTS Flow Control
+#### RTS/CTS Flow Control
 
 ```
 TX Device                    RX Device
@@ -110,7 +116,7 @@ RTS/CTS flow control must be handled in software (AFE is not implemented):
 2. Software checks MSR.CTS before sending
 3. Hardware does not auto-pause TX on CTS
 
-### Manual Flow Control
+#### Manual Flow Control
 
 Software controls RTS directly:
 ```c
@@ -121,7 +127,7 @@ MCR |= 0x02;   // Assert RTS
 MCR &= ~0x02;  // Deassert RTS
 ```
 
-## Loopback Mode
+### Loopback Mode
 
 When MCR.LOOP = 1:
 - TXD internally connected to RXD
@@ -137,13 +143,23 @@ Used for:
 - UART verification
 - Driver testing
 
-## Input Synchronization
+### Input Synchronization
 
 All modem inputs pass through 2-stage synchronizer:
 ```
 cts_n --> FF1 --> FF2 --> synced_cts_n
          (clk)   (clk)
 ```
+
+### Interrupt Generation
+
+MSR delta bits can generate the modem-status interrupt:
+- Any delta bit set generates the interrupt (IER[3] is stored but unimplemented,
+  so it does not actually mask this interrupt)
+- The `irq` pin is gated by MCR.OUT2
+- Delta bits are cleared by W1C (not by reading MSR)
+
+## Waveforms
 
 ### Waveform 3.2: Modem Status Change Detection
 
@@ -159,14 +175,8 @@ The detection sequence:
 5. Current state (`r_cts_state`) updated
 6. MSR updated, modem status interrupt asserted
 
-## Interrupt Generation
-
-MSR delta bits can generate the modem-status interrupt:
-- Any delta bit set generates the interrupt (IER[3] is stored but unimplemented,
-  so it does not actually mask this interrupt)
-- The `irq` pin is gated by MCR.OUT2
-- Delta bits are cleared by W1C (not by reading MSR)
-
 ---
+
+## Navigation
 
 **Next:** [04_interrupt.md](04_interrupt.md) - Interrupt Interface

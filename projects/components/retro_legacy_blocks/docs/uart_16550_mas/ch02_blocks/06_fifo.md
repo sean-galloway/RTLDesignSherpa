@@ -21,21 +21,21 @@
 
 <!-- End Header -->
 
-# APB UART 16550 - FIFO Subsystem
+# APB UART 16550 — FIFO Subsystem
 
 ## Overview
 
-The UART includes 16-byte TX and RX FIFOs that buffer data between software and the serial interface.
+Both directions get a 16-byte FIFO between software and the serial line, and the FCR register is how you manage them. One thing to internalize early: these FIFOs are always 16 deep — FCR.FE changes reporting and interrupt behavior, not the physical buffering.
 
-## Block Diagram
+## Functional Description
 
 ### Figure 2.6: FIFO Block
 
 ![FIFO Block](../assets/svg/uart_fifo.png)
 
-## FIFO Configuration
+### FIFO Configuration
 
-### FCR (FIFO Control Register)
+#### FCR (FIFO Control Register)
 
 | Bit | Name | Description |
 |-----|------|-------------|
@@ -46,7 +46,7 @@ The UART includes 16-byte TX and RX FIFOs that buffer data between software and 
 | 5:4 | Reserved | |
 | 7:6 | RTL | RX Trigger Level |
 
-### Trigger Levels
+#### Trigger Levels
 
 | RTL[1:0] | RX FIFO Trigger |
 |----------|-----------------|
@@ -54,6 +54,123 @@ The UART includes 16-byte TX and RX FIFOs that buffer data between software and 
 | 01 | 4 bytes |
 | 10 | 8 bytes |
 | 11 | 14 bytes |
+
+### TX FIFO
+
+#### Characteristics
+
+| Parameter | Value |
+|-----------|-------|
+| Depth | 16 bytes |
+| Width | 8 bits |
+
+#### Operations
+
+| Operation | Trigger |
+|-----------|---------|
+| Write | THR register write |
+| Read | TX serializer ready |
+| Reset | FCR.TFR write |
+
+#### Status
+
+| Signal | LSR Bit | Condition |
+|--------|---------|-----------|
+| THRE | 5 | TX FIFO empty (`sts_tx_holding_empty = tx_fifo_empty`) |
+| TEMT | 6 | FIFO empty AND shift register empty |
+
+### RX FIFO
+
+#### Characteristics
+
+| Parameter | Value |
+|-----------|-------|
+| Depth | 16 entries |
+| Width | 11 bits |
+
+#### Entry Format
+
+```
+[10] [9] [8] [7:0]
+ BI  FE  PE  DATA
+```
+
+#### Operations
+
+| Operation | Trigger |
+|-----------|---------|
+| Write | RX deserializer complete |
+| Read | RBR register read |
+| Reset | FCR.RFR write |
+
+#### Status
+
+| Signal | LSR Bit | Condition |
+|--------|---------|-----------|
+| DR | 0 | Data Ready (FIFO not empty) |
+| OE | 1 | Overrun Error |
+| PE | 2 | Parity Error (per character) |
+| FE | 3 | Framing Error (per character) |
+| BI | 4 | Break Indicator (per character) |
+| FIFOERR | 7 | Error in the RX FIFO **head** entry (PE, FE, or BI) - not "any entry" |
+
+### FIFO vs Non-FIFO Mode
+
+#### FCR.FE = 0
+
+- Both FIFOs remain physically 16 deep in this RTL (there is no true single-byte
+  8250 mode); THR writes still queue up to 16 bytes
+- FCR.FE=0 only changes IIR[7:6] to 00 and makes the RX-data interrupt condition
+  DR-based rather than trigger-level based
+
+#### FCR.FE = 1 (16550 Mode)
+
+- 16-byte FIFOs, trigger-level RX interrupt
+- IIR[7:6] = 11
+- (Character-timeout interrupt is not implemented in this RTL)
+
+### Error Handling
+
+#### Per-Character Errors
+
+PE, FE, BI slots exist in each RX FIFO entry, but only PE can actually
+be stored -- FE/BI never set in the current RTL, so entry bits [10:9]
+are always 0 (#60). Entry format:
+- Sticky LSR error flags are set at RECEIVE time (when the character
+  enters the FIFO), not when it is later read out
+- LSR[7] reflects an error on the FIFO HEAD entry only, not 'any entry'
+
+#### Overrun Error
+
+OE set immediately when:
+- RX FIFO full
+- New character received
+- New character discarded
+
+### FIFO Reset
+
+#### TX FIFO Reset (FCR.TFR)
+
+1. Write FCR with TFR=1
+2. TX FIFO cleared immediately
+3. The TX state machine is forced to IDLE - the character in progress is aborted
+4. THRE and TEMT updated
+
+#### RX FIFO Reset (FCR.RFR)
+
+1. Write FCR with RFR=1
+2. RX FIFO cleared immediately
+3. The RX state machine is forced to IDLE - the character in progress is aborted
+4. DR cleared
+
+#### Full Reset
+
+```c
+// Reset both FIFOs, enable with trigger=14
+FCR = 0xC7;  // 11000111b
+```
+
+## Waveforms
 
 ### Waveform 2.5: FIFO Trigger Timing
 
@@ -68,122 +185,9 @@ The interrupt sequence:
 4. RX Data Available interrupt (`rx_data_avail_int`) triggers
 5. CPU reads RBR to retrieve data, decrementing FIFO count
 
-## TX FIFO
-
-### Characteristics
-
-| Parameter | Value |
-|-----------|-------|
-| Depth | 16 bytes |
-| Width | 8 bits |
-
-### Operations
-
-| Operation | Trigger |
-|-----------|---------|
-| Write | THR register write |
-| Read | TX serializer ready |
-| Reset | FCR.TFR write |
-
-### Status
-
-| Signal | LSR Bit | Condition |
-|--------|---------|-----------|
-| THRE | 5 | TX FIFO empty (`sts_tx_holding_empty = tx_fifo_empty`) |
-| TEMT | 6 | FIFO empty AND shift register empty |
-
-## RX FIFO
-
-### Characteristics
-
-| Parameter | Value |
-|-----------|-------|
-| Depth | 16 entries |
-| Width | 11 bits |
-
-### Entry Format
-
-```
-[10] [9] [8] [7:0]
- BI  FE  PE  DATA
-```
-
-### Operations
-
-| Operation | Trigger |
-|-----------|---------|
-| Write | RX deserializer complete |
-| Read | RBR register read |
-| Reset | FCR.RFR write |
-
-### Status
-
-| Signal | LSR Bit | Condition |
-|--------|---------|-----------|
-| DR | 0 | Data Ready (FIFO not empty) |
-| OE | 1 | Overrun Error |
-| PE | 2 | Parity Error (per character) |
-| FE | 3 | Framing Error (per character) |
-| BI | 4 | Break Indicator (per character) |
-| FIFOERR | 7 | Error in the RX FIFO **head** entry (PE, FE, or BI) - not "any entry" |
-
-## FIFO vs Non-FIFO Mode
-
-### FCR.FE = 0
-
-- Both FIFOs remain physically 16 deep in this RTL (there is no true single-byte
-  8250 mode); THR writes still queue up to 16 bytes
-- FCR.FE=0 only changes IIR[7:6] to 00 and makes the RX-data interrupt condition
-  DR-based rather than trigger-level based
-
-### FCR.FE = 1 (16550 Mode)
-
-- 16-byte FIFOs, trigger-level RX interrupt
-- IIR[7:6] = 11
-- (Character-timeout interrupt is not implemented in this RTL)
-
-## Error Handling
-
-### Per-Character Errors
-
-PE, FE, BI slots exist in each RX FIFO entry, but only PE can actually
-be stored -- FE/BI never set in the current RTL, so entry bits [10:9]
-are always 0 (#60). Entry format:
-- Sticky LSR error flags are set at RECEIVE time (when the character
-  enters the FIFO), not when it is later read out
-- LSR[7] reflects an error on the FIFO HEAD entry only, not 'any entry'
-
-### Overrun Error
-
-OE set immediately when:
-- RX FIFO full
-- New character received
-- New character discarded
-
-## FIFO Reset
-
-### TX FIFO Reset (FCR.TFR)
-
-1. Write FCR with TFR=1
-2. TX FIFO cleared immediately
-3. The TX state machine is forced to IDLE - the character in progress is aborted
-4. THRE and TEMT updated
-
-### RX FIFO Reset (FCR.RFR)
-
-1. Write FCR with RFR=1
-2. RX FIFO cleared immediately
-3. The RX state machine is forced to IDLE - the character in progress is aborted
-4. DR cleared
-
-### Full Reset
-
-```c
-// Reset both FIFOs, enable with trigger=14
-FCR = 0xC7;  // 11000111b
-```
-
 ---
+
+## Navigation
 
 **Back to:** [00_overview.md](00_overview.md) - Block Descriptions Overview
 

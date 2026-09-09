@@ -21,7 +21,11 @@
 
 <!-- End Header -->
 
-# APB UART 16550 - Interrupt Handling
+# APB UART 16550 — Interrupt Handling
+
+## Overview
+
+Interrupt handling on this block works, but not the way a stock 16550 datasheet says it should. The note below is the contract; everything else on this page follows from it.
 
 > Implementation note: In this RTL the IER enables are **unimplemented** -
 > writing IER is stored/read back but does not mask interrupts. Pending sources
@@ -29,7 +33,25 @@
 > OUT2 = 1 to enable the pin). The character-timeout interrupt is not
 > implemented. LSR/MSR sticky bits are W1C, not clear-on-read.
 
-## Interrupt Enable Register (IER)
+## Functional Description
+
+### Interrupt Identification Register (IIR)
+
+#### IIR Values
+
+| Value | Priority | Interrupt Source | Clear Method |
+|-------|----------|------------------|--------------|
+| 0x01 | - | No interrupt | - |
+| 0x06 | 1 | Line status error | Clear LSR error bits (W1C) |
+| 0x04 | 2 | RX data available | Read RBR until DR clears |
+| 0x02 | 3 | THR empty | Write THR (fills TX FIFO) |
+| 0x00 | 4 | Modem status | Clear MSR delta bits (W1C) |
+
+Note: Character timeout (IIR = 0x0C) is **not implemented** and never occurs. Reading IIR has no side effect (it does not clear the THR-empty condition).
+
+## Usage Example
+
+### Interrupt Enable Register (IER)
 
 ```c
 // Enable specific interrupts
@@ -51,21 +73,7 @@ void uart_disable_tx_interrupt(void) {
 }
 ```
 
-## Interrupt Identification Register (IIR)
-
-### IIR Values
-
-| Value | Priority | Interrupt Source | Clear Method |
-|-------|----------|------------------|--------------|
-| 0x01 | - | No interrupt | - |
-| 0x06 | 1 | Line status error | Clear LSR error bits (W1C) |
-| 0x04 | 2 | RX data available | Read RBR until DR clears |
-| 0x02 | 3 | THR empty | Write THR (fills TX FIFO) |
-| 0x00 | 4 | Modem status | Clear MSR delta bits (W1C) |
-
-Note: Character timeout (IIR = 0x0C) is **not implemented** and never occurs. Reading IIR has no side effect (it does not clear the THR-empty condition).
-
-## Complete ISR Example
+### Complete ISR Example
 
 ```c
 void uart_isr(void) {
@@ -98,9 +106,9 @@ void uart_isr(void) {
 }
 ```
 
-## Individual Interrupt Handlers
+### Individual Interrupt Handlers
 
-### Line Status Handler
+#### Line Status Handler
 
 ```c
 void uart_handle_line_status(void) {
@@ -130,7 +138,7 @@ void uart_handle_line_status(void) {
 }
 ```
 
-### RX Data Handler
+#### RX Data Handler
 
 ```c
 void uart_handle_rx_data(void) {
@@ -149,7 +157,7 @@ void uart_handle_rx_data(void) {
 }
 ```
 
-### Character Timeout Handler
+#### Character Timeout Handler
 
 ```c
 // NOTE: Character timeout is NOT implemented in this RTL; this handler is
@@ -163,7 +171,7 @@ void uart_handle_timeout(void) {
 }
 ```
 
-### TX Empty Handler
+#### TX Empty Handler
 
 ```c
 void uart_handle_tx_empty(void) {
@@ -184,7 +192,7 @@ void uart_handle_tx_empty(void) {
 }
 ```
 
-### Modem Status Handler
+#### Modem Status Handler
 
 ```c
 void uart_handle_modem_status(void) {
@@ -209,25 +217,7 @@ void uart_handle_modem_status(void) {
 }
 ```
 
-## Interrupt Latency Considerations
-
-### Trigger Level Selection
-
-| Trigger | Bytes in FIFO | Latency Budget | Best For |
-|---------|---------------|----------------|----------|
-| 1 | 1 | 1 char time | Low latency |
-| 4 | 4 | 4 char times | Balanced |
-| 8 | 8 | 8 char times | Higher rates |
-| 14 | 14 | 2 char times* | Maximum efficiency |
-
-*Only 2 characters before overflow at 16-byte FIFO
-
-### Character Timeout
-
-- **Not implemented in this RTL** (`int_timeout` is tied to 0). IIR never reads 0x0C.
-- For variable-length packets, poll LSR.DR and apply a software inactivity timeout instead.
-
-## Disabling/Enabling Interrupts
+### Disabling/Enabling Interrupts
 
 IER masking is unimplemented, so `IER = 0x00` does **not** actually disable
 interrupts in this RTL. To mask the irq pin, clear MCR.OUT2 (the pin gate):
@@ -243,6 +233,28 @@ MCR = saved_mcr & ~0x08;   // OUT2 = 0 -> irq pin held deasserted
 MCR = saved_mcr;
 ```
 
+## Design Notes
+
+### Interrupt Latency Considerations
+
+#### Trigger Level Selection
+
+| Trigger | Bytes in FIFO | Latency Budget | Best For |
+|---------|---------------|----------------|----------|
+| 1 | 1 | 1 char time | Low latency |
+| 4 | 4 | 4 char times | Balanced |
+| 8 | 8 | 8 char times | Higher rates |
+| 14 | 14 | 2 char times* | Maximum efficiency |
+
+*Only 2 characters before overflow at 16-byte FIFO
+
+#### Character Timeout
+
+- **Not implemented in this RTL** (`int_timeout` is tied to 0). IIR never reads 0x0C.
+- For variable-length packets, poll LSR.DR and apply a software inactivity timeout instead.
+
 ---
+
+## Navigation
 
 **Next:** [04_examples.md](04_examples.md) - Examples

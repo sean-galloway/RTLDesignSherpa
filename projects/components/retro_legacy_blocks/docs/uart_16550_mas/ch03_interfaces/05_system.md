@@ -21,11 +21,17 @@
 
 <!-- End Header -->
 
-# APB UART 16550 - System Interface
+# APB UART 16550 — System Interface
 
-## Clock Signals
+## Overview
 
-### pclk - APB Clock
+The system-level plumbing: clocks, resets, what everything resets to, and what the block looks like from the outside when you drop it into a design. The power-management section is short — because the block gives you nothing to work with there.
+
+## Ports
+
+### Clock Signals
+
+#### pclk - APB Clock
 
 | Parameter | Value |
 |-----------|-------|
@@ -33,16 +39,16 @@
 | Frequency | 50-200 MHz typical |
 | Domain | All internal logic |
 
-### Baud Rate Derivation
+#### Baud Rate Derivation
 
 Baud rate is derived from pclk:
 ```
 Baud Rate = pclk / (16 * Divisor)
 ```
 
-## Reset Signals
+### Reset Signals
 
-### presetn - APB Reset
+#### presetn - APB Reset
 
 | Parameter | Value |
 |-----------|-------|
@@ -50,9 +56,11 @@ Baud Rate = pclk / (16 * Divisor)
 | Type | Asynchronous assert, synchronous deassert (hand-written logic; the generated register file resets synchronously) |
 | Scope | All UART logic |
 
-## Reset Behavior
+## Functional Description
 
-### Register Reset Values
+### Reset Behavior
+
+#### Register Reset Values
 
 | Register | Reset | Notes |
 |----------|-------|-------|
@@ -69,7 +77,7 @@ Baud Rate = pclk / (16 * Divisor)
 | DLL | 0x01 | Divisor LSB = 1 |
 | DLM | 0x00 | Divisor MSB = 0 |
 
-### Signal States During Reset
+#### Signal States During Reset
 
 | Signal | Reset State |
 |--------|-------------|
@@ -80,7 +88,7 @@ Baud Rate = pclk / (16 * Divisor)
 | out2_n | 1 (Deasserted) |
 | irq | 0 (No interrupt) |
 
-### Post-Reset Initialization
+#### Post-Reset Initialization
 
 1. Set baud rate (write DLL at 0x24, DLM at 0x28 directly - no DLAB toggle)
 2. Configure line format (LCR at 0x10)
@@ -88,9 +96,11 @@ Baud Rate = pclk / (16 * Divisor)
 4. Configure modem control (MCR at 0x14); set OUT2 to enable the irq pin
 5. (IER at 0x04 is stored but does not enable/mask interrupts in this implementation)
 
-## Reset Sequence
+## Timing
 
-### Timing
+### Reset Sequence
+
+#### Timing
 
 ```
           ________________________________________
@@ -102,15 +112,17 @@ presetn  ____________________|
          |<-- Reset Active -->|<-- Normal Op ----->|
 ```
 
-### Requirements
+#### Requirements
 
 - Hold reset low for minimum 2 pclk cycles
 - Allow 2 cycles after reset before first APB access
 - Divisor must be programmed before operation
 
-## Power Management
+## Design Notes
 
-### Clock Gating
+### Power Management
+
+#### Clock Gating
 
 The block provides NO gating or wake hooks: there are no power-management
 ports, and the baud counter free-runs unconditionally. Any clock gating
@@ -118,16 +130,16 @@ is the integrator's, done OUTSIDE the block -- and gating pclk kills the
 APB interface while gating uart_clk kills RX sampling. There is no
 wake-on-activity path.
 
-### Low Power Hints
+#### Low Power Hints
 
 - Use FIFO mode to reduce interrupt rate
 - Set a higher RX trigger level to reduce interrupt frequency
 
 (Note: IER masking and auto flow control are not implemented in this RTL.)
 
-## External Connections
+### External Connections
 
-### Typical System
+#### Typical System
 
 ```
          +------------+
@@ -141,7 +153,7 @@ APB <===>|            |<--> Modem signals
                              v
 ```
 
-### Direct Connection (TTL)
+#### Direct Connection (TTL)
 
 For TTL-level serial:
 - Connect uart_tx/uart_rx directly to 3.3V/5V logic
@@ -149,6 +161,8 @@ For TTL-level serial:
 - Short cable runs recommended
 
 ---
+
+## Navigation
 
 **Back to:** [00_overview.md](00_overview.md) - Interfaces Overview
 

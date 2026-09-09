@@ -21,15 +21,19 @@
 
 <!-- End Header -->
 
-# APB UART 16550 - Architecture
+# APB UART 16550 — Architecture
 
-## High-Level Block Diagram
+## Overview
+
+This page takes the UART apart: the module hierarchy, the paths data and interrupts actually travel, and how the baud clock is derived. If you only read one page before integrating the block, make it this one.
+
+## Functional Description
 
 ### Figure 1.2: UART Architecture
 
 ![UART Architecture](../assets/svg/uart_top.png)
 
-## Module Hierarchy
+### Module Hierarchy
 
 ```
 apb4_uart_16550 (Top Level)
@@ -60,9 +64,9 @@ apb4_uart_16550 (Top Level)
 |       +-- Error detection
 ```
 
-## Data Flow
+### Data Flow
 
-### Transmit Path
+#### Transmit Path
 
 ```mermaid
 flowchart TD
@@ -72,7 +76,7 @@ flowchart TD
     D --> E["5. TXD output to external device"]
 ```
 
-### Receive Path
+#### Receive Path
 
 ```mermaid
 flowchart TD
@@ -83,7 +87,7 @@ flowchart TD
     E --> F["6. Software reads from RBR"]
 ```
 
-### Interrupt Flow
+#### Interrupt Flow
 
 ```mermaid
 flowchart TD
@@ -99,9 +103,9 @@ flowchart TD
     G --> H["4. Software reads IIR<br/>- Highest priority interrupt identified<br/>- No source auto-clears on read (IIR reads have no side effect; LSR/MSR are W1C; THRE clears only on a THR write)"]
 ```
 
-## Baud Rate Generation
+### Baud Rate Generation
 
-### Divisor Calculation
+#### Divisor Calculation
 
 ```
 Divisor = Input Clock / (16 x Desired Baud Rate)
@@ -112,7 +116,7 @@ Examples (48 MHz input):
   3000000 baud: Divisor = 48000000 / (16 x 3000000) = 1    -> 1
 ```
 
-### Clock Generation
+#### Clock Generation
 
 ```mermaid
 flowchart TD
@@ -121,9 +125,9 @@ flowchart TD
     C --> D["bit_clk<br/>(actual baud rate)"]
 ```
 
-## FIFO Organization
+### FIFO Organization
 
-### TX FIFO
+#### TX FIFO
 
 | Feature | Value |
 |---------|-------|
@@ -133,7 +137,7 @@ flowchart TD
 | Read | TX serializer |
 | Status | THRE, TEMT in LSR |
 
-### RX FIFO
+#### RX FIFO
 
 | Feature | Value |
 |---------|-------|
@@ -143,7 +147,9 @@ flowchart TD
 | Read | RBR reads |
 | Trigger | 1, 4, 8, or 14 bytes |
 
-## Resource Estimates
+## Design Notes
+
+### Resource Estimates
 
 | Component | Flip-Flops | LUTs |
 |-----------|-----------|------|
@@ -155,5 +161,7 @@ flowchart TD
 | **Total** | ~640 | ~530 |
 
 ---
+
+## Navigation
 
 **Next:** [03_clocks_and_reset.md](03_clocks_and_reset.md) - Clock and reset behavior

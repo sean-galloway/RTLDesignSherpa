@@ -21,18 +21,42 @@
 
 <!-- End Header -->
 
-# APB UART 16550 - Serial Interface
+# APB UART 16550 — Serial Interface
 
-## Signal Description
+## Overview
+
+Two pins, `uart_tx` and `uart_rx`, carry everything. This page defines what those pins do electrically and logically — frame formats, sampling behavior, break handling — including the places where this RTL falls short of what the waveform diagrams were drawn to show.
+
+## Ports
+
+### Signal Description
 
 | Signal | Width | Dir | Description |
 |--------|-------|-----|-------------|
 | uart_tx | 1 | O | Serial transmit data |
 | uart_rx | 1 | I | Serial receive data |
 
-## TXD (Transmit Data)
+### Electrical Interface
 
-### Characteristics
+#### TTL Level
+
+| State | Voltage |
+|-------|---------|
+| Logic 0 (Space) | 0V |
+| Logic 1 (Mark) | VCC (3.3V/5V) |
+
+#### RS-232 Level (External Transceiver)
+
+| State | Voltage |
+|-------|---------|
+| Logic 0 (Space) | +3V to +15V |
+| Logic 1 (Mark) | -3V to -15V |
+
+## Functional Description
+
+### TXD (Transmit Data)
+
+#### Characteristics
 
 | Parameter | Value |
 |-----------|-------|
@@ -41,7 +65,7 @@
 | Stop Bit | Logic 1 (Mark) |
 | Bit Order | LSB first |
 
-### Frame Format
+#### Frame Format
 
 ```
 IDLE  START  D0  D1  D2  D3  D4  D5  D6  D7  PAR  STOP  IDLE
@@ -49,7 +73,7 @@ IDLE  START  D0  D1  D2  D3  D4  D5  D6  D7  PAR  STOP  IDLE
              |<-------- LSB first -------->|
 ```
 
-### Output Timing
+#### Output Timing
 
 | Event | Timing |
 |-------|--------|
@@ -57,9 +81,9 @@ IDLE  START  D0  D1  D2  D3  D4  D5  D6  D7  PAR  STOP  IDLE
 | Bit duration | 16 x (16x_clk period) |
 | Start to first data | 1 bit time |
 
-## RXD (Receive Data)
+### RXD (Receive Data)
 
-### Characteristics
+#### Characteristics
 
 | Parameter | Value |
 |-----------|-------|
@@ -67,7 +91,7 @@ IDLE  START  D0  D1  D2  D3  D4  D5  D6  D7  PAR  STOP  IDLE
 | Break | Extended Logic 0 |
 | Sampling | Mid-bit (8th of 16 clocks) |
 
-### Input Synchronization
+#### Input Synchronization
 
 ```
 RXD --> FF1 --> FF2 --> Synchronized RXD
@@ -78,16 +102,16 @@ RXD --> FF1 --> FF2 --> Synchronized RXD
 - Prevents metastability
 - 2 clock cycle latency
 
-### Start Bit Detection
+#### Start Bit Detection
 
 1. Detect falling edge (1 to 0)
 2. Wait 8 clocks (half bit)
 3. Verify still 0
 4. Begin data sampling
 
-## Data Formats
+### Data Formats
 
-### Configurable Parameters (LCR)
+#### Configurable Parameters (LCR)
 
 | Parameter | Options |
 |-----------|---------|
@@ -95,7 +119,7 @@ RXD --> FF1 --> FF2 --> Synchronized RXD
 | Stop bits | 1 or 2 (no 1.5; and STB=1 with a 5-bit word still sends ONE stop bit) |
 | Parity | None, Even, Odd, Mark, Space |
 
-### Frame Examples
+#### Frame Examples
 
 **8N1 (8 data, No parity, 1 stop):**
 ```
@@ -116,32 +140,16 @@ START | D0 D1 D2 D3 D4 | STOP
   0   |<-- 5 bits --->|  1
 ```
 
-## Electrical Interface
+### Break Condition
 
-### TTL Level
-
-| State | Voltage |
-|-------|---------|
-| Logic 0 (Space) | 0V |
-| Logic 1 (Mark) | VCC (3.3V/5V) |
-
-### RS-232 Level (External Transceiver)
-
-| State | Voltage |
-|-------|---------|
-| Logic 0 (Space) | +3V to +15V |
-| Logic 1 (Mark) | -3V to -15V |
-
-## Break Condition
-
-### Transmit Break
+#### Transmit Break
 
 When LCR.BC=1:
 - TXD forced to Logic 0
 - Maintained until BC cleared
 - Minimum duration: 1 frame time
 
-### Receive Break
+#### Receive Break
 
 Detected when:
 - RXD = 0 for entire frame
@@ -149,7 +157,7 @@ Detected when:
 - INTENDED to set the BI bit in LSR (never sets in the current RTL --
   same overwrite defect as FE, #60)
 
-## Line Status Error Detection
+## Waveforms
 
 ### Waveform 3.1: Line Status Error Detection
 
@@ -173,5 +181,7 @@ Error types:
 - **Break Indicator (BI)**: All bits including stop are 0
 
 ---
+
+## Navigation
 
 **Next:** [03_modem.md](03_modem.md) - Modem Interface

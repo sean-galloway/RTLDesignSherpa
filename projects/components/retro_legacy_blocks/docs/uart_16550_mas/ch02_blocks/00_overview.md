@@ -21,9 +21,15 @@
 
 <!-- End Header -->
 
-# APB UART 16550 - Block Descriptions Overview
+# APB UART 16550 — Block Descriptions
 
-## Module Hierarchy
+## Overview
+
+This chapter walks the internal blocks one at a time. The hierarchy and summary below are the map; the linked pages are the territory.
+
+## Functional Description
+
+### Module Hierarchy
 
 ```
 apb4_uart_16550
@@ -41,7 +47,7 @@ apb4_uart_16550
 |-- Modem Control
 ```
 
-## Block Summary
+### Block Summary
 
 | Block | Description |
 |-------|-------------|
@@ -53,38 +59,40 @@ apb4_uart_16550
 | Interrupt Controller | Prioritized interrupt generation |
 | Modem Control | CTS/RTS and modem signals |
 
-## Detailed Block Descriptions
+## Related Modules
 
-### 1. APB Interface
+### APB Interface
 Handles APB protocol conversion and register access.
 
 **See:** [01_apb_interface.md](01_apb_interface.md)
 
-### 2. Register File
+### Register File
 16550-compatible register set with a flat, DLAB-independent address map (each register has a unique offset; DLAB does not remap addresses).
 
 **See:** [02_register_file.md](02_register_file.md)
 
-### 3. TX Engine
+### TX Engine
 Transmit FIFO and serializer for data output.
 
 **See:** [03_tx_engine.md](03_tx_engine.md)
 
-### 4. RX Engine
+### RX Engine
 Receive deserializer and FIFO for data input.
 
 **See:** [04_rx_engine.md](04_rx_engine.md)
 
-### 5. Baud Generator
+### Baud Generator
 Programmable divider for baud rate generation.
 
 **See:** [05_baud_generator.md](05_baud_generator.md)
 
-### 6. FIFO Subsystem
+### FIFO Subsystem
 TX and RX FIFO implementation details.
 
 **See:** [06_fifo.md](06_fifo.md)
 
 ---
+
+## Navigation
 
 **Next:** [01_apb_interface.md](01_apb_interface.md) - APB Interface details

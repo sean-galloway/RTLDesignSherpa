@@ -21,50 +21,15 @@
 
 <!-- End Header -->
 
-# APB UART 16550 - Register File Block
+# APB UART 16550 — Register File Block
 
 ## Overview
 
-The register file implements the standard 16550 register set with PeakRDL generation for APB interface compatibility.
+The register file implements the standard 16550 register set, generated with PeakRDL for APB compatibility. All registers occupy unique offsets; the DLAB bit does not remap any address — if you've written 16550 drivers before, unlearn the DLAB dance at the door.
 
-## Block Diagram
+## Ports
 
-### Figure 2.2: Register File Block
-
-![Register File Block](../assets/svg/uart_register_file.png)
-
-## Register Organization
-
-All registers occupy unique offsets; the DLAB bit does not remap any address.
-
-### Address 0x00 (RBR/THR)
-
-| Access | Register |
-|--------|----------|
-| Read | RBR - Receiver Buffer (received byte in bits [15:8]) |
-| Write | THR - Transmitter Holding |
-
-### Address 0x04 (IER)
-
-Read/Write - Interrupt Enable (stored; enables are unimplemented in the core).
-
-### Address 0x08 (IIR)
-
-Read-only - Interrupt Identification. Reading IIR has no side effect.
-
-### Addresses 0x0C-0x28
-
-Fixed registers, not affected by DLAB:
-- 0x0C: FCR - FIFO Control (R/W, readable)
-- 0x10: LCR - Line Control
-- 0x14: MCR - Modem Control
-- 0x18: LSR - Line Status (RO / W1C error bits)
-- 0x1C: MSR - Modem Status (RO / W1C delta bits)
-- 0x20: SCR - Scratch
-- 0x24: DLL - Divisor Latch LSB
-- 0x28: DLM - Divisor Latch MSB
-
-## Hardware Interface (HWIF)
+The register block's connection to the rest of the UART core is the PeakRDL hardware interface (HWIF). These are internal signals, not module pins, but they define what the register file exposes to the TX/RX engines and what it consumes.
 
 ### Software-to-Hardware (reg2hw)
 
@@ -88,7 +53,42 @@ Fixed registers, not affected by DLAB:
 | lsr | Line status |
 | msr | Modem status |
 
-## Register Access Types
+## Functional Description
+
+### Figure 2.2: Register File Block
+
+![Register File Block](../assets/svg/uart_register_file.png)
+
+### Register Organization
+
+#### Address 0x00 (RBR/THR)
+
+| Access | Register |
+|--------|----------|
+| Read | RBR - Receiver Buffer (received byte in bits [15:8]) |
+| Write | THR - Transmitter Holding |
+
+#### Address 0x04 (IER)
+
+Read/Write - Interrupt Enable (stored; enables are unimplemented in the core).
+
+#### Address 0x08 (IIR)
+
+Read-only - Interrupt Identification. Reading IIR has no side effect.
+
+#### Addresses 0x0C-0x28
+
+Fixed registers, not affected by DLAB:
+- 0x0C: FCR - FIFO Control (R/W, readable)
+- 0x10: LCR - Line Control
+- 0x14: MCR - Modem Control
+- 0x18: LSR - Line Status (RO / W1C error bits)
+- 0x1C: MSR - Modem Status (RO / W1C delta bits)
+- 0x20: SCR - Scratch
+- 0x24: DLL - Divisor Latch LSB
+- 0x28: DLM - Divisor Latch MSB
+
+### Register Access Types
 
 | Type | Description |
 |------|-------------|
@@ -97,7 +97,9 @@ Fixed registers, not affected by DLAB:
 | RW | Read-write |
 | W1C | Write 1 to clear (LSR error bits, MSR delta bits) |
 
-## Implementation Notes
+## Design Notes
+
+### Implementation Notes
 
 - DLAB is a stored bit only; it does not remap any address
 - THR write pushes to TX FIFO
@@ -105,5 +107,7 @@ Fixed registers, not affected by DLAB:
 - IIR read has no side effect; it does not clear any interrupt
 
 ---
+
+## Navigation
 
 **Next:** [03_tx_engine.md](03_tx_engine.md) - TX Engine

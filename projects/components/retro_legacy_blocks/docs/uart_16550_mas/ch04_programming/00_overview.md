@@ -21,9 +21,13 @@
 
 <!-- End Header -->
 
-# APB UART 16550 - Programming Model Overview
+# APB UART 16550 — Programming Model
 
-## Register Summary
+## Overview
+
+This chapter is the software view of the block: how to initialize it, move data through it, and live with its interrupt behavior. The register summary below is the quick reference; the quick-start snippet will get characters on the wire.
+
+### Register Summary
 
 Flat, DLAB-independent map - each register has a unique offset (DLAB does not remap).
 
@@ -41,31 +45,11 @@ Flat, DLAB-independent map - each register has a unique offset (DLAB does not re
 | 0x24 | DLL | RW | Divisor Latch LSB |
 | 0x28 | DLM | RW | Divisor Latch MSB |
 
-## Chapter Contents
+## Usage Example
 
-### Initialization
-Complete UART initialization sequence.
+### Quick Start
 
-**See:** [01_initialization.md](01_initialization.md)
-
-### Data Transfer
-Sending and receiving data.
-
-**See:** [02_data_transfer.md](02_data_transfer.md)
-
-### Interrupts
-Interrupt configuration and handling.
-
-**See:** [03_interrupts.md](03_interrupts.md)
-
-### Examples
-Complete programming examples.
-
-**See:** [04_examples.md](04_examples.md)
-
-## Quick Start
-
-### Minimal Setup (115200 8N1)
+#### Minimal Setup (115200 8N1)
 
 ```c
 // Assuming 48 MHz clock
@@ -87,6 +71,30 @@ void uart_init(void) {
     MCR = 0x08;
 }
 ```
+
+## Navigation
+
+### Chapter Contents
+
+#### Initialization
+Complete UART initialization sequence.
+
+**See:** [01_initialization.md](01_initialization.md)
+
+#### Data Transfer
+Sending and receiving data.
+
+**See:** [02_data_transfer.md](02_data_transfer.md)
+
+#### Interrupts
+Interrupt configuration and handling.
+
+**See:** [03_interrupts.md](03_interrupts.md)
+
+#### Examples
+Complete programming examples.
+
+**See:** [04_examples.md](04_examples.md)
 
 ---
 

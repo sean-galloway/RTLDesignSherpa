@@ -21,7 +21,11 @@
 
 <!-- End Header -->
 
-# APB UART 16550 - Interrupt Interface
+# APB UART 16550 — Interrupt Interface
+
+## Overview
+
+Before you write a line of ISR code, read the notes below. This RTL's interrupt path does not behave like the 16550 your driver author probably had in mind — the enables don't enable, the timeout doesn't exist, and the pin is gated by a modem output bit.
 
 > Implementation notes for this RTL:
 > - **IER enables are unimplemented.** IER is stored/read back but does not mask
@@ -32,15 +36,19 @@
 > - **Reading IIR has no side effect** and does not clear the THR-empty condition.
 > - LSR/MSR sticky bits are cleared by **W1C**, not by reading.
 
-## Signal Description
+## Ports
+
+### Signal Description
 
 | Signal | Width | Dir | Description |
 |--------|-------|-----|-------------|
 | irq | 1 | O | Interrupt request (active high, gated by MCR.OUT2) |
 
-## Interrupt Sources
+## Functional Description
 
-### Priority Order (Highest to Lowest)
+### Interrupt Sources
+
+#### Priority Order (Highest to Lowest)
 
 | Priority | IIR[3:0] | Source | Clear Method |
 |----------|----------|--------|--------------|
@@ -51,14 +59,14 @@
 
 Character Timeout (IIR = 1100 / 0x0C) is not implemented and is omitted.
 
-### IIR Encoding
+#### IIR Encoding
 
 | IIR[3:0] | IIR[0] | Meaning |
 |----------|--------|---------|
 | xxx0 | 0 | Interrupt pending |
 | xxx1 | 1 | No interrupt |
 
-## Interrupt Enable Register (IER)
+### Interrupt Enable Register (IER)
 
 These bits are stored and read back but are **not connected** to the interrupt
 logic in this RTL - they do not enable or mask any interrupt.
@@ -70,9 +78,9 @@ logic in this RTL - they do not enable or mask any interrupt.
 | 2 | ELSI | Receiver line status |
 | 3 | EDSSI | Modem status |
 
-## Interrupt Identification Register (IIR)
+### Interrupt Identification Register (IIR)
 
-### Read Format
+#### Read Format
 
 | Bits | Name | Description |
 |------|------|-------------|
@@ -81,9 +89,9 @@ logic in this RTL - they do not enable or mask any interrupt.
 | 5:4 | Reserved | |
 | 7:6 | FIFOEN | 11 if FIFOs enabled |
 
-## Interrupt Conditions
+### Interrupt Conditions
 
-### Receiver Line Status (Priority 1)
+#### Receiver Line Status (Priority 1)
 
 Triggered by:
 - Overrun Error (OE)
@@ -94,24 +102,24 @@ Triggered by:
 Cleared by writing 1 to the LSR error bits (W1C). (Known RTL issue: the clear
 strobes are not asserted, so these bits/interrupt persist until reset.)
 
-### Received Data Available (Priority 2)
+#### Received Data Available (Priority 2)
 
 - FCR.FE=1: triggered when RX FIFO >= trigger level
 - FCR.FE=0: triggered when data present (DR=1)
 - Cleared by reading RBR until the level falls below the trigger / DR clears
 
-### Character Timeout - not implemented
+#### Character Timeout - not implemented
 
 `int_timeout` is tied to 0 in this RTL; the timeout interrupt never occurs and
 IIR never reads 0x0C.
 
-### THR Empty (Priority 3)
+#### THR Empty (Priority 3)
 
 Triggered when the TX FIFO is empty (this is a level, THRE = TX FIFO empty).
 
 Cleared by writing THR to refill the TX FIFO. Reading IIR does **not** clear it.
 
-### Modem Status (Priority 4)
+#### Modem Status (Priority 4)
 
 Triggered by any MSR delta bit:
 - DCTS (Delta CTS)
@@ -121,7 +129,9 @@ Triggered by any MSR delta bit:
 
 Cleared by writing 1 to the MSR delta bits (W1C), not by reading MSR.
 
-## Interrupt Timing
+## Timing
+
+### Interrupt Timing
 
 IIR and `irq` are purely COMBINATIONAL from the core status flags: the
 cycle a condition's flag sets, IIR reflects it and `irq` asserts (gated by
@@ -133,9 +143,11 @@ Event --> flag sets --> IIR + IRQ reflect it (same cycle, combinational)
 Clear --> flag clears --> IIR + IRQ deassert (same cycle)
 ```
 
-## Software Handling
+## Usage Example
 
-### ISR Flow
+### Software Handling
+
+#### ISR Flow
 
 ```c
 void uart_isr(void) {
@@ -163,5 +175,7 @@ void uart_isr(void) {
 ```
 
 ---
+
+## Navigation
 
 **Next:** [05_system.md](05_system.md) - System Interface
