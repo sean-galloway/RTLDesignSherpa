@@ -98,7 +98,7 @@ The APB High Precision Event Timer (HPET) is a configurable multi-timer peripher
 Every block makes trade-offs; here's where this one landed.
 
 **Configurability:**
-The HPET component prioritizes configurability to support diverse use cases. Timer count and CDC enablement are parameterizable at synthesis time, so you can tailor an instance for your application without touching the RTL. (The `VENDOR_ID`/`REVISION_ID` parameters exist on the top level but are currently unwired -- the HPET_ID vendor and revision bytes are fixed at 0x01/0x01 in the generated register block. See Chapter 5.)
+The HPET component prioritizes configurability to support diverse use cases. Timer count and CDC enablement are parameterizable at synthesis time, so you can tailor an instance for your application without touching the RTL. (The `VENDOR_ID`/`REVISION_ID` parameters reach HPET_ID through the register block's hardware interface; both fields are 8 bits wide, so a 16-bit PCI-style vendor reads back as its low byte. See Chapter 5.)
 
 **Reliability:**
 Extensive testing (5/6 configurations at 100% pass rate) validates core functionality. The design includes per-timer data buses to prevent corruption. (Note: the register block never raises PSLVERR -- unmapped addresses alias or read 0.)
@@ -124,7 +124,7 @@ The APB HPET draws architectural inspiration from the IA-PC HPET specification (
 | **Counter Size** | 64-bit mandatory | 64-bit |
 | **Comparator Size** | 64-bit or 32-bit | 64-bit or 32-bit (per-timer `timer_size`) |
 | **Clock Source** | 10 MHz minimum | User-configurable |
-| **Vendor ID** | Read from capability | Fixed 0x01 (parameters currently unwired) |
+| **Vendor ID** | 16-bit, read from capability | 8-bit, from the `VENDOR_ID` parameter |
 
 **Retained Concepts:**
 - 64-bit free-running counter
@@ -152,7 +152,7 @@ The design scales linearly with timer count. Each additional timer adds approxim
 
 ### Development Status
 
-**Status:** RTL Partial - see the index and issue #46
+**Status:** RTL Functional - the issue #46 register-side defects were fixed on 2026-09-08; see the index
 
 **Completed Features:**
 - One-shot timer mode

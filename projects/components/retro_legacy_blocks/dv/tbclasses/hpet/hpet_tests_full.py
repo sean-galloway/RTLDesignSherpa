@@ -30,7 +30,7 @@ from typing import Dict, List, Tuple
 import random
 import cocotb
 from cocotb.utils import get_sim_time
-from cocotb.triggers import Timer, RisingEdge
+from cocotb.triggers import Timer, RisingEdge, ClockCycles
 
 from .hpet_tb import HPETTB, HPETRegisterMap
 
@@ -517,6 +517,173 @@ class HPETFullTests:
             self.log.error(f"Performance benchmark failed: {e}")
             return False
 
+    async def _delayed_write(self, addr: int, data: int, delay_ns: float) -> None:
+        """Wait delay_ns (clamped to >=0) then issue an APB write. Meant to
+        be launched with cocotb.start_soon() so the caller controls exactly
+        when the write STARTS relative to another event."""
+        if delay_ns > 0:
+            await Timer(delay_ns, units="ns")
+        await self.tb.write_register(addr, data)
+
+    async def test_status_w1c_hwset_same_cycle_race(self) -> bool:
+        """issue #46 round_2 refinement (a): a timer fire landing at or
+        around the same internal cycle as an HPET_STATUS W1C write to a
+        DIFFERENT bit must not be lost.
+
+        RTL today: `timer_int_clear = {NUM_TIMERS{swmod}} & timer_int_status`
+        (hpet_config_regs.sv) broadcasts a clear to every bit CURRENTLY
+        pending on ANY HPET_STATUS write, and hpet_core's status flop gives
+        clear priority over a coincident fire (`if(timer_int_clear[i])
+        status<=0; else if(w_timer_fire[i]) status<=1;`, hpet_core.sv). So
+        a fire on bit_j that lands anywhere at or before the write's
+        internal commit is silently discarded by a write that only
+        targeted bit_i -- not just the exact same-cycle case, but the
+        exact same-cycle case is the one a naive per-bit fix (that still
+        gets the priority mux wrong) would still lose.
+
+        Deterministic construction, one full disable/reset/reconfigure per
+        trial (no dependence on suite ordering or residual state):
+          - bit_i (timer 0): one-shot, comparator=SMALL, fires immediately
+            and is left pending.
+          - bit_j (timer 1): one-shot, comparator=TARGET (SMALL << TARGET),
+            predicted (from tb.CORE_CLOCK_PERIOD, the actual clock driving
+            hpet_core/hpet_config_regs per CDC_ENABLE) to fire at
+            approximately `enable_time + TARGET * CORE_CLOCK_PERIOD`.
+          - A background W1C write clearing ONLY bit_i is started at a
+            controlled delay so its APB commit sweeps across a window of
+            offsets (in units of CORE_CLOCK_PERIOD) bracketing bit_j's
+            predicted fire -- including the offset(s) that land on the
+            same internal cycle.
+          - No sleeps-for-luck: the APB master runs the 'fixed' (single,
+            deterministic delay) randomizer profile (hpet_tb.py), so a
+            given offset lands on the same internal timing relationship
+            every run.
+
+        Correct behavior for every offset: bit_i clears, bit_j's status
+        (and timer_irq[bit_j]) survive. Today's RTL is expected to lose
+        bit_j for offsets where it is already pending (or fires) at or
+        before the write commits.
+        """
+        if self.tb.NUM_TIMERS < 2:
+            self.log.info("Skipping W1C/hwset race test (need at least 2 timers)")
+            return True
+
+        self.log.info("=== issue #46 round_2: HPET_STATUS W1C-vs-hwset same-cycle race ===")
+        self.tb.test_phase = "ISSUE46_ROUND2_RACE"
+
+        bit_i = 0     # cleared by the background W1C write, every trial
+        bit_j = 1     # must survive if its fire lands near the write
+        small = 5     # bit_i's comparator, core-clock steps
+        target = 60   # bit_j's comparator, core-clock steps
+        step_ns = self.tb.CORE_CLOCK_PERIOD
+        # Window is wide enough to absorb the (constant, deterministic)
+        # fixed APB command latency between "write_register() issues the
+        # HPET_CONFIG enable write" and the internal domain actually
+        # sampling hpet_enable, as well as bracket the predicted fire.
+        offsets = list(range(-15, 16, 3))
+
+        offsets_lost_bit_j = []
+        offsets_bad_setup = []
+        passed = True
+
+        try:
+            for offset in offsets:
+                # Fresh state every trial -- no dependence on prior trials.
+                await self.tb.write_register(HPETRegisterMap.HPET_CONFIG, 0x00000000)
+                await self.tb.write_register(HPETRegisterMap.HPET_COUNTER_LO, 0x00000000)
+                await self.tb.write_register(HPETRegisterMap.HPET_COUNTER_HI, 0x00000000)
+                # HPET_STATUS.timer_int_status is a fixed [7:0] field
+                # regardless of NUM_TIMERS, and issue #46 C2 can spuriously
+                # set bits >= NUM_TIMERS -- clear the full byte, not just
+                # (1<<NUM_TIMERS)-1, so no phantom bit survives into the
+                # next trial.
+                await self.tb.write_register(HPETRegisterMap.HPET_STATUS, 0xFF)
+
+                config_i = HPETRegisterMap.get_timer_config_addr(bit_i)
+                comp_lo_i = HPETRegisterMap.get_timer_comp_lo_addr(bit_i)
+                comp_hi_i = HPETRegisterMap.get_timer_comp_hi_addr(bit_i)
+                config_j = HPETRegisterMap.get_timer_config_addr(bit_j)
+                comp_lo_j = HPETRegisterMap.get_timer_comp_lo_addr(bit_j)
+                comp_hi_j = HPETRegisterMap.get_timer_comp_hi_addr(bit_j)
+
+                timer_cfg = (1 << HPETRegisterMap.TIMER_ENABLE) | (1 << HPETRegisterMap.TIMER_INT_ENABLE)
+
+                await self.tb.write_register(comp_lo_i, small)
+                await self.tb.write_register(comp_hi_i, 0x00000000)
+                await self.tb.write_register(config_i, timer_cfg)
+
+                await self.tb.write_register(comp_lo_j, target)
+                await self.tb.write_register(comp_hi_j, 0x00000000)
+                await self.tb.write_register(config_j, timer_cfg)
+
+                enable_time = get_sim_time('ns')
+                await self.tb.write_register(HPETRegisterMap.HPET_CONFIG, 0x00000001)
+
+                setup_timeout_ns = step_ns * small * 20 + 500
+                if not await self._wait_for_fire(bit_i, setup_timeout_ns):
+                    self.log.error(f"offset={offset}: bit_i did not fire (setup failure)")
+                    offsets_bad_setup.append(offset)
+                    passed = False
+                    continue
+
+                predicted_fire_j_ns = enable_time + target * step_ns
+                target_write_start_ns = predicted_fire_j_ns + offset * step_ns
+                delay_ns = target_write_start_ns - get_sim_time('ns')
+
+                write_task = cocotb.start_soon(
+                    self._delayed_write(HPETRegisterMap.HPET_STATUS, 1 << bit_i, delay_ns))
+                await write_task
+
+                # Settle: let the fire and the write's internal effects
+                # both fully resolve before sampling.
+                await Timer(step_ns * 20, units="ns")
+
+                _, status = await self.tb.read_register(HPETRegisterMap.HPET_STATUS)
+                irq = int(self.tb.dut.timer_irq.value)
+                bit_i_cleared = not bool(status & (1 << bit_i))
+                bit_j_seen = bool(status & (1 << bit_j)) and bool(irq & (1 << bit_j))
+
+                if not bit_i_cleared:
+                    self.log.error(f"offset={offset}: W1C did not clear bit_i "
+                                    f"(status=0x{status:02X})")
+                    passed = False
+                if not bit_j_seen:
+                    self.log.error(f"offset={offset}: bit_j fire LOST across the race "
+                                    f"(status=0x{status:02X}, irq=0x{irq:02X}, expected bit "
+                                    f"{bit_j} set in both) -- issue #46 round_2 same-cycle race")
+                    offsets_lost_bit_j.append(offset)
+                    passed = False
+
+            # Final cleanup (mandatory: reset the main counter).
+            await self.tb.write_register(HPETRegisterMap.HPET_CONFIG, 0x00000000)
+            await self.tb.write_register(HPETRegisterMap.HPET_COUNTER_LO, 0x00000000)
+            await self.tb.write_register(HPETRegisterMap.HPET_COUNTER_HI, 0x00000000)
+            await self.tb.write_register(HPETRegisterMap.HPET_STATUS, 0xFF)
+            for timer_id in (bit_i, bit_j):
+                await self.tb.write_register(HPETRegisterMap.get_timer_config_addr(timer_id), 0x00000000)
+
+            if offsets_bad_setup:
+                self.log.error(f"Trial setup failed at offsets: {offsets_bad_setup}")
+            if offsets_lost_bit_j:
+                self.log.error(f"bit_j lost at offsets {offsets_lost_bit_j} of {offsets}")
+            elif passed:
+                self.log.info(f"PASS issue #46 round_2 race: bit_j survived across {len(offsets)} offsets")
+
+            return passed
+
+        except Exception as e:
+            self.log.error(f"issue #46 round_2 race test failed with exception: {e}")
+            return False
+
+    async def _wait_for_fire(self, timer_id: int, timeout_ns: int) -> bool:
+        """Poll tb.timer_interrupt_state[timer_id] until it goes True or timeout."""
+        start = get_sim_time('ns')
+        while (get_sim_time('ns') - start) < timeout_ns:
+            if self.tb.timer_interrupt_state[timer_id]:
+                return True
+            await Timer(2, units="ns")
+        return False
+
     async def run_all_full_tests(self) -> bool:
         """Run all comprehensive tests."""
         self.log.info(f"=== Running All Full HPET Tests ({self.tb.NUM_TIMERS} timers) ===")
@@ -528,6 +695,8 @@ class HPETFullTests:
             # These are performance characterization tests that don't add critical
             # functional coverage. Core HPET functionality is validated by the other tests.
             ("Edge Cases", self.test_edge_cases()),
+            ("issue #46 round_2: STATUS W1C-vs-hwset same-cycle race",
+             self.test_status_w1c_hwset_same_cycle_race()),
         ]
 
         results = []

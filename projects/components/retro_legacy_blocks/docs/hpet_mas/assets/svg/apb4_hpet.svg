@@ -92,7 +92,7 @@
 <text text-anchor="middle" x="425.24" y="-245.87" font-family="Times,serif" font-size="10.00">Control/Data</text>
 <text text-anchor="middle" x="425.24" y="-234.87" font-family="Times,serif" font-size="10.00">(cross domain if CDC)</text>
 <text text-anchor="middle" x="425.24" y="-211.87" font-family="Times,serif" font-size="10.00">hpet_enable</text>
-<text text-anchor="middle" x="425.24" y="-200.87" font-family="Times,serif" font-size="10.00">counter_write</text>
+<text text-anchor="middle" x="425.24" y="-200.87" font-family="Times,serif" font-size="10.00">counter_write_lo/hi</text>
 <text text-anchor="middle" x="425.24" y="-189.87" font-family="Times,serif" font-size="10.00">timer config</text>
 </g>
 <!-- hpet_core&#45;&gt;interrupts -->

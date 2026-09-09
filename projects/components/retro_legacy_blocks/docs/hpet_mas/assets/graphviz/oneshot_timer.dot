@@ -24,7 +24,7 @@ digraph oneshot_timer {
     wait_cycle [label="Wait 1 Cycle", fillcolor=white];
     wait_cycle -> counter_running;
 
-    fire_detect [label="Timer Fires!\n• IRQ asserts\n• Edge detection (0→1)\n• Comparator unchanged", fillcolor=lightcoral];
+    fire_detect [label="Timer Fires!\n• IRQ asserts\n• Match while armed\n• Armed latch clears", fillcolor=lightcoral];
     fire_detect -> irq_check;
 
     irq_check [label="Interrupt\nenabled?", shape=diamond, fillcolor=lightyellow];

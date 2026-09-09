@@ -53,7 +53,11 @@ from projects.components.retro_legacy_blocks.dv.tbclasses.hpet.hpet_tests_medium
 from projects.components.retro_legacy_blocks.dv.tbclasses.hpet.hpet_tests_full import HPETFullTests
 
 
-@cocotb.test(timeout_time=400, timeout_unit="us")
+# Sim-time budget scales with the configuration (set by the pytest wrapper
+# below); a single constant left the 8-timer CDC FULL run 1.3% from the
+# limit and the first added Medium scenario pushed it over.
+@cocotb.test(timeout_time=int(os.environ.get("TEST_SIM_TIMEOUT_US", "400")),
+             timeout_unit="us")
 async def hpet_test(dut):
     """Main test function for HPET module with modular test structure"""
     tb = HPETTB(dut)
@@ -231,6 +235,11 @@ def test_hpet(request, num_timers, vendor_id, revision_id, cdc_enable, test_leve
 
     total_complexity = complexity_factor * data_complexity * timer_complexity * clock_complexity
     timeout_s = int(30 * total_complexity)
+    # cocotb sim-time budget: 400 us covered the 2-timer suite; scale with
+    # the timer count (every Medium/Full scenario touches every timer) and
+    # give the CDC configs 50% more, since each APB access costs more sim
+    # time through the async FIFO. Measured 8T CDC FULL needs > 400 us.
+    sim_timeout_us = int(400 * timer_complexity * (1.5 if cdc_enable else 1.0))
 
     # Environment variables
     extra_env = {
@@ -245,6 +254,12 @@ def test_hpet(request, num_timers, vendor_id, revision_id, cdc_enable, test_leve
 
         # DUT-specific parameters
         'TEST_NUM_TIMERS': str(num_timers),
+        # Mirror the CDC_ENABLE RTL parameter into the sim env so the TB can
+        # know which clock domain drives hpet_core/hpet_config_regs without
+        # guessing (parameters aren't readable off the dut hierarchy the way
+        # a signal is). Used by tests that predict exact fire timing.
+        'TEST_CDC_ENABLE': str(cdc_enable),
+        'TEST_SIM_TIMEOUT_US': str(sim_timeout_us),
         # Fixed parameters are no longer passed - they're hardcoded in the TB
 
         # Clock configuration (fixed values)

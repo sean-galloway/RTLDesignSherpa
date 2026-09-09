@@ -47,12 +47,16 @@ No user-configurable parameters. All configuration is baked into the generated c
 
 **Compile-Time Constants (from SystemRDL):**
 ```systemverilog
-localparam VENDOR_ID = 1;         // From RDL: vendor_id field default
-localparam REVISION_ID = 1;       // From RDL: revision_id field default
+localparam VENDOR_ID = 1;         // From RDL: vendor_id reset default
+localparam REVISION_ID = 1;       // From RDL: rev_id reset default
 localparam NUM_TIMERS = 8;        // From RDL: TIMER[0:7] array size
 ```
 
-**Note:** These values are fixed at generation time. To change them, modify `hpet_regs.rdl` and regenerate.
+**Note:** These are fixed at generation time, but none of them decides what
+an instance reports. The block is generated once for 8 timer slots, and
+`num_tim_cap`, `vendor_id` and `rev_id` are all `hw = w` fields driven
+through `hwif_in` from the wrapper's `NUM_TIMERS`/`VENDOR_ID`/`REVISION_ID`
+parameters -- so the same generated RTL serves every instantiation.
 
 ---
 
@@ -105,19 +109,23 @@ package hpet_regs_pkg;
 
     // ILLUSTRATIVE SKETCH -- the generated package uses UNPACKED structs
     // with per-field typedef names (hpet_regs__<REG>__<field>__in_t); see
-    // rtl/hpet/hpet_regs_pkg.sv for the literal shapes. Two notable
-    // differences from this sketch: the counter/comparator OUT structs
-    // carry only swmod (no value member -- values live in hwif_in), and
-    // the timer array is hpet_regs__timer_regfile__out_t TIMER[8].
+    // rtl/hpet/hpet_regs_pkg.sv for the literal shapes. One notable
+    // difference from this sketch: the timer array is
+    // hpet_regs__timer_regfile__out_t TIMER[8].
     typedef struct {
         struct packed {
             logic [4:0] next;  // num_tim_cap field value
         } num_tim_cap;
+        struct packed {
+            logic [7:0] next;  // rev_id, from the REVISION_ID parameter
+        } rev_id;
+        struct packed {
+            logic [7:0] next;  // vendor_id, from the VENDOR_ID parameter
+        } vendor_id;
     } HPET_ID__in_t;
 
     typedef struct packed {
-        logic [7:0] next;   // Next value for status bits
-        logic hwset;        // Hardware set pulse
+        logic [7:0] next;   // Live status level from hpet_core (mirror)
     } timer_int_status__in_t;
 
     typedef struct packed {
@@ -262,7 +270,7 @@ end
 assign hwif_out.HPET_CONFIG.hpet_enable.value = field_storage.HPET_CONFIG.hpet_enable.value;
 ```
 
-**Example - HPET_STATUS.timer_int_status Field (W1C with HW set):**
+**Example - HPET_STATUS.timer_int_status Field (W1C mirror of a hardware level):**
 
 ```systemverilog
 // Field: hpet_regs.HPET_STATUS.timer_int_status
@@ -277,14 +285,8 @@ always_comb begin
         next_c = field_storage.HPET_STATUS.timer_int_status.value &
                 ~(decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
         load_next_c = '1;
-
-    end else if((field_storage.HPET_STATUS.timer_int_status.value == '0) &&
-                (hwif_in.HPET_STATUS.timer_int_status.next != '0)) begin  // Multi-bit sticky
+    end else begin  // HW write: follow the core's live level
         next_c = hwif_in.HPET_STATUS.timer_int_status.next;
-        load_next_c = '1;
-
-    end else if(hwif_in.HPET_STATUS.timer_int_status.hwset) begin  // HW set
-        next_c = '1;
         load_next_c = '1;
     end
 
@@ -293,15 +295,28 @@ always_comb begin
 end
 
 always_ff @(posedge clk) begin
-    if(field_combo.HPET_STATUS.timer_int_status.load_next) begin
-        field_storage.HPET_STATUS.timer_int_status.value <= field_combo.HPET_STATUS.timer_int_status.next;
+    if(rst) begin
+        field_storage.HPET_STATUS.timer_int_status.value <= 8'h0;
+    end else begin
+        if(field_combo.HPET_STATUS.timer_int_status.load_next) begin
+            field_storage.HPET_STATUS.timer_int_status.value <= field_combo.HPET_STATUS.timer_int_status.next;
+        end
     end
 end
 
-// swmod signal: pulsed when software modifies field
+// swmod: the write decode with an extra |biten term. The wrapper mirrors
+// the decode itself for the W1C clear and uses swmod only as a drift guard.
 assign hwif_out.HPET_STATUS.timer_int_status.swmod =
     decoded_reg_strb.HPET_STATUS && decoded_req_is_wr && |(decoded_wr_biten[7:0]);
 ```
+
+There is no `sticky`/`hwset` in this field, on purpose. PeakRDL renders a
+multi-bit sticky field as "load `next` only while the register reads
+all-zero, otherwise set ALL bits on hwset", which sets every bit whenever
+a second timer fires with an earlier one still pending. hpet_core owns the
+sticky state instead, and this field mirrors it -- note the software W1C
+branch still wins over the mirror in its own cycle (`precedence = sw`),
+and the core drops the bit the cycle after, so the two agree from then on.
 
 **Example - HPET_COUNTER_LO Field (HW write with SW precedence):**
 
@@ -352,11 +367,13 @@ logic [31:0] readback_array[38];
 
 // Global registers
 assign readback_array[0][4:0]   = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? 5'h0 : '0;
-assign readback_array[0][5:5]   = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? 1'h1 : '0;
+assign readback_array[0][5:5]   = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? 1'h0 : '0;  // leg_rt_cap
 assign readback_array[0][12:8]  = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ?
                                   hwif_in.HPET_ID.num_tim_cap.next : '0;
-assign readback_array[0][23:16] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? 8'h1 : '0;
-assign readback_array[0][31:24] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ? 8'h1 : '0;
+assign readback_array[0][23:16] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ?
+                                  hwif_in.HPET_ID.rev_id.next : '0;
+assign readback_array[0][31:24] = (decoded_reg_strb.HPET_ID && !decoded_req_is_wr) ?
+                                  hwif_in.HPET_ID.vendor_id.next : '0;
 
 // Config/status registers
 assign readback_array[1][0:0] = (decoded_reg_strb.HPET_CONFIG && !decoded_req_is_wr) ?
@@ -403,7 +420,8 @@ assign cpuif_rd_err = readback_err;
 
 **Example: HPET_ID register**
 ```systemverilog
-// RO fields: vendor_id, revision_id, num_tim_cap
+// RO fields: vendor_id, rev_id, num_tim_cap are hw = w, driven from the
+// wrapper's parameters; leg_rt_cap and count_size_cap are constants
 // Software can read, but writes have no effect
 ```
 
@@ -426,13 +444,14 @@ assign cpuif_rd_err = readback_err;
 **Characteristics:**
 - Software writes 1 to clear bit
 - Software writes 0 have no effect
-- Hardware can set bit via `hwif_in.hwset`
-- Used for sticky interrupt flags
+- Hardware drives the live level via `hwif_in.next`; the field mirrors it
+- The sticky state itself lives in hpet_core, not here
 
 **Example: HPET_STATUS.timer_int_status**
 ```systemverilog
-// W1C field: Software writes 1 to clear interrupt
-// Hardware sets via hwif_in.HPET_STATUS.timer_int_status.hwset
+// W1C mirror: software writes 1 to clear the bit; the wrapper forwards
+// that write to hpet_core as a per-bit clear, and hardware re-drives the
+// field from the core's level every cycle
 ```
 
 #### Hardware Write with Software Precedence
@@ -466,18 +485,22 @@ addrmap hpet_regs {
     // Read-only identification
     reg {
         field {
-            hw = r;              // Hardware read-only
+            hw = w;              // Driven from the VENDOR_ID parameter
             sw = r;              // Software read-only
-        } vendor_id[31:24] = 8'h01;
+        } vendor_id[31:24] = VENDOR_ID;   // 8-bit field: low byte only
 
         field {
-            hw = r; sw = r;
-        } revision_id[23:16] = 8'h01;
+            hw = w; sw = r;      // Driven from the REVISION_ID parameter
+        } rev_id[23:16] = REVISION_ID;
 
         field {
             hw = w;              // Hardware controls value
             sw = r;              // Software can only read
         } num_tim_cap[12:8];
+
+        field {
+            hw = na; sw = r;     // Reads 0: no legacy replacement routing
+        } leg_rt_cap[5:5] = 1'b0;
 
     } HPET_ID @ 0x000;
 
@@ -494,13 +517,15 @@ addrmap hpet_regs {
 
     } HPET_CONFIG @ 0x004;
 
-    // Write-1-to-clear status
+    // Write-1-to-clear status: a MIRROR of hpet_core's sticky status
     reg {
         field {
-            sw = w1c;            // Write 1 to clear
-            hw = w;              // Hardware can set
-            hwset;               // Hardware set signal available
-        } timer_int_status[NUM_TIMERS-1:0];
+            sw = rw;
+            hw = w;              // Hardware writes the core's live level
+            precedence = sw;     // The W1C write wins in its cycle
+            onwrite = woclr;     // Write 1 to clear
+            swmod;               // Drift guard for the wrapper's decode
+        } timer_int_status[NUM_TIMERS-1:0] = 0;   // no sticky, no hwset
 
     } HPET_STATUS @ 0x008;
 
@@ -508,8 +533,9 @@ addrmap hpet_regs {
     reg {
         field {
             sw = rw;             // Software can write
-            hw = w;              // Hardware writes every cycle
+            hw = rw;             // Hardware writes every cycle, reads it back
             precedence = sw;     // Software write takes priority
+            swmod;               // Write STROBE into hpet_core
         } counter_lo[31:0] = 32'h0;
 
     } HPET_COUNTER_LO @ 0x010;
@@ -525,11 +551,11 @@ addrmap hpet_regs {
         } TIMER_CONFIG @ 0x00;
 
         reg {
-            field { sw = rw; hw = r; } timer_comp_lo[31:0] = 32'h0;
+            field { sw = rw; hw = r; swmod; } timer_comp_lo[31:0] = 32'h0;  // swmod = write strobe
         } TIMER_COMPARATOR_LO @ 0x04;
 
         reg {
-            field { sw = rw; hw = r; } timer_comp_hi[31:0] = 32'h0;
+            field { sw = rw; hw = r; swmod; } timer_comp_hi[31:0] = 32'h0;
         } TIMER_COMPARATOR_HI @ 0x08;
 
     } TIMER[NUM_TIMERS] @ 0x100 += 0x20;  // 32-byte spacing
@@ -546,9 +572,11 @@ addrmap hpet_regs {
 1. Changing register addresses
 2. Adding/removing fields
 3. Modifying field access properties
-4. Updating VENDOR_ID or REVISION_ID (baked into the generated code;
-   NUM_TIMERS does NOT require regeneration -- the block is generated
-   with 8 slots and parameterized at instantiation)
+4. Changing the constant capability bits (`leg_rt_cap`, `count_size_cap`)
+
+NUM_TIMERS, VENDOR_ID and REVISION_ID do NOT require regeneration: the
+block is generated with 8 slots, and all three ID fields are driven
+through `hwif_in` from the wrapper's parameters at instantiation.
 
 **Steps:**
 ```bash

@@ -122,7 +122,7 @@ way (a few cycles of each clock domain, ratio-dependent).
 **Clock Domain:** `hpet_clk` (or `pclk` if CDC_ENABLE=0)
 **Implementation:** Conceptual FSM (implemented as combinational logic, not explicit state register)
 
-**Note:** The HPET core uses a conceptual FSM model for specification clarity, but the actual implementation uses combinational logic and edge detection rather than explicit state registers. This provides simpler timing and resource usage while maintaining the same functional behavior.
+**Note:** The HPET core uses a conceptual FSM model for specification clarity, but the actual implementation is a raw comparator plus two state bits per timer -- the armed latch and the next-epoch hold bit -- rather than an explicit state register. This provides simpler timing and resource usage while maintaining the same functional behavior.
 
 #### States
 
@@ -130,9 +130,17 @@ way (a few cycles of each clock domain, ratio-dependent).
 |-------|-------------|----------|
 | **IDLE** | Timer disabled, waiting for enable signal | Until timer enabled |
 | **ARMED** | Timer enabled, monitoring counter vs comparator | Until counter match |
-| **FIRE** | Timer match detected, asserting interrupt | 1 cycle (edge-detected) |
-| **PERIODIC_RELOAD** | Periodic mode: auto-increment comparator | 1 cycle |
-| **ONE_SHOT_COMPLETE** | One-shot mode: timer complete, waiting for reconfigure | Until STATUS cleared or timer disabled |
+| **FIRE** | Armed match detected, asserting interrupt | 1 cycle (one-cycle pulse) |
+| **PERIODIC_RELOAD** | Periodic mode: auto-increment comparator | 1 cycle, or one boundary per cycle while catching up (counter + 1 at period 1) |
+| **ONE_SHOT_COMPLETE** | One-shot mode: fired, armed latch clear, waiting for a comparator write with the timer stopped or for the match to fall | Until the comparator is rewritten (timer stopped) or written above the counter, or the timer disabled |
+
+An epoch-held timer -- one whose advance carried out of the compare width,
+setting `r_comp_next_epoch[i]` -- is not a state of its own. It looks
+ARMED-but-not-matching: the latch is set, the match is forced off, and it
+sits there with no fire and no catch-up until the counter wraps at that
+width (or software writes the comparator or counter half the comparison
+reads -- LO only in 32-bit mode, either half in 64-bit -- or changes
+`timer_size`).
 
 #### State Transition Conditions
 
@@ -142,13 +150,15 @@ way (a few cycles of each clock domain, ratio-dependent).
 - **Trigger:** Rising edge of enable signals
 
 **ARMED -> FIRE:**
-- **Condition:** `counter >= comparator[i]`
-- **Action:** Assert `timer_int_status[i]` (sticky), interrupt output one cycle later
-- **Trigger:** Counter comparison (combinational)
+- **Condition:** `counter >= comparator[i]` with the armed latch set
+- **Action:** Assert `timer_int_status[i]` (sticky), clear the armed latch, interrupt output one cycle later
+- **Trigger:** Counter comparison (combinational), gated by the enables and the latch
 
 **FIRE -> PERIODIC_RELOAD:**
 - **Condition:** `timer_type[i] = 1` (periodic mode)
-- **Action:** `comparator[i] <= comparator[i] + period[i]`
+- **Action:** `comparator[i] <= comparator[i] + period[i]` at the compare
+  width; a carry out of that width sets the next-epoch hold bit instead
+  of reaching the comparator
 - **Trigger:** Immediate (next clock cycle after fire)
 
 **FIRE -> ONE_SHOT_COMPLETE:**
@@ -157,18 +167,55 @@ way (a few cycles of each clock domain, ratio-dependent).
 - **Trigger:** Immediate (next clock cycle after fire)
 
 **PERIODIC_RELOAD -> ARMED:**
-- **Condition:** Always (automatic transition)
+- **Condition:** The advanced comparator is ahead of the counter (the
+  usual case: the match falls and the latch re-arms)
 - **Action:** Resume monitoring with new comparator value
 - **Trigger:** Immediate (next clock cycle)
+- **Catch-up:** if the advanced comparator is still at or below the
+  counter, the timer stays in RELOAD, advancing one boundary per cycle
+  WITHOUT firing, until the advance lands at or ahead of the counter
+  (`>=`, or a carry); that step re-arms the latch. Missed periods are
+  skipped, never burst. Period 0 cannot get ahead and is treated as
+  one-shot (fires once, no churn). Period 1 gains nothing on the counter
+  per cycle, so its catch-up step sets the comparator to counter + 1
+  (every integer is on the period-1 lattice) and re-arms at once: one
+  fire every other tick, at any deficit. Any other period closes its
+  deficit at period - 1 counts per cycle, one advance per cycle, so the
+  catch-up is proportional to the deficit -- a period-2 timer left 2^52
+  behind by a counter write catches up for ~2^52 cycles with no
+  interrupt, which is why the counter is written halted
+- **Epoch hold:** an advance that carries out of the compare width leaves
+  the timer ARMED-but-not-matching until the counter wraps at that width;
+  no fire and no further catch-up in between
 
-**ONE_SHOT_COMPLETE -> ARMED** (deviation #46: a 0->1 of hpet_enable
-or timer_enable while counter >= comparator also re-enters FIRE
-immediately -- the conceptual FSM has no fired-state latch):
-- **Condition:** `timer_comp_write[i] = 1` (software reconfigures comparator)
-- **Action:** Resume monitoring with new comparator value. Fire detection
-  is edge-based, so the new comparator must EXCEED the current counter or
-  no further fire occurs
-- **Trigger:** Comparator write strobe
+**ONE_SHOT_COMPLETE -> ARMED:**
+- **Condition:** `timer_comp_write_lo[i]` or `timer_comp_write_hi[i]`
+  while the timer is NOT running (`timer_enable[i] = 0` or
+  `hpet_enable = 0`; software writes the LO or HI half, even with
+  the value it already holds), or the raw match falling (comparator
+  written above the counter, or the counter reloaded below it)
+- **Action:** Set the armed latch and resume monitoring. A comparator
+  written with the timer stopped need not exceed the counter: a value
+  already passed fires on the first cycle both enables allow
+- **Trigger:** Comparator write strobe on a stopped timer, or the match
+  falling
+
+A 0->1 of `hpet_enable` or `timer_enable[i]` while counter >= comparator
+does NOT re-enter FIRE: the armed latch is the fired-state memory, and the
+enables cannot set it. A completed one-shot stays complete across a
+disable/enable cycle.
+
+A comparator write on a RUNNING timer does not re-arm either: the half
+loads, and the timer re-arms only when the completed value moves the match
+low. That keeps the torn {old HI, new LO} between two half-writes from ever
+firing. The contract is to disable the timer before reprogramming it; a
+write on a STOPPED timer always re-arms, and a value at or below the
+counter fires as soon as the timer is enabled. Reprogramming a running
+timer anyway has two consequences that are outside the contract, not
+bugs: a torn 64-bit value above the counter re-arms through the natural
+path and fires at the final value once it is written, and a same-value
+rewrite on a running periodic timer drags the comparator back and can
+add one off-lattice fire.
 
 **ARMED -> IDLE:**
 - **Condition:** `hpet_enable = 0 OR timer_enable[i] = 0`
@@ -245,11 +292,11 @@ interrupt logic. From the first fire they stay asserted until W1C.
 
 ```mermaid
 flowchart TD
-    A["APB Slave FSM<br/>(pclk)"] -->|"cmd_valid"| B["hpet_config_regs<br/>(combinational mapping)"]
-    B -->|"timer_enable,<br/>timer_comp_write"| C["HPET Core Timer FSM<br/>(hpet_clk)"]
-    C -->|"timer_int_status"| D["hpet_config_regs<br/>(interrupt edge detection)"]
-    D -->|"hwif_in.timer_int_status.hwset"| E["PeakRDL Registers<br/>(status latch)"]
-    E -->|"software read HPET_STATUS<br/>software write W1C to clear"| F["hpet_config_regs<br/>(clear pulse generation)"]
+    A["APB Slave FSM<br/>(pclk)"] -->|"cmd_valid"| B["hpet_config_regs<br/>(write-strobe alignment)"]
+    B -->|"timer_enable,<br/>timer_comp_write_lo/hi"| C["HPET Core Timer FSM<br/>(hpet_clk)"]
+    C -->|"timer_int_status"| D["hpet_config_regs<br/>(status mirror)"]
+    D -->|"hwif_in.timer_int_status.next<br/>(live level)"| E["PeakRDL Registers<br/>(HPET_STATUS mirror)"]
+    E -->|"software read HPET_STATUS<br/>software write 1 to clear a bit"| F["hpet_config_regs<br/>(per-bit clear, one cycle)"]
     F -->|"timer_int_clear"| G["HPET Core Timer FSM"]
     G -->|"timer_int_status clears"| H["Complete"]
 ```
@@ -304,38 +351,78 @@ end
 - Easy to verify and debug
 - Standard FSM coding style
 
-#### Pattern 2: Combinational Logic with Edge Detection (Timer FSM)
+#### Pattern 2: Combinational Match with an Armed Latch (Timer FSM)
 
 ```systemverilog
-// No explicit state register - use combinational logic + edge detect
+// No explicit state register - a raw comparator plus two state bits
 
-// Current match condition
-assign w_timer_match[i] = (counter >= comparator[i]) && timer_enable[i] && hpet_enable;
+// Raw match: deliberately NO enable terms; held off by the epoch bit
+assign w_timer_match_raw[i] = (counter >= comparator[i]);   // at the compare width
+assign w_timer_match[i]     = w_timer_match_raw[i] && !r_comp_next_epoch[i];
 
-// Previous match state (for edge detection)
+// Periodic catch-up: running, periodic, un-armed, still matching, no
+// software write this cycle, period able to move the compare. Advances
+// the comparator a boundary per cycle without firing (counter + 1 at
+// period 1); re-arms the cycle the advance lands at or ahead of the
+// counter (w_comp_adv_ahead[i] = carry || advance >= counter).
+assign w_comp_write_rearm[i] = w_timer_comp_write[i] && !w_timer_running[i];
+assign w_timer_catchup[i]    = timer_type[i] && !r_timer_armed[i] && w_timer_match[i] &&
+                               !w_timer_comp_write[i] && w_timer_period_nz[i] &&
+                               w_timer_running[i];
+assign w_catchup_rearm[i]    = w_timer_catchup[i] && w_comp_adv_ahead[i];
+
+// Next-epoch hold: set when an advance carries out of the compare width;
+// cleared (clear beats set) by the counter wrapping at that width, a
+// comparator write, a counter write or a timer_size change. The write
+// clears are taken at the compare width (w_epoch_clr_comp/w_epoch_clr_ctr,
+// built in the same mux as the match): in 32-bit mode only a LO-half write
+// clears, a HI-half write leaves the hold in place. Reset 0.
+assign w_epoch_set[i] = w_comp_advance_en[i] && w_comp_adv_carry[i];
+assign w_epoch_clr[i] = w_counter_wrap[i] || w_epoch_clr_comp[i] ||
+                        w_epoch_clr_ctr[i] || w_timer_size_chg[i];
 always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) r_timer_match_prev[i] <= 1'b0;
-    else             r_timer_match_prev[i] <= w_timer_match[i];
+    if (!rst_n)                r_comp_next_epoch[i] <= 1'b0;
+    else if (w_epoch_clr[i])   r_comp_next_epoch[i] <= 1'b0;
+    else if (w_epoch_set[i])   r_comp_next_epoch[i] <= 1'b1;
 end
 
-// Fire edge (rising edge of match)
-assign w_timer_fire_edge[i] = w_timer_match[i] && !r_timer_match_prev[i];
+// Armed latch: set on a comparator write to a STOPPED timer, when the
+// gated match drops, or when a catch-up step lands at or ahead of the
+// counter; cleared when the timer fires. Reset armed.
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n)                                  r_timer_armed[i] <= 1'b1;
+    else if (w_comp_write_rearm[i] || !w_timer_match[i] ||
+             w_catchup_rearm[i])                 r_timer_armed[i] <= 1'b1;
+    else if (w_timer_fire[i])                    r_timer_armed[i] <= 1'b0;
+end
+
+// Fire: match, still armed, both enables on
+assign w_timer_fire[i] = w_timer_match[i] && r_timer_armed[i] &&
+                         timer_enable[i] && hpet_enable;
 
 // Sticky interrupt status -- identical in BOTH modes (no timer_type term)
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
         r_interrupt_status[i] <= 1'b0;
-    end else if (timer_int_clear[i]) begin
-        r_interrupt_status[i] <= 1'b0;   // Software W1C
     end else if (w_timer_fire[i]) begin
-        r_interrupt_status[i] <= 1'b1;   // Set on fire edge
+        r_interrupt_status[i] <= 1'b1;   // Set on fire (wins over a clear)
+    end else if (timer_int_clear[i]) begin
+        r_interrupt_status[i] <= 1'b0;   // Software W1C, this bit only
     end
 end
 ```
 
 **Characteristics:**
-- No explicit state register
-- Edge detection for transitions
+- No explicit state register; the armed latch and the next-epoch hold
+  bit are the only state bits
+- One fire per arm, so the enables cannot manufacture a fire
+- A comparator write re-arms only a stopped timer, so a half-written
+  64-bit comparator cannot fire on the torn value
+- Periodic catch-up skips missed periods without bursting; period 1
+  steps to counter + 1 and keeps its every-other-tick cadence at any
+  deficit
+- An advance that carries out of the compare width is held off until the
+  counter wraps there, instead of matching early or churning
 - Simpler implementation
 - Lower resource usage
 - Same functional behavior as FSM
@@ -376,7 +463,27 @@ end
 - [ ] Comparator write during countdown
 - [ ] Counter write during active timer
 - [ ] Multiple timers firing simultaneously
-- [ ] Interrupt clear during fire event
+- [ ] Interrupt clear during fire event (the fire wins)
+- [ ] Re-enable with counter >= comparator (must NOT re-fire)
+- [ ] Comparator rewritten with the same value (reloads the comparator;
+      re-arms only if the timer is disabled or the match falls)
+- [ ] 64-bit comparator reprogrammed on a running timer (the torn
+      {old HI, new LO} never fires; disable-write-enable fires once)
+- [ ] Comparator write in the same cycle as a fire (exactly one fire,
+      software value wins, no periodic advance that cycle)
+- [ ] Periodic timer more than one period behind the counter (catch-up:
+      exactly one fire, missed periods skipped)
+- [ ] Period 0 (fires once, no churn) and period 1 (every other tick)
+- [ ] Period-1 timer with a deficit (catch-up steps to counter + 1 and
+      recovers within a cycle; a live counter write that opens a gap)
+- [ ] Comparator advance carrying out of the compare width (32- and
+      64-bit: epoch hold, no fire and no churn until the counter wraps;
+      comparator[63:32] untouched in 32-bit mode; clear beats set at the
+      wrap)
+- [ ] Counter write while epoch-held (re-base: a comparator now at or
+      below the counter fires promptly; in 32-bit mode a HI-half write
+      to counter or comparator leaves the hold in place), and a
+      timer_size change while epoch-held (hold cleared)
 - [ ] Mode switch (one-shot ↔ periodic) mid-operation
 
 ---

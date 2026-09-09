@@ -75,13 +75,13 @@ Each timer has 4 registers with 0x20 byte stride:
 
 #### HPET_ID (0x000) - Read Only
 - **bits[4:0]**: Reserved
-- **bit[5]**: leg_rt_cap (reads 1; feature not implemented)
+- **bit[5]**: leg_rt_cap (reads 0; legacy replacement is storage only, so the capability is not advertised)
 - **bit[6]**: Reserved
 - **bit[7]**: count_size_cap (1 = 64-bit counter)
 - **bits[12:8]**: num_tim_cap - Number of timers minus 1
 - **bits[15:13]**: Reserved
-- **bits[23:16]**: rev_id (fixed 0x01)
-- **bits[31:24]**: vendor_id (fixed 0x01)
+- **bits[23:16]**: rev_id (low byte of the REVISION_ID parameter)
+- **bits[31:24]**: vendor_id (low byte of the VENDOR_ID parameter; 0x8086 reads 0x86)
 
 #### HPET_CONFIG (0x004)
 - **bit[0]**: hpet_enable - Enable HPET globally
@@ -89,8 +89,8 @@ Each timer has 4 registers with 0x20 byte stride:
 - **bits[31:2]**: Reserved
 
 #### HPET_STATUS (0x008) - Write 1 to Clear
-- **bit[i]**: Timer[i] interrupt status (fixed 8-bit field)
-- Write 1 to clear the interrupt flag
+- **bit[i]**: Timer[i] interrupt status (fixed 8-bit field; bits with no timer behind them read 0)
+- Write 1 to clear that bit only; a 0 leaves the bit alone. The register mirrors the status held in hpet_core
 
 #### TIMER_CONFIG (0x100 + i*0x20)
 - **bits[1:0]**: Reserved

@@ -98,7 +98,8 @@ apb4_hpet (Top Level)
 |   |   +-- HPET_ID register (RO, capabilities/identification)
 |   |   +-- TIMER[i]_* registers (per-timer)
 |   |
-|   +-- edge_detect (x NUM_TIMERS) - Write strobe generation
+|   +-- Write-strobe alignment (swmod rising edge, one per 32-bit half)
+|   +-- HPET_STATUS W1C decode (per-bit clear mask from the write)
 |   +-- Per-timer data bus routing (corruption prevention)
 |
 +-- hpet_core (Timer Logic)
@@ -107,7 +108,8 @@ apb4_hpet (Top Level)
     |   +-- 64-bit comparator (r_timer_comparator[i])
     |   +-- 64-bit period storage (r_timer_period[i])
     |   +-- Timer control FSM (one-shot vs periodic)
-    |   +-- Fire detection logic
+    |   +-- Armed latch and fire pulse (r_timer_armed[i])
+    |   +-- Next-epoch hold bit (r_comp_next_epoch[i])
     +-- Counter increment logic
     +-- Comparator match detection
     +-- Interrupt generation
@@ -122,8 +124,8 @@ apb4_hpet (Top Level)
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | `NUM_TIMERS` | int | 2 | 2, 3, 8 | Number of independent timers |
-| `VENDOR_ID` | int | 1 | -- | Currently unwired: HPET_ID vendor byte is fixed 0x01 in the generated register block |
-| `REVISION_ID` | int | 1 | -- | Currently unwired: HPET_ID revision byte is fixed 0x01 |
+| `VENDOR_ID` | int | 1 | 0-255 | Drives HPET_ID[31:24] through the register block's hardware interface; the field is 8 bits, so a wider value shows only its low byte (0x8086 reads 0x86) |
+| `REVISION_ID` | int | 1 | 0-255 | Drives HPET_ID[23:16] (8-bit field, low byte only) |
 | `CDC_ENABLE` | int | 0 | 0, 1 | Enable clock domain crossing |
 | `USE_JOHNSON` | int | 0 | 0, 1 | CDC FIFO pointer encoding (0 = Gray, 1 = Johnson) |
 
@@ -183,16 +185,19 @@ hpet_regs.sv -- there are no such localparams in the RTL):
    |
    ▼
 4. hpet_config_regs
-   - Edge detection on swacc signals
-   - Generate write strobes (timer_comp_write[i])
+   - Rising-edge detect on the swmod levels, aligned to the written value
+   - Generate per-half write strobes (counter_write_lo/hi,
+     timer_comp_write_lo/hi[i])
+   - Decode an HPET_STATUS write into a per-bit clear mask
    - Route per-timer data buses
    |
    ▼
 5. hpet_core
-   - Update counter (if HPET_COUNTER write)
-   - Update comparator (if TIMER_COMPARATOR write)
+   - Load one counter half (if HPET_COUNTER_LO or _HI write)
+   - Load one comparator half; re-arm only if the timer is stopped
+     (if TIMER_COMPARATOR write)
    - Update control (if TIMER_CONFIG write)
-   - Clear interrupt (if HPET_STATUS write with W1C)
+   - Clear the status bits written with 1 (if HPET_STATUS write)
 ```
 
 #### Read Transaction Flow (HPET Core -> APB)
@@ -233,25 +238,45 @@ hpet_regs.sv -- there are no such localparams in the RTL):
    ▼
 2. Comparator Match Detection (for each timer i)
    timer_match[i] = (r_main_counter >= r_timer_comparator[i])
+                    && !r_comp_next_epoch[i]
+   (at the compare width; the hold bit forces the match off while the
+   comparator sits in the counter's next epoch)
    |
    ▼
 3. Timer Fire Logic
    |
+   A match fires only while the timer is ARMED; firing clears the
+   armed latch. The latch sets when the match falls (or is held off by
+   the epoch bit), when a comparator half is written on a STOPPED timer,
+   or when a periodic catch-up step lands at or ahead of the counter.
+   |
    +- One-Shot Mode:
-   |  - Fire when match first detected
-   |  - Stay idle until reconfigured
+   |  - Fire once on the armed match
+   |  - Stay un-armed until the comparator is written with the timer
+   |    stopped, or the match falls (comparator written above the
+   |    counter, or the counter written back)
    |  - Assert timer_irq[i]
    |
    +- Periodic Mode:
-      - Fire when match detected
+      - Fire on the armed match
       - Auto-increment comparator:
         r_timer_comparator[i] <= r_timer_comparator[i] + r_timer_period[i]
+        (the match drops, which re-arms the timer)
+      - If the advanced comparator is still at or below the counter,
+        keep advancing one boundary per cycle WITHOUT firing until it
+        is at or ahead, then re-arm (missed periods are skipped, never
+        burst; at period 1 the step is to counter + 1)
+      - If an advance carries out of the compare width, set the
+        next-epoch hold bit: no fire, no catch-up, until the counter
+        wraps at that width (or software writes the comparator or
+        counter half the compare reads, or changes timer_size)
       - Assert timer_irq[i]
       - Repeat
    |
    ▼
 4. Interrupt Status Update
-   HPET_STATUS[i] <= 1 (sticky until software clears via W1C)
+   r_interrupt_status[i] <= 1 in hpet_core (sticky until software clears
+   via W1C); HPET_STATUS[i] mirrors it
    |
    ▼
 5. Interrupt Output
@@ -317,7 +342,7 @@ and the core reset from different domains.
 | `r_timer_comparator[i]` | 64'h0 | Comparators reset to zero |
 | `r_timer_period[i]` | 64'h0 | Period storage reset |
 | `HPET_CONFIG` | 32'h0 | Global enable cleared |
-| `HPET_STATUS` | undefined | Storage has no reset (RTL defect, #46); intended 8'h0 |
+| `HPET_STATUS` | 8'h0 | Mirror of the core's `r_interrupt_status`, which also resets to 0 |
 | `TIMER[i]_CONFIG` | 32'h0 | All timers disabled |
 
 **Reset Sequence:**
@@ -328,8 +353,7 @@ always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
         // Register file
         HPET_CONFIG <= '0;
-        // HPET_STATUS: no reset exists in the RTL (defect #46) --
-        // readback undefined until first load
+        HPET_STATUS <= '0;   // mirror field; the state lives in the core
         for (int i = 0; i < NUM_TIMERS; i++) begin
             TIMER_CONFIG[i] <= '0;
         end
@@ -338,6 +362,7 @@ always_ff @(posedge clk or negedge rst_n) begin
         for (int i = 0; i < NUM_TIMERS; i++) begin
             r_timer_comparator[i] <= 64'h0;
             r_timer_period[i] <= 64'h0;
+            r_timer_armed[i] <= 1'b1;      // counter == comparator == 0 already matches
             r_interrupt_status[i] <= 1'b0;
         end
     end
@@ -369,9 +394,11 @@ apb4_hpet #(
 ) u_hpet_8t (...);
 ```
 
-Setting `VENDOR_ID`/`REVISION_ID` at instantiation is accepted but has no
-effect on the hardware: HPET_ID always reads back vendor 0x01 / revision
-0x01 (see Chapter 5).
+`VENDOR_ID`/`REVISION_ID` reach HPET_ID through the register block's
+hardware interface -- the generated block is built once for the maximum
+configuration, so nothing about it is per-instance. Both fields are 8 bits
+wide, unlike the 16-bit vendor field of a real HPET's GCAP_ID, so a
+PCI-style `VENDOR_ID(16'h8086)` reads back as 0x86 (see Chapter 5).
 
 ---
 

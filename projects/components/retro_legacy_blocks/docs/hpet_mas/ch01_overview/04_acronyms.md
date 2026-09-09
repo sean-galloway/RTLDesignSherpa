@@ -147,7 +147,7 @@ Timer-related signals use descriptive names:
 |--------------|---------|---------|
 | `cfg` | Configuration | `cfg_initial_credit` |
 | `cmp` | Comparator | `timer_cmp_data` |
-| `wr` | Write | `timer_comp_write` |
+| `wr` | Write | `timer_comp_write_lo` |
 | `rd` | Read | `counter_rd_data` |
 | `hi` | High (upper 32 bits) | `HPET_COUNTER_HI` |
 | `lo` | Low (lower 32 bits) | `HPET_COUNTER_LO` |

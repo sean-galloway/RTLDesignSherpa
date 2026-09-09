@@ -24,21 +24,29 @@
 # APB HPET Micro-Architecture Specification
 
 **Component:** APB High Precision Event Timer (HPET)
-**Version:** 1.0
-**Last Updated:** 2026-01-04
-**Status:** RTL Partial - register interface validated; STATUS clear-all
-W1C, unreset STATUS storage, dead parameters and other defects tracked
-in issue #46 (documented as deviations in ch05)
+**Version:** 1.3
+**Last Updated:** 2026-09-09
+**Status:** RTL Functional - register interface validated; HPET_STATUS
+per-bit W1C with a reset value and a core-owned status mirror, independent
+counter halves, strobe-driven comparator loads and the no-re-fire armed
+latch are as specified (fixed 2026-09-08, issue #46); periodic catch-up
+(missed periods skipped, never burst; period 1 steps to counter + 1), the
+stopped-timer-only comparator re-arm and the next-epoch hold (an advance
+that carries out of the compare width is held off until the counter wraps
+there) are as specified (review rounds 1 and 2, 2026-09-09)
 
 ---
 
 ## Overview
 
-This MAS describes the APB HPET as the RTL exists today -- not as anyone wishes it did. Where the implementation diverges from the intent (and it does, in a few interesting places), the divergence is documented in-line where you'll trip over it, and tracked centrally in issue #46. The spec is organized into five chapters covering the micro-architecture of the APB HPET component.
+This MAS describes the APB HPET as the RTL exists today. The register-side defects that issue #46 collected -- a W1C that cleared every bit on any write, status storage with no reset, a counter load that shipped the previous write's other half, and completed one-shots re-firing on every enable -- were fixed on 2026-09-08, and two review rounds the next day tightened the rules the chapters below now state: a comparator write re-arms only a stopped timer (so a half-written 64-bit comparator can never fire on the torn value), a periodic timer that falls behind catches up silently instead of firing once and going quiet (at period 1 by stepping to counter + 1), and a comparator whose advance carries out of the compare width is held in the counter's next epoch until the counter wraps there, rather than matching early. The two intentional limitations that remain (legacy replacement and `timer_value_set` are storage with nothing behind them) are called out in-line where you'll meet them. The spec is organized into five chapters covering the micro-architecture of the APB HPET component.
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2026-01-04 | RTL Design Sherpa | Initial MAS release |
+| 1.1 | 2026-09-08 | RTL Design Sherpa | Issue #46 fixes: per-bit W1C status mirror with reset, independent counter halves, strobe-driven comparator loads, armed-latch fire (no re-fire on enable), HPET_ID from parameters |
+| 1.2 | 2026-09-09 | RTL Design Sherpa | Issue #46 review: comparator writes re-arm only a stopped timer (torn 64-bit value cannot fire; disable-write-enable contract), periodic catch-up skips missed periods without bursting, period 0/1 behaviour, same-cycle write-and-fire rule, halted-counter rule for byte-strobed counter writes |
+| 1.3 | 2026-09-09 | RTL Design Sherpa | Issue #46 review round 2: period-1 catch-up steps to counter + 1 and terminates on advance >= counter; next-epoch hold bit (`r_comp_next_epoch`) for an advance that carries out of the compare width, with its four clears and the width consequences; stopped-timer comparator write always re-arms (a value at or below the counter fires on enable, no wait for wrap); running-timer reprogramming consequences stated as outside the contract; width-masked advance in 32-bit mode |
 
 : Table: Version History
 

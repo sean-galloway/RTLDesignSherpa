@@ -354,6 +354,17 @@ class HPETTB(TBBase):
         self.APB_CLOCK_PERIOD = int(os.environ.get('TEST_APB_CLOCK_PERIOD', '20'))  # 50MHz
         self.HPET_CLOCK_PERIOD = int(os.environ.get('TEST_HPET_CLOCK_PERIOD', '10'))  # 100MHz
 
+        # CDC_ENABLE is an RTL compile-time parameter (apb4_hpet.sv), not
+        # visible on the dut hierarchy as a signal. The pytest runner
+        # (test_apb4_hpet.py) mirrors it into TEST_CDC_ENABLE so the TB can
+        # know, without guessing, which clock actually drives hpet_core /
+        # hpet_config_regs: CDC_ENABLE=1 -> hpet_clk, CDC_ENABLE=0 -> pclk
+        # (see apb4_hpet.sv: `.clk(CDC_ENABLE[0] ? hpet_clk : pclk)`).
+        # CORE_CLOCK_PERIOD is that domain's period -- tests that predict
+        # exact fire timing (issue #46 races) use it instead of guessing.
+        self.CDC_ENABLE = int(os.environ.get('TEST_CDC_ENABLE', '0'))
+        self.CORE_CLOCK_PERIOD = self.HPET_CLOCK_PERIOD if self.CDC_ENABLE else self.APB_CLOCK_PERIOD
+
         # Test configuration
         self.MAX_TEST_TIME = int(os.environ.get('TEST_MAX_TIME', '100000'))  # ns
         self.INTERRUPT_TIMEOUT = int(os.environ.get('TEST_INTERRUPT_TIMEOUT', '25000'))  # ns - allow for 1000 * 10ns HPET clocks plus APB transaction delays

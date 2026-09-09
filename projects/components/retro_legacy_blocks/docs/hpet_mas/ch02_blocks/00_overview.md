@@ -41,13 +41,14 @@ apb4_hpet (Top Level)
 |   |
 |   +-- Mapping Logic
 |       +-- Per-Timer Data Buses
-|       +-- Edge Detection
-|       +-- Counter Write Capture
+|       +-- Write-Strobe Alignment (swmod rising edge, per half)
+|       +-- HPET_STATUS Mirror and W1C Decode
 |
 +-- hpet_core (Timer Logic)
     +-- 64-bit Free-Running Counter
     +-- Per-Timer Comparators [NUM_TIMERS]
-    +-- Fire Detection Logic [NUM_TIMERS]
+    +-- Armed Latch and Fire Pulse [NUM_TIMERS]
+    +-- Next-Epoch Hold Bit [NUM_TIMERS]
     +-- Interrupt Generation [NUM_TIMERS]
 ```
 
@@ -81,14 +82,22 @@ apb4_hpet (Top Level)
 - Instantiates PeakRDL-generated register file
 - Maps PeakRDL hardware interface to HPET core signals
 - Implements per-timer dedicated data buses (corruption fix)
-- Detects register write edges for control strobes
-- Handles 32-bit to 64-bit register combining
+- Turns the register block's `swmod` levels into aligned one-cycle write
+  strobes, one per 32-bit half
+- Combines the LO/HI fields into 64-bit data buses
+- Mirrors the core's interrupt status into HPET_STATUS and decodes the
+  W1C write into a per-bit clear
+- Drives HPET_ID's vendor, revision and timer-count fields from the
+  parameters
 
 **Key Features:**
 - Per-timer data buses prevent configuration corruption
-- Edge detection for write strobes (not level)
-- Counter write capture from APB domain
-- W1C interrupt clearing support
+- Strobe-driven loads: a write is the event, not a change in the stored
+  value, so rewriting the same comparator still reloads it (whether it
+  also re-arms the timer is the core's call: only while the timer is
+  stopped)
+- Per-bit W1C clear mask from the write data and byte enables
+- One clear pulse per write, so a same-cycle fire is never undone
 
 #### 3. hpet_regs (PeakRDL Generated)
 **File:** `rtl/hpet/hpet_regs.sv`
@@ -121,7 +130,12 @@ apb4_hpet (Top Level)
 - Fully synchronous timer logic
 - Per-timer FSM (conceptual)
 - Automatic period reload (periodic mode)
-- Edge-based fire detection
+- Armed-latch fire detection: one fire per arm, no re-fire on enable,
+  comparator writes re-arm only a stopped timer
+- Periodic catch-up: missed periods are skipped, never burst (period 1
+  steps to counter + 1)
+- Next-epoch hold: an advance that carries out of the compare width is
+  held off until the counter wraps at that width
 - Configurable timer count (2, 3, or 8 timers)
 
 ### Data Flow Overview
@@ -138,7 +152,7 @@ peakrdl_to_cmdrsp Adapter
 hpet_regs (PeakRDL)
     ↓ hwif_out (register values)
 hpet_config_regs (Mapping)
-    ↓ timer_enable, timer_comp_write, timer_comp_wdata[i]
+    ↓ timer_enable, timer_comp_write_lo/hi, timer_comp_wdata[i]
 hpet_core (Timer Logic)
     -> Counter/Comparator update
 ```
@@ -167,27 +181,26 @@ APB Master
 ```
 hpet_core
     ← Counter increments
-    -> Comparator match detected
-    -> timer_int_status[i] asserts (sticky)
+    -> Raw match (counter >= comparator) while the timer is armed
+    -> timer_int_status[i] asserts (sticky, owned here); armed latch clears
     -> timer_irq[i] asserts one clock later (if int_enable was set at fire)
         ↓
 hpet_config_regs
-    -> hwif_in.HPET_STATUS.timer_int_status (edge pulse)
+    -> hwif_in.HPET_STATUS.timer_int_status.next (live level, every cycle)
         ↓
 hpet_regs (PeakRDL)
-    -> STATUS register bit latches (sticky)
+    -> HPET_STATUS reads the mirrored level
         ↓
 Software reads HPET_STATUS
-Software writes W1C to clear
+Software writes 1 to bit i
     ↓
 hpet_config_regs
-    -> timer_int_clear[i] asserts
-       (known RTL deviation, issue #46: the clear strobe fires on ANY
-       HPET_STATUS write and clears every pending core status bit, not
-       only the bits written with 1)
+    -> timer_int_clear[i] pulses for ONE cycle
+       (mask = write data & byte enables: bits written 0 are untouched,
+       a write of 0x0 clears nothing)
         ↓
 hpet_core
-    -> timer_int_status[i] clears
+    -> timer_int_status[i] clears (a fire of the same bit in that cycle wins)
     -> timer_irq[i] deasserts
 ```
 
@@ -229,13 +242,15 @@ CDC synchronization between pclk and hpet_clk
 **Control Signals (hpet_config_regs -> hpet_core):**
 ```systemverilog
 output logic                    hpet_enable;            // Global enable
-output logic                    counter_write;          // Counter write strobe
+output logic                    counter_write_lo;       // Counter[31:0] write strobe
+output logic                    counter_write_hi;       // Counter[63:32] write strobe
 output logic [63:0]             counter_wdata;          // Counter write data
 output logic [NUM_TIMERS-1:0]   timer_enable;           // Per-timer enable
 output logic [NUM_TIMERS-1:0]   timer_int_enable;       // Per-timer interrupt enable
 output logic [NUM_TIMERS-1:0]   timer_type;             // Per-timer mode (0=one-shot, 1=periodic)
 output logic [NUM_TIMERS-1:0]   timer_size;             // Per-timer size (0=32-bit, 1=64-bit)
-output logic [NUM_TIMERS-1:0]   timer_comp_write;       // Per-timer comparator write strobe
+output logic [NUM_TIMERS-1:0]   timer_comp_write_lo;    // Per-timer comparator[31:0] write strobe
+output logic [NUM_TIMERS-1:0]   timer_comp_write_hi;    // Per-timer comparator[63:32] write strobe
 output logic [63:0]             timer_comp_wdata[NUM_TIMERS];  // Per-timer data buses
 ```
 
@@ -247,7 +262,7 @@ input  logic [NUM_TIMERS-1:0]   timer_int_status;       // Per-timer fire status
 
 **Interrupt Clearing (hpet_config_regs -> hpet_core):**
 ```systemverilog
-output logic [NUM_TIMERS-1:0]   timer_int_clear;        // Clear sticky status
+output logic [NUM_TIMERS-1:0]   timer_int_clear;        // Per-bit clear of the sticky status
 ```
 
 #### hpet_config_regs -> hpet_regs Interface
@@ -315,9 +330,10 @@ Software clears timer interrupts by writing 1 to the corresponding bit in HPET_S
 
 ![HPET Interrupt Clear](../assets/wavedrom/timing/hpet_interrupt_clear.png)
 
-The W1C (Write-1-to-Clear) mechanism is INTENDED for per-bit clearing;
-in the current RTL any HPET_STATUS write clears ALL pending core bits
-(deviation #46, detailed later in this chapter).
+The W1C (Write-1-to-Clear) write clears only the bits written with 1: the
+wrapper decodes the write data and byte enables into a per-bit mask,
+pulses `timer_int_clear` for one cycle, and hpet_core drops just those
+bits. Writing 0 -- to a bit or to the whole register -- changes nothing.
 
 #### Timer Setup Sequence
 
@@ -331,6 +347,14 @@ The sequence shows three consecutive writes:
 1. TIMER_CONFIG (0x100): Enable, interrupt enable, periodic mode
 2. TIMER_COMPARATOR_LO (0x104): Lower 32 bits of comparator
 3. TIMER_COMPARATOR_HI (0x108): Upper 32 bits of comparator
+
+Each comparator half loads hpet_core on its own write strobe, so between
+writes 2 and 3 the core holds {old HI, new LO}. A write re-arms the timer
+only while it is stopped, so that torn value can never fire on a running
+timer -- but a running timer then re-arms only when the completed value is
+above the counter. Write the comparator before enabling the timer, or
+disable it around the pair, whenever the new value may already be behind
+the counter; a write with the timer stopped re-arms it to any value.
 
 #### Clock Domain Crossing (CDC Mode)
 
@@ -388,8 +412,8 @@ When integrating APB HPET:
 
 **1. Parameter Selection:**
 - [ ] `NUM_TIMERS`: 2, 3, or 8 timers
-- [ ] `VENDOR_ID`: currently unwired -- HPET_ID reads fixed 0x01 (#46)
-- [ ] `REVISION_ID`: currently unwired -- HPET_ID reads fixed 0x01 (#46)
+- [ ] `VENDOR_ID`: reported in HPET_ID[31:24]; an 8-bit field, so a wider value shows only its low byte
+- [ ] `REVISION_ID`: reported in HPET_ID[23:16]; likewise 8 bits
 - [ ] `CDC_ENABLE`: 0 for synchronous, 1 for asynchronous clocks
 
 **2. Clock Configuration:**

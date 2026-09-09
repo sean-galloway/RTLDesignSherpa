@@ -36,7 +36,7 @@ digraph apb4_hpet {
     apb4_master -> apb4_slave [label="APB transactions\n(PCLK)", style=bold];
     apb4_slave -> config_regs [label="APB signals"];
 
-    config_regs -> hpet_core [label="Control/Data\n(cross domain if CDC)\n\nhpet_enable\ncounter_write\ntimer config", style=bold, color=blue];
+    config_regs -> hpet_core [label="Control/Data\n(cross domain if CDC)\n\nhpet_enable\ncounter_write_lo/hi\ntimer config", style=bold, color=blue];
     hpet_core -> config_regs [label="Status/Data\n(cross domain if CDC)\n\ncounter_rdata\ntimer status", style=bold, color=blue];
 
     hpet_core -> interrupts [label="timer_irq[N-1:0]\n(HPET_CLK domain)", style=bold, color=red];

@@ -9,9 +9,9 @@ digraph hpet_core {
 
     // Input signals
     hpet_enable [label="hpet_enable", shape=ellipse, fillcolor=lightgreen];
-    counter_write [label="counter_write\ncounter_wdata[63:0]", shape=ellipse, fillcolor=lightgreen];
+    counter_write [label="counter_write_lo / counter_write_hi\ncounter_wdata[63:0]", shape=ellipse, fillcolor=lightgreen];
     timer_cfg [label="timer_enable[N-1:0]\ntimer_type[N-1:0]\ntimer_size[N-1:0]", shape=ellipse, fillcolor=lightgreen];
-    timer_comp_write [label="timer_comp_write[N-1:0]\ntimer_comp_wdata[N][63:0]", shape=ellipse, fillcolor=lightgreen];
+    timer_comp_write [label="timer_comp_write_lo/hi[N-1:0]\ntimer_comp_wdata[N][63:0]", shape=ellipse, fillcolor=lightgreen];
     timer_int_clear [label="timer_int_clear[N-1:0]", shape=ellipse, fillcolor=lightgreen];
 
     // Main counter block
@@ -30,20 +30,18 @@ digraph hpet_core {
 
     // Output signals
     counter_rdata [label="counter_rdata[63:0]", shape=ellipse, fillcolor=pink];
-    timer_comp_rdata [label="timer_comp_rdata[N][63:0]", shape=ellipse, fillcolor=pink];
     timer_int_status [label="timer_int_status[N-1:0]", shape=ellipse, fillcolor=pink];
     timer_irq [label="timer_irq[N-1:0]", shape=ellipse, fillcolor=pink];
 
     // Main counter dataflow
     hpet_enable -> main_counter [label="enable"];
-    counter_write -> main_counter [label="write"];
+    counter_write -> main_counter [label="per-half load"];
     main_counter -> counter_rdata [label="read"];
     main_counter -> timer_match [label="counter[63:0]\ncompare", style=bold];
 
     // Timer comparator dataflow
     timer_cfg -> timer_comp [label="config"];
-    timer_comp_write -> timer_comp [label="write"];
-    timer_comp -> timer_comp_rdata [label="read"];
+    timer_comp_write -> timer_comp [label="per-half load"];
     timer_comp -> timer_match [label="comparator[i][63:0]"];
 
     // Match and interrupt logic

@@ -111,8 +111,7 @@ always_ff @(posedge pclk or negedge presetn) begin
     if (!presetn) begin
         // Global configuration
         HPET_CONFIG <= 32'h0;         // HPET disabled
-        // HPET_STATUS: no reset in the generated RTL (defect, #46) --
-        // readback undefined until first fire/clear; intended 0
+        HPET_STATUS <= 32'h0;         // mirror of the core's status (also reset there)
 
         // Per-timer configuration
         for (int i = 0; i < NUM_TIMERS; i++) begin
@@ -126,10 +125,10 @@ end
 | Register | Reset Value | Description |
 |----------|-------------|-------------|
 | `HPET_CONFIG` | 32'h0 | Global disable, no legacy mapping |
-| `HPET_STATUS` | undefined | Storage has no reset (RTL defect, #46); intended 32'h0 |
+| `HPET_STATUS` | 32'h0 | Mirror of the core's `r_interrupt_status`; both reset to 0 |
 | `HPET_COUNTER_LO` | 32'h0 | Read/write; reads return the live counter |
 | `HPET_COUNTER_HI` | 32'h0 | Read/write; reads return the live counter |
-| `HPET_ID` | Constant | RO identification: vendor/revision fixed 0x01/0x01, `num_tim_cap` = NUM_TIMERS-1 |
+| `HPET_ID` | Constant | RO identification: vendor/revision are the low byte of `VENDOR_ID`/`REVISION_ID`, `num_tim_cap` = NUM_TIMERS-1, `leg_rt_cap` = 0 |
 | `TIMER[i]_CONFIG` | 32'h0 | Timer disabled, one-shot mode |
 | `TIMER[i]_COMPARATOR_LO` | 32'h0 | Read/write; reads return the last software-written value |
 | `TIMER[i]_COMPARATOR_HI` | 32'h0 | Read/write; reads return the last software-written value |
@@ -153,6 +152,8 @@ always_ff @(posedge hpet_clk or negedge hpet_resetn) begin
         for (int i = 0; i < NUM_TIMERS; i++) begin
             r_timer_comparator[i] <= 64'h0;
             r_timer_period[i] <= 64'h0;
+            r_timer_armed[i] <= 1'b1;
+            r_comp_next_epoch[i] <= 1'b0;
             r_interrupt_status[i] <= 1'b0;
         end
     end
@@ -165,6 +166,8 @@ end
 | `r_main_counter` | 64'h0 | Counter starts at zero |
 | `r_timer_comparator[i]` | 64'h0 | Comparators cleared |
 | `r_timer_period[i]` | 64'h0 | Period storage cleared |
+| `r_timer_armed[i]` | 1'b1 | Armed: counter == comparator == 0 is already a match, and the enables gate it until software is ready |
+| `r_comp_next_epoch[i]` | 1'b0 | Next-epoch hold clear: the comparator is in the counter's current epoch, so the match is not held off |
 | `r_interrupt_status[i]` | 1'b0 | Interrupt status cleared |
 
 ### Clock Domain Crossing Details
@@ -254,12 +257,29 @@ uint64_t read_hpet_counter(void) {
 5. To resume: Ungate hpet_clk, then write HPET_CONFIG[0] = 1
 ```
 
-**Known RTL deviation (#46): re-enabling fires expired timers.** The fire
-detector is an edge on (match && enables), so any 0->1 of HPET_CONFIG[0]
-(or a timer's own enable) while counter >= comparator creates a fresh
-match edge -- every completed one-shot re-fires the moment step 5 runs,
-setting status and irq. After any re-enable, clear HPET_STATUS and/or
-rewrite the comparators of expired timers before unmasking interrupts.
+**Re-enabling does not re-fire expired timers.** The fire pulse is a raw
+`counter >= comparator` match qualified by a per-timer armed latch that
+clears when the timer fires and sets again only when the match falls
+(or is held off by the next-epoch bit), when a comparator half is written
+with the timer stopped, or when a periodic catch-up step lands at or
+ahead of the counter. A one-shot that
+completed before step 1 is still un-armed when step 5 runs, so the 0->1
+of HPET_CONFIG[0] (or of a timer's own enable) while counter >= comparator
+produces nothing. The one case that does fire on enable is the intended
+one: a timer whose comparator was written while everything was disabled
+-- even to a value the counter has already passed -- is armed, and fires
+once as soon as both enables are on. A periodic timer left behind by a
+counter write during the halt catches up silently at step 5: one fire at
+the next boundary still ahead, the missed periods skipped rather than
+burst. The silence has a length. A catch-up advances the comparator once
+per cycle and closes the deficit by period - 1 counts each time (period
+1 jumps to counter + 1 in one), so it costs cycles in proportion to the
+deficit -- a period-2 timer left 2^52 counts behind catches up for
+~2^52 cycles with no interrupt. That bound is a contract, not a defect,
+and it is why the HPET specification and this book require the counter
+halted (`HPET_CONFIG[0] = 0`) before it is written -- a torn or stale
+half on a running counter is exactly how a 2^52 deficit appears -- and a
+periodic comparator programmed near or ahead of the counter.
 
 ---
 

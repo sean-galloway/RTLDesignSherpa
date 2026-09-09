@@ -25,7 +25,7 @@
 
 ## Overview
 
-The `hpet_config_regs` module is the bridge between the PeakRDL-generated register file (`hpet_regs.sv`) and the HPET core timer logic (`hpet_core.sv`). The wrapper exists because the generated register interface and the core's expectations don't line up on their own: it handles interface adaptation, per-timer data bus isolation, and register write edge detection.
+The `hpet_config_regs` module is the bridge between the PeakRDL-generated register file (`hpet_regs.sv`) and the HPET core timer logic (`hpet_core.sv`). The wrapper exists because the generated register interface and the core's expectations don't line up on their own: it handles interface adaptation, per-timer data bus isolation, and turning the register block's write indications into the one-cycle strobes the core expects.
 
 ### Figure 2.14: HPET Config Registers Block Diagram
 
@@ -38,9 +38,10 @@ The `hpet_config_regs` module is the bridge between the PeakRDL-generated regist
 1. **PeakRDL Integration:** Instantiates `hpet_regs.sv` and `peakrdl_to_cmdrsp` adapter
 2. **Interface Mapping:** Converts PeakRDL hardware interface to HPET core signals
 3. **Per-Timer Data Buses:** Implements dedicated 64-bit data paths per timer (prevents corruption)
-4. **Edge Detection:** Generates write strobes from register updates
-5. **Counter Write Handling:** Captures software writes to counter registers
-6. **Interrupt Management:** Handles W1C status clearing and interrupt feedback
+4. **Write Strobes:** Rising-edge detects the register block's `swmod` levels and aligns each to the cycle the field presents the written value -- one strobe per 32-bit half
+5. **Counter Write Handling:** Hands the just-written counter half to the core, byte strobes already merged by the register block
+6. **Interrupt Management:** Mirrors the core's sticky status into HPET_STATUS and decodes the W1C write into a per-bit, one-cycle clear
+7. **Identification:** Drives HPET_ID's vendor, revision and timer-count fields from the module parameters
 
 ---
 
@@ -48,8 +49,8 @@ The `hpet_config_regs` module is the bridge between the PeakRDL-generated regist
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| `VENDOR_ID` | int | 1 | -- | UNWIRED: HPET_ID[31:24] reads fixed 0x01 regardless (#46) |
-| `REVISION_ID` | int | 1 | -- | UNWIRED: HPET_ID[23:16] reads fixed 0x01 regardless (#46) |
+| `VENDOR_ID` | int | 1 | 0-255 | Drives HPET_ID[31:24] via `hwif_in`; an 8-bit field, so a wider value shows only its low byte (0x8086 reads 0x86) |
+| `REVISION_ID` | int | 1 | 0-255 | Drives HPET_ID[23:16] via `hwif_in` (8-bit field, low byte only) |
 | `NUM_TIMERS` | int | 2 | 2, 3, 8 | Number of independent timers in array |
 
 ---
@@ -89,8 +90,9 @@ The `hpet_config_regs` module is the bridge between the PeakRDL-generated regist
 **Counter Interface:**
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|-------------|
-| **counter_write** | logic | 1 | Output | Counter write strobe (pulse) |
-| **counter_wdata** | logic | 64 | Output | Counter write data (combined LO/HI) |
+| **counter_write_lo** | logic | 1 | Output | One-cycle strobe: HPET_COUNTER_LO was written |
+| **counter_write_hi** | logic | 1 | Output | One-cycle strobe: HPET_COUNTER_HI was written |
+| **counter_wdata** | logic | 64 | Output | Counter write data ({HI, LO} field values; the strobed half is the just-written value) |
 | **counter_rdata** | logic | 64 | Input | Live counter value (from hpet_core) |
 
 **Per-Timer Configuration:**
@@ -105,16 +107,15 @@ The `hpet_config_regs` module is the bridge between the PeakRDL-generated regist
 **Per-Timer Comparator (Dedicated Buses):**
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|-------------|
-| **timer_comp_write[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer comparator write strobes |
+| **timer_comp_write_lo[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer one-cycle strobe: TIMER_COMPARATOR_LO written |
+| **timer_comp_write_hi[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer one-cycle strobe: TIMER_COMPARATOR_HI written |
 | **timer_comp_wdata[NUM_TIMERS]** | logic [63:0] | NUM_TIMERS×64 | Output | Per-timer comparator data (LO/HI combined) |
-| **timer_comp_write_high** | logic | 1 | Output | High half write detection |
-| **timer_comp_rdata[NUM_TIMERS]** | logic [63:0] | NUM_TIMERS×64 | Input | Per-timer comparator read data |
 
 **Interrupt Status:**
 | Signal Name | Type | Width | Direction | Description |
 |-------------|------|-------|-----------|-------------|
-| **timer_int_status[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Input | Per-timer fire status (from hpet_core) |
-| **timer_int_clear[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-timer status clear (W1C pulse) |
+| **timer_int_status[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Input | Per-timer sticky status (from hpet_core; mirrored into HPET_STATUS) |
+| **timer_int_clear[NUM_TIMERS-1:0]** | logic | NUM_TIMERS | Output | Per-bit one-cycle clear pulse (the bits written with 1) |
 
 ---
 
@@ -176,62 +177,82 @@ assign hpet_enable = hwif_out.HPET_CONFIG.hpet_enable.value;
 assign legacy_replacement = hwif_out.HPET_CONFIG.legacy_replacement.value;
 ```
 
-#### Counter Write Detection
+#### Counter Write Strobes
 
-Uses address-based detection and data capture:
+Everything this block hands to hpet_core is driven by the register WRITE,
+never by a change in a stored value. The register block exports `swmod`
+for HPET_COUNTER_LO/HI and every TIMER_COMPARATOR_LO/HI, and two
+corrections are needed before it can be used as an operation pulse:
+
+1. **It is a level, not a pulse.** `peakrdl_to_cmdrsp` deliberately holds
+   `regblk_req` from the accept cycle through its wait-for-ack state, so
+   `swmod` is asserted for the whole transaction -- two cycles.
+2. **It leads the field by one cycle.** `swmod` is high while the field is
+   still taking the written value.
+
+So each strobe is a rising-edge detect on the `swmod` level (one
+transaction, one pulse) delayed one flop, which lands it in the cycle
+where the field presents the newly written value. The strobe's data is
+then read straight out of the field, which is what makes byte strobes
+work: the register block has already merged `(value & ~biten) | (wr_data
+& biten)`, where sampling `regblk_wr_data` raw would write whole 32-bit
+words on a partial-byte write. That `value` is the field's own mirror,
+which on a running counter is a cycle behind the live count -- so a
+partial (`PSTRB != 0xF`) counter write is only exact with the counter
+halted (chapter 5, HPET_COUNTER_LO usage notes).
+
+The upstream cpuif must drop `regblk_req` between transactions, or two
+back-to-back writes to one register would look like one long level and
+produce a single strobe. `apb4_slave` and `apb4_slave_cdc` are both
+strictly one-outstanding, so it holds; simulation-only assertions in the
+module trip if a `swmod` level ever spans three cycles.
+
+**Counter write strobes:** each half is loaded on its OWN aligned strobe,
+from its OWN field, so a "write LO then write HI" sequence lands both
+halves and the core never sees a stale partner:
+
 ```systemverilog
-// Detect which register was written
-assign counter_lo_written = regblk_req && regblk_req_is_wr && (regblk_addr[8:0] == 9'h010);
-assign counter_hi_written = regblk_req && regblk_req_is_wr && (regblk_addr[8:0] == 9'h014);
+assign w_counter_lo_swmod = hwif_out.HPET_COUNTER_LO.counter_lo.swmod;
+assign w_counter_hi_swmod = hwif_out.HPET_COUNTER_HI.counter_hi.swmod;
 
-// Capture software-written values from write data bus
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-        last_sw_counter_lo <= '0;
-        last_sw_counter_hi <= '0;
+        r_counter_lo_swmod_d <= 1'b0;
+        r_counter_hi_swmod_d <= 1'b0;
+        counter_write_lo     <= 1'b0;
+        counter_write_hi     <= 1'b0;
     end else begin
-        if (counter_lo_written) last_sw_counter_lo <= regblk_wr_data;
-        if (counter_hi_written) last_sw_counter_hi <= regblk_wr_data;
+        r_counter_lo_swmod_d <= w_counter_lo_swmod;
+        r_counter_hi_swmod_d <= w_counter_hi_swmod;
+        counter_write_lo     <= w_counter_lo_swmod & ~r_counter_lo_swmod_d;
+        counter_write_hi     <= w_counter_hi_swmod & ~r_counter_hi_swmod_d;
     end
 end
 
-// Counter write strobe asserted when software modifies either half
-assign counter_write = hwif_out.HPET_COUNTER_LO.counter_lo.swmod ||
-                      hwif_out.HPET_COUNTER_HI.counter_hi.swmod;
-
-// Combined 64-bit write data
-assign counter_wdata = {last_sw_counter_hi, last_sw_counter_lo};
+// In the aligned strobe cycle the field holds the value the write just
+// committed; one cycle later the hardware write-back resumes mirroring
+// the live counter.
+assign counter_wdata = {hwif_out.HPET_COUNTER_HI.counter_hi.value,
+                        hwif_out.HPET_COUNTER_LO.counter_lo.value};
 ```
 
 **Timing:**
 ```
-Clock:        -+ +-+ +-+ +-+ +-
-clk           +-+ +-+ +-+ +-
+Clock:           -+ +-+ +-+ +-+ +-+ +-
+clk              +-+ +-+ +-+ +-+ +-
 
-Write:        ---+ +---------
-counter_lo_written+-
+swmod (level):   ---+     +---------
+counter_lo.swmod   +-----+
 
-Data:         [OLD][NEW][NEW]
-regblk_wr_data
+Field:           [LIVE][LIVE][NEW ][LIVE]
+counter_lo.value
 
-Captured:     [OLD][OLD][NEW]
-last_sw_counter_lo
+Strobe:          ---------+ +-------
+counter_write_lo          +-
 
-swmod:        ----+ +-----
-              +-
-
-counter_write:----+ +-----
-              +-
-
-Note: 1-cycle pulse when software writes
+Note: one pulse per write, aligned to the cycle the field shows NEW;
+the core loads counter[31:0] from that value and HI is untouched
 ```
-
-**Known RTL deviation (issue #46):** `counter_write` pulses on the same cycle
-the write lands, but `last_sw_counter_lo/hi` are captured into flops on that
-same edge -- so the core samples the PREVIOUSLY captured halves. After the
-documented "write LO, then HI" sequence the counter holds {old HI, new LO};
-the new HI half only reaches the counter on a subsequent write. Writing 0 to
-both halves works by accident (stale value equals new value).
 
 #### Timer Configuration Mapping
 
@@ -267,24 +288,32 @@ generate
     end
 endgenerate
 
-// Per-timer write strobe generation (edge detection)
+// Per-timer write strobes: the same swmod rising-edge-plus-one-flop
+// alignment as the counter, one strobe per half. The comparator fields
+// are hw = r, so the value is simply whatever software last wrote; the
+// STROBE is what tells the core to reload it, which is what makes
+// rewriting the same value reload it. Whether the reload also re-arms
+// the timer is the core's decision (only while the timer is stopped).
 generate
-    for (genvar i = 0; i < NUM_TIMERS; i++) begin : g_timer_wr_detect
-        always_ff @(posedge clk or negedge rst_n) begin
-            if (!rst_n) begin
-                prev_timer_comp_lo[i] <= '0;
-                prev_timer_comp_hi[i] <= '0;
-            end else begin
-                prev_timer_comp_lo[i] <= hwif_out.TIMER[i].TIMER_COMPARATOR_LO.timer_comp_lo.value;
-                prev_timer_comp_hi[i] <= hwif_out.TIMER[i].TIMER_COMPARATOR_HI.timer_comp_hi.value;
-            end
-        end
-
-        assign timer_comp_write[i] =
-            (hwif_out.TIMER[i].TIMER_COMPARATOR_LO.timer_comp_lo.value != prev_timer_comp_lo[i]) ||
-            (hwif_out.TIMER[i].TIMER_COMPARATOR_HI.timer_comp_hi.value != prev_timer_comp_hi[i]);
+    for (genvar i = 0; i < NUM_TIMERS; i++) begin : g_timer_mapping
+        assign w_comp_lo_swmod[i] = hwif_out.TIMER[i].TIMER_COMPARATOR_LO.timer_comp_lo.swmod;
+        assign w_comp_hi_swmod[i] = hwif_out.TIMER[i].TIMER_COMPARATOR_HI.timer_comp_hi.swmod;
     end
 endgenerate
+
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        r_comp_lo_swmod_d   <= '0;
+        r_comp_hi_swmod_d   <= '0;
+        timer_comp_write_lo <= '0;
+        timer_comp_write_hi <= '0;
+    end else begin
+        r_comp_lo_swmod_d   <= w_comp_lo_swmod;
+        r_comp_hi_swmod_d   <= w_comp_hi_swmod;
+        timer_comp_write_lo <= w_comp_lo_swmod & ~r_comp_lo_swmod_d;
+        timer_comp_write_hi <= w_comp_hi_swmod & ~r_comp_hi_swmod_d;
+    end
+end
 ```
 
 **Architecture Benefit:**
@@ -299,80 +328,74 @@ No shared bus -> No corruption possible
 
 #### Interrupt Status Handling
 
-**Edge Detection for Sticky Interrupts:**
-
-PeakRDL sticky interrupt fields expect edge pulses (not levels). The wrapper implements edge detection:
+**HPET_STATUS is a mirror.** hpet_core owns the sticky interrupt status.
+The register's field is driven from the core's live level every cycle
+(`hw = w`), and the software write is turned into a per-bit clear pulse
+into the core. The field is a fixed 8 bits wide regardless of NUM_TIMERS;
+zero-extending here is what keeps the bits with no timer behind them
+reading 0 forever.
 
 ```systemverilog
-// Previous state storage
-logic [NUM_TIMERS-1:0] prev_timer_int_status;
-
-always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-        prev_timer_int_status <= '0;
-    end else begin
-        prev_timer_int_status <= timer_int_status;
-    end
+// Mirror out: the core's level, zero-extended to the 8-bit field
+always_comb begin
+    w_timer_int_status_reg                 = '0;
+    w_timer_int_status_reg[NUM_TIMERS-1:0] = timer_int_status;
 end
-
-// Detect rising edge (0->1 transition)
-assign timer_int_rising_edge = timer_int_status & ~prev_timer_int_status;
-
-// Feed edge-detected pulse to PeakRDL hwset
-assign hwif_in.HPET_STATUS.timer_int_status.hwset = |timer_int_rising_edge;
-
-// Feed current level to next (for multi-bit sticky logic)
-assign hwif_in.HPET_STATUS.timer_int_status.next = {{(8-NUM_TIMERS){1'b0}}, timer_int_status};
+assign hwif_in.HPET_STATUS.timer_int_status.next = w_timer_int_status_reg;
 ```
 
-**Interrupt Clearing (W1C):**
+**Interrupt Clearing (W1C, per bit):**
 
-When software writes 1 to HPET_STATUS bit to clear (W1C), the wrapper generates a clear pulse to hpet_core:
+The clear mask comes from the write itself -- `regblk_wr_data &
+regblk_wr_biten`, masked to NUM_TIMERS bits -- so a bit clears only if
+software wrote a 1 to it, and a write of 0x0 is the no-op W1C requires.
+The write is detected by mirroring the register block's own address decode
+rather than through `swmod` (whose extra `|biten` term makes it a different
+decode); a simulation-only assertion guards the two against drifting apart.
 
 ```systemverilog
-// Detect when software writes W1C to HPET_STATUS
-// PeakRDL swmod signal pulses when SW modifies the field
-assign timer_int_clear = {NUM_TIMERS{hwif_out.HPET_STATUS.timer_int_status.swmod}} & timer_int_status;
+// Mirror of the regblock's decode for HPET_STATUS (offset 0x008)
+assign w_status_sw_wr = regblk_req && regblk_req_is_wr &&
+                        (regblk_addr[8:0] == ADDR_HPET_STATUS);
+
+// One event per transaction: the request is held for two cycles, and a
+// clear that spanned both would undo a fire the core accepted in the first
+assign w_status_wr_event = w_status_sw_wr & ~r_status_sw_wr_d;
+
+// Per-bit W1C mask from the write being committed
+assign w_status_w1c_mask = regblk_wr_data[NUM_TIMERS-1:0] &
+                           regblk_wr_biten[NUM_TIMERS-1:0];
+
+assign timer_int_clear = w_status_wr_event ? w_status_w1c_mask : '0;
 ```
 
-**Known RTL deviation (issue #46):** `swmod` pulses on ANY write to
-HPET_STATUS regardless of the data, and it is replicated across all timers.
-So every pending core status bit is cleared by any HPET_STATUS write --
-including a write of 0x0, which per W1C semantics should be a no-op -- and
-clearing one timer's bit also clears the others' irq outputs, while the
-PeakRDL register itself (a correct per-bit W1C) can keep bits set that the
-core has already dropped.
-A narrower corollary of the same clear path: the core gives the clear
-priority over a same-cycle fire, so a timer firing in the exact cycle
-of an unrelated HPET_STATUS write has that fire silently discarded.
+The clear is narrowed to ONE cycle even though the mask makes it
+idempotent: a two-cycle level would eat a fire that landed in its first
+cycle (the core sets the bit, the level's second cycle clears it again).
+One cycle here plus fire-over-clear priority in the core closes that
+window.
 
 **Timing:**
 ```
-Clock:           -+ +-+ +-+ +-
-clk              +-+ +-+ +-
+Clock:           -+ +-+ +-+ +-+ +-+ +-
+clk              +-+ +-+ +-+ +-+ +-
 
-Timer Fires:     --+ +-------
-timer_int_status   +-
+Timer Fires:     --+
+timer_int_status   +---------------+
+                                   +---
 
-Edge Detect:     ----+ +-----
-timer_int_rising_edge+-
+HPET_STATUS:     ----+
+(mirror, 1 cyc)      +-------------+
+                                   +---
 
-hwset Pulse:     ----+ +-----
-hwif_in.hwset    +-
+SW Write (lvl):  ----------+     +-----
+regblk_req, addr 0x008     +-----+
 
-PeakRDL Sticky:  --+
-STATUS bit       +---------
+Clear Pulse:     ----------+ +---------
+timer_int_clear[i]         +-
 
-SW Write W1C:    --------+ +-
-swmod pulse              +-
-
-Clear Pulse:     --------+ +-
-timer_int_clear          +-
-
-Timer Clears:    --+       +-
-timer_int_status   +-------+
-
-Note: Edge detection + W1C clearing flow
+Note: the mirror follows the core one register stage later; the clear
+is one cycle wide, for the bits written with 1 only
 ```
 
 ### Register-to-Core Signal Summary
@@ -380,17 +403,17 @@ Note: Edge detection + W1C clearing flow
 **Critical Signals:**
 
 1. **hpet_enable:** Level signal, directly gates counter incrementing
-2. **counter_write:** Pulse (1 cycle) when software writes counter
-3. **counter_wdata:** Captured value from software write
+2. **counter_write_lo / counter_write_hi:** Pulse (1 cycle) per counter half written
+3. **counter_wdata:** The field values, valid for the strobed half in the strobe cycle
 4. **timer_enable[i]:** Level signal per timer
-5. **timer_comp_write[i]:** Pulse (1 cycle) when software writes comparator
+5. **timer_comp_write_lo/hi[i]:** Pulse (1 cycle) per comparator half written
 6. **timer_comp_wdata[i]:** Per-timer dedicated data bus (corruption-proof)
-7. **timer_int_clear[i]:** Pulse (1 cycle) when software clears status W1C
+7. **timer_int_clear[i]:** Pulse (1 cycle) for the status bits written with 1
 
 **Signal Types:**
 - **Level Signals:** Direct PeakRDL `.value` outputs (enable, type, size)
-- **Pulse Signals:** Edge-detected from register changes (write strobes, clears)
-- **Data Buses:** Captured or combined register values (counter, comparators)
+- **Pulse Signals:** Rising-edge detects on the `swmod` write levels (strobes) or on the mirrored HPET_STATUS write decode (clear) -- never on a value change
+- **Data Buses:** Combined register field values (counter, comparators)
 
 ---
 

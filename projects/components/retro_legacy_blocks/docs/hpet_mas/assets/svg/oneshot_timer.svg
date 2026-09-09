@@ -66,24 +66,24 @@
 <!-- wait_cycle -->
 <g id="node6" class="node">
 <title>wait_cycle</title>
-<path fill="white" stroke="black" d="M365,-554.74C365,-554.74 297,-554.74 297,-554.74 291,-554.74 285,-548.74 285,-542.74 285,-542.74 285,-530.74 285,-530.74 285,-524.74 291,-518.74 297,-518.74 297,-518.74 365,-518.74 365,-518.74 371,-518.74 377,-524.74 377,-530.74 377,-530.74 377,-542.74 377,-542.74 377,-548.74 371,-554.74 365,-554.74"/>
-<text text-anchor="middle" x="331" y="-533.04" font-family="Arial" font-size="14.00">Wait 1 Cycle</text>
+<path fill="white" stroke="black" d="M358,-554.74C358,-554.74 290,-554.74 290,-554.74 284,-554.74 278,-548.74 278,-542.74 278,-542.74 278,-530.74 278,-530.74 278,-524.74 284,-518.74 290,-518.74 290,-518.74 358,-518.74 358,-518.74 364,-518.74 370,-524.74 370,-530.74 370,-530.74 370,-542.74 370,-542.74 370,-548.74 364,-554.74 358,-554.74"/>
+<text text-anchor="middle" x="324" y="-533.04" font-family="Arial" font-size="14.00">Wait 1 Cycle</text>
 </g>
 <!-- compare&#45;&gt;wait_cycle -->
 <g id="edge4" class="edge">
 <title>compare&#45;&gt;wait_cycle</title>
-<path fill="none" stroke="black" d="M201.2,-630.68C230.89,-609.42 271.17,-580.57 298.95,-560.69"/>
-<polygon fill="black" stroke="black" points="301.05,-563.49 307.14,-554.82 296.98,-557.8 301.05,-563.49"/>
-<text text-anchor="middle" x="265" y="-592.54" font-family="Arial" font-size="14.00">No</text>
+<path fill="none" stroke="black" d="M199.98,-630.37C228.17,-609.32 266.14,-580.95 292.62,-561.18"/>
+<polygon fill="black" stroke="black" points="294.86,-563.87 300.78,-555.08 290.67,-558.26 294.86,-563.87"/>
+<text text-anchor="middle" x="261" y="-592.54" font-family="Arial" font-size="14.00">No</text>
 </g>
 <!-- fire_detect -->
 <g id="node7" class="node">
 <title>fire_detect</title>
-<path fill="lightcoral" stroke="black" d="M234,-570.74C234,-570.74 90,-570.74 90,-570.74 84,-570.74 78,-564.74 78,-558.74 78,-558.74 78,-514.74 78,-514.74 78,-508.74 84,-502.74 90,-502.74 90,-502.74 234,-502.74 234,-502.74 240,-502.74 246,-508.74 246,-514.74 246,-514.74 246,-558.74 246,-558.74 246,-564.74 240,-570.74 234,-570.74"/>
+<path fill="lightcoral" stroke="black" d="M220,-570.74C220,-570.74 104,-570.74 104,-570.74 98,-570.74 92,-564.74 92,-558.74 92,-558.74 92,-514.74 92,-514.74 92,-508.74 98,-502.74 104,-502.74 104,-502.74 220,-502.74 220,-502.74 226,-502.74 232,-508.74 232,-514.74 232,-514.74 232,-558.74 232,-558.74 232,-564.74 226,-570.74 220,-570.74"/>
 <text text-anchor="middle" x="162" y="-555.54" font-family="Arial" font-size="14.00">Timer Fires!</text>
 <text text-anchor="middle" x="162" y="-540.54" font-family="Arial" font-size="14.00">• IRQ asserts</text>
-<text text-anchor="middle" x="162" y="-525.54" font-family="Arial" font-size="14.00">• Edge detection (0→1)</text>
-<text text-anchor="middle" x="162" y="-510.54" font-family="Arial" font-size="14.00">• Comparator unchanged</text>
+<text text-anchor="middle" x="162" y="-525.54" font-family="Arial" font-size="14.00">• Match while armed</text>
+<text text-anchor="middle" x="162" y="-510.54" font-family="Arial" font-size="14.00">• Armed latch clears</text>
 </g>
 <!-- compare&#45;&gt;fire_detect -->
 <g id="edge5" class="edge">
@@ -95,7 +95,7 @@
 <!-- wait_cycle&#45;&gt;counter_running -->
 <g id="edge6" class="edge">
 <title>wait_cycle&#45;&gt;counter_running</title>
-<path fill="none" stroke="black" d="M336.12,-554.79C344.28,-585.37 357.01,-650.73 333,-697.74 326.56,-710.35 315.74,-720.73 304.24,-728.95"/>
+<path fill="none" stroke="black" d="M330.28,-554.77C340.44,-585.33 357.04,-650.66 333,-697.74 326.56,-710.35 315.74,-720.73 304.24,-728.95"/>
 <polygon fill="black" stroke="black" points="302.2,-726.11 295.81,-734.55 306.08,-731.94 302.2,-726.11"/>
 </g>
 <!-- irq_check -->

@@ -23,7 +23,7 @@ digraph periodic_timer {
     wait_cycle [label="Wait 1 Cycle", fillcolor=white];
     wait_cycle -> counter_running;
 
-    fire_detect [label="Timer Fires!\n• IRQ asserts\n• Edge detection (0→1)", fillcolor=lightcoral];
+    fire_detect [label="Timer Fires!\n• IRQ asserts\n• Match while armed\n• Comparator += period", fillcolor=lightcoral];
     fire_detect -> auto_increment;
 
     auto_increment [label="Auto-Increment Comparator\ncomparator += period\n(Hardware automatic!)", fillcolor=lightgreen];

@@ -25,8 +25,8 @@
 
 **Chapter:** 5.1
 **Title:** Complete Register Address Map
-**Version:** 1.0
-**Last Updated:** 2025-10-20
+**Version:** 1.1
+**Last Updated:** 2026-09-08
 
 ---
 
@@ -95,28 +95,30 @@ Each timer (N = 0 to NUM_TIMERS-1) has a 32-byte register block at base address 
 #### HPET_ID (0x000) - Identification Register
 
 **Access:** Read-Only
-**Reset Value:** `0x0101_0000 | ((NUM_TIMERS-1) << 8) | 0xA0`
+**Reset Value:** `(VENDOR_ID[7:0] << 24) | (REVISION_ID[7:0] << 16) | ((NUM_TIMERS-1) << 8) | 0x80`
 
-Contains capability information and identification fields. Only
-`num_tim_cap` varies with the instantiation; the vendor and revision bytes
-are fixed 0x01/0x01 in the generated register block (the top-level
-`VENDOR_ID`/`REVISION_ID` parameters are currently unwired).
+Contains capability information and identification fields. `vendor_id`,
+`rev_id` and `num_tim_cap` are all driven from the top-level parameters
+through the register block's hardware interface, so one generated block
+serves every instantiation. The two ID fields are 8 bits wide -- narrower
+than the 16-bit vendor field of a real HPET's GCAP_ID -- so a PCI-style
+`VENDOR_ID(16'h8086)` reads back as 0x86.
 
 | Bits | Field | Access | Reset | Description |
 |------|-------|--------|-------|-------------|
-| [31:24] | vendor_id | RO | 0x01 | Vendor identifier (fixed in generated RTL) |
-| [23:16] | rev_id | RO | 0x01 | Revision identifier (fixed in generated RTL) |
+| [31:24] | vendor_id | RO | VENDOR_ID[7:0] | Vendor identifier (low byte of the parameter) |
+| [23:16] | rev_id | RO | REVISION_ID[7:0] | Revision identifier (low byte of the parameter) |
 | [15:13] | reserved | RO | 0 | Reserved |
 | [12:8] | num_tim_cap | RO | NUM_TIMERS-1 | Number of timers minus 1 (e.g., 7 for 8 timers) |
 | [7] | count_size_cap | RO | 1 | Counter size capability (1 = 64-bit counter) |
 | [6] | reserved | RO | 0 | Reserved |
-| [5] | leg_rt_cap | RO | 1 | Legacy-replacement capability bit reads 1, but the feature is NOT implemented (the HPET_CONFIG bit dead-ends; see HPET_CONFIG below) |
+| [5] | leg_rt_cap | RO | 0 | Legacy-replacement capability: reads 0 because the feature is NOT implemented (the HPET_CONFIG bit is storage only; see HPET_CONFIG below) |
 | [4:0] | reserved | RO | 0 | Reserved |
 
-**Example Values (32-bit register):**
-- 2 timers: `0x010101A0` (num_tim_cap=1)
-- 3 timers: `0x010102A0` (num_tim_cap=2)
-- 8 timers: `0x010107A0` (num_tim_cap=7)
+**Example Values (32-bit register, default VENDOR_ID/REVISION_ID = 1):**
+- 2 timers: `0x01010180` (num_tim_cap=1)
+- 3 timers: `0x01010280` (num_tim_cap=2)
+- 8 timers: `0x01010780` (num_tim_cap=7)
 
 #### HPET_CONFIG (0x004) - Configuration Register
 
@@ -135,7 +137,7 @@ Global enable and configuration control.
 - Write `hpet_enable=1` to start the main counter
 - Write `hpet_enable=0` to stop the main counter (value preserved)
 - `legacy_replacement` is a no-op: the bit stores and reads back, but no
-  logic consumes it (despite HPET_ID.leg_rt_cap reading 1)
+  logic consumes it, and HPET_ID.leg_rt_cap reads 0 to say so
 - Counter must be enabled for any timer to fire
 
 **Example Configuration Sequence:**
@@ -156,37 +158,32 @@ WRITE(HPET_CONFIG, 0x1);
 #### HPET_STATUS (0x008) - Interrupt Status Register
 
 **Access:** Read-Write (Write-1-to-Clear)
-**Reset Value:** undefined -- the HPET_STATUS storage flop has NO reset in the generated RTL (the only unreset field in hpet_regs.sv) -- readback is undefined until the first fire or clear (RTL defect, issue #46). The intended reset is 0.
+**Reset Value:** 0x00000000
 
-Interrupt status bits for all timers. Write 1 to a bit to clear the corresponding interrupt.
+Interrupt status bits for all timers. The register is a mirror of the
+sticky status held in `hpet_core`: hardware re-drives it from the core's
+level every cycle, and a software write is forwarded to the core as a
+per-bit clear. Write 1 to a bit to clear the corresponding interrupt.
 
 | Bits | Field | Access | Reset | Description |
 |------|-------|--------|-------|-------------|
-| [7:NUM_TIMERS] | (unused timer bits) | RW/W1C | undefined | Real storage in the fixed 8-bit field -- settable via the hwset-all deviation, W1C-clearable |
 | [31:8] | reserved | RO | 0 | Hard zero |
-| [NUM_TIMERS-1:0] | timer_int_status | RW/W1C | undefined | Timer interrupt status bits (storage has no reset -- see above and #46) |
+| [7:NUM_TIMERS] | (unused timer bits) | RO | 0 | The field is a fixed 8 bits wide; bits with no timer behind them read 0 and cannot be set |
+| [NUM_TIMERS-1:0] | timer_int_status | RW/W1C | 0 | Timer interrupt status bits, mirrored from `hpet_core` |
 
 **Per-Timer Status Bit:**
 - **Bit[N]** = Timer N interrupt status
   - 0 = No interrupt pending
   - 1 = Timer N has fired, interrupt pending
 
-**Write-1-to-Clear (W1C) Behavior (intended):**
-- Write 1 to bit[N] to clear Timer N interrupt status
-- Write 0 has no effect
-- Reading returns current interrupt status
-
-**Known RTL deviation (issue #46):** the register wrapper's clear strobe
-fires on ANY write to HPET_STATUS regardless of data, clearing EVERY pending
-core status bit (and irq). A write of 0x0 -- a no-op per W1C -- clears
-everything, and clearing one timer's bit also drops the other timers' irq
-outputs while the register-side W1C (which is per-bit correct) can keep
-their bits reading 1. A second deviation: if a timer fires while another
-timer's status bit is still set, the register's hwset path sets ALL 8 status
-bits, including bits above NUM_TIMERS-1. Until fixed, clear-all is the only
-reliable pattern: read HPET_STATUS, handle every set bit, then write the
-read value back. The status field is also a fixed 8 bits wide regardless of
-NUM_TIMERS.
+**Write-1-to-Clear (W1C) Behavior:**
+- Write 1 to bit[N] to clear Timer N interrupt status (and its irq)
+- Write 0 to a bit leaves it alone; a write of 0x00000000 is a no-op
+- Clearing one timer's bit does not touch the other timers' bits or irq
+  outputs
+- A timer that fires in the same cycle its own bit is being cleared keeps
+  the bit set: the new event wins, and the clear can simply be repeated
+- Reading returns the current interrupt status
 
 **Example Interrupt Handling:**
 ```c
@@ -198,11 +195,8 @@ if (status & 0x1) {
     // Handle Timer 0 interrupt
 
     // Clear Timer 0 interrupt
-    WRITE(HPET_STATUS, 0x1);  // Write 1 to clear bit 0
+    WRITE(HPET_STATUS, 0x1);  // Write 1 to clear bit 0 only
 }
-
-// Clear all pending interrupts
-WRITE(HPET_STATUS, status);  // Write back read value clears all set bits
 ```
 
 #### HPET_COUNTER_LO (0x010) - Main Counter Low
@@ -218,15 +212,29 @@ Lower 32 bits of the 64-bit free-running main counter.
 
 **Behavior:**
 - **Read:** Returns current counter value [31:0]
-- **Write:** Captures the value for the 64-bit counter load (see the 64-bit
-  write ordering note below -- the load applies the PREVIOUSLY captured
-  halves, a known RTL deviation)
+- **Write:** Loads counter bits [31:0] on the write itself, byte enables
+  respected; bits [63:32] are untouched (see the 64-bit write ordering
+  note below)
 - Counter increments every `hpet_clk` cycle when `HPET_CONFIG.hpet_enable=1`
 - Software can write to reset or set counter to specific value
 
 **Usage Notes:**
 - Writing counter is useful for test/debug or implementing periodic reset
-- When writing 64-bit counter, write LO first, then HI
+- Write the counter with it halted (`HPET_CONFIG.hpet_enable=0`), as on a
+  real HPET: the two halves load independently, so a running timer could
+  see the intermediate {old HI, new LO} value. The halt also bounds what
+  a periodic timer has to catch up: a catch-up advances the comparator
+  once per cycle and closes period - 1 counts each time, so a timer left
+  far behind -- a torn or stale half on a running counter is exactly how
+  a 2^52 deficit appears -- is silent for cycles in proportion to the
+  deficit. A contract, not a defect; see Periodic Mode
+- Partial (byte-strobed, `PSTRB != 0xF`) counter writes REQUIRE a halted
+  counter, which is the stricter rule: the register block merges the
+  bytes software did not write from its own mirror of the field, and on
+  a running counter that mirror is a cycle old, so the preserved bytes
+  come back behind the counter they were meant to keep. Halted, the
+  mirror is stable and the merge exact. Full-word writes never read the
+  mirror and are unaffected
 - Counter write takes effect immediately (on next `hpet_clk`)
 - All timers compare against this counter value
 
@@ -261,7 +269,8 @@ uint64_t counter = ((uint64_t)hi1 << 32) | lo;
 
 **Writing 64-bit Counter:**
 ```c
-// Write lower 32 bits first, then upper
+// Halt the counter first; each write loads only its own half
+WRITE(HPET_CONFIG, 0x0);
 WRITE(HPET_COUNTER_LO, 0x00000000);
 WRITE(HPET_COUNTER_HI, 0x00000000);
 ```
@@ -306,6 +315,10 @@ Configuration and control for individual timer.
 - 0 = 32-bit timer (uses only COMPARATOR_LO, ignores COMPARATOR_HI)
 - 1 = 64-bit timer (uses full 64-bit comparator)
 - APB HPET supports 64-bit by default
+- Change it only on a stopped timer, and rewrite the comparator
+  afterwards. The change clears the next-epoch hold, but a comparator
+  advanced at the old width is not on the new width's lattice, and a
+  live 0->1 switch can leave the timer catching up for ~2^32 cycles
 
 **timer_value_set (bit 6):**
 - No hardware effect: the register bit stores and reads back, but nothing
@@ -341,6 +354,13 @@ Lower 32 bits of the 64-bit timer comparator value.
 - For **periodic mode:** the CORE's working comparator auto-increments by the
   period on each fire, but this is not reflected back into the register --
   reads always return the last software-written value
+- Each half loads the core on its own write; writing the value the
+  register already holds still counts (the internal comparator reloads,
+  discarding any periodic advance)
+- The write re-arms the timer only while the timer is stopped
+  (`timer_enable=0` or `HPET_CONFIG.hpet_enable=0`). On a running timer
+  the half loads but the timer re-arms only when the completed value
+  moves the match low -- see Reprogramming a Running Timer below
 - Software writes to set initial comparator value
 
 **Usage:**
@@ -372,6 +392,59 @@ WRITE(TIMER1_COMPARATOR_LO, 0x00000000);
 WRITE(TIMER1_COMPARATOR_HI, 0x00000001);
 ```
 
+#### Reprogramming a Running Timer
+
+A comparator write re-arms the timer only while the timer is stopped
+(`timer_enable=0` or `HPET_CONFIG.hpet_enable=0`), and then it always
+re-arms, whatever the value: a comparator at or below the counter fires
+as soon as the timer is enabled (the `>=` match, the same rule that makes
+a deficit fire rather than be missed -- there is no wait for a wrap).
+That is how software arms to an already-passed target: a zero comparator,
+or a periodic phase restarted after a counter reset.
+
+On a running timer the write still loads the half it names, but does not
+re-arm; the timer re-arms only when the completed value moves the match
+low. Written above the counter, the match falls, the timer re-arms and
+fires at the new value, so the usual "next deadline = now + interval"
+one-shot restart works with the timer running.
+
+The reason is the 64-bit comparator arriving as two 32-bit halves. Between
+the two writes the core holds the torn value `{old HI, new LO}`, which
+software never programmed; withholding the re-arm on a running timer is
+what guarantees that value can never fire.
+
+The contract: to reprogram a running timer's comparator, disable the
+timer first, write both halves, then re-enable. It fires once, at the
+programmed value -- even one the counter has already passed. The real
+HPET has the same requirement. Two consequences of reprogramming a
+running timer anyway are outside the contract, not defects:
+
+- A torn 64-bit value that lands above the counter re-arms the timer
+  through the natural path, and the timer then fires at the final value
+  once the second half is written. The completed value fires it, not the
+  tear.
+- A same-value rewrite on a running periodic timer drags the comparator
+  back from its auto-advanced position to the originally programmed
+  value, and can add one off-lattice fire.
+
+```c
+// Move a running 64-bit timer to a new deadline, any value
+WRITE(TIMER1_CONFIG, 0x20);              // 64-bit, timer disabled
+WRITE(TIMER1_COMPARATOR_LO, new_lo);
+WRITE(TIMER1_COMPARATOR_HI, new_hi);
+WRITE(TIMER1_CONFIG, 0x2C);              // 64-bit | int_enable | enable
+```
+
+A software write landing in the same cycle as a fire on a running timer
+yields exactly one fire; the software value wins, and the periodic advance
+is skipped that cycle.
+
+The same rule covers `timer_size`: change it only on a stopped timer,
+and rewrite the comparator afterwards. The next-epoch hold clears on the
+change, but a comparator that was advanced at the old width is not on
+the new width's lattice, and a live 0->1 switch can leave the timer
+catching up for ~2^32 cycles before it fires again.
+
 ### Timer Operation Modes
 
 #### One-Shot Mode (timer_type = 0)
@@ -384,13 +457,17 @@ One-shot timer operation flow showing counter increment, comparator match, and i
 
 **Behavior:**
 1. Counter increments: 0 → 1 → 2 → ... → comparator
-2. When `counter >= comparator`: Timer fires (edge detection 0→1)
-3. If `timer_int_enable=1`: Sets `HPET_STATUS` bit
-4. Timer stays idle (must reconfigure to fire again)
+2. When `counter >= comparator` and the timer is armed: Timer fires, and the armed latch clears
+3. Sets the `HPET_STATUS` bit; if `timer_int_enable=1`, also raises `timer_irq`
+4. Timer stays complete until the comparator is rewritten with the timer
+   stopped, or written above the counter while running -- disabling and
+   re-enabling it does not re-fire
 
 **Comparator Behavior:**
 - Stays unchanged after fire
-- Software must write new comparator value to re-arm timer
+- Software re-arms the timer by writing the comparator (either half, any
+  value -- even the same one) with the timer disabled, or by writing a
+  value above the counter while it runs
 
 **Use Cases:**
 - Single timeout events
@@ -412,9 +489,13 @@ while (!(READ(HPET_STATUS) & 0x1));
 // Clear interrupt
 WRITE(HPET_STATUS, 0x1);
 
-// Re-arm for next fire at 2000 cycles. Fire detection is edge-based
-// (match & ~prev_match), so the re-armed comparator must EXCEED the
-// current counter value or the timer never fires again.
+// Re-arm for the next fire at 2000 cycles. Disable the timer around the
+// write: a comparator write re-arms only while the timer is stopped, so
+// this works for any value, even one the counter has already passed
+// (which then fires on the first enabled cycle). Writing 2000 with the
+// timer still running would also work here -- but only because 2000 is
+// above the counter, so the match falls and the timer re-arms naturally.
+WRITE(TIMER0_CONFIG, 0x00);
 WRITE(TIMER0_COMPARATOR_LO, 2000);
 WRITE(TIMER0_CONFIG, 0x0C);
 ```
@@ -429,15 +510,58 @@ Periodic timer operation flow showing counter increment, comparator match, auto-
 
 **Behavior:**
 1. Counter increments: 0 → 1 → 2 → ... → comparator
-2. When `counter >= comparator`: Timer fires (edge detection 0→1)
-3. If `timer_int_enable=1`: Sets `HPET_STATUS` bit
-4. **Comparator auto-increments:** `comparator = comparator + period`
-5. Timer repeats indefinitely (fires at 1×period, 2×period, 3×period, ...)
+2. When `counter >= comparator` and the timer is armed: Timer fires
+3. Sets the `HPET_STATUS` bit; if `timer_int_enable=1`, also raises `timer_irq`
+4. **Comparator auto-increments:** `comparator = comparator + period` (the
+   match drops, which re-arms the timer for the next period)
+5. **Catch-up:** if the advanced comparator is still at or below the
+   counter (timer programmed late, or the counter written forward), it
+   keeps advancing one boundary per cycle WITHOUT firing until it is at
+   or ahead of the counter, then re-arms. Missed periods are skipped,
+   never burst: one interrupt for the whole batch, at the next boundary
+   still in the future. The catch-up closes the deficit at period - 1
+   counts per cycle, one comparator advance per cycle (period 1 is the
+   special lattice jump to counter + 1, closed in one), so its length is
+   proportional to the deficit: a period-2 timer left 2^52 counts behind
+   by a counter write catches up for ~2^52 cycles, the comparator
+   rewritten every cycle and no interrupt raised. That bound is why the
+   HPET specification and this book require the main counter halted
+   (`HPET_CONFIG.hpet_enable=0`) before it is written, and why a periodic
+   comparator is programmed near or ahead of the counter
+6. **Epoch hold:** if an advance carries out of the compare width (past
+   bit 31 for a 32-bit timer, bit 63 for a 64-bit one), the comparator
+   keeps the wrapped low bits and the timer is held -- no fire, no
+   catch-up -- until the counter wraps at that width, or software writes
+   the comparator, the counter (which re-bases the epoch, so a comparator
+   now behind the counter fires promptly) or `timer_size`. The write
+   clears are evaluated at the compare width: a 32-bit timer is released
+   only by a write to HPET_COUNTER_LO or TIMERn_COMPARATOR_LO, and a
+   write to either HI half leaves it held; a 64-bit timer is released by
+   either half
+7. Timer repeats indefinitely (fires at 1×period, 2×period, 3×period, ...)
 
 **Comparator Auto-Increment:**
 - Hardware automatically adds period value to comparator
 - Period = initial comparator value written by software
 - Example: Initial comparator = 1000 → Fires at 1000, 2000, 3000, ...
+- Period 0 behaves as one-shot: it can never get ahead of the counter, so
+  the timer fires once and stays quiescent (no churn)
+- Period 1 gains nothing on the counter per cycle (both step by 1), so a
+  catch-up step sets the comparator to counter + 1 -- every integer is on
+  the period-1 lattice -- and re-arms at once. It delivers on every other
+  tick, the fastest the one-cycle fire/re-arm loop allows, at any deficit;
+  a live counter write that opens a gap recovers within a cycle
+- The advance is evaluated at the compare width. A 32-bit periodic timer
+  whose comparator + period passes 2^32 fires at that boundary and then
+  stays quiet until the low 32 bits of the counter wrap -- up to about
+  2^32 ticks, though never longer than the period that caused the carry,
+  so the next fire still lands on the programmed lattice. A 64-bit timer
+  whose advance carries out of bit 63 waits for the 64-bit counter to
+  wrap -- in practice it fires once and never again until reprogrammed
+  (chapter 2 puts a number on the wait). Both are the arithmetic of the
+  register width, not defects; in
+  32-bit mode the advance never disturbs TIMER_COMPARATOR_HI's half of
+  the comparator ([63:32])
 
 **Use Cases:**
 - Periodic interrupts (e.g., 1 kHz tick)
@@ -485,28 +609,25 @@ void timer1_isr(void) {
 
 #### Reset Values
 
-- **Global registers:** Reset to 0x00000000 (except HPET_ID, and except
-  HPET_STATUS whose storage has no reset -- see its section and #46)
-- **HPET_ID:** Constant: vendor/revision fixed 0x01/0x01, num_tim_cap = NUM_TIMERS-1
+- **Global registers:** Reset to 0x00000000 (except HPET_ID)
+- **HPET_ID:** Constant: vendor/revision from the low byte of
+  VENDOR_ID/REVISION_ID, num_tim_cap = NUM_TIMERS-1, leg_rt_cap = 0
 - **All timers:** Reset to disabled state (0x00000000)
 - **Main counter:** Reset to 0x00000000_00000000
 
 #### Read/Write Ordering
 
 **64-bit Register Writes:**
-1. Write lower 32 bits (LO) first
-2. Write upper 32 bits (HI) second
-
-**Known RTL deviation (issue #46):** the 64-bit counter load is NOT atomic.
-The core samples the capture flops on the same edge they update, so each
-write applies the PREVIOUSLY captured halves: after LO-then-HI the counter
-holds {old HI, new LO}, and the new HI half only lands on a subsequent
-write. Writing zero to both halves only works while the capture flops
-still hold zero (e.g. straight out of reset) -- after any earlier nonzero
-HI write, the zeroing sequence leaves {old_HI, 0}. Comparators
-half-update per 32-bit write, so between the LO and HI writes the timer
-compares against a mixed value -- disable the timer around comparator
-updates.
+Each 32-bit write lands its own half on the write itself, so the order is
+free, but the value is not atomic: between the two writes the hardware
+holds {old HI, new LO} (or the reverse). Halt the counter
+(`HPET_CONFIG[0] = 0`) before writing it, as on a real HPET -- and always
+for a partial, byte-strobed write, whose merge reads a cycle-old mirror.
+The mixed comparator value can never fire, because a comparator write does
+not re-arm a running timer; the flip side is that a running timer re-arms
+only when the completed value is above the counter, so disable the timer
+around the pair whenever the new value may already be behind it (see
+Reprogramming a Running Timer).
 
 **64-bit Register Reads:**
 Use the HI/LO/HI retry sequence (read HI, read LO, re-read HI; retry if
@@ -687,8 +808,8 @@ void hpet_interrupt_handler(void) {
         WRITE(HPET_STATUS, (1 << 1));  // Clear Timer 1 interrupt
     }
 
-    // Clear all pending interrupts at once (alternative approach)
-    // WRITE(HPET_STATUS, status);
+    // Each write clears only the bit(s) written with 1; a timer that
+    // fires after the READ keeps its bit for the next pass.
 }
 ```
 
@@ -714,6 +835,6 @@ void hpet_interrupt_handler(void) {
 
 ---
 
-**Document Version:** 1.0
-**Generated:** 2025-10-20
+**Document Version:** 1.1
+**Generated:** 2026-09-08
 **Based on:** hpet_regs.rdl v2

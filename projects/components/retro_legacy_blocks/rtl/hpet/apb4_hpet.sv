@@ -12,6 +12,8 @@
 //
 // Author: sean galloway
 // Created: 2025-10-18
+// Updated: 2026-09-09 - issue #46 review: halted-counter requirement for
+//                       partial counter writes, r_ prefix on flopped strobes
 
 /**
  * ============================================================================
@@ -37,19 +39,20 @@
  *   Global Registers:
  *   ----------------
  *   0x000: HPET_ID - Capabilities and ID (Read-Only)
- *          [31:24] Vendor ID (fixed 0x01 in generated hpet_regs; the
- *                  VENDOR_ID parameter is currently unwired)
- *          [23:16] Revision ID (fixed 0x01; REVISION_ID likewise unwired)
+ *          [31:24] Vendor ID - low 8 bits of the VENDOR_ID parameter
+ *          [23:16] Revision ID - low 8 bits of the REVISION_ID parameter
  *          [15:13] Reserved
  *          [12:8]  Number of Timers - 1 (e.g., 0x01 for 2 timers)
  *          [7]     64-bit Counter Capable (1=yes, 0=no)
  *          [6]     Reserved
- *          [5]     Legacy Replacement Capable (1=yes, 0=no)
+ *          [5]     Legacy Replacement Capable - reads 0: this block has no
+ *                  legacy replacement routing (see HPET_CONFIG[1])
  *          [4:0]   Reserved
  *
  *   0x004: HPET_CONFIG - Global Configuration (Read/Write)
  *          [31:2]  Reserved
- *          [1]     Legacy Replacement Enable (1=enable, 0=disable)
+ *          [1]     Legacy Replacement Enable - STORAGE ONLY, no hardware
+ *                  effect (HPET_ID[5] reports 0 to match)
  *          [0]     HPET Enable (1=enable counter, 0=disable counter)
  *
  *   0x008: HPET_STATUS - Interrupt Status (Read/Write-to-Clear)
@@ -65,6 +68,22 @@
  *
  *   0x014: HPET_COUNTER_HI - Main Counter High 32 bits (Read/Write)
  *          [31:0]  Upper 32 bits of 64-bit main counter
+ *
+ *          The two halves are written INDEPENDENTLY: each write loads only
+ *          its own half of the main counter, so a 64-bit value takes two
+ *          writes and the intermediate state is visible. Write them with
+ *          the counter halted (HPET_CONFIG[0] = 0), as on a real HPET.
+ *
+ *          A PARTIAL (byte-strobed, PSTRB != 4'hF) write to either counter
+ *          half REQUIRES the counter to be halted, and this is a harder
+ *          requirement than the one above, not a restatement of it. The
+ *          regblock merges the un-written bytes from its own mirror of the
+ *          field, and that mirror is one cycle behind the running counter
+ *          while the strobe alignment costs another - so on a RUNNING
+ *          counter a partial write puts the bytes software did not write
+ *          BACKWARDS by two counts. With the counter halted the mirror is
+ *          stable and the merge is exact. Full-word writes are unaffected:
+ *          they replace all four bytes and never read the mirror.
  *
  *   Timer Registers (32-byte blocks starting at 0x100):
  *   ---------------------------------------------------------------
@@ -98,9 +117,11 @@
  *   ---------------------------
  *   TIMER_CONFIG Register:
  *          [31:7]  Reserved
- *          [6]     Value Set (stored and readable, but NOT consumed by any
- *                  logic -- the wire dead-ends at this level; no accumulator
- *                  mode exists)
+ *          [6]     Value Set - stored and readable, but NOT consumed by any
+ *                  logic. On a real HPET this selects whether a periodic
+ *                  comparator write loads the accumulator or the period;
+ *                  this core always loads both, so there is nothing to
+ *                  select.
  *          [5]     Size (1=64-bit comparison, 0=32-bit comparison)
  *          [4]     Type (1=periodic mode, 0=one-shot mode)
  *          [3]     Interrupt Enable (1=enable interrupt, 0=disable interrupt)
@@ -111,6 +132,10 @@
  *          [31:0]  Lower 32 bits of timer comparator value
  *                  In one-shot mode: fires when counter >= comparator
  *                  In periodic mode: initial compare value and period
+ *                  Each half loads hpet_core on its own WRITE STROBE, so
+ *                  rewriting the same value re-arms the timer. Readback
+ *                  always shows the written value; in periodic mode the
+ *                  core's internal comparator advances beyond it.
  *
  *   TIMER_COMP_HI Register:
  *          [31:0]  Upper 32 bits of timer comparator value
@@ -159,7 +184,7 @@ module apb4_hpet #(
     // ========================================================================
     // Clock and Reset - Dual Domain
     // ========================================================================
-    input  logic                    pclk,          // APB clock domain (always used for APB interface)
+    input  logic                    pclk,          // APB clock domain (always used for APB)
     input  logic                    presetn,       // APB reset (active low)
     input  logic                    hpet_clk,      // HPET clock domain (used for timer logic)
     input  logic                    hpet_resetn,   // HPET reset (active low)
@@ -205,7 +230,13 @@ logic                    w_rsp_pslverr;
 // ============================================================================
 logic                    w_hpet_enable;
 logic                    w_legacy_replacement;
-logic                    w_counter_write;
+// The four *_write_* strobes below are REGISTERED: they are the outputs of
+// ALWAYS_FF_RST blocks inside hpet_config_regs (the aligned rising-edge
+// detects on swmod), so they carry the r_ prefix even though the flop itself
+// lives one level down. w_counter_rdata / w_timer_int_status stay w_ - those
+// are combinational assigns out of hpet_core.
+logic                    r_counter_write_lo;
+logic                    r_counter_write_hi;
 logic [63:0]             w_counter_wdata;
 logic [63:0]             w_counter_rdata;
 logic [NUM_TIMERS-1:0]   w_timer_enable;
@@ -213,10 +244,9 @@ logic [NUM_TIMERS-1:0]   w_timer_int_enable;
 logic [NUM_TIMERS-1:0]   w_timer_type;
 logic [NUM_TIMERS-1:0]   w_timer_size;
 logic [NUM_TIMERS-1:0]   w_timer_value_set;
-logic [NUM_TIMERS-1:0]   w_timer_comp_write;
+logic [NUM_TIMERS-1:0]   r_timer_comp_write_lo;
+logic [NUM_TIMERS-1:0]   r_timer_comp_write_hi;
 logic [63:0]             w_timer_comp_wdata [NUM_TIMERS];  // Per-timer data bus
-logic                    w_timer_comp_write_high;
-logic [63:0]             w_timer_comp_rdata [NUM_TIMERS];
 logic [NUM_TIMERS-1:0]   w_timer_int_status;
 logic [NUM_TIMERS-1:0]   w_timer_int_clear;
 
@@ -341,7 +371,8 @@ hpet_config_regs #(
     // HPET Core Interface
     .hpet_enable          (w_hpet_enable),
     .legacy_replacement   (w_legacy_replacement),
-    .counter_write        (w_counter_write),
+    .counter_write_lo     (r_counter_write_lo),
+    .counter_write_hi     (r_counter_write_hi),
     .counter_wdata        (w_counter_wdata),
     .counter_rdata        (w_counter_rdata),
     .timer_enable         (w_timer_enable),
@@ -349,10 +380,9 @@ hpet_config_regs #(
     .timer_type           (w_timer_type),
     .timer_size           (w_timer_size),
     .timer_value_set      (w_timer_value_set),
-    .timer_comp_write     (w_timer_comp_write),
+    .timer_comp_write_lo  (r_timer_comp_write_lo),
+    .timer_comp_write_hi  (r_timer_comp_write_hi),
     .timer_comp_wdata     (w_timer_comp_wdata),
-    .timer_comp_write_high(w_timer_comp_write_high),
-    .timer_comp_rdata     (w_timer_comp_rdata),
     .timer_int_status     (w_timer_int_status),
     .timer_int_clear      (w_timer_int_clear)
 );
@@ -371,17 +401,17 @@ hpet_core #(
 
     // Configuration Interface
     .hpet_enable          (w_hpet_enable),
-    .counter_write        (w_counter_write),
+    .counter_write_lo     (r_counter_write_lo),
+    .counter_write_hi     (r_counter_write_hi),
     .counter_wdata        (w_counter_wdata),
     .counter_rdata        (w_counter_rdata),
     .timer_enable         (w_timer_enable),
     .timer_int_enable     (w_timer_int_enable),
     .timer_type           (w_timer_type),
     .timer_size           (w_timer_size),
-    .timer_comp_write     (w_timer_comp_write),
+    .timer_comp_write_lo  (r_timer_comp_write_lo),
+    .timer_comp_write_hi  (r_timer_comp_write_hi),
     .timer_comp_wdata     (w_timer_comp_wdata),
-    .timer_comp_write_high(w_timer_comp_write_high),
-    .timer_comp_rdata     (w_timer_comp_rdata),
 
     // Interrupt Interface
     .timer_int_status     (w_timer_int_status),

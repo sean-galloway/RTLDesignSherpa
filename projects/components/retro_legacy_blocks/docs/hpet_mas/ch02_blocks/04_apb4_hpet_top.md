@@ -68,16 +68,18 @@ apb4_hpet
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| **VENDOR_ID** | int | 1 | -- | Currently unwired: the HPET_ID vendor byte is fixed 0x01 in the generated register block |
-| **REVISION_ID** | int | 1 | -- | Currently unwired: the HPET_ID revision byte is fixed 0x01 |
+| **VENDOR_ID** | int | 1 | 0-255 | Reported in HPET_ID[31:24]; the field is 8 bits, so a wider value shows only its low byte (0x8086 reads 0x86) |
+| **REVISION_ID** | int | 1 | 0-255 | Reported in HPET_ID[23:16] (8-bit field, low byte only) |
 | **NUM_TIMERS** | int | 2 | 2, 3, 8 | Number of independent timers in array |
 | **USE_JOHNSON** | int | 0 | 0, 1 | CDC counter encoding (forwarded to apb4_slave_cdc) |
 | **CDC_ENABLE** | int | 0 | 0, 1 | Clock domain crossing: 0=synchronous, 1=asynchronous |
 
 **Parameter Notes:**
-- **VENDOR_ID** and **REVISION_ID**: accepted at instantiation but never
-  consumed -- the values are baked into the generated `hpet_regs` at
-  generation time (0x01/0x01 in HPET_ID). Overriding them has no effect.
+- **VENDOR_ID** and **REVISION_ID**: forwarded to `hpet_config_regs`, which
+  drives them into HPET_ID through the register block's hardware
+  interface -- no regeneration involved. Both HPET_ID fields are 8 bits
+  wide (the real HPET's vendor field is 16), so pass an 8-bit value or
+  expect the low byte.
 - **NUM_TIMERS**: Instantiation-time choice (2, 3, or 8). The generated
   register block is fixed at 8 timer slots and reports the instantiated
   count through HPET_ID.num_tim_cap -- no regeneration needed
@@ -136,10 +138,12 @@ apb4_hpet
 - **Active-high level-sensitive**
 - **One interrupt per timer** (independent)
 - Core interrupt state, NOT a copy of HPET_STATUS: set at fire time when
-  int_enable is 1, cleared by the (any-write) clear strobe or when the
-  core status falls -- under the #46 clear-all deviation HPET_STATUS can
-  read 1 while timer_irq is 0
-- **W1C clearing** (software writes 1 to HPET_STATUS to clear)
+  int_enable is 1, cleared by the per-bit W1C clear or when the core
+  status falls. HPET_STATUS mirrors the same core status, so the two
+  agree; the one legitimate difference is a timer that fired with
+  int_enable = 0, whose status bit reads 1 while timer_irq stays 0
+- **W1C clearing** (software writes 1 to the timer's HPET_STATUS bit;
+  other timers' bits and irq outputs are untouched)
 
 ---
 
@@ -179,8 +183,9 @@ logic                    w_rsp_pslverr;
 logic                    w_hpet_enable;
 logic                    w_legacy_replacement;
 
-// Counter interface
-logic                    w_counter_write;
+// Counter interface (one strobe per 32-bit half)
+logic                    w_counter_write_lo;
+logic                    w_counter_write_hi;
 logic [63:0]             w_counter_wdata;
 logic [63:0]             w_counter_rdata;
 
@@ -191,11 +196,10 @@ logic [NUM_TIMERS-1:0]   w_timer_type;
 logic [NUM_TIMERS-1:0]   w_timer_size;
 logic [NUM_TIMERS-1:0]   w_timer_value_set;
 
-// Per-timer comparator (dedicated buses)
-logic [NUM_TIMERS-1:0]   w_timer_comp_write;
+// Per-timer comparator (dedicated buses, one strobe per half)
+logic [NUM_TIMERS-1:0]   w_timer_comp_write_lo;
+logic [NUM_TIMERS-1:0]   w_timer_comp_write_hi;
 logic [63:0]             w_timer_comp_wdata [NUM_TIMERS];
-logic                    w_timer_comp_write_high;
-logic [63:0]             w_timer_comp_rdata [NUM_TIMERS];
 
 // Interrupt status
 logic [NUM_TIMERS-1:0]   w_timer_int_status;
@@ -362,7 +366,7 @@ hpet_core #(
 
 ```systemverilog
 apb4_hpet #(
-    .NUM_TIMERS(2),            // VENDOR_ID/REVISION_ID left at defaults (unwired)
+    .NUM_TIMERS(2),            // VENDOR_ID/REVISION_ID left at their 0x01 defaults
     .CDC_ENABLE(0)              // ← Synchronous clocks
 ) u_hpet (
     // Use same clock for both domains
@@ -395,7 +399,7 @@ assign irq_sources[31:30] = hpet_irq[1:0];
 
 ```systemverilog
 apb4_hpet #(
-    .NUM_TIMERS(3),            // VENDOR_ID/REVISION_ID left at defaults (unwired)
+    .NUM_TIMERS(3),            // VENDOR_ID/REVISION_ID left at their 0x01 defaults
     .CDC_ENABLE(1)              // ← Asynchronous clocks
 ) u_apb4_hpet (
     .pclk                  (pclk),
@@ -469,8 +473,9 @@ apb4_hpet #(
 
 - [ ] **Interrupt Generation:**
   - [ ] All timer_irq outputs functional
-  - [ ] W1C clearing works
+  - [ ] W1C clearing works, per bit (a write of 0x0 clears nothing)
   - [ ] Sticky behavior correct
+  - [ ] Re-enabling with an expired comparator does not re-fire
 
 - [ ] **CDC (if enabled):**
   - [ ] No metastability issues

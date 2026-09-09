@@ -20,7 +20,7 @@ digraph hpet_config_regs {
         fillcolor=lightcyan;
 
         edge_detect [label="Edge Detectors\n\ncounter_wr_edge\ntimer_comp_wr_edge[i]\ntimer_cfg_wr_edge[i]", shape=diamond];
-        prev_regs [label="Previous Values\nr_prev_swacc\nr_prev_timer_swacc[i]", fillcolor=white];
+        prev_regs [label="swmod edge detect + 1-flop align\n(swmod is a 2-cycle level)", fillcolor=white];
     }
 
     // Per-Timer Data Buses
@@ -33,15 +33,15 @@ digraph hpet_config_regs {
     }
 
     // Output Signals to hpet_core
-    core_if [label="To hpet_core\n\nhpet_enable\ncounter_write (pulse)\ncounter_wdata[63:0]\ntimer_enable[i]\ntimer_comp_write[i] (pulse)\ntimer_comp_wdata[i][63:0]", shape=ellipse, fillcolor=pink];
+    core_if [label="To hpet_core\n\nhpet_enable\ncounter_write_lo/hi (pulse)\ncounter_wdata[63:0]\ntimer_enable[i]\ntimer_comp_write_lo/hi[i] (pulse)\ntimer_comp_wdata[i][63:0]", shape=ellipse, fillcolor=pink];
 
     // Input Signals from hpet_core
-    core_status [label="From hpet_core\n\ncounter_rdata[63:0]\ntimer_comp_rdata[i][63:0]\ntimer_int_status[i]", shape=ellipse, fillcolor=lightgreen];
+    core_status [label="From hpet_core\n\ncounter_rdata[63:0]\ntimer_int_status[i]", shape=ellipse, fillcolor=lightgreen];
 
     // Dataflow
     apb_if -> peak_regs [label="APB transactions", style=bold];
     peak_regs -> edge_detect [label="hwif.*.swacc\n(register access)"];
-    edge_detect -> prev_regs [label="store previous"];
+    edge_detect -> prev_regs [label="align to field"];
     edge_detect -> core_if [label="write pulses\n(1 clk wide)", style=bold, color=red];
 
     peak_regs -> timer_data [label="register values"];

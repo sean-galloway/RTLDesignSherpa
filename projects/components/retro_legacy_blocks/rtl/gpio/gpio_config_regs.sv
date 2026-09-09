@@ -79,6 +79,7 @@
 // Updated: 2026-09-08 - issue #44 review: deferral mirrors the regblock decode
 //                       instead of swmod, write-back preserves bits above
 //                       GPIO_WIDTH, per-pin enable gates edge irq too
+// Updated: 2026-09-09 - param guard is simulation-time, gated `ifndef SYNTHESIS
 
 `timescale 1ns / 1ps
 
@@ -123,17 +124,24 @@ module gpio_config_regs
     localparam int REG_WIDTH = 32;
 
     // ========================================================================
-    // Elaboration-time parameter validation
+    // Simulation-time parameter validation
     // ========================================================================
     // Every GPIO_WIDTH-wide value in this block is carried in a 32-bit register
     // field, so a wider port would silently truncate; a zero/negative width has
     // no legal slice.
+    //
+    // This is an `initial` block, so it runs at time 0 in SIMULATION - it is
+    // not an elaboration-time check and cannot stop a synthesis run. Gated by
+    // `ifndef SYNTHESIS` for the same reason every other sim-only construct in
+    // this block is.
+`ifndef SYNTHESIS
     initial begin : param_check
         if (GPIO_WIDTH > REG_WIDTH || GPIO_WIDTH < 1) begin
             $error("gpio_config_regs: GPIO_WIDTH=%0d out of range [1,%0d]",
                    GPIO_WIDTH, REG_WIDTH);
         end
     end
+`endif
 
     // PeakRDL hardware interface signals
     gpio_regs_pkg::gpio_regs__in_t  hwif_in;

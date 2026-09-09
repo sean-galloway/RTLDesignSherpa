@@ -79,6 +79,11 @@ This creates:
 - **`../hpet_regs_pkg.sv`** - Hardware interface package
 - **`generated/docs/`** - HTML/Markdown register documentation (regenerated on demand, not checked in)
 
+**Regen also emits `hpet_regs_regmap.py`, and the tree keeps that file as
+`../hpet_regmap.py`** - `hpet_helper.py` imports it under that name. After any
+regeneration, re-apply the rename AND the filename in the module docstring, or
+the DV register map silently reverts to the pre-regen copy.
+
 ### 2. Use the Wrapper
 
 The `../hpet_config_regs.sv` module wraps the PeakRDL-generated register block and provides the cmd/rsp valid/ready interface:
