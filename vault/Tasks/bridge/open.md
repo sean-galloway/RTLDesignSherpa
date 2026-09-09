@@ -462,7 +462,61 @@ disagreement ([[BRIDGE-008]], closed) and `write_transaction` returning
 raises on an error response, which is how the atomics test caught that a
 DECERR used to pass through the helper silently.
 
+**The compliance checker was vacuous, and had been since 2026-08-09.**
+Arming it in every TB is what exposed it: the first summary line printed
+empty statistics. `AXI5ComplianceChecker.setup_monitors` built its channel
+monitors without a `protocol_type`, so every AMBA5 sideband field was
+REQUIRED; on any real port the AR monitor failed to bind, the failure was
+caught and logged as a WARNING, the checker set `enabled=False`, and
+`get_compliance_report()` returned `compliance_checking: disabled` -- which
+the bfm5 sign-off test had been reading as "zero violations" for a month.
+The AXI4 checker had the identical defect. Fixed in RDS-DV (9505cce,
+6b35cc9): monitors take the BFMs' per-channel `protocol_type`, a setup
+failure raises, and a structural unit test pins both. The generated
+`assert_compliance()` now refuses a checker that is not `enabled` or that
+performed zero checks. Measured after the fix on one gate cell: checker
+active on AR/R, 294 checks, 2 AR transactions -- a verdict with something
+behind it.
+
 Still owed on this task: the external testqc review round.
 
 
 ---
+
+### BRIDGE-012: trace is not echoed on B/R when the slave lacks trace; the AXI5 checker calls that a violation
+
+**Priority:** P2. A design decision, not a bug hunt: the fabric and the
+checker disagree about what an AXI5 port promises.
+
+**Found by** arming `AXI5ComplianceChecker` on every AXI5 master port
+(2026-09-09, BRIDGE-007). `test_bridge_1x2_wr_axi5n_sideband[full]`: 12
+`TRACE_CONSISTENCY_VIOLATION`s in 4668 checks -- exactly the 12 writes that
+went to `sram_wr`, the poison-only slave. AW carried `awtrace=1`, the B came
+back with `btrace=0`, and the checker's rule is "B.trace == AW.trace".
+
+**What the fabric does, on purpose.** A5-2 slice 2: sideband a slave does
+not support terminates mid-fabric with a generation-time WARNING
+("AXI5 sideband 'trace' terminates on path cpu_wr -> sram_wr"), and the
+xbar muxes b/r sideband from featured slaves only, so a trace-less slave
+returns 0. The wr sideband test asserts `btrace=0` on that path as the
+expected result; the MAS AMBA5 chapter documents the drop.
+
+**What the checker says.** From the master's port the bridge IS the
+Subordinate, and it advertised trace on that port; AXI5 expects the response
+trace bit to follow the request's. The checker does not know (and should not
+have to know) that the slave behind the path is trace-less.
+
+**Two ways out:**
+1. **Echo at the boundary.** The master adapter already tracks each
+   outstanding request in its response FIFO (BRIDGE-011); a trace bit per
+   entry lets it set `btrace`/`rtrace` = the request's trace whenever the
+   returning response carries none. The port then keeps the promise
+   regardless of the slave; the generation-time warning goes away for
+   trace (nsaid/mpam/mecid/unique have no response half and are unaffected).
+2. **Document the drop as the port contract** and keep the checker's
+   expectation for those paths as an explicit exact-count allowance in the
+   sideband tests (what the tests do today, via
+   `tb.assert_compliance(allow={'TRACE_CONSISTENCY_VIOLATION': n})`).
+
+(1) is cheap and makes the AXI5 port honest; (2) leaves a port that
+advertises trace and sometimes does not return it. Owner decides.

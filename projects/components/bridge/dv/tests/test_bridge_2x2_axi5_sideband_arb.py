@@ -154,7 +154,11 @@ async def cocotb_test_bridge_2x2_axi5_sideband_arb(dut):
     tb.log.info("  drop path: AXI4 slave answers with trace=0, data intact")
 
     await ClockCycles(tb.clock, 20)
-    tb.assert_compliance()
+    # Phase 3 wrote once per master to the AXI4 slave with trace=1 and got
+    # btrace=0 back -- the fabric's documented drop, which the AXI5 checker
+    # at each master port counts as one TRACE mismatch (BRIDGE-012). Exactly
+    # one per master is allowed; the native-path phases must stay clean.
+    tb.assert_compliance(allow={'trace_consistency_violation': 1})
     tb.log.info("=" * 80)
     tb.log.info(f"AXI5 sideband-through-arbitration test PASSED ({4 * n + 4} transactions)")
     tb.log.info("=" * 80)

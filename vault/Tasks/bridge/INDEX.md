@@ -1,6 +1,6 @@
 # bridge — task rollup
 
-**Next ID: BRIDGE-012** — never recycle a number, even when its task closed.
+**Next ID: BRIDGE-013** — never recycle a number, even when its task closed.
 
 Bridge crossbar generator (`projects/components/bridge/`): the CSV/toml-driven
 generator, its generated wrappers/xbars/adapters, and their DV.
@@ -8,7 +8,7 @@ generator, its generated wrappers/xbars/adapters, and their DV.
 | State | Count |
 |---|---|
 | [active](active.md) | 0 |
-| [open](open.md) | 2 |
+| [open](open.md) | 3 |
 | [closed](closed.md) | 9 |
 | [dropped](dropped.md) | 0 |
 
@@ -17,6 +17,9 @@ generator, its generated wrappers/xbars/adapters, and their DV.
 - **BRIDGE-003** — all six `*_mon_monitor` stress tests fail; verified
   pre-existing at the branch base (not fallout from the BRIDGE-001 fixes).
   Likely tied to the stream-mon AW/W decoupling WIP.
+- **BRIDGE-012** (P2) — trace not echoed on B/R for trace-less slave paths;
+  the AXI5 checker flags it at the master port. Echo at the boundary, or
+  document the drop as the port contract. Owner decides.
 - **BRIDGE-002** — AMBA5 bridge support: AXI5 ports on the AMBA4 fabric first
   (wrappers/BFMs/compliance already in-tree; gaps are AXI5<->AXI4 feature
   conversion and a `*_to_apb5` shim), native-AXI5 sideband and AWATOP

@@ -162,6 +162,18 @@ interface headers are enough for "does the test drive real ports".
 6. **It actually checks.** Assertions/scoreboard on outputs; a
    stimulus-only test that always passes is a finding (the silent-pass
    mode, [[kimi-review-rounds]] rule 8's TB twin).
+
+   **A checker's verdict needs a count behind it (2026-09-09).** The bridge's
+   AXI5 sign-off test attached `AXI5ComplianceChecker` and asserted zero
+   violations for a month while the checker had never bound: its monitors
+   were built without a `protocol_type`, every sideband field was required,
+   setup failed, the failure was logged at WARNING and swallowed, and the
+   report said `compliance_checking: disabled` -- which reads as zero
+   violations to anyone who only asks for the violation count. It surfaced
+   the day the generated TBs armed the checker on every AXI5 port and the
+   summary line printed empty statistics. When a test cites a checker,
+   monitor, or scoreboard, look for the number it counted: an armed checker
+   that performed zero checks and a disarmed one are the same finding.
 7. **Levels are honest.** gate is genuinely fast; full is genuinely deeper,
    not gate re-labelled.
 

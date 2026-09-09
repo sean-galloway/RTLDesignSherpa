@@ -622,29 +622,51 @@ class Bridge4x4RwTB(TBBase):
         await self.deassert_reset()
         await self.wait_clocks(self.clock_name, 5)
         for idx, checker in self.compliance.items():
+            # setup_monitors binds the five channel monitors AND starts the
+            # transaction / handshake / cycle loops itself (and raises if it
+            # cannot bind). Starting the loops again here doubled every count.
             checker.setup_monitors()
-            cocotb.start_soon(checker.monitor_transactions())
-            cocotb.start_soon(checker.monitor_handshakes())
             self.log.info(f"AXI5 compliance checker armed on master {idx}")
 
-    def assert_compliance(self) -> dict:
+    def assert_compliance(self, allow: dict = None) -> dict:
         """Every AXI5 master port's checker must report zero violations.
         Called by each generated test before it declares PASSED, so a
         protocol error on the AXI5 boundary fails the test that caused it
-        even when the data still round-tripped. Returns the reports."""
+        even when the data still round-tripped. Returns the reports.
+
+        `allow` = {violation_type_name: exact_count} lets a hand-written test
+        name a violation class it deliberately provokes -- and the count it
+        expects, so one more or one fewer still fails. Nothing is tolerated
+        implicitly; the generated tests never pass it."""
         reports = {}
+        allow = dict(allow or {})
         for idx, checker in self.compliance.items():
             report = checker.get_compliance_report()
             reports[idx] = report
+            # A checker that never armed reports 'disabled' and no counts; a
+            # checker that armed but saw nothing has checks_performed == 0.
+            # Both read as "zero violations" to a naive caller -- and did,
+            # for a month (RDS-DV 2026-09-09). Neither is a pass.
+            assert report.get('compliance_checking') == 'enabled', (
+                f"AXI5 compliance checker on master {idx} is not armed: {report}")
+            stats = report.get('statistics', {})
+            checks = stats.get('checks_performed', 0)
             violations = report.get('total_violations', 0)
             if isinstance(violations, (list, tuple)):
                 violations = len(violations)
-            stats = report.get('statistics', {})
-            self.log.info(f"AXI5 compliance master {idx}: {violations} violation(s); "
-                          f"stats={ {k: v for k, v in stats.items() if v} }")
-            assert not violations, (
-                f"AXI5 compliance violations on master {idx}: "
-                f"{report.get('violation_summary', report)}")
+            self.log.info(f"AXI5 compliance master {idx}: {violations} violation(s) in "
+                          f"{checks} checks; stats={ {k: v for k, v in stats.items() if v} }")
+            assert checks > 0, (
+                f"AXI5 compliance checker on master {idx} performed no checks -- "
+                f"its verdict is vacuous")
+            summary = dict(report.get('violation_summary', {}))
+            for name, expected in allow.items():
+                got = summary.pop(name, 0)
+                assert got == expected, (
+                    f"AXI5 compliance master {idx}: expected exactly {expected} "
+                    f"{name} (deliberately provoked), saw {got}")
+            assert not summary, (
+                f"AXI5 compliance violations on master {idx}: {summary}")
         return reports
 
     async def assert_reset(self):
