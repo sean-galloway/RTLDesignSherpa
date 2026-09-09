@@ -11,7 +11,7 @@
 //          Accumulates a CRC-32 over the data written so the read-side
 //          (axi4_master_rd_crc_check) has an expected value to compare against.
 //
-// Documentation: projects/NexysA7/ddr2-characterization/README.md
+// Documentation: projects/fpga-systems/NexysA7/pumice/ddr2-characterization/README.md
 // Subsystem: amba (shared characterization harness blocks)
 //
 // Author: sean galloway
@@ -50,7 +50,8 @@
 //   stays asserted from its first cycle to the last AW handshake when
 //   cfg_wr_gap = 0 — the addr-gen produces 1 result/cycle once warmed
 //   up. cfg_wr_gap > 0 pauses both AW and W together. AXI4 outstanding
-//   is bounded by the slave's awready throttling, not by this block.
+//   is bounded by MAX_OUTSTANDING (AWs issued minus Bs received) and by
+//   the slave's awready throttling.
 //
 //   Address dimensions: walks dma_address_gen's index_0 only; index_1 is
 //   held at 0. To exercise the 2D path, instantiate a second pattern_gen
@@ -110,6 +111,9 @@ module axi4_master_wr_pattern_gen #(
     // unconstrained (default; no check). A non-conforming cfg_burst_len yields a
     // ragged final sub-command in pumice_wr_splitter -> SLVERR / partial write.
     parameter int BURST_LEN_MULTIPLE = 1,
+    // Cap on bursts in flight (AWs issued minus B responses received). AW is
+    // otherwise decoupled and issues as fast as the slave accepts.
+    parameter int MAX_OUTSTANDING = 8,
 
     // ---- Aliases ----
     parameter int IW = AXI_ID_WIDTH,
@@ -478,6 +482,7 @@ module axi4_master_wr_pattern_gen #(
     // throttles. Gap pauses by switching state away from S_RUN.
     assign fub_awvalid       = (r_state == S_RUN)
                             && (r_aw_issued < r_txn_count)
+                            && ((r_aw_issued - r_b_received) < TXN_COUNT_WIDTH'(MAX_OUTSTANDING))
                             && w_aw_addr_result_valid;
     assign w_aw_addr_result_ready = fub_awvalid && fub_awready;
 

@@ -144,6 +144,8 @@ module ddr2_char_macro
     // ADDR_MAP.bank_lsb, so the host asserts the mapping and reads the
     // compiled count back from GEN_CONFIG.
     parameter int NUM_GEN          = 2,
+    // per-generator bursts in flight (AW/AR issued minus B/RLAST received)
+    parameter int GEN_MAX_OUTSTANDING = 8,
 
     // ---- Engine workload ranges ----
     parameter int TXN_COUNT_WIDTH  = 16,
@@ -507,7 +509,8 @@ module ddr2_char_macro
             .TXN_COUNT_WIDTH    (TXN_COUNT_WIDTH),
             .INDEX_WIDTH        (INDEX_WIDTH),
             .STRIDE_WIDTH       (STRIDE_WIDTH),
-            .BURST_LEN_MULTIPLE (BURST_LEN_MULTIPLE)
+            .BURST_LEN_MULTIPLE (BURST_LEN_MULTIPLE),
+            .MAX_OUTSTANDING    (GEN_MAX_OUTSTANDING)
         ) u_wr_engine (
             .aclk                 (mc_clk),
             .aresetn              (mc_rst_n),
@@ -575,6 +578,7 @@ module ddr2_char_macro
             .INDEX_WIDTH        (INDEX_WIDTH),
             .STRIDE_WIDTH       (STRIDE_WIDTH),
             .BURST_LEN_MULTIPLE (BURST_LEN_MULTIPLE),
+            .MAX_OUTSTANDING    (GEN_MAX_OUTSTANDING),
             // Only generator 0 carries the debug FIFO; see the note above.
             .DBG_FIFO_DEPTH     ((g == 0) ? RD_DBG_FIFO_DEPTH : 0)
         ) u_rd_engine (

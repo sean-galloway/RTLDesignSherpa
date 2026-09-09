@@ -13,7 +13,7 @@
 //          Accumulates a CRC-32 over the returned data so the harness can
 //          also compare actual_crc against the writer's expected_crc.
 //
-// Documentation: projects/NexysA7/ddr2-characterization/README.md
+// Documentation: projects/fpga-systems/NexysA7/pumice/ddr2-characterization/README.md
 // Subsystem: amba (shared characterization harness blocks)
 //
 // Author: sean galloway
@@ -62,9 +62,10 @@
 //   value at beat K depends on K — the *arrival* index — not on the AR's
 //   (address, beat_index_within_burst). With AXI4 this is fine while:
 //
-//     1. Only one outstanding AR (serial v1: rlast gates the next AR), OR
-//     2. All ARs share the same ID — AXI4 mandates in-order R per id, so
-//        beat arrival order matches issue order under same-id traffic.
+//     1. Bursts in flight are bounded by MAX_OUTSTANDING (the AR path is
+//        otherwise decoupled from R: it does NOT wait for rlast), AND
+//     2. R bursts arrive in AR order -- guaranteed by AXI4 when all ARs share
+//        one ID, and by a controller that returns in AR order regardless.
 //
 //   With multiple outstanding ARs at distinct IDs, the controller is free
 //   to return their R bursts interleaved or fully OOO. The current LFSR
@@ -125,6 +126,10 @@ module axi4_master_rd_crc_check #(
     // unconstrained (default). A non-conforming arlen SLVERR/partial-writes at
     // the intake and the CRC read-back then mismatches. Mirror of the write gen.
     parameter int BURST_LEN_MULTIPLE = 1,
+    // Cap on bursts in flight (ARs issued minus RLASTs received). The AR path
+    // is otherwise decoupled and issues as fast as the slave accepts; this
+    // bounds the reorder window a DUT sees from one generator.
+    parameter int MAX_OUTSTANDING = 8,
 
     // ---- Debug observability ----
     // When > 0, instantiate a `DBG_FIFO_DEPTH`-deep gaxi_fifo_sync that
@@ -472,6 +477,7 @@ module axi4_master_rd_crc_check #(
                               && (r_ar_req_count < r_txn_count);
     assign fub_arvalid         = (r_state == S_RUN)
                               && (r_ar_issued < r_txn_count)
+                              && ((r_ar_issued - r_bursts_done) < TXN_COUNT_WIDTH'(MAX_OUTSTANDING))
                               && w_ar_addr_result_valid;
     assign w_ar_addr_result_ready = fub_arvalid && fub_arready;
 
