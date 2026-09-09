@@ -10,7 +10,7 @@
 module stream_desc_adapter
     import bridge_stream_mon_axil_pkg::*;
 #(
-    parameter NUM_SLAVES = 13,
+    parameter NUM_SLAVES = 14,
     parameter BRIDGE_ID = 1,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 2,
     parameter SKID_DEPTH_AR = 2,
@@ -157,12 +157,16 @@ module stream_desc_adapter
     // ================================================================
     // Address decode (slave selection) - Read
     // Slave 4 (desc_ram): 0x00020000 - 0x0002FFFF
+    // Slave 13 (subtractive): 0x00000000 - 0xFFFFFFFF
     // ================================================================
     logic [NUM_SLAVES-1:0] comb_slave_select_ar;
     always_comb begin
         comb_slave_select_ar = '0;
         if (fub_axi_araddr >= 32'h00020000 && fub_axi_araddr <= 32'h0002FFFF) begin
             comb_slave_select_ar[4] = 1'b1;  // desc_ram
+        end
+        else begin  // Full address range (catch-all)
+            comb_slave_select_ar[13] = 1'b1;  // subtractive
         end
     end
 
@@ -177,9 +181,9 @@ module stream_desc_adapter
     // Per-width path-active gates (see comment in adapter_generator.py).
     logic ar_gate_ok;
     logic ar_path_active_256b;
-    assign ar_path_active_256b = (comb_slave_select_ar[4]) && ar_gate_ok;
+    assign ar_path_active_256b = (comb_slave_select_ar[4] | comb_slave_select_ar[13]) && ar_gate_ok;
     logic r_path_active_256b;
-    assign r_path_active_256b = r_slave_select[4];
+    assign r_path_active_256b = r_slave_select[4] | r_slave_select[13];
 
     // ================================================================
     // Direct passthrough: 256b → 256b (no converter)
@@ -264,14 +268,21 @@ module stream_desc_adapter
             r_ar_active_target <= comb_slave_select_ar;
         end
     )
-    assign ar_gate_ok = (ar_trk_wptr == ar_trk_rptr) ||
-                        (comb_slave_select_ar == r_ar_active_target);
+    logic ar_trk_full;
+    assign ar_trk_full = (ar_trk_wptr[AR_TRK_AW] != ar_trk_rptr[AR_TRK_AW]) &&
+                         (ar_trk_wptr[AR_TRK_AW-1:0] == ar_trk_rptr[AR_TRK_AW-1:0]);
+    assign ar_gate_ok = ((ar_trk_wptr == ar_trk_rptr) ||
+                         (comb_slave_select_ar == r_ar_active_target)) &&
+                        !ar_trk_full;
 
     // AR-ready MUX (request side: uses combinational comb_slave_select_ar)
     always_comb begin
         fub_axi_arready = 1'b0;
         case (comb_slave_select_ar)
-            13'b0000000010000: begin  // Slave 4 (256b)
+            14'b00000000010000: begin  // Slave 4 (256b)
+                fub_axi_arready = stream_desc_256b_arready;
+            end
+            14'b10000000000000: begin  // Slave 13 (256b)
                 fub_axi_arready = stream_desc_256b_arready;
             end
             default: begin
@@ -292,7 +303,14 @@ module stream_desc_adapter
         fub_axi_rvalid = 1'b0;
 
         case (r_slave_select)
-            13'b0000000010000: begin  // Slave 4 (256b)
+            14'b00000000010000: begin  // Slave 4 (256b)
+                fub_axi_rid = stream_desc_256b_r.id[7:0];
+                fub_axi_rdata = stream_desc_256b_r.data;
+                fub_axi_rresp = stream_desc_256b_r.resp;
+                fub_axi_rlast = stream_desc_256b_r.last;
+                fub_axi_rvalid = stream_desc_256b_rvalid;
+            end
+            14'b10000000000000: begin  // Slave 13 (256b)
                 fub_axi_rid = stream_desc_256b_r.id[7:0];
                 fub_axi_rdata = stream_desc_256b_r.data;
                 fub_axi_rresp = stream_desc_256b_r.resp;

@@ -5,7 +5,33 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
 
     localparam BRIDGE_STREAM_MON_AXIL_MON_CFG_DATA_WIDTH = 32;
     localparam BRIDGE_STREAM_MON_AXIL_MON_CFG_MIN_ADDR_WIDTH = 10;
-    localparam BRIDGE_STREAM_MON_AXIL_MON_CFG_SIZE = 'h3b8;
+    localparam BRIDGE_STREAM_MON_AXIL_MON_CFG_SIZE = 'h3c0;
+
+    typedef struct {
+        logic next;
+    } bridge_stream_mon_axil_mon_cfg__SUBTRACTIVE_STATUS__HIT__in_t;
+
+    typedef struct {
+        logic [7:0] next;
+    } bridge_stream_mon_axil_mon_cfg__SUBTRACTIVE_STATUS__COUNT__in_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__SUBTRACTIVE_STATUS__HIT__in_t HIT;
+        bridge_stream_mon_axil_mon_cfg__SUBTRACTIVE_STATUS__COUNT__in_t COUNT;
+    } bridge_stream_mon_axil_mon_cfg__SUBTRACTIVE_STATUS__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } bridge_stream_mon_axil_mon_cfg__SUBTRACTIVE_ADDR__ADDR__in_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__SUBTRACTIVE_ADDR__ADDR__in_t ADDR;
+    } bridge_stream_mon_axil_mon_cfg__SUBTRACTIVE_ADDR__in_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__SUBTRACTIVE_STATUS__in_t SUBTRACTIVE_STATUS;
+        bridge_stream_mon_axil_mon_cfg__SUBTRACTIVE_ADDR__in_t SUBTRACTIVE_ADDR;
+    } bridge_stream_mon_axil_mon_cfg__in_t;
 
     typedef struct {
         logic value;
@@ -3937,6 +3963,14 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__MON_GROUP_COMPRESS_EN__out_t;
 
     typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__SUBTRACTIVE_STATUS__CLEAR__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__SUBTRACTIVE_STATUS__CLEAR__out_t CLEAR;
+    } bridge_stream_mon_axil_mon_cfg__SUBTRACTIVE_STATUS__out_t;
+
+    typedef struct {
         bridge_stream_mon_axil_mon_cfg__HOST_0_WR_CTRL__out_t HOST_0_WR_CTRL;
         bridge_stream_mon_axil_mon_cfg__HOST_0_WR_LATENCY__out_t HOST_0_WR_LATENCY;
         bridge_stream_mon_axil_mon_cfg__HOST_0_WR_MASKS_A__out_t HOST_0_WR_MASKS_A;
@@ -4175,5 +4209,6 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__MON_GROUP_PACK_11__out_t MON_GROUP_PACK_11;
         bridge_stream_mon_axil_mon_cfg__MON_GROUP_PACK_12__out_t MON_GROUP_PACK_12;
         bridge_stream_mon_axil_mon_cfg__MON_GROUP_COMPRESS_EN__out_t MON_GROUP_COMPRESS_EN;
+        bridge_stream_mon_axil_mon_cfg__SUBTRACTIVE_STATUS__out_t SUBTRACTIVE_STATUS;
     } bridge_stream_mon_axil_mon_cfg__out_t;
 endpackage

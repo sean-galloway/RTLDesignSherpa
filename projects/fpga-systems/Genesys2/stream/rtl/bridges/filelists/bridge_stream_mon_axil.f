@@ -4,6 +4,12 @@
 # Reset macro header (`ALWAYS_FF_RST / `RST_ASSERTED)
 -f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
 
+# Monitor packages (must precede any module that references them)
+-f $REPO_ROOT/rtl/amba/filelists/monitor_pkgs.f
+
+# Subtractive catch-all slave (unmapped-address terminator)
+-f $REPO_ROOT/rtl/amba/filelists/axi4_subtractive_slave.f
+
 # Bridge RTL files (generated)
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_mon_axil/bridge_stream_mon_axil_pkg.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_mon_axil/host_adapter.sv
@@ -25,6 +31,7 @@ $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_st
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_mon_axil/stream_err_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_mon_axil/stream_tally_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_mon_axil/stream_tally_cfg_adapter.sv
+$REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_mon_axil/subtractive_adapter.sv
 
 # AXI4 Wrapper modules (timing isolation)
 #
