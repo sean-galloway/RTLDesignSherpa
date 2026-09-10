@@ -26,9 +26,8 @@
 APB4-attached SMBus 2.0 master. All ten transaction types, packet error
 checking, clock stretching, a bus timeout, and a strict register decode.
 
-**Status:** master implemented and regression-clean. **Slave mode is a stub**
-(see "What a real slave would need"). Multi-master arbitration is not
-implemented (see "What arbitration would need").
+**Status:** master implemented and regression-clean, including multi-master
+arbitration. **Slave mode is a stub** (see "What a real slave would need").
 
 ## Module structure
 
@@ -92,7 +91,7 @@ bus is slow; slow is not synchronous.
 
 | Code | Type | On the wire | Data bytes |
 |------|------|-------------|------------|
-| 0x0 | Quick Command | `S, Addr+W, P` | 0 |
+| 0x0 | Quick Command (write) | `S, Addr+W, P` | 0 |
 | 0x1 | Send Byte | `S, Addr+W, Data, [PEC], P` | 1 |
 | 0x2 | Receive Byte | `S, Addr+R, Data(N), [PEC], P` | 1 |
 | 0x3 | Write Byte | `S, Addr+W, Cmd, Data, [PEC], P` | 1 |
@@ -548,31 +547,33 @@ Implementing it needs, at minimum:
   block is being addressed as a target.
 - **Alert Response Address (ARA) handling** if SMBALERT# is ever wired.
 
-### What arbitration would need
+### Multi-master arbitration
 
-Multi-master arbitration is not implemented and
-`SMBUS_STATUS.arb_lost` is tied low. It needs:
+Every transmitted bit is read back in the SCL-high phase. Sending a 0 means
+driving SDA down and everyone driving down agrees; only a **1 that reads back
+as 0** says another master is still transmitting and has won. START is exempt,
+because pulling SDA down there is the framing rather than data.
 
-- **Per-bit readback**: while transmitting a 1 (line released), sample SDA in
-  the high phase; if it reads 0 another master is driving and arbitration is
-  lost. The PHY already synchronizes SDA, so the sample point exists.
-- **Immediate withdrawal** on loss - stop driving SDA and SCL within the same
-  bit, without generating a STOP, because the winning master's transfer is
-  still in progress.
-- **Bus-free detection** (tBUF after a STOP) before attempting a START, which
-  the PHY does not currently enforce.
-- **A retry policy** in the sequencer, and a decision about whether a lost
-  transaction is re-issued by hardware or reported to software.
-- **Slave-path interaction**: a master that loses arbitration may immediately be
-  addressed as a slave by the winner.
+On loss the PHY releases both lines in the same bit and the sequencer reports
+`SMBUS_STATUS.arb_lost` and returns to idle **without generating a STOP** -
+the winner's transfer is still in progress and re-driving the lines, including
+to frame a STOP, would corrupt it. Retry is left to software; the bus-free
+wait before START is what makes the retry safe.
+
+Losing arbitration is not an error of ours, but it is reported as one in the
+sense that `complete` is not set: the transfer did not happen.
+
+Still missing, and only relevant once slave mode exists: a master that loses
+arbitration may immediately be addressed as a slave by the winner.
 
 ### Other
 
 - Block Process Call is implemented as a block write followed by a repeated
   START and a block read; the two halves share `SMBUS_BLOCK_COUNT`.
-- **Quick Command is always issued with R/W = 0 (write).** The read-direction
-  Quick Command, which some devices use as a one-bit command, is not
-  implemented; there is no register bit to select the direction.
+- **Quick Command has both directions.** Transaction type 0x0 sends the
+  address byte with R/W = 0 and type 0xA with R/W = 1. The R/W bit IS the
+  payload of a quick command, so each direction has its own code rather than
+  a direction bit that would mean nothing for the other types.
 - **A `start` written while `master_en` is clear is silently discarded** (see
   above). It is not reported as an error, so software that forgets to enable
   master mode sees a transaction that simply never happens.

@@ -174,11 +174,14 @@ They read and write, they are documented as storage in the RDL, and they are
 not routed to `pm_acpi_core` - a register that does nothing should not look
 like a connected input nobody reads (issue #54 H3).
 
-`RESET_STATUS.wdt_reset` and `.ext_reset` always read 0: this module has no
-watchdog or external-reset input pin, so those reset sources are not
-observable here. `.por_reset` is a sticky LEVEL (it was a one-cycle pulse no
-APB read could ever land on) and hands over to `.sw_reset` when
-`ACPI_CONTROL.soft_reset` executes.
+`RESET_STATUS.wdt_reset` and `.ext_reset` come from the `wdt_reset_n` and
+`ext_reset_n` device pins (RLB-009). Both are active low, synchronized like
+the other board pins, and LATCHED rather than sampled: the pulse that caused
+a reset is long gone by the time software reads the register, so the bit has
+to survive until the next reset clears it. Tie either pin high if the system
+has no watchdog or no external reset button. `.por_reset` is a sticky LEVEL
+(it was a one-cycle pulse no APB read could ever land on) and hands over to
+`.sw_reset` when `ACPI_CONTROL.soft_reset` executes.
 
 ## Reset requests
 

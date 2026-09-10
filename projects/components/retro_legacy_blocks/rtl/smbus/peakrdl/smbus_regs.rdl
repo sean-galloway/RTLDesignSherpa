@@ -24,7 +24,7 @@
  *   implemented (ledger RLB-011).
  *
  * Transaction Types:
- * - Quick Command (0 bytes)
+ * - Quick Command, either direction (0 bytes; the R/W bit is the payload)
  * - Send/Receive Byte (1 byte, no command)
  * - Write/Read Byte Data (1 command + 1 data byte)
  * - Write/Read Word Data (1 command + 2 data bytes)
@@ -281,7 +281,13 @@ addrmap smbus_regs {
 
         field {
             name = "Transaction Type";
-            desc = "Transaction type: 0=Quick, 1=SendByte, 2=RecvByte, 3=WriteByte, 4=ReadByte, 5=WriteWord, 6=ReadWord, 7=BlockWrite, 8=BlockRead, 9=BlockProc";
+            desc = "Transaction type: 0=Quick (write direction), 1=SendByte,
+                    2=RecvByte, 3=WriteByte, 4=ReadByte, 5=WriteWord,
+                    6=ReadWord, 7=BlockWrite, 8=BlockRead, 9=BlockProc,
+                    A=Quick (read direction). The R/W bit IS the payload
+                    of a quick command, so both directions have their own
+                    code rather than a direction bit that would mean
+                    nothing for the other types.";
             sw = rw;
             hw = r;
         } trans_type[3:0] = 4'h0;

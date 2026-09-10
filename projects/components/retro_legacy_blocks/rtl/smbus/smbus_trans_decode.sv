@@ -54,6 +54,12 @@ module smbus_trans_decode #(
     localparam logic [3:0] TRANS_BLOCK_WRITE = 4'h7;
     localparam logic [3:0] TRANS_BLOCK_READ  = 4'h8;
     localparam logic [3:0] TRANS_BLOCK_PROC  = 4'h9;
+    // The read-direction Quick Command. The R/W bit IS the payload of a
+    // quick command, so both directions have to be reachable; giving the
+    // read form its own code keeps SMBUS_COMMAND's layout unchanged and
+    // avoids an rw bit that would be meaningless for every other type
+    // (RLB-011).
+    localparam logic [3:0] TRANS_QUICK_CMD_RD = 4'hA;
 
     localparam logic [5:0] FIFO_DEPTH_6B = 6'(FIFO_DEPTH);
 
@@ -88,7 +94,8 @@ module smbus_trans_decode #(
     assign is_read = (trans_type == TRANS_RECV_BYTE) ||
                      (trans_type == TRANS_READ_BYTE) ||
                      (trans_type == TRANS_READ_WORD) ||
-                     (trans_type == TRANS_BLOCK_READ);
+                     (trans_type == TRANS_BLOCK_READ) ||
+                     (trans_type == TRANS_QUICK_CMD_RD);
 
     assign needs_restart = (trans_type == TRANS_READ_BYTE)  ||
                            (trans_type == TRANS_READ_WORD)  ||
@@ -108,6 +115,7 @@ module smbus_trans_decode #(
     always_comb begin
         unique case (trans_type)
             TRANS_QUICK_CMD:   w_data_bytes = 6'd0;
+            TRANS_QUICK_CMD_RD: w_data_bytes = 6'd0;
             TRANS_SEND_BYTE:   w_data_bytes = 6'd1;
             TRANS_RECV_BYTE:   w_data_bytes = 6'd1;
             TRANS_WRITE_BYTE:  w_data_bytes = 6'd1;

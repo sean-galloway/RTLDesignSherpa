@@ -267,6 +267,10 @@ module pm_acpi_core #(
 
     // External wake input (active low, asynchronous)
     input  logic        ext_wake_n,
+    // Reset-source inputs, active low, synchronized like the other board
+    // pins. A pulse latches its RESET_STATUS bit until the next reset.
+    input  logic        wdt_reset_n,
+    input  logic        ext_reset_n,
 
     // Clock gate outputs (to clock gates)
     output logic [31:0] clock_gate_en,
@@ -315,9 +319,9 @@ module pm_acpi_core #(
     localparam int WK_ST_EXT      = 3;   // WAKE_STATUS.ext_wake
 
     localparam int RST_ST_POR     = 0;   // RESET_STATUS.por_reset
-    localparam int RST_ST_WDT     = 1;   // RESET_STATUS.wdt_reset (no input pin)
+    localparam int RST_ST_WDT     = 1;   // RESET_STATUS.wdt_reset
     localparam int RST_ST_SW      = 2;   // RESET_STATUS.sw_reset
-    localparam int RST_ST_EXT     = 3;   // RESET_STATUS.ext_reset (no input pin)
+    localparam int RST_ST_EXT     = 3;   // RESET_STATUS.ext_reset
 
     // ========================================================================
     // Internal Registers and Signals
@@ -354,9 +358,15 @@ module pm_acpi_core #(
     // Asynchronous input synchronizers
     logic        r_rtc_alarm_sync  [SYNC_STAGES];
     logic        r_ext_wake_n_sync [SYNC_STAGES];
+    logic        r_wdt_reset_n_sync [SYNC_STAGES];
+    logic        r_ext_reset_n_sync [SYNC_STAGES];
+    logic        r_wdt_reset_seen;
+    logic        r_ext_reset_seen;
     logic [31:0] r_gpe_events_sync [SYNC_STAGES];
     logic        w_rtc_alarm;
     logic        w_ext_wake_n;
+    logic        w_wdt_reset_n;
+    logic        w_ext_reset_n;
     logic [31:0] w_gpe_events;
 
     // Assertion-edge detect on the two level pins (issue #54 follow-up F1)
@@ -436,15 +446,21 @@ module pm_acpi_core #(
             for (int s = 0; s < SYNC_STAGES; s++) begin
                 r_rtc_alarm_sync[s]  <= 1'b0;
                 r_ext_wake_n_sync[s] <= 1'b1;
+                r_wdt_reset_n_sync[s] <= 1'b1;
+                r_ext_reset_n_sync[s] <= 1'b1;
                 r_gpe_events_sync[s] <= '0;
             end
         end else begin
             r_rtc_alarm_sync[0]  <= rtc_alarm;
             r_ext_wake_n_sync[0] <= ext_wake_n;
+            r_wdt_reset_n_sync[0] <= wdt_reset_n;
+            r_ext_reset_n_sync[0] <= ext_reset_n;
             r_gpe_events_sync[0] <= gpe_events_in;
             for (int s = 1; s < SYNC_STAGES; s++) begin
                 r_rtc_alarm_sync[s]  <= r_rtc_alarm_sync[s-1];
                 r_ext_wake_n_sync[s] <= r_ext_wake_n_sync[s-1];
+                r_wdt_reset_n_sync[s] <= r_wdt_reset_n_sync[s-1];
+                r_ext_reset_n_sync[s] <= r_ext_reset_n_sync[s-1];
                 r_gpe_events_sync[s] <= r_gpe_events_sync[s-1];
             end
         end
@@ -453,6 +469,21 @@ module pm_acpi_core #(
     assign w_rtc_alarm  = r_rtc_alarm_sync[SYNC_STAGES-1];
     assign w_ext_wake_n = r_ext_wake_n_sync[SYNC_STAGES-1];
     assign w_gpe_events = r_gpe_events_sync[SYNC_STAGES-1];
+    assign w_wdt_reset_n = r_wdt_reset_n_sync[SYNC_STAGES-1];
+    assign w_ext_reset_n = r_ext_reset_n_sync[SYNC_STAGES-1];
+
+    // A reset SOURCE is latched, not sampled: the pulse that caused the reset
+    // is long gone by the time software reads RESET_STATUS, so the bit has to
+    // survive until the next reset clears it.
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_wdt_reset_seen <= 1'b0;
+            r_ext_reset_seen <= 1'b0;
+        end else begin
+            if (!w_wdt_reset_n) r_wdt_reset_seen <= 1'b1;
+            if (!w_ext_reset_n) r_ext_reset_seen <= 1'b1;
+        end
+    )
 
     // ========================================================================
     // Assertion-Edge Detect on the Level Pins
@@ -888,9 +919,9 @@ module pm_acpi_core #(
     )
 
     assign status_reset_src[RST_ST_POR] = r_por_reset;
-    assign status_reset_src[RST_ST_WDT] = 1'b0;
+    assign status_reset_src[RST_ST_WDT] = r_wdt_reset_seen;
     assign status_reset_src[RST_ST_SW]  = r_sw_reset;
-    assign status_reset_src[RST_ST_EXT] = 1'b0;
+    assign status_reset_src[RST_ST_EXT] = r_ext_reset_seen;
 
     // RESET_CTRL requests: registered so the output is a clean one-cycle
     // pulse in this clock domain regardless of how long the bridge holds the

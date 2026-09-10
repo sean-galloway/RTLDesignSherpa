@@ -3868,6 +3868,114 @@ class SMBusMediumTests:
     # Coordinator asked for that gap to be checked explicitly.
     # ==================================================================
 
+    async def test_rlb011_arbitration_lost(self) -> bool:
+        """RLB-011: multi-master arbitration.
+
+        Another master transmitting at the same time pulls SDA low while this
+        one is sending a 1. That is arbitration lost: this master must release
+        both lines at once - re-driving them would corrupt the winner's
+        transfer - report SMBUS_STATUS.arb_lost, and go idle without framing
+        a STOP. A later transaction must work normally."""
+        self.log.info("=== RLB-011: arbitration lost ===")
+        from .smbus_tb import SMBusRegisterMap as M
+        try:
+            await self._recover_and_reset()
+            await self.tb.enable_master_mode(enable=True, use_pec=False)
+
+            # Address 0x55 has 1 bits for a rival to contradict. The rival
+            # must appear AFTER this master has framed its START and is
+            # transmitting: holding SDA low beforehand simply parks the
+            # master in its bus-free wait, which is correct behaviour and not
+            # arbitration at all.
+            await self.tb.start_transaction(trans_type=M.TRANS_SEND_BYTE,
+                                            slave_addr=0x55, command=0)
+            # wait for the first SCL low phase, i.e. the address byte is under way
+            for _ in range(200000):
+                await ClockCycles(self.tb.pclk, 1)
+                if int(self.tb.dut.smb_scl_t.value) == 0:
+                    break
+            await ClockCycles(self.tb.pclk, 200)
+            self.tb._slave_sda_shim.value = 0        # the other master wins
+            lost = False
+            for _ in range(4000):
+                await ClockCycles(self.tb.pclk, 10)
+                _, st = await self.tb.read_register(M.SMBUS_STATUS)
+                if st & M.STATUS_ARB_LOST:
+                    lost = True
+                    break
+            released = (int(self.tb.dut.smb_scl_t.value) == 1)
+            busy_after = bool((await self.tb.read_register(M.SMBUS_STATUS))[1]
+                              & M.STATUS_BUSY)
+            self.tb._slave_sda_shim.value = 1        # rival finishes
+            await ClockCycles(self.tb.pclk, 2000)
+            self.log.info(f"  arb_lost={lost} scl_released={released} "
+                          f"busy_after={busy_after}")
+
+            # The block must still work once the bus is free.
+            await self._recover_and_reset()
+            await self.tb.enable_master_mode(enable=True, use_pec=False)
+            self.tb.smbus_slave.start()
+            await self.tb.start_transaction(trans_type=M.TRANS_SEND_BYTE,
+                                            slave_addr=0x50, command=0)
+            recovered = await self.tb.wait_for_complete(timeout_cycles=40000)
+            self.tb.smbus_slave.stop()
+            self.log.info(f"  transaction after arbitration loss: {recovered}")
+
+            ok = lost and released and (not busy_after) and recovered
+            if ok:
+                self.log.info("RLB-011 arbitration GREEN")
+                return True
+            self.log.error(
+                f"RLB-011 arbitration: arb_lost={lost} scl_released={released} "
+                f"busy_cleared={not busy_after} later_transaction={recovered}")
+            return False
+        except Exception as e:
+            self.log.error(f"RLB-011 arbitration test error: {e}")
+            return False
+
+    async def test_rlb011_quick_command_read(self) -> bool:
+        """RLB-011: the read-direction Quick Command.
+
+        The R/W bit IS the payload of a quick command, so both directions have
+        to be reachable. Transaction type 0xA sends the address byte with
+        R/W = 1 and nothing else; type 0x0 keeps the write direction."""
+        self.log.info("=== RLB-011: quick command, read direction ===")
+        from .smbus_tb import SMBusRegisterMap as M
+        try:
+            results = {}
+            for name, ttype in (("write", M.TRANS_QUICK_CMD),
+                                ("read", M.TRANS_QUICK_CMD_RD)):
+                await self._recover_and_reset()
+                await self.tb.enable_master_mode(enable=True, use_pec=False)
+                self.tb.smbus_monitor.recv_queue.clear()
+                self.tb.smbus_slave.start()
+                self.tb.smbus_monitor.start()
+                await self.tb.start_transaction(trans_type=ttype,
+                                                slave_addr=0x50, command=0)
+                done = await self.tb.wait_for_complete(timeout_cycles=40000)
+                await ClockCycles(self.tb.pclk, 300)
+                self.tb.smbus_monitor.stop()
+                self.tb.smbus_slave.stop()
+                pkts = list(self.tb.smbus_monitor.recv_queue)
+                dirs = [getattr(p, 'read_write', None) for p in pkts]
+                results[name] = (done, dirs)
+                self.log.info(f"  quick {name}: completed={done} "
+                              f"address directions seen={dirs}")
+
+            write_ok = results["write"][0] and 1 not in results["write"][1]
+            read_ok = results["read"][0] and 1 in results["read"][1]
+            if write_ok and read_ok:
+                self.log.info("RLB-011 quick command read GREEN")
+                return True
+            self.log.error(
+                f"RLB-011 quick command: write={results['write']} (want "
+                f"completed with no R/W=1), read={results['read']} (want "
+                f"completed with an R/W=1 address byte)")
+            return False
+        except Exception as e:
+            self.log.error(f"RLB-011 quick command read test error: {e}")
+            return False
+
     async def test_gh58_r5_1_fifo_reset_clears_stale_tx_data(self) -> bool:
         """Coordinator round-5 ask: GH58-13 (soft_reset) checks FIFO
         levels, sticky status, and a subsequent transaction - but only

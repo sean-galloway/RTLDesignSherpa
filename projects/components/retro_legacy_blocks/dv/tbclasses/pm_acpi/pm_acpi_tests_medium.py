@@ -53,6 +53,7 @@ class PMACPIMediumTests:
         results = []
 
         test_methods = [
+            ('RLB-009 reset source pins', self.test_rlb009_reset_source_pins),
             ('PM Timer Divider Sweep', self.test_pm_timer_divider_sweep),
             ('PM Timer Extended Run', self.test_pm_timer_extended_run),
             ('GPE Enable Patterns', self.test_gpe_enable_patterns),
@@ -95,6 +96,49 @@ class PMACPIMediumTests:
     # ========================================================================
     # PM Timer Extended Tests
     # ========================================================================
+
+    async def test_rlb009_reset_source_pins(self) -> bool:
+        """RLB-009: RESET_STATUS.wdt_reset and .ext_reset are observable.
+
+        Both used to read 0 always, because nothing carried the information
+        into the block. They now come from device pins, and a source is
+        LATCHED rather than sampled: the pulse that caused a reset is long
+        gone by the time software reads the register."""
+        self.log.info("=== RLB-009: reset source pins ===")
+        try:
+            results = {}
+            M = PMACPIRegisterMap
+            for name, pin, bit in (("wdt", self.tb.dut.wdt_reset_n, M.RESET_STATUS_WDT),
+                                   ("ext", self.tb.dut.ext_reset_n, M.RESET_STATUS_EXT)):
+                await self.tb.assert_reset()
+                await ClockCycles(self.tb.pclk, 10)
+                await self.tb.deassert_reset()
+                await ClockCycles(self.tb.pclk, 20)
+                _, before = await self.tb.read_register(M.RESET_STATUS)
+                pin.value = 0                      # assert (active low)
+                await ClockCycles(self.tb.pclk, 20)
+                pin.value = 1                      # release
+                await ClockCycles(self.tb.pclk, 20)
+                _, after = await self.tb.read_register(M.RESET_STATUS)
+                await ClockCycles(self.tb.pclk, 200)
+                _, held = await self.tb.read_register(M.RESET_STATUS)
+                results[name] = (bool(before & bit), bool(after & bit),
+                                 bool(held & bit))
+                self.log.info(f"  {name}: before={results[name][0]} "
+                              f"after_pulse={results[name][1]} "
+                              f"still_latched={results[name][2]}")
+
+            ok = all((not b) and a and h for (b, a, h) in results.values())
+            if ok:
+                self.log.info("RLB-009 reset source pins GREEN")
+                return True
+            self.log.error(
+                f"RLB-009 reset sources: {results} (want each False before the "
+                f"pulse, True after it, and still True later)")
+            return False
+        except Exception as e:
+            self.log.error(f"RLB-009 reset source test error: {e}")
+            return False
 
     async def test_pm_timer_divider_sweep(self) -> bool:
         """Test PM Timer with various divider values."""

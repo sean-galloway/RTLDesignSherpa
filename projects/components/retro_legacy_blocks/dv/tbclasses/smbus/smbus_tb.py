@@ -150,7 +150,8 @@ class SMBusRegisterMap:
     COMMAND_STOP = (1 << 17)           # Generate stop
 
     # Transaction types
-    TRANS_QUICK_CMD = 0       # Quick command
+    TRANS_QUICK_CMD = 0       # Quick command, write direction
+    TRANS_QUICK_CMD_RD = 0xA  # Quick command, read direction
     TRANS_SEND_BYTE = 1       # Send byte
     TRANS_RECV_BYTE = 2       # Receive byte
     TRANS_WRITE_BYTE = 3      # Write byte data

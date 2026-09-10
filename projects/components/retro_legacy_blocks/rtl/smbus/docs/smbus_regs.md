@@ -251,7 +251,13 @@ software; there is no bit that reports it.</p>
 
 #### trans_type field
 
-<p>Transaction type: 0=Quick, 1=SendByte, 2=RecvByte, 3=WriteByte, 4=ReadByte, 5=WriteWord, 6=ReadWord, 7=BlockWrite, 8=BlockRead, 9=BlockProc</p>
+<p>Transaction type: 0=Quick (write direction), 1=SendByte,
+2=RecvByte, 3=WriteByte, 4=ReadByte, 5=WriteWord,
+6=ReadWord, 7=BlockWrite, 8=BlockRead, 9=BlockProc,
+A=Quick (read direction). The R/W bit IS the payload
+of a quick command, so both directions have their own
+code rather than a direction bit that would mean
+nothing for the other types.</p>
 
 #### cmd_code field
 

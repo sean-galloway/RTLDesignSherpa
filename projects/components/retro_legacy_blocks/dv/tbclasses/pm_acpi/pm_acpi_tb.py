@@ -246,6 +246,8 @@ class PMACPITB(TBBase):
         self.dut.sleep_button_n.value = 1  # Active low, so 1 = not pressed
         self.dut.rtc_alarm.value = 0
         self.dut.ext_wake_n.value = 1      # Active low, so 1 = no wake
+        self.dut.wdt_reset_n.value = 1     # Active low, so 1 = no watchdog reset
+        self.dut.ext_reset_n.value = 1     # Active low, so 1 = no external reset
 
         # Perform reset sequence
         await self.assert_reset()

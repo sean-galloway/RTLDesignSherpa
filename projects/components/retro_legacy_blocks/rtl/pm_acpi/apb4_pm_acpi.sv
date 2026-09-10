@@ -121,6 +121,13 @@ module apb4_pm_acpi #(
     // External wake input (active low, asynchronous)
     input  logic                    ext_wake_n,
 
+    // Reset-source inputs. RESET_STATUS.wdt_reset and .ext_reset used to read
+    // 0 always because nothing carried the information into the block; these
+    // are that information (RLB-009). Tie them high (inactive) if the system
+    // has no watchdog or no external reset button.
+    input  logic                    wdt_reset_n,
+    input  logic                    ext_reset_n,
+
     // Clock gate outputs (to system clock gates)
     output logic [31:0]             clock_gate_en,
 
@@ -428,6 +435,8 @@ module apb4_pm_acpi #(
         .sleep_button_n       (sleep_button_n),
         .rtc_alarm            (rtc_alarm),
         .ext_wake_n           (ext_wake_n),
+        .wdt_reset_n          (wdt_reset_n),
+        .ext_reset_n          (ext_reset_n),
         .clock_gate_en        (clock_gate_en),
         .power_domain_en      (power_domain_en),
         .sys_reset_req        (sys_reset_req),

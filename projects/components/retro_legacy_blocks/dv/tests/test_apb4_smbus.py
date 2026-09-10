@@ -151,6 +151,8 @@ async def smbus_test(dut):
         ('GH58-R4-8 (guard) full-density abort sweep', gh58_tests.test_gh58_r4_8_full_density_abort_sweep),
         ('GH58-R4-10 TX FIFO push honors PSTRB', gh58_tests.test_gh58_r4_10_tx_fifo_pstrb),
         ('GH58-R5-1 fifo_reset clears stale TX data', gh58_tests.test_gh58_r5_1_fifo_reset_clears_stale_tx_data),
+        ('RLB-011 quick command read', gh58_tests.test_rlb011_quick_command_read),
+        ('RLB-011 arbitration lost', gh58_tests.test_rlb011_arbitration_lost),
         ('GH58-R6-1 fifo_reset during receive keeps level consistent', gh58_tests.test_gh58_r6_1_fifo_reset_during_receive_keeps_level_consistent),
         ('GH58-R6-2 fifo_reset TX side + longer-window harmless', gh58_tests.test_gh58_r6_2_fifo_reset_tx_and_width_harmless),
     ]

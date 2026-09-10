@@ -141,6 +141,10 @@ module smbus_bit_phy (
     input  wire        tx_bit,          // bit value for PHY_OP_TX
     output wire        op_done,         // single-cycle completion
     output wire        rx_bit,          // bit sampled by PHY_OP_RX
+    // Multi-master arbitration: asserted for one cycle when this master
+    // transmitted a 1 and read back a 0, which means somebody else is
+    // driving the bus and won. The PHY releases both lines with it.
+    output wire        arb_lost,
     output wire        phy_busy,
 
     //--- Bus observation
@@ -226,6 +230,7 @@ module smbus_bit_phy (
     logic        w_phase_end;
     logic        w_last_phase;
     logic        w_sample_now;
+    logic        w_arb_check;
     logic        w_start_phy;
     logic [2:0]  w_start_op;
     logic [2:0]  w_windows_allowed;
@@ -381,6 +386,14 @@ module smbus_bit_phy (
     // RX samples at the end of the first high phase, in the middle of tHIGH.
     assign w_sample_now = (r_op == PHY_OP_RX) && (r_phase == 3'd1) && w_phase_end;
 
+    // Arbitration is checked on the transmitted bit, at the point in the
+    // SCL-high phase where the bus has settled. Sending a 0 means driving SDA
+    // down, and everyone driving down agrees; only a 1 that reads back as 0
+    // says another master is still transmitting and has won. START is exempt:
+    // pulling SDA down there is the framing, not data.
+    assign w_arb_check = (r_op == PHY_OP_TX) && (r_phase == 3'd1) && w_phase_end;
+    assign arb_lost    = r_active && w_arb_check && tx_bit && !w_sda_sync;
+
     assign w_start_phy = abort_req || (op_req && !r_active);
     assign w_start_op  = abort_req ? (abort_recover ? PHY_OP_RECOVER : PHY_OP_STOP)
                                    : op;
@@ -461,10 +474,13 @@ module smbus_bit_phy (
                     end
                 endcase
             end else if (r_active) begin
-                if (r_timeout) begin
+                if (r_timeout || arb_lost) begin
                     // Abandon: release both lines and report. A STOP cannot be
                     // generated while someone else holds SCL down, so giving
-                    // up is the only exit that always exists.
+                    // up is the only exit that always exists - and on losing
+                    // arbitration releasing is mandatory rather than merely
+                    // safe: the winner is mid-transfer and must not be
+                    // disturbed.
                     r_active        <= 1'b0;
                     r_done          <= 1'b1;
                     r_scl_drive_low <= 1'b0;

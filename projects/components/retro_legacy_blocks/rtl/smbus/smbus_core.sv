@@ -172,6 +172,8 @@ module smbus_core #(
     logic        w_phy_rx_bit;
     logic        w_phy_busy;
     logic        w_phy_timeout;
+    logic        w_phy_arb_lost;
+    logic        r_arb_lost;
     logic        w_recover_failed;
     logic        w_sda_sync;
     logic        w_scl_sync;
@@ -208,7 +210,7 @@ module smbus_core #(
 
     // EVERY error term, including ones landing on this very edge.
     assign w_error_next = r_pec_error || r_bus_error || r_nak_received ||
-                          r_timeout_error ||
+                          r_timeout_error || r_arb_lost || w_phy_arb_lost ||
                           (w_phy_done && w_recover_failed) ||
                           (w_phy_done && w_phy_timeout);
 
@@ -328,6 +330,7 @@ module smbus_core #(
         .tx_bit         (r_phy_tx_bit),
         .op_done        (w_phy_done),
         .rx_bit         (w_phy_rx_bit),
+        .arb_lost       (w_phy_arb_lost),
         .phy_busy       (w_phy_busy),
         .phy_timeout    (w_phy_timeout),
         .recover_failed (w_recover_failed),
@@ -358,6 +361,7 @@ module smbus_core #(
             r_timeout_error   <= 1'b0;
             r_pec_error       <= 1'b0;
             r_nak_received    <= 1'b0;
+            r_arb_lost        <= 1'b0;
             r_complete        <= 1'b0;
             r_bit_counter     <= 4'd0;
             r_shift_reg       <= 8'h00;
@@ -447,7 +451,19 @@ module smbus_core #(
             // (op_req is only sampled while the PHY is idle). A NAK IS AN
             // ABORT WHEREVER IT ARRIVES. EVERY STATE THAT CAN WAIT ON SCL IS
             // TIMEOUT-COVERED, M_STOP included.
-            if (w_ack_state && r_ack_valid && r_ack_bit) begin
+            // LOSING ARBITRATION IS NOT AN ERROR OF OURS. Another master
+            // was transmitting at the same time and won; the bus now belongs
+            // to it. The PHY has already released both lines - re-driving
+            // them, including to frame a STOP, would corrupt the winner's
+            // transfer - so this reports and goes idle, and software retries
+            // after the bus is free again. The bus-free wait before START is
+            // what makes that retry safe.
+            if (w_phy_arb_lost) begin
+                r_arb_lost     <= 1'b1;
+                r_master_state <= M_IDLE;
+                r_busy         <= 1'b0;
+                r_ack_valid    <= 1'b0;
+            end else if (w_ack_state && r_ack_valid && r_ack_bit) begin
                 r_ack_valid    <= 1'b0;
                 r_nak_received <= 1'b1;
                 r_master_state <= M_ERROR;
@@ -486,6 +502,7 @@ module smbus_core #(
                         r_timeout_error <= 1'b0;
                         r_pec_error     <= 1'b0;
                         r_nak_received  <= 1'b0;
+                        r_arb_lost      <= 1'b0;
 
                         r_trans_type    <= cmd_trans_type;
                         r_slave_addr    <= cmd_slave_addr;
@@ -782,7 +799,7 @@ module smbus_core #(
 
     //--- Slave mode / outputs
     assign status_slave_addressed = 1'b0;
-    assign status_arb_lost        = 1'b0;
+    assign status_arb_lost        = r_arb_lost;
     assign status_busy           = r_busy;
     assign status_bus_error      = r_bus_error;
     assign status_timeout_error  = r_timeout_error;
