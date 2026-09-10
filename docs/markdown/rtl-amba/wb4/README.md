@@ -25,7 +25,10 @@
 
 **Location:** `rtl/amba/wb4/`
 **Test Location:** `val/amba/`
-**Status:** New (2026-09-09); master, slave, monitor, retry, clock-gated and CDC variants with sim and formal collateral
+**Status:** New (2026-09-09); master, slave, monitor, retry, clock-gated and
+CDC variants with sim and formal collateral. Family FULL sweep 2026-09-10 on
+one pinned seed base (`RDS_SEED_BASE=20260910`): 282 tests across the eight
+wb4 suites plus 8 for the AXI4-Lite bridge, all passing.
 
 ---
 
