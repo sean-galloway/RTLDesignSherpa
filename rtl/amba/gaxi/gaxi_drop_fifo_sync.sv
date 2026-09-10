@@ -222,7 +222,7 @@ module gaxi_drop_fifo_sync #(
     /////////////////////////////////////////////////////////////////////////
     // Drop FSM
     `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-        if (!axi_aresetn)
+        if (`RST_ASSERTED(axi_aresetn))
             r_drop_state <= IDLE;
         else
             r_drop_state <= w_drop_state_next;
@@ -412,7 +412,7 @@ module gaxi_drop_fifo_sync #(
             // so the shared downstream consumers keep one truthful name.
             logic [DATA_WIDTH-1:0] r_rd_data;
             `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-                if (!axi_aresetn) r_rd_data <= '0;
+                if (`RST_ASSERTED(axi_aresetn)) r_rd_data <= '0;
                 else              r_rd_data <= mem[r_rd_addr];
             )
             assign w_rd_data = r_rd_data;
@@ -441,7 +441,7 @@ module gaxi_drop_fifo_sync #(
         if (REGISTERED != 0) begin : gen_flop_mode
             // Flop mode - registered output
             `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-                if (!axi_aresetn)
+                if (`RST_ASSERTED(axi_aresetn))
                     rd_data <= 'b0;
                 else
                     rd_data <= w_rd_data;

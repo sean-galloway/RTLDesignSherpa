@@ -162,7 +162,7 @@ module gaxi_fifo_sync #(
             if (REGISTERED != 0) begin : g_flop
                 logic [DATA_WIDTH-1:0] r_rd_data;
                 `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-                    if (!axi_aresetn) r_rd_data <= '0;
+                    if (`RST_ASSERTED(axi_aresetn)) r_rd_data <= '0;
                     else              r_rd_data <= mem[r_rd_addr];
                 )
                 assign rd_data = r_rd_data;
@@ -190,7 +190,7 @@ module gaxi_fifo_sync #(
             // Synchronous read (flop output)
             logic [DATA_WIDTH-1:0] r_rd_data;
             `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-                if (!axi_aresetn) r_rd_data <= '0;
+                if (`RST_ASSERTED(axi_aresetn)) r_rd_data <= '0;
                 else              r_rd_data <= mem[r_rd_addr];
             )
             assign rd_data = r_rd_data;
@@ -210,7 +210,7 @@ module gaxi_fifo_sync #(
             if (REGISTERED != 0) begin : g_flop
                 logic [DATA_WIDTH-1:0] r_rd_data;
                 `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-                    if (!axi_aresetn) r_rd_data <= '0;
+                    if (`RST_ASSERTED(axi_aresetn)) r_rd_data <= '0;
                     else              r_rd_data <= mem[r_rd_addr];
                 )
                 assign rd_data = r_rd_data;

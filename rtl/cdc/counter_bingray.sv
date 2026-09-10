@@ -15,6 +15,8 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 //==============================================================================
 // Module: counter_bingray
 //==============================================================================
@@ -401,14 +403,14 @@ module counter_bingray #(
     assign counter_bin_next = w_counter_bin;
 
     // Increment the binary counter and convert to Gray code
-    always_ff @(posedge clk, negedge rst_n) begin
-        if (!rst_n) begin
+    `ALWAYS_FF_RST(clk, rst_n, begin
+        if (`RST_ASSERTED(rst_n)) begin
             counter_bin  <= 'b0;
             counter_gray <= 'b0;
         end else begin
             counter_bin  <= w_counter_bin;
             counter_gray <= w_counter_gray;
         end
-    end
+    end)
 
 endmodule : counter_bingray

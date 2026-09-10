@@ -1,6 +1,6 @@
 # common — task rollup
 
-**Next ID: COMMON-027** — never recycle a number, even when its task closed.
+**Next ID: COMMON-028** — never recycle a number, even when its task closed.
 
 Canonical tracker for `rtl/common/` (~57 reusable building blocks).
 Migrated 2026-07-23 from `rtl/common/TASKS.md`.

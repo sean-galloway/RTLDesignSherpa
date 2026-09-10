@@ -179,7 +179,7 @@ module counter_bin_load #(
 
     // Registered counter output
     `ALWAYS_FF_RST(clk, rst_n,
-        if (!rst_n)
+        if (`RST_ASSERTED(rst_n))
             counter_bin_curr <= 'b0;
         else
             counter_bin_curr <= counter_bin_next;

@@ -894,7 +894,7 @@ module fifo_async #(
                 // Registered read (rd_clk)
                 logic [DATA_WIDTH-1:0] r_rd_data;
                 `ALWAYS_FF_RST(rd_clk, rd_rst_n,
-                    if (!rd_rst_n) r_rd_data <= '0;
+                    if (`RST_ASSERTED(rd_rst_n)) r_rd_data <= '0;
                     else           r_rd_data <= mem[r_rd_addr];
                 )
                 assign rd_data = r_rd_data;
@@ -923,7 +923,7 @@ module fifo_async #(
             // Synchronous read port (rd_clk) → infer true dual-port BRAM
             logic [DATA_WIDTH-1:0] r_rd_data;
             `ALWAYS_FF_RST(rd_clk, rd_rst_n,
-                if (!rd_rst_n) r_rd_data <= '0;
+                if (`RST_ASSERTED(rd_rst_n)) r_rd_data <= '0;
                 else           r_rd_data <= mem[r_rd_addr];
             )
             assign rd_data = r_rd_data;
@@ -945,7 +945,7 @@ module fifo_async #(
                 // Registered read (rd_clk)
                 logic [DATA_WIDTH-1:0] r_rd_data;
                 `ALWAYS_FF_RST(rd_clk, rd_rst_n,
-                    if (!rd_rst_n) r_rd_data <= '0;
+                    if (`RST_ASSERTED(rd_rst_n)) r_rd_data <= '0;
                     else           r_rd_data <= mem[r_rd_addr];
                 )
                 assign rd_data = r_rd_data;

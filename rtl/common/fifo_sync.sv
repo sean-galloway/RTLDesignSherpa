@@ -414,7 +414,7 @@ module fifo_sync
             if (REGISTERED != 0) begin : g_flop
                 logic [DATA_WIDTH-1:0] r_rd_data;
                 `ALWAYS_FF_RST(clk, rst_n,
-                    if (!rst_n) r_rd_data <= '0;
+                    if (`RST_ASSERTED(rst_n)) r_rd_data <= '0;
                     else        r_rd_data <= mem[r_rd_addr];
                 )
                 assign rd_data = r_rd_data;
@@ -443,7 +443,7 @@ module fifo_sync
             if (REGISTERED != 0) begin : g_flop
                 logic [DATA_WIDTH-1:0] r_rd_data;
                 `ALWAYS_FF_RST(clk, rst_n,
-                    if (!rst_n) r_rd_data <= '0;
+                    if (`RST_ASSERTED(rst_n)) r_rd_data <= '0;
                     else        r_rd_data <= mem[r_rd_addr];
                 )
                 assign rd_data = r_rd_data;
@@ -468,7 +468,7 @@ module fifo_sync
             if (REGISTERED != 0) begin : g_flop
                 logic [DATA_WIDTH-1:0] r_rd_data;
                 `ALWAYS_FF_RST(clk, rst_n,
-                    if (!rst_n) r_rd_data <= '0;
+                    if (`RST_ASSERTED(rst_n)) r_rd_data <= '0;
                     else        r_rd_data <= mem[r_rd_addr];
                 )
                 assign rd_data = r_rd_data;

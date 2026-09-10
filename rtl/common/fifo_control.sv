@@ -161,15 +161,15 @@ module fifo_control #(
 
     assign w_wr_almost_full_d = w_almost_full_count >= (AW+1)'(AFT);
 
-    always_ff @(posedge wr_clk, negedge wr_rst_n) begin
-        if (!wr_rst_n) begin
+    `ALWAYS_FF_RST(wr_clk, wr_rst_n, begin
+        if (`RST_ASSERTED(wr_rst_n)) begin
             wr_full <= 'b0;
             wr_almost_full <= 'b0;
         end else begin
             wr_full <= w_wr_full_d;
             wr_almost_full <= w_wr_almost_full_d;
         end
-    end
+    end)
 
     /////////////////////////////////////////////////////////////////////////
     // Empty Signals - Mode-aware write pointer selection
@@ -225,8 +225,8 @@ module fifo_control #(
 
     assign count = (REGISTERED == 1) ? r_count : w_count;
 
-    always_ff @(posedge rd_clk, negedge rd_rst_n) begin
-        if (!rd_rst_n) begin
+    `ALWAYS_FF_RST(rd_clk, rd_rst_n, begin
+        if (`RST_ASSERTED(rd_rst_n)) begin
             rd_empty <= 'b1;
             rd_almost_empty <= 'b0;
             r_count <= 'b0;
@@ -235,6 +235,6 @@ module fifo_control #(
             rd_almost_empty <= w_rd_almost_empty_d;
             r_count <= w_count;
         end
-    end
+    end)
 
 endmodule : fifo_control

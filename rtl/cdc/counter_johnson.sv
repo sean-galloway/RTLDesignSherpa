@@ -27,7 +27,7 @@ module counter_johnson #(
 );
 
     `ALWAYS_FF_RST(clk, rst_n,
-        if (!rst_n) counter_gray <= {WIDTH{1'b0}};
+        if (`RST_ASSERTED(rst_n)) counter_gray <= {WIDTH{1'b0}};
         else if (enable) begin
             counter_gray <= {counter_gray[WIDTH-2:0], ~counter_gray[WIDTH-1]};
         end

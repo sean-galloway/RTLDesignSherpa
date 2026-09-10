@@ -307,7 +307,7 @@ module gaxi_fifo_async #(
             if (REGISTERED != 0) begin : g_flop
                 logic [DATA_WIDTH-1:0] r_rd_data;
                 `ALWAYS_FF_RST(axi_rd_aclk, axi_rd_aresetn,
-                    if (!axi_rd_aresetn) r_rd_data <= '0;
+                    if (`RST_ASSERTED(axi_rd_aresetn)) r_rd_data <= '0;
                     else                 r_rd_data <= mem[r_rd_addr];
                 )
                 assign rd_data = r_rd_data;
@@ -335,7 +335,7 @@ module gaxi_fifo_async #(
             // Synchronous read port (axi_rd_aclk) → infer true dual-port BRAM
             logic [DATA_WIDTH-1:0] r_rd_data;
             `ALWAYS_FF_RST(axi_rd_aclk, axi_rd_aresetn,
-                if (!axi_rd_aresetn) r_rd_data <= '0;
+                if (`RST_ASSERTED(axi_rd_aresetn)) r_rd_data <= '0;
                 else                 r_rd_data <= mem[r_rd_addr];
             )
             assign rd_data = r_rd_data;
@@ -356,7 +356,7 @@ module gaxi_fifo_async #(
             if (REGISTERED != 0) begin : g_flop
                 logic [DATA_WIDTH-1:0] r_rd_data;
                 `ALWAYS_FF_RST(axi_rd_aclk, axi_rd_aresetn,
-                    if (!axi_rd_aresetn) r_rd_data <= '0;
+                    if (`RST_ASSERTED(axi_rd_aresetn)) r_rd_data <= '0;
                     else                 r_rd_data <= mem[r_rd_addr];
                 )
                 assign rd_data = r_rd_data;

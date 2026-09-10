@@ -56,30 +56,54 @@ worse than no test, and this area has already produced them:
 **Related:** [[TASK-077]] documents the doc-side equivalent (examples that
 name ports which do not exist). The test-side is this task.
 
-### COMMON-026: fifo_sync / counter_bin reset bodies hardcode active-low
+### COMMON-026: FIFO-family reset bodies hardcoded active-low - FIXED
 
-**Priority:** P3 today (no build sets `RESET_ACTIVE_HIGH`), P2 if one ever
-does. **Status:** open 2026-09-10. Raised by the smbus #58 round-6 review.
+**Status:** fixed 2026-09-10 (Sean authorized the shared-RTL edit: "they are
+innocent and make RLB coding easier"). Raised by the smbus #58 round-6 review.
 
 `reset_defs.svh` makes reset polarity a compile-time property: the
 `ALWAYS_FF_RST` sensitivity follows the define, and `RST_ASSERTED()` is how a
-body is meant to test it. Two shared primitives test the level by hand:
+body is meant to test the level. Ten files in the FIFO family tested it by
+hand instead, in two shapes: a body of `if (!rst_n)` inside the macro (18
+sites), and a raw `always_ff @(posedge clk, negedge rst_n)` that bypassed the
+macro entirely (3 sites, in `fifo_control.sv` and `counter_bingray.sv`).
+Under `-DRESET_ACTIVE_HIGH` the storage then sat in reset forever while the
+wrapper counters kept counting, so a FIFO reported empty with data in it.
 
-- `rtl/common/counter_bin.sv:195-196` - `ALWAYS_FF_RST(clk, rst_n, if (!rst_n) ...)`:
-  sensitivity follows the build, the body is hardcoded active-low.
-- `rtl/common/fifo_control.sv:164-165, 228-229` - raw
-  `always_ff @(posedge wr_clk, negedge wr_rst_n) if (!wr_rst_n)`: ignores the
-  define entirely.
+Measured before and after on a standalone `fifo_sync`, three bytes written:
 
-Measured standalone (`fifo_sync` DEPTH=8, correct polarity applied to
-`rst_n`): with `-DRESET_ACTIVE_HIGH` the running level satisfies
-`if (!wr_rst_n)`, the flag flops are held in reset forever, and the FIFO
-reports empty with three bytes stored (`empty=1 rd_data=0xa2`). Every
-consumer of `fifo_sync` is therefore broken at that polarity. The smbus
-`simple_fifo` wrapper drives a build-polarity reset into it and claims
-polarity correctness in a comment; that claim is false until this is fixed
-(the wrapper's own flops are fine). Fix = `RST_ASSERTED()` in both bodies
-and the house macro in `fifo_control`, one change with the common area
-regression at both polarities. Sibling: [[RLB-012]] (the regblock `.rst(~rst_n)`
-in every RLB wrapper).
+| build | before | after |
+|---|---|---|
+| default (active-low) | `empty=0 head=0xA0` | `empty=0 head=0xA0` |
+| `-DRESET_ACTIVE_HIGH` | `empty=1 head=0xA2` | `empty=0 head=0xA0` |
+
+Files: `rtl/common/{fifo_control,fifo_sync,counter_bin,counter_bin_load}.sv`,
+`rtl/cdc/{fifo_async,gaxi_fifo_async,counter_bingray,counter_johnson}.sv`,
+`rtl/amba/gaxi/{gaxi_fifo_sync,gaxi_drop_fifo_sync}.sv`. `counter_bingray.sv`
+also gained the `reset_defs.svh` include it never had.
+
+**Still open, same defect class, NOT in this change:** twelve non-FIFO files
+carry the same hand-written `if (!rst_n)` inside the macro - the apb4/apb5
+and axis5 clock-gate wrappers, `axil5_opt_slave`, `amba_clock_gate_ctrl`,
+`clock_divider`, `dataint_checksum`, and the raw block in
+`clock_gate_ctrl.sv`. They are a separate family with a separate regression;
+see [[COMMON-027]]. The sibling in the RLB wrappers is [[RLB-012]].
+
+### COMMON-027: non-FIFO reset bodies hardcoded active-low
+
+**Priority:** P3 today (no build sets `RESET_ACTIVE_HIGH`).
+**Status:** open 2026-09-10. Split out of [[COMMON-026]], which fixed the
+FIFO family under the same defect class.
+
+Twelve files test the reset level by hand inside `ALWAYS_FF_RST` (`if (!x)`
+rather than `` `RST_ASSERTED(x) ``), or bypass the macro with a raw
+`always_ff`: `rtl/amba/apb4/{apb4_master_cg,apb4_slave_cg}.sv`,
+`rtl/amba/apb5/{apb5_master_cg,apb5_slave_cg,apb5_slave_cdc_cg}.sv`,
+`rtl/amba/axis5/{axis5_master_cg,axis5_slave_cg}.sv`,
+`rtl/amba/axil5/test-modules/axil5_opt_slave.sv`,
+`rtl/amba/shared/amba_clock_gate_ctrl.sv`,
+`rtl/common/{clock_divider,dataint_checksum}.sv`, and the raw block in
+`rtl/common/clock_gate_ctrl.sv`. The mechanical fix is the same one
+COMMON-026 used; the reason it is separate is the regression, which is the
+amba and common areas rather than the FIFO consumers.
 
