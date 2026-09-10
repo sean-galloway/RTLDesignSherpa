@@ -130,7 +130,10 @@ module cdc_4_phase_handshake #(
 
     // Optional timeout counter (source domain)
     localparam int TIMEOUT_CW = (TIMEOUT_CYCLES > 1) ? $clog2(TIMEOUT_CYCLES+1) : 1;
-    logic [TIMEOUT_CW-1:0] r_timeout_cnt;
+    // r_timeout_cnt is declared inside g_timeout below: at TIMEOUT_CYCLES = 0
+    // the counter does not exist rather than existing and being tied off, which
+    // is what left an UNUSEDSIGNAL warning in every consumer of the disabled
+    // mode (RLB-010).
 
     //-------------------------------------------------------------------------
     // Source Domain Synchronizer (Dest -> Source Ack)
@@ -200,6 +203,7 @@ module cdc_4_phase_handshake #(
     //-------------------------------------------------------------------------
     generate
         if (TIMEOUT_CYCLES > 0) begin : g_timeout
+            logic [TIMEOUT_CW-1:0] r_timeout_cnt;
             `ALWAYS_FF_RST(clk_src, rst_src_n,
                 if (`RST_ASSERTED(rst_src_n)) begin
                     r_timeout_cnt <= '0;
@@ -217,8 +221,6 @@ module cdc_4_phase_handshake #(
             )
         end else begin : g_no_timeout
             assign src_timeout   = 1'b0;
-            // Keep counter reg declared but unused; tie off to avoid X propagation.
-            always_comb r_timeout_cnt = '0;
         end
     endgenerate
 

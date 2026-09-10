@@ -258,7 +258,14 @@ module reset_sync #(
             if (KEEP_ATTRS) begin : g_attrd
                 (* ASYNC_REG = "TRUE", SHREG_EXTRACT = "NO" *)
                 (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED" *)
+                // The initialiser is the FPGA power-on value: the chain must come
+                // up asserted on a device that has no reset before the first clock.
+                // PROCASSINIT is the linter objecting to exactly that deliberate
+                // combination, so the waiver is scoped to the declaration rather
+                // than the file (RLB-010).
+                /* verilator lint_off PROCASSINIT */
                 logic [N-1:0] r_sync_reg = '0 /* synthesis syn_preserve = 1 */;
+                /* verilator lint_on PROCASSINIT */
 
                 // Async assert (posedge rst_in_h), sync deassert.
                 //
@@ -283,7 +290,14 @@ module reset_sync #(
                     sync_rst_n = OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h;
                 end
             end else begin : g_plain
+                // The initialiser is the FPGA power-on value: the chain must come
+                // up asserted on a device that has no reset before the first clock.
+                // PROCASSINIT is the linter objecting to exactly that deliberate
+                // combination, so the waiver is scoped to the declaration rather
+                // than the file (RLB-010).
+                /* verilator lint_off PROCASSINIT */
                 logic [N-1:0] r_sync_reg = '0;
+                /* verilator lint_on PROCASSINIT */
 
                 always_ff @(posedge clk or posedge rst_in_h) begin
                     if (rst_in_h) r_sync_reg <= '1;
@@ -300,7 +314,14 @@ module reset_sync #(
             if (KEEP_ATTRS) begin : g_attrd
                 (* ASYNC_REG = "TRUE", SHREG_EXTRACT = "NO" *)
                 (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED" *)
+                // The initialiser is the FPGA power-on value: the chain must come
+                // up asserted on a device that has no reset before the first clock.
+                // PROCASSINIT is the linter objecting to exactly that deliberate
+                // combination, so the waiver is scoped to the declaration rather
+                // than the file (RLB-010).
+                /* verilator lint_off PROCASSINIT */
                 logic [N-1:0] r_sync_reg = '0 /* synthesis syn_preserve = 1 */;
+                /* verilator lint_on PROCASSINIT */
 
                 always_ff @(posedge clk) begin
                     if (rst_in_h) r_sync_reg <= '1;
@@ -312,7 +333,14 @@ module reset_sync #(
                     sync_rst_n = OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h;
                 end
             end else begin : g_plain
+                // The initialiser is the FPGA power-on value: the chain must come
+                // up asserted on a device that has no reset before the first clock.
+                // PROCASSINIT is the linter objecting to exactly that deliberate
+                // combination, so the waiver is scoped to the declaration rather
+                // than the file (RLB-010).
+                /* verilator lint_off PROCASSINIT */
                 logic [N-1:0] r_sync_reg = '0;
+                /* verilator lint_on PROCASSINIT */
 
                 always_ff @(posedge clk) begin
                     if (rst_in_h) r_sync_reg <= '1;

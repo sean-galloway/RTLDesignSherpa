@@ -357,7 +357,13 @@ module glitch_free_n_dff_arn #(
     // Output assignment
     assign q = r_q_array[FC-1];
 
+    // A flattened copy of the chain for waveform viewing. Nothing reads it and
+    // nothing is meant to: synthesis drops it, and the warning it would
+    // otherwise raise in every consumer of this primitive is the reason for the
+    // scoped waiver rather than deleting a debug aid people use (RLB-010).
+    /* verilator lint_off UNUSEDSIGNAL */
     wire [(DW*FC)-1:0] flat_r_q;
+    /* verilator lint_on UNUSEDSIGNAL */
     genvar i;
     generate
         for (i = 0; i < FC; i++) begin : gen_flatten_memory
