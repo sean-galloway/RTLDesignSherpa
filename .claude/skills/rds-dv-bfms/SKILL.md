@@ -32,8 +32,8 @@ first, because coverage is uneven (measured 2026-09-10):
   are the fullest; apb5, axis5 and wb4 have overview/components/packet;
   `ls <RDS-DV>/docs/components/<family>/` before you rely on any of it.
 
-Gap tracked as an RDS-DV issue; until it closes, the components page plus the
-factory docstrings are the honest source for the eight undocumented families.
+Gap tracked as RDS-DV issue #78; until it closes, the components page plus
+the factory docstrings are the honest source for the undocumented families.
 
 The handbook root is vault/handbook/INDEX.md - design/, dv/, fpga/, authoring/ areas,
 atomic notes, wikilinked. When you learn a durable lesson in this domain,
