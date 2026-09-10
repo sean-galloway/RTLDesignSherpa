@@ -95,7 +95,8 @@ Timeouts scale off the same axis: `base_timeout * multiplier[test_level] *
 max_factor`. A test that times out only at FULL is usually a missing multiplier,
 not a hang.
 
-**A conftest must never stamp TEST_LEVEL into os.environ (2026-09-09).**
+**A conftest that stamps TEST_LEVEL into os.environ wins, and you cannot
+out-stamp it from the wrapper (2026-09-09, refined 2026-09-10).**
 `cocotb_test.simulator.set_env` applies `extra_env` first and then copies
 EVERY `os.environ` entry over it, so the process environment beats the
 per-cell export. Thirteen component conftests carried a "REG_LEVEL ->
@@ -108,6 +109,21 @@ so `check_test_levels.py` now reports the stamp beside its per-file lines,
 and the bridge conftest no longer has it. The evidence that catches it is
 the TB's own banner: a leveled TB logs `TEST_LEVEL=<x>: {profile}` on
 construction, and three cells that print the same line are one cell.
+
+The obvious repair -- have the wrapper re-stamp its own value into
+`os.environ` just before `run()`, so cocotb_test's copy becomes a no-op --
+was tried and does NOT work. Measured on the bridge with the stamp re-added:
+the wrapper printed `extra_env=gate os.environ=gate` immediately before
+`run()` and the simulation still ran all three cells at full depth, 16
+offsets per pair in each; the same cells with the stamp removed ran 1/4/16.
+The mechanism behind that is not understood, and an unexplained guarantee is
+not a guarantee -- so the shared helper does not claim one.
+
+An area therefore converts in ONE commit, both halves together: every
+wrapper exports per cell (`reg_level_grid()` + `level_env()` from
+`TBClasses.shared.test_levels`) AND the stamp goes. Removing the stamp on its
+own drops that area to the default depth, which is what the stamp was there
+to prevent -- eleven of the twelve areas still depend on it that way.
 
 ## One build directory per parameter set
 

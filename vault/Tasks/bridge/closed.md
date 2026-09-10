@@ -532,3 +532,69 @@ asserting a behaviour no BFM implements is what let this sit unnoticed.
 ---
 
 ---
+
+### BRIDGE-012: trace is not echoed on B/R when the slave lacks trace; the AXI5 checker calls that a violation
+
+**Status:** CLOSED 2026-09-10 by way (1), echo at the boundary -- Sean asked
+for the most robust option. The master adapter's AW/AR tracking FIFO already
+holds one entry per outstanding request, in the order responses return
+(BRIDGE-010's in-order contract), so the request's trace now rides in the
+entry that routes its response and the port drives B/RTRACE from it. The
+promise is kept on every path: native, trace-less slave, and across a dwidth
+converter that cannot carry sideband at all.
+
+It does not launder a downstream fault. The response mux still records what
+the SLAVE said in `b_slave_trace`/`r_slave_trace`, and a generated
+`` `ifndef SYNTHESIS `` assertion `$error`s when a trace-CAPABLE slave (a
+generated one-hot mask) returns a bit that differs from the tracked request.
+Only `trace` echoes -- `poison` on R is slave-sourced data integrity and
+echoing it would launder corrupt data.
+
+Verified: pure-AXI4 bridges byte-identical (only the 12 trace-carrying AXI5
+bridges changed); five AMBA5 sideband tests moved to the echo contract and
+pass, each with a NEGATIVE half asserting an untraced request still returns
+trace=0, so the echo cannot be a tie-high; the AXI5 compliance checker at
+every master port reports zero violations with no allowance, where before it
+counted one per drop-path response.
+
+**Residual, NOT fixed here:** a read-return atomic swallowed by
+`axi5_atomic_filter` gets its B generated inside the filter, which sits
+upstream of the adapter's tracking FIFO, so that response's trace is whatever
+the mux holds rather than the swallowed request's. Pre-existing and unchanged;
+the filter is shared `rtl/amba` RTL and out of scope for a bridge task.
+
+**Priority (as filed):** P2. A design decision, not a bug hunt: the fabric and
+the checker disagreed about what an AXI5 port promises.
+
+**Found by** arming `AXI5ComplianceChecker` on every AXI5 master port
+(2026-09-09, BRIDGE-007). `test_bridge_1x2_wr_axi5n_sideband[full]`: 12
+`TRACE_CONSISTENCY_VIOLATION`s in 4668 checks -- exactly the 12 writes that
+went to `sram_wr`, the poison-only slave. AW carried `awtrace=1`, the B came
+back with `btrace=0`, and the checker's rule is "B.trace == AW.trace".
+
+**What the fabric does, on purpose.** A5-2 slice 2: sideband a slave does
+not support terminates mid-fabric with a generation-time WARNING
+("AXI5 sideband 'trace' terminates on path cpu_wr -> sram_wr"), and the
+xbar muxes b/r sideband from featured slaves only, so a trace-less slave
+returns 0. The wr sideband test asserts `btrace=0` on that path as the
+expected result; the MAS AMBA5 chapter documents the drop.
+
+**What the checker says.** From the master's port the bridge IS the
+Subordinate, and it advertised trace on that port; AXI5 expects the response
+trace bit to follow the request's. The checker does not know (and should not
+have to know) that the slave behind the path is trace-less.
+
+**Two ways out:**
+1. **Echo at the boundary.** The master adapter already tracks each
+   outstanding request in its response FIFO (BRIDGE-011); a trace bit per
+   entry lets it set `btrace`/`rtrace` = the request's trace whenever the
+   returning response carries none. The port then keeps the promise
+   regardless of the slave; the generation-time warning goes away for
+   trace (nsaid/mpam/mecid/unique have no response half and are unaffected).
+2. **Document the drop as the port contract** and keep the checker's
+   expectation for those paths as an explicit exact-count allowance in the
+   sideband tests (what the tests do today, via
+   `tb.assert_compliance(allow={'TRACE_CONSISTENCY_VIOLATION': n})`).
+
+(1) is cheap and makes the AXI5 port honest; (2) leaves a port that
+advertises trace and sometimes does not return it. Owner decides.

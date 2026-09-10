@@ -344,12 +344,37 @@ gate/func/full triple of every test, all logging `level=full` with
 identical wall-clock. Removing the stamp and re-running one test at
 REG_LEVEL=FULL gave gate/func/full cells at 1/4/16 offsets.
 
-**What to do per area.** Delete the stamp; make sure every wrapper in the
-area exports TEST_LEVEL in `extra_env` from a REG_LEVEL-branching grid
-(the stamp was the crutch for wrappers that did not); run
-`python3 bin/review/check_test_levels.py <area>` -- it now reports the
-stamp as a WARNING beside the per-file lines -- and confirm with the TB
-banner (`TEST_LEVEL=<x>: {...}`) that sibling cells log different levels.
-Per-area, one commit each; rapids is out of scope until its suite is
-green again. Handbook: [[test-runner]] (the cocotb_test precedence
-note), [[test-review]] (Pattern B chain).
+**The stamp is load-bearing in eleven of the twelve.** Measured 2026-09-10
+with `check_test_levels.py`: every area except the bridge reports
+`depth:not-exported` on nearly every test -- their wrappers export nothing,
+so the stamp is the ONLY thing mapping REG_LEVEL onto a depth. Deleting it
+alone would drop those tests to the default and quietly shrink every FULL
+run, which is the failure its own comment was written to prevent (pumice
+fub, 91 tests -> 79).
+
+**What does NOT work, so nobody tries it twice.** Re-stamping the cell's
+own value into `os.environ` from the wrapper, just before `run()`, so that
+what cocotb_test copies over `extra_env` is the cell's value. It looks
+airtight and it is not: measured on the bridge with the stamp re-added, the
+wrapper printed `extra_env=gate os.environ=gate` immediately before `run()`
+and the simulation still logged `TEST_LEVEL=full` on all three cells, 16
+offsets per pair in each. The same three cells with the stamp REMOVED ran
+gate/func/full at 1/4/16. The mechanism behind that is not understood; what
+is settled is that only removing the stamp works.
+
+**What to do per area, in ONE commit.** Both halves together:
+1. Give every wrapper `@pytest.mark.parametrize("test_level", reg_level_grid())`
+   and `**level_env(test_level)` in its `extra_env`, from
+   `TBClasses.shared.test_levels` (one implementation; the checker
+   recognises it).
+2. Give the area a depth profile its TBs read via `current_level()` -- the
+   bridge's `dv/tbclasses/bridge_levels.py` is the model.
+3. THEN delete the conftest stamp.
+4. `check_test_levels.py <area>` clean, and confirm from the TB banner that
+   sibling cells log DIFFERENT `TEST_LEVEL=<x>` and different wall-clock. A
+   grid that expands is not a grid that runs.
+5. Clean FULL run for that area before moving on.
+
+`projects/components/bridge` is the worked example, converted end to end.
+rapids is out of scope until its suite is green again. Handbook:
+[[test-runner]] (the cocotb_test precedence note), [[test-review]].

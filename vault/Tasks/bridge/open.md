@@ -232,9 +232,11 @@ slave-only too; a master-side AXI5-Lite requester is a different piece of
 work and nothing in-tree needs one.
 
 *Adjacent finding, NOT fixed here:* `make verilator` in
-`projects/components/bridge/rtl` fails on all 36 variants, entirely from
-pre-existing PINCONNECTEMPTY on deliberate open pins (`.busy()` and
-friends) -- a gate that fails on everything reports nothing. The `mon`
+`projects/components/bridge/rtl` fails -- measured 2026-09-10 as 13 of 38
+variants, all PINMISSING on one instance, and NOT deliberate: see
+[[BRIDGE-013]]. (This note previously said "all 36 variants, entirely from
+pre-existing PINCONNECTEMPTY on deliberate open pins"; both halves were
+wrong, which is what a gate nobody runs buys you.) The `mon`
 variants additionally surface real WIDTHEXPAND/UNDRIVEN warnings inside
 `rtl/amba/monitor/*`. Both predate this change (the RTL they fire on is
 byte-identical to HEAD) and want their own pass.
@@ -483,40 +485,53 @@ Still owed on this task: the external testqc review round.
 
 ---
 
-### BRIDGE-012: trace is not echoed on B/R when the slave lacks trace; the AXI5 checker calls that a violation
+### BRIDGE-013: in the _mon variants the subtractive slave's monitor is built and left unconnected
 
-**Priority:** P2. A design decision, not a bug hunt: the fabric and the
-checker disagree about what an AXI5 port promises.
+**Priority:** P2. Not lint noise -- the lint gate is pointing at a real
+disconnection, and 13 of 38 variants fail on it, which is why the gate has
+been reporting nothing useful.
 
-**Found by** arming `AXI5ComplianceChecker` on every AXI5 master port
-(2026-09-09, BRIDGE-007). `test_bridge_1x2_wr_axi5n_sideband[full]`: 12
-`TRACE_CONSISTENCY_VIOLATION`s in 4668 checks -- exactly the 12 writes that
-went to `sram_wr`, the poison-only slave. AW carried `awtrace=1`, the B came
-back with `btrace=0`, and the checker's rule is "B.trace == AW.trace".
+**Found by** running the bridge lint gate 2026-09-10 (BRIDGE-007 follow-up).
+`make verilator` in `projects/components/bridge/rtl`: **13 of 38 variants
+FAIL, 427 `%Warning-PINMISSING`, and every one of them is the same
+instance** -- `u_subtractive_adapter` in a `*_mon` top.
 
-**What the fabric does, on purpose.** A5-2 slice 2: sideband a slave does
-not support terminates mid-fabric with a generation-time WARNING
-("AXI5 sideband 'trace' terminates on path cpu_wr -> sram_wr"), and the
-xbar muxes b/r sideband from featured slaves only, so a trace-less slave
-returns 0. The wr sideband test asserts `btrace=0` on that path as the
-expected result; the MAS AMBA5 chapter documents the drop.
+**The mechanism.** In a `_mon` variant the generated `subtractive_adapter`
+declares **24 monitor ports** (`i_mon_time`, `monbus_{rd,wr}_{valid,ready,
+packet,timestamp}`, `cfg_{rd,wr}_*`) and instantiates a monitor behind them
+(`subtractive_adapter.sv:255` wires `i_mon_time` and `monbus_valid` into the
+submodule). The bridge top instantiates that adapter and connects **none of
+them**. So the subtractive slave's monitor is elaborated, occupies area, and
+its monbus output goes nowhere; its cfg inputs float. The non-`_mon`
+variants emit zero such ports, so this is specific to the monitor build.
 
-**What the checker says.** From the master's port the bridge IS the
-Subordinate, and it advertised trace on that port; AXI5 expects the response
-trace bit to follow the request's. The checker does not know (and should not
-have to know) that the slave behind the path is trace-less.
+BRIDGE-009's subtractive slave also reports unmapped accesses through its
+sticky `SUBTRACTIVE_STATUS` / `SUBTRACTIVE_ADDR` cfg registers and
+`unmapped_irq`, which DO reach the top -- so the observable BRIDGE-009
+behaviour is intact and the tests that cover it are honest. What is lost is
+the monbus path: an unmapped access never produces a monbus packet in a
+`_mon` bridge, and nothing says so.
 
-**Two ways out:**
-1. **Echo at the boundary.** The master adapter already tracks each
-   outstanding request in its response FIFO (BRIDGE-011); a trace bit per
-   entry lets it set `btrace`/`rtrace` = the request's trace whenever the
-   returning response carries none. The port then keeps the promise
-   regardless of the slave; the generation-time warning goes away for
-   trace (nsaid/mpam/mecid/unique have no response half and are unaffected).
-2. **Document the drop as the port contract** and keep the checker's
-   expectation for those paths as an explicit exact-count allowance in the
-   sideband tests (what the tests do today, via
-   `tb.assert_compliance(allow={'TRACE_CONSISTENCY_VIOLATION': n})`).
+**The generator says it is deliberate, and the RTL disagrees.**
+`bridge_generator.py:796` reads "The subtractive catch-all has no monitor
+wrapper (it reports on its own monbus port)" -- but in `_mon` variants the
+adapter generator emits one anyway and the top does not wire it.
 
-(1) is cheap and makes the AXI5 port honest; (2) leaves a port that
-advertises trace and sometimes does not return it. Owner decides.
+**Two ways out, and it is a design decision:**
+1. **Connect it.** Add the subtractive's monbus as a source on the
+   monbus arbiter tree so an unmapped access is reportable like any other
+   error. Costs an arbiter input per `_mon` bridge and changes the monbus
+   topology (and the tally/coverage expectations of the `_mon` tests).
+2. **Stop emitting it.** Suppress the monitor and its 24 ports on an
+   INTERNAL slave, matching what the generator comment already claims.
+   Cheaper, removes dead area, and makes the lint gate meaningful.
+
+(2) matches the stated intent; (1) is the one to take if an unmapped access
+ought to be visible on monbus. Either way the lint gate goes green and starts
+reporting real findings again -- do NOT waive PINMISSING to get there, which
+would hide exactly this class.
+
+**Correcting the record:** the note carried on [[BRIDGE-002]] said `make
+verilator` fails on "all 36 variants, entirely from pre-existing
+PINCONNECTEMPTY on deliberate open pins". Measured: 13 of 38, all
+PINMISSING, one instance, not deliberate.
