@@ -41,9 +41,19 @@ The following files are generated from the RDL specification using PeakRDL tools
 To generate the SystemVerilog files from the RDL specification:
 
 ```bash
-cd $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/smbus
-peakrdl regblock peakrdl/smbus_regs.rdl -o smbus_regs.sv --cpuif apb4-flat
+python3 $REPO_ROOT/bin/peakrdl_generate.py \
+    $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/smbus/peakrdl/smbus_regs.rdl \
+    -o <scratch-dir> --regmap-output <scratch-dir>/smbus_regmap.py
 ```
+
+Then copy `<scratch-dir>/rtl/smbus_regs.sv`, `<scratch-dir>/rtl/smbus_regs_pkg.sv`
+and `<scratch-dir>/docs/` into place and delete the scratch directory.
+
+**Never run `peakrdl regblock` directly.** The wrapper emits the RTL, the
+register documentation and the by-name regmap in lockstep; a raw invocation
+emits only the RTL and silently desynchronizes the other two. `docs/smbus_regs.md`
+also needs the house documentation header block re-applied after regeneration -
+the generator does not emit it.
 
 ## Register Map Overview
 

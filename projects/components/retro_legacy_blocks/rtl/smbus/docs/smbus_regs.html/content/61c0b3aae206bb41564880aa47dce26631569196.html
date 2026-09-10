@@ -10,10 +10,22 @@
     <dt>Base Offset:</dt><dd class="address">0x1c</dd>
     <dt>Size:</dt><dd class="address">0x4</dd>
     
+    <dt>Source:</dt><dd><a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/retro_legacy_blocks/rtl/smbus/peakrdl/smbus_regs.rdl#L446" target="_blank">smbus_regs.rdl</a></dd>
+    
 </dl>
 <h2>Description</h2>
 <div id="_Content.desc">
-<p>TX/RX FIFO levels and status flags</p>
+<p>TX/RX FIFO levels and status flags. IN THE ACTIVE-LOW RESET
+BUILD - the only one currently usable - LEVEL AND FLAGS ARE
+CONSISTENT BY CONSTRUCTION at every cycle: a level of 0 always
+reads back as empty and a full FIFO always reads back at the
+depth, including across a fifo_reset or soft_reset, where all
+three are driven from one source for the whole clear window and
+nothing is accepted into or out of the FIFO. Built with
+RESET_ACTIVE_HIGH the FIFO storage never leaves reset
+(COMMON-026, tracked here as RLB-012), so the level counts past
+the depth against a permanently empty memory and none of this
+holds - that build is not usable until COMMON-026 lands.</p>
 </div>
 
 <h2>Contents</h2>
@@ -202,7 +214,8 @@
     <a class="headerlink" href="#rx_level.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.rx_level.desc">
-<p>Number of bytes in RX FIFO (0-32)</p>
+<p>Bytes in the RX FIFO, 0 to FIFO_DEPTH (the parameter,
+2..63; 32 by default). The field is six bits regardless.</p>
 </div>
 
 <h3 id="tx_empty.desc">tx_empty - TX FIFO Empty
@@ -223,6 +236,7 @@
     <a class="headerlink" href="#tx_level.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.tx_level.desc">
-<p>Number of bytes in TX FIFO (0-32)</p>
+<p>Bytes in the TX FIFO, 0 to FIFO_DEPTH (the parameter,
+2..63; 32 by default). The field is six bits regardless.</p>
 </div>
 </div>

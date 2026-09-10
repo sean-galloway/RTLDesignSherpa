@@ -233,3 +233,50 @@ the queued commit slot carries its own watchdog and two marks (expired per
 occupant, reported per slot); `COMMIT_TIMEOUT_CYCLES=0` disables both
 watchdogs and then a commit on a dead clock hangs busy unreported; the
 counter domain's reset release needs pclk running.
+
+### RLB-011: SMBus features deferred past the #58 fix
+
+**Priority:** P3. Raised 2026-09-10 while fixing issue #58 (master engine
+rewrite). None of these is a defect in the master path; each is a feature
+the block advertises in its RDL/MAS header but has never implemented.
+**Status:** open 2026-09-10.
+
+- **Slave mode.** `SMBUS_OWN_ADDR` and `slave_addr_int` exist; the slave FSM
+  is a stub that never ACKs. The rewrite keeps it inert (it cannot touch SDA,
+  the PEC accumulator or the master sequencer). A real slave needs: address
+  match on the bus-sampled address byte (incl. general call / ARP if
+  wanted), an ACK/NAK policy, an RX path into the RX FIFO with its own
+  interrupt, a TX path from the TX FIFO for reads addressed to us with
+  clock stretching while software fills it, PEC check/generate on the slave
+  side, and arbitration with the master half for the shared pins (one
+  engine on the wire at a time).
+- **Multi-master arbitration.** `arb_lost` is tied to 0. Needs SDA readback
+  compare on every transmitted bit (arbitration lost when we send 1 and read
+  0), immediate release, `arb_lost` status + interrupt, and bus-free timing
+  (tBUF) before a retry. The rewrite's bus-free check before START is the
+  first half of this.
+- **Quick Command with R/W=1.** The decode table hard-wires Quick Command to
+  a write-direction address byte; the read-direction form needs an rw
+  control bit in `SMBUS_COMMAND` (register-map change) or a second
+  transaction code.
+
+### RLB-012: regblock reset polarity is composed by hand in all nine blocks
+
+**Priority:** P2 if that build is ever used, P3 today: no build in the tree
+sets `RESET_ACTIVE_HIGH`. Measured on smbus: with the define, `~rst_n` holds
+the register block in reset permanently, so no register latches and every
+RLB block is non-functional at that polarity, not merely mis-reset.
+**Status:** open 2026-09-10. Raised by the smbus #58 round-5 review.
+
+Every RLB wrapper instantiates its PeakRDL regblock with `.rst(~rst_n)`
+(gpio:211, hpet:270, ioapic:345, pic_8259:431, pit_8254:382, pm_acpi:365,
+rtc:600, smbus:320, uart_16550:111). `reset_defs.svh` makes polarity a
+compile-time property, so under `-DRESET_ACTIVE_HIGH` the register block
+resets on the wrong sense in all nine at once. The smbus round-5 fix
+removed the same hand-composed polarity from its FIFO / PEC / sticky-status
+resets (it turned soft_reset and fifo_reset into no-ops under that define)
+but deliberately left the regblock line alone: it is one family-wide change
+with one regression, not nine drive-bys. Fix = derive the regblock reset
+through the house macro (or a `RST_ASSERTED`-based wire) in one pass over
+all nine, then run the RLB area regression under both polarities.
+

@@ -648,7 +648,7 @@ module smbus_regs (
         if(decoded_reg_strb.SMBUS_DATA && decoded_req_is_wr) begin // SW write
             next_c = (field_storage.SMBUS_DATA.data.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
             load_next_c = '1;
-        end else begin // HW Write
+        end else if(hwif_in.SMBUS_DATA.data.we) begin // HW Write - we
             next_c = hwif_in.SMBUS_DATA.data.next;
             load_next_c = '1;
         end
@@ -1029,7 +1029,7 @@ module smbus_regs (
         if(decoded_reg_strb.SMBUS_PEC && decoded_req_is_wr) begin // SW write
             next_c = (field_storage.SMBUS_PEC.pec.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
             load_next_c = '1;
-        end else begin // HW Write
+        end else if(hwif_in.SMBUS_PEC.pec.we) begin // HW Write - we
             next_c = hwif_in.SMBUS_PEC.pec.next;
             load_next_c = '1;
         end
@@ -1055,7 +1055,7 @@ module smbus_regs (
         if(decoded_reg_strb.SMBUS_BLOCK_COUNT && decoded_req_is_wr) begin // SW write
             next_c = (field_storage.SMBUS_BLOCK_COUNT.block_count.value & ~decoded_wr_biten[5:0]) | (decoded_wr_data[5:0] & decoded_wr_biten[5:0]);
             load_next_c = '1;
-        end else begin // HW Write
+        end else if(hwif_in.SMBUS_BLOCK_COUNT.block_count.we) begin // HW Write - we
             next_c = hwif_in.SMBUS_BLOCK_COUNT.block_count.next;
             load_next_c = '1;
         end

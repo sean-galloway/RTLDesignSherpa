@@ -1,24 +1,42 @@
 %%{init: {'theme': 'neutral'}}%%
 flowchart LR
-    subgraph APB_SMBUS["APB SMBus"]
-        APB["APB Slave"]
-        CFG["smbus_config_regs"]
-        REGS["smbus_regs<br/>(PeakRDL)"]
-
-        subgraph CORE["smbus_core"]
-            CTRL["SMBus Controller"]
-            ARB["Bus Arbitration"]
-            TX["TX Logic"]
-            RX["RX Logic"]
+    BUS["APB4"]
+    subgraph APB_SMBUS["apb4_smbus"]
+        direction LR
+        APB["apb4_slave /<br/>apb4_slave_cdc"]
+        subgraph CFG["smbus_config_regs"]
+            direction TB
+            DEC["strict decode<br/>W1C decode"]
+            REGS["smbus_regs<br/>(PeakRDL)"]
         end
+        subgraph CORE["smbus_core (sequencer)"]
+            direction LR
+            TD["smbus_trans_decode"]
+            FR["smbus_flow_rules"]
+            AT["smbus_abort_track"]
+            FIFOS["smbus_byte_fifos<br/>TX / RX"]
+            PEC["smbus_pec<br/>CRC-8 0x07"]
+            IS["smbus_int_status<br/>(sticky, W1C)"]
+            PHY["smbus_bit_phy<br/>(open-drain, timeout,<br/>recovery)"]
+            TD --> FR
+            AT --> FR
+            FIFOS --> FR
+            FR --> PEC
+            FR -->|primitives| PHY
+            PHY -->|op_done| FR
+        end
+        SYNC["glitch_free_n_dff_arn<br/>(CDC_ENABLE=1)"]
     end
+    IRQ["smb_interrupt"]
+    SDA["smb_sda_i/o/t"]
+    SCL["smb_scl_i/o/t"]
 
-    BUS["APB Bus"] --> APB
-    APB --> CFG
-    CFG --> REGS
-    CFG --> CORE
-
-    CORE --> SDA["SDA (bidirectional)"]
-    CORE --> SCL["SCL (bidirectional)"]
-    CORE --> SMBALERT["SMBALERT#"]
-    CORE --> IRQ["IRQ"]
+    BUS --> APB
+    APB -->|cmd/rsp| DEC
+    DEC --> REGS
+    REGS -->|cmd/cfg| TD
+    IS -->|status| DEC
+    IS --> SYNC
+    SYNC --> IRQ
+    PHY <--> SDA
+    PHY <--> SCL

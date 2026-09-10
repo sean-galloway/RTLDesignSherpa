@@ -10,10 +10,16 @@
     <dt>Base Offset:</dt><dd class="address">0x30</dd>
     <dt>Size:</dt><dd class="address">0x4</dd>
     
+    <dt>Source:</dt><dd><a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/retro_legacy_blocks/rtl/smbus/peakrdl/smbus_regs.rdl#L670" target="_blank">smbus_regs.rdl</a></dd>
+    
 </dl>
 <h2>Description</h2>
 <div id="_Content.desc">
-<p>Interrupt status flags (write 1 to clear)</p>
+<p>Interrupt status flags (write 1 to clear). Every bit is
+sticky: set by the RISING EDGE of its condition and cleared only
+by a W1C write, with SET WINNING over a simultaneous clear. The
+smb_interrupt pin is (SMBUS_INT_STATUS &amp; SMBUS_INT_ENABLE) != 0,
+registered - so clearing a bit here is what deasserts the pin.</p>
 </div>
 
 <h2>Contents</h2>
@@ -175,14 +181,20 @@
     <a class="headerlink" href="#rx_thresh_int.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.rx_thresh_int.desc">
-<p>RX FIFO above threshold (W1C)</p>
+<p>RX FIFO became NON-EMPTY (the threshold is fixed at
+non-empty), W1C. STICKY: set on the
+edge of the condition, cleared only by writing 1.</p>
 </div>
 
 <h3 id="tx_thresh_int.desc">tx_thresh_int - TX FIFO Threshold
     <a class="headerlink" href="#tx_thresh_int.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.tx_thresh_int.desc">
-<p>TX FIFO below threshold (W1C)</p>
+<p>TX FIFO became EMPTY (the threshold is fixed at empty),
+W1C. STICKY: set on the
+edge of the condition, cleared only by writing 1. It is
+not a live level - a W1C bit that re-asserts itself on the
+next clock cannot be cleared at all (GitHub #58 qc1).</p>
 </div>
 
 <h3 id="error_int.desc">error_int - Error Interrupt

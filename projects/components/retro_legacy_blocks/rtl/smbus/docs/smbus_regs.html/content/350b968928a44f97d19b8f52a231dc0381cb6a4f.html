@@ -10,6 +10,8 @@
     <dt>Base Offset:</dt><dd class="address">0x18</dd>
     <dt>Size:</dt><dd class="address">0x4</dd>
     
+    <dt>Source:</dt><dd><a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/retro_legacy_blocks/rtl/smbus/peakrdl/smbus_regs.rdl#L415" target="_blank">smbus_regs.rdl</a></dd>
+    
 </dl>
 <h2>Description</h2>
 <div id="_Content.desc">
@@ -88,6 +90,13 @@
     <a class="headerlink" href="#rx_data.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.rx_data.desc">
-<p>Read data byte from RX FIFO</p>
+<p>Read the next byte from the RX FIFO. READING IT EMPTY
+RETURNS THE STALE HEAD - the last byte that was there - and
+does not move the pointer. IF NOTHING WAS EVER WRITTEN THE
+VALUE IS UNDEFINED: the FIFO memory has no reset in any
+MEM_STYLE, so it is whatever the RAM initialises to on an
+FPGA and genuinely undefined on an ASIC. Check
+SMBUS_FIFO_STATUS.rx_level first; it and rx_empty always
+agree in the active-low build (see SMBUS_FIFO_STATUS).</p>
 </div>
 </div>

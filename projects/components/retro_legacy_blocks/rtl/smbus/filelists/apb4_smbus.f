@@ -25,18 +25,22 @@
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_2_phase_handshake.f
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_4_phase_handshake.f
 -f $REPO_ROOT/rtl/common/filelists/fifo_sync.f
+-f $REPO_ROOT/rtl/cdc/filelists/glitch_free_n_dff_arn.f
 
 # PeakRDL adapter (from converters)
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 
-# PeakRDL-generated registers
+# PeakRDL-generated registers. The .vlt comes FIRST and is not optional: it
+# waives the two Verilator rules that only the generated block trips (see the
+# file for why), without waiving them anywhere else.
+$RETRO_ROOT/rtl/smbus/smbus_regs.vlt
 $RETRO_ROOT/rtl/smbus/smbus_regs_pkg.sv
 $RETRO_ROOT/rtl/smbus/smbus_regs.sv
 
-# SMBus-specific modules
-$RETRO_ROOT/rtl/smbus/smbus_pec.sv
-$RETRO_ROOT/rtl/smbus/simple_fifo.sv
-$RETRO_ROOT/rtl/smbus/smbus_core.sv
+# SMBus master engine: the transaction sequencer, the bit PHY it drives, the
+# PEC engine and the FIFOs. Declared through smbus_core.f rather than listed
+# here, so a consumer of the master engine alone gets the same closure.
+-f $RETRO_ROOT/rtl/smbus/filelists/smbus_core.f
 
 # Configuration registers wrapper (uses PeakRDL)
 $RETRO_ROOT/rtl/smbus/smbus_config_regs.sv

@@ -25,7 +25,7 @@
 
 module smbus_pec (
     input  wire       clk,
-    input  wire       rst,          // Active-high reset
+    input  wire       rst_n,        // Active-low reset (house convention)
 
     // Control
     input  wire       enable,       // Enable CRC calculation
@@ -51,9 +51,9 @@ module smbus_pec (
     function automatic logic [7:0] crc8_update(input logic [7:0] crc, input logic [7:0] data);
         logic [7:0] temp;
         integer i;
-        
+
         temp = crc ^ data;
-        
+
         for (i = 0; i < 8; i = i + 1) begin
             if (temp[7]) begin
                 temp = (temp << 1) ^ 8'h07;  // Polynomial 0x07
@@ -61,7 +61,7 @@ module smbus_pec (
                 temp = temp << 1;
             end
         end
-        
+
         crc8_update = temp;
     endfunction
 
@@ -69,13 +69,13 @@ module smbus_pec (
     // CRC Register
     //========================================================================
 
-    always_ff @(posedge clk) begin
-        if (rst || clear) begin
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n) || clear) begin
             r_crc <= 8'h00;  // Initial CRC value
         end else if (enable && data_valid) begin
             r_crc <= crc8_update(r_crc, data_in);
         end
-    end
+    )
 
     //========================================================================
     // Output

@@ -10,6 +10,8 @@
     <dt>Base Offset:</dt><dd class="address">0x34</dd>
     <dt>Size:</dt><dd class="address">0x4</dd>
     
+    <dt>Source:</dt><dd><a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/retro_legacy_blocks/rtl/smbus/peakrdl/smbus_regs.rdl#L742" target="_blank">smbus_regs.rdl</a></dd>
+    
 </dl>
 <h2>Description</h2>
 <div id="_Content.desc">
@@ -88,6 +90,15 @@
     <a class="headerlink" href="#pec.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.pec.desc">
-<p>Current/expected PEC value (CRC-8)</p>
+<p>PEC value (CRC-8, polynomial 0x07). Hardware writes the
+computed PEC of the transaction that just finished, and
+only then (<code>we</code>), so a software-written value survives
+until a transaction replaces it. Reading it after a
+transfer gives THE BYTE THAT WAS ON THE WIRE: the PEC
+this master transmitted on a write, and the PEC byte the
+SLAVE SENT on a read - the useful one when they disagree,
+because it is the evidence. The running CRC the master
+computed is not exposed; the comparison result is
+SMBUS_STATUS.pec_error.</p>
 </div>
 </div>

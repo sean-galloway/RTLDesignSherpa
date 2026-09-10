@@ -10,6 +10,8 @@
     <dt>Base Offset:</dt><dd class="address">0x38</dd>
     <dt>Size:</dt><dd class="address">0x4</dd>
     
+    <dt>Source:</dt><dd><a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/retro_legacy_blocks/rtl/smbus/peakrdl/smbus_regs.rdl#L776" target="_blank">smbus_regs.rdl</a></dd>
+    
 </dl>
 <h2>Description</h2>
 <div id="_Content.desc">
@@ -88,6 +90,17 @@
     <a class="headerlink" href="#block_count.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.block_count.desc">
-<p>Number of bytes for block transfer (1-32)</p>
+<p>Block transfer byte count (1-32). Software programs it for
+Block Write; for Block Read the COUNT COMES FROM THE
+SLAVE, and hardware writes it back here (<code>we</code>) CLAMPED
+BOTH WAYS: a count of 0 becomes 1, and a count longer than
+the FIFO depth becomes the depth, so software knows how
+many bytes to drain.
+A software-supplied Block Write count is clamped the same
+way when the transfer is sized, but is NOT written back:
+this register reads back exactly what software wrote even
+if the transfer used a different number. It governs the
+BLOCK transfers only - a Write Byte sends one data byte
+whatever this holds (GitHub #58 item 10).</p>
 </div>
 </div>

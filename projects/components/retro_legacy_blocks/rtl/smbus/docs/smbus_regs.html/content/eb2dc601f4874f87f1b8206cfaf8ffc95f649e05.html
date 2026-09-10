@@ -10,6 +10,8 @@
     <dt>Base Offset:</dt><dd class="address">0x10</dd>
     <dt>Size:</dt><dd class="address">0x4</dd>
     
+    <dt>Source:</dt><dd><a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/retro_legacy_blocks/rtl/smbus/peakrdl/smbus_regs.rdl#L360" target="_blank">smbus_regs.rdl</a></dd>
+    
 </dl>
 <h2>Description</h2>
 <div id="_Content.desc">
@@ -88,6 +90,12 @@
     <a class="headerlink" href="#data.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.data.desc">
-<p>Data byte for Send/Receive Byte transactions</p>
+<p>Data byte. Software writes it for Send Byte / Write Byte;
+hardware writes it with the received byte after a Receive
+Byte / Read Byte. The hardware path is qualified with <code>we</code>
+so it only lands when there IS a received byte - without
+that, the field is overwritten from the live shift
+register every clock and no software write survives to the
+data phase (GitHub #58 item 6).</p>
 </div>
 </div>

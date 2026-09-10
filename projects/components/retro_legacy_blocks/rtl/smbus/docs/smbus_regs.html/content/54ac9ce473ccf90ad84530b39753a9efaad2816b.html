@@ -10,6 +10,8 @@
     <dt>Base Offset:</dt><dd class="address">0x0</dd>
     <dt>Size:</dt><dd class="address">0x4</dd>
     
+    <dt>Source:</dt><dd><a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/retro_legacy_blocks/rtl/smbus/peakrdl/smbus_regs.rdl#L69" target="_blank">smbus_regs.rdl</a></dd>
+    
 </dl>
 <h2>Description</h2>
 <div id="_Content.desc">
@@ -188,21 +190,63 @@
     <a class="headerlink" href="#soft_reset.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.soft_reset.desc">
-<p>Soft reset controller (write 1, auto-clears)</p>
+<p>STROBE WIDTH: this field, SMBUS_CONTROL.fifo_reset and
+SMBUS_COMMAND.start/stop are all self-clearing strobes
+that are TWO pclk cycles wide as the hardware sees them,
+because the cmd/rsp bridge holds its request for two
+cycles. Every consumer is written to act ONCE across that
+window - start is only taken in the idle state, an abort
+is blocked once the error state is entered, and the two
+reset strobes are level clears where a second cycle
+changes nothing.
+Write 1 to synchronously restart the master engine, the
+bit PHY, the PEC accumulator and both FIFOs, and to clear
+the sticky status. SELF-CLEARING: it always reads back 0.
+Strobe width and the FIFO clear window are as described
+for fifo_reset. The REGISTER FILE IS NOT TOUCHED -
+software keeps everything it programmed and only the
+engine starts over. Use it to recover a wedged bus without
+reconfiguring the block.</p>
 </div>
 
 <h3 id="fifo_reset.desc">fifo_reset - FIFO Reset
     <a class="headerlink" href="#fifo_reset.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.fifo_reset.desc">
-<p>Reset TX/RX FIFOs (write 1, auto-clears)</p>
+<p>Write 1 to clear BOTH byte FIFOs. SELF-CLEARING; always
+reads back 0. As the hardware sees it the strobe is TWO
+pclk cycles wide (the bridge holds its request), and the
+FIFOs clear over a window one cycle longer than that
+rather than on a single edge - so a second strobe cycle
+simply extends the window and is harmless. NOTHING IS
+WRITTEN TO OR READ FROM EITHER FIFO WHILE THE WINDOW IS
+OPEN, and the level and the empty/full flags are forced to
+empty for its whole duration, so software never sees a
+level that disagrees with the flags. A byte being received
+when the window opens IS DISCARDED with the rest - an empty
+FIFO is what was asked for - and the transfer in flight
+still completes or aborts normally. THE ENGINE IS NOT
+TOUCHED: use soft_reset for that.</p>
 </div>
 
 <h3 id="fast_mode.desc">fast_mode - Fast Mode
     <a class="headerlink" href="#fast_mode.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.fast_mode.desc">
-<p>Clock speed: 0=standard (100kHz), 1=fast (400kHz)</p>
+<p>0 = 100 kHz standard-mode timing, 1 = 400 kHz fast-mode
+timing. Selects the whole timing SET, not just a frequency,
+and the set is ASYMMETRIC because a symmetric period cannot
+meet fast mode at all: tLOW &gt;= 1.3 us and tHIGH &gt;= 0.6 us
+do not both fit in two equal halves of 2.5 us. The SCL
+period is eight base units either way; in standard mode the
+unit is (SMBUS_CLK_DIV+1)/2 and the low and high phases take
+four units each, in fast mode the unit is
+(SMBUS_CLK_DIV+1)/8 and the low phase takes five units to
+the high phase's three. tHD;STA and tSU;STA shrink from four
+units to two; tSU;STO and tBUF stay at five units in BOTH
+modes, because their fast-mode minimums are not
+proportionally smaller. See rtl/smbus/README.md for the
+achieved-versus-required table.</p>
 </div>
 
 <h3 id="pec_en.desc">pec_en - PEC Enable

@@ -10,6 +10,8 @@
     <dt>Base Offset:</dt><dd class="address">0xc</dd>
     <dt>Size:</dt><dd class="address">0x4</dd>
     
+    <dt>Source:</dt><dd><a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/retro_legacy_blocks/rtl/smbus/peakrdl/smbus_regs.rdl#L333" target="_blank">smbus_regs.rdl</a></dd>
+    
 </dl>
 <h2>Description</h2>
 <div id="_Content.desc">
@@ -88,6 +90,9 @@
     <a class="headerlink" href="#slave_addr.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.slave_addr.desc">
-<p>7-bit slave address (bits[7:1]), bit[0] is R/W (set by controller)</p>
+<p>Target slave address, 7 bits. The R/W direction is NOT in
+this field - it comes from SMBUS_COMMAND.trans_type, and
+the controller appends it when it puts the address byte on
+the wire (twice, for a read with a command code).</p>
 </div>
 </div>

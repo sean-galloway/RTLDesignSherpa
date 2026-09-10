@@ -14,6 +14,52 @@
 //   cmd/rsp --> peakrdl_to_cmdrsp adapter --> smbus_regs (PeakRDL) --> hwif --> mapping --> SMBus core
 //
 // Follows HPET pattern exactly - uses existing peakrdl_to_cmdrsp from converters/rtl/
+//
+//==============================================================================
+// STRICT DECODE
+//==============================================================================
+//   Only the fifteen mapped registers decode. Everything else in the 4 KB APB
+//   window is DROPPED: no internal strobe fires, the read returns 0, and the
+//   access is acknowledged locally with PSLVERR. The generated block sees only
+//   six address bits, so without this every unmapped address aliases onto a
+//   real register 64 bytes below it - 0x040 would write SMBUS_CONTROL.
+//
+//   The acknowledge is combinational and local (w_drop_ack), the same shape
+//   the register block uses, because the adapter holds its request until it
+//   is acked; a dropped access that is never acked hangs the bus.
+//
+//==============================================================================
+// W1C, AND WHY IT IS DECODED HERE
+//==============================================================================
+//   smbus_core owns the sticky SMBUS_INT_STATUS bits; the generated field is
+//   a live MIRROR of them. Software's write-1-to-clear is therefore decoded
+//   HERE and forwarded as a one-cycle per-bit clear:
+//
+//     clear mask = regblk_wr_data & regblk_wr_biten, at the register's own
+//     address, on the RISING EDGE of the request
+//
+//   Both halves matter. The byte enables are in the mask because a byte-
+//   strobed write must not clear bits outside the bytes it wrote. The edge is
+//   there because the adapter HOLDS the request for two cycles: a level would
+//   clear twice, and the second clear would undo a set the core accepted in
+//   between.
+//
+//   The decode compares the same address bits the generated block compares,
+//   so the mirror cannot drift onto a different register than the one
+//   software actually wrote. Nothing in the RTL cross-checks that; the guard
+//   is the DV suite's W1C tests.
+//
+//==============================================================================
+// TX FIFO PUSH
+//==============================================================================
+//   The push takes its byte from the WRITE DATA of the access that causes it
+//   (regblk_wr_data & regblk_wr_biten), not from the stored field. The
+//   adapter holds the request for two cycles and the field storage updates a
+//   cycle after that, so pushing the field on the request edge enqueues the
+//   PREVIOUS byte - every write shifted by one, and the last one never sent
+//   (GitHub #58 item 4). One or the other, never both: the push is a
+//   single-cycle edge, so back-to-back writes each push exactly once.
+//==============================================================================
 
 `timescale 1ns / 1ps
 
@@ -44,6 +90,7 @@ module smbus_config_regs
     output logic        cfg_pec_en,
     output logic        cfg_fast_mode,
     output logic        cfg_fifo_reset,
+    output logic        cfg_soft_reset,
     output logic [15:0] cfg_clk_div,
     output logic [23:0] cfg_timeout,
     output logic [6:0]  cfg_own_addr,
@@ -69,9 +116,19 @@ module smbus_config_regs
     input  logic        status_complete,
     input  logic [3:0]  status_fsm_state,
 
-    // Data byte interface
+    // Data byte interface: data_byte_in is a RECEIVED byte, written back into
+    // SMBUS_DATA only when data_byte_we is high. What software left in
+    // SMBUS_DATA leaves through cmd_data_byte with the rest of the command.
     input  logic [7:0]  data_byte_in,
-    output logic [7:0]  data_byte_out,
+    input  logic        data_byte_we,
+
+    // Block count writeback (Block Read learns its count from the slave)
+    input  logic [5:0]  block_count_in,
+    input  logic        block_count_we,
+
+    // Sticky interrupt status, owned by smbus_core
+    input  logic [4:0]  int_status,
+    output logic [4:0]  sw_clr_int_status,
 
     // TX FIFO interface
     output logic [7:0]  tx_fifo_wdata,
@@ -88,8 +145,8 @@ module smbus_config_regs
     input  logic        rx_fifo_empty,
 
     // PEC interface
-    input  logic [7:0]  pec_value,
-    output logic [7:0]  pec_expected,
+    input  logic [7:0]  pec_wr_data,
+    input  logic        pec_we,
 
     // Interrupt enables
     output logic        int_complete_en,
@@ -105,7 +162,7 @@ module smbus_config_regs
 
     logic                regblk_req;
     logic                regblk_req_is_wr;
-    logic [11:0]         regblk_addr;
+    logic [5:0]          regblk_addr;
     logic [31:0]         regblk_wr_data;
     logic [31:0]         regblk_wr_biten;
     logic                regblk_req_stall_wr;
@@ -115,6 +172,51 @@ module smbus_config_regs
     logic [31:0]         regblk_rd_data;
     logic                regblk_wr_ack;
     logic                regblk_wr_err;
+
+    // Adapter-side copies, so the drop path can answer without the block
+    logic                adapter_req;
+    logic                adapter_req_is_wr;
+    logic [11:0]         adapter_addr;
+    logic [31:0]         adapter_wr_data;
+    logic [31:0]         adapter_wr_biten;
+    logic                adapter_req_stall_wr;
+    logic                adapter_req_stall_rd;
+    logic                adapter_rd_ack;
+    logic                adapter_rd_err;
+    logic [31:0]         adapter_rd_data;
+    logic                adapter_wr_ack;
+    logic                adapter_wr_err;
+
+    logic                w_addr_mapped;
+    logic                w_drop;
+    logic                w_drop_ack;
+
+    logic                w_int_status_wr;
+    logic                r_int_status_wr_d;
+    logic                w_int_status_evt;
+
+    logic                w_tx_fifo_write_req;
+    logic                r_tx_fifo_wr_prev;
+
+    logic                w_rx_fifo_read_req;
+    logic                r_rx_fifo_rd_prev;
+
+    // Mapped register offsets - the same six bits the generated block decodes
+    localparam logic [11:0] ADDR_CONTROL     = 12'h000;
+    localparam logic [11:0] ADDR_STATUS      = 12'h004;
+    localparam logic [11:0] ADDR_COMMAND     = 12'h008;
+    localparam logic [11:0] ADDR_SLAVE_ADDR  = 12'h00C;
+    localparam logic [11:0] ADDR_DATA        = 12'h010;
+    localparam logic [11:0] ADDR_TX_FIFO     = 12'h014;
+    localparam logic [11:0] ADDR_RX_FIFO     = 12'h018;
+    localparam logic [11:0] ADDR_FIFO_STATUS = 12'h01C;
+    localparam logic [11:0] ADDR_CLK_DIV     = 12'h020;
+    localparam logic [11:0] ADDR_TIMEOUT     = 12'h024;
+    localparam logic [11:0] ADDR_OWN_ADDR    = 12'h028;
+    localparam logic [11:0] ADDR_INT_ENABLE  = 12'h02C;
+    localparam logic [11:0] ADDR_INT_STATUS  = 12'h030;
+    localparam logic [11:0] ADDR_PEC         = 12'h034;
+    localparam logic [11:0] ADDR_BLOCK_COUNT = 12'h038;
 
     //========================================================================
     // Hardware Interface Structs
@@ -147,20 +249,59 @@ module smbus_config_regs
         .rsp_prdata         (rsp_prdata),
         .rsp_pslverr        (rsp_pslverr),
 
-        // PeakRDL passthrough interface (to register block)
-        .regblk_req         (regblk_req),
-        .regblk_req_is_wr   (regblk_req_is_wr),
-        .regblk_addr        (regblk_addr),
-        .regblk_wr_data     (regblk_wr_data),
-        .regblk_wr_biten    (regblk_wr_biten),
-        .regblk_req_stall_wr(regblk_req_stall_wr),
-        .regblk_req_stall_rd(regblk_req_stall_rd),
-        .regblk_rd_ack      (regblk_rd_ack),
-        .regblk_rd_err      (regblk_rd_err),
-        .regblk_rd_data     (regblk_rd_data),
-        .regblk_wr_ack      (regblk_wr_ack),
-        .regblk_wr_err      (regblk_wr_err)
+        // PeakRDL passthrough interface - through the strict decode below
+        .regblk_req         (adapter_req),
+        .regblk_req_is_wr   (adapter_req_is_wr),
+        .regblk_addr        (adapter_addr),
+        .regblk_wr_data     (adapter_wr_data),
+        .regblk_wr_biten    (adapter_wr_biten),
+        .regblk_req_stall_wr(adapter_req_stall_wr),
+        .regblk_req_stall_rd(adapter_req_stall_rd),
+        .regblk_rd_ack      (adapter_rd_ack),
+        .regblk_rd_err      (adapter_rd_err),
+        .regblk_rd_data     (adapter_rd_data),
+        .regblk_wr_ack      (adapter_wr_ack),
+        .regblk_wr_err      (adapter_wr_err)
     );
+
+    //========================================================================
+    // Strict Address Decode
+    //========================================================================
+
+    always_comb begin
+        w_addr_mapped = (adapter_addr == ADDR_CONTROL)     ||
+                        (adapter_addr == ADDR_STATUS)      ||
+                        (adapter_addr == ADDR_COMMAND)     ||
+                        (adapter_addr == ADDR_SLAVE_ADDR)  ||
+                        (adapter_addr == ADDR_DATA)        ||
+                        (adapter_addr == ADDR_TX_FIFO)     ||
+                        (adapter_addr == ADDR_RX_FIFO)     ||
+                        (adapter_addr == ADDR_FIFO_STATUS) ||
+                        (adapter_addr == ADDR_CLK_DIV)     ||
+                        (adapter_addr == ADDR_TIMEOUT)     ||
+                        (adapter_addr == ADDR_OWN_ADDR)    ||
+                        (adapter_addr == ADDR_INT_ENABLE)  ||
+                        (adapter_addr == ADDR_INT_STATUS)  ||
+                        (adapter_addr == ADDR_PEC)         ||
+                        (adapter_addr == ADDR_BLOCK_COUNT);
+    end
+
+    assign w_drop     = !w_addr_mapped;
+    assign w_drop_ack = adapter_req && w_drop;
+
+    assign regblk_req        = adapter_req && !w_drop;
+    assign regblk_req_is_wr  = adapter_req_is_wr;
+    assign regblk_addr       = adapter_addr[5:0];
+    assign regblk_wr_data    = adapter_wr_data;
+    assign regblk_wr_biten   = adapter_wr_biten;
+
+    assign adapter_req_stall_wr = regblk_req_stall_wr;
+    assign adapter_req_stall_rd = regblk_req_stall_rd;
+    assign adapter_rd_ack  = regblk_rd_ack | (w_drop_ack & ~adapter_req_is_wr);
+    assign adapter_rd_err  = regblk_rd_err | (w_drop_ack & ~adapter_req_is_wr);
+    assign adapter_rd_data = w_drop_ack ? 32'h0 : regblk_rd_data;
+    assign adapter_wr_ack  = regblk_wr_ack | (w_drop_ack & adapter_req_is_wr);
+    assign adapter_wr_err  = regblk_wr_err | (w_drop_ack & adapter_req_is_wr);
 
     //========================================================================
     // Instantiate PeakRDL-Generated Register Block
@@ -173,7 +314,7 @@ module smbus_config_regs
         // Passthrough CPU interface
         .s_cpuif_req        (regblk_req),
         .s_cpuif_req_is_wr  (regblk_req_is_wr),
-        .s_cpuif_addr       (regblk_addr[5:0]),  // Only lower 6 bits needed for SMBus
+        .s_cpuif_addr       (regblk_addr),  // strict decode above guarantees no alias
         .s_cpuif_wr_data    (regblk_wr_data),
         .s_cpuif_wr_biten   (regblk_wr_biten),
         .s_cpuif_req_stall_wr(regblk_req_stall_wr),
@@ -199,6 +340,7 @@ module smbus_config_regs
     assign cfg_pec_en     = hwif_out.SMBUS_CONTROL.pec_en.value;
     assign cfg_fast_mode  = hwif_out.SMBUS_CONTROL.fast_mode.value;
     assign cfg_fifo_reset = hwif_out.SMBUS_CONTROL.fifo_reset.value;
+    assign cfg_soft_reset = hwif_out.SMBUS_CONTROL.soft_reset.value;
 
     // Clock and timeout
     assign cfg_clk_div    = hwif_out.SMBUS_CLK_DIV.clk_div.value;
@@ -224,58 +366,47 @@ module smbus_config_regs
     assign int_rx_thresh_en  = hwif_out.SMBUS_INT_ENABLE.rx_thresh_en.value;
     assign int_slave_addr_en = hwif_out.SMBUS_INT_ENABLE.slave_addr_en.value;
 
-    // PEC expected value
-    assign pec_expected = hwif_out.SMBUS_PEC.pec.value;
-
     //========================================================================
-    // TX FIFO Write Detection and Data
+    // FIFO port strobes and the W1C decode
     //========================================================================
-    // Note: We detect TX FIFO writes by monitoring the cpuif signals directly
-    // since the tx_data field doesn't have swmod enabled in the RDL.
-    // TX_FIFO register is at offset 0x014 (byte address)
+    // All three are the same shape: decode the register's own address on the
+    // held request, and take the RISING EDGE so a two-cycle request produces
+    // exactly one push, one pop, one clear.
 
-    logic r_tx_fifo_wr_prev;
-    logic w_tx_fifo_write_req;
-
-    // Detect write request to TX_FIFO register (address 0x014)
+    // The BYTE ENABLE is part of the decode, not just of the data. A write to
+    // SMBUS_TX_FIFO with the data lane disabled (PSTRB=4'b0010, say) is not a
+    // FIFO push at all; masking the data but pushing anyway enqueued 0x00.
     assign w_tx_fifo_write_req = regblk_req && regblk_req_is_wr &&
-                                  (regblk_addr[5:0] == 6'h14);
+                                 (adapter_addr == ADDR_TX_FIFO) &&
+                                 adapter_wr_biten[0];
+    assign w_rx_fifo_read_req  = regblk_req && !regblk_req_is_wr &&
+                                 (adapter_addr == ADDR_RX_FIFO);
+    assign w_int_status_wr     = regblk_req && regblk_req_is_wr &&
+                                 (adapter_addr == ADDR_INT_STATUS);
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             r_tx_fifo_wr_prev <= 1'b0;
+            r_rx_fifo_rd_prev <= 1'b0;
+            r_int_status_wr_d <= 1'b0;
         end else begin
             r_tx_fifo_wr_prev <= w_tx_fifo_write_req;
+            r_rx_fifo_rd_prev <= w_rx_fifo_read_req;
+            r_int_status_wr_d <= w_int_status_wr;
         end
     )
 
-    // Detect SW write to TX_FIFO register (rising edge of write request)
-    assign tx_fifo_wr = w_tx_fifo_write_req && !r_tx_fifo_wr_prev;
-    assign tx_fifo_wdata = hwif_out.SMBUS_TX_FIFO.tx_data.value;
+    assign tx_fifo_wr  = w_tx_fifo_write_req && !r_tx_fifo_wr_prev;
+    assign rx_fifo_rd  = w_rx_fifo_read_req  && !r_rx_fifo_rd_prev;
 
-    //========================================================================
-    // RX FIFO Read Detection  
-    //========================================================================
+    // THE BYTE WRITTEN BY THIS ACCESS, not the stored field: the field
+    // storage is a cycle behind the request, so the field still holds the
+    // PREVIOUS byte when the push fires.
+    assign tx_fifo_wdata = adapter_wr_data[7:0] & adapter_wr_biten[7:0];
 
-    logic r_rx_fifo_rd_prev;
-    
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
-            r_rx_fifo_rd_prev <= 1'b0;
-        end else begin
-            // Detect read of RX_FIFO register
-            r_rx_fifo_rd_prev <= (regblk_req && !regblk_req_is_wr && 
-                                 (regblk_addr[5:0] == 6'h18));
-        end
-    )
-
-    assign rx_fifo_rd = (regblk_req && !regblk_req_is_wr && 
-                        (regblk_addr[5:0] == 6'h18)) && !r_rx_fifo_rd_prev;
-
-    //========================================================================
-    // Data Byte Output
-    //========================================================================
-    assign data_byte_out = hwif_out.SMBUS_DATA.data.value;
+    assign w_int_status_evt  = w_int_status_wr && !r_int_status_wr_d;
+    assign sw_clr_int_status = w_int_status_evt ?
+                               (adapter_wr_data[4:0] & adapter_wr_biten[4:0]) : 5'h00;
 
     //========================================================================
     // Map SMBus Core Outputs to PeakRDL hwif Inputs
@@ -303,52 +434,37 @@ module smbus_config_regs
     assign hwif_in.SMBUS_FIFO_STATUS.rx_full.next = rx_fifo_full;
     assign hwif_in.SMBUS_FIFO_STATUS.rx_empty.next = rx_fifo_empty;
 
-    // PEC value (hardware writes)
-    assign hwif_in.SMBUS_PEC.pec.next = pec_value;
+    // Hardware writes, each QUALIFIED. Without the we the generated hardware
+    // path overwrites the field every clock and no software write survives.
+    assign hwif_in.SMBUS_PEC.pec.next = pec_wr_data;
+    assign hwif_in.SMBUS_PEC.pec.we   = pec_we;
 
-    // Data byte input (hardware writes)
     assign hwif_in.SMBUS_DATA.data.next = data_byte_in;
+    assign hwif_in.SMBUS_DATA.data.we   = data_byte_we;
 
-    // Block count (hardware can update)
-    assign hwif_in.SMBUS_BLOCK_COUNT.block_count.next = hwif_out.SMBUS_BLOCK_COUNT.block_count.value;
-
-    //========================================================================
-    // Interrupt Status Handling (W1C with edge detection)
-    //========================================================================
-
-    // Edge detection for interrupt status flags
-    logic r_status_complete_prev;
-    logic r_status_error_prev;
-    logic w_complete_edge, w_error_edge;
-
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
-            r_status_complete_prev <= 1'b0;
-            r_status_error_prev <= 1'b0;
-        end else begin
-            r_status_complete_prev <= status_complete;
-            r_status_error_prev <= (status_bus_error || status_timeout_error || 
-                                   status_pec_error);
-        end
-    )
-
-    // Rising edge detection
-    assign w_complete_edge = status_complete && !r_status_complete_prev;
-    assign w_error_edge = (status_bus_error || status_timeout_error || status_pec_error) && 
-                         !r_status_error_prev;
-
-    // Feed edge pulses to PeakRDL interrupt status (W1C fields)
-    assign hwif_in.SMBUS_INT_STATUS.complete_int.next = w_complete_edge;
-    assign hwif_in.SMBUS_INT_STATUS.error_int.next = w_error_edge;
-    assign hwif_in.SMBUS_INT_STATUS.tx_thresh_int.next = tx_fifo_empty;
-    assign hwif_in.SMBUS_INT_STATUS.rx_thresh_int.next = !rx_fifo_empty;
-    assign hwif_in.SMBUS_INT_STATUS.slave_addr_int.next = status_slave_addressed;
+    assign hwif_in.SMBUS_BLOCK_COUNT.block_count.next = block_count_in;
+    assign hwif_in.SMBUS_BLOCK_COUNT.block_count.we   = block_count_we;
 
     //========================================================================
-    // Auto-Clear Fields (fifo_reset, soft_reset, start, stop)
+    // Interrupt status: the field is a LIVE MIRROR of smbus_core's sticky bit
     //========================================================================
+    // The stickiness lives in hardware (smbus_int_status.sv) and the W1C is
+    // decoded above. Feeding an edge PULSE into a woclr field - what this used
+    // to do - relies on the field itself to latch, and then the level bits
+    // (which were fed the live FIFO flags) re-assert on the clock after
+    // software clears them.
 
-    // These fields auto-clear after being set
+    assign hwif_in.SMBUS_INT_STATUS.complete_int.next   = int_status[0];
+    assign hwif_in.SMBUS_INT_STATUS.error_int.next      = int_status[1];
+    assign hwif_in.SMBUS_INT_STATUS.tx_thresh_int.next  = int_status[2];
+    assign hwif_in.SMBUS_INT_STATUS.rx_thresh_int.next  = int_status[3];
+    assign hwif_in.SMBUS_INT_STATUS.slave_addr_int.next = int_status[4];
+
+    //========================================================================
+    // Self-clearing strobes (fifo_reset, soft_reset, start, stop)
+    //========================================================================
+    // Each reads back 0: they are commands, not state.
+
     assign hwif_in.SMBUS_CONTROL.fifo_reset.next = 1'b0;
     assign hwif_in.SMBUS_CONTROL.soft_reset.next = 1'b0;
     assign hwif_in.SMBUS_COMMAND.start.next = 1'b0;

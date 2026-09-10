@@ -6,14 +6,22 @@
  *
  * Key Features:
  * - SMBus 2.0 protocol compliance
- * - Master and slave modes
+ * - Master mode. SLAVE MODE IS A STUB: the register surface exists and can
+ *   be programmed, but no slave FSM runs and this block never answers as a
+ *   target (ledger RLB-011).
  * - All standard transaction types (Quick, Byte, Word, Block)
  * - Packet Error Checking (PEC) with CRC-8
- * - TX/RX FIFO buffers (32 bytes each)
+ * - TX/RX FIFO buffers, FIFO_DEPTH bytes each (parameter, 2..63; 32 by
+ *   default). SMBUS_FIFO_STATUS's level fields are six bits either way.
  * - Clock stretching support
- * - Timeout detection (25-35ms)
- * - Configurable clock speed (10-100 kHz standard, up to 400 kHz fast mode)
- * - Alert Response Address (ARA) support
+ * - Bus timeout, SMBUS_TIMEOUT core clocks (~25 ms at the 2500000 default).
+ *   Worst case from 'SCL wedges' to busy=0 is FIVE times that - see the
+ *   SMBUS_TIMEOUT field.
+ * - Configurable clock: 100 kHz standard at the default divider, 390.6 kHz
+ *   in fast mode from the same divider (the units are integers, so the
+ *   achieved figure sits just under 400 kHz).
+ * - Alert Response Address (ARA), Host Notify and SMBALERT# are NOT
+ *   implemented (ledger RLB-011).
  *
  * Transaction Types:
  * - Quick Command (0 bytes)
@@ -22,7 +30,6 @@
  * - Write/Read Word Data (1 command + 2 data bytes)
  * - Block Write/Read (1 command + count + up to 32 data bytes)
  * - Block Write-Block Read Process Call
- * - Host Notify Protocol
  *
  * Address Layout:
  *   0x000: SMBUS_CONTROL      - Global control (enable, mode, PEC)
@@ -45,7 +52,10 @@
 
 addrmap smbus_regs {
     name = "SMBus 2.0 Controller Registers";
-    desc = "System Management Bus controller with master/slave modes";
+    desc = "System Management Bus controller, MASTER MODE. Slave mode is a
+            stub: the register surface exists and can be programmed, but no
+            slave FSM runs and this block never answers as a target
+            (ledger RLB-011).";
 
     // Default properties for all registers
     default regwidth = 32;
@@ -83,21 +93,63 @@ addrmap smbus_regs {
 
         field {
             name = "Fast Mode";
-            desc = "Clock speed: 0=standard (100kHz), 1=fast (400kHz)";
+            desc = "0 = 100 kHz standard-mode timing, 1 = 400 kHz fast-mode
+                    timing. Selects the whole timing SET, not just a frequency,
+                    and the set is ASYMMETRIC because a symmetric period cannot
+                    meet fast mode at all: tLOW >= 1.3 us and tHIGH >= 0.6 us
+                    do not both fit in two equal halves of 2.5 us. The SCL
+                    period is eight base units either way; in standard mode the
+                    unit is (SMBUS_CLK_DIV+1)/2 and the low and high phases take
+                    four units each, in fast mode the unit is
+                    (SMBUS_CLK_DIV+1)/8 and the low phase takes five units to
+                    the high phase's three. tHD;STA and tSU;STA shrink from four
+                    units to two; tSU;STO and tBUF stay at five units in BOTH
+                    modes, because their fast-mode minimums are not
+                    proportionally smaller. See rtl/smbus/README.md for the
+                    achieved-versus-required table.";
             sw = rw;
             hw = r;
         } fast_mode[3:3] = 1'b0;
 
         field {
             name = "FIFO Reset";
-            desc = "Reset TX/RX FIFOs (write 1, auto-clears)";
+            desc = "Write 1 to clear BOTH byte FIFOs. SELF-CLEARING; always
+                    reads back 0. As the hardware sees it the strobe is TWO
+                    pclk cycles wide (the bridge holds its request), and the
+                    FIFOs clear over a window one cycle longer than that
+                    rather than on a single edge - so a second strobe cycle
+                    simply extends the window and is harmless. NOTHING IS
+                    WRITTEN TO OR READ FROM EITHER FIFO WHILE THE WINDOW IS
+                    OPEN, and the level and the empty/full flags are forced to
+                    empty for its whole duration, so software never sees a
+                    level that disagrees with the flags. A byte being received
+                    when the window opens IS DISCARDED with the rest - an empty
+                    FIFO is what was asked for - and the transfer in flight
+                    still completes or aborts normally. THE ENGINE IS NOT
+                    TOUCHED: use soft_reset for that.";
             sw = rw;
             hw = rw;
         } fifo_reset[4:4] = 1'b0;
 
         field {
             name = "Soft Reset";
-            desc = "Soft reset controller (write 1, auto-clears)";
+            desc = "STROBE WIDTH: this field, SMBUS_CONTROL.fifo_reset and
+                    SMBUS_COMMAND.start/stop are all self-clearing strobes
+                    that are TWO pclk cycles wide as the hardware sees them,
+                    because the cmd/rsp bridge holds its request for two
+                    cycles. Every consumer is written to act ONCE across that
+                    window - start is only taken in the idle state, an abort
+                    is blocked once the error state is entered, and the two
+                    reset strobes are level clears where a second cycle
+                    changes nothing.
+                    Write 1 to synchronously restart the master engine, the
+                    bit PHY, the PEC accumulator and both FIFOs, and to clear
+                    the sticky status. SELF-CLEARING: it always reads back 0.
+                    Strobe width and the FIFO clear window are as described
+                    for fifo_reset. The REGISTER FILE IS NOT TOUCHED -
+                    software keeps everything it programmed and only the
+                    engine starts over. Use it to recover a wedged bus without
+                    reconfiguring the block.";
             sw = rw;
             hw = rw;
         } soft_reset[5:5] = 1'b0;
@@ -128,14 +180,33 @@ addrmap smbus_regs {
 
         field {
             name = "Bus Error";
-            desc = "Bus error detected (NAK, arbitration loss, etc.)";
+            desc = "Bus error: a transfer was aborted for a reason other than
+                    a NAK or a PEC mismatch - SMBUS_COMMAND.stop written alone,
+                    a TX FIFO underrun, an RX FIFO overrun, or bus recovery
+                    that could not free SDA within nine clocks. Set together
+                    with timeout_error it means recovery was attempted, failed,
+                    and the bus was released without a STOP.";
             sw = r;
             hw = w;
         } bus_error[1:1];
 
         field {
             name = "Timeout Error";
-            desc = "Transaction timeout (>25ms)";
+            desc = "A bus timeout: SCL was held low - by this master or by
+                    anyone else - for longer than SMBUS_TIMEOUT. The
+                    transaction was aborted and the bus released. A timeout
+                    abort runs I2C bus recovery (up to nine full standard-mode
+                    SCL pulses with SDA released) before its STOP, so a slave
+                    stuck part-way through a byte is clocked out of it and the
+                    transfer is terminated properly rather than merely
+                    abandoned - with two exceptions that release and report
+                    without clocking: a timeout inside the final STOP, and a
+                    timeout before anything was framed unless SDA is stuck low
+                    on a quiet SCL (a low SCL there means a foreign transfer,
+                    which must not be clocked). If SDA was still low after
+                    nine clocks, bus_error is set as well and no STOP was
+                    generated; timeout_error alone means the bus was released
+                    and, where recovery applied, a STOP was generated.";
             sw = r;
             hw = w;
         } timeout_error[2:2];
@@ -149,7 +220,8 @@ addrmap smbus_regs {
 
         field {
             name = "Arbitration Lost";
-            desc = "Multi-master arbitration lost";
+            desc = "Multi-master arbitration lost. TIED LOW: arbitration is
+                    not implemented, so this bit never sets (ledger RLB-011).";
             sw = r;
             hw = w;
         } arb_lost[4:4];
@@ -163,14 +235,22 @@ addrmap smbus_regs {
 
         field {
             name = "Slave Addressed";
-            desc = "This device addressed as slave";
+            desc = "Addressed as a slave. TIED LOW: slave mode is a stub, so
+                    this bit never sets (ledger RLB-011).";
             sw = r;
             hw = w;
         } slave_addressed[6:6];
 
         field {
             name = "Transaction Complete";
-            desc = "Transaction completed successfully";
+            desc = "The transaction finished AND terminated the bus with a
+                    STOP, with no error of any kind. It is NEVER set alongside
+                    bus_error, timeout_error, pec_error or nak_received, so
+                    reading it alone is enough to know the transfer succeeded.
+                    It is also set for a STOP that escalated to bus recovery
+                    and recovered - the nine clocks freed SDA and a real STOP
+                    went out - so a successful recovery is invisible to
+                    software; there is no bit that reports it.";
             sw = r;
             hw = w;
         } complete[7:7];
@@ -215,14 +295,24 @@ addrmap smbus_regs {
 
         field {
             name = "Start";
-            desc = "Start transaction (write 1, auto-clears)";
+            desc = "Write 1 to launch the transaction described by the rest of
+                    this register. SELF-CLEARING. It is IGNORED unless
+                    SMBUS_CONTROL.master_en is already set - the write is
+                    accepted and silently discarded, SMBUS_STATUS.busy never
+                    rises and no error is reported, so software must enable
+                    master mode before starting.";
             sw = rw;
             hw = rw;
         } start[16:16] = 1'b0;
 
         field {
             name = "Stop";
-            desc = "Force stop/abort current transaction (write 1, auto-clears)";
+            desc = "Written TOGETHER with start it is a no-op: every
+                    transaction ends with a STOP anyway. Written ALONE while
+                    SMBUS_STATUS.busy is set it is an ABORT - the transaction
+                    stops, a real STOP is generated on the wire, both lines
+                    are released, busy drops and SMBUS_STATUS.bus_error is
+                    set. SELF-CLEARING.";
             sw = rw;
             hw = rw;
         } stop[17:17] = 1'b0;
@@ -246,7 +336,10 @@ addrmap smbus_regs {
 
         field {
             name = "Slave Address";
-            desc = "7-bit slave address (bits[7:1]), bit[0] is R/W (set by controller)";
+            desc = "Target slave address, 7 bits. The R/W direction is NOT in
+                    this field - it comes from SMBUS_COMMAND.trans_type, and
+                    the controller appends it when it puts the address byte on
+                    the wire (twice, for a read with a command code).";
             sw = rw;
             hw = r;
         } slave_addr[6:0] = 7'h00;
@@ -270,9 +363,16 @@ addrmap smbus_regs {
 
         field {
             name = "Data Byte";
-            desc = "Data byte for Send/Receive Byte transactions";
+            desc = "Data byte. Software writes it for Send Byte / Write Byte;
+                    hardware writes it with the received byte after a Receive
+                    Byte / Read Byte. The hardware path is qualified with `we`
+                    so it only lands when there IS a received byte - without
+                    that, the field is overwritten from the live shift
+                    register every clock and no software write survives to the
+                    data phase (GitHub #58 item 6).";
             sw = rw;
             hw = rw;
+            we;
         } data[7:0] = 8'h00;
 
         field {
@@ -318,7 +418,14 @@ addrmap smbus_regs {
 
         field {
             name = "RX Data";
-            desc = "Read data byte from RX FIFO";
+            desc = "Read the next byte from the RX FIFO. READING IT EMPTY
+                    RETURNS THE STALE HEAD - the last byte that was there - and
+                    does not move the pointer. IF NOTHING WAS EVER WRITTEN THE
+                    VALUE IS UNDEFINED: the FIFO memory has no reset in any
+                    MEM_STYLE, so it is whatever the RAM initialises to on an
+                    FPGA and genuinely undefined on an ASIC. Check
+                    SMBUS_FIFO_STATUS.rx_level first; it and rx_empty always
+                    agree in the active-low build (see SMBUS_FIFO_STATUS).";
             sw = r;
             hw = w;
         } rx_data[7:0];
@@ -338,11 +445,22 @@ addrmap smbus_regs {
 
     reg {
         name = "SMBus FIFO Status Register";
-        desc = "TX/RX FIFO levels and status flags";
+        desc = "TX/RX FIFO levels and status flags. IN THE ACTIVE-LOW RESET
+                BUILD - the only one currently usable - LEVEL AND FLAGS ARE
+                CONSISTENT BY CONSTRUCTION at every cycle: a level of 0 always
+                reads back as empty and a full FIFO always reads back at the
+                depth, including across a fifo_reset or soft_reset, where all
+                three are driven from one source for the whole clear window and
+                nothing is accepted into or out of the FIFO. Built with
+                RESET_ACTIVE_HIGH the FIFO storage never leaves reset
+                (COMMON-026, tracked here as RLB-012), so the level counts past
+                the depth against a permanently empty memory and none of this
+                holds - that build is not usable until COMMON-026 lands.";
 
         field {
             name = "TX FIFO Level";
-            desc = "Number of bytes in TX FIFO (0-32)";
+            desc = "Bytes in the TX FIFO, 0 to FIFO_DEPTH (the parameter,
+                    2..63; 32 by default). The field is six bits regardless.";
             sw = r;
             hw = w;
         } tx_level[5:0];
@@ -363,7 +481,8 @@ addrmap smbus_regs {
 
         field {
             name = "RX FIFO Level";
-            desc = "Number of bytes in RX FIFO (0-32)";
+            desc = "Bytes in the RX FIFO, 0 to FIFO_DEPTH (the parameter,
+                    2..63; 32 by default). The field is six bits regardless.";
             sw = r;
             hw = w;
         } rx_level[13:8];
@@ -401,7 +520,14 @@ addrmap smbus_regs {
 
         field {
             name = "Clock Divider";
-            desc = "SCL clock divider: SCL_freq = sys_clk / (4 * (div + 1)), default 100kHz @ 100MHz sys_clk";
+            desc = "SCL clock divider. STANDARD MODE:
+                    SCL = sys_clk / (4 * (div + 1)) - the default 249 gives
+                    100 kHz at 100 MHz. FAST MODE (SMBUS_CONTROL.fast_mode=1)
+                    is four times faster from the SAME divider:
+                    SCL = sys_clk / ((div + 1)), i.e. 8 units of
+                    (div+1)/8 clocks - 249 gives 390.6 kHz at 100 MHz. Both
+                    unit divides round UP, so a small divider cannot silently
+                    shorten the period.";
             sw = rw;
             hw = r;
         } clk_div[15:0] = 16'd249;  // Default for 100kHz @ 100MHz
@@ -425,7 +551,18 @@ addrmap smbus_regs {
 
         field {
             name = "Timeout Value";
-            desc = "Timeout threshold in clock cycles (default ~25-35ms)";
+            desc = "Bus timeout in core clock cycles. IT MEASURES HOW LONG
+                    SCL IS LOW ON THE BUS - either this master pulling it down
+                    or the line still reading low after we let go - so it
+                    catches a stretching slave, a short and a wedged master
+                    alike. It is counted only while this master owns a
+                    primitive; an idle bus held low by somebody else does not
+                    arm it. 0 DISABLES the check entirely; it must never mean
+                    'expire immediately'. Default 2500000 is ~25 ms at 100 MHz.
+                    WORST CASE FROM 'SCL WEDGES' TO busy=0 IS FIVE TIMES THIS
+                    VALUE (~125 ms at the default): one window for the
+                    primitive that stalls, then four for the abort's STOP,
+                    which is deliberately more patient.";
             sw = rw;
             hw = r;
         } timeout[23:0] = 24'd2500000;  // Default ~25ms @ 100MHz
@@ -494,14 +631,18 @@ addrmap smbus_regs {
 
         field {
             name = "TX FIFO Threshold Enable";
-            desc = "Enable interrupt when TX FIFO below threshold";
+            desc = "Enable the TX threshold interrupt. THE THRESHOLD IS FIXED
+                    AT EMPTY: the condition is tx_fifo_empty, not a
+                    programmable level.";
             sw = rw;
             hw = r;
         } tx_thresh_en[2:2] = 1'b0;
 
         field {
             name = "RX FIFO Threshold Enable";
-            desc = "Enable interrupt when RX FIFO above threshold";
+            desc = "Enable the RX threshold interrupt. THE THRESHOLD IS FIXED
+                    AT NON-EMPTY: the condition is !rx_fifo_empty, not a
+                    programmable level.";
             sw = rw;
             hw = r;
         } rx_thresh_en[3:3] = 1'b0;
@@ -528,13 +669,18 @@ addrmap smbus_regs {
 
     reg {
         name = "SMBus Interrupt Status Register";
-        desc = "Interrupt status flags (write 1 to clear)";
+        desc = "Interrupt status flags (write 1 to clear). Every bit is
+            sticky: set by the RISING EDGE of its condition and cleared only
+            by a W1C write, with SET WINNING over a simultaneous clear. The
+            smb_interrupt pin is (SMBUS_INT_STATUS & SMBUS_INT_ENABLE) != 0,
+            registered - so clearing a bit here is what deasserts the pin.";
 
         field {
             name = "Transaction Complete";
             desc = "Transaction completed (W1C)";
             sw = rw;
-            hw = w;
+            hw = w;          // live mirror of smbus_int_status's sticky bit
+            precedence = sw; // the W1C write wins over the mirror in its cycle
             onwrite = woclr;
         } complete_int[0:0] = 1'b0;
 
@@ -542,23 +688,32 @@ addrmap smbus_regs {
             name = "Error Interrupt";
             desc = "Bus error occurred (W1C)";
             sw = rw;
-            hw = w;
+            hw = w;          // live mirror of smbus_int_status's sticky bit
+            precedence = sw; // the W1C write wins over the mirror in its cycle
             onwrite = woclr;
         } error_int[1:1] = 1'b0;
 
         field {
             name = "TX FIFO Threshold";
-            desc = "TX FIFO below threshold (W1C)";
+            desc = "TX FIFO became EMPTY (the threshold is fixed at empty),
+                    W1C. STICKY: set on the
+                    edge of the condition, cleared only by writing 1. It is
+                    not a live level - a W1C bit that re-asserts itself on the
+                    next clock cannot be cleared at all (GitHub #58 qc1).";
             sw = rw;
-            hw = w;
+            hw = w;          // live mirror of smbus_int_status's sticky bit
+            precedence = sw; // the W1C write wins over the mirror in its cycle
             onwrite = woclr;
         } tx_thresh_int[2:2] = 1'b0;
 
         field {
             name = "RX FIFO Threshold";
-            desc = "RX FIFO above threshold (W1C)";
+            desc = "RX FIFO became NON-EMPTY (the threshold is fixed at
+                    non-empty), W1C. STICKY: set on the
+                    edge of the condition, cleared only by writing 1.";
             sw = rw;
-            hw = w;
+            hw = w;          // live mirror of smbus_int_status's sticky bit
+            precedence = sw; // the W1C write wins over the mirror in its cycle
             onwrite = woclr;
         } rx_thresh_int[3:3] = 1'b0;
 
@@ -566,7 +721,8 @@ addrmap smbus_regs {
             name = "Slave Addressed";
             desc = "Device addressed as slave (W1C)";
             sw = rw;
-            hw = w;
+            hw = w;          // live mirror of smbus_int_status's sticky bit
+            precedence = sw; // the W1C write wins over the mirror in its cycle
             onwrite = woclr;
         } slave_addr_int[4:4] = 1'b0;
 
@@ -589,9 +745,19 @@ addrmap smbus_regs {
 
         field {
             name = "PEC Value";
-            desc = "Current/expected PEC value (CRC-8)";
+            desc = "PEC value (CRC-8, polynomial 0x07). Hardware writes the
+                    computed PEC of the transaction that just finished, and
+                    only then (`we`), so a software-written value survives
+                    until a transaction replaces it. Reading it after a
+                    transfer gives THE BYTE THAT WAS ON THE WIRE: the PEC
+                    this master transmitted on a write, and the PEC byte the
+                    SLAVE SENT on a read - the useful one when they disagree,
+                    because it is the evidence. The running CRC the master
+                    computed is not exposed; the comparison result is
+                    SMBUS_STATUS.pec_error.";
             sw = rw;
             hw = rw;
+            we;
         } pec[7:0] = 8'h00;
 
         field {
@@ -613,9 +779,21 @@ addrmap smbus_regs {
 
         field {
             name = "Block Count";
-            desc = "Number of bytes for block transfer (1-32)";
+            desc = "Block transfer byte count (1-32). Software programs it for
+                    Block Write; for Block Read the COUNT COMES FROM THE
+                    SLAVE, and hardware writes it back here (`we`) CLAMPED
+                    BOTH WAYS: a count of 0 becomes 1, and a count longer than
+                    the FIFO depth becomes the depth, so software knows how
+                    many bytes to drain.
+                    A software-supplied Block Write count is clamped the same
+                    way when the transfer is sized, but is NOT written back:
+                    this register reads back exactly what software wrote even
+                    if the transfer used a different number. It governs the
+                    BLOCK transfers only - a Write Byte sends one data byte
+                    whatever this holds (GitHub #58 item 10).";
             sw = rw;
             hw = rw;
+            we;
         } block_count[5:0] = 6'h00;
 
         field {

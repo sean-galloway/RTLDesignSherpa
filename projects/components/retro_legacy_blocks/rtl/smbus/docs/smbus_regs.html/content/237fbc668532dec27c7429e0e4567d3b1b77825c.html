@@ -10,6 +10,8 @@
     <dt>Base Offset:</dt><dd class="address">0x2c</dd>
     <dt>Size:</dt><dd class="address">0x4</dd>
     
+    <dt>Source:</dt><dd><a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/retro_legacy_blocks/rtl/smbus/peakrdl/smbus_regs.rdl#L614" target="_blank">smbus_regs.rdl</a></dd>
+    
 </dl>
 <h2>Description</h2>
 <div id="_Content.desc">
@@ -175,14 +177,18 @@
     <a class="headerlink" href="#rx_thresh_en.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.rx_thresh_en.desc">
-<p>Enable interrupt when RX FIFO above threshold</p>
+<p>Enable the RX threshold interrupt. THE THRESHOLD IS FIXED
+AT NON-EMPTY: the condition is !rx_fifo_empty, not a
+programmable level.</p>
 </div>
 
 <h3 id="tx_thresh_en.desc">tx_thresh_en - TX FIFO Threshold Enable
     <a class="headerlink" href="#tx_thresh_en.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.tx_thresh_en.desc">
-<p>Enable interrupt when TX FIFO below threshold</p>
+<p>Enable the TX threshold interrupt. THE THRESHOLD IS FIXED
+AT EMPTY: the condition is tx_fifo_empty, not a
+programmable level.</p>
 </div>
 
 <h3 id="error_en.desc">error_en - Error Interrupt Enable

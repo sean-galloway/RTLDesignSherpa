@@ -23,8 +23,9 @@
 
 # SMBUS Specification
 
-**Status:** Written (chapters 1 and 5) - see smbus_mas_index.md for the
-authoritative status and known-RTL-deviation notes
+**Status:** Written (chapters 1 and 5), reconciled with the GitHub #58 RTL
+rewrite on 2026-09-09 (v1.1) - see smbus_mas_index.md for the authoritative
+status and the remaining limitations (RLB-011)
 
 ---
 
@@ -83,4 +84,4 @@ cd docs/
 
 ---
 
-**Last Updated:** 2025-10-29
+**Last Updated:** 2026-09-09

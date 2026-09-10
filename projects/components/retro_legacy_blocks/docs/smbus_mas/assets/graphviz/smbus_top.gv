@@ -3,33 +3,50 @@ digraph smbus_top {
     rankdir=LR;
     node [shape=box, style="rounded,filled", fillcolor=lightblue];
 
-    apb_in [label="APB Slave\nInterface", shape=ellipse, fillcolor=lightgreen];
-    scl_sda [label="SCL/SDA\n(open-drain)", shape=ellipse, fillcolor=lightgreen];
+    apb_in [label="APB4 Slave\nInterface", shape=ellipse, fillcolor=lightgreen];
+    scl_sda [label="SCL/SDA\n(open-drain,\ndrives 0 only)", shape=ellipse, fillcolor=lightgreen];
 
     subgraph cluster_smbus {
         label="apb4_smbus";
         style=rounded;
 
-        apb_if [label="APB\nInterface", fillcolor=lightyellow];
-        regs [label="Register\nFile", fillcolor=lightyellow];
-        host_ctrl [label="Host\nController", fillcolor=lightcyan];
-        clk_gen [label="Clock\nGenerator", fillcolor=lightcyan];
-        pec_calc [label="PEC\nCalculator", fillcolor=lightcyan];
-        block_buf [label="Block\nBuffer", fillcolor=lightcyan];
+        apb_if [label="apb4_slave /\napb4_slave_cdc", fillcolor=lightyellow];
+        cfg [label="smbus_config_regs\nstrict decode, W1C", fillcolor=lightyellow];
+        regs [label="smbus_regs\n(PeakRDL)", fillcolor=lightyellow];
+
+        subgraph cluster_core {
+            label="smbus_core (sequencer)";
+            style=rounded;
+
+            trans_dec [label="smbus_trans_decode", fillcolor=lightcyan];
+            flow [label="smbus_flow_rules", fillcolor=lightcyan];
+            abort [label="smbus_abort_track", fillcolor=lightcyan];
+            fifos [label="smbus_byte_fifos\nTX / RX", fillcolor=lightcyan];
+            int_st [label="smbus_int_status\nsticky, W1C", fillcolor=lightcyan];
+            pec [label="smbus_pec\nCRC-8 0x07", fillcolor=lightcyan];
+            phy [label="smbus_bit_phy\nSTART/Sr/STOP/bit\ntimeout, recovery", fillcolor=lightcyan];
+        }
+
+        int_sync [label="glitch_free_n_dff_arn\n(CDC_ENABLE=1)", fillcolor=lightyellow];
     }
 
-    irq [label="irq", shape=ellipse, fillcolor=pink];
-    apb_out [label="APB\nResponse", shape=ellipse, fillcolor=pink];
+    irq [label="smb_interrupt", shape=ellipse, fillcolor=pink];
+    apb_out [label="APB4\nResponse", shape=ellipse, fillcolor=pink];
 
     apb_in -> apb_if;
-    apb_if -> regs;
+    apb_if -> cfg [label="cmd/rsp"];
+    cfg -> regs;
     apb_if -> apb_out;
-    regs -> host_ctrl;
-    host_ctrl -> regs;
-    clk_gen -> host_ctrl [label="SCL"];
-    host_ctrl -> scl_sda [dir=both];
-    host_ctrl -> pec_calc;
-    host_ctrl -> block_buf;
-    block_buf -> regs;
-    host_ctrl -> irq;
+    cfg -> trans_dec [label="cmd/cfg"];
+    regs -> cfg;
+    trans_dec -> flow;
+    flow -> phy [label="primitives"];
+    phy -> flow [label="op_done"];
+    abort -> flow;
+    fifos -> flow;
+    flow -> pec;
+    phy -> scl_sda [dir=both];
+    int_st -> cfg [label="status"];
+    int_st -> int_sync;
+    int_sync -> irq;
 }

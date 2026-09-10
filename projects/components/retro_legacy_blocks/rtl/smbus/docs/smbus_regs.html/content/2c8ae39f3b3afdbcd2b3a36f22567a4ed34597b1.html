@@ -10,6 +10,8 @@
     <dt>Base Offset:</dt><dd class="address">0x4</dd>
     <dt>Size:</dt><dd class="address">0x4</dd>
     
+    <dt>Source:</dt><dd><a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/retro_legacy_blocks/rtl/smbus/peakrdl/smbus_regs.rdl#L170" target="_blank">smbus_regs.rdl</a></dd>
+    
 </dl>
 <h2>Description</h2>
 <div id="_Content.desc">
@@ -255,14 +257,22 @@
     <a class="headerlink" href="#complete.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.complete.desc">
-<p>Transaction completed successfully</p>
+<p>The transaction finished AND terminated the bus with a
+STOP, with no error of any kind. It is NEVER set alongside
+bus_error, timeout_error, pec_error or nak_received, so
+reading it alone is enough to know the transfer succeeded.
+It is also set for a STOP that escalated to bus recovery
+and recovered - the nine clocks freed SDA and a real STOP
+went out - so a successful recovery is invisible to
+software; there is no bit that reports it.</p>
 </div>
 
 <h3 id="slave_addressed.desc">slave_addressed - Slave Addressed
     <a class="headerlink" href="#slave_addressed.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.slave_addressed.desc">
-<p>This device addressed as slave</p>
+<p>Addressed as a slave. TIED LOW: slave mode is a stub, so
+this bit never sets (ledger RLB-011).</p>
 </div>
 
 <h3 id="nak_received.desc">nak_received - NAK Received
@@ -276,7 +286,8 @@
     <a class="headerlink" href="#arb_lost.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.arb_lost.desc">
-<p>Multi-master arbitration lost</p>
+<p>Multi-master arbitration lost. TIED LOW: arbitration is
+not implemented, so this bit never sets (ledger RLB-011).</p>
 </div>
 
 <h3 id="pec_error.desc">pec_error - PEC Error
@@ -290,14 +301,33 @@
     <a class="headerlink" href="#timeout_error.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.timeout_error.desc">
-<p>Transaction timeout (&gt;25ms)</p>
+<p>A bus timeout: SCL was held low - by this master or by
+anyone else - for longer than SMBUS_TIMEOUT. The
+transaction was aborted and the bus released. A timeout
+abort runs I2C bus recovery (up to nine full standard-mode
+SCL pulses with SDA released) before its STOP, so a slave
+stuck part-way through a byte is clocked out of it and the
+transfer is terminated properly rather than merely
+abandoned - with two exceptions that release and report
+without clocking: a timeout inside the final STOP, and a
+timeout before anything was framed unless SDA is stuck low
+on a quiet SCL (a low SCL there means a foreign transfer,
+which must not be clocked). If SDA was still low after
+nine clocks, bus_error is set as well and no STOP was
+generated; timeout_error alone means the bus was released
+and, where recovery applied, a STOP was generated.</p>
 </div>
 
 <h3 id="bus_error.desc">bus_error - Bus Error
     <a class="headerlink" href="#bus_error.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.bus_error.desc">
-<p>Bus error detected (NAK, arbitration loss, etc.)</p>
+<p>Bus error: a transfer was aborted for a reason other than
+a NAK or a PEC mismatch - SMBUS_COMMAND.stop written alone,
+a TX FIFO underrun, an RX FIFO overrun, or bus recovery
+that could not free SDA within nine clocks. Set together
+with timeout_error it means recovery was attempted, failed,
+and the bus was released without a STOP.</p>
 </div>
 
 <h3 id="busy.desc">busy - Busy

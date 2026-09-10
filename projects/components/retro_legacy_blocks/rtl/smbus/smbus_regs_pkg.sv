@@ -83,6 +83,7 @@ package smbus_regs_pkg;
 
     typedef struct {
         logic [7:0] next;
+        logic we;
     } smbus_regs__SMBUS_DATA__data__in_t;
 
     typedef struct {
@@ -160,6 +161,7 @@ package smbus_regs_pkg;
 
     typedef struct {
         logic [7:0] next;
+        logic we;
     } smbus_regs__SMBUS_PEC__pec__in_t;
 
     typedef struct {
@@ -168,6 +170,7 @@ package smbus_regs_pkg;
 
     typedef struct {
         logic [5:0] next;
+        logic we;
     } smbus_regs__SMBUS_BLOCK_COUNT__block_count__in_t;
 
     typedef struct {

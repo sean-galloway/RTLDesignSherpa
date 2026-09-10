@@ -1,0 +1,17 @@
+`verilator_config
+// Waivers for the PeakRDL-generated register block ONLY. This file lives
+// outside the generated output so regeneration does not overwrite it, and it
+// is listed in filelists/apb4_smbus.f ahead of the generated sources. Same
+// treatment as misc/rtl/regs/obs_regs.vlt and stream/regs/stream_regs.vlt.
+//
+// MULTIDRIVEN: PeakRDL emits one always_comb per field, each writing a
+// different sub-field of the same `field_combo` struct. No overlap; Verilator
+// reads IEEE 1800-2023 9.2.2.2 strictly, other tools accept it silently.
+lint_off -rule MULTIDRIVEN -file "*/smbus_regs.sv"
+
+// SYNCASYNCNET: the block uses its reset SYNCHRONOUSLY while smbus_core uses
+// the same net asynchronously (house ALWAYS_FF_RST style). Both are in one
+// clock domain and both are correct. The net Verilator names is this block's
+// own cell input, so the waiver has to be attached to this file - a lint_off
+// in apb4_smbus.sv or smbus_config_regs.sv never reached it.
+lint_off -rule SYNCASYNCNET -file "*/smbus_regs.sv"

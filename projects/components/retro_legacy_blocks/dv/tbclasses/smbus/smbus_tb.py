@@ -50,6 +50,59 @@ from TBClasses.amba.amba_random_configs import APB_MASTER_RANDOMIZER_CONFIGS
 from CocoTBFramework.components.smbus import SMBusSlave, SMBusMonitor, SMBusPacket
 
 
+class _ShimSignal:
+    """Signal-like object standing in for a real HDL signal.
+
+    GH#58 round-2 coordinator finding: the original TB wired the
+    SMBusSlave BFM's scl_o/sda_o straight onto the DUT's smb_scl_i/
+    smb_sda_i, so smb_scl_i tracked ONLY the slave's last commanded
+    value - the master's OWN drive (smb_scl_o/smb_scl_t) never fed back
+    into its own input at all. That ties smb_scl_i permanently high
+    except during an explicit slave stretch, and it means the master
+    never sees the wired-AND of its own drive with the slave's - real
+    open-drain contention (e.g. a slave stretching while the master
+    also thinks it is driving low) cannot be modeled.
+
+    This shim captures the slave BFM's writes (.value get/set) WITHOUT
+    touching a DUT pin; SMBusTB's own `_bus_model_loop` combines it with
+    the DUT's real smb_scl_t/smb_sda_t every pclk edge and drives the
+    actual smb_scl_i/smb_sda_i pins with the wired-AND result.
+    """
+
+    def __init__(self, released: int = 1):
+        self._value = released
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, v):
+        self._value = int(v)
+
+
+class _SlaveBusProxy:
+    """Entity-like object for the SMBusSlave BFM's constructor.
+
+    Reads (scl_i='smb_scl_o', sda_i='smb_sda_o') pass through to the
+    real DUT pins - the slave still watches the master's true driven
+    output directly. Writes (scl_o='smb_scl_i', sda_o='smb_sda_i') are
+    redirected to the shims above instead of the real DUT input pins.
+    """
+
+    def __init__(self, dut, scl_shim: _ShimSignal, sda_shim: _ShimSignal):
+        self._dut = dut
+        self._scl_shim = scl_shim
+        self._sda_shim = sda_shim
+
+    def __getattr__(self, name):
+        if name == 'smb_scl_i':
+            return self._scl_shim
+        if name == 'smb_sda_i':
+            return self._sda_shim
+        return getattr(self._dut, name)
+
+
 class SMBusRegisterMap:
     """SMBus Register address definitions."""
 
@@ -76,6 +129,7 @@ class SMBusRegisterMap:
     CONTROL_PEC_EN = (1 << 2)          # Enable PEC
     CONTROL_FAST_MODE = (1 << 3)       # 400kHz mode (vs 100kHz)
     CONTROL_FIFO_RESET = (1 << 4)      # Reset FIFOs
+    CONTROL_SOFT_RESET = (1 << 5)      # Soft-reset the engine (self-clearing)
 
     # SMBUS_STATUS bit definitions
     STATUS_BUSY = (1 << 0)             # Transaction in progress
@@ -189,20 +243,38 @@ class SMBusTB(TBBase):
             await self.apb4_master.reset_bus()
             self.log.info(f"APB Master created and initialized")
 
+            # Open-drain bus model (GH#58 round-2 item 2): the slave BFM's
+            # "output" pins are captured in shims, not written straight onto
+            # the DUT's smb_scl_i/smb_sda_i - see _ShimSignal/_SlaveBusProxy
+            # above. _bus_model_loop (started below) drives the real pins
+            # with the wired-AND of the master's own smb_scl_t/smb_sda_t and
+            # these shims, every pclk edge.
+            self._slave_scl_shim = _ShimSignal(released=1)
+            self._slave_sda_shim = _ShimSignal(released=1)
+            slave_bus_entity = _SlaveBusProxy(self.dut, self._slave_scl_shim,
+                                               self._slave_sda_shim)
+
             # Create SMBus Slave BFM (to respond to DUT master transactions)
             self.smbus_slave = SMBusSlave(
-                entity=self.dut,
+                entity=slave_bus_entity,
                 title='SMBus Slave BFM',
-                scl_i='smb_scl_o',   # DUT output -> BFM input
-                scl_o='smb_scl_i',   # BFM output -> DUT input (stub, we'll use tristate)
+                scl_i='smb_scl_o',   # DUT's real driven output -> BFM input
+                scl_o='smb_scl_i',   # -> shim (combined into the wire below)
                 scl_t='smb_scl_t',   # Not used directly
-                sda_i='smb_sda_o',   # DUT output -> BFM input
-                sda_o='smb_sda_i',   # BFM output -> DUT input
+                sda_i='smb_sda_o',   # DUT's real driven output -> BFM input
+                sda_o='smb_sda_i',   # -> shim (combined into the wire below)
                 sda_t='smb_sda_t',   # Not used directly
                 slave_addr=0x50,     # Default EEPROM-like address
                 memory_size=256,
+                # clock_stretch_cycles is counted in DUT core clock cycles
+                # (same units as SMBUS_TIMEOUT) so a test can compare them
+                # directly - clock_period_ns matches this TB's pclk/smbus_clk
+                # period (both started at 10ns in setup_clocks_and_reset).
+                clock_period_ns=10,
                 log=self.log
             )
+
+            self._bus_model_task = cocotb.start_soon(self._bus_model_loop())
 
             # Create SMBus Monitor
             self.smbus_monitor = SMBusMonitor(
@@ -220,6 +292,41 @@ class SMBusTB(TBBase):
             raise
 
         self.log.info("SMBus testbench components setup complete")
+
+    async def _bus_model_loop(self):
+        """Model the SMBus open-drain wire, every pclk edge.
+
+        smb_scl_i/smb_sda_i are the wired-AND of every driver's release
+        state: the DUT's OWN drive (smb_scl_t/smb_sda_t - this master
+        pulling its own line low) and the slave BFM's intended drive
+        (captured in the shims, never written straight onto the pin).
+        A line reads high only when BOTH release it; either side
+        driving low pulls the real wire low - including a slave
+        clock-stretching while the master itself is mid-bit.
+        """
+        debug_wire = os.environ.get('SMBUS_BUS_MODEL_DEBUG', '0') == '1'
+        prev_scl = None
+        prev_sda = None
+        while True:
+            master_scl_released = int(self.dut.smb_scl_t.value) == 1
+            slave_scl_released = int(self._slave_scl_shim.value) == 1
+            new_scl = 1 if (master_scl_released and slave_scl_released) else 0
+            self.dut.smb_scl_i.value = new_scl
+
+            master_sda_released = int(self.dut.smb_sda_t.value) == 1
+            slave_sda_released = int(self._slave_sda_shim.value) == 1
+            new_sda = 1 if (master_sda_released and slave_sda_released) else 0
+            self.dut.smb_sda_i.value = new_sda
+
+            if debug_wire and (new_scl != prev_scl or new_sda != prev_sda):
+                self.log.info(
+                    f"[BUS_MODEL] t={get_sim_time('ns')}ns scl_i={new_scl} "
+                    f"(m_rel={master_scl_released},s_rel={slave_scl_released}) "
+                    f"sda_i={new_sda} (m_rel={master_sda_released},"
+                    f"s_rel={slave_sda_released})")
+                prev_scl, prev_sda = new_scl, new_sda
+
+            await RisingEdge(self.pclk)
 
     async def assert_reset(self):
         """Assert reset (MANDATORY METHOD)."""

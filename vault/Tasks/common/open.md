@@ -55,3 +55,31 @@ worse than no test, and this area has already produced them:
 
 **Related:** [[TASK-077]] documents the doc-side equivalent (examples that
 name ports which do not exist). The test-side is this task.
+
+### COMMON-026: fifo_sync / counter_bin reset bodies hardcode active-low
+
+**Priority:** P3 today (no build sets `RESET_ACTIVE_HIGH`), P2 if one ever
+does. **Status:** open 2026-09-10. Raised by the smbus #58 round-6 review.
+
+`reset_defs.svh` makes reset polarity a compile-time property: the
+`ALWAYS_FF_RST` sensitivity follows the define, and `RST_ASSERTED()` is how a
+body is meant to test it. Two shared primitives test the level by hand:
+
+- `rtl/common/counter_bin.sv:195-196` - `ALWAYS_FF_RST(clk, rst_n, if (!rst_n) ...)`:
+  sensitivity follows the build, the body is hardcoded active-low.
+- `rtl/common/fifo_control.sv:164-165, 228-229` - raw
+  `always_ff @(posedge wr_clk, negedge wr_rst_n) if (!wr_rst_n)`: ignores the
+  define entirely.
+
+Measured standalone (`fifo_sync` DEPTH=8, correct polarity applied to
+`rst_n`): with `-DRESET_ACTIVE_HIGH` the running level satisfies
+`if (!wr_rst_n)`, the flag flops are held in reset forever, and the FIFO
+reports empty with three bytes stored (`empty=1 rd_data=0xa2`). Every
+consumer of `fifo_sync` is therefore broken at that polarity. The smbus
+`simple_fifo` wrapper drives a build-polarity reset into it and claims
+polarity correctness in a comment; that claim is false until this is fixed
+(the wrapper's own flops are fine). Fix = `RST_ASSERTED()` in both bodies
+and the house macro in `fifo_control`, one change with the common area
+regression at both polarities. Sibling: [[RLB-012]] (the regblock `.rst(~rst_n)`
+in every RLB wrapper).
+

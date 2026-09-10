@@ -46,9 +46,14 @@ sys.path.insert(0, repo_root)
 # Import from PROJECT AREA (not framework!)
 from projects.components.retro_legacy_blocks.dv.tbclasses.smbus.smbus_tb import SMBusTB, SMBusRegisterMap
 from projects.components.retro_legacy_blocks.dv.tbclasses.smbus.smbus_tests_basic import SMBusBasicTests
+# GH#58 RED regression tests (coordinator-directed, written against the
+# unfixed RTL - see smbus_tests_medium.py's module docstring for the
+# full per-item defect writeup). Registered at medium/full level below,
+# alongside the existing (untouched) medium_test_methods.
+from projects.components.retro_legacy_blocks.dv.tbclasses.smbus.smbus_tests_medium import SMBusMediumTests
 
 
-@cocotb.test(timeout_time=500, timeout_unit="us")
+@cocotb.test(timeout_time=20000, timeout_unit="us")
 async def smbus_test(dut):
     """Main test function for SMBus module with modular test structure"""
     tb = SMBusTB(dut)
@@ -77,6 +82,7 @@ async def smbus_test(dut):
 
     # Create test suite
     basic_tests = SMBusBasicTests(tb)
+    gh58_tests = SMBusMediumTests(tb)
 
     # Run all tests - test list varies by test level
     results = []
@@ -99,6 +105,54 @@ async def smbus_test(dut):
         ('Fast Mode Enable', basic_tests.test_fast_mode_enable),
         ('Slave Mode Config', basic_tests.test_slave_mode_config),
         ('Command Register', basic_tests.test_command_register),
+        # GH#58 RED regression tests - written FIRST, against the unfixed
+        # RTL, at the coordinator's direction. Each is expected to FAIL
+        # (RED) for a specific, mechanism-traced reason documented in
+        # smbus_tests_medium.py; they are not skipped/xfail because the
+        # RED result itself is the deliverable finding for rds-rtl-design.
+        ('GH58-1 (C4) SCL toggle / open-drain', gh58_tests.test_gh58_c4_scl_toggle_and_open_drain),
+        ('GH58-2 (C3) Timeout via real SCL stretch / TIMEOUT=0 disables it', gh58_tests.test_gh58_c3_timeout_detection_dead),
+        ('GH58-12 Short stretch (< TIMEOUT) completes without error', gh58_tests.test_gh58_12_short_stretch_completes_without_error),
+        ('GH58-3 (H5) Read protocols missing repeated START', gh58_tests.test_gh58_h5_read_missing_repeated_start),
+        ('GH58-4 (H6) TX FIFO pushes stale data', gh58_tests.test_gh58_h6_tx_fifo_stale_data),
+        ('GH58-5 (H7) PEC generation garbage / checking absent', gh58_tests.test_gh58_h7_pec_generation_and_checking),
+        ('GH58-6 (H8/qc4) DATA/PEC clobbered one cycle after SW write', gh58_tests.test_gh58_h8_data_pec_clobbered),
+        ('GH58-7 (qc1) INT_STATUS never sticky / W1C ineffective', gh58_tests.test_gh58_qc1_int_status_not_sticky),
+        ('GH58-8 (qc2) smb_interrupt bypasses INT_STATUS', gh58_tests.test_gh58_qc2_interrupt_bypasses_int_status),
+        ('GH58-9 (qc5/round_3-1) Byte engine hang', gh58_tests.test_gh58_qc5_byte_engine_bounded_completion),
+        ('GH58-10 (qc6) r_bytes_total always from block_count', gh58_tests.test_gh58_qc6_bytes_total_from_block_count_always),
+        ('GH58-11 Strict decode of unmapped addresses', gh58_tests.test_gh58_strict_decode),
+        ('GH58-13 soft_reset mid-transfer recovery (+M2)', gh58_tests.test_gh58_13_soft_reset_mid_transfer),
+        ('GH58-14 fast_mode spec-minimum timing (+M1)', gh58_tests.test_gh58_14_fast_mode_scl_ratio),
+        ('GH58-R2-H1 Write Word FIFO', gh58_tests.test_gh58_r2_h1_write_word_fifo),
+        ('GH58-R2-H2 Block Write FIFO', gh58_tests.test_gh58_r2_h2_block_write_fifo),
+        ('GH58-R2-H3a stop-alone mid-transfer abort', gh58_tests.test_gh58_r2_h3a_stop_alone_mid_transfer),
+        ('GH58-R2-H4 slave stretches the final STOP', gh58_tests.test_gh58_r2_h4_stretch_through_stop_hangs),
+        ('GH58-R2-H5 Block Read byte accounting', gh58_tests.test_gh58_r2_h5_block_read),
+        ('GH58-R2-H6 Block Process Call write half', gh58_tests.test_gh58_r2_h6_block_process_call),
+        ('GH58-R2-M3 spurious tx_thresh at reset', gh58_tests.test_gh58_r2_m3_spurious_tx_thresh_at_reset),
+        ('GH58-R2-M4 SMBUS_PEC readback', gh58_tests.test_gh58_r2_m4_pec_register_readback),
+        ('GH58-R2-M5 TX FIFO underrun contract', gh58_tests.test_gh58_r2_m5_fifo_underrun_overrun_contract),
+        ('GH58-R2-M6 block-count clamp (0x40)', gh58_tests.test_gh58_r2_m6_block_count_clamp),
+        ('GH58-R2-M8 bus-free check before START', gh58_tests.test_gh58_r2_m8_bus_free_before_start),
+        ('GH58-R2-L3 (guard) master_en clear', gh58_tests.test_gh58_r2_l3_master_en_clear_guard),
+        ('GH58-R2-L4 (guard) Quick Command R/W bit', gh58_tests.test_gh58_r2_l4_quick_cmd_rw_bit),
+        ('GH58-R3-1 real STOP condition per transaction type', gh58_tests.test_gh58_r3_1_stop_condition_every_type),
+        ('GH58-R3-2 busy=0 coincides with lines released', gh58_tests.test_gh58_r3_2_busy_zero_coincides_with_release),
+        ('GH58-R3-3 RX FIFO full then Receive Byte', gh58_tests.test_gh58_r3_3_rx_fifo_full_receive_byte),
+        ('GH58-R3-4 (guard) fast-mode tSU;STO/tBUF fixed', gh58_tests.test_gh58_r3_4_fast_mode_stop_buf_units_fixed),
+        ('GH58-R3-5 (guard) strobe width behind the bridge', gh58_tests.test_gh58_r3_5_strobe_width_two_pclk),
+        ('GH58-R3-6 slave never releases SDA', gh58_tests.test_gh58_r3_6_slave_never_releases_sda),
+        ('GH58-R4-1 complete=1 after failed recovery', gh58_tests.test_gh58_r4_1_complete_after_failed_recovery),
+        ('GH58-R4-2 stale idle-bus phy_timeout', gh58_tests.test_gh58_r4_2_stale_idle_timeout),
+        ('GH58-R4-3 r_started guard stale after success', gh58_tests.test_gh58_r4_3_started_guard_stale_after_success),
+        ('GH58-R4-4 recovery-clock tLOW/tHIGH', gh58_tests.test_gh58_r4_4_recovery_clock_timing),
+        ('GH58-R4-9 (guard) recovery no same-edge drop', gh58_tests.test_gh58_r4_9_recovery_no_same_edge_drop),
+        ('GH58-R4-8 (guard) full-density abort sweep', gh58_tests.test_gh58_r4_8_full_density_abort_sweep),
+        ('GH58-R4-10 TX FIFO push honors PSTRB', gh58_tests.test_gh58_r4_10_tx_fifo_pstrb),
+        ('GH58-R5-1 fifo_reset clears stale TX data', gh58_tests.test_gh58_r5_1_fifo_reset_clears_stale_tx_data),
+        ('GH58-R6-1 fifo_reset during receive keeps level consistent', gh58_tests.test_gh58_r6_1_fifo_reset_during_receive_keeps_level_consistent),
+        ('GH58-R6-2 fifo_reset TX side + longer-window harmless', gh58_tests.test_gh58_r6_2_fifo_reset_tx_and_width_harmless),
     ]
 
     # Full tests (full level only)

@@ -10,6 +10,8 @@
     <dt>Base Offset:</dt><dd class="address">0x24</dd>
     <dt>Size:</dt><dd class="address">0x4</dd>
     
+    <dt>Source:</dt><dd><a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/retro_legacy_blocks/rtl/smbus/peakrdl/smbus_regs.rdl#L548" target="_blank">smbus_regs.rdl</a></dd>
+    
 </dl>
 <h2>Description</h2>
 <div id="_Content.desc">
@@ -88,6 +90,17 @@
     <a class="headerlink" href="#timeout.desc" title="Permalink to this headline"></a>
 </h3>
 <div id="_Content.timeout.desc">
-<p>Timeout threshold in clock cycles (default ~25-35ms)</p>
+<p>Bus timeout in core clock cycles. IT MEASURES HOW LONG
+SCL IS LOW ON THE BUS - either this master pulling it down
+or the line still reading low after we let go - so it
+catches a stretching slave, a short and a wedged master
+alike. It is counted only while this master owns a
+primitive; an idle bus held low by somebody else does not
+arm it. 0 DISABLES the check entirely; it must never mean
+'expire immediately'. Default 2500000 is ~25 ms at 100 MHz.
+WORST CASE FROM 'SCL WEDGES' TO busy=0 IS FIVE TIMES THIS
+VALUE (~125 ms at the default): one window for the
+primitive that stalls, then four for the abort's STOP,
+which is deliberately more patient.</p>
 </div>
 </div>
