@@ -171,6 +171,18 @@ def generate_test_params():
     #     # Downsize
     #     params.append({'s_data_width': wide, 'm_data_width': narrow, 'test_level': level})
 
+
+    # REG_LEVEL selects the GRID: how many of these configurations run.
+    # The rows already carry their own test_level and the TB scales on it
+    # (run_basic_test / run_medium_test / run_full_test), but every row ran
+    # at every REG_LEVEL -- so `make run-all-gate` was the whole sweep and
+    # nobody could afford the quick pass. GATE keeps the gate rows only,
+    # FUNC adds the func rows, FULL runs everything.
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        return [p for p in params if p['test_level'] == 'gate']
+    if reg_level == 'FUNC':
+        return [p for p in params if p['test_level'] in ('gate', 'func')]
     return params
 
 
