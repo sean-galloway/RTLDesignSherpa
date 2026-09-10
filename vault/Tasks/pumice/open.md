@@ -19,13 +19,20 @@ round-trip bound) then doubling the bytes per transaction would raise
 bandwidth. It does not, so the limit is a per-cycle rate below the transaction
 layer, not a concurrency limit. Read latency is a flat 49.2 cycles throughout.
 
-**Hypothesis to test first:** the read return path delivers one AXI beat every
-other cycle where the write path delivers one per cycle. 292/600 = 48.7% is
-close enough to exactly half to be worth confirming before looking anywhere
-else. Candidates, in order of how cheaply they can be ruled out:
-1. The char harness's read CRC-check engine consuming R at half rate -- this
-   is the GENERATOR, not the controller, and would mean the controller is
-   fine. Rule this out FIRST; it is the cheapest and the most likely.
+**Hypothesis:** the read return path delivers one AXI beat every other cycle
+where the write path delivers one per cycle. 292/600 = 48.7% is close enough to
+exactly half to be worth confirming. With the generator ruled out (below), the
+limit is inside the controller's return path. Candidates:
+1. ~~The char harness's read CRC-check engine consuming R at half rate.~~
+   **RULED OUT 2026-09-10 by measurement.** `axi4_master_rd_crc_check` at fub
+   level, across all seven slave timing profiles, holds `rready` asserted on
+   **100% of run cycles** (140/140, 269/269, 388/388, 325/325, 201/201,
+   1925/1925 ...) with a back-pressure count of **exactly zero** in every
+   profile, and transfers 128/128 beats each time. With a backtoback slave
+   every beat-to-beat gap is 1 cycle. The generator never throttles R, so the
+   ceiling is NOT in the harness. Guarded permanently by the
+   `rready_never_throttles` scenario in
+   `val/amba/test_axi4_master_rd_crc_check.py`.
 2. `pumice_rd_return_ring` drain -- one beat per cycle through the BRAM skid
    vs. the write path's rate.
 3. `pumice_dfi_rd_aligner` / `pumice_dfi_cdc` read FIFO width or pop rate.

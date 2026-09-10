@@ -45,6 +45,7 @@ async def cocotb_test_axi4_master_rd_crc_check(dut):
         "kb4":                 _kb4,
         "kb32":                _kb32,
         "stray_beat_drained":  _stray_beat_drained,
+        "rready_never_throttles": _rready_never_throttles,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -393,7 +394,7 @@ _ALL_TYPES = ["smoke_match", "multi_burst_match", "address_walk",
               "rd_gap_inserts_idle", "hash_mode_match",
               "hash_mode_low_entropy", "arvalid_no_drop",
               "id_mode_counter", "id_mode_lfsr",
-              "kb4", "kb32", "stray_beat_drained"]
+              "kb4", "kb32", "stray_beat_drained", "rready_never_throttles"]
 _GATE = ["smoke_match", "multi_burst_match", "data_mismatch_sticky"]
 _FUNC = list(_ALL_TYPES)
 _FULL = list(_ALL_TYPES)
@@ -457,3 +458,56 @@ def test_axi4_master_rd_crc_check(request, test_type, slave_profile):
         extra_env=extra_env, parameters=parameters,
         compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,
         waves=enable_waves, keep_files=True, timescale="1ns/1ps")
+
+
+async def _rready_never_throttles(tb: RdCrcCheckTB):
+    """The read path must NEVER back-pressure R: rready stays asserted for the
+    whole run, so every gap between beats is the SLAVE's and none is ours.
+
+    Why this is a gate and not a curiosity. On 2026-09-10 the board measured
+    read bandwidth pinned at 48.7% of peak while writes reached 95.7%, and the
+    first suspect was this generator consuming R at half rate -- if it did, the
+    controller would have been blamed for a harness bug. It does not, and this
+    test is what says so: across all seven slave timing profiles, rready is
+    high on 100% of run cycles and the stall count is exactly zero. A future
+    change that makes the checker throttle R would silently halve every board
+    read number, and would fail here instead.
+    """
+    from cocotb.triggers import RisingEdge
+
+    BL, N = 16, 8
+    await tb.program(start_addr=0x1000, burst_len=BL, txn_count=N,
+                     axi_id=1, lfsr_seed=0xA5A5F00D, stride_0=BL * 8)
+
+    st = {"cyc": 0, "beats": 0, "rready_hi": 0, "stall": 0}
+    done = {"f": False}
+
+    async def mon():
+        while not done["f"]:
+            await RisingEdge(tb.dut.aclk)
+            rv = int(tb.dut.m_axi_rvalid.value)
+            rr = int(tb.dut.m_axi_rready.value)
+            st["cyc"] += 1
+            st["rready_hi"] += rr
+            st["stall"] += (rv and not rr)
+            st["beats"] += (rv and rr)
+
+    task = cocotb.start_soon(mon())
+    await tb.pulse_start()
+    await tb.wait_done()
+    done["f"] = True
+    await RisingEdge(tb.dut.aclk)
+
+    tb.log.info("rready: %d/%d beats, rready high %d/%d cycles, stalls %d",
+                st["beats"], BL * N, st["rready_hi"], st["cyc"], st["stall"])
+    assert st["beats"] == BL * N, (
+        f"lost beats: {st['beats']} of {BL*N}")
+    assert st["stall"] == 0, (
+        f"the checker back-pressured R on {st['stall']} cycles -- it must "
+        f"never throttle reads; every R gap has to be the slave's. This "
+        f"halves board read bandwidth without failing any integrity check.")
+    assert st["rready_hi"] == st["cyc"], (
+        f"rready was low on {st['cyc'] - st['rready_hi']} of {st['cyc']} run "
+        f"cycles; it must be held continuously for the whole run")
+    assert int(tb.dut.o_data_error.value) == 0
+    assert int(tb.dut.o_beats_mismatched.value) == 0
