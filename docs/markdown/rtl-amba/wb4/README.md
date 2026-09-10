@@ -92,7 +92,7 @@ AMBA 4 APB.
   count, output valids masked for the wake overlap)
 - **[wb4_slave_cdc](wb4_slave_cdc.md)** - the slave with its queues carried
   to another clock domain over two `gaxi_fifo_async` instances
-- `wb4_pkg` - the response-status encoding shared by the family and the DV
+- **[wb4_pkg](wb4_pkg.md)** - the response-status encoding shared by the family and the DV
 
 ### Reset and clock naming
 

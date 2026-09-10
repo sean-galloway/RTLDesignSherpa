@@ -53,6 +53,7 @@ packet format and per-protocol event-code enums.
 | [`monitor_amba4_pkg.md`](./monitor_amba4_pkg.md)       | AMBA4 event codes for AXI4, APB4, and AXI4-Stream (19 enums). | `rtl/amba/includes/monitor_amba4_pkg.sv` |
 | [`monitor_amba5_pkg.md`](./monitor_amba5_pkg.md)       | AMBA5 extensions: AXI5 atomic / trace, APB5 wakeup / parity / user, AXIS5 wakeup / parity / CRC (8 enums). | `rtl/amba/includes/monitor_amba5_pkg.sv` |
 | [`monitor_arbiter_pkg.md`](./monitor_arbiter_pkg.md)   | ARB and CORE event codes for arbiter monitors and custom subsystems (12 enums + unified union). | `rtl/amba/includes/monitor_arbiter_pkg.sv` |
+| [`monitor_wb4_pkg.md`](./monitor_wb4_pkg.md)           | Wishbone B4 event codes for `wb4_monitor` (5 enums). NOT re-exported by `monitor_pkg`. | `rtl/amba/includes/monitor_wb4_pkg.sv` |
 
 The aggregating wrapper `monitor_pkg` re-exports every type from the four
 split packages, so legacy code that imports `monitor_pkg::*;` continues
