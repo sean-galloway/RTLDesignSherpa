@@ -120,15 +120,18 @@ def run(drv: LiteDRAMCharDriver, *, profile: Optional[str], level: str,
     A profile in pumice_char names (configs x scenarios); the configs are
     pumice CSR presets that mean nothing here, so only the scenario half is
     taken and every record is tagged 'litedram'."""
+    conc = None
     if profile:
         p = pc.RUN_PROFILES[profile]
         level, families = p["level"], p["families"]
+        conc = p.get("concurrent")
     else:
         families = None
     return pc.run_matrix(drv, configs=[LITEDRAM], level=level,
                          families=families, txn_scale=txn_scale,
                          base_addr=base_addr, timeout_s=timeout_s,
-                         clk_mhz=LITEDRAM_CLK_MHZ, progress=progress)
+                         clk_mhz=LITEDRAM_CLK_MHZ, progress=progress,
+                         concurrent=conc)
 
 
 def main() -> int:

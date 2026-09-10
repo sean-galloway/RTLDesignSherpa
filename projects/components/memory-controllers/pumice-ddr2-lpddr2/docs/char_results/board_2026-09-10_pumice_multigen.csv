@@ -1,0 +1,5 @@
+config,scenario,family,burst_len,txn_count,gap,id_mode,ok,mismatched,bytes_moved,clk_mhz,wr_cycles,wr_util,wr_bw_mb_s,rd_cycles,rd_util,rd_bw_mb_s,rd_avg_latency_cyc,rd_hist_total,notes
+open_page,incremental_bl8,incremental,8,1600,0,0,1,0,204800,75.0,101884,0.0018,75.38,101884,0.0035,150.76,104.89,3200,"concurrent 1w+2r of 2w+2r built, region 0x20000"
+open_page,row_major_bl8,row_major,8,1600,0,0,1,0,204800,75.0,40404,0.0018,190.08,40404,0.0036,380.16,48.87,3200,"concurrent 1w+2r of 2w+2r built, region 0x800"
+open_page,col_major_bl8,col_major,8,1600,0,0,0,0,204800,75.0,91535,0.0018,83.90,91535,0.0018,167.80,95.97,1600,"1:1 VIOLATION: hist total 1600 != 3200; concurrent 1w+2r of 2w+2r built, region 0x4000000"
+open_page,col_major_interleaved_bl8,col_major_interleaved,8,1600,0,0,0,65,204800,75.0,57582,0.0018,133.38,57582,0.0018,266.75,85.23,1600,"65 beats mismatched; 1:1 VIOLATION: hist total 1600 != 3200; concurrent 1w+2r of 2w+2r built, region 0x4000000"

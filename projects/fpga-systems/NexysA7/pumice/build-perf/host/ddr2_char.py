@@ -266,12 +266,12 @@ class DDR2CharDriver:
                               regs_base=CHARGEN_APB_BASE,
                               regmap_file=CHARGEN_REGMAP)
         #: How many generators this bitstream was built with, per direction.
-        #: ONE. The array went 8 -> 4 -> 2 -> 1 chasing timing; 2+2 showed
-        #: generator count was never the limiter (slice occupancy is), so the
-        #: crossbars were deleted. Read from the
-        #: hardware by :meth:`gen_config` rather than assumed: a host that
-        #: programs more generators than exist silently measures something
-        #: other than what it reports.
+        #: Conservative default; call :meth:`sync_gen_config` to replace it
+        #: with what the hardware reports. The comment here used to assert
+        #: "ONE" as a fact and nothing ever checked -- the board has carried
+        #: TWO per direction since the array was restored, so every caller
+        #: that trusted this number silently drove half the generators it
+        #: could have (2026-09-10).
         self.num_gen = 1
 
     # ----- Low-level helpers (by name via the register map) ----------------
@@ -661,6 +661,18 @@ class DDR2CharDriver:
 
     def start_both(self, wr_mask: int = 0x01, rd_mask: int = 0x01) -> None:
         self.go(wr_mask=wr_mask, rd_mask=rd_mask)
+
+    def sync_gen_config(self) -> Dict[str, int]:
+        """Read the built generator count off the board and adopt it.
+
+        Returns the gen_config dict. Callers that program more than one
+        generator MUST call this first: `num_gen` is only a default, and
+        programming a generator the bitstream does not have raises rather
+        than silently measuring something else.
+        """
+        cfg = self.gen_config()
+        self.num_gen = min(cfg["num_wr_gen"], cfg["num_rd_gen"])
+        return cfg
 
     def gen_config(self) -> Dict[str, int]:
         """Generator array shape as BUILT, read from the board.

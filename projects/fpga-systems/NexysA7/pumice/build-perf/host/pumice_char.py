@@ -425,6 +425,11 @@ class CharRecord:
     bytes_moved: int                 # per phase (wr == rd == txn*blen*beat)
     clk_mhz:     float
     notes:       Tuple[str, ...] = ()
+    # Write-side byte count when it differs from bytes_moved. Sequential
+    # phases move the same bytes both ways, so this stays None; a concurrent
+    # run with an uneven generator mix (say one writer against two readers)
+    # does not, and reusing one count there overstates the smaller side.
+    wr_bytes:    Optional[int] = None
 
     # ---- derived bandwidth / latency ------------------------------------
     @staticmethod
@@ -436,7 +441,8 @@ class CharRecord:
 
     @property
     def wr_bw_mb_s(self) -> float:
-        return self._bw_mb_s(self.bytes_moved, self.wr_cycles, self.clk_mhz)
+        n = self.wr_bytes if self.wr_bytes is not None else self.bytes_moved
+        return self._bw_mb_s(n, self.wr_cycles, self.clk_mhz)
 
     @property
     def rd_bw_mb_s(self) -> float:
@@ -608,6 +614,136 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
         bytes_moved=bytes_moved, clk_mhz=clk_mhz, notes=tuple(notes))
 
 
+def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
+                      cfg: ControllerConfig = BASELINE, geom: Geometry = DEFAULT_GEOM,
+                      base_addr: int = 0x0, clk_mhz: float = 100.0,
+                      timeout_s: float = 40.0, n_wr: int = 1, n_rd: int = 1
+                      ) -> CharRecord:
+    """Run writers and readers in ONE window instead of back to back.
+
+    Every other measurement here is a write phase followed by a read phase, so
+    the controller never sees both directions at once and read/write turnaround
+    (tWTR / tRTW) is never paid. That is the workload where a global reorder
+    scheduler is supposed to earn its area: it can batch same-direction columns
+    and amortise the turnaround, where a per-bank round-robin machine pays it
+    per switch. It is also the only way to load more than one generator, which
+    is what the generator array and the two crossbars exist for.
+
+    Regions: the device is split into (n_wr + n_rd) equal power-of-two regions
+    and every generator gets its own, so concurrent traffic never races on an
+    address. The family's own wrap is intersected with the region mask, which
+    keeps the access PATTERN (row stride, bank stride) and only shortens the
+    walk. Reader regions are pre-filled in a separate untimed pass; because the
+    data mode is the address hash f(addr, seeds), a reader validates against
+    that pre-fill without any ordering assumption.
+
+    The returned record carries the SHARED window in both cycle fields, so
+    wr_bw_mb_s and rd_bw_mb_s are each direction's share of it and their sum is
+    the total throughput the controller sustained.
+    """
+    # Never program more generators than the bitstream has. The driver's
+    # num_gen is only a default; the board is the authority.
+    hw = drv.sync_gen_config()
+    if n_wr > hw["num_wr_gen"] or n_rd > hw["num_rd_gen"]:
+        n_wr, n_rd = min(n_wr, hw["num_wr_gen"]), min(n_rd, hw["num_rd_gen"])
+
+    n_reg = max(n_wr + n_rd, 1)
+    stride, fam_wrap = strides_for(sc, geom)
+    beat0 = 1 << sc.axi_size
+
+    # Region placement decides what this measures, so it is chosen, not
+    # inherited. Give each generator the SMALLEST power-of-two region that
+    # holds its own walk and place them ADJACENTLY, so concurrent generators
+    # land in neighbouring banks and the run measures multi-master
+    # arbitration. Spacing them far apart instead puts them in different ROWS
+    # of the same banks, which measures page thrash and nothing else -- with a
+    # device/4 split, two readers on row_major collapsed from 570 to 224 MB/s
+    # purely from that (2026-09-10).
+    #
+    # A family whose natural walk already spans the device (col_major,
+    # col_interleave) cannot be placed adjacently; those fall back to an even
+    # split of the device, with the family wrap intersected so the pattern is
+    # preserved and only the walk shortened.
+    span = (fam_wrap + 1) if fam_wrap else (sc.txn_count * sc.burst_len * beat0)
+    span = 1 << max(0, (span - 1).bit_length())          # round up to pow2
+    if span * n_reg <= geom.device_bytes:
+        region, wrap = span, fam_wrap
+    else:
+        region = geom.device_bytes
+        while (geom.device_bytes // (region // 2)) <= n_reg and region > geom.page_bytes:
+            region //= 2
+        wrap = (fam_wrap & (region - 1)) if fam_wrap else (region - 1)
+    seed = _stable_seed(sc.name)
+    beat_bytes = 1 << sc.axi_size
+    per_gen_bytes = sc.txn_count * sc.burst_len * beat_bytes
+    notes: List[str] = []
+
+    def _prog(idx: int) -> dict:
+        return dict(start_addr=base_addr + idx * region, burst_len=sc.burst_len,
+                    txn_count=sc.txn_count, stride_0=stride, wrap_mask_0=wrap,
+                    gap=sc.gap, id_mode=sc.id_mode, axi_size=sc.axi_size,
+                    data_mode=True, lfsr_seed=seed, hash_seed0=seed,
+                    hash_seed1=seed ^ 0x9E37_79B9, hash_seed2=seed ^ 0x85EB_CA6B)
+
+    cfg.apply(drv)
+
+    # ---- untimed pre-fill of every reader region -------------------------
+    drv.freeze_trace(True)
+    for r in range(n_rd):
+        drv.program_wr_engine(gen=0, **_prog(n_wr + r))
+        drv.clear_stats()
+        drv.timer_clear()
+        drv.start_wr(0x01)
+        if not wait_engine(drv, "wr", timeout_s=timeout_s, ignore_error=True):
+            notes.append(f"pre-fill of reader region {r} did not complete")
+
+    # ---- timed concurrent window -----------------------------------------
+    for w in range(n_wr):
+        drv.program_wr_engine(gen=w, **_prog(w))
+    for r in range(n_rd):
+        drv.program_rd_engine(gen=r, **_prog(n_wr + r))
+    drv.clear_stats()
+    drv.timer_clear()
+    drv.freeze_trace(False)
+    drv.start_both(wr_mask=(1 << n_wr) - 1, rd_mask=(1 << n_rd) - 1)
+    wr_ok = wait_engine(drv, "wr", timeout_s=timeout_s, ignore_error=True)
+    rd_ok = wait_engine(drv, "rd", timeout_s=timeout_s, ignore_error=True)
+    drv.freeze_trace(True)
+
+    t = drv.timer()
+    # ONE window covering both directions: first kick to last completion.
+    first = min(t.w_first, t.r_first)
+    last = max(t.w_last, t.r_last)
+    window = max(last - first, 0)
+    wr_meter = _read_meter(drv, "wr")
+    rd_meter = _read_meter(drv, "rd")
+    rd_hist, rd_total = drv.perf_hist_dump(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
+    drv.freeze_trace(False)
+
+    mism = drv.beats_mismatched()
+    expect_rd_txn = sc.txn_count * n_rd
+    ok = wr_ok and rd_ok and mism == 0 and rd_total == expect_rd_txn
+    if not wr_ok:
+        notes.append("write engines did not complete")
+    if not rd_ok:
+        notes.append("read engines did not complete")
+    if mism:
+        notes.append(f"{mism} beats mismatched")
+    if rd_total != expect_rd_txn:
+        notes.append(f"1:1 VIOLATION: hist total {rd_total} != {expect_rd_txn}")
+    notes.append(f"concurrent {n_wr}w+{n_rd}r of {hw['num_wr_gen']}w+"
+                 f"{hw['num_rd_gen']}r built, region 0x{region:X}")
+
+    return CharRecord(
+        scenario=sc, config=cfg.name, ok=ok, mismatched=mism,
+        wr_cycles=window, wr_meter=wr_meter,
+        rd_cycles=window, rd_meter=rd_meter,
+        rd_hist=tuple(rd_hist), rd_hist_total=rd_total,
+        bytes_moved=per_gen_bytes * max(n_rd, 1),
+        wr_bytes=per_gen_bytes * max(n_wr, 1), clk_mhz=clk_mhz,
+        notes=tuple(notes))
+
+
 # =============================================================================
 # Scenario suites (level-scaled, mirrors the repo TEST_LEVEL convention)
 # =============================================================================
@@ -680,6 +816,7 @@ def run_matrix(drv: DDR2CharDriver, *, configs=None, level: str = "medium",
                base_addr: int = 0x0, timeout_s: float = 20.0,
                geom: Geometry = DEFAULT_GEOM, clk_mhz: float = 100.0,
                progress: Optional[Callable[[str, int, int], None]] = None,
+               concurrent: Optional[Tuple[int, int]] = None,
                ) -> List[CharRecord]:
     """Run the scenario suite under EACH controller config -- the full
     (config x generator) matrix. Returns a flat list, each record tagged with
@@ -699,9 +836,16 @@ def run_matrix(drv: DDR2CharDriver, *, configs=None, level: str = "medium",
             i += 1
             if progress:
                 progress(f"{cfg.name}/{sc.name}", i, total)
-            recs.append(measure(drv, sc, cfg=cfg, geom=geom,
-                               base_addr=base_addr, clk_mhz=clk_mhz,
-                               timeout_s=timeout_s))
+            if concurrent:
+                n_wr, n_rd = concurrent
+                recs.append(measure_concurrent(
+                    drv, sc, cfg=cfg, geom=geom, base_addr=base_addr,
+                    clk_mhz=clk_mhz, timeout_s=max(timeout_s, 40.0),
+                    n_wr=n_wr, n_rd=n_rd))
+            else:
+                recs.append(measure(drv, sc, cfg=cfg, geom=geom,
+                                   base_addr=base_addr, clk_mhz=clk_mhz,
+                                   timeout_s=timeout_s))
     return recs
 
 
@@ -754,6 +898,19 @@ RUN_PROFILES: Dict[str, dict] = {
     # Refresh elasticity: strict vs credited vs the tREFI extremes.
     "refresh": dict(configs=["baseline", "refresh_credit", "fast_refresh", "slow_refresh"],
                     level="basic", families=(FAM_INCREMENTAL, FAM_COL_MAJOR)),
+    # BOTH DIRECTIONS AT ONCE, one generator each. Every other profile runs a
+    # write phase then a read phase, so read/write turnaround is never paid.
+    # This is the first workload that makes the controller interleave
+    # directions, which is where a global reorder scheduler should beat a
+    # per-bank round-robin one.
+    "concurrent": dict(configs=["open_page"], level="basic", families=None,
+                       concurrent=(1, 1)),
+    # Multi-master: two readers against one writer, all on disjoint regions.
+    # Loads the generator array and both crossbars. NOTE two WRITERS is not
+    # safe on pumice yet -- PUMICE-027, B returns out of AW order while the
+    # write bridge routes by position -- so writers stay at one.
+    "multigen": dict(configs=["open_page"], level="basic", families=None,
+                     concurrent=(1, 2)),
     # Everything: every preset x the full grid.
     "full": dict(configs="all", level="full", families=None),
 }
@@ -774,7 +931,8 @@ def run_profile(drv: DDR2CharDriver, profile: str = "smoke", *,
     return run_matrix(drv, configs=p["configs"], level=p["level"],
                       families=p["families"], txn_scale=txn_scale,
                       base_addr=base_addr, timeout_s=timeout_s, geom=geom,
-                      clk_mhz=clk_mhz, progress=progress)
+                      clk_mhz=clk_mhz, progress=progress,
+                      concurrent=p.get("concurrent"))
 
 
 # =============================================================================

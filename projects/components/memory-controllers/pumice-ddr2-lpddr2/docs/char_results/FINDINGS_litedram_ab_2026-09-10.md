@@ -149,6 +149,58 @@ while writing 570.3 and did not move with ring depth, so it is per-AR overhead
 rather than a per-column limit; and read latency did not improve with either
 fix.
 
+## CONCURRENT LOAD: pumice sustains full bandwidth, LiteDRAM halves
+
+Everything above runs a write phase and then a read phase, so the controller
+never interleaves directions and read/write turnaround is never paid. That is
+the workload a global reorder scheduler exists for. Running both directions in
+ONE window (`--char-profile concurrent`, one generator each, disjoint regions,
+`board_2026-09-10_*_concurrent.csv`):
+
+| scenario | pumice total | LiteDRAM total | pumice / LiteDRAM |
+|---|---|---|---|
+| row_major bl8 | **570.1** | 285.6 | **2.00x** |
+| incremental bl8 | **552.6** | 247.5 | **2.23x** |
+
+pumice holds 95% of the 600 MB/s peak with both directions live; LiteDRAM
+drops to about half of it, and its read latency rises from 24.7 cycles to 94.5
+on the incremental pattern. This is the first workload where pumice's area
+buys something: the global FR-FCFS window batches same-direction columns and
+amortises tWTR/tRTW, where per-bank machines under round-robin pay the
+turnaround on every switch.
+
+With a second reader added (`--char-profile multigen`, one writer and two
+readers, `*_multigen.csv`), row_major holds:
+
+| scenario | pumice total | LiteDRAM total | pumice / LiteDRAM |
+|---|---|---|---|
+| row_major bl8 | **570.2** (190.1 wr + 380.2 rd) | 316.4 | **1.80x** |
+
+pumice sustains the same 570 MB/s across one, two and three concurrent
+generators. LiteDRAM gains a little from the extra reader (285.6 -> 316.4) but
+stays near half peak.
+
+### Rows that are NOT measurable this way
+
+`col_major` and `col_major_interleaved` walk the whole device, so concurrent
+generators cannot be placed adjacently and the region split shortens their
+wrap. Those rows show integrity failures on BOTH controllers in the multigen
+run, which makes them a measurement artifact rather than a controller result --
+the address-hash checker lies about a wrapped walk, the same artifact
+`strides_for` documents. Do not quote them. The same applies to `incremental`
+under multigen: its unbounded walk forces the far-apart region split, which
+puts the readers in different rows of the same banks and measures page thrash
+(pumice 226.1, latency 104.9 cycles). Only bounded-wrap families place
+adjacently, so `row_major` is the trustworthy multi-generator row.
+
+### Caveat on writers
+
+Both profiles use ONE writer. Two writers is not safe on pumice yet: it
+returns B out of AW order while the generated write bridge routes responses by
+FIFO position (PUMICE-027), so a second writer would be silently misrouted.
+LiteDRAM is strictly in-order and has no such limit, so a two-writer
+comparison would not be like-for-like until that is fixed.
+
 ## Refactor is behaviour-neutral on silicon
 
 The shared `char_engine_block` was extracted from `ddr2_char_macro` for this

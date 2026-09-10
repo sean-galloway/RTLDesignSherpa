@@ -233,6 +233,31 @@ Board sweep (`board_2026-09-10_read_fixed_ring64.csv`, 14/14 integrity):
 are within 1.4% of LiteDRAM's 579.5 through the same harness. Timing +0.283 ns,
 0 failing of 94415; ring 64 costs ~158 LUT over ring 32.
 
+**2026-09-10 CONCURRENT LOAD -- the workload where pumice's area pays off.**
+Every measurement before this ran a write phase then a read phase, so
+read/write turnaround was never paid. Running both directions in one window
+(new `concurrent` / `multigen` profiles, disjoint regions, both controllers
+through the identical harness):
+
+| scenario | pumice total | LiteDRAM total | ratio |
+|---|---|---|---|
+| row_major bl8, 1w+1r | **570.1** | 285.6 | **2.00x** |
+| incremental bl8, 1w+1r | **552.6** | 247.5 | **2.23x** |
+| row_major bl8, 1w+2r | **570.2** | 316.4 | **1.80x** |
+
+pumice holds 95% of peak with one, two and three concurrent generators;
+LiteDRAM sits near half peak and its read latency rises from 24.7 to 94.5
+cycles on incremental. The global FR-FCFS window batches same-direction
+columns and amortises tWTR/tRTW; per-bank round-robin pays it per switch.
+Files: `board_2026-09-10_{pumice,lite}_{concurrent,multigen}.csv`.
+
+Not measurable this way: `col_major` / `col_major_interleaved` span the whole
+device so generators cannot be placed adjacently, and those rows fail
+integrity on BOTH controllers (the wrapped-walk hash artifact `strides_for`
+documents). `incremental` under multigen likewise falls back to a far-apart
+split that measures page thrash. Only bounded-wrap families place adjacently,
+so row_major is the trustworthy multi-generator row.
+
 **What is left.** AxLEN=4 still reads 360.4 while writing 570.3, and it did not
 move with ring depth, so it is a third and separate mechanism (per-AR overhead
 rather than per-column). Read latency is also still ~49 cycles against
