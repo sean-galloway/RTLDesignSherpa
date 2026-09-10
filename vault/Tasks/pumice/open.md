@@ -4,6 +4,40 @@
 
 ---
 
+## PUMICE-028 — the pumice sim has never run the board's DRAM geometry
+**Status:** open 2026-09-10  **Priority:** P1 — this is why a 2x read throttle shipped green
+
+`dv/tests/top/test_pumice_core_dfi.py` ran at DRAM_BEAT=64 / BL8 / device==beat,
+so **one DRAM burst is 4 AXI beats**. The board is DRAM_BEAT=32 / BL4 / x16,
+where **one DRAM burst is 1 AXI beat**. Any per-sub-command rate limit is
+therefore divided by four before a bandwidth assertion can see it: the read
+intake's admit gate (PUMICE-025, fixed) supplied 2 beats/cycle at the sim
+geometry and looked healthy, while on the board the same gate WAS the
+bandwidth. Every read/write ceiling test passed throughout.
+
+The geometry is now env-overridable (`TEST_DRAM_BEAT` / `TEST_DRAM_BL` /
+`TEST_DRAM_DEVICE_W`, defaults unchanged) and `pumice_core_tb_top` takes
+`DRAM_DEVICE_WIDTH`. **But the board point does not yet run clean**, so it is
+not wired into the suite:
+
+- `read_ceiling` at board geometry trips `pumice_dfi_rd_return_checker` --
+  "32 reads outstanding for 512 cyc with no return".
+- `write_ceiling` at board geometry stalls W for 1409 cycles (max run 19),
+  while the real board sustains 95% of peak on writes. So the failure is the
+  testbench or its DFI model, not the DUT.
+
+**Do:** make `TEST_DRAM_BEAT=32 TEST_DRAM_BL=4 TEST_DRAM_DEVICE_W=16` a clean,
+routinely-run configuration of the core suite (the write ceiling is the
+control: it must reproduce the board's ~95%), then add it to the regression so
+board geometry is covered by default. Until then `[[project_pumice_char_suite]]`
+board numbers are the only place these limits are visible.
+
+**Why it matters:** the handbook rule is already "match the FPGA exactly in
+sim"; this is the case that proves the cost of not doing it. A suite that
+cannot express the shipping geometry cannot gate it.
+
+---
+
 ## PUMICE-027 — write responses leave pumice out of AW order; the char write bridge routes B by position
 **Status:** open 2026-09-10  **Priority:** P2
 **Found by:** `test_ddr2_char_macro[bank_parallel]` (the only multi-writer scenario), once the
@@ -148,7 +182,45 @@ round-trip bound) then doubling the bytes per transaction would raise
 bandwidth. It does not, so the limit is a per-cycle rate below the transaction
 layer, not a concurrency limit. Read latency is a flat 49.2 cycles throughout.
 
-**2026-09-10 SAME-HARNESS A/B DISPROVES THE OPERATING-POINT THEORY BELOW.** LiteDRAM
+**2026-09-10 ROOT-CAUSED AND LARGELY FIXED: the read intake admitted one
+sub-command every TWO cycles.** `pumice_rd_intake` held a single `r_armed` bit
+on the AR skid head to mark "the registered snarf probe belongs to this AR".
+The bit was cleared by its own admit and could only be re-set the cycle after,
+so admits were capped at 0.5/cycle. One admitted sub-command is exactly one
+DRAM burst, and on this board (BL4 on x16, 32-bit beat) one burst is ONE AXI
+beat -- so the gate was the bandwidth: 0.5 x 8 B x 75 MHz = 300 MB/s, against
+291.7 measured (97% of it). Writes have no such stage (`pumice_wr_intake`
+runs AW straight from the meta-FIFO head) which is the entire read/write
+asymmetry.
+
+Fixed by staging the AR: the skid head is the AR being probed, a new stage
+holds the AR being admitted, and the two advance together (1 admit/cycle).
+While the stage is held the probe re-points at the stage, so the hit driving
+an admit is never more than one cycle old -- the same RAW-forwarding exposure
+the arm bit had, rather than a latched hit that would go stale.
+
+Board result (`board_2026-09-10_read_intake_fix.csv`, 14/14 integrity):
+
+| scenario | read before | read after |
+|---|---|---|
+| row_major_bl8 | 291.8 | **470.9** |
+| row_major_bl16 | 291.8 | **471.0** |
+| incremental_bl8 | 291.7 | **463.7** |
+| row_major_bl4 | 290.8 | **360.4** |
+
+48.6% of peak -> 78.5%. Writes unchanged (551/570). Timing IMPROVED: WNS
++0.285 ns vs +0.039 before, 0 failing of 94060; area +102 LUT / +35 FF.
+
+**STILL OPEN — the remaining 78.5% vs the write path's 95% and LiteDRAM's
+96.5%.** The limit is no longer AxLEN-invariant (bl4 360 vs bl8 471), so it is
+a different mechanism from the one just fixed. Read latency is also unmoved at
+49.3 cycles against LiteDRAM's 24.7. Prime suspect is `RD_RET_DEPTH`: the ring
+is 32 and `ddr2_char_macro` does not even pass the parameter, so the board runs
+the default; 32 tickets over a ~41-cycle occupancy is 0.78 col/cycle, which is
+what is measured. Next experiment is to thread RD_RET_DEPTH through the macro
+and sweep 32/64/128 on the board.
+
+**(Earlier) SAME-HARNESS A/B DISPROVED THE OPERATING-POINT THEORY BELOW.** LiteDRAM
 behind the identical `char_engine_block` / bridge / host, at the identical 75 MHz / 1:2 /
 MR0=0x0432 (BL4, CL3) point, reads 564.1 (incremental) / 579.5 (row_major) MB/s and
 writes 554/569 -- `docs/char_results/litedram_2026-09-10_matrix.csv`,

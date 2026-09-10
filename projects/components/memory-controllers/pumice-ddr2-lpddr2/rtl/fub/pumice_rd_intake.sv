@@ -247,17 +247,101 @@ module pumice_rd_intake #(
         .col_o      (w_col)
     );
 
-    // snarf probe = combinational lookup of the AR under inspection
-    assign snarf_probe_valid_o = fub_arvalid;
-    assign snarf_probe_rank_o  = w_rank;
-    assign snarf_probe_bank_o  = w_bank;
-    assign snarf_probe_row_o   = w_row;
-    assign snarf_probe_col_o   = w_col;
-    assign snarf_probe_id_o    = fub_arid;
-    assign snarf_probe_len_o   = fub_arlen;
+    // ---- AR admit stage ----------------------------------------------------
+    // The snarf probe is REGISTERED inside the wr CAM (it pipelines the
+    // rd_intake -> wr_cam cross-module route, historically the worst path at
+    // 75 MHz), so a probe presented on cycle c only yields its hit on c+1. The
+    // AR being ADMITTED must therefore sit one cycle behind the AR being
+    // PROBED. There are two ways to arrange that, and they differ by 2x in
+    // throughput.
+    //
+    // This used to be one `r_armed` bit on the skid head: probe the head, wait
+    // a cycle, admit it. Because the arm was cleared by its own admit and
+    // could only be re-set the cycle after, admits were capped at one every
+    // TWO cycles. One admitted sub-command is exactly one DRAM burst, so that
+    // is a hard halving of the read command rate. At a geometry where a burst
+    // spans several AXI beats it is invisible -- which is why this suite never
+    // saw it -- but the board runs BL4 on x16 with a 32-bit beat, where one
+    // burst is ONE beat, and there the gate IS the bandwidth: reads measured
+    // 291.7 MB/s against 570 for writes, 97% of the 300 MB/s such a gate
+    // allows, while LiteDRAM on the same board and PHY read 579. PUMICE-025.
+    //
+    // Instead, stage the AR: the skid head is the AR being probed, the stage
+    // holds the AR being admitted, and the two advance together, so a
+    // sub-command is admitted every cycle.
+    //
+    // While the stage is HELD (downstream not ready) the probe is re-pointed
+    // at the stage rather than the head, so its hit is refreshed every cycle.
+    // The compare that admits an AR is thus never more than one cycle old --
+    // the same exposure the arm bit had. A latched hit would have been cheaper
+    // and wrong: it goes stale against writes entering the wr CAM behind it,
+    // which is the RAW-forwarding case this probe exists to catch.
+    logic                 r_s_valid;
+    logic [RKW-1:0]       r_s_rank;
+    logic [BKW-1:0]       r_s_bank;
+    logic [ROW_WIDTH-1:0] r_s_row;
+    logic [COL_WIDTH-1:0] r_s_col;
+    logic [IW-1:0]        r_s_id;
+    logic [7:0]           r_s_len;
+    logic [3:0]           r_s_qos;
 
-    logic w_hit;
+    logic w_hit, w_can_admit, w_admit, w_s_load;
+
+    // Order-FIFO handshake, declared here because the admit condition below
+    // depends on it (the FIFO itself is instantiated further down).
+    // ORD_W = {orig_agg, orig_last, source} + AxLEN + id.
+    localparam int ORD_W = 3 + 8 + IW;
+    logic             w_ord_wr_valid, w_ord_wr_ready;
+    logic [ORD_W-1:0] w_ord_wr_data;
+    logic             w_ord_rd_valid, w_ord_rd_ready;
+    logic [ORD_W-1:0] w_ord_rd_data;
+
+    // w_hit belongs to whatever was probed last cycle, which is by
+    // construction the AR now in the stage.
     assign w_hit = snarf_hit_i;
+
+    assign w_can_admit = w_ord_wr_ready && (w_hit ? 1'b1 : ar_push_ready_i);
+    assign w_admit     = r_s_valid && w_can_admit;
+
+    // The head advances exactly when the stage frees.
+    assign fub_arready = !r_s_valid || w_admit;
+    assign w_s_load    = fub_arvalid && fub_arready;
+
+    // Probe whatever will occupy the stage NEXT cycle: the head when the stage
+    // is (re)loading, the stage itself when it is held.
+    assign snarf_probe_valid_o = w_s_load ? 1'b1      : r_s_valid;
+    assign snarf_probe_rank_o  = w_s_load ? w_rank    : r_s_rank;
+    assign snarf_probe_bank_o  = w_s_load ? w_bank    : r_s_bank;
+    assign snarf_probe_row_o   = w_s_load ? w_row     : r_s_row;
+    assign snarf_probe_col_o   = w_s_load ? w_col     : r_s_col;
+    assign snarf_probe_id_o    = w_s_load ? fub_arid  : r_s_id;
+    assign snarf_probe_len_o   = w_s_load ? fub_arlen : r_s_len;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_s_valid <= 1'b0;
+            r_s_rank  <= '0;
+            r_s_bank  <= '0;
+            r_s_row   <= '0;
+            r_s_col   <= '0;
+            r_s_id    <= '0;
+            r_s_len   <= '0;
+            r_s_qos   <= '0;
+        end else if (w_s_load) begin
+            // load wins over admit: admitting and reloading in the same cycle
+            // is the steady state, not a conflict
+            r_s_valid <= 1'b1;
+            r_s_rank  <= w_rank;
+            r_s_bank  <= w_bank;
+            r_s_row   <= w_row;
+            r_s_col   <= w_col;
+            r_s_id    <= fub_arid;
+            r_s_len   <= fub_arlen;
+            r_s_qos   <= fub_arqos;
+        end else if (w_admit) begin
+            r_s_valid <= 1'b0;
+        end
+    )
 
     // ---- aggregation sideband skid-alignment FIFO --------------------------
     // ar_last_i arrives with s_axi_ar (pre-skid). axi4_slave_rd buffers AR in
@@ -291,48 +375,25 @@ module pumice_rd_intake #(
     // beat). The beats past the request are drained from the CAM and DROPPED
     // here rather than pushed at the host -- without this a 1-beat read got AXI_BEATS_PER_BURST
     // R beats and the read never framed correctly.
-    localparam int ORD_W = 3 + 8 + IW;
 
-    logic             w_ord_wr_valid, w_ord_wr_ready;
-    logic [ORD_W-1:0] w_ord_wr_data;
-    logic             w_ord_rd_valid, w_ord_rd_ready;
-    logic [ORD_W-1:0] w_ord_rd_data;
-
-    // The snarf probe is REGISTERED in the wr CAM (pipelines the rd_intake->
-    // wr_cam cross-module route, the worst w_sys_i path), so the hit lands one
-    // cycle after the probe is presented. r_armed marks that the registered
-    // probe belongs to the CURRENT head AR (the AR was held stable last cycle);
-    // only then is w_hit meaningful and the AR admissible. This costs one extra
-    // cycle of admit latency per read (reads self-limit to <= DRAM read rate, so
-    // no sustained-throughput loss), and does not change the RAW-forward result
-    // (the compare still runs against the live wr-CAM state at admit).
-    logic r_armed, w_can_admit, w_admit;
-    assign w_can_admit = w_ord_wr_ready && (w_hit ? 1'b1 : ar_push_ready_i);
-    assign w_admit     = fub_arvalid && r_armed && w_can_admit;
-
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) r_armed <= 1'b0;
-        else                        r_armed <= fub_arvalid && !w_admit;
-    )
-
-    assign fub_arready    = r_armed && w_can_admit;
+    // Admit is driven from the stage above (w_admit / w_can_admit / fub_arready).
     assign w_ord_wr_valid = w_admit;
     // pop the sideband in lockstep with the order-FIFO write (fub_ar admit)
     assign w_side_rd_ready = w_ord_wr_valid;
     assign w_ord_wr_data  = {w_side_agg, w_side_last, w_hit /*SRC_SNARF=1*/,
-                             fub_arlen, fub_arid};
+                             r_s_len, r_s_id};
 
     // snarf accept = this AR was admitted as a snarf hit
     assign snarf_accept_o = w_admit && w_hit;
 
     // MISS -> ar_push (fires with admission)
-    assign ar_push_valid_o = fub_arvalid && r_armed && !w_hit && w_ord_wr_ready;
-    assign ar_push_rank_o  = w_rank;
-    assign ar_push_bank_o  = w_bank;
-    assign ar_push_row_o   = w_row;
-    assign ar_push_col_o   = w_col;
-    assign ar_push_id_o    = fub_arid;
-    assign ar_push_qos_o   = fub_arqos;
+    assign ar_push_valid_o = r_s_valid && !w_hit && w_ord_wr_ready;
+    assign ar_push_rank_o  = r_s_rank;
+    assign ar_push_bank_o  = r_s_bank;
+    assign ar_push_row_o   = r_s_row;
+    assign ar_push_col_o   = r_s_col;
+    assign ar_push_id_o    = r_s_id;
+    assign ar_push_qos_o   = r_s_qos;
 
     gaxi_fifo_sync #(.DATA_WIDTH(ORD_W), .DEPTH(ORDER_FIFO_DEPTH)) u_order_fifo (
         .axi_aclk   (aclk),

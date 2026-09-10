@@ -23,6 +23,11 @@ module pumice_core_tb_top
     parameter int DFI_RATE       = 2,
     parameter int DRAM_BEAT_WIDTH = 64,
     parameter int DRAM_BL             = 8,
+    // Physical DRAM device x-width. Default == beat width (ratio 1, the
+    // historical sim point). The board is x16 against a 32b beat, and that
+    // ratio is what sets AXI beats per DRAM burst -- the quantity a per-
+    // sub-command rate limit is measured against. -G from DV.
+    parameter int DRAM_DEVICE_WIDTH   = DRAM_BEAT_WIDTH,
     parameter int NUM_ENTRIES    = 8,
     parameter int N_SRAM_SLOTS   = 8,
     parameter int RD_RET_DEPTH   = 32,  // -G from DV: reads in flight (return ring)
@@ -164,7 +169,7 @@ module pumice_core_tb_top
     pumice_core #(
         .AXI_ID_WIDTH(IW), .AXI_ADDR_WIDTH(AW), .NUM_RANKS(NUM_RANKS),
         .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH),
-        .DFI_RATE(DFI_RATE), .DRAM_BEAT_WIDTH(DRAM_BEAT_WIDTH), .DRAM_BL(DRAM_BL),
+        .DFI_RATE(DFI_RATE), .DRAM_BEAT_WIDTH(DRAM_BEAT_WIDTH), .DRAM_BL(DRAM_BL), .DRAM_DEVICE_WIDTH(DRAM_DEVICE_WIDTH),
         .NUM_ENTRIES(NUM_ENTRIES), .N_SRAM_SLOTS(N_SRAM_SLOTS), .RD_RET_DEPTH(RD_RET_DEPTH),
         .CMD_HISTORY_EN(CMD_HISTORY_EN)
     ) u_core (

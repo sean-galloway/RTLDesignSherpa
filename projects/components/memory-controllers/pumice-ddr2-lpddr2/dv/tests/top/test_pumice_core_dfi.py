@@ -22,7 +22,7 @@ import random
 import cocotb
 from cocotb.clock import Clock
 from cocotb.utils import get_sim_time
-from cocotb.triggers import RisingEdge, ClockCycles
+from cocotb.triggers import RisingEdge, ClockCycles, with_timeout
 
 from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, sim_build_path
@@ -51,11 +51,23 @@ if _DV_DIR not in sys.path:
 from tbclasses.pumice_axi_bfm import PumiceAxiBfm      # noqa: E402
 
 NUM_BANKS, ROW_WIDTH, COL_WIDTH = 8, 14, 10
-DFI_RATE, DRAM_BEAT = 2, 64
-DW = DRAM_BEAT * DFI_RATE          # 128
+# Geometry. The defaults are the historical sim point (128b core, BL8, device
+# width == beat width) -- NOT the board's. Overridable so a run can reproduce
+# the FPGA exactly, which is the only way some rate limits are visible at all:
+# at the default geometry one DRAM burst is FOUR core beats, so an issue path
+# that admits half a sub-command per cycle still supplies 2 beats/cycle and
+# looks healthy. The board (BL4 on x16, 32b beat) gets ONE beat per burst, so
+# the same path measures exactly half the DRAM rate. That is how a 2x read
+# throttle reached silicon with this suite green -- see PUMICE-025.
+#   board:  TEST_DRAM_BEAT=32 TEST_DRAM_BL=4 TEST_DRAM_DEVICE_W=16
+DFI_RATE   = int(os.environ.get("TEST_DFI_RATE", "2"))
+DRAM_BEAT  = int(os.environ.get("TEST_DRAM_BEAT", "64"))
+BL         = int(os.environ.get("TEST_DRAM_BL", "8"))
+DRAM_DEV_W = int(os.environ.get("TEST_DRAM_DEVICE_W", str(DRAM_BEAT)))
+DW = DRAM_BEAT * DFI_RATE          # core/host data width
 SW = DW // 8
-BL = 8
-BL_WORDS = BL // DFI_RATE          # 4 AXI beats / burst
+# AXI beats per DRAM burst = (BL x device bits) / core width.
+BL_WORDS = max(1, (BL * DRAM_DEV_W) // DW)
 BURST_INCR = 1
 
 
@@ -1057,6 +1069,74 @@ async def cocotb_test_pumice_core_perf_read_inflight(dut):
                   "(window %.0f cyc, idle=%d)", thr, lat, m['elapsed'], m['idle'])
 
 
+async def _admit_when_ready(dut, valid_sig, ready_expr, fire_expr, n=192):
+    """Of the cycles where an intake COULD admit a sub-command -- inlet valid
+    AND everything downstream ready -- how often does it? Ideal is 1.0.
+
+    Conditioning on ready is what makes this geometry-independent. A raw admit
+    duty measures whatever happens to be the bottleneck (at this testbench's
+    BL_WORDS=4 that is the DFI, which backpressures the intake and hides any
+    intake-side throttle); conditioning removes the bottleneck from the
+    measurement and leaves only the intake's own cadence.
+    """
+    ready = fired = 0
+    while ready < n:
+        await RisingEdge(dut.aclk)
+        if int(valid_sig.value) and int(ready_expr.value):
+            ready += 1
+            fired += int(fire_expr.value)
+    return fired / ready if ready else 0.0
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_pumice_core_perf_intake_admit_rate(dut):
+    """An intake must admit a sub-command on EVERY cycle it is able to.
+
+    One admitted sub-command is one DRAM burst, so this rate multiplies read
+    bandwidth and nothing downstream can win it back. Two things conspired to
+    hide a 2x read throttle here until 2026-09-10 (PUMICE-025), and the
+    measurement is shaped to defeat both:
+
+      * At this testbench's geometry one DRAM burst is BL_WORDS=4 AXI beats,
+        so half-rate admission still supplies 2 beats/cycle and no bandwidth
+        assertion can see it. The board runs BL4 on x16 with a 32-bit beat,
+        where one burst is ONE beat and the same half rate IS the bandwidth.
+      * The read intake's probe-arm bit is only consumed by an admit, so under
+        downstream backpressure it sits pre-armed and the throttle disappears.
+        It costs exactly when downstream is ready every cycle -- the board.
+
+    Hence: condition on ready, and compare against the write intake, which has
+    no arm stage and is the control.
+    """
+    _memory, _slave = await _bring_up(dut, page_policy=1)
+    rd_i = dut.u_core.u_ifc.u_rd_intake
+    wr_i = dut.u_core.u_ifc.u_wr_intake
+
+    wr_task = cocotb.start_soon(_admit_when_ready(
+        dut, wr_i.aw_push_valid_o, wr_i.aw_push_ready_i, wr_i.aw_push_valid_o))
+    await _write_many(dut, [(_mkaddr(b % NUM_BANKS, 0x11, (b // NUM_BANKS) * BL),
+                             [0xA5A5_0000 + b] * BL_WORDS) for b in range(256)])
+    wr_rate = await with_timeout(wr_task, 20, 'ms')
+
+    rd_task = cocotb.start_soon(_admit_when_ready(
+        dut, rd_i.fub_arvalid, rd_i.w_can_admit, rd_i.w_admit))
+    await _read_many(dut, [_mkaddr(b % NUM_BANKS, 0x11, (b // NUM_BANKS) * BL)
+                           for b in range(256)])
+    rd_rate = await with_timeout(rd_task, 20, 'ms')
+
+    dut._log.info("admit-when-ready: WRITE %.3f, READ %.3f", wr_rate, rd_rate)
+    assert wr_rate >= 0.98, (
+        f"write intake admitted on only {wr_rate:.3f} of the cycles it was "
+        f"able to -- the control is broken, so the read number is not "
+        f"interpretable")
+    assert rd_rate >= 0.98, (
+        f"read intake admitted on only {rd_rate:.3f} of the cycles it was able "
+        f"to (write intake: {wr_rate:.3f}). One sub-command is one DRAM burst, "
+        f"so a downstream that can accept every cycle -- which is the board at "
+        f"BL4/x16 -- gets {rd_rate:.2f}x the DRAM read rate and no more")
+    dut._log.info("PASS: read intake admits %.3f of available cycles", rd_rate)
+
+
 @cocotb.test(timeout_time=60, timeout_unit="ms")
 async def cocotb_test_pumice_core_perf_write_ceiling(dut):
     """Write-throughput CEILING: refresh parked, so nothing but the write
@@ -1491,6 +1571,7 @@ def _run(request, testcase, params_over=None, enhanced=False):
               "NUM_BANKS": str(NUM_BANKS), "ROW_WIDTH": str(ROW_WIDTH),
               "COL_WIDTH": str(COL_WIDTH), "DFI_RATE": str(DFI_RATE),
               "DRAM_BEAT_WIDTH": str(DRAM_BEAT), "DRAM_BL": str(BL),
+              "DRAM_DEVICE_WIDTH": str(DRAM_DEV_W),
               "NUM_ENTRIES": os.environ.get("PUMICE_NUM_ENTRIES", "8"),
               "N_SRAM_SLOTS": os.environ.get("PUMICE_NUM_ENTRIES", "8"),
               "RD_RET_DEPTH": os.environ.get("PUMICE_RD_RET_DEPTH", "32")}
@@ -1549,6 +1630,8 @@ def test_pumice_core_waw(request):   _run(request, "cocotb_test_pumice_core_waw"
 def test_pumice_core_b2b(request):   _run(request, "cocotb_test_pumice_core_b2b")
 def test_pumice_core_perf_read_ceiling(request):
     _run(request, "cocotb_test_pumice_core_perf_read_ceiling")
+def test_pumice_core_perf_intake_admit_rate(request):
+    _run(request, "cocotb_test_pumice_core_perf_intake_admit_rate")
 def test_pumice_core_perf_write_ceiling(request):
     _run(request, "cocotb_test_pumice_core_perf_write_ceiling")
 def test_pumice_core_perf_read_inflight(request):
