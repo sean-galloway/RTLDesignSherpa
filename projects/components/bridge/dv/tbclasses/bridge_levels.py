@@ -65,7 +65,13 @@ PROFILE = {
 
 def seeded_rng(log=None):
     """One RNG per TB, seeded from SEED, and logged so a failure is reproducible."""
-    seed = int(os.environ.get('SEED', '0'))
+    # No fixed default. A constant fallback freezes this RNG's trajectory --
+    # the same "random" addresses every run -- while the log prints whatever
+    # seed TBBase drew, so the printed value does not replay the run. TBBase
+    # now publishes its drawn seed to os.environ before any TB is built, so
+    # in practice this reads that; the fresh draw is the belt-and-braces path
+    # for a TB constructed some other way, and it is logged like any other.
+    seed = int(os.environ.get('SEED') or random.randrange(2**31))
     if log is not None:
         log.info(f"SEED={seed}  (reproduce with: SEED={seed} pytest <this test>)")
     return seed, random.Random(seed)

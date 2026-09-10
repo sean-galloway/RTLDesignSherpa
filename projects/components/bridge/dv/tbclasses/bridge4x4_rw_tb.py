@@ -69,8 +69,8 @@ class Bridge4x4RwTB(TBBase):
         Slaves:  4 (periph_slave, ddr0_slave, sram_slave, gpu_mem_slave)
         Channels: RW
         Data Width: 256
-        Addr Width: 64
-        ID Width: 8
+        Addr Width: 32
+        ID Width: 4
     """
 
     # ----------------------------------------------------------------------
@@ -88,8 +88,8 @@ class Bridge4x4RwTB(TBBase):
         self.num_masters = 4
         self.num_slaves = 4
         self.data_width = 256
-        self.addr_width = 64
-        self.id_width = 8
+        self.addr_width = 32
+        self.id_width = 4
 
         # Depth: TEST_LEVEL (exported by the pytest wrapper) picks the profile
         # every count in the tests is read from; SEED (pinned per test node

@@ -79,8 +79,8 @@ class Bridge1x2RdAxi5TB(TBBase):
         Slaves:  2 (ddr_rd, sram_rd)
         Channels: RD
         Data Width: 32
-        Addr Width: 64
-        ID Width: 8
+        Addr Width: 32
+        ID Width: 4
     """
 
     # ----------------------------------------------------------------------
@@ -98,8 +98,8 @@ class Bridge1x2RdAxi5TB(TBBase):
         self.num_masters = 1
         self.num_slaves = 2
         self.data_width = 32
-        self.addr_width = 64
-        self.id_width = 8
+        self.addr_width = 32
+        self.id_width = 4
 
         # Depth: TEST_LEVEL (exported by the pytest wrapper) picks the profile
         # every count in the tests is read from; SEED (pinned per test node

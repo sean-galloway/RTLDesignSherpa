@@ -289,13 +289,30 @@ class BridgeModuleGenerator:
         crossbar_data_width = max(m.data_width for m in self.masters) if self.masters else 32
         crossbar_id_width = max(m.id_width for m in self.masters) if self.masters else 4
 
+        # BRIDGE-013: an INTERNAL slave gets no monitor. The subtractive
+        # catch-all has no top-level pins, and the bridge top never wired its
+        # monbus or cfg -- so a _mon build elaborated a full axi4_master_*_mon
+        # behind 24 ports that went nowhere: dead area, packets lost, cfg
+        # inputs floating, and 427 PINMISSING warnings that failed the lint
+        # gate on 13 of 38 variants and so made the gate report nothing at all.
+        # This is what bridge_generator.py already claimed ("the subtractive
+        # catch-all has no monitor wrapper"); now the RTL agrees.
+        #
+        # Nothing is lost: an unmapped access is still reported through the
+        # subtractive slave's own sticky SUBTRACTIVE_STATUS / SUBTRACTIVE_ADDR
+        # cfg registers and unmapped_irq (BRIDGE-009), which the top does
+        # wire. Putting unmapped accesses on monbus as well would be a
+        # feature, not a repair -- it needs an extra arbiter source and moves
+        # the _mon tests' packet expectations.
+        slave_is_internal = getattr(slave, 'internal', False)
+
         slave_adapter_gen = SlaveAdapterGenerator(
             bridge_name=self.bridge_name,
             slave_config=slave,
             channels=channels,
             id_width=crossbar_id_width,
             data_width=crossbar_data_width,
-            enable_monitoring=self.enable_monitoring,
+            enable_monitoring=self.enable_monitoring and not slave_is_internal,
             slave_index=slave_index,
         )
         return slave_adapter_gen.generate()

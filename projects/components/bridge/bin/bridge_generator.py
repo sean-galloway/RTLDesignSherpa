@@ -273,11 +273,17 @@ def generate_tests(ports_file, connectivity_file, bridge_name, output_tb_dir, ou
 
         # HARD LIMIT: All agents use 64-bit address width
         # Address width converters are not needed - all masters/slaves use same width
-        addr_width = 64
+        # Both of these are TB METADATA only -- nothing reads self.addr_width
+        # or self.id_width. They were hardcoded 64/8 while every fixture's
+        # ports are 32/4, so the generated TB's own docstring contradicted the
+        # RTL it drives and the BFMs it builds (the bridge testqc round flagged
+        # the contradiction, 2026-09-10). Derive them from the ports instead,
+        # so a reader who trusts them is not misled.
+        addr_width = max((m.addr_width for m in config.masters), default=32)
 
         # HARD LIMIT: All agents use 8-bit ID width
         # ID width conversion is not supported - uniform width simplifies routing
-        id_width = 8
+        id_width = max((m.id_width for m in config.masters), default=4)
 
         # Derive the importable module path for the TB class from the
         # actual output directory. The old template hardcoded

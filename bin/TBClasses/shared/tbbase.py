@@ -166,6 +166,13 @@ class TBBase:
         _seed_env = os.environ.get('SEED')
         _drawn = _seed_env is None
         self.seed: str = _seed_env if _seed_env is not None else str(random.randrange(2**31))
+        # Publish it. A drawn seed that stays local is only half a seed: a
+        # SECOND consumer in the same process (a TB that builds its own
+        # random.Random for address selection, say) reads os.environ, finds
+        # nothing, and falls back to something else -- so the run has two
+        # seeds, the log prints one, and no single SEED value replays it.
+        # Found by the bridge testqc round, 2026-09-10.
+        os.environ['SEED'] = self.seed
         try:
             random.seed(int(self.seed))
         except (TypeError, ValueError):

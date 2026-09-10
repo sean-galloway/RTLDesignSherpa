@@ -7,7 +7,8 @@
 # Since 2026-09-09 every generated TB drives an AXI5 port with the AXI5 BFM
 # and arms an AXI5ComplianceChecker on it, so this test no longer needs its
 # own subclass; it is the read-side sign-off that drives sideband VALUES
-# through the BFM (nsaid/trace/unique per transaction) into both AXI4
+# through the BFM (trace/unique per transaction -- this fixture's master
+# enables exactly those two; it has no arnsaid pin) into both AXI4
 # slaves and requires the checker's verdict to be clean.
 
 import os

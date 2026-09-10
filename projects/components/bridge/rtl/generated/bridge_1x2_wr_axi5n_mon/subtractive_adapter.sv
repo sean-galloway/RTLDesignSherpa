@@ -13,7 +13,6 @@ module subtractive_adapter
     import bridge_1x2_wr_axi5n_mon_pkg::*;
 #(
     parameter int ID_WIDTH = 4
-   ,parameter bit USE_MONITOR_WR = 1'b0
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -73,36 +72,7 @@ module subtractive_adapter
     input  logic [1:0]  subtractive_bresp,
     input  logic         subtractive_buser,
     input  logic         subtractive_bvalid,
-    output  logic         subtractive_bready,
-
-    // Shared free-running monitor-time (from monbus_axil4_axil4_group.mon_time_out)
-    input  monitor_common_pkg::monbus_timestamp_t i_mon_time,
-
-    // Monitor side-band: wr wrapper
-    output logic                                  monbus_wr_valid,
-    input  logic                                  monbus_wr_ready,
-    output monitor_common_pkg::monitor_packet_t   monbus_wr_packet,
-    output monitor_common_pkg::monbus_timestamp_t monbus_wr_timestamp,
-
-    input  logic         cfg_wr_monitor_enable,
-    input  logic         cfg_wr_error_enable,
-    input  logic         cfg_wr_timeout_enable,
-    input  logic         cfg_wr_perf_enable,
-    input  logic         cfg_wr_compl_enable,
-    input  logic         cfg_wr_threshold_enable,
-    input  logic         cfg_wr_debug_enable,
-    input  logic [15:0] cfg_wr_timeout_cycles,
-    input  logic [3:0] cfg_wr_freq_sel,
-    input  logic [31:0] cfg_wr_latency_threshold,
-    input  logic [15:0] cfg_wr_axi_pkt_mask,
-    input  logic [15:0] cfg_wr_axi_err_select,
-    input  logic [15:0] cfg_wr_axi_error_mask,
-    input  logic [15:0] cfg_wr_axi_timeout_mask,
-    input  logic [15:0] cfg_wr_axi_compl_mask,
-    input  logic [15:0] cfg_wr_axi_thresh_mask,
-    input  logic [15:0] cfg_wr_axi_perf_mask,
-    input  logic [15:0] cfg_wr_axi_addr_mask,
-    input  logic [15:0] cfg_wr_axi_debug_mask
+    output  logic         subtractive_bready
 );
 
     // ================================================================
@@ -200,23 +170,14 @@ module subtractive_adapter
 `endif
 
     // AXI4 Master Write Timing Wrapper
-    axi4_master_wr_mon #(
+    axi4_master_wr #(
         .SKID_DEPTH_AW(2),
         .SKID_DEPTH_W(4),
         .SKID_DEPTH_B(2),
         .AXI_ID_WIDTH(4),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
-        .AXI_USER_WIDTH(1),
-        .UNIT_ID(1),
-        .AGENT_ID(33),
-        .USE_MONITOR(USE_MONITOR_WR),
-        .ENABLE_ERROR_LOGIC(1'b1),
-        .ENABLE_TIMEOUT_LOGIC(1'b0),
-        .ENABLE_COMPL_LOGIC(1'b0),
-        .ENABLE_THRESHOLD_LOGIC(1'b0),
-        .ENABLE_PERF_LOGIC(1'b0),
-        .ENABLE_DEBUG_LOGIC(1'b0)
+        .AXI_USER_WIDTH(1)
     ) u_master_wr (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -274,71 +235,7 @@ module subtractive_adapter
         .m_axi_bready(subtractive_bready),
 
         // Status (empty connector = unconnected tie-off)
-        .busy(),
-        .active_transactions(),
-        .error_count(),
-        .transaction_count(),
-        .cfg_conflict_error(),
-
-        // Monitor bus output
-        .i_mon_time(i_mon_time),
-        .monbus_valid(monbus_wr_valid),
-        .monbus_ready(monbus_wr_ready),
-        .monbus_packet(monbus_wr_packet),
-        .monbus_timestamp(monbus_wr_timestamp),
-
-        // Monitor cfg inputs
-        .cfg_monitor_enable(cfg_wr_monitor_enable),
-        .cfg_error_enable(cfg_wr_error_enable),
-        .cfg_timeout_enable(cfg_wr_timeout_enable),
-        .cfg_perf_enable(cfg_wr_perf_enable),
-        .cfg_compl_enable(cfg_wr_compl_enable),
-        .cfg_threshold_enable(cfg_wr_threshold_enable),
-        .cfg_debug_enable(cfg_wr_debug_enable),
-        .cfg_timeout_cycles(cfg_wr_timeout_cycles),
-        .cfg_freq_sel(cfg_wr_freq_sel),
-        .cfg_latency_threshold(cfg_wr_latency_threshold),
-        .cfg_axi_pkt_mask(cfg_wr_axi_pkt_mask),
-        .cfg_axi_err_select(cfg_wr_axi_err_select),
-        .cfg_axi_error_mask(cfg_wr_axi_error_mask),
-        .cfg_axi_timeout_mask(cfg_wr_axi_timeout_mask),
-        .cfg_axi_compl_mask(cfg_wr_axi_compl_mask),
-        .cfg_axi_thresh_mask(cfg_wr_axi_thresh_mask),
-        .cfg_axi_perf_mask(cfg_wr_axi_perf_mask),
-        .cfg_axi_addr_mask(cfg_wr_axi_addr_mask),
-        .cfg_axi_debug_mask(cfg_wr_axi_debug_mask),
-
-        // Monitor filter/CAM inputs (inert)
-        .cam_clear(1'b0),
-        .cfg_addr_filter_enable(1'b0),
-        .cfg_addr_filter_low('0),
-        .cfg_addr_filter_high('0),
-        .cfg_id_filter_enable(1'b0),
-        .cfg_id_match_base('0),
-        .cfg_id_match_count('0),
-        .debug_block_ready(),
-
-        // Address-range checker (disabled at N_ADDR_RANGES=0)
-        .cfg_addr_check_enable(1'b0),
-        .cfg_addr_range_enable(1'b0),
-        .cfg_addr_range_low({32{1'b0}}),
-        .cfg_addr_range_high({32{1'b0}}),
-
-        // Perfmon Stage A/B (tied off -- no window driven)
-        .cfg_start_event_sel(3'b111),
-        .cfg_end_event_sel(3'b111),
-        .cfg_start_trigger(1'b0),
-        .cfg_end_trigger(1'b0),
-        .cfg_window_force_close(1'b0),
-        .window_active(),
-        .window_cycles(),
-        .perf_prod_cycles(),
-        .perf_bp_cycles(),
-        .perf_starv_cycles(),
-        .perf_idle_cycles(),
-        .perf_beat_count(),
-        .perf_byte_count(),
-        .perf_burst_count()
+        .busy()
     );
 
 endmodule : subtractive_adapter
