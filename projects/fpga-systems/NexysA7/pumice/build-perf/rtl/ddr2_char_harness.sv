@@ -100,7 +100,12 @@ module ddr2_char_harness
     // delay is set at runtime via the DFI_TUNING.cmd_delay CSR (real-time
     // tuning, no rebuild) to align the WR command with write data for the
     // a7ddrphy's write_latency=0. See dfi_cmd_delay.
-    parameter int CMD_MAX_DELAY       = 8
+    parameter int CMD_MAX_DELAY       = 8,
+    // Reads in flight through pumice_rd_return_ring. Sustained read rate is
+    // bounded by RD_RET_DEPTH / (ticket alloc -> R drain), and this board's
+    // PHY read latency is long enough for that to bind: with the read intake
+    // fixed (PUMICE-025) reads sit at 78.5% of peak while writes reach 95%.
+    parameter int RD_RET_DEPTH        = 32
 ) (
     // Clock / reset (aclk = mc_clk = pclk = 100 MHz on the Nexys A7 board)
     input  logic                        aclk,
@@ -677,6 +682,7 @@ module ddr2_char_harness
         // reorder-depth-limited, so shallow reorder is the right lean-tier point;
         // deep reorder belongs to an enhanced variant.
         .WR_CAM_DEPTH     (8),
+        .RD_RET_DEPTH     (RD_RET_DEPTH),
         .APB_ADDR_WIDTH   (APB_ADDR_WIDTH),
         .APB_DATA_WIDTH   (APB_DATA_WIDTH)
     ) u_dut (

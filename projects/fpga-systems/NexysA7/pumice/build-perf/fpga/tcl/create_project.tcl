@@ -161,6 +161,14 @@ if {[info exists ::env(PUMICE_BANK_SCHED)] && $::env(PUMICE_BANK_SCHED) ne "" &&
     lappend current_defines "PUMICE_BANK_SCHED"
     puts "verilog_define: PUMICE_BANK_SCHED (two-stage bank scheduler)"
 }
+# Reads in flight: env PUMICE_RD_RET_DEPTH=<n> sizes pumice_rd_return_ring.
+# The sustained read rate is bounded by depth / (ticket alloc -> R drain), so
+# on this board's PHY read latency it is a direct bandwidth knob and worth
+# sweeping. Value form, not a bare flag.
+if {[info exists ::env(PUMICE_RD_RET_DEPTH)] && $::env(PUMICE_RD_RET_DEPTH) ne ""} {
+    lappend current_defines "PUMICE_RD_RET_DEPTH=$::env(PUMICE_RD_RET_DEPTH)"
+    puts "verilog_define: PUMICE_RD_RET_DEPTH=$::env(PUMICE_RD_RET_DEPTH) (reads in flight)"
+}
 set_property verilog_define $current_defines $src_fs
 
 set top_name ddr2_char_top

@@ -116,6 +116,39 @@ runs per-bank FSMs with round-robin arbitration and no reordering. Some of
 pumice's area buys configurability the comparison does not exercise. None of
 it currently buys bandwidth.
 
+## UPDATE 2026-09-10 (later): pumice reads now match LiteDRAM
+
+The gap this document reports was real but not, as it turned out, a property
+of the microarchitecture. Two independent throttles in pumice's read path
+accounted for essentially all of it, and both are now fixed:
+
+1. `pumice_rd_intake` admitted one sub-command every two cycles (a probe-arm
+   bit consumed by its own admit). One sub-command is one DRAM burst, and at
+   this board's BL4/x16 geometry one burst is one bus beat, so that gate alone
+   was the 291.7 MB/s figure. Read 291.7 -> 470.9.
+2. The read return ring ran 32 tickets because `ddr2_char_macro` never passed
+   `RD_RET_DEPTH`; at ~49 cycles of PHY read latency, 32 tickets cap reads near
+   0.78 of the DRAM rate. Depth 64: read 470.9 -> 571.3.
+
+| streaming reads (row_major bl8) | MB/s | % of 600 peak |
+|---|---|---|
+| pumice, as measured in this document | 291.8 | 48.6% |
+| pumice, intake fixed | 470.9 | 78.5% |
+| pumice, intake + ring 64 | **571.3** | **95.2%** |
+| pumice writes (unchanged throughout) | 570.2 | 95.0% |
+| LiteDRAM, same harness | 579.5 | 96.6% |
+
+pumice is now within 1.4% of LiteDRAM on streaming reads and at parity with
+its own write path. The area comparison below is unchanged in substance (ring
+64 adds ~158 LUT), so the standing question is no longer bandwidth but cost:
+pumice still spends about 5x the LUTs of LiteDRAM's controller and PHY, and
+its read latency is ~49 cycles against LiteDRAM's 24.7.
+
+Two smaller gaps remain and are tracked in PUMICE-025: AxLEN=4 reads 360.4
+while writing 570.3 and did not move with ring depth, so it is per-AR overhead
+rather than a per-column limit; and read latency did not improve with either
+fix.
+
 ## Refactor is behaviour-neutral on silicon
 
 The shared `char_engine_block` was extracted from `ddr2_char_macro` for this

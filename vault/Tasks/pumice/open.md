@@ -167,7 +167,7 @@ the same read fraction on the same board is the strongest evidence that the
 read ceiling is a property of this operating point rather than a pumice defect
 (PUMICE-025). Same-harness confirmation would redirect or justify that work.
 
-## PUMICE-025 — read bandwidth pinned at 48.7% of peak; the return path halves it
+## PUMICE-025 — read bandwidth was pinned at 48.7% of peak (FIXED: now 95%, write parity)
 **Status:** open 2026-09-10  **Priority:** P1 — the last gap to the 450 MB/s read target
 **Found by:** PUMICE-022 board characterization (see closed.md for the full table)
 
@@ -211,14 +211,33 @@ Board result (`board_2026-09-10_read_intake_fix.csv`, 14/14 integrity):
 48.6% of peak -> 78.5%. Writes unchanged (551/570). Timing IMPROVED: WNS
 +0.285 ns vs +0.039 before, 0 failing of 94060; area +102 LUT / +35 FF.
 
-**STILL OPEN — the remaining 78.5% vs the write path's 95% and LiteDRAM's
-96.5%.** The limit is no longer AxLEN-invariant (bl4 360 vs bl8 471), so it is
-a different mechanism from the one just fixed. Read latency is also unmoved at
-49.3 cycles against LiteDRAM's 24.7. Prime suspect is `RD_RET_DEPTH`: the ring
-is 32 and `ddr2_char_macro` does not even pass the parameter, so the board runs
-the default; 32 tickets over a ~41-cycle occupancy is 0.78 col/cycle, which is
-what is measured. Next experiment is to thread RD_RET_DEPTH through the macro
-and sweep 32/64/128 on the board.
+**SECOND LIMIT, ALSO FIXED: the read return ring was 32 tickets and the board
+build never even set it.** `ddr2_char_macro` did not pass `RD_RET_DEPTH`, so
+every board bitstream ran the controller default of 32 regardless. Sustained
+read rate is bounded by depth / (ticket alloc -> R drain), and this board's PHY
+read latency is ~49 MC cycles, so 32 tickets cap reads near 0.78 of the DRAM
+rate -- exactly the 78.5% left after the intake fix. Threaded the parameter
+from `ddr2_char_top` through the harness and macro, exposed
+`PUMICE_RD_RET_DEPTH` as a build define, and set the board default to **64**.
+
+Board sweep (`board_2026-09-10_read_fixed_ring64.csv`, 14/14 integrity):
+
+| scenario | read @ ring 32 | read @ ring 64 | write |
+|---|---|---|---|
+| row_major_bl8 | 470.9 | **571.3** | 570.2 |
+| row_major_bl16 | 471.0 | **571.3** | 570.3 |
+| incremental_bl8 | 463.7 | **556.9** | 551.3 |
+| row_major_bl4 | 360.4 | 360.4 | 570.3 |
+
+**Reads now match writes** (571.3 vs 570.2, both ~95% of the 600 MB/s peak) and
+are within 1.4% of LiteDRAM's 579.5 through the same harness. Timing +0.283 ns,
+0 failing of 94415; ring 64 costs ~158 LUT over ring 32.
+
+**What is left.** AxLEN=4 still reads 360.4 while writing 570.3, and it did not
+move with ring depth, so it is a third and separate mechanism (per-AR overhead
+rather than per-column). Read latency is also still ~49 cycles against
+LiteDRAM's 24.7 -- bandwidth is fixed, latency is not. Neither blocks the
+bandwidth target; track them here rather than reopening the ceiling story.
 
 **(Earlier) SAME-HARNESS A/B DISPROVED THE OPERATING-POINT THEORY BELOW.** LiteDRAM
 behind the identical `char_engine_block` / bridge / host, at the identical 75 MHz / 1:2 /

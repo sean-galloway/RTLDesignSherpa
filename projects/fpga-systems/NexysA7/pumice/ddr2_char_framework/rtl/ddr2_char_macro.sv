@@ -77,6 +77,12 @@ module ddr2_char_macro
     // ---- Controller depths ----
     parameter int WR_CAM_DEPTH     = 16,
     parameter int RD_CAM_DEPTH     = 16,
+    // Reads in flight (pumice_rd_return_ring ticket space). The sustained read
+    // rate cannot exceed RD_RET_DEPTH / (alloc-to-R-drain latency), so on a
+    // board with a long PHY read latency this is a direct bandwidth knob. It
+    // was NOT threaded through here until 2026-09-10, so every board build ran
+    // the controller default whatever this file said.
+    parameter int RD_RET_DEPTH     = 32,
     parameter int W_BUF_DEPTH      = 128,
 
     // ---- DFI ----
@@ -490,6 +496,7 @@ module ddr2_char_macro
         .DRAM_BL         (DRAM_BL),
         .NUM_ENTRIES     (WR_CAM_DEPTH),
         .N_SRAM_SLOTS    (WR_CAM_DEPTH),
+        .RD_RET_DEPTH    (RD_RET_DEPTH),
         .CSR_ADDR_W      (APB_ADDR_WIDTH)
     ) u_ctrl (
         .aclk                  (mc_clk),

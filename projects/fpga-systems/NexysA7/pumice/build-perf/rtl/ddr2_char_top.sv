@@ -270,6 +270,19 @@ module ddr2_char_top #(
         .DFI_RATE        (DFI_RATE),
         .DRAM_BL         (DRAM_BL),
         .BURST_LEN_MULTIPLE(BURST_LEN_MULTIPLE),
+        // Reads in flight (pumice_rd_return_ring tickets). SIXTY-FOUR, measured
+        // 2026-09-10, not inherited: sustained read rate is bounded by depth
+        // divided by the ticket's alloc-to-R-drain time, and this board's PHY
+        // read latency is ~49 MC cycles, so 32 tickets cap reads at ~0.78 of
+        // the DRAM rate. The board sweep at BL8/row-major reads 470.9 MB/s at
+        // 32 and 571.3 at 64 -- the latter is write parity (570.2) and 95% of
+        // the 600 MB/s peak, so 64 is where the ring stops being the limit.
+        // Costs ~158 LUT. `PUMICE_RD_RET_DEPTH overrides for further sweeps.
+`ifdef PUMICE_RD_RET_DEPTH
+        .RD_RET_DEPTH    (`PUMICE_RD_RET_DEPTH),
+`else
+        .RD_RET_DEPTH    (64),
+`endif
         .ROW_WIDTH       (ROW_WIDTH),
 `ifdef PUMICE_SYS_75
         .FPGA_CLK_HZ     (75_000_000)   // sys = 75 MHz  -> UART baud divisor
