@@ -31,6 +31,7 @@ from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master, create_gaxi_slave
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from CocoTBFramework.components.wb4.wb4_factories import create_wb4_monitor, create_wb4_slave
+from CocoTBFramework.components.wb4.wb4_sequence import WB4Sequence
 from CocoTBFramework.components.shared.wb4_common import WB4_STATUS_ERR, WB4_STATUS_RTY
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
@@ -137,16 +138,23 @@ class WB4MasterTB(TBBase):
         self.stats['responses'] += 1
         self.got.append((int(pkt.status), int(pkt.dat)))
 
-    def _random_cmd(self, rng, mix):
-        r = rng.random()
-        if r < mix / 2:
-            adr = rng.randint(*ERR_WINDOW)
-        elif r < mix:
-            adr = rng.randint(*RTY_WINDOW)
-        else:
-            adr = rng.randint(0, MEM_LINES * self.SW - 1) & ~(self.SW - 1)
-        we = rng.randint(0, 1)
-        return we, adr, rng.getrandbits(self.DW), (rng.getrandbits(self.SW) or ((1 << self.SW) - 1))
+    def _sequence(self, rng, count, mix):
+        """The traffic for one phase, as a WB4Sequence.
+
+        The sequence axis owns WHAT transfers happen (the read/write mix,
+        the address ranges, and the ERR/RTY windows this DUT decodes); this
+        TB still owns who drives them and when. Seeded from the TB's own
+        generator so a run stays reproducible under the repo's seed system.
+        """
+        seq = WB4Sequence(f"{self.__class__.__name__}.traffic",
+                          addr_width=self.AW, data_width=self.DW,
+                          seed=rng.getrandbits(32))
+        seq.add_random_workload(
+            count, addr_lo=0, addr_hi=MEM_LINES * self.SW,
+            write_frac=0.5, align=True, random_sel=True,
+            windows=[(ERR_WINDOW[0], ERR_WINDOW[1], mix / 2),
+                     (RTY_WINDOW[0], RTY_WINDOW[1], mix / 2)])
+        return seq
 
     async def trace_wires(self, cycles):
         """Debug aid (WB4_TRACE=1): one line per clock of the Wishbone wires."""
@@ -170,11 +178,10 @@ class WB4MasterTB(TBBase):
         # drain each time (one command per ~3 clocks whatever the profile), so
         # the DUT could never be offered work fast enough to fill its credit.
         pkts = []
-        for _ in range(count):
-            we, adr, dat, sel = self._random_cmd(rng, mix)
-            self.sent.append((we, adr, dat, sel))
+        for t in self._sequence(rng, count, mix):
+            self.sent.append((t.we, t.adr, t.dat_w, t.sel))
             pkt = GAXIPacket(self.cmd_fc)
-            pkt.we, pkt.adr, pkt.dat, pkt.sel = we, adr, dat, sel
+            pkt.we, pkt.adr, pkt.dat, pkt.sel = t.we, t.adr, t.dat_w, t.sel
             self.stats['sent'] += 1
             pkts.append(pkt)
         await self.cmd.send_burst(pkts)
