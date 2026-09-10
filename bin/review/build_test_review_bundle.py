@@ -40,6 +40,8 @@ LIMIT = 120_000 * 4  # chars per unit, same as the doc bundler
 # area has ever had a testqc round (BRIDGE-007, unrun since 2026-09-04).
 IMPORT_RE = re.compile(
     r"^\s*(?:from|import)\s+(TBClasses[\w.]*|CocoTBFramework[\w.]*|projects\.[\w.]*)", re.M)
+# Bare sibling imports, resolved against the area's own tests directory.
+SIBLING_RE = re.compile(r"^\s*(?:from|import)\s+([a-z_][\w]*)\s*(?:import|$)", re.M)
 FILELIST_RE = re.compile(r"['\"]([^'\"]*filelists/[^'\"]+\.f)['\"]")
 MODULE_HDR_RE = re.compile(r"^module\b.*?^\s*\);", re.M | re.S)
 
@@ -271,6 +273,18 @@ def main():
         mods = IMPORT_RE.findall(text)
         tb0 = [r for m in mods
                if m.startswith(("TBClasses", "projects.")) if (r := resolve(m))]
+        # Sibling helpers in the tests directory itself. An area often keeps
+        # its scenario generators next to the tests and imports them bare
+        # (`from monitor_stress_common import run_comprehensive`), which is
+        # neither a TBClasses nor a projects. import and so was invisible:
+        # the bridge's monitor units shipped without the file that drives
+        # every phase, and the reviewer said so -- "could not be audited, so
+        # extra_env propagation and the per-phase monitor assertions rest on
+        # an unshown file". Those helpers ARE audit targets.
+        for m in SIBLING_RE.findall(text):
+            cand = os.path.join(test_dir, m + ".py")
+            if os.path.exists(cand) and cand not in tb0:
+                tb0.append(cand)
         fw0 = [r for m in mods if m.startswith("CocoTBFramework") if (r := resolve(m))]
         tbc = chain(tb0, ("TBClasses", "projects."))
         fw_seeds = list(fw0)
