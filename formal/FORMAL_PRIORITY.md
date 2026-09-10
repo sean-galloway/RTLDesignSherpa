@@ -326,7 +326,7 @@ Status: PASSING = proved (prove+cover), PROVE = prove-only PASS, ERROR = prove f
 | ------------------ | -------- | ------ | --------------------------------------- |
 | apb4_master         | 2        | PASSING | Prove APB setup/access phase sequencing |
 | apb4_slave          | 2        | PASSING | Prove correct response timing           |
-| apb4_monitor        | 2        | PASSING | Prove packet generation                 |
+| apb4_monitor        | 2        | BROKEN  | Does NOT elaborate (pre-existing, verified on HEAD 2026-09-10): read_verilog rejects sv2v's static cast; with -sv it hits multiple drivers on r_trans_table (unpacked struct array). Was listed PASSING. |
 | apb5_master        | 2        | PASSING | APB5 variant                            |
 | apb5_slave         | 2        | PASSING | APB5 variant                            |
 | apb5_monitor       | 2        | PASSING | APB5 variant                            |

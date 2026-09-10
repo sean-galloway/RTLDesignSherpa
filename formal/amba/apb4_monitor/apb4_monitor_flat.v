@@ -20,6 +20,7 @@ module apb_monitor_addr_check (
 	parameter signed [31:0] ADDR_WIDTH = 32;
 	parameter [7:0] UNIT_ID = 8'h00;
 	parameter [15:0] AGENT_ID = 16'h0000;
+	parameter [3:0] PROTOCOL = 4'h2;
 	parameter signed [31:0] M = ADDR_WIDTH;
 	input wire clk;
 	input wire aresetn;
@@ -53,10 +54,25 @@ module apb_monitor_addr_check (
 	reg [N_ADDR_RANGES - 1:0] r_pending;
 	reg [(N_ADDR_RANGES * M) - 1:0] r_lat_addr;
 	reg [N_ADDR_RANGES - 1:0] r_lat_is_read;
-	reg [N_ADDR_RANGES - 1:0] emit_oh;
+	wire [N_ADDR_RANGES - 1:0] emit_oh;
 	wire emit_any;
 	reg [3:0] emit_idx;
 	assign emit_any = |r_pending;
+	reg [N_ADDR_RANGES - 1:0] w_emit_pick;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_emit_pick = 1'sb0;
+		begin : sv2v_autoblock_2
+			reg signed [31:0] i;
+			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+				if (r_pending[i] && (w_emit_pick == {N_ADDR_RANGES {1'sb0}}))
+					w_emit_pick[i] = 1'b1;
+		end
+	end
+	reg [N_ADDR_RANGES - 1:0] r_emit_hold;
+	reg r_emit_held;
+	assign emit_oh = (r_emit_held ? r_emit_hold : w_emit_pick);
 	function automatic signed [3:0] sv2v_cast_4_signed;
 		input reg signed [3:0] inp;
 		sv2v_cast_4_signed = inp;
@@ -64,47 +80,93 @@ module apb_monitor_addr_check (
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		emit_oh = 1'sb0;
 		emit_idx = 4'h0;
-		begin : sv2v_autoblock_2
+		begin : sv2v_autoblock_3
 			reg signed [31:0] i;
 			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
-				if (r_pending[i] && (emit_oh == {N_ADDR_RANGES {1'sb0}})) begin
-					emit_oh[i] = 1'b1;
+				if (emit_oh[i])
 					emit_idx = sv2v_cast_4_signed(i);
-				end
 		end
 	end
+	reg [N_ADDR_RANGES - 1:0] r_shadow_valid;
+	reg [(N_ADDR_RANGES * M) - 1:0] r_shadow_addr;
+	reg [N_ADDR_RANGES - 1:0] r_shadow_is_read;
 	assign addr_pkt_valid = emit_any && cfg_addr_check_enable;
 	wire accept;
 	assign accept = addr_pkt_valid && addr_pkt_ready;
-	always @(posedge clk)
+	reg [N_ADDR_RANGES - 1:0] w_presented;
+	reg [N_ADDR_RANGES - 1:0] w_range_accept;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_4
+			reg signed [31:0] i;
+			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+				begin
+					w_presented[i] = addr_pkt_valid && emit_oh[i];
+					w_range_accept[i] = accept && emit_oh[i];
+				end
+		end
+	end
+	always @(posedge clk or negedge aresetn)
 		if (!aresetn) begin
 			r_pending <= 1'sb0;
 			r_lat_addr <= 1'sb0;
 			r_lat_is_read <= 1'sb0;
+			r_shadow_valid <= 1'sb0;
+			r_shadow_addr <= 1'sb0;
+			r_shadow_is_read <= 1'sb0;
+			r_emit_hold <= 1'sb0;
+			r_emit_held <= 1'b0;
 		end
 		else begin
-			begin : sv2v_autoblock_3
+			if (accept)
+				r_emit_held <= 1'b0;
+			else if (addr_pkt_valid && !addr_pkt_ready) begin
+				r_emit_held <= 1'b1;
+				r_emit_hold <= emit_oh;
+			end
+			begin : sv2v_autoblock_5
 				reg signed [31:0] i;
 				for (i = 0; i < N_ADDR_RANGES; i = i + 1)
-					if (hit_oh[i]) begin
+					if (w_range_accept[i]) begin
+						if (hit_oh[i]) begin
+							r_lat_addr[i * M+:M] <= cmd_paddr;
+							r_lat_is_read[i] <= !cmd_pwrite;
+						end
+						else if (r_shadow_valid[i]) begin
+							r_lat_addr[i * M+:M] <= r_shadow_addr[i * M+:M];
+							r_lat_is_read[i] <= r_shadow_is_read[i];
+						end
+					end
+					else if (hit_oh[i] && !w_presented[i]) begin
 						r_lat_addr[i * M+:M] <= cmd_paddr;
 						r_lat_is_read[i] <= !cmd_pwrite;
 					end
 			end
-			begin : sv2v_autoblock_4
+			begin : sv2v_autoblock_6
+				reg signed [31:0] i;
+				for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+					if (w_range_accept[i])
+						r_shadow_valid[i] <= 1'b0;
+					else if (hit_oh[i] && w_presented[i]) begin
+						r_shadow_valid[i] <= 1'b1;
+						r_shadow_addr[i * M+:M] <= cmd_paddr;
+						r_shadow_is_read[i] <= !cmd_pwrite;
+					end
+			end
+			begin : sv2v_autoblock_7
 				reg signed [31:0] i;
 				for (i = 0; i < N_ADDR_RANGES; i = i + 1)
 					if (hit_oh[i])
 						r_pending[i] <= 1'b1;
-					else if (accept && emit_oh[i])
+					else if (w_range_accept[i] && !r_shadow_valid[i])
 						r_pending[i] <= 1'b0;
 			end
 		end
 	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
 	localparam [3:0] PKT_TYPE_FIELD = monitor_common_pkg_PktTypeError;
-	localparam [3:0] PROTOCOL_FIELD = 4'h2;
+	localparam [3:0] PROTOCOL_FIELD = PROTOCOL;
 	localparam [7:0] EVENT_CODE = 8'h08;
 	reg [M - 1:0] emit_addr;
 	reg emit_is_read;
@@ -115,7 +177,7 @@ module apb_monitor_addr_check (
 			;
 		emit_addr = 1'sb0;
 		emit_is_read = 1'b0;
-		begin : sv2v_autoblock_5
+		begin : sv2v_autoblock_8
 			reg signed [31:0] i;
 			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
 				if (emit_oh[i]) begin
@@ -180,7 +242,7 @@ module counter_bin (
 		else
 			counter_bin_next = counter_bin_curr;
 	end
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			counter_bin_curr <= 'b0;
 		else
@@ -257,7 +319,7 @@ module fifo_control (
 	generate
 		if (REGISTERED == 1) begin : gen_flop_mode
 			reg [ADDR_WIDTH:0] r_rdom_wr_ptr_bin_delayed;
-			always @(posedge rd_clk)
+			always @(posedge rd_clk or negedge rd_rst_n)
 				if (!rd_rst_n)
 					r_rdom_wr_ptr_bin_delayed <= 1'sb0;
 				else
@@ -384,7 +446,7 @@ module gaxi_fifo_sync (
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
 				reg [DATA_WIDTH - 1:0] r_rd_data;
-				always @(posedge axi_aclk)
+				always @(posedge axi_aclk or negedge axi_aresetn)
 					if (!axi_aresetn)
 						r_rd_data <= 1'sb0;
 					else
@@ -401,7 +463,7 @@ module gaxi_fifo_sync (
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
 			reg [DATA_WIDTH - 1:0] r_rd_data;
-			always @(posedge axi_aclk)
+			always @(posedge axi_aclk or negedge axi_aresetn)
 				if (!axi_aresetn)
 					r_rd_data <= 1'sb0;
 				else
@@ -415,7 +477,7 @@ module gaxi_fifo_sync (
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
 				reg [DATA_WIDTH - 1:0] r_rd_data;
-				always @(posedge axi_aclk)
+				always @(posedge axi_aclk or negedge axi_aresetn)
 					if (!axi_aresetn)
 						r_rd_data <= 1'sb0;
 					else
@@ -449,8 +511,6 @@ module gaxi_skid_buffer (
 	parameter signed [31:0] DATA_WIDTH = 32;
 	parameter signed [31:0] DEPTH = 2;
 	parameter signed [31:0] DW = DATA_WIDTH;
-	parameter signed [31:0] BUF_WIDTH = DATA_WIDTH * DEPTH;
-	parameter signed [31:0] BW = BUF_WIDTH;
 	input wire axi_aclk;
 	input wire axi_aresetn;
 	input wire wr_valid;
@@ -468,15 +528,15 @@ module gaxi_skid_buffer (
 	assign w_wr_xfer = wr_valid & wr_ready;
 	assign w_rd_xfer = rd_valid & rd_ready;
 	generate
-		if ((((DEPTH != 2) && (DEPTH != 4)) && (DEPTH != 6)) && (DEPTH != 8)) begin : gen_depth_guard
-			initial $display("Error [elaboration] /tmp/formal_apb4_monitor/gaxi_skid_buffer.sv:101:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be one of {2,4,6,8}", DEPTH);
+		if ((DEPTH < 2) || (DEPTH > 8)) begin : gen_depth_guard
+			initial $display("Error [elaboration] /tmp/formal_apb4_monitor/gaxi_skid_buffer.sv:101:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive", DEPTH);
 		end
 	endgenerate
 	genvar _gv_gi_1;
 	generate
 		for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
 			localparam gi = _gv_gi_1;
-			always @(posedge axi_aclk)
+			always @(posedge axi_aclk or negedge axi_aresetn)
 				if (!axi_aresetn)
 					r_data[gi] <= 1'sb0;
 				else
@@ -502,7 +562,7 @@ module gaxi_skid_buffer (
 					endcase
 		end
 	endgenerate
-	always @(posedge axi_aclk)
+	always @(posedge axi_aclk or negedge axi_aresetn)
 		if (!axi_aresetn)
 			r_data_count <= 1'sb0;
 		else
@@ -517,7 +577,7 @@ module gaxi_skid_buffer (
 		input reg [31:0] inp;
 		sv2v_cast_32 = inp;
 	endfunction
-	always @(posedge axi_aclk)
+	always @(posedge axi_aclk or negedge axi_aresetn)
 		if (!axi_aresetn) begin
 			wr_ready <= 1'b0;
 			rd_valid <= 1'b0;
@@ -639,6 +699,10 @@ module apb4_monitor (
 		input reg [63:0] event_data;
 		monitor_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
 	endfunction
+	function automatic [31:0] sv2v_cast_32;
+		input reg [31:0] inp;
+		sv2v_cast_32 = inp;
+	endfunction
 	generate
 		if (USE_MONITOR) begin : gen_monitor
 			reg [284:0] r_trans_table [0:MAX_TRANSACTIONS - 1];
@@ -687,7 +751,7 @@ module apb4_monitor (
 			assign transaction_count = r_transaction_count;
 			assign w_cmd_handshake = cmd_valid && cmd_ready;
 			assign w_rsp_handshake = rsp_valid && rsp_ready;
-			always @(posedge aclk)
+			always @(posedge aclk or negedge aresetn)
 				if (!aresetn)
 					r_timestamp <= 1'sb0;
 				else
@@ -708,7 +772,7 @@ module apb4_monitor (
 				endcase
 			end
 			assign w_state_change = w_next_trans_state != r_trans_state;
-			always @(posedge aclk)
+			always @(posedge aclk or negedge aresetn)
 				if (!aresetn)
 					r_trans_state <= 2'b00;
 				else
@@ -756,7 +820,7 @@ module apb4_monitor (
 							w_completed_trans[i] = 1'b1;
 				end
 			end
-			always @(posedge aclk)
+			always @(posedge aclk or negedge aresetn)
 				if (!aresetn) begin
 					begin : sv2v_autoblock_4
 						reg signed [31:0] i;
@@ -781,7 +845,6 @@ module apb4_monitor (
 						r_trans_table[w_free_idx][279] <= 1'b0;
 						r_trans_table[w_free_idx][215-:32] <= 1'sb0;
 						r_trans_table[w_free_idx][151-:32] <= 1'sb0;
-						r_active_count <= r_active_count + 1'b1;
 						r_cmd_start_time <= r_timestamp;
 						r_trans_table[w_free_idx][277-:3] <= 3'h2;
 						r_trans_table[w_free_idx][87-:32] <= r_timestamp;
@@ -806,13 +869,12 @@ module apb4_monitor (
 					begin : sv2v_autoblock_5
 						reg signed [31:0] i;
 						for (i = 0; i < MAX_TRANSACTIONS; i = i + 1)
-							if (w_completed_trans[i]) begin
+							if (w_completed_trans[i])
 								r_trans_table[i][284] <= 1'b0;
-								r_active_count <= r_active_count - 1'b1;
-							end
 					end
+					r_active_count <= 8'((sv2v_cast_32(r_active_count) + (w_cmd_handshake && w_has_free_slot ? 32'd1 : 32'd0)) - $countones(w_completed_trans));
 				end
-			always @(posedge aclk)
+			always @(posedge aclk or negedge aresetn)
 				if (!aresetn) begin
 					r_cmd_timeout_timer <= 1'sb0;
 					r_rsp_timeout_timer <= 1'sb0;
@@ -834,9 +896,7 @@ module apb4_monitor (
 					;
 				w_protocol_violation = 1'b0;
 				if (cfg_protocol_enable) begin
-					if (rsp_valid && (r_trans_state == 2'b00))
-						w_protocol_violation = 1'b1;
-					if (cmd_valid && (r_trans_state == 2'b01))
+					if (rsp_valid && !w_has_active_trans)
 						w_protocol_violation = 1'b1;
 				end
 			end
@@ -850,7 +910,7 @@ module apb4_monitor (
 					w_latency_threshold_exceeded = (cfg_perf_enable && cfg_latency_enable) && (w_current_latency > cfg_latency_threshold);
 				end
 			end
-			always @(posedge aclk)
+			always @(posedge aclk or negedge aresetn)
 				if (!aresetn) begin
 					r_throughput_counter <= 1'sb0;
 					r_throughput_timer <= 1'sb0;
@@ -902,7 +962,7 @@ module apb4_monitor (
 					w_generate_completion_event = 1'b1;
 			end
 			gaxi_fifo_sync #(
-				.REGISTERED(1),
+				.REGISTERED(0),
 				.DATA_WIDTH(48),
 				.DEPTH(MONITOR_FIFO_DEPTH),
 				.ALMOST_WR_MARGIN(1),
@@ -955,17 +1015,17 @@ module apb4_monitor (
 					w_fifo_wr_valid = 1'b1;
 					w_fifo_wr_data[47-:4] = monitor_common_pkg_PktTypeCompletion;
 					w_fifo_wr_data[43-:4] = 8'h00;
-					w_fifo_wr_data[39-:32] = cmd_paddr;
-					w_fifo_wr_data[7-:8] = {4'h0, cmd_pprot, cmd_pwrite};
+					w_fifo_wr_data[39-:32] = (w_has_active_trans ? r_trans_table[w_active_idx][274:243] : cmd_paddr);
+					w_fifo_wr_data[7-:8] = (w_has_active_trans ? {4'h0, r_trans_table[w_active_idx][221:219], r_trans_table[w_active_idx][222]} : {4'h0, cmd_pprot, cmd_pwrite});
 				end
 			end
-			always @(posedge aclk)
+			always @(posedge aclk or negedge aresetn)
 				if (!aresetn)
 					;
 				else begin : sv2v_autoblock_6
 					reg signed [31:0] i;
 					for (i = 0; i < MAX_TRANSACTIONS; i = i + 1)
-						if ((((r_trans_table[i][284] && ((r_trans_table[i][277-:3] == 3'h3) || (r_trans_table[i][277-:3] == 3'h4))) && !r_trans_table[i][279]) && w_fifo_wr_valid) && w_fifo_wr_ready)
+						if ((r_trans_table[i][284] && ((r_trans_table[i][277-:3] == 3'h3) || (r_trans_table[i][277-:3] == 3'h4))) && !r_trans_table[i][279])
 							r_trans_table[i][279] <= 1'b1;
 				end
 			reg w_monbus_pkt_valid;

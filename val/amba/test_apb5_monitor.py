@@ -34,6 +34,7 @@ from TBClasses.shared.tbbase import TBBase
 from TBClasses.amba.apb5_monitor_tb import APB5MonitorTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.monbus import parse, PktType
 
 
 
@@ -405,6 +406,86 @@ def generate_apb5_monitor_params():
     ]
 
 
+@cocotb.test(timeout_time=100, timeout_unit="us")
+async def cocotb_test_apb5_monitor_backtoback(dut):
+    """TASK-086 witness: three events on three CONSECUTIVE clocks.
+
+    Same check as apb4_monitor's back-to-back test. The event FIFO must be
+    mux-read: in flop mode rd_data arrives a clock after the read handshake,
+    so the head is emitted twice and the entry behind it is lost. The
+    stimulus alternates the packet TYPE (pslverr 1, 0, 1), so the check does
+    not depend on how the transaction table pairs responses with commands.
+    """
+    tb = APB5MonitorTB(dut)
+    await tb.setup_clocks_and_reset()
+
+    # Errors and completions only: perf, debug and timeout events outrank a
+    # completion in the FIFO write mux and would change what is queued.
+    dut.cfg_error_enable.value = 1
+    dut.cfg_slverr_enable.value = 1
+    dut.cfg_protocol_enable.value = 0
+    dut.cfg_parity_enable.value = 0
+    dut.cfg_wakeup_enable.value = 0
+    dut.cfg_user_enable.value = 0
+    dut.cfg_perf_enable.value = 0
+    dut.cfg_latency_enable.value = 0
+    dut.cfg_timeout_enable.value = 0
+    dut.cfg_cmd_timeout_cnt.value = 0
+    dut.cfg_rsp_timeout_cnt.value = 0
+    dut.cfg_wakeup_timeout_cnt.value = 0
+    dut.cfg_latency_threshold.value = 0xFFFFFFFF
+    dut.monbus_ready.value = 1
+    await RisingEdge(dut.aclk)
+
+    packets = []
+
+    async def collect():
+        while True:
+            await RisingEdge(dut.aclk)
+            if int(dut.monbus_valid.value) and int(dut.monbus_ready.value):
+                packets.append(int(dut.monbus_packet.value))
+
+    collector = cocotb.start_soon(collect())
+
+    # Three commands so the responses have transactions to retire.
+    for i in range(3):
+        dut.cmd_valid.value = 1
+        dut.cmd_pwrite.value = 1
+        dut.cmd_paddr.value = 0x100 + 0x10 * i
+        dut.cmd_pwdata.value = 0xB0000000 + i
+        dut.cmd_pstrb.value = 0xF
+        await RisingEdge(dut.aclk)
+    dut.cmd_valid.value = 0
+    for _ in range(4):
+        await RisingEdge(dut.aclk)
+
+    # Three responses on three CONSECUTIVE clocks: error, completion, error.
+    dut.rsp_ready.value = 1
+    for slverr in (1, 0, 1):
+        dut.rsp_valid.value = 1
+        dut.rsp_pslverr.value = slverr
+        dut.rsp_prdata.value = 0xC0C0_0000 + slverr
+        await RisingEdge(dut.aclk)
+    dut.rsp_valid.value = 0
+    dut.rsp_pslverr.value = 0
+
+    for _ in range(60):
+        await RisingEdge(dut.aclk)
+    collector.kill()
+
+    decoded = [parse(raw) for raw in packets]
+    types = [p.packet_type for p in decoded]
+    names = [f"{p.get_packet_type_name()}/{p.get_event_code_name()}" for p in decoded]
+    tb.log.info(f"back-to-back packets ({len(decoded)}): {names}")
+
+    want = [int(PktType.PktTypeError), int(PktType.PktTypeCompletion), int(PktType.PktTypeError)]
+    assert types == want, (
+        f"three events on consecutive clocks came out as {names}; expected "
+        f"error, completion, error. A repeated packet here is the registered-read "
+        f"FIFO re-emitting its head (TASK-086)."
+    )
+
+
 @pytest.mark.parametrize(
     "addr_width, data_width, auser_width, wuser_width, ruser_width, buser_width",
     generate_apb5_monitor_params()
@@ -671,3 +752,82 @@ def test_apb5_monitor_addr_range(request, addr_width, n_addr_ranges):
         print(f"Logs preserved at: {log_path}")
         print(f"To view waveforms: {cmd_filename}")
         raise
+
+def test_apb5_monitor_backtoback(request):
+    """TASK-086 runner: three events on consecutive clocks, one packet each."""
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_apb5': 'rtl/amba/apb5',
+        'rtl_monitor': 'rtl/amba/monitor',
+        'rtl_gaxi': 'rtl/amba/gaxi',
+        'rtl_cmn': 'rtl/common',
+        'rtl_amba_includes': 'rtl/amba/includes'
+    })
+
+    toplevel = "apb5_monitor"
+
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/apb5_monitor.f")
+
+    test_name_plus_params = f"test_{worker_id}_apb5_monitor_backtoback"
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
+
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
+
+    rtl_parameters = {
+        'ADDR_WIDTH': '12',
+        'DATA_WIDTH': '32',
+        'N_ADDR_RANGES': '1',
+    }
+
+    extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',
+        'DUT': toplevel,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_RESULTS_FILE': results_path,
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_ADDR_WIDTH': '12',
+        'TEST_DATA_WIDTH': '32',
+    }
+
+    compile_args = [
+        "--trace-fst",
+        "--trace-structs",
+        "-Wno-TIMESCALEMOD",
+    ]
+
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+
+    try:
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            includes=includes,
+            toplevel=toplevel,
+            module=module,
+            parameters=rtl_parameters,
+            sim_build=sim_build,
+            extra_env=extra_env,
+            waves=enable_waves,
+            plus_args=(['--trace'] if enable_waves else []),
+            keep_files=True,
+            compile_args=compile_args,
+            testcase="cocotb_test_apb5_monitor_backtoback",
+            simulator="verilator",
+        )
+    except Exception as e:
+        print(f"Test failed: {str(e)}")
+        print(f"Logs preserved at: {log_path}")
+        print(f"To view waveforms: {cmd_filename}")
+        raise
+
+

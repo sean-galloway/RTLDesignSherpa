@@ -42,6 +42,7 @@ from TBClasses.shared.tbbase import TBBase
 from TBClasses.amba.apb4_monitor_tb import SimpleAPBMonitorTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.monbus import parse, PktType
 
 
 
@@ -187,8 +188,7 @@ def decode_monbus_packet(pkt: int) -> dict:
     """
     # Decode via the house chokepoint (TBClasses.monbus.parse): keeps the
     # field layout in ONE place and feeds the MONBUS_COVERAGE recorder.
-    from TBClasses.monbus import parse as _monbus_parse
-    _mp = _monbus_parse(pkt)
+    _mp = parse(pkt)
     return {
         'packet_type': int(_mp.packet_type),
         'protocol': int(_mp.protocol),
@@ -491,6 +491,77 @@ def test_apb4_monitor_addr_range():
         raise
 
 
+@cocotb.test(timeout_time=100, timeout_unit="us")
+async def apb4_monitor_backtoback_test(dut):
+    """TASK-086 witness: three events on three CONSECUTIVE clocks.
+
+    The event FIFO's read mode decides whether a back-to-back read works.
+    In mux mode (REGISTERED=0) rd_data is valid in the clock of the read
+    handshake, which is when the packet is built. In flop mode it arrives a
+    clock later, so the head is emitted twice and the entry behind it is
+    lost.
+
+    The stimulus alternates the packet TYPE (pslverr 1, 0, 1 -> error,
+    completion, error) rather than the address, so the check does not
+    depend on how the transaction table pairs a response with a command
+    (that pairing is TASK-069's subject, not this test's).
+    """
+    tb = SimpleAPBMonitorTB(dut)
+    await tb.setup_clocks_and_reset()
+
+    # Only errors and completions: perf, debug and timeout events would win
+    # the write mux's priority and change what lands in the FIFO.
+    dut.cfg_error_enable.value = 1
+    dut.cfg_slverr_enable.value = 1
+    dut.cfg_perf_enable.value = 0
+    dut.cfg_latency_enable.value = 0
+    dut.cfg_debug_enable.value = 0
+    dut.cfg_trans_debug_enable.value = 0
+    dut.cfg_timeout_enable.value = 0
+    dut.monbus_ready.value = 1
+    collector = cocotb.start_soon(tb.monitor_bus_collector())
+    await RisingEdge(dut.aclk)
+
+    # Three commands, so the responses below have transactions to retire.
+    for i in range(3):
+        dut.cmd_valid.value = 1
+        dut.cmd_pwrite.value = 1
+        dut.cmd_paddr.value = 0x1000 + 0x10 * i
+        dut.cmd_pwdata.value = 0xA0000000 + i
+        dut.cmd_pstrb.value = 0xF
+        await RisingEdge(dut.aclk)
+    dut.cmd_valid.value = 0
+    for _ in range(4):
+        await RisingEdge(dut.aclk)
+
+    # Three responses on three CONSECUTIVE clocks: error, completion, error.
+    dut.rsp_ready.value = 1
+    for slverr in (1, 0, 1):
+        dut.rsp_valid.value = 1
+        dut.rsp_pslverr.value = slverr
+        dut.rsp_prdata.value = 0xD0D0_0000 + slverr
+        await RisingEdge(dut.aclk)
+    dut.rsp_valid.value = 0
+    dut.rsp_pslverr.value = 0
+
+    for _ in range(60):
+        await RisingEdge(dut.aclk)
+    tb.test_running = False
+    await collector
+
+    packets = [parse(raw) for _, raw in tb.packets_collected]
+    types = [p.packet_type for p in packets]
+    names = [f"{p.get_packet_type_name()}/{p.get_event_code_name()}" for p in packets]
+    tb.log.info(f"back-to-back packets ({len(packets)}): {names}")
+
+    want = [int(PktType.PktTypeError), int(PktType.PktTypeCompletion), int(PktType.PktTypeError)]
+    assert types == want, (
+        f"three events on consecutive clocks came out as {names}; expected "
+        f"error, completion, error. A repeated packet here is the registered-read "
+        f"FIFO re-emitting its head (TASK-086)."
+    )
+
+
 def test_apb4_monitor_slot_retire():
     """TASK-066/069 witness runner: slot retirement + pipelining."""
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
@@ -576,3 +647,79 @@ def test_apb4_monitor_slot_retire():
 
 if __name__ == "__main__":
     test_apb4_monitor()
+
+
+@pytest.mark.parametrize("registered", [0])
+def test_apb4_monitor_backtoback(registered):
+    """TASK-086 runner: three events on consecutive clocks, one packet each."""
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_cmn':           'rtl/common',
+        'rtl_gaxi':          'rtl/amba/gaxi',
+        'rtl_apb':           'rtl/amba/apb4',
+        'rtl_amba_shared':   'rtl/amba/shared',
+        'rtl_monitor':       'rtl/amba/monitor',
+        'rtl_amba_includes': 'rtl/amba/includes',
+    })
+
+    aw, dw = 32, 32
+    unit_id, agent_id = 4, 8
+
+    test_name = f"test_{worker_id}_apb4_monitor_backtoback"
+    sim_build = sim_build_path(tests_dir, test_name)
+    log_path = os.path.join(log_dir, f'{test_name}.log')
+
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/apb4_monitor.f")
+
+    parameters = {
+        'UNIT_ID': str(unit_id),
+        'AGENT_ID': str(agent_id),
+        'MAX_TRANSACTIONS': '4',
+        'ADDR_WIDTH': str(aw),
+        'DATA_WIDTH': str(dw),
+        'MONITOR_FIFO_DEPTH': '8',
+        'AW': str(aw),
+        'DW': str(dw),
+        'SW': str(dw // 8),
+    }
+
+    extra_env = {
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_AW': str(aw),
+        'TEST_DW': str(dw),
+        'TEST_UNIT_ID': str(unit_id),
+        'TEST_AGENT_ID': str(agent_id),
+        'TEST_MAX_TRANSACTIONS': '4',
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'LOG_PATH': log_path
+    }
+
+    compile_args = [
+        "--trace-fst",
+        "--trace-structs",
+        "-Wall", "-Wno-SYNCASYNCNET", "-Wno-UNUSED", "-Wno-WIDTHEXPAND",
+        "-Wno-WIDTHTRUNC", "-Wno-SELRANGE", "-Wno-PINCONNECTEMPTY", "--no-timing"
+    ]
+
+    run(
+        python_search=[tests_dir],
+        verilog_sources=verilog_sources,
+        includes=includes,
+        toplevel='apb4_monitor',
+        module='test_apb4_monitor',
+        parameters=parameters,
+        sim_build=sim_build,
+        extra_env=extra_env,
+        waves=enable_waves,
+        plus_args=(['--trace'] if enable_waves else []),
+        compile_args=compile_args,
+        testcase="apb4_monitor_backtoback_test",
+    )

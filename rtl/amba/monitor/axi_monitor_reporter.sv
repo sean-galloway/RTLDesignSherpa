@@ -137,7 +137,13 @@ module axi_monitor_reporter
     logic [$clog2(INTR_FIFO_DEPTH):0] w_fifo_count;
 
     gaxi_fifo_sync #(
-        .REGISTERED      (1),
+        // Mux read: rd_data is valid IN the clock of the rd_valid/rd_ready
+        // handshake, and that is the clock in which the output register loads w_fifo_rd_data.
+        // Flop mode (REGISTERED=1) presents rd_data one clock AFTER the
+        // handshake, so a back-to-back read re-emits the popped entry and
+        // loses the next one. gaxi FIFOs in rtl/ are mux-read by default
+        // (TASK-086; vault/handbook/design/valid-ready-contracts.md).
+        .REGISTERED      (0),
         .DATA_WIDTH      ($bits(monbus_entry_t)),
         .DEPTH           (INTR_FIFO_DEPTH),
         .ALMOST_WR_MARGIN(1),

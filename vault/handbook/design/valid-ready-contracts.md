@@ -59,5 +59,6 @@ summary: Stability rules; observers gate commands only, never responses.
   (2026-09-09): wb4_monitor's first test, with the event FIFO wired exactly
   like apb4_monitor's, wrote completion / timeout / completion on three
   consecutive clocks and emitted completion, the same completion, timeout.
-  apb4_monitor, apb5_monitor and axi_monitor_reporter share the wiring:
-  TASK-086 in vault/Tasks/amba/open.md.*
+  apb4_monitor, apb5_monitor and axi_monitor_reporter shared the wiring
+  and were switched to mux mode on 2026-09-10, each with a directed
+  three-events-on-consecutive-clocks witness (TASK-086, closed).*

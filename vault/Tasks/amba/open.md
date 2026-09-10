@@ -2258,54 +2258,47 @@ shared by the axil4 and axil5 TB families. Also in that run:
 reruns replay the same run, so those are not the same mechanism and want
 their own look.
 
+**ROOT-CAUSED AND FIXED 2026-09-10. Two defects, not one, both in test
+collateral -- the RTL and the framework are correct in both.**
+
+*(a) The three "Monitor not generating packets" failures.* Test 1 of the
+AXI4-Lite monitor TBs waits a FIXED 20 cycles for the completion packet, then
+counts. The MonbusSlave is built with no randomizer, so it takes the framework
+default whose `ready_delay` has a `(9,30)` bin drawn about one time in eight.
+When the draw lands there the packet is still on the bus, unaccepted, when the
+TB counts. Waveform evidence: on SEED=54803 `monbus_valid` rose at 290 ns and
+`monbus_ready` never rose before the sim ended at 480 ns -- the RTL HELD valid
+exactly as the handshake contract requires. The passing seed's own later
+packets show 24, 26 and 29-cycle delays, so the >20 bin is drawn routinely;
+Test 1 is just the only check with a window short enough to lose.
+
+This was already fixed once and never ported: the AXI4 and AXI5 monitor TBs
+replaced the fixed wait with a bounded poll and document the same ~12% race.
+The Lite pair still had it. Fixed both (`axil4_master_monitor_tb.py`, and the
+slave TB's 50-cycle variant -- a wider margin, same mechanism).
+Mutation-proven: SEED=54803 GREEN with the poll, RED again with the fixed
+wait restored. SEED=66068 and SEED=10268 also now pass.
+
+*(b) `test_apb4_master.py -k wavedrom` on SEED=56798.* Unrelated. The read
+constraint is the ordered sequence PSEL(0->1) -> PWRITE==0 -> PENABLE(0->1) ->
+PREADY(0->1), and the solver orders transitions STRICTLY, so it can only match
+a read with at least one wait state whose PREADY edge lands AFTER the PENABLE
+edge. The slave's `constrained` profile draws ready-delay 0 five times in
+nine; a run whose reads all draw 0 offers nothing to match. Pinning SEED was
+the old mitigation and a regression that exports SEED walks straight past it.
+Fixed by making the capture seed-independent: the wavedrom test now uses a
+FIXED slave wait-state count. Measured: delay 1 still fails (one wait state
+puts PREADY's edge ON the PENABLE edge, and the ordering is strict), 2/3/4 all
+capture all seven scenarios; pinned at 2. Verified across eight seeds
+including 56798: 8/8.
+
+*Still open:* `test_gaxi_regslice`'s 11 reruns -- a different mechanism, since
+seed-pinned reruns replay the same run rather than re-rolling.
+
+*Also noted:* `val/amba/test_axil5_master_rd_mon.py` sets `RANDOM_SEED` /
+`COCOTB_RANDOM_SEED` as a mitigation, and it is DEAD -- the TB calls
+`random.seed(os.environ['SEED'])` afterwards and overrides it.
+
 **Done when:** both seeds pass, the cause is recorded here, and the fix is
 in the test (or the DUT, if the seed really found one), not in the seed.
 
----
-
-### TASK-086: three monitors read the event FIFO's registered output in the handshake clock
-
-**Priority:** P2. Silent under light traffic, wrong under a burst: one packet
-duplicated and the next lost, with no counter moving.
-
-**Status:** open 2026-09-09. Found by the first `wb4_monitor` test: with the
-event FIFO built exactly like `apb4_monitor` (`gaxi_fifo_sync` with
-`REGISTERED=1`, packet assembled from `rd_data` in the clock of
-`rd_valid && rd_ready`), a completion, a timeout and another completion
-written on three consecutive clocks came out as completion, completion (the
-same one again), timeout -- the second completion never appeared. Debug
-prints on the FIFO ports showed `rd_data` still holding the popped entry in
-the clock after the pop while `rd_valid` stayed high.
-
-**Cause.** In flop mode the FIFO's output register loads `mem[r_rd_addr]`
-from the *current* read pointer, so `rd_data` lags a pop by one clock; the
-framework BFM models this as the `fifo_flop` mode ("note the handshake,
-capture the data next cycle") and `val/amba/test_gaxi_fifo_sync.py` passes
-in that mode. The FIFO is consistent with its own contract. The consumers
-are not:
-
-- `rtl/amba/apb4/apb4_monitor.sv` (`REGISTERED(1)`, packet built from
-  `w_fifo_rd_data` at `w_fifo_rd_ready = w_monbus_pkt_ready && w_fifo_rd_valid`)
-- `rtl/amba/apb5/apb5_monitor.sv` (same wiring)
-- `rtl/amba/monitor/axi_monitor_reporter.sv` (`REGISTERED(1)`,
-  `w_fifo_rd_ready = !monbus_valid`; check whether it samples `rd_data` in
-  the handshake clock or the one after before touching it)
-
-`wb4_monitor` sidesteps it with `REGISTERED(0)` (mux read: data valid in the
-handshake clock). That is the one-line fix for the siblings too, but the
-family owner decides -- the monitors' packet timing shifts by a clock, and
-the APB monitor tests may only ever produce one event per transfer, which
-is why nothing has caught this.
-
-**Reproduce:** temporarily set `REGISTERED(1)` on `wb4_monitor`'s event FIFO
-and run `SEED=1 TEST_LEVEL=gate pytest val/amba/test_wb4_monitor.py -k 32-32-8-0`;
-the rsp-timeout phase reports the 0x400 completion twice and the 0x404
-completion never.
-
-**Rule from Sean (2026-09-09):** the gaxi FIFOs in rtl/ should not usually
-use registered mode. So the fix is the one-line one -- `REGISTERED(0)` on
-the event FIFO of each sibling -- not a re-timed consumer.
-
-**Done when:** each sibling's event FIFO reads in mux mode, and a test that
-writes three events on consecutive clocks passes on each. Handbook: [[valid-ready-contracts]]
-"A registered-read FIFO hands over its data the clock after the handshake".

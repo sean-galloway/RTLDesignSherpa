@@ -2457,3 +2457,91 @@ renamed -- a naming inconsistency that had been hiding the defect from any
 generic gating test.
 
 Docs corrected on both pages. 70 tests pass, lint clean on 388 modules.
+
+---
+### TASK-086: three monitors read the event FIFO's registered output in the handshake clock
+
+**Priority:** P2. Silent under light traffic, wrong under a burst: one packet
+duplicated and the next lost, with no counter moving.
+
+**Status:** CLOSED 2026-09-10 -- all three siblings now read the event FIFO
+in mux mode, with a directed witness test on each APB monitor. Found
+2026-09-09. Found by the first `wb4_monitor` test: with the
+event FIFO built exactly like `apb4_monitor` (`gaxi_fifo_sync` with
+`REGISTERED=1`, packet assembled from `rd_data` in the clock of
+`rd_valid && rd_ready`), a completion, a timeout and another completion
+written on three consecutive clocks came out as completion, completion (the
+same one again), timeout -- the second completion never appeared. Debug
+prints on the FIFO ports showed `rd_data` still holding the popped entry in
+the clock after the pop while `rd_valid` stayed high.
+
+**Cause.** In flop mode the FIFO's output register loads `mem[r_rd_addr]`
+from the *current* read pointer, so `rd_data` lags a pop by one clock; the
+framework BFM models this as the `fifo_flop` mode ("note the handshake,
+capture the data next cycle") and `val/amba/test_gaxi_fifo_sync.py` passes
+in that mode. The FIFO is consistent with its own contract. The consumers
+are not:
+
+- `rtl/amba/apb4/apb4_monitor.sv` (`REGISTERED(1)`, packet built from
+  `w_fifo_rd_data` at `w_fifo_rd_ready = w_monbus_pkt_ready && w_fifo_rd_valid`)
+- `rtl/amba/apb5/apb5_monitor.sv` (same wiring)
+- `rtl/amba/monitor/axi_monitor_reporter.sv` (`REGISTERED(1)`,
+  `w_fifo_rd_ready = !monbus_valid`; check whether it samples `rd_data` in
+  the handshake clock or the one after before touching it)
+
+`wb4_monitor` sidesteps it with `REGISTERED(0)` (mux read: data valid in the
+handshake clock). That is the one-line fix for the siblings too, but the
+family owner decides -- the monitors' packet timing shifts by a clock, and
+the APB monitor tests may only ever produce one event per transfer, which
+is why nothing has caught this.
+
+**Reproduce:** temporarily set `REGISTERED(1)` on `wb4_monitor`'s event FIFO
+and run `SEED=1 TEST_LEVEL=gate pytest val/amba/test_wb4_monitor.py -k 32-32-8-0`;
+the rsp-timeout phase reports the 0x400 completion twice and the 0x404
+completion never.
+
+**Rule from Sean (2026-09-09):** the gaxi FIFOs in rtl/ should not usually
+use registered mode. So the fix is the one-line one -- `REGISTERED(0)` on
+the event FIFO of each sibling -- not a re-timed consumer.
+
+**Done when:** each sibling's event FIFO reads in mux mode, and a test that
+writes three events on consecutive clocks passes on each. Handbook: [[valid-ready-contracts]]
+"A registered-read FIFO hands over its data the clock after the handshake".
+
+**CLOSED 2026-09-10.** `REGISTERED(0)` on the event FIFO of `apb4_monitor`,
+`apb5_monitor` and `axi_monitor_reporter` -- the one-line form Sean asked
+for, not a re-timed consumer. All three read `rd_data` in the clock of the
+read handshake, so mux mode is what their consumers already assume.
+
+Witness tests, one per APB monitor (`apb4_monitor_backtoback_test`,
+`cocotb_test_apb5_monitor_backtoback`): three events on three CONSECUTIVE
+clocks, driven as pslverr 1/0/1 so the expected packet TYPES are error,
+completion, error. The stimulus alternates type rather than address on
+purpose, so the check does not depend on how the transaction table pairs a
+response with a command (that is TASK-069's subject).
+
+Both witnesses were mutation-checked by restoring `REGISTERED(1)`:
+
+| Build | Packets out |
+|---|---|
+| `REGISTERED(0)` | error, completion, error |
+| `REGISTERED(1)` | error, **error**, completion |
+
+which is the signature exactly: the head re-emitted, the entry behind it
+lost, the rest shifted late. So the defect was real in the APB monitors,
+not only in the wb4 module that surfaced it.
+
+`axi_monitor_reporter` has no directly drivable event port, so its evidence
+is the existing coverage: `test_mon_cg_gating.py` (24 passed) whose phase 6
+asserts no consecutive duplicate packets -- this bug's fingerprint -- plus
+the monitor soak, pktgen and runtime-disable tests (8 passed) and its own
+formal proof, which still passes. val/amba GATE: 738 passed, 0 failed.
+
+**Found while closing, NOT fixed (pre-existing):** `formal/amba/apb4_monitor`
+does not elaborate. `read_verilog -formal` rejects the `sv2v_cast_32` static
+cast in the flattened file; reading it with `-sv` gets past that and then
+hits "multiple drivers for r_trans_table[0]", the unpacked-struct-array
+problem the harness header already warns about. Verified identical on the
+unmodified HEAD RTL, so it predates this work. FORMAL_PRIORITY listed it as
+PASSING; that claim is now corrected.
+

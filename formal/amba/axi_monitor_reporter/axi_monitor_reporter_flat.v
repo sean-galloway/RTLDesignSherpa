@@ -125,7 +125,7 @@ module axi_monitor_reporter_debug (
 			end
 		end
 	end
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin : sv2v_autoblock_3
 			reg signed [31:0] idx;
 			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
@@ -289,7 +289,7 @@ module axi_monitor_reporter_perf (
 				default: w_next_state = 3'h0;
 			endcase
 	end
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
 			r_completed_count <= 1'sb0;
 			r_error_count <= 1'sb0;
@@ -410,7 +410,7 @@ module axi_monitor_reporter_threshold (
 		end
 	end
 	localparam [3:0] monitor_common_pkg_PktTypeThreshold = 4'h2;
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
 			begin : sv2v_autoblock_3
 				reg signed [31:0] idx;
@@ -566,7 +566,7 @@ module counter_bin (
 		else
 			counter_bin_next = counter_bin_curr;
 	end
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			counter_bin_curr <= 'b0;
 		else
@@ -643,7 +643,7 @@ module fifo_control (
 	generate
 		if (REGISTERED == 1) begin : gen_flop_mode
 			reg [ADDR_WIDTH:0] r_rdom_wr_ptr_bin_delayed;
-			always @(posedge rd_clk)
+			always @(posedge rd_clk or negedge rd_rst_n)
 				if (!rd_rst_n)
 					r_rdom_wr_ptr_bin_delayed <= 1'sb0;
 				else
@@ -770,7 +770,7 @@ module gaxi_fifo_sync (
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
 				reg [DATA_WIDTH - 1:0] r_rd_data;
-				always @(posedge axi_aclk)
+				always @(posedge axi_aclk or negedge axi_aresetn)
 					if (!axi_aresetn)
 						r_rd_data <= 1'sb0;
 					else
@@ -787,7 +787,7 @@ module gaxi_fifo_sync (
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
 			reg [DATA_WIDTH - 1:0] r_rd_data;
-			always @(posedge axi_aclk)
+			always @(posedge axi_aclk or negedge axi_aresetn)
 				if (!axi_aresetn)
 					r_rd_data <= 1'sb0;
 				else
@@ -801,7 +801,7 @@ module gaxi_fifo_sync (
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
 				reg [DATA_WIDTH - 1:0] r_rd_data;
-				always @(posedge axi_aclk)
+				always @(posedge axi_aclk or negedge axi_aresetn)
 					if (!axi_aresetn)
 						r_rd_data <= 1'sb0;
 					else
@@ -825,6 +825,7 @@ module axi_monitor_reporter (
 	aresetn,
 	trans_table,
 	timeout_detected,
+	filtered_mask,
 	cfg_error_enable,
 	cfg_compl_enable,
 	cfg_threshold_enable,
@@ -859,6 +860,7 @@ module axi_monitor_reporter (
 	input wire aresetn;
 	input wire [(MAX_TRANSACTIONS * 285) - 1:0] trans_table;
 	input wire [MAX_TRANSACTIONS - 1:0] timeout_detected;
+	input wire [MAX_TRANSACTIONS - 1:0] filtered_mask;
 	input wire cfg_error_enable;
 	input wire cfg_compl_enable;
 	input wire cfg_threshold_enable;
@@ -891,7 +893,7 @@ module axi_monitor_reporter (
 	wire [84:0] w_fifo_rd_data;
 	wire [$clog2(INTR_FIFO_DEPTH):0] w_fifo_count;
 	gaxi_fifo_sync #(
-		.REGISTERED(1),
+		.REGISTERED(0),
 		.DATA_WIDTH(85),
 		.DEPTH(INTR_FIFO_DEPTH),
 		.ALMOST_WR_MARGIN(1),
@@ -910,6 +912,9 @@ module axi_monitor_reporter (
 	wire err_valid;
 	wire to_valid;
 	wire compl_valid;
+	wire err_valid_f;
+	wire to_valid_f;
+	wire compl_valid_f;
 	wire [3:0] err_type;
 	wire [3:0] to_type;
 	wire [3:0] compl_type;
@@ -1001,26 +1006,29 @@ module axi_monitor_reporter (
 			assign compl_idx = 1'sb0;
 		end
 	endgenerate
+	assign err_valid_f = err_valid && !filtered_mask[err_idx];
+	assign to_valid_f = to_valid && !filtered_mask[to_idx];
+	assign compl_valid_f = compl_valid && !filtered_mask[compl_idx];
 	always @(*) begin
 		if (_sv2v_0)
 			;
 		w_fifo_wr_valid = 1'b0;
 		w_fifo_wr_data = 85'b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000;
-		if (err_valid) begin
+		if (err_valid_f) begin
 			w_fifo_wr_valid = 1'b1;
 			w_fifo_wr_data[84-:4] = err_type;
 			w_fifo_wr_data[80-:8] = err_code;
 			w_fifo_wr_data[72-:9] = err_chan;
 			w_fifo_wr_data[63-:64] = err_data;
 		end
-		else if (to_valid) begin
+		else if (to_valid_f) begin
 			w_fifo_wr_valid = 1'b1;
 			w_fifo_wr_data[84-:4] = to_type;
 			w_fifo_wr_data[80-:8] = to_code;
 			w_fifo_wr_data[72-:9] = to_chan;
 			w_fifo_wr_data[63-:64] = to_data;
 		end
-		else if (compl_valid) begin
+		else if (compl_valid_f) begin
 			w_fifo_wr_valid = 1'b1;
 			w_fifo_wr_data[84-:4] = compl_type;
 			w_fifo_wr_data[80-:8] = compl_code;
@@ -1046,15 +1054,15 @@ module axi_monitor_reporter (
 		w_mark_idx = 1'sb0;
 		w_mark_is_error = 1'b0;
 		w_mark_is_compl = 1'b0;
-		if (err_valid) begin
+		if (err_valid_f) begin
 			w_mark_idx = err_idx;
 			w_mark_is_error = 1'b1;
 		end
-		else if (to_valid) begin
+		else if (to_valid_f) begin
 			w_mark_idx = to_idx;
 			w_mark_is_error = 1'b1;
 		end
-		else if (compl_valid) begin
+		else if (compl_valid_f) begin
 			w_mark_idx = compl_idx;
 			w_mark_is_compl = 1'b1;
 		end
@@ -1072,7 +1080,13 @@ module axi_monitor_reporter (
 		begin : sv2v_autoblock_1
 			reg signed [31:0] idx;
 			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284])
+				if (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && filtered_mask[idx])
+					case (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3])
+						3'h3, 3'h4, 3'h5: w_auto_retire[idx] = 1'b1;
+						default:
+							;
+					endcase
+				else if (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284])
 					case (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3])
 						3'h3: w_auto_retire[idx] = !ENABLE_COMPL_LOGIC || !cfg_compl_enable;
 						3'h4: w_auto_retire[idx] = (timeout_detected[idx] ? !ENABLE_TIMEOUT_LOGIC || !cfg_timeout_enable : !ENABLE_ERROR_LOGIC || !cfg_error_enable);
@@ -1202,7 +1216,7 @@ module axi_monitor_reporter (
 		input reg [15:0] inp;
 		sv2v_cast_16 = inp;
 	endfunction
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
 			begin : sv2v_autoblock_2
 				reg signed [31:0] idx;
