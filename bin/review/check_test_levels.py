@@ -153,6 +153,22 @@ def grid_levels(tree):
             for t in n.targets:
                 if isinstance(t, ast.Name):
                     by_name.setdefault(t.id, set()).update(_levels_in(n.value))
+    # Second pass: a for-loop target is the other way a level reaches a name,
+    #   manual_levels = ['gate', 'func', 'full']
+    #   for level in manual_levels: ... 'test_level': level
+    # so the iterable is itself usually a name and has to resolve through the
+    # table the first pass just built. Without this the dict entry reads as a
+    # bare Name, contributes nothing, and a matrix built in a loop looks
+    # pinned to whatever literal its one remaining hard-coded row used
+    # (val/cdc/test_cdc_open_loop.py).
+    for n in ast.walk(tree):
+        if isinstance(n, ast.For) and isinstance(n.target, ast.Name):
+            lv = _levels_in(n.iter)
+            for ref in ast.walk(n.iter):
+                if isinstance(ref, ast.Name) and ref.id in by_name:
+                    lv |= by_name[ref.id]
+            if lv:
+                by_name.setdefault(n.target.id, set()).update(lv)
 
     seen = set()
     for n in ast.walk(tree):
@@ -165,6 +181,48 @@ def grid_levels(tree):
         for ref in ast.walk(n.value):
             if isinstance(ref, ast.Name) and ref.id in by_name:
                 seen |= by_name[ref.id]
+
+    # Third source, and the one that stopped this crying wolf: the levels
+    # named inside the GRID function itself -- any function that reads
+    # REG_LEVEL. A common house shape carries the level per configuration in
+    # the parameter list ({'data_width': 32, ..., 'test_level': 'func'}) and
+    # the wrapper exports params['test_level']. Nothing is ever assigned to a
+    # name called test_level in the wrapper, so the two passes above saw only
+    # the COCOTB test's own reader-side default (`test_level =
+    # os.environ.get('TEST_LEVEL', 'gate')`) and reported the whole file as
+    # pinned to gate. Measured 2026-09-10: that is 5 of converters' 12
+    # "failures", every one of them actually compliant, which is precisely
+    # the "a scan that cries wolf gets ignored" failure this check has
+    # already been rewritten three times to avoid.
+    #
+    # Harvested ONLY from dict entries keyed 'test_level'/'test_levels', not
+    # from the function at large. Reading the whole function was the obvious
+    # version and it immediately invented a new false positive: a stream grid
+    # iterates `for test_type in ['basic', 'full', 'multi_channel', ...]`, and
+    # 'full' there is a test TYPE, not a level -- so a compliant test was
+    # reported pinned to full. Same trap, one turn later: match on structure,
+    # never on a string that happens to spell a level.
+    #
+    # It cannot mask a genuine pin either: a grid that returns
+    # test_levels=['full'] in all three branches still names only 'full', and
+    # REG_LEVEL's own values (GATE/FUNC/FULL) are uppercase, so comparing
+    # against them contributes nothing.
+    for node in ast.walk(tree):
+        if not (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and mentions_name(node, 'REG_LEVEL')):
+            continue
+        for d in ast.walk(node):
+            if not isinstance(d, ast.Dict):
+                continue
+            for k, v in zip(d.keys, d.values):
+                if isinstance(k, ast.Constant) and isinstance(k.value, str) \
+                        and re.fullmatch(r'test_levels?', k.value):
+                    seen |= _levels_in(v)
+                    # One hop through a name, as above: the entry is often
+                    # a loop variable rather than a literal.
+                    for ref in ast.walk(v):
+                        if isinstance(ref, ast.Name) and ref.id in by_name:
+                            seen |= by_name[ref.id]
     return seen
 
 

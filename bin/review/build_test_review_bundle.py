@@ -22,6 +22,7 @@ bundler):
 Usage: build_test_review_bundle.py <area> [out_dir]
        area: cdc | common | math | amba ...  out_dir default ~/rtl-test-review
 """
+import ast
 import os
 import re
 import sys
@@ -30,7 +31,15 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 DV = os.environ.get("RDS_DV_REPO", "/home/seang/github/RTLDesignSherpa-DV")
 LIMIT = 120_000 * 4  # chars per unit, same as the doc bundler
 
-IMPORT_RE = re.compile(r"^\s*(?:from|import)\s+(TBClasses[\w.]*|CocoTBFramework[\w.]*)", re.M)
+# Three import roots, not two. A Pattern B area (projects/components/<c>/dv/
+# tests) keeps its TB classes in its OWN dv/tbclasses, imported as
+# `projects.components.<c>.dv.tbclasses.<x>` -- invisible to a pattern that
+# only knew TBClasses, so a bundle for such an area shipped its tests with no
+# testbenches and the reviewer could not see what the test actually drives.
+# That, plus main() only looking under val/, is why no projects/components
+# area has ever had a testqc round (BRIDGE-007, unrun since 2026-09-04).
+IMPORT_RE = re.compile(
+    r"^\s*(?:from|import)\s+(TBClasses[\w.]*|CocoTBFramework[\w.]*|projects\.[\w.]*)", re.M)
 FILELIST_RE = re.compile(r"['\"]([^'\"]*filelists/[^'\"]+\.f)['\"]")
 MODULE_HDR_RE = re.compile(r"^module\b.*?^\s*\);", re.M | re.S)
 
@@ -41,22 +50,33 @@ GOLDEN_BANNER = """
 # factory methods, scoreboard APIs). Do NOT file findings on these files;
 # the framework is reviewed in its own repo, and this local clone is a
 # convenience download (read-only).
+#
+# Reduced to its API SURFACE -- module/class/function signatures and
+# docstrings, bodies elided -- which is what "so claims about framework usage
+# can be checked" needs. Full bodies made this 74% of every unit and forced
+# one test per unit. Read a signature here; read the body in the DV repo.
 # ============================================================================
 """
 
 
 def resolve(mod):
-    """'TBClasses.a.b' -> repo path; 'CocoTBFramework.a.b' -> DV path."""
+    """'TBClasses.a.b' -> bin/TBClasses; 'projects.a.b' -> repo-relative;
+    'CocoTBFramework.a.b' -> the DV clone."""
     parts = mod.split(".")
     if parts[0] == "TBClasses":
         p = os.path.join(REPO, "bin", "TBClasses", *parts[1:]) + ".py"
+    elif parts[0] == "projects":
+        p = os.path.join(REPO, *parts) + ".py"
     else:
         p = os.path.join(DV, "src", "CocoTBFramework", *parts[1:]) + ".py"
     return p if os.path.exists(p) else None
 
 
 def chain(roots, want):
-    """Transitive import closure over the given namespaces."""
+    """Transitive import closure over the given namespace(s).
+
+    `want` is a prefix or a tuple of prefixes -- a Pattern B area's TB side
+    spans both `TBClasses` (shared) and `projects.` (its own)."""
     seen, out, queue = set(), [], list(roots)
     while queue:
         path = queue.pop(0)
@@ -74,27 +94,112 @@ def chain(roots, want):
     return out
 
 
-def cat(paths, banner_comment):
+def api_digest(path):
+    """A framework file reduced to its API surface: module docstring, classes,
+    and every def's signature + docstring, bodies elided.
+
+    FRAMEWORK.py is GOLDEN -- present so claims about framework usage can be
+    CHECKED (BFM names, factory methods, scoreboard APIs), never a finding
+    target. Shipping full bodies made it 364KB of a 490KB unit on the bridge
+    (74%), which pushed every single test over the size limit: 45 tests became
+    45 one-test units, i.e. 45 reviewer calls each dominated by code nobody is
+    allowed to file against. The signatures answer the question the bundle
+    exists to answer; the bodies do not.
+
+    Falls back to the raw text if the file will not parse, because a silently
+    empty digest would be worse than a big one."""
+    text = open(path, encoding="utf-8", errors="replace").read()
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return text
+    lines = text.splitlines()
+    out = []
+    mod_doc = ast.get_docstring(tree)
+    if mod_doc:
+        out.append(f'"""{mod_doc.strip()[:800]}"""')
+        out.append("")
+
+    def emit(node, indent):
+        pad = " " * indent
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            # The signature as written, however many lines it spans.
+            sig_end = node.body[0].lineno - 1 if node.body else node.lineno
+            sig = "\n".join(lines[node.lineno - 1:sig_end]).rstrip()
+            for d in node.decorator_list:
+                out.append(f"{pad}@{ast.unparse(d)}")
+            out.append(sig if sig.rstrip().endswith(":") else sig + ":")
+            doc = ast.get_docstring(node)
+            if doc:
+                one = " ".join(doc.split())[:300]
+                out.append(f'{pad}    """{one}"""')
+            out.append(f"{pad}    ...")
+            out.append("")
+        elif isinstance(node, ast.ClassDef):
+            bases = ", ".join(ast.unparse(b) for b in node.bases)
+            out.append(f"{pad}class {node.name}({bases}):" if bases else f"{pad}class {node.name}:")
+            doc = ast.get_docstring(node)
+            if doc:
+                one = " ".join(doc.split())[:400]
+                out.append(f'{pad}    """{one}"""')
+            body = [n for n in node.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+            if not body:
+                out.append(f"{pad}    ...")
+            for n in body:
+                emit(n, indent + 4)
+            out.append("")
+
+    for node in tree.body:
+        if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            emit(node, 0)
+        elif isinstance(node, ast.Assign):
+            # Module-level constants are part of the API (profile tables,
+            # signal-pattern maps); keep the short ones.
+            src = ast.unparse(node)
+            if len(src) <= 400:
+                out.append(src)
+    return "\n".join(out) + "\n"
+
+
+def cat(paths, banner_comment, digest=False):
     out = []
     for p in paths:
         rel = os.path.relpath(p, REPO) if p.startswith(REPO) else p
         out.append(f"\n{banner_comment} {'=' * 60}\n{banner_comment} FILE: {rel}\n"
                    f"{banner_comment} {'=' * 60}\n")
-        out.append(open(p, encoding="utf-8", errors="replace").read())
+        out.append(api_digest(p) if digest
+                   else open(p, encoding="utf-8", errors="replace").read())
     return "".join(out)
 
 
 def rtl_ifaces(filelists):
+    """Module headers of the RTL a test builds, for port/parameter ground truth.
+
+    Resolved by the repo's OWN filelist reader, not by re-parsing the .f here.
+    The hand-rolled version read only bare paths and skipped any line starting
+    with '-' or '+', so on a filelist written the normal way -- $REPO_ROOT
+    paths, `-f` includes of other filelists -- it found nothing and wrote an
+    EMPTY RTL_IFACES.sv. Measured on the bridge: 707 `-f` lines and 311
+    $REPO_ROOT lines across its filelists, so a reviewer would have been asked
+    to audit tests against RTL it could not see. Keeping one reader also means
+    the bundle cannot drift from what the tests actually compile
+    ([[filelists]])."""
+    sys.path.insert(0, os.path.join(REPO, "bin"))
+    try:
+        from TBClasses.shared.filelist_utils import get_sources_from_filelist
+    except ImportError:
+        return "// RTL interfaces unavailable: TBClasses.shared.filelist_utils not importable\n"
+
     ifaces, seen = [], set()
     for fl in filelists:
-        fl_path = os.path.join(REPO, fl)
-        if not os.path.exists(fl_path):
+        if not os.path.exists(os.path.join(REPO, fl)):
             continue
-        for line in open(fl_path, encoding="utf-8", errors="replace"):
-            line = line.strip()
-            if not line or line.startswith(("//", "#", "-", "+")):
-                continue
-            src = os.path.normpath(os.path.join(REPO, line))
+        try:
+            srcs, _incs = get_sources_from_filelist(repo_root=REPO, filelist_path=fl)
+        except Exception as e:                      # noqa: BLE001 - report, do not hide
+            ifaces.append(f"// {fl}: could not resolve ({e})\n")
+            continue
+        for src in srcs:
             if not src.endswith(".sv") or src in seen or not os.path.exists(src):
                 continue
             seen.add(src)
@@ -129,20 +234,34 @@ def main():
         i = argv.index("--tests")
         only = {l.strip() for l in open(argv[i + 1], encoding="utf-8") if l.strip()}
         del argv[i:i + 2]
-    area = argv[0]
+    area_arg = argv[0].rstrip("/")
     out_root = argv[1] if len(argv) > 1 else os.path.expanduser("~/rtl-test-review")
+
+    # A bare name means val/<name>; a path means itself, so a Pattern B area
+    # (projects/components/bridge/dv/tests) can be bundled too. The output
+    # directory is named for the component, not the whole path.
+    if os.path.isdir(os.path.join(REPO, "val", area_arg)):
+        test_dir, area = os.path.join(REPO, "val", area_arg), area_arg
+    elif os.path.isdir(os.path.join(REPO, area_arg)):
+        test_dir = os.path.join(REPO, area_arg)
+        parts = area_arg.split("/")
+        area = parts[2] if area_arg.startswith("projects/components/") and len(parts) > 2 \
+            else parts[-1]
+    else:
+        sys.exit(f"no such area: val/{area_arg} and {area_arg} both missing")
+
     tests = sorted(
-        os.path.join(REPO, "val", area, f)
-        for f in os.listdir(os.path.join(REPO, "val", area))
+        os.path.join(test_dir, f)
+        for f in os.listdir(test_dir)
         if re.match(r"test_.*\.py$", f) and (only is None or f in only)
     )
     if not tests:
-        sys.exit(f"no test_*.py under val/{area}" +
+        sys.exit(f"no test_*.py under {os.path.relpath(test_dir, REPO)}" +
                  (f" matching --tests ({len(only)} names)" if only else ""))
     if only:
         missing = only - {os.path.basename(t) for t in tests}
         if missing:
-            sys.exit(f"--tests names not found under val/{area}: {sorted(missing)}")
+            sys.exit(f"--tests names not found under {os.path.relpath(test_dir, REPO)}: {sorted(missing)}")
         print(f"scoped to {len(tests)} of the area's tests")
 
     entries = []  # (rel, tp, tbc, fwc, fls)
@@ -150,9 +269,10 @@ def main():
     for tp in tests:
         text = open(tp, encoding="utf-8", errors="replace").read()
         mods = IMPORT_RE.findall(text)
-        tb0 = [r for m in mods if m.startswith("TBClasses") if (r := resolve(m))]
+        tb0 = [r for m in mods
+               if m.startswith(("TBClasses", "projects.")) if (r := resolve(m))]
         fw0 = [r for m in mods if m.startswith("CocoTBFramework") if (r := resolve(m))]
-        tbc = chain(tb0, "TBClasses")
+        tbc = chain(tb0, ("TBClasses", "projects."))
         fw_seeds = list(fw0)
         for p in tbc:
             for m in IMPORT_RE.findall(open(p).read()):
@@ -163,7 +283,7 @@ def main():
         fwc = chain(fw_seeds, "CocoTBFramework")
         fls = sorted(set(FILELIST_RE.findall(text)))
         rel = os.path.relpath(tp, REPO)
-        blob = cat([tp], "#") + cat(tbc, "#") + cat(fwc, "#") + rtl_ifaces(fls)
+        blob = cat([tp], "#") + cat(tbc, "#") + cat(fwc, "#", digest=True) + rtl_ifaces(fls)
         if cur and cur_size + len(blob) > LIMIT:
             units.append(cur)
             cur, cur_size = [], 0
@@ -177,7 +297,7 @@ def main():
     for i, unit in enumerate(units, 1):
         d = os.path.join(out_root, area, "parts", f"part_{i:02d}") if multi \
             else os.path.join(out_root, area)
-        mlines = ["# Test-review manifest -- val/" + area, ""]
+        mlines = ["# Test-review manifest -- " + os.path.relpath(test_dir, REPO), ""]
         for rel, _tp, tbc, fwc, fls in unit:
             mlines.append(f"- `{rel}`")
             mlines.append(f"  - TB: {', '.join(os.path.relpath(p, REPO) for p in tbc) or '(inline/none)'}")
@@ -186,7 +306,7 @@ def main():
         write_part(d, "\n".join(mlines) + "\n",
                    cat([t[1] for t in unit], "#"),
                    cat(sorted({p for t in unit for p in t[2]}), "#"),
-                   cat(sorted({p for t in unit for p in t[3]}), "#"),
+                   cat(sorted({p for t in unit for p in t[3]}), "#", digest=True),
                    rtl_ifaces(sorted({f for t in unit for f in t[4]})))
         print(f"{d}: {len(unit)} tests")
 
