@@ -62,6 +62,60 @@ thrash" for LiteDRAM at every burst length).
 - The 24.7-cycle LiteDRAM read latency is a useful floor: pumice's 49.2 is
   ~25 cycles of extra pipeline for the same DRAM access.
 
+## Area (post-route, xc7a100tcsg324-1, `report_utilization -hierarchical`)
+
+Both bitstreams are timing-clean at 75 MHz (pumice WNS +0.039 ns on 93960
+endpoints; LiteDRAM +0.195 ns on 69640).
+
+| whole bitstream | LUTs | FFs | RAMB36 | RAMB18 | DSP |
+|---|---|---|---|---|---|
+| pumice `ddr2_char_top` | 33579 (53.0%) | 29152 (23.0%) | 2 | 0 | 58 |
+| LiteDRAM `litedram_char_top` | 22350 (35.3%) | 21758 (17.2%) | 13 | 9 | 60 |
+
+The shared measurement spine is the same in both, which is the point of the
+extraction and a check that the A/B is one measurement path:
+
+| shared block | pumice | LiteDRAM |
+|---|---|---|
+| `char_engine_block` (generators, crossbars, chargen regs, perf) | 12178 LUT / 13647 FF | 11968 LUT / 13568 FF |
+| `bridge_ddr2_char_axil` | 3250 / 2951 | 2664 / 2295 |
+| `harness_csr` | 775 / 475 | 649 / 481 |
+| `uart_axil_bridge` | 498 / 633 | 498 / 633 |
+| debug_sram + dfi_mon_ram | 2215 / 942 | 2170 / 942 |
+
+(The bridge differs because pumice's `ddr2_apb` slave is live and LiteDRAM's
+is terminated: 795 LUT of APB converter versus 190.)
+
+Controller side, which is what the comparison is about:
+
+| controller stack | LUTs | FFs | LUTRAM | RAMB36 | DSP |
+|---|---|---|---|---|---|
+| pumice `pumice_top` (via `pumice_top_geared`, gearing bypassed) | 12224 | 7878 | 300 | 2 | 2 |
+| + `a7ddrphy` | 421 | 509 | 0 | 0 | 0 |
+| + `dfi_cmd_delay` / `dfi_rddata_delay` shims | 336 | 1280 | 0 | 0 | 0 |
+| **pumice total** | **12981** | **9667** | 300 | 2 | 2 |
+| LiteDRAM `litedram_core` leaf (controller + a7ddrphy + CSR + PLL) | 2411 | 2046 | 231 | 12 | 0 |
+| + `VexRiscv` BIOS CPU (init/levelling; pumice does this from the host) | 1925 | 1279 | 0 | 1 | 4 |
+| **`litedram_core` total** | **4335** | **3325** | 231 | 13 | 4 |
+
+So pumice's controller stack is **5.4x the LUTs and 4.7x the flops** of
+LiteDRAM's controller+PHY, and 3.0x / 2.9x even against the whole
+`litedram_core` including a RISC-V CPU that pumice does not need. It delivers
+half the read bandwidth and twice the read latency at the same operating
+point.
+
+Caveats on the split. LiteX emits `litedram_core` as one flat Verilog module,
+so its 2411 LUT leaf row cannot be divided further: that number contains the
+DDR2 controller, the a7ddrphy, the wishbone/CSR fabric and the clock
+generator, and is therefore an **upper bound** on its controller alone.
+Pumice's 12224 is the controller alone, with its CSR block but without PHY or
+DFI shims. The two are not the same microarchitecture -- pumice carries
+reorder CAMs (2 RAMB36 + 300 LUTRAM), an AR-order read return ring, runtime
+paging/scheduling/refresh modes and a width-gearing wrapper, where LiteDRAM
+runs per-bank FSMs with round-robin arbitration and no reordering. Some of
+pumice's area buys configurability the comparison does not exercise. None of
+it currently buys bandwidth.
+
 ## Method notes
 
 - One writer, one reader (generator 0) on both sides; the multi-writer

@@ -64,4 +64,11 @@ file mkdir "$self/reports"
 write_bitstream -force "$self/bitstream/litedram_char.bit"
 report_timing_summary -file "$self/reports/timing.rpt"
 report_utilization      -file "$self/reports/utilization.rpt"
+# Per-instance breakdown. The flat total is not comparable to the pumice build:
+# both contain the same char_engine_block + bridge + csr harness, and the
+# controller is only part of what is left. -hierarchical is what separates
+# litedram_core (controller + its PHY + the BIOS CPU) from the shared spine.
+report_utilization -hierarchical -hierarchical_depth 4 \
+    -file "$self/reports/utilization_hier.rpt"
+write_checkpoint -force "$self/reports/litedram_char_routed.dcp"
 puts "Bitstream: $self/bitstream/litedram_char.bit"
