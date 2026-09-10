@@ -21,7 +21,7 @@ The project is organized as sibling "flows" plus a shared framework:
 |------|------------------|-----------|
 | `build-perf/` | pumice DDR2 (black box) + DFI + a7ddrphy | **Primary** flow: UART-driven host + Vivado build of the pumice harness on the Nexys A7. |
 | `flows-litedram-uart/` | LiteDRAM `litedram_core` | Apples-to-apples baseline: LiteDRAM's own DDR2 controller (self-initializing, own PLL/PHY) driven by the **same** engines/taps/host. |
-| `ddr2_char_framework/` | — | Shared instrumentation: harness RTL, the engine wrapper (`ddr2_char_macro`), the 1→4 AXIL bridge, and the cocotb DV. |
+| `ddr2_char_framework/` | — | Shared instrumentation: harness RTL, the engine spine (`char_engine_block`) and its pumice wrapper (`ddr2_char_macro`), the 1→6 AXIL bridge, and the cocotb DV. |
 
 : The characterization flows
 

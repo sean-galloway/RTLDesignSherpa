@@ -48,4 +48,7 @@
 -f $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/bridges/filelists/bridge_ddr2_char_rd.f
 
 # The macro itself
+# DUT-agnostic engine spine (engines + chargen_regs + crossbars + perf).
+# Shared with the LiteDRAM comparison flow -- see char_engine_block.sv.
+$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/char_engine_block.sv
 $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/ddr2_char_macro.sv

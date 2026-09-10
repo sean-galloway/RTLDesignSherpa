@@ -765,6 +765,14 @@ def test_ddr2_char_macro(request, test_type):
         "+define+USE_ASYNC_RESET",
         "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
+        # subtractive-slave optional status outputs (unmapped_*) -- the uart
+        # and char suites waive this and make lint carries it in LINT_WAIVERS.
+        "-Wno-PINMISSING",
+        # subtractive-slave optional status outputs (unmapped_*): the uart and
+        # char suites already waive this and make lint carries it in
+        # LINT_WAIVERS; this suite did not, so the bridge regen that added
+        # those ports broke every macro test here (2026-09-10).
+        "-Wno-PINMISSING",
         "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
         "-Wno-CASEOVERLAP",
     ]
@@ -881,6 +889,9 @@ def test_ddr2_char_macro_pacing_sweep(request, wr_gap, rd_gap):
         "+define+USE_ASYNC_RESET",
         "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
+        # subtractive-slave optional status outputs (unmapped_*) -- the uart
+        # and char suites waive this and make lint carries it in LINT_WAIVERS.
+        "-Wno-PINMISSING",
         "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
         "-Wno-CASEOVERLAP",
     ]
@@ -960,6 +971,9 @@ def test_ddr2_char_macro_open_page(request):
         "+define+USE_ASYNC_RESET",
         "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
+        # subtractive-slave optional status outputs (unmapped_*) -- the uart
+        # and char suites waive this and make lint carries it in LINT_WAIVERS.
+        "-Wno-PINMISSING",
         "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
         "-Wno-CASEOVERLAP",
     ]
@@ -1065,6 +1079,9 @@ def test_ddr2_char_macro_ooo_pacing_schmoo(
         "+define+USE_ASYNC_RESET",
         "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
+        # subtractive-slave optional status outputs (unmapped_*) -- the uart
+        # and char suites waive this and make lint carries it in LINT_WAIVERS.
+        "-Wno-PINMISSING",
         "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
         "-Wno-CASEOVERLAP",
     ]
@@ -1189,6 +1206,9 @@ def test_ddr2_char_csr_probe(request):
         "+define+USE_ASYNC_RESET",
         "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
+        # subtractive-slave optional status outputs (unmapped_*) -- the uart
+        # and char suites waive this and make lint carries it in LINT_WAIVERS.
+        "-Wno-PINMISSING",
         "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
         "-Wno-CASEOVERLAP",
     ]
@@ -1369,6 +1389,9 @@ def test_ddr2_char_1wr1rd(request):
         "+define+USE_ASYNC_RESET",
         "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
+        # subtractive-slave optional status outputs (unmapped_*) -- the uart
+        # and char suites waive this and make lint carries it in LINT_WAIVERS.
+        "-Wno-PINMISSING",
         "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
         "-Wno-CASEOVERLAP",
     ]

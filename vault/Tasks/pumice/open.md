@@ -4,6 +4,41 @@
 
 ---
 
+## PUMICE-027 — write responses leave pumice out of AW order; the char write bridge routes B by position
+**Status:** open 2026-09-10  **Priority:** P2
+**Found by:** `test_ddr2_char_macro[bank_parallel]` (the only multi-writer scenario), once the
+macro suite could compile again (the `-Wno-PINMISSING` waiver for the bridge regen's
+`unmapped_*` ports). Fails identically on HEAD's inline macro and on the extracted
+`char_engine_block`, so it predates the refactor.
+
+**Symptom:** `pumice_wr_adapter.sv:168` BRIDGE-010 `$error` at ~31 us: "slave returned B out of
+AW order". The generated `bridge_ddr2_char_wr` routes B back to the issuing generator by FIFO
+POSITION (AW accept order) and documents that it REQUIRES the slave to return B in AW order
+across all IDs. pumice's write CAM commits in FR-FCFS order (oldest schedulable per row, not
+global AW order), so with two writers interleaving, a younger writer's B can come back before an
+older one's. The check is sim-only (`translate_off`); on the board the B would silently reach the
+WRONG generator (its bresp/count is credited to the other gen). AXI4 permits the slave's
+reordering between IDs, so this is a system contract gap, not a protocol violation.
+
+**Not affecting the numbers taken so far:** every board characterization run drives generator 0
+alone (one writer, one reader), where position routing cannot misroute. Only bank_parallel /
+multi-generator runs are exposed.
+
+**Fix options (decide, do not patch blind):**
+1. pumice: return B in AW order -- the write-side twin of `pumice_rd_return_ring` (the read
+   path already holds R returns to AR order). Costs a small ticket ring; keeps the bridge
+   position-routed as generated.
+2. bridge: regenerate `bridge_ddr2_char_wr` with ID-based B routing (each generator already
+   owns a distinct AWID space in bank_parallel). The converters/bridge family is in-order by
+   design, so this is a generator feature.
+3. Test-only: run bank_parallel with `SCHED_POLICY.order_mode=1` (in_order) -- confirms the
+   mechanism, does not fix the board exposure.
+
+Also note the BRIDGE-010 message prints the ID strings garbled (`%0h` applied to the message
+continuation) -- cosmetic, in the generated adapter template.
+
+---
+
 ## PUMICE-026 — finish the LiteDRAM same-harness A/B (it is already ~80% built)
 **Status:** open 2026-09-10  **Priority:** P2
 **Intent (Sean):** "drop liteddr into the pumice harness so testing is the same."
@@ -37,8 +72,21 @@ That flow already exists and is documented as **WIRED** in its `HARNESS_PLAN.md`
   waivers handed to Vivado, and `VexRiscv.v` pinned to a path inside the LiteX
   venv. `regen.sh` no longer hardcodes a `/tmp` venv either.
 
-**BLOCKING — the one real piece of work left.** Synthesis now reaches the
-harness and stops on **41 port mismatches**: `char_engine_harness.sv` is wired
+**Progress 2026-09-10 (later) — item 0 DONE, harness matches build-perf:**
+Sean asked for the LiteDRAM harness to match the current one; the chosen
+route was to extract a shared engine block. `char_engine_block.sv` (chargen
+regs + generator array + crossbars + perf, one AXI4 master) is pulled out of
+`ddr2_char_macro.sv`, which now wraps pumice around it; `char_engine_harness.sv`
+is build-perf's `ddr2_char_harness` minus the controller (same UART bridge,
+same `bridge_ddr2_char_axil` address map with `ddr2_apb` terminated, same
+`harness_csr` with BUILD_ID "LDR2", same timer/LEDs). `make lint` clean;
+Makefile on `make/fpga_flow.mk`; `host/host_litedram_char.py` is the pumice
+host with the pumice-CSR surface as no-ops. `FPGA_CLK_HZ` in the top was still
+100 MHz after the 75 MHz regen (UART divisor wrong) -- fixed. Bitstream build
+in flight; then program, `--char-profile matrix --char-scale 1000`, save CSV.
+
+**Was BLOCKING (now resolved as above).** Synthesis reached the harness and
+stopped on **41 port mismatches**: `char_engine_harness.sv` is wired
 to a `harness_csr` that no longer exists. The whole per-generator config
 surface (`o_cfg_wr_*`, `o_cfg_rd_*`, the start pulses, the CRC readback) moved
 out of `harness_csr` into `chargen_regs` when the char framework went to a
