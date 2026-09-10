@@ -36,6 +36,35 @@ from CocoTBFramework.components.shared.memory_model import MemoryModel
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import reg_level_grid, level_env
+
+
+# TEST_LEVEL sets what each cell does; REG_LEVEL (via reg_level_grid) sets how
+# many cells run. The knobs that matter here are how many AXI timing profiles
+# the comprehensive sweep walks and how hard the stress and back-to-back burst
+# scenarios push. 'func' is exactly what this file did before the level axis
+# existed, so its coverage is unchanged and gate/full are added around it.
+#
+# gate keeps only the back-to-back profile: it is the fastest and the one the
+# b2b burst hang was found under, so the smoke pass still covers the scenario
+# that has actually broken.
+_DEPTH = {
+    'gate': {'profiles': ['axi4_backtoback'],
+             'stress_single': 16, 'stress_multi': 8,
+             'b2b_bursts': 4, 'b2b_len': 2},
+    'func': {'profiles': ['axi4_backtoback', 'axi4_normal', 'axi4_fast', 'axi4_slow'],
+             'stress_single': 64, 'stress_multi': 32,
+             'b2b_bursts': 10, 'b2b_len': 2},
+    'full': {'profiles': ['axi4_backtoback', 'axi4_normal', 'axi4_fast', 'axi4_slow'],
+             'stress_single': 192, 'stress_multi': 96,
+             'b2b_bursts': 32, 'b2b_len': 4},
+}
+
+
+def _depth():
+    """Depth for this cocotb process, from the TEST_LEVEL the wrapper exported."""
+    level = os.environ.get('TEST_LEVEL', 'gate').lower()
+    return _DEPTH.get(level, _DEPTH['gate'])
 
 
 class Axi2ApbTB(TBBase):
@@ -403,15 +432,17 @@ class Axi2ApbTB(TBBase):
         operations = 0
         base_addr = 0x1000
 
+        depth = _depth()
+
         # Rapid single-byte operations
-        for i in range(64):
+        for i in range(depth['stress_single']):
             addr = base_addr + i
             data = bytearray([i & 0xFF])
             await self.single_write_read_test(addr, data, f"stress_{i}", quick_mode=True)
             operations += 1
 
         # Rapid multi-byte operations
-        for i in range(32):
+        for i in range(depth['stress_multi']):
             addr = base_addr + 0x100 + (i * 4)
             data = bytearray([i, i+1, i+2, i+3])
             await self.single_write_read_test(addr, data, f"stress_multi_{i}", quick_mode=True)
@@ -573,13 +604,11 @@ class Axi2ApbTB(TBBase):
         # Directed strobe regression first -- cheap and decisive
         await self.partial_strobe_write_test()
 
-        # Test with different timing profiles
-        timing_profiles_to_test = [
-            'axi4_backtoback',
-            'axi4_normal',
-            'axi4_fast',
-            'axi4_slow',
-        ]
+        # Test with different timing profiles. How many is a level decision.
+        timing_profiles_to_test = list(_depth()['profiles'])
+        self.log.info(
+            f"TEST_LEVEL={os.environ.get('TEST_LEVEL', 'gate')} -> "
+            f"profiles={timing_profiles_to_test}")
 
         total_operations = 0
 
@@ -625,8 +654,10 @@ class Axi2ApbTB(TBBase):
             self.log.info("Running b2b burst read test")
             self.apply_timing_profile('axi4_backtoback')
             await self.wait_clocks('aclk', 10)
-            await self.run_b2b_burst_read_test(num_bursts=10, burst_len=2)
-            total_operations += 10
+            b2b = _depth()
+            await self.run_b2b_burst_read_test(num_bursts=b2b['b2b_bursts'],
+                                               burst_len=b2b['b2b_len'])
+            total_operations += b2b['b2b_bursts']
         except Exception as e:
             error_msg = f"B2B burst read test failed: {e}"
             self.log.error(f"B2B error: {error_msg}")
@@ -679,7 +710,9 @@ async def axi2apb4_shim_test(dut):
                                 # in the bridge.
                                 (8, 32, 32, 1, 12, 32),
                             ])
-def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width,
+                      apb_addr_width, apb_data_width, test_level):
 
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -703,7 +736,8 @@ def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb
     uw_str = TBBase.format_dec(user_width, 3)
     aaw_str = TBBase.format_dec(apb_addr_width, 3)
     adw_str = TBBase.format_dec(apb_data_width, 3)
-    test_name_plus_params = f"test_{dut_name}_aw{aw_str}_dw{dw_str}_uw{uw_str}_aaw{aaw_str}_adw{adw_str}"
+    test_name_plus_params = (f"test_{dut_name}_aw{aw_str}_dw{dw_str}_uw{uw_str}"
+                             f"_aaw{aaw_str}_adw{adw_str}_{test_level}")
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     sim_build = sim_build_path(tests_dir, test_name_plus_params)
@@ -727,7 +761,12 @@ def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'DEBUG',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(0x434749)
+        **level_env(test_level),
+        # The pinned seed stays and deliberately wins over level_env's: this
+        # file's stress phase generates its address and data patterns from
+        # random, and the b2b-burst scenario it was extended with reproduces a
+        # specific hang. A drawn seed would make that reproduction a lottery.
+        'SEED': str(0x434749),
     }
 
     extra_env.update({f'TEST_{k}': str(v) for k, v in rtl_parameters.items()})

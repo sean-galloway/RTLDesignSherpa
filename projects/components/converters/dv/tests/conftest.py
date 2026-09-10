@@ -135,20 +135,22 @@ def test_level():
     return os.environ.get('TEST_LEVEL', 'gate')
 
 # ----------------------------------------------------------------------
-# REG_LEVEL -> TEST_LEVEL bridge
+# REG_LEVEL -> TEST_LEVEL: deliberately NOT bridged here
 # ----------------------------------------------------------------------
-# make/tests.mk drives the regression level through REG_LEVEL; this area's test
-# modules read TEST_LEVEL, and most read it at MODULE IMPORT time. conftest is
-# imported before any test module, so setting it here is early enough.
+# This area used to stamp os.environ['TEST_LEVEL'] = REG_LEVEL at import. That
+# was load-bearing while the wrappers exported nothing, but it becomes a trap
+# the moment they do: cocotb_test.simulator.set_env copies every os.environ
+# entry OVER the caller's extra_env, so a process-level stamp silently beats
+# the per-cell value a wrapper just passed. The REG_LEVEL grid still expands to
+# gate/func/full cells and every one of them runs at the same depth, while the
+# run reports three distinct levels. Measured on the bridge, 2026-09-09: 216
+# cells, three per test, all logging level=full with identical wall-clock.
 #
-# WITHOUT THIS BRIDGE THE MAKEFILE CONVERGENCE SILENTLY REDUCES COVERAGE: the
-# 4-line area Makefile sets REG_LEVEL=full, nothing reads it, TEST_LEVEL falls
-# back to its default, and `make run-all-full-parallel` quietly runs a smaller
-# matrix while still reporting "passed". Measured on pumice fub during this
-# conversion: 91 tests -> 79.
+# All 18 wrappers in this directory now carry their own REG_LEVEL grid and
+# export TEST_LEVEL per cell, so the stamp has been removed. Both halves had to
+# change together: removing the stamp on its own would have dropped every test
+# that did not export to the default depth. Do not reinstate it -- add the
+# export to the new wrapper instead. bin/review/check_test_levels.py enforces
+# this and names the area if either half regresses.
 #
-# REG_LEVEL wins over TEST_LEVEL, matching stream's conftest: the make target
-# you typed is more explicit than an inherited environment variable.
-_reg_level = os.environ.get('REG_LEVEL')
-if _reg_level:
-    os.environ['TEST_LEVEL'] = _reg_level.upper()
+# See TBClasses/shared/test_levels.py for the measurement and the helpers.

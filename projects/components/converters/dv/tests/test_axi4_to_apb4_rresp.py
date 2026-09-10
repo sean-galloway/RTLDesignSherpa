@@ -44,9 +44,28 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import reg_level_grid, level_env
 
 APB_DW = 32
 RESP_OKAY, RESP_SLVERR = 0b00, 0b10
+
+# Which (first_slice_err, second_slice_err) beats this level drives. The
+# original defect was RRESP taken from the in-flight slice, so the FIRST-slice
+# case is the one that catches it and 'gate' keeps only that. 'func' adds the
+# second-slice and both-clean cases, which together prove the converter is not
+# simply answering SLVERR to everything. 'full' repeats the whole set so a beat
+# is also seen following an errored predecessor -- the accumulator has to
+# restart per beat, and a stuck accumulator only shows up on the beat after.
+_CASES = {
+    'gate': [(1, 0)],
+    'func': [(1, 0), (0, 1), (0, 0)],
+    'full': [(1, 0), (0, 1), (0, 0), (1, 1), (0, 0), (1, 0), (0, 0), (0, 1)],
+}
+
+
+def _cases():
+    """Slice-error cases for this process, from the wrapper's TEST_LEVEL."""
+    return _CASES.get(os.environ.get('TEST_LEVEL', 'gate').lower(), _CASES['gate'])
 
 
 def rsp_word(prdata: int, pslverr: int, first: int, last: int) -> int:
@@ -103,11 +122,9 @@ async def _slice(dut, prdata, pslverr, first, last):
     await RisingEdge(dut.aclk)
 
 
-@cocotb.test(timeout_time=2, timeout_unit="ms")
-async def cocotb_test_rresp_first_slice_error(dut):
-    """An error on the FIRST slice must still mark the assembled beat."""
-    await _reset(dut)
-
+async def _one_beat(dut, addr, err_first, err_second):
+    """Issue one AXI read beat, answer its two APB slices with the given
+    per-slice PSLVERR, and return the RRESP the converter produced."""
     # One AXI read beat = two APB slices (DW=64, APBDW=32).
     #
     # ARSize = IW + AW + 8+3+2+1+4+3+4+4 + UW, packed MSB..LSB as
@@ -128,7 +145,7 @@ async def cocotb_test_rresp_first_slice_error(dut):
     O_LEN    = O_SIZE + 3
     O_ADDR   = O_LEN + 8
     O_ID     = O_ADDR + AW
-    ar = ((3 << O_ID) | (0x1000 << O_ADDR) | (0 << O_LEN) |
+    ar = ((3 << O_ID) | (addr << O_ADDR) | (0 << O_LEN) |
           (3 << O_SIZE) | (1 << O_BURST))      # size=8B, burst=INCR
     dut.r_s_axi_ar_pkt.value = ar
     dut.r_s_axi_arvalid.value = 1
@@ -149,23 +166,50 @@ async def cocotb_test_rresp_first_slice_error(dut):
                 seen.append((int(dut.r_s_axi_r_pkt.value) >> 2) & 0x3)
 
     w = cocotb.start_soon(watch_r())
-    await _slice(dut, 0xAAAA0000, pslverr=1, first=1, last=0)   # FIRST slice errors
-    await _slice(dut, 0xBBBB1111, pslverr=0, first=0, last=1)   # second is clean
+    await _slice(dut, 0xAAAA0000, pslverr=err_first, first=1, last=0)
+    await _slice(dut, 0xBBBB1111, pslverr=err_second, first=0, last=1)
     for _ in range(30):
         await RisingEdge(dut.aclk)
     w.kill()
 
-    dut._log.info(f"RRESP seen: {[bin(s) for s in seen]}")
-    assert seen, "no R beat returned after both slices were answered"
-    assert seen[-1] == RESP_SLVERR, (
-        f"RRESP={seen[-1]:#04b} but the FIRST APB slice of this beat returned "
-        f"PSLVERR. RRESP is being driven from the in-flight slice alone, so an "
-        f"error in any earlier slice is dropped and the master keeps a "
-        f"partially bad beat believing it succeeded.")
+    assert seen, (
+        f"no R beat returned after both slices of the beat at 0x{addr:X} were "
+        f"answered")
+    return seen[-1]
 
 
-@pytest.mark.parametrize("testcase", ["cocotb_test_rresp_first_slice_error"])
-def test_axi4_to_apb4_rresp(testcase):
+@cocotb.test(timeout_time=20, timeout_unit="ms")
+async def cocotb_test_rresp_slice_error(dut):
+    """PSLVERR on ANY slice of a width-converted read must reach RRESP."""
+    await _reset(dut)
+
+    failures = []
+    for i, (err_first, err_second) in enumerate(_cases()):
+        addr = 0x1000 + 0x40 * i
+        rresp = await _one_beat(dut, addr, err_first, err_second)
+        expect = RESP_SLVERR if (err_first or err_second) else RESP_OKAY
+        dut._log.info(
+            f"beat {i} @0x{addr:X} slice_err=({err_first},{err_second}) "
+            f"RRESP={rresp:#04b} expect={expect:#04b}")
+        if rresp != expect:
+            which = "+".join(
+                n for n, e in (("first", err_first), ("second", err_second)) if e)
+            failures.append(
+                f"beat {i} at 0x{addr:X}: RRESP={rresp:#04b}, expected "
+                f"{expect:#04b} with PSLVERR on slice(s) [{which or 'none'}]")
+
+    # Name every mismatch, not just the first: a converter that drives RRESP
+    # from the in-flight slice fails only the first-slice cases, while one with
+    # a stuck accumulator fails the clean beats that follow an errored one.
+    # Which subset fails is the diagnosis.
+    assert not failures, (
+        "RRESP did not match the per-slice PSLVERR for "
+        f"{len(failures)} of {len(_cases())} beats:\n  " +
+        "\n  ".join(failures))
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_to_apb4_rresp(test_level):
     """Per-slice RRESP error propagation (TASK-064 item 1)."""
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -174,7 +218,7 @@ def test_axi4_to_apb4_rresp(testcase):
         'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "axi4_to_apb4_convert"
-    test_name = f"test_{worker_id}_{dut_name}_rresp"
+    test_name = f"test_{worker_id}_{dut_name}_rresp_{test_level}"
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
@@ -189,12 +233,12 @@ def test_axi4_to_apb4_rresp(testcase):
         includes=includes + [rtl_dict['rtl_cmn'], sim_build],
         toplevel=dut_name,
         module="test_axi4_to_apb4_rresp",
-        testcase=testcase,
         parameters={'AXI_DATA_WIDTH': '64', 'APB_DATA_WIDTH': '32',
                     'AXI_ADDR_WIDTH': '32', 'APB_ADDR_WIDTH': '32',
                     'AXI_ID_WIDTH': '8'},
         sim_build=sim_build,
-        extra_env={'DUT': dut_name, 'COCOTB_LOG_LEVEL': 'INFO'},
+        extra_env={'DUT': dut_name, 'COCOTB_LOG_LEVEL': 'INFO',
+                   **level_env(test_level)},
         keep_files=True,
         compile_args=["-Wall", "-Wno-DECLFILENAME", "-Wno-UNUSED",
                       "-Wno-PINMISSING", "-Wno-UNDRIVEN", "-Wno-WIDTHEXPAND",

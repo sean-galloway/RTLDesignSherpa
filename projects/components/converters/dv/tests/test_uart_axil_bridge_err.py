@@ -16,7 +16,6 @@ data as a normal read result.
 """
 
 import os
-import random
 import sys
 
 import pytest
@@ -30,8 +29,20 @@ sys.path.insert(0, repo_root)
 
 from projects.components.converters.dv.tbclasses.uart_axil_bridge_tb import UARTAXILBridgeTB
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import reg_level_grid, level_env
 
 SLVERR = 2
+
+# How many distinct addresses the error probe walks. One address proves the
+# response path is read at all; more of them prove the bridge is not keying its
+# answer off a particular address. 'gate' is what this file did before the level
+# axis existed.
+_ADDRS = {'gate': 1, 'func': 4, 'full': 16}
+
+
+def _addr_count():
+    """Address count for this process, from the wrapper's TEST_LEVEL."""
+    return _ADDRS.get(os.environ.get('TEST_LEVEL', 'gate').lower(), 1)
 
 
 @cocotb.test(timeout_time=500, timeout_unit="ms")
@@ -45,13 +56,18 @@ async def uart_axil_bridge_err_test(dut):
 
     failures = []
 
-    got = await tb.send_uart_command_raw("W 100 DEADBEEF\n", 4)
-    if got != "ERR\n":
-        failures.append(f"write with SLVERR answered {got!r}, expected 'ERR\\n'")
+    addrs = [0x100 + 0x10 * i for i in range(_addr_count())]
 
-    got = await tb.send_uart_command_raw("R 100\n", 4)
-    if got != "ERR\n":
-        failures.append(f"read with SLVERR answered {got!r}, expected 'ERR\\n'")
+    for addr in addrs:
+        got = await tb.send_uart_command_raw(f"W {addr:X} DEADBEEF\n", 4)
+        if got != "ERR\n":
+            failures.append(
+                f"write to 0x{addr:X} with SLVERR answered {got!r}, expected 'ERR\\n'")
+
+        got = await tb.send_uart_command_raw(f"R {addr:X}\n", 4)
+        if got != "ERR\n":
+            failures.append(
+                f"read from 0x{addr:X} with SLVERR answered {got!r}, expected 'ERR\\n'")
 
     # And the healthy path still works once the override is lifted, so the
     # test cannot pass by the bridge simply answering ERR to everything.
@@ -66,9 +82,10 @@ async def uart_axil_bridge_err_test(dut):
 
 
 @pytest.mark.parametrize("params", [
-    {'axil_data_width': 32, 'axil_addr_width': 32, 'clks_per_bit': 868, 'test_level': 'gate'},
+    {'axil_data_width': 32, 'axil_addr_width': 32, 'clks_per_bit': 868},
 ])
-def test_uart_axil_bridge_err(request, params):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_uart_axil_bridge_err(request, params, test_level):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_converters': 'projects/components/converters/rtl',
         'rtl_amba_includes': 'rtl/amba/includes'
@@ -80,7 +97,6 @@ def test_uart_axil_bridge_err(request, params):
     axil_data_width = params['axil_data_width']
     axil_addr_width = params['axil_addr_width']
     clks_per_bit = params['clks_per_bit']
-    test_level = params['test_level']
 
     test_name_plus_params = (f"test_uart_axil_bridge_err_"
                              f"dw{axil_data_width}_aw{axil_addr_width}_"
@@ -109,8 +125,7 @@ def test_uart_axil_bridge_err(request, params):
         'COCOTB_LOG_LEVEL': 'DEBUG',
         'COCOTB_RESULTS_FILE': results_path,
         'COCOTB_TEST_TIMEOUT': '30000',
-        'SEED': os.environ.get('SEED', str(random.randint(0, 1000000))),
-        'TEST_LEVEL': test_level,
+        **level_env(test_level),
         'AXIL_DATA_WIDTH': str(axil_data_width),
         'AXIL_ADDR_WIDTH': str(axil_addr_width),
         'CLKS_PER_BIT': str(clks_per_bit),

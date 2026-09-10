@@ -330,12 +330,11 @@ beats the per-cell value a wrapper exports. A "REG_LEVEL -> TEST_LEVEL
 bridge" block -- `os.environ['TEST_LEVEL'] = _reg_level.upper()` at
 conftest import, written for wrappers that exported nothing -- was copied
 into thirteen conftests. The bridge's copy is removed (this task's
-evidence); the other twelve remain:
+evidence), converters followed on 2026-09-10, and ten remain:
 
     projects/components/misc/dv/tests/fub/conftest.py
     projects/components/retro_legacy_blocks/dv/tests/conftest.py
     projects/components/apbx-xbar/dv/tests/conftest.py
-    projects/components/converters/dv/tests/conftest.py
     projects/components/dmas/rapids/dv/tests/{fub,fub_beats,macro,macro_beats,top_beats}/conftest.py
     projects/components/memory-controllers/pumice-ddr2-lpddr2/dv/tests/{fub,macro,top}/conftest.py
 
@@ -344,7 +343,7 @@ gate/func/full triple of every test, all logging `level=full` with
 identical wall-clock. Removing the stamp and re-running one test at
 REG_LEVEL=FULL gave gate/func/full cells at 1/4/16 offsets.
 
-**The stamp is load-bearing in eleven of the twelve.** Measured 2026-09-10
+**The stamp is load-bearing in every remaining area.** Measured 2026-09-10
 with `check_test_levels.py`: every area except the bridge reports
 `depth:not-exported` on nearly every test -- their wrappers export nothing,
 so the stamp is the ONLY thing mapping REG_LEVEL onto a depth. Deleting it
@@ -378,3 +377,30 @@ is settled is that only removing the stamp works.
 `projects/components/bridge` is the worked example, converted end to end.
 rapids is out of scope until its suite is green again. Handbook:
 [[test-runner]] (the cocotb_test precedence note), [[test-review]].
+
+**converters, converted 2026-09-10.** Eighteen wrappers. Eleven already
+exported a depth and none of it reached the simulator, which is exactly the
+half-state this task describes: the grid expanded and every cell ran at the
+same depth. The seven with no axis at all -- the AXI2APB4 shim, the
+AXI4-to-APB4 RRESP witness, the data upsize and downsize converters, the
+downsize smoke test, the PeakRDL adapter and the UART bridge error witness --
+each got a REG_LEVEL grid, a per-cell `level_env` export and a depth profile
+its cocotb body reads. `func` was set to the counts each file already used, so
+the conversion adds gate and full around existing coverage rather than
+redefining it. Then the stamp went, in the same commit.
+
+Step 4 measured, not assumed. Grid: 60 / 113 / 171 tests at GATE / FUNC /
+FULL. Depth reaching the simulator: the three sibling cells of
+`test_dnsize_quick` logged 3, 12 and 48 transactions, and the RRESP witness
+drove 1, 3 and 8 beats.
+
+Two findings fell out of the conversion, both of the kind [[BRIDGE-007]] is
+for. The downsize smoke test discarded its scenario's pass/fail return, so it
+could not fail on a data mismatch. The RRESP witness pinned `testcase=` to a
+single cocotb test; it now runs a level-selected list of per-slice error cases
+through one test and reports every mismatching beat, because which subset
+fails is the diagnosis -- driving RRESP from the in-flight slice fails the
+first-slice cases, while a stuck accumulator fails the clean beats that follow
+an errored one. That second case did not exist before and is the coverage the
+level axis actually bought: at full the run now shows OKAY on beats 2, 4 and 6
+immediately after SLVERR beats.

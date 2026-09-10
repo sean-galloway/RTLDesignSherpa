@@ -13,6 +13,7 @@ import sys
 from projects.components.converters.dv.tbclasses.axi_data_upsize_tb import AXIDataUpsizeTB
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import reg_level_grid, level_env
 
 
 # Test parameter combinations
@@ -27,14 +28,32 @@ test_params = [
 ]
 
 
+# REG_LEVEL selects the grid (how many cells); TEST_LEVEL sets the depth of
+# each one. The counts step by roughly 4x so the three levels are not three
+# names for one run. 'func' holds the counts this file ran at before the axis
+# existed, so today's coverage is preserved and gate/full are added around it.
+_DEPTH = {
+    'gate': {'accumulation': 5, 'early_last': 4, 'backpressure': 3, 'streaming': 8},
+    'func': {'accumulation': 20, 'early_last': 15, 'backpressure': 10, 'streaming': 30},
+    'full': {'accumulation': 80, 'early_last': 60, 'backpressure': 40, 'streaming': 120},
+}
+
+
+def _depth():
+    """Depth for this cocotb process, from the TEST_LEVEL the wrapper exported."""
+    level = os.environ.get('TEST_LEVEL', 'gate').lower()
+    return _DEPTH.get(level, _DEPTH['gate'])
+
+
 def get_test_name(params):
     """Generate test name from parameters"""
     narrow_w, wide_w, narrow_sb, wide_sb, sb_or, desc = params
     return desc
 
 
+@pytest.mark.parametrize("test_level", reg_level_grid())
 @pytest.mark.parametrize("params", test_params, ids=[get_test_name(p) for p in test_params])
-def test_axi_data_upsize(request, params):
+def test_axi_data_upsize(request, params, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """
     Test axi_data_upsize with various configurations
@@ -49,7 +68,7 @@ def test_axi_data_upsize(request, params):
     dut_module = "axi_data_upsize"
 
     # Generate unique test name
-    test_name = f"test_axi_data_upsize_{description}"
+    test_name = f"test_axi_data_upsize_{description}_{test_level}"
 
     # Verilog parameters
     parameters = {
@@ -84,11 +103,11 @@ def test_axi_data_upsize(request, params):
 
 
     # Simulation build directory
-    sim_build = sim_build_path(tests_dir, f'test_axi_data_upsize_{description}')
+    sim_build = sim_build_path(tests_dir, f'test_axi_data_upsize_{description}_{test_level}')
     os.makedirs(sim_build, exist_ok=True)
 
     # Conditionally set COCOTB_TRACE_FILE for VCD generation
-    extra_env = {}
+    extra_env = dict(level_env(test_level))
     if bool(int(os.environ.get('WAVES', '0'))):
         extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
 
@@ -121,7 +140,7 @@ async def cocotb_test_basic_accumulation(dut):
     """Test basic narrow→wide accumulation"""
     tb = AXIDataUpsizeTB(dut)
     await tb.setup_clocks_and_reset()
-    assert await tb.test_basic_accumulation(num_transactions=20)
+    assert await tb.test_basic_accumulation(num_transactions=_depth()['accumulation'])
 
 
 @cocotb.test()
@@ -129,7 +148,7 @@ async def cocotb_test_early_last(dut):
     """Test early termination with narrow_last"""
     tb = AXIDataUpsizeTB(dut)
     await tb.setup_clocks_and_reset()
-    assert await tb.test_early_last(num_transactions=15), 'scenario reported failure'
+    assert await tb.test_early_last(num_transactions=_depth()['early_last']), 'scenario reported failure'
 
 
 @cocotb.test()
@@ -137,7 +156,7 @@ async def cocotb_test_backpressure(dut):
     """Test backpressure handling"""
     tb = AXIDataUpsizeTB(dut)
     await tb.setup_clocks_and_reset()
-    assert await tb.test_backpressure(num_transactions=10), 'scenario reported failure'
+    assert await tb.test_backpressure(num_transactions=_depth()['backpressure']), 'scenario reported failure'
 
 
 @cocotb.test()
@@ -145,7 +164,7 @@ async def cocotb_test_continuous_streaming(dut):
     """Test continuous streaming without gaps"""
     tb = AXIDataUpsizeTB(dut)
     await tb.setup_clocks_and_reset()
-    assert await tb.test_continuous_streaming(num_wide_beats=30), 'scenario reported failure'
+    assert await tb.test_continuous_streaming(num_wide_beats=_depth()['streaming']), 'scenario reported failure'
 
 
 if __name__ == "__main__":

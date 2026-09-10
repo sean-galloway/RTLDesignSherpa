@@ -35,6 +35,7 @@ import sys
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from cocotb_test.simulator import run
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import reg_level_grid, level_env
 
 
 class PeakRDLAdapterTB:
@@ -111,6 +112,17 @@ class PeakRDLAdapterTB:
         self.dut.rsp_ready.value = 0
 
         return prdata, pslverr
+
+
+# TEST_LEVEL sets how many transactions the stress scenario drives; the
+# wrapper exports it per cell and REG_LEVEL decides how many cells run. 'func'
+# is the count this file used before the axis existed.
+_STRESS = {'gate': 40, 'func': 300, 'full': 1200}
+
+
+def _stress_count():
+    """Stress transaction count for this process, from TEST_LEVEL."""
+    return _STRESS.get(os.environ.get('TEST_LEVEL', 'gate').lower(), _STRESS['gate'])
 
 
 @cocotb.test()
@@ -274,7 +286,7 @@ async def peakrdl_adapter_stress(dut):
 
     dut._log.info("=== Test: Stress Test (300 transactions) ===")
 
-    num_transactions = 300
+    num_transactions = _stress_count()
     for i in range(num_transactions):
         # Randomize transaction type, address, data, strobes
         pwrite = random.randint(0, 1)
@@ -326,7 +338,8 @@ async def peakrdl_adapter_stress(dut):
 # Pytest Integration
 # ==============================================================================
 
-def test_peakrdl_to_cmdrsp():
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_peakrdl_to_cmdrsp(test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest entry point for PeakRDL adapter test"""
 
@@ -335,7 +348,7 @@ def test_peakrdl_to_cmdrsp():
         'rtl_converters': 'projects/components/converters/rtl',
     })
 
-    sim_build = sim_build_path(tests_dir, 'test_peakrdl_to_cmdrsp')
+    sim_build = sim_build_path(tests_dir, f'test_peakrdl_to_cmdrsp_{test_level}')
 
     os.makedirs(sim_build, exist_ok=True)
 
@@ -367,7 +380,7 @@ def test_peakrdl_to_cmdrsp():
 
 
     # Conditionally set COCOTB_TRACE_FILE for VCD generation
-    extra_env = {}
+    extra_env = dict(level_env(test_level))
     if bool(int(os.environ.get('WAVES', '0'))):
         extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
 
@@ -390,4 +403,4 @@ def test_peakrdl_to_cmdrsp():
 
 
 if __name__ == '__main__':
-    test_peakrdl_to_cmdrsp()
+    pytest.main([__file__, '-v', '-s'])
