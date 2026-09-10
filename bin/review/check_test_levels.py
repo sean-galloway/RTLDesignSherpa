@@ -80,6 +80,20 @@ def mentions_name(node, name):
                for n in ast.walk(node))
 
 
+HELPER = 'TBClasses.shared.test_levels'
+
+
+def uses_shared_helper(src):
+    """True if the file takes its grid/env from TBClasses.shared.test_levels.
+
+    That module IS a REG_LEVEL-branching grid and a TEST_LEVEL export, so a
+    wrapper that calls reg_level_grid()/level_env() satisfies both halves --
+    the AST checks below look for them inline and would otherwise report a
+    compliant file as missing everything (which is exactly what happened to
+    all 45 bridge tests the moment they moved to the helper, 2026-09-10)."""
+    return 'test_levels' in src and ('reg_level_grid' in src or 'level_env' in src)
+
+
 def has_grid(tree):
     """A grid exists if any function both reads REG_LEVEL and branches on a
     level literal. Covers generate_params, generate_test_parameters,
@@ -191,9 +205,26 @@ def check(p):
     """Return a list of reasons this test fails the requirement."""
     bad = []
     try:
-        tree = ast.parse(open(p, encoding='utf-8', errors='replace').read())
+        src = open(p, encoding='utf-8', errors='replace').read()
+        tree = ast.parse(src)
     except SyntaxError as e:
         return [f'PARSE ERROR: {e}']
+
+    # A wrapper that routes through the shared helper gets both halves from
+    # it: reg_level_grid() branches on REG_LEVEL, level_env() exports
+    # TEST_LEVEL and SEED. Still require that the TB chain READS the value.
+    if uses_shared_helper(src) and 'reg_level_grid' in src and 'level_env' in src:
+        chain = tb_chain(p)
+        consumed = reads_environ(tree, 'TEST_LEVEL')
+        for c in chain:
+            if consumed:
+                break
+            try:
+                consumed = reads_environ(ast.parse(
+                    open(c, encoding='utf-8', errors='replace').read()), 'TEST_LEVEL')
+            except SyntaxError:
+                continue
+        return [] if consumed else ['depth:never-read']
 
     if not has_grid(tree):
         bad.append('grid')
@@ -228,13 +259,18 @@ def conftest_stamps_level(area):
     """True if the area's conftest assigns os.environ['TEST_LEVEL'].
 
     cocotb_test.simulator.set_env copies every os.environ entry over
-    extra_env AFTER extra_env is applied, so a conftest that stamps
-    TEST_LEVEL into the process environment overrides the per-cell value
-    every wrapper exports: the grid still expands to gate/func/full cells,
-    and every cell runs at the stamped depth. Found 2026-09-09 on the
-    bridge's first leveled FULL run -- 216 cells, all `level=full`. The AST
-    checks above cannot see it (the wrapper IS exporting), so it is reported
-    beside the per-file lines."""
+    extra_env AFTER extra_env is applied, so such a stamp overrides the
+    per-cell value a wrapper exports: the grid still expands to gate/func/
+    full cells and every one runs at the stamped depth. Found 2026-09-09 on
+    the bridge's first leveled FULL run -- 216 cells, all `level=full`.
+
+    The stamp is NOT simply wrong. In eleven component areas whose wrappers
+    export nothing it is the only thing mapping REG_LEVEL onto a depth, and
+    deleting it there would drop every test to the default (measured on
+    pumice fub during that conversion: 91 tests -> 79). What removes the
+    hazard is TBClasses.shared.test_levels.level_env, which stamps the
+    cell's own value into os.environ before run() so the wrapper wins
+    either way."""
     cf = os.path.join(area, 'conftest.py')
     if not os.path.isfile(cf):
         return False
@@ -252,15 +288,38 @@ def conftest_stamps_level(area):
     return False
 
 
+def area_uses_level_helper(area):
+    """True if every test file that exports TEST_LEVEL goes through
+    TBClasses.shared.test_levels.level_env, which makes the per-cell value
+    authoritative over any conftest stamp."""
+    exporting, helped = 0, 0
+    for p in sorted(glob.glob(f'{area}/test_*.py')):
+        try:
+            src = open(p, encoding='utf-8', errors='replace').read()
+            tree = ast.parse(src)
+        except (OSError, SyntaxError):
+            continue
+        if not exported_values(tree, 'TEST_LEVEL'):
+            continue
+        exporting += 1
+        if 'level_env' in src and 'test_levels' in src:
+            helped += 1
+    return exporting > 0 and exporting == helped
+
+
 def main():
     area = sys.argv[1] if len(sys.argv) > 1 else 'val/common'
     files = sorted(glob.glob(f'{area}/test_*.py'))
     bad = [(os.path.basename(p), r) for p in files if (r := check(p))]
     print(f"{area}: {len(files) - len(bad)} of {len(files)} compliant")
-    if conftest_stamps_level(area):
-        print(f"  WARNING conftest.py assigns os.environ['TEST_LEVEL']: cocotb_test lets "
-              f"os.environ override extra_env, so every cell runs at that depth "
-              f"and the per-cell export above is dead")
+    if conftest_stamps_level(area) and not area_uses_level_helper(area):
+        print(f"  WARNING conftest.py assigns os.environ['TEST_LEVEL'] and this area's "
+              f"wrappers do not use TBClasses.shared.test_levels.level_env: cocotb_test "
+              f"lets os.environ override extra_env, so any per-cell export here is dead "
+              f"(measured: re-stamping from the wrapper does NOT beat it). Convert the "
+              f"area in one go -- give every wrapper a reg_level_grid()/level_env() pair "
+              f"AND delete the stamp; removing the stamp alone drops this area to the "
+              f"default depth. projects/components/bridge is the worked example.")
         bad.append(('conftest.py', ['stamps TEST_LEVEL into os.environ']))
     for n, reasons in bad:
         print(f"  MISSING {n:46} {', '.join(reasons)}")
