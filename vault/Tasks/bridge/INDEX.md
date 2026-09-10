@@ -8,8 +8,8 @@ generator, its generated wrappers/xbars/adapters, and their DV.
 | State | Count |
 |---|---|
 | [active](active.md) | 0 |
-| [open](open.md) | 3 |
-| [closed](closed.md) | 10 |
+| [open](open.md) | 2 |
+| [closed](closed.md) | 11 |
 | [dropped](dropped.md) | 0 |
 
 ## Open
@@ -17,9 +17,6 @@ generator, its generated wrappers/xbars/adapters, and their DV.
 - **BRIDGE-003** — all six `*_mon_monitor` stress tests fail; verified
   pre-existing at the branch base (not fallout from the BRIDGE-001 fixes).
   Likely tied to the stream-mon AW/W decoupling WIP.
-- **BRIDGE-013** (P2) — the `_mon` variants build the subtractive slave's
-  monitor and connect none of its 24 ports; 13 of 38 variants fail lint on it.
-  Connect it to the monbus tree, or stop emitting it. Owner decides.
 - **BRIDGE-002** — AMBA5 bridge support: AXI5 ports on the AMBA4 fabric first
   (wrappers/BFMs/compliance already in-tree; gaps are AXI5<->AXI4 feature
   conversion and a `*_to_apb5` shim), native-AXI5 sideband and AWATOP

@@ -598,3 +598,79 @@ have to know) that the slave behind the path is trace-less.
 
 (1) is cheap and makes the AXI5 port honest; (2) leaves a port that
 advertises trace and sometimes does not return it. Owner decides.
+
+### BRIDGE-013: in the _mon variants the subtractive slave's monitor is built and left unconnected
+
+**Status:** CLOSED 2026-09-10 by way (2), stop emitting it. An INTERNAL
+slave now gets no monitor: `enable_monitoring and not slave.internal` in
+`bridge_module_generator._generate_slave_adapter`. That is what
+`bridge_generator.py` already claimed ("the subtractive catch-all has no
+monitor wrapper") -- now the RTL agrees.
+
+Verified: the subtractive adapter's monitor ports go 24 -> 0 and its
+`axi4_master_rd_mon` instance disappears; exactly 13 files change, all of
+them `*_mon/subtractive_adapter.sv`, matching the 13 failing variants
+one-for-one; non-`_mon` variants are byte-identical; and `make verilator`
+in `projects/components/bridge/rtl` reports **"✓ Bridge RTL lint passed"**
+for the first time, so the gate is an instrument again.
+
+Nothing is lost. An unmapped access is still reported through the
+subtractive slave's sticky `SUBTRACTIVE_STATUS` / `SUBTRACTIVE_ADDR` and
+`unmapped_irq` (BRIDGE-009), which the top does wire, and the tests that
+cover BRIDGE-009 are unaffected.
+
+**Way (1) remains available as a FEATURE, not a repair.** The subtractive
+slave's own monbus port is still tied off in the generated top with an
+explicit `assign subtractive_monbus_ready = 1'b1;  // TODO: -> monbus_arbiter`
+and an explicit unused-sink -- acknowledged, not dangling. Putting unmapped
+accesses on monbus means adding an arbiter source and moving the `_mon`
+tests' packet expectations; file it as its own task if wanted.
+
+**Priority (as filed):** P2. Not lint noise -- the lint gate was pointing at
+a real disconnection, and 13 of 38 variants failed on it, which is why the
+gate reported nothing useful.
+
+**Found by** running the bridge lint gate 2026-09-10 (BRIDGE-007 follow-up).
+`make verilator` in `projects/components/bridge/rtl`: **13 of 38 variants
+FAIL, 427 `%Warning-PINMISSING`, and every one of them is the same
+instance** -- `u_subtractive_adapter` in a `*_mon` top.
+
+**The mechanism.** In a `_mon` variant the generated `subtractive_adapter`
+declares **24 monitor ports** (`i_mon_time`, `monbus_{rd,wr}_{valid,ready,
+packet,timestamp}`, `cfg_{rd,wr}_*`) and instantiates a monitor behind them
+(`subtractive_adapter.sv:255` wires `i_mon_time` and `monbus_valid` into the
+submodule). The bridge top instantiates that adapter and connects **none of
+them**. So the subtractive slave's monitor is elaborated, occupies area, and
+its monbus output goes nowhere; its cfg inputs float. The non-`_mon`
+variants emit zero such ports, so this is specific to the monitor build.
+
+BRIDGE-009's subtractive slave also reports unmapped accesses through its
+sticky `SUBTRACTIVE_STATUS` / `SUBTRACTIVE_ADDR` cfg registers and
+`unmapped_irq`, which DO reach the top -- so the observable BRIDGE-009
+behaviour is intact and the tests that cover it are honest. What is lost is
+the monbus path: an unmapped access never produces a monbus packet in a
+`_mon` bridge, and nothing says so.
+
+**The generator says it is deliberate, and the RTL disagrees.**
+`bridge_generator.py:796` reads "The subtractive catch-all has no monitor
+wrapper (it reports on its own monbus port)" -- but in `_mon` variants the
+adapter generator emits one anyway and the top does not wire it.
+
+**Two ways out, and it is a design decision:**
+1. **Connect it.** Add the subtractive's monbus as a source on the
+   monbus arbiter tree so an unmapped access is reportable like any other
+   error. Costs an arbiter input per `_mon` bridge and changes the monbus
+   topology (and the tally/coverage expectations of the `_mon` tests).
+2. **Stop emitting it.** Suppress the monitor and its 24 ports on an
+   INTERNAL slave, matching what the generator comment already claims.
+   Cheaper, removes dead area, and makes the lint gate meaningful.
+
+(2) matches the stated intent; (1) is the one to take if an unmapped access
+ought to be visible on monbus. Either way the lint gate goes green and starts
+reporting real findings again -- do NOT waive PINMISSING to get there, which
+would hide exactly this class.
+
+**Correcting the record:** the note carried on [[BRIDGE-002]] said `make
+verilator` fails on "all 36 variants, entirely from pre-existing
+PINCONNECTEMPTY on deliberate open pins". Measured: 13 of 38, all
+PINMISSING, one instance, not deliberate.

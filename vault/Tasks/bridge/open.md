@@ -498,58 +498,42 @@ carries `armed` and `channels` so a caller can refuse a verdict with nothing
 behind it. With that, `bridge_2x2_rw` checks both masters at 1790-4505 checks
 per cell, zero violations.
 
-Still owed on this task: the external testqc review round.
+**The testqc round is RUNNING (2026-09-10) -- the first on any
+projects/components area.** Getting there needed three fixes to the review
+pipeline, which is why no such round had ever run:
+
+* `build_test_review_bundle.py` only looked under `val/<area>`. It takes a
+  path now, so a Pattern B area can be bundled at all.
+* It resolved `TBClasses.*` and `CocoTBFramework.*` imports but not
+  `projects.components.<c>.dv.tbclasses.*` -- so a Pattern B bundle would
+  have shipped its tests with NO testbenches and the reviewer could not have
+  seen what the tests drive.
+* `RTL_IFACES.sv` came out EMPTY: the bundler re-parsed the `.f` itself,
+  skipping any line starting with `-` or `+` and never expanding
+  `$REPO_ROOT`, which is 707 `-f` lines and 311 `$REPO_ROOT` lines across the
+  bridge's filelists. It uses the repo's own `get_sources_from_filelist` now.
+* `FRAMEWORK.py` is reduced to its API surface, which is what its GOLDEN
+  banner says it is for. Full bodies were 364 KB of a 490 KB unit and pushed
+  every single test over the size limit.
+
+**Scope: 12 units, not 45.** The seven hand-written tests plus five
+representative generated ones (simple rd, multi-master rw, mixed-protocol,
+monitor stress, apb5). This task's own text says why: the suite is generated,
+so "audit the generator's test template first; a finding there is worth 39
+findings in the output" -- reviewing 45 near-clones would spend the budget
+proving the same thing forty times.
+
+*First unit's findings (part_01, test_bridge_1x2_rd):* one real, in code
+written the same day -- `seeded_rng()` fell back to a FIXED seed of 0, and
+`TBBase` drew a seed without publishing it, so a TB built outside the pytest
+flow would freeze its address RNG while logging a seed that does not replay
+the run. Fixed at both ends: TBBase now writes its drawn seed to
+`os.environ`, and `seeded_rng` draws instead of pinning 0. Also acted on: the
+generated TB reported `addr_width=64 / id_width=8` while every fixture's
+ports are 32/4 -- vestigial template constants, now derived from the ports.
+Everything else in that unit was confirmed against the contract.
+
+Still owed on this task: the remaining 11 units and their triage.
 
 
 ---
-
-### BRIDGE-013: in the _mon variants the subtractive slave's monitor is built and left unconnected
-
-**Priority:** P2. Not lint noise -- the lint gate is pointing at a real
-disconnection, and 13 of 38 variants fail on it, which is why the gate has
-been reporting nothing useful.
-
-**Found by** running the bridge lint gate 2026-09-10 (BRIDGE-007 follow-up).
-`make verilator` in `projects/components/bridge/rtl`: **13 of 38 variants
-FAIL, 427 `%Warning-PINMISSING`, and every one of them is the same
-instance** -- `u_subtractive_adapter` in a `*_mon` top.
-
-**The mechanism.** In a `_mon` variant the generated `subtractive_adapter`
-declares **24 monitor ports** (`i_mon_time`, `monbus_{rd,wr}_{valid,ready,
-packet,timestamp}`, `cfg_{rd,wr}_*`) and instantiates a monitor behind them
-(`subtractive_adapter.sv:255` wires `i_mon_time` and `monbus_valid` into the
-submodule). The bridge top instantiates that adapter and connects **none of
-them**. So the subtractive slave's monitor is elaborated, occupies area, and
-its monbus output goes nowhere; its cfg inputs float. The non-`_mon`
-variants emit zero such ports, so this is specific to the monitor build.
-
-BRIDGE-009's subtractive slave also reports unmapped accesses through its
-sticky `SUBTRACTIVE_STATUS` / `SUBTRACTIVE_ADDR` cfg registers and
-`unmapped_irq`, which DO reach the top -- so the observable BRIDGE-009
-behaviour is intact and the tests that cover it are honest. What is lost is
-the monbus path: an unmapped access never produces a monbus packet in a
-`_mon` bridge, and nothing says so.
-
-**The generator says it is deliberate, and the RTL disagrees.**
-`bridge_generator.py:796` reads "The subtractive catch-all has no monitor
-wrapper (it reports on its own monbus port)" -- but in `_mon` variants the
-adapter generator emits one anyway and the top does not wire it.
-
-**Two ways out, and it is a design decision:**
-1. **Connect it.** Add the subtractive's monbus as a source on the
-   monbus arbiter tree so an unmapped access is reportable like any other
-   error. Costs an arbiter input per `_mon` bridge and changes the monbus
-   topology (and the tally/coverage expectations of the `_mon` tests).
-2. **Stop emitting it.** Suppress the monitor and its 24 ports on an
-   INTERNAL slave, matching what the generator comment already claims.
-   Cheaper, removes dead area, and makes the lint gate meaningful.
-
-(2) matches the stated intent; (1) is the one to take if an unmapped access
-ought to be visible on monbus. Either way the lint gate goes green and starts
-reporting real findings again -- do NOT waive PINMISSING to get there, which
-would hide exactly this class.
-
-**Correcting the record:** the note carried on [[BRIDGE-002]] said `make
-verilator` fails on "all 36 variants, entirely from pre-existing
-PINCONNECTEMPTY on deliberate open pins". Measured: 13 of 38, all
-PINMISSING, one instance, not deliberate.
