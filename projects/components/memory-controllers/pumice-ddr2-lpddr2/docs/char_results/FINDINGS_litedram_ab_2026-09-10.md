@@ -116,6 +116,15 @@ runs per-bank FSMs with round-robin arbitration and no reordering. Some of
 pumice's area buys configurability the comparison does not exercise. None of
 it currently buys bandwidth.
 
+## Refactor is behaviour-neutral on silicon
+
+The shared `char_engine_block` was extracted from `ddr2_char_macro` for this
+comparison, so the pumice board build was re-run on the refactored source and
+re-characterized. Timing: WNS +0.039 ns, 0 failing of 93960 endpoints. Board:
+all 14 `open_page` scenarios integrity-clean, and against the pre-refactor
+run (`board_2026-09-10_burstlen.csv`) the largest difference is 0.08 MB/s on
+writes and 0.01 MB/s on reads. The extraction changed nothing measurable.
+
 ## Method notes
 
 - One writer, one reader (generator 0) on both sides; the multi-writer
