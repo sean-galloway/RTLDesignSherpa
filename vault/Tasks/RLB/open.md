@@ -123,7 +123,8 @@ regblock` desyncs the regmap. Run the RLB tests afterwards.
 
 **Priority:** P3. The block is functionally complete for its MVP scope and
 36/36 green in all six configurations; nothing here is a defect.
-**Status:** open 2026-09-09. Raised while closing issue #48. These items were
+**Status:** partly fixed. Logical destination mode landed 2026-09-10 in
+4bce6badc; the rest is open. Raised while closing issue #48. These items were
 the surviving content of `rtl/ioapic/TODO.md`, which was deleted with that fix
 along with `INTERRUPT_DELIVERY_DEBUG.md` -- both described the delivery FSM
 that the #48 fix removed, so keeping them in sync would have meant rewriting
@@ -131,9 +132,11 @@ two stale trackers next to the code instead of recording the open work here.
 
 **Deferred by design (82093AA features the MVP does not implement):**
 
-- Logical destination mode. `dest_mode` is stored in the RTE and forwarded to
-  the core, which ignores it -- `cfg_dest_mode` is deliberately unused and
-  shows as UNUSEDSIGNAL in lint. Physical delivery only.
+- ~~Logical destination mode.~~ FIXED 4bce6badc: `irq_out_dest_mode` carries
+  the RTE's mode alongside the destination. An IOAPIC does not decode logical
+  destinations itself - it forwards the field and the mode, and the local
+  APICs match - so forwarding the mode is the whole of this block's
+  responsibility for logical delivery.
 - LowestPriority delivery mode: needs CPU priority tracking the block has no
   interface for. The mode bits are carried on `irq_out_deliv_mode` unmodified,
   so SMI/NMI/INIT/ExtINT are already "supported" in the sense the DV suite
@@ -156,7 +159,8 @@ the same parameter would remove the guard's reason to exist.
 **Priority:** P3. The block is functionally complete for its MVP scope and
 6/6 configurations green at FULL (basic 8/8, medium 10/10, full 12/12, GH#54
 17/17); nothing here is a defect.
-**Status:** open 2026-09-09. Raised while closing issue #54. These items were
+**Status:** partly fixed. The two reset-source pins landed 2026-09-10 in
+6978cf935; the rest is open. Raised while closing issue #54. These items were
 the surviving content of `rtl/pm_acpi/TODO.md`, which was deleted with that
 fix: most of it described work already done (the DV suite, the helper-script
 plan) or behaviour the fix changed (the "W1C edge detection / auto-clear
@@ -178,9 +182,10 @@ Same disposition as [[RLB-008]] for ioapic.
   threshold and no long-press (the ACPI 4-second power-button override) --
   which is why `PM1_CONTROL.pwrbtn_ovr` is documented storage-only rather
   than wired to an invented meaning.
-- `RESET_STATUS.wdt_reset` / `.ext_reset` always read 0. Making them real
-  needs new device pins on `apb4_pm_acpi` (a watchdog-expired input and an
-  external-reset input); the fields are documented as unobservable instead.
+- ~~`RESET_STATUS.wdt_reset` / `.ext_reset` always read 0.~~ FIXED 6978cf935:
+  `wdt_reset_n` and `ext_reset_n` are device pins now, synchronized like the
+  other board inputs and LATCHED rather than sampled, because the pulse that
+  caused a reset is long gone by the time software reads the register.
 - Legacy replacement routing (IRQ0 timer, IRQ8 RTC) and processor C/P-state
   hints are out of scope.
 
@@ -197,21 +202,23 @@ register state, so it was deliberately not smuggled into #54.
 the #56 rewrite (ten review rounds on the clock-domain crossing); nothing
 here is a defect in the block. The durable lessons are in the handbook:
 [[cdc]] Rules 1-7 and [[no-assertions-in-rtl]].
-**Status:** open 2026-09-09. Raised while closing issue #56.
+**Status:** partly fixed. The three shared-primitive lint items landed
+2026-09-10 in dc4ea9db7; the clock mux and the formal area are open.
 
-- **Two shared CDC primitives are not verilator -Wall clean**, which is why
-  the standalone `apb4_rtc` closure shows warnings it did not before - the
-  primitives are new to THAT closure, not new defects:
-  - `rtl/cdc/glitch_free_n_dff_arn.sv:360` builds a flattened copy `flat_r_q`
-    that nothing reads (UNUSEDSIGNAL). Dead code; deleting it is a six-line
-    change to a primitive instantiated repo-wide, so it wants its own change
-    and its own regression, not a drive-by.
-  - `rtl/common/reset_sync.sv:261` PROCASSINIT: the synchronizer chain has an
-    FPGA power-on initialiser AND a procedural assignment. Deliberate, but
-    every consumer of the repo's only reset synchronizer carries the warning.
-  - `rtl/cdc/cdc_4_phase_handshake.sv:133` UNUSEDSIGNAL `r_timeout_cnt` when
-    TIMEOUT_CYCLES=0 (its documented disabled mode).
+- ~~Two shared CDC primitives are not verilator -Wall clean.~~ FIXED
+  dc4ea9db7: the handshake's timeout counter now lives inside the generate
+  branch that uses it, so at TIMEOUT_CYCLES = 0 it does not exist rather than
+  existing unused; `glitch_free_n_dff_arn`'s waveform-only flattened copy is
+  waived where it is declared rather than deleted; and `reset_sync`'s four
+  power-on initialisers carry a scoped PROCASSINIT waiver, because the
+  initialiser is deliberate on a device with no reset before the first clock.
 - **`selected_clk` is still a combinational clock mux** in `rtc_core.sv`.
+  DELIBERATELY NOT FIXED: a portable glitch-free mux is a break-before-make
+  handshake that needs BOTH clocks running to complete a switch. The whole
+  point of `clock_select` is running from pclk when the crystal may be
+  absent, so that version cannot switch away from a dead clock - it would
+  replace the documented constraint with a worse one. A device-specific cell
+  is the real answer.
   Documented as a constraint (change `clock_select` only with `rtc_enable`
   low; the select is held under rtc_resetn and the counter reset release
   waits for it to settle, so a reset cannot switch it under the domain). A
@@ -239,7 +246,8 @@ counter domain's reset release needs pclk running.
 **Priority:** P3. Raised 2026-09-10 while fixing issue #58 (master engine
 rewrite). None of these is a defect in the master path; each is a feature
 the block advertises in its RDL/MAS header but has never implemented.
-**Status:** open 2026-09-10.
+**Status:** partly fixed. Arbitration and the read-direction quick command
+landed 2026-09-10 in 6978cf935; slave mode is open.
 
 - **Slave mode.** `SMBUS_OWN_ADDR` and `slave_addr_int` exist; the slave FSM
   is a stub that never ACKs. The rewrite keeps it inert (it cannot touch SDA,
@@ -250,15 +258,15 @@ the block advertises in its RDL/MAS header but has never implemented.
   clock stretching while software fills it, PEC check/generate on the slave
   side, and arbitration with the master half for the shared pins (one
   engine on the wire at a time).
-- **Multi-master arbitration.** `arb_lost` is tied to 0. Needs SDA readback
-  compare on every transmitted bit (arbitration lost when we send 1 and read
-  0), immediate release, `arb_lost` status + interrupt, and bus-free timing
-  (tBUF) before a retry. The rewrite's bus-free check before START is the
-  first half of this.
-- **Quick Command with R/W=1.** The decode table hard-wires Quick Command to
-  a write-direction address byte; the read-direction form needs an rw
-  control bit in `SMBUS_COMMAND` (register-map change) or a second
-  transaction code.
+- ~~Multi-master arbitration.~~ FIXED 6978cf935: every transmitted bit is
+  read back in the SCL-high phase, and a 1 that reads as 0 means another
+  master won. On loss both lines are released within the bit and the
+  sequencer reports `arb_lost` and idles WITHOUT framing a STOP, because the
+  winner's transfer is still in progress. Retry is software's.
+- ~~Quick Command with R/W=1.~~ FIXED 6978cf935: transaction type 0xA is the
+  read-direction form. The R/W bit IS the payload of a quick command, so each
+  direction has its own code rather than a direction bit that would mean
+  nothing for the other nine types.
 
 ### RLB-012: regblock reset polarity composed by hand - FIXED
 
