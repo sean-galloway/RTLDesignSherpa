@@ -113,7 +113,56 @@ cocotb-drive the AXI user port if a pre-board smoke is wanted.
 - user_clk CDC for the FTDI UART (single-domain design avoids it).
 - XDC `ddram_*` pin set must match `litedram_core.xdc` (generated) exactly.
 
-## Board bring-up TODO (before/while building)
+## STATUS UPDATE 2026-09-10 — items 1 and 2 are DONE; item 0 is new and blocking
+
+Worked through the TODO below on real hardware. What changed:
+
+**Done:**
+- **Item 1 (regen with BIOS): DONE.** `./regen.sh --bios` now produces a board
+  core with a functional BIOS (63 KB ROM, 6975 non-zero words) at the CORRECT
+  operating point. `litedram_hp.yml` `sys_clk_freq` was changed 100e6 -> 75e6
+  so the core runs **75 MHz / 1:2 / 300 MT/s — the same point pumice is
+  measured at**. The stock 100 MHz / 1:4 would have made the A/B meaningless.
+- **Item 2 (XDC reconcile): NOT NEEDED.** The regenerated
+  `build_board/gateware/litedram_core.xdc` contains **no** ddram pins, so the
+  harness `constraints/litedram_char.xdc` keeps the full pin map and the
+  `read_xdc` line in `build_all.tcl` stays commented. Nothing to reconcile.
+
+**Five flow bugs found and fixed while getting synthesis to run:**
+1. `Makefile` `REPO_ROOT ?= $(abspath .../../../..)` was two levels short. That
+   count was correct at the old `projects/NexysA7/...` path and broke silently
+   when the area moved under `projects/fpga-systems/`. Now `git rev-parse`.
+2. `CONVERTERS_ROOT` was never exported, so the filelist chain died on the
+   first converters `-f`.
+3. `build_all.tcl`'s `read_flist` only substituted `$REPO_ROOT`; any other
+   `$VAR` passed through literally. It now expands any environment variable
+   and errors clearly if one is unset.
+4. `.vlt` Verilator lint-waiver files were handed to Vivado, which parses them
+   as Verilog and dies on the first `-`. Now skipped.
+5. `litedram_gen` emits `litedram_core.tcl` referencing `VexRiscv.v` by an
+   absolute path **inside the LiteX venv**, which does not survive the venv (or
+   /tmp) being rebuilt. `regen.sh` now vendors it beside the core and the
+   filelist uses that copy.
+
+**Item 0 (NEW, BLOCKING): `char_engine_harness.sv` is wired to a `harness_csr`
+that no longer exists.** Synthesis now reaches the harness and stops on **41
+port mismatches**. The whole per-generator config surface — `o_cfg_wr_*`,
+`o_cfg_rd_*`, `o_start_wr_pulse`/`o_start_rd_pulse`, and the CRC readback
+(`i_crc_expected`/`i_crc_actual`/`i_beats_mismatched`) — moved OUT of
+`harness_csr` and into `chargen_regs` when the char framework went to a
+16-generator array. `harness_csr` is now 75 ports of global/PHY/DFI config
+only.
+
+So the harness needs rewiring against the CURRENT framework: `harness_csr` for
+the global surface, `chargen_regs` (PeakRDL, see `chargen_regs.rdl`) for
+per-generator config, and the generator array rather than one wr + one rd
+engine. That is a real piece of integration work, not a patch, and it is what
+stands between here and a like-for-like number. The pumice flow's
+`ddr2_char_macro.sv` is the reference for how the array is driven today.
+
+---
+
+## Board bring-up TODO (original, before/while building)
 1. `make regen` (`./regen.sh --bios`) — the shipped core has an empty BIOS ROM AND
    placeholder `LOC X` pins; a proper Nexys-A7 regen emits a functional BIOS +
    real ddram pins + a7ddrphy IODELAY constraints in `litedram_core.xdc`.

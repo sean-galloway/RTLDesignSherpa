@@ -13,11 +13,24 @@ proc read_flist {path incs_var srcs_var} {
     foreach line [split [read $fh] "\n"] {
         set line [string trim $line]
         if {$line eq "" || [string index $line 0] eq "#"} continue
-        regsub -all {\$REPO_ROOT} $line $REPO_ROOT line
+        # Expand ANY $VAR from the environment, not just $REPO_ROOT. The
+        # filelists this pulls in (converters, common) use $CONVERTERS_ROOT
+        # and friends, and a reader that only knew $REPO_ROOT failed on the
+        # first one with a literal "$CONVERTERS_ROOT/..." path (2026-09-10).
+        while {[regexp {\$([A-Za-z_][A-Za-z0-9_]*)} $line -> vname]} {
+            if {![info exists ::env($vname)]} {
+                error "filelist $path references \$$vname but it is not set in the environment"
+            }
+            regsub -all "\\\$$vname" $line [file normalize $::env($vname)] line
+        }
         if {[string match "+incdir+*" $line]} {
             lappend incs [string range $line 8 end]
         } elseif {[string match "-f *" $line]} {
             read_flist [string trim [string range $line 2 end]] incs srcs
+        } elseif {[string match "*.vlt" $line]} {
+            # Verilator lint-waiver file -- simulator-only, and Vivado tries to
+            # parse it as Verilog and dies on the first `-` (2026-09-10).
+            continue
         } else {
             lappend srcs $line
         }

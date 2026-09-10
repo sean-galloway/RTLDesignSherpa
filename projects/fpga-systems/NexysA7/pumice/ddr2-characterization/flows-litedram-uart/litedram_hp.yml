@@ -20,7 +20,11 @@
     "sdram_phy":        "A7DDRPHY",
 
     "input_clk_freq":   100e6,
-    "sys_clk_freq":     100e6,
+    # 75 MHz / 1:2 -> 300 MT/s: the SAME operating point pumice is measured at
+    # (build-perf PUMICE_SYS_75), and the point LiteDRAM's own memtest passed
+    # on this board. The stock nexys4ddr 100 MHz / 1:4 would make the A/B
+    # meaningless -- different DRAM speed grade AND different phase count.
+    "sys_clk_freq":     75e6,
     "iodelay_clk_freq": 200e6,
 
     # High-perf reorder window (bankmachine lookahead FIFO depth) == pumice
