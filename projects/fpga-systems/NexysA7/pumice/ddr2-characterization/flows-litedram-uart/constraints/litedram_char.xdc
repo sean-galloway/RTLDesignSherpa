@@ -90,11 +90,20 @@ set_false_path -to [get_ports {AN[*] CA CB CC CD CE CF CG DP}]
 ##==============================================================================
 ## Reset-synchroniser CDC
 ##==============================================================================
-## Reset-sync flops are (* ASYNC_REG = "TRUE" *) in ddr2_char_top.sv:
+## Reset-sync flops are (* ASYNC_REG = "TRUE" *) in char_engine_harness.sv:
 ##   r_rst_meta (1st stage), r_rst_sync (2nd stage). aresetn = r_rst_sync.
-set_false_path -from [get_ports CPU_RESETN] \
-               -to   [get_pins -hier -filter {NAME =~ r_rst_meta_reg/D}]
-set_false_path -from [get_pins -hier -filter {NAME =~ r_rst_sync_reg/C}]
+## Hierarchical names need the leading wildcard (they sit under u_harness);
+## without it Vivado matched nothing (12-4739) and the constraints were no-ops.
+set_false_path -to   [get_pins -hier -filter {NAME =~ *r_rst_meta_reg/D}]
+set_false_path -from [get_pins -hier -filter {NAME =~ *r_rst_sync_reg/C}]
+
+## litedram_core's CRG reset: the sys-domain software reset strobe
+## (main_litedramcore_reset_wr_stb, 75 MHz) ORs into main_crg_reset, which
+## feeds an 8-deep FDCE delay chain clocked by the 100 MHz input clock. That
+## is an asynchronous reset request by construction (LiteX's own SoC build
+## false-paths it; the standalone core xdc only covers its ars_ff/mr_ff
+## synchronisers). Timed as a real path it fails by ~2 ns (2026-09-10).
+set_false_path -to [get_pins -hier -filter {NAME =~ *u_core/FDCE/D}]
 
 ##==============================================================================
 ## LED status driver -- slow clock domain + CDC handshake

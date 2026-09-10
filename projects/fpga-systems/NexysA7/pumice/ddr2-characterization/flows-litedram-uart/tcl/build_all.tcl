@@ -40,18 +40,20 @@ proc read_flist {path incs_var srcs_var} {
 
 set incdirs {}
 set srcs {}
-read_flist "$self/rtl/filelists/litedram_char_harness.f" incdirs srcs
+read_flist "$self/rtl/filelists/litedram_char_board.f" incdirs srcs
 
 foreach s $srcs {
     if {[string match "*.v" $s]} { read_verilog $s } else { read_verilog -sv $s }
 }
 
 read_xdc "$self/constraints/litedram_char.xdc"
-# The LiteDRAM a7ddrphy IODELAY / ddram-pin constraints come from the generated
-# core XDC. The shipped one has placeholder LOCs (X); a PROPER regen for the
-# Nexys A7 target emits real pins. Read it once it is valid, and remove the
-# ddram_* lines from litedram_char.xdc to avoid double-constraint.
-# read_xdc "$self/build_board/gateware/litedram_core.xdc"
+# The generated core XDC carries NO pins (the harness XDC keeps the full Nexys
+# A7 pin map) but it DOES carry LiteX's reset-synchroniser false paths
+# (mr_ff / ars_ff1 / ars_ff2 cell attributes). Without it the core's 75 MHz
+# reset strobe -> 100 MHz CRG reset-sync FDCE is timed as a real 3.3 ns
+# cross-domain path and fails by ~2 ns (2026-09-10, WNS -1.966 on exactly that
+# endpoint). Read it AFTER ours so it only adds the false paths.
+read_xdc "$self/build_board/gateware/litedram_core.xdc"
 
 synth_design -top litedram_char_top -part $part -include_dirs $incdirs
 opt_design

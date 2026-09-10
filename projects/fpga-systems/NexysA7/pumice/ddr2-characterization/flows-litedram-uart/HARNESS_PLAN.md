@@ -176,3 +176,38 @@ stands between here and a like-for-like number. The pumice flow's
    keep engine cfg + perf/timer bandwidth readout. `harness_csr` is at base 0
    (direct UART->CSR, no 1->5 bridge). Wire `make characterize` to it.
 4. `make bitstream && make program && make characterize UART=/dev/ttyUSBx`.
+
+## STATUS UPDATE 2026-09-10 (later) — item 0 DONE; harness matches build-perf
+
+Sean: "update the litedram harness to match the current one for consistency";
+chosen approach: extract a shared engine block.
+
+- `ddr2_char_framework/rtl/char_engine_block.sv` (NEW) holds the DUT-agnostic
+  spine that used to sit inline in `ddr2_char_macro.sv`: chargen shim + regs,
+  GO logic, the generator arrays, both crossbars, perf meters and latency
+  histograms, exposed as one AXI4 master. `ddr2_char_macro` now instantiates it
+  (`u_engines`) and wraps pumice around it -- 1238 -> 576 lines, no behaviour
+  change (char-framework sim: uart + char green; macro suite on the refactor
+  passes the same cases the original does).
+- `rtl/char_engine_harness.sv` REWRITTEN as build-perf's `ddr2_char_harness`
+  minus the controller: same UART bridge, same `bridge_ddr2_char_axil` (address
+  map identical; `ddr2_apb` and `obs_apb` terminated), same `harness_csr`
+  (BUILD_ID "LDR2"), same debug_sram/dfi_mon_ram slots, soft-reset stretch,
+  timer and LED map, and `char_engine_block` behind `chargen_apb`. The 41 dead
+  `harness_csr` connections are gone with the single wr/rd engines.
+- `rtl/litedram_char_top.sv`: `FPGA_CLK_HZ` 100 -> 75 MHz (user_clk is the
+  75e6 `sys_clk_freq`; the UART divisor was wrong), CFG_* identity words set to
+  the LiteDRAM geometry, new AXI sideband outputs left open.
+- Filelists split: `litedram_char_harness.f` (lint closure) +
+  `litedram_char_board.f` (adds top + core). `make lint` is clean (verilator
+  5.045, 136 sources). Makefile is now variables over `make/fpga_flow.mk`
+  (`lint`, `bitstream`, `program` via the board registry, `host-*`);
+  `tcl/program_fpga.tcl` retired in favour of `make program`.
+- `host/host_litedram_char.py`: the pumice host with `LiteDRAMCharDriver`
+  (pumice CSR calls -> no-ops, `wait_init` on `STATUS.init_done`) and one
+  `litedram` config; `--char-profile` reuses the pumice scenario grids.
+
+DONE the same day: bitstream (timing met after the CRG reset-strobe false
+path), programmed, `--char-profile matrix --char-scale 1000` 14/14, CSV +
+findings saved beside the pumice results (PUMICE-026). Reads 564-579 MB/s vs
+pumice 291.7 on identical RTL: the pumice read ceiling is pumice's.

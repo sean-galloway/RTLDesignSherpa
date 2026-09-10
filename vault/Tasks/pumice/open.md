@@ -72,6 +72,14 @@ That flow already exists and is documented as **WIRED** in its `HARNESS_PLAN.md`
   waivers handed to Vivado, and `VexRiscv.v` pinned to a path inside the LiteX
   venv. `regen.sh` no longer hardcodes a `/tmp` venv either.
 
+**DONE 2026-09-10 — measured.** Timing-clean LiteDRAM bitstream (WNS +0.195, after
+adding the core's CRG reset-strobe false path), `--char-profile matrix --char-scale 1000`,
+14/14 integrity, saved as `docs/char_results/litedram_2026-09-10_matrix.csv` with the
+write-up `FINDINGS_litedram_ab_2026-09-10.md`. Headline: LiteDRAM reads 564-579 MB/s
+(94-97% of peak) through the identical harness where pumice reads 291.7; writes equal
+(~554-569 vs 551-570). The read ceiling is pumice's, not the operating point's -- see
+PUMICE-025. Ready to close (move the block to closed.md).
+
 **Progress 2026-09-10 (later) — item 0 DONE, harness matches build-perf:**
 Sean asked for the LiteDRAM harness to match the current one; the chosen
 route was to extract a shared engine block. `char_engine_block.sv` (chargen
@@ -140,7 +148,19 @@ round-trip bound) then doubling the bytes per transaction would raise
 bandwidth. It does not, so the limit is a per-cycle rate below the transaction
 layer, not a concurrency limit. Read latency is a flat 49.2 cycles throughout.
 
-**Burst length is the fundamental constraint, and it is NOT read-specific.**
+**2026-09-10 SAME-HARNESS A/B DISPROVES THE OPERATING-POINT THEORY BELOW.** LiteDRAM
+behind the identical `char_engine_block` / bridge / host, at the identical 75 MHz / 1:2 /
+MR0=0x0432 (BL4, CL3) point, reads 564.1 (incremental) / 579.5 (row_major) MB/s and
+writes 554/569 -- `docs/char_results/litedram_2026-09-10_matrix.csv`,
+`FINDINGS_litedram_ab_2026-09-10.md`. So a column every MC cycle IS sustainable on
+this bus for reads: the 48.6% ceiling is pumice's read command path, not BL4. Writes
+already match LiteDRAM, which localises it to AR-accept -> column-issue -> R-return
+(return ring / rd CAM / AR-order commit). LiteDRAM's read latency is 24.7 cycles vs
+pumice's 49.2: ~25 cycles of extra pipeline per access is the other half of the same
+story. The analysis below stands as the description of the write path; its
+conclusion about reads does not.
+
+**(Superseded framing) Burst length is the fundamental constraint, and it is NOT read-specific.**
 The board runs BL4 (host forces `MR0=0x0432` and `bl=4`; the RDL default is
 BL8/0x0433). On a x16 device BL4 is 4 transfers = 8 bytes, and 4 transfers at
 300 MT/s is 2 CK = exactly ONE MC cycle at 75 MHz. So sustaining 600 MB/s

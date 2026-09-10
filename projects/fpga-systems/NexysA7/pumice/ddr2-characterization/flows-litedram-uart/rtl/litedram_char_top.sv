@@ -5,9 +5,10 @@
 // Purpose: FPGA pin-level top for the LiteDRAM apples-to-apples characterization
 //          harness. litedram_core (own PLL + a7ddrphy + DDR2 init) drives the
 //          board DDR2 pads and exposes a 64-bit AXI4 user port on user_clk; the
-//          DUT-agnostic char_engine_harness (SAME engines + perf taps + timer +
-//          harness_csr + UART bridge as the pumice flow) runs on user_clk and
-//          drives that AXI port. This measures LiteDRAM with the identical host
+//          DUT-agnostic char_engine_harness (the pumice build-perf harness
+//          minus the controller: same UART bridge, same 1->6 address bridge,
+//          same harness_csr, same char_engine_block generators + perf taps,
+//          same timer) runs on user_clk and drives that AXI port. This measures LiteDRAM with the identical host
 //          program + metrics used for pumice -> a direct benchmark.
 //
 // Target: Digilent Nexys A7-100T (xc7a100tcsg324-1). Pins in
@@ -86,7 +87,7 @@ module litedram_char_top (
         .user_port_axi_0_awid   (ax_awid),
         .user_port_axi_0_awaddr (ax_awaddr[26:0]),
         .user_port_axi_0_awlen  (ax_awlen),
-        .user_port_axi_0_awsize ({1'b0, ax_awsize}),
+        .user_port_axi_0_awsize (ax_awsize),
         .user_port_axi_0_awburst(ax_awburst),
         .user_port_axi_0_awvalid(ax_awvalid),
         .user_port_axi_0_awready(ax_awready),
@@ -102,7 +103,7 @@ module litedram_char_top (
         .user_port_axi_0_arid   (ax_arid),
         .user_port_axi_0_araddr (ax_araddr[26:0]),
         .user_port_axi_0_arlen  (ax_arlen),
-        .user_port_axi_0_arsize ({1'b0, ax_arsize}),
+        .user_port_axi_0_arsize (ax_arsize),
         .user_port_axi_0_arburst(ax_arburst),
         .user_port_axi_0_arvalid(ax_arvalid),
         .user_port_axi_0_arready(ax_arready),
@@ -114,17 +115,34 @@ module litedram_char_top (
         .user_port_axi_0_rready (ax_rready)
     );
 
-    // litedram awsize/arsize are 4-bit; harness drives 3-bit -> zero-extend.
-    // (assigned via the [3:0] slice above with the upper bit implicitly 0 by the
-    //  wire being sized 3-bit on the harness side; make it explicit here.)
+    // The BOARD core (build_board/gateware/litedram_core.v) declares
+    // user_port_axi_0_awsize/arsize [2:0], so they connect 1:1. Only the SIM
+    // core (build_sim/gateware/litedram_core_sim.v) has them [3:0]; a sim top
+    // must zero-extend. awsize is load-bearing in the core (beat increment =
+    // 1 << awsize), so keep this exact. Only 27 of the 32 address bits reach
+    // the core (128 MiB); the upper bits are unused by construction.
+    /* verilator lint_off UNUSED */
+    wire _unused_addr = &{1'b0, ax_awaddr[31:27], ax_araddr[31:27]};
+    /* verilator lint_on UNUSED */
 
     // =========================================================================
     // DUT-agnostic engine harness on user_clk (SAME as the pumice flow).
     // =========================================================================
     char_engine_harness #(
-        .AXI_ADDR_WIDTH (32),
-        .FPGA_CLK_HZ    (100_000_000),   // litedram user_clk (sys) freq
-        .UART_BAUD      (115_200)
+        .AXI_ADDR_WIDTH     (32),
+        // user_clk == litedram_hp.yml sys_clk_freq (75e6, the pumice
+        // PUMICE_SYS_75 operating point). This sets the UART baud divisor; the
+        // earlier 100_000_000 here predated the 75 MHz regen and would have
+        // left the console at the wrong baud.
+        .FPGA_CLK_HZ        (75_000_000),
+        .UART_BAUD          (115_200),
+        // x16 BL4 / host-64: one AXI beat per DRAM burst -> quantum 1.
+        .BURST_LEN_MULTIPLE (1),
+        .CFG_DFI_RATE       (2),
+        .CFG_DRAM_BL        (4),
+        .CFG_ROW_WIDTH      (13),
+        .CFG_DRAM_BEAT_W    (32),
+        .CFG_DRAM_DEVICE_W  (16)
     ) u_harness (
         .aclk    (user_clk),
         .aresetn (~user_rst),
@@ -136,23 +154,31 @@ module litedram_char_top (
         .o_seven_seg_dp (DP),
         .i_init_done (init_done),
         .i_init_fail (init_error),
-        .m_axi_awid   (ax_awid),   .m_axi_awaddr (ax_awaddr),
-        .m_axi_awlen  (ax_awlen),  .m_axi_awsize (ax_awsize),
-        .m_axi_awburst(ax_awburst),.m_axi_awuser (/* open */),
-        .m_axi_awvalid(ax_awvalid),.m_axi_awready(ax_awready),
-        .m_axi_wdata  (ax_wdata),  .m_axi_wstrb  (ax_wstrb),
-        .m_axi_wlast  (ax_wlast),  .m_axi_wuser  (/* open */),
-        .m_axi_wvalid (ax_wvalid), .m_axi_wready (ax_wready),
-        .m_axi_bid    (ax_bid),    .m_axi_bresp  (ax_bresp),
-        .m_axi_buser  (8'd0),      .m_axi_bvalid (ax_bvalid),
+        // AXI4 master -> litedram user port. The port has no lock/cache/prot/
+        // qos/region/user inputs, so those sideband outputs are left open.
+        .m_axi_awid   (ax_awid),   .m_axi_awaddr  (ax_awaddr),
+        .m_axi_awlen  (ax_awlen),  .m_axi_awsize  (ax_awsize),
+        .m_axi_awburst(ax_awburst),.m_axi_awlock  (/* open */),
+        .m_axi_awcache(/* open */),.m_axi_awprot  (/* open */),
+        .m_axi_awqos  (/* open */),.m_axi_awregion(/* open */),
+        .m_axi_awuser (/* open */),
+        .m_axi_awvalid(ax_awvalid),.m_axi_awready (ax_awready),
+        .m_axi_wdata  (ax_wdata),  .m_axi_wstrb   (ax_wstrb),
+        .m_axi_wlast  (ax_wlast),  .m_axi_wuser   (/* open */),
+        .m_axi_wvalid (ax_wvalid), .m_axi_wready  (ax_wready),
+        .m_axi_bid    (ax_bid),    .m_axi_bresp   (ax_bresp),
+        .m_axi_buser  (8'd0),      .m_axi_bvalid  (ax_bvalid),
         .m_axi_bready (ax_bready),
-        .m_axi_arid   (ax_arid),   .m_axi_araddr (ax_araddr),
-        .m_axi_arlen  (ax_arlen),  .m_axi_arsize (ax_arsize),
-        .m_axi_arburst(ax_arburst),.m_axi_aruser (/* open */),
-        .m_axi_arvalid(ax_arvalid),.m_axi_arready(ax_arready),
-        .m_axi_rid    (ax_rid),    .m_axi_rdata  (ax_rdata),
-        .m_axi_rresp  (ax_rresp),  .m_axi_rlast  (ax_rlast),
-        .m_axi_ruser  (8'd0),      .m_axi_rvalid (ax_rvalid),
+        .m_axi_arid   (ax_arid),   .m_axi_araddr  (ax_araddr),
+        .m_axi_arlen  (ax_arlen),  .m_axi_arsize  (ax_arsize),
+        .m_axi_arburst(ax_arburst),.m_axi_arlock  (/* open */),
+        .m_axi_arcache(/* open */),.m_axi_arprot  (/* open */),
+        .m_axi_arqos  (/* open */),.m_axi_arregion(/* open */),
+        .m_axi_aruser (/* open */),
+        .m_axi_arvalid(ax_arvalid),.m_axi_arready (ax_arready),
+        .m_axi_rid    (ax_rid),    .m_axi_rdata   (ax_rdata),
+        .m_axi_rresp  (ax_rresp),  .m_axi_rlast   (ax_rlast),
+        .m_axi_ruser  (8'd0),      .m_axi_rvalid  (ax_rvalid),
         .m_axi_rready (ax_rready)
     );
 
