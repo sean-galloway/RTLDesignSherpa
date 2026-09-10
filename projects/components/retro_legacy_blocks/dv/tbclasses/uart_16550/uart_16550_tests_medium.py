@@ -24,7 +24,9 @@ Medium-level verification of UART 16550 functionality including:
 """
 
 import random
-from cocotb.triggers import ClockCycles
+import cocotb
+from cocotb.triggers import ClockCycles, RisingEdge
+from CocoTBFramework.components.apb.apb_packet import APBPacket
 
 
 class UART16550MediumTests:
@@ -518,6 +520,989 @@ class UART16550MediumTests:
 
         return passed
 
+    # ==================================================================
+    # GH60 batch (uart_16550 issue #60 + two qc rounds): RED tests
+    # against the CURRENT RTL, mechanisms traced by direct reading of
+    # uart_16550_core.sv / uart_16550_config_regs.sv / uart_16550_regs.sv.
+    # Same pipeline as the smbus GH58 batch. No RTL edits, no ledger.
+    # ==================================================================
+
+    async def _hard_reset(self):
+        """Real DUT reset between GH60 tests - GH60-C6 confirms LSR/MSR
+        sticky error bits can NEVER be cleared by software (that is
+        exactly the defect), so any earlier test that provokes one
+        (C6 itself, QC1) leaves w_int_rx_error permanently true for
+        the rest of the session, which - being the HIGHEST-priority
+        interrupt source - corrupts priority-based IIR reads in every
+        later test regardless of what that later test is actually
+        exercising. A soft reconfigure is not enough; only a real
+        reset clears the core's sticky r_overrun_error/r_parity_error/
+        r_framing_error/r_break_interrupt/r_delta_* flops."""
+        await self.tb.assert_reset()
+        await ClockCycles(self.tb.pclk, 10)
+        await self.tb.deassert_reset()
+        await ClockCycles(self.tb.pclk, 10)
+        self.tb.dut.uart_rx.value = 1
+        self.tb.dut.cts_n.value = 1
+        self.tb.dut.dsr_n.value = 1
+        self.tb.dut.ri_n.value = 1
+        self.tb.dut.dcd_n.value = 1
+        await ClockCycles(self.tb.pclk, 5)
+
+    async def _drive_raw_frame(self, data, num_data_bits, parity_bit=None,
+                                stop_bit=1, break_line=False):
+        """Bit-bang a single UART frame directly onto dut.uart_rx, LSB
+        first (matching this core's own RX/TX bit ordering). No BFM in
+        the framework can produce a malformed frame (bad parity, bad
+        stop bit, break) on purpose, so this is the correct mechanism
+        for fault injection here - not a hand-rolled replacement for
+        the normal-case UARTMaster/UARTMonitor, which are used
+        everywhere a well-formed frame suffices."""
+        tb = self.tb
+        bit_time = tb.clks_per_bit
+        if break_line:
+            tb.dut.uart_rx.value = 0
+            await ClockCycles(tb.pclk, bit_time * (num_data_bits + 2))
+            tb.dut.uart_rx.value = 1
+            await ClockCycles(tb.pclk, bit_time)
+            return
+        tb.dut.uart_rx.value = 0  # start bit
+        await ClockCycles(tb.pclk, bit_time)
+        for i in range(num_data_bits):
+            tb.dut.uart_rx.value = (data >> i) & 1
+            await ClockCycles(tb.pclk, bit_time)
+        if parity_bit is not None:
+            tb.dut.uart_rx.value = parity_bit
+            await ClockCycles(tb.pclk, bit_time)
+        tb.dut.uart_rx.value = 1 if stop_bit else 0
+        await ClockCycles(tb.pclk, bit_time)
+        tb.dut.uart_rx.value = 1  # back to idle
+
+    async def _provoke_overrun(self):
+        from .uart_16550_tb import UART16550RegisterMap
+        await self.tb.configure_line(word_length=8, stop_bits=1, parity='none')
+        await self.tb.enable_fifos(rx_trigger=1)
+        await self.tb.reset_fifos()
+        for i in range(16):
+            await self._drive_raw_frame(0x40 + i, 8, stop_bit=1)
+        await self._drive_raw_frame(0x99, 8, stop_bit=1)
+
+    async def _provoke_parity_error(self):
+        await self.tb.configure_line(word_length=8, stop_bits=1, parity='even')
+        await self.tb.enable_fifos(rx_trigger=1)
+        await self.tb.reset_fifos()
+        # data=0x01 with even parity expects parity bit=1; send 0 (wrong).
+        await self._drive_raw_frame(0x01, 8, parity_bit=0, stop_bit=1)
+
+    async def _provoke_framing_error(self):
+        await self.tb.configure_line(word_length=8, stop_bits=1, parity='none')
+        await self.tb.enable_fifos(rx_trigger=1)
+        await self.tb.reset_fifos()
+        await self._drive_raw_frame(0x55, 8, stop_bit=0)
+
+    async def _provoke_break(self):
+        await self.tb.configure_line(word_length=8, stop_bits=1, parity='none')
+        await self.tb.enable_fifos(rx_trigger=1)
+        await self.tb.reset_fifos()
+        await self._drive_raw_frame(0, 8, break_line=True)
+
+    async def _provoke_delta_cts(self):
+        self.tb.set_cts(True)
+        await ClockCycles(self.tb.pclk, 200)
+
+    async def _provoke_delta_dsr(self):
+        self.tb.set_dsr(True)
+        await ClockCycles(self.tb.pclk, 200)
+
+    async def _provoke_delta_dcd(self):
+        self.tb.set_dcd(True)
+        await ClockCycles(self.tb.pclk, 200)
+
+    async def _provoke_trailing_ri(self):
+        self.tb.set_ri(True)
+        await ClockCycles(self.tb.pclk, 200)
+        self.tb.set_ri(False)
+        await ClockCycles(self.tb.pclk, 200)
+
+    async def test_gh60_c3_rbr_thr_bit_separation(self) -> bool:
+        """C3: UART_DATA[7:0] must return the RECEIVED byte (16550
+        RBR semantics - a driver reads RX data from the low byte
+        lane; THR is write-only and must never read back).
+        uart_16550_regs.sv: readback_array[0][7:0] =
+        field_storage.UART_DATA.tx_data.value (the LAST THR WRITE)
+        while [15:8] = hwif_in.UART_DATA.rx_data.next (the actual
+        received byte) - backwards from spec."""
+        self.log.info("=== GH60-C3: RBR read data must be in bits [7:0] ===")
+        try:
+            from .uart_16550_tb import UART16550RegisterMap
+            await self._hard_reset()
+            await self.tb.basic_init()
+            await self.tb.enable_loopback(False)
+
+            tx_byte, rx_byte = 0xA5, 0x3C
+            await self.tb.write_register(UART16550RegisterMap.UART_DATA, tx_byte)
+            await ClockCycles(self.tb.pclk, 20)
+
+            await self._drive_raw_frame(rx_byte, 8, stop_bit=1)
+            ok = await self.tb.wait_for_rx_data(timeout_cycles=20000)
+            if not ok:
+                self.log.error("GH60-C3: RX data never became ready")
+                return False
+
+            _, raw = await self.tb.read_register(UART16550RegisterMap.UART_DATA)
+            low_byte = raw & 0xFF
+            high_byte = (raw >> 8) & 0xFF
+
+            self.log.info(f"  wrote THR=0x{tx_byte:02X}, received RX=0x{rx_byte:02X}, "
+                          f"UART_DATA readback=0x{raw:04X} (low=0x{low_byte:02X}, "
+                          f"high=0x{high_byte:02X})")
+
+            if low_byte == rx_byte:
+                self.log.info("GH60-C3 GREEN")
+                return True
+
+            self.log.error(
+                f"GH60-C3: UART_DATA[7:0] must return the received byte "
+                f"(0x{rx_byte:02X}) - got 0x{low_byte:02X} (the last THR "
+                f"write, 0x{tx_byte:02X}) instead. The received byte "
+                f"instead appears in bits [15:8] (0x{high_byte:02X}).")
+            return False
+        except Exception as e:
+            self.log.error(f"GH60-C3 test error: {e}")
+            return False
+
+    async def _check_lsr_clears_on_read(self, provoke, bit_mask, ier_kind, label):
+        from .uart_16550_tb import UART16550RegisterMap
+        # Real reset first: C6 sub-cases run in sequence and EACH
+        # provokes a DIFFERENT sticky LSR/MSR condition that (per this
+        # very defect) never clears - without a hard reset, an earlier
+        # sub-case's still-stuck RX-error would permanently outrank
+        # everything else in the priority-encoded IIR for every later
+        # sub-case, corrupting the "pending"/id check independent of
+        # what THIS sub-case is exercising.
+        await self._hard_reset()
+        await self.tb.basic_init()
+        await self.tb.enable_loopback(False)
+        await self.tb.enable_irq(**{ier_kind: True})
+        await provoke()
+        await self.tb.wait_for_rx_data(timeout_cycles=20000)
+        await ClockCycles(self.tb.pclk, 50)
+        lsr1 = await self.tb.get_line_status()
+        bit1 = bool(lsr1 & bit_mask)
+        await ClockCycles(self.tb.pclk, 20)
+        lsr2 = await self.tb.get_line_status()
+        bit2 = bool(lsr2 & bit_mask)
+        iir = await self.tb.get_interrupt_id()
+        # RX line-status is the HIGHEST-priority source (int_id=2'b11)
+        # so checking its specific id (rather than "any pending",
+        # which TX-empty being permanently true would also satisfy)
+        # correctly isolates whether THIS condition is still reported.
+        line_status_pending = (iir & UART16550RegisterMap.IIR_INT_ID_MASK) == UART16550RegisterMap.IIR_INT_ID_MASK
+        irq_after = self.tb.get_irq()
+        ok = bit1 and (not bit2) and (not line_status_pending) and (not irq_after)
+        self.log.info(f"  {label}: LSR read1=0x{lsr1:02X}(bit={bit1}), "
+                      f"LSR read2(after 1st read)=0x{lsr2:02X}(bit={bit2}), "
+                      f"IIR={iir:#04x}, line_status_pending="
+                      f"{line_status_pending}, irq_after={irq_after}, ok={ok}")
+        return ok
+
+    async def _check_msr_clears_on_read(self, provoke, bit_mask, label):
+        from .uart_16550_tb import UART16550RegisterMap
+        await self._hard_reset()
+        await self.tb.basic_init()
+        await self.tb.enable_loopback(False)
+        await self.tb.enable_irq(modem_status=True)
+        await provoke()
+        msr1 = await self.tb.get_modem_status()
+        bit1 = bool(msr1 & bit_mask)
+        await ClockCycles(self.tb.pclk, 20)
+        msr2 = await self.tb.get_modem_status()
+        bit2 = bool(msr2 & bit_mask)
+        iir = await self.tb.get_interrupt_id()
+        int_not_pending = bool(iir & UART16550RegisterMap.IIR_INT_NOT_PENDING)
+        # Modem status is the LOWEST-priority source (int_id=2'b00) -
+        # it is only reported when something IS pending AND no
+        # higher-priority source is also active.
+        modem_pending = (not int_not_pending) and ((iir & UART16550RegisterMap.IIR_INT_ID_MASK) == 0)
+        ok = bit1 and (not bit2) and (not modem_pending)
+        self.log.info(f"  {label}: MSR read1=0x{msr1:02X}(bit={bit1}), "
+                      f"MSR read2(after 1st read)=0x{msr2:02X}(bit={bit2}), "
+                      f"IIR={iir:#04x}, modem_pending={modem_pending}, ok={ok}")
+        return ok
+
+    async def test_gh60_c6_lsr_msr_clear_on_read(self) -> bool:
+        """C6: LSR/MSR error and delta flags can never be cleared and
+        their interrupts latch forever - no read-clear exists, the
+        fields are W1C in the regblock, uart_16550_config_regs.sv ties
+        every clr_* strobe to 1'b0 (the core itself DOES support
+        clearing - clr_overrun_error etc are real ports that work -
+        the wrapper just never drives them), and the still-set core
+        status flags drive hwset every cycle so nothing can ever stay
+        cleared. Per 16550 semantics: LSR errors clear on read of LSR,
+        MSR deltas clear on read of MSR (note: the RDL currently
+        declares these fields W1C, which is a different mechanism from
+        real 16550 hardware read-clear, but W1C is at least clearable
+        in principle - the wrapper wiring gap means NEITHER mechanism
+        actually works today)."""
+        self.log.info("=== GH60-C6: LSR/MSR flags must be clearable ===")
+        from .uart_16550_tb import UART16550RegisterMap
+        M = UART16550RegisterMap
+        try:
+            results = {}
+            results['overrun'] = await self._check_lsr_clears_on_read(
+                self._provoke_overrun, M.LSR_OVERRUN_ERROR, 'line_status', 'overrun')
+            results['parity'] = await self._check_lsr_clears_on_read(
+                self._provoke_parity_error, M.LSR_PARITY_ERROR, 'line_status', 'parity')
+            results['framing'] = await self._check_lsr_clears_on_read(
+                self._provoke_framing_error, M.LSR_FRAMING_ERROR, 'line_status', 'framing')
+            results['break'] = await self._check_lsr_clears_on_read(
+                self._provoke_break, M.LSR_BREAK_INT, 'line_status', 'break')
+            results['delta_cts'] = await self._check_msr_clears_on_read(
+                self._provoke_delta_cts, M.MSR_DELTA_CTS, 'delta_cts')
+            results['delta_dsr'] = await self._check_msr_clears_on_read(
+                self._provoke_delta_dsr, M.MSR_DELTA_DSR, 'delta_dsr')
+            results['delta_dcd'] = await self._check_msr_clears_on_read(
+                self._provoke_delta_dcd, M.MSR_DELTA_DCD, 'delta_dcd')
+            results['trailing_ri'] = await self._check_msr_clears_on_read(
+                self._provoke_trailing_ri, M.MSR_TRAILING_RI, 'trailing_ri')
+
+            failures = [k for k, v in results.items() if not v]
+            if not failures:
+                self.log.info("GH60-C6 GREEN")
+                return True
+
+            self.log.error(
+                f"GH60-C6: LSR/MSR flags never clear for: {failures} "
+                f"(out of {list(results.keys())}). "
+                f"uart_16550_config_regs.sv ties every clr_* input to "
+                f"1'b0 while hwset is driven directly from the "
+                f"still-latched core status flags.")
+            return False
+        except Exception as e:
+            self.log.error(f"GH60-C6 test error: {e}")
+            return False
+
+    async def test_gh60_qc1_framing_error_and_break_must_assert(self) -> bool:
+        """qc-1: RX_STOP computes r_rx_frame_err/r_rx_break and then
+        reads them back in the SAME always_ff block for the FIFO
+        write and the sticky-flag set (both non-blocking assignments
+        sampling the PRE-EDGE, still-0, values), so a framing error or
+        a break NEVER sets LSR[3]/LSR[4], the RX FIFO entry's error
+        bits, or the line-status interrupt. Parity error is the
+        control - it is set one cycle earlier in RX_PARITY, so it IS
+        the up-to-date value by the time RX_STOP reads it, and works
+        today."""
+        self.log.info("=== GH60-QC1: framing error and break must assert ===")
+        from .uart_16550_tb import UART16550RegisterMap
+        M = UART16550RegisterMap
+        try:
+            results = {}
+            cases = (
+                ('framing', self._provoke_framing_error, M.LSR_FRAMING_ERROR),
+                ('break', self._provoke_break, M.LSR_BREAK_INT),
+                ('parity(control)', self._provoke_parity_error, M.LSR_PARITY_ERROR),
+            )
+            for label, provoke, bit_mask in cases:
+                await self._hard_reset()
+                await self.tb.basic_init()
+                await self.tb.enable_loopback(False)
+                await self.tb.enable_irq(line_status=True)
+                await provoke()
+                rx_ready = await self.tb.wait_for_rx_data(timeout_cycles=20000)
+                await ClockCycles(self.tb.pclk, 20)
+                # Check the interrupt state BEFORE touching LSR - real
+                # 16550 semantics clear the RX-line-status interrupt
+                # on a read of LSR too, so IIR/irq must be observed
+                # first or this test's OWN LSR read (below) would
+                # clear the very interrupt it is trying to check.
+                iir = await self.tb.get_interrupt_id()
+                irq = self.tb.get_irq()
+                lsr = await self.tb.get_line_status()
+
+                bit_ok = bool(lsr & bit_mask)
+                fifo_err = bool(lsr & M.LSR_RX_FIFO_ERROR)
+                line_status_id = (iir & M.IIR_INT_ID_MASK) == M.IIR_INT_ID_MASK
+                pending = not (iir & M.IIR_INT_NOT_PENDING)
+                ok = bit_ok and fifo_err and pending and line_status_id and irq
+                results[label] = ok
+                self.log.info(f"  {label}: rx_ready={rx_ready}, LSR=0x{lsr:02X}, "
+                              f"bit_ok={bit_ok}, fifo_err={fifo_err}, "
+                              f"IIR=0x{iir:02X}, pending={pending}, "
+                              f"line_status_id={line_status_id}, irq={irq}, "
+                              f"ok={ok}")
+
+            failures = [k for k, v in results.items() if not v]
+            if not failures:
+                self.log.info("GH60-QC1 GREEN")
+                return True
+            self.log.error(f"GH60-QC1: {failures} did not assert "
+                          f"LSR/FIFO-error/interrupt (results={results}).")
+            return False
+        except Exception as e:
+            self.log.error(f"GH60-QC1 test error: {e}")
+            return False
+
+    async def test_gh60_qc2_short_word_rx_justification(self) -> bool:
+        """qc-2: RX shifts MSB-first (`r_rx_shift <=
+        {w_rx_in, r_rx_shift[7:1]}`), so at 5/6/7 data bits the
+        received character lands MSB-justified with stale low bits
+        instead of right-justified and zero-filled in [7:0]. TX
+        already sends [N-1:0] LSB-first (`r_tx_shift[0]`, shift
+        right), so a loopback round-trip at <8 bits will not read
+        back what was sent today. Also confirms break detection still
+        works at a short (5-bit) word length."""
+        self.log.info("=== GH60-QC2: 5/6/7-bit RX must be right-justified ===")
+        from .uart_16550_tb import UART16550RegisterMap
+        try:
+            await self._hard_reset()
+            results = {}
+            for nbits in (5, 6, 7):
+                await self.tb.configure_line(word_length=nbits, stop_bits=1,
+                                              parity='none')
+                await self.tb.enable_fifos(rx_trigger=1)
+                await self.tb.reset_fifos()
+                await self.tb.enable_loopback(True)
+
+                test_val = (1 << nbits) - 1
+                await self.tb.tx_byte(test_val)
+                ok = await self.tb.wait_for_rx_data(timeout_cycles=20000)
+                await ClockCycles(self.tb.pclk, 20)
+                _, raw = await self.tb.read_register(UART16550RegisterMap.UART_DATA)
+                # rx_data currently lands in [15:8] (see GH60-C3) -
+                # read there regardless of C3's own bit-lane defect,
+                # since this test is specifically about justification
+                # WITHIN the received byte, not which lane it's in.
+                rx_val = (raw >> 8) & 0xFF
+                match = (rx_val == test_val)
+                results[f'{nbits}bit_rx'] = ok and match
+                self.log.info(f"  {nbits}-bit word: sent=0x{test_val:02X}, "
+                              f"rx=0x{rx_val:02X} (want right-justified, "
+                              f"zero-filled), match={match}")
+
+                await self.tb.enable_loopback(False)
+
+            await self.tb.configure_line(word_length=5, stop_bits=1, parity='none')
+            await self.tb.enable_fifos(rx_trigger=1)
+            await self.tb.reset_fifos()
+            await self._drive_raw_frame(0, 5, break_line=True)
+            ok_break = await self.tb.wait_for_rx_data(timeout_cycles=20000)
+            await ClockCycles(self.tb.pclk, 20)
+            lsr = await self.tb.get_line_status()
+            break_ok = bool(lsr & UART16550RegisterMap.LSR_BREAK_INT)
+            results['break_at_5bit'] = break_ok
+            self.log.info(f"  break@5bit: rx_ready={ok_break}, LSR=0x{lsr:02X}, "
+                          f"break_ok={break_ok}")
+
+            await self.tb.configure_line(word_length=8, stop_bits=1, parity='none')
+
+            failures = [k for k, v in results.items() if not v]
+            if not failures:
+                self.log.info("GH60-QC2 GREEN")
+                return True
+            self.log.error(f"GH60-QC2: {failures} failed (results={results}).")
+            return False
+        except Exception as e:
+            self.log.error(f"GH60-QC2 test error: {e}")
+            return False
+
+    async def test_gh60_qc3_1_thr_gapless_writes(self) -> bool:
+        """qc3-1: w_tx_write is a FALLING-EDGE detector on the decoded
+        write strobe - if the APB bridge ever holds that strobe
+        continuously high across two back-to-back same-address
+        writes, the second write's falling edge never fires and its
+        byte is dropped. Drives two back-to-back UART_DATA writes as
+        fast as the framework APB master will issue them (both
+        queued via send() with no artificial delay) and checks both
+        bytes appear on the wire via loopback. If the bridge cannot
+        produce a truly gapless shape (PSEL/PENABLE naturally drops
+        between two separate APB transactions), this is a guard
+        (expected GREEN) rather than a defect-catching RED test - see
+        the reported PENABLE-gap evidence in the log either way."""
+        self.log.info("=== GH60-QC3-1: gapless back-to-back THR writes ===")
+        from .uart_16550_tb import UART16550RegisterMap
+        try:
+            await self._hard_reset()
+            await self.tb.basic_init()
+            await self.tb.enable_loopback(True)
+
+            byte_a, byte_b = 0x11, 0x22
+            pkt_a = APBPacket(pwrite=1, paddr=UART16550RegisterMap.UART_DATA,
+                               pwdata=byte_a, pstrb=0xF, pprot=0,
+                               data_width=32, addr_width=12, strb_width=4)
+            pkt_a.direction = 'WRITE'
+            pkt_b = APBPacket(pwrite=1, paddr=UART16550RegisterMap.UART_DATA,
+                               pwdata=byte_b, pstrb=0xF, pprot=0,
+                               data_width=32, addr_width=12, strb_width=4)
+            pkt_b.direction = 'WRITE'
+
+            penable_gap_seen = False
+            prev_penable = int(self.tb.dut.s_apb_PENABLE.value)
+
+            async def _watch_penable():
+                nonlocal penable_gap_seen, prev_penable
+                for _ in range(200):
+                    await RisingEdge(self.tb.pclk)
+                    cur = int(self.tb.dut.s_apb_PENABLE.value)
+                    if prev_penable == 1 and cur == 0:
+                        penable_gap_seen = True
+                    prev_penable = cur
+
+            watcher = cocotb.start_soon(_watch_penable())
+            await self.tb.apb4_master.send(pkt_a)
+            await self.tb.apb4_master.send(pkt_b)
+            await ClockCycles(self.tb.pclk, 100)
+            await watcher.join()
+
+            received = await self.tb.rx_bytes(2, timeout_cycles=200000)
+            self.log.info(f"  wrote {[hex(byte_a), hex(byte_b)]} back-to-back "
+                          f"(queued via send(), no artificial delay), "
+                          f"received={[hex(b) for b in received]}, "
+                          f"penable_gap_seen={penable_gap_seen}")
+
+            await self.tb.enable_loopback(False)
+
+            if received == [byte_a, byte_b]:
+                self.log.info(
+                    f"GH60-QC3-1 GREEN: both writes made it onto the wire "
+                    f"(penable_gap_seen={penable_gap_seen} - "
+                    f"{'the bridge naturally gapped the two transactions, so this is a guard' if penable_gap_seen else 'a genuinely gapless pair passed'})")
+                return True
+
+            self.log.error(
+                f"GH60-QC3-1: gapless back-to-back UART_DATA writes lost a "
+                f"byte - wrote {[hex(byte_a), hex(byte_b)]}, received "
+                f"{[hex(b) for b in received]} (penable_gap_seen="
+                f"{penable_gap_seen}).")
+            return False
+        except Exception as e:
+            self.log.error(f"GH60-QC3-1 test error: {e}")
+            return False
+
+    async def test_gh60_ier_gating(self) -> bool:
+        """Coordinator ask: IER must gate each interrupt source
+        independently (16550 semantics: IER=0 means the corresponding
+        condition never asserts irq, even though the underlying
+        LSR/IIR condition is still true). uart_16550_core.sv has NO
+        ier/cfg_*_ie input port at all - IER is purely decorative;
+        `irq = ~int_not_pending && cfg_out2` is driven regardless of
+        IER."""
+        self.log.info("=== GH60-IER: interrupt enables must gate each source ===")
+        from .uart_16550_tb import UART16550RegisterMap
+        try:
+            await self._hard_reset()
+            await self.tb.basic_init()
+            await self.tb.enable_loopback(True)
+            await self.tb.write_register(UART16550RegisterMap.UART_IER, 0x00)
+            await self.tb.set_modem_control(out2=True, loopback=True)
+
+            await self.tb.tx_byte(0x42)
+            rx_ready = await self.tb.wait_for_rx_data(timeout_cycles=20000)
+            await ClockCycles(self.tb.pclk, 50)
+
+            irq = self.tb.get_irq()
+            iir = await self.tb.get_interrupt_id()
+            pending = not (iir & UART16550RegisterMap.IIR_INT_NOT_PENDING)
+
+            await self.tb.enable_loopback(False)
+
+            self.log.info(f"  rx_ready={rx_ready}, IER=0x00, irq={irq}, "
+                          f"IIR=0x{iir:02X}, pending={pending}")
+
+            if not irq and not pending:
+                self.log.info("GH60-IER GREEN")
+                return True
+
+            self.log.error(
+                f"GH60-IER: with IER=0x00 (all sources disabled), RX data "
+                f"still asserted irq={irq}/pending={pending} - IER has no "
+                f"wiring into interrupt generation at all in "
+                f"uart_16550_core.sv (no ier/cfg_*_ie input port exists; "
+                f"irq is driven purely by int_not_pending && cfg_out2).")
+            return False
+        except Exception as e:
+            self.log.error(f"GH60-IER test error: {e}")
+            return False
+
+    async def test_gh60_guard_rx_trigger_levels(self) -> bool:
+        """GUARD: RX data-available interrupt must not fire before the
+        configured FIFO trigger level is reached. Checks the
+        PRIORITY-ENCODED int_id for the RX-DATA source specifically
+        (IIR bits[2:1]==2'b10) rather than "any interrupt pending" -
+        with nothing ever written to THR in this test, w_tx_fifo_empty
+        is true throughout, and thanks to the already-confirmed
+        GH60-IER defect (IER does not gate anything) that alone makes
+        "any pending" true the whole time regardless of the RX
+        trigger. int_id is still meaningful despite that: it reports
+        only the HIGHEST-priority active source, and RX-data
+        (priority 2) outranks TX-empty (priority 3), so int_id
+        correctly distinguishes "trigger not yet reached" (reports
+        TX-empty's id) from "trigger reached" (reports RX-data's id)."""
+        self.log.info("=== GH60-GUARD: RX FIFO trigger levels ===")
+        from .uart_16550_tb import UART16550RegisterMap
+        RX_DATA_ID = 0x04  # int_id=2'b10 at IIR bits[2:1]
+        try:
+            await self._hard_reset()
+            await self.tb.configure_line(word_length=8, stop_bits=1, parity='none')
+            await self.tb.set_baud_divisor(54)
+            # reset_fifos() writes FCR without preserving the trigger
+            # bits (it writes FIFO_ENABLE|RX_RESET|TX_RESET only), so
+            # it must run BEFORE enable_fifos() sets the trigger level,
+            # not after - otherwise it silently clobbers the trigger
+            # back to level-1.
+            await self.tb.reset_fifos()
+            await self.tb.enable_fifos(rx_trigger=4)
+            await self.tb.enable_loopback(True)
+            await self.tb.enable_irq(rx_data=True)
+
+            for i in range(3):
+                await self.tb.tx_byte(0x50 + i)
+            await ClockCycles(self.tb.pclk, 30000)
+            iir_before = await self.tb.get_interrupt_id()
+            rx_id_before = (iir_before & UART16550RegisterMap.IIR_INT_ID_MASK) == RX_DATA_ID
+
+            await self.tb.tx_byte(0x53)
+            await ClockCycles(self.tb.pclk, 30000)
+            iir_after = await self.tb.get_interrupt_id()
+            rx_id_after = (iir_after & UART16550RegisterMap.IIR_INT_ID_MASK) == RX_DATA_ID
+
+            await self.tb.enable_loopback(False)
+            self.log.info(f"  before trigger (3 bytes staged): "
+                          f"IIR=0x{iir_before:02X}, rx_data_id={rx_id_before}; "
+                          f"at trigger (4 bytes): IIR=0x{iir_after:02X}, "
+                          f"rx_data_id={rx_id_after}")
+
+            ok = (not rx_id_before) and rx_id_after
+            if ok:
+                self.log.info("GH60-GUARD(trigger) GREEN")
+                return True
+            self.log.error(
+                f"GH60-GUARD(trigger): expected the RX-data interrupt ID "
+                f"NOT reported below the trigger level and reported at "
+                f"it - got rx_id_before={rx_id_before}, "
+                f"rx_id_after={rx_id_after}.")
+            return False
+        except Exception as e:
+            self.log.error(f"GH60-GUARD(trigger) test error: {e}")
+            return False
+
+    async def test_gh60_strict_decode_missing(self) -> bool:
+        """Coordinator ask (turned out to be a real finding, not a
+        guard): an APB access to an unmapped address must return
+        PSLVERR the way the other RLB blocks do. uart_16550_regs.sv
+        (the PeakRDL-generated regblock) hardwires BOTH
+        `cpuif_wr_err = '0'` (line ~1200) and `readback_err = '0'`
+        inside the read-data reduce block (line ~1276) - there is no
+        decode-error path at all, for either direction, so an
+        unmapped write or read is silently ack'd with PSLVERR=0."""
+        self.log.info("=== GH60: strict decode (unmapped -> PSLVERR) ===")
+        try:
+            await self.tb.basic_init()
+            bad_addr = 0x100  # well past the last mapped register (0x028)
+            write_packet = APBPacket(
+                pwrite=1, paddr=bad_addr, pwdata=0xDEADBEEF, pstrb=0xF,
+                pprot=0, data_width=32, addr_width=12, strb_width=4)
+            write_packet.direction = 'WRITE'
+            await self.tb.apb4_master.send(write_packet)
+            for _ in range(20):
+                await RisingEdge(self.tb.pclk)
+                if (self.tb.dut.s_apb_PSEL.value and
+                        self.tb.dut.s_apb_PENABLE.value and
+                        self.tb.dut.s_apb_PREADY.value):
+                    break
+            pslverr = bool(self.tb.dut.s_apb_PSLVERR.value)
+            await RisingEdge(self.tb.pclk)
+
+            self.log.info(f"  write to 0x{bad_addr:03X}: PSLVERR={pslverr}")
+            if pslverr:
+                self.log.info("GH60-strict-decode GREEN")
+                return True
+            self.log.error(
+                f"GH60-strict-decode: write to unmapped address "
+                f"0x{bad_addr:03X} did not assert PSLVERR.")
+            return False
+        except Exception as e:
+            self.log.error(f"GH60-strict-decode test error: {e}")
+            return False
+
+    # ==================================================================
+    # GH60-R2 batch (independent review, round 2): RED tests against
+    # the CURRENT RTL, mechanisms traced by direct reading of
+    # uart_16550_config_regs.sv / uart_16550_core.sv. No RTL edits, no
+    # ledger.
+    # ==================================================================
+
+    async def test_gh60_r2_1_thr_byte_enable_masked(self) -> bool:
+        """R2-1 (HIGH): a THR write with the low byte lane masked
+        (PSTRB excludes lane 0) transmits a fabricated NUL byte
+        instead of nothing. uart_16550_config_regs.sv:
+        `w_thr_ack_now = w_uart_data_write && w_blk_wr_ack` has no
+        byte-enable term - the DATA capture (`r_thr_data <=
+        regblk_wr_data[7:0] & regblk_wr_biten[7:0]`) correctly masks
+        to 0x00 when biten[7:0]=0, but the PUSH decision
+        (`r_thr_push`) fires regardless, so a byte-disabled write
+        still queues and transmits that masked-to-zero byte."""
+        self.log.info("=== GH60-R2-1: THR write byte-enable must gate the push ===")
+        from .uart_16550_tb import UART16550RegisterMap
+        core = self.tb.dut.u_uart_config_regs.u_uart_core
+        try:
+            await self._hard_reset()
+            await self.tb.basic_init()
+            await self.tb.enable_loopback(False)
+
+            level_before = int(core.w_tx_fifo_count.value)
+            # PSTRB=0b0010: only lane 1 (the RX-alias byte) selected -
+            # lane 0 (the actual THR data byte) is NOT written.
+            await self.tb.write_register(UART16550RegisterMap.UART_DATA,
+                                          0x000000AB, pstrb=0b0010)
+            await ClockCycles(self.tb.pclk, 30)
+            level_after_masked = int(core.w_tx_fifo_count.value)
+
+            # PSTRB=0b0001: lane 0 selected - the byte DOES go out.
+            await self.tb.write_register(UART16550RegisterMap.UART_DATA,
+                                          0x00000042, pstrb=0b0001)
+            await ClockCycles(self.tb.pclk, 30)
+            level_after_normal = int(core.w_tx_fifo_count.value)
+
+            self.log.info(
+                f"  tx_fifo_count: before={level_before}, after "
+                f"PSTRB=0b0010 write of 0xAB={level_after_masked}, "
+                f"after PSTRB=0b0001 write of 0x42={level_after_normal}")
+
+            masked_ok = (level_after_masked == level_before)
+            # Compared against level_after_masked (not level_before):
+            # the masked write may itself have incorrectly pushed a
+            # byte (that is exactly the defect under test), and this
+            # second check is about whether THIS write's own +1 is
+            # correct, not a re-statement of the first check.
+            normal_ok = (level_after_normal == level_after_masked + 1)
+
+            if masked_ok and normal_ok:
+                self.log.info("GH60-R2-1 GREEN")
+                return True
+
+            self.log.error(
+                f"GH60-R2-1: byte-disabled THR write pushed a byte "
+                f"anyway - tx_fifo_count went from {level_before} to "
+                f"{level_after_masked} on a PSTRB=0b0010 write "
+                f"(masked_ok={masked_ok}); normal PSTRB=0b0001 write "
+                f"result: {level_before}->{level_after_normal} "
+                f"(normal_ok={normal_ok}).")
+            return False
+        except Exception as e:
+            self.log.error(f"GH60-R2-1 test error: {e}")
+            return False
+
+    async def test_gh60_r2_2_fifo_disable_not_honored(self) -> bool:
+        """R2-2 (MED): FCR[0]=0 (16450 character mode) must reduce TX
+        to a single holding register (later writes overwrite an
+        unsent byte, not queue) and RX to a single holding register
+        (a second unread character sets overrun, not queue silently).
+        cfg_fifo_enable has only two consumers in uart_16550_core.sv
+        (sts_fifo_status and the RX-trigger interrupt condition) and
+        the TX/RX datapath itself never reads it, so both FIFOs stay
+        full 16-deep regardless of FCR[0]."""
+        self.log.info("=== GH60-R2-2: FCR[0]=0 must actually disable the FIFOs ===")
+        from .uart_16550_tb import UART16550RegisterMap
+        core = self.tb.dut.u_uart_config_regs.u_uart_core
+        try:
+            # --- TX side: character mode, 16 back-to-back THR writes.
+            await self._hard_reset()
+            await self.tb.configure_line(word_length=8, stop_bits=1, parity='none')
+            await self.tb.set_baud_divisor(54)
+            await self.tb.reset_fifos()
+            await self.tb.write_register(UART16550RegisterMap.UART_FCR, 0x00)
+            await self.tb.enable_loopback(False)
+
+            for i in range(16):
+                await self.tb.write_register(UART16550RegisterMap.UART_DATA, 0x60 + i)
+            await ClockCycles(self.tb.pclk, 50)
+            tx_level_char_mode = int(core.w_tx_fifo_count.value)
+            tx_ok = tx_level_char_mode <= 1
+            self.log.info(
+                f"  TX char-mode: wrote 16 bytes back-to-back, "
+                f"tx_fifo_count={tx_level_char_mode} (want <=1, a "
+                f"single holding register later writes overwrite), "
+                f"tx_ok={tx_ok}")
+
+            # --- RX side: character mode, two characters with no read
+            # in between must set overrun on the second.
+            await self._hard_reset()
+            await self.tb.configure_line(word_length=8, stop_bits=1, parity='none')
+            await self.tb.set_baud_divisor(54)
+            await self.tb.reset_fifos()
+            await self.tb.write_register(UART16550RegisterMap.UART_FCR, 0x00)
+            await self.tb.enable_loopback(False)
+
+            await self._drive_raw_frame(0x11, 8, stop_bit=1)
+            await ClockCycles(self.tb.pclk, 200)
+            dr1 = bool(core.sts_data_ready.value)
+            await self._drive_raw_frame(0x22, 8, stop_bit=1)
+            await ClockCycles(self.tb.pclk, 200)
+            lsr = await self.tb.get_line_status()
+            overrun_ok = bool(lsr & UART16550RegisterMap.LSR_OVERRUN_ERROR)
+            self.log.info(
+                f"  RX char-mode: dr_after_1st={dr1}, "
+                f"LSR_after_2nd_unread=0x{lsr:02X}, overrun_ok={overrun_ok}")
+
+            if tx_ok and overrun_ok:
+                self.log.info("GH60-R2-2 GREEN")
+                return True
+
+            self.log.error(
+                f"GH60-R2-2: FCR[0]=0 does not reduce the FIFOs to "
+                f"single-character (16450) behavior - TX: "
+                f"tx_fifo_count={tx_level_char_mode} after 16 "
+                f"back-to-back writes (want <=1, tx_ok={tx_ok}); RX: a "
+                f"second unread character LSR=0x{lsr:02X} "
+                f"(overrun_ok={overrun_ok}).")
+            return False
+        except Exception as e:
+            self.log.error(f"GH60-R2-2 test error: {e}")
+            return False
+
+    async def test_gh60_r2_3_lsr_error_not_per_character(self) -> bool:
+        """R2-3 (MED): LSR[4:2] (parity/framing/break) are GLOBAL
+        sticky flops in uart_16550_core.sv, not derived from the
+        per-character tag stored in the RX FIFO entry [10:8] (LSR[7]/
+        rx_fifo_error IS correctly derived per-entry from that tag;
+        the specific error-TYPE bits are not). Receive a clean 'A', a
+        character with a parity error, then two more clean characters
+        (FIFOs enabled, trigger=4); reading RBR must return 'A' with
+        LSR reporting no parity error for it, and the parity error
+        must be reported on the read that returns the bad byte."""
+        self.log.info("=== GH60-R2-3: LSR error bits must tag the character being read ===")
+        from .uart_16550_tb import UART16550RegisterMap
+        M = UART16550RegisterMap
+        try:
+            await self._hard_reset()
+            await self.tb.configure_line(word_length=8, stop_bits=1, parity='even')
+            await self.tb.set_baud_divisor(54)
+            await self.tb.reset_fifos()
+            await self.tb.enable_fifos(rx_trigger=4)
+            await self.tb.enable_loopback(False)
+
+            chars = [ord('A'), 0xC3, ord('C'), ord('D')]
+            for idx, ch in enumerate(chars):
+                correct_parity = bin(ch).count('1') % 2  # even parity bit
+                if idx == 1:
+                    await self._drive_raw_frame(ch, 8, parity_bit=1 - correct_parity,
+                                                 stop_bit=1)
+                else:
+                    await self._drive_raw_frame(ch, 8, parity_bit=correct_parity,
+                                                 stop_bit=1)
+                await ClockCycles(self.tb.pclk, 50)
+
+            await ClockCycles(self.tb.pclk, 200)
+
+            results = []
+            for i in range(4):
+                _, raw = await self.tb.read_register(M.UART_DATA)
+                byte = raw & 0xFF
+                lsr = await self.tb.get_line_status()
+                parity_bit = bool(lsr & M.LSR_PARITY_ERROR)
+                results.append((byte, parity_bit))
+                self.log.info(f"  read {i}: byte=0x{byte:02X}, "
+                              f"parity_error={parity_bit} (LSR=0x{lsr:02X})")
+
+            clean_a_ok = (results[0][0] == ord('A')) and (not results[0][1])
+            bad_byte_ok = (results[1][0] == 0xC3) and results[1][1]
+            others_clean = (not results[2][1]) and (not results[3][1])
+            ok = clean_a_ok and bad_byte_ok and others_clean
+
+            if ok:
+                self.log.info("GH60-R2-3 GREEN")
+                return True
+
+            self.log.error(
+                f"GH60-R2-3: LSR parity-error bit is not attributed to "
+                f"the correct character - results={results} (want "
+                f"[0]=('A'=0x41, False), [1]=(0xC3, True), others "
+                f"False).")
+            return False
+        except Exception as e:
+            self.log.error(f"GH60-R2-3 test error: {e}")
+            return False
+
+    async def test_gh60_r3_1_lsr7_is_a_fifo_aggregate(self) -> bool:
+        """R3-1: LSR[7] must aggregate over the WHOLE RX FIFO.
+
+        PC16550D defines it in FIFO mode as "at least one parity error,
+        framing error or break indication in the FIFO". Deriving it from
+        the entry at the read pointer makes it read 0 whenever a tagged
+        character is queued behind a clean one, so software that polls
+        LSR[7] to decide whether to inspect the stream misses the error
+        entirely. Receive a clean 'A', a parity-error character, then two
+        clean ones without reading RBR: LSR[7] must be set from the moment
+        the bad character lands and must stay set until that character has
+        been read out. It is a FIFO-mode bit, so it must read 0 with
+        FCR[0] clear."""
+        self.log.info("=== GH60-R3-1: LSR[7] is an aggregate over the whole FIFO ===")
+        from .uart_16550_tb import UART16550RegisterMap
+        M = UART16550RegisterMap
+        try:
+            await self._hard_reset()
+            await self.tb.configure_line(word_length=8, stop_bits=1, parity='even')
+            await self.tb.set_baud_divisor(54)
+            await self.tb.reset_fifos()
+            await self.tb.enable_fifos(rx_trigger=4)
+            await self.tb.enable_loopback(False)
+
+            chars = [ord('A'), 0xC3, ord('C'), ord('D')]
+            after_each = []
+            for idx, ch in enumerate(chars):
+                correct = bin(ch).count('1') % 2
+                bit = (1 - correct) if idx == 1 else correct
+                await self._drive_raw_frame(ch, 8, parity_bit=bit, stop_bit=1)
+                await ClockCycles(self.tb.pclk, 50)
+                lsr = await self.tb.get_line_status()
+                after_each.append(bool(lsr & M.LSR_RX_FIFO_ERROR))
+                self.log.info(f"  after char {idx} (0x{ch:02X}): LSR[7]={after_each[-1]}")
+
+            # Set from the arrival of the bad character, and still set while
+            # it sits behind the clean 'A'.
+            arrival_ok = (not after_each[0]) and all(after_each[1:])
+
+            # Now drain. LSR[7] must stay set until the tagged character has
+            # been handed over, and clear once it has.
+            during = []
+            for i in range(4):
+                _, raw = await self.tb.read_register(M.UART_DATA)
+                lsr = await self.tb.get_line_status()
+                during.append((raw & 0xFF, bool(lsr & M.LSR_RX_FIFO_ERROR)))
+                self.log.info(f"  read {i}: byte=0x{during[-1][0]:02X}, "
+                              f"LSR[7]={during[-1][1]}")
+
+            # After reading 'A' the tagged byte is still queued -> still set.
+            # After reading it -> clear, and stays clear.
+            drain_ok = during[0][1] and (not during[1][1]) and \
+                       (not during[2][1]) and (not during[3][1])
+
+            # FIFO-mode bit only.
+            await self._hard_reset()
+            await self.tb.configure_line(word_length=8, stop_bits=1, parity='even')
+            await self.tb.set_baud_divisor(54)
+            await self.tb.write_register(M.UART_FCR, 0x00)
+            correct = bin(0xC3).count('1') % 2
+            await self._drive_raw_frame(0xC3, 8, parity_bit=1 - correct, stop_bit=1)
+            await ClockCycles(self.tb.pclk, 250)
+            lsr = await self.tb.get_line_status()
+            char_mode_ok = not bool(lsr & M.LSR_RX_FIFO_ERROR)
+            self.log.info(f"  character mode: LSR[7]={not char_mode_ok} (want False)")
+
+            ok = arrival_ok and drain_ok and char_mode_ok
+            if ok:
+                self.log.info("GH60-R3-1 GREEN")
+                return True
+            self.log.error(
+                f"GH60-R3-1: LSR[7] is not a FIFO aggregate - "
+                f"after_each={after_each} (want [False, True, True, True]), "
+                f"drain={during} (want LSR[7] True on the read that returns "
+                f"'A', False from the read that returns 0xC3 onward), "
+                f"character_mode_reads_zero={char_mode_ok}")
+            return False
+        except Exception as e:
+            self.log.error(f"GH60-R3-1 test error: {e}")
+            return False
+
+    async def test_gh60_r2_4_continuous_break_floods_fifo(self) -> bool:
+        """R2-4 (LOW/MED): RX_IDLE re-arms on a still-low line with no
+        guard against re-framing mid-break, so a break held for N
+        character times loads N zero characters (eventually
+        overrunning the FIFO) instead of exactly one break-tagged
+        character followed by silence until the line returns to
+        marking and a genuine new start bit arrives."""
+        self.log.info("=== GH60-R2-4: continuous break must load exactly one character ===")
+        from .uart_16550_tb import UART16550RegisterMap
+        core = self.tb.dut.u_uart_config_regs.u_uart_core
+        try:
+            await self._hard_reset()
+            await self.tb.configure_line(word_length=8, stop_bits=1, parity='none')
+            await self.tb.set_baud_divisor(54)
+            await self.tb.enable_fifos(rx_trigger=1)
+            await self.tb.reset_fifos()
+            await self.tb.enable_loopback(False)
+
+            char_time_cycles = self.tb.clks_per_bit * 10  # start+8 data+stop
+            self.tb.dut.uart_rx.value = 0
+            await ClockCycles(self.tb.pclk, char_time_cycles * 10)
+            self.tb.dut.uart_rx.value = 1
+            await ClockCycles(self.tb.pclk, char_time_cycles * 2)
+
+            level = int(core.w_rx_fifo_count.value)
+            lsr = await self.tb.get_line_status()
+
+            self.log.info(
+                f"  after a 10-character-time break: rx_fifo_count="
+                f"{level} (want exactly 1), LSR=0x{lsr:02X}")
+
+            if level == 1:
+                self.log.info("GH60-R2-4 GREEN")
+                return True
+
+            self.log.error(
+                f"GH60-R2-4: a continuous break held for 10 character "
+                f"times loaded rx_fifo_count={level} characters (want "
+                f"exactly 1) - RX_IDLE re-arms on a still-low line with "
+                f"no guard against reframing mid-break.")
+            return False
+        except Exception as e:
+            self.log.error(f"GH60-R2-4 test error: {e}")
+            return False
+
+    async def test_gh60_r2_5_tx_fifo_reset_truncates_inflight_char(self) -> bool:
+        """R2-5 (LOW/MED): FCR[2] TX FIFO reset unconditionally forces
+        r_tx_state <= TX_IDLE (uart_16550_core.sv ~line 330-332),
+        truncating whatever character is currently being shifted out
+        on the wire instead of only resetting the FIFO's counters/
+        pointers. Write FCR[2]=1 while a character is mid-transmission
+        (state==TX_DATA) and assert the far end still sees a
+        complete, well-formed byte."""
+        self.log.info("=== GH60-R2-5: TX FIFO reset must not truncate an in-flight character ===")
+        from .uart_16550_tb import UART16550RegisterMap
+        TX_DATA_STATE = 2  # typedef enum: TX_IDLE=0,TX_START=1,TX_DATA=2,...
+        core = self.tb.dut.u_uart_config_regs.u_uart_core
+        try:
+            await self._hard_reset()
+            await self.tb.basic_init()
+            await self.tb.enable_loopback(False)
+            self.tb.clear_rx_queue()
+
+            await self.tb.write_register(UART16550RegisterMap.UART_DATA, 0x5A)
+
+            reached_tx_data = False
+            for _ in range(2000):
+                await RisingEdge(self.tb.pclk)
+                if int(core.r_tx_state.value) == TX_DATA_STATE:
+                    reached_tx_data = True
+                    break
+
+            fcr = (UART16550RegisterMap.FCR_FIFO_ENABLE |
+                   UART16550RegisterMap.FCR_TX_FIFO_RESET)
+            await self.tb.write_register(UART16550RegisterMap.UART_FCR, fcr)
+
+            await ClockCycles(self.tb.pclk, self.tb.clks_per_bit * 14)
+
+            packets = self.tb.get_received_packets()
+            wire_ok = (len(packets) >= 1 and packets[0].data == 0x5A)
+
+            self.log.info(
+                f"  reached_tx_data={reached_tx_data}, packets="
+                f"{[hex(p.data) for p in packets]}, wire_ok={wire_ok}")
+
+            if reached_tx_data and wire_ok:
+                self.log.info("GH60-R2-5 GREEN")
+                return True
+
+            self.log.error(
+                f"GH60-R2-5: TX FIFO reset mid-character truncated the "
+                f"byte on the wire - reached_tx_data={reached_tx_data}, "
+                f"received packets={[hex(p.data) for p in packets]} "
+                f"(want [0x5A]).")
+            return False
+        except Exception as e:
+            self.log.error(f"GH60-R2-5 test error: {e}")
+            return False
+
     async def run_all_medium_tests(self) -> bool:
         """Run all medium tests."""
         results = []
@@ -531,6 +1516,20 @@ class UART16550MediumTests:
             ('UART BFM TX', self.test_uart_bfm_tx),
             ('UART BFM RX', self.test_uart_bfm_rx),
             ('Multiple Bytes', self.test_multiple_bytes),
+            ('GH60-C3 RBR/THR bit separation', self.test_gh60_c3_rbr_thr_bit_separation),
+            ('GH60-C6 LSR/MSR clear-on-read', self.test_gh60_c6_lsr_msr_clear_on_read),
+            ('GH60-QC1 framing error and break must assert', self.test_gh60_qc1_framing_error_and_break_must_assert),
+            ('GH60-QC2 short-word RX justification', self.test_gh60_qc2_short_word_rx_justification),
+            ('GH60-QC3-1 gapless THR writes', self.test_gh60_qc3_1_thr_gapless_writes),
+            ('GH60-IER interrupt enable gating', self.test_gh60_ier_gating),
+            ('GH60-GUARD RX trigger levels', self.test_gh60_guard_rx_trigger_levels),
+            ('GH60 strict decode missing (unmapped never PSLVERR)', self.test_gh60_strict_decode_missing),
+            ('GH60-R2-1 THR byte-enable masked push', self.test_gh60_r2_1_thr_byte_enable_masked),
+            ('GH60-R2-2 FCR[0] disable not honored', self.test_gh60_r2_2_fifo_disable_not_honored),
+            ('GH60-R2-3 LSR error not per-character', self.test_gh60_r2_3_lsr_error_not_per_character),
+            ('GH60-R2-4 continuous break floods FIFO', self.test_gh60_r2_4_continuous_break_floods_fifo),
+            ('GH60-R3-1 LSR[7] is a FIFO aggregate', self.test_gh60_r3_1_lsr7_is_a_fifo_aggregate),
+            ('GH60-R2-5 TX FIFO reset truncates in-flight char', self.test_gh60_r2_5_tx_fifo_reset_truncates_inflight_char),
         ]
 
         self.log.info("=" * 80)

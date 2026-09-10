@@ -64,8 +64,8 @@ Clocking and reset are where most integrations go wrong, so this page lays out e
 |----------|-------------|-------|
 | RBR | Undefined | Read-only, FIFO content |
 | THR | N/A | Write-only |
-| IER | 0x00 | Enable bits stored but unimplemented (no interrupt masking) |
-| IIR | 0x02 | THR-empty pending at reset (TX FIFO empty, not IER-masked) |
+| IER | 0x00 | Interrupt enables, all four sources |
+| IIR | 0x02 | THR-empty pending at reset (TX FIFO empty; masked by IER[1], which resets to 0) |
 | FCR | 0x00 | FIFOs enabled interface bit clear |
 | LCR | 0x03 | 8 data bits, 1 stop, no parity (8N1) |
 | MCR | 0x00 | All outputs deasserted (irq masked - OUT2=0) |

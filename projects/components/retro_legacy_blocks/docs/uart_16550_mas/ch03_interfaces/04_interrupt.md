@@ -28,13 +28,16 @@
 Before you write a line of ISR code, read the notes below. This RTL's interrupt path does not behave like the 16550 your driver author probably had in mind — the enables don't enable, the timeout doesn't exist, and the pin is gated by a modem output bit.
 
 > Implementation notes for this RTL:
-> - **IER enables are unimplemented.** IER is stored/read back but does not mask
->   any interrupt. IIR reflects pending sources and drives `irq` regardless of IER.
+> - **Each of the four sources is gated by its own IER bit.** A disabled source
+>   still sets its status bit; it simply is not an interrupt, does not raise
+>   `irq`, and is not reported by IIR.
 > - **The `irq` pin is gated by MCR.OUT2** (`irq = pending & MCR.OUT2`). With the
 >   reset MCR = 0x00 the pin is masked; software must set OUT2 to route interrupts.
-> - **Character timeout is not implemented** (IIR never reads 0x0C).
-> - **Reading IIR has no side effect** and does not clear the THR-empty condition.
-> - LSR/MSR sticky bits are cleared by **W1C**, not by reading.
+> - **Character timeout is not implemented** (IIR never reads 0x0C). Tracked as
+>   RLB-013 in `vault/Tasks/RLB/open.md`.
+> - **Reading IIR clears the THR-empty interrupt** when THR empty is the source
+>   it reported, as a standard 16550 does.
+> - LSR[4:1] clear on a read of LSR, and MSR[3:0] on a read of MSR.
 
 ## Ports
 
@@ -52,10 +55,10 @@ Before you write a line of ISR code, read the notes below. This RTL's interrupt 
 
 | Priority | IIR[3:0] | Source | Clear Method |
 |----------|----------|--------|--------------|
-| 1 | 0110 | Receiver Line Status | W1C LSR error bits |
+| 1 | 0110 | Receiver Line Status | Read LSR |
 | 2 | 0100 | Received Data Available | Read RBR until DR clears |
 | 3 | 0010 | THR Empty | Write THR (fill TX FIFO) |
-| 4 | 0000 | Modem Status | W1C MSR delta bits |
+| 4 | 0000 | Modem Status | Read MSR |
 
 Character Timeout (IIR = 1100 / 0x0C) is not implemented and is omitted.
 
@@ -96,11 +99,10 @@ logic in this RTL - they do not enable or mask any interrupt.
 Triggered by:
 - Overrun Error (OE)
 - Parity Error (PE)
-- Framing Error (FE) -- never sets in the current RTL (#60)
-- Break Indicator (BI) -- never sets in the current RTL (#60)
+- Framing Error (FE)
+- Break Indicator (BI)
 
-Cleared by writing 1 to the LSR error bits (W1C). (Known RTL issue: the clear
-strobes are not asserted, so these bits/interrupt persist until reset.)
+Cleared by reading LSR.
 
 #### Received Data Available (Priority 2)
 
@@ -127,7 +129,7 @@ Triggered by any MSR delta bit:
 - TERI (Trailing Edge RI)
 - DDCD (Delta DCD)
 
-Cleared by writing 1 to the MSR delta bits (W1C), not by reading MSR.
+Cleared by reading MSR.
 
 ## Timing
 

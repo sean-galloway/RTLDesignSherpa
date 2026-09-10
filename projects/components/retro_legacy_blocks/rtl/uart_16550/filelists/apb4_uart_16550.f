@@ -19,17 +19,24 @@
 # sub-blocks, missing monitor_trans_cam, missing clock-gate chain). Each
 # filelist below declares its own complete closure.
 -f $REPO_ROOT/rtl/amba/filelists/apb4_slave_cdc.f
--f $REPO_ROOT/rtl/cdc/filelists/cdc_2_phase_handshake.f
--f $REPO_ROOT/rtl/cdc/filelists/cdc_4_phase_handshake.f
 
 # Layer 2: CMD/RSP to PeakRDL Adapter
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 
 # Package (must come first)
+# PeakRDL-generated registers. The .vlt comes FIRST and is not optional: it
+# waives the two Verilator rules only the generated block trips.
+$RETRO_ROOT/rtl/uart_16550/uart_16550_regs.vlt
 $RETRO_ROOT/rtl/uart_16550/uart_16550_regs_pkg.sv
 
 # Register file (PeakRDL generated)
 $RETRO_ROOT/rtl/uart_16550/uart_16550_regs.sv
+
+# Modem control/status (synchronizers, MSR deltas, active-low outputs)
+$RETRO_ROOT/rtl/uart_16550/uart_16550_modem.sv
+
+# Interrupt conditions, IER gating, IIR priority
+$RETRO_ROOT/rtl/uart_16550/uart_16550_intr.sv
 
 # UART core (TX/RX, FIFOs, baud generator)
 $RETRO_ROOT/rtl/uart_16550/uart_16550_core.sv

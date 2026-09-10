@@ -110,12 +110,6 @@ module uart_16550_regs (
     typedef struct {
         struct {
             struct {
-                logic [7:0] next;
-                logic load_next;
-            } tx_data;
-        } UART_DATA;
-        struct {
-            struct {
                 logic next;
                 logic load_next;
             } rx_data_avail_ie;
@@ -266,11 +260,6 @@ module uart_16550_regs (
     typedef struct {
         struct {
             struct {
-                logic [7:0] value;
-            } tx_data;
-        } UART_DATA;
-        struct {
-            struct {
                 logic value;
             } rx_data_avail_ie;
             struct {
@@ -386,29 +375,6 @@ module uart_16550_regs (
     } field_storage_t;
     field_storage_t field_storage;
 
-    // Field: uart_16550_regs.UART_DATA.tx_data
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.UART_DATA.tx_data.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.UART_DATA && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.UART_DATA.tx_data.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
-            load_next_c = '1;
-        end
-        field_combo.UART_DATA.tx_data.next = next_c;
-        field_combo.UART_DATA.tx_data.load_next = load_next_c;
-    end
-    always_ff @(posedge clk) begin
-        if(rst) begin
-            field_storage.UART_DATA.tx_data.value <= 8'h0;
-        end else begin
-            if(field_combo.UART_DATA.tx_data.load_next) begin
-                field_storage.UART_DATA.tx_data.value <= field_combo.UART_DATA.tx_data.next;
-            end
-        end
-    end
-    assign hwif_out.UART_DATA.tx_data.value = field_storage.UART_DATA.tx_data.value;
     // Field: uart_16550_regs.UART_IER.rx_data_avail_ie
     always_comb begin
         automatic logic [0:0] next_c;
@@ -904,8 +870,8 @@ module uart_16550_regs (
         automatic logic load_next_c;
         next_c = field_storage.UART_LSR.overrun_error.value;
         load_next_c = '0;
-        if(decoded_reg_strb.UART_LSR && decoded_req_is_wr) begin // SW write 1 clear
-            next_c = field_storage.UART_LSR.overrun_error.value & ~(decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+        if(decoded_reg_strb.UART_LSR && !decoded_req_is_wr) begin // SW clear on read
+            next_c = '0;
             load_next_c = '1;
         end else if(hwif_in.UART_LSR.overrun_error.hwset) begin // HW Set
             next_c = '1;
@@ -932,8 +898,8 @@ module uart_16550_regs (
         automatic logic load_next_c;
         next_c = field_storage.UART_LSR.parity_error.value;
         load_next_c = '0;
-        if(decoded_reg_strb.UART_LSR && decoded_req_is_wr) begin // SW write 1 clear
-            next_c = field_storage.UART_LSR.parity_error.value & ~(decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+        if(decoded_reg_strb.UART_LSR && !decoded_req_is_wr) begin // SW clear on read
+            next_c = '0;
             load_next_c = '1;
         end else if(hwif_in.UART_LSR.parity_error.hwset) begin // HW Set
             next_c = '1;
@@ -960,8 +926,8 @@ module uart_16550_regs (
         automatic logic load_next_c;
         next_c = field_storage.UART_LSR.framing_error.value;
         load_next_c = '0;
-        if(decoded_reg_strb.UART_LSR && decoded_req_is_wr) begin // SW write 1 clear
-            next_c = field_storage.UART_LSR.framing_error.value & ~(decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+        if(decoded_reg_strb.UART_LSR && !decoded_req_is_wr) begin // SW clear on read
+            next_c = '0;
             load_next_c = '1;
         end else if(hwif_in.UART_LSR.framing_error.hwset) begin // HW Set
             next_c = '1;
@@ -988,8 +954,8 @@ module uart_16550_regs (
         automatic logic load_next_c;
         next_c = field_storage.UART_LSR.break_interrupt.value;
         load_next_c = '0;
-        if(decoded_reg_strb.UART_LSR && decoded_req_is_wr) begin // SW write 1 clear
-            next_c = field_storage.UART_LSR.break_interrupt.value & ~(decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+        if(decoded_reg_strb.UART_LSR && !decoded_req_is_wr) begin // SW clear on read
+            next_c = '0;
             load_next_c = '1;
         end else if(hwif_in.UART_LSR.break_interrupt.hwset) begin // HW Set
             next_c = '1;
@@ -1016,8 +982,8 @@ module uart_16550_regs (
         automatic logic load_next_c;
         next_c = field_storage.UART_MSR.delta_cts.value;
         load_next_c = '0;
-        if(decoded_reg_strb.UART_MSR && decoded_req_is_wr) begin // SW write 1 clear
-            next_c = field_storage.UART_MSR.delta_cts.value & ~(decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+        if(decoded_reg_strb.UART_MSR && !decoded_req_is_wr) begin // SW clear on read
+            next_c = '0;
             load_next_c = '1;
         end else if(hwif_in.UART_MSR.delta_cts.hwset) begin // HW Set
             next_c = '1;
@@ -1044,8 +1010,8 @@ module uart_16550_regs (
         automatic logic load_next_c;
         next_c = field_storage.UART_MSR.delta_dsr.value;
         load_next_c = '0;
-        if(decoded_reg_strb.UART_MSR && decoded_req_is_wr) begin // SW write 1 clear
-            next_c = field_storage.UART_MSR.delta_dsr.value & ~(decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+        if(decoded_reg_strb.UART_MSR && !decoded_req_is_wr) begin // SW clear on read
+            next_c = '0;
             load_next_c = '1;
         end else if(hwif_in.UART_MSR.delta_dsr.hwset) begin // HW Set
             next_c = '1;
@@ -1072,8 +1038,8 @@ module uart_16550_regs (
         automatic logic load_next_c;
         next_c = field_storage.UART_MSR.trailing_ri.value;
         load_next_c = '0;
-        if(decoded_reg_strb.UART_MSR && decoded_req_is_wr) begin // SW write 1 clear
-            next_c = field_storage.UART_MSR.trailing_ri.value & ~(decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+        if(decoded_reg_strb.UART_MSR && !decoded_req_is_wr) begin // SW clear on read
+            next_c = '0;
             load_next_c = '1;
         end else if(hwif_in.UART_MSR.trailing_ri.hwset) begin // HW Set
             next_c = '1;
@@ -1100,8 +1066,8 @@ module uart_16550_regs (
         automatic logic load_next_c;
         next_c = field_storage.UART_MSR.delta_dcd.value;
         load_next_c = '0;
-        if(decoded_reg_strb.UART_MSR && decoded_req_is_wr) begin // SW write 1 clear
-            next_c = field_storage.UART_MSR.delta_dcd.value & ~(decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+        if(decoded_reg_strb.UART_MSR && !decoded_req_is_wr) begin // SW clear on read
+            next_c = '0;
             load_next_c = '1;
         end else if(hwif_in.UART_MSR.delta_dcd.hwset) begin // HW Set
             next_c = '1;
@@ -1209,8 +1175,8 @@ module uart_16550_regs (
 
     // Assign readback values to a flattened array
     logic [31:0] readback_array[11];
-    assign readback_array[0][7:0] = (decoded_reg_strb.UART_DATA && !decoded_req_is_wr) ? field_storage.UART_DATA.tx_data.value : '0;
-    assign readback_array[0][15:8] = (decoded_reg_strb.UART_DATA && !decoded_req_is_wr) ? hwif_in.UART_DATA.rx_data.next : '0;
+    assign readback_array[0][7:0] = (decoded_reg_strb.UART_DATA && !decoded_req_is_wr) ? hwif_in.UART_DATA.rx_data.next : '0;
+    assign readback_array[0][15:8] = (decoded_reg_strb.UART_DATA && !decoded_req_is_wr) ? hwif_in.UART_DATA.rx_data_alias.next : '0;
     assign readback_array[0][31:16] = (decoded_reg_strb.UART_DATA && !decoded_req_is_wr) ? 16'h0 : '0;
     assign readback_array[1][0:0] = (decoded_reg_strb.UART_IER && !decoded_req_is_wr) ? field_storage.UART_IER.rx_data_avail_ie.value : '0;
     assign readback_array[1][1:1] = (decoded_reg_strb.UART_IER && !decoded_req_is_wr) ? field_storage.UART_IER.tx_empty_ie.value : '0;

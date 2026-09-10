@@ -82,11 +82,11 @@ MSR.CTS in software).
 | 6 | RI | ri_n | Current RI state |
 | 7 | DCD | dcd_n | Current DCD state |
 
-#### Delta Bits (Write-1-to-Clear)
+#### Delta Bits (Clear on Read)
 
-These bits are W1C (write 1 to clear), not clear-on-read. Note: the current RTL
-does not assert the internal clear strobes, so once set a delta bit persists
-until full reset (known RTL issue).
+These bits clear when MSR is read, and the modem-status interrupt deasserts
+with them. Any read clears them, so work from the value the read returned
+rather than reading MSR a second time.
 
 | Bit | Name | Meaning |
 |-----|------|---------|
@@ -154,10 +154,9 @@ cts_n --> FF1 --> FF2 --> synced_cts_n
 ### Interrupt Generation
 
 MSR delta bits can generate the modem-status interrupt:
-- Any delta bit set generates the interrupt (IER[3] is stored but unimplemented,
-  so it does not actually mask this interrupt)
-- The `irq` pin is gated by MCR.OUT2
-- Delta bits are cleared by W1C (not by reading MSR)
+- Any delta bit set generates the interrupt, gated by IER[3]
+- The `irq` pin is gated by MCR.OUT2 as well
+- Delta bits clear when MSR is read
 
 ## Waveforms
 

@@ -154,8 +154,9 @@ When LCR.BC=1:
 Detected when:
 - RXD = 0 for entire frame
 - Start + all data + parity + stop = 0
-- INTENDED to set the BI bit in LSR (never sets in the current RTL --
-  same overwrite defect as FE, #60)
+- Sets the BI bit in LSR and tags the FIFO entry. Exactly one zero
+  character is loaded per break; the receiver then stays off until the
+  line returns to marking and a genuine new start bit arrives
 
 ## Waveforms
 
@@ -168,11 +169,9 @@ The following diagram shows framing error detection when a stop bit is sampled a
 Error detection sequence:
 1. RX frame received normally (start, data bits)
 2. Stop bit expected to be 1, but sampled as 0
-3. Framing error flag INTENDED to set (never does in the current RTL --
-   the RX_STOP cleanup overwrites it the same cycle, #60)
-4. LSR[3] (FE) would update -- reads 0 forever on this RTL
-5. Line status interrupt would assert -- on this RTL it can only fire
-   from overrun or parity errors (#60)
+3. Framing error flag set, and the character's FIFO entry tagged
+4. LSR[3] (FE) reads 1 on the read that returns that character
+5. Line status interrupt asserts, if enabled in IER[2]
 
 Error types:
 - **Framing Error (FE)**: Stop bit not 1 - indicates baud rate mismatch or noise

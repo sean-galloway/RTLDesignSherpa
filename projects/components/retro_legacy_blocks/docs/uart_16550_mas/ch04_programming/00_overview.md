@@ -34,13 +34,13 @@ Flat, DLAB-independent map - each register has a unique offset (DLAB does not re
 | Offset | Register | Access | Description |
 |--------|----------|--------|-------------|
 | 0x00 | RBR / THR | R / W | Receive Buffer (read) / Transmit Holding (write) |
-| 0x04 | IER | RW | Interrupt Enable (stored; unimplemented) |
+| 0x04 | IER | RW | Interrupt Enable |
 | 0x08 | IIR | RO | Interrupt Identification |
 | 0x0C | FCR | RW | FIFO Control |
 | 0x10 | LCR | RW | Line Control |
 | 0x14 | MCR | RW | Modem Control |
-| 0x18 | LSR | RO/W1C | Line Status |
-| 0x1C | MSR | RO/W1C | Modem Status |
+| 0x18 | LSR | RO, clear on read | Line Status |
+| 0x1C | MSR | RO, clear on read | Modem Status |
 | 0x20 | SCR | RW | Scratch |
 | 0x24 | DLL | RW | Divisor Latch LSB |
 | 0x28 | DLM | RW | Divisor Latch MSB |
@@ -66,8 +66,8 @@ void uart_init(void) {
     // Enable FIFOs, reset, trigger=14
     FCR = 0xC7;
 
-    // Set MCR.OUT2 to ungate the irq pin (IER enables are unimplemented;
-    // poll LSR/IIR rather than relying on IER masking).
+    // Set MCR.OUT2 to ungate the irq pin. It gates the pin in addition to
+    // IER, and resets to 0, so interrupts stay masked until this is set.
     MCR = 0x08;
 }
 ```

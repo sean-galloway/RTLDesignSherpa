@@ -12,7 +12,12 @@ package uart_16550_regs_pkg;
     } uart_16550_regs__UART_DATA__rx_data__in_t;
 
     typedef struct {
+        logic [7:0] next;
+    } uart_16550_regs__UART_DATA__rx_data_alias__in_t;
+
+    typedef struct {
         uart_16550_regs__UART_DATA__rx_data__in_t rx_data;
+        uart_16550_regs__UART_DATA__rx_data_alias__in_t rx_data_alias;
     } uart_16550_regs__UART_DATA__in_t;
 
     typedef struct {
@@ -138,14 +143,6 @@ package uart_16550_regs_pkg;
         uart_16550_regs__UART_LSR__in_t UART_LSR;
         uart_16550_regs__UART_MSR__in_t UART_MSR;
     } uart_16550_regs__in_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } uart_16550_regs__UART_DATA__tx_data__out_t;
-
-    typedef struct {
-        uart_16550_regs__UART_DATA__tx_data__out_t tx_data;
-    } uart_16550_regs__UART_DATA__out_t;
 
     typedef struct {
         logic value;
@@ -289,7 +286,6 @@ package uart_16550_regs_pkg;
     } uart_16550_regs__UART_DLM__out_t;
 
     typedef struct {
-        uart_16550_regs__UART_DATA__out_t UART_DATA;
         uart_16550_regs__UART_IER__out_t UART_IER;
         uart_16550_regs__UART_FCR__out_t UART_FCR;
         uart_16550_regs__UART_LCR__out_t UART_LCR;

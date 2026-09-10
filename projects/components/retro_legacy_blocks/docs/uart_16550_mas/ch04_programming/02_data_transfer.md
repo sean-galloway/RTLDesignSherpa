@@ -28,10 +28,10 @@
 Moving bytes in and out of this UART is ordinary 16550 fare with three local twists, summarized below and repeated wherever they bite. The examples in this page already account for all three.
 
 > Implementation notes for this RTL: reading offset 0x00 (RBR) returns the
-> received byte in bits **[15:8]** (read as 16-bit, then `>> 8`); LSR/MSR
-> sticky bits are **W1C**, not clear-on-read; and IER enables are unimplemented
-> (interrupt-driven examples below rely on the level-based sources and require
-> MCR.OUT2 = 1 to route irq to the pin). See Chapter 5 for detail.
+> received byte in bits **[7:0]** and pops the RX FIFO; LSR[4:1] and MSR[3:0]
+> clear on a read of their own register, so a poll of LSR consumes the error
+> bits it reports; and `irq` is gated by MCR.OUT2 as well as by IER, so
+> interrupt-driven code must set OUT2 = 1. See Chapter 5 for detail.
 
 ## Usage Example
 
@@ -104,16 +104,16 @@ int uart_getchar(void) {
         return -1;  // No data
     }
 
-    // Read data (received byte lives at [15:8] on this RTL -- see the
+    // Read data (received byte is in [7:0]
     // chapter header note)
-    return (RBR >> 8) & 0xFF;
+    return RBR & 0xFF;
 }
 
 int uart_getchar_blocking(void) {
     // Wait for data
     while ((LSR & 0x01) == 0);
 
-    return (RBR >> 8) & 0xFF;
+    return RBR & 0xFF;
 }
 ```
 
@@ -127,7 +127,7 @@ volatile uint8_t rx_tail = 0;
 // In ISR when RX data available:
 void uart_rx_isr(void) {
     while (LSR & 0x01) {
-        rx_buffer[rx_head++] = (RBR >> 8) & 0xFF;
+        rx_buffer[rx_head++] = RBR & 0xFF;
     }
 }
 
@@ -162,7 +162,7 @@ uint8_t uart_check_errors(void) {
 
 ```c
 void uart_rx_error_isr(void) {
-    uint8_t lsr = LSR;  // Read status (does NOT clear; error bits are W1C)
+    uint8_t lsr = LSR;  // Read status once; the read clears the error bits
 
     if (lsr & 0x02) {
         // Overrun - data lost
@@ -245,7 +245,7 @@ size_t uart_read_available(uint8_t *data, size_t max_len) {
     size_t count = 0;
 
     while ((LSR & 0x01) && (count < max_len)) {
-        data[count++] = (RBR >> 8) & 0xFF;  // received byte is at [15:8]
+        data[count++] = RBR & 0xFF;  // received byte is at [7:0]
     }
 
     return count;

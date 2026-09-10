@@ -92,8 +92,8 @@ This implementation uses a flat, DLAB-independent address map - each register ha
 | 0x0C | FCR | RW | FIFO Control |
 | 0x10 | LCR | RW | Line Control |
 | 0x14 | MCR | RW | Modem Control |
-| 0x18 | LSR | RO/W1C | Line Status |
-| 0x1C | MSR | RO/W1C | Modem Status |
+| 0x18 | LSR | RO, clear on read | Line Status |
+| 0x1C | MSR | RO, clear on read | Modem Status |
 | 0x20 | SCR | RW | Scratch Register |
 | 0x24 | DLL | RW | Divisor Latch LSB |
 | 0x28 | DLM | RW | Divisor Latch MSB |

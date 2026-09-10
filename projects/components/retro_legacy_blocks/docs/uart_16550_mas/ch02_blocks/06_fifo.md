@@ -133,9 +133,11 @@ Both directions get a 16-byte FIFO between software and the serial line, and the
 
 #### Per-Character Errors
 
-PE, FE, BI slots exist in each RX FIFO entry, but only PE can actually
-be stored -- FE/BI never set in the current RTL, so entry bits [10:9]
-are always 0 (#60). Entry format:
+Each RX FIFO entry carries its own PE, FE and BI tags in bits [10:8].
+LSR[4:2] are loaded from the tags of the character the CPU is being
+handed, so an error is reported on the read that returns the character
+it belongs to, and LSR[7] aggregates the tags over the whole FIFO.
+Entry format:
 - Sticky LSR error flags are set at RECEIVE time (when the character
   enters the FIFO), not when it is later read out
 - LSR[7] reflects an error on the FIFO HEAD entry only, not 'any entry'

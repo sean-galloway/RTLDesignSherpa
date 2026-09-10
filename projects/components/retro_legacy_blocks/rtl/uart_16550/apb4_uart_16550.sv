@@ -12,8 +12,22 @@
 //   - 16-byte TX and RX FIFOs
 //   - Programmable baud rate
 //   - Full modem control
-//   - Interrupt support
+//   - Interrupt support, individually maskable via IER
 //   - Optional CDC for async pin domains
+//
+// Not implemented (ledger RLB-013, documented in README.md):
+//   - Character-timeout interrupt (int_timeout tied low, IIR never reads 0x0C)
+//   - Auto flow control (MCR[5] AFE has no field: MCR[31:5] reads 0, and
+//     CTS does not gate the transmitter)
+//   - 1.5 stop bits for 5-bit words
+//   - DLAB register remapping (the map is flat)
+//   - DMA mode select (FCR[3] stores and is never read)
+//
+// Reset:
+//   presetn and uart_rstn are INDEPENDENT ports. With CDC_ENABLE=1 they reset
+//   the two ends of the async FIFOs separately, so a one-sided reset taken
+//   while a transfer is in flight corrupts the FIFO. Quiesce the APB side
+//   first, or assert both together. With CDC_ENABLE=0 they are one domain.
 //
 // Architecture (RLB Standard Pattern):
 //   APB -> apb4_slave[_cdc] -> CMD/RSP -> peakrdl_to_cmdrsp ->
@@ -22,6 +36,11 @@
 // Documentation: projects/components/retro_legacy_blocks/rtl/uart_16550/README.md
 // Created: 2025-11-29
 // Updated: 2025-11-30 - Changed to 32-bit data width, s_apb_* naming
+// Updated: 2026-09-10 - GH#60: RBR/THR split, LSR/MSR read-clear, IER gating,
+//                       strict decode, parameter guards
+// Updated: 2026-09-10 - GH#60 r2: THR byte enables, FCR[0] character mode,
+//                       per-character LSR[4:2], one character per break,
+//                       FIFO reset no longer truncates the shifter
 
 `timescale 1ns / 1ps
 
@@ -80,6 +99,47 @@ module apb4_uart_16550 #(
     output logic                        irq
 );
 
+    // ONE decode of CDC_ENABLE, used everywhere, and a 1-bit one: comparing a
+    // 32-bit parameter directly in a generate-if and a conditional is three
+    // chances to disagree about what "enabled" means.
+    localparam logic CDC_SEL = (CDC_ENABLE != 0);
+
+    // Parameter guards. These are `initial $fatal`, so they fire in
+    // SIMULATION AT TIME 0 - synthesis ignores an initial block, so a bad
+    // parameter is caught by the first simulation and not by elaboration in
+    // a synthesis tool.
+    //
+    // FIFO_DEPTH's constraints are the core's (see uart_16550_core's own
+    // param_check): the pointer arithmetic is modulo a power of two and the
+    // RX trigger levels go up to 14.
+    initial begin : param_check
+        if (CDC_ENABLE != 0 && CDC_ENABLE != 1) begin
+            $fatal(1, "apb4_uart_16550: CDC_ENABLE must be 0 or 1, got %0d", CDC_ENABLE);
+        end
+        if (FIFO_DEPTH < 16 || (FIFO_DEPTH & (FIFO_DEPTH - 1)) != 0) begin
+            $fatal(1, "apb4_uart_16550: FIFO_DEPTH must be a power of two >= 16, got %0d",
+                   FIFO_DEPTH);
+        end
+        // SKID_DEPTH: the skid depth contract is 2..8 INCLUSIVE and ODD
+        // DEPTHS ARE LEGAL - the set is not {2,4,6,8}, and writing that
+        // guard once already rejected working configurations. The default
+        // Gray pointer encoding in the CDC async FIFO narrows it further to
+        // {2,3,4,8}; USE_JOHNSON=1 lifts that and leaves the plain 2..8.
+        if (CDC_ENABLE == 1) begin
+            if (SKID_DEPTH < 2 || SKID_DEPTH > 8) begin
+                $fatal(1, "apb4_uart_16550: SKID_DEPTH must be 2..8, got %0d",
+                       SKID_DEPTH);
+            end
+            if (USE_JOHNSON == 0 &&
+                SKID_DEPTH != 2 && SKID_DEPTH != 3 &&
+                SKID_DEPTH != 4 && SKID_DEPTH != 8) begin
+                // Gray pointers need a power-of-two async-FIFO depth.
+                $fatal(1, "apb4_uart_16550: Gray SKID_DEPTH must be 2, 3, 4 or 8, got %0d",
+                       SKID_DEPTH);
+            end
+        end
+    end
+
     // ========================================================================
     // Internal Signals
     // ========================================================================
@@ -88,7 +148,6 @@ module apb4_uart_16550 #(
     localparam int APB_ADDR_WIDTH = 12;
     localparam int APB_DATA_WIDTH = 32;
     localparam int APB_STRB_WIDTH = APB_DATA_WIDTH / 8;
-    localparam int APB_PROT_WIDTH = 3;
 
     // CMD/RSP interface (APB slave to peakrdl_to_cmdrsp)
     logic                       w_cmd_valid;
@@ -97,7 +156,6 @@ module apb4_uart_16550 #(
     logic [APB_ADDR_WIDTH-1:0]  w_cmd_paddr;
     logic [APB_DATA_WIDTH-1:0]  w_cmd_pwdata;
     logic [APB_STRB_WIDTH-1:0]  w_cmd_pstrb;
-    logic [APB_PROT_WIDTH-1:0]  w_cmd_pprot;
     logic                       w_rsp_valid;
     logic                       w_rsp_ready;
     logic [APB_DATA_WIDTH-1:0]  w_rsp_prdata;
@@ -121,14 +179,14 @@ module apb4_uart_16550 #(
     logic w_core_clk;
     logic w_core_rstn;
 
-    assign w_core_clk  = CDC_ENABLE ? uart_clk  : pclk;
-    assign w_core_rstn = CDC_ENABLE ? uart_rstn : presetn;
+    assign w_core_clk  = CDC_SEL ? uart_clk  : pclk;
+    assign w_core_rstn = CDC_SEL ? uart_rstn : presetn;
 
     // ========================================================================
     // APB Slave - CMD/RSP Conversion
     // ========================================================================
     generate
-        if (CDC_ENABLE) begin : gen_cdc
+        if (CDC_SEL) begin : gen_cdc
             apb4_slave_cdc #(
                 .ADDR_WIDTH (APB_ADDR_WIDTH),
                 .DATA_WIDTH (APB_DATA_WIDTH),
@@ -159,7 +217,9 @@ module apb4_uart_16550 #(
                 .cmd_paddr      (w_cmd_paddr),
                 .cmd_pwdata     (w_cmd_pwdata),
                 .cmd_pstrb      (w_cmd_pstrb),
-                .cmd_pprot      (w_cmd_pprot),
+                /* verilator lint_off PINCONNECTEMPTY */
+                .cmd_pprot      (),  // PPROT unused: no protection filtering
+                /* verilator lint_on PINCONNECTEMPTY */
                 .rsp_valid      (w_rsp_valid),
                 .rsp_ready      (w_rsp_ready),
                 .rsp_prdata     (w_rsp_prdata),
@@ -190,7 +250,9 @@ module apb4_uart_16550 #(
                 .cmd_paddr      (w_cmd_paddr),
                 .cmd_pwdata     (w_cmd_pwdata),
                 .cmd_pstrb      (w_cmd_pstrb),
-                .cmd_pprot      (w_cmd_pprot),
+                /* verilator lint_off PINCONNECTEMPTY */
+                .cmd_pprot      (),  // PPROT unused: no protection filtering
+                /* verilator lint_on PINCONNECTEMPTY */
                 .rsp_valid      (w_rsp_valid),
                 .rsp_ready      (w_rsp_ready),
                 .rsp_prdata     (w_rsp_prdata),

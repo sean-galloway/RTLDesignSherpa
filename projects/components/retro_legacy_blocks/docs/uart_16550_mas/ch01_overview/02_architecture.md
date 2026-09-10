@@ -48,20 +48,39 @@ apb4_uart_16550 (Top Level)
 |   |   +-- IIR/FCR registers
 |   |   +-- LCR/MCR/LSR/MSR/SCR
 |   |
-|   +-- Baud Rate Generator
-|   |   +-- Divisor latch
-|   |   +-- 16x clock generation
+|   +-- Strict address decode
+|   |   +-- Eleven mapped offsets; anything else drops with PSLVERR
 |   |
-|   +-- TX Engine
-|   |   +-- TX FIFO (16 bytes)
-|   |   +-- Serializer
-|   |   +-- Start/Stop/Parity generation
+|   +-- Read/write strobes
+|   |   +-- THR push (byte-enable qualified), RBR pop
+|   |   +-- LSR and MSR read events (clear-on-read), IIR read event
 |   |
-|   +-- RX Engine
-|       +-- RX FIFO (16 bytes)
-|       +-- Deserializer
-|       +-- Start detection
-|       +-- Error detection
+|   +-- uart_16550_core
+|       +-- Baud Rate Generator
+|       |   +-- Divisor latch
+|       |   +-- 16x clock generation
+|       |
+|       +-- TX Engine
+|       |   +-- TX FIFO (FIFO_DEPTH bytes, or one in character mode)
+|       |   +-- Serializer
+|       |   +-- Start/Stop/Parity generation
+|       |
+|       +-- RX Engine
+|       |   +-- RX FIFO (FIFO_DEPTH entries, 11 bits: byte + PE/FE/BI tags)
+|       |   +-- Deserializer
+|       |   +-- Start detection, break hold
+|       |   +-- Error detection
+|       |
+|       +-- uart_16550_intr
+|       |   +-- Interrupt conditions, IER gating
+|       |   +-- IIR priority encode, THR-empty clear on IIR read
+|       |   +-- OUT2 gating of the irq pin
+|       |
+|       +-- uart_16550_modem
+|           +-- Input synchronizers
+|           +-- Loopback substitution
+|           +-- MSR delta detection
+|           +-- Active-low outputs
 ```
 
 ### Data Flow
@@ -100,7 +119,7 @@ flowchart TD
     D --> F
     E --> F
     F --> G["3. IRQ Asserted<br/>(if enabled in IER)"]
-    G --> H["4. Software reads IIR<br/>- Highest priority interrupt identified<br/>- No source auto-clears on read (IIR reads have no side effect; LSR/MSR are W1C; THRE clears only on a THR write)"]
+    G --> H["4. Software reads IIR<br/>- Highest priority interrupt identified<br/>- Reading IIR clears THR-empty when it is the reported source; LSR and MSR sticky bits clear when their own register is read"]
 ```
 
 ### Baud Rate Generation

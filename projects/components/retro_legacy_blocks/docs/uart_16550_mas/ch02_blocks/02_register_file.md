@@ -37,7 +37,7 @@ The register block's connection to the rest of the UART core is the PeakRDL hard
 |--------|-------------|
 | thr_data | Data to transmit |
 | thr_we | THR write enable |
-| ier | Interrupt enables (stored, but the hwif outputs are UNCONNECTED -- IER gates nothing; see ch05 and #60) |
+| ier | Interrupt enables; each of the four sources is gated by its own bit |
 | fcr | FIFO control |
 | lcr | Line control |
 | mcr | Modem control |
@@ -65,16 +65,16 @@ The register block's connection to the rest of the UART core is the PeakRDL hard
 
 | Access | Register |
 |--------|----------|
-| Read | RBR - Receiver Buffer (received byte in bits [15:8]) |
+| Read | RBR - Receiver Buffer (received byte in bits [7:0]) |
 | Write | THR - Transmitter Holding |
 
 #### Address 0x04 (IER)
 
-Read/Write - Interrupt Enable (stored; enables are unimplemented in the core).
+Read/Write - Interrupt Enable. Each bit gates its own interrupt source.
 
 #### Address 0x08 (IIR)
 
-Read-only - Interrupt Identification. Reading IIR has no side effect.
+Read-only - Interrupt Identification. Reading it clears the THR-empty interrupt when THR empty is the source it reported.
 
 #### Addresses 0x0C-0x28
 
@@ -82,8 +82,8 @@ Fixed registers, not affected by DLAB:
 - 0x0C: FCR - FIFO Control (R/W, readable)
 - 0x10: LCR - Line Control
 - 0x14: MCR - Modem Control
-- 0x18: LSR - Line Status (RO / W1C error bits)
-- 0x1C: MSR - Modem Status (RO / W1C delta bits)
+- 0x18: LSR - Line Status (RO, clear on read error bits)
+- 0x1C: MSR - Modem Status (RO, clear on read delta bits)
 - 0x20: SCR - Scratch
 - 0x24: DLL - Divisor Latch LSB
 - 0x28: DLM - Divisor Latch MSB
@@ -95,7 +95,7 @@ Fixed registers, not affected by DLAB:
 | RO | Read-only, hardware updates |
 | WO | Write-only |
 | RW | Read-write |
-| W1C | Write 1 to clear (LSR error bits, MSR delta bits) |
+| Read-clear | Cleared by reading the register (LSR error bits, MSR delta bits) |
 
 ## Design Notes
 
@@ -103,8 +103,8 @@ Fixed registers, not affected by DLAB:
 
 - DLAB is a stored bit only; it does not remap any address
 - THR write pushes to TX FIFO
-- RBR read pops from RX FIFO (received byte returned in bits [15:8])
-- IIR read has no side effect; it does not clear any interrupt
+- RBR read pops from RX FIFO (received byte returned in bits [7:0])
+- Reading IIR clears the THR-empty interrupt when that is the source it reported
 
 ---
 

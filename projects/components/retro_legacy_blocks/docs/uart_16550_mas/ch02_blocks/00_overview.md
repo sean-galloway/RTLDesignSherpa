@@ -33,18 +33,19 @@ This chapter walks the internal blocks one at a time. The hierarchy and summary 
 
 ```
 apb4_uart_16550
-|-- APB Interface
-|-- Register File
-|-- Baud Rate Generator
-|-- TX Engine
-|   |-- TX FIFO
-|   |-- TX Serializer
-|-- RX Engine
-|   |-- RX Synchronizer
-|   |-- RX Deserializer
-|   |-- RX FIFO
-|-- Interrupt Controller
-|-- Modem Control
+|-- APB Interface            (apb4_slave / apb4_slave_cdc)
+|-- Register File            (uart_16550_config_regs + uart_16550_regs)
+|-- uart_16550_core
+|   |-- Baud Rate Generator
+|   |-- TX Engine
+|   |   |-- TX FIFO
+|   |   |-- TX Serializer
+|   |-- RX Engine
+|   |   |-- RX Synchronizer
+|   |   |-- RX Deserializer
+|   |   |-- RX FIFO
+|   |-- Interrupt Controller  (uart_16550_intr)
+|   |-- Modem Control         (uart_16550_modem)
 ```
 
 ### Block Summary

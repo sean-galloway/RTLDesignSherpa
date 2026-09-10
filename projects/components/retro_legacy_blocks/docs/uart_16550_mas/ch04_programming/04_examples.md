@@ -25,7 +25,7 @@
 
 ## Overview
 
-Complete, working examples that pull together everything from the previous pages: a polled debug console, an interrupt-driven ring buffer, a small command-line interface, a loopback self-test, and manual flow control. All of them already account for this RTL's quirks — RBR at [15:8], no DLAB, IER inert — so you can lift them directly.
+Complete, working examples that pull together everything from the previous pages: a polled debug console, an interrupt-driven ring buffer, a small command-line interface, a loopback self-test, and manual flow control. All of them already account for this RTL's quirks — RBR at [7:0], no DLAB remap — so you can lift them directly.
 
 ## Usage Example
 
@@ -37,7 +37,7 @@ Complete, working examples that pull together everything from the previous pages
 #define UART_BASE   0xFEC08000
 
 // Flat, DLAB-independent map: each register has its own offset.
-// RBR read returns the received byte in bits [15:8], so read RBR as 16-bit.
+// RBR read returns the received byte in bits [7:0], so read RBR as 16-bit.
 #define RBR  (*(volatile uint16_t *)(UART_BASE + 0x00))
 #define THR  (*(volatile uint8_t  *)(UART_BASE + 0x00))
 #define IER  (*(volatile uint8_t  *)(UART_BASE + 0x04))
@@ -51,8 +51,8 @@ Complete, working examples that pull together everything from the previous pages
 #define DLL  (*(volatile uint8_t  *)(UART_BASE + 0x24))
 #define DLM  (*(volatile uint8_t  *)(UART_BASE + 0x28))
 
-// Received byte lives in RBR bits [15:8] in this implementation.
-#define RBR_BYTE()  ((uint8_t)(RBR >> 8))
+// Received byte is in RBR bits [7:0].
+#define RBR_BYTE()  ((uint8_t)(RBR & 0xFF))
 
 void debug_uart_init(void) {
     // 115200 baud, 8N1. No DLAB toggle - DLL/DLM have their own offsets.
@@ -60,7 +60,7 @@ void debug_uart_init(void) {
     DLM = 0;
     LCR = 0x03;           // 8N1
     FCR = 0x07;           // Enable FIFOs, reset
-    // IER is not used: interrupt enables are unimplemented; poll LSR instead.
+    // IER left at 0: this console polls LSR rather than taking interrupts.
 }
 
 void debug_putchar(char c) {
@@ -78,7 +78,7 @@ void debug_puts(const char *s) {
 
 int debug_getchar(void) {
     if (LSR & 0x01)
-        return RBR_BYTE();   // received byte is in RBR bits [15:8]
+        return RBR_BYTE();   // received byte is in RBR bits [7:0]
     return -1;
 }
 ```
@@ -240,7 +240,7 @@ bool uart_loopback_test(void) {
             return false;  // No data received
         }
 
-        uint8_t received = RBR_BYTE();   // received byte is in RBR bits [15:8]
+        uint8_t received = RBR_BYTE();   // received byte is in RBR bits [7:0]
         if (received != test_data[i]) {
             MCR &= ~0x10;
             return false;  // Data mismatch

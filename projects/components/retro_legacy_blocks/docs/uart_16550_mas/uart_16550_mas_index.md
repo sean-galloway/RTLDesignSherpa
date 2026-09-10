@@ -24,11 +24,12 @@
 # APB UART 16550 Specification — Table of Contents
 
 **Component:** APB UART 16550 Compatible Serial Controller
-**Version:** 1.0
+**Version:** 1.1
 **Last Updated:** 2025-12-01
-**Status:** RTL Partial — register interface and basic 8-bit TX/RX
-validated; FE/BI never assert, IER gates nothing, W1C never clears —
-see ch05 and issue #60
+**Status:** RTL complete for the implemented feature set; issue #60 fixed
+and covered by the regression suite (37 tests per configuration, standard
+and CDC). The features that remain unimplemented are listed under
+Limitations and tracked as RLB-013.
 
 ---
 
@@ -62,8 +63,8 @@ This specification is organized into five chapters covering all aspects of the A
 - `FCR` - FIFO Control Register, 0x0C (RW)
 - `LCR` - Line Control Register, 0x10 (RW)
 - `MCR` - Modem Control Register, 0x14 (RW)
-- `LSR` - Line Status Register, 0x18 (RO/W1C)
-- `MSR` - Modem Status Register, 0x1C (RO/W1C)
+- `LSR` - Line Status Register, 0x18 (RO, clear on read)
+- `MSR` - Modem Status Register, 0x1C (RO, clear on read)
 - `SCR` - Scratch Register, 0x20 (RW)
 - `DLL` - Divisor Latch LSB, 0x24 (RW; no DLAB toggle)
 - `DLM` - Divisor Latch MSB, 0x28 (RW; no DLAB toggle)
@@ -73,6 +74,7 @@ This specification is organized into five chapters covering all aspects of the A
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2025-12-01 | RTL Design Sherpa | Initial specification |
+| 1.1 | 2026-09-10 | RTL Design Sherpa | Issue #60 fixed and the book reconciled to the RTL: RBR returns the received byte in [7:0] and THR is write-only with no readback; LSR[4:1] and MSR[3:0] clear on a read of their own register and the line-status and modem-status interrupts deassert with them; LSR[2:4] are the tags of the character being handed over and LSR[7] aggregates over the whole FIFO; framing errors and breaks assert and tag the FIFO entry, with exactly one zero character loaded per break; received data is right-justified and zero-filled at every word length; each of the four interrupt sources is gated by its own IER bit and reading IIR clears THR-empty when it is the reported source; only the eleven mapped offsets decode and everything else in the window answers with PSLVERR; FCR[0] selects character mode, FCR[2] no longer truncates the character in flight, and a THR write with the data lane masked transmits nothing; the block is now five modules with the interrupt and modem logic split out |
 
 ---
 

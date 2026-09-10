@@ -8,9 +8,11 @@
 // Purpose: UART 16550 Core - TX/RX with FIFOs
 //
 // Description:
-//   Core UART logic implementing NS16550-compatible serial communication.
-//   Includes 16-byte TX and RX FIFOs, baud rate generator, and
-//   interrupt generation.
+//   Core UART logic implementing NS16550-compatible serial communication:
+//   the baud generator, the TX FIFO and transmitter, the RX FIFO and
+//   receiver, and the per-character line status. Modem control lives in
+//   uart_16550_modem and the interrupt logic in uart_16550_intr; both are
+//   instantiated here.
 //
 // Features:
 //   - 16-byte TX and RX FIFOs
@@ -18,8 +20,11 @@
 //   - 5/6/7/8 data bits
 //   - 1 or 2 stop bits (no 1.5; 5-bit words always get 1)
 //   - None/Odd/Even/Mark/Space parity
-//   - Modem control signals
+//   - Modem control signals (uart_16550_modem)
 //   - Loopback mode
+//   - FCR[0]=0 is real 16450 character mode: one holding register per side
+//   - LSR[4:2] are the tags of the character being handed to the CPU
+//   - A continuous break loads exactly one character
 //   - Character timeout interrupt: NOT implemented (int_timeout tied 0)
 //
 // Documentation: projects/components/retro_legacy_blocks/rtl/uart_16550/README.md
@@ -68,6 +73,18 @@ module uart_16550_core #(
     input  logic        cfg_out1,
     input  logic        cfg_out2,
     input  logic        cfg_loopback,
+
+    // 16550 interrupt enables (IER). Each source is gated independently: a
+    // disabled source may be true in LSR/MSR and still not raise irq or be
+    // reported by IIR.
+    input  logic        cfg_rx_data_ie,
+    input  logic        cfg_tx_empty_ie,
+    input  logic        cfg_line_status_ie,
+    input  logic        cfg_modem_ie,
+
+    // Reading IIR clears the THR-empty interrupt when THR empty is the source
+    // being reported (16550 rule).
+    input  logic        iir_read,
 
     // FIFO Reset Commands (active high, self-clearing)
     input  logic        cmd_rx_fifo_reset,
@@ -124,100 +141,61 @@ module uart_16550_core #(
     // ========================================================================
     localparam int FIFO_ADDR_WIDTH = $clog2(FIFO_DEPTH);
 
-    // RX Trigger levels (1, 4, 8, 14 bytes)
-    localparam logic [3:0] RX_TRIGGER_1  = 4'd1;
-    localparam logic [3:0] RX_TRIGGER_4  = 4'd4;
-    localparam logic [3:0] RX_TRIGGER_8  = 4'd8;
-    localparam logic [3:0] RX_TRIGGER_14 = 4'd14;
+    // The pointer/count arithmetic is modulo 2^(FIFO_ADDR_WIDTH+1) and the
+    // memory indices take [FIFO_ADDR_WIDTH-1:0], which is only the same thing
+    // when the depth is a power of two - at any other depth the pointers wrap
+    // somewhere the memory does not. The RX trigger constants go up to 14, so
+    // a depth under 16 cannot express the levels FCR advertises.
+    initial begin : param_check
+        if (FIFO_DEPTH < 16) begin
+            // RX trigger levels go up to 14.
+            $fatal(1, "uart_16550_core: FIFO_DEPTH must be >= 16, got %0d", FIFO_DEPTH);
+        end
+        if ((FIFO_DEPTH & (FIFO_DEPTH - 1)) != 0) begin
+            $fatal(1, "uart_16550_core: FIFO_DEPTH must be a power of two, got %0d",
+                   FIFO_DEPTH);
+        end
+    end
 
     // ========================================================================
-    // Modem Control Logic
+    // Modem Control and Status
     // ========================================================================
-    // Modem inputs synchronized
-    logic r_cts_sync [SYNC_STAGES-1:0];
-    logic r_dsr_sync [SYNC_STAGES-1:0];
-    logic r_ri_sync  [SYNC_STAGES-1:0];
-    logic r_dcd_sync [SYNC_STAGES-1:0];
+    // Synchronizers, the loopback substitution, the four MSR deltas and the
+    // active-low outputs all live in uart_16550_modem. The delta flags leave
+    // on this module's own sts_* ports and the interrupt block reads them
+    // from there, so nothing in this file needs a local copy.
 
-    logic w_cts, w_dsr, w_ri, w_dcd;
-    logic r_cts_prev, r_dsr_prev, r_ri_prev, r_dcd_prev;
-    logic r_delta_cts, r_delta_dsr, r_trailing_ri, r_delta_dcd;
-
-    // Synchronize modem inputs
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
-            for (int i = 0; i < SYNC_STAGES; i++) begin
-                r_cts_sync[i] <= 1'b0;
-                r_dsr_sync[i] <= 1'b0;
-                r_ri_sync[i]  <= 1'b0;
-                r_dcd_sync[i] <= 1'b0;
-            end
-        end else begin
-            r_cts_sync[0] <= ~cts_n;  // Invert active-low inputs
-            r_dsr_sync[0] <= ~dsr_n;
-            r_ri_sync[0]  <= ~ri_n;
-            r_dcd_sync[0] <= ~dcd_n;
-            for (int i = 1; i < SYNC_STAGES; i++) begin
-                r_cts_sync[i] <= r_cts_sync[i-1];
-                r_dsr_sync[i] <= r_dsr_sync[i-1];
-                r_ri_sync[i]  <= r_ri_sync[i-1];
-                r_dcd_sync[i] <= r_dcd_sync[i-1];
-            end
-        end
-    )
-
-    assign w_cts = cfg_loopback ? cfg_rts : r_cts_sync[SYNC_STAGES-1];
-    assign w_dsr = cfg_loopback ? cfg_dtr : r_dsr_sync[SYNC_STAGES-1];
-    assign w_ri  = cfg_loopback ? cfg_out1 : r_ri_sync[SYNC_STAGES-1];
-    assign w_dcd = cfg_loopback ? cfg_out2 : r_dcd_sync[SYNC_STAGES-1];
-
-    // Delta detection
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
-            r_cts_prev    <= 1'b0;
-            r_dsr_prev    <= 1'b0;
-            r_ri_prev     <= 1'b0;
-            r_dcd_prev    <= 1'b0;
-            r_delta_cts   <= 1'b0;
-            r_delta_dsr   <= 1'b0;
-            r_trailing_ri <= 1'b0;
-            r_delta_dcd   <= 1'b0;
-        end else begin
-            r_cts_prev <= w_cts;
-            r_dsr_prev <= w_dsr;
-            r_ri_prev  <= w_ri;
-            r_dcd_prev <= w_dcd;
-
-            // Set on change, clear on register read
-            if (clr_delta_cts) r_delta_cts <= 1'b0;
-            else if (w_cts != r_cts_prev) r_delta_cts <= 1'b1;
-
-            if (clr_delta_dsr) r_delta_dsr <= 1'b0;
-            else if (w_dsr != r_dsr_prev) r_delta_dsr <= 1'b1;
-
-            if (clr_trailing_ri) r_trailing_ri <= 1'b0;
-            else if (~w_ri && r_ri_prev) r_trailing_ri <= 1'b1;  // RI trailing edge
-
-            if (clr_delta_dcd) r_delta_dcd <= 1'b0;
-            else if (w_dcd != r_dcd_prev) r_delta_dcd <= 1'b1;
-        end
-    )
-
-    // Modem outputs
-    assign dtr_n  = ~cfg_dtr;
-    assign rts_n  = ~cfg_rts;
-    assign out1_n = ~cfg_out1;
-    assign out2_n = ~cfg_out2;
-
-    // Modem status outputs
-    assign sts_cts = w_cts;
-    assign sts_dsr = w_dsr;
-    assign sts_ri  = w_ri;
-    assign sts_dcd = w_dcd;
-    assign sts_delta_cts   = r_delta_cts;
-    assign sts_delta_dsr   = r_delta_dsr;
-    assign sts_trailing_ri = r_trailing_ri;
-    assign sts_delta_dcd   = r_delta_dcd;
+    uart_16550_modem #(
+        .SYNC_STAGES     (SYNC_STAGES)
+    ) u_modem (
+        .clk             (clk),
+        .rst_n           (rst_n),
+        .cts_n           (cts_n),
+        .dsr_n           (dsr_n),
+        .ri_n            (ri_n),
+        .dcd_n           (dcd_n),
+        .dtr_n           (dtr_n),
+        .rts_n           (rts_n),
+        .out1_n          (out1_n),
+        .out2_n          (out2_n),
+        .cfg_dtr         (cfg_dtr),
+        .cfg_rts         (cfg_rts),
+        .cfg_out1        (cfg_out1),
+        .cfg_out2        (cfg_out2),
+        .cfg_loopback    (cfg_loopback),
+        .clr_delta_cts   (clr_delta_cts),
+        .clr_delta_dsr   (clr_delta_dsr),
+        .clr_trailing_ri (clr_trailing_ri),
+        .clr_delta_dcd   (clr_delta_dcd),
+        .sts_cts         (sts_cts),
+        .sts_dsr         (sts_dsr),
+        .sts_ri          (sts_ri),
+        .sts_dcd         (sts_dcd),
+        .sts_delta_cts   (sts_delta_cts),
+        .sts_delta_dsr   (sts_delta_dsr),
+        .sts_trailing_ri (sts_trailing_ri),
+        .sts_delta_dcd   (sts_delta_dcd)
+    );
 
     // ========================================================================
     // Baud Rate Generator
@@ -242,14 +220,30 @@ module uart_16550_core #(
     // ========================================================================
     // TX FIFO and Transmitter
     // ========================================================================
-    logic [7:0] r_tx_fifo [FIFO_DEPTH-1:0];
+    // FPGA memory attributes are mandatory on every memory array (component
+    // rule #0.2). "auto" because the depth is a parameter: at 16 the vendor
+    // picks distributed RAM, at 64+ it can pick a block.
+`ifdef XILINX
+    (* ram_style = "auto" *)
+`elsif INTEL
+    /* synthesis ramstyle = "AUTO" */
+`endif
+    logic [7:0] r_tx_fifo [FIFO_DEPTH];
     logic [FIFO_ADDR_WIDTH:0] r_tx_wr_ptr, r_tx_rd_ptr;
     logic w_tx_fifo_empty, w_tx_fifo_full;
     logic [FIFO_ADDR_WIDTH:0] w_tx_fifo_count;
+    logic [FIFO_ADDR_WIDTH:0] w_tx_depth;
 
+    // FCR[0]=0 IS 16450 CHARACTER MODE, NOT A COSMETIC BIT. cfg_fifo_enable
+    // used to have two consumers - sts_fifo_status and the RX trigger - and
+    // the datapath never looked at it, so both FIFOs stayed 16 deep whatever
+    // FCR[0] said and character mode did not exist. With FIFOs off the depth
+    // is one holding register on each side.
+    assign w_tx_depth      = cfg_fifo_enable ? (FIFO_ADDR_WIDTH+1)'(FIFO_DEPTH)
+                                             : (FIFO_ADDR_WIDTH+1)'(1);
     assign w_tx_fifo_count = r_tx_wr_ptr - r_tx_rd_ptr;
     assign w_tx_fifo_empty = (w_tx_fifo_count == 0);
-    assign w_tx_fifo_full  = (w_tx_fifo_count == FIFO_DEPTH);
+    assign w_tx_fifo_full  = (w_tx_fifo_count >= w_tx_depth);
 
     // TX FIFO write
     `ALWAYS_FF_RST(clk, rst_n,
@@ -257,9 +251,17 @@ module uart_16550_core #(
             r_tx_wr_ptr <= '0;
         end else if (cmd_tx_fifo_reset) begin
             r_tx_wr_ptr <= '0;
-        end else if (tx_write && !w_tx_fifo_full) begin
-            r_tx_fifo[r_tx_wr_ptr[FIFO_ADDR_WIDTH-1:0]] <= tx_data;
-            r_tx_wr_ptr <= r_tx_wr_ptr + 1'b1;
+        end else if (tx_write) begin
+            if (!w_tx_fifo_full) begin
+                r_tx_fifo[r_tx_wr_ptr[FIFO_ADDR_WIDTH-1:0]] <= tx_data;
+                r_tx_wr_ptr <= r_tx_wr_ptr + 1'b1;
+            end else if (!cfg_fifo_enable) begin
+                // Character mode: THR is a single holding register, so a
+                // second write OVERWRITES the byte still waiting to be
+                // loaded into the shifter. It does not queue (there is
+                // nowhere to queue it) and it is not silently dropped.
+                r_tx_fifo[r_tx_rd_ptr[FIFO_ADDR_WIDTH-1:0]] <= tx_data;
+            end
         end
     )
 
@@ -278,12 +280,11 @@ module uart_16550_core #(
     logic [2:0] r_tx_bit_idx;
     logic [3:0] r_tx_baud_cnt;   // 16x oversample counter
     logic       r_tx_parity;
-    logic       r_tx_active;
     logic [2:0] w_tx_last_bit;
 
     // Number of data bits based on word length
     always_comb begin
-        case (cfg_word_length)
+        unique case (cfg_word_length)
             2'b00: w_tx_last_bit = 3'd4;  // 5 bits
             2'b01: w_tx_last_bit = 3'd5;  // 6 bits
             2'b10: w_tx_last_bit = 3'd6;  // 7 bits
@@ -299,65 +300,72 @@ module uart_16550_core #(
             r_tx_baud_cnt <= '0;
             r_tx_parity   <= 1'b0;
             r_tx_rd_ptr   <= '0;
-            r_tx_active   <= 1'b0;
-        end else if (cmd_tx_fifo_reset) begin
-            r_tx_state    <= TX_IDLE;
-            r_tx_rd_ptr   <= '0;
-            r_tx_active   <= 1'b0;
-        end else if (w_baud_tick) begin
-            r_tx_baud_cnt <= r_tx_baud_cnt + 1'b1;
+        end else begin
+            // FCR[2] RESETS THE FIFO, NOT THE TRANSMITTER. This branch used
+            // to force r_tx_state <= TX_IDLE, which cut whatever character
+            // was on the wire in half. The datasheet clears the FIFO
+            // counter and pointers only; the character already in the shift
+            // register finishes, and the transmitter then finds the FIFO
+            // empty and stops. Placed after the state machine so the
+            // pointer reset wins over a same-cycle FIFO load without
+            // freezing the shifter for the duration of the strobe.
+            if (w_baud_tick) begin
+                r_tx_baud_cnt <= r_tx_baud_cnt + 1'b1;
 
-            // 16x oversample - transition every 16 baud ticks
-            if (r_tx_baud_cnt == 4'd15) begin
-                case (r_tx_state)
-                    TX_IDLE: begin
-                        r_tx_active <= 1'b0;
-                        if (!w_tx_fifo_empty) begin
-                            r_tx_shift  <= r_tx_fifo[r_tx_rd_ptr[FIFO_ADDR_WIDTH-1:0]];
-                            r_tx_rd_ptr <= r_tx_rd_ptr + 1'b1;
-                            r_tx_state  <= TX_START;
-                            r_tx_parity <= cfg_even_parity ? 1'b0 : 1'b1;
-                            r_tx_active <= 1'b1;
+                // 16x oversample - transition every 16 baud ticks
+                if (r_tx_baud_cnt == 4'd15) begin
+                    case (r_tx_state)
+                        TX_IDLE: begin
+                            if (!w_tx_fifo_empty) begin
+                                r_tx_shift  <= r_tx_fifo[r_tx_rd_ptr[FIFO_ADDR_WIDTH-1:0]];
+                                r_tx_rd_ptr <= r_tx_rd_ptr + 1'b1;
+                                r_tx_state  <= TX_START;
+                                r_tx_parity <= cfg_even_parity ? 1'b0 : 1'b1;
+                            end
                         end
-                    end
 
-                    TX_START: begin
-                        r_tx_state   <= TX_DATA;
-                        r_tx_bit_idx <= '0;
-                    end
-
-                    TX_DATA: begin
-                        r_tx_parity <= r_tx_parity ^ r_tx_shift[0];
-                        r_tx_shift  <= {1'b0, r_tx_shift[7:1]};
-
-                        if (r_tx_bit_idx == w_tx_last_bit) begin
-                            if (cfg_parity_enable)
-                                r_tx_state <= TX_PARITY;
-                            else
-                                r_tx_state <= TX_STOP1;
-                        end else begin
-                            r_tx_bit_idx <= r_tx_bit_idx + 1'b1;
+                        TX_START: begin
+                            r_tx_state   <= TX_DATA;
+                            r_tx_bit_idx <= '0;
                         end
-                    end
 
-                    TX_PARITY: begin
-                        r_tx_state <= TX_STOP1;
-                    end
+                        TX_DATA: begin
+                            r_tx_parity <= r_tx_parity ^ r_tx_shift[0];
+                            r_tx_shift  <= {1'b0, r_tx_shift[7:1]};
 
-                    TX_STOP1: begin
-                        if (cfg_stop_bits && cfg_word_length != 2'b00) begin
-                            r_tx_state <= TX_STOP2;  // 2 stop bits for 6/7/8 bit words
-                        end else begin
+                            if (r_tx_bit_idx == w_tx_last_bit) begin
+                                if (cfg_parity_enable)
+                                    r_tx_state <= TX_PARITY;
+                                else
+                                    r_tx_state <= TX_STOP1;
+                            end else begin
+                                r_tx_bit_idx <= r_tx_bit_idx + 1'b1;
+                            end
+                        end
+
+                        TX_PARITY: begin
+                            r_tx_state <= TX_STOP1;
+                        end
+
+                        TX_STOP1: begin
+                            if (cfg_stop_bits && cfg_word_length != 2'b00) begin
+                                r_tx_state <= TX_STOP2;  // 2 stop bits for 6/7/8 bit words
+                            end else begin
+                                r_tx_state <= TX_IDLE;
+                            end
+                        end
+
+                        TX_STOP2: begin
                             r_tx_state <= TX_IDLE;
                         end
-                    end
 
-                    TX_STOP2: begin
-                        r_tx_state <= TX_IDLE;
-                    end
+                        default: r_tx_state <= TX_IDLE;
+                    endcase
+                end
+            end
 
-                    default: r_tx_state <= TX_IDLE;
-                endcase
+            if (cmd_tx_fifo_reset) begin
+                r_tx_rd_ptr <= '0;
             end
         end
     )
@@ -389,7 +397,7 @@ module uart_16550_core #(
     // ========================================================================
     // RX Synchronizer and Receiver
     // ========================================================================
-    logic r_rx_sync [SYNC_STAGES-1:0];
+    logic r_rx_sync [SYNC_STAGES];
     logic w_rx_in;
 
     `ALWAYS_FF_RST(clk, rst_n,
@@ -408,14 +416,31 @@ module uart_16550_core #(
     assign w_rx_in = cfg_loopback ? w_tx_bit : r_rx_sync[SYNC_STAGES-1];
 
     // RX FIFO
-    logic [10:0] r_rx_fifo [FIFO_DEPTH-1:0];  // 8 data + parity_err + frame_err + break
+`ifdef XILINX
+    (* ram_style = "auto" *)
+`elsif INTEL
+    /* synthesis ramstyle = "AUTO" */
+`endif
+    logic [10:0] r_rx_fifo [FIFO_DEPTH];  // 8 data + parity_err + frame_err + break
     logic [FIFO_ADDR_WIDTH:0] r_rx_wr_ptr, r_rx_rd_ptr;
+    // Count of FIFO entries carrying a PE/FE/BI tag. LSR[7] is an
+    // aggregate over the WHOLE FIFO (PC16550D: "at least one parity
+    // error, framing error or break indication in the FIFO"), so it
+    // cannot be read off the entry at the read pointer - that entry
+    // is clean whenever a tagged character is queued behind one.
+    logic [FIFO_ADDR_WIDTH:0] r_rx_err_count;
     logic w_rx_fifo_empty, w_rx_fifo_full;
     logic [FIFO_ADDR_WIDTH:0] w_rx_fifo_count;
+    logic [FIFO_ADDR_WIDTH:0] w_rx_depth;
 
+    // Character mode (FCR[0]=0) is one receive holding register: a second
+    // character arriving before the first is read is an overrun, which is
+    // the whole point of the mode.
+    assign w_rx_depth      = cfg_fifo_enable ? (FIFO_ADDR_WIDTH+1)'(FIFO_DEPTH)
+                                             : (FIFO_ADDR_WIDTH+1)'(1);
     assign w_rx_fifo_count = r_rx_wr_ptr - r_rx_rd_ptr;
     assign w_rx_fifo_empty = (w_rx_fifo_count == 0);
-    assign w_rx_fifo_full  = (w_rx_fifo_count == FIFO_DEPTH);
+    assign w_rx_fifo_full  = (w_rx_fifo_count >= w_rx_depth);
 
     // RX State Machine
     typedef enum logic [2:0] {
@@ -432,8 +457,23 @@ module uart_16550_core #(
     logic [3:0] r_rx_baud_cnt;
     logic       r_rx_parity;
     logic       r_rx_parity_err;
-    logic       r_rx_frame_err;
-    logic       r_rx_break;
+
+    // FRAMING AND BREAK ARE COMBINATIONAL, not flops. They used to be
+    // assigned in the RX_STOP branch and read back three lines later by the
+    // FIFO write and the sticky sets - non-blocking, so every reader saw the
+    // PRE-EDGE value, still 0, and LSR[3]/LSR[4], the FIFO entry error bits
+    // and the line-status interrupt could never assert at all.
+    logic       w_rx_frame_err;
+    logic       w_rx_break;
+
+    // RIGHT-JUSTIFIED, ZERO-FILLED. The receiver shifts LSB-first by
+    // inserting at bit 7 and shifting right, so after N bits the character
+    // sits in [7:8-N] - correct only at N=8. A 16550 right-justifies into
+    // [N-1:0] and zero-fills above, which is what this block's own
+    // transmitter already sends, so before this the two disagreed in loopback
+    // at 5, 6 and 7 bits. Zero-filling also keeps the break test (all data
+    // bits zero) working at every word length.
+    logic [7:0] w_rx_char;
     logic       r_overrun_error;
     logic       r_parity_error;
     logic       r_framing_error;
@@ -441,9 +481,63 @@ module uart_16550_core #(
     logic [2:0] w_rx_last_bit;
     logic       w_rx_expected_parity;
 
+    // A CONTINUOUS BREAK IS ONE CHARACTER, NOT A STREAM OF THEM. RX_IDLE
+    // re-arms on a still-low line, so a break held for N character times
+    // framed N zero characters and eventually overran the FIFO. After a
+    // break character is loaded this holds the receiver off until the line
+    // returns to marking and a genuine new start bit arrives.
+    logic       r_rx_break_hold;
+
+    // Per-character error reporting. w_rx_char_done is the stop-bit sample
+    // point; the push happens there when there is room, and in character
+    // mode a character arriving with no room OVERWRITES the one still
+    // sitting in RBR and destroys it (PC16550D, Overrun Error).
+    logic       w_rx_char_done;
+    logic       w_rx_push;
+    logic       w_rx_overwrite;
+    logic       w_rx_pop;
+    logic       w_rx_new_top;
+    logic [2:0] w_rx_new_tags;
+    logic [2:0] w_rx_pop_tags;
+    logic       w_rx_err_push;
+    logic       w_rx_err_pop;
+
+    always_comb begin
+        unique case (cfg_word_length)
+            2'b00:   w_rx_char = {3'b000, r_rx_shift[7:3]};   // 5 data bits
+            2'b01:   w_rx_char = {2'b00,  r_rx_shift[7:2]};   // 6
+            2'b10:   w_rx_char = {1'b0,   r_rx_shift[7:1]};   // 7
+            default: w_rx_char = r_rx_shift;                  // 8
+        endcase
+    end
+
+    assign w_rx_frame_err = !w_rx_in;                       // stop bit not high
+    assign w_rx_break     = (w_rx_char == 8'h00) && !w_rx_in;
+
+    assign w_rx_char_done = w_baud_tick && (r_rx_state == RX_STOP) &&
+                            (r_rx_baud_cnt == 4'd15);
+    assign w_rx_push      = w_rx_char_done && !w_rx_fifo_full;
+    assign w_rx_overwrite = w_rx_char_done && w_rx_fifo_full && !cfg_fifo_enable;
+    assign w_rx_pop       = rx_read && !w_rx_fifo_empty;
+    assign w_rx_new_tags  = {w_rx_break, w_rx_frame_err, r_rx_parity_err};
+    assign w_rx_pop_tags  = r_rx_fifo[r_rx_rd_ptr[FIFO_ADDR_WIDTH-1:0]][10:8];
+    // A tagged character entering or leaving the FIFO. The push term
+    // repeats the RX_STOP store condition below; the character-mode
+    // overwrite is deliberately not counted, because LSR[7] is
+    // defined only in FIFO mode and the counter is held clear there.
+    assign w_rx_err_push  = w_baud_tick && (r_rx_state == RX_STOP) &&
+                            (r_rx_baud_cnt == 4'd15) && !w_rx_fifo_full &&
+                            (w_rx_new_tags != 3'b000);
+    assign w_rx_err_pop   = w_rx_pop && (w_rx_pop_tags != 3'b000);
+
+    // The character the CPU is about to be handed changed: either one
+    // arrived into an empty receiver, or a character-mode overwrite
+    // replaced the one that was there.
+    assign w_rx_new_top   = (w_rx_push && w_rx_fifo_empty) || w_rx_overwrite;
+
     // Number of data bits based on word length (for RX)
     always_comb begin
-        case (cfg_word_length)
+        unique case (cfg_word_length)
             2'b00: w_rx_last_bit = 3'd4;  // 5 bits
             2'b01: w_rx_last_bit = 3'd5;  // 6 bits
             2'b10: w_rx_last_bit = 3'd6;  // 7 bits
@@ -467,36 +561,73 @@ module uart_16550_core #(
             r_rx_baud_cnt   <= '0;
             r_rx_parity     <= 1'b0;
             r_rx_parity_err <= 1'b0;
-            r_rx_frame_err  <= 1'b0;
-            r_rx_break      <= 1'b0;
             r_rx_wr_ptr     <= '0;
             r_rx_rd_ptr     <= '0;
+            r_rx_err_count  <= '0;
             r_overrun_error <= 1'b0;
             r_parity_error  <= 1'b0;
             r_framing_error <= 1'b0;
             r_break_interrupt <= 1'b0;
+            r_rx_break_hold <= 1'b0;
         end else if (cmd_rx_fifo_reset) begin
             r_rx_state  <= RX_IDLE;
             r_rx_wr_ptr <= '0;
             r_rx_rd_ptr <= '0;
+            r_rx_err_count <= '0;
         end else begin
-            // Clear errors on W1C
+            // One update, after the state machine below, so a push and a pop
+            // in the same cycle net out instead of one overwriting the other.
+            // Held clear in character mode: LSR[7] is a FIFO-mode bit, and
+            // the character-mode overwrite path does not move the pointers,
+            // so a count kept across the mode change could not be trusted.
+            if (!cfg_fifo_enable)
+                r_rx_err_count <= '0;
+            else if (w_rx_err_push && !w_rx_err_pop)
+                r_rx_err_count <= r_rx_err_count + 1'b1;
+            else if (w_rx_err_pop && !w_rx_err_push)
+                r_rx_err_count <= r_rx_err_count - 1'b1;
+
+            // Clear on read of LSR (16550 read-clear, see the wrapper).
             if (clr_overrun_error)   r_overrun_error   <= 1'b0;
             if (clr_parity_error)    r_parity_error    <= 1'b0;
             if (clr_framing_error)   r_framing_error   <= 1'b0;
             if (clr_break_interrupt) r_break_interrupt <= 1'b0;
 
             // RX FIFO read
-            if (rx_read && !w_rx_fifo_empty) begin
+            if (w_rx_pop) begin
                 r_rx_rd_ptr <= r_rx_rd_ptr + 1'b1;
+            end
+
+            // LSR[4:2] ARE THE TAGS OF THE CHARACTER THE CPU IS BEING
+            // HANDED, not a global running OR of everything ever received.
+            // The per-character tags were already stored in the FIFO entry's
+            // [10:8] and only LSR[7] used them; PE/FE/BI were separate
+            // sticky flops, so one bad byte poisoned the status of every
+            // clean byte behind it until software happened to read LSR.
+            // A read of RBR hands over a character and its tags; before any
+            // read, the tags are those of the character waiting at the top.
+            // These assignments come after the clears above so a tag
+            // arriving in the same cycle as a read of LSR is not lost.
+            if (w_rx_pop) begin
+                r_parity_error    <= w_rx_pop_tags[0];
+                r_framing_error   <= w_rx_pop_tags[1];
+                r_break_interrupt <= w_rx_pop_tags[2];
+            end else if (w_rx_new_top) begin
+                r_parity_error    <= w_rx_new_tags[0];
+                r_framing_error   <= w_rx_new_tags[1];
+                r_break_interrupt <= w_rx_new_tags[2];
             end
 
             if (w_baud_tick) begin
                 case (r_rx_state)
                     RX_IDLE: begin
                         r_rx_baud_cnt <= '0;
-                        if (!w_rx_in) begin  // Start bit detected
-                            r_rx_state <= RX_START;
+                        if (w_rx_in) begin
+                            // Line back to marking - a break, if one was
+                            // being held off, is over.
+                            r_rx_break_hold <= 1'b0;
+                        end else if (!r_rx_break_hold) begin
+                            r_rx_state <= RX_START;  // Start bit detected
                         end
                     end
 
@@ -542,27 +673,29 @@ module uart_16550_core #(
                     RX_STOP: begin
                         r_rx_baud_cnt <= r_rx_baud_cnt + 1'b1;
                         if (r_rx_baud_cnt == 4'd15) begin
-                            r_rx_frame_err <= !w_rx_in;  // Missing stop bit
-                            r_rx_break <= (r_rx_shift == 8'h00 && !w_rx_in);
-
-                            // Write to FIFO
                             if (!w_rx_fifo_full) begin
                                 r_rx_fifo[r_rx_wr_ptr[FIFO_ADDR_WIDTH-1:0]] <=
-                                    {r_rx_break, r_rx_frame_err, r_rx_parity_err, r_rx_shift};
+                                    {w_rx_new_tags, w_rx_char};
                                 r_rx_wr_ptr <= r_rx_wr_ptr + 1'b1;
-
-                                // Set error flags
-                                if (r_rx_parity_err) r_parity_error <= 1'b1;
-                                if (r_rx_frame_err)  r_framing_error <= 1'b1;
-                                if (r_rx_break)      r_break_interrupt <= 1'b1;
                             end else begin
+                                // Overrun. In character mode the arriving
+                                // character overwrites and destroys the one
+                                // still in RBR; in FIFO mode it is lost.
+                                if (!cfg_fifo_enable) begin
+                                    r_rx_fifo[r_rx_rd_ptr[FIFO_ADDR_WIDTH-1:0]] <=
+                                        {w_rx_new_tags, w_rx_char};
+                                end
                                 r_overrun_error <= 1'b1;
+                            end
+
+                            // One character per break: hold the receiver off
+                            // until the line goes back to marking.
+                            if (w_rx_break) begin
+                                r_rx_break_hold <= 1'b1;
                             end
 
                             r_rx_state <= RX_IDLE;
                             r_rx_parity_err <= 1'b0;
-                            r_rx_frame_err  <= 1'b0;
-                            r_rx_break      <= 1'b0;
                         end
                     end
 
@@ -581,64 +714,46 @@ module uart_16550_core #(
     assign sts_parity_error   = r_parity_error;
     assign sts_framing_error  = r_framing_error;
     assign sts_break_interrupt = r_break_interrupt;
-    assign sts_rx_fifo_error  = (r_rx_fifo[r_rx_rd_ptr[FIFO_ADDR_WIDTH-1:0]][10:8] != 3'b000) && !w_rx_fifo_empty;
+    // LSR[7] is defined only in FIFO mode and reads 0 in 16450 mode.
+    assign sts_rx_fifo_error  = cfg_fifo_enable && (r_rx_err_count != 0);
 
     // FIFO status
     assign sts_fifo_status = cfg_fifo_enable ? 2'b11 : 2'b00;
 
     // ========================================================================
-    // Interrupt Generation
+    // Interrupts
     // ========================================================================
-    // TODO: Add interrupt enable inputs and implement priority logic
-    // For now, simplified interrupt generation
-    logic w_rx_trigger_reached;
-    logic [3:0] w_rx_trigger_level;
-
-    always_comb begin
-        case (cfg_rx_trigger)
-            2'b00: w_rx_trigger_level = RX_TRIGGER_1;
-            2'b01: w_rx_trigger_level = RX_TRIGGER_4;
-            2'b10: w_rx_trigger_level = RX_TRIGGER_8;
-            2'b11: w_rx_trigger_level = RX_TRIGGER_14;
-        endcase
-    end
-
-    assign w_rx_trigger_reached = (w_rx_fifo_count >= {1'b0, w_rx_trigger_level});
-
-    // Interrupt priority (highest to lowest):
-    // 1. RX Line Status (LSR[1:4] - errors)
-    // 2. RX Data Available / Character Timeout
-    // 3. TX Holding Register Empty
-    // 4. Modem Status
-
-    logic w_int_rx_error, w_int_rx_data, w_int_tx_empty, w_int_modem;
-
-    assign w_int_rx_error = r_overrun_error | r_parity_error | r_framing_error | r_break_interrupt;
-    assign w_int_rx_data  = cfg_fifo_enable ? w_rx_trigger_reached : !w_rx_fifo_empty;
-    assign w_int_tx_empty = w_tx_fifo_empty;
-    assign w_int_modem    = r_delta_cts | r_delta_dsr | r_trailing_ri | r_delta_dcd;
-
-    always_comb begin
-        if (w_int_rx_error) begin
-            int_not_pending = 1'b0;
-            int_id = 2'b11;  // Highest priority
-        end else if (w_int_rx_data) begin
-            int_not_pending = 1'b0;
-            int_id = 2'b10;
-        end else if (w_int_tx_empty) begin
-            int_not_pending = 1'b0;
-            int_id = 2'b01;
-        end else if (w_int_modem) begin
-            int_not_pending = 1'b0;
-            int_id = 2'b00;
-        end else begin
-            int_not_pending = 1'b1;
-            int_id = 2'b00;
-        end
-    end
-
-    assign int_timeout = 1'b0;  // TODO: Implement character timeout
-
-    assign irq = ~int_not_pending && cfg_out2;  // OUT2 gates interrupt
+    // Conditions -> IER gating -> IIR priority -> irq lives in
+    // uart_16550_intr. The FCR trigger comparison lives there too, because
+    // the RX-data-available condition is the only thing that uses it.
+    uart_16550_intr #(
+        .FIFO_DEPTH         (FIFO_DEPTH)
+    ) u_intr (
+        .clk                (clk),
+        .rst_n              (rst_n),
+        .overrun_error      (r_overrun_error),
+        .parity_error       (r_parity_error),
+        .framing_error      (r_framing_error),
+        .break_interrupt    (r_break_interrupt),
+        .rx_fifo_empty      (w_rx_fifo_empty),
+        .rx_fifo_count      (w_rx_fifo_count),
+        .tx_fifo_empty      (w_tx_fifo_empty),
+        .delta_cts          (sts_delta_cts),
+        .delta_dsr          (sts_delta_dsr),
+        .trailing_ri        (sts_trailing_ri),
+        .delta_dcd          (sts_delta_dcd),
+        .cfg_fifo_enable    (cfg_fifo_enable),
+        .cfg_rx_trigger     (cfg_rx_trigger),
+        .cfg_out2           (cfg_out2),
+        .cfg_rx_data_ie     (cfg_rx_data_ie),
+        .cfg_tx_empty_ie    (cfg_tx_empty_ie),
+        .cfg_line_status_ie (cfg_line_status_ie),
+        .cfg_modem_ie       (cfg_modem_ie),
+        .iir_read           (iir_read),
+        .int_not_pending    (int_not_pending),
+        .int_id             (int_id),
+        .int_timeout        (int_timeout),
+        .irq                (irq)
+    );
 
 endmodule : uart_16550_core

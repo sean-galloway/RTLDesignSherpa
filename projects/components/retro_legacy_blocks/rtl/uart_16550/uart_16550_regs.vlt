@@ -1,0 +1,11 @@
+`verilator_config
+// Waivers for the PeakRDL-generated register block ONLY. This file lives
+// outside the generated output so regeneration does not overwrite it, and it
+// is listed in filelists/apb4_uart_16550.f ahead of the generated sources.
+// Same treatment as smbus_regs.vlt and misc/rtl/regs/obs_regs.vlt.
+//
+// MULTIDRIVEN: PeakRDL emits one always_comb per field, each writing a
+// different sub-field of the same `field_combo` struct. No overlap; Verilator
+// reads IEEE 1800-2023 9.2.2.2 strictly, other tools accept it silently.
+lint_off -rule MULTIDRIVEN -file "*/uart_16550_regs.sv"
+

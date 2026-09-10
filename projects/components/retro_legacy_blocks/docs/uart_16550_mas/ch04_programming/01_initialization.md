@@ -114,9 +114,8 @@ void uart_configure_fifo(uint8_t trigger_level) {
 ```c
 void uart_enable_interrupts(uint8_t mask) {
     // Bits: 0=RX, 1=TX, 2=Line, 3=Modem
-    // NOTE: In this RTL the IER enables are unimplemented - this write is
-    // stored and read back but does not mask interrupts. Pending sources
-    // drive the irq pin (gated by MCR.OUT2) regardless of IER.
+    // Each bit gates its own source. The irq pin is gated by MCR.OUT2 as
+    // well, so set OUT2 before expecting an interrupt.
     IER = mask & 0x0F;
 }
 ```
@@ -145,14 +144,12 @@ void uart_init_115200_8n1(void) {
     // 4. Modem control: set OUT2 (bit 3) to ungate the irq pin
     MCR = 0x08;
 
-    // 5. Drain any pending RX data (received byte is in RBR bits [15:8])
+    // 5. Drain any pending RX data (received byte is in RBR bits [7:0])
     while (LSR & 0x01)
         (void)RBR;
 
-    // NOTE: IER (interrupt enables) is unimplemented in this RTL - writing it
-    // has no effect. Poll LSR/IIR, or note that pending sources drive irq
-    // (gated by MCR.OUT2) regardless of IER. LSR/MSR sticky bits are W1C,
-    // not clear-on-read.
+    // NOTE: LSR[4:1] and MSR[3:0] clear when their own register is read,
+    // so the drain loop above consumes any error bits it passes over.
 }
 ```
 

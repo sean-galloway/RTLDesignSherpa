@@ -25,13 +25,13 @@
 
 ## Overview
 
-Interrupt handling on this block works, but not the way a stock 16550 datasheet says it should. The note below is the contract; everything else on this page follows from it.
+Interrupt handling follows the 16550 datasheet, with one gap. The note below is the contract; everything else on this page follows from it.
 
-> Implementation note: In this RTL the IER enables are **unimplemented** -
-> writing IER is stored/read back but does not mask interrupts. Pending sources
-> drive the `irq` pin regardless of IER, and `irq` is gated by MCR.OUT2 (set
-> OUT2 = 1 to enable the pin). The character-timeout interrupt is not
-> implemented. LSR/MSR sticky bits are W1C, not clear-on-read.
+> Implementation note: each of the four sources is gated by its own IER bit,
+> and `irq` is additionally gated by MCR.OUT2 (set OUT2 = 1 to route the pin).
+> LSR[4:1] clear on a read of LSR and MSR[3:0] on a read of MSR; reading IIR
+> clears the THR-empty interrupt when that is the source it reported. The
+> character-timeout interrupt is not implemented (RLB-013).
 
 ## Functional Description
 
@@ -42,10 +42,10 @@ Interrupt handling on this block works, but not the way a stock 16550 datasheet 
 | Value | Priority | Interrupt Source | Clear Method |
 |-------|----------|------------------|--------------|
 | 0x01 | - | No interrupt | - |
-| 0x06 | 1 | Line status error | Clear LSR error bits (W1C) |
+| 0x06 | 1 | Line status error | Read LSR to clear the error bits |
 | 0x04 | 2 | RX data available | Read RBR until DR clears |
 | 0x02 | 3 | THR empty | Write THR (fills TX FIFO) |
-| 0x00 | 4 | Modem status | Clear MSR delta bits (W1C) |
+| 0x00 | 4 | Modem status | Read MSR to clear the delta bits |
 
 Note: Character timeout (IIR = 0x0C) is **not implemented** and never occurs. Reading IIR has no side effect (it does not clear the THR-empty condition).
 
@@ -112,7 +112,7 @@ void uart_isr(void) {
 
 ```c
 void uart_handle_line_status(void) {
-    uint8_t lsr = LSR;  // Read status; then W1C the error bits below
+    uint8_t lsr = LSR;  // Read status; this read also clears the error bits
 
     if (lsr & 0x02) {
         // Overrun Error - FIFO overflow
@@ -123,18 +123,17 @@ void uart_handle_line_status(void) {
         stats.parity_err++;
     }
     if (lsr & 0x08) {
-        // Framing Error -- DEAD CODE on the current RTL: FE never sets (#60)
+        // Framing Error
         stats.framing_err++;
     }
     if (lsr & 0x10) {
-        // Break Indicator -- DEAD CODE on the current RTL: BI never sets (#60)
+        // Break Indicator
         handle_break();
     }
 
-    // W1C: write back the bits just read to clear them (LSR error bits [4:1]).
-    // (Known RTL issue: the core currently never asserts the clear strobes,
-    //  so these bits persist until reset.)
-    LSR = lsr & 0x1E;
+    // Nothing to write back: LSR[4:1] were cleared by the read above.
+    // That is also why this handler must work from `lsr`, the value the
+    // read returned, and must not read LSR again.
 }
 ```
 
@@ -144,7 +143,7 @@ void uart_handle_line_status(void) {
 void uart_handle_rx_data(void) {
     // Read all available data from FIFO
     while (LSR & 0x01) {
-        uint8_t data = (RBR >> 8) & 0xFF;  // received byte is at [15:8]
+        uint8_t data = RBR & 0xFF;  // received byte is at [7:0]
         rx_buffer[rx_head++] = data;
 
         if (rx_head >= RX_BUFFER_SIZE) {
@@ -196,7 +195,7 @@ void uart_handle_tx_empty(void) {
 
 ```c
 void uart_handle_modem_status(void) {
-    uint8_t msr = MSR;  // Read status; delta bits are W1C (see note below)
+    uint8_t msr = MSR;  // Read status; this read also clears the delta bits
 
     if (msr & 0x01) {   // Delta CTS
         // CTS changed - update flow control
@@ -211,16 +210,15 @@ void uart_handle_modem_status(void) {
         // Carrier changed - connection status
     }
 
-    // W1C: write back the delta bits to clear them (MSR[3:0]).
-    // (Known RTL issue: clear strobes are not asserted, so bits persist.)
-    MSR = msr & 0x0F;
+    // Nothing to write back: MSR[3:0] were cleared by the read above,
+    // which is why this handler works from `msr` and does not re-read.
 }
 ```
 
 ### Disabling/Enabling Interrupts
 
-IER masking is unimplemented, so `IER = 0x00` does **not** actually disable
-interrupts in this RTL. To mask the irq pin, clear MCR.OUT2 (the pin gate):
+`IER = 0x00` disables all four sources. MCR.OUT2 gates the pin as well, so
+clearing it masks the pin whatever IER says:
 
 ```c
 // Mask the irq pin via the OUT2 gate

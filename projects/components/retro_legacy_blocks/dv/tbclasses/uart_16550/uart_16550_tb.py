@@ -278,15 +278,23 @@ class UART16550TB(TBBase):
     # Register Access Methods
     # ========================================================================
 
-    async def write_register(self, addr: int, data: int) -> APBPacket:
-        """Write to UART register using correct APB master API (32-bit)."""
+    async def write_register(self, addr: int, data: int, pstrb: int = 0xF) -> APBPacket:
+        """Write to UART register using correct APB master API (32-bit).
+
+        Args:
+            addr: register address
+            data: write data
+            pstrb: byte-lane strobe mask (default 0xF = all 4 lanes;
+                pass a narrower mask, e.g. 0b0001, to exercise
+                byte-enable behavior - see GH60-R2-1).
+        """
         try:
             # Create APB packet
             write_packet = APBPacket(
                 pwrite=1,
                 paddr=addr,
                 pwdata=data,
-                pstrb=0xF,  # 32-bit access
+                pstrb=pstrb,
                 pprot=0,
                 data_width=32,
                 addr_width=12,
@@ -570,35 +578,34 @@ class UART16550TB(TBBase):
         Returns:
             Received byte or None if timeout
         """
+        # Poll the core's own sts_data_ready (whitebox: !w_rx_fifo_empty),
+        # NOT an LSR read - the RTL fix correctly implements real 16550
+        # semantics (OE/PE/FE/BI clear on ANY read of LSR), so a loop
+        # that reads LSR to detect DR=1 silently consumes those sticky
+        # bits before this method's own UART_DATA read (which does not
+        # touch LSR) or any caller's later explicit LSR read ever sees
+        # them. Same trap as is_rx_data_ready()/wait_for_rx_data().
+        core = self.dut.u_uart_config_regs.u_uart_core
         for _ in range(timeout_cycles // 10):
-            _, lsr = await self.read_register(UART16550RegisterMap.UART_LSR)
-            if lsr & UART16550RegisterMap.LSR_DATA_READY:
-                # Debug: print FIFO state BEFORE the read
-                try:
-                    core = self.dut.u_uart_config_regs.u_uart_core
-                    rd_ptr = int(core.r_rx_rd_ptr.value)
-                    wr_ptr = int(core.r_rx_wr_ptr.value)
-                    rx_data_sig = int(core.rx_data.value)
-                    rx_shift = int(core.r_rx_shift.value)
-                    rx_state = int(core.r_rx_state.value)
-                    self.log.info(f"FIFO STATE PRE-READ: rd_ptr={rd_ptr}, wr_ptr={wr_ptr}, rx_data=0x{rx_data_sig:02X}, rx_shift=0x{rx_shift:02X}, rx_state={rx_state}")
-                except Exception as e:
-                    self.log.warning(f"Could not read FIFO state: {e}")
+            if bool(core.sts_data_ready.value):
+                rd_ptr = int(core.r_rx_rd_ptr.value)
+                wr_ptr = int(core.r_rx_wr_ptr.value)
+                rx_data_sig = int(core.rx_data.value)
+                rx_shift = int(core.r_rx_shift.value)
+                rx_state = int(core.r_rx_state.value)
+                self.log.info(f"FIFO STATE PRE-READ: rd_ptr={rd_ptr}, wr_ptr={wr_ptr}, rx_data=0x{rx_data_sig:02X}, rx_shift=0x{rx_shift:02X}, rx_state={rx_state}")
 
                 _, data = await self.read_register(UART16550RegisterMap.UART_DATA)
-                # RX data is in bits [15:8] of UART_DATA register
-                rx_byte = (data >> 8) & 0xFF
-                tx_byte = data & 0xFF
-                self.log.info(f"RX raw data=0x{data:04X}, rx_byte=0x{rx_byte:02X}, tx_byte=0x{tx_byte:02X}")
+                # RX data is in bits [7:0] of UART_DATA (GH60-C3, fixed:
+                # RBR now correctly reads in the low byte lane; [15:8]
+                # is whatever THR last had written to it, write-only).
+                rx_byte = data & 0xFF
+                thr_echo = (data >> 8) & 0xFF
+                self.log.info(f"RX raw data=0x{data:04X}, rx_byte=0x{rx_byte:02X}, thr_echo=0x{thr_echo:02X}")
 
-                # Debug: print FIFO state AFTER the read
-                try:
-                    core = self.dut.u_uart_config_regs.u_uart_core
-                    rd_ptr = int(core.r_rx_rd_ptr.value)
-                    wr_ptr = int(core.r_rx_wr_ptr.value)
-                    self.log.info(f"FIFO STATE POST-READ: rd_ptr={rd_ptr}, wr_ptr={wr_ptr}")
-                except Exception as e:
-                    self.log.warning(f"Could not read FIFO state: {e}")
+                rd_ptr = int(core.r_rx_rd_ptr.value)
+                wr_ptr = int(core.r_rx_wr_ptr.value)
+                self.log.info(f"FIFO STATE POST-READ: rd_ptr={rd_ptr}, wr_ptr={wr_ptr}")
 
                 return rx_byte
             await ClockCycles(self.pclk, 10)
@@ -729,9 +736,21 @@ class UART16550TB(TBBase):
         return bool(lsr & UART16550RegisterMap.LSR_TX_EMPTY)
 
     async def is_rx_data_ready(self) -> bool:
-        """Check if RX data is available."""
-        _, lsr = await self.read_register(UART16550RegisterMap.UART_LSR)
-        return bool(lsr & UART16550RegisterMap.LSR_DATA_READY)
+        """Check if RX data is available.
+
+        Coordinator finding (GH60 round 2): the RTL fix correctly
+        implements real 16550 semantics - OE/PE/FE/BI clear on ANY
+        read of LSR. That makes LSR the wrong thing to poll: a caller
+        that polls is_rx_data_ready()/wait_for_rx_data() and THEN
+        takes its own explicit LSR read to check an error bit finds it
+        already gone, because the polling read itself was the one
+        that consumed it. Checking the core's own sts_data_ready
+        output (whitebox: !w_rx_fifo_empty) instead of reading LSR
+        gets the same answer with zero side effects, so a caller's own
+        subsequent LSR read is genuinely the FIRST touch and correctly
+        observes-then-clears the sticky bits exactly once."""
+        core = self.dut.u_uart_config_regs.u_uart_core
+        return bool(core.sts_data_ready.value)
 
     # ========================================================================
     # Modem Signal Simulation

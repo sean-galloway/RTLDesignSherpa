@@ -44,19 +44,40 @@ addrmap uart_16550_regs {
         name = "Receive Buffer Register / Transmit Holding Register";
         desc = "RX data (read) / TX data (write) when DLAB=0";
 
+        // RBR occupies [7:0]: a 16550 driver reads the received byte from
+        // the low lane of offset 0, and that read pops the RX FIFO.
+        //
+        // THR SHARES THE OFFSET BUT HAS NO FIELD HERE. It is write-only, so
+        // it has no storage to model: the wrapper decodes a write to this
+        // offset and pushes the write-data lane straight into the TX FIFO.
+        // Giving it a field is what made offset 0 read back the last byte
+        // WRITTEN instead of the byte RECEIVED - a scratch register that
+        // happens to also transmit, which is not a 16550.
         field {
-            name = "TX Data";
-            desc = "Data to transmit (write-only in real 16550)";
-            sw = rw;
-            hw = r;
-        } tx_data[7:0] = 8'h00;
-
-        field {
-            name = "RX Data";
-            desc = "Received data (read-only in real 16550)";
+            name = "RX Data (RBR)";
+            desc = "Received data byte, READ-ONLY. UART_DATA[7:0] returns the
+                    oldest byte in the RX FIFO and the read pops it. A WRITE
+                    to this offset targets THR - it pushes the low byte into
+                    the TX FIFO and is not readable anywhere.";
             sw = r;
             hw = w;
-        } rx_data[15:8] = 8'h00;
+        } rx_data[7:0] = 8'h00;
+
+        // Read-only alias of RBR in the second byte lane. NOT a 16550
+        // feature: the shared DV helper (uart_16550_tb.py rx_byte()) reads
+        // the received byte from [15:8] and DV may not be edited here, so the
+        // lane is kept live rather than silently returning zero. Remove it
+        // once that helper reads [7:0]; no driver needs it. Reading it does
+        // not pop anything extra - the register read pops once, whichever
+        // lane the reader looks at.
+        field {
+            name = "RX Data Alias";
+            desc = "Read-only alias of rx_data[7:0] in the upper byte lane,
+                    present for an existing DV helper. A 16550 driver uses
+                    [7:0].";
+            sw = r;
+            hw = w;
+        } rx_data_alias[15:8] = 8'h00;
 
         field {
             name = "Reserved";
@@ -354,38 +375,38 @@ addrmap uart_16550_regs {
 
         field {
             name = "Overrun Error";
-            desc = "1=RX buffer overrun (W1C)";
-            sw = rw;
+            desc = "Overrun: a character arrived while the RX FIFO was full and was lost. READ-CLEAR: reading UART_LSR clears this bit (PC16550D). It is not write-1-to-clear.";
+            sw = r;
             hw = w;
             hwset;
-            onwrite = woclr;
+            onread = rclr;
         } overrun_error[1:1] = 1'b0;
 
         field {
             name = "Parity Error";
-            desc = "1=Parity error detected (W1C)";
-            sw = rw;
+            desc = "Parity error on the character at the top of the RX FIFO. READ-CLEAR: reading UART_LSR clears this bit.";
+            sw = r;
             hw = w;
             hwset;
-            onwrite = woclr;
+            onread = rclr;
         } parity_error[2:2] = 1'b0;
 
         field {
             name = "Framing Error";
-            desc = "1=Missing stop bit (W1C)";
-            sw = rw;
+            desc = "Framing error - the stop bit was not high. READ-CLEAR: reading UART_LSR clears this bit.";
+            sw = r;
             hw = w;
             hwset;
-            onwrite = woclr;
+            onread = rclr;
         } framing_error[3:3] = 1'b0;
 
         field {
             name = "Break Interrupt";
-            desc = "1=Break condition detected (W1C)";
-            sw = rw;
+            desc = "Break detected - all data bits and the stop bit were zero. READ-CLEAR: reading UART_LSR clears this bit.";
+            sw = r;
             hw = w;
             hwset;
-            onwrite = woclr;
+            onread = rclr;
         } break_interrupt[4:4] = 1'b0;
 
         field {
@@ -427,38 +448,38 @@ addrmap uart_16550_regs {
 
         field {
             name = "Delta CTS";
-            desc = "1=CTS changed since last read (W1C)";
-            sw = rw;
+            desc = "CTS changed since the last read of UART_MSR. READ-CLEAR: reading UART_MSR clears this bit (PC16550D).";
+            sw = r;
             hw = w;
             hwset;
-            onwrite = woclr;
+            onread = rclr;
         } delta_cts[0:0] = 1'b0;
 
         field {
             name = "Delta DSR";
-            desc = "1=DSR changed since last read (W1C)";
-            sw = rw;
+            desc = "DSR changed since the last read of UART_MSR. READ-CLEAR: reading UART_MSR clears this bit.";
+            sw = r;
             hw = w;
             hwset;
-            onwrite = woclr;
+            onread = rclr;
         } delta_dsr[1:1] = 1'b0;
 
         field {
             name = "Trailing Edge RI";
-            desc = "1=RI changed from low to high (W1C)";
-            sw = rw;
+            desc = "RI trailing edge since the last read of UART_MSR. READ-CLEAR: reading UART_MSR clears this bit.";
+            sw = r;
             hw = w;
             hwset;
-            onwrite = woclr;
+            onread = rclr;
         } trailing_ri[2:2] = 1'b0;
 
         field {
             name = "Delta DCD";
-            desc = "1=DCD changed since last read (W1C)";
-            sw = rw;
+            desc = "DCD changed since the last read of UART_MSR. READ-CLEAR: reading UART_MSR clears this bit.";
+            sw = r;
             hw = w;
             hwset;
-            onwrite = woclr;
+            onread = rclr;
         } delta_dcd[3:3] = 1'b0;
 
         field {

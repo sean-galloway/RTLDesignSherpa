@@ -66,7 +66,7 @@ Baud Rate = pclk / (16 * Divisor)
 |----------|-------|-------|
 | RBR | Undefined | FIFO content |
 | THR | N/A | Write-only |
-| IER | 0x00 | Enable bits stored but unimplemented |
+| IER | 0x00 | Interrupt enables, all four sources |
 | IIR | 0x02 | THR-empty pending at reset |
 | FCR | 0x00 | FIFO-enable interface bit clear |
 | LCR | 0x03 | 8N1 format |
@@ -94,7 +94,7 @@ Baud Rate = pclk / (16 * Divisor)
 2. Configure line format (LCR at 0x10)
 3. Enable FIFOs if desired (FCR at 0x0C)
 4. Configure modem control (MCR at 0x14); set OUT2 to enable the irq pin
-5. (IER at 0x04 is stored but does not enable/mask interrupts in this implementation)
+5. (IER at 0x04 gates each of the four interrupt sources independently)
 
 ## Timing
 
@@ -135,7 +135,7 @@ wake-on-activity path.
 - Use FIFO mode to reduce interrupt rate
 - Set a higher RX trigger level to reduce interrupt frequency
 
-(Note: IER masking and auto flow control are not implemented in this RTL.)
+(Note: auto flow control is not implemented in this RTL; see the limitations.)
 
 ### External Connections
 

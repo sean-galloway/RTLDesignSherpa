@@ -59,8 +59,8 @@ Flat, DLAB-independent map (LCR[7] does not remap any address; DLL/DLM have dedi
 | 0x0C | FCR | FCR |
 | 0x10 | LCR | LCR |
 | 0x14 | MCR | MCR |
-| 0x18 | LSR | LSR (W1C error bits) |
-| 0x1C | MSR | MSR (W1C delta bits) |
+| 0x18 | LSR | LSR (error bits clear on read) |
+| 0x1C | MSR | MSR (delta bits clear on read) |
 | 0x20 | SCR | SCR |
 | 0x24 | DLL | DLL |
 | 0x28 | DLM | DLM |
@@ -78,7 +78,7 @@ Flat, DLAB-independent map (LCR[7] does not remap any address; DLL/DLM have dedi
 | PWDATA | 32-bit |
 | PRDATA | 32-bit |
 | PREADY | Yes (inserts wait states -- see Access Timing above) |
-| PSLVERR | Yes (always 0) |
+| PSLVERR | Yes - asserted on any unmapped offset in the window |
 | PSTRB | Yes |
 | PPROT | Present (s_apb_PPROT[2:0], accepted and unused) |
 
@@ -100,10 +100,10 @@ Some registers have read/write side effects:
 | THR | N/A | Pushes TX FIFO |
 | IIR | None (reading IIR does not clear any interrupt) | N/A |
 | FCR | None (FCR is readable) | Can reset FIFOs |
-| LSR | None | Write 1 clears error bits [4:1] (W1C) |
-| MSR | None | Write 1 clears delta bits [3:0] (W1C) |
+| LSR | Clears error bits [4:1] | -- |
+| MSR | Clears delta bits [3:0] | -- |
 
-Note: A standard 16550 clears LSR/MSR sticky bits on read; this implementation uses W1C writes instead. In the current RTL the core does not assert the internal clear strobes, so those bits and their interrupts persist until reset (known RTL issue).
+Note: LSR error bits [4:1] and MSR delta bits [3:0] clear when their own register is read, as a standard 16550 does, and the line-status and modem-status interrupts deassert with them. Any read clears them, including one that was only checking data-ready, so software must work from the value the read returned.
 
 ## Timing
 

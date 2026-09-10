@@ -64,8 +64,8 @@ Flat, DLAB-independent decode - each register has a unique offset. Only `paddr[5
 | 0x0C | FCR | FCR |
 | 0x10 | LCR | LCR |
 | 0x14 | MCR | MCR |
-| 0x18 | LSR | LSR (W1C) |
-| 0x1C | MSR | MSR (W1C) |
+| 0x18 | LSR | LSR (clear on read) |
+| 0x1C | MSR | MSR (clear on read) |
 | 0x20 | SCR | SCR |
 | 0x24 | DLL | DLL |
 | 0x28 | DLM | DLM |

@@ -12,7 +12,8 @@
 //   Handles the hwif (hardware interface) signal mapping.
 //
 // Architecture:
-//   APB -> apb4_slave -> CMD/RSP -> peakrdl_to_cmdrsp -> regblk_* -> uart_16550_regs (PeakRDL) -> hwif -> uart_16550_core
+//   APB -> apb4_slave -> CMD/RSP -> peakrdl_to_cmdrsp -> regblk_* ->
+//     -> uart_16550_regs (PeakRDL) -> hwif -> uart_16550_core
 //
 // Documentation: projects/components/retro_legacy_blocks/rtl/uart_16550/README.md
 // Created: 2025-11-29
@@ -77,9 +78,44 @@ module uart_16550_config_regs
     logic        w_tx_write;
     logic        w_rx_read;
 
+    // Strict decode: the adapter's side of the passthrough, so an unmapped
+    // access can be answered locally without ever reaching the register block.
+    logic                    w_addr_mapped;
+    logic                    w_drop;
+    logic                    w_drop_ack;
+    logic                    w_blk_req;
+    logic                    w_blk_rd_ack;
+    logic                    w_blk_rd_err;
+    logic [DATA_WIDTH-1:0]   w_blk_rd_data;
+    logic                    w_blk_wr_ack;
+    logic                    w_blk_wr_err;
+
+    // Read-clear strobes (16550: LSR errors clear on a read of LSR, MSR
+    // deltas clear on a read of MSR).
+    logic        w_lsr_read;
+    logic        w_msr_read;
+    logic        w_iir_read;
+    logic        r_lsr_read_d;
+    logic        r_msr_read_d;
+    logic        r_iir_read_d;
+    logic        w_lsr_read_evt;
+    logic        w_msr_read_evt;
+    logic        w_iir_read_evt;
+
+    // Mapped register offsets - the same six bits the register block decodes.
+    localparam logic [5:0] ADDR_DATA = 6'h00;
+    localparam logic [5:0] ADDR_IER  = 6'h04;
+    localparam logic [5:0] ADDR_IIR  = 6'h08;
+    localparam logic [5:0] ADDR_FCR  = 6'h0C;
+    localparam logic [5:0] ADDR_LCR  = 6'h10;
+    localparam logic [5:0] ADDR_MCR  = 6'h14;
+    localparam logic [5:0] ADDR_LSR  = 6'h18;
+    localparam logic [5:0] ADDR_MSR  = 6'h1C;
+    localparam logic [5:0] ADDR_SCR  = 6'h20;
+    localparam logic [5:0] ADDR_DLL  = 6'h24;
+    localparam logic [5:0] ADDR_DLM  = 6'h28;
+
     // TX write detection (edge on tx_data register write)
-    logic [7:0]  r_tx_data_prev;
-    logic        r_cmd_we_prev;
 
     // Status signals from core
     logic        w_sts_data_ready;
@@ -111,18 +147,18 @@ module uart_16550_config_regs
         .rst        (~rst_n),
 
         // PeakRDL cpuif interface (from peakrdl_to_cmdrsp)
-        .s_cpuif_req            (regblk_req),
+        .s_cpuif_req            (w_blk_req),
         .s_cpuif_req_is_wr      (regblk_req_is_wr),
         .s_cpuif_addr           (regblk_addr[5:0]),  // 6-bit address (44 bytes)
         .s_cpuif_wr_data        (regblk_wr_data),
         .s_cpuif_wr_biten       (regblk_wr_biten),
         .s_cpuif_req_stall_wr   (regblk_req_stall_wr),
         .s_cpuif_req_stall_rd   (regblk_req_stall_rd),
-        .s_cpuif_rd_ack         (regblk_rd_ack),
-        .s_cpuif_rd_err         (regblk_rd_err),
-        .s_cpuif_rd_data        (regblk_rd_data),
-        .s_cpuif_wr_ack         (regblk_wr_ack),
-        .s_cpuif_wr_err         (regblk_wr_err),
+        .s_cpuif_rd_ack         (w_blk_rd_ack),
+        .s_cpuif_rd_err         (w_blk_rd_err),
+        .s_cpuif_rd_data        (w_blk_rd_data),
+        .s_cpuif_wr_ack         (w_blk_wr_ack),
+        .s_cpuif_wr_err         (w_blk_wr_err),
 
         // Hardware interface
         .hwif_in    (hwif_in),
@@ -130,80 +166,149 @@ module uart_16550_config_regs
     );
 
     // ========================================================================
+    // Strict Address Decode
+    // ========================================================================
+    // ONLY THE ELEVEN MAPPED REGISTERS DECODE. Everything else in the window
+    // is dropped: no internal strobe fires, the read returns 0, and the access
+    // is acknowledged locally with PSLVERR. The register block sees six
+    // address bits, so without this every unmapped address aliases onto a real
+    // register 64 bytes below it. The acknowledge is combinational and local,
+    // the same shape the block itself uses, because the adapter holds its
+    // request until it is acked - a dropped access that is never acked hangs
+    // the bus.
+    always_comb begin
+        w_addr_mapped = (regblk_addr[5:0] == ADDR_DATA) ||
+                        (regblk_addr[5:0] == ADDR_IER)  ||
+                        (regblk_addr[5:0] == ADDR_IIR)  ||
+                        (regblk_addr[5:0] == ADDR_FCR)  ||
+                        (regblk_addr[5:0] == ADDR_LCR)  ||
+                        (regblk_addr[5:0] == ADDR_MCR)  ||
+                        (regblk_addr[5:0] == ADDR_LSR)  ||
+                        (regblk_addr[5:0] == ADDR_MSR)  ||
+                        (regblk_addr[5:0] == ADDR_SCR)  ||
+                        (regblk_addr[5:0] == ADDR_DLL)  ||
+                        (regblk_addr[5:0] == ADDR_DLM);
+        w_addr_mapped = w_addr_mapped && (regblk_addr[ADDR_WIDTH-1:6] == '0);
+    end
+
+    assign w_drop     = !w_addr_mapped;
+    assign w_drop_ack = regblk_req && w_drop;
+    assign w_blk_req  = regblk_req && !w_drop;
+
+    assign regblk_rd_ack  = w_blk_rd_ack | (w_drop_ack & ~regblk_req_is_wr);
+    assign regblk_rd_err  = w_blk_rd_err | (w_drop_ack & ~regblk_req_is_wr);
+    assign regblk_rd_data = w_drop_ack ? '0 : w_blk_rd_data;
+    assign regblk_wr_ack  = w_blk_wr_ack | (w_drop_ack & regblk_req_is_wr);
+    assign regblk_wr_err  = w_blk_wr_err | (w_drop_ack & regblk_req_is_wr);
+
+    // ========================================================================
+    // Read-clear strobes
+    // ========================================================================
+    // 16550 semantics: reading LSR clears its error bits, reading MSR clears
+    // its delta bits, and reading IIR clears the THR-empty interrupt when THR
+    // empty is the source being reported. Edge-detected because the bridge
+    // holds the request for two cycles and a level would clear twice - the
+    // second clear would swallow an event the core accepted in between.
+    assign w_lsr_read = w_blk_req && !regblk_req_is_wr && (regblk_addr[5:0] == ADDR_LSR);
+    assign w_msr_read = w_blk_req && !regblk_req_is_wr && (regblk_addr[5:0] == ADDR_MSR);
+    assign w_iir_read = w_blk_req && !regblk_req_is_wr && (regblk_addr[5:0] == ADDR_IIR);
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_lsr_read_d <= 1'b0;
+            r_msr_read_d <= 1'b0;
+            r_iir_read_d <= 1'b0;
+        end else begin
+            r_lsr_read_d <= w_lsr_read;
+            r_msr_read_d <= w_msr_read;
+            r_iir_read_d <= w_iir_read;
+        end
+    )
+
+    assign w_lsr_read_evt = w_lsr_read && !r_lsr_read_d;
+    assign w_msr_read_evt = w_msr_read && !r_msr_read_d;
+    assign w_iir_read_evt = w_iir_read && !r_iir_read_d;
+
+    // ========================================================================
     // TX Write Edge Detection and RX Read Edge Detection
     // ========================================================================
     // Track if we're doing a UART_DATA register read or write
     logic w_uart_data_read;
     logic w_uart_data_write;
-    assign w_uart_data_read = regblk_req && !regblk_req_is_wr && (regblk_addr[5:0] == 6'h00);
-    assign w_uart_data_write = regblk_req && regblk_req_is_wr && (regblk_addr[5:0] == 6'h00);
+    assign w_uart_data_read  = w_blk_req && !regblk_req_is_wr &&
+                               (regblk_addr[5:0] == ADDR_DATA);
 
-    // One-shot for TX write: generate single pulse per write transaction
-    // CRITICAL: PeakRDL registers update one cycle AFTER the cpuif write request.
-    // So we must delay the tx_write pulse by one cycle to align with valid tx_data.
+    // THE BYTE ENABLE IS PART OF THE DECODE, NOT JUST OF THE DATA. A write
+    // to UART_DATA with lane 0 disabled (PSTRB=4'b0010, say) is not a THR
+    // write at all. Masking the captured byte but pushing anyway - which is
+    // what this did - transmitted a NUL for every such access.
+    assign w_uart_data_write = w_blk_req && regblk_req_is_wr &&
+                               (regblk_addr[5:0] == ADDR_DATA) &&
+                               regblk_wr_biten[0];
+
+    // THR PUSH: ONE PULSE PER ACKED WRITE, taken from the write-data lane.
     //
-    // Strategy: Detect falling edge of w_uart_data_write AND verify we saw wr_ack.
-    // This ensures tx_write fires AFTER the PeakRDL register has updated.
+    // THR has no register field (see the RDL): it is write-only, so there is
+    // no storage to read back and nothing to wait for. The byte is whatever
+    // this access is writing, captured on the acked cycle, and the push is a
+    // rising-edge pulse on that cycle.
     //
-    // One-shot for RX read: generate single pulse per read transaction
-    // We want to advance the FIFO pointer exactly once per read, after the data
-    // has been captured by the response pipeline.
+    // THIS DEPENDS ON THE REQUEST DROPPING BETWEEN COMMANDS, and it is worth
+    // being honest about that rather than claiming it is correct by
+    // construction. peakrdl_to_cmdrsp holds regblk_req from the accept cycle
+    // through CMD_WAIT_ACK, and this regblock's ack is combinational on the
+    // held request, so one command is two cycles of req and ack together.
+    // Back-to-back commands with no idle cycle between them would be four
+    // such cycles with one rising edge, and the second byte would be lost.
+    // That cannot happen behind an APB front end - APB is strictly
+    // one-outstanding and needs a SETUP cycle per transfer, and the bridge
+    // itself would drop the second response anyway (its rsp FSM only
+    // captures in RSP_IDLE) - but nothing in THIS file enforces it.
     //
-    // Strategy: Detect falling edge of w_uart_data_read (NOT just !regblk_req).
-    // This handles back-to-back transactions where regblk_req stays high but
-    // the address changes (e.g., LSR read followed by UART_DATA read).
-    //
-    // Timing: regblk_rd_ack fires when PeakRDL captures the read data.
-    // We wait for the UART_DATA read to complete (w_uart_data_read falls)
-    // then fire rx_read ONE cycle later to advance the FIFO pointer.
-    logic r_uart_data_read_prev;    // Previous cycle's w_uart_data_read
-    logic r_uart_data_read_acked;   // Saw regblk_rd_ack during UART_DATA read
-    logic r_uart_data_write_prev;   // Previous cycle's w_uart_data_write
-    logic r_uart_data_write_acked;  // Saw regblk_wr_ack during UART_DATA write
+    // The fix does not belong here: no signal visible to this module marks a
+    // command boundary. req and ack alone cannot distinguish "the extra held
+    // cycle after an ack" from "the first cycle of the next command", and
+    // the two cases need opposite decisions. A one-cycle accept qualifier
+    // from peakrdl_to_cmdrsp would settle it; that file is shared and out of
+    // scope here. The same dependency applies to the LSR/MSR/IIR read events
+    // and to the RBR pop below.
+    logic       r_thr_ack_d;
+    logic       r_thr_push;
+    logic [7:0] r_thr_data;
+    logic       w_thr_ack_now;
+
+    logic       r_rbr_ack_d;
+    logic       r_rbr_pop;
+    logic       w_rbr_ack_now;
+
+    // The ack is COMBINATIONAL on the held request, so it is high for BOTH
+    // cycles the bridge holds it - a pulse taken straight from it pushes the
+    // same byte twice. Rising edge, then one cycle of delay so the captured
+    // byte is stable when the push fires.
+    assign w_thr_ack_now = w_uart_data_write && w_blk_wr_ack;
+    assign w_rbr_ack_now = w_uart_data_read  && w_blk_rd_ack;
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            r_tx_data_prev <= '0;
-            r_cmd_we_prev  <= 1'b0;
-            r_uart_data_read_prev <= 1'b0;
-            r_uart_data_read_acked <= 1'b0;
-            r_uart_data_write_prev <= 1'b0;
-            r_uart_data_write_acked <= 1'b0;
+            r_thr_ack_d <= 1'b0;
+            r_thr_push  <= 1'b0;
+            r_thr_data  <= 8'h00;
+            r_rbr_ack_d <= 1'b0;
+            r_rbr_pop   <= 1'b0;
         end else begin
-            r_tx_data_prev <= hwif_out.UART_DATA.tx_data.value;
-            r_cmd_we_prev  <= w_uart_data_write;
-
-            // Track previous cycle's UART_DATA read state
-            r_uart_data_read_prev <= w_uart_data_read;
-
-            // Track if we've seen an ack during a UART_DATA read
-            if (w_uart_data_read && regblk_rd_ack) begin
-                r_uart_data_read_acked <= 1'b1;
-            end else if (!w_uart_data_read) begin
-                // Clear acked flag when UART_DATA read ends
-                r_uart_data_read_acked <= 1'b0;
+            r_thr_ack_d <= w_thr_ack_now;
+            r_thr_push  <= w_thr_ack_now && !r_thr_ack_d;
+            if (w_thr_ack_now && !r_thr_ack_d) begin
+                r_thr_data <= regblk_wr_data[7:0] & regblk_wr_biten[7:0];
             end
 
-            // Track previous cycle's UART_DATA write state
-            r_uart_data_write_prev <= w_uart_data_write;
-
-            // Track if we've seen an ack during a UART_DATA write
-            if (w_uart_data_write && regblk_wr_ack) begin
-                r_uart_data_write_acked <= 1'b1;
-            end else if (!w_uart_data_write) begin
-                // Clear acked flag when UART_DATA write ends
-                r_uart_data_write_acked <= 1'b0;
-            end
+            r_rbr_ack_d <= w_rbr_ack_now;
+            r_rbr_pop   <= w_rbr_ack_now && !r_rbr_ack_d;
         end
     )
 
-    // Write to TX on falling edge of UART_DATA write IF we saw wr_ack
-    // This fires ONE cycle after the PeakRDL register updates, ensuring tx_data is valid
-    assign w_tx_write = r_uart_data_write_prev && !w_uart_data_write && r_uart_data_write_acked;
-
-    // Read from RX - fires on falling edge of w_uart_data_read IF we saw an ack
-    // This means we only advance the pointer after a successful read that saw regblk_rd_ack
-    assign w_rx_read = r_uart_data_read_prev && !w_uart_data_read && r_uart_data_read_acked;
+    assign w_tx_write = r_thr_push;
+    assign w_rx_read  = r_rbr_pop;
 
     // ========================================================================
     // UART Core Instance
@@ -252,7 +357,7 @@ module uart_16550_config_regs
         .cmd_tx_fifo_reset  (hwif_out.UART_FCR.tx_fifo_reset.value),
 
         // TX data
-        .tx_data            (hwif_out.UART_DATA.tx_data.value),
+        .tx_data            (r_thr_data),
         .tx_write           (w_tx_write),
 
         // RX data
@@ -279,14 +384,21 @@ module uart_16550_config_regs
         .sts_fifo_status    (w_sts_fifo_status),
 
         // Status clear (W1C from register writes - handled by PeakRDL)
-        .clr_overrun_error  (1'b0),
-        .clr_parity_error   (1'b0),
-        .clr_framing_error  (1'b0),
-        .clr_break_interrupt(1'b0),
-        .clr_delta_cts      (1'b0),
-        .clr_delta_dsr      (1'b0),
-        .clr_trailing_ri    (1'b0),
-        .clr_delta_dcd      (1'b0),
+        .clr_overrun_error  (w_lsr_read_evt),
+        .clr_parity_error   (w_lsr_read_evt),
+        .clr_framing_error  (w_lsr_read_evt),
+        .clr_break_interrupt(w_lsr_read_evt),
+        // 16550 interrupt enables, one per source
+        .cfg_rx_data_ie     (hwif_out.UART_IER.rx_data_avail_ie.value),
+        .cfg_tx_empty_ie    (hwif_out.UART_IER.tx_empty_ie.value),
+        .cfg_line_status_ie (hwif_out.UART_IER.rx_line_status_ie.value),
+        .cfg_modem_ie       (hwif_out.UART_IER.modem_status_ie.value),
+        .iir_read           (w_iir_read_evt),
+
+        .clr_delta_cts      (w_msr_read_evt),
+        .clr_delta_dsr      (w_msr_read_evt),
+        .clr_trailing_ri    (w_msr_read_evt),
+        .clr_delta_dcd      (w_msr_read_evt),
 
         // Interrupt
         .int_not_pending    (w_int_not_pending),
@@ -299,7 +411,8 @@ module uart_16550_config_regs
     // Connect Status to hwif_in
     // ========================================================================
     // RX data
-    assign hwif_in.UART_DATA.rx_data.next = w_rx_data;
+    assign hwif_in.UART_DATA.rx_data.next       = w_rx_data;
+    assign hwif_in.UART_DATA.rx_data_alias.next = w_rx_data;
 
     // IIR
     assign hwif_in.UART_IIR.int_not_pending.next = w_int_not_pending;
@@ -309,26 +422,18 @@ module uart_16550_config_regs
 
     // LSR
     assign hwif_in.UART_LSR.data_ready.next = w_sts_data_ready;
-    assign hwif_in.UART_LSR.overrun_error.next = w_sts_overrun_error;
     assign hwif_in.UART_LSR.overrun_error.hwset = w_sts_overrun_error;
-    assign hwif_in.UART_LSR.parity_error.next = w_sts_parity_error;
     assign hwif_in.UART_LSR.parity_error.hwset = w_sts_parity_error;
-    assign hwif_in.UART_LSR.framing_error.next = w_sts_framing_error;
     assign hwif_in.UART_LSR.framing_error.hwset = w_sts_framing_error;
-    assign hwif_in.UART_LSR.break_interrupt.next = w_sts_break_interrupt;
     assign hwif_in.UART_LSR.break_interrupt.hwset = w_sts_break_interrupt;
     assign hwif_in.UART_LSR.tx_holding_empty.next = w_sts_tx_holding_empty;
     assign hwif_in.UART_LSR.tx_empty.next = w_sts_tx_empty;
     assign hwif_in.UART_LSR.rx_fifo_error.next = w_sts_rx_fifo_error;
 
     // MSR
-    assign hwif_in.UART_MSR.delta_cts.next = w_sts_delta_cts;
     assign hwif_in.UART_MSR.delta_cts.hwset = w_sts_delta_cts;
-    assign hwif_in.UART_MSR.delta_dsr.next = w_sts_delta_dsr;
     assign hwif_in.UART_MSR.delta_dsr.hwset = w_sts_delta_dsr;
-    assign hwif_in.UART_MSR.trailing_ri.next = w_sts_trailing_ri;
     assign hwif_in.UART_MSR.trailing_ri.hwset = w_sts_trailing_ri;
-    assign hwif_in.UART_MSR.delta_dcd.next = w_sts_delta_dcd;
     assign hwif_in.UART_MSR.delta_dcd.hwset = w_sts_delta_dcd;
     assign hwif_in.UART_MSR.cts.next = w_sts_cts;
     assign hwif_in.UART_MSR.dsr.next = w_sts_dsr;

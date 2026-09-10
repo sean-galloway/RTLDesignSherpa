@@ -34,13 +34,13 @@ This is the definitive register reference, and it documents what the RTL actuall
 | Offset | Register | Access | Reset | Description |
 |--------|----------|--------|-------|-------------|
 | 0x00 | RBR / THR | R / W | - | Receive Buffer (read) / Transmit Holding (write) |
-| 0x04 | IER | RW | 0x00 | Interrupt Enable (stored; no hardware effect - see note) |
+| 0x04 | IER | RW | 0x00 | Interrupt Enable |
 | 0x08 | IIR | RO | 0x02 | Interrupt Identification |
 | 0x0C | FCR | RW | 0x00 | FIFO Control (readable in this implementation) |
 | 0x10 | LCR | RW | 0x03 | Line Control (8N1 at reset) |
 | 0x14 | MCR | RW | 0x00 | Modem Control |
-| 0x18 | LSR | RO / W1C | 0x60 | Line Status |
-| 0x1C | MSR | RO / W1C | 0x00 | Modem Status |
+| 0x18 | LSR | RO, clear on read | 0x60 | Line Status |
+| 0x1C | MSR | RO, clear on read | 0x00 | Modem Status |
 | 0x20 | SCR | RW | 0x00 | Scratch |
 | 0x24 | DLL | RW | 0x01 | Divisor Latch LSB |
 | 0x28 | DLM | RW | 0x00 | Divisor Latch MSB |
@@ -53,10 +53,10 @@ Offsets 0x2C-0x3F are unused and acknowledge reads as zero.
 
 | Bits | Name | Access | Description |
 |------|------|--------|-------------|
-| 15:8 | DATA | RO | Received data byte (see note) |
-| 7:0 | - | RO | Returns the last value written to THR (see note) |
+| 7:0 | DATA | RO | Received data byte |
+| 15:8 | DATA_ALIAS | RO | The same byte again (see note) |
 
-**Note:** Reading offset 0x00 pops data from the RX FIFO. In this implementation the received byte is returned in bits **[15:8]**, and bits **[7:0]** return the last byte written to THR - not the received byte. This deviates from the standard 16550 (which returns the received byte in [7:0]) and is a known RTL issue; software must read the received byte from bits [15:8].
+**Note:** Reading offset 0x00 pops one entry from the RX FIFO and returns the received byte in bits **[7:0]**, as a standard 16550 does. THR shares the offset and is write-only: it has no storage and does not read back anywhere. Bits [15:8] mirror the same received byte and exist only for testbench helpers that predate the fix; do not write new software against them.
 
 ---
 
@@ -80,7 +80,7 @@ Offsets 0x2C-0x3F are unused and acknowledge reads as zero.
 | 3 | EDSSI | RW | 0 | Enable Modem Status Interrupt |
 | 7:4 | Reserved | RO | 0 | Reserved |
 
-**Note:** These bits are stored and read back, but the RTL does not connect them to any interrupt logic - the interrupt enables are **unimplemented**. IIR reports pending sources and the `irq` pin asserts independently of IER. Writing IER has no effect on interrupt behavior. See `ch03_interfaces/04_interrupt.md`.
+**Note:** Each bit gates its own source. A disabled source still sets its status bit in LSR or MSR; it simply is not an interrupt, does not raise `irq` and is not reported by IIR. The `irq` pin is additionally gated by MCR.OUT2, which resets to 0. See `ch03_interfaces/04_interrupt.md`.
 
 ---
 
@@ -99,10 +99,10 @@ IIR[0]=IPEND (0 = interrupt pending). IIR[3:1]=IID. IIR[3] (timeout) is always 0
 
 | IIR[3:0] | Priority | Source | Clear Method |
 |----------|----------|--------|--------------|
-| 0110 | 1 | Line Status | Clear LSR error bits (W1C - see note) |
+| 0110 | 1 | Line Status | Read LSR to clear the error bits |
 | 0100 | 2 | RX Data Available | Read RBR until DR clears |
 | 0010 | 3 | THR Empty | Write THR (fills TX FIFO) |
-| 0000 | 4 | Modem Status | Clear MSR delta bits (W1C - see note) |
+| 0000 | 4 | Modem Status | Read MSR to clear the delta bits |
 
 **Note:** The **Character Timeout** interrupt (IIR = 0x0C, IIR[3]) is **not implemented** - `int_timeout` is tied to 0 in the RTL, so IIR[3] never asserts and IIR can never read 0x0C. Reading IIR has **no** side effect; it does not clear the THR-empty condition. The THR-empty source is the level "TX FIFO empty" and clears only when the FIFO is refilled. Because interrupt enables are unimplemented (see IER), IIR reflects pending sources regardless of IER, and the `irq` pin is additionally gated by MCR.OUT2 (see MCR note).
 
@@ -157,11 +157,9 @@ Reset value is **0x03** (8 data bits, 1 stop bit, no parity - 8N1).
 | 10 | 7 |
 | 11 | 8 |
 
-Known RTL deviation (#60): for 5/6/7-bit words the RECEIVED byte is
-MSB-justified with stale shift-register bits below it (the RX shift
-inserts at bit 7) -- software must shift right by (8 - N). TX sends
-bits [N-1:0] LSB-first as expected, so TX and RX disagree on
-justification.
+At every word length the received byte is right-justified and
+zero-filled: a 5-bit character reads in bits [4:0] with [7:5] clear.
+The transmitter sends bits [N-1:0] LSB-first, so TX and RX agree.
 
 #### Parity Selection
 
@@ -190,37 +188,37 @@ justification.
 
 ---
 
-### LSR - Line Status Register (0x18, Read / W1C)
+### LSR - Line Status Register (0x18, Read; error bits clear on read)
 
 | Bit | Name | Access | Description |
 |-----|------|--------|-------------|
 | 0 | DR | RO | Data Ready |
-| 1 | OE | W1C | Overrun Error (write 1 to clear - see note) |
-| 2 | PE | W1C | Parity Error (write 1 to clear - see note) |
-| 3 | FE | W1C | Framing Error -- NEVER SETS in the current RTL (same-cycle overwrite defect, #60) |
-| 4 | BI | W1C | Break Interrupt -- NEVER SETS in the current RTL (#60) |
+| 1 | OE | RO | Overrun Error (clears when the register is read) |
+| 2 | PE | RO | Parity Error (clears when the register is read) |
+| 3 | FE | RO | Framing Error (clears when the register is read) |
+| 4 | BI | RO | Break Interrupt (clears when the register is read) |
 | 5 | THRE | RO | Transmitter Holding Register Empty (TX FIFO empty) |
 | 6 | TEMT | RO | Transmitter Empty (FIFO and shift register empty) |
-| 7 | FIFOERR | RO | Error in RX FIFO head entry |
+| 7 | FIFOERR | RO | At least one parity error, framing error or break indication in the RX FIFO (FIFO mode only) |
 
-**Note:** The error bits [4:1] are **write-1-to-clear (W1C)**, not clear-on-read as a standard 16550. Reading LSR has no clearing side effect. Furthermore, in the current RTL the core never asserts the internal clear strobes, so once set these bits (and the associated line-status interrupt) remain asserted until full reset - a known RTL issue. FIFOERR (bit 7) reflects only the RX FIFO **head** entry, not "any entry in the FIFO".
+**Note:** The error bits [4:1] **clear when LSR is read**, as PC16550D specifies. Any read clears them, including one that was only looking at DR, so a polling loop consumes the error it is polling for - capture the value the poll returned rather than reading LSR twice. PE, FE and BI are the tags of the character the CPU is being handed, not a running OR over everything received; OE is a port-level flag. FIFOERR (bit 7) aggregates over the whole FIFO and is defined only in FIFO mode.
 
 ---
 
-### MSR - Modem Status Register (0x1C, Read / W1C)
+### MSR - Modem Status Register (0x1C, Read; delta bits clear on read)
 
 | Bit | Name | Access | Description |
 |-----|------|--------|-------------|
-| 0 | DCTS | W1C | Delta Clear To Send (write 1 to clear - see note) |
-| 1 | DDSR | W1C | Delta Data Set Ready (write 1 to clear - see note) |
-| 2 | TERI | W1C | Trailing Edge Ring Indicator (write 1 to clear - see note) |
-| 3 | DDCD | W1C | Delta Data Carrier Detect (write 1 to clear - see note) |
+| 0 | DCTS | RO | Delta Clear To Send (clears when the register is read) |
+| 1 | DDSR | RO | Delta Data Set Ready (clears when the register is read) |
+| 2 | TERI | RO | Trailing Edge Ring Indicator (clears when the register is read) |
+| 3 | DDCD | RO | Delta Data Carrier Detect (clears when the register is read) |
 | 4 | CTS | RO | Clear To Send |
 | 5 | DSR | RO | Data Set Ready |
 | 6 | RI | RO | Ring Indicator |
 | 7 | DCD | RO | Data Carrier Detect |
 
-**Note:** The delta bits [3:0] are **write-1-to-clear (W1C)**, not clear-on-read. As with LSR, the current RTL does not assert the internal clear strobes, so a delta bit (and the modem-status interrupt) stays set until full reset - a known RTL issue.
+**Note:** The delta bits [3:0] **clear when MSR is read**, as PC16550D specifies, and the modem-status interrupt deasserts with them. As with LSR, any read clears them, so work from the value the read returned rather than reading MSR twice.
 
 ---
 
@@ -267,6 +265,29 @@ its address window.
 Example (BASE_ADDR = 0xFEC08000):
   LSR = 0xFEC08000 + 0x18 = 0xFEC08018
 ```
+
+---
+
+## Remaining Limitations
+
+Five 16550 features are not implemented. Each is tracked as RLB-013 in
+`vault/Tasks/RLB/open.md`; none is a defect in what is built.
+
+| Feature | State |
+|---|---|
+| Character-timeout interrupt | `int_timeout` is tied to 0, so IIR never reads 0x0C. A partially filled RX FIFO below the trigger level raises no interrupt; poll instead |
+| Auto flow control (AFE) | MCR[5] has no field at all: MCR[31:5] is read-only zero, so it reads back 0 whatever is written. CTS does not gate the transmitter and RTS is not driven from the RX FIFO level |
+| 1.5 stop bits | LCR[2] with a 5-bit character produces one stop bit |
+| DLAB remapping | The map is flat: DLL and DLM have their own offsets and DLAB is a stored bit that remaps nothing |
+| DMA mode select | FCR[3] is stored and never read |
+
+Two further items constrain integration rather than function. The block
+instantiates no reset synchronizer, so `presetn` and `uart_rstn` must arrive
+already synchronized, and resetting one domain with a transfer in flight
+corrupts the asynchronous FIFOs - quiesce the bus first, or assert both
+together. An illegal parameter fails in simulation at time 0 rather than at
+elaboration, because the guards are `initial` blocks and synthesis ignores
+them.
 
 ---
 

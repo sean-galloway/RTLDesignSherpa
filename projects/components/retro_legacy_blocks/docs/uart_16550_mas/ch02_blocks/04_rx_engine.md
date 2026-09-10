@@ -145,15 +145,17 @@ flowchart LR
 - Start + data + parity + stop all zero
 - Used for attention signaling
 
-**Known RTL deviation (issue #60): FE and BI can NEVER assert.** In the
-RX_STOP state the computed values are overwritten by the same-cycle
-cleanup assignments (last non-blocking write wins), and the FIFO/sticky
-updates sample the pre-edge (already-cleared) flags. In practice LSR FE
-and BI read 0 forever, RX FIFO bits [10:9] are always 0, and the
-line-status interrupt can fire only from overrun or parity errors
-(parity works because it is computed one state earlier). Received data
-for 5/6/7-bit words is also MSB-justified with stale low bits (shift
-register inserts at bit 7) -- software must shift right by (8 - N).
+FE and BI are computed as combinational nets sampled at the stop bit, so
+they are stable when the FIFO entry is written and when the sticky flags
+are set. Both reach LSR and both tag the FIFO entry in bits [10:9], and
+the line-status interrupt fires from any of overrun, parity, framing or
+break. (Until the #60 fix they could never assert: the computed values
+were overwritten by same-cycle cleanup assignments and the FIFO write
+sampled the pre-edge, already-cleared flags.)
+
+Received data is right-justified and zero-filled at every word length,
+so a 5-bit character reads in bits [4:0] with [7:5] clear, matching what
+the transmitter sends.
 
 #### Overrun Error (OE)
 
