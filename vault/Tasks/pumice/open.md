@@ -24,20 +24,35 @@ That flow already exists and is documented as **WIRED** in its `HARNESS_PLAN.md`
 - A `litedram_hp.yml` deliberately mapped onto a high-perf pumice preset, with
   the mapping table written out in its README.
 
-Its own remaining TODO, verbatim from HARNESS_PLAN.md:
-1. `make regen` (`./regen.sh --bios`) — the shipped core has an empty BIOS ROM
-   and placeholder `LOC X` pins; a proper regen emits a functional BIOS, real
-   ddram pins and the a7ddrphy IODELAY constraints.
-2. XDC reconcile — drop `ddram_*` from `litedram_char.xdc` once the core's own
-   xdc has real pins, and enable the `read_xdc` line in `build_all.tcl`.
-3. Host variant — copy `ddr2_char.py` + `pumice_master.py`, drop the pumice-CSR
-   `set_controller_cfg` writes (LiteDRAM self-configures), keep the engine cfg
-   and the perf/timer readout. `harness_csr` is at base 0 here.
-4. `make bitstream && make program && make characterize`.
+**Progress 2026-09-10 (commit fdaa7db37):**
+- ~~regen with BIOS~~ **DONE.** Core regenerated with a functional BIOS (63 KB
+  ROM) and `litedram_hp.yml` moved to **75 MHz / 1:2 / 300 MT/s**, matching the
+  point pumice is measured at. The stock 100 MHz / 1:4 would have voided the
+  comparison.
+- ~~XDC reconcile~~ **NOT NEEDED.** The regenerated core xdc has no ddram pins;
+  the harness keeps its pin map.
+- Five flow bugs fixed to get synthesis running: `REPO_ROOT` two levels short
+  (the `../` count was correct at the pre-move path), `CONVERTERS_ROOT` not
+  exported, the tcl filelist reader expanding only `$REPO_ROOT`, `.vlt` lint
+  waivers handed to Vivado, and `VexRiscv.v` pinned to a path inside the LiteX
+  venv. `regen.sh` no longer hardcodes a `/tmp` venv either.
 
-Note the operating point in that README is the stock 100 MHz / 1:4; the proven
-point (and the one pumice is measured at) is **75 MHz / 1:2**, so set
-`sys_clk_freq`/`input_clk_freq` accordingly before regenerating.
+**BLOCKING — the one real piece of work left.** Synthesis now reaches the
+harness and stops on **41 port mismatches**: `char_engine_harness.sv` is wired
+to a `harness_csr` that no longer exists. The whole per-generator config
+surface (`o_cfg_wr_*`, `o_cfg_rd_*`, the start pulses, the CRC readback) moved
+out of `harness_csr` into `chargen_regs` when the char framework went to a
+16-generator array; `harness_csr` is now 75 ports of global/PHY config only.
+
+Rewire `char_engine_harness.sv` against the current framework — `harness_csr`
+for the global surface, `chargen_regs` (`chargen_regs.rdl`) for per-generator
+config, and the generator array instead of one wr + one rd engine. The pumice
+flow's `ddr2_char_macro.sv` is the reference for how the array is driven today.
+
+Then: host variant (copy `ddr2_char.py` + `pumice_master.py`, drop the
+pumice-CSR `set_controller_cfg` writes since LiteDRAM self-configures, keep
+engine cfg + perf/timer readout; `harness_csr` is at base 0 here), then
+`make bitstream && make program && make characterize`.
 
 **RESOLVED 2026-09-10:** `build-litedram/` was an empty duplicate scaffold
 (the never-executed destination of a NEXYS-003 move). It cost this session a
