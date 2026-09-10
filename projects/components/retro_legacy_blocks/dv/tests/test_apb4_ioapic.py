@@ -98,6 +98,7 @@ async def ioapic_test(dut):
         ('Level-Triggered Interrupt', basic_tests.test_level_triggered_interrupt),
         ('Polarity Inversion', basic_tests.test_polarity_inversion),
         # GitHub #48 defect-regression: expected RED against current RTL
+        ('RLB-008 destination mode forwarded', medium_tests.test_rlb008_dest_mode_forwarded),
         ('GH48 C1 Edge Double-Delivery Count', medium_tests.test_c1_edge_double_delivery_count),
         ('GH48 C1 No Park After Single Ready Pulse', medium_tests.test_c1_no_park_after_single_ready_pulse),
         ('GH48 IOREGSEL Invalid-Selector Readback', medium_tests.test_ioregsel_invalid_selector_readback),

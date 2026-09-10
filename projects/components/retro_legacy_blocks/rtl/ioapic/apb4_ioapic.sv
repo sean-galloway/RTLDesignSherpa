@@ -168,7 +168,10 @@ module apb4_ioapic #(
     // Interrupt output to CPU/LAPIC (pclk domain)
     output logic                    irq_out_valid,      // Interrupt delivery request
     output logic [7:0]              irq_out_vector,     // Vector to deliver
-    output logic [7:0]              irq_out_dest,       // Destination APIC ID
+    output logic [7:0]              irq_out_dest,       // Destination APIC ID or mask
+    // How to read irq_out_dest: 0 = physical APIC ID, 1 = logical mask.
+    // The local APICs do the matching; the IOAPIC forwards both (RLB-008).
+    output logic                    irq_out_dest_mode,
     output logic [2:0]              irq_out_deliv_mode, // Delivery mode
     input  logic                    irq_out_ready,      // CPU acknowledge
 
@@ -214,6 +217,7 @@ module apb4_ioapic #(
     logic        w_core_irq_valid;
     logic [7:0]  w_core_irq_vector;
     logic [7:0]  w_core_irq_dest;
+    logic        w_core_irq_dest_mode;
     logic [2:0]  w_core_irq_deliv_mode;
     logic        w_core_irq_ready;   // accept strobe back into the core
 
@@ -411,6 +415,7 @@ module apb4_ioapic #(
             logic       r_p_ack;
             logic [7:0] r_p_vector;
             logic [7:0] r_p_dest;
+            logic       r_p_dest_mode;
             logic [2:0] r_p_deliv_mode;
             logic       r_eoi_in_d;
             logic       w_eoi_pulse_p;
@@ -474,11 +479,13 @@ module apb4_ioapic #(
                     r_p_ack        <= 1'b0;
                     r_p_vector     <= 8'h00;
                     r_p_dest       <= 8'h00;
+                    r_p_dest_mode  <= 1'b0;
                     r_p_deliv_mode <= 3'h0;
                 end else if (!r_p_ack) begin
                     if (w_p_req && !r_p_valid) begin
                         r_p_vector     <= w_core_irq_vector;
                         r_p_dest       <= w_core_irq_dest;
+                        r_p_dest_mode  <= w_core_irq_dest_mode;
                         r_p_deliv_mode <= w_core_irq_deliv_mode;
                         r_p_valid      <= 1'b1;
                     end else if (r_p_valid && irq_out_ready) begin
@@ -501,6 +508,7 @@ module apb4_ioapic #(
             assign irq_out_valid      = r_p_valid;
             assign irq_out_vector     = r_p_valid ? r_p_vector     : 8'h00;
             assign irq_out_dest       = r_p_valid ? r_p_dest       : 8'h00;
+            assign irq_out_dest_mode  = r_p_valid ? r_p_dest_mode  : 1'b0;
             assign irq_out_deliv_mode = r_p_valid ? r_p_deliv_mode : 3'h0;
 
             // ---------------------------------------------------------------
@@ -552,6 +560,7 @@ module apb4_ioapic #(
             assign irq_out_valid      = w_core_irq_valid;
             assign irq_out_vector     = w_core_irq_vector;
             assign irq_out_dest       = w_core_irq_dest;
+            assign irq_out_dest_mode  = w_core_irq_dest_mode;
             assign irq_out_deliv_mode = w_core_irq_deliv_mode;
             assign w_core_irq_ready   = irq_out_ready;
             assign w_eoi_strobe       = eoi_in;
@@ -593,6 +602,7 @@ module apb4_ioapic #(
         .irq_out_valid        (w_core_irq_valid),
         .irq_out_vector       (w_core_irq_vector),
         .irq_out_dest         (w_core_irq_dest),
+        .irq_out_dest_mode    (w_core_irq_dest_mode),
         .irq_out_deliv_mode   (w_core_irq_deliv_mode),
         .irq_out_ready        (w_core_irq_ready),
 

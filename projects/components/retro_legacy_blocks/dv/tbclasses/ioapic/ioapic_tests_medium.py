@@ -1,3 +1,4 @@
+from cocotb.triggers import ClockCycles
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2025 sean galloway
 #
@@ -81,6 +82,47 @@ class IOAPICMediumTests:
     # =========================================================================
     # Defect 1 (C1): edge-triggered IRQ delivered twice
     # =========================================================================
+
+    async def test_rlb008_dest_mode_forwarded(self) -> bool:
+        """RLB-008: the destination MODE reaches the delivery interface.
+
+        An IOAPIC does not decode logical destinations itself - it forwards
+        the destination field and the mode bit, and the local APICs do the
+        matching. Forwarding only the field, as this did, makes logical
+        delivery indistinguishable from physical at the receiver."""
+        self.log.info("=== RLB-008: destination mode forwarded ===")
+        try:
+            results = {}
+            for mode in (0, 1):
+                irq = 3
+                await self.tb.write_redirection_entry(
+                    irq=irq, vector=0x40 + mode, dest=0xA5,
+                    delivery_mode=0, dest_mode=mode,
+                    polarity=0, trigger_mode=0, mask=0)
+                await ClockCycles(self.tb.pclk, 20)
+                await self.tb.pulse_irq(irq)
+                got = await self.tb.wait_for_interrupt(timeout_cycles=400)
+                # Read what was captured AT delivery: the interface returns to
+                # an all-zero idle state as soon as the ack lands.
+                seen_mode = getattr(self.tb, '_last_int_dest_mode', None)
+                seen_dest = getattr(self.tb, '_last_int_dest', None)
+                results[mode] = (got, seen_mode, seen_dest)
+                self.log.info(f"  dest_mode={mode}: delivered={got} "
+                              f"mode_at_delivery={seen_mode} dest=0x{seen_dest:02X}")
+                await self.tb.drain_pending_interrupts()
+
+            ok = all(results[m][0] and results[m][1] == m and
+                     results[m][2] == 0xA5 for m in (0, 1))
+            if ok:
+                self.log.info("RLB-008 destination mode GREEN")
+                return True
+            self.log.error(
+                f"RLB-008 destination mode: {results} (want each delivered, "
+                f"the pin equal to the programmed mode, destination 0xA5)")
+            return False
+        except Exception as e:
+            self.log.error(f"RLB-008 destination mode test error: {e}")
+            return False
 
     async def test_c1_edge_double_delivery_count(self) -> bool:
         """

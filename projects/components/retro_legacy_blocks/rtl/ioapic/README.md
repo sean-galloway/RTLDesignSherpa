@@ -61,13 +61,21 @@ single valid/ready delivery interface to the CPU/LAPIC.
 - CDC_ENABLE=1: the whole CPU/LAPIC-facing interface is presented in pclk and
   crosses into ioapic_clk through matched-latency synchronizers
 
-## Not implemented (see vault/Tasks/RLB/open.md, RLB-009)
+## Destination mode
 
-Logical destination mode (`cfg_dest_mode` is stored and software-readable, and
-nothing reads it - it is not forwarded to the delivery interface either, which
-carries vector, destination and delivery mode only), LowestPriority arbitration, dynamic priority rotation, multi-IOAPIC
-routing, boot-interrupt delivery, MSI/MSI-X. Delivery modes other than Fixed
-are forwarded on `irq_out_deliv_mode` unmodified.
+`irq_out_dest_mode` carries the RTE's destination mode alongside
+`irq_out_dest`: 0 means the destination is a physical APIC ID, 1 means it is a
+logical bitmask. An IOAPIC does not decode logical destinations itself - it
+forwards the field and the mode, and the local APICs do the matching - so
+forwarding the mode is the whole of this block's responsibility for logical
+delivery (RLB-008). Delivery modes other than Fixed are likewise forwarded on
+`irq_out_deliv_mode` unmodified.
+
+## Not implemented (see vault/Tasks/RLB/open.md, RLB-008)
+
+LowestPriority arbitration, which needs processor priority tracking this block
+has no interface for; dynamic priority rotation (arbitration is static, lowest
+IRQ number wins); multi-IOAPIC routing; boot-interrupt delivery; MSI/MSI-X.
 
 ## Files
 

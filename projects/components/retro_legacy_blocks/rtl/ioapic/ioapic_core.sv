@@ -193,7 +193,14 @@ module ioapic_core #(
     // Interrupt output to CPU (MSI-style message interface)
     output logic        irq_out_valid,      // Interrupt delivery request
     output logic [7:0]  irq_out_vector,     // Vector to deliver
-    output logic [7:0]  irq_out_dest,       // Destination APIC ID
+    output logic [7:0]  irq_out_dest,       // Destination APIC ID or logical mask
+    // How the receiver must READ irq_out_dest: 0 = physical, a single
+    // APIC ID; 1 = logical, a bitmask matched against each local APIC's
+    // logical destination register. An IOAPIC does not decode logical
+    // destinations itself - it forwards the field and the mode, and the
+    // local APICs match. Forwarding the mode is what makes logical
+    // delivery usable at all (RLB-008).
+    output logic        irq_out_dest_mode,
     output logic [2:0]  irq_out_deliv_mode, // Delivery mode
     input  logic        irq_out_ready,      // CPU accepts the delivery
 
@@ -238,6 +245,7 @@ module ioapic_core #(
     logic [IRQ_IDX_W-1:0] r_out_irq;
     logic [7:0]           r_out_vector;
     logic [7:0]           r_out_dest;
+    logic                 r_out_dest_mode;
     logic [2:0]           r_out_deliv_mode;
     logic                 w_deliv_accept;    // the delivery handshake
     logic                 w_out_load;
@@ -458,12 +466,14 @@ module ioapic_core #(
             r_out_irq        <= '0;
             r_out_vector     <= 8'h00;
             r_out_dest       <= 8'h00;
+            r_out_dest_mode  <= 1'b0;
             r_out_deliv_mode <= 3'h0;
         end else if (w_out_load) begin
             r_out_valid      <= 1'b1;
             r_out_irq        <= w_sel_irq;
             r_out_vector     <= cfg_vector[w_sel_irq];
             r_out_dest       <= cfg_destination[w_sel_irq];
+            r_out_dest_mode  <= cfg_dest_mode[w_sel_irq];
             r_out_deliv_mode <= cfg_deliv_mode[w_sel_irq];
         end else if (irq_out_ready) begin
             r_out_valid      <= 1'b0;
@@ -477,6 +487,7 @@ module ioapic_core #(
     assign irq_out_valid      = r_out_valid;
     assign irq_out_vector     = r_out_valid ? r_out_vector     : 8'h00;
     assign irq_out_dest       = r_out_valid ? r_out_dest       : 8'h00;
+    assign irq_out_dest_mode  = r_out_valid ? r_out_dest_mode  : 1'b0;
     assign irq_out_deliv_mode = r_out_valid ? r_out_deliv_mode : 3'h0;
 
 endmodule : ioapic_core

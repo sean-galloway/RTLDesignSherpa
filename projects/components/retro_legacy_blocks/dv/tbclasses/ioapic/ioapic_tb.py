@@ -542,6 +542,10 @@ class IOAPICTB(TBBase):
                 # Capture interrupt info BEFORE acknowledging
                 self._last_int_vector = self.dut.irq_out_vector.value.integer
                 self._last_int_dest = self.dut.irq_out_dest.value.integer
+                # The mode says how the receiver must read the destination;
+                # capture it with the rest of the payload, before the ack
+                # returns the interface to its idle (all-zero) state.
+                self._last_int_dest_mode = int(self.dut.irq_out_dest_mode.value)
                 # Acknowledge the interrupt to complete delivery
                 self.dut.irq_out_ready.value = 1
                 await self.wait_clocks('pclk', 1)
