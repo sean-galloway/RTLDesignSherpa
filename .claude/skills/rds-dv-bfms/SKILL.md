@@ -18,10 +18,22 @@ ONE OF THREE ORTHOGONAL AXES (see rds-dv-axes): BFM = who drives; SEQUENCE =
 what traffic (rds-dv-axes); RANDOMIZATION = what timing (rds-dv-randomization).
 Using the right BFM says NOTHING about whether the test stresses anything.
 
-Authoritative per-family API docs ship in RDS-DV:
-<RDS-DV>/docs/components/<family>/components_<family>_interfaces.md
-(published at sean-galloway.github.io/RTLDesignSherpa-DV). Read those rather
-than reverse-engineering from source.
+Per-family API docs ship in RDS-DV under <RDS-DV>/docs/components/<family>/
+(published at sean-galloway.github.io/RTLDesignSherpa-DV). Read them rather
+than reverse-engineering from source -- but check what is actually there
+first, because coverage is uneven (measured 2026-09-10):
+
+- `components_<family>_interfaces.md` exists for axi4, axi5 and axil4 ONLY.
+  This skill used to name that path for every family; for the other eight it
+  points at nothing, which sends you to the source it is telling you to avoid.
+- A `*_factories.md` page exists for gaxi ONLY, though 11 families ship a
+  factories module. The factories arrived after the docs were written.
+- Coverage of the rest varies and axil5 has NO pages at all. gaxi and fifo
+  are the fullest; apb5, axis5 and wb4 have overview/components/packet;
+  `ls <RDS-DV>/docs/components/<family>/` before you rely on any of it.
+
+Gap tracked as an RDS-DV issue; until it closes, the components page plus the
+factory docstrings are the honest source for the eight undocumented families.
 
 The handbook root is vault/handbook/INDEX.md - design/, dv/, fpga/, authoring/ areas,
 atomic notes, wikilinked. When you learn a durable lesson in this domain,
