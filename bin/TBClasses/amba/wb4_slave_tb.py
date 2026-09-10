@@ -33,6 +33,7 @@ from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master, create_gaxi_slave
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from CocoTBFramework.components.wb4.wb4_factories import create_wb4_master, create_wb4_monitor
+from CocoTBFramework.components.wb4.wb4_sequence import WB4Sequence
 from CocoTBFramework.components.shared.wb4_common import WB4_STATUS_ACK, WB4_STATUS_ERR, WB4_STATUS_RTY
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
@@ -201,23 +202,28 @@ class WB4SlaveTB(TBBase):
                                f"status={status} dat_r=0x{rdat:X}")
 
     # ---- traffic ------------------------------------------------------------
-    def _random_req(self, rng, mix):
-        r = rng.random()
-        if r < mix / 2:
-            adr = rng.randint(*ERR_WINDOW)
-        elif r < mix:
-            adr = rng.randint(*RTY_WINDOW)
-        else:
-            adr = rng.randint(0, 0x0FFF) & ~(self.SW - 1)
-        return rng.randint(0, 1), adr, rng.getrandbits(self.DW), (rng.getrandbits(self.SW) or ((1 << self.SW) - 1))
+    def _sequence(self, rng, count, mix):
+        """The traffic for one phase. The sequence axis owns WHAT transfers
+        happen -- the read/write mix and the ERR/RTY windows this TB's FUB
+        model answers with; the WB4Master BFM owns who drives them and when.
+        Seeded from the TB's generator so the run stays reproducible.
+        """
+        seq = WB4Sequence("slave.traffic", addr_width=self.AW, data_width=self.DW,
+                          seed=rng.getrandbits(32))
+        seq.add_random_workload(
+            count, addr_lo=0, addr_hi=0x1000, write_frac=0.5,
+            align=True, random_sel=True,
+            windows=[(ERR_WINDOW[0], ERR_WINDOW[1], mix / 2),
+                     (RTY_WINDOW[0], RTY_WINDOW[1], mix / 2)])
+        return seq
 
     async def run_traffic(self, count, rng, mix=0.2, timeout_clocks=20000):
         start = self.stats['completed']
-        for _ in range(count):
-            we, adr, dat, sel = self._random_req(rng, mix)
-            self.issued.append((we, adr, dat, sel))
+        for t in self._sequence(rng, count, mix):
+            self.issued.append((t.we, t.adr, t.dat_w, t.sel))
             self.stats['issued'] += 1
-            await self.master.send(self.master.create_packet(we=we, adr=adr, dat_w=dat, sel=sel))
+            await self.master.send(self.master.create_packet(
+                we=t.we, adr=t.adr, dat_w=t.dat_w, sel=t.sel))
         waited = 0
         while self.stats['completed'] - start < count:
             await RisingEdge(self.clk)
@@ -239,11 +245,13 @@ class WB4SlaveTB(TBBase):
         the DUT accepted but had not yet handed to the FUB are answered and
         counted as orphans the DUT must swallow."""
         self.paused = True
-        for _ in range(outstanding):
-            we, adr, dat, sel = self._random_req(rng, 0.0)
-            self.issued.append((we, adr, dat, sel))
+        # mix=0.0: plain memory only. An ERR or RTY window address here would
+        # make the abort bookkeeping depend on which status the FUB chose.
+        for t in self._sequence(rng, outstanding, 0.0):
+            self.issued.append((t.we, t.adr, t.dat_w, t.sel))
             self.stats['issued'] += 1
-            await self.master.send(self.master.create_packet(we=we, adr=adr, dat_w=dat, sel=sel))
+            await self.master.send(self.master.create_packet(
+                we=t.we, adr=t.adr, dat_w=t.dat_w, sel=t.sel))
         # Let the DUT accept what it will (it STALLs at MAX_OUTSTANDING).
         waited = 0
         while len(self.master.outstanding) < min(outstanding, self.max_outstanding) and waited < 200:

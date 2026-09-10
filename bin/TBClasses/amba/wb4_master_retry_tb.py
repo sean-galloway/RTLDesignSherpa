@@ -28,6 +28,7 @@ from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master, create_gaxi_slave
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from CocoTBFramework.components.wb4.wb4_factories import create_wb4_monitor, create_wb4_slave
+from CocoTBFramework.components.wb4.wb4_sequence import WB4Sequence
 from CocoTBFramework.components.shared.wb4_common import WB4_STATUS_ACK, WB4_STATUS_ERR, WB4_STATUS_RTY
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
@@ -196,33 +197,31 @@ class WB4MasterRetryTB(TBBase):
             return WB4_STATUS_ACK, None
         return WB4_STATUS_ACK, sum(self.mirror.get(adr + i, 0) << (8 * i) for i in range(self.SW))
 
-    def _random_cmds(self, rng, count, mix):
-        """count commands; with more than one in flight, addresses are unique
-        within the batch so a retried write never reorders against a read
-        of the same word (the documented INFLIGHT > 1 hazard)."""
-        cmds, used = [], set()
-        while len(cmds) < count:
-            r = rng.random()
-            if r < mix / 3:
-                adr = rng.randint(*ERR_WINDOW)
-            elif r < 2 * mix / 3:
-                adr = rng.randint(*RTY_K_WINDOW)
-            elif r < mix:
-                adr = rng.randint(*RTY_ALWAYS)
-            else:
-                adr = rng.randint(0, 0xD000)
-            adr &= ~(self.SW - 1)
-            if self.inflight > 1 and adr in used:
-                continue
-            used.add(adr)
-            we = rng.randint(0, 1)
-            cmds.append((we, adr, rng.getrandbits(self.DW), rng.getrandbits(self.SW) or ((1 << self.SW) - 1)))
-        return cmds
+    def _sequence(self, rng, count, mix):
+        """The traffic for one phase, as a WB4Sequence.
+
+        Three windows this DUT's slave decodes: ERR, retry-a-bounded-number
+        (RTY_K) and retry-forever. With more than one command in flight the
+        addresses are unique within the phase, so a retried write never
+        reorders against a read of the same word -- the INFLIGHT > 1 hazard
+        wb4_retry documents. Seeded from the TB's generator so the run stays
+        reproducible.
+        """
+        seq = WB4Sequence("retry.traffic", addr_width=self.AW, data_width=self.DW,
+                          seed=rng.getrandbits(32))
+        seq.add_random_workload(
+            count, addr_lo=0, addr_hi=0xD000, write_frac=0.5,
+            align=True, random_sel=True, unique_addrs=(self.inflight > 1),
+            windows=[(ERR_WINDOW[0], ERR_WINDOW[1], mix / 3),
+                     (RTY_K_WINDOW[0], RTY_K_WINDOW[1], mix / 3),
+                     (RTY_ALWAYS[0], RTY_ALWAYS[1], mix / 3)])
+        return seq
 
     async def run_traffic(self, count, rng, mix=0.3, timeout_clocks=60000):
         start = self.stats['responses']
         pkts = []
-        for we, adr, dat, sel in self._random_cmds(rng, count, mix):
+        for t in self._sequence(rng, count, mix):
+            we, adr, dat, sel = t.we, t.adr, t.dat_w, t.sel
             want_status, want_data = self._plan(rng, we, adr, dat, sel)
             self.sent.append((we, adr, dat, sel, want_status, want_data))
             pkt = GAXIPacket(self.cmd_fc)

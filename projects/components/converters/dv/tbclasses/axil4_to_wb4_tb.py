@@ -19,6 +19,7 @@ from cocotb.triggers import RisingEdge
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.axil4.axil4_interfaces import AXIL4MasterWrite, AXIL4MasterRead
 from CocoTBFramework.components.wb4.wb4_factories import create_wb4_monitor, create_wb4_slave
+from CocoTBFramework.components.wb4.wb4_sequence import WB4Sequence
 from CocoTBFramework.components.shared.wb4_common import WB4_STATUS_ACK, WB4_STATUS_ERR, WB4_STATUS_RTY
 from TBClasses.shared.tbbase import TBBase
 
@@ -91,14 +92,24 @@ class AXIL4ToWB4TB(TBBase):
     def set_slave_profile(self, name):
         self.slave.set_randomizer(FlexRandomizer(SLAVE_PROFILES[name]))
 
-    def _addr(self, rng, window=None):
-        if window == 'err':
-            base = rng.randint(*ERR_WINDOW)
-        elif window == 'rty':
-            base = rng.randint(*RTY_WINDOW)
-        else:
-            base = rng.randrange(0, 0xD000)
-        return (base // self.SW) * self.SW      # word aligned, like the memory model lines
+    def _sequence(self, rng, count, *, windows=True, unique=False, name="traffic"):
+        """The traffic for one batch, as a WB4Sequence.
+
+        The sequence axis owns WHAT transfers happen -- the 60/40 write mix,
+        the word alignment the memory model's lines want, and the ERR and RTY
+        windows the Wishbone slave decodes. The AXI4-Lite BFMs still own who
+        drives them and when. ``unique`` keeps addresses distinct inside a
+        batch, which concurrent traffic needs so a per-address mirror cannot
+        race itself.
+        """
+        seq = WB4Sequence(f"axil4_to_wb4.{name}", addr_width=self.AW,
+                          data_width=self.DW, seed=rng.getrandbits(32))
+        win = [(ERR_WINDOW[0], ERR_WINDOW[1], 0.08),
+               (RTY_WINDOW[0], RTY_WINDOW[1], 0.08)] if windows else []
+        seq.add_random_workload(count, addr_lo=0, addr_hi=0xD000, write_frac=0.6,
+                                align=True, random_sel=False, unique_addrs=unique,
+                                windows=win)
+        return seq
 
     def _expected_word(self, adr):
         return sum(self.mirror.get(adr + i, 0) << (8 * i) for i in range(self.SW))
@@ -144,32 +155,37 @@ class AXIL4ToWB4TB(TBBase):
         done = 0
         while done < count:
             n = min(concurrency, count - done)
-            adrs = set()
+            # One sequence per batch, addresses unique within it when more
+            # than one transfer is in flight.
+            batch = self._sequence(rng, n, windows=windows, unique=(concurrency > 1),
+                                   name="random")
             tasks = []
-            while len(adrs) < n:
-                r = rng.random()
-                w = 'err' if windows and r < 0.08 else 'rty' if windows and r < 0.16 else None
-                adrs.add(self._addr(rng, w))
-            for adr in adrs:
-                if rng.random() < 0.6:
+            for t in batch:
+                if t.is_write:
                     strb = rng.randint(1, (1 << self.SW) - 1) if rng.random() < 0.3 else None
-                    tasks.append(cocotb.start_soon(self.write(adr, rng.getrandbits(self.DW), strb)))
+                    tasks.append(cocotb.start_soon(self.write(t.adr, t.dat_w, strb)))
                 else:
-                    tasks.append(cocotb.start_soon(self.read(adr)))
-            for t in tasks:
-                await t
+                    tasks.append(cocotb.start_soon(self.read(t.adr)))
+            for task in tasks:
+                await task
             done += n
 
     async def run_strobes(self, rng, count):
         """Full write, then a partial (strobed) write to the same word, then a
         read back: the untouched bytes must survive. Random traffic rarely
         lands a strobed write and a read on the same word, so this is directed."""
-        for _ in range(count):
-            adr = self._addr(rng)
-            await self.write(adr, rng.getrandbits(self.DW))
-            strb = rng.randint(1, (1 << self.SW) - 2)
-            await self.write(adr, rng.getrandbits(self.DW), strb)
-            await self.read(adr)
+        # add_strobed_writes builds exactly this triple per address: a full
+        # write, a partial one, then the read back.
+        seq = WB4Sequence("axil4_to_wb4.strobes", addr_width=self.AW,
+                          data_width=self.DW, seed=rng.getrandbits(32))
+        base = (rng.randrange(0, 0xC000) // self.SW) * self.SW
+        seq.add_strobed_writes(base, count)
+        for t in seq:
+            if t.is_write:
+                strb = None if t.sel == seq.all_sel else t.sel
+                await self.write(t.adr, t.dat_w, strb)
+            else:
+                await self.read(t.adr)
 
     async def wait_idle(self, limit=2000):
         for _ in range(limit):

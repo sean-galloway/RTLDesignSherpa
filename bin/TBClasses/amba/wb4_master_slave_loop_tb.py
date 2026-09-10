@@ -45,6 +45,7 @@ from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master, create_gaxi_slave
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from CocoTBFramework.components.wb4.wb4_factories import create_wb4_monitor
+from CocoTBFramework.components.wb4.wb4_sequence import WB4Sequence
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
 
@@ -226,19 +227,24 @@ class WB4MasterSlaveLoopTB(TBBase):
         self.got.append((status, dat))
 
     # ---- traffic --------------------------------------------------------------
-    def _random_cmd(self, rng, mix):
-        """mix: fraction of ERR/RTY-window addresses, the rest plain memory."""
-        r = rng.random()
-        if r < mix / 2:
-            adr = rng.randint(*ERR_WINDOW)
-        elif r < mix:
-            adr = rng.randint(*RTY_WINDOW)
-        else:
-            adr = rng.randint(0, 0x0000_0FFF)
-        we = rng.randint(0, 1)
-        dat = rng.getrandbits(self.DW)
-        sel = rng.getrandbits(self.SW) or ((1 << self.SW) - 1)
-        return we, adr, dat, sel
+    def _sequence(self, rng, count, mix):
+        """The traffic for one phase. The sequence axis owns WHAT transfers
+        happen -- the read/write mix and the ERR/RTY windows the wrapper's
+        slave decodes; this TB still owns who drives them and when. Seeded
+        from the TB's generator so the run stays reproducible.
+
+        Addresses are left unaligned (``align=False``): the loopback wrapper
+        has no memory model, so nothing here cares about word boundaries and
+        unaligned traffic is the wider stimulus.
+        """
+        seq = WB4Sequence("loop.traffic", addr_width=self.AW, data_width=self.DW,
+                          seed=rng.getrandbits(32))
+        seq.add_random_workload(
+            count, addr_lo=0, addr_hi=0x1000, write_frac=0.5,
+            align=False, random_sel=True,
+            windows=[(ERR_WINDOW[0], ERR_WINDOW[1], mix / 2),
+                     (RTY_WINDOW[0], RTY_WINDOW[1], mix / 2)])
+        return seq
 
     async def run_traffic(self, count, rng, mix=0.2, timeout_clocks=20000):
         """Send `count` random commands, then wait for every response."""
@@ -247,11 +253,10 @@ class WB4MasterSlaveLoopTB(TBBase):
         # per-packet send() drains the driver pipeline each time and throttles
         # the producer to one command per ~3 clocks regardless of profile).
         pkts = []
-        for _ in range(count):
-            we, adr, dat, sel = self._random_cmd(rng, mix)
-            self.sent.append((we, adr, dat, sel))
+        for t in self._sequence(rng, count, mix):
+            self.sent.append((t.we, t.adr, t.dat_w, t.sel))
             pkt = GAXIPacket(self.cmd_fc)
-            pkt.we, pkt.adr, pkt.dat, pkt.sel = we, adr, dat, sel
+            pkt.we, pkt.adr, pkt.dat, pkt.sel = t.we, t.adr, t.dat_w, t.sel
             self.stats['sent'] += 1
             pkts.append(pkt)
         await self.m_cmd.send_burst(pkts)

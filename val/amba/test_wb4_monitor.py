@@ -25,6 +25,7 @@ import cocotb
 from cocotb_test.simulator import run
 
 from TBClasses.amba.wb4_monitor_tb import WB4MonitorTB, ERR_WINDOW, RTY_WINDOW
+from CocoTBFramework.components.wb4.wb4_sequence import WB4Sequence
 from TBClasses.monbus import PktType, WBErrorCode, WBTimeoutCode, WBCompletionCode, WBPerformanceCode, WBDebugCode
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
@@ -32,18 +33,20 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 COUNTS = {'gate': 24, 'func': 96, 'full': 400}
 
 
-def _mix(rng, n, aw):
-    cmds = []
-    for i in range(n):
-        r = rng.random()
-        if r < 0.10:
-            adr = rng.randint(*ERR_WINDOW)
-        elif r < 0.20:
-            adr = rng.randint(*RTY_WINDOW)
-        else:
-            adr = rng.randrange(0, 0xD000, 4)
-        cmds.append((adr & ((1 << aw) - 1), rng.randint(0, 1), rng.randint(1, 15), rng.getrandbits(32)))
-    return cmds
+def _mix(rng, n, tb):
+    """The traffic for one phase, as (adr, we, sel, dat) tuples.
+
+    The sequence axis owns WHAT transfers happen: the read/write mix and the
+    ERR and RTY windows the TB's slave hook decodes. Seeded from the test's
+    generator so a run stays reproducible.
+    """
+    seq = WB4Sequence("monitor.traffic", addr_width=tb.AW, data_width=tb.DW,
+                      seed=rng.getrandbits(32))
+    seq.add_random_workload(
+        n, addr_lo=0, addr_hi=0xD000, write_frac=0.5, align=True, random_sel=True,
+        windows=[(ERR_WINDOW[0], ERR_WINDOW[1], 0.10),
+                 (RTY_WINDOW[0], RTY_WINDOW[1], 0.10)])
+    return [(t.adr, t.we, t.sel, t.dat_w) for t in seq]
 
 
 @cocotb.test(timeout_time=60, timeout_unit="ms")
@@ -58,7 +61,7 @@ async def wb4_monitor_test(dut):
         cocotb.start_soon(tb.trace_wires(160))
 
     # --- transfers: one packet per transfer, in order --------------------
-    cmds = _mix(rng, n, tb.AW)
+    cmds = _mix(rng, n, tb)
     await tb.send_cmds(cmds)
     await tb.wait_quiet()
     pk = tb.take_packets()
@@ -75,7 +78,7 @@ async def wb4_monitor_test(dut):
     # --- pipelined: several open at once, pairing stays in order ---------
     tb.rsp_latency = 6
     peak = 0
-    cmds = _mix(rng, n, tb.AW)
+    cmds = _mix(rng, n, tb)
     chunk = max(2, tb.max_transactions // 2)
     for i in range(0, len(cmds), chunk):
         task = cocotb.start_soon(tb.send_cmds(cmds[i:i + chunk]))
