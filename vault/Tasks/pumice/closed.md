@@ -622,12 +622,23 @@ whole 2026-09-08/09 body of work -- read return ring, write-lead block, JEDEC
 timings, restored paging modes, base-build order modes, pre-pick muxing --
 is data-clean on hardware.
 
-**Bandwidth, best config (`refresh_credit`, row_major BL8):**
+**Bandwidth, best config (`open_page` and equivalents, row_major BL8):**
 
 | Direction | Measured | Target | Peak | Result |
 |---|---|---|---|---|
-| Write | **574.0 MB/s** | 510 | 600 | **MET** (95.7% of peak) |
-| Read | **292.2 MB/s** | 450 | 600 | missed (48.7% of peak) |
+| Write | **570.0 MB/s** | 510 | 600 | **MET** (95.0% of peak) |
+| Read | **291.7 MB/s** | 450 | 600 | missed (48.6% of peak) |
+
+> **CORRECTED 2026-09-10.** The first pass reported `refresh_credit` at
+> 574.0/292.2 as the best config. That was an ARTIFACT of run order, not a
+> result. `pumice_char.ControllerConfig.apply()` only programmed a mode axis
+> when the preset set it, so a preset that left `page_mode` unset inherited
+> the previous config's. `refresh_credit` is a CLOSE-page preset and ran
+> straight after `rbl_dyn`, inheriting `page_mode=7`, whose predictor kept the
+> page open. Standalone it measures 33.8/35.8, which is the correct
+> close-page number. apply() now programs every axis on every config
+> (0 = build default) so nothing is inherited; the re-run is 36/36
+> integrity-clean and order-independent.
 
 For scale: this path measured 12.7 MB/s flat on 2026-07-08 and ~2% of peak.
 Writes are now essentially at the data-path limit.
@@ -648,16 +659,24 @@ moves one per cycle. Re-filed as PUMICE-025 with this evidence.
 
 **Mode characterization (row_major BL8, MB/s write/read):**
 
+Re-measured order-independently, 36/36 integrity:
+
 | Config | Write | Read | Note |
 |---|---|---|---|
-| `refresh_credit` | 574.0 | 292.2 | best; JEDEC postpone/pull-in credits |
-| `adapt_time` | 570.3 | 291.7 | |
-| `open_page` | 570.0 | 291.7 | |
+| `open_page` | 570.0 | 291.7 | the ceiling; four configs tie here |
+| `age_thr` | 570.0 | 291.7 | starvation bound is FREE |
+| `adapt_time` | 570.0 | 291.7 | |
 | `adapt_access` | 570.0 | 291.7 | predictor holds the page open |
 | `rbl_dyn` | 570.0 | 291.7 | **hill-climb works on silicon** |
-| `age_thr` | 570.0 | 291.7 | starvation bound is FREE here |
 | `rbl_static` | 33.8 | 36.9 | miss_thresh=2 too aggressive for streaming |
-| `inorder` | 33.8 | 36.9 | 17x cost, as sim predicted |
+| `inorder` | 33.8 | 35.8 | 16x cost, as sim predicted |
+| `refresh_credit` | 33.8 | 35.8 | CLOSE-page; credits do not rescue close-page |
+| `baseline` | 33.8 | 35.8 | CLOSE-page reference |
+
+The split is binary: anything that keeps the page open reaches 570/291.7,
+anything that closes per access sits at ~34/36. Nothing lands in between,
+which is what a command-bus-bound design looks like -- see the BL4 note in
+PUMICE-025.
 
 Two results worth keeping:
 - **rbl_dyn vindicates the dynamic threshold.** `rbl_static` at the same base

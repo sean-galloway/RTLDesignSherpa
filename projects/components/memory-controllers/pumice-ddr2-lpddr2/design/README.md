@@ -1150,8 +1150,8 @@ Peak 600 MB/s. Leveling clean (bitslip 0, tap 4, eye width 10), 32 MB memtest
 
 | Direction | Measured | Target | % peak |
 |---|---|---|---|
-| Write | 574.0 MB/s | 510 | 95.7% |
-| Read  | 292.2 MB/s | 450 | 48.7% |
+| Write | 570.0 MB/s | 510 | 95.0% |
+| Read  | 291.7 MB/s | 450 | 48.6% |
 
 The same path measured 12.7 MB/s flat in July. Writes are now at the data-path
 limit; the whole write-lead block, the JEDEC timings and the paging work land
@@ -1169,10 +1169,19 @@ harness's read CRC engine FIRST (it is the generator, not the controller) and
 explicitly not to tune the scheduler, since every scheduling mode gives the
 identical number.
 
-Mode characterization, row_major BL8, write/read MB/s: refresh_credit
-574.0/292.2 (best), adapt_time 570.3/291.7, open_page 570.0/291.7,
-adapt_access 570.0/291.7, rbl_dyn 570.0/291.7, age_thr 570.0/291.7,
-rbl_static 33.8/36.9, inorder 33.8/36.9.
+CORRECTION (same day): the first pass reported refresh_credit at 574.0/292.2
+as the best config. That was an ARTIFACT of run order. `apply()` only
+programmed a mode axis when the preset set one, so a preset leaving page_mode
+unset INHERITED the previous config's; refresh_credit is a CLOSE-page preset
+that ran after rbl_dyn and inherited its page_mode=7. Standalone it measures
+33.8/35.8. apply() now programs every axis on every config, and the re-run is
+order-independent and 36/36 integrity-clean. A characterization matrix whose
+numbers depend on run order is worthless, and this one silently did.
+
+Mode characterization, row_major BL8, write/read MB/s: open_page / age_thr /
+adapt_time / adapt_access / rbl_dyn all 570.0/291.7; rbl_static 33.8/36.9;
+inorder, refresh_credit and baseline 33.8/35.8. The split is binary --
+page-open reaches 570, page-closed sits at ~34, nothing in between.
 
 Two results worth keeping. **rbl_dyn vindicates the dynamic threshold**:
 rbl_static at the same base miss threshold collapses to 33.8 MB/s because it

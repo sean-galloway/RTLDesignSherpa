@@ -244,25 +244,34 @@ class ControllerConfig:
             print(f"[config {self.name}] jedec timings @ {self.mc_clk_hz/1e6:.2f} MHz: "
                   + " ".join(f"{k}={v}" for k, v in applied.items()),
                   file=sys.stderr, flush=True)
+        # EVERY mode axis is programmed on EVERY config, defaulting to 0 =
+        # "build default". Skipping a field when the preset leaves it None
+        # makes the matrix ORDER-DEPENDENT: the config inherits whatever the
+        # previous one programmed. That is not hypothetical -- on 2026-09-10
+        # `refresh_credit` (a CLOSE-page preset) measured 574 MB/s when it ran
+        # straight after `rbl_dyn`, because it inherited page_mode=7 and the
+        # predictor kept the page open; standalone the same preset measures
+        # 33.8. A characterization campaign whose numbers depend on run order
+        # is worthless, so nothing is left to inherit.
         if self.scheme is not None:
             drv.set_addr_map_scheme(self.scheme)
-        if self.page_policy is not None:
-            drv.set_page_policy(self.page_policy)
+        drv.set_page_policy(self.page_policy if self.page_policy is not None else 0)
         if self.t_refi is not None:
             drv.set_refresh_interval(self.t_refi)
-        if self.refresh is not None:
-            drv.set_refresh(**self.refresh)
+        drv.set_refresh(**(self.refresh if self.refresh is not None
+                           else {"mode": 0, "postpone": 0, "pullin": 0}))
         # table shape first, then the mode select (predictors read the shape
         # at entry -- see Pumice.set_page_mode)
-        if self.page_access is not None:
-            drv.set_page_access_cfg(**self.page_access)
-        if self.page_rbl is not None:
-            drv.set_page_rbl_cfg(**self.page_rbl)
-        if self.page_mode is not None:
-            drv.set_page_mode(self.page_mode, tr_init=self.page_tr_init)
-        if self.order_mode is not None or self.age_thresh is not None:
-            drv.set_sched_policy(order_mode=self.order_mode,
-                                 age_thresh=self.age_thresh)
+        drv.set_page_access_cfg(**(self.page_access if self.page_access is not None
+                                   else {"ctr_open_max": 0, "ctr_init": 0}))
+        drv.set_page_rbl_cfg(**(self.page_rbl if self.page_rbl is not None
+                                else {"miss_thresh": 0, "ways_log2": 0,
+                                      "sets_log2": 0, "reset_interval": 0}))
+        drv.set_page_mode(self.page_mode if self.page_mode is not None else 0,
+                          tr_init=self.page_tr_init)
+        drv.set_sched_policy(
+            order_mode=self.order_mode if self.order_mode is not None else 0,
+            age_thresh=self.age_thresh if self.age_thresh is not None else 0)
 
 
 # Presets. Every knob here is a CSR the CURRENT controller reads (2026-09-09
