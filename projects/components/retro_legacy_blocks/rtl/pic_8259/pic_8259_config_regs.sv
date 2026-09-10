@@ -29,8 +29,8 @@
 //
 // Now the strobes compare the SAME six bits the register block decodes, and
 // regblk_req is gated so those six bits are only ever reached from a mapped
-// address. The mirrored-decode drift assertion at the bottom of this file is
-// what keeps the two decodes honest if the RDL moves a register.
+// address. Nothing in the RTL cross-checks the two decodes; see CHECK BY
+// INSPECTION below for the DV guard if the RDL moves a register.
 //
 // Dropped accesses are acknowledged locally, combinationally, in the same shape
 // the register block acks (peakrdl_to_cmdrsp HOLDS its request until an ack, so
@@ -78,8 +78,35 @@
 // into the next, because that would merge two reads into one acknowledge. It
 // cannot: APB is strictly one-outstanding and apb4_slave issues a command on
 // the IDLE -> BUSY edge and consumes its response in BUSY, so there is always
-// an idle cycle at the cmd/rsp boundary. The a_*_level_max_two assertions below
-// are the guard if that ever stops being true.
+// an idle cycle at the cmd/rsp boundary. Nothing in the RTL checks it; see
+// CHECK BY INSPECTION below for the DV guard.
+//
+// ============================================================================
+// CHECK BY INSPECTION (these were assertions; properties belong in external
+// formal bindings, not inside the module)
+// ============================================================================
+//   - Every address presented to the register block is one its own decode
+//     recognises: ADDR_CONFIG, ADDR_ICW1..4, ADDR_OCW1..3, ADDR_IRR, ADDR_ISR,
+//     ADDR_STATUS or ADDR_INTA. If the RDL moves or adds a register, the
+//     access silently reads zero and writes nowhere - which is exactly how the
+//     0x044 alias hid. The guard is
+//     pic_8259_tests_medium.py::test_address_decode_aliases_dropped_with_pslverr
+//     plus pic_8259_tests_basic.py::test_register_access, which touches every
+//     mapped address.
+//   - hwif_out.PIC_INTA.vector.swacc equals (regblk_req && regblk_addr ==
+//     ADDR_INTA). swacc for a read-only field is generated WITHOUT the
+//     !req_is_wr qualifier, which is why the qualifier is added locally; if
+//     PeakRDL ever changes that, a write would silently start or stop
+//     acknowledging. Guarded by
+//     pic_8259_tests_medium.py::test_c4_edge_irr_clears_on_acknowledge.
+//   - No register write level, and no PIC_INTA access level, ever runs for
+//     three cycles. The bridge holds its request for exactly two, so a longer
+//     level would mean the rising-edge detect is no longer enough: two writes
+//     merge into one command, or - on PIC_INTA - the second read silently does
+//     not acknowledge, handing out a vector with no ISR bit behind it.
+//     Guarded by pic_8259_tests_basic.py::test_eoi_handling (a non-specific
+//     EOI executed twice retires a second in-service level) and
+//     pic_8259_tests_medium.py::test_c3_isr_set_by_acknowledge.
 //
 // Documentation: projects/components/retro_legacy_blocks/rtl/pic_8259/README.md
 // Subsystem: retro_legacy_blocks/pic_8259
@@ -164,8 +191,8 @@ module pic_8259_config_regs
     //========================================================================
     // Local Parameters - the register map, as the generated block decodes it
     //========================================================================
-    // These MUST track pic_8259_regs.rdl; the drift assertion at the bottom of
-    // this file is the guard.
+    // These MUST track pic_8259_regs.rdl. Nothing in the RTL cross-checks it;
+    // see CHECK BY INSPECTION in the header for the DV guard.
 
     localparam logic [5:0] ADDR_CONFIG = 6'h00;
     localparam logic [5:0] ADDR_ICW1   = 6'h04;
@@ -443,64 +470,5 @@ module pic_8259_config_regs
     assign ocw2_irq_level = hwif_out.PIC_OCW2.irq_level.value;
     assign ocw2_eoi_cmd   = hwif_out.PIC_OCW2.eoi_cmd.value;
     assign ocw3_smm_cmd   = hwif_out.PIC_OCW3.smm_cmd.value;
-
-    //========================================================================
-    // Simulation-only contract checks
-    //========================================================================
-`ifndef SYNTHESIS
-`ifndef VERILATOR
-    // Mirrored-decode drift guard. Every address presented to the register
-    // block must be one its own decode recognises. If the RDL moves or adds a
-    // register, this trips instead of the access silently reading zero and
-    // writing nowhere - which is exactly how the 0x044 alias hid.
-    logic w_regblk_addr_mapped;
-    always_comb begin
-        w_regblk_addr_mapped = (regblk_addr == ADDR_CONFIG) ||
-                               (regblk_addr == ADDR_ICW1)   ||
-                               (regblk_addr == ADDR_ICW2)   ||
-                               (regblk_addr == ADDR_ICW3)   ||
-                               (regblk_addr == ADDR_ICW4)   ||
-                               (regblk_addr == ADDR_OCW1)   ||
-                               (regblk_addr == ADDR_OCW2)   ||
-                               (regblk_addr == ADDR_OCW3)   ||
-                               (regblk_addr == ADDR_IRR)    ||
-                               (regblk_addr == ADDR_ISR)    ||
-                               (regblk_addr == ADDR_STATUS) ||
-                               (regblk_addr == ADDR_INTA);
-    end
-
-    a_regblk_addr_mapped: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        regblk_req |-> w_regblk_addr_mapped
-    ) else $error({"pic_8259_config_regs: presented 0x%02h to the register block, ",
-                   "which the generated decode does not recognise - the RDL has ",
-                   "drifted from the localparams in this file"}, regblk_addr);
-
-    // The acknowledge strobe mirrors the register block's own PIC_INTA decode.
-    // swacc is generated WITHOUT the !req_is_wr qualifier, so if that ever
-    // changes this catches the divergence rather than letting a write silently
-    // stop (or start) acknowledging.
-    a_inta_swacc_mirrored: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        hwif_out.PIC_INTA.vector.swacc == (regblk_req && (regblk_addr == ADDR_INTA))
-    ) else $error("pic_8259_config_regs: PIC_INTA swacc does not mirror the local decode");
-
-    // One transaction, one strobe. The bridge holds its request for exactly two
-    // cycles; a longer level would mean the edge detect is no longer enough.
-    a_wr_level_max_two: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        (|w_wr_edge) |-> ##2 (w_wr_level == '0)
-    ) else $error("pic_8259_config_regs: a register write level lasted more than two cycles");
-
-    // Same guard on the acknowledge. If the PIC_INTA level ever ran for three
-    // cycles it would mean two reads merged into one transaction-level strobe,
-    // and the second read would silently not acknowledge - an interrupt handled
-    // twice or a vector handed out with no ISR bit behind it.
-    a_inta_level_max_two: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        inta_ack |-> ##2 !w_inta_acc
-    ) else $error("pic_8259_config_regs: PIC_INTA access level lasted more than two cycles");
-`endif
-`endif
 
 endmodule

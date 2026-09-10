@@ -55,8 +55,8 @@
  *   The write is detected by MIRRORING the register block's own decode rather
  *   than by using swmod, for the reason gpio_config_regs documents: swmod
  *   carries an extra `|biten` term the regblock's write branch does not, so
- *   the two are not interchangeable as a decode. a_w1c_swmod_mirrored is the
- *   drift guard.
+ *   the two are not interchangeable as a decode. Nothing in the RTL
+ *   cross-checks the mirror; see CHECK BY INSPECTION below for the DV guard.
  *
  *   The clear is narrowed to ONE cycle (rising edge of the mirrored decode).
  *   peakrdl_to_cmdrsp holds regblk_req for the accept cycle plus
@@ -77,6 +77,40 @@
  *   NOT routed to pm_acpi_core: a register that does nothing should look like
  *   one, not like a connected input nobody reads. Their RDL descriptions say
  *   so as well.
+ *
+ * CHECK BY INSPECTION (these were assertions; properties belong in external
+ * formal bindings, not inside the module)
+ *   - Every W1C swmod implies its mirrored decode: ACPI_STATUS.pme_status,
+ *     ACPI_INT_STATUS.pme_int, PM1_STATUS.tmr_sts, WAKE_STATUS.gpe_wake and
+ *     GPE0_STATUS_LO/HI.gpe_status each imply the matching w_w1c_level bit.
+ *     swmod is that same decode ANDed with |wr_biten, so swmod high with the
+ *     mirror low is impossible unless the generated block's decode has drifted
+ *     from pm_acpi_regs.sv -- at which point W1C silently stops reaching
+ *     pm_acpi_core. The guards are pm_acpi_tests_gh54.py::
+ *     test_gh54_acpi_status_sticky, ::test_gh54_acpi_int_status_sticky,
+ *     ::test_gh54_pm1_status_sticky, ::test_gh54_wake_status_sticky and
+ *     ::test_gh54_gpe_status_per_bit_sticky, one per mirrored register.
+ *   - No w_w1c_level bit is ever high for three consecutive cycles.
+ *     peakrdl_to_cmdrsp holds regblk_req for the accept cycle plus
+ *     CMD_WAIT_ACK -- two cycles -- then drops it; three would mean the cpuif
+ *     has become pipelined and the rising-edge detect is merging two writes
+ *     into one clear. Guarded by
+ *     pm_acpi_tests_gh54.py::test_gh54_gpe_status_two_bits_exact and
+ *     ::test_gh54_gpe_interrupt_deasserts_after_w1c.
+ *   - Every address presented to the register block is one its generated
+ *     decode recognises -- the twenty-one ADDR_* localparams below and nothing
+ *     else. If the RDL layout drifts from those localparams the access reads
+ *     zero and writes nowhere instead of failing. Guarded by
+ *     pm_acpi_tests_gh54.py::test_gh54_address_alias_dropped_with_pslverr and
+ *     pm_acpi_tests_basic.py::test_register_access, which touches every mapped
+ *     address.
+ *   - A dropped access never reaches the register block and is always
+ *     acknowledged locally: adapter_req && w_drop implies !regblk_req and
+ *     implies adapter_rd_ack || adapter_wr_ack. peakrdl_to_cmdrsp HOLDS its
+ *     request until it is acked, so a dropped access that is merely gated off
+ *     hangs the bus rather than erroring. Guarded by
+ *     pm_acpi_tests_gh54.py::test_gh54_address_alias_dropped_with_pslverr,
+ *     which would time out rather than fail if the ack were lost.
  * ============================================================================
  */
 
@@ -509,91 +543,6 @@ module pm_acpi_config_regs
     assign hwif_in.PM_TIMER_VALUE.timer_value.next          = status_pm_timer_value;
     assign hwif_in.CLOCK_GATE_STATUS.clk_gate_status.next   = status_clk_gate_status;
     assign hwif_in.POWER_DOMAIN_STATUS.pwr_domain_status.next = status_pwr_domain_status;
-
-    //========================================================================
-    // Simulation-only contract checks
-    //========================================================================
-`ifndef SYNTHESIS
-`ifndef VERILATOR
-    // Drift guard for the mirrored W1C decode. swmod is that same decode ANDed
-    // with |wr_biten, so swmod high with the mirror low is impossible unless
-    // the generated block's decode has changed under this module - at which
-    // point W1C silently stops reaching pm_acpi_core.
-    a_w1c_swmod_mirrored: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        (hwif_out.ACPI_STATUS.pme_status.swmod        |-> w_w1c_level[W1C_ACPI_STATUS]) and
-        (hwif_out.ACPI_INT_STATUS.pme_int.swmod       |-> w_w1c_level[W1C_ACPI_INT_STATUS]) and
-        (hwif_out.PM1_STATUS.tmr_sts.swmod            |-> w_w1c_level[W1C_PM1_STATUS]) and
-        (hwif_out.WAKE_STATUS.gpe_wake.swmod          |-> w_w1c_level[W1C_WAKE_STATUS]) and
-        (hwif_out.GPE0_STATUS_LO.gpe_status.swmod     |-> w_w1c_level[W1C_GPE_LO]) and
-        (hwif_out.GPE0_STATUS_HI.gpe_status.swmod     |-> w_w1c_level[W1C_GPE_HI])
-    ) else $error("pm_acpi_config_regs: a W1C swmod asserted without the ",
-                  "mirrored regblock decode -- w_w1c_level has drifted from ",
-                  "pm_acpi_regs.sv and the per-bit W1C no longer reaches the core");
-
-    // One clear per transaction. peakrdl_to_cmdrsp holds regblk_req for the
-    // accept cycle plus CMD_WAIT_ACK - two cycles - then drops it. Three
-    // consecutive cycles means the cpuif has become pipelined and two writes
-    // are being merged into one clear.
-    property p_w1c_max_two(logic level);
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        not (level [*3]);
-    endproperty
-
-    for (genvar gi = 0; gi < W1C_COUNT; gi++) begin : g_w1c_len_assert
-        a_w1c_level_len: assert property (p_w1c_max_two(w_w1c_level[gi]))
-            else $error("pm_acpi_config_regs: a W1C write request was held >2 ",
-                        "cycles -- the cpuif no longer drops regblk_req between ",
-                        "writes, so the rising-edge detect merges them");
-    end
-
-    // Every address presented to the register block must be one its generated
-    // decode recognises.
-    logic w_regblk_addr_mapped;
-    always_comb begin
-        w_regblk_addr_mapped = (regblk_addr == ADDR_ACPI_CONTROL)        ||
-                               (regblk_addr == ADDR_ACPI_STATUS)         ||
-                               (regblk_addr == ADDR_ACPI_INT_ENABLE)     ||
-                               (regblk_addr == ADDR_ACPI_INT_STATUS)     ||
-                               (regblk_addr == ADDR_PM1_CONTROL)         ||
-                               (regblk_addr == ADDR_PM1_STATUS)          ||
-                               (regblk_addr == ADDR_PM1_ENABLE)          ||
-                               (regblk_addr == ADDR_PM_TIMER_VALUE)      ||
-                               (regblk_addr == ADDR_PM_TIMER_CONFIG)     ||
-                               (regblk_addr == ADDR_GPE0_STATUS_LO)      ||
-                               (regblk_addr == ADDR_GPE0_STATUS_HI)      ||
-                               (regblk_addr == ADDR_GPE0_ENABLE_LO)      ||
-                               (regblk_addr == ADDR_GPE0_ENABLE_HI)      ||
-                               (regblk_addr == ADDR_CLOCK_GATE_CTRL)     ||
-                               (regblk_addr == ADDR_CLOCK_GATE_STATUS)   ||
-                               (regblk_addr == ADDR_POWER_DOMAIN_CTRL)   ||
-                               (regblk_addr == ADDR_POWER_DOMAIN_STATUS) ||
-                               (regblk_addr == ADDR_WAKE_STATUS)         ||
-                               (regblk_addr == ADDR_WAKE_ENABLE)         ||
-                               (regblk_addr == ADDR_RESET_CTRL)          ||
-                               (regblk_addr == ADDR_RESET_STATUS);
-    end
-
-    a_regblk_addr_mapped: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        regblk_req |-> w_regblk_addr_mapped
-    ) else $error({"pm_acpi_config_regs: presented address 0x%0h that the ",
-                   "generated decode does not recognise - the RDL layout has ",
-                   "drifted from the localparams in this file"}, regblk_addr);
-
-    // A dropped access must never reach the register block, and must always be
-    // acknowledged locally, or the held request hangs the bus.
-    a_drop_never_reaches_regblk: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        (adapter_req && w_drop) |-> !regblk_req
-    ) else $error("pm_acpi_config_regs: a dropped access reached the register block");
-
-    a_drop_is_acked: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        (adapter_req && w_drop) |-> (adapter_rd_ack || adapter_wr_ack)
-    ) else $error("pm_acpi_config_regs: a dropped access was not acknowledged");
-`endif
-`endif
 
 /* verilator lint_on SYNCASYNCNET */
 endmodule : pm_acpi_config_regs

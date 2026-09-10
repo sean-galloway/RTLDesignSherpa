@@ -106,6 +106,30 @@
 // level re-interrupt itself and made SMM lift blocking unconditionally; both
 // were reverted once the tests encoding them were corrected.
 //
+// ============================================================================
+// CHECK BY INSPECTION (these were assertions and a simulation-time parameter
+// guard; properties belong in external formal bindings, not inside the module)
+// ============================================================================
+//   - SYNC_STAGES must be >= 2. A single-stage "synchronizer" is not one; the
+//     design point is 2. Nothing in the RTL rejects a smaller value.
+//   - An acknowledge only ever retires a level the INT pin was offering:
+//     w_ack_now implies int_output. One eligibility predicate drives both the
+//     INT pin and the acknowledge (see PRIORITY above), so they cannot
+//     disagree by construction. If they ever did, software would get a vector
+//     for a level that is masked or blocked - the C3/C4 defect class in the
+//     other direction. Guarded by
+//     pic_8259_tests_medium.py::test_c3_isr_set_by_acknowledge and
+//     ::test_int_out_deasserts_after_last_ack_eoi_and_masked_irq_no_assert.
+//   - An acknowledged level is requesting, unmasked, and not blocked by any
+//     in-service level INCLUDING its own: w_ack_now implies r_irr[w_ack_irq]
+//     && !cfg_imr[w_ack_irq] && !w_block_isr[w_ack_irq]. Same single predicate.
+//     Guarded by pic_8259_tests_medium.py::test_eoi_and_nesting_after_acknowledge
+//     and ::test_special_mask_mode_allows_lower_priority_during_service.
+//   - inta_ack is a ONE-cycle strobe: pic_8259_config_regs rising-edge detects
+//     the two-cycle swacc level. A future bridge change that lengthened it
+//     would fire the acknowledge twice per read and eat two interrupts.
+//     Guarded by pic_8259_tests_medium.py::test_c4_edge_irr_clears_on_acknowledge.
+//
 // Follows the HPET/PIT pattern: core logic separate from the register wrapper.
 //
 // Documentation: projects/components/retro_legacy_blocks/rtl/pic_8259/README.md
@@ -233,17 +257,6 @@ module pic_8259_core #(
     logic        w_ocw3_exec;
     logic [7:0]  w_isr_set;
     logic [7:0]  w_isr_clr;
-
-`ifndef SYNTHESIS
-    // Simulation-time parameter guard (same shape as the gpio/hpet guards). A
-    // single-stage "synchronizer" is not one; the design point is 2.
-    initial begin : param_check
-        if (SYNC_STAGES < 2) begin
-            $error("pic_8259_core: SYNC_STAGES=%0d but an input synchronizer needs >= 2",
-                   SYNC_STAGES);
-        end
-    end
-`endif
 
     //========================================================================
     // IRQ Input Synchronizer
@@ -636,35 +649,18 @@ module pic_8259_core #(
     assign irr_out = r_irr;
     assign isr_out = r_isr;
 
-    //========================================================================
-    // Simulation-only contract checks
-    //========================================================================
+
+    // Elaboration-time parameter guard (sim only). Not an assertion in the
+    // house sense: see vault/handbook/design/no-assertions-in-rtl.md.
 `ifndef SYNTHESIS
-`ifndef VERILATOR
-    // The acknowledge may only retire a level the INT pin was actually
-    // offering. If these ever diverge, software gets a vector for a level that
-    // is masked or blocked - the C3/C4 class of defect, in the other direction.
-    a_ack_implies_int: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        w_ack_now |-> int_output
-    ) else $error("pic_8259_core: acknowledge taken with INT deasserted");
-
-    // An acknowledged level must be requesting, unmasked, and not blocked by
-    // any in-service level - including its OWN in-service bit.
-    a_ack_is_eligible: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        w_ack_now |-> (r_irr[w_ack_irq] && !cfg_imr[w_ack_irq] && !w_block_isr[w_ack_irq])
-    ) else $error("pic_8259_core: acknowledged IRQ%0d is masked, blocked or not requesting",
-                  w_ack_irq);
-
-    // inta_ack is a ONE-cycle strobe: pic_8259_config_regs rising-edge detects
-    // the two-cycle swacc level. If a future bridge change lengthened it, the
-    // acknowledge would fire twice per read and eat two interrupts.
-    a_inta_ack_single_cycle: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        inta_ack |=> !inta_ack
-    ) else $error("pic_8259_core: inta_ack held for more than one cycle");
-`endif
+    // Simulation-time parameter guard (same shape as the gpio/hpet guards). A
+    // single-stage "synchronizer" is not one; the design point is 2.
+    initial begin : param_check
+        if (SYNC_STAGES < 2) begin
+            $error("pic_8259_core: SYNC_STAGES=%0d but an input synchronizer needs >= 2",
+                   SYNC_STAGES);
+        end
+    end
 `endif
 
 endmodule

@@ -43,6 +43,16 @@
 // control word with SC = 11 is accepted by the register file and does nothing
 // here. Stated deviation, unchanged by GitHub #52.
 //
+// ============================================================================
+// CHECK BY INSPECTION (these were simulation-time parameter guards; contracts
+// belong in the header, properties in external formal bindings)
+// ============================================================================
+//   - NUM_COUNTERS must be 3. The register map is generated from a fixed
+//     3-counter RDL and this file names counters 0-2 explicitly, so the
+//     parameter is not free. Nothing in the RTL rejects another value.
+//   - SYNC_STAGES must be >= 2. A single-stage "synchronizer" is not one; the
+//     design point is 2. Nothing in the RTL rejects a smaller value.
+//
 // Documentation: projects/components/retro_legacy_blocks/rtl/pit_8254/README.md
 // Subsystem: retro_legacy_blocks/pit_8254
 //
@@ -128,22 +138,6 @@ module pit_core #(
     logic [1:0]              w_status_rw_mode [NUM_COUNTERS];
     logic [2:0]              w_status_mode [NUM_COUNTERS];
     logic                    w_status_bcd [NUM_COUNTERS];
-
-`ifndef SYNTHESIS
-    // Simulation-time parameter guards (same shape as the gpio/hpet/pic
-    // guards). The register map is generated from a fixed 3-counter RDL and
-    // this file names counters 0-2 explicitly, so NUM_COUNTERS is not free.
-    initial begin : param_check
-        if (NUM_COUNTERS != 3) begin
-            $error("pit_core: NUM_COUNTERS=%0d but pit_regs.rdl defines 3 counters",
-                   NUM_COUNTERS);
-        end
-        if (SYNC_STAGES < 2) begin
-            $error("pit_core: SYNC_STAGES=%0d but an input synchronizer needs >= 2",
-                   SYNC_STAGES);
-        end
-    end
-`endif
 
     //========================================================================
     // GATE Input Synchronizer
@@ -314,5 +308,24 @@ module pit_core #(
         w_status_mode[2],
         w_status_bcd[2]
     };
+
+
+    // Elaboration-time parameter guard (sim only). Not an assertion in the
+    // house sense: see vault/handbook/design/no-assertions-in-rtl.md.
+`ifndef SYNTHESIS
+    // Simulation-time parameter guards (same shape as the gpio/hpet/pic
+    // guards). The register map is generated from a fixed 3-counter RDL and
+    // this file names counters 0-2 explicitly, so NUM_COUNTERS is not free.
+    initial begin : param_check
+        if (NUM_COUNTERS != 3) begin
+            $error("pit_core: NUM_COUNTERS=%0d but pit_regs.rdl defines 3 counters",
+                   NUM_COUNTERS);
+        end
+        if (SYNC_STAGES < 2) begin
+            $error("pit_core: SYNC_STAGES=%0d but an input synchronizer needs >= 2",
+                   SYNC_STAGES);
+        end
+    end
+`endif
 
 endmodule

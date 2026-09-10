@@ -249,6 +249,13 @@
  *   for ~2^32 cycles (~43 s at 100 MHz) before it fires again. Switching
  *   1 -> 0 live truncates the target to its low half, which usually makes an
  *   already-due comparator out of a future one.
+ *
+ * CHECK BY INSPECTION (this was a simulation-time parameter guard; contracts
+ * belong in the header, properties in external formal bindings)
+ *   - NUM_TIMERS must be in [1,8]. It sizes every per-timer vector and port
+ *     here and must match the generated regblock, which is always built for 8
+ *     timers; fewer than 1 has no legal [NUM_TIMERS-1:0] slice. Nothing in the
+ *     RTL rejects an out-of-range override.
  * ============================================================================
  */
 
@@ -684,9 +691,9 @@ module hpet_core #(
     assign timer_int_status = r_interrupt_status;
     assign timer_irq        = r_interrupt_output;
 
-    // ========================================================================
-    // Simulation-time parameter validation
-    // ========================================================================
+
+    // Elaboration-time parameter guard (sim only). Not an assertion in the
+    // house sense: see vault/handbook/design/no-assertions-in-rtl.md.
 `ifndef SYNTHESIS
     initial begin : param_check
         if (NUM_TIMERS < 1 || NUM_TIMERS > 8) begin

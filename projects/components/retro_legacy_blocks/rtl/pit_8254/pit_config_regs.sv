@@ -20,8 +20,8 @@
 // 0x024 wrote PIT_CONTROL, 0x210 wrote COUNTER0_DATA. Worse, the side-effect
 // strobes in this file compared the full 12 bits while the register block
 // compared five, so an aliased write stored the value WITHOUT executing it -
-// two decodes that disagreed, which is the shape of defect a mirrored-decode
-// assertion exists to catch.
+// two decodes that disagreed, which is the shape of defect the mirrored-decode
+// contract below exists to name.
 //
 // The policy now matches the ioapic and pic_8259 blocks: ONLY the seven mapped
 // registers are software-visible, by equality on the whole 12-bit address.
@@ -79,6 +79,31 @@
 // edge-detected and delayed the same way, which puts the release one cycle
 // after the adapter captured the read data - the access that releases the latch
 // is still the access that sees the latched value.
+//
+// ============================================================================
+// CHECK BY INSPECTION (these were assertions; properties belong in external
+// formal bindings, not inside the module)
+// ============================================================================
+//   - Every address presented to the register block is one its own generated
+//     decode recognises: ADDR_CONFIG, ADDR_CONTROL, ADDR_STATUS, ADDR_RSVD_0C
+//     or ADDR_COUNTER0/1/2. If the RDL moves or adds a register, the access
+//     silently reads zero and writes nowhere - which is how the 0x024 alias
+//     hid. The guard is pit_tests_medium.py::test_gh52_address_decode_aliasing
+//     plus pit_tests_basic.py::test_register_access, which touches every
+//     mapped address.
+//   - No register write level and no counter read level ever runs for three
+//     cycles. The bridge holds its request for exactly two, so a longer level
+//     would mean the rising-edge detect is no longer enough and two accesses
+//     merge into one command. Guarded by
+//     pit_tests_medium.py::test_gh52_counter_load_glitch_free (a doubled load
+//     shows as the bogus intermediate count) and ::test_gh52_counter_latch_command
+//     (a doubled read releases the latch early).
+//   - A dropped access never reaches the register block and is always
+//     acknowledged: adapter_req && w_drop implies !regblk_req and implies
+//     adapter_rd_ack || adapter_wr_ack. The adapter HOLDS its request until an
+//     ack, so a dropped access that is merely gated off would hang the APB.
+//     Guarded by pit_tests_medium.py::test_gh52_address_decode_aliasing, which
+//     would time out rather than fail if the ack were lost.
 //
 // Documentation: projects/components/retro_legacy_blocks/rtl/pit_8254/README.md
 // Subsystem: retro_legacy_blocks/pit_8254
@@ -398,58 +423,5 @@ module pit_config_regs
     assign counter0_data_rd = r_rd_stb[0];
     assign counter1_data_rd = r_rd_stb[1];
     assign counter2_data_rd = r_rd_stb[2];
-
-    //========================================================================
-    // Simulation-only contract checks
-    //========================================================================
-`ifndef SYNTHESIS
-`ifndef VERILATOR
-    // Mirrored-decode drift guard. Every address presented to the register
-    // block must be one its own generated decode recognises. If the RDL moves
-    // or adds a register, this trips instead of the access silently reading
-    // zero and writing nowhere - which is how the 0x024 alias hid.
-    logic w_regblk_addr_mapped;
-    always_comb begin
-        w_regblk_addr_mapped = (regblk_addr == ADDR_CONFIG)   ||
-                               (regblk_addr == ADDR_CONTROL)  ||
-                               (regblk_addr == ADDR_STATUS)   ||
-                               (regblk_addr == ADDR_RSVD_0C)  ||
-                               (regblk_addr == ADDR_COUNTER0) ||
-                               (regblk_addr == ADDR_COUNTER1) ||
-                               (regblk_addr == ADDR_COUNTER2);
-    end
-
-    a_regblk_addr_mapped: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        regblk_req |-> w_regblk_addr_mapped
-    ) else $error({"pit_config_regs: presented 0x%02h to the register block, which ",
-                   "the generated decode does not recognise - the RDL has drifted ",
-                   "from the localparams in this file"}, regblk_addr);
-
-    // One transaction, one strobe. The bridge holds its request for exactly two
-    // cycles; a longer level would mean the edge detect is no longer enough.
-    a_wr_level_max_two: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        (|w_wr_edge) |-> ##2 (w_wr_level == '0)
-    ) else $error("pit_config_regs: a register write level lasted more than two cycles");
-
-    a_rd_level_max_two: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        (|w_rd_edge) |-> ##2 (w_rd_level == '0)
-    ) else $error("pit_config_regs: a counter read level lasted more than two cycles");
-
-    // A dropped access must never reach the register block, and must always be
-    // answered - the adapter holds its request until it is.
-    a_drop_never_reaches_regblk: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        (adapter_req && w_drop) |-> !regblk_req
-    ) else $error("pit_config_regs: a dropped access reached the register block");
-
-    a_drop_is_acked: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        (adapter_req && w_drop) |-> (adapter_rd_ack || adapter_wr_ack)
-    ) else $error("pit_config_regs: a dropped access was not acknowledged");
-`endif
-`endif
 
 endmodule

@@ -214,8 +214,8 @@ module rtc_config_regs
     //========================================================================
     // Local Parameters
     //========================================================================
-    // The software-visible map. These MUST track rtc_regs.rdl - the mirrored
-    // decode assertion at the bottom of this file fires if they drift.
+    // The software-visible map. These MUST track rtc_regs.rdl; the guard is
+    // the DV suite's W1C and decode tests (see CHECK BY INSPECTION above).
 
     localparam logic [11:0] ADDR_RTC_CONFIG     = 12'h000;
     localparam logic [11:0] ADDR_RTC_CONTROL    = 12'h004;

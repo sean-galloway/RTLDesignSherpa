@@ -149,6 +149,11 @@
  *   - SYNC_STAGES: depth of the rtc_alarm / ext_wake_n / gpe_events_in
  *                  synchronizers. >= 2. Default 2.
  *
+ * CHECK BY INSPECTION (this was a simulation-time parameter guard; contracts
+ * belong in the header, properties in external formal bindings)
+ *   - SYNC_STAGES must be >= 2. A single-stage "synchronizer" is not one; the
+ *     design point is 2. Nothing in the RTL rejects a smaller value.
+ *
  * ============================================================================
  */
 
@@ -220,7 +225,8 @@ module pm_acpi_core #(
     // ========================================================================
     // Bit ordering is the register's own bit ordering - see the STATUS BIT MAP
     // localparams below, which are the single statement of the transform and
-    // are mirrored by the assertion in pm_acpi_config_regs.
+    // are mirrored by the decode in pm_acpi_config_regs (nothing in the RTL
+    // cross-checks the two - see CHECK BY INSPECTION in that file's header).
     input  logic [3:0]  sw_clr_acpi_status,
     input  logic [5:0]  sw_clr_acpi_int_status,
     input  logic [4:0]  sw_clr_pm1_status,
@@ -417,16 +423,6 @@ module pm_acpi_core #(
     logic       w_int_state_trans;
     logic       w_int_pm1;
     logic       w_int_gpe;
-
-`ifndef SYNTHESIS
-    // Simulation-time parameter guard (same shape as the pit/hpet guards).
-    initial begin : param_check
-        if (SYNC_STAGES < 2) begin
-            $error("pm_acpi_core: SYNC_STAGES=%0d but an input synchronizer needs >= 2",
-                   SYNC_STAGES);
-        end
-    end
-`endif
 
     // ========================================================================
     // Asynchronous Input Synchronizers
@@ -938,5 +934,18 @@ module pm_acpi_core #(
     assign pm_interrupt = cfg_acpi_enable &&
                           (w_int_pme || w_int_wake || w_int_timer_ovf ||
                            w_int_state_trans || w_int_pm1 || w_int_gpe);
+
+
+    // Elaboration-time parameter guard (sim only). Not an assertion in the
+    // house sense: see vault/handbook/design/no-assertions-in-rtl.md.
+`ifndef SYNTHESIS
+    // Simulation-time parameter guard (same shape as the pit/hpet guards).
+    initial begin : param_check
+        if (SYNC_STAGES < 2) begin
+            $error("pm_acpi_core: SYNC_STAGES=%0d but an input synchronizer needs >= 2",
+                   SYNC_STAGES);
+        end
+    end
+`endif
 
 endmodule : pm_acpi_core

@@ -127,6 +127,35 @@
 // convention (a write of 0xAB00 reads back 0xAB00), and
 // dv/tbclasses/pit_8254/pit_tests_medium.py asserts it.
 //
+// ============================================================================
+// CHECK BY INSPECTION (these were assertions; properties belong in external
+// formal bindings, not inside the module)
+// ============================================================================
+// Each item names the design property and the DV test that is now its guard.
+//   - Nothing but a load restarts a stopped counter: !r_counting with no
+//     count_reg_wr implies !r_counting next cycle. This is the oscillation
+//     guard for the single steady state above. Guarded by
+//     pit_tests_medium.py::test_gh52_no_oscillation_after_terminal.
+//   - GATE low may not move the count: !i_gate with no count_reg_wr implies
+//     r_count is stable next cycle. Guarded by
+//     pit_tests_medium.py::test_gh52_gate_pause_resume.
+//   - A data write never latches: count_reg_wr with r_count_latched low
+//     implies r_count_latched stays low. Guarded by
+//     pit_tests_medium.py::test_gh52_counter_load_at_reset_rw00 and
+//     ::test_gh52_counter_latch_command.
+//   - A control word drives OUT low the very next cycle, whatever the counter
+//     was doing - including reaching terminal count in that same cycle, the
+//     case that used to raise a spurious interrupt. This is the priority chain
+//     above stated as a property. Guarded by
+//     pit_tests_medium.py::test_gh52_control_word_on_terminal_tick_no_spurious_out.
+//   - OUT cannot RISE again until a load re-arms the counter: with !r_counting
+//     and neither count_reg_wr nor cfg_control_wr, r_out is stable. The only
+//     thing that raises OUT is the tick branch, and that needs r_counting.
+//     Guarded by pit_tests_medium.py::test_gh52_no_oscillation_after_terminal.
+//   - Reprogramming releases the latch, both halves: cfg_control_wr implies
+//     !r_count_latched next cycle, and count_reg_wr does too. Guarded by
+//     pit_tests_medium.py::test_gh52_latch_cleared_by_reprogram.
+//
 // Documentation: projects/components/retro_legacy_blocks/rtl/pit_8254/README.md
 // Subsystem: retro_legacy_blocks/pit_8254
 //
@@ -400,60 +429,5 @@ module pit_counter (
             end
         end
     )
-
-    //========================================================================
-    // Simulation-only contract checks
-    //========================================================================
-`ifndef SYNTHESIS
-`ifndef VERILATOR
-    // The steady state named in the header. Nothing but a load may restart a
-    // stopped counter - this is the oscillation guard.
-    a_no_self_rearm: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        (!r_counting && !count_reg_wr) |=> !r_counting
-    ) else $error("pit_counter: r_counting re-armed with no load");
-
-    // GATE low may not move the count.
-    a_gate_holds: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        (!i_gate && !count_reg_wr) |=> $stable(r_count)
-    ) else $error("pit_counter: count moved with GATE low");
-
-    // A data write never latches, and a latch never loads.
-    a_latch_is_a_command: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        (count_reg_wr && !r_count_latched) |=> !r_count_latched
-    ) else $error("pit_counter: a data write latched the counter");
-
-    // The priority chain, stated as properties. A control word drives OUT low
-    // in the very next cycle no matter what the counter was doing - including
-    // reaching terminal count in that same cycle, which is the case that used
-    // to raise a spurious interrupt.
-    a_ctrl_word_clears_out: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        cfg_control_wr |=> !r_out
-    ) else $error("pit_counter: OUT still high the cycle after a control word");
-
-    // ...and OUT cannot RISE again until a load re-arms the counter, because
-    // the only thing that raises it is the tick branch and that needs
-    // r_counting. (cfg_control_wr is excluded because it legitimately drives
-    // OUT low, which is not stability.)
-    a_out_needs_an_armed_count: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        (!r_counting && !count_reg_wr && !cfg_control_wr) |=> $stable(r_out)
-    ) else $error("pit_counter: OUT moved with no count armed and no load");
-
-    // Reprogramming releases the latch - both halves of "reprogram".
-    a_ctrl_word_clears_latch: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        cfg_control_wr |=> !r_count_latched
-    ) else $error("pit_counter: a stale latch survived a control word");
-
-    a_load_clears_latch: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        count_reg_wr |=> !r_count_latched
-    ) else $error("pit_counter: a stale latch survived a counter load");
-`endif
-`endif
 
 endmodule

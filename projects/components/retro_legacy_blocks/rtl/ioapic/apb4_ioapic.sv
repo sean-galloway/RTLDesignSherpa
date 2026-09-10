@@ -102,6 +102,12 @@
  *   - Remote IRR for level-triggered interrupts
  *   - Priority-based arbitration
  *
+ * CHECK BY INSPECTION (this was a simulation-time parameter guard; contracts
+ * belong in the header, properties in external formal bindings)
+ *   - CDC_ENABLE must be 0 or 1. It selects between two whole structures, not
+ *     a bit field: a stray 2 used to pick the single-clock build silently
+ *     through `CDC_ENABLE[0]`. Nothing in the RTL rejects another value.
+ *
  * ============================================================================
  */
 
@@ -170,18 +176,6 @@ module apb4_ioapic #(
     input  logic                    eoi_in,             // EOI strobe
     input  logic [7:0]              eoi_vector          // Vector being EOI'd
 );
-
-`ifndef SYNTHESIS
-    // Simulation-time parameter guard. CDC_ENABLE selects between two whole
-    // structures, not a bit field: only 0 and 1 are defined, and a stray 2
-    // used to pick the single-clock build silently through `CDC_ENABLE[0]`.
-    initial begin : param_check
-        if ((CDC_ENABLE != 0) && (CDC_ENABLE != 1)) begin
-            $error({"apb4_ioapic: CDC_ENABLE=%0d but only 0 (single clock) ",
-                    "and 1 (dual clock) are defined"}, CDC_ENABLE);
-        end
-    end
-`endif
 
     // ========================================================================
     // CDC Command/Response Interface Signals
@@ -608,4 +602,19 @@ module apb4_ioapic #(
     );
 
 /* verilator lint_on SYNCASYNCNET */
+
+    // Elaboration-time parameter guard (sim only). Not an assertion in the
+    // house sense: see vault/handbook/design/no-assertions-in-rtl.md.
+`ifndef SYNTHESIS
+    // Simulation-time parameter guard. CDC_ENABLE selects between two whole
+    // structures, not a bit field: only 0 and 1 are defined, and a stray 2
+    // used to pick the single-clock build silently through `CDC_ENABLE[0]`.
+    initial begin : param_check
+        if ((CDC_ENABLE != 0) && (CDC_ENABLE != 1)) begin
+            $error({"apb4_ioapic: CDC_ENABLE=%0d but only 0 (single clock) ",
+                    "and 1 (dual clock) are defined"}, CDC_ENABLE);
+        end
+    end
+`endif
+
 endmodule : apb4_ioapic

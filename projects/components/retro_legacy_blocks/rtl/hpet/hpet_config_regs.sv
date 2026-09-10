@@ -51,8 +51,8 @@
 *   REQUIREMENT on the upstream cpuif: regblk_req must DE-ASSERT between
 *   transactions, or two back-to-back writes to one register look like one
 *   long level and produce a single strobe. That holds for apb4_slave and
-*   apb4_slave_cdc (both strictly one-outstanding); the a_*_swmod_len
-*   assertions at the bottom of this file trip if it ever stops holding.
+*   apb4_slave_cdc (both strictly one-outstanding); nothing in the RTL checks
+*   it - see CHECK BY INSPECTION below for the DV guard.
 *
 * HPET_STATUS W1C (issue #46 C1 / C2 / round_2)
 *   hpet_core OWNS the sticky interrupt status. HPET_STATUS is a mirror: its
@@ -65,8 +65,9 @@
 *   requires. The write is detected by MIRRORING the regblock's own decode
 *   rather than by using swmod, for the reason gpio_config_regs documents:
 *   swmod carries an extra `|biten` term that the regblock's write branch
-*   does not, so the two are not interchangeable as a decode. The
-*   a_status_swmod_mirrored assertion is the drift guard.
+*   does not, so the two are not interchangeable as a decode. Nothing in the
+*   RTL cross-checks the mirror - see CHECK BY INSPECTION below for the DV
+*   guard against the generated decode drifting out from under it.
 *
 *   The clear is narrowed to ONE cycle (rising edge of the mirrored decode)
 *   even though the mask makes it idempotent. The two-cycle level would
@@ -79,6 +80,28 @@
 *   module's parameters, so one generated regblock (NUM_TIMERS = 8) serves
 *   every instantiation. vendor_id/rev_id are 8-bit fields here, so only the
 *   low byte of a wider VENDOR_ID/REVISION_ID parameter is visible.
+*
+* CHECK BY INSPECTION (these were assertions and a simulation-time parameter
+* guard; properties belong in external formal bindings, not inside the module)
+*   - NUM_TIMERS must be in [1,8]. It indexes hwif_out.TIMER[] in the generated
+*     regblock, which is always built for 8 timers, and drives
+*     HPET_ID.num_tim_cap as NUM_TIMERS-1 in a 5-bit field. More than 8 is an
+*     out-of-range index; fewer than 1 has no legal [NUM_TIMERS-1:0] slice.
+*     Nothing in the RTL rejects an out-of-range override.
+*   - hwif_out.HPET_STATUS.timer_int_status.swmod implies w_status_sw_wr. swmod
+*     is that same decode ANDed with |wr_biten, so swmod high with the mirror
+*     low is impossible unless the generated regblock's decode has drifted from
+*     hpet_regs.sv -- at which point W1C silently stops reaching hpet_core. The
+*     guards are the DV tests hpet_tests_medium.py::test_status_w1c_per_bit and
+*     hpet_tests_full.py::test_status_w1c_hwset_same_cycle_race.
+*   - No swmod level (HPET_COUNTER_LO/HI, HPET_STATUS, every
+*     TIMER_COMPARATOR_LO/HI) is ever high for three consecutive cycles. The
+*     write strobes are rising-edge detects on that level, so a level spanning
+*     two transactions merges two writes into one strobe. apb4_slave and
+*     apb4_slave_cdc hold regblk_req for the accept cycle plus CMD_WAIT_ACK --
+*     two cycles -- then drop it; a pipelined cpuif would break that. The guard
+*     is hpet_tests_medium.py::test_comparator_write_strobe_not_value_change,
+*     which writes the same comparator value twice and requires two strobes.
 * ============================================================================
 */
 
@@ -147,27 +170,6 @@ module hpet_config_regs #(
     // The generated regblock is always built for 8 timers and a 32-bit
     // register width, independent of NUM_TIMERS.
     localparam int REG_TIMERS = 8;
-
-    // ========================================================================
-    // Simulation-time parameter validation
-    // ========================================================================
-    // NUM_TIMERS indexes hwif_out.TIMER[] in the generated regblock, which is
-    // built for REG_TIMERS timers, and drives HPET_ID.num_tim_cap as
-    // NUM_TIMERS-1 in a 5-bit field. More timers than the regblock has is an
-    // out-of-range index; fewer than one has no legal [NUM_TIMERS-1:0] slice.
-    //
-    // This is an `initial` block, so it runs at time 0 in SIMULATION - it is
-    // not an elaboration-time check and cannot stop a synthesis run. Gated by
-    // `ifndef SYNTHESIS` for the same reason every other sim-only construct in
-    // this block is.
-`ifndef SYNTHESIS
-    initial begin : param_check
-        if (NUM_TIMERS < 1 || NUM_TIMERS > REG_TIMERS) begin
-            $error("hpet_config_regs: NUM_TIMERS=%0d out of range [1,%0d]",
-                   NUM_TIMERS, REG_TIMERS);
-        end
-    end
-`endif
 
     // ========================================================================
     // Signal Declarations
@@ -430,58 +432,17 @@ module hpet_config_regs #(
 
     assign timer_int_clear = w_status_wr_event ? w_status_w1c_mask : '0;
 
-    // ========================================================================
-    // Simulation-only contract checks
-    // ========================================================================
+/* verilator lint_on SYNCASYNCNET */
+
+    // Elaboration-time parameter guard (sim only). Not an assertion in the
+    // house sense: see vault/handbook/design/no-assertions-in-rtl.md.
 `ifndef SYNTHESIS
-`ifndef VERILATOR
-    // Drift guard for the mirrored HPET_STATUS write decode. swmod is that
-    // same decode ANDed with |wr_biten, so swmod high with the mirror low is
-    // impossible unless the generated regblock's decode has changed under
-    // this module - at which point W1C silently stops reaching hpet_core.
-    a_status_swmod_mirrored: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        hwif_out.HPET_STATUS.timer_int_status.swmod |-> w_status_sw_wr
-    ) else $error("hpet_config_regs: HPET_STATUS swmod asserted without the ",
-                  "mirrored regblock decode -- w_status_sw_wr has drifted ",
-                  "from hpet_regs.sv and the per-bit W1C no longer reaches ",
-                  "hpet_core");
-
-    // The write strobes are rising-edge detects on a swmod level. The
-    // upstream bridge holds regblk_req for the accept cycle plus
-    // CMD_WAIT_ACK - two cycles - and then drops it, so three consecutive
-    // cycles means the cpuif has become pipelined and two writes are being
-    // merged into one strobe.
-    property p_swmod_max_two(logic swmod_level);
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        not (swmod_level [*3]);
-    endproperty
-
-    a_counter_lo_swmod_len: assert property (p_swmod_max_two(w_counter_lo_swmod))
-        else $error("hpet_config_regs: HPET_COUNTER_LO swmod held >2 cycles -- ",
-                    "the cpuif no longer drops regblk_req between writes, so ",
-                    "the rising-edge detect merges them");
-    a_counter_hi_swmod_len: assert property (p_swmod_max_two(w_counter_hi_swmod))
-        else $error("hpet_config_regs: HPET_COUNTER_HI swmod held >2 cycles -- ",
-                    "the cpuif no longer drops regblk_req between writes, so ",
-                    "the rising-edge detect merges them");
-    a_status_wr_len: assert property (p_swmod_max_two(w_status_sw_wr))
-        else $error("hpet_config_regs: HPET_STATUS write request held >2 ",
-                    "cycles -- the cpuif no longer drops regblk_req between ",
-                    "writes, so the rising-edge detect merges them");
-
-    for (genvar gi = 0; gi < NUM_TIMERS; gi++) begin : g_comp_swmod_assert
-        a_comp_lo_swmod_len: assert property (p_swmod_max_two(w_comp_lo_swmod[gi]))
-            else $error("hpet_config_regs: TIMER_COMPARATOR_LO swmod held >2 ",
-                        "cycles -- the cpuif no longer drops regblk_req ",
-                        "between writes, so the rising-edge detect merges them");
-        a_comp_hi_swmod_len: assert property (p_swmod_max_two(w_comp_hi_swmod[gi]))
-            else $error("hpet_config_regs: TIMER_COMPARATOR_HI swmod held >2 ",
-                        "cycles -- the cpuif no longer drops regblk_req ",
-                        "between writes, so the rising-edge detect merges them");
+    initial begin : param_check
+        if (NUM_TIMERS < 1 || NUM_TIMERS > REG_TIMERS) begin
+            $error("hpet_config_regs: NUM_TIMERS=%0d out of range [1,%0d]",
+                   NUM_TIMERS, REG_TIMERS);
+        end
     end
 `endif
-`endif
 
-/* verilator lint_on SYNCASYNCNET */
 endmodule : hpet_config_regs

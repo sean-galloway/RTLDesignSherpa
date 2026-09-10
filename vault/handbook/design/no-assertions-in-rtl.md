@@ -27,8 +27,18 @@ made the blocks look inert, and the reviews across six rounds read them as
 house idiom. They were removed in a cleanup commit; the contracts they
 encoded became header prose.
 
-**How to check:** `grep -rn "assert\b\|assert property\|ifndef SYNTHESIS"`
-over the block's `rtl/` before committing. A hit is a finding.
+**The one sanctioned form:** an elaboration-time parameter guard, an
+`initial begin : param_check ... $fatal/$error end` block under
+`` `ifndef SYNTHESIS ``, is not an assertion in this sense. It is what
+[[sizing-invariants]] asks for ("assert the invariant at elaboration"),
+eleven shared `rtl/common` and `rtl/amba` files carry one, and it checks
+nothing at runtime. The RLB cleanup first removed those too; they were
+restored. What stays out is SVA: `assert property`, `assume`, `cover`,
+`property`, `sequence`, and any runtime `assert` in an `always` block.
+
+**How to check:** `grep -rn "assert property\|\bassume\b\|\bcover\b\|^\s*property\|^\s*sequence"`
+over the block's `rtl/` before committing. A hit is a finding; an
+`initial ... param_check` block is not.
 
 Related: [[generated-rtl-discipline]] (regen-and-diff catches the same
 class in generated files), [[signal-contracts-and-kmaps]] (`CHECK BY

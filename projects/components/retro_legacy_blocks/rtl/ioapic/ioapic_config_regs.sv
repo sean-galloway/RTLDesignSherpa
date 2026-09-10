@@ -59,6 +59,32 @@
 //   upstream adapter HOLDS its request until an ack, so a dropped access that
 //   is merely gated off the register block would hang the APB.
 //
+// CHECK BY INSPECTION (these were assertions and a simulation-time parameter
+// guard; properties belong in external formal bindings, not inside the module)
+//   - NUM_IRQS must be 24. The register map is generated from a fixed 24-entry
+//     RDL, so this parameter is not free here even though ioapic_core scales.
+//     Nothing in the RTL rejects another value.
+//   - Every address this file presents to the register block is one the
+//     generated decode recognises: IOREGSEL/IOAPICID/IOAPICVER/IOAPICARB, or
+//     ADDR_REDIR + 8*n (+4) for n in [0,24). IOWIN's own regblock address
+//     (0x04) is deliberately NOT in that set -- it is a window, never a
+//     destination. If the RDL moves a register or changes the IOREDTBL stride,
+//     the translation starts reading zero and writing nowhere rather than
+//     failing. The guards are the DV tests
+//     ioapic_tests_basic.py::test_full_redirection_table (every entry, both
+//     halves, read back through IOWIN) and ::test_identification_registers.
+//   - The DIRECT path reaches exactly one register, IOREGSEL at
+//     ADDR_IOREGSEL: regblk_req with !w_is_iowin implies w_is_ioregsel and
+//     regblk_addr == ADDR_IOREGSEL. Everything else in the register block is
+//     reachable ONLY through an IOWIN translation, which is the whole content
+//     of the decode contract above. Guarded by
+//     ioapic_tests_medium.py::test_apb_backdoor_dropped_with_slverr and
+//     ::test_address_decode_no_aliasing_above_0x100.
+//   - An IOWIN access with an unmapped selector never presents a request to
+//     the register block. That is what used to rewrite IOREGSEL through the
+//     0x000 fallback. Guarded by
+//     ioapic_tests_medium.py::test_ioregsel_invalid_selector_readback.
+//
 // Documentation: projects/components/retro_legacy_blocks/rtl/ioapic/README.md
 // Subsystem: ioapic
 //
@@ -112,8 +138,9 @@ module ioapic_config_regs
     //========================================================================
 
     // Internal (IOREGSEL) offsets and their APB addresses in the generated
-    // register block. These MUST track ioapic_regs.rdl - see the mirrored
-    // decode assertion at the bottom of this file.
+    // register block. These MUST track ioapic_regs.rdl - nothing in the RTL
+    // cross-checks that; see CHECK BY INSPECTION in the header for the DV
+    // guard against drift.
     localparam logic [7:0]  SEL_IOAPICID  = 8'h00;
     localparam logic [7:0]  SEL_IOAPICVER = 8'h01;
     localparam logic [7:0]  SEL_IOAPICARB = 8'h02;
@@ -131,18 +158,6 @@ module ioapic_config_regs
     // else, in window or not, is dropped (see DECODE CONTRACT above).
     localparam logic [11:0] APB_IOREGSEL  = 12'h000;
     localparam logic [11:0] APB_IOWIN     = 12'h004;
-
-`ifndef SYNTHESIS
-    // Simulation-time parameter guard: the register map is generated from a
-    // fixed 24-entry RDL, so NUM_IRQS is not free here even though the core
-    // scales. Same shape as the gpio/hpet guards.
-    initial begin : param_check
-        if (NUM_IRQS != 24) begin
-            $error("ioapic_config_regs: NUM_IRQS=%0d but ioapic_regs.rdl defines 24 entries",
-                   NUM_IRQS);
-        end
-    end
-`endif
 
     //========================================================================
     // Internal Signals for PeakRDL Passthrough Interface
@@ -395,57 +410,19 @@ module ioapic_config_regs
         end
     endgenerate
 
-    //========================================================================
-    // Simulation-only contract checks
-    //========================================================================
+
+    // Elaboration-time parameter guard (sim only). Not an assertion in the
+    // house sense: see vault/handbook/design/no-assertions-in-rtl.md.
 `ifndef SYNTHESIS
-`ifndef VERILATOR
-    // Mirrored decode drift guard. Every address this file presents to the
-    // register block must be one the generated decode actually recognises; if
-    // the RDL moves a register or changes the IOREDTBL stride, the translation
-    // silently starts reading zero and writing nowhere instead of failing.
-    // IOWIN's own regblock address (0x04) is deliberately NOT in this set: it
-    // is a window, never a destination, and nothing may present it.
-    logic w_addr_is_mapped;
-    always_comb begin
-        w_addr_is_mapped = (regblk_addr == ADDR_IOREGSEL) ||
-                           (regblk_addr == ADDR_IOAPICID) ||
-                           (regblk_addr == ADDR_IOAPICVER) ||
-                           (regblk_addr == ADDR_IOAPICARB);
-        for (int n = 0; n < 24; n++) begin
-            if (regblk_addr == (ADDR_REDIR + 8'(n * 8)) ||
-                regblk_addr == (ADDR_REDIR + 8'(n * 8) + 8'h04)) begin
-                w_addr_is_mapped = 1'b1;
-            end
+    // Simulation-time parameter guard: the register map is generated from a
+    // fixed 24-entry RDL, so NUM_IRQS is not free here even though the core
+    // scales. Same shape as the gpio/hpet guards.
+    initial begin : param_check
+        if (NUM_IRQS != 24) begin
+            $error("ioapic_config_regs: NUM_IRQS=%0d but ioapic_regs.rdl defines 24 entries",
+                   NUM_IRQS);
         end
     end
-
-    // Covers BOTH paths into the register block, not just the IOWIN one
-    // (issue #48 review round, item M1): the direct path used to be able to
-    // present any in-window address and this assertion never looked at it.
-    a_translation_mapped: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        regblk_req |-> w_addr_is_mapped
-    ) else $error({"ioapic_config_regs: presented 0x%02h to the register block, which ",
-                   "the generated decode does not recognise - the RDL layout ",
-                   "has drifted from the localparams in this file"}, regblk_addr);
-
-    // The direct path reaches exactly one register: IOREGSEL. Anything else in
-    // the register block is reachable ONLY through an IOWIN translation, which
-    // is the whole content of the decode contract in the header.
-    a_direct_path_is_ioregsel: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        (regblk_req && !w_is_iowin) |-> (w_is_ioregsel && (regblk_addr == ADDR_IOREGSEL))
-    ) else $error({"ioapic_config_regs: APB 0x%03h reached the register block ",
-                   "at 0x%02h without a translation"}, adapter_addr, regblk_addr);
-
-    // An unmapped selector must never present a request: that is what used to
-    // rewrite IOREGSEL through the 0x000 fallback.
-    a_unmapped_sel_dropped: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        (adapter_req && w_is_iowin && !w_sel_mapped) |-> !regblk_req
-    ) else $error("ioapic_config_regs: IOWIN access with unmapped selector reached the regblock");
-`endif
 `endif
 
 endmodule

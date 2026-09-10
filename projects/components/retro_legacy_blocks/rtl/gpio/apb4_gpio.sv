@@ -43,13 +43,20 @@
 //   pins are always observed on irq, while LEVEL-mode pins require the input
 //   to be held long enough for the synchronizer to sample it.
 //
+// CHECK BY INSPECTION (this was a simulation-time parameter guard; contracts
+// belong in the header, properties in external formal bindings):
+//   - GPIO_WIDTH must be in [1,32]. Every GPIO register field is 32 bits wide,
+//     so a wider port truncates silently and a zero/negative width has no
+//     legal slice. Nothing in the RTL rejects an out-of-range override.
+//
 // Documentation: projects/components/retro_legacy_blocks/rtl/gpio/README.md
 // Created: 2025-11-29
 // Updated: 2025-11-30 - Changed to 32-bit APB and s_apb_* naming
 // Updated: 2026-09-08 - issue #44: synchronize irq into pclk when CDC_ENABLE=1
 // Updated: 2026-09-08 - issue #44 review: state the irq observability contract
 //                       per interrupt mode, add the GPIO_WIDTH elaboration guard
-// Updated: 2026-09-09 - param guard is simulation-time, gated `ifndef SYNTHESIS
+// Updated: 2026-09-09 - simulation-time param guard removed; the width
+//                       constraint is CHECK BY INSPECTION above
 
 `timescale 1ns / 1ps
 
@@ -106,25 +113,6 @@ module apb4_gpio #(
     localparam int APB_DATA_WIDTH = 32;
     localparam int APB_STRB_WIDTH = APB_DATA_WIDTH / 8;
     localparam int APB_PROT_WIDTH = 3;
-
-    // ========================================================================
-    // Simulation-time parameter validation
-    // ========================================================================
-    // Every GPIO register field is 32 bits wide, so a wider port would silently
-    // truncate; a zero/negative width has no legal slice.
-    //
-    // This is an `initial` block, so it runs at time 0 in SIMULATION - it is
-    // not an elaboration-time check and cannot stop a synthesis run. Gated by
-    // `ifndef SYNTHESIS` for the same reason every other sim-only construct in
-    // this block is.
-`ifndef SYNTHESIS
-    initial begin : param_check
-        if (GPIO_WIDTH > APB_DATA_WIDTH || GPIO_WIDTH < 1) begin
-            $error("apb4_gpio: GPIO_WIDTH=%0d out of range [1,%0d]",
-                   GPIO_WIDTH, APB_DATA_WIDTH);
-        end
-    end
-`endif
 
     // CMD/RSP interface (APB slave to peakrdl_to_cmdrsp)
     logic                       w_cmd_valid;
@@ -350,5 +338,17 @@ module apb4_gpio #(
             assign irq = w_irq_core;
         end
     endgenerate
+
+
+    // Elaboration-time parameter guard (sim only). Not an assertion in the
+    // house sense: see vault/handbook/design/no-assertions-in-rtl.md.
+`ifndef SYNTHESIS
+    initial begin : param_check
+        if (GPIO_WIDTH > APB_DATA_WIDTH || GPIO_WIDTH < 1) begin
+            $error("apb4_gpio: GPIO_WIDTH=%0d out of range [1,%0d]",
+                   GPIO_WIDTH, APB_DATA_WIDTH);
+        end
+    end
+`endif
 
 endmodule : apb4_gpio

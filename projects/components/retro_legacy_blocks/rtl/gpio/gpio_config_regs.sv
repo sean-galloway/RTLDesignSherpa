@@ -71,6 +71,27 @@
 //   generated file where it can silently drift from the RDL, and changes the
 //   register's software-visible type for no behavioural gain.
 //
+// CHECK BY INSPECTION (these were assertions; properties belong in external
+// formal bindings, not inside the module):
+//   - GPIO_WIDTH must be in [1,32]. Every GPIO_WIDTH-wide value in this block
+//     is carried in a 32-bit register field, so a wider port truncates
+//     silently and a zero/negative width has no legal slice. Nothing in the
+//     RTL rejects an out-of-range override.
+//   - hwif_out.GPIO_INT_STATUS.int_status.swmod implies w_int_status_sw_wr.
+//     swmod is that same decode ANDed with |wr_biten, so swmod high with the
+//     mirror low is impossible unless the generated regblock's decode has
+//     drifted from gpio_regs.sv -- at which point the deferral stops covering
+//     the discard window and hardware sets are lost silently. The guard is the
+//     DV test gpio_tests_full.py::test_int_status_w1c_race_same_cycle.
+//   - No swmod level (GPIO_OUTPUT, _SET, _CLR, _TGL) is ever high for three
+//     consecutive cycles. The write strobes are rising-edge detects, so a
+//     level spanning two transactions merges two writes into one operation.
+//     apb4_slave and apb4_slave_cdc hold regblk_req for the accept cycle plus
+//     CMD_WAIT_ACK -- two cycles -- then drop it; a pipelined cpuif would break
+//     that and halve TGL. The guards are gpio_tests_medium.py::
+//     test_atomic_toggle_repeated_same_mask and
+//     ::test_atomic_set_clear_set_same_mask.
+//
 // Documentation: projects/components/retro_legacy_blocks/rtl/gpio/README.md
 // Created: 2025-11-29
 // Updated: 2025-11-30 - Changed to 32-bit data width
@@ -79,7 +100,8 @@
 // Updated: 2026-09-08 - issue #44 review: deferral mirrors the regblock decode
 //                       instead of swmod, write-back preserves bits above
 //                       GPIO_WIDTH, per-pin enable gates edge irq too
-// Updated: 2026-09-09 - param guard is simulation-time, gated `ifndef SYNTHESIS
+// Updated: 2026-09-09 - in-module assertions and the simulation-time param
+//                       guard removed; their contracts are CHECK BY INSPECTION
 
 `timescale 1ns / 1ps
 
@@ -122,26 +144,6 @@ module gpio_config_regs
 
     // Width of a register field in the PeakRDL block (regwidth = 32 in the RDL)
     localparam int REG_WIDTH = 32;
-
-    // ========================================================================
-    // Simulation-time parameter validation
-    // ========================================================================
-    // Every GPIO_WIDTH-wide value in this block is carried in a 32-bit register
-    // field, so a wider port would silently truncate; a zero/negative width has
-    // no legal slice.
-    //
-    // This is an `initial` block, so it runs at time 0 in SIMULATION - it is
-    // not an elaboration-time check and cannot stop a synthesis run. Gated by
-    // `ifndef SYNTHESIS` for the same reason every other sim-only construct in
-    // this block is.
-`ifndef SYNTHESIS
-    initial begin : param_check
-        if (GPIO_WIDTH > REG_WIDTH || GPIO_WIDTH < 1) begin
-            $error("gpio_config_regs: GPIO_WIDTH=%0d out of range [1,%0d]",
-                   GPIO_WIDTH, REG_WIDTH);
-        end
-    end
-`endif
 
     // PeakRDL hardware interface signals
     gpio_regs_pkg::gpio_regs__in_t  hwif_in;
@@ -241,9 +243,10 @@ module gpio_config_regs
     // back-to-back writes to the same register with no idle cycle between them
     // look like one long level and produce one event -- which halves TGL. This
     // holds for apb4_slave and apb4_slave_cdc today (both are strictly
-    // one-outstanding and drop req while waiting for the ack), and the
-    // a_*_swmod_len assertions at the bottom of this file trip if a future
-    // pipelined cpuif breaks it.
+    // one-outstanding and drop req while waiting for the ack); nothing in the
+    // RTL checks it, so the guard against a future pipelined cpuif breaking it
+    // is gpio_tests_medium.py::test_atomic_toggle_repeated_same_mask, which
+    // halves its toggle count the moment two writes merge.
 
     assign w_output_swmod = hwif_out.GPIO_OUTPUT.output_data.swmod;
     assign w_set_swmod    = hwif_out.GPIO_OUTPUT_SET.set_bits.swmod;
@@ -362,9 +365,10 @@ module gpio_config_regs
     //   decoded_reg_strb.GPIO_INT_STATUS = cpuif_req_masked & (cpuif_addr == 6'h20)
     // on the same 6 address bits this module feeds it, and both cpuif stalls
     // are tied to zero inside the regblock, so cpuif_req_masked == regblk_req.
-    // The a_int_status_swmod_mirrored assertion below is the drift guard: if a
-    // regenerated regblock changes that decode, it fires rather than silently
-    // dropping interrupts.
+    // Nothing in the RTL cross-checks that mirror; the guard against a
+    // regenerated regblock changing the decode under it is
+    // gpio_tests_full.py::test_int_status_w1c_race_same_cycle, which loses the
+    // coincident hardware set the moment the two decodes disagree.
     assign w_int_status_sw_wr = regblk_req && regblk_req_is_wr &&
                                 (regblk_addr[5:0] == 6'h20);
 
@@ -475,51 +479,16 @@ module gpio_config_regs
     // stickybit: when next[i] is high, bit i is set in the register
     assign hwif_in.GPIO_INT_STATUS.int_status.next = w_int_set_now_reg;
 
-    // ========================================================================
-    // Simulation-only contract checks
-    // ========================================================================
+
+    // Elaboration-time parameter guard (sim only). Not an assertion in the
+    // house sense: see vault/handbook/design/no-assertions-in-rtl.md.
 `ifndef SYNTHESIS
-`ifndef VERILATOR
-    // Drift guard for the mirrored GPIO_INT_STATUS write decode. swmod is that
-    // same decode ANDed with |wr_biten, so swmod high with the mirror low is
-    // impossible unless the generated regblock's decode has changed underneath
-    // this module -- at which point the deferral silently stops covering the
-    // discard window and hardware sets are lost.
-    a_int_status_swmod_mirrored: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        hwif_out.GPIO_INT_STATUS.int_status.swmod |-> w_int_status_sw_wr
-    ) else $error("gpio_config_regs: GPIO_INT_STATUS swmod asserted without ",
-                  "the mirrored regblock decode -- w_int_status_sw_wr has ",
-                  "drifted from gpio_regs.sv and the W1C deferral no longer ",
-                  "covers the discard window");
-
-    // The write strobes are rising-edge detects on swmod, so a swmod level that
-    // spans more than one transaction merges two writes into one operation.
-    // The upstream bridge holds regblk_req for the accept cycle plus
-    // CMD_WAIT_ACK -- two cycles -- and then drops it, so three consecutive
-    // cycles means the cpuif has become pipelined and TGL is now being halved.
-    property p_swmod_max_two(logic swmod_level);
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        not (swmod_level [*3]);
-    endproperty
-
-    a_output_swmod_len: assert property (p_swmod_max_two(w_output_swmod))
-        else $error("gpio_config_regs: GPIO_OUTPUT swmod held >2 cycles -- ",
-                    "the cpuif no longer drops regblk_req between ",
-                    "writes, so the rising-edge detect merges them");
-    a_set_swmod_len: assert property (p_swmod_max_two(w_set_swmod))
-        else $error("gpio_config_regs: GPIO_OUTPUT_SET swmod held >2 cycles -- ",
-                    "the cpuif no longer drops regblk_req between ",
-                    "writes, so the rising-edge detect merges them");
-    a_clr_swmod_len: assert property (p_swmod_max_two(w_clr_swmod))
-        else $error("gpio_config_regs: GPIO_OUTPUT_CLR swmod held >2 cycles -- ",
-                    "the cpuif no longer drops regblk_req between ",
-                    "writes, so the rising-edge detect merges them");
-    a_tgl_swmod_len: assert property (p_swmod_max_two(w_tgl_swmod))
-        else $error("gpio_config_regs: GPIO_OUTPUT_TGL swmod held >2 cycles -- ",
-                    "the cpuif no longer drops regblk_req between ",
-                    "writes, so the rising-edge detect merges them");
-`endif
+    initial begin : param_check
+        if (GPIO_WIDTH > REG_WIDTH || GPIO_WIDTH < 1) begin
+            $error("gpio_config_regs: GPIO_WIDTH=%0d out of range [1,%0d]",
+                   GPIO_WIDTH, REG_WIDTH);
+        end
+    end
 `endif
 
 endmodule : gpio_config_regs

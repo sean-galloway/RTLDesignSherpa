@@ -115,6 +115,31 @@
  *   SYNC_STAGES flops. `eoi_in` must be a single-cycle strobe IN THIS DOMAIN
  *   with `eoi_vector` stable around it - apb4_ioapic does the pclk crossing.
  *
+ * CHECK BY INSPECTION (these were assertions; properties belong in external
+ * formal bindings, not inside the module)
+ *   - At most one pin is in delivery at a time: status_deliv_status[] is set
+ *     only by the single output stage, which holds one r_out_irq index.
+ *   - w_sel_valid implies w_sel_irq < NUM_IRQS: the selector is a priority
+ *     scan over an NUM_IRQS-wide request vector and is only valid when that
+ *     vector is non-zero.
+ *   - An accept retires an edge pin's pending bit (issue #48 C1, half one).
+ *     A coincident new edge is allowed to re-arm it: set wins. Guarded by
+ *     ioapic_tests_medium.py::test_c1_edge_double_delivery_count.
+ *   - irq_out_valid is never parked for an edge pin whose pending bit is
+ *     already clear (issue #48 C1, half two), EXCEPT while software has
+ *     rewritten the pin's trigger mode since this delivery was loaded. That
+ *     exception is legal and is why the removed assertion carried two
+ *     sim-only bookkeeping flops with no counterpart in the design: an
+ *     edge->level->edge rewrite clears r_irq_pending[i] through the level
+ *     branch of g_pending while r_out_valid is still up. L1 removed the
+ *     synthesized copy of the load-time trigger mode because gating on it
+ *     livelocks. Guarded by
+ *     ioapic_tests_medium.py::test_c1_no_park_after_single_ready_pulse and
+ *     ::test_rte_vector_rewrite_mid_delivery.
+ *   - Accepting a LEVEL interrupt sets that pin's Remote IRR the next cycle,
+ *     which is what makes in-service state per-pin rather than global.
+ *     Guarded by ioapic_tests_medium.py::test_per_pin_block_level_b_and_eoi_clears
+ *     and ioapic_tests_basic.py::test_remote_irr_status.
  * ============================================================================
  */
 
@@ -453,92 +478,5 @@ module ioapic_core #(
     assign irq_out_vector     = r_out_valid ? r_out_vector     : 8'h00;
     assign irq_out_dest       = r_out_valid ? r_out_dest       : 8'h00;
     assign irq_out_deliv_mode = r_out_valid ? r_out_deliv_mode : 3'h0;
-
-    // ========================================================================
-    // Assertions for Design Verification
-    // ========================================================================
-
-`ifndef SYNTHESIS
-`ifndef VERILATOR
-    // Only one IRQ can be in delivery at a time - one output stage, one index.
-    logic [NUM_IRQS-1:0] w_deliv_status_packed;
-    always_comb begin
-        for (int k = 0; k < NUM_IRQS; k++) begin
-            w_deliv_status_packed[k] = status_deliv_status[k];
-        end
-    end
-
-    a_single_delivery: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        $countones(w_deliv_status_packed) <= 1
-    ) else $error("ioapic_core: more than one IRQ in delivery");
-
-    a_sel_in_range: assert property (
-        @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-        w_sel_valid |-> (w_sel_irq < NUM_IRQS)
-    ) else $error("ioapic_core: selected IRQ out of range");
-
-    generate
-        for (i = 0; i < NUM_IRQS; i++) begin : g_assert
-            // issue #48 C1, half one: one accept retires an edge interrupt.
-            // A coincident new edge is allowed to re-arm it (set wins).
-            a_edge_delivered_once: assert property (
-                @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-                (w_deliv_accept && (r_out_irq == IRQ_IDX_W'(i)) && !cfg_trigger_mode[i]
-                 && !w_irq_edge_rising[i]) |=> !r_irq_pending[i]
-            ) else $error("ioapic_core: edge pending survived its own accept");
-
-            // issue #48 C1, half two: irq_out_valid must never be parked for an
-            // edge pin whose pending bit has already been cleared.
-            //
-            // QUALIFIED (issue #48 review round, item L2) on the trigger mode
-            // still being the one this delivery was loaded with. Software may
-            // legally rewrite an RTE while a delivery is parked, and an
-            // edge->level->edge rewrite clears r_irq_pending[i] through the
-            // level branch of g_pending while r_out_valid is still up: a
-            // permitted sequence that the unqualified property reported as a
-            // design defect. These two flops are sim-only bookkeeping, cleared
-            // by the next load of this pin, and they exist ONLY to tell that
-            // sequence apart from the C1 defect. They deliberately have no
-            // counterpart in the design - L1 removed the synthesized copy of
-            // the load-time trigger mode because gating on it livelocks.
-            logic r_load_mode;
-            logic r_mode_changed;
-            logic w_mode_changed;
-
-            `ALWAYS_FF_RST(clk, rst_n,
-                if (`RST_ASSERTED(rst_n)) begin
-                    r_load_mode    <= 1'b0;
-                    r_mode_changed <= 1'b0;
-                end else if (w_out_load && (w_sel_irq == IRQ_IDX_W'(i))) begin
-                    r_load_mode    <= cfg_trigger_mode[i];
-                    r_mode_changed <= 1'b0;
-                end else if (cfg_trigger_mode[i] != r_load_mode) begin
-                    r_mode_changed <= 1'b1;
-                end
-            )
-
-            // Sticky OR live, so the rewrite cycle itself is covered too.
-            assign w_mode_changed = r_mode_changed ||
-                                    (cfg_trigger_mode[i] != r_load_mode);
-
-            a_no_park_without_pending: assert property (
-                @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-                (r_out_valid && (r_out_irq == IRQ_IDX_W'(i)) && !cfg_trigger_mode[i]
-                 && !w_mode_changed)
-                 |-> r_irq_pending[i]
-            ) else $error("ioapic_core: valid parked for a pin with no pending");
-
-            // Accepting a level interrupt puts the pin in service, which is
-            // what makes the block per-pin instead of global.
-            a_level_in_service: assert property (
-                @(posedge clk) disable iff (`RST_ASSERTED(rst_n))
-                (w_deliv_accept && (r_out_irq == IRQ_IDX_W'(i)) && cfg_trigger_mode[i])
-                 |=> r_remote_irr[i]
-            ) else $error("ioapic_core: level accept did not set Remote IRR");
-        end
-    endgenerate
-`endif
-`endif
 
 endmodule : ioapic_core
