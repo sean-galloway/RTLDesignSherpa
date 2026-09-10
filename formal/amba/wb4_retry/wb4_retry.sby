@@ -1,0 +1,40 @@
+[tasks]
+prove
+cover
+prove_deep
+cover_deep
+
+[options]
+prove: mode bmc
+prove: depth 18
+cover: mode cover
+cover: depth 24
+prove_deep: mode bmc
+prove_deep: depth 16
+cover_deep: mode cover
+cover_deep: depth 24
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+prove_deep: smtbmc z3
+cover_deep: smtbmc z3
+
+[script]
+read_verilog -formal wb4_retry_flat.v
+read -formal -sv formal_wb4_retry.sv
+prove_deep: chparam -set INFLIGHT 2 formal_wb4_retry
+cover_deep: chparam -set INFLIGHT 2 formal_wb4_retry
+hierarchy -top formal_wb4_retry
+proc
+flatten
+opt_expr
+opt_clean
+memory_map
+async2sync
+opt -full
+setundef -undriven -init -expose
+
+[files]
+formal_wb4_retry.sv
+wb4_retry_flat.v
