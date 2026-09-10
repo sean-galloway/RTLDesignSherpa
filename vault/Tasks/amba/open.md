@@ -2228,6 +2228,13 @@ type-check edits are the cause.
   Basic Connectivity" sees 0 monitor packets and raises
   `RuntimeError: Monitor not generating packets`; passes with SEED=14399.
 
+- `val/amba/test_axil5_master_wr_mon_cg.py::test_axil5_master_wr_mon_cg[gate]`,
+  `SEED=10268 REG_LEVEL=GATE pytest test_axil5_master_wr_mon_cg.py`: "No
+  monitor packets generated!" -- the same symptom as the axil4 case, on the
+  AXI5-Lite clock-gated monitor. Found 2026-09-09 by the val/amba GATE run
+  that landed the wb4 clock-gated/CDC variants (728 passed, this one
+  failed); reproduced standalone with the seed.
+
 **Suspect:** a randomizer draw that the seed steers into a configuration the
 test does not handle (a zero-length or all-masked basic transfer, a timing
 profile that leaves the monitor idle for the whole check window) rather
