@@ -157,6 +157,10 @@ module rtc_regs (
                 logic next;
                 logic load_next;
             } second_tick;
+            struct {
+                logic next;
+                logic load_next;
+            } commit_timeout;
         } RTC_STATUS;
         struct {
             struct {
@@ -265,6 +269,9 @@ module rtc_regs (
             struct {
                 logic value;
             } second_tick;
+            struct {
+                logic value;
+            } commit_timeout;
         } RTC_STATUS;
         struct {
             struct {
@@ -559,6 +566,31 @@ module rtc_regs (
             end
         end
     end
+    // Field: rtc_regs.RTC_STATUS.commit_timeout
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.RTC_STATUS.commit_timeout.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.RTC_STATUS && decoded_req_is_wr) begin // SW write 1 clear
+            next_c = field_storage.RTC_STATUS.commit_timeout.value & ~(decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+            load_next_c = '1;
+        end else begin // HW Write
+            next_c = hwif_in.RTC_STATUS.commit_timeout.next;
+            load_next_c = '1;
+        end
+        field_combo.RTC_STATUS.commit_timeout.next = next_c;
+        field_combo.RTC_STATUS.commit_timeout.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.RTC_STATUS.commit_timeout.value <= 1'h0;
+        end else begin
+            if(field_combo.RTC_STATUS.commit_timeout.load_next) begin
+                field_storage.RTC_STATUS.commit_timeout.value <= field_combo.RTC_STATUS.commit_timeout.next;
+            end
+        end
+    end
     // Field: rtc_regs.RTC_SECONDS.seconds
     always_comb begin
         automatic logic [7:0] next_c;
@@ -568,7 +600,7 @@ module rtc_regs (
         if(decoded_reg_strb.RTC_SECONDS && decoded_req_is_wr) begin // SW write
             next_c = (field_storage.RTC_SECONDS.seconds.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
             load_next_c = '1;
-        end else begin // HW Write
+        end else if(hwif_in.RTC_SECONDS.seconds.we) begin // HW Write - we
             next_c = hwif_in.RTC_SECONDS.seconds.next;
             load_next_c = '1;
         end
@@ -594,7 +626,7 @@ module rtc_regs (
         if(decoded_reg_strb.RTC_MINUTES && decoded_req_is_wr) begin // SW write
             next_c = (field_storage.RTC_MINUTES.minutes.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
             load_next_c = '1;
-        end else begin // HW Write
+        end else if(hwif_in.RTC_MINUTES.minutes.we) begin // HW Write - we
             next_c = hwif_in.RTC_MINUTES.minutes.next;
             load_next_c = '1;
         end
@@ -620,7 +652,7 @@ module rtc_regs (
         if(decoded_reg_strb.RTC_HOURS && decoded_req_is_wr) begin // SW write
             next_c = (field_storage.RTC_HOURS.hours.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
             load_next_c = '1;
-        end else begin // HW Write
+        end else if(hwif_in.RTC_HOURS.hours.we) begin // HW Write - we
             next_c = hwif_in.RTC_HOURS.hours.next;
             load_next_c = '1;
         end
@@ -646,7 +678,7 @@ module rtc_regs (
         if(decoded_reg_strb.RTC_DAY && decoded_req_is_wr) begin // SW write
             next_c = (field_storage.RTC_DAY.day.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
             load_next_c = '1;
-        end else begin // HW Write
+        end else if(hwif_in.RTC_DAY.day.we) begin // HW Write - we
             next_c = hwif_in.RTC_DAY.day.next;
             load_next_c = '1;
         end
@@ -672,7 +704,7 @@ module rtc_regs (
         if(decoded_reg_strb.RTC_MONTH && decoded_req_is_wr) begin // SW write
             next_c = (field_storage.RTC_MONTH.month.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
             load_next_c = '1;
-        end else begin // HW Write
+        end else if(hwif_in.RTC_MONTH.month.we) begin // HW Write - we
             next_c = hwif_in.RTC_MONTH.month.next;
             load_next_c = '1;
         end
@@ -698,7 +730,7 @@ module rtc_regs (
         if(decoded_reg_strb.RTC_YEAR && decoded_req_is_wr) begin // SW write
             next_c = (field_storage.RTC_YEAR.year.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
             load_next_c = '1;
-        end else begin // HW Write
+        end else if(hwif_in.RTC_YEAR.year.we) begin // HW Write - we
             next_c = hwif_in.RTC_YEAR.year.next;
             load_next_c = '1;
         end
@@ -885,7 +917,8 @@ module rtc_regs (
     assign readback_array[2][1:1] = (decoded_reg_strb.RTC_STATUS && !decoded_req_is_wr) ? field_storage.RTC_STATUS.second_tick.value : '0;
     assign readback_array[2][2:2] = (decoded_reg_strb.RTC_STATUS && !decoded_req_is_wr) ? hwif_in.RTC_STATUS.time_valid.next : '0;
     assign readback_array[2][3:3] = (decoded_reg_strb.RTC_STATUS && !decoded_req_is_wr) ? hwif_in.RTC_STATUS.pm_indicator.next : '0;
-    assign readback_array[2][31:4] = (decoded_reg_strb.RTC_STATUS && !decoded_req_is_wr) ? 28'h0 : '0;
+    assign readback_array[2][4:4] = (decoded_reg_strb.RTC_STATUS && !decoded_req_is_wr) ? field_storage.RTC_STATUS.commit_timeout.value : '0;
+    assign readback_array[2][31:5] = (decoded_reg_strb.RTC_STATUS && !decoded_req_is_wr) ? 27'h0 : '0;
     assign readback_array[3][7:0] = (decoded_reg_strb.RTC_SECONDS && !decoded_req_is_wr) ? field_storage.RTC_SECONDS.seconds.value : '0;
     assign readback_array[3][31:8] = (decoded_reg_strb.RTC_SECONDS && !decoded_req_is_wr) ? 24'h0 : '0;
     assign readback_array[4][7:0] = (decoded_reg_strb.RTC_MINUTES && !decoded_req_is_wr) ? field_storage.RTC_MINUTES.minutes.value : '0;

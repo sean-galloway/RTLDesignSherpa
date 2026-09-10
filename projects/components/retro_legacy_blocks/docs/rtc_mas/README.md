@@ -24,14 +24,15 @@
 # RTC Specification
 
 **Status:** Written (chapters 1 and 5) - see rtc_mas_index.md for the
-authoritative status and known-RTL-deviation notes
+authoritative status; the RTL is functional as of the issue #56 fixes
+(2026-09-09) and the remaining limitations are stated in ch05
 
 ---
 
 ## Overview
 
 Specification for the RTC block. Chapters 1 and 5 are written; see
-rtc_mas_index.md for status and the known-RTL-deviation notes.
+rtc_mas_index.md for status and ch05 for the remaining limitations.
 
 ## Planned Documentation Structure
 

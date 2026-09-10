@@ -22,3 +22,4 @@ summary: RTL rules with the failures that taught them.
 - [[generated-rtl-discipline]] - fix the generator, not the generated .sv; regen-and-diff is the audit
 - [[minimal-fsm]] - when an FSM is right, keep it minimal
 - [[signal-contracts-and-kmaps]] - contracts workbooks; computed K-maps
+- [[no-assertions-in-rtl]] - SVA belongs in formal/ bindings, never in a module; the guarded blocks the RLB arc reintroduced

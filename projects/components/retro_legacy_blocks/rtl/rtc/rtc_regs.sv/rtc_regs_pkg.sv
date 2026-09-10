@@ -24,14 +24,20 @@ package rtc_regs_pkg;
     } rtc_regs__RTC_STATUS__pm_indicator__in_t;
 
     typedef struct {
+        logic next;
+    } rtc_regs__RTC_STATUS__commit_timeout__in_t;
+
+    typedef struct {
         rtc_regs__RTC_STATUS__alarm_flag__in_t alarm_flag;
         rtc_regs__RTC_STATUS__second_tick__in_t second_tick;
         rtc_regs__RTC_STATUS__time_valid__in_t time_valid;
         rtc_regs__RTC_STATUS__pm_indicator__in_t pm_indicator;
+        rtc_regs__RTC_STATUS__commit_timeout__in_t commit_timeout;
     } rtc_regs__RTC_STATUS__in_t;
 
     typedef struct {
         logic [7:0] next;
+        logic we;
     } rtc_regs__RTC_SECONDS__seconds__in_t;
 
     typedef struct {
@@ -40,6 +46,7 @@ package rtc_regs_pkg;
 
     typedef struct {
         logic [7:0] next;
+        logic we;
     } rtc_regs__RTC_MINUTES__minutes__in_t;
 
     typedef struct {
@@ -48,6 +55,7 @@ package rtc_regs_pkg;
 
     typedef struct {
         logic [7:0] next;
+        logic we;
     } rtc_regs__RTC_HOURS__hours__in_t;
 
     typedef struct {
@@ -56,6 +64,7 @@ package rtc_regs_pkg;
 
     typedef struct {
         logic [7:0] next;
+        logic we;
     } rtc_regs__RTC_DAY__day__in_t;
 
     typedef struct {
@@ -64,6 +73,7 @@ package rtc_regs_pkg;
 
     typedef struct {
         logic [7:0] next;
+        logic we;
     } rtc_regs__RTC_MONTH__month__in_t;
 
     typedef struct {
@@ -72,6 +82,7 @@ package rtc_regs_pkg;
 
     typedef struct {
         logic [7:0] next;
+        logic we;
     } rtc_regs__RTC_YEAR__year__in_t;
 
     typedef struct {

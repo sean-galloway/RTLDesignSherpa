@@ -22,8 +22,20 @@
 # sub-blocks, missing monitor_trans_cam, missing clock-gate chain). Each
 # filelist below declares its own complete closure.
 -f $REPO_ROOT/rtl/amba/filelists/apb4_slave.f
--f $REPO_ROOT/rtl/cdc/filelists/cdc_2_phase_handshake.f
+
+# Clock-domain crossing primitives used by rtc_core (GitHub #56). Exactly the
+# four it instantiates, and no more - a filelist that carries a module the
+# design does not use makes every consumer compile it and hides what the
+# block actually depends on. The time-set commit is a FOUR-phase handshake
+# (the two domains reset independently, so a toggle protocol's parity cannot
+# survive - see docs/markdown/rtl-cdc/cdc.md); the counter->pclk update event
+# is a toggle pulse synchronizer; the config/alarm bundle and the read shadow
+# are quasi-static multi-bit crossings; the counter domain's reset release is
+# synchronized.
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_4_phase_handshake.f
+-f $REPO_ROOT/rtl/cdc/filelists/sync_pulse.f
+-f $REPO_ROOT/rtl/cdc/filelists/glitch_free_n_dff_arn.f
+-f $REPO_ROOT/rtl/common/filelists/reset_sync.f
 
 # Layer 2: CMD/RSP to PeakRDL Adapter
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f

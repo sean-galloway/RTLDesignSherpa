@@ -1,6 +1,42 @@
 /**
  * SystemRDL Definition for Real-Time Clock (RTC) Configuration Registers
  *
+ * GitHub #56 (2026-09-09) changed three things in this file; the RTL that
+ * consumes them is rtc_config_regs.sv:
+ *   - The six time registers are hw=rw WITH `we`. The counter-domain shadow
+ *     only overwrites the field when the wrapper says so, which is what makes
+ *     the documented time-set protocol work: while RTC_CONFIG.time_set_mode is
+ *     set (and until the resulting cross-domain commit has landed) `we` is low,
+ *     so the six software writes STAGE in these fields instead of being
+ *     clobbered by the live counter one cycle later. Without `we` there is
+ *     nowhere in the map to hold a staged time.
+ *   - RTC_STATUS.alarm_flag/second_tick/commit_timeout carry `precedence = sw`
+ *     so a W1C write wins over the hardware mirror in its own cycle. The
+ *     sticky state itself lives in rtc_core's pclk domain; these fields are a
+ *     mirror of it, and the wrapper hand-decodes the W1C strobe it forwards
+ *     to rtc_core. No `swmod` is requested: nothing consumed it, so it was
+ *     three dead output ports claiming to be a guard. The guard that a
+ *     regenerated decode still matches the wrapper's hand-decode is the DV
+ *     suite's W1C tests.
+ *   - RTC_HOURS bit 7 is the PM indicator in 12-hour mode for BOTH binary and
+ *     BCD counting (it used to be documented as BCD-only, and binary 12-hour
+ *     mode had no AM/PM state at all). RTC_ALARM_HOUR is compared against the
+ *     whole hours byte, bit 7 included.
+ *   - RTC_STATUS.commit_timeout (bit 4) reports a time-set commit that the
+ *     watchdog found OUTSTANDING because the counter clock was not running.
+ *     The commit is held, not abandoned: it lands unchanged if the clock
+ *     returns, and the bit retires when it does.
+ *
+ * PROGRAMMING ORDER, and why it is not a style preference: RTC_CONTROL and
+ * the four RTC_ALARM_* registers cross into the counter domain as ONE
+ * quasi-static bundle through a 3-flop synchronizer. The bundle is sampled
+ * free-running, so while software is part-way through programming it the
+ * counter domain can observe an intermediate combination for one counter
+ * clock - a new alarm second against an old alarm minute, for instance.
+ * Program RTC_ALARM_SEC/MIN/HOUR/MASK with RTC_CONTROL.alarm_enable clear
+ * (or the RTC disabled), then enable the alarm last. The same applies to
+ * RTC_CONFIG's mode bits: set the counting format before enabling the RTC.
+ *
  * This specification defines the register interface for the APB RTC,
  * providing system time-of-day tracking with alarm functionality.
  *
@@ -141,16 +177,18 @@ addrmap rtc_regs {
             name = "Alarm Flag";
             desc = "Alarm triggered (write 1 to clear)";
             sw = rw;
-            hw = w;
-            onwrite = woclr;
+            hw = w;          // Mirror of rtc_core's pclk-domain sticky flag
+            precedence = sw; // W1C write wins over the mirror in its cycle
+            onwrite = woclr; // Software write-1-to-clear
         } alarm_flag[0:0] = 1'b0;
 
         field {
             name = "Second Tick";
             desc = "Second tick occurred (write 1 to clear)";
             sw = rw;
-            hw = w;
-            onwrite = woclr;
+            hw = w;          // Mirror of rtc_core's pclk-domain sticky flag
+            precedence = sw; // W1C write wins over the mirror in its cycle
+            onwrite = woclr; // Software write-1-to-clear
         } second_tick[1:1] = 1'b0;
 
         field {
@@ -162,17 +200,50 @@ addrmap rtc_regs {
 
         field {
             name = "PM Indicator";
-            desc = "In 12-hour mode: 0=AM, 1=PM (binary mode only in status)";
+            desc = "In 12-hour mode: 0=AM, 1=PM. Mirrors RTC_HOURS bit 7 and is valid in both binary and BCD counting; reads 0 in 24-hour mode.";
             sw = r;
             hw = w;
         } pm_indicator[3:3] = 1'b0;
+
+        field {
+            name = "Commit Timeout";
+            desc = "A time-set commit was not acknowledged within the watchdog
+                    window (write 1 to clear). The usual cause is that the
+                    counter clock is not running: the commit crosses to the
+                    counter domain and cannot land without it. The transfer is
+                    NOT cancelled - it is held, with its data, and lands
+                    unchanged whenever the counter clock returns. So this bit
+                    means 'no acknowledge in time', not 'the time was not
+                    set': read the time registers back to find out where it
+                    got to, and expect the committed value to appear later if
+                    the clock source recovers. The bit reports an OUTSTANDING
+                    stall: it is retired automatically when the stalled commit
+                    finally completes, as well as by writing 1. Software that
+                    needs a latched record must read it while the stall
+                    persists. Note what the timeout does NOT hold: reporting
+                    the timeout also releases the register mirror, so
+                    RTC_SECONDS..RTC_YEAR stop showing the staged values at
+                    that instant and go back to showing the counter. A commit
+                    QUEUED behind the stalled one keeps busy set, and with it
+                    that commit's staged values, only until its own window
+                    runs out: a queued commit has its own
+                    COMMIT_TIMEOUT_CYCLES window counted from its commit
+                    pulse; if it is not accepted within it, commit_timeout is
+                    reported again and busy is released while the commit stays
+                    queued. A commit accepted within its window inherits
+                    nothing and reports nothing.";
+            sw = rw;
+            hw = w;          // Mirror of rtc_core's pclk-domain sticky flag
+            precedence = sw; // W1C write wins over the mirror in its cycle
+            onwrite = woclr; // Software write-1-to-clear
+        } commit_timeout[4:4] = 1'b0;
 
         field {
             name = "Reserved";
             desc = "Reserved bits";
             sw = r;
             hw = na;
-        } reserved[31:4] = 28'h0;
+        } reserved[31:5] = 27'h0;
 
     } RTC_STATUS @ 0x008;
 
@@ -189,6 +260,7 @@ addrmap rtc_regs {
             desc = "Seconds value: 0-59 (binary) or 0x00-0x59 (BCD)";
             sw = rw;
             hw = rw;
+            we;              // Counter-domain mirror is gated (time-set staging)
         } seconds[7:0] = 8'h00;
 
         field {
@@ -209,6 +281,7 @@ addrmap rtc_regs {
             desc = "Minutes value: 0-59 (binary) or 0x00-0x59 (BCD)";
             sw = rw;
             hw = rw;
+            we;              // Counter-domain mirror is gated (time-set staging)
         } minutes[7:0] = 8'h00;
 
         field {
@@ -222,13 +295,14 @@ addrmap rtc_regs {
 
     reg {
         name = "RTC Hours Register";
-        desc = "Current hours (0-23 or 1-12 + bit 7 for AM/PM in 12-hour BCD mode)";
+        desc = "Current hours (0-23, or 1-12 with bit 7 = PM in 12-hour mode)";
 
         field {
             name = "Hours";
-            desc = "Hours value: 0-23 (24h binary), 0x00-0x23 (24h BCD), 0x01-0x12 (12h BCD), bit[7]=PM in 12h BCD mode";
+            desc = "Hours value: 0-23 (24h binary), 0x00-0x23 (24h BCD), 1-12 (12h binary), 0x01-0x12 (12h BCD). Bit[7] is the PM flag in 12-hour mode, in BOTH binary and BCD counting; it is 0 in 24-hour mode.";
             sw = rw;
             hw = rw;
+            we;              // Counter-domain mirror is gated (time-set staging)
         } hours[7:0] = 8'h00;
 
         field {
@@ -249,6 +323,7 @@ addrmap rtc_regs {
             desc = "Day value: 1-31 (binary) or 0x01-0x31 (BCD)";
             sw = rw;
             hw = rw;
+            we;              // Counter-domain mirror is gated (time-set staging)
         } day[7:0] = 8'h01;
 
         field {
@@ -269,6 +344,7 @@ addrmap rtc_regs {
             desc = "Month value: 1-12 (binary) or 0x01-0x12 (BCD)";
             sw = rw;
             hw = rw;
+            we;              // Counter-domain mirror is gated (time-set staging)
         } month[7:0] = 8'h01;
 
         field {
@@ -289,6 +365,7 @@ addrmap rtc_regs {
             desc = "Year value: 0-99 (binary) or 0x00-0x99 (BCD), base year 2000";
             sw = rw;
             hw = rw;
+            we;              // Counter-domain mirror is gated (time-set staging)
         } year[7:0] = 8'h00;
 
         field {
@@ -350,7 +427,7 @@ addrmap rtc_regs {
 
         field {
             name = "Alarm Hours";
-            desc = "Alarm hours: 0-23 (24h binary), 0x00-0x23 (24h BCD), 0x01-0x12 (12h BCD)";
+            desc = "Alarm hours, compared against the WHOLE RTC_HOURS byte including bit 7. In 12-hour mode bit 7 is the PM flag, so 3 PM is 0x83 in binary counting and 0x93 in BCD; a value with bit 7 clear only ever matches an AM hour. 24-hour mode: 0-23 / 0x00-0x23.";
             sw = rw;
             hw = r;
         } alarm_hours[7:0] = 8'h00;

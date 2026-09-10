@@ -27,69 +27,62 @@ This directory contains the SystemRDL specification for the Real-Time Clock (RTC
 
 ## Files
 
-- `rtc_regs.rdl` - SystemRDL register specification
+- `rtc_regs.rdl` - SystemRDL register specification, and the single source of
+  truth for the RTC register map. The field detail is NOT restated here: a
+  second copy is what rots.
 
-## Generated Files
+## Generated files
 
-The following files are generated from the RDL specification using PeakRDL tools and are placed in the parent directory:
+Generation writes three artefacts that must move together:
 
-- `../rtc_regs.sv` - SystemVerilog register implementation
-- `../rtc_regs_pkg.sv` - SystemVerilog package with register addresses and field definitions
+- `../rtc_regs.sv/rtc_regs.sv` - the register block
+- `../rtc_regs.sv/rtc_regs_pkg.sv` - the hwif package
+- `../rtc_regmap.py` - the by-name register map used by DV
 
-## Generation Command
+Note the parent directory is literally named `rtc_regs.sv`; the filelist
+`../filelists/apb4_rtc.f` reads from it, so that is where the output has to
+land.
 
-To generate the SystemVerilog files from the RDL specification:
+## Generation command
+
+Use the shared wrapper, never `peakrdl regblock` directly - the wrapper emits
+RTL, docs and the regmap in lockstep, and a raw invocation desynchronizes the
+regmap:
 
 ```bash
-cd $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/rtc
-peakrdl regblock peakrdl/rtc_regs.rdl -o rtc_regs.sv --cpuif apb4-flat
+python3 bin/peakrdl_generate.py \
+    projects/components/retro_legacy_blocks/rtl/rtc/peakrdl/rtc_regs.rdl \
+    -o <scratch-dir> --no-html --no-markdown \
+    --regmap-output <scratch-dir>/rtc_regmap.py
 ```
 
-## Register Map Overview
+Then copy `<scratch-dir>/rtl/rtc_regs.sv`, `<scratch-dir>/rtl/rtc_regs_pkg.sv`
+and `<scratch-dir>/rtc_regmap.py` into the paths listed above and delete the
+scratch directory. Do not leave a second copy of generated output anywhere.
 
-| Offset | Register | Access | Description |
-|--------|----------|--------|-------------|
-| 0x000  | RTC_CONFIG | RW | Global configuration (enable, modes) |
-| 0x004  | RTC_CONTROL | RW | Control (alarm, interrupt enables) |
-| 0x008  | RTC_STATUS | RW | Status flags |
-| 0x00C  | RTC_SECONDS | RW | Current seconds (0-59) |
-| 0x010  | RTC_MINUTES | RW | Current minutes (0-59) |
-| 0x014  | RTC_HOURS | RW | Current hours (0-23 or 1-12) |
-| 0x018  | RTC_DAY | RW | Current day (1-31) |
-| 0x01C  | RTC_MONTH | RW | Current month (1-12) |
-| 0x020  | RTC_YEAR | RW | Current year (0-99, base 2000) |
-| 0x024  | RTC_ALARM_SEC | RW | Alarm seconds match |
-| 0x028  | RTC_ALARM_MIN | RW | Alarm minutes match |
-| 0x02C  | RTC_ALARM_HOUR | RW | Alarm hours match |
-| 0x030  | RTC_ALARM_MASK | RW | Alarm field enables |
+## What the RDL carries beyond plain fields
 
-## Key Features
+- The six time registers are `hw=rw` **with `we`**. The counter-domain shadow
+  only writes them when `rtc_config_regs` allows it, which is what gives the
+  time-set protocol somewhere to stage six writes (GitHub #56 H7).
+- `RTC_STATUS.alarm_flag` / `second_tick` / `commit_timeout` carry
+  `precedence = sw`, so a W1C write wins over the hardware mirror in its own
+  cycle. They do **not** carry `swmod`: the wrapper hand-decodes the W1C
+  strobe it forwards to `rtc_core`, nothing ever consumed `swmod`, and the
+  guard against a regenerated decode drifting away from that hand-decode is
+  the DV suite's W1C tests, not a port.
+- `RTC_HOURS` bit 7 is the PM flag in 12-hour mode for BOTH binary and BCD
+  counting.
 
-- **Time Tracking**: Seconds, minutes, hours, day, month, year
-- **Formats**: Binary or BCD (Binary Coded Decimal)
-- **Hour Modes**: 24-hour or 12-hour with AM/PM
-- **Clock Sources**: 32.768 kHz crystal or system clock (for testing)
-- **Alarm**: Programmable alarm with field masking
-- **Interrupts**: Alarm and per-second tick interrupts
-- **Leap Year**: Automatic handling (2000-2099)
-
-## Usage Notes
-
-1. **Time Setting**: Set `time_set_mode=1` to stop the counter before writing time values
-2. **BCD Format**: In BCD mode, values like 59 are encoded as 0x59 (not 0x3B)
-3. **12-Hour Mode**: In BCD 12-hour mode, bit[7] of hours register indicates PM
-4. **Alarm Masking**: Use ALARM_MASK to enable/disable field comparisons
-
-## Integration Pattern
-
-This RTC follows the standard 3-layer architecture:
+## Integration
 
 ```
-Layer 1: apb4_rtc.sv           (APB4 interface)
-         ↓
-Layer 2: rtc_config_regs.sv   (Register wrapper + edge detection)
-         ↓
-Layer 3: rtc_core.sv          (Time counting logic)
+Layer 1: apb4_rtc.sv         APB4 interface, both clocks and both resets
+         v
+Layer 2: rtc_config_regs.sv  decode + PSLVERR, time-set staging, read window
+         v
+Layer 3: rtc_core.sv         counters, calendar, alarm, clock crossings
 ```
 
-The generated PeakRDL files are instantiated in `rtc_config_regs.sv`.
+The generated files are instantiated in `rtc_config_regs.sv`. Behaviour is
+described once, in `../README.md`.

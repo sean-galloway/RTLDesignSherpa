@@ -189,3 +189,47 @@ Same disposition as [[RLB-008]] for ioapic.
 integration cannot paper over, because rail ordering is a board-level
 correctness property, not a performance one. It is a behaviour change with new
 register state, so it was deliberately not smuggled into #54.
+
+### RLB-010: RTC leftovers after the #56 fix
+
+**Priority:** P3. `apb4_rtc` is 60/60 at the full level (gate 6/6, func
+44/44) plus an 8-test short-timeout sweep build, on every seed tried, after
+the #56 rewrite (ten review rounds on the clock-domain crossing); nothing
+here is a defect in the block. The durable lessons are in the handbook:
+[[cdc]] Rules 1-7 and [[no-assertions-in-rtl]].
+**Status:** open 2026-09-09. Raised while closing issue #56.
+
+- **Two shared CDC primitives are not verilator -Wall clean**, which is why
+  the standalone `apb4_rtc` closure shows warnings it did not before - the
+  primitives are new to THAT closure, not new defects:
+  - `rtl/cdc/glitch_free_n_dff_arn.sv:360` builds a flattened copy `flat_r_q`
+    that nothing reads (UNUSEDSIGNAL). Dead code; deleting it is a six-line
+    change to a primitive instantiated repo-wide, so it wants its own change
+    and its own regression, not a drive-by.
+  - `rtl/common/reset_sync.sv:261` PROCASSINIT: the synchronizer chain has an
+    FPGA power-on initialiser AND a procedural assignment. Deliberate, but
+    every consumer of the repo's only reset synchronizer carries the warning.
+  - `rtl/cdc/cdc_4_phase_handshake.sv:133` UNUSEDSIGNAL `r_timeout_cnt` when
+    TIMEOUT_CYCLES=0 (its documented disabled mode).
+- **`selected_clk` is still a combinational clock mux** in `rtc_core.sv`.
+  Documented as a constraint (change `clock_select` only with `rtc_enable`
+  low; the select is held under rtc_resetn and the counter reset release
+  waits for it to settle, so a reset cannot switch it under the domain). A
+  glitchless mux needs a device-specific cell (BUFGMUX / clock-gate pair); if
+  the RTC ever has to switch source live on silicon, that is the change.
+- **No formal area exists for retro_legacy_blocks.** The hand-decoded
+  RTC_STATUS W1C strobe in `rtc_config_regs.sv` and the seconds-read latch
+  alignment (which depends on `peakrdl_to_cmdrsp` capturing read data in the
+  FIRST of its two held cycles) are guarded only by the DV suite's W1C and
+  coherent-read tests; the in-module assertions that used to cover them were
+  removed under the no-assertions rule. If the bridge's capture cycle ever
+  changes, re-derive the alignment.
+
+Design decisions to know before touching the block (all stated in
+`rtc_core.sv`'s header and the MAS): the commit handshake is deliberately not
+cancellable (a timeout reports and releases the register block, the transfer
+lands late rather than never; a one-sided cancel was tried and is a trap);
+the queued commit slot carries its own watchdog and two marks (expired per
+occupant, reported per slot); `COMMIT_TIMEOUT_CYCLES=0` disables both
+watchdogs and then a commit on a dead clock hangs busy unreported; the
+counter domain's reset release needs pclk running.

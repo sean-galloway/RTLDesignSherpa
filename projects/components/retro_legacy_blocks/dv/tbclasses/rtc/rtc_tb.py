@@ -87,6 +87,14 @@ class RTCRegisterMap:
     STATUS_SECOND_TICK = (1 << 1)
     STATUS_TIME_VALID = (1 << 2)
     STATUS_PM_INDICATOR = (1 << 3)
+    # GitHub #56 coordinator direction (2026-09-09, test 4): the RTL
+    # follow-up adds a sticky W1C RTC_STATUS.commit_timeout bit at the next
+    # free bit. rtc_regs.rdl currently uses bits 0-3 (alarm_flag,
+    # second_tick, time_valid, pm_indicator) with reserved[31:4], so bit 4
+    # is the next free one - this constant anticipates that fix. It does
+    # NOT exist in the RTL yet (the bit reads 0, always, because it is part
+    # of `reserved`), which is exactly test 4's RED signature.
+    STATUS_COMMIT_TIMEOUT = (1 << 4)
 
     # RTC_ALARM_MASK bit definitions
     ALARM_MASK_SEC = (1 << 0)
@@ -123,19 +131,96 @@ class RTCTB(TBBase):
         self.second_ticks = []
 
     async def setup_clocks_and_reset(self):
-        """Complete initialization - clocks and reset (MANDATORY METHOD)."""
-        # Start APB clock (100 MHz = 10ns period)
-        await self.start_clock('pclk', freq=10, units='ns')
+        """Complete initialization - clocks and reset (MANDATORY METHOD).
 
-        # Start RTC clock (for testing, use faster clock)
-        # In real hardware this would be 32.768 kHz
-        await self.start_clock('rtc_clk', freq=10, units='ns')
+        Clock periods are read from TEST_APB_CLOCK_PERIOD / TEST_RTC_CLOCK_PERIOD
+        (plumbed by the test runner in dv/tests/test_apb4_rtc.py), same pattern
+        as gpio_tb.py's TEST_GPIO_CLOCK_PERIOD / pit_tb.py's TEST_PIT_CLOCK_PERIOD.
+        Defaults to 10ns/10ns (both clocks edge-identical) which reproduces the
+        ORIGINAL hardcoded behaviour exactly, so every existing test-mode test
+        (cfg_clock_select=1, selected_clk=pclk - rtc_clk is not even read in
+        that mode) is unaffected by this change.
+
+        GitHub #56 (H7/round_3 item 1): the RTC's production configuration
+        (cfg_clock_select=0, selected_clk=rtc_clk) is architecturally a 32.768
+        kHz crystal against a much faster pclk - a real, non-unity ratio. The
+        existing suite runs rtc_clk at the SAME period as pclk, which makes
+        every CDC-shaped defect (time-set capture, W1C-undone-by-wide-pulse,
+        torn multi-register reads) invisible: at 1:1 the "single pclk pulse"
+        r_time_regs_wr is captured on effectively every attempt, and the
+        "~30us-wide" second-tick set pulse is only one pclk cycle wide. The
+        GH#56 defect-regression suite (rtc_tests_medium.py) sets
+        TEST_RTC_CLOCK_PERIOD=100 (10:1) so cfg_clock_select=0 actually
+        crosses a real clock-domain boundary; cfg_clock_select=1 tests are
+        indifferent to rtc_clk's period entirely, so this ratio is safe to
+        apply for the WHOLE run rather than needing a second sim build.
+        """
+        apb_clock_period_ns = int(os.environ.get('TEST_APB_CLOCK_PERIOD', '10'))
+        rtc_clock_period_ns = int(os.environ.get('TEST_RTC_CLOCK_PERIOD', str(apb_clock_period_ns)))
+
+        # Start APB clock (100 MHz = 10ns period by default)
+        await self.start_clock('pclk', freq=apb_clock_period_ns, units='ns')
+
+        # Start RTC clock (possibly at a different, non-unity ratio to pclk -
+        # see the GH#56 note above). Uses start_rtc_clk() (below) rather than
+        # TBBase.start_clock() so the Clock coroutine's task handle is kept -
+        # GH#56 coordinator direction test 4 needs to stop and later restart
+        # this specific clock mid-test (a commit attempted while rtc_clk is
+        # not toggling must report a timeout, not hang silently).
+        self.rtc_clock_period_ns = rtc_clock_period_ns
+        await self.start_rtc_clk()
 
         # Perform reset sequence
         await self.assert_reset()
         await self.wait_clocks('pclk', 10)
         await self.deassert_reset()
         await self.wait_clocks('pclk', 5)
+
+    async def start_rtc_clk(self):
+        """(Re)start the rtc_clk driver, keeping the task handle so it can be
+        stopped later - see setup_clocks_and_reset()'s docstring and
+        stop_rtc_clk() below."""
+        self._rtc_clk_task = cocotb.start_soon(
+            Clock(self.dut.rtc_clk, self.rtc_clock_period_ns, units='ns').start()
+        )
+        await Timer(100, units='ps')
+
+    def stop_rtc_clk(self):
+        """Stop the rtc_clk driver (kills the Clock coroutine). The signal
+        freezes at whatever level it was last driven to rather than being
+        forced - this is what "the RTC clock has stopped" looks like on real
+        hardware (crystal removed / oscillator fault), and it is what GH#56
+        coordinator direction test 4 uses to exercise the time-set commit
+        handshake's timeout path."""
+        if getattr(self, '_rtc_clk_task', None) is not None:
+            self._rtc_clk_task.kill()
+            self._rtc_clk_task = None
+
+    async def assert_presetn(self):
+        """Assert ONLY the APB-domain reset, leaving rtc_resetn untouched.
+        GH#56 coordinator direction test 1: the time-set commit crosses via
+        the commit handshake (rtc_core.sv's cdc_*_phase_handshake instance -
+        deliberately not named here, since the RTL has already swapped which
+        primitive it uses once during this review and a hardcoded module
+        name in a comment is exactly the kind of doc that goes stale),
+        whose source side lives in the presetn domain and destination side
+        in the rtc_resetn domain - a reset that touches only one side is the
+        scenario the CDC library's own reset-section warning is about
+        (rtl/cdc/CLAUDE.md)."""
+        self.presetn.value = 0
+
+    async def deassert_presetn(self):
+        """Release ONLY the APB-domain reset - see assert_presetn_only()."""
+        self.presetn.value = 1
+
+    async def assert_rtc_resetn(self):
+        """Assert ONLY the RTC-domain reset, leaving presetn untouched -
+        the mirror leg of assert_presetn_only(), see its docstring."""
+        self.dut.rtc_resetn.value = 0
+
+    async def deassert_rtc_resetn(self):
+        """Release ONLY the RTC-domain reset - see assert_rtc_resetn_only()."""
+        self.dut.rtc_resetn.value = 1
 
     async def setup_components(self):
         """Initialize APB components (call after setup_clocks_and_reset)."""
@@ -165,28 +250,36 @@ class RTCTB(TBBase):
         self.log.info("RTC testbench components setup complete")
 
     async def assert_reset(self):
-        """Assert reset (MANDATORY METHOD)."""
-        self.presetn.value = 0           # Active-low APB reset
-        self.dut.rtc_resetn.value = 0    # Active-low RTC reset
+        """Assert reset (MANDATORY METHOD) - both domains together."""
+        await self.assert_presetn()
+        await self.assert_rtc_resetn()
 
     async def deassert_reset(self):
-        """Deassert reset (MANDATORY METHOD)."""
-        self.presetn.value = 1           # Release active-low APB reset
-        self.dut.rtc_resetn.value = 1    # Release active-low RTC reset
+        """Deassert reset (MANDATORY METHOD) - both domains together."""
+        await self.deassert_presetn()
+        await self.deassert_rtc_resetn()
 
     # ========================================================================
     # Register Access Methods
     # ========================================================================
 
-    async def write_register(self, addr: int, data: int) -> APBPacket:
-        """Write to RTC register using correct APB master API."""
+    async def write_register(self, addr: int, data: int, pstrb: int = 0xF) -> APBPacket:
+        """Write to RTC register using correct APB master API.
+
+        Returns:
+            APBPacket. ``.pslverr`` (and equivalently ``.fields['pslverr']``)
+            carries the APB slave error response sampled by the framework APB
+            master BFM (APBMaster._finish_xmit) once the transaction
+            completes - same convention as pit_tb.py/ioapic_tb.py, needed for
+            GitHub #56 contract H (address decode / PSLVERR).
+        """
         try:
             # Create APB packet
             write_packet = APBPacket(
                 pwrite=1,
                 paddr=addr,
                 pwdata=data,
-                pstrb=0xF,
+                pstrb=pstrb,
                 pprot=0,
                 data_width=32,
                 addr_width=12,
@@ -211,6 +304,8 @@ class RTCTB(TBBase):
                 timeout += 1
 
             await RisingEdge(self.dut.pclk)
+
+            write_packet.pslverr = write_packet.fields.get('pslverr', 0)
             return write_packet
 
         except Exception as e:
@@ -218,7 +313,13 @@ class RTCTB(TBBase):
             raise
 
     async def read_register(self, addr: int) -> Tuple[APBPacket, int]:
-        """Read from RTC register using correct APB master API."""
+        """Read from RTC register using correct APB master API.
+
+        Returns:
+            Tuple of (APBPacket, read_value). The packet's ``.pslverr`` (and
+            equivalently ``.fields['pslverr']``) carries the APB slave error
+            response - see write_register() for the same-timing rationale.
+        """
         try:
             # Create APB packet
             read_packet = APBPacket(
@@ -254,6 +355,8 @@ class RTCTB(TBBase):
             read_packet.fields['prdata'] = read_data
 
             await RisingEdge(self.dut.pclk)
+
+            read_packet.pslverr = read_packet.fields.get('pslverr', 0)
             return read_packet, read_data
 
         except Exception as e:
@@ -430,3 +533,85 @@ class RTCTB(TBBase):
 
         if clear_val:
             await self.write_register(RTCRegisterMap.RTC_STATUS, clear_val)
+
+    # ========================================================================
+    # GitHub #56 Whitebox Helpers (rtc_core internals)
+    # ========================================================================
+    #
+    # These directly poke/sample rtc_core's internal registers
+    # (dut.u_rtc_core.<signal>, per apb4_rtc.sv's instance name) rather than
+    # going through the APB register interface. Two independent reasons this
+    # suite needs them, matching the hpet/pm_acpi precedent
+    # (force_pm_timer_near_overflow in pm_acpi_tb.py):
+    #
+    # 1. Speed: production mode's real divider target is 32767 rtc_clk edges
+    #    per second (32768-tick divide). At the test's 10:1 ratio that is
+    #    327,680 pclk cycles (~3.3ms of sim time) per tick - waiting for a
+    #    NATURAL tick in every scenario would make the suite impractically
+    #    slow. Forcing r_clk_div_counter close to the target lets a test
+    #    reach a real tick in a handful of rtc_clk edges instead.
+    #
+    # 2. Isolation: contracts D/E/G/C are about the COUNTING/comparison logic
+    #    once a given time is loaded, not about the (separately broken, GH#56
+    #    contract A/B) time-SET mechanism. Loading r_seconds..r_year directly
+    #    lets those tests reach a specific calendar/hour state deterministically
+    #    without depending on whether a production-mode APB time-set happened
+    #    to land - conflating the two would make a calendar-logic test's
+    #    result depend on an unrelated CDC coin flip.
+
+    async def force_time_registers(self, seconds: int, minutes: int, hours: int,
+                                    day: int, month: int, year: int,
+                                    time_valid: bool = True):
+        """
+        Whitebox-load rtc_core's counting registers directly, bypassing the
+        (separately broken, GH#56 contract A/B) APB time-set path. Values are
+        raw byte encodings - pass BCD-encoded bytes (e.g. 0x59) when the core
+        is configured for BCD mode, binary otherwise, exactly like the
+        existing set_time()/read_time() convention.
+        """
+        core = self.dut.u_rtc_core
+        core.r_seconds.value = seconds & 0xFF
+        core.r_minutes.value = minutes & 0xFF
+        core.r_hours.value = hours & 0xFF
+        core.r_day.value = day & 0xFF
+        core.r_month.value = month & 0xFF
+        core.r_year.value = year & 0xFF
+        core.r_time_valid.value = 1 if time_valid else 0
+        self.log.info(
+            f"  [whitebox] forced rtc_core time regs -> "
+            f"{seconds:02x}:{minutes:02x}:{hours:02x} {day:02x}/{month:02x}/{year:02x}"
+        )
+
+    def read_time_registers_whitebox(self) -> Dict[str, int]:
+        """Sample rtc_core's counting registers directly (no APB round trip)."""
+        core = self.dut.u_rtc_core
+        return {
+            'seconds': int(core.r_seconds.value),
+            'minutes': int(core.r_minutes.value),
+            'hours': int(core.r_hours.value),
+            'day': int(core.r_day.value),
+            'month': int(core.r_month.value),
+            'year': int(core.r_year.value),
+        }
+
+    async def force_divider_near_target(self, clock_select: int, remaining_cycles: int = 2):
+        """
+        Whitebox-poke rtc_core.r_clk_div_counter so the NEXT (or next few)
+        selected_clk edges roll the second-tick divider over, instead of
+        waiting the real 100 (test mode) / 32768 (production mode) cycles.
+
+        Args:
+            clock_select: the cfg_clock_select value currently programmed
+                (0=rtc_clk/production, target=32767; 1=pclk/test, target=99) -
+                must match what CONFIG.clock_select actually holds, since that
+                is what rtc_core's own clk_div_target mux selects.
+            remaining_cycles: how many selected_clk edges before the forced
+                value rolls over (>=1).
+        """
+        target = 32767 if clock_select == 0 else 99
+        core = self.dut.u_rtc_core
+        core.r_clk_div_counter.value = max(0, target - remaining_cycles)
+        self.log.info(
+            f"  [whitebox] forced r_clk_div_counter -> "
+            f"{target - remaining_cycles} (target={target}, clock_select={clock_select})"
+        )

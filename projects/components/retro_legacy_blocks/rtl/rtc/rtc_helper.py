@@ -100,14 +100,18 @@ class RTCHelper:
             year: Year (0-99, representing 2000-2099)
             is_pm: PM indicator for 12-hour mode (ignored in 24-hour mode)
         """
-        # Enter time set mode
+        # Enter time set mode. The six writes below STAGE in the register
+        # block; clearing time_set_mode at the end is the commit that loads
+        # all six counters atomically in the counter clock domain, so the
+        # order and spacing of the writes does not matter.
         self.reg_map.write('RTC_CONFIG', 'time_set_mode', 1)
         
         # Write time values
         self.reg_map.write('RTC_SECONDS', 'seconds', seconds)
         self.reg_map.write('RTC_MINUTES', 'minutes', minutes)
         
-        # For 12-hour BCD mode, bit 7 indicates PM
+        # Bit 7 of the hours byte is the PM flag in 12-hour mode, in BOTH
+        # binary and BCD counting (it used to be BCD-only; GitHub #56 H6).
         if is_pm:
             hours_val = hours | 0x80
         else:
@@ -128,7 +132,11 @@ class RTCHelper:
     def read_time_config(self) -> Dict[str, int]:
         """
         Prepare to read current time (in actual usage, this would trigger a read).
-        
+
+        Read them in the order listed: a read of RTC_SECONDS opens the
+        coherency window that holds the other five at the same instant, so a
+        tick landing mid-burst cannot produce a mixed time.
+
         Returns:
             Dictionary with register names to read
         """

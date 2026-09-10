@@ -15,9 +15,11 @@ for the full field definitions.
 | `rtc_periodic_interrupt.json` | Second Tick | Fixed 1 Hz second-tick interrupt (no rate select) |
 
 An earlier `rtc_update_in_progress` diagram was removed: this RTC has no UIP
-flag or time-latch protocol. Safe reads are done by setting
-RTC_CONFIG.time_set_mode (which stops the counter) or by re-reading around a
-tick; the time-set protocol and its caveats are in
+flag. Coherent reads come from the seconds-first burst instead - a read of
+RTC_SECONDS returns the live seconds and latches minutes through year (with
+pm_indicator and time_valid) in the same cycle, and those hold until the
+next seconds read - and the time-set protocol is stage-then-commit on the
+falling edge of RTC_CONFIG.time_set_mode. Both are described in
 `ch05_registers/01_register_map.md` (ch04 is not yet written).
 
 ## Signal Hierarchy
@@ -29,14 +31,18 @@ tick; the time-set protocol and its caveats are in
 
 ### Clocks and Reset (External)
 - `pclk` / `presetn` - APB domain
-- `rtc_clk` - 32.768 kHz crystal domain input (a 1 Hz tick is derived
+- `rtc_clk` / `rtc_resetn` - counter domain (a 1 Hz tick is derived
   internally by a fixed divide-by-32768; there is no `rtc_1hz` input).
-  The `rtc_resetn` port exists but is CONNECTED TO NOTHING in the current
-  RTL -- the rtc-domain logic is reset by `presetn` (issue #56)
+  `rtc_resetn` is the counter domain's asynchronous reset, its release
+  synchronized onto the counter clock by `reset_sync`; `presetn` resets only
+  the bus side, and the commit handshake's source side is reset by `rtc_resetn`
+  alone, never by `presetn` alone. Every path between the two domains is an explicit crossing
+  on an `rtl/cdc` primitive (see ch01 architecture for the table)
 
 ### RTC Core (Internal)
-- **Tick:** `r_clk_div_counter`, `r_second_tick` (1 Hz, one `rtc_clk`
-  cycle wide)
+- **Tick:** `r_clk_div_counter`, `r_second_tick` (1 Hz, one counter-clock
+  cycle wide; synchronized and edge-detected in pclk before it sets the
+  sticky flag)
 - **Time counters:** `r_seconds`, `r_minutes`, `r_hours`, `r_day`, `r_month`,
   `r_year` (no day-of-week; rollover cascade seconds -> minutes -> hours ->
   day/month/year)
@@ -79,9 +85,9 @@ name is historical.
 ## Register Reference
 
 Offsets from `rtl/rtc/peakrdl/rtc_regs.rdl` (13 registers, 0x00-0x30; only
-PADDR[5:0] decoded, so the image repeats every 0x40 across the window --
-0x34-0x3F within each image reads 0 with no error; see ch05 for the
-aliased-write caveats):
+these thirteen addresses are decoded -- everything else in the 4 KB window,
+0x34-0x3C included, ignores writes, reads 0 and answers with PSLVERR; nothing
+aliases):
 
 | Register | Offset | Description |
 |----------|--------|-------------|

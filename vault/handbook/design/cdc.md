@@ -67,3 +67,108 @@ was forced on and invisible. `gaxi_skid_buffer_async` already complied.*
   group; check clock interaction before touching constraints.
 
 Related: [[signal-prefixes]], [[reset-and-clocking]], [[sizing-invariants]].
+
+## A handshake across independently reset domains: four-phase, and never a one-sided cancel
+
+Two rules from the rtc time-set commit (issue #56, 2026-09-09), each learned
+from a review finding after the fix looked done.
+
+*Rule 1: if the two domains can be reset independently, the transfer must be
+a four-phase request/acknowledge, not a two-phase toggle.* A toggle stores
+its state as parity, and parity cannot survive a reset on one side: the
+first rtc fix used `cdc_2_phase_handshake`, and a pclk-only reset then
+fabricated a commit of all-zero data (day 0, month 0, `time_valid` set),
+while an rtc_resetn-only reset replayed the last commit into the freshly
+reset counters. `docs/markdown/rtl-cdc/cdc.md` already states this rule; the
+fix was written without reading it.
+
+*Rule 2: a transfer that has timed out cannot be cancelled from one side.*
+The second rtc fix reset only the source of the four-phase on timeout, to
+"withdraw the request so a late-returning clock cannot deliver it". It made
+two new defects. The destination's copy of the request was already inside its
+synchronizer and the reset had zeroed the data-hold register, so when the
+clock returned the destination delivered zeros. And the destination's
+acknowledge is a level that only its own reset clears, so the source's next
+request completed against the stale acknowledge in one cycle and was never
+delivered at all. The honest design leaves the transfer pending with its data
+held, reports the timeout as "not acknowledged within the window; verify by
+reading back", and lets it land whenever the far clock returns. Cancelling
+needs both sides to agree, which is another handshake.
+
+*Rule 3: the source of a cross-domain handshake is reset by the FAR domain's
+reset, never by the near (bus) reset alone.* The third rtc review found the
+same zero-delivery through `presetn`: a bus-only reset cleared the source's
+data hold while the request was already inside the destination's
+synchronizer, and the destination then loaded zeros. Feed the source's reset
+port with the far reset synchronized into the near domain (`reset_sync`,
+async assert, sync deassert) and nothing else; the near reset clears the
+near-side bookkeeping (pending/busy) but not the transfer. A bus-only reset
+then leaves an in-flight commit to land intact, and a far-only reset resets
+both ends so the link is idle, which is what "the domains reset
+independently" has to mean. ("Reset when both are asserted" is the same
+thing said badly: written as an AND of active-low signals it resets on
+either, which is the defect.)
+
+*Rule 4: every flop that tracks the handshake's state must share the
+handshake's reset.* The fourth rtc review found the pending/busy flags and
+the timeout edge detector still on the bus reset after the source side had
+moved to the far reset. Two flops in one clock domain under different resets
+is a reset-domain crossing: a commit staged while the far domain was in
+reset hung busy forever (the primitive holds ready low, so nothing ever
+completed or timed out) and then loaded on release, undoing the reset; and
+an edge detector whose two flops reset on different signals manufactures an
+edge at release. Reset the bookkeeping with the OR of the near reset and the
+synchronized far reset, the same term the source side uses.
+
+*Rule 4, second half: the COMPLETION EVIDENCE shares that reset too.* The
+fifth rtc review found the bookkeeping correctly on the far reset while the
+snapshot pulse synchronizer that tells it "the load happened" still reset
+its destination side on the bus reset. A toggle synchronizer with one side
+reset is parity: a bus reset covering the load either destroyed the pulse
+(busy stuck forever, register file presenting reset defaults with
+time_valid=0) or fabricated one (the pre-commit time published as the
+commit's answer). Every synchronizer whose output clears or sets a
+bookkeeping flop is part of that bookkeeping and takes its reset.
+
+*Rule 5: a block that keeps state across a bus reset must not let the reset
+defaults of its register file cross into the kept domain.* An RTC keeps
+counting through `presetn`; but `rtc_enable` and `clock_select` live in the
+register file, reset to 0, and cross into the counter domain as levels, so a
+bus reset stopped the clock (a stale time with time_valid=1 after the reboot)
+and flipped the clock mux under a running domain. Cross the configuration
+together with a config-valid flag that every RTC_CONFIG write sets and
+`presetn` clears; the kept domain applies the crossed values only while the
+flag is set and otherwise holds its last state. Hold the clock-source select
+in a flop on the far reset for the same reason.
+
+*Rule 6: hold only quasi-static configuration; a transient control crosses
+live.* The same RTC latched `time_set_mode` into the configuration hold.
+It is a transient (software sets it, stages six bytes, clears it), so a
+`presetn` in the middle of that sequence cleared the register file's copy
+and the config-valid flag but not the hold's copy, and the divider stayed
+pinned at zero until software happened to write RTC_CONFIG again. The
+kept domain takes a transient from the synchronized crossing, masked by the
+crossed valid bit for the held copy, so the far side's reset clears it at
+the source and the pause releases on its own.
+
+*Rule 7: the valid bit crosses inside the bundle, behind the full
+synchronizer, and nothing consumes the first stage.* A valid flag that
+crosses in its own synchronizer resolves independently of the data it
+qualifies, so one destination clock can see valid=1 against the pre-write
+values; the first RTC_CONFIG write after a bus reset presented rtc_enable=0
+for a clock and zeroed the divider mid-second. Put the valid bit in the
+bundle and accept a word only when two consecutive samples of the FULL
+synchronizer output agree (a transition is caught by at most one sample).
+The fix as first landed shortened the chain to one flop "so the capture
+register is the second" and used that stage-1 output in the compare, the
+hold's data and a live control into the divider: a metastable stage-1 bit
+can read as equal to the comparator and as the other value at the hold's
+D input in the same cycle, so the filter proves nothing there. Depth is
+the house SYNC_STAGES on every crossing in the module; a test that needs
+the crossing one clock faster is the thing to fix.
+
+*How to check the fix:* the acceptance tests for a crossing must include a
+reset of each side alone with a transfer in flight, and a stop-then-restart
+of the far clock with the request already inside the destination's
+synchronizer. Tests that reset both sides together, or stop the clock before
+the request is issued, pass on both broken designs.

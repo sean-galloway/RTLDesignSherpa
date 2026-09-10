@@ -1,22 +1,35 @@
 %%{init: {'theme': 'neutral'}}%%
 flowchart LR
     subgraph APB_RTC["APB RTC"]
-        APB["APB Slave"]
-        CFG["rtc_config_regs"]
-        REGS["rtc_regs<br/>(PeakRDL)"]
-
-        subgraph CORE["rtc_core"]
-            TIME["Time Counter"]
-            ALARM["Alarm Comparator"]
+        subgraph PCLK["APB domain (pclk / presetn)"]
+            APB["APB Slave"]
+            CFG["rtc_config_regs<br/>(decode, staging, seconds-read latch)"]
+            REGS["rtc_regs<br/>(PeakRDL)"]
+            SHADOW["Time Shadow<br/>+ Sticky Flags"]
             INT_GEN["Interrupt Generator"]
-            BCD["BCD Logic"]
+        end
+
+        subgraph CORE["rtc_core - counter domain (rtc_clk, or pclk when clock_select=1)"]
+            RSYNC["reset_sync"]
+            TIME["Divider + Time Counters<br/>(binary calendar, BCD at the boundary)"]
+            ALARM["Alarm Comparator"]
         end
     end
 
     BUS["APB Bus"] --> APB
     APB --> CFG
     CFG --> REGS
-    REGS --> CORE
+    SHADOW --> CFG
+    SHADOW --> INT_GEN
 
-    CLK["32.768 kHz"] --> CORE
-    CORE --> IRQ["IRQ"]
+    CLK["32.768 kHz"] --> TIME
+    RST["rtc_resetn"] --> RSYNC
+    RSYNC --> TIME
+    TIME --> ALARM
+
+    CFG -. "config + alarm + valid<br/>3-flop sync + filter" .-> ALARM
+    CFG -. "time-set commit<br/>4-phase handshake, 48 b" .-> TIME
+    TIME -. "snapshot (sync_pulse)<br/>+ background 3-flop filter" .-> SHADOW
+    TIME -. "tick: 3-flop + edge" .-> SHADOW
+    ALARM -. "match: 3-flop + edge" .-> SHADOW
+    INT_GEN --> IRQ["IRQ"]
