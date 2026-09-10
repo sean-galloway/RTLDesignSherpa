@@ -4,6 +4,40 @@
 
 ---
 
+## PUMICE-025 — read bandwidth pinned at 48.7% of peak; the return path halves it
+**Status:** open 2026-09-10  **Priority:** P1 — the last gap to the 450 MB/s read target
+**Found by:** PUMICE-022 board characterization (see closed.md for the full table)
+
+Read bandwidth on silicon is **291.7-292.2 MB/s against a 600 MB/s peak** and
+does not move with burst length, access pattern, paging mode or scheduling
+mode. Write on the same runs reaches 574.0 MB/s (95.7% of peak).
+
+**What the invariance rules out.** bl4 / bl8 / bl16 measure 290.8 / 291.7 /
+291.7 -- identical. If the limit were the number of transactions in flight
+(generator `GEN_MAX_OUTSTANDING`, ring `RD_RET_DEPTH`, or a Little's-law
+round-trip bound) then doubling the bytes per transaction would raise
+bandwidth. It does not, so the limit is a per-cycle rate below the transaction
+layer, not a concurrency limit. Read latency is a flat 49.2 cycles throughout.
+
+**Hypothesis to test first:** the read return path delivers one AXI beat every
+other cycle where the write path delivers one per cycle. 292/600 = 48.7% is
+close enough to exactly half to be worth confirming before looking anywhere
+else. Candidates, in order of how cheaply they can be ruled out:
+1. The char harness's read CRC-check engine consuming R at half rate -- this
+   is the GENERATOR, not the controller, and would mean the controller is
+   fine. Rule this out FIRST; it is the cheapest and the most likely.
+2. `pumice_rd_return_ring` drain -- one beat per cycle through the BRAM skid
+   vs. the write path's rate.
+3. `pumice_dfi_rd_aligner` / `pumice_dfi_cdc` read FIFO width or pop rate.
+4. `pumice_rd_intake` R-channel assembly.
+
+The latency view (`rtl/schematics/gen_latency.py`) prints per-path flop counts
+and names the combinational feedthroughs for each of these blocks, which is the
+fastest way to compare the read and write drain structures side by side.
+
+Do NOT start by tuning the scheduler: every scheduling and paging mode gives
+the identical 291.7, so the scheduler is not the constraint.
+
 ## PUMICE-006 — QoS + advanced scheduling (post-cleanup)
 **Status:** MECHANISMS COMPLETE 2026-08-27 — all three axes implemented
 (Axis 1 scheduling, Axis 2 paging, Axis 3 refresh), every mode OFF by
@@ -346,38 +380,6 @@ rather than DRAM-side behaviour; the DFI meters stay as they are.
 **Not urgent.** Do it when the pumice harness is next opened for other reasons,
 not as a standalone change — it touches the bridge map and the harness CSR
 readback, and pumice bitstreams are on the critical path for the DDR2 work.
-
-## PUMICE-022 — board validation of the 2026-09-08 bandwidth work (arbiter mask, JEDEC timings, read ring, write gate)
-**Status:** open 2026-09-08  **Priority:** P1 — the 510 MB/s write / 450 MB/s read targets at 75 MHz
-
-Four sim-proven changes have not been on silicon:
-1. `a68856cb6` arbiter: occupancy mask gated on auto-precharge + AP carried
-   with the pick (same-bank OPEN columns at tCCD; issue-rate FUB 0.5 -> 1.0).
-2. host: `set_jedec_timings()` applied by every `pumice_char` config. Until
-   now the board ran every TIMINGS_* CSR at its RDL reset (tRCD/tRP 15 cycles
-   = 200 ns, tCCD 4 = 8 CK, tREFI 1950 = 26 us). `PUMICE_MC_CLK_HZ=75000000`
-   for the 75 MHz build; the 100 MHz default is never-fewer-cycles safe.
-3. `8123ac1f3` read return ring (RD_RET_DEPTH=32): CAM frees at issue.
-4. the AP-gated column mask, parked in 32c3a9cdc and re-enabled by the
-   write-lead block (item 5 below).
-
-Post-synth at 75 MHz on 32c3a9cdc (fresh timing_summary_synth.txt -- NOT the
-`make timing` summary, which prints the last POST-ROUTE report, this morning's
-bitstream): WNS +0.885, 0 failing endpoints of 86376, LUT 45.5%, FF 20.7%.
-Post-route will be tighter; `make bitstream` is the real gate.
-
-**What to measure** (`pumice_char.measure`, open_interleave + baseline):
-write BW before/after 1+2 (ILA cadence was 3 columns then ~9 idle = the
-tCCD=4 gate); read BW after 3 (the 180 MB/s was the controller's 8-entry
-Little's-law bound -- the generator's "one outstanding AR" note was a stale
-header comment; its AR path is decoupled and both generators now carry a
-`MAX_OUTSTANDING` parameter, default 8, `GEN_MAX_OUTSTANDING` on the macro).
-Then a fresh ILA of `w_cmd_v` duty. Rebuild the bitstream first
-(build-perf `make bitstream`); the current one predates all of this.
-5. (2026-09-09) the write-lead block: rate-matched WR commit
-   (`WR_DRAIN_AHEAD`=2), fixed command release delay (`CMD_DELAY`=6), the
-   DFI write-staged token as a counted invariant, live commit/issue re-check
-   at the arbiter output -- and with it both column masks AP-gated again.
 
 ## PUMICE-023 — the char-framework sim is the board gate and must run before any pumice RTL commit
 **Status:** open 2026-09-08  **Priority:** P1

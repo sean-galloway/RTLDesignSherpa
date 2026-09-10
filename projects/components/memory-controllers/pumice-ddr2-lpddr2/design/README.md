@@ -1141,3 +1141,44 @@ What this does NOT fix is the throughput half of the same cone: the
 column-to-next-ACT head advance is still 8 cycles, so strict in-order under
 the auto-precharge paging modes still pays the pick pipeline twice per access
 (PUMICE-021). That is a deeper change than moving a mux.
+
+### ON SILICON (2026-09-10): write target MET at 570 MB/s; read pinned at 48.7% of peak
+
+Nexys A7 210292BFA3EE, 75 MHz / DDR2-300, base-tier bitstream at 3c66f442d.
+Peak 600 MB/s. Leveling clean (bitslip 0, tap 4, eye width 10), 32 MB memtest
+8/8 chunks 0 dirty, every characterization point integrity-clean.
+
+| Direction | Measured | Target | % peak |
+|---|---|---|---|
+| Write | 574.0 MB/s | 510 | 95.7% |
+| Read  | 292.2 MB/s | 450 | 48.7% |
+
+The same path measured 12.7 MB/s flat in July. Writes are now at the data-path
+limit; the whole write-lead block, the JEDEC timings and the paging work land
+as intended on hardware.
+
+READ IS A HARD CEILING, and the invariance is the finding. 291.7-292.2 MB/s
+and 49.2 cycles latency in every configuration that streams, unchanged by
+burst length (bl4 290.8 / bl8 291.7 / bl16 291.7), access pattern, paging mode
+or scheduling mode. Identical numbers at bl16 rule out any
+transaction-concurrency or Little's-law bound -- more bytes per transaction
+would have moved it. So it is a per-cycle rate below the transaction layer.
+48.7% of peak against a write path at 95.7% points at a return path moving one
+AXI beat every other cycle. Tracked as PUMICE-025, which says to rule out the
+harness's read CRC engine FIRST (it is the generator, not the controller) and
+explicitly not to tune the scheduler, since every scheduling mode gives the
+identical number.
+
+Mode characterization, row_major BL8, write/read MB/s: refresh_credit
+574.0/292.2 (best), adapt_time 570.3/291.7, open_page 570.0/291.7,
+adapt_access 570.0/291.7, rbl_dyn 570.0/291.7, age_thr 570.0/291.7,
+rbl_static 33.8/36.9, inorder 33.8/36.9.
+
+Two results worth keeping. **rbl_dyn vindicates the dynamic threshold**:
+rbl_static at the same base miss threshold collapses to 33.8 MB/s because it
+closes pages under a streaming pattern, while rbl_dyn's per-epoch hill-climb
+backs the threshold off and recovers full bandwidth. That is exactly the
+situational win the mode work exists to show, and only real traffic shows it.
+**age_threshold is free** -- identical to FR-FCFS until it engages -- so it,
+not in_order, is the mode to reach for when latency bounding is the goal;
+in_order costs 17x on this pattern, matching the sim prediction.
