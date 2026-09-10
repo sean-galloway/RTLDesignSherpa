@@ -807,6 +807,15 @@ class APBMasterTB(TBBase):
         )
 
 
+# Slave wait states for the wavedrom capture. TWO, not one, and not random:
+# the read/write constraints order transitions STRICTLY, so PREADY's 0->1 edge
+# must land strictly after PENABLE's. One wait state puts them on the same
+# edge and the solver matches nothing (measured: delay 1 loses both
+# apb_write_sequence and apb_read_sequence; 2, 3 and 4 all capture all seven
+# scenarios). Override to explore: WD_READY_DELAY=<n>.
+_WD_READY_DELAY = int(os.environ.get('WD_READY_DELAY', '2'))
+
+
 @cocotb.test(timeout_time=10, timeout_unit="sec")
 async def apb4_master_wavedrom_test(dut):
     """
@@ -844,6 +853,28 @@ async def apb4_master_wavedrom_test(dut):
 
     # Setup testbench
     tb = APBMasterTB(dut)
+
+    # The slave answers with a FIXED number of wait states for this test, and
+    # that is a correctness requirement of the capture, not a preference
+    # (TASK-085).
+    # The read constraint is the ordered sequence PSEL(0->1) -> PWRITE==0 ->
+    # PENABLE(0->1) -> PREADY(0->1), and the solver orders transitions
+    # STRICTLY, so it can only match a read that has at least one wait state.
+    # The default 'constrained' slave profile draws ready-delay 0 five times in
+    # nine; a run whose reads all draw 0 offers the solver nothing to match and
+    # fails with "Required waveforms not generated: ['apb_read_sequence']".
+    # Measured: SEED=56798 drew 0 for all five reads (~5% of seeds). Pinning
+    # SEED was the old mitigation and a regression that exports SEED walks
+    # straight past it. A fixed _WD_READY_DELAY makes every transfer
+    # capturable by construction, whatever the seed.
+    #
+    # NOTE: a zero-wait-state read is legal APB and the constraint cannot
+    # describe it -- that gap is real and unrelated to this test's determinism.
+    tb.apb4_slave.randomizer = FlexRandomizer({
+        'ready': ([(_WD_READY_DELAY, _WD_READY_DELAY)], [1]),
+        'error': ([(0, 0)], [1]),
+    })
+
     await tb.start_clock('pclk', 10, 'ns')
     await tb.reset_dut()
     await tb.wait_clocks('pclk', 5)

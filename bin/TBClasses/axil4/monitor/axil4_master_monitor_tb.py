@@ -324,10 +324,21 @@ class AXIL4MasterMonitorTB(TBBase):
             self.log.error("❌ Basic connectivity test FAILED!")
             raise RuntimeError("Basic connectivity failed")
 
-        # Wait for monitor packets
-        await self.wait_clocks('aclk', 20)
-
-        packets = len(self.mon_slave.received_packets)
+        # Wait for the completion packet. The monitor asserts monbus_valid and
+        # HOLDS it until accepted (proper AXI handshake), so the packet is
+        # guaranteed to arrive -- but the MonbusSlave's ready can stall: its
+        # default randomizer has a (9,30)-cycle bin, drawn about one time in
+        # eight. A fixed 20-cycle wait raced that stall and lost outright on
+        # some seeds -- TASK-085, where SEED=54803 held monbus_valid from 290 ns
+        # to the end of the sim with ready never granted. Poll instead, bounded,
+        # so the check is deterministic whatever the slave's ready timing.
+        # (The AXI4/AXI5 monitor TBs were fixed this way; the Lite pair was not.)
+        packets = 0
+        for _ in range(100):
+            await self.wait_clocks('aclk', 1)
+            packets = len(self.mon_slave.received_packets)
+            if packets > 0:
+                break
         self.log.info(f"Monitor packets after basic test: {packets}")
 
         if packets == 0:

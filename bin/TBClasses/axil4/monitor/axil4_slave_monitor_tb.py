@@ -296,9 +296,19 @@ class AXIL4SlaveMonitorTB(TBBase):
             self.log.error("❌ Basic connectivity test FAILED!")
             raise RuntimeError("Basic connectivity failed")
 
-        await self.wait_clocks('aclk', 50)  # Give monitor time to generate packets
-
-        packets = len(self.mon_slave.received_packets)
+        # Bounded poll, not a fixed wait: the monitor holds monbus_valid until
+        # accepted, but the MonbusSlave's default ready randomizer has a
+        # (9,30)-cycle bin drawn about one time in eight. A fixed wait races
+        # that stall and loses outright on some seeds -- TASK-085, where the
+        # axil4/axil5 master TBs' 20-cycle version failed deterministically on
+        # SEED=54803 and SEED=66068. 50 cycles is a wider margin than 20, not a
+        # different mechanism.
+        packets = 0
+        for _ in range(100):
+            await self.wait_clocks('aclk', 1)
+            packets = len(self.mon_slave.received_packets)
+            if packets > 0:
+                break
         self.log.info(f"Monitor packets after basic test: {packets}")
 
         if packets == 0:
