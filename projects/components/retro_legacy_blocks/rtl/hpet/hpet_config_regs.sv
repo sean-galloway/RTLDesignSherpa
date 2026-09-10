@@ -265,10 +265,14 @@ module hpet_config_regs #(
     // instantiation, which is why the ID fields are driven through hwif_in
     // from this module's parameters instead.
 
+    // PeakRDL's regblock takes an ACTIVE-HIGH reset whatever the build
+    // uses. Ask the macro whether reset is asserted rather than
+    // inverting rst_n by hand: `~rst_n` is correct only while the
+    // build is active-low, and under -DRESET_ACTIVE_HIGH it held the
+    // whole register file in reset forever (RLB-012).
     hpet_regs u_hpet_regs (
         .clk                (clk),
-        .rst                (~rst_n),  // PeakRDL uses active-high reset
-
+        .rst                (`RST_ASSERTED(rst_n)),
         // Passthrough CPU interface
         .s_cpuif_req        (regblk_req),
         .s_cpuif_req_is_wr  (regblk_req_is_wr),

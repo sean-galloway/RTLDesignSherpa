@@ -206,10 +206,14 @@ module gpio_config_regs
     // ========================================================================
     // PeakRDL Register Block
     // ========================================================================
+    // PeakRDL's regblock takes an ACTIVE-HIGH reset whatever the build
+    // uses. Ask the macro whether reset is asserted rather than
+    // inverting rst_n by hand: `~rst_n` is correct only while the
+    // build is active-low, and under -DRESET_ACTIVE_HIGH it held the
+    // whole register file in reset forever (RLB-012).
     gpio_regs u_gpio_regs (
         .clk        (clk),
-        .rst        (~rst_n),  // PeakRDL uses active-high reset
-
+        .rst        (`RST_ASSERTED(rst_n)),
         // PeakRDL cpuif interface (from peakrdl_to_cmdrsp)
         .s_cpuif_req            (regblk_req),
         .s_cpuif_req_is_wr      (regblk_req_is_wr),

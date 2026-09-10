@@ -340,10 +340,14 @@ module ioapic_config_regs
     // Instantiate PeakRDL-Generated Register Block
     //========================================================================
 
+    // PeakRDL's regblock takes an ACTIVE-HIGH reset whatever the build
+    // uses. Ask the macro whether reset is asserted rather than
+    // inverting rst_n by hand: `~rst_n` is correct only while the
+    // build is active-low, and under -DRESET_ACTIVE_HIGH it held the
+    // whole register file in reset forever (RLB-012).
     ioapic_regs u_ioapic_regs (
         .clk                (clk),
-        .rst                (~rst_n),  // PeakRDL uses active-high reset
-
+        .rst                (`RST_ASSERTED(rst_n)),
         // Passthrough CPU interface. regblk_addr is always one of the 8-bit
         // constants named above (top register is 0xD0), never a slice of the
         // APB address, so nothing is truncated on the way in.

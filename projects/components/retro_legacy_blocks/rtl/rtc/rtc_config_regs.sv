@@ -595,9 +595,14 @@ module rtc_config_regs
     // PeakRDL Generated Register File
     //========================================================================
 
+    // PeakRDL's regblock takes an ACTIVE-HIGH reset whatever the build
+    // uses. Ask the macro whether reset is asserted rather than
+    // inverting rst_n by hand: `~rst_n` is correct only while the
+    // build is active-low, and under -DRESET_ACTIVE_HIGH it held the
+    // whole register file in reset forever (RLB-012).
     rtc_regs u_rtc_regs (
         .clk                   (clk),
-        .rst                   (~rst_n),  // Convert active-low to active-high
+        .rst                   (`RST_ASSERTED(rst_n)),
         .s_cpuif_req           (regblk_req),
         .s_cpuif_req_is_wr     (regblk_req_is_wr),
         .s_cpuif_addr          (regblk_addr),
