@@ -99,10 +99,14 @@ class WB4MasterTB(TBBase):
     # ---- mandatory ------------------------------------------------------
     async def setup_clocks_and_reset(self):
         await self.start_clock(self.clk_name, 10, 'ns')
+        self._pre_reset()
         await self.assert_reset()
         await self.wait_clocks(self.clk_name, 10)
         await self.deassert_reset()
         await self.wait_clocks(self.clk_name, 5)
+
+    def _pre_reset(self):
+        """Hook for variants that need configuration pins set before reset."""
 
     async def assert_reset(self):
         self.rst_n.value = 0

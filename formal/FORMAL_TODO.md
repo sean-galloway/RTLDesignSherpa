@@ -397,7 +397,7 @@ shifter_lfsr_galois, sort, debounce, pwm, reset_sync, cdc_handshake, cdc_synchro
 
 ### rtl/amba/ -- 43 of 46 PASS
 
-wb4_master, wb4_slave, wb4_monitor, converters/axil4_to_wb4_core (2026-09-09, in-RTL properties, sv2v flatten),
+wb4_master, wb4_slave, wb4_monitor, wb4_retry, wb4_master_cg, wb4_slave_cg, wb4_slave_cdc, converters/axil4_to_wb4_core (2026-09-09, in-RTL properties, sv2v flatten),
 apb4_master, apb4_slave, apb5_master, apb5_slave, apb4_monitor, apb5_monitor,
 apb4_slave_cdc, apb5_slave_cdc, axis4_master, axis4_slave, axi_split_combi (prove only),
 cdc_handshake, cdc_synchronizer, monbus_arbiter (via common),

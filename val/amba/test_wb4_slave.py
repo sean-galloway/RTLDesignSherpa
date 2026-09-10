@@ -29,14 +29,7 @@ from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_pat
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # (WB4Master profile, cmd GAXI profile, rsp GAXI profile)
-PHASES = [
-    ('fixed',  'fixed',       'fixed'),
-    ('fixed',  'backtoback',  'backtoback'),
-    ('gappy',  'burst_pause', 'fast'),
-    ('fixed',  'fast',        'burst_pause'),
-    ('sparse', 'constrained', 'constrained'),
-]
-COUNTS = {'gate': 60, 'func': 200, 'full': 400}
+from wb4_test_common import SLAVE_PHASES as PHASES, COUNTS  # noqa: E402
 
 
 @cocotb.test(timeout_time=20, timeout_unit="ms")

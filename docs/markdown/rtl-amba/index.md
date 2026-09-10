@@ -46,6 +46,10 @@ Open-standard peripheral bus; the pair speaks B4 pipelined mode behind the same 
 - **[wb4_master](wb4/wb4_master.md)** - Pipelined Wishbone master with command/response queues; credit-gated issue, RTY reported as status
 - **[wb4_slave](wb4/wb4_slave.md)** - Pipelined Wishbone slave with command/response queues; in-order registered termination, orphan-response guard
 - **[wb4_monitor](wb4/wb4_monitor.md)** - Monitor on the wb4 queues emitting PROTOCOL_WB monitor bus packets; in-order tracking, timeouts, latency, address-range check
+- **[wb4_retry](wb4/wb4_retry.md)** - RTY retry block on the FUB side of the master; in-order completion buffer, budget and delay
+- **[wb4_master_retry](wb4/wb4_master_retry.md)** - wb4_retry + wb4_master with the master's ports
+- **[wb4_master_cg](wb4/wb4_master_cg.md)** / **[wb4_slave_cg](wb4/wb4_slave_cg.md)** - Clock-gated variants (amba_clock_gate_ctrl, runtime enable/idle count)
+- **[wb4_slave_cdc](wb4/wb4_slave_cdc.md)** - Slave with its queues crossed to another clock domain (two gaxi_fifo_async)
 
 ### APB4 (Advanced Peripheral Bus)
 

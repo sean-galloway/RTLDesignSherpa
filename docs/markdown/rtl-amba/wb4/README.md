@@ -25,7 +25,7 @@
 
 **Location:** `rtl/amba/wb4/`
 **Test Location:** `val/amba/`
-**Status:** New (2026-09-09); master, slave and monitor with sim and formal collateral
+**Status:** New (2026-09-09); master, slave, monitor, retry, clock-gated and CDC variants with sim and formal collateral
 
 ---
 
@@ -64,7 +64,7 @@ AMBA 4 APB.
   formal harnesses run each mode against a peer of the same mode.
 - **RTY is a status, not a retry.** Every termination is returned to the FUB
   as `rsp_status` = ACK (0), ERR (1) or RTY (2). The master does not re-issue
-  on RTY; the FUB decides. The encoding is `wb4_pkg`.
+  on RTY; the FUB decides, or `wb4_retry` decides for it. The encoding is `wb4_pkg`.
 - **Not implemented, deliberately:** `CTI`/`BTE` burst hints (advisory in
   B4; the pipelined queues already give the throughput they recover),
   `LOCK`, `TGA`/`TGC`/`TGD` tags.
@@ -80,7 +80,16 @@ AMBA 4 APB.
   reports completions, errors, timeouts, latency and address-range hits as
   monitor bus packets tagged `PROTOCOL_WB`; in-order tracking queue, since
   B4 terminates in issue order
-- `wb4_pkg` - the response-status encoding shared by all three and the DV
+- **[wb4_retry](wb4_retry.md)** - RTY retry on the FUB side of the master:
+  in-order completion buffer, re-issue up to a budget with a delay, the FUB
+  sees RTY only once the budget is spent; **[wb4_master_retry](wb4_master_retry.md)**
+  is the block and the master together
+- **[wb4_master_cg](wb4_master_cg.md)**, **[wb4_slave_cg](wb4_slave_cg.md)** -
+  the clock-gated variants (`amba_clock_gate_ctrl`, runtime enable and idle
+  count, output valids masked for the wake overlap)
+- **[wb4_slave_cdc](wb4_slave_cdc.md)** - the slave with its queues carried
+  to another clock domain over two `gaxi_fifo_async` instances
+- `wb4_pkg` - the response-status encoding shared by the family and the DV
 
 ### Reset and clock naming
 

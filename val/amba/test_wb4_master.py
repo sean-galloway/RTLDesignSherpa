@@ -35,16 +35,7 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 # without it the response queue overflows and a response is lost. With a
 # slower consumer the credit is shared with queued responses and the peak on
 # the wires is lower by design.
-PHASES = [
-    ('fixed',      'fixed',       'fixed'),
-    ('backtoback', 'backtoback',  'slow_ack'),
-    ('fast',       'burst_pause', 'slow_ack'),
-    ('backtoback', 'backtoback',  'fixed'),
-    ('fast',       'fast',        'slow_ack'),
-    ('fast',       'burst_pause', 'stally'),
-    ('constrained', 'constrained', 'mixed'),
-]
-COUNTS = {'gate': 60, 'func': 200, 'full': 400}
+from wb4_test_common import MASTER_PHASES as PHASES, COUNTS  # noqa: E402
 
 
 @cocotb.test(timeout_time=20, timeout_unit="ms")

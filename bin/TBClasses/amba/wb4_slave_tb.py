@@ -50,9 +50,17 @@ MASTER_PROFILES = {
 class WB4SlaveTB(TBBase):
     def __init__(self, dut):
         super().__init__(dut)
-        self.clk = dut.clk
-        self.clk_name = 'clk'
+        # Two clock domains for the CDC variant (WB_CLK / FUB_CLK name the
+        # Wishbone-side and queue-side clocks; both default to 'clk').
+        self.wb_clk_name = os.environ.get('WB_CLK', 'clk')
+        self.fub_clk_name = os.environ.get('FUB_CLK', 'clk')
+        self.wb_period = int(os.environ.get('WB_CLK_PERIOD', '10'))
+        self.fub_period = int(os.environ.get('FUB_CLK_PERIOD', '10'))
+        self.clk = getattr(dut, self.wb_clk_name)          # Wishbone side
+        self.fub_clk = getattr(dut, self.fub_clk_name)     # queue side
+        self.clk_name = self.wb_clk_name
         self.rst_n = dut.aresetn
+        self.wb_rst_n = getattr(dut, 'wb_resetn', None)     # CDC variant only
         self.AW = self.convert_to_int(os.environ.get('ADDR_WIDTH', '32'))
         self.DW = self.convert_to_int(os.environ.get('DATA_WIDTH', '32'))
         self.SW = self.DW // 8
@@ -82,11 +90,11 @@ class WB4SlaveTB(TBBase):
                                               display_width=(self.DW + 3) // 4))
 
         self.cmd = create_gaxi_slave(
-            dut, 'CMD', '', self.clk, field_config=self.cmd_fc, pkt_prefix='cmd',
+            dut, 'CMD', '', self.fub_clk, field_config=self.cmd_fc, pkt_prefix='cmd',
             randomizer=FlexRandomizer(AXI_RANDOMIZER_CONFIGS['fixed']['slave']),
             memory_model=None, log=self.log, multi_sig=True)
         self.rsp = create_gaxi_master(
-            dut, 'RSP', '', self.clk, field_config=self.rsp_fc, pkt_prefix='rsp',
+            dut, 'RSP', '', self.fub_clk, field_config=self.rsp_fc, pkt_prefix='rsp',
             randomizer=FlexRandomizer(AXI_RANDOMIZER_CONFIGS['fixed']['master']),
             memory_model=None, log=self.log, multi_sig=True)
         self.cmd.add_callback(self._on_cmd)
@@ -102,20 +110,30 @@ class WB4SlaveTB(TBBase):
 
     # ---- mandatory ------------------------------------------------------
     async def setup_clocks_and_reset(self):
-        await self.start_clock(self.clk_name, 10, 'ns')
+        await self.start_clock(self.wb_clk_name, self.wb_period, 'ns')
+        if self.fub_clk_name != self.wb_clk_name:
+            await self.start_clock(self.fub_clk_name, self.fub_period, 'ns')
+        self._pre_reset()
         await self.assert_reset()
         await self.wait_clocks(self.clk_name, 10)
         await self.deassert_reset()
         await self.wait_clocks(self.clk_name, 5)
         self._responder = cocotb.start_soon(self._respond())
 
+    def _pre_reset(self):
+        """Hook for variants that need configuration pins set before reset."""
+
     async def assert_reset(self):
         self.rst_n.value = 0
+        if self.wb_rst_n is not None:
+            self.wb_rst_n.value = 0
         self.dut.cmd_ready.value = 0
         self.dut.rsp_valid.value = 0
 
     async def deassert_reset(self):
         self.rst_n.value = 1
+        if self.wb_rst_n is not None:
+            self.wb_rst_n.value = 1
 
     def set_profiles(self, master='fixed', cmd='fixed', rsp='fixed'):
         self.master.set_randomizer(FlexRandomizer(MASTER_PROFILES[master]))

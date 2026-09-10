@@ -203,3 +203,24 @@ from ~5 minutes to ~70 seconds.
 *The rule:* one runner module may carry more than one cocotb test only if
 every `run()` in it names its `testcase`. A pass that appears or disappears
 with the number of tests in the module is this, not a flake.
+
+## A test file must not import another test file; a helper must not name the module
+
+Two more shapes of the same discovery rule, both met on 2026-09-09 while the
+wb4 variant tests were written:
+
+- **`from test_wb4_master import PHASES` runs the master's cocotb test inside
+  the slave's build.** `@cocotb.test()` registers at import time, so importing
+  a test module for its tables (a phase list, a count table, a runner helper)
+  hands its cocotb tests to every module that imports it. The slave-variant
+  tests failed with the master TB's constructor in the traceback. Shared
+  tables and runners go in a helper module with no cocotb tests
+  (`val/amba/wb4_test_common.py`).
+- **A runner helper that calls `get_paths()` passes ITS OWN basename as the
+  cocotb module, and cocotb reports a pass with nothing simulated.** Moving
+  the `run()` wrapper into that helper made six tests "pass" in 16 s with no
+  per-test log written at all: cocotb loaded `wb4_test_common`, found no
+  tests, and exited 0. The helper must derive the module from the test file
+  (`request.fspath`), and a run whose per-test log does not exist did not run.
+  The tell is the same as [[running-regressions]]'s: a suite that finishes
+  faster than it possibly could.
