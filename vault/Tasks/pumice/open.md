@@ -19,6 +19,34 @@ round-trip bound) then doubling the bytes per transaction would raise
 bandwidth. It does not, so the limit is a per-cycle rate below the transaction
 layer, not a concurrency limit. Read latency is a flat 49.2 cycles throughout.
 
+**Burst length is the fundamental constraint, and it is NOT read-specific.**
+The board runs BL4 (host forces `MR0=0x0432` and `bl=4`; the RDL default is
+BL8/0x0433). On a x16 device BL4 is 4 transfers = 8 bytes, and 4 transfers at
+300 MT/s is 2 CK = exactly ONE MC cycle at 75 MHz. So sustaining 600 MB/s
+demands a column command EVERY MC cycle, on a single-issue command bus: 100%
+of command slots must be columns, leaving ZERO for ACT, PRE or REF. Every
+activate or precharge costs a full column slot -- 8 bytes -- one for one. That
+is why the measured split is binary (570 page-open vs 34 page-closed) with
+nothing in between, and it caps how much any scheduler can ever recover.
+
+BL8 would halve the command pressure: 16 bytes per column, each burst
+occupying 2 MC cycles, so a column every OTHER cycle saturates and the other
+half is free for ACT/PRE/REF. That is the single biggest architectural lever
+available and it is worth a build.
+
+**Runtime BL8 does NOT work and needs a rebuild.** Tried 2026-09-10 with
+`TEST_MR0=0x0433 TEST_DRAM_BL=8` on the BL4 bitstream: a 16 MB memtest passed
+4/4 clean, but the characterization workload was **0/8 integrity** and
+bandwidth did not move. The simple memtest is not a sufficient check for this
+change. `DRAM_BL` is a compile-time parameter in `ddr2_char_top.sv`
+(BURST_LEN_MULTIPLE, harness sizing, column stride) as well as a runtime CSR,
+so BL8 requires rebuilding the bitstream with `DRAM_BL = 8`, not just an MR
+write. Board was restored to BL4 and re-verified clean afterwards.
+
+But note that BL4 does NOT explain the read/write asymmetry: both directions
+need the same one-column-per-cycle rate, and writes achieve 95% of it while
+reads achieve 49%. The asymmetry below is still an implementation property.
+
 **Hypothesis:** the read return path delivers one AXI beat every other cycle
 where the write path delivers one per cycle. 292/600 = 48.7% is close enough to
 exactly half to be worth confirming. With the generator ruled out (below), the
