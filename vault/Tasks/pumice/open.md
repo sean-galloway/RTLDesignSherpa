@@ -4,6 +4,51 @@
 
 ---
 
+## PUMICE-026 — drop LiteDRAM into the pumice harness for a like-for-like A/B
+**Status:** open 2026-09-10  **Priority:** P2 — the comparison is only meaningful same-harness
+**Intent (Sean, 2026-09-10):** "drop liteddr into the pumice harness so testing
+is the same."
+
+Every LiteDRAM number we have was measured through LiteDRAM's OWN BIST driving
+its OWN user port. pumice's numbers come from the char harness's AXI pattern
+generators and perf counters. Different traffic, different measurement, so the
+two are a reference point and not an A/B. The comparison that settles anything
+puts LiteDRAM behind the SAME generators.
+
+`build-litedram/` was scaffolded for exactly this (`FLOW := litedram_char`,
+`TOP := litedram_char_top`, `rtl/filelists/litedram_char_harness.f`) and is
+still empty apart from its Makefile.
+
+**Shape of the work:**
+1. `litedram_gen` a standalone DDR2 core for this board's pin-out with a user
+   port the harness can drive, and — critically — the core's **built-in init
+   sequencer**. See the trap below.
+2. Wrap it as `litedram_char_top` presenting the same AXI the harness drives.
+3. Reuse the existing pattern generators, perf counters and host program
+   unchanged. Only the controller changes.
+
+**Trap, already paid for once (2026-09-10).** A LiteX SoC built
+`--cpu-type=None --uart-name=uartbone` produces a clean timing-met bitstream
+and gives a host CSR access with no software stack, but the BIST returns in
+1-21 ticks with rising errors: LiteDRAM's DDR2 initialisation and levelling
+are done by its **BIOS**, so with no CPU the DRAM is never brought up. Hence
+the standalone-core generator rather than the SoC path.
+
+Working tooling recipe, install notes, the RISC-V toolchain location, and the
+PyPI-vs-git version trap are written up in
+`build-litedram/results/2026-09-10_litedram_status.md`, with the two scripts
+that do build under `build-litedram/bin/`. It has now been re-derived from
+scratch twice because /tmp is cleared between sessions; it should not be a
+third time.
+
+**Why it still matters even though pumice currently looks ahead** (570.0 vs
+528 MB/s write, 291.7 vs 283 MB/s read): LiteDRAM's read is also ~47% of the
+raw ceiling while its write reaches 88%. Two independent controllers landing
+at the same read fraction on the same board is the strongest evidence yet that
+the read ceiling is a property of this operating point, not a pumice defect
+(PUMICE-025). Confirming that same-harness would redirect, or justify, the
+whole read-path investigation.
+
 ## PUMICE-025 — read bandwidth pinned at 48.7% of peak; the return path halves it
 **Status:** open 2026-09-10  **Priority:** P1 — the last gap to the 450 MB/s read target
 **Found by:** PUMICE-022 board characterization (see closed.md for the full table)
