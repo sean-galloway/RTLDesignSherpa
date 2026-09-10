@@ -42,7 +42,7 @@ Both directions get a 16-byte FIFO between software and the serial line, and the
 | 0 | FE | FIFO Enable |
 | 1 | RFR | RX FIFO Reset |
 | 2 | TFR | TX FIFO Reset |
-| 3 | DMS | DMA Mode Select (stored; no effect -- the core never reads it) |
+| 3 | DMS | DMA Mode Select: 0 = per character, 1 = per block, on rxrdy_n/txrdy_n |
 | 5:4 | Reserved | |
 | 7:6 | RTL | RX Trigger Level |
 
@@ -127,7 +127,7 @@ Both directions get a 16-byte FIFO between software and the serial line, and the
 
 - 16-byte FIFOs, trigger-level RX interrupt
 - IIR[7:6] = 11
-- (Character-timeout interrupt is not implemented in this RTL)
+- (Character-timeout interrupt: four character times of inactivity, IIR 0x0C)
 
 ### Error Handling
 

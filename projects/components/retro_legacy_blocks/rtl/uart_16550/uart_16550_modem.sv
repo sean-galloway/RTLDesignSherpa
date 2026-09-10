@@ -53,6 +53,13 @@ module uart_16550_modem #(
     // MCR
     input  logic cfg_dtr,
     input  logic cfg_rts,
+    // Auto flow control: with AFE set, RTS is driven from the receiver's
+    // own occupancy rather than from MCR[1], so the far end is told to stop
+    // before the FIFO overruns. MCR[1] still has to be set for RTS to be
+    // asserted at all - AFE decides when to DEASSERT it, it does not
+    // override a deliberate deassertion by software.
+    input  logic cfg_afe,
+    input  logic rx_hold_off,   // RX FIFO at or above the trigger level
     input  logic cfg_out1,
     input  logic cfg_out2,
     input  logic cfg_loopback,
@@ -146,7 +153,7 @@ module uart_16550_modem #(
 
     // Modem outputs
     assign dtr_n  = ~cfg_dtr;
-    assign rts_n  = ~cfg_rts;
+    assign rts_n  = ~(cfg_rts && !(cfg_afe && rx_hold_off));
     assign out1_n = ~cfg_out1;
     assign out2_n = ~cfg_out2;
 

@@ -78,7 +78,7 @@ void uart_set_format(uint8_t data_bits, uint8_t parity, uint8_t stop_bits) {
     lcr |= (data_bits - 5) & 0x03;
 
     // Stop bits: 1=0, 2=1. STB=1 gives 2 stop bits for 6/7/8-bit words.
-    // 1.5 stop bits (5-bit word) is NOT implemented - it produces 1 stop bit.
+    // 1.5 stop bits: a 5-bit word with LCR[2] set sends a half-length second stop bit.
     if (stop_bits == 2) lcr |= 0x04;
 
     // Parity: 0=none, 1=odd, 2=even, 3=mark, 4=space
@@ -155,13 +155,13 @@ void uart_init_115200_8n1(void) {
 
 ### Flow Control Setup (manual)
 
-Auto Flow Control (AFE, MCR[5]) is NOT implemented in this RTL. Assert RTS in
+Auto flow control (AFE, MCR[5]) is implemented. For manual control leave AFE clear and assert RTS in
 software and monitor MSR.CTS to gate transmission manually.
 
 ```c
 void uart_assert_rts(void) {
     uint8_t mcr = MCR;
-    mcr |= 0x02;             // RTS (bit 1) only - MCR[5]/AFE does not exist
+    mcr |= 0x02;             // RTS (bit 1); set bit 5 as well for auto flow control
     MCR = mcr;
 }
 ```

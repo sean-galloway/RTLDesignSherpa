@@ -165,11 +165,12 @@ the transmitter sends.
 
 ### Timeout Detection
 
-#### Character Timeout - not implemented
+#### Character Timeout
 
-This RTL does **not** implement the character-timeout timer (`int_timeout` is
-tied to 0). There is no 4-character-time timeout and IIR never reads 0x0C. Use a
-software inactivity timeout on LSR.DR instead.
+A counter in the baud-tick domain runs whenever the RX FIFO is non-empty and
+restarts on any activity: a character arriving, a character read out, or a
+FIFO reset. Four character times without any of those sets the timeout, IIR
+reads 0x0C, and the flag clears on the next activity. FIFO mode only.
 
 ## Waveforms
 

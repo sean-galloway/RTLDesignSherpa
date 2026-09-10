@@ -113,7 +113,7 @@ Divisor = (Input_Clock + 8 * Baud_Rate) / (16 * Baud_Rate)
 
 ### Programming Sequence
 
-DLL/DLM have dedicated offsets (0x24/0x28); the DLAB bit does not remap any
+DLL/DLM have dedicated offsets (0x24/0x28) AND are reached at 0x00/0x04 while DLAB is set; the dedicated offsets remap no
 address, so no DLAB toggle is required.
 
 1. Write DLL at 0x24 (divisor low byte)

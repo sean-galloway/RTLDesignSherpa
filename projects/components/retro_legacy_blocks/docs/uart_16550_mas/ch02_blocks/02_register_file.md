@@ -101,7 +101,7 @@ Fixed registers, not affected by DLAB:
 
 ### Implementation Notes
 
-- DLAB is a stored bit only; it does not remap any address
+- DLAB remaps 0x00/0x04 to the divisor latches; the dedicated offsets always work
 - THR write pushes to TX FIFO
 - RBR read pops from RX FIFO (received byte returned in bits [7:0])
 - Reading IIR clears the THR-empty interrupt when that is the source it reported

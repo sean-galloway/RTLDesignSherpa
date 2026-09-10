@@ -254,11 +254,16 @@ package uart_16550_regs_pkg;
     } uart_16550_regs__UART_MCR__loopback__out_t;
 
     typedef struct {
+        logic value;
+    } uart_16550_regs__UART_MCR__afe__out_t;
+
+    typedef struct {
         uart_16550_regs__UART_MCR__dtr__out_t dtr;
         uart_16550_regs__UART_MCR__rts__out_t rts;
         uart_16550_regs__UART_MCR__out1__out_t out1;
         uart_16550_regs__UART_MCR__out2__out_t out2;
         uart_16550_regs__UART_MCR__loopback__out_t loopback;
+        uart_16550_regs__UART_MCR__afe__out_t afe;
     } uart_16550_regs__UART_MCR__out_t;
 
     typedef struct {

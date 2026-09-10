@@ -73,6 +73,8 @@ module uart_16550_core #(
     input  logic        cfg_out1,
     input  logic        cfg_out2,
     input  logic        cfg_loopback,
+    input  logic        cfg_afe,
+    input  logic        cfg_dma_mode,   // FCR[3]: 0=single, 1=multi
 
     // 16550 interrupt enables (IER). Each source is gated independently: a
     // disabled source may be true in LSR/MSR and still not raise irq or be
@@ -131,6 +133,8 @@ module uart_16550_core #(
     output logic        int_not_pending,       // 0 = interrupt pending
     output logic [1:0]  int_id,                // Interrupt ID
     output logic        int_timeout,           // Character timeout
+    output logic        rxrdy_n,               // DMA receive request
+    output logic        txrdy_n,               // DMA transmit request
 
     // Aggregate Interrupt
     output logic        irq
@@ -165,6 +169,15 @@ module uart_16550_core #(
     // on this module's own sts_* ports and the interrupt block reads them
     // from there, so nothing in this file needs a local copy.
 
+    // End of the current transmit bit time. Declared here because the TX
+    // state machine above the RX section uses it; it is assigned with the
+    // other bit-timing terms further down.
+    logic       w_tx_phase_end;
+
+    // Declared here because the modem instance below consumes it and the
+    // interrupt block that produces it is instantiated further down.
+    logic       w_rx_trigger_reached;
+
     uart_16550_modem #(
         .SYNC_STAGES     (SYNC_STAGES)
     ) u_modem (
@@ -183,6 +196,8 @@ module uart_16550_core #(
         .cfg_out1        (cfg_out1),
         .cfg_out2        (cfg_out2),
         .cfg_loopback    (cfg_loopback),
+        .cfg_afe         (cfg_afe),
+        .rx_hold_off     (w_rx_trigger_reached),
         .clr_delta_cts   (clr_delta_cts),
         .clr_delta_dsr   (clr_delta_dsr),
         .clr_trailing_ri (clr_trailing_ri),
@@ -310,13 +325,20 @@ module uart_16550_core #(
             // pointer reset wins over a same-cycle FIFO load without
             // freezing the shifter for the duration of the strobe.
             if (w_baud_tick) begin
-                r_tx_baud_cnt <= r_tx_baud_cnt + 1'b1;
-
-                // 16x oversample - transition every 16 baud ticks
-                if (r_tx_baud_cnt == 4'd15) begin
+                // 16x oversample: every bit time is 16 ticks, except the
+                // second stop bit of a 5-bit word, which is half a bit time
+                // (1.5 stop bits, PC16550D). Zeroing the counter on the phase
+                // end rather than letting it wrap is what keeps the next
+                // start bit aligned after a half-length phase.
+                if (w_tx_phase_end) begin
+                    r_tx_baud_cnt <= '0;
                     case (r_tx_state)
                         TX_IDLE: begin
-                            if (!w_tx_fifo_empty) begin
+                            // Auto flow control: do not start a character
+                            // while the far end is holding CTS off. The
+                            // character already in the shifter always
+                            // finishes; AFE gates the START, not the frame.
+                            if (!w_tx_fifo_empty && (!cfg_afe || sts_cts)) begin
                                 r_tx_shift  <= r_tx_fifo[r_tx_rd_ptr[FIFO_ADDR_WIDTH-1:0]];
                                 r_tx_rd_ptr <= r_tx_rd_ptr + 1'b1;
                                 r_tx_state  <= TX_START;
@@ -348,8 +370,10 @@ module uart_16550_core #(
                         end
 
                         TX_STOP1: begin
-                            if (cfg_stop_bits && cfg_word_length != 2'b00) begin
-                                r_tx_state <= TX_STOP2;  // 2 stop bits for 6/7/8 bit words
+                            if (cfg_stop_bits) begin
+                                // Two stop bits for 6/7/8-bit words, and the
+                                // half-length second one for a 5-bit word.
+                                r_tx_state <= TX_STOP2;
                             end else begin
                                 r_tx_state <= TX_IDLE;
                             end
@@ -361,6 +385,8 @@ module uart_16550_core #(
 
                         default: r_tx_state <= TX_IDLE;
                     endcase
+                end else begin
+                    r_tx_baud_cnt <= r_tx_baud_cnt + 1'b1;
                 end
             end
 
@@ -494,6 +520,14 @@ module uart_16550_core #(
     // sitting in RBR and destroys it (PC16550D, Overrun Error).
     logic       w_rx_char_done;
     logic       w_rx_push;
+    // Character timeout (PC16550D): with the RX FIFO non-empty and neither a
+    // new character nor a read for four character times, the timeout fires.
+    // Counted in baud ticks, which are the 16x oversampling ticks, so one bit
+    // time is 16 of them.
+    logic [4:0]  w_char_bits;      // start + data + optional parity + stop(s)
+    logic [12:0] w_timeout_target; // 4 character times, in baud ticks
+    logic [12:0] r_timeout_cnt;
+    logic        r_timeout_flag;
     logic       w_rx_overwrite;
     logic       w_rx_pop;
     logic       w_rx_new_top;
@@ -517,6 +551,42 @@ module uart_16550_core #(
     assign w_rx_char_done = w_baud_tick && (r_rx_state == RX_STOP) &&
                             (r_rx_baud_cnt == 4'd15);
     assign w_rx_push      = w_rx_char_done && !w_rx_fifo_full;
+
+    // 1 start + N data + optional parity + 1 or 2 stop. A 5-bit word with
+    // two stop bits actually sends 1.5, and this rounds up: the timeout is a
+    // "no activity for at least four character times" guard, so erring long
+    // is the safe direction.
+    assign w_tx_phase_end = ((r_tx_state == TX_STOP2) && (cfg_word_length == 2'b00))
+                          ? (r_tx_baud_cnt == 4'd7)    // half a bit time
+                          : (r_tx_baud_cnt == 4'd15);
+
+    assign w_char_bits = 5'd1
+                       + 5'({3'b0, cfg_word_length}) + 5'd5
+                       + (cfg_parity_enable ? 5'd1 : 5'd0)
+                       + (cfg_stop_bits ? 5'd2 : 5'd1);
+    // 4 character times x 16 baud ticks per bit.
+    assign w_timeout_target = 13'({w_char_bits, 6'b0});
+
+    // The counter runs only while there is something to time out on, and any
+    // activity on the FIFO restarts it: a character arriving, a character read
+    // out, or software resetting the FIFO. Once the flag is set it stays set
+    // until one of those happens, which is what makes it a level the interrupt
+    // logic can gate rather than a pulse it has to catch.
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_timeout_cnt  <= '0;
+            r_timeout_flag <= 1'b0;
+        end else if (cmd_rx_fifo_reset || w_rx_fifo_empty ||
+                     w_rx_push || w_rx_pop) begin
+            r_timeout_cnt  <= '0;
+            r_timeout_flag <= 1'b0;
+        end else if (!r_timeout_flag && w_baud_tick) begin
+            if (r_timeout_cnt >= (w_timeout_target - 13'd1))
+                r_timeout_flag <= 1'b1;
+            else
+                r_timeout_cnt <= r_timeout_cnt + 13'd1;
+        end
+    )
     assign w_rx_overwrite = w_rx_char_done && w_rx_fifo_full && !cfg_fifo_enable;
     assign w_rx_pop       = rx_read && !w_rx_fifo_empty;
     assign w_rx_new_tags  = {w_rx_break, w_rx_frame_err, r_rx_parity_err};
@@ -708,6 +778,17 @@ module uart_16550_core #(
     // RX data output
     assign rx_data = r_rx_fifo[r_rx_rd_ptr[FIFO_ADDR_WIDTH-1:0]][7:0];
 
+    // DMA handshake, PC16550D FCR[3]. Mode 0 is one character at a time:
+    // receive is requested as soon as anything is in the RX FIFO, and
+    // transmit while the TX FIFO is completely empty. Mode 1 is block: the
+    // receive request waits for the trigger level (or the character timeout,
+    // which is what stops a partial block stalling forever) and the transmit
+    // request stands while there is any room at all.
+    assign rxrdy_n = cfg_dma_mode ? ~(w_rx_trigger_reached || r_timeout_flag)
+                                  : ~(!w_rx_fifo_empty);
+    assign txrdy_n = cfg_dma_mode ? ~(w_tx_fifo_count < w_tx_depth)
+                                  : ~w_tx_fifo_empty;
+
     // RX status
     assign sts_data_ready     = !w_rx_fifo_empty;
     assign sts_overrun_error  = r_overrun_error;
@@ -749,10 +830,12 @@ module uart_16550_core #(
         .cfg_tx_empty_ie    (cfg_tx_empty_ie),
         .cfg_line_status_ie (cfg_line_status_ie),
         .cfg_modem_ie       (cfg_modem_ie),
+        .rx_timeout         (r_timeout_flag),
         .iir_read           (iir_read),
         .int_not_pending    (int_not_pending),
         .int_id             (int_id),
         .int_timeout        (int_timeout),
+        .rx_trigger_reached (w_rx_trigger_reached),
         .irq                (irq)
     );
 

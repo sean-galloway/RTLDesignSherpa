@@ -31,7 +31,8 @@ Interrupt handling follows the 16550 datasheet, with one gap. The note below is 
 > and `irq` is additionally gated by MCR.OUT2 (set OUT2 = 1 to route the pin).
 > LSR[4:1] clear on a read of LSR and MSR[3:0] on a read of MSR; reading IIR
 > clears the THR-empty interrupt when that is the source it reported. The
-> character-timeout interrupt is not implemented (RLB-013).
+> character timeout shares the received-data slot, reads IIR = 0x0C and is
+> gated by IER[0].
 
 ## Functional Description
 
@@ -47,7 +48,7 @@ Interrupt handling follows the 16550 datasheet, with one gap. The note below is 
 | 0x02 | 3 | THR empty | Write THR (fills TX FIFO) |
 | 0x00 | 4 | Modem status | Read MSR to clear the delta bits |
 
-Note: Character timeout (IIR = 0x0C) is **not implemented** and never occurs. Reading IIR has no side effect (it does not clear the THR-empty condition).
+Note: Character timeout (IIR = 0x0C) fires after four character times of inactivity with a non-empty RX FIFO. Reading IIR has no side effect (it does not clear the THR-empty condition).
 
 ## Usage Example
 
@@ -159,8 +160,8 @@ void uart_handle_rx_data(void) {
 #### Character Timeout Handler
 
 ```c
-// NOTE: Character timeout is NOT implemented in this RTL; this handler is
-// never invoked (IIR never reads 0x0C). Retained for reference only.
+// Called when IIR reads 0x0C: four character times with data sitting in
+// the RX FIFO below the trigger level.
 void uart_handle_timeout(void) {
     // Same as RX data - flush remaining FIFO data
     uart_handle_rx_data();
@@ -248,7 +249,7 @@ MCR = saved_mcr;
 
 #### Character Timeout
 
-- **Not implemented in this RTL** (`int_timeout` is tied to 0). IIR never reads 0x0C.
+- Implemented: four character times with a non-empty RX FIFO and no activity, IIR reads 0x0C.
 - For variable-length packets, poll LSR.DR and apply a software inactivity timeout instead.
 
 ---

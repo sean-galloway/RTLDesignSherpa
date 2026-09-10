@@ -29,7 +29,7 @@ This chapter is the software view of the block: how to initialize it, move data 
 
 ### Register Summary
 
-Flat, DLAB-independent map - each register has a unique offset (DLAB does not remap).
+Each register has a unique offset, and DLAB additionally remaps 0x00/0x04 to the divisor latches.
 
 | Offset | Register | Access | Description |
 |--------|----------|--------|-------------|

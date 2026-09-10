@@ -104,7 +104,7 @@ IIR[0]=IPEND (0 = interrupt pending). IIR[3:1]=IID. IIR[3] (timeout) is always 0
 | 0010 | 3 | THR Empty | Write THR (fills TX FIFO) |
 | 0000 | 4 | Modem Status | Read MSR to clear the delta bits |
 
-**Note:** The **Character Timeout** interrupt (IIR = 0x0C, IIR[3]) is **not implemented** - `int_timeout` is tied to 0 in the RTL, so IIR[3] never asserts and IIR can never read 0x0C. Reading IIR has **no** side effect; it does not clear the THR-empty condition. The THR-empty source is the level "TX FIFO empty" and clears only when the FIFO is refilled. Because interrupt enables are unimplemented (see IER), IIR reflects pending sources regardless of IER, and the `irq` pin is additionally gated by MCR.OUT2 (see MCR note).
+**Note:** The **Character Timeout** interrupt (IIR = 0x0C, IIR[3]) is implemented. Reading IIR has **no** side effect; it does not clear the THR-empty condition. The THR-empty source is the level "TX FIFO empty" and clears only when the FIFO is refilled. Because interrupt enables are unimplemented (see IER), IIR reflects pending sources regardless of IER, and the `irq` pin is additionally gated by MCR.OUT2 (see MCR note).
 
 ---
 
@@ -144,9 +144,9 @@ Reset value is **0x03** (8 data bits, 1 stop bit, no parity - 8N1).
 | 4 | EPS | RW | 0 | Even Parity Select |
 | 5 | SP | RW | 0 | Stick Parity |
 | 6 | BC | RW | 0 | Break Control |
-| 7 | DLAB | RW | 0 | Divisor Latch Access Bit (stored; no effect on decode) |
+| 7 | DLAB | RW | 0 | Divisor Latch Access Bit: while set, 0x00 and 0x04 are DLL and DLM |
 
-**Note (DLAB):** LCR[7] is stored and read back but has **no effect** - it does not remap any address. DLL/DLM are always at 0x24/0x28. **Note (STB):** STB=1 selects 2 stop bits for 6/7/8-bit words; 1.5 stop bits (for 5-bit words) is **not implemented** - a 5-bit word with STB=1 still produces 1 stop bit.
+**Note (DLAB):** LCR[7] remaps 0x00 to DLL and 0x04 to DLM, as a standard 16550 does. The dedicated offsets 0x24 and 0x28 reach the same latches whatever DLAB says, so either form works. **Note (STB):** STB=1 selects 2 stop bits for 6/7/8-bit words; 1.5 stop bits (for 5-bit words) is **not implemented** - a 5-bit word with STB=1 still produces 1 stop bit.
 
 #### Word Length
 
@@ -182,9 +182,10 @@ The transmitter sends bits [N-1:0] LSB-first, so TX and RX agree.
 | 2 | OUT1 | RW | 0 | User Output 1 (active low) |
 | 3 | OUT2 | RW | 0 | User Output 2 / interrupt gate (active low) - see note |
 | 4 | LOOP | RW | 0 | Loopback Mode |
-| 7:5 | Reserved | RO | 0 | Reserved (read as 0) |
+| 5 | AFE | RW | 0 | Auto Flow Control Enable |
+| 7:6 | Reserved | RO | 0 | Reserved (read as 0) |
 
-**Note:** Bit 5 (AFE, Auto Flow Control Enable) is **not implemented** in this RTL - MCR is only 5 bits wide (DTR/RTS/OUT1/OUT2/LOOP) and writes to bit 5 are dropped. There is no CTS-gated transmit and RTS is not auto-driven by RX FIFO level. Additionally, OUT2 gates the `irq` output pin: `irq` can assert only when MCR.OUT2 = 1. With the reset value MCR = 0x00, the `irq` pin is masked; software must set MCR.OUT2 to route interrupts to the pin.
+**Note:** Bit 5 (AFE) gates the transmitter with CTS and drives RTS from the RX FIFO level; MCR[1] must still be set for RTS to assert. Writes above bit 5 are dropped. There is no CTS-gated transmit and RTS is not auto-driven by RX FIFO level. Additionally, OUT2 gates the `irq` output pin: `irq` can assert only when MCR.OUT2 = 1. With the reset value MCR = 0x00, the `irq` pin is masked; software must set MCR.OUT2 to route interrupts to the pin.
 
 ---
 
@@ -268,20 +269,19 @@ Example (BASE_ADDR = 0xFEC08000):
 
 ---
 
-## Remaining Limitations
+## Implemented for RLB-013
 
-Five 16550 features are not implemented. Each is tracked as RLB-013 in
-`vault/Tasks/RLB/open.md`; none is a defect in what is built.
+The five 16550 features this block used to leave out are now built:
 
-| Feature | State |
+| Feature | Behaviour |
 |---|---|
-| Character-timeout interrupt | `int_timeout` is tied to 0, so IIR never reads 0x0C. A partially filled RX FIFO below the trigger level raises no interrupt; poll instead |
-| Auto flow control (AFE) | MCR[5] has no field at all: MCR[31:5] is read-only zero, so it reads back 0 whatever is written. CTS does not gate the transmitter and RTS is not driven from the RX FIFO level |
-| 1.5 stop bits | LCR[2] with a 5-bit character produces one stop bit |
-| DLAB remapping | The map is flat: DLL and DLM have their own offsets and DLAB is a stored bit that remaps nothing |
-| DMA mode select | FCR[3] is stored and never read |
+| Character-timeout interrupt | Four character times with the RX FIFO non-empty and no activity; IIR reads 0x0C, sharing the received-data slot and distinguished by IIR[3]. Gated by IER[0], FIFO mode only |
+| Auto flow control (AFE) | MCR[5]. CTS gates the start of a character; RTS follows the RX FIFO level, deasserting at the trigger and reasserting once read below it. MCR[1] must still be set for RTS to assert at all |
+| 1.5 stop bits | LCR[2] with a 5-bit character sends a half-length second stop bit: 7.5 bit times against 7 |
+| DLAB remapping | While LCR[7] is set, 0x00 and 0x04 are the divisor latches. The flat offsets 0x24 and 0x28 keep working, so both forms reach the same latches |
+| DMA mode select | FCR[3] picks the handshake on the `rxrdy_n` / `txrdy_n` pins: mode 0 per character, mode 1 per block |
 
-Two further items constrain integration rather than function. The block
+Two items still constrain integration rather than function. The block
 instantiates no reset synchronizer, so `presetn` and `uart_rstn` must arrive
 already synchronized, and resetting one domain with a transfer in flight
 corrupts the asynchronous FIFOs - quiesce the bus first, or assert both

@@ -64,12 +64,15 @@ The modem interface carries the classic flow-control and status pins: RTS/DTR/OU
 MCR is only 5 bits wide in this RTL (bit 5/AFE does not exist). OUT2 additionally
 gates the `irq` output: the pin can assert only when MCR.OUT2 = 1.
 
-#### Auto Flow Control (AFE) - not implemented
+#### Auto Flow Control (AFE)
 
-Auto Flow Control is **not implemented** in this RTL. MCR[5] does not exist
-(writes are dropped), RTS is not auto-driven by RX FIFO level, and CTS does not
-gate the transmitter. Use manual flow control (drive MCR.RTS and monitor
-MSR.CTS in software).
+MCR[5] enables auto flow control. With it set, the transmitter starts a
+character only while CTS is asserted - the character already in the shifter
+always finishes, AFE gates the start and not the frame - and RTS is driven
+from the RX FIFO level rather than from MCR[1]: it deasserts at the trigger
+level and reasserts once software has read the FIFO back below it. MCR[1]
+must still be set for RTS to be asserted at all. Leave AFE clear for manual
+flow control: drive MCR.RTS and check MSR.CTS in software.
 
 ### Modem Status Register (MSR)
 
@@ -111,10 +114,12 @@ TX Device                    RX Device
     |<------- RXD --------------|
 ```
 
-RTS/CTS flow control must be handled in software (AFE is not implemented):
+With AFE clear, RTS/CTS flow control is handled in software:
 1. Software asserts MCR.RTS when ready to receive
 2. Software checks MSR.CTS before sending
 3. Hardware does not auto-pause TX on CTS
+
+With AFE set, the hardware does all three.
 
 #### Manual Flow Control
 

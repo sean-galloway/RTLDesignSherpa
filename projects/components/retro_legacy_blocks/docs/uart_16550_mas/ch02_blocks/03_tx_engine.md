@@ -77,7 +77,7 @@ TXD  |0| D0 D1 D2 D3 D4 [D5 D6 D7] [P] |1|1|
 | LCR Bits | Setting |
 |----------|---------|
 | [1:0] | Data bits: 00=5, 01=6, 10=7, 11=8 |
-| [2] | Stop bits: 0=1, 1=2 (6/7/8-bit words); 1.5 stop bits not implemented |
+| [2] | Stop bits: 0=1, 1=2 (6/7/8-bit words) or 1.5 (5-bit words) |
 | [3] | Parity enable |
 | [4] | Parity type: 0=odd, 1=even |
 | [5] | Stick parity |
@@ -98,7 +98,7 @@ flowchart TD
 
 #### Hardware (CTS)
 
-Auto flow control (AFE) is **not implemented** - CTS does not gate the
+Auto flow control (AFE, MCR[5]) gates the transmitter with CTS and drives RTS from the RX FIFO level. With AFE clear, CTS does not gate the
 transmitter. Monitor MSR.CTS in software and withhold THR writes to pause TX.
 
 #### Software (THRE interrupt)

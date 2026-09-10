@@ -260,29 +260,31 @@ the block advertises in its RDL/MAS header but has never implemented.
   control bit in `SMBUS_COMMAND` (register-map change) or a second
   transaction code.
 
-### RLB-012: regblock reset polarity is composed by hand in all nine blocks
+### RLB-012: regblock reset polarity composed by hand - FIXED
 
-**Priority:** P2 if that build is ever used, P3 today: no build in the tree
-sets `RESET_ACTIVE_HIGH`. Measured on smbus and again on uart_16550: with the define, `~rst_n` holds
-the register block in reset permanently, so no register latches and every
-RLB block is non-functional at that polarity, not merely mis-reset. On the
-UART that means DLL/DLM stuck at the reset divisor, LCR stuck at 8N1, IER
-and MCR stuck at 0 so the interrupt pin can never assert, and every write
-acking while reading back its default. Lint cannot see it: all four
-`-DRESET_ACTIVE_HIGH` permutations compile clean.
-**Status:** open 2026-09-10. Raised by the smbus #58 round-5 review.
+**Status:** fixed 2026-09-10, commit b953fd582. Raised by the smbus #58
+round-5 review and confirmed again on uart_16550.
 
-Every RLB wrapper instantiates its PeakRDL regblock with `.rst(~rst_n)`
-(gpio:211, hpet:270, ioapic:345, pic_8259:431, pit_8254:382, pm_acpi:365,
-rtc:600, smbus:320, uart_16550:111). `reset_defs.svh` makes polarity a
-compile-time property, so under `-DRESET_ACTIVE_HIGH` the register block
-resets on the wrong sense in all nine at once. The smbus round-5 fix
-removed the same hand-composed polarity from its FIFO / PEC / sticky-status
-resets (it turned soft_reset and fifo_reset into no-ops under that define)
-but deliberately left the regblock line alone: it is one family-wide change
-with one regression, not nine drive-bys. Fix = derive the regblock reset
-through the house macro (or a `RST_ASSERTED`-based wire) in one pass over
-all nine, then run the RLB area regression under both polarities.
+All nine wrappers instantiated their PeakRDL register block with
+`.rst(~rst_n)`. The block does take an active-high reset, so the inversion is
+right while the build is active-low and wrong the moment it is not:
+`reset_defs.svh` makes polarity a compile-time property, so under
+`-DRESET_ACTIVE_HIGH` the register file was held in reset permanently. No
+field latched, every write acked and read back its default, and lint could
+not see it - all four permutations compiled clean.
+
+Fixed by asking the macro instead: `` `RST_ASSERTED(rst_n) `` is "is reset
+asserted", which is what an active-high reset port wants at either polarity.
+Measured on gpio, writing 0xA5A51234 to GPIO_DIRECTION and reading it back:
+
+| build | before | after |
+|---|---|---|
+| default | 0xA5A51234 | 0xA5A51234 |
+| `-DRESET_ACTIVE_HIGH` | 0x00000000 | 0xA5A51234 |
+
+All nine lint clean at both polarities; RLB area regression 49/49. The FIFO
+primitives underneath had the same defect class ([[COMMON-026]], fixed); what
+remains of it is [[COMMON-027]].
 
 ### RLB-013: UART 16550 features deferred past the #60 fix
 

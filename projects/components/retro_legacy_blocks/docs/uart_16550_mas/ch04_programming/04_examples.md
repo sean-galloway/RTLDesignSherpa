@@ -103,7 +103,8 @@ void uart_isr(void) {
 
     while (((iir = IIR) & 0x01) == 0) {
         switch (iir & 0x0E) {
-            case 0x04:  // RX data (character-timeout IIR=0x0C is not implemented)
+            case 0x0C:  // character timeout - fall through, drain the FIFO
+            case 0x04:  // RX data available
                 while (LSR & 0x01) {
                     uint16_t next = (rx_buf.head + 1) % RX_BUF_SIZE;
                     if (next != rx_buf.tail) {
@@ -266,10 +267,9 @@ void uart_init_flow_control(void) {
     MCR = 0x0A;
 }
 
-// NOTE: Auto Flow Control (AFE, MCR[5]) is NOT implemented in this RTL.
-// - RTS is not auto-driven by RX FIFO level; software must manage MCR.RTS.
-// - CTS does not gate the transmitter.
-// Monitor MSR.CTS in software and drive MCR.RTS manually for flow control.
+// NOTE: this example does flow control by hand. Set MCR[5] (AFE) instead
+// and the hardware does it: CTS gates the start of a character and RTS
+// follows the RX FIFO level. MCR[1] must still be set for RTS to assert.
 ```
 
 ---

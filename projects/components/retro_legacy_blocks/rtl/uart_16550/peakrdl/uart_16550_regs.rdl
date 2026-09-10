@@ -351,11 +351,24 @@ addrmap uart_16550_regs {
         } loopback[4:4] = 1'b0;
 
         field {
+            name = "Auto Flow Control Enable";
+            desc = "1=Enable auto flow control (AFE). With AFE set, the
+                    transmitter starts a character only while CTS is asserted,
+                    and RTS is driven from the RX FIFO level rather than from
+                    MCR[1]: it deasserts when the FIFO reaches the trigger
+                    level and reasserts once software has read it back below.
+                    MCR[1] must also be set for RTS to be driven at all. AFE
+                    only has meaning in FIFO mode.";
+            sw = rw;
+            hw = r;
+        } afe[5:5] = 1'b0;
+
+        field {
             name = "Reserved MCR";
             desc = "Reserved bits";
             sw = r;
             hw = na;
-        } reserved_mcr[31:5] = 27'h0;
+        } reserved_mcr[31:6] = 26'h0;
 
     } UART_MCR @ 0x014;
 

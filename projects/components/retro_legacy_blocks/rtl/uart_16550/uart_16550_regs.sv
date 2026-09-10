@@ -199,6 +199,10 @@ module uart_16550_regs (
                 logic next;
                 logic load_next;
             } loopback;
+            struct {
+                logic next;
+                logic load_next;
+            } afe;
         } UART_MCR;
         struct {
             struct {
@@ -328,6 +332,9 @@ module uart_16550_regs (
             struct {
                 logic value;
             } loopback;
+            struct {
+                logic value;
+            } afe;
         } UART_MCR;
         struct {
             struct {
@@ -864,6 +871,29 @@ module uart_16550_regs (
         end
     end
     assign hwif_out.UART_MCR.loopback.value = field_storage.UART_MCR.loopback.value;
+    // Field: uart_16550_regs.UART_MCR.afe
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.UART_MCR.afe.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.UART_MCR && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.UART_MCR.afe.value & ~decoded_wr_biten[5:5]) | (decoded_wr_data[5:5] & decoded_wr_biten[5:5]);
+            load_next_c = '1;
+        end
+        field_combo.UART_MCR.afe.next = next_c;
+        field_combo.UART_MCR.afe.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.UART_MCR.afe.value <= 1'h0;
+        end else begin
+            if(field_combo.UART_MCR.afe.load_next) begin
+                field_storage.UART_MCR.afe.value <= field_combo.UART_MCR.afe.next;
+            end
+        end
+    end
+    assign hwif_out.UART_MCR.afe.value = field_storage.UART_MCR.afe.value;
     // Field: uart_16550_regs.UART_LSR.overrun_error
     always_comb begin
         automatic logic [0:0] next_c;
@@ -1209,7 +1239,8 @@ module uart_16550_regs (
     assign readback_array[5][2:2] = (decoded_reg_strb.UART_MCR && !decoded_req_is_wr) ? field_storage.UART_MCR.out1.value : '0;
     assign readback_array[5][3:3] = (decoded_reg_strb.UART_MCR && !decoded_req_is_wr) ? field_storage.UART_MCR.out2.value : '0;
     assign readback_array[5][4:4] = (decoded_reg_strb.UART_MCR && !decoded_req_is_wr) ? field_storage.UART_MCR.loopback.value : '0;
-    assign readback_array[5][31:5] = (decoded_reg_strb.UART_MCR && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[5][5:5] = (decoded_reg_strb.UART_MCR && !decoded_req_is_wr) ? field_storage.UART_MCR.afe.value : '0;
+    assign readback_array[5][31:6] = (decoded_reg_strb.UART_MCR && !decoded_req_is_wr) ? 26'h0 : '0;
     assign readback_array[6][0:0] = (decoded_reg_strb.UART_LSR && !decoded_req_is_wr) ? hwif_in.UART_LSR.data_ready.next : '0;
     assign readback_array[6][1:1] = (decoded_reg_strb.UART_LSR && !decoded_req_is_wr) ? field_storage.UART_LSR.overrun_error.value : '0;
     assign readback_array[6][2:2] = (decoded_reg_strb.UART_LSR && !decoded_req_is_wr) ? field_storage.UART_LSR.parity_error.value : '0;

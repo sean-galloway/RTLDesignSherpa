@@ -33,7 +33,7 @@ The APB UART 16550 is a 16550-compatible Universal Asynchronous Receiver/Transmi
 - Full-duplex asynchronous serial operation
 - Configurable baud rates (up to 3 Mbps at 48 MHz clock)
 - 5, 6, 7, or 8 data bits
-- 1 or 2 stop bits (2 stop bits only for 6/7/8-bit words; 1.5 stop bits is not implemented)
+- 1, 1.5 or 2 stop bits (a 5-bit word with LCR[2] set sends 1.5)
 - Even, odd, mark, space, or no parity
 
 #### FIFO Buffering

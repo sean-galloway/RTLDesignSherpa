@@ -96,7 +96,12 @@ module apb4_uart_16550 #(
     output logic                        out2_n,
 
     // Interrupt Output
-    output logic                        irq
+    output logic                        irq,
+
+    // DMA handshake (FCR[3] selects the mode). Active low, like the modem
+    // pins. Leave unconnected if the integration has no DMA engine.
+    output logic                        rxrdy_n,
+    output logic                        txrdy_n
 );
 
     // ONE decode of CDC_ENABLE, used everywhere, and a 1-bit one: comparing a
@@ -339,7 +344,9 @@ module apb4_uart_16550 #(
         .out2_n             (out2_n),
 
         // Interrupt
-        .irq                (irq)
+        .irq                (irq),
+        .rxrdy_n            (rxrdy_n),
+        .txrdy_n            (txrdy_n)
     );
 
 endmodule : apb4_uart_16550

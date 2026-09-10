@@ -66,7 +66,9 @@ module uart_16550_config_regs
     output logic        out2_n,
 
     // Interrupt
-    output logic        irq
+    output logic        irq,
+    output logic        rxrdy_n,
+    output logic        txrdy_n
 );
 
     // PeakRDL hardware interface signals
@@ -81,6 +83,15 @@ module uart_16550_config_regs
     // Strict decode: the adapter's side of the passthrough, so an unmapped
     // access can be answered locally without ever reaching the register block.
     logic                    w_addr_mapped;
+    // DLAB remapping. The map is flat - DLL and DLM have their own offsets at
+    // 0x24 and 0x28 and always work - but a driver written against a standard
+    // 16550 expects 0x00 and 0x04 to become the divisor latches while LCR[7]
+    // is set. Both forms are supported: the remap is applied to the address
+    // the register block sees, and every strobe below decodes the SAME
+    // remapped address, so a divisor write can never be mistaken for a THR
+    // push or an IER write (RLB-013).
+    logic                    w_dlab;
+    logic [5:0]              w_reg_addr;
     logic                    w_drop;
     logic                    w_drop_ack;
     logic                    w_blk_req;
@@ -115,6 +126,15 @@ module uart_16550_config_regs
     localparam logic [5:0] ADDR_DLL  = 6'h24;
     localparam logic [5:0] ADDR_DLM  = 6'h28;
 
+    assign w_dlab = hwif_out.UART_LCR.dlab.value;
+    always_comb begin
+        w_reg_addr = regblk_addr[5:0];
+        if (w_dlab) begin
+            if (regblk_addr[5:0] == ADDR_DATA) w_reg_addr = ADDR_DLL;
+            else if (regblk_addr[5:0] == ADDR_IER) w_reg_addr = ADDR_DLM;
+        end
+    end
+
     // TX write detection (edge on tx_data register write)
 
     // Status signals from core
@@ -142,14 +162,18 @@ module uart_16550_config_regs
     // ========================================================================
     // PeakRDL Register Block
     // ========================================================================
+    // PeakRDL's regblock takes an ACTIVE-HIGH reset whatever the build
+    // uses. Ask the macro whether reset is asserted rather than
+    // inverting rst_n by hand: `~rst_n` is correct only while the
+    // build is active-low, and under -DRESET_ACTIVE_HIGH it held the
+    // whole register file in reset forever (RLB-012).
     uart_16550_regs u_uart_regs (
         .clk        (clk),
-        .rst        (~rst_n),
-
+        .rst        (`RST_ASSERTED(rst_n)),
         // PeakRDL cpuif interface (from peakrdl_to_cmdrsp)
         .s_cpuif_req            (w_blk_req),
         .s_cpuif_req_is_wr      (regblk_req_is_wr),
-        .s_cpuif_addr           (regblk_addr[5:0]),  // 6-bit address (44 bytes)
+        .s_cpuif_addr           (w_reg_addr),  // 6-bit address, DLAB-remapped
         .s_cpuif_wr_data        (regblk_wr_data),
         .s_cpuif_wr_biten       (regblk_wr_biten),
         .s_cpuif_req_stall_wr   (regblk_req_stall_wr),
@@ -209,9 +233,9 @@ module uart_16550_config_regs
     // empty is the source being reported. Edge-detected because the bridge
     // holds the request for two cycles and a level would clear twice - the
     // second clear would swallow an event the core accepted in between.
-    assign w_lsr_read = w_blk_req && !regblk_req_is_wr && (regblk_addr[5:0] == ADDR_LSR);
-    assign w_msr_read = w_blk_req && !regblk_req_is_wr && (regblk_addr[5:0] == ADDR_MSR);
-    assign w_iir_read = w_blk_req && !regblk_req_is_wr && (regblk_addr[5:0] == ADDR_IIR);
+    assign w_lsr_read = w_blk_req && !regblk_req_is_wr && (w_reg_addr == ADDR_LSR);
+    assign w_msr_read = w_blk_req && !regblk_req_is_wr && (w_reg_addr == ADDR_MSR);
+    assign w_iir_read = w_blk_req && !regblk_req_is_wr && (w_reg_addr == ADDR_IIR);
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
@@ -236,14 +260,14 @@ module uart_16550_config_regs
     logic w_uart_data_read;
     logic w_uart_data_write;
     assign w_uart_data_read  = w_blk_req && !regblk_req_is_wr &&
-                               (regblk_addr[5:0] == ADDR_DATA);
+                               (w_reg_addr == ADDR_DATA);
 
     // THE BYTE ENABLE IS PART OF THE DECODE, NOT JUST OF THE DATA. A write
     // to UART_DATA with lane 0 disabled (PSTRB=4'b0010, say) is not a THR
     // write at all. Masking the captured byte but pushing anyway - which is
     // what this did - transmitted a NUL for every such access.
     assign w_uart_data_write = w_blk_req && regblk_req_is_wr &&
-                               (regblk_addr[5:0] == ADDR_DATA) &&
+                               (w_reg_addr == ADDR_DATA) &&
                                regblk_wr_biten[0];
 
     // THR PUSH: ONE PULSE PER ACKED WRITE, taken from the write-data lane.
@@ -351,6 +375,7 @@ module uart_16550_config_regs
         .cfg_out1           (hwif_out.UART_MCR.out1.value),
         .cfg_out2           (hwif_out.UART_MCR.out2.value),
         .cfg_loopback       (hwif_out.UART_MCR.loopback.value),
+        .cfg_afe            (hwif_out.UART_MCR.afe.value),
 
         // FIFO commands
         .cmd_rx_fifo_reset  (hwif_out.UART_FCR.rx_fifo_reset.value),
@@ -404,7 +429,10 @@ module uart_16550_config_regs
         .int_not_pending    (w_int_not_pending),
         .int_id             (w_int_id),
         .int_timeout        (w_int_timeout),
-        .irq                (irq)
+        .irq                (irq),
+        .cfg_dma_mode       (hwif_out.UART_FCR.dma_mode.value),
+        .rxrdy_n            (rxrdy_n),
+        .txrdy_n            (txrdy_n)
     );
 
     // ========================================================================

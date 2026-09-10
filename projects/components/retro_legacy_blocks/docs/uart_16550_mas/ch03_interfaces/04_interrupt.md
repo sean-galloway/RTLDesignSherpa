@@ -33,8 +33,9 @@ Before you write a line of ISR code, read the notes below. This RTL's interrupt 
 >   `irq`, and is not reported by IIR.
 > - **The `irq` pin is gated by MCR.OUT2** (`irq = pending & MCR.OUT2`). With the
 >   reset MCR = 0x00 the pin is masked; software must set OUT2 to route interrupts.
-> - **Character timeout is not implemented** (IIR never reads 0x0C). Tracked as
->   RLB-013 in `vault/Tasks/RLB/open.md`.
+> - **The character timeout** fires after four character times with a
+>   non-empty RX FIFO and no activity; IIR reads 0x0C. It shares the
+>   received-data slot and is gated by IER[0].
 > - **Reading IIR clears the THR-empty interrupt** when THR empty is the source
 >   it reported, as a standard 16550 does.
 > - LSR[4:1] clear on a read of LSR, and MSR[3:0] on a read of MSR.
@@ -60,7 +61,7 @@ Before you write a line of ISR code, read the notes below. This RTL's interrupt 
 | 3 | 0010 | THR Empty | Write THR (fill TX FIFO) |
 | 4 | 0000 | Modem Status | Read MSR |
 
-Character Timeout (IIR = 1100 / 0x0C) is not implemented and is omitted.
+Character Timeout reads IIR = 1100 (0x0C) and shares priority 2 with received-data-available.
 
 #### IIR Encoding
 
@@ -110,10 +111,11 @@ Cleared by reading LSR.
 - FCR.FE=0: triggered when data present (DR=1)
 - Cleared by reading RBR until the level falls below the trigger / DR clears
 
-#### Character Timeout - not implemented
+#### Character Timeout (Priority 2)
 
-`int_timeout` is tied to 0 in this RTL; the timeout interrupt never occurs and
-IIR never reads 0x0C.
+Four character times with the RX FIFO non-empty and neither a new character
+nor a read. IIR reads 0x0C. Any FIFO activity restarts the timer, and the
+source exists only in FIFO mode.
 
 #### THR Empty (Priority 3)
 

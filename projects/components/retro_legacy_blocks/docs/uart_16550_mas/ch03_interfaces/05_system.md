@@ -135,7 +135,7 @@ wake-on-activity path.
 - Use FIFO mode to reduce interrupt rate
 - Set a higher RX trigger level to reduce interrupt frequency
 
-(Note: auto flow control is not implemented in this RTL; see the limitations.)
+(Set MCR[5] for auto flow control, which paces the far end from the RX FIFO level.)
 
 ### External Connections
 

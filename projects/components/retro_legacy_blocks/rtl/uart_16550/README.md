@@ -30,7 +30,7 @@ NS16550-compatible UART controller with APB interface.
 - 16-byte TX and RX FIFOs
 - Programmable baud rate via 16-bit divisor
 - 5/6/7/8 data bits
-- 1 or 2 stop bits (1.5 for 5-bit words is not implemented, RLB-013)
+- 1, 1.5 (5-bit words) or 2 stop bits
 - None/Odd/Even/Mark/Space parity
 - Modem control signals (DTR, RTS, CTS, DSR, RI, DCD)
 - Internal loopback mode
@@ -205,21 +205,39 @@ pointer and count arithmetic is modulo 2^(AW+1) while the memory indices take
 [AW-1:0], which is only the same thing at a power of two; and the RX trigger
 levels go up to 14, which a depth under 16 cannot express.
 
-## Known limitations (ledger RLB-013)
+## Features added for RLB-013
 
-These are documented gaps, not defects, and are out of scope for #60:
+The five 16550 features this block used to leave out are implemented:
 
-- **Character-timeout interrupt** - not implemented; `int_timeout` is tied low
-  and IIR never reports 0x0C. The IIR priority encoding is correct without it:
-  the timeout would share the received-data-available slot, so its absence
-  removes a source rather than reordering any.
-- **Auto flow control** - MCR[5] (AFE) is not present at all. There is no
-  field: MCR[31:5] is read-only zero, so AFE reads back 0 whatever is written,
-  and CTS does not gate the transmitter.
-- **1.5 stop bits** for 5-bit words - LCR selects 1 or 2 only.
-- **DLAB remapping** - the map is flat, every register has its own offset, and
-  the DLAB bit is stored but never remaps anything.
-- **DMA mode select** - FCR[3] is stored and never read.
+- **Character-timeout interrupt.** With the RX FIFO non-empty and neither a
+  new character nor a read for four character times, the timeout asserts and
+  IIR reads 0x0C. It shares the received-data-available priority slot and is
+  distinguished by IIR[3], is gated by IER[0] like the source it shares with,
+  and exists only in FIFO mode - in character mode a single unread byte is
+  already the received-data condition. Any FIFO activity restarts it.
+- **Auto flow control.** MCR[5] (AFE) is a real field. With it set the
+  transmitter starts a character only while CTS is asserted - the character
+  already in the shifter always finishes, AFE gates the START and not the
+  frame - and RTS is driven from the RX FIFO level rather than from MCR[1]:
+  it deasserts at the trigger level and reasserts once software has read the
+  FIFO back below it. MCR[1] must still be set for RTS to be asserted at all;
+  AFE decides when to DEASSERT it, it does not override a deliberate
+  deassertion by software.
+- **1.5 stop bits** for 5-bit words. LCR[2] with a 5-bit character sends a
+  half-length second stop bit, so the frame is 7.5 bit times against 7 with
+  one stop bit.
+- **DLAB remapping.** While LCR[7] is set, 0x00 and 0x04 are the divisor
+  latches, as a standard 16550 driver expects. The flat offsets at 0x24 and
+  0x28 keep working, so both forms address the same latches. The remap is
+  applied to the address the register block sees, and every strobe decodes
+  that same remapped address, so a divisor write can never be mistaken for a
+  THR push or an IER write.
+- **DMA mode select.** FCR[3] selects the handshake on `rxrdy_n` / `txrdy_n`.
+  Mode 0 is one character at a time: receive is requested as soon as anything
+  is in the RX FIFO, transmit while the TX FIFO is empty. Mode 1 is block:
+  receive waits for the trigger level or the character timeout, transmit
+  stands while there is any room at all. Both pins are active low and may be
+  left unconnected.
 
 
 ## Register Map
@@ -245,9 +263,9 @@ section above for why it exists. A driver uses `[7:0]`.
 Every other address in the 4 KB APB window is unmapped: writes are discarded,
 reads return 0, and the access completes with PSLVERR.
 
-Note: unlike the original 16550, this implementation uses fixed addresses.
-DLAB (LCR bit 7) is present for software compatibility but does not remap
-anything (RLB-013).
+Note: every register also has its own fixed offset, which the original 16550
+does not. DLAB (LCR[7]) remaps 0x00 and 0x04 to the divisor latches as usual,
+and 0x24 and 0x28 reach them whatever DLAB says.
 
 ## Interrupt Priority
 
@@ -261,8 +279,9 @@ anything (RLB-013).
 IIR reports the highest-priority source that is both pending and enabled in
 IER; a source disabled in IER is invisible to IIR and to `irq`, so it cannot
 mask a lower-priority source that is enabled. With nothing pending and
-enabled, IIR reads "no interrupt pending". The character-timeout code (0x0C)
-is never returned - that source is not implemented (RLB-013).
+enabled, IIR reads "no interrupt pending". The character timeout shares the
+received-data-available slot and is distinguished by IIR[3], so IIR reads
+0x0C for it and 0x04 for a plain trigger-level interrupt.
 
 MCR[3] (OUT2) gates the `irq` output; IIR still reports the source when OUT2
 is low.
@@ -284,9 +303,8 @@ Active-low physical signals:
 
 The registers show inverted (active-high) values.
 
-MCR[5] (AFE, auto flow control) has no field. MCR[31:5] is read-only zero, so
-AFE reads back 0 whatever is written and CTS does not gate the transmitter
-(RLB-013).
+MCR[5] (AFE) enables auto flow control: CTS gates the start of a character
+and RTS follows the RX FIFO level. See the features section above.
 
 ## Loopback Mode
 
@@ -341,7 +359,8 @@ Tests located in: `projects/components/retro_legacy_blocks/dv/tests/test_apb4_ua
 
 1. **FIFO Mode**: The 16550 starts with FIFOs disabled. Write FCR[0]=1 to enable.
 2. **Interrupt Gating**: OUT2 (MCR[3]) gates the interrupt output.
-3. **Character Timeout**: NOT implemented - see RLB-013. `int_timeout` is tied low.
+3. **Character Timeout**: four character times of inactivity with a non-empty
+   RX FIFO; IIR reads 0x0C. FIFO mode only, gated by IER[0].
 4. **Break Detection**: asserted when the received character is all zeros and the
    stop bit is 0. Both BI and FE are computed combinationally at the stop-bit
    sample point, so they track the character actually received. Break detection
