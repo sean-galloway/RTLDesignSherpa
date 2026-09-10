@@ -20,7 +20,6 @@
 
 import os
 import sys
-import random
 import pytest
 
 from TBClasses.shared.utilities import get_repo_root, sim_build_path
@@ -33,6 +32,7 @@ from cocotb.triggers import ClockCycles, RisingEdge
 from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 from projects.components.bridge.dv.tbclasses.bridge2x2_axi5_tb import Bridge2x2Axi5TB
 
@@ -141,26 +141,36 @@ async def cocotb_test_bridge_2x2_axi5_sideband_arb(dut):
         assert all(t == 1 for t in r_trace[m]), f"master {m}: rtrace not echoed: {r_trace[m]}"
     tb.log.info(f"  AR: {len(sampler.ar)} handshakes, per-master counts hold, rtrace echoed")
 
-    # ---- phase 3: the drop path -- same sideband into the AXI4 slave returns trace=0
+    # ---- phase 3: the drop path. The AXI4 slave contributes no trace and the
+    # master still gets its own bit back -- the adapter echoes the request's
+    # trace at the port (BRIDGE-012), per master. The untraced write at the
+    # end is the negative half: the echo must FOLLOW the request, not tie high.
     tb.set_slave_response_delay(1, 0)
     for m in (0, 1):
         addr = DDR_BASE + 0x2000 + m * 0x100
         r = await tb.master_wr[m].write_transaction(addr, 0xD0B0_0000 | m, size=2, id=m,
                                                     nsaid=NSAID[m], trace=1, unique=1)
-        assert r.get('success') and r.get('trace', 0) == 0, (
-            f"master {m}: AXI4 slave path returned trace={r.get('trace')}, expected 0")
+        assert r.get('success'), f"master {m}: drop-path write failed: {r}"
+        assert r.get('trace', 0) == 1, (
+            f"master {m}: btrace not echoed on the AXI4 slave path, got {r.get('trace')}")
         resp = await tb.master_rd[m].read_transaction(addr, size=2, id=m, nsaid=NSAID[m], trace=1)
-        assert resp[0]['data'] == (0xD0B0_0000 | m) and resp[0].get('trace', 0) == 0
-    tb.log.info("  drop path: AXI4 slave answers with trace=0, data intact")
+        assert resp[0]['data'] == (0xD0B0_0000 | m), "drop-path data corrupted"
+        assert resp[0].get('trace', 0) == 1, (
+            f"master {m}: rtrace not echoed on the AXI4 slave path, got {resp[0].get('trace')}")
+        r0 = await tb.master_wr[m].write_transaction(addr + 0x40, 0xD0B0_1000 | m, size=2,
+                                                     id=m, nsaid=NSAID[m], trace=0)
+        assert r0.get('success') and r0.get('trace', 1) == 0, (
+            f"master {m}: btrace={r0.get('trace')} for an UNTRACED request -- the echo "
+            f"must follow the request, not assert unconditionally")
+    tb.log.info("  drop path: AXI4 slave answers with the echoed trace, data intact, "
+                "and an untraced request still returns trace=0")
 
     await ClockCycles(tb.clock, 20)
-    # Phase 3 wrote once per master to the AXI4 slave with trace=1 and got
-    # btrace=0 back -- the fabric's documented drop, which the AXI5 checker
-    # at each master port counts as one TRACE mismatch (BRIDGE-012). Exactly
-    # one per master is allowed; the native-path phases must stay clean.
-    tb.assert_compliance(allow={'trace_consistency_violation': 1})
+    # Nothing to allow: BRIDGE-012 is fixed in the RTL, so every path -- native,
+    # drop, traced and untraced -- presents a compliant boundary.
+    tb.assert_compliance()
     tb.log.info("=" * 80)
-    tb.log.info(f"AXI5 sideband-through-arbitration test PASSED ({4 * n + 4} transactions)")
+    tb.log.info(f"AXI5 sideband-through-arbitration test PASSED ({4 * n + 6} transactions)")
     tb.log.info("=" * 80)
 
 
@@ -169,24 +179,8 @@ async def cocotb_test_bridge_2x2_axi5_sideband_arb(dut):
 # ============================================================================
 
 
-def generate_bridge_levels():
-    """REG_LEVEL selects the grid: the test_level cells this wrapper expands to.
 
-    GATE 1 (gate), FUNC 2 (gate, func), FULL 3 (gate, func, full) -- different
-    counts, so the three make targets run different matrices. The depth each
-    cell runs at is read by the TB from TEST_LEVEL (bridge_levels.PROFILE)."""
-    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
-    if reg_level == 'GATE':
-        return ['gate']
-    if reg_level == 'FUNC':
-        return ['gate', 'func']
-    return ['gate', 'func', 'full']
-
-
-bridge_levels = generate_bridge_levels()
-
-
-@pytest.mark.parametrize("test_level", bridge_levels)
+@pytest.mark.parametrize("test_level", reg_level_grid())
 def test_bridge_2x2_axi5_sideband_arb(request, test_level):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_bridge': '../../../../rtl/bridge',
@@ -220,8 +214,7 @@ def test_bridge_2x2_axi5_sideband_arb(request, test_level):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
-        'TEST_LEVEL': test_level,
+        **level_env(test_level),
         **waves['extra_env'],
     }
 

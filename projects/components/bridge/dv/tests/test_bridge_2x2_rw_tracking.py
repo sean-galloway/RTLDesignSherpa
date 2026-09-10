@@ -19,7 +19,6 @@
 
 import os
 import sys
-import random
 import pytest
 
 from TBClasses.shared.utilities import get_repo_root, sim_build_path
@@ -32,6 +31,7 @@ from cocotb.triggers import ReadOnly, RisingEdge, ClockCycles
 from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 from projects.components.bridge.dv.tbclasses.bridge2x2_rw_tb import Bridge2x2RwTB
 
@@ -316,23 +316,7 @@ async def _measure_once(tb, d, sample, samples):
 
 
 
-def generate_bridge_levels():
-    """REG_LEVEL selects the grid: the test_level cells this wrapper expands to.
-
-    GATE 1 (gate), FUNC 2 (gate, func), FULL 3 (gate, func, full) -- different
-    counts, so the three make targets run different matrices. The depth each
-    cell runs at is read by the TB from TEST_LEVEL (bridge_levels.PROFILE)."""
-    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
-    if reg_level == 'GATE':
-        return ['gate']
-    if reg_level == 'FUNC':
-        return ['gate', 'func']
-    return ['gate', 'func', 'full']
-
-
-bridge_levels = generate_bridge_levels()
-
-@pytest.mark.parametrize("test_level", bridge_levels)
+@pytest.mark.parametrize("test_level", reg_level_grid())
 def test_bridge_2x2_rw_outstanding_overflow(request, test_level):
     """Pytest wrapper for the BRIDGE-011 outstanding-depth test"""
 
@@ -372,8 +356,7 @@ def test_bridge_2x2_rw_outstanding_overflow(request, test_level):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
-        'TEST_LEVEL': test_level,
+        **level_env(test_level),
         **waves['extra_env'],
     }
 
@@ -394,7 +377,7 @@ def test_bridge_2x2_rw_outstanding_overflow(request, test_level):
 
 
 
-@pytest.mark.parametrize("test_level", bridge_levels)
+@pytest.mark.parametrize("test_level", reg_level_grid())
 def test_bridge_2x2_rw_latency(request, test_level):
     """Pytest wrapper for the measured-latency test"""
 
@@ -434,8 +417,7 @@ def test_bridge_2x2_rw_latency(request, test_level):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
-        'TEST_LEVEL': test_level,
+        **level_env(test_level),
         **waves['extra_env'],
     }
 

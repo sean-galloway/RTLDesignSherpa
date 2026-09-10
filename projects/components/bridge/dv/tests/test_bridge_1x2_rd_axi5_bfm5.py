@@ -12,7 +12,6 @@
 
 import os
 import sys
-import random
 import pytest
 import logging
 
@@ -26,6 +25,7 @@ from cocotb.triggers import ClockCycles
 from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 from projects.components.bridge.dv.tbclasses.bridge1x2_rd_axi5_tb import (
     Bridge1x2RdAxi5TB,
@@ -62,8 +62,10 @@ async def cocotb_test_bridge_1x2_rd_axi5_bfm5(dut):
             resp = await tb.master_rd[0].read_transaction(
                 addr, size=2, id=i % 8, trace=1, unique=(i & 1))
             actual = resp[0]['data']
-            assert resp[0].get('trace', 0) == 0, (
-                f"AXI4 slave {slave_idx} returned rtrace={resp[0].get('trace')}; it has no trace")
+            assert resp[0].get('trace', 0) == 1, (
+                f"rtrace not echoed for slave {slave_idx}: got {resp[0].get('trace')}. "
+                f"Both slaves here are AXI4 and contribute no trace of their own; the "
+                f"adapter echoes the request's bit at the port (BRIDGE-012)")
             assert actual == expected, (
                 f"AXI5-BFM read mismatch slave {slave_idx} @ 0x{addr:08x}: "
                 f"got 0x{actual:08x}, expected 0x{expected:08x}"
@@ -85,23 +87,7 @@ async def cocotb_test_bridge_1x2_rd_axi5_bfm5(dut):
 
 
 
-def generate_bridge_levels():
-    """REG_LEVEL selects the grid: the test_level cells this wrapper expands to.
-
-    GATE 1 (gate), FUNC 2 (gate, func), FULL 3 (gate, func, full) -- different
-    counts, so the three make targets run different matrices. The depth each
-    cell runs at is read by the TB from TEST_LEVEL (bridge_levels.PROFILE)."""
-    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
-    if reg_level == 'GATE':
-        return ['gate']
-    if reg_level == 'FUNC':
-        return ['gate', 'func']
-    return ['gate', 'func', 'full']
-
-
-bridge_levels = generate_bridge_levels()
-
-@pytest.mark.parametrize("test_level", bridge_levels)
+@pytest.mark.parametrize("test_level", reg_level_grid())
 def test_bridge_1x2_rd_axi5_bfm5(request, test_level):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_bridge': '../../../../rtl/bridge',
@@ -135,8 +121,7 @@ def test_bridge_1x2_rd_axi5_bfm5(request, test_level):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
-        'TEST_LEVEL': test_level,
+        **level_env(test_level),
         **waves['extra_env'],
     }
 

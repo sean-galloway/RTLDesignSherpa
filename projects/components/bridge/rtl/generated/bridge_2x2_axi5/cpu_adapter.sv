@@ -554,6 +554,24 @@ module cpu_adapter
                           ? aw_trk_mem[aw_trk_rptr[AW_TRK_AW-1:0]]
                           : '0;
 
+    // -------- AW->B trace tracking (BRIDGE-012) --------
+    // Same push/pop as the slave_select FIFO above, so the head is the
+    // request being answered. Echoed onto btrace at the port below.
+    logic aw_trk_trace [AW_TRK_DEPTH];
+    logic b_trk_trace;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            for (int i = 0; i < AW_TRK_DEPTH; i++) aw_trk_trace[i] <= 1'b0;
+        end else if (aw_trk_push) begin
+            aw_trk_trace[aw_trk_wptr[AW_TRK_AW-1:0]] <= fub_axi_awtrace;
+        end
+    )
+
+    assign b_trk_trace = (aw_trk_wptr != aw_trk_rptr)
+                          ? aw_trk_trace[aw_trk_rptr[AW_TRK_AW-1:0]]
+                          : 1'b0;
+
     // Single-outstanding-target (writes): only accept a new AW
     // while every outstanding write targets the SAME slave. The
     // B response mux replays responses in AW issue order; slaves
@@ -639,6 +657,24 @@ module cpu_adapter
                           ? ar_trk_mem[ar_trk_rptr[AR_TRK_AW-1:0]]
                           : '0;
 
+    // -------- AR->R trace tracking (BRIDGE-012) --------
+    // Same push/pop as the slave_select FIFO above, so the head is the
+    // request being answered. Echoed onto rtrace at the port below.
+    logic ar_trk_trace [AR_TRK_DEPTH];
+    logic r_trk_trace;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            for (int i = 0; i < AR_TRK_DEPTH; i++) ar_trk_trace[i] <= 1'b0;
+        end else if (ar_trk_push) begin
+            ar_trk_trace[ar_trk_wptr[AR_TRK_AW-1:0]] <= fub_axi_artrace;
+        end
+    )
+
+    assign r_trk_trace = (ar_trk_wptr != ar_trk_rptr)
+                          ? ar_trk_trace[ar_trk_rptr[AR_TRK_AW-1:0]]
+                          : 1'b0;
+
     // Single-outstanding-target (reads) — see aw_gate_ok comment.
     logic [NUM_SLAVES-1:0] r_ar_active_target;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -697,36 +733,58 @@ module cpu_adapter
     end
 
     // Write response MUX (B channel - uses b_slave_select FIFO head)
+    // btrace is NOT driven here: the mux records what the SLAVE said
+    // (checked below) while the port echoes the request (BRIDGE-012).
+    logic b_slave_trace;
     always_comb begin
         fub_axi_bid = 4'd0;
         fub_axi_bresp = 2'b00;
         fub_axi_bvalid = 1'b0;
-        fub_axi_btrace = '0;  // AXI5 sideband (trace)
+        b_slave_trace = '0;  // AXI5 sideband (trace)
 
         case (b_slave_select)
             3'b001: begin  // Slave 0 (32b)
                 fub_axi_bid = cpu_32b_b.id[3:0];
                 fub_axi_bresp = cpu_32b_b.resp;
                 fub_axi_bvalid = cpu_32b_bvalid;
-                fub_axi_btrace = cpu_32b_b.trace;
+                b_slave_trace = cpu_32b_b.trace;
             end
             3'b010: begin  // Slave 1 (32b)
                 fub_axi_bid = cpu_32b_b.id[3:0];
                 fub_axi_bresp = cpu_32b_b.resp;
                 fub_axi_bvalid = cpu_32b_bvalid;
-                fub_axi_btrace = cpu_32b_b.trace;
+                b_slave_trace = cpu_32b_b.trace;
             end
             3'b100: begin  // Slave 2 (32b)
                 fub_axi_bid = cpu_32b_b.id[3:0];
                 fub_axi_bresp = cpu_32b_b.resp;
                 fub_axi_bvalid = cpu_32b_bvalid;
-                fub_axi_btrace = cpu_32b_b.trace;
+                b_slave_trace = cpu_32b_b.trace;
             end
             default: begin
                 // No slave selected - hold defaults
             end
         endcase
     end
+
+
+    // BRIDGE-012: the port promises trace; echo the request's bit.
+    assign fub_axi_btrace = b_trk_trace;
+
+`ifndef SYNTHESIS
+    // A slave that DOES implement trace must echo it too. Echoing at the
+    // boundary keeps this port correct whatever the slave does, but it
+    // must not launder a trace-capable slave that returns the wrong bit.
+    localparam logic [NUM_SLAVES-1:0] B_TRACE_CAPABLE = 3'b010;
+    always_ff @(posedge aclk) begin
+        if (aresetn && fub_axi_bvalid && fub_axi_bready &&
+            |(b_slave_select & B_TRACE_CAPABLE) &&
+            (b_slave_trace !== b_trk_trace)) begin
+            $error("%m: BRIDGE-012: trace-capable slave returned btrace=%b for a request with trace=%b",
+                   b_slave_trace, b_trk_trace);
+        end
+    end
+`endif
 
     // AR-ready MUX (request side: uses combinational comb_slave_select_ar)
     always_comb begin
@@ -751,13 +809,15 @@ module cpu_adapter
     end
 
     // Read response MUX (R channel - uses r_slave_select FIFO head)
+    // rtrace is NOT driven here -- see the B-channel note (BRIDGE-012).
+    logic r_slave_trace;
     always_comb begin
         fub_axi_rid = 4'd0;
         fub_axi_rdata = 32'd0;
         fub_axi_rresp = 2'b00;
         fub_axi_rlast = 1'b0;
         fub_axi_rvalid = 1'b0;
-        fub_axi_rtrace = '0;  // AXI5 sideband (trace)
+        r_slave_trace = '0;  // AXI5 sideband (trace)
 
         case (r_slave_select)
             3'b001: begin  // Slave 0 (32b)
@@ -766,7 +826,7 @@ module cpu_adapter
                 fub_axi_rresp = cpu_32b_r.resp;
                 fub_axi_rlast = cpu_32b_r.last;
                 fub_axi_rvalid = cpu_32b_rvalid;
-                fub_axi_rtrace = cpu_32b_r.trace;
+                r_slave_trace = cpu_32b_r.trace;
             end
             3'b010: begin  // Slave 1 (32b)
                 fub_axi_rid = cpu_32b_r.id[3:0];
@@ -774,7 +834,7 @@ module cpu_adapter
                 fub_axi_rresp = cpu_32b_r.resp;
                 fub_axi_rlast = cpu_32b_r.last;
                 fub_axi_rvalid = cpu_32b_rvalid;
-                fub_axi_rtrace = cpu_32b_r.trace;
+                r_slave_trace = cpu_32b_r.trace;
             end
             3'b100: begin  // Slave 2 (32b)
                 fub_axi_rid = cpu_32b_r.id[3:0];
@@ -782,12 +842,31 @@ module cpu_adapter
                 fub_axi_rresp = cpu_32b_r.resp;
                 fub_axi_rlast = cpu_32b_r.last;
                 fub_axi_rvalid = cpu_32b_rvalid;
-                fub_axi_rtrace = cpu_32b_r.trace;
+                r_slave_trace = cpu_32b_r.trace;
             end
             default: begin
                 // No slave selected - hold defaults
             end
         endcase
     end
+
+
+    // BRIDGE-012: the port promises trace; echo the request's bit.
+    assign fub_axi_rtrace = r_trk_trace;
+
+`ifndef SYNTHESIS
+    // A slave that DOES implement trace must echo it too. Echoing at the
+    // boundary keeps this port correct whatever the slave does, but it
+    // must not launder a trace-capable slave that returns the wrong bit.
+    localparam logic [NUM_SLAVES-1:0] R_TRACE_CAPABLE = 3'b010;
+    always_ff @(posedge aclk) begin
+        if (aresetn && fub_axi_rvalid && fub_axi_rready &&
+            |(r_slave_select & R_TRACE_CAPABLE) &&
+            (r_slave_trace !== r_trk_trace)) begin
+            $error("%m: BRIDGE-012: trace-capable slave returned rtrace=%b for a request with trace=%b",
+                   r_slave_trace, r_trk_trace);
+        end
+    end
+`endif
 
 endmodule : cpu_adapter

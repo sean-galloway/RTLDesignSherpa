@@ -1,36 +1,23 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
-"""Bridge test levels: the REG_LEVEL grid and the TEST_LEVEL depth, in one place.
+"""Bridge test-level DEPTH profile.
 
-HAND-WRITTEN (not generated). Shared by every generated bridge test, the
-generated monitor tests, and the hand-written AMBA5 sign-off tests, so the
-three levels mean the same thing across the whole suite.
+The grid (which cells a REG_LEVEL expands to) and the per-cell environment
+live in ``TBClasses.shared.test_levels`` -- one implementation for every area,
+and the one place that guarantees a wrapper's TEST_LEVEL beats a conftest
+stamp (see that module for why cocotb_test makes that necessary). This file
+holds only what is specific to the bridge: how much work each depth does.
 
-The two knobs are different (handbook: test-runner):
-
-* ``REG_LEVEL`` (GATE|FUNC|FULL, from make/tests.mk) selects the GRID -- how
-  many ``test_level`` cells each pytest wrapper expands to. Each wrapper file
-  carries its own ``generate_bridge_levels`` (GATE 1 / FUNC 2 / FULL 3), the
-  per-file form val/common uses and the level checker verifies.
-* ``TEST_LEVEL`` (gate|func|full) sets the DEPTH of one cell -- how many
-  offsets, probes, transactions, and whether the slaves push back. The wrapper
-  exports it in ``extra_env``; the TB reads it through ``current_level`` and
-  scales its work with ``PROFILE``.
-
-Before this module existed neither knob reached the bridge suite: the jinja
-template never read REG_LEVEL, never exported TEST_LEVEL, and no TB read it,
-so ``make run-all-gate`` and ``make run-all-full`` ran the identical 72 tests
-(BRIDGE-007 audit, 2026-09-09).
-
-SEED rides the same path. The repo-root conftest pins ``SEED`` per test node
-so a rerun replays the same run; the wrapper forwards it in ``extra_env`` and
-``seeded_rng`` turns it into the one ``random.Random`` a TB uses.
+Every count the suite uses is read from ``PROFILE``; nothing else hardcodes
+one. ``current_level()`` and ``seeded_rng()`` are re-exported so a TB has one
+import.
 """
 
 import os
 import random
 
-LEVELS = ('gate', 'func', 'full')
+from TBClasses.shared.test_levels import LEVELS, current_level, level_env, reg_level_grid  # noqa: F401
+
 
 # Depth profile per level. Every number here is a knob a TB or test reads;
 # nothing else in the suite hardcodes a count.
@@ -74,12 +61,6 @@ PROFILE = {
         latency_samples=8,
     ),
 }
-
-
-def current_level():
-    """The depth this cocotb process runs at, from TEST_LEVEL (default gate)."""
-    lvl = os.environ.get('TEST_LEVEL', 'gate').lower()
-    return lvl if lvl in LEVELS else 'gate'
 
 
 def seeded_rng(log=None):

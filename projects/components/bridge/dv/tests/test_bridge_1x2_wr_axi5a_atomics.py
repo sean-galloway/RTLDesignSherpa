@@ -4,17 +4,18 @@
 #
 # HAND-WRITTEN (not generated): BRIDGE-002 A5-3a sign-off test.
 #
-# Real ATOP values through the fabric:
+# Real ATOP values through the fabric, driven per transaction by the AXI5
+# master BFM's atomic_operation (no pin poking since 2026-09-09):
 #   - plain writes and AtomicStore (6'b010000) forward natively — the
 #     slave-side boundary shows the SAME awatop at its AW handshake and
 #     the write completes OKAY;
-#   - AtomicLoad (6'b100000) and AtomicSwap (6'b110000) are swallowed
-#     by the master adapter's axi5_atomic_filter: no slave AW handshake,
-#     and the master's B response is DECERR (2'b11) with the right ID.
+#   - AtomicLoad (6'b100000), AtomicSwap (6'b110000) and AtomicCompare
+#     (6'b110001) are swallowed by the master adapter's axi5_atomic_filter:
+#     no slave AW handshake, and the master's B response is DECERR (2'b11)
+#     with the right ID. Compare was untested until 2026-09-09.
 
 import os
 import sys
-import random
 import pytest
 
 from TBClasses.shared.utilities import get_repo_root, sim_build_path
@@ -27,6 +28,7 @@ from cocotb.triggers import ClockCycles, RisingEdge
 from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 from projects.components.bridge.dv.tbclasses.bridge1x2_wr_axi5a_tb import (
     Bridge1x2WrAxi5aTB,
@@ -148,23 +150,7 @@ async def cocotb_test_bridge_1x2_wr_axi5a_atomics(dut):
 
 
 
-def generate_bridge_levels():
-    """REG_LEVEL selects the grid: the test_level cells this wrapper expands to.
-
-    GATE 1 (gate), FUNC 2 (gate, func), FULL 3 (gate, func, full) -- different
-    counts, so the three make targets run different matrices. The depth each
-    cell runs at is read by the TB from TEST_LEVEL (bridge_levels.PROFILE)."""
-    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
-    if reg_level == 'GATE':
-        return ['gate']
-    if reg_level == 'FUNC':
-        return ['gate', 'func']
-    return ['gate', 'func', 'full']
-
-
-bridge_levels = generate_bridge_levels()
-
-@pytest.mark.parametrize("test_level", bridge_levels)
+@pytest.mark.parametrize("test_level", reg_level_grid())
 def test_bridge_1x2_wr_axi5a_atomics(request, test_level):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_bridge': '../../../../rtl/bridge',
@@ -198,8 +184,7 @@ def test_bridge_1x2_wr_axi5a_atomics(request, test_level):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
-        'TEST_LEVEL': test_level,
+        **level_env(test_level),
         **waves['extra_env'],
     }
 

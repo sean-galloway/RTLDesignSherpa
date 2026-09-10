@@ -9,8 +9,12 @@
 # and a 32b AXI5 slave (native). Until this fixture the droppable-sideband-
 # across-a-converter path was a warning nobody simulated. The AXI5 BFM
 # drives the sideband per transaction:
-#   - structural: the 64b AXI4 slave has no sideband pins;
-#   - reads through the converter return the seeded data and trace=0;
+#   - structural: the 64b AXI4 slave has no sideband pins -- that is where the
+#     drop is proved;
+#   - reads through the converter return the seeded data AND the echoed
+#     trace=1: sideband cannot traverse the dwidth converter, but the adapter
+#     echoes the request's trace at the port (BRIDGE-012), so the master's
+#     promise survives a path that cannot carry the bit at all;
 #   - reads into the AXI5 slave show the driven nsaid/trace/unique at its AR
 #     handshake and echo trace=1 on R;
 #   - the AXI5 compliance checker on the master port reports zero violations.
@@ -18,7 +22,6 @@
 
 import os
 import sys
-import random
 import pytest
 
 from TBClasses.shared.utilities import get_repo_root, sim_build_path
@@ -31,6 +34,7 @@ from cocotb.triggers import ClockCycles, RisingEdge
 from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 from projects.components.bridge.dv.tbclasses.bridge1x2_rd_axi5w_tb import Bridge1x2RdAxi5wTB
 
@@ -75,15 +79,25 @@ async def cocotb_test_bridge_1x2_rd_axi5w_sideband(dut):
                 offs.append(o)
         return offs[:max(n, 3)]
 
-    # ---- converter path: 64b AXI4 slave. Sideband terminates; data must not.
+    # ---- converter path: 64b AXI4 slave. Sideband terminates; data must not,
+    # and neither must the port's trace promise.
     for off in offsets(0):
         addr = DDR_BASE + off
         expected = tb.slave_mem_read(0, addr, master_idx=0)
         resp = await tb.master_rd[0].read_transaction(addr, size=2, nsaid=ARNSAID, trace=1, unique=1)
         assert resp[0]['data'] == expected, (
             f"converter path read @0x{addr:08x}: 0x{resp[0]['data']:08x} != 0x{expected:08x}")
-        assert resp[0].get('trace', 0) == 0, f"trace returned {resp[0].get('trace')} from the AXI4 slave"
-    tb.log.info(f"  converter path OK: {n} reads, data intact, rtrace=0")
+        assert resp[0].get('trace', 0) == 1, (
+            f"rtrace not echoed across the converter: got {resp[0].get('trace')} "
+            f"(BRIDGE-012 -- the bit cannot traverse the converter, so the adapter "
+            f"echoes the request's at the port)")
+    # And the echo must FOLLOW the request: an untraced read comes back untraced.
+    addr = DDR_BASE + offsets(0)[0]
+    resp = await tb.master_rd[0].read_transaction(addr, size=2, nsaid=ARNSAID, trace=0, unique=1)
+    assert resp[0].get('trace', 1) == 0, (
+        f"rtrace={resp[0].get('trace')} for an UNTRACED read -- the echo must follow "
+        f"the request, not assert unconditionally")
+    tb.log.info(f"  converter path OK: {n} reads, data intact, rtrace echoed (and 0 when unasked)")
 
     # ---- native path: 32b AXI5 slave. Sideband arrives and trace echoes.
     before = len(sampler.ar)
@@ -111,24 +125,8 @@ async def cocotb_test_bridge_1x2_rd_axi5w_sideband(dut):
 # ============================================================================
 
 
-def generate_bridge_levels():
-    """REG_LEVEL selects the grid: the test_level cells this wrapper expands to.
 
-    GATE 1 (gate), FUNC 2 (gate, func), FULL 3 (gate, func, full) -- different
-    counts, so the three make targets run different matrices. The depth each
-    cell runs at is read by the TB from TEST_LEVEL (bridge_levels.PROFILE)."""
-    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
-    if reg_level == 'GATE':
-        return ['gate']
-    if reg_level == 'FUNC':
-        return ['gate', 'func']
-    return ['gate', 'func', 'full']
-
-
-bridge_levels = generate_bridge_levels()
-
-
-@pytest.mark.parametrize("test_level", bridge_levels)
+@pytest.mark.parametrize("test_level", reg_level_grid())
 def test_bridge_1x2_rd_axi5w_sideband(request, test_level):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_bridge': '../../../../rtl/bridge',
@@ -162,8 +160,7 @@ def test_bridge_1x2_rd_axi5w_sideband(request, test_level):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
-        'TEST_LEVEL': test_level,
+        **level_env(test_level),
         **waves['extra_env'],
     }
 

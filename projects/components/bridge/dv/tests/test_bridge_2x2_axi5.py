@@ -12,7 +12,6 @@
 
 import os
 import sys
-import random
 import pytest
 import logging
 
@@ -28,6 +27,7 @@ from cocotb.triggers import RisingEdge, ClockCycles
 from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 # Import generated testbench class
 from projects.components.bridge.dv.tbclasses.bridge2x2_axi5_tb import Bridge2x2Axi5TB
@@ -406,23 +406,7 @@ async def cocotb_test_bridge_2x2_axi5_arbitration(dut):
 # ============================================================================
 
 
-def generate_bridge_levels():
-    """REG_LEVEL selects the grid: the test_level cells this wrapper expands to.
-
-    GATE 1 (gate), FUNC 2 (gate, func), FULL 3 (gate, func, full) -- different
-    counts, so the three make targets run different matrices. The depth each
-    cell runs at is read by the TB from TEST_LEVEL (bridge_levels.PROFILE)."""
-    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
-    if reg_level == 'GATE':
-        return ['gate']
-    if reg_level == 'FUNC':
-        return ['gate', 'func']
-    return ['gate', 'func', 'full']
-
-
-bridge_levels = generate_bridge_levels()
-
-@pytest.mark.parametrize("test_level", bridge_levels)
+@pytest.mark.parametrize("test_level", reg_level_grid())
 def test_bridge_2x2_axi5_basic_connectivity(request, test_level):
     """Pytest wrapper for basic connectivity test"""
 
@@ -471,8 +455,7 @@ def test_bridge_2x2_axi5_basic_connectivity(request, test_level):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
-        'TEST_LEVEL': test_level,
+        **level_env(test_level),
         **waves['extra_env'],
     }
 
@@ -491,7 +474,7 @@ def test_bridge_2x2_axi5_basic_connectivity(request, test_level):
     )
 
 
-@pytest.mark.parametrize("test_level", bridge_levels)
+@pytest.mark.parametrize("test_level", reg_level_grid())
 def test_bridge_2x2_axi5_boundary_probe(request, test_level):
     """Pytest wrapper for boundary probe test"""
 
@@ -531,8 +514,7 @@ def test_bridge_2x2_axi5_boundary_probe(request, test_level):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
-        'TEST_LEVEL': test_level,
+        **level_env(test_level),
         **waves['extra_env'],
     }
 
@@ -549,7 +531,7 @@ def test_bridge_2x2_axi5_boundary_probe(request, test_level):
         plus_args=waves['sim_args'],
         extra_env=extra_env
     )
-@pytest.mark.parametrize("test_level", bridge_levels)
+@pytest.mark.parametrize("test_level", reg_level_grid())
 def test_bridge_2x2_axi5_arbitration(request, test_level):
     """Pytest wrapper for arbitration test"""
 
@@ -589,8 +571,7 @@ def test_bridge_2x2_axi5_arbitration(request, test_level):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
-        'TEST_LEVEL': test_level,
+        **level_env(test_level),
         **waves['extra_env'],
     }
 

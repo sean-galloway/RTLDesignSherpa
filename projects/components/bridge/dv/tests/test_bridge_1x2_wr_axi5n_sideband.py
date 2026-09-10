@@ -5,20 +5,21 @@
 # HAND-WRITTEN (not generated): BRIDGE-002 A5-2 slice 2 sign-off test,
 # write channel — including connectivity-gated POISON.
 #
-# The master port drives awtrace=1 / wpoison=1 while the AXI4 BFM
-# issues writes:
+# The AXI5 master BFM drives awtrace=1 / wpoison=1 per transaction (no pin
+# poking since 2026-09-09):
 #   - writes to ddr_wr (AXI5, trace+poison): awtrace and wpoison must
-#     arrive intact at the slave boundary, and a driven ddr btrace=1
-#     must return on the master's btrace output.
-#   - writes to sram_wr (AXI5, poison only): wpoison must arrive, and
-#     there must be NO awtrace/btrace pins on that port at all (trace
-#     terminates mid-fabric with a generation-time warning).
+#     arrive intact at the slave boundary, and btrace=1 comes back in the
+#     master BFM's write result.
+#   - writes to sram_wr (AXI5, poison only): wpoison must arrive, and there
+#     must be NO awtrace/btrace pins on that port at all -- trace terminates
+#     mid-fabric with a generation-time warning. The master STILL gets
+#     btrace=1 back: the adapter echoes the request's trace at the boundary
+#     (BRIDGE-012), so the port keeps its promise whatever the slave carries.
 # This fixture also closes the slice-1 deferred item: a simulated
 # wr-channel AXI5-slave path.
 
 import os
 import sys
-import random
 import pytest
 
 from TBClasses.shared.utilities import get_repo_root, sim_build_path
@@ -31,9 +32,15 @@ from cocotb.triggers import ClockCycles, RisingEdge
 from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 from projects.components.bridge.dv.tbclasses.bridge1x2_wr_axi5n_tb import (
     Bridge1x2WrAxi5nTB,
+)
+
+ECHO_NOTE = (
+    "the adapter echoes the request's trace onto B/R at the port (BRIDGE-012), "
+    "so the master sees its own trace bit back whatever the slave contributed"
 )
 
 
@@ -128,23 +135,21 @@ async def cocotb_test_bridge_1x2_wr_axi5n_sideband(dut):
         b_sram.append(await write(0x8000_0000 + off, 0x5A5A_0000 + i))
 
     await ClockCycles(tb.clock, 30)
-    assert all(v == 0 for v in b_sram), f"btrace nonzero from the trace-less slave (BFM results): {b_sram}"
+    assert all(v == 1 for v in b_sram), (
+        f"btrace not echoed on the trace-less slave path: {b_sram} -- " + ECHO_NOTE)
     assert len(sampler.sram_w) >= m and all(v == 1 for v in sampler.sram_w), (
         f"wpoison lost on sram path: {sampler.sram_w}")
-    # sram has no btrace source, so the master's btrace must read 0 for
-    # these responses.
-    assert sampler.master_b and all(v == 0 for v in sampler.master_b), (
-        f"btrace nonzero from the trace-less slave: {sampler.master_b}")
+    # sram contributes no btrace of its own -- and the master still sees 1,
+    # because the adapter echoes the request's trace at the port. The DROP is
+    # proved structurally above: sram_wr has no awtrace/btrace pins at all.
+    assert sampler.master_b and all(v == 1 for v in sampler.master_b), (
+        f"btrace not echoed on the trace-less slave path: {sampler.master_b} -- " + ECHO_NOTE)
     tb.log.info(f"  sram path OK: wpoison x{len(sampler.sram_w)}, "
-                f"btrace=0 x{len(sampler.master_b)}")
+                f"btrace echoed x{len(sampler.master_b)}")
 
-    # The poison-only path drops trace: AW carried trace=1, B returns 0, and
-    # the AXI5 checker at the master port calls each one a TRACE mismatch.
-    # That is the fabric's documented behaviour (sideband a slave lacks
-    # terminates mid-fabric) and an open design question -- BRIDGE-012:
-    # echo at the boundary, or keep the drop as the port contract. Until it
-    # is decided, exactly the drop-path count is allowed and nothing else.
-    tb.assert_compliance(allow={'trace_consistency_violation': m})
+    # Nothing to allow: BRIDGE-012 is fixed in the RTL, so the boundary is
+    # compliant on the native path and the drop path alike.
+    tb.assert_compliance()
     tb.log.info("=" * 80)
     tb.log.info("A5-2 slice 2 wr sideband test PASSED")
     tb.log.info("=" * 80)
@@ -156,23 +161,7 @@ async def cocotb_test_bridge_1x2_wr_axi5n_sideband(dut):
 
 
 
-def generate_bridge_levels():
-    """REG_LEVEL selects the grid: the test_level cells this wrapper expands to.
-
-    GATE 1 (gate), FUNC 2 (gate, func), FULL 3 (gate, func, full) -- different
-    counts, so the three make targets run different matrices. The depth each
-    cell runs at is read by the TB from TEST_LEVEL (bridge_levels.PROFILE)."""
-    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
-    if reg_level == 'GATE':
-        return ['gate']
-    if reg_level == 'FUNC':
-        return ['gate', 'func']
-    return ['gate', 'func', 'full']
-
-
-bridge_levels = generate_bridge_levels()
-
-@pytest.mark.parametrize("test_level", bridge_levels)
+@pytest.mark.parametrize("test_level", reg_level_grid())
 def test_bridge_1x2_wr_axi5n_sideband(request, test_level):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_bridge': '../../../../rtl/bridge',
@@ -206,8 +195,7 @@ def test_bridge_1x2_wr_axi5n_sideband(request, test_level):
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
-        'TEST_LEVEL': test_level,
+        **level_env(test_level),
         **waves['extra_env'],
     }
 

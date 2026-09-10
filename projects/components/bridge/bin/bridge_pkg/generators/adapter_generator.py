@@ -481,6 +481,88 @@ class AdapterGenerator:
         from bridge_pkg.sideband import channel_fields
         return channel_fields(feats, channel)
 
+    # --- BRIDGE-012: response trace is echoed at the boundary ---------------
+    # AXI5 wants the response trace bit to follow the request's. From this
+    # master's port the BRIDGE is the Subordinate, and this port advertises
+    # trace, so the promise is the adapter's to keep -- whatever sits behind
+    # the path. It cannot be kept by forwarding: sideband a slave does not
+    # implement terminates mid-fabric (A5-2 slice 2) and its response carries
+    # trace=0, so a traced write to a trace-less slave came back untraced and
+    # the AXI5 checker at the port called each one a violation.
+    #
+    # The AW/AR tracking FIFO already holds one entry per outstanding request,
+    # in the order responses return (the in-order contract, BRIDGE-010), so
+    # the request's trace rides in the entry that routes its response. Echo
+    # from there; keep the slave's own bit for a check rather than trusting it.
+    #
+    # Only `trace` echoes. `poison` on R is slave-sourced data integrity: a
+    # request never predicts it, and echoing it would launder corrupt data.
+
+    @property
+    def _trace_echo(self) -> bool:
+        return 'trace' in self.sb_own
+
+    def _trace_capable_mask(self) -> str:
+        """One-hot mask of connected slaves that implement trace themselves."""
+        from bridge_pkg.sideband import port_features
+        bits = ''.join(
+            '1' if (i in self.master.slave_connections
+                    and 'trace' in port_features(self.slaves[i])) else '0'
+            for i in range(len(self.slaves) - 1, -1, -1))
+        return f"{len(self.slaves)}'b{bits}"
+
+    def _trace_track_lines(self, chan: str) -> List[str]:
+        """Parallel trace FIFO beside the {aw,ar} slave_select FIFO: same
+        push, same pop, same head, so no extra ordering to reason about."""
+        resp = 'b' if chan == 'aw' else 'r'
+        up = chan.upper()
+        return [
+            "",
+            f"    // -------- {up}->{resp.upper()} trace tracking (BRIDGE-012) --------",
+            f"    // Same push/pop as the slave_select FIFO above, so the head is the",
+            f"    // request being answered. Echoed onto {resp}trace at the port below.",
+            f"    logic {chan}_trk_trace [{up}_TRK_DEPTH];",
+            f"    logic {resp}_trk_trace;",
+            "",
+            "    `ALWAYS_FF_RST(aclk, aresetn,",
+            "        if (`RST_ASSERTED(aresetn)) begin",
+            f"            for (int i = 0; i < {up}_TRK_DEPTH; i++) {chan}_trk_trace[i] <= 1'b0;",
+            f"        end else if ({chan}_trk_push) begin",
+            f"            {chan}_trk_trace[{chan}_trk_wptr[{up}_TRK_AW-1:0]] <= fub_axi_{chan}trace;",
+            "        end",
+            "    )",
+            "",
+            f"    assign {resp}_trk_trace = ({chan}_trk_wptr != {chan}_trk_rptr)",
+            f"                          ? {chan}_trk_trace[{chan}_trk_rptr[{up}_TRK_AW-1:0]]",
+            "                          : 1'b0;",
+        ]
+
+    def _trace_echo_lines(self, resp: str) -> List[str]:
+        """Drive {b,r}trace from the tracked request trace, and check the
+        slave's own bit against it wherever the slave implements trace."""
+        chan = 'aw' if resp == 'b' else 'ar'
+        sel = f"{resp}_slave_select" if resp == 'b' else "r_slave_select"
+        return [
+            "",
+            f"    // BRIDGE-012: the port promises trace; echo the request's bit.",
+            f"    assign fub_axi_{resp}trace = {resp}_trk_trace;",
+            "",
+            "`ifndef SYNTHESIS",
+            f"    // A slave that DOES implement trace must echo it too. Echoing at the",
+            f"    // boundary keeps this port correct whatever the slave does, but it",
+            f"    // must not launder a trace-capable slave that returns the wrong bit.",
+            f"    localparam logic [NUM_SLAVES-1:0] {resp.upper()}_TRACE_CAPABLE = {self._trace_capable_mask()};",
+            "    always_ff @(posedge aclk) begin",
+            f"        if (aresetn && fub_axi_{resp}valid && fub_axi_{resp}ready &&",
+            f"            |({sel} & {resp.upper()}_TRACE_CAPABLE) &&",
+            f"            ({resp}_slave_trace !== {resp}_trk_trace)) begin",
+            f'            $error("%m: BRIDGE-012: trace-capable slave returned {resp}trace=%b for a request with trace=%b",',
+            f"                   {resp}_slave_trace, {resp}_trk_trace);",
+            "        end",
+            "    end",
+            "`endif",
+        ]
+
     def _sb_wire_decls(self) -> List[str]:
         """fub_axi_* wire declarations for this master's own sideband
         features (both directions; the wrapper's fub side binds them)."""
@@ -1220,6 +1302,8 @@ class AdapterGenerator:
             lines.append("    assign b_slave_select = (aw_trk_wptr != aw_trk_rptr)")
             lines.append("                          ? aw_trk_mem[aw_trk_rptr[AW_TRK_AW-1:0]]")
             lines.append("                          : '0;")
+            if self._trace_echo:
+                lines.extend(self._trace_track_lines('aw'))
             lines.append("")
             lines.append("    // Single-outstanding-target (writes): only accept a new AW")
             lines.append("    // while every outstanding write targets the SAME slave. The")
@@ -1316,6 +1400,8 @@ class AdapterGenerator:
             lines.append("    assign r_slave_select = (ar_trk_wptr != ar_trk_rptr)")
             lines.append("                          ? ar_trk_mem[ar_trk_rptr[AR_TRK_AW-1:0]]")
             lines.append("                          : '0;")
+            if self._trace_echo:
+                lines.extend(self._trace_track_lines('ar'))
             lines.append("")
             lines.append("    // Single-outstanding-target (reads) — see aw_gate_ok comment.")
             lines.append("    logic [NUM_SLAVES-1:0] r_ar_active_target;")
@@ -1402,6 +1488,10 @@ class AdapterGenerator:
             lines.append("")
 
             lines.append("    // Write response MUX (B channel - uses b_slave_select FIFO head)")
+            if self._trace_echo:
+                lines.append("    // btrace is NOT driven here: the mux records what the SLAVE said")
+                lines.append("    // (checked below) while the port echoes the request (BRIDGE-012).")
+                lines.append("    logic b_slave_trace;")
             lines.append("    always_comb begin")
 
             # Default assignments
@@ -1409,7 +1499,8 @@ class AdapterGenerator:
             lines.append("        fub_axi_bresp = 2'b00;")
             lines.append("        fub_axi_bvalid = 1'b0;")
             for _f, _w, feat, base in self._sb_fields('b', self.sb_own):
-                lines.append(f"        fub_axi_{base} = '0;  // AXI5 sideband ({feat})")
+                tgt = "b_slave_trace" if base == 'btrace' else f"fub_axi_{base}"
+                lines.append(f"        {tgt} = '0;  // AXI5 sideband ({feat})")
             lines.append("")
 
             # Case statement based on b_slave_select (was slave_select_aw)
@@ -1440,7 +1531,8 @@ class AdapterGenerator:
                         lines.append(f"                fub_axi_bresp = {self.master.name}_{suffix}_b.resp;")
                         lines.append(f"                fub_axi_bvalid = {self.master.name}_{suffix}_bvalid;")
                         for field, _w, _feat, base in self._sb_fields('b', self.sb_own):
-                            lines.append(f"                fub_axi_{base} = {self.master.name}_{suffix}_b.{field};")
+                            tgt = "b_slave_trace" if base == 'btrace' else f"fub_axi_{base}"
+                            lines.append(f"                {tgt} = {self.master.name}_{suffix}_b.{field};")
                     else:
                         # Converter intermediate signals
                         lines.append(f"                fub_axi_bid = conv_{suffix}_bid;")
@@ -1455,6 +1547,9 @@ class AdapterGenerator:
             lines.append("        endcase")
             lines.append("    end")
             lines.append("")
+            if self._trace_echo:
+                lines.extend(self._trace_echo_lines('b'))
+                lines.append("")
 
         # Read channel MUX
         if self.master.channels in ["rd", "rw"]:
@@ -1488,6 +1583,9 @@ class AdapterGenerator:
             lines.append("")
 
             lines.append("    // Read response MUX (R channel - uses r_slave_select FIFO head)")
+            if self._trace_echo:
+                lines.append("    // rtrace is NOT driven here -- see the B-channel note (BRIDGE-012).")
+                lines.append("    logic r_slave_trace;")
             lines.append("    always_comb begin")
 
             # Default assignments
@@ -1497,7 +1595,8 @@ class AdapterGenerator:
             lines.append("        fub_axi_rlast = 1'b0;")
             lines.append("        fub_axi_rvalid = 1'b0;")
             for _f, _w, feat, base in self._sb_fields('r', self.sb_own):
-                lines.append(f"        fub_axi_{base} = '0;  // AXI5 sideband ({feat})")
+                tgt = "r_slave_trace" if base == 'rtrace' else f"fub_axi_{base}"
+                lines.append(f"        {tgt} = '0;  // AXI5 sideband ({feat})")
             lines.append("")
 
             # Case statement based on r_slave_select (was slave_select_ar)
@@ -1521,7 +1620,8 @@ class AdapterGenerator:
                         lines.append(f"                fub_axi_rlast = {self.master.name}_{suffix}_r.last;")
                         lines.append(f"                fub_axi_rvalid = {self.master.name}_{suffix}_rvalid;")
                         for field, _w, _feat, base in self._sb_fields('r', self.sb_own):
-                            lines.append(f"                fub_axi_{base} = {self.master.name}_{suffix}_r.{field};")
+                            tgt = "r_slave_trace" if base == 'rtrace' else f"fub_axi_{base}"
+                            lines.append(f"                {tgt} = {self.master.name}_{suffix}_r.{field};")
                     else:
                         # Converter intermediate signals
                         lines.append(f"                fub_axi_rid = conv_{suffix}_rid;")
@@ -1538,6 +1638,9 @@ class AdapterGenerator:
             lines.append("        endcase")
             lines.append("    end")
             lines.append("")
+            if self._trace_echo:
+                lines.extend(self._trace_echo_lines('r'))
+                lines.append("")
 
         return lines
 
