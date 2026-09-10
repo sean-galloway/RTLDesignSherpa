@@ -533,7 +533,46 @@ generated TB reported `addr_width=64 / id_width=8` while every fixture's
 ports are 32/4 -- vestigial template constants, now derived from the ports.
 Everything else in that unit was confirmed against the contract.
 
-Still owed on this task: the remaining 11 units and their triage.
+*Round complete, 2026-09-10: all 12 units reviewed and triaged.* Nine came
+back clean against the contract. One produced the seed finding recorded
+above. Two were CONFIRMED, and both were the same class of defect -- an
+assertion that the bug itself satisfies -- which is exactly what this task
+was raised to catch, and both were in the shared test template, so each fix
+propagated to all 45 generated tests at once.
+
+**part_10 -- the boundary probe swallowed any exception as proof.** The probe
+walked addresses past the end of the map expecting a decode error, and its
+`except RuntimeError` accepted whatever came back. A timeout, a BFM teardown,
+a driver bug and a genuine SLVERR were indistinguishable, so a decode defect
+confined to addresses above the 64 KB seed cap would have passed the entire
+suite. The reviewer's phrasing is worth keeping: the test proved that
+something went wrong, never that the right thing went wrong.
+
+**part_12 -- the write path's error raise was dead for AXI-Lite masters.**
+`master_write` raised on a bad response, but the three BFM families report
+failure three different ways: a dict with a response field, a raised
+`RuntimeError`, and a bare integer code. Only the first was handled, so on
+every AXI-Lite fixture the raise could not fire and the probe's expectation
+was unreachable.
+
+**The fix, in the template rather than the output.** A new `AxiResponseError`
+carries the numeric response alongside the message, `master_write` and
+`master_read` normalise all three BFM shapes into it, and both probes now
+assert `is_slverr` instead of accepting any failure. A probe that cannot
+determine the response code re-raises rather than passing. Regenerated across
+all 26 configurations per CRITICAL RULE #0.
+
+*Mutation check.* The discrimination was verified RED before GREEN: with the
+old accept-anything handler the probes passed against a response the new
+assertion rejects.
+
+*A note for whoever reads the run logs.* The FULL run that validated this
+reported 8 failures, and none of them were the bridge. All eight were one
+shared file, `rtl/common/fifo_control.sv`, caught half-written by another
+agent mid-conversion to the reset macro -- Verilator died on an unterminated
+macro argument list at EOF. The tell was that every failure was a build exit,
+not an assertion. On a shared tree, read the error kind before reading the
+test name.
 
 
 ---

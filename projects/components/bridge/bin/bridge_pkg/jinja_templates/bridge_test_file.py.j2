@@ -214,11 +214,24 @@ async def cocotb_test_{{ rtl_module_name }}_boundary_probe(dut):
             seeded = tb.is_seeded({{ loop.index0 }}, addr)
             try:
                 await tb.master_write({{ master_idx }}, addr, d)
-            except RuntimeError:
-                if seeded:
+            except AxiResponseError as e:
+                # `resp is None` means it was never an AXI error response at
+                # all -- a timeout, a BFM fault -- and tolerating THAT would
+                # be the very hole this check closes, only wider. Re-raise.
+                if seeded or e.resp is None:
                     raise
-                # Past the model: the addressed slave answered SLVERR, which
-                # is the contract and the routing evidence. Nothing landed.
+                # Past the slave's seeded model. ONLY an SLVERR from the
+                # ADDRESSED slave is expected here (the shared out-of-range
+                # contract). A DECERR means the subtractive catch-all
+                # answered -- the address did not decode to slave
+                # {{ loop.index0 }} at all -- and a bare `except RuntimeError`
+                # swallowed that identically, so a decode defect confined to
+                # addresses above the seed cap passed the whole suite.
+                assert e.is_slverr, (
+                    f"M{{ master_idx }}->S{{ loop.index0 }} probe at 0x{addr:08x} past the "
+                    f"seeded model answered {e}; expected SLVERR from the addressed "
+                    f"slave. A DECERR here means it decoded to the subtractive "
+                    f"catch-all instead.")
                 continue
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
@@ -232,18 +245,27 @@ async def cocotb_test_{{ rtl_module_name }}_boundary_probe(dut):
 {% elif master.has_read_channels() and slave.has_read_channels() %}
             # For seeded probes: full data round-trip is the routing
             # check. For non-seeded probes: the slave BFM answers SLVERR
-            # (the one out-of-range contract, every family), single_read
-            # raises RuntimeError on it, and that error coming back from
-            # the addressed slave IS the routing evidence -- swallow it.
+            # (the one out-of-range contract, every family). WHICH error
+            # matters: SLVERR is the addressed slave's model limit and is
+            # expected; DECERR is the subtractive catch-all answering, which
+            # means the address did not decode where it should have.
             seeded = tb.is_seeded({{ loop.index0 }}, addr)
             try:
                 got = await tb.master_read({{ master_idx }}, addr)
-            except RuntimeError as e:
-                if seeded:
+            except AxiResponseError as e:
+                # `resp is None` means it was never an AXI error response at
+                # all -- a timeout, a BFM fault -- and tolerating THAT would
+                # be the very hole this check closes, only wider. Re-raise.
+                if seeded or e.resp is None:
                     raise
-                # OOR probe — slave returned an error response; routing
-                # still happened (we got back to the master) which is
-                # all we can verify outside the seeded region.
+                # Same discrimination as the write path above: SLVERR is the
+                # addressed slave's model limit and is expected; DECERR is the
+                # subtractive catch-all and is a routing failure.
+                assert e.is_slverr, (
+                    f"M{{ master_idx }}<-S{{ loop.index0 }} probe at 0x{addr:08x} past the "
+                    f"seeded model answered {e}; expected SLVERR from the addressed "
+                    f"slave. A DECERR here means it decoded to the subtractive "
+                    f"catch-all instead.")
                 continue
             if seeded:
                 exp = tb.slave_mem_read({{ loop.index0 }}, addr, master_idx={{ master_idx }})

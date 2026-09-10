@@ -30,7 +30,7 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 # Import generated testbench class
-from projects.components.bridge.dv.tbclasses.bridge5x3_channels_tb import Bridge5x3ChannelsTB
+from projects.components.bridge.dv.tbclasses.bridge5x3_channels_tb import Bridge5x3ChannelsTB, AxiResponseError
 from projects.components.bridge.dv.tbclasses.bridge_arbitration import run_arbitration
 
 
@@ -371,11 +371,24 @@ async def cocotb_test_bridge_5x3_channels_boundary_probe(dut):
             seeded = tb.is_seeded(0, addr)
             try:
                 await tb.master_write(0, addr, d)
-            except RuntimeError:
-                if seeded:
+            except AxiResponseError as e:
+                # `resp is None` means it was never an AXI error response at
+                # all -- a timeout, a BFM fault -- and tolerating THAT would
+                # be the very hole this check closes, only wider. Re-raise.
+                if seeded or e.resp is None:
                     raise
-                # Past the model: the addressed slave answered SLVERR, which
-                # is the contract and the routing evidence. Nothing landed.
+                # Past the slave's seeded model. ONLY an SLVERR from the
+                # ADDRESSED slave is expected here (the shared out-of-range
+                # contract). A DECERR means the subtractive catch-all
+                # answered -- the address did not decode to slave
+                # 0 at all -- and a bare `except RuntimeError`
+                # swallowed that identically, so a decode defect confined to
+                # addresses above the seed cap passed the whole suite.
+                assert e.is_slverr, (
+                    f"M0->S0 probe at 0x{addr:08x} past the "
+                    f"seeded model answered {e}; expected SLVERR from the addressed "
+                    f"slave. A DECERR here means it decoded to the subtractive "
+                    f"catch-all instead.")
                 continue
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
@@ -403,11 +416,24 @@ async def cocotb_test_bridge_5x3_channels_boundary_probe(dut):
             seeded = tb.is_seeded(1, addr)
             try:
                 await tb.master_write(0, addr, d)
-            except RuntimeError:
-                if seeded:
+            except AxiResponseError as e:
+                # `resp is None` means it was never an AXI error response at
+                # all -- a timeout, a BFM fault -- and tolerating THAT would
+                # be the very hole this check closes, only wider. Re-raise.
+                if seeded or e.resp is None:
                     raise
-                # Past the model: the addressed slave answered SLVERR, which
-                # is the contract and the routing evidence. Nothing landed.
+                # Past the slave's seeded model. ONLY an SLVERR from the
+                # ADDRESSED slave is expected here (the shared out-of-range
+                # contract). A DECERR means the subtractive catch-all
+                # answered -- the address did not decode to slave
+                # 1 at all -- and a bare `except RuntimeError`
+                # swallowed that identically, so a decode defect confined to
+                # addresses above the seed cap passed the whole suite.
+                assert e.is_slverr, (
+                    f"M0->S1 probe at 0x{addr:08x} past the "
+                    f"seeded model answered {e}; expected SLVERR from the addressed "
+                    f"slave. A DECERR here means it decoded to the subtractive "
+                    f"catch-all instead.")
                 continue
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
@@ -436,11 +462,24 @@ async def cocotb_test_bridge_5x3_channels_boundary_probe(dut):
             seeded = tb.is_seeded(0, addr)
             try:
                 await tb.master_write(1, addr, d)
-            except RuntimeError:
-                if seeded:
+            except AxiResponseError as e:
+                # `resp is None` means it was never an AXI error response at
+                # all -- a timeout, a BFM fault -- and tolerating THAT would
+                # be the very hole this check closes, only wider. Re-raise.
+                if seeded or e.resp is None:
                     raise
-                # Past the model: the addressed slave answered SLVERR, which
-                # is the contract and the routing evidence. Nothing landed.
+                # Past the slave's seeded model. ONLY an SLVERR from the
+                # ADDRESSED slave is expected here (the shared out-of-range
+                # contract). A DECERR means the subtractive catch-all
+                # answered -- the address did not decode to slave
+                # 0 at all -- and a bare `except RuntimeError`
+                # swallowed that identically, so a decode defect confined to
+                # addresses above the seed cap passed the whole suite.
+                assert e.is_slverr, (
+                    f"M1->S0 probe at 0x{addr:08x} past the "
+                    f"seeded model answered {e}; expected SLVERR from the addressed "
+                    f"slave. A DECERR here means it decoded to the subtractive "
+                    f"catch-all instead.")
                 continue
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
@@ -468,11 +507,24 @@ async def cocotb_test_bridge_5x3_channels_boundary_probe(dut):
             seeded = tb.is_seeded(1, addr)
             try:
                 await tb.master_write(1, addr, d)
-            except RuntimeError:
-                if seeded:
+            except AxiResponseError as e:
+                # `resp is None` means it was never an AXI error response at
+                # all -- a timeout, a BFM fault -- and tolerating THAT would
+                # be the very hole this check closes, only wider. Re-raise.
+                if seeded or e.resp is None:
                     raise
-                # Past the model: the addressed slave answered SLVERR, which
-                # is the contract and the routing evidence. Nothing landed.
+                # Past the slave's seeded model. ONLY an SLVERR from the
+                # ADDRESSED slave is expected here (the shared out-of-range
+                # contract). A DECERR means the subtractive catch-all
+                # answered -- the address did not decode to slave
+                # 1 at all -- and a bare `except RuntimeError`
+                # swallowed that identically, so a decode defect confined to
+                # addresses above the seed cap passed the whole suite.
+                assert e.is_slverr, (
+                    f"M1->S1 probe at 0x{addr:08x} past the "
+                    f"seeded model answered {e}; expected SLVERR from the addressed "
+                    f"slave. A DECERR here means it decoded to the subtractive "
+                    f"catch-all instead.")
                 continue
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
@@ -494,18 +546,27 @@ async def cocotb_test_bridge_5x3_channels_boundary_probe(dut):
             addr = page_base + probe_off
             # For seeded probes: full data round-trip is the routing
             # check. For non-seeded probes: the slave BFM answers SLVERR
-            # (the one out-of-range contract, every family), single_read
-            # raises RuntimeError on it, and that error coming back from
-            # the addressed slave IS the routing evidence -- swallow it.
+            # (the one out-of-range contract, every family). WHICH error
+            # matters: SLVERR is the addressed slave's model limit and is
+            # expected; DECERR is the subtractive catch-all answering, which
+            # means the address did not decode where it should have.
             seeded = tb.is_seeded(0, addr)
             try:
                 got = await tb.master_read(2, addr)
-            except RuntimeError as e:
-                if seeded:
+            except AxiResponseError as e:
+                # `resp is None` means it was never an AXI error response at
+                # all -- a timeout, a BFM fault -- and tolerating THAT would
+                # be the very hole this check closes, only wider. Re-raise.
+                if seeded or e.resp is None:
                     raise
-                # OOR probe — slave returned an error response; routing
-                # still happened (we got back to the master) which is
-                # all we can verify outside the seeded region.
+                # Same discrimination as the write path above: SLVERR is the
+                # addressed slave's model limit and is expected; DECERR is the
+                # subtractive catch-all and is a routing failure.
+                assert e.is_slverr, (
+                    f"M2<-S0 probe at 0x{addr:08x} past the "
+                    f"seeded model answered {e}; expected SLVERR from the addressed "
+                    f"slave. A DECERR here means it decoded to the subtractive "
+                    f"catch-all instead.")
                 continue
             if seeded:
                 exp = tb.slave_mem_read(0, addr, master_idx=2)
@@ -523,18 +584,27 @@ async def cocotb_test_bridge_5x3_channels_boundary_probe(dut):
             addr = page_base + probe_off
             # For seeded probes: full data round-trip is the routing
             # check. For non-seeded probes: the slave BFM answers SLVERR
-            # (the one out-of-range contract, every family), single_read
-            # raises RuntimeError on it, and that error coming back from
-            # the addressed slave IS the routing evidence -- swallow it.
+            # (the one out-of-range contract, every family). WHICH error
+            # matters: SLVERR is the addressed slave's model limit and is
+            # expected; DECERR is the subtractive catch-all answering, which
+            # means the address did not decode where it should have.
             seeded = tb.is_seeded(1, addr)
             try:
                 got = await tb.master_read(2, addr)
-            except RuntimeError as e:
-                if seeded:
+            except AxiResponseError as e:
+                # `resp is None` means it was never an AXI error response at
+                # all -- a timeout, a BFM fault -- and tolerating THAT would
+                # be the very hole this check closes, only wider. Re-raise.
+                if seeded or e.resp is None:
                     raise
-                # OOR probe — slave returned an error response; routing
-                # still happened (we got back to the master) which is
-                # all we can verify outside the seeded region.
+                # Same discrimination as the write path above: SLVERR is the
+                # addressed slave's model limit and is expected; DECERR is the
+                # subtractive catch-all and is a routing failure.
+                assert e.is_slverr, (
+                    f"M2<-S1 probe at 0x{addr:08x} past the "
+                    f"seeded model answered {e}; expected SLVERR from the addressed "
+                    f"slave. A DECERR here means it decoded to the subtractive "
+                    f"catch-all instead.")
                 continue
             if seeded:
                 exp = tb.slave_mem_read(1, addr, master_idx=2)
@@ -560,11 +630,24 @@ async def cocotb_test_bridge_5x3_channels_boundary_probe(dut):
             seeded = tb.is_seeded(0, addr)
             try:
                 await tb.master_write(3, addr, d)
-            except RuntimeError:
-                if seeded:
+            except AxiResponseError as e:
+                # `resp is None` means it was never an AXI error response at
+                # all -- a timeout, a BFM fault -- and tolerating THAT would
+                # be the very hole this check closes, only wider. Re-raise.
+                if seeded or e.resp is None:
                     raise
-                # Past the model: the addressed slave answered SLVERR, which
-                # is the contract and the routing evidence. Nothing landed.
+                # Past the slave's seeded model. ONLY an SLVERR from the
+                # ADDRESSED slave is expected here (the shared out-of-range
+                # contract). A DECERR means the subtractive catch-all
+                # answered -- the address did not decode to slave
+                # 0 at all -- and a bare `except RuntimeError`
+                # swallowed that identically, so a decode defect confined to
+                # addresses above the seed cap passed the whole suite.
+                assert e.is_slverr, (
+                    f"M3->S0 probe at 0x{addr:08x} past the "
+                    f"seeded model answered {e}; expected SLVERR from the addressed "
+                    f"slave. A DECERR here means it decoded to the subtractive "
+                    f"catch-all instead.")
                 continue
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
@@ -592,11 +675,24 @@ async def cocotb_test_bridge_5x3_channels_boundary_probe(dut):
             seeded = tb.is_seeded(1, addr)
             try:
                 await tb.master_write(3, addr, d)
-            except RuntimeError:
-                if seeded:
+            except AxiResponseError as e:
+                # `resp is None` means it was never an AXI error response at
+                # all -- a timeout, a BFM fault -- and tolerating THAT would
+                # be the very hole this check closes, only wider. Re-raise.
+                if seeded or e.resp is None:
                     raise
-                # Past the model: the addressed slave answered SLVERR, which
-                # is the contract and the routing evidence. Nothing landed.
+                # Past the slave's seeded model. ONLY an SLVERR from the
+                # ADDRESSED slave is expected here (the shared out-of-range
+                # contract). A DECERR means the subtractive catch-all
+                # answered -- the address did not decode to slave
+                # 1 at all -- and a bare `except RuntimeError`
+                # swallowed that identically, so a decode defect confined to
+                # addresses above the seed cap passed the whole suite.
+                assert e.is_slverr, (
+                    f"M3->S1 probe at 0x{addr:08x} past the "
+                    f"seeded model answered {e}; expected SLVERR from the addressed "
+                    f"slave. A DECERR here means it decoded to the subtractive "
+                    f"catch-all instead.")
                 continue
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
@@ -625,11 +721,24 @@ async def cocotb_test_bridge_5x3_channels_boundary_probe(dut):
             seeded = tb.is_seeded(0, addr)
             try:
                 await tb.master_write(4, addr, d)
-            except RuntimeError:
-                if seeded:
+            except AxiResponseError as e:
+                # `resp is None` means it was never an AXI error response at
+                # all -- a timeout, a BFM fault -- and tolerating THAT would
+                # be the very hole this check closes, only wider. Re-raise.
+                if seeded or e.resp is None:
                     raise
-                # Past the model: the addressed slave answered SLVERR, which
-                # is the contract and the routing evidence. Nothing landed.
+                # Past the slave's seeded model. ONLY an SLVERR from the
+                # ADDRESSED slave is expected here (the shared out-of-range
+                # contract). A DECERR means the subtractive catch-all
+                # answered -- the address did not decode to slave
+                # 0 at all -- and a bare `except RuntimeError`
+                # swallowed that identically, so a decode defect confined to
+                # addresses above the seed cap passed the whole suite.
+                assert e.is_slverr, (
+                    f"M4->S0 probe at 0x{addr:08x} past the "
+                    f"seeded model answered {e}; expected SLVERR from the addressed "
+                    f"slave. A DECERR here means it decoded to the subtractive "
+                    f"catch-all instead.")
                 continue
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
@@ -657,11 +766,24 @@ async def cocotb_test_bridge_5x3_channels_boundary_probe(dut):
             seeded = tb.is_seeded(1, addr)
             try:
                 await tb.master_write(4, addr, d)
-            except RuntimeError:
-                if seeded:
+            except AxiResponseError as e:
+                # `resp is None` means it was never an AXI error response at
+                # all -- a timeout, a BFM fault -- and tolerating THAT would
+                # be the very hole this check closes, only wider. Re-raise.
+                if seeded or e.resp is None:
                     raise
-                # Past the model: the addressed slave answered SLVERR, which
-                # is the contract and the routing evidence. Nothing landed.
+                # Past the slave's seeded model. ONLY an SLVERR from the
+                # ADDRESSED slave is expected here (the shared out-of-range
+                # contract). A DECERR means the subtractive catch-all
+                # answered -- the address did not decode to slave
+                # 1 at all -- and a bare `except RuntimeError`
+                # swallowed that identically, so a decode defect confined to
+                # addresses above the seed cap passed the whole suite.
+                assert e.is_slverr, (
+                    f"M4->S1 probe at 0x{addr:08x} past the "
+                    f"seeded model answered {e}; expected SLVERR from the addressed "
+                    f"slave. A DECERR here means it decoded to the subtractive "
+                    f"catch-all instead.")
                 continue
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the
@@ -689,11 +811,24 @@ async def cocotb_test_bridge_5x3_channels_boundary_probe(dut):
             seeded = tb.is_seeded(2, addr)
             try:
                 await tb.master_write(4, addr, d)
-            except RuntimeError:
-                if seeded:
+            except AxiResponseError as e:
+                # `resp is None` means it was never an AXI error response at
+                # all -- a timeout, a BFM fault -- and tolerating THAT would
+                # be the very hole this check closes, only wider. Re-raise.
+                if seeded or e.resp is None:
                     raise
-                # Past the model: the addressed slave answered SLVERR, which
-                # is the contract and the routing evidence. Nothing landed.
+                # Past the slave's seeded model. ONLY an SLVERR from the
+                # ADDRESSED slave is expected here (the shared out-of-range
+                # contract). A DECERR means the subtractive catch-all
+                # answered -- the address did not decode to slave
+                # 2 at all -- and a bare `except RuntimeError`
+                # swallowed that identically, so a decode defect confined to
+                # addresses above the seed cap passed the whole suite.
+                assert e.is_slverr, (
+                    f"M4->S2 probe at 0x{addr:08x} past the "
+                    f"seeded model answered {e}; expected SLVERR from the addressed "
+                    f"slave. A DECERR here means it decoded to the subtractive "
+                    f"catch-all instead.")
                 continue
             # Data round-trip IS the routing check: a misrouted write
             # lands at a different slave (or different offset) and the

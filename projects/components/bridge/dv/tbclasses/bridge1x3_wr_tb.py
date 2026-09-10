@@ -60,6 +60,33 @@ from projects.components.bridge.dv.tbclasses.bridge_levels import (
 )
 
 
+class AxiResponseError(RuntimeError):
+    """An AXI error response, carrying the code so callers can discriminate.
+
+    A test that tolerates one kind of error must not tolerate every kind. The
+    boundary probe expects SLVERR from the ADDRESSED slave when it probes past
+    that slave's seeded memory model -- but a DECERR means the subtractive
+    catch-all answered, i.e. the address did not decode to any real slave,
+    and a bare `except RuntimeError` swallowed that identically. The bridge
+    testqc round called this out (2026-09-10): a decode defect confined to
+    addresses above the 64 KB seed cap would route ddr's top pages to sram,
+    whose BFM answers the out-of-window address SLVERR too, and the whole
+    suite would pass.
+    """
+
+    RESP_NAMES = {0: 'OKAY', 1: 'EXOKAY', 2: 'SLVERR', 3: 'DECERR'}
+
+    def __init__(self, address, resp, detail=''):
+        self.address = address
+        self.resp = resp
+        name = self.RESP_NAMES.get(resp, f'resp={resp}')
+        super().__init__(f"AXI {name} at 0x{address:08x}: {detail}")
+
+    @property
+    def is_slverr(self) -> bool:
+        return self.resp == 2
+
+
 class Bridge1x3WrTB(TBBase):
     """
     Testbench for bridge_1x3_wr bridge.
@@ -589,7 +616,16 @@ class Bridge1x3WrTB(TBBase):
         if master_idx in self.master_apb:
             return await self.master_apb[master_idx].read(address)
         rd = self.master_rd[master_idx]
-        return await rd.single_read(address, size=self._natural_arsize(master_idx))
+        try:
+            return await rd.single_read(address, size=self._natural_arsize(master_idx))
+        except AxiResponseError:
+            raise
+        except RuntimeError as e:
+            # The BFM raises with the response NAME in the message; re-raise
+            # with the code attached so a caller can tell SLVERR from DECERR
+            # without string-matching. See AxiResponseError.
+            resp = (3 if 'DECERR' in str(e) else 2 if 'SLVERR' in str(e) else None)
+            raise AxiResponseError(address, resp, str(e)) from e
 
     async def master_write(self, master_idx: int, address: int, data: int,
                            txn_id: int = None) -> None:
@@ -607,10 +643,27 @@ class Bridge1x3WrTB(TBBase):
         kwargs = {'size': self._natural_arsize(master_idx)}
         if txn_id is not None:
             kwargs['id'] = txn_id
-        result = await wr.single_write(address, data, **kwargs)
-        # single_write does NOT raise on an error response -- it reports it
-        # in the returned dict -- so a SLVERR/DECERR write used to pass
-        # straight through this helper unnoticed. Raise, the way single_read
-        # does, so a caller that expects the write to land finds out.
+        # The BFM families report an error response THREE different ways and a
+        # caller cannot be asked to know which one it has:
+        #   AXI4/AXI5 MasterWrite -> a dict, success=False, no exception;
+        #   AXIL4/AXIL5           -> raises a bare RuntimeError;
+        #   (defensively)         -> returns the bare response code.
+        # Before this every one of them was handled differently or not at all:
+        # the dict path was checked, the AXIL path escaped as a RuntimeError
+        # the boundary probe's `except AxiResponseError` would NOT catch, and
+        # the int path was ignored outright. The bridge testqc round caught
+        # the AXIL half (2026-09-10). Normalise all three to AxiResponseError,
+        # which carries the response CODE so a caller can tolerate an expected
+        # out-of-range SLVERR without also tolerating a DECERR.
+        try:
+            result = await wr.single_write(address, data, **kwargs)
+        except AxiResponseError:
+            raise
+        except RuntimeError as e:
+            resp = (3 if 'DECERR' in str(e) else 2 if 'SLVERR' in str(e) else None)
+            raise AxiResponseError(address, resp, str(e)) from e
         if isinstance(result, dict) and not result.get('success', True):
-            raise RuntimeError(f"AXI write error at 0x{address:08x}: {result.get('error', result)}")
+            raise AxiResponseError(address, result.get('response'),
+                                   result.get('error', result))
+        if isinstance(result, int) and result in (2, 3):
+            raise AxiResponseError(address, result, 'error response code returned')

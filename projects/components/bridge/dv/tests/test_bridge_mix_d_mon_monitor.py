@@ -25,7 +25,7 @@ from cocotb_test.simulator import run  # noqa: F401
 
 from TBClasses.shared.utilities import get_paths
 from TBClasses.shared.test_levels import level_env, reg_level_grid
-from projects.components.bridge.dv.tbclasses.bridge_mix_d_mon_tb import BridgeMixDMonTB
+from projects.components.bridge.dv.tbclasses.bridge_mix_d_mon_tb import BridgeMixDMonTB, AxiResponseError
 from monitor_stress_common import run_comprehensive, run_monitor_sim
 
 CFG_PREFIXES = ['cpu_axi4_0_rd', 'cpu_axi4_0_wr', 'trace_axil_1_rd', 'trace_axil_1_wr', 'ddr_0_rd', 'ddr_0_wr', 'doorbell_1_rd', 'doorbell_1_wr', 'apb_periph_2_rd', 'apb_periph_2_wr']

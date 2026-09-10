@@ -141,5 +141,32 @@ passes `ready_policy`, so the churn was provably inert. Two agreeing runs
 under different framework states is stronger evidence than one pristine run,
 and it is evidence you can actually obtain.
 
+**RTL can move underneath a long run too, and it looks like your failure.**
+Measured 2026-09-10 on the bridge: a FULL run reported 8 failed / 229 passed
+across four distinct tests, three of them the boundary probes that had just
+been changed, which is exactly where a new finding would surface. None of it
+was the bridge. Every one of the eight was Verilator exiting non-zero, and all
+eight named the same shared source, `rtl/common/fifo_control.sv`, which another
+agent had caught half-written mid-conversion to the reset macro: the compiler
+died on an unterminated macro argument list at end of file. The file linted
+clean an hour later and the identical suite ran 237/237.
+
+The tell is the ERROR KIND, and it is one grep:
+
+    grep -oE "^E   [A-Za-z_.]*(Error|Exception|SystemExit)" <log> | sort | uniq -c
+
+A build exit is never a test result. Assertions carry the test's own message
+and name the DUT; `SystemExit: Process perl terminated with error 1` names
+nothing, because nothing ran. Read the kind before the test name -- the test
+name is the most misleading thing in the log, since it points at whatever you
+touched most recently rather than at what broke. Then find the real error with
+`grep -iE "%Error|cannot|No space|Killed"` and check whether the file it names
+is even yours.
+
+The same reasoning covers load. A run of the same suite that reports reruns
+when the previous identical run reported none has a scheduling explanation
+available before it has a code explanation; check the load average the run
+executed under before believing a timeout.
+
 Related: [[seeds-and-determinism]] (a rerun that changes seeds is not a
 reproduction), [[bfm-usage]], [[coverage]].

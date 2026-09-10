@@ -25,7 +25,7 @@ from cocotb_test.simulator import run  # noqa: F401
 
 from TBClasses.shared.utilities import get_paths
 from TBClasses.shared.test_levels import level_env, reg_level_grid
-from projects.components.bridge.dv.tbclasses.bridge1x2_rd_axi5_mon_tb import Bridge1x2RdAxi5MonTB
+from projects.components.bridge.dv.tbclasses.bridge1x2_rd_axi5_mon_tb import Bridge1x2RdAxi5MonTB, AxiResponseError
 from monitor_stress_common import run_comprehensive, run_monitor_sim
 
 CFG_PREFIXES = ['cpu_rd_0_rd', 'ddr_rd_0_rd', 'sram_rd_1_rd']

@@ -138,7 +138,12 @@ def _tb_import_block(tb_import_pkg, tb_class_module, tb_class_name):
     parseable. One string, no whitespace control, nothing to get wrong.
     """
     if tb_import_pkg:
-        return f'from {tb_import_pkg}.{tb_class_module} import {tb_class_name}'
+        # AxiResponseError rides along: the boundary probe must tell an
+        # expected out-of-range SLVERR from a DECERR that means the address
+        # decoded to the subtractive catch-all, and it discriminates on the
+        # exception's response code rather than on message text.
+        return (f'from {tb_import_pkg}.{tb_class_module} import '
+                f'{tb_class_name}, AxiResponseError')
     return (
         "# The TB class lives on a path that is not dotted-importable (a\n"
         "# directory component is not a legal Python identifier, e.g.\n"
