@@ -231,15 +231,17 @@ generated bridge test 2/2 green; converter suite 8/8 across three levels.
 slave-only too; a master-side AXI5-Lite requester is a different piece of
 work and nothing in-tree needs one.
 
-*Adjacent finding, NOT fixed here:* `make verilator` in
-`projects/components/bridge/rtl` fails -- measured 2026-09-10 as 13 of 38
-variants, all PINMISSING on one instance, and NOT deliberate: see
-[[BRIDGE-013]]. (This note previously said "all 36 variants, entirely from
+*Adjacent finding, now RESOLVED:* `make verilator` in
+`projects/components/bridge/rtl` used to fail -- measured 2026-09-10 as 13
+of 38 variants, all PINMISSING on one instance, and not deliberate. (An
+earlier version of this note said "all 36 variants, entirely from
 pre-existing PINCONNECTEMPTY on deliberate open pins"; both halves were
-wrong, which is what a gate nobody runs buys you.) The `mon`
-variants additionally surface real WIDTHEXPAND/UNDRIVEN warnings inside
-`rtl/amba/monitor/*`. Both predate this change (the RTL they fire on is
-byte-identical to HEAD) and want their own pass.
+wrong, which is what a gate nobody runs buys you.) [[BRIDGE-013]] was the
+cause and is closed: an internal slave no longer gets a monitor built and
+left unconnected. Re-measured after the fix, same day: 38 of 38 variants
+elaborate with zero errors and zero warnings, the `mon` variants included,
+so the WIDTHEXPAND/UNDRIVEN noise this note attributed to
+`rtl/amba/monitor/*` went with them. Nothing owed here.
 
 **A5-2 design note (2026-08-09):** two slices.
 
