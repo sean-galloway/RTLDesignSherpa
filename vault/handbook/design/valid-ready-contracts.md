@@ -44,8 +44,10 @@ summary: Stability rules; observers gate commands only, never responses.
   req_cost; a back-to-back client presenting its next frame's cost was
   debited the wrong frame. Caught by the TB's deficit mirror, fixed with a
   one-deep cost pipeline (r_cost_arb).*
-- **A registered-read FIFO hands over its data the clock AFTER the
-  handshake.** `gaxi_fifo_sync` with `REGISTERED=1` loads its output
+- **gaxi FIFOs in rtl/ are mux-read (`REGISTERED=0`) unless there is a
+  stated reason; registered read is the exception (Sean, 2026-09-09).**
+  Registered read moves the data a clock after the handshake and every
+  consumer has to know it. Details: `gaxi_fifo_sync` with `REGISTERED=1` loads its output
   register from the current read pointer, so `rd_data` lags a pop by one
   clock; the BFM calls this `fifo_flop` mode and captures data one cycle
   after `rd_valid && rd_ready`. A consumer that builds its output from

@@ -2302,7 +2302,10 @@ and run `SEED=1 TEST_LEVEL=gate pytest val/amba/test_wb4_monitor.py -k 32-32-8-0
 the rsp-timeout phase reports the 0x400 completion twice and the 0x404
 completion never.
 
-**Done when:** each sibling either reads in mux mode or captures `rd_data`
-the clock after the handshake, and a test that writes three events on
-consecutive clocks passes on each. Handbook: [[valid-ready-contracts]]
+**Rule from Sean (2026-09-09):** the gaxi FIFOs in rtl/ should not usually
+use registered mode. So the fix is the one-line one -- `REGISTERED(0)` on
+the event FIFO of each sibling -- not a re-timed consumer.
+
+**Done when:** each sibling's event FIFO reads in mux mode, and a test that
+writes three events on consecutive clocks passes on each. Handbook: [[valid-ready-contracts]]
 "A registered-read FIFO hands over its data the clock after the handshake".
