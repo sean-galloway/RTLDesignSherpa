@@ -174,6 +174,16 @@ interface headers are enough for "does the test drive real ports".
    summary line printed empty statistics. When a test cites a checker,
    monitor, or scoreboard, look for the number it counted: an armed checker
    that performed zero checks and a disarmed one are the same finding.
+
+   **It happened twice, two layers apart, within a day.** The second: the
+   checkers resolved their port prefix by plain concatenation, so a port
+   written `cpu_m_axi` rather than `cpu_rd_axi_` matched no channel signals
+   at all -- no monitors, no loops, and a report still saying `enabled` with
+   zero violations. It surfaced only because the consuming TB had by then
+   been made to assert `checks_performed > 0`; the verdict itself looked
+   perfect. Both are fixed, and `get_compliance_report()` now carries
+   `armed` and `channels` so a caller can refuse a verdict with nothing
+   behind it. Write the assertion on the count.
 7. **Levels are honest.** gate is genuinely fast; full is genuinely deeper,
    not gate re-labelled.
 

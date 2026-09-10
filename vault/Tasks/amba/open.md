@@ -2292,8 +2292,16 @@ puts PREADY's edge ON the PENABLE edge, and the ordering is strict), 2/3/4 all
 capture all seven scenarios; pinned at 2. Verified across eight seeds
 including 56798: 8/8.
 
-*Still open:* `test_gaxi_regslice`'s 11 reruns -- a different mechanism, since
-seed-pinned reruns replay the same run rather than re-rolling.
+*The regslice reruns look like WORKER LOAD, not a test defect.* Seed-pinned
+reruns replay the same run, so a cell that fails then passes on retry is not
+seed-dependent at all. Measured across the two val/amba FULL runs of
+2026-09-09/10: at `workers=48` on this box the suite needed 17 reruns (11 of
+them `test_gaxi_regslice`); at `workers=24`, zero reruns across the whole
+suite. 48 workers is more than this machine sustains for Verilator builds,
+and a build that runs long enough gets killed and retried. Before treating
+this as a test bug, reproduce it at a worker count the box can carry --
+[[running-regressions]] and TOOL-008 (worker count derived from cores and
+RAM) are the relevant threads.
 
 *Also noted:* `val/amba/test_axil5_master_rd_mon.py` sets `RANDOM_SEED` /
 `COCOTB_RANDOM_SEED` as a mitigation, and it is DEAD -- the TB calls

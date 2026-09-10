@@ -480,6 +480,24 @@ performed zero checks. Measured after the fix on one gate cell: checker
 active on AR/R, 294 checks, 2 AR transactions -- a verdict with something
 behind it.
 
+**Every AXI master port now carries a protocol checker, AXI4 as well as
+AXI5 (2026-09-10).** The TB template arms `AXI4ComplianceChecker` on every
+`axi4` master port alongside the AXI5 one, and `assert_compliance()` requires
+the report to be `enabled`, `armed`, and to have performed a non-zero number
+of checks before it will accept "zero violations".
+
+Arming it found a second blind-checker defect, one layer below the one found
+yesterday: `_has_channel_signals` concatenated the port prefix naively, so a
+port written `cpu_m_axi` rather than `cpu_rd_axi_` resolved NO channels --
+no monitors, `monitors_active` False, both loops returning immediately -- and
+the report still said `enabled` with zero violations. `bridge_2x2_rw`
+reported "0 violation(s) in 0 checks" and the `checks > 0` assertion caught
+it. Fixed in RDS-DV (`09ef5dc`): the prefix is resolved against both
+spellings, a checker that binds nothing logs a WARNING, and the report now
+carries `armed` and `channels` so a caller can refuse a verdict with nothing
+behind it. With that, `bridge_2x2_rw` checks both masters at 1790-4505 checks
+per cell, zero violations.
+
 Still owed on this task: the external testqc review round.
 
 
