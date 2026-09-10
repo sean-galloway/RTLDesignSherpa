@@ -4,50 +4,64 @@
 
 ---
 
-## PUMICE-026 — drop LiteDRAM into the pumice harness for a like-for-like A/B
-**Status:** open 2026-09-10  **Priority:** P2 — the comparison is only meaningful same-harness
-**Intent (Sean, 2026-09-10):** "drop liteddr into the pumice harness so testing
-is the same."
+## PUMICE-026 — finish the LiteDRAM same-harness A/B (it is already ~80% built)
+**Status:** open 2026-09-10  **Priority:** P2
+**Intent (Sean):** "drop liteddr into the pumice harness so testing is the same."
 
-Every LiteDRAM number we have was measured through LiteDRAM's OWN BIST driving
-its OWN user port. pumice's numbers come from the char harness's AXI pattern
-generators and perf counters. Different traffic, different measurement, so the
-two are a reference point and not an A/B. The comparison that settles anything
-puts LiteDRAM behind the SAME generators.
+**START HERE, DO NOT REBUILD:**
+`projects/fpga-systems/NexysA7/pumice/ddr2-characterization/flows-litedram-uart/`
 
-`build-litedram/` was scaffolded for exactly this (`FLOW := litedram_char`,
-`TOP := litedram_char_top`, `rtl/filelists/litedram_char_harness.f`) and is
-still empty apart from its Makefile.
+That flow already exists and is documented as **WIRED** in its `HARNESS_PLAN.md`:
 
-**Shape of the work:**
-1. `litedram_gen` a standalone DDR2 core for this board's pin-out with a user
-   port the harness can drive, and — critically — the core's **built-in init
-   sequencer**. See the trap below.
-2. Wrap it as `litedram_char_top` presenting the same AXI the harness drives.
-3. Reuse the existing pattern generators, perf counters and host program
-   unchanged. Only the controller changes.
+- `rtl/char_engine_harness.sv` — DUT-agnostic harness (engines + perf meters +
+  bandwidth timer + harness_csr + UART bridge) exposing an AXI4 master.
+  Verilator-lint-clean standalone.
+- `rtl/litedram_char_top.sv` — board top: `litedram_core` + the harness on
+  `user_clk`, `init_done`-gated, AXI user port wired.
+- `rtl/filelists/litedram_char_harness.f`, `constraints/litedram_char.xdc`,
+  `tcl/build_all.tcl`, `tcl/program_fpga.tcl`, `Makefile`, `regen.sh`,
+  `litedram_hp.yml`, and a generated `build_board/gateware/litedram_core.v`.
+- A `litedram_hp.yml` deliberately mapped onto a high-perf pumice preset, with
+  the mapping table written out in its README.
 
-**Trap, already paid for once (2026-09-10).** A LiteX SoC built
-`--cpu-type=None --uart-name=uartbone` produces a clean timing-met bitstream
-and gives a host CSR access with no software stack, but the BIST returns in
-1-21 ticks with rising errors: LiteDRAM's DDR2 initialisation and levelling
-are done by its **BIOS**, so with no CPU the DRAM is never brought up. Hence
-the standalone-core generator rather than the SoC path.
+Its own remaining TODO, verbatim from HARNESS_PLAN.md:
+1. `make regen` (`./regen.sh --bios`) — the shipped core has an empty BIOS ROM
+   and placeholder `LOC X` pins; a proper regen emits a functional BIOS, real
+   ddram pins and the a7ddrphy IODELAY constraints.
+2. XDC reconcile — drop `ddram_*` from `litedram_char.xdc` once the core's own
+   xdc has real pins, and enable the `read_xdc` line in `build_all.tcl`.
+3. Host variant — copy `ddr2_char.py` + `pumice_master.py`, drop the pumice-CSR
+   `set_controller_cfg` writes (LiteDRAM self-configures), keep the engine cfg
+   and the perf/timer readout. `harness_csr` is at base 0 here.
+4. `make bitstream && make program && make characterize`.
 
-Working tooling recipe, install notes, the RISC-V toolchain location, and the
-PyPI-vs-git version trap are written up in
-`build-litedram/results/2026-09-10_litedram_status.md`, with the two scripts
-that do build under `build-litedram/bin/`. It has now been re-derived from
-scratch twice because /tmp is cleared between sessions; it should not be a
-third time.
+Note the operating point in that README is the stock 100 MHz / 1:4; the proven
+point (and the one pumice is measured at) is **75 MHz / 1:2**, so set
+`sys_clk_freq`/`input_clk_freq` accordingly before regenerating.
 
-**Why it still matters even though pumice currently looks ahead** (570.0 vs
-528 MB/s write, 291.7 vs 283 MB/s read): LiteDRAM's read is also ~47% of the
-raw ceiling while its write reaches 88%. Two independent controllers landing
-at the same read fraction on the same board is the strongest evidence yet that
-the read ceiling is a property of this operating point, not a pumice defect
-(PUMICE-025). Confirming that same-harness would redirect, or justify, the
-whole read-path investigation.
+**Also: `build-litedram/` is a newer EMPTY duplicate scaffold** (Makefile,
+.gitignore and now a results note only). It was created without carrying the
+above across, and cost this session a rebuild-from-scratch of the LiteX
+tooling before the real flow was found. Either populate it from
+flows-litedram-uart or delete it and point at the original -- two scaffolds for
+one job is how the second one gets rebuilt again.
+
+**Tooling notes that ARE new and worth keeping** are in
+`build-litedram/results/2026-09-10_litedram_status.md` with two working
+scripts in `build-litedram/bin/`: install LiteX from git not PyPI (PyPI +
+Python 3.12 breaks every target on a migen bytecode-inference bug); the RISC-V
+toolchain is already at
+`/tools/Xilinx/2025.1/gnu/riscv/lin/riscv64-unknown-elf/bin`; PyPI
+`pythondata-software-picolibc` ships incomplete sources so the BIOS build
+fails; and `--cpu-type=None` yields a clean timing-met bitstream whose BIST
+returns garbage because LiteDRAM's DDR2 init and levelling live in the BIOS.
+That last point is why item 1 above says `--bios`.
+
+**Why it matters:** LiteDRAM's read is also ~47% of the raw ceiling while its
+write reaches 88%; pumice is at 48.6% / 95.0%. Two independent controllers at
+the same read fraction on the same board is the strongest evidence that the
+read ceiling is a property of this operating point rather than a pumice defect
+(PUMICE-025). Same-harness confirmation would redirect or justify that work.
 
 ## PUMICE-025 — read bandwidth pinned at 48.7% of peak; the return path halves it
 **Status:** open 2026-09-10  **Priority:** P1 — the last gap to the 450 MB/s read target
