@@ -46,6 +46,10 @@ from CocoTBFramework.components.axi4.axi4_interfaces import (
 from CocoTBFramework.components.axil4.axil4_interfaces import (
     AXIL4MasterRead, AXIL4MasterWrite, AXIL4SlaveRead, AXIL4SlaveWrite,
 )
+# Protocol checkers ride every AXI master port, AXI4 as well as AXI5: the
+# checker binds its five channel monitors and reports handshake, burst, ID
+# and response-code violations that a data round-trip cannot see.
+from CocoTBFramework.components.axi4.axi4_compliance_checker import AXI4ComplianceChecker
 from CocoTBFramework.components.apb.apb_components import APBMaster, APBSlave
 
 # Memory model — shared across all protocol slave BFMs (every slave gets
@@ -377,6 +381,18 @@ class Bridge5x3ChannelsTB(TBBase):
             user_width=1,
             multi_sig=True,
         )
+        # Protocol checker on the AXI4 boundary: handshake stability, burst
+        # length/size, xLAST, ID ordering and response codes. Armed in
+        # setup_clocks_and_reset; assert_compliance() reads the verdict.
+        self.compliance[0] = AXI4ComplianceChecker(
+            self.dut, self.clock,
+            prefix="descr_axi_",
+            log=self.log,
+            data_width=256,
+            addr_width=32,
+            id_width=8,
+            user_width=1,
+        )
     def _setup_master_1_sink_wr_master(self):
         """Set up protocol BFMs for master 1: sink_wr_master (protocol: axi4)"""
         self.master_wr[1] = AXI4MasterWrite(
@@ -389,6 +405,18 @@ class Bridge5x3ChannelsTB(TBBase):
             user_width=1,
             multi_sig=True,
         )
+        # Protocol checker on the AXI4 boundary: handshake stability, burst
+        # length/size, xLAST, ID ordering and response codes. Armed in
+        # setup_clocks_and_reset; assert_compliance() reads the verdict.
+        self.compliance[1] = AXI4ComplianceChecker(
+            self.dut, self.clock,
+            prefix="sink_axi_",
+            log=self.log,
+            data_width=256,
+            addr_width=32,
+            id_width=8,
+            user_width=1,
+        )
     def _setup_master_2_src_rd_master(self):
         """Set up protocol BFMs for master 2: src_rd_master (protocol: axi4)"""
         self.master_rd[2] = AXI4MasterRead(
@@ -400,6 +428,18 @@ class Bridge5x3ChannelsTB(TBBase):
             id_width=8,
             user_width=1,
             multi_sig=True,
+        )
+        # Protocol checker on the AXI4 boundary: handshake stability, burst
+        # length/size, xLAST, ID ordering and response codes. Armed in
+        # setup_clocks_and_reset; assert_compliance() reads the verdict.
+        self.compliance[2] = AXI4ComplianceChecker(
+            self.dut, self.clock,
+            prefix="src_axi_",
+            log=self.log,
+            data_width=256,
+            addr_width=32,
+            id_width=8,
+            user_width=1,
         )
     def _setup_master_3_stream_master(self):
         """Set up protocol BFMs for master 3: stream_master (protocol: axi4)"""
@@ -423,6 +463,18 @@ class Bridge5x3ChannelsTB(TBBase):
             user_width=1,
             multi_sig=True,
         )
+        # Protocol checker on the AXI4 boundary: handshake stability, burst
+        # length/size, xLAST, ID ordering and response codes. Armed in
+        # setup_clocks_and_reset; assert_compliance() reads the verdict.
+        self.compliance[3] = AXI4ComplianceChecker(
+            self.dut, self.clock,
+            prefix="stream_axi_",
+            log=self.log,
+            data_width=256,
+            addr_width=32,
+            id_width=8,
+            user_width=1,
+        )
     def _setup_master_4_cpu_master(self):
         """Set up protocol BFMs for master 4: cpu_master (protocol: axi4)"""
         self.master_rd[4] = AXI4MasterRead(
@@ -444,6 +496,18 @@ class Bridge5x3ChannelsTB(TBBase):
             id_width=8,
             user_width=1,
             multi_sig=True,
+        )
+        # Protocol checker on the AXI4 boundary: handshake stability, burst
+        # length/size, xLAST, ID ordering and response codes. Armed in
+        # setup_clocks_and_reset; assert_compliance() reads the verdict.
+        self.compliance[4] = AXI4ComplianceChecker(
+            self.dut, self.clock,
+            prefix="cpu_axi_",
+            log=self.log,
+            data_width=64,
+            addr_width=32,
+            id_width=8,
+            user_width=1,
         )
 
     # ----------------------------------------------------------------------
@@ -557,10 +621,10 @@ class Bridge5x3ChannelsTB(TBBase):
             # transaction / handshake / cycle loops itself (and raises if it
             # cannot bind). Starting the loops again here doubled every count.
             checker.setup_monitors()
-            self.log.info(f"AXI5 compliance checker armed on master {idx}")
+            self.log.info(f"AXI protocol checker armed on master {idx}")
 
     def assert_compliance(self, allow: dict = None) -> dict:
-        """Every AXI5 master port's checker must report zero violations.
+        """Every AXI master port's protocol checker must report zero violations.
         Called by each generated test before it declares PASSED, so a
         protocol error on the AXI5 boundary fails the test that caused it
         even when the data still round-tripped. Returns the reports.
@@ -579,16 +643,22 @@ class Bridge5x3ChannelsTB(TBBase):
             # Both read as "zero violations" to a naive caller -- and did,
             # for a month (RDS-DV 2026-09-09). Neither is a pass.
             assert report.get('compliance_checking') == 'enabled', (
-                f"AXI5 compliance checker on master {idx} is not armed: {report}")
+                f"protocol checker on master {idx} is not enabled: {report}")
+            # 'armed' and 'channels' exist so a blind checker cannot pass as a
+            # clean one: a prefix whose separator did not resolve used to bind
+            # no channels and report zero violations forever.
+            assert report.get('armed'), (
+                f"protocol checker on master {idx} bound no channels "
+                f"(prefix resolution failed?): {report}")
             stats = report.get('statistics', {})
             checks = stats.get('checks_performed', 0)
             violations = report.get('total_violations', 0)
             if isinstance(violations, (list, tuple)):
                 violations = len(violations)
-            self.log.info(f"AXI5 compliance master {idx}: {violations} violation(s) in "
+            self.log.info(f"AXI compliance master {idx}: {violations} violation(s) in "
                           f"{checks} checks; stats={ {k: v for k, v in stats.items() if v} }")
             assert checks > 0, (
-                f"AXI5 compliance checker on master {idx} performed no checks -- "
+                f"protocol checker on master {idx} performed no checks -- "
                 f"its verdict is vacuous")
             summary = dict(report.get('violation_summary', {}))
             for name, expected in allow.items():
@@ -597,7 +667,7 @@ class Bridge5x3ChannelsTB(TBBase):
                     f"AXI5 compliance master {idx}: expected exactly {expected} "
                     f"{name} (deliberately provoked), saw {got}")
             assert not summary, (
-                f"AXI5 compliance violations on master {idx}: {summary}")
+                f"AXI protocol violations on master {idx}: {summary}")
         return reports
 
     async def assert_reset(self):
