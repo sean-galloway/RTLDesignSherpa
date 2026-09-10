@@ -705,10 +705,23 @@ Gated behind the RTL area completing (Tasks/INDEX.md sequencing).
 ## PUMICE-KMAP — real K-maps for the scheduler, CAMs and DFI layer
 **Status:** open 2026-08-06  **Blocked on:** [[TOOLING-KMAP]] items 1-4
 
-`pumice-ddr2-lpddr2/docs/gen_signal_contracts_kmaps.py` emits maps that meet two
-of the six criteria in [[signal-contracts-and-kmaps]]: no axis equations, no
-sufficiency argument, no don't-cares, no implicants. Its `axis|axes|index`
-mention count is 1.
+**2026-09-10: consolidated to ONE workbook.** pumice had four K-map workbooks
+emitted by three generators across two directories -- `docs/pumice_signal_contracts.xlsx`
+(grid maps + AXI/scheduler contracts) and `design/kmaps/pumice_{cmd,data,write}_path_kmap.xlsx`
+(decision tables) -- overlapping on the arbiter and bank timers with no way to
+tell which was current. They are now one file, `docs/pumice_signal_contracts.xlsx`,
+from one generator, `docs/gen_pumice_signal_contracts.py`, verified to reproduce
+all 18 original sheets cell-for-cell. Two fixes fell out: the generator is now
+idempotent (the old one LOADED the workbook and appended rows, so re-running it
+duplicated them -- the committed Scheduler sheet had 8 such rows), and an INDEX
+sheet says what each page is evidence OF. New `READ_PATH_ADMIT` sheet carries the
+term list, invariants and decision table for the AR admit cadence and
+reads-in-flight (PUMICE-025).
+
+**Still open.** The grid pages still meet only two of the six criteria in
+[[signal-contracts-and-kmaps]]: no axis equations, no sufficiency argument, no
+don't-cares, no implicants. (`READ_PATH_ADMIT` is the shape the rest should
+take -- it has a term list with citations and a stated invariant list.)
 
 Map these, because each is combinational, safety-relevant, and has already
 produced silicon bugs:

@@ -12,7 +12,8 @@ and Karnaugh maps for the key combinational decisions.
 
 - Methodology (canonical): bin/SIGNAL_CONTRACTS_KMAPS.md.
 - Placement (ONE per block, in the component's docs/): the generator lives at
-  `projects/components/<component>/docs/gen_signal_contracts_kmaps.py` and emits
+  `projects/components/<component>/docs/gen_signal_contracts_kmaps.py` (pumice's is
+  `docs/gen_pumice_signal_contracts.py`, one workbook for the whole block) and emits
   `<component>_signal_contracts.xlsx` beside it. Before writing a new one, check
   whether the component already has one and UPDATE it in place - never add a
   parallel copy or a `signal_contracts/` subdir (a second copy rots; the copy

@@ -261,7 +261,8 @@ invariant checker -- evaluate each declared invariant over the full space and
 FAIL the run if a row it calls impossible is actually reachable. A wrong
 invariant must not silently delete a real case.
 
-Audit of both `gen_signal_contracts_kmaps.py` (stream, pumice): the grids are
+Audit of both `gen_signal_contracts_kmaps.py` (stream) and pumice's merged
+`gen_pumice_signal_contracts.py`: the grids are
 Gray-ordered and computed from cited RTL -- genuinely good -- but they stop
 short of proving anything. `grep -ciE "implicant|minimal|quine|espresso"` finds
 nothing in either generator; every "cover" hit is prose inside a

@@ -4,7 +4,8 @@
 """Generate the pumice IDEAL-signalling WaveJSON timing diagrams (design/waves/).
 
 Spec-first: these diagrams DEFINE the ideal cadence the RTL must hit; the K-maps
-(design/kmaps/) define the control logic that produces them. Render with WaveDrom
+(the decision-table sheets in ../docs/pumice_signal_contracts.xlsx) define the
+control logic that produces them. Render with WaveDrom
 (https://wavedrom.com/editor.html) or `npx wavedrom-cli -i <f>.json -s <f>.svg`.
 
 DDR2-300 @ aclk=75MHz, DFI_RATE=2, BL4 (2 DFI words/burst). Timing in aclk cycles:

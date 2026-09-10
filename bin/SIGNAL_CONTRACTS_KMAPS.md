@@ -7,7 +7,9 @@ allowed to do, plus Karnaugh maps for the key combinational decisions.
 Existing instances:
 
     projects/components/memory-controllers/pumice-ddr2-lpddr2/docs/
-        pumice_signal_contracts.xlsx + gen_signal_contracts_kmaps.py
+        pumice_signal_contracts.xlsx + gen_pumice_signal_contracts.py
+          (pumice merged its four workbooks into this one on 2026-09-10;
+           stream still uses the older per-component generator below)
     projects/components/dmas/stream/docs/
         stream_signal_contracts.xlsx + gen_signal_contracts_kmaps.py
 
@@ -110,6 +112,7 @@ K-map pass similarly predated and informed its scheduler rework.
 
     source env_python
     python3 projects/components/<comp>/docs/gen_signal_contracts_kmaps.py
+    python3 projects/components/memory-controllers/pumice-ddr2-lpddr2/docs/gen_pumice_signal_contracts.py
 
 Nonzero exit = citation drift: the RTL moved under a quote. Fix the mirror
 and the quote together; never suppress the check.

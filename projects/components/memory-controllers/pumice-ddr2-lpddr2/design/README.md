@@ -4,11 +4,17 @@
 and data-path signalling **before** the RTL, so the rewrite targets a spec rather
 than patching the current design. Two kinds of artifact:
 
-- `kmaps/` — K-map / truth-table workbooks (`gen_kmaps.py`) for the control logic.
+- Truth tables for the control logic live in the ONE signal-contract workbook,
+  `../docs/pumice_signal_contracts.xlsx` (generator:
+  `../docs/gen_pumice_signal_contracts.py`). The `kmaps/` directory and its
+  three separate workbooks were merged into it on 2026-09-10 -- four workbooks
+  across two directories with overlapping content and no way to tell which was
+  current.
 - `waves/` — WaveJSON timing diagrams (`gen_waves.py`) for the ideal cadence.
   Render at <https://wavedrom.com/editor.html> or `npx wavedrom-cli -i f.json -s f.svg`.
 
-Regenerate: `python3 gen_kmaps.py && python3 gen_waves.py`.
+Regenerate: `python3 ../docs/gen_pumice_signal_contracts.py && python3 gen_waves.py \
+&& python3 gen_write_path.py`.
 
 DDR2-300 @ aclk 75 MHz, DFI_RATE=2, BL4. Peak = **600 MB/s** (8 B/cycle). Pumice
 today: **~90 MB/s (15 %)**. LiteDRAM on this exact board: ~500 MB/s (~85 %). The
@@ -73,18 +79,18 @@ Three coupled changes, specified by the artifacts here:
    `w_col_inflight_guard`); OR its pending row-open/close + tCCD/turnaround
    effect into the column mask. Then same-bank columns pipeline at **tCCD** with
    no stale-image race, and `!w_col_inflight_bank` is deleted.
-   → `kmaps/pumice_cmd_path_kmap.xlsx` (CMD_DECISION, FORWARD_STATE),
+   → `pumice_signal_contracts.xlsx` (CMD_DECISION, FORWARD_STATE),
      `waves/07`, `waves/08`.
 2. **Tag-based, recoverable returns** — match DFI returns to reads by slot/id,
    not issue-FIFO position; add a per-read length watchdog so a short/lost burst
    can't wedge the AR-order drain. Return depth D ≥ ⌈(t_rddata_en+CL)/tCCD⌉ = 5,
    so the pipe stays full across the read round-trip.
-   → `kmaps/pumice_data_path_kmap.xlsx` (RD_RETURN, RETURN_TAGGING),
+   → `pumice_signal_contracts.xlsx` (RD_RETURN, RETURN_TAGGING),
      `waves/01`, `waves/08`.
 3. **Decouple read/write issue** — split the DFI command FIFO into read/write
    lanes (or let a WR bypass a RD stalled only on `rd_op_ready_i`), so a read
    stall can never be reported as a write wedge.
-   → `kmaps/pumice_cmd_path_kmap.xlsx` (CMD_DECISION notes), `waves/09`.
+   → `pumice_signal_contracts.xlsx` (CMD_DECISION notes), `waves/09`.
 
 Target: same-bank open-page streaming at **~tCCD rate** (waves/01, waves/02),
 cross-bank ACT pipelining (waves/04), i.e. ~500–600 MB/s.
@@ -93,8 +99,8 @@ cross-bank ACT pipelining (waves/04), i.e. ~500–600 MB/s.
 
 | file | defines |
 |------|---------|
-| `kmaps/pumice_cmd_path_kmap.xlsx` | FR-FCFS command decision, AP/page-policy, timing-gate legend, forward-state |
-| `kmaps/pumice_data_path_kmap.xlsx` | wr drain, B-gating, rd return, per-bank outstanding tracker, return tagging |
+| `pumice_signal_contracts.xlsx` sheets `CMD_DECISION` / `AP_DECISION` / `TIMING_GATES` / `FORWARD_STATE` | FR-FCFS command decision, AP/page-policy, timing-gate legend, forward-state |
+| `pumice_signal_contracts.xlsx` sheets `WR_DRAIN` / `WR_COMMIT_B` / `RD_RETURN` / `SAME_BANK_OUTSTANDING` / `RETURN_TAGGING` | wr drain, B-gating, rd return, per-bank outstanding tracker, return tagging |
 | `waves/01_open_read_stream` | ideal RD stream @ tCCD — the throughput target |
 | `waves/02_open_write_stream` | ideal WR stream @ tCCD |
 | `waves/03_page_miss_act_rd` | ACT→tRCD→RD first-access latency |
@@ -104,7 +110,7 @@ cross-bank ACT pipelining (waves/04), i.e. ~500–600 MB/s.
 | `waves/07_pick_pipeline_ideal` | pipeline = latency, not rate (the correction) |
 | `waves/08_same_bank_outstanding_fix` | ≥2 same-bank columns in flight, forward-state + tagged return |
 | `waves/09_failure_stale_image_wedge` | the CURRENT failure chain (reference: what NOT to do) |
-| `kmaps/pumice_write_path_kmap.xlsx` | **write drain/commit detail**: DRAIN_HANDSHAKE, CM_RD_STALL_CANDIDATES (why the DFI stops accepting writes -- the same-bank-WR wedge), SERIALIZER_OWED, B_CONSOLIDATION |
+| `pumice_signal_contracts.xlsx` sheets `DRAIN_HANDSHAKE` / `CM_RD_STALL_CANDIDATES` / `SERIALIZER_OWED` / `B_CONSOLIDATION` | **write drain/commit detail**: DRAIN_HANDSHAKE, CM_RD_STALL_CANDIDATES (why the DFI stops accepting writes -- the same-bank-WR wedge), SERIALIZER_OWED, B_CONSOLIDATION |
 | `waves/10_write_drain_pipeline_ideal` | ideal write drain (2 same-bank WR pipelined, no stall) |
 | `waves/11_write_same_bank_wedge_ref` | the current write-path wedge (reference; drain FIFO fills, commit_ready drops) |
 
@@ -112,10 +118,10 @@ cross-bank ACT pipelining (waves/04), i.e. ~500–600 MB/s.
 ## Correction (2026-09-07): the wedge is in the WRITE PATH, not the arbiter
 
 Four fixes targeting the arbiter -- including the full correct-by-construction
-shadow bank-state (design/kmaps FORWARD_STATE) -- all wedge IDENTICALLY at
+shadow bank-state (the signal-contract workbook's FORWARD_STATE sheet) -- all wedge IDENTICALLY at
 `gen_wr_done` in the WRITE-ONLY phase. A fundamental arbiter redesign failing the
 same way proves the wedge is downstream: the **write drain/commit path** when
-same-bank WR columns pipeline. The write-path spec above (`pumice_write_path_kmap`
+same-bank WR columns pipeline. The write-path sheets above (`DRAIN_HANDSHAKE` ... `B_CONSOLIDATION`
 + waves 10/11) defines the ideal drain/commit signalling and scopes the fix to
 the CM_RD_STALL candidates. The shadow arbiter is sound and kept for reuse once
 the write path accepts the concurrency; it is not this bug.
@@ -162,7 +168,7 @@ drain / read round-trip**: keep the next transaction's columns flowing while the
 current burst drains, lifting `w_cmd_v` duty from 33 %/3 % toward the 100 % the
 DFI already offers. That is the upstream production path (intake -> splitter ->
 CAM -> scheduler), matching `SERIALIZER_OWED` / `DRAIN_HANDSHAKE` in
-`pumice_write_path_kmap` -- not the arbiter column mask and not the CAM depth.
+`pumice_signal_contracts.xlsx` -- not the arbiter column mask and not the CAM depth.
 
 Instrumentation: `mark_debug` on the probes above + `make bitstream-ila`;
 capture via `fpga/tcl/capture_ila.tcl` (trig `wr`/`rd`) driven by a sustained
@@ -286,7 +292,7 @@ the per-bank outstanding counter (D = ceil((t_rddata_en+CL)/tCCD) = 5 for reads,
 bounded by the aligner/rd-cmd-cam return depth) to replace the occupancy mask.
 Then w_col_inflight_bank deletes safely and columns pipeline at tCCD (1/cycle
 aggregate across banks) -> the path to 500+. This is a focused arbiter+timers
-change (design/kmaps FORWARD_STATE, waves 07/08), timing-critical, board-validated.
+change (the signal-contract workbook's FORWARD_STATE sheet, waves 07/08), timing-critical, board-validated.
 
 ### FUB-by-FUB scrub (2026-09-08): the write-path bug peeled to 3 layers
 
