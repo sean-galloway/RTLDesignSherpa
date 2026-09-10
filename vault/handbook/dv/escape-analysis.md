@@ -145,6 +145,7 @@ Worth checking any new test against directly:
 | No instantiators | Who would notice if this library module were wrong? |
 | Comments | Nothing executes them. |
 | The monitor "misbehaves" | When a protocol monitor never closes a packet, first ask whether the DUT ever produced the closing condition. smbus #58: the wire monitor returned stale packets and the tests read `wire data=[]`; the cause was the PHY releasing SDA and SCL on the same edge, so no STOP condition ever existed on the bus. An hour went into the monitor before a reviewer's bit-level slave counted zero STOPs. |
+| The helper consumed the evidence | A polling helper that reads a read-clear register clears the very flags the test is about. uart_16550 #60: `is_rx_data_ready()` reads LSR, whose error bits clear on read per the datasheet, so `wait_for_rx_data()` ate FE/BI/PE/OE before the assertion could see them and three tests were unsatisfiable by any correct RTL. Ask what each poll costs, and capture status from the value the poll already returned. |
 | Tests pass on a register, not the wire | `SMBUS_PEC` read back right while the STOP was missing; a register-level pass says nothing about the bus. Every transaction-type test asserts the wire conditions (START, Sr, ACK/NAK per byte, STOP) from a monitor, not only the status bits. |
 
 ## What is still unexamined

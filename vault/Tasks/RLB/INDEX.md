@@ -1,6 +1,6 @@
 # RLB — Retro Legacy Blocks
 
-**Next ID: RLB-013** — never recycle a number, even when its task closed.
+**Next ID: RLB-014** — never recycle a number, even when its task closed.
 
 Task rollup for the retro legacy peripheral blocks (gpio, hpet, ioapic,
 pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
@@ -10,7 +10,7 @@ pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
 | State | Count | Tasks |
 |---|---|---|
 | active | 1 | RLB-004 (RTL bugs — awaiting owner) |
-| open | 7 | RLB-006 (test scrub), RLB-007 (RDL relocation), RLB-008 (ioapic residual features), RLB-009 (pm_acpi residual features), RLB-010 (rtc leftovers: shared-primitive lint, clock mux), RLB-011 (smbus slave mode, arbitration, quick-command read), RLB-012 (regblock reset polarity under RESET_ACTIVE_HIGH, all nine) |
+| open | 8 | RLB-006 (test scrub), RLB-007 (RDL relocation), RLB-008 (ioapic residual features), RLB-009 (pm_acpi residual features), RLB-010 (rtc leftovers: shared-primitive lint, clock mux), RLB-011 (smbus slave mode, arbitration, quick-command read), RLB-012 (regblock reset polarity under RESET_ACTIVE_HIGH, all nine), RLB-013 (uart_16550 character timeout, AFE, 1.5 stop bits, DLAB remap, DMA mode) |
 | closed | 4 | RLB-001 (Kimi review), RLB-002 (5 wrong-map MAS fixes), RLB-003 (4 targeted MAS fixes), RLB-005 (rtc wavedrom README) |
 | dropped | 0 | — |
 

@@ -59,7 +59,7 @@ Corollary: the consumer `-f` includes the owner's filelist, never the `.sv`.
 Two builds under one component is the normal shape, and it means two different
 things depending on the pair:
 
-- **pumice**: `build-perf` (pumice on real DDR2) and `build-litedram` (LiteDRAM
+- **pumice**: `build-perf` (pumice on real DDR2) and `ddr2-characterization/flows-litedram-uart` (LiteDRAM
   in its place) -- two controllers, one board, so `make ab` runs both back to
   back and the comparison is meaningful.
 - **stream**: `build-mon` (monitor-validation harness) and `build-perf`

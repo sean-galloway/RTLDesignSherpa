@@ -357,8 +357,13 @@ LINT_GENERICS = \
     $(if $(STREAM_NUM_CHANNELS),-GNUM_CHANNELS=$(STREAM_NUM_CHANNELS)) \
     $(if $(USE_AXI_MONITORS),-GUSE_AXI_MONITORS=$(USE_AXI_MONITORS)) \
     $(if $(MON_N_PROFILE),-GMON_N_PROFILE=$(MON_N_PROFILE)) \
+    $(if $(OBS_ENABLE_MON_TAPS),-GOBS_ENABLE_MON_TAPS=$(OBS_ENABLE_MON_TAPS)) \
     $(if $(MON_ERROR_FLAVOR),-GMON_ERROR_FLAVOR=$(MON_ERROR_FLAVOR)) \
-    $(if $(STREAM_CLKOUT0_DIVIDE),-GCLKOUT0_DIVIDE=$(STREAM_CLKOUT0_DIVIDE))
+    $(if $(STREAM_CLKOUT0_DIVIDE),-GCLKOUT0_DIVIDE=$(STREAM_CLKOUT0_DIVIDE)) \
+    $(if $(STREAM_VCO_MHZ),-GVCO_MHZ=$(STREAM_VCO_MHZ)) \
+    $(if $(OBS_MAX_TRANSACTIONS),-GOBS_MAX_TRANSACTIONS=$(OBS_MAX_TRANSACTIONS)) \
+    $(if $(OBS_NUM_BANKS),-GOBS_NUM_BANKS=$(OBS_NUM_BANKS)) \
+    $(if $(OBS_USE_WDATA_ORDER_Q),-GOBS_USE_WDATA_ORDER_Q=$(OBS_USE_WDATA_ORDER_Q))
 
 lint: lint-decl-order flat-filelist  ## verilator --lint-only of the whole harness (fast, pre-Vivado)
 	@[ -n "$(TOP)" ] || (echo "TOP is not set -- cannot lint." && false)
@@ -543,7 +548,7 @@ keep:               ## Copy bitstream -> $RDS_HOLD_DIR (outside repo), reports -
 # hold: it is what makes fpga/reports/ and fpga/bitstream/ exist in a fresh
 # clone. Without this filter the guard fires on its own scaffolding and
 # `make clean` can never run -- which is exactly what it did in both pumice
-# flows (build-perf and build-litedram) from the day the area was created.
+# flows (build-perf and the LiteDRAM comparison flow) from the day the area was created.
 # Nobody noticed because `make bitstream` does not invoke clean, so the break
 # only surfaces when someone follows the documented
 # "clean-all before a regression" rule.

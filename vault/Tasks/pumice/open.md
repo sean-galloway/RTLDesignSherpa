@@ -39,16 +39,15 @@ Note the operating point in that README is the stock 100 MHz / 1:4; the proven
 point (and the one pumice is measured at) is **75 MHz / 1:2**, so set
 `sys_clk_freq`/`input_clk_freq` accordingly before regenerating.
 
-**Also: `build-litedram/` is a newer EMPTY duplicate scaffold** (Makefile,
-.gitignore and now a results note only). It was created without carrying the
-above across, and cost this session a rebuild-from-scratch of the LiteX
-tooling before the real flow was found. Either populate it from
-flows-litedram-uart or delete it and point at the original -- two scaffolds for
-one job is how the second one gets rebuilt again.
+**RESOLVED 2026-09-10:** `build-litedram/` was an empty duplicate scaffold
+(the never-executed destination of a NEXYS-003 move). It cost this session a
+rebuild-from-scratch of the LiteX tooling before the real flow surfaced. It is
+now DELETED and every reference points at `flows-litedram-uart/`.
 
 **Tooling notes that ARE new and worth keeping** are in
-`build-litedram/results/2026-09-10_litedram_status.md` with two working
-scripts in `build-litedram/bin/`: install LiteX from git not PyPI (PyPI +
+`flows-litedram-uart/2026-09-10_tooling_notes.md`, with two working scripts
+beside it (`bin_nexys_bist_soc.py`, `bin_litedram_bist_run.py`): install LiteX
+from git not PyPI (PyPI +
 Python 3.12 breaks every target on a migen bytecode-inference bug); the RISC-V
 toolchain is already at
 `/tools/Xilinx/2025.1/gnu/riscv/lin/riscv64-unknown-elf/bin`; PyPI

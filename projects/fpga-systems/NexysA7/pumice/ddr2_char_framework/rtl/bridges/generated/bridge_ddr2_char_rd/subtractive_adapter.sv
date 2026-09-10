@@ -83,6 +83,9 @@ module bridge_ddr2_char_rd_subtractive_adapter
     // ================================================================
 
     // Read Channel FIFO (In-Order) - AXI4 Protocol
+    // BRIDGE-011 not-full gating -- see the write channel.
+    logic rd_trk_full;
+    logic w_sub_arready;
     localparam RD_FIFO_DEPTH = 16;
     logic [BRIDGE_ID_WIDTH-1:0] rd_fifo [RD_FIFO_DEPTH];
     logic [$clog2(RD_FIFO_DEPTH):0] ar_ptr, r_ptr;
@@ -116,6 +119,36 @@ module bridge_ddr2_char_rd_subtractive_adapter
     assign rid_bridge_id = rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];
     assign rid_valid     = (ar_ptr != r_ptr);
 
+    // BRIDGE-011, read side -- see the write comment above.
+    assign rd_trk_full = (ar_ptr[$clog2(RD_FIFO_DEPTH)] != r_ptr[$clog2(RD_FIFO_DEPTH)]) &&
+                         (ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0] == r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]);
+    assign xbar_subtractive_axi_arready = w_sub_arready && !rd_trk_full;
+
+    // BRIDGE-010, read side -- see the write channel. Checked on the
+    // LAST beat, since that is when the FIFO entry is retired.
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    logic [8-1:0] rd_id_fifo [RD_FIFO_DEPTH];
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+        end else begin
+            if (xbar_subtractive_axi_arvalid && xbar_subtractive_axi_arready)
+                rd_id_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= xbar_subtractive_axi_arid;
+            if (xbar_subtractive_axi_rvalid && xbar_subtractive_axi_rready && xbar_subtractive_axi_rlast) begin
+                if (xbar_subtractive_axi_rid !== rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]) begin
+                    $error("BRIDGE-010: slave returned R out of AR order -- ",
+                           "got RID=%0h, expected %0h. This bridge routes ",
+                           "responses by FIFO position and does not support ",
+                           "ID-based reordering; the data has gone to the ",
+                           "wrong master.", xbar_subtractive_axi_rid,
+                           rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]);
+                end
+            end
+        end
+    )
+    // synthesis translate_on
+`endif
+
     // AXI4 Master Read Timing Wrapper
     axi4_master_rd #(
         .SKID_DEPTH_AR(2),
@@ -140,8 +173,8 @@ module bridge_ddr2_char_rd_subtractive_adapter
         .fub_axi_arqos(xbar_subtractive_axi_arqos),
         .fub_axi_arregion(xbar_subtractive_axi_arregion),
         .fub_axi_aruser(xbar_subtractive_axi_aruser),
-        .fub_axi_arvalid(xbar_subtractive_axi_arvalid),
-        .fub_axi_arready(xbar_subtractive_axi_arready),
+        .fub_axi_arvalid(xbar_subtractive_axi_arvalid && !rd_trk_full),
+        .fub_axi_arready(w_sub_arready),
         .fub_axi_rid(xbar_subtractive_axi_rid),
         .fub_axi_rdata(xbar_subtractive_axi_rdata),
         .fub_axi_rresp(xbar_subtractive_axi_rresp),

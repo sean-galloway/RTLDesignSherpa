@@ -5,7 +5,7 @@ NOTE ON WHAT THIS MEASURES: this is LiteDRAM's OWN BIST generator/checker
 driving its OWN user port. It is NOT the pumice harness's AXI pattern
 generators, so it is a reference point, not a like-for-like A/B. The
 like-for-like number needs LiteDRAM dropped into the pumice harness
-(build-litedram/, litedram_char_harness) so both controllers see identical
+(this flow: litedram_char_top + char_engine_harness) so both controllers see identical
 traffic and identical measurement.
 """
 import sys, time

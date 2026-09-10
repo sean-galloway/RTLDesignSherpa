@@ -263,9 +263,13 @@ the block advertises in its RDL/MAS header but has never implemented.
 ### RLB-012: regblock reset polarity is composed by hand in all nine blocks
 
 **Priority:** P2 if that build is ever used, P3 today: no build in the tree
-sets `RESET_ACTIVE_HIGH`. Measured on smbus: with the define, `~rst_n` holds
+sets `RESET_ACTIVE_HIGH`. Measured on smbus and again on uart_16550: with the define, `~rst_n` holds
 the register block in reset permanently, so no register latches and every
-RLB block is non-functional at that polarity, not merely mis-reset.
+RLB block is non-functional at that polarity, not merely mis-reset. On the
+UART that means DLL/DLM stuck at the reset divisor, LCR stuck at 8N1, IER
+and MCR stuck at 0 so the interrupt pin can never assert, and every write
+acking while reading back its default. Lint cannot see it: all four
+`-DRESET_ACTIVE_HIGH` permutations compile clean.
 **Status:** open 2026-09-10. Raised by the smbus #58 round-5 review.
 
 Every RLB wrapper instantiates its PeakRDL regblock with `.rst(~rst_n)`
@@ -279,4 +283,26 @@ but deliberately left the regblock line alone: it is one family-wide change
 with one regression, not nine drive-bys. Fix = derive the regblock reset
 through the house macro (or a `RST_ASSERTED`-based wire) in one pass over
 all nine, then run the RLB area regression under both polarities.
+
+### RLB-013: UART 16550 features deferred past the #60 fix
+
+**Priority:** P3. Raised 2026-09-10 while fixing issue #60. None of these is a
+defect; each is a 16550 feature this block advertises in its register map but
+has never implemented, and each is disclosed in the MAS.
+**Status:** open 2026-09-10.
+
+- **Character-timeout interrupt.** `int_timeout` is tied to 0, so IIR never
+  reads 0x0C and there is no four-character-time timeout. Software polling a
+  partially filled RX FIFO below the trigger level has no interrupt to wait
+  for. Needs a receive idle counter in the baud-tick domain, the IIR encoding
+  (already reserved) and the read-side clear.
+- **Auto flow control (AFE).** MCR[5] does not exist; CTS does not gate TX and
+  RTS is not driven from the RX FIFO level. Needs both halves plus the
+  threshold rule.
+- **1.5 stop bits** for 5-bit words (LCR[2] with a 5-bit character produces one
+  stop bit today).
+- **DLAB remapping.** The map is flat: DLL/DLM have their own offsets and DLAB
+  is a stored bit that remaps nothing. Legal for this block and documented, but
+  it is not what a driver written against a standard 16550 expects.
+- **DMA mode select.** FCR[3] is stored and never read.
 

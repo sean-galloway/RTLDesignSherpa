@@ -1,0 +1,71 @@
+config,scenario,family,burst_len,txn_count,gap,id_mode,ok,mismatched,bytes_moved,clk_mhz,wr_cycles,wr_util,wr_bw_mb_s,rd_cycles,rd_util,rd_bw_mb_s,rd_avg_latency_cyc,rd_hist_total,notes
+baseline,incremental_bl4,incremental,4,64000,0,0,1,0,2048000,75.0,16583540,0.0119,9.26,16193742,0.0118,9.49,747.00,64000,
+baseline,incremental_bl8,incremental,8,64000,0,0,1,0,4096000,75.0,33167055,0.0133,9.26,32387212,0.0138,9.49,750.00,64000,
+baseline,incremental_bl16,incremental,16,64000,0,0,1,0,8192000,75.0,66334040,0.0142,9.26,64773663,0.0147,9.49,767.99,64000,
+baseline,row_major_bl4,row_major,4,64000,0,0,1,0,2048000,75.0,16648530,0.0118,9.23,16648536,0.0118,9.23,767.98,64000,
+baseline,row_major_bl8,row_major,8,64000,0,0,1,0,4096000,75.0,33297202,0.0133,9.23,33297564,0.0133,9.23,767.99,64000,
+baseline,row_major_bl16,row_major,16,64000,0,0,1,0,8192000,75.0,66594406,0.0142,9.23,66594112,0.0142,9.23,767.99,64000,
+baseline,col_major_bl4,col_major,4,64000,0,0,1,0,2048000,75.0,16648806,0.0118,9.23,16648552,0.0118,9.23,767.98,64000,
+baseline,col_major_bl8,col_major,8,64000,0,0,1,0,4096000,75.0,33297026,0.0133,9.23,33297063,0.0133,9.23,767.99,64000,
+baseline,col_major_bl16,col_major,16,64000,0,0,1,0,8192000,75.0,66594096,0.0142,9.23,66594128,0.0142,9.23,767.99,64000,
+baseline,col_major_interleaved_bl4,col_major_interleaved,4,64000,0,0,1,0,2048000,75.0,3500981,0.0305,43.87,5428547,0.0237,28.29,216.83,64000,
+baseline,col_major_interleaved_bl8,col_major_interleaved,8,64000,0,0,1,0,4096000,75.0,11654239,0.0305,26.36,16648491,0.0237,18.45,364.67,64000,
+baseline,col_major_interleaved_bl16,col_major_interleaved,16,64000,0,0,1,0,8192000,75.0,35978254,0.0251,17.08,37459694,0.0244,16.40,767.99,64000,
+baseline,col_major_bl8_multiid,col_major,8,64000,0,2,1,0,4096000,75.0,33297039,0.0133,9.23,33297076,0.0133,9.23,767.99,64000,
+baseline,col_major_bl8_gap,col_major,8,64000,8,0,1,0,4096000,75.0,33297038,0.0133,9.23,33297077,0.0133,9.23,767.99,64000,
+bank_interleave,incremental_bl4,incremental,4,64000,0,0,1,0,2048000,75.0,2656553,0.0355,57.82,2628791,0.0355,58.43,101.05,64000,
+bank_interleave,incremental_bl8,incremental,8,64000,0,0,1,0,4096000,75.0,5313368,0.0474,57.82,5313455,0.0474,57.82,100.09,64000,
+bank_interleave,incremental_bl16,incremental,16,64000,0,0,1,0,8192000,75.0,10626749,0.0656,57.82,10626778,0.0656,57.82,100.09,64000,
+bank_interleave,row_major_bl4,row_major,4,64000,0,0,1,0,2048000,75.0,2656727,0.0355,57.82,2656566,0.0355,57.82,100.07,64000,
+bank_interleave,row_major_bl8,row_major,8,64000,0,0,1,0,4096000,75.0,5313351,0.0474,57.82,5313359,0.0474,57.82,100.08,64000,
+bank_interleave,row_major_bl16,row_major,16,64000,0,0,1,0,8192000,75.0,10626612,0.0656,57.82,10626561,0.0656,57.82,100.08,64000,
+bank_interleave,col_major_bl4,col_major,4,64000,0,0,1,0,2048000,75.0,4183153,0.0266,36.72,4183400,0.0267,36.72,193.02,64000,
+bank_interleave,col_major_bl8,col_major,8,64000,0,0,1,0,4096000,75.0,5313167,0.0474,57.82,5313333,0.0474,57.82,100.08,64000,
+bank_interleave,col_major_bl16,col_major,16,64000,0,0,1,0,8192000,75.0,10626657,0.0656,57.82,10626692,0.0656,57.82,100.08,64000,
+bank_interleave,col_major_interleaved_bl4,col_major_interleaved,4,64000,0,0,1,0,2048000,75.0,4183144,0.0267,36.72,4183330,0.0267,36.72,193.04,64000,
+bank_interleave,col_major_interleaved_bl8,col_major_interleaved,8,64000,0,0,1,0,4096000,75.0,5313422,0.0474,57.82,5313287,0.0474,57.82,100.08,64000,
+bank_interleave,col_major_interleaved_bl16,col_major_interleaved,16,64000,0,0,1,0,8192000,75.0,10626758,0.0656,57.82,10626787,0.0656,57.82,100.08,64000,
+bank_interleave,col_major_bl8_multiid,col_major,8,64000,0,2,1,0,4096000,75.0,5313297,0.0474,57.82,5313228,0.0474,57.82,100.08,64000,
+bank_interleave,col_major_bl8_gap,col_major,8,64000,8,0,1,0,4096000,75.0,5313357,0.0474,57.82,5313389,0.0474,57.82,100.08,64000,
+open_page,incremental_bl4,incremental,4,64000,0,0,0,0,2048000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+open_page,incremental_bl8,incremental,8,64000,0,0,0,0,4096000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+open_page,incremental_bl16,incremental,16,64000,0,0,0,0,8192000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+open_page,row_major_bl4,row_major,4,64000,0,0,0,0,2048000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+open_page,row_major_bl8,row_major,8,64000,0,0,0,0,4096000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+open_page,row_major_bl16,row_major,16,64000,0,0,0,0,8192000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+open_page,col_major_bl4,col_major,4,64000,0,0,0,0,2048000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+open_page,col_major_bl8,col_major,8,64000,0,0,0,0,4096000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+open_page,col_major_bl16,col_major,16,64000,0,0,0,0,8192000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+open_page,col_major_interleaved_bl4,col_major_interleaved,4,64000,0,0,0,0,2048000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+open_page,col_major_interleaved_bl8,col_major_interleaved,8,64000,0,0,0,0,4096000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+open_page,col_major_interleaved_bl16,col_major_interleaved,16,64000,0,0,0,0,8192000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+open_page,col_major_bl8_multiid,col_major,8,64000,0,2,0,0,4096000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+open_page,col_major_bl8_gap,col_major,8,64000,8,0,0,0,4096000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+inorder,incremental_bl4,incremental,4,64000,0,0,1,0,2048000,75.0,16583542,0.0118,9.26,16193738,0.0118,9.49,747.00,64000,
+inorder,incremental_bl8,incremental,8,64000,0,0,1,0,4096000,75.0,33167049,0.0133,9.26,32387072,0.0138,9.49,750.00,64000,
+inorder,incremental_bl16,incremental,16,64000,0,0,1,0,8192000,75.0,66333970,0.0142,9.26,64773660,0.0147,9.49,767.99,64000,
+inorder,row_major_bl4,row_major,4,64000,0,0,1,0,2048000,75.0,16648528,0.0118,9.23,16648534,0.0118,9.23,767.98,64000,
+inorder,row_major_bl8,row_major,8,64000,0,0,1,0,4096000,75.0,33297202,0.0133,9.23,33297046,0.0133,9.23,767.99,64000,
+inorder,row_major_bl16,row_major,16,64000,0,0,1,0,8192000,75.0,66594405,0.0142,9.23,66594116,0.0142,9.23,767.99,64000,
+inorder,col_major_bl4,col_major,4,64000,0,0,1,0,2048000,75.0,16648804,0.0118,9.23,16648552,0.0118,9.23,767.98,64000,
+inorder,col_major_bl8,col_major,8,64000,0,0,1,0,4096000,75.0,33297022,0.0133,9.23,33297058,0.0133,9.23,767.99,64000,
+inorder,col_major_bl16,col_major,16,64000,0,0,1,0,8192000,75.0,66594096,0.0142,9.23,66594130,0.0142,9.23,767.99,64000,
+inorder,col_major_interleaved_bl4,col_major_interleaved,4,64000,0,0,1,0,2048000,75.0,3534052,0.0305,43.46,5549601,0.0237,27.68,217.54,64000,
+inorder,col_major_interleaved_bl8,col_major_interleaved,8,64000,0,0,1,0,4096000,75.0,11654184,0.0305,26.36,16511550,0.0237,18.61,374.34,64000,
+inorder,col_major_interleaved_bl16,col_major_interleaved,16,64000,0,0,1,0,8192000,75.0,35978201,0.0251,17.08,37459696,0.0244,16.40,767.99,64000,
+inorder,col_major_bl8_multiid,col_major,8,64000,0,2,1,0,4096000,75.0,33297057,0.0133,9.23,33297226,0.0133,9.23,767.99,64000,
+inorder,col_major_bl8_gap,col_major,8,64000,8,0,1,0,4096000,75.0,33297200,0.0133,9.23,33297564,0.0133,9.23,767.99,64000,
+reorder,incremental_bl4,incremental,4,64000,0,0,0,0,2048000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+reorder,incremental_bl8,incremental,8,64000,0,0,0,0,4096000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+reorder,incremental_bl16,incremental,16,64000,0,0,0,0,8192000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+reorder,row_major_bl4,row_major,4,64000,0,0,0,0,2048000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+reorder,row_major_bl8,row_major,8,64000,0,0,0,0,4096000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+reorder,row_major_bl16,row_major,16,64000,0,0,0,0,8192000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+reorder,col_major_bl4,col_major,4,64000,0,0,0,0,2048000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+reorder,col_major_bl8,col_major,8,64000,0,0,0,0,4096000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+reorder,col_major_bl16,col_major,16,64000,0,0,0,0,8192000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+reorder,col_major_interleaved_bl4,col_major_interleaved,4,64000,0,0,0,0,2048000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+reorder,col_major_interleaved_bl8,col_major_interleaved,8,64000,0,0,0,0,4096000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+reorder,col_major_interleaved_bl16,col_major_interleaved,16,64000,0,0,0,0,8192000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+reorder,col_major_bl8_multiid,col_major,8,64000,0,2,0,0,4096000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)
+reorder,col_major_bl8_gap,col_major,8,64000,8,0,0,0,4096000,75.0,0,0.0000,0.00,0,0.0000,0.00,0.00,0,write engine did not complete; read engine did not complete; 1:1 VIOLATION: hist total 0 != txn_count 64000 (MISSING returns)

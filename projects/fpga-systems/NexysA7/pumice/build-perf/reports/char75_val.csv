@@ -1,0 +1,5 @@
+config,scenario,family,burst_len,txn_count,gap,id_mode,ok,mismatched,bytes_moved,clk_mhz,wr_cycles,wr_util,wr_bw_mb_s,rd_cycles,rd_util,rd_bw_mb_s,rd_avg_latency_cyc,rd_hist_total,notes
+baseline,incremental_bl8,incremental,8,160,0,0,1,0,10240,75.0,83457,0.0002,9.20,81417,0.0002,9.43,749.10,160,
+baseline,row_major_bl8,row_major,8,160,0,0,1,0,10240,75.0,83236,0.0002,9.23,83226,0.0002,9.23,763.50,160,
+baseline,col_major_bl8,col_major,8,160,0,0,1,0,10240,75.0,83199,0.0002,9.23,83256,0.0002,9.22,763.50,160,
+baseline,col_major_interleaved_bl8,col_major_interleaved,8,160,0,0,1,0,10240,75.0,29439,0.0002,26.09,41609,0.0002,18.46,314.70,160,

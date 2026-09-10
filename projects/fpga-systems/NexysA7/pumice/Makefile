@@ -31,7 +31,7 @@ help:
 	@echo ""
 	@echo "  Builds:"
 	@echo "    build-perf/       pumice on real DDR2      -- the subject"
-	@echo "    build-litedram/   LiteDRAM in its place    -- the yardstick"
+	@echo "    ddr2-characterization/flows-litedram-uart/  LiteDRAM in its place -- the yardstick"
 	@echo ""
 	@echo "  Any build target, against either build:"
 	@echo "    make bitstream                 # BUILD=perf by default"
@@ -62,8 +62,8 @@ blocks-sim:
 ab:
 	@echo "=== A/B: pumice vs LiteDRAM, same harness ==="
 	@$(MAKE) --no-print-directory -C $(SELF_DIR)/build-perf program run
-	@$(MAKE) --no-print-directory -C $(SELF_DIR)/build-litedram program run
-	@echo "=== results: build-perf/results vs build-litedram/results ==="
+	@$(MAKE) --no-print-directory -C $(SELF_DIR)/ddr2-characterization/flows-litedram-uart program run
+	@echo "=== results: build-perf/results vs ddr2-characterization/flows-litedram-uart ==="
 
 # Anything else is a per-build target: forward it to the selected build.
 # The two no-op rules stop the catch-all from trying to "remake" the makefiles

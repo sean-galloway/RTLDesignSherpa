@@ -236,7 +236,7 @@ for rapids/stream, mirroring `projects/fpga-systems/NexysA7/pumice/bin/`.
 **Pumice area (build-perf migrated 2026-07-31):** the component lives at
 `projects/fpga-systems/NexysA7/pumice/`. `bin/` (sequences) and `build-perf/`
 (the whole pumice-on-DDR2 harness) are POPULATED; the former
-`projects/NexysA7/ddr2-characterization/flows-ours-uart/` no longer exists.
+`projects/fpga-systems/NexysA7/pumice/ddr2-characterization/flows-ours-uart/` no longer exists.
 Verified at the new location: `make lint` clean (matches the pre-move baseline),
 `bin/filelist_registry.py --check` PASS, 27 sim tests still collect, host unit
 tests pass. NOT verified: anything needing Vivado or a board.
@@ -248,8 +248,16 @@ Remaining moves:
 - `ddr2_char_framework/dv/{tb,tbclasses,tests}` -> `pumice/dv/`, then repoint
   `SIM_TESTS` in `build-perf/Makefile` from the framework path to
   `$(SELF_DIR)/dv/tests`.
-- `flows-litedram-uart/{rtl,constraints,tcl}` -> `pumice/build-litedram/`
-  (`litedram_hp.yml`, `regen.sh`, `README.md`, `HARNESS_PLAN.md` at its root).
+- ~~`flows-litedram-uart/{rtl,constraints,tcl}` -> `pumice/build-litedram/`~~
+  **DROPPED 2026-09-10 (Sean).** `build-litedram/` was scaffolded as the
+  destination but the move was never executed, so the repo carried an EMPTY
+  duplicate alongside the real, WIRED flow. That cost a session: the empty
+  scaffold was found first, taken for the whole job, and the LiteX tooling was
+  rebuilt from scratch before `flows-litedram-uart/` surfaced. The empty
+  scaffold is deleted and the flow stays where it is; every reference now
+  points at `ddr2-characterization/flows-litedram-uart/`. If it is ever moved,
+  move it in ONE commit -- do not leave a scaffold standing at the
+  destination.
 
 **While moving litedram, two things to fix rather than carry over:**
 - `regen.sh` writes to `build_board/` + `build_sim/` at the flow root. Point it

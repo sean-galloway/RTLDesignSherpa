@@ -25,7 +25,7 @@ pumice/
     fpga/             bitstream flow: tcl/ constraints/ bitstream/ reports/
     results/          csv, plots, findings
 
-  build-litedram/   BUILD 2 - LiteDRAM in pumice's place (the yardstick)
+  ddr2-characterization/flows-litedram-uart/  BUILD 2 - LiteDRAM in pumice's place (the yardstick)
     rtl/ rtl/filelists/  board top wiring litedram_core to the same harness
     gen/              GENERATED cores from regen.sh (gitignored)
       board/            real A7DDRPHY, for silicon
@@ -60,13 +60,13 @@ make blocks-sim               # the shared rtl/ blocks only
 make ab                       # program+run BOTH builds, back to back
 ```
 
-`build-litedram` adds `make regen` (regenerate the LiteDRAM cores into `gen/`);
+The LiteDRAM flow (`ddr2-characterization/flows-litedram-uart`) adds `make regen`;
 `synth`/`bitstream` there refuse to start if no core has been generated, because
 the alternative is an obscure Vivado failure a long way in.
 
 ## The two builds
 
-They exist to be compared. `build-perf` measures pumice; `build-litedram` drops
+They exist to be compared. `build-perf` measures pumice; `flows-litedram-uart` drops
 LiteDRAM's DDR2 controller into the same socket so **the same pattern generator,
 the same perf taps, the same timer and the same UART/CSR path** measure both --
 an apples-to-apples benchmark rather than two numbers from two harnesses. That
@@ -102,7 +102,7 @@ unchanged against silicon and sim. Sequences take an injected bus, never a port.
 
 **`build-perf` is live** -- the whole harness (rtl, rtl-vivado, fpga/tcl,
 fpga/constraints, host, bin) moved here from the former
-`projects/NexysA7/ddr2-characterization/flows-ours-uart/`, which no longer
+`projects/fpga-systems/NexysA7/pumice/ddr2-characterization/flows-ours-uart/`, which no longer
 exists. It lints clean at this location, and `bin/filelist_registry.py --check`
 passes. `bin/` holds the sequences.
 
@@ -114,7 +114,7 @@ Two things have NOT moved yet, so they are still referenced in place:
 - `ddr2_char_framework/dv/` -- the whole-harness sim. `build-perf` points
   `SIM_TESTS` at it; `build-perf/dv/` stays scaffold until it moves.
 
-`build-litedram` is still scaffold. Both remaining migrations are NEXYS-003 in
+The LiteDRAM flow is wired but not yet board-brought-up (PUMICE-026). Remaining migrations are NEXYS-003 in
 `vault/Tasks/nexysa7/open.md`; NEXYS-002 moves the rest of `projects/NexysA7/`
 under `projects/fpga-systems/`.
 

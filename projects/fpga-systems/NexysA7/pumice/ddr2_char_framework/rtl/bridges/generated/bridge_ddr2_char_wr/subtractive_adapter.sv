@@ -91,6 +91,10 @@ module bridge_ddr2_char_wr_subtractive_adapter
     // ================================================================
 
     // Write Channel FIFO (In-Order) - AXI4 Protocol
+    // BRIDGE-011 not-full gating: w_sub_awready is the sub-block's
+    // own ready, masked before it reaches the crossbar.
+    logic wr_trk_full;
+    logic w_sub_awready;
     localparam WR_FIFO_DEPTH = 16;
     logic [BRIDGE_ID_WIDTH-1:0] wr_fifo [WR_FIFO_DEPTH];
     logic [$clog2(WR_FIFO_DEPTH):0] wr_ptr, rd_ptr;
@@ -124,6 +128,47 @@ module bridge_ddr2_char_wr_subtractive_adapter
     assign bid_bridge_id = wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];
     assign bid_valid     = (wr_ptr != rd_ptr);
 
+    // BRIDGE-011: this FIFO routes B by POSITION, so overrunning it
+    // misroutes responses -- past WR_FIFO_DEPTH a live entry is
+    // overwritten and its B goes to the wrong master; at twice the
+    // depth the pointers lap, (wr_ptr != rd_ptr) reads EMPTY and the
+    // response is never routed at all. Gate the AW handshake on
+    // not-full in BOTH directions. Draining never depends on
+    // accepting a further AW, so this cannot deadlock.
+    assign wr_trk_full = (wr_ptr[$clog2(WR_FIFO_DEPTH)] != rd_ptr[$clog2(WR_FIFO_DEPTH)]) &&
+                         (wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0] == rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]);
+    assign xbar_subtractive_axi_awready = w_sub_awready && !wr_trk_full;
+
+    // BRIDGE-010: this port routes B by FIFO POSITION, so it REQUIRES
+    // the slave to return B in AW order across all IDs. AXI4 permits a
+    // slave to reorder between IDs; such a slave silently misroutes
+    // here. Nothing detected that, so record the AWID alongside the
+    // master id and check the returned BID against the head. Sim-only:
+    // it is a contract check on the attached slave, not logic the
+    // bridge needs, and it must cost no gates.
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    logic [8-1:0] wr_id_fifo [WR_FIFO_DEPTH];
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+        end else begin
+            if (xbar_subtractive_axi_awvalid && xbar_subtractive_axi_awready)
+                wr_id_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= xbar_subtractive_axi_awid;
+            if (xbar_subtractive_axi_bvalid && xbar_subtractive_axi_bready) begin
+                if (xbar_subtractive_axi_bid !== wr_id_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]]) begin
+                    $error("BRIDGE-010: slave returned B out of AW order -- ",
+                           "got BID=%0h, expected %0h. This bridge routes ",
+                           "responses by FIFO position and does not support ",
+                           "ID-based reordering; the response has gone to the ",
+                           "wrong master.", xbar_subtractive_axi_bid,
+                           wr_id_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]]);
+                end
+            end
+        end
+    )
+    // synthesis translate_on
+`endif
+
     // AXI4 Master Write Timing Wrapper
     axi4_master_wr #(
         .SKID_DEPTH_AW(2),
@@ -149,8 +194,8 @@ module bridge_ddr2_char_wr_subtractive_adapter
         .fub_axi_awqos(xbar_subtractive_axi_awqos),
         .fub_axi_awregion(xbar_subtractive_axi_awregion),
         .fub_axi_awuser(xbar_subtractive_axi_awuser),
-        .fub_axi_awvalid(xbar_subtractive_axi_awvalid),
-        .fub_axi_awready(xbar_subtractive_axi_awready),
+        .fub_axi_awvalid(xbar_subtractive_axi_awvalid && !wr_trk_full),
+        .fub_axi_awready(w_sub_awready),
         .fub_axi_wdata(xbar_subtractive_axi_wdata),
         .fub_axi_wstrb(xbar_subtractive_axi_wstrb),
         .fub_axi_wlast(xbar_subtractive_axi_wlast),

@@ -32,7 +32,7 @@ a plain glob over those prefixes.
 ```
 
 Generated vendor RTL is the one legitimate per-build difference:
-`build-perf/rtl-vivado/` (Vivado/migen output) versus `build-litedram/gen/`
+`build-perf/rtl-vivado/` (Vivado/migen output) versus the LiteDRAM flow's generated cores
 (LiteDRAM core output). Both are GENERATED -- never hand-edited, wiped and
 rebuilt by their regeneration target.
 
