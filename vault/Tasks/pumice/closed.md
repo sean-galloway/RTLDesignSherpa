@@ -549,6 +549,66 @@ spurious FAILs / 126 reruns). Seed echo also landed: every wrapper prints
 `[seed] <tag> ...SEED=<n>` so pytest surfaces it for failing tests and a
 one-off red is reproducible after logs are cleaned.
 
+## PUMICE-024 — ORDER_MODE overlays miss 75 MHz: CLOSED by shortening the pre-pick stage
+**Status:** closed 2026-09-09 — the ENHANCED tier now closes post-route
+
+The overlays missed 75 MHz by 21-53 ps depending on the placer. Root cause was
+not the overlays themselves but where the arbiter did its slot-to-data muxing:
+the output stage indexed the CAMs' flat {bank,row,col} vectors with the
+REGISTERED pre-pick slot, so six NUM_ENTRIES:1 muxes sat AFTER the pre-pick
+flop and fed r_bank/r_row/r_col. That was the reported critical path in every
+build (`r_*_pop -> ... -> r_bank`).
+
+Fix: mux at the pre-pick flop instead, registering the already-narrow
+{bank,row,col} per class. The wide muxes move into the STAGE-1b cycle where
+arg_sel has already resolved and there is slack, and the output stage keeps
+only the small class-priority mux. `rd_col_ap` already used exactly this
+pattern, so it is the established idiom rather than a new one. Sampling one
+cycle earlier is also more coherent: a CAM entry's key is fixed at insert and
+the forward guards prevent re-selecting a just-selected slot, so the operands
+now come from the same epoch as the decision.
+
+Post-route at 75 MHz, same flow, before -> after:
+
+| Build | Before | After |
+|---|---|---|
+| base | +0.010 ns, 0 failing | +0.009 ns, 0 failing |
+| ENHANCED | -0.021 ns, 4 failing | **+0.005 ns, 0 failing of 72896** |
+
+The base tier was already closing so it does not move (both figures are inside
+the placement band); the enhanced tier closes for the first time. Cost is about
+144 flops and 0.19% LUT. The same change also shortens the prepick-guard cone,
+which feeds the mask build.
+
+Validation: pumice fub 96 / macro 3 / top 119, zero failures; char sim 31
+passed + 2 xfailed, zero unexpected.
+
+## PUMICE-017 — CAM->arbiter pick cone does not close timing: CLOSED (stale)
+**Status:** closed 2026-09-09 — the measured condition no longer exists
+
+Filed 2026-08-31 against a post-route WNS of **-48.861 ns** with 8939 failing
+endpoints, on the grounds that logic delay alone (17.825 ns) exceeded the 15 ns
+period so no placement effort could recover it: "it is depth, and it needs
+registers."
+
+It got them. The three-stage pick split (STAGE-1a snapshot -> STAGE-1b arg_sel
+-> pre-pick -> output), the CAM per-entry vector refactor, and finally the
+pre-pick operand muxing of PUMICE-024 did exactly what the task asked for. The
+current measurement on the same board and harness, at the HIGHER 75 MHz
+target:
+
+    WNS                 +0.009 ns   against 13.333 ns (75 MHz)
+    Failing endpoints      0 / 72896
+    ENHANCED tier       +0.005 ns, 0 failing
+
+The task's secondary claim -- "PUMICE-006 was never synthesized" -- is also
+stale: all three mode axes are in the board build, and the paging predictors
+were restored to it on 2026-09-09.
+
+Closed against evidence rather than assumption; the remaining pick-cone work
+is performance (the auto-precharge head advance under strict ordering), not
+closure, and it is recorded on PUMICE-021 in this file.
+
 ## PUMICE-021 — paging_sched_cross in_order floor: MISCALIBRATED FLOOR, not an RTL stall
 **Status:** closed 2026-09-09 — diagnosed by measurement, floor re-cut by mechanism
 

@@ -1107,3 +1107,37 @@ The col->ACT head advance is the one real performance lead here: shortening it
 lifts every AP-paging number under strict ordering. It is the same pre-pick
 stage that owns the 75 MHz critical path, so it is one change with both
 payoffs -- tracked under PUMICE-024, not treated as a defect.
+
+### PRE-PICK OPERAND MUXING (2026-09-09): the ENHANCED tier closes 75 MHz
+
+The order-mode overlays missed 75 MHz by 21-53 ps (PUMICE-024). The overlays
+were not the problem. The arbiter's output stage indexed the CAMs' flat
+{bank,row,col} vectors with the REGISTERED pre-pick slot, so six
+NUM_ENTRIES:1 muxes sat AFTER the pre-pick flop feeding r_bank/r_row/r_col.
+That is the path every build reported: `r_*_pop -> ... -> r_bank`.
+
+Fix: mux at the pre-pick flop and register the already-narrow operands per
+class. The wide muxes land in the STAGE-1b cycle, where arg_sel has already
+resolved and there is slack; the output stage keeps only the class-priority
+mux over narrow values. This is not a new idiom -- `rd_col_ap` already
+sampled `r_ap_snap[f_bank(..., w_sel_rd_col_s)]` at that same flop. Sampling
+a cycle earlier is also more coherent: an entry's key is fixed at insert and
+the forward guards stop a just-selected slot being re-selected, so the
+operands come from the same epoch as the decision.
+
+Post-route at 75 MHz, same flow:
+
+| Build | Before | After |
+|---|---|---|
+| base | +0.010 ns, 0 failing | +0.009 ns, 0 failing |
+| ENHANCED | -0.021 ns, 4 failing | +0.005 ns, 0 failing of 72896 |
+
+About +144 flops, +0.19% LUT. The base tier was already closing so it does not
+move; the enhanced tier closes for the first time, which retires PUMICE-024
+and -- with the earlier pipelining work -- PUMICE-017, whose -48.861 ns
+premise no longer exists at a HIGHER clock than it was filed against.
+
+What this does NOT fix is the throughput half of the same cone: the
+column-to-next-ACT head advance is still 8 cycles, so strict in-order under
+the auto-precharge paging modes still pays the pick pipeline twice per access
+(PUMICE-021). That is a deeper change than moving a mux.

@@ -232,6 +232,24 @@ module pumice_cmd_arbiter
     logic [PTRW-1:0] rd_col_s, wr_col_s, rd_act_s, wr_act_s, rd_pre_s, wr_pre_s;
     logic            rd_col_ap, wr_col_ap;   // AP verdict carried with the column pick
 
+    // Pre-MUXED pick operands (PUMICE-017, 2026-09-09). The output stage used
+    // to index the CAM's flat {bank,row,col} vectors with the REGISTERED slot
+    // -- six wide NUM_ENTRIES:1 muxes sitting AFTER the pre-pick flop and
+    // feeding r_bank/r_row/r_col, which is the arbiter's 75 MHz critical path
+    // (r_*_pop -> ... -> r_bank). Muxing at the pre-pick flop instead moves
+    // them into the STAGE-1b cycle, where arg_sel has already resolved and
+    // there is slack, and leaves the output stage with only the small
+    // class-priority mux over already-narrow values.
+    //
+    // Sampling one cycle earlier is safe AND more coherent: a CAM entry's
+    // {bank,row,col} are fixed at insert and the forward guards stop a
+    // just-selected slot being re-selected, so these read the same epoch the
+    // decision was made in. `rd_col_ap` above already does exactly this.
+    logic [BKW-1:0]       rd_col_bank, wr_col_bank, rd_act_bank, wr_act_bank;
+    logic [BKW-1:0]       rd_pre_bank, wr_pre_bank;
+    logic [COL_WIDTH-1:0] rd_col_col,  wr_col_col;
+    logic [ROW_WIDTH-1:0] rd_act_row,  wr_act_row;
+
     // arg_sel COMBINATIONAL result (STAGE 1b), one cycle before the pre-pick
     // flop above latches it. Declared here (not with the arg_sel always_comb)
     // because the forward guards below must exclude a slot the moment it is
@@ -295,10 +313,10 @@ module pumice_cmd_arbiter
     always_comb begin
         w_prepick_guard = '0;
         // pre-pick flop (STAGE-1b result, one cycle before output)
-        if (rd_act_f) w_prepick_guard |= (NUM_BANKS'(1) << f_bank(rd_sch_bank_i, rd_act_s));
-        if (wr_act_f) w_prepick_guard |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, wr_act_s));
-        if (rd_pre_f) w_prepick_guard |= (NUM_BANKS'(1) << f_bank(rd_sch_bank_i, rd_pre_s));
-        if (wr_pre_f) w_prepick_guard |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, wr_pre_s));
+        if (rd_act_f) w_prepick_guard |= (NUM_BANKS'(1) << rd_act_bank);
+        if (wr_act_f) w_prepick_guard |= (NUM_BANKS'(1) << wr_act_bank);
+        if (rd_pre_f) w_prepick_guard |= (NUM_BANKS'(1) << rd_pre_bank);
+        if (wr_pre_f) w_prepick_guard |= (NUM_BANKS'(1) << wr_pre_bank);
         // SELECTION cycle (STAGE-1b combinational, about to enter the pre-pick
         // flop): rd_act_f et al are still stale here, so guard the bank of the
         // slot arg_sel is picking THIS cycle, else the added snapshot stage lets
@@ -333,9 +351,9 @@ module pumice_cmd_arbiter
         if (w_sel_wr_col_f)
             w_col_inflight_guard |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, w_sel_wr_col_s));
         if (rd_col_f)
-            w_col_inflight_guard |= (NUM_BANKS'(1) << f_bank(rd_sch_bank_i, rd_col_s));
+            w_col_inflight_guard |= (NUM_BANKS'(1) << rd_col_bank);
         if (wr_col_f)
-            w_col_inflight_guard |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, wr_col_s));
+            w_col_inflight_guard |= (NUM_BANKS'(1) << wr_col_bank);
     end
 
     // PUMICE-PERF Phase 1: per-entry double-issue mask (blanket -> per-entry;
@@ -947,6 +965,18 @@ module pumice_cmd_arbiter
             wr_act_f <= w_sel_wr_act_f; wr_act_s <= w_sel_wr_act_s;
             rd_pre_f <= w_sel_rd_pre_f; rd_pre_s <= w_sel_rd_pre_s;
             wr_pre_f <= w_sel_wr_pre_f; wr_pre_s <= w_sel_wr_pre_s;
+            // pre-muxed operands: the wide slot->data muxes move HERE, off the
+            // output stage's critical path (see the declaration comment).
+            rd_col_bank <= f_bank(rd_sch_bank_i, w_sel_rd_col_s);
+            rd_col_col  <= f_col (rd_sch_col_i,  w_sel_rd_col_s);
+            wr_col_bank <= f_bank(wr_sch_bank_i, w_sel_wr_col_s);
+            wr_col_col  <= f_col (wr_sch_col_i,  w_sel_wr_col_s);
+            rd_act_bank <= f_bank(rd_sch_bank_i, w_sel_rd_act_s);
+            rd_act_row  <= f_row (rd_sch_row_i,  w_sel_rd_act_s);
+            wr_act_bank <= f_bank(wr_sch_bank_i, w_sel_wr_act_s);
+            wr_act_row  <= f_row (wr_sch_row_i,  w_sel_wr_act_s);
+            rd_pre_bank <= f_bank(rd_sch_bank_i, w_sel_rd_pre_s);
+            wr_pre_bank <= f_bank(wr_sch_bank_i, w_sel_wr_pre_s);
         end
     )
 
@@ -1121,12 +1151,12 @@ module pumice_cmd_arbiter
             // fired while its CAM refuses the issue/commit would push a DRAM
             // command whose data never drains (the write-staged DFI gate then
             // holds forever). Rate-matched commits make that refusal common.
-            w_bank = f_bank(rd_sch_bank_i, rd_col_s); w_col = f_col(rd_sch_col_i, rd_col_s);
+            w_bank = rd_col_bank; w_col = rd_col_col;
             w_valid = 1'b1; w_op = rd_col_ap ? OP_RDA : OP_RD;
             w_ap_out = rd_col_ap; w_do_rd = 1'b1; w_rd_issue = 1'b1; w_issue_slot = rd_col_s;
         end else if (w_pick_class == CL_COL && wr_col_f && wr_commit_ready_i) begin
             // 3b. WRITE row-hit (live commit-ready re-check, see 3a).
-            w_bank = f_bank(wr_sch_bank_i, wr_col_s); w_col = f_col(wr_sch_col_i, wr_col_s);
+            w_bank = wr_col_bank; w_col = wr_col_col;
             w_valid = 1'b1; w_op = wr_col_ap ? OP_WRA : OP_WR;
             w_ap_out = wr_col_ap; w_do_wr = 1'b1; w_wr_commit = 1'b1; w_commit_slot = wr_col_s;
         end else if (w_pick_class == CL_ACT && rd_act_f && w_act_gate_live
@@ -1140,21 +1170,21 @@ module pumice_cmd_arbiter
             // drops refresh_req the cycle after the grant. Probed 2026-09-09:
             // REF pushed at 39480 ns, ACT bank7 at 39500 ns -- 2 cycles.
             w_valid = 1'b1; w_op = OP_ACT;
-            w_bank = f_bank(rd_sch_bank_i, rd_act_s); w_row = f_row(rd_sch_row_i, rd_act_s);
+            w_bank = rd_act_bank; w_row = rd_act_row;
             w_do_act = 1'b1;
         end else if (w_pick_class == CL_ACT && wr_act_f && w_act_gate_live) begin
             // 4b. ACTIVATE the oldest pending WRITE's idle bank (live gate, see 4a).
             w_valid = 1'b1; w_op = OP_ACT;
-            w_bank = f_bank(wr_sch_bank_i, wr_act_s); w_row = f_row(wr_sch_row_i, wr_act_s);
+            w_bank = wr_act_bank; w_row = wr_act_row;
             w_do_act = 1'b1;
         end else if (w_pick_class == CL_PRE && rd_pre_f
                      && !(w_pre_wrf && wr_pre_f)) begin
             // 5a. PRECHARGE a bank open on the wrong row for a pending read.
-            w_valid = 1'b1; w_op = OP_PRE; w_bank = f_bank(rd_sch_bank_i, rd_pre_s);
+            w_valid = 1'b1; w_op = OP_PRE; w_bank = rd_pre_bank;
             w_do_pre = 1'b1;
         end else if (w_pick_class == CL_PRE && wr_pre_f) begin
             // 5b. PRECHARGE a bank open on the wrong row for a pending write.
-            w_valid = 1'b1; w_op = OP_PRE; w_bank = f_bank(wr_sch_bank_i, wr_pre_s);
+            w_valid = 1'b1; w_op = OP_PRE; w_bank = wr_pre_bank;
             w_do_pre = 1'b1;
         end else if (timeout_pre_req_i
                      && r_bank_row_active[RK0][timeout_pre_bank_i]
