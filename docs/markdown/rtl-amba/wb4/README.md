@@ -99,8 +99,8 @@ AMBA 4 APB.
 - **[wb4_slave_cdc](wb4_slave_cdc.md)** - the slave with its queues carried
   to another clock domain over two `gaxi_fifo_async` instances;
   **[wb4_slave_cdc_cg](wb4_slave_cdc_cg.md)** adds the gated bus clock
-- **[wb4_stubs](wb4_stubs.md)** - the master and slave with packed cmd/rsp
-  vectors, for shim-style converters
+- **[wb4_master_stub](wb4_master_stub.md)** / **[wb4_slave_stub](wb4_slave_stub.md)** -
+  the pair with packed cmd/rsp vectors, for shim-style converters
 - **[wb4_pkg](wb4_pkg.md)** - the response-status encoding shared by the family and the DV
 
 ### Reset and clock naming

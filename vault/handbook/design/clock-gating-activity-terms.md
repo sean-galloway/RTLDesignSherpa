@@ -68,5 +68,36 @@ sides of the block. Each rule below was paid for with a real bug in the
   discovery of both the sampling-skew test bug and the stranded-packet
   residual.
 
-Related: [[reset-and-clocking]]. The wrappers: rtl/amba/{axi4,axi5,axil4}/
+- **Every term feeding a wake expression must be in that gate's own clock,
+  or synchronised into it first.** This was implied by everything above and
+  never written down, which is how something stays implied until someone
+  gets it wrong. A raw cross-domain signal in a wake term is an
+  unsynchronised crossing in the wake path, where a missed or metastable bit
+  either strands the clock or wakes it at random.
+
+  The two legitimate shapes, both already in the tree:
+
+  - **Per-domain terms.** `apb4_slave_cdc_cg` gates both domains and builds
+    a separate expression for each (`pclk_user_valid` from `s_apb_PSEL` and
+    the pclk-side response, `aclk_user_valid` from the aclk-side), crossing
+    only what it explicitly synchronises (`r_psel_sync2`).
+  - **Synchronise, then use.** `apb5_slave_cdc_cg` gates pclk and folds in
+    aclk activity through a two-flop synchroniser (`r_aclk_activity_sync2`),
+    never the raw signal.
+  - **Or gate one domain and take the term from that side only.**
+    `wb4_slave_cdc_cg` gates the Wishbone side, so `wb4_slave_cdc` exports
+    `wb_busy` (bus cycle open, command waiting to cross, response crossed
+    and not yet driven), all `wb_clk`.
+
+  The same rule decides the output mask. A `_cg` wrapper masks its output
+  valid with `!gating` for the wake-latency overlap, but a `_cdc_cg` wrapper
+  must not mask a valid living in the *other* domain, because the mask is
+  then the crossing. *`wb4_slave_cdc_cg` masks `s_wb_STALL` high (same
+  domain, and a frozen "room" would lose a request) and deliberately leaves
+  `cmd_valid` unmasked, because it is in `aclk`.*
+
+  The shape to look for in review: a `user_valid` expression naming signals
+  from two clocks with no synchroniser between them.
+
+Related: [[reset-and-clocking]], [[cdc]]. The wrappers: rtl/amba/{axi4,axi5,axil4}/
 `*_mon_cg.sv`; the directed test: `val/amba/test_mon_cg_gating.py`.

@@ -8,7 +8,7 @@
 // Purpose: wb4_slave with its command and response queues as PACKED
 //          vectors, for shim-style converters.
 //
-// Documentation: docs/markdown/rtl-amba/wb4/wb4_stubs.md
+// Documentation: docs/markdown/rtl-amba/wb4/wb4_slave_stub.md
 // Subsystem: amba
 //
 // Author: sean galloway
