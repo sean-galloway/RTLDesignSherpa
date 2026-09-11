@@ -50,24 +50,33 @@ async def wb4_slave_cdc_test(dut):
 
 
 def generate_test_params():
-    """(addr_width, data_width, max_outstanding, classic, wb_period, fub_period, test_level)"""
+    """(addr_width, data_width, max_outstanding, classic, wb_period, fub_period, cg, test_level)
+
+    `cg` selects the combined variant: 0 = wb4_slave_cdc, 1 = wb4_slave_cdc_cg,
+    where the Wishbone-side clock is gated while the bus is idle. The FUB side
+    keeps running either way, so the same phases apply.
+    """
     reg = os.environ.get('REG_LEVEL', 'FUNC').upper()
     if reg == 'GATE':
-        return [(32, 32, 16, 0, 10, 3, 'gate'), (32, 32, 16, 0, 3, 10, 'gate')]
+        return [(32, 32, 16, 0, 10, 3, 0, 'gate'), (32, 32, 16, 0, 3, 10, 0, 'gate'),
+                (32, 32, 16, 0, 10, 3, 1, 'gate')]
     if reg == 'FUNC':
-        return [(32, 32, 16, 0, 10, 3, 'func'), (32, 32, 16, 0, 3, 10, 'func'), (32, 32, 16, 0, 10, 10, 'func'),
-                (32, 64, 4, 1, 7, 10, 'func'), (32, 32, 4, 0, 10, 7, 'func')]
-    return [(32, dw, mo, c, wp, fp, 'full') for dw in (32, 64) for mo in (4, 16) for c in (0, 1)
-            for (wp, fp) in ((10, 3), (3, 10), (10, 10), (7, 10), (10, 7))]
+        return [(32, 32, 16, 0, 10, 3, 0, 'func'), (32, 32, 16, 0, 3, 10, 0, 'func'),
+                (32, 64, 4, 1, 7, 10, 0, 'func'), (32, 32, 16, 0, 10, 3, 1, 'func'),
+                (32, 32, 16, 0, 3, 10, 1, 'func'), (32, 64, 4, 1, 7, 10, 1, 'func')]
+    return [(32, dw, mo, c, wp, fp, cg, 'full') for dw in (32, 64) for mo in (4, 16) for c in (0, 1)
+            for (wp, fp) in ((10, 3), (3, 10), (10, 10)) for cg in (0, 1)]
 
 
-@pytest.mark.parametrize("addr_width, data_width, max_outstanding, classic, wb_period, fub_period, test_level",
-                         generate_test_params())
-def test_wb4_slave_cdc(request, addr_width, data_width, max_outstanding, classic, wb_period, fub_period, test_level):
-    """wb4_slave_cdc (rtl/amba/wb4/wb4_slave_cdc.sv)."""
+@pytest.mark.parametrize("addr_width, data_width, max_outstanding, classic, wb_period, "
+                         "fub_period, cg, test_level", generate_test_params())
+def test_wb4_slave_cdc(request, addr_width, data_width, max_outstanding, classic, wb_period,
+                       fub_period, cg, test_level):
+    """wb4_slave_cdc, and with cg=1 the combined wb4_slave_cdc_cg."""
+    dut = 'wb4_slave_cdc_cg' if cg else 'wb4_slave_cdc'
     tag = (f"aw{addr_width:03d}_dw{data_width:03d}_mo{max_outstanding}_{'classic' if classic else 'pipe'}"
-           f"_wb{wb_period}_a{fub_period}_{test_level}")
-    run_wb4(request, 'wb4_slave_cdc', 'rtl/amba/filelists/wb4_slave_cdc.f', tag,
+           f"_wb{wb_period}_a{fub_period}_{'cg' if cg else 'nocg'}_{test_level}")
+    run_wb4(request, dut, f'rtl/amba/filelists/{dut}.f', tag,
             {'ADDR_WIDTH': str(addr_width), 'DATA_WIDTH': str(data_width),
              'MAX_OUTSTANDING': str(max_outstanding), 'CLASSIC': str(classic)},
             {'TEST_LEVEL': test_level, 'ADDR_WIDTH': str(addr_width), 'DATA_WIDTH': str(data_width),

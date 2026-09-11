@@ -103,7 +103,14 @@ module wb4_slave_cdc
     input  logic              rsp_valid,
     output logic              rsp_ready,
     input  logic [STW-1:0]    rsp_status,
-    input  logic [DW-1:0]     rsp_dat
+    input  logic [DW-1:0]     rsp_dat,
+
+    // Activity in the WB_CLK domain only: a cycle open on the bus, a command
+    // waiting to cross, or a response that has crossed and not yet been
+    // driven. The clock-gated variant wakes on this; nothing in the aclk
+    // domain may be used for that, because sampling it in wb_clk would be an
+    // unsynchronised crossing.
+    output logic              wb_busy
 );
 
     localparam int CDC_FIFO_DEPTH = (CDC_DEPTH < 4) ? 4 : CDC_DEPTH;
@@ -209,5 +216,7 @@ module wb4_slave_cdc
         .rd_valid       (w_rsp_valid),
         .rd_data        ({w_rsp_status, w_rsp_dat})
     );
+
+    assign wb_busy = s_wb_CYC || w_cmd_valid || w_rsp_valid;
 
 endmodule : wb4_slave_cdc

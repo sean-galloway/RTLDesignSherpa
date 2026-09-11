@@ -122,7 +122,17 @@ class WB4SlaveTB(TBBase):
         self._responder = cocotb.start_soon(self._respond())
 
     def _pre_reset(self):
-        """Hook for variants that need configuration pins set before reset."""
+        """Set the clock-gate configuration when the DUT is a _cg variant.
+
+        Checked by attribute rather than by a parameter, so the same TB
+        serves the plain and gated builds without the test telling it which
+        it got."""
+        if hasattr(self.dut, 'cfg_cg_enable'):
+            self.cg_enable = os.environ.get('CG_ENABLE', '1') == '1'
+            self.cg_idle_count = int(os.environ.get('CG_IDLE_COUNT', '4'))
+            self.dut.cfg_cg_enable.value = int(self.cg_enable)
+            self.dut.cfg_cg_idle_count.value = self.cg_idle_count
+            self.log.info(f"clock gating: enable={self.cg_enable} idle={self.cg_idle_count}")
 
     async def assert_reset(self):
         self.rst_n.value = 0

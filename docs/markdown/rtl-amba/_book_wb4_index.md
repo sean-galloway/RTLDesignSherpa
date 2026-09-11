@@ -11,4 +11,6 @@
 - [wb4_master_cg](wb4/wb4_master_cg.md)
 - [wb4_slave_cg](wb4/wb4_slave_cg.md)
 - [wb4_slave_cdc](wb4/wb4_slave_cdc.md)
+- [wb4_stubs](wb4/wb4_stubs.md)
+- [wb4_slave_cdc_cg](wb4/wb4_slave_cdc_cg.md)
 - [wb4_pkg](wb4/wb4_pkg.md)
