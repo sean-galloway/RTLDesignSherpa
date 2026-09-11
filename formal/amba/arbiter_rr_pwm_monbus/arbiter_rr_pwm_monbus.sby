@@ -19,13 +19,20 @@ hierarchy -top formal_arbiter_rr_pwm_monbus
 proc
 delete t:$print
 flatten
+# Free undriven nets BEFORE any opt pass. An opt that runs first folds an
+# undriven net -- an input the harness left unconnected or never drove -- to
+# a constant, pinning it for the whole proof. That is why the axi4 *_mon
+# monbus covers were unreachable for as long as they existed: sixteen
+# inputs pinned, including enables the packet path needs. sby's own plain
+# prep already does this (setundef -undriven -anyseq); this script
+# replaced prep, so it has to say so itself. (2026-09-11)
+setundef -undriven -anyseq
 opt_expr
 opt_clean
 memory_map
 async2sync
 opt -full
 setundef -undriven -init -expose
-
 [files]
 formal_arbiter_rr_pwm_monbus.sv
 arbiter_rr_pwm_monbus_flat.v

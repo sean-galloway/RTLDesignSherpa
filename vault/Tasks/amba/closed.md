@@ -2682,3 +2682,50 @@ parameter's OFF state is a real tie-off rather than an untested default.
 unconstrained `cmd_cti`; `RTL_AMBA_WB4.pdf` regenerated and verified by
 extracting its text. RDS-DV: ruff clean, 1492 unit tests pass,
 `mkdocs build --strict` clean.
+
+---
+
+### TASK-092: formal harnesses that pin a DUT input at a constant
+
+**Priority:** P2. **Status:** CLOSED 2026-09-11 -- resolved by fixing SCRIPT
+ORDER in 25 tasks, and the premise it was filed on was partly wrong.
+
+**The wrong premise, corrected.** Filed as "fifteen harnesses pin an input",
+on the theory that any undriven or unconnected DUT input is folded to a
+constant. Measured afterwards, that is only true of a custom `[script]` that
+runs an `opt` pass before any `setundef`. sby's own plain `prep` runs
+`setundef -undriven -anyseq`, so in a plain-prep task an undriven input is
+FREE: the axi_master_wr_splitter harness reaches fub_awaddr 0x40 AND 0x80,
+and fub_awlen 1 AND 3, with those nets undriven. So the splitters,
+apb4_master, apb5_master/slave and gaxi_drop_fifo_sync flags were false
+positives. Three more (gray2bin, reverse_vector, dataint_ecc_hamming) were
+the audit's own bugs -- it ignored nets driven by another instance's output
+and merged port directions across module types.
+
+**The real fault** was 25 custom scripts that folded: every wb4 task, both
+APB monitors, the APB CDC slaves, the arbiter monbus tasks and the axi4/axi
+monitor tasks. Each now frees undriven nets before its first `opt`. All 25
+were re-run: every prove and cover passes. `bin/formal_audit_stimulus.py` is
+flow-aware and reports 0.
+
+---
+
+### TASK-093: the four axi4 *_mon covers had never been reachable
+
+**Priority:** P2. **Status:** CLOSED 2026-09-11 -- same root cause as
+TASK-092.
+
+`cp_monbus_valid` and `cp_monbus_handshake` were unreachable in all four
+axi4 `*_mon` tasks at any depth, and running the pre-regeneration flat file
+showed they had ALWAYS been unreachable. The harnesses left sixteen monitor
+inputs unconnected, and each task's script ran `opt -full` before
+`setundef`, so those inputs were folded to constants -- including enables the
+packet path needs.
+
+Diagnosed by moving `setundef -undriven -anyseq` ahead of the first `opt` in
+a copy of the task: both covers were reached at step 11. The same change,
+applied to the real scripts, makes all four pass: axi4_master_rd_mon cover
+PASS (119 s), axi4_master_wr_mon cover PASS (83 s), and the two slave
+monitors likewise. A cover that no RTL can satisfy fails forever and teaches
+nothing; this one had been hiding that the monitors were never shown to emit
+a packet in formal at all.

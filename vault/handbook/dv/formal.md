@@ -21,12 +21,43 @@ Rules - each guards against a proof that PASSES while checking nothing:
 - Vacuity traps: hierarchical refs to nonexistent nets elaborate as FREE
   WIRES (watch yosys warnings); unconnected inputs model constant-x; a
   harness sized below the engagement threshold makes gated logic constant.
-- A DECLARED input is not a DRIVEN input. `logic foo;` wired to a DUT input
-  is undriven, and `opt -full` folds it to a constant before `setundef
-  -expose` can free it, so that input is pinned for the whole proof. Loud
-  form: a cover needing it is unreachable whatever the RTL does. Silent form:
-  everything passes with the input held at one value. `(* anyseq *)` on the
-  declaration is the fix; `bin/formal_audit_stimulus.py` finds them.
+- SCRIPT ORDER decides whether an undriven input is pinned. sby's own plain
+  `prep` runs `setundef -undriven -anyseq`, so an input the harness never
+  drives, or never even connects, is FREE -- measured 2026-09-11: the
+  axi_master_wr_splitter harness reaches fub_awaddr 0x40 AND 0x80 with those
+  nets undriven. But a custom `[script]` that runs an `opt` pass BEFORE any
+  `setundef` folds the undriven net to a constant first, and that input is
+  pinned for the whole proof. Loud form: a cover needing it is unreachable
+  whatever the RTL does -- the four axi4 *_mon monbus covers were unreachable
+  for as long as they existed, with sixteen inputs pinned, and became
+  reachable at step 11 the moment `setundef -undriven -anyseq` ran first.
+  Silent form: everything passes with the input held at one value.
+  **The fix is the order, not the harness**: every custom script frees
+  undriven nets before its first `opt` (all 25 that did not were changed
+  2026-09-11). `bin/formal_audit_stimulus.py` reports only tasks whose script
+  still folds. *Corrected the same day: this bullet first said any undriven
+  input is pinned. That was true of the scripts I had been reading and false
+  of plain prep, and it put a wrong premise into TASK-092 and the audit tool
+  until a probe was run.*
+- MUTATING RTL IN A SHARED TREE: restore by ABSOLUTE path, and verify by
+  byte-compare. The worktree is shared, so a mutated `rtl/` file is live for
+  every other agent until it is put back. *Case (2026-09-11): a mutation run
+  restored through `trap 'cp -p BAK $RTL' EXIT` with `$RTL` relative. The
+  subshell had `cd`'d into the formal task directory to run the proof, so the
+  trap's relative path pointed nowhere, `cp` failed, and the shared
+  axi_master_rd_splitter.sv stayed mutated -- while a full-depth proof I had
+  just launched rebuilt its flat file from the mutant. Caught only because
+  the next line byte-compared the file against the backup.* A trap that
+  restores is not a restore until `cmp` says so; check `grep -c MUTANT` and
+  `git diff --stat` on the file after every mutation run, and never launch a
+  proof of the real RTL in the same breath as a mutation.
+- FIND YOUR OWN BACKGROUND JOB BY EXACT ARGV, NEVER `pgrep -f <script>`. The
+  shell running your command has the script's name in ITS command line too,
+  so `pgrep -f` matches it and `kill -- -$pgid` kills the command doing the
+  killing, mid-way. *Case (2026-09-11): stopping a timing run that way killed
+  the stop command itself; its output ended at the first echo.* Match on
+  argv instead: `ps -eo pid,cmd | awk '$2=="bash" && $3=="/path/to/job.sh"'`
+  -- your own shell is `/bin/bash -c ...` and cannot match.
 - PROVING A FORK IS WORSE THAN NO PROOF. Three arbiter monbus tasks each held
   a hand-copied `<module>_formal.sv` beside the harness -- 251 to 287 lines
   divergent from the shipped RTL -- plus a cut-down package stub, because
