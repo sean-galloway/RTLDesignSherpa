@@ -148,8 +148,19 @@ module math_bf16_log2 #(
                 return {1'b0, f};
             endfunction
 
+            // A part-select on a function-call result (lut_32(addr)[7:0]) is
+            // legal SystemVerilog but NOT Verilog-2005: sv2v passes it
+            // through unchanged and the formal flow's yosys read rejects it.
+            // The intermediate costs nothing and keeps the module readable by
+            // every downstream tool.
+            // The table is 9 bits so the next-bucket read can reach 256;
+            // this read only ever wants the low 8.
+            /* verilator lint_off UNUSEDSIGNAL */
+            logic [8:0] w_lut_this_32;
+            /* verilator lint_on UNUSEDSIGNAL */
             always_comb begin
-                w_frac_lut  = lut_32(w_lut_addr)[7:0];
+                w_lut_this_32 = lut_32(w_lut_addr);
+                w_frac_lut  = w_lut_this_32[7:0];
                 // Past the last bucket the fraction reaches log2(2.0) = 1.0,
                 // i.e. 256/256 -- which is why the next value is 9 bits.
                 w_frac_next = (w_lut_addr == {5{1'b1}}) ? 9'd256
@@ -231,8 +242,19 @@ module math_bf16_log2 #(
                 return {1'b0, f};
             endfunction
 
+            // A part-select on a function-call result (lut_64(addr)[7:0]) is
+            // legal SystemVerilog but NOT Verilog-2005: sv2v passes it
+            // through unchanged and the formal flow's yosys read rejects it.
+            // The intermediate costs nothing and keeps the module readable by
+            // every downstream tool.
+            // The table is 9 bits so the next-bucket read can reach 256;
+            // this read only ever wants the low 8.
+            /* verilator lint_off UNUSEDSIGNAL */
+            logic [8:0] w_lut_this_64;
+            /* verilator lint_on UNUSEDSIGNAL */
             always_comb begin
-                w_frac_lut  = lut_64(w_lut_addr)[7:0];
+                w_lut_this_64 = lut_64(w_lut_addr);
+                w_frac_lut  = w_lut_this_64[7:0];
                 // Past the last bucket the fraction reaches log2(2.0) = 1.0,
                 // i.e. 256/256 -- which is why the next value is 9 bits.
                 w_frac_next = (w_lut_addr == {6{1'b1}}) ? 9'd256
@@ -379,8 +401,19 @@ module math_bf16_log2 #(
                 return {1'b0, f};
             endfunction
 
+            // A part-select on a function-call result (lut_128(addr)[7:0]) is
+            // legal SystemVerilog but NOT Verilog-2005: sv2v passes it
+            // through unchanged and the formal flow's yosys read rejects it.
+            // The intermediate costs nothing and keeps the module readable by
+            // every downstream tool.
+            // The table is 9 bits so the next-bucket read can reach 256;
+            // this read only ever wants the low 8.
+            /* verilator lint_off UNUSEDSIGNAL */
+            logic [8:0] w_lut_this_128;
+            /* verilator lint_on UNUSEDSIGNAL */
             always_comb begin
-                w_frac_lut  = lut_128(w_lut_addr)[7:0];
+                w_lut_this_128 = lut_128(w_lut_addr);
+                w_frac_lut  = w_lut_this_128[7:0];
                 // Past the last bucket the fraction reaches log2(2.0) = 1.0,
                 // i.e. 256/256 -- which is why the next value is 9 bits.
                 w_frac_next = (w_lut_addr == {7{1'b1}}) ? 9'd256

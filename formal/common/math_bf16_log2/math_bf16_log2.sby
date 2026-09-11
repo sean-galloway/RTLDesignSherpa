@@ -13,10 +13,10 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
-read -formal -sv math_bf16_log2.sv
+read_verilog -formal -sv math_bf16_log2_flat.v
 read -formal -sv formal_math_bf16_log2.sv
 prep -top formal_math_bf16_log2
 
 [files]
-math_bf16_log2.sv ../../../rtl/math/math_bf16_log2.sv
 formal_math_bf16_log2.sv
+math_bf16_log2_flat.v
