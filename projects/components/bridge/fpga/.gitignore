@@ -1,0 +1,2 @@
+# Vivado drops this in the working directory on every run
+clockInfo.txt

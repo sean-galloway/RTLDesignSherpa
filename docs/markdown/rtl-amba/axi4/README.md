@@ -51,6 +51,7 @@ The AXI4 subsystem is a complete implementation of the ARM AMBA AXI4 protocol: m
 |--------|-------------|---------------|--------|
 | **axi4_master_rd** | AXI4 read master with buffered channels | [axi4_master_rd.md](axi4_master_rd.md) | Documented |
 | **axi4_master_wr** | AXI4 write master with buffered channels | [axi4_master_wr.md](axi4_master_wr.md) | Documented |
+| **axi4_cdc_wr** / **axi4_cdc_rd** | AXI4 channels across a clock-domain boundary, one async FIFO per channel | [axi4_cdc.md](axi4_cdc.md) | Documented |
 | **axi4_slave_rd** | AXI4 read slave with buffered channels | [axi4_slave_rd.md](axi4_slave_rd.md) | Documented |
 | **axi4_slave_wr** | AXI4 write slave with buffered channels | [axi4_slave_wr.md](axi4_slave_wr.md) | Documented |
 

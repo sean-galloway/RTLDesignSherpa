@@ -68,6 +68,31 @@ was forced on and invisible. `gaxi_skid_buffer_async` already complied.*
 
 Related: [[signal-prefixes]], [[reset-and-clocking]], [[sizing-invariants]].
 
+## Depth must cover the pointer round trip, or the FIFO cannot stream
+
+An async FIFO's full and empty flags are computed from the OTHER side's
+pointer after it has been synchronized: `N_FLOP_CROSS` stages plus the
+registered pointer itself, in each direction. Each side therefore acts on a
+view that is a few cycles stale, and a FIFO shallower than that round trip
+(about seven cycles with two-flop synchronizers) stalls on a "full" that has
+already drained or an "empty" that has already filled. The sustained rate is
+roughly `DEPTH / round_trip`, whatever the clocks are.
+
+Measured on `axi4_cdc_wr` (BRIDGE-017, 2026-09-11): `CDC_DEPTH = 4`
+streamed 0.58 beat per cycle with EQUAL clocks -- every beat correct, every
+burst complete, and the bridge port behind it ran at half speed. Nothing in
+the functional tests noticed, because correctness was fine; the bridge-level
+rate floor caught it. Depth 8 streams at one beat per cycle.
+
+- **Default the depth to the streaming floor, not the smallest legal
+  value.** Under Gray pointers that is 8 for two-flop synchronizers; a
+  crossing that only ever carries a request every few cycles can be given 4
+  explicitly, with the reason beside it.
+- **Every CDC unit test asserts a streaming rate**, back-to-back stimulus
+  on both sides, beats per cycle of the slower clock against a floor
+  (`test_axi4_cdc`: 0.85 at three clock ratios). A crossing that halves
+  throughput is a defect the data check cannot see.
+
 ## A handshake across independently reset domains: four-phase, and never a one-sided cancel
 
 Two rules from the rtc time-set commit (issue #56, 2026-09-09), each learned

@@ -136,6 +136,13 @@ class PortSpec:
     # (poison/mte/chunking -> A5-2 native sideband) and atomics
     # (atomic -> A5-3) are rejected by validate_axi5.
     axi5_features: List[str] = field(default_factory=list)
+    # BRIDGE-017: this slave port runs on its own clock. The bridge top gains
+    # `<name>_aclk` / `<name>_aresetn` and the slave adapter carries the AXI4
+    # channels across with axi4_cdc_{wr,rd} between the crossbar-side wrapper
+    # and the boundary. Slave ports only, protocol axi4 (the CDC pair carries
+    # the AXI4 signal set; AXI5 sideband and the shim protocols are not yet
+    # routed through it).
+    cdc: bool = False
     # An internal port has no top-level pins: the generator instantiates
     # something inside the bridge and wires the crossbar to it. Used by the
     # subtractive (catch-all) slave, which must be routable like any other
@@ -239,6 +246,16 @@ class BridgeConfig:
     use_no_monitors: bool = False
     # Task 90.3: opt-in PeakRDL regblock-backed cfg subsystem.
     use_cfg_regblock: bool = False
+    # BRIDGE-017: registered crossbar. False keeps the combinational xbar
+    # (2/2-cycle propagation, bridge_2x2_rw's measured figure); True puts a
+    # skid stage on every slave-side channel inside the xbar (+1 each way,
+    # same throughput) for high-fanout or wide configs that miss timing.
+    xbar_pipeline: bool = False
+    # BRIDGE-017: per-slave arbitration policy, 'rr' (default) or 'qos'
+    # (AxQOS + aging, round-robin among equals). qos_aging_shift: a waiting
+    # request gains one priority level every 2**shift cycles.
+    arbitration: str = 'rr'
+    qos_aging_shift: int = 4
 
     # Skid buffer depths (per wrapper)
     skid_depth_ar: int = 2    # AR channel buffer depth

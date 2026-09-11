@@ -35,7 +35,8 @@ class CrossbarGenerator:
         - Slave 1 gets: Master A 128b path (converted)
     """
 
-    def __init__(self, bridge_name: str, masters: List[MasterConfig], slaves: List[SlaveInfo]):
+    def __init__(self, bridge_name: str, masters: List[MasterConfig], slaves: List[SlaveInfo],
+                 pipeline: bool = False, arbitration: str = 'rr', qos_aging_shift: int = 4):
         """
         Initialize crossbar generator.
 
@@ -47,6 +48,25 @@ class CrossbarGenerator:
         self.bridge_name = bridge_name
         self.masters = masters
         self.slaves = slaves
+        # BRIDGE-017: registered crossbar. When set, every slave-side request
+        # channel (AW/W/AR, carrying the bridge id) and response channel (B/R,
+        # carrying the bridge id and the route-open flag) passes through a
+        # 2-deep gaxi_skid_buffer inside the xbar. The routing and mux logic
+        # below is unchanged; it drives/reads the `xs_<slave>_axi_*` nets and
+        # _generate_pipeline_stages() joins them to the ports. Both the
+        # request cone (decode -> arbiter -> N-way mux) and the response
+        # OR-merge end at a register, at full throughput, +1 cycle each way.
+        self.pipeline = bool(pipeline)
+        # BRIDGE-017: per-slave arbitration policy. 'rr' is the round-robin
+        # the fabric has always had. 'qos' picks the requester with the
+        # highest EFFECTIVE priority -- AxQOS plus an age term that grows
+        # while a request waits (one level every 2**qos_aging_shift cycles,
+        # saturating at 15) -- so a low-QoS master is delayed, never starved;
+        # ties fall back to round-robin. Same lock-until-handshake.
+        if arbitration not in ('rr', 'qos'):
+            raise ValueError(f"arbitration must be 'rr' or 'qos', got {arbitration!r}")
+        self.arbitration = arbitration
+        self.qos_aging_shift = int(qos_aging_shift)
 
         # AXI5 native sideband (A5-2 slice 2). Union drives which struct
         # fields exist (response-direction fields must be driven for
@@ -411,6 +431,11 @@ class CrossbarGenerator:
         # per-slave addr-decode wires those blocks declare).
         lines.extend(self._generate_w_follow_decls())
 
+        # Likewise the registered crossbar's xs_* nets: the slave routing
+        # blocks drive them, the stages that consume them come last.
+        if self.pipeline:
+            lines.extend(self._generate_pipeline_decls())
+
         # Route to each slave
         for slave_idx, slave in enumerate(self.slaves):
             lines.extend(self._generate_slave_routing(slave_idx, slave))
@@ -422,7 +447,15 @@ class CrossbarGenerator:
         # Generate response MUXes (OR together responses from all slaves)
         lines.extend(self._generate_response_muxes())
 
+        if self.pipeline:
+            lines.extend(self._generate_pipeline_stages())
+
         return lines
+
+    def _sp(self, slave: SlaveInfo) -> str:
+        """Prefix of the nets the routing/mux logic drives for `slave`: the
+        port itself, or the pre-stage nets when the crossbar is pipelined."""
+        return f"xs_{slave.name}_axi_" if self.pipeline else f"{slave.name}_axi_"
 
     def _wr_paths(self):
         """Yield (master, suffix, connected wr-slaves of that width, in
@@ -520,7 +553,7 @@ class CrossbarGenerator:
         if len(connecting_masters) == 0:
             lines.append(f"    // No masters connect to {slave.name}")
             # Use SignalNaming convention for signal names
-            prefix = f"{slave.name}_axi_"
+            prefix = self._sp(slave)
             # Only assign signals for channels that THIS SLAVE needs
             slave_channels = self._determine_slave_channels(slave)
             if AXI4Channel.AW in slave_channels:
@@ -567,7 +600,9 @@ class CrossbarGenerator:
         arb = f"{s}_{channel}_arb"
         ready = f"{prefix}{channel}ready"
 
-        lines.append(f"    // ---- {channel.upper()} arbiter for {s}: round-robin, lock until handshake ----")
+        qos = (self.arbitration == 'qos')
+        policy = "QoS + aging, round-robin ties" if qos else "round-robin"
+        lines.append(f"    // ---- {channel.upper()} arbiter for {s}: {policy}, lock until handshake ----")
         req_bits = ", ".join(
             f"{m.name}_{suffix}_{channel}_to_{s} && {m.name}_{suffix}_{channel}valid"
             for m in reversed(masters))
@@ -575,13 +610,38 @@ class CrossbarGenerator:
         lines.append(f"    assign {arb}_req = {{{req_bits}}};")
         lines.append(f"    logic [{k-1}:0] {arb}_lock, {arb}_rr;")
         lines.append(f"    logic {arb}_locked;")
+        # The vector the round-robin pick walks: every requester under 'rr',
+        # only the requesters at the highest effective priority under 'qos'.
+        pick_vec = f"{arb}_req"
+        if qos:
+            sh = self.qos_aging_shift
+            lines.append(f"    // QoS with aging (BRIDGE-017): effective priority = AxQOS + age,")
+            lines.append(f"    // age climbing one level every 2**{sh} cycles a request waits, saturating")
+            lines.append(f"    // at 15, cleared on grant. The highest effective priority wins; equals")
+            lines.append(f"    // share round-robin. A QoS-0 requester behind a QoS-15 one is served")
+            lines.append(f"    // after at most 15 * 2**{sh} cycles of waiting, never starved.")
+            for i, m in enumerate(masters):
+                lines.append(f"    logic [7:0] {arb}_age_{i};")
+                lines.append(f"    wire  [7:0] {arb}_boost_{i} = {arb}_age_{i} >> {sh};")
+                lines.append(f"    wire  [4:0] {arb}_sum_{i} = 5'({m.name}_{suffix}_{channel}.qos) + "
+                             f"(({arb}_boost_{i} > 8'd15) ? 5'd15 : 5'({arb}_boost_{i}[3:0]));")
+                lines.append(f"    wire  [3:0] {arb}_eff_{i} = {arb}_sum_{i}[4] ? 4'hF : {arb}_sum_{i}[3:0];")
+                lines.append(f"    wire  [3:0] {arb}_cand_{i} = {arb}_req[{i}] ? {arb}_eff_{i} : 4'h0;")
+            best = f"{arb}_cand_0"
+            for i in range(1, n):
+                best = f"(({arb}_cand_{i} > {best}) ? {arb}_cand_{i} : {best})"
+            lines.append(f"    wire  [3:0] {arb}_best = {best};")
+            elig_bits = ", ".join(f"({arb}_req[{i}] && ({arb}_eff_{i} == {arb}_best))"
+                                  for i in reversed(range(n)))
+            lines.append(f"    wire  [{n-1}:0] {arb}_elig = {{{elig_bits}}};")
+            pick_vec = f"{arb}_elig"
         # Round-robin pick, unrolled at generation time (n is small).
         pick_cases = []
         for r in range(n):
             order = [(r + o) % n for o in range(n)]
             expr = f"{k}'d{order[-1]}"
             for idx in reversed(order[:-1]):
-                expr = f"{arb}_req[{idx}] ? {k}'d{idx} : {expr}"
+                expr = f"{pick_vec}[{idx}] ? {k}'d{idx} : {expr}"
             pick_cases.append(expr)
         if n == 1:
             lines.append(f"    wire [{k-1}:0] {arb}_pick = {k}'d0;")
@@ -597,6 +657,9 @@ class CrossbarGenerator:
         lines.append(f"            {arb}_lock   <= '0;")
         lines.append(f"            {arb}_rr     <= '0;")
         lines.append(f"            {arb}_locked <= 1'b0;")
+        if qos:
+            for i in range(n):
+                lines.append(f"            {arb}_age_{i} <= 8'd0;")
         lines.append(f"        end else begin")
         lines.append(f"            if ({prefix}{channel}valid && {ready}) begin")
         lines.append(f"                {arb}_locked <= 1'b0;")
@@ -605,6 +668,12 @@ class CrossbarGenerator:
         lines.append(f"                {arb}_lock   <= {arb}_gnt;")
         lines.append(f"                {arb}_locked <= 1'b1;")
         lines.append(f"            end")
+        if qos:
+            for i in range(n):
+                lines.append(f"            if ({arb}_gnt_valid && ({arb}_gnt == {k}'d{i}))")
+                lines.append(f"                {arb}_age_{i} <= 8'd0;")
+                lines.append(f"            else if ({arb}_req[{i}] && ({arb}_age_{i} != 8'hFF))")
+                lines.append(f"                {arb}_age_{i} <= {arb}_age_{i} + 8'd1;")
         lines.append(f"        end")
         lines.append(f"    )")
         for i, m in enumerate(masters):
@@ -623,7 +692,7 @@ class CrossbarGenerator:
         route back by the slave's bid_*/rid_* tracking, unchanged."""
         lines = []
         suffix = f"{slave.data_width}b"
-        prefix = f"{slave.name}_axi_"
+        prefix = self._sp(slave)
 
         wr_masters = [m for m in masters if m.channels in ("wr", "rw")]
         rd_masters = [m for m in masters if m.channels in ("rd", "rw")]
@@ -897,7 +966,7 @@ class CrossbarGenerator:
         """
         lines = []
         # Use SignalNaming convention for slave signals
-        prefix = f"{slave.name}_axi_"
+        prefix = self._sp(slave)
         master_idx = self.masters.index(master)
         addr_dec = self._addr_decode_expr(master.name, suffix, "aw", slave)
         sig_select = f"{master.name}_{suffix}_aw_to_{slave.name}"
@@ -972,7 +1041,7 @@ class CrossbarGenerator:
         """
         lines = []
         # Use SignalNaming convention for slave signals
-        prefix = f"{slave.name}_axi_"
+        prefix = self._sp(slave)
         master_idx = self.masters.index(master)
         addr_dec = self._addr_decode_expr(master.name, suffix, "ar", slave)
         sig_select = f"{master.name}_{suffix}_ar_to_{slave.name}"
@@ -1063,7 +1132,7 @@ class CrossbarGenerator:
 
         # Helper to get slave signal prefix using SignalNaming convention
         def get_slave_prefix(slave: SlaveInfo) -> str:
-            return f"{slave.name}_axi_"
+            return self._sp(slave)
 
         # Find slaves at this width that master connects to
         connected_slaves = []
@@ -1158,7 +1227,7 @@ class CrossbarGenerator:
 
         # Helper to get slave signal prefix using SignalNaming convention
         def get_slave_prefix(slave: SlaveInfo) -> str:
-            return f"{slave.name}_axi_"
+            return self._sp(slave)
 
         # Find slaves at this width that master connects to
         connected_slaves = []
@@ -1267,6 +1336,159 @@ class CrossbarGenerator:
             lines.append((" |\n".join(mux_terms) if mux_terms else "        '0") + ";")
             lines.append("")
 
+        return lines
+
+    # ------------------------------------------------------------------
+    # BRIDGE-017: registered crossbar stages
+    # ------------------------------------------------------------------
+
+    def _stage_request_signals(self, slave: SlaveInfo, ch: str) -> List[str]:
+        """Ordered payload of a request channel stage (everything the routing
+        assigns for that channel except valid), port-name bases."""
+        if ch == 'aw':
+            base = ['awid', 'awaddr', 'awlen', 'awsize', 'awburst', 'awlock',
+                    'awcache', 'awprot', 'awqos', 'awregion', 'awuser']
+            base += [b for _f, _w, _feat, b in self._sb_fields('aw', self._sb_slave_feats(slave))]
+            base.append('bridge_id_aw')
+        elif ch == 'w':
+            base = ['wdata', 'wstrb', 'wlast', 'wuser']
+            base += [b for _f, _w, _feat, b in self._sb_fields('w', self._sb_slave_feats(slave))]
+        elif ch == 'ar':
+            base = ['arid', 'araddr', 'arlen', 'arsize', 'arburst', 'arlock',
+                    'arcache', 'arprot', 'arqos', 'arregion', 'aruser']
+            base += [b for _f, _w, _feat, b in self._sb_fields('ar', self._sb_slave_feats(slave))]
+            base.append('bridge_id_ar')
+        else:
+            raise ValueError(ch)
+        return base
+
+    def _stage_response_signals(self, slave: SlaveInfo, ch: str) -> List[str]:
+        """Ordered payload of a response channel stage: the bridge id rides
+        with the beat, so the mux selects on the STAGED id."""
+        if ch == 'b':
+            base = ['bid_bridge_id', 'bid', 'bresp', 'buser']
+            base += [b for _f, _w, _feat, b in self._sb_fields('b', self._sb_slave_feats(slave))]
+        elif ch == 'r':
+            base = ['rid_bridge_id', 'rid', 'rdata', 'rresp', 'rlast', 'ruser']
+            base += [b for _f, _w, _feat, b in self._sb_fields('r', self._sb_slave_feats(slave))]
+        else:
+            raise ValueError(ch)
+        return base
+
+    def _generate_pipeline_decls(self) -> List[str]:
+        """Declare the xs_<slave>_axi_* nets ahead of the routing that
+        drives them (declaration before use is a repository gate)."""
+        lines: List[str] = []
+        lines.append("    // Registered crossbar (xbar_pipeline): the routing below drives these")
+        lines.append("    // xs_* nets; the skid stages at the end of the module drive the ports.")
+        for slave in self.slaves:
+            xs = f"xs_{slave.name}_axi_"
+            port = f"{slave.name}_axi_"
+            channels = self._determine_slave_channels(slave)
+            has_write = any(c in (AXI4Channel.AW, AXI4Channel.W, AXI4Channel.B) for c in channels)
+            has_read = any(c in (AXI4Channel.AR, AXI4Channel.R) for c in channels)
+            if not (has_write or has_read):
+                continue
+            req = (['aw', 'w'] if has_write else []) + (['ar'] if has_read else [])
+            rsp = (['b'] if has_write else []) + (['r'] if has_read else [])
+            for ch in req:
+                for b in self._stage_request_signals(slave, ch):
+                    lines.append(f"    logic [$bits({port}{b})-1:0] {xs}{b};")
+                lines.append(f"    logic {xs}{ch}valid;")
+                lines.append(f"    logic {xs}{ch}ready;")
+            for ch in rsp:
+                for b in self._stage_response_signals(slave, ch):
+                    lines.append(f"    logic [$bits({port}{b})-1:0] {xs}{b};")
+                lines.append(f"    logic {xs}{ch}valid;")
+                lines.append(f"    logic {xs}{ch}ready;")
+            if has_write:
+                lines.append(f"    logic {xs}bid_valid;")
+            if has_read:
+                lines.append(f"    logic {xs}rid_valid;")
+        lines.append("")
+        return lines
+
+    def _generate_pipeline_stages(self) -> List[str]:
+        """Join the xs_<slave>_axi_* nets the routing drives to the slave
+        ports through 2-deep skid buffers (BRIDGE-017).
+
+        Request stages (AW, W, AR): the arbiter's lock-until-handshake and
+        the W-owner FIFO already key on `{xs}awvalid && {xs}awready`, which
+        is now the stage's input handshake -- the grant is consumed the
+        cycle the stage takes the beat, exactly as it was consumed when the
+        slave adapter's skid took it. The bridge id travels in the payload.
+
+        Response stages (B, R): the slave adapter's tracker head
+        (`bid_bridge_id` + `bid_valid`) is captured WITH the beat, so the
+        response mux keys on the staged id and the stage's own valid; the
+        adapter sees the stage's ready and pops its tracker on that
+        handshake, as it did against the master adapter's skid before.
+        `{xs}bid_valid` is the stage's valid, so every mux expression that
+        read `{port}bid_valid` reads it unchanged.
+
+        Widths come from $bits of the concatenation, so a new sideband field
+        or a wider ID cannot leave the stage a bit short."""
+        lines: List[str] = []
+        lines.append("    // ================================================================")
+        lines.append("    // Registered crossbar (xbar_pipeline): one skid stage per slave-side")
+        lines.append("    // channel. The routing above drives xs_*; the ports are driven here.")
+        lines.append("    // ================================================================")
+        for slave in self.slaves:
+            xs = f"xs_{slave.name}_axi_"
+            port = f"{slave.name}_axi_"
+            channels = self._determine_slave_channels(slave)
+            has_write = any(c in (AXI4Channel.AW, AXI4Channel.W, AXI4Channel.B) for c in channels)
+            has_read = any(c in (AXI4Channel.AR, AXI4Channel.R) for c in channels)
+            if not (has_write or has_read):
+                continue
+            lines.append(f"    // ---- {slave.name} ----")
+            req = ([('aw', 'AW'), ('w', 'W')] if has_write else []) + ([('ar', 'AR')] if has_read else [])
+            rsp = ([('b', 'B')] if has_write else []) + ([('r', 'R')] if has_read else [])
+            # Request stages: xs_ (routing) -> port (slave adapter).
+            for ch, label in req:
+                sigs = self._stage_request_signals(slave, ch)
+                cat_in = ", ".join(f"{xs}{b}" for b in sigs)
+                cat_out = ", ".join(f"{port}{b}" for b in sigs)
+                inst = f"u_xs_{slave.name}_{ch}"
+                lines.append(f"    // {label} request stage")
+                lines.append(f"    localparam int {inst.upper()}_W = $bits({{{cat_in}}});")
+                lines.append(f"    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH({inst.upper()}_W)) {inst} (")
+                lines.append(f"        .axi_aclk(aclk), .axi_aresetn(aresetn),")
+                lines.append(f"        .wr_valid({xs}{ch}valid), .wr_ready({xs}{ch}ready), .wr_data({{{cat_in}}}),")
+                lines.append(f"        .rd_valid({port}{ch}valid), .rd_ready({port}{ch}ready), .rd_data({{{cat_out}}}),")
+                lines.append(f"        /* verilator lint_off PINCONNECTEMPTY */")
+                lines.append(f"        .count(), .rd_count()")
+                lines.append(f"        /* verilator lint_on PINCONNECTEMPTY */")
+                lines.append(f"    );")
+            # Response stages: port (slave adapter) -> xs_ (mux).
+            for ch, label in rsp:
+                sigs = self._stage_response_signals(slave, ch)
+                cat_in = ", ".join(f"{port}{b}" for b in sigs)
+                cat_out = ", ".join(f"{xs}{b}" for b in sigs)
+                inst = f"u_xs_{slave.name}_{ch}"
+                lines.append(f"    // {label} response stage (bridge id rides with the beat)")
+                lines.append(f"    localparam int {inst.upper()}_W = $bits({{{cat_in}}});")
+                lines.append(f"    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH({inst.upper()}_W)) {inst} (")
+                lines.append(f"        .axi_aclk(aclk), .axi_aresetn(aresetn),")
+                lines.append(f"        .wr_valid({port}{ch}valid), .wr_ready({port}{ch}ready), .wr_data({{{cat_in}}}),")
+                lines.append(f"        .rd_valid({xs}{ch}valid), .rd_ready({xs}{ch}ready), .rd_data({{{cat_out}}}),")
+                lines.append(f"        /* verilator lint_off PINCONNECTEMPTY */")
+                lines.append(f"        .count(), .rd_count()")
+                lines.append(f"        /* verilator lint_on PINCONNECTEMPTY */")
+                lines.append(f"    );")
+                flag = 'bid_valid' if ch == 'b' else 'rid_valid'
+                lines.append(f"    assign {xs}{flag} = {xs}{ch}valid;")
+            # The adapter's route-open flags are not consumed past the stage:
+            # the staged valid replaces them.
+            unused = []
+            if has_write:
+                unused.append(f"{port}bid_valid")
+            if has_read:
+                unused.append(f"{port}rid_valid")
+            lines.append("    /* verilator lint_off UNUSED */")
+            lines.append(f"    wire _unused_xs_{slave.name} = &{{1'b0, {', '.join(unused)}}};")
+            lines.append("    /* verilator lint_on UNUSED */")
+            lines.append("")
         return lines
 
     def _get_connected_slave_widths(self, master: MasterConfig) -> List[int]:

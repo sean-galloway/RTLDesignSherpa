@@ -137,8 +137,6 @@ module bridge_cam #(
     logic w_evict_match_found;
     logic w_evict_count0_found;
 
-    // Mode 2 max count
-    logic [COUNT_WIDTH-1:0] w_max_count_for_entry_tag;
 
     //==========================================================================
     // Single CAM Search Loop - TWO Lookup Ports
@@ -207,19 +205,24 @@ module bridge_cam #(
     end
 
     //==========================================================================
-    // Entry Port: Max Count Search (Mode 2 only)
+    // Entry Port: Duplicate Count (Mode 2 only)
     //==========================================================================
-    // Only search entries that matched allocate_tag
+    // The entries holding one tag always carry the counts 0..k-1 (a newcomer
+    // takes k, the count-0 entry retires and the rest step down), so the
+    // count the newcomer needs is simply how many entries match: a popcount
+    // of the match vector, an adder tree a few LUTs deep. This used to be a
+    // serial "max count over the matching entries" scan -- DEPTH chained
+    // comparators, which Vivado built as a 35-level chain hanging off the
+    // arbitrated ARID straight out of the crossbar: 32 ns on an Artix-7 -1,
+    // the whole bridge capped at ~31 MHz (BRIDGE-017 synthesis run,
+    // 2026-09-11). Same value, shallow structure.
 
+    logic [COUNT_WIDTH-1:0] w_dup_count;
     always_comb begin
-        w_max_count_for_entry_tag = 0;
+        w_dup_count = '0;
         if (ALLOW_DUPLICATES == 1) begin
             for (n = 0; n < DEPTH; n++) begin
-                if (w_entry_matches[n]) begin
-                    if (r_count_array[n] > w_max_count_for_entry_tag) begin
-                        w_max_count_for_entry_tag = r_count_array[n];
-                    end
-                end
+                w_dup_count = w_dup_count + COUNT_WIDTH'(w_entry_matches[n]);
             end
         end
     end
@@ -241,27 +244,33 @@ module bridge_cam #(
         end
     end
 
-    // Mode 2: Find entry with matching tag AND count=0 (oldest)
+    // Mode 2: Find entry with matching tag AND count=0 (oldest). Exactly one
+    // entry per tag holds count 0, so the hit vector is one-hot and the
+    // index is an OR of the hit positions -- a flat reduction, not the
+    // DEPTH-long priority chain a last-match-wins loop synthesizes to.
+    logic [DEPTH-1:0] w_evict_count0_hits;
     always_comb begin
-        w_evict_count0_loc = -1;
+        w_evict_count0_loc = 0;
         w_evict_count0_found = 1'b0;
+        w_evict_count0_hits = '0;
         if (ALLOW_DUPLICATES == 1) begin
             for (q = 0; q < DEPTH; q++) begin
-                if (w_evict_matches_active[q] && (r_count_array[q] == 0)) begin
-                    w_evict_count0_loc = q;
-                    w_evict_count0_found = 1'b1;
-                end
+                w_evict_count0_hits[q] = w_evict_matches_active[q] && (r_count_array[q] == 0);
+            end
+            w_evict_count0_found = |w_evict_count0_hits;
+            for (q = 0; q < DEPTH; q++) begin
+                if (w_evict_count0_hits[q]) w_evict_count0_loc = w_evict_count0_loc | q;
             end
         end
     end
 
     // Mode 2: an allocate and a successful deallocate of the SAME tag in one
-    // cycle. The new entry's count comes from w_max_count_for_entry_tag,
-    // which is read before this cycle's decrement lands, so it would be one
-    // too high and the tag's counts would hold a gap ({0,2} instead of
-    // {0,1}). The entry behind the gap is then unreachable: no deallocate
-    // ever finds it at count 0. On the bridge that is bready never rising for
-    // a valid B (found by the full-depth arbitration tests, 2026-09-10).
+    // cycle. The new entry's count comes from w_dup_count, which counts the
+    // entries before this cycle's retire lands, so it would be one too high
+    // and the tag's counts would hold a gap ({0,2} instead of {0,1}). The
+    // entry behind the gap is then unreachable: no deallocate ever finds it
+    // at count 0. On the bridge that is bready never rising for a valid B
+    // (found by the full-depth arbitration tests, 2026-09-10).
     logic w_same_tag_retire;
     assign w_same_tag_retire = (ALLOW_DUPLICATES == 1) &&
                                w_deallocate_active && w_evict_count0_found &&
@@ -270,12 +279,18 @@ module bridge_cam #(
     // Eviction port outputs
     assign deallocate_valid = (ALLOW_DUPLICATES == 0) ? w_evict_match_found : w_evict_count0_found;
 
+    logic [DATA_WIDTH-1:0] w_evict_count0_data;
+    always_comb begin
+        w_evict_count0_data = '0;
+        for (int qd = 0; qd < DEPTH; qd++) begin
+            if (w_evict_count0_hits[qd]) w_evict_count0_data = w_evict_count0_data | r_data_array[qd];
+        end
+    end
     assign deallocate_data = (ALLOW_DUPLICATES == 0)
                            ? (w_evict_match_found ? r_data_array[w_evict_match_loc] : '0)
-                           : (w_evict_count0_found ? r_data_array[w_evict_count0_loc] : '0);
-
-    assign deallocate_count = (ALLOW_DUPLICATES == 1 && w_evict_count0_found)
-                            ? r_count_array[w_evict_count0_loc] : '0;
+                           : w_evict_count0_data;
+    // the retiring entry is the count-0 one by construction
+    assign deallocate_count = '0;
 
     //==========================================================================
     // CAM Storage Management
@@ -300,12 +315,12 @@ module bridge_cam #(
                 r_valid[w_next_free_loc] <= 1'b1;
 
                 if (ALLOW_DUPLICATES == 1) begin
-                    // Mode 2: order behind the existing duplicates. If the
-                    // oldest of them retires this very cycle, every survivor
-                    // steps down by one, so the newcomer takes max, not max+1.
-                    r_count_array[w_next_free_loc] <= !cam_hit ? '0
-                        : w_same_tag_retire ? w_max_count_for_entry_tag
-                        : (w_max_count_for_entry_tag + 1'b1);
+                    // Mode 2: order behind the existing duplicates (count =
+                    // how many there are). If the oldest of them retires this
+                    // very cycle, every survivor steps down by one, so the
+                    // newcomer takes one less.
+                    r_count_array[w_next_free_loc] <= w_same_tag_retire
+                        ? (w_dup_count - 1'b1) : w_dup_count;
                 end
             end
 

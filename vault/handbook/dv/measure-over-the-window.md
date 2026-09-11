@@ -51,3 +51,16 @@ the next is the shape to distrust.
 Related: [[test-runner]] for level structure, [[randomization]] for the
 fairness thresholds themselves, [[arbiter-compliance-model]] for the
 grant-vs-request pairing the same suite got wrong.
+
+## Sample handshakes AT the edge (2026-09-11)
+
+A cocotb sampler that does `await RisingEdge(clk); await ReadOnly()` reads
+the state AFTER the edge -- the values the flops just wrote, not the ones
+they captured. A handshake that lasts exactly one cycle (VALID and READY
+both high for one edge) has already moved on by then, and the sampler
+misses it. The bridge's first throughput probe lost exactly one W beat per
+16-beat burst that way (120 of 128) and would have reported a fabric
+running at 94% of its real rate. Sample on `RisingEdge` alone: the values
+read there are the ones the edge captured. The tracking test's "best-effort
+B-channel watcher ... misses roughly a third" note was the same defect
+observed and not yet understood.

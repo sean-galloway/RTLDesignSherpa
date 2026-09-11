@@ -78,13 +78,14 @@
 
 - [Throughput Characteristics](ch05_performance/01_throughput.md)
 - [Latency Analysis](ch05_performance/02_latency.md)
-- [Resource Estimates](ch05_performance/03_resources.md)
+- [Resources](ch05_performance/03_resources.md)
 
 ### Chapter 6: Integration
 
 - [System Requirements](ch06_integration/01_system_requirements.md)
 - [Parameter Configuration](ch06_integration/02_parameters.md)
 - [Verification Strategy](ch06_integration/03_verification.md)
+- [Synthesis and Implementation](ch06_integration/04_synthesis.md)
 
 ---
 

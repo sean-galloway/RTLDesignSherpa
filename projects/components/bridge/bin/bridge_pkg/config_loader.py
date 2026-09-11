@@ -231,6 +231,9 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
             mon_add=list(m.get('mon_add', [])),
             mon_remove=list(m.get('mon_remove', [])),
             axi5_features=axi5_features,
+            # carried so the validator can reject it -- a master's `cdc`
+            # would otherwise be dropped here and never seen
+            cdc=bool(m.get('cdc', False)),
         )
 
         masters.append(port)
@@ -305,6 +308,7 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
             base_addr=base_addr,
             addr_range=addr_range,
             enable_ooo=enable_ooo,
+            cdc=bool(s.get('cdc', False)),
             use_monitor=bool(s.get('use_monitor', True)),
             mon_add=list(s.get('mon_add', [])),
             mon_remove=list(s.get('mon_remove', [])),
@@ -313,6 +317,7 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
 
         slaves.append(port)
         ooo_str = " [OOO]" if enable_ooo else ""
+        ooo_str += " [CDC: own clock]" if port.cdc else ""
         interface_str = f" [IF: {interface_config['type']}]" if interface_config else ""
         addr_str = f" [0x{base_addr:08X}+0x{addr_range:X}]" if addr_range > 0 else ""
         mon_str = "" if port.use_monitor else " [USE_MONITOR=0]"
@@ -347,6 +352,27 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
               f"(slave={mon_group.slave_protocol}, "
               f"master={mon_group.master_protocol})")
 
+    # BRIDGE-017: registered crossbar (skid stage on every slave-side
+    # channel inside the xbar). Off by default: existing fabrics keep their
+    # measured 2/2-cycle propagation.
+    xbar_pipeline = bool(bridge_data.get('xbar_pipeline', False))
+    if xbar_pipeline:
+        print("  xbar_pipeline: True (registered crossbar, +1 cycle each way)")
+
+    # BRIDGE-017: arbitration policy. 'qos' makes every slave arbiter pick
+    # by AxQOS + aging; 'rr' is the round-robin default.
+    arbitration = str(bridge_data.get('arbitration', 'rr'))
+    if arbitration not in ('rr', 'qos'):
+        raise ValueError(
+            f"{config_path}: [bridge].arbitration must be 'rr' or 'qos', got {arbitration!r}")
+    qos_aging_shift = int(bridge_data.get('qos_aging_shift', 4))
+    if not (0 <= qos_aging_shift <= 7):
+        raise ValueError(
+            f"{config_path}: [bridge].qos_aging_shift must be 0..7 (age is an 8-bit "
+            f"counter), got {qos_aging_shift}")
+    if arbitration == 'qos':
+        print(f"  arbitration: qos (AxQOS + aging, one level per 2**{qos_aging_shift} cycles)")
+
     # Bridge-level monitor override switches (mon variant only).
     use_all_monitors = bool(bridge_data.get('use_all_monitors', False))
     use_no_monitors  = bool(bridge_data.get('use_no_monitors',  False))
@@ -377,7 +403,8 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
     print(f"  mon_preset: {mon_preset}")
     return (masters, slaves, defaults, connectivity_data, bridge_name,
             variants, internal_axil_group, use_all_monitors,
-            use_no_monitors, mon_preset, use_cfg_regblock, mon_group)
+            use_no_monitors, mon_preset, use_cfg_regblock, mon_group,
+            xbar_pipeline, arbitration, qos_aging_shift)
 
 
 def find_connectivity_csv(yaml_path: str) -> Optional[str]:
@@ -477,12 +504,14 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
         (masters, slaves, defaults, embedded_connectivity, bridge_name,
          variants, internal_axil_group,
          use_all_monitors, use_no_monitors, mon_preset,
-         use_cfg_regblock, mon_group) = load_toml_ports(config_path)
+         use_cfg_regblock, mon_group, xbar_pipeline,
+         arbitration, qos_aging_shift) = load_toml_ports(config_path)
     elif config_file.suffix in ['.yaml', '.yml']:
         (masters, slaves, defaults, embedded_connectivity, bridge_name,
          variants, internal_axil_group,
          use_all_monitors, use_no_monitors, mon_preset,
-         use_cfg_regblock, mon_group) = load_yaml_ports(config_path)
+         use_cfg_regblock, mon_group, xbar_pipeline,
+         arbitration, qos_aging_shift) = load_yaml_ports(config_path)
     else:
         raise ValueError(f"Unsupported config format: {config_file.suffix}. Use .toml, .yaml, or .yml")
 
@@ -561,6 +590,9 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
         mon_preset=mon_preset,
         use_cfg_regblock=use_cfg_regblock,
         mon_group=mon_group,
+        xbar_pipeline=xbar_pipeline,
+        arbitration=arbitration,
+        qos_aging_shift=qos_aging_shift,
     )
 
     # Validate configuration

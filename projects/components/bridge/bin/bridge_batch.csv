@@ -34,3 +34,7 @@ bridge_1x2_rd_axi5w,test_configs/bridge_1x2_rd_axi5w.toml,test_configs/bridge_1x
 bridge_2x2_lite_req,test_configs/bridge_2x2_lite_req.toml,test_configs/bridge_2x2_lite_req_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
 bridge_2x3_apb_req,test_configs/bridge_2x3_apb_req.toml,test_configs/bridge_2x3_apb_req_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
 bridge_2x2_wb4,test_configs/bridge_2x2_wb4.toml,test_configs/bridge_2x2_wb4_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_2x2_rw_pipe,test_configs/bridge_2x2_rw_pipe.toml,test_configs/bridge_2x2_rw_pipe_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_2x2_rw_qos,test_configs/bridge_2x2_rw_qos.toml,test_configs/bridge_2x2_rw_qos_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_2x2_rw_cdc,test_configs/bridge_2x2_rw_cdc.toml,test_configs/bridge_2x2_rw_cdc_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_2x2_rw_qos_pipe,test_configs/bridge_2x2_rw_qos_pipe.toml,test_configs/bridge_2x2_rw_qos_pipe_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests

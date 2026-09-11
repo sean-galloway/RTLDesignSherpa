@@ -118,6 +118,27 @@ This separation allows:
 - Independent grant decisions for AR vs. AW channels
 - Better throughput for mixed read/write workloads
 
+**Policy** (`[bridge] arbitration`, BRIDGE-017). `"rr"` (default) is
+round-robin among the requesting masters, grant locked until the slave-side
+handshake. `"qos"` picks the requester with the highest *effective*
+priority: `AxQOS` plus an age term that climbs one level every
+`2**qos_aging_shift` cycles a request waits (default 16), saturating at 15,
+cleared on grant; equals share round-robin. A QoS-0 requester behind a
+QoS-15 one is therefore served after at most `15 * 2**shift` cycles of
+waiting -- delayed, never starved. Priority reorders only what is waiting
+at the arbiter: a slave that accepts an AW every cycle takes each master's
+AW as it arrives, faster than any master issues them, so no two requests
+are ever pending together and the W order is arrival order whatever the
+QoS values say. It takes effect where it is meant to, at a slave whose
+outstanding-write depth is full and whose AW channel backpressures, because
+that is when a backlog forms and every AW slot is a decision. Measured on
+`bridge_2x2_rw_qos` (`test_bridge_2x2_rw_qos_arb`) against a port that
+accepts one AW per 13 cycles: a QoS-8 stream against a QoS-0 stream takes
+>= 75% of the beats in either orientation, the QoS-0 stream's longest wait
+for an AW grant stays inside the aging bound, and equal QoS splits the port
+like the baseline. `AxQOS` itself is still passed through to the
+slave unchanged.
+
 ### Request Multiplexers with Stable Address Gating
 
 After arbitration, multiplexers select the granted master's signals. AR/AW gating uses **inline address re-decode** on the stable m_axi address bus (held stable across the full handshake):
@@ -363,13 +384,13 @@ The `monbus_axil4_axil4_group` instance:
 
 **Request Path** (Master → Slave):
 - Arbiter decision: 1 cycle (registered)
-- MUX selection: 0 cycles (combinatorial) or +1 cycle (registered)
-- **Total**: 1-2 cycles through crossbar
+- MUX selection: 0 cycles (combinatorial) or +1 cycle with `xbar_pipeline`
+- **Total**: 1-2 cycles through crossbar (measured end to end: 2 combinational, 3 registered -- HAS Table 5.7)
 
 **Response Path** (Slave → Master):
 - BID extraction: 0 cycles (combinatorial)
-- DEMUX routing: 0 cycles (combinatorial) or +1 cycle (registered)
-- **Total**: 0-1 cycles through crossbar
+- DEMUX routing: 0 cycles (combinatorial) or +1 cycle with `xbar_pipeline`
+- **Total**: 0-1 cycles through crossbar (measured end to end: 2 combinational, 3 registered)
 
 **End-to-End** (Master adapter → Slave adapter):
 - Adapters: 2 cycles (skid buffers)
@@ -409,9 +430,23 @@ The paths that will bite you first:
 
 **Mitigation Strategies**:
 
-1. **Registered MUX/DEMUX**: +1 cycle latency, breaks paths
-2. **Pipelined Arbitration**: Multi-cycle arbiter for >8 masters
-3. **Hierarchical Crossbar**: For >16 masters, use tree structure
+1. **Registered crossbar** -- BUILT (BRIDGE-017, `[bridge] xbar_pipeline = true`).
+   Every slave-side channel gets a 2-deep `gaxi_skid_buffer` inside the
+   xbar: the request stages (AW, W, AR) sit between the arbitrated mux and
+   the slave port and carry the bridge id in their payload; the response
+   stages (B, R) sit between the slave port and the OR-merge and carry the
+   slave adapter's `bid/rid_bridge_id` and route-open flag WITH the beat, so
+   the merge keys on the staged id and the stage's own valid. Both cones --
+   decode -> arbiter -> N-way mux, and the response OR-merge -- end at a
+   register. The skid's ready is registered too, so both directions are cut
+   and throughput is unchanged: `test_bridge_2x2_rw_perf` measures the same
+   1.00 beat/cycle on `bridge_2x2_rw_pipe` as on `bridge_2x2_rw`, and
+   `test_bridge_2x2_rw_pipe_latency` pins the cost at exactly one cycle each
+   way (3/3 against the baseline's 2/2). The routing and mux emitters are
+   untouched; they drive `xs_<slave>_axi_*` nets and
+   `_generate_pipeline_stages()` joins those to the ports. Off by default.
+2. **Pipelined Arbitration**: Multi-cycle arbiter for >8 masters (not built)
+3. **Hierarchical Crossbar**: For >16 masters, use tree structure (not built)
 
 ## Design Notes
 

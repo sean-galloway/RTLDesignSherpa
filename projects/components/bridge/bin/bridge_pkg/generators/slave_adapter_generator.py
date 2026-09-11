@@ -182,6 +182,11 @@ class SlaveAdapterGenerator:
         lines.append(f") (")
         lines.append("    input  logic aclk,")
         lines.append("    input  logic aresetn,")
+        if self.is_cdc:
+            lines.append("    // BRIDGE-017: this slave's own clock domain (the external port,")
+            lines.append("    // downstream of axi4_cdc_{wr,rd}).")
+            lines.append("    input  logic s_aclk,")
+            lines.append("    input  logic s_aresetn,")
         lines.append("")
 
         # Crossbar-facing interface (AXI4 input from crossbar)
@@ -1000,19 +1005,89 @@ class SlaveAdapterGenerator:
 
         return lines
 
+    @property
+    def is_cdc(self) -> bool:
+        """BRIDGE-017: the external port runs on s_aclk; the wrapper's m_axi
+        face crosses to it through axi4_cdc_{wr,rd}."""
+        return bool(getattr(self.slave, 'cdc', False))
+
     def _generate_axi4_timing_wrapper(self) -> List[str]:
-        """Generate axi4_master_wr/rd timing wrapper instantiation."""
+        """Generate axi4_master_wr/rd timing wrapper instantiation.
+
+        With cdc the wrapper (and the monitor inside its _mon variant) stays
+        on aclk and drives `cdc_<slave>_axi_*`; axi4_cdc_{wr,rd} carry those
+        to the external port on s_aclk. The bridge-id tracking pops on the
+        crossbar-side handshake, which is still aclk, so nothing upstream
+        of the crossing changes."""
         lines = []
 
         crossbar_prefix = f"xbar_{self.slave.name}_axi_"
         slave_prefix = self.slave.prefix
+        ext_prefix = f"cdc_{self.slave.name}_axi_" if self.is_cdc else slave_prefix
+
+        if self.is_cdc:
+            lines.append("    // ============================================================")
+            lines.append("    // aclk-side nets between the timing wrapper and the clock crossing")
+            lines.append("    // ============================================================")
+            lines.extend(self._shim_axi_intermediate_signal_decls(ext_prefix))
+            lines.append("")
 
         if self.channels in ["wr", "rw"]:
-            lines.extend(self._generate_master_wr_wrapper(crossbar_prefix, slave_prefix))
+            lines.extend(self._generate_master_wr_wrapper(crossbar_prefix, ext_prefix))
 
         if self.channels in ["rd", "rw"]:
-            lines.extend(self._generate_master_rd_wrapper(crossbar_prefix, slave_prefix))
+            lines.extend(self._generate_master_rd_wrapper(crossbar_prefix, ext_prefix))
 
+        if self.is_cdc:
+            lines.extend(self._generate_cdc_stage(ext_prefix, slave_prefix))
+
+        return lines
+
+    def _generate_cdc_stage(self, in_prefix: str, out_prefix: str) -> List[str]:
+        """axi4_cdc_wr / axi4_cdc_rd: `in_prefix` (aclk) -> `out_prefix`
+        (s_aclk, the external port). One instance per direction present."""
+        lines: List[str] = []
+        lines.append("    // ============================================================")
+        lines.append(f"    // Clock-domain crossing to the {self.slave.name} port (s_aclk)")
+        lines.append("    // ============================================================")
+        common = [f"        .AXI_ID_WIDTH({self.id_width}),",
+                  f"        .AXI_ADDR_WIDTH({self.slave.addr_width}),",
+                  f"        .AXI_DATA_WIDTH({self.slave.data_width}),",
+                  f"        .AXI_USER_WIDTH(1),",
+                  f"        .CDC_DEPTH(8),",
+                  f"        .USE_JOHNSON(0)"]
+        clocks = ["        .s_aclk(aclk), .s_aresetn(aresetn),",
+                  "        .m_aclk(s_aclk), .m_aresetn(s_aresetn),"]
+        if self.has_write:
+            sigs = ['awid', 'awaddr', 'awlen', 'awsize', 'awburst', 'awlock', 'awcache', 'awprot',
+                    'awqos', 'awregion', 'awuser', 'awvalid', 'awready',
+                    'wdata', 'wstrb', 'wlast', 'wuser', 'wvalid', 'wready',
+                    'bid', 'bresp', 'buser', 'bvalid', 'bready']
+            lines.append("    axi4_cdc_wr #(")
+            lines.extend(common)
+            lines.append("    ) u_cdc_wr (")
+            lines.extend(clocks)
+            for sig in sigs:
+                lines.append(f"        .s_axi_{sig}({in_prefix}{sig}),")
+            for i, sig in enumerate(sigs):
+                sep = ',' if i < len(sigs) - 1 else ''
+                lines.append(f"        .m_axi_{sig}({out_prefix}{sig}){sep}")
+            lines.append("    );")
+        if self.has_read:
+            sigs = ['arid', 'araddr', 'arlen', 'arsize', 'arburst', 'arlock', 'arcache', 'arprot',
+                    'arqos', 'arregion', 'aruser', 'arvalid', 'arready',
+                    'rid', 'rdata', 'rresp', 'rlast', 'ruser', 'rvalid', 'rready']
+            lines.append("    axi4_cdc_rd #(")
+            lines.extend(common)
+            lines.append("    ) u_cdc_rd (")
+            lines.extend(clocks)
+            for sig in sigs:
+                lines.append(f"        .s_axi_{sig}({in_prefix}{sig}),")
+            for i, sig in enumerate(sigs):
+                sep = ',' if i < len(sigs) - 1 else ''
+                lines.append(f"        .m_axi_{sig}({out_prefix}{sig}){sep}")
+            lines.append("    );")
+        lines.append("")
         return lines
 
     @property

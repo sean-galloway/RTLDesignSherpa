@@ -1,0 +1,58 @@
+# Bridge Configuration: bridge_2x2_rw with QoS-WITH-AGING arbitration
+# (BRIDGE-017 arbitration = "qos").
+#
+# The same two 32-bit AXI4 masters and two 32-bit AXI4 slaves as
+# bridge_2x2_rw. Every slave arbiter picks the requester with the highest
+# effective priority -- AxQOS plus an age term that grows one level every
+# 2**qos_aging_shift cycles a request waits, saturating at 15 -- and shares
+# round-robin among equals. So a QoS-8 master streaming against a QoS-0
+# master gets the port almost exclusively, the QoS-0 master still completes
+# (bounded wait, never starved), and equal QoS behaves exactly like the
+# round-robin baseline. Connectivity comes from bridge_2x2_rw_qos_connectivity.csv.
+
+[bridge]
+name = "bridge_2x2_rw_qos"
+variants = ["no"]
+description = "2 master x 2 slave rw bridge, QoS-with-aging arbitration"
+arbitration = "qos"
+qos_aging_shift = 4
+
+[[bridge.masters]]
+name = "cpu"
+prefix = "cpu_m_axi"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+
+[[bridge.masters]]
+name = "dma"
+prefix = "dma_m_axi"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+
+[[bridge.slaves]]
+name = "ddr"
+prefix = "ddr_s_axi"
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (BRIDGE-016)
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+base_addr = "0x00000000"
+addr_range = "0x80000000"
+
+[[bridge.slaves]]
+name = "sram"
+prefix = "sram_s_axi"
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (BRIDGE-016)
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+base_addr = "0x80000000"
+addr_range = "0x80000000"

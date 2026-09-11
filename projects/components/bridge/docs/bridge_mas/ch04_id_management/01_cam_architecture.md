@@ -125,6 +125,27 @@ end else begin
 end
 ```
 
+### Duplicate IDs: the Ordering Counter (Mode 2)
+
+`bridge_cam` with `ALLOW_DUPLICATES = 1` accepts several outstanding
+transactions under one ID and retires them in order. Every entry carries a
+small ordering counter, and the entries holding one tag always carry the
+counts `0..k-1`: the oldest is 0, a newcomer takes `k`, and when the oldest
+retires the survivors step down by one. Two consequences shape the logic:
+
+- The count a newcomer needs is `k`, which is simply how many entries match
+  its tag: a popcount of the match vector, a few LUT levels. It is not a
+  search for the largest existing count. That scan (`DEPTH` chained
+  comparators, hanging off the crossbar's arbitrated ARID) was the bridge's
+  critical path when first synthesized: 40 LUT levels and a 32 ns data path
+  on an Artix-7 -1 (HAS 6.4), fixed 2026-09-11 by counting instead.
+- The entry to retire is the one match with count 0, which is one-hot by
+  construction, so its index and its stored master come out of OR
+  reductions rather than a priority chain.
+
+An allocate and a same-tag retire in one cycle take `k - 1`, because the
+survivors step down in that same cycle (MAS 2.3).
+
 ### Deletion (Response Complete)
 
 Entries free up when the transaction completes — the last R beat, or the B beat:

@@ -57,17 +57,40 @@ One clock, one reset. The AXI fabric runs in a single synchronous domain — the
 
 All masters and slaves must be in the same clock domain as Bridge.
 
-### No Clock Domain Crossing
+### Clock Domain Crossing: CDC Slave Ports
 
-The bridge FABRIC does not include CDC logic. One exception matters: an
-`apb`/`apb5` slave gets `axi4_to_apb4_shim`, whose core contains two
-gray-pointer async FIFOs (`u_cmd_cdc_fifo`, `u_rsp_cdc_fifo`) and its own
-`pclk`/`presetn`. So a bridge WITH an APB slave does cross clock domains, at
-that slave boundary only. For the AXI fabric itself:
+The FABRIC is one clock domain (`aclk`). Since BRIDGE-017 a slave port can
+live in another: `cdc = true` on an AXI4 slave adds `<slave>_aclk` /
+`<slave>_aresetn` to the bridge top, and the slave adapter carries AW, W and
+AR to the port and B, R back through `axi4_cdc_{wr,rd}` -- one Gray-pointer
+async FIFO per channel (`rtl/amba/axi4/axi4_cdc.md`) -- downstream of its
+timing wrapper, which stays on `aclk` with its monitor and the bridge-id
+tracking. Everything upstream of the crossing is unchanged; the port itself
+runs entirely on its own clock, at one beat per cycle of the slower domain.
+
+| Signal | Direction | Description |
+|---|---|---|
+| `<slave>_aclk` | Input | the CDC slave port's clock |
+| `<slave>_aresetn` | Input | its active-low reset; release together with `aresetn` (a one-sided reset is not safe on the async FIFOs -- handbook `design/cdc.md`) |
+
+: Table 4.5a: CDC slave port clock pins (`cdc = true`)
+
+Limits: slave ports only, `protocol = "axi4"` (the crossing carries the AXI4
+signal set; AXI5 sideband and the APB/AXIL/WB4 shims have no crossing yet --
+the validator rejects those). Measured on `bridge_2x2_rw_cdc`
+(`test_bridge_2x2_rw_cdc_ratio`) with the slave clock at 3, 10 and 23 ns
+against a 10 ns fabric: every burst from both masters completes, the port's
+beats appear on the slave clock, the sustained rate is set by the slower
+clock (>= 0.85 beat per cycle of it), and the same-clock port beside it is
+unaffected.
+
+The other place a clock boundary already existed: an `apb`/`apb5` slave's
+`axi4_to_apb4_shim` core contains two async FIFOs and its own
+`pclk`/`presetn`. For every other port:
 
 - All inputs sampled on aclk rising edge
 - All outputs generated on aclk rising edge
-- External CDC required if masters/slaves use different clocks
+- External CDC required if a master, or a non-AXI4 slave, uses a different clock
 
 ### Reset Behavior
 
@@ -155,7 +178,8 @@ set_false_path -from [get_ports aresetn]
 
 ### External CDC Required
 
-For systems with multiple clock domains:
+For master ports, and for slave ports that are not `cdc = true` AXI4 ports,
+in systems with multiple clock domains:
 
 #### Figure 4.2: Multi-Clock CDC
 

@@ -373,6 +373,25 @@ def warn_axi5_dropped_sideband(masters: List[PortSpec],
                       f"{'; '.join(reasons)}")
 
 
+def validate_cdc_constraints(port: PortSpec) -> None:
+    """BRIDGE-017 CDC slave ports: `cdc = true` is legal on an external
+    AXI4 slave port only. The crossing is axi4_cdc_{wr,rd}, which carries the
+    AXI4 signal set; a master port, an AXI5 port's sideband and the shim
+    protocols would each need their own crossing, and none has one yet."""
+    if not getattr(port, 'cdc', False):
+        return
+    if port.direction != 'slave':
+        raise ValidationError(
+            f"Master '{port.port_name}': cdc = true is only legal on a slave port "
+            f"(the crossing sits between the crossbar and the slave boundary)")
+    if port.protocol != 'axi4':
+        raise ValidationError(
+            f"Slave '{port.port_name}': cdc = true needs protocol = \"axi4\" "
+            f"(got '{port.protocol}'); axi4_cdc_{{wr,rd}} carries the AXI4 signal set only")
+    if getattr(port, 'internal', False):
+        raise ValidationError(f"Slave '{port.port_name}': an internal slave cannot be a CDC port")
+
+
 def validate_wb4_constraints(port: PortSpec) -> None:
     """Wishbone B4 port rules (BRIDGE-019), master or slave.
 
@@ -681,6 +700,7 @@ def validate_config(
         validate_protocol(master.protocol, master.port_name)
         validate_apb_constraints(master)
         validate_wb4_constraints(master)
+        validate_cdc_constraints(master)
 
     # Validate each slave
     for slave in slaves:
@@ -689,6 +709,7 @@ def validate_config(
         validate_protocol(slave.protocol, slave.port_name)
         validate_apb_constraints(slave)
         validate_wb4_constraints(slave)
+        validate_cdc_constraints(slave)
 
     # Validate explicit channel specification for slaves
     validate_slave_channels_explicit(slaves)

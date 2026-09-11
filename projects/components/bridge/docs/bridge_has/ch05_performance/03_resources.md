@@ -21,135 +21,83 @@
 
 <!-- End Header -->
 
-# Resource Estimates
+# Resources
 
 ## Overview
 
-Rough silicon cost for the bridge and its converters — per master, per slave, per converter, and for a few complete configurations. Treat every number on this page as an order of magnitude, not a budget line: the note after Table 5.18 explains why, and it is worth reading before any of these figures make it into a spreadsheet.
+What a generated bridge costs on an FPGA, measured. The numbers below come
+from the out-of-context synthesis and implementation flow in
+`projects/components/bridge/fpga/` (HAS 6.4: how it constrains the bridge,
+how to repeat a run, how to read a line of `reports/summary.csv`), on the two
+parts this repository's boards carry. Earlier revisions of this page carried
+hand estimates per component and per configuration; they did not reconcile
+with each other and had never been checked against a synthesis report, so
+they are gone. Anything not in the tables below is a configuration nobody
+has synthesized yet, and the flow takes minutes to answer for it.
 
-## Functional Description
+## Measured Utilization and Timing
 
-### Baseline Configuration (2x2, 64-bit)
+| Bridge | LUTs | FFs | BRAM | WNS reg-to-reg (ns) | Fmax est. (MHz) | Worst logic levels |
+|---|---:|---:|---:|---:|---:|---:|
+| `bridge_2x2_axi5` | 4,441 | 3,325 | 0 | +0.40 | 104.2 | 8 |
+| `bridge_2x2_rw` | 4,615 | 3,253 | 0 | +0.12 | 101.2 | 9 |
+| `bridge_2x2_rw_cdc` | 4,851 | 3,413 | 0 | +0.27 | 102.7 | 9 |
+| `bridge_2x2_rw_pipe` | 5,646 | 4,227 | 0 | +1.27 | 114.6 | 6 |
+| `bridge_2x2_rw_qos` | 5,136 | 3,317 | 0 | -2.91 | 77.4 | 14 |
+| `bridge_2x2_rw_qos_pipe` | 5,494 | 4,291 | 0 | +0.17 | 101.7 | 9 |
+| `bridge_4x4_rw` | 30,278 | 29,508 | 0 | -1.57 | 86.4 | 14 |
+| `bridge_5x3_channels` | 19,243 | 16,932 | 0 | -2.66 | 79.0 | 16 |
+| `bridge_mix_a` | 6,456 | 5,697 | 0 | -0.29 | 97.1 | 16 |
 
-| Resource | Count | Notes |
-|----------|-------|-------|
-| LUTs | ~2,000-3,000 | Logic and routing |
-| Registers | ~1,500-2,000 | Pipeline stages |
-| Block RAM | 0 | No CAM or ID table is built |
-| DSP | 0 | No arithmetic |
+: Table 5.11: Measured utilization and timing, Artix-7 100T -1 at 10 ns (HAS 6.4 flow)
 
-: Table 5.11: Baseline Resource Requirements
+| Bridge | LUTs | FFs | BRAM | WNS reg-to-reg (ns) | Fmax est. (MHz) | Worst logic levels |
+|---|---:|---:|---:|---:|---:|---:|
+| `bridge_2x2_axi5` | 4,430 | 3,325 | 0 | +0.69 | 167.4 | 9 |
+| `bridge_2x2_rw` | 4,612 | 3,253 | 0 | +0.97 | 175.6 | 9 |
+| `bridge_2x2_rw_cdc` | 4,842 | 3,413 | 0 | +0.55 | 163.4 | 9 |
+| `bridge_2x2_rw_pipe` | 5,647 | 4,227 | 0 | +1.73 | 202.6 | 6 |
+| `bridge_2x2_rw_qos` | 4,963 | 3,317 | 0 | -0.18 | 146.0 | 13 |
+| `bridge_2x2_rw_qos_pipe` | 5,475 | 4,291 | 0 | +0.70 | 167.6 | 9 |
+| `bridge_4x4_rw` | 29,719 | 29,508 | 0 | +0.28 | 156.5 | 13 |
+| `bridge_5x3_channels` | 19,035 | 16,932 | 0 | -0.13 | 147.1 | 17 |
+| `bridge_mix_a` | 6,375 | 5,697 | 0 | +0.53 | 162.9 | 8 |
 
-### Scaling Factors
+: Table 5.12: Measured utilization and timing, Kintex-7 325T -2 at 6.667 ns
 
-| Component | Scaling |
-|-----------|---------|
-| Crossbar core | O(M x N) |
-| Master adapters | O(M) |
-| Slave routers | O(N) |
-| ID tracking | O(M x Outstanding) |
-| Width converters | O(per-path ratio) |
+Fmax is an estimate from the register-to-register slack at the constrained
+period; the I/O budget and the reading of each row are in HAS 6.4. The
+rows that miss on the Artix-7 all fail on one path -- master adapter,
+crossbar arbitration and mux, slave CAM allocate -- and `xbar_pipeline`
+is the register that splits it: `bridge_2x2_rw_qos` at -2.91 ns becomes
+`bridge_2x2_rw_qos_pipe` at +0.17 ns.
 
-: Table 5.12: Resource Scaling Factors
+### Scaling
 
-### Per-Master Resources
+| Component | Scales with |
+|-----------|-------------|
+| Crossbar core | O(M x N) muxing, plus one arbiter per slave channel |
+| Master adapters | O(M), each holding a full beat per channel in its skid buffers |
+| Slave adapters | O(N), plus a converter and its monitor sandwich for every non-AXI4 or width-stepped port |
+| bridge_id FIFOs | O(N x depth), small LUT arrays, no BRAM |
+| Registered crossbar (`xbar_pipeline`) | one 2-deep skid per slave-side channel |
+| CDC slave port (`cdc`) | one async FIFO per channel of that port |
 
-| Component | LUTs | Registers |
-|-----------|------|-----------|
-| Skid buffer | ~50-100 | ~DATA_WIDTH |
-| bridge_id FIFO (per slave) | ~16 x BRIDGE_ID_WIDTH | in LUTs, not BRAM |
-| Channel mux | ~100 | ~50 |
-| **Per Master Total** | ~200-300 | ~DATA_WIDTH + 100 |
+: Table 5.13: Resource Scaling
 
-: Table 5.13: Per-Master Resource Breakdown
-
-### Per-Slave Resources
-
-| Component | LUTs | Registers |
-|-----------|------|-----------|
-| Address decode | ~50 | 0 |
-| Arbiter | ~100-200 | ~50 |
-| Response mux | ~100 | ~50 |
-| **Per Slave Total** | ~250-350 | ~100 |
-
-: Table 5.14: Per-Slave Resource Breakdown
-
-### Crossbar Core
-
-| Component | LUTs | Registers |
-|-----------|------|-----------|
-| AW mux (N-way) | ~100 x N | ~50 x N |
-| W mux (N-way) | ~100 x N | ~50 x N |
-| B demux (M-way) | ~50 x M | ~50 x M |
-| AR mux (N-way) | ~100 x N | ~50 x N |
-| R demux (M-way) | ~50 x M | ~50 x M |
-
-: Table 5.15: Crossbar Core Resources
-
-### Width Converter Resources
-
-| Ratio | LUTs | Registers | Notes |
-|-------|------|-----------|-------|
-| 1:2 upsize | ~200 | ~DATA_IN | Pack logic |
-| 1:4 upsize | ~300 | ~DATA_IN | Pack logic |
-| 1:8 upsize | ~400 | ~DATA_IN | Pack logic |
-| 2:1 downsize | ~200 | ~DATA_OUT | Split logic |
-| 4:1 downsize | ~300 | ~DATA_OUT | Split logic |
-| 8:1 downsize | ~400 | ~DATA_OUT | Split logic |
-
-: Table 5.16: Width Converter Resources
-
-### Protocol Converter Resources
-
-#### AXI4 to APB
-
-| Component | LUTs | Registers |
-|-----------|------|-----------|
-| FSM | ~100 | ~20 |
-| Burst counter | ~50 | ~8 |
-| Data buffer | ~100 | ~DATA_WIDTH |
-| Response logic | ~50 | ~10 |
-| **Total** | ~300 | ~DATA_WIDTH + 50 |
-
-: Table 5.17: AXI4 to APB Converter Resources
-
-### Example Configurations
-
-| Config | Masters | Slaves | Data | LUTs | Registers |
-|--------|---------|--------|------|------|-----------|
-| 2x2 Basic | 2 | 2 | 64 | ~2,500 | ~1,500 |
-| 4x4 Standard | 4 | 4 | 64 | ~5,000 | ~3,000 |
-| 4x4 Wide | 4 | 4 | 256 | ~8,000 | ~5,000 |
-| 8x8 Large | 8 | 8 | 128 | ~12,000 | ~8,000 |
-| RAPIDS (4x3) | 4 | 3 | 512 | ~10,000 | ~6,000 |
-
-: Table 5.18: Complete Bridge Resource Estimates
-
-#### Notes
-
-- Estimates include all converters and adapters
-- Actual results vary by synthesis tool and FPGA family
-- Block RAM usage is zero: the per-slave bridge_id FIFOs are small LUT arrays
-- DSP usage is zero (no multiplication/division)
-
-**These are hand estimates, and they do not reconcile.** Summing the
-per-component tables above for the same configuration does not reproduce the
-summary figures in Table 5.18, and neither has been checked against a synthesis
-report. Treat every number on this page as an order-of-magnitude guide, not a
-budget: use it to tell "a few thousand LUTs" from "a few hundred", and run
-synthesis for anything finer.
-
-The honest fix is a synthesis run per shipped variant with the numbers
-replaced by measurements, which nobody has done. Saying so is better than
-leaving arithmetic that looks authoritative and is not.
+Block RAM and DSP usage are zero in every configuration measured: the
+per-slave bridge_id FIFOs and the CAM are LUT arrays, and there is no
+arithmetic.
 
 ## Design Notes
 
 ### Resource Reduction
 
-1. **Use channel-specific masters** - 40-60% port reduction
-2. **Match data widths** - Avoid converter logic
-3. **Use APB sparingly** - Reduces AXI4 overhead
+1. **Use channel-specific masters** - a read-only or write-only master
+   builds half the adapter and half the crossbar columns
+2. **Match data widths** - a width step costs a converter each way
+3. **Use APB and AXI-Lite slaves sparingly** - each carries a shim and a
+   second monitor
 4. **Limit outstanding transactions** - shallower per-slave bridge_id FIFOs
 
 ### Performance/Resource Trade-off
@@ -161,4 +109,4 @@ leaving arithmetic that looks authoritative and is not.
 | Pipeline stages | +registers | +frequency |
 | Wider data paths | +routing | +throughput |
 
-: Table 5.19: Performance/Resource Trade-offs
+: Table 5.14: Performance/Resource Trade-offs

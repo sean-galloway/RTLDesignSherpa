@@ -567,7 +567,8 @@ class {{ tb_class_name }}(TBBase):
 
 {% for slave in slaves %}
     def _setup_slave_{{ loop.index0 }}_{{ slave.port_name }}(self):
-        """Set up protocol BFM and pre-seeded MemoryModel for slave {{ loop.index0 }}: {{ slave.port_name }} (protocol: {{ slave.protocol }})"""
+        """Set up protocol BFM and pre-seeded MemoryModel for slave {{ loop.index0 }}: {{ slave.port_name }} (protocol: {{ slave.protocol }}{{ ', own clock' if slave.cdc else '' }})"""
+{% set slave_clock = ('self.dut.' ~ slave.port_name ~ '_aclk') if slave.cdc else 'self.clock' %}
 {% if slave.protocol.lower() in ('apb', 'apb5') %}
         # APB slave — APBSlave manages its own internal memory; pre-seed
         # it with the slave-specific pattern via direct memory writes.
@@ -580,7 +581,7 @@ class {{ tb_class_name }}(TBBase):
             entity=self.dut,
             title="APB5_S{{ loop.index0 }}",
             prefix="{{ slave.prefix }}",
-            clock=self.clock,
+            clock={{ slave_clock }},
             registers=list(preset),
             bus_width={{ slave.data_width }},
             addr_width={{ slave.addr_width }},
@@ -598,7 +599,7 @@ class {{ tb_class_name }}(TBBase):
             entity=self.dut,
             title="APB_S{{ loop.index0 }}",
             prefix="{{ slave.prefix }}",
-            clock=self.clock,
+            clock={{ slave_clock }},
             registers=list(preset),
             bus_width={{ slave.data_width }},
             addr_width={{ slave.addr_width }},
@@ -620,7 +621,7 @@ class {{ tb_class_name }}(TBBase):
             entity=self.dut,
             title="WB4_S{{ loop.index0 }}",
             prefix="{{ slave.prefix }}",
-            clock=self.clock,
+            clock={{ slave_clock }},
             registers=list(preset),
             addr_width={{ slave.addr_width }},
             data_width={{ slave.data_width }},
@@ -654,7 +655,7 @@ class {{ tb_class_name }}(TBBase):
         )
 {% if slave.has_read_channels() %}
         self.slave_rd[{{ loop.index0 }}] = {% if slave.protocol.lower() == 'axil5' %}AXIL5SlaveRead{% else %}AXIL4SlaveRead{% endif %}(
-            self.dut, self.clock,
+            self.dut, {{ slave_clock }},
             prefix="{{ slave.prefix }}",
             log=self.log,
             data_width={{ slave.data_width }},
@@ -669,7 +670,7 @@ class {{ tb_class_name }}(TBBase):
 {% endif %}
 {% if slave.has_write_channels() %}
         self.slave_wr[{{ loop.index0 }}] = {% if slave.protocol.lower() == 'axil5' %}AXIL5SlaveWrite{% else %}AXIL4SlaveWrite{% endif %}(
-            self.dut, self.clock,
+            self.dut, {{ slave_clock }},
             prefix="{{ slave.prefix }}",
             log=self.log,
             data_width={{ slave.data_width }},
@@ -698,7 +699,7 @@ class {{ tb_class_name }}(TBBase):
 {% set s_axi5 = slave.protocol.lower() == 'axi5' %}
 {% if slave.has_read_channels() %}
         self.slave_rd[{{ loop.index0 }}] = {{ 'AXI5SlaveRead' if s_axi5 else 'AXI4SlaveRead' }}(
-            self.dut, self.clock,
+            self.dut, {{ slave_clock }},
             prefix="{{ slave.prefix }}",
             log=self.log,
             data_width={{ slave.data_width }},
@@ -718,7 +719,7 @@ class {{ tb_class_name }}(TBBase):
 {% endif %}
 {% if slave.has_write_channels() %}
         self.slave_wr[{{ loop.index0 }}] = {{ 'AXI5SlaveWrite' if s_axi5 else 'AXI4SlaveWrite' }}(
-            self.dut, self.clock,
+            self.dut, {{ slave_clock }},
             prefix="{{ slave.prefix }}",
             log=self.log,
             data_width={{ slave.data_width }},
@@ -746,10 +747,26 @@ class {{ tb_class_name }}(TBBase):
     # Reset / clock plumbing
     # ----------------------------------------------------------------------
 
+{% set cdc_slaves = slaves | selectattr('cdc') | list %}
+{% if cdc_slaves %}
+    # BRIDGE-017 CDC slave ports run on their own clock. The period comes from
+    # BRIDGE_CDC_PERIOD_NS (default 7 ns against the fabric's 10 ns, so the
+    # crossing is exercised, not degenerate); a directed test sweeps it.
+    CDC_PERIOD_NS = int(os.environ.get('BRIDGE_CDC_PERIOD_NS', '7'))
+
+{% endif %}
     async def setup_clocks_and_reset(self):
         await self.start_clock(self.clock_name, freq=10, units='ns')
+{% for slave in cdc_slaves %}
+        await self.start_clock('{{ slave.port_name }}_aclk', freq=self.CDC_PERIOD_NS, units='ns')
+{% endfor %}
         await self.assert_reset()
         await self.wait_clocks(self.clock_name, 10)
+{% if cdc_slaves %}
+        # Both sides of every crossing see reset (a one-sided reset is not
+        # safe on the async FIFOs -- handbook design/cdc.md).
+        await self.wait_clocks(self.clock_name, 10)
+{% endif %}
         await self.deassert_reset()
         await self.wait_clocks(self.clock_name, 5)
         for idx, checker in self.compliance.items():
@@ -808,9 +825,15 @@ class {{ tb_class_name }}(TBBase):
 
     async def assert_reset(self):
         self.reset_n.value = 0
+{% for slave in cdc_slaves %}
+        self.dut.{{ slave.port_name }}_aresetn.value = 0
+{% endfor %}
 
     async def deassert_reset(self):
         self.reset_n.value = 1
+{% for slave in cdc_slaves %}
+        self.dut.{{ slave.port_name }}_aresetn.value = 1
+{% endfor %}
 
     # ----------------------------------------------------------------------
     # Slave backpressure (depth knob)

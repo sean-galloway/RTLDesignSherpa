@@ -147,7 +147,19 @@ Example (prefix = "ddr_s_axi"):
   ddr_s_axi_awaddr
   ddr_s_axi_wdata
   ddr_s_axi_bvalid
+
+CDC slave port (cdc = true, BRIDGE-017) adds two clock pins for that port:
+  {name}_aclk            - the port's own clock
+  {name}_aresetn         - its active-low reset
 ```
+
+A `cdc = true` slave port's adapter takes `s_aclk`/`s_aresetn` beside
+`aclk`/`aresetn`. Inside it the timing wrapper (and the monitor, when built)
+stay on `aclk`, driving `cdc_{name}_axi_*` nets; `axi4_cdc_wr` and
+`axi4_cdc_rd` carry those to the external port on `s_aclk`, one
+`gaxi_fifo_async` per channel. Nothing upstream of the wrapper knows the
+port is in another domain. Slave ports only, `protocol = "axi4"` only (HAS
+4.5a).
 
 ## Functional Description
 

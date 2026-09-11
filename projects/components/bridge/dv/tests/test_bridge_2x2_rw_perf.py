@@ -37,19 +37,35 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 import cocotb
-from cocotb.triggers import ClockCycles, RisingEdge
+from cocotb.triggers import ClockCycles
 from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 from projects.components.bridge.dv.tbclasses.bridge2x2_rw_tb import Bridge2x2RwTB
-from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+from projects.components.bridge.dv.tbclasses.bridge2x2_rw_pipe_tb import Bridge2x2RwPipeTB
+
+# The same phases run on the combinational crossbar and on its registered
+# twin (BRIDGE-017 xbar_pipeline). The stage is a full-throughput skid, so
+# the beat rates must be identical; the DUT is picked by the environment.
+FIXTURES = {
+    'bridge_2x2_rw': Bridge2x2RwTB,
+    'bridge_2x2_rw_pipe': Bridge2x2RwPipeTB,
+}
+
+
+def _tb(dut):
+    return FIXTURES[os.environ.get('BRIDGE_PERF_DUT', 'bridge_2x2_rw')](dut)
 
 CPU, DMA = 0, 1
 DDR, SRAM = 0, 1
 DDR_BASE, SRAM_BASE = 0x0000_0000, 0x8000_0000
-BEATS = 16                                   # beats per burst
+from projects.components.bridge.dv.tbclasses.bridge_perf_probe import (
+    BEATS, Sampler, saturate, write_plan as _write_plan, stream_writes as _stream_writes,
+    stream_reads as _stream_reads, report as _report,
+)
+
 BURSTS = {'gate': 8, 'func': 32, 'full': 128}   # bursts per master per phase
 
 MASTER_PFX = {CPU: 'cpu_m_axi', DMA: 'dma_m_axi'}
@@ -67,148 +83,10 @@ FLOOR = {
     'parallel_total_beats_per_cycle': 1.70,    # measured 1.80
 }
 
-BACK_TO_BACK_VALID = {'valid_delay': ([(0, 0)], [1])}
-BACK_TO_BACK_READY = {'ready_delay': ([(0, 0)], [1])}
-
-
-def _hi(sig):
-    try:
-        return int(sig.value) == 1
-    except ValueError:
-        return False
-
-
-def saturate(tb):
-    """Every BFM channel back-to-back: masters present VALID immediately,
-    slaves answer READY immediately and stream responses without gaps."""
-    for bfm in tb.master_wr.values():
-        bfm.aw_channel.set_randomizer(FlexRandomizer(BACK_TO_BACK_VALID))
-        bfm.w_channel.set_randomizer(FlexRandomizer(BACK_TO_BACK_VALID))
-        bfm.b_channel.set_randomizer(FlexRandomizer(BACK_TO_BACK_READY))
-    for bfm in tb.master_rd.values():
-        bfm.ar_channel.set_randomizer(FlexRandomizer(BACK_TO_BACK_VALID))
-        bfm.r_channel.set_randomizer(FlexRandomizer(BACK_TO_BACK_READY))
-    for bfm in tb.slave_wr.values():
-        bfm.aw_channel.set_randomizer(FlexRandomizer(BACK_TO_BACK_READY))
-        bfm.w_channel.set_randomizer(FlexRandomizer(BACK_TO_BACK_READY))
-        bfm.b_channel.set_randomizer(FlexRandomizer(BACK_TO_BACK_VALID))
-        bfm.response_delay_cycles = 0
-    for bfm in tb.slave_rd.values():
-        bfm.ar_channel.set_randomizer(FlexRandomizer(BACK_TO_BACK_READY))
-        bfm.r_channel.set_randomizer(FlexRandomizer(BACK_TO_BACK_VALID))
-        bfm.response_delay_cycles = 0
-
-
-class Sampler:
-    """One coroutine samples every handshake of interest once per cycle.
-
-    Records, per named channel, the cycle number of each handshake. Windows
-    are derived from the record afterwards, never from cumulative counters.
-    """
-
-    def __init__(self, tb, channels):
-        self.tb = tb
-        self.dut = tb.dut
-        self.channels = {name: (getattr(self.dut, f"{pfx}_{ch}valid"),
-                                getattr(self.dut, f"{pfx}_{ch}ready"))
-                         for name, (pfx, ch) in channels.items()}
-        self.marks = {name: [] for name in channels}
-        # Per channel: cycles VALID was high without READY (the far side
-        # stalled) and cycles VALID was low (the near side had nothing to
-        # offer). Over a window they say who owns a gap.
-        self.stalled = {name: [] for name in channels}
-        self.idle = {name: [] for name in channels}
-        self.cycle = 0
-        self.alive = False
-
-    async def run(self):
-        self.alive = True
-        while True:
-            # Sample AT the edge: the values read here are the ones the flops
-            # capture on this edge. Sampling in ReadOnly after it sees the
-            # post-edge state and misses every one-cycle handshake -- the
-            # first cut lost exactly one W beat per burst that way.
-            await RisingEdge(self.tb.clock)
-            self.cycle += 1
-            for name, (v, r) in self.channels.items():
-                hv, hr = _hi(v), _hi(r)
-                if hv and hr:
-                    self.marks[name].append(self.cycle)
-                elif hv:
-                    self.stalled[name].append(self.cycle)
-                else:
-                    self.idle[name].append(self.cycle)
-
-    def window_rate(self, name):
-        """(beats, cycles, beats/cycle) from the first to the last handshake."""
-        m = self.marks[name]
-        if len(m) < 2:
-            return len(m), 0, 0.0
-        cycles = m[-1] - m[0] + 1
-        return len(m), cycles, len(m) / cycles
-
-    def count_in(self, name, lo, hi):
-        return sum(1 for c in self.marks[name] if lo <= c <= hi)
-
-    def gaps_in(self, name, lo, hi):
-        """(stalled cycles, idle cycles) of a channel inside a window."""
-        return (sum(1 for c in self.stalled[name] if lo <= c <= hi),
-                sum(1 for c in self.idle[name] if lo <= c <= hi))
-
-
-def _write_plan(master, slave_base, n, tag):
-    # Inside the slave's 64 KB seeded model (SLAVE_MEM_CAP_BYTES): each master
-    # owns a 32 KB half; 128 bursts x 64 bytes = 8 KB of it.
-    return [(master, slave_base + 0x8000 * master + i * BEATS * 4,
-             [(tag << 24) | (master << 16) | (i << 4) | k for k in range(BEATS)])
-            for i in range(n)]
-
-
-async def _stream_writes(tb, plan, errors):
-    """Issue every burst of the plan concurrently (ids rotate) and wait."""
-    done = []
-
-    async def _one(m, addr, data, txn_id):
-        res = await tb.master_wr[m].write_transaction(addr, data, id=txn_id, size=2)
-        if isinstance(res, dict) and not res.get('success', True):
-            errors.append(f"m{m} write @0x{addr:08X}: {res}")
-        done.append(1)
-
-    for i, (m, addr, data) in enumerate(plan):
-        cocotb.start_soon(_one(m, addr, data, i % 16))
-    for _ in range(20000):
-        if len(done) == len(plan):
-            return
-        await ClockCycles(tb.clock, 5)
-    raise AssertionError(f"only {len(done)}/{len(plan)} write bursts completed")
-
-
-async def _stream_reads(tb, plan, errors):
-    done = []
-
-    async def _one(m, addr, data, txn_id):
-        got = await tb.master_rd[m].read_transaction(addr, burst_len=BEATS, id=txn_id, size=2)
-        if list(got) != data:
-            errors.append(f"m{m} read @0x{addr:08X}: data mismatch")
-        done.append(1)
-
-    for i, (m, addr, data) in enumerate(plan):
-        cocotb.start_soon(_one(m, addr, data, i % 16))
-    for _ in range(20000):
-        if len(done) == len(plan):
-            return
-        await ClockCycles(tb.clock, 5)
-    raise AssertionError(f"only {len(done)}/{len(plan)} read bursts completed")
-
-
-def _report(tb, label, **kv):
-    tb.log.info("PERF " + label + ": " + ", ".join(f"{k}={v:.3f}" if isinstance(v, float) else f"{k}={v}"
-                                                   for k, v in kv.items()))
-
 
 @cocotb.test(timeout_time=20000, timeout_unit="ms")
 async def cocotb_test_bridge_2x2_rw_perf_write_stream(dut):
-    tb = Bridge2x2RwTB(dut)
+    tb = _tb(dut)
     await tb.setup_clocks_and_reset()
     saturate(tb)
     n = BURSTS[tb.level]
@@ -239,7 +117,7 @@ async def cocotb_test_bridge_2x2_rw_perf_write_stream(dut):
 
 @cocotb.test(timeout_time=20000, timeout_unit="ms")
 async def cocotb_test_bridge_2x2_rw_perf_read_stream(dut):
-    tb = Bridge2x2RwTB(dut)
+    tb = _tb(dut)
     await tb.setup_clocks_and_reset()
     saturate(tb)
     n = BURSTS[tb.level]
@@ -265,7 +143,7 @@ async def cocotb_test_bridge_2x2_rw_perf_read_stream(dut):
 async def cocotb_test_bridge_2x2_rw_perf_contention(dut):
     """Both masters stream writes to ddr. The slave port must stay saturated
     and EACH master must get its share -- asserted per master."""
-    tb = Bridge2x2RwTB(dut)
+    tb = _tb(dut)
     await tb.setup_clocks_and_reset()
     saturate(tb)
     n = BURSTS[tb.level]
@@ -305,7 +183,7 @@ async def cocotb_test_bridge_2x2_rw_perf_contention(dut):
 async def cocotb_test_bridge_2x2_rw_perf_parallel(dut):
     """cpu -> ddr and dma -> sram at the same time: two independent paths,
     two beats per cycle across the fabric."""
-    tb = Bridge2x2RwTB(dut)
+    tb = _tb(dut)
     await tb.setup_clocks_and_reset()
     saturate(tb)
     n = BURSTS[tb.level]
@@ -329,13 +207,12 @@ async def cocotb_test_bridge_2x2_rw_perf_parallel(dut):
         f"floor {FLOOR['parallel_total_beats_per_cycle']}")
 
 
-def _run(request, test_level, testcase):
+def _run(request, test_level, testcase, dut_name="bridge_2x2_rw"):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_bridge': '../../../../rtl/bridge',
         'rtl_common': '../../../../rtl/common',
         'rtl_amba': '../../../../rtl/amba'
     })
-    dut_name = "bridge_2x2_rw"
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
         filelist_path=f'projects/components/bridge/rtl/filelists/{dut_name}.f')
@@ -364,6 +241,7 @@ def _run(request, test_level, testcase):
             'COCOTB_LOG_LEVEL': 'INFO',
             'LOG_PATH': log_path,
             'COCOTB_RESULTS_FILE': results_path,
+            'BRIDGE_PERF_DUT': dut_name,
             **level_env(test_level),
             **waves['extra_env'],
         },
@@ -372,21 +250,28 @@ def _run(request, test_level, testcase):
     )
 
 
+DUTS = list(FIXTURES)
+
+
+@pytest.mark.parametrize("dut_name", DUTS)
 @pytest.mark.parametrize("test_level", reg_level_grid())
-def test_bridge_2x2_rw_perf_write_stream(request, test_level):
-    _run(request, test_level, "write_stream")
+def test_bridge_2x2_rw_perf_write_stream(request, test_level, dut_name):
+    _run(request, test_level, "write_stream", dut_name)
 
 
+@pytest.mark.parametrize("dut_name", DUTS)
 @pytest.mark.parametrize("test_level", reg_level_grid())
-def test_bridge_2x2_rw_perf_read_stream(request, test_level):
-    _run(request, test_level, "read_stream")
+def test_bridge_2x2_rw_perf_read_stream(request, test_level, dut_name):
+    _run(request, test_level, "read_stream", dut_name)
 
 
+@pytest.mark.parametrize("dut_name", DUTS)
 @pytest.mark.parametrize("test_level", reg_level_grid())
-def test_bridge_2x2_rw_perf_contention(request, test_level):
-    _run(request, test_level, "contention")
+def test_bridge_2x2_rw_perf_contention(request, test_level, dut_name):
+    _run(request, test_level, "contention", dut_name)
 
 
+@pytest.mark.parametrize("dut_name", DUTS)
 @pytest.mark.parametrize("test_level", reg_level_grid())
-def test_bridge_2x2_rw_perf_parallel(request, test_level):
-    _run(request, test_level, "parallel")
+def test_bridge_2x2_rw_perf_parallel(request, test_level, dut_name):
+    _run(request, test_level, "parallel", dut_name)

@@ -1,0 +1,56 @@
+# Bridge Configuration: bridge_2x2_rw with the REGISTERED crossbar
+# (BRIDGE-017 xbar_pipeline).
+#
+# The same two 32-bit AXI4 masters and two 32-bit AXI4 slaves as
+# bridge_2x2_rw, with a 2-deep skid stage on every slave-side channel inside
+# the crossbar. The pair exists so the option can be measured against its
+# own baseline: the same perf phases must give the same beat rates (the
+# stage is full-throughput) and the structural propagation must be exactly
+# one cycle longer each way (3/3 against the baseline's 2/2).
+# Connectivity comes from bridge_2x2_rw_pipe_connectivity.csv.
+
+[bridge]
+name = "bridge_2x2_rw_pipe"
+variants = ["no"]
+description = "2 master x 2 slave rw bridge, registered crossbar (xbar_pipeline)"
+xbar_pipeline = true
+
+[[bridge.masters]]
+name = "cpu"
+prefix = "cpu_m_axi"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+
+[[bridge.masters]]
+name = "dma"
+prefix = "dma_m_axi"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+
+[[bridge.slaves]]
+name = "ddr"
+prefix = "ddr_s_axi"
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (BRIDGE-016)
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+base_addr = "0x00000000"
+addr_range = "0x80000000"
+
+[[bridge.slaves]]
+name = "sram"
+prefix = "sram_s_axi"
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (BRIDGE-016)
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+base_addr = "0x80000000"
+addr_range = "0x80000000"

@@ -1267,3 +1267,162 @@ def test_wb4_generation_smoke(tmp_path):
     fl = filelist.read_text()
     assert "converters/rtl/filelists/wb4_to_axi4.f" in fl
     assert "converters/rtl/filelists/axi4_to_wb4.f" in fl
+
+
+# ---------------------------------------------------------------------
+# Registered crossbar (BRIDGE-017 xbar_pipeline)
+# ---------------------------------------------------------------------
+
+def test_xbar_pipeline_off_by_default(tmp_path):
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rd"')
+    cfg = load_config(toml, conn)
+    assert cfg.xbar_pipeline is False
+
+
+def test_xbar_pipeline_generation_smoke(tmp_path):
+    """bridge_2x2_rw_pipe: every slave-side channel gets a skid stage inside
+    the xbar, the routing drives xs_* nets, the ports are driven by the
+    stages, and the bridge id rides in the request payload. The baseline
+    fixture's xbar has none of it."""
+    gen, _fl = _generate_fixture(tmp_path, "bridge_2x2_rw_pipe")
+    xbar = (gen / "bridge_2x2_rw_pipe_xbar.sv").read_text()
+    for slave in ("ddr", "sram"):
+        for ch in ("aw", "w", "ar", "b", "r"):
+            assert f"u_xs_{slave}_{ch} (" in xbar, (slave, ch)
+        # The routing targets the pre-stage nets ...
+        assert f"assign xs_{slave}_axi_awvalid" in xbar
+        # ... and the bridge id travels with the AW/AR beats.
+        assert f"xs_{slave}_axi_bridge_id_aw" in xbar and f"xs_{slave}_axi_bridge_id_ar" in xbar
+        # Response mux keys on the STAGED id/valid, never the raw port flag.
+        assert f"xs_{slave}_axi_bid_valid" in xbar and f"xs_{slave}_axi_rid_valid" in xbar
+    # Five channels per slave port, the internal subtractive slave included.
+    assert "u_xs_subtractive_aw (" in xbar
+    assert xbar.count("gaxi_skid_buffer #(.DEPTH(2)") == 15
+
+    base, _ = _generate_fixture(tmp_path / "base", "bridge_2x2_rw")
+    base_xbar = (base / "bridge_2x2_rw_xbar.sv").read_text()
+    assert "gaxi_skid_buffer" not in base_xbar and "xs_ddr_axi_" not in base_xbar
+
+
+# ---------------------------------------------------------------------
+# QoS-with-aging arbitration (BRIDGE-017 arbitration = "qos")
+# ---------------------------------------------------------------------
+
+def test_arbitration_defaults_to_rr(tmp_path):
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rd"')
+    cfg = load_config(toml, conn)
+    assert cfg.arbitration == 'rr' and cfg.qos_aging_shift == 4
+
+
+def test_arbitration_bad_value_rejected(tmp_path):
+    toml = tmp_path / "b.toml"
+    conn = tmp_path / "c.csv"
+    toml.write_text("""
+[bridge]
+name = "b"
+variants = ["no"]
+arbitration = "lottery"
+
+[[bridge.masters]]
+name = "m0"
+prefix = "m0_"
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+
+[[bridge.slaves]]
+name = "s0"
+prefix = "s0_"
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+base_addr = "0x0000_0000"
+addr_range = "0x0001_0000"
+""")
+    conn.write_text("master,s0\nm0,1\n")
+    with pytest.raises(ValueError, match="arbitration must be 'rr' or 'qos'"):
+        load_config(str(toml), str(conn))
+
+
+def test_qos_generation_smoke(tmp_path):
+    """bridge_2x2_rw_qos: every multi-master slave arbiter carries the
+    effective-priority compare and the per-master age counters; the
+    round-robin baseline carries none of it."""
+    gen, _fl = _generate_fixture(tmp_path, "bridge_2x2_rw_qos")
+    xbar = (gen / "bridge_2x2_rw_qos_xbar.sv").read_text()
+    for slave in ("ddr", "sram"):
+        for ch in ("aw", "ar"):
+            arb = f"{slave}_{ch}_arb"
+            assert f"{arb}_age_0" in xbar and f"{arb}_age_1" in xbar, arb
+            assert f"{arb}_best" in xbar and f"{arb}_elig" in xbar, arb
+            # AxQOS is the priority source, aging shifts by the configured amount.
+            assert re.search(rf"5'\(cpu_32b_{ch}\.qos\)", xbar), (slave, ch)
+            assert f"{arb}_age_0 >> 4" in xbar
+    base, _ = _generate_fixture(tmp_path / "base", "bridge_2x2_rw")
+    base_xbar = (base / "bridge_2x2_rw_xbar.sv").read_text()
+    assert "_age_0" not in base_xbar and "_elig" not in base_xbar
+
+
+# ---------------------------------------------------------------------
+# CDC slave ports (BRIDGE-017 cdc = true)
+# ---------------------------------------------------------------------
+
+def test_cdc_on_master_rejected(tmp_path):
+    toml, conn = _write_req_toml(tmp_path, """
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+protocol = "axi4"
+cdc = true
+""")
+    with pytest.raises(ValidationError, match="only legal on a slave port"):
+        load_config(toml, conn)
+
+
+def test_cdc_needs_axi4_slave(tmp_path):
+    toml, conn = _write_req_toml(tmp_path, """
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+protocol = "axi4"
+""", slave_block="""
+[[bridge.slaves]]
+name = "s0"
+prefix = "s0_"
+addr_width = 32
+data_width = 32
+id_width = 0
+channels = "rw"
+protocol = "apb"
+cdc = true
+base_addr = "0x0000_0000"
+addr_range = "0x0001_0000"
+""")
+    with pytest.raises(ValidationError, match='needs protocol = "axi4"'):
+        load_config(toml, conn)
+
+
+def test_cdc_generation_smoke(tmp_path):
+    """bridge_2x2_rw_cdc: ddr has its own clock pins on the top, its adapter
+    takes s_aclk/s_aresetn and puts axi4_cdc_{wr,rd} between the wrapper and
+    the port; sram is unchanged; the filelist pulls the CDC closures."""
+    gen, fl = _generate_fixture(tmp_path, "bridge_2x2_rw_cdc")
+    top = (gen / "bridge_2x2_rw_cdc.sv").read_text()
+    assert re.search(r"input\s+logic[^\n]*ddr_aclk,", top) and re.search(r"input\s+logic[^\n]*ddr_aresetn,", top)
+    assert "sram_aclk" not in top
+    assert ".s_aclk(ddr_aclk)" in top and ".s_aresetn(ddr_aresetn)" in top
+    ddr = (gen / "ddr_adapter.sv").read_text()
+    assert "input  logic s_aclk" in ddr and "axi4_cdc_wr #(" in ddr and "axi4_cdc_rd #(" in ddr
+    # wrapper drives the aclk-side nets; the crossing drives the port
+    assert ".m_axi_awvalid(cdc_ddr_axi_awvalid)" in ddr          # wrapper -> aclk-side net
+    assert ".s_axi_awvalid(cdc_ddr_axi_awvalid)" in ddr          # crossing takes it ...
+    assert ".m_axi_awvalid(ddr_s_axi_awvalid)" in ddr            # ... and drives the port
+    assert ".m_aclk(s_aclk), .m_aresetn(s_aresetn)" in ddr
+    sram = (gen / "sram_adapter.sv").read_text()
+    assert "axi4_cdc" not in sram and "s_aclk" not in sram
+    text = fl.read_text()
+    assert "axi4_cdc_wr.f" in text and "axi4_cdc_rd.f" in text

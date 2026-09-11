@@ -1,0 +1,57 @@
+# Bridge Configuration: bridge_2x2_rw_qos with the registered crossbar as
+# well (BRIDGE-017: arbitration = "qos" AND xbar_pipeline = true).
+#
+# The two options together, because the synthesis sweep (HAS 6.4) showed the
+# QoS arbiter's compare in series with the grant, the AW/AR mux and the slave
+# CAM's allocate -- 14 LUT levels, -2.9 ns at 10 ns on the Artix-7 -1 -- and
+# the crossbar's slave-side skid is the register that splits that path. This
+# fixture measures the combination and runs the generated suite on it.
+# Connectivity comes from bridge_2x2_rw_qos_pipe_connectivity.csv.
+
+[bridge]
+name = "bridge_2x2_rw_qos_pipe"
+variants = ["no"]
+description = "2 master x 2 slave rw bridge, QoS-with-aging arbitration on the registered crossbar"
+xbar_pipeline = true
+arbitration = "qos"
+qos_aging_shift = 4
+
+[[bridge.masters]]
+name = "cpu"
+prefix = "cpu_m_axi"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+
+[[bridge.masters]]
+name = "dma"
+prefix = "dma_m_axi"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+
+[[bridge.slaves]]
+name = "ddr"
+prefix = "ddr_s_axi"
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (BRIDGE-016)
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+base_addr = "0x00000000"
+addr_range = "0x80000000"
+
+[[bridge.slaves]]
+name = "sram"
+prefix = "sram_s_axi"
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (BRIDGE-016)
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+base_addr = "0x80000000"
+addr_range = "0x80000000"

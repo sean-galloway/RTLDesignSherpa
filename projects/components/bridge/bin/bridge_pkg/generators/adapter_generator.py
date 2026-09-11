@@ -78,6 +78,7 @@ class SlaveInfo:
     addr_width: int  # Address width in bits
     protocol: str = 'axi4'  # Protocol type: 'axi4', 'axi5', 'apb', or 'axil'
     enable_ooo: bool = False  # Slave supports out-of-order responses (use CAM vs FIFO)
+    cdc: bool = False  # BRIDGE-017: own clock; axi4_cdc_{wr,rd} before the boundary
     use_monitor: bool = True  # Per-port USE_MONITOR override (see PortSpec)
     # Internal slaves have no top-level pins -- the bridge instantiates
     # something for them and wires the crossbar to it. See PortSpec.internal.

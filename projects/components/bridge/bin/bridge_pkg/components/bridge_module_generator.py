@@ -88,7 +88,10 @@ class BridgeModuleGenerator:
                  use_all_monitors: bool = False,
                  use_no_monitors:  bool = False,
                  use_cfg_regblock: bool = False,
-                 mon_group=None):
+                 mon_group=None,
+                 xbar_pipeline: bool = False,
+                 arbitration: str = 'rr',
+                 qos_aging_shift: int = 4):
         """
         Initialize bridge generator.
 
@@ -118,6 +121,11 @@ class BridgeModuleGenerator:
         # slave, and instantiates the peakrdl-generated cfg regblock
         # (task 90.2) whose hwif_out fields drive the internal cfg nets.
         self.use_cfg_regblock = use_cfg_regblock
+        # BRIDGE-017: registered crossbar (see CrossbarGenerator.pipeline).
+        self.xbar_pipeline = bool(xbar_pipeline)
+        # BRIDGE-017: arbitration policy for every slave arbiter in the xbar.
+        self.arbitration = arbitration
+        self.qos_aging_shift = qos_aging_shift
         # Defaults for the bridge-top USE_ALL_MONITORS / USE_NO_MONITORS
         # SV parameters. The harness can still override these at
         # instantiation -- the TOML just picks the build-time default.
@@ -934,7 +942,10 @@ class BridgeModuleGenerator:
         Returns:
             SystemVerilog crossbar module source
         """
-        xbar_gen = CrossbarGenerator(self.bridge_name, self.masters, self.slaves)
+        xbar_gen = CrossbarGenerator(self.bridge_name, self.masters, self.slaves,
+                                     pipeline=self.xbar_pipeline,
+                                     arbitration=self.arbitration,
+                                     qos_aging_shift=self.qos_aging_shift)
         return xbar_gen.generate()
 
     def _generate_main_bridge(self) -> str:
@@ -1107,6 +1118,10 @@ class BridgeModuleGenerator:
         for n, (i, slave) in enumerate(external_slaves):
             lines.append(f"    // Slave {i}: {slave.name}")
             slave_ports = self._generate_slave_ports(slave)
+            if getattr(slave, 'cdc', False):
+                # BRIDGE-017: the port's own clock domain.
+                slave_ports = [f"    input  logic                  {slave.name}_aclk,",
+                               f"    input  logic                  {slave.name}_aresetn,"] + slave_ports
             if n < len(external_slaves) - 1:
                 slave_ports[-1] = slave_ports[-1] + ","
             lines.extend(slave_ports)
@@ -2364,6 +2379,7 @@ class BridgeModuleGenerator:
                 # external face exposes only the enabled features'
                 # signals, so the instantiation must match.
                 axi5_features=getattr(slave, 'axi5_features', None),
+                cdc=bool(getattr(slave, 'cdc', False)),
             )
             inst.connect_clocks_and_resets()
             inst.connect_xbar_interface()

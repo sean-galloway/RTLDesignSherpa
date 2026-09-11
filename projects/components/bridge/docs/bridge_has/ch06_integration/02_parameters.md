@@ -42,6 +42,22 @@ Every bridge the generator emits starts here: port counts, bus widths, per-port 
 
 : Table 6.8: Bridge Core Parameters
 
+### Registered Crossbar (`xbar_pipeline`)
+
+| TOML key (`[bridge]`) | Type | Default | Effect |
+|---|---|---|---|
+| `xbar_pipeline` | bool | `false` | `true` puts a 2-deep skid stage on every slave-side channel (AW, W, AR, B, R) inside the crossbar. Propagation 3/3 cycles instead of 2/2 (Table 5.7), throughput unchanged. For high-fanout or wide fabrics that miss timing on the arbiter-plus-mux or the response OR-merge cone. Measured (HAS 6.4): the register that splits the arbitration-mux-CAM path; on the Artix-7 at 100 MHz any configuration beyond a plain 2x2 -- QoS, wide ports, more masters -- needs it. |
+| `arbitration` | `"rr"` / `"qos"` | `"rr"` | Per-slave arbitration policy. `"qos"` grants the highest `AxQOS` plus aging (MAS 2.3, Per-Slave Request Arbitration); it decides among requests pending at the arbiter, so it shows at a slave that backpressures AW, not at one that accepts every AW on arrival; equals share round-robin. |
+| `qos_aging_shift` | int 0..7 | 4 | With `"qos"`: a waiting request gains one priority level every `2**shift` cycles, so the worst wait for a QoS-0 request is `15 * 2**shift` cycles. |
+
+: Table 6.8a: Crossbar options (BRIDGE-017)
+
+| TOML key (`[[bridge.slaves]]`) | Type | Default | Effect |
+|---|---|---|---|
+| `cdc` | bool | `false` | `true` gives this AXI4 slave port its own clock: `<name>_aclk` / `<name>_aresetn` on the top, `axi4_cdc_{wr,rd}` between the adapter's timing wrapper and the port (HAS 4.5a). Slave ports, `protocol = "axi4"` only. |
+
+: Table 6.8b: CDC slave port option (BRIDGE-017)
+
 ### Derived Parameters
 
 The generator works these out from the core set — you never write them yourself:
