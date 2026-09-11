@@ -228,11 +228,13 @@ def main(argv: list[str]) -> int:
 
     failures: dict[str, list[str]] = {}
     unchecked: list[str] = []
+    checked_counts: dict[str, int] = {}
     for rel in changed:
         cons = consumers_of(root, rel)
         if not cons:
             unchecked.append(rel)
             continue
+        checked_counts[rel] = len(cons)
         # ONLY THE PINS THIS CHANGE TOUCHED. An area can carry pre-existing
         # pin warnings -- misc had 48 when this was measured on 2026-09-11 --
         # and a gate that fails a commit for somebody else's problem is a gate
@@ -246,6 +248,15 @@ def main(argv: list[str]) -> int:
                    if any(f"'{t}'" in ln for t in touched)]
             if bad:
                 failures.setdefault(fl.stem, []).extend(bad)
+
+    # SAY WHAT WAS EXAMINED. A gate that passes silently and a gate that
+    # examined nothing look identical from outside, which is exactly how this
+    # check sat broken for components without anyone noticing. It only prints
+    # when a port set actually changed, so a normal commit stays quiet.
+    if checked_counts:
+        for rel, n in checked_counts.items():
+            print(f"[port-consumers] {rel}: {n} consumer(s) linted",
+                  file=sys.stderr)
 
     for rel in unchecked:
         mods = MODULE_RE.findall((root / rel).read_text(errors="ignore"))
