@@ -435,30 +435,46 @@ async def rtc_gh56_timeout_sweep_test(dut):
         await tb.deassert_reset()
         await tb.wait_clocks('pclk', RTCMediumTests.COMMIT_SETTLE_CYCLES)
 
+    # DEPTH, and what it means here. Every other test in this area grades by
+    # how many SUITES run; this build exists for one narrow thing, so it
+    # grades by how hard the watchdog is pushed. That is the point Sean made
+    # about levels meaning something different for a component than for a
+    # generic fub: the contract is that all three exist and differ, not that
+    # they differ the same way everywhere.
+    #
+    #   gate  the headline case only -- busy holds when the timeout meets idle
+    #   func  + the queued-commit ORDERINGS (R8-*), one window each
+    #   full  + the same-edge RACES (R9-*), which sweep ~8 pclk points apiece
+    #         and are most of this build's runtime
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
+    tb.log.info(f"GH56 timeout sweep at level '{test_level}'")
+
     results['GH56-16'] = await gh56_tests.test_gh56_busy_holds_when_timeout_meets_idle()
 
     # Fresh reset between sub-tests sharing this build - same isolation
     # discipline used for the sequential test list in the main suite.
-    await _fresh_reset()
-    results['GH56-R8-1'] = await gh56_tests.test_gh56_r8_queued_retry_behind_dead_clock_times_out()
+    if test_level in ('func', 'full'):
+        await _fresh_reset()
+        results['GH56-R8-1'] = await gh56_tests.test_gh56_r8_queued_retry_behind_dead_clock_times_out()
 
-    await _fresh_reset()
-    results['GH56-R8-2'] = await gh56_tests.test_gh56_r8_new_bytes_without_commit_not_delivered()
+        await _fresh_reset()
+        results['GH56-R8-2'] = await gh56_tests.test_gh56_r8_new_bytes_without_commit_not_delivered()
 
-    await _fresh_reset()
-    results['GH56-R8-3'] = await gh56_tests.test_gh56_r8_commit_queued_before_first_timeout_times_out()
+        await _fresh_reset()
+        results['GH56-R8-3'] = await gh56_tests.test_gh56_r8_commit_queued_before_first_timeout_times_out()
 
-    await _fresh_reset()
-    results['GH56-R9-1'] = await gh56_tests.test_gh56_r9_1_new_commit_same_edge_as_pending_expiry()
+        await _fresh_reset()
+        results['GH56-R8-4'] = await gh56_tests.test_gh56_r8_4_report_retires_on_replacement_commit_landing()
 
-    await _fresh_reset()
-    results['GH56-R9-2'] = await gh56_tests.test_gh56_r9_2_accept_same_edge_as_pending_expiry()
+    if test_level == 'full':
+        await _fresh_reset()
+        results['GH56-R9-1'] = await gh56_tests.test_gh56_r9_1_new_commit_same_edge_as_pending_expiry()
 
-    await _fresh_reset()
-    results['GH56-R9-3'] = await gh56_tests.test_gh56_r9_3_resolve_not_transfer_identified()
+        await _fresh_reset()
+        results['GH56-R9-2'] = await gh56_tests.test_gh56_r9_2_accept_same_edge_as_pending_expiry()
 
-    await _fresh_reset()
-    results['GH56-R8-4'] = await gh56_tests.test_gh56_r8_4_report_retires_on_replacement_commit_landing()
+        await _fresh_reset()
+        results['GH56-R9-3'] = await gh56_tests.test_gh56_r9_3_resolve_not_transfer_identified()
 
     for name, ok in results.items():
         tb.log.info(f"{name}: {'PASSED' if ok else 'FAILED'}")
@@ -467,15 +483,20 @@ async def rtc_gh56_timeout_sweep_test(dut):
     assert not failed, f"Failed sub-test(s): {failed}"
 
 
-def test_rtc_gh56_timeout_sweep(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rtc_gh56_timeout_sweep(request, test_level):
     """Pytest wrapper for GH56-16 - separate build, small
-    COMMIT_TIMEOUT_CYCLES (see the module-level comment above)."""
+    COMMIT_TIMEOUT_CYCLES (see the module-level comment above).
+
+    Levelled like every other test in the area (RLB-006): it used to collect
+    exactly one cell at GATE, FUNC and FULL alike, which made it the one test
+    here that did not offer all three."""
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({})
 
     dut_name = "apb4_rtc"
-    test_name_plus_params = "test_rtc_gh56_timeout_sweep"
+    test_name_plus_params = f"test_rtc_gh56_timeout_sweep_{test_level}"
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = sim_build_path(tests_dir, test_name_plus_params)
@@ -502,7 +523,7 @@ def test_rtc_gh56_timeout_sweep(request):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        **level_env(test_level),
         'TEST_APB_CLOCK_PERIOD': str(apb_clock_period_ns),
         'TEST_RTC_CLOCK_PERIOD': str(rtc_clock_period_ns),
         'TEST_COMMIT_TIMEOUT_CYCLES': str(commit_timeout_cycles),

@@ -38,12 +38,23 @@ reviewer's impression:
    example -- every wrapper now parametrizes on `reg_level_grid()` and passes
    `level_env()`, and the stamp is gone. The grid moves now: GATE 21 cells,
    FUNC 41, FULL 61, where all three used to collect 49 and run them all deep.
-5. *No `run()` pins `testcase=`.* Two pins in `test_apb4_rtc.py`, both
+5. *Every test offers gate/func/full.* ONE EXCEPTION, fixed 2026-09-11 after
+   Sean restated the requirement: `test_rtc_gh56_timeout_sweep` collected
+   exactly one cell at GATE, FUNC and FULL alike. It is levelled now, and
+   what the levels MEAN there is deliberately unlike the rest of the area --
+   every other test grades by how many suites run, this build exists for one
+   narrow thing so it grades by how hard the watchdog is pushed: gate is the
+   headline case, func adds the queued-commit orderings, full adds the
+   same-edge races that sweep eight points apiece. The contract is that all
+   three exist and differ, not that they differ the same way everywhere; a
+   component's levels will not mean what a generic fub's do. Verified by
+   collecting all three grids: every test is now 1/2/3 or 2/4/6, none flat.
+6. *No `run()` pins `testcase=`.* Two pins in `test_apb4_rtc.py`, both
    JUSTIFIED and both covered: the module holds two `@cocotb.test()`
    functions that need different `COMMIT_TIMEOUT_CYCLES` builds, and each
    pytest cell pins its own. Checked by AST that no cocotb test in any module
    is unreachable. Nothing hidden.
-6. *A fix landed with a test has its mutation check recorded.* PARTIAL, and
+7. *A fix landed with a test has its mutation check recorded.* PARTIAL, and
    the gap is recorded rather than papered over. ioapic, pit_8254 and rtc
    already carried it in the test file; pm_acpi carries it in the GH54 suite.
    gpio and hpet had it only in their commit messages, which nobody re-reads,
@@ -216,10 +227,44 @@ two stale trackers next to the code instead of recording the open work here.
   destinations itself - it forwards the field and the mode, and the local
   APICs match - so forwarding the mode is the whole of this block's
   responsibility for logical delivery.
-- LowestPriority delivery mode: needs CPU priority tracking the block has no
-  interface for. The mode bits are carried on `irq_out_deliv_mode` unmodified,
-  so SMI/NMI/INIT/ExtINT are already "supported" in the sense the DV suite
-  tests -- the IOAPIC forwards them, it does not act on them.
+- **LowestPriority delivery mode: the IOAPIC half is DONE 2026-09-11, and it
+  is delegated.** Sean's call. An IOAPIC does not track CPU priority and
+  never did: on the APIC bus it broadcast the message and the local APICs
+  arbitrated among themselves using their Arbitration Priority Registers,
+  and one of them accepted. So the destination, the destination mode and the
+  delivery mode were already forwarded unmodified -- the missing half was
+  never the choosing, it was being told the choice FAILED.
+
+  `irq_out_retry` is that half. Qualified by the delivery handshake, it says
+  the receiver consumed the message and nobody could accept, so the interrupt
+  must be offered again. The core now separates two events that used to be
+  one: `w_deliv_done` frees the output stage and moves the rotation, while
+  `w_deliv_accept` (done AND not retry) is what retires an edge latch, sets
+  Remote IRR and latches the delivered vector. Tie the pin low and the
+  channel behaves exactly as it did before.
+
+  WHAT A CONSUMER STILL OWES: the arbitration itself. A LAPIC cluster hanging
+  off this channel receives (vector, destination, destination mode, delivery
+  mode), and for mode 001 it picks the lowest-priority CPU in the destination
+  set and accepts, or refuses with retry if none can. Nothing about that lives
+  here, which is the point of delegating it.
+
+  Known sharp edge, documented rather than papered over: under STATIC priority
+  a refused pin is the lowest eligible number and wins the next arbitration
+  immediately, so a persistent refusal monopolises the channel. Round robin
+  fixes it, which is the same answer static priority's starvation has
+  everywhere else in this block.
+
+  The other modes are still only forwarded: SMI/NMI/INIT/ExtINT ride
+  `irq_out_deliv_mode` unmodified and the IOAPIC does not act on them.
+
+- **Context for the interface shape (Sean, 2026-09-11):** the intent is to
+  hang an open-source IA core, moved onto AMBA, off this block. That is why
+  the delivery channel stays a payload plus a valid/ready handshake plus a
+  status, rather than growing per-CPU priority inputs: a bridge can carry
+  that shape onto a bus (the retry becomes a response), whereas a bundle of
+  live per-CPU priority registers could not cross a bus at all without going
+  stale.
 - ~~Dynamic priority rotation. Arbitration is static, lowest IRQ number wins,
   and a continuously asserted high-priority level pin can starve the rest
   whenever software EOIs it promptly. Round-robin would fix it; that is a
