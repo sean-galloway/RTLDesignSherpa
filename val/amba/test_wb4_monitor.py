@@ -15,6 +15,12 @@ Phases (each checks the monitor-bus packet stream against the stimulus):
   debug       queue active/idle edges
   addr_range  (N_ADDR_RANGES>0 builds) out-of-range address -> WB_ERR_ADDR_RANGE
               tagged PROTOCOL_WB
+
+The transfer and pipelined phases carry a burst-hint pattern, so aux_data is
+checked as {cti, sel, we} on USE_BURST_HINTS=1 builds and as {0, sel, we} on
+the others. The pipelined phase is the one that matters: with several
+transfers open at once, a hint kept anywhere but the tracking entry would be
+reported against the wrong completion.
 """
 import os
 import random
@@ -34,11 +40,13 @@ COUNTS = {'gate': 24, 'func': 96, 'full': 400}
 
 
 def _mix(rng, n, tb):
-    """The traffic for one phase, as (adr, we, sel, dat) tuples.
+    """The traffic for one phase, as (adr, we, sel, dat, cti) tuples.
 
-    The sequence axis owns WHAT transfers happen: the read/write mix and the
-    ERR and RTY windows the TB's slave hook decodes. Seeded from the test's
-    generator so a run stays reproducible.
+    The sequence axis owns WHAT transfers happen: the read/write mix, the ERR
+    and RTY windows the TB's slave hook decodes, and the burst-hint pattern.
+    Seeded from the test's generator so a run stays reproducible. The hints
+    are driven whatever the DUT was built with, so the USE_BURST_HINTS=0
+    build is offered the same traffic and must still report zeros.
     """
     seq = WB4Sequence("monitor.traffic", addr_width=tb.AW, data_width=tb.DW,
                       seed=rng.getrandbits(32))
@@ -46,7 +54,8 @@ def _mix(rng, n, tb):
         n, addr_lo=0, addr_hi=0xD000, write_frac=0.5, align=True, random_sel=True,
         windows=[(ERR_WINDOW[0], ERR_WINDOW[1], 0.10),
                  (RTY_WINDOW[0], RTY_WINDOW[1], 0.10)])
-    return [(t.adr, t.we, t.sel, t.dat_w) for t in seq]
+    seq.assign_burst_hints()
+    return [(t.adr, t.we, t.sel, t.dat_w, t.cti) for t in seq]
 
 
 @cocotb.test(timeout_time=60, timeout_unit="ms")
@@ -210,21 +219,36 @@ async def wb4_monitor_test(dut):
                              f"{[(p.protocol, p.event_code) for p in pk]}")
         d.cfg_addr_check_enable.value = 0
 
+    # --- the hints were only proven if a non-classic one was driven -------
+    if tb.burst_hints and not tb.hints_seen:
+        tb.errors.append("USE_BURST_HINTS=1 but no non-classic CTI reached a packet")
+
     tb.done = True
     assert tb.report(), f"wb4_monitor failed: {tb.errors[:5]}"
 
 
 def _params():
+    """(addr_width, data_width, max_transactions, n_addr_ranges, hints, level)
+
+    `hints` is USE_BURST_HINTS. Both settings are covered: with it on the
+    completion's aux byte must carry the transfer's own CTI, with it off
+    those three bits must read zero whatever cmd_cti was driven to.
+    """
     levels = os.environ.get('TEST_LEVEL', 'gate').split(',')
-    return [(32, 32, 8, 0, lv) for lv in levels] + [(32, 32, 4, 2, lv) for lv in levels] + \
-           [(16, 64, 8, 0, lv) for lv in levels if lv != 'gate']
+    return [(32, 32, 8, 0, 0, lv) for lv in levels] + \
+           [(32, 32, 8, 0, 1, lv) for lv in levels] + \
+           [(32, 32, 4, 2, 0, lv) for lv in levels] + \
+           [(16, 64, 8, 0, 1, lv) for lv in levels if lv != 'gate']
 
 
-@pytest.mark.parametrize("addr_width, data_width, max_transactions, n_addr_ranges, test_level", _params())
-def test_wb4_monitor(request, addr_width, data_width, max_transactions, n_addr_ranges, test_level):
+@pytest.mark.parametrize(
+    "addr_width, data_width, max_transactions, n_addr_ranges, hints, test_level", _params())
+def test_wb4_monitor(request, addr_width, data_width, max_transactions, n_addr_ranges,
+                     hints, test_level):
     """wb4_monitor (rtl/amba/wb4/wb4_monitor.sv) driven on both queues by GAXI BFMs,
     packets decoded through the shared MonbusSlave/parse path."""
-    tag = f"aw{addr_width:03d}_dw{data_width:03d}_mt{max_transactions}_ar{n_addr_ranges}_{test_level}"
+    tag = (f"aw{addr_width:03d}_dw{data_width:03d}_mt{max_transactions}_ar{n_addr_ranges}"
+           f"_{'hint' if hints else 'nohint'}_{test_level}")
     unit_id, agent_id = 1, 11
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -239,11 +263,13 @@ def test_wb4_monitor(request, addr_width, data_width, max_transactions, n_addr_r
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     rtl_parameters = {'ADDR_WIDTH': str(addr_width), 'DATA_WIDTH': str(data_width),
                       'MAX_TRANSACTIONS': str(max_transactions), 'N_ADDR_RANGES': str(n_addr_ranges),
-                      'UNIT_ID': str(unit_id), 'AGENT_ID': str(agent_id)}
+                      'UNIT_ID': str(unit_id), 'AGENT_ID': str(agent_id),
+                      'USE_BURST_HINTS': str(hints)}
     extra_env = {
         'TEST_LEVEL': test_level, 'ADDR_WIDTH': str(addr_width), 'DATA_WIDTH': str(data_width),
         'MAX_TRANSACTIONS': str(max_transactions), 'N_ADDR_RANGES': str(n_addr_ranges),
         'UNIT_ID': str(unit_id), 'AGENT_ID': str(agent_id),
+        'USE_BURST_HINTS': str(hints),
         'TRACE_FILE': f"{sim_build}/dump.fst", 'VERILATOR_TRACE': '1' if enable_waves else '0',
         'DUT': 'wb4_monitor', 'LOG_PATH': log_path, 'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': os.path.join(log_dir, f'results_{name}.xml'),

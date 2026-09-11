@@ -38,13 +38,21 @@
 //     PROTOCOL_WB; its packets take second priority behind the event FIFO
 //   - Lossy-but-honest: a tracking overflow or a dropped packet (FIFO full)
 //     is reported (WB_ERR_TRACK_LOST) or counted, never wedges the queue
+//   - USE_BURST_HINTS=1 reports the transfer's CTI in aux_data[7:5], which
+//     is otherwise zero; BTE is not reported, there is no room for it
 //
 //------------------------------------------------------------------------------
 // Parameters:
 //------------------------------------------------------------------------------
 //   USE_MONITOR, N_ADDR_RANGES, ADDR_WIDTH, DATA_WIDTH, UNIT_ID, AGENT_ID,
 //   MAX_TRANSACTIONS (queue depth, power of two recommended),
-//   MONITOR_FIFO_DEPTH (event FIFO)
+//   MONITOR_FIFO_DEPTH (event FIFO),
+//   USE_BURST_HINTS: 0 = aux_data[7:5] reads zero and cmd_cti is ignored,
+//     which is what every consumer got before the hints existed. 1 = the
+//     transfer's CTI is carried in the tracking queue and reported in
+//     aux_data[7:5] of its completion / error packet. Only CTI fits: the
+//     aux byte has exactly three spare bits, which is WB4_CTI_WIDTH, so BTE
+//     is deliberately not reported.
 //
 //------------------------------------------------------------------------------
 // Behavior:
@@ -87,11 +95,14 @@ module wb4_monitor
     parameter logic [15:0] AGENT_ID   = 16'h000B,
     parameter int MAX_TRANSACTIONS    = 8,      // in-order tracking queue depth
     parameter int MONITOR_FIFO_DEPTH  = 8,
+    // Report the B4 burst hint (CTI only) in aux_data[7:5]; see the header.
+    parameter int USE_BURST_HINTS     = 0,
     // Short params
     parameter int AW  = ADDR_WIDTH,
     parameter int DW  = DATA_WIDTH,
     parameter int SW  = DW/8,
-    parameter int STW = WB4_STATUS_WIDTH
+    parameter int STW = WB4_STATUS_WIDTH,
+    parameter int CTW = WB4_CTI_WIDTH
 )
 (
     input  logic                     aclk,
@@ -104,6 +115,7 @@ module wb4_monitor
     input  logic [AW-1:0]            cmd_adr,
     input  logic [DW-1:0]            cmd_dat,
     input  logic [SW-1:0]            cmd_sel,
+    input  logic [CTW-1:0]           cmd_cti,   // ignored when USE_BURST_HINTS=0
 
     // Response queue being watched
     input  logic                     rsp_valid,
@@ -162,10 +174,17 @@ module wb4_monitor
     localparam int QW = $clog2(MAX_TRANSACTIONS);          // index width
     localparam int CW = $clog2(MAX_TRANSACTIONS + 1);      // occupancy width
 
+    // With the hints compiled out, aux_data[7:5] must read zero rather than
+    // whatever happens to be on an unused input, so every consumer written
+    // before the hints existed decodes the same packet it always did.
+    logic [CTW-1:0] w_cmd_cti;
+    assign w_cmd_cti = (USE_BURST_HINTS != 0) ? cmd_cti : CTW'(WB4_CTI_CLASSIC);
+
     typedef struct packed {
         logic          we;
         logic [AW-1:0] adr;
         logic [3:0]    sel4;           // low 4 select bits, for aux_data
+        logic [CTW-1:0] cti;           // burst hint, for aux_data (hints only)
         logic [31:0]   t_issue;
         logic          rsp_timed_out;  // WB_TIMEOUT_RSP already reported
     } track_t;
@@ -226,6 +245,7 @@ module wb4_monitor
                 r_q[r_tail].we            <= cmd_we;
                 r_q[r_tail].adr           <= cmd_adr;
                 r_q[r_tail].sel4          <= 4'(cmd_sel);
+                r_q[r_tail].cti           <= w_cmd_cti;
                 r_q[r_tail].t_issue       <= r_timestamp;
                 r_q[r_tail].rsp_timed_out <= 1'b0;
                 r_tail <= (32'(r_tail) == MAX_TRANSACTIONS - 1) ? '0 : r_tail + 1'b1;
@@ -297,8 +317,11 @@ module wb4_monitor
     logic [7:0]     w_aux_head, w_aux_cmd;
     logic [31:0]    w_adr_head, w_adr_cmd;
 
-    assign w_aux_head = {3'h0, w_head.sel4, w_head.we};
-    assign w_aux_cmd  = {3'h0, 4'(cmd_sel), cmd_we};
+    // The hint rides in the tracking entry, so a completion reports the CTI
+    // of ITS OWN transfer even with several in flight; w_aux_cmd describes
+    // the request on the wires right now, so it reads cmd_cti directly.
+    assign w_aux_head = {w_head.cti, w_head.sel4, w_head.we};
+    assign w_aux_cmd  = {w_cmd_cti, 4'(cmd_sel), cmd_we};
     assign w_adr_head = 32'(w_head.adr);
     assign w_adr_cmd  = 32'(cmd_adr);
 
@@ -473,7 +496,8 @@ module wb4_monitor
     // Ports kept for family uniformity that this monitor does not act on yet.
     /* verilator lint_off UNUSEDSIGNAL */
     logic w_unused;
-    assign w_unused = ^{cfg_throughput_enable, cfg_debug_level, cfg_throughput_threshold, cmd_dat, rsp_dat[DW-1:1]};
+    assign w_unused = ^{cfg_throughput_enable, cfg_debug_level, cfg_throughput_threshold,
+                        cmd_dat, rsp_dat[DW-1:1], cmd_cti};
     /* verilator lint_on UNUSEDSIGNAL */
 
 `ifdef FORMAL

@@ -36,6 +36,7 @@ module formal_wb4_monitor (
     (* anyseq *) reg [AW-1:0]     cmd_adr;
     (* anyseq *) reg [DW-1:0]     cmd_dat;
     (* anyseq *) reg [SW-1:0]     cmd_sel;
+    (* anyseq *) reg [2:0]        cmd_cti;
     (* anyseq *) reg              rsp_valid;
     (* anyseq *) reg              rsp_ready;
     (* anyseq *) reg [1:0]        rsp_status;
@@ -71,7 +72,11 @@ module formal_wb4_monitor (
         .UNIT_ID            (UNIT_ID),
         .AGENT_ID           (AGENT_ID),
         .MAX_TRANSACTIONS   (MAX_TRANS),
-        .MONITOR_FIFO_DEPTH (FIFO_DEPTH)
+        .MONITOR_FIFO_DEPTH (FIFO_DEPTH),
+        // Proved with the hints ON: the tie-off case is strictly weaker, and
+        // an unconstrained cmd_cti exercises every encoding including the
+        // reserved ones.
+        .USE_BURST_HINTS    (1)
     ) dut (
         .aclk                   (clk),
         .aresetn                (rst_n),
@@ -81,6 +86,7 @@ module formal_wb4_monitor (
         .cmd_adr                (cmd_adr),
         .cmd_dat                (cmd_dat),
         .cmd_sel                (cmd_sel),
+        .cmd_cti                (cmd_cti),
         .rsp_valid              (rsp_valid),
         .rsp_ready              (rsp_ready),
         .rsp_status             (rsp_status),

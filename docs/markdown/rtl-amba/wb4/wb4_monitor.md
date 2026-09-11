@@ -58,6 +58,7 @@ with the oldest open request by construction.
 | AGENT_ID | logic [15:0] | 16'h000B | Agent id stamped into every packet |
 | MAX_TRANSACTIONS | int | 8 | Depth of the in-order tracking queue; transfers open at once beyond it are reported, not tracked |
 | MONITOR_FIFO_DEPTH | int | 8 | Event FIFO depth between event selection and the monitor bus |
+| USE_BURST_HINTS | int | 0 | 1 reports the transfer's `CTI` in `aux_data[7:5]`; 0 leaves those bits zero and ignores `cmd_cti` |
 
 `MAX_TRANSACTIONS` should match the `RSP_DEPTH` of the `wb4_master` (or the
 `MAX_OUTSTANDING` of the `wb4_slave`) it watches; those bound how many
@@ -78,7 +79,8 @@ module wb4_monitor
     parameter logic [7:0]  UNIT_ID    = 8'h01,
     parameter logic [15:0] AGENT_ID   = 16'h000B,
     parameter int MAX_TRANSACTIONS    = 8,
-    parameter int MONITOR_FIFO_DEPTH  = 8
+    parameter int MONITOR_FIFO_DEPTH  = 8,
+    parameter int USE_BURST_HINTS     = 0
 )
 (
     input  logic                     aclk,
@@ -91,6 +93,7 @@ module wb4_monitor
     input  logic [AW-1:0]            cmd_adr,
     input  logic [DW-1:0]            cmd_dat,
     input  logic [SW-1:0]            cmd_sel,
+    input  logic [CTW-1:0]           cmd_cti,   // ignored when USE_BURST_HINTS=0
 
     // Response queue being watched
     input  logic                     rsp_valid,
@@ -167,8 +170,8 @@ responses and tracking overflows.
 
 ### Transaction Tracking
 
-A command handshake pushes `{we, adr, sel[3:0], timestamp}` at the tail of
-the queue; a response handshake pops the head. The head is the transfer the
+A command handshake pushes `{we, adr, sel[3:0], cti, timestamp}` at the tail
+of the queue; a response handshake pops the head. The head is the transfer the
 response belongs to, because B4 terminates in issue order. Two edge cases
 are reported rather than guessed at:
 
@@ -184,16 +187,25 @@ are reported rather than guessed at:
 
 | Event | Packet type | Event code | event_data[31:0] | aux (event_data[39:32]) |
 |---|---|---|---|---|
-| Termination `ACK` | Completion | `WB_COMPL_READ` / `WB_COMPL_WRITE` | address | `{3'b0, sel[3:0], we}` |
-| Termination `RTY` | Completion | `WB_COMPL_RTY` | address | `{3'b0, sel[3:0], we}` |
-| Termination `ERR` | Error | `WB_ERR_ERR` | address | `{3'b0, sel[3:0], we}` |
+| Termination `ACK` | Completion | `WB_COMPL_READ` / `WB_COMPL_WRITE` | address | `{cti[2:0], sel[3:0], we}` |
+| Termination `RTY` | Completion | `WB_COMPL_RTY` | address | `{cti[2:0], sel[3:0], we}` |
+| Termination `ERR` | Error | `WB_ERR_ERR` | address | `{cti[2:0], sel[3:0], we}` |
 | Response, nothing open | Error | `WB_ERR_ORPHAN_RSP` | `rsp_dat` | `{6'b0, status}` |
-| Command, queue full | Error | `WB_ERR_TRACK_LOST` | address | `{3'b0, sel[3:0], we}` |
+| Command, queue full | Error | `WB_ERR_TRACK_LOST` | address | `{cti[2:0], sel[3:0], we}` |
 | `cmd_valid` stalled | Timeout | `WB_TIMEOUT_CMD` | address on `cmd_adr` | stall count (low 8 bits) |
 | Head transfer late | Timeout | `WB_TIMEOUT_RSP` | head address | age (low 8 bits) |
-| Latency over threshold | Perf | `WB_PERF_READ_LATENCY` / `WB_PERF_WRITE_LATENCY` | latency in clocks | `{3'b0, sel[3:0], we}` |
+| Latency over threshold | Perf | `WB_PERF_READ_LATENCY` / `WB_PERF_WRITE_LATENCY` | latency in clocks | `{cti[2:0], sel[3:0], we}` |
 | Queue non-empty / empty | Debug | `WB_DEBUG_QUEUE_ACTIVE` / `WB_DEBUG_QUEUE_IDLE` | occupancy | 0 |
 | Address out of range | Error | `WB_ERR_ADDR_RANGE` | see `apb_monitor_addr_check` | see `apb_monitor_addr_check` |
+
+`cti[2:0]` is zero on a `USE_BURST_HINTS=0` build, which is what every
+consumer decoded before the hints existed, so the packet format did not
+change for anyone who does not ask for them. Only `CTI` is reported: the aux
+byte has exactly three spare bits, which is `WB4_CTI_WIDTH`, and `BTE` is
+deliberately left out rather than squeezed in. The hint travels **in the
+tracking entry**, so a completion reports the `CTI` of its own transfer even
+with several open at once -- reading `cmd_cti` at completion time would
+report whatever request happened to be on the queue then.
 
 `RTY` is a completion, not an error: the FUB decides whether to retry, and
 the monitor reports what the slave said. Each timeout fires **once**: the

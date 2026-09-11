@@ -66,31 +66,53 @@ async def wb4_master_test(dut):
         assert peak > 1, f"max_inflight={peak}: never pipelined"
     s = tb.slave.stats
     assert s['ack'] and s['err'] and s['rty'], f"not every status exercised: {s}"
+    # The hints are only proven if they were actually on the wires. The
+    # monitor is a third party watching m_wb_CTI/m_wb_BTE, so its count is
+    # the evidence -- tb.stats counts only what the TB intended to drive.
+    if tb.burst_hints:
+        assert tb.stats['eob'], "no end-of-burst transfer was driven"
+        assert tb.mon.bursts, "the monitor saw no burst hint on the wires"
+    else:
+        assert not tb.mon.bursts, (
+            f"USE_BURST_HINTS=0 must tie the bus to CLASSIC, monitor saw {tb.mon.bursts}")
 
 
 def generate_test_params():
-    """(addr_width, data_width, cmd_depth, rsp_depth, classic, test_level)"""
+    """(addr_width, data_width, cmd_depth, rsp_depth, classic, hints, test_level)
+
+    `hints` is USE_BURST_HINTS. Both settings are covered from GATE up,
+    because the two are opposite claims about the same wires: with it on the
+    monitor must see the pattern the sequence laid, with it off it must see
+    CLASSIC/LINEAR whatever the command queue was handed.
+    """
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
     if reg_level == 'GATE':
-        return [(32, 32, 4, 4, 0, 'gate'), (32, 32, 4, 4, 1, 'gate')]
+        return [(32, 32, 4, 4, 0, 0, 'gate'), (32, 32, 4, 4, 0, 1, 'gate'),
+                (32, 32, 4, 4, 1, 0, 'gate')]
     if reg_level == 'FUNC':
-        return [(32, 32, 4, 4, 0, 'func'), (32, 64, 2, 2, 0, 'func'), (32, 32, 8, 8, 0, 'func'),
-                (32, 32, 4, 4, 1, 'func'), (32, 64, 2, 2, 1, 'func')]
-    return list(product([32], [32, 64], [2, 4, 8], [2, 4, 8], [0, 1], ['full']))
+        return [(32, 32, 4, 4, 0, 0, 'func'), (32, 64, 2, 2, 0, 0, 'func'),
+                (32, 32, 8, 8, 0, 0, 'func'), (32, 32, 4, 4, 0, 1, 'func'),
+                (32, 64, 2, 2, 0, 1, 'func'),
+                (32, 32, 4, 4, 1, 0, 'func'), (32, 64, 2, 2, 1, 0, 'func'),
+                (32, 32, 4, 4, 1, 1, 'func')]
+    return list(product([32], [32, 64], [2, 4, 8], [2, 4, 8], [0, 1], [0, 1], ['full']))
 
 
-@pytest.mark.parametrize("addr_width, data_width, cmd_depth, rsp_depth, classic, test_level",
-                         generate_test_params())
-def test_wb4_master(request, addr_width, data_width, cmd_depth, rsp_depth, classic, test_level):
+@pytest.mark.parametrize(
+    "addr_width, data_width, cmd_depth, rsp_depth, classic, hints, test_level",
+    generate_test_params())
+def test_wb4_master(request, addr_width, data_width, cmd_depth, rsp_depth, classic,
+                    hints, test_level):
     """wb4_master (rtl/amba/wb4/wb4_master.sv) against the framework Wishbone slave
     in the same mode (pipelined, or classic with CLASSIC=1)."""
     tag = (f"aw{addr_width:03d}_dw{data_width:03d}_cd{cmd_depth}_rd{rsp_depth}"
-           f"_{'classic' if classic else 'pipe'}_{test_level}")
+           f"_{'classic' if classic else 'pipe'}_{'hint' if hints else 'nohint'}_{test_level}")
     _run(request, "wb4_master", "rtl/amba/filelists/wb4_master.f", tag,
          {'ADDR_WIDTH': str(addr_width), 'DATA_WIDTH': str(data_width),
-          'CMD_DEPTH': str(cmd_depth), 'RSP_DEPTH': str(rsp_depth), 'CLASSIC': str(classic)},
+          'CMD_DEPTH': str(cmd_depth), 'RSP_DEPTH': str(rsp_depth), 'CLASSIC': str(classic),
+          'USE_BURST_HINTS': str(hints)},
          {'TEST_LEVEL': test_level, 'ADDR_WIDTH': str(addr_width), 'DATA_WIDTH': str(data_width),
-          'CLASSIC': str(classic)})
+          'CLASSIC': str(classic), 'USE_BURST_HINTS': str(hints)})
 
 def _run(request, dut_name, filelist, tag, rtl_parameters, extra_env):
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')

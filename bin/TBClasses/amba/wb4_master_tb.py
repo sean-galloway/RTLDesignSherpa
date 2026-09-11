@@ -19,6 +19,12 @@ decides the termination: ERR inside ERR_WINDOW, RTY inside RTY_WINDOW, ACK
 elsewhere. Its completed packets (in order) are the expectation: each
 response the DUT returns on rsp_* must carry that packet's status and read
 data, and each request the slave saw must be the command the TB queued.
+
+Burst hints (USE_BURST_HINTS=1) are checked the same way, and this is the
+only place they can be: the loopback test has the DUT on both ends, so it
+proves the command queue carried a hint, not that the hint reached the bus.
+Here the WB4Monitor is a third party on the wires, so what it reports is
+what m_wb_CTI/m_wb_BTE actually were on the clock the request was accepted.
 """
 
 import os
@@ -32,7 +38,8 @@ from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master, c
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from CocoTBFramework.components.wb4.wb4_factories import create_wb4_monitor, create_wb4_slave
 from CocoTBFramework.components.wb4.wb4_sequence import WB4Sequence
-from CocoTBFramework.components.shared.wb4_common import WB4_STATUS_ERR, WB4_STATUS_RTY
+from CocoTBFramework.components.shared.wb4_common import (
+    WB4_CTI_EOB, WB4_STATUS_ERR, WB4_STATUS_RTY)
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
 
@@ -59,10 +66,15 @@ class WB4MasterTB(TBBase):
         self.DW = self.convert_to_int(os.environ.get('DATA_WIDTH', '32'))
         self.SW = self.DW // 8
         self.classic = os.environ.get('CLASSIC', '0') == '1'   # DUT built CLASSIC=1
+        # The DUT carries the hints only when built USE_BURST_HINTS=1. The TB
+        # drives them either way so cmd_cti/cmd_bte are never X, and expects
+        # CLASSIC/LINEAR on the bus when the DUT is not carrying them.
+        self.burst_hints = os.environ.get('USE_BURST_HINTS', '0') == '1'
         self.sent = deque()          # commands queued by the TB, in order
         self.got = deque()           # (status, dat) seen on rsp_*
+        self.seen = deque()          # request packets the MONITOR saw, in order
         self.errors = []
-        self.stats = {'sent': 0, 'responses': 0}
+        self.stats = {'sent': 0, 'responses': 0, 'bursts': 0, 'eob': 0}
 
         self.cmd_fc = FieldConfig()
         self.cmd_fc.add_field(FieldDefinition(name="we", bits=1, default=0, format="bin", display_width=1))
@@ -72,6 +84,13 @@ class WB4MasterTB(TBBase):
                                               display_width=(self.DW + 3) // 4))
         self.cmd_fc.add_field(FieldDefinition(name="sel", bits=self.SW, default=(1 << self.SW) - 1,
                                               format="bin", display_width=self.SW))
+        # cmd_cti/cmd_bte are ports whatever USE_BURST_HINTS is, so they are
+        # always in the field config: an undriven input would sit at X and
+        # the DUT would pack an X into its command queue.
+        self.cmd_fc.add_field(FieldDefinition(name="cti", bits=3, default=0, format="bin",
+                                              display_width=3))
+        self.cmd_fc.add_field(FieldDefinition(name="bte", bits=2, default=0, format="bin",
+                                              display_width=2))
         self.rsp_fc = FieldConfig()
         self.rsp_fc.add_field(FieldDefinition(name="status", bits=2, default=0, format="dec", display_width=1))
         self.rsp_fc.add_field(FieldDefinition(name="dat", bits=self.DW, default=0, format="hex",
@@ -96,6 +115,7 @@ class WB4MasterTB(TBBase):
             randomizer=FlexRandomizer(SLAVE_PROFILES['fixed']), classic=self.classic, log=self.log)
         self.mon = create_wb4_monitor(dut, 'WB Mon', 'm_wb', self.clk, addr_width=self.AW,
                                       data_width=self.DW, classic=self.classic, log=self.log)
+        self.mon.add_callback(self._on_mon)
 
     # ---- mandatory ------------------------------------------------------
     async def setup_clocks_and_reset(self):
@@ -138,6 +158,10 @@ class WB4MasterTB(TBBase):
         self.stats['responses'] += 1
         self.got.append((int(pkt.status), int(pkt.dat)))
 
+    def _on_mon(self, pkt):
+        """Every transfer the monitor saw terminate on the wires, in order."""
+        self.seen.append(pkt)
+
     def _sequence(self, rng, count, mix):
         """The traffic for one phase, as a WB4Sequence.
 
@@ -154,6 +178,11 @@ class WB4MasterTB(TBBase):
             write_frac=0.5, align=True, random_sel=True,
             windows=[(ERR_WINDOW[0], ERR_WINDOW[1], mix / 2),
                      (RTY_WINDOW[0], RTY_WINDOW[1], mix / 2)])
+        # The hint pattern is the sequence's, not this TB's: runs of INCR
+        # closed by EOB with classic transfers between. Laid on whatever the
+        # DUT was built with, so the USE_BURST_HINTS=0 build is driven the
+        # same traffic and must still show CLASSIC/LINEAR on its bus.
+        seq.assign_burst_hints()
         return seq
 
     async def trace_wires(self, cycles):
@@ -179,9 +208,14 @@ class WB4MasterTB(TBBase):
         # the DUT could never be offered work fast enough to fill its credit.
         pkts = []
         for t in self._sequence(rng, count, mix):
-            self.sent.append((t.we, t.adr, t.dat_w, t.sel))
+            # What the bus must show: the hint only when the DUT carries it.
+            cti, bte = (t.cti, t.bte) if self.burst_hints else (0, 0)
+            self.sent.append((t.we, t.adr, t.dat_w, t.sel, cti, bte))
+            self.stats['bursts'] += int(cti != 0)
+            self.stats['eob'] += int(cti == WB4_CTI_EOB)
             pkt = GAXIPacket(self.cmd_fc)
             pkt.we, pkt.adr, pkt.dat, pkt.sel = t.we, t.adr, t.dat_w, t.sel
+            pkt.cti, pkt.bte = t.cti, t.bte
             self.stats['sent'] += 1
             pkts.append(pkt)
         await self.cmd.send_burst(pkts)
@@ -197,13 +231,23 @@ class WB4MasterTB(TBBase):
     def check(self):
         """Pair what the slave BFM serviced with what the TB sent and what
         the DUT returned, all in order."""
-        while self.slave.sentQ and self.got and self.sent:
+        while self.slave.sentQ and self.got and self.sent and self.seen:
             spkt = self.slave.sentQ.popleft()
-            we, adr, dat, sel = self.sent.popleft()
+            mpkt = self.seen.popleft()
+            we, adr, dat, sel, cti, bte = self.sent.popleft()
             status, rdat = self.got.popleft()
             seen = (int(spkt.we), int(spkt.adr), int(spkt.dat_w), int(spkt.sel))
             if seen != (we, adr, dat, sel):
                 self.errors.append(f"request on the bus {seen} != command sent {(we, adr, dat, sel)}")
+            # The hints, read off the wires twice over: by the slave that
+            # accepted the request and by the passive monitor watching it.
+            for who, pkt in (('slave', spkt), ('monitor', mpkt)):
+                got_hint = (int(pkt.cti), int(pkt.bte))
+                if got_hint != (cti, bte):
+                    self.errors.append(
+                        f"burst hint mispaired at adr=0x{adr:X} ({who}): got "
+                        f"cti={got_hint[0]:03b} bte={got_hint[1]:02b}, "
+                        f"expected cti={cti:03b} bte={bte:02b}")
             exp = (int(spkt.status), int(spkt.dat_r) if int(spkt.status) == 0 and not int(spkt.we) else None)
             if status != exp[0] or (exp[1] is not None and rdat != exp[1]):
                 self.errors.append(f"response ({status}, 0x{rdat:X}) != slave termination "
@@ -214,6 +258,9 @@ class WB4MasterTB(TBBase):
         v = self.mon.total_violations()
         if v:
             self.errors.append(f"{v} Wishbone protocol violation(s): {self.mon.violations}")
+        self.log.info(f"hints={'on' if self.burst_hints else 'off'} "
+                      f"bursts={self.stats['bursts']} eob={self.stats['eob']} "
+                      f"mon_bursts={self.mon.bursts}")
         self.log.info(f"sent={self.stats['sent']} responses={self.stats['responses']} "
                       f"slave={self.slave.stats} mon: accepted={self.mon.accepted} "
                       f"terminated={self.mon.terminated} max_inflight={self.mon.max_inflight} "

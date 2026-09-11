@@ -36,7 +36,6 @@ FlexRandomizer timing profiles.
 """
 
 import os
-import random
 from collections import deque
 
 from cocotb.triggers import RisingEdge
@@ -86,29 +85,11 @@ class WB4MasterSlaveLoopTB(TBBase):
         # The TB always drives them so the pins are never X, and only checks
         # them through when the DUT is carrying them.
         self.burst_hints = os.environ.get('USE_BURST_HINTS', '0') == '1'
-        self._burst_left = 0
-        self._hint_rng = random.Random(0xB0157)
         self.cmd_fc = self._cmd_field_config()
         self.rsp_fc = self._rsp_field_config()
         self._create_bfms()
 
     # ---- field configs (MSB-first order matches the RTL packing) -----------
-    def _next_hint(self):
-        """Walk a plausible B4 registered-feedback pattern: runs of an
-        incrementing burst closed by an end-of-burst transfer, with classic
-        transfers between them. The blocks do not act on the hints, so the
-        pattern only has to be varied and self-describing, not legal traffic
-        for a particular slave."""
-        if not self.burst_hints:
-            return 0, 0
-        if self._burst_left > 0:
-            self._burst_left -= 1
-            return (0b111, 0b00) if self._burst_left == 0 else (0b010, 0b00)
-        if self._hint_rng.random() < 0.4:
-            self._burst_left = self._hint_rng.randint(2, 5)
-            return 0b010, self._hint_rng.choice([0b00, 0b01, 0b10, 0b11])
-        return 0b000, 0b00
-
     def _cmd_field_config(self):
         fc = FieldConfig()
         fc.add_field(FieldDefinition(name="we", bits=1, default=0, format="bin",
@@ -219,8 +200,9 @@ class WB4MasterSlaveLoopTB(TBBase):
         # Burst hints are advisory and neither block acts on them, but they
         # must arrive with THEIR OWN transfer: a hint that slipped a transfer
         # would mark the wrong one end-of-burst. With the hints compiled out
-        # the slave's FUB reads CLASSIC/LINEAR whatever the master was given.
-        want_cti, want_bte = (exp[4], exp[5]) if self.burst_hints else (0, 0)
+        # the sequence is cleared to CLASSIC/LINEAR, so this same comparison
+        # is the check that the DUT ties the bus off.
+        want_cti, want_bte = exp[4], exp[5]
         if (cti, bte) != (want_cti, want_bte):
             self.errors.append(f"burst hint mispaired at adr=0x{adr:X}: got cti={cti} bte={bte}, "
                                f"expected cti={want_cti} bte={want_bte}")
@@ -284,6 +266,13 @@ class WB4MasterSlaveLoopTB(TBBase):
             align=False, random_sel=True,
             windows=[(ERR_WINDOW[0], ERR_WINDOW[1], mix / 2),
                      (RTY_WINDOW[0], RTY_WINDOW[1], mix / 2)])
+        # The hint pattern belongs to the sequence axis, same as the address
+        # windows do. A DUT built USE_BURST_HINTS=0 must show CLASSIC/LINEAR
+        # on its bus whatever it was handed, so the hints are cleared rather
+        # than never laid -- the command queue still carries a varied pattern.
+        seq.assign_burst_hints()
+        if not self.burst_hints:
+            seq.clear_burst_hints()
         return seq
 
     async def run_traffic(self, count, rng, mix=0.2, timeout_clocks=20000):
@@ -294,11 +283,10 @@ class WB4MasterSlaveLoopTB(TBBase):
         # the producer to one command per ~3 clocks regardless of profile).
         pkts = []
         for t in self._sequence(rng, count, mix):
-            cti, bte = self._next_hint()
-            self.sent.append((t.we, t.adr, t.dat_w, t.sel, cti, bte))
+            self.sent.append((t.we, t.adr, t.dat_w, t.sel, t.cti, t.bte))
             pkt = GAXIPacket(self.cmd_fc)
             pkt.we, pkt.adr, pkt.dat, pkt.sel = t.we, t.adr, t.dat_w, t.sel
-            pkt.cti, pkt.bte = cti, bte
+            pkt.cti, pkt.bte = t.cti, t.bte
             self.stats['sent'] += 1
             pkts.append(pkt)
         await self.m_cmd.send_burst(pkts)

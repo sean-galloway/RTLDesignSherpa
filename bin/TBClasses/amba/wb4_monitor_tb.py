@@ -52,14 +52,19 @@ class WB4MonitorTB(TBBase):
         self.SW = self.DW // 8
         self.max_transactions = self.convert_to_int(os.environ.get('MAX_TRANSACTIONS', '8'))
         self.n_addr_ranges = self.convert_to_int(os.environ.get('N_ADDR_RANGES', '0'))
+        # USE_BURST_HINTS=1 puts the transfer's CTI in aux_data[7:5]. With it
+        # off those bits must read zero whatever cmd_cti was driven to, which
+        # is what every consumer written before the hints existed decodes.
+        self.burst_hints = os.environ.get('USE_BURST_HINTS', '0') == '1' 
         self.unit_id = self.convert_to_int(os.environ.get('UNIT_ID', '1'))
         self.agent_id = self.convert_to_int(os.environ.get('AGENT_ID', '11'))
         self.errors = []
         self.accepted = deque()       # commands taken on cmd_*, in order (responder input)
-        self.expected = deque()       # (adr, we, sel, status) per accepted command, in order
+        self.expected = deque()       # (adr, we, sel, status, cti) per accepted command, in order
         self.rsp_latency = 1          # responder clocks between accept and response
         self.hold = False             # responder paused
         self.clock_count = 0          # clocks since reset release (i_mon_time)
+        self.hints_seen = 0           # transfers whose reported CTI was non-classic
         self.done = False
 
         self.cmd_fc = FieldConfig()
@@ -70,6 +75,11 @@ class WB4MonitorTB(TBBase):
                                               display_width=(self.DW + 3) // 4))
         self.cmd_fc.add_field(FieldDefinition(name="sel", bits=self.SW, default=(1 << self.SW) - 1,
                                               format="bin", display_width=self.SW))
+        # cmd_cti is a port whatever USE_BURST_HINTS is, so it is always
+        # driven: an undriven input would sit at X and the DUT would carry
+        # that X into its tracking queue.
+        self.cmd_fc.add_field(FieldDefinition(name="cti", bits=3, default=0, format="bin",
+                                              display_width=3))
         self.rsp_fc = FieldConfig()
         self.rsp_fc.add_field(FieldDefinition(name="status", bits=2, default=0, format="dec", display_width=1))
         self.rsp_fc.add_field(FieldDefinition(name="dat", bits=self.DW, default=0, format="hex",
@@ -157,8 +167,10 @@ class WB4MonitorTB(TBBase):
     def _on_cmd(self, pkt):
         adr, we, sel = int(pkt.adr), int(pkt.we), int(pkt.sel)
         status = _status_for(adr)
+        # What the aux byte must report: the hint only when the DUT carries it.
+        cti = int(pkt.cti) if self.burst_hints else 0
         self.accepted.append((self.clock_count, adr, we, sel, status))
-        self.expected.append((adr, we, sel, status))
+        self.expected.append((adr, we, sel, status, cti))
 
     def _on_packet(self, p):
         self.log.info(f"MONBUS t={self.clock_count} type={p.pkt_type} code={p.event_code} "
@@ -192,10 +204,11 @@ class WB4MonitorTB(TBBase):
         pkt.dat = 0xDEAD
         await self.rsp.send(pkt)
 
-    def _cmd(self, adr, we, sel=None, dat=0):
+    def _cmd(self, adr, we, sel=None, dat=0, cti=0):
         pkt = GAXIPacket(self.cmd_fc)
         pkt.we, pkt.adr, pkt.dat = we, adr, dat
         pkt.sel = (1 << self.SW) - 1 if sel is None else sel
+        pkt.cti = cti
         return pkt
 
     async def send_cmds(self, cmds):
@@ -254,7 +267,7 @@ class WB4MonitorTB(TBBase):
                                              int(WBErrorCode.WB_ERR_ADDR_RANGE)))]
         if len(got) != len(expected):
             self.errors.append(f"{tag}: {len(got)} transfer packets for {len(expected)} transfers")
-        for i, (p, (adr, we, sel, status)) in enumerate(zip(got, expected)):
+        for i, (p, (adr, we, sel, status, cti)) in enumerate(zip(got, expected)):
             if status == WB4_STATUS_ERR:
                 want = (int(PktType.PktTypeError), int(WBErrorCode.WB_ERR_ERR))
             elif status == WB4_STATUS_RTY:
@@ -262,7 +275,11 @@ class WB4MonitorTB(TBBase):
             else:
                 want = (int(PktType.PktTypeCompletion),
                         int(WBCompletionCode.WB_COMPL_WRITE if we else WBCompletionCode.WB_COMPL_READ))
-            aux = ((sel & 0xF) << 1) | we
+            # aux_data = {cti[2:0], sel[3:0], we}: the hint rides in the
+            # tracking entry, so a completion must carry the CTI of ITS OWN
+            # transfer even with several open at once.
+            aux = ((cti & 0x7) << 5) | ((sel & 0xF) << 1) | we
+            self.hints_seen += int(cti != 0 and self.aux_of(p) == aux)
             have = (p.pkt_type, p.event_code)
             if have != want or self.addr_of(p) != (adr & 0xFFFF_FFFF) or self.aux_of(p) != aux:
                 self.errors.append(f"{tag}[{i}]: got type/code {have} addr 0x{self.addr_of(p):X} aux 0x{self.aux_of(p):X}, "

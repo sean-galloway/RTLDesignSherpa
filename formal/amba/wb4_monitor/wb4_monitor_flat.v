@@ -599,6 +599,7 @@ module wb4_monitor (
 	cmd_adr,
 	cmd_dat,
 	cmd_sel,
+	cmd_cti,
 	rsp_valid,
 	rsp_ready,
 	rsp_status,
@@ -639,11 +640,14 @@ module wb4_monitor (
 	parameter [15:0] AGENT_ID = 16'h000b;
 	parameter signed [31:0] MAX_TRANSACTIONS = 8;
 	parameter signed [31:0] MONITOR_FIFO_DEPTH = 8;
+	parameter signed [31:0] USE_BURST_HINTS = 0;
 	parameter signed [31:0] AW = ADDR_WIDTH;
 	parameter signed [31:0] DW = DATA_WIDTH;
 	parameter signed [31:0] SW = DW / 8;
 	localparam signed [31:0] wb4_pkg_WB4_STATUS_WIDTH = 2;
 	parameter signed [31:0] STW = wb4_pkg_WB4_STATUS_WIDTH;
+	localparam signed [31:0] wb4_pkg_WB4_CTI_WIDTH = 3;
+	parameter signed [31:0] CTW = wb4_pkg_WB4_CTI_WIDTH;
 	input wire aclk;
 	input wire aresetn;
 	input wire cmd_valid;
@@ -652,6 +656,7 @@ module wb4_monitor (
 	input wire [AW - 1:0] cmd_adr;
 	input wire [DW - 1:0] cmd_dat;
 	input wire [SW - 1:0] cmd_sel;
+	input wire [CTW - 1:0] cmd_cti;
 	input wire rsp_valid;
 	input wire rsp_ready;
 	input wire [STW - 1:0] rsp_status;
@@ -699,6 +704,14 @@ module wb4_monitor (
 		input reg [63:0] event_data;
 		monitor_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
 	endfunction
+	function automatic [2:0] sv2v_cast_90DB4;
+		input reg [2:0] inp;
+		sv2v_cast_90DB4 = inp;
+	endfunction
+	function automatic [CTW - 1:0] sv2v_cast_E0906;
+		input reg [CTW - 1:0] inp;
+		sv2v_cast_E0906 = inp;
+	endfunction
 	function automatic [31:0] sv2v_cast_32;
 		input reg [31:0] inp;
 		sv2v_cast_32 = inp;
@@ -719,13 +732,15 @@ module wb4_monitor (
 		if (USE_MONITOR) begin : gen_monitor
 			localparam signed [31:0] QW = $clog2(MAX_TRANSACTIONS);
 			localparam signed [31:0] CW = $clog2(MAX_TRANSACTIONS + 1);
-			reg [(1 + AW) + 36:0] r_q [0:MAX_TRANSACTIONS - 1];
+			wire [CTW - 1:0] w_cmd_cti;
+			assign w_cmd_cti = (USE_BURST_HINTS != 0 ? cmd_cti : sv2v_cast_E0906(sv2v_cast_90DB4(3'b000)));
+			reg [(((1 + AW) + 4) + CTW) + 32:0] r_q [0:MAX_TRANSACTIONS - 1];
 			reg [QW - 1:0] r_head;
 			reg [QW - 1:0] r_tail;
 			reg [CW - 1:0] r_count;
 			wire w_q_empty;
 			wire w_q_full;
-			wire [(1 + AW) + 36:0] w_head;
+			wire [(((1 + AW) + 4) + CTW) + 32:0] w_head;
 			reg [31:0] r_timestamp;
 			reg [15:0] r_error_count;
 			reg [31:0] r_transaction_count;
@@ -777,9 +792,10 @@ module wb4_monitor (
 				else begin
 					r_timestamp <= r_timestamp + 1'b1;
 					if (w_push) begin
-						r_q[r_tail][1 + (AW + 36)] <= cmd_we;
-						r_q[r_tail][AW + 36-:((AW + 36) >= 37 ? AW + 0 : 38 - (AW + 36))] <= cmd_adr;
-						r_q[r_tail][36-:4] <= sv2v_cast_4(cmd_sel);
+						r_q[r_tail][1 + (AW + (4 + (CTW + 32)))] <= cmd_we;
+						r_q[r_tail][AW + (4 + (CTW + 32))-:((AW + (4 + (CTW + 32))) >= (4 + (CTW + 33)) ? ((AW + (4 + (CTW + 32))) - (4 + (CTW + 33))) + 1 : ((4 + (CTW + 33)) - (AW + (4 + (CTW + 32)))) + 1)] <= cmd_adr;
+						r_q[r_tail][4 + (CTW + 32)-:((4 + (CTW + 32)) >= (CTW + 33) ? ((4 + (CTW + 32)) - (CTW + 33)) + 1 : ((CTW + 33) - (4 + (CTW + 32))) + 1)] <= sv2v_cast_4(cmd_sel);
+						r_q[r_tail][CTW + 32-:((CTW + 32) >= 33 ? CTW + 0 : 34 - (CTW + 32))] <= w_cmd_cti;
 						r_q[r_tail][32-:32] <= r_timestamp;
 						r_q[r_tail][0] <= 1'b0;
 						r_tail <= (sv2v_cast_32(r_tail) == (MAX_TRANSACTIONS - 1) ? {QW {1'sb0}} : r_tail + 1'b1);
@@ -838,9 +854,9 @@ module wb4_monitor (
 			wire [7:0] w_aux_cmd;
 			wire [31:0] w_adr_head;
 			wire [31:0] w_adr_cmd;
-			assign w_aux_head = {3'h0, w_head[36-:4], w_head[1 + (AW + 36)]};
-			assign w_aux_cmd = {3'h0, sv2v_cast_4(cmd_sel), cmd_we};
-			assign w_adr_head = sv2v_cast_32(w_head[AW + 36-:((AW + 36) >= 37 ? AW + 0 : 38 - (AW + 36))]);
+			assign w_aux_head = {w_head[CTW + 32-:((CTW + 32) >= 33 ? CTW + 0 : 34 - (CTW + 32))], w_head[4 + (CTW + 32)-:((4 + (CTW + 32)) >= (CTW + 33) ? ((4 + (CTW + 32)) - (CTW + 33)) + 1 : ((CTW + 33) - (4 + (CTW + 32))) + 1)], w_head[1 + (AW + (4 + (CTW + 32)))]};
+			assign w_aux_cmd = {w_cmd_cti, sv2v_cast_4(cmd_sel), cmd_we};
+			assign w_adr_head = sv2v_cast_32(w_head[AW + (4 + (CTW + 32))-:((AW + (4 + (CTW + 32))) >= (4 + (CTW + 33)) ? ((AW + (4 + (CTW + 32))) - (4 + (CTW + 33))) + 1 : ((4 + (CTW + 33)) - (AW + (4 + (CTW + 32)))) + 1)]);
 			assign w_adr_cmd = sv2v_cast_32(cmd_adr);
 			always @(*) begin
 				if (_sv2v_0)
@@ -869,7 +885,7 @@ module wb4_monitor (
 				end
 				else if (((cfg_perf_enable && cfg_latency_enable) && w_pop) && (w_latency > cfg_latency_threshold)) begin
 					w_fifo_wr_valid = 1'b1;
-					w_fifo_wr_data = {monitor_common_pkg_PktTypePerf, (w_head[1 + (AW + 36)] ? 8'h01 : 8'h00), w_latency, w_aux_head};
+					w_fifo_wr_data = {monitor_common_pkg_PktTypePerf, (w_head[1 + (AW + (4 + (CTW + 32)))] ? 8'h01 : 8'h00), w_latency, w_aux_head};
 				end
 				else if ((cfg_debug_enable && cfg_trans_debug_enable) && (w_q_active_edge || w_q_idle_edge)) begin
 					w_fifo_wr_valid = 1'b1;
@@ -877,7 +893,7 @@ module wb4_monitor (
 				end
 				else if (w_pop && (w_is_ack || w_is_rty)) begin
 					w_fifo_wr_valid = 1'b1;
-					w_fifo_wr_data = {monitor_common_pkg_PktTypeCompletion, (w_is_rty ? 8'h03 : (w_head[1 + (AW + 36)] ? 8'h02 : 8'h01)), w_adr_head, w_aux_head};
+					w_fifo_wr_data = {monitor_common_pkg_PktTypeCompletion, (w_is_rty ? 8'h03 : (w_head[1 + (AW + (4 + (CTW + 32)))] ? 8'h02 : 8'h01)), w_adr_head, w_aux_head};
 				end
 			end
 			gaxi_fifo_sync #(
@@ -984,7 +1000,7 @@ module wb4_monitor (
 			assign monbus_packet = w_skid_rd_data[MONBUS_TOTAL_W - 1-:monitor_common_pkg_MONBUS_PKT_WIDTH];
 			assign monbus_timestamp = w_skid_rd_data[63:0];
 			wire w_unused;
-			assign w_unused = ^{cfg_throughput_enable, cfg_debug_level, cfg_throughput_threshold, cmd_dat, rsp_dat[DW - 1:1]};
+			assign w_unused = ^{cfg_throughput_enable, cfg_debug_level, cfg_throughput_threshold, cmd_dat, rsp_dat[DW - 1:1], cmd_cti};
 			reg f_past_valid;
 			initial f_past_valid = 1'b0;
 			always @(posedge aclk) f_past_valid <= 1'b1;
