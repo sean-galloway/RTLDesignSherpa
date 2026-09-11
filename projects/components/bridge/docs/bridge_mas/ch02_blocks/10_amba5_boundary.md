@@ -149,9 +149,10 @@ the FIFO head: that is two requesters aliasing one ID at this slave, which
 this fabric does not disambiguate.
 
 **Validator.** An rw atomic master's connected atomic slaves must be `rw`
-(a write-only slave cannot return read data) and must use the in-order
-tracker (`enable_ooo` has no hook for the return tracker). A write-only
-atomic master is not subject to either rule; it keeps the filter.
+(a write-only slave cannot return read data). The return tracker sits
+beside whichever read tracker the slave uses, the in-order FIFO or the
+`enable_ooo` CAM (BRIDGE-015 repaired that mode). A write-only atomic
+master is not subject to the rule; it keeps the filter.
 
 **Filelist.** `axi5_atomic_filter.f` is pulled only when a write-only
 atomic master exists; `axi5_atomic_rr_tracker.f` only when an rw atomic

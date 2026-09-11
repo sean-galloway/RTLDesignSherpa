@@ -206,9 +206,10 @@ class BridgeModuleGenerator:
         # came back as 0x04 and the response never matched its waiter).
         # Same rationale as addr_width below. Floor of 1 so an all-AXIL
         # bridge (id_width=0) doesn't declare a [-1:0] field.
-        id_width = max(
-            [max(1, m.id_width or 0) for m in self.masters] or [4]
-        )
+        # BRIDGE-016: the struct id is {master index, master id}; see
+        # width_utils.xbar_id_width for the one definition.
+        from bridge_pkg.width_utils import xbar_id_width, master_id_width
+        id_width = xbar_id_width(self.masters)
 
         # One bridge-wide address width, taken from the CONFIG rather
         # than hardcoded — a TOML with addr_width=64 used to validate
@@ -230,6 +231,7 @@ class BridgeModuleGenerator:
         # Generate package with address width and num_masters
         num_masters = len(self.masters)
         pkg_gen = PackageGenerator(self.bridge_name, id_width=id_width, addr_width=addr_width, num_masters=num_masters,
+                                   master_id_width=master_id_width(self.masters),
                                    sideband_features=sideband_union(self.masters, self.slaves))
         for width in data_widths:
             pkg_gen.add_data_width(width)
@@ -287,7 +289,8 @@ class BridgeModuleGenerator:
 
         # Compute crossbar internal width (max of all master widths)
         crossbar_data_width = max(m.data_width for m in self.masters) if self.masters else 32
-        crossbar_id_width = max(m.id_width for m in self.masters) if self.masters else 4
+        from bridge_pkg.width_utils import xbar_id_width
+        crossbar_id_width = xbar_id_width(self.masters)   # {master index, id} (BRIDGE-016)
 
         # BRIDGE-013: an INTERNAL slave gets no monitor. The subtractive
         # catch-all has no top-level pins, and the bridge top never wired its
@@ -314,6 +317,7 @@ class BridgeModuleGenerator:
             data_width=crossbar_data_width,
             enable_monitoring=self.enable_monitoring and not slave_is_internal,
             slave_index=slave_index,
+            num_masters=len(self.masters),
         )
         return slave_adapter_gen.generate()
 
@@ -1345,8 +1349,10 @@ class BridgeModuleGenerator:
             lines.append(f"    logic {pfx}_monbus_valid;")
             lines.append(f"    logic {pfx}_monbus_ready;")
             lines.append(f"    monitor_common_pkg::monitor_packet_t {pfx}_monbus_packet;")
-            master_id_width = max((m.id_width for m in self.masters), default=4)
-            master_id_width = max(master_id_width, 1)
+            # BRIDGE-016: the subtractive slave sits on the fabric side and
+            # sees {master index, master id} like every other slave.
+            from bridge_pkg.width_utils import xbar_id_width
+            master_id_width = xbar_id_width(self.masters)
             lines.append("")
             lines.append("    axi4_subtractive_slave #(")
             lines.append(f"        .AXI_ID_WIDTH   ({master_id_width}),")
@@ -1416,17 +1422,16 @@ class BridgeModuleGenerator:
     def _generate_slave_ports(self, slave: SlaveInfo) -> List[str]:
         """Generate slave port declarations (AXI4 or APB based on protocol).
 
-        The AXI4 transaction ID (*_awid/*_bid/*_arid/*_rid) is a pass-through
-        from the master, so the slave-side port ID width must equal the
-        master's id_width. Hardcoding it to 4 (the previous behaviour) breaks
-        for any master with id_width != 4 — see Bug B in TASK-011.
+        The slave-side ID is {master index, master id} (BRIDGE-016): the
+        widest master's id_width plus $clog2(NUM_MASTERS) bits, zero of them
+        for a single master. Eight-bit masters behind a 16-master bridge give
+        the slaves 12-bit IDs. The TOML's slave id_width must be at least
+        this (the validator enforces it); hardcoding 4 was Bug B in TASK-011.
         """
         lines = []
 
-        # Master id_width drives the slave-port ID width (pass-through).
-        # Floor at 1 to avoid `[-1:0]` when id_width=0 (Bug A).
-        master_id_width = max(m.id_width for m in self.masters) if self.masters else 4
-        master_id_width = max(master_id_width, 1)
+        from bridge_pkg.width_utils import xbar_id_width
+        master_id_width = xbar_id_width(self.masters)
 
         # Width parameters for signal info queries
         width_values = {
@@ -1661,14 +1666,13 @@ class BridgeModuleGenerator:
 
         # Add crossbar-to-slave AXI4 signals for ALL slaves
         # These are internal wires connecting crossbar slave outputs to slave adapters.
-        # The AXI4 *id signals (awid/bid/arid/rid) carry the master's transaction ID
-        # pass-through, so they need to be sized at the master's id_width — NOT
-        # hardcoded to 4 bits, which only happens to work when master.id_width == 4.
-        # Bug B in TASK-011 (projects/components/bridge/TASKS.md).
-        # Floor at 1 so id_width=0 (AXIL's "no ID" case) emits a degenerate
-        # 1-bit signal rather than an invalid `[-1:0]` SV range — Bug A.
-        crossbar_id_width = max(m.id_width for m in self.masters) if self.masters else 4
-        crossbar_id_width = max(crossbar_id_width, 1)
+        # The AXI4 *id signals (awid/bid/arid/rid) between crossbar and slave
+        # adapters carry {master index, master id} (BRIDGE-016): the widest
+        # master's id_width plus $clog2(NUM_MASTERS) bits, from the one helper
+        # every other site uses. (Was: the master width pass-through, floored
+        # at 1 -- Bugs A/B in legacy TASK-011.)
+        from bridge_pkg.width_utils import xbar_id_width
+        crossbar_id_width = xbar_id_width(self.masters)
         lines.append("    // Crossbar-to-Slave Internal AXI4 Signals")
         for slave in self.slaves:
             prefix = f"xbar_{slave.name}_axi_"

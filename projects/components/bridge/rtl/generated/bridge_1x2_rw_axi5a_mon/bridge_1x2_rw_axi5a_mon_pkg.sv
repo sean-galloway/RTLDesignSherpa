@@ -9,6 +9,12 @@ package bridge_1x2_rw_axi5a_mon_pkg;
     // Bridge Configuration Parameters
     localparam int NUM_MASTERS = 1;
     localparam int BRIDGE_ID_WIDTH = 1;  // $clog2(NUM_MASTERS)
+    // Transaction IDs inside the fabric are {master index, master id}
+    // (BRIDGE-016), so two masters cannot alias an ID at a slave. The
+    // prefix is 0 bits for a single master.
+    localparam int MASTER_ID_WIDTH = 4;  // widest master-side ID
+    localparam int ID_PREFIX_WIDTH = 0;  // master-index bits prepended
+    localparam int XBAR_ID_WIDTH   = 4;  // MASTER_ID_WIDTH + ID_PREFIX_WIDTH
 
     // AXI4 Write Address Channel (width-independent)
     // Note: ID width is 4-bit for this bridge

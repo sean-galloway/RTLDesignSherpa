@@ -515,6 +515,26 @@ class AdapterGenerator:
     def rr_atomic(self) -> bool:
         return 'atomic' in self.sb_own and self.master.channels == 'rw'
 
+    # --- BRIDGE-016: master-unique IDs ---------------------------------------
+    # Inside the fabric every ID is {master index, master id}. The wrapper's
+    # fub_axi_*id is this master's own width; the fabric-facing copy carries
+    # BRIDGE_ID on top. Responses come back with the prefix and the existing
+    # [fub_id_width-1:0] selects strip it. Zero prefix bits for one master, so
+    # single-master bridges are byte-identical to before.
+    @property
+    def id_prefix_width(self) -> int:
+        from bridge_pkg.width_utils import id_prefix_width
+        return id_prefix_width(self.all_masters or [self.master])
+
+    @property
+    def xbar_id_width(self) -> int:
+        from bridge_pkg.width_utils import xbar_id_width
+        return xbar_id_width(self.all_masters or [self.master])
+
+    def xid(self, chan: str) -> str:
+        """Name of the fabric-facing ID net for 'aw' / 'ar'."""
+        return f"xbar_axi_{chan}id" if self.id_prefix_width else f"fub_axi_{chan}id"
+
     @property
     def rr_local_idx(self):
         """Index of the internal (subtractive) slave, or None. A read-return
@@ -827,6 +847,18 @@ class AdapterGenerator:
 
         # AXI5 native-sideband fub wires (A5-2 slice 2)
         lines.extend(self._sb_wire_decls())
+
+        # BRIDGE-016: fabric-facing IDs carry this master's index on top.
+        if self.id_prefix_width:
+            lines.append("    // Master-unique fabric IDs: {BRIDGE_ID, id} (BRIDGE-016). Responses")
+            lines.append("    // return with the prefix; the response muxes select the low bits.")
+            if self.master.channels in ("wr", "rw"):
+                lines.append("    logic [XBAR_ID_WIDTH-1:0] xbar_axi_awid;")
+                lines.append("    assign xbar_axi_awid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_awid)};")
+            if self.master.channels in ("rd", "rw"):
+                lines.append("    logic [XBAR_ID_WIDTH-1:0] xbar_axi_arid;")
+                lines.append("    assign xbar_axi_arid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_arid)};")
+            lines.append("")
 
         # Pre-filter (wrapper-side) wr signals when this master carries
         # 'atomic' on a write-only port (A5-3a): the axi5_atomic_filter sits
@@ -1662,7 +1694,8 @@ class AdapterGenerator:
                             lines.append(f"                {tgt} = {self.master.name}_{suffix}_b.{field};")
                     else:
                         # Converter intermediate signals
-                        lines.append(f"                fub_axi_bid = conv_{suffix}_bid;")
+                        lines.append(f"                fub_axi_bid = conv_{suffix}_bid"
+                                     + (f"[{self.fub_id_width - 1}:0];" if self.id_prefix_width else ";"))
                         lines.append(f"                fub_axi_bresp = conv_{suffix}_bresp;")
                         lines.append(f"                fub_axi_bvalid = conv_{suffix}_bvalid;")
 
@@ -1751,7 +1784,8 @@ class AdapterGenerator:
                             lines.append(f"                {tgt} = {self.master.name}_{suffix}_r.{field};")
                     else:
                         # Converter intermediate signals
-                        lines.append(f"                fub_axi_rid = conv_{suffix}_rid;")
+                        lines.append(f"                fub_axi_rid = conv_{suffix}_rid"
+                                     + (f"[{self.fub_id_width - 1}:0];" if self.id_prefix_width else ";"))
                         lines.append(f"                fub_axi_rdata = conv_{suffix}_rdata;")
                         lines.append(f"                fub_axi_rresp = conv_{suffix}_rresp;")
                         lines.append(f"                fub_axi_rlast = conv_{suffix}_rlast;")
@@ -1801,7 +1835,7 @@ class AdapterGenerator:
         # Write channels
         if self.master.channels in ["wr", "rw"]:
             lines.append("    // AW channel (request: fub → output)")
-            lines.append(f"    assign {self.master.name}_{suffix}_aw.id     = fub_axi_awid;")
+            lines.append(f"    assign {self.master.name}_{suffix}_aw.id     = {self.xid('aw')};")
             lines.append(f"    assign {self.master.name}_{suffix}_aw.addr   = fub_axi_awaddr;")
             lines.append(f"    assign {self.master.name}_{suffix}_aw.len    = fub_axi_awlen;")
             lines.append(f"    assign {self.master.name}_{suffix}_aw.size   = fub_axi_awsize;")
@@ -1852,7 +1886,7 @@ class AdapterGenerator:
         # Read channels
         if self.master.channels in ["rd", "rw"]:
             lines.append("    // AR channel (request: fub → output)")
-            lines.append(f"    assign {self.master.name}_{suffix}_ar.id     = fub_axi_arid;")
+            lines.append(f"    assign {self.master.name}_{suffix}_ar.id     = {self.xid('ar')};")
             lines.append(f"    assign {self.master.name}_{suffix}_ar.addr   = fub_axi_araddr;")
             lines.append(f"    assign {self.master.name}_{suffix}_ar.len    = fub_axi_arlen;")
             lines.append(f"    assign {self.master.name}_{suffix}_ar.size   = fub_axi_arsize;")
@@ -1898,12 +1932,12 @@ class AdapterGenerator:
         if self.master.channels in ["wr", "rw"]:
             lines.append(f"    logic conv_{suffix}_awready;")
             lines.append(f"    logic conv_{suffix}_wready;")
-            lines.append(f"    logic [{self.fub_id_width-1}:0] conv_{suffix}_bid;")
+            lines.append(f"    logic [{self.xbar_id_width-1}:0] conv_{suffix}_bid;")
             lines.append(f"    logic [1:0] conv_{suffix}_bresp;")
             lines.append(f"    logic conv_{suffix}_bvalid;")
         if self.master.channels in ["rd", "rw"]:
             lines.append(f"    logic conv_{suffix}_arready;")
-            lines.append(f"    logic [{self.fub_id_width-1}:0] conv_{suffix}_rid;")
+            lines.append(f"    logic [{self.xbar_id_width-1}:0] conv_{suffix}_rid;")
             lines.append(f"    logic [{master_width-1}:0] conv_{suffix}_rdata;")
             lines.append(f"    logic [1:0] conv_{suffix}_rresp;")
             lines.append(f"    logic conv_{suffix}_rlast;")
@@ -1937,7 +1971,7 @@ class AdapterGenerator:
                     instance_name=f'u_wr_conv_{suffix}',
                     s_data_width=master_width,
                     m_data_width=slave_width,
-                    id_width=self.fub_id_width,
+                    id_width=self.xbar_id_width,  # fabric side: {master index, id} (BRIDGE-016)
                     user_width=getattr(self.master, 'user_width', 1) or 1,
                     addr_width=getattr(self.master, 'addr_width', 32),
                     suffix=suffix,
@@ -1949,10 +1983,10 @@ class AdapterGenerator:
                     instance_name=f'u_wr_conv_{suffix}',
                     s_data_width=master_width,
                     m_data_width=slave_width,
-                    id_width=self.fub_id_width,
+                    id_width=self.xbar_id_width,  # fabric side: {master index, id} (BRIDGE-016)
                 )
                 conv_wr.connect_clocks_and_resets()
-                conv_wr.connect_s_axi_write(
+                conv_wr.connect_s_axi_write(s_awid_signal=self.xid('aw'), 
                     fub_prefix='fub_axi_',
                     aw_valid_gate=f'fub_axi_awvalid && aw_path_active_{slave_width}b',
                     w_valid_gate=f'fub_axi_wvalid && w_path_active_{slave_width}b',
@@ -1975,7 +2009,7 @@ class AdapterGenerator:
                     instance_name=f'u_rd_conv_{suffix}',
                     s_data_width=master_width,
                     m_data_width=slave_width,
-                    id_width=self.fub_id_width,
+                    id_width=self.xbar_id_width,  # fabric side: {master index, id} (BRIDGE-016)
                     user_width=getattr(self.master, 'user_width', 1) or 1,
                     addr_width=getattr(self.master, 'addr_width', 32),
                     suffix=suffix,
@@ -1987,10 +2021,10 @@ class AdapterGenerator:
                     instance_name=f'u_rd_conv_{suffix}',
                     s_data_width=master_width,
                     m_data_width=slave_width,
-                    id_width=self.fub_id_width,
+                    id_width=self.xbar_id_width,  # fabric side: {master index, id} (BRIDGE-016)
                 )
                 conv_rd.connect_clocks_and_resets()
-                conv_rd.connect_s_axi_read(
+                conv_rd.connect_s_axi_read(s_arid_signal=self.xid('ar'), 
                     fub_prefix='fub_axi_',
                     ar_valid_gate=f'fub_axi_arvalid && ar_path_active_{slave_width}b',
                     r_intercept_prefix=f'conv_{suffix}',
@@ -2040,7 +2074,7 @@ class AdapterGenerator:
         # by the per-width path-active signals; awready/wready are
         # captured as conv_{suffix}_*ready so the wrapper sees them
         # only when this path is selected.
-        lines.append(f"        .s_axi_awid(fub_axi_awid),")
+        lines.append(f"        .s_axi_awid({self.xid('aw')}),")
         lines.append(f"        .s_axi_awaddr(fub_axi_awaddr),")
         lines.append(f"        .s_axi_awlen(fub_axi_awlen),")
         lines.append(f"        .s_axi_awsize(fub_axi_awsize),")
@@ -2110,7 +2144,7 @@ class AdapterGenerator:
         lines.append(f"    ) {instance_name} (")
         lines.append(f"        .aclk(aclk),")
         lines.append(f"        .aresetn(aresetn),")
-        lines.append(f"        .s_axi_arid(fub_axi_arid),")
+        lines.append(f"        .s_axi_arid({self.xid('ar')}),")
         lines.append(f"        .s_axi_araddr(fub_axi_araddr),")
         lines.append(f"        .s_axi_arlen(fub_axi_arlen),")
         lines.append(f"        .s_axi_arsize(fub_axi_arsize),")

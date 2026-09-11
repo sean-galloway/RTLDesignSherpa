@@ -435,7 +435,7 @@ class Bridge1x2RdMonTB(TBBase):
             log=self.log,
             data_width=32,
             addr_width=32,
-            id_width=4,
+            id_width=4,  # {master index, master id} (BRIDGE-016)
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[0],
@@ -461,7 +461,7 @@ class Bridge1x2RdMonTB(TBBase):
             log=self.log,
             data_width=32,
             addr_width=32,
-            id_width=4,
+            id_width=4,  # {master index, master id} (BRIDGE-016)
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[1],

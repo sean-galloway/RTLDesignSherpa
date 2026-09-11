@@ -39,7 +39,7 @@ axi5_features = ["nsaid", "trace", "unique"]
 [[bridge.slaves]]
 name = "ddr"  # stays AXI4: the sideband drop path
 prefix = "ddr_axi_"
-id_width = 4
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit(s) (BRIDGE-016)
 addr_width = 32
 data_width = 32
 user_width = 1
@@ -50,7 +50,7 @@ addr_range = "0x80000000"
 [[bridge.slaves]]
 name = "sram"  # AXI5, same features + width as the masters: native path
 prefix = "sram_axi_"
-id_width = 4
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit(s) (BRIDGE-016)
 addr_width = 32
 data_width = 32
 user_width = 1

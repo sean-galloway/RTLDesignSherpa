@@ -172,7 +172,7 @@ module bridge_mix_b_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] ddr_axi_rid_bridge_id,
     input  logic                       ddr_axi_rid_valid,
 
-    output  logic [3:0]  ddr_axi_awid,
+    output  logic [5:0]  ddr_axi_awid,
     output  logic [31:0]  ddr_axi_awaddr,
     output  logic [7:0]  ddr_axi_awlen,
     output  logic [2:0]  ddr_axi_awsize,
@@ -193,13 +193,13 @@ module bridge_mix_b_xbar
     output  logic         ddr_axi_wvalid,
     input  logic         ddr_axi_wready,
 
-    input  logic [3:0]  ddr_axi_bid,
+    input  logic [5:0]  ddr_axi_bid,
     input  logic [1:0]  ddr_axi_bresp,
     input  logic         ddr_axi_buser,
     input  logic         ddr_axi_bvalid,
     output  logic         ddr_axi_bready,
 
-    output  logic [3:0]  ddr_axi_arid,
+    output  logic [5:0]  ddr_axi_arid,
     output  logic [31:0]  ddr_axi_araddr,
     output  logic [7:0]  ddr_axi_arlen,
     output  logic [2:0]  ddr_axi_arsize,
@@ -213,7 +213,7 @@ module bridge_mix_b_xbar
     output  logic         ddr_axi_arvalid,
     input  logic         ddr_axi_arready,
 
-    input  logic [3:0]  ddr_axi_rid,
+    input  logic [5:0]  ddr_axi_rid,
     input  logic [127:0]  ddr_axi_rdata,
     input  logic [1:0]  ddr_axi_rresp,
     input  logic         ddr_axi_rlast,
@@ -230,7 +230,7 @@ module bridge_mix_b_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] scratch_axi_rid_bridge_id,
     input  logic                       scratch_axi_rid_valid,
 
-    output  logic [3:0]  scratch_axi_awid,
+    output  logic [5:0]  scratch_axi_awid,
     output  logic [31:0]  scratch_axi_awaddr,
     output  logic [7:0]  scratch_axi_awlen,
     output  logic [2:0]  scratch_axi_awsize,
@@ -251,13 +251,13 @@ module bridge_mix_b_xbar
     output  logic         scratch_axi_wvalid,
     input  logic         scratch_axi_wready,
 
-    input  logic [3:0]  scratch_axi_bid,
+    input  logic [5:0]  scratch_axi_bid,
     input  logic [1:0]  scratch_axi_bresp,
     input  logic         scratch_axi_buser,
     input  logic         scratch_axi_bvalid,
     output  logic         scratch_axi_bready,
 
-    output  logic [3:0]  scratch_axi_arid,
+    output  logic [5:0]  scratch_axi_arid,
     output  logic [31:0]  scratch_axi_araddr,
     output  logic [7:0]  scratch_axi_arlen,
     output  logic [2:0]  scratch_axi_arsize,
@@ -271,7 +271,7 @@ module bridge_mix_b_xbar
     output  logic         scratch_axi_arvalid,
     input  logic         scratch_axi_arready,
 
-    input  logic [3:0]  scratch_axi_rid,
+    input  logic [5:0]  scratch_axi_rid,
     input  logic [63:0]  scratch_axi_rdata,
     input  logic [1:0]  scratch_axi_rresp,
     input  logic         scratch_axi_rlast,
@@ -288,7 +288,7 @@ module bridge_mix_b_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] apb_periph_axi_rid_bridge_id,
     input  logic                       apb_periph_axi_rid_valid,
 
-    output  logic [3:0]  apb_periph_axi_awid,
+    output  logic [5:0]  apb_periph_axi_awid,
     output  logic [31:0]  apb_periph_axi_awaddr,
     output  logic [7:0]  apb_periph_axi_awlen,
     output  logic [2:0]  apb_periph_axi_awsize,
@@ -309,13 +309,13 @@ module bridge_mix_b_xbar
     output  logic         apb_periph_axi_wvalid,
     input  logic         apb_periph_axi_wready,
 
-    input  logic [3:0]  apb_periph_axi_bid,
+    input  logic [5:0]  apb_periph_axi_bid,
     input  logic [1:0]  apb_periph_axi_bresp,
     input  logic         apb_periph_axi_buser,
     input  logic         apb_periph_axi_bvalid,
     output  logic         apb_periph_axi_bready,
 
-    output  logic [3:0]  apb_periph_axi_arid,
+    output  logic [5:0]  apb_periph_axi_arid,
     output  logic [31:0]  apb_periph_axi_araddr,
     output  logic [7:0]  apb_periph_axi_arlen,
     output  logic [2:0]  apb_periph_axi_arsize,
@@ -329,7 +329,7 @@ module bridge_mix_b_xbar
     output  logic         apb_periph_axi_arvalid,
     input  logic         apb_periph_axi_arready,
 
-    input  logic [3:0]  apb_periph_axi_rid,
+    input  logic [5:0]  apb_periph_axi_rid,
     input  logic [31:0]  apb_periph_axi_rdata,
     input  logic [1:0]  apb_periph_axi_rresp,
     input  logic         apb_periph_axi_rlast,
@@ -346,7 +346,7 @@ module bridge_mix_b_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_rid_bridge_id,
     input  logic                       subtractive_axi_rid_valid,
 
-    output  logic [3:0]  subtractive_axi_awid,
+    output  logic [5:0]  subtractive_axi_awid,
     output  logic [31:0]  subtractive_axi_awaddr,
     output  logic [7:0]  subtractive_axi_awlen,
     output  logic [2:0]  subtractive_axi_awsize,
@@ -367,13 +367,13 @@ module bridge_mix_b_xbar
     output  logic         subtractive_axi_wvalid,
     input  logic         subtractive_axi_wready,
 
-    input  logic [3:0]  subtractive_axi_bid,
+    input  logic [5:0]  subtractive_axi_bid,
     input  logic [1:0]  subtractive_axi_bresp,
     input  logic         subtractive_axi_buser,
     input  logic         subtractive_axi_bvalid,
     output  logic         subtractive_axi_bready,
 
-    output  logic [3:0]  subtractive_axi_arid,
+    output  logic [5:0]  subtractive_axi_arid,
     output  logic [31:0]  subtractive_axi_araddr,
     output  logic [7:0]  subtractive_axi_arlen,
     output  logic [2:0]  subtractive_axi_arsize,
@@ -387,7 +387,7 @@ module bridge_mix_b_xbar
     output  logic         subtractive_axi_arvalid,
     input  logic         subtractive_axi_arready,
 
-    input  logic [3:0]  subtractive_axi_rid,
+    input  logic [5:0]  subtractive_axi_rid,
     input  logic [127:0]  subtractive_axi_rdata,
     input  logic [1:0]  subtractive_axi_rresp,
     input  logic         subtractive_axi_rlast,

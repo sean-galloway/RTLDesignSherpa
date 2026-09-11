@@ -61,7 +61,7 @@ channels = "rw"
 [[bridge.slaves]]
 name = "sram_buffer"
 prefix = "sram_buffer_axi_"
-id_width = 8
+id_width = 11  # {master index, master id}: 8-bit ID + 3 prefix bit(s) (BRIDGE-016)
 addr_width = 32
 data_width = 256
 user_width = 1
@@ -72,7 +72,7 @@ addr_range = "0x40000000"  # 0x00000000 - 0x3FFFFFFF (1GB)
 [[bridge.slaves]]
 name = "ddr_controller"
 prefix = "ddr_controller_axi_"
-id_width = 8
+id_width = 11  # {master index, master id}: 8-bit ID + 3 prefix bit(s) (BRIDGE-016)
 addr_width = 32
 data_width = 256
 user_width = 1

@@ -90,6 +90,11 @@ module src_rd_master_adapter
 
     logic         wrapper_rd_busy;
 
+    // Master-unique fabric IDs: {BRIDGE_ID, id} (BRIDGE-016). Responses
+    // return with the prefix; the response muxes select the low bits.
+    logic [XBAR_ID_WIDTH-1:0] xbar_axi_arid;
+    assign xbar_axi_arid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_arid)};
+
     // ================================================================
     // Timing isolation wrapper (axi4_slave_rd)
     // ================================================================
@@ -196,7 +201,7 @@ module src_rd_master_adapter
     // ================================================================
 
     // AR channel (request: fub → output)
-    assign src_rd_master_256b_ar.id     = fub_axi_arid;
+    assign src_rd_master_256b_ar.id     = xbar_axi_arid;
     assign src_rd_master_256b_ar.addr   = fub_axi_araddr;
     assign src_rd_master_256b_ar.len    = fub_axi_arlen;
     assign src_rd_master_256b_ar.size   = fub_axi_arsize;

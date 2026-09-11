@@ -428,8 +428,14 @@ Masters (M)                                                    Slaves (S)
   requests were accepted. A reordering slave misroutes -- the FIFO head names
   the wrong master, so one master receives another's beats and the second
   starves. Nothing detects this.
-- Two masters using the same AXI ID to the same slave alias to one ID at that
-  slave; the `bridge_id` sideband, not the ID, keeps their responses apart.
+- Two masters never alias an ID at a slave: inside the fabric every ID is
+  `{master index, master id}` (BRIDGE-016), so a slave port carries the
+  widest master's id_width plus `$clog2(NUM_MASTERS)` bits -- 8-bit masters
+  behind a 16-master bridge give 12-bit IDs at the slaves. The `bridge_id`
+  sideband still routes responses; the prefix is what makes per-ID tracking
+  sound across masters, and every real AXI slave of a multi-master bridge is
+  tracked by ID in `bridge_cam` (BRIDGE-015). Single-master bridges add no
+  prefix and keep the in-order FIFO.
 
 **FR-3: Atomic Operations** (the bridge does NOT implement a monitor -- see below)
 - Pass AWLOCK/ARLOCK through to the slave. **The bridge implements no

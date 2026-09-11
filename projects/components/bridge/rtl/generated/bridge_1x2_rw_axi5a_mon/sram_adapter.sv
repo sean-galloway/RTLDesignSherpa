@@ -274,11 +274,11 @@ module sram_adapter
                 wr_id_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= xbar_sram_axi_awid;
             if (xbar_sram_axi_bvalid && xbar_sram_axi_bready) begin
                 if (xbar_sram_axi_bid !== wr_id_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]]) begin
-                    $error("BRIDGE-010: slave returned B out of AW order -- ",
-                           "got BID=%0h, expected %0h. This bridge routes ",
-                           "responses by FIFO position and does not support ",
-                           "ID-based reordering; the response has gone to the ",
-                           "wrong master.", xbar_sram_axi_bid,
+                    $error({"BRIDGE-010: slave returned B out of AW order -- ",
+                            "got BID=%0h, expected %0h. This bridge routes ",
+                            "responses by FIFO position and does not support ",
+                            "ID-based reordering; the response has gone to the ",
+                            "wrong master."}, xbar_sram_axi_bid,
                            wr_id_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]]);
                 end
             end
@@ -323,8 +323,8 @@ module sram_adapter
     // is open from the moment an R arrives.
     // A5-3b: read-return atomics answer on R with their AW's ID and no
     // AR. Track them per ID from the AW handshake. An R beat whose RID
-    // hits here is routed by the tracker and leaves the in-order FIFO
-    // untouched; every other beat routes by FIFO position as before.
+    // hits here is routed by the tracker and leaves the read tracker
+    // untouched; every other beat routes as before.
     axi5_atomic_rr_tracker #(
         .AXI_ID_WIDTH(ID_WIDTH),
         .DATA_WIDTH(BRIDGE_ID_WIDTH),
@@ -363,11 +363,11 @@ module sram_adapter
                 rd_id_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= xbar_sram_axi_arid;
             if (xbar_sram_axi_rvalid && xbar_sram_axi_rready && xbar_sram_axi_rlast && !atom_hit) begin
                 if (xbar_sram_axi_rid !== rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]) begin
-                    $error("BRIDGE-010: slave returned R out of AR order -- ",
-                           "got RID=%0h, expected %0h. This bridge routes ",
-                           "responses by FIFO position and does not support ",
-                           "ID-based reordering; the data has gone to the ",
-                           "wrong master.", xbar_sram_axi_rid,
+                    $error({"BRIDGE-010: slave returned R out of AR order -- ",
+                            "got RID=%0h, expected %0h. This bridge routes ",
+                            "responses by FIFO position and does not support ",
+                            "ID-based reordering; the data has gone to the ",
+                            "wrong master."}, xbar_sram_axi_rid,
                            rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]);
                 end
             end

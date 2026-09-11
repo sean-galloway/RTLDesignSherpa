@@ -1371,6 +1371,79 @@ test name.
 
 ---
 
+### BRIDGE-015: Out-of-order slave tracking (enable_ooo) could not elaborate
+**Status:** CLOSED 2026-09-10, same day. The mode builds, lints and passes: fixture
+`bridge_2x2_ooo`, `test_bridge_cam.py` (RED on the old CAM), and the full bridge
+regression 264/264. Originally: open 2026-09-10 (Sean: "it worked fine a few
+months ago").
+**Priority:** P1. A configuration knob that silently produced RTL no tool
+could build.
+
+`enable_ooo = true` on a slave selects `bridge_cam` for its response
+tracking. BRIDGE-011 (c64660f47) added not-full gating to the FIFO paths and
+bound `wr_trk_full` / `rd_trk_full` / `w_sub_*ready` in the wrapper override
+for BOTH modes, but declared them only on the FIFO side, so a CAM-mode
+adapter referenced nets that did not exist. No fixture used the mode, so
+nothing noticed. Repair: the CAM paths declare the nets and drive the full
+flags from the CAM's own `tags_full`; the A5-3b return tracker sits beside
+the CAM as it does beside the FIFO; new fixture `bridge_2x2_ooo` with both
+slaves reordering (the TB now builds `enable_ooo` slaves' BFMs with
+`enable_ooo=True`), and a hand-written test that drives interleaved reads
+from two masters through a reordering slave.
+
+*Two defects the repaired mode exposed, both fixed.* (1) `AXI4SlaveWrite` in
+out-of-order mode paired each W beat with the LOWEST pending transaction ID
+rather than the oldest AW; AXI4 W carries no ID, so with two masters' IDs
+interleaved at one slave one master's word landed under the other's address.
+Fixed in RDS-DV (432014c). (2) `bridge_cam` Mode 2: an allocate and a
+successful deallocate of the same tag in one cycle gave the newcomer
+max_count+1 from the pre-decrement counts, leaving the tag's order counts
+with a gap ({0,2}); the entry behind the gap was never found at count 0, so
+`deallocate_valid` stayed low, the crossbar never raised bready, and the
+slave's B sat until the BFM abandoned it. Every full-depth arbitration test
+on a CAM-tracked bridge stalled on it. The CAM had never had a test;
+`dv/tests/test_bridge_cam.py` now reproduces the gap (RED on the old RTL)
+and runs a random per-tag FIFO model at gate/func/full.
+
+### BRIDGE-016: Master-unique transaction IDs: prepend the master index
+**Status:** CLOSED 2026-09-10, same day. Every fabric ID is {master index,
+master id}; the reorder test proves it at the slave ports and its mutation went
+RED; full bridge regression 264/264. Originally: open 2026-09-10 (Sean: "there
+is supposed to be a unique id for every master, that gets prepended").
+**Priority:** P1.
+
+Inside the fabric every transaction ID becomes `{master index, master id}`:
+the widest master's id_width plus `$clog2(NUM_MASTERS)` bits, zero for a
+single master. Eight-bit masters behind a 16-master bridge give 12-bit IDs
+at the slaves. The master adapter forms the prefixed ID on every fabric arm
+(direct, width converter, Lite aligner); responses return with the prefix
+and the adapter's existing low-bit select strips it. The package exports
+`MASTER_ID_WIDTH` / `ID_PREFIX_WIDTH` / `XBAR_ID_WIDTH`; every other site
+sizes from `width_utils.xbar_id_width`. The validator requires each AXI
+slave's declared `id_width` to be at least the widened width and names the
+number. The `bridge_id` routing sideband stays; the prefix is what makes
+per-ID tracking sound across masters, which BRIDGE-015 needs.
+
+*Consequence for tracking mode.* The in-order FIFO tracker requires the
+slave to complete in AW/AR order across ALL IDs, which a compliant AXI slave
+need not do. While every master presented the same IDs that contract held by
+accident; the moment IDs became unique per master, a slave that serialises
+per ID (the in-order BFM does) completed across masters out of request
+order, and mix_b / mix_d tripped BRIDGE-010 in every cell. So with more than
+one master, every real AXI slave now tracks by ID in `bridge_cam`
+(`SlaveAdapterGenerator.use_cam`), regardless of `enable_ooo`; single-master
+bridges, shim slaves and the subtractive slave keep the FIFO. Thirteen
+multi-master variants, 22 adapters, switched. The BRIDGE-010 sim check
+stays on the FIFO path, and its `$error` finally prints the IDs rather than
+the ASCII of its own next sentence (the message was five string arguments).
+The BRIDGE-011 overflow test now reads occupancy from the CAM's count.
+
+**Downstream:** the FPGA-system bridges (`bridge_ddr2_char_{rd,wr}`, 2
+masters; `bridge_stream_{char,mon}_axil`, 3 and 4 masters) will now fail
+validation on their next PREBUILD regeneration until their slave `id_width`
+is raised and whatever the slave ports connect to is sized to match. That
+is deliberate: a loud validation error rather than a silently truncated ID.
+
 ## Pre-migration ledger: projects/components/bridge/TASKS.md (retired 2026-09-10)
 
 The component's own task file predated the vault and was folded in here, one

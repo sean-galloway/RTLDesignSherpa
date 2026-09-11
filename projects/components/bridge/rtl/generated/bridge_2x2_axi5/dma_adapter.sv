@@ -176,6 +176,13 @@ module dma_adapter
     logic         fub_axi_arunique;  // AXI5 sideband (unique)
     logic         fub_axi_rtrace;  // AXI5 sideband (trace)
 
+    // Master-unique fabric IDs: {BRIDGE_ID, id} (BRIDGE-016). Responses
+    // return with the prefix; the response muxes select the low bits.
+    logic [XBAR_ID_WIDTH-1:0] xbar_axi_awid;
+    assign xbar_axi_awid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_awid)};
+    logic [XBAR_ID_WIDTH-1:0] xbar_axi_arid;
+    assign xbar_axi_arid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_arid)};
+
     // ================================================================
     // Timing isolation wrapper (axi5_slave_wr)
     // ================================================================
@@ -453,7 +460,7 @@ module dma_adapter
     // ================================================================
 
     // AW channel (request: fub → output)
-    assign dma_32b_aw.id     = fub_axi_awid;
+    assign dma_32b_aw.id     = xbar_axi_awid;
     assign dma_32b_aw.addr   = fub_axi_awaddr;
     assign dma_32b_aw.len    = fub_axi_awlen;
     assign dma_32b_aw.size   = fub_axi_awsize;
@@ -484,7 +491,7 @@ module dma_adapter
     // bid, bresp, bvalid routed via MUX (user field ignored)
 
     // AR channel (request: fub → output)
-    assign dma_32b_ar.id     = fub_axi_arid;
+    assign dma_32b_ar.id     = xbar_axi_arid;
     assign dma_32b_ar.addr   = fub_axi_araddr;
     assign dma_32b_ar.len    = fub_axi_arlen;
     assign dma_32b_ar.size   = fub_axi_arsize;

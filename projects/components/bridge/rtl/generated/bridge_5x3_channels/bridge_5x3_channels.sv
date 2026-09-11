@@ -207,7 +207,7 @@ module bridge_5x3_channels
 
     // Slave 0: sram_buffer
     // AXI4 Slave: sram_buffer
-    output  logic [7:0]  sram_buffer_axi_awid,
+    output  logic [10:0]  sram_buffer_axi_awid,
     output  logic [31:0]  sram_buffer_axi_awaddr,
     output  logic [7:0]  sram_buffer_axi_awlen,
     output  logic [2:0]  sram_buffer_axi_awsize,
@@ -228,13 +228,13 @@ module bridge_5x3_channels
     output  logic         sram_buffer_axi_wvalid,
     input  logic         sram_buffer_axi_wready,
 
-    input  logic [7:0]  sram_buffer_axi_bid,
+    input  logic [10:0]  sram_buffer_axi_bid,
     input  logic [1:0]  sram_buffer_axi_bresp,
     input  logic         sram_buffer_axi_buser,
     input  logic         sram_buffer_axi_bvalid,
     output  logic         sram_buffer_axi_bready,
 
-    output  logic [7:0]  sram_buffer_axi_arid,
+    output  logic [10:0]  sram_buffer_axi_arid,
     output  logic [31:0]  sram_buffer_axi_araddr,
     output  logic [7:0]  sram_buffer_axi_arlen,
     output  logic [2:0]  sram_buffer_axi_arsize,
@@ -248,7 +248,7 @@ module bridge_5x3_channels
     output  logic         sram_buffer_axi_arvalid,
     input  logic         sram_buffer_axi_arready,
 
-    input  logic [7:0]  sram_buffer_axi_rid,
+    input  logic [10:0]  sram_buffer_axi_rid,
     input  logic [255:0]  sram_buffer_axi_rdata,
     input  logic [1:0]  sram_buffer_axi_rresp,
     input  logic         sram_buffer_axi_rlast,
@@ -258,7 +258,7 @@ module bridge_5x3_channels
 
     // Slave 1: ddr_controller
     // AXI4 Slave: ddr_controller
-    output  logic [7:0]  ddr_controller_axi_awid,
+    output  logic [10:0]  ddr_controller_axi_awid,
     output  logic [31:0]  ddr_controller_axi_awaddr,
     output  logic [7:0]  ddr_controller_axi_awlen,
     output  logic [2:0]  ddr_controller_axi_awsize,
@@ -279,13 +279,13 @@ module bridge_5x3_channels
     output  logic         ddr_controller_axi_wvalid,
     input  logic         ddr_controller_axi_wready,
 
-    input  logic [7:0]  ddr_controller_axi_bid,
+    input  logic [10:0]  ddr_controller_axi_bid,
     input  logic [1:0]  ddr_controller_axi_bresp,
     input  logic         ddr_controller_axi_buser,
     input  logic         ddr_controller_axi_bvalid,
     output  logic         ddr_controller_axi_bready,
 
-    output  logic [7:0]  ddr_controller_axi_arid,
+    output  logic [10:0]  ddr_controller_axi_arid,
     output  logic [31:0]  ddr_controller_axi_araddr,
     output  logic [7:0]  ddr_controller_axi_arlen,
     output  logic [2:0]  ddr_controller_axi_arsize,
@@ -299,7 +299,7 @@ module bridge_5x3_channels
     output  logic         ddr_controller_axi_arvalid,
     input  logic         ddr_controller_axi_arready,
 
-    input  logic [7:0]  ddr_controller_axi_rid,
+    input  logic [10:0]  ddr_controller_axi_rid,
     input  logic [255:0]  ddr_controller_axi_rdata,
     input  logic [1:0]  ddr_controller_axi_rresp,
     input  logic         ddr_controller_axi_rlast,
@@ -435,7 +435,7 @@ module bridge_5x3_channels
 
     // Crossbar-to-Slave Internal AXI4 Signals
     // sram_buffer (AXI4, 256b AXI4 interface)
-    logic [7:0]            xbar_sram_buffer_axi_awid;
+    logic [10:0]            xbar_sram_buffer_axi_awid;
     logic [31:0]               xbar_sram_buffer_axi_awaddr;
     logic [7:0]                xbar_sram_buffer_axi_awlen;
     logic [2:0]                xbar_sram_buffer_axi_awsize;
@@ -454,12 +454,12 @@ module bridge_5x3_channels
     logic                      xbar_sram_buffer_axi_wuser;
     logic                      xbar_sram_buffer_axi_wvalid;
     logic                      xbar_sram_buffer_axi_wready;
-    logic [7:0]            xbar_sram_buffer_axi_bid;
+    logic [10:0]            xbar_sram_buffer_axi_bid;
     logic [1:0]                xbar_sram_buffer_axi_bresp;
     logic                      xbar_sram_buffer_axi_buser;
     logic                      xbar_sram_buffer_axi_bvalid;
     logic                      xbar_sram_buffer_axi_bready;
-    logic [7:0]            xbar_sram_buffer_axi_arid;
+    logic [10:0]            xbar_sram_buffer_axi_arid;
     logic [31:0]               xbar_sram_buffer_axi_araddr;
     logic [7:0]                xbar_sram_buffer_axi_arlen;
     logic [2:0]                xbar_sram_buffer_axi_arsize;
@@ -472,7 +472,7 @@ module bridge_5x3_channels
     logic                      xbar_sram_buffer_axi_aruser;
     logic                      xbar_sram_buffer_axi_arvalid;
     logic                      xbar_sram_buffer_axi_arready;
-    logic [7:0]            xbar_sram_buffer_axi_rid;
+    logic [10:0]            xbar_sram_buffer_axi_rid;
     logic [255:0] xbar_sram_buffer_axi_rdata;
     logic [1:0]                xbar_sram_buffer_axi_rresp;
     logic                      xbar_sram_buffer_axi_rlast;
@@ -487,7 +487,7 @@ module bridge_5x3_channels
     logic                       sram_buffer_axi_rid_valid;
 
     // ddr_controller (AXI4, 256b AXI4 interface)
-    logic [7:0]            xbar_ddr_controller_axi_awid;
+    logic [10:0]            xbar_ddr_controller_axi_awid;
     logic [31:0]               xbar_ddr_controller_axi_awaddr;
     logic [7:0]                xbar_ddr_controller_axi_awlen;
     logic [2:0]                xbar_ddr_controller_axi_awsize;
@@ -506,12 +506,12 @@ module bridge_5x3_channels
     logic                      xbar_ddr_controller_axi_wuser;
     logic                      xbar_ddr_controller_axi_wvalid;
     logic                      xbar_ddr_controller_axi_wready;
-    logic [7:0]            xbar_ddr_controller_axi_bid;
+    logic [10:0]            xbar_ddr_controller_axi_bid;
     logic [1:0]                xbar_ddr_controller_axi_bresp;
     logic                      xbar_ddr_controller_axi_buser;
     logic                      xbar_ddr_controller_axi_bvalid;
     logic                      xbar_ddr_controller_axi_bready;
-    logic [7:0]            xbar_ddr_controller_axi_arid;
+    logic [10:0]            xbar_ddr_controller_axi_arid;
     logic [31:0]               xbar_ddr_controller_axi_araddr;
     logic [7:0]                xbar_ddr_controller_axi_arlen;
     logic [2:0]                xbar_ddr_controller_axi_arsize;
@@ -524,7 +524,7 @@ module bridge_5x3_channels
     logic                      xbar_ddr_controller_axi_aruser;
     logic                      xbar_ddr_controller_axi_arvalid;
     logic                      xbar_ddr_controller_axi_arready;
-    logic [7:0]            xbar_ddr_controller_axi_rid;
+    logic [10:0]            xbar_ddr_controller_axi_rid;
     logic [255:0] xbar_ddr_controller_axi_rdata;
     logic [1:0]                xbar_ddr_controller_axi_rresp;
     logic                      xbar_ddr_controller_axi_rlast;
@@ -539,7 +539,7 @@ module bridge_5x3_channels
     logic                       ddr_controller_axi_rid_valid;
 
     // apb_periph (APB, 32b AXI4 interface)
-    logic [7:0]            xbar_apb_periph_axi_awid;
+    logic [10:0]            xbar_apb_periph_axi_awid;
     logic [31:0]               xbar_apb_periph_axi_awaddr;
     logic [7:0]                xbar_apb_periph_axi_awlen;
     logic [2:0]                xbar_apb_periph_axi_awsize;
@@ -558,12 +558,12 @@ module bridge_5x3_channels
     logic                      xbar_apb_periph_axi_wuser;
     logic                      xbar_apb_periph_axi_wvalid;
     logic                      xbar_apb_periph_axi_wready;
-    logic [7:0]            xbar_apb_periph_axi_bid;
+    logic [10:0]            xbar_apb_periph_axi_bid;
     logic [1:0]                xbar_apb_periph_axi_bresp;
     logic                      xbar_apb_periph_axi_buser;
     logic                      xbar_apb_periph_axi_bvalid;
     logic                      xbar_apb_periph_axi_bready;
-    logic [7:0]            xbar_apb_periph_axi_arid;
+    logic [10:0]            xbar_apb_periph_axi_arid;
     logic [31:0]               xbar_apb_periph_axi_araddr;
     logic [7:0]                xbar_apb_periph_axi_arlen;
     logic [2:0]                xbar_apb_periph_axi_arsize;
@@ -576,7 +576,7 @@ module bridge_5x3_channels
     logic                      xbar_apb_periph_axi_aruser;
     logic                      xbar_apb_periph_axi_arvalid;
     logic                      xbar_apb_periph_axi_arready;
-    logic [7:0]            xbar_apb_periph_axi_rid;
+    logic [10:0]            xbar_apb_periph_axi_rid;
     logic [31:0] xbar_apb_periph_axi_rdata;
     logic [1:0]                xbar_apb_periph_axi_rresp;
     logic                      xbar_apb_periph_axi_rlast;
@@ -591,7 +591,7 @@ module bridge_5x3_channels
     logic                       apb_periph_axi_rid_valid;
 
     // subtractive (AXI4, 256b AXI4 interface)
-    logic [7:0]            xbar_subtractive_axi_awid;
+    logic [10:0]            xbar_subtractive_axi_awid;
     logic [31:0]               xbar_subtractive_axi_awaddr;
     logic [7:0]                xbar_subtractive_axi_awlen;
     logic [2:0]                xbar_subtractive_axi_awsize;
@@ -610,12 +610,12 @@ module bridge_5x3_channels
     logic                      xbar_subtractive_axi_wuser;
     logic                      xbar_subtractive_axi_wvalid;
     logic                      xbar_subtractive_axi_wready;
-    logic [7:0]            xbar_subtractive_axi_bid;
+    logic [10:0]            xbar_subtractive_axi_bid;
     logic [1:0]                xbar_subtractive_axi_bresp;
     logic                      xbar_subtractive_axi_buser;
     logic                      xbar_subtractive_axi_bvalid;
     logic                      xbar_subtractive_axi_bready;
-    logic [7:0]            xbar_subtractive_axi_arid;
+    logic [10:0]            xbar_subtractive_axi_arid;
     logic [31:0]               xbar_subtractive_axi_araddr;
     logic [7:0]                xbar_subtractive_axi_arlen;
     logic [2:0]                xbar_subtractive_axi_arsize;
@@ -628,7 +628,7 @@ module bridge_5x3_channels
     logic                      xbar_subtractive_axi_aruser;
     logic                      xbar_subtractive_axi_arvalid;
     logic                      xbar_subtractive_axi_arready;
-    logic [7:0]            xbar_subtractive_axi_rid;
+    logic [10:0]            xbar_subtractive_axi_rid;
     logic [255:0] xbar_subtractive_axi_rdata;
     logic [1:0]                xbar_subtractive_axi_rresp;
     logic                      xbar_subtractive_axi_rlast;
@@ -646,7 +646,7 @@ module bridge_5x3_channels
     // ---- Slave 3: subtractive (subtractive catch-all, internal) ----
     // Unmapped addresses land here instead of selecting nothing and
     // stalling the master forever (BRIDGE-009). Always answers DECERR.
-    logic [7:0]  subtractive_awid;
+    logic [10:0]  subtractive_awid;
     logic [31:0]  subtractive_awaddr;
     logic [7:0]  subtractive_awlen;
     logic [2:0]  subtractive_awsize;
@@ -665,12 +665,12 @@ module bridge_5x3_channels
     logic         subtractive_wuser;
     logic         subtractive_wvalid;
     logic         subtractive_wready;
-    logic [7:0]  subtractive_bid;
+    logic [10:0]  subtractive_bid;
     logic [1:0]  subtractive_bresp;
     logic         subtractive_buser;
     logic         subtractive_bvalid;
     logic         subtractive_bready;
-    logic [7:0]  subtractive_arid;
+    logic [10:0]  subtractive_arid;
     logic [31:0]  subtractive_araddr;
     logic [7:0]  subtractive_arlen;
     logic [2:0]  subtractive_arsize;
@@ -683,7 +683,7 @@ module bridge_5x3_channels
     logic         subtractive_aruser;
     logic         subtractive_arvalid;
     logic         subtractive_arready;
-    logic [7:0]  subtractive_rid;
+    logic [10:0]  subtractive_rid;
     logic [255:0]  subtractive_rdata;
     logic [1:0]  subtractive_rresp;
     logic         subtractive_rlast;
@@ -697,7 +697,7 @@ module bridge_5x3_channels
     monitor_common_pkg::monitor_packet_t subtractive_monbus_packet;
 
     axi4_subtractive_slave #(
-        .AXI_ID_WIDTH   (8),
+        .AXI_ID_WIDTH   (11),
         .AXI_ADDR_WIDTH (32),
         .AXI_DATA_WIDTH (256),
         .AXI_USER_WIDTH (1),

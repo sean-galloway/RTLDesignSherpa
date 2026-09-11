@@ -25,6 +25,7 @@ class PackageGenerator:
     """
 
     def __init__(self, bridge_name: str, id_width: int = 4, addr_width: int = 32, num_masters: int = 1,
+                 master_id_width: int = None,
                  sideband_features: Optional[Iterable[str]] = None):
         """
         Initialize package generator.
@@ -41,6 +42,9 @@ class PackageGenerator:
         """
         self.bridge_name = bridge_name
         self.id_width = id_width
+        # BRIDGE-016: struct ids are {master index, master id}. id_width is
+        # the fabric (xbar) width; master_id_width the widest master's own.
+        self.master_id_width = master_id_width if master_id_width is not None else id_width
         self.addr_width = addr_width  # Configurable address width
         self.num_masters = num_masters  # Number of masters
         self.data_widths: Set[int] = set()  # Collect unique data widths
@@ -113,10 +117,17 @@ class PackageGenerator:
         # For 1 master: 0 bits, for 2+ masters: clog2(NUM_MASTERS)
         bridge_id_width = max(1, (self.num_masters - 1).bit_length()) if self.num_masters > 0 else 1
 
+        prefix_width = self.id_width - self.master_id_width
         return [
             "    // Bridge Configuration Parameters",
             f"    localparam int NUM_MASTERS = {self.num_masters};",
-            f"    localparam int BRIDGE_ID_WIDTH = {bridge_id_width};  // $clog2(NUM_MASTERS)"
+            f"    localparam int BRIDGE_ID_WIDTH = {bridge_id_width};  // $clog2(NUM_MASTERS)",
+            "    // Transaction IDs inside the fabric are {master index, master id}",
+            "    // (BRIDGE-016), so two masters cannot alias an ID at a slave. The",
+            "    // prefix is 0 bits for a single master.",
+            f"    localparam int MASTER_ID_WIDTH = {self.master_id_width};  // widest master-side ID",
+            f"    localparam int ID_PREFIX_WIDTH = {prefix_width};  // master-index bits prepended",
+            f"    localparam int XBAR_ID_WIDTH   = {self.id_width};  // MASTER_ID_WIDTH + ID_PREFIX_WIDTH",
         ]
 
     def _sideband_lines(self, channel: str) -> List[str]:

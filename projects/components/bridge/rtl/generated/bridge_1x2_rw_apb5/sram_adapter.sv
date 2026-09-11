@@ -206,11 +206,11 @@ module sram_adapter
                 wr_id_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= xbar_sram_axi_awid;
             if (xbar_sram_axi_bvalid && xbar_sram_axi_bready) begin
                 if (xbar_sram_axi_bid !== wr_id_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]]) begin
-                    $error("BRIDGE-010: slave returned B out of AW order -- ",
-                           "got BID=%0h, expected %0h. This bridge routes ",
-                           "responses by FIFO position and does not support ",
-                           "ID-based reordering; the response has gone to the ",
-                           "wrong master.", xbar_sram_axi_bid,
+                    $error({"BRIDGE-010: slave returned B out of AW order -- ",
+                            "got BID=%0h, expected %0h. This bridge routes ",
+                            "responses by FIFO position and does not support ",
+                            "ID-based reordering; the response has gone to the ",
+                            "wrong master."}, xbar_sram_axi_bid,
                            wr_id_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]]);
                 end
             end
@@ -273,11 +273,11 @@ module sram_adapter
                 rd_id_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= xbar_sram_axi_arid;
             if (xbar_sram_axi_rvalid && xbar_sram_axi_rready && xbar_sram_axi_rlast) begin
                 if (xbar_sram_axi_rid !== rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]) begin
-                    $error("BRIDGE-010: slave returned R out of AR order -- ",
-                           "got RID=%0h, expected %0h. This bridge routes ",
-                           "responses by FIFO position and does not support ",
-                           "ID-based reordering; the data has gone to the ",
-                           "wrong master.", xbar_sram_axi_rid,
+                    $error({"BRIDGE-010: slave returned R out of AR order -- ",
+                            "got RID=%0h, expected %0h. This bridge routes ",
+                            "responses by FIFO position and does not support ",
+                            "ID-based reordering; the data has gone to the ",
+                            "wrong master."}, xbar_sram_axi_rid,
                            rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]);
                 end
             end

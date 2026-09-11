@@ -94,7 +94,7 @@ Masters connecting to Bridge must:
 Slaves connecting to Bridge must:
 
 1. **Comply with AXI4/APB protocol** - Based on configuration
-2. **Accept the master ID width unchanged** - the bridge does not widen IDs; a slave sees exactly the width its master drives
+2. **Accept the widened ID** - a slave sees `{master index, master id}`: the widest master's id_width plus `$clog2(NUM_MASTERS)` bits (none for a single master). Declare the slave's `id_width` at least that wide; the validator refuses less.
 3. **Match configured data width** - Or use width conversion
 4. **Respond to all transactions** - No hanging
 

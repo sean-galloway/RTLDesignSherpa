@@ -12,13 +12,13 @@
 module sram_buffer_adapter
     import bridge_5x3_channels_pkg::*;
 #(
-    parameter int ID_WIDTH = 8
+    parameter int ID_WIDTH = 11
 ) (
     input  logic aclk,
     input  logic aresetn,
 
     // Crossbar interface (AXI4 from crossbar)
-    input  logic [7:0]  xbar_sram_buffer_axi_awid,
+    input  logic [10:0]  xbar_sram_buffer_axi_awid,
     input  logic [31:0]  xbar_sram_buffer_axi_awaddr,
     input  logic [7:0]  xbar_sram_buffer_axi_awlen,
     input  logic [2:0]  xbar_sram_buffer_axi_awsize,
@@ -37,12 +37,12 @@ module sram_buffer_adapter
     input  logic         xbar_sram_buffer_axi_wuser,
     input  logic         xbar_sram_buffer_axi_wvalid,
     output  logic         xbar_sram_buffer_axi_wready,
-    output  logic [7:0]  xbar_sram_buffer_axi_bid,
+    output  logic [10:0]  xbar_sram_buffer_axi_bid,
     output  logic [1:0]  xbar_sram_buffer_axi_bresp,
     output  logic         xbar_sram_buffer_axi_buser,
     output  logic         xbar_sram_buffer_axi_bvalid,
     input  logic         xbar_sram_buffer_axi_bready,
-    input  logic [7:0]  xbar_sram_buffer_axi_arid,
+    input  logic [10:0]  xbar_sram_buffer_axi_arid,
     input  logic [31:0]  xbar_sram_buffer_axi_araddr,
     input  logic [7:0]  xbar_sram_buffer_axi_arlen,
     input  logic [2:0]  xbar_sram_buffer_axi_arsize,
@@ -55,7 +55,7 @@ module sram_buffer_adapter
     input  logic         xbar_sram_buffer_axi_aruser,
     input  logic         xbar_sram_buffer_axi_arvalid,
     output  logic         xbar_sram_buffer_axi_arready,
-    output  logic [7:0]  xbar_sram_buffer_axi_rid,
+    output  logic [10:0]  xbar_sram_buffer_axi_rid,
     output  logic [255:0]  xbar_sram_buffer_axi_rdata,
     output  logic [1:0]  xbar_sram_buffer_axi_rresp,
     output  logic         xbar_sram_buffer_axi_rlast,
@@ -73,7 +73,7 @@ module sram_buffer_adapter
     output logic                       rid_valid,
 
     // External slave interface (AXI4)
-    output  logic [7:0]  sram_buffer_axi_awid,
+    output  logic [10:0]  sram_buffer_axi_awid,
     output  logic [31:0]  sram_buffer_axi_awaddr,
     output  logic [7:0]  sram_buffer_axi_awlen,
     output  logic [2:0]  sram_buffer_axi_awsize,
@@ -92,12 +92,12 @@ module sram_buffer_adapter
     output  logic         sram_buffer_axi_wuser,
     output  logic         sram_buffer_axi_wvalid,
     input  logic         sram_buffer_axi_wready,
-    input  logic [7:0]  sram_buffer_axi_bid,
+    input  logic [10:0]  sram_buffer_axi_bid,
     input  logic [1:0]  sram_buffer_axi_bresp,
     input  logic         sram_buffer_axi_buser,
     input  logic         sram_buffer_axi_bvalid,
     output  logic         sram_buffer_axi_bready,
-    output  logic [7:0]  sram_buffer_axi_arid,
+    output  logic [10:0]  sram_buffer_axi_arid,
     output  logic [31:0]  sram_buffer_axi_araddr,
     output  logic [7:0]  sram_buffer_axi_arlen,
     output  logic [2:0]  sram_buffer_axi_arsize,
@@ -110,7 +110,7 @@ module sram_buffer_adapter
     output  logic         sram_buffer_axi_aruser,
     output  logic         sram_buffer_axi_arvalid,
     input  logic         sram_buffer_axi_arready,
-    input  logic [7:0]  sram_buffer_axi_rid,
+    input  logic [10:0]  sram_buffer_axi_rid,
     input  logic [255:0]  sram_buffer_axi_rdata,
     input  logic [1:0]  sram_buffer_axi_rresp,
     input  logic         sram_buffer_axi_rlast,
@@ -123,7 +123,7 @@ module sram_buffer_adapter
     // Internal Signals
     // ================================================================
 
-    // FIFO tracking signals (in-order mode)
+    // CAM tracking signals (by-ID mode: enable_ooo or a multi-master fabric)
     logic cam_wr_allocate;
     logic cam_wr_deallocate;
     logic [ID_WIDTH-1:0] cam_wr_allocate_tag;
@@ -137,161 +137,86 @@ module sram_buffer_adapter
     logic [ID_WIDTH-1:0] cam_rd_deallocate_tag;
 
     // ================================================================
-    // Bridge ID Tracking - FIFO Mode (In-Order)
+    // Bridge ID Tracking - CAM Mode (Out-of-Order)
     // ================================================================
 
-    // Write Channel FIFO (In-Order) - AXI4 Protocol
-    // BRIDGE-011 not-full gating: w_sub_awready is the sub-block's
-    // own ready, masked before it reaches the crossbar.
+    // Write Channel CAM
+    // BRIDGE-011 not-full gating, CAM form: the CAM's own tags_full masks
+    // the sub-block's ready before it reaches the crossbar. (These two nets
+    // are what the wrapper override below binds; the FIFO path declares
+    // its own. Missing here since c64660f47 -- BRIDGE-015.)
     logic wr_trk_full;
     logic w_sub_awready;
-    localparam WR_FIFO_DEPTH = 16;
-    logic [BRIDGE_ID_WIDTH-1:0] wr_fifo [WR_FIFO_DEPTH];
-    logic [$clog2(WR_FIFO_DEPTH):0] wr_ptr, rd_ptr;
-
-    // Push on AW (crossbar → adapter)
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            wr_ptr <= '0;
-        end else if (xbar_sram_buffer_axi_awvalid && xbar_sram_buffer_axi_awready) begin
-            wr_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= xbar_bridge_id_aw;
-            wr_ptr <= wr_ptr + 1'b1;
-        end
-    )
-
-    // Pop on B response (xbar_sram_buffer_axi_bvalid && xbar_sram_buffer_axi_bready)
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            rd_ptr <= '0;
-        end else if (xbar_sram_buffer_axi_bvalid && xbar_sram_buffer_axi_bready) begin
-            rd_ptr <= rd_ptr + 1'b1;
-        end
-    )
-
-    // bid_bridge_id / bid_valid drive the crossbar's response mux,
-    // which gates B going BACK to the master on bid_valid. Earlier
-    // versions registered these on the handshake completing — but
-    // the handshake CAN'T complete until the master sees bvalid,
-    // and the master can't see bvalid until bid_valid is high.
-    // Result: deadlock. Drive these combinationally so the route
-    // is open from the moment a B arrives.
-    assign bid_bridge_id = wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];
-    assign bid_valid     = (wr_ptr != rd_ptr);
-
-    // BRIDGE-011: this FIFO routes B by POSITION, so overrunning it
-    // misroutes responses -- past WR_FIFO_DEPTH a live entry is
-    // overwritten and its B goes to the wrong master; at twice the
-    // depth the pointers lap, (wr_ptr != rd_ptr) reads EMPTY and the
-    // response is never routed at all. Gate the AW handshake on
-    // not-full in BOTH directions. Draining never depends on
-    // accepting a further AW, so this cannot deadlock.
-    assign wr_trk_full = (wr_ptr[$clog2(WR_FIFO_DEPTH)] != rd_ptr[$clog2(WR_FIFO_DEPTH)]) &&
-                         (wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0] == rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]);
     assign xbar_sram_buffer_axi_awready = w_sub_awready && !wr_trk_full;
+    bridge_cam #(
+        .TAG_WIDTH(ID_WIDTH),
+        .DATA_WIDTH(BRIDGE_ID_WIDTH),
+        .DEPTH(16),
+        .ALLOW_DUPLICATES(1),  // Mode 2: OOO support
+        .PIPELINE_EVICT(0)
+    ) u_wr_cam (
+        .clk(aclk),
+        .rst_n(aresetn),
 
-    // BRIDGE-010: this port routes B by FIFO POSITION, so it REQUIRES
-    // the slave to return B in AW order across all IDs. AXI4 permits a
-    // slave to reorder between IDs; such a slave silently misroutes
-    // here. Nothing detected that, so record the AWID alongside the
-    // master id and check the returned BID against the head. Sim-only:
-    // it is a contract check on the attached slave, not logic the
-    // bridge needs, and it must cost no gates.
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    logic [8-1:0] wr_id_fifo [WR_FIFO_DEPTH];
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-        end else begin
-            if (xbar_sram_buffer_axi_awvalid && xbar_sram_buffer_axi_awready)
-                wr_id_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= xbar_sram_buffer_axi_awid;
-            if (xbar_sram_buffer_axi_bvalid && xbar_sram_buffer_axi_bready) begin
-                if (xbar_sram_buffer_axi_bid !== wr_id_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]]) begin
-                    $error("BRIDGE-010: slave returned B out of AW order -- ",
-                           "got BID=%0h, expected %0h. This bridge routes ",
-                           "responses by FIFO position and does not support ",
-                           "ID-based reordering; the response has gone to the ",
-                           "wrong master.", xbar_sram_buffer_axi_bid,
-                           wr_id_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]]);
-                end
-            end
-        end
-    )
-    // synthesis translate_on
-`endif
+        // Allocate on AW (from crossbar)
+        .allocate(xbar_sram_buffer_axi_awvalid && xbar_sram_buffer_axi_awready),
+        .allocate_tag(xbar_sram_buffer_axi_awid),
+        .allocate_data(xbar_bridge_id_aw),
 
-    // Read Channel FIFO (In-Order) - AXI4 Protocol
-    // BRIDGE-011 not-full gating -- see the write channel.
+        // Deallocate on B (from converter)
+        .deallocate(xbar_sram_buffer_axi_bvalid && xbar_sram_buffer_axi_bready),
+        .deallocate_tag(xbar_sram_buffer_axi_bid),
+        .deallocate_valid(bid_valid),
+        .deallocate_data(bid_bridge_id),
+        .deallocate_count(),
+
+        // Status
+        .cam_hit(),
+        .tags_empty(),
+        .tags_full(wr_trk_full),
+        .tags_count()
+    );
+
+    // Read Channel CAM
+    // BRIDGE-011 not-full gating, CAM form -- see the write channel.
     logic rd_trk_full;
     logic w_sub_arready;
-    localparam RD_FIFO_DEPTH = 16;
-    logic [BRIDGE_ID_WIDTH-1:0] rd_fifo [RD_FIFO_DEPTH];
-    logic [$clog2(RD_FIFO_DEPTH):0] ar_ptr, r_ptr;
-
-    // Push on AR (crossbar → adapter)
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            ar_ptr <= '0;
-        end else if (xbar_sram_buffer_axi_arvalid && xbar_sram_buffer_axi_arready) begin
-            rd_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= xbar_bridge_id_ar;
-            ar_ptr <= ar_ptr + 1'b1;
-        end
-    )
-
-    // Pop on R response (xbar_sram_buffer_axi_rvalid && xbar_sram_buffer_axi_rready && xbar_sram_buffer_axi_rlast)
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_ptr <= '0;
-        end else if (xbar_sram_buffer_axi_rvalid && xbar_sram_buffer_axi_rready && xbar_sram_buffer_axi_rlast) begin
-            r_ptr <= r_ptr + 1'b1;
-        end
-    )
-
-    // rid_bridge_id / rid_valid drive the crossbar's response mux,
-    // which gates R going BACK to the master on rid_valid. Earlier
-    // versions registered these on the handshake completing — but
-    // the handshake CAN'T complete until the master sees rvalid,
-    // and the master can't see rvalid until rid_valid is high.
-    // Result: deadlock. Drive these combinationally so the route
-    // is open from the moment an R arrives.
-    assign rid_bridge_id = rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];
-    assign rid_valid     = (ar_ptr != r_ptr);
-
-    // BRIDGE-011, read side -- see the write comment above.
-    assign rd_trk_full = (ar_ptr[$clog2(RD_FIFO_DEPTH)] != r_ptr[$clog2(RD_FIFO_DEPTH)]) &&
-                         (ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0] == r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]);
     assign xbar_sram_buffer_axi_arready = w_sub_arready && !rd_trk_full;
+    bridge_cam #(
+        .TAG_WIDTH(ID_WIDTH),
+        .DATA_WIDTH(BRIDGE_ID_WIDTH),
+        .DEPTH(16),
+        .ALLOW_DUPLICATES(1),  // Mode 2: OOO support
+        .PIPELINE_EVICT(0)
+    ) u_rd_cam (
+        .clk(aclk),
+        .rst_n(aresetn),
 
-    // BRIDGE-010, read side -- see the write channel. Checked on the
-    // LAST beat, since that is when the FIFO entry is retired.
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    logic [8-1:0] rd_id_fifo [RD_FIFO_DEPTH];
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-        end else begin
-            if (xbar_sram_buffer_axi_arvalid && xbar_sram_buffer_axi_arready)
-                rd_id_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= xbar_sram_buffer_axi_arid;
-            if (xbar_sram_buffer_axi_rvalid && xbar_sram_buffer_axi_rready && xbar_sram_buffer_axi_rlast) begin
-                if (xbar_sram_buffer_axi_rid !== rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]) begin
-                    $error("BRIDGE-010: slave returned R out of AR order -- ",
-                           "got RID=%0h, expected %0h. This bridge routes ",
-                           "responses by FIFO position and does not support ",
-                           "ID-based reordering; the data has gone to the ",
-                           "wrong master.", xbar_sram_buffer_axi_rid,
-                           rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]);
-                end
-            end
-        end
-    )
-    // synthesis translate_on
-`endif
+        // Allocate on AR (from crossbar)
+        .allocate(xbar_sram_buffer_axi_arvalid && xbar_sram_buffer_axi_arready),
+        .allocate_tag(xbar_sram_buffer_axi_arid),
+        .allocate_data(xbar_bridge_id_ar),
+
+        // Deallocate on R (from converter)
+        .deallocate(xbar_sram_buffer_axi_rvalid && xbar_sram_buffer_axi_rready && xbar_sram_buffer_axi_rlast),
+        .deallocate_tag(xbar_sram_buffer_axi_rid),
+        .deallocate_valid(rid_valid),
+        .deallocate_data(rid_bridge_id),
+        .deallocate_count(),
+
+        // Status
+        .cam_hit(),
+        .tags_empty(),
+        .tags_full(rd_trk_full),
+        .tags_count()
+    );
 
     // AXI4 Master Write Timing Wrapper
     axi4_master_wr #(
         .SKID_DEPTH_AW(2),
         .SKID_DEPTH_W(4),
         .SKID_DEPTH_B(2),
-        .AXI_ID_WIDTH(8),
+        .AXI_ID_WIDTH(11),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(256),
         .AXI_USER_WIDTH(1)
@@ -359,7 +284,7 @@ module sram_buffer_adapter
     axi4_master_rd #(
         .SKID_DEPTH_AR(2),
         .SKID_DEPTH_R(2),
-        .AXI_ID_WIDTH(8),
+        .AXI_ID_WIDTH(11),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(256),
         .AXI_USER_WIDTH(1)

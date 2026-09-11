@@ -796,12 +796,110 @@ def test_axi5_rr_atomic_master_needs_rw_slave(tmp_path):
         load_config(toml, conn)
 
 
-def test_axi5_rr_atomic_rejects_ooo_slave(tmp_path):
-    """A5-3b: the per-ID return tracker sits beside the in-order read FIFO;
-    the CAM (enable_ooo) path has no hook, so the combination is refused."""
+def test_axi5_rr_atomic_with_ooo_slave_accepted(tmp_path):
+    """A5-3b + BRIDGE-015: the per-ID return tracker sits beside whichever
+    read tracker the slave uses, so an enable_ooo slave is accepted."""
     toml, conn = _write_rw_atomic_toml(tmp_path, slave_extra="enable_ooo = true")
-    with pytest.raises(ValidationError, match="in-order tracker only"):
-        load_config(toml, conn)
+    cfg = load_config(toml, conn)
+    assert cfg.slaves[0].enable_ooo
+
+
+def test_ooo_slave_adapter_generates_and_gates(tmp_path):
+    """BRIDGE-015: CAM-mode tracking lost its not-full nets in c64660f47 and
+    could not elaborate. The CAM paths must declare wr_trk_full / rd_trk_full
+    and drive them from tags_full, and an atomic slave must get the return
+    tracker beside the CAM."""
+    out = _generate(tmp_path, "bridge_2x2_ooo")
+    for slave in ("ddr", "sram"):
+        sv = (out / f"{slave}_adapter.sv").read_text()
+        assert "u_wr_cam" in sv and "u_rd_cam" in sv, f"{slave}: CAM tracking not selected"
+        assert "logic wr_trk_full;" in sv and "logic rd_trk_full;" in sv, f"{slave}: not-full nets undeclared (the c64660f47 regression)"
+        assert ".tags_full(wr_trk_full)" in sv and ".tags_full(rd_trk_full)" in sv, f"{slave}: full flags not driven by the CAM"
+        assert "&& !wr_trk_full" in sv and "&& !rd_trk_full" in sv, f"{slave}: readies not gated on the CAM being full"
+    sv_files = sorted(tmp_path.glob("bridge_2x2_ooo*/*.sv"))
+    chk = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "bin" / "check_sv_decl_order.py"), *map(str, sv_files)],
+        capture_output=True, text=True, timeout=120)
+    assert chk.returncode == 0, f"declaration-order issues:\n{chk.stdout}"
+
+
+# ---------------------------------------------------------------------
+# Master-unique transaction IDs (BRIDGE-016)
+# ---------------------------------------------------------------------
+
+
+def test_id_prefix_slave_too_narrow_rejected(tmp_path):
+    """Two 4-bit masters give 5-bit IDs at every slave; a slave declaring 4
+    would truncate the master index and let two masters alias again."""
+    toml = tmp_path / "b.toml"
+    conn = tmp_path / "c.csv"
+    toml.write_text("""
+[bridge]
+name = "b"
+variants = ["no"]
+[[bridge.masters]]
+name = "m0"
+prefix = "m0_"
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+[[bridge.masters]]
+name = "m1"
+prefix = "m1_"
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+[[bridge.slaves]]
+name = "s0"
+prefix = "s0_"
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+base_addr = "0x0000_0000"
+addr_range = "0x0001_0000"
+""")
+    conn.write_text("master,s0\nm0,1\nm1,1\n")
+    with pytest.raises(ValidationError, match="carries 5-bit IDs"):
+        load_config(str(toml), str(conn))
+
+
+def test_id_prefix_generated_on_multi_master(tmp_path):
+    """The master adapter forms {BRIDGE_ID, id} on its fabric-facing nets,
+    the package exports the widths, and the slave ports carry them."""
+    out = _generate(tmp_path, "bridge_2x2_ooo")
+    pkg = (out / "bridge_2x2_ooo_pkg.sv").read_text()
+    assert "MASTER_ID_WIDTH = 4" in pkg and "ID_PREFIX_WIDTH = 1" in pkg and "XBAR_ID_WIDTH   = 5" in pkg
+    for m in ("cpu", "dma"):
+        sv = (out / f"{m}_adapter.sv").read_text()
+        assert "assign xbar_axi_awid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_awid)};" in sv
+        assert "_aw.id     = xbar_axi_awid;" in sv and "_ar.id     = xbar_axi_arid;" in sv
+    top = (out / "bridge_2x2_ooo.sv").read_text()
+    assert "[4:0]" in top and "ddr_axi_awid" in top, "slave ports not widened"
+
+
+def test_multi_master_axi_slaves_track_by_id(tmp_path):
+    """BRIDGE-015/016: with more than one master a real AXI slave tracks by
+    ID in bridge_cam even without enable_ooo (the FIFO needs the slave to
+    complete in request order across all IDs); the subtractive slave and a
+    single-master bridge keep the FIFO."""
+    out = _generate(tmp_path, "bridge_2x2_rw")
+    for slave in ("ddr", "sram"):
+        assert "u_rd_cam" in (out / f"{slave}_adapter.sv").read_text(), f"{slave}: expected CAM tracking"
+    assert "u_rd_cam" not in (out / "subtractive_adapter.sv").read_text()
+    out1 = _generate(tmp_path / "single", "bridge_1x2_rd_axi5")
+    assert "u_rd_cam" not in (out1 / "ddr_rd_adapter.sv").read_text()
+
+
+def test_id_prefix_absent_on_single_master(tmp_path):
+    """One master: nothing to disambiguate, no prefix, and the pre-existing
+    single-master bridges stay byte-identical apart from the package."""
+    out = _generate(tmp_path, "bridge_1x2_rd_axi5")
+    pkg = (out / "bridge_1x2_rd_axi5_pkg.sv").read_text()
+    assert "ID_PREFIX_WIDTH = 0" in pkg
+    assert "xbar_axi_arid" not in (out / "cpu_rd_adapter.sv").read_text()
 
 
 def test_axi5_rr_atomic_accepted(tmp_path):

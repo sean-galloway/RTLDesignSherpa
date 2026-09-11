@@ -137,7 +137,7 @@ module bridge_2x2_axi5
 
     // Slave 0: ddr
     // AXI4 Slave: ddr
-    output  logic [3:0]  ddr_axi_awid,
+    output  logic [4:0]  ddr_axi_awid,
     output  logic [31:0]  ddr_axi_awaddr,
     output  logic [7:0]  ddr_axi_awlen,
     output  logic [2:0]  ddr_axi_awsize,
@@ -158,13 +158,13 @@ module bridge_2x2_axi5
     output  logic         ddr_axi_wvalid,
     input  logic         ddr_axi_wready,
 
-    input  logic [3:0]  ddr_axi_bid,
+    input  logic [4:0]  ddr_axi_bid,
     input  logic [1:0]  ddr_axi_bresp,
     input  logic         ddr_axi_buser,
     input  logic         ddr_axi_bvalid,
     output  logic         ddr_axi_bready,
 
-    output  logic [3:0]  ddr_axi_arid,
+    output  logic [4:0]  ddr_axi_arid,
     output  logic [31:0]  ddr_axi_araddr,
     output  logic [7:0]  ddr_axi_arlen,
     output  logic [2:0]  ddr_axi_arsize,
@@ -178,7 +178,7 @@ module bridge_2x2_axi5
     output  logic         ddr_axi_arvalid,
     input  logic         ddr_axi_arready,
 
-    input  logic [3:0]  ddr_axi_rid,
+    input  logic [4:0]  ddr_axi_rid,
     input  logic [31:0]  ddr_axi_rdata,
     input  logic [1:0]  ddr_axi_rresp,
     input  logic         ddr_axi_rlast,
@@ -188,7 +188,7 @@ module bridge_2x2_axi5
 
     // Slave 1: sram
     // AXI5 Slave: sram
-    output  logic [3:0]  sram_axi_awid,
+    output  logic [4:0]  sram_axi_awid,
     output  logic [31:0]  sram_axi_awaddr,
     output  logic [7:0]  sram_axi_awlen,
     output  logic [2:0]  sram_axi_awsize,
@@ -211,14 +211,14 @@ module bridge_2x2_axi5
     output  logic         sram_axi_wvalid,
     input  logic         sram_axi_wready,
 
-    input  logic [3:0]  sram_axi_bid,
+    input  logic [4:0]  sram_axi_bid,
     input  logic [1:0]  sram_axi_bresp,
     input  logic         sram_axi_buser,
     input  logic         sram_axi_bvalid,
     output  logic         sram_axi_bready,
     input  logic         sram_axi_btrace,
 
-    output  logic [3:0]  sram_axi_arid,
+    output  logic [4:0]  sram_axi_arid,
     output  logic [31:0]  sram_axi_araddr,
     output  logic [7:0]  sram_axi_arlen,
     output  logic [2:0]  sram_axi_arsize,
@@ -234,7 +234,7 @@ module bridge_2x2_axi5
     output  logic         sram_axi_artrace,
     output  logic         sram_axi_arunique,
 
-    input  logic [3:0]  sram_axi_rid,
+    input  logic [4:0]  sram_axi_rid,
     input  logic [31:0]  sram_axi_rdata,
     input  logic [1:0]  sram_axi_rresp,
     input  logic         sram_axi_rlast,
@@ -303,7 +303,7 @@ module bridge_2x2_axi5
 
     // Crossbar-to-Slave Internal AXI4 Signals
     // ddr (AXI4, 32b AXI4 interface)
-    logic [3:0]            xbar_ddr_axi_awid;
+    logic [4:0]            xbar_ddr_axi_awid;
     logic [31:0]               xbar_ddr_axi_awaddr;
     logic [7:0]                xbar_ddr_axi_awlen;
     logic [2:0]                xbar_ddr_axi_awsize;
@@ -322,12 +322,12 @@ module bridge_2x2_axi5
     logic                      xbar_ddr_axi_wuser;
     logic                      xbar_ddr_axi_wvalid;
     logic                      xbar_ddr_axi_wready;
-    logic [3:0]            xbar_ddr_axi_bid;
+    logic [4:0]            xbar_ddr_axi_bid;
     logic [1:0]                xbar_ddr_axi_bresp;
     logic                      xbar_ddr_axi_buser;
     logic                      xbar_ddr_axi_bvalid;
     logic                      xbar_ddr_axi_bready;
-    logic [3:0]            xbar_ddr_axi_arid;
+    logic [4:0]            xbar_ddr_axi_arid;
     logic [31:0]               xbar_ddr_axi_araddr;
     logic [7:0]                xbar_ddr_axi_arlen;
     logic [2:0]                xbar_ddr_axi_arsize;
@@ -340,7 +340,7 @@ module bridge_2x2_axi5
     logic                      xbar_ddr_axi_aruser;
     logic                      xbar_ddr_axi_arvalid;
     logic                      xbar_ddr_axi_arready;
-    logic [3:0]            xbar_ddr_axi_rid;
+    logic [4:0]            xbar_ddr_axi_rid;
     logic [31:0] xbar_ddr_axi_rdata;
     logic [1:0]                xbar_ddr_axi_rresp;
     logic                      xbar_ddr_axi_rlast;
@@ -355,7 +355,7 @@ module bridge_2x2_axi5
     logic                       ddr_axi_rid_valid;
 
     // sram (AXI5, 32b AXI4 interface)
-    logic [3:0]            xbar_sram_axi_awid;
+    logic [4:0]            xbar_sram_axi_awid;
     logic [31:0]               xbar_sram_axi_awaddr;
     logic [7:0]                xbar_sram_axi_awlen;
     logic [2:0]                xbar_sram_axi_awsize;
@@ -374,12 +374,12 @@ module bridge_2x2_axi5
     logic                      xbar_sram_axi_wuser;
     logic                      xbar_sram_axi_wvalid;
     logic                      xbar_sram_axi_wready;
-    logic [3:0]            xbar_sram_axi_bid;
+    logic [4:0]            xbar_sram_axi_bid;
     logic [1:0]                xbar_sram_axi_bresp;
     logic                      xbar_sram_axi_buser;
     logic                      xbar_sram_axi_bvalid;
     logic                      xbar_sram_axi_bready;
-    logic [3:0]            xbar_sram_axi_arid;
+    logic [4:0]            xbar_sram_axi_arid;
     logic [31:0]               xbar_sram_axi_araddr;
     logic [7:0]                xbar_sram_axi_arlen;
     logic [2:0]                xbar_sram_axi_arsize;
@@ -392,7 +392,7 @@ module bridge_2x2_axi5
     logic                      xbar_sram_axi_aruser;
     logic                      xbar_sram_axi_arvalid;
     logic                      xbar_sram_axi_arready;
-    logic [3:0]            xbar_sram_axi_rid;
+    logic [4:0]            xbar_sram_axi_rid;
     logic [31:0] xbar_sram_axi_rdata;
     logic [1:0]                xbar_sram_axi_rresp;
     logic                      xbar_sram_axi_rlast;
@@ -415,7 +415,7 @@ module bridge_2x2_axi5
     logic                       sram_axi_rid_valid;
 
     // subtractive (AXI4, 32b AXI4 interface)
-    logic [3:0]            xbar_subtractive_axi_awid;
+    logic [4:0]            xbar_subtractive_axi_awid;
     logic [31:0]               xbar_subtractive_axi_awaddr;
     logic [7:0]                xbar_subtractive_axi_awlen;
     logic [2:0]                xbar_subtractive_axi_awsize;
@@ -434,12 +434,12 @@ module bridge_2x2_axi5
     logic                      xbar_subtractive_axi_wuser;
     logic                      xbar_subtractive_axi_wvalid;
     logic                      xbar_subtractive_axi_wready;
-    logic [3:0]            xbar_subtractive_axi_bid;
+    logic [4:0]            xbar_subtractive_axi_bid;
     logic [1:0]                xbar_subtractive_axi_bresp;
     logic                      xbar_subtractive_axi_buser;
     logic                      xbar_subtractive_axi_bvalid;
     logic                      xbar_subtractive_axi_bready;
-    logic [3:0]            xbar_subtractive_axi_arid;
+    logic [4:0]            xbar_subtractive_axi_arid;
     logic [31:0]               xbar_subtractive_axi_araddr;
     logic [7:0]                xbar_subtractive_axi_arlen;
     logic [2:0]                xbar_subtractive_axi_arsize;
@@ -452,7 +452,7 @@ module bridge_2x2_axi5
     logic                      xbar_subtractive_axi_aruser;
     logic                      xbar_subtractive_axi_arvalid;
     logic                      xbar_subtractive_axi_arready;
-    logic [3:0]            xbar_subtractive_axi_rid;
+    logic [4:0]            xbar_subtractive_axi_rid;
     logic [31:0] xbar_subtractive_axi_rdata;
     logic [1:0]                xbar_subtractive_axi_rresp;
     logic                      xbar_subtractive_axi_rlast;
@@ -470,7 +470,7 @@ module bridge_2x2_axi5
     // ---- Slave 2: subtractive (subtractive catch-all, internal) ----
     // Unmapped addresses land here instead of selecting nothing and
     // stalling the master forever (BRIDGE-009). Always answers DECERR.
-    logic [3:0]  subtractive_awid;
+    logic [4:0]  subtractive_awid;
     logic [31:0]  subtractive_awaddr;
     logic [7:0]  subtractive_awlen;
     logic [2:0]  subtractive_awsize;
@@ -489,12 +489,12 @@ module bridge_2x2_axi5
     logic         subtractive_wuser;
     logic         subtractive_wvalid;
     logic         subtractive_wready;
-    logic [3:0]  subtractive_bid;
+    logic [4:0]  subtractive_bid;
     logic [1:0]  subtractive_bresp;
     logic         subtractive_buser;
     logic         subtractive_bvalid;
     logic         subtractive_bready;
-    logic [3:0]  subtractive_arid;
+    logic [4:0]  subtractive_arid;
     logic [31:0]  subtractive_araddr;
     logic [7:0]  subtractive_arlen;
     logic [2:0]  subtractive_arsize;
@@ -507,7 +507,7 @@ module bridge_2x2_axi5
     logic         subtractive_aruser;
     logic         subtractive_arvalid;
     logic         subtractive_arready;
-    logic [3:0]  subtractive_rid;
+    logic [4:0]  subtractive_rid;
     logic [31:0]  subtractive_rdata;
     logic [1:0]  subtractive_rresp;
     logic         subtractive_rlast;
@@ -521,7 +521,7 @@ module bridge_2x2_axi5
     monitor_common_pkg::monitor_packet_t subtractive_monbus_packet;
 
     axi4_subtractive_slave #(
-        .AXI_ID_WIDTH   (4),
+        .AXI_ID_WIDTH   (5),
         .AXI_ADDR_WIDTH (32),
         .AXI_DATA_WIDTH (32),
         .AXI_USER_WIDTH (1),

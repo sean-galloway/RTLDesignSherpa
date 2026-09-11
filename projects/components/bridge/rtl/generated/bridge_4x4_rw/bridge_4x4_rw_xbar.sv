@@ -274,7 +274,7 @@ module bridge_4x4_rw_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] periph_slave_axi_rid_bridge_id,
     input  logic                       periph_slave_axi_rid_valid,
 
-    output  logic [3:0]  periph_slave_axi_awid,
+    output  logic [5:0]  periph_slave_axi_awid,
     output  logic [31:0]  periph_slave_axi_awaddr,
     output  logic [7:0]  periph_slave_axi_awlen,
     output  logic [2:0]  periph_slave_axi_awsize,
@@ -295,13 +295,13 @@ module bridge_4x4_rw_xbar
     output  logic         periph_slave_axi_wvalid,
     input  logic         periph_slave_axi_wready,
 
-    input  logic [3:0]  periph_slave_axi_bid,
+    input  logic [5:0]  periph_slave_axi_bid,
     input  logic [1:0]  periph_slave_axi_bresp,
     input  logic         periph_slave_axi_buser,
     input  logic         periph_slave_axi_bvalid,
     output  logic         periph_slave_axi_bready,
 
-    output  logic [3:0]  periph_slave_axi_arid,
+    output  logic [5:0]  periph_slave_axi_arid,
     output  logic [31:0]  periph_slave_axi_araddr,
     output  logic [7:0]  periph_slave_axi_arlen,
     output  logic [2:0]  periph_slave_axi_arsize,
@@ -315,7 +315,7 @@ module bridge_4x4_rw_xbar
     output  logic         periph_slave_axi_arvalid,
     input  logic         periph_slave_axi_arready,
 
-    input  logic [3:0]  periph_slave_axi_rid,
+    input  logic [5:0]  periph_slave_axi_rid,
     input  logic [31:0]  periph_slave_axi_rdata,
     input  logic [1:0]  periph_slave_axi_rresp,
     input  logic         periph_slave_axi_rlast,
@@ -332,7 +332,7 @@ module bridge_4x4_rw_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] ddr0_slave_axi_rid_bridge_id,
     input  logic                       ddr0_slave_axi_rid_valid,
 
-    output  logic [3:0]  ddr0_slave_axi_awid,
+    output  logic [5:0]  ddr0_slave_axi_awid,
     output  logic [31:0]  ddr0_slave_axi_awaddr,
     output  logic [7:0]  ddr0_slave_axi_awlen,
     output  logic [2:0]  ddr0_slave_axi_awsize,
@@ -353,13 +353,13 @@ module bridge_4x4_rw_xbar
     output  logic         ddr0_slave_axi_wvalid,
     input  logic         ddr0_slave_axi_wready,
 
-    input  logic [3:0]  ddr0_slave_axi_bid,
+    input  logic [5:0]  ddr0_slave_axi_bid,
     input  logic [1:0]  ddr0_slave_axi_bresp,
     input  logic         ddr0_slave_axi_buser,
     input  logic         ddr0_slave_axi_bvalid,
     output  logic         ddr0_slave_axi_bready,
 
-    output  logic [3:0]  ddr0_slave_axi_arid,
+    output  logic [5:0]  ddr0_slave_axi_arid,
     output  logic [31:0]  ddr0_slave_axi_araddr,
     output  logic [7:0]  ddr0_slave_axi_arlen,
     output  logic [2:0]  ddr0_slave_axi_arsize,
@@ -373,7 +373,7 @@ module bridge_4x4_rw_xbar
     output  logic         ddr0_slave_axi_arvalid,
     input  logic         ddr0_slave_axi_arready,
 
-    input  logic [3:0]  ddr0_slave_axi_rid,
+    input  logic [5:0]  ddr0_slave_axi_rid,
     input  logic [63:0]  ddr0_slave_axi_rdata,
     input  logic [1:0]  ddr0_slave_axi_rresp,
     input  logic         ddr0_slave_axi_rlast,
@@ -390,7 +390,7 @@ module bridge_4x4_rw_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] sram_slave_axi_rid_bridge_id,
     input  logic                       sram_slave_axi_rid_valid,
 
-    output  logic [3:0]  sram_slave_axi_awid,
+    output  logic [5:0]  sram_slave_axi_awid,
     output  logic [31:0]  sram_slave_axi_awaddr,
     output  logic [7:0]  sram_slave_axi_awlen,
     output  logic [2:0]  sram_slave_axi_awsize,
@@ -411,13 +411,13 @@ module bridge_4x4_rw_xbar
     output  logic         sram_slave_axi_wvalid,
     input  logic         sram_slave_axi_wready,
 
-    input  logic [3:0]  sram_slave_axi_bid,
+    input  logic [5:0]  sram_slave_axi_bid,
     input  logic [1:0]  sram_slave_axi_bresp,
     input  logic         sram_slave_axi_buser,
     input  logic         sram_slave_axi_bvalid,
     output  logic         sram_slave_axi_bready,
 
-    output  logic [3:0]  sram_slave_axi_arid,
+    output  logic [5:0]  sram_slave_axi_arid,
     output  logic [31:0]  sram_slave_axi_araddr,
     output  logic [7:0]  sram_slave_axi_arlen,
     output  logic [2:0]  sram_slave_axi_arsize,
@@ -431,7 +431,7 @@ module bridge_4x4_rw_xbar
     output  logic         sram_slave_axi_arvalid,
     input  logic         sram_slave_axi_arready,
 
-    input  logic [3:0]  sram_slave_axi_rid,
+    input  logic [5:0]  sram_slave_axi_rid,
     input  logic [127:0]  sram_slave_axi_rdata,
     input  logic [1:0]  sram_slave_axi_rresp,
     input  logic         sram_slave_axi_rlast,
@@ -448,7 +448,7 @@ module bridge_4x4_rw_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] gpu_mem_slave_axi_rid_bridge_id,
     input  logic                       gpu_mem_slave_axi_rid_valid,
 
-    output  logic [3:0]  gpu_mem_slave_axi_awid,
+    output  logic [5:0]  gpu_mem_slave_axi_awid,
     output  logic [31:0]  gpu_mem_slave_axi_awaddr,
     output  logic [7:0]  gpu_mem_slave_axi_awlen,
     output  logic [2:0]  gpu_mem_slave_axi_awsize,
@@ -469,13 +469,13 @@ module bridge_4x4_rw_xbar
     output  logic         gpu_mem_slave_axi_wvalid,
     input  logic         gpu_mem_slave_axi_wready,
 
-    input  logic [3:0]  gpu_mem_slave_axi_bid,
+    input  logic [5:0]  gpu_mem_slave_axi_bid,
     input  logic [1:0]  gpu_mem_slave_axi_bresp,
     input  logic         gpu_mem_slave_axi_buser,
     input  logic         gpu_mem_slave_axi_bvalid,
     output  logic         gpu_mem_slave_axi_bready,
 
-    output  logic [3:0]  gpu_mem_slave_axi_arid,
+    output  logic [5:0]  gpu_mem_slave_axi_arid,
     output  logic [31:0]  gpu_mem_slave_axi_araddr,
     output  logic [7:0]  gpu_mem_slave_axi_arlen,
     output  logic [2:0]  gpu_mem_slave_axi_arsize,
@@ -489,7 +489,7 @@ module bridge_4x4_rw_xbar
     output  logic         gpu_mem_slave_axi_arvalid,
     input  logic         gpu_mem_slave_axi_arready,
 
-    input  logic [3:0]  gpu_mem_slave_axi_rid,
+    input  logic [5:0]  gpu_mem_slave_axi_rid,
     input  logic [255:0]  gpu_mem_slave_axi_rdata,
     input  logic [1:0]  gpu_mem_slave_axi_rresp,
     input  logic         gpu_mem_slave_axi_rlast,
@@ -506,7 +506,7 @@ module bridge_4x4_rw_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_rid_bridge_id,
     input  logic                       subtractive_axi_rid_valid,
 
-    output  logic [3:0]  subtractive_axi_awid,
+    output  logic [5:0]  subtractive_axi_awid,
     output  logic [31:0]  subtractive_axi_awaddr,
     output  logic [7:0]  subtractive_axi_awlen,
     output  logic [2:0]  subtractive_axi_awsize,
@@ -527,13 +527,13 @@ module bridge_4x4_rw_xbar
     output  logic         subtractive_axi_wvalid,
     input  logic         subtractive_axi_wready,
 
-    input  logic [3:0]  subtractive_axi_bid,
+    input  logic [5:0]  subtractive_axi_bid,
     input  logic [1:0]  subtractive_axi_bresp,
     input  logic         subtractive_axi_buser,
     input  logic         subtractive_axi_bvalid,
     output  logic         subtractive_axi_bready,
 
-    output  logic [3:0]  subtractive_axi_arid,
+    output  logic [5:0]  subtractive_axi_arid,
     output  logic [31:0]  subtractive_axi_araddr,
     output  logic [7:0]  subtractive_axi_arlen,
     output  logic [2:0]  subtractive_axi_arsize,
@@ -547,7 +547,7 @@ module bridge_4x4_rw_xbar
     output  logic         subtractive_axi_arvalid,
     input  logic         subtractive_axi_arready,
 
-    input  logic [3:0]  subtractive_axi_rid,
+    input  logic [5:0]  subtractive_axi_rid,
     input  logic [255:0]  subtractive_axi_rdata,
     input  logic [1:0]  subtractive_axi_rresp,
     input  logic         subtractive_axi_rlast,

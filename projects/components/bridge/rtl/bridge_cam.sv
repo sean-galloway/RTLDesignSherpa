@@ -255,6 +255,18 @@ module bridge_cam #(
         end
     end
 
+    // Mode 2: an allocate and a successful deallocate of the SAME tag in one
+    // cycle. The new entry's count comes from w_max_count_for_entry_tag,
+    // which is read before this cycle's decrement lands, so it would be one
+    // too high and the tag's counts would hold a gap ({0,2} instead of
+    // {0,1}). The entry behind the gap is then unreachable: no deallocate
+    // ever finds it at count 0. On the bridge that is bready never rising for
+    // a valid B (found by the full-depth arbitration tests, 2026-09-10).
+    logic w_same_tag_retire;
+    assign w_same_tag_retire = (ALLOW_DUPLICATES == 1) &&
+                               w_deallocate_active && w_evict_count0_found &&
+                               (w_deallocate_tag_active == allocate_tag);
+
     // Eviction port outputs
     assign deallocate_valid = (ALLOW_DUPLICATES == 0) ? w_evict_match_found : w_evict_count0_found;
 
@@ -288,10 +300,12 @@ module bridge_cam #(
                 r_valid[w_next_free_loc] <= 1'b1;
 
                 if (ALLOW_DUPLICATES == 1) begin
-                    // Mode 2: Set count based on existing duplicates
-                    r_count_array[w_next_free_loc] <= cam_hit
-                        ? (w_max_count_for_entry_tag + 1'b1)  // Increment
-                        : '0;                                   // First occurrence
+                    // Mode 2: order behind the existing duplicates. If the
+                    // oldest of them retires this very cycle, every survivor
+                    // steps down by one, so the newcomer takes max, not max+1.
+                    r_count_array[w_next_free_loc] <= !cam_hit ? '0
+                        : w_same_tag_retire ? w_max_count_for_entry_tag
+                        : (w_max_count_for_entry_tag + 1'b1);
                 end
             end
 

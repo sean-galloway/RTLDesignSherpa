@@ -1,0 +1,57 @@
+# Bridge Configuration: 2x2 read/write bridge whose slaves reorder responses
+# across IDs (BRIDGE-015).
+#
+# Both slaves declare enable_ooo, so the slave adapters track outstanding
+# transactions per ID in bridge_cam instead of by FIFO position, and the
+# generated TB builds their BFMs with enable_ooo=True so they really do
+# answer out of order. With two masters the fabric's IDs are {master index,
+# master id} (BRIDGE-016), which is what makes per-ID tracking sound across
+# masters; the hand-written test checks that prefix at the slave ports.
+# Connectivity comes from bridge_2x2_ooo_connectivity.csv.
+
+[bridge]
+name = "bridge_2x2_ooo"
+variants = ["no"]
+description = "2 AXI4 masters x 2 AXI4 slaves rw bridge, out-of-order slaves (CAM tracking), master-unique IDs"
+
+[[bridge.masters]]
+name = "cpu"
+prefix = "cpu_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+
+[[bridge.masters]]
+name = "dma"
+prefix = "dma_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+
+[[bridge.slaves]]
+name = "ddr"
+prefix = "ddr_axi_"
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (BRIDGE-016)
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+enable_ooo = true
+base_addr = "0x00000000"
+addr_range = "0x80000000"
+
+[[bridge.slaves]]
+name = "sram"
+prefix = "sram_axi_"
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (BRIDGE-016)
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+enable_ooo = true
+base_addr = "0x80000000"
+addr_range = "0x80000000"

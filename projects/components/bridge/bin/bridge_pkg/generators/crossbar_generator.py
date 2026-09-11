@@ -295,8 +295,9 @@ class CrossbarGenerator:
         # AXI4 *id width is master pass-through, not a fixed crossbar constant
         # (Bug B in TASK-011 — was hardcoded to 4). Floor at 1 to avoid the
         # invalid `[-1:0]` SV range when id_width=0 (Bug A).
-        master_id_width = max(m.id_width for m in self.masters) if self.masters else 4
-        master_id_width = max(master_id_width, 1)
+        # BRIDGE-016: slave-side IDs are {master index, master id}.
+        from bridge_pkg.width_utils import xbar_id_width
+        master_id_width = xbar_id_width(self.masters)
 
         # Width parameters for signal info queries
         width_values = {

@@ -239,6 +239,13 @@ module cpu_axi4_adapter
     logic         wrapper_wr_busy;
     logic         wrapper_rd_busy;
 
+    // Master-unique fabric IDs: {BRIDGE_ID, id} (BRIDGE-016). Responses
+    // return with the prefix; the response muxes select the low bits.
+    logic [XBAR_ID_WIDTH-1:0] xbar_axi_awid;
+    assign xbar_axi_awid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_awid)};
+    logic [XBAR_ID_WIDTH-1:0] xbar_axi_arid;
+    assign xbar_axi_arid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_arid)};
+
     // ================================================================
     // Timing isolation wrapper (axi4_slave_wr_mon)
     // ================================================================
@@ -612,11 +619,11 @@ module cpu_axi4_adapter
     // Intermediate signals for 32b converter
     logic conv_32b_awready;
     logic conv_32b_wready;
-    logic [3:0] conv_32b_bid;
+    logic [4:0] conv_32b_bid;
     logic [1:0] conv_32b_bresp;
     logic conv_32b_bvalid;
     logic conv_32b_arready;
-    logic [3:0] conv_32b_rid;
+    logic [4:0] conv_32b_rid;
     logic [63:0] conv_32b_rdata;
     logic [1:0] conv_32b_rresp;
     logic conv_32b_rlast;
@@ -625,7 +632,7 @@ module cpu_axi4_adapter
     axi4_dwidth_converter_wr #(
         .S_AXI_DATA_WIDTH(64),
         .M_AXI_DATA_WIDTH(32),
-        .AXI_ID_WIDTH(4),
+        .AXI_ID_WIDTH(5),
         .AXI_ADDR_WIDTH(32),
         .AXI_USER_WIDTH(1),
         .SKID_DEPTH_AW(2),
@@ -636,7 +643,7 @@ module cpu_axi4_adapter
         .aresetn(aresetn),
 
         // Slave side (from wrapper) - BROADCAST requests; ready/B intercepted for FIFO
-        .s_axi_awid(fub_axi_awid),
+        .s_axi_awid(xbar_axi_awid),
         .s_axi_awaddr(fub_axi_awaddr),
         .s_axi_awlen(fub_axi_awlen),
         .s_axi_awsize(fub_axi_awsize),
@@ -691,7 +698,7 @@ module cpu_axi4_adapter
     axi4_dwidth_converter_rd #(
         .S_AXI_DATA_WIDTH(64),
         .M_AXI_DATA_WIDTH(32),
-        .AXI_ID_WIDTH(4),
+        .AXI_ID_WIDTH(5),
         .AXI_ADDR_WIDTH(32),
         .AXI_USER_WIDTH(1),
         .SKID_DEPTH_AR(2),
@@ -701,7 +708,7 @@ module cpu_axi4_adapter
         .aresetn(aresetn),
 
         // Slave side (from wrapper) - BROADCAST requests; arready/R intercepted for FIFO
-        .s_axi_arid(fub_axi_arid),
+        .s_axi_arid(xbar_axi_arid),
         .s_axi_araddr(fub_axi_araddr),
         .s_axi_arlen(fub_axi_arlen),
         .s_axi_arsize(fub_axi_arsize),
@@ -752,7 +759,7 @@ module cpu_axi4_adapter
     // ================================================================
 
     // AW channel (request: fub → output)
-    assign cpu_axi4_64b_aw.id     = fub_axi_awid;
+    assign cpu_axi4_64b_aw.id     = xbar_axi_awid;
     assign cpu_axi4_64b_aw.addr   = fub_axi_awaddr;
     assign cpu_axi4_64b_aw.len    = fub_axi_awlen;
     assign cpu_axi4_64b_aw.size   = fub_axi_awsize;
@@ -780,7 +787,7 @@ module cpu_axi4_adapter
     // bid, bresp, bvalid routed via MUX (user field ignored)
 
     // AR channel (request: fub → output)
-    assign cpu_axi4_64b_ar.id     = fub_axi_arid;
+    assign cpu_axi4_64b_ar.id     = xbar_axi_arid;
     assign cpu_axi4_64b_ar.addr   = fub_axi_araddr;
     assign cpu_axi4_64b_ar.len    = fub_axi_arlen;
     assign cpu_axi4_64b_ar.size   = fub_axi_arsize;
@@ -1003,12 +1010,12 @@ module cpu_axi4_adapter
 
         case (b_slave_select)
             4'b0010: begin  // Slave 1 (32b)
-                fub_axi_bid = conv_32b_bid;
+                fub_axi_bid = conv_32b_bid[3:0];
                 fub_axi_bresp = conv_32b_bresp;
                 fub_axi_bvalid = conv_32b_bvalid;
             end
             4'b0100: begin  // Slave 2 (32b)
-                fub_axi_bid = conv_32b_bid;
+                fub_axi_bid = conv_32b_bid[3:0];
                 fub_axi_bresp = conv_32b_bresp;
                 fub_axi_bvalid = conv_32b_bvalid;
             end
@@ -1063,14 +1070,14 @@ module cpu_axi4_adapter
 
         case (r_slave_select)
             4'b0010: begin  // Slave 1 (32b)
-                fub_axi_rid = conv_32b_rid;
+                fub_axi_rid = conv_32b_rid[3:0];
                 fub_axi_rdata = conv_32b_rdata;
                 fub_axi_rresp = conv_32b_rresp;
                 fub_axi_rlast = conv_32b_rlast;
                 fub_axi_rvalid = conv_32b_rvalid;
             end
             4'b0100: begin  // Slave 2 (32b)
-                fub_axi_rid = conv_32b_rid;
+                fub_axi_rid = conv_32b_rid[3:0];
                 fub_axi_rdata = conv_32b_rdata;
                 fub_axi_rresp = conv_32b_rresp;
                 fub_axi_rlast = conv_32b_rlast;

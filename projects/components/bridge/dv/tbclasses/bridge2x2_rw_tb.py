@@ -481,7 +481,7 @@ class Bridge2x2RwTB(TBBase):
             log=self.log,
             data_width=32,
             addr_width=32,
-            id_width=4,
+            id_width=5,  # {master index, master id} (BRIDGE-016)
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[0],
@@ -493,7 +493,7 @@ class Bridge2x2RwTB(TBBase):
             log=self.log,
             data_width=32,
             addr_width=32,
-            id_width=4,
+            id_width=5,  # {master index, master id} (BRIDGE-016)
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[0],
@@ -519,7 +519,7 @@ class Bridge2x2RwTB(TBBase):
             log=self.log,
             data_width=32,
             addr_width=32,
-            id_width=4,
+            id_width=5,  # {master index, master id} (BRIDGE-016)
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[1],
@@ -531,7 +531,7 @@ class Bridge2x2RwTB(TBBase):
             log=self.log,
             data_width=32,
             addr_width=32,
-            id_width=4,
+            id_width=5,  # {master index, master id} (BRIDGE-016)
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[1],

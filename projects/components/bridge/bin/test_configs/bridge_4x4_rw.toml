@@ -52,7 +52,7 @@ channels = "rw"
 [[bridge.slaves]]
 name = "periph_slave"
 prefix = "periph_slave_axi_"
-id_width = 4
+id_width = 6  # {master index, master id}: 4-bit ID + 2 prefix bit(s) (BRIDGE-016)
 addr_width = 32
 data_width = 32
 user_width = 1
@@ -63,7 +63,7 @@ addr_range = "0x40000000"
 [[bridge.slaves]]
 name = "ddr0_slave"
 prefix = "ddr0_slave_axi_"
-id_width = 4
+id_width = 6  # {master index, master id}: 4-bit ID + 2 prefix bit(s) (BRIDGE-016)
 addr_width = 32
 data_width = 64
 user_width = 1
@@ -74,7 +74,7 @@ addr_range = "0x40000000"
 [[bridge.slaves]]
 name = "sram_slave"
 prefix = "sram_slave_axi_"
-id_width = 4
+id_width = 6  # {master index, master id}: 4-bit ID + 2 prefix bit(s) (BRIDGE-016)
 addr_width = 32
 data_width = 128
 user_width = 1
@@ -85,7 +85,7 @@ addr_range = "0x40000000"
 [[bridge.slaves]]
 name = "gpu_mem_slave"
 prefix = "gpu_mem_slave_axi_"
-id_width = 4
+id_width = 6  # {master index, master id}: 4-bit ID + 2 prefix bit(s) (BRIDGE-016)
 addr_width = 32
 data_width = 256
 user_width = 1

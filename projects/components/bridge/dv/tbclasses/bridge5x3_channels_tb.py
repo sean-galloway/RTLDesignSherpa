@@ -561,7 +561,7 @@ class Bridge5x3ChannelsTB(TBBase):
             log=self.log,
             data_width=256,
             addr_width=32,
-            id_width=8,
+            id_width=11,  # {master index, master id} (BRIDGE-016)
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[0],
@@ -573,7 +573,7 @@ class Bridge5x3ChannelsTB(TBBase):
             log=self.log,
             data_width=256,
             addr_width=32,
-            id_width=8,
+            id_width=11,  # {master index, master id} (BRIDGE-016)
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[0],
@@ -599,7 +599,7 @@ class Bridge5x3ChannelsTB(TBBase):
             log=self.log,
             data_width=256,
             addr_width=32,
-            id_width=8,
+            id_width=11,  # {master index, master id} (BRIDGE-016)
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[1],
@@ -611,7 +611,7 @@ class Bridge5x3ChannelsTB(TBBase):
             log=self.log,
             data_width=256,
             addr_width=32,
-            id_width=8,
+            id_width=11,  # {master index, master id} (BRIDGE-016)
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[1],

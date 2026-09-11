@@ -87,8 +87,7 @@ input  logic [3:0]  cpu_axi4_awid     // master side
 output logic [3:0]  ddr_s_axi_awid    // slave side -- same width
 ```
 
-The generator says so itself: *"Master id_width drives the slave-port ID width
-(pass-through)."*
+The slave-side ID is `{master index, master id}` (BRIDGE-016): the widest master's id_width plus `$clog2(NUM_MASTERS)` bits, so masters never alias at a slave and an `enable_ooo` slave can track by ID across them. For one master the prefix is empty and the slave sees the master's width unchanged.
 
 Earlier revisions of this page described a bridge-ID-prepend scheme, with
 `4'b0101` becoming `6'b00_0101` and the upper bits extracted on the response.

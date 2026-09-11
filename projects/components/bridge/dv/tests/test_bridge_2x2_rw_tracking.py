@@ -114,15 +114,26 @@ async def cocotb_test_bridge_2x2_rw_outstanding_overflow(dut):
     # responses, and a watcher that misses traffic reports "no misroutes"
     # identically to a clean run. One sampler sees every cycle.
     async def _probe():
-        wr = tb.dut.u_ddr_adapter.wr_ptr
-        rd = tb.dut.u_ddr_adapter.rd_ptr
+        # BRIDGE-015/016: a multi-master bridge's AXI slaves track by ID in
+        # bridge_cam, so occupancy is the CAM's count rather than a pointer
+        # difference. The invariant is the same either way: it never exceeds
+        # DEPTH, because the AW handshake is gated on not-full.
+        adapter = tb.dut.u_ddr_adapter
+        cam = getattr(adapter, 'u_wr_cam', None)
+        if cam is not None:
+            def occupancy():
+                return int(cam.tags_count.value)
+        else:
+            wr, rd = adapter.wr_ptr, adapter.rd_ptr
+            def occupancy():
+                return (int(wr.value) - int(rd.value)) & 0x1F
         fifo['probed'] = True
         ports = ((0, tb.dut.cpu_m_axi_bid, tb.dut.cpu_m_axi_bvalid, tb.dut.cpu_m_axi_bready),
                  (1, tb.dut.dma_m_axi_bid, tb.dut.dma_m_axi_bvalid, tb.dut.dma_m_axi_bready))
         while True:
             await RisingEdge(tb.clock)
             await ReadOnly()
-            occ = (int(wr.value) - int(rd.value)) & 0x1F
+            occ = occupancy()
             if occ > fifo['peak']:
                 fifo['peak'] = occ
             for idx, bid, bv, br in ports:

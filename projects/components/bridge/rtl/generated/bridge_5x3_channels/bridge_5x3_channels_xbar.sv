@@ -125,7 +125,7 @@ module bridge_5x3_channels_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] sram_buffer_axi_rid_bridge_id,
     input  logic                       sram_buffer_axi_rid_valid,
 
-    output  logic [7:0]  sram_buffer_axi_awid,
+    output  logic [10:0]  sram_buffer_axi_awid,
     output  logic [31:0]  sram_buffer_axi_awaddr,
     output  logic [7:0]  sram_buffer_axi_awlen,
     output  logic [2:0]  sram_buffer_axi_awsize,
@@ -146,13 +146,13 @@ module bridge_5x3_channels_xbar
     output  logic         sram_buffer_axi_wvalid,
     input  logic         sram_buffer_axi_wready,
 
-    input  logic [7:0]  sram_buffer_axi_bid,
+    input  logic [10:0]  sram_buffer_axi_bid,
     input  logic [1:0]  sram_buffer_axi_bresp,
     input  logic         sram_buffer_axi_buser,
     input  logic         sram_buffer_axi_bvalid,
     output  logic         sram_buffer_axi_bready,
 
-    output  logic [7:0]  sram_buffer_axi_arid,
+    output  logic [10:0]  sram_buffer_axi_arid,
     output  logic [31:0]  sram_buffer_axi_araddr,
     output  logic [7:0]  sram_buffer_axi_arlen,
     output  logic [2:0]  sram_buffer_axi_arsize,
@@ -166,7 +166,7 @@ module bridge_5x3_channels_xbar
     output  logic         sram_buffer_axi_arvalid,
     input  logic         sram_buffer_axi_arready,
 
-    input  logic [7:0]  sram_buffer_axi_rid,
+    input  logic [10:0]  sram_buffer_axi_rid,
     input  logic [255:0]  sram_buffer_axi_rdata,
     input  logic [1:0]  sram_buffer_axi_rresp,
     input  logic         sram_buffer_axi_rlast,
@@ -183,7 +183,7 @@ module bridge_5x3_channels_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] ddr_controller_axi_rid_bridge_id,
     input  logic                       ddr_controller_axi_rid_valid,
 
-    output  logic [7:0]  ddr_controller_axi_awid,
+    output  logic [10:0]  ddr_controller_axi_awid,
     output  logic [31:0]  ddr_controller_axi_awaddr,
     output  logic [7:0]  ddr_controller_axi_awlen,
     output  logic [2:0]  ddr_controller_axi_awsize,
@@ -204,13 +204,13 @@ module bridge_5x3_channels_xbar
     output  logic         ddr_controller_axi_wvalid,
     input  logic         ddr_controller_axi_wready,
 
-    input  logic [7:0]  ddr_controller_axi_bid,
+    input  logic [10:0]  ddr_controller_axi_bid,
     input  logic [1:0]  ddr_controller_axi_bresp,
     input  logic         ddr_controller_axi_buser,
     input  logic         ddr_controller_axi_bvalid,
     output  logic         ddr_controller_axi_bready,
 
-    output  logic [7:0]  ddr_controller_axi_arid,
+    output  logic [10:0]  ddr_controller_axi_arid,
     output  logic [31:0]  ddr_controller_axi_araddr,
     output  logic [7:0]  ddr_controller_axi_arlen,
     output  logic [2:0]  ddr_controller_axi_arsize,
@@ -224,7 +224,7 @@ module bridge_5x3_channels_xbar
     output  logic         ddr_controller_axi_arvalid,
     input  logic         ddr_controller_axi_arready,
 
-    input  logic [7:0]  ddr_controller_axi_rid,
+    input  logic [10:0]  ddr_controller_axi_rid,
     input  logic [255:0]  ddr_controller_axi_rdata,
     input  logic [1:0]  ddr_controller_axi_rresp,
     input  logic         ddr_controller_axi_rlast,
@@ -241,7 +241,7 @@ module bridge_5x3_channels_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] apb_periph_axi_rid_bridge_id,
     input  logic                       apb_periph_axi_rid_valid,
 
-    output  logic [7:0]  apb_periph_axi_awid,
+    output  logic [10:0]  apb_periph_axi_awid,
     output  logic [31:0]  apb_periph_axi_awaddr,
     output  logic [7:0]  apb_periph_axi_awlen,
     output  logic [2:0]  apb_periph_axi_awsize,
@@ -262,13 +262,13 @@ module bridge_5x3_channels_xbar
     output  logic         apb_periph_axi_wvalid,
     input  logic         apb_periph_axi_wready,
 
-    input  logic [7:0]  apb_periph_axi_bid,
+    input  logic [10:0]  apb_periph_axi_bid,
     input  logic [1:0]  apb_periph_axi_bresp,
     input  logic         apb_periph_axi_buser,
     input  logic         apb_periph_axi_bvalid,
     output  logic         apb_periph_axi_bready,
 
-    output  logic [7:0]  apb_periph_axi_arid,
+    output  logic [10:0]  apb_periph_axi_arid,
     output  logic [31:0]  apb_periph_axi_araddr,
     output  logic [7:0]  apb_periph_axi_arlen,
     output  logic [2:0]  apb_periph_axi_arsize,
@@ -282,7 +282,7 @@ module bridge_5x3_channels_xbar
     output  logic         apb_periph_axi_arvalid,
     input  logic         apb_periph_axi_arready,
 
-    input  logic [7:0]  apb_periph_axi_rid,
+    input  logic [10:0]  apb_periph_axi_rid,
     input  logic [31:0]  apb_periph_axi_rdata,
     input  logic [1:0]  apb_periph_axi_rresp,
     input  logic         apb_periph_axi_rlast,
@@ -299,7 +299,7 @@ module bridge_5x3_channels_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_rid_bridge_id,
     input  logic                       subtractive_axi_rid_valid,
 
-    output  logic [7:0]  subtractive_axi_awid,
+    output  logic [10:0]  subtractive_axi_awid,
     output  logic [31:0]  subtractive_axi_awaddr,
     output  logic [7:0]  subtractive_axi_awlen,
     output  logic [2:0]  subtractive_axi_awsize,
@@ -320,13 +320,13 @@ module bridge_5x3_channels_xbar
     output  logic         subtractive_axi_wvalid,
     input  logic         subtractive_axi_wready,
 
-    input  logic [7:0]  subtractive_axi_bid,
+    input  logic [10:0]  subtractive_axi_bid,
     input  logic [1:0]  subtractive_axi_bresp,
     input  logic         subtractive_axi_buser,
     input  logic         subtractive_axi_bvalid,
     output  logic         subtractive_axi_bready,
 
-    output  logic [7:0]  subtractive_axi_arid,
+    output  logic [10:0]  subtractive_axi_arid,
     output  logic [31:0]  subtractive_axi_araddr,
     output  logic [7:0]  subtractive_axi_arlen,
     output  logic [2:0]  subtractive_axi_arsize,
@@ -340,7 +340,7 @@ module bridge_5x3_channels_xbar
     output  logic         subtractive_axi_arvalid,
     input  logic         subtractive_axi_arready,
 
-    input  logic [7:0]  subtractive_axi_rid,
+    input  logic [10:0]  subtractive_axi_rid,
     input  logic [255:0]  subtractive_axi_rdata,
     input  logic [1:0]  subtractive_axi_rresp,
     input  logic         subtractive_axi_rlast,

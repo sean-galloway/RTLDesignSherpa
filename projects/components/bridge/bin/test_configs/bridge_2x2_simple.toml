@@ -27,7 +27,7 @@ channels = "rw"  # Full read/write channels
 [[bridge.slaves]]
 name = "s0"
 prefix = "s0_"
-id_width = 4
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit(s) (BRIDGE-016)
 addr_width = 32
 data_width = 32
 user_width = 1
@@ -38,7 +38,7 @@ addr_range = "0x10000000"  # 256MB
 [[bridge.slaves]]
 name = "s1"
 prefix = "s1_"
-id_width = 4
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit(s) (BRIDGE-016)
 addr_width = 32
 data_width = 32
 user_width = 1

@@ -89,7 +89,8 @@ class Axi4DwidthConverter:
                             aw_valid_gate: str,
                             w_valid_gate: str,
                             b_intercept_prefix: str,
-                            bready_expr: str = "") -> None:
+                            bready_expr: str = "",
+                            s_awid_signal=None) -> None:
         """Wire the s_axi-side write channels.
         - AW/W signals come directly from `fub_prefix` (e.g. 'fub_axi_').
         - awvalid is gated by `aw_valid_gate` (an expression like
@@ -105,7 +106,9 @@ class Axi4DwidthConverter:
         if self.direction != 'wr':
             raise RuntimeError("connect_s_axi_write requires direction='wr'")
         pairs = [
-            ('s_axi_awid', f'{fub_prefix}awid'),
+            # BRIDGE-016: the adapter may substitute its master-unique
+            # {BRIDGE_ID, id} net for the wrapper's own id.
+            ('s_axi_awid', s_awid_signal or f'{fub_prefix}awid'),
             ('s_axi_awaddr', f'{fub_prefix}awaddr'),
             ('s_axi_awlen', f'{fub_prefix}awlen'),
             ('s_axi_awsize', f'{fub_prefix}awsize'),
@@ -142,7 +145,8 @@ class Axi4DwidthConverter:
                            fub_prefix: str,
                            ar_valid_gate: str,
                            r_intercept_prefix: str,
-                           rready_expr: str = "") -> None:
+                           rready_expr: str = "",
+                           s_arid_signal=None) -> None:
         """Wire the s_axi-side read channels.
         AR signals come from `fub_prefix`; arvalid is gated by
         `ar_valid_gate`. Arready/R signals are pulled off into
@@ -153,7 +157,7 @@ class Axi4DwidthConverter:
         if self.direction != 'rd':
             raise RuntimeError("connect_s_axi_read requires direction='rd'")
         pairs = [
-            ('s_axi_arid', f'{fub_prefix}arid'),
+            ('s_axi_arid', s_arid_signal or f'{fub_prefix}arid'),
             ('s_axi_araddr', f'{fub_prefix}araddr'),
             ('s_axi_arlen', f'{fub_prefix}arlen'),
             ('s_axi_arsize', f'{fub_prefix}arsize'),

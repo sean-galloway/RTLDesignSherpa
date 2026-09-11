@@ -288,10 +288,10 @@ def validate_axi5_atomic_read_return(masters: List[PortSpec],
     read-return atomics (AtomicLoad/Swap/Compare) natively -- there is no
     boundary filter on such a port -- and they answer on the READ data
     channel with the AW's ID. Every connected atomic slave must therefore be
-    able to return read data ('rw'), and must use the in-order tracker: the
-    per-ID return tracker sits beside the read FIFO, and the CAM (enable_ooo)
-    path has no such hook. A write-only atomic master keeps the A5-3a
-    filter and is not subject to this rule."""
+    able to return read data ('rw'). The per-ID return tracker sits beside
+    whichever read tracker the slave uses (in-order FIFO or, with enable_ooo,
+    the CAM). A write-only atomic master keeps the A5-3a filter and is not
+    subject to this rule."""
     for m, s in _axi5_connected_pairs(masters, slaves, connectivity):
         if not (m.protocol == 'axi5'
                 and 'atomic' in (getattr(m, 'axi5_features', None) or [])
@@ -308,12 +308,30 @@ def validate_axi5_atomic_read_return(masters: List[PortSpec],
                 f"the master write-only (which keeps the boundary filter and "
                 f"answers read-return classes with DECERR)."
             )
-        if getattr(s, 'enable_ooo', False):
+
+
+def validate_slave_id_widths(masters: List[PortSpec], slaves: List[PortSpec]) -> None:
+    """BRIDGE-016. Inside the fabric every transaction ID is {master index,
+    master id}, so a slave sees the widest master's id_width plus
+    $clog2(NUM_MASTERS) bits (zero for one master). The slave's declared
+    id_width is the width of its external port and must be at least that, or
+    the prefix would be truncated and two masters could alias again."""
+    from bridge_pkg.width_utils import xbar_id_width, id_prefix_width, master_id_width
+    need = xbar_id_width(masters)
+    if id_prefix_width(masters) == 0:
+        return
+    for s in slaves:
+        if getattr(s, 'internal', False):
+            continue
+        if s.protocol not in ('axi4', 'axi5'):
+            continue
+        if (s.id_width or 0) < need:
             raise ValidationError(
-                f"AXI5 slave '{s.port_name}' receives read-return atomics from "
-                f"'{m.port_name}' but uses enable_ooo (CAM tracking); the "
-                f"read-return tracker is implemented on the in-order tracker "
-                f"only. Drop enable_ooo on this slave."
+                f"Slave '{s.port_name}' declares id_width {s.id_width}, but with "
+                f"{len(list(masters))} masters the fabric prepends {id_prefix_width(masters)} "
+                f"master-index bit(s) to the {master_id_width(masters)}-bit master ID, so "
+                f"every AXI slave port carries {need}-bit IDs. Set id_width = {need} "
+                f"(or wider) on this slave, and size whatever it connects to accordingly."
             )
 
 
@@ -626,6 +644,7 @@ def validate_config(
     # terminate mid-path.
     validate_axi5_poison_connectivity(masters, slaves, connectivity)
     validate_axi5_atomic_read_return(masters, slaves, connectivity)
+    validate_slave_id_widths(masters, slaves)
     warn_axi5_dropped_sideband(masters, slaves, connectivity)
 
     # Validate address map

@@ -102,11 +102,16 @@ end
 
 ### CAM-Based Extraction
 
-> **Not built.** No generated bridge contains a CAM -- `bridge_cam.sv` is
-> instantiated in zero of them. Responses are routed by the POSITION of an
-> in-order per-slave FIFO holding a sideband master id, so out-of-order
-> completion is not supported and the section below describes an option
-> that was never implemented. See ch04 `02_id_tracking.md`.
+> **Built (BRIDGE-015/016, 2026-09-10).** Every real AXI slave of a
+> multi-master bridge, and any slave declared `enable_ooo = true`, gets
+> `bridge_cam` for both channels and routes responses by ID; single-master
+> bridges, shim slaves and the subtractive slave keep the in-order per-slave
+> FIFO. Per-ID tracking is sound across masters because fabric IDs are
+> `{master index, master id}`; the FIFO would require the slave to complete
+> in request order across ALL IDs, which a compliant AXI slave need not do.
+> Fixture `bridge_2x2_ooo` exercises reordering slaves with two masters
+> sharing IDs; `test_bridge_cam.py` covers the CAM alone. The mode had been
+> unbuildable since c64660f47. See ch04 `02_id_tracking.md`.
 
 For complex configurations with OOO or ID reordering:
 
@@ -575,11 +580,16 @@ Best for: Real-time systems
 
 ### Response Reordering (Future)
 
-> **Not built.** No generated bridge contains a CAM -- `bridge_cam.sv` is
-> instantiated in zero of them. Responses are routed by the POSITION of an
-> in-order per-slave FIFO holding a sideband master id, so out-of-order
-> completion is not supported and the section below describes an option
-> that was never implemented. See ch04 `02_id_tracking.md`.
+> **Built (BRIDGE-015/016, 2026-09-10).** Every real AXI slave of a
+> multi-master bridge, and any slave declared `enable_ooo = true`, gets
+> `bridge_cam` for both channels and routes responses by ID; single-master
+> bridges, shim slaves and the subtractive slave keep the in-order per-slave
+> FIFO. Per-ID tracking is sound across masters because fabric IDs are
+> `{master index, master id}`; the FIFO would require the slave to complete
+> in request order across ALL IDs, which a compliant AXI slave need not do.
+> Fixture `bridge_2x2_ooo` exercises reordering slaves with two masters
+> sharing IDs; `test_bridge_cam.py` covers the CAM alone. The mode had been
+> unbuildable since c64660f47. See ch04 `02_id_tracking.md`.
 
 Allow bridge to reorder responses for efficiency:
 

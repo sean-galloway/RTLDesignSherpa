@@ -75,3 +75,32 @@ def get_masters_connecting_to_slave(slave, masters, slaves) -> list:
             connecting_masters.append(master)
 
     return connecting_masters
+
+
+# ---------------------------------------------------------------------------
+# Transaction-ID widths (BRIDGE-016). ONE place for the arithmetic: the
+# package, the crossbar, the master and slave adapters, the TB generator and
+# the validator all size IDs from these three functions.
+# ---------------------------------------------------------------------------
+
+def master_id_width(masters) -> int:
+    """Widest master-side ID, floored at 1 so an all-AXIL bridge (id_width 0)
+    never declares a [-1:0] field."""
+    return max([max(1, (m.id_width or 0)) for m in masters] or [4])
+
+
+def id_prefix_width(masters) -> int:
+    """Bits prepended to every ID inside the fabric: the issuing master's
+    index, so two masters can never alias an ID at a slave. Zero for a single
+    master (nothing to disambiguate, and single-master bridges stay
+    byte-identical); $clog2(N) otherwise."""
+    n = len(list(masters))
+    return (n - 1).bit_length() if n > 1 else 0
+
+
+def xbar_id_width(masters) -> int:
+    """ID width inside the fabric and on every slave-side port:
+    {master index, master ID}. Eight-bit masters behind a 16-master bridge
+    give 12-bit IDs at the slaves."""
+    return master_id_width(masters) + id_prefix_width(masters)
+

@@ -286,9 +286,11 @@ def generate_tests(ports_file, connectivity_file, bridge_name, output_tb_dir, ou
         # so a reader who trusts them is not misled.
         addr_width = max((m.addr_width for m in config.masters), default=32)
 
-        # HARD LIMIT: All agents use 8-bit ID width
-        # ID width conversion is not supported - uniform width simplifies routing
         id_width = max((m.id_width for m in config.masters), default=4)
+        # BRIDGE-016: slave-side ports carry {master index, master id}; the
+        # slave BFMs must be built at that width or they mis-decode every ID.
+        from bridge_pkg.width_utils import xbar_id_width
+        slave_id_width = xbar_id_width(config.masters)
 
         # Derive the importable module path for the TB class from the
         # actual output directory. The old template hardcoded
@@ -338,6 +340,7 @@ def generate_tests(ports_file, connectivity_file, bridge_name, output_tb_dir, ou
             'data_width': data_width,
             'addr_width': addr_width,
             'id_width': id_width,
+            'slave_id_width': slave_id_width,
             'rtl_relative_path': '../../../../rtl/bridge',
             'filelist_path': filelist_path
         }
@@ -532,6 +535,7 @@ def generate_monitor_tests(ports_file, connectivity_file, bridge_name,
             'data_width': data_width,
             'addr_width': 64,
             'id_width': 8,
+            'slave_id_width': __import__('bridge_pkg.width_utils', fromlist=['x']).xbar_id_width(config.masters),
             'rtl_relative_path': '../../../../rtl/bridge',
             'filelist_path': filelist_path,
             'cfg_prefixes': cfg_prefixes,
@@ -1058,6 +1062,22 @@ def _emit_bridge_variant(
         filelist_lines.append("")
         filelist_lines.append("# AXI5 atomic read-return tracker (per-ID R routing for AtomicLoad/Swap/Compare, A5-3b)")
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_atomic_rr_tracker.f")
+
+    # Out-of-order slaves (BRIDGE-015): their adapters track responses in
+    # bridge_cam, the component's own hand-written IP. Never emitted before,
+    # because no fixture used enable_ooo; the mode broke in c64660f47 and
+    # nothing compiled it to notice.
+    uses_cam = any(
+        getattr(s, 'enable_ooo', False)
+        or (len(config.masters) > 1
+            and s.protocol.lower() in ('axi4', 'axi5')
+            and not getattr(s, 'internal', False))
+        for s in config.slaves)
+    if uses_cam:
+        filelist_lines.append("")
+        filelist_lines.append("# Per-ID response tracking (bridge_cam): enable_ooo slaves, and every AXI")
+        filelist_lines.append("# slave of a multi-master fabric, whose IDs are {master index, id} (BRIDGE-015/016)")
+        filelist_lines.append("-f $REPO_ROOT/projects/components/bridge/rtl/filelists_static/bridge_cam.f")
 
     # AXI5 slave ports (A5-2 slice 1): the slave adapter instantiates
     # the axi5_master_* boundary wrappers instead of axi4_master_*.

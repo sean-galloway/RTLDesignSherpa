@@ -105,6 +105,11 @@ module sink_wr_master_adapter
 
     logic         wrapper_wr_busy;
 
+    // Master-unique fabric IDs: {BRIDGE_ID, id} (BRIDGE-016). Responses
+    // return with the prefix; the response muxes select the low bits.
+    logic [XBAR_ID_WIDTH-1:0] xbar_axi_awid;
+    assign xbar_axi_awid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_awid)};
+
     // ================================================================
     // Timing isolation wrapper (axi4_slave_wr)
     // ================================================================
@@ -223,7 +228,7 @@ module sink_wr_master_adapter
     // ================================================================
 
     // AW channel (request: fub → output)
-    assign sink_wr_master_256b_aw.id     = fub_axi_awid;
+    assign sink_wr_master_256b_aw.id     = xbar_axi_awid;
     assign sink_wr_master_256b_aw.addr   = fub_axi_awaddr;
     assign sink_wr_master_256b_aw.len    = fub_axi_awlen;
     assign sink_wr_master_256b_aw.size   = fub_axi_awsize;

@@ -617,11 +617,17 @@ class {{ tb_class_name }}(TBBase):
             log=self.log,
             data_width={{ slave.data_width }},
             addr_width={{ slave.addr_width }},
-            id_width={{ 1 if slave.id_width == 0 else slave.id_width }},
+            id_width={{ slave_id_width }},  # {master index, master id} (BRIDGE-016)
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[{{ loop.index0 }}],
             base_addr={{ '0x%08x' % slave.base_addr }},
+{% if slave.enable_ooo %}
+            # This slave declares enable_ooo, so the bridge tracks its reads by ID
+            # (bridge_cam). Let the BFM actually reorder across IDs, or the CAM is
+            # never exercised and an in-order FIFO would pass this test just as well.
+            enable_ooo=True,
+{% endif %}
         )
 {% endif %}
 {% if slave.has_write_channels() %}
@@ -631,11 +637,14 @@ class {{ tb_class_name }}(TBBase):
             log=self.log,
             data_width={{ slave.data_width }},
             addr_width={{ slave.addr_width }},
-            id_width={{ 1 if slave.id_width == 0 else slave.id_width }},
+            id_width={{ slave_id_width }},  # {master index, master id} (BRIDGE-016)
             user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[{{ loop.index0 }}],
             base_addr={{ '0x%08x' % slave.base_addr }},
+{% if slave.enable_ooo %}
+            enable_ooo=True,
+{% endif %}
         )
 {% endif %}
 {% if s_axi5 and slave.has_read_channels() and slave.has_write_channels() %}

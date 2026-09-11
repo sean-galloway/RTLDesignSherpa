@@ -70,7 +70,7 @@ module bridge_2x2_axi5_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] ddr_axi_rid_bridge_id,
     input  logic                       ddr_axi_rid_valid,
 
-    output  logic [3:0]  ddr_axi_awid,
+    output  logic [4:0]  ddr_axi_awid,
     output  logic [31:0]  ddr_axi_awaddr,
     output  logic [7:0]  ddr_axi_awlen,
     output  logic [2:0]  ddr_axi_awsize,
@@ -91,13 +91,13 @@ module bridge_2x2_axi5_xbar
     output  logic         ddr_axi_wvalid,
     input  logic         ddr_axi_wready,
 
-    input  logic [3:0]  ddr_axi_bid,
+    input  logic [4:0]  ddr_axi_bid,
     input  logic [1:0]  ddr_axi_bresp,
     input  logic         ddr_axi_buser,
     input  logic         ddr_axi_bvalid,
     output  logic         ddr_axi_bready,
 
-    output  logic [3:0]  ddr_axi_arid,
+    output  logic [4:0]  ddr_axi_arid,
     output  logic [31:0]  ddr_axi_araddr,
     output  logic [7:0]  ddr_axi_arlen,
     output  logic [2:0]  ddr_axi_arsize,
@@ -111,7 +111,7 @@ module bridge_2x2_axi5_xbar
     output  logic         ddr_axi_arvalid,
     input  logic         ddr_axi_arready,
 
-    input  logic [3:0]  ddr_axi_rid,
+    input  logic [4:0]  ddr_axi_rid,
     input  logic [31:0]  ddr_axi_rdata,
     input  logic [1:0]  ddr_axi_rresp,
     input  logic         ddr_axi_rlast,
@@ -138,7 +138,7 @@ module bridge_2x2_axi5_xbar
     input  logic         sram_axi_btrace,
     input  logic         sram_axi_rtrace,
 
-    output  logic [3:0]  sram_axi_awid,
+    output  logic [4:0]  sram_axi_awid,
     output  logic [31:0]  sram_axi_awaddr,
     output  logic [7:0]  sram_axi_awlen,
     output  logic [2:0]  sram_axi_awsize,
@@ -159,13 +159,13 @@ module bridge_2x2_axi5_xbar
     output  logic         sram_axi_wvalid,
     input  logic         sram_axi_wready,
 
-    input  logic [3:0]  sram_axi_bid,
+    input  logic [4:0]  sram_axi_bid,
     input  logic [1:0]  sram_axi_bresp,
     input  logic         sram_axi_buser,
     input  logic         sram_axi_bvalid,
     output  logic         sram_axi_bready,
 
-    output  logic [3:0]  sram_axi_arid,
+    output  logic [4:0]  sram_axi_arid,
     output  logic [31:0]  sram_axi_araddr,
     output  logic [7:0]  sram_axi_arlen,
     output  logic [2:0]  sram_axi_arsize,
@@ -179,7 +179,7 @@ module bridge_2x2_axi5_xbar
     output  logic         sram_axi_arvalid,
     input  logic         sram_axi_arready,
 
-    input  logic [3:0]  sram_axi_rid,
+    input  logic [4:0]  sram_axi_rid,
     input  logic [31:0]  sram_axi_rdata,
     input  logic [1:0]  sram_axi_rresp,
     input  logic         sram_axi_rlast,
@@ -196,7 +196,7 @@ module bridge_2x2_axi5_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_rid_bridge_id,
     input  logic                       subtractive_axi_rid_valid,
 
-    output  logic [3:0]  subtractive_axi_awid,
+    output  logic [4:0]  subtractive_axi_awid,
     output  logic [31:0]  subtractive_axi_awaddr,
     output  logic [7:0]  subtractive_axi_awlen,
     output  logic [2:0]  subtractive_axi_awsize,
@@ -217,13 +217,13 @@ module bridge_2x2_axi5_xbar
     output  logic         subtractive_axi_wvalid,
     input  logic         subtractive_axi_wready,
 
-    input  logic [3:0]  subtractive_axi_bid,
+    input  logic [4:0]  subtractive_axi_bid,
     input  logic [1:0]  subtractive_axi_bresp,
     input  logic         subtractive_axi_buser,
     input  logic         subtractive_axi_bvalid,
     output  logic         subtractive_axi_bready,
 
-    output  logic [3:0]  subtractive_axi_arid,
+    output  logic [4:0]  subtractive_axi_arid,
     output  logic [31:0]  subtractive_axi_araddr,
     output  logic [7:0]  subtractive_axi_arlen,
     output  logic [2:0]  subtractive_axi_arsize,
@@ -237,7 +237,7 @@ module bridge_2x2_axi5_xbar
     output  logic         subtractive_axi_arvalid,
     input  logic         subtractive_axi_arready,
 
-    input  logic [3:0]  subtractive_axi_rid,
+    input  logic [4:0]  subtractive_axi_rid,
     input  logic [31:0]  subtractive_axi_rdata,
     input  logic [1:0]  subtractive_axi_rresp,
     input  logic         subtractive_axi_rlast,
