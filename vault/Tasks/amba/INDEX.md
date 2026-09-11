@@ -10,9 +10,9 @@ monitor subsystem, monbus). Migrated 2026-07-22 from `rtl/amba/PRD/TASKS.md`.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 1 | in progress right now |
-| [open.md](open.md) | 16 | accepted, not started |
+| [open.md](open.md) | 19 | accepted, not started |
 | [deferred.md](deferred.md) | 0 | accepted, parked on a named condition |
-| [closed.md](closed.md) | 27 | done (kept for history) |
+| [closed.md](closed.md) | 36 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing (won't do / superseded) |
 
 ## Active
