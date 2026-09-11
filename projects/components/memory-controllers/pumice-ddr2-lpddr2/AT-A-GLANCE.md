@@ -9,6 +9,43 @@ second copy. Authority order: `/GLOBAL_REQUIREMENTS.md` > the handbook
 
 ---
 
+## Read this first: pumice is a RESEARCH controller, deliberately
+
+**pumice is over-engineered on purpose.** It is not a minimal DDR2 controller
+and should not be read as one, or copied as a template for a product part
+where area matters.
+
+It exists to make memory-scheduling research *runnable on silicon*: to take a
+policy out of a paper, put it behind a CSR, and measure it on a real DRAM with
+the same generators, the same meters and the same host program as every other
+policy. That is why there are three orthogonal runtime axes with twenty-odd
+selectable modes, per-entry reorder CAMs, an AR-order return ring, a command
+history scoreboard, and a characterization harness that can be pointed at a
+*different vendor's controller* for a like-for-like comparison. A product part
+would pick one policy and delete the rest.
+
+The cost is measurable and is the honest counterpart to the flexibility:
+
+| | pumice | LiteDRAM (same board, same PHY, same harness) |
+|---|---|---|
+| controller + PHY | **12 981 LUT / 9 667 FF** | 2 411 LUT / 2 046 FF |
+| streaming read | 571.3 MB/s | 579.5 MB/s |
+| streaming write | 570.3 MB/s | 569.2 MB/s |
+| concurrent read+write, one window | **570.1 MB/s total** | 285.6 MB/s |
+
+Roughly **five times the logic for equal streaming bandwidth** — and 2.0x
+LiteDRAM once both directions run at once, which is the workload the reorder
+window exists for. If you want a small controller, that table is the argument
+against this one. If you want to ask "what does adaptive page closing actually
+buy on hardware", it is the argument for it.
+
+Everything below follows from that intent. Modes default to
+**encoding 0 = build default and bit-identical**, so the research surface costs
+nothing until it is switched on, and every claim on this page is measured
+rather than asserted.
+
+---
+
 ## The shape of it
 
 `pumice_top` -> `pumice_core` -> **three layers**, host side to DRAM side:
@@ -32,7 +69,12 @@ Spec: `rtl/PUMICE_AXI4_IFC_UARCH.md`
 
 * **`pumice_wr_intake` / `pumice_rd_intake`** — dumb 1:1 AXI intakes. Decode
   AW/AR into `{rank,bank,row,col}`, pass W beats through unchanged, and own
-  the B and R channels back to the host.
+  the B and R channels back to the host. The read intake carries a two-stage
+  AR pipeline: the skid head is the AR being PROBED against the write CAM (the
+  snarf/RAW lookup is registered inside that CAM), the stage behind it is the
+  AR being ADMITTED, and the two advance together so a sub-command admits
+  every cycle. Doing this with a single arm bit instead capped admits at one
+  every TWO cycles and halved board read bandwidth — see *Status*.
 * **`pumice_wr_data_cam` / `pumice_rd_cmd_cam`** — where a transaction lives
   between its address handshake and retirement. The write CAM holds data in
   an SRAM and gates B on `agg && last` (one response per *original* burst);
@@ -195,7 +237,7 @@ which entries are candidates** — the ladder above is untouched:
 | `order_mode` | policy |
 |---|---|
 | 0 (default) | **FR-FCFS** — reorder for row hits, oldest-first within a class |
-| 1 `in_order` | **strict FCFS** — only the single oldest reference across both CAMs may pick. No lookahead, no row-hit reordering |
+| 1 `in_order` | **strict FCFS** — only the oldest reference may pick, so no lookahead and no row-hit reordering. In the BASE build this is per-channel (each CAM issues its own head and the arbiter's read/write preference picks the side); the global read-vs-write age compare is an extra cone and is built only under `+define+PUMICE_ENHANCED` |
 | 3 `age_threshold` | **FR-FCFS with a starvation bound** — once any entry passes an age threshold, only aged entries may pick until they drain |
 
 The overlays are independent and none of them is required:
@@ -252,9 +294,9 @@ strict (issue on tREFI expiry); the credits trade latency against bandwidth:
 
 Practice: `vault/handbook/dv/` — especially [[structure-trackers]].
 
-* **Tiers** — `dv/tests/fub` (21 files), `dv/tests/macro` (4),
-  `dv/tests/top` (5), plus PHY-facing checks at the root of `dv/tests`.
-  22 TB classes in `dv/tbclasses/`. 210 tests at FULL
+* **Tiers** — `dv/tests/fub` (24 files), `dv/tests/macro` (4),
+  `dv/tests/top` (6), plus PHY-facing checks at the root of `dv/tests`.
+  23 TB classes in `dv/tbclasses/`. 219 tests at FULL
   (`make clean-all && make run-all-full-parallel`); a bare `pytest` runs the
   FUNC subset only and under-reports.
 * **Everything is BFM-driven.** No test hand-pokes a standard
@@ -287,6 +329,17 @@ Practice: `vault/handbook/dv/` — especially [[structure-trackers]].
   combinations). Outputs land as `*.out` tables beside the sim build.
   The 1-bank column is the discriminator: with 8-way rotation every paging
   mode reads 100%, so that column alone cannot fail.
+* **Intake admit rate** — `perf_intake_admit_rate` asks "of the cycles this
+  intake COULD have admitted, how often did it?", with the write intake as the
+  control. Conditioning on ready is what makes it geometry-independent: a raw
+  duty measures whatever the bottleneck happens to be, and at this testbench's
+  geometry that hides a half-rate intake completely.
+* **On the board** — `build-perf/host/pumice_master.py --char` drives the
+  characterization harness over UART and writes a CSV. `--char-profile
+  concurrent` and `multigen` run both directions in ONE window, which is the
+  only way read/write turnaround is paid at all; every other profile runs a
+  write phase then a read phase. Results and the LiteDRAM A/B live in
+  `docs/char_results/`.
 
 ---
 
@@ -297,54 +350,91 @@ Practice: `vault/handbook/dv/` — especially [[structure-trackers]].
   registers BY NAME, never by hardcoded offset.
 * **`docs/`** — the HAS and MAS specs (v0.5, docx+pdf, generated by
   `generate_has_pdf.sh` / `generate_mas_pdf.sh`), `design-requirements.md`
-  (the mode catalogue), and the signal-contracts workbook generator.
+  (the mode catalogue), `char_results/` (board CSVs and the LiteDRAM A/B
+  findings), and `pumice_signal_contracts.xlsx` — ONE workbook holding the
+  spec decision tables and the computed K-maps, with axis equations,
+  invariants, don't-cares and derived implicants. `check_kmap_rtl_sync.py`
+  fails if a map's mirror drifts from the RTL and the generator refuses to
+  write on drift.
+* **`design/`** — spec-first collateral: WaveJSON timing diagrams for the
+  ideal cadence, five bad-but-correct shapes and the pathological ones, each
+  captioned with the board number it produced. `check_waves.py` validates them
+  (WaveDrom renders a malformed diagram silently) and `render_waves.py`
+  produces the PNGs that MAS Chapter 7 embeds.
 * **`rtl/*.md`** — per-layer uarch specs, the authority for how a layer
   works. `LPDDR2_CA_ENCODING.md` carries the JESD209-2 Table 60 CA truth
   table.
 
 ## Status
 
-**Working.** Board-validated on the Nexys A7 — reads and writes clean, 0/3072
-beats in error — and the correctness backlog is empty. In simulation the whole
-suite is green: 210 controller tests at FULL, plus the DDR2 characterization
-harness (macro, UART and access-pattern families).
+**Working, on silicon, at target.** Board-validated on the Nexys A7 at
+75 MHz / DDR2-300 / BL4 on the x16 MT47H64M16. Peak is 600 MB/s (8 B per
+controller cycle).
 
-**What is known to be true:**
+| | MB/s | share of peak |
+|---|---|---|
+| streaming write (row_major bl8) | **570.3** | 95.0% |
+| streaming read (row_major bl8) | **571.3** | 95.2% |
+| concurrent read+write, one window | **570.1 total** | 95.0% |
+
+14 of 14 characterization points integrity-clean. Timing closes at
+WNS **+0.285 ns**, 0 failing of 94 060 endpoints. Simulation is green: 219
+controller tests at FULL plus the DDR2 characterization harness (31 passed).
+
+**How it got here (2026-09-10).** Reads sat at 291.7 MB/s — 48.6% of peak,
+against a 570 write — for weeks, and two separate throttles were responsible:
+
+* `pumice_rd_intake` admitted one sub-command every TWO cycles. A single arm
+  bit marking "the registered snarf probe belongs to this AR" was cleared by
+  its own admit and could only re-set the following cycle. One sub-command is
+  one DRAM burst, and at this geometry one burst is one bus beat, so the gate
+  *was* the bandwidth. Fixed by staging the AR; read 291.7 -> 470.9.
+* The read return ring ran 32 tickets because the characterization macro never
+  passed `RD_RET_DEPTH` down, so every board build used the default regardless.
+  At ~49 cycles of read latency, 32 tickets cap reads near 78% of the DRAM
+  rate. Board default is now 64; read 470.9 -> **571.3**, write parity.
+
+Neither was visible in simulation, because the core suite runs a geometry where
+one DRAM burst is FOUR bus beats and a half-rate intake still supplies two
+beats per cycle. That gap is filed (see below) and is the single most valuable
+thing to fix next.
+
+**What is known to be true, and measured:**
 
 * Every legal AXI burst length works, including `AxLEN=0`, and any `WSTRB`
   pattern including all-zero. Proven byte-exact against a golden memory model,
-  and each check mutation-verified.
-* Write utilization reaches 100% with zero backpressure in the clean-room
-  ceiling case, across all 8 paging modes and 10 scheduling settings
-  (72 of 80 combinations at 100%; only strict in-order ordering costs
-  throughput, which is by design).
+  each check mutation-verified.
+* Reads and writes both reach ~95% of peak, and hold it with one, two or three
+  concurrent generators.
+* Under concurrent read+write pumice sustains 2.00x LiteDRAM through the
+  identical harness. That is the first workload where the reorder window pays
+  for its area: it batches same-direction columns and amortises the tWTR/tRTW
+  turnaround that a per-bank round-robin machine pays on every switch.
 * Refresh costs exactly 5 cycles per event, deterministically.
 
-**What is not done:**
+**What is NOT done — read this before trusting a number:**
 
-* **Board bandwidth is the open question.** The measured ~12.7 MB/s was traced
-  to the arbiter falling back to a single bank; the bank-parallel scheduler
-  that fixes it is in and green in simulation, but has not been re-measured on
-  silicon. Runtime page-policy selection gave 8.8x on streaming (12.7 -> 112
-  MB/s) when validated on the board, so the ceiling is not the DRAM.
-* **The read/write mix has not been swept yet.** The harness now drives
-  sixteen generators -- eight writers and eight readers, one per bank, on two
-  direction-split bridges into pumice's write and read channel groups -- so
-  bank concurrency and independent direction pressure are finally available.
-  What has not been done is the measurement they exist for: the direction mix
-  from 100% write to 100% read in 5% steps, where read/write turnaround
-  (tWTR/tRTW) actually shows up. Until that runs, the published numbers still
-  describe a single-stream workload.
-* **No observer is instantiated on the pumice AXI interface yet** — the bridge
-  slot exists and is tied off.
-* **Device width is still modelled as the beat width** (64-bit) rather than
-  the board's x16 part, everywhere except the x16 characterization sweep and
-  the macro harness.
-
-* **The generator array has not been synthesized.** The last Nexys A7 build
-  closed at WNS +0.050 ns with 33% LUT use; sixteen pattern generators and two
-  8-master crossbars are a substantial addition on top of that. Simulation is
-  green, but whether it closes timing at 100 MHz is unknown until a synthesis
-  run says so.
+* **Simulation cannot run the board's DRAM geometry.** The core suite is BL8 /
+  64-bit beat / device == beat, so one burst is four bus beats. Any
+  per-sub-command rate limit is divided by four before a bandwidth assertion
+  can see it, which is exactly how a 2x read throttle shipped with the suite
+  green. The geometry is now env-overridable but the board point does not run
+  clean (a read checker trips; the write ceiling stalls where the real board
+  reaches 95%), so it is not yet in the regression.
+* **Two writers is unsafe in the characterization harness.** pumice returns B
+  out of AW order across masters while the generated write bridge routes
+  responses by FIFO position, so a second writer would be silently misrouted.
+  Single-writer results are unaffected. Three candidate fixes are filed; none
+  is chosen.
+* **AxLEN=4 reads reach only 360 MB/s** against a 570 write, and did not move
+  with ring depth, so it is per-transaction overhead rather than a per-column
+  limit. A third mechanism, unidentified.
+* **Read latency is ~49 cycles against LiteDRAM's 24.7.** The two fixes above
+  bought bandwidth and not latency.
+* **No observer is instantiated on the pumice AXI interface** — the bridge slot
+  exists and is tied off.
+* **The advanced modes are characterized but not tuned.** All three axes run on
+  the board and the sweep exists; nobody has gone through the results and
+  picked defaults per workload class.
 
 Detailed work items live in `vault/Tasks/pumice/` and `vault/Tasks/nexysa7/`.
