@@ -1,0 +1,4 @@
+bridge=bridge_5x3_channels part=xc7k325tffg900-2 clk_ns=6.667
+luts=19035 ffs=16932 bram_tiles=0 dsps=0
+wns_ns=-0.132 wns_reg2reg_ns=-0.132 fmax_reg2reg_mhz=147.1 worst_logic_levels=17 unrouted_nets=0
+clocks=aclk io_delay_ns=2.0000999999999998 seconds=506

@@ -1,0 +1,4 @@
+bridge=bridge_2x2_rw_cdc part=xc7a100tcsg324-1 clk_ns=10.0
+luts=4851 ffs=3413 bram_tiles=0 dsps=0
+wns_ns=0.265 wns_reg2reg_ns=0.265 fmax_reg2reg_mhz=102.7 worst_logic_levels=9 unrouted_nets=0
+clocks=aclk ddr_aclk io_delay_ns=3.0 seconds=82

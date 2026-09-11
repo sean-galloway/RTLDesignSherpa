@@ -1,0 +1,35 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Fri Sep 11 12:59:52 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_utilization -hierarchical -hierarchical_depth 1 -file /mnt/data/github/RTLDesignSherpa/projects/components/bridge/fpga/reports/bridge_2x2_rw_cdc__xc7k325tffg900-2/utilization_hier.txt
+| Design       : bridge_2x2_rw_cdc
+| Device       : xc7k325tffg900-2
+| Speed File   : -2
+| Design State : Routed
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++-----------------------+------------------------+------------+------------+---------+------+------+--------+--------+------------+
+|        Instance       |         Module         | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++-----------------------+------------------------+------------+------------+---------+------+------+--------+--------+------------+
+| bridge_2x2_rw_cdc     |                  (top) |       4842 |       4690 |     152 |    0 | 3413 |      0 |      0 |          0 |
+|   (bridge_2x2_rw_cdc) |                  (top) |          0 |          0 |       0 |    0 |    0 |      0 |      0 |          0 |
+|   u_cpu_adapter       |            cpu_adapter |        677 |        677 |       0 |    0 |  633 |      0 |      0 |          0 |
+|   u_ddr_adapter       |            ddr_adapter |       1425 |       1273 |     152 |    0 | 1064 |      0 |      0 |          0 |
+|   u_dma_adapter       |            dma_adapter |        613 |        613 |       0 |    0 |  633 |      0 |      0 |          0 |
+|   u_sram_adapter      |           sram_adapter |       1311 |       1311 |       0 |    0 |  906 |      0 |      0 |          0 |
+|   u_xbar              | bridge_2x2_rw_cdc_xbar |        750 |        750 |       0 |    0 |  116 |      0 |      0 |          0 |
++-----------------------+------------------------+------------+------------+---------+------+------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

@@ -1,0 +1,4 @@
+bridge=bridge_2x2_rw_qos_pipe part=xc7a100tcsg324-1 clk_ns=10.0
+luts=5494 ffs=4291 bram_tiles=0 dsps=0
+wns_ns=0.167 wns_reg2reg_ns=0.167 fmax_reg2reg_mhz=101.7 worst_logic_levels=9 unrouted_nets=0
+clocks=aclk io_delay_ns=3.0 seconds=163
