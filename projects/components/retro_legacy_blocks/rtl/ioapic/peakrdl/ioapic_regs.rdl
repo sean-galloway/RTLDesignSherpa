@@ -304,4 +304,43 @@ addrmap ioapic_regs {
     // Entry 1: 0x1C-0x20 (internal 0x12-0x13)
     // ... continues through entry 23
 
+    //========================================================================
+    // IOAPIC Arbitration Configuration (internal offset 0x03)
+    //========================================================================
+    // NOT an 82093AA register. Selector 0x03 is reserved on the part, and
+    // this block uses it for the one thing the datasheet's arbitration
+    // scheme cannot express: a choice about fairness. Software that never
+    // writes it gets the 82093AA behaviour.
+
+    reg {
+        name = "IOAPIC Arbitration Configuration";
+        desc = "Arbitration policy (accessed at offset 0x03 via IOWIN). Reads
+                zero and does nothing on a real 82093AA, which is the point:
+                a driver written for the part is unaffected.";
+
+        field {
+            name = "Round-Robin Enable";
+            desc = "0 = STATIC priority: the lowest eligible IRQ number always
+                    wins, which is the 82093AA scheme and the reset default. A
+                    continuously asserted low-numbered level pin can then
+                    starve every pin above it, because it is eligible again
+                    the cycle after software EOIs it.
+
+                    1 = ROUND ROBIN: the scan starts just above the pin that
+                    was last accepted and wraps, so every eligible pin is
+                    served before any pin is served twice. Priority becomes
+                    position in the rotation rather than IRQ number.";
+            sw = rw;
+            hw = r;
+        } rr_enable[0:0] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:1] = 31'h0;
+
+    } IOAPICARBCFG @ 0xD4;
+
 };

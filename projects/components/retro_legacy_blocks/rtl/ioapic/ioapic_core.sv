@@ -29,7 +29,8 @@
  *   - NUM_IRQS interrupt input pins with programmable redirection
  *   - Edge and level trigger detection
  *   - Active high/low polarity handling
- *   - Static-priority arbitration (lowest IRQ number wins)
+ *   - Arbitration: static priority (lowest IRQ number wins) or, behind
+ *     IOAPICARBCFG.rr_enable, round robin from the last accepted pin
  *   - One outstanding delivery, presented on a valid/ready handshake
  *   - Per-pin Remote IRR tracking for level-triggered interrupts
  *
@@ -171,6 +172,9 @@ module ioapic_core #(
 
     // IOAPIC ID configuration
     input  logic [3:0]  cfg_ioapic_id,
+    // 0 = static priority (82093AA: lowest eligible IRQ number wins),
+    // 1 = round robin (the scan starts above the last accepted pin).
+    input  logic        cfg_rr_enable,
 
     // ========================================================================
     // Status Interface (to config_regs) - Per IRQ
@@ -239,6 +243,8 @@ module ioapic_core #(
     // Arbitration
     logic [IRQ_IDX_W-1:0] w_sel_irq;
     logic                 w_sel_valid;
+    // Round-robin start pointer: the pin AFTER the last accepted one.
+    logic [IRQ_IDX_W-1:0] r_rr_ptr;
 
     // Delivery output stage (one entry, valid/ready)
     logic                 r_out_valid;
@@ -436,18 +442,44 @@ module ioapic_core #(
         end
     endgenerate
 
-    // Static priority: lowest IRQ number wins. Index mapping is the identity -
-    // w_sel_irq is the index of the first set bit of w_irq_eligible scanning
-    // UP from 0, so with pins 5 and 2 both eligible the pick is 2, not 5.
+    // ROUND-ROBIN POINTER. Parked at the pin after the last accepted one, so
+    // that pin is the LAST the rotated scan reaches rather than the first.
+    // It advances only on an accept: a pick that is never taken must not move
+    // the rotation, or a stalled consumer would walk it round the ring.
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_rr_ptr <= '0;
+        end else if (w_deliv_accept) begin
+            r_rr_ptr <= (r_out_irq == IRQ_IDX_W'(NUM_IRQS-1)) ? '0
+                                                             : (r_out_irq + 1'b1);
+        end
+    )
+
+    // TWO SCANS, ONE SELECTOR. Static priority is the 82093AA scheme: scan up
+    // from pin 0, lowest eligible number wins. Its weakness is stated in the
+    // datasheet's own terms - a level pin that is eligible again the cycle
+    // after software EOIs it holds the low ground forever, and every pin above
+    // it starves.
+    //
+    // Round robin scans from r_rr_ptr and wraps, so the pin just served is the
+    // last one reached. Priority becomes position in the rotation rather than
+    // IRQ number, and every eligible pin is served before any pin is served
+    // twice. The scan is written as a single pass over an offset because a
+    // wrapped scan and a pair of scans are the same thing, and one loop is
+    // one piece of logic to be right about.
     always_comb begin
         w_sel_irq   = '0;
         w_sel_valid = 1'b0;
 
         for (int j = 0; j < NUM_IRQS; j++) begin
-            if (w_irq_eligible[j]) begin
-                w_sel_irq   = IRQ_IDX_W'(j);
+            // The wrap is a compare-and-subtract rather than a modulo: it is
+            // what a synthesiser builds for `%` by a non-power-of-two anyway,
+            // and NUM_IRQS is not required to be a power of two.
+            automatic int unsigned raw = cfg_rr_enable ? (int'(r_rr_ptr) + j) : j;
+            automatic int unsigned k   = (raw >= NUM_IRQS) ? (raw - NUM_IRQS) : raw;
+            if (w_irq_eligible[k] && !w_sel_valid) begin
+                w_sel_irq   = IRQ_IDX_W'(k);
                 w_sel_valid = 1'b1;
-                break;  // Stop at first match (lowest number)
             end
         end
     end

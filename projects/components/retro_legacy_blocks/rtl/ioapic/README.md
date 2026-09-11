@@ -39,7 +39,9 @@ single valid/ready delivery interface to the CPU/LAPIC.
 
 - 24 IRQ inputs, asynchronous, three-stage synchronized in `ioapic_core`
 - Edge and level trigger modes, active-high/active-low polarity, per-pin mask
-- Static-priority arbitration: lowest IRQ number wins
+- Arbitration in two policies: static priority (lowest IRQ number wins, the
+  82093AA scheme and the reset default) or round robin behind
+  `IOAPICARBCFG.rr_enable`
 - One outstanding delivery on a valid/ready handshake - no delivery FSM
 - Per-pin Remote IRR: a level interrupt blocks ITS OWN pin until EOI, other
   pins keep delivering, and a lost or wrong-vector EOI cannot stall the block
@@ -61,6 +63,27 @@ single valid/ready delivery interface to the CPU/LAPIC.
 - CDC_ENABLE=1: the whole CPU/LAPIC-facing interface is presented in pclk and
   crosses into ioapic_clk through matched-latency synchronizers
 
+## Arbitration is static unless you say otherwise
+
+Static priority is the 82093AA scheme: scan up from pin 0, the lowest eligible
+number wins. Its weakness is a consequence of the rule rather than a bug. A
+level pin that becomes eligible again the cycle after software EOIs it holds
+the low ground forever, and every pin above it starves.
+
+Writing 1 to `IOAPICARBCFG.rr_enable` starts the scan just above the pin that
+was last ACCEPTED, and wraps. The pin just served becomes the last one the scan
+reaches, so every eligible pin is served before any pin is served twice.
+Priority becomes a position in the rotation rather than an IRQ number.
+
+The pointer moves only on an accept. A pick that the consumer never takes must
+not move it, or a stalled consumer would walk the rotation round the ring
+without delivering anything.
+
+`IOAPICARBCFG` is NOT an 82093AA register. Selector `0x03` is reserved on the
+part, and this block uses it for the one choice the datasheet's scheme cannot
+express. A driver written for the 82093AA never writes it and gets static
+priority.
+
 ## Destination mode
 
 `irq_out_dest_mode` carries the RTE's destination mode alongside
@@ -74,8 +97,7 @@ delivery (RLB-008). Delivery modes other than Fixed are likewise forwarded on
 ## Not implemented (see vault/Tasks/RLB/open.md, RLB-008)
 
 LowestPriority arbitration, which needs processor priority tracking this block
-has no interface for; dynamic priority rotation (arbitration is static, lowest
-IRQ number wins); multi-IOAPIC routing; boot-interrupt delivery; MSI/MSI-X.
+has no interface for; multi-IOAPIC routing; boot-interrupt delivery; MSI/MSI-X.
 
 ## Files
 

@@ -207,6 +207,7 @@ module apb4_ioapic #(
     logic        w_cfg_mask         [NUM_IRQS];
     logic [7:0]  w_cfg_destination  [NUM_IRQS];
     logic [3:0]  w_cfg_ioapic_id;
+    logic        w_cfg_rr_enable;
 
     // Status signals from core
     logic        w_status_deliv_status [NUM_IRQS];
@@ -350,6 +351,7 @@ module apb4_ioapic #(
         .cfg_mask          (w_cfg_mask),
         .cfg_destination   (w_cfg_destination),
         .cfg_ioapic_id     (w_cfg_ioapic_id),
+        .cfg_rr_enable     (w_cfg_rr_enable),
 
         // Status inputs from core
         .status_deliv_status(w_status_deliv_status),
@@ -589,6 +591,7 @@ module apb4_ioapic #(
         .cfg_mask             (w_cfg_mask),
         .cfg_destination      (w_cfg_destination),
         .cfg_ioapic_id        (w_cfg_ioapic_id),
+        .cfg_rr_enable        (w_cfg_rr_enable),
 
         // Status outputs
         .status_deliv_status  (w_status_deliv_status),

@@ -75,6 +75,7 @@ module ioapic_regs (
             logic REDIR_LO;
             logic REDIR_HI;
         } IOREDTBL[24];
+        logic IOAPICARBCFG;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
     logic decoded_req;
@@ -92,6 +93,7 @@ module ioapic_regs (
             decoded_reg_strb.IOREDTBL[i0].REDIR_LO = cpuif_req_masked & (cpuif_addr == 8'h14 + (8)'(i0) * 8'h8);
             decoded_reg_strb.IOREDTBL[i0].REDIR_HI = cpuif_req_masked & (cpuif_addr == 8'h18 + (8)'(i0) * 8'h8);
         end
+        decoded_reg_strb.IOAPICARBCFG = cpuif_req_masked & (cpuif_addr == 8'hd4);
     end
 
     // Pass down signals to next stage
@@ -156,6 +158,12 @@ module ioapic_regs (
                 } destination;
             } REDIR_HI;
         } IOREDTBL[24];
+        struct {
+            struct {
+                logic next;
+                logic load_next;
+            } rr_enable;
+        } IOAPICARBCFG;
     } field_combo_t;
     field_combo_t field_combo;
 
@@ -202,6 +210,11 @@ module ioapic_regs (
                 } destination;
             } REDIR_HI;
         } IOREDTBL[24];
+        struct {
+            struct {
+                logic value;
+            } rr_enable;
+        } IOAPICARBCFG;
     } field_storage_t;
     field_storage_t field_storage;
 
@@ -440,6 +453,29 @@ module ioapic_regs (
         end
         assign hwif_out.IOREDTBL[i0].REDIR_HI.destination.value = field_storage.IOREDTBL[i0].REDIR_HI.destination.value;
     end
+    // Field: ioapic_regs.IOAPICARBCFG.rr_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.IOAPICARBCFG.rr_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.IOAPICARBCFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.IOAPICARBCFG.rr_enable.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end
+        field_combo.IOAPICARBCFG.rr_enable.next = next_c;
+        field_combo.IOAPICARBCFG.rr_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.IOAPICARBCFG.rr_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.IOAPICARBCFG.rr_enable.load_next) begin
+                field_storage.IOAPICARBCFG.rr_enable.value <= field_combo.IOAPICARBCFG.rr_enable.next;
+            end
+        end
+    end
+    assign hwif_out.IOAPICARBCFG.rr_enable.value = field_storage.IOAPICARBCFG.rr_enable.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -457,7 +493,7 @@ module ioapic_regs (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[53];
+    logic [31:0] readback_array[54];
     assign readback_array[0][7:0] = (decoded_reg_strb.IOREGSEL && !decoded_req_is_wr) ? field_storage.IOREGSEL.regsel.value : '0;
     assign readback_array[0][31:8] = (decoded_reg_strb.IOREGSEL && !decoded_req_is_wr) ? 24'h0 : '0;
     assign readback_array[1][31:0] = (decoded_reg_strb.IOWIN && !decoded_req_is_wr) ? field_storage.IOWIN.data.value : '0;
@@ -484,6 +520,8 @@ module ioapic_regs (
         assign readback_array[i0 * 2 + 6][23:0] = (decoded_reg_strb.IOREDTBL[i0].REDIR_HI && !decoded_req_is_wr) ? 24'h0 : '0;
         assign readback_array[i0 * 2 + 6][31:24] = (decoded_reg_strb.IOREDTBL[i0].REDIR_HI && !decoded_req_is_wr) ? field_storage.IOREDTBL[i0].REDIR_HI.destination.value : '0;
     end
+    assign readback_array[53][0:0] = (decoded_reg_strb.IOAPICARBCFG && !decoded_req_is_wr) ? field_storage.IOAPICARBCFG.rr_enable.value : '0;
+    assign readback_array[53][31:1] = (decoded_reg_strb.IOAPICARBCFG && !decoded_req_is_wr) ? 31'h0 : '0;
 
     // Reduce the array
     always_comb begin
@@ -491,7 +529,7 @@ module ioapic_regs (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<53; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<54; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

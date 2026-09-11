@@ -66,6 +66,9 @@ class IOAPICRegisterMap:
     OFFSET_IOAPICID = 0x00   # IOAPIC ID
     OFFSET_IOAPICVER = 0x01  # IOAPIC version
     OFFSET_IOAPICARB = 0x02  # IOAPIC arbitration
+    OFFSET_ARBCFG = 0x03     # Arbitration policy (NOT an 82093AA register;
+                             # selector 0x03 is reserved on the part)
+    ARBCFG_RR_ENABLE = (1 << 0)
 
     # Redirection table base (internal offset)
     OFFSET_IOREDTBL_BASE = 0x10  # First redirection entry
@@ -511,6 +514,29 @@ class IOAPICTB(TBBase):
         self.dut.irq_in.value = new_value
 
         self.log.info(f"IRQ{irq_num} deasserted (irq_in=0x{new_value:06X})")
+
+    async def set_arbitration_round_robin(self, enable: bool):
+        """Select the arbitration policy through IOREGSEL/IOWIN offset 0x03.
+
+        False = static priority, the 82093AA scheme and the reset default.
+        True = round robin from the last accepted pin.
+        """
+        await self.write_ioapic_register(
+            IOAPICRegisterMap.OFFSET_ARBCFG,
+            IOAPICRegisterMap.ARBCFG_RR_ENABLE if enable else 0)
+
+    async def pulse_irq_mask(self, mask: int, pulse_cycles: int = 5):
+        """Pulse several IRQ pins in the SAME cycle.
+
+        Arbitration between two pins is only observable when both are pending
+        before the output stage loads either of them; pulsing them one at a
+        time hands the first one the stage and makes the test a measurement of
+        the testbench's own ordering instead.
+        """
+        self.dut.irq_in.value = int(self.dut.irq_in.value) | mask
+        await self.wait_clocks('pclk', pulse_cycles)
+        self.dut.irq_in.value = int(self.dut.irq_in.value) & ~mask
+        self.log.info(f"IRQ mask 0x{mask:06X} pulsed ({pulse_cycles} cycles)")
 
     async def pulse_irq(self, irq_num: int, pulse_cycles: int = 5):
         """

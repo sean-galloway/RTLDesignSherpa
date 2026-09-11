@@ -124,6 +124,87 @@ class IOAPICMediumTests:
             self.log.error(f"RLB-008 destination mode test error: {e}")
             return False
 
+    async def test_rlb008_priority_rotation(self) -> bool:
+        """RLB-008: round-robin arbitration behind IOAPICARBCFG.rr_enable.
+
+        Arbitration was static: the lowest eligible IRQ number always won, so
+        a continuously requesting low-numbered pin can starve every pin above
+        it. Round robin starts the scan just above the pin that was last
+        accepted and wraps, which makes priority a position in the rotation
+        rather than an IRQ number.
+
+        The two policies are told apart by PARKING THE POINTER BETWEEN two
+        contenders. Serve pin 2 first and the pointer sits at 3; present pins
+        1 and 5 together and static picks 1 (lower number) while round robin
+        picks 5 (the first one at or above 3). Same stimulus, opposite order,
+        with the static run as its own control."""
+        self.log.info("=== RLB-008: priority rotation ===")
+        try:
+            async def order_for(policy_rr, primer, contenders):
+                """Serve `primer` alone to park the pointer just above it,
+                then present `contenders` together and return the delivery
+                order."""
+                await self.tb.reset_dut()
+                await self.tb.set_arbitration_round_robin(policy_rr)
+                for irq in (primer,) + contenders:
+                    await self.tb.write_redirection_entry(
+                        irq=irq, vector=0x20 + irq, dest=0,
+                        delivery_mode=0, dest_mode=0,
+                        polarity=0, trigger_mode=0, mask=0)
+                await ClockCycles(self.tb.pclk, 20)
+
+                # Park the pointer: one delivery, accepted.
+                self.tb.dut.irq_out_ready.value = 1
+                await self.tb.pulse_irq(primer)
+                await ClockCycles(self.tb.pclk, 40)
+
+                # Present the contenders together with the stage closed, so
+                # both are pending before either can be loaded.
+                self.tb.dut.irq_out_ready.value = 0
+                mask = 0
+                for irq in contenders:
+                    mask |= (1 << irq)
+                await self.tb.pulse_irq_mask(mask)
+                await ClockCycles(self.tb.pclk, 20)
+
+                seen = await self.tb.count_irq_out_handshakes(
+                    window_cycles=200, ready=1)
+                self.tb.dut.irq_out_ready.value = 0
+                return [v - 0x20 for v in seen]
+
+            # Case A: pointer parked at 3, contenders 1 and 5.
+            static_a = await order_for(False, 2, (1, 5))
+            rr_a     = await order_for(True,  2, (1, 5))
+            self.log.info(f"  primer 2, contenders 1 and 5: static={static_a} "
+                          f"round robin={rr_a}")
+
+            # Case B: pointer parked at 11, contenders 3 and 20. The rotated
+            # scan has to run up past 20 and wrap to reach 3, so the higher
+            # number is served first here too - and for a different reason
+            # than case A, which is why both are worth running.
+            static_b = await order_for(False, 10, (3, 20))
+            rr_b     = await order_for(True,  10, (3, 20))
+            self.log.info(f"  primer 10, contenders 3 and 20: static="
+                          f"{static_b} round robin={rr_b}")
+
+            ok = (static_a[:2] == [1, 5] and rr_a[:2] == [5, 1] and
+                  static_b[:2] == [3, 20] and rr_b[:2] == [20, 3])
+            if ok:
+                self.log.info("RLB-008 priority rotation GREEN")
+                return True
+            self.log.error(
+                f"RLB-008 rotation: case A static={static_a} (want [1, 5]) "
+                f"round robin={rr_a} (want [5, 1]); case B static={static_b} "
+                f"(want [3, 20]) round robin={rr_b} (want [20, 3])")
+            return False
+        except Exception as e:
+            self.log.error(f"RLB-008 rotation test error: {e}")
+            return False
+        finally:
+            # Back to the 82093AA scheme, which every other test assumes.
+            self.tb.dut.irq_out_ready.value = 0
+            await self.tb.reset_dut()
+
     async def test_c1_edge_double_delivery_count(self) -> bool:
         """
         GitHub #48 C1: with irq_out_ready held asserted continuously, a

@@ -126,6 +126,7 @@ module ioapic_config_regs
     output logic        cfg_mask         [NUM_IRQS],
     output logic [7:0]  cfg_destination  [NUM_IRQS],
     output logic [3:0]  cfg_ioapic_id,
+    output logic        cfg_rr_enable,
 
     // Status inputs (from ioapic_core)
     input  logic        status_deliv_status [NUM_IRQS],
@@ -144,6 +145,10 @@ module ioapic_config_regs
     localparam logic [7:0]  SEL_IOAPICID  = 8'h00;
     localparam logic [7:0]  SEL_IOAPICVER = 8'h01;
     localparam logic [7:0]  SEL_IOAPICARB = 8'h02;
+    // NOT an 82093AA selector. 0x03 is reserved on the part; this block uses
+    // it for the arbitration policy bit, so a driver written for the 82093AA
+    // never touches it and gets the static scheme.
+    localparam logic [7:0]  SEL_ARBCFG    = 8'h03;
     localparam logic [7:0]  SEL_REDIR_LO  = 8'h10;  // first redirection entry
     localparam logic [7:0]  SEL_REDIR_HI  = 8'h3F;  // last  redirection entry
     // Register-block addresses are 8 bits: the whole map is 0x00-0xD0 and the
@@ -153,6 +158,7 @@ module ioapic_config_regs
     localparam logic [7:0]  ADDR_IOAPICID = 8'h08;
     localparam logic [7:0]  ADDR_IOAPICVER= 8'h0C;
     localparam logic [7:0]  ADDR_IOAPICARB= 8'h10;
+    localparam logic [7:0]  ADDR_ARBCFG   = 8'hD4;
     localparam logic [7:0]  ADDR_REDIR    = 8'h14;   // IOREDTBL[0].REDIR_LO
     // The two software-visible APB addresses in the 4 KB window. Everything
     // else, in window or not, is dropped (see DECODE CONTRACT above).
@@ -261,6 +267,7 @@ module ioapic_config_regs
     assign w_sel_mapped = (w_regsel == SEL_IOAPICID)  ||
                           (w_regsel == SEL_IOAPICVER) ||
                           (w_regsel == SEL_IOAPICARB) ||
+                          (w_regsel == SEL_ARBCFG)    ||
                           ((w_regsel >= SEL_REDIR_LO) && (w_regsel <= SEL_REDIR_HI));
 
     // The software-visible decode, in full: IOREGSEL and IOWIN, nothing else.
@@ -302,6 +309,7 @@ module ioapic_config_regs
                 SEL_IOAPICID:  regblk_addr = ADDR_IOAPICID;
                 SEL_IOAPICVER: regblk_addr = ADDR_IOAPICVER;
                 SEL_IOAPICARB: regblk_addr = ADDR_IOAPICARB;
+                SEL_ARBCFG:    regblk_addr = ADDR_ARBCFG;
                 default: begin
                     // Redirection table, or an unmapped selector - in which
                     // case regblk_req is already gated off and the address
@@ -375,6 +383,7 @@ module ioapic_config_regs
 
     // IOAPIC ID
     assign cfg_ioapic_id = hwif_out.IOAPICID.apic_id.value;
+    assign cfg_rr_enable = hwif_out.IOAPICARBCFG.rr_enable.value;
 
     // Redirection table entries - map array to core
     genvar g;
