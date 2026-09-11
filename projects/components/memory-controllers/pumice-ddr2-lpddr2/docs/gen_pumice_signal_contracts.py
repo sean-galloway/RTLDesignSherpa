@@ -40,6 +40,7 @@ the grid pages).
 """
 from __future__ import annotations
 import os
+import sys
 
 import openpyxl
 from openpyxl import Workbook
@@ -1461,13 +1462,16 @@ def build_arbiter_sheet(wb):
     km.kmap(
         "w_ref_safe", "pumice_cmd_arbiter.sv (refresh pick gate)",
         "w_ref_safe = !w_any_active && !w_inflight_preact && (r_guard0=='0) && "
-        "(r_guard1=='0) && !w_rfc_busy   [guards collapsed: guards_nz = "
-        "|r_guard0 | |r_guard1]",
-        ["any_active", "inflight_preact", "guards_nz", "rfc_busy"],
-        lambda a, i, g, r: (not a) and (not i) and (not g) and (not r),
-        "EXACTLY ONE 1-cell, at all-zeros. Any additional 1 is a hole that "
-        "lets REFab collide with an open/opening row or violate tRFC "
-        "(the silicon row-corruption bug class).")
+        "(r_guard1=='0) && !w_rfc_busy && !r_grant   [guards collapsed: "
+        "guards_nz = |r_guard0 | |r_guard1]",
+        ["any_active", "inflight_preact", "guards_nz", "rfc_busy", "grant"],
+        lambda a, i, g, r, gr: ((not a) and (not i) and (not g) and (not r)
+                                and (not gr)),
+        "EXACTLY ONE 1-cell, at all-zeros (on the grant=0 page; the "
+        "grant=1 page is all-zero because a REF already granted this cycle "
+        "must not re-arm). Any additional 1 is a hole that lets REFab "
+        "collide with an open/opening row or violate tRFC (the silicon "
+        "row-corruption bug class).")
 
     # 2. refresh branch action (multi-valued)
     km.kmap(
@@ -1487,26 +1491,37 @@ def build_arbiter_sheet(wb):
     km.kmap(
         "rd_col_m[e]  (given rd_sch_valid_i[e] && rd_issue_ready)",
         "pumice_cmd_arbiter.sv (classify + direction guard)",
-        "rd_col_m = rhit && bank_rdwr_ready && tccd_ok && twtr_ok && "
-        "rd_issue_ready && !w_inflight_col && !w_rd_turn_block   "
-        "[rd_issue_ready factored out as the enabling condition]",
+        "rd_col_m[e] = rhit && r_bank_rdwr_ready[rb] && w_tccd_fwd_ok && "
+        "twtr_ok_i && rd_issue_ready_i && !dbl_issue && !col_guard   "
+        "[rd_issue_ready_i factored out as the enabling condition; "
+        "dbl_issue = (f_ap(rb) && w_col_inflight_bank[rb]) | "
+        "w_rd_col_inflight_ent[e]; "
+        "col_guard = r_ap_closing[rb] | w_ref_col_block[rb] | "
+        "w_rd_turn_block | w_ap_col_guard[rb] | w_pre_col_guard[rb] | "
+        "w_preact_bank_guard[rb]]",
         ["rhit", "rdwr_ready", "tccd_ok", "twtr_ok",
-         "inflight_col", "rd_turn_block"],
+         "dbl_issue", "col_guard"],
         lambda h, r, c, w, f, t: h and r and c and w and (not f) and (not t),
-        "1s ONLY on the page [inflight_col=0, rd_turn_block=0], single "
-        "all-ones cell. ANY 1 on an rd_turn_block=1 page = a RD issued into "
-        "a write burst's DQ occupancy on the stale flopped twtr_ok — the "
-        "471/471 concurrent-soak corruption (issue #42).")
+        "1s ONLY on the page [dbl_issue=0, col_guard=0], single all-ones "
+        "cell. A 1 anywhere on a col_guard=1 page would mean a RD issued "
+        "through a turnaround/AP/precharge guard -- the class that produced "
+        "the 471/471 concurrent-soak corruption (a RD into a write burst's "
+        "DQ occupancy on a stale flopped twtr_ok).")
     km.kmap(
         "wr_col_m[e]  (given wr_sch_valid_i[e] && wr_commit_ready)",
         "pumice_cmd_arbiter.sv (classify + direction guard)",
-        "wr_col_m = whit && bank_rdwr_ready && tccd_ok && trtw_ok && "
-        "wr_commit_ready && !w_inflight_col && !w_wr_turn_block   "
-        "[wr_commit_ready factored out as the enabling condition]",
+        "wr_col_m[e] = whit && r_bank_rdwr_ready[wb] && w_tccd_fwd_ok && "
+        "trtw_ok_i && wr_commit_ready_i && !dbl_issue && !col_guard   "
+        "[wr_commit_ready_i factored out; dbl_issue = (f_ap(wb) && "
+        "w_col_inflight_bank[wb]) | w_wr_col_inflight_ent[e]; "
+        "col_guard = r_ap_closing[wb] | w_ref_col_block[wb] | "
+        "w_wr_turn_block | w_ap_col_guard[wb] | w_pre_col_guard[wb] | "
+        "w_preact_bank_guard[wb]]",
         ["whit", "rdwr_ready", "tccd_ok", "trtw_ok",
-         "inflight_col", "wr_turn_block"],
+         "dbl_issue", "col_guard"],
         lambda h, r, c, t, f, b: h and r and c and t and (not f) and (not b),
-        "Mirror of rd_col_m: 1s only on [inflight_col=0, wr_turn_block=0].")
+        "Exact mirror of rd_col_m with the write-side turnaround (trtw) and "
+        "commit-ready: 1s only on [dbl_issue=0, col_guard=0].")
     km.kmap(
         "w_rd_turn_block / w_wr_turn_block",
         "pumice_cmd_arbiter.sv (direction-turnaround guard)",
@@ -1524,8 +1539,9 @@ def build_arbiter_sheet(wb):
     km.kmap(
         "rd_act_m[e] / wr_act_m[e]  (given sch_valid[e])",
         "pumice_cmd_arbiter.sv (classify + tRFC gate)",
-        "act_m = !bank_row_active && !w_guarded[bank] && bank_act_ready && "
-        "tfaw_ok && trrd_ok && !w_rfc_busy",
+        "rd_act_m[e] = !r_bank_row_active[rb] && !w_guarded[rb] && "
+        "r_bank_act_ready[rb] && tfaw_ok_i && trrd_ok_i && !w_rfc_busy   "
+        "[wr_act_m[e] is the same with wb for rb]",
         ["row_active", "guarded", "act_ready", "tfaw_ok",
          "trrd_ok", "rfc_busy"],
         lambda ra, g, ar, tf, tr, rb:
@@ -1539,8 +1555,8 @@ def build_arbiter_sheet(wb):
     km.kmap(
         "rd_pre_m[e] / wr_pre_m[e]  (given sch_valid[e])",
         "pumice_cmd_arbiter.sv (classify)",
-        "pre_m = bank_row_active && !w_guarded[bank] && !hit && "
-        "bank_pre_ready",
+        "rd_pre_m[e] = r_bank_row_active[rb] && !w_guarded[rb] && !rhit && "
+        "r_bank_pre_ready[rb]   [wr_pre_m[e] is the same with wb/whit]",
         ["row_active", "guarded", "hit", "pre_ready"],
         lambda ra, g, h, p: ra and (not g) and (not h) and p,
         "Single 1-cell at (1,0,0,1): only an open bank on the WRONG row, "
@@ -1564,10 +1580,13 @@ def build_arbiter_sheet(wb):
     km.kmap(
         "w_guarded[b]",
         "pumice_cmd_arbiter.sv (guard fold)",
-        "w_guarded[b] = r_guard0[b] | r_guard1[b] | ((w_inflight_preact || "
-        "w_inflight_col) && (r_bank == b))   [bank_match = r_bank==b]",
-        ["guard0", "guard1", "inflight_rowop_or_col", "bank_match"],
-        lambda g0, g1, i, m: g0 or g1 or (i and m),
+        "w_guarded[b] = r_guard0[b] | r_guard1[b] | w_prepick_guard[b] | "
+        "w_col_inflight_guard[b] | ((w_inflight_preact || w_inflight_col) && "
+        "(r_bank == b))   [guards_nz = w_prepick_guard[b] | "
+        "w_col_inflight_guard[b]; bank_match = r_bank==b]",
+        ["guard0", "guard1", "pick_guards_nz", "inflight_rowop_or_col",
+         "bank_match"],
+        lambda g0, g1, pg, i, m: g0 or g1 or pg or (i and m),
         "Zero ONLY when both guard stages are clear AND no in-flight "
         "row-affecting/column op targets this bank. Columns are included "
         "(tRTP/tWR registration lag) — if the (0,0,1,1) cell ever reads 0, "
@@ -1724,11 +1743,15 @@ def build_refresh_sheet(wb):
         "(the accumulator never goes negative).")
     km.kmap(
         "refresh_drain_active", "refresh_ctrl.sv:126",
-        "w_drain_active = (r_burst_remaining > 0) && (r_pending > 0)",
-        ["rem_nz", "pend_nz"],
-        lambda r, p: r and p,
-        "Single 1-cell at (1,1); holding the arbiter in the refresh branch "
-        "requires BOTH quota and owed refreshes.")
+        "w_drain_active = (r_burst_remaining > 0) && (r_pending > 0) && "
+        "refresh_req_o",
+        ["rem_nz", "pend_nz", "req_o"],
+        lambda r, p, q: r and p and q,
+        "Single 1-cell at (1,1,1): holding the arbiter in the refresh branch "
+        "requires quota AND owed refreshes AND the REGISTERED request. The "
+        "req_o term is not redundant -- a postponed backlog withholds req_o "
+        "while pending is non-zero, and without this term the drain window "
+        "would open anyway and defeat the postpone credit.")
     km.table(
         "r_pending next-value", "refresh_ctrl.sv:98-108",
         ["enable && expired", "w_grant_accept", "next"],
@@ -1754,6 +1777,19 @@ def build_refresh_sheet(wb):
 
 
 def main():
+    # Refuse to emit a workbook whose grids are computed from a stale mirror.
+    # The grids' whole claim is that cells come from the RTL expression; a
+    # mirror that has drifted produces cells with all of that authority and
+    # none of the truth, which is worse than shipping no map. Checked here so
+    # it cannot be forgotten rather than in a separate step someone skips.
+    if os.environ.get("SKIP_KMAP_RTL_CHECK") != "1":
+        sys.path.insert(0, HERE)
+        import check_kmap_rtl_sync
+        if check_kmap_rtl_sync.main() != 0:
+            print("\nREFUSING to regenerate: fix the mirrors above first "
+                  "(SKIP_KMAP_RTL_CHECK=1 overrides, and you should not).")
+            return 1
+
     wb = Workbook()
     wb.remove(wb.active)
     build_index(wb)
@@ -1769,7 +1805,8 @@ def main():
     print(f"wrote {XLSX}")
     for name in wb.sheetnames:
         print("  ", name)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
