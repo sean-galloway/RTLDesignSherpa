@@ -2382,3 +2382,66 @@ question; a threshold that cannot fail the defect it names is decoration
 ([[escape-analysis]]).
 
 ---
+
+---
+
+### TASK-094: axi_master_rd_splitter returns read data before accepting the read (AXI A3.3.1)
+
+**Priority:** P2. A real protocol violation in a shared library block, found
+by formal. No in-tree RTL instantiates the block (only its unit tests
+exercise it), so no shipped design carries it today -- which is also why it
+has gone unnoticed.
+
+**Status:** open 2026-09-11. RTL deliberately NOT changed: it is a
+flow-control decision with system impact, and editing a shared rtl/amba
+block for it is the owner's call.
+
+**The violation.** AXI A3.3.1: a slave must not assert RVALID until the AR
+handshake it answers has completed. On the fub port the splitter is that
+slave, and for any read that needs splitting it breaks the rule:
+
+- In IDLE with a split needed it holds `fub_arready` low and issues the
+  first sub-request downstream.
+- It raises `fub_arready` only when the FINAL sub-request is accepted
+  downstream (`fub_arready = w_is_final_split && m_axi_arready && ...`).
+- Its R channel is a straight passthrough (`fub_rvalid = m_axi_rvalid`).
+
+So data for the early sub-requests reaches the requester while the
+requester's own request is still unaccepted. Counterexample with a LEGAL
+downstream slave (one that answers only requests it has accepted):
+
+| step | state | fub_arvalid | fub_arready | downstream AR | slave owes | fub_rvalid |
+|---|---|---|---|---|---|---|
+| 1 | IDLE | 1 | **0** | first split accepted | 0 | 0 |
+| 2 | SPLITTING | 1 | **0** | final split stalled | 1 | **1** |
+| 3 | SPLITTING | 1 | 1 | final split accepted | 0 | 0 |
+
+Step 2 is the violation: read data upstream, request not yet accepted.
+
+**How it was found, and why it hid.** The task used to prove a hand-copied
+fork whose properties asserted plain passthrough, so nothing checked the
+AR-to-R dependency. Proving the real RTL replaced the passthrough RLAST
+property with an interface beat-count ghost; that failed against an
+UNCONSTRAINED downstream slave, so the harness was given a legal slave and
+the dependency was asserted directly (`ap_rvalid_after_ar`). It still fails,
+so the counterexample cannot be blamed on a fake slave.
+
+**Two ways to fix it, and they are not equivalent:**
+
+1. Accept the upstream request as soon as the original transaction is
+   buffered -- on the first sub-request, not the last. Data then legally
+   follows acceptance. Changes when the requester may issue its next read,
+   so the existing `r_rbeats_active` admission fence has to hold.
+2. Hold read data upstream until the request is accepted: gate
+   `fub_rvalid` and `m_axi_rready` on "upstream AR accepted". Keeps today's
+   admission timing; costs latency on split reads.
+
+**The write splitter was checked for the mirror case by READING, not by
+proof:** it also accepts the upstream AW only on the final split, but it
+consolidates B responses and releases one only on the final split's
+response, which a legal slave can only send after that final AW. So its
+response always follows the upstream acceptance.
+
+**Done when:** a fix is chosen and made, `formal/amba/axi_master_rd_splitter`
+proves with `ap_rvalid_after_ar` and `ap_rlast_on_last_beat` both intact,
+and the unit tests are rerun. Do not relax either property to get there.

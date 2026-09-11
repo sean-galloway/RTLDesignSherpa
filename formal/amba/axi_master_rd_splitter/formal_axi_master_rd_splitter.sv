@@ -193,7 +193,8 @@ module formal_axi_master_rd_splitter #(
             ap_rdata_pass:  assert (fub_rdata  == m_axi_rdata);
             ap_rresp_pass:  assert (fub_rresp  == m_axi_rresp);
             ap_rvalid_pass: assert (fub_rvalid == m_axi_rvalid);
-            ap_rlast_pass:  assert (fub_rlast  == m_axi_rlast);
+            // fub_rlast is NOT a passthrough: the real splitter regenerates it,
+            // one per ORIGINAL transaction -- see ap_rlast_on_last_beat below.
             ap_ruser_pass:  assert (fub_ruser  == m_axi_ruser);
             ap_rid_pass:    assert (fub_rid    == m_axi_rid);
         end
@@ -261,5 +262,51 @@ module formal_axi_master_rd_splitter #(
         if (rst_n)
             cp_master_handshake: cover (m_axi_arvalid && m_axi_arready);
     end
+
+
+    // =========================================================================
+    // RLAST is regenerated, one per ORIGINAL read (2026-09-11).
+    //
+    // The old passthrough property asserted fub_rlast == m_axi_rlast. That was
+    // true of the fork this harness used to read and false of the shipped RTL:
+    // the real splitter counts the beats it owes upstream and raises RLAST on
+    // the last one, falling back to the downstream RLAST only when nothing is
+    // tracked.
+    //
+    // This ghost counts those beats from the INTERFACE -- the upstream AR
+    // handshake and its ARLEN, then each upstream R handshake -- not from the
+    // RTL's own counter, so it checks that counter rather than restating it.
+    // The splitter tracks one original read at a time, so one counter suffices.
+    // =========================================================================
+    reg [8:0] f_beats;
+    always @(posedge clk) begin
+        if (!rst_n)                                        f_beats <= 9'd0;
+        else if (fub_arvalid && fub_arready)               f_beats <= 9'(fub_arlen) + 9'd1;
+        else if (fub_rvalid && fub_rready && f_beats != 0) f_beats <= f_beats - 9'd1;
+    end
+    always @(posedge clk)
+        if (rst_n && f_beats != 9'd0 && fub_rvalid && fub_rready)
+            ap_rlast_on_last_beat: assert (fub_rlast == (f_beats == 9'd1));
+
+
+    // =========================================================================
+    // A LEGAL downstream slave (2026-09-11). m_axi_* were left free, so the
+    // slave could return read data for requests it was never sent -- the first
+    // counterexample for ap_rlast_on_last_beat returned beats from step 0 with
+    // nothing outstanding. A real slave answers only what it has accepted.
+    // =========================================================================
+    reg [8:0] f_down_beats;
+    always @(posedge clk) begin
+        if (!rst_n) f_down_beats <= 9'd0;
+        else f_down_beats <= f_down_beats
+             + ((m_axi_arvalid && m_axi_arready) ? (9'(m_axi_arlen) + 9'd1) : 9'd0)
+             - ((m_axi_rvalid && m_axi_rready && f_down_beats != 9'd0) ? 9'd1 : 9'd0);
+    end
+    always @(*) if (rst_n) assume (!m_axi_rvalid || f_down_beats != 9'd0);
+
+    // AXI A3.3.1: a slave must not assert RVALID until the AR handshake it is
+    // answering has COMPLETED. On the fub port, the splitter IS that slave.
+    always @(posedge clk)
+        if (rst_n) ap_rvalid_after_ar: assert (!fub_rvalid || f_beats != 9'd0);
 
 endmodule
