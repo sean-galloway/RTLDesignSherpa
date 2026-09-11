@@ -892,10 +892,15 @@ def cmd_path_sheets(wb):
         _km_row(ws, r, x, cmd_col=CMD); r += 1
     r += 1
     ws.cell(row=r, column=1,
-            value="Broken today: the arbiter ANDs an extra !w_col_inflight_bank "
-                  "term (pick-pipeline occupancy) into rows 3/6/8, forcing one "
-                  "same-bank column per ~pipeline-depth instead of per tCCD. "
-                  "IDEAL removes it: only the DRAM timers above gate issue.").font = KM_NOTE
+            value="RTL STATUS 2026-09-10: LARGELY CLOSED. The arbiter used to AND a blanket "
+                        "!w_col_inflight_bank (pick-pipeline occupancy) into rows 3/6/8, forcing "
+                        "one same-bank column per ~pipeline-depth instead of per tCCD. It is now "
+                        "AP-GATED -- !(f_ap(b) && w_col_inflight_bank[b]) -- so a non-AP column is "
+                        "gated only by the DRAM timers above, as this table asks. Narrowed rather "
+                        "than removed on purpose: an AP column closes the row behind it, and a "
+                        "second same-bank column picked against the stale open-row image would be "
+                        "issued to a closing row. Remaining gap: AP columns are still one-per-bank "
+                        "in flight. (pumice_cmd_arbiter.sv:589,605)").font = KM_NOTE
 
     # --- Sheet 2: auto-precharge (AP) bit / page policy ------------------
     ws = wb.create_sheet("AP_DECISION")
@@ -962,8 +967,14 @@ def cmd_path_sheets(wb):
             value="Signals already present to build the overlay: r_bank (in-flight "
                   "bank), w_inflight_col, w_inflight_preact, w_col_inflight_guard, "
                   "r_ap_closing. Keep the per-ENTRY double-issue mask "
-                  "(w_rd/wr_col_inflight_ent); REMOVE the per-BANK occupancy mask "
-                  "(w_col_inflight_bank). See design/README.md + waves/07,08,09.").font = KM_NOTE
+                  "Signals already present to build the overlay: r_bank (in-flight bank), "
+                        "w_inflight_col, w_inflight_preact, w_col_inflight_guard, r_ap_closing. "
+                        "Keep the per-ENTRY double-issue mask (w_rd/wr_col_inflight_ent). RTL "
+                        "STATUS 2026-09-10: the per-BANK occupancy mask was NOT removed as this "
+                        "line originally demanded -- it was AP-gated, which is the better answer. "
+                        "It guards a real stale-image hazard (r_ap_closing bridges the window the "
+                        "pipeline span alone cannot), so removing it outright would reopen that "
+                        "hole. Non-AP columns now see no per-bank restriction.").font = KM_NOTE
 
 
 # ---------------------------------------------------------------------------
@@ -1013,8 +1024,12 @@ def data_path_sheets(wb):
     r += 1
     ws.cell(row=r, column=1,
             value="IDEAL: B-gate keyed on the CAM entry's own agg/last, NOT on a "
-                  "per-bank single-outstanding flag -- so two same-bank writes in "
-                  "flight each retire independently (today's deadlock is here).").font = KM_NOTE
+                  "IDEAL: B-gate keyed on the CAM entry's own agg/last, NOT on a per-bank "
+                        "single-outstanding flag, so two same-bank writes in flight each retire "
+                        "independently. RTL STATUS 2026-09-10: IMPLEMENTED. commit_done_valid_o is "
+                        "strobed from the drain head's CARRIED agg/slast tag (w_cm_fire && "
+                        "w_hd_blast && (!w_hd_agg || w_hd_slast)); no per-bank outstanding flag "
+                        "exists in the write CAM at all. (pumice_wr_data_cam.sv:624-627)").font = KM_NOTE
 
     # --- Sheet 3: read-data return -------------------------------------
     ws = wb.create_sheet("RD_RETURN")
@@ -1039,10 +1054,11 @@ def data_path_sheets(wb):
     ws = wb.create_sheet("SAME_BANK_OUTSTANDING")
     r = _km_title(ws,
         "per-bank outstanding-column tracker -- the DEADLOCK FIX",
-        "Today the arbiter allows exactly ONE column per bank in flight "
-        "(occupancy mask) because the return/drain path deadlocks otherwise. "
-        "IDEAL: a small per-bank counter permits up to RETURN_DEPTH columns; "
-        "issue is gated by tCCD + counter<DEPTH, never by pipeline occupancy.")
+        "RTL STATUS 2026-09-10: the one-column-per-bank restriction now applies "
+              "ONLY to auto-precharge columns (the mask is AP-gated). Non-AP columns are "
+              "gated by tCCD and the per-entry double-issue mask alone, which is what "
+              "this row asked for. IDEAL for the AP case is still a small per-bank "
+              "counter permitting up to RETURN_DEPTH columns rather than one.")
     cols = ["outstanding", "new_col_issued", "completion", "tCCD_ok", "can_issue",
             "outstanding_next", "note"]
     _km_hdr_row(ws, r, cols, widths=[12,15,12,9,10,16,40]); r += 1
@@ -1066,10 +1082,14 @@ def data_path_sheets(wb):
     ws = wb.create_sheet("RETURN_TAGGING")
     r = _km_title(ws,
         "tag-based, recoverable read return -- fail-safe not fail-wedge",
-        "Today the return is POSITIONAL: fill matches the issue-FIFO head "
-        "(rd_cmd_cam), aligner slices fixed BL_WORDS with no per-read id. One "
-        "short/lost burst desyncs every later read and wedges the AR-order "
-        "drain forever. IDEAL: carry a read TAG end to end and length-check.")
+        "RTL STATUS 2026-09-10: PARTLY ADDRESSED, hazard STANDS. "
+              "pumice_rd_return_ring now allocates a ticket per read at admit (AR order) "
+              "and drains from the ring head, which decoupled CAM occupancy from the "
+              "return. But the RETURN itself is still POSITIONAL: a returning beat lands "
+              "in the issue_q HEAD's slot because DRAM carries no tag back, and there is "
+              "still no length check, so a short or lost burst still desyncs every later "
+              "read. IDEAL unchanged: carry a read TAG end to end and length-check. "
+              "(pumice_rd_return_ring.sv:122-134)")
     cols = ["mechanism today", "failure it causes", "ideal (tagged)", "recovers?"]
     _km_hdr_row(ws, r, cols, widths=[30,30,30,10]); r += 1
     for x in [
@@ -1214,6 +1234,7 @@ def write_path_sheets(wb):
 
 SC_GREEN = PatternFill("solid", fgColor="C6EFCE")
 SC_GREY = PatternFill("solid", fgColor="F2F2F2")
+SC_DC = PatternFill("solid", fgColor="FDE68A")   # unreachable -> don't-care
 SC_TITLE = Font(bold=True, size=12)
 SC_HDR = Font(bold=True)
 SC_MONO = Font(name="Consolas", size=10)
@@ -1243,10 +1264,21 @@ class ScKmapWriter:
             self.row += 1
         self.row += 1
 
-    def kmap(self, name, source, expr, varnames, fn, check, values=None):
+    def kmap(self, name, source, expr, varnames, fn, check, values=None,
+             relations=None):
         """One K-map block. varnames: MSB-first list (2..6). fn(*bits)->0/1
         (or a short string when `values` mapping is wanted). Pages over
-        varnames[4:]."""
+        varnames[4:].
+
+        `relations` is the SUFFICIENCY half of the map: a list of
+        (text, reachable_predicate, citation). A cell whose bits fail ANY
+        predicate cannot occur in hardware, so it is emitted as an explicit
+        don't-care X rather than as a 0 -- a 0 there would claim the logic
+        was checked in a state it can never be in, and a later edit that
+        makes the state reachable would not show up. Every relation carries
+        the RTL that makes it true; an uncited relation is an assumption
+        wearing a proof's clothes.
+        """
         ws = self.ws
         ws.cell(self.row, 1, name).font = SC_TITLE
         ws.cell(self.row, 4, source).font = SC_MONO
@@ -1263,6 +1295,31 @@ class ScKmapWriter:
                 f"rows = {'/'.join(rowv)}   cols = {'/'.join(colv)}"
                 + (f"   pages = {'/'.join(pagev)}" if pagev else ""))
         self.row += 1
+
+        # ---- relations: why whole regions of the grid are skipped ----------
+        rels = relations or []
+        if rels:
+            c = ws.cell(self.row, 1,
+                        "RELATIONS between axis signals (these make cells "
+                        "UNREACHABLE -- shown as X, a don't-care, never as 0):")
+            c.font = SC_HDR; c.alignment = SC_WRAP
+            self.row += 1
+            for text, _pred, cite in rels:
+                c = ws.cell(self.row, 1, "    " + text)
+                c.alignment = SC_WRAP
+                ws.cell(self.row, 4, cite).font = SC_MONO
+                self.row += 1
+        else:
+            c = ws.cell(self.row, 1,
+                        "RELATIONS: none stated -- every combination is treated "
+                        "as reachable. If two of these axes are in fact related, "
+                        "the map is over-claiming (PUMICE-KMAP).")
+            c.font = Font(italic=True, color="B45309"); c.alignment = SC_WRAP
+            self.row += 1
+
+        def _reachable(bits):
+            return all(bool(pred(*bits)) for _t, pred, _c in rels)
+
         ws.cell(self.row, 1, f"CHECK BY INSPECTION: {check}").alignment = SC_WRAP
         ws.cell(self.row, 1).font = Font(italic=True)
         self.row += 2
@@ -1275,6 +1332,8 @@ class ScKmapWriter:
         for _ in pagev:
             pages = [p + (b,) for p in pages for b in (0, 1)]
 
+        n_dc = 0
+        n_tot = len(rows) * len(cols) * len(pages)
         for page in pages:
             base = self.row
             if pagev:
@@ -1292,18 +1351,31 @@ class ScKmapWriter:
                 rc.alignment = SC_CENTER
                 for j, cb in enumerate(cols):
                     bits = tuple(rb) + tuple(cb) + tuple(page)
-                    v = fn(*bits)
                     cell = ws.cell(base + 1 + i, 2 + j)
-                    if values:                        # multi-valued map
-                        cell.value = values.get(v, str(v))
-                        benign = str(v) in ("0", "-", "wait", "hold", "IDLE")
-                        cell.fill = SC_GREY if benign else SC_GREEN
+                    if not _reachable(bits):
+                        cell.value = "X"
+                        cell.fill = SC_DC
+                        cell.font = Font(italic=True)
+                        n_dc += 1
                     else:
-                        cell.value = int(bool(v))
-                        cell.fill = SC_GREEN if v else SC_GREY
+                        v = fn(*bits)
+                        if values:                    # multi-valued map
+                            cell.value = values.get(v, str(v))
+                            benign = str(v) in ("0", "-", "wait", "hold", "IDLE")
+                            cell.fill = SC_GREY if benign else SC_GREEN
+                        else:
+                            cell.value = int(bool(v))
+                            cell.fill = SC_GREEN if v else SC_GREY
                     cell.alignment = SC_CENTER
                     cell.border = SC_THIN
             self.row = base + 1 + len(rows) + 1
+        if rels:
+            c = ws.cell(self.row, 1,
+                        f"cells: {n_tot - n_dc} reachable, {n_dc} don't-care "
+                        f"(X) of {n_tot}. Read the CHECK over the reachable "
+                        f"cells only.")
+            c.font = Font(italic=True); c.alignment = SC_WRAP
+            self.row += 1
         self.row += 1
 
     def table(self, name, source, headers, rows, note=""):
@@ -1434,7 +1506,20 @@ def build_arbiter_sheet(wb):
         lambda ra, g, h, p: ra and (not g) and (not h) and p,
         "Single 1-cell at (1,0,0,1): only an open bank on the WRONG row, "
         "un-guarded and tRAS/tRTP/tWR-clear, may precharge. A 1 with "
-        "guarded=1 = the registered-readiness staleness hazard.")
+        "guarded=1 = the registered-readiness staleness hazard.",
+        relations=[
+            ("hit => row_active. A row HIT is defined as 'this bank has a row "
+             "open AND it is the requested one', so a hit with no open row is "
+             "not a state the hardware can be in -- it is a contradiction in "
+             "the term itself, not a case the logic happens to avoid.",
+             lambda ra, g, h, p: (not h) or ra,
+             "pumice_cmd_arbiter.sv:562-565 (rhit/whit = r_bank_row_active[b] && row==open_row)"),
+            ("pre_ready => row_active. safe_pre_o is ANDed with r_row_valid, "
+             "so tRAS/tRTP/tWR clearance is only ever reported for a bank that "
+             "has a row to precharge.",
+             lambda ra, g, h, p: (not p) or ra,
+             "bank_timer.sv:138 (safe_pre_o = r_row_valid && (r_ras=='0) && (r_preblk=='0) && !r_ap_pending)"),
+        ])
 
     # 6. per-bank guard
     km.kmap(
@@ -1545,7 +1630,24 @@ def build_bank_timer_sheet(wb):
                              "ACTIVE" if rv else
                              "PRECHG" if rp else "IDLE"),
         "Pure decode of the flags; no downstream logic may depend on it.",
-        values={})
+        values={},
+        relations=[
+            ("rcd_nz => row_valid. The ACT edge loads tRCD and sets row_valid "
+             "together, and nothing else loads tRCD, so a bank counting tRCD "
+             "always has its row marked open.",
+             lambda rv, rcd, rp: (not rcd) or rv,
+             "bank_timer.sv:96 (set_act_i -> r_rcd) + :116 (r_row_valid <= 1)"),
+            ("rp_nz => !row_valid. The PRE edge (explicit or auto) loads tRP "
+             "and clears row_valid together.",
+             lambda rv, rcd, rp: (not rp) or (not rv),
+             "bank_timer.sv:106 (set_pre_i||w_ap_fire -> r_rp) + :120-123 (r_row_valid <= 0)"),
+            ("Therefore rcd_nz and rp_nz are MUTUALLY EXCLUSIVE -- a bank "
+             "cannot be inside tRCD and tRP at once. That single relation "
+             "removes a quarter of this grid; drawing 0s there would assert "
+             "the decode had been checked in a state the timers forbid.",
+             lambda rv, rcd, rp: not (rcd and rp),
+             "bank_timer.sv:96,106,116,120-123"),
+        ])
     km.table(
         "row_valid / ap_pending next-state priority", "bank_timer.sv:115-127",
         ["set_act", "set_pre", "w_ap_fire", "set_rd||set_wr",

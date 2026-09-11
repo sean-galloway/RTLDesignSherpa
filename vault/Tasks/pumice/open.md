@@ -718,10 +718,32 @@ sheet says what each page is evidence OF. New `READ_PATH_ADMIT` sheet carries th
 term list, invariants and decision table for the AR admit cadence and
 reads-in-flight (PUMICE-025).
 
-**Still open.** The grid pages still meet only two of the six criteria in
-[[signal-contracts-and-kmaps]]: no axis equations, no sufficiency argument, no
-don't-cares, no implicants. (`READ_PATH_ADMIT` is the shape the rest should
-take -- it has a term list with citations and a stated invariant list.)
+**2026-09-10 (later): don't-cares and relations added (criteria 4 and 5).**
+Sean: "I definitely need don't cares and a note when 2 or more signals have a
+fixed relationship, so this is why we can skip a bunch of combinations." The
+K-map writer now takes `relations=[(text, reachable_predicate, citation)]`;
+cells failing any predicate render as an explicit don't-care **X**, not a 0 --
+a 0 there claims the logic was checked in a state the hardware forbids. Each
+map prints its relations with the RTL that makes them true, plus a
+"N reachable, M don't-care" count, and a map with NO relations prints a
+standing warning that it may be over-claiming. Two maps are populated so far
+from verified RTL: the arbiter PRE map (hit => row_active,
+pre_ready => row_active; 6 of 16 cells don't-care) and the bank-timer state
+decode (rcd_nz => row_valid, rp_nz => !row_valid, hence mutually exclusive;
+4 of 8 don't-care). **15 maps still print "none stated"** -- that is the
+remaining work and it is now visible on the page instead of implicit.
+
+**Also 2026-09-10: five stale spec-vs-RTL notes corrected.** "Broken today"
+on these sheets means the RTL does not match the spec, and three of the five
+had been overtaken by fixes. Each now carries a dated RTL STATUS line:
+the per-bank occupancy mask was AP-gated rather than removed (better answer
+than the sheet demanded, and the sheet said REMOVE); the write B-gate ideal is
+implemented; the read return still has the positional/no-length-check hazard
+even though the ring addressed the occupancy half.
+
+**Still open.** Axis equations and implicants (criteria 3 and 6) on the grid
+pages, and relations on the other 15 maps. (`READ_PATH_ADMIT` is the shape the
+rest should take -- term list with citations and a stated invariant list.)
 
 Map these, because each is combinational, safety-relevant, and has already
 produced silicon bugs:
