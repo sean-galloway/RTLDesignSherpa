@@ -587,9 +587,15 @@ one measured at 224 MB/s.
 
 Two caveats before anyone scales the array up:
 
-* **Two writers is unsafe today.** pumice returns B out of AW order across
-  masters while the generated write bridge routes responses by FIFO position,
-  so a second writer is silently misrouted. Readers are unaffected. Filed.
+* **Two writers is unsafe today, and the gap is narrower than it sounds.** The
+  crossbar DOES queue B and steer it per generator: each master's `bready` is
+  gated so only the owner's ready reaches the slave. What it indexes on is the
+  issue: ownership resolves to the head of an AW-order FIFO, so "who owns this
+  B" means "who issued the oldest outstanding AW" rather than "who issued the
+  AW whose ID this B carries". pumice returns B out of AW order across masters,
+  so the head names the wrong generator and the otherwise-correct handshake
+  completes against it. Readers are unaffected. Filed with three options; the
+  smallest keeps every bit of the steering and changes only the lookup.
 * **Region placement IS the measurement.** Generators placed adjacently land in
   neighbouring banks and measure arbitration; placed far apart they land in
   different ROWS of the same banks and measure page thrash instead. The

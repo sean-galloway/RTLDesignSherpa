@@ -159,9 +159,29 @@ macro suite could compile again (the `-Wno-PINMISSING` waiver for the bridge reg
 `char_engine_block`, so it predates the refactor.
 
 **Symptom:** `pumice_wr_adapter.sv:168` BRIDGE-010 `$error` at ~31 us: "slave returned B out of
-AW order". The generated `bridge_ddr2_char_wr` routes B back to the issuing generator by FIFO
-POSITION (AW accept order) and documents that it REQUIRES the slave to return B in AW order
-across all IDs. pumice's write CAM commits in FR-FCFS order (oldest schedulable per row, not
+AW order".
+
+**Be precise about where the gap is — the per-generator B handling IS built and
+is correct.** `bridge_ddr2_char_wr_xbar.sv:222-224,413-415` steers B to the
+owning master by `bid_bridge_id` and gates each master's `bready` so only the
+owner's ready reaches the slave; the master-side adapters pass their own B
+through. That is exactly the queued-B, per-generator-ready design, and none of
+it is the problem.
+
+The problem is the **KEY the ownership lookup indexes on**. `pumice_wr_adapter.sv:99-129`
+pushes the issuing master's `bridge_id` into `wr_fifo` at AW accept and reads it
+at the HEAD: `bid_bridge_id = wr_fifo[rd_ptr]`. So "who owns this B" resolves to
+"whoever issued the OLDEST outstanding AW", not "whoever issued the AW whose ID
+this B carries". When pumice returns B out of AW order the head names the wrong
+generator, and then the otherwise-correct per-master handshake completes cleanly
+against it. The steering works; it is aimed by position.
+
+Worth noting for the fix: the adapter ALREADY records the AWID per slot
+(`wr_id_fifo`, :156) — but only inside `ifndef SYNTHESIS`, purely to drive this
+assertion. The information needed to route by ID is being captured in
+simulation and thrown away in synthesis. Routing by ID means searching the FIFO
+for the matching entry instead of taking the head, i.e. a small CAM over
+`WR_FIFO_DEPTH`. pumice's write CAM commits in FR-FCFS order (oldest schedulable per row, not
 global AW order), so with two writers interleaving, a younger writer's B can come back before an
 older one's. The check is sim-only (`translate_off`); on the board the B would silently reach the
 WRONG generator (its bresp/count is credited to the other gen). AXI4 permits the slave's
@@ -180,6 +200,13 @@ multi-generator runs are exposed.
    design, so this is a generator feature.
 3. Test-only: run bank_parallel with `SCHED_POLICY.order_mode=1` (in_order) -- confirms the
    mechanism, does not fix the board exposure.
+
+Of the three, (2) is the smallest change and matches what the crossbar already
+wants to do: the per-master steering and ready gating stay exactly as they are,
+only the lookup changes from "head of the FIFO" to "the entry whose AWID equals
+this BID". Option (1) is the bigger statement -- it would make pumice's write
+responses AW-ordered like its reads, which is a controller guarantee rather
+than a harness fix and would suit any position-routed interconnect downstream.
 
 Also note the BRIDGE-010 message prints the ID strings garbled (`%0h` applied to the message
 continuation) -- cosmetic, in the generated adapter template.
