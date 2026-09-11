@@ -38,7 +38,7 @@
       }
     ],
     [
-      "dfi (write window)",
+      "dfi wr",
       {
         "name": "dfi_wrdata_en",
         "wave": "01......0..."
@@ -74,7 +74,7 @@
     ]
   ],
   "head": {
-    "text": "IDEAL open-page WRITE stream: a column EVERY cycle (tCCD=1), wready never drops. Board measures 570.3 MB/s = 95% of the 600 MB/s peak. Write data LEADS the command (rate-matched commit + CMD_DELAY); a WR held at the DFI for want of data stalls the whole in-order command stream behind it."
+    "text": "IDEAL open-page WRITE stream -- a column every cycle, data leads"
   },
   "config": {
     "hscale": 1

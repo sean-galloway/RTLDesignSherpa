@@ -5,7 +5,7 @@
       "wave": "p................"
     },
     [
-      "command (one bank)",
+      "command",
       {
         "name": "cmd_valid_o",
         "wave": "01..0.1.0.1.0.1.."
@@ -47,7 +47,7 @@
     ]
   ],
   "head": {
-    "text": "BAD PERF -- page thrash (col_major). Every access is a different row in the SAME bank, so each column costs PRE + tRP + ACT + tRCD before it can issue: ~8 cycles of overhead per 8 bytes. Board: 102.4 MB/s read at AxLEN 4 against 571.3 for row_major -- a 5.6x penalty with identical DRAM and identical controller settings. The fix is the ADDRESS MAP, not the controller."
+    "text": "BAD PERF: page thrash -- PRE+ACT per column, 102.4 MB/s"
   },
   "config": {
     "hscale": 1

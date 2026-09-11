@@ -32,7 +32,7 @@
     }
   ],
   "head": {
-    "text": "REFRESH: precharge-all -> REFab -> wait tRFC -> resume (re-ACT). The only maintenance bubble; postpone/pullin credits (PUMICE-006) move it out of demand windows."
+    "text": "Refresh insertion: PREA -> REF -> tRFC -> resume"
   },
   "config": {
     "hscale": 1

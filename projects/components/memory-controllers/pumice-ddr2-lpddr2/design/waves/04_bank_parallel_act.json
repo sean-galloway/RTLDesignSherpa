@@ -44,7 +44,7 @@
     }
   ],
   "head": {
-    "text": "CROSS-BANK ACT pipelining: one ACT per tRRD=2, capped at 4 per tFAW window. Their tRCDs overlap so columns from multiple banks are ready together -> the 4x."
+    "text": "Bank-parallel ACT pipelining (tRRD, tFAW)"
   },
   "config": {
     "hscale": 1

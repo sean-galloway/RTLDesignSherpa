@@ -30,6 +30,15 @@ def _rows(sig, out):
     return out
 
 
+def _groups(sig, out):
+    for item in sig:
+        if isinstance(item, list):
+            if item and isinstance(item[0], str):
+                out.append(item[0])
+            _groups(item, out)
+    return out
+
+
 def main() -> int:
     bad = 0
     for fn in sorted(os.listdir(WAVES)):
@@ -57,9 +66,19 @@ def main() -> int:
                 print(f"DATA      {fn}: '{r.get('name')}' has {slots} data slot(s) "
                       f"but {len(data)} label(s)")
                 bad += 1
-        if not obj.get("head", {}).get("text"):
+        head = obj.get("head", {}).get("text", "")
+        if not head:
             print(f"NO HEAD   {fn}: a diagram with no caption cannot be read "
                   f"without the generator")
+            bad += 1
+        elif len(head) > 90:
+            # WaveDrom centres head.text on ONE line and does not wrap, so a
+            # long caption runs off both ends of the SVG and is truncated in
+            # the PNG. The figure gets a title; the argument belongs in the MAS
+            # prose beneath it, where it can be read.
+            print(f"LONG HEAD {fn}: caption is {len(head)} chars -- WaveDrom "
+                  f"does not wrap, so it will overflow the image. Keep it "
+                  f"under 90 and put the explanation in the MAS.")
             bad += 1
     print(f"\nwave diagrams checked: "
           f"{len([f for f in os.listdir(WAVES) if f.endswith('.json')])}   "

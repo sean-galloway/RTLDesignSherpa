@@ -5,7 +5,7 @@
       "wave": "p................"
     },
     [
-      "arbiter (same-bank WR pipelined)",
+      "arbiter",
       {
         "name": "commit_valid",
         "wave": "01............0.."
@@ -31,7 +31,7 @@
       }
     ],
     [
-      "DFI stops accepting (ROOT to MEASURE)",
+      "DFI stall",
       {
         "name": "cm_rd_ready\n(DFI wr_fire)",
         "wave": "1......0........."
@@ -58,7 +58,7 @@
     ]
   ],
   "head": {
-    "text": "CURRENT WEDGE (hypothesis, to confirm by waveform): same-bank WR pipelining fills the drain FIFO (8); cm_rd_ready (DFI accepting writes) stalls -> commit_ready=0 -> arbiter WR stops -> gen_wr_done never asserts. MEASURE which CM_RD_STALL candidate holds wr_fire off (see kmap sheet 2)."
+    "text": "PATHOLOGICAL: write drain wedge -- the failure this closed"
   },
   "config": {
     "hscale": 1

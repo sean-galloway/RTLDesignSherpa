@@ -118,3 +118,11 @@
 
 - [Build-Time Configuration Reference](ch06_configuration/01_build_config.md)
 - [Runtime Configuration Reference](ch06_configuration/02_runtime_config.md)
+
+### Chapter 7: Timing Diagrams
+
+Generated from `design/waves/*.json` and rendered by `design/render_waves.py`;
+none is drawn by hand.
+
+- [Ideal Command Cadence](ch07_timing/01_ideal_cadence.md)
+- [Performance Pathologies](ch07_timing/02_performance_pathologies.md)

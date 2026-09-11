@@ -26,7 +26,7 @@
       }
     ],
     [
-      "turnaround gates",
+      "turnaround",
       {
         "name": "twtr_ok_i",
         "wave": "1.0.1.0.1.0.1.0.."
@@ -59,7 +59,7 @@
     ]
   ],
   "head": {
-    "text": "BAD PERF -- read/write turnaround thrash. Switching direction every column pays tWTR or tRTW each time and the DQ bus idles in the gap. This is the workload a global reorder window exists to fix: pumice batches same-direction columns and sustains 570.1 MB/s with both directions live, where LiteDRAM's per-bank round-robin pays the turnaround and reaches 285.6."
+    "text": "BAD PERF: read/write turnaround thrash -- tWTR/tRTW every switch"
   },
   "config": {
     "hscale": 1

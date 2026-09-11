@@ -5,7 +5,7 @@
       "wave": "p................"
     },
     [
-      "arbiter (mask relaxed -> stale-image race)",
+      "arbiter",
       {
         "name": "r_bank_row_active\n(STALE 1-3cyc)",
         "wave": "1......0........."
@@ -24,7 +24,7 @@
       }
     ],
     [
-      "read return (in-order, untagged)",
+      "rd return",
       {
         "name": "dfi_rddata_valid",
         "wave": "0.......10......."
@@ -43,7 +43,7 @@
       }
     ],
     [
-      "shared cmd FIFO -> write wedge",
+      "cmd FIFO",
       {
         "name": "u_cmd_fifo head",
         "wave": "x2.......5.......",
@@ -63,7 +63,7 @@
     ]
   ],
   "head": {
-    "text": "CURRENT FAILURE (mask relaxed, no forward-state): 2nd same-bank RD classified on STALE row image -> lands on closing row -> never returns -> in-order AR-drain wedges -> stuck RD head-of-line-blocks WRs in the shared cmd FIFO -> write 'wedges first'. Reference only."
+    "text": "PATHOLOGICAL: stale bank image -- the wedge this design closed"
   },
   "config": {
     "hscale": 1

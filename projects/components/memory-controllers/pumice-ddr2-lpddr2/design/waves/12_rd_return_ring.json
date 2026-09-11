@@ -5,7 +5,7 @@
       "wave": "p................"
     },
     [
-      "admit (AR order)",
+      "admit",
       {
         "name": "ar_push (AR k)",
         "wave": "x3333x...........",
@@ -38,7 +38,7 @@
       }
     ],
     [
-      "issue (FR-FCFS reorders; CAM entry FREES here)",
+      "issue",
       {
         "name": "arbiter rd issue slot",
         "wave": "x.....2.2.2.2....",
@@ -75,7 +75,7 @@
       }
     ],
     [
-      "return (ISSUE order, fixed DFI latency) -> slot by ticket",
+      "return",
       {
         "name": "dfi_ret burst",
         "wave": "x..........2.2.2.",
@@ -97,7 +97,7 @@
       }
     ],
     [
-      "drain (AR order = ring order)",
+      "drain",
       {
         "name": "drain (head)",
         "wave": "x............2.2.",
@@ -118,7 +118,7 @@
     ]
   ],
   "head": {
-    "text": "READ RETURN RING: CAM entry lives insert->issue; the ticket (AR-order ring slot) follows the read through DRAM; returns fill by ticket in issue order; the ring drains its head in AR order once complete. In-flight bound = RD_RET_DEPTH (32), not NUM_ENTRIES (8): Little's law 32 x 8 B / 27 cyc > the 8 B/cyc bus."
+    "text": "Read return ring -- reads in flight beyond the CAM window"
   },
   "config": {
     "hscale": 1

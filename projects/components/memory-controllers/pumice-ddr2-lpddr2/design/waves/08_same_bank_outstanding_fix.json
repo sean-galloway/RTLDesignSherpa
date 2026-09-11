@@ -5,7 +5,7 @@
       "wave": "p................"
     },
     [
-      "issue (same bank, open row)",
+      "issue",
       {
         "name": "cmd_op_o",
         "wave": "x2.2.2.2.x.......",
@@ -41,7 +41,7 @@
       }
     ],
     [
-      "return (in AR order, after round-trip)",
+      "return",
       {
         "name": "dfi_rddata_valid",
         "wave": "0........1....0.."
@@ -57,7 +57,7 @@
     ]
   ],
   "head": {
-    "text": "DEADLOCK FIX: up to D=ceil((t_rddata_en+CL)/tCCD)=5 same-bank columns in flight; per-bank counter gates issue (cnt<D & tCCD), completion (R-last/B) decrements. Today one-per-bank is forced -> 15%% util. Return path (rd issue-FIFO, aligner MAX_OUTSTANDING) must hold D."
+    "text": "Same-bank columns in flight, forward state + tagged return"
   },
   "config": {
     "hscale": 1

@@ -38,7 +38,7 @@
       }
     ],
     [
-      "dfi (read window)",
+      "dfi rd",
       {
         "name": "dfi_rddata_en",
         "wave": "0........1......0."
@@ -78,7 +78,7 @@
     ]
   ],
   "head": {
-    "text": "IDEAL open-page READ stream: a column EVERY cycle (tCCD=1 at BL4/x16/32b beat), rvalid continuous after the t_rddata_en+CL fill. 8 B/cycle = 600 MB/s peak; the board measures 571.3 (95%). No occupancy stall between same-bank columns -- the per-bank mask is AP-gated, so non-AP columns are spaced by tCCD alone."
+    "text": "IDEAL open-page READ stream -- a column every cycle (tCCD=1)"
   },
   "config": {
     "hscale": 1

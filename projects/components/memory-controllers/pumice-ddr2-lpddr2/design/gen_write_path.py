@@ -37,7 +37,7 @@ def waves():
     ideal = {
         "signal": [
             {"name": "aclk", "wave": "p..........."},
-            ["arbiter -> drain FIFO",
+            ["arbiter",
              {"name": "cmd_op_o (WR)", "wave": "x4.4.x......",
               "data": ["WR b0 c0", "WR b0 c1"]},
              {"name": "commit_valid",  "wave": "01.1.0......"},
@@ -45,7 +45,7 @@ def waves():
              {"name": "drain FIFO cnt", "wave": "=.=.=.=.=...",
               "data": ["0", "1", "1", "1", "0"]},
             ],
-            ["drain -> DFI serializer",
+            ["serializer",
              {"name": "cm_rd_valid",  "wave": "0.1...1...0."},
              {"name": "cm_rd_ready\n(DFI wr_fire)", "wave": "1..........."},
              {"name": "wr_fire_i",    "wave": "0..1...1..0."},
@@ -60,24 +60,21 @@ def waves():
              {"name": "commit_done (B)","wave": "0.......1.0."},
             ],
         ],
-        "head": {"text": "IDEAL write drain: 2 same-bank WR columns pipeline at "
-                         "tCCD; drain FIFO stays shallow, cm_rd_ready/wr_fire "
-                         "keep pace, wrdata streams, one B per host burst. No "
-                         "stall on commit_ready."},
+        "head": {"text": "IDEAL write drain -- two same-bank WR pipelined, no stall"},
         "config": {"hscale": 1},
     }
     # 11) the wedge reference (current, to be confirmed by measurement) ------
     wedge = {
         "signal": [
             {"name": "aclk", "wave": "p................"},
-            ["arbiter (same-bank WR pipelined)",
+            ["arbiter",
              {"name": "commit_valid",  "wave": "01............0.."},
              {"name": "commit_ready\n(drain room)", "wave": "1........0.......",
               "data": []},
              {"name": "drain FIFO cnt", "wave": "=.======......=..",
               "data": ["0","1","2","3","4","8","8","8"]},
             ],
-            ["DFI stops accepting (ROOT to MEASURE)",
+            ["DFI stall",
              {"name": "cm_rd_ready\n(DFI wr_fire)", "wave": "1......0........."},
              {"name": "wr_fire_i",    "wave": "01.....0........."},
              {"name": "dfi_wrdata_en","wave": "01.....0........."},
@@ -87,12 +84,7 @@ def waves():
              {"name": "gen_wr_done",      "wave": "0................"},
             ],
         ],
-        "head": {"text": "CURRENT WEDGE (hypothesis, to confirm by waveform): "
-                         "same-bank WR pipelining fills the drain FIFO (8); "
-                         "cm_rd_ready (DFI accepting writes) stalls -> "
-                         "commit_ready=0 -> arbiter WR stops -> gen_wr_done never "
-                         "asserts. MEASURE which CM_RD_STALL candidate holds "
-                         "wr_fire off (see kmap sheet 2)."},
+        "head": {"text": "PATHOLOGICAL: write drain wedge -- the failure this closed"},
         "config": {"hscale": 1},
     }
     for name, obj in [("10_write_drain_pipeline_ideal.json", ideal),

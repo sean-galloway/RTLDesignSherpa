@@ -5,7 +5,7 @@
       "wave": "p................"
     },
     [
-      "CAM (8 entries, all ready)",
+      "CAM",
       {
         "name": "sch_valid_i[7:0]",
         "wave": "2................",
@@ -45,7 +45,7 @@
     ]
   ],
   "head": {
-    "text": "PATHOLOGICAL -- in_order (SCHED_POLICY.order_mode=1). Every entry is eligible and several are page hits, but only the HEAD may issue, so a row-interleaved stream pays PRE+ACT between consecutive columns while the hit sits two entries back. This is the cost of the mode, not a defect: it exists to make ordering observable. Roughly 17x on the board -- use it to prove reordering is what is buying the bandwidth, never in production."
+    "text": "PATHOLOGICAL: in_order -- only the CAM head may issue (~17x)"
   },
   "config": {
     "hscale": 1

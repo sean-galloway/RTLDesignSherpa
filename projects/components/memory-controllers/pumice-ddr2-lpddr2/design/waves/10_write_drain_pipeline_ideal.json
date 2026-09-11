@@ -5,7 +5,7 @@
       "wave": "p..........."
     },
     [
-      "arbiter -> drain FIFO",
+      "arbiter",
       {
         "name": "cmd_op_o (WR)",
         "wave": "x4.4.x......",
@@ -35,7 +35,7 @@
       }
     ],
     [
-      "drain -> DFI serializer",
+      "serializer",
       {
         "name": "cm_rd_valid",
         "wave": "0.1...1...0."
@@ -85,7 +85,7 @@
     ]
   ],
   "head": {
-    "text": "IDEAL write drain: 2 same-bank WR columns pipeline at tCCD; drain FIFO stays shallow, cm_rd_ready/wr_fire keep pace, wrdata streams, one B per host burst. No stall on commit_ready."
+    "text": "IDEAL write drain -- two same-bank WR pipelined, no stall"
   },
   "config": {
     "hscale": 1

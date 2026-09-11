@@ -31,7 +31,7 @@
     }
   ],
   "head": {
-    "text": "PAGE CONFLICT: PRE (after tRAS) -> tRP -> ACT -> tRCD -> RD. Worst case; open-page avoids it on hits."
+    "text": "Page CONFLICT: PRE -> tRP -> ACT -> tRCD -> RD"
   },
   "config": {
     "hscale": 1

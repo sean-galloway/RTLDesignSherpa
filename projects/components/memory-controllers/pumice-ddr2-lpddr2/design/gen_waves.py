@@ -57,7 +57,7 @@ def open_read_stream():
              {"name": "cmd_col_o",       "wave": "x2222222x.........",
               "data": ["c0", "c1", "c2", "c3", "c4", "c5", "c6"]},
             ],
-            ["dfi (read window)",
+            ["dfi rd",
              {"name": "dfi_rddata_en",   "wave": "0........1......0."},
              {"name": "dfi_rddata_valid","wave": "0........1......0."},
              {"name": "dfi_rddata",      "wave": "x........3333333x.",
@@ -69,12 +69,7 @@ def open_read_stream():
              {"name": "s_axi_rlast",     "wave": "0........1......0."},
             ],
         ],
-        "head": {"text": "IDEAL open-page READ stream: a column EVERY cycle "
-                         "(tCCD=1 at BL4/x16/32b beat), rvalid continuous after "
-                         "the t_rddata_en+CL fill. 8 B/cycle = 600 MB/s peak; "
-                         "the board measures 571.3 (95%). No occupancy stall "
-                         "between same-bank columns -- the per-bank mask is "
-                         "AP-gated, so non-AP columns are spaced by tCCD alone."},
+        "head": {"text": "IDEAL open-page READ stream -- a column every cycle (tCCD=1)"},
         "config": {"hscale": 1},
     }
 
@@ -94,7 +89,7 @@ def open_write_stream():
              {"name": "cmd_col_o",       "wave": "x4444444x...",
               "data": ["c0", "c1", "c2", "c3", "c4", "c5", "c6"]},
             ],
-            ["dfi (write window)",
+            ["dfi wr",
              {"name": "dfi_wrdata_en",   "wave": "01......0..."},
              {"name": "dfi_wrdata",      "wave": "x4444444x...",
               "data": ["d0", "d1", "d2", "d3", "d4", "d5", "d6"]},
@@ -105,12 +100,7 @@ def open_write_stream():
              {"name": "s_axi_bvalid",    "wave": "0.......1..0"},
             ],
         ],
-        "head": {"text": "IDEAL open-page WRITE stream: a column EVERY cycle "
-                         "(tCCD=1), wready never drops. Board measures 570.3 "
-                         "MB/s = 95% of the 600 MB/s peak. Write data LEADS the "
-                         "command (rate-matched commit + CMD_DELAY); a WR held "
-                         "at the DFI for want of data stalls the whole in-order "
-                         "command stream behind it."},
+        "head": {"text": "IDEAL open-page WRITE stream -- a column every cycle, data leads"},
         "config": {"hscale": 1},
     }
 
@@ -127,9 +117,7 @@ def act_rd():
             {"name": "note",         "wave": "x3..2...x",
              "data": ["ACT opens row", "column only after tRCD"]},
         ],
-        "head": {"text": "PAGE MISS: ACT then wait tRCD=3 before the first "
-                         "column. First-access latency only -- subsequent hits "
-                         "stream at tCCD (see open_read_stream)."},
+        "head": {"text": "Page MISS: ACT -> tRCD -> first column"},
         "config": {"hscale": 1},
     }
 
@@ -149,9 +137,7 @@ def bank_parallel_act():
             {"name": "note",        "wave": "x3......2x.",
              "data": ["ACTs pipeline across banks @tRRD", "5th ACT waits tFAW"]},
         ],
-        "head": {"text": "CROSS-BANK ACT pipelining: one ACT per tRRD=2, capped "
-                         "at 4 per tFAW window. Their tRCDs overlap so columns "
-                         "from multiple banks are ready together -> the 4x."},
+        "head": {"text": "Bank-parallel ACT pipelining (tRRD, tFAW)"},
         "config": {"hscale": 1},
     }
 
@@ -168,8 +154,7 @@ def pre_act_rd():
             {"name": "bank_act_ready\n(tRP=3)",  "wave": "0...1......"},
             {"name": "bank_rdwr_ready\n(tRCD=3)","wave": "0......1..."},
         ],
-        "head": {"text": "PAGE CONFLICT: PRE (after tRAS) -> tRP -> ACT -> tRCD "
-                         "-> RD. Worst case; open-page avoids it on hits."},
+        "head": {"text": "Page CONFLICT: PRE -> tRP -> ACT -> tRCD -> RD"},
         "config": {"hscale": 1},
     }
 
@@ -186,9 +171,7 @@ def refresh():
             {"name": "any_row_active","wave": "1..0....1..."},
             {"name": "trfc_ok\n(tRFC)","wave": "1...0...1..."},
         ],
-        "head": {"text": "REFRESH: precharge-all -> REFab -> wait tRFC -> resume "
-                         "(re-ACT). The only maintenance bubble; postpone/pullin "
-                         "credits (PUMICE-006) move it out of demand windows."},
+        "head": {"text": "Refresh insertion: PREA -> REF -> tRFC -> resume"},
         "config": {"hscale": 1},
     }
 
@@ -198,7 +181,7 @@ def pick_pipeline():
     return {
         "signal": [
             {"name": "aclk",          "wave": "p.........."},
-            ["3-flop pick pipeline (latency, NOT rate)",
+            ["pick pipe",
              {"name": "stage1 snapshot", "wave": "x2222x.....",
               "data": ["A", "B", "C", "D"]},
              {"name": "stage2 pre-pick", "wave": "x.2222x....",
@@ -212,11 +195,7 @@ def pick_pipeline():
             {"name": "issue rate",    "wave": "x..3...x...",
              "data": ["ONE command PER CYCLE"]},
         ],
-        "head": {"text": "IDEAL pick pipeline: A,B,C,D advance one stage/cycle, "
-                         "one FIRES every cycle after a 3-cycle fill. Pipeline = "
-                         "LATENCY, not throughput. Today's bug: an occupancy mask "
-                         "blocks B until A drains -> 1 per 4 cycles. DELETE it; "
-                         "gate only on DRAM timers."},
+        "head": {"text": "Pick pipeline is LATENCY, not rate -- one issue per cycle"},
         "config": {"hscale": 1},
     }
 
@@ -226,7 +205,7 @@ def same_bank_outstanding():
     return {
         "signal": [
             {"name": "aclk",           "wave": "p................"},
-            ["issue (same bank, open row)",
+            ["issue",
              {"name": "cmd_op_o",      "wave": "x2.2.2.2.x.......",
               "data": ["RD b0 c0", "RD b0 c1", "RD b0 c2", "RD b0 c3"]},
              {"name": "tccd_ok",       "wave": "1.0101010.1......"},
@@ -234,17 +213,13 @@ def same_bank_outstanding():
               "data": ["0","1","2","3","4","3","2","1","0"]},
              {"name": "can_issue (cnt<D=5 & tccd)", "wave": "1.......1........"},
             ],
-            ["return (in AR order, after round-trip)",
+            ["return",
              {"name": "dfi_rddata_valid","wave": "0........1....0.."},
              {"name": "s_axi_rvalid",   "wave": "0........1....0.."},
              {"name": "s_axi_rlast",    "wave": "0.........10.10.1"},
             ],
         ],
-        "head": {"text": "DEADLOCK FIX: up to D=ceil((t_rddata_en+CL)/tCCD)=5 "
-                         "same-bank columns in flight; per-bank counter gates "
-                         "issue (cnt<D & tCCD), completion (R-last/B) decrements. "
-                         "Today one-per-bank is forced -> 15%% util. Return path "
-                         "(rd issue-FIFO, aligner MAX_OUTSTANDING) must hold D."},
+        "head": {"text": "Same-bank columns in flight, forward state + tagged return"},
         "config": {"hscale": 1},
     }
 
@@ -254,31 +229,27 @@ def failure_stale_image_wedge():
     return {
         "signal": [
             {"name": "aclk",              "wave": "p................"},
-            ["arbiter (mask relaxed -> stale-image race)",
+            ["arbiter",
              {"name": "r_bank_row_active\n(STALE 1-3cyc)", "wave": "1......0........."},
              {"name": "actual row (closing)","wave": "1....0..........."},
              {"name": "cmd_op_o",         "wave": "x2.2.x...........",
               "data": ["RD b0 c0", "RD b0 c1 (on stale img!)"]},
             ],
-            ["read return (in-order, untagged)",
+            ["rd return",
              {"name": "dfi_rddata_valid", "wave": "0.......10......."},
              {"name": "RD c1 data",       "wave": "x........4.......",
               "data": ["never returns (wrong row)"]},
              {"name": "rd_cam AR-drain\n(oldest r_ready)", "wave": "1........0.......",
               "data": []},
             ],
-            ["shared cmd FIFO -> write wedge",
+            ["cmd FIFO",
              {"name": "u_cmd_fifo head",  "wave": "x2.......5.......",
               "data": ["RD(stuck)", "WR blocked behind"]},
              {"name": "wr drain / commit", "wave": "1.........0......"},
              {"name": "s_axi_bvalid (gen_wr_done)", "wave": "0................"},
             ],
         ],
-        "head": {"text": "CURRENT FAILURE (mask relaxed, no forward-state): 2nd "
-                         "same-bank RD classified on STALE row image -> lands on "
-                         "closing row -> never returns -> in-order AR-drain wedges "
-                         "-> stuck RD head-of-line-blocks WRs in the shared cmd "
-                         "FIFO -> write 'wedges first'. Reference only."},
+        "head": {"text": "PATHOLOGICAL: stale bank image -- the wedge this design closed"},
         "config": {"hscale": 1},
     }
 
@@ -300,7 +271,7 @@ def bad_admit_gate_half_rate():
     return {
         "signal": [
             {"name": "aclk",                "wave": "p..........."},
-            ["AR intake (pumice_rd_intake)",
+            ["AR intake",
              {"name": "fub_arvalid",        "wave": "1..........."},
              {"name": "r_armed (OLD)",      "wave": "01010101010."},
              {"name": "w_admit (OLD)",      "wave": "0.10101010.."},
@@ -311,13 +282,7 @@ def bad_admit_gate_half_rate():
              {"name": "cmd_valid_o (FIXED)","wave": "01.........."},
             ],
         ],
-        "head": {"text": "BAD PERF -- read admit at HALF rate. The arm bit was "
-                         "cleared by its own admit and could only re-set the "
-                         "next cycle, so one sub-command (= one DRAM burst = "
-                         "one column here) admitted every TWO cycles. Ceiling "
-                         "0.5 x 8 B x 75 MHz = 300 MB/s; measured 291.7 against "
-                         "570 for writes. Integrity was perfect throughout -- "
-                         "this shape is the ONLY symptom."},
+        "head": {"text": "BAD PERF: AR admit at HALF rate -- 291.7 MB/s, integrity clean"},
         "config": {"hscale": 1},
     }
 
@@ -333,18 +298,12 @@ def bad_ring_depth_bound():
              {"name": "ring occupancy",     "wave": "2.2.2.2....2.2.2..",
               "data": ["0", "16", "32 FULL", "32 FULL", "16", "32 FULL", "32"]},
             ],
-            ["return (t_rddata_en + CL + PHY, ~49 cyc)",
+            ["return",
              {"name": "dfi_rddata_valid",   "wave": "0.........1......."},
              {"name": "s_axi_rvalid",       "wave": "0.........1......."},
             ],
         ],
-        "head": {"text": "BAD PERF -- reads bounded by the RETURN RING, not by "
-                         "tCCD. Tickets allocate at admit and free only when the "
-                         "beat drains ~49 cycles later, so the sustained rate is "
-                         "DEPTH/latency: 32/49 = 0.78 col/cycle = 470.9 MB/s, "
-                         "which is exactly what the board measured at depth 32. "
-                         "Issue goes idle in bursts (alloc_ready low) even though "
-                         "every DRAM timer is clear. Depth 64 -> 571.3 MB/s."},
+        "head": {"text": "BAD PERF: reads bounded by ring depth / round-trip -- 470.9 MB/s"},
         "config": {"hscale": 1},
     }
 
@@ -354,7 +313,7 @@ def bad_page_thrash():
     return {
         "signal": [
             {"name": "aclk",             "wave": "p................"},
-            ["command (one bank)",
+            ["command",
              {"name": "cmd_valid_o",     "wave": "01..0.1.0.1.0.1.."},
              {"name": "cmd_op_o",        "wave": "x5.x.2x3x.5x2x3x.",
               "data": ["PRE", "ACT", "RD", "PRE", "ACT", "RD"]},
@@ -368,13 +327,7 @@ def bad_page_thrash():
              {"name": "dfi_rddata_valid","wave": "0........10......"},
             ],
         ],
-        "head": {"text": "BAD PERF -- page thrash (col_major). Every access is a "
-                         "different row in the SAME bank, so each column costs "
-                         "PRE + tRP + ACT + tRCD before it can issue: ~8 cycles "
-                         "of overhead per 8 bytes. Board: 102.4 MB/s read at "
-                         "AxLEN 4 against 571.3 for row_major -- a 5.6x penalty "
-                         "with identical DRAM and identical controller settings. "
-                         "The fix is the ADDRESS MAP, not the controller."},
+        "head": {"text": "BAD PERF: page thrash -- PRE+ACT per column, 102.4 MB/s"},
         "config": {"hscale": 1},
     }
 
@@ -389,7 +342,7 @@ def bad_rw_turnaround():
              {"name": "cmd_op_o",        "wave": "x2x4x2x4x2x4x2x4.",
               "data": ["RD", "WR", "RD", "WR", "RD", "WR", "RD", "WR"]},
             ],
-            ["turnaround gates",
+            ["turnaround",
              {"name": "twtr_ok_i",       "wave": "1.0.1.0.1.0.1.0.."},
              {"name": "trtw_ok_i",       "wave": "0.1.0.1.0.1.0.1.."},
              {"name": "w_rd_turn_block", "wave": "0.1.0.1.0.1.0.1.."},
@@ -399,13 +352,7 @@ def bad_rw_turnaround():
               "data": ["RD", "WR", "RD", "WR", "RD", "WR", "RD", "WR"]},
             ],
         ],
-        "head": {"text": "BAD PERF -- read/write turnaround thrash. Switching "
-                         "direction every column pays tWTR or tRTW each time and "
-                         "the DQ bus idles in the gap. This is the workload a "
-                         "global reorder window exists to fix: pumice batches "
-                         "same-direction columns and sustains 570.1 MB/s with "
-                         "both directions live, where LiteDRAM's per-bank "
-                         "round-robin pays the turnaround and reaches 285.6."},
+        "head": {"text": "BAD PERF: read/write turnaround thrash -- tWTR/tRTW every switch"},
         "config": {"hscale": 1},
     }
 
@@ -426,13 +373,7 @@ def bad_refresh_storm():
              {"name": "dfi_rddata_valid","wave": "0......10........"},
             ],
         ],
-        "head": {"text": "BAD PERF -- refresh storm. With tREFI cranked down, "
-                         "every refresh costs PREA + REF + tRFC and closes every "
-                         "open row, so the next access is a guaranteed page miss "
-                         "too. w_rfc_busy blocks ACT and REF alike. Board sweep: "
-                         "fast_refresh vs slow_refresh is the axis that isolates "
-                         "this; the cost is roughly tRFC/tREFI of the bus plus "
-                         "the re-activation of every row it closed."},
+        "head": {"text": "BAD PERF: refresh storm -- PREA+REF+tRFC, every row closed"},
         "config": {"hscale": 1},
     }
 
@@ -443,11 +384,11 @@ def patho_all_banks_same_row_conflict():
     return {
         "signal": [
             {"name": "aclk",             "wave": "p................"},
-            ["gen 0 (bank 0, row A)",
+            ["gen0 bk0 rA",
              {"name": "req",             "wave": "1................"},
              {"name": "granted",         "wave": "0.10......10....."},
             ],
-            ["gen 1 (bank 0, row B)",
+            ["gen1 bk0 rB",
              {"name": "req",             "wave": "1................"},
              {"name": "granted",         "wave": "0.....10......10."},
             ],
@@ -458,14 +399,7 @@ def patho_all_banks_same_row_conflict():
               "data": ["A", "-", "B", "-", "A", "-", "B", "-"]},
             ],
         ],
-        "head": {"text": "PATHOLOGICAL -- row ping-pong between masters. Two "
-                         "generators on different ROWS of the same banks force a "
-                         "PRE+ACT pair between every pair of columns; the row "
-                         "buffer never survives a grant. Measured accidentally "
-                         "2026-09-10: spacing two readers a device/4 region apart "
-                         "put them in the same banks and collapsed row_major from "
-                         "570 to 224 MB/s. Place concurrent masters in "
-                         "NEIGHBOURING banks, not distant rows."},
+        "head": {"text": "PATHOLOGICAL: row ping-pong between masters -- 570 -> 224 MB/s"},
         "config": {"hscale": 1},
     }
 
@@ -475,7 +409,7 @@ def patho_inorder_serialization():
     return {
         "signal": [
             {"name": "aclk",             "wave": "p................"},
-            ["CAM (8 entries, all ready)",
+            ["CAM",
              {"name": "sch_valid_i[7:0]","wave": "2................",
               "data": ["FF (all eligible)"]},
              {"name": "head entry",      "wave": "2....2....2......",
@@ -487,14 +421,7 @@ def patho_inorder_serialization():
              {"name": "w_rfc_busy",      "wave": "0................"},
             ],
         ],
-        "head": {"text": "PATHOLOGICAL -- in_order (SCHED_POLICY.order_mode=1). "
-                         "Every entry is eligible and several are page hits, but "
-                         "only the HEAD may issue, so a row-interleaved stream "
-                         "pays PRE+ACT between consecutive columns while the hit "
-                         "sits two entries back. This is the cost of the mode, "
-                         "not a defect: it exists to make ordering observable. "
-                         "Roughly 17x on the board -- use it to prove reordering "
-                         "is what is buying the bandwidth, never in production."},
+        "head": {"text": "PATHOLOGICAL: in_order -- only the CAM head may issue (~17x)"},
         "config": {"hscale": 1},
     }
 
@@ -514,7 +441,7 @@ def rd_return_ring():
                 "wave": "p................"
             },
             [
-                "admit (AR order)",
+                "admit",
                 {
                     "name": "ar_push (AR k)",
                     "wave": "x3333x...........",
@@ -547,7 +474,7 @@ def rd_return_ring():
                 }
             ],
             [
-                "issue (FR-FCFS reorders; CAM entry FREES here)",
+                "issue",
                 {
                     "name": "arbiter rd issue slot",
                     "wave": "x.....2.2.2.2....",
@@ -584,7 +511,7 @@ def rd_return_ring():
                 }
             ],
             [
-                "return (ISSUE order, fixed DFI latency) -> slot by ticket",
+                "return",
                 {
                     "name": "dfi_ret burst",
                     "wave": "x..........2.2.2.",
@@ -606,7 +533,7 @@ def rd_return_ring():
                 }
             ],
             [
-                "drain (AR order = ring order)",
+                "drain",
                 {
                     "name": "drain (head)",
                     "wave": "x............2.2.",
@@ -627,8 +554,7 @@ def rd_return_ring():
             ]
         ],
         "head": {
-            "text": "READ RETURN RING: CAM entry lives insert->issue; the ticket (AR-order ring slot) follows the read through DRAM; returns fill by ticket in issue order; the ring drains its head in AR order once complete. In-flight bound = RD_RET_DEPTH (32), not NUM_ENTRIES (8): Little's law 32 x 8 B / 27 cyc > the 8 B/cyc bus."
-        },
+            "text": "Read return ring -- reads in flight beyond the CAM window"},
         "config": {
             "hscale": 1
         }

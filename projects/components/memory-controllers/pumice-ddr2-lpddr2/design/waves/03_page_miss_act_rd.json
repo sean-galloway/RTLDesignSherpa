@@ -35,7 +35,7 @@
     }
   ],
   "head": {
-    "text": "PAGE MISS: ACT then wait tRCD=3 before the first column. First-access latency only -- subsequent hits stream at tCCD (see open_read_stream)."
+    "text": "Page MISS: ACT -> tRCD -> first column"
   },
   "config": {
     "hscale": 1
