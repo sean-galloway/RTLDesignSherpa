@@ -26,7 +26,7 @@
 ## Overview
 
 Thirteen registers, verified against the RTL decode (`gpio_regs.sv`) and
-`peakrdl/gpio_regs.rdl`. `GPIO_REGS_SIZE = 0x34`.
+`../../rdl/gpio/gpio_regs.rdl`. `GPIO_REGS_SIZE = 0x34`.
 
 | Offset | Name | Access | Reset | Description |
 |--------|------|--------|-------|-------------|

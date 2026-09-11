@@ -86,8 +86,8 @@ Everything this MAS leaned on, plus the pointers you'll want when you need to go
 - `rtl/hpet/hpet_regs_pkg.sv` - PeakRDL generated package
 
 **SystemRDL Specification:**
-- `rtl/hpet/peakrdl/hpet_regs.rdl` - Register description
-- `rtl/hpet/peakrdl/README.md` - PeakRDL generation instructions
+- `rdl/hpet/hpet_regs.rdl` - Register description
+- `rdl/hpet/README.md` - PeakRDL generation instructions
 
 **Testbench Files:**
 - `dv/tbclasses/hpet/hpet_tb.py` - Main testbench class

@@ -26,7 +26,7 @@
 ## Overview
 
 This register map is generated from the PeakRDL specification
-(`rtl/pm_acpi/peakrdl/pm_acpi_regs.rdl`) and matches the synthesized register
+(`rdl/pm_acpi/pm_acpi_regs.rdl`) and matches the synthesized register
 block in `rtl/pm_acpi/pm_acpi_regs.sv`. Offsets are byte offsets from the block
 base address. All registers are 32 bits wide with 32-bit access.
 

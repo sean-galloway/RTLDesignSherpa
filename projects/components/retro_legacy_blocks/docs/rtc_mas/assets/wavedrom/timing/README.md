@@ -84,7 +84,7 @@ name is historical.
 
 ## Register Reference
 
-Offsets from `rtl/rtc/peakrdl/rtc_regs.rdl` (13 registers, 0x00-0x30; only
+Offsets from `rdl/rtc/rtc_regs.rdl` (13 registers, 0x00-0x30; only
 these thirteen addresses are decoded -- everything else in the 4 KB window,
 0x34-0x3C included, ignores writes, reads 0 and answers with PSLVERR; nothing
 aliases):
@@ -108,5 +108,5 @@ aliases):
 ## References
 
 - **RTC RTL:** `rtl/rtc/apb4_rtc.sv`, `rtl/rtc/rtc_core.sv`
-- **Register source:** `rtl/rtc/peakrdl/rtc_regs.rdl`
+- **Register source:** `rdl/rtc/rtc_regs.rdl`
 - **RTC Testbench:** `dv/tbclasses/rtc/rtc_tb.py`

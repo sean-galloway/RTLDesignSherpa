@@ -70,7 +70,6 @@ retro_legacy_blocks/
 │       ├── hpet_core.sv     # Timer core logic
 │       ├── hpet_config_regs.sv  # Register wrapper
 │       ├── hpet_regs*.sv    # PeakRDL generated registers
-│       ├── peakrdl/         # SystemRDL specifications
 │       ├── filelists/       # Filelist configurations
 │       └── Makefile         # Build targets
 │

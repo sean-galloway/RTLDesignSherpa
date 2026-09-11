@@ -163,7 +163,7 @@ MSI) is tracked as RLB-008 in `vault/Tasks/RLB/open.md`.
 **RLB Module Documentation:**
 - [README.md](../../rtl/ioapic/README.md) - Block summary and verification entry point
 - `vault/Tasks/RLB/open.md` (RLB-008) - Deferred IOAPIC features
-- [PeakRDL README](../../rtl/ioapic/peakrdl/README.md) - Register generation guide
+- [PeakRDL README](../../rdl/ioapic/README.md) - Register generation guide
 
 **RLB System Documentation:**
 - [RLB_STATUS_AND_ROADMAP.md](../../rtl/RLB_STATUS_AND_ROADMAP.md) - System-wide status and planning

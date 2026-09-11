@@ -505,7 +505,7 @@ acknowledged; a dropped access that is never acknowledged hangs the bus.
 | 0x03C | SMBUS_SLAVE_CTRL | RW | general call, NAK-all, target PEC, stretching |
 | 0x040 | SMBUS_SLAVE_STATUS | RO | direction, stretching, PEC verdict and value |
 
-Field detail is not restated here - `peakrdl/smbus_regs.rdl` is the single
+Field detail is not restated here - `../../rdl/smbus/smbus_regs.rdl` is the single
 source of truth, and a second copy is what rots.
 
 ## Programming a transaction

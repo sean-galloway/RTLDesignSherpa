@@ -384,7 +384,7 @@ aliases: `0x864` no longer reaches `RTC_ALARM_SEC`.
 | `rtc_config_regs.sv` | decode + PSLVERR, time-set staging/commit, read coherency window, W1C decode |
 | `rtc_core.sv` | counters, calendar, alarm, and all four clock crossings |
 | `rtc_regs.sv/` | PeakRDL output (`rtc_regs.sv`, `rtc_regs_pkg.sv`) - generated, do not edit |
-| `peakrdl/rtc_regs.rdl` | register source of truth |
+| `../../rdl/rtc/rtc_regs.rdl` | register source of truth |
 | `rtc_regmap.py` | generated register map for by-name DV access |
 | `rtc_helper.py` | register programming helper |
 | `filelists/apb4_rtc.f` | compile closure (APB slave, the CDC primitives, the adapter, this block) |
@@ -394,7 +394,7 @@ result into the directory the filelist reads (`rtc_regs.sv/`):
 
 ```bash
 python3 bin/peakrdl_generate.py \
-    projects/components/retro_legacy_blocks/rtl/rtc/peakrdl/rtc_regs.rdl \
+    projects/components/retro_legacy_blocks/rdl/rtc/rtc_regs.rdl \
     -o <scratch-dir> --no-html --no-markdown \
     --regmap-output <scratch-dir>/rtc_regmap.py
 ```
@@ -421,7 +421,7 @@ generated output is a live trap.
 | 0x02C  | RTC_ALARM_HOUR | RW | alarm hours |
 | 0x030  | RTC_ALARM_MASK | RW | per-field alarm compare enables |
 
-Field detail lives in `peakrdl/rtc_regs.rdl`, which is the source both the
+Field detail lives in `../../rdl/rtc/rtc_regs.rdl`, which is the source both the
 RTL and `rtc_regmap.py` are generated from.
 
 ## Known limitations

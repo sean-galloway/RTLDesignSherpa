@@ -105,7 +105,7 @@ class PMACPIRegisterMap:
 
     # ACPI_CONTROL bit definitions
     #
-    # GH#54: bits below were audited against peakrdl/pm_acpi_regs.rdl's actual
+    # GH#54: bits below were audited against rdl/pm_acpi/pm_acpi_regs.rdl's actual
     # field ranges after gh54 sleep-entry tests (test_gh54_pwrbtn_wake_latches_in_s0
     # / test_gh54_level_wake_guard) polled current_state via APB and never saw
     # anything but 0, even though a whitebox read of pm_acpi_core.current_pwr_state

@@ -25,7 +25,7 @@
 
 ## Overview
 
-The `hpet_regs` module is auto-generated from the SystemRDL specification (`rtl/hpet/peakrdl/hpet_regs.rdl`) using the PeakRDL toolchain. It implements the complete HPET register file with proper field access semantics (RO, RW, W1C), hardware interface integration, and CPU interface protocol handling.
+The `hpet_regs` module is auto-generated from the SystemRDL specification (`rdl/hpet/hpet_regs.rdl`) using the PeakRDL toolchain. It implements the complete HPET register file with proper field access semantics (RO, RW, W1C), hardware interface integration, and CPU interface protocol handling.
 
 **Single Source of Truth:** All register definitions, addresses, field widths, and access properties are specified in the SystemRDL file. The generated RTL is deterministic and regeneratable -- which means the .rdl file is where you make changes, never the generated output.
 
@@ -470,7 +470,7 @@ assign cpuif_rd_err = readback_err;
 
 ### SystemRDL Specification
 
-**Source File:** `rtl/hpet/peakrdl/hpet_regs.rdl`
+**Source File:** `rdl/hpet/hpet_regs.rdl`
 
 **Key RDL Properties Used:**
 

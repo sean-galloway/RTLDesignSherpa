@@ -299,7 +299,7 @@ When an IRQ arrives while masked, the IRR bit latches but delivery is blocked. U
 
 - `../../rtl/ioapic/README.md` - Block summary and verification entry point
 - `vault/Tasks/RLB/open.md` - RLB-008, deferred IOAPIC features
-- `../../rtl/ioapic/peakrdl/README.md` - Register generation guide
+- `../../rdl/ioapic/README.md` - Register generation guide
 - `../../rtl/RLB_STATUS_AND_ROADMAP.md` - System-wide planning
 - Intel 82093AA I/O APIC Datasheet
 

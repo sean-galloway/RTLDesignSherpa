@@ -820,7 +820,7 @@ void hpet_interrupt_handler(void) {
 - [Chapter 2: Blocks](../ch02_blocks/00_overview.md) - Block-level architecture
 - Chapters 3 (Interfaces) and 4 (Programming Model) are planned and not
   yet written -- see the index
-- [PeakRDL Specification](../../../rtl/hpet/peakrdl/hpet_regs.rdl) - SystemRDL register definition
+- [PeakRDL Specification](../../../rdl/hpet/hpet_regs.rdl) - SystemRDL register definition
 
 ### Additional Diagrams
 

@@ -12,7 +12,7 @@
 #
 # ============================================================================
 # GH#58 defect map (RTL mechanism traced by reading smbus_core.sv,
-# smbus_pec.sv, smbus_config_regs.sv and peakrdl/smbus_regs.rdl -- no
+# smbus_pec.sv, smbus_config_regs.sv and rdl/smbus/smbus_regs.rdl -- no
 # rtl/** file was modified to produce this list or these tests):
 #
 #  1. C4  - SCL never toggles / not open-drain.
@@ -162,6 +162,7 @@ from cocotb.triggers import ClockCycles, RisingEdge, FallingEdge
 
 from projects.components.retro_legacy_blocks.dv.tbclasses.smbus.smbus_tb import SMBusRegisterMap
 from CocoTBFramework.components.smbus import SMBusCRC, SMBusTransactionType
+from CocoTBFramework.components.apb.apb_packet import APBPacket
 
 
 # Master FSM state encoding (smbus_core.sv master_state_t) - mirrored here
@@ -1467,7 +1468,7 @@ class SMBusMediumTests:
 
             # SMBUS_SLAVE_STATUS @ 0x040 is the last mapped register;
             # 0x044-0xFFC (4KB APB window, 12-bit paddr) must all be
-            # unmapped per peakrdl/smbus_regs.rdl's own address-layout
+            # unmapped per rdl/smbus/smbus_regs.rdl's own address-layout
             # comment. 0x03C and 0x040 were in this list until slave mode
             # gave them to SMBUS_SLAVE_CTRL and SMBUS_SLAVE_STATUS
             # (RLB-011); 0x044 and 0x080 take their place, and 0x080 is the
@@ -4052,14 +4053,13 @@ class SMBusMediumTests:
         entirely. Uses the framework APB master's native PSTRB support
         (APBPacket.pstrb), not a hand-rolled driver."""
         self.log.info("=== GH58-R4-10: TX FIFO push must honor PSTRB ===")
-        try:
-            from CocoTBFramework.components.apb.apb_packet import APBPacket
-        except ImportError as e:
-            self.log.error(f"GH58-R4-10: framework APBPacket unavailable "
-                          f"({e}) - cannot drive PSTRB, skipping per "
-                          f"coordinator instruction")
-            return True
-
+        # APBPacket is imported at module scope. It used to be imported here
+        # behind a try/except that returned TRUE when the import failed, so a
+        # framework rename would have turned this test green while it drove
+        # nothing at all -- a test that passes on the failure of its own
+        # precondition (RLB-006). The import is unconditional now: if the
+        # framework cannot provide it, the module fails to load and every
+        # smbus test says so.
         try:
             await self._recover_and_reset()
             await self.tb.enable_master_mode(enable=True)

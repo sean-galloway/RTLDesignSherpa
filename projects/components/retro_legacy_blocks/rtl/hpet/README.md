@@ -152,7 +152,7 @@ hpet_regs.rdl (SystemRDL)
 
 To modify the register map:
 
-1. Edit `projects/components/retro_legacy_blocks/rtl/hpet/peakrdl/hpet_regs.rdl`
+1. Edit `projects/components/retro_legacy_blocks/rdl/hpet/hpet_regs.rdl`
 2. Regenerate:
    ```bash
    cd projects/components/retro_legacy_blocks/rtl/hpet/peakrdl
@@ -642,7 +642,6 @@ projects/components/retro_legacy_blocks/rtl/hpet/
 ├── hpet_config_regs.sv                (PeakRDL wrapper)
 ├── hpet_regs.sv                       (Auto-generated register block)
 ├── hpet_regs_pkg.sv                   (Auto-generated package)
-├── peakrdl/
 │   ├── README.md                      (PeakRDL usage guide)
 │   ├── hpet_regs.rdl                  (SystemRDL specification)
 │   └── generated/
@@ -682,7 +681,7 @@ Allows single PeakRDL generation (NUM_TIMERS=8) to correctly report timer count 
    - **Reason**: Allows future expansion without address map changes
 
 2. **PeakRDL Generation**: Requires manual regeneration when modifying `hpet_regs.rdl`
-   - **Mitigation**: Clear documentation in `peakrdl/README.md`
+   - **Mitigation**: the RDL is the single source of truth; regeneration is `bin/peakrdl_generate.py`
 
 3. **CDC Latency**: CDC version adds ~2-4 cycles latency for APB transactions
    - **Expected**: Handshake-based CDC requires round-trip synchronization
@@ -735,7 +734,7 @@ Allows single PeakRDL generation (NUM_TIMERS=8) to correctly report timer count 
 
 When modifying the HPET module:
 
-1. **Register Changes**: Edit `peakrdl/hpet_regs.rdl`, then regenerate
+1. **Register Changes**: Edit `../../rdl/hpet/hpet_regs.rdl`, then regenerate
 2. **RTL Changes**: Update `apb4_hpet.sv`, `hpet_core.sv`, or wrapper
 3. **Testing**: Run full test suite (all 6 configurations)
 4. **Documentation**: Update this README and inline comments

@@ -214,7 +214,7 @@ apb4_pit_8254 #(
 - ✅ `pit_counter.sv` - Single counter (mode 0)
 - ✅ `pit_regs.sv` - PeakRDL generated registers
 - ✅ `pit_regs_pkg.sv` - PeakRDL generated package
-- ✅ `peakrdl/pit_regs.rdl` - SystemRDL specification
+- ✅ `../../rdl/pit_8254/pit_regs.rdl` - SystemRDL specification
 
 ## Development Status
 

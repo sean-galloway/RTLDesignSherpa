@@ -41,10 +41,10 @@
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 
 # Package (must come first)
-$RETRO_ROOT/rtl/rtc/rtc_regs.sv/rtc_regs_pkg.sv
+$RETRO_ROOT/rtl/rtc/rtc_regs_pkg.sv
 
 # Register file (PeakRDL generated)
-$RETRO_ROOT/rtl/rtc/rtc_regs.sv/rtc_regs.sv
+$RETRO_ROOT/rtl/rtc/rtc_regs.sv
 
 # RTC core (time counting logic)
 $RETRO_ROOT/rtl/rtc/rtc_core.sv

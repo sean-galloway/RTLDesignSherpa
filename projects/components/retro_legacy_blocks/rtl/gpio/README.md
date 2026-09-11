@@ -121,7 +121,6 @@ write(GPIO_OUTPUT_TGL_LO, 0x0020);
 
 ```
 gpio/
-├── peakrdl/
 │   └── gpio_regs.rdl      # PeakRDL register definitions
 ├── filelists/
 │   └── apb4_gpio.f         # Simulation/synthesis filelist

@@ -268,13 +268,15 @@ regfile gpio_regs {
 };
 ```
 
-**Generation:**
+**Generation:** run it from the block's RDL directory and point `--copy-rtl`
+at the block's RTL directory, since the two are no longer parent and child
+(RLB-007):
 ```bash
-cd rtl/{block}/peakrdl
-python $REPO_ROOT/bin/peakrdl_generate.py {block}_regs.rdl --copy-rtl ..
+cd rdl/{block}
+python $REPO_ROOT/bin/peakrdl_generate.py {block}_regs.rdl --copy-rtl ../../rtl/{block}
 ```
 
-**See:** HPET implementation (`rtl/hpet/peakrdl/`) for complete example
+**See:** HPET implementation (`rdl/hpet/`) for complete example
 
 ---
 
@@ -287,7 +289,7 @@ python $REPO_ROOT/bin/peakrdl_generate.py {block}_regs.rdl --copy-rtl ..
 cd projects/components/retro_legacy_blocks
 
 # RTL
-mkdir -p rtl/{block}/peakrdl
+mkdir -p rdl/{block}
 mkdir -p rtl/{block}/filelists
 
 # DV (test runners live flat in dv/tests/, only tbclasses get a subdirectory)
@@ -299,21 +301,26 @@ mkdir -p docs/{block}_mas
 
 **2. Create RTL Files:**
 ```
+rdl/{block}/
+└── {block}_regs.rdl        # SystemRDL specification: the source of truth
+
 rtl/{block}/
 ├── apb_{block}.sv          # Top-level wrapper
 ├── {block}_core.sv         # Core logic
 ├── {block}_config_regs.sv  # Register wrapper
 ├── {block}_regs_pkg.sv     # PeakRDL generated package
 ├── {block}_regs.sv         # PeakRDL generated registers
-├── peakrdl/
-│   ├── {block}_regs.rdl    # SystemRDL specification
-│   └── README.md           # Generation instructions
 ├── filelists/
 │   ├── component           # Component-level filelist
 │   └── integration         # Integration-level filelist
 ├── Makefile                # Build targets
 └── README.md               # RTL documentation
 ```
+
+The RDL lives outside `rtl/` on purpose: every SystemRDL source in the repo
+belongs in an `rdl` area rather than scattered under the RTL it generates
+(RLB-007, and MISC-001 repo-wide). There is no README beside it -- a file
+next to a tool restating how to run the tool is the copy nobody edits.
 
 **3. Create Testbench Classes:**
 ```python
@@ -696,8 +703,8 @@ WAVES=1 pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_{block}
 verilator --lint-only projects/components/retro_legacy_blocks/rtl/{block}/apb_{block}.sv
 
 # Generate PeakRDL registers
-cd projects/components/retro_legacy_blocks/rtl/{block}/peakrdl
-python ../../../../../../bin/peakrdl_generate.py {block}_regs.rdl --copy-rtl ..
+cd projects/components/retro_legacy_blocks/rdl/{block}
+python $REPO_ROOT/bin/peakrdl_generate.py {block}_regs.rdl --copy-rtl ../../rtl/{block}
 
 # View documentation
 cat projects/components/retro_legacy_blocks/PRD.md

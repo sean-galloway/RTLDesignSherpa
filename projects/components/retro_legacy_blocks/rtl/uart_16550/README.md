@@ -317,7 +317,6 @@ When MCR[4] = 1:
 
 ```
 uart_16550/
-|-- peakrdl/
 |   `-- uart_16550_regs.rdl     # PeakRDL register definitions
 |-- filelists/
 |   `-- apb4_uart_16550.f        # Simulation/synthesis filelist

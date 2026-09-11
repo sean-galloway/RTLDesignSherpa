@@ -35,7 +35,7 @@ Worth having open in an editor while you read the rest of this MAS:
 - `rtl/gpio/gpio_config_regs.sv` - Register wrapper (atomic-op pulses, irq)
 - `rtl/gpio/gpio_core.sv` - Pin I/O, synchronizers, interrupt detection
 - `rtl/gpio/gpio_regs.sv` / `gpio_regs_pkg.sv` - PeakRDL-generated register file
-- `rtl/gpio/peakrdl/gpio_regs.rdl` - Register description source
+- `rdl/gpio/gpio_regs.rdl` - Register description source
 
 #### Related Specifications
 - APB Protocol Specification (AMBA 3)

@@ -167,4 +167,4 @@ To modify register layouts:
 
 - **WaveDrom Documentation**: https://wavedrom.com/
 - **HPET PRD**: `../../PRD.md`
-- **PeakRDL Source**: `../../../../rtl/hpet/peakrdl/hpet_regs.rdl`
+- **PeakRDL Source**: `../../../../rdl/hpet/hpet_regs.rdl`

@@ -46,7 +46,7 @@ Three layers, the same shape every RLB block uses:
       pm_acpi_core        timer, FSM, GPE, wake, sticky status, interrupt
 
 `pm_acpi_regs.sv` / `pm_acpi_regs_pkg.sv` are GENERATED from
-`peakrdl/pm_acpi_regs.rdl`. Never hand-edit them; see `peakrdl/README.md`.
+`../../rdl/pm_acpi/pm_acpi_regs.rdl`. Never hand-edit them; regenerate with `bin/peakrdl_generate.py`.
 
 ## Features
 
@@ -329,8 +329,8 @@ runs on another clock.
 | `pm_acpi_core.sv` | timer, FSM, GPE, wake, sticky status, interrupt |
 | `pm_acpi_regs.sv` | GENERATED register block |
 | `pm_acpi_regs_pkg.sv` | GENERATED hwif package |
-| `peakrdl/pm_acpi_regs.rdl` | the register source of truth |
-| `peakrdl/pm_acpi_regs.md` | generated register documentation |
+| `../../rdl/pm_acpi/pm_acpi_regs.rdl` | the register source of truth |
+| `../../rdl/pm_acpi/pm_acpi_regs.md` | generated register documentation |
 | `filelists/apb4_pm_acpi.f` | compile closure |
 
 ## Not implemented

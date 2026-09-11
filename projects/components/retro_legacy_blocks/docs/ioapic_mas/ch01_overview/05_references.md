@@ -53,8 +53,8 @@ Everything this spec leans on: the standards, the sibling RLB documents, the too
 
 **Module-Specific:**
 - `../../rtl/ioapic/README.md` - Block summary; deferred features are RLB-008 in `vault/Tasks/RLB/open.md`
-- `../../rtl/ioapic/peakrdl/README.md` - PeakRDL register generation guide
-- `../../rtl/ioapic/peakrdl/ioapic_regs.rdl` - SystemRDL source specification
+- `../../rdl/ioapic/README.md` - PeakRDL register generation guide
+- `../../rdl/ioapic/ioapic_regs.rdl` - SystemRDL source specification
 
 **RLB System:**
 - `../../rtl/RLB_MODULE_AUDIT.md` - Architecture compliance verification

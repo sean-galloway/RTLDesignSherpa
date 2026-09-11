@@ -1,0 +1,5 @@
+# Scratch output from bin/peakrdl_generate.py. The wrapper writes RTL, docs
+# and a regmap here and then copies the RTL into rtl/<block>/; what it leaves
+# behind is a build artifact, not a source. The generated register RTL that
+# the build actually compiles is tracked under rtl/<block>/.
+generated/

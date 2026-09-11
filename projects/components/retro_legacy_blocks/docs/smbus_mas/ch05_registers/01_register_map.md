@@ -25,7 +25,7 @@
 
 ## Overview
 
-The register map below is generated from `rtl/smbus/peakrdl/smbus_regs.rdl`
+The register map below is generated from `rdl/smbus/smbus_regs.rdl`
 and matches the decode in `rtl/smbus/smbus_config_regs.sv`. Field
 descriptions are quoted from the RDL, which is the single source of truth for
 the fields; the contracts behind them (timing, timeout, FIFOs, interrupts) are

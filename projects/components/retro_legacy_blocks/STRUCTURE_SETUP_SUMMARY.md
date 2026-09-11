@@ -26,10 +26,14 @@
 **Date:** 2025-10-29
 **Task:** Create directory structure and placeholders for 6 new RLB-compatible blocks
 
-> Status (2026-07-22): Historical snapshot. The layout has since evolved: block
-> specifications live under `docs/{block}_mas/` (not `docs/{block}_spec/`), and test
-> runners live flat under `dv/tests/test_apb_{block}.py` (no per-block `dv/tests/{block}/`
-> subdirectories). Directory names below reflect the 2025-10-29 plan.
+> Status (2026-09-11): Historical snapshot, kept as the record of a one-time
+> task. The layout has since evolved and the paths below are the 2025-10-29
+> plan, not the tree as it stands: block specifications live under
+> `docs/{block}_mas/` (not `docs/{block}_spec/`), test runners live flat under
+> `dv/tests/test_apb_{block}.py` (no per-block `dv/tests/{block}/`
+> subdirectories), SystemRDL sources live in `rdl/{block}/` (not
+> `rtl/{block}/peakrdl/`, RLB-007), and `BLOCK_STATUS.md` has been retired --
+> the live block table is in `CLAUDE.md`.
 
 ---
 

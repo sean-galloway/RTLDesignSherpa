@@ -43,7 +43,7 @@ open-drain contract, the timing sets, the timeout and bus recovery, the abort
 discipline, the transaction table and the clock crossing. Chapter 5 is the
 register map with every field as the RDL describes it, the FIFO contract and
 the programming sequences. Ground truth is `rtl/smbus/README.md` and
-`rtl/smbus/peakrdl/smbus_regs.rdl`; where this book and those disagree, the
+`rdl/smbus/smbus_regs.rdl`; where this book and those disagree, the
 RTL tree wins.
 
 ### Block Diagram

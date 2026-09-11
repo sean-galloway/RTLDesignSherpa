@@ -107,7 +107,7 @@ has no interface for; multi-IOAPIC routing; boot-interrupt delivery; MSI/MSI-X.
 | `ioapic_core.sv` | Synchronization, edge/level tracking, arbitration, Remote IRR |
 | `ioapic_config_regs.sv` | IOREGSEL/IOWIN translation, PeakRDL wrapper, hwif mapping |
 | `ioapic_regs.sv`, `ioapic_regs_pkg.sv` | PeakRDL generated - regenerate only via `bin/peakrdl_generate.py` |
-| `peakrdl/ioapic_regs.rdl` | Register source of truth (fixed at 24 entries) |
+| `../../rdl/ioapic/ioapic_regs.rdl` | Register source of truth (fixed at 24 entries) |
 | `filelists/apb4_ioapic.f` | Compile closure |
 
 ## Verification

@@ -99,7 +99,7 @@ verilator -E -f projects/components/retro_legacy_blocks/rtl/hpet/filelists/integ
   - `hpet_regs_pkg.sv` - Package with hwif types
   - `hpet_regs.sv` - Register block implementation
 - **Dependencies:** None (leaf node)
-- **Generated:** Via PeakRDL from `peakrdl/hpet_regs.rdl`
+- **Generated:** Via PeakRDL from `../../rdl/hpet/hpet_regs.rdl`
 
 #### `component/hpet_core.f`
 - **Purpose:** HPET timer core logic
@@ -158,7 +158,7 @@ The HPET component consists of three main layers:
 ### 1. Register Layer (PeakRDL-Generated)
 - **Files:** `hpet_regs_pkg.sv`, `hpet_regs.sv`
 - **Role:** APB/command-response register interface
-- **Generated:** From `peakrdl/hpet_regs.rdl`
+- **Generated:** From `../../rdl/hpet/hpet_regs.rdl`
 - **Parameterized:** NUM_TIMERS=8 (maximum, synthesis optimizes unused)
 
 ### 2. Wrapper Layer
@@ -251,7 +251,7 @@ When adding new RTL dependencies:
 
 When updating register map:
 
-1. Modify `peakrdl/hpet_regs.rdl`
+1. Modify `../../rdl/hpet/hpet_regs.rdl`
 2. Regenerate: `peakrdl regblock hpet_regs.rdl -o generated/`
 3. Copy: `cp generated/rtl/hpet_regs.sv/*.sv ../`
 4. **DO NOT** manually edit generated files
@@ -278,7 +278,7 @@ verilator --lint-only \
 
 ## Related Documentation
 
-- **PeakRDL Specification:** `../peakrdl/hpet_regs.rdl`
+- **PeakRDL Specification:** `../../../rdl/hpet/hpet_regs.rdl`
 - **Integration Status:** `../../../docs/IMPLEMENTATION_STATUS.md` (PeakRDL HPET integration final status)
 - **Test Examples:** `projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py`
 - **RAPIDS File Lists:** `projects/components/dmas/rapids/rtl/filelists/` (reference methodology)

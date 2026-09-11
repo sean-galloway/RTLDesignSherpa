@@ -214,7 +214,7 @@ field comparator_lo {
 5. Test: Both one-shot and periodic modes
 
 **Related Files:**
-- Modify: `rtl/hpet/peakrdl/hpet_regs.rdl`
+- Modify: `rdl/hpet/hpet_regs.rdl`
 - Regenerate: `rtl/hpet/hpet_regs.sv`, `rtl/hpet/hpet_regs_pkg.sv`
 - Update: `dv/tbclasses/hpet/hpet_tests_basic.py`
 
@@ -278,7 +278,7 @@ assign legacy_irq8 = cfg_legacy_mapping ? timer_irq[1] : 1'b0;
 
 **Related Files:**
 - Modify: `rtl/hpet/hpet_core.sv`
-- Update: `rtl/hpet/peakrdl/hpet_regs.rdl`
+- Update: `rdl/hpet/hpet_regs.rdl`
 - Create: `dv/tbclasses/hpet/hpet_tests_legacy.py`
 
 **Dependencies:** None

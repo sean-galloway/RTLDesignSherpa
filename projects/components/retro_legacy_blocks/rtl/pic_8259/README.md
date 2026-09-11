@@ -230,8 +230,7 @@ Layer 3: pic_8259_core.sv
 - ✅ `pic_8259_regs_pkg.sv` - PeakRDL generated package
 
 ### Register Specification
-- ✅ `peakrdl/pic_8259_regs.rdl` - SystemRDL specification
-- ✅ `peakrdl/README.md` - Generation instructions
+- ✅ `../../rdl/pic_8259/pic_8259_regs.rdl` - SystemRDL specification
 
 ### Python Support
 - ✅ `pic_8259_regmap.py` - Auto-generated register map
