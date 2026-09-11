@@ -107,10 +107,14 @@ fi
 if [ -n "$STAGED_SV" ]; then
     if command -v verilator >/dev/null 2>&1; then
         echo "[pre-commit] Checking consumers of changed port lists..."
-        if ! out=$("$PY" "$REPO_ROOT/bin/check_port_consumers.py" 2>&1); then
-            echo "$out" >&2
-            fail=1
-        fi
+        # Capture the output but PRINT IT EITHER WAY. The script emits a
+        # "no consumer was checked" note for a port change nothing lints, and
+        # swallowing that on success made it invisible -- a warning shown only
+        # when something else fails is not a warning. Four dangling pins went
+        # in during the RLB arc with that note being printed into a variable
+        # and discarded.
+        out=$("$PY" "$REPO_ROOT/bin/check_port_consumers.py" 2>&1) || fail=1
+        [ -n "$out" ] && echo "$out" >&2
     else
         echo "[pre-commit] skipping port-consumer check (no verilator on PATH)" >&2
     fi
