@@ -44,7 +44,7 @@ module bridge_ddr2_char_rd_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] pumice_rd_axi_rid_bridge_id,
     input  logic                       pumice_rd_axi_rid_valid,
 
-    output  logic [7:0]  pumice_rd_axi_arid,
+    output  logic [8:0]  pumice_rd_axi_arid,
     output  logic [31:0]  pumice_rd_axi_araddr,
     output  logic [7:0]  pumice_rd_axi_arlen,
     output  logic [2:0]  pumice_rd_axi_arsize,
@@ -58,7 +58,7 @@ module bridge_ddr2_char_rd_xbar
     output  logic         pumice_rd_axi_arvalid,
     input  logic         pumice_rd_axi_arready,
 
-    input  logic [7:0]  pumice_rd_axi_rid,
+    input  logic [8:0]  pumice_rd_axi_rid,
     input  logic [63:0]  pumice_rd_axi_rdata,
     input  logic [1:0]  pumice_rd_axi_rresp,
     input  logic         pumice_rd_axi_rlast,
@@ -71,7 +71,7 @@ module bridge_ddr2_char_rd_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_rid_bridge_id,
     input  logic                       subtractive_axi_rid_valid,
 
-    output  logic [7:0]  subtractive_axi_arid,
+    output  logic [8:0]  subtractive_axi_arid,
     output  logic [31:0]  subtractive_axi_araddr,
     output  logic [7:0]  subtractive_axi_arlen,
     output  logic [2:0]  subtractive_axi_arsize,
@@ -85,7 +85,7 @@ module bridge_ddr2_char_rd_xbar
     output  logic         subtractive_axi_arvalid,
     input  logic         subtractive_axi_arready,
 
-    input  logic [7:0]  subtractive_axi_rid,
+    input  logic [8:0]  subtractive_axi_rid,
     input  logic [63:0]  subtractive_axi_rdata,
     input  logic [1:0]  subtractive_axi_rresp,
     input  logic         subtractive_axi_rlast,
@@ -278,6 +278,18 @@ module bridge_ddr2_char_rd_xbar
         ((pumice_rd_axi_rid_bridge_id == 0) && pumice_rd_axi_rid_valid ? pumice_rd_axi_rvalid : '0) |
         ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
 
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((pumice_rd_axi_rid_bridge_id == 0) && pumice_rd_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master rdgen0 (64b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((pumice_rd_axi_rid_bridge_id == 0) && pumice_rd_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
+
 
     // Master: rdgen1, Width path: 64b
     assign rdgen1_64b_arready = 
@@ -307,6 +319,18 @@ module bridge_ddr2_char_rd_xbar
     assign rdgen1_64b_rvalid = 
         ((pumice_rd_axi_rid_bridge_id == 1) && pumice_rd_axi_rid_valid ? pumice_rd_axi_rvalid : '0) |
         ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
+
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((pumice_rd_axi_rid_bridge_id == 1) && pumice_rd_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master rdgen1 (64b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((pumice_rd_axi_rid_bridge_id == 1) && pumice_rd_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
 
 
 endmodule : bridge_ddr2_char_rd_xbar

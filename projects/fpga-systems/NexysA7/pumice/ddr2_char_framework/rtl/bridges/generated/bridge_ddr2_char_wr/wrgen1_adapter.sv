@@ -105,6 +105,11 @@ module wrgen1_adapter
 
     logic         wrapper_wr_busy;
 
+    // Master-unique fabric IDs: {BRIDGE_ID, id} (BRIDGE-016). Responses
+    // return with the prefix; the response muxes select the low bits.
+    logic [XBAR_ID_WIDTH-1:0] xbar_axi_awid;
+    assign xbar_axi_awid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_awid)};
+
     // ================================================================
     // Timing isolation wrapper (axi4_slave_wr)
     // ================================================================
@@ -219,7 +224,7 @@ module wrgen1_adapter
     // ================================================================
 
     // AW channel (request: fub → output)
-    assign wrgen1_64b_aw.id     = fub_axi_awid;
+    assign wrgen1_64b_aw.id     = xbar_axi_awid;
     assign wrgen1_64b_aw.addr   = fub_axi_awaddr;
     assign wrgen1_64b_aw.len    = fub_axi_awlen;
     assign wrgen1_64b_aw.size   = fub_axi_awsize;

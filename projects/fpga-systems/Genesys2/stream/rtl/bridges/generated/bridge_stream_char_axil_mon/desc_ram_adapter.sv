@@ -12,7 +12,7 @@
 module desc_ram_adapter
     import bridge_stream_char_axil_mon_pkg::*;
 #(
-    parameter int ID_WIDTH = 8
+    parameter int ID_WIDTH = 10
    ,parameter bit USE_MONITOR_WR = 1'b1
    ,parameter bit USE_MONITOR_RD = 1'b1
 ) (
@@ -20,7 +20,7 @@ module desc_ram_adapter
     input  logic aresetn,
 
     // Crossbar interface (AXI4 from crossbar)
-    input  logic [7:0]  xbar_desc_ram_axi_awid,
+    input  logic [9:0]  xbar_desc_ram_axi_awid,
     input  logic [31:0]  xbar_desc_ram_axi_awaddr,
     input  logic [7:0]  xbar_desc_ram_axi_awlen,
     input  logic [2:0]  xbar_desc_ram_axi_awsize,
@@ -39,12 +39,12 @@ module desc_ram_adapter
     input  logic         xbar_desc_ram_axi_wuser,
     input  logic         xbar_desc_ram_axi_wvalid,
     output  logic         xbar_desc_ram_axi_wready,
-    output  logic [7:0]  xbar_desc_ram_axi_bid,
+    output  logic [9:0]  xbar_desc_ram_axi_bid,
     output  logic [1:0]  xbar_desc_ram_axi_bresp,
     output  logic         xbar_desc_ram_axi_buser,
     output  logic         xbar_desc_ram_axi_bvalid,
     input  logic         xbar_desc_ram_axi_bready,
-    input  logic [7:0]  xbar_desc_ram_axi_arid,
+    input  logic [9:0]  xbar_desc_ram_axi_arid,
     input  logic [31:0]  xbar_desc_ram_axi_araddr,
     input  logic [7:0]  xbar_desc_ram_axi_arlen,
     input  logic [2:0]  xbar_desc_ram_axi_arsize,
@@ -57,7 +57,7 @@ module desc_ram_adapter
     input  logic         xbar_desc_ram_axi_aruser,
     input  logic         xbar_desc_ram_axi_arvalid,
     output  logic         xbar_desc_ram_axi_arready,
-    output  logic [7:0]  xbar_desc_ram_axi_rid,
+    output  logic [9:0]  xbar_desc_ram_axi_rid,
     output  logic [255:0]  xbar_desc_ram_axi_rdata,
     output  logic [1:0]  xbar_desc_ram_axi_rresp,
     output  logic         xbar_desc_ram_axi_rlast,
@@ -75,7 +75,7 @@ module desc_ram_adapter
     output logic                       rid_valid,
 
     // External slave interface (AXI4)
-    output  logic [7:0]  desc_ram_axi_awid,
+    output  logic [9:0]  desc_ram_axi_awid,
     output  logic [31:0]  desc_ram_axi_awaddr,
     output  logic [7:0]  desc_ram_axi_awlen,
     output  logic [2:0]  desc_ram_axi_awsize,
@@ -94,12 +94,12 @@ module desc_ram_adapter
     output  logic         desc_ram_axi_wuser,
     output  logic         desc_ram_axi_wvalid,
     input  logic         desc_ram_axi_wready,
-    input  logic [7:0]  desc_ram_axi_bid,
+    input  logic [9:0]  desc_ram_axi_bid,
     input  logic [1:0]  desc_ram_axi_bresp,
     input  logic         desc_ram_axi_buser,
     input  logic         desc_ram_axi_bvalid,
     output  logic         desc_ram_axi_bready,
-    output  logic [7:0]  desc_ram_axi_arid,
+    output  logic [9:0]  desc_ram_axi_arid,
     output  logic [31:0]  desc_ram_axi_araddr,
     output  logic [7:0]  desc_ram_axi_arlen,
     output  logic [2:0]  desc_ram_axi_arsize,
@@ -112,7 +112,7 @@ module desc_ram_adapter
     output  logic         desc_ram_axi_aruser,
     output  logic         desc_ram_axi_arvalid,
     input  logic         desc_ram_axi_arready,
-    input  logic [7:0]  desc_ram_axi_rid,
+    input  logic [9:0]  desc_ram_axi_rid,
     input  logic [255:0]  desc_ram_axi_rdata,
     input  logic [1:0]  desc_ram_axi_rresp,
     input  logic         desc_ram_axi_rlast,
@@ -120,7 +120,7 @@ module desc_ram_adapter
     input  logic         desc_ram_axi_rvalid,
     output  logic         desc_ram_axi_rready,
 
-    // Shared free-running monitor-time (from monbus_axil_group.mon_time_out)
+    // Shared free-running monitor-time (from monbus_axil4_axil4_group.mon_time_out)
     input  monitor_common_pkg::monbus_timestamp_t i_mon_time,
 
     // Monitor side-band: wr wrapper
@@ -180,7 +180,7 @@ module desc_ram_adapter
     // Internal Signals
     // ================================================================
 
-    // FIFO tracking signals (in-order mode)
+    // CAM tracking signals (by-ID mode: enable_ooo or a multi-master fabric)
     logic cam_wr_allocate;
     logic cam_wr_deallocate;
     logic [ID_WIDTH-1:0] cam_wr_allocate_tag;
@@ -194,83 +194,86 @@ module desc_ram_adapter
     logic [ID_WIDTH-1:0] cam_rd_deallocate_tag;
 
     // ================================================================
-    // Bridge ID Tracking - FIFO Mode (In-Order)
+    // Bridge ID Tracking - CAM Mode (Out-of-Order)
     // ================================================================
 
-    // Write Channel FIFO (In-Order) - AXI4 Protocol
-    localparam WR_FIFO_DEPTH = 16;
-    logic [BRIDGE_ID_WIDTH-1:0] wr_fifo [WR_FIFO_DEPTH];
-    logic [$clog2(WR_FIFO_DEPTH):0] wr_ptr, rd_ptr;
+    // Write Channel CAM
+    // BRIDGE-011 not-full gating, CAM form: the CAM's own tags_full masks
+    // the sub-block's ready before it reaches the crossbar. (These two nets
+    // are what the wrapper override below binds; the FIFO path declares
+    // its own. Missing here since c64660f47 -- BRIDGE-015.)
+    logic wr_trk_full;
+    logic w_sub_awready;
+    assign xbar_desc_ram_axi_awready = w_sub_awready && !wr_trk_full;
+    bridge_cam #(
+        .TAG_WIDTH(ID_WIDTH),
+        .DATA_WIDTH(BRIDGE_ID_WIDTH),
+        .DEPTH(16),
+        .ALLOW_DUPLICATES(1),  // Mode 2: OOO support
+        .PIPELINE_EVICT(0)
+    ) u_wr_cam (
+        .clk(aclk),
+        .rst_n(aresetn),
 
-    // Push on AW (crossbar → adapter)
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            wr_ptr <= '0;
-        end else if (xbar_desc_ram_axi_awvalid && xbar_desc_ram_axi_awready) begin
-            wr_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= xbar_bridge_id_aw;
-            wr_ptr <= wr_ptr + 1'b1;
-        end
-    )
+        // Allocate on AW (from crossbar)
+        .allocate(xbar_desc_ram_axi_awvalid && xbar_desc_ram_axi_awready),
+        .allocate_tag(xbar_desc_ram_axi_awid),
+        .allocate_data(xbar_bridge_id_aw),
 
-    // Pop on B response (xbar_desc_ram_axi_bvalid && xbar_desc_ram_axi_bready)
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            rd_ptr <= '0;
-        end else if (xbar_desc_ram_axi_bvalid && xbar_desc_ram_axi_bready) begin
-            rd_ptr <= rd_ptr + 1'b1;
-        end
-    )
+        // Deallocate on B (from converter)
+        .deallocate(xbar_desc_ram_axi_bvalid && xbar_desc_ram_axi_bready),
+        .deallocate_tag(xbar_desc_ram_axi_bid),
+        .deallocate_valid(bid_valid),
+        .deallocate_data(bid_bridge_id),
+        .deallocate_count(),
 
-    // bid_bridge_id / bid_valid drive the crossbar's response mux,
-    // which gates B going BACK to the master on bid_valid. Earlier
-    // versions registered these on the handshake completing — but
-    // the handshake CAN'T complete until the master sees bvalid,
-    // and the master can't see bvalid until bid_valid is high.
-    // Result: deadlock. Drive these combinationally so the route
-    // is open from the moment a B arrives.
-    assign bid_bridge_id = wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];
-    assign bid_valid     = (wr_ptr != rd_ptr);
+        // Status
+        .cam_hit(),
+        .tags_empty(),
+        .tags_full(wr_trk_full),
+        .tags_count()
+    );
 
-    // Read Channel FIFO (In-Order) - AXI4 Protocol
-    localparam RD_FIFO_DEPTH = 16;
-    logic [BRIDGE_ID_WIDTH-1:0] rd_fifo [RD_FIFO_DEPTH];
-    logic [$clog2(RD_FIFO_DEPTH):0] ar_ptr, r_ptr;
+    // Read Channel CAM
+    // BRIDGE-011 not-full gating, CAM form -- see the write channel.
+    logic rd_trk_full;
+    logic w_sub_arready;
+    assign xbar_desc_ram_axi_arready = w_sub_arready && !rd_trk_full;
+    bridge_cam #(
+        .TAG_WIDTH(ID_WIDTH),
+        .DATA_WIDTH(BRIDGE_ID_WIDTH),
+        .DEPTH(16),
+        .ALLOW_DUPLICATES(1),  // Mode 2: OOO support
+        .PIPELINE_EVICT(0)
+    ) u_rd_cam (
+        .clk(aclk),
+        .rst_n(aresetn),
 
-    // Push on AR (crossbar → adapter)
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            ar_ptr <= '0;
-        end else if (xbar_desc_ram_axi_arvalid && xbar_desc_ram_axi_arready) begin
-            rd_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= xbar_bridge_id_ar;
-            ar_ptr <= ar_ptr + 1'b1;
-        end
-    )
+        // Allocate on AR (from crossbar)
+        .allocate(xbar_desc_ram_axi_arvalid && xbar_desc_ram_axi_arready),
+        .allocate_tag(xbar_desc_ram_axi_arid),
+        .allocate_data(xbar_bridge_id_ar),
 
-    // Pop on R response (xbar_desc_ram_axi_rvalid && xbar_desc_ram_axi_rready && xbar_desc_ram_axi_rlast)
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_ptr <= '0;
-        end else if (xbar_desc_ram_axi_rvalid && xbar_desc_ram_axi_rready && xbar_desc_ram_axi_rlast) begin
-            r_ptr <= r_ptr + 1'b1;
-        end
-    )
+        // Deallocate on R (from converter)
+        .deallocate(xbar_desc_ram_axi_rvalid && xbar_desc_ram_axi_rready && xbar_desc_ram_axi_rlast),
+        .deallocate_tag(xbar_desc_ram_axi_rid),
+        .deallocate_valid(rid_valid),
+        .deallocate_data(rid_bridge_id),
+        .deallocate_count(),
 
-    // rid_bridge_id / rid_valid drive the crossbar's response mux,
-    // which gates R going BACK to the master on rid_valid. Earlier
-    // versions registered these on the handshake completing — but
-    // the handshake CAN'T complete until the master sees rvalid,
-    // and the master can't see rvalid until rid_valid is high.
-    // Result: deadlock. Drive these combinationally so the route
-    // is open from the moment an R arrives.
-    assign rid_bridge_id = rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];
-    assign rid_valid     = (ar_ptr != r_ptr);
+        // Status
+        .cam_hit(),
+        .tags_empty(),
+        .tags_full(rd_trk_full),
+        .tags_count()
+    );
 
     // AXI4 Master Write Timing Wrapper
     axi4_master_wr_mon #(
         .SKID_DEPTH_AW(2),
         .SKID_DEPTH_W(4),
         .SKID_DEPTH_B(2),
-        .AXI_ID_WIDTH(8),
+        .AXI_ID_WIDTH(10),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(256),
         .AXI_USER_WIDTH(1),
@@ -299,8 +302,8 @@ module desc_ram_adapter
         .fub_axi_awqos(xbar_desc_ram_axi_awqos),
         .fub_axi_awregion(xbar_desc_ram_axi_awregion),
         .fub_axi_awuser(xbar_desc_ram_axi_awuser),
-        .fub_axi_awvalid(xbar_desc_ram_axi_awvalid),
-        .fub_axi_awready(xbar_desc_ram_axi_awready),
+        .fub_axi_awvalid(xbar_desc_ram_axi_awvalid && !wr_trk_full),
+        .fub_axi_awready(w_sub_awready),
         .fub_axi_wdata(xbar_desc_ram_axi_wdata),
         .fub_axi_wstrb(xbar_desc_ram_axi_wstrb),
         .fub_axi_wlast(xbar_desc_ram_axi_wlast),
@@ -411,7 +414,7 @@ module desc_ram_adapter
     axi4_master_rd_mon #(
         .SKID_DEPTH_AR(2),
         .SKID_DEPTH_R(2),
-        .AXI_ID_WIDTH(8),
+        .AXI_ID_WIDTH(10),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(256),
         .AXI_USER_WIDTH(1),
@@ -440,8 +443,8 @@ module desc_ram_adapter
         .fub_axi_arqos(xbar_desc_ram_axi_arqos),
         .fub_axi_arregion(xbar_desc_ram_axi_arregion),
         .fub_axi_aruser(xbar_desc_ram_axi_aruser),
-        .fub_axi_arvalid(xbar_desc_ram_axi_arvalid),
-        .fub_axi_arready(xbar_desc_ram_axi_arready),
+        .fub_axi_arvalid(xbar_desc_ram_axi_arvalid && !rd_trk_full),
+        .fub_axi_arready(w_sub_arready),
         .fub_axi_rid(xbar_desc_ram_axi_rid),
         .fub_axi_rdata(xbar_desc_ram_axi_rdata),
         .fub_axi_rresp(xbar_desc_ram_axi_rresp),

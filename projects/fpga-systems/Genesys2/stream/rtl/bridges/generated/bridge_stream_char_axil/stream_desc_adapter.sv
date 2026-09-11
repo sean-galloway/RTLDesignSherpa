@@ -10,7 +10,7 @@
 module stream_desc_adapter
     import bridge_stream_char_axil_pkg::*;
 #(
-    parameter NUM_SLAVES = 6,
+    parameter NUM_SLAVES = 7,
     parameter BRIDGE_ID = 1,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 2,
     parameter SKID_DEPTH_AR = 2,
@@ -90,6 +90,11 @@ module stream_desc_adapter
 
     logic         wrapper_rd_busy;
 
+    // Master-unique fabric IDs: {BRIDGE_ID, id} (BRIDGE-016). Responses
+    // return with the prefix; the response muxes select the low bits.
+    logic [XBAR_ID_WIDTH-1:0] xbar_axi_arid;
+    assign xbar_axi_arid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_arid)};
+
     // ================================================================
     // Timing isolation wrapper (axi4_slave_rd)
     // ================================================================
@@ -157,12 +162,16 @@ module stream_desc_adapter
     // ================================================================
     // Address decode (slave selection) - Read
     // Slave 2 (desc_ram): 0x00020000 - 0x0002FFFF
+    // Slave 6 (subtractive): 0x00000000 - 0xFFFFFFFF
     // ================================================================
     logic [NUM_SLAVES-1:0] comb_slave_select_ar;
     always_comb begin
         comb_slave_select_ar = '0;
         if (fub_axi_araddr >= 32'h00020000 && fub_axi_araddr <= 32'h0002FFFF) begin
             comb_slave_select_ar[2] = 1'b1;  // desc_ram
+        end
+        else begin  // Full address range (catch-all)
+            comb_slave_select_ar[6] = 1'b1;  // subtractive
         end
     end
 
@@ -177,9 +186,9 @@ module stream_desc_adapter
     // Per-width path-active gates (see comment in adapter_generator.py).
     logic ar_gate_ok;
     logic ar_path_active_256b;
-    assign ar_path_active_256b = (comb_slave_select_ar[2]) && ar_gate_ok;
+    assign ar_path_active_256b = (comb_slave_select_ar[2] | comb_slave_select_ar[6]) && ar_gate_ok;
     logic r_path_active_256b;
-    assign r_path_active_256b = r_slave_select[2];
+    assign r_path_active_256b = r_slave_select[2] | r_slave_select[6];
 
     // ================================================================
     // Direct passthrough: 256b → 256b (no converter)
@@ -188,7 +197,7 @@ module stream_desc_adapter
     // ================================================================
 
     // AR channel (request: fub → output)
-    assign stream_desc_256b_ar.id     = fub_axi_arid;
+    assign stream_desc_256b_ar.id     = xbar_axi_arid;
     assign stream_desc_256b_ar.addr   = fub_axi_araddr;
     assign stream_desc_256b_ar.len    = fub_axi_arlen;
     assign stream_desc_256b_ar.size   = fub_axi_arsize;
@@ -264,14 +273,21 @@ module stream_desc_adapter
             r_ar_active_target <= comb_slave_select_ar;
         end
     )
-    assign ar_gate_ok = (ar_trk_wptr == ar_trk_rptr) ||
-                        (comb_slave_select_ar == r_ar_active_target);
+    logic ar_trk_full;
+    assign ar_trk_full = (ar_trk_wptr[AR_TRK_AW] != ar_trk_rptr[AR_TRK_AW]) &&
+                         (ar_trk_wptr[AR_TRK_AW-1:0] == ar_trk_rptr[AR_TRK_AW-1:0]);
+    assign ar_gate_ok = ((ar_trk_wptr == ar_trk_rptr) ||
+                         (comb_slave_select_ar == r_ar_active_target)) &&
+                        !ar_trk_full;
 
     // AR-ready MUX (request side: uses combinational comb_slave_select_ar)
     always_comb begin
         fub_axi_arready = 1'b0;
         case (comb_slave_select_ar)
-            6'b000100: begin  // Slave 2 (256b)
+            7'b0000100: begin  // Slave 2 (256b)
+                fub_axi_arready = stream_desc_256b_arready;
+            end
+            7'b1000000: begin  // Slave 6 (256b)
                 fub_axi_arready = stream_desc_256b_arready;
             end
             default: begin
@@ -292,7 +308,14 @@ module stream_desc_adapter
         fub_axi_rvalid = 1'b0;
 
         case (r_slave_select)
-            6'b000100: begin  // Slave 2 (256b)
+            7'b0000100: begin  // Slave 2 (256b)
+                fub_axi_rid = stream_desc_256b_r.id[7:0];
+                fub_axi_rdata = stream_desc_256b_r.data;
+                fub_axi_rresp = stream_desc_256b_r.resp;
+                fub_axi_rlast = stream_desc_256b_r.last;
+                fub_axi_rvalid = stream_desc_256b_rvalid;
+            end
+            7'b1000000: begin  // Slave 6 (256b)
                 fub_axi_rid = stream_desc_256b_r.id[7:0];
                 fub_axi_rdata = stream_desc_256b_r.data;
                 fub_axi_rresp = stream_desc_256b_r.resp;

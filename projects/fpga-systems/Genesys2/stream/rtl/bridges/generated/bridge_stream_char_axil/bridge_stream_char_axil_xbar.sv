@@ -12,7 +12,7 @@
 module bridge_stream_char_axil_xbar
     import bridge_stream_char_axil_pkg::*;
 #(
-    parameter int NUM_SLAVES = 6
+    parameter int NUM_SLAVES = 7
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -95,6 +95,16 @@ module bridge_stream_char_axil_xbar
     output axi4_b_t      monbus_wr_64b_b,
     output logic         monbus_wr_64b_bvalid,
     input  logic         monbus_wr_64b_bready,
+    // 256b path
+    input  axi4_aw_t     monbus_wr_256b_aw,
+    input  logic         monbus_wr_256b_awvalid,
+    output logic         monbus_wr_256b_awready,
+    input  axi4_w_256b_t  monbus_wr_256b_w,
+    input  logic         monbus_wr_256b_wvalid,
+    output logic         monbus_wr_256b_wready,
+    output axi4_b_t      monbus_wr_256b_b,
+    output logic         monbus_wr_256b_bvalid,
+    input  logic         monbus_wr_256b_bready,
 
     // Slave 0: stream_apb
     output logic [BRIDGE_ID_WIDTH-1:0] stream_apb_axi_bridge_id_aw,
@@ -105,7 +115,7 @@ module bridge_stream_char_axil_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] stream_apb_axi_rid_bridge_id,
     input  logic                       stream_apb_axi_rid_valid,
 
-    output  logic [7:0]  stream_apb_axi_awid,
+    output  logic [9:0]  stream_apb_axi_awid,
     output  logic [31:0]  stream_apb_axi_awaddr,
     output  logic [7:0]  stream_apb_axi_awlen,
     output  logic [2:0]  stream_apb_axi_awsize,
@@ -126,13 +136,13 @@ module bridge_stream_char_axil_xbar
     output  logic         stream_apb_axi_wvalid,
     input  logic         stream_apb_axi_wready,
 
-    input  logic [7:0]  stream_apb_axi_bid,
+    input  logic [9:0]  stream_apb_axi_bid,
     input  logic [1:0]  stream_apb_axi_bresp,
     input  logic         stream_apb_axi_buser,
     input  logic         stream_apb_axi_bvalid,
     output  logic         stream_apb_axi_bready,
 
-    output  logic [7:0]  stream_apb_axi_arid,
+    output  logic [9:0]  stream_apb_axi_arid,
     output  logic [31:0]  stream_apb_axi_araddr,
     output  logic [7:0]  stream_apb_axi_arlen,
     output  logic [2:0]  stream_apb_axi_arsize,
@@ -146,7 +156,7 @@ module bridge_stream_char_axil_xbar
     output  logic         stream_apb_axi_arvalid,
     input  logic         stream_apb_axi_arready,
 
-    input  logic [7:0]  stream_apb_axi_rid,
+    input  logic [9:0]  stream_apb_axi_rid,
     input  logic [31:0]  stream_apb_axi_rdata,
     input  logic [1:0]  stream_apb_axi_rresp,
     input  logic         stream_apb_axi_rlast,
@@ -163,7 +173,7 @@ module bridge_stream_char_axil_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] harness_csr_axi_rid_bridge_id,
     input  logic                       harness_csr_axi_rid_valid,
 
-    output  logic [7:0]  harness_csr_axi_awid,
+    output  logic [9:0]  harness_csr_axi_awid,
     output  logic [31:0]  harness_csr_axi_awaddr,
     output  logic [7:0]  harness_csr_axi_awlen,
     output  logic [2:0]  harness_csr_axi_awsize,
@@ -184,13 +194,13 @@ module bridge_stream_char_axil_xbar
     output  logic         harness_csr_axi_wvalid,
     input  logic         harness_csr_axi_wready,
 
-    input  logic [7:0]  harness_csr_axi_bid,
+    input  logic [9:0]  harness_csr_axi_bid,
     input  logic [1:0]  harness_csr_axi_bresp,
     input  logic         harness_csr_axi_buser,
     input  logic         harness_csr_axi_bvalid,
     output  logic         harness_csr_axi_bready,
 
-    output  logic [7:0]  harness_csr_axi_arid,
+    output  logic [9:0]  harness_csr_axi_arid,
     output  logic [31:0]  harness_csr_axi_araddr,
     output  logic [7:0]  harness_csr_axi_arlen,
     output  logic [2:0]  harness_csr_axi_arsize,
@@ -204,7 +214,7 @@ module bridge_stream_char_axil_xbar
     output  logic         harness_csr_axi_arvalid,
     input  logic         harness_csr_axi_arready,
 
-    input  logic [7:0]  harness_csr_axi_rid,
+    input  logic [9:0]  harness_csr_axi_rid,
     input  logic [31:0]  harness_csr_axi_rdata,
     input  logic [1:0]  harness_csr_axi_rresp,
     input  logic         harness_csr_axi_rlast,
@@ -221,7 +231,7 @@ module bridge_stream_char_axil_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] desc_ram_axi_rid_bridge_id,
     input  logic                       desc_ram_axi_rid_valid,
 
-    output  logic [7:0]  desc_ram_axi_awid,
+    output  logic [9:0]  desc_ram_axi_awid,
     output  logic [31:0]  desc_ram_axi_awaddr,
     output  logic [7:0]  desc_ram_axi_awlen,
     output  logic [2:0]  desc_ram_axi_awsize,
@@ -242,13 +252,13 @@ module bridge_stream_char_axil_xbar
     output  logic         desc_ram_axi_wvalid,
     input  logic         desc_ram_axi_wready,
 
-    input  logic [7:0]  desc_ram_axi_bid,
+    input  logic [9:0]  desc_ram_axi_bid,
     input  logic [1:0]  desc_ram_axi_bresp,
     input  logic         desc_ram_axi_buser,
     input  logic         desc_ram_axi_bvalid,
     output  logic         desc_ram_axi_bready,
 
-    output  logic [7:0]  desc_ram_axi_arid,
+    output  logic [9:0]  desc_ram_axi_arid,
     output  logic [31:0]  desc_ram_axi_araddr,
     output  logic [7:0]  desc_ram_axi_arlen,
     output  logic [2:0]  desc_ram_axi_arsize,
@@ -262,7 +272,7 @@ module bridge_stream_char_axil_xbar
     output  logic         desc_ram_axi_arvalid,
     input  logic         desc_ram_axi_arready,
 
-    input  logic [7:0]  desc_ram_axi_rid,
+    input  logic [9:0]  desc_ram_axi_rid,
     input  logic [255:0]  desc_ram_axi_rdata,
     input  logic [1:0]  desc_ram_axi_rresp,
     input  logic         desc_ram_axi_rlast,
@@ -279,7 +289,7 @@ module bridge_stream_char_axil_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] stream_err_axi_rid_bridge_id,
     input  logic                       stream_err_axi_rid_valid,
 
-    output  logic [7:0]  stream_err_axi_awid,
+    output  logic [9:0]  stream_err_axi_awid,
     output  logic [31:0]  stream_err_axi_awaddr,
     output  logic [7:0]  stream_err_axi_awlen,
     output  logic [2:0]  stream_err_axi_awsize,
@@ -300,13 +310,13 @@ module bridge_stream_char_axil_xbar
     output  logic         stream_err_axi_wvalid,
     input  logic         stream_err_axi_wready,
 
-    input  logic [7:0]  stream_err_axi_bid,
+    input  logic [9:0]  stream_err_axi_bid,
     input  logic [1:0]  stream_err_axi_bresp,
     input  logic         stream_err_axi_buser,
     input  logic         stream_err_axi_bvalid,
     output  logic         stream_err_axi_bready,
 
-    output  logic [7:0]  stream_err_axi_arid,
+    output  logic [9:0]  stream_err_axi_arid,
     output  logic [31:0]  stream_err_axi_araddr,
     output  logic [7:0]  stream_err_axi_arlen,
     output  logic [2:0]  stream_err_axi_arsize,
@@ -320,7 +330,7 @@ module bridge_stream_char_axil_xbar
     output  logic         stream_err_axi_arvalid,
     input  logic         stream_err_axi_arready,
 
-    input  logic [7:0]  stream_err_axi_rid,
+    input  logic [9:0]  stream_err_axi_rid,
     input  logic [31:0]  stream_err_axi_rdata,
     input  logic [1:0]  stream_err_axi_rresp,
     input  logic         stream_err_axi_rlast,
@@ -337,7 +347,7 @@ module bridge_stream_char_axil_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] debug_sram_axi_rid_bridge_id,
     input  logic                       debug_sram_axi_rid_valid,
 
-    output  logic [7:0]  debug_sram_axi_awid,
+    output  logic [9:0]  debug_sram_axi_awid,
     output  logic [31:0]  debug_sram_axi_awaddr,
     output  logic [7:0]  debug_sram_axi_awlen,
     output  logic [2:0]  debug_sram_axi_awsize,
@@ -358,13 +368,13 @@ module bridge_stream_char_axil_xbar
     output  logic         debug_sram_axi_wvalid,
     input  logic         debug_sram_axi_wready,
 
-    input  logic [7:0]  debug_sram_axi_bid,
+    input  logic [9:0]  debug_sram_axi_bid,
     input  logic [1:0]  debug_sram_axi_bresp,
     input  logic         debug_sram_axi_buser,
     input  logic         debug_sram_axi_bvalid,
     output  logic         debug_sram_axi_bready,
 
-    output  logic [7:0]  debug_sram_axi_arid,
+    output  logic [9:0]  debug_sram_axi_arid,
     output  logic [31:0]  debug_sram_axi_araddr,
     output  logic [7:0]  debug_sram_axi_arlen,
     output  logic [2:0]  debug_sram_axi_arsize,
@@ -378,7 +388,7 @@ module bridge_stream_char_axil_xbar
     output  logic         debug_sram_axi_arvalid,
     input  logic         debug_sram_axi_arready,
 
-    input  logic [7:0]  debug_sram_axi_rid,
+    input  logic [9:0]  debug_sram_axi_rid,
     input  logic [63:0]  debug_sram_axi_rdata,
     input  logic [1:0]  debug_sram_axi_rresp,
     input  logic         debug_sram_axi_rlast,
@@ -395,7 +405,7 @@ module bridge_stream_char_axil_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] dma_axil_axi_rid_bridge_id,
     input  logic                       dma_axil_axi_rid_valid,
 
-    output  logic [7:0]  dma_axil_axi_awid,
+    output  logic [9:0]  dma_axil_axi_awid,
     output  logic [31:0]  dma_axil_axi_awaddr,
     output  logic [7:0]  dma_axil_axi_awlen,
     output  logic [2:0]  dma_axil_axi_awsize,
@@ -416,13 +426,13 @@ module bridge_stream_char_axil_xbar
     output  logic         dma_axil_axi_wvalid,
     input  logic         dma_axil_axi_wready,
 
-    input  logic [7:0]  dma_axil_axi_bid,
+    input  logic [9:0]  dma_axil_axi_bid,
     input  logic [1:0]  dma_axil_axi_bresp,
     input  logic         dma_axil_axi_buser,
     input  logic         dma_axil_axi_bvalid,
     output  logic         dma_axil_axi_bready,
 
-    output  logic [7:0]  dma_axil_axi_arid,
+    output  logic [9:0]  dma_axil_axi_arid,
     output  logic [31:0]  dma_axil_axi_araddr,
     output  logic [7:0]  dma_axil_axi_arlen,
     output  logic [2:0]  dma_axil_axi_arsize,
@@ -436,13 +446,71 @@ module bridge_stream_char_axil_xbar
     output  logic         dma_axil_axi_arvalid,
     input  logic         dma_axil_axi_arready,
 
-    input  logic [7:0]  dma_axil_axi_rid,
+    input  logic [9:0]  dma_axil_axi_rid,
     input  logic [31:0]  dma_axil_axi_rdata,
     input  logic [1:0]  dma_axil_axi_rresp,
     input  logic         dma_axil_axi_rlast,
     input  logic         dma_axil_axi_ruser,
     input  logic         dma_axil_axi_rvalid,
-    output  logic         dma_axil_axi_rready
+    output  logic         dma_axil_axi_rready,
+
+    // Slave 6: subtractive
+    output logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_bridge_id_aw,
+    input  logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_bid_bridge_id,
+    input  logic                       subtractive_axi_bid_valid,
+
+    output logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_bridge_id_ar,
+    input  logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_rid_bridge_id,
+    input  logic                       subtractive_axi_rid_valid,
+
+    output  logic [9:0]  subtractive_axi_awid,
+    output  logic [31:0]  subtractive_axi_awaddr,
+    output  logic [7:0]  subtractive_axi_awlen,
+    output  logic [2:0]  subtractive_axi_awsize,
+    output  logic [1:0]  subtractive_axi_awburst,
+    output  logic         subtractive_axi_awlock,
+    output  logic [3:0]  subtractive_axi_awcache,
+    output  logic [2:0]  subtractive_axi_awprot,
+    output  logic [3:0]  subtractive_axi_awqos,
+    output  logic [3:0]  subtractive_axi_awregion,
+    output  logic         subtractive_axi_awuser,
+    output  logic         subtractive_axi_awvalid,
+    input  logic         subtractive_axi_awready,
+
+    output  logic [255:0]  subtractive_axi_wdata,
+    output  logic [31:0]  subtractive_axi_wstrb,
+    output  logic         subtractive_axi_wlast,
+    output  logic         subtractive_axi_wuser,
+    output  logic         subtractive_axi_wvalid,
+    input  logic         subtractive_axi_wready,
+
+    input  logic [9:0]  subtractive_axi_bid,
+    input  logic [1:0]  subtractive_axi_bresp,
+    input  logic         subtractive_axi_buser,
+    input  logic         subtractive_axi_bvalid,
+    output  logic         subtractive_axi_bready,
+
+    output  logic [9:0]  subtractive_axi_arid,
+    output  logic [31:0]  subtractive_axi_araddr,
+    output  logic [7:0]  subtractive_axi_arlen,
+    output  logic [2:0]  subtractive_axi_arsize,
+    output  logic [1:0]  subtractive_axi_arburst,
+    output  logic         subtractive_axi_arlock,
+    output  logic [3:0]  subtractive_axi_arcache,
+    output  logic [2:0]  subtractive_axi_arprot,
+    output  logic [3:0]  subtractive_axi_arqos,
+    output  logic [3:0]  subtractive_axi_arregion,
+    output  logic         subtractive_axi_aruser,
+    output  logic         subtractive_axi_arvalid,
+    input  logic         subtractive_axi_arready,
+
+    input  logic [9:0]  subtractive_axi_rid,
+    input  logic [255:0]  subtractive_axi_rdata,
+    input  logic [1:0]  subtractive_axi_rresp,
+    input  logic         subtractive_axi_rlast,
+    input  logic         subtractive_axi_ruser,
+    input  logic         subtractive_axi_rvalid,
+    output  logic         subtractive_axi_rready
 );
 
     // ================================================================
@@ -462,8 +530,12 @@ module bridge_stream_char_axil_xbar
     logic host_64b_w_sel_debug_sram;
     logic host_256b_w_to_desc_ram;
     logic host_256b_w_sel_desc_ram;
+    logic host_256b_w_to_subtractive;
+    logic host_256b_w_sel_subtractive;
     logic monbus_wr_64b_w_to_debug_sram;
     logic monbus_wr_64b_w_sel_debug_sram;
+    logic monbus_wr_256b_w_to_subtractive;
+    logic monbus_wr_256b_w_sel_subtractive;
 
     // ================================================================
     // Slave 0: stream_apb (32b)
@@ -1013,6 +1085,173 @@ module bridge_stream_char_axil_xbar
 
 
     // ================================================================
+    // Slave 6: subtractive (256b)
+    // ================================================================
+    // Multi-master (3 masters) → subtractive
+    //   - host (rw)
+    //   - stream_desc (rd)
+    //   - monbus_wr (wr)
+
+    wire host_256b_aw_to_subtractive = !(((host_256b_aw.addr <= 32'h00001fff)) || (((host_256b_aw.addr >= 32'h00010000) && (host_256b_aw.addr <= 32'h00010fff))) || (((host_256b_aw.addr >= 32'h00020000) && (host_256b_aw.addr <= 32'h0002ffff))) || (((host_256b_aw.addr >= 32'h00030000) && (host_256b_aw.addr <= 32'h00030fff))) || (((host_256b_aw.addr >= 32'h00040000) && (host_256b_aw.addr <= 32'h0007ffff))) || (((host_256b_aw.addr >= 32'h00080000) && (host_256b_aw.addr <= 32'h00080fff))));
+    wire host_256b_ar_to_subtractive = !(((host_256b_ar.addr <= 32'h00001fff)) || (((host_256b_ar.addr >= 32'h00010000) && (host_256b_ar.addr <= 32'h00010fff))) || (((host_256b_ar.addr >= 32'h00020000) && (host_256b_ar.addr <= 32'h0002ffff))) || (((host_256b_ar.addr >= 32'h00030000) && (host_256b_ar.addr <= 32'h00030fff))) || (((host_256b_ar.addr >= 32'h00040000) && (host_256b_ar.addr <= 32'h0007ffff))) || (((host_256b_ar.addr >= 32'h00080000) && (host_256b_ar.addr <= 32'h00080fff))));
+    wire stream_desc_256b_ar_to_subtractive = !((((stream_desc_256b_ar.addr >= 32'h00020000) && (stream_desc_256b_ar.addr <= 32'h0002ffff))));
+    wire monbus_wr_256b_aw_to_subtractive = !((((monbus_wr_256b_aw.addr >= 32'h00040000) && (monbus_wr_256b_aw.addr <= 32'h0007ffff))));
+
+    // ---- AW arbiter for subtractive: round-robin, lock until handshake ----
+    logic [1:0] subtractive_aw_arb_req;
+    assign subtractive_aw_arb_req = {monbus_wr_256b_aw_to_subtractive && monbus_wr_256b_awvalid, host_256b_aw_to_subtractive && host_256b_awvalid};
+    logic [0:0] subtractive_aw_arb_lock, subtractive_aw_arb_rr;
+    logic subtractive_aw_arb_locked;
+    wire [0:0] subtractive_aw_arb_pick = (subtractive_aw_arb_rr == 1'd0) ? (subtractive_aw_arb_req[0] ? 1'd0 : 1'd1) : 
+        subtractive_aw_arb_req[1] ? 1'd1 : 1'd0;
+    wire subtractive_aw_arb_gnt_valid = subtractive_aw_arb_locked || (|subtractive_aw_arb_req);
+    wire [0:0] subtractive_aw_arb_gnt = subtractive_aw_arb_locked ? subtractive_aw_arb_lock : subtractive_aw_arb_pick;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            subtractive_aw_arb_lock   <= '0;
+            subtractive_aw_arb_rr     <= '0;
+            subtractive_aw_arb_locked <= 1'b0;
+        end else begin
+            if (subtractive_axi_awvalid && subtractive_axi_awready) begin
+                subtractive_aw_arb_locked <= 1'b0;
+                subtractive_aw_arb_rr <= (subtractive_aw_arb_gnt == 1'd1) ? 1'd0 : subtractive_aw_arb_gnt + 1'b1;
+            end else if (subtractive_axi_awvalid) begin
+                subtractive_aw_arb_lock   <= subtractive_aw_arb_gnt;
+                subtractive_aw_arb_locked <= 1'b1;
+            end
+        end
+    )
+    wire host_256b_aw_gnt_subtractive = subtractive_aw_arb_gnt_valid && (subtractive_aw_arb_gnt == 1'd0) && subtractive_aw_arb_req[0];
+    wire monbus_wr_256b_aw_gnt_subtractive = subtractive_aw_arb_gnt_valid && (subtractive_aw_arb_gnt == 1'd1) && subtractive_aw_arb_req[1];
+
+    // AW channel (arbitrated mux across writing masters)
+    assign subtractive_axi_awid = (host_256b_aw_gnt_subtractive ? host_256b_aw.id : '0) |
+        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw.id : '0);
+    assign subtractive_axi_awaddr = (host_256b_aw_gnt_subtractive ? host_256b_aw.addr : '0) |
+        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw.addr : '0);
+    assign subtractive_axi_awlen = (host_256b_aw_gnt_subtractive ? host_256b_aw.len : '0) |
+        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw.len : '0);
+    assign subtractive_axi_awsize = (host_256b_aw_gnt_subtractive ? host_256b_aw.size : '0) |
+        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw.size : '0);
+    assign subtractive_axi_awburst = (host_256b_aw_gnt_subtractive ? host_256b_aw.burst : '0) |
+        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw.burst : '0);
+    assign subtractive_axi_awlock = (host_256b_aw_gnt_subtractive ? host_256b_aw.lock : '0) |
+        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw.lock : '0);
+    assign subtractive_axi_awcache = (host_256b_aw_gnt_subtractive ? host_256b_aw.cache : '0) |
+        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw.cache : '0);
+    assign subtractive_axi_awprot = (host_256b_aw_gnt_subtractive ? host_256b_aw.prot : '0) |
+        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw.prot : '0);
+    assign subtractive_axi_awqos = (host_256b_aw_gnt_subtractive ? host_256b_aw.qos : '0) |
+        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw.qos : '0);
+    assign subtractive_axi_awregion = (host_256b_aw_gnt_subtractive ? host_256b_aw.region : '0) |
+        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw.region : '0);
+    assign subtractive_axi_awuser = (host_256b_aw_gnt_subtractive ? host_256b_aw.user : '0) |
+        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_256b_aw.user : '0);
+    assign subtractive_axi_awvalid = host_256b_aw_gnt_subtractive || monbus_wr_256b_aw_gnt_subtractive;
+
+    // W owner FIFO: slave-side AW accept order owns the W channel
+    logic [0:0] subtractive_wowner_mem [16];
+    logic [4:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            subtractive_wowner_wptr <= '0;
+            subtractive_wowner_rptr <= '0;
+        end else begin
+            if (subtractive_axi_awvalid && subtractive_axi_awready) begin
+                subtractive_wowner_mem[subtractive_wowner_wptr[3:0]] <= subtractive_aw_arb_gnt;
+                subtractive_wowner_wptr <= subtractive_wowner_wptr + 1'b1;
+            end
+            if (subtractive_axi_wvalid && subtractive_axi_wready && subtractive_axi_wlast) begin
+                subtractive_wowner_rptr <= subtractive_wowner_rptr + 1'b1;
+            end
+        end
+    )
+    wire subtractive_wowner_valid = (subtractive_wowner_wptr != subtractive_wowner_rptr);
+    wire [0:0] subtractive_wowner_head = subtractive_wowner_mem[subtractive_wowner_rptr[3:0]];
+    assign host_256b_w_sel_subtractive = subtractive_wowner_valid && (subtractive_wowner_head == 1'd0) && host_256b_w_to_subtractive;
+    assign monbus_wr_256b_w_sel_subtractive = subtractive_wowner_valid && (subtractive_wowner_head == 1'd1) && monbus_wr_256b_w_to_subtractive;
+
+    // W channel (owner-gated mux across writing masters)
+    assign subtractive_axi_wdata = ((host_256b_w_sel_subtractive && host_256b_wvalid) ? host_256b_w.data : '0) |
+        ((monbus_wr_256b_w_sel_subtractive && monbus_wr_256b_wvalid) ? monbus_wr_256b_w.data : '0);
+    assign subtractive_axi_wstrb = ((host_256b_w_sel_subtractive && host_256b_wvalid) ? host_256b_w.strb : '0) |
+        ((monbus_wr_256b_w_sel_subtractive && monbus_wr_256b_wvalid) ? monbus_wr_256b_w.strb : '0);
+    assign subtractive_axi_wlast = ((host_256b_w_sel_subtractive && host_256b_wvalid) ? host_256b_w.last : '0) |
+        ((monbus_wr_256b_w_sel_subtractive && monbus_wr_256b_wvalid) ? monbus_wr_256b_w.last : '0);
+    assign subtractive_axi_wuser = ((host_256b_w_sel_subtractive && host_256b_wvalid) ? host_256b_w.user : '0) |
+        ((monbus_wr_256b_w_sel_subtractive && monbus_wr_256b_wvalid) ? monbus_wr_256b_w.user : '0);
+    assign subtractive_axi_wvalid = (host_256b_w_sel_subtractive && host_256b_wvalid) || (monbus_wr_256b_w_sel_subtractive && monbus_wr_256b_wvalid);
+
+    // Bready (slave → owning master, by bid_bridge_id)
+    assign subtractive_axi_bready = ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? host_256b_bready : '0) |
+        ((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid ? monbus_wr_256b_bready : '0);
+
+    // Bridge ID (writes) — the granted master's id
+    assign subtractive_axi_bridge_id_aw = (host_256b_aw_gnt_subtractive ? host_bridge_id_aw : '0) |
+        (monbus_wr_256b_aw_gnt_subtractive ? monbus_wr_bridge_id_aw : '0);
+
+    // ---- AR arbiter for subtractive: round-robin, lock until handshake ----
+    logic [1:0] subtractive_ar_arb_req;
+    assign subtractive_ar_arb_req = {stream_desc_256b_ar_to_subtractive && stream_desc_256b_arvalid, host_256b_ar_to_subtractive && host_256b_arvalid};
+    logic [0:0] subtractive_ar_arb_lock, subtractive_ar_arb_rr;
+    logic subtractive_ar_arb_locked;
+    wire [0:0] subtractive_ar_arb_pick = (subtractive_ar_arb_rr == 1'd0) ? (subtractive_ar_arb_req[0] ? 1'd0 : 1'd1) : 
+        subtractive_ar_arb_req[1] ? 1'd1 : 1'd0;
+    wire subtractive_ar_arb_gnt_valid = subtractive_ar_arb_locked || (|subtractive_ar_arb_req);
+    wire [0:0] subtractive_ar_arb_gnt = subtractive_ar_arb_locked ? subtractive_ar_arb_lock : subtractive_ar_arb_pick;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            subtractive_ar_arb_lock   <= '0;
+            subtractive_ar_arb_rr     <= '0;
+            subtractive_ar_arb_locked <= 1'b0;
+        end else begin
+            if (subtractive_axi_arvalid && subtractive_axi_arready) begin
+                subtractive_ar_arb_locked <= 1'b0;
+                subtractive_ar_arb_rr <= (subtractive_ar_arb_gnt == 1'd1) ? 1'd0 : subtractive_ar_arb_gnt + 1'b1;
+            end else if (subtractive_axi_arvalid) begin
+                subtractive_ar_arb_lock   <= subtractive_ar_arb_gnt;
+                subtractive_ar_arb_locked <= 1'b1;
+            end
+        end
+    )
+    wire host_256b_ar_gnt_subtractive = subtractive_ar_arb_gnt_valid && (subtractive_ar_arb_gnt == 1'd0) && subtractive_ar_arb_req[0];
+    wire stream_desc_256b_ar_gnt_subtractive = subtractive_ar_arb_gnt_valid && (subtractive_ar_arb_gnt == 1'd1) && subtractive_ar_arb_req[1];
+
+    // AR channel (arbitrated mux across reading masters)
+    assign subtractive_axi_arid = (host_256b_ar_gnt_subtractive ? host_256b_ar.id : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar.id : '0);
+    assign subtractive_axi_araddr = (host_256b_ar_gnt_subtractive ? host_256b_ar.addr : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar.addr : '0);
+    assign subtractive_axi_arlen = (host_256b_ar_gnt_subtractive ? host_256b_ar.len : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar.len : '0);
+    assign subtractive_axi_arsize = (host_256b_ar_gnt_subtractive ? host_256b_ar.size : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar.size : '0);
+    assign subtractive_axi_arburst = (host_256b_ar_gnt_subtractive ? host_256b_ar.burst : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar.burst : '0);
+    assign subtractive_axi_arlock = (host_256b_ar_gnt_subtractive ? host_256b_ar.lock : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar.lock : '0);
+    assign subtractive_axi_arcache = (host_256b_ar_gnt_subtractive ? host_256b_ar.cache : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar.cache : '0);
+    assign subtractive_axi_arprot = (host_256b_ar_gnt_subtractive ? host_256b_ar.prot : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar.prot : '0);
+    assign subtractive_axi_arqos = (host_256b_ar_gnt_subtractive ? host_256b_ar.qos : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar.qos : '0);
+    assign subtractive_axi_arregion = (host_256b_ar_gnt_subtractive ? host_256b_ar.region : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar.region : '0);
+    assign subtractive_axi_aruser = (host_256b_ar_gnt_subtractive ? host_256b_ar.user : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_256b_ar.user : '0);
+    assign subtractive_axi_arvalid = host_256b_ar_gnt_subtractive || stream_desc_256b_ar_gnt_subtractive;
+
+    // Rready (slave → owning master, by rid_bridge_id)
+    assign subtractive_axi_rready = ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? host_256b_rready : '0) |
+        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? stream_desc_256b_rready : '0);
+
+    // Bridge ID (reads) — the granted master's id
+    assign subtractive_axi_bridge_id_ar = (host_256b_ar_gnt_subtractive ? host_bridge_id_ar : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? stream_desc_bridge_id_ar : '0);
+
+
+    // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
     // host 32b path -> stream_apb, harness_csr, stream_err, dma_axil
@@ -1066,10 +1305,10 @@ module bridge_stream_char_axil_xbar
     wire [0:0] host_64b_wdest_head = host_64b_wdest_mem[host_64b_wdest_rptr[3:0]];
     assign host_64b_w_to_debug_sram = host_64b_wdest_valid && (host_64b_wdest_head == 1'd0);
 
-    // host 256b path -> desc_ram
+    // host 256b path -> desc_ram, subtractive
     logic [0:0] host_256b_wdest_mem [16];
     logic [4:0] host_256b_wdest_wptr, host_256b_wdest_rptr;
-    wire [0:0] host_256b_wdest_enc = 1'd0;
+    wire [0:0] host_256b_wdest_enc = host_256b_aw_to_subtractive ? 1'd1 : 1'd0;
     wire host_256b_wdest_push = host_256b_awvalid && host_256b_awready;
     wire host_256b_wdest_pop  = host_256b_wvalid && host_256b_wready && host_256b_w.last;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -1089,6 +1328,7 @@ module bridge_stream_char_axil_xbar
     wire host_256b_wdest_valid = (host_256b_wdest_wptr != host_256b_wdest_rptr);
     wire [0:0] host_256b_wdest_head = host_256b_wdest_mem[host_256b_wdest_rptr[3:0]];
     assign host_256b_w_to_desc_ram = host_256b_wdest_valid && (host_256b_wdest_head == 1'd0);
+    assign host_256b_w_to_subtractive = host_256b_wdest_valid && (host_256b_wdest_head == 1'd1);
 
     // monbus_wr 64b path -> debug_sram
     logic [0:0] monbus_wr_64b_wdest_mem [16];
@@ -1113,6 +1353,30 @@ module bridge_stream_char_axil_xbar
     wire monbus_wr_64b_wdest_valid = (monbus_wr_64b_wdest_wptr != monbus_wr_64b_wdest_rptr);
     wire [0:0] monbus_wr_64b_wdest_head = monbus_wr_64b_wdest_mem[monbus_wr_64b_wdest_rptr[3:0]];
     assign monbus_wr_64b_w_to_debug_sram = monbus_wr_64b_wdest_valid && (monbus_wr_64b_wdest_head == 1'd0);
+
+    // monbus_wr 256b path -> subtractive
+    logic [0:0] monbus_wr_256b_wdest_mem [16];
+    logic [4:0] monbus_wr_256b_wdest_wptr, monbus_wr_256b_wdest_rptr;
+    wire [0:0] monbus_wr_256b_wdest_enc = 1'd0;
+    wire monbus_wr_256b_wdest_push = monbus_wr_256b_awvalid && monbus_wr_256b_awready;
+    wire monbus_wr_256b_wdest_pop  = monbus_wr_256b_wvalid && monbus_wr_256b_wready && monbus_wr_256b_w.last;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            monbus_wr_256b_wdest_wptr <= '0;
+            monbus_wr_256b_wdest_rptr <= '0;
+        end else begin
+            if (monbus_wr_256b_wdest_push) begin
+                monbus_wr_256b_wdest_mem[monbus_wr_256b_wdest_wptr[3:0]] <= monbus_wr_256b_wdest_enc;
+                monbus_wr_256b_wdest_wptr <= monbus_wr_256b_wdest_wptr + 1'b1;
+            end
+            if (monbus_wr_256b_wdest_pop) begin
+                monbus_wr_256b_wdest_rptr <= monbus_wr_256b_wdest_rptr + 1'b1;
+            end
+        end
+    )
+    wire monbus_wr_256b_wdest_valid = (monbus_wr_256b_wdest_wptr != monbus_wr_256b_wdest_rptr);
+    wire [0:0] monbus_wr_256b_wdest_head = monbus_wr_256b_wdest_mem[monbus_wr_256b_wdest_rptr[3:0]];
+    assign monbus_wr_256b_w_to_subtractive = monbus_wr_256b_wdest_valid && (monbus_wr_256b_wdest_head == 1'd0);
 
     // ================================================================
     // Response MUXes (OR together all slave responses)
@@ -1197,6 +1461,18 @@ module bridge_stream_char_axil_xbar
         ((stream_err_axi_rid_bridge_id == 0) && stream_err_axi_rid_valid ? stream_err_axi_rvalid : '0) |
         ((dma_axil_axi_rid_bridge_id == 0) && dma_axil_axi_rid_valid ? dma_axil_axi_rvalid : '0);
 
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((stream_apb_axi_rid_bridge_id == 0) && stream_apb_axi_rid_valid), ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid), ((stream_err_axi_rid_bridge_id == 0) && stream_err_axi_rid_valid), ((dma_axil_axi_rid_bridge_id == 0) && dma_axil_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master host (32b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((stream_apb_axi_rid_bridge_id == 0) && stream_apb_axi_rid_valid), ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid), ((stream_err_axi_rid_bridge_id == 0) && stream_err_axi_rid_valid), ((dma_axil_axi_rid_bridge_id == 0) && dma_axil_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
+
 
     // Master: host, Width path: 64b
     assign host_64b_awready = 
@@ -1238,69 +1514,125 @@ module bridge_stream_char_axil_xbar
     assign host_64b_rvalid = 
         ((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid ? debug_sram_axi_rvalid : '0);
 
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master host (64b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
+
 
     // Master: host, Width path: 256b
     assign host_256b_awready = 
-        (host_256b_aw_gnt_desc_ram ? desc_ram_axi_awready : '0);
+        (host_256b_aw_gnt_desc_ram ? desc_ram_axi_awready : '0) |
+        (host_256b_aw_gnt_subtractive ? subtractive_axi_awready : '0);
 
     assign host_256b_wready = 
-        (host_256b_w_sel_desc_ram ? desc_ram_axi_wready : '0);
+        (host_256b_w_sel_desc_ram ? desc_ram_axi_wready : '0) |
+        (host_256b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign host_256b_b.id = 
-        ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_bid : '0);
+        ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_bid : '0) |
+        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
 
     assign host_256b_b.resp = 
-        ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_bresp : '0);
+        ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_bresp : '0) |
+        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
 
     assign host_256b_b.user = 
-        ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_buser : '0);
+        ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_buser : '0) |
+        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
 
     assign host_256b_bvalid = 
-        ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_bvalid : '0);
+        ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_bvalid : '0) |
+        ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
 
     assign host_256b_arready = 
-        (host_256b_ar_gnt_desc_ram ? desc_ram_axi_arready : '0);
+        (host_256b_ar_gnt_desc_ram ? desc_ram_axi_arready : '0) |
+        (host_256b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign host_256b_r.id = 
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rid : '0);
+        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rid : '0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
 
     assign host_256b_r.data = 
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rdata : 256'b0);
+        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rdata : 256'b0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 256'b0);
 
     assign host_256b_r.resp = 
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rresp : '0);
+        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rresp : '0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
 
     assign host_256b_r.last = 
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rlast : '0);
+        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rlast : '0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
 
     assign host_256b_r.user = 
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_ruser : '0);
+        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_ruser : '0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
 
     assign host_256b_rvalid = 
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rvalid : '0);
+        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rvalid : '0) |
+        ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
+
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master host (256b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
 
 
     // Master: stream_desc, Width path: 256b
     assign stream_desc_256b_arready = 
-        (stream_desc_256b_ar_gnt_desc_ram ? desc_ram_axi_arready : '0);
+        (stream_desc_256b_ar_gnt_desc_ram ? desc_ram_axi_arready : '0) |
+        (stream_desc_256b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign stream_desc_256b_r.id = 
-        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rid : '0);
+        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rid : '0) |
+        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rid : '0);
 
     assign stream_desc_256b_r.data = 
-        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rdata : 256'b0);
+        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rdata : 256'b0) |
+        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rdata : 256'b0);
 
     assign stream_desc_256b_r.resp = 
-        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rresp : '0);
+        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rresp : '0) |
+        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rresp : '0);
 
     assign stream_desc_256b_r.last = 
-        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rlast : '0);
+        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rlast : '0) |
+        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rlast : '0);
 
     assign stream_desc_256b_r.user = 
-        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_ruser : '0);
+        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_ruser : '0) |
+        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_ruser : '0);
 
     assign stream_desc_256b_rvalid = 
-        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rvalid : '0);
+        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rvalid : '0) |
+        ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
+
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master stream_desc (256b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
 
 
     // Master: monbus_wr, Width path: 64b
@@ -1321,6 +1653,26 @@ module bridge_stream_char_axil_xbar
 
     assign monbus_wr_64b_bvalid = 
         ((debug_sram_axi_bid_bridge_id == 2) && debug_sram_axi_bid_valid ? debug_sram_axi_bvalid : '0);
+
+
+    // Master: monbus_wr, Width path: 256b
+    assign monbus_wr_256b_awready = 
+        (monbus_wr_256b_aw_gnt_subtractive ? subtractive_axi_awready : '0);
+
+    assign monbus_wr_256b_wready = 
+        (monbus_wr_256b_w_sel_subtractive ? subtractive_axi_wready : '0);
+
+    assign monbus_wr_256b_b.id = 
+        ((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid ? subtractive_axi_bid : '0);
+
+    assign monbus_wr_256b_b.resp = 
+        ((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid ? subtractive_axi_bresp : '0);
+
+    assign monbus_wr_256b_b.user = 
+        ((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid ? subtractive_axi_buser : '0);
+
+    assign monbus_wr_256b_bvalid = 
+        ((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid ? subtractive_axi_bvalid : '0);
 
 
 endmodule : bridge_stream_char_axil_xbar

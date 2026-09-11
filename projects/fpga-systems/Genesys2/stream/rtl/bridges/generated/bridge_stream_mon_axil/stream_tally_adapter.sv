@@ -12,13 +12,13 @@
 module stream_tally_adapter
     import bridge_stream_mon_axil_pkg::*;
 #(
-    parameter int ID_WIDTH = 8
+    parameter int ID_WIDTH = 10
 ) (
     input  logic aclk,
     input  logic aresetn,
 
     // Crossbar interface (AXI4 from crossbar)
-    input  logic [7:0]  xbar_stream_tally_axi_awid,
+    input  logic [9:0]  xbar_stream_tally_axi_awid,
     input  logic [31:0]  xbar_stream_tally_axi_awaddr,
     input  logic [7:0]  xbar_stream_tally_axi_awlen,
     input  logic [2:0]  xbar_stream_tally_axi_awsize,
@@ -37,12 +37,12 @@ module stream_tally_adapter
     input  logic         xbar_stream_tally_axi_wuser,
     input  logic         xbar_stream_tally_axi_wvalid,
     output  logic         xbar_stream_tally_axi_wready,
-    output  logic [7:0]  xbar_stream_tally_axi_bid,
+    output  logic [9:0]  xbar_stream_tally_axi_bid,
     output  logic [1:0]  xbar_stream_tally_axi_bresp,
     output  logic         xbar_stream_tally_axi_buser,
     output  logic         xbar_stream_tally_axi_bvalid,
     input  logic         xbar_stream_tally_axi_bready,
-    input  logic [7:0]  xbar_stream_tally_axi_arid,
+    input  logic [9:0]  xbar_stream_tally_axi_arid,
     input  logic [31:0]  xbar_stream_tally_axi_araddr,
     input  logic [7:0]  xbar_stream_tally_axi_arlen,
     input  logic [2:0]  xbar_stream_tally_axi_arsize,
@@ -55,7 +55,7 @@ module stream_tally_adapter
     input  logic         xbar_stream_tally_axi_aruser,
     input  logic         xbar_stream_tally_axi_arvalid,
     output  logic         xbar_stream_tally_axi_arready,
-    output  logic [7:0]  xbar_stream_tally_axi_rid,
+    output  logic [9:0]  xbar_stream_tally_axi_rid,
     output  logic [63:0]  xbar_stream_tally_axi_rdata,
     output  logic [1:0]  xbar_stream_tally_axi_rresp,
     output  logic         xbar_stream_tally_axi_rlast,
@@ -188,7 +188,7 @@ module stream_tally_adapter
     // bridge needs, and it must cost no gates.
 `ifndef SYNTHESIS
     // synthesis translate_off
-    logic [8-1:0] wr_id_fifo [WR_FIFO_DEPTH];
+    logic [10-1:0] wr_id_fifo [WR_FIFO_DEPTH];
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
         end else begin
@@ -196,11 +196,11 @@ module stream_tally_adapter
                 wr_id_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= xbar_stream_tally_axi_awid;
             if (xbar_stream_tally_axi_bvalid && xbar_stream_tally_axi_bready) begin
                 if (xbar_stream_tally_axi_bid !== wr_id_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]]) begin
-                    $error("BRIDGE-010: slave returned B out of AW order -- ",
-                           "got BID=%0h, expected %0h. This bridge routes ",
-                           "responses by FIFO position and does not support ",
-                           "ID-based reordering; the response has gone to the ",
-                           "wrong master.", xbar_stream_tally_axi_bid,
+                    $error({"BRIDGE-010: slave returned B out of AW order -- ",
+                            "got BID=%0h, expected %0h. This bridge routes ",
+                            "responses by FIFO position and does not support ",
+                            "ID-based reordering; the response has gone to the ",
+                            "wrong master."}, xbar_stream_tally_axi_bid,
                            wr_id_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]]);
                 end
             end
@@ -257,7 +257,7 @@ module stream_tally_adapter
     // LAST beat, since that is when the FIFO entry is retired.
 `ifndef SYNTHESIS
     // synthesis translate_off
-    logic [8-1:0] rd_id_fifo [RD_FIFO_DEPTH];
+    logic [10-1:0] rd_id_fifo [RD_FIFO_DEPTH];
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
         end else begin
@@ -265,11 +265,11 @@ module stream_tally_adapter
                 rd_id_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= xbar_stream_tally_axi_arid;
             if (xbar_stream_tally_axi_rvalid && xbar_stream_tally_axi_rready && xbar_stream_tally_axi_rlast) begin
                 if (xbar_stream_tally_axi_rid !== rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]) begin
-                    $error("BRIDGE-010: slave returned R out of AR order -- ",
-                           "got RID=%0h, expected %0h. This bridge routes ",
-                           "responses by FIFO position and does not support ",
-                           "ID-based reordering; the data has gone to the ",
-                           "wrong master.", xbar_stream_tally_axi_rid,
+                    $error({"BRIDGE-010: slave returned R out of AR order -- ",
+                            "got RID=%0h, expected %0h. This bridge routes ",
+                            "responses by FIFO position and does not support ",
+                            "ID-based reordering; the data has gone to the ",
+                            "wrong master."}, xbar_stream_tally_axi_rid,
                            rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]);
                 end
             end
@@ -280,7 +280,7 @@ module stream_tally_adapter
 
     // AXI4-to-AXI4-Lite converter shim
     axi4_to_axil4_wr #(
-        .AXI_ID_WIDTH(8),
+        .AXI_ID_WIDTH(10),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(64),
         .AXI_USER_WIDTH(1)
@@ -330,7 +330,7 @@ module stream_tally_adapter
     );
 
     axi4_to_axil4_rd #(
-        .AXI_ID_WIDTH(8),
+        .AXI_ID_WIDTH(10),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(64),
         .AXI_USER_WIDTH(1)

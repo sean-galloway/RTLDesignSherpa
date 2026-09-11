@@ -12,13 +12,13 @@
 module pumice_wr_adapter
     import bridge_ddr2_char_wr_pkg::*;
 #(
-    parameter int ID_WIDTH = 8
+    parameter int ID_WIDTH = 9
 ) (
     input  logic aclk,
     input  logic aresetn,
 
     // Crossbar interface (AXI4 from crossbar)
-    input  logic [7:0]  xbar_pumice_wr_axi_awid,
+    input  logic [8:0]  xbar_pumice_wr_axi_awid,
     input  logic [31:0]  xbar_pumice_wr_axi_awaddr,
     input  logic [7:0]  xbar_pumice_wr_axi_awlen,
     input  logic [2:0]  xbar_pumice_wr_axi_awsize,
@@ -37,7 +37,7 @@ module pumice_wr_adapter
     input  logic         xbar_pumice_wr_axi_wuser,
     input  logic         xbar_pumice_wr_axi_wvalid,
     output  logic         xbar_pumice_wr_axi_wready,
-    output  logic [7:0]  xbar_pumice_wr_axi_bid,
+    output  logic [8:0]  xbar_pumice_wr_axi_bid,
     output  logic [1:0]  xbar_pumice_wr_axi_bresp,
     output  logic         xbar_pumice_wr_axi_buser,
     output  logic         xbar_pumice_wr_axi_bvalid,
@@ -49,7 +49,7 @@ module pumice_wr_adapter
     output logic                       bid_valid,
 
     // External slave interface (AXI4)
-    output  logic [7:0]  pumice_wr_axi_awid,
+    output  logic [8:0]  pumice_wr_axi_awid,
     output  logic [31:0]  pumice_wr_axi_awaddr,
     output  logic [7:0]  pumice_wr_axi_awlen,
     output  logic [2:0]  pumice_wr_axi_awsize,
@@ -68,7 +68,7 @@ module pumice_wr_adapter
     output  logic         pumice_wr_axi_wuser,
     output  logic         pumice_wr_axi_wvalid,
     input  logic         pumice_wr_axi_wready,
-    input  logic [7:0]  pumice_wr_axi_bid,
+    input  logic [8:0]  pumice_wr_axi_bid,
     input  logic [1:0]  pumice_wr_axi_bresp,
     input  logic         pumice_wr_axi_buser,
     input  logic         pumice_wr_axi_bvalid,
@@ -79,7 +79,7 @@ module pumice_wr_adapter
     // Internal Signals
     // ================================================================
 
-    // FIFO tracking signals (in-order mode)
+    // CAM tracking signals (by-ID mode: enable_ooo or a multi-master fabric)
     logic cam_wr_allocate;
     logic cam_wr_deallocate;
     logic [ID_WIDTH-1:0] cam_wr_allocate_tag;
@@ -87,94 +87,52 @@ module pumice_wr_adapter
     logic [ID_WIDTH-1:0] cam_wr_deallocate_tag;
 
     // ================================================================
-    // Bridge ID Tracking - FIFO Mode (In-Order)
+    // Bridge ID Tracking - CAM Mode (Out-of-Order)
     // ================================================================
 
-    // Write Channel FIFO (In-Order) - AXI4 Protocol
-    // BRIDGE-011 not-full gating: w_sub_awready is the sub-block's
-    // own ready, masked before it reaches the crossbar.
+    // Write Channel CAM
+    // BRIDGE-011 not-full gating, CAM form: the CAM's own tags_full masks
+    // the sub-block's ready before it reaches the crossbar. (These two nets
+    // are what the wrapper override below binds; the FIFO path declares
+    // its own. Missing here since c64660f47 -- BRIDGE-015.)
     logic wr_trk_full;
     logic w_sub_awready;
-    localparam WR_FIFO_DEPTH = 16;
-    logic [BRIDGE_ID_WIDTH-1:0] wr_fifo [WR_FIFO_DEPTH];
-    logic [$clog2(WR_FIFO_DEPTH):0] wr_ptr, rd_ptr;
-
-    // Push on AW (crossbar → adapter)
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            wr_ptr <= '0;
-        end else if (xbar_pumice_wr_axi_awvalid && xbar_pumice_wr_axi_awready) begin
-            wr_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= xbar_bridge_id_aw;
-            wr_ptr <= wr_ptr + 1'b1;
-        end
-    )
-
-    // Pop on B response (xbar_pumice_wr_axi_bvalid && xbar_pumice_wr_axi_bready)
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            rd_ptr <= '0;
-        end else if (xbar_pumice_wr_axi_bvalid && xbar_pumice_wr_axi_bready) begin
-            rd_ptr <= rd_ptr + 1'b1;
-        end
-    )
-
-    // bid_bridge_id / bid_valid drive the crossbar's response mux,
-    // which gates B going BACK to the master on bid_valid. Earlier
-    // versions registered these on the handshake completing — but
-    // the handshake CAN'T complete until the master sees bvalid,
-    // and the master can't see bvalid until bid_valid is high.
-    // Result: deadlock. Drive these combinationally so the route
-    // is open from the moment a B arrives.
-    assign bid_bridge_id = wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];
-    assign bid_valid     = (wr_ptr != rd_ptr);
-
-    // BRIDGE-011: this FIFO routes B by POSITION, so overrunning it
-    // misroutes responses -- past WR_FIFO_DEPTH a live entry is
-    // overwritten and its B goes to the wrong master; at twice the
-    // depth the pointers lap, (wr_ptr != rd_ptr) reads EMPTY and the
-    // response is never routed at all. Gate the AW handshake on
-    // not-full in BOTH directions. Draining never depends on
-    // accepting a further AW, so this cannot deadlock.
-    assign wr_trk_full = (wr_ptr[$clog2(WR_FIFO_DEPTH)] != rd_ptr[$clog2(WR_FIFO_DEPTH)]) &&
-                         (wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0] == rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]);
     assign xbar_pumice_wr_axi_awready = w_sub_awready && !wr_trk_full;
+    bridge_cam #(
+        .TAG_WIDTH(ID_WIDTH),
+        .DATA_WIDTH(BRIDGE_ID_WIDTH),
+        .DEPTH(16),
+        .ALLOW_DUPLICATES(1),  // Mode 2: OOO support
+        .PIPELINE_EVICT(0)
+    ) u_wr_cam (
+        .clk(aclk),
+        .rst_n(aresetn),
 
-    // BRIDGE-010: this port routes B by FIFO POSITION, so it REQUIRES
-    // the slave to return B in AW order across all IDs. AXI4 permits a
-    // slave to reorder between IDs; such a slave silently misroutes
-    // here. Nothing detected that, so record the AWID alongside the
-    // master id and check the returned BID against the head. Sim-only:
-    // it is a contract check on the attached slave, not logic the
-    // bridge needs, and it must cost no gates.
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    logic [8-1:0] wr_id_fifo [WR_FIFO_DEPTH];
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-        end else begin
-            if (xbar_pumice_wr_axi_awvalid && xbar_pumice_wr_axi_awready)
-                wr_id_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= xbar_pumice_wr_axi_awid;
-            if (xbar_pumice_wr_axi_bvalid && xbar_pumice_wr_axi_bready) begin
-                if (xbar_pumice_wr_axi_bid !== wr_id_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]]) begin
-                    $error("BRIDGE-010: slave returned B out of AW order -- ",
-                           "got BID=%0h, expected %0h. This bridge routes ",
-                           "responses by FIFO position and does not support ",
-                           "ID-based reordering; the response has gone to the ",
-                           "wrong master.", xbar_pumice_wr_axi_bid,
-                           wr_id_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]]);
-                end
-            end
-        end
-    )
-    // synthesis translate_on
-`endif
+        // Allocate on AW (from crossbar)
+        .allocate(xbar_pumice_wr_axi_awvalid && xbar_pumice_wr_axi_awready),
+        .allocate_tag(xbar_pumice_wr_axi_awid),
+        .allocate_data(xbar_bridge_id_aw),
+
+        // Deallocate on B (from converter)
+        .deallocate(xbar_pumice_wr_axi_bvalid && xbar_pumice_wr_axi_bready),
+        .deallocate_tag(xbar_pumice_wr_axi_bid),
+        .deallocate_valid(bid_valid),
+        .deallocate_data(bid_bridge_id),
+        .deallocate_count(),
+
+        // Status
+        .cam_hit(),
+        .tags_empty(),
+        .tags_full(wr_trk_full),
+        .tags_count()
+    );
 
     // AXI4 Master Write Timing Wrapper
     axi4_master_wr #(
         .SKID_DEPTH_AW(2),
         .SKID_DEPTH_W(4),
         .SKID_DEPTH_B(2),
-        .AXI_ID_WIDTH(8),
+        .AXI_ID_WIDTH(9),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(64),
         .AXI_USER_WIDTH(1)

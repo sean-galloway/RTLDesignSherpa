@@ -194,7 +194,7 @@ module bridge_stream_mon_axil_mon
 
     // Slave 4: desc_ram
     // AXI4 Slave: desc_ram
-    output  logic [7:0]  desc_ram_axi_awid,
+    output  logic [9:0]  desc_ram_axi_awid,
     output  logic [31:0]  desc_ram_axi_awaddr,
     output  logic [7:0]  desc_ram_axi_awlen,
     output  logic [2:0]  desc_ram_axi_awsize,
@@ -215,13 +215,13 @@ module bridge_stream_mon_axil_mon
     output  logic         desc_ram_axi_wvalid,
     input  logic         desc_ram_axi_wready,
 
-    input  logic [7:0]  desc_ram_axi_bid,
+    input  logic [9:0]  desc_ram_axi_bid,
     input  logic [1:0]  desc_ram_axi_bresp,
     input  logic         desc_ram_axi_buser,
     input  logic         desc_ram_axi_bvalid,
     output  logic         desc_ram_axi_bready,
 
-    output  logic [7:0]  desc_ram_axi_arid,
+    output  logic [9:0]  desc_ram_axi_arid,
     output  logic [31:0]  desc_ram_axi_araddr,
     output  logic [7:0]  desc_ram_axi_arlen,
     output  logic [2:0]  desc_ram_axi_arsize,
@@ -235,7 +235,7 @@ module bridge_stream_mon_axil_mon
     output  logic         desc_ram_axi_arvalid,
     input  logic         desc_ram_axi_arready,
 
-    input  logic [7:0]  desc_ram_axi_rid,
+    input  logic [9:0]  desc_ram_axi_rid,
     input  logic [255:0]  desc_ram_axi_rdata,
     input  logic [1:0]  desc_ram_axi_rresp,
     input  logic         desc_ram_axi_rlast,
@@ -635,7 +635,7 @@ module bridge_stream_mon_axil_mon
 
     // Crossbar-to-Slave Internal AXI4 Signals
     // obs_apb (APB, 32b AXI4 interface)
-    logic [7:0]            xbar_obs_apb_axi_awid;
+    logic [9:0]            xbar_obs_apb_axi_awid;
     logic [31:0]               xbar_obs_apb_axi_awaddr;
     logic [7:0]                xbar_obs_apb_axi_awlen;
     logic [2:0]                xbar_obs_apb_axi_awsize;
@@ -654,12 +654,12 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_obs_apb_axi_wuser;
     logic                      xbar_obs_apb_axi_wvalid;
     logic                      xbar_obs_apb_axi_wready;
-    logic [7:0]            xbar_obs_apb_axi_bid;
+    logic [9:0]            xbar_obs_apb_axi_bid;
     logic [1:0]                xbar_obs_apb_axi_bresp;
     logic                      xbar_obs_apb_axi_buser;
     logic                      xbar_obs_apb_axi_bvalid;
     logic                      xbar_obs_apb_axi_bready;
-    logic [7:0]            xbar_obs_apb_axi_arid;
+    logic [9:0]            xbar_obs_apb_axi_arid;
     logic [31:0]               xbar_obs_apb_axi_araddr;
     logic [7:0]                xbar_obs_apb_axi_arlen;
     logic [2:0]                xbar_obs_apb_axi_arsize;
@@ -672,7 +672,7 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_obs_apb_axi_aruser;
     logic                      xbar_obs_apb_axi_arvalid;
     logic                      xbar_obs_apb_axi_arready;
-    logic [7:0]            xbar_obs_apb_axi_rid;
+    logic [9:0]            xbar_obs_apb_axi_rid;
     logic [31:0] xbar_obs_apb_axi_rdata;
     logic [1:0]                xbar_obs_apb_axi_rresp;
     logic                      xbar_obs_apb_axi_rlast;
@@ -687,7 +687,7 @@ module bridge_stream_mon_axil_mon
     logic                       obs_apb_axi_rid_valid;
 
     // slvmon_apb (APB, 32b AXI4 interface)
-    logic [7:0]            xbar_slvmon_apb_axi_awid;
+    logic [9:0]            xbar_slvmon_apb_axi_awid;
     logic [31:0]               xbar_slvmon_apb_axi_awaddr;
     logic [7:0]                xbar_slvmon_apb_axi_awlen;
     logic [2:0]                xbar_slvmon_apb_axi_awsize;
@@ -706,12 +706,12 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_slvmon_apb_axi_wuser;
     logic                      xbar_slvmon_apb_axi_wvalid;
     logic                      xbar_slvmon_apb_axi_wready;
-    logic [7:0]            xbar_slvmon_apb_axi_bid;
+    logic [9:0]            xbar_slvmon_apb_axi_bid;
     logic [1:0]                xbar_slvmon_apb_axi_bresp;
     logic                      xbar_slvmon_apb_axi_buser;
     logic                      xbar_slvmon_apb_axi_bvalid;
     logic                      xbar_slvmon_apb_axi_bready;
-    logic [7:0]            xbar_slvmon_apb_axi_arid;
+    logic [9:0]            xbar_slvmon_apb_axi_arid;
     logic [31:0]               xbar_slvmon_apb_axi_araddr;
     logic [7:0]                xbar_slvmon_apb_axi_arlen;
     logic [2:0]                xbar_slvmon_apb_axi_arsize;
@@ -724,7 +724,7 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_slvmon_apb_axi_aruser;
     logic                      xbar_slvmon_apb_axi_arvalid;
     logic                      xbar_slvmon_apb_axi_arready;
-    logic [7:0]            xbar_slvmon_apb_axi_rid;
+    logic [9:0]            xbar_slvmon_apb_axi_rid;
     logic [31:0] xbar_slvmon_apb_axi_rdata;
     logic [1:0]                xbar_slvmon_apb_axi_rresp;
     logic                      xbar_slvmon_apb_axi_rlast;
@@ -739,7 +739,7 @@ module bridge_stream_mon_axil_mon
     logic                       slvmon_apb_axi_rid_valid;
 
     // stream_apb (APB, 32b AXI4 interface)
-    logic [7:0]            xbar_stream_apb_axi_awid;
+    logic [9:0]            xbar_stream_apb_axi_awid;
     logic [31:0]               xbar_stream_apb_axi_awaddr;
     logic [7:0]                xbar_stream_apb_axi_awlen;
     logic [2:0]                xbar_stream_apb_axi_awsize;
@@ -758,12 +758,12 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_stream_apb_axi_wuser;
     logic                      xbar_stream_apb_axi_wvalid;
     logic                      xbar_stream_apb_axi_wready;
-    logic [7:0]            xbar_stream_apb_axi_bid;
+    logic [9:0]            xbar_stream_apb_axi_bid;
     logic [1:0]                xbar_stream_apb_axi_bresp;
     logic                      xbar_stream_apb_axi_buser;
     logic                      xbar_stream_apb_axi_bvalid;
     logic                      xbar_stream_apb_axi_bready;
-    logic [7:0]            xbar_stream_apb_axi_arid;
+    logic [9:0]            xbar_stream_apb_axi_arid;
     logic [31:0]               xbar_stream_apb_axi_araddr;
     logic [7:0]                xbar_stream_apb_axi_arlen;
     logic [2:0]                xbar_stream_apb_axi_arsize;
@@ -776,7 +776,7 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_stream_apb_axi_aruser;
     logic                      xbar_stream_apb_axi_arvalid;
     logic                      xbar_stream_apb_axi_arready;
-    logic [7:0]            xbar_stream_apb_axi_rid;
+    logic [9:0]            xbar_stream_apb_axi_rid;
     logic [31:0] xbar_stream_apb_axi_rdata;
     logic [1:0]                xbar_stream_apb_axi_rresp;
     logic                      xbar_stream_apb_axi_rlast;
@@ -791,7 +791,7 @@ module bridge_stream_mon_axil_mon
     logic                       stream_apb_axi_rid_valid;
 
     // harness_csr (AXIL, 32b AXI4 interface)
-    logic [7:0]            xbar_harness_csr_axi_awid;
+    logic [9:0]            xbar_harness_csr_axi_awid;
     logic [31:0]               xbar_harness_csr_axi_awaddr;
     logic [7:0]                xbar_harness_csr_axi_awlen;
     logic [2:0]                xbar_harness_csr_axi_awsize;
@@ -810,12 +810,12 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_harness_csr_axi_wuser;
     logic                      xbar_harness_csr_axi_wvalid;
     logic                      xbar_harness_csr_axi_wready;
-    logic [7:0]            xbar_harness_csr_axi_bid;
+    logic [9:0]            xbar_harness_csr_axi_bid;
     logic [1:0]                xbar_harness_csr_axi_bresp;
     logic                      xbar_harness_csr_axi_buser;
     logic                      xbar_harness_csr_axi_bvalid;
     logic                      xbar_harness_csr_axi_bready;
-    logic [7:0]            xbar_harness_csr_axi_arid;
+    logic [9:0]            xbar_harness_csr_axi_arid;
     logic [31:0]               xbar_harness_csr_axi_araddr;
     logic [7:0]                xbar_harness_csr_axi_arlen;
     logic [2:0]                xbar_harness_csr_axi_arsize;
@@ -828,7 +828,7 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_harness_csr_axi_aruser;
     logic                      xbar_harness_csr_axi_arvalid;
     logic                      xbar_harness_csr_axi_arready;
-    logic [7:0]            xbar_harness_csr_axi_rid;
+    logic [9:0]            xbar_harness_csr_axi_rid;
     logic [31:0] xbar_harness_csr_axi_rdata;
     logic [1:0]                xbar_harness_csr_axi_rresp;
     logic                      xbar_harness_csr_axi_rlast;
@@ -843,7 +843,7 @@ module bridge_stream_mon_axil_mon
     logic                       harness_csr_axi_rid_valid;
 
     // desc_ram (AXI4, 256b AXI4 interface)
-    logic [7:0]            xbar_desc_ram_axi_awid;
+    logic [9:0]            xbar_desc_ram_axi_awid;
     logic [31:0]               xbar_desc_ram_axi_awaddr;
     logic [7:0]                xbar_desc_ram_axi_awlen;
     logic [2:0]                xbar_desc_ram_axi_awsize;
@@ -862,12 +862,12 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_desc_ram_axi_wuser;
     logic                      xbar_desc_ram_axi_wvalid;
     logic                      xbar_desc_ram_axi_wready;
-    logic [7:0]            xbar_desc_ram_axi_bid;
+    logic [9:0]            xbar_desc_ram_axi_bid;
     logic [1:0]                xbar_desc_ram_axi_bresp;
     logic                      xbar_desc_ram_axi_buser;
     logic                      xbar_desc_ram_axi_bvalid;
     logic                      xbar_desc_ram_axi_bready;
-    logic [7:0]            xbar_desc_ram_axi_arid;
+    logic [9:0]            xbar_desc_ram_axi_arid;
     logic [31:0]               xbar_desc_ram_axi_araddr;
     logic [7:0]                xbar_desc_ram_axi_arlen;
     logic [2:0]                xbar_desc_ram_axi_arsize;
@@ -880,7 +880,7 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_desc_ram_axi_aruser;
     logic                      xbar_desc_ram_axi_arvalid;
     logic                      xbar_desc_ram_axi_arready;
-    logic [7:0]            xbar_desc_ram_axi_rid;
+    logic [9:0]            xbar_desc_ram_axi_rid;
     logic [255:0] xbar_desc_ram_axi_rdata;
     logic [1:0]                xbar_desc_ram_axi_rresp;
     logic                      xbar_desc_ram_axi_rlast;
@@ -895,7 +895,7 @@ module bridge_stream_mon_axil_mon
     logic                       desc_ram_axi_rid_valid;
 
     // stream_err (AXIL, 32b AXI4 interface)
-    logic [7:0]            xbar_stream_err_axi_awid;
+    logic [9:0]            xbar_stream_err_axi_awid;
     logic [31:0]               xbar_stream_err_axi_awaddr;
     logic [7:0]                xbar_stream_err_axi_awlen;
     logic [2:0]                xbar_stream_err_axi_awsize;
@@ -914,12 +914,12 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_stream_err_axi_wuser;
     logic                      xbar_stream_err_axi_wvalid;
     logic                      xbar_stream_err_axi_wready;
-    logic [7:0]            xbar_stream_err_axi_bid;
+    logic [9:0]            xbar_stream_err_axi_bid;
     logic [1:0]                xbar_stream_err_axi_bresp;
     logic                      xbar_stream_err_axi_buser;
     logic                      xbar_stream_err_axi_bvalid;
     logic                      xbar_stream_err_axi_bready;
-    logic [7:0]            xbar_stream_err_axi_arid;
+    logic [9:0]            xbar_stream_err_axi_arid;
     logic [31:0]               xbar_stream_err_axi_araddr;
     logic [7:0]                xbar_stream_err_axi_arlen;
     logic [2:0]                xbar_stream_err_axi_arsize;
@@ -932,7 +932,7 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_stream_err_axi_aruser;
     logic                      xbar_stream_err_axi_arvalid;
     logic                      xbar_stream_err_axi_arready;
-    logic [7:0]            xbar_stream_err_axi_rid;
+    logic [9:0]            xbar_stream_err_axi_rid;
     logic [31:0] xbar_stream_err_axi_rdata;
     logic [1:0]                xbar_stream_err_axi_rresp;
     logic                      xbar_stream_err_axi_rlast;
@@ -947,7 +947,7 @@ module bridge_stream_mon_axil_mon
     logic                       stream_err_axi_rid_valid;
 
     // stream_tally (AXIL, 64b AXI4 interface)
-    logic [7:0]            xbar_stream_tally_axi_awid;
+    logic [9:0]            xbar_stream_tally_axi_awid;
     logic [31:0]               xbar_stream_tally_axi_awaddr;
     logic [7:0]                xbar_stream_tally_axi_awlen;
     logic [2:0]                xbar_stream_tally_axi_awsize;
@@ -966,12 +966,12 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_stream_tally_axi_wuser;
     logic                      xbar_stream_tally_axi_wvalid;
     logic                      xbar_stream_tally_axi_wready;
-    logic [7:0]            xbar_stream_tally_axi_bid;
+    logic [9:0]            xbar_stream_tally_axi_bid;
     logic [1:0]                xbar_stream_tally_axi_bresp;
     logic                      xbar_stream_tally_axi_buser;
     logic                      xbar_stream_tally_axi_bvalid;
     logic                      xbar_stream_tally_axi_bready;
-    logic [7:0]            xbar_stream_tally_axi_arid;
+    logic [9:0]            xbar_stream_tally_axi_arid;
     logic [31:0]               xbar_stream_tally_axi_araddr;
     logic [7:0]                xbar_stream_tally_axi_arlen;
     logic [2:0]                xbar_stream_tally_axi_arsize;
@@ -984,7 +984,7 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_stream_tally_axi_aruser;
     logic                      xbar_stream_tally_axi_arvalid;
     logic                      xbar_stream_tally_axi_arready;
-    logic [7:0]            xbar_stream_tally_axi_rid;
+    logic [9:0]            xbar_stream_tally_axi_rid;
     logic [63:0] xbar_stream_tally_axi_rdata;
     logic [1:0]                xbar_stream_tally_axi_rresp;
     logic                      xbar_stream_tally_axi_rlast;
@@ -999,7 +999,7 @@ module bridge_stream_mon_axil_mon
     logic                       stream_tally_axi_rid_valid;
 
     // dma_axil (AXIL, 32b AXI4 interface)
-    logic [7:0]            xbar_dma_axil_axi_awid;
+    logic [9:0]            xbar_dma_axil_axi_awid;
     logic [31:0]               xbar_dma_axil_axi_awaddr;
     logic [7:0]                xbar_dma_axil_axi_awlen;
     logic [2:0]                xbar_dma_axil_axi_awsize;
@@ -1018,12 +1018,12 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_dma_axil_axi_wuser;
     logic                      xbar_dma_axil_axi_wvalid;
     logic                      xbar_dma_axil_axi_wready;
-    logic [7:0]            xbar_dma_axil_axi_bid;
+    logic [9:0]            xbar_dma_axil_axi_bid;
     logic [1:0]                xbar_dma_axil_axi_bresp;
     logic                      xbar_dma_axil_axi_buser;
     logic                      xbar_dma_axil_axi_bvalid;
     logic                      xbar_dma_axil_axi_bready;
-    logic [7:0]            xbar_dma_axil_axi_arid;
+    logic [9:0]            xbar_dma_axil_axi_arid;
     logic [31:0]               xbar_dma_axil_axi_araddr;
     logic [7:0]                xbar_dma_axil_axi_arlen;
     logic [2:0]                xbar_dma_axil_axi_arsize;
@@ -1036,7 +1036,7 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_dma_axil_axi_aruser;
     logic                      xbar_dma_axil_axi_arvalid;
     logic                      xbar_dma_axil_axi_arready;
-    logic [7:0]            xbar_dma_axil_axi_rid;
+    logic [9:0]            xbar_dma_axil_axi_rid;
     logic [31:0] xbar_dma_axil_axi_rdata;
     logic [1:0]                xbar_dma_axil_axi_rresp;
     logic                      xbar_dma_axil_axi_rlast;
@@ -1051,7 +1051,7 @@ module bridge_stream_mon_axil_mon
     logic                       dma_axil_axi_rid_valid;
 
     // slave_err (AXIL, 32b AXI4 interface)
-    logic [7:0]            xbar_slave_err_axi_awid;
+    logic [9:0]            xbar_slave_err_axi_awid;
     logic [31:0]               xbar_slave_err_axi_awaddr;
     logic [7:0]                xbar_slave_err_axi_awlen;
     logic [2:0]                xbar_slave_err_axi_awsize;
@@ -1070,12 +1070,12 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_slave_err_axi_wuser;
     logic                      xbar_slave_err_axi_wvalid;
     logic                      xbar_slave_err_axi_wready;
-    logic [7:0]            xbar_slave_err_axi_bid;
+    logic [9:0]            xbar_slave_err_axi_bid;
     logic [1:0]                xbar_slave_err_axi_bresp;
     logic                      xbar_slave_err_axi_buser;
     logic                      xbar_slave_err_axi_bvalid;
     logic                      xbar_slave_err_axi_bready;
-    logic [7:0]            xbar_slave_err_axi_arid;
+    logic [9:0]            xbar_slave_err_axi_arid;
     logic [31:0]               xbar_slave_err_axi_araddr;
     logic [7:0]                xbar_slave_err_axi_arlen;
     logic [2:0]                xbar_slave_err_axi_arsize;
@@ -1088,7 +1088,7 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_slave_err_axi_aruser;
     logic                      xbar_slave_err_axi_arvalid;
     logic                      xbar_slave_err_axi_arready;
-    logic [7:0]            xbar_slave_err_axi_rid;
+    logic [9:0]            xbar_slave_err_axi_rid;
     logic [31:0] xbar_slave_err_axi_rdata;
     logic [1:0]                xbar_slave_err_axi_rresp;
     logic                      xbar_slave_err_axi_rlast;
@@ -1103,7 +1103,7 @@ module bridge_stream_mon_axil_mon
     logic                       slave_err_axi_rid_valid;
 
     // slave_tally (AXIL, 64b AXI4 interface)
-    logic [7:0]            xbar_slave_tally_axi_awid;
+    logic [9:0]            xbar_slave_tally_axi_awid;
     logic [31:0]               xbar_slave_tally_axi_awaddr;
     logic [7:0]                xbar_slave_tally_axi_awlen;
     logic [2:0]                xbar_slave_tally_axi_awsize;
@@ -1122,12 +1122,12 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_slave_tally_axi_wuser;
     logic                      xbar_slave_tally_axi_wvalid;
     logic                      xbar_slave_tally_axi_wready;
-    logic [7:0]            xbar_slave_tally_axi_bid;
+    logic [9:0]            xbar_slave_tally_axi_bid;
     logic [1:0]                xbar_slave_tally_axi_bresp;
     logic                      xbar_slave_tally_axi_buser;
     logic                      xbar_slave_tally_axi_bvalid;
     logic                      xbar_slave_tally_axi_bready;
-    logic [7:0]            xbar_slave_tally_axi_arid;
+    logic [9:0]            xbar_slave_tally_axi_arid;
     logic [31:0]               xbar_slave_tally_axi_araddr;
     logic [7:0]                xbar_slave_tally_axi_arlen;
     logic [2:0]                xbar_slave_tally_axi_arsize;
@@ -1140,7 +1140,7 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_slave_tally_axi_aruser;
     logic                      xbar_slave_tally_axi_arvalid;
     logic                      xbar_slave_tally_axi_arready;
-    logic [7:0]            xbar_slave_tally_axi_rid;
+    logic [9:0]            xbar_slave_tally_axi_rid;
     logic [63:0] xbar_slave_tally_axi_rdata;
     logic [1:0]                xbar_slave_tally_axi_rresp;
     logic                      xbar_slave_tally_axi_rlast;
@@ -1155,7 +1155,7 @@ module bridge_stream_mon_axil_mon
     logic                       slave_tally_axi_rid_valid;
 
     // comp_sram (AXIL, 64b AXI4 interface)
-    logic [7:0]            xbar_comp_sram_axi_awid;
+    logic [9:0]            xbar_comp_sram_axi_awid;
     logic [31:0]               xbar_comp_sram_axi_awaddr;
     logic [7:0]                xbar_comp_sram_axi_awlen;
     logic [2:0]                xbar_comp_sram_axi_awsize;
@@ -1174,12 +1174,12 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_comp_sram_axi_wuser;
     logic                      xbar_comp_sram_axi_wvalid;
     logic                      xbar_comp_sram_axi_wready;
-    logic [7:0]            xbar_comp_sram_axi_bid;
+    logic [9:0]            xbar_comp_sram_axi_bid;
     logic [1:0]                xbar_comp_sram_axi_bresp;
     logic                      xbar_comp_sram_axi_buser;
     logic                      xbar_comp_sram_axi_bvalid;
     logic                      xbar_comp_sram_axi_bready;
-    logic [7:0]            xbar_comp_sram_axi_arid;
+    logic [9:0]            xbar_comp_sram_axi_arid;
     logic [31:0]               xbar_comp_sram_axi_araddr;
     logic [7:0]                xbar_comp_sram_axi_arlen;
     logic [2:0]                xbar_comp_sram_axi_arsize;
@@ -1192,7 +1192,7 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_comp_sram_axi_aruser;
     logic                      xbar_comp_sram_axi_arvalid;
     logic                      xbar_comp_sram_axi_arready;
-    logic [7:0]            xbar_comp_sram_axi_rid;
+    logic [9:0]            xbar_comp_sram_axi_rid;
     logic [63:0] xbar_comp_sram_axi_rdata;
     logic [1:0]                xbar_comp_sram_axi_rresp;
     logic                      xbar_comp_sram_axi_rlast;
@@ -1207,7 +1207,7 @@ module bridge_stream_mon_axil_mon
     logic                       comp_sram_axi_rid_valid;
 
     // stream_tally_cfg (AXIL, 64b AXI4 interface)
-    logic [7:0]            xbar_stream_tally_cfg_axi_awid;
+    logic [9:0]            xbar_stream_tally_cfg_axi_awid;
     logic [31:0]               xbar_stream_tally_cfg_axi_awaddr;
     logic [7:0]                xbar_stream_tally_cfg_axi_awlen;
     logic [2:0]                xbar_stream_tally_cfg_axi_awsize;
@@ -1226,12 +1226,12 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_stream_tally_cfg_axi_wuser;
     logic                      xbar_stream_tally_cfg_axi_wvalid;
     logic                      xbar_stream_tally_cfg_axi_wready;
-    logic [7:0]            xbar_stream_tally_cfg_axi_bid;
+    logic [9:0]            xbar_stream_tally_cfg_axi_bid;
     logic [1:0]                xbar_stream_tally_cfg_axi_bresp;
     logic                      xbar_stream_tally_cfg_axi_buser;
     logic                      xbar_stream_tally_cfg_axi_bvalid;
     logic                      xbar_stream_tally_cfg_axi_bready;
-    logic [7:0]            xbar_stream_tally_cfg_axi_arid;
+    logic [9:0]            xbar_stream_tally_cfg_axi_arid;
     logic [31:0]               xbar_stream_tally_cfg_axi_araddr;
     logic [7:0]                xbar_stream_tally_cfg_axi_arlen;
     logic [2:0]                xbar_stream_tally_cfg_axi_arsize;
@@ -1244,7 +1244,7 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_stream_tally_cfg_axi_aruser;
     logic                      xbar_stream_tally_cfg_axi_arvalid;
     logic                      xbar_stream_tally_cfg_axi_arready;
-    logic [7:0]            xbar_stream_tally_cfg_axi_rid;
+    logic [9:0]            xbar_stream_tally_cfg_axi_rid;
     logic [63:0] xbar_stream_tally_cfg_axi_rdata;
     logic [1:0]                xbar_stream_tally_cfg_axi_rresp;
     logic                      xbar_stream_tally_cfg_axi_rlast;
@@ -1259,7 +1259,7 @@ module bridge_stream_mon_axil_mon
     logic                       stream_tally_cfg_axi_rid_valid;
 
     // slave_tally_cfg (AXIL, 64b AXI4 interface)
-    logic [7:0]            xbar_slave_tally_cfg_axi_awid;
+    logic [9:0]            xbar_slave_tally_cfg_axi_awid;
     logic [31:0]               xbar_slave_tally_cfg_axi_awaddr;
     logic [7:0]                xbar_slave_tally_cfg_axi_awlen;
     logic [2:0]                xbar_slave_tally_cfg_axi_awsize;
@@ -1278,12 +1278,12 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_slave_tally_cfg_axi_wuser;
     logic                      xbar_slave_tally_cfg_axi_wvalid;
     logic                      xbar_slave_tally_cfg_axi_wready;
-    logic [7:0]            xbar_slave_tally_cfg_axi_bid;
+    logic [9:0]            xbar_slave_tally_cfg_axi_bid;
     logic [1:0]                xbar_slave_tally_cfg_axi_bresp;
     logic                      xbar_slave_tally_cfg_axi_buser;
     logic                      xbar_slave_tally_cfg_axi_bvalid;
     logic                      xbar_slave_tally_cfg_axi_bready;
-    logic [7:0]            xbar_slave_tally_cfg_axi_arid;
+    logic [9:0]            xbar_slave_tally_cfg_axi_arid;
     logic [31:0]               xbar_slave_tally_cfg_axi_araddr;
     logic [7:0]                xbar_slave_tally_cfg_axi_arlen;
     logic [2:0]                xbar_slave_tally_cfg_axi_arsize;
@@ -1296,7 +1296,7 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_slave_tally_cfg_axi_aruser;
     logic                      xbar_slave_tally_cfg_axi_arvalid;
     logic                      xbar_slave_tally_cfg_axi_arready;
-    logic [7:0]            xbar_slave_tally_cfg_axi_rid;
+    logic [9:0]            xbar_slave_tally_cfg_axi_rid;
     logic [63:0] xbar_slave_tally_cfg_axi_rdata;
     logic [1:0]                xbar_slave_tally_cfg_axi_rresp;
     logic                      xbar_slave_tally_cfg_axi_rlast;
@@ -1311,7 +1311,7 @@ module bridge_stream_mon_axil_mon
     logic                       slave_tally_cfg_axi_rid_valid;
 
     // subtractive (AXI4, 256b AXI4 interface)
-    logic [7:0]            xbar_subtractive_axi_awid;
+    logic [9:0]            xbar_subtractive_axi_awid;
     logic [31:0]               xbar_subtractive_axi_awaddr;
     logic [7:0]                xbar_subtractive_axi_awlen;
     logic [2:0]                xbar_subtractive_axi_awsize;
@@ -1330,12 +1330,12 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_subtractive_axi_wuser;
     logic                      xbar_subtractive_axi_wvalid;
     logic                      xbar_subtractive_axi_wready;
-    logic [7:0]            xbar_subtractive_axi_bid;
+    logic [9:0]            xbar_subtractive_axi_bid;
     logic [1:0]                xbar_subtractive_axi_bresp;
     logic                      xbar_subtractive_axi_buser;
     logic                      xbar_subtractive_axi_bvalid;
     logic                      xbar_subtractive_axi_bready;
-    logic [7:0]            xbar_subtractive_axi_arid;
+    logic [9:0]            xbar_subtractive_axi_arid;
     logic [31:0]               xbar_subtractive_axi_araddr;
     logic [7:0]                xbar_subtractive_axi_arlen;
     logic [2:0]                xbar_subtractive_axi_arsize;
@@ -1348,7 +1348,7 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_subtractive_axi_aruser;
     logic                      xbar_subtractive_axi_arvalid;
     logic                      xbar_subtractive_axi_arready;
-    logic [7:0]            xbar_subtractive_axi_rid;
+    logic [9:0]            xbar_subtractive_axi_rid;
     logic [255:0] xbar_subtractive_axi_rdata;
     logic [1:0]                xbar_subtractive_axi_rresp;
     logic                      xbar_subtractive_axi_rlast;
@@ -2189,7 +2189,7 @@ module bridge_stream_mon_axil_mon
     // ---- Slave 13: subtractive (subtractive catch-all, internal) ----
     // Unmapped addresses land here instead of selecting nothing and
     // stalling the master forever (BRIDGE-009). Always answers DECERR.
-    logic [7:0]  subtractive_awid;
+    logic [9:0]  subtractive_awid;
     logic [31:0]  subtractive_awaddr;
     logic [7:0]  subtractive_awlen;
     logic [2:0]  subtractive_awsize;
@@ -2208,12 +2208,12 @@ module bridge_stream_mon_axil_mon
     logic         subtractive_wuser;
     logic         subtractive_wvalid;
     logic         subtractive_wready;
-    logic [7:0]  subtractive_bid;
+    logic [9:0]  subtractive_bid;
     logic [1:0]  subtractive_bresp;
     logic         subtractive_buser;
     logic         subtractive_bvalid;
     logic         subtractive_bready;
-    logic [7:0]  subtractive_arid;
+    logic [9:0]  subtractive_arid;
     logic [31:0]  subtractive_araddr;
     logic [7:0]  subtractive_arlen;
     logic [2:0]  subtractive_arsize;
@@ -2226,7 +2226,7 @@ module bridge_stream_mon_axil_mon
     logic         subtractive_aruser;
     logic         subtractive_arvalid;
     logic         subtractive_arready;
-    logic [7:0]  subtractive_rid;
+    logic [9:0]  subtractive_rid;
     logic [255:0]  subtractive_rdata;
     logic [1:0]  subtractive_rresp;
     logic         subtractive_rlast;
@@ -2240,7 +2240,7 @@ module bridge_stream_mon_axil_mon
     monitor_common_pkg::monitor_packet_t subtractive_monbus_packet;
 
     axi4_subtractive_slave #(
-        .AXI_ID_WIDTH   (8),
+        .AXI_ID_WIDTH   (10),
         .AXI_ADDR_WIDTH (32),
         .AXI_DATA_WIDTH (256),
         .AXI_USER_WIDTH (1),

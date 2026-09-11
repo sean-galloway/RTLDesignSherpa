@@ -12,13 +12,13 @@
 module bridge_ddr2_char_rd_subtractive_adapter
     import bridge_ddr2_char_rd_pkg::*;
 #(
-    parameter int ID_WIDTH = 8
+    parameter int ID_WIDTH = 9
 ) (
     input  logic aclk,
     input  logic aresetn,
 
     // Crossbar interface (AXI4 from crossbar)
-    input  logic [7:0]  xbar_subtractive_axi_arid,
+    input  logic [8:0]  xbar_subtractive_axi_arid,
     input  logic [31:0]  xbar_subtractive_axi_araddr,
     input  logic [7:0]  xbar_subtractive_axi_arlen,
     input  logic [2:0]  xbar_subtractive_axi_arsize,
@@ -31,7 +31,7 @@ module bridge_ddr2_char_rd_subtractive_adapter
     input  logic         xbar_subtractive_axi_aruser,
     input  logic         xbar_subtractive_axi_arvalid,
     output  logic         xbar_subtractive_axi_arready,
-    output  logic [7:0]  xbar_subtractive_axi_rid,
+    output  logic [8:0]  xbar_subtractive_axi_rid,
     output  logic [63:0]  xbar_subtractive_axi_rdata,
     output  logic [1:0]  xbar_subtractive_axi_rresp,
     output  logic         xbar_subtractive_axi_rlast,
@@ -45,7 +45,7 @@ module bridge_ddr2_char_rd_subtractive_adapter
     output logic                       rid_valid,
 
     // External slave interface (AXI4)
-    output  logic [7:0]  subtractive_arid,
+    output  logic [8:0]  subtractive_arid,
     output  logic [31:0]  subtractive_araddr,
     output  logic [7:0]  subtractive_arlen,
     output  logic [2:0]  subtractive_arsize,
@@ -58,7 +58,7 @@ module bridge_ddr2_char_rd_subtractive_adapter
     output  logic         subtractive_aruser,
     output  logic         subtractive_arvalid,
     input  logic         subtractive_arready,
-    input  logic [7:0]  subtractive_rid,
+    input  logic [8:0]  subtractive_rid,
     input  logic [63:0]  subtractive_rdata,
     input  logic [1:0]  subtractive_rresp,
     input  logic         subtractive_rlast,
@@ -128,7 +128,7 @@ module bridge_ddr2_char_rd_subtractive_adapter
     // LAST beat, since that is when the FIFO entry is retired.
 `ifndef SYNTHESIS
     // synthesis translate_off
-    logic [8-1:0] rd_id_fifo [RD_FIFO_DEPTH];
+    logic [9-1:0] rd_id_fifo [RD_FIFO_DEPTH];
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
         end else begin
@@ -136,11 +136,11 @@ module bridge_ddr2_char_rd_subtractive_adapter
                 rd_id_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= xbar_subtractive_axi_arid;
             if (xbar_subtractive_axi_rvalid && xbar_subtractive_axi_rready && xbar_subtractive_axi_rlast) begin
                 if (xbar_subtractive_axi_rid !== rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]) begin
-                    $error("BRIDGE-010: slave returned R out of AR order -- ",
-                           "got RID=%0h, expected %0h. This bridge routes ",
-                           "responses by FIFO position and does not support ",
-                           "ID-based reordering; the data has gone to the ",
-                           "wrong master.", xbar_subtractive_axi_rid,
+                    $error({"BRIDGE-010: slave returned R out of AR order -- ",
+                            "got RID=%0h, expected %0h. This bridge routes ",
+                            "responses by FIFO position and does not support ",
+                            "ID-based reordering; the data has gone to the ",
+                            "wrong master."}, xbar_subtractive_axi_rid,
                            rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]);
                 end
             end
@@ -153,7 +153,7 @@ module bridge_ddr2_char_rd_subtractive_adapter
     axi4_master_rd #(
         .SKID_DEPTH_AR(2),
         .SKID_DEPTH_R(2),
-        .AXI_ID_WIDTH(8),
+        .AXI_ID_WIDTH(9),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(64),
         .AXI_USER_WIDTH(1)

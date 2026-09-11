@@ -7,6 +7,9 @@
 # Monitor packages (must precede any module that references them)
 -f $REPO_ROOT/rtl/amba/filelists/monitor_pkgs.f
 
+# Subtractive catch-all slave (unmapped-address terminator)
+-f $REPO_ROOT/rtl/amba/filelists/axi4_subtractive_slave.f
+
 # Bridge RTL files (generated)
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_char_axil_mon/bridge_stream_char_axil_mon_pkg.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_char_axil_mon/bridge_stream_char_axil_mon_cfg_pkg.sv
@@ -22,6 +25,7 @@ $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_st
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_char_axil_mon/harness_csr_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_char_axil_mon/stream_apb_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_char_axil_mon/stream_err_adapter.sv
+$REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_char_axil_mon/subtractive_adapter.sv
 
 # Verilator waiver: PeakRDL field_combo MULTIDRIVEN (see file)
 $REPO_ROOT/projects/components/bridge/rtl/regs/bridge_regblock.vlt
@@ -39,6 +43,10 @@ $REPO_ROOT/projects/components/bridge/rtl/regs/bridge_regblock.vlt
 # Slave adapters use axi4_master_* (act as AXI master to external slave)
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd.f
+
+# Per-ID response tracking (bridge_cam): enable_ooo slaves, and every AXI
+# slave of a multi-master fabric, whose IDs are {master index, id} (BRIDGE-015/016)
+-f $REPO_ROOT/projects/components/bridge/rtl/filelists_static/bridge_cam.f
 
 # GAXI skid buffers (used by wrappers and converters)
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f

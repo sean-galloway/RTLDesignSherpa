@@ -10,7 +10,7 @@
 
 
 module subtractive_adapter
-    import bridge_stream_mon_axil_pkg::*;
+    import bridge_stream_char_axil_pkg::*;
 #(
     parameter int ID_WIDTH = 10
 ) (

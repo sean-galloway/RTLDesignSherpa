@@ -139,7 +139,7 @@ module bridge_stream_mon_axil_mon_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] obs_apb_axi_rid_bridge_id,
     input  logic                       obs_apb_axi_rid_valid,
 
-    output  logic [7:0]  obs_apb_axi_awid,
+    output  logic [9:0]  obs_apb_axi_awid,
     output  logic [31:0]  obs_apb_axi_awaddr,
     output  logic [7:0]  obs_apb_axi_awlen,
     output  logic [2:0]  obs_apb_axi_awsize,
@@ -160,13 +160,13 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         obs_apb_axi_wvalid,
     input  logic         obs_apb_axi_wready,
 
-    input  logic [7:0]  obs_apb_axi_bid,
+    input  logic [9:0]  obs_apb_axi_bid,
     input  logic [1:0]  obs_apb_axi_bresp,
     input  logic         obs_apb_axi_buser,
     input  logic         obs_apb_axi_bvalid,
     output  logic         obs_apb_axi_bready,
 
-    output  logic [7:0]  obs_apb_axi_arid,
+    output  logic [9:0]  obs_apb_axi_arid,
     output  logic [31:0]  obs_apb_axi_araddr,
     output  logic [7:0]  obs_apb_axi_arlen,
     output  logic [2:0]  obs_apb_axi_arsize,
@@ -180,7 +180,7 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         obs_apb_axi_arvalid,
     input  logic         obs_apb_axi_arready,
 
-    input  logic [7:0]  obs_apb_axi_rid,
+    input  logic [9:0]  obs_apb_axi_rid,
     input  logic [31:0]  obs_apb_axi_rdata,
     input  logic [1:0]  obs_apb_axi_rresp,
     input  logic         obs_apb_axi_rlast,
@@ -197,7 +197,7 @@ module bridge_stream_mon_axil_mon_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] slvmon_apb_axi_rid_bridge_id,
     input  logic                       slvmon_apb_axi_rid_valid,
 
-    output  logic [7:0]  slvmon_apb_axi_awid,
+    output  logic [9:0]  slvmon_apb_axi_awid,
     output  logic [31:0]  slvmon_apb_axi_awaddr,
     output  logic [7:0]  slvmon_apb_axi_awlen,
     output  logic [2:0]  slvmon_apb_axi_awsize,
@@ -218,13 +218,13 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         slvmon_apb_axi_wvalid,
     input  logic         slvmon_apb_axi_wready,
 
-    input  logic [7:0]  slvmon_apb_axi_bid,
+    input  logic [9:0]  slvmon_apb_axi_bid,
     input  logic [1:0]  slvmon_apb_axi_bresp,
     input  logic         slvmon_apb_axi_buser,
     input  logic         slvmon_apb_axi_bvalid,
     output  logic         slvmon_apb_axi_bready,
 
-    output  logic [7:0]  slvmon_apb_axi_arid,
+    output  logic [9:0]  slvmon_apb_axi_arid,
     output  logic [31:0]  slvmon_apb_axi_araddr,
     output  logic [7:0]  slvmon_apb_axi_arlen,
     output  logic [2:0]  slvmon_apb_axi_arsize,
@@ -238,7 +238,7 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         slvmon_apb_axi_arvalid,
     input  logic         slvmon_apb_axi_arready,
 
-    input  logic [7:0]  slvmon_apb_axi_rid,
+    input  logic [9:0]  slvmon_apb_axi_rid,
     input  logic [31:0]  slvmon_apb_axi_rdata,
     input  logic [1:0]  slvmon_apb_axi_rresp,
     input  logic         slvmon_apb_axi_rlast,
@@ -255,7 +255,7 @@ module bridge_stream_mon_axil_mon_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] stream_apb_axi_rid_bridge_id,
     input  logic                       stream_apb_axi_rid_valid,
 
-    output  logic [7:0]  stream_apb_axi_awid,
+    output  logic [9:0]  stream_apb_axi_awid,
     output  logic [31:0]  stream_apb_axi_awaddr,
     output  logic [7:0]  stream_apb_axi_awlen,
     output  logic [2:0]  stream_apb_axi_awsize,
@@ -276,13 +276,13 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         stream_apb_axi_wvalid,
     input  logic         stream_apb_axi_wready,
 
-    input  logic [7:0]  stream_apb_axi_bid,
+    input  logic [9:0]  stream_apb_axi_bid,
     input  logic [1:0]  stream_apb_axi_bresp,
     input  logic         stream_apb_axi_buser,
     input  logic         stream_apb_axi_bvalid,
     output  logic         stream_apb_axi_bready,
 
-    output  logic [7:0]  stream_apb_axi_arid,
+    output  logic [9:0]  stream_apb_axi_arid,
     output  logic [31:0]  stream_apb_axi_araddr,
     output  logic [7:0]  stream_apb_axi_arlen,
     output  logic [2:0]  stream_apb_axi_arsize,
@@ -296,7 +296,7 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         stream_apb_axi_arvalid,
     input  logic         stream_apb_axi_arready,
 
-    input  logic [7:0]  stream_apb_axi_rid,
+    input  logic [9:0]  stream_apb_axi_rid,
     input  logic [31:0]  stream_apb_axi_rdata,
     input  logic [1:0]  stream_apb_axi_rresp,
     input  logic         stream_apb_axi_rlast,
@@ -313,7 +313,7 @@ module bridge_stream_mon_axil_mon_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] harness_csr_axi_rid_bridge_id,
     input  logic                       harness_csr_axi_rid_valid,
 
-    output  logic [7:0]  harness_csr_axi_awid,
+    output  logic [9:0]  harness_csr_axi_awid,
     output  logic [31:0]  harness_csr_axi_awaddr,
     output  logic [7:0]  harness_csr_axi_awlen,
     output  logic [2:0]  harness_csr_axi_awsize,
@@ -334,13 +334,13 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         harness_csr_axi_wvalid,
     input  logic         harness_csr_axi_wready,
 
-    input  logic [7:0]  harness_csr_axi_bid,
+    input  logic [9:0]  harness_csr_axi_bid,
     input  logic [1:0]  harness_csr_axi_bresp,
     input  logic         harness_csr_axi_buser,
     input  logic         harness_csr_axi_bvalid,
     output  logic         harness_csr_axi_bready,
 
-    output  logic [7:0]  harness_csr_axi_arid,
+    output  logic [9:0]  harness_csr_axi_arid,
     output  logic [31:0]  harness_csr_axi_araddr,
     output  logic [7:0]  harness_csr_axi_arlen,
     output  logic [2:0]  harness_csr_axi_arsize,
@@ -354,7 +354,7 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         harness_csr_axi_arvalid,
     input  logic         harness_csr_axi_arready,
 
-    input  logic [7:0]  harness_csr_axi_rid,
+    input  logic [9:0]  harness_csr_axi_rid,
     input  logic [31:0]  harness_csr_axi_rdata,
     input  logic [1:0]  harness_csr_axi_rresp,
     input  logic         harness_csr_axi_rlast,
@@ -371,7 +371,7 @@ module bridge_stream_mon_axil_mon_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] desc_ram_axi_rid_bridge_id,
     input  logic                       desc_ram_axi_rid_valid,
 
-    output  logic [7:0]  desc_ram_axi_awid,
+    output  logic [9:0]  desc_ram_axi_awid,
     output  logic [31:0]  desc_ram_axi_awaddr,
     output  logic [7:0]  desc_ram_axi_awlen,
     output  logic [2:0]  desc_ram_axi_awsize,
@@ -392,13 +392,13 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         desc_ram_axi_wvalid,
     input  logic         desc_ram_axi_wready,
 
-    input  logic [7:0]  desc_ram_axi_bid,
+    input  logic [9:0]  desc_ram_axi_bid,
     input  logic [1:0]  desc_ram_axi_bresp,
     input  logic         desc_ram_axi_buser,
     input  logic         desc_ram_axi_bvalid,
     output  logic         desc_ram_axi_bready,
 
-    output  logic [7:0]  desc_ram_axi_arid,
+    output  logic [9:0]  desc_ram_axi_arid,
     output  logic [31:0]  desc_ram_axi_araddr,
     output  logic [7:0]  desc_ram_axi_arlen,
     output  logic [2:0]  desc_ram_axi_arsize,
@@ -412,7 +412,7 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         desc_ram_axi_arvalid,
     input  logic         desc_ram_axi_arready,
 
-    input  logic [7:0]  desc_ram_axi_rid,
+    input  logic [9:0]  desc_ram_axi_rid,
     input  logic [255:0]  desc_ram_axi_rdata,
     input  logic [1:0]  desc_ram_axi_rresp,
     input  logic         desc_ram_axi_rlast,
@@ -429,7 +429,7 @@ module bridge_stream_mon_axil_mon_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] stream_err_axi_rid_bridge_id,
     input  logic                       stream_err_axi_rid_valid,
 
-    output  logic [7:0]  stream_err_axi_awid,
+    output  logic [9:0]  stream_err_axi_awid,
     output  logic [31:0]  stream_err_axi_awaddr,
     output  logic [7:0]  stream_err_axi_awlen,
     output  logic [2:0]  stream_err_axi_awsize,
@@ -450,13 +450,13 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         stream_err_axi_wvalid,
     input  logic         stream_err_axi_wready,
 
-    input  logic [7:0]  stream_err_axi_bid,
+    input  logic [9:0]  stream_err_axi_bid,
     input  logic [1:0]  stream_err_axi_bresp,
     input  logic         stream_err_axi_buser,
     input  logic         stream_err_axi_bvalid,
     output  logic         stream_err_axi_bready,
 
-    output  logic [7:0]  stream_err_axi_arid,
+    output  logic [9:0]  stream_err_axi_arid,
     output  logic [31:0]  stream_err_axi_araddr,
     output  logic [7:0]  stream_err_axi_arlen,
     output  logic [2:0]  stream_err_axi_arsize,
@@ -470,7 +470,7 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         stream_err_axi_arvalid,
     input  logic         stream_err_axi_arready,
 
-    input  logic [7:0]  stream_err_axi_rid,
+    input  logic [9:0]  stream_err_axi_rid,
     input  logic [31:0]  stream_err_axi_rdata,
     input  logic [1:0]  stream_err_axi_rresp,
     input  logic         stream_err_axi_rlast,
@@ -487,7 +487,7 @@ module bridge_stream_mon_axil_mon_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] stream_tally_axi_rid_bridge_id,
     input  logic                       stream_tally_axi_rid_valid,
 
-    output  logic [7:0]  stream_tally_axi_awid,
+    output  logic [9:0]  stream_tally_axi_awid,
     output  logic [31:0]  stream_tally_axi_awaddr,
     output  logic [7:0]  stream_tally_axi_awlen,
     output  logic [2:0]  stream_tally_axi_awsize,
@@ -508,13 +508,13 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         stream_tally_axi_wvalid,
     input  logic         stream_tally_axi_wready,
 
-    input  logic [7:0]  stream_tally_axi_bid,
+    input  logic [9:0]  stream_tally_axi_bid,
     input  logic [1:0]  stream_tally_axi_bresp,
     input  logic         stream_tally_axi_buser,
     input  logic         stream_tally_axi_bvalid,
     output  logic         stream_tally_axi_bready,
 
-    output  logic [7:0]  stream_tally_axi_arid,
+    output  logic [9:0]  stream_tally_axi_arid,
     output  logic [31:0]  stream_tally_axi_araddr,
     output  logic [7:0]  stream_tally_axi_arlen,
     output  logic [2:0]  stream_tally_axi_arsize,
@@ -528,7 +528,7 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         stream_tally_axi_arvalid,
     input  logic         stream_tally_axi_arready,
 
-    input  logic [7:0]  stream_tally_axi_rid,
+    input  logic [9:0]  stream_tally_axi_rid,
     input  logic [63:0]  stream_tally_axi_rdata,
     input  logic [1:0]  stream_tally_axi_rresp,
     input  logic         stream_tally_axi_rlast,
@@ -545,7 +545,7 @@ module bridge_stream_mon_axil_mon_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] dma_axil_axi_rid_bridge_id,
     input  logic                       dma_axil_axi_rid_valid,
 
-    output  logic [7:0]  dma_axil_axi_awid,
+    output  logic [9:0]  dma_axil_axi_awid,
     output  logic [31:0]  dma_axil_axi_awaddr,
     output  logic [7:0]  dma_axil_axi_awlen,
     output  logic [2:0]  dma_axil_axi_awsize,
@@ -566,13 +566,13 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         dma_axil_axi_wvalid,
     input  logic         dma_axil_axi_wready,
 
-    input  logic [7:0]  dma_axil_axi_bid,
+    input  logic [9:0]  dma_axil_axi_bid,
     input  logic [1:0]  dma_axil_axi_bresp,
     input  logic         dma_axil_axi_buser,
     input  logic         dma_axil_axi_bvalid,
     output  logic         dma_axil_axi_bready,
 
-    output  logic [7:0]  dma_axil_axi_arid,
+    output  logic [9:0]  dma_axil_axi_arid,
     output  logic [31:0]  dma_axil_axi_araddr,
     output  logic [7:0]  dma_axil_axi_arlen,
     output  logic [2:0]  dma_axil_axi_arsize,
@@ -586,7 +586,7 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         dma_axil_axi_arvalid,
     input  logic         dma_axil_axi_arready,
 
-    input  logic [7:0]  dma_axil_axi_rid,
+    input  logic [9:0]  dma_axil_axi_rid,
     input  logic [31:0]  dma_axil_axi_rdata,
     input  logic [1:0]  dma_axil_axi_rresp,
     input  logic         dma_axil_axi_rlast,
@@ -603,7 +603,7 @@ module bridge_stream_mon_axil_mon_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] slave_err_axi_rid_bridge_id,
     input  logic                       slave_err_axi_rid_valid,
 
-    output  logic [7:0]  slave_err_axi_awid,
+    output  logic [9:0]  slave_err_axi_awid,
     output  logic [31:0]  slave_err_axi_awaddr,
     output  logic [7:0]  slave_err_axi_awlen,
     output  logic [2:0]  slave_err_axi_awsize,
@@ -624,13 +624,13 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         slave_err_axi_wvalid,
     input  logic         slave_err_axi_wready,
 
-    input  logic [7:0]  slave_err_axi_bid,
+    input  logic [9:0]  slave_err_axi_bid,
     input  logic [1:0]  slave_err_axi_bresp,
     input  logic         slave_err_axi_buser,
     input  logic         slave_err_axi_bvalid,
     output  logic         slave_err_axi_bready,
 
-    output  logic [7:0]  slave_err_axi_arid,
+    output  logic [9:0]  slave_err_axi_arid,
     output  logic [31:0]  slave_err_axi_araddr,
     output  logic [7:0]  slave_err_axi_arlen,
     output  logic [2:0]  slave_err_axi_arsize,
@@ -644,7 +644,7 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         slave_err_axi_arvalid,
     input  logic         slave_err_axi_arready,
 
-    input  logic [7:0]  slave_err_axi_rid,
+    input  logic [9:0]  slave_err_axi_rid,
     input  logic [31:0]  slave_err_axi_rdata,
     input  logic [1:0]  slave_err_axi_rresp,
     input  logic         slave_err_axi_rlast,
@@ -661,7 +661,7 @@ module bridge_stream_mon_axil_mon_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] slave_tally_axi_rid_bridge_id,
     input  logic                       slave_tally_axi_rid_valid,
 
-    output  logic [7:0]  slave_tally_axi_awid,
+    output  logic [9:0]  slave_tally_axi_awid,
     output  logic [31:0]  slave_tally_axi_awaddr,
     output  logic [7:0]  slave_tally_axi_awlen,
     output  logic [2:0]  slave_tally_axi_awsize,
@@ -682,13 +682,13 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         slave_tally_axi_wvalid,
     input  logic         slave_tally_axi_wready,
 
-    input  logic [7:0]  slave_tally_axi_bid,
+    input  logic [9:0]  slave_tally_axi_bid,
     input  logic [1:0]  slave_tally_axi_bresp,
     input  logic         slave_tally_axi_buser,
     input  logic         slave_tally_axi_bvalid,
     output  logic         slave_tally_axi_bready,
 
-    output  logic [7:0]  slave_tally_axi_arid,
+    output  logic [9:0]  slave_tally_axi_arid,
     output  logic [31:0]  slave_tally_axi_araddr,
     output  logic [7:0]  slave_tally_axi_arlen,
     output  logic [2:0]  slave_tally_axi_arsize,
@@ -702,7 +702,7 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         slave_tally_axi_arvalid,
     input  logic         slave_tally_axi_arready,
 
-    input  logic [7:0]  slave_tally_axi_rid,
+    input  logic [9:0]  slave_tally_axi_rid,
     input  logic [63:0]  slave_tally_axi_rdata,
     input  logic [1:0]  slave_tally_axi_rresp,
     input  logic         slave_tally_axi_rlast,
@@ -719,7 +719,7 @@ module bridge_stream_mon_axil_mon_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] comp_sram_axi_rid_bridge_id,
     input  logic                       comp_sram_axi_rid_valid,
 
-    output  logic [7:0]  comp_sram_axi_awid,
+    output  logic [9:0]  comp_sram_axi_awid,
     output  logic [31:0]  comp_sram_axi_awaddr,
     output  logic [7:0]  comp_sram_axi_awlen,
     output  logic [2:0]  comp_sram_axi_awsize,
@@ -740,13 +740,13 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         comp_sram_axi_wvalid,
     input  logic         comp_sram_axi_wready,
 
-    input  logic [7:0]  comp_sram_axi_bid,
+    input  logic [9:0]  comp_sram_axi_bid,
     input  logic [1:0]  comp_sram_axi_bresp,
     input  logic         comp_sram_axi_buser,
     input  logic         comp_sram_axi_bvalid,
     output  logic         comp_sram_axi_bready,
 
-    output  logic [7:0]  comp_sram_axi_arid,
+    output  logic [9:0]  comp_sram_axi_arid,
     output  logic [31:0]  comp_sram_axi_araddr,
     output  logic [7:0]  comp_sram_axi_arlen,
     output  logic [2:0]  comp_sram_axi_arsize,
@@ -760,7 +760,7 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         comp_sram_axi_arvalid,
     input  logic         comp_sram_axi_arready,
 
-    input  logic [7:0]  comp_sram_axi_rid,
+    input  logic [9:0]  comp_sram_axi_rid,
     input  logic [63:0]  comp_sram_axi_rdata,
     input  logic [1:0]  comp_sram_axi_rresp,
     input  logic         comp_sram_axi_rlast,
@@ -777,7 +777,7 @@ module bridge_stream_mon_axil_mon_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] stream_tally_cfg_axi_rid_bridge_id,
     input  logic                       stream_tally_cfg_axi_rid_valid,
 
-    output  logic [7:0]  stream_tally_cfg_axi_awid,
+    output  logic [9:0]  stream_tally_cfg_axi_awid,
     output  logic [31:0]  stream_tally_cfg_axi_awaddr,
     output  logic [7:0]  stream_tally_cfg_axi_awlen,
     output  logic [2:0]  stream_tally_cfg_axi_awsize,
@@ -798,13 +798,13 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         stream_tally_cfg_axi_wvalid,
     input  logic         stream_tally_cfg_axi_wready,
 
-    input  logic [7:0]  stream_tally_cfg_axi_bid,
+    input  logic [9:0]  stream_tally_cfg_axi_bid,
     input  logic [1:0]  stream_tally_cfg_axi_bresp,
     input  logic         stream_tally_cfg_axi_buser,
     input  logic         stream_tally_cfg_axi_bvalid,
     output  logic         stream_tally_cfg_axi_bready,
 
-    output  logic [7:0]  stream_tally_cfg_axi_arid,
+    output  logic [9:0]  stream_tally_cfg_axi_arid,
     output  logic [31:0]  stream_tally_cfg_axi_araddr,
     output  logic [7:0]  stream_tally_cfg_axi_arlen,
     output  logic [2:0]  stream_tally_cfg_axi_arsize,
@@ -818,7 +818,7 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         stream_tally_cfg_axi_arvalid,
     input  logic         stream_tally_cfg_axi_arready,
 
-    input  logic [7:0]  stream_tally_cfg_axi_rid,
+    input  logic [9:0]  stream_tally_cfg_axi_rid,
     input  logic [63:0]  stream_tally_cfg_axi_rdata,
     input  logic [1:0]  stream_tally_cfg_axi_rresp,
     input  logic         stream_tally_cfg_axi_rlast,
@@ -835,7 +835,7 @@ module bridge_stream_mon_axil_mon_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] slave_tally_cfg_axi_rid_bridge_id,
     input  logic                       slave_tally_cfg_axi_rid_valid,
 
-    output  logic [7:0]  slave_tally_cfg_axi_awid,
+    output  logic [9:0]  slave_tally_cfg_axi_awid,
     output  logic [31:0]  slave_tally_cfg_axi_awaddr,
     output  logic [7:0]  slave_tally_cfg_axi_awlen,
     output  logic [2:0]  slave_tally_cfg_axi_awsize,
@@ -856,13 +856,13 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         slave_tally_cfg_axi_wvalid,
     input  logic         slave_tally_cfg_axi_wready,
 
-    input  logic [7:0]  slave_tally_cfg_axi_bid,
+    input  logic [9:0]  slave_tally_cfg_axi_bid,
     input  logic [1:0]  slave_tally_cfg_axi_bresp,
     input  logic         slave_tally_cfg_axi_buser,
     input  logic         slave_tally_cfg_axi_bvalid,
     output  logic         slave_tally_cfg_axi_bready,
 
-    output  logic [7:0]  slave_tally_cfg_axi_arid,
+    output  logic [9:0]  slave_tally_cfg_axi_arid,
     output  logic [31:0]  slave_tally_cfg_axi_araddr,
     output  logic [7:0]  slave_tally_cfg_axi_arlen,
     output  logic [2:0]  slave_tally_cfg_axi_arsize,
@@ -876,7 +876,7 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         slave_tally_cfg_axi_arvalid,
     input  logic         slave_tally_cfg_axi_arready,
 
-    input  logic [7:0]  slave_tally_cfg_axi_rid,
+    input  logic [9:0]  slave_tally_cfg_axi_rid,
     input  logic [63:0]  slave_tally_cfg_axi_rdata,
     input  logic [1:0]  slave_tally_cfg_axi_rresp,
     input  logic         slave_tally_cfg_axi_rlast,
@@ -893,7 +893,7 @@ module bridge_stream_mon_axil_mon_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_rid_bridge_id,
     input  logic                       subtractive_axi_rid_valid,
 
-    output  logic [7:0]  subtractive_axi_awid,
+    output  logic [9:0]  subtractive_axi_awid,
     output  logic [31:0]  subtractive_axi_awaddr,
     output  logic [7:0]  subtractive_axi_awlen,
     output  logic [2:0]  subtractive_axi_awsize,
@@ -914,13 +914,13 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         subtractive_axi_wvalid,
     input  logic         subtractive_axi_wready,
 
-    input  logic [7:0]  subtractive_axi_bid,
+    input  logic [9:0]  subtractive_axi_bid,
     input  logic [1:0]  subtractive_axi_bresp,
     input  logic         subtractive_axi_buser,
     input  logic         subtractive_axi_bvalid,
     output  logic         subtractive_axi_bready,
 
-    output  logic [7:0]  subtractive_axi_arid,
+    output  logic [9:0]  subtractive_axi_arid,
     output  logic [31:0]  subtractive_axi_araddr,
     output  logic [7:0]  subtractive_axi_arlen,
     output  logic [2:0]  subtractive_axi_arsize,
@@ -934,7 +934,7 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         subtractive_axi_arvalid,
     input  logic         subtractive_axi_arready,
 
-    input  logic [7:0]  subtractive_axi_rid,
+    input  logic [9:0]  subtractive_axi_rid,
     input  logic [255:0]  subtractive_axi_rdata,
     input  logic [1:0]  subtractive_axi_rresp,
     input  logic         subtractive_axi_rlast,
@@ -2668,6 +2668,18 @@ module bridge_stream_mon_axil_mon_xbar
         ((dma_axil_axi_rid_bridge_id == 0) && dma_axil_axi_rid_valid ? dma_axil_axi_rvalid : '0) |
         ((slave_err_axi_rid_bridge_id == 0) && slave_err_axi_rid_valid ? slave_err_axi_rvalid : '0);
 
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid), ((slvmon_apb_axi_rid_bridge_id == 0) && slvmon_apb_axi_rid_valid), ((stream_apb_axi_rid_bridge_id == 0) && stream_apb_axi_rid_valid), ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid), ((stream_err_axi_rid_bridge_id == 0) && stream_err_axi_rid_valid), ((dma_axil_axi_rid_bridge_id == 0) && dma_axil_axi_rid_valid), ((slave_err_axi_rid_bridge_id == 0) && slave_err_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master host (32b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid), ((slvmon_apb_axi_rid_bridge_id == 0) && slvmon_apb_axi_rid_valid), ((stream_apb_axi_rid_bridge_id == 0) && stream_apb_axi_rid_valid), ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid), ((stream_err_axi_rid_bridge_id == 0) && stream_err_axi_rid_valid), ((dma_axil_axi_rid_bridge_id == 0) && dma_axil_axi_rid_valid), ((slave_err_axi_rid_bridge_id == 0) && slave_err_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
+
 
     // Master: host, Width path: 64b
     assign host_64b_awready = 
@@ -2761,6 +2773,18 @@ module bridge_stream_mon_axil_mon_xbar
         ((stream_tally_cfg_axi_rid_bridge_id == 0) && stream_tally_cfg_axi_rid_valid ? stream_tally_cfg_axi_rvalid : '0) |
         ((slave_tally_cfg_axi_rid_bridge_id == 0) && slave_tally_cfg_axi_rid_valid ? slave_tally_cfg_axi_rvalid : '0);
 
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((stream_tally_axi_rid_bridge_id == 0) && stream_tally_axi_rid_valid), ((slave_tally_axi_rid_bridge_id == 0) && slave_tally_axi_rid_valid), ((comp_sram_axi_rid_bridge_id == 0) && comp_sram_axi_rid_valid), ((stream_tally_cfg_axi_rid_bridge_id == 0) && stream_tally_cfg_axi_rid_valid), ((slave_tally_cfg_axi_rid_bridge_id == 0) && slave_tally_cfg_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master host (64b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((stream_tally_axi_rid_bridge_id == 0) && stream_tally_axi_rid_valid), ((slave_tally_axi_rid_bridge_id == 0) && slave_tally_axi_rid_valid), ((comp_sram_axi_rid_bridge_id == 0) && comp_sram_axi_rid_valid), ((stream_tally_cfg_axi_rid_bridge_id == 0) && stream_tally_cfg_axi_rid_valid), ((slave_tally_cfg_axi_rid_bridge_id == 0) && slave_tally_cfg_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
+
 
     // Master: host, Width path: 256b
     assign host_256b_awready = 
@@ -2815,6 +2839,18 @@ module bridge_stream_mon_axil_mon_xbar
         ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rvalid : '0) |
         ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
 
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master host (256b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
+
 
     // Master: stream_desc, Width path: 256b
     assign stream_desc_256b_arready = 
@@ -2844,6 +2880,18 @@ module bridge_stream_mon_axil_mon_xbar
     assign stream_desc_256b_rvalid = 
         ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rvalid : '0) |
         ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
+
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master stream_desc (256b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
 
 
     // Master: monbus_wr, Width path: 64b

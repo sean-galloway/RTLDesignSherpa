@@ -50,7 +50,7 @@ module bridge_ddr2_char_wr_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] pumice_wr_axi_bid_bridge_id,
     input  logic                       pumice_wr_axi_bid_valid,
 
-    output  logic [7:0]  pumice_wr_axi_awid,
+    output  logic [8:0]  pumice_wr_axi_awid,
     output  logic [31:0]  pumice_wr_axi_awaddr,
     output  logic [7:0]  pumice_wr_axi_awlen,
     output  logic [2:0]  pumice_wr_axi_awsize,
@@ -71,7 +71,7 @@ module bridge_ddr2_char_wr_xbar
     output  logic         pumice_wr_axi_wvalid,
     input  logic         pumice_wr_axi_wready,
 
-    input  logic [7:0]  pumice_wr_axi_bid,
+    input  logic [8:0]  pumice_wr_axi_bid,
     input  logic [1:0]  pumice_wr_axi_bresp,
     input  logic         pumice_wr_axi_buser,
     input  logic         pumice_wr_axi_bvalid,
@@ -82,7 +82,7 @@ module bridge_ddr2_char_wr_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_bid_bridge_id,
     input  logic                       subtractive_axi_bid_valid,
 
-    output  logic [7:0]  subtractive_axi_awid,
+    output  logic [8:0]  subtractive_axi_awid,
     output  logic [31:0]  subtractive_axi_awaddr,
     output  logic [7:0]  subtractive_axi_awlen,
     output  logic [2:0]  subtractive_axi_awsize,
@@ -103,7 +103,7 @@ module bridge_ddr2_char_wr_xbar
     output  logic         subtractive_axi_wvalid,
     input  logic         subtractive_axi_wready,
 
-    input  logic [7:0]  subtractive_axi_bid,
+    input  logic [8:0]  subtractive_axi_bid,
     input  logic [1:0]  subtractive_axi_bresp,
     input  logic         subtractive_axi_buser,
     input  logic         subtractive_axi_bvalid,

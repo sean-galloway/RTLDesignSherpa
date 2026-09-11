@@ -38,7 +38,8 @@ BRIDGE_GEN     = $(BRIDGE_BIN)/bridge_generator.py
 # Everything bridge-related lives under stream_char_framework/rtl/bridges/.
 # Paths below are absolute so the Makefile works the same whether you cd
 # here or invoke it from elsewhere.
-BRIDGES_ROOT   = $(REPO_ROOT)/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges
+# Moved with the area (was projects/NexysA7/stream_characterization/...).
+BRIDGES_ROOT   = $(REPO_ROOT)/projects/fpga-systems/Genesys2/stream/rtl/bridges
 CONFIG_DIR     = $(BRIDGES_ROOT)/configs
 RTL_DIR        = $(BRIDGES_ROOT)/generated
 TB_DIR         = $(BRIDGES_ROOT)/dv/tbclasses

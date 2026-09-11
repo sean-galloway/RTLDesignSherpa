@@ -12,15 +12,13 @@
 module subtractive_adapter
     import bridge_stream_mon_axil_mon_pkg::*;
 #(
-    parameter int ID_WIDTH = 8
-   ,parameter bit USE_MONITOR_WR = 1'b0
-   ,parameter bit USE_MONITOR_RD = 1'b0
+    parameter int ID_WIDTH = 10
 ) (
     input  logic aclk,
     input  logic aresetn,
 
     // Crossbar interface (AXI4 from crossbar)
-    input  logic [7:0]  xbar_subtractive_axi_awid,
+    input  logic [9:0]  xbar_subtractive_axi_awid,
     input  logic [31:0]  xbar_subtractive_axi_awaddr,
     input  logic [7:0]  xbar_subtractive_axi_awlen,
     input  logic [2:0]  xbar_subtractive_axi_awsize,
@@ -39,12 +37,12 @@ module subtractive_adapter
     input  logic         xbar_subtractive_axi_wuser,
     input  logic         xbar_subtractive_axi_wvalid,
     output  logic         xbar_subtractive_axi_wready,
-    output  logic [7:0]  xbar_subtractive_axi_bid,
+    output  logic [9:0]  xbar_subtractive_axi_bid,
     output  logic [1:0]  xbar_subtractive_axi_bresp,
     output  logic         xbar_subtractive_axi_buser,
     output  logic         xbar_subtractive_axi_bvalid,
     input  logic         xbar_subtractive_axi_bready,
-    input  logic [7:0]  xbar_subtractive_axi_arid,
+    input  logic [9:0]  xbar_subtractive_axi_arid,
     input  logic [31:0]  xbar_subtractive_axi_araddr,
     input  logic [7:0]  xbar_subtractive_axi_arlen,
     input  logic [2:0]  xbar_subtractive_axi_arsize,
@@ -57,7 +55,7 @@ module subtractive_adapter
     input  logic         xbar_subtractive_axi_aruser,
     input  logic         xbar_subtractive_axi_arvalid,
     output  logic         xbar_subtractive_axi_arready,
-    output  logic [7:0]  xbar_subtractive_axi_rid,
+    output  logic [9:0]  xbar_subtractive_axi_rid,
     output  logic [255:0]  xbar_subtractive_axi_rdata,
     output  logic [1:0]  xbar_subtractive_axi_rresp,
     output  logic         xbar_subtractive_axi_rlast,
@@ -75,7 +73,7 @@ module subtractive_adapter
     output logic                       rid_valid,
 
     // External slave interface (AXI4)
-    output  logic [7:0]  subtractive_awid,
+    output  logic [9:0]  subtractive_awid,
     output  logic [31:0]  subtractive_awaddr,
     output  logic [7:0]  subtractive_awlen,
     output  logic [2:0]  subtractive_awsize,
@@ -94,12 +92,12 @@ module subtractive_adapter
     output  logic         subtractive_wuser,
     output  logic         subtractive_wvalid,
     input  logic         subtractive_wready,
-    input  logic [7:0]  subtractive_bid,
+    input  logic [9:0]  subtractive_bid,
     input  logic [1:0]  subtractive_bresp,
     input  logic         subtractive_buser,
     input  logic         subtractive_bvalid,
     output  logic         subtractive_bready,
-    output  logic [7:0]  subtractive_arid,
+    output  logic [9:0]  subtractive_arid,
     output  logic [31:0]  subtractive_araddr,
     output  logic [7:0]  subtractive_arlen,
     output  logic [2:0]  subtractive_arsize,
@@ -112,68 +110,13 @@ module subtractive_adapter
     output  logic         subtractive_aruser,
     output  logic         subtractive_arvalid,
     input  logic         subtractive_arready,
-    input  logic [7:0]  subtractive_rid,
+    input  logic [9:0]  subtractive_rid,
     input  logic [255:0]  subtractive_rdata,
     input  logic [1:0]  subtractive_rresp,
     input  logic         subtractive_rlast,
     input  logic         subtractive_ruser,
     input  logic         subtractive_rvalid,
-    output  logic         subtractive_rready,
-
-    // Shared free-running monitor-time (from monbus_axil4_axil4_group.mon_time_out)
-    input  monitor_common_pkg::monbus_timestamp_t i_mon_time,
-
-    // Monitor side-band: wr wrapper
-    output logic                                  monbus_wr_valid,
-    input  logic                                  monbus_wr_ready,
-    output monitor_common_pkg::monitor_packet_t   monbus_wr_packet,
-    output monitor_common_pkg::monbus_timestamp_t monbus_wr_timestamp,
-
-    input  logic         cfg_wr_monitor_enable,
-    input  logic         cfg_wr_error_enable,
-    input  logic         cfg_wr_timeout_enable,
-    input  logic         cfg_wr_perf_enable,
-    input  logic         cfg_wr_compl_enable,
-    input  logic         cfg_wr_threshold_enable,
-    input  logic         cfg_wr_debug_enable,
-    input  logic [15:0] cfg_wr_timeout_cycles,
-    input  logic [3:0] cfg_wr_freq_sel,
-    input  logic [31:0] cfg_wr_latency_threshold,
-    input  logic [15:0] cfg_wr_axi_pkt_mask,
-    input  logic [15:0] cfg_wr_axi_err_select,
-    input  logic [15:0] cfg_wr_axi_error_mask,
-    input  logic [15:0] cfg_wr_axi_timeout_mask,
-    input  logic [15:0] cfg_wr_axi_compl_mask,
-    input  logic [15:0] cfg_wr_axi_thresh_mask,
-    input  logic [15:0] cfg_wr_axi_perf_mask,
-    input  logic [15:0] cfg_wr_axi_addr_mask,
-    input  logic [15:0] cfg_wr_axi_debug_mask,
-
-    // Monitor side-band: rd wrapper
-    output logic                                  monbus_rd_valid,
-    input  logic                                  monbus_rd_ready,
-    output monitor_common_pkg::monitor_packet_t   monbus_rd_packet,
-    output monitor_common_pkg::monbus_timestamp_t monbus_rd_timestamp,
-
-    input  logic         cfg_rd_monitor_enable,
-    input  logic         cfg_rd_error_enable,
-    input  logic         cfg_rd_timeout_enable,
-    input  logic         cfg_rd_perf_enable,
-    input  logic         cfg_rd_compl_enable,
-    input  logic         cfg_rd_threshold_enable,
-    input  logic         cfg_rd_debug_enable,
-    input  logic [15:0] cfg_rd_timeout_cycles,
-    input  logic [3:0] cfg_rd_freq_sel,
-    input  logic [31:0] cfg_rd_latency_threshold,
-    input  logic [15:0] cfg_rd_axi_pkt_mask,
-    input  logic [15:0] cfg_rd_axi_err_select,
-    input  logic [15:0] cfg_rd_axi_error_mask,
-    input  logic [15:0] cfg_rd_axi_timeout_mask,
-    input  logic [15:0] cfg_rd_axi_compl_mask,
-    input  logic [15:0] cfg_rd_axi_thresh_mask,
-    input  logic [15:0] cfg_rd_axi_perf_mask,
-    input  logic [15:0] cfg_rd_axi_addr_mask,
-    input  logic [15:0] cfg_rd_axi_debug_mask
+    output  logic         subtractive_rready
 );
 
     // ================================================================
@@ -255,7 +198,7 @@ module subtractive_adapter
     // bridge needs, and it must cost no gates.
 `ifndef SYNTHESIS
     // synthesis translate_off
-    logic [8-1:0] wr_id_fifo [WR_FIFO_DEPTH];
+    logic [10-1:0] wr_id_fifo [WR_FIFO_DEPTH];
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
         end else begin
@@ -263,11 +206,11 @@ module subtractive_adapter
                 wr_id_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= xbar_subtractive_axi_awid;
             if (xbar_subtractive_axi_bvalid && xbar_subtractive_axi_bready) begin
                 if (xbar_subtractive_axi_bid !== wr_id_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]]) begin
-                    $error("BRIDGE-010: slave returned B out of AW order -- ",
-                           "got BID=%0h, expected %0h. This bridge routes ",
-                           "responses by FIFO position and does not support ",
-                           "ID-based reordering; the response has gone to the ",
-                           "wrong master.", xbar_subtractive_axi_bid,
+                    $error({"BRIDGE-010: slave returned B out of AW order -- ",
+                            "got BID=%0h, expected %0h. This bridge routes ",
+                            "responses by FIFO position and does not support ",
+                            "ID-based reordering; the response has gone to the ",
+                            "wrong master."}, xbar_subtractive_axi_bid,
                            wr_id_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]]);
                 end
             end
@@ -322,7 +265,7 @@ module subtractive_adapter
     // LAST beat, since that is when the FIFO entry is retired.
 `ifndef SYNTHESIS
     // synthesis translate_off
-    logic [8-1:0] rd_id_fifo [RD_FIFO_DEPTH];
+    logic [10-1:0] rd_id_fifo [RD_FIFO_DEPTH];
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
         end else begin
@@ -330,11 +273,11 @@ module subtractive_adapter
                 rd_id_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= xbar_subtractive_axi_arid;
             if (xbar_subtractive_axi_rvalid && xbar_subtractive_axi_rready && xbar_subtractive_axi_rlast) begin
                 if (xbar_subtractive_axi_rid !== rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]) begin
-                    $error("BRIDGE-010: slave returned R out of AR order -- ",
-                           "got RID=%0h, expected %0h. This bridge routes ",
-                           "responses by FIFO position and does not support ",
-                           "ID-based reordering; the data has gone to the ",
-                           "wrong master.", xbar_subtractive_axi_rid,
+                    $error({"BRIDGE-010: slave returned R out of AR order -- ",
+                            "got RID=%0h, expected %0h. This bridge routes ",
+                            "responses by FIFO position and does not support ",
+                            "ID-based reordering; the data has gone to the ",
+                            "wrong master."}, xbar_subtractive_axi_rid,
                            rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]);
                 end
             end
@@ -344,23 +287,14 @@ module subtractive_adapter
 `endif
 
     // AXI4 Master Write Timing Wrapper
-    axi4_master_wr_mon #(
+    axi4_master_wr #(
         .SKID_DEPTH_AW(2),
         .SKID_DEPTH_W(4),
         .SKID_DEPTH_B(2),
-        .AXI_ID_WIDTH(8),
+        .AXI_ID_WIDTH(10),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(256),
-        .AXI_USER_WIDTH(1),
-        .UNIT_ID(1),
-        .AGENT_ID(209),
-        .USE_MONITOR(USE_MONITOR_WR),
-        .ENABLE_ERROR_LOGIC(1'b1),
-        .ENABLE_TIMEOUT_LOGIC(1'b1),
-        .ENABLE_COMPL_LOGIC(1'b1),
-        .ENABLE_THRESHOLD_LOGIC(1'b1),
-        .ENABLE_PERF_LOGIC(1'b1),
-        .ENABLE_DEBUG_LOGIC(1'b1)
+        .AXI_USER_WIDTH(1)
     ) u_master_wr (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -418,90 +352,17 @@ module subtractive_adapter
         .m_axi_bready(subtractive_bready),
 
         // Status (empty connector = unconnected tie-off)
-        .busy(),
-        .active_transactions(),
-        .error_count(),
-        .transaction_count(),
-        .cfg_conflict_error(),
-
-        // Monitor bus output
-        .i_mon_time(i_mon_time),
-        .monbus_valid(monbus_wr_valid),
-        .monbus_ready(monbus_wr_ready),
-        .monbus_packet(monbus_wr_packet),
-        .monbus_timestamp(monbus_wr_timestamp),
-
-        // Monitor cfg inputs
-        .cfg_monitor_enable(cfg_wr_monitor_enable),
-        .cfg_error_enable(cfg_wr_error_enable),
-        .cfg_timeout_enable(cfg_wr_timeout_enable),
-        .cfg_perf_enable(cfg_wr_perf_enable),
-        .cfg_compl_enable(cfg_wr_compl_enable),
-        .cfg_threshold_enable(cfg_wr_threshold_enable),
-        .cfg_debug_enable(cfg_wr_debug_enable),
-        .cfg_timeout_cycles(cfg_wr_timeout_cycles),
-        .cfg_freq_sel(cfg_wr_freq_sel),
-        .cfg_latency_threshold(cfg_wr_latency_threshold),
-        .cfg_axi_pkt_mask(cfg_wr_axi_pkt_mask),
-        .cfg_axi_err_select(cfg_wr_axi_err_select),
-        .cfg_axi_error_mask(cfg_wr_axi_error_mask),
-        .cfg_axi_timeout_mask(cfg_wr_axi_timeout_mask),
-        .cfg_axi_compl_mask(cfg_wr_axi_compl_mask),
-        .cfg_axi_thresh_mask(cfg_wr_axi_thresh_mask),
-        .cfg_axi_perf_mask(cfg_wr_axi_perf_mask),
-        .cfg_axi_addr_mask(cfg_wr_axi_addr_mask),
-        .cfg_axi_debug_mask(cfg_wr_axi_debug_mask),
-
-        // Monitor filter/CAM inputs (inert)
-        .cam_clear(1'b0),
-        .cfg_addr_filter_enable(1'b0),
-        .cfg_addr_filter_low('0),
-        .cfg_addr_filter_high('0),
-        .cfg_id_filter_enable(1'b0),
-        .cfg_id_match_base('0),
-        .cfg_id_match_count('0),
-        .debug_block_ready(),
-
-        // Address-range checker (disabled at N_ADDR_RANGES=0)
-        .cfg_addr_check_enable(1'b0),
-        .cfg_addr_range_enable(1'b0),
-        .cfg_addr_range_low({32{1'b0}}),
-        .cfg_addr_range_high({32{1'b0}}),
-
-        // Perfmon Stage A/B (tied off -- no window driven)
-        .cfg_start_event_sel(3'b111),
-        .cfg_end_event_sel(3'b111),
-        .cfg_start_trigger(1'b0),
-        .cfg_end_trigger(1'b0),
-        .cfg_window_force_close(1'b0),
-        .window_active(),
-        .window_cycles(),
-        .perf_prod_cycles(),
-        .perf_bp_cycles(),
-        .perf_starv_cycles(),
-        .perf_idle_cycles(),
-        .perf_beat_count(),
-        .perf_byte_count(),
-        .perf_burst_count()
+        .busy()
     );
 
     // AXI4 Master Read Timing Wrapper
-    axi4_master_rd_mon #(
+    axi4_master_rd #(
         .SKID_DEPTH_AR(2),
         .SKID_DEPTH_R(2),
-        .AXI_ID_WIDTH(8),
+        .AXI_ID_WIDTH(10),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(256),
-        .AXI_USER_WIDTH(1),
-        .UNIT_ID(1),
-        .AGENT_ID(208),
-        .USE_MONITOR(USE_MONITOR_RD),
-        .ENABLE_ERROR_LOGIC(1'b1),
-        .ENABLE_TIMEOUT_LOGIC(1'b1),
-        .ENABLE_COMPL_LOGIC(1'b1),
-        .ENABLE_THRESHOLD_LOGIC(1'b1),
-        .ENABLE_PERF_LOGIC(1'b1),
-        .ENABLE_DEBUG_LOGIC(1'b1)
+        .AXI_USER_WIDTH(1)
     ) u_master_rd (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -551,71 +412,7 @@ module subtractive_adapter
         .m_axi_rready(subtractive_rready),
 
         // Status (empty connector = unconnected tie-off)
-        .busy(),
-        .active_transactions(),
-        .error_count(),
-        .transaction_count(),
-        .cfg_conflict_error(),
-
-        // Monitor bus output
-        .i_mon_time(i_mon_time),
-        .monbus_valid(monbus_rd_valid),
-        .monbus_ready(monbus_rd_ready),
-        .monbus_packet(monbus_rd_packet),
-        .monbus_timestamp(monbus_rd_timestamp),
-
-        // Monitor cfg inputs
-        .cfg_monitor_enable(cfg_rd_monitor_enable),
-        .cfg_error_enable(cfg_rd_error_enable),
-        .cfg_timeout_enable(cfg_rd_timeout_enable),
-        .cfg_perf_enable(cfg_rd_perf_enable),
-        .cfg_compl_enable(cfg_rd_compl_enable),
-        .cfg_threshold_enable(cfg_rd_threshold_enable),
-        .cfg_debug_enable(cfg_rd_debug_enable),
-        .cfg_timeout_cycles(cfg_rd_timeout_cycles),
-        .cfg_freq_sel(cfg_rd_freq_sel),
-        .cfg_latency_threshold(cfg_rd_latency_threshold),
-        .cfg_axi_pkt_mask(cfg_rd_axi_pkt_mask),
-        .cfg_axi_err_select(cfg_rd_axi_err_select),
-        .cfg_axi_error_mask(cfg_rd_axi_error_mask),
-        .cfg_axi_timeout_mask(cfg_rd_axi_timeout_mask),
-        .cfg_axi_compl_mask(cfg_rd_axi_compl_mask),
-        .cfg_axi_thresh_mask(cfg_rd_axi_thresh_mask),
-        .cfg_axi_perf_mask(cfg_rd_axi_perf_mask),
-        .cfg_axi_addr_mask(cfg_rd_axi_addr_mask),
-        .cfg_axi_debug_mask(cfg_rd_axi_debug_mask),
-
-        // Monitor filter/CAM inputs (inert)
-        .cam_clear(1'b0),
-        .cfg_addr_filter_enable(1'b0),
-        .cfg_addr_filter_low('0),
-        .cfg_addr_filter_high('0),
-        .cfg_id_filter_enable(1'b0),
-        .cfg_id_match_base('0),
-        .cfg_id_match_count('0),
-        .debug_block_ready(),
-
-        // Address-range checker (disabled at N_ADDR_RANGES=0)
-        .cfg_addr_check_enable(1'b0),
-        .cfg_addr_range_enable(1'b0),
-        .cfg_addr_range_low({32{1'b0}}),
-        .cfg_addr_range_high({32{1'b0}}),
-
-        // Perfmon Stage A/B (tied off -- no window driven)
-        .cfg_start_event_sel(3'b111),
-        .cfg_end_event_sel(3'b111),
-        .cfg_start_trigger(1'b0),
-        .cfg_end_trigger(1'b0),
-        .cfg_window_force_close(1'b0),
-        .window_active(),
-        .window_cycles(),
-        .perf_prod_cycles(),
-        .perf_bp_cycles(),
-        .perf_starv_cycles(),
-        .perf_idle_cycles(),
-        .perf_beat_count(),
-        .perf_byte_count(),
-        .perf_burst_count()
+        .busy()
     );
 
 endmodule : subtractive_adapter

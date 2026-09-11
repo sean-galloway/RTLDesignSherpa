@@ -165,6 +165,9 @@ module ddr2_char_macro
 
     // ---- Aliases ----
     parameter int IW = AXI_ID_WIDTH,
+    // pumice sees {master index, master id} from the 2-master bridges inside
+    // char_engine_block (BRIDGE-016): one bit wider than the generators' IDs.
+    parameter int PIW = bridge_ddr2_char_wr_pkg::XBAR_ID_WIDTH,
     parameter int AW = AXI_ADDR_WIDTH,
     parameter int DW = AXI_DATA_WIDTH,
     parameter int UW = AXI_USER_WIDTH,
@@ -316,7 +319,7 @@ module ddr2_char_macro
     // flow drives its controller from the SAME engines, config registers and
     // perf taps. Two copies of this spine is exactly how the LiteDRAM harness
     // drifted onto a harness_csr port list that no longer existed.
-    logic [IW-1:0] wr_awid;    logic [AW-1:0] wr_awaddr;
+    logic [PIW-1:0] wr_awid;   logic [AW-1:0] wr_awaddr;
     logic [7:0]    wr_awlen;   logic [2:0]    wr_awsize;
     logic [1:0]    wr_awburst; logic          wr_awlock;
     logic [3:0]    wr_awcache, wr_awqos, wr_awregion;
@@ -324,16 +327,16 @@ module ddr2_char_macro
     logic          wr_awvalid, wr_awready;
     logic [DW-1:0] wr_wdata;   logic [SW-1:0] wr_wstrb;
     logic          wr_wlast, wr_wvalid, wr_wready;
-    logic [IW-1:0] wr_bid;     logic [1:0]    wr_bresp;
+    logic [PIW-1:0] wr_bid;     logic [1:0]    wr_bresp;
     logic [UW-1:0] wr_buser;   logic          wr_bvalid, wr_bready;
 
-    logic [IW-1:0] rd_arid;    logic [AW-1:0] rd_araddr;
+    logic [PIW-1:0] rd_arid;   logic [AW-1:0] rd_araddr;
     logic [7:0]    rd_arlen;   logic [2:0]    rd_arsize;
     logic [1:0]    rd_arburst; logic          rd_arlock;
     logic [3:0]    rd_arcache, rd_arqos, rd_arregion;
     logic [2:0]    rd_arprot;  logic [UW-1:0] rd_aruser, rd_ruser;
     logic          rd_arvalid, rd_arready;
-    logic [IW-1:0] rd_rid;     logic [DW-1:0] rd_rdata;
+    logic [PIW-1:0] rd_rid;     logic [DW-1:0] rd_rdata;
     logic [1:0]    rd_rresp;   logic          rd_rlast, rd_rvalid, rd_rready;
 
     char_engine_block #(
@@ -484,7 +487,7 @@ module ddr2_char_macro
     // widths with the formal AXI dwidth converters.
     pumice_top_geared #(
         .HOST_AXI_DATA_WIDTH (AXI_DATA_WIDTH),
-        .AXI_ID_WIDTH    (AXI_ID_WIDTH),
+        .AXI_ID_WIDTH    (PIW),            // {master index, id} from the bridges
         .AXI_ADDR_WIDTH  (AXI_ADDR_WIDTH),
         .NUM_RANKS       (NUM_RANKS),
         .NUM_BANKS       (NUM_BANKS),

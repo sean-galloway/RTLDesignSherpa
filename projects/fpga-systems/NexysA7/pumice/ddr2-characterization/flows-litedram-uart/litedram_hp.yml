@@ -32,9 +32,14 @@
     # ROW_BANK_COL (== pumice ROW_MAJOR open-page adaptive).
     "cmd_buffer_depth": 16,
 
-    # ONE 64-bit AXI port to match axi4_master_wr_pattern_gen (id_width 8).
+    # ONE 64-bit AXI port. id_width 9, not 8: the two pattern generators reach
+    # this port through the generated 2-master bridges in char_engine_block,
+    # whose slave-side IDs are {master index, master id} (BRIDGE-016) -- one
+    # bit on top of the generators' own 8. The core in build_board/gateware/
+    # must be regenerated from this file before the next board build; until
+    # then Vivado stops on the 8-vs-9-bit port mismatch rather than aliasing.
     # The crossbar inserts any width conversion internally -> no external adapter.
     "user_ports": {
-        "axi_0": { "type": "axi", "data_width": 64, "id_width": 8 }
+        "axi_0": { "type": "axi", "data_width": 64, "id_width": 9 }
     }
 }

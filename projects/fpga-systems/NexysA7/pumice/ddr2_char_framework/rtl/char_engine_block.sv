@@ -79,8 +79,17 @@ module char_engine_block
     // ---- Reader-engine debug FIFO depth (0 = elide) ----
     parameter int RD_DBG_FIFO_DEPTH = 0,
 
+    // ---- Pumice-side (bridge slave-side) ID width ----
+    // The two generators reach pumice through the generated 2-master bridges,
+    // whose slave-side IDs are {master index, master id} (BRIDGE-016): one
+    // bit wider than the generators' own 8. Sized from the bridge package so
+    // this block cannot silently truncate the master index if the bridge
+    // config ever changes; the rd bridge has the same shape and width.
+    parameter int M_AXI_ID_WIDTH   = bridge_ddr2_char_wr_pkg::XBAR_ID_WIDTH,
+
     // ---- Aliases ----
     parameter int IW = AXI_ID_WIDTH,
+    parameter int PIW = M_AXI_ID_WIDTH,
     parameter int AW = AXI_ADDR_WIDTH,
     parameter int DW = AXI_DATA_WIDTH,
     parameter int UW = AXI_USER_WIDTH,
@@ -141,7 +150,7 @@ module char_engine_block
     // engines own AW/W/B and the read engines own AR/R; the two crossbars
     // above merge NUM_GEN masters per direction onto this one port.
     //=========================================================================
-    output logic [IW-1:0] m_axi_awid,
+    output logic [PIW-1:0] m_axi_awid,
     output logic [AW-1:0] m_axi_awaddr,
     output logic [7:0]    m_axi_awlen,
     output logic [2:0]    m_axi_awsize,
@@ -160,12 +169,12 @@ module char_engine_block
     output logic [UW-1:0] m_axi_wuser,
     output logic          m_axi_wvalid,
     input  logic          m_axi_wready,
-    input  logic [IW-1:0] m_axi_bid,
+    input  logic [PIW-1:0] m_axi_bid,
     input  logic [1:0]    m_axi_bresp,
     input  logic [UW-1:0] m_axi_buser,
     input  logic          m_axi_bvalid,
     output logic          m_axi_bready,
-    output logic [IW-1:0] m_axi_arid,
+    output logic [PIW-1:0] m_axi_arid,
     output logic [AW-1:0] m_axi_araddr,
     output logic [7:0]    m_axi_arlen,
     output logic [2:0]    m_axi_arsize,
@@ -178,7 +187,7 @@ module char_engine_block
     output logic [UW-1:0] m_axi_aruser,
     output logic          m_axi_arvalid,
     input  logic          m_axi_arready,
-    input  logic [IW-1:0] m_axi_rid,
+    input  logic [PIW-1:0] m_axi_rid,
     input  logic [DW-1:0] m_axi_rdata,
     input  logic [1:0]    m_axi_rresp,
     input  logic          m_axi_rlast,
@@ -191,7 +200,7 @@ module char_engine_block
     // Internal AXI nets — writer drives AW/W, reader drives AR, both
     // share s_axi at the controller's slave port.
     //=========================================================================
-    logic [IW-1:0] wr_awid;
+    logic [PIW-1:0] wr_awid;   // bridge slave side: {master index, id}
     logic [AW-1:0] wr_awaddr;
     logic [7:0]    wr_awlen;
     logic [2:0]    wr_awsize;
@@ -204,12 +213,12 @@ module char_engine_block
     logic [DW-1:0] wr_wdata;
     logic [SW-1:0] wr_wstrb;
     logic          wr_wlast, wr_wvalid, wr_wready;
-    logic [IW-1:0] wr_bid;
+    logic [PIW-1:0] wr_bid;
     logic [1:0]    wr_bresp;
     logic [UW-1:0] wr_buser;
     logic          wr_bvalid, wr_bready;
 
-    logic [IW-1:0] rd_arid;
+    logic [PIW-1:0] rd_arid;
     logic [AW-1:0] rd_araddr;
     logic [7:0]    rd_arlen;
     logic [2:0]    rd_arsize;
@@ -219,7 +228,7 @@ module char_engine_block
     logic [2:0]    rd_arprot;
     logic [UW-1:0] rd_aruser, rd_ruser;
     logic          rd_arvalid, rd_arready;
-    logic [IW-1:0] rd_rid;
+    logic [PIW-1:0] rd_rid;
     logic [DW-1:0] rd_rdata;
     logic [1:0]    rd_rresp;
     logic          rd_rlast, rd_rvalid, rd_rready;
@@ -895,7 +904,7 @@ module char_engine_block
     // generator lookahead. Depth 8 lost up to 31/64 samples in the sim
     // multiid_min profile (PUMICE-020 MISSING side); 32 covers it.
     axi_perf_latency_hist #(
-        .ID_WIDTH        (IW),
+        .ID_WIDTH        (PIW),   // pumice side, {master index, id}
         .NUM_CHANNELS    (1),
         .MAX_OUTSTANDING (32),
         .NUM_BINS        (16),
@@ -926,7 +935,7 @@ module char_engine_block
     // Latency hist: RD side tracks AR -> firstR / RLAST (metric selects).
     // MAX_OUTSTANDING: same sizing contract as the WR hist above.
     axi_perf_latency_hist #(
-        .ID_WIDTH        (IW),
+        .ID_WIDTH        (PIW),   // pumice side, {master index, id}
         .NUM_CHANNELS    (1),
         .MAX_OUTSTANDING (32),
         .NUM_BINS        (16),

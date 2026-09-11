@@ -1438,11 +1438,32 @@ stays on the FIFO path, and its `$error` finally prints the IDs rather than
 the ASCII of its own next sentence (the message was five string arguments).
 The BRIDGE-011 overflow test now reads occupancy from the CAM's count.
 
-**Downstream:** the FPGA-system bridges (`bridge_ddr2_char_{rd,wr}`, 2
-masters; `bridge_stream_{char,mon}_axil`, 3 and 4 masters) will now fail
-validation on their next PREBUILD regeneration until their slave `id_width`
-is raised and whatever the slave ports connect to is sized to match. That
-is deliberate: a loud validation error rather than a silently truncated ID.
+**Downstream, done 2026-09-11.** The four FPGA-system bridges with more than
+one master were regenerated with widened slave IDs, and everything their
+slave ports touch is now sized from the bridge package rather than by hand:
+
+- `bridge_ddr2_char_{rd,wr}` (two 8-bit generators -> 9 bits at pumice):
+  `char_engine_block` gained `M_AXI_ID_WIDTH = bridge_ddr2_char_wr_pkg::
+  XBAR_ID_WIDTH` for its pumice-facing ports, nets and latency histograms;
+  `ddr2_char_macro` sizes its pumice nets and `pumice_top_geared.AXI_ID_WIDTH`
+  from the same constant. The generators' own IDs stay 8 bits.
+- `bridge_stream_{char,mon}_axil` (three and four 8-bit masters -> 10 bits at
+  `desc_ram`): `stream_harness` sizes the desc-RAM nets and
+  `sdpram_slave_axi4_axi4.AXI_ID_WIDTH` from `bridge_stream_mon_axil_pkg::
+  XBAR_ID_WIDTH`. All three Genesys2 builds (perf, mon, obs) lint clean and
+  the bridges' local tests pass at the new width. Their Makefile still pointed
+  at the area's pre-move path and the local TB classes at the old slave
+  width; both fixed.
+- **LiteDRAM comparison flow: source-consistent, not rebuildable here.**
+  `litedram_char_top` carries the 9-bit IDs and `litedram_hp.yml` asks for
+  `id_width: 9`, but `build_board/gateware/litedram_core.v` is a generated
+  core still at 8 bits and this machine has no LiteX environment to
+  regenerate it. The harness lints clean without the core; the board build
+  will stop on the 8-vs-9 port mismatch until the core is regenerated from
+  the yml, which is the loud failure we want rather than a truncated index.
+
+All four bitstreams predate the change and need rebuilding before the next
+board session.
 
 ## Pre-migration ledger: projects/components/bridge/TASKS.md (retired 2026-09-10)
 

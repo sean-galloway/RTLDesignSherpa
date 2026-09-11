@@ -53,7 +53,11 @@ module litedram_char_top (
     logic        init_done, init_error, pll_locked;
 
     // ---- AXI between the harness (master) and litedram user port ------------
-    logic [7:0]  ax_awid, ax_arid, ax_bid, ax_rid;
+    // {master index, master id} from the bridges inside char_engine_block
+    // (BRIDGE-016): 9 bits, and litedram_core must be generated to match
+    // (litedram_hp.yml id_width). Sized from the bridge package so the two
+    // cannot drift apart silently.
+    logic [bridge_ddr2_char_wr_pkg::XBAR_ID_WIDTH-1:0] ax_awid, ax_arid, ax_bid, ax_rid;
     logic [31:0] ax_awaddr, ax_araddr;
     logic [7:0]  ax_awlen, ax_arlen;
     logic [2:0]  ax_awsize, ax_arsize;

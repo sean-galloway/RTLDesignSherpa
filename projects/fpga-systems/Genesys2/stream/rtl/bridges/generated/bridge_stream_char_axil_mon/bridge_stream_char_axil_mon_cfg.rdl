@@ -942,7 +942,7 @@ addrmap bridge_stream_char_axil_mon_cfg {
     } DMA_AXIL_5_RD_MASKS_E;
 
     // ----------------------------------------------------------------
-    // Group cfg — shared across all monitors at the monbus_axil_group.
+    // Group cfg — shared across all monitors at the monbus_axil4_axil4_group.
     // Emitted from the bridge generator's _MON_GROUP_CFG tuple: 32-bit
     // fields each get their own MON_GROUP_<NAME> register; 16-bit
     // mask fields are packed two per register as MON_GROUP_PACK_<N>.
@@ -1055,5 +1055,36 @@ addrmap bridge_stream_char_axil_mon_cfg {
         desc = "mon_group compress_en (1-bit)";
         field { reset = 1'h1; } compress_en[0:0];
     } MON_GROUP_COMPRESS_EN;
+
+    // ----------------------------------------------------------------
+    // Unmapped-address status (subtractive catch-all slave, BRIDGE-009).
+    //
+    // The STICKY bit lives in axi4_subtractive_slave, not here: one owner
+    // for one piece of state. These fields are a window onto it plus a
+    // clear. HIT and COUNT are hw-written mirrors; CLEAR is a software
+    // singlepulse that clears the flag and the count at the source.
+    //
+    // Appended LAST, deliberately. Inserting per-slave cfg for the
+    // catch-all earlier in the map added 52 fields and renumbered every
+    // register after it, which silently moved the monitor-enable bits and
+    // left the monitors switched off. A register map is an ABI.
+    // ----------------------------------------------------------------
+    reg {
+        name = "SUBTRACTIVE_STATUS";
+        desc = "Unmapped-address status. HIT latches on the first access
+                that matched no slave range and holds until CLEAR. COUNT
+                saturates at 255 rather than wrapping.";
+        field { sw = r; hw = w; } HIT[0:0];
+        field { sw = w; hw = r; singlepulse; reset = 1'b0; } CLEAR[1:1];
+        field { sw = r; hw = w; } COUNT[15:8];
+    } SUBTRACTIVE_STATUS;
+
+    reg {
+        name = "SUBTRACTIVE_ADDR";
+        desc = "Address of the FIRST unmapped access. Not overwritten by
+                later faults and not cleared by CLEAR, so it stays readable
+                as evidence after the flag is acknowledged.";
+        field { sw = r; hw = w; } ADDR[31:0];
+    } SUBTRACTIVE_ADDR;
 
 };

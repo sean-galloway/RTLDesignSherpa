@@ -117,6 +117,11 @@ module monbus_wr_adapter
 
     logic         wrapper_wr_busy;
 
+    // Master-unique fabric IDs: {BRIDGE_ID, id} (BRIDGE-016). Responses
+    // return with the prefix; the response muxes select the low bits.
+    logic [XBAR_ID_WIDTH-1:0] xbar_axi_awid;
+    assign xbar_axi_awid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_awid)};
+
     // ================================================================
     // Timing isolation wrapper (axi4_slave_wr)
     // ================================================================
@@ -241,7 +246,7 @@ module monbus_wr_adapter
     // ================================================================
 
     // AW channel (request: fub → output)
-    assign monbus_wr_64b_aw.id     = fub_axi_awid;
+    assign monbus_wr_64b_aw.id     = xbar_axi_awid;
     assign monbus_wr_64b_aw.addr   = fub_axi_awaddr;
     assign monbus_wr_64b_aw.len    = fub_axi_awlen;
     assign monbus_wr_64b_aw.size   = fub_axi_awsize;
@@ -275,7 +280,7 @@ module monbus_wr_adapter
     // Intermediate signals for 256b converter
     logic conv_256b_awready;
     logic conv_256b_wready;
-    logic [7:0] conv_256b_bid;
+    logic [9:0] conv_256b_bid;
     logic [1:0] conv_256b_bresp;
     logic conv_256b_bvalid;
 
@@ -285,13 +290,13 @@ module monbus_wr_adapter
     axil_to_axi4_wide_align_wr #(
         .S_AXI_DATA_WIDTH(64),
         .M_AXI_DATA_WIDTH(256),
-        .AXI_ID_WIDTH(8),
+        .AXI_ID_WIDTH(10),
         .AXI_ADDR_WIDTH(32),
         .AXI_USER_WIDTH(1)
     ) u_wr_conv_256b (
         .aclk(aclk),
         .aresetn(aresetn),
-        .s_axi_awid(fub_axi_awid),
+        .s_axi_awid(xbar_axi_awid),
         .s_axi_awaddr(fub_axi_awaddr),
         .s_axi_awlen(fub_axi_awlen),
         .s_axi_awsize(fub_axi_awsize),
@@ -501,7 +506,7 @@ module monbus_wr_adapter
                 fub_axi_bvalid = monbus_wr_64b_bvalid;
             end
             14'b10000000000000: begin  // Slave 13 (256b)
-                fub_axi_bid = conv_256b_bid;
+                fub_axi_bid = conv_256b_bid[7:0];
                 fub_axi_bresp = conv_256b_bresp;
                 fub_axi_bvalid = conv_256b_bvalid;
             end

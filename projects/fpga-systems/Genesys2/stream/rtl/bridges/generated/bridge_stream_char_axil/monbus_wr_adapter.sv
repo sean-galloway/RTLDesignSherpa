@@ -10,7 +10,7 @@
 module monbus_wr_adapter
     import bridge_stream_char_axil_pkg::*;
 #(
-    parameter NUM_SLAVES = 6,
+    parameter NUM_SLAVES = 7,
     parameter BRIDGE_ID = 2,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 2,
     parameter SKID_DEPTH_AW = 2,
@@ -63,7 +63,19 @@ module monbus_wr_adapter
 
     input  axi4_b_t      monbus_wr_64b_b,
     input  logic         monbus_wr_64b_bvalid,
-    output logic         monbus_wr_64b_bready
+    output logic         monbus_wr_64b_bready,
+
+    output axi4_aw_t     monbus_wr_256b_aw,
+    output logic         monbus_wr_256b_awvalid,
+    input  logic         monbus_wr_256b_awready,
+
+    output axi4_w_256b_t  monbus_wr_256b_w,
+    output logic         monbus_wr_256b_wvalid,
+    input  logic         monbus_wr_256b_wready,
+
+    input  axi4_b_t      monbus_wr_256b_b,
+    input  logic         monbus_wr_256b_bvalid,
+    output logic         monbus_wr_256b_bready
 );
 
     // ================================================================
@@ -104,6 +116,11 @@ module monbus_wr_adapter
     logic         fub_axi_bready;
 
     logic         wrapper_wr_busy;
+
+    // Master-unique fabric IDs: {BRIDGE_ID, id} (BRIDGE-016). Responses
+    // return with the prefix; the response muxes select the low bits.
+    logic [XBAR_ID_WIDTH-1:0] xbar_axi_awid;
+    assign xbar_axi_awid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_awid)};
 
     // ================================================================
     // Timing isolation wrapper (axi4_slave_wr)
@@ -182,12 +199,16 @@ module monbus_wr_adapter
     // ================================================================
     // Address decode (slave selection) - Write
     // Slave 4 (debug_sram): 0x00040000 - 0x0007FFFF
+    // Slave 6 (subtractive): 0x00000000 - 0xFFFFFFFF
     // ================================================================
     logic [NUM_SLAVES-1:0] comb_slave_select_aw;
     always_comb begin
         comb_slave_select_aw = '0;
         if (fub_axi_awaddr >= 32'h00040000 && fub_axi_awaddr <= 32'h0007FFFF) begin
             comb_slave_select_aw[4] = 1'b1;  // debug_sram
+        end
+        else begin  // Full address range (catch-all)
+            comb_slave_select_aw[6] = 1'b1;  // subtractive
         end
     end
 
@@ -196,7 +217,7 @@ module monbus_wr_adapter
 
     // ================================================================
     // Width adaptation - Master: 64b
-    // Connected to slaves with widths: [64]
+    // Connected to slaves with widths: [64, 256]
     // ================================================================
 
     // Per-width path-active gates (see comment in adapter_generator.py).
@@ -207,6 +228,12 @@ module monbus_wr_adapter
     assign w_path_active_64b = w_slave_select[4];
     logic b_path_active_64b;
     assign b_path_active_64b = b_slave_select[4];
+    logic aw_path_active_256b;
+    assign aw_path_active_256b = (comb_slave_select_aw[6]) && aw_gate_ok;
+    logic w_path_active_256b;
+    assign w_path_active_256b = w_slave_select[6];
+    logic b_path_active_256b;
+    assign b_path_active_256b = b_slave_select[6];
 
     // ================================================================
     // Direct passthrough: 64b → 64b (no converter)
@@ -215,7 +242,7 @@ module monbus_wr_adapter
     // ================================================================
 
     // AW channel (request: fub → output)
-    assign monbus_wr_64b_aw.id     = fub_axi_awid;
+    assign monbus_wr_64b_aw.id     = xbar_axi_awid;
     assign monbus_wr_64b_aw.addr   = fub_axi_awaddr;
     assign monbus_wr_64b_aw.len    = fub_axi_awlen;
     assign monbus_wr_64b_aw.size   = fub_axi_awsize;
@@ -241,6 +268,79 @@ module monbus_wr_adapter
     // Ready gated by the response head — see b_path_active comment.
     assign monbus_wr_64b_bready = fub_axi_bready && b_path_active_64b;
     // bid, bresp, bvalid routed via MUX (user field ignored)
+
+    // ================================================================
+    // Width converter: 64b → 256b
+    // ================================================================
+
+    // Intermediate signals for 256b converter
+    logic conv_256b_awready;
+    logic conv_256b_wready;
+    logic [9:0] conv_256b_bid;
+    logic [1:0] conv_256b_bresp;
+    logic conv_256b_bvalid;
+
+    // Master-side AXIL alignment (no aggregation): every narrow
+    // single-beat AXIL write becomes one wide AXI4 single-beat with
+    // wdata/wstrb shifted by awaddr's low bits.
+    axil_to_axi4_wide_align_wr #(
+        .S_AXI_DATA_WIDTH(64),
+        .M_AXI_DATA_WIDTH(256),
+        .AXI_ID_WIDTH(10),
+        .AXI_ADDR_WIDTH(32),
+        .AXI_USER_WIDTH(1)
+    ) u_wr_conv_256b (
+        .aclk(aclk),
+        .aresetn(aresetn),
+        .s_axi_awid(xbar_axi_awid),
+        .s_axi_awaddr(fub_axi_awaddr),
+        .s_axi_awlen(fub_axi_awlen),
+        .s_axi_awsize(fub_axi_awsize),
+        .s_axi_awburst(fub_axi_awburst),
+        .s_axi_awlock(fub_axi_awlock),
+        .s_axi_awcache(fub_axi_awcache),
+        .s_axi_awprot(fub_axi_awprot),
+        .s_axi_awqos(4'b0),
+        .s_axi_awregion(4'b0),
+        .s_axi_awuser(1'b0),
+        .s_axi_awvalid(fub_axi_awvalid && aw_path_active_256b),
+        .s_axi_awready(conv_256b_awready),
+        .s_axi_wdata(fub_axi_wdata),
+        .s_axi_wstrb(fub_axi_wstrb),
+        .s_axi_wlast(fub_axi_wlast),
+        .s_axi_wuser(1'b0),
+        .s_axi_wvalid(fub_axi_wvalid && w_path_active_256b),
+        .s_axi_wready(conv_256b_wready),
+        .s_axi_bid(conv_256b_bid),
+        .s_axi_bresp(conv_256b_bresp),
+        .s_axi_buser(),
+        .s_axi_bvalid(conv_256b_bvalid),
+        .s_axi_bready(fub_axi_bready && b_path_active_256b),
+        .m_axi_awid(monbus_wr_256b_aw.id),
+        .m_axi_awaddr(monbus_wr_256b_aw.addr),
+        .m_axi_awlen(monbus_wr_256b_aw.len),
+        .m_axi_awsize(monbus_wr_256b_aw.size),
+        .m_axi_awburst(monbus_wr_256b_aw.burst),
+        .m_axi_awlock(monbus_wr_256b_aw.lock),
+        .m_axi_awcache(monbus_wr_256b_aw.cache),
+        .m_axi_awprot(monbus_wr_256b_aw.prot),
+        .m_axi_awqos(monbus_wr_256b_aw.qos),
+        .m_axi_awregion(monbus_wr_256b_aw.region),
+        .m_axi_awuser(monbus_wr_256b_aw.user),
+        .m_axi_awvalid(monbus_wr_256b_awvalid),
+        .m_axi_awready(monbus_wr_256b_awready),
+        .m_axi_wdata(monbus_wr_256b_w.data),
+        .m_axi_wstrb(monbus_wr_256b_w.strb),
+        .m_axi_wlast(monbus_wr_256b_w.last),
+        .m_axi_wuser(monbus_wr_256b_w.user),
+        .m_axi_wvalid(monbus_wr_256b_wvalid),
+        .m_axi_wready(monbus_wr_256b_wready),
+        .m_axi_bid(monbus_wr_256b_b.id),
+        .m_axi_bresp(monbus_wr_256b_b.resp),
+        .m_axi_buser(monbus_wr_256b_b.user),
+        .m_axi_bvalid(monbus_wr_256b_bvalid),
+        .m_axi_bready(monbus_wr_256b_bready)
+    );
 
     // ================================================================
     // Response MUX - Route responses from width-specific paths
@@ -304,8 +404,12 @@ module monbus_wr_adapter
             r_aw_active_target <= comb_slave_select_aw;
         end
     )
-    assign aw_gate_ok = (aw_trk_wptr == aw_trk_rptr) ||
-                        (comb_slave_select_aw == r_aw_active_target);
+    logic aw_trk_full;
+    assign aw_trk_full = (aw_trk_wptr[AW_TRK_AW] != aw_trk_rptr[AW_TRK_AW]) &&
+                         (aw_trk_wptr[AW_TRK_AW-1:0] == aw_trk_rptr[AW_TRK_AW-1:0]);
+    assign aw_gate_ok = ((aw_trk_wptr == aw_trk_rptr) ||
+                         (comb_slave_select_aw == r_aw_active_target)) &&
+                        !aw_trk_full;
 
     // -------- AW->W slave_select tracking FIFO --------
     // Same push as AW (records slave_select at handshake);
@@ -343,8 +447,11 @@ module monbus_wr_adapter
     always_comb begin
         fub_axi_awready = 1'b0;
         case (comb_slave_select_aw)
-            6'b010000: begin  // Slave 4 (64b)
+            7'b0010000: begin  // Slave 4 (64b)
                 fub_axi_awready = monbus_wr_64b_awready;
+            end
+            7'b1000000: begin  // Slave 6 (256b)
+                fub_axi_awready = conv_256b_awready;
             end
             default: begin
                 // No slave selected
@@ -359,8 +466,11 @@ module monbus_wr_adapter
     always_comb begin
         fub_axi_wready = 1'b0;
         case (w_slave_select)
-            6'b010000: begin  // Slave 4 (64b)
+            7'b0010000: begin  // Slave 4 (64b)
                 fub_axi_wready = monbus_wr_64b_wready;
+            end
+            7'b1000000: begin  // Slave 6 (256b)
+                fub_axi_wready = conv_256b_wready;
             end
             default: begin
                 // No active W transaction
@@ -375,10 +485,15 @@ module monbus_wr_adapter
         fub_axi_bvalid = 1'b0;
 
         case (b_slave_select)
-            6'b010000: begin  // Slave 4 (64b)
+            7'b0010000: begin  // Slave 4 (64b)
                 fub_axi_bid = monbus_wr_64b_b.id[7:0];
                 fub_axi_bresp = monbus_wr_64b_b.resp;
                 fub_axi_bvalid = monbus_wr_64b_bvalid;
+            end
+            7'b1000000: begin  // Slave 6 (256b)
+                fub_axi_bid = conv_256b_bid[7:0];
+                fub_axi_bresp = conv_256b_bresp;
+                fub_axi_bvalid = conv_256b_bvalid;
             end
             default: begin
                 // No slave selected - hold defaults

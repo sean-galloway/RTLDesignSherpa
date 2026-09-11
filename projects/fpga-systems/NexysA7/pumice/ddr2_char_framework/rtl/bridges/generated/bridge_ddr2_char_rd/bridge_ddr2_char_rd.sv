@@ -71,7 +71,7 @@ module bridge_ddr2_char_rd
 
     // Slave 0: pumice_rd
     // AXI4 Slave: pumice_rd
-    output  logic [7:0]  pumice_rd_axi_arid,
+    output  logic [8:0]  pumice_rd_axi_arid,
     output  logic [31:0]  pumice_rd_axi_araddr,
     output  logic [7:0]  pumice_rd_axi_arlen,
     output  logic [2:0]  pumice_rd_axi_arsize,
@@ -85,7 +85,7 @@ module bridge_ddr2_char_rd
     output  logic         pumice_rd_axi_arvalid,
     input  logic         pumice_rd_axi_arready,
 
-    input  logic [7:0]  pumice_rd_axi_rid,
+    input  logic [8:0]  pumice_rd_axi_rid,
     input  logic [63:0]  pumice_rd_axi_rdata,
     input  logic [1:0]  pumice_rd_axi_rresp,
     input  logic         pumice_rd_axi_rlast,
@@ -131,7 +131,7 @@ module bridge_ddr2_char_rd
 
     // Crossbar-to-Slave Internal AXI4 Signals
     // pumice_rd (AXI4, 64b AXI4 interface)
-    logic [7:0]            xbar_pumice_rd_axi_arid;
+    logic [8:0]            xbar_pumice_rd_axi_arid;
     logic [31:0]               xbar_pumice_rd_axi_araddr;
     logic [7:0]                xbar_pumice_rd_axi_arlen;
     logic [2:0]                xbar_pumice_rd_axi_arsize;
@@ -144,7 +144,7 @@ module bridge_ddr2_char_rd
     logic                      xbar_pumice_rd_axi_aruser;
     logic                      xbar_pumice_rd_axi_arvalid;
     logic                      xbar_pumice_rd_axi_arready;
-    logic [7:0]            xbar_pumice_rd_axi_rid;
+    logic [8:0]            xbar_pumice_rd_axi_rid;
     logic [63:0] xbar_pumice_rd_axi_rdata;
     logic [1:0]                xbar_pumice_rd_axi_rresp;
     logic                      xbar_pumice_rd_axi_rlast;
@@ -156,7 +156,7 @@ module bridge_ddr2_char_rd
     logic                       pumice_rd_axi_rid_valid;
 
     // subtractive (AXI4, 64b AXI4 interface)
-    logic [7:0]            xbar_subtractive_axi_arid;
+    logic [8:0]            xbar_subtractive_axi_arid;
     logic [31:0]               xbar_subtractive_axi_araddr;
     logic [7:0]                xbar_subtractive_axi_arlen;
     logic [2:0]                xbar_subtractive_axi_arsize;
@@ -169,7 +169,7 @@ module bridge_ddr2_char_rd
     logic                      xbar_subtractive_axi_aruser;
     logic                      xbar_subtractive_axi_arvalid;
     logic                      xbar_subtractive_axi_arready;
-    logic [7:0]            xbar_subtractive_axi_rid;
+    logic [8:0]            xbar_subtractive_axi_rid;
     logic [63:0] xbar_subtractive_axi_rdata;
     logic [1:0]                xbar_subtractive_axi_rresp;
     logic                      xbar_subtractive_axi_rlast;
@@ -184,7 +184,7 @@ module bridge_ddr2_char_rd
     // ---- Slave 1: subtractive (subtractive catch-all, internal) ----
     // Unmapped addresses land here instead of selecting nothing and
     // stalling the master forever (BRIDGE-009). Always answers DECERR.
-    logic [7:0]  subtractive_arid;
+    logic [8:0]  subtractive_arid;
     logic [31:0]  subtractive_araddr;
     logic [7:0]  subtractive_arlen;
     logic [2:0]  subtractive_arsize;
@@ -197,7 +197,7 @@ module bridge_ddr2_char_rd
     logic         subtractive_aruser;
     logic         subtractive_arvalid;
     logic         subtractive_arready;
-    logic [7:0]  subtractive_rid;
+    logic [8:0]  subtractive_rid;
     logic [63:0]  subtractive_rdata;
     logic [1:0]  subtractive_rresp;
     logic         subtractive_rlast;
@@ -211,7 +211,7 @@ module bridge_ddr2_char_rd
     monitor_common_pkg::monitor_packet_t subtractive_monbus_packet;
 
     axi4_subtractive_slave #(
-        .AXI_ID_WIDTH   (8),
+        .AXI_ID_WIDTH   (9),
         .AXI_ADDR_WIDTH (32),
         .AXI_DATA_WIDTH (64),
         .AXI_USER_WIDTH (1),

@@ -81,7 +81,7 @@ module bridge_ddr2_char_wr
 
     // Slave 0: pumice_wr
     // AXI4 Slave: pumice_wr
-    output  logic [7:0]  pumice_wr_axi_awid,
+    output  logic [8:0]  pumice_wr_axi_awid,
     output  logic [31:0]  pumice_wr_axi_awaddr,
     output  logic [7:0]  pumice_wr_axi_awlen,
     output  logic [2:0]  pumice_wr_axi_awsize,
@@ -102,7 +102,7 @@ module bridge_ddr2_char_wr
     output  logic         pumice_wr_axi_wvalid,
     input  logic         pumice_wr_axi_wready,
 
-    input  logic [7:0]  pumice_wr_axi_bid,
+    input  logic [8:0]  pumice_wr_axi_bid,
     input  logic [1:0]  pumice_wr_axi_bresp,
     input  logic         pumice_wr_axi_buser,
     input  logic         pumice_wr_axi_bvalid,
@@ -152,7 +152,7 @@ module bridge_ddr2_char_wr
 
     // Crossbar-to-Slave Internal AXI4 Signals
     // pumice_wr (AXI4, 64b AXI4 interface)
-    logic [7:0]            xbar_pumice_wr_axi_awid;
+    logic [8:0]            xbar_pumice_wr_axi_awid;
     logic [31:0]               xbar_pumice_wr_axi_awaddr;
     logic [7:0]                xbar_pumice_wr_axi_awlen;
     logic [2:0]                xbar_pumice_wr_axi_awsize;
@@ -171,7 +171,7 @@ module bridge_ddr2_char_wr
     logic                      xbar_pumice_wr_axi_wuser;
     logic                      xbar_pumice_wr_axi_wvalid;
     logic                      xbar_pumice_wr_axi_wready;
-    logic [7:0]            xbar_pumice_wr_axi_bid;
+    logic [8:0]            xbar_pumice_wr_axi_bid;
     logic [1:0]                xbar_pumice_wr_axi_bresp;
     logic                      xbar_pumice_wr_axi_buser;
     logic                      xbar_pumice_wr_axi_bvalid;
@@ -181,7 +181,7 @@ module bridge_ddr2_char_wr
     logic                       pumice_wr_axi_bid_valid;
 
     // subtractive (AXI4, 64b AXI4 interface)
-    logic [7:0]            xbar_subtractive_axi_awid;
+    logic [8:0]            xbar_subtractive_axi_awid;
     logic [31:0]               xbar_subtractive_axi_awaddr;
     logic [7:0]                xbar_subtractive_axi_awlen;
     logic [2:0]                xbar_subtractive_axi_awsize;
@@ -200,7 +200,7 @@ module bridge_ddr2_char_wr
     logic                      xbar_subtractive_axi_wuser;
     logic                      xbar_subtractive_axi_wvalid;
     logic                      xbar_subtractive_axi_wready;
-    logic [7:0]            xbar_subtractive_axi_bid;
+    logic [8:0]            xbar_subtractive_axi_bid;
     logic [1:0]                xbar_subtractive_axi_bresp;
     logic                      xbar_subtractive_axi_buser;
     logic                      xbar_subtractive_axi_bvalid;
@@ -213,7 +213,7 @@ module bridge_ddr2_char_wr
     // ---- Slave 1: subtractive (subtractive catch-all, internal) ----
     // Unmapped addresses land here instead of selecting nothing and
     // stalling the master forever (BRIDGE-009). Always answers DECERR.
-    logic [7:0]  subtractive_awid;
+    logic [8:0]  subtractive_awid;
     logic [31:0]  subtractive_awaddr;
     logic [7:0]  subtractive_awlen;
     logic [2:0]  subtractive_awsize;
@@ -232,7 +232,7 @@ module bridge_ddr2_char_wr
     logic         subtractive_wuser;
     logic         subtractive_wvalid;
     logic         subtractive_wready;
-    logic [7:0]  subtractive_bid;
+    logic [8:0]  subtractive_bid;
     logic [1:0]  subtractive_bresp;
     logic         subtractive_buser;
     logic         subtractive_bvalid;
@@ -244,7 +244,7 @@ module bridge_ddr2_char_wr
     monitor_common_pkg::monitor_packet_t subtractive_monbus_packet;
 
     axi4_subtractive_slave #(
-        .AXI_ID_WIDTH   (8),
+        .AXI_ID_WIDTH   (9),
         .AXI_ADDR_WIDTH (32),
         .AXI_DATA_WIDTH (64),
         .AXI_USER_WIDTH (1),

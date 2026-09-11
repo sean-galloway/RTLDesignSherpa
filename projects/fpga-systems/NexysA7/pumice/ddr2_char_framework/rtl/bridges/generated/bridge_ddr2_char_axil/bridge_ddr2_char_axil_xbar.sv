@@ -1075,6 +1075,18 @@ module bridge_ddr2_char_axil_xbar
         ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid ? obs_apb_axi_rvalid : '0) |
         ((chargen_apb_axi_rid_bridge_id == 0) && chargen_apb_axi_rid_valid ? chargen_apb_axi_rvalid : '0);
 
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((ddr2_apb_axi_rid_bridge_id == 0) && ddr2_apb_axi_rid_valid), ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid), ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid), ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid), ((chargen_apb_axi_rid_bridge_id == 0) && chargen_apb_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master host (32b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((ddr2_apb_axi_rid_bridge_id == 0) && ddr2_apb_axi_rid_valid), ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid), ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid), ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid), ((chargen_apb_axi_rid_bridge_id == 0) && chargen_apb_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
+
 
     // Master: host, Width path: 64b
     assign host_64b_awready = 
@@ -1128,6 +1140,18 @@ module bridge_ddr2_char_axil_xbar
     assign host_64b_rvalid = 
         ((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid ? debug_sram_axi_rvalid : '0) |
         ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
+
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master host (64b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
 
 
 endmodule : bridge_ddr2_char_axil_xbar

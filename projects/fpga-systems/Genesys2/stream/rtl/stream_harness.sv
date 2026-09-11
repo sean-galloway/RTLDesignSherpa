@@ -353,7 +353,11 @@ module stream_harness #(
     // by awaddr's low bits. STREAM's 256b AXI4 reads pass through with
     // zero conversion. The previous axi4_to_axil4_rd/wr converters at
     // the bridge slave adapter are GONE — desc_ram is now AXI4 native.
-    logic [7:0]   s2_awid,    s2_arid,    s2_bid,     s2_rid;
+    // Slave-side IDs from the bridge are {master index, master id} (BRIDGE-016):
+    // four 8-bit masters give 10 bits here. Sized from the bridge's own package
+    // so a change in master count cannot leave this harness silently truncating.
+    localparam int DESC_RAM_ID_WIDTH = bridge_stream_mon_axil_pkg::XBAR_ID_WIDTH;
+    logic [DESC_RAM_ID_WIDTH-1:0] s2_awid, s2_arid, s2_bid, s2_rid;
     logic [31:0]  s2_awaddr,  s2_araddr;
     logic [7:0]   s2_awlen,   s2_arlen;
     logic [2:0]   s2_awsize,  s2_arsize;
@@ -1308,7 +1312,7 @@ module stream_harness #(
     /* verilator lint_on UNUSED */
 
     sdpram_slave_axi4_axi4 #(
-        .AXI_ID_WIDTH (8),
+        .AXI_ID_WIDTH (DESC_RAM_ID_WIDTH),   // {master index, master id}, see s2_* decl
         .ADDR_WIDTH   (32),
         // 256b per the descriptor-fetch-must-be-256b-end-to-end rule.
         // MEM_DEPTH = DESC_RAM_ENTRIES because each descriptor is one

@@ -12,7 +12,7 @@
 module dma_axil_adapter
     import bridge_stream_mon_axil_mon_pkg::*;
 #(
-    parameter int ID_WIDTH = 8
+    parameter int ID_WIDTH = 10
    ,parameter bit USE_MONITOR_WR = 1'b1
    ,parameter bit USE_MONITOR_RD = 1'b1
 ) (
@@ -20,7 +20,7 @@ module dma_axil_adapter
     input  logic aresetn,
 
     // Crossbar interface (AXI4 from crossbar)
-    input  logic [7:0]  xbar_dma_axil_axi_awid,
+    input  logic [9:0]  xbar_dma_axil_axi_awid,
     input  logic [31:0]  xbar_dma_axil_axi_awaddr,
     input  logic [7:0]  xbar_dma_axil_axi_awlen,
     input  logic [2:0]  xbar_dma_axil_axi_awsize,
@@ -39,12 +39,12 @@ module dma_axil_adapter
     input  logic         xbar_dma_axil_axi_wuser,
     input  logic         xbar_dma_axil_axi_wvalid,
     output  logic         xbar_dma_axil_axi_wready,
-    output  logic [7:0]  xbar_dma_axil_axi_bid,
+    output  logic [9:0]  xbar_dma_axil_axi_bid,
     output  logic [1:0]  xbar_dma_axil_axi_bresp,
     output  logic         xbar_dma_axil_axi_buser,
     output  logic         xbar_dma_axil_axi_bvalid,
     input  logic         xbar_dma_axil_axi_bready,
-    input  logic [7:0]  xbar_dma_axil_axi_arid,
+    input  logic [9:0]  xbar_dma_axil_axi_arid,
     input  logic [31:0]  xbar_dma_axil_axi_araddr,
     input  logic [7:0]  xbar_dma_axil_axi_arlen,
     input  logic [2:0]  xbar_dma_axil_axi_arsize,
@@ -57,7 +57,7 @@ module dma_axil_adapter
     input  logic         xbar_dma_axil_axi_aruser,
     input  logic         xbar_dma_axil_axi_arvalid,
     output  logic         xbar_dma_axil_axi_arready,
-    output  logic [7:0]  xbar_dma_axil_axi_rid,
+    output  logic [9:0]  xbar_dma_axil_axi_rid,
     output  logic [31:0]  xbar_dma_axil_axi_rdata,
     output  logic [1:0]  xbar_dma_axil_axi_rresp,
     output  logic         xbar_dma_axil_axi_rlast,
@@ -245,7 +245,7 @@ module dma_axil_adapter
     // bridge needs, and it must cost no gates.
 `ifndef SYNTHESIS
     // synthesis translate_off
-    logic [8-1:0] wr_id_fifo [WR_FIFO_DEPTH];
+    logic [10-1:0] wr_id_fifo [WR_FIFO_DEPTH];
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
         end else begin
@@ -253,11 +253,11 @@ module dma_axil_adapter
                 wr_id_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= xbar_dma_axil_axi_awid;
             if (xbar_dma_axil_axi_bvalid && xbar_dma_axil_axi_bready) begin
                 if (xbar_dma_axil_axi_bid !== wr_id_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]]) begin
-                    $error("BRIDGE-010: slave returned B out of AW order -- ",
-                           "got BID=%0h, expected %0h. This bridge routes ",
-                           "responses by FIFO position and does not support ",
-                           "ID-based reordering; the response has gone to the ",
-                           "wrong master.", xbar_dma_axil_axi_bid,
+                    $error({"BRIDGE-010: slave returned B out of AW order -- ",
+                            "got BID=%0h, expected %0h. This bridge routes ",
+                            "responses by FIFO position and does not support ",
+                            "ID-based reordering; the response has gone to the ",
+                            "wrong master."}, xbar_dma_axil_axi_bid,
                            wr_id_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]]);
                 end
             end
@@ -314,7 +314,7 @@ module dma_axil_adapter
     // LAST beat, since that is when the FIFO entry is retired.
 `ifndef SYNTHESIS
     // synthesis translate_off
-    logic [8-1:0] rd_id_fifo [RD_FIFO_DEPTH];
+    logic [10-1:0] rd_id_fifo [RD_FIFO_DEPTH];
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
         end else begin
@@ -322,11 +322,11 @@ module dma_axil_adapter
                 rd_id_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= xbar_dma_axil_axi_arid;
             if (xbar_dma_axil_axi_rvalid && xbar_dma_axil_axi_rready && xbar_dma_axil_axi_rlast) begin
                 if (xbar_dma_axil_axi_rid !== rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]) begin
-                    $error("BRIDGE-010: slave returned R out of AR order -- ",
-                           "got RID=%0h, expected %0h. This bridge routes ",
-                           "responses by FIFO position and does not support ",
-                           "ID-based reordering; the data has gone to the ",
-                           "wrong master.", xbar_dma_axil_axi_rid,
+                    $error({"BRIDGE-010: slave returned R out of AR order -- ",
+                            "got RID=%0h, expected %0h. This bridge routes ",
+                            "responses by FIFO position and does not support ",
+                            "ID-based reordering; the data has gone to the ",
+                            "wrong master."}, xbar_dma_axil_axi_rid,
                            rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]);
                 end
             end
@@ -338,7 +338,7 @@ module dma_axil_adapter
     // ============================================================
     // axi4_master_*_mon wrapper(s) between crossbar and AXIL shim
     // ============================================================
-    logic [7:0] dma_axil_mon_axi_awid;
+    logic [9:0] dma_axil_mon_axi_awid;
     logic [31:0] dma_axil_mon_axi_awaddr;
     logic [7:0]  dma_axil_mon_axi_awlen;
     logic [2:0]  dma_axil_mon_axi_awsize;
@@ -357,12 +357,12 @@ module dma_axil_adapter
     logic        dma_axil_mon_axi_wuser;
     logic        dma_axil_mon_axi_wvalid;
     logic        dma_axil_mon_axi_wready;
-    logic [7:0] dma_axil_mon_axi_bid;
+    logic [9:0] dma_axil_mon_axi_bid;
     logic [1:0]  dma_axil_mon_axi_bresp;
     logic        dma_axil_mon_axi_buser;
     logic        dma_axil_mon_axi_bvalid;
     logic        dma_axil_mon_axi_bready;
-    logic [7:0] dma_axil_mon_axi_arid;
+    logic [9:0] dma_axil_mon_axi_arid;
     logic [31:0] dma_axil_mon_axi_araddr;
     logic [7:0]  dma_axil_mon_axi_arlen;
     logic [2:0]  dma_axil_mon_axi_arsize;
@@ -375,7 +375,7 @@ module dma_axil_adapter
     logic        dma_axil_mon_axi_aruser;
     logic        dma_axil_mon_axi_arvalid;
     logic        dma_axil_mon_axi_arready;
-    logic [7:0] dma_axil_mon_axi_rid;
+    logic [9:0] dma_axil_mon_axi_rid;
     logic [31:0] dma_axil_mon_axi_rdata;
     logic [1:0]  dma_axil_mon_axi_rresp;
     logic        dma_axil_mon_axi_rlast;
@@ -388,7 +388,7 @@ module dma_axil_adapter
         .SKID_DEPTH_AW(2),
         .SKID_DEPTH_W(4),
         .SKID_DEPTH_B(2),
-        .AXI_ID_WIDTH(8),
+        .AXI_ID_WIDTH(10),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1),
@@ -529,7 +529,7 @@ module dma_axil_adapter
     axi4_master_rd_mon #(
         .SKID_DEPTH_AR(2),
         .SKID_DEPTH_R(2),
-        .AXI_ID_WIDTH(8),
+        .AXI_ID_WIDTH(10),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1),
@@ -660,7 +660,7 @@ module dma_axil_adapter
 
     // AXI4-to-AXI4-Lite converter shim
     axi4_to_axil4_wr #(
-        .AXI_ID_WIDTH(8),
+        .AXI_ID_WIDTH(10),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1)
@@ -710,7 +710,7 @@ module dma_axil_adapter
     );
 
     axi4_to_axil4_rd #(
-        .AXI_ID_WIDTH(8),
+        .AXI_ID_WIDTH(10),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1)

@@ -12,13 +12,13 @@
 module pumice_rd_adapter
     import bridge_ddr2_char_rd_pkg::*;
 #(
-    parameter int ID_WIDTH = 8
+    parameter int ID_WIDTH = 9
 ) (
     input  logic aclk,
     input  logic aresetn,
 
     // Crossbar interface (AXI4 from crossbar)
-    input  logic [7:0]  xbar_pumice_rd_axi_arid,
+    input  logic [8:0]  xbar_pumice_rd_axi_arid,
     input  logic [31:0]  xbar_pumice_rd_axi_araddr,
     input  logic [7:0]  xbar_pumice_rd_axi_arlen,
     input  logic [2:0]  xbar_pumice_rd_axi_arsize,
@@ -31,7 +31,7 @@ module pumice_rd_adapter
     input  logic         xbar_pumice_rd_axi_aruser,
     input  logic         xbar_pumice_rd_axi_arvalid,
     output  logic         xbar_pumice_rd_axi_arready,
-    output  logic [7:0]  xbar_pumice_rd_axi_rid,
+    output  logic [8:0]  xbar_pumice_rd_axi_rid,
     output  logic [63:0]  xbar_pumice_rd_axi_rdata,
     output  logic [1:0]  xbar_pumice_rd_axi_rresp,
     output  logic         xbar_pumice_rd_axi_rlast,
@@ -45,7 +45,7 @@ module pumice_rd_adapter
     output logic                       rid_valid,
 
     // External slave interface (AXI4)
-    output  logic [7:0]  pumice_rd_axi_arid,
+    output  logic [8:0]  pumice_rd_axi_arid,
     output  logic [31:0]  pumice_rd_axi_araddr,
     output  logic [7:0]  pumice_rd_axi_arlen,
     output  logic [2:0]  pumice_rd_axi_arsize,
@@ -58,7 +58,7 @@ module pumice_rd_adapter
     output  logic         pumice_rd_axi_aruser,
     output  logic         pumice_rd_axi_arvalid,
     input  logic         pumice_rd_axi_arready,
-    input  logic [7:0]  pumice_rd_axi_rid,
+    input  logic [8:0]  pumice_rd_axi_rid,
     input  logic [63:0]  pumice_rd_axi_rdata,
     input  logic [1:0]  pumice_rd_axi_rresp,
     input  logic         pumice_rd_axi_rlast,
@@ -71,7 +71,7 @@ module pumice_rd_adapter
     // Internal Signals
     // ================================================================
 
-    // FIFO tracking signals (in-order mode)
+    // CAM tracking signals (by-ID mode: enable_ooo or a multi-master fabric)
     logic cam_rd_allocate;
     logic cam_rd_deallocate;
     logic [ID_WIDTH-1:0] cam_rd_allocate_tag;
@@ -79,81 +79,48 @@ module pumice_rd_adapter
     logic [ID_WIDTH-1:0] cam_rd_deallocate_tag;
 
     // ================================================================
-    // Bridge ID Tracking - FIFO Mode (In-Order)
+    // Bridge ID Tracking - CAM Mode (Out-of-Order)
     // ================================================================
 
-    // Read Channel FIFO (In-Order) - AXI4 Protocol
-    // BRIDGE-011 not-full gating -- see the write channel.
+    // Read Channel CAM
+    // BRIDGE-011 not-full gating, CAM form -- see the write channel.
     logic rd_trk_full;
     logic w_sub_arready;
-    localparam RD_FIFO_DEPTH = 16;
-    logic [BRIDGE_ID_WIDTH-1:0] rd_fifo [RD_FIFO_DEPTH];
-    logic [$clog2(RD_FIFO_DEPTH):0] ar_ptr, r_ptr;
-
-    // Push on AR (crossbar → adapter)
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            ar_ptr <= '0;
-        end else if (xbar_pumice_rd_axi_arvalid && xbar_pumice_rd_axi_arready) begin
-            rd_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= xbar_bridge_id_ar;
-            ar_ptr <= ar_ptr + 1'b1;
-        end
-    )
-
-    // Pop on R response (xbar_pumice_rd_axi_rvalid && xbar_pumice_rd_axi_rready && xbar_pumice_rd_axi_rlast)
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_ptr <= '0;
-        end else if (xbar_pumice_rd_axi_rvalid && xbar_pumice_rd_axi_rready && xbar_pumice_rd_axi_rlast) begin
-            r_ptr <= r_ptr + 1'b1;
-        end
-    )
-
-    // rid_bridge_id / rid_valid drive the crossbar's response mux,
-    // which gates R going BACK to the master on rid_valid. Earlier
-    // versions registered these on the handshake completing — but
-    // the handshake CAN'T complete until the master sees rvalid,
-    // and the master can't see rvalid until rid_valid is high.
-    // Result: deadlock. Drive these combinationally so the route
-    // is open from the moment an R arrives.
-    assign rid_bridge_id = rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];
-    assign rid_valid     = (ar_ptr != r_ptr);
-
-    // BRIDGE-011, read side -- see the write comment above.
-    assign rd_trk_full = (ar_ptr[$clog2(RD_FIFO_DEPTH)] != r_ptr[$clog2(RD_FIFO_DEPTH)]) &&
-                         (ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0] == r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]);
     assign xbar_pumice_rd_axi_arready = w_sub_arready && !rd_trk_full;
+    bridge_cam #(
+        .TAG_WIDTH(ID_WIDTH),
+        .DATA_WIDTH(BRIDGE_ID_WIDTH),
+        .DEPTH(16),
+        .ALLOW_DUPLICATES(1),  // Mode 2: OOO support
+        .PIPELINE_EVICT(0)
+    ) u_rd_cam (
+        .clk(aclk),
+        .rst_n(aresetn),
 
-    // BRIDGE-010, read side -- see the write channel. Checked on the
-    // LAST beat, since that is when the FIFO entry is retired.
-`ifndef SYNTHESIS
-    // synthesis translate_off
-    logic [8-1:0] rd_id_fifo [RD_FIFO_DEPTH];
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-        end else begin
-            if (xbar_pumice_rd_axi_arvalid && xbar_pumice_rd_axi_arready)
-                rd_id_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= xbar_pumice_rd_axi_arid;
-            if (xbar_pumice_rd_axi_rvalid && xbar_pumice_rd_axi_rready && xbar_pumice_rd_axi_rlast) begin
-                if (xbar_pumice_rd_axi_rid !== rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]) begin
-                    $error("BRIDGE-010: slave returned R out of AR order -- ",
-                           "got RID=%0h, expected %0h. This bridge routes ",
-                           "responses by FIFO position and does not support ",
-                           "ID-based reordering; the data has gone to the ",
-                           "wrong master.", xbar_pumice_rd_axi_rid,
-                           rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]);
-                end
-            end
-        end
-    )
-    // synthesis translate_on
-`endif
+        // Allocate on AR (from crossbar)
+        .allocate(xbar_pumice_rd_axi_arvalid && xbar_pumice_rd_axi_arready),
+        .allocate_tag(xbar_pumice_rd_axi_arid),
+        .allocate_data(xbar_bridge_id_ar),
+
+        // Deallocate on R (from converter)
+        .deallocate(xbar_pumice_rd_axi_rvalid && xbar_pumice_rd_axi_rready && xbar_pumice_rd_axi_rlast),
+        .deallocate_tag(xbar_pumice_rd_axi_rid),
+        .deallocate_valid(rid_valid),
+        .deallocate_data(rid_bridge_id),
+        .deallocate_count(),
+
+        // Status
+        .cam_hit(),
+        .tags_empty(),
+        .tags_full(rd_trk_full),
+        .tags_count()
+    );
 
     // AXI4 Master Read Timing Wrapper
     axi4_master_rd #(
         .SKID_DEPTH_AR(2),
         .SKID_DEPTH_R(2),
-        .AXI_ID_WIDTH(8),
+        .AXI_ID_WIDTH(9),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(64),
         .AXI_USER_WIDTH(1)
