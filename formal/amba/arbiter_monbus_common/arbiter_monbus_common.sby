@@ -13,17 +13,19 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
-read -formal -sv -Iincludes counter_bin.sv
-read -formal -sv -Iincludes fifo_control.sv
-read -formal -sv -Iincludes gaxi_fifo_sync_formal.sv
-read -formal -sv -Iincludes arbiter_monbus_common_formal.sv
+read_verilog -formal -sv arbiter_monbus_common_flat.v
 read -formal -sv formal_arbiter_monbus_common.sv
-prep -top formal_arbiter_monbus_common
+hierarchy -top formal_arbiter_monbus_common
+proc
+delete t:$print
+flatten
+opt_expr
+opt_clean
+memory_map
+async2sync
+opt -full
+setundef -undriven -init -expose
 
 [files]
 formal_arbiter_monbus_common.sv
-arbiter_monbus_common_formal.sv
-gaxi_fifo_sync_formal.sv ../../common/gaxi_fifo_sync/gaxi_fifo_sync_formal.sv
-counter_bin.sv ../../../rtl/common/counter_bin.sv
-fifo_control.sv ../../../rtl/common/fifo_control.sv
-includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh
+arbiter_monbus_common_flat.v

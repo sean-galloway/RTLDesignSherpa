@@ -37,27 +37,27 @@ module formal_arbiter_wrr_pwm_monbus #(
     // =========================================================================
     // Free inputs
     // =========================================================================
-    logic [CXMTW-1:0]   cfg_arb_max_thresh;
-    logic [CLIENTS-1:0]  request;
-    logic [CLIENTS-1:0]  grant_ack;
+    (* anyseq *) logic [CXMTW-1:0]   cfg_arb_max_thresh;
+    (* anyseq *) logic [CLIENTS-1:0]  request;
+    (* anyseq *) logic [CLIENTS-1:0]  grant_ack;
 
-    logic                cfg_pwm_sync_rst_n;
-    logic                cfg_pwm_start;
-    logic [PWM_WIDTH-1:0] cfg_pwm_duty;
-    logic [PWM_WIDTH-1:0] cfg_pwm_period;
-    logic [PWM_WIDTH-1:0] cfg_pwm_repeat_count;
+    (* anyseq *) logic                cfg_pwm_sync_rst_n;
+    (* anyseq *) logic                cfg_pwm_start;
+    (* anyseq *) logic [PWM_WIDTH-1:0] cfg_pwm_duty;
+    (* anyseq *) logic [PWM_WIDTH-1:0] cfg_pwm_period;
+    (* anyseq *) logic [PWM_WIDTH-1:0] cfg_pwm_repeat_count;
 
-    logic                cfg_mon_enable;
-    logic [15:0]         cfg_mon_pkt_type_enable;
-    logic [15:0]         cfg_mon_latency_thresh;
-    logic [15:0]         cfg_mon_starvation_thresh;
-    logic [15:0]         cfg_mon_fairness_thresh;
-    logic [15:0]         cfg_mon_active_thresh;
-    logic [15:0]         cfg_mon_ack_timeout_thresh;
-    logic [15:0]         cfg_mon_efficiency_thresh;
-    logic [7:0]          cfg_mon_sample_period;
+    (* anyseq *) logic                cfg_mon_enable;
+    (* anyseq *) logic [15:0]         cfg_mon_pkt_type_enable;
+    (* anyseq *) logic [15:0]         cfg_mon_latency_thresh;
+    (* anyseq *) logic [15:0]         cfg_mon_starvation_thresh;
+    (* anyseq *) logic [15:0]         cfg_mon_fairness_thresh;
+    (* anyseq *) logic [15:0]         cfg_mon_active_thresh;
+    (* anyseq *) logic [15:0]         cfg_mon_ack_timeout_thresh;
+    (* anyseq *) logic [15:0]         cfg_mon_efficiency_thresh;
+    (* anyseq *) logic [7:0]          cfg_mon_sample_period;
 
-    logic                monbus_ready;
+    (* anyseq *) logic                monbus_ready;
 
     // Broadcast monitor time
     (* anyseq *) logic [63:0]  i_mon_time;

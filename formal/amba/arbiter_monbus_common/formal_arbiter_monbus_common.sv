@@ -36,28 +36,28 @@ module formal_arbiter_monbus_common #(
     // =========================================================================
     // Free inputs
     // =========================================================================
-    logic [CXMTW-1:0]    cfg_max_thresh;
-    logic [CLIENTS-1:0]  request;
-    logic                grant_valid;
-    logic [CLIENTS-1:0]  grant;
-    logic [N-1:0]        grant_id;
-    logic [CLIENTS-1:0]  grant_ack;
-    logic                block_arb;
+    (* anyseq *) logic [CXMTW-1:0]    cfg_max_thresh;
+    (* anyseq *) logic [CLIENTS-1:0]  request;
+    (* anyseq *) logic                grant_valid;
+    (* anyseq *) logic [CLIENTS-1:0]  grant;
+    (* anyseq *) logic [N-1:0]        grant_id;
+    (* anyseq *) logic [CLIENTS-1:0]  grant_ack;
+    (* anyseq *) logic                block_arb;
 
-    logic                cfg_mon_enable;
-    logic [15:0]         cfg_mon_pkt_type_enable;
-    logic [15:0]         cfg_mon_latency_thresh;
-    logic [15:0]         cfg_mon_starvation_thresh;
-    logic [15:0]         cfg_mon_fairness_thresh;
-    logic [15:0]         cfg_mon_active_thresh;
-    logic [15:0]         cfg_mon_ack_timeout_thresh;
-    logic [15:0]         cfg_mon_efficiency_thresh;
-    logic [7:0]          cfg_mon_sample_period;
+    (* anyseq *) logic                cfg_mon_enable;
+    (* anyseq *) logic [15:0]         cfg_mon_pkt_type_enable;
+    (* anyseq *) logic [15:0]         cfg_mon_latency_thresh;
+    (* anyseq *) logic [15:0]         cfg_mon_starvation_thresh;
+    (* anyseq *) logic [15:0]         cfg_mon_fairness_thresh;
+    (* anyseq *) logic [15:0]         cfg_mon_active_thresh;
+    (* anyseq *) logic [15:0]         cfg_mon_ack_timeout_thresh;
+    (* anyseq *) logic [15:0]         cfg_mon_efficiency_thresh;
+    (* anyseq *) logic [7:0]          cfg_mon_sample_period;
 
-    logic                monbus_ready;
+    (* anyseq *) logic                monbus_ready;
 
     // Broadcast monitor time
-    logic [63:0]         i_mon_time;
+    (* anyseq *) logic [63:0]         i_mon_time;
 
     // =========================================================================
     // DUT outputs (128-bit packet + 64-bit side-band timestamp)

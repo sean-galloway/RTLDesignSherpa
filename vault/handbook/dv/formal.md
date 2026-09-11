@@ -21,6 +21,19 @@ Rules - each guards against a proof that PASSES while checking nothing:
 - Vacuity traps: hierarchical refs to nonexistent nets elaborate as FREE
   WIRES (watch yosys warnings); unconnected inputs model constant-x; a
   harness sized below the engagement threshold makes gated logic constant.
+- A DECLARED input is not a DRIVEN input. `logic foo;` wired to a DUT input
+  is undriven, and `opt -full` folds it to a constant before `setundef
+  -expose` can free it, so that input is pinned for the whole proof. Loud
+  form: a cover needing it is unreachable whatever the RTL does. Silent form:
+  everything passes with the input held at one value. `(* anyseq *)` on the
+  declaration is the fix; `bin/formal_audit_stimulus.py` finds them.
+- PROVING A FORK IS WORSE THAN NO PROOF. Three arbiter monbus tasks each held
+  a hand-copied `<module>_formal.sv` beside the harness -- 251 to 287 lines
+  divergent from the shipped RTL -- plus a cut-down package stub, because
+  yosys could not resolve package-typed ports. They were green-by-construction
+  about code nobody ships. sv2v resolves those types, so the fork is never
+  needed: flatten the real module. Any `*_formal.sv` copy of an RTL file in a
+  formal directory is this smell ([[test-the-justification]]).
 - A PASSING PROOF ONLY COVERS THE PROPERTY YOU WROTE. Ask what the property
   does NOT say before trusting it as coverage of a contract.
   *Case: formal_axi_monitor_addr_check proved "addr_pkt_valid is sticky" and

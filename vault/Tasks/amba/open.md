@@ -2382,3 +2382,48 @@ mutation that fails it, and whichever way it goes the module page says what
 the wake latency is. Do NOT relax the property without answering the
 question; a threshold that cannot fail the defect it names is decoration
 ([[escape-analysis]]).
+
+---
+
+### TASK-092: six formal harnesses pin a DUT input at a constant
+
+**Priority:** P2. Nothing fails, which is the problem: five of the six pass
+prove and cover with part of their stimulus held constant, so the green run
+overstates what is proved.
+
+**Status:** open 2026-09-11, found by `bin/formal_audit_stimulus.py` while
+fixing the arbiter monbus harnesses.
+
+A harness that writes `logic foo;` and wires it to a DUT input has not driven
+anything. `opt -full` folds the undriven net to a constant before
+`setundef -expose` can free it, so that input is pinned for the whole proof.
+The loud form of this was already fixed: `arbiter_rr_pwm_monbus` could not
+reach `cp_monbus` because `cfg_mon_enable` was never driven, and no RTL could
+have made that cover reachable. The silent form is what is left.
+
+    python3 bin/formal_audit_stimulus.py
+
+| Harness | Pinned inputs | e.g. |
+|---|---|---|
+| `amba/axi_master_wr_splitter` | 26 | `fub_awaddr`, `fub_awburst`, `alignment_mask`, `block_ready` |
+| `amba/axi_master_rd_splitter` | 22 | `fub_araddr`, `fub_arburst`, `alignment_mask`, `block_ready` |
+| `amba/apb4_master` | 5 | `cmd_paddr`, `cmd_pwrite`, `cmd_pstrb` |
+| `common/dataint_ecc_hamming` | 2 | `encoded`, `decoded_data` |
+| `cdc/gray2bin` | 1 | `gray` |
+| `common/reverse_vector` | 1 | `vector_rev` |
+
+The two splitters are the ones to look at first. A splitter's whole job is
+deciding where to cut a burst, and `fub_awaddr`/`fub_awburst`/`alignment_mask`
+are the inputs that decide it -- pinned, the proof covers one burst shape.
+`apb4_master` proving with `cmd_paddr` and `cmd_pwrite` constant means nothing
+payload-dependent is checked.
+
+**Do not just add `(* anyseq *)` and move on.** Freeing an input widens the
+state space, and a property that was only ever true for the pinned value will
+start failing -- which is the point, but each failure needs triage as a real
+finding rather than a reason to pin the input again.
+
+**Done when:** the audit reports zero, each freed harness still proves, and
+any property that broke on being given real stimulus has been judged (fixed
+RTL, or a corrected property with a mutation behind it -- see
+[[escape-analysis]]).
