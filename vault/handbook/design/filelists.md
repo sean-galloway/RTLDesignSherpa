@@ -135,6 +135,40 @@ each count and CI fails only when one GROWS. Burn-down lowers it
 baseline to make a build pass defeats the entire mechanism -- the fix is to use
 a filelist.
 
+## The AREA MASTER filelist is a separate hand-maintained list, and the lint
+## gate walks it
+
+Every `.f` is hand-maintained, so this is not a special file. What makes it
+bite is that it is a *second* place to remember, and the thing it feeds fails
+open rather than closed.
+
+`make lint` in an area flattens `filelists/<area>_all.f` and lints each module
+it finds **as a top**. A module that is not in that list is not linted and not
+counted. There is no error, because from the gate's point of view the module
+does not exist. So `--check` PASS (the module has its own `.f`) and lint PASS
+(the module is not in the master list) are both true at the same time, and
+neither one covers the module.
+
+*Case (2026-09-10): the whole Wishbone family -- twelve modules with their own
+filelists, all registered, `--check` green -- had never been in
+`rtl/amba/filelists/amba_all.f`. `make -C rtl/amba lint` reported "PASS amba:
+388 modules" across several sessions of adding wb4 modules, and the number did
+not move, because none of them were in the list. Commit messages cited that
+PASS as coverage they did not have. Adding the family took the gate to 402.*
+
+The tell is the count. If you add a module to an area and the gate's module
+count does not change, the gate did not see it:
+
+```bash
+make -C rtl/<area> lint | grep "modules, each as its own top"
+grep -c "/<your_module>.sv" rtl/<area>/lint_reports/verilator/<area>_flat.f
+```
+
+So a new module lands with **three** entries, not two: its own `.f`, the area
+registry in `bin/filelists.toml`, and the area master `<area>_all.f`.
+Packages go in the master list's package section, ahead of anything importing
+them.
+
 ## `--check` and `--audit` cannot see a hand-listed test
 
 Both tools follow filelists. A test that builds its own `verilog_sources = [...]`

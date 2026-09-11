@@ -38,6 +38,32 @@ front matter.
 `--strip-doc-header`. When RTL moves between directories the book definitions
 must move with it, or a book silently ships short.
 
+## A book is built from PAGES, so one page per module
+
+`gen_index` globs `<book-dir>/*.md`. A page covering two modules is therefore
+one entry, and a reader searching the book for the second module finds
+nothing. Match the family you are in: apb4 gives each stub its own page, so
+wb4 combining both into `wb4_stubs.md` was wrong and was split before the
+book was built (2026-09-10).
+
+## Verify a built book by its TEXT, not its exit code
+
+The generator exits 0 while LibreOffice prints `failed to launch javaldx` and
+other noise, so "it ran" is not "it contains what you think". Extract and
+grep:
+
+```bash
+pdftotext docs/pdfs/RTL_AMBA_WB4.pdf - | grep -c wb4_slave_cdc_cg
+```
+
+*Case (2026-09-10): both the wb4 book (46pp, generated for the first time
+though its entry had always been in the script) and the monitor book (424pp)
+were checked this way -- every wb4 module named in the first, and the new
+Wishbone monitor pages down to individual event codes in the second. The
+monitor book needed no script change, because its generator globs
+`rtl-amba/monitor/*.md` and `rtl-amba/includes/monitor_*.md` and so picks up
+new pages on its own.*
+
 ## Diagrams: the PDF eats PNG, not SVG
 
 Every `.mmd` needs a rendered `.png` beside it. An SVG-only diagram silently

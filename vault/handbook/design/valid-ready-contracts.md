@@ -62,3 +62,24 @@ summary: Stability rules; observers gate commands only, never responses.
   apb4_monitor, apb5_monitor and axi_monitor_reporter shared the wiring
   and were switched to mux mode on 2026-09-10, each with a directed
   three-events-on-consecutive-clocks witness (TASK-086, closed).*
+- **A response channel with no ready forces the REQUESTER to reserve space
+  before it launches.** If a protocol's completion cannot be back-pressured
+  -- Wishbone terminates with ACK/ERR/RTY and the master has no way to stall
+  them -- then "issue now, find room later" has no safe failure mode: the
+  answer arrives and either overwrites something or is dropped, silently, with
+  no counter moving. Gate issue on a reserved slot instead. *`wb4_master`
+  issues only while `r_reserved < RSP_DEPTH`, so `RSP_DEPTH` bounds both the
+  queue and the transfers on the bus; `wb4_slave` does the mirror with
+  `MAX_OUTSTANDING`. Ten modules in `rtl/` now hand-roll this counter, which is
+  an argument for a shared credit-gated skid.*
+- **Merging independent response channels into an in-order protocol needs a
+  side queue, not a mux.** AXI4-Lite's B and R are independent and a slave may
+  answer them in any order; Wishbone B4 terminates in issue order. Passing
+  each response straight through therefore breaks the ordering rule the moment
+  a read finishes behind a slow write, which is routine. Record each command's
+  direction in an in-order queue at issue and release only the head. *Case
+  (2026-09-10): `wb4_to_axil4_core`. The cost is head-of-line waiting, so its
+  `OUTSTANDING` defaults to 1 and serialises; the opposite direction
+  (`axil4_to_wb4_core`) gets the same ordering free, because merging INTO an
+  in-order protocol is the easy way round.*
+

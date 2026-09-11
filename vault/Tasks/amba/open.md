@@ -2310,3 +2310,68 @@ RAM) are the relevant threads.
 **Done when:** both seeds pass, the cause is recorded here, and the fix is
 in the test (or the DUT, if the seed really found one), not in the seed.
 
+---
+
+### TASK-088: the Wishbone BFMs do not sample CTI/BTE, and wb4_monitor does not report them
+
+**Priority:** P3. Not a defect: the hints are advisory and nothing acts on
+them. It is a coverage hole, and a small one, but it is the only part of the
+burst work that is checked indirectly.
+
+**Status:** open 2026-09-10, filed when the wb4 family was put to rest.
+
+`USE_BURST_HINTS` (TASK-087, closed) carries `CTI`/`BTE` from the master's
+command queue onto the wires and from the slave's wires to its FUB. That
+pass-through is proven end to end by `test_wb4_master_slave_loop.py`, which
+drives a hint pattern in one side and checks it arrives with its own transfer
+on the other, with two mutations catching a break.
+
+What is NOT checked is the **wire** itself:
+
+- `CocoTBFramework.components.wb4` (`WB4Packet`, `WB4Master`, `WB4Slave`,
+  `WB4Monitor`) has no `cti`/`bte` field, so a BFM slave or monitor sitting on
+  a real bus cannot see or assert on the hints. The loopback covers the
+  contract because both ends are DUT; a standalone master test cannot.
+- `wb4_monitor` does not report hints. Its completion/error `aux_data` is
+  `{3'b0, sel[3:0], we}` -- exactly three spare bits, which is `WB4_CTI_WIDTH`.
+  A burst-aware system would plausibly want "this transfer was end-of-burst"
+  in the monitor stream.
+
+**Work, if picked up:**
+1. Add `cti`/`bte` to `WB4Packet` and have `WB4Slave`/`WB4Monitor` sample them
+   (RDS-DV, then copy into the venv -- see [[reference_dv_framework_repos]]).
+2. Optionally give `wb4_monitor` a `USE_BURST_HINTS` parameter and put `CTI`
+   into `aux_data[7:5]`, updating the packet table in
+   `docs/markdown/rtl-amba/wb4/wb4_monitor.md` and the decoder expectations in
+   `val/amba/test_wb4_monitor.py`.
+
+**Done when:** a standalone `wb4_master` test at `USE_BURST_HINTS=1` asserts
+the hints on the wires through the BFM monitor, and (if step 2 is taken) the
+monitor test decodes a hint out of a completion packet.
+
+---
+
+### TASK-089: the converters spec PDF is two revisions behind its source
+
+**Priority:** P4, mechanical.
+
+**Status:** open 2026-09-10.
+
+`projects/components/converters/docs/` holds `Converters_MAS_v1.1.pdf`, while
+the source now carries revision 1.2 in
+`ch00_front_matter/00_document_info.md` and has gained two chapters that are
+in no PDF:
+
+- `ch03_protocol_blocks/10_axil4_to_wb4.md` (AXI4-Lite to Wishbone)
+- `ch03_protocol_blocks/11_wb4_to_axil4.md` (Wishbone to AXI4-Lite)
+
+Both are linked from `converter_mas_index.md` and the chapter-3 overview
+table, so only the generated artefact is stale.
+
+**Work:** `projects/components/converters/docs/generate_mas_pdf.sh --rev 1.2`.
+Confirm the two new chapters are in the output by extracting the text, not by
+trusting the exit code -- the RTL book generator taught that lesson on
+2026-09-10 (see [[doc-pipeline]]).
+
+**Done when:** `Converters_MAS_v1.2.pdf` exists and contains both chapters.
+

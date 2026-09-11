@@ -53,3 +53,31 @@ Trackers: formal/FORMAL_TODO.md, formal/FORMAL_PRIORITY.md.
   step 5) and the mutation FAILs the proof. When the DV peer is a
   well-behaved sibling block, the environment-rule properties belong in
   formal with a free peer, not in the loop.
+
+## Mutate the PROPERTIES, not just the RTL (2026-09-10)
+
+A passing proof says the properties you wrote hold. It says nothing about
+whether they describe the contract. Mutation testing is the only cheap way to
+find out, and it is worth running against formal exactly as against a test:
+break the RTL, and a proof that still passes has a hole in its property set,
+not a bug in the design.
+
+*Case: `wb4_to_axil4_core` merges AXI4-Lite's two independent response
+channels back into Wishbone's in-order termination. The first property set
+proved every ordering rule -- write pairs AW with W, one direction per
+command, only the head's channel is consumed, the open count is bounded, the
+status mapping -- and it still PASSED a mutation that asserted `rsp_valid`
+whenever EITHER channel had a response, which returns a status and data read
+off a channel that has nothing. Simulation caught it as a hang; formal did
+not. The missing property was that a presented termination must be BACKED by
+a real response on the head's own channel (`ap_rsp_backed`). Adding it made
+the mutation fail, which is the only evidence that the property earns its
+place.*
+
+The general shape: ordering properties constrain WHICH response is taken and
+say nothing about whether one EXISTS. Any time a property set talks about
+selection, check that something also asserts presence.
+
+Mutating the flattened `*_flat.v` rather than the RTL keeps the source clean
+while iterating, and the harness rebuild is skipped -- but restore it and
+re-prove before believing the green.
