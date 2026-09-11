@@ -322,6 +322,7 @@ module apb4_monitor
             end
             r_active_count <= '0;
             r_transaction_count <= '0;
+            r_error_count <= '0;      // was omitted: r_error_count had no reset
             r_cmd_start_time <= '0;
         end else begin
 
@@ -368,6 +369,34 @@ module apb4_monitor
                 end
 
                 r_transaction_count <= r_transaction_count + 1'b1;
+            end
+
+            // Mark terminal entries as reported. This lives in the SAME
+            // always_ff as the rest of the table because a second block
+            // assigning r_trans_table made every bit of the table a
+            // multiple-driver net: legal enough for simulation, rejected by
+            // synthesis, and the reason this module's formal proof could not
+            // be elaborated at all. The two updates can never collide -- this
+            // one fires only while event_reported is 0, and the cleanup below
+            // fires only once it is 1 (w_completed_trans requires it).
+            //
+            // Retire terminal entries UNCONDITIONALLY (TASK-066). The
+            // completion/error packet is pulse-based: its only chance to
+            // write the FIFO is the transition cycle, and the table state
+            // reads terminal one cycle later -- so gating this mark on
+            // w_fifo_wr_valid && w_fifo_wr_ready leaked the slot whenever
+            // the packet was dropped (FIFO full) or never generated (event
+            // class disabled), wedging the monitor after MAX_TRANSACTIONS
+            // losses. Whether the packet made it or not, it will never fire
+            // again: free the slot (lossy-but-honest, the AXI family's
+            // auto-retire shape).
+            for (int i = 0; i < MAX_TRANSACTIONS; i++) begin
+                if (r_trans_table[i].valid &&
+                    (r_trans_table[i].state == TRANS_COMPLETE ||
+                        r_trans_table[i].state == TRANS_ERROR) &&
+                    !r_trans_table[i].event_reported) begin
+                    r_trans_table[i].event_reported <= 1'b1;
+                end
             end
 
             // Clean up completed transactions
@@ -598,31 +627,6 @@ module apb4_monitor
                 : {4'h0, cmd_pprot, cmd_pwrite};
         end
     end
-
-    // Mark events as reported when they're written to FIFO
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            // Reset handled in transaction management
-        end else begin
-            // Retire terminal entries UNCONDITIONALLY (TASK-066). The
-            // completion/error packet is pulse-based: its only chance to
-            // write the FIFO is the transition cycle, and the table state
-            // reads terminal one cycle later -- so gating this mark on
-            // w_fifo_wr_valid && w_fifo_wr_ready leaked the slot whenever
-            // the packet was dropped (FIFO full) or never generated (event
-            // class disabled), wedging the monitor after MAX_TRANSACTIONS
-            // losses. Whether the packet made it or not, it will never fire
-            // again: free the slot (lossy-but-honest, the AXI family's
-            // auto-retire shape).
-            for (int i = 0; i < MAX_TRANSACTIONS; i++) begin
-                if (r_trans_table[i].valid &&
-                    (r_trans_table[i].state == TRANS_COMPLETE || r_trans_table[i].state == TRANS_ERROR) &&
-                    !r_trans_table[i].event_reported) begin
-                    r_trans_table[i].event_reported <= 1'b1;
-                end
-            end
-        end
-    )
 
 
     // -------------------------------------------------------------------------

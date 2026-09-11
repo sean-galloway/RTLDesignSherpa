@@ -451,6 +451,27 @@ module apb5_monitor
                 r_transaction_count <= r_transaction_count + 1'b1;
             end
 
+            // Mark terminal entries as reported. Same always_ff as the
+            // rest of the table: a second block assigning r_trans_table made
+            // every bit of it a multiple-driver net, which synthesis rejects
+            // and which stopped this module's formal proof from elaborating.
+            // The two updates cannot collide -- this fires only while
+            // event_reported is 0, the cleanup below only once it is 1.
+            //
+            // Retire terminal entries UNCONDITIONALLY -- same TASK-066 leak
+            // as apb4_monitor: the packet's only chance was the transition
+            // pulse; gating the mark on a successful FIFO write leaked the
+            // slot on drop (FIFO full) or disabled event class, wedging the
+            // monitor after MAX_TRANSACTIONS losses.
+            for (int i = 0; i < MAX_TRANSACTIONS; i++) begin
+                if (r_trans_table[i].valid &&
+                    (r_trans_table[i].state == TRANS_COMPLETE ||
+                        r_trans_table[i].state == TRANS_ERROR) &&
+                    !r_trans_table[i].event_reported) begin
+                    r_trans_table[i].event_reported <= 1'b1;
+                end
+            end
+
             // Clean up completed transactions
             for (int i = 0; i < MAX_TRANSACTIONS; i++) begin
                 if (w_completed_trans[i]) begin
@@ -715,26 +736,6 @@ module apb5_monitor
                 : {4'h0, cmd_pprot, cmd_pwrite};
         end
     end
-
-    // Mark events as reported
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            // Reset handled in transaction management
-        end else begin
-            // Retire terminal entries UNCONDITIONALLY -- same TASK-066 leak
-            // as apb4_monitor: the packet's only chance was the transition
-            // pulse; gating the mark on a successful FIFO write leaked the
-            // slot on drop (FIFO full) or disabled event class, wedging the
-            // monitor after MAX_TRANSACTIONS losses.
-            for (int i = 0; i < MAX_TRANSACTIONS; i++) begin
-                if (r_trans_table[i].valid &&
-                    (r_trans_table[i].state == TRANS_COMPLETE || r_trans_table[i].state == TRANS_ERROR) &&
-                    !r_trans_table[i].event_reported) begin
-                    r_trans_table[i].event_reported <= 1'b1;
-                end
-            end
-        end
-    )
 
     // -------------------------------------------------------------------------
     // Monitor Bus Packet Construction

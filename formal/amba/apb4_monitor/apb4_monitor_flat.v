@@ -829,6 +829,7 @@ module apb4_monitor (
 					end
 					r_active_count <= 1'sb0;
 					r_transaction_count <= 1'sb0;
+					r_error_count <= 1'sb0;
 					r_cmd_start_time <= 1'sb0;
 				end
 				else begin
@@ -867,6 +868,12 @@ module apb4_monitor (
 						r_transaction_count <= r_transaction_count + 1'b1;
 					end
 					begin : sv2v_autoblock_5
+						reg signed [31:0] i;
+						for (i = 0; i < MAX_TRANSACTIONS; i = i + 1)
+							if ((r_trans_table[i][284] && ((r_trans_table[i][277-:3] == 3'h3) || (r_trans_table[i][277-:3] == 3'h4))) && !r_trans_table[i][279])
+								r_trans_table[i][279] <= 1'b1;
+					end
+					begin : sv2v_autoblock_6
 						reg signed [31:0] i;
 						for (i = 0; i < MAX_TRANSACTIONS; i = i + 1)
 							if (w_completed_trans[i])
@@ -1019,15 +1026,6 @@ module apb4_monitor (
 					w_fifo_wr_data[7-:8] = (w_has_active_trans ? {4'h0, r_trans_table[w_active_idx][221:219], r_trans_table[w_active_idx][222]} : {4'h0, cmd_pprot, cmd_pwrite});
 				end
 			end
-			always @(posedge aclk or negedge aresetn)
-				if (!aresetn)
-					;
-				else begin : sv2v_autoblock_6
-					reg signed [31:0] i;
-					for (i = 0; i < MAX_TRANSACTIONS; i = i + 1)
-						if ((r_trans_table[i][284] && ((r_trans_table[i][277-:3] == 3'h3) || (r_trans_table[i][277-:3] == 3'h4))) && !r_trans_table[i][279])
-							r_trans_table[i][279] <= 1'b1;
-				end
 			reg w_monbus_pkt_valid;
 			wire w_monbus_pkt_ready;
 			reg [127:0] w_monbus_pkt_data;

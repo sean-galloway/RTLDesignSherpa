@@ -157,6 +157,54 @@ module formal_apb4_monitor (
     end
 
     // =========================================================================
+    // Transaction-table properties.
+    //
+    // Added 2026-09-11 with the multiple-driver fix that first let this proof
+    // elaborate. The three properties above (reset, protocol tag, valid held)
+    // say nothing about the table, and a mutation that never marks a terminal
+    // entry reported -- so no slot is ever freed and the monitor wedges after
+    // MAX_TRANSACTIONS -- passed all of them. cp_drained is what catches it:
+    // with slots leaking, occupancy can never come back to zero.
+    // =========================================================================
+    wire f_cmd_hs = cmd_valid && cmd_ready;
+    wire f_rsp_hs = rsp_valid && rsp_ready;
+
+    // rst_n is free for the first two clocks, and the async reset needs a
+    // clock to flush the arbitrary initial state sby hands us (setundef
+    // -init -expose). Counter properties only hold once that has happened:
+    // without this guard error_count is seen "decreasing" from 0xFFFF to 0,
+    // which is the reset working, not the counter misbehaving.
+    reg f_settled = 1'b0;
+    always @(posedge clk) f_settled <= rst_n && $past(rst_n) && f_past_valid > 2;
+
+    // P4: occupancy never exceeds the table
+    always @(posedge clk)
+        if (f_settled)
+            ap_active_bound: assert (active_count <= MAX_TRANS);
+
+    // P5: occupancy only moves by an allocation or a retirement, so it can
+    // rise by at most one per clock and fall by at most the table depth
+    always @(posedge clk)
+        if (f_settled && rst_n && $past(rst_n)) begin
+            ap_active_step_up: assert (active_count <= $past(active_count) + 8'(($past(f_cmd_hs) ? 1 : 0)));
+            ap_active_no_rise_without_cmd: assert (!(!$past(f_cmd_hs) && active_count > $past(active_count)));
+        end
+
+    // P6: transaction_count counts allocations, never decreases, and moves by
+    // at most one per clock
+    always @(posedge clk)
+        if (f_settled && rst_n && $past(rst_n)) begin
+            ap_tc_monotonic: assert (transaction_count >= $past(transaction_count));
+            ap_tc_step:      assert (transaction_count <= $past(transaction_count) + 32'd1);
+            ap_tc_needs_rsp: assert (!(!$past(f_rsp_hs) && transaction_count != $past(transaction_count)));
+        end
+
+    // P7: error_count never decreases
+    always @(posedge clk)
+        if (f_settled && rst_n && $past(rst_n))
+            ap_ec_monotonic: assert (error_count >= $past(error_count));
+
+    // =========================================================================
     // Cover points
     // =========================================================================
     always @(posedge clk) begin
@@ -165,6 +213,10 @@ module formal_apb4_monitor (
             cp_cmd_handshake: cover (cmd_valid && cmd_ready);
             cp_rsp_handshake: cover (rsp_valid && rsp_ready);
             cp_error_event:   cover (monbus_valid && monbus_packet[127:124] == 4'h0);
+            cp_table_full:    cover (active_count == MAX_TRANS);
+            // The retirement witness: transactions happened AND every slot
+            // came back. A monitor that leaks slots cannot reach this.
+            cp_drained:       cover (f_past_valid > 8 && transaction_count >= 32'd2 && active_count == 8'd0);
         end
     end
 

@@ -13,7 +13,7 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
-read_verilog -formal apb4_monitor_flat.v
+read_verilog -formal -sv apb4_monitor_flat.v
 read -formal -sv formal_apb4_monitor.sv
 hierarchy -top formal_apb4_monitor
 proc
