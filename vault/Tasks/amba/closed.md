@@ -2629,3 +2629,56 @@ RTL book generator taught that lesson the same day, see [[doc-pipeline]]):
 "Wishbone B4 to AXI4-Lite Converter" as chapter **3.11**, each with its full
 subsection tree down to Formal, Testing and Usage Example, plus Figure 3.12 for
 the AXI4-Lite side. The book is 248 pages against v1.1's 224.
+
+---
+
+### TASK-088: the Wishbone BFMs do not sample CTI/BTE, and wb4_monitor does not report them
+
+**Priority:** P3, a coverage hole rather than a defect.
+
+**Status:** CLOSED 2026-09-10.
+
+`USE_BURST_HINTS` (TASK-087) carried the hints from the master's command
+queue onto the wires and from the slave's wires to its FUB, and the loopback
+test proved that pass-through. What it could not prove is the **wire**: both
+ends of that loop are the DUT, so a passing run says the command queue
+carried a hint, not that a hint reached the bus. The framework BFMs had no
+`cti`/`bte` at all, and `wb4_monitor` reported no hint.
+
+**Done, both halves.**
+
+Framework (RDS-DV `61ba8fa`, issue #80). `WB4Packet` gains `cti`/`bte`
+defaulting to CLASSIC/LINEAR; `WB4Master` drives them, `WB4Slave` and
+`WB4Monitor` sample them. `CTI`/`BTE` are OPTIONAL at bind time, because a
+bus with no registered-feedback bursts has no hint wires at all, and a bus
+without them reads the same values a tied-off bus carries -- so a test never
+branches on which kind of bus it got. The monitor treats a hint as part of
+the request, so a master that changes `CTI` under a stalled `STB` is reported
+as `request_changed`. `WB4Sequence.assign_burst_hints()` /
+`clear_burst_hints()` own the pattern, which also deleted the hand-rolled
+copy in the loopback testbench.
+
+RTL (`9d7a2bbd8`). `wb4_monitor` gains `USE_BURST_HINTS` (default 0) and a
+`cmd_cti` input, reporting the transfer's `CTI` in `aux_data[7:5]`. The hint
+rides IN the tracking entry rather than being read at completion time, so a
+completion carries the `CTI` of its own transfer with several open at once.
+Only `CTI` fits the three spare bits; `BTE` is deliberately left out.
+
+**Proof.** Four mutations, each caught by exactly the configurations that
+should catch it and by no others:
+
+| Mutation | Result |
+|---|---|
+| master ties the bus to CLASSIC | hints-on fails (slave AND monitor), hints-off pass |
+| master takes the hint off `cmd_cti`, not the queue | hints-on fails, hints-off pass |
+| monitor reports `cmd_cti` instead of the head entry's | hints-on fails |
+| monitor ignores the parameter | both hints-off fail, hints-on passes |
+
+That last pair is the one worth keeping: it is the only check that the
+parameter's OFF state is a real tie-off rather than an untested default.
+
+`val/amba` FULL 2126 passed / 0 failed; amba lint PASS (402 modules);
+`wb4_monitor` formal prove + cover PASS, now proved with the hints on and an
+unconstrained `cmd_cti`; `RTL_AMBA_WB4.pdf` regenerated and verified by
+extracting its text. RDS-DV: ruff clean, 1492 unit tests pass,
+`mkdocs build --strict` clean.
