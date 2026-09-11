@@ -41,8 +41,25 @@ from collections import Counter
 
 BANNER = re.compile(r"^<!-- SOURCE FILE: (\S+) -->\s*$", re.M)
 FENCE = re.compile(r"^```[^\n]*\n(.*?)^```\s*$", re.M | re.S)
-TICK = re.compile(r"`([^`\n]+)`")
+TICK = re.compile(r"`([^`]+)`")
 NUM = re.compile(r"(?<![\w.])(?:0x[0-9A-Fa-f_]+|\d+'[bBhHdD][0-9A-Fa-f_xXzZ]+|\d+(?:\.\d+)?)(?![\w.])")
+
+
+def code_spans(prose: str) -> set[str]:
+    """Inline code spans, whitespace-normalised, found per PARAGRAPH.
+
+    A voice pass rewraps paragraphs, and a span can end up crossing a line
+    break: `m_wb_CTI [2:0]` becomes "`m_wb_CTI" / "[2:0]`". Markdown renders
+    that as one span with a space, so it is the same identifier. The first
+    version refused newlines inside a span, lost it, and mis-paired every
+    backtick after it -- twelve false FATALs on the first real round. Spans
+    still cannot cross a blank line, as in CommonMark.
+    """
+    out = set()
+    for para in re.split(r"\n\s*\n", prose):
+        for m in TICK.finditer(para):
+            out.add(re.sub(r"\s+", " ", m.group(1)).strip())
+    return out
 
 
 def split_pages(text: str) -> dict[str, str]:
@@ -81,8 +98,8 @@ def compare_page(path: str, before: str, after: str):
         if not lost:
             fatal.append(f"code block count {len(b_code)} -> {len(a_code)}")
 
-    b_tick = set(TICK.findall(prose_only(before)))
-    a_tick = set(TICK.findall(prose_only(after)))
+    b_tick = code_spans(prose_only(before))
+    a_tick = code_spans(prose_only(after))
     for t in sorted(b_tick - a_tick):
         fatal.append(f"identifier dropped or renamed: `{t}`")
     invented = sorted(a_tick - b_tick)

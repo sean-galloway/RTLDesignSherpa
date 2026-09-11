@@ -105,11 +105,17 @@ def main():
     ap.add_argument("--json", metavar="PATH")
     ap.add_argument("--timeout", type=int, default=1500)
     ap.add_argument("--only", nargs="*", default=None)
+    # Skip named tasks -- e.g. one already running in its own directory from a
+    # separate long-budget job. Two sby runs writing the same <task>_prove/ dir
+    # corrupt each other, and nothing in sby prevents it.
+    ap.add_argument("--exclude", nargs="*", default=None)
     args = ap.parse_args()
 
     entries = discover(args.areas)
     if args.only:
         entries = [e for e in entries if e["name"] in args.only]
+    if args.exclude:
+        entries = [e for e in entries if e["name"] not in args.exclude]
 
     if args.inventory:
         print(f"{len(entries)} task directories under formal/{{{','.join(args.areas)}}}")
