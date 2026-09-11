@@ -13,17 +13,13 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
-read -formal -sv -Iincludes arbiter_priority_encoder.sv
-read -formal -sv -Iincludes arbiter_round_robin.sv
-read -formal -sv -Iincludes gaxi_skid_buffer.sv
-read -formal -sv -Iincludes monbus_arbiter_formal.sv
+read_verilog -formal -sv monbus_arbiter_flat.v
 read -formal -sv formal_monbus_arbiter.sv
 prep -top formal_monbus_arbiter
+# a clocked $display becomes a cell async2sync refuses; it is a sim aid
+delete t:$print
 
 [files]
-monbus_arbiter_formal.sv
 formal_monbus_arbiter.sv
-gaxi_skid_buffer.sv ../../../rtl/amba/gaxi/gaxi_skid_buffer.sv
-arbiter_round_robin.sv ../../../rtl/common/arbiter_round_robin.sv
-arbiter_priority_encoder.sv ../../../rtl/common/arbiter_priority_encoder.sv
+monbus_arbiter_flat.v
 includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh
