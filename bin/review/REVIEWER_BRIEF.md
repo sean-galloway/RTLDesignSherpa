@@ -21,34 +21,41 @@ Each directory under `books/` is one self-contained review unit:
 
 | book | title | docs | documented modules | approx tokens | parts |
 |------|-------|------|--------------------|---------------|-------|
-| `pic_8259_mas` | APB PIC 8259 Specification - Table of Contents | 3 | 0 | ~4k | 1 |
-| `pm_acpi_mas` | APB PM/ACPI Specification - Table of Contents | 3 | 1 | ~27k | 1 |
+| `pic_8259_mas` | pic_8259 MAS -- Micro Architecture Specification | 3 | 0 | ~8k | 1 |
 | `axis4` | RTL AMBA AXI4-Stream | 6 | 4 | ~32k | 1 |
 | `axis5` | RTL AMBA AXI5-Stream | 5 | 4 | ~36k | 1 |
-| `smbus_mas` | APB SMBus Specification - Table of Contents | 3 | 2 | ~38k | 1 |
 | `gaxi` | RTL AMBA GAXI Modules | 7 | 5 | ~40k | 1 |
-| `gpio_mas` | APB GPIO Micro-Architecture Specification | 23 | 7 | ~70k | 1 |
-| `apbx_xbar_mas` | APB Crossbar Micro-Architecture Specification Index | 9 | 14 | ~78k | 1 |
-| `pit_8254_mas` | APB PIT 8254 Specification - Table of Contents | 12 | 10 | ~81k | 1 |
-| `apbx_xbar_has` | APB Crossbar Hardware Architecture Specification Index | 23 | 13 | ~81k | 1 |
-| `rtc_mas` | APB RTC Specification - Table of Contents | 5 | 7 | ~85k | 1 |
+| `apbx_xbar_mas` | APB Crossbar Micro-Architecture Specification Index | 5 | 14 | ~65k | 1 |
+| `apbx_xbar_has` | APB Crossbar Hardware Architecture Specification Index | 20 | 9 | ~65k | 1 |
+| `gpio_mas` | APB GPIO Micro-Architecture Specification | 23 | 9 | ~82k | 1 |
+| `rtc_mas` | APB RTC Specification - Table of Contents | 4 | 11 | ~82k | 1 |
+| `wb4` | RTL AMBA Wishbone B4 | 13 | 12 | ~88k | 1 |
+| `pit_8254_mas` | APB PIT 8254 Specification | 11 | 10 | ~89k | 1 |
+| `stream_has` | STREAM Hardware Architecture Specification Index | 20 | 5 | ~90k | 1 |
+| `ioapic_mas` | ioapic | 9 | 9 | ~93k | 1 |
+| `pm_acpi_mas` | pm_acpi MAS -- Micro Architecture Specification | 3 | 5 | ~96k | 1 |
 | `apb` | RTL AMBA APB4 | 10 | 9 | ~96k | 1 |
-| `apb5` | RTL AMBA APB5 | 10 | 9 | ~103k | 1 |
-| `hpet_mas` | APB HPET Micro-Architecture Specification | 14 | 15 | ~117k | 1 |
-| `uart_16550_mas` | APB UART 16550 Specification - Table of Contents | 27 | 8 | ~117k | 1 |
+| `apb5` | RTL AMBA APB5 | 10 | 9 | ~104k | 1 |
+| `uart_16550_mas` | APB UART 16550 Specification — Table of Contents | 25 | 11 | ~107k | 1 |
+| `hpet_mas` | APB HPET Micro-Architecture Specification | 13 | 17 | ~140k | 2 |
+| `smbus_mas` | APB SMBus Specification - Table of Contents | 3 | 23 | ~161k | 2 |
 | `cdc` | RTL Clock Domain Crossing | 15 | 23 | ~207k | 2 |
 | `common` | RTL Common Library | 50 | 48 | ~252k | 4 |
-| `shared` | RTL AMBA Shared Infrastructure | 31 | 25 | ~266k | 3 |
-| `axil4` | RTL AMBA AXI4-Lite | 18 | 16 | ~284k | 2 |
-| `converter_mas` | Converters Micro-Architecture Specification Index | 23 | 45 | ~287k | 2 |
-| `axil5` | RTL AMBA AXI5-Lite | 17 | 16 | ~310k | 2 |
-| `bridge_has` | Bridge Hardware Architecture Specification Index | 24 | 19 | ~348k | 3 |
+| `shared` | RTL AMBA Shared Infrastructure | 31 | 25 | ~267k | 3 |
+| `axil4` | RTL AMBA AXI4-Lite | 18 | 16 | ~286k | 2 |
+| `axil5` | RTL AMBA AXI5-Lite | 17 | 16 | ~312k | 2 |
+| `converter_mas` | Converters Micro-Architecture Specification Index | 25 | 56 | ~336k | 2 |
 | `math` | RTL Math Library | 28 | 39 | ~440k | 3 |
-| `monitor` | RTL AMBA Monitor Subsystem | 36 | 33 | ~449k | 4 |
-| `axi5` | RTL AMBA AXI5 | 18 | 17 | ~450k | 3 |
-| `axi4` | RTL AMBA AXI4 | 25 | 24 | ~465k | 4 |
-| `ioapic_mas` | APB IOAPIC Specification - Table of Contents | 15 | 48 | ~498k | 3 |
-| `bridge_mas` | Bridge Micro-Architecture Specification Index | 26 | 35 | ~574k | 4 |
+| `axi5` | RTL AMBA AXI5 | 18 | 17 | ~454k | 3 |
+| `monitor` | RTL AMBA Monitor Subsystem | 38 | 34 | ~455k | 5 |
+| `axi4` | RTL AMBA AXI4 | 25 | 24 | ~468k | 4 |
+| `bridge_has` | Bridge Hardware Architecture Specification Index | 22 | 23 | ~592k | 4 |
+| `pumice_has` | DDR2 / LPDDR2 Family Controller Hardware Architecture Specification Index | 30 | 95 | ~838k | 3 |
+| `pumice_mas` | DDR2 / LPDDR2 Family Controller Micro-Architecture Specification Index | 46 | 116 | ~1063k | 4 |
+| `stream_mas` | STREAM Specification Index | 28 | 65 | ~1216k | 6 |
+| `rapids_beats_mas` | RAPIDS Beats Architecture MAS | 32 | 50 | ~1552k | 5 |
+| `bridge_mas` | Bridge Micro-Architecture Specification Index | 23 | 77 | ~1743k | 9 |
+| `rapids_beats_has` | RAPIDS Beats Architecture HAS | 26 | 51 | ~2267k | 7 |
 
 Counts are per whole book, regenerated from the built bundle (`documented modules` is the figure in each `RTL.sv` header, which excludes the dependency closure and any GOLDEN section). A book with more than one part is already split for you: **you are reviewing ONE part**, so its scope is a subset of the row above. Do not infer a missing module from these numbers.
 

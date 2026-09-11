@@ -26,7 +26,7 @@ writes to `<parent_dir>/books`. Handing it the books directory creates
 reviews month-old prose while reporting findings that look exactly like new
 ones. That happened on 2026-09-07 and cost a round, so it is now refused.
 """
-import os, re, sys, glob, json, collections
+import os, re, sys, glob, json, shutil, collections
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -223,7 +223,14 @@ for idx in sorted(glob.glob(f'{MD}/**/_book_*_index.md', recursive=True)):
 # generator, so their real ground truth is the generator plus its output. The
 # generated modules are bundled here; the generator source is not. Read it
 # alongside when triaging those two books.
-for idx in sorted(glob.glob('projects/components/*/docs/*/*_index.md')):
+# RECURSIVE (2026-09-11): the non-recursive glob stopped one directory
+# short, so every component nested under a family directory was invisible
+# to the whole review pipeline -- stream and rapids under dmas/, pumice
+# under memory-controllers/. Six books, never bundled, therefore never
+# qc'd or humanized, and nothing said so: `--only stream` simply matched
+# no units, which reads like a typo rather than a missing area.
+for idx in sorted(glob.glob('projects/components/**/docs/*/*_index.md',
+                            recursive=True)):
     base = os.path.dirname(idx)
     key = os.path.basename(base)                      # e.g. bridge_has
     if not re.search(r'_(has|mas)$', key): continue
@@ -272,6 +279,7 @@ for idx in sorted(glob.glob('projects/components/*/docs/*/*_index.md')):
             if cur and cursz + s > LIMIT: parts.append(cur); cur, cursz = [], 0
             cur.append(d); cursz += s
         if cur: parts.append(cur)
+
         tot = 0
         for i, part in enumerate(parts, 1):
             tot += write_unit(f'{OUT}/books/{key}/parts/part_{i:02d}', title, part,
