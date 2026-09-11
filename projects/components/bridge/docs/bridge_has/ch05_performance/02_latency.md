@@ -93,6 +93,25 @@ Where the cycles go on the way through the bridge: address path, data path, resp
 > stages -- so this is the figure for a direct AXI4 path, not a universal
 > constant.
 
+### Loaded Write Latency (measured)
+
+`test_bridge_2x2_rw_perf` streams 16-beat write bursts from one master and
+pairs the k-th AW accepted at the master port with the k-th BVALID there:
+
+| Queue | AW accepted -> BVALID (cycles) |
+|---|---|
+| First burst, fabric empty | **23** = 16 W beats + the 2 + 2 skid stages + the slave's turnaround |
+| k bursts queued ahead | about 16 k + 7; maximum 323 at a 20-deep queue |
+
+: Table 5.7a: Write latency under load, `bridge_2x2_rw`, 32-bit direct path
+
+The queue exists because the bridge accepts AWs ahead of their W data --
+the master adapter's AW skid, the slave adapter's 16-entry response-tracking
+FIFO and its AW skid together hold about 20 bursts -- so a requester that
+issues many AWs before its data sees its B responses spaced by the data
+time, not by the fabric. Read latency does not queue the same way: the R
+stream is one beat per cycle end to end (Table 5.1a).
+
 ### End-to-End Latency
 
 #### Write Transaction (Best Case)

@@ -49,6 +49,29 @@ One master driving one slave — no contention, no conversion:
 Peak Throughput = DATA_WIDTH (bits) × Frequency (Hz) / 8 bytes/bit
 ```
 
+### Measured (2026-09-11)
+
+`bridge_2x2_rw` (two 32-bit AXI4 masters, two 32-bit AXI4 slaves, no width
+or protocol conversion), 16-beat INCR bursts, every BFM channel back-to-back,
+each figure computed over its own window from the first to the last beat at
+the port named. `test_bridge_2x2_rw_perf` asserts a floor under every row,
+so a change that costs bandwidth fails there instead of ageing this table.
+
+| Traffic | Where measured | Beats / cycle | Notes |
+|---|---|---|---|
+| One master streaming reads | R at the master port | **1.00** | 128 bursts, 2048 beats in 2048 cycles |
+| One master streaming writes | W at the slave port | **0.89-0.90** | 0 cycles of WREADY low at the master port: the ~2-cycle gap per burst is the requester re-arming W between bursts, not the fabric |
+| Two masters streaming writes to one slave | W at the shared slave port | **1.00** | the port stays full; the other master's beats fill the gaps above |
+| -- per-master share of the contended window | W at each master port | **0.499 / 0.501** | 128 bursts each (0.475 / 0.525 at 8 bursts: round-robin, window-length effects only) |
+| Two masters to two different slaves | W at both slave ports | **1.78-1.80** | two independent paths; neither slows the other |
+
+: Table 5.1a: Measured throughput, direct 32-bit AXI4 paths
+
+So the formula above holds for this fabric: a saturated port moves one beat
+per cycle, two masters on one port split it evenly, and paths to different
+slaves do not share anything. The write-stream row is the requester's figure,
+not the bridge's -- the contention row is the bridge's.
+
 ### Factors Affecting Throughput
 
 | Factor | Impact | Mitigation |
@@ -75,7 +98,8 @@ Peak Throughput = DATA_WIDTH (bits) × Frequency (Hz) / 8 bytes/bit
 
 ### Multi-Master Scaling
 
-With fair round-robin arbitration:
+With fair round-robin arbitration (measured above: 0.499 / 0.501 at the
+shared port; the sum stays at one beat per cycle):
 
 ```
 Per-Master Throughput = Peak Throughput / Active Masters (to same slave)

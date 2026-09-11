@@ -125,6 +125,7 @@ tests and TB class:
 | `bridge_2x2_lite_req` | AXI4-Lite + AXI5-Lite masters, 64b AXI4 + AXI5-Lite slaves | Lite requesters (BRIDGE-014): sideband forwarding, the aligner, ID-less masters sharing a slave |
 | `bridge_2x3_apb_req` | APB4 + APB5 masters, AXI4 + AXI5-Lite + APB4 slaves | APB requesters (BRIDGE-014): `apb{4,5}_to_axi4`, PSLVERR folding, APB in / APB out |
 | `bridge_2x2_wb4` | WB4 + AXI4 masters, 64b AXI4 + WB4 slaves | Wishbone on both sides (BRIDGE-019): ERR folding both ways, SEL lanes, burst decomposition at the completer, two requesters at one Wishbone completer |
+| `bridge_2x2_rw` (perf) | two 32b AXI4 masters, two 32b AXI4 slaves | `test_bridge_2x2_rw_perf` (BRIDGE-017): saturating read/write streams, one shared port with per-master shares, two parallel paths, loaded AW-to-B latency; every figure windowed and floored (HAS Tables 5.1a / 5.7a) |
 
 : Table 7.1a: AMBA5 Fixtures
 

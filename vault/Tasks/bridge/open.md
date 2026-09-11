@@ -11,9 +11,18 @@ The retired file's completed and superseded items are in the ledger at the
 end of [closed](closed.md) and two are in [dropped](dropped.md). These were
 still "Planned" and describe real engineering that has not happened:
 
-- **Performance characterization** (legacy TASK-005): latency and throughput
-  numbers for the generated fabrics under saturating traffic, the way STREAM
-  and pumice have them. Nothing in the bridge suite measures a cycle count.
+- ~~**Performance characterization** (legacy TASK-005)~~ -- **done 2026-09-11.**
+  `dv/tests/test_bridge_2x2_rw_perf.py` drives saturating 16-beat streams on
+  `bridge_2x2_rw` (every BFM channel back-to-back) and measures over each
+  phase's own window: reads 1.00 beat/cycle; one write stream 0.89-0.90 with
+  ZERO cycles of the bridge holding WREADY low (the gap is the requester
+  re-arming W between bursts); two masters on one slave port 1.00 total,
+  shares 0.499/0.501; two parallel paths 1.78-1.80; loaded AW->B latency 23
+  cycles empty, ~16k+7 with k bursts queued (the AW-ahead-of-W queue is about
+  20 deep). Every figure has an asserted floor. HAS Tables 5.1a / 5.7a.
+  Structural latency (2/2 propagation) was already measured by
+  `test_bridge_2x2_rw_latency`. Not measured: width-converted and shim
+  paths -- the HAS note on that stays.
 - **Synthesis and implementation guide** (TASK-010): the HAS integration
   chapter covers requirements, not a worked Vivado flow with utilization and
   timing for a reference config.
