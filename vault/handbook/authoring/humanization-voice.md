@@ -38,6 +38,23 @@ line, unbalanced code fences, an emoji introduced. WARN (judgement): heading
 drift and length ratios outside 0.85-1.20, both of which the unify-structure
 instruction produces legitimately.
 
+**Tag survival is not content survival -- run both gates.** The tag gate
+checks the pipeline's structure: banners, link targets, captions, fence
+balance, emoji. It does not look INSIDE a code block, and it cannot see a
+signal renamed in prose or a timing number rounded. That is the half of the
+contract the pass is most likely to break, so it has its own gate (added
+2026-09-11):
+
+    python3 bin/review/check_content_preservation.py --results <humanize round dir>
+
+FATAL: a fenced block whose content changed or vanished, and a backticked
+identifier present in the input page and absent from the output. WARN, read
+each one: numbers that left the prose ("3" to "three" is fine, "1 clock" to
+"2 clocks" is not), table cells that vanished, and backticked spans the model
+invented. It was proven before first use: the input against itself is clean,
+and a copy with a dropped identifier, an edited code block and a renamed guard
+fails on all three.
+
 **The bracket-for-paren link is a RECURRING emission, not a one-off.** Three
 consecutive humanize rounds (math 2026-08-21, common and cdc 2026-08-22)
 each emitted a malformed footer link -- `](../index.md]` or `](../index.md])`
