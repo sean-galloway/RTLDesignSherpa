@@ -438,3 +438,195 @@ thing to fix next.
   picked defaults per workload class.
 
 Detailed work items live in `vault/Tasks/pumice/` and `vault/Tasks/nexysa7/`.
+
+---
+
+## The traffic generators — 1 to 8 streams per direction
+
+The characterization harness does not drive pumice with one address stream. It
+drives an ARRAY of independently programmed AXI4 masters, split by direction,
+and that array is the reason a board number can distinguish "the controller
+will not go bank-parallel" from "the stimulus never asked it to".
+
+`projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/` —
+`char_engine_block.sv` (the DUT-agnostic spine) and `chargen_regs.rdl` (config).
+
+### How many streams
+
+`NUM_GEN` is the count PER DIRECTION, so a build has `NUM_GEN` writers and
+`NUM_GEN` readers. **The design range is 1 to 8.** The register map reserves
+all eight slots either way — `WR_GEN[0..7]` at 0x000 on a 0x40 stride,
+`RD_GEN[0..7]` at 0x200 — so growing the array is a parameter and a bridge
+regen, never an address-map migration.
+
+What is actually built is smaller than the ceiling, and for a boring reason:
+
+| `NUM_GEN` | fits the XC7A100T? |
+|---|---|
+| 8 + 8 | **no** — 66 470 LUTs against 63 400 available |
+| 4 + 4 | yes, at 77% LUTs / 47% DSPs |
+| **2 + 2** | **what the board builds** — proves multi-master behaviour with routing and timing headroom |
+
+The invariant is `NUM_GEN <= NUM_BANKS`, not equality. Each generator is
+expected to SPAN `NUM_BANKS/NUM_GEN` banks, so two generators still keep all
+eight banks busy; the host gives each one a wrap window covering that span.
+Nothing in hardware can enforce that, because the bank field's position is
+pumice's runtime `ADDR_MAP.bank_lsb`, so the host asserts the mapping and reads
+the compiled count back from `GEN_CONFIG` rather than assuming it.
+
+**Launch is global on purpose.** Every generator is staged first — write its
+config in any order, over as many bus transactions as it takes — and then all
+of them start on one cycle from a single write to `GO`. A per-generator start
+bit means the first generator has been running for however many microseconds
+the host needed to program the last one; on the RAPIDS characterization that
+skew alone produced 0%-utilization windows and a meaningless number.
+
+### How an address is generated
+
+Each generator walks a strided, optionally wrapped sequence
+(`projects/components/misc/rtl/dma_address_gen.sv`):
+
+    addr[i] = start_addr + ((i * stride_0) & wrap_mask_0)
+
+`stride_0` is SIGNED, so a negative stride walks backwards; `wrap_mask_0` turns
+the walk into a circular window of `mask+1` bytes; a mask of zero disables
+wrapping and the walk marches linearly. The second dimension (`stride_1`,
+`wrap_mask_1`) exists in the generator but is inert in this harness — one
+(stride, wrap) pair fully defines the pattern.
+
+That single pair is what makes the access FAMILIES, all defined in
+`build-perf/host/pumice_char.py::strides_for`:
+
+| family | stride_0 | wrap_mask_0 | what it exercises |
+|---|---|---|---|
+| `incremental` | one burst | none | contiguous march across the device |
+| `row_major` | one burst | `page_bytes-1` | wrapped inside ONE page — every burst a page HIT |
+| `col_major` | `row_stride_same_bank` | `device_bytes-1` | next row, SAME bank — a page MISS every burst |
+| `col_major_interleaved` | `bank_stride` | `device_bytes-1` | next BANK every burst — activates pipeline across banks |
+
+Per generator the host also programs burst length, transaction count, an
+inter-burst gap, AXI size and burst type, and `id_mode` (a fixed AXI ID, or an
+LFSR that issues multi-ID traffic so the controller's reordering is actually
+exercised).
+
+**Data is an address hash, not a counter.** In `data_mode` each beat carries
+`f(byte_address, seeds)`, which is what makes the check order-independent: two
+generators whose windows overlap write identical values to a shared address,
+and a read verifies against the address alone regardless of the order writes
+landed or returns arrived. A sequence counter would have made multi-ID and
+multi-stream traffic unverifiable.
+
+### What the stream count does and does not model
+
+**Eight is the intended maximum, and the documented reason is one stream per
+DRAM bank** — `NUM_GEN` is sized against `NUM_BANKS` on the 8-bank
+MT47H64M16, and the harness asserts the two agree rather than trusting them to.
+It came from a specific failure: the flat ~12.7 MB/s board result was the
+arbiter falling back to a single oldest bank, and a harness driving ONE address
+stream cannot tell that apart from a controller that refuses to go
+bank-parallel. Eight independently addressed generators make bank concurrency a
+property of the STIMULUS rather than of a hand-built address pattern.
+
+So the "eight streams" target is a **bank-concurrency** argument, not a
+server-workload model, and nothing in the tree claims otherwise. The distinction
+matters because the two want different things:
+
+* Bank concurrency wants N streams on DISJOINT, neighbouring banks, which is
+  what the current profiles do.
+* A server-like workload wants concurrent agents with DIFFERENT working-set
+  sizes, burst lengths, read/write mixes and QoS classes, contending for the
+  same banks — including the pathological case where two agents ping-pong rows
+  in one bank set.
+
+The generators can express all of that today: every one is independently
+programmed, the directions are on separate bridges so the mix is a knob, and
+pumice takes AXI QoS as a priority class. What does not exist is a PROFILE that
+sets it up. The closest is `--char-profile multigen` (one writer, two readers,
+disjoint regions), and the one heterogeneous case measured so far was an
+accident — spacing two readers a device/4 region apart put them in the same
+banks on different rows and collapsed row_major from 570 to 224 MB/s.
+
+Two caveats before anyone scales the array up:
+
+* **Two writers is unsafe today.** pumice returns B out of AW order across
+  masters while the generated write bridge routes responses by FIFO position,
+  so a second writer is silently misrouted. Readers are unaffected. Filed.
+* **Region placement IS the measurement.** Generators placed adjacently land in
+  neighbouring banks and measure arbitration; placed far apart they land in
+  different ROWS of the same banks and measure page thrash instead. The
+  difference was 570 against 224 MB/s on identical traffic.
+
+---
+
+## Measured on silicon — bandwidth and % of peak under load
+
+Every number below is from the Nexys A7, not simulation: 75 MHz controller
+clock, DDR2-300, BL4 on the x16 MT47H64M16. **Peak is 600 MB/s** (8 B per
+controller cycle). Raw CSVs in `docs/char_results/`; reproduce with
+`build-perf/host/pumice_master.py --char`.
+
+### Single stream, one direction at a time (`open_page`)
+
+| access pattern | AxLEN | write MB/s | % peak | read MB/s | % peak | rd latency |
+|---|---|---|---|---|---|---|
+| row_major (page hit) | 8 | **570.2** | **95.0%** | **571.2** | **95.2%** | 48.9 |
+| row_major | 16 | 570.3 | 95.0% | 571.3 | 95.2% | 48.9 |
+| row_major | 4 | 570.3 | 95.0% | 360.4 | 60.1% | 48.0 |
+| incremental | 8 | 551.3 | 91.9% | 556.9 | 92.8% | 49.4 |
+| incremental | 16 | 551.3 | 91.9% | 557.0 | 92.8% | 49.4 |
+| incremental | 4 | 551.3 | 91.9% | 357.4 | 59.6% | 48.4 |
+| col_major_interleaved (bank walk) | 16 | 311.3 | 51.9% | 331.7 | 55.3% | 49.8 |
+| col_major_interleaved | 8 | 208.9 | 34.8% | 229.3 | 38.2% | 85.7 |
+| col_major_interleaved | 4 | 196.6 | 32.8% | 213.8 | 35.6% | 70.6 |
+| col_major (page thrash) | 16 | 262.1 | 43.7% | 262.1 | 43.7% | 96.0 |
+| col_major | 8 | 163.8 | 27.3% | 172.0 | 28.7% | 96.0 |
+| col_major | 4 | 98.3 | 16.4% | 102.4 | 17.1% | 96.0 |
+| col_major, multi-ID (LFSR) | 8 | 163.8 | 27.3% | 172.0 | 28.7% | 96.0 |
+| col_major, 8-cycle inter-burst gap | 8 | 163.8 | 27.3% | 172.0 | 28.7% | 96.0 |
+
+All 14 points integrity-clean. Reading this table:
+
+* **Page locality is the dominant term, not the controller.** The same silicon
+  and the same settings give 95% on a page-hit stream and 17% on a page-miss
+  one. A 5.6x spread from the ADDRESS PATTERN alone is the single most useful
+  fact on this page: tune the address map before tuning the controller.
+* **Bank interleaving recovers roughly half of the thrash penalty** (col_major
+  17% -> col_major_interleaved 36% at AxLEN 4) because activates pipeline
+  across banks instead of serialising in one.
+* **AxLEN 4 reads are the one open anomaly** — 60% against a 95% write on
+  identical addresses, unmoved by return-ring depth, so it is per-transaction
+  overhead and a mechanism nobody has identified. Writes do not show it.
+* **Multi-ID traffic and inter-burst gaps cost nothing** here; both land
+  bit-identical to the fixed-ID back-to-back case, which says the reordering
+  machinery is not the limiter at this operating point.
+
+### Both directions at once, in ONE measurement window
+
+Every row above runs a write phase and then a read phase, so read/write
+turnaround is never paid. These run both together, which is the workload the
+reorder window exists for:
+
+| load | write MB/s | read MB/s | **total** | % peak |
+|---|---|---|---|---|
+| 1 writer + 1 reader, row_major bl8 | 285.0 | 285.0 | **570.1** | **95.0%** |
+| 1 writer + 1 reader, incremental bl8 | 276.3 | 276.3 | 552.6 | 92.1% |
+| 1 writer + 2 readers, row_major bl8 | 190.1 | 380.2 | **570.2** | **95.0%** |
+
+**pumice holds ~95% of peak with one, two or three concurrent generators**, and
+the split follows the generator mix rather than collapsing. For contrast, the
+same harness driving LiteDRAM on the same board and PHY reaches 285.6 MB/s
+total on the 1+1 case — pumice is **2.00x** there, which is the one place the
+extra area pays for itself.
+
+The `col_major` rows are deliberately absent from the concurrent table: those
+families walk the whole device, so concurrent generators cannot be placed on
+disjoint regions and the integrity check does not hold. They are reported as
+not-measurable rather than quoted.
+
+### What this establishes
+
+The controller has seen silicon under a real DRAM at a real operating point,
+across page-hit, page-miss, bank-interleaved, multi-ID, gapped, single-stream
+and multi-stream loads, with data integrity checked byte-by-byte on every
+point. The headline is not the 95% — it is that the 17% and the 95% come from
+the same bitstream, and the table says which lever moved between them.
