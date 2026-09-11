@@ -19,8 +19,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import pathlib
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -68,11 +70,21 @@ def run_task(entry, task, timeout):
     else:
         cmd = ["sby", "-f", sby.name] + ([task] if task else [])
     t0 = time.time()
+    # Own a process GROUP, not just a child. sby spawns solver processes that
+    # outlive it; killing only the direct child leaves them running, and they
+    # then compete with every task after this one -- so one slow proof skews
+    # the timings of the whole sweep and can starve it outright.
+    proc = subprocess.Popen(cmd, cwd=str(d), stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, text=True,
+                            start_new_session=True)
     try:
-        p = subprocess.run(cmd, cwd=str(d), capture_output=True, text=True,
-                           timeout=timeout)
-        blob = p.stdout + p.stderr
+        blob = proc.communicate(timeout=timeout)[0]
     except subprocess.TimeoutExpired:
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            proc.kill()
+        proc.communicate()
         return "TIMEOUT", timeout
     m = re.findall(r"DONE \((PASS|FAIL|ERROR|UNKNOWN)", blob)
     if not m:
