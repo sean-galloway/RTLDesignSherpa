@@ -103,6 +103,135 @@ class _SlaveBusProxy:
         return getattr(self._dut, name)
 
 
+class ExternalSMBusMaster:
+    """A clock-stretch-aware SMBus master that drives the DUT as a TARGET.
+
+    The framework's SMBusMaster releases SCL and then waits a fixed delay,
+    which clocks straight through a target that is holding SCL down. Slave
+    mode is exactly the feature that stretching exists for, so a driver that
+    cannot see a stretch cannot test it. This one waits for SCL to actually
+    read high before it counts the high phase, which is the rule every real
+    master obeys.
+
+    It drives through the same shim pair and wired-AND bus model the slave
+    BFM uses, so all three drivers - the DUT's own master, the slave BFM and
+    this one - share one open-drain wire.
+    """
+
+    def __init__(self, dut, scl_shim, sda_shim, log, half_period_ns: int = 2500):
+        self._dut = dut
+        self._scl = scl_shim
+        self._sda = sda_shim
+        self._half = half_period_ns
+        self.log = log
+
+    # --- line primitives: open-drain, so 1 is a release and 0 is a pull-down
+    def _scl_release(self):
+        self._scl.value = 1
+
+    def _scl_low(self):
+        self._scl.value = 0
+
+    def _sda_drive(self, bit):
+        self._sda.value = 1 if bit else 0
+
+    async def _delay(self, ns=None):
+        await Timer(self._half if ns is None else ns, units='ns')
+
+    async def _scl_high_wait(self, timeout_ns: int = 2_000_000):
+        """Release SCL and wait until the WIRE reads high.
+
+        A target stretching the clock holds it down here, and the high phase
+        does not begin until it lets go.
+        """
+        self._scl_release()
+        waited = 0
+        while int(self._dut.smb_scl_i.value) == 0 and waited < timeout_ns:
+            await Timer(100, units='ns')
+            waited += 100
+        await self._delay()
+
+    async def start(self):
+        self._sda_drive(1)
+        self._scl_release()
+        await self._delay()
+        self._sda_drive(0)          # SDA falls while SCL high
+        await self._delay()
+        self._scl_low()
+        await self._delay()
+
+    async def repeated_start(self):
+        self._sda_drive(1)
+        await self._delay()
+        await self._scl_high_wait()
+        self._sda_drive(0)
+        await self._delay()
+        self._scl_low()
+        await self._delay()
+
+    async def stop(self):
+        self._scl_low()
+        self._sda_drive(0)
+        await self._delay()
+        await self._scl_high_wait()
+        self._sda_drive(1)          # SDA rises while SCL high
+        await self._delay()
+
+    async def _send_bit(self, bit):
+        self._sda_drive(bit)
+        await self._delay()
+        await self._scl_high_wait()
+        self._scl_low()
+        await self._delay()
+
+    async def _recv_bit(self):
+        self._sda_drive(1)          # release so the target can drive
+        await self._delay()
+        await self._scl_high_wait()
+        bit = int(self._dut.smb_sda_i.value)
+        self._scl_low()
+        await self._delay()
+        return bit
+
+    async def send_byte(self, value: int) -> bool:
+        """Send eight bits MSB first; returns True if the target ACKed."""
+        for i in range(7, -1, -1):
+            await self._send_bit((value >> i) & 1)
+        return (await self._recv_bit()) == 0
+
+    async def recv_byte(self, ack: bool = True) -> int:
+        """Receive eight bits MSB first, then answer ACK or NAK."""
+        value = 0
+        for _ in range(8):
+            value = (value << 1) | (await self._recv_bit())
+        await self._send_bit(0 if ack else 1)
+        return value
+
+    async def write_transfer(self, addr7: int, data) -> list:
+        """START, address (write), the bytes, STOP. Returns the ACK per byte,
+        address first."""
+        acks = []
+        await self.start()
+        acks.append(await self.send_byte((addr7 << 1) | 0))
+        if acks[0]:
+            for b in data:
+                acks.append(await self.send_byte(b))
+        await self.stop()
+        return acks
+
+    async def read_transfer(self, addr7: int, count: int) -> tuple:
+        """START, address (read), `count` bytes with the last one NAKed, STOP.
+        Returns (address_acked, bytes)."""
+        await self.start()
+        acked = await self.send_byte((addr7 << 1) | 1)
+        data = []
+        if acked:
+            for i in range(count):
+                data.append(await self.recv_byte(ack=(i < count - 1)))
+        await self.stop()
+        return acked, data
+
+
 class SMBusRegisterMap:
     """SMBus Register address definitions."""
 
@@ -122,6 +251,8 @@ class SMBusRegisterMap:
     SMBUS_INT_STATUS = 0x030   # Interrupt status (W1C)
     SMBUS_PEC = 0x034          # PEC value register
     SMBUS_BLOCK_COUNT = 0x038  # Block transfer count
+    SMBUS_SLAVE_CTRL = 0x03C   # Target-mode policy
+    SMBUS_SLAVE_STATUS = 0x040 # Target-mode status (RO)
 
     # SMBUS_CONTROL bit definitions
     CONTROL_MASTER_EN = (1 << 0)       # Enable master mode
@@ -177,6 +308,21 @@ class SMBusRegisterMap:
     INT_TX_THRESH_EN = (1 << 2)        # TX FIFO threshold
     INT_RX_THRESH_EN = (1 << 3)        # RX FIFO threshold
     INT_SLAVE_ADDR_EN = (1 << 4)       # Slave addressed
+    INT_SLAVE_RX_EN = (1 << 5)         # Slave took a byte off the bus
+    INT_SLAVE_TX_EN = (1 << 6)         # Slave needs a byte to send
+    INT_SLAVE_DONE_EN = (1 << 7)       # Slave transfer ended at the STOP
+
+    # SMBUS_SLAVE_CTRL bit definitions
+    SLAVE_GC_EN = (1 << 0)             # Answer the general call (0x00)
+    SLAVE_NACK_ALL = (1 << 1)          # Busy: NAK my own address
+    SLAVE_PEC_EN = (1 << 2)            # Maintain, check and append the PEC
+    SLAVE_STRETCH_EN = (1 << 3)        # Hold SCL while the TX FIFO is dry
+
+    # SMBUS_SLAVE_STATUS bit definitions (read-only)
+    SLAVE_ST_RD_NOT_WR = (1 << 0)
+    SLAVE_ST_STRETCHING = (1 << 1)
+    SLAVE_ST_PEC_ERROR = (1 << 2)
+    SLAVE_ST_PEC_VALUE_SHIFT = 8
 
 
 class SMBusTB(TBBase):
@@ -252,6 +398,12 @@ class SMBusTB(TBBase):
             # these shims, every pclk edge.
             self._slave_scl_shim = _ShimSignal(released=1)
             self._slave_sda_shim = _ShimSignal(released=1)
+            # A third driver on the same wire: the external master used to
+            # drive the DUT as a TARGET. It is idle (both lines released)
+            # unless a slave-mode test picks it up, so it costs the master
+            # tests nothing.
+            self._extm_scl_shim = _ShimSignal(released=1)
+            self._extm_sda_shim = _ShimSignal(released=1)
             slave_bus_entity = _SlaveBusProxy(self.dut, self._slave_scl_shim,
                                                self._slave_sda_shim)
 
@@ -274,6 +426,10 @@ class SMBusTB(TBBase):
                 clock_period_ns=10,
                 log=self.log
             )
+
+            self.ext_master = ExternalSMBusMaster(
+                self.dut, self._extm_scl_shim, self._extm_sda_shim,
+                log=self.log)
 
             self._bus_model_task = cocotb.start_soon(self._bus_model_loop())
 
@@ -311,12 +467,16 @@ class SMBusTB(TBBase):
         while True:
             master_scl_released = int(self.dut.smb_scl_t.value) == 1
             slave_scl_released = int(self._slave_scl_shim.value) == 1
-            new_scl = 1 if (master_scl_released and slave_scl_released) else 0
+            extm_scl_released = int(self._extm_scl_shim.value) == 1
+            new_scl = 1 if (master_scl_released and slave_scl_released
+                            and extm_scl_released) else 0
             self.dut.smb_scl_i.value = new_scl
 
             master_sda_released = int(self.dut.smb_sda_t.value) == 1
             slave_sda_released = int(self._slave_sda_shim.value) == 1
-            new_sda = 1 if (master_sda_released and slave_sda_released) else 0
+            extm_sda_released = int(self._extm_sda_shim.value) == 1
+            new_sda = 1 if (master_sda_released and slave_sda_released
+                            and extm_sda_released) else 0
             self.dut.smb_sda_i.value = new_sda
 
             if debug_wire and (new_scl != prev_scl or new_sda != prev_sda):
@@ -456,20 +616,52 @@ class SMBusTB(TBBase):
 
         await self.write_register(SMBusRegisterMap.SMBUS_CONTROL, control)
 
-    async def enable_slave_mode(self, enable: bool = True, own_addr: int = 0x50):
+    async def enable_slave_mode(self, enable: bool = True, own_addr: int = 0x50,
+                                gc: bool = False, nack_all: bool = False,
+                                pec: bool = False, stretch: bool = False):
         """
         Enable SMBus slave mode.
 
         Args:
             enable: True to enable slave mode
             own_addr: Own slave address (7-bit)
+            gc: also answer the general call address 0x00
+            nack_all: NAK the own address instead of answering it
+            pec: maintain, check and append the slave PEC
+            stretch: hold SCL while a read waits for the TX FIFO
         """
         control = 0
         if enable:
             control |= SMBusRegisterMap.CONTROL_SLAVE_EN
 
+        slave_ctrl = 0
+        if gc:
+            slave_ctrl |= SMBusRegisterMap.SLAVE_GC_EN
+        if nack_all:
+            slave_ctrl |= SMBusRegisterMap.SLAVE_NACK_ALL
+        if pec:
+            slave_ctrl |= SMBusRegisterMap.SLAVE_PEC_EN
+        if stretch:
+            slave_ctrl |= SMBusRegisterMap.SLAVE_STRETCH_EN
+
         await self.write_register(SMBusRegisterMap.SMBUS_CONTROL, control)
-        await self.write_register(SMBusRegisterMap.SMBUS_OWN_ADDR, own_addr & 0x7F)
+        await self.write_register(SMBusRegisterMap.SMBUS_SLAVE_CTRL, slave_ctrl)
+        # addr_en is bit 7 of SMBUS_OWN_ADDR: without it the address compare
+        # is disabled and the engine answers nothing.
+        await self.write_register(SMBusRegisterMap.SMBUS_OWN_ADDR,
+                                  (own_addr & 0x7F) | (0x80 if enable else 0))
+
+    async def read_slave_status(self) -> dict:
+        """Read SMBUS_SLAVE_STATUS as a dict."""
+        M = SMBusRegisterMap
+        _, v = await self.read_register(M.SMBUS_SLAVE_STATUS)
+        return {
+            'rd_not_wr': bool(v & M.SLAVE_ST_RD_NOT_WR),
+            'stretching': bool(v & M.SLAVE_ST_STRETCHING),
+            'pec_error': bool(v & M.SLAVE_ST_PEC_ERROR),
+            'pec_value': (v >> M.SLAVE_ST_PEC_VALUE_SHIFT) & 0xFF,
+            'raw': v,
+        }
 
     async def configure_clock(self, clk_div: int = 249):
         """

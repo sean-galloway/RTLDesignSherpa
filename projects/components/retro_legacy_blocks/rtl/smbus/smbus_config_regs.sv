@@ -18,15 +18,19 @@
 //==============================================================================
 // STRICT DECODE
 //==============================================================================
-//   Only the fifteen mapped registers decode. Everything else in the 4 KB APB
+//   Only the seventeen mapped registers decode. Everything else in the 4 KB APB
 //   window is DROPPED: no internal strobe fires, the read returns 0, and the
 //   access is acknowledged locally with PSLVERR. The generated block sees only
-//   six address bits, so without this every unmapped address aliases onto a
-//   real register 64 bytes below it - 0x040 would write SMBUS_CONTROL.
+//   seven address bits, so without this every unmapped address aliases onto a
+//   real register 128 bytes below it - 0x080 would write SMBUS_CONTROL.
 //
 //   The acknowledge is combinational and local (w_drop_ack), the same shape
 //   the register block uses, because the adapter holds its request until it
 //   is acked; a dropped access that is never acked hangs the bus.
+//
+//   The generated block grew to SEVEN address bits when SMBUS_SLAVE_STATUS
+//   moved the top of the map to 0x040, so the alias this rejects is now every
+//   128 bytes rather than every 64.
 //
 //==============================================================================
 // W1C, AND WHY IT IS DECODED HERE
@@ -95,6 +99,10 @@ module smbus_config_regs
     output logic [23:0] cfg_timeout,
     output logic [6:0]  cfg_own_addr,
     output logic        cfg_own_addr_en,
+    output logic        cfg_slave_gc_en,
+    output logic        cfg_slave_nack_all,
+    output logic        cfg_slave_pec_en,
+    output logic        cfg_slave_stretch_en,
 
     // Command interface outputs
     output logic [3:0]  cmd_trans_type,
@@ -113,6 +121,10 @@ module smbus_config_regs
     input  logic        status_arb_lost,
     input  logic        status_nak_received,
     input  logic        status_slave_addressed,
+    input  logic        status_slave_rd_not_wr,
+    input  logic        status_slave_stretching,
+    input  logic        status_slave_pec_error,
+    input  logic [7:0]  status_slave_pec_value,
     input  logic        status_complete,
     input  logic [3:0]  status_fsm_state,
 
@@ -127,8 +139,8 @@ module smbus_config_regs
     input  logic        block_count_we,
 
     // Sticky interrupt status, owned by smbus_core
-    input  logic [4:0]  int_status,
-    output logic [4:0]  sw_clr_int_status,
+    input  logic [7:0]  int_status,
+    output logic [7:0]  sw_clr_int_status,
 
     // TX FIFO interface
     output logic [7:0]  tx_fifo_wdata,
@@ -153,7 +165,10 @@ module smbus_config_regs
     output logic        int_error_en,
     output logic        int_tx_thresh_en,
     output logic        int_rx_thresh_en,
-    output logic        int_slave_addr_en
+    output logic        int_slave_addr_en,
+    output logic        int_slave_rx_en,
+    output logic        int_slave_tx_en,
+    output logic        int_slave_done_en
 );
 
     //========================================================================
@@ -162,7 +177,7 @@ module smbus_config_regs
 
     logic                regblk_req;
     logic                regblk_req_is_wr;
-    logic [5:0]          regblk_addr;
+    logic [6:0]          regblk_addr;
     logic [31:0]         regblk_wr_data;
     logic [31:0]         regblk_wr_biten;
     logic                regblk_req_stall_wr;
@@ -217,6 +232,8 @@ module smbus_config_regs
     localparam logic [11:0] ADDR_INT_STATUS  = 12'h030;
     localparam logic [11:0] ADDR_PEC         = 12'h034;
     localparam logic [11:0] ADDR_BLOCK_COUNT = 12'h038;
+    localparam logic [11:0] ADDR_SLAVE_CTRL  = 12'h03C;
+    localparam logic [11:0] ADDR_SLAVE_STATUS= 12'h040;
 
     //========================================================================
     // Hardware Interface Structs
@@ -283,7 +300,9 @@ module smbus_config_regs
                         (adapter_addr == ADDR_INT_ENABLE)  ||
                         (adapter_addr == ADDR_INT_STATUS)  ||
                         (adapter_addr == ADDR_PEC)         ||
-                        (adapter_addr == ADDR_BLOCK_COUNT);
+                        (adapter_addr == ADDR_BLOCK_COUNT)  ||
+                        (adapter_addr == ADDR_SLAVE_CTRL)   ||
+                        (adapter_addr == ADDR_SLAVE_STATUS);
     end
 
     assign w_drop     = !w_addr_mapped;
@@ -291,7 +310,7 @@ module smbus_config_regs
 
     assign regblk_req        = adapter_req && !w_drop;
     assign regblk_req_is_wr  = adapter_req_is_wr;
-    assign regblk_addr       = adapter_addr[5:0];
+    assign regblk_addr       = adapter_addr[6:0];
     assign regblk_wr_data    = adapter_wr_data;
     assign regblk_wr_biten   = adapter_wr_biten;
 
@@ -353,6 +372,10 @@ module smbus_config_regs
     // Slave address
     assign cfg_own_addr     = hwif_out.SMBUS_OWN_ADDR.own_addr.value;
     assign cfg_own_addr_en  = hwif_out.SMBUS_OWN_ADDR.addr_en.value;
+    assign cfg_slave_gc_en       = hwif_out.SMBUS_SLAVE_CTRL.gc_en.value;
+    assign cfg_slave_nack_all    = hwif_out.SMBUS_SLAVE_CTRL.nack_all.value;
+    assign cfg_slave_pec_en      = hwif_out.SMBUS_SLAVE_CTRL.pec_en.value;
+    assign cfg_slave_stretch_en  = hwif_out.SMBUS_SLAVE_CTRL.stretch_en.value;
 
     // Command interface
     assign cmd_trans_type  = hwif_out.SMBUS_COMMAND.trans_type.value;
@@ -369,6 +392,9 @@ module smbus_config_regs
     assign int_tx_thresh_en  = hwif_out.SMBUS_INT_ENABLE.tx_thresh_en.value;
     assign int_rx_thresh_en  = hwif_out.SMBUS_INT_ENABLE.rx_thresh_en.value;
     assign int_slave_addr_en = hwif_out.SMBUS_INT_ENABLE.slave_addr_en.value;
+    assign int_slave_rx_en   = hwif_out.SMBUS_INT_ENABLE.slave_rx_en.value;
+    assign int_slave_tx_en   = hwif_out.SMBUS_INT_ENABLE.slave_tx_en.value;
+    assign int_slave_done_en = hwif_out.SMBUS_INT_ENABLE.slave_done_en.value;
 
     //========================================================================
     // FIFO port strobes and the W1C decode
@@ -410,7 +436,7 @@ module smbus_config_regs
 
     assign w_int_status_evt  = w_int_status_wr && !r_int_status_wr_d;
     assign sw_clr_int_status = w_int_status_evt ?
-                               (adapter_wr_data[4:0] & adapter_wr_biten[4:0]) : 5'h00;
+                               (adapter_wr_data[7:0] & adapter_wr_biten[7:0]) : 8'h00;
 
     //========================================================================
     // Map SMBus Core Outputs to PeakRDL hwif Inputs
@@ -424,6 +450,10 @@ module smbus_config_regs
     assign hwif_in.SMBUS_STATUS.arb_lost.next = status_arb_lost;
     assign hwif_in.SMBUS_STATUS.nak_received.next = status_nak_received;
     assign hwif_in.SMBUS_STATUS.slave_addressed.next = status_slave_addressed;
+    assign hwif_in.SMBUS_SLAVE_STATUS.rd_not_wr.next = status_slave_rd_not_wr;
+    assign hwif_in.SMBUS_SLAVE_STATUS.stretching.next = status_slave_stretching;
+    assign hwif_in.SMBUS_SLAVE_STATUS.pec_error.next = status_slave_pec_error;
+    assign hwif_in.SMBUS_SLAVE_STATUS.pec_value.next = status_slave_pec_value;
     assign hwif_in.SMBUS_STATUS.complete.next = status_complete;
     assign hwif_in.SMBUS_STATUS.fsm_state.next = status_fsm_state;
 
@@ -463,6 +493,9 @@ module smbus_config_regs
     assign hwif_in.SMBUS_INT_STATUS.tx_thresh_int.next  = int_status[2];
     assign hwif_in.SMBUS_INT_STATUS.rx_thresh_int.next  = int_status[3];
     assign hwif_in.SMBUS_INT_STATUS.slave_addr_int.next = int_status[4];
+    assign hwif_in.SMBUS_INT_STATUS.slave_rx_int.next   = int_status[5];
+    assign hwif_in.SMBUS_INT_STATUS.slave_tx_int.next   = int_status[6];
+    assign hwif_in.SMBUS_INT_STATUS.slave_done_int.next = int_status[7];
 
     //========================================================================
     // Self-clearing strobes (fifo_reset, soft_reset, start, stop)

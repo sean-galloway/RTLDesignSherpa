@@ -44,18 +44,22 @@ module smbus_int_status (
     input  wire       cond_tx_thresh,    // bit 2: TX FIFO below threshold
     input  wire       cond_rx_thresh,    // bit 3: RX FIFO above threshold
     input  wire       cond_slave_addr,   // bit 4: addressed as slave
+    input  wire       cond_slave_rx,     // bit 5: slave took a byte off the bus
+    input  wire       cond_slave_tx,     // bit 6: slave needs a byte to send
+    input  wire       cond_slave_done,   // bit 7: slave transfer ended at STOP
 
-    input  wire [4:0] sw_clr,            // decoded W1C mask, one cycle
-    output wire [4:0] int_status
+    input  wire [7:0] sw_clr,            // decoded W1C mask, one cycle
+    output wire [7:0] int_status
 );
 
-    logic [4:0] r_status;
-    logic [4:0] r_cond_d;
+    logic [7:0] r_status;
+    logic [7:0] r_cond_d;
     logic       r_armed;
-    logic [4:0] w_cond;
-    logic [4:0] w_set;
+    logic [7:0] w_cond;
+    logic [7:0] w_set;
 
-    assign w_cond = {cond_slave_addr, cond_rx_thresh, cond_tx_thresh,
+    assign w_cond = {cond_slave_done, cond_slave_tx, cond_slave_rx,
+                     cond_slave_addr, cond_rx_thresh, cond_tx_thresh,
                      cond_error, cond_complete};
 
     // The edge detector is ARMED one cycle after reset. r_cond_d resets to
@@ -63,12 +67,12 @@ module smbus_int_status (
     // is, because an empty FIFO is empty - and the first comparison would
     // then see a rising edge that never happened and set the bit with no
     // access having taken place. INT_STATUS must read 0 out of reset.
-    assign w_set = r_armed ? (w_cond & ~r_cond_d) : 5'h00;
+    assign w_set = r_armed ? (w_cond & ~r_cond_d) : 8'h00;
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n) || clear) begin
-            r_status <= 5'h00;
-            r_cond_d <= 5'h00;
+            r_status <= 8'h00;
+            r_cond_d <= 8'h00;
             r_armed  <= 1'b0;
         end else begin
             r_cond_d <= w_cond;

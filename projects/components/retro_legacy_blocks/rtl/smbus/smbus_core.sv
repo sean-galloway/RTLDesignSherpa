@@ -37,20 +37,19 @@ module smbus_core #(
     output wire smb_sda_t,
     //--- Configuration from Registers
     input wire        cfg_master_en,
-    // Slave-mode stub: register-map surface only.
-    /* verilator lint_off UNUSEDSIGNAL */
     input wire        cfg_slave_en,
-    /* verilator lint_on UNUSEDSIGNAL */
     input wire        cfg_pec_en,
     input wire        cfg_fast_mode,
     input wire        cfg_fifo_reset,
     input wire        cfg_soft_reset,
     input wire [15:0] cfg_clk_div,
     input wire [23:0] cfg_timeout,
-    /* verilator lint_off UNUSEDSIGNAL */
     input wire [6:0]  cfg_own_addr,
     input wire        cfg_own_addr_en,
-    /* verilator lint_on UNUSEDSIGNAL */
+    input wire        cfg_slave_gc_en,
+    input wire        cfg_slave_nack_all,
+    input wire        cfg_slave_pec_en,
+    input wire        cfg_slave_stretch_en,
     input wire [3:0]  cmd_trans_type,
     input wire [7:0]  cmd_code,
     input wire [6:0]  cmd_slave_addr,
@@ -65,10 +64,14 @@ module smbus_core #(
     output wire       status_arb_lost,
     output wire       status_nak_received,
     output wire       status_slave_addressed,
+    output wire       status_slave_rd_not_wr,
+    output wire       status_slave_stretching,
+    output wire       status_slave_pec_error,
+    output wire [7:0] status_slave_pec_value,
     output wire       status_complete,
     output wire [3:0] status_fsm_state,
-    output wire [4:0] int_status,   // sticky, cleared by a decoded W1C
-    input  wire [4:0] sw_clr_int_status,
+    output wire [7:0] int_status,   // sticky, cleared by a decoded W1C
+    input  wire [7:0] sw_clr_int_status,
     output wire [7:0] data_byte_out,     // received byte for SMBUS_DATA
     output wire       data_byte_we,      // ... written only when there is one
     // Block count writeback: a Block Read learns its count from the slave
@@ -157,6 +160,23 @@ module smbus_core #(
     logic        r_pec_rx_valid;
 
     logic        w_tx_fifo_rd;
+    //--- Slave engine, and the wired-AND of the two engines' pull-downs
+    logic        w_slv_sda_low;
+    logic        w_slv_scl_low;
+    logic        w_slv_addressed;
+    logic        w_slv_rd_not_wr;
+    logic        w_slv_stretching;
+    logic        w_slv_done;
+    logic        w_slv_pec_error;
+    logic [7:0]  w_slv_pec_value;
+    logic [7:0]  w_slv_rx_wdata;
+    logic        w_slv_rx_wr;
+    logic        w_slv_tx_rd;
+    logic        w_master_active;
+    logic        w_mst_scl_o;
+    logic        w_mst_scl_t;
+    logic        w_mst_sda_o;
+    logic        w_mst_sda_t;
     logic [7:0]  w_tx_fifo_rdata;
     logic        r_rx_fifo_wr;
     logic [7:0]  r_rx_fifo_wdata;
@@ -206,7 +226,13 @@ module smbus_core #(
     // quiet bus: if SCL is low too, somebody else is mid-transfer.
     assign w_pre_start_recoverable = !w_sda_sync && w_scl_sync;
 
-    assign w_start_req = cmd_start && cfg_master_en;
+    // ONE ENGINE ON THE WIRE AT A TIME. A master START while this block's own
+    // target half is answering would put the block on the bus twice, so the
+    // request is refused rather than queued: software sees the command not
+    // take and can retry, which is the same shape as losing arbitration.
+    // The claim is "our target is ANSWERING", not "the bus is busy" - see the
+    // note on `addressed` in smbus_slave_engine.
+    assign w_start_req = cmd_start && cfg_master_en && !w_slv_addressed;
 
     // EVERY error term, including ones landing on this very edge.
     assign w_error_next = r_pec_error || r_bus_error || r_nak_received ||
@@ -275,13 +301,13 @@ module smbus_core #(
         .fifo_reset (cfg_fifo_reset),
         .tx_wdata   (tx_fifo_wdata),
         .tx_wr      (tx_fifo_wr),
-        .tx_rd      (w_tx_fifo_rd),
+        .tx_rd      (w_tx_fifo_rd | w_slv_tx_rd),
         .tx_rdata   (w_tx_fifo_rdata),
         .tx_level   (tx_fifo_level),
         .tx_full    (tx_fifo_full),
         .tx_empty   (tx_fifo_empty),
-        .rx_wdata   (r_rx_fifo_wdata),
-        .rx_wr      (r_rx_fifo_wr),
+        .rx_wdata   (w_slv_rx_wr ? w_slv_rx_wdata : r_rx_fifo_wdata),
+        .rx_wr      (r_rx_fifo_wr | w_slv_rx_wr),
         .rx_rd      (rx_fifo_rd),
         .rx_rdata   (rx_fifo_rdata),
         .rx_level   (rx_fifo_level),
@@ -314,11 +340,11 @@ module smbus_core #(
         .clk            (clk),
         .rst_n          (rst_n),
         .smb_scl_i      (smb_scl_i),
-        .smb_scl_o      (smb_scl_o),
-        .smb_scl_t      (smb_scl_t),
+        .smb_scl_o      (w_mst_scl_o),
+        .smb_scl_t      (w_mst_scl_t),
         .smb_sda_i      (smb_sda_i),
-        .smb_sda_o      (smb_sda_o),
-        .smb_sda_t      (smb_sda_t),
+        .smb_sda_o      (w_mst_sda_o),
+        .smb_sda_t      (w_mst_sda_t),
         .cfg_clk_div    (cfg_clk_div),
         .cfg_fast_mode  (cfg_fast_mode),
         .cfg_timeout    (cfg_timeout),
@@ -776,6 +802,50 @@ module smbus_core #(
     assign w_int_cond_error = r_bus_error || r_timeout_error || r_pec_error ||
                               r_nak_received;
 
+    // THE TARGET HALF. It shares the synchronized lines, the TX and RX FIFOs
+    // and the pins with the master engine, and is inhibited while the master
+    // owns the wire.
+    assign w_master_active = (r_master_state != M_IDLE) || w_phy_busy;
+
+    smbus_slave_engine u_slave (
+        .clk                  (clk),
+        .rst_n                (rst_n),
+        .sda_sync             (w_sda_sync),
+        .scl_sync             (w_scl_sync),
+        .sda_drive_low        (w_slv_sda_low),
+        .scl_drive_low        (w_slv_scl_low),
+        .cfg_slave_en         (cfg_slave_en),
+        .cfg_own_addr         (cfg_own_addr),
+        .cfg_own_addr_en      (cfg_own_addr_en),
+        .cfg_gc_en            (cfg_slave_gc_en),
+        .cfg_nack_all         (cfg_slave_nack_all),
+        .cfg_pec_en           (cfg_slave_pec_en),
+        .cfg_stretch_en       (cfg_slave_stretch_en),
+        .cfg_soft_reset       (cfg_soft_reset),
+        .master_active        (w_master_active),
+        .rx_wdata             (w_slv_rx_wdata),
+        .rx_wr                (w_slv_rx_wr),
+        .rx_full              (rx_fifo_full),
+        .tx_rdata             (w_tx_fifo_rdata),
+        .tx_empty             (tx_fifo_empty),
+        .tx_rd                (w_slv_tx_rd),
+        .addressed            (w_slv_addressed),
+        .rd_not_wr            (w_slv_rd_not_wr),
+        .stretching           (w_slv_stretching),
+        .done                 (w_slv_done),
+        .pec_error            (w_slv_pec_error),
+        .pec_value            (w_slv_pec_value)
+    );
+
+    // OPEN-DRAIN MERGE. Both engines only ever pull DOWN, so the pin is the
+    // wired-AND of their releases - the same rule the bus itself obeys, which
+    // is why this needs no ownership mux to be electrically correct. The
+    // ownership rules above are about protocol, not about drive conflict.
+    assign smb_scl_o = w_mst_scl_o && !w_slv_scl_low;
+    assign smb_scl_t = w_mst_scl_t && !w_slv_scl_low;
+    assign smb_sda_o = w_mst_sda_o && !w_slv_sda_low;
+    assign smb_sda_t = w_mst_sda_t && !w_slv_sda_low;
+
     smbus_int_status u_int_status (
         .clk             (clk),
         // One reset list: soft_reset restarts the engine, and sticky status
@@ -787,18 +857,19 @@ module smbus_core #(
         .cond_error      (w_int_cond_error),
         .cond_tx_thresh  (tx_fifo_empty),
         .cond_rx_thresh  (!rx_fifo_empty),
-        .cond_slave_addr (status_slave_addressed),
+        .cond_slave_addr (w_slv_addressed),
+        .cond_slave_rx   (w_slv_rx_wr),
+        .cond_slave_tx   (w_slv_stretching),
+        .cond_slave_done (w_slv_done),
         .sw_clr          (sw_clr_int_status),
         .int_status      (int_status)
     );
-    // NOT IMPLEMENTED; the ports stay so the register map is honest about
-    // what software can program. status_slave_addressed is tied low
-    // DELIBERATELY: a stub that occasionally asserted would let the slave
-    // path clear the PEC or drive SDA under a master transaction. See
-    // README.md, "What a real slave would need".
-
     //--- Slave mode / outputs
-    assign status_slave_addressed = 1'b0;
+    assign status_slave_addressed  = w_slv_addressed;
+    assign status_slave_rd_not_wr  = w_slv_rd_not_wr;
+    assign status_slave_stretching = w_slv_stretching;
+    assign status_slave_pec_error  = w_slv_pec_error;
+    assign status_slave_pec_value  = w_slv_pec_value;
     assign status_arb_lost        = r_arb_lost;
     assign status_busy           = r_busy;
     assign status_bus_error      = r_bus_error;

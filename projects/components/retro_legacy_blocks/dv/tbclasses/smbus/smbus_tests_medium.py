@@ -274,6 +274,235 @@ class SMBusMediumTests:
     # Item 1 (C4): SCL never toggles / not open-drain
     # ==================================================================
 
+    # ------------------------------------------------------------------
+    # RLB-011: slave (target) mode
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _crc8(data) -> int:
+        """SMBus PEC: CRC-8, polynomial 0x07, seed 0."""
+        crc = 0
+        for byte in data:
+            crc ^= byte & 0xFF
+            for _ in range(8):
+                crc = ((crc << 1) ^ 0x07) & 0xFF if (crc & 0x80) else ((crc << 1) & 0xFF)
+        return crc
+
+    async def _slave_setup(self, addr=0x42, **kwargs):
+        """Reset, then arm the target engine. Every slave test starts here so
+        none of them inherits another one's FIFO or sticky status."""
+        await self._recover_and_reset()
+        await self.tb.configure_clock(clk_div=249)
+        await self.tb.enable_slave_mode(enable=True, own_addr=addr, **kwargs)
+        await self.tb.write_register(SMBusRegisterMap.SMBUS_INT_STATUS, 0xFF)
+        await ClockCycles(self.tb.pclk, 50)
+
+    async def test_rlb011_slave_write_and_address_match(self) -> bool:
+        """RLB-011: a foreign master writes to us, and only to us.
+
+        The address byte is answered by the engine, not by software, so the
+        thing under test is the match itself: our own address is ACKed and
+        the byte stream lands in the RX FIFO; a neighbour's address is NAKed
+        and nothing lands at all."""
+        self.log.info("=== RLB-011: slave address match and write path ===")
+        M = SMBusRegisterMap
+        try:
+            # --- addressed to us
+            await self._slave_setup(addr=0x42)
+            acks = await self.tb.ext_master.write_transfer(0x42, [0xA5, 0x5A])
+            await ClockCycles(self.tb.pclk, 50)
+            fifo = await self.tb.read_fifo_status()
+            got = await self.tb.read_rx_fifo(fifo['rx_level'])
+            ints = await self.tb.read_interrupt_status()
+            self.log.info(f"  to 0x42: acks={acks} rx={[hex(b) for b in got]} "
+                          f"int_status=0x{ints:02X}")
+            ours_ok = (acks == [True, True, True] and got == [0xA5, 0x5A] and
+                       bool(ints & M.INT_SLAVE_ADDR_EN) and
+                       bool(ints & M.INT_SLAVE_RX_EN) and
+                       bool(ints & M.INT_SLAVE_DONE_EN))
+
+            # --- addressed to somebody else
+            await self._slave_setup(addr=0x42)
+            acks2 = await self.tb.ext_master.write_transfer(0x43, [0x11])
+            await ClockCycles(self.tb.pclk, 50)
+            fifo2 = await self.tb.read_fifo_status()
+            ints2 = await self.tb.read_interrupt_status()
+            self.log.info(f"  to 0x43: acks={acks2} rx_level={fifo2['rx_level']} "
+                          f"int_status=0x{ints2:02X}")
+            theirs_ok = (acks2[0] is False and fifo2['rx_level'] == 0 and
+                         not (ints2 & M.INT_SLAVE_ADDR_EN))
+
+            # --- software says it is busy
+            await self._slave_setup(addr=0x42, nack_all=True)
+            acks3 = await self.tb.ext_master.write_transfer(0x42, [0x22])
+            await ClockCycles(self.tb.pclk, 50)
+            fifo3 = await self.tb.read_fifo_status()
+            self.log.info(f"  to 0x42 with nack_all: acks={acks3} "
+                          f"rx_level={fifo3['rx_level']}")
+            busy_ok = (acks3[0] is False and fifo3['rx_level'] == 0)
+
+            # --- general call
+            await self._slave_setup(addr=0x42, gc=True)
+            acks4 = await self.tb.ext_master.write_transfer(0x00, [0x33])
+            await ClockCycles(self.tb.pclk, 50)
+            fifo4 = await self.tb.read_fifo_status()
+            got4 = await self.tb.read_rx_fifo(fifo4['rx_level'])
+            self.log.info(f"  general call: acks={acks4} rx={[hex(b) for b in got4]}")
+            gc_ok = (acks4 == [True, True] and got4 == [0x33])
+
+            ok = ours_ok and theirs_ok and busy_ok and gc_ok
+            if ok:
+                self.log.info("RLB-011 slave address match and write GREEN")
+                return True
+            self.log.error(
+                f"RLB-011 slave write: own_address={ours_ok} "
+                f"other_address_ignored={theirs_ok} nack_all={busy_ok} "
+                f"general_call={gc_ok}")
+            return False
+        except Exception as e:
+            self.log.error(f"RLB-011 slave write test error: {e}")
+            return False
+        finally:
+            await self._recover_and_reset()
+
+    async def test_rlb011_slave_read_and_stretch(self) -> bool:
+        """RLB-011: a foreign master reads from us, with and without a queue.
+
+        A target that is read has to produce bytes on somebody else's clock.
+        With data already queued it just sends it. With the queue empty it has
+        two honest answers, and which one it gives is
+        SMBUS_SLAVE_CTRL.stretch_en: hold the clock until software catches up,
+        or send 0xFF and let the bus carry on."""
+        self.log.info("=== RLB-011: slave read path and clock stretching ===")
+        M = SMBusRegisterMap
+        try:
+            # --- queued data
+            await self._slave_setup(addr=0x42)
+            await self.tb.write_tx_fifo([0x11, 0x22])
+            acked, data = await self.tb.ext_master.read_transfer(0x42, 2)
+            await ClockCycles(self.tb.pclk, 50)
+            self.log.info(f"  queued read: addr_acked={acked} "
+                          f"data={[hex(b) for b in data]}")
+            queued_ok = acked and data == [0x11, 0x22]
+
+            # --- empty queue, stretching OFF: 0xFF rather than a held bus
+            await self._slave_setup(addr=0x42, stretch=False)
+            acked2, data2 = await self.tb.ext_master.read_transfer(0x42, 1)
+            self.log.info(f"  dry read, no stretch: addr_acked={acked2} "
+                          f"data={[hex(b) for b in data2]}")
+            dry_ok = acked2 and data2 == [0xFF]
+
+            # --- empty queue, stretching ON: the bus waits for software
+            await self._slave_setup(addr=0x42, stretch=True)
+            reader = cocotb.start_soon(self.tb.ext_master.read_transfer(0x42, 1))
+            saw_stretch = False
+            for _ in range(400):
+                st = await self.tb.read_slave_status()
+                if st['stretching']:
+                    saw_stretch = True
+                    break
+                await ClockCycles(self.tb.pclk, 20)
+            # Only now does software produce the byte, which is the whole
+            # point: the master could not have had it any earlier.
+            await self.tb.write_tx_fifo([0x77])
+            acked3, data3 = await reader
+            self.log.info(f"  dry read, stretching: held={saw_stretch} "
+                          f"addr_acked={acked3} data={[hex(b) for b in data3]}")
+            stretch_ok = saw_stretch and acked3 and data3 == [0x77]
+
+            ok = queued_ok and dry_ok and stretch_ok
+            if ok:
+                self.log.info("RLB-011 slave read and stretch GREEN")
+                return True
+            self.log.error(
+                f"RLB-011 slave read: queued={queued_ok} dry_sends_FF={dry_ok} "
+                f"stretched_until_software_answered={stretch_ok}")
+            return False
+        except Exception as e:
+            self.log.error(f"RLB-011 slave read test error: {e}")
+            return False
+        finally:
+            await self._recover_and_reset()
+
+    async def test_rlb011_slave_pec_and_ownership(self) -> bool:
+        """RLB-011: the target's own PEC, and one engine on the wire.
+
+        The slave PEC never counts bytes. On a write a correct trailing PEC
+        drives the running CRC to zero, so 'good' is 'zero at the STOP'; on a
+        read the running CRC IS the byte to send once the queue is dry. And
+        while the target is answering, the master half must refuse to start,
+        or this block would be on the bus twice."""
+        self.log.info("=== RLB-011: slave PEC and engine ownership ===")
+        M = SMBusRegisterMap
+        try:
+            # --- a write with a correct PEC
+            payload = [0xDE, 0xAD]
+            good_pec = self._crc8([(0x42 << 1) | 0] + payload)
+            await self._slave_setup(addr=0x42, pec=True)
+            await self.tb.ext_master.write_transfer(0x42, payload + [good_pec])
+            await ClockCycles(self.tb.pclk, 50)
+            st_good = await self.tb.read_slave_status()
+            self.log.info(f"  good PEC 0x{good_pec:02X}: pec_error="
+                          f"{st_good['pec_error']} running=0x"
+                          f"{st_good['pec_value']:02X}")
+
+            # --- the same write with the PEC byte corrupted
+            await self._slave_setup(addr=0x42, pec=True)
+            await self.tb.ext_master.write_transfer(
+                0x42, payload + [(good_pec ^ 0xFF) & 0xFF])
+            await ClockCycles(self.tb.pclk, 50)
+            st_bad = await self.tb.read_slave_status()
+            self.log.info(f"  bad PEC: pec_error={st_bad['pec_error']}")
+
+            # --- a read: the byte after the queue runs dry is the PEC
+            await self._slave_setup(addr=0x42, pec=True)
+            await self.tb.write_tx_fifo([0x5A])
+            acked, data = await self.tb.ext_master.read_transfer(0x42, 2)
+            expect_pec = self._crc8([(0x42 << 1) | 1, 0x5A])
+            self.log.info(f"  read with PEC: data={[hex(b) for b in data]} "
+                          f"expected trailing PEC=0x{expect_pec:02X}")
+            read_pec_ok = acked and len(data) == 2 and data[0] == 0x5A and \
+                data[1] == expect_pec
+
+            # --- ownership: no master START while the target is answering
+            await self._slave_setup(addr=0x42, stretch=True)
+            reader = cocotb.start_soon(self.tb.ext_master.read_transfer(0x42, 1))
+            held = False
+            for _ in range(400):
+                st = await self.tb.read_slave_status()
+                if st['stretching']:
+                    held = True
+                    break
+                await ClockCycles(self.tb.pclk, 20)
+            # The target is mid-transfer. Ask the master half to go.
+            await self.tb.enable_master_mode(enable=True)
+            await self.tb.start_transaction(trans_type=0x9, slave_addr=0x55)
+            await ClockCycles(self.tb.pclk, 200)
+            mstatus = await self.tb.read_status()
+            master_refused = not mstatus['busy']
+            self.log.info(f"  ownership: target holding={held} "
+                          f"master_busy={mstatus['busy']} (want False)")
+            # Let the target finish so the bus is not left held.
+            await self.tb.write_tx_fifo([0x00])
+            await reader
+
+            ok = ((not st_good['pec_error']) and st_bad['pec_error'] and
+                  read_pec_ok and held and master_refused)
+            if ok:
+                self.log.info("RLB-011 slave PEC and ownership GREEN")
+                return True
+            self.log.error(
+                f"RLB-011 slave PEC: good_pec_clean={not st_good['pec_error']} "
+                f"bad_pec_flagged={st_bad['pec_error']} "
+                f"read_appends_pec={read_pec_ok} target_held={held} "
+                f"master_refused_while_target_busy={master_refused}")
+            return False
+        except Exception as e:
+            self.log.error(f"RLB-011 slave PEC test error: {e}")
+            return False
+        finally:
+            await self._recover_and_reset()
+
     async def test_gh58_c4_scl_toggle_and_open_drain(self) -> bool:
         """SCL must clock every bit (>=9 edges/byte) and stay open-drain."""
         self.log.info("=== GH58-1 (C4): SCL toggle count + open-drain contract ===")
@@ -1224,11 +1453,15 @@ class SMBusMediumTests:
         try:
             await self._recover_and_reset()
 
-            # SMBUS_BLOCK_COUNT @ 0x038 is the last mapped register;
-            # 0x03C-0xFFC (4KB APB window, 12-bit paddr) must all be
+            # SMBUS_SLAVE_STATUS @ 0x040 is the last mapped register;
+            # 0x044-0xFFC (4KB APB window, 12-bit paddr) must all be
             # unmapped per peakrdl/smbus_regs.rdl's own address-layout
-            # comment.
-            unmapped_addrs = [0x03C, 0x040, 0x100, 0x200, 0x800, 0xFFC]
+            # comment. 0x03C and 0x040 were in this list until slave mode
+            # gave them to SMBUS_SLAVE_CTRL and SMBUS_SLAVE_STATUS
+            # (RLB-011); 0x044 and 0x080 take their place, and 0x080 is the
+            # first alias of SMBUS_CONTROL now that the generated block
+            # decodes seven address bits rather than six.
+            unmapped_addrs = [0x044, 0x080, 0x100, 0x200, 0x800, 0xFFC]
 
             failures = []
             for addr in unmapped_addrs:

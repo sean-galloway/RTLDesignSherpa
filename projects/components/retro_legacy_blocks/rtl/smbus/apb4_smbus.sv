@@ -241,6 +241,10 @@ module apb4_smbus #(
     wire [23:0] w_cfg_timeout;
     wire [6:0]  w_cfg_own_addr;
     wire        w_cfg_own_addr_en;
+    wire        w_cfg_slave_gc_en;
+    wire        w_cfg_slave_nack_all;
+    wire        w_cfg_slave_pec_en;
+    wire        w_cfg_slave_stretch_en;
 
     // Command interface
     wire [3:0]  w_cmd_trans_type;
@@ -259,6 +263,10 @@ module apb4_smbus #(
     wire        w_status_arb_lost;
     wire        w_status_nak_received;
     wire        w_status_slave_addressed;
+    wire        w_status_slave_rd_not_wr;
+    wire        w_status_slave_stretching;
+    wire        w_status_slave_pec_error;
+    wire [7:0]  w_status_slave_pec_value;
     wire        w_status_complete;
     wire [3:0]  w_status_fsm_state;
 
@@ -286,9 +294,9 @@ module apb4_smbus #(
     wire        w_data_byte_we;
     wire [5:0]  w_block_count_in;
     wire        w_block_count_we;
-    wire [4:0]  w_int_status;
-    wire [4:0]  w_sw_clr_int_status;
-    wire [4:0]  w_int_enable;
+    wire [7:0]  w_int_status;
+    wire [7:0]  w_sw_clr_int_status;
+    wire [7:0]  w_int_enable;
     wire        w_int_pending_src;
     wire        w_int_pending_pclk;
     logic       r_interrupt;
@@ -299,6 +307,9 @@ module apb4_smbus #(
     wire        w_int_tx_thresh_en;
     wire        w_int_rx_thresh_en;
     wire        w_int_slave_addr_en;
+    wire        w_int_slave_rx_en;
+    wire        w_int_slave_tx_en;
+    wire        w_int_slave_done_en;
 
     //========================================================================
     // Configuration Registers Module
@@ -334,6 +345,10 @@ module apb4_smbus #(
         .cfg_timeout           (w_cfg_timeout),
         .cfg_own_addr          (w_cfg_own_addr),
         .cfg_own_addr_en       (w_cfg_own_addr_en),
+        .cfg_slave_gc_en       (w_cfg_slave_gc_en),
+        .cfg_slave_nack_all    (w_cfg_slave_nack_all),
+        .cfg_slave_pec_en      (w_cfg_slave_pec_en),
+        .cfg_slave_stretch_en  (w_cfg_slave_stretch_en),
 
         // Command interface
         .cmd_trans_type        (w_cmd_trans_type),
@@ -352,6 +367,10 @@ module apb4_smbus #(
         .status_arb_lost       (w_status_arb_lost),
         .status_nak_received   (w_status_nak_received),
         .status_slave_addressed(w_status_slave_addressed),
+        .status_slave_rd_not_wr(w_status_slave_rd_not_wr),
+        .status_slave_stretching(w_status_slave_stretching),
+        .status_slave_pec_error(w_status_slave_pec_error),
+        .status_slave_pec_value(w_status_slave_pec_value),
         .status_complete       (w_status_complete),
         .status_fsm_state      (w_status_fsm_state),
 
@@ -385,6 +404,9 @@ module apb4_smbus #(
         .int_tx_thresh_en      (w_int_tx_thresh_en),
         .int_rx_thresh_en      (w_int_rx_thresh_en),
         .int_slave_addr_en     (w_int_slave_addr_en),
+        .int_slave_rx_en       (w_int_slave_rx_en),
+        .int_slave_tx_en       (w_int_slave_tx_en),
+        .int_slave_done_en     (w_int_slave_done_en),
 
         // Sticky interrupt status lives in smbus_core; the field mirrors it
         .int_status            (w_int_status),
@@ -422,6 +444,10 @@ module apb4_smbus #(
         .cfg_timeout           (w_cfg_timeout),
         .cfg_own_addr          (w_cfg_own_addr),
         .cfg_own_addr_en       (w_cfg_own_addr_en),
+        .cfg_slave_gc_en       (w_cfg_slave_gc_en),
+        .cfg_slave_nack_all    (w_cfg_slave_nack_all),
+        .cfg_slave_pec_en      (w_cfg_slave_pec_en),
+        .cfg_slave_stretch_en  (w_cfg_slave_stretch_en),
 
         // Command interface
         .cmd_trans_type        (w_cmd_trans_type),
@@ -440,6 +466,10 @@ module apb4_smbus #(
         .status_arb_lost       (w_status_arb_lost),
         .status_nak_received   (w_status_nak_received),
         .status_slave_addressed(w_status_slave_addressed),
+        .status_slave_rd_not_wr(w_status_slave_rd_not_wr),
+        .status_slave_stretching(w_status_slave_stretching),
+        .status_slave_pec_error(w_status_slave_pec_error),
+        .status_slave_pec_value(w_status_slave_pec_value),
         .status_complete       (w_status_complete),
         .status_fsm_state      (w_status_fsm_state),
 
@@ -492,9 +522,10 @@ module apb4_smbus #(
     // in: the source is sticky and re-presents itself after any reset on
     // either side, so no event can be manufactured or lost by the crossing.
 
-    assign w_int_enable = {w_int_slave_addr_en, w_int_rx_thresh_en,
-                           w_int_tx_thresh_en, w_int_error_en,
-                           w_int_complete_en};
+    assign w_int_enable = {w_int_slave_done_en, w_int_slave_tx_en,
+                           w_int_slave_rx_en, w_int_slave_addr_en,
+                           w_int_rx_thresh_en, w_int_tx_thresh_en,
+                           w_int_error_en, w_int_complete_en};
 
     assign w_int_pending_src = |(w_int_status & w_int_enable);
 

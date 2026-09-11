@@ -23,11 +23,12 @@
 
 # SMBus 2.0 Controller
 
-APB4-attached SMBus 2.0 master. All ten transaction types, packet error
-checking, clock stretching, a bus timeout, and a strict register decode.
+APB4-attached SMBus 2.0 controller, master and target. All ten transaction
+types, packet error checking, clock stretching in both directions, a bus
+timeout, and a strict register decode.
 
-**Status:** master implemented and regression-clean, including multi-master
-arbitration. **Slave mode is a stub** (see "What a real slave would need").
+**Status:** master and target both implemented and regression-clean, including
+multi-master arbitration.
 
 ## Module structure
 
@@ -45,7 +46,9 @@ apb4_smbus                 APB4 attach, clocking, the interrupt pin
    +- smbus_byte_fifos     TX/RX byte buffers and their three reset sources
    |  +- simple_fifo x2 -> fifo_sync
    +- smbus_int_status     sticky, edge-set, W1C-cleared interrupt bits
-   +- smbus_pec            CRC-8, polynomial 0x07
+   +- smbus_pec            CRC-8, polynomial 0x07 (one per engine)
+   +- smbus_slave_engine   TARGET ENGINE: the half that answers
+      +- smbus_pec         the target's own CRC-8
 ```
 
 The split that matters is `smbus_core` / `smbus_bit_phy`. **The sequencer owns
@@ -468,11 +471,13 @@ truncated field first reads 64 as 0.
 
 ## Register decode
 
-**Only the fifteen mapped registers decode. Every other address in the 4 KB
+**Only the seventeen mapped registers decode. Every other address in the 4 KB
 window is dropped: no internal strobe fires, the read returns 0, and the access
-is acknowledged locally with `PSLVERR`.** The generated block sees six address
-bits, so without the strict decode every unmapped address aliases onto a real
-register 64 bytes below it - 0x040 would write `SMBUS_CONTROL`.
+is acknowledged locally with `PSLVERR`.** The generated block sees seven
+address bits, so without the strict decode every unmapped address aliases onto
+a real register 128 bytes below it - 0x080 would write `SMBUS_CONTROL`. It was
+six bits and 0x040 until the two slave registers pushed the top of the map
+past 0x03F.
 
 The drop is acknowledged combinationally and locally, in the same shape the
 register block uses, because the adapter holds its request until it is
@@ -482,7 +487,7 @@ acknowledged; a dropped access that is never acknowledged hangs the bus.
 
 | Offset | Register | Type | Notes |
 |--------|----------|------|-------|
-| 0x000 | SMBUS_CONTROL | RW | master/slave/PEC enables, fast_mode, fifo_reset, soft_reset |
+| 0x000 | SMBUS_CONTROL | RW | master/target/PEC enables, fast_mode, fifo_reset, soft_reset |
 | 0x004 | SMBUS_STATUS | RO | busy, errors, FSM state |
 | 0x008 | SMBUS_COMMAND | RW | transaction type, command code, start, stop |
 | 0x00C | SMBUS_SLAVE_ADDR | RW | target address |
@@ -492,11 +497,13 @@ acknowledged; a dropped access that is never acknowledged hangs the bus.
 | 0x01C | SMBUS_FIFO_STATUS | RO | levels and flags |
 | 0x020 | SMBUS_CLK_DIV | RW | SCL divider |
 | 0x024 | SMBUS_TIMEOUT | RW | SCL-low limit, 0 = disabled |
-| 0x028 | SMBUS_OWN_ADDR | RW | slave address (stub) |
+| 0x028 | SMBUS_OWN_ADDR | RW | the address this target answers, and its enable |
 | 0x02C | SMBUS_INT_ENABLE | RW | interrupt mask |
 | 0x030 | SMBUS_INT_STATUS | RW1C | sticky interrupt status |
 | 0x034 | SMBUS_PEC | RW | PEC value |
 | 0x038 | SMBUS_BLOCK_COUNT | RW | block length |
+| 0x03C | SMBUS_SLAVE_CTRL | RW | general call, NAK-all, target PEC, stretching |
+| 0x040 | SMBUS_SLAVE_STATUS | RO | direction, stretching, PEC verdict and value |
 
 Field detail is not restated here - `peakrdl/smbus_regs.rdl` is the single
 source of truth, and a second copy is what rots.
@@ -518,34 +525,61 @@ source of truth, and a second copy is what rots.
 
 ## Known limitations
 
-### What a real slave would need
+### The target engine
 
-The slave FSM is a stub. `cfg_slave_en`, `SMBUS_OWN_ADDR` and its enable are
-kept in the register map so software can see what exists, but no slave FSM
-runs and the block never claims the bus as a target.
-`SMBUS_STATUS.slave_addressed` is tied low **deliberately**: a stub that
-occasionally asserted would let the slave path clear the PEC accumulator or
-drive SDA underneath a master transaction, which is the one thing a stub must
-not do.
+`smbus_slave_engine` is the half that answers. It is a separate module from
+`smbus_bit_phy` for a structural reason: **the master owns the clock and the
+target does not.** Every master primitive is something the PHY schedules; every
+target action is a response to an edge somebody else produced. Expressing both
+in one module would mean a block that is sometimes a clock source and sometimes
+a passenger.
 
-Implementing it needs, at minimum:
+It never drives a 1 either. It emits two pull-down requests and `smbus_core`
+wired-ANDs them with the master's, which is the same rule the bus obeys, so the
+merge needs no ownership mux to be electrically correct. And **SDA only ever
+changes on a falling edge of SCL** - a transition while SCL is high is a START
+or a STOP, not data - so every drive decision in the engine is taken on a fall
+and held.
 
-- **Passive bus monitoring** - START and STOP detection from the synchronized
-  SCL/SDA inputs, independent of the master's own PHY, since the slave is
-  clocked by someone else.
-- **A receive path clocked by the incoming SCL**, not by the divider: the PHY
-  as written generates SCL, and a slave has to follow it.
-- **Address comparison** against `SMBUS_OWN_ADDR` plus the general-call address,
-  and ACK generation inside the ninth bit.
-- **Clock stretching as a producer** - holding SCL low while software is
-  fetching the response byte, which needs a way for the sequencer to request a
-  stretch rather than only tolerate one.
-- **A second PEC accumulator, or arbitration for the one that exists**, since a
-  slave transaction can begin while a master transaction is queued.
-- **Ownership arbitration between the master and slave paths for SDA**, with a
-  rule for what happens when software starts a master transaction while the
-  block is being addressed as a target.
-- **Alert Response Address (ARA) handling** if SMBALERT# is ever wired.
+| control | what it decides |
+|---------|-----------------|
+| `SMBUS_CONTROL.slave_en` | the engine runs at all |
+| `SMBUS_OWN_ADDR` | the address it answers, and whether it answers one |
+| `SMBUS_SLAVE_CTRL.gc_en` | also answer the general call, address 0x00 |
+| `SMBUS_SLAVE_CTRL.nack_all` | software is busy: NAK our own address |
+| `SMBUS_SLAVE_CTRL.pec_en` | maintain, check and append the target PEC |
+| `SMBUS_SLAVE_CTRL.stretch_en` | hold SCL while a read waits for software |
+
+A full RX FIFO is answered with a NAK rather than a silently dropped byte: the
+master has to be told, or it is writing into a target that is not listening.
+
+#### The target PEC never counts bytes
+
+A target does not know how long a transfer is; the protocol does, and the
+protocol lives in software. CRC-8 removes the need to know:
+
+- **Writes.** The running CRC covers the address byte and every data byte, and
+  a correct trailing PEC byte drives it to **zero**. "PEC good" is therefore
+  "the running value is zero at the STOP", with no byte counting anywhere.
+- **Reads.** When the TX FIFO runs dry, the byte sent IS the running CRC, which
+  is exactly the PEC the master is waiting for. Software sets the length by how
+  many bytes it queues.
+
+#### Stretching, or not
+
+With `stretch_en` set, a read that finds the TX FIFO empty holds SCL low until
+software puts a byte in it, and `SMBUS_SLAVE_STATUS.stretching` says so. With
+it clear the engine sends `0xFF` instead, which is what an unprogrammed target
+on a real bus looks like and keeps a slow CPU from wedging the whole wire.
+
+#### One engine on the wire
+
+A master START is refused while the target half is **answering** - not merely
+while a transfer is visible on the bus. The distinction matters: SDA pulled low
+under a high SCL looks exactly like a START that never ends, and a target that
+claimed the wire for that would block the bus recovery that exists to clear it.
+Whether the bus is busy is the master PHY's own question, and it answers it
+with the bus-free wait in front of every START.
 
 ### Multi-master arbitration
 
@@ -563,8 +597,10 @@ wait before START is what makes the retry safe.
 Losing arbitration is not an error of ours, but it is reported as one in the
 sense that `complete` is not set: the transfer did not happen.
 
-Still missing, and only relevant once slave mode exists: a master that loses
-arbitration may immediately be addressed as a slave by the winner.
+A master that loses arbitration may immediately be addressed as a target by
+the winner, and it is: the target engine watches the bus whether or not the
+master half is doing anything, and takes over as soon as the master half is no
+longer answering.
 
 ### Other
 
@@ -579,7 +615,10 @@ arbitration may immediately be addressed as a slave by the winner.
   master mode sees a transaction that simply never happens.
 - A slave-supplied block length of 0, or one larger than the FIFO depth, is
   clamped rather than honoured.
-- SMBALERT# and the Host Notify protocol are not implemented.
+- SMBALERT# and the Host Notify protocol are not implemented, and with them
+  the Alert Response Address the target would answer.
+- The target does not implement ARP (the SMBus address resolution protocol).
+  `SMBUS_OWN_ADDR` is a fixed address software programs.
 
 ## References
 

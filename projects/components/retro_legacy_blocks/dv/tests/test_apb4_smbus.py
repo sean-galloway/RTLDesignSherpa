@@ -110,6 +110,9 @@ async def smbus_test(dut):
         # (RED) for a specific, mechanism-traced reason documented in
         # smbus_tests_medium.py; they are not skipped/xfail because the
         # RED result itself is the deliverable finding for rds-rtl-design.
+        ('RLB-011 Slave address match and write', gh58_tests.test_rlb011_slave_write_and_address_match),
+        ('RLB-011 Slave read and clock stretching', gh58_tests.test_rlb011_slave_read_and_stretch),
+        ('RLB-011 Slave PEC and engine ownership', gh58_tests.test_rlb011_slave_pec_and_ownership),
         ('GH58-1 (C4) SCL toggle / open-drain', gh58_tests.test_gh58_c4_scl_toggle_and_open_drain),
         ('GH58-2 (C3) Timeout via real SCL stretch / TIMEOUT=0 disables it', gh58_tests.test_gh58_c3_timeout_detection_dead),
         ('GH58-12 Short stretch (< TIMEOUT) completes without error', gh58_tests.test_gh58_12_short_stretch_completes_without_error),

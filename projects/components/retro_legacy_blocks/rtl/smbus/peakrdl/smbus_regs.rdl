@@ -235,8 +235,11 @@ addrmap smbus_regs {
 
         field {
             name = "Slave Addressed";
-            desc = "Addressed as a slave. TIED LOW: slave mode is a stub, so
-                    this bit never sets (ledger RLB-011).";
+            desc = "Addressed as a slave: the target engine has matched an
+                    address and is in a transfer. This is a LEVEL, true for
+                    the whole transfer and false again at the STOP; the sticky
+                    version software can poll at leisure is
+                    SMBUS_INT_STATUS.slave_addr_int.";
             sw = r;
             hw = w;
         } slave_addressed[6:6];
@@ -661,11 +664,38 @@ addrmap smbus_regs {
         } slave_addr_en[4:4] = 1'b0;
 
         field {
+            name = "Slave RX Byte Enable";
+            desc = "Enable interrupt when the slave engine takes a byte off
+                    the bus into the RX FIFO";
+            sw = rw;
+            hw = r;
+        } slave_rx_en[5:5] = 1'b0;
+
+        field {
+            name = "Slave TX Request Enable";
+            desc = "Enable interrupt when the slave engine needs a byte to
+                    transmit and the TX FIFO is empty. With
+                    SMBUS_SLAVE_CTRL.stretch_en set, the bus is being held
+                    while this is true, so software is on the clock.";
+            sw = rw;
+            hw = r;
+        } slave_tx_en[6:6] = 1'b0;
+
+        field {
+            name = "Slave Transfer Done Enable";
+            desc = "Enable interrupt when a transfer addressed to this target
+                    ends at the STOP. SMBUS_SLAVE_STATUS.pec_error is valid
+                    from that moment.";
+            sw = rw;
+            hw = r;
+        } slave_done_en[7:7] = 1'b0;
+
+        field {
             name = "Reserved";
             desc = "Reserved bits";
             sw = r;
             hw = na;
-        } reserved[31:5] = 27'h0;
+        } reserved[31:8] = 24'h0;
 
     } SMBUS_INT_ENABLE @ 0x02C;
 
@@ -733,11 +763,41 @@ addrmap smbus_regs {
         } slave_addr_int[4:4] = 1'b0;
 
         field {
+            name = "Slave RX Byte";
+            desc = "The slave engine took a byte off the bus into the RX FIFO
+                    (W1C)";
+            sw = rw;
+            hw = w;          // live mirror of smbus_int_status's sticky bit
+            precedence = sw; // the W1C write wins over the mirror in its cycle
+            onwrite = woclr;
+        } slave_rx_int[5:5] = 1'b0;
+
+        field {
+            name = "Slave TX Request";
+            desc = "The slave engine needs a byte to transmit and the TX FIFO
+                    is empty (W1C)";
+            sw = rw;
+            hw = w;          // live mirror of smbus_int_status's sticky bit
+            precedence = sw; // the W1C write wins over the mirror in its cycle
+            onwrite = woclr;
+        } slave_tx_int[6:6] = 1'b0;
+
+        field {
+            name = "Slave Transfer Done";
+            desc = "A transfer addressed to this target ended at the STOP
+                    (W1C)";
+            sw = rw;
+            hw = w;          // live mirror of smbus_int_status's sticky bit
+            precedence = sw; // the W1C write wins over the mirror in its cycle
+            onwrite = woclr;
+        } slave_done_int[7:7] = 1'b0;
+
+        field {
             name = "Reserved";
             desc = "Reserved bits";
             sw = r;
             hw = na;
-        } reserved[31:5] = 27'h0;
+        } reserved[31:8] = 24'h0;
 
     } SMBUS_INT_STATUS @ 0x030;
 
@@ -810,5 +870,130 @@ addrmap smbus_regs {
         } reserved[31:6] = 26'h0;
 
     } SMBUS_BLOCK_COUNT @ 0x038;
+
+    //========================================================================
+    // Slave Control Register (0x03C)
+    //========================================================================
+
+    reg {
+        name = "SMBus Slave Control Register";
+        desc = "Target-mode policy. SMBUS_CONTROL.slave_en turns the engine on
+                and SMBUS_OWN_ADDR says which address it answers; these are
+                the choices that have no obvious right answer.";
+
+        field {
+            name = "General Call Enable";
+            desc = "Answer the general call address 0x00 as well as the own
+                    address. The general call is a write by definition, so a
+                    read to 0x00 is not a match.";
+            sw = rw;
+            hw = r;
+        } gc_en[0:0] = 1'b0;
+
+        field {
+            name = "NAK Everything";
+            desc = "Software is busy: NAK this target's own address instead of
+                    answering it. A NAK is the only way a target can say 'not
+                    now' without holding the bus, which is what the
+                    alternative -- stretching the clock until software catches
+                    up -- does to every other device on the wire.";
+            sw = rw;
+            hw = r;
+        } nack_all[1:1] = 1'b0;
+
+        field {
+            name = "Slave PEC Enable";
+            desc = "Maintain a CRC-8 over every byte of a transfer addressed
+                    to this target, the address bytes included. On a WRITE the
+                    running value is checked at the STOP: a correct trailing
+                    PEC byte drives a CRC-8 to zero, so no byte counting is
+                    needed and none is done. On a READ, when the TX FIFO runs
+                    dry the byte sent is the running CRC itself, which is
+                    exactly the PEC the master is expecting -- software sets
+                    the length by how many bytes it queues.";
+            sw = rw;
+            hw = r;
+        } pec_en[2:2] = 1'b0;
+
+        field {
+            name = "Clock Stretch Enable";
+            desc = "Hold SCL low while a read is waiting for software to put a
+                    byte in the TX FIFO. With this clear an empty FIFO sends
+                    0xFF instead, which is what an unprogrammed target on a
+                    real bus looks like and keeps a slow CPU from wedging the
+                    whole bus.";
+            sw = rw;
+            hw = r;
+        } stretch_en[3:3] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:4] = 28'h0;
+
+    } SMBUS_SLAVE_CTRL @ 0x03C;
+
+    //========================================================================
+    // Slave Status Register (0x040)
+    //========================================================================
+
+    reg {
+        name = "SMBus Slave Status Register";
+        desc = "What the target engine is doing. Read-only: every bit is a
+                live view of the engine, and the sticky versions software can
+                poll at leisure are in SMBUS_INT_STATUS.";
+
+        field {
+            name = "Read Not Write";
+            desc = "Direction of the transfer in progress: 1 = the master is
+                    reading from this target, 0 = writing to it";
+            sw = r;
+            hw = w;
+        } rd_not_wr[0:0] = 1'b0;
+
+        field {
+            name = "Stretching";
+            desc = "The engine is holding SCL low, waiting for software to put
+                    a byte in the TX FIFO";
+            sw = r;
+            hw = w;
+        } stretching[1:1] = 1'b0;
+
+        field {
+            name = "Slave PEC Error";
+            desc = "The last WRITE transfer addressed to this target ended
+                    with a running CRC that was not zero, which means the
+                    master's PEC byte did not match. Valid from the STOP;
+                    cleared at the next START.";
+            sw = r;
+            hw = w;
+        } pec_error[2:2] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved_lo[7:3] = 5'h0;
+
+        field {
+            name = "Slave PEC Value";
+            desc = "The running CRC-8. Zero after a correct write PEC; the
+                    byte that will be sent when a read runs out of queued
+                    data.";
+            sw = r;
+            hw = w;
+        } pec_value[15:8] = 8'h00;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved_hi[31:16] = 16'h0;
+
+    } SMBUS_SLAVE_STATUS @ 0x040;
 
 };

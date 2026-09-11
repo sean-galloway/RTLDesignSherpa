@@ -4,8 +4,8 @@
 package smbus_regs_pkg;
 
     localparam SMBUS_REGS_DATA_WIDTH = 32;
-    localparam SMBUS_REGS_MIN_ADDR_WIDTH = 6;
-    localparam SMBUS_REGS_SIZE = 'h3c;
+    localparam SMBUS_REGS_MIN_ADDR_WIDTH = 7;
+    localparam SMBUS_REGS_SIZE = 'h44;
 
     typedef struct {
         logic next;
@@ -152,11 +152,26 @@ package smbus_regs_pkg;
     } smbus_regs__SMBUS_INT_STATUS__slave_addr_int__in_t;
 
     typedef struct {
+        logic next;
+    } smbus_regs__SMBUS_INT_STATUS__slave_rx_int__in_t;
+
+    typedef struct {
+        logic next;
+    } smbus_regs__SMBUS_INT_STATUS__slave_tx_int__in_t;
+
+    typedef struct {
+        logic next;
+    } smbus_regs__SMBUS_INT_STATUS__slave_done_int__in_t;
+
+    typedef struct {
         smbus_regs__SMBUS_INT_STATUS__complete_int__in_t complete_int;
         smbus_regs__SMBUS_INT_STATUS__error_int__in_t error_int;
         smbus_regs__SMBUS_INT_STATUS__tx_thresh_int__in_t tx_thresh_int;
         smbus_regs__SMBUS_INT_STATUS__rx_thresh_int__in_t rx_thresh_int;
         smbus_regs__SMBUS_INT_STATUS__slave_addr_int__in_t slave_addr_int;
+        smbus_regs__SMBUS_INT_STATUS__slave_rx_int__in_t slave_rx_int;
+        smbus_regs__SMBUS_INT_STATUS__slave_tx_int__in_t slave_tx_int;
+        smbus_regs__SMBUS_INT_STATUS__slave_done_int__in_t slave_done_int;
     } smbus_regs__SMBUS_INT_STATUS__in_t;
 
     typedef struct {
@@ -178,6 +193,29 @@ package smbus_regs_pkg;
     } smbus_regs__SMBUS_BLOCK_COUNT__in_t;
 
     typedef struct {
+        logic next;
+    } smbus_regs__SMBUS_SLAVE_STATUS__rd_not_wr__in_t;
+
+    typedef struct {
+        logic next;
+    } smbus_regs__SMBUS_SLAVE_STATUS__stretching__in_t;
+
+    typedef struct {
+        logic next;
+    } smbus_regs__SMBUS_SLAVE_STATUS__pec_error__in_t;
+
+    typedef struct {
+        logic [7:0] next;
+    } smbus_regs__SMBUS_SLAVE_STATUS__pec_value__in_t;
+
+    typedef struct {
+        smbus_regs__SMBUS_SLAVE_STATUS__rd_not_wr__in_t rd_not_wr;
+        smbus_regs__SMBUS_SLAVE_STATUS__stretching__in_t stretching;
+        smbus_regs__SMBUS_SLAVE_STATUS__pec_error__in_t pec_error;
+        smbus_regs__SMBUS_SLAVE_STATUS__pec_value__in_t pec_value;
+    } smbus_regs__SMBUS_SLAVE_STATUS__in_t;
+
+    typedef struct {
         smbus_regs__SMBUS_CONTROL__in_t SMBUS_CONTROL;
         smbus_regs__SMBUS_STATUS__in_t SMBUS_STATUS;
         smbus_regs__SMBUS_COMMAND__in_t SMBUS_COMMAND;
@@ -187,6 +225,7 @@ package smbus_regs_pkg;
         smbus_regs__SMBUS_INT_STATUS__in_t SMBUS_INT_STATUS;
         smbus_regs__SMBUS_PEC__in_t SMBUS_PEC;
         smbus_regs__SMBUS_BLOCK_COUNT__in_t SMBUS_BLOCK_COUNT;
+        smbus_regs__SMBUS_SLAVE_STATUS__in_t SMBUS_SLAVE_STATUS;
     } smbus_regs__in_t;
 
     typedef struct {
@@ -319,11 +358,26 @@ package smbus_regs_pkg;
     } smbus_regs__SMBUS_INT_ENABLE__slave_addr_en__out_t;
 
     typedef struct {
+        logic value;
+    } smbus_regs__SMBUS_INT_ENABLE__slave_rx_en__out_t;
+
+    typedef struct {
+        logic value;
+    } smbus_regs__SMBUS_INT_ENABLE__slave_tx_en__out_t;
+
+    typedef struct {
+        logic value;
+    } smbus_regs__SMBUS_INT_ENABLE__slave_done_en__out_t;
+
+    typedef struct {
         smbus_regs__SMBUS_INT_ENABLE__complete_en__out_t complete_en;
         smbus_regs__SMBUS_INT_ENABLE__error_en__out_t error_en;
         smbus_regs__SMBUS_INT_ENABLE__tx_thresh_en__out_t tx_thresh_en;
         smbus_regs__SMBUS_INT_ENABLE__rx_thresh_en__out_t rx_thresh_en;
         smbus_regs__SMBUS_INT_ENABLE__slave_addr_en__out_t slave_addr_en;
+        smbus_regs__SMBUS_INT_ENABLE__slave_rx_en__out_t slave_rx_en;
+        smbus_regs__SMBUS_INT_ENABLE__slave_tx_en__out_t slave_tx_en;
+        smbus_regs__SMBUS_INT_ENABLE__slave_done_en__out_t slave_done_en;
     } smbus_regs__SMBUS_INT_ENABLE__out_t;
 
     typedef struct {
@@ -343,6 +397,29 @@ package smbus_regs_pkg;
     } smbus_regs__SMBUS_BLOCK_COUNT__out_t;
 
     typedef struct {
+        logic value;
+    } smbus_regs__SMBUS_SLAVE_CTRL__gc_en__out_t;
+
+    typedef struct {
+        logic value;
+    } smbus_regs__SMBUS_SLAVE_CTRL__nack_all__out_t;
+
+    typedef struct {
+        logic value;
+    } smbus_regs__SMBUS_SLAVE_CTRL__pec_en__out_t;
+
+    typedef struct {
+        logic value;
+    } smbus_regs__SMBUS_SLAVE_CTRL__stretch_en__out_t;
+
+    typedef struct {
+        smbus_regs__SMBUS_SLAVE_CTRL__gc_en__out_t gc_en;
+        smbus_regs__SMBUS_SLAVE_CTRL__nack_all__out_t nack_all;
+        smbus_regs__SMBUS_SLAVE_CTRL__pec_en__out_t pec_en;
+        smbus_regs__SMBUS_SLAVE_CTRL__stretch_en__out_t stretch_en;
+    } smbus_regs__SMBUS_SLAVE_CTRL__out_t;
+
+    typedef struct {
         smbus_regs__SMBUS_CONTROL__out_t SMBUS_CONTROL;
         smbus_regs__SMBUS_COMMAND__out_t SMBUS_COMMAND;
         smbus_regs__SMBUS_SLAVE_ADDR__out_t SMBUS_SLAVE_ADDR;
@@ -354,5 +431,6 @@ package smbus_regs_pkg;
         smbus_regs__SMBUS_INT_ENABLE__out_t SMBUS_INT_ENABLE;
         smbus_regs__SMBUS_PEC__out_t SMBUS_PEC;
         smbus_regs__SMBUS_BLOCK_COUNT__out_t SMBUS_BLOCK_COUNT;
+        smbus_regs__SMBUS_SLAVE_CTRL__out_t SMBUS_SLAVE_CTRL;
     } smbus_regs__out_t;
 endpackage

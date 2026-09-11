@@ -31,4 +31,5 @@
 -f $RETRO_ROOT/rtl/smbus/filelists/smbus_int_status.f
 
 $RETRO_ROOT/rtl/smbus/smbus_pec.sv
+$RETRO_ROOT/rtl/smbus/smbus_slave_engine.sv
 $RETRO_ROOT/rtl/smbus/smbus_core.sv

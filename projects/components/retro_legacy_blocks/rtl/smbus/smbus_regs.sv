@@ -7,7 +7,7 @@ module smbus_regs (
 
         input wire s_cpuif_req,
         input wire s_cpuif_req_is_wr,
-        input wire [5:0] s_cpuif_addr,
+        input wire [6:0] s_cpuif_addr,
         input wire [31:0] s_cpuif_wr_data,
         input wire [31:0] s_cpuif_wr_biten,
         output wire s_cpuif_req_stall_wr,
@@ -27,7 +27,7 @@ module smbus_regs (
     //--------------------------------------------------------------------------
     logic cpuif_req;
     logic cpuif_req_is_wr;
-    logic [5:0] cpuif_addr;
+    logic [6:0] cpuif_addr;
     logic [31:0] cpuif_wr_data;
     logic [31:0] cpuif_wr_biten;
     logic cpuif_req_stall_wr;
@@ -81,6 +81,8 @@ module smbus_regs (
         logic SMBUS_INT_STATUS;
         logic SMBUS_PEC;
         logic SMBUS_BLOCK_COUNT;
+        logic SMBUS_SLAVE_CTRL;
+        logic SMBUS_SLAVE_STATUS;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
     logic decoded_req;
@@ -89,21 +91,23 @@ module smbus_regs (
     logic [31:0] decoded_wr_biten;
 
     always_comb begin
-        decoded_reg_strb.SMBUS_CONTROL = cpuif_req_masked & (cpuif_addr == 6'h0);
-        decoded_reg_strb.SMBUS_STATUS = cpuif_req_masked & (cpuif_addr == 6'h4);
-        decoded_reg_strb.SMBUS_COMMAND = cpuif_req_masked & (cpuif_addr == 6'h8);
-        decoded_reg_strb.SMBUS_SLAVE_ADDR = cpuif_req_masked & (cpuif_addr == 6'hc);
-        decoded_reg_strb.SMBUS_DATA = cpuif_req_masked & (cpuif_addr == 6'h10);
-        decoded_reg_strb.SMBUS_TX_FIFO = cpuif_req_masked & (cpuif_addr == 6'h14);
-        decoded_reg_strb.SMBUS_RX_FIFO = cpuif_req_masked & (cpuif_addr == 6'h18);
-        decoded_reg_strb.SMBUS_FIFO_STATUS = cpuif_req_masked & (cpuif_addr == 6'h1c);
-        decoded_reg_strb.SMBUS_CLK_DIV = cpuif_req_masked & (cpuif_addr == 6'h20);
-        decoded_reg_strb.SMBUS_TIMEOUT = cpuif_req_masked & (cpuif_addr == 6'h24);
-        decoded_reg_strb.SMBUS_OWN_ADDR = cpuif_req_masked & (cpuif_addr == 6'h28);
-        decoded_reg_strb.SMBUS_INT_ENABLE = cpuif_req_masked & (cpuif_addr == 6'h2c);
-        decoded_reg_strb.SMBUS_INT_STATUS = cpuif_req_masked & (cpuif_addr == 6'h30);
-        decoded_reg_strb.SMBUS_PEC = cpuif_req_masked & (cpuif_addr == 6'h34);
-        decoded_reg_strb.SMBUS_BLOCK_COUNT = cpuif_req_masked & (cpuif_addr == 6'h38);
+        decoded_reg_strb.SMBUS_CONTROL = cpuif_req_masked & (cpuif_addr == 7'h0);
+        decoded_reg_strb.SMBUS_STATUS = cpuif_req_masked & (cpuif_addr == 7'h4);
+        decoded_reg_strb.SMBUS_COMMAND = cpuif_req_masked & (cpuif_addr == 7'h8);
+        decoded_reg_strb.SMBUS_SLAVE_ADDR = cpuif_req_masked & (cpuif_addr == 7'hc);
+        decoded_reg_strb.SMBUS_DATA = cpuif_req_masked & (cpuif_addr == 7'h10);
+        decoded_reg_strb.SMBUS_TX_FIFO = cpuif_req_masked & (cpuif_addr == 7'h14);
+        decoded_reg_strb.SMBUS_RX_FIFO = cpuif_req_masked & (cpuif_addr == 7'h18);
+        decoded_reg_strb.SMBUS_FIFO_STATUS = cpuif_req_masked & (cpuif_addr == 7'h1c);
+        decoded_reg_strb.SMBUS_CLK_DIV = cpuif_req_masked & (cpuif_addr == 7'h20);
+        decoded_reg_strb.SMBUS_TIMEOUT = cpuif_req_masked & (cpuif_addr == 7'h24);
+        decoded_reg_strb.SMBUS_OWN_ADDR = cpuif_req_masked & (cpuif_addr == 7'h28);
+        decoded_reg_strb.SMBUS_INT_ENABLE = cpuif_req_masked & (cpuif_addr == 7'h2c);
+        decoded_reg_strb.SMBUS_INT_STATUS = cpuif_req_masked & (cpuif_addr == 7'h30);
+        decoded_reg_strb.SMBUS_PEC = cpuif_req_masked & (cpuif_addr == 7'h34);
+        decoded_reg_strb.SMBUS_BLOCK_COUNT = cpuif_req_masked & (cpuif_addr == 7'h38);
+        decoded_reg_strb.SMBUS_SLAVE_CTRL = cpuif_req_masked & (cpuif_addr == 7'h3c);
+        decoded_reg_strb.SMBUS_SLAVE_STATUS = cpuif_req_masked & (cpuif_addr == 7'h40);
     end
 
     // Pass down signals to next stage
@@ -221,6 +225,18 @@ module smbus_regs (
                 logic next;
                 logic load_next;
             } slave_addr_en;
+            struct {
+                logic next;
+                logic load_next;
+            } slave_rx_en;
+            struct {
+                logic next;
+                logic load_next;
+            } slave_tx_en;
+            struct {
+                logic next;
+                logic load_next;
+            } slave_done_en;
         } SMBUS_INT_ENABLE;
         struct {
             struct {
@@ -243,6 +259,18 @@ module smbus_regs (
                 logic next;
                 logic load_next;
             } slave_addr_int;
+            struct {
+                logic next;
+                logic load_next;
+            } slave_rx_int;
+            struct {
+                logic next;
+                logic load_next;
+            } slave_tx_int;
+            struct {
+                logic next;
+                logic load_next;
+            } slave_done_int;
         } SMBUS_INT_STATUS;
         struct {
             struct {
@@ -256,6 +284,24 @@ module smbus_regs (
                 logic load_next;
             } block_count;
         } SMBUS_BLOCK_COUNT;
+        struct {
+            struct {
+                logic next;
+                logic load_next;
+            } gc_en;
+            struct {
+                logic next;
+                logic load_next;
+            } nack_all;
+            struct {
+                logic next;
+                logic load_next;
+            } pec_en;
+            struct {
+                logic next;
+                logic load_next;
+            } stretch_en;
+        } SMBUS_SLAVE_CTRL;
     } field_combo_t;
     field_combo_t field_combo;
 
@@ -343,6 +389,15 @@ module smbus_regs (
             struct {
                 logic value;
             } slave_addr_en;
+            struct {
+                logic value;
+            } slave_rx_en;
+            struct {
+                logic value;
+            } slave_tx_en;
+            struct {
+                logic value;
+            } slave_done_en;
         } SMBUS_INT_ENABLE;
         struct {
             struct {
@@ -360,6 +415,15 @@ module smbus_regs (
             struct {
                 logic value;
             } slave_addr_int;
+            struct {
+                logic value;
+            } slave_rx_int;
+            struct {
+                logic value;
+            } slave_tx_int;
+            struct {
+                logic value;
+            } slave_done_int;
         } SMBUS_INT_STATUS;
         struct {
             struct {
@@ -371,6 +435,20 @@ module smbus_regs (
                 logic [5:0] value;
             } block_count;
         } SMBUS_BLOCK_COUNT;
+        struct {
+            struct {
+                logic value;
+            } gc_en;
+            struct {
+                logic value;
+            } nack_all;
+            struct {
+                logic value;
+            } pec_en;
+            struct {
+                logic value;
+            } stretch_en;
+        } SMBUS_SLAVE_CTRL;
     } field_storage_t;
     field_storage_t field_storage;
 
@@ -895,6 +973,75 @@ module smbus_regs (
         end
     end
     assign hwif_out.SMBUS_INT_ENABLE.slave_addr_en.value = field_storage.SMBUS_INT_ENABLE.slave_addr_en.value;
+    // Field: smbus_regs.SMBUS_INT_ENABLE.slave_rx_en
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SMBUS_INT_ENABLE.slave_rx_en.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SMBUS_INT_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SMBUS_INT_ENABLE.slave_rx_en.value & ~decoded_wr_biten[5:5]) | (decoded_wr_data[5:5] & decoded_wr_biten[5:5]);
+            load_next_c = '1;
+        end
+        field_combo.SMBUS_INT_ENABLE.slave_rx_en.next = next_c;
+        field_combo.SMBUS_INT_ENABLE.slave_rx_en.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SMBUS_INT_ENABLE.slave_rx_en.value <= 1'h0;
+        end else begin
+            if(field_combo.SMBUS_INT_ENABLE.slave_rx_en.load_next) begin
+                field_storage.SMBUS_INT_ENABLE.slave_rx_en.value <= field_combo.SMBUS_INT_ENABLE.slave_rx_en.next;
+            end
+        end
+    end
+    assign hwif_out.SMBUS_INT_ENABLE.slave_rx_en.value = field_storage.SMBUS_INT_ENABLE.slave_rx_en.value;
+    // Field: smbus_regs.SMBUS_INT_ENABLE.slave_tx_en
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SMBUS_INT_ENABLE.slave_tx_en.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SMBUS_INT_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SMBUS_INT_ENABLE.slave_tx_en.value & ~decoded_wr_biten[6:6]) | (decoded_wr_data[6:6] & decoded_wr_biten[6:6]);
+            load_next_c = '1;
+        end
+        field_combo.SMBUS_INT_ENABLE.slave_tx_en.next = next_c;
+        field_combo.SMBUS_INT_ENABLE.slave_tx_en.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SMBUS_INT_ENABLE.slave_tx_en.value <= 1'h0;
+        end else begin
+            if(field_combo.SMBUS_INT_ENABLE.slave_tx_en.load_next) begin
+                field_storage.SMBUS_INT_ENABLE.slave_tx_en.value <= field_combo.SMBUS_INT_ENABLE.slave_tx_en.next;
+            end
+        end
+    end
+    assign hwif_out.SMBUS_INT_ENABLE.slave_tx_en.value = field_storage.SMBUS_INT_ENABLE.slave_tx_en.value;
+    // Field: smbus_regs.SMBUS_INT_ENABLE.slave_done_en
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SMBUS_INT_ENABLE.slave_done_en.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SMBUS_INT_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SMBUS_INT_ENABLE.slave_done_en.value & ~decoded_wr_biten[7:7]) | (decoded_wr_data[7:7] & decoded_wr_biten[7:7]);
+            load_next_c = '1;
+        end
+        field_combo.SMBUS_INT_ENABLE.slave_done_en.next = next_c;
+        field_combo.SMBUS_INT_ENABLE.slave_done_en.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SMBUS_INT_ENABLE.slave_done_en.value <= 1'h0;
+        end else begin
+            if(field_combo.SMBUS_INT_ENABLE.slave_done_en.load_next) begin
+                field_storage.SMBUS_INT_ENABLE.slave_done_en.value <= field_combo.SMBUS_INT_ENABLE.slave_done_en.next;
+            end
+        end
+    end
+    assign hwif_out.SMBUS_INT_ENABLE.slave_done_en.value = field_storage.SMBUS_INT_ENABLE.slave_done_en.value;
     // Field: smbus_regs.SMBUS_INT_STATUS.complete_int
     always_comb begin
         automatic logic [0:0] next_c;
@@ -1020,6 +1167,81 @@ module smbus_regs (
             end
         end
     end
+    // Field: smbus_regs.SMBUS_INT_STATUS.slave_rx_int
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SMBUS_INT_STATUS.slave_rx_int.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SMBUS_INT_STATUS && decoded_req_is_wr) begin // SW write 1 clear
+            next_c = field_storage.SMBUS_INT_STATUS.slave_rx_int.value & ~(decoded_wr_data[5:5] & decoded_wr_biten[5:5]);
+            load_next_c = '1;
+        end else begin // HW Write
+            next_c = hwif_in.SMBUS_INT_STATUS.slave_rx_int.next;
+            load_next_c = '1;
+        end
+        field_combo.SMBUS_INT_STATUS.slave_rx_int.next = next_c;
+        field_combo.SMBUS_INT_STATUS.slave_rx_int.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SMBUS_INT_STATUS.slave_rx_int.value <= 1'h0;
+        end else begin
+            if(field_combo.SMBUS_INT_STATUS.slave_rx_int.load_next) begin
+                field_storage.SMBUS_INT_STATUS.slave_rx_int.value <= field_combo.SMBUS_INT_STATUS.slave_rx_int.next;
+            end
+        end
+    end
+    // Field: smbus_regs.SMBUS_INT_STATUS.slave_tx_int
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SMBUS_INT_STATUS.slave_tx_int.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SMBUS_INT_STATUS && decoded_req_is_wr) begin // SW write 1 clear
+            next_c = field_storage.SMBUS_INT_STATUS.slave_tx_int.value & ~(decoded_wr_data[6:6] & decoded_wr_biten[6:6]);
+            load_next_c = '1;
+        end else begin // HW Write
+            next_c = hwif_in.SMBUS_INT_STATUS.slave_tx_int.next;
+            load_next_c = '1;
+        end
+        field_combo.SMBUS_INT_STATUS.slave_tx_int.next = next_c;
+        field_combo.SMBUS_INT_STATUS.slave_tx_int.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SMBUS_INT_STATUS.slave_tx_int.value <= 1'h0;
+        end else begin
+            if(field_combo.SMBUS_INT_STATUS.slave_tx_int.load_next) begin
+                field_storage.SMBUS_INT_STATUS.slave_tx_int.value <= field_combo.SMBUS_INT_STATUS.slave_tx_int.next;
+            end
+        end
+    end
+    // Field: smbus_regs.SMBUS_INT_STATUS.slave_done_int
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SMBUS_INT_STATUS.slave_done_int.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SMBUS_INT_STATUS && decoded_req_is_wr) begin // SW write 1 clear
+            next_c = field_storage.SMBUS_INT_STATUS.slave_done_int.value & ~(decoded_wr_data[7:7] & decoded_wr_biten[7:7]);
+            load_next_c = '1;
+        end else begin // HW Write
+            next_c = hwif_in.SMBUS_INT_STATUS.slave_done_int.next;
+            load_next_c = '1;
+        end
+        field_combo.SMBUS_INT_STATUS.slave_done_int.next = next_c;
+        field_combo.SMBUS_INT_STATUS.slave_done_int.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SMBUS_INT_STATUS.slave_done_int.value <= 1'h0;
+        end else begin
+            if(field_combo.SMBUS_INT_STATUS.slave_done_int.load_next) begin
+                field_storage.SMBUS_INT_STATUS.slave_done_int.value <= field_combo.SMBUS_INT_STATUS.slave_done_int.next;
+            end
+        end
+    end
     // Field: smbus_regs.SMBUS_PEC.pec
     always_comb begin
         automatic logic [7:0] next_c;
@@ -1072,6 +1294,98 @@ module smbus_regs (
         end
     end
     assign hwif_out.SMBUS_BLOCK_COUNT.block_count.value = field_storage.SMBUS_BLOCK_COUNT.block_count.value;
+    // Field: smbus_regs.SMBUS_SLAVE_CTRL.gc_en
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SMBUS_SLAVE_CTRL.gc_en.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SMBUS_SLAVE_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SMBUS_SLAVE_CTRL.gc_en.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end
+        field_combo.SMBUS_SLAVE_CTRL.gc_en.next = next_c;
+        field_combo.SMBUS_SLAVE_CTRL.gc_en.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SMBUS_SLAVE_CTRL.gc_en.value <= 1'h0;
+        end else begin
+            if(field_combo.SMBUS_SLAVE_CTRL.gc_en.load_next) begin
+                field_storage.SMBUS_SLAVE_CTRL.gc_en.value <= field_combo.SMBUS_SLAVE_CTRL.gc_en.next;
+            end
+        end
+    end
+    assign hwif_out.SMBUS_SLAVE_CTRL.gc_en.value = field_storage.SMBUS_SLAVE_CTRL.gc_en.value;
+    // Field: smbus_regs.SMBUS_SLAVE_CTRL.nack_all
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SMBUS_SLAVE_CTRL.nack_all.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SMBUS_SLAVE_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SMBUS_SLAVE_CTRL.nack_all.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end
+        field_combo.SMBUS_SLAVE_CTRL.nack_all.next = next_c;
+        field_combo.SMBUS_SLAVE_CTRL.nack_all.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SMBUS_SLAVE_CTRL.nack_all.value <= 1'h0;
+        end else begin
+            if(field_combo.SMBUS_SLAVE_CTRL.nack_all.load_next) begin
+                field_storage.SMBUS_SLAVE_CTRL.nack_all.value <= field_combo.SMBUS_SLAVE_CTRL.nack_all.next;
+            end
+        end
+    end
+    assign hwif_out.SMBUS_SLAVE_CTRL.nack_all.value = field_storage.SMBUS_SLAVE_CTRL.nack_all.value;
+    // Field: smbus_regs.SMBUS_SLAVE_CTRL.pec_en
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SMBUS_SLAVE_CTRL.pec_en.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SMBUS_SLAVE_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SMBUS_SLAVE_CTRL.pec_en.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+            load_next_c = '1;
+        end
+        field_combo.SMBUS_SLAVE_CTRL.pec_en.next = next_c;
+        field_combo.SMBUS_SLAVE_CTRL.pec_en.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SMBUS_SLAVE_CTRL.pec_en.value <= 1'h0;
+        end else begin
+            if(field_combo.SMBUS_SLAVE_CTRL.pec_en.load_next) begin
+                field_storage.SMBUS_SLAVE_CTRL.pec_en.value <= field_combo.SMBUS_SLAVE_CTRL.pec_en.next;
+            end
+        end
+    end
+    assign hwif_out.SMBUS_SLAVE_CTRL.pec_en.value = field_storage.SMBUS_SLAVE_CTRL.pec_en.value;
+    // Field: smbus_regs.SMBUS_SLAVE_CTRL.stretch_en
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SMBUS_SLAVE_CTRL.stretch_en.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SMBUS_SLAVE_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SMBUS_SLAVE_CTRL.stretch_en.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+            load_next_c = '1;
+        end
+        field_combo.SMBUS_SLAVE_CTRL.stretch_en.next = next_c;
+        field_combo.SMBUS_SLAVE_CTRL.stretch_en.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SMBUS_SLAVE_CTRL.stretch_en.value <= 1'h0;
+        end else begin
+            if(field_combo.SMBUS_SLAVE_CTRL.stretch_en.load_next) begin
+                field_storage.SMBUS_SLAVE_CTRL.stretch_en.value <= field_combo.SMBUS_SLAVE_CTRL.stretch_en.next;
+            end
+        end
+    end
+    assign hwif_out.SMBUS_SLAVE_CTRL.stretch_en.value = field_storage.SMBUS_SLAVE_CTRL.stretch_en.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -1089,7 +1403,7 @@ module smbus_regs (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[15];
+    logic [31:0] readback_array[17];
     assign readback_array[0][0:0] = (decoded_reg_strb.SMBUS_CONTROL && !decoded_req_is_wr) ? field_storage.SMBUS_CONTROL.master_en.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.SMBUS_CONTROL && !decoded_req_is_wr) ? field_storage.SMBUS_CONTROL.slave_en.value : '0;
     assign readback_array[0][2:2] = (decoded_reg_strb.SMBUS_CONTROL && !decoded_req_is_wr) ? field_storage.SMBUS_CONTROL.pec_en.value : '0;
@@ -1140,17 +1454,34 @@ module smbus_regs (
     assign readback_array[11][2:2] = (decoded_reg_strb.SMBUS_INT_ENABLE && !decoded_req_is_wr) ? field_storage.SMBUS_INT_ENABLE.tx_thresh_en.value : '0;
     assign readback_array[11][3:3] = (decoded_reg_strb.SMBUS_INT_ENABLE && !decoded_req_is_wr) ? field_storage.SMBUS_INT_ENABLE.rx_thresh_en.value : '0;
     assign readback_array[11][4:4] = (decoded_reg_strb.SMBUS_INT_ENABLE && !decoded_req_is_wr) ? field_storage.SMBUS_INT_ENABLE.slave_addr_en.value : '0;
-    assign readback_array[11][31:5] = (decoded_reg_strb.SMBUS_INT_ENABLE && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[11][5:5] = (decoded_reg_strb.SMBUS_INT_ENABLE && !decoded_req_is_wr) ? field_storage.SMBUS_INT_ENABLE.slave_rx_en.value : '0;
+    assign readback_array[11][6:6] = (decoded_reg_strb.SMBUS_INT_ENABLE && !decoded_req_is_wr) ? field_storage.SMBUS_INT_ENABLE.slave_tx_en.value : '0;
+    assign readback_array[11][7:7] = (decoded_reg_strb.SMBUS_INT_ENABLE && !decoded_req_is_wr) ? field_storage.SMBUS_INT_ENABLE.slave_done_en.value : '0;
+    assign readback_array[11][31:8] = (decoded_reg_strb.SMBUS_INT_ENABLE && !decoded_req_is_wr) ? 24'h0 : '0;
     assign readback_array[12][0:0] = (decoded_reg_strb.SMBUS_INT_STATUS && !decoded_req_is_wr) ? field_storage.SMBUS_INT_STATUS.complete_int.value : '0;
     assign readback_array[12][1:1] = (decoded_reg_strb.SMBUS_INT_STATUS && !decoded_req_is_wr) ? field_storage.SMBUS_INT_STATUS.error_int.value : '0;
     assign readback_array[12][2:2] = (decoded_reg_strb.SMBUS_INT_STATUS && !decoded_req_is_wr) ? field_storage.SMBUS_INT_STATUS.tx_thresh_int.value : '0;
     assign readback_array[12][3:3] = (decoded_reg_strb.SMBUS_INT_STATUS && !decoded_req_is_wr) ? field_storage.SMBUS_INT_STATUS.rx_thresh_int.value : '0;
     assign readback_array[12][4:4] = (decoded_reg_strb.SMBUS_INT_STATUS && !decoded_req_is_wr) ? field_storage.SMBUS_INT_STATUS.slave_addr_int.value : '0;
-    assign readback_array[12][31:5] = (decoded_reg_strb.SMBUS_INT_STATUS && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[12][5:5] = (decoded_reg_strb.SMBUS_INT_STATUS && !decoded_req_is_wr) ? field_storage.SMBUS_INT_STATUS.slave_rx_int.value : '0;
+    assign readback_array[12][6:6] = (decoded_reg_strb.SMBUS_INT_STATUS && !decoded_req_is_wr) ? field_storage.SMBUS_INT_STATUS.slave_tx_int.value : '0;
+    assign readback_array[12][7:7] = (decoded_reg_strb.SMBUS_INT_STATUS && !decoded_req_is_wr) ? field_storage.SMBUS_INT_STATUS.slave_done_int.value : '0;
+    assign readback_array[12][31:8] = (decoded_reg_strb.SMBUS_INT_STATUS && !decoded_req_is_wr) ? 24'h0 : '0;
     assign readback_array[13][7:0] = (decoded_reg_strb.SMBUS_PEC && !decoded_req_is_wr) ? field_storage.SMBUS_PEC.pec.value : '0;
     assign readback_array[13][31:8] = (decoded_reg_strb.SMBUS_PEC && !decoded_req_is_wr) ? 24'h0 : '0;
     assign readback_array[14][5:0] = (decoded_reg_strb.SMBUS_BLOCK_COUNT && !decoded_req_is_wr) ? field_storage.SMBUS_BLOCK_COUNT.block_count.value : '0;
     assign readback_array[14][31:6] = (decoded_reg_strb.SMBUS_BLOCK_COUNT && !decoded_req_is_wr) ? 26'h0 : '0;
+    assign readback_array[15][0:0] = (decoded_reg_strb.SMBUS_SLAVE_CTRL && !decoded_req_is_wr) ? field_storage.SMBUS_SLAVE_CTRL.gc_en.value : '0;
+    assign readback_array[15][1:1] = (decoded_reg_strb.SMBUS_SLAVE_CTRL && !decoded_req_is_wr) ? field_storage.SMBUS_SLAVE_CTRL.nack_all.value : '0;
+    assign readback_array[15][2:2] = (decoded_reg_strb.SMBUS_SLAVE_CTRL && !decoded_req_is_wr) ? field_storage.SMBUS_SLAVE_CTRL.pec_en.value : '0;
+    assign readback_array[15][3:3] = (decoded_reg_strb.SMBUS_SLAVE_CTRL && !decoded_req_is_wr) ? field_storage.SMBUS_SLAVE_CTRL.stretch_en.value : '0;
+    assign readback_array[15][31:4] = (decoded_reg_strb.SMBUS_SLAVE_CTRL && !decoded_req_is_wr) ? 28'h0 : '0;
+    assign readback_array[16][0:0] = (decoded_reg_strb.SMBUS_SLAVE_STATUS && !decoded_req_is_wr) ? hwif_in.SMBUS_SLAVE_STATUS.rd_not_wr.next : '0;
+    assign readback_array[16][1:1] = (decoded_reg_strb.SMBUS_SLAVE_STATUS && !decoded_req_is_wr) ? hwif_in.SMBUS_SLAVE_STATUS.stretching.next : '0;
+    assign readback_array[16][2:2] = (decoded_reg_strb.SMBUS_SLAVE_STATUS && !decoded_req_is_wr) ? hwif_in.SMBUS_SLAVE_STATUS.pec_error.next : '0;
+    assign readback_array[16][7:3] = (decoded_reg_strb.SMBUS_SLAVE_STATUS && !decoded_req_is_wr) ? 5'h0 : '0;
+    assign readback_array[16][15:8] = (decoded_reg_strb.SMBUS_SLAVE_STATUS && !decoded_req_is_wr) ? hwif_in.SMBUS_SLAVE_STATUS.pec_value.next : '0;
+    assign readback_array[16][31:16] = (decoded_reg_strb.SMBUS_SLAVE_STATUS && !decoded_req_is_wr) ? 16'h0 : '0;
 
     // Reduce the array
     always_comb begin
@@ -1158,7 +1489,7 @@ module smbus_regs (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<15; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<17; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 
