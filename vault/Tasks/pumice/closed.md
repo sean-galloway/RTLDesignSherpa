@@ -1166,3 +1166,61 @@ Also note the BRIDGE-010 message prints the ID strings garbled (`%0h` applied to
 continuation) -- cosmetic, in the generated adapter template.
 
 ---
+
+---
+
+## PUMICE-031 — REG_LEVEL never reached pumice's TBs; the medium tier had never run
+**Status:** CLOSED 2026-09-11  **Priority:** was P2
+**Found by:** the TEST_LEVEL conftest-stamp survey (TOOL-016).
+
+The fub, macro and top conftests each stamped `os.environ['TEST_LEVEL'] =
+REG_LEVEL`, and cocotb_test copies os.environ over every per-cell export, so
+the grid expanded while every cell ran at the stamped depth. In pumice that hid
+a second defect. The Group C TBs (rd/wr intake, core_dfi, top_csr, top) grade
+on `basic`/`medium`/`full`, but the stamp fed `gate`/`func`/`full`. Gate and
+func both fell through to the `basic` default, and **the `medium` tier had
+never run in any regression.**
+
+Fix: each wrapper maps the level once at module scope, exports it per cell,
+and its depth tables carry gate/func keys beside basic/medium. The stamps are
+gone from all three areas. Commits: `33ed558e5` (fub), `b58366f0b` (top +
+macro).
+
+Proof: rd_intake read 6 / 24 / 64 bursts at gate / func / full (func had been
+6). `test_pumice_top[wr_rd_b2b_multi]` simulated 10.8 / 23.3 / 42.0 us, its
+8 / 24 / 48-burst table. fub FULL 96/96; macro + top FULL 123/123; top FUNC
+120/120 (the first medium run); no reruns; FULL node sets unchanged.
+
+Left alone: the 17 directed Group B tests. Their loop counts are protocol
+structure, not depth, and they never read the level.
+
+---
+
+## PUMICE-032 — three coverage gaps behind green runs
+**Status:** CLOSED 2026-09-11  **Priority:** was P2
+**Found by:** the PUMICE-031 sweep.
+
+1. **Silicon-bug guards in no regression.** `test_a7ddrphy_bl4_anchored`,
+   `_gear_mismatch`, `_read_window` and `test_axi_rd_device_word_check` sat at
+   the dv/tests root, which no area collects. They are now the `phy/` area, in
+   the dispatcher's AREAS: 16 pass, 2 skip. The skips are gear_mismatch's own,
+   disproven on silicon, and it keeps its reason. `4f7dda96b`.
+2. **The macro DFI-layer test ran at gear 0.** It never drove `gear_i`,
+   `n_subcmd_i` or the strides, which read 0 under Verilator, so a
+   DFI_RATE=2 build ran with phase 1's enables masked. A model that only asked
+   whether an enable was non-zero passed anyway. It now drives the board
+   default and rejects any partial enable; a gear-0 mutant goes red.
+   `b53e2b822`.
+3. **A requirement cited a skipped test.** design-requirements.md's
+   "gear=MAX bit-identical" row cited "macro regression (109)" (3 tests now)
+   and the skipped `test_a7ddrphy_gear_mismatch`. It now names the real
+   enforcement: the mask is all-ones by construction, every core/top TB runs
+   at gear = MAX, and the item-2 check catches a masked phase. `b53e2b822`.
+
+Side effect: the pre-commit filelist check crashed on a tracked `.sby` that
+another session's in-flight rename had deleted, blocking every commit in the
+repo. Fixed in `36a971588`.
+
+Not done: `dfi_init_complete_i` is still undriven in the DFI-layer test, which
+does not exercise init. No test runs gear < MAX, and the requirement does not
+ask for one.
