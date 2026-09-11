@@ -158,7 +158,7 @@ module axi_monitor_addr_check (
 				end
 		end
 	end
-	always @(posedge clk)
+	always @(posedge clk or negedge aresetn)
 		if (!aresetn) begin
 			r_match_pending <= 1'sb0;
 			r_emit_hold <= 1'sb0;
@@ -440,7 +440,7 @@ module axi_monitor_reporter_debug (
 			end
 		end
 	end
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin : sv2v_autoblock_3
 			reg signed [31:0] idx;
 			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
@@ -604,7 +604,7 @@ module axi_monitor_reporter_perf (
 				default: w_next_state = 3'h0;
 			endcase
 	end
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
 			r_completed_count <= 1'sb0;
 			r_error_count <= 1'sb0;
@@ -725,7 +725,7 @@ module axi_monitor_reporter_threshold (
 		end
 	end
 	localparam [3:0] monitor_common_pkg_PktTypeThreshold = 4'h2;
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
 			begin : sv2v_autoblock_3
 				reg signed [31:0] idx;
@@ -881,7 +881,7 @@ module counter_bin (
 		else
 			counter_bin_next = counter_bin_curr;
 	end
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
 			counter_bin_curr <= 'b0;
 		else
@@ -958,7 +958,7 @@ module fifo_control (
 	generate
 		if (REGISTERED == 1) begin : gen_flop_mode
 			reg [ADDR_WIDTH:0] r_rdom_wr_ptr_bin_delayed;
-			always @(posedge rd_clk)
+			always @(posedge rd_clk or negedge rd_rst_n)
 				if (!rd_rst_n)
 					r_rdom_wr_ptr_bin_delayed <= 1'sb0;
 				else
@@ -1085,7 +1085,7 @@ module gaxi_fifo_sync (
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
 				reg [DATA_WIDTH - 1:0] r_rd_data;
-				always @(posedge axi_aclk)
+				always @(posedge axi_aclk or negedge axi_aresetn)
 					if (!axi_aresetn)
 						r_rd_data <= 1'sb0;
 					else
@@ -1102,7 +1102,7 @@ module gaxi_fifo_sync (
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
 			reg [DATA_WIDTH - 1:0] r_rd_data;
-			always @(posedge axi_aclk)
+			always @(posedge axi_aclk or negedge axi_aresetn)
 				if (!axi_aresetn)
 					r_rd_data <= 1'sb0;
 				else
@@ -1116,7 +1116,7 @@ module gaxi_fifo_sync (
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
 				reg [DATA_WIDTH - 1:0] r_rd_data;
-				always @(posedge axi_aclk)
+				always @(posedge axi_aclk or negedge axi_aresetn)
 					if (!axi_aresetn)
 						r_rd_data <= 1'sb0;
 					else
@@ -1208,7 +1208,7 @@ module axi_monitor_reporter (
 	wire [84:0] w_fifo_rd_data;
 	wire [$clog2(INTR_FIFO_DEPTH):0] w_fifo_count;
 	gaxi_fifo_sync #(
-		.REGISTERED(1),
+		.REGISTERED(0),
 		.DATA_WIDTH(85),
 		.DEPTH(INTR_FIFO_DEPTH),
 		.ALMOST_WR_MARGIN(1),
@@ -1531,7 +1531,7 @@ module axi_monitor_reporter (
 		input reg [15:0] inp;
 		sv2v_cast_16 = inp;
 	endfunction
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
 			begin : sv2v_autoblock_2
 				reg signed [31:0] idx;
@@ -1662,7 +1662,7 @@ module axi_monitor_timeout (
 				end
 		end
 	end
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
 			begin : sv2v_autoblock_2
 				reg signed [31:0] idx;
@@ -1743,7 +1743,7 @@ module counter_load_clear (
 	output reg [$clog2(MAX) - 1:0] count;
 	output wire done;
 	reg [$clog2(MAX) - 1:0] r_match_val;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			count <= 'b0;
 			r_match_val <= 'b0;
@@ -1869,7 +1869,7 @@ module counter_freq_invariant (
 	assign w_division_factor = w_div_table[freq_sel];
 	reg [SEL_WIDTH - 1:0] r_prev_freq_sel;
 	reg r_clear_pulse;
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			r_prev_freq_sel <= 1'sb0;
 			r_clear_pulse <= 1'b1;
@@ -1889,7 +1889,7 @@ module counter_freq_invariant (
 		.done(w_prescaler_done),
 		.count()
 	);
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			o_counter <= 1'sb0;
 			tick <= 1'b0;
@@ -1936,7 +1936,7 @@ module axi_monitor_timer (
 	assign timestamp = r_timestamp;
 	wire w_timer_tick;
 	assign timer_tick = w_timer_tick;
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn)
 			r_timestamp <= 1'sb0;
 		else
@@ -2103,7 +2103,7 @@ module monitor_trans_cam (
 	generate
 		for (_gv_gi_2 = 0; _gv_gi_2 < DEPTH; _gv_gi_2 = _gv_gi_2 + 1) begin : g_slot
 			localparam gi = _gv_gi_2;
-			always @(posedge clk)
+			always @(posedge clk or negedge rst_n)
 				if (!rst_n) begin
 					r_valid[gi] <= 1'b0;
 					r_id[gi] <= 1'sb0;
@@ -2234,7 +2234,7 @@ module axi_monitor_trans_mgr (
 	assign w_addr_filtered = (ADDR_FILTER_ENABLE && cfg_addr_filter_enable) && !((cmd_addr >= cfg_addr_filter_low) && (cmd_addr <= cfg_addr_filter_high));
 	reg [N - 1:0] r_filtered;
 	assign filtered_mask = r_filtered;
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn)
 			r_filtered <= 1'sb0;
 		else if (clear)
@@ -2651,7 +2651,7 @@ module axi_monitor_trans_mgr (
 	wire cmd_handshake;
 	assign cmd_handshake = cmd_valid && cmd_ready;
 	reg [N - 1:0] r_rpt_stale_mask;
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn)
 			r_rpt_stale_mask <= 1'sb0;
 		else if (clear)
@@ -2739,7 +2739,7 @@ module axi_monitor_trans_mgr (
 	generate
 		for (_gv_ga_1 = 0; _gv_ga_1 < N; _gv_ga_1 = _gv_ga_1 + 1) begin : g_age
 			localparam ga = _gv_ga_1;
-			always @(posedge aclk)
+			always @(posedge aclk or negedge aresetn)
 				if (!aresetn)
 					r_age[ga] <= 1'sb0;
 				else if (clear)
@@ -2932,7 +2932,7 @@ module axi_monitor_trans_mgr (
 				w_occupancy = w_occupancy + {{$clog2(N + 1) - 1 {1'b0}}, cam_entry_valid[i]};
 		end
 	end
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn)
 			r_active_count <= 1'sb0;
 		else if (clear)
@@ -3330,7 +3330,7 @@ module axi_monitor_base (
 			assign w_addr_pkt_timestamp = 1'sb0;
 		end
 	endgenerate
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn)
 			r_addr_hold <= 1'b0;
 		else if (!r_addr_hold)
@@ -3866,7 +3866,7 @@ module axi_monitor_filtered (
 			reg pipe_valid_reg;
 			reg [127:0] pipe_packet_reg;
 			reg [63:0] pipe_timestamp_reg;
-			always @(posedge aclk)
+			always @(posedge aclk or negedge aresetn)
 				if (!aresetn) begin
 					pipe_valid_reg <= 1'b0;
 					pipe_packet_reg <= 1'sb0;

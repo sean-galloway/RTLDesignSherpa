@@ -46,7 +46,7 @@ module axi_monitor_timeout (
 				end
 		end
 	end
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
 			begin : sv2v_autoblock_2
 				reg signed [31:0] idx;

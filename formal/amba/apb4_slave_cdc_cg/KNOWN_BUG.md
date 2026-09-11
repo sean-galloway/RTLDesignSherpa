@@ -4,10 +4,10 @@
 
 Line 115 of `apb4_slave_cdc_cg.sv`:
 ```systemverilog
-assign s_apb_PREADY = pclk_cg_gating ? 1'b0 : int_apb_PREADY;
+assign s_apb_PREADY = cg_gating ? 1'b0 : int_apb_PREADY;
 ```
 
-This unconditionally forces `s_apb_PREADY` to 0 whenever `pclk_cg_gating`
+This unconditionally forces `s_apb_PREADY` to 0 whenever `cg_gating`
 is asserted. This is a **protocol glitch hazard**: if an APB transaction
 is in flight (PSEL asserted) when the clock gate engages, PREADY is
 yanked to 0, potentially violating the master's view of the APB protocol.

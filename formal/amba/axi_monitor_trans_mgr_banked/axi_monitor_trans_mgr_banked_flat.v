@@ -145,7 +145,7 @@ module monitor_trans_cam (
 	generate
 		for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
 			localparam gi = _gv_gi_1;
-			always @(posedge clk)
+			always @(posedge clk or negedge rst_n)
 				if (!rst_n) begin
 					r_valid[gi] <= 1'b0;
 					r_id[gi] <= 1'sb0;
@@ -276,7 +276,7 @@ module axi_monitor_trans_mgr (
 	assign w_addr_filtered = (ADDR_FILTER_ENABLE && cfg_addr_filter_enable) && !((cmd_addr >= cfg_addr_filter_low) && (cmd_addr <= cfg_addr_filter_high));
 	reg [N - 1:0] r_filtered;
 	assign filtered_mask = r_filtered;
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn)
 			r_filtered <= 1'sb0;
 		else if (clear)
@@ -693,7 +693,7 @@ module axi_monitor_trans_mgr (
 	wire cmd_handshake;
 	assign cmd_handshake = cmd_valid && cmd_ready;
 	reg [N - 1:0] r_rpt_stale_mask;
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn)
 			r_rpt_stale_mask <= 1'sb0;
 		else if (clear)
@@ -781,7 +781,7 @@ module axi_monitor_trans_mgr (
 	generate
 		for (_gv_ga_1 = 0; _gv_ga_1 < N; _gv_ga_1 = _gv_ga_1 + 1) begin : g_age
 			localparam ga = _gv_ga_1;
-			always @(posedge aclk)
+			always @(posedge aclk or negedge aresetn)
 				if (!aresetn)
 					r_age[ga] <= 1'sb0;
 				else if (clear)
@@ -974,7 +974,7 @@ module axi_monitor_trans_mgr (
 				w_occupancy = w_occupancy + {{$clog2(N + 1) - 1 {1'b0}}, cam_entry_valid[i]};
 		end
 	end
-	always @(posedge aclk)
+	always @(posedge aclk or negedge aresetn)
 		if (!aresetn)
 			r_active_count <= 1'sb0;
 		else if (clear)

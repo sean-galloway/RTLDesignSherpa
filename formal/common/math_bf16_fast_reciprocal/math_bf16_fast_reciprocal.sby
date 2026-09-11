@@ -13,10 +13,10 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
-read -formal -sv math_bf16_fast_reciprocal.sv
+read_verilog -formal -sv math_bf16_fast_reciprocal_flat.v
 read -formal -sv formal_math_bf16_fast_reciprocal.sv
 prep -top formal_math_bf16_fast_reciprocal
 
 [files]
-math_bf16_fast_reciprocal.sv ../../../rtl/math/math_bf16_fast_reciprocal.sv
 formal_math_bf16_fast_reciprocal.sv
+math_bf16_fast_reciprocal_flat.v

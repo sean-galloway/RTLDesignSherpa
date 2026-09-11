@@ -69,7 +69,7 @@ directly from `(user_valid || axi_valid)` rather than from the registered
 
 The formal wrapper `formal_apb4_slave_cg.sv` omits the strict
 "no gating during PSEL" property and instead verifies:
-- Reset clears `s_apb_PREADY` and `apb_clock_gating`
+- Reset clears `s_apb_PREADY` and `cg_gating`
 - `s_apb_PREADY` is single-cycle pulse (APB slave FSM invariant)
 - `cfg_cg_enable=0` implies no gating
 - Cover points demonstrate gating + transactions can coexist

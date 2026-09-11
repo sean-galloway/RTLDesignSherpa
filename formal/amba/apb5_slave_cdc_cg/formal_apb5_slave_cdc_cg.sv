@@ -9,7 +9,7 @@
 // See KNOWN_BUG.md.
 //
 // Properties verified:
-//   P1: Reset clears s_apb_PREADY and apb_clock_gating
+//   P1: Reset clears s_apb_PREADY and cg_gating
 //   P2: cfg_cg_enable=0 implies no gating
 //   P3: PREADY is single-cycle pulse
 
@@ -71,7 +71,7 @@ module formal_apb5_slave_cdc_cg (
     wire [WUW-1:0]   cmd_pwuser;
     wire             rsp_ready;
     wire             parity_error_wdata, parity_error_ctrl;
-    wire             apb_clock_gating;
+    wire             cg_gating;
 
     apb5_slave_cdc_cg #(
         .ADDR_WIDTH(AW),
@@ -131,7 +131,7 @@ module formal_apb5_slave_cdc_cg (
         .wakeup_request    (wakeup_request),
         .parity_error_wdata(parity_error_wdata),
         .parity_error_ctrl (parity_error_ctrl),
-        .apb_clock_gating  (apb_clock_gating)
+        .cg_gating  (cg_gating)
     );
 
     reg [7:0] f_past_valid = 0;
@@ -144,14 +144,14 @@ module formal_apb5_slave_cdc_cg (
     always @(posedge clk) begin
         if (f_past_valid > 0 && $past(!rst_n)) begin
             ap_reset_pready:  assert (!s_apb_PREADY);
-            ap_reset_no_gate: assert (!apb_clock_gating);
+            ap_reset_no_gate: assert (!cg_gating);
         end
     end
 
     // P2: cfg_cg_enable=0 implies no gating
     always @(posedge clk) begin
         if (rst_n && !cfg_cg_enable)
-            ap_disabled_no_gate: assert (!apb_clock_gating);
+            ap_disabled_no_gate: assert (!cg_gating);
     end
 
     // P3: PREADY is single-cycle pulse
@@ -164,7 +164,7 @@ module formal_apb5_slave_cdc_cg (
     // Cover
     always @(posedge clk) begin
         if (rst_n) begin
-            cp_gating:  cover (apb_clock_gating);
+            cp_gating:  cover (cg_gating);
             cp_pready:  cover (s_apb_PREADY);
             cp_cmd:     cover (cmd_valid);
             cp_rsp:     cover (rsp_valid && rsp_ready);

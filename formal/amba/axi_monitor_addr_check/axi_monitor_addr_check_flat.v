@@ -158,7 +158,7 @@ module axi_monitor_addr_check (
 				end
 		end
 	end
-	always @(posedge clk)
+	always @(posedge clk or negedge aresetn)
 		if (!aresetn) begin
 			r_match_pending <= 1'sb0;
 			r_emit_hold <= 1'sb0;

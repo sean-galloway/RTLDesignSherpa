@@ -13,44 +13,24 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
-read -formal -sv -Iincludes counter_load_clear.sv
-read -formal -sv -Iincludes glitch_free_n_dff_arn.sv
-read -formal -sv -Iincludes cdc_synchronizer.sv
-read -formal -sv -Iincludes gaxi_fifo_sync.sv
-read -formal -sv -Iincludes gaxi_skid_buffer.sv
-read -formal -sv -Iincludes counter_bin.sv
-read -formal -sv -Iincludes find_first_set.sv
-read -formal -sv -Iincludes find_last_set.sv
-read -formal -sv -Iincludes leading_one_trailing_one.sv
-read -formal -sv -Iincludes fifo_control.sv
-read -formal -sv -Iincludes gray2bin.sv
-read -formal -sv -Iincludes counter_bingray.sv
-read -formal -sv -Iincludes counter_johnson.sv
-read -formal -sv -Iincludes johnson2bin.sv
-read -formal -sv -Iincludes gaxi_fifo_async.sv
-read -formal -sv -Iincludes apb5_slave.sv
-read -formal -sv -Iincludes apb5_slave_cdc.sv
+read_verilog -formal -sv apb5_slave_cdc_flat.v
 read -formal -sv -Iincludes formal_apb5_slave_cdc.sv
-prep -top formal_apb5_slave_cdc
+hierarchy -top formal_apb5_slave_cdc
+proc
+# The RTL warns at runtime about an orphan response with $display. sv2v keeps
+# it, yosys turns a CLOCKED message into a $check cell, and async2sync refuses
+# one with a clock trigger. The message is a simulation aid, not part of the
+# design, so drop the cells rather than change the model to clk2fflogic.
+delete t:$print
+flatten
+opt_expr
+opt_clean
+memory_map
+async2sync
+opt -full
+setundef -undriven -init -expose
 
 [files]
-includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh
-includes/fifo_defs.svh ../../../rtl/amba/includes/fifo_defs.svh
-counter_load_clear.sv ../../../rtl/common/counter_load_clear.sv
-glitch_free_n_dff_arn.sv ../../../rtl/cdc/glitch_free_n_dff_arn.sv
-cdc_synchronizer.sv ../../../rtl/cdc/cdc_synchronizer.sv
-gaxi_fifo_sync.sv ../../../rtl/amba/gaxi/gaxi_fifo_sync.sv
-gaxi_skid_buffer.sv ../../../rtl/amba/gaxi/gaxi_skid_buffer.sv
-counter_bin.sv ../../../rtl/common/counter_bin.sv
-find_first_set.sv ../../../rtl/common/find_first_set.sv
-find_last_set.sv ../../../rtl/common/find_last_set.sv
-leading_one_trailing_one.sv ../../../rtl/common/leading_one_trailing_one.sv
-fifo_control.sv ../../../rtl/common/fifo_control.sv
-gray2bin.sv ../../../rtl/cdc/gray2bin.sv
-counter_bingray.sv ../../../rtl/cdc/counter_bingray.sv
-counter_johnson.sv ../../../rtl/cdc/counter_johnson.sv
-johnson2bin.sv ../../../rtl/cdc/johnson2bin.sv
-gaxi_fifo_async.sv ../../../rtl/cdc/gaxi_fifo_async.sv
-apb5_slave.sv ../../../rtl/amba/apb5/apb5_slave.sv
-apb5_slave_cdc.sv ../../../rtl/amba/apb5/apb5_slave_cdc.sv
 formal_apb5_slave_cdc.sv
+apb5_slave_cdc_flat.v
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

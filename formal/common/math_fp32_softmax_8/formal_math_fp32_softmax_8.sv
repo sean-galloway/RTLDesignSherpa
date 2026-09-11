@@ -18,18 +18,22 @@ module formal_math_fp32_softmax_8 (
     // =========================================================================
     // Free inputs
     // =========================================================================
-    (* anyconst *) logic [31:0] data_in [8];
-    logic valid_in;
-    // valid_in is free-running
-    always @(posedge clk) begin
-        if (!rst_n) valid_in <= 1'b0;
-    end
+    // PACKED, not an unpacked array: the proof reads the module through the
+    // sv2v flatten flow (yosys cannot parse an unpacked array PORT), and
+    // sv2v turns `logic [31:0] i_data [8]` into `[255:0]`. Lane i is
+    // bits [32*i +: 32].
+    (* anyconst *) logic [255:0] data_in;
+    // FREE every clock. This was a plain `logic` assigned only in the reset
+    // branch, so outside reset it held 0 forever: i_valid never rose, the
+    // pipeline never produced an output, and c_valid_out was unreachable --
+    // a cover that could not be hit whatever the RTL did.
+    (* anyseq *) logic valid_in;
 
     // =========================================================================
     // DUT instantiation
     // =========================================================================
     logic                 w_valid_out;
-    logic [31:0] w_result [8];
+    logic [255:0] w_result;
 
     math_fp32_softmax_8 dut (
         .i_clk     (clk),
@@ -70,7 +74,7 @@ module formal_math_fp32_softmax_8 (
         for (gi = 0; gi < 8; gi++) begin : gen_nonneg
             always @(posedge clk) begin
                 if (f_past_valid >= 5 && rst_n && w_valid_out) begin
-                    assert (w_result[gi][31] == 1'b0);
+                    assert (w_result[(32*gi) + 31] == 1'b0);
                 end
             end
         end

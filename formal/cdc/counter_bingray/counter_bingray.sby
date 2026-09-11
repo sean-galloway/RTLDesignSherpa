@@ -13,10 +13,11 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
-read -formal -sv counter_bingray.sv
-read -formal -sv formal_counter_bingray.sv
+read -formal -sv -Iincludes counter_bingray.sv
+read -formal -sv -Iincludes formal_counter_bingray.sv
 prep -top formal_counter_bingray
 
 [files]
 counter_bingray.sv ../../../rtl/cdc/counter_bingray.sv
 formal_counter_bingray.sv
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

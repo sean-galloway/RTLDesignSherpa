@@ -12,7 +12,7 @@
 
 `include "reset_defs.svh"
 
-module formal_axis_slave (
+module formal_axis4_slave (
     input logic clk,
     input logic rst_n
 );

@@ -3,9 +3,12 @@
 # ==============================================================================
 #
 # Usage:
-#   make formal         Run all formal proofs (common + cdc + stream + rapids)
+#   make formal         Run all formal proofs (common + cdc + amba + converters
+#                       + integ_common + stream + rapids)
 #   make formal-common  Common building blocks only
 #   make formal-cdc     CDC blocks only
+#   make formal-amba    AMBA blocks (rtl/amba/**)
+#   make formal-converters  Protocol converters (projects/components/converters)
 #   make formal-bridge  Bridge AXI4 protocol only (requires SVA-AXI4-FVIP)
 #   make formal-quick   Just counter_bin (fastest proof, ~seconds)
 #   make clean          Remove all formal artifacts
@@ -21,9 +24,12 @@ help:
 	@echo "Formal Verification - RTL Design Sherpa"
 	@echo "================================================================================"
 	@echo ""
-	@echo "  make formal           Run ALL formal proofs (common + cdc + stream + rapids)"
+	@echo "  make formal           Run ALL formal proofs"
+	@echo "  make formal-rtl       Everything under repo-root rtl/ (common + cdc + amba)"
 	@echo "  make formal-common    Common building blocks (arbiter, counter, FIFO)"
 	@echo "  make formal-cdc       CDC blocks (rtl/cdc: async FIFOs, gray, handshakes)"
+	@echo "  make formal-amba      AMBA blocks (rtl/amba/**)"
+	@echo "  make formal-converters  Protocol converters"
 	@echo "  make formal-stream    STREAM DMA blocks (dmas/stream)"
 	@echo "  make formal-rapids    RAPIDS DMA blocks (dmas/rapids *_beats)"
 	@echo "  make formal-dma       STREAM + RAPIDS"
@@ -42,8 +48,15 @@ check-tools:
 	@which boolector > /dev/null 2>&1 && echo "  boolector: found" || echo "  boolector: NOT FOUND (install: see docs/FORMAL_VERIFICATION_GUIDE.md)"
 	@which z3 > /dev/null 2>&1 && echo "  z3:        found" || echo "  z3:        NOT FOUND (optional fallback solver)"
 
+# formal-amba and formal-converters were MISSING from this list until
+# 2026-09-11: `make formal` ran neither, so ninety task directories had no
+# entry point and nobody noticed twelve flat files drifting from their RTL.
 .PHONY: formal
-formal: formal-common formal-cdc formal-stream formal-rapids
+formal: formal-rtl formal-converters formal-stream formal-rapids
+
+# Everything whose RTL lives in repo-root rtl/.
+.PHONY: formal-rtl
+formal-rtl: formal-common formal-cdc formal-amba
 	@echo "================================================================================"
 	@echo "All formal proofs complete"
 	@echo "================================================================================"
@@ -55,6 +68,16 @@ formal-common:
 .PHONY: formal-cdc
 formal-cdc:
 	$(MAKE) -C cdc all
+
+.PHONY: formal-amba
+formal-amba:
+	$(MAKE) -C amba all
+
+.PHONY: formal-converters
+formal-converters:
+	@for d in converters/*/; do \
+	    if [ -f $$d/Makefile ]; then $(MAKE) -C $$d all || exit 1; fi; \
+	done
 
 .PHONY: formal-stream
 formal-stream:
@@ -82,4 +105,6 @@ formal-quick:
 .PHONY: clean
 clean:
 	$(MAKE) -C common clean
+	$(MAKE) -C cdc clean
+	$(MAKE) -C amba clean
 	@if [ -d bridge ]; then $(MAKE) -C bridge clean 2>/dev/null; fi

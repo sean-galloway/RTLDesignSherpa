@@ -46,7 +46,7 @@ module formal_apb4_slave_cg (
     wire [SW-1:0]    cmd_pstrb;
     wire [PW-1:0]    cmd_pprot;
     wire             rsp_ready;
-    wire             apb_clock_gating;
+    wire             cg_gating;
 
     apb4_slave_cg #(
         .ADDR_WIDTH(AW),
@@ -81,7 +81,7 @@ module formal_apb4_slave_cg (
         .rsp_ready         (rsp_ready),
         .rsp_prdata        (rsp_prdata),
         .rsp_pslverr       (rsp_pslverr),
-        .apb_clock_gating  (apb_clock_gating)
+        .cg_gating  (cg_gating)
     );
 
     reg [7:0] f_past_valid = 0;
@@ -95,7 +95,7 @@ module formal_apb4_slave_cg (
     always @(posedge clk) begin
         if (f_past_valid > 0 && $past(!rst_n)) begin
             ap_reset_pready:  assert (!s_apb_PREADY);
-            ap_reset_no_gate: assert (!apb_clock_gating);
+            ap_reset_no_gate: assert (!cg_gating);
         end
     end
 
@@ -112,19 +112,19 @@ module formal_apb4_slave_cg (
     // See KNOWN_BUG.md. Kept as cover point only:
     always @(posedge clk) begin
         if (rst_n)
-            cp_no_gate_during_psel: cover (s_apb_PSEL && !apb_clock_gating);
+            cp_no_gate_during_psel: cover (s_apb_PSEL && !cg_gating);
     end
 
     // P4: When cfg_cg_enable=0, gating must be 0
     always @(posedge clk) begin
         if (rst_n && !cfg_cg_enable)
-            ap_disabled_no_gate: assert (!apb_clock_gating);
+            ap_disabled_no_gate: assert (!cg_gating);
     end
 
     // Cover
     always @(posedge clk) begin
         if (rst_n) begin
-            cp_gating:       cover (apb_clock_gating);
+            cp_gating:       cover (cg_gating);
             cp_pready:       cover (s_apb_PREADY);
             cp_cmd:          cover (cmd_valid);
             cp_rsp:          cover (rsp_valid);

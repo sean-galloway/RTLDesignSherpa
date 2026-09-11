@@ -8,7 +8,7 @@
 //   P2: PENABLE implies PSEL
 //   P3: ACCESS held until PREADY (not gated during in-flight transaction)
 //   P4: When a transaction is in progress (PSEL or PENABLE asserted), gating is OFF
-//   P5: When cfg_cg_enable=0, apb_clock_gating must be 0 (no gating)
+//   P5: When cfg_cg_enable=0, cg_gating must be 0 (no gating)
 //
 // Key CG wrapper check:
 //   The wakeup source is (cmd_valid || rsp_valid || PSEL || PENABLE). The register
@@ -51,7 +51,7 @@ module formal_apb4_master_cg (
     wire [DW-1:0]    m_apb_PWDATA;
     wire [SW-1:0]    m_apb_PSTRB;
     wire [PW-1:0]    m_apb_PPROT;
-    wire             apb_clock_gating;
+    wire             cg_gating;
 
     apb4_master_cg #(
         .ADDR_WIDTH(AW),
@@ -86,7 +86,7 @@ module formal_apb4_master_cg (
         .rsp_ready         (rsp_ready),
         .rsp_prdata        (rsp_prdata),
         .rsp_pslverr       (rsp_pslverr),
-        .apb_clock_gating  (apb_clock_gating)
+        .cg_gating  (cg_gating)
     );
 
     reg [7:0] f_past_valid = 0;
@@ -99,7 +99,7 @@ module formal_apb4_master_cg (
         if (f_past_valid > 0 && $past(!rst_n)) begin
             ap_reset_psel:     assert (!m_apb_PSEL);
             ap_reset_pen:      assert (!m_apb_PENABLE);
-            ap_reset_no_gate:  assert (!apb_clock_gating);
+            ap_reset_no_gate:  assert (!cg_gating);
         end
     end
 
@@ -122,20 +122,20 @@ module formal_apb4_master_cg (
     always @(posedge clk) begin
         if (f_past_valid > 2 && rst_n && $past(rst_n))
             if ($past(m_apb_PSEL) || $past(m_apb_PENABLE))
-                ap_no_gate_inflight: assert (!apb_clock_gating);
+                ap_no_gate_inflight: assert (!cg_gating);
     end
 
     // P5: When cfg_cg_enable is deasserted, gating must be 0
     always @(posedge clk) begin
         if (rst_n && !cfg_cg_enable)
-            ap_disabled_no_gate: assert (!apb_clock_gating);
+            ap_disabled_no_gate: assert (!cg_gating);
     end
 
     // Cover
     always @(posedge clk) begin
         if (rst_n) begin
-            cp_gating:       cover (apb_clock_gating);
-            cp_ungated_xact: cover (m_apb_PSEL && m_apb_PENABLE && !apb_clock_gating);
+            cp_gating:       cover (cg_gating);
+            cp_ungated_xact: cover (m_apb_PSEL && m_apb_PENABLE && !cg_gating);
             cp_cmd_fire:     cover (cmd_valid && cmd_ready);
             cp_rsp_fire:     cover (rsp_valid && rsp_ready);
         end

@@ -4,7 +4,7 @@
 // Formal proof for apb4_slave_cdc_cg -- single clock model (pclk=aclk)
 //
 // See KNOWN_BUG.md in this directory for suspected issues:
-//   - s_apb_PREADY is forced to 0 during pclk_cg_gating (line 115)
+//   - s_apb_PREADY is forced to 0 during cg_gating (line 115)
 //   - aclk_axi_valid uses s_apb_PSEL directly from pclk domain (CDC hazard,
 //     invisible in single-clock model)
 //
@@ -50,8 +50,8 @@ module formal_apb4_slave_cdc_cg (
     wire [SW-1:0]    cmd_pstrb;
     wire [PW-1:0]    cmd_pprot;
     wire             rsp_ready;
-    wire             pclk_cg_gating, pclk_cg_idle;
-    wire             aclk_cg_gating, aclk_cg_idle;
+    wire             cg_gating, cg_idle;
+    wire             cg_gating, cg_idle;
 
     apb4_slave_cdc_cg #(
         .ADDR_WIDTH(AW),
@@ -88,10 +88,10 @@ module formal_apb4_slave_cdc_cg (
         .rsp_ready         (rsp_ready),
         .rsp_prdata        (rsp_prdata),
         .rsp_pslverr       (rsp_pslverr),
-        .pclk_cg_gating    (pclk_cg_gating),
-        .pclk_cg_idle      (pclk_cg_idle),
-        .aclk_cg_gating    (aclk_cg_gating),
-        .aclk_cg_idle      (aclk_cg_idle)
+        .cg_gating    (cg_gating),
+        .cg_idle      (cg_idle),
+        .cg_gating    (cg_gating),
+        .cg_idle      (cg_idle)
     );
 
     reg [7:0] f_past_valid = 0;
@@ -104,24 +104,24 @@ module formal_apb4_slave_cdc_cg (
     always @(posedge clk) begin
         if (f_past_valid > 0 && $past(!rst_n)) begin
             ap_reset_pready:     assert (!s_apb_PREADY);
-            ap_reset_pclk_gate:  assert (!pclk_cg_gating);
-            ap_reset_aclk_gate:  assert (!aclk_cg_gating);
+            ap_reset_pclk_gate:  assert (!cg_gating);
+            ap_reset_aclk_gate:  assert (!cg_gating);
         end
     end
 
     // P2: cfg_cg_enable=0 implies no gating in either domain
     always @(posedge clk) begin
         if (rst_n && !cfg_cg_enable) begin
-            ap_disabled_no_pclk_gate: assert (!pclk_cg_gating);
-            ap_disabled_no_aclk_gate: assert (!aclk_cg_gating);
+            ap_disabled_no_pclk_gate: assert (!cg_gating);
+            ap_disabled_no_aclk_gate: assert (!cg_gating);
         end
     end
 
     // Cover
     always @(posedge clk) begin
         if (rst_n) begin
-            cp_pclk_gating:  cover (pclk_cg_gating);
-            cp_aclk_gating:  cover (aclk_cg_gating);
+            cp_pclk_gating:  cover (cg_gating);
+            cp_aclk_gating:  cover (cg_gating);
             cp_pready:       cover (s_apb_PREADY);
             cp_cmd:          cover (cmd_valid);
             cp_rsp:          cover (rsp_valid && rsp_ready);

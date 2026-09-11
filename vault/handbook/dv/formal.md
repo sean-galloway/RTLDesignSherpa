@@ -81,3 +81,62 @@ selection, check that something also asserts presence.
 Mutating the flattened `*_flat.v` rather than the RTL keeps the source clean
 while iterating, and the harness rebuild is skipped -- but restore it and
 re-prove before believing the green.
+
+## The direct-SV flow is the fragile one; sv2v is the front end (2026-09-11)
+
+A formal task here reads its RTL one of two ways: **direct**, where the `.sby`
+`read -formal -sv`s the SystemVerilog itself, or **flatten**, where a per-task
+Makefile runs sv2v first and the `.sby` reads plain Verilog. The newest work
+(wb4, the monitors) uses flatten. Most older tasks use direct.
+
+Measured across every task for repo-root `rtl/`: **every single unrunnable
+proof in the direct flow failed for the same reason -- yosys's own
+SystemVerilog frontend could not read the RTL.** Not one was a property
+defect. The constructs it choked on:
+
+| Construct | Seen in |
+|---|---|
+| nested size cast `8'(32'(x))` | apb4/apb5 monitor |
+| `N'(signed'(...))` casts | bf16 exp2, reciprocal, log2, goldschmidt, newton-raphson |
+| package-typed ports (`pkg::type_t`) | arbiter monbus wrappers -- the port is silently DROPPED, and the error is "no port named ..." |
+| unpacked array ports (`logic [W:0] d [8]`) | all five softmax_8 |
+| non-constant parameter width range | gaxi_fifo_async, so every APB CDC task |
+| elaboration `$error` | the APB stubs |
+| part-select of a function call `f(a)[7:0]` | bf16 log2 -- legal SV, not Verilog-2005, and sv2v passes it THROUGH |
+
+All of them ran once moved to the flatten flow. **So a direct-flow task that
+errors is not a broken proof, it is a task on the wrong flow** -- convert it
+rather than deleting it or marking it deferred.
+
+Three corollaries worth keeping:
+
+- **A documented deferral outlives its reason.** Five softmax proofs carried
+  "Yosys does not support unpacked array ports" and listed, as option 2,
+  "a wrapper that flattens the array ports into packed vectors". sv2v IS that
+  wrapper and was already in the repo. The note was right when written and
+  had simply never been retested. Re-test the stated blocker before believing
+  a deferral; the yosys half was still true, the conclusion was not.
+- **Flatten does not fix everything.** A clocked `$display` becomes a `$check`
+  cell that `async2sync` refuses. Drop it in the sby script with
+  `delete t:$print` rather than switching the model to `clk2fflogic` -- the
+  message is a simulation aid, not part of the design.
+- **Part-selecting a function call is a portability bug, not a tool bug.**
+  Hoist it into an intermediate in the RTL; several synthesis tools refuse the
+  form too.
+
+## A proof nobody runs is a proof nobody notices breaking (2026-09-11)
+
+`make formal` ran common, cdc, stream and rapids. There was no `formal-amba`
+target and no `formal/amba/Makefile`, so **sixty AMBA task directories had no
+entry point at all**, and `formal/common/Makefile` hardcoded 34 modules while
+222 task directories existed. Two consequences, both invisible:
+
+- Twelve of twenty AMBA flat files had drifted from their RTL. One was proving
+  against a **synchronous** reset where the module is asynchronous.
+- Two monitor proofs could not elaborate at all, and had never been able to.
+
+The fix is not a longer list. **Discover the task set from the tree**
+(`$(wildcard */*.sby)`); a list that must be hand-edited goes stale the first
+time someone forgets, and a missing entry looks exactly like a passing run.
+Check a tracker's claims against a measured sweep before believing them -- see
+[[escape-analysis]] on integration status being measured, never inferred.

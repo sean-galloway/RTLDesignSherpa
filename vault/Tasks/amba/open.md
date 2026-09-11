@@ -2310,3 +2310,75 @@ RAM) are the relevant threads.
 **Done when:** both seeds pass, the cause is recorded here, and the fix is
 in the test (or the DUT, if the seed really found one), not in the seed.
 
+
+---
+
+### TASK-090: the four axi4 *_mon_cg formal proofs are unblocked but unwritten
+
+**Priority:** P3. Not a defect. These are the only AXI4 wrappers with no
+proof at all, and the page that explained why is now out of date.
+
+**Status:** open 2026-09-11, found sweeping formal/ against rtl/.
+
+`axi4_master_rd_mon_cg`, `axi4_master_wr_mon_cg`, `axi4_slave_rd_mon_cg` and
+`axi4_slave_wr_mon_cg` each have a `formal/amba/<name>/` directory holding
+nothing but a `KNOWN_LIMITATION.md`. That page said the proof was BLOCKED by a
+multi-driver issue in `axi_monitor_trans_mgr` and by two clock-gating bugs in
+the wrapper.
+
+**All three of those are fixed.** `formal/amba/axi_monitor_trans_mgr` passes
+prove and cover; the wrapper uses `amba_clock_gate_ctrl` and drives the inner
+monitor from a gated clock. The four pages now say so.
+
+**Why it is still not quick.** The harness has to carry the monitor's whole
+config and monbus port set on top of the AXI channels, and a gated clock is
+not provable in this repo's single-clock flow -- it needs the clock-enable
+`icg` model. `formal/amba/wb4_slave_cdc_cg/` (written 2026-09-11) is the
+current shape of that model, and `formal/amba/axi4_master_rd_cg/` is the
+nearest non-monitor template at 283 lines.
+
+**Done when:** each of the four proves and covers, and a mutation of the
+clock-gate mask fails the proof -- the masks are the whole point of the
+wrapper, and a harness that does not fail on a dropped mask has proved
+nothing about it.
+
+---
+
+### TASK-091: apb4/apb5_master_cg -- is the wake allowed to lag one clock into a transaction?
+
+**Priority:** P2. A design question with a real hazard behind it, and it is
+the last thing standing between the APB formal set and a clean sweep.
+
+**Status:** open 2026-09-11. `formal/amba/apb4_master_cg` and
+`apb5_master_cg` FAIL on `ap_no_gate_inflight`, at step 6, well clear of
+reset. Everything else in both areas passes.
+
+**What the property says.** If `PSEL` or `PENABLE` was high last clock,
+`cg_gating` must be low now.
+
+**Why it fails.** There are TWO registers between bus activity and the gate
+decision: `apb4_master_cg` registers its own wake term (`r_wakeup <=
+cmd_valid || rsp_valid || m_apb_PSEL || m_apb_PENABLE`), and
+`amba_clock_gate_ctrl` registers it again (`r_wakeup <= user_valid ||
+axi_valid`). So activity at clock N does not reach the gate until N+2, and
+the property checks N+1. The harness comment even says "Check delayed: 2
+cycles after PENABLE seen" while the code uses one `$past`.
+
+**The question, and why it is not mine to answer.** The cheap move is to
+weaken the property to two clocks and call it green. That would be wrong if
+the real contract is the stronger one, because the failing case is gating
+RISING one clock into a live transaction -- which is the same protocol-glitch
+hazard `formal/amba/apb4_slave_cdc_cg/KNOWN_BUG.md` and
+`apb4_slave_cg/KNOWN_BUG.md` already raise about `PREADY` being forced low
+during gating. Either:
+
+1. the two-stage wake is intended, the property is one clock too strong, and
+   the fix is to relax it AND say so on the module page; or
+2. gating must never rise while `PSEL` is high, and the fix is in the RTL --
+   feed the gate the combinational activity term, not the registered one.
+
+**Done when:** the choice is made deliberately, the surviving property has a
+mutation that fails it, and whichever way it goes the module page says what
+the wake latency is. Do NOT relax the property without answering the
+question; a threshold that cannot fail the defect it names is decoration
+([[escape-analysis]]).

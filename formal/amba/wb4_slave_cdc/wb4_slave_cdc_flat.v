@@ -990,7 +990,8 @@ module wb4_slave_cdc (
 	rsp_valid,
 	rsp_ready,
 	rsp_status,
-	rsp_dat
+	rsp_dat,
+	wb_busy
 );
 	parameter signed [31:0] ADDR_WIDTH = 32;
 	parameter signed [31:0] DATA_WIDTH = 32;
@@ -1042,6 +1043,7 @@ module wb4_slave_cdc (
 	output wire rsp_ready;
 	input wire [STW - 1:0] rsp_status;
 	input wire [DW - 1:0] rsp_dat;
+	output wire wb_busy;
 	localparam signed [31:0] CDC_FIFO_DEPTH = (CDC_DEPTH < 4 ? 4 : CDC_DEPTH);
 	wire w_cmd_valid;
 	wire w_cmd_ready;
@@ -1159,4 +1161,5 @@ module wb4_slave_cdc (
 		.rd_valid(w_rsp_valid),
 		.rd_data({w_rsp_status, w_rsp_dat})
 	);
+	assign wb_busy = (s_wb_CYC || w_cmd_valid) || w_rsp_valid;
 endmodule

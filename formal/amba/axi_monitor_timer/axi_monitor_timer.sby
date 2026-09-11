@@ -13,15 +13,11 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
-read -formal -sv -Iincludes counter_load_clear.sv
-read -formal -sv -Iincludes counter_freq_invariant.sv
-read -formal -sv -Iincludes axi_monitor_timer.sv
+read_verilog -formal -sv axi_monitor_timer_flat.v
 read -formal -sv -Iincludes formal_axi_monitor_timer.sv
 prep -top formal_axi_monitor_timer
 
 [files]
-counter_load_clear.sv ../../../rtl/common/counter_load_clear.sv
-counter_freq_invariant.sv ../../../rtl/common/counter_freq_invariant.sv
-axi_monitor_timer.sv ../../../rtl/amba/monitor/axi_monitor_timer.sv
 formal_axi_monitor_timer.sv
+axi_monitor_timer_flat.v
 includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

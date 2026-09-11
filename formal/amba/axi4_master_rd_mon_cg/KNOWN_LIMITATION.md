@@ -1,6 +1,29 @@
 # Known Limitation: axi4_master_rd_mon_cg Formal Proof
 
-## Status: BLOCKED -- Inherits multi-driver issue from axi_monitor_trans_mgr
+## Status: UNBLOCKED 2026-09-11 -- no proof written yet
+
+**Re-measured 2026-09-11.** Both conditions this page named as
+prerequisites are met, so nothing blocks the proof any more; what is
+missing is the work itself.
+
+- `formal/amba/axi_monitor_trans_mgr` PASSES (prove + cover). The
+  multi-driver issue is gone.
+- The wrapper uses `amba_clock_gate_ctrl` and drives the inner monitor
+  from a gated clock, so both bugs recorded below are fixed.
+
+What a proof needs, and why it is not a five-minute job: the harness has
+to carry the monitor's whole config and monbus port set on top of the
+AXI channels, and the gated clock is not provable directly -- it needs
+the clock-enable `icg` model the wb4 and APB clock-gated harnesses use
+(see `formal/amba/wb4_slave_cdc_cg/`, written 2026-09-11, for the
+current shape). `formal/amba/axi4_master_rd_cg/` is the nearest
+non-monitor template.
+
+Tracked as TASK-090 in `vault/Tasks/amba/open.md`.
+
+---
+
+### Historical record (the original blocker, kept for context)
 
 > Status (2026-07-22): superseded -- the trans-mgr multi-driver issue has been
 > resolved and its formal proof now runs (see formal/amba/axi_monitor_trans_mgr/;

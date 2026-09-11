@@ -3,7 +3,7 @@
 
 `include "reset_defs.svh"
 
-module formal_axis_master_cg (
+module formal_axis4_master_cg (
     input logic clk,
     input logic rst_n
 );
@@ -97,7 +97,7 @@ endmodule
 // ======================================================================
 // Bound wake-coverage checker for axis4_master_cg
 // ======================================================================
-module axis_master_cg_wake_checker (
+module axis4_master_cg_wake_checker (
     input logic aclk,
     input logic aresetn,
     input logic fub_axis_tvalid,
@@ -114,7 +114,7 @@ module axis_master_cg_wake_checker (
     end
 endmodule
 
-bind axis4_master_cg axis_master_cg_wake_checker u_wake_check (
+bind axis4_master_cg axis4_master_cg_wake_checker u_wake_check (
     .aclk            (aclk),
     .aresetn         (aresetn),
     .fub_axis_tvalid (fub_axis_tvalid),

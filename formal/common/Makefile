@@ -79,6 +79,39 @@ help:
 	@echo "  make clean                 Remove all artifacts"
 	@echo "================================================================================"
 
+
+# ==============================================================================
+# DISCOVERED targets -- added 2026-09-11.
+#
+# The hand-maintained PROVE_ALL/COVER_ALL lists below name 34 modules. There
+# are 220+ task directories here, so `make prove-all` was running about a
+# sixth of this area's proofs and reporting success. A list that must be
+# edited by hand is a list that goes stale the first time someone forgets,
+# and nothing about a missing entry looks like a failure.
+#
+# ALL_TASKS is derived from the tree instead. The short aliases below stay --
+# they are convenient and they still work -- but prove-all/cover-all now mean
+# ALL of them. `make list` prints what was found.
+# ==============================================================================
+ALL_TASKS := $(sort $(patsubst %/,%,$(dir $(wildcard */*.sby))))
+
+.PHONY: list
+list:
+	@echo "$(words $(ALL_TASKS)) task directories:"
+	@for m in $(ALL_TASKS); do echo "    $$m"; done
+
+# Full-name targets. A task carrying its own Makefile uses the sv2v flatten
+# flow and must build its flat file first, so delegate to it.
+.PHONY: $(addprefix p-,$(ALL_TASKS))
+$(addprefix p-,$(ALL_TASKS)): p-%:
+	@if [ -f $*/Makefile ]; then $(MAKE) -C $* prove; \
+	 else cd $* && sby -f $$(ls *.sby | head -1) prove; fi
+
+.PHONY: $(addprefix c-,$(ALL_TASKS))
+$(addprefix c-,$(ALL_TASKS)): c-%:
+	@if [ -f $*/Makefile ]; then $(MAKE) -C $* cover; \
+	 else cd $* && sby -f $$(ls *.sby | head -1) cover; fi
+
 # --- Helper macro ---
 define MODULE_TARGETS
 .PHONY: prove-$(2)
@@ -166,12 +199,17 @@ COVER_ALL = cover-arbiter-drr cover-arbiter-tb cover-arbiter-simple cover-arbite
             cover-monbus-arbiter
 
 .PHONY: prove-all
-prove-all: $(PROVE_ALL)
-	@echo "=== All $(words $(PROVE_ALL)) proofs complete ==="
+prove-all: $(addprefix p-,$(ALL_TASKS))
+	@echo "=== All $(words $(ALL_TASKS)) proofs complete ==="
 
 .PHONY: cover-all
-cover-all: $(COVER_ALL)
-	@echo "=== All $(words $(COVER_ALL)) covers complete ==="
+cover-all: $(addprefix c-,$(ALL_TASKS))
+	@echo "=== All $(words $(ALL_TASKS)) covers complete ==="
+
+# The old hand-listed subset, kept reachable as a quick smoke run.
+.PHONY: prove-core cover-core
+prove-core: $(PROVE_ALL)
+cover-core: $(COVER_ALL)
 
 .PHONY: all
 all: prove-all cover-all

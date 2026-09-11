@@ -1,10 +1,32 @@
 # Formal Verification Priority List
 
-**Generated:** 2026-03-21 | **Updated:** 2026-04-17
+**Generated:** 2026-03-21 | **Updated:** 2026-09-11
 **Purpose:** Prioritize modules for formal verification with SymbiYosys
 
-Priority: 1 = highest value, 2 = high, 3 = medium, 0 = not needed
-Status: PASSING = proved (prove+cover), PROVE = prove-only PASS, ERROR = prove failed, blank = not started
+Priority is human judgement and belongs in this file. **Status is not.**
+
+## The Status column here was wrong in both directions
+
+Re-measured 2026-09-11 by running every task rather than reading the table.
+It claimed `fifo_sync_multi_sigmap` PASSING when that directory held no proof
+at all -- only leftover build output from one deleted years earlier. It
+claimed `counter_bingray` PASSING when its proof could not open its own
+include file. It claimed the whole AMBA area had zero errors when sixteen
+tasks could not elaborate. None of that looked like a failure, because a
+stale row reads exactly like a current one.
+
+So **measure it, do not type it**:
+
+    python3 bin/formal_status.py --areas amba cdc common integ_common --markdown
+    python3 bin/formal_status.py --inventory      # what exists, no runs
+
+That tool discovers the task set from the tree, runs each one, and exits
+non-zero if anything fails. The generated table lives in FORMAL_TODO.md under
+"Measured status"; the Status column below is kept for its per-module notes
+and should be read as commentary, NOT as a current result.
+
+Legend: PASSING = proved (prove+cover), PROVE = prove-only PASS, ERROR = prove
+failed, blank = not started.
 
 ---
 

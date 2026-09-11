@@ -13,15 +13,11 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
-read -formal -sv -Iincludes gaxi_skid_buffer.sv
-read -formal -sv -Iincludes apb4_master.sv
-read -formal -sv -Iincludes apb4_master_stub.sv
+read_verilog -formal -sv apb4_master_stub_flat.v
 read -formal -sv -Iincludes formal_apb4_master_stub.sv
 prep -top formal_apb4_master_stub
 
 [files]
-gaxi_skid_buffer.sv ../../../rtl/amba/gaxi/gaxi_skid_buffer.sv
-apb4_master.sv ../../../rtl/amba/apb4/apb4_master.sv
-apb4_master_stub.sv ../../../rtl/amba/apb4/apb4_master_stub.sv
 formal_apb4_master_stub.sv
+apb4_master_stub_flat.v
 includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

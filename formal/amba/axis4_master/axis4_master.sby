@@ -15,11 +15,11 @@ cover: smtbmc z3
 [script]
 read -formal -sv -Iincludes gaxi_skid_buffer.sv
 read -formal -sv -Iincludes axis4_master.sv
-read -formal -sv -Iincludes formal_axis_master.sv
-prep -top formal_axis_master
+read -formal -sv -Iincludes formal_axis4_master.sv
+prep -top formal_axis4_master
 
 [files]
 gaxi_skid_buffer.sv ../../../rtl/amba/gaxi/gaxi_skid_buffer.sv
 axis4_master.sv ../../../rtl/amba/axis4/axis4_master.sv
-formal_axis_master.sv
+formal_axis4_master.sv
 includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

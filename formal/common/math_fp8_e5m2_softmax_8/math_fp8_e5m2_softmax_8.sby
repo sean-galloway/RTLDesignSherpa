@@ -1,11 +1,6 @@
-# DEFERRED: Yosys does not support unpacked array ports (logic [W:0] i_data [8])
-# which the softmax modules use. Formal verification requires either:
-#   1. A Yosys version with SystemVerilog unpacked array support
-#   2. A wrapper that flattens the array ports into packed vectors
-#   3. Use of a commercial formal tool (JasperGold, VC Formal)
-#
-# The formal wrapper (formal_*.sv) is ready and can be used once the
-# array port issue is resolved.
+# Formal proof for math_fp8_e5m2_softmax_8.
+# unpacked array PORT, so the module is flattened to packed Verilog first
+# (see the Makefile). Lane i of i_data / ow_result is bits [W*i +: W].
 
 [tasks]
 prove
@@ -22,3 +17,10 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
+read_verilog -formal -sv math_fp8_e5m2_softmax_8_flat.v
+read -formal -sv formal_math_fp8_e5m2_softmax_8.sv
+prep -top formal_math_fp8_e5m2_softmax_8
+
+[files]
+formal_math_fp8_e5m2_softmax_8.sv
+math_fp8_e5m2_softmax_8_flat.v

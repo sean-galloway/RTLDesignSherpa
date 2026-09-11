@@ -13,10 +13,10 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
-read -formal -sv shifter_barrel.sv
-read -formal -sv count_leading_zeros.sv
-read -formal -sv math_ieee754_2008_fp32_adder.sv
-read -formal -sv formal_math_ieee754_2008_fp32_adder.sv
+read -formal -sv -Iincludes shifter_barrel.sv
+read -formal -sv -Iincludes count_leading_zeros.sv
+read -formal -sv -Iincludes math_ieee754_2008_fp32_adder.sv
+read -formal -sv -Iincludes formal_math_ieee754_2008_fp32_adder.sv
 prep -top formal_math_ieee754_2008_fp32_adder
 
 [files]
@@ -24,3 +24,4 @@ shifter_barrel.sv ../../../rtl/common/shifter_barrel.sv
 count_leading_zeros.sv ../../../rtl/common/count_leading_zeros.sv
 math_ieee754_2008_fp32_adder.sv ../../../rtl/math/math_ieee754_2008_fp32_adder.sv
 formal_math_ieee754_2008_fp32_adder.sv
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

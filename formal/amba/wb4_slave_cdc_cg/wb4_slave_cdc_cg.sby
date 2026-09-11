@@ -1,0 +1,34 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 20
+cover: mode cover
+cover: depth 20
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read_verilog -formal -sv wb4_slave_cdc_cg_flat.v
+read -formal -sv formal_wb4_slave_cdc_cg.sv
+hierarchy -top formal_wb4_slave_cdc_cg
+proc
+# The slave warns about an orphan response with $display; yosys turns a
+# CLOCKED message into a $check cell and async2sync refuses one with a clock
+# trigger. The message is a simulation aid, not part of the design.
+delete t:$print
+flatten
+opt_expr
+opt_clean
+memory_map
+async2sync
+opt -full
+setundef -undriven -init -expose
+
+[files]
+formal_wb4_slave_cdc_cg.sv
+wb4_slave_cdc_cg_flat.v

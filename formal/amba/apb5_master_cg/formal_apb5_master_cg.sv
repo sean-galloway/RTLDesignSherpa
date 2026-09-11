@@ -65,7 +65,7 @@ module formal_apb5_master_cg (
     wire [SW-1:0]    m_apb_PWDATAPARITY;
     wire             m_apb_PADDRPARITY, m_apb_PCTRLPARITY;
     wire             parity_error_rdata, parity_error_ctrl, wakeup_pending;
-    wire             apb_clock_gating;
+    wire             cg_gating;
 
     apb5_master_cg #(
         .ADDR_WIDTH(AW),
@@ -124,7 +124,7 @@ module formal_apb5_master_cg (
         .parity_error_rdata(parity_error_rdata),
         .parity_error_ctrl (parity_error_ctrl),
         .wakeup_pending    (wakeup_pending),
-        .apb_clock_gating  (apb_clock_gating)
+        .cg_gating  (cg_gating)
     );
 
     reg [7:0] f_past_valid = 0;
@@ -138,7 +138,7 @@ module formal_apb5_master_cg (
         if (f_past_valid > 0 && $past(!rst_n)) begin
             ap_reset_psel:    assert (!m_apb_PSEL);
             ap_reset_pen:     assert (!m_apb_PENABLE);
-            ap_reset_no_gate: assert (!apb_clock_gating);
+            ap_reset_no_gate: assert (!cg_gating);
         end
     end
 
@@ -160,20 +160,20 @@ module formal_apb5_master_cg (
     always @(posedge clk) begin
         if (f_past_valid > 3 && rst_n && $past(rst_n))
             if ($past(m_apb_PSEL) || $past(m_apb_PENABLE))
-                ap_no_gate_inflight: assert (!apb_clock_gating);
+                ap_no_gate_inflight: assert (!cg_gating);
     end
 
     // P5: cfg_cg_enable=0 implies no gating
     always @(posedge clk) begin
         if (rst_n && !cfg_cg_enable)
-            ap_disabled_no_gate: assert (!apb_clock_gating);
+            ap_disabled_no_gate: assert (!cg_gating);
     end
 
     // Cover
     always @(posedge clk) begin
         if (rst_n) begin
-            cp_gating:       cover (apb_clock_gating);
-            cp_ungated_xact: cover (m_apb_PSEL && m_apb_PENABLE && !apb_clock_gating);
+            cp_gating:       cover (cg_gating);
+            cp_ungated_xact: cover (m_apb_PSEL && m_apb_PENABLE && !cg_gating);
             cp_rsp_fire:     cover (rsp_valid && rsp_ready);
         end
     end
