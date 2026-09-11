@@ -741,6 +741,12 @@ def cmd_blindspots(reg: dict, ratchet: bool = False,
     tracked_sby = subprocess.run(["git", "ls-files", "*.sby"], cwd=REPO_ROOT,
                                  capture_output=True, text=True).stdout.split()
     for sby in sorted(REPO_ROOT / t for t in tracked_sby):
+        # Tracked but gone from the worktree = a deletion or rename in flight
+        # (possibly another session's, in this shared tree). It has no
+        # [files] left to dangle; reading it crashed the pre-commit hook and
+        # blocked every commit in the repo until that session committed.
+        if not sby.exists():
+            continue
         base = sby.parent
         for raw in sby.read_text(errors="ignore").splitlines():
             for tok in re.findall(r"(\.\./[\w./-]+\.svh?)", raw):
