@@ -16,7 +16,7 @@ board and the assertion turns red on the current RTL.
 import os
 import sys
 
-_TB = os.path.join(os.path.dirname(__file__), "..", "tbclasses")
+_TB = os.path.join(os.path.dirname(__file__), "..", "..", "tbclasses")
 sys.path.insert(0, os.path.abspath(_TB))
 
 from a7ddrphy_read_window import beat_from_golden, place_read_window, read_p1p0  # noqa: E402

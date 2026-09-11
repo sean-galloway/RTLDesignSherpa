@@ -48,7 +48,7 @@ from CocoTBFramework.components.dfi.dfi_slave_phy import deinterleave_read_windo
 
 # Reuse the committed device-word ORDER assertion (the same one the char TB uses)
 # so a mismatch is LOCALIZED (which slot, and how: zero / shift@k / stale).
-_TB = os.path.join(os.path.dirname(__file__), "..", "tbclasses")
+_TB = os.path.join(os.path.dirname(__file__), "..", "..", "tbclasses")
 sys.path.insert(0, os.path.abspath(_TB))
 from axi_rd_device_word_check import check_beat_device_words  # noqa: E402
 

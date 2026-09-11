@@ -55,7 +55,7 @@ RDS_ROOT ?= $(shell git rev-parse --show-toplevel)
 export REPO_ROOT ?= $(RDS_ROOT)
 
 # pumice test areas, in run order. Override to narrow: make run-all-gate AREAS=fub
-AREAS ?= fub macro top
+AREAS ?= fub macro top phy
 
 GREEN  := \033[0;32m
 RED    := \033[0;31m

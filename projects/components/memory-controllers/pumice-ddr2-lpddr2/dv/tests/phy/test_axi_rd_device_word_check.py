@@ -11,7 +11,7 @@ catch — the coverage gap that let the regression through.
 import os
 import sys
 
-_TB = os.path.join(os.path.dirname(__file__), "..", "tbclasses")
+_TB = os.path.join(os.path.dirname(__file__), "..", "..", "tbclasses")
 sys.path.insert(0, os.path.abspath(_TB))
 
 from axi_rd_device_word_check import (           # noqa: E402

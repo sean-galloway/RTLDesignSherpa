@@ -50,7 +50,7 @@ pytestmark = pytest.mark.skip(
 import importlib.util as _ilu
 import os as _os
 _MODEL = _os.path.join(
-    _os.path.dirname(__file__), "..", "tbclasses", "a7ddrphy_read_window.py")
+    _os.path.dirname(__file__), "..", "..", "tbclasses", "a7ddrphy_read_window.py")
 _spec = _ilu.spec_from_file_location("a7ddrphy_read_window", _MODEL)
 _m = _ilu.module_from_spec(_spec)
 _spec.loader.exec_module(_m)
