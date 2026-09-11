@@ -13,10 +13,9 @@
 //   Everything in the characterization loop that is NOT the memory controller:
 //
 //     chargen_regs (per-generator config, PeakRDL behind an APB window)
-//       -> axi4_master_wr_pattern_gen [NUM_GEN] -> bridge_ddr2_char_wr -|
-//       -> axi4_master_rd_crc_check   [NUM_GEN] -> bridge_ddr2_char_rd -|
-//                                                                       v
-//                                              ONE AXI4 master port (m_axi_*)
+//       -> char_gen_unit: axi4_master_wr_pattern_gen [NUM_GEN]
+//                         axi4_master_rd_crc_check   [NUM_GEN]
+//                         + the N:1 merge onto ONE AXI4 master port (m_axi_*)
 //       + axi_bus_meter x2 and axi_perf_latency_hist x2 tapped on that port
 //
 //   Extracted from ddr2_char_macro on 2026-09-10 so the pumice flow and the
@@ -79,13 +78,15 @@ module char_engine_block
     // ---- Reader-engine debug FIFO depth (0 = elide) ----
     parameter int RD_DBG_FIFO_DEPTH = 0,
 
-    // ---- Pumice-side (bridge slave-side) ID width ----
-    // The two generators reach pumice through the generated 2-master bridges,
-    // whose slave-side IDs are {master index, master id} (BRIDGE-016): one
-    // bit wider than the generators' own 8. Sized from the bridge package so
-    // this block cannot silently truncate the master index if the bridge
-    // config ever changes; the rd bridge has the same shape and width.
-    parameter int M_AXI_ID_WIDTH   = bridge_ddr2_char_wr_pkg::XBAR_ID_WIDTH,
+    // ---- Controller-side ID width ----
+    // char_gen_unit prefixes every outgoing ID with the generator index --
+    // {master index, master id}, the same BRIDGE-016 shape the generated
+    // bridges used -- so the controller sees one bit more than the generators'
+    // own 8 at NUM_GEN=2, unchanged from the crossbar era. Derived from
+    // NUM_GEN rather than read from a bridge package, because the merge is no
+    // longer a bridge and the two must not be able to disagree.
+    parameter int M_AXI_ID_WIDTH   = AXI_ID_WIDTH
+                                     + ((NUM_GEN > 1) ? $clog2(NUM_GEN) : 0),
 
     // ---- Aliases ----
     parameter int IW = AXI_ID_WIDTH,
@@ -200,7 +201,7 @@ module char_engine_block
     // Internal AXI nets — writer drives AW/W, reader drives AR, both
     // share s_axi at the controller's slave port.
     //=========================================================================
-    logic [PIW-1:0] wr_awid;   // bridge slave side: {master index, id}
+    logic [PIW-1:0] wr_awid;   // controller side: {generator index, id}
     logic [AW-1:0] wr_awaddr;
     logic [7:0]    wr_awlen;
     logic [2:0]    wr_awsize;
@@ -326,211 +327,123 @@ module char_engine_block
     assign w_rd_go = {cg_out.GO.rd_go1.value, cg_out.GO.rd_go0.value};
 
     //=========================================================================
-    // Per-generator AXI nets
+    // Generator unit: N write + N read generator blocks behind one AXI4 port
     //=========================================================================
-    // Unpacked arrays here, flat named ports at the bridge below: the bridge is
-    // generated with one port group per master (wrgen0_axi_*, wrgen1_axi_*, ...)
-    // so its connections cannot be written as a loop. If NUM_GEN ever changes,
-    // the bridge TOMLs change with it and the connection blocks below are
-    // regenerated to match -- they are the one place in this file that is
-    // mechanically tied to the master count.
-    logic [IW-1:0] gw_awid    [NUM_GEN];
-    logic [AW-1:0] gw_awaddr  [NUM_GEN];
-    logic [7:0]    gw_awlen   [NUM_GEN];
-    logic [2:0]    gw_awsize  [NUM_GEN];
-    logic [1:0]    gw_awburst [NUM_GEN];
-    logic          gw_awlock  [NUM_GEN];
-    logic [3:0]    gw_awcache [NUM_GEN], gw_awqos [NUM_GEN], gw_awregion [NUM_GEN];
-    logic [2:0]    gw_awprot  [NUM_GEN];
-    logic [UW-1:0] gw_awuser  [NUM_GEN], gw_wuser [NUM_GEN];
-    logic          gw_awvalid [NUM_GEN], gw_awready [NUM_GEN];
-    logic [DW-1:0] gw_wdata   [NUM_GEN];
-    logic [SW-1:0] gw_wstrb   [NUM_GEN];
-    logic          gw_wlast   [NUM_GEN], gw_wvalid [NUM_GEN], gw_wready [NUM_GEN];
-    logic [IW-1:0] gw_bid     [NUM_GEN];
-    logic [1:0]    gw_bresp   [NUM_GEN];
-    logic          gw_buser   [NUM_GEN], gw_bvalid [NUM_GEN], gw_bready [NUM_GEN];
-
-    logic [IW-1:0] gr_arid    [NUM_GEN];
-    logic [AW-1:0] gr_araddr  [NUM_GEN];
-    logic [7:0]    gr_arlen   [NUM_GEN];
-    logic [2:0]    gr_arsize  [NUM_GEN];
-    logic [1:0]    gr_arburst [NUM_GEN];
-    logic          gr_arlock  [NUM_GEN];
-    logic [3:0]    gr_arcache [NUM_GEN], gr_arqos [NUM_GEN], gr_arregion [NUM_GEN];
-    logic [2:0]    gr_arprot  [NUM_GEN];
-    logic [UW-1:0] gr_aruser  [NUM_GEN], gr_ruser [NUM_GEN];
-    logic          gr_arvalid [NUM_GEN], gr_arready [NUM_GEN];
-    logic [IW-1:0] gr_rid     [NUM_GEN];
-    logic [DW-1:0] gr_rdata   [NUM_GEN];
-    logic [1:0]    gr_rresp   [NUM_GEN];
-    logic          gr_rlast   [NUM_GEN], gr_rvalid [NUM_GEN], gr_rready [NUM_GEN];
-
-    // Per-generator status, gathered for the roll-up registers.
+    // The generators used to reach the controller through two generated 2x1
+    // AXI4 crossbars (bridge_ddr2_char_wr / bridge_ddr2_char_rd) instantiated
+    // right here, with every master's port group written out by hand because a
+    // generated bridge cannot be connected in a loop. That is gone: the array
+    // and its N:1 merge are one module now, and what this block wires is a
+    // single AXI4 master port that goes straight to the controller's s_axi.
+    //
+    // The APB config path still goes through a bridge, because that is a real
+    // address decode over unrelated slaves. The data path never was one -- it
+    // is N identical masters at one address range -- and paying for a general
+    // crossbar to express that cost outstanding depth (a bridge_cam DEPTH(16)
+    // gating the address channel, so the engine could never have more than 16
+    // reads in flight however the generators were configured) and four skid
+    // stages of round-trip latency on the path whose entire purpose is to
+    // measure latency. See char_gen_unit.sv for the full argument.
+    //
+    // The wr_*/rd_* nets are unchanged: they are what the perf meters tap and
+    // what this module's master port renames, so moving the merge did not move
+    // the measurement point.
     logic [NUM_GEN-1:0] w_wr_done, w_wr_crc_valid, w_wr_bresp_err;
     logic [NUM_GEN-1:0] w_rd_done, w_rd_crc_valid, w_rd_data_err;
     logic [NUM_GEN-1:0] w_rd_rresp_err, w_rd_stray_err;
-
-    // The reader debug FIFO drains generator 0 only. It is a bench aid for
-    // eyeballing a mismatching beat, not a checker -- every reader's mismatch
-    // is already counted in its own BEATS_MISM register, which is what the host
-    // reads. Eight drain ports would be eight more things to wire for a facility
-    // that is used interactively, on one stream, when something has already
-    // gone wrong.
-    logic               w_dbg_valid    [NUM_GEN];
-    logic               w_dbg_ready    [NUM_GEN];
-    logic [DW-1:0]      w_dbg_actual   [NUM_GEN];
-    logic [DW-1:0]      w_dbg_expected [NUM_GEN];
-    logic               w_dbg_mismatch [NUM_GEN];
 
     logic [TXN_COUNT_WIDTH-1:0] w_rd_beats_mism [NUM_GEN];
     logic [TXN_COUNT_WIDTH-1:0] w_rd_stray_cnt  [NUM_GEN];
     logic [31:0]                w_wr_crc        [NUM_GEN];
     logic [31:0]                w_rd_crc        [NUM_GEN];
 
-    //=========================================================================
-    // Write generators -- one per bank
-    //=========================================================================
-    generate
-    for (genvar g = 0; g < NUM_GEN; g++) begin : g_wr_engine
-        axi4_master_wr_pattern_gen #(
-            .AXI_ID_WIDTH       (AXI_ID_WIDTH),
-            .AXI_ADDR_WIDTH     (AXI_ADDR_WIDTH),
-            .AXI_DATA_WIDTH     (AXI_DATA_WIDTH),
-            .AXI_USER_WIDTH     (AXI_USER_WIDTH),
-            .AXI_WSTRB_WIDTH    (AXI_STRB_WIDTH),
-            .TXN_COUNT_WIDTH    (TXN_COUNT_WIDTH),
-            .INDEX_WIDTH        (INDEX_WIDTH),
-            .STRIDE_WIDTH       (STRIDE_WIDTH),
-            .BURST_LEN_MULTIPLE (BURST_LEN_MULTIPLE),
-            .MAX_OUTSTANDING    (GEN_MAX_OUTSTANDING)
-        ) u_wr_engine (
-            .aclk                 (mc_clk),
-            .aresetn              (mc_rst_n),
-            .cfg_start_addr       (AW'(cg_out.WR_GEN[g].START_ADDR.addr.value)),
-            .cfg_addr_stride_0    (signed'(cg_out.WR_GEN[g].STRIDE_0.stride.value)),
-            .cfg_addr_stride_1    (signed'(cg_out.WR_GEN[g].STRIDE_1.stride.value)),
-            .cfg_addr_wrap_mask_0 (AW'(cg_out.WR_GEN[g].WRAP_MASK_0.mask.value)),
-            .cfg_addr_wrap_mask_1 (AW'(cg_out.WR_GEN[g].WRAP_MASK_1.mask.value)),
-            .cfg_burst_len        (cg_out.WR_GEN[g].BLEN_TXN.burst_len.value),
-            .cfg_txn_count        (cg_out.WR_GEN[g].BLEN_TXN.txn_count.value),
-            .cfg_axi_id           (cg_out.WR_GEN[g].AXI_ATTR.axi_id.value),
-            .cfg_id_mode          (cg_out.WR_GEN[g].AXI_ATTR.id_mode.value),
-            .cfg_axi_size         (cg_out.WR_GEN[g].AXI_ATTR.axi_size.value),
-            .cfg_axi_burst        (cg_out.WR_GEN[g].AXI_ATTR.axi_burst.value),
-            .cfg_lfsr_seed        (cg_out.WR_GEN[g].LFSR_SEED.seed.value),
-            .cfg_data_mode        (cg_out.WR_GEN[g].AXI_ATTR.data_mode.value),
-            .cfg_hash_seed0       (cg_out.WR_GEN[g].HASH_SEED0.seed.value),
-            .cfg_hash_seed1       (cg_out.WR_GEN[g].HASH_SEED1.seed.value),
-            .cfg_hash_seed2       (cg_out.WR_GEN[g].HASH_SEED2.seed.value),
-            .cfg_wr_gap           (cg_out.WR_GEN[g].BLEN_TXN.gap.value),
-            .cfg_start            (w_wr_go[g]),
-            .cfg_done             (w_wr_done[g]),
-            .o_expected_crc       (w_wr_crc[g]),
-            .o_expected_crc_valid (w_wr_crc_valid[g]),
-            .o_bresp_error        (w_wr_bresp_err[g]),
-            .m_axi_awid           (gw_awid[g]),
-            .m_axi_awaddr         (gw_awaddr[g]),
-            .m_axi_awlen          (gw_awlen[g]),
-            .m_axi_awsize         (gw_awsize[g]),
-            .m_axi_awburst        (gw_awburst[g]),
-            .m_axi_awlock         (gw_awlock[g]),
-            .m_axi_awcache        (gw_awcache[g]),
-            .m_axi_awprot         (gw_awprot[g]),
-            .m_axi_awqos          (gw_awqos[g]),
-            .m_axi_awregion       (gw_awregion[g]),
-            .m_axi_awuser         (gw_awuser[g]),
-            .m_axi_awvalid        (gw_awvalid[g]),
-            .m_axi_awready        (gw_awready[g]),
-            .m_axi_wdata          (gw_wdata[g]),
-            .m_axi_wstrb          (gw_wstrb[g]),
-            .m_axi_wlast          (gw_wlast[g]),
-            .m_axi_wuser          (gw_wuser[g]),
-            .m_axi_wvalid         (gw_wvalid[g]),
-            .m_axi_wready         (gw_wready[g]),
-            .m_axi_bid            (gw_bid[g]),
-            .m_axi_bresp          (gw_bresp[g]),
-            .m_axi_buser          (gw_buser[g]),
-            .m_axi_bvalid         (gw_bvalid[g]),
-            .m_axi_bready         (gw_bready[g])
-        );
-    end
-    endgenerate
+    char_gen_unit #(
+        .AXI_ADDR_WIDTH      (AXI_ADDR_WIDTH),
+        .AXI_DATA_WIDTH      (AXI_DATA_WIDTH),
+        .AXI_ID_WIDTH        (AXI_ID_WIDTH),
+        .AXI_USER_WIDTH      (AXI_USER_WIDTH),
+        .AXI_STRB_WIDTH      (AXI_STRB_WIDTH),
+        .BURST_LEN_MULTIPLE  (BURST_LEN_MULTIPLE),
+        .NUM_GEN             (NUM_GEN),
+        .GEN_MAX_OUTSTANDING (GEN_MAX_OUTSTANDING),
+        .TXN_COUNT_WIDTH     (TXN_COUNT_WIDTH),
+        .INDEX_WIDTH         (INDEX_WIDTH),
+        .STRIDE_WIDTH        (STRIDE_WIDTH),
+        .RD_DBG_FIFO_DEPTH   (RD_DBG_FIFO_DEPTH)
+    ) u_gen_unit (
+        .aclk    (mc_clk),
+        .aresetn (mc_rst_n),
 
-    //=========================================================================
-    // Read generators -- one per bank
-    //=========================================================================
-    generate
-    for (genvar g = 0; g < NUM_GEN; g++) begin : g_rd_engine
-        axi4_master_rd_crc_check #(
-            .AXI_ID_WIDTH       (AXI_ID_WIDTH),
-            .AXI_ADDR_WIDTH     (AXI_ADDR_WIDTH),
-            .AXI_DATA_WIDTH     (AXI_DATA_WIDTH),
-            .AXI_USER_WIDTH     (AXI_USER_WIDTH),
-            .TXN_COUNT_WIDTH    (TXN_COUNT_WIDTH),
-            .INDEX_WIDTH        (INDEX_WIDTH),
-            .STRIDE_WIDTH       (STRIDE_WIDTH),
-            .BURST_LEN_MULTIPLE (BURST_LEN_MULTIPLE),
-            .MAX_OUTSTANDING    (GEN_MAX_OUTSTANDING),
-            // Only generator 0 carries the debug FIFO; see the note above.
-            .DBG_FIFO_DEPTH     ((g == 0) ? RD_DBG_FIFO_DEPTH : 0)
-        ) u_rd_engine (
-            .aclk                 (mc_clk),
-            .aresetn              (mc_rst_n),
-            .cfg_start_addr       (AW'(cg_out.RD_GEN[g].START_ADDR.addr.value)),
-            .cfg_addr_stride_0    (signed'(cg_out.RD_GEN[g].STRIDE_0.stride.value)),
-            .cfg_addr_stride_1    (signed'(cg_out.RD_GEN[g].STRIDE_1.stride.value)),
-            .cfg_addr_wrap_mask_0 (AW'(cg_out.RD_GEN[g].WRAP_MASK_0.mask.value)),
-            .cfg_addr_wrap_mask_1 (AW'(cg_out.RD_GEN[g].WRAP_MASK_1.mask.value)),
-            .cfg_burst_len        (cg_out.RD_GEN[g].BLEN_TXN.burst_len.value),
-            .cfg_txn_count        (cg_out.RD_GEN[g].BLEN_TXN.txn_count.value),
-            .cfg_axi_id           (cg_out.RD_GEN[g].AXI_ATTR.axi_id.value),
-            .cfg_id_mode          (cg_out.RD_GEN[g].AXI_ATTR.id_mode.value),
-            .cfg_axi_size         (cg_out.RD_GEN[g].AXI_ATTR.axi_size.value),
-            .cfg_axi_burst        (cg_out.RD_GEN[g].AXI_ATTR.axi_burst.value),
-            .cfg_lfsr_seed        (cg_out.RD_GEN[g].LFSR_SEED.seed.value),
-            .cfg_data_mode        (cg_out.RD_GEN[g].AXI_ATTR.data_mode.value),
-            .cfg_hash_seed0       (cg_out.RD_GEN[g].HASH_SEED0.seed.value),
-            .cfg_hash_seed1       (cg_out.RD_GEN[g].HASH_SEED1.seed.value),
-            .cfg_hash_seed2       (cg_out.RD_GEN[g].HASH_SEED2.seed.value),
-            .cfg_rd_gap           (cg_out.RD_GEN[g].BLEN_TXN.gap.value),
-            .cfg_start            (w_rd_go[g]),
-            .cfg_done             (w_rd_done[g]),
-            .o_actual_crc         (w_rd_crc[g]),
-            .o_actual_crc_valid   (w_rd_crc_valid[g]),
-            .o_data_error         (w_rd_data_err[g]),
-            .o_rresp_error        (w_rd_rresp_err[g]),
-            .o_stray_beat_error   (w_rd_stray_err[g]),
-            .o_stray_beats        (w_rd_stray_cnt[g]),
-            .o_beats_mismatched   (w_rd_beats_mism[g]),
-            .m_axi_arid           (gr_arid[g]),
-            .m_axi_araddr         (gr_araddr[g]),
-            .m_axi_arlen          (gr_arlen[g]),
-            .m_axi_arsize         (gr_arsize[g]),
-            .m_axi_arburst        (gr_arburst[g]),
-            .m_axi_arlock         (gr_arlock[g]),
-            .m_axi_arcache        (gr_arcache[g]),
-            .m_axi_arprot         (gr_arprot[g]),
-            .m_axi_arqos          (gr_arqos[g]),
-            .m_axi_arregion       (gr_arregion[g]),
-            .m_axi_aruser         (gr_aruser[g]),
-            .m_axi_arvalid        (gr_arvalid[g]),
-            .m_axi_arready        (gr_arready[g]),
-            .m_axi_rid            (gr_rid[g]),
-            .m_axi_rdata          (gr_rdata[g]),
-            .m_axi_rresp          (gr_rresp[g]),
-            .m_axi_rlast          (gr_rlast[g]),
-            .m_axi_ruser          (gr_ruser[g]),
-            .m_axi_rvalid         (gr_rvalid[g]),
-            .m_axi_rready         (gr_rready[g]),
-            .dbg_valid            (w_dbg_valid[g]),
-            .dbg_ready            (w_dbg_ready[g]),
-            .dbg_actual           (w_dbg_actual[g]),
-            .dbg_expected         (w_dbg_expected[g]),
-            .dbg_mismatch         (w_dbg_mismatch[g])
-        );
-    end
-    endgenerate
+        .cfg_i   (cg_out),
+        .wr_go_i (w_wr_go),
+        .rd_go_i (w_rd_go),
+
+        .wr_done_o       (w_wr_done),
+        .wr_crc_valid_o  (w_wr_crc_valid),
+        .wr_bresp_err_o  (w_wr_bresp_err),
+        .wr_crc_o        (w_wr_crc),
+
+        .rd_done_o       (w_rd_done),
+        .rd_crc_valid_o  (w_rd_crc_valid),
+        .rd_data_err_o   (w_rd_data_err),
+        .rd_rresp_err_o  (w_rd_rresp_err),
+        .rd_stray_err_o  (w_rd_stray_err),
+        .rd_crc_o        (w_rd_crc),
+        .rd_beats_mism_o (w_rd_beats_mism),
+        .rd_stray_cnt_o  (w_rd_stray_cnt),
+
+        .rd_dbg_valid    (rd_dbg_valid),
+        .rd_dbg_ready    (rd_dbg_ready),
+        .rd_dbg_actual   (rd_dbg_actual),
+        .rd_dbg_expected (rd_dbg_expected),
+        .rd_dbg_mismatch (rd_dbg_mismatch),
+
+        .m_axi_awid    (wr_awid),
+        .m_axi_awaddr  (wr_awaddr),
+        .m_axi_awlen   (wr_awlen),
+        .m_axi_awsize  (wr_awsize),
+        .m_axi_awburst (wr_awburst),
+        .m_axi_awlock  (wr_awlock),
+        .m_axi_awcache (wr_awcache),
+        .m_axi_awprot  (wr_awprot),
+        .m_axi_awqos   (wr_awqos),
+        .m_axi_awregion(wr_awregion),
+        .m_axi_awuser  (wr_awuser),
+        .m_axi_awvalid (wr_awvalid),
+        .m_axi_awready (wr_awready),
+        .m_axi_wdata   (wr_wdata),
+        .m_axi_wstrb   (wr_wstrb),
+        .m_axi_wlast   (wr_wlast),
+        .m_axi_wuser   (wr_wuser),
+        .m_axi_wvalid  (wr_wvalid),
+        .m_axi_wready  (wr_wready),
+        .m_axi_bid     (wr_bid),
+        .m_axi_bresp   (wr_bresp),
+        .m_axi_buser   (wr_buser),
+        .m_axi_bvalid  (wr_bvalid),
+        .m_axi_bready  (wr_bready),
+
+        .m_axi_arid    (rd_arid),
+        .m_axi_araddr  (rd_araddr),
+        .m_axi_arlen   (rd_arlen),
+        .m_axi_arsize  (rd_arsize),
+        .m_axi_arburst (rd_arburst),
+        .m_axi_arlock  (rd_arlock),
+        .m_axi_arcache (rd_arcache),
+        .m_axi_arprot  (rd_arprot),
+        .m_axi_arqos   (rd_arqos),
+        .m_axi_arregion(rd_arregion),
+        .m_axi_aruser  (rd_aruser),
+        .m_axi_arvalid (rd_arvalid),
+        .m_axi_arready (rd_arready),
+        .m_axi_rid     (rd_rid),
+        .m_axi_rdata   (rd_rdata),
+        .m_axi_rresp   (rd_rresp),
+        .m_axi_rlast   (rd_rlast),
+        .m_axi_ruser   (rd_ruser),
+        .m_axi_rvalid  (rd_rvalid),
+        .m_axi_rready  (rd_rready)
+    );
 
     //=========================================================================
     // Launched mask + run-level aggregation
@@ -642,196 +555,6 @@ module char_engine_block
     end
 
 
-    //=========================================================================
-    // Write bridge: two generators -> pumice's AW/W/B channel group
-    //=========================================================================
-    // The `user` bits narrow to one here on purpose. pumice's s_axi_awuser and
-    // s_axi_wuser are single bits, so anything wider dies at the controller
-    // regardless; taking bit 0 explicitly makes that visible at the boundary
-    // instead of leaving a silent width truncation for lint to swallow.
-    bridge_ddr2_char_wr u_wr_bridge (
-        .aclk    (mc_clk),
-        .aresetn (mc_rst_n),
-
-        // Generator 0 -> low bank half
-        .wrgen0_axi_awid     (gw_awid[0]),
-        .wrgen0_axi_awaddr   (gw_awaddr[0]),
-        .wrgen0_axi_awlen    (gw_awlen[0]),
-        .wrgen0_axi_awsize   (gw_awsize[0]),
-        .wrgen0_axi_awburst  (gw_awburst[0]),
-        .wrgen0_axi_awlock   (gw_awlock[0]),
-        .wrgen0_axi_awcache  (gw_awcache[0]),
-        .wrgen0_axi_awprot   (gw_awprot[0]),
-        .wrgen0_axi_awqos    (gw_awqos[0]),
-        .wrgen0_axi_awregion (gw_awregion[0]),
-        .wrgen0_axi_awuser   (gw_awuser[0][0]),
-        .wrgen0_axi_awvalid  (gw_awvalid[0]),
-        .wrgen0_axi_awready  (gw_awready[0]),
-        .wrgen0_axi_wdata    (gw_wdata[0]),
-        .wrgen0_axi_wstrb    (gw_wstrb[0]),
-        .wrgen0_axi_wlast    (gw_wlast[0]),
-        .wrgen0_axi_wuser    (gw_wuser[0][0]),
-        .wrgen0_axi_wvalid   (gw_wvalid[0]),
-        .wrgen0_axi_wready   (gw_wready[0]),
-        .wrgen0_axi_bid      (gw_bid[0]),
-        .wrgen0_axi_bresp    (gw_bresp[0]),
-        .wrgen0_axi_buser    (gw_buser[0]),
-        .wrgen0_axi_bvalid   (gw_bvalid[0]),
-        .wrgen0_axi_bready   (gw_bready[0]),
-
-        // Generator 1 -> high bank half
-        .wrgen1_axi_awid     (gw_awid[1]),
-        .wrgen1_axi_awaddr   (gw_awaddr[1]),
-        .wrgen1_axi_awlen    (gw_awlen[1]),
-        .wrgen1_axi_awsize   (gw_awsize[1]),
-        .wrgen1_axi_awburst  (gw_awburst[1]),
-        .wrgen1_axi_awlock   (gw_awlock[1]),
-        .wrgen1_axi_awcache  (gw_awcache[1]),
-        .wrgen1_axi_awprot   (gw_awprot[1]),
-        .wrgen1_axi_awqos    (gw_awqos[1]),
-        .wrgen1_axi_awregion (gw_awregion[1]),
-        .wrgen1_axi_awuser   (gw_awuser[1][0]),
-        .wrgen1_axi_awvalid  (gw_awvalid[1]),
-        .wrgen1_axi_awready  (gw_awready[1]),
-        .wrgen1_axi_wdata    (gw_wdata[1]),
-        .wrgen1_axi_wstrb    (gw_wstrb[1]),
-        .wrgen1_axi_wlast    (gw_wlast[1]),
-        .wrgen1_axi_wuser    (gw_wuser[1][0]),
-        .wrgen1_axi_wvalid   (gw_wvalid[1]),
-        .wrgen1_axi_wready   (gw_wready[1]),
-        .wrgen1_axi_bid      (gw_bid[1]),
-        .wrgen1_axi_bresp    (gw_bresp[1]),
-        .wrgen1_axi_buser    (gw_buser[1]),
-        .wrgen1_axi_bvalid   (gw_bvalid[1]),
-        .wrgen1_axi_bready   (gw_bready[1]),
-
-        // Slave: pumice's write half
-        .pumice_wr_axi_awid    (wr_awid),
-        .pumice_wr_axi_awaddr  (wr_awaddr),
-        .pumice_wr_axi_awlen   (wr_awlen),
-        .pumice_wr_axi_awsize  (wr_awsize),
-        .pumice_wr_axi_awburst (wr_awburst),
-        .pumice_wr_axi_awlock  (wr_awlock),
-        .pumice_wr_axi_awcache (wr_awcache),
-        .pumice_wr_axi_awprot  (wr_awprot),
-        .pumice_wr_axi_awqos   (wr_awqos),
-        .pumice_wr_axi_awregion(wr_awregion),
-        .pumice_wr_axi_awuser  (wr_awuser[0]),
-        .pumice_wr_axi_awvalid (wr_awvalid),
-        .pumice_wr_axi_awready (wr_awready),
-        .pumice_wr_axi_wdata   (wr_wdata),
-        .pumice_wr_axi_wstrb   (wr_wstrb),
-        .pumice_wr_axi_wlast   (wr_wlast),
-        .pumice_wr_axi_wuser   (wr_wuser[0]),
-        .pumice_wr_axi_wvalid  (wr_wvalid),
-        .pumice_wr_axi_wready  (wr_wready),
-        .pumice_wr_axi_bid     (wr_bid),
-        .pumice_wr_axi_bresp   (wr_bresp),
-        .pumice_wr_axi_buser   (wr_buser[0]),
-        .pumice_wr_axi_bvalid  (wr_bvalid),
-        .pumice_wr_axi_bready  (wr_bready)
-    );
-
-    // The upper user bits are unused by construction (see above).
-    assign wr_awuser[UW-1:1] = '0;
-    assign wr_wuser [UW-1:1] = '0;
-
-    //=========================================================================
-    // Read bridge: two generators -> pumice's AR/R channel group
-    //=========================================================================
-    bridge_ddr2_char_rd u_rd_bridge (
-        .aclk    (mc_clk),
-        .aresetn (mc_rst_n),
-
-        // Generator 0 -> low bank half
-        .rdgen0_axi_arid     (gr_arid[0]),
-        .rdgen0_axi_araddr   (gr_araddr[0]),
-        .rdgen0_axi_arlen    (gr_arlen[0]),
-        .rdgen0_axi_arsize   (gr_arsize[0]),
-        .rdgen0_axi_arburst  (gr_arburst[0]),
-        .rdgen0_axi_arlock   (gr_arlock[0]),
-        .rdgen0_axi_arcache  (gr_arcache[0]),
-        .rdgen0_axi_arprot   (gr_arprot[0]),
-        .rdgen0_axi_arqos    (gr_arqos[0]),
-        .rdgen0_axi_arregion (gr_arregion[0]),
-        .rdgen0_axi_aruser   (gr_aruser[0][0]),
-        .rdgen0_axi_arvalid  (gr_arvalid[0]),
-        .rdgen0_axi_arready  (gr_arready[0]),
-        .rdgen0_axi_rid      (gr_rid[0]),
-        .rdgen0_axi_rdata    (gr_rdata[0]),
-        .rdgen0_axi_rresp    (gr_rresp[0]),
-        .rdgen0_axi_rlast    (gr_rlast[0]),
-        .rdgen0_axi_ruser    (gr_ruser[0]),
-        .rdgen0_axi_rvalid   (gr_rvalid[0]),
-        .rdgen0_axi_rready   (gr_rready[0]),
-
-        // Generator 1 -> high bank half
-        .rdgen1_axi_arid     (gr_arid[1]),
-        .rdgen1_axi_araddr   (gr_araddr[1]),
-        .rdgen1_axi_arlen    (gr_arlen[1]),
-        .rdgen1_axi_arsize   (gr_arsize[1]),
-        .rdgen1_axi_arburst  (gr_arburst[1]),
-        .rdgen1_axi_arlock   (gr_arlock[1]),
-        .rdgen1_axi_arcache  (gr_arcache[1]),
-        .rdgen1_axi_arprot   (gr_arprot[1]),
-        .rdgen1_axi_arqos    (gr_arqos[1]),
-        .rdgen1_axi_arregion (gr_arregion[1]),
-        .rdgen1_axi_aruser   (gr_aruser[1][0]),
-        .rdgen1_axi_arvalid  (gr_arvalid[1]),
-        .rdgen1_axi_arready  (gr_arready[1]),
-        .rdgen1_axi_rid      (gr_rid[1]),
-        .rdgen1_axi_rdata    (gr_rdata[1]),
-        .rdgen1_axi_rresp    (gr_rresp[1]),
-        .rdgen1_axi_rlast    (gr_rlast[1]),
-        .rdgen1_axi_ruser    (gr_ruser[1]),
-        .rdgen1_axi_rvalid   (gr_rvalid[1]),
-        .rdgen1_axi_rready   (gr_rready[1]),
-
-        // Slave: pumice's read half
-        .pumice_rd_axi_arid    (rd_arid),
-        .pumice_rd_axi_araddr  (rd_araddr),
-        .pumice_rd_axi_arlen   (rd_arlen),
-        .pumice_rd_axi_arsize  (rd_arsize),
-        .pumice_rd_axi_arburst (rd_arburst),
-        .pumice_rd_axi_arlock  (rd_arlock),
-        .pumice_rd_axi_arcache (rd_arcache),
-        .pumice_rd_axi_arprot  (rd_arprot),
-        .pumice_rd_axi_arqos   (rd_arqos),
-        .pumice_rd_axi_arregion(rd_arregion),
-        .pumice_rd_axi_aruser  (rd_aruser[0]),
-        .pumice_rd_axi_arvalid (rd_arvalid),
-        .pumice_rd_axi_arready (rd_arready),
-        .pumice_rd_axi_rid     (rd_rid),
-        .pumice_rd_axi_rdata   (rd_rdata),
-        .pumice_rd_axi_rresp   (rd_rresp),
-        .pumice_rd_axi_rlast   (rd_rlast),
-        .pumice_rd_axi_ruser   (rd_ruser[0]),
-        .pumice_rd_axi_rvalid  (rd_rvalid),
-        .pumice_rd_axi_rready  (rd_rready)
-    );
-
-    assign rd_aruser[UW-1:1] = '0;
-
-    //=========================================================================
-    // Reader debug FIFO drain -- generator 0 only
-    //=========================================================================
-    // A port connection cannot be a ternary, so every reader gets its own drain
-    // nets and the module port selects generator 0 here. The other seven are
-    // held permanently drained (ready = 1): an undrained FIFO would fill and
-    // then backpressure nothing -- the engine does not stall on it -- but a
-    // never-emptied buffer is a confusing thing to meet in a waveform, and
-    // draining it costs one constant.
-    assign rd_dbg_valid    = w_dbg_valid[0];
-    assign rd_dbg_actual   = w_dbg_actual[0];
-    assign rd_dbg_expected = w_dbg_expected[0];
-    assign rd_dbg_mismatch = w_dbg_mismatch[0];
-    assign w_dbg_ready[0]  = rd_dbg_ready;
-
-    generate
-    for (genvar g = 1; g < NUM_GEN; g++) begin : g_dbg_drain
-        assign w_dbg_ready[g] = 1'b1;
-    end
-    endgenerate
 
     //=========================================================================
     // Perf blocks: bus meters + latency histograms, tapped on the internal

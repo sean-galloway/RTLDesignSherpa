@@ -17,7 +17,7 @@
 # Generated 1 -> 6 AXIL bridge (same address map as build-perf)
 -f $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/bridges/filelists/bridge_ddr2_char_axil.f
 
-# char_engine_block (chargen_regs + generator array + crossbars + perf) and
+# char_engine_block (chargen_regs + char_gen_unit generator array + perf) and
 # its deps. ddr2_char_macro.f is the list that owns them; pumice itself rides
 # along parsed-but-unreferenced (nothing under litedram_char_top reaches it).
 -f $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/ddr2_char_macro.f

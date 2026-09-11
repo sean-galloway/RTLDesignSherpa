@@ -165,9 +165,11 @@ module ddr2_char_macro
 
     // ---- Aliases ----
     parameter int IW = AXI_ID_WIDTH,
-    // pumice sees {master index, master id} from the 2-master bridges inside
-    // char_engine_block (BRIDGE-016): one bit wider than the generators' IDs.
-    parameter int PIW = bridge_ddr2_char_wr_pkg::XBAR_ID_WIDTH,
+    // pumice sees {generator index, master id} from the merge inside
+    // char_gen_unit (BRIDGE-016 shape): one bit wider than the generators'
+    // own IDs at NUM_GEN=2. Derived from NUM_GEN here and derived from NUM_GEN
+    // again inside the unit, so the two cannot be given different answers.
+    parameter int PIW = AXI_ID_WIDTH + ((NUM_GEN > 1) ? $clog2(NUM_GEN) : 0),
     parameter int AW = AXI_ADDR_WIDTH,
     parameter int DW = AXI_DATA_WIDTH,
     parameter int UW = AXI_USER_WIDTH,

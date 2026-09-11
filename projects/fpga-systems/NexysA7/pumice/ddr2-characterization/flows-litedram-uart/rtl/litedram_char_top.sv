@@ -53,11 +53,17 @@ module litedram_char_top (
     logic        init_done, init_error, pll_locked;
 
     // ---- AXI between the harness (master) and litedram user port ------------
-    // {master index, master id} from the bridges inside char_engine_block
-    // (BRIDGE-016): 9 bits, and litedram_core must be generated to match
-    // (litedram_hp.yml id_width). Sized from the bridge package so the two
-    // cannot drift apart silently.
-    logic [bridge_ddr2_char_wr_pkg::XBAR_ID_WIDTH-1:0] ax_awid, ax_arid, ax_bid, ax_rid;
+    // {generator index, master id} from the merge inside char_gen_unit
+    // (BRIDGE-016 shape): 9 bits, and litedram_core must be generated to match
+    // (litedram_hp.yml id_width). The array's shape is stated once here and
+    // handed to the harness explicitly, so this width and the harness's own
+    // cannot drift apart -- both are this one pair of numbers.
+    localparam int CHAR_NUM_GEN   = 2;
+    localparam int CHAR_GEN_ID_W  = 8;
+    localparam int CHAR_MC_ID_W   = CHAR_GEN_ID_W
+                                    + ((CHAR_NUM_GEN > 1) ? $clog2(CHAR_NUM_GEN) : 0);
+
+    logic [CHAR_MC_ID_W-1:0] ax_awid, ax_arid, ax_bid, ax_rid;
     logic [31:0] ax_awaddr, ax_araddr;
     logic [7:0]  ax_awlen, ax_arlen;
     logic [2:0]  ax_awsize, ax_arsize;
@@ -134,6 +140,8 @@ module litedram_char_top (
     // =========================================================================
     char_engine_harness #(
         .AXI_ADDR_WIDTH     (32),
+        .AXI_ID_WIDTH       (CHAR_GEN_ID_W),
+        .NUM_GEN            (CHAR_NUM_GEN),
         // user_clk == litedram_hp.yml sys_clk_freq (75e6, the pumice
         // PUMICE_SYS_75 operating point). This sets the UART baud divisor; the
         // earlier 100_000_000 here predated the 75 MHz regen and would have

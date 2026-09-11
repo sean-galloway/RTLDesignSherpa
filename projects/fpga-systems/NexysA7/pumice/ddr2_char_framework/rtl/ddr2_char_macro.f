@@ -38,17 +38,25 @@
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/apb4_to_peakrdl.f
 
-# The generator config block + the two direction-split data bridges. The macro
-# instantiates two write and two read generators, arbitrated down to pumice's
-# AW/W/B and AR/R channel groups respectively through two 2x1 AXI4 crossbars --
-# the first rung of the multi-master ladder (climbs to 4). Each generator spans
-# NUM_BANKS/NUM_GEN banks so bank concurrency is a property of the stimulus.
+# The generator config block.
 -f $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/chargen_regs.f
--f $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/bridges/filelists/bridge_ddr2_char_wr.f
--f $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/bridges/filelists/bridge_ddr2_char_rd.f
+
+# The generator unit: two write and two read generator blocks and the N:1 merge
+# that puts them on pumice's single s_axi port. Each generator spans
+# NUM_BANKS/NUM_GEN banks so bank concurrency is a property of the stimulus.
+#
+# This used to be two generated 2x1 AXI4 crossbars (bridge_ddr2_char_wr/_rd).
+# They are no longer built: a general crossbar on the data path cost a
+# bridge_cam DEPTH(16) cap on outstanding transactions and four skid stages of
+# round-trip latency, on a harness whose measurement IS latency. The bridge
+# TOMLs and their generated output stay in the tree for the APB window and for
+# the record; nothing in this build reads them.
+$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/char_gen_axi_mux.sv
+$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/char_gen_wr_order_q.sv
+$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/char_gen_unit.sv
 
 # The macro itself
-# DUT-agnostic engine spine (engines + chargen_regs + crossbars + perf).
+# DUT-agnostic engine spine (generator unit + chargen_regs + perf).
 # Shared with the LiteDRAM comparison flow -- see char_engine_block.sv.
 $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/char_engine_block.sv
 $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/ddr2_char_macro.sv

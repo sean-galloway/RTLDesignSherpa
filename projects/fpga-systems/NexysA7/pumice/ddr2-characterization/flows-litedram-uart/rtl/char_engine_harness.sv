@@ -51,11 +51,6 @@ module char_engine_harness
     parameter int AXI_ADDR_WIDTH     = 32,   // engine addr; top wires [26:0] to litedram
     parameter int AXI_DATA_WIDTH     = 64,
     parameter int AXI_ID_WIDTH       = 8,    // engines slice cfg_axi_id[7:0]; must be 8
-    // Width of the IDs leaving the harness. char_engine_block's write and
-    // read generators sit behind 2-master bridges that prepend a master index
-    // (BRIDGE-016), so its m_axi side is one bit wider than the generators'
-    // own IDs; the LiteDRAM user port must be regenerated at this width.
-    parameter int M_AXI_ID_WIDTH     = bridge_ddr2_char_wr_pkg::XBAR_ID_WIDTH,
     parameter int AXI_USER_WIDTH     = 8,
     parameter int AXI_STRB_WIDTH     = AXI_DATA_WIDTH / 8,
 
@@ -75,6 +70,12 @@ module char_engine_harness
     parameter int BURST_LEN_MULTIPLE = 1,
     parameter int NUM_BANKS          = 8,
     parameter int NUM_GEN            = 2,
+    // Width of the IDs leaving the harness. char_gen_unit prepends the
+    // generator index to every ID (BRIDGE-016 shape), so the m_axi side is one
+    // bit wider than the generators' own at NUM_GEN=2. The LiteDRAM user port
+    // must be generated at this width -- litedram_hp.yml id_width.
+    parameter int M_AXI_ID_WIDTH     = AXI_ID_WIDTH
+                                       + ((NUM_GEN > 1) ? $clog2(NUM_GEN) : 0),
     parameter int GEN_MAX_OUTSTANDING = 8,
 
     // ---- Build identity, readable through harness_csr ----
