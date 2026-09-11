@@ -1462,8 +1462,9 @@ slave ports touch is now sized from the bridge package rather than by hand:
   will stop on the 8-vs-9 port mismatch until the core is regenerated from
   the yml, which is the loud failure we want rather than a truncated index.
 
-All four bitstreams predate the change and need rebuilding before the next
-board session.
+The pumice (ddr2-char) and Genesys2 stream builds were respun on the widened
+bridges and came up fine (Sean, 2026-09-11). Only the LiteDRAM comparison
+build is still pending its core regeneration.
 
 ## Pre-migration ledger: projects/components/bridge/TASKS.md (retired 2026-09-10)
 
