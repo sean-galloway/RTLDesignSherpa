@@ -75,6 +75,14 @@ module formal_axi4_slave_rd_mon (
     (* anyseq *) reg           cfg_perf_enable;
     (* anyseq *) reg [15:0]    cfg_timeout_cycles;
     (* anyseq *) reg [31:0]    cfg_latency_threshold;
+    // These were NOT connected at all. An unconnected DUT input is
+    // folded to a constant by opt -full, so with cfg_perf_enable and
+    // cfg_timeout_enable assumed low and completion/debug/threshold
+    // pinned low, NO packet class could ever be enabled and
+    // cp_monbus_valid was unreachable whatever the RTL did.
+    (* anyseq *) reg           cfg_compl_enable;
+    (* anyseq *) reg           cfg_debug_enable;
+    (* anyseq *) reg           cfg_threshold_enable;
 
     // Free inputs -- filtering config
     (* anyseq *) reg [15:0]    cfg_axi_pkt_mask;
@@ -205,6 +213,9 @@ module formal_axi4_slave_rd_mon (
         .cfg_axi_timeout_mask   (cfg_axi_timeout_mask),
         .cfg_axi_compl_mask     (cfg_axi_compl_mask),
         .cfg_axi_thresh_mask    (cfg_axi_thresh_mask),
+        .cfg_compl_enable        (cfg_compl_enable),
+        .cfg_debug_enable        (cfg_debug_enable),
+        .cfg_threshold_enable    (cfg_threshold_enable),
         .cfg_axi_perf_mask      (cfg_axi_perf_mask),
         .cfg_axi_addr_mask      (cfg_axi_addr_mask),
         .cfg_axi_debug_mask     (cfg_axi_debug_mask),

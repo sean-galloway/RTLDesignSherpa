@@ -2385,38 +2385,52 @@ question; a threshold that cannot fail the defect it names is decoration
 
 ---
 
-### TASK-092: six formal harnesses pin a DUT input at a constant
+### TASK-092: fifteen formal harnesses pin a DUT input at a constant
 
-**Priority:** P2. Nothing fails, which is the problem: five of the six pass
-prove and cover with part of their stimulus held constant, so the green run
+**Priority:** P2. Nothing fails, which is the problem: these all pass prove
+and cover with part of their stimulus held constant, so the green run
 overstates what is proved.
 
 **Status:** open 2026-09-11, found by `bin/formal_audit_stimulus.py` while
 fixing the arbiter monbus harnesses.
 
-A harness that writes `logic foo;` and wires it to a DUT input has not driven
-anything. `opt -full` folds the undriven net to a constant before
-`setundef -expose` can free it, so that input is pinned for the whole proof.
-The loud form of this was already fixed: `arbiter_rr_pwm_monbus` could not
-reach `cp_monbus` because `cfg_mon_enable` was never driven, and no RTL could
-have made that cover reachable. The silent form is what is left.
-
     python3 bin/formal_audit_stimulus.py
 
-| Harness | Pinned inputs | e.g. |
-|---|---|---|
-| `amba/axi_master_wr_splitter` | 26 | `fub_awaddr`, `fub_awburst`, `alignment_mask`, `block_ready` |
-| `amba/axi_master_rd_splitter` | 22 | `fub_araddr`, `fub_arburst`, `alignment_mask`, `block_ready` |
-| `amba/apb4_master` | 5 | `cmd_paddr`, `cmd_pwrite`, `cmd_pstrb` |
-| `common/dataint_ecc_hamming` | 2 | `encoded`, `decoded_data` |
-| `cdc/gray2bin` | 1 | `gray` |
-| `common/reverse_vector` | 1 | `vector_rev` |
+Two shapes, both folded to a constant by `opt -full` before `setundef
+-expose` can free them:
+
+- **undriven** -- declared in the harness, wired to a DUT input, never
+  assigned.
+- **unconnected** -- a DUT input the instantiation does not mention at all.
+  Easier to miss, because nothing in the harness names the signal.
+
+The loud form was already fixed: `arbiter_rr_pwm_monbus` could not reach
+`cp_monbus` because `cfg_mon_enable` was pinned low, a cover no RTL could
+have satisfied. Five wb4 harnesses were also fixed the same day -- they were
+proving with `CTI`/`BTE` pinned, so every wb4 property held for one hint
+value only -- and all five still pass with the hints free. What is left:
+
+| Harness | undriven | unconnected | e.g. |
+|---|---|---|---|
+| `amba/axi_master_wr_splitter` | 26 | 0 | `fub_awaddr`, `fub_awburst`, `alignment_mask` |
+| `amba/axi_master_rd_splitter` | 22 | 0 | `fub_araddr`, `fub_arburst`, `alignment_mask` |
+| `amba/axi4_{master,slave}_{rd,wr}_mon` (4) | 0 | 16 each | `cfg_addr_range_*`, `cfg_id_filter_*` |
+| `amba/apb4_master` | 5 | 0 | `cmd_paddr`, `cmd_pwrite`, `cmd_pstrb` |
+| `amba/apb4_monitor` | 0 | 4 | `cfg_addr_range_*` |
+| `amba/apb5_slave` | 0 | 4 | `s_apb_PADDRPARITY`, `wakeup_request` |
+| `amba/apb5_master` | 0 | 3 | `m_apb_PRDATAPARITY` and the other parity ins |
+| `amba/axi_monitor_reporter` | 0 | 1 | `filtered_mask` |
+| `common/gaxi_drop_fifo_sync` | 0 | 1 | `drop_valid` |
+| `cdc/gray2bin` | 2 | 0 | `free_binary`, `recovered_binary` |
+| `common/dataint_ecc_hamming` | 1 | 0 | `encoded` |
+| `common/reverse_vector` | 1 | 0 | `vector_rev` |
 
 The two splitters are the ones to look at first. A splitter's whole job is
-deciding where to cut a burst, and `fub_awaddr`/`fub_awburst`/`alignment_mask`
-are the inputs that decide it -- pinned, the proof covers one burst shape.
-`apb4_master` proving with `cmd_paddr` and `cmd_pwrite` constant means nothing
-payload-dependent is checked.
+deciding where to cut a burst, and the pinned inputs are exactly the ones
+that decide it, so the proof covers one burst shape. The APB5 parity inputs
+are the second: parity is the feature AMBA5 adds, and it is pinned off.
+`gaxi_drop_fifo_sync` pinning `drop_valid` means the drop path -- the thing
+the module exists for -- is never exercised.
 
 **Do not just add `(* anyseq *)` and move on.** Freeing an input widens the
 state space, and a property that was only ever true for the pinned value will
@@ -2427,3 +2441,48 @@ finding rather than a reason to pin the input again.
 any property that broke on being given real stimulus has been judged (fixed
 RTL, or a corrected property with a mutation behind it -- see
 [[escape-analysis]]).
+
+---
+
+### TASK-093: the four axi4 *_mon covers have never been reachable
+
+**Priority:** P2. The proofs pass; the covers cannot be hit by any input
+sequence, which means nothing has ever demonstrated that these monitors emit
+a packet at all.
+
+**Status:** open 2026-09-11, surfaced by giving formal/amba a driver.
+
+`axi4_master_rd_mon`, `axi4_master_wr_mon`, `axi4_slave_rd_mon` and
+`axi4_slave_wr_mon` each prove clean and each FAIL their cover task on
+`cp_monbus_valid` and `cp_monbus_handshake`.
+
+**Not a regression.** Running the cover against the flat file as it stood
+before the 2026-09-11 regeneration fails identically. The covers have always
+been unreachable; nothing ran them, because there was no `formal-amba` target
+and the one-off sweeps invoked bare `make`, which runs only the first target
+(prove).
+
+**What has been ruled out:**
+
+- **Depth.** Unreachable at 20, 40 and 80, each decided in about a second --
+  the solver is proving it cannot happen, not running out of steps.
+- **A constant output.** `monbus_valid` survives `opt -full` connected to the
+  monitor instance, so it is not tied off.
+- **Missing packet classes.** The harness connected 16 of the DUT's 35 `cfg_`
+  inputs; `cfg_compl_enable`, `cfg_debug_enable` and `cfg_threshold_enable`
+  were not connected at all, so with `cfg_perf_enable` and
+  `cfg_timeout_enable` assumed low no class could be enabled. Those three are
+  now wired (the proofs still pass), and the covers are still unreachable.
+- **A thrashing config.** Holding monitor-enable, error-enable, compl-enable
+  and the masks steady and all-ones changes nothing.
+
+**Where to look next:** the enable chain inside `axi_monitor_base` /
+`axi_monitor_reporter` between a tracked transaction and a FIFO write, with
+`ENABLE_FILTERING=1` as the harness sets it. A directed cocotb test emits
+packets from these modules, so the RTL can do it -- the question is what the
+formal harness forbids.
+
+**Done when:** `cp_monbus_valid` is reached, or it is shown that the harness
+genuinely cannot reach it and the harness is fixed rather than the cover
+deleted. A cover that no RTL can satisfy is worse than no cover: it fails
+forever and teaches nothing ([[escape-analysis]]).

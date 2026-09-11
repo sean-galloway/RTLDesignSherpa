@@ -21,6 +21,8 @@ module formal_wb4_slave #(
     input logic [AW-1:0] s_wb_ADR,
     input logic [DW-1:0] s_wb_DAT_W,
     input logic [DW/8-1:0] s_wb_SEL,
+    input logic [2:0]      s_wb_CTI,
+    input logic [1:0]      s_wb_BTE,
     // free FUB
     input logic          cmd_ready,
     input logic          rsp_valid,
@@ -37,6 +39,7 @@ module formal_wb4_slave #(
         .clk(clk), .aresetn(rst_n),
         .s_wb_CYC(s_wb_CYC), .s_wb_STB(s_wb_STB), .s_wb_WE(s_wb_WE),
         .s_wb_ADR(s_wb_ADR), .s_wb_DAT_W(s_wb_DAT_W), .s_wb_SEL(s_wb_SEL),
+        .s_wb_CTI(s_wb_CTI), .s_wb_BTE(s_wb_BTE),
         .s_wb_STALL(s_wb_STALL), .s_wb_ACK(s_wb_ACK), .s_wb_ERR(s_wb_ERR),
         .s_wb_RTY(s_wb_RTY), .s_wb_DAT_R(s_wb_DAT_R),
         .cmd_valid(cmd_valid), .cmd_ready(cmd_ready), .cmd_we(cmd_we),

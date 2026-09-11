@@ -129,3 +129,23 @@ module formal_apb4_slave_cdc_cg (
     end
 
 endmodule
+
+// Formal model of the integrated clock-gate cell: the gated clock IS the free
+// clock. A derived clock is not provable in this repo's single-clock flow --
+// yosys refuses it outright ("derived clocks are only supported with
+// clk2fflogic") -- so this harness proves the wrapper's GLUE contract (when it
+// gates, what the masks hold) and the cocotb test proves the behaviour of an
+// actually stopped clock. rtl/common/icg.sv is left OUT of the flattened DUT
+// on purpose; see the Makefile DEPS. Same model as wb4_slave_cg,
+// wb4_master_cg and wb4_slave_cdc_cg.
+module icg (
+    input  logic en,
+    input  logic clk,
+    output logic gclk
+);
+    assign gclk = clk;
+    /* verilator lint_off UNUSEDSIGNAL */
+    logic unused_en;
+    assign unused_en = en;
+    /* verilator lint_on UNUSEDSIGNAL */
+endmodule

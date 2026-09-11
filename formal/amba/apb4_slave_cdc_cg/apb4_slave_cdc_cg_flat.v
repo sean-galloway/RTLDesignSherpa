@@ -1,22 +1,3 @@
-module icg (
-	en,
-	clk,
-	gclk
-);
-	reg _sv2v_0;
-	input wire en;
-	input wire clk;
-	output wire gclk;
-	reg en_out;
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		if (!clk)
-			en_out = en;
-	end
-	assign gclk = en_out && clk;
-	initial _sv2v_0 = 0;
-endmodule
 module clock_gate_ctrl (
 	clk_in,
 	aresetn,

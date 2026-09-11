@@ -25,6 +25,11 @@ module formal_wb4_slave_cdc (
     (* anyseq *) reg [AW-1:0]   s_wb_ADR;
     (* anyseq *) reg [DW-1:0]   s_wb_DAT_W, rsp_dat;
     (* anyseq *) reg [SW-1:0]   s_wb_SEL;
+    // The burst hints are part of the request. Leaving them unconnected
+    // pins them at CLASSIC/LINEAR, so every property here would have
+    // been proved for one hint value only.
+    (* anyseq *) reg [2:0]      s_wb_CTI;
+    (* anyseq *) reg [1:0]      s_wb_BTE;
     (* anyseq *) reg [1:0]      rsp_status;
 
     wire s_wb_STALL, s_wb_ACK, s_wb_ERR, s_wb_RTY, cmd_valid, cmd_we, rsp_ready;
@@ -36,7 +41,8 @@ module formal_wb4_slave_cdc (
                     .MAX_OUTSTANDING (2), .CDC_DEPTH (4)) dut (
         .wb_clk (clk), .wb_resetn (rst_n), .aclk (clk), .aresetn (rst_n),
         .s_wb_CYC (s_wb_CYC), .s_wb_STB (s_wb_STB), .s_wb_WE (s_wb_WE), .s_wb_ADR (s_wb_ADR),
-        .s_wb_DAT_W (s_wb_DAT_W), .s_wb_SEL (s_wb_SEL), .s_wb_STALL (s_wb_STALL),
+        .s_wb_DAT_W (s_wb_DAT_W), .s_wb_SEL (s_wb_SEL),
+        .s_wb_CTI (s_wb_CTI), .s_wb_BTE (s_wb_BTE), .s_wb_STALL (s_wb_STALL),
         .s_wb_ACK (s_wb_ACK), .s_wb_ERR (s_wb_ERR), .s_wb_RTY (s_wb_RTY), .s_wb_DAT_R (s_wb_DAT_R),
         .cmd_valid (cmd_valid), .cmd_ready (cmd_ready), .cmd_we (cmd_we), .cmd_adr (cmd_adr),
         .cmd_dat (cmd_dat), .cmd_sel (cmd_sel),

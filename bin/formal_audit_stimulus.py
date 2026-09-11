@@ -57,6 +57,14 @@ for area in ("amba","cdc","common","integ_common"):
         feeds = {m.group(2): m.group(1) for m in
                  re.finditer(r'\.(\w+)\s*\(\s*([A-Za-z_]\w*)\s*\)', s_nc)
                  if dirs.get(m.group(1)) == "input"}
+        # Inputs the instantiation never connects AT ALL. Same effect as an
+        # undriven net and easier to miss, because nothing in the harness
+        # mentions the signal. The four axi4 *_mon harnesses connected 16 of
+        # 35 cfg_ inputs; the three left out were the packet-class enables, so
+        # no class could be turned on and cp_monbus_valid was unreachable.
+        connected = {m.group(1) for m in re.finditer(r'\.(\w+)\s*\(', s_nc)}
+        unconnected = sorted(p for p, d in dirs.items()
+                             if d == "input" and p not in connected)
         bad = []
         for sig, port in feeds.items():
             decl = re.search(rf'^\s*(\(\*[^)]*\*\)\s*)?(?:logic|reg|wire)\s+(?:\[[^\]]*\]\s*)?{sig}\s*;',
@@ -71,9 +79,16 @@ for area in ("amba","cdc","common","integ_common"):
             if re.search(rf'assign\s+{sig}\b', s_nc):
                 continue
             bad.append(sig)
-        if bad:
-            hits.append((f"{area}/{h.parent.name}", len(bad), sorted(bad)[:6]))
+        if bad or unconnected:
+            hits.append((f"{area}/{h.parent.name}", len(bad), sorted(bad)[:5],
+                         len(unconnected), unconnected[:5]))
 
-print(f"harnesses with UNDRIVEN DUT inputs: {len(hits)}")
-for name, n, sample in sorted(hits, key=lambda x: -x[1]):
-    print(f"  {name:44s} {n:3d}  e.g. {', '.join(sample)}")
+print(f"harnesses with pinned DUT inputs: {len(hits)}")
+print(f"{'harness':44s} {'undriven':>8s} {'unconn':>7s}  examples")
+for name, n, sample, nu, usample in sorted(hits, key=lambda x: -(x[1] + x[3])):
+    ex = ", ".join(sample or usample)
+    print(f"  {name:44s} {n:6d} {nu:7d}  {ex}")
+print()
+print("undriven = declared in the harness, wired to a DUT input, never assigned")
+print("unconn   = a DUT input the instantiation does not connect at all")
+print("Both are folded to a constant by opt -full before setundef can free them.")

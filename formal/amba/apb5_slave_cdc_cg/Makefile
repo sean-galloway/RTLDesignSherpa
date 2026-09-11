@@ -13,8 +13,9 @@ SV2V      := /mnt/data/tools/sv2v
 
 INC := -I$(REPO_ROOT)/rtl/amba/includes
 
-DEPS := $(REPO_ROOT)/rtl/common/icg.sv \
-        $(REPO_ROOT)/rtl/common/clock_gate_ctrl.sv \
+# icg.sv deliberately ABSENT: the harness supplies a clock-enable model
+# of the cell, because a derived clock is not provable in this flow.
+DEPS := $(REPO_ROOT)/rtl/common/clock_gate_ctrl.sv \
         $(REPO_ROOT)/rtl/amba/shared/amba_clock_gate_ctrl.sv \
         $(REPO_ROOT)/rtl/cdc/glitch_free_n_dff_arn.sv \
         $(REPO_ROOT)/rtl/cdc/cdc_synchronizer.sv \

@@ -26,6 +26,11 @@ module formal_wb4_master_cg (
     (* anyseq *) reg [AW-1:0]   cmd_adr;
     (* anyseq *) reg [DW-1:0]   cmd_dat, m_wb_DAT_R;
     (* anyseq *) reg [SW-1:0]   cmd_sel;
+    // The burst hints are part of the request. Leaving them unconnected
+    // pins them at CLASSIC/LINEAR, so every property here would have
+    // been proved for one hint value only.
+    (* anyseq *) reg [2:0]      cmd_cti;
+    (* anyseq *) reg [1:0]      cmd_bte;
     (* anyseq *) reg            m_wb_STALL, m_wb_ACK, m_wb_ERR, m_wb_RTY;
 
     wire cmd_ready, rsp_valid, m_wb_CYC, m_wb_STB, m_wb_WE, cg_gating, cg_idle;
@@ -43,6 +48,7 @@ module formal_wb4_master_cg (
         .m_wb_ACK (m_wb_ACK), .m_wb_ERR (m_wb_ERR), .m_wb_RTY (m_wb_RTY), .m_wb_DAT_R (m_wb_DAT_R),
         .cmd_valid (cmd_valid), .cmd_ready (cmd_ready), .cmd_we (cmd_we), .cmd_adr (cmd_adr),
         .cmd_dat (cmd_dat), .cmd_sel (cmd_sel),
+        .cmd_cti (cmd_cti), .cmd_bte (cmd_bte),
         .rsp_valid (rsp_valid), .rsp_ready (rsp_ready), .rsp_status (rsp_status), .rsp_dat (rsp_dat),
         .cg_gating (cg_gating), .cg_idle (cg_idle)
     );
@@ -71,7 +77,8 @@ module formal_wb4_master_cg (
     always @(posedge clk) if (f_past_valid > 0 && rst_n && $past(rst_n))
         if ($past(cmd_valid && !cmd_ready)) begin
             assume (cmd_valid);
-            assume ($stable(cmd_we) && $stable(cmd_adr) && $stable(cmd_dat) && $stable(cmd_sel));
+            assume ($stable(cmd_we) && $stable(cmd_adr) && $stable(cmd_dat) && $stable(cmd_sel)
+                    && $stable(cmd_cti) && $stable(cmd_bte));
         end
 
     always @(posedge clk) if (f_past_valid > 0 && $past(!rst_n)) begin

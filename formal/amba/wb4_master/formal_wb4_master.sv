@@ -23,6 +23,8 @@ module formal_wb4_master #(
     input logic [AW-1:0] cmd_adr,
     input logic [DW-1:0] cmd_dat,
     input logic [DW/8-1:0] cmd_sel,
+    input logic [2:0]      cmd_cti,
+    input logic [1:0]      cmd_bte,
     input logic          rsp_ready,
     // free slave
     input logic          m_wb_STALL,
@@ -46,6 +48,7 @@ module formal_wb4_master #(
         .m_wb_RTY(m_wb_RTY), .m_wb_DAT_R(m_wb_DAT_R),
         .cmd_valid(cmd_valid), .cmd_ready(cmd_ready), .cmd_we(cmd_we),
         .cmd_adr(cmd_adr), .cmd_dat(cmd_dat), .cmd_sel(cmd_sel),
+        .cmd_cti(cmd_cti), .cmd_bte(cmd_bte),
         .rsp_valid(rsp_valid), .rsp_ready(rsp_ready),
         .rsp_status(rsp_status), .rsp_dat(rsp_dat)
     );
@@ -88,7 +91,8 @@ module formal_wb4_master #(
     always @(posedge clk) if (f_past_valid > 0 && rst_n && $past(rst_n)) begin
         if ($past(cmd_valid && !cmd_ready)) begin
             assume (cmd_valid);
-            assume ($stable(cmd_we) && $stable(cmd_adr) && $stable(cmd_dat) && $stable(cmd_sel));
+            assume ($stable(cmd_we) && $stable(cmd_adr) && $stable(cmd_dat) && $stable(cmd_sel)
+                    && $stable(cmd_cti) && $stable(cmd_bte));
         end
     end
 
