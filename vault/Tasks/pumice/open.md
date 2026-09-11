@@ -765,8 +765,46 @@ than the sheet demanded, and the sheet said REMOVE); the write B-gate ideal is
 implemented; the read return still has the positional/no-length-check hazard
 even though the ring addressed the occupancy half.
 
-**Still open.** Axis equations and implicants (criteria 3 and 6) on the grid
-pages, and relations on the other 15 maps. (`READ_PATH_ADMIT` is the shape the
+**2026-09-10 AUDIT -- three gaps, one of them serious.** Asked directly whether
+the maps carry everything, are RTL-synced, and whether the waves are rendered
+into the MAS:
+
+1. **Coverage is 2 of 17.** Don't-cares and cited relations are populated on the
+   arbiter PRE map and the bank-timer state decode only. Fifteen maps print
+   "RELATIONS: none stated". Axis equations and implicants (criteria 3 and 6)
+   are absent everywhere.
+
+2. **SERIOUS: at least one computed mirror is STALE, which is worse than having
+   no map.** Criterion 1 says cells are computed, never drawn -- but a cell
+   computed from the WRONG equation carries the authority of a computed map
+   with none of the truth. Proven case, `rd_col_m[e]`:
+
+   | | terms |
+   |---|---|
+   | workbook mirror | 7: rhit, bank_rdwr_ready, tccd_ok, twtr_ok, rd_issue_ready, !w_inflight_col, !w_rd_turn_block |
+   | RTL (pumice_cmd_arbiter.sv:574-580) | 13: adds !r_ap_closing, !w_rd_col_inflight_ent, !w_ref_col_block, !w_ap_col_guard, !w_pre_col_guard, !w_preact_bank_guard; and the occupancy term is AP-GATED `!(f_ap(rb) && w_col_inflight_bank[rb])`, not the blanket `!w_inflight_col` the mirror shows |
+
+   Six terms missing and one misrepresented. A crude cross-check flagged three
+   more (`w_ref_safe` omits r_grant, `w_guarded[b]` omits w_col_inflight_guard
+   and w_prepick_guard) but the script is not reliable enough to quote a count.
+   **The mirrors need a mechanical re-derivation against the RTL, and a check
+   that fails when they drift -- otherwise this recurs silently.**
+
+3. **The WaveJSON is neither rendered nor used.** 12 files in `design/waves/`,
+   ZERO png/svg renders anywhere, ZERO references from `docs/` or the MAS.
+   There is no render step in any generator. Eleven of the twelve are the same
+   2026-09-07 vintage as the spec tables, so they carry the same staleness risk
+   by the same mechanism (only `12_rd_return_ring` is later, 2026-09-08), and
+   `09_failure_stale_image_wedge` / `11_write_same_bank_wedge_ref` are failure
+   references for failures now CLOSED.
+
+**Do, in priority order:** (a) re-derive the computed mirrors from the RTL and
+add a drift check; (b) relations + don't-cares on the remaining 15 maps;
+(c) audit the waves against the RTL, then render to PNG and pull them into the
+MAS -- which was the intent and never happened.
+
+**Nothing reports as broken any more.** The five stale "broken today" notes are
+dated and corrected and the INDEX carries the measured status banner. (`READ_PATH_ADMIT` is the shape the
 rest should take -- term list with citations and a stated invariant list.)
 
 Map these, because each is combinational, safety-relevant, and has already
