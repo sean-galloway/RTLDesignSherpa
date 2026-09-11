@@ -41,6 +41,7 @@ DFI_SW = DFI_DW // 8
 BL = 8
 BL_WORDS = BL // DFI_RATE              # 4
 WRLAT, RDEN = 2, 2
+FULL_EN = (1 << DFI_RATE) - 1           # every DFI phase active at gear == MAX
 
 OP_WR, OP_RD = 4, 2
 
@@ -89,6 +90,15 @@ async def cocotb_test_pumice_dfi_layer(dut):
     dut.wr_phase_i.value = 0
     dut.t_phy_wrlat_i.value = WRLAT
     dut.t_rddata_en_i.value = RDEN
+    # Board-default framing: exactly what pumice_core feeds this layer at
+    # gear == MAX (gear = log2(DFI_RATE), one JEDEC burst per DFI word,
+    # column stride = BL, phase stride = PHW'(BL)). Left undriven these read
+    # 0 under Verilator, so the layer ran at gear 0 -- one phase of two -- and
+    # the any-bit enable checks below could not tell the difference.
+    dut.gear_i.value = DFI_RATE.bit_length() - 1
+    dut.n_subcmd_i.value = 1
+    dut.sub_col_stride_i.value = BL
+    dut.sub_phase_stride_i.value = BL & (DFI_RATE - 1)
     dut.dfi_rddata_i.value = 0
     dut.dfi_rddata_valid_i.value = 0
     for _ in range(8):
@@ -102,6 +112,7 @@ async def cocotb_test_pumice_dfi_layer(dut):
     burst = [rng.randrange(1 << DFI_DW) for _ in range(BL_WORDS)]
     captured = []          # words captured off dfi_wrdata
     rd_out = []            # words received back on the ctl rddata stream
+    bad_en = []            # (cycle kind, value) of any partially-masked enable
 
     # ---- DFI-domain memory model (dfi_clk) ----
     async def dfi_model():
@@ -113,10 +124,15 @@ async def cocotb_test_pumice_dfi_layer(dut):
         while True:
             await RisingEdge(dut.dfi_clk)
             # capture writes
-            if int(dut.dfi_wrdata_en_o.value) != 0:
+            wr_en = int(dut.dfi_wrdata_en_o.value)
+            rd_en = int(dut.dfi_rddata_en_o.value)
+            for kind, en in (("wrdata_en", wr_en), ("rddata_en", rd_en)):
+                if en not in (0, FULL_EN):
+                    bad_en.append((kind, en))
+            if wr_en != 0:
                 captured.append(int(dut.dfi_wrdata_o.value))
             # on read window, schedule the stored burst back after a few cycles
-            if int(dut.dfi_rddata_en_o.value) != 0 and not returning and not rd_pending:
+            if rd_en != 0 and not returning and not rd_pending:
                 rd_pending.append(list(captured))    # return what we captured
             # start returning after a small read latency
             if rd_pending and not returning:
@@ -169,6 +185,8 @@ async def cocotb_test_pumice_dfi_layer(dut):
             break
         await RisingEdge(dut.ctl_clk)
 
+    assert not bad_en, \
+        f"DFI enables not all-phase at gear == MAX (want {FULL_EN:#x}): {bad_en[:4]}"
     assert captured == burst, \
         f"write burst on DFI {[hex(x) for x in captured]} != {[hex(x) for x in burst]}"
     assert rd_out[:BL_WORDS] == burst, \
