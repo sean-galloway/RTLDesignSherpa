@@ -383,3 +383,9 @@ val/*/coverage_data/
 # fails the pre-commit blind-spot gate (it caught this on 2026-09-06).
 .flat_filelist.f
 **/.flat_filelist.f
+# Sibling scratch file of the same lint step (make/fpga_flow.mk DECL_FILES).
+# It was missing here, so a 0-byte copy got swept into a path-scoped commit by
+# a lint run that happened to recreate it mid-commit -- in the very directory
+# that commit was deleting (51de248df, 2026-09-10).
+.decl_order_files.txt
+**/.decl_order_files.txt
