@@ -72,7 +72,10 @@ module wb4_slave
     parameter int DW  = DATA_WIDTH,
     parameter int SW  = SEL_WIDTH,
     parameter int STW = WB4_STATUS_WIDTH,
-    parameter int CPW = 1 + AW + DW + SW,   // command packet: {we, adr, dat, sel}
+    parameter int CTW = WB4_CTI_WIDTH,
+    parameter int BTW = WB4_BTE_WIDTH,
+    // command packet: {we, adr, dat, sel} plus the hints when carried
+    parameter int CPW = 1 + AW + DW + SW + ((USE_BURST_HINTS != 0) ? CTW + BTW : 0),
     parameter int RPW = STW + DW            // response packet: {status, dat}
 ) (
     input  logic              clk,
@@ -85,6 +88,8 @@ module wb4_slave
     input  logic [AW-1:0]     s_wb_ADR,
     input  logic [DW-1:0]     s_wb_DAT_W,
     input  logic [SW-1:0]     s_wb_SEL,
+    input  logic [CTW-1:0]    s_wb_CTI,      // burst hint; ignored when USE_BURST_HINTS=0
+    input  logic [BTW-1:0]    s_wb_BTE,
     output logic              s_wb_STALL,
     output logic              s_wb_ACK,
     output logic              s_wb_ERR,
@@ -98,6 +103,8 @@ module wb4_slave
     output logic [AW-1:0]     cmd_adr,
     output logic [DW-1:0]     cmd_dat,
     output logic [SW-1:0]     cmd_sel,
+    output logic [CTW-1:0]    cmd_cti,       // CLASSIC when USE_BURST_HINTS=0
+    output logic [BTW-1:0]    cmd_bte,       // LINEAR  when USE_BURST_HINTS=0
 
     // Response queue (FUB -> bus)
     input  logic              rsp_valid,
@@ -124,6 +131,8 @@ module wb4_slave
 | s_wb_ADR | ADDR_WIDTH | Input | Address |
 | s_wb_DAT_W | DATA_WIDTH | Input | Write data (`DAT_I` at the slave) |
 | s_wb_SEL | SEL_WIDTH | Input | Byte select |
+| s_wb_CTI | 3 | Input | Burst hint, cycle type; ignored unless `USE_BURST_HINTS=1` |
+| s_wb_BTE | 2 | Input | Burst hint, burst type; ignored unless `USE_BURST_HINTS=1` |
 | s_wb_STALL | 1 | Output | Cannot accept this clock; combinational from queue room and the outstanding count, never from `STB` |
 | s_wb_ACK | 1 | Output | Normal termination (registered, one clock) |
 | s_wb_ERR | 1 | Output | Error termination (registered, one clock) |
@@ -140,6 +149,8 @@ module wb4_slave
 | cmd_adr | ADDR_WIDTH | Output | Address |
 | cmd_dat | DATA_WIDTH | Output | Write data |
 | cmd_sel | SEL_WIDTH | Output | Byte select |
+| cmd_cti | 3 | Output | Burst hint off the bus; CLASSIC unless `USE_BURST_HINTS=1` |
+| cmd_bte | 2 | Output | Burst type off the bus; LINEAR unless `USE_BURST_HINTS=1` |
 
 ### Response Interface
 
@@ -155,7 +166,7 @@ module wb4_slave
 ```
 STALL  = !cmd queue room || r_outstanding == MAX_OUTSTANDING
 accept = CYC && STB && !STALL     -> push {we, adr, dat, sel}, r_outstanding++
-term   = rsp head valid && r_outstanding != 0 && CYC
+term   = rsp head valid && r_outstanding != 0 && CYC && r_abandoned == 0
          -> register ACK|ERR|RTY from status, DAT_R, pop, r_outstanding--
 orphan = rsp head valid && (r_outstanding == 0 || r_abandoned != 0) -> pop and drop
 abort  = !CYC && r_outstanding != 0 -> r_abandoned += r_outstanding, r_outstanding <= 0

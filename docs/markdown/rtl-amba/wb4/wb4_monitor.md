@@ -150,7 +150,7 @@ the orphan-response packet.
 | Signal | Effect |
 |---|---|
 | `cfg_error_enable` | Master enable for error packets |
-| `cfg_slverr_enable` | Report an `ERR` termination as `WB_ERR_ERR` (counted in `error_count` either way) |
+| `cfg_slverr_enable` | Report an `ERR` termination as `WB_ERR_ERR`. This gates the `error_count` increment too: with it clear, an `ERR` termination is neither reported nor counted |
 | `cfg_protocol_enable` | Report a response with nothing outstanding as `WB_ERR_ORPHAN_RSP` |
 | `cfg_timeout_enable` | Enable both timeouts; a count of 0 disables that timeout |
 | `cfg_cmd_timeout_cnt` | Clocks a request may sit on `cmd_valid` without `cmd_ready` before `WB_TIMEOUT_CMD` |
@@ -230,7 +230,10 @@ One event is written to the FIFO per clock, in the order error, timeout,
 perf, debug, completion; a lower-priority event that lands in the same
 clock as a higher one is dropped, and so is any event that arrives while
 the FIFO is full. The tracking queue does not wait for the packet, so
-`active_count`, `transaction_count` and `error_count` stay exact. This is
+`active_count` and `transaction_count` stay exact. `error_count` is a single
+increment per clock, so two error events landing together -- an `ERR`
+termination and a tracking overflow in the same clock, which pipelined traffic
+can reach -- advance it by one rather than two. This is
 the family's lossy-but-honest contract; size `MONITOR_FIFO_DEPTH` and the
 monitor bus consumer for the burstiest traffic the design can produce.
 

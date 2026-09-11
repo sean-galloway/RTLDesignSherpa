@@ -29,6 +29,8 @@ module formal_wb4_retry #(
     localparam int AW = 8;
     localparam int DW = 16;
     localparam int SW = DW / 8;
+    localparam int CTW = 3;    // WB4_CTI_WIDTH
+    localparam int BTW = 2;    // WB4_BTE_WIDTH
 
     (* anyseq *) reg [7:0]     cfg_max_retries;
     (* anyseq *) reg [15:0]    cfg_retry_delay;
@@ -37,6 +39,8 @@ module formal_wb4_retry #(
     (* anyseq *) reg [AW-1:0]  cmd_adr;
     (* anyseq *) reg [DW-1:0]  cmd_dat;
     (* anyseq *) reg [SW-1:0]  cmd_sel;
+    (* anyseq *) reg [CTW-1:0] cmd_cti;
+    (* anyseq *) reg [BTW-1:0] cmd_bte;
     (* anyseq *) reg           rsp_ready;
     (* anyseq *) reg           mst_cmd_ready;
     (* anyseq *) reg           mst_rsp_valid;
@@ -48,6 +52,8 @@ module formal_wb4_retry #(
     wire [DW-1:0]  rsp_dat, mst_cmd_dat;
     wire [AW-1:0]  mst_cmd_adr;
     wire [SW-1:0]  mst_cmd_sel;
+    wire [CTW-1:0] mst_cmd_cti;
+    wire [BTW-1:0] mst_cmd_bte;
     wire [31:0]    retry_count;
     wire [7:0]     active_count;
 
@@ -56,9 +62,11 @@ module formal_wb4_retry #(
         .cfg_max_retries (cfg_max_retries), .cfg_retry_delay (cfg_retry_delay),
         .cmd_valid (cmd_valid), .cmd_ready (cmd_ready), .cmd_we (cmd_we), .cmd_adr (cmd_adr),
         .cmd_dat (cmd_dat), .cmd_sel (cmd_sel),
+        .cmd_cti (cmd_cti), .cmd_bte (cmd_bte),
         .rsp_valid (rsp_valid), .rsp_ready (rsp_ready), .rsp_status (rsp_status), .rsp_dat (rsp_dat),
         .mst_cmd_valid (mst_cmd_valid), .mst_cmd_ready (mst_cmd_ready), .mst_cmd_we (mst_cmd_we),
         .mst_cmd_adr (mst_cmd_adr), .mst_cmd_dat (mst_cmd_dat), .mst_cmd_sel (mst_cmd_sel),
+        .mst_cmd_cti (mst_cmd_cti), .mst_cmd_bte (mst_cmd_bte),
         .mst_rsp_valid (mst_rsp_valid), .mst_rsp_ready (mst_rsp_ready),
         .mst_rsp_status (mst_rsp_status), .mst_rsp_dat (mst_rsp_dat),
         .retry_count (retry_count), .active_count (active_count)
@@ -116,6 +124,13 @@ module formal_wb4_retry #(
         reg [AW-1:0]  f_pend_adr;
         reg [DW-1:0]  f_pend_dat;
         reg [SW-1:0]  f_pend_sel;
+        // The burst hints are part of the payload a re-issue must reproduce.
+        // They were NOT here until 2026-09-11, and their absence is why the
+        // wrapper could route them around the buffer unnoticed: every other
+        // field was proven identical on re-issue while CTI/BTE came off the
+        // live FUB pins, so a retried transfer carried a neighbour's hint.
+        reg [CTW-1:0] f_pend_cti;
+        reg [BTW-1:0] f_pend_bte;
         reg [7:0]     f_issues;      // master issues for the open command
         reg [7:0]     f_rtys;        // RTYs received for it
         reg [7:0]     f_since_rty;   // clocks since the last RTY (saturating)
@@ -127,6 +142,7 @@ module formal_wb4_retry #(
             end else begin
                 if (f_cmd_hs) begin
                     f_pend_we <= cmd_we; f_pend_adr <= cmd_adr; f_pend_dat <= cmd_dat; f_pend_sel <= cmd_sel;
+                    f_pend_cti <= cmd_cti; f_pend_bte <= cmd_bte;
                     f_issues <= 1; f_rtys <= 0; f_last_was_rty <= 0;
                 end else if (f_mc_hs)
                     f_issues <= f_issues + 1;
@@ -140,7 +156,8 @@ module formal_wb4_retry #(
         always @(posedge clk) if (rst_n && f_open != 0) begin
             // P3
             ap_retry_same: assert (!(f_mc_hs) || (mst_cmd_we == f_pend_we && mst_cmd_adr == f_pend_adr &&
-                                                 mst_cmd_dat == f_pend_dat && mst_cmd_sel == f_pend_sel));
+                                                 mst_cmd_dat == f_pend_dat && mst_cmd_sel == f_pend_sel &&
+                                                 mst_cmd_cti == f_pend_cti && mst_cmd_bte == f_pend_bte));
             // P4: a re-issue only after an RTY within budget
             ap_reissue_budget: assert (!(f_mc_hs && f_issues != 0) || (f_rtys <= cfg_max_retries && f_rtys == f_issues));
             ap_issues_bound:   assert (f_issues <= 8'(cfg_max_retries) + 1);

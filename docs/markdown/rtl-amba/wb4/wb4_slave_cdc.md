@@ -50,6 +50,7 @@ In addition to all `wb4_slave` parameters:
 |---|---|---|
 | `wb_clk`, `wb_resetn` | Wishbone | the `s_wb_*` bus |
 | `aclk`, `aresetn` | FUB | the `cmd_*` / `rsp_*` queues |
+| `wb_busy` (output) | Wishbone | high while this block has anything in flight on the Wishbone side. Built from `wb_clk` signals ONLY, so a clock gate in that domain can use it directly; `wb4_slave_cdc_cg` is its one consumer |
 
 ## Functional Description
 

@@ -21,6 +21,10 @@
 //   completion-buffer depth (1 = strict program order, see wb4_retry.sv);
 //   RSP_DEPTH stays the master's bus-side bound.
 //
+//   With USE_BURST_HINTS = 1 the FUB's cmd_cti/cmd_bte go THROUGH the retry
+//   block's buffer, not around it, so a re-issued transfer carries its own
+//   hint rather than whatever the FUB is driving when the retry happens.
+//
 //------------------------------------------------------------------------------
 // Test:
 //------------------------------------------------------------------------------
@@ -91,6 +95,8 @@ module wb4_master_retry
     logic [AW-1:0]  w_cmd_adr;
     logic [DW-1:0]  w_cmd_dat, w_rsp_dat;
     logic [SW-1:0]  w_cmd_sel;
+    logic [CTW-1:0] w_cmd_cti;
+    logic [BTW-1:0] w_cmd_bte;
     logic           w_rsp_valid, w_rsp_ready;
     logic [STW-1:0] w_rsp_status;
 
@@ -113,12 +119,16 @@ module wb4_master_retry
         .rsp_ready       (rsp_ready),
         .rsp_status      (rsp_status),
         .rsp_dat         (rsp_dat),
+        .cmd_cti         (cmd_cti),
+        .cmd_bte         (cmd_bte),
         .mst_cmd_valid   (w_cmd_valid),
         .mst_cmd_ready   (w_cmd_ready),
         .mst_cmd_we      (w_cmd_we),
         .mst_cmd_adr     (w_cmd_adr),
         .mst_cmd_dat     (w_cmd_dat),
         .mst_cmd_sel     (w_cmd_sel),
+        .mst_cmd_cti     (w_cmd_cti),
+        .mst_cmd_bte     (w_cmd_bte),
         .mst_rsp_valid   (w_rsp_valid),
         .mst_rsp_ready   (w_rsp_ready),
         .mst_rsp_status  (w_rsp_status),
@@ -156,8 +166,8 @@ module wb4_master_retry
         .cmd_adr    (w_cmd_adr),
         .cmd_dat    (w_cmd_dat),
         .cmd_sel    (w_cmd_sel),
-        .cmd_cti    (cmd_cti),
-        .cmd_bte    (cmd_bte),
+        .cmd_cti    (w_cmd_cti),
+        .cmd_bte    (w_cmd_bte),
         .rsp_valid  (w_rsp_valid),
         .rsp_ready  (w_rsp_ready),
         .rsp_status (w_rsp_status),

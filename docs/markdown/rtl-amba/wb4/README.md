@@ -26,9 +26,12 @@
 **Location:** `rtl/amba/wb4/`
 **Test Location:** `val/amba/`
 **Status:** New (2026-09-09); master, slave, monitor, retry, clock-gated and
-CDC variants with sim and formal collateral. Family FULL sweep 2026-09-10 on
-one pinned seed base (`RDS_SEED_BASE=20260910`): 282 tests across the eight
-wb4 suites plus 8 for the AXI4-Lite bridge, all passing.
+CDC variants with sim and formal collateral. Family FULL sweep on one pinned
+seed base (`RDS_SEED_BASE=20260910`): 379 cells across the nine wb4 suites in
+`val/amba/`, plus the two AXI4-Lite bridge suites in
+`projects/components/converters/dv/tests/`, all passing. The cell count grew
+on 2026-09-11 when `USE_BURST_HINTS` became a dimension of the master and
+monitor suites.
 
 ---
 
@@ -112,7 +115,7 @@ reset macros inside the blocks are polarity-agnostic.
 
 ### Test
 
-Three tests in `val/amba/`, all through the RDS-DV framework's Wishbone B4
+Nine test files in `val/amba/`, all through the RDS-DV framework's Wishbone B4
 BFMs (`CocoTBFramework.components.wb4`: `WB4Master`, `WB4Slave`,
 `WB4Monitor`) and the GAXI BFMs on the FUB-side queues:
 
@@ -128,7 +131,16 @@ BFMs (`CocoTBFramework.components.wb4`: `WB4Master`, `WB4Slave`,
 - `test_wb4_master_slave_loop.py` - both back to back
   (`rtl/amba/testcode/wb4_master_slave_loop.sv`); the framework monitor and
   the wrapper's own protocol checks must agree.
+- `test_wb4_master_cg.py`, `test_wb4_slave_cg.py` - the clock-gated wrappers:
+  the gate must not swallow a transfer, and the wake must be bounded.
+- `test_wb4_slave_cdc.py` - the clock-domain-crossing slave, and the gated
+  variant built on it.
+- `test_wb4_master_retry.py` - the RTY retry wrapper: re-issue budget, delay,
+  and that a retried transfer carries its own payload and burst hint.
+- `test_wb4_monitor.py` - the monitor, decoded through the shared monbus path.
+- `test_wb4_stubs.py` - the packed-vector stubs.
 
-Each asserts the peak in-flight count exceeds one, so the pipelined mode is
-proven exercised rather than assumed. Formal: `formal/amba/wb4_master/` and
-`formal/amba/wb4_slave/`.
+The three single-block tests above each assert the peak in-flight count
+exceeds one, so the pipelined mode is proven exercised rather than assumed.
+Formal covers nine blocks: seven under `formal/amba/wb4_*` and the two
+converter cores under `formal/converters/`.

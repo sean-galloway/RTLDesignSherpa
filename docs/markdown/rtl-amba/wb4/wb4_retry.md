@@ -61,7 +61,14 @@ module wb4_retry
 #(
     parameter int ADDR_WIDTH = 32,
     parameter int DATA_WIDTH = 32,
-    parameter int INFLIGHT   = 1
+    parameter int INFLIGHT   = 1,
+    // Short Parameters
+    parameter int AW  = ADDR_WIDTH,
+    parameter int DW  = DATA_WIDTH,
+    parameter int SW  = DW/8,
+    parameter int STW = WB4_STATUS_WIDTH,
+    parameter int CTW = WB4_CTI_WIDTH,
+    parameter int BTW = WB4_BTE_WIDTH
 )
 (
     input  logic              clk,
@@ -77,6 +84,8 @@ module wb4_retry
     input  logic [AW-1:0]     cmd_adr,
     input  logic [DW-1:0]     cmd_dat,
     input  logic [SW-1:0]     cmd_sel,
+    input  logic [CTW-1:0]    cmd_cti,           // burst hint, stored with its transfer
+    input  logic [BTW-1:0]    cmd_bte,
     output logic              rsp_valid,
     input  logic              rsp_ready,
     output logic [1:0]        rsp_status,        // WB4_RSP_ACK / ERR / RTY
@@ -89,6 +98,8 @@ module wb4_retry
     output logic [AW-1:0]     mst_cmd_adr,
     output logic [DW-1:0]     mst_cmd_dat,
     output logic [SW-1:0]     mst_cmd_sel,
+    output logic [CTW-1:0]    mst_cmd_cti,
+    output logic [BTW-1:0]    mst_cmd_bte,
     input  logic              mst_rsp_valid,
     output logic              mst_rsp_ready,
     input  logic [1:0]        mst_rsp_status,

@@ -29,6 +29,13 @@
 //   Re-issue has priority over new commands. cfg_max_retries = 0 makes
 //   the block a pass-through (every RTY reaches the FUB).
 //
+//   THE BURST HINTS ARE PART OF THE PAYLOAD. cmd_cti/cmd_bte are buffered
+//   with their command and replayed from the buffer, exactly like we/adr/
+//   dat/sel. They were routed around this block until 2026-09-11, so a
+//   re-issued transfer took whatever hint the FUB had live at that moment
+//   -- a different transfer's hint. formal/amba/wb4_retry's ap_retry_same
+//   now covers them, and a mutation that reads the live pin fails it.
+//
 //   ORDER ON THE BUS. A retried command re-appears on the bus after the
 //   commands issued behind it, which (with INFLIGHT > 1) may already have
 //   terminated. The FUB still sees responses in its own order, but a read
@@ -78,7 +85,9 @@ module wb4_retry
     parameter int AW  = ADDR_WIDTH,
     parameter int DW  = DATA_WIDTH,
     parameter int SW  = DW/8,
-    parameter int STW = WB4_STATUS_WIDTH
+    parameter int STW = WB4_STATUS_WIDTH,
+    parameter int CTW = WB4_CTI_WIDTH,
+    parameter int BTW = WB4_BTE_WIDTH
 )
 (
     input  logic              clk,
@@ -95,6 +104,8 @@ module wb4_retry
     input  logic [AW-1:0]     cmd_adr,
     input  logic [DW-1:0]     cmd_dat,
     input  logic [SW-1:0]     cmd_sel,
+    input  logic [CTW-1:0]    cmd_cti,       // burst hint, stored with its transfer
+    input  logic [BTW-1:0]    cmd_bte,
     output logic              rsp_valid,
     input  logic              rsp_ready,
     output logic [STW-1:0]    rsp_status,
@@ -107,6 +118,8 @@ module wb4_retry
     output logic [AW-1:0]     mst_cmd_adr,
     output logic [DW-1:0]     mst_cmd_dat,
     output logic [SW-1:0]     mst_cmd_sel,
+    output logic [CTW-1:0]    mst_cmd_cti,
+    output logic [BTW-1:0]    mst_cmd_bte,
     input  logic              mst_rsp_valid,
     output logic              mst_rsp_ready,
     input  logic [STW-1:0]    mst_rsp_status,
@@ -136,6 +149,13 @@ module wb4_retry
     logic [AW-1:0]  r_adr     [N];
     logic [DW-1:0]  r_dat     [N];
     logic [SW-1:0]  r_sel     [N];
+    // The hints are part of the command, so they are BUFFERED with it. Taking
+    // them from the live FUB pins instead pairs a re-issued transfer with
+    // whatever hint the FUB happens to be driving at that moment -- a
+    // different transfer's hint, which is exactly the mispairing the family
+    // promises cannot happen.
+    logic [CTW-1:0] r_cti     [N];
+    logic [BTW-1:0] r_bte     [N];
     logic [7:0]     r_retries [N];
     logic [15:0]    r_timer   [N];
     logic [STW-1:0] r_status  [N];
@@ -191,6 +211,8 @@ module wb4_retry
     assign mst_cmd_adr = w_retry_valid ? r_adr[w_retry_idx] : cmd_adr;
     assign mst_cmd_dat = w_retry_valid ? r_dat[w_retry_idx] : cmd_dat;
     assign mst_cmd_sel = w_retry_valid ? r_sel[w_retry_idx] : cmd_sel;
+    assign mst_cmd_cti = w_retry_valid ? r_cti[w_retry_idx] : cmd_cti;
+    assign mst_cmd_bte = w_retry_valid ? r_bte[w_retry_idx] : cmd_bte;
 
     // ------------------------------------------------------------------------
     // Response path: the master's termination belongs to the oldest issued
@@ -229,6 +251,8 @@ module wb4_retry
                 r_adr[i]     <= '0;
                 r_dat[i]     <= '0;
                 r_sel[i]     <= '0;
+                r_cti[i]     <= '0;
+                r_bte[i]     <= '0;
                 r_retries[i] <= '0;
                 r_timer[i]   <= '0;
                 r_status[i]  <= '0;
@@ -248,6 +272,8 @@ module wb4_retry
                 r_adr[r_tail]     <= cmd_adr;
                 r_dat[r_tail]     <= cmd_dat;
                 r_sel[r_tail]     <= cmd_sel;
+                r_cti[r_tail]     <= cmd_cti;
+                r_bte[r_tail]     <= cmd_bte;
                 r_retries[r_tail] <= '0;
                 r_tail            <= f_wrap(r_tail);
             end

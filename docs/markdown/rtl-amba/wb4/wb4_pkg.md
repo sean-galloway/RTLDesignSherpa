@@ -24,8 +24,9 @@
 # wb4_pkg
 
 The response-status encoding shared by every module in the Wishbone B4
-family and by the Python bus functional models. It is one enum and one width
-constant, kept in a package so the value of `ERR` has exactly one definition.
+family and by the Python bus functional models, together with the
+registered-feedback burst hints of B4 chapter 4. Three enums and three width
+constants, kept in a package so each encoding has exactly one definition.
 
 ## Design Notes
 
@@ -51,11 +52,34 @@ package wb4_pkg;
     localparam int WB4_STATUS_WIDTH = 2;
 
     typedef enum logic [WB4_STATUS_WIDTH-1:0] {
-        WB4_RSP_ACK = 2'd0,
-        WB4_RSP_ERR = 2'd1,
-        WB4_RSP_RTY = 2'd2
-    } wb4_rsp_status_t;
-endpackage
+        WB4_RSP_ACK = 2'b00,   // normal completion (read data valid)
+        WB4_RSP_ERR = 2'b01,   // slave error
+        WB4_RSP_RTY = 2'b10    // slave asks for a retry
+    } wb4_status_t;
+
+    // Registered-feedback burst hints (B4 chapter 4), advisory. CLASSIC and
+    // LINEAR are zero so a tied-off bus is a legal non-burst bus.
+    localparam int WB4_CTI_WIDTH = 3;
+    localparam int WB4_BTE_WIDTH = 2;
+
+    typedef enum logic [WB4_CTI_WIDTH-1:0] {
+        WB4_CTI_CLASSIC    = 3'b000,
+        WB4_CTI_CONST_ADDR = 3'b001,
+        WB4_CTI_INCR       = 3'b010,
+        WB4_CTI_RSVD_3     = 3'b011,
+        WB4_CTI_RSVD_4     = 3'b100,
+        WB4_CTI_RSVD_5     = 3'b101,
+        WB4_CTI_RSVD_6     = 3'b110,
+        WB4_CTI_EOB        = 3'b111
+    } wb4_cti_t;
+
+    typedef enum logic [WB4_BTE_WIDTH-1:0] {
+        WB4_BTE_LINEAR = 2'b00,
+        WB4_BTE_WRAP4  = 2'b01,
+        WB4_BTE_WRAP8  = 2'b10,
+        WB4_BTE_WRAP16 = 2'b11
+    } wb4_bte_t;
+endpackage : wb4_pkg
 ```
 
 | Name | Value | Meaning |

@@ -42,6 +42,7 @@ to retry.
 | RSP_DEPTH | int | 4 | Master response queue depth; bounds the transfers on the bus |
 | CLASSIC | int | 0 | 0 = B4 pipelined, 1 = B4 standard (classic) mode |
 | INFLIGHT | int | 1 | Retry block completion-buffer depth. 1 = strict program order (see wb4_retry) |
+| USE_BURST_HINTS | int | 0 | 0 = `m_wb_CTI`/`m_wb_BTE` read CLASSIC/LINEAR and `cmd_cti`/`cmd_bte` are ignored; 1 = the hints are carried, and they ride **in the retry buffer** so a re-issued transfer carries its own hint |
 
 With `INFLIGHT = 1` the bus carries one transfer at a time regardless of
 `RSP_DEPTH`; set `INFLIGHT` up to `RSP_DEPTH` for pipelined traffic that
@@ -49,7 +50,9 @@ tolerates a retried transfer completing behind later ones.
 
 ## Ports
 
-`wb4_master`'s ports (`clk`, `aresetn`, `m_wb_*`, `cmd_*`, `rsp_*`) plus
+`wb4_master`'s ports (`clk`, `aresetn`, `m_wb_*` including `m_wb_CTI [2:0]`
+and `m_wb_BTE [1:0]`, `cmd_*` including `cmd_cti [2:0]` and `cmd_bte [1:0]`,
+`rsp_*`) plus
 `cfg_max_retries [7:0]`, `cfg_retry_delay [15:0]`, `retry_count [31:0]` and
 `active_count [7:0]` from the retry block.
 

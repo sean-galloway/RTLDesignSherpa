@@ -67,13 +67,19 @@ module wb4_master
     parameter int CMD_DEPTH  = 4,
     parameter int RSP_DEPTH  = 4,
     parameter int CLASSIC    = 0,
+    // Registered-feedback burst hints (B4 ch.4). 0 = the hint ports read
+    // CLASSIC/LINEAR and cmd_cti/cmd_bte are ignored.
+    parameter int USE_BURST_HINTS = 0,
     parameter int SEL_WIDTH  = DATA_WIDTH / 8,
     // Short Parameters
     parameter int AW  = ADDR_WIDTH,
     parameter int DW  = DATA_WIDTH,
     parameter int SW  = SEL_WIDTH,
     parameter int STW = WB4_STATUS_WIDTH,
-    parameter int CPW = 1 + AW + DW + SW,   // command packet: {we, adr, dat, sel}
+    parameter int CTW = WB4_CTI_WIDTH,
+    parameter int BTW = WB4_BTE_WIDTH,
+    // command packet: {we, adr, dat, sel} plus the hints when carried
+    parameter int CPW = 1 + AW + DW + SW + ((USE_BURST_HINTS != 0) ? CTW + BTW : 0),
     parameter int RPW = STW + DW            // response packet: {status, dat}
 ) (
     input  logic              clk,
@@ -86,6 +92,8 @@ module wb4_master
     output logic [AW-1:0]     m_wb_ADR,
     output logic [DW-1:0]     m_wb_DAT_W,
     output logic [SW-1:0]     m_wb_SEL,
+    output logic [CTW-1:0]    m_wb_CTI,      // burst hint; CLASSIC when USE_BURST_HINTS=0
+    output logic [BTW-1:0]    m_wb_BTE,      // burst type; LINEAR when USE_BURST_HINTS=0
     input  logic              m_wb_STALL,
     input  logic              m_wb_ACK,
     input  logic              m_wb_ERR,
@@ -99,6 +107,8 @@ module wb4_master
     input  logic [AW-1:0]     cmd_adr,
     input  logic [DW-1:0]     cmd_dat,
     input  logic [SW-1:0]     cmd_sel,
+    input  logic [CTW-1:0]    cmd_cti,       // ignored when USE_BURST_HINTS=0
+    input  logic [BTW-1:0]    cmd_bte,       // ignored when USE_BURST_HINTS=0
 
     // Response queue (bus -> FUB)
     output logic              rsp_valid,
@@ -125,6 +135,8 @@ module wb4_master
 | m_wb_ADR | ADDR_WIDTH | Output | Address |
 | m_wb_DAT_W | DATA_WIDTH | Output | Write data (`DAT_O` in the specification) |
 | m_wb_SEL | SEL_WIDTH | Output | Byte select, reads and writes |
+| m_wb_CTI | 3 | Output | Burst hint, cycle type; CLASSIC unless `USE_BURST_HINTS=1` |
+| m_wb_BTE | 2 | Output | Burst hint, burst type; LINEAR unless `USE_BURST_HINTS=1` |
 | m_wb_STALL | 1 | Input | Slave cannot accept this clock; the request is held |
 | m_wb_ACK | 1 | Input | Normal termination |
 | m_wb_ERR | 1 | Input | Error termination |
@@ -141,6 +153,8 @@ module wb4_master
 | cmd_adr | ADDR_WIDTH | Input | Address |
 | cmd_dat | DATA_WIDTH | Input | Write data |
 | cmd_sel | SEL_WIDTH | Input | Byte select |
+| cmd_cti | 3 | Input | Burst hint for this transfer; ignored unless `USE_BURST_HINTS=1` |
+| cmd_bte | 2 | Input | Burst type for this transfer; ignored unless `USE_BURST_HINTS=1` |
 
 ### Response Interface
 

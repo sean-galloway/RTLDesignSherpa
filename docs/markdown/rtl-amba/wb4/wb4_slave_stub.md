@@ -63,10 +63,10 @@ wb4_slave's Wishbone side unchanged. On the FUB side, the command leaves packed 
 
 | Port | Direction | Description |
 |---|---|---|
-| `cmd_valid` / `cmd_ready` | out (cmd) / in (rsp) | Command handshake |
-| `cmd_data [CPW-1:0]` | out (cmd) / in (rsp) | Packed command |
-| `rsp_valid` / `rsp_ready` | out (cmd) / in (rsp) | Response handshake |
-| `rsp_data [RPW-1:0]` | out (cmd) / in (rsp) | Packed response |
+| `cmd_valid` / `cmd_ready` | Output / Input | Command handshake |
+| `cmd_data [CPW-1:0]` | Output | Packed command |
+| `rsp_valid` / `rsp_ready` | Input / Output | Response handshake |
+| `rsp_data [RPW-1:0]` | Input | Packed response |
 
 ## Related
 

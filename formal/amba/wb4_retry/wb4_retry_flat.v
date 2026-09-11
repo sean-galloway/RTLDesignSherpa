@@ -9,6 +9,8 @@ module wb4_retry (
 	cmd_adr,
 	cmd_dat,
 	cmd_sel,
+	cmd_cti,
+	cmd_bte,
 	rsp_valid,
 	rsp_ready,
 	rsp_status,
@@ -19,6 +21,8 @@ module wb4_retry (
 	mst_cmd_adr,
 	mst_cmd_dat,
 	mst_cmd_sel,
+	mst_cmd_cti,
+	mst_cmd_bte,
 	mst_rsp_valid,
 	mst_rsp_ready,
 	mst_rsp_status,
@@ -35,6 +39,10 @@ module wb4_retry (
 	parameter signed [31:0] SW = DW / 8;
 	localparam signed [31:0] wb4_pkg_WB4_STATUS_WIDTH = 2;
 	parameter signed [31:0] STW = wb4_pkg_WB4_STATUS_WIDTH;
+	localparam signed [31:0] wb4_pkg_WB4_CTI_WIDTH = 3;
+	parameter signed [31:0] CTW = wb4_pkg_WB4_CTI_WIDTH;
+	localparam signed [31:0] wb4_pkg_WB4_BTE_WIDTH = 2;
+	parameter signed [31:0] BTW = wb4_pkg_WB4_BTE_WIDTH;
 	input wire clk;
 	input wire aresetn;
 	input wire [7:0] cfg_max_retries;
@@ -45,6 +53,8 @@ module wb4_retry (
 	input wire [AW - 1:0] cmd_adr;
 	input wire [DW - 1:0] cmd_dat;
 	input wire [SW - 1:0] cmd_sel;
+	input wire [CTW - 1:0] cmd_cti;
+	input wire [BTW - 1:0] cmd_bte;
 	output wire rsp_valid;
 	input wire rsp_ready;
 	output wire [STW - 1:0] rsp_status;
@@ -55,6 +65,8 @@ module wb4_retry (
 	output wire [AW - 1:0] mst_cmd_adr;
 	output wire [DW - 1:0] mst_cmd_dat;
 	output wire [SW - 1:0] mst_cmd_sel;
+	output wire [CTW - 1:0] mst_cmd_cti;
+	output wire [BTW - 1:0] mst_cmd_bte;
 	input wire mst_rsp_valid;
 	output wire mst_rsp_ready;
 	input wire [STW - 1:0] mst_rsp_status;
@@ -69,6 +81,8 @@ module wb4_retry (
 	reg [AW - 1:0] r_adr [0:N - 1];
 	reg [DW - 1:0] r_dat [0:N - 1];
 	reg [SW - 1:0] r_sel [0:N - 1];
+	reg [CTW - 1:0] r_cti [0:N - 1];
+	reg [BTW - 1:0] r_bte [0:N - 1];
 	reg [7:0] r_retries [0:N - 1];
 	reg [15:0] r_timer [0:N - 1];
 	reg [STW - 1:0] r_status [0:N - 1];
@@ -128,6 +142,8 @@ module wb4_retry (
 	assign mst_cmd_adr = (w_retry_valid ? r_adr[w_retry_idx] : cmd_adr);
 	assign mst_cmd_dat = (w_retry_valid ? r_dat[w_retry_idx] : cmd_dat);
 	assign mst_cmd_sel = (w_retry_valid ? r_sel[w_retry_idx] : cmd_sel);
+	assign mst_cmd_cti = (w_retry_valid ? r_cti[w_retry_idx] : cmd_cti);
+	assign mst_cmd_bte = (w_retry_valid ? r_bte[w_retry_idx] : cmd_bte);
 	wire w_rsp_take;
 	wire w_rsp_is_rty;
 	wire w_rsp_retry;
@@ -177,6 +193,8 @@ module wb4_retry (
 						r_adr[i] <= 1'sb0;
 						r_dat[i] <= 1'sb0;
 						r_sel[i] <= 1'sb0;
+						r_cti[i] <= 1'sb0;
+						r_bte[i] <= 1'sb0;
 						r_retries[i] <= 1'sb0;
 						r_timer[i] <= 1'sb0;
 						r_status[i] <= 1'sb0;
@@ -198,6 +216,8 @@ module wb4_retry (
 				r_adr[r_tail] <= cmd_adr;
 				r_dat[r_tail] <= cmd_dat;
 				r_sel[r_tail] <= cmd_sel;
+				r_cti[r_tail] <= cmd_cti;
+				r_bte[r_tail] <= cmd_bte;
 				r_retries[r_tail] <= 1'sb0;
 				r_tail <= f_wrap(r_tail);
 			end
