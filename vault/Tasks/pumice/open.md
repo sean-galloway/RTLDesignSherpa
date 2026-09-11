@@ -703,154 +703,49 @@ box. (Reason per Sean — workstation is where pumice is pushed from.)
 Gated behind the RTL area completing (Tasks/INDEX.md sequencing).
 
 ## PUMICE-KMAP — real K-maps for the scheduler, CAMs and DFI layer
-**Status:** open 2026-08-06  **Blocked on:** [[TOOLING-KMAP]] items 1-4
+**Status:** CLOSED 2026-09-10  **Was blocked on:** [[TOOLING-KMAP]] items 1-4
 
-**2026-09-10: consolidated to ONE workbook.** pumice had four K-map workbooks
-emitted by three generators across two directories -- `docs/pumice_signal_contracts.xlsx`
-(grid maps + AXI/scheduler contracts) and `design/kmaps/pumice_{cmd,data,write}_path_kmap.xlsx`
-(decision tables) -- overlapping on the arbiter and bank timers with no way to
-tell which was current. They are now one file, `docs/pumice_signal_contracts.xlsx`,
-from one generator, `docs/gen_pumice_signal_contracts.py`, verified to reproduce
-all 18 original sheets cell-for-cell. Two fixes fell out: the generator is now
-idempotent (the old one LOADED the workbook and appended rows, so re-running it
-duplicated them -- the committed Scheduler sheet had 8 such rows), and an INDEX
-sheet says what each page is evidence OF. New `READ_PATH_ADMIT` sheet carries the
-term list, invariants and decision table for the AR admit cadence and
-reads-in-flight (PUMICE-025).
+All six criteria of [[signal-contracts-and-kmaps]] are discharged across the 17
+computed maps, the artifacts are consolidated, and both halves are gated so they
+cannot silently rot again.
 
-**2026-09-10: the spec pages were reading as a bug list for a working design.**
-Sean, on being told five things were "broken today": *"The RTL seems to be
-running perfectly. How can all of these things be completely broken?????"* He
-was right. The `design/` spec sheets were authored 2026-09-07 mid-campaign,
-when pumice sat at ~15% of peak and the write path wedged, and they are written
-in that moment's present tense. ELEVEN RTL commits landed after them --
-including the read return ring, the AP-gated masks, write-data-leads and the
-read intake fix -- and closed those failures. Nothing updated the sheets, and
-merging them into the canonical workbook propagated the stale voice.
+**One workbook, one generator.** Four workbooks from three generators across two
+directories became `docs/pumice_signal_contracts.xlsx` from
+`docs/gen_pumice_signal_contracts.py`, verified to reproduce all 18 original
+sheets cell-for-cell. The old flow LOADED the workbook and appended rows, so
+re-running duplicated them (the committed Scheduler sheet had 8 such rows); the
+new one builds from scratch and is idempotent. An INDEX sheet separates SPEC
+tables from COMPUTED grids and opens with the measured RTL status, so the book
+cannot be read as a bug list for a controller that meets its targets.
 
-Fixed: the INDEX sheet now opens with a dated RTL STATUS banner carrying the
-measured evidence (write 570.3 / read 571.3 MB/s, both ~95% of peak; concurrent
-570.1 total = 2.00x LiteDRAM; 219 tests green; timing +0.285 ns) and says
-explicitly how to read the spec pages. `design/README.md` headline said "Pumice
-today: ~90 MB/s (15%)" -- corrected, with the same framing note. Two items are
-genuinely still open and neither costs measurable bandwidth: AP columns remain
-one-per-bank (deliberate, guards a stale-row hazard) and the read return is
-positional with no length check (a robustness gap under a fault that does not
-occur in normal operation).
+**Criterion 1 (computed, not drawn) was FALSE for four maps**, now gated.
+`rd_col_m`/`wr_col_m` modelled 7 terms against 13; `w_ref_safe`, `w_guarded`,
+`w_drain_active` each dropped one. `docs/check_kmap_rtl_sync.py` requires every
+RTL identifier on a signal's RHS to be NAMED in the documented expression (folds
+stay legal, the fold equation is in [brackets]). **16 of 17 machine-checked, 0
+drifted**; the generator REFUSES to write on drift.
 
-**LESSON for spec-first work:** a spec written during a debugging campaign
-dates instantly and silently. Either date every claim at the time of writing or
-re-run it against the RTL before anyone reads it as status.
+**Criteria 3/4/5/6.** Axis-term tables with file:line on the four maps whose axes
+are folds; relations on all 17 (constraint or explicit independence note); 38
+don't-care cells from cited invariants; Quine-McCluskey implicants printed beside
+the documented equation on every map.
 
-**2026-09-10 (later): don't-cares and relations added (criteria 4 and 5).**
-Sean: "I definitely need don't cares and a note when 2 or more signals have a
-fixed relationship, so this is why we can skip a bunch of combinations." The
-K-map writer now takes `relations=[(text, reachable_predicate, citation)]`;
-cells failing any predicate render as an explicit don't-care **X**, not a 0 --
-a 0 there claims the logic was checked in a state the hardware forbids. Each
-map prints its relations with the RTL that makes them true, plus a
-"N reachable, M don't-care" count, and a map with NO relations prints a
-standing warning that it may be over-claiming. Two maps are populated so far
-from verified RTL: the arbiter PRE map (hit => row_active,
-pre_ready => row_active; 6 of 16 cells don't-care) and the bank-timer state
-decode (rcd_nz => row_valid, rp_nz => !row_valid, hence mutually exclusive;
-4 of 8 don't-care). **15 maps still print "none stated"** -- that is the
-remaining work and it is now visible on the page instead of implicit.
+**Waves: audited, corrected, extended, RENDERED, in the MAS.** The set was drawn
+at tCCD=2 with streams captioned "~100% util" -- impossible, and the RTL settles
+it (BURST_WORDS=1, so a column every cycle, which is the measured 571.3 MB/s).
+Added seven performance diagrams: 13-17 bad-but-correct (admit gate, ring bound,
+page thrash, turnaround thrash, refresh storm) and 18-19 pathological, each
+captioned with the board number it produced. `design/check_waves.py` found **11
+real defects** in the pre-existing diagrams, five of them labels attached to a
+logic level instead of a bus slot (WaveDrom silently shifts every label in the
+row onto the wrong segment). `design/render_waves.py` produces SVG+PNG for all
+19 and **MAS Chapter 7** embeds every one. Rendering itself exposed that every
+caption (101-431 chars) overflowed the image and 23 group labels overlapped --
+neither visible in the JSON, neither ever seen because nothing had been rendered.
 
-**Also 2026-09-10: five stale spec-vs-RTL notes corrected.** "Broken today"
-on these sheets means the RTL does not match the spec, and three of the five
-had been overtaken by fixes. Each now carries a dated RTL STATUS line:
-the per-bank occupancy mask was AP-gated rather than removed (better answer
-than the sheet demanded, and the sheet said REMOVE); the write B-gate ideal is
-implemented; the read return still has the positional/no-length-check hazard
-even though the ring addressed the occupancy half.
-
-**2026-09-10 AUDIT -- three gaps, one of them serious.** Asked directly whether
-the maps carry everything, are RTL-synced, and whether the waves are rendered
-into the MAS:
-
-1. **Coverage is 2 of 17.** Don't-cares and cited relations are populated on the
-   arbiter PRE map and the bank-timer state decode only. Fifteen maps print
-   "RELATIONS: none stated". Axis equations and implicants (criteria 3 and 6)
-   are absent everywhere.
-
-2. **SERIOUS: at least one computed mirror is STALE, which is worse than having
-   no map.** Criterion 1 says cells are computed, never drawn -- but a cell
-   computed from the WRONG equation carries the authority of a computed map
-   with none of the truth. Proven case, `rd_col_m[e]`:
-
-   | | terms |
-   |---|---|
-   | workbook mirror | 7: rhit, bank_rdwr_ready, tccd_ok, twtr_ok, rd_issue_ready, !w_inflight_col, !w_rd_turn_block |
-   | RTL (pumice_cmd_arbiter.sv:574-580) | 13: adds !r_ap_closing, !w_rd_col_inflight_ent, !w_ref_col_block, !w_ap_col_guard, !w_pre_col_guard, !w_preact_bank_guard; and the occupancy term is AP-GATED `!(f_ap(rb) && w_col_inflight_bank[rb])`, not the blanket `!w_inflight_col` the mirror shows |
-
-   Six terms missing and one misrepresented. A crude cross-check flagged three
-   more (`w_ref_safe` omits r_grant, `w_guarded[b]` omits w_col_inflight_guard
-   and w_prepick_guard) but the script is not reliable enough to quote a count.
-   **The mirrors need a mechanical re-derivation against the RTL, and a check
-   that fails when they drift -- otherwise this recurs silently.**
-
-3. **The WaveJSON is neither rendered nor used.** 12 files in `design/waves/`,
-   ZERO png/svg renders anywhere, ZERO references from `docs/` or the MAS.
-   There is no render step in any generator. Eleven of the twelve are the same
-   2026-09-07 vintage as the spec tables, so they carry the same staleness risk
-   by the same mechanism (only `12_rd_return_ring` is later, 2026-09-08), and
-   `09_failure_stale_image_wedge` / `11_write_same_bank_wedge_ref` are failure
-   references for failures now CLOSED.
-
-**2026-09-10 (a) and (c-audit) DONE.**
-
-(a) **Mirrors re-derived + drift gate.** `rd_col_m`/`wr_col_m` restored from 7
-terms to all 13 (six guards recovered as documented folds, and the occupancy
-term corrected from blanket to AP-gated); `w_ref_safe` +`!r_grant`;
-`w_guarded` +`w_prepick_guard`/`w_col_inflight_guard`; `w_drain_active`
-+`refresh_req_o`; `rd_act_m`/`rd_pre_m` renamed to exact RTL spellings.
-`docs/check_kmap_rtl_sync.py` requires every RTL identifier on a signal's RHS
-to be NAMED in the documented expression; folds stay legal because the fold
-equation is written in [brackets]. **16 of 17 machine-checked, 0 drifted**; the
-17th is a branch priority, not an assignment, and the tool says so rather than
-skipping silently. The generator REFUSES to write on drift (verified).
-
-(c-audit) **Waves audited, corrected, and extended.** The audit found worse
-than staleness: the header declared tCCD=2 and the streaming diagrams drew a
-column every OTHER cycle while captioned "~100% bus util". BURST_WORDS is 1 at
-this geometry so tCCD clamps to 1 -- the ideal is a column EVERY cycle, which
-is what the board does. Constants and both streams corrected. Added seven
-performance diagrams: 13-17 bad-but-correct (admit gate, ring bound, page
-thrash, turnaround thrash, refresh storm) and 18-19 pathological (row ping-pong
-between masters, in_order serialization), each captioned with the board number
-it produced. `design/check_waves.py` checks row lengths, data-slot counts and
-captions, and both generators exit nonzero on failure -- it found **11 real
-defects in the pre-existing diagrams**, five of them labels attached to a logic
-level instead of a bus slot (WaveDrom then shifts every bus label in the row
-onto the wrong segment, silently). `12_rd_return_ring` was the only wave with
-no generator; folded in.
-
-**Still to do:** (b) relations + don't-cares on the remaining 15 maps; axis
-equations and implicants (criteria 3 and 6); and the RENDER half of (c) --
-there is still no WaveJSON -> PNG step and the MAS still references none of
-them.
-
-**Nothing reports as broken any more.** The five stale "broken today" notes are
-dated and corrected and the INDEX carries the measured status banner. (`READ_PATH_ADMIT` is the shape the
-rest should take -- term list with citations and a stated invariant list.)
-
-Map these, because each is combinational, safety-relevant, and has already
-produced silicon bugs:
-
-- **`pumice_mem_cmd_scheduler` arbitration/issue qualification.** Two
-  double-issue hazards were caught only by the MACRO test, from registered
-  feedback latency -- exactly what a map with an honest sufficiency argument
-  would have surfaced ([[pumice-mem-cmd-scheduler]]).
-- **Bank timers / open-page decision.** Runtime page policy shipped an 8.8x
-  streaming win; the decision cone deserves a proof, not a picture.
-- **`wr_data_cam` fill/drain and the `agg||last` B-gating.** The fill/drain race
-  (fixed by `r_fdone`) is precisely a two-sided adjacency question.
-- **DFI command/phase placement.** The rd_phase and write-latency confusion cost
-  weeks on the board; a map with cited axes would have made the phase
-  assumptions explicit instead of implicit.
-
-Each map must name the invariant that makes its unreachable cells unreachable --
-several of the above have "cannot happen" regions that are true only because of
-ordering guarantees elsewhere, and those guarantees belong in the citation.
+**The lesson.** A spec written during a debugging campaign dates instantly and
+silently: these artifacts asserted a 15%-of-peak controller and five live
+defects while the board ran at 95% in both directions. Mechanical checks, not
+review, are what keep hand-built collateral honest -- every check added here
+failed on its first run.
 
