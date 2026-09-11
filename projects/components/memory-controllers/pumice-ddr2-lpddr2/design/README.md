@@ -16,9 +16,22 @@ than patching the current design. Two kinds of artifact:
 Regenerate: `python3 ../docs/gen_pumice_signal_contracts.py && python3 gen_waves.py \
 && python3 gen_write_path.py`.
 
-DDR2-300 @ aclk 75 MHz, DFI_RATE=2, BL4. Peak = **600 MB/s** (8 B/cycle). Pumice
-today: **~90 MB/s (15 %)**. LiteDRAM on this exact board: ~500 MB/s (~85 %). The
-whole point of this spec is to close that gap.
+DDR2-300 @ aclk 75 MHz, DFI_RATE=2, BL4. Peak = **600 MB/s** (8 B/cycle).
+
+**STATUS 2026-09-10 -- the gap this spec was written to close is CLOSED.** Pumice
+measures **570.3 MB/s write / 571.3 MB/s read**, both ~95 % of peak, 14/14
+characterization points integrity-clean, 219 regression tests green. Under
+concurrent read+write in one window it sustains 570.1 MB/s total, **2.00x
+LiteDRAM** (285.6) through the identical harness.
+
+Everything below was written on 2026-09-07, mid-campaign, when pumice sat at
+~15 % of peak and the write path wedged. **It is phrased in that moment's present
+tense** -- "today", "the wedge", "the current failure chain" -- and eleven RTL
+commits landed afterwards and closed those failures. Read it as the spec it is,
+plus a record of what the failures were, not as a description of the controller
+you have now. The dated `RTL STATUS 2026-09-10` lines in
+`../docs/pumice_signal_contracts.xlsx` say which items are genuinely still open
+(two, neither costing measurable bandwidth).
 
 ---
 
@@ -109,10 +122,10 @@ cross-bank ACT pipelining (waves/04), i.e. ~500–600 MB/s.
 | `waves/06_refresh_insertion` | PREA→REF→tRFC→resume |
 | `waves/07_pick_pipeline_ideal` | pipeline = latency, not rate (the correction) |
 | `waves/08_same_bank_outstanding_fix` | ≥2 same-bank columns in flight, forward-state + tagged return |
-| `waves/09_failure_stale_image_wedge` | the CURRENT failure chain (reference: what NOT to do) |
+| `waves/09_failure_stale_image_wedge` | the failure chain this design CLOSED (historical reference: what NOT to do) |
 | `pumice_signal_contracts.xlsx` sheets `DRAIN_HANDSHAKE` / `CM_RD_STALL_CANDIDATES` / `SERIALIZER_OWED` / `B_CONSOLIDATION` | **write drain/commit detail**: DRAIN_HANDSHAKE, CM_RD_STALL_CANDIDATES (why the DFI stops accepting writes -- the same-bank-WR wedge), SERIALIZER_OWED, B_CONSOLIDATION |
 | `waves/10_write_drain_pipeline_ideal` | ideal write drain (2 same-bank WR pipelined, no stall) |
-| `waves/11_write_same_bank_wedge_ref` | the current write-path wedge (reference; drain FIFO fills, commit_ready drops) |
+| `waves/11_write_same_bank_wedge_ref` | the write-path wedge this design CLOSED (historical reference; drain FIFO fills, commit_ready drops) |
 
 
 ## Correction (2026-09-07): the wedge is in the WRITE PATH, not the arbiter

@@ -718,6 +718,30 @@ sheet says what each page is evidence OF. New `READ_PATH_ADMIT` sheet carries th
 term list, invariants and decision table for the AR admit cadence and
 reads-in-flight (PUMICE-025).
 
+**2026-09-10: the spec pages were reading as a bug list for a working design.**
+Sean, on being told five things were "broken today": *"The RTL seems to be
+running perfectly. How can all of these things be completely broken?????"* He
+was right. The `design/` spec sheets were authored 2026-09-07 mid-campaign,
+when pumice sat at ~15% of peak and the write path wedged, and they are written
+in that moment's present tense. ELEVEN RTL commits landed after them --
+including the read return ring, the AP-gated masks, write-data-leads and the
+read intake fix -- and closed those failures. Nothing updated the sheets, and
+merging them into the canonical workbook propagated the stale voice.
+
+Fixed: the INDEX sheet now opens with a dated RTL STATUS banner carrying the
+measured evidence (write 570.3 / read 571.3 MB/s, both ~95% of peak; concurrent
+570.1 total = 2.00x LiteDRAM; 219 tests green; timing +0.285 ns) and says
+explicitly how to read the spec pages. `design/README.md` headline said "Pumice
+today: ~90 MB/s (15%)" -- corrected, with the same framing note. Two items are
+genuinely still open and neither costs measurable bandwidth: AP columns remain
+one-per-bank (deliberate, guards a stale-row hazard) and the read return is
+positional with no length check (a robustness gap under a fault that does not
+occur in normal operation).
+
+**LESSON for spec-first work:** a spec written during a debugging campaign
+dates instantly and silently. Either date every claim at the time of writing or
+re-run it against the RTL before anyone reads it as status.
+
 **2026-09-10 (later): don't-cares and relations added (criteria 4 and 5).**
 Sean: "I definitely need don't cares and a note when 2 or more signals have a
 fixed relationship, so this is why we can skip a bunch of combinations." The
