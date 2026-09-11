@@ -29,8 +29,9 @@ The **clock-gated variant** of [wb4_slave](wb4_slave.md): an
 `amba_clock_gate_ctrl` instance produces a gated clock that feeds an
 otherwise unmodified `wb4_slave`. Functionally identical to the base
 module; `cfg_cg_enable = 0` gives the base behaviour exactly. See the
-Shared book's [Clock-Gated Variants Guide](../shared/clock_gated_variants.md)
-and [amba_clock_gate_ctrl](../shared/amba_clock_gate_ctrl.md).
+Shared book's [Clock-Gated Variants
+Guide](../shared/clock_gated_variants.md) and
+[amba_clock_gate_ctrl](../shared/amba_clock_gate_ctrl.md).
 
 ## Parameters
 
@@ -43,7 +44,14 @@ In addition to all `wb4_slave` parameters:
 ## Ports
 
 `wb4_slave`'s ports plus `cfg_cg_enable`, `cfg_cg_idle_count`,
-`cg_gating` and `cg_idle`, as on [wb4_master_cg](wb4_master_cg.md).
+`cg_gating` and `cg_idle`, as on [wb4_master_cg](wb4_master_cg.md):
+
+| Port | Direction | Description |
+|---|---|---|
+| `cfg_cg_enable` | in | Global clock-gate enable |
+| `cfg_cg_idle_count [CG_IDLE_COUNT_WIDTH-1:0]` | in | Idle clocks before the clock is gated |
+| `cg_gating` | out | Clock is gated now |
+| `cg_idle` | out | Nothing pending (the controller's idle indicator) |
 
 ## Functional Description
 
@@ -74,25 +82,27 @@ while stalled (a B4 rule), so nothing is lost and nothing is duplicated.
 Classic mode holds the request until termination and needs no `STALL`,
 but is masked the same way.
 
-## Notes
+## Design Notes
 
 - Formal: `formal/amba/wb4_slave_cg/` proves the wrapper's glue contract
   with a clock-enable model of the gate cell (a derived clock is not
-  provable in the repo's single-clock flow; the stopped clock itself is the
-  cocotb test's job): reset state, gating clears by the third clock of an
-  open cycle, no gating while a command is pending or with the enable low,
-  no termination and no FUB handshake while gated, `STALL` high while
-  gated; covers gating, an ungated accept, a termination and re-gating.
+  provable in the repo's single-clock flow; the stopped clock itself is
+  the cocotb test's job): reset state, gating clears by the third clock
+  of an open cycle, no gating while a command is pending or with the
+  enable low, no termination and no FUB handshake while gated, `STALL`
+  high while gated; covers gating, an ungated accept, a termination and
+  re-gating.
 - The wake term is combinational into the controller (which registers it
   once), not a second local flop as in `apb4_slave_cg`; see
-  `formal/amba/apb4_slave_cg/KNOWN_BUG.md` for the latency that flop adds.
+  `formal/amba/apb4_slave_cg/KNOWN_BUG.md` for the latency that flop
+  adds.
 
-## Related
+## Related Modules
 
 - [wb4_slave](wb4_slave.md), [wb4_master_cg](wb4_master_cg.md)
-- [apb4_slave_cg](../apb4/apb4_slave_cg.md) - the same wrapper over APB
+- [apb4_slave_cg](../apb4/apb4_slave_cg.md) — the same wrapper over APB
 
-## Test
+## Testing
 
 `val/amba/test_wb4_slave_cg.py` runs the `wb4_slave` phases with gating
 enabled and the same three checks as the master's test.

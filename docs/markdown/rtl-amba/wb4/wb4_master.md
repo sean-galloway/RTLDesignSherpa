@@ -25,18 +25,19 @@
 
 ## Overview
 
-`wb4_master` turns a command stream into Wishbone B4 **pipelined** bus cycles
-and returns every termination as a response. It is the Wishbone counterpart of
-`apb4_master`: the same `cmd_*`/`rsp_*` valid/ready queues on the FUB side,
-each a `gaxi_skid_buffer`. There is no state machine. `STB` follows the head
-of the command queue, the slave accepts a request on `STB && !STALL`, and
-every `ACK`, `ERR` or `RTY` is enqueued as it arrives. Terminations arrive in
-issue order (a B4 rule), so nothing is tagged.
+`wb4_master` turns a command stream into Wishbone B4 **pipelined** bus
+cycles and returns every termination as a response. It is the Wishbone
+counterpart of `apb4_master`: the same `cmd_*`/`rsp_*` valid/ready queues
+on the FUB side, each a `gaxi_skid_buffer`. There is no state machine in
+here. `STB` follows the head of the command queue, the slave accepts a
+request on `STB && !STALL`, and every `ACK`, `ERR` or `RTY` is enqueued as
+it arrives. Terminations arrive in issue order — a B4 rule — so nothing is
+tagged.
 
 **Protocol scope:** B4 pipelined. `RTY` is reported in `rsp_status`; the
 master never retries on its own. `CTI`/`BTE` burst hints are carried when
-`USE_BURST_HINTS = 1` and tied to CLASSIC/LINEAR otherwise; no `LOCK` or tag
-signals.
+`USE_BURST_HINTS = 1` and tied to CLASSIC/LINEAR otherwise; no `LOCK` or
+tag signals.
 
 ## Parameters
 
@@ -52,11 +53,13 @@ signals.
 
 **RSP_DEPTH is the outstanding limit.** Wishbone gives a master no way to
 refuse a termination, so a request is only put on the bus when its response
-slot is already reserved. `RSP_DEPTH` therefore bounds both the queue and the
-pipeline depth; 4 sustains one transfer per clock against a slave with up to
-four clocks of termination latency.
+slot is already reserved. `RSP_DEPTH` therefore bounds both the queue and
+the pipeline depth; 4 sustains one transfer per clock against a slave with
+up to four clocks of termination latency.
 
 ## Ports
+
+The full declaration, straight from the RTL:
 
 ```systemverilog
 module wb4_master
@@ -167,7 +170,7 @@ module wb4_master
 
 ## Functional Description
 
-Two counters and three wires replace the FSM an APB master needs:
+Two counters and three wires do the work an APB master needs an FSM for:
 
 ```
 issue    = cmd head valid && r_reserved < RSP_DEPTH
@@ -179,11 +182,11 @@ rsp pop  = rsp_valid && rsp_ready -> r_reserved--
 ```
 
 `r_inflight` counts transfers the slave has accepted but not terminated;
-`r_reserved` counts everything issued that the FUB has not yet taken off the
-response queue, which is exactly what can occupy that queue in the worst
-case. Reserving at issue rather than reading the queue's count back avoids
-the "count is stale by one" reasoning the APB master's back-to-back path
-needs.
+`r_reserved` counts everything issued that the FUB has not yet taken off
+the response queue — which is exactly what can occupy that queue in the
+worst case. Reserving at issue, rather than reading the queue's count
+back, avoids the "count is stale by one" reasoning the APB master's
+back-to-back path needs.
 
 **Classic mode** (`CLASSIC=1`): the command retires with its termination
 (`accept = term`), so nothing is in flight between clocks; `CYC` follows
@@ -191,10 +194,10 @@ needs.
 termination has room, since `r_reserved` then counts only queued responses.
 
 `ERR` and `RTY` are mutually exclusive in the specification. If a slave
-asserts both, `ERR` wins, so a broken slave reads as an error rather than a
+asserts both, `ERR` wins — a broken slave reads as an error rather than a
 retry.
 
-### Timing
+## Timing
 
 | Path | Clocks |
 |---|---|
@@ -202,8 +205,8 @@ retry.
 | `ACK`/`ERR`/`RTY` to `rsp_valid` | 1 (response skid) |
 | Sustained throughput | one request and one termination per clock |
 
-A stalled request is held unchanged until accepted: the command skid's head
-does not move until `STB && !STALL`.
+A stalled request is held unchanged until accepted: the command skid's
+head does not move until `STB && !STALL`.
 
 ## Usage Example
 
@@ -230,32 +233,34 @@ wb4_master #(
 );
 ```
 
-## Notes
+## Design Notes
 
 - A termination that arrives with nothing in flight is a slave protocol
   violation. It is still enqueued (the FUB sees it) and reported in
   simulation.
-- **Burst hints are carried, never acted on.** `CTI` and `BTE` are advisory
-  in B4: the master puts the FUB's hint on the wires with the transfer it
-  belongs to and changes nothing else. They ride inside the command queue,
-  so a hint cannot slip onto a neighbouring transfer when the queue delays
-  one. With `USE_BURST_HINTS = 0` the ports still exist and the bus reads
-  CLASSIC/LINEAR, which is a legal non-burst Wishbone cycle.
-- Under `ifdef FORMAL` the block asserts: `STB` implies `CYC`; `CYC` covers
-  every in-flight transfer; a stalled request is held stable; the credit
-  invariant `r_reserved <= RSP_DEPTH`; and that every termination found
-  queue space.
+- **Burst hints are carried, never acted on.** `CTI` and `BTE` are
+  advisory in B4: the master puts the FUB's hint on the wires with the
+  transfer it belongs to and changes nothing else. They ride inside the
+  command queue, so a hint cannot slip onto a neighbouring transfer when
+  the queue delays one. With `USE_BURST_HINTS = 0` the ports still exist
+  and the bus reads CLASSIC/LINEAR, which is a legal non-burst Wishbone
+  cycle.
+- Under `ifdef FORMAL` the block asserts: `STB` implies `CYC`; `CYC`
+  covers every in-flight transfer; a stalled request is held stable; the
+  credit invariant `r_reserved <= RSP_DEPTH`; and that every termination
+  found queue space.
 
-## Related
+## Related Modules
 
-- [wb4_slave](wb4_slave.md) - the mirror image
-- [apb4_master](../apb4/apb4_master.md) - the same FUB-side contract over APB
-- [gaxi_skid_buffer](../gaxi/gaxi_skid_buffer.md) - both queues
+- [wb4_slave](wb4_slave.md) — the mirror image
+- [apb4_master](../apb4/apb4_master.md) — the same FUB-side contract over
+  APB
+- [gaxi_skid_buffer](../gaxi/gaxi_skid_buffer.md) — both queues
 
-## Test
+## Testing
 
-`val/amba/test_wb4_master.py` drives the block alone against the framework's Wishbone
-BFMs (`CocoTBFramework.components.wb4`), with the GAXI BFMs on the queues;
-`val/amba/test_wb4_master_slave_loop.py` runs it back to back with its
-counterpart. See the [family README](README.md). Formal:
+`val/amba/test_wb4_master.py` drives the block alone against the
+framework's Wishbone BFMs (`CocoTBFramework.components.wb4`), with the GAXI
+BFMs on the queues; `val/amba/test_wb4_master_slave_loop.py` runs it back
+to back with its counterpart. See the [family README](README.md). Formal:
 `formal/amba/wb4_master/`.

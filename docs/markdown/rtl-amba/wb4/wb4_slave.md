@@ -27,11 +27,11 @@
 
 `wb4_slave` accepts Wishbone B4 **pipelined** transfers one per clock and
 presents each on a command queue; it terminates them, in order, from a
-response queue with a registered `ACK`, `ERR` or `RTY` and read data. It is
-the Wishbone counterpart of `apb4_slave`, with the same `cmd_*`/`rsp_*`
-valid/ready contract on the FUB side. There is no state machine: `STALL` is
-the inverse of "can accept", and the termination side is one counter and one
-register.
+response queue with a registered `ACK`, `ERR` or `RTY` and read data. It
+is the Wishbone counterpart of `apb4_slave`, with the same
+`cmd_*`/`rsp_*` valid/ready contract on the FUB side. There is no state
+machine here either: `STALL` is the inverse of "can accept", and the
+termination side is one counter and one register.
 
 **Protocol scope:** B4 pipelined. The FUB chooses the termination through
 `rsp_status`, so a FUB can answer `RTY` without the slave knowing why.
@@ -50,9 +50,9 @@ register.
 | SEL_WIDTH | int | DATA_WIDTH/8 | Byte-select width (derived) |
 
 `MAX_OUTSTANDING` bounds the FUB's in-order pipeline, not the master's: a
-master's own limit is its response queue. Set it to at least the number of
-commands the FUB can hold before it produces the first response, or the bus
-stalls short of the FUB's throughput.
+master's own limit is its response queue. Set it to at least the number
+of commands the FUB can hold before it produces the first response, or
+the bus stalls short of the FUB's throughput.
 
 ## Ports
 
@@ -174,25 +174,26 @@ abort  = !CYC && r_outstanding != 0 -> r_abandoned += r_outstanding, r_outstandi
 
 **Classic mode** (`CLASSIC=1`): `STALL` is driven low; a request is
 accepted when nothing is outstanding and no termination is on the wire
-this clock, so a held presentation is taken exactly once; `MAX_OUTSTANDING`
-is effectively 1.
+this clock, so a held presentation is taken exactly once;
+`MAX_OUTSTANDING` is effectively 1.
 
-**Orphan guard.** A response with nothing outstanding cannot belong to any
-transfer (a duplicate from the FUB, or a response to a transfer the master
-abandoned). It is dropped, and reported in simulation. Left in the queue it
-would terminate the *next* transfer and every later response would be off by
-one: the positional mis-pairing `apb4_slave`'s guard exists for.
+**Orphan guard.** A response with nothing outstanding cannot belong to
+any transfer (a duplicate from the FUB, or a response to a transfer the
+master abandoned). It is dropped, and reported in simulation. Left in
+the queue it would terminate the *next* transfer and every later
+response would be off by one: the positional mis-pairing `apb4_slave`'s
+guard exists for.
 
-**Abort.** A master that drops `CYC` with transfers outstanding has ended the
-cycle. The outstanding count moves to an *abandoned* count, and that many
-later responses from the FUB are dropped as they arrive, even if the master
-has started a new cycle by then. Without that, a late response for an
-abandoned transfer would terminate the new cycle's first transfer, which is
-exactly what the slave test's abort phase caught before the count existed.
-Terminations are only ever driven inside a cycle, and never while a
-response is still owed to an abandoned transfer.
+**Abort.** A master that drops `CYC` with transfers outstanding has ended
+the cycle. The outstanding count moves to an *abandoned* count, and that
+many later responses from the FUB are dropped as they arrive, even if the
+master has started a new cycle by then. Without that, a late response for
+an abandoned transfer would terminate the new cycle's first transfer —
+which is exactly what the slave test's abort phase caught before the
+count existed. Terminations are only ever driven inside a cycle, and
+never while a response is still owed to an abandoned transfer.
 
-### Timing
+## Timing
 
 | Path | Clocks |
 |---|---|
@@ -226,25 +227,26 @@ wb4_slave #(
 );
 ```
 
-## Notes
+## Design Notes
 
 - The FUB must answer commands in the order it received them; the slave
   pairs responses to transfers by position.
-- Under `ifdef FORMAL` the block asserts: at most one of `ACK`/`ERR`/`RTY`
-  per clock; a termination only for a transfer that was outstanding inside
-  a cycle; `r_outstanding <= MAX_OUTSTANDING`; and that every accept found
-  queue room.
+- Under `ifdef FORMAL` the block asserts: at most one of
+  `ACK`/`ERR`/`RTY` per clock; a termination only for a transfer that was
+  outstanding inside a cycle; `r_outstanding <= MAX_OUTSTANDING`; and
+  that every accept found queue room.
 
-## Related
+## Related Modules
 
-- [wb4_master](wb4_master.md) - the mirror image
-- [apb4_slave](../apb4/apb4_slave.md) - the same FUB-side contract over APB
-- [gaxi_skid_buffer](../gaxi/gaxi_skid_buffer.md) - both queues
+- [wb4_master](wb4_master.md) — the mirror image
+- [apb4_slave](../apb4/apb4_slave.md) — the same FUB-side contract over
+  APB
+- [gaxi_skid_buffer](../gaxi/gaxi_skid_buffer.md) — both queues
 
-## Test
+## Testing
 
-`val/amba/test_wb4_slave.py` drives the block alone against the framework's Wishbone
-BFMs (`CocoTBFramework.components.wb4`), with the GAXI BFMs on the queues;
-`val/amba/test_wb4_master_slave_loop.py` runs it back to back with its
-counterpart. See the [family README](README.md). Formal:
-`formal/amba/wb4_slave/`.
+`val/amba/test_wb4_slave.py` drives the block alone against the
+framework's Wishbone BFMs (`CocoTBFramework.components.wb4`), with the
+GAXI BFMs on the queues; `val/amba/test_wb4_master_slave_loop.py` runs it
+back to back with its counterpart. See the [family README](README.md).
+Formal: `formal/amba/wb4_slave/`.

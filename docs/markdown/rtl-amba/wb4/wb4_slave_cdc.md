@@ -28,8 +28,8 @@
 [wb4_slave](wb4_slave.md) with its command and response queues carried
 across a clock-domain boundary. The Wishbone bus lives in `wb_clk`; the
 FUB's `cmd_*`/`rsp_*` queues live in `aclk`. Two `gaxi_fifo_async`
-instances do the crossing (commands `wb_clk -> aclk`, responses
-`aclk -> wb_clk`), the same structure as
+instances do the crossing (commands `wb_clk -> aclk`, responses `aclk ->
+wb_clk`), the same structure as
 [apb4_slave_cdc](../apb4/apb4_slave_cdc.md). In-order termination is
 preserved because both crossings are FIFOs.
 
@@ -84,12 +84,12 @@ the bus before resetting one side. The full analysis is in
 [apb4_slave_cdc](../apb4/apb4_slave_cdc.md), Reset Behavior, and applies
 here unchanged.
 
-## Related
+## Related Modules
 
 - [wb4_slave](wb4_slave.md), [wb4_slave_cg](wb4_slave_cg.md)
-- [gaxi_fifo_async](../../rtl-cdc/gaxi_fifo_async.md) - the crossing
+- [gaxi_fifo_async](../../rtl-cdc/gaxi_fifo_async.md) — the crossing
 
-## Test
+## Testing
 
 `val/amba/test_wb4_slave_cdc.py` runs the `wb4_slave` phases with the
 Wishbone BFMs on `wb_clk` and the queue BFMs on `aclk` at several clock

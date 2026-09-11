@@ -50,11 +50,11 @@ tolerates a retried transfer completing behind later ones.
 
 ## Ports
 
-`wb4_master`'s ports (`clk`, `aresetn`, `m_wb_*` including `m_wb_CTI [2:0]`
-and `m_wb_BTE [1:0]`, `cmd_*` including `cmd_cti [2:0]` and `cmd_bte [1:0]`,
-`rsp_*`) plus
-`cfg_max_retries [7:0]`, `cfg_retry_delay [15:0]`, `retry_count [31:0]` and
-`active_count [7:0]` from the retry block.
+`wb4_master`'s ports (`clk`, `aresetn`, `m_wb_*` including `m_wb_CTI
+[2:0]` and `m_wb_BTE [1:0]`, `cmd_*` including `cmd_cti [2:0]` and
+`cmd_bte [1:0]`, `rsp_*`) plus `cfg_max_retries [7:0]`, `cfg_retry_delay
+[15:0]`, `retry_count [31:0]` and `active_count [7:0]` from the retry
+block.
 
 ## Usage Example
 
@@ -80,10 +80,10 @@ wb4_master_retry #(
 );
 ```
 
-## Related
+## Related Modules
 
 - [wb4_retry](wb4_retry.md), [wb4_master](wb4_master.md)
 
-## Test
+## Testing
 
 `val/amba/test_wb4_master_retry.py`; see [wb4_retry](wb4_retry.md).

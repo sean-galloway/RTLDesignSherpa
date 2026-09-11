@@ -25,28 +25,15 @@
 
 ## Overview
 
-[wb4_master](wb4_master.md) with its FUB-side queues presented as a single **packed
-vector** instead of named fields, matching what `apb4_master_stub` and
-`apb5_master_stub` offer. A shim-style converter that already carries a
-packed command through its own pipeline connects one bus instead of six,
-and the packing lives here rather than being re-derived by every consumer.
+[wb4_master](wb4_master.md) with its FUB-side queues presented as a
+single **packed vector** instead of named fields, matching what
+`apb4_master_stub` and `apb5_master_stub` offer. A shim-style converter
+that already carries a packed command through its own pipeline connects
+one bus instead of six, and the packing lives here rather than being
+re-derived by every consumer.
 
 Nothing else differs: the stub instantiates the ordinary block and only
 splices the vector.
-
-## Packing
-
-Most significant field first. Both stubs use the same order, so a
-`wb4_master_stub` and a `wb4_slave_stub` connect directly:
-
-```
-cmd_data = {we, adr, dat, sel, cti, bte}     // CPW = 1 + AW + DW + SW + 3 + 2
-rsp_data = {status, dat}                     // RPW = 2 + DW
-```
-
-`cti` and `bte` hold their bits whatever `USE_BURST_HINTS` is, so the
-vector width does not move with the parameter. With the hints off the inner
-block ignores them and the bus reads CLASSIC/LINEAR.
 
 ## Parameters
 
@@ -59,7 +46,8 @@ Every parameter of [wb4_master](wb4_master.md), plus the derived widths:
 
 ## Ports
 
-wb4_master's Wishbone side unchanged. On the FUB side, the command arrives packed and the response leaves packed.
+`wb4_master`'s Wishbone side, unchanged. On the FUB side, the command
+arrives packed and the response leaves packed:
 
 | Port | Direction | Description |
 |---|---|---|
@@ -68,13 +56,29 @@ wb4_master's Wishbone side unchanged. On the FUB side, the command arrives packe
 | `rsp_valid` / `rsp_ready` | Output / Input | Response handshake |
 | `rsp_data [RPW-1:0]` | Output | Packed response |
 
-## Related
+## Functional Description
 
-- [wb4_master](wb4_master.md) - the block this wraps
-- [wb4_slave_stub](wb4_slave_stub.md) - the other half of a stub pair
-- [wb4_pkg](wb4_pkg.md) - the status encoding inside `rsp_data`
+### Packing
 
-## Test
+Most significant field first. Both stubs use the same order, so a
+`wb4_master_stub` and a `wb4_slave_stub` connect directly:
+
+```
+cmd_data = {we, adr, dat, sel, cti, bte}     // CPW = 1 + AW + DW + SW + 3 + 2
+rsp_data = {status, dat}                     // RPW = 2 + DW
+```
+
+`cti` and `bte` hold their bits whatever `USE_BURST_HINTS` is, so the
+vector width does not move with the parameter. With the hints off the
+inner block ignores them and the bus reads CLASSIC/LINEAR.
+
+## Related Modules
+
+- [wb4_master](wb4_master.md) — the block this wraps
+- [wb4_slave_stub](wb4_slave_stub.md) — the other half of a stub pair
+- [wb4_pkg](wb4_pkg.md) — the status encoding inside `rsp_data`
+
+## Testing
 
 `val/amba/test_wb4_stubs.py` checks the packing directly, in both
 directions and with the burst hints on and off. Two mutations fail it:

@@ -27,24 +27,25 @@
 
 `wb4_monitor` watches the `cmd_*`/`rsp_*` queues of a `wb4_master` or
 `wb4_slave` and reports what happens on the Wishbone side as monitor bus
-packets: a completion or an error per transfer, a timeout when a request or
-a termination is late, a latency figure when a transfer crosses a threshold,
-optional queue-activity debug events, and address-range violations through
-the shared `apb_monitor_addr_check`. It is the Wishbone member of the
-monitor family and has the same configuration, monitor bus and status ports
-as `apb4_monitor`; every packet is tagged `PROTOCOL_WB` (`4'h5`) and its
-event codes come from `monitor_wb4_pkg`.
+packets: a completion or an error per transfer, a timeout when a request
+or a termination is late, a latency figure when a transfer crosses a
+threshold, optional queue-activity debug events, and address-range
+violations through the shared `apb_monitor_addr_check`. It is the
+Wishbone member of the monitor family and has the same configuration,
+monitor bus and status ports as `apb4_monitor`; every packet is tagged
+`PROTOCOL_WB` (`4'h5`) and its event codes come from `monitor_wb4_pkg`.
 
-The queues are the timing-convenient proxy for the bus, the same place
+The queues are the timing-convenient proxy for the bus — the same place
 `apb4_monitor` attaches: a command handshake is a request the master will
-put on the bus, a response handshake is the termination the slave returned.
-One difference from APB matters for the design: Wishbone B4 pipelined mode
-keeps several transfers open, and terminates them **in issue order**. The
-monitor therefore tracks transfers in an in-order queue, not a slot table.
-A slot table that pairs a response with "the first active slot" mis-pairs as
-soon as a freed slot is reused while an older one is still open, which
-pipelined traffic does constantly. The in-order queue pairs the response
-with the oldest open request by construction.
+put on the bus, a response handshake is the termination the slave
+returned. One difference from APB drives the whole design. Wishbone B4
+pipelined mode keeps several transfers open, and terminates them **in
+issue order**. The monitor therefore tracks transfers in an in-order
+queue, not a slot table. A slot table that pairs a response with "the
+first active slot" mis-pairs as soon as a freed slot is reused while an
+older one is still open — and pipelined traffic does that constantly. The
+in-order queue pairs the response with the oldest open request by
+construction.
 
 ## Parameters
 
@@ -60,9 +61,9 @@ with the oldest open request by construction.
 | MONITOR_FIFO_DEPTH | int | 8 | Event FIFO depth between event selection and the monitor bus |
 | USE_BURST_HINTS | int | 0 | 1 reports the transfer's `CTI` in `aux_data[7:5]`; 0 leaves those bits zero and ignores `cmd_cti` |
 
-`MAX_TRANSACTIONS` should match the `RSP_DEPTH` of the `wb4_master` (or the
-`MAX_OUTSTANDING` of the `wb4_slave`) it watches; those bound how many
-transfers can be open, so a queue of the same depth never overflows.
+`MAX_TRANSACTIONS` should match the `RSP_DEPTH` of the `wb4_master` (or
+the `MAX_OUTSTANDING` of the `wb4_slave`) it watches; those bound how
+many transfers can be open, so a queue of the same depth never overflows.
 
 ## Ports
 
@@ -170,18 +171,18 @@ responses and tracking overflows.
 
 ### Transaction Tracking
 
-A command handshake pushes `{we, adr, sel[3:0], cti, timestamp}` at the tail
-of the queue; a response handshake pops the head. The head is the transfer the
-response belongs to, because B4 terminates in issue order. Two edge cases
-are reported rather than guessed at:
+A command handshake pushes `{we, adr, sel[3:0], cti, timestamp}` at the
+tail of the queue; a response handshake pops the head. The head is the
+transfer the response belongs to, because B4 terminates in issue order.
+Two edge cases are reported rather than guessed at:
 
 - **Orphan response.** A response handshake with an empty queue. With
   `cfg_protocol_enable` it is a `WB_ERR_ORPHAN_RSP` packet carrying
   `rsp_dat` and the status; `transaction_count` does not move.
-- **Tracking lost.** A command handshake with the queue full. The transfer
-  is not tracked (its later response will show up as an orphan) and a
-  `WB_ERR_TRACK_LOST` packet carries its address. Size `MAX_TRANSACTIONS`
-  to the master's `RSP_DEPTH` and this never happens.
+- **Tracking lost.** A command handshake with the queue full. The
+  transfer is not tracked (its later response will show up as an orphan)
+  and a `WB_ERR_TRACK_LOST` packet carries its address. Size
+  `MAX_TRANSACTIONS` to the master's `RSP_DEPTH` and this never happens.
 
 ### Event Detection
 
@@ -200,19 +201,19 @@ are reported rather than guessed at:
 
 `cti[2:0]` is zero on a `USE_BURST_HINTS=0` build, which is what every
 consumer decoded before the hints existed, so the packet format did not
-change for anyone who does not ask for them. Only `CTI` is reported: the aux
-byte has exactly three spare bits, which is `WB4_CTI_WIDTH`, and `BTE` is
-deliberately left out rather than squeezed in. The hint travels **in the
-tracking entry**, so a completion reports the `CTI` of its own transfer even
-with several open at once -- reading `cmd_cti` at completion time would
-report whatever request happened to be on the queue then.
+change for anyone who does not ask for them. Only `CTI` is reported: the
+aux byte has exactly three spare bits, which is `WB4_CTI_WIDTH`, and
+`BTE` is deliberately left out rather than squeezed in. The hint travels
+**in the tracking entry**, so a completion reports the `CTI` of its own
+transfer even with several open at once — reading `cmd_cti` at completion
+time would report whatever request happened to be on the queue then.
 
-`RTY` is a completion, not an error: the FUB decides whether to retry, and
-the monitor reports what the slave said. Each timeout fires **once**: the
-command timeout once per stall (it re-arms when the request is taken or
-withdrawn), the response timeout once per queue entry (a flag in the entry).
-When the head pops and the next entry is already older than the limit, that
-entry is reported on the following clock.
+`RTY` is a completion, not an error: the FUB decides whether to retry,
+and the monitor reports what the slave said. Each timeout fires **once**:
+the command timeout once per stall (it re-arms when the request is taken
+or withdrawn), the response timeout once per queue entry (a flag in the
+entry). When the head pops and the next entry is already older than the
+limit, that entry is reported on the following clock.
 
 ### Monitor Packet Format
 
@@ -220,9 +221,11 @@ Standard 128-bit packet from `create_monitor_packet` with a 64-bit
 side-band timestamp taken from `i_mon_time` at emission:
 
 - `packet_type` per the table above; `protocol` = `PROTOCOL_WB` (`4'h5`)
-- `event_code` from `monitor_wb4_pkg`; `channel_id` = 0 (Wishbone has no IDs)
+- `event_code` from `monitor_wb4_pkg`; `channel_id` = 0 (Wishbone has no
+  IDs)
 - `unit_id` = `UNIT_ID`, `agent_id` = `AGENT_ID`
-- `event_data[63:40]` = 0, `[39:32]` = aux, `[31:0]` = value per the table
+- `event_data[63:40]` = 0, `[39:32]` = aux, `[31:0]` = value per the
+  table
 
 ### Event Priority and Loss
 
@@ -230,10 +233,10 @@ One event is written to the FIFO per clock, in the order error, timeout,
 perf, debug, completion; a lower-priority event that lands in the same
 clock as a higher one is dropped, and so is any event that arrives while
 the FIFO is full. The tracking queue does not wait for the packet, so
-`active_count` and `transaction_count` stay exact. `error_count` is a single
-increment per clock, so two error events landing together -- an `ERR`
-termination and a tracking overflow in the same clock, which pipelined traffic
-can reach -- advance it by one rather than two. This is
+`active_count` and `transaction_count` stay exact. `error_count` is a
+single increment per clock, so two error events landing together — an
+`ERR` termination and a tracking overflow in the same clock, which
+pipelined traffic can reach — advance it by one rather than two. This is
 the family's lossy-but-honest contract; size `MONITOR_FIFO_DEPTH` and the
 monitor bus consumer for the burstiest traffic the design can produce.
 
@@ -241,18 +244,19 @@ The event FIFO is a `gaxi_fifo_sync` in mux-read mode (`REGISTERED=0`):
 `rd_data` is valid in the clock of the read handshake, which is when the
 packet is built. The registered-read mode presents `rd_data` one clock
 after the handshake (the framework's `fifo_flop` BFM contract) and, read
-combinationally, re-presents the popped entry for a clock on back-to-back
-reads, so a burst of events would duplicate one packet and lose the next.
-This module's first test caught exactly that; see TASK-086 for the siblings.
+combinationally, re-presents the popped entry for a clock on
+back-to-back reads — so a burst of events would duplicate one packet and
+lose the next. This module's first test caught exactly that; see
+TASK-086 for the siblings.
 
-## Timing Characteristics
+## Timing
 
 - Push and pop are registered from the queue handshakes; `active_count`
   updates on the clock after a handshake.
 - A completion packet leaves the event FIFO one clock after the response
   handshake and the skid buffer one clock later, so `monbus_valid` for a
-  termination rises two clocks after `rsp_valid && rsp_ready` when the bus
-  is idle.
+  termination rises two clocks after `rsp_valid && rsp_ready` when the
+  bus is idle.
 - `monbus_valid` is held until `monbus_ready` (skid buffer).
 
 ## Usage Example
@@ -288,29 +292,34 @@ wb4_monitor #(
 );
 ```
 
-## Notes
+## Design Notes
 
-- Under `ifdef FORMAL` the block asserts the queue occupancy bound, that a
-  pop only happens with something open, and that an orphan is only flagged
-  when nothing is. `formal/amba/wb4_monitor/` adds the port-level
+- Under `ifdef FORMAL` the block asserts the queue occupancy bound, that
+  a pop only happens with something open, and that an orphan is only
+  flagged when nothing is. `formal/amba/wb4_monitor/` adds the port-level
   properties (reset, protocol tag, valid-held, occupancy tracks the
   handshakes, `transaction_count` moves only on a pop) and covers every
   packet class.
-- `USE_MONITOR=0` leaves the ports in place and ties `monbus_valid` and the
-  counters to zero, so a build can drop the monitor without touching the
-  wrapper.
-- `monitor_wb4_pkg` is imported by this module only; it is deliberately not
-  re-exported by `monitor_pkg`, so no existing consumer's filelist changes.
-  `PROTOCOL_WB` itself lives in `monitor_common_pkg` (an additive enum entry).
+- `USE_MONITOR=0` leaves the ports in place and ties `monbus_valid` and
+  the counters to zero, so a build can drop the monitor without touching
+  the wrapper.
+- `monitor_wb4_pkg` is imported by this module only; it is deliberately
+  not re-exported by `monitor_pkg`, so no existing consumer's filelist
+  changes. `PROTOCOL_WB` itself lives in `monitor_common_pkg` (an
+  additive enum entry).
 
-## Related
+## Related Modules
 
-- [wb4_master](wb4_master.md), [wb4_slave](wb4_slave.md) - what it watches
-- [apb4_monitor](../apb4/apb4_monitor.md) - the family template
-- [apb_monitor_addr_check](../monitor/apb_monitor_addr_check.md) - the shared range checker, tagged `PROTOCOL_WB` here through its `PROTOCOL` parameter
-- [monitor_package_spec](../includes/monitor_package_spec.md) - packet format and protocol ids
+- [wb4_master](wb4_master.md), [wb4_slave](wb4_slave.md) — what it
+  watches
+- [apb4_monitor](../apb4/apb4_monitor.md) — the family template
+- [apb_monitor_addr_check](../monitor/apb_monitor_addr_check.md) — the
+  shared range checker, tagged `PROTOCOL_WB` here through its `PROTOCOL`
+  parameter
+- [monitor_package_spec](../includes/monitor_package_spec.md) — packet
+  format and protocol ids
 
-## Test
+## Testing
 
 `val/amba/test_wb4_monitor.py` drives both queues with GAXI BFMs (a
 producer/consumer pair on each side, an age-based responder) and decodes

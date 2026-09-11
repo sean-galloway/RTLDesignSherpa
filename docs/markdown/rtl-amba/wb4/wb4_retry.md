@@ -25,14 +25,14 @@
 
 ## Overview
 
-`wb4_retry` sits on the FUB side of `wb4_master` and turns a Wishbone `RTY`
-into a retry. Every command the FUB issues is held in an in-order
+`wb4_retry` sits on the FUB side of `wb4_master` and turns a Wishbone
+`RTY` into a retry. Every command the FUB issues is held in an in-order
 completion buffer until its answer has been handed back. `ACK` and `ERR`
 complete the entry as they arrive. `RTY` puts the entry back on the issue
-path after `cfg_retry_delay` clocks, until `cfg_max_retries` re-issues have
-been spent; only then does the FUB see the `RTY`. Responses reach the FUB
-in command order whatever happened on the bus, and re-issues always take
-priority over new commands.
+path after `cfg_retry_delay` clocks, until `cfg_max_retries` re-issues
+have been spent; only then does the FUB see the `RTY`. Responses reach
+the FUB in command order whatever happened on the bus, and re-issues
+always take priority over new commands.
 
 `cfg_max_retries = 0` makes the block a pass-through. `wb4_master_retry`
 is the block and the master together, with the master's ports.
@@ -113,10 +113,11 @@ module wb4_retry
 ### Configuration
 
 `cfg_max_retries` is the number of re-issues allowed per command, not the
-number of attempts: with 3, a command is presented to the bus at most four
-times. `cfg_retry_delay` is the number of clocks between the `RTY` and the
-re-issue; 0 re-issues on the next clock the master can take a command.
-Both are sampled when used, so they can change between transfers.
+number of attempts: with 3, a command is presented to the bus at most
+four times. `cfg_retry_delay` is the number of clocks between the `RTY`
+and the re-issue; 0 re-issues on the next clock the master can take a
+command. Both are sampled when used, so they can change between
+transfers.
 
 ### Status
 
@@ -126,14 +127,14 @@ number of commands accepted from the FUB and not yet answered, at most
 
 ## Functional Description
 
-Each entry of the completion buffer holds the command (`we`, `adr`, `dat`,
-`sel`), a retry count, a delay timer and, once answered, the status and
-read data. Entries are allocated at the tail when a command is accepted
-and released at the head when the FUB takes the response, so the FUB
-order is the buffer order. A separate issue log records which entry each
-command handed to the master belongs to, in the order the master received
-them; Wishbone terminates in that order, so the log head is always the
-entry a termination belongs to.
+Each entry of the completion buffer holds the command (`we`, `adr`,
+`dat`, `sel`), a retry count, a delay timer and, once answered, the
+status and read data. Entries are allocated at the tail when a command is
+accepted and released at the head when the FUB takes the response, so the
+FUB order is the buffer order. A separate issue log records which entry
+each command handed to the master belongs to, in the order the master
+received them; Wishbone terminates in that order, so the log head is
+always the entry a termination belongs to.
 
 | Event | Effect |
 |---|---|
@@ -145,7 +146,7 @@ entry a termination belongs to.
 | Head entry done | `rsp_valid`; released on the handshake |
 
 `cmd_ready` is low while a retry is pending issue, while the buffer is
-full, and while the master cannot take a command, so a FUB never has a
+full, and while the master cannot take a command — so a FUB never has a
 command accepted that would be reordered behind a retry. `mst_rsp_ready`
 is high whenever a command is on the bus: the termination's entry is
 waiting for it, so the master is never back-pressured on a response.
@@ -157,10 +158,10 @@ waiting for it, so the master is never back-pressured on a response.
 - A termination is recorded in the clock it arrives; `rsp_valid` for the
   head follows one clock later (registered state).
 - With `INFLIGHT = 1` the bus carries one transfer at a time, so the
-  sustained rate is one transfer per round trip. With `INFLIGHT = N` and a
-  master `RSP_DEPTH >= N`, up to N transfers are open.
+  sustained rate is one transfer per round trip. With `INFLIGHT = N` and
+  a master `RSP_DEPTH >= N`, up to N transfers are open.
 
-## Notes
+## Design Notes
 
 - Under `ifdef FORMAL` the block asserts the occupancy bounds of both the
   buffer and the issue log, that everything on the bus is an allocated
@@ -168,23 +169,24 @@ waiting for it, so the master is never back-pressured on a response.
   accepted, and that the FUB only ever sees the head once it is done.
   `formal/amba/wb4_retry/` adds the port-level contract (payload equality
   of every re-issue, `1 + retries` issues per command, the budget and the
-  delay, `RTY` to the FUB only once the budget is spent) at `INFLIGHT = 1`
-  and the bounds at `INFLIGHT = 2`.
-- The block does not know why the slave retried. Back-off is a fixed delay;
-  a slave that needs a longer or growing gap needs a larger
+  delay, `RTY` to the FUB only once the budget is spent) at `INFLIGHT =
+  1` and the bounds at `INFLIGHT = 2`.
+- The block does not know why the slave retried. Back-off is a fixed
+  delay; a slave that needs a longer or growing gap needs a larger
   `cfg_retry_delay` from the controlling software.
 
-## Related
+## Related Modules
 
-- [wb4_master_retry](wb4_master_retry.md) - this block with `wb4_master` behind it
-- [wb4_master](wb4_master.md) - what it drives
-- [axil4_to_wb4](../../../../projects/components/converters/docs/converter_mas/ch03_protocol_blocks/10_axil4_to_wb4.md) - a bridge that maps `RTY` to an AXI error; put this block between it and the master to retry instead
+- [wb4_master_retry](wb4_master_retry.md) — this block with `wb4_master`
+  behind it
+- [wb4_master](wb4_master.md) — what it drives
+- [axil4_to_wb4](../../../../projects/components/converters/docs/converter_mas/ch03_protocol_blocks/10_axil4_to_wb4.md) — a bridge that maps `RTY` to an AXI error; put this block between it and the master to retry instead
 
-## Test
+## Testing
 
 `val/amba/test_wb4_master_retry.py`, through the wrapper: the framework
-Wishbone slave answers with address windows that retry a bounded number of
-times, retry forever, or error, so every FUB response, the number of
+Wishbone slave answers with address windows that retry a bounded number
+of times, retry forever, or error, so every FUB response, the number of
 re-issues (`retry_count`, the monitor's transfer count, the slave's `RTY`
 count) and the read data follow from the model. Formal:
 `formal/amba/wb4_retry/`.

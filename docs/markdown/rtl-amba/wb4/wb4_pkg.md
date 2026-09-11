@@ -23,29 +23,17 @@
 
 # wb4_pkg
 
+## Overview
+
 The response-status encoding shared by every module in the Wishbone B4
 family and by the Python bus functional models, together with the
-registered-feedback burst hints of B4 chapter 4. Three enums and three width
-constants, kept in a package so each encoding has exactly one definition.
+registered-feedback burst hints of B4 chapter 4. Three enums and three
+width constants, kept in a package so each encoding has exactly one
+definition.
 
-## Design Notes
+## Functional Description
 
-**This is a package, not a module.** No ports, no clock. Compile order
-matters: it must be analysed before anything importing it, which is why
-`rtl/amba/filelists/wb4_pkg.f` exists and every consumer `-f` includes it
-rather than hand-listing the source.
-
-**Why a status field at all.** Wishbone terminates a transfer with one of
-three wires, `ACK`, `ERR` or `RTY`. The FUB-side response queue carries the
-outcome as a 2-bit status instead, so a consumer reads one field rather than
-decoding three mutually exclusive strobes. `WB4_STATUS_WIDTH` sizes that
-field everywhere it appears.
-
-**No test of its own, and none expected.** A package has no behaviour to
-simulate. It is verified by every module that imports it failing to
-elaborate if a declaration is wrong.
-
-## Declarations
+### Declarations
 
 ```systemverilog
 package wb4_pkg;
@@ -95,11 +83,11 @@ own; it reports what the slave said and the FUB decides. Put
 [`wb4_retry`](wb4_retry.md) in front of the master to absorb retries
 transparently up to a budget.
 
-## Burst hint encodings
+### Burst Hint Encodings
 
-Registered-feedback cycles (B4 chapter 4). Both are **advisory**: the family
-carries them when `USE_BURST_HINTS = 1` and neither the master nor the slave
-changes behaviour on them.
+Registered-feedback cycles (B4 chapter 4). Both are **advisory**: the
+family carries them when `USE_BURST_HINTS = 1` and neither the master nor
+the slave changes behaviour on them.
 
 | `wb4_cti_t` | Value | Meaning |
 |---|---|---|
@@ -117,15 +105,29 @@ changes behaviour on them.
 | `WB4_BTE_WRAP16` | `2'b11` | 16-beat wrap |
 
 `WB4_CTI_WIDTH` is 3 and `WB4_BTE_WIDTH` is 2. Both encodings put the
-non-burst case at zero on purpose, so a bus with the hint wires tied off is
-a legal classic bus rather than an illegal encoding.
+non-burst case at zero on purpose, so a bus with the hint wires tied off
+is a legal classic bus rather than an illegal encoding.
 
-## Consumers
+## Design Notes
 
-Every module in the family imports it: [`wb4_master`](wb4_master.md),
-[`wb4_slave`](wb4_slave.md), [`wb4_monitor`](wb4_monitor.md),
-[`wb4_retry`](wb4_retry.md), [`wb4_master_retry`](wb4_master_retry.md), the
-clock-gated and CDC variants, and the `axil4_to_wb4` bridge in
+**This is a package, not a module.** No ports, no clock. Compile order
+matters: it must be analysed before anything importing it, which is why
+`rtl/amba/filelists/wb4_pkg.f` exists and every consumer `-f` includes it
+rather than hand-listing the source.
+
+**Why a status field at all.** Wishbone terminates a transfer with one of
+three wires, `ACK`, `ERR` or `RTY`. The FUB-side response queue carries
+the outcome as a 2-bit status instead, so a consumer reads one field
+rather than decoding three mutually exclusive strobes. `WB4_STATUS_WIDTH`
+sizes that field everywhere it appears.
+
+## Related Modules
+
+Every module in the family imports the package:
+[`wb4_master`](wb4_master.md), [`wb4_slave`](wb4_slave.md),
+[`wb4_monitor`](wb4_monitor.md), [`wb4_retry`](wb4_retry.md),
+[`wb4_master_retry`](wb4_master_retry.md), the clock-gated and CDC
+variants, and the `axil4_to_wb4` bridge in
 `projects/components/converters`.
 
 The DV side mirrors the same three values in
@@ -133,7 +135,13 @@ The DV side mirrors the same three values in
 `WB4_STATUS_ERR`, `WB4_STATUS_RTY`), and `monitor_wb4_pkg` carries the
 separate event codes the monitor emits.
 
-## Related
+- [Wishbone B4 family README](README.md) — the protocol scope and the
+  mode rules
+- [`monitor_wb4_pkg`](../includes/monitor_wb4_pkg.md) — the monitor's
+  event codes, a different package
 
-- [Wishbone B4 family README](README.md) - the protocol scope and the mode rules
-- [`monitor_wb4_pkg`](../includes/monitor_wb4_pkg.md) - the monitor's event codes, a different package
+## Testing
+
+No test of its own, and none expected. A package has no behaviour to
+simulate. It is verified by every module that imports it failing to
+elaborate if a declaration is wrong.

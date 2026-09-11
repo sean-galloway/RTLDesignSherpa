@@ -29,8 +29,8 @@ The **clock-gated variant** of [wb4_master](wb4_master.md): an
 `amba_clock_gate_ctrl` instance produces a gated clock that feeds an
 otherwise unmodified `wb4_master`. Functionally identical to the base
 module; gating is enabled and tuned by input signals, not parameters, and
-`cfg_cg_enable = 0` gives the base behaviour exactly. See the Shared book's
-[Clock-Gated Variants Guide](../shared/clock_gated_variants.md) and
+`cfg_cg_enable = 0` gives the base behaviour exactly. See the Shared
+book's [Clock-Gated Variants Guide](../shared/clock_gated_variants.md) and
 [amba_clock_gate_ctrl](../shared/amba_clock_gate_ctrl.md) for the
 architecture and the gate cell.
 
@@ -49,7 +49,7 @@ In addition to all `wb4_master` parameters:
 | Port | Direction | Description |
 |---|---|---|
 | `cfg_cg_enable` | in | Global clock-gate enable |
-| `cfg_cg_idle_count [ICW-1:0]` | in | Idle clocks before the clock is gated |
+| `cfg_cg_idle_count [CG_IDLE_COUNT_WIDTH-1:0]` | in | Idle clocks before the clock is gated |
 | `cg_gating` | out | Clock is gated now |
 | `cg_idle` | out | Nothing pending (the controller's idle indicator) |
 
@@ -57,8 +57,8 @@ In addition to all `wb4_master` parameters:
 
 ### Wake-Up Terms
 
-The registered wake term follows the family rule (peer VALIDs and every
-place work can be pending, never a peer READY):
+The registered wake term follows the family rule — peer VALIDs and every
+place work can be pending, never a peer READY:
 
 | Term | Why |
 |---|---|
@@ -72,34 +72,40 @@ idle would otherwise hold the clock on forever.
 ### Masks for the Wake-Latency Overlap
 
 Gating can engage on the same edge pending work appears, and the wake
-takes a clock or two. The `rsp_valid` and the `cmd_ready` seen by the FUB
-are both held low while `cg_gating` is high, so a FUB never has a command
-taken, or a response retired, by a stopped clock. The masks only defer;
-once the pending term is high gating cannot engage, so a visible valid is
-never truncated. The bus side needs no mask: `CYC`/`STB` come from
-registered state that is idle whenever the clock may stop, and a slave
-terminates only inside a cycle.
+takes a clock or two. Two FUB-facing signals are therefore masked while
+`cg_gating` is high:
 
-## Notes
+| Signal | Masked to | Why |
+|---|---|---|
+| `rsp_valid` (to the FUB) | low | a FUB must not have a response retired by a stopped clock |
+| `cmd_ready` (to the FUB) | low | a FUB must not have a command taken by a stopped clock |
+
+The masks only defer; once the pending term is high, gating cannot
+engage, so a visible valid is never truncated. The bus side needs no
+mask: `CYC`/`STB` come from registered state that is idle whenever the
+clock may stop, and a slave terminates only inside a cycle.
+
+## Design Notes
 
 - Formal: `formal/amba/wb4_master_cg/` proves the wrapper's glue contract
   with a clock-enable model of the gate cell (a derived clock is not
-  provable in the repo's single-clock flow; the stopped clock itself is the
-  cocotb test's job): reset state, no gating while a cycle is open on the
-  bus or a response is visible, no gating with the enable low, `cmd_ready`
-  low while gated, and a command offered wakes the clock by its third
-  clock; covers gating, an ungated transfer, a response handed back and
-  re-gating.
+  provable in the repo's single-clock flow; the stopped clock itself is
+  the cocotb test's job): reset state, no gating while a cycle is open on
+  the bus or a response is visible, no gating with the enable low,
+  `cmd_ready` low while gated, and a command offered wakes the clock by
+  its third clock; covers gating, an ungated transfer, a response handed
+  back and re-gating.
 - The wake term is combinational into the controller (which registers it
   once), not a second local flop as in `apb4_master_cg`; see
-  `formal/amba/apb4_slave_cg/KNOWN_BUG.md` for the latency that flop adds.
+  `formal/amba/apb4_slave_cg/KNOWN_BUG.md` for the latency that flop
+  adds.
 
-## Related
+## Related Modules
 
 - [wb4_master](wb4_master.md), [wb4_slave_cg](wb4_slave_cg.md)
-- [apb4_master_cg](../apb4/apb4_master_cg.md) - the same wrapper over APB
+- [apb4_master_cg](../apb4/apb4_master_cg.md) — the same wrapper over APB
 
-## Test
+## Testing
 
 `val/amba/test_wb4_master_cg.py` runs the `wb4_master` phases with gating
 enabled and checks, every clock, that the clock is never gated while a
