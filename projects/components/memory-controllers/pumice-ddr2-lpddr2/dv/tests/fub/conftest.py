@@ -45,21 +45,20 @@ def pytest_ignore_collect(collection_path, config):
     return 'logs' in path_str or 'local_sim_build' in path_str
 
 # ----------------------------------------------------------------------
-# REG_LEVEL -> TEST_LEVEL bridge
+# NO REG_LEVEL -> TEST_LEVEL STAMP HERE. DELIBERATELY.
 # ----------------------------------------------------------------------
-# make/tests.mk drives the regression level through REG_LEVEL; this area's test
-# modules read TEST_LEVEL, and they read it at MODULE IMPORT time
-# (`_TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC")` at file scope). conftest
-# is imported before any test module, so setting it here is early enough.
+# There used to be one, and while no wrapper exported a level it was the only
+# thing mapping `make run-all-full-parallel` onto a depth: without it the grids
+# fell back to FUNC and a FULL run quietly ran the FUNC matrix (measured on
+# fub: 91 tests -> 79) while still reporting "passed".
 #
-# Without this bridge the Makefile convergence silently REDUCES coverage: the
-# 4-line area Makefile sets REG_LEVEL=full, nothing reads it, TEST_LEVEL falls
-# back to its FUNC default, and `make run-all-full-parallel` quietly runs the
-# FUNC matrix. Measured: 91 fub tests -> 79. It still says "passed", which is
-# exactly why it needs to be written down rather than remembered.
+# The trap is what it does once wrappers DO pass a level. cocotb_test's set_env
+# applies extra_env first and then copies every os.environ entry over it, so a
+# process-level TEST_LEVEL beats whatever a wrapper exported -- TOOL-016, see
+# TBClasses.shared.test_levels.
 #
-# REG_LEVEL wins over TEST_LEVEL, matching stream's conftest: the make target
-# you typed is more explicit than an inherited environment variable.
-_reg_level = os.environ.get('REG_LEVEL')
-if _reg_level:
-    os.environ['TEST_LEVEL'] = _reg_level.upper()
+# So this area now reads REG_LEVEL in each wrapper (the grids and the Group C
+# depth tables) and exports TEST_LEVEL per cell. Removing this stamp without that
+# wrapper change would have dropped the area to the FUNC default, which is why
+# a comment stands here rather than a blank space. The tests that never read the
+# level at all -- the directed single-scenario ones -- are unaffected either way.

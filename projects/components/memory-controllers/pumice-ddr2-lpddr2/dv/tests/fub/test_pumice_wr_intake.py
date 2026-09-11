@@ -31,6 +31,18 @@ from tbclasses.pumice_wr_intake_tb import (  # noqa: E402
     PumiceWrIntakeTB, RESP_OKAY, RESP_SLVERR,
 )
 
+# REG_LEVEL SELECTS THE DEPTH. This test grades on basic / medium / full, but
+# the regression speaks GATE / FUNC / FULL, and the conftest stamp used to hand
+# it `gate` and `func` -- neither of which is in the depth table, so both fell
+# to the `basic` default and a FUNC run was exactly as shallow as a GATE run.
+# The `medium` tier was dead code that no run ever reached. This maps the
+# regression's names onto the table so the three levels are distinct.
+_LEVEL = {"GATE": "gate", "BASIC": "gate",
+          "FUNC": "func", "MEDIUM": "func",
+          "FULL": "full"}.get(
+    (os.environ.get("REG_LEVEL") or os.environ.get("TEST_LEVEL")
+     or "FUNC").upper(), "func")
+
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "rtl/filelists/fub/pumice_wr_intake.f")
 
@@ -44,7 +56,7 @@ async def cocotb_test_pumice_wr_intake(dut):
     await tb.setup_clocks_and_reset()
 
     level = os.environ.get("TEST_LEVEL", "basic").lower()
-    n = {"basic": 4, "medium": 16, "full": 48}.get(level, 4)
+    n = {"gate": 4, "basic": 4, "func": 16, "medium": 16, "full": 48}.get(level, 4)
     rng = random.Random(int(os.environ.get("SEED", "1")))
 
     expected_b = []
@@ -141,7 +153,7 @@ def _run(request, testcase, ragged_assert, bl=4):
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE": results_path,
         "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
-        "TEST_LEVEL": os.environ.get("TEST_LEVEL", "basic").lower(),
+        "TEST_LEVEL": _LEVEL,
     }
     extra_env.update({k: v for k, v in params.items()})
 

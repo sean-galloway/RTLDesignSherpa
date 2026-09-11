@@ -28,6 +28,18 @@ if _DV_DIR not in sys.path:
 from pumice_coverage import get_coverage_compile_args, get_coverage_env  # noqa: E402
 from tbclasses.pumice_rd_intake_tb import PumiceRdIntakeTB, RESP_OKAY  # noqa: E402
 
+# REG_LEVEL SELECTS THE DEPTH. This test grades on basic / medium / full, but
+# the regression speaks GATE / FUNC / FULL, and the conftest stamp used to hand
+# it `gate` and `func` -- neither of which is in the depth table, so both fell
+# to the `basic` default and a FUNC run was exactly as shallow as a GATE run.
+# The `medium` tier was dead code that no run ever reached. This maps the
+# regression's names onto the table so the three levels are distinct.
+_LEVEL = {"GATE": "gate", "BASIC": "gate",
+          "FUNC": "func", "MEDIUM": "func",
+          "FULL": "full"}.get(
+    (os.environ.get("REG_LEVEL") or os.environ.get("TEST_LEVEL")
+     or "FUNC").upper(), "func")
+
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "rtl/filelists/fub/pumice_rd_intake.f")
 
@@ -38,7 +50,7 @@ async def cocotb_test_pumice_rd_intake(dut):
     await tb.setup_clocks_and_reset()
 
     level = os.environ.get("TEST_LEVEL", "basic").lower()
-    n = {"basic": 6, "medium": 24, "full": 64}.get(level, 6)
+    n = {"gate": 6, "basic": 6, "func": 24, "medium": 24, "full": 64}.get(level, 6)
     rng = random.Random(int(os.environ.get("SEED", "1")))
 
     # Keep hit and miss key-spaces disjoint: bit 18 of the word address (a row
@@ -119,7 +131,7 @@ def test_pumice_rd_intake(request):
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE": results_path,
         "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
-        "TEST_LEVEL": os.environ.get("TEST_LEVEL", "basic").lower(),
+        "TEST_LEVEL": _LEVEL,
     }
     extra_env.update(params)
 

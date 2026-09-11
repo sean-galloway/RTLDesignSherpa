@@ -145,7 +145,13 @@ _GATE = [(t,) for t in ["row_major", "bank_interleave", "xor_hash"]]
 _FUNC = [(t,) for t in _ALL_TYPES]
 _FULL = _FUNC
 
-_TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
+# REG_LEVEL SELECTS THIS GRID. It used to read TEST_LEVEL, which held the
+# regression level only because the area conftest stamped REG_LEVEL into it --
+# and that stamp also overrode every per-cell value a wrapper exported, which is
+# TOOL-016. The stamp is gone, so REG_LEVEL is read here directly. TEST_LEVEL
+# stays as a manual override for a bare `pytest` run.
+_TEST_LEVEL = (os.environ.get("REG_LEVEL") or os.environ.get("TEST_LEVEL")
+               or "FUNC").upper()
 _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
 
 
@@ -175,7 +181,7 @@ def test_addr_mapper(request, test_type):
         "COL_WIDTH":         "10",
         "BYTE_OFFSET_WIDTH": "3",
         "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
-        "TEST_LEVEL": os.environ.get("TEST_LEVEL", "FUNC"),
+        "TEST_LEVEL": _TEST_LEVEL,
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE":
             os.path.join(log_dir, f"results_{test_name}.xml"),

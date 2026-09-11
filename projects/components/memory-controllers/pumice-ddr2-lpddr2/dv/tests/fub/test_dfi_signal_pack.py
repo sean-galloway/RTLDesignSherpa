@@ -142,7 +142,13 @@ _FULL = _FUNC + [(t, 4, 2) for t in _ALL_TYPES] + [
 # with _0/_1 suffixes and parallel workers race on the same local_sim_build/.
 _FULL = list(dict.fromkeys(_FULL))
 
-_TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
+# REG_LEVEL SELECTS THIS GRID. It used to read TEST_LEVEL, which held the
+# regression level only because the area conftest stamped REG_LEVEL into it --
+# and that stamp also overrode every per-cell value a wrapper exported, which is
+# TOOL-016. The stamp is gone, so REG_LEVEL is read here directly. TEST_LEVEL
+# stays as a manual override for a bare `pytest` run.
+_TEST_LEVEL = (os.environ.get("REG_LEVEL") or os.environ.get("TEST_LEVEL")
+               or "FUNC").upper()
 _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
 
 

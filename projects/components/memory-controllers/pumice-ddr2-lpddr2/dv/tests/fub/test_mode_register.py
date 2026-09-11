@@ -176,7 +176,13 @@ _FULL = _FUNC + [("ddr2_cl_sweep", 2), ("random_soak", 2)]
 # stay distinct and parallel workers don't race on local_sim_build/.
 _FULL = list(dict.fromkeys(_FULL))
 
-_TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
+# REG_LEVEL SELECTS THIS GRID. It used to read TEST_LEVEL, which held the
+# regression level only because the area conftest stamped REG_LEVEL into it --
+# and that stamp also overrode every per-cell value a wrapper exported, which is
+# TOOL-016. The stamp is gone, so REG_LEVEL is read here directly. TEST_LEVEL
+# stays as a manual override for a bare `pytest` run.
+_TEST_LEVEL = (os.environ.get("REG_LEVEL") or os.environ.get("TEST_LEVEL")
+               or "FUNC").upper()
 _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
 
 
@@ -202,6 +208,8 @@ def test_mode_register(request, test_type, num_ranks):
         "NUM_RANKS": str(num_ranks),
         "MAX_MR_IDX": "17",
         "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
+        # The simulator's depth comes from here now; no conftest stamps it.
+        "TEST_LEVEL": _TEST_LEVEL,
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE":
             os.path.join(log_dir, f"results_{test_name}.xml"),
