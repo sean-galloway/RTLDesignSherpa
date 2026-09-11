@@ -728,11 +728,18 @@ cat projects/components/retro_legacy_blocks/docs/{block}_mas/{block}_mas_index.m
 $REPO_ROOT/projects/components/retro_legacy_blocks/docs/
 ```
 
-**Quick Command:** Use the provided shell script:
+**Quick Command:** Use the MAS script. The books live in `*_mas/` directories
+and `generate_mas_pdf.sh` is what knows about them:
 ```bash
 cd $REPO_ROOT/projects/components/retro_legacy_blocks/docs
-./generate_pdf.sh
+./generate_mas_pdf.sh                      # every book
+./generate_mas_pdf.sh --component smbus    # one book
 ```
+
+`generate_pdf.sh` in the same directory is the OLDER script and targets
+`*_spec/` directories that no longer exist here. It used to answer a missing
+index with "generated successfully" while writing nothing; that is fixed, and
+it now fails loudly, but it still has nothing to build in this component.
 
 ---
 

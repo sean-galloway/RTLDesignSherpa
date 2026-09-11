@@ -146,11 +146,17 @@ generate_component() {
   local output_docx="${output_basename}.docx"
   local output_pdf="${output_basename}.pdf"
 
-  # Check if spec index exists
+  # Check if spec index exists.
+  #
+  # This used to `return 0`, which the caller counted as a success: the run
+  # printed "All specifications generated successfully" having written nothing
+  # at all. A generator that reports success for work it did not do is worse
+  # than one that fails, because nobody goes looking. Missing input is an
+  # ERROR.
   if [[ ! -f "$spec_index" ]]; then
-    echo "⚠️  WARNING: Spec index not found: $spec_index (skipping ${display_name})"
+    echo "ERROR: spec index not found: $spec_index (${display_name} NOT generated)"
     echo
-    return 0
+    return 1
   fi
 
   # Print header
