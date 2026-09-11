@@ -2348,30 +2348,3 @@ What is NOT checked is the **wire** itself:
 **Done when:** a standalone `wb4_master` test at `USE_BURST_HINTS=1` asserts
 the hints on the wires through the BFM monitor, and (if step 2 is taken) the
 monitor test decodes a hint out of a completion packet.
-
----
-
-### TASK-089: the converters spec PDF is two revisions behind its source
-
-**Priority:** P4, mechanical.
-
-**Status:** open 2026-09-10.
-
-`projects/components/converters/docs/` holds `Converters_MAS_v1.1.pdf`, while
-the source now carries revision 1.2 in
-`ch00_front_matter/00_document_info.md` and has gained two chapters that are
-in no PDF:
-
-- `ch03_protocol_blocks/10_axil4_to_wb4.md` (AXI4-Lite to Wishbone)
-- `ch03_protocol_blocks/11_wb4_to_axil4.md` (Wishbone to AXI4-Lite)
-
-Both are linked from `converter_mas_index.md` and the chapter-3 overview
-table, so only the generated artefact is stale.
-
-**Work:** `projects/components/converters/docs/generate_mas_pdf.sh --rev 1.2`.
-Confirm the two new chapters are in the output by extracting the text, not by
-trusting the exit code -- the RTL book generator taught that lesson on
-2026-09-10 (see [[doc-pipeline]]).
-
-**Done when:** `Converters_MAS_v1.2.pdf` exists and contains both chapters.
-

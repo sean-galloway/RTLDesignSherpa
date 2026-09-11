@@ -2603,3 +2603,29 @@ itself. The loopback covers the pass-through contract end to end, which is
 what the RTL promises. `wb4_monitor` does not report hints either; its
 `aux_data` has exactly three spare bits for a `CTI` if that is ever wanted.
 
+
+---
+
+### TASK-089: the converters spec PDF is two revisions behind its source
+
+**Priority:** P4, mechanical.
+
+**Status:** CLOSED 2026-09-10.
+
+`projects/components/converters/docs/` shipped `Converters_MAS_v1.1.pdf` while
+the source carried revision 1.2 and two chapters that were in no PDF:
+`ch03_protocol_blocks/10_axil4_to_wb4.md` and `11_wb4_to_axil4.md`. Both were
+already linked from `converter_mas_index.md` and the chapter-3 overview table,
+so only the generated artefact was stale.
+
+**Done.** `./generate_mas_pdf.sh --rev 1.2` from
+`projects/components/converters/docs/`, committed in `ad96130be` with the
+matching `.docx`. The earlier revisions stay in place beside it, as v1.0 and
+v1.1 already did.
+
+**Evidence, extracted from the PDF rather than read off the exit code** (the
+RTL book generator taught that lesson the same day, see [[doc-pipeline]]):
+`pdftotext` finds "AXI4-Lite to Wishbone B4 Converter" as chapter **3.10** and
+"Wishbone B4 to AXI4-Lite Converter" as chapter **3.11**, each with its full
+subsection tree down to Formal, Testing and Usage Example, plus Figure 3.12 for
+the AXI4-Lite side. The book is 248 pages against v1.1's 224.
