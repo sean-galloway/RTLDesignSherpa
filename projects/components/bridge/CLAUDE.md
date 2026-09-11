@@ -56,7 +56,7 @@ taking TOML or CSV configuration. There is no second generator: the separate
 **Complete Documentation (Read in This Order):**
 1. `projects/components/bridge/GENERATOR_ARCHITECTURE.md` ← **START HERE** (generator architecture reference)
 2. `projects/components/bridge/PRD.md` ← Product requirements
-3. `projects/components/bridge/TASKS.md` ← Task history and current status
+3. `vault/Tasks/bridge/INDEX.md` ← Task tracking (open / closed / dropped; the old TASKS.md was folded in 2026-09-10)
 4. `projects/components/bridge/docs/bridge_has/bridge_has_index.md` ← Hardware Architecture Spec (rendered: `docs/Bridge_HAS_v1.1.pdf`)
 5. `projects/components/bridge/docs/bridge_mas/bridge_mas_index.md` ← Micro-Architecture Spec (rendered: `docs/Bridge_MAS_v1.1.pdf`)
 

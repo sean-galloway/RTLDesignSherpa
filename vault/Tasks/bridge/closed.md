@@ -1370,3 +1370,38 @@ test name.
 
 
 ---
+
+## Pre-migration ledger: projects/components/bridge/TASKS.md (retired 2026-09-10)
+
+The component's own task file predated the vault and was folded in here, one
+line per item with its disposition. It described the generator as of 2025-11;
+everything below that was "Planned" either happened under a BRIDGE-0xx task,
+is superseded, or moved to [[BRIDGE-017]] / [dropped](dropped.md).
+
+| Legacy | Title | Disposition |
+|---|---|---|
+| TASK-000A | AXI4 interface wrapper integration | Complete 2025-11-04 |
+| TASK-000 | Intelligent width-aware routing (4 phases, per-slave arbitration) | Complete 2025-11-04 |
+| TASK-000B | slave_select reversion and multi-master routing fixes | Complete 2026-05-13 |
+| TASK-001 | APB converter | Done: `axi4_to_apb4_shim` (+ apb5, BRIDGE-002 A5-3c) |
+| TASK-002 | Channel-specific master end-to-end testing | Done: `bridge_1x2_{rd,wr}*` fixtures and generated tests |
+| TASK-003 | Width converter integration testing | Done: mixed-width fixtures, `bridge_1x2_rd_axi5w`, converters suite |
+| TASK-004 | CSV generator documentation | Done: bridge HAS/MAS (generated, house pipeline) |
+| TASK-005 | Performance characterization | Not done -> [[BRIDGE-017]] |
+| TASK-006 | Address decode documentation | Done: MAS ch02 address decode |
+| TASK-007 | Error handling / response routing documentation | Done: MAS ch02 response routing, BRIDGE-009/010/011 |
+| TASK-008 | WaveDrom timing diagrams | Done: MAS/HAS diagrams (mermaid); wavedrom generators in handbook |
+| TASK-009 | PlantUML architecture diagrams | Superseded by the mermaid set in the HAS |
+| TASK-010 | Synthesis and implementation guide | Not done -> [[BRIDGE-017]] |
+| TASK-011 | Generator id_width + prefix handling (bugs A/B/C) | Closed 2026-04-30 |
+| TASK-011b | Replace hand-coded arbiters with standard components | Done: BRIDGE-005 request arbiter |
+| TASK-012 | AXI burst optimization | Dropped (no defined target) -> dropped.md |
+| TASK-013a | Outstanding transaction support | Done: AW/AR tracking FIFOs, BRIDGE-011 not-full gating |
+| TASK-013b | Timeout detection | Done: `_mon` variants' AXI monitors report timeouts |
+| TASK-014 | APB3 to APB4 bridge | Dropped (no consumer) -> dropped.md |
+| TASK-015 | AXI4 <-> AXI4-Lite converter | Done: `axi4_to_axil4_{rd,wr}` (+ axil5) |
+| TASK-016 | Async clock domain crossing | Not done -> [[BRIDGE-017]] |
+| TASK-017 | QoS with aging counters | Not done -> [[BRIDGE-017]] |
+| TASK-018 | CAM-based response routing (optional) | Done: `enable_ooo` slaves use `bridge_cam`; repaired under BRIDGE-015 |
+| TASK-019 | Pipeline FIFOs for high-performance crossbars | Not done -> [[BRIDGE-017]] |
+| TASK-021 | Testbench and test file automation | Done: `--generate-tests` emits TB class + tests per fixture |

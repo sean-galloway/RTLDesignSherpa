@@ -114,7 +114,7 @@ reviewed tree starts until the review is back and integrated.
 | [misc](projects/components/misc/INDEX.md) | **native** | shared odds and ends: AXI4 interface observers, tally/slvmon register blocks, dma_address_gen | — (new 2026-09-04) |
 | [stream](projects/components/dmas/stream/INDEX.md) | **started** | dmas/stream DMA (nested to mirror repo path) | TASK-056 migrated from TODO_RFC_StageE; [TASKS.md](../../projects/components/dmas/stream/TASKS.md) (v1.0 complete) still to fold in |
 | [rapids](projects/components/dmas/rapids/INDEX.md) | **started** | dmas/rapids DMA (beats, nested to mirror repo) | TASK-057 regmap hygiene (ported from STREAM); [TASKS.md](../../projects/components/dmas/rapids/TASKS.md) + rapids_beats_mas/TODO still to fold in |
-| [bridge](bridge/INDEX.md) | **started** | bridge crossbar generator | [TASKS.md](../../projects/components/bridge/TASKS.md) (still to fold in; area holds BRIDGE-001) |
+| [bridge](bridge/INDEX.md) | **migrated** | bridge crossbar generator | TASKS.md folded in 2026-09-10 (ledger in closed.md; leftovers BRIDGE-017) |
 | delta | pending | delta component | [TASKS.md](../../projects/components/delta/TASKS.md) |
 | [reed-solomon](projects/components/reed-solomon/INDEX.md) | **migrated** | future R/S ECC component (intent only, no RTL yet; holds RS-001) | successor to dropped COMMON-009 |
 | hive | pending | hive component | [TASKS.md](../../projects/components/hive/TASKS.md) |
