@@ -206,6 +206,12 @@ module pm_acpi_core #(
 
     // GPE enables
     input  logic [31:0] cfg_gpe_enables,
+    input  logic [31:0] cfg_gpe_trigger,       // 0 edge, 1 level, per source
+    input  logic [31:0] cfg_gpe_wake_enables,  // wake arming when split on
+    input  logic [31:0] cfg_gpe1_enables,
+    input  logic [31:0] cfg_gpe1_trigger,
+    input  logic [31:0] cfg_gpe1_wake_enables,
+    input  logic        cfg_gpe_split_enable,  // run/wake enables are separate
 
     // Clock gate control
     input  logic [31:0] cfg_clk_gate_ctrl,
@@ -244,6 +250,7 @@ module pm_acpi_core #(
     input  logic [4:0]  sw_clr_pm1_status,
     input  logic [3:0]  sw_clr_wake_status,
     input  logic [31:0] sw_clr_gpe_status,
+    input  logic [31:0] sw_clr_gpe1_status,
 
     // ========================================================================
     // Status Interface (to config_regs) - sticky, W1C
@@ -254,6 +261,7 @@ module pm_acpi_core #(
     output logic [4:0]  status_pm1,           // PM1_STATUS
     output logic [3:0]  status_wake_src,      // WAKE_STATUS
     output logic [31:0] status_gpe,           // GPE0_STATUS_HI:LO
+    output logic [31:0] status_gpe1,          // GPE1_STATUS_HI:LO
     output logic [3:0]  status_reset_src,     // RESET_STATUS
 
     // Read-only mirrors
@@ -268,6 +276,10 @@ module pm_acpi_core #(
 
     // GPE event inputs (from system, asynchronous)
     input  logic [31:0] gpe_events_in,
+    // The second ACPI GPE block. Same pins in every respect as gpe_events_in,
+    // synchronized on the same chain; tie to zero when the system has only
+    // one bank.
+    input  logic [31:0] gpe1_events_in,
 
     // Power button input (active low, asynchronous)
     input  logic        power_button_n,
@@ -396,6 +408,7 @@ module pm_acpi_core #(
     logic        r_wdt_reset_seen;
     logic        r_ext_reset_seen;
     logic [31:0] r_gpe_events_sync [SYNC_STAGES];
+    logic [31:0] r_gpe1_events_sync [SYNC_STAGES];
     logic [7:0]  r_pwr_ack_sync    [SYNC_STAGES];
     logic [7:0]  w_pwr_domain_ack;
     logic        w_rtc_alarm;
@@ -403,6 +416,7 @@ module pm_acpi_core #(
     logic        w_wdt_reset_n;
     logic        w_ext_reset_n;
     logic [31:0] w_gpe_events;
+    logic [31:0] w_gpe1_events;
 
     // Assertion-edge detect on the two level pins (issue #54 follow-up F1)
     logic        r_rtc_alarm_d;
@@ -414,6 +428,15 @@ module pm_acpi_core #(
     logic [31:0] r_gpe_events_prev;
     logic [31:0] w_gpe_events_edge;
     logic [31:0] w_gpe_set;
+    logic [31:0] w_gpe1_events_edge;
+    logic [31:0] w_gpe1_set;
+    logic [31:0] r_gpe1_events_prev;
+    logic [31:0] r_gpe1_status;
+    logic [31:0] w_gpe_run_armed;
+    logic [31:0] w_gpe_wake_armed;
+    logic [31:0] w_gpe1_run_armed;
+    logic [31:0] w_gpe1_wake_armed;
+    logic        w_ev_gpe_wake;
     logic [31:0] r_gpe_status;
 
     // Button synchronization and edge detection
@@ -463,6 +486,7 @@ module pm_acpi_core #(
     logic [4:0]  w_pm1_status_set_q;
     logic [3:0]  w_wake_src_event_q;
     logic [31:0] w_gpe_set_q;
+    logic [31:0] w_gpe1_set_q;
 
     // Raw hardware events feeding the status bits
     logic       w_ev_pme;
@@ -512,6 +536,7 @@ module pm_acpi_core #(
                 r_wdt_reset_n_sync[s] <= 1'b1;
                 r_ext_reset_n_sync[s] <= 1'b1;
                 r_gpe_events_sync[s] <= '0;
+                r_gpe1_events_sync[s] <= '0;
                 r_pwr_ack_sync[s]    <= 8'hFF;
             end
         end else begin
@@ -520,6 +545,7 @@ module pm_acpi_core #(
             r_wdt_reset_n_sync[0] <= wdt_reset_n;
             r_ext_reset_n_sync[0] <= ext_reset_n;
             r_gpe_events_sync[0] <= gpe_events_in;
+            r_gpe1_events_sync[0] <= gpe1_events_in;
             r_pwr_ack_sync[0]    <= power_domain_ack;
             for (int s = 1; s < SYNC_STAGES; s++) begin
                 r_rtc_alarm_sync[s]  <= r_rtc_alarm_sync[s-1];
@@ -527,6 +553,7 @@ module pm_acpi_core #(
                 r_wdt_reset_n_sync[s] <= r_wdt_reset_n_sync[s-1];
                 r_ext_reset_n_sync[s] <= r_ext_reset_n_sync[s-1];
                 r_gpe_events_sync[s] <= r_gpe_events_sync[s-1];
+                r_gpe1_events_sync[s] <= r_gpe1_events_sync[s-1];
                 r_pwr_ack_sync[s]    <= r_pwr_ack_sync[s-1];
             end
         end
@@ -535,6 +562,7 @@ module pm_acpi_core #(
     assign w_rtc_alarm  = r_rtc_alarm_sync[SYNC_STAGES-1];
     assign w_ext_wake_n = r_ext_wake_n_sync[SYNC_STAGES-1];
     assign w_gpe_events = r_gpe_events_sync[SYNC_STAGES-1];
+    assign w_gpe1_events = r_gpe1_events_sync[SYNC_STAGES-1];
     assign w_wdt_reset_n = r_wdt_reset_n_sync[SYNC_STAGES-1];
     assign w_ext_reset_n = r_ext_reset_n_sync[SYNC_STAGES-1];
     // The rail acknowledges come from power switches on another clock, or on
@@ -753,35 +781,71 @@ module pm_acpi_core #(
     // 4); an input that never changed cannot produce an event.
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            r_gpe_events_prev <= '0;
+            r_gpe_events_prev  <= '0;
+            r_gpe1_events_prev <= '0;
         end else begin
-            r_gpe_events_prev <= w_gpe_events;
+            r_gpe_events_prev  <= w_gpe_events;
+            r_gpe1_events_prev <= w_gpe1_events;
         end
     )
 
-    assign w_gpe_events_edge = w_gpe_events & ~r_gpe_events_prev;
+    // EDGE OR LEVEL, PER SOURCE. An edge source sets its status bit once, on
+    // the rising edge, and the bit then belongs to software: a source still
+    // asserted does not set it again. A LEVEL source sets its bit for as long
+    // as it is asserted, so a W1C while the source is still high has no
+    // lasting effect. That difference is the whole point: it is how software
+    // tells an event it missed from one that is still happening.
+    assign w_gpe_events_edge  = (w_gpe_events  & ~r_gpe_events_prev  & ~cfg_gpe_trigger) |
+                                (w_gpe_events  &  cfg_gpe_trigger);
+    assign w_gpe1_events_edge = (w_gpe1_events & ~r_gpe1_events_prev & ~cfg_gpe1_trigger) |
+                                (w_gpe1_events &  cfg_gpe1_trigger);
 
     // Recording an event is gated by the enables; CLEARING never is, so
     // software can always drain the register.
     assign w_gpe_set   = (cfg_acpi_enable && cfg_gpe_enable) ? w_gpe_events_edge : '0;
     assign w_gpe_set_q = cfg_soft_reset ? '0 : w_gpe_set;
+    assign w_gpe1_set   = (cfg_acpi_enable && cfg_gpe_enable) ? w_gpe1_events_edge : '0;
+    assign w_gpe1_set_q = cfg_soft_reset ? '0 : w_gpe1_set;
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            r_gpe_status <= '0;
+            r_gpe_status  <= '0;
+            r_gpe1_status <= '0;
         end else if (w_soft_reset_req) begin
-            r_gpe_status <= '0;
+            r_gpe_status  <= '0;
+            r_gpe1_status <= '0;
         end else begin
-            r_gpe_status <= (r_gpe_status & ~sw_clr_gpe_status) | w_gpe_set_q;
+            r_gpe_status  <= (r_gpe_status  & ~sw_clr_gpe_status)  | w_gpe_set_q;
+            r_gpe1_status <= (r_gpe1_status & ~sw_clr_gpe1_status) | w_gpe1_set_q;
         end
     )
 
-    assign status_gpe = r_gpe_status;
+    assign status_gpe  = r_gpe_status;
+    assign status_gpe1 = r_gpe1_status;
 
-    // Any enabled GPE source is pending. This is the term behind both the GPE
-    // interrupt and the GPE wake, and it now falls when software W1Cs the
-    // status - which is what unblocks sleep entry (round_3 item 1).
-    assign w_ev_gpe_pending = |(r_gpe_status & cfg_gpe_enables);
+    // RUN AND WAKE ARE THE SAME ARMING UNTIL SOFTWARE SPLITS THEM. With
+    // gpe_split_enable clear, GPEx_ENABLE arms a source for both the runtime
+    // interrupt and the wake, which is how the block behaved before the split
+    // existed and what every integration written against it expects. With it
+    // set, GPEx_ENABLE arms only the interrupt and GPEx_WAKE_EN only the
+    // wake, so a source can wake a sleeping machine without interrupting a
+    // running one -- ACPI's usual arrangement for a device that should be
+    // ignored while the OS is driving it.
+    assign w_gpe_run_armed   = cfg_gpe_enables;
+    assign w_gpe1_run_armed  = cfg_gpe1_enables;
+    assign w_gpe_wake_armed  = cfg_gpe_split_enable ? cfg_gpe_wake_enables
+                                                   : cfg_gpe_enables;
+    assign w_gpe1_wake_armed = cfg_gpe_split_enable ? cfg_gpe1_wake_enables
+                                                   : cfg_gpe1_enables;
+
+    // Any armed GPE source in either bank is pending. This is the term behind
+    // the GPE interrupt, and it falls when software W1Cs the status - which is
+    // what unblocks sleep entry (round_3 item 1). The wake term is the same
+    // shape over the wake arming.
+    assign w_ev_gpe_pending = |(r_gpe_status  & w_gpe_run_armed) ||
+                              |(r_gpe1_status & w_gpe1_run_armed);
+    assign w_ev_gpe_wake    = |(r_gpe_status  & w_gpe_wake_armed) ||
+                              |(r_gpe1_status & w_gpe1_wake_armed);
 
     // ========================================================================
     // Wake Event Detection
@@ -789,9 +853,11 @@ module pm_acpi_core #(
 
     // No wake term is a raw pin level, so every one of them is something
     // software can eventually dismiss:
-    //   GPE    - the ENABLED-and-PENDING level of the sticky GPE status, which
-    //            W1C clears. An unacknowledged GPE therefore keeps the machine
-    //            awake, which is the point of a wake source.
+    //   GPE    - the ARMED-and-PENDING level of the sticky GPE status in
+    //            either bank, which W1C clears. An unacknowledged GPE
+    //            therefore keeps the machine awake, which is the point of a
+    //            wake source. "Armed" is GPEx_ENABLE unless the run/wake
+    //            split is on, in which case it is GPEx_WAKE_EN.
     //   pwrbtn - the press edge (two synchronized stages).
     //   rtc    - the alarm ASSERTION edge (#54 F1).
     //   ext    - the ext_wake_n ASSERTION edge (#54 F1).
@@ -799,7 +865,7 @@ module pm_acpi_core #(
     // BEFORE the sleep request does not block sleep entry and does not wake
     // the machine; it has to deassert and reassert. WAKE_STATUS records the
     // original assertion either way.
-    assign w_wake_src_event[WK_ST_GPE]    = cfg_gpe_wake_en    && w_ev_gpe_pending;
+    assign w_wake_src_event[WK_ST_GPE]    = cfg_gpe_wake_en    && w_ev_gpe_wake;
     assign w_wake_src_event[WK_ST_PWRBTN] = cfg_pwrbtn_wake_en && w_power_button_press;
     assign w_wake_src_event[WK_ST_RTC]    = cfg_rtc_wake_en    && w_rtc_alarm_edge;
     assign w_wake_src_event[WK_ST_EXT]    = cfg_ext_wake_en    && w_ext_wake_edge;

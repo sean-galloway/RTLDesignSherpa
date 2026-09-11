@@ -54,7 +54,9 @@ Three layers, the same shape every RLB block uses:
 - PM timer, configurable divider (~3.571 MHz from 100 MHz at the /28 default;
   the ACPI target is 3.579545 MHz), with a power-of-two prescaler ahead of the
   divider, an optional 64-bit mode and a comparator
-- 32 GPE sources, rising-edge detected, per-bit sticky status and enable mask
+- Two banks of 32 GPE sources, edge or level PER SOURCE, per-bit sticky status
+  and enable mask, and an optional split between the run enable and the wake
+  enable
 - Every status bit is EDGE-set, including the two level pins (rtc_alarm,
   ext_wake_n), so a W1C takes effect while the pin is still asserted
 - Power state FSM: S0 working, S1 sleep (clocks gated except bits [1:0]),
@@ -64,7 +66,7 @@ Three layers, the same shape every RLB block uses:
   request LATCHED so a one-cycle source lands in S0 and stays
 - Optional rail sequencer: one rail at a time, programmable gap, per-rail
   acknowledge, clocks gated before the rails drop and restored after they rise
-- Strict address decode: only the twenty-four mapped registers are visible,
+- Strict address decode: only the thirty-six mapped registers are visible,
   every other address in the 4 KB window is dropped and answered with PSLVERR
 - Input synchronizers on rtc_alarm, ext_wake_n and gpe_events (SYNC_STAGES,
   default 2, unconditional); 3-flop chains plus a programmable debouncer and a
@@ -160,6 +162,31 @@ already uses. `PM_TIMER_CONFIG.timer_64bit` does not change how wide the
 counter is - it is always 64 bits - only WHICH carry counts as an overflow, so
 software can widen the timer without giving up the 32-bit overflow it may
 already be watching.
+
+## GPE: two banks, edge or level, run or wake
+
+`GPEx_TRIGGER` chooses per source. An EDGE source sets its status bit once, on
+the rising edge, and the bit then belongs to software. A LEVEL source sets its
+bit for as long as the source is asserted, so a W1C while it is still high has
+no lasting effect. That difference is the whole point: it is how software tells
+an event it missed from one that is still happening.
+
+`gpe1_events` is the second ACPI GPE block, with its own status, enable,
+trigger and wake-enable registers. It behaves exactly like bank 0 and shares
+the GPE interrupt and wake terms with it, so software that only uses one bank
+never sees the other.
+
+`ACPI_CONTROL.gpe_split_enable` separates two things that were one mask:
+
+| split | GPEx_ENABLE arms | GPEx_WAKE_EN arms |
+|-------|------------------|-------------------|
+| 0 (reset) | the interrupt and the wake | nothing |
+| 1 | the interrupt only | the wake only |
+
+With the split on, a source can wake a sleeping machine without interrupting a
+running one, which is what ACPI wants for a device the OS drives directly while
+awake. With it off the block behaves exactly as it did before the split
+existed.
 
 ## Rails move one at a time, or all at once
 
@@ -274,8 +301,10 @@ runs on another clock.
 
 - Drive `rtc_alarm`, `ext_wake_n` and any `gpe_events` bit for at least two
   pm_clk periods. Anything shorter can fall between synchronizer samples.
-- A GPE is RISING-EDGE detected. A source held high forever produces one event,
-  not a level.
+- A GPE is RISING-EDGE detected unless its GPEx_TRIGGER bit is set. An edge
+  source held high forever produces one event, not a level.
+- A LEVEL GPE cannot be cleared while its source is asserted. That is not a
+  bug in the W1C: the status of a level source IS the source.
 - `PM_TIMER_VALUE` is read-only; there is no software path to preload it. The
   DV suite pokes `pm_acpi_core.r_pm_timer_count` by hierarchical name to reach
   an overflow in finite simulation time.
@@ -307,9 +336,9 @@ runs on another clock.
 ## Not implemented
 
 Deferred work is recorded in `vault/Tasks/RLB/open.md` (RLB-009), not in a
-tracker next to the code. In short: GPE is edge-only with a single bank of 32,
-with no level mode, no per-event edge/level choice and no run-versus-wake
-split.
+tracker next to the code. What is left there is out of scope rather than
+deferred: legacy replacement routing (IRQ0 timer, IRQ8 RTC) and processor
+C/P-state hints.
 
 ---
 

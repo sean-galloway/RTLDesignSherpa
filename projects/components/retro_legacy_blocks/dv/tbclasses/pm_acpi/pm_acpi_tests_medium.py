@@ -59,6 +59,7 @@ class PMACPIMediumTests:
             ('RLB-009 button debounce and override', self.test_rlb009_button_debounce_and_override),
             ('RLB-009 PM timer extensions', self.test_rlb009_pm_timer_extensions),
             ('RLB-009 power sequencing', self.test_rlb009_power_sequencer),
+            ('RLB-009 GPE event handling', self.test_rlb009_gpe_event_handling),
             ('PM Timer Divider Sweep', self.test_pm_timer_divider_sweep),
             ('PM Timer Extended Run', self.test_pm_timer_extended_run),
             ('GPE Enable Patterns', self.test_gpe_enable_patterns),
@@ -101,6 +102,158 @@ class PMACPIMediumTests:
     # ========================================================================
     # PM Timer Extended Tests
     # ========================================================================
+
+    async def test_rlb009_gpe_event_handling(self) -> bool:
+        """RLB-009: GPE level mode, the second bank, and the run/wake split.
+
+        GPE was rising-edge only, one bank of 32, with a single enable mask
+        serving both the interrupt and the wake. Three things change. A source
+        can now be LEVEL triggered, so its status bit follows the source and a
+        W1C while it is still asserted does not stick -- which is how software
+        tells an event it missed from one still happening. There is a second
+        bank on its own pins, which is what ACPI's two GPE blocks are. And the
+        enables can be split, so a source can wake a sleeping machine without
+        interrupting a running one."""
+        self.log.info("=== RLB-009: GPE level mode, bank 1, run/wake split ===")
+        M = PMACPIRegisterMap
+        try:
+            async def fresh():
+                await self.tb.assert_reset()
+                await ClockCycles(self.tb.pclk, 10)
+                await self.tb.deassert_reset()
+                await ClockCycles(self.tb.pclk, 20)
+                self.tb.dut.gpe_events.value = 0
+                self.tb.dut.gpe1_events.value = 0
+                await self.tb.write_register(M.ACPI_CONTROL,
+                                             M.CONTROL_ACPI_ENABLE |
+                                             M.CONTROL_GPE_ENABLE)
+                await ClockCycles(self.tb.pclk, 10)
+
+            # --- 1. EDGE VS LEVEL ---------------------------------------
+            # Source 0 is level, source 1 is edge. Both are held asserted, so
+            # the only thing that separates them is what a W1C does.
+            await fresh()
+            await self.tb.write_register(M.GPE0_TRIGGER_LO, 0x0001)
+            await self.tb.write_register(M.GPE0_ENABLE_LO, 0x0003)
+            self.tb.dut.gpe_events.value = 0x3
+            await ClockCycles(self.tb.pclk, 20)
+            _, st = await self.tb.read_register(M.GPE0_STATUS_LO)
+            both_set = (st & 0x3) == 0x3
+            # Clear both while the sources are still high.
+            await self.tb.write_register(M.GPE0_STATUS_LO, 0x3)
+            await ClockCycles(self.tb.pclk, 20)
+            _, st2 = await self.tb.read_register(M.GPE0_STATUS_LO)
+            level_returned = bool(st2 & 0x1)
+            edge_stayed_clear = not bool(st2 & 0x2)
+            # Drop the level source and it clears for good.
+            self.tb.dut.gpe_events.value = 0
+            await ClockCycles(self.tb.pclk, 20)
+            await self.tb.write_register(M.GPE0_STATUS_LO, 0x3)
+            await ClockCycles(self.tb.pclk, 20)
+            _, st3 = await self.tb.read_register(M.GPE0_STATUS_LO)
+            level_cleared = not bool(st3 & 0x1)
+            self.log.info(f"  edge/level: both set={both_set}, after W1C with "
+                          f"both still high -> level back={level_returned} "
+                          f"edge clear={edge_stayed_clear}, level clears once "
+                          f"the source drops={level_cleared}")
+
+            # --- 2. THE SECOND BANK -------------------------------------
+            await fresh()
+            await self.tb.write_register(M.GPE1_ENABLE_LO, 1 << 5)
+            await self.tb.write_register(M.ACPI_INT_ENABLE, M.INT_ENABLE_GPE)
+            self.tb.dut.gpe1_events.value = 1 << 5
+            await ClockCycles(self.tb.pclk, 20)
+            _, b1 = await self.tb.read_register(M.GPE1_STATUS_LO)
+            _, b0 = await self.tb.read_register(M.GPE0_STATUS_LO)
+            bank1_set = bool(b1 & (1 << 5))
+            bank0_quiet = (b0 == 0)
+            bank1_irq = bool(self.tb.dut.pm_interrupt.value)
+            self.tb.dut.gpe1_events.value = 0
+            await ClockCycles(self.tb.pclk, 10)
+            await self.tb.write_register(M.GPE1_STATUS_LO, 1 << 5)
+            await ClockCycles(self.tb.pclk, 20)
+            _, b1c = await self.tb.read_register(M.GPE1_STATUS_LO)
+            bank1_cleared = (b1c == 0)
+            self.log.info(f"  bank 1: status set={bank1_set} bank 0 untouched="
+                          f"{bank0_quiet} interrupt={bank1_irq} "
+                          f"W1C cleared={bank1_cleared}")
+
+            # --- 3. RUN ARMED, NOT WAKE ARMED ---------------------------
+            # The source interrupts a running machine and does NOT bring a
+            # sleeping one back.
+            await fresh()
+            await self.tb.write_register(M.ACPI_CONTROL,
+                                         M.CONTROL_ACPI_ENABLE |
+                                         M.CONTROL_GPE_ENABLE |
+                                         M.CONTROL_GPE_SPLIT_ENABLE)
+            await self.tb.write_register(M.GPE0_ENABLE_LO, 1 << 3)
+            await self.tb.write_register(M.GPE0_WAKE_EN_LO, 0)
+            await self.tb.write_register(M.WAKE_ENABLE, 0xF)
+            await self.tb.write_register(M.ACPI_INT_ENABLE, M.INT_ENABLE_GPE)
+            await self.tb.request_sleep(sleep_type=3)
+            await ClockCycles(self.tb.pclk, 40)
+            _, c = await self.tb.read_register(M.ACPI_CONTROL)
+            asleep = ((c >> 4) & 0x3) == 3
+            self.tb.dut.gpe_events.value = 1 << 3
+            await ClockCycles(self.tb.pclk, 40)
+            run_irq = bool(self.tb.dut.pm_interrupt.value)
+            _, c2 = await self.tb.read_register(M.ACPI_CONTROL)
+            stayed_asleep = ((c2 >> 4) & 0x3) == 3
+            self.log.info(f"  run-armed only: reached S3={asleep} "
+                          f"interrupt={run_irq} stayed asleep={stayed_asleep}")
+
+            # --- 4. WAKE ARMED, NOT RUN ARMED ---------------------------
+            await fresh()
+            await self.tb.write_register(M.ACPI_CONTROL,
+                                         M.CONTROL_ACPI_ENABLE |
+                                         M.CONTROL_GPE_ENABLE |
+                                         M.CONTROL_GPE_SPLIT_ENABLE)
+            await self.tb.write_register(M.GPE0_ENABLE_LO, 0)
+            await self.tb.write_register(M.GPE0_WAKE_EN_LO, 1 << 3)
+            await self.tb.write_register(M.WAKE_ENABLE, 0xF)
+            await self.tb.write_register(M.ACPI_INT_ENABLE, M.INT_ENABLE_GPE)
+            await self.tb.request_sleep(sleep_type=3)
+            await ClockCycles(self.tb.pclk, 40)
+            _, d = await self.tb.read_register(M.ACPI_CONTROL)
+            asleep2 = ((d >> 4) & 0x3) == 3
+            self.tb.dut.gpe_events.value = 1 << 3
+            await ClockCycles(self.tb.pclk, 60)
+            wake_irq = bool(self.tb.dut.pm_interrupt.value)
+            _, d2 = await self.tb.read_register(M.ACPI_CONTROL)
+            woke = ((d2 >> 4) & 0x3) == 0
+            self.log.info(f"  wake-armed only: reached S3={asleep2} woke="
+                          f"{woke} interrupt while waking={wake_irq} (want "
+                          f"False)")
+
+            ok = (both_set and level_returned and edge_stayed_clear and
+                  level_cleared and bank1_set and bank0_quiet and bank1_irq and
+                  bank1_cleared and asleep and run_irq and stayed_asleep and
+                  asleep2 and woke and not wake_irq)
+            if ok:
+                self.log.info("RLB-009 GPE event handling GREEN")
+                return True
+            self.log.error(
+                f"RLB-009 GPE: both_set={both_set} level_returned="
+                f"{level_returned} edge_stayed_clear={edge_stayed_clear} "
+                f"level_cleared={level_cleared} bank1_set={bank1_set} "
+                f"bank0_quiet={bank0_quiet} bank1_irq={bank1_irq} "
+                f"bank1_cleared={bank1_cleared} reached_S3={asleep} "
+                f"run_irq={run_irq} stayed_asleep={stayed_asleep} "
+                f"reached_S3_again={asleep2} woke={woke} "
+                f"wake_irq={wake_irq} (want False)")
+            return False
+        except Exception as e:
+            self.log.error(f"RLB-009 GPE test error: {e}")
+            return False
+        finally:
+            self.tb.dut.gpe_events.value = 0
+            self.tb.dut.gpe1_events.value = 0
+            await self.tb.assert_reset()
+            await ClockCycles(self.tb.pclk, 10)
+            await self.tb.deassert_reset()
+            await ClockCycles(self.tb.pclk, 20)
+            await self.tb.write_register(M.ACPI_CONTROL, 0)
+            await ClockCycles(self.tb.pclk, 20)
 
     async def test_rlb009_power_sequencer(self) -> bool:
         """RLB-009: clock and power-rail sequencing.

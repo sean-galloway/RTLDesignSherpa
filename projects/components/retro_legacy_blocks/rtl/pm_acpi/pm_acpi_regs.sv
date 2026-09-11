@@ -92,6 +92,18 @@ module pm_acpi_regs (
         logic PM_TIMER_MATCH;
         logic PWR_SEQ_CONFIG;
         logic PWR_SEQ_STATUS;
+        logic GPE0_TRIGGER_LO;
+        logic GPE0_TRIGGER_HI;
+        logic GPE0_WAKE_EN_LO;
+        logic GPE0_WAKE_EN_HI;
+        logic GPE1_STATUS_LO;
+        logic GPE1_STATUS_HI;
+        logic GPE1_ENABLE_LO;
+        logic GPE1_ENABLE_HI;
+        logic GPE1_TRIGGER_LO;
+        logic GPE1_TRIGGER_HI;
+        logic GPE1_WAKE_EN_LO;
+        logic GPE1_WAKE_EN_HI;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
     logic decoded_req;
@@ -126,6 +138,18 @@ module pm_acpi_regs (
         decoded_reg_strb.PM_TIMER_MATCH = cpuif_req_masked & (cpuif_addr == 8'h78);
         decoded_reg_strb.PWR_SEQ_CONFIG = cpuif_req_masked & (cpuif_addr == 8'h7c);
         decoded_reg_strb.PWR_SEQ_STATUS = cpuif_req_masked & (cpuif_addr == 8'h80);
+        decoded_reg_strb.GPE0_TRIGGER_LO = cpuif_req_masked & (cpuif_addr == 8'h84);
+        decoded_reg_strb.GPE0_TRIGGER_HI = cpuif_req_masked & (cpuif_addr == 8'h88);
+        decoded_reg_strb.GPE0_WAKE_EN_LO = cpuif_req_masked & (cpuif_addr == 8'h8c);
+        decoded_reg_strb.GPE0_WAKE_EN_HI = cpuif_req_masked & (cpuif_addr == 8'h90);
+        decoded_reg_strb.GPE1_STATUS_LO = cpuif_req_masked & (cpuif_addr == 8'h94);
+        decoded_reg_strb.GPE1_STATUS_HI = cpuif_req_masked & (cpuif_addr == 8'h98);
+        decoded_reg_strb.GPE1_ENABLE_LO = cpuif_req_masked & (cpuif_addr == 8'h9c);
+        decoded_reg_strb.GPE1_ENABLE_HI = cpuif_req_masked & (cpuif_addr == 8'ha0);
+        decoded_reg_strb.GPE1_TRIGGER_LO = cpuif_req_masked & (cpuif_addr == 8'ha4);
+        decoded_reg_strb.GPE1_TRIGGER_HI = cpuif_req_masked & (cpuif_addr == 8'ha8);
+        decoded_reg_strb.GPE1_WAKE_EN_LO = cpuif_req_masked & (cpuif_addr == 8'hac);
+        decoded_reg_strb.GPE1_WAKE_EN_HI = cpuif_req_masked & (cpuif_addr == 8'hb0);
     end
 
     // Pass down signals to next stage
@@ -159,6 +183,10 @@ module pm_acpi_regs (
                 logic next;
                 logic load_next;
             } soft_reset;
+            struct {
+                logic next;
+                logic load_next;
+            } gpe_split_enable;
         } ACPI_CONTROL;
         struct {
             struct {
@@ -426,6 +454,78 @@ module pm_acpi_regs (
                 logic load_next;
             } seq_delay;
         } PWR_SEQ_CONFIG;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } gpe_trigger;
+        } GPE0_TRIGGER_LO;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } gpe_trigger;
+        } GPE0_TRIGGER_HI;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } gpe_wake_enable;
+        } GPE0_WAKE_EN_LO;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } gpe_wake_enable;
+        } GPE0_WAKE_EN_HI;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } gpe_status;
+        } GPE1_STATUS_LO;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } gpe_status;
+        } GPE1_STATUS_HI;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } gpe_enable;
+        } GPE1_ENABLE_LO;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } gpe_enable;
+        } GPE1_ENABLE_HI;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } gpe_trigger;
+        } GPE1_TRIGGER_LO;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } gpe_trigger;
+        } GPE1_TRIGGER_HI;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } gpe_wake_enable;
+        } GPE1_WAKE_EN_LO;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } gpe_wake_enable;
+        } GPE1_WAKE_EN_HI;
     } field_combo_t;
     field_combo_t field_combo;
 
@@ -446,6 +546,9 @@ module pm_acpi_regs (
             struct {
                 logic value;
             } soft_reset;
+            struct {
+                logic value;
+            } gpe_split_enable;
         } ACPI_CONTROL;
         struct {
             struct {
@@ -656,6 +759,66 @@ module pm_acpi_regs (
                 logic [15:0] value;
             } seq_delay;
         } PWR_SEQ_CONFIG;
+        struct {
+            struct {
+                logic [15:0] value;
+            } gpe_trigger;
+        } GPE0_TRIGGER_LO;
+        struct {
+            struct {
+                logic [15:0] value;
+            } gpe_trigger;
+        } GPE0_TRIGGER_HI;
+        struct {
+            struct {
+                logic [15:0] value;
+            } gpe_wake_enable;
+        } GPE0_WAKE_EN_LO;
+        struct {
+            struct {
+                logic [15:0] value;
+            } gpe_wake_enable;
+        } GPE0_WAKE_EN_HI;
+        struct {
+            struct {
+                logic [15:0] value;
+            } gpe_status;
+        } GPE1_STATUS_LO;
+        struct {
+            struct {
+                logic [15:0] value;
+            } gpe_status;
+        } GPE1_STATUS_HI;
+        struct {
+            struct {
+                logic [15:0] value;
+            } gpe_enable;
+        } GPE1_ENABLE_LO;
+        struct {
+            struct {
+                logic [15:0] value;
+            } gpe_enable;
+        } GPE1_ENABLE_HI;
+        struct {
+            struct {
+                logic [15:0] value;
+            } gpe_trigger;
+        } GPE1_TRIGGER_LO;
+        struct {
+            struct {
+                logic [15:0] value;
+            } gpe_trigger;
+        } GPE1_TRIGGER_HI;
+        struct {
+            struct {
+                logic [15:0] value;
+            } gpe_wake_enable;
+        } GPE1_WAKE_EN_LO;
+        struct {
+            struct {
+                logic [15:0] value;
+            } gpe_wake_enable;
+        } GPE1_WAKE_EN_HI;
     } field_storage_t;
     field_storage_t field_storage;
 
@@ -777,6 +940,29 @@ module pm_acpi_regs (
         end
     end
     assign hwif_out.ACPI_CONTROL.soft_reset.value = field_storage.ACPI_CONTROL.soft_reset.value;
+    // Field: pm_acpi_regs.ACPI_CONTROL.gpe_split_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.ACPI_CONTROL.gpe_split_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.ACPI_CONTROL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.ACPI_CONTROL.gpe_split_enable.value & ~decoded_wr_biten[8:8]) | (decoded_wr_data[8:8] & decoded_wr_biten[8:8]);
+            load_next_c = '1;
+        end
+        field_combo.ACPI_CONTROL.gpe_split_enable.next = next_c;
+        field_combo.ACPI_CONTROL.gpe_split_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.ACPI_CONTROL.gpe_split_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.ACPI_CONTROL.gpe_split_enable.load_next) begin
+                field_storage.ACPI_CONTROL.gpe_split_enable.value <= field_combo.ACPI_CONTROL.gpe_split_enable.next;
+            end
+        end
+    end
+    assign hwif_out.ACPI_CONTROL.gpe_split_enable.value = field_storage.ACPI_CONTROL.gpe_split_enable.value;
     // Field: pm_acpi_regs.ACPI_STATUS.pme_status
     always_comb begin
         automatic logic [0:0] next_c;
@@ -2164,6 +2350,288 @@ module pm_acpi_regs (
         end
     end
     assign hwif_out.PWR_SEQ_CONFIG.seq_delay.value = field_storage.PWR_SEQ_CONFIG.seq_delay.value;
+    // Field: pm_acpi_regs.GPE0_TRIGGER_LO.gpe_trigger
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.GPE0_TRIGGER_LO.gpe_trigger.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.GPE0_TRIGGER_LO && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.GPE0_TRIGGER_LO.gpe_trigger.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.GPE0_TRIGGER_LO.gpe_trigger.next = next_c;
+        field_combo.GPE0_TRIGGER_LO.gpe_trigger.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.GPE0_TRIGGER_LO.gpe_trigger.value <= 16'h0;
+        end else begin
+            if(field_combo.GPE0_TRIGGER_LO.gpe_trigger.load_next) begin
+                field_storage.GPE0_TRIGGER_LO.gpe_trigger.value <= field_combo.GPE0_TRIGGER_LO.gpe_trigger.next;
+            end
+        end
+    end
+    assign hwif_out.GPE0_TRIGGER_LO.gpe_trigger.value = field_storage.GPE0_TRIGGER_LO.gpe_trigger.value;
+    // Field: pm_acpi_regs.GPE0_TRIGGER_HI.gpe_trigger
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.GPE0_TRIGGER_HI.gpe_trigger.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.GPE0_TRIGGER_HI && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.GPE0_TRIGGER_HI.gpe_trigger.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.GPE0_TRIGGER_HI.gpe_trigger.next = next_c;
+        field_combo.GPE0_TRIGGER_HI.gpe_trigger.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.GPE0_TRIGGER_HI.gpe_trigger.value <= 16'h0;
+        end else begin
+            if(field_combo.GPE0_TRIGGER_HI.gpe_trigger.load_next) begin
+                field_storage.GPE0_TRIGGER_HI.gpe_trigger.value <= field_combo.GPE0_TRIGGER_HI.gpe_trigger.next;
+            end
+        end
+    end
+    assign hwif_out.GPE0_TRIGGER_HI.gpe_trigger.value = field_storage.GPE0_TRIGGER_HI.gpe_trigger.value;
+    // Field: pm_acpi_regs.GPE0_WAKE_EN_LO.gpe_wake_enable
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.GPE0_WAKE_EN_LO.gpe_wake_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.GPE0_WAKE_EN_LO && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.GPE0_WAKE_EN_LO.gpe_wake_enable.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.GPE0_WAKE_EN_LO.gpe_wake_enable.next = next_c;
+        field_combo.GPE0_WAKE_EN_LO.gpe_wake_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.GPE0_WAKE_EN_LO.gpe_wake_enable.value <= 16'h0;
+        end else begin
+            if(field_combo.GPE0_WAKE_EN_LO.gpe_wake_enable.load_next) begin
+                field_storage.GPE0_WAKE_EN_LO.gpe_wake_enable.value <= field_combo.GPE0_WAKE_EN_LO.gpe_wake_enable.next;
+            end
+        end
+    end
+    assign hwif_out.GPE0_WAKE_EN_LO.gpe_wake_enable.value = field_storage.GPE0_WAKE_EN_LO.gpe_wake_enable.value;
+    // Field: pm_acpi_regs.GPE0_WAKE_EN_HI.gpe_wake_enable
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.GPE0_WAKE_EN_HI.gpe_wake_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.GPE0_WAKE_EN_HI && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.GPE0_WAKE_EN_HI.gpe_wake_enable.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.GPE0_WAKE_EN_HI.gpe_wake_enable.next = next_c;
+        field_combo.GPE0_WAKE_EN_HI.gpe_wake_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.GPE0_WAKE_EN_HI.gpe_wake_enable.value <= 16'h0;
+        end else begin
+            if(field_combo.GPE0_WAKE_EN_HI.gpe_wake_enable.load_next) begin
+                field_storage.GPE0_WAKE_EN_HI.gpe_wake_enable.value <= field_combo.GPE0_WAKE_EN_HI.gpe_wake_enable.next;
+            end
+        end
+    end
+    assign hwif_out.GPE0_WAKE_EN_HI.gpe_wake_enable.value = field_storage.GPE0_WAKE_EN_HI.gpe_wake_enable.value;
+    // Field: pm_acpi_regs.GPE1_STATUS_LO.gpe_status
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.GPE1_STATUS_LO.gpe_status.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.GPE1_STATUS_LO && decoded_req_is_wr) begin // SW write 1 clear
+            next_c = field_storage.GPE1_STATUS_LO.gpe_status.value & ~(decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end else begin // HW Write
+            next_c = hwif_in.GPE1_STATUS_LO.gpe_status.next;
+            load_next_c = '1;
+        end
+        field_combo.GPE1_STATUS_LO.gpe_status.next = next_c;
+        field_combo.GPE1_STATUS_LO.gpe_status.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.GPE1_STATUS_LO.gpe_status.value <= 16'h0;
+        end else begin
+            if(field_combo.GPE1_STATUS_LO.gpe_status.load_next) begin
+                field_storage.GPE1_STATUS_LO.gpe_status.value <= field_combo.GPE1_STATUS_LO.gpe_status.next;
+            end
+        end
+    end
+    assign hwif_out.GPE1_STATUS_LO.gpe_status.swmod = decoded_reg_strb.GPE1_STATUS_LO && decoded_req_is_wr && |(decoded_wr_biten[15:0]);
+    // Field: pm_acpi_regs.GPE1_STATUS_HI.gpe_status
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.GPE1_STATUS_HI.gpe_status.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.GPE1_STATUS_HI && decoded_req_is_wr) begin // SW write 1 clear
+            next_c = field_storage.GPE1_STATUS_HI.gpe_status.value & ~(decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end else begin // HW Write
+            next_c = hwif_in.GPE1_STATUS_HI.gpe_status.next;
+            load_next_c = '1;
+        end
+        field_combo.GPE1_STATUS_HI.gpe_status.next = next_c;
+        field_combo.GPE1_STATUS_HI.gpe_status.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.GPE1_STATUS_HI.gpe_status.value <= 16'h0;
+        end else begin
+            if(field_combo.GPE1_STATUS_HI.gpe_status.load_next) begin
+                field_storage.GPE1_STATUS_HI.gpe_status.value <= field_combo.GPE1_STATUS_HI.gpe_status.next;
+            end
+        end
+    end
+    assign hwif_out.GPE1_STATUS_HI.gpe_status.swmod = decoded_reg_strb.GPE1_STATUS_HI && decoded_req_is_wr && |(decoded_wr_biten[15:0]);
+    // Field: pm_acpi_regs.GPE1_ENABLE_LO.gpe_enable
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.GPE1_ENABLE_LO.gpe_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.GPE1_ENABLE_LO && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.GPE1_ENABLE_LO.gpe_enable.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.GPE1_ENABLE_LO.gpe_enable.next = next_c;
+        field_combo.GPE1_ENABLE_LO.gpe_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.GPE1_ENABLE_LO.gpe_enable.value <= 16'h0;
+        end else begin
+            if(field_combo.GPE1_ENABLE_LO.gpe_enable.load_next) begin
+                field_storage.GPE1_ENABLE_LO.gpe_enable.value <= field_combo.GPE1_ENABLE_LO.gpe_enable.next;
+            end
+        end
+    end
+    assign hwif_out.GPE1_ENABLE_LO.gpe_enable.value = field_storage.GPE1_ENABLE_LO.gpe_enable.value;
+    // Field: pm_acpi_regs.GPE1_ENABLE_HI.gpe_enable
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.GPE1_ENABLE_HI.gpe_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.GPE1_ENABLE_HI && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.GPE1_ENABLE_HI.gpe_enable.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.GPE1_ENABLE_HI.gpe_enable.next = next_c;
+        field_combo.GPE1_ENABLE_HI.gpe_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.GPE1_ENABLE_HI.gpe_enable.value <= 16'h0;
+        end else begin
+            if(field_combo.GPE1_ENABLE_HI.gpe_enable.load_next) begin
+                field_storage.GPE1_ENABLE_HI.gpe_enable.value <= field_combo.GPE1_ENABLE_HI.gpe_enable.next;
+            end
+        end
+    end
+    assign hwif_out.GPE1_ENABLE_HI.gpe_enable.value = field_storage.GPE1_ENABLE_HI.gpe_enable.value;
+    // Field: pm_acpi_regs.GPE1_TRIGGER_LO.gpe_trigger
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.GPE1_TRIGGER_LO.gpe_trigger.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.GPE1_TRIGGER_LO && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.GPE1_TRIGGER_LO.gpe_trigger.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.GPE1_TRIGGER_LO.gpe_trigger.next = next_c;
+        field_combo.GPE1_TRIGGER_LO.gpe_trigger.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.GPE1_TRIGGER_LO.gpe_trigger.value <= 16'h0;
+        end else begin
+            if(field_combo.GPE1_TRIGGER_LO.gpe_trigger.load_next) begin
+                field_storage.GPE1_TRIGGER_LO.gpe_trigger.value <= field_combo.GPE1_TRIGGER_LO.gpe_trigger.next;
+            end
+        end
+    end
+    assign hwif_out.GPE1_TRIGGER_LO.gpe_trigger.value = field_storage.GPE1_TRIGGER_LO.gpe_trigger.value;
+    // Field: pm_acpi_regs.GPE1_TRIGGER_HI.gpe_trigger
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.GPE1_TRIGGER_HI.gpe_trigger.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.GPE1_TRIGGER_HI && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.GPE1_TRIGGER_HI.gpe_trigger.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.GPE1_TRIGGER_HI.gpe_trigger.next = next_c;
+        field_combo.GPE1_TRIGGER_HI.gpe_trigger.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.GPE1_TRIGGER_HI.gpe_trigger.value <= 16'h0;
+        end else begin
+            if(field_combo.GPE1_TRIGGER_HI.gpe_trigger.load_next) begin
+                field_storage.GPE1_TRIGGER_HI.gpe_trigger.value <= field_combo.GPE1_TRIGGER_HI.gpe_trigger.next;
+            end
+        end
+    end
+    assign hwif_out.GPE1_TRIGGER_HI.gpe_trigger.value = field_storage.GPE1_TRIGGER_HI.gpe_trigger.value;
+    // Field: pm_acpi_regs.GPE1_WAKE_EN_LO.gpe_wake_enable
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.GPE1_WAKE_EN_LO.gpe_wake_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.GPE1_WAKE_EN_LO && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.GPE1_WAKE_EN_LO.gpe_wake_enable.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.GPE1_WAKE_EN_LO.gpe_wake_enable.next = next_c;
+        field_combo.GPE1_WAKE_EN_LO.gpe_wake_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.GPE1_WAKE_EN_LO.gpe_wake_enable.value <= 16'h0;
+        end else begin
+            if(field_combo.GPE1_WAKE_EN_LO.gpe_wake_enable.load_next) begin
+                field_storage.GPE1_WAKE_EN_LO.gpe_wake_enable.value <= field_combo.GPE1_WAKE_EN_LO.gpe_wake_enable.next;
+            end
+        end
+    end
+    assign hwif_out.GPE1_WAKE_EN_LO.gpe_wake_enable.value = field_storage.GPE1_WAKE_EN_LO.gpe_wake_enable.value;
+    // Field: pm_acpi_regs.GPE1_WAKE_EN_HI.gpe_wake_enable
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.GPE1_WAKE_EN_HI.gpe_wake_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.GPE1_WAKE_EN_HI && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.GPE1_WAKE_EN_HI.gpe_wake_enable.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.GPE1_WAKE_EN_HI.gpe_wake_enable.next = next_c;
+        field_combo.GPE1_WAKE_EN_HI.gpe_wake_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.GPE1_WAKE_EN_HI.gpe_wake_enable.value <= 16'h0;
+        end else begin
+            if(field_combo.GPE1_WAKE_EN_HI.gpe_wake_enable.load_next) begin
+                field_storage.GPE1_WAKE_EN_HI.gpe_wake_enable.value <= field_combo.GPE1_WAKE_EN_HI.gpe_wake_enable.next;
+            end
+        end
+    end
+    assign hwif_out.GPE1_WAKE_EN_HI.gpe_wake_enable.value = field_storage.GPE1_WAKE_EN_HI.gpe_wake_enable.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -2181,7 +2649,7 @@ module pm_acpi_regs (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[26];
+    logic [31:0] readback_array[38];
     assign readback_array[0][0:0] = (decoded_reg_strb.ACPI_CONTROL && !decoded_req_is_wr) ? field_storage.ACPI_CONTROL.acpi_enable.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.ACPI_CONTROL && !decoded_req_is_wr) ? field_storage.ACPI_CONTROL.pm_timer_enable.value : '0;
     assign readback_array[0][2:2] = (decoded_reg_strb.ACPI_CONTROL && !decoded_req_is_wr) ? field_storage.ACPI_CONTROL.gpe_enable.value : '0;
@@ -2189,7 +2657,8 @@ module pm_acpi_regs (
     assign readback_array[0][5:4] = (decoded_reg_strb.ACPI_CONTROL && !decoded_req_is_wr) ? hwif_in.ACPI_CONTROL.current_state.next : '0;
     assign readback_array[0][6:6] = (decoded_reg_strb.ACPI_CONTROL && !decoded_req_is_wr) ? field_storage.ACPI_CONTROL.low_power_req.value : '0;
     assign readback_array[0][7:7] = (decoded_reg_strb.ACPI_CONTROL && !decoded_req_is_wr) ? field_storage.ACPI_CONTROL.soft_reset.value : '0;
-    assign readback_array[0][31:8] = (decoded_reg_strb.ACPI_CONTROL && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[0][8:8] = (decoded_reg_strb.ACPI_CONTROL && !decoded_req_is_wr) ? field_storage.ACPI_CONTROL.gpe_split_enable.value : '0;
+    assign readback_array[0][31:9] = (decoded_reg_strb.ACPI_CONTROL && !decoded_req_is_wr) ? 23'h0 : '0;
     assign readback_array[1][0:0] = (decoded_reg_strb.ACPI_STATUS && !decoded_req_is_wr) ? field_storage.ACPI_STATUS.pme_status.value : '0;
     assign readback_array[1][1:1] = (decoded_reg_strb.ACPI_STATUS && !decoded_req_is_wr) ? field_storage.ACPI_STATUS.wake_status.value : '0;
     assign readback_array[1][2:2] = (decoded_reg_strb.ACPI_STATUS && !decoded_req_is_wr) ? field_storage.ACPI_STATUS.timer_overflow.value : '0;
@@ -2281,6 +2750,30 @@ module pm_acpi_regs (
     assign readback_array[25][7:7] = '0;
     assign readback_array[25][8:8] = (decoded_reg_strb.PWR_SEQ_STATUS && !decoded_req_is_wr) ? hwif_in.PWR_SEQ_STATUS.seq_dir.next : '0;
     assign readback_array[25][31:9] = '0;
+    assign readback_array[26][15:0] = (decoded_reg_strb.GPE0_TRIGGER_LO && !decoded_req_is_wr) ? field_storage.GPE0_TRIGGER_LO.gpe_trigger.value : '0;
+    assign readback_array[26][31:16] = (decoded_reg_strb.GPE0_TRIGGER_LO && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[27][15:0] = (decoded_reg_strb.GPE0_TRIGGER_HI && !decoded_req_is_wr) ? field_storage.GPE0_TRIGGER_HI.gpe_trigger.value : '0;
+    assign readback_array[27][31:16] = (decoded_reg_strb.GPE0_TRIGGER_HI && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[28][15:0] = (decoded_reg_strb.GPE0_WAKE_EN_LO && !decoded_req_is_wr) ? field_storage.GPE0_WAKE_EN_LO.gpe_wake_enable.value : '0;
+    assign readback_array[28][31:16] = (decoded_reg_strb.GPE0_WAKE_EN_LO && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[29][15:0] = (decoded_reg_strb.GPE0_WAKE_EN_HI && !decoded_req_is_wr) ? field_storage.GPE0_WAKE_EN_HI.gpe_wake_enable.value : '0;
+    assign readback_array[29][31:16] = (decoded_reg_strb.GPE0_WAKE_EN_HI && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[30][15:0] = (decoded_reg_strb.GPE1_STATUS_LO && !decoded_req_is_wr) ? field_storage.GPE1_STATUS_LO.gpe_status.value : '0;
+    assign readback_array[30][31:16] = (decoded_reg_strb.GPE1_STATUS_LO && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[31][15:0] = (decoded_reg_strb.GPE1_STATUS_HI && !decoded_req_is_wr) ? field_storage.GPE1_STATUS_HI.gpe_status.value : '0;
+    assign readback_array[31][31:16] = (decoded_reg_strb.GPE1_STATUS_HI && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[32][15:0] = (decoded_reg_strb.GPE1_ENABLE_LO && !decoded_req_is_wr) ? field_storage.GPE1_ENABLE_LO.gpe_enable.value : '0;
+    assign readback_array[32][31:16] = (decoded_reg_strb.GPE1_ENABLE_LO && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[33][15:0] = (decoded_reg_strb.GPE1_ENABLE_HI && !decoded_req_is_wr) ? field_storage.GPE1_ENABLE_HI.gpe_enable.value : '0;
+    assign readback_array[33][31:16] = (decoded_reg_strb.GPE1_ENABLE_HI && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[34][15:0] = (decoded_reg_strb.GPE1_TRIGGER_LO && !decoded_req_is_wr) ? field_storage.GPE1_TRIGGER_LO.gpe_trigger.value : '0;
+    assign readback_array[34][31:16] = (decoded_reg_strb.GPE1_TRIGGER_LO && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[35][15:0] = (decoded_reg_strb.GPE1_TRIGGER_HI && !decoded_req_is_wr) ? field_storage.GPE1_TRIGGER_HI.gpe_trigger.value : '0;
+    assign readback_array[35][31:16] = (decoded_reg_strb.GPE1_TRIGGER_HI && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[36][15:0] = (decoded_reg_strb.GPE1_WAKE_EN_LO && !decoded_req_is_wr) ? field_storage.GPE1_WAKE_EN_LO.gpe_wake_enable.value : '0;
+    assign readback_array[36][31:16] = (decoded_reg_strb.GPE1_WAKE_EN_LO && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[37][15:0] = (decoded_reg_strb.GPE1_WAKE_EN_HI && !decoded_req_is_wr) ? field_storage.GPE1_WAKE_EN_HI.gpe_wake_enable.value : '0;
+    assign readback_array[37][31:16] = (decoded_reg_strb.GPE1_WAKE_EN_HI && !decoded_req_is_wr) ? 16'h0 : '0;
 
     // Reduce the array
     always_comb begin
@@ -2288,7 +2781,7 @@ module pm_acpi_regs (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<26; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<38; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

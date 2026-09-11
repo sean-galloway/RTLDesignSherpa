@@ -159,10 +159,13 @@ the same parameter would remove the guard's reason to exist.
 **Priority:** P3. The block is functionally complete for its MVP scope and
 6/6 configurations green at FULL (basic 8/8, medium 10/10, full 12/12, GH#54
 17/17); nothing here is a defect.
-**Status:** partly fixed. The two reset-source pins landed 2026-09-10 in
-6978cf935; S5 soft off, the button debouncer with its long-press override, the
-PM timer prescaler / 64-bit mode / comparator, and the rail sequencer landed
-the same day. What is left is the GPE work. Raised while closing issue #54. These items were
+**Status:** DONE apart from what was always out of scope. The two
+reset-source pins landed 2026-09-10 in 6978cf935; S5 soft off, the button
+debouncer with its long-press override, the PM timer prescaler / 64-bit mode /
+comparator, the rail sequencer and the GPE work (level mode, the second bank,
+the run/wake split) all landed the same day. Only legacy replacement routing
+and the processor C/P-state hints remain, and both were scoped out rather than
+deferred. Raised while closing issue #54. These items were
 the surviving content of `rtl/pm_acpi/TODO.md`, which was deleted with that
 fix: most of it described work already done (the DV suite, the helper-script
 plan) or behaviour the fix changed (the "W1C edge detection / auto-clear
@@ -188,8 +191,17 @@ Same disposition as [[RLB-008]] for ioapic.
   one, like S3, but retains nothing, so LEAVING it pulses `sys_reset_req` -- a
   wake from soft off is a boot, not a resume. The two-bit `current_state`
   field reports encoding 2 for it, the one the three previous states left free.
-- GPE is rising-edge only and one bank of 32. No level mode, no per-event
-  edge/level choice, no GPE1, no run-vs-wake split.
+- ~~GPE is rising-edge only and one bank of 32. No level mode, no per-event
+  edge/level choice, no GPE1, no run-vs-wake split.~~ FIXED: `GPEx_TRIGGER`
+  picks edge or level per source -- a level source's status bit follows the
+  source, so a W1C while it is still asserted has no lasting effect, which is
+  how software tells an event it missed from one still happening. `gpe1_events`
+  is the second ACPI GPE block with its own status / enable / trigger / wake
+  registers, sharing the interrupt and wake terms with bank 0.
+  `ACPI_CONTROL.gpe_split_enable` splits the single mask in two: with it set,
+  `GPEx_ENABLE` arms the runtime interrupt and `GPEx_WAKE_EN` arms the wake, so
+  a source can wake a sleeping machine without interrupting a running one. With
+  it clear the block behaves exactly as before.
 - ~~PM timer is 32-bit with a single divider. No 64-bit mode, no prescaler
   options, no comparators.~~ FIXED: a power-of-two prescaler sits ahead of the
   divider (`PM_TIMER_CONFIG.timer_prescale`), extending the slow end of the
@@ -217,8 +229,9 @@ Same disposition as [[RLB-008]] for ioapic.
 - Legacy replacement routing (IRQ0 timer, IRQ8 RTC) and processor C/P-state
   hints are out of scope.
 
-**Still open:** the GPE work (level mode, per-event edge/level choice, a
-second bank, the run-versus-wake split).
+**Still open:** nothing in this entry that was deferred. Legacy replacement
+routing (IRQ0 timer, IRQ8 RTC) and processor C/P-state hints stay out of
+scope.
 
 ### RLB-010: RTC leftovers after the #56 fix
 

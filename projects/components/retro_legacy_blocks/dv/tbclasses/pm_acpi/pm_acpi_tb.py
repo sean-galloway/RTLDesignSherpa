@@ -90,6 +90,18 @@ class PMACPIRegisterMap:
     PM_TIMER_MATCH = 0x078      # 0x078: PM Timer comparator
     PWR_SEQ_CONFIG = 0x07C      # 0x07C: Power sequencer configuration
     PWR_SEQ_STATUS = 0x080      # 0x080: Power sequencer status (RO)
+    GPE0_TRIGGER_LO = 0x084     # 0x084: GPE0 edge/level per source [15:0]
+    GPE0_TRIGGER_HI = 0x088     # 0x088: GPE0 edge/level per source [31:16]
+    GPE0_WAKE_EN_LO = 0x08C     # 0x08C: GPE0 wake arming [15:0]
+    GPE0_WAKE_EN_HI = 0x090     # 0x090: GPE0 wake arming [31:16]
+    GPE1_STATUS_LO = 0x094      # 0x094: GPE1 status [15:0] (W1C)
+    GPE1_STATUS_HI = 0x098      # 0x098: GPE1 status [31:16] (W1C)
+    GPE1_ENABLE_LO = 0x09C      # 0x09C: GPE1 enable [15:0]
+    GPE1_ENABLE_HI = 0x0A0      # 0x0A0: GPE1 enable [31:16]
+    GPE1_TRIGGER_LO = 0x0A4     # 0x0A4: GPE1 edge/level per source [15:0]
+    GPE1_TRIGGER_HI = 0x0A8     # 0x0A8: GPE1 edge/level per source [31:16]
+    GPE1_WAKE_EN_LO = 0x0AC     # 0x0AC: GPE1 wake arming [15:0]
+    GPE1_WAKE_EN_HI = 0x0B0     # 0x0B0: GPE1 wake arming [31:16]
 
     # ACPI_CONTROL bit definitions
     #
@@ -113,6 +125,7 @@ class PMACPIRegisterMap:
     CONTROL_CURRENT_STATE_SHIFT = 4
     CONTROL_LOW_POWER_REQ = (1 << 6)
     CONTROL_SOFT_RESET = (1 << 7)
+    CONTROL_GPE_SPLIT_ENABLE = (1 << 8)
 
     # ACPI_STATUS bit definitions (W1C)
     STATUS_PME = (1 << 0)
@@ -264,6 +277,7 @@ class PMACPITB(TBBase):
 
         # Initialize external inputs to inactive state
         self.dut.gpe_events.value = 0
+        self.dut.gpe1_events.value = 0
         self.dut.power_button_n.value = 1  # Active low, so 1 = not pressed
         self.dut.sleep_button_n.value = 1  # Active low, so 1 = not pressed
         self.dut.rtc_alarm.value = 0

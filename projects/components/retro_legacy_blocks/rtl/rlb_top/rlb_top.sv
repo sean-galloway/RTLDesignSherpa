@@ -135,6 +135,8 @@ module rlb_top #(
     // PM/ACPI External Interface
     // ========================================================================
     input  logic [31:0]           pm_gpe_events,
+    // Second ACPI GPE block. Tie to zero when the system has only one bank.
+    input  logic [31:0]           pm_gpe1_events,
     input  logic                  pm_power_button_n,
     input  logic                  pm_sleep_button_n,
     input  logic                  pm_rtc_alarm,
@@ -608,6 +610,7 @@ module rlb_top #(
         .s_apb_PRDATA     (pm_apb_PRDATA),
         .s_apb_PSLVERR    (pm_apb_PSLVERR),
         .gpe_events       (pm_gpe_events),
+        .gpe1_events      (pm_gpe1_events),
         .power_button_n   (pm_power_button_n),
         .sleep_button_n   (pm_sleep_button_n),
         .rtc_alarm        (pm_rtc_alarm),

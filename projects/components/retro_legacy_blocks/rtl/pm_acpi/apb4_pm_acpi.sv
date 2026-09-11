@@ -45,7 +45,9 @@
  *   0x060-0x06C: Wake status/enable, reset control/status
  *   0x070-0x078: Button timing, PM timer high word and comparator
  *   0x07C-0x080: Power sequencer configuration and status
- *   Only these twenty-four addresses decode. EVERY other address in the 4 KB
+ *   0x084-0x090: GPE0 trigger mode and wake enables
+ *   0x094-0x0B0: GPE1 status, enable, trigger mode and wake enables
+ *   Only these thirty-six addresses decode. EVERY other address in the 4 KB
  *   window - the 8-bit alias at 0x100 included - is dropped (write ignored,
  *   read 0) and answered with PSLVERR (see #54 round_2 item 4).
  *
@@ -53,7 +55,8 @@
  *   - ACPI-compatible PM1 control/status
  *   - PM Timer (~3.571 MHz at default divider; ACPI target 3.579545 MHz) with
  *     a power-of-two prescaler, an optional 64-bit mode and a comparator
- *   - 32 GPE event sources
+ *   - Two banks of 32 GPE event sources, edge or level per source, with an
+ *     optional split between the run enable and the wake enable
  *   - 32 clock gate controls
  *   - 8 power domain controls, optionally sequenced one rail at a time with a
  *     programmable gap and a per-rail acknowledge
@@ -114,6 +117,9 @@ module apb4_pm_acpi #(
 
     // GPE event inputs (from system peripherals, asynchronous)
     input  logic [31:0]             gpe_events,
+    // Second GPE bank (ACPI allows two blocks). Same kind of pins, same
+    // synchronizer; tie to zero when the system has only one bank.
+    input  logic [31:0]             gpe1_events,
 
     // Power/sleep buttons (active low, asynchronous)
     input  logic                    power_button_n,
@@ -179,6 +185,14 @@ module apb4_pm_acpi #(
     logic [3:0]  w_cfg_timer_prescale;
     logic        w_cfg_timer_64bit;
     logic [31:0] w_cfg_timer_match;
+    logic [31:0] w_cfg_gpe_trigger;
+    logic [31:0] w_cfg_gpe_wake_enables;
+    logic [31:0] w_cfg_gpe1_enables;
+    logic [31:0] w_cfg_gpe1_trigger;
+    logic [31:0] w_cfg_gpe1_wake_enables;
+    logic        w_cfg_gpe_split_enable;
+    logic [31:0] w_sw_clr_gpe1_status;
+    logic [31:0] w_status_gpe1;
     logic        w_cfg_seq_enable;
     logic        w_cfg_seq_ack_enable;
     logic [15:0] w_cfg_seq_delay;
@@ -372,6 +386,12 @@ module apb4_pm_acpi #(
         .cfg_pm1_rtc_en           (w_cfg_pm1_rtc_en),
         .cfg_pm_timer_div         (w_cfg_pm_timer_div),
         .cfg_gpe_enables          (w_cfg_gpe_enables),
+        .cfg_gpe_trigger          (w_cfg_gpe_trigger),
+        .cfg_gpe_wake_enables     (w_cfg_gpe_wake_enables),
+        .cfg_gpe1_enables         (w_cfg_gpe1_enables),
+        .cfg_gpe1_trigger         (w_cfg_gpe1_trigger),
+        .cfg_gpe1_wake_enables    (w_cfg_gpe1_wake_enables),
+        .cfg_gpe_split_enable     (w_cfg_gpe_split_enable),
         .cfg_clk_gate_ctrl        (w_cfg_clk_gate_ctrl),
         .cfg_pwr_domain_ctrl      (w_cfg_pwr_domain_ctrl),
         .cfg_gpe_wake_en          (w_cfg_gpe_wake_en),
@@ -394,6 +414,7 @@ module apb4_pm_acpi #(
         .sw_clr_pm1_status        (w_sw_clr_pm1_status),
         .sw_clr_wake_status       (w_sw_clr_wake_status),
         .sw_clr_gpe_status        (w_sw_clr_gpe_status),
+        .sw_clr_gpe1_status       (w_sw_clr_gpe1_status),
 
         // Status inputs from core
         .status_current_state     (w_status_current_state),
@@ -402,6 +423,7 @@ module apb4_pm_acpi #(
         .status_pm1               (w_status_pm1),
         .status_wake_src          (w_status_wake_src),
         .status_gpe               (w_status_gpe),
+        .status_gpe1              (w_status_gpe1),
         .status_reset_src         (w_status_reset_src),
         .status_pm_timer_value    (w_status_pm_timer_value),
         .status_clk_gate_status   (w_status_clk_gate_status),
@@ -433,6 +455,12 @@ module apb4_pm_acpi #(
         .cfg_pm1_rtc_en           (w_cfg_pm1_rtc_en),
         .cfg_pm_timer_div         (w_cfg_pm_timer_div),
         .cfg_gpe_enables          (w_cfg_gpe_enables),
+        .cfg_gpe_trigger          (w_cfg_gpe_trigger),
+        .cfg_gpe_wake_enables     (w_cfg_gpe_wake_enables),
+        .cfg_gpe1_enables         (w_cfg_gpe1_enables),
+        .cfg_gpe1_trigger         (w_cfg_gpe1_trigger),
+        .cfg_gpe1_wake_enables    (w_cfg_gpe1_wake_enables),
+        .cfg_gpe_split_enable     (w_cfg_gpe_split_enable),
         .cfg_clk_gate_ctrl        (w_cfg_clk_gate_ctrl),
         .cfg_pwr_domain_ctrl      (w_cfg_pwr_domain_ctrl),
         .cfg_gpe_wake_en          (w_cfg_gpe_wake_en),
@@ -455,6 +483,7 @@ module apb4_pm_acpi #(
         .sw_clr_pm1_status        (w_sw_clr_pm1_status),
         .sw_clr_wake_status       (w_sw_clr_wake_status),
         .sw_clr_gpe_status        (w_sw_clr_gpe_status),
+        .sw_clr_gpe1_status       (w_sw_clr_gpe1_status),
 
         // Status outputs
         .status_current_state     (w_status_current_state),
@@ -463,6 +492,7 @@ module apb4_pm_acpi #(
         .status_pm1               (w_status_pm1),
         .status_wake_src          (w_status_wake_src),
         .status_gpe               (w_status_gpe),
+        .status_gpe1              (w_status_gpe1),
         .status_reset_src         (w_status_reset_src),
         .status_pm_timer_value    (w_status_pm_timer_value),
         .status_clk_gate_status   (w_status_clk_gate_status),
@@ -470,6 +500,7 @@ module apb4_pm_acpi #(
 
         // External interfaces
         .gpe_events_in        (gpe_events),
+        .gpe1_events_in       (gpe1_events),
         .power_button_n       (power_button_n),
         .cfg_debounce_cycles  (w_cfg_debounce_cycles),
         .cfg_timer_prescale   (w_cfg_timer_prescale),

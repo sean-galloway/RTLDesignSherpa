@@ -5,7 +5,7 @@ package pm_acpi_regs_pkg;
 
     localparam PM_ACPI_REGS_DATA_WIDTH = 32;
     localparam PM_ACPI_REGS_MIN_ADDR_WIDTH = 8;
-    localparam PM_ACPI_REGS_SIZE = 'h84;
+    localparam PM_ACPI_REGS_SIZE = 'hb4;
 
     typedef struct {
         logic [1:0] next;
@@ -222,6 +222,22 @@ package pm_acpi_regs_pkg;
     } pm_acpi_regs__PWR_SEQ_STATUS__in_t;
 
     typedef struct {
+        logic [15:0] next;
+    } pm_acpi_regs__GPE1_STATUS_LO__gpe_status__in_t;
+
+    typedef struct {
+        pm_acpi_regs__GPE1_STATUS_LO__gpe_status__in_t gpe_status;
+    } pm_acpi_regs__GPE1_STATUS_LO__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } pm_acpi_regs__GPE1_STATUS_HI__gpe_status__in_t;
+
+    typedef struct {
+        pm_acpi_regs__GPE1_STATUS_HI__gpe_status__in_t gpe_status;
+    } pm_acpi_regs__GPE1_STATUS_HI__in_t;
+
+    typedef struct {
         pm_acpi_regs__ACPI_CONTROL__in_t ACPI_CONTROL;
         pm_acpi_regs__ACPI_STATUS__in_t ACPI_STATUS;
         pm_acpi_regs__ACPI_INT_STATUS__in_t ACPI_INT_STATUS;
@@ -235,6 +251,8 @@ package pm_acpi_regs_pkg;
         pm_acpi_regs__RESET_STATUS__in_t RESET_STATUS;
         pm_acpi_regs__PM_TIMER_VALUE_HI__in_t PM_TIMER_VALUE_HI;
         pm_acpi_regs__PWR_SEQ_STATUS__in_t PWR_SEQ_STATUS;
+        pm_acpi_regs__GPE1_STATUS_LO__in_t GPE1_STATUS_LO;
+        pm_acpi_regs__GPE1_STATUS_HI__in_t GPE1_STATUS_HI;
     } pm_acpi_regs__in_t;
 
     typedef struct {
@@ -258,11 +276,16 @@ package pm_acpi_regs_pkg;
     } pm_acpi_regs__ACPI_CONTROL__soft_reset__out_t;
 
     typedef struct {
+        logic value;
+    } pm_acpi_regs__ACPI_CONTROL__gpe_split_enable__out_t;
+
+    typedef struct {
         pm_acpi_regs__ACPI_CONTROL__acpi_enable__out_t acpi_enable;
         pm_acpi_regs__ACPI_CONTROL__pm_timer_enable__out_t pm_timer_enable;
         pm_acpi_regs__ACPI_CONTROL__gpe_enable__out_t gpe_enable;
         pm_acpi_regs__ACPI_CONTROL__low_power_req__out_t low_power_req;
         pm_acpi_regs__ACPI_CONTROL__soft_reset__out_t soft_reset;
+        pm_acpi_regs__ACPI_CONTROL__gpe_split_enable__out_t gpe_split_enable;
     } pm_acpi_regs__ACPI_CONTROL__out_t;
 
     typedef struct {
@@ -598,6 +621,102 @@ package pm_acpi_regs_pkg;
     } pm_acpi_regs__PWR_SEQ_CONFIG__out_t;
 
     typedef struct {
+        logic [15:0] value;
+    } pm_acpi_regs__GPE0_TRIGGER_LO__gpe_trigger__out_t;
+
+    typedef struct {
+        pm_acpi_regs__GPE0_TRIGGER_LO__gpe_trigger__out_t gpe_trigger;
+    } pm_acpi_regs__GPE0_TRIGGER_LO__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pm_acpi_regs__GPE0_TRIGGER_HI__gpe_trigger__out_t;
+
+    typedef struct {
+        pm_acpi_regs__GPE0_TRIGGER_HI__gpe_trigger__out_t gpe_trigger;
+    } pm_acpi_regs__GPE0_TRIGGER_HI__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pm_acpi_regs__GPE0_WAKE_EN_LO__gpe_wake_enable__out_t;
+
+    typedef struct {
+        pm_acpi_regs__GPE0_WAKE_EN_LO__gpe_wake_enable__out_t gpe_wake_enable;
+    } pm_acpi_regs__GPE0_WAKE_EN_LO__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pm_acpi_regs__GPE0_WAKE_EN_HI__gpe_wake_enable__out_t;
+
+    typedef struct {
+        pm_acpi_regs__GPE0_WAKE_EN_HI__gpe_wake_enable__out_t gpe_wake_enable;
+    } pm_acpi_regs__GPE0_WAKE_EN_HI__out_t;
+
+    typedef struct {
+        logic swmod;
+    } pm_acpi_regs__GPE1_STATUS_LO__gpe_status__out_t;
+
+    typedef struct {
+        pm_acpi_regs__GPE1_STATUS_LO__gpe_status__out_t gpe_status;
+    } pm_acpi_regs__GPE1_STATUS_LO__out_t;
+
+    typedef struct {
+        logic swmod;
+    } pm_acpi_regs__GPE1_STATUS_HI__gpe_status__out_t;
+
+    typedef struct {
+        pm_acpi_regs__GPE1_STATUS_HI__gpe_status__out_t gpe_status;
+    } pm_acpi_regs__GPE1_STATUS_HI__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pm_acpi_regs__GPE1_ENABLE_LO__gpe_enable__out_t;
+
+    typedef struct {
+        pm_acpi_regs__GPE1_ENABLE_LO__gpe_enable__out_t gpe_enable;
+    } pm_acpi_regs__GPE1_ENABLE_LO__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pm_acpi_regs__GPE1_ENABLE_HI__gpe_enable__out_t;
+
+    typedef struct {
+        pm_acpi_regs__GPE1_ENABLE_HI__gpe_enable__out_t gpe_enable;
+    } pm_acpi_regs__GPE1_ENABLE_HI__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pm_acpi_regs__GPE1_TRIGGER_LO__gpe_trigger__out_t;
+
+    typedef struct {
+        pm_acpi_regs__GPE1_TRIGGER_LO__gpe_trigger__out_t gpe_trigger;
+    } pm_acpi_regs__GPE1_TRIGGER_LO__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pm_acpi_regs__GPE1_TRIGGER_HI__gpe_trigger__out_t;
+
+    typedef struct {
+        pm_acpi_regs__GPE1_TRIGGER_HI__gpe_trigger__out_t gpe_trigger;
+    } pm_acpi_regs__GPE1_TRIGGER_HI__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pm_acpi_regs__GPE1_WAKE_EN_LO__gpe_wake_enable__out_t;
+
+    typedef struct {
+        pm_acpi_regs__GPE1_WAKE_EN_LO__gpe_wake_enable__out_t gpe_wake_enable;
+    } pm_acpi_regs__GPE1_WAKE_EN_LO__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pm_acpi_regs__GPE1_WAKE_EN_HI__gpe_wake_enable__out_t;
+
+    typedef struct {
+        pm_acpi_regs__GPE1_WAKE_EN_HI__gpe_wake_enable__out_t gpe_wake_enable;
+    } pm_acpi_regs__GPE1_WAKE_EN_HI__out_t;
+
+    typedef struct {
         pm_acpi_regs__ACPI_CONTROL__out_t ACPI_CONTROL;
         pm_acpi_regs__ACPI_STATUS__out_t ACPI_STATUS;
         pm_acpi_regs__ACPI_INT_ENABLE__out_t ACPI_INT_ENABLE;
@@ -618,5 +737,17 @@ package pm_acpi_regs_pkg;
         pm_acpi_regs__BUTTON_TIMING__out_t BUTTON_TIMING;
         pm_acpi_regs__PM_TIMER_MATCH__out_t PM_TIMER_MATCH;
         pm_acpi_regs__PWR_SEQ_CONFIG__out_t PWR_SEQ_CONFIG;
+        pm_acpi_regs__GPE0_TRIGGER_LO__out_t GPE0_TRIGGER_LO;
+        pm_acpi_regs__GPE0_TRIGGER_HI__out_t GPE0_TRIGGER_HI;
+        pm_acpi_regs__GPE0_WAKE_EN_LO__out_t GPE0_WAKE_EN_LO;
+        pm_acpi_regs__GPE0_WAKE_EN_HI__out_t GPE0_WAKE_EN_HI;
+        pm_acpi_regs__GPE1_STATUS_LO__out_t GPE1_STATUS_LO;
+        pm_acpi_regs__GPE1_STATUS_HI__out_t GPE1_STATUS_HI;
+        pm_acpi_regs__GPE1_ENABLE_LO__out_t GPE1_ENABLE_LO;
+        pm_acpi_regs__GPE1_ENABLE_HI__out_t GPE1_ENABLE_HI;
+        pm_acpi_regs__GPE1_TRIGGER_LO__out_t GPE1_TRIGGER_LO;
+        pm_acpi_regs__GPE1_TRIGGER_HI__out_t GPE1_TRIGGER_HI;
+        pm_acpi_regs__GPE1_WAKE_EN_LO__out_t GPE1_WAKE_EN_LO;
+        pm_acpi_regs__GPE1_WAKE_EN_HI__out_t GPE1_WAKE_EN_HI;
     } pm_acpi_regs__out_t;
 endpackage

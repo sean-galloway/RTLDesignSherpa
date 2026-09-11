@@ -8,7 +8,7 @@ Don't override. Generated from: $root
 
 - Absolute Address: 0x0
 - Base Offset: 0x0
-- Size: 0x84
+- Size: 0xB4
 
 <p>ACPI-compatible power management controller with clock gating and GPE support</p>
 
@@ -40,6 +40,18 @@ Don't override. Generated from: $root
 | 0x78 |   PM_TIMER_MATCH  |         PM Timer Match        |
 | 0x7C |   PWR_SEQ_CONFIG  | Power Sequencer Configuration |
 | 0x80 |   PWR_SEQ_STATUS  |     Power Sequencer Status    |
+| 0x84 |  GPE0_TRIGGER_LO  | GPE0 Trigger Mode Low Register|
+| 0x88 |  GPE0_TRIGGER_HI  |GPE0 Trigger Mode High Register|
+| 0x8C |  GPE0_WAKE_EN_LO  | GPE0 Wake Enable Low Register |
+| 0x90 |  GPE0_WAKE_EN_HI  | GPE0 Wake Enable High Register|
+| 0x94 |   GPE1_STATUS_LO  |    GPE1 Status Low Register   |
+| 0x98 |   GPE1_STATUS_HI  |   GPE1 Status High Register   |
+| 0x9C |   GPE1_ENABLE_LO  |    GPE1 Enable Low Register   |
+| 0xA0 |   GPE1_ENABLE_HI  |   GPE1 Enable High Register   |
+| 0xA4 |  GPE1_TRIGGER_LO  | GPE1 Trigger Mode Low Register|
+| 0xA8 |  GPE1_TRIGGER_HI  |GPE1 Trigger Mode High Register|
+| 0xAC |  GPE1_WAKE_EN_LO  | GPE1 Wake Enable Low Register |
+| 0xB0 |  GPE1_WAKE_EN_HI  | GPE1 Wake Enable High Register|
 
 ### ACPI_CONTROL register
 
@@ -49,15 +61,16 @@ Don't override. Generated from: $root
 
 <p>Global ACPI power management control</p>
 
-|Bits|   Identifier  |Access|Reset|        Name       |
-|----|---------------|------|-----|-------------------|
-|  0 |  acpi_enable  |  rw  | 0x0 |    ACPI Enable    |
-|  1 |pm_timer_enable|  rw  | 0x0 |  PM Timer Enable  |
-|  2 |   gpe_enable  |  rw  | 0x0 |     GPE Enable    |
-| 5:4| current_state |   r  |  —  |Current Power State|
-|  6 | low_power_req |  rw  | 0x0 |   Low Power Mode  |
-|  7 |   soft_reset  |  rw  | 0x0 |     Soft Reset    |
-|31:8|    reserved   |   r  | 0x0 |      Reserved     |
+|Bits|   Identifier   |Access|Reset|           Name          |
+|----|----------------|------|-----|-------------------------|
+|  0 |   acpi_enable  |  rw  | 0x0 |       ACPI Enable       |
+|  1 | pm_timer_enable|  rw  | 0x0 |     PM Timer Enable     |
+|  2 |   gpe_enable   |  rw  | 0x0 |        GPE Enable       |
+| 5:4|  current_state |   r  |  —  |   Current Power State   |
+|  6 |  low_power_req |  rw  | 0x0 |      Low Power Mode     |
+|  7 |   soft_reset   |  rw  | 0x0 |        Soft Reset       |
+|  8 |gpe_split_enable|  rw  | 0x0 |GPE Run/Wake Split Enable|
+|31:9|    reserved    |   r  | 0x0 |         Reserved        |
 
 #### acpi_enable field
 
@@ -102,6 +115,15 @@ WAKE_STATUS, GPE0_STATUS_LO/HI), drops the latched wake
 request, forces the power-state FSM back to S0 and switches
 RESET_STATUS from por_reset to sw_reset. Configuration
 registers are NOT affected.</p>
+
+#### gpe_split_enable field
+
+<p>0 = GPEx_ENABLE arms a source for BOTH the interrupt and
+the wake, which is how this block behaved before the split
+existed. 1 = GPEx_ENABLE arms the runtime interrupt only
+and GPEx_WAKE_EN arms the wake, so a source can wake the
+machine without interrupting a running one, or interrupt
+without being a wake reason.</p>
 
 #### reserved field
 
@@ -921,3 +943,255 @@ on one rail means that rail has not acknowledged.</p>
 #### seq_dir field
 
 <p>1 = powering down (walking 7 to 0), 0 = powering up</p>
+
+### GPE0_TRIGGER_LO register
+
+- Absolute Address: 0x84
+- Base Offset: 0x84
+- Size: 0x4
+
+<p>Edge or level per GPE0 source, bits [15:0]</p>
+
+| Bits| Identifier|Access|Reset|       Name       |
+|-----|-----------|------|-----|------------------|
+| 15:0|gpe_trigger|  rw  | 0x0 |GPE Trigger [15:0]|
+|31:16|  reserved |   r  | 0x0 |     Reserved     |
+
+#### gpe_trigger field
+
+<p>Per-source trigger mode. 0 = EDGE: the status bit sets on a rising edge of the source and stays set until software clears it, so a source that is still asserted does not re-set it. 1 = LEVEL: the status bit follows the asserted source, so a W1C while the source is still high has no lasting effect -- which is the point of a level source, and how software tells the difference between an event it missed and one still happening.</p>
+
+#### reserved field
+
+<p>Reserved bits</p>
+
+### GPE0_TRIGGER_HI register
+
+- Absolute Address: 0x88
+- Base Offset: 0x88
+- Size: 0x4
+
+<p>Edge or level per GPE0 source, bits [31:16]</p>
+
+| Bits| Identifier|Access|Reset|        Name       |
+|-----|-----------|------|-----|-------------------|
+| 15:0|gpe_trigger|  rw  | 0x0 |GPE Trigger [31:16]|
+|31:16|  reserved |   r  | 0x0 |      Reserved     |
+
+#### gpe_trigger field
+
+<p>Per-source trigger mode. 0 = EDGE: the status bit sets on a rising edge of the source and stays set until software clears it, so a source that is still asserted does not re-set it. 1 = LEVEL: the status bit follows the asserted source, so a W1C while the source is still high has no lasting effect -- which is the point of a level source, and how software tells the difference between an event it missed and one still happening.</p>
+
+#### reserved field
+
+<p>Reserved bits</p>
+
+### GPE0_WAKE_EN_LO register
+
+- Absolute Address: 0x8C
+- Base Offset: 0x8C
+- Size: 0x4
+
+<p>GPE0 wake-enable mask [15:0]</p>
+
+| Bits|   Identifier  |Access|Reset|         Name         |
+|-----|---------------|------|-----|----------------------|
+| 15:0|gpe_wake_enable|  rw  | 0x0 |GPE Wake Enable [15:0]|
+|31:16|    reserved   |   r  | 0x0 |       Reserved       |
+
+#### gpe_wake_enable field
+
+<p>Arms this source as a WAKE reason. Only consulted when ACPI_CONTROL.gpe_split_enable is set; with the split off, GPEx_ENABLE arms both the interrupt and the wake and this register is ignored.</p>
+
+#### reserved field
+
+<p>Reserved bits</p>
+
+### GPE0_WAKE_EN_HI register
+
+- Absolute Address: 0x90
+- Base Offset: 0x90
+- Size: 0x4
+
+<p>GPE0 wake-enable mask [31:16]</p>
+
+| Bits|   Identifier  |Access|Reset|          Name         |
+|-----|---------------|------|-----|-----------------------|
+| 15:0|gpe_wake_enable|  rw  | 0x0 |GPE Wake Enable [31:16]|
+|31:16|    reserved   |   r  | 0x0 |        Reserved       |
+
+#### gpe_wake_enable field
+
+<p>Arms this source as a WAKE reason. Only consulted when ACPI_CONTROL.gpe_split_enable is set; with the split off, GPEx_ENABLE arms both the interrupt and the wake and this register is ignored.</p>
+
+#### reserved field
+
+<p>Reserved bits</p>
+
+### GPE1_STATUS_LO register
+
+- Absolute Address: 0x94
+- Base Offset: 0x94
+- Size: 0x4
+
+<p>GPE1 status bits [15:0] (write 1 to clear). The second bank of 32 general purpose events, on the gpe1_events pins. ACPI allows two GPE blocks; this is the other one. It behaves exactly like GPE0 -- same enables, same trigger modes, same wake split -- and shares the GPE interrupt and wake terms with it.</p>
+
+| Bits|Identifier|  Access |Reset|       Name       |
+|-----|----------|---------|-----|------------------|
+| 15:0|gpe_status|rw, woclr| 0x0 |GPE1 Status [15:0]|
+|31:16| reserved |    r    | 0x0 |     Reserved     |
+
+#### gpe_status field
+
+<p>Second-bank event status bits 0-15 (W1C)</p>
+
+#### reserved field
+
+<p>Reserved bits</p>
+
+### GPE1_STATUS_HI register
+
+- Absolute Address: 0x98
+- Base Offset: 0x98
+- Size: 0x4
+
+<p>GPE1 status bits [31:16] (write 1 to clear)</p>
+
+| Bits|Identifier|  Access |Reset|        Name       |
+|-----|----------|---------|-----|-------------------|
+| 15:0|gpe_status|rw, woclr| 0x0 |GPE1 Status [31:16]|
+|31:16| reserved |    r    | 0x0 |      Reserved     |
+
+#### gpe_status field
+
+<p>Second-bank event status bits 16-31 (W1C)</p>
+
+#### reserved field
+
+<p>Reserved bits</p>
+
+### GPE1_ENABLE_LO register
+
+- Absolute Address: 0x9C
+- Base Offset: 0x9C
+- Size: 0x4
+
+<p>GPE1 enable mask [15:0]</p>
+
+| Bits|Identifier|Access|Reset|       Name       |
+|-----|----------|------|-----|------------------|
+| 15:0|gpe_enable|  rw  | 0x0 |GPE1 Enable [15:0]|
+|31:16| reserved |   r  | 0x0 |     Reserved     |
+
+#### gpe_enable field
+
+<p>Second-bank enable bits 0-15</p>
+
+#### reserved field
+
+<p>Reserved bits</p>
+
+### GPE1_ENABLE_HI register
+
+- Absolute Address: 0xA0
+- Base Offset: 0xA0
+- Size: 0x4
+
+<p>GPE1 enable mask [31:16]</p>
+
+| Bits|Identifier|Access|Reset|        Name       |
+|-----|----------|------|-----|-------------------|
+| 15:0|gpe_enable|  rw  | 0x0 |GPE1 Enable [31:16]|
+|31:16| reserved |   r  | 0x0 |      Reserved     |
+
+#### gpe_enable field
+
+<p>Second-bank enable bits 16-31</p>
+
+#### reserved field
+
+<p>Reserved bits</p>
+
+### GPE1_TRIGGER_LO register
+
+- Absolute Address: 0xA4
+- Base Offset: 0xA4
+- Size: 0x4
+
+<p>Edge or level per GPE1 source, bits [15:0]</p>
+
+| Bits| Identifier|Access|Reset|        Name       |
+|-----|-----------|------|-----|-------------------|
+| 15:0|gpe_trigger|  rw  | 0x0 |GPE1 Trigger [15:0]|
+|31:16|  reserved |   r  | 0x0 |      Reserved     |
+
+#### gpe_trigger field
+
+<p>Per-source trigger mode. 0 = EDGE: the status bit sets on a rising edge of the source and stays set until software clears it, so a source that is still asserted does not re-set it. 1 = LEVEL: the status bit follows the asserted source, so a W1C while the source is still high has no lasting effect -- which is the point of a level source, and how software tells the difference between an event it missed and one still happening.</p>
+
+#### reserved field
+
+<p>Reserved bits</p>
+
+### GPE1_TRIGGER_HI register
+
+- Absolute Address: 0xA8
+- Base Offset: 0xA8
+- Size: 0x4
+
+<p>Edge or level per GPE1 source, bits [31:16]</p>
+
+| Bits| Identifier|Access|Reset|        Name        |
+|-----|-----------|------|-----|--------------------|
+| 15:0|gpe_trigger|  rw  | 0x0 |GPE1 Trigger [31:16]|
+|31:16|  reserved |   r  | 0x0 |      Reserved      |
+
+#### gpe_trigger field
+
+<p>Per-source trigger mode. 0 = EDGE: the status bit sets on a rising edge of the source and stays set until software clears it, so a source that is still asserted does not re-set it. 1 = LEVEL: the status bit follows the asserted source, so a W1C while the source is still high has no lasting effect -- which is the point of a level source, and how software tells the difference between an event it missed and one still happening.</p>
+
+#### reserved field
+
+<p>Reserved bits</p>
+
+### GPE1_WAKE_EN_LO register
+
+- Absolute Address: 0xAC
+- Base Offset: 0xAC
+- Size: 0x4
+
+<p>GPE1 wake-enable mask [15:0]</p>
+
+| Bits|   Identifier  |Access|Reset|          Name         |
+|-----|---------------|------|-----|-----------------------|
+| 15:0|gpe_wake_enable|  rw  | 0x0 |GPE1 Wake Enable [15:0]|
+|31:16|    reserved   |   r  | 0x0 |        Reserved       |
+
+#### gpe_wake_enable field
+
+<p>Arms this source as a WAKE reason. Only consulted when ACPI_CONTROL.gpe_split_enable is set; with the split off, GPEx_ENABLE arms both the interrupt and the wake and this register is ignored.</p>
+
+#### reserved field
+
+<p>Reserved bits</p>
+
+### GPE1_WAKE_EN_HI register
+
+- Absolute Address: 0xB0
+- Base Offset: 0xB0
+- Size: 0x4
+
+<p>GPE1 wake-enable mask [31:16]</p>
+
+| Bits|   Identifier  |Access|Reset|          Name          |
+|-----|---------------|------|-----|------------------------|
+| 15:0|gpe_wake_enable|  rw  | 0x0 |GPE1 Wake Enable [31:16]|
+|31:16|    reserved   |   r  | 0x0 |        Reserved        |
+
+#### gpe_wake_enable field
+
+<p>Arms this source as a WAKE reason. Only consulted when ACPI_CONTROL.gpe_split_enable is set; with the split off, GPEx_ENABLE arms both the interrupt and the wake and this register is ignored.</p>
+
+#### reserved field
+
+<p>Reserved bits</p>

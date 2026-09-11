@@ -119,6 +119,18 @@ addrmap pm_acpi_regs {
         } gpe_enable[2:2] = 1'b0;
 
         field {
+            name = "GPE Run/Wake Split Enable";
+            desc = "0 = GPEx_ENABLE arms a source for BOTH the interrupt and
+                    the wake, which is how this block behaved before the split
+                    existed. 1 = GPEx_ENABLE arms the runtime interrupt only
+                    and GPEx_WAKE_EN arms the wake, so a source can wake the
+                    machine without interrupting a running one, or interrupt
+                    without being a wake reason.";
+            sw = rw;
+            hw = r;
+        } gpe_split_enable[8:8] = 1'b0;
+
+        field {
             name = "Current Power State";
             desc = "Current power state, as a two-bit ENCODING rather than
                     the ACPI number: 0=S0, 1=S1, 2=S5 (soft off), 3=S3.
@@ -161,7 +173,7 @@ addrmap pm_acpi_regs {
             desc = "Reserved bits";
             sw = r;
             hw = na;
-        } reserved[31:8] = 24'h0;
+        } reserved[31:9] = 23'h0;
 
     } ACPI_CONTROL @ 0x000;
 
@@ -1177,5 +1189,299 @@ addrmap pm_acpi_regs {
         } seq_dir[8:8] = 1'b0;
 
     } PWR_SEQ_STATUS @ 0x080;
+
+    //========================================================================
+    // GPE0 Trigger Mode Low Register (0x084)
+    //========================================================================
+
+    reg {
+        name = "GPE0 Trigger Mode Low Register";
+        desc = "Edge or level per GPE0 source, bits [15:0]";
+
+        field {
+            name = "GPE Trigger [15:0]";
+            desc = "Per-source trigger mode. 0 = EDGE: the status bit sets on a rising edge of the source and stays set until software clears it, so a source that is still asserted does not re-set it. 1 = LEVEL: the status bit follows the asserted source, so a W1C while the source is still high has no lasting effect -- which is the point of a level source, and how software tells the difference between an event it missed and one still happening.";
+            sw = rw;
+            hw = r;
+        } gpe_trigger[15:0] = 16'h0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:16] = 16'h0;
+
+    } GPE0_TRIGGER_LO @ 0x084;
+
+    //========================================================================
+    // GPE0 Trigger Mode High Register (0x088)
+    //========================================================================
+
+    reg {
+        name = "GPE0 Trigger Mode High Register";
+        desc = "Edge or level per GPE0 source, bits [31:16]";
+
+        field {
+            name = "GPE Trigger [31:16]";
+            desc = "Per-source trigger mode. 0 = EDGE: the status bit sets on a rising edge of the source and stays set until software clears it, so a source that is still asserted does not re-set it. 1 = LEVEL: the status bit follows the asserted source, so a W1C while the source is still high has no lasting effect -- which is the point of a level source, and how software tells the difference between an event it missed and one still happening.";
+            sw = rw;
+            hw = r;
+        } gpe_trigger[15:0] = 16'h0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:16] = 16'h0;
+
+    } GPE0_TRIGGER_HI @ 0x088;
+
+    //========================================================================
+    // GPE0 Wake Enable Low Register (0x08C)
+    //========================================================================
+
+    reg {
+        name = "GPE0 Wake Enable Low Register";
+        desc = "GPE0 wake-enable mask [15:0]";
+
+        field {
+            name = "GPE Wake Enable [15:0]";
+            desc = "Arms this source as a WAKE reason. Only consulted when ACPI_CONTROL.gpe_split_enable is set; with the split off, GPEx_ENABLE arms both the interrupt and the wake and this register is ignored.";
+            sw = rw;
+            hw = r;
+        } gpe_wake_enable[15:0] = 16'h0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:16] = 16'h0;
+
+    } GPE0_WAKE_EN_LO @ 0x08C;
+
+    //========================================================================
+    // GPE0 Wake Enable High Register (0x090)
+    //========================================================================
+
+    reg {
+        name = "GPE0 Wake Enable High Register";
+        desc = "GPE0 wake-enable mask [31:16]";
+
+        field {
+            name = "GPE Wake Enable [31:16]";
+            desc = "Arms this source as a WAKE reason. Only consulted when ACPI_CONTROL.gpe_split_enable is set; with the split off, GPEx_ENABLE arms both the interrupt and the wake and this register is ignored.";
+            sw = rw;
+            hw = r;
+        } gpe_wake_enable[15:0] = 16'h0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:16] = 16'h0;
+
+    } GPE0_WAKE_EN_HI @ 0x090;
+
+    //========================================================================
+    // GPE1 Status Low Register (0x094)
+    //========================================================================
+
+    reg {
+        name = "GPE1 Status Low Register";
+        desc = "GPE1 status bits [15:0] (write 1 to clear). The second bank of 32 general purpose events, on the gpe1_events pins. ACPI allows two GPE blocks; this is the other one. It behaves exactly like GPE0 -- same enables, same trigger modes, same wake split -- and shares the GPE interrupt and wake terms with it.";
+
+        field {
+            name = "GPE1 Status [15:0]";
+            desc = "Second-bank event status bits 0-15 (W1C)";
+            sw = rw;
+            hw = w;          // live mirror of pm_acpi_core's sticky bit
+            precedence = sw; // the W1C write wins over the mirror in its cycle
+            onwrite = woclr; // software write-1-to-clear
+            swmod;           // drift guard for the wrapper's mirrored decode
+        } gpe_status[15:0] = 16'h0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:16] = 16'h0;
+
+    } GPE1_STATUS_LO @ 0x094;
+
+    //========================================================================
+    // GPE1 Status High Register (0x098)
+    //========================================================================
+
+    reg {
+        name = "GPE1 Status High Register";
+        desc = "GPE1 status bits [31:16] (write 1 to clear)";
+
+        field {
+            name = "GPE1 Status [31:16]";
+            desc = "Second-bank event status bits 16-31 (W1C)";
+            sw = rw;
+            hw = w;          // live mirror of pm_acpi_core's sticky bit
+            precedence = sw; // the W1C write wins over the mirror in its cycle
+            onwrite = woclr; // software write-1-to-clear
+            swmod;           // drift guard for the wrapper's mirrored decode
+        } gpe_status[15:0] = 16'h0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:16] = 16'h0;
+
+    } GPE1_STATUS_HI @ 0x098;
+
+    //========================================================================
+    // GPE1 Enable Low Register (0x09C)
+    //========================================================================
+
+    reg {
+        name = "GPE1 Enable Low Register";
+        desc = "GPE1 enable mask [15:0]";
+
+        field {
+            name = "GPE1 Enable [15:0]";
+            desc = "Second-bank enable bits 0-15";
+            sw = rw;
+            hw = r;
+        } gpe_enable[15:0] = 16'h0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:16] = 16'h0;
+
+    } GPE1_ENABLE_LO @ 0x09C;
+
+    //========================================================================
+    // GPE1 Enable High Register (0x0A0)
+    //========================================================================
+
+    reg {
+        name = "GPE1 Enable High Register";
+        desc = "GPE1 enable mask [31:16]";
+
+        field {
+            name = "GPE1 Enable [31:16]";
+            desc = "Second-bank enable bits 16-31";
+            sw = rw;
+            hw = r;
+        } gpe_enable[15:0] = 16'h0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:16] = 16'h0;
+
+    } GPE1_ENABLE_HI @ 0x0A0;
+
+    //========================================================================
+    // GPE1 Trigger Mode Low Register (0x0A4)
+    //========================================================================
+
+    reg {
+        name = "GPE1 Trigger Mode Low Register";
+        desc = "Edge or level per GPE1 source, bits [15:0]";
+
+        field {
+            name = "GPE1 Trigger [15:0]";
+            desc = "Per-source trigger mode. 0 = EDGE: the status bit sets on a rising edge of the source and stays set until software clears it, so a source that is still asserted does not re-set it. 1 = LEVEL: the status bit follows the asserted source, so a W1C while the source is still high has no lasting effect -- which is the point of a level source, and how software tells the difference between an event it missed and one still happening.";
+            sw = rw;
+            hw = r;
+        } gpe_trigger[15:0] = 16'h0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:16] = 16'h0;
+
+    } GPE1_TRIGGER_LO @ 0x0A4;
+
+    //========================================================================
+    // GPE1 Trigger Mode High Register (0x0A8)
+    //========================================================================
+
+    reg {
+        name = "GPE1 Trigger Mode High Register";
+        desc = "Edge or level per GPE1 source, bits [31:16]";
+
+        field {
+            name = "GPE1 Trigger [31:16]";
+            desc = "Per-source trigger mode. 0 = EDGE: the status bit sets on a rising edge of the source and stays set until software clears it, so a source that is still asserted does not re-set it. 1 = LEVEL: the status bit follows the asserted source, so a W1C while the source is still high has no lasting effect -- which is the point of a level source, and how software tells the difference between an event it missed and one still happening.";
+            sw = rw;
+            hw = r;
+        } gpe_trigger[15:0] = 16'h0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:16] = 16'h0;
+
+    } GPE1_TRIGGER_HI @ 0x0A8;
+
+    //========================================================================
+    // GPE1 Wake Enable Low Register (0x0AC)
+    //========================================================================
+
+    reg {
+        name = "GPE1 Wake Enable Low Register";
+        desc = "GPE1 wake-enable mask [15:0]";
+
+        field {
+            name = "GPE1 Wake Enable [15:0]";
+            desc = "Arms this source as a WAKE reason. Only consulted when ACPI_CONTROL.gpe_split_enable is set; with the split off, GPEx_ENABLE arms both the interrupt and the wake and this register is ignored.";
+            sw = rw;
+            hw = r;
+        } gpe_wake_enable[15:0] = 16'h0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:16] = 16'h0;
+
+    } GPE1_WAKE_EN_LO @ 0x0AC;
+
+    //========================================================================
+    // GPE1 Wake Enable High Register (0x0B0)
+    //========================================================================
+
+    reg {
+        name = "GPE1 Wake Enable High Register";
+        desc = "GPE1 wake-enable mask [31:16]";
+
+        field {
+            name = "GPE1 Wake Enable [31:16]";
+            desc = "Arms this source as a WAKE reason. Only consulted when ACPI_CONTROL.gpe_split_enable is set; with the split off, GPEx_ENABLE arms both the interrupt and the wake and this register is ignored.";
+            sw = rw;
+            hw = r;
+        } gpe_wake_enable[15:0] = 16'h0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:16] = 16'h0;
+
+    } GPE1_WAKE_EN_HI @ 0x0B0;
 
 };

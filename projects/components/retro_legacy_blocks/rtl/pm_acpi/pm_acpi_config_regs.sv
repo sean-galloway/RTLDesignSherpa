@@ -25,7 +25,7 @@
  *                                                 --> hwif --> pm_acpi_core
  *
  * ADDRESS DECODE POLICY (issue #54 round_2 item 4)
- *   Only the twenty-four mapped registers decode. Equality is on the WHOLE
+ *   Only the thirty-six mapped registers decode. Equality is on the WHOLE
  *   12-bit address, register by register: everything else in the 4 KB window
  *   is DROPPED - the write is ignored, the read returns zero, and PSLVERR is
  *   raised. This is the policy ioapic, pic_8259 and pit_8254 already use.
@@ -100,7 +100,7 @@
  *     pm_acpi_tests_gh54.py::test_gh54_gpe_status_two_bits_exact and
  *     ::test_gh54_gpe_interrupt_deasserts_after_w1c.
  *   - Every address presented to the register block is one its generated
- *     decode recognises -- the twenty-four ADDR_* localparams below and nothing
+ *     decode recognises -- the thirty-six ADDR_* localparams below and nothing
  *     else. If the RDL layout drifts from those localparams the access reads
  *     zero and writes nowhere instead of failing. Guarded by
  *     pm_acpi_tests_gh54.py::test_gh54_address_alias_dropped_with_pslverr and
@@ -166,6 +166,12 @@ module pm_acpi_config_regs
     output logic        cfg_pm1_rtc_en,
     output logic [15:0] cfg_pm_timer_div,
     output logic [31:0] cfg_gpe_enables,
+    output logic [31:0] cfg_gpe_trigger,
+    output logic [31:0] cfg_gpe_wake_enables,
+    output logic [31:0] cfg_gpe1_enables,
+    output logic [31:0] cfg_gpe1_trigger,
+    output logic [31:0] cfg_gpe1_wake_enables,
+    output logic        cfg_gpe_split_enable,
     output logic [31:0] cfg_clk_gate_ctrl,
     output logic [7:0]  cfg_pwr_domain_ctrl,
     output logic        cfg_gpe_wake_en,
@@ -188,6 +194,7 @@ module pm_acpi_config_regs
     output logic [4:0]  sw_clr_pm1_status,
     output logic [3:0]  sw_clr_wake_status,
     output logic [31:0] sw_clr_gpe_status,
+    output logic [31:0] sw_clr_gpe1_status,
 
     // Status inputs (from pm_acpi_core) - sticky, mirrored into the regblock
     input  logic [1:0]  status_current_state,
@@ -196,6 +203,7 @@ module pm_acpi_config_regs
     input  logic [4:0]  status_pm1,
     input  logic [3:0]  status_wake_src,
     input  logic [31:0] status_gpe,
+    input  logic [31:0] status_gpe1,
     input  logic [3:0]  status_reset_src,
     input  logic [31:0] status_pm_timer_value,
     input  logic [31:0] status_pm_timer_value_hi,
@@ -239,16 +247,30 @@ module pm_acpi_config_regs
     localparam logic [7:0] ADDR_PM_TIMER_MATCH      = 8'h78;
     localparam logic [7:0] ADDR_PWR_SEQ_CONFIG      = 8'h7C;
     localparam logic [7:0] ADDR_PWR_SEQ_STATUS      = 8'h80;
+    localparam logic [7:0] ADDR_GPE0_TRIGGER_LO     = 8'h84;
+    localparam logic [7:0] ADDR_GPE0_TRIGGER_HI     = 8'h88;
+    localparam logic [7:0] ADDR_GPE0_WAKE_EN_LO     = 8'h8C;
+    localparam logic [7:0] ADDR_GPE0_WAKE_EN_HI     = 8'h90;
+    localparam logic [7:0] ADDR_GPE1_STATUS_LO      = 8'h94;
+    localparam logic [7:0] ADDR_GPE1_STATUS_HI      = 8'h98;
+    localparam logic [7:0] ADDR_GPE1_ENABLE_LO      = 8'h9C;
+    localparam logic [7:0] ADDR_GPE1_ENABLE_HI      = 8'hA0;
+    localparam logic [7:0] ADDR_GPE1_TRIGGER_LO     = 8'hA4;
+    localparam logic [7:0] ADDR_GPE1_TRIGGER_HI     = 8'hA8;
+    localparam logic [7:0] ADDR_GPE1_WAKE_EN_LO     = 8'hAC;
+    localparam logic [7:0] ADDR_GPE1_WAKE_EN_HI     = 8'hB0;
 
-    // The five W1C register windows, one index each. GPE0_STATUS is two
-    // registers over one 32-bit core vector, hence six indices.
+    // The W1C register windows, one index each. Each GPE bank is two
+    // registers over one 32-bit core vector, hence two indices apiece.
     localparam int W1C_ACPI_STATUS     = 0;
     localparam int W1C_ACPI_INT_STATUS = 1;
     localparam int W1C_PM1_STATUS      = 2;
     localparam int W1C_WAKE_STATUS     = 3;
     localparam int W1C_GPE_LO          = 4;
     localparam int W1C_GPE_HI          = 5;
-    localparam int W1C_COUNT           = 6;
+    localparam int W1C_GPE1_LO         = 6;
+    localparam int W1C_GPE1_HI         = 7;
+    localparam int W1C_COUNT           = 8;
 
     //========================================================================
     // Signals
@@ -365,7 +387,19 @@ module pm_acpi_config_regs
                         (adapter_addr == {4'h0, ADDR_PM_TIMER_VALUE_HI})  ||
                         (adapter_addr == {4'h0, ADDR_PM_TIMER_MATCH})     ||
                         (adapter_addr == {4'h0, ADDR_PWR_SEQ_CONFIG})     ||
-                        (adapter_addr == {4'h0, ADDR_PWR_SEQ_STATUS});
+                        (adapter_addr == {4'h0, ADDR_PWR_SEQ_STATUS})     ||
+                        (adapter_addr == {4'h0, ADDR_GPE0_TRIGGER_LO})   ||
+                        (adapter_addr == {4'h0, ADDR_GPE0_TRIGGER_HI})   ||
+                        (adapter_addr == {4'h0, ADDR_GPE0_WAKE_EN_LO})   ||
+                        (adapter_addr == {4'h0, ADDR_GPE0_WAKE_EN_HI})   ||
+                        (adapter_addr == {4'h0, ADDR_GPE1_STATUS_LO})    ||
+                        (adapter_addr == {4'h0, ADDR_GPE1_STATUS_HI})    ||
+                        (adapter_addr == {4'h0, ADDR_GPE1_ENABLE_LO})    ||
+                        (adapter_addr == {4'h0, ADDR_GPE1_ENABLE_HI})    ||
+                        (adapter_addr == {4'h0, ADDR_GPE1_TRIGGER_LO})   ||
+                        (adapter_addr == {4'h0, ADDR_GPE1_TRIGGER_HI})   ||
+                        (adapter_addr == {4'h0, ADDR_GPE1_WAKE_EN_LO})   ||
+                        (adapter_addr == {4'h0, ADDR_GPE1_WAKE_EN_HI});
     end
 
     assign w_drop      = !w_addr_mapped;
@@ -456,6 +490,17 @@ module pm_acpi_config_regs
     // GPE enables (HI concatenated above LO - the same order status_gpe uses)
     assign cfg_gpe_enables = {hwif_out.GPE0_ENABLE_HI.gpe_enable.value,
                               hwif_out.GPE0_ENABLE_LO.gpe_enable.value};
+    assign cfg_gpe_trigger = {hwif_out.GPE0_TRIGGER_HI.gpe_trigger.value,
+                              hwif_out.GPE0_TRIGGER_LO.gpe_trigger.value};
+    assign cfg_gpe_wake_enables = {hwif_out.GPE0_WAKE_EN_HI.gpe_wake_enable.value,
+                                   hwif_out.GPE0_WAKE_EN_LO.gpe_wake_enable.value};
+    assign cfg_gpe1_enables = {hwif_out.GPE1_ENABLE_HI.gpe_enable.value,
+                               hwif_out.GPE1_ENABLE_LO.gpe_enable.value};
+    assign cfg_gpe1_trigger = {hwif_out.GPE1_TRIGGER_HI.gpe_trigger.value,
+                               hwif_out.GPE1_TRIGGER_LO.gpe_trigger.value};
+    assign cfg_gpe1_wake_enables = {hwif_out.GPE1_WAKE_EN_HI.gpe_wake_enable.value,
+                                    hwif_out.GPE1_WAKE_EN_LO.gpe_wake_enable.value};
+    assign cfg_gpe_split_enable = hwif_out.ACPI_CONTROL.gpe_split_enable.value;
 
     // Clock gate and power domain control
     assign cfg_clk_gate_ctrl   = hwif_out.CLOCK_GATE_CTRL.clk_gate_ctrl.value;
@@ -503,6 +548,10 @@ module pm_acpi_config_regs
                                            (regblk_addr == ADDR_GPE0_STATUS_LO);
         w_w1c_level[W1C_GPE_HI]          = regblk_req && adapter_req_is_wr &&
                                            (regblk_addr == ADDR_GPE0_STATUS_HI);
+        w_w1c_level[W1C_GPE1_LO]         = regblk_req && adapter_req_is_wr &&
+                                           (regblk_addr == ADDR_GPE1_STATUS_LO);
+        w_w1c_level[W1C_GPE1_HI]         = regblk_req && adapter_req_is_wr &&
+                                           (regblk_addr == ADDR_GPE1_STATUS_HI);
     end
 
     `ALWAYS_FF_RST(clk, rst_n,
@@ -541,6 +590,10 @@ module pm_acpi_config_regs
                                       w_w1c_mask[15:0] : 16'h0;
     assign sw_clr_gpe_status[31:16] = w_w1c_event[W1C_GPE_HI] ?
                                       w_w1c_mask[15:0] : 16'h0;
+    assign sw_clr_gpe1_status[15:0]  = w_w1c_event[W1C_GPE1_LO] ?
+                                       w_w1c_mask[15:0] : 16'h0;
+    assign sw_clr_gpe1_status[31:16] = w_w1c_event[W1C_GPE1_HI] ?
+                                       w_w1c_mask[15:0] : 16'h0;
 
     //========================================================================
     // pm_acpi_core -> hwif_in (every member of pm_acpi_regs__in_t is driven)
@@ -581,6 +634,8 @@ module pm_acpi_config_regs
     // GPE0_STATUS mirror (LO = core [15:0], HI = core [31:16])
     assign hwif_in.GPE0_STATUS_LO.gpe_status.next = status_gpe[15:0];
     assign hwif_in.GPE0_STATUS_HI.gpe_status.next = status_gpe[31:16];
+    assign hwif_in.GPE1_STATUS_LO.gpe_status.next = status_gpe1[15:0];
+    assign hwif_in.GPE1_STATUS_HI.gpe_status.next = status_gpe1[31:16];
 
     // RESET_STATUS mirror
     assign hwif_in.RESET_STATUS.por_reset.next = status_reset_src[0];
