@@ -821,7 +821,7 @@ failed on its first run.
 ---
 
 ## PUMICE-026 — finish the LiteDRAM same-harness A/B (it is already ~80% built)
-**Status:** open 2026-09-10  **Priority:** P2
+**Status:** CLOSED 2026-09-10  **Priority:** was P2
 **Intent (Sean):** "drop liteddr into the pumice harness so testing is the same."
 
 **START HERE, DO NOT REBUILD:**
@@ -917,7 +917,8 @@ read ceiling is a property of this operating point rather than a pumice defect
 ---
 
 ## PUMICE-025 — read bandwidth was pinned at 48.7% of peak (FIXED: now 95%, write parity)
-**Status:** open 2026-09-10  **Priority:** P1 — the last gap to the 450 MB/s read target
+**Status:** CLOSED 2026-09-10  **Priority:** was P1. Target was 450 MB/s read; delivered 571.3.
+Residual latency work carried forward as [[PUMICE-030]].
 **Found by:** PUMICE-022 board characterization (see closed.md for the full table)
 
 Read bandwidth on silicon is **291.7-292.2 MB/s against a 600 MB/s peak** and
