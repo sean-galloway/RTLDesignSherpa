@@ -768,3 +768,313 @@ moves there. The cheap "interesting" counters STAY in pumice per the same
 direction: PAGE/SCHED/REF *_STATS, OBS_ROW_HIT, refresh-defer histograms.
 The sim repro profile (`multiid_min`) stays in pumice_char.py; its multiid
 arm remains red until the observer adoption replaces the bespoke hist.
+
+---
+
+## PUMICE-KMAP — real K-maps for the scheduler, CAMs and DFI layer
+**Status:** CLOSED 2026-09-10  **Was blocked on:** [[TOOLING-KMAP]] items 1-4
+
+All six criteria of [[signal-contracts-and-kmaps]] are discharged across the 17
+computed maps, the artifacts are consolidated, and both halves are gated so they
+cannot silently rot again.
+
+**One workbook, one generator.** Four workbooks from three generators across two
+directories became `docs/pumice_signal_contracts.xlsx` from
+`docs/gen_pumice_signal_contracts.py`, verified to reproduce all 18 original
+sheets cell-for-cell. The old flow LOADED the workbook and appended rows, so
+re-running duplicated them (the committed Scheduler sheet had 8 such rows); the
+new one builds from scratch and is idempotent. An INDEX sheet separates SPEC
+tables from COMPUTED grids and opens with the measured RTL status, so the book
+cannot be read as a bug list for a controller that meets its targets.
+
+**Criterion 1 (computed, not drawn) was FALSE for four maps**, now gated.
+`rd_col_m`/`wr_col_m` modelled 7 terms against 13; `w_ref_safe`, `w_guarded`,
+`w_drain_active` each dropped one. `docs/check_kmap_rtl_sync.py` requires every
+RTL identifier on a signal's RHS to be NAMED in the documented expression (folds
+stay legal, the fold equation is in [brackets]). **16 of 17 machine-checked, 0
+drifted**; the generator REFUSES to write on drift.
+
+**Criteria 3/4/5/6.** Axis-term tables with file:line on the four maps whose axes
+are folds; relations on all 17 (constraint or explicit independence note); 38
+don't-care cells from cited invariants; Quine-McCluskey implicants printed beside
+the documented equation on every map.
+
+**Waves: audited, corrected, extended, RENDERED, in the MAS.** The set was drawn
+at tCCD=2 with streams captioned "~100% util" -- impossible, and the RTL settles
+it (BURST_WORDS=1, so a column every cycle, which is the measured 571.3 MB/s).
+Added seven performance diagrams: 13-17 bad-but-correct (admit gate, ring bound,
+page thrash, turnaround thrash, refresh storm) and 18-19 pathological, each
+captioned with the board number it produced. `design/check_waves.py` found **11
+real defects** in the pre-existing diagrams, five of them labels attached to a
+logic level instead of a bus slot (WaveDrom silently shifts every label in the
+row onto the wrong segment). `design/render_waves.py` produces SVG+PNG for all
+19 and **MAS Chapter 7** embeds every one. Rendering itself exposed that every
+caption (101-431 chars) overflowed the image and 23 group labels overlapped --
+neither visible in the JSON, neither ever seen because nothing had been rendered.
+
+**The lesson.** A spec written during a debugging campaign dates instantly and
+silently: these artifacts asserted a 15%-of-peak controller and five live
+defects while the board ran at 95% in both directions. Mechanical checks, not
+review, are what keep hand-built collateral honest -- every check added here
+failed on its first run.
+
+---
+
+## PUMICE-026 — finish the LiteDRAM same-harness A/B (it is already ~80% built)
+**Status:** open 2026-09-10  **Priority:** P2
+**Intent (Sean):** "drop liteddr into the pumice harness so testing is the same."
+
+**START HERE, DO NOT REBUILD:**
+`projects/fpga-systems/NexysA7/pumice/ddr2-characterization/flows-litedram-uart/`
+
+That flow already exists and is documented as **WIRED** in its `HARNESS_PLAN.md`:
+
+- `rtl/char_engine_harness.sv` — DUT-agnostic harness (engines + perf meters +
+  bandwidth timer + harness_csr + UART bridge) exposing an AXI4 master.
+  Verilator-lint-clean standalone.
+- `rtl/litedram_char_top.sv` — board top: `litedram_core` + the harness on
+  `user_clk`, `init_done`-gated, AXI user port wired.
+- `rtl/filelists/litedram_char_harness.f`, `constraints/litedram_char.xdc`,
+  `tcl/build_all.tcl`, `tcl/program_fpga.tcl`, `Makefile`, `regen.sh`,
+  `litedram_hp.yml`, and a generated `build_board/gateware/litedram_core.v`.
+- A `litedram_hp.yml` deliberately mapped onto a high-perf pumice preset, with
+  the mapping table written out in its README.
+
+**Progress 2026-09-10 (commit fdaa7db37):**
+- ~~regen with BIOS~~ **DONE.** Core regenerated with a functional BIOS (63 KB
+  ROM) and `litedram_hp.yml` moved to **75 MHz / 1:2 / 300 MT/s**, matching the
+  point pumice is measured at. The stock 100 MHz / 1:4 would have voided the
+  comparison.
+- ~~XDC reconcile~~ **NOT NEEDED.** The regenerated core xdc has no ddram pins;
+  the harness keeps its pin map.
+- Five flow bugs fixed to get synthesis running: `REPO_ROOT` two levels short
+  (the `../` count was correct at the pre-move path), `CONVERTERS_ROOT` not
+  exported, the tcl filelist reader expanding only `$REPO_ROOT`, `.vlt` lint
+  waivers handed to Vivado, and `VexRiscv.v` pinned to a path inside the LiteX
+  venv. `regen.sh` no longer hardcodes a `/tmp` venv either.
+
+**DONE 2026-09-10 — measured.** Timing-clean LiteDRAM bitstream (WNS +0.195, after
+adding the core's CRG reset-strobe false path), `--char-profile matrix --char-scale 1000`,
+14/14 integrity, saved as `docs/char_results/litedram_2026-09-10_matrix.csv` with the
+write-up `FINDINGS_litedram_ab_2026-09-10.md`. Headline: LiteDRAM reads 564-579 MB/s
+(94-97% of peak) through the identical harness where pumice reads 291.7; writes equal
+(~554-569 vs 551-570). The read ceiling is pumice's, not the operating point's -- see
+PUMICE-025. Ready to close (move the block to closed.md).
+
+**Progress 2026-09-10 (later) — item 0 DONE, harness matches build-perf:**
+Sean asked for the LiteDRAM harness to match the current one; the chosen
+route was to extract a shared engine block. `char_engine_block.sv` (chargen
+regs + generator array + crossbars + perf, one AXI4 master) is pulled out of
+`ddr2_char_macro.sv`, which now wraps pumice around it; `char_engine_harness.sv`
+is build-perf's `ddr2_char_harness` minus the controller (same UART bridge,
+same `bridge_ddr2_char_axil` address map with `ddr2_apb` terminated, same
+`harness_csr` with BUILD_ID "LDR2", same timer/LEDs). `make lint` clean;
+Makefile on `make/fpga_flow.mk`; `host/host_litedram_char.py` is the pumice
+host with the pumice-CSR surface as no-ops. `FPGA_CLK_HZ` in the top was still
+100 MHz after the 75 MHz regen (UART divisor wrong) -- fixed. Bitstream build
+in flight; then program, `--char-profile matrix --char-scale 1000`, save CSV.
+
+**Was BLOCKING (now resolved as above).** Synthesis reached the harness and
+stopped on **41 port mismatches**: `char_engine_harness.sv` is wired
+to a `harness_csr` that no longer exists. The whole per-generator config
+surface (`o_cfg_wr_*`, `o_cfg_rd_*`, the start pulses, the CRC readback) moved
+out of `harness_csr` into `chargen_regs` when the char framework went to a
+16-generator array; `harness_csr` is now 75 ports of global/PHY config only.
+
+Rewire `char_engine_harness.sv` against the current framework — `harness_csr`
+for the global surface, `chargen_regs` (`chargen_regs.rdl`) for per-generator
+config, and the generator array instead of one wr + one rd engine. The pumice
+flow's `ddr2_char_macro.sv` is the reference for how the array is driven today.
+
+Then: host variant (copy `ddr2_char.py` + `pumice_master.py`, drop the
+pumice-CSR `set_controller_cfg` writes since LiteDRAM self-configures, keep
+engine cfg + perf/timer readout; `harness_csr` is at base 0 here), then
+`make bitstream && make program && make characterize`.
+
+**RESOLVED 2026-09-10:** `build-litedram/` was an empty duplicate scaffold
+(the never-executed destination of a NEXYS-003 move). It cost this session a
+rebuild-from-scratch of the LiteX tooling before the real flow surfaced. It is
+now DELETED and every reference points at `flows-litedram-uart/`.
+
+**Tooling notes that ARE new and worth keeping** are in
+`flows-litedram-uart/2026-09-10_tooling_notes.md`, with two working scripts
+beside it (`bin_nexys_bist_soc.py`, `bin_litedram_bist_run.py`): install LiteX
+from git not PyPI (PyPI +
+Python 3.12 breaks every target on a migen bytecode-inference bug); the RISC-V
+toolchain is already at
+`/tools/Xilinx/2025.1/gnu/riscv/lin/riscv64-unknown-elf/bin`; PyPI
+`pythondata-software-picolibc` ships incomplete sources so the BIOS build
+fails; and `--cpu-type=None` yields a clean timing-met bitstream whose BIST
+returns garbage because LiteDRAM's DDR2 init and levelling live in the BIOS.
+That last point is why item 1 above says `--bios`.
+
+**Why it matters:** LiteDRAM's read is also ~47% of the raw ceiling while its
+write reaches 88%; pumice is at 48.6% / 95.0%. Two independent controllers at
+the same read fraction on the same board is the strongest evidence that the
+read ceiling is a property of this operating point rather than a pumice defect
+(PUMICE-025). Same-harness confirmation would redirect or justify that work.
+
+---
+
+## PUMICE-025 — read bandwidth was pinned at 48.7% of peak (FIXED: now 95%, write parity)
+**Status:** open 2026-09-10  **Priority:** P1 — the last gap to the 450 MB/s read target
+**Found by:** PUMICE-022 board characterization (see closed.md for the full table)
+
+Read bandwidth on silicon is **291.7-292.2 MB/s against a 600 MB/s peak** and
+does not move with burst length, access pattern, paging mode or scheduling
+mode. Write on the same runs reaches 574.0 MB/s (95.7% of peak).
+
+**What the invariance rules out.** bl4 / bl8 / bl16 measure 290.8 / 291.7 /
+291.7 -- identical. If the limit were the number of transactions in flight
+(generator `GEN_MAX_OUTSTANDING`, ring `RD_RET_DEPTH`, or a Little's-law
+round-trip bound) then doubling the bytes per transaction would raise
+bandwidth. It does not, so the limit is a per-cycle rate below the transaction
+layer, not a concurrency limit. Read latency is a flat 49.2 cycles throughout.
+
+**2026-09-10 ROOT-CAUSED AND LARGELY FIXED: the read intake admitted one
+sub-command every TWO cycles.** `pumice_rd_intake` held a single `r_armed` bit
+on the AR skid head to mark "the registered snarf probe belongs to this AR".
+The bit was cleared by its own admit and could only be re-set the cycle after,
+so admits were capped at 0.5/cycle. One admitted sub-command is exactly one
+DRAM burst, and on this board (BL4 on x16, 32-bit beat) one burst is ONE AXI
+beat -- so the gate was the bandwidth: 0.5 x 8 B x 75 MHz = 300 MB/s, against
+291.7 measured (97% of it). Writes have no such stage (`pumice_wr_intake`
+runs AW straight from the meta-FIFO head) which is the entire read/write
+asymmetry.
+
+Fixed by staging the AR: the skid head is the AR being probed, a new stage
+holds the AR being admitted, and the two advance together (1 admit/cycle).
+While the stage is held the probe re-points at the stage, so the hit driving
+an admit is never more than one cycle old -- the same RAW-forwarding exposure
+the arm bit had, rather than a latched hit that would go stale.
+
+Board result (`board_2026-09-10_read_intake_fix.csv`, 14/14 integrity):
+
+| scenario | read before | read after |
+|---|---|---|
+| row_major_bl8 | 291.8 | **470.9** |
+| row_major_bl16 | 291.8 | **471.0** |
+| incremental_bl8 | 291.7 | **463.7** |
+| row_major_bl4 | 290.8 | **360.4** |
+
+48.6% of peak -> 78.5%. Writes unchanged (551/570). Timing IMPROVED: WNS
++0.285 ns vs +0.039 before, 0 failing of 94060; area +102 LUT / +35 FF.
+
+**SECOND LIMIT, ALSO FIXED: the read return ring was 32 tickets and the board
+build never even set it.** `ddr2_char_macro` did not pass `RD_RET_DEPTH`, so
+every board bitstream ran the controller default of 32 regardless. Sustained
+read rate is bounded by depth / (ticket alloc -> R drain), and this board's PHY
+read latency is ~49 MC cycles, so 32 tickets cap reads near 0.78 of the DRAM
+rate -- exactly the 78.5% left after the intake fix. Threaded the parameter
+from `ddr2_char_top` through the harness and macro, exposed
+`PUMICE_RD_RET_DEPTH` as a build define, and set the board default to **64**.
+
+Board sweep (`board_2026-09-10_read_fixed_ring64.csv`, 14/14 integrity):
+
+| scenario | read @ ring 32 | read @ ring 64 | write |
+|---|---|---|---|
+| row_major_bl8 | 470.9 | **571.3** | 570.2 |
+| row_major_bl16 | 471.0 | **571.3** | 570.3 |
+| incremental_bl8 | 463.7 | **556.9** | 551.3 |
+| row_major_bl4 | 360.4 | 360.4 | 570.3 |
+
+**Reads now match writes** (571.3 vs 570.2, both ~95% of the 600 MB/s peak) and
+are within 1.4% of LiteDRAM's 579.5 through the same harness. Timing +0.283 ns,
+0 failing of 94415; ring 64 costs ~158 LUT over ring 32.
+
+**2026-09-10 CONCURRENT LOAD -- the workload where pumice's area pays off.**
+Every measurement before this ran a write phase then a read phase, so
+read/write turnaround was never paid. Running both directions in one window
+(new `concurrent` / `multigen` profiles, disjoint regions, both controllers
+through the identical harness):
+
+| scenario | pumice total | LiteDRAM total | ratio |
+|---|---|---|---|
+| row_major bl8, 1w+1r | **570.1** | 285.6 | **2.00x** |
+| incremental bl8, 1w+1r | **552.6** | 247.5 | **2.23x** |
+| row_major bl8, 1w+2r | **570.2** | 316.4 | **1.80x** |
+
+pumice holds 95% of peak with one, two and three concurrent generators;
+LiteDRAM sits near half peak and its read latency rises from 24.7 to 94.5
+cycles on incremental. The global FR-FCFS window batches same-direction
+columns and amortises tWTR/tRTW; per-bank round-robin pays it per switch.
+Files: `board_2026-09-10_{pumice,lite}_{concurrent,multigen}.csv`.
+
+Not measurable this way: `col_major` / `col_major_interleaved` span the whole
+device so generators cannot be placed adjacently, and those rows fail
+integrity on BOTH controllers (the wrapped-walk hash artifact `strides_for`
+documents). `incremental` under multigen likewise falls back to a far-apart
+split that measures page thrash. Only bounded-wrap families place adjacently,
+so row_major is the trustworthy multi-generator row.
+
+**What is left.** AxLEN=4 still reads 360.4 while writing 570.3, and it did not
+move with ring depth, so it is a third and separate mechanism (per-AR overhead
+rather than per-column). Read latency is also still ~49 cycles against
+LiteDRAM's 24.7 -- bandwidth is fixed, latency is not. Neither blocks the
+bandwidth target; track them here rather than reopening the ceiling story.
+
+**(Earlier) SAME-HARNESS A/B DISPROVED THE OPERATING-POINT THEORY BELOW.** LiteDRAM
+behind the identical `char_engine_block` / bridge / host, at the identical 75 MHz / 1:2 /
+MR0=0x0432 (BL4, CL3) point, reads 564.1 (incremental) / 579.5 (row_major) MB/s and
+writes 554/569 -- `docs/char_results/litedram_2026-09-10_matrix.csv`,
+`FINDINGS_litedram_ab_2026-09-10.md`. So a column every MC cycle IS sustainable on
+this bus for reads: the 48.6% ceiling is pumice's read command path, not BL4. Writes
+already match LiteDRAM, which localises it to AR-accept -> column-issue -> R-return
+(return ring / rd CAM / AR-order commit). LiteDRAM's read latency is 24.7 cycles vs
+pumice's 49.2: ~25 cycles of extra pipeline per access is the other half of the same
+story. The analysis below stands as the description of the write path; its
+conclusion about reads does not.
+
+**(Superseded framing) Burst length is the fundamental constraint, and it is NOT read-specific.**
+The board runs BL4 (host forces `MR0=0x0432` and `bl=4`; the RDL default is
+BL8/0x0433). On a x16 device BL4 is 4 transfers = 8 bytes, and 4 transfers at
+300 MT/s is 2 CK = exactly ONE MC cycle at 75 MHz. So sustaining 600 MB/s
+demands a column command EVERY MC cycle, on a single-issue command bus: 100%
+of command slots must be columns, leaving ZERO for ACT, PRE or REF. Every
+activate or precharge costs a full column slot -- 8 bytes -- one for one. That
+is why the measured split is binary (570 page-open vs 34 page-closed) with
+nothing in between, and it caps how much any scheduler can ever recover.
+
+BL8 would halve the command pressure: 16 bytes per column, each burst
+occupying 2 MC cycles, so a column every OTHER cycle saturates and the other
+half is free for ACT/PRE/REF. That is the single biggest architectural lever
+available and it is worth a build.
+
+**Runtime BL8 does NOT work and needs a rebuild.** Tried 2026-09-10 with
+`TEST_MR0=0x0433 TEST_DRAM_BL=8` on the BL4 bitstream: a 16 MB memtest passed
+4/4 clean, but the characterization workload was **0/8 integrity** and
+bandwidth did not move. The simple memtest is not a sufficient check for this
+change. `DRAM_BL` is a compile-time parameter in `ddr2_char_top.sv`
+(BURST_LEN_MULTIPLE, harness sizing, column stride) as well as a runtime CSR,
+so BL8 requires rebuilding the bitstream with `DRAM_BL = 8`, not just an MR
+write. Board was restored to BL4 and re-verified clean afterwards.
+
+But note that BL4 does NOT explain the read/write asymmetry: both directions
+need the same one-column-per-cycle rate, and writes achieve 95% of it while
+reads achieve 49%. The asymmetry below is still an implementation property.
+
+**Hypothesis:** the read return path delivers one AXI beat every other cycle
+where the write path delivers one per cycle. 292/600 = 48.7% is close enough to
+exactly half to be worth confirming. With the generator ruled out (below), the
+limit is inside the controller's return path. Candidates:
+1. ~~The char harness's read CRC-check engine consuming R at half rate.~~
+   **RULED OUT 2026-09-10 by measurement.** `axi4_master_rd_crc_check` at fub
+   level, across all seven slave timing profiles, holds `rready` asserted on
+   **100% of run cycles** (140/140, 269/269, 388/388, 325/325, 201/201,
+   1925/1925 ...) with a back-pressure count of **exactly zero** in every
+   profile, and transfers 128/128 beats each time. With a backtoback slave
+   every beat-to-beat gap is 1 cycle. The generator never throttles R, so the
+   ceiling is NOT in the harness. Guarded permanently by the
+   `rready_never_throttles` scenario in
+   `val/amba/test_axi4_master_rd_crc_check.py`.
+2. `pumice_rd_return_ring` drain -- one beat per cycle through the BRAM skid
+   vs. the write path's rate.
+3. `pumice_dfi_rd_aligner` / `pumice_dfi_cdc` read FIFO width or pop rate.
+4. `pumice_rd_intake` R-channel assembly.
+
+The latency view (`rtl/schematics/gen_latency.py`) prints per-path flop counts
+and names the combinational feedthroughs for each of these blocks, which is the
+fastest way to compare the read and write drain structures side by side.
+
+Do NOT start by tuning the scheduler: every scheduling and paging mode gives
+the identical 291.7, so the scheduler is not the constraint.
