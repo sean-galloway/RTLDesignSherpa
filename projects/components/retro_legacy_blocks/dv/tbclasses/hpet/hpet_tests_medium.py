@@ -22,6 +22,13 @@ Intermediate HPET functionality tests including:
 - 64-bit counter and comparator tests
 - Timer mode switching
 - Performance measurements
+
+
+Provenance: these were written TEST-FIRST against the unfixed RTL for
+issue #46 -- the commit that landed the fix (32be0cefc) records that
+twelve new tests were RED on the old RTL. A defect-regression test nobody
+saw fail is decoration, so the evidence is recorded here rather than
+left in a commit message nobody re-reads (RLB-006).
 """
 
 import asyncio

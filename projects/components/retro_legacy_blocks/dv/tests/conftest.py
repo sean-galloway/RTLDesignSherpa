@@ -416,20 +416,24 @@ def test_level():
     return os.environ.get('TEST_LEVEL', 'gate')
 
 # ----------------------------------------------------------------------
-# REG_LEVEL -> TEST_LEVEL bridge
+# NO REG_LEVEL -> TEST_LEVEL STAMP HERE. DELIBERATELY.
 # ----------------------------------------------------------------------
-# make/tests.mk drives the regression level through REG_LEVEL; this area's test
-# modules read TEST_LEVEL, and most read it at MODULE IMPORT time. conftest is
-# imported before any test module, so setting it here is early enough.
+# There used to be one, and it was load-bearing while the wrappers exported
+# nothing: without it `make run-all-full-parallel` fell back to the default
+# depth and ran a smaller matrix while still reporting "passed".
 #
-# WITHOUT THIS BRIDGE THE MAKEFILE CONVERGENCE SILENTLY REDUCES COVERAGE: the
-# 4-line area Makefile sets REG_LEVEL=full, nothing reads it, TEST_LEVEL falls
-# back to its default, and `make run-all-full-parallel` quietly runs a smaller
-# matrix while still reporting "passed". Measured on pumice fub during this
-# conversion: 91 tests -> 79.
+# The trap is what it does once the wrappers DO export a per-cell level.
+# cocotb_test's set_env applies extra_env first and then copies every
+# os.environ entry over it, so a process-level TEST_LEVEL beats the value the
+# wrapper just passed. The REG_LEVEL grid still expanded to gate/func/full
+# cells and every one of them ran at the same depth. MEASURED HERE on
+# 2026-09-11 before the conversion: pm_acpi's gate, func and full cells each
+# logged "Starting FULL PM_ACPI" and each ran the identical 57 tests.
+# Re-stamping the cell's own value from the wrapper does not help either;
+# that was measured on the bridge and is written up in
+# TBClasses.shared.test_levels.
 #
-# REG_LEVEL wins over TEST_LEVEL, matching stream's conftest: the make target
-# you typed is more explicit than an inherited environment variable.
-_reg_level = os.environ.get('REG_LEVEL')
-if _reg_level:
-    os.environ['TEST_LEVEL'] = _reg_level.upper()
+# So the area converts both halves at once: every wrapper parametrizes on
+# reg_level_grid() and passes level_env(test_level), and this stamp is gone.
+# Removing the stamp alone would drop the area to the default depth, which is
+# why this comment exists rather than a blank space.

@@ -39,6 +39,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -207,17 +208,14 @@ def generate_test_params():
     asynchronous clock domain configurations.
     """
 
+    # REG_LEVEL SELECTS THE GRID, TEST_LEVEL GATES THE DEPTH. The levels used
+    # to be three literal rows here, so a FULL regression ran three cells per
+    # CDC setting that were all the same depth -- see reg_level_grid's module
+    # docstring. GATE now expands to one level, FUNC two, FULL three.
     return [
-        # (cdc_enable, test_level, description)
-        # Non-CDC configurations (CDC_ENABLE=0, same clock domain)
-        (0, 'gate', "PM_ACPI gate (no CDC)"),
-        (0, 'func', "PM_ACPI func (no CDC)"),
-        (0, 'full', "PM_ACPI full (no CDC)"),
-
-        # CDC configurations (CDC_ENABLE=1, async clock domains)
-        (1, 'gate', "PM_ACPI gate CDC"),
-        (1, 'func', "PM_ACPI func CDC"),
-        (1, 'full', "PM_ACPI full CDC"),
+        (cdc, lvl, f"PM_ACPI {lvl}{' CDC' if cdc else ''}")
+        for cdc in (0, 1)
+        for lvl in reg_level_grid()
     ]
 
 
@@ -275,8 +273,7 @@ def test_pm_acpi(request, cdc_enable, test_level, description):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
-        'TEST_LEVEL': test_level,
+        **level_env(test_level),
 
         # DUT-specific parameters
         'TEST_CDC_ENABLE': str(cdc_enable),

@@ -36,6 +36,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -172,13 +173,10 @@ async def pic_8259_test(dut):
 def generate_test_params():
     """Generate test parameter combinations for PIC 8259 configurations"""
 
-    return [
-        # (test_level, description)
-        # PIC 8259 has no RTL parameters to vary, so test levels provide coverage
-        ('gate', "PIC 8259 gate test"),
-        ('func', "PIC 8259 func test"),
-        ('full', "PIC 8259 full test"),
-    ]
+    # REG_LEVEL selects how many of these cells exist; TEST_LEVEL sets the
+    # depth inside each. Three literal rows here meant a FULL run executed
+    # the same depth three times.
+    return [(lvl, f"PIC 8259 {lvl} test") for lvl in reg_level_grid()]
 
 
 @pytest.mark.parametrize("test_level, description",
@@ -218,8 +216,7 @@ def test_pic_8259(request, test_level, description):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
-        'TEST_LEVEL': test_level,
+        **level_env(test_level),
     }
 
     # WAVES support

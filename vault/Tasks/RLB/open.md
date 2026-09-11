@@ -5,9 +5,60 @@
 ### RLB-006: scrub the tests for completeness (retro legacy blocks)
 
 **Priority:** P2. Blocks the coverage/formal push, not day-to-day work.
-**Status:** open 2026-09-04. Raised by Sean: test scrubbing was meant to be
-part of the kimi review packets and got dropped along the way. Applies to the
-components suites as well as rtl/.
+**Status:** DONE for retro_legacy_blocks 2026-09-11. Raised by Sean
+2026-09-04: test scrubbing was meant to be part of the kimi review packets and
+got dropped along the way. This entry covered the RLB suites; the same task in
+the rtl/ areas is [[TASK-078]], [[COMMON-025]], [[MATH-010]], [[CDC-001]].
+
+**What the pass found, criterion by criterion.** Each was checked
+MECHANICALLY where a machine could check it, because the alternative is a
+reviewer's impression:
+
+1. *Every test exercises the DUT it names.* Clean. All nine wrappers build the
+   `apb4_<block>` matching their filename.
+2. *No test asserts a condition the bug itself satisfies.* ONE FINDING, fixed.
+   `test_gh58_r4_10_tx_fifo_pstrb` imported the framework's `APBPacket` behind
+   a try/except that returned **True** when the import failed -- a test that
+   passes on the failure of its own precondition, so a framework rename would
+   have turned it green while it drove nothing. The import is unconditional
+   now.
+3. *Inputs the DUT needs are actually driven.* Clean: 120 input ports across
+   the nine tops, every one driven. The checker that proved it first reported
+   `hpet_clk` and `rtc_clk` as undriven because it only recognised `.value =`
+   and not `Clock(self.dut.x)`; a checker with false positives is one nobody
+   reads, so it was fixed before its output was believed.
+4. *gate/func/full mean something distinct.* THE BIG ONE, fixed. MEASURED
+   BEFORE: pm_acpi's gate, func and full cells each logged
+   `Starting FULL PM_ACPI` and each ran the identical 57 tests. All nine
+   blocks were in that state, and hpet was worse -- every one of its six cells
+   was pinned at `'full'`, so it had never run a gate or a func depth at all.
+   Cause is TOOL-016: `cocotb_test.set_env` copies `os.environ` over
+   `extra_env`, so the conftest `REG_LEVEL -> TEST_LEVEL` stamp beat every
+   per-cell value. Converted both halves in one commit per the bridge's worked
+   example -- every wrapper now parametrizes on `reg_level_grid()` and passes
+   `level_env()`, and the stamp is gone. The grid moves now: GATE 21 cells,
+   FUNC 41, FULL 61, where all three used to collect 49 and run them all deep.
+5. *No `run()` pins `testcase=`.* Two pins in `test_apb4_rtc.py`, both
+   JUSTIFIED and both covered: the module holds two `@cocotb.test()`
+   functions that need different `COMMIT_TIMEOUT_CYCLES` builds, and each
+   pytest cell pins its own. Checked by AST that no cocotb test in any module
+   is unreachable. Nothing hidden.
+6. *A fix landed with a test has its mutation check recorded.* PARTIAL, and
+   the gap is recorded rather than papered over. ioapic, pit_8254 and rtc
+   already carried it in the test file; pm_acpi carries it in the GH54 suite.
+   gpio and hpet had it only in their commit messages, which nobody re-reads,
+   so it now sits in the test files quoting what the commit says. **smbus,
+   uart_16550 and pic_8259 have NO record that their defect-regression tests
+   were ever seen RED.** The tests may well have been written test-first --
+   the arc worked that way -- but the record does not say so, and inventing
+   the claim would be worse than leaving the gap visible. Anyone revisiting
+   those three should re-derive it by reverting a fix.
+
+**Still open elsewhere:** the same scrub for the rtl/ areas, and the
+`bin/review/run_batch.py testqc` round, which has never been run for any
+projects/components area (BRIDGE-007). This pass applied the brief's criteria
+directly rather than routing them through the external reviewer; a testqc
+round would still add value on the parts a machine cannot check.
 
 **Sequencing.** A FOCUSED pass, run after qc/humanize is finished everywhere
 and BEFORE coverage and formal are driven clean. Doing it after coverage would
@@ -56,9 +107,35 @@ same task in the rtl/ areas.
 ### RLB-007: all RDL lives in an rdl area, as it does elsewhere
 
 **Priority:** P3. Hygiene, and cheaper here than anywhere else in the repo.
-**Status:** open 2026-09-04. Raised by Sean, for consistency with
+**Status:** DONE 2026-09-11. Raised by Sean 2026-09-04 for consistency with
 [[MISC-001]]: all RDL belongs in an `rdl` area rather than scattered under
-`rtl/`.
+`rtl/`. All nine sources now live at `rdl/<block>/<name>.rdl` and all nine
+register blocks regenerate from there byte-for-byte identically.
+
+**The "only seven references" estimate below was wrong: there were about
+forty.** Most are prose in READMEs, TASKS.md and DV comments rather than path
+dependencies, so none of them broke the build -- but every one of them would
+have become a wrong path. They were swept mechanically. The lesson is the
+same one this ledger keeps teaching: count with a script, not by hand.
+
+**Three things the move turned up:**
+
+- `rtl/rtc/rtc_regs.sv` was a DIRECTORY, not a file, holding `rtc_regs.sv`
+  and `rtc_regs_pkg.sv`, with the filelist pointing inside it. Someone had
+  once run the generator with `--copy-rtl rtc_regs.sv`. Flattened to match
+  every other block, filelist fixed.
+- The seven `peakrdl/README.md` files were retired rather than moved, per the
+  ledger's own instruction and the handbook rule: a README beside a tool
+  restating how to run the tool is the copy nobody edits. They had already
+  rotted into third copies of the register map. The generation command lives
+  in the component `CLAUDE.md`, which now shows the new invocation --
+  `--copy-rtl` has to name the RTL directory explicitly, since the RDL and
+  the RTL are no longer parent and child.
+- `BLOCK_STATUS.md` was retired. It presented itself as current status while
+  calling GPIO and UART "Future" and PIC and IOAPIC "In Progress", all four of
+  which have shipped with MAS books. The live table is in `CLAUDE.md`.
+  `STRUCTURE_SETUP_SUMMARY.md` was kept: it is explicitly a dated record of a
+  one-time 2025-10-29 task, so its old paths are accurate to that date.
 
 **Current layout.** Nine `.rdl` sources, each alone in its own
 `rtl/<block>/peakrdl/` directory, and no `rdl/` directory exists in the area

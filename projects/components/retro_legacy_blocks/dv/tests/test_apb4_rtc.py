@@ -36,6 +36,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -259,13 +260,10 @@ async def rtc_test(dut):
 def generate_test_params():
     """Generate test parameter combinations for RTC configurations"""
 
-    return [
-        # (test_level, description)
-        # RTC has no RTL parameters to vary, so test levels provide coverage
-        ('gate', "RTC gate test"),
-        ('func', "RTC func test"),
-        ('full', "RTC full test"),
-    ]
+    # REG_LEVEL selects how many of these cells exist; TEST_LEVEL sets the
+    # depth inside each. Three literal rows here meant a FULL run executed
+    # the same depth three times.
+    return [(lvl, f"RTC {lvl} test") for lvl in reg_level_grid()]
 
 
 @pytest.mark.parametrize("test_level, description",
@@ -316,8 +314,7 @@ def test_rtc(request, test_level, description):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
-        'TEST_LEVEL': test_level,
+        **level_env(test_level),
         'TEST_APB_CLOCK_PERIOD': str(apb_clock_period_ns),
         'TEST_RTC_CLOCK_PERIOD': str(rtc_clock_period_ns),
     }

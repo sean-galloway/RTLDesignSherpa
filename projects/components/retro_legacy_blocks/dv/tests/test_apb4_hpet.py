@@ -40,6 +40,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -159,17 +160,24 @@ async def hpet_test(dut):
 def generate_test_params():
     """Generate test parameter combinations for different timer configurations"""
 
+    # EVERY CELL USED TO BE PINNED AT 'full', so hpet never ran a gate or a
+    # func depth at all -- REG_LEVEL moved the other blocks' grids and left
+    # this one at six identical-depth cells. The RTL configurations are one
+    # axis and the level is the other, so the grid is their product: GATE
+    # runs the six configurations once, FULL runs them at all three depths.
+    configs = [
+        # (num_timers, vendor_id, revision_id, cdc_enable, description)
+        (2, 0x8086, 0x01, 0, "2-timer Intel-like"),
+        (3, 0x1022, 0x02, 0, "3-timer AMD-like"),
+        (8, 0xABCD, 0x10, 0, "8-timer custom"),
+        (2, 0x8086, 0x01, 1, "2-timer Intel-like CDC"),
+        (3, 0x1022, 0x02, 1, "3-timer AMD-like CDC"),
+        (8, 0xABCD, 0x10, 1, "8-timer custom CDC"),
+    ]
     return [
-        # (num_timers, vendor_id, revision_id, cdc_enable, test_level, description)
-        # Non-CDC configurations (CDC_ENABLE=0, same clock domain)
-        (2, 0x8086, 0x01, 0, 'full', "2-timer Intel-like"),
-        (3, 0x1022, 0x02, 0, 'full', "3-timer AMD-like"),
-        (8, 0xABCD, 0x10, 0, 'full', "8-timer custom"),
-
-        # CDC configurations (CDC_ENABLE=1, async clock domains)
-        (2, 0x8086, 0x01, 1, 'full', "2-timer Intel-like CDC"),
-        (3, 0x1022, 0x02, 1, 'full', "3-timer AMD-like CDC"),
-        (8, 0xABCD, 0x10, 1, 'full', "8-timer custom CDC"),
+        (nt, vid, rid, cdc, lvl, f"{desc} {lvl}")
+        for (nt, vid, rid, cdc, desc) in configs
+        for lvl in reg_level_grid()
     ]
 
 
@@ -249,8 +257,7 @@ def test_hpet(request, num_timers, vendor_id, revision_id, cdc_enable, test_leve
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
-        'TEST_LEVEL': test_level,
+        **level_env(test_level),
 
         # DUT-specific parameters
         'TEST_NUM_TIMERS': str(num_timers),
@@ -367,7 +374,7 @@ if __name__ == "__main__":
     # Set environment for test
     os.environ.update({
         'SEED': '12345',
-        'TEST_LEVEL': test_level,
+        **level_env(test_level),
         'TEST_NUM_TIMERS': str(num_timers),
         'TEST_APB_CLOCK_PERIOD': '20',  # Fixed
         'TEST_HPET_CLOCK_PERIOD': '10',  # Fixed

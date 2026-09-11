@@ -20,6 +20,13 @@ Intermediate verification of GPIO functionality including:
 - Level interrupt detection
 - Multiple interrupt sources
 - W1C interrupt clearing
+
+
+Provenance: these were written TEST-FIRST against the unfixed RTL for
+issue #44 -- the commit that landed the fix (4e3451da0) records that
+five new tests failed on the old RTL. A defect-regression test nobody
+saw fail is decoration, so the evidence is recorded here rather than
+left in a commit message nobody re-reads (RLB-006).
 """
 
 import random

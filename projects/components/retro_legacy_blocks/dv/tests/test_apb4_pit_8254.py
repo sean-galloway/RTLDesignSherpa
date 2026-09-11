@@ -37,6 +37,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -178,17 +179,14 @@ def generate_test_params():
     NUM_COUNTERS parameter is not supported in current RTL.
     """
 
+    # REG_LEVEL SELECTS THE GRID, TEST_LEVEL GATES THE DEPTH. The levels used
+    # to be three literal rows here, so a FULL regression ran three cells per
+    # CDC setting that were all the same depth -- see reg_level_grid's module
+    # docstring. GATE now expands to one level, FUNC two, FULL three.
     return [
-        # (cdc_enable, test_level, description)
-        # Standard 3-counter configurations (like original 8254)
-        (0, 'gate', "3-counter standard PIT gate"),
-        (0, 'func', "3-counter standard PIT func"),
-        (0, 'full', "3-counter standard PIT full"),
-
-        # CDC configurations (async clock domains)
-        (1, 'gate', "3-counter PIT with CDC gate"),
-        (1, 'func', "3-counter PIT with CDC func"),
-        (1, 'full', "3-counter PIT with CDC full"),
+        (cdc, lvl, f"PIT 8254 {lvl}{' CDC' if cdc else ''}")
+        for cdc in (0, 1)
+        for lvl in reg_level_grid()
     ]
 
 
@@ -247,8 +245,7 @@ def test_pit(request, cdc_enable, test_level, description):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
-        'TEST_LEVEL': test_level,
+        **level_env(test_level),
 
         # DUT-specific parameters
         'TEST_CDC_ENABLE': str(cdc_enable),
