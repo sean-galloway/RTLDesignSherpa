@@ -195,11 +195,13 @@ adjacently, so `row_major` is the trustworthy multi-generator row.
 
 ### Caveat on writers
 
-Both profiles use ONE writer. Two writers is not safe on pumice yet: it
-returns B out of AW order while the generated write bridge routes responses by
-FIFO position (PUMICE-027), so a second writer would be silently misrouted.
-LiteDRAM is strictly in-order and has no such limit, so a two-writer
-comparison would not be like-for-like until that is fixed.
+Both profiles use ONE writer, because at the time of measurement a second one
+was unsafe: the generated write bridge resolved response ownership from an
+AW-order FIFO head, and pumice returns B in FR-FCFS order, which is legal AXI4.
+**Fixed 2026-09-11** (PUMICE-027), by master-unique fabric IDs plus a
+slave-side CAM keyed on the returning BID -- a bridge-generator change, with no
+pumice edit. A two-writer comparison is now possible; it has not been run, so
+these numbers remain single-writer.
 
 ## Refactor is behaviour-neutral on silicon
 
@@ -213,8 +215,9 @@ writes and 0.01 MB/s on reads. The extraction changed nothing measurable.
 ## Method notes
 
 - One writer, one reader (generator 0) on both sides; the multi-writer
-  bank_parallel scenario is excluded until PUMICE-027 (B out of AW order vs
-  the position-routed write bridge) is resolved.
+  bank_parallel scenario was excluded here because PUMICE-027 (B out of AW
+  order against the then position-routed write bridge) was open; it was
+  resolved 2026-09-11 and that test now passes.
 - LiteDRAM has no runtime knobs; its "config" is what `litedram_hp.yml`
   generated (ROW_BANK_COL, open page with lookahead auto-precharge,
   cmd_buffer_depth 16). pumice numbers are its `open_page` preset (FR-FCFS,

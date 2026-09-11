@@ -421,11 +421,11 @@ thing to fix next.
   green. The geometry is now env-overridable but the board point does not run
   clean (a read checker trips; the write ceiling stalls where the real board
   reaches 95%), so it is not yet in the regression.
-* **Two writers is unsafe in the characterization harness.** pumice returns B
-  out of AW order across masters while the generated write bridge routes
-  responses by FIFO position, so a second writer would be silently misrouted.
-  Single-writer results are unaffected. Three candidate fixes are filed; none
-  is chosen.
+* ~~Two writers is unsafe in the characterization harness.~~ **RESOLVED
+  2026-09-11**, by the bridge generator rather than by pumice. Master-unique
+  fabric IDs (BRIDGE-016) plus a slave-side CAM that deallocates on the
+  returning BID replaced the AW-order FIFO, so response ownership no longer
+  depends on return order. The two-writer `bank_parallel` test passes.
 * **KNOWN BUG: read latency is ~49 cycles against LiteDRAM's 24.7 on the same
   board and PHY.** Roughly 24 cycles of extra pipeline for the same DRAM
   access. The two 2026-09-10 fixes bought bandwidth and not latency, and this
@@ -587,15 +587,16 @@ one measured at 224 MB/s.
 
 Two caveats before anyone scales the array up:
 
-* **Two writers is unsafe today, and the gap is narrower than it sounds.** The
-  crossbar DOES queue B and steer it per generator: each master's `bready` is
-  gated so only the owner's ready reaches the slave. What it indexes on is the
-  issue: ownership resolves to the head of an AW-order FIFO, so "who owns this
-  B" means "who issued the oldest outstanding AW" rather than "who issued the
-  AW whose ID this B carries". pumice returns B out of AW order across masters,
-  so the head names the wrong generator and the otherwise-correct handshake
-  completes against it. Readers are unaffected. Filed with three options; the
-  smallest keeps every bit of the steering and changes only the lookup.
+* **Two writers was unsafe until 2026-09-11, and the fix is instructive.** The
+  crossbar always queued B and steered it per generator -- each master's
+  `bready` gated so only the owner's ready reaches the slave. The bug was never
+  the steering; it was the KEY the ownership lookup indexed on, the head of an
+  AW-order FIFO, which asks "who issued the oldest outstanding AW" rather than
+  "who issued the AW whose ID this B carries". pumice returns B in FR-FCFS
+  order, which is legal AXI4, so the head named the wrong generator.
+  BRIDGE-016 fixed it at the fabric: master-unique IDs (`{BRIDGE_ID, id}`) make
+  every in-flight ID unambiguous, and the slave-side adapter now deallocates a
+  `bridge_cam` on the returning BID. Nothing in pumice changed.
 * **Region placement IS the measurement.** Generators placed adjacently land in
   neighbouring banks and measure arbitration; placed far apart they land in
   different ROWS of the same banks and measure page thrash instead. The

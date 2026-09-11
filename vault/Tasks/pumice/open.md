@@ -85,10 +85,13 @@ endpoints, 219 controller tests plus the 31-test char gate green. Board build:
    and any per-sub-command rate limit is divided by four before a bandwidth
    assertion sees it. That is precisely how a 2x read throttle shipped green.
    If a board number and a sim number disagree, suspect this FIRST.
-2. **Two writers is unsafe in the char harness** ([[PUMICE-027]]). pumice
-   returns B out of AW order across masters; the generated write bridge routes
-   by FIFO position. Single-writer results are fine. Do not "fix" the bridge
-   without deciding whether pumice should guarantee AW-ordered B instead.
+2. **Regenerate the bridges on every build, and re-run the gate after.**
+   ([[PUMICE-027]], closed 2026-09-11.) The two-writer hazard that stood here
+   was fixed entirely by a bridge-generator change -- master-unique fabric IDs
+   plus a slave-side CAM keyed on the returning BID -- with no pumice edit at
+   all. `ddr2_char_framework/bin/regen_bridges.sh` reproduces the committed RTL
+   byte-identically today; if it ever does not, the generated fabric has moved
+   under the harness, and the char suite is the thing that will tell you.
 3. **The spec collateral dates instantly.** The design/ tables and waves were
    written mid-campaign and asserted a 15%-of-peak controller with five live
    defects long after the board reached 95%. Both halves are now gated
@@ -154,68 +157,6 @@ board numbers are the only place these limits are visible.
 **Why it matters:** the handbook rule is already "match the FPGA exactly in
 sim"; this is the case that proves the cost of not doing it. A suite that
 cannot express the shipping geometry cannot gate it.
-
----
-
-## PUMICE-027 — write responses leave pumice out of AW order; the char write bridge routes B by position
-**Status:** open 2026-09-10  **Priority:** P2
-**Found by:** `test_ddr2_char_macro[bank_parallel]` (the only multi-writer scenario), once the
-macro suite could compile again (the `-Wno-PINMISSING` waiver for the bridge regen's
-`unmapped_*` ports). Fails identically on HEAD's inline macro and on the extracted
-`char_engine_block`, so it predates the refactor.
-
-**Symptom:** `pumice_wr_adapter.sv:168` BRIDGE-010 `$error` at ~31 us: "slave returned B out of
-AW order".
-
-**Be precise about where the gap is — the per-generator B handling IS built and
-is correct.** `bridge_ddr2_char_wr_xbar.sv:222-224,413-415` steers B to the
-owning master by `bid_bridge_id` and gates each master's `bready` so only the
-owner's ready reaches the slave; the master-side adapters pass their own B
-through. That is exactly the queued-B, per-generator-ready design, and none of
-it is the problem.
-
-The problem is the **KEY the ownership lookup indexes on**. `pumice_wr_adapter.sv:99-129`
-pushes the issuing master's `bridge_id` into `wr_fifo` at AW accept and reads it
-at the HEAD: `bid_bridge_id = wr_fifo[rd_ptr]`. So "who owns this B" resolves to
-"whoever issued the OLDEST outstanding AW", not "whoever issued the AW whose ID
-this B carries". When pumice returns B out of AW order the head names the wrong
-generator, and then the otherwise-correct per-master handshake completes cleanly
-against it. The steering works; it is aimed by position.
-
-Worth noting for the fix: the adapter ALREADY records the AWID per slot
-(`wr_id_fifo`, :156) — but only inside `ifndef SYNTHESIS`, purely to drive this
-assertion. The information needed to route by ID is being captured in
-simulation and thrown away in synthesis. Routing by ID means searching the FIFO
-for the matching entry instead of taking the head, i.e. a small CAM over
-`WR_FIFO_DEPTH`. pumice's write CAM commits in FR-FCFS order (oldest schedulable per row, not
-global AW order), so with two writers interleaving, a younger writer's B can come back before an
-older one's. The check is sim-only (`translate_off`); on the board the B would silently reach the
-WRONG generator (its bresp/count is credited to the other gen). AXI4 permits the slave's
-reordering between IDs, so this is a system contract gap, not a protocol violation.
-
-**Not affecting the numbers taken so far:** every board characterization run drives generator 0
-alone (one writer, one reader), where position routing cannot misroute. Only bank_parallel /
-multi-generator runs are exposed.
-
-**Fix options (decide, do not patch blind):**
-1. pumice: return B in AW order -- the write-side twin of `pumice_rd_return_ring` (the read
-   path already holds R returns to AR order). Costs a small ticket ring; keeps the bridge
-   position-routed as generated.
-2. bridge: regenerate `bridge_ddr2_char_wr` with ID-based B routing (each generator already
-   owns a distinct AWID space in bank_parallel). The converters/bridge family is in-order by
-   design, so this is a generator feature.
-3. Test-only: run bank_parallel with `SCHED_POLICY.order_mode=1` (in_order) -- confirms the
-   mechanism, does not fix the board exposure.
-
-Of the three, (2) is the smallest change and matches what the crossbar already
-wants to do: the per-master steering and ready gating stay exactly as they are,
-only the lookup changes from "head of the FIFO" to "the entry whose AWID equals
-this BID". Option (1) is the bigger statement -- it would make pumice's write
-responses AW-ordered like its reads, which is a controller guarantee rather
-than a harness fix and would suit any position-routed interconnect downstream.
-
-Also note the BRIDGE-010 message prints the ID strings garbled (`%0h` applied to the message
-continuation) -- cosmetic, in the generated adapter template.
 
 ---
 
