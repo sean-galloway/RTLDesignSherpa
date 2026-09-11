@@ -2,13 +2,13 @@
   "signal": [
     {
       "name": "aclk",
-      "wave": "p........."
+      "wave": "p.........."
     },
     [
       "3-flop pick pipeline (latency, NOT rate)",
       {
         "name": "stage1 snapshot",
-        "wave": "x2222x....",
+        "wave": "x2222x.....",
         "data": [
           "A",
           "B",
@@ -18,7 +18,7 @@
       },
       {
         "name": "stage2 pre-pick",
-        "wave": "x.2222x...",
+        "wave": "x.2222x....",
         "data": [
           "A",
           "B",
@@ -28,7 +28,7 @@
       },
       {
         "name": "stage3 output",
-        "wave": "x..2222x..",
+        "wave": "x..2222x...",
         "data": [
           "A",
           "B",
@@ -39,11 +39,11 @@
     ],
     {
       "name": "cmd_valid_o",
-      "wave": "0..11110."
+      "wave": "0..11110..."
     },
     {
       "name": "cmd_op_o",
-      "wave": "x..2222x..",
+      "wave": "x..2222x...",
       "data": [
         "A",
         "B",
@@ -53,7 +53,7 @@
     },
     {
       "name": "issue rate",
-      "wave": "x..3...x..",
+      "wave": "x..3...x...",
       "data": [
         "ONE command PER CYCLE"
       ]

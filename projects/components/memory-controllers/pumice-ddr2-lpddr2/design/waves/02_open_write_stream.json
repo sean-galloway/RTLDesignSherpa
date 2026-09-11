@@ -8,57 +8,73 @@
       "command",
       {
         "name": "cmd_valid_o",
-        "wave": "01.......0.."
+        "wave": "01......0..."
       },
       {
         "name": "cmd_op_o",
-        "wave": "x4.4.4.4.x..",
+        "wave": "x4444444x...",
         "data": [
+          "WR b0",
+          "WR b0",
+          "WR b0",
           "WR b0",
           "WR b0",
           "WR b0",
           "WR b0"
         ]
+      },
+      {
+        "name": "cmd_col_o",
+        "wave": "x4444444x...",
+        "data": [
+          "c0",
+          "c1",
+          "c2",
+          "c3",
+          "c4",
+          "c5",
+          "c6"
+        ]
       }
     ],
     [
-      "dfi (write, wrlat=0)",
+      "dfi (write window)",
       {
         "name": "dfi_wrdata_en",
-        "wave": "01.......0.."
+        "wave": "01......0..."
       },
       {
         "name": "dfi_wrdata",
-        "wave": "x5555555x...",
+        "wave": "x4444444x...",
         "data": [
-          "w0",
-          "w0",
-          "w1",
-          "w1",
-          "w2",
-          "w2",
-          "w3"
+          "d0",
+          "d1",
+          "d2",
+          "d3",
+          "d4",
+          "d5",
+          "d6"
         ]
-      },
-      {
-        "name": "dfi_wrdata_mask",
-        "wave": "x0.......x.."
       }
     ],
     [
-      "axi B",
+      "axi",
       {
-        "name": "s_axi_bvalid",
-        "wave": "0....1......."
+        "name": "s_axi_wvalid",
+        "wave": "1......0...."
       },
       {
-        "name": "s_axi_bready",
-        "wave": "1..........."
+        "name": "s_axi_wready",
+        "wave": "1......0...."
+      },
+      {
+        "name": "s_axi_bvalid",
+        "wave": "0.......1..0"
       }
     ]
   ],
   "head": {
-    "text": "IDEAL open-page WRITE stream: WR every tCCD=2, wrdata concurrent (write_latency=0), drain FIFO never empties. B per AXI burst on last sub-commit."
+    "text": "IDEAL open-page WRITE stream: a column EVERY cycle (tCCD=1), wready never drops. Board measures 570.3 MB/s = 95% of the 600 MB/s peak. Write data LEADS the command (rate-matched commit + CMD_DELAY); a WR held at the DFI for want of data stalls the whole in-order command stream behind it."
   },
   "config": {
     "hscale": 1

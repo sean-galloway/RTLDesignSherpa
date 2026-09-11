@@ -8,12 +8,15 @@
       "command",
       {
         "name": "cmd_valid_o",
-        "wave": "01.......0......."
+        "wave": "01......0........."
       },
       {
         "name": "cmd_op_o",
-        "wave": "x2.2.2.2.x.......",
+        "wave": "x2222222x.........",
         "data": [
+          "RD b0",
+          "RD b0",
+          "RD b0",
           "RD b0",
           "RD b0",
           "RD b0",
@@ -22,12 +25,15 @@
       },
       {
         "name": "cmd_col_o",
-        "wave": "x2.2.2.2.x.......",
+        "wave": "x2222222x.........",
         "data": [
           "c0",
           "c1",
           "c2",
-          "c3"
+          "c3",
+          "c4",
+          "c5",
+          "c6"
         ]
       }
     ],
@@ -35,23 +41,23 @@
       "dfi (read window)",
       {
         "name": "dfi_rddata_en",
-        "wave": "0......1......0.."
+        "wave": "0........1......0."
       },
       {
         "name": "dfi_rddata_valid",
-        "wave": "0......1......0.."
+        "wave": "0........1......0."
       },
       {
         "name": "dfi_rddata",
-        "wave": "x......3333333x..",
+        "wave": "x........3333333x.",
         "data": [
           "d0",
-          "d0",
-          "d1",
           "d1",
           "d2",
-          "d2",
-          "d3"
+          "d3",
+          "d4",
+          "d5",
+          "d6"
         ]
       }
     ],
@@ -59,20 +65,20 @@
       "axi return",
       {
         "name": "s_axi_rvalid",
-        "wave": "0......1......0.."
+        "wave": "0........1......0."
       },
       {
         "name": "s_axi_rready",
-        "wave": "1................"
+        "wave": "1................."
       },
       {
         "name": "s_axi_rlast",
-        "wave": "0.......10.10.10."
+        "wave": "0........1......0."
       }
     ]
   ],
   "head": {
-    "text": "IDEAL open-page READ stream: RD every tCCD=2, rvalid continuous after the fill (t_rddata_en+CL). ~100% bus util. NO occupancy stall between same-bank columns."
+    "text": "IDEAL open-page READ stream: a column EVERY cycle (tCCD=1 at BL4/x16/32b beat), rvalid continuous after the t_rddata_en+CL fill. 8 B/cycle = 600 MB/s peak; the board measures 571.3 (95%). No occupancy stall between same-bank columns -- the per-bank mask is AP-gated, so non-AP columns are spaced by tCCD alone."
   },
   "config": {
     "hscale": 1

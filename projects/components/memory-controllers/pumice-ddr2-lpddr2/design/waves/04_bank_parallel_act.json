@@ -2,11 +2,11 @@
   "signal": [
     {
       "name": "aclk",
-      "wave": "p........."
+      "wave": "p.........."
     },
     {
       "name": "cmd_op_o",
-      "wave": "x1.1.1.1.x",
+      "wave": "x1.1.1.1.x.",
       "data": [
         "ACT b0",
         "ACT b1",
@@ -16,27 +16,27 @@
     },
     {
       "name": "cmd_valid_o",
-      "wave": "01......0."
+      "wave": "01......0.."
     },
     {
       "name": "trrd_ok\n(=2)",
-      "wave": "1.0101010."
+      "wave": "1.0101010.."
     },
     {
       "name": "tfaw_ok\n(<=4/win)",
-      "wave": "1.......0."
+      "wave": "1.......0.."
     },
     {
       "name": "b0 rows",
-      "wave": "0.1......."
+      "wave": "0.1........"
     },
     {
       "name": "b1 rows",
-      "wave": "0...1....."
+      "wave": "0...1......"
     },
     {
       "name": "note",
-      "wave": "x1......2x",
+      "wave": "x3......2x.",
       "data": [
         "ACTs pipeline across banks @tRRD",
         "5th ACT waits tFAW"

@@ -1,0 +1,67 @@
+{
+  "signal": [
+    {
+      "name": "aclk",
+      "wave": "p................"
+    },
+    [
+      "gen 0 (bank 0, row A)",
+      {
+        "name": "req",
+        "wave": "1................"
+      },
+      {
+        "name": "granted",
+        "wave": "0.10......10....."
+      }
+    ],
+    [
+      "gen 1 (bank 0, row B)",
+      {
+        "name": "req",
+        "wave": "1................"
+      },
+      {
+        "name": "granted",
+        "wave": "0.....10......10."
+      }
+    ],
+    [
+      "bank 0",
+      {
+        "name": "cmd_op_o",
+        "wave": "x3x5x2x3x5x2x3x5.",
+        "data": [
+          "ACT A",
+          "PRE",
+          "ACT B",
+          "PRE",
+          "ACT A",
+          "PRE",
+          "ACT B",
+          "PRE"
+        ]
+      },
+      {
+        "name": "open_row",
+        "wave": "2.2.2.2.2.2.2.2..",
+        "data": [
+          "A",
+          "-",
+          "B",
+          "-",
+          "A",
+          "-",
+          "B",
+          "-"
+        ]
+      }
+    ]
+  ],
+  "head": {
+    "text": "PATHOLOGICAL -- row ping-pong between masters. Two generators on different ROWS of the same banks force a PRE+ACT pair between every pair of columns; the row buffer never survives a grant. Measured accidentally 2026-09-10: spacing two readers a device/4 region apart put them in the same banks and collapsed row_major from 570 to 224 MB/s. Place concurrent masters in NEIGHBOURING banks, not distant rows."
+  },
+  "config": {
+    "hscale": 1
+  }
+}

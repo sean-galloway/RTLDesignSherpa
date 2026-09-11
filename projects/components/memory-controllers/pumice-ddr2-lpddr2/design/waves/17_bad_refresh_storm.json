@@ -1,0 +1,50 @@
+{
+  "signal": [
+    {
+      "name": "aclk",
+      "wave": "p................"
+    },
+    [
+      "refresh",
+      {
+        "name": "refresh_req_o",
+        "wave": "01..0.1..0.1..0.."
+      },
+      {
+        "name": "w_ref_safe",
+        "wave": "0.1.0..1.0..1.0.."
+      },
+      {
+        "name": "cmd_op_o",
+        "wave": "x5x6x2x5x6x2x5x6.",
+        "data": [
+          "PREA",
+          "REF",
+          "RD",
+          "PREA",
+          "REF",
+          "RD",
+          "PREA",
+          "REF"
+        ]
+      }
+    ],
+    [
+      "recovery",
+      {
+        "name": "w_rfc_busy (tRFC)",
+        "wave": "0..1..0..1..0..1."
+      },
+      {
+        "name": "dfi_rddata_valid",
+        "wave": "0......10........"
+      }
+    ]
+  ],
+  "head": {
+    "text": "BAD PERF -- refresh storm. With tREFI cranked down, every refresh costs PREA + REF + tRFC and closes every open row, so the next access is a guaranteed page miss too. w_rfc_busy blocks ACT and REF alike. Board sweep: fast_refresh vs slow_refresh is the axis that isolates this; the cost is roughly tRFC/tREFI of the bus plus the re-activation of every row it closed."
+  },
+  "config": {
+    "hscale": 1
+  }
+}

@@ -69,22 +69,22 @@ def waves():
     # 11) the wedge reference (current, to be confirmed by measurement) ------
     wedge = {
         "signal": [
-            {"name": "aclk", "wave": "p..............."},
+            {"name": "aclk", "wave": "p................"},
             ["arbiter (same-bank WR pipelined)",
-             {"name": "commit_valid",  "wave": "01............0."},
-             {"name": "commit_ready\n(drain room)", "wave": "1........0.....",
+             {"name": "commit_valid",  "wave": "01............0.."},
+             {"name": "commit_ready\n(drain room)", "wave": "1........0.......",
               "data": []},
-             {"name": "drain FIFO cnt", "wave": "=.======......=",
+             {"name": "drain FIFO cnt", "wave": "=.======......=..",
               "data": ["0","1","2","3","4","8","8","8"]},
             ],
             ["DFI stops accepting (ROOT to MEASURE)",
-             {"name": "cm_rd_ready\n(DFI wr_fire)", "wave": "1......0......."},
-             {"name": "wr_fire_i",    "wave": "01.....0......."},
-             {"name": "dfi_wrdata_en","wave": "01.....0......."},
+             {"name": "cm_rd_ready\n(DFI wr_fire)", "wave": "1......0........."},
+             {"name": "wr_fire_i",    "wave": "01.....0........."},
+             {"name": "dfi_wrdata_en","wave": "01.....0........."},
             ],
             ["result",
-             {"name": "arbiter WR issue", "wave": "1........0....."},
-             {"name": "gen_wr_done",      "wave": "0.............."},
+             {"name": "arbiter WR issue", "wave": "1........0......."},
+             {"name": "gen_wr_done",      "wave": "0................"},
             ],
         ],
         "head": {"text": "CURRENT WEDGE (hypothesis, to confirm by waveform): "
@@ -110,3 +110,10 @@ def main():
 
 if __name__ == "__main__":
     main()
+    # WaveDrom fails SILENTLY on a malformed diagram -- a short data list just
+    # leaves buses blank, ragged rows just render out of step -- so the check
+    # runs here rather than in a step someone can skip.
+    import sys as _sys
+    _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import check_waves
+    _sys.exit(check_waves.main())

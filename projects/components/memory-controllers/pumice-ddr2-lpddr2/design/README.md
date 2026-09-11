@@ -126,6 +126,16 @@ cross-bank ACT pipelining (waves/04), i.e. ~500–600 MB/s.
 | `pumice_signal_contracts.xlsx` sheets `DRAIN_HANDSHAKE` / `CM_RD_STALL_CANDIDATES` / `SERIALIZER_OWED` / `B_CONSOLIDATION` | **write drain/commit detail**: DRAIN_HANDSHAKE, CM_RD_STALL_CANDIDATES (why the DFI stops accepting writes -- the same-bank-WR wedge), SERIALIZER_OWED, B_CONSOLIDATION |
 | `waves/10_write_drain_pipeline_ideal` | ideal write drain (2 same-bank WR pipelined, no stall) |
 | `waves/11_write_same_bank_wedge_ref` | the write-path wedge this design CLOSED (historical reference; drain FIFO fills, commit_ready drops) |
+| `waves/12_rd_return_ring` | reads in flight beyond the scheduling window (ticket ring) |
+| **BAD PERF -- correct, just slow** | *what a healthy-looking but underperforming capture looks like* |
+| `waves/13_bad_admit_gate_half_rate` | the AR admit gate at half rate: one sub-command every two cycles, 291.7 MB/s against a 570 write, integrity perfect (PUMICE-025, fixed) |
+| `waves/14_bad_ring_depth_bound` | reads bounded by RD_RET_DEPTH/round-trip rather than tCCD: 32/49 = 0.78 col/cyc = 470.9 MB/s |
+| `waves/15_bad_page_thrash_col_major` | PRE+tRP+ACT+tRCD per column: 102.4 MB/s against 571.3 for row_major |
+| `waves/16_bad_rw_turnaround_thrash` | tWTR/tRTW paid on every direction switch -- the workload the reorder window exists for |
+| `waves/17_bad_refresh_storm` | PREA+REF+tRFC eating the bus, and every open row closed behind it |
+| **PATHOLOGICAL** | *shapes that mean something is wrong* |
+| `waves/18_patho_row_pingpong_masters` | two masters on different ROWS of the same banks: PRE+ACT between every column (collapsed row_major 570 -> 224 MB/s) |
+| `waves/19_patho_inorder_serialization` | in_order: only the CAM head may issue, so page hits sit behind a miss (~17x) |
 
 
 ## Correction (2026-09-07): the wedge is in the WRITE PATH, not the arbiter

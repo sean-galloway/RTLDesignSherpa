@@ -1,0 +1,53 @@
+{
+  "signal": [
+    {
+      "name": "aclk",
+      "wave": "p................"
+    },
+    [
+      "CAM (8 entries, all ready)",
+      {
+        "name": "sch_valid_i[7:0]",
+        "wave": "2................",
+        "data": [
+          "FF (all eligible)"
+        ]
+      },
+      {
+        "name": "head entry",
+        "wave": "2....2....2......",
+        "data": [
+          "e0 (row A)",
+          "e1 (row B)",
+          "e2 (row A)"
+        ]
+      }
+    ],
+    [
+      "issue",
+      {
+        "name": "cmd_op_o",
+        "wave": "x2x5x3x2x5x3x2x..",
+        "data": [
+          "RD A",
+          "PRE",
+          "ACT B",
+          "RD B",
+          "PRE",
+          "ACT A",
+          "RD A"
+        ]
+      },
+      {
+        "name": "w_rfc_busy",
+        "wave": "0................"
+      }
+    ]
+  ],
+  "head": {
+    "text": "PATHOLOGICAL -- in_order (SCHED_POLICY.order_mode=1). Every entry is eligible and several are page hits, but only the HEAD may issue, so a row-interleaved stream pays PRE+ACT between consecutive columns while the hit sits two entries back. This is the cost of the mode, not a defect: it exists to make ordering observable. Roughly 17x on the board -- use it to prove reordering is what is buying the bandwidth, never in production."
+  },
+  "config": {
+    "hscale": 1
+  }
+}

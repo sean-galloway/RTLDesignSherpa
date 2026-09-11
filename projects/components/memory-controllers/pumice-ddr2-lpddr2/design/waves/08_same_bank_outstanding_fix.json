@@ -2,13 +2,13 @@
   "signal": [
     {
       "name": "aclk",
-      "wave": "p..............."
+      "wave": "p................"
     },
     [
       "issue (same bank, open row)",
       {
         "name": "cmd_op_o",
-        "wave": "x2.2.2.2.x......",
+        "wave": "x2.2.2.2.x.......",
         "data": [
           "RD b0 c0",
           "RD b0 c1",
@@ -18,7 +18,7 @@
       },
       {
         "name": "tccd_ok",
-        "wave": "1.0101010.1....."
+        "wave": "1.0101010.1......"
       },
       {
         "name": "outstanding[b0]",
@@ -37,7 +37,7 @@
       },
       {
         "name": "can_issue (cnt<D=5 & tccd)",
-        "wave": "1.......1......."
+        "wave": "1.......1........"
       }
     ],
     [

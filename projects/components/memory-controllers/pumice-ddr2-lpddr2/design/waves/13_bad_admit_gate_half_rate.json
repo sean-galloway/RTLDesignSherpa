@@ -1,0 +1,44 @@
+{
+  "signal": [
+    {
+      "name": "aclk",
+      "wave": "p..........."
+    },
+    [
+      "AR intake (pumice_rd_intake)",
+      {
+        "name": "fub_arvalid",
+        "wave": "1..........."
+      },
+      {
+        "name": "r_armed (OLD)",
+        "wave": "01010101010."
+      },
+      {
+        "name": "w_admit (OLD)",
+        "wave": "0.10101010.."
+      },
+      {
+        "name": "w_admit (FIXED)",
+        "wave": "01.........."
+      }
+    ],
+    [
+      "command",
+      {
+        "name": "cmd_valid_o (OLD)",
+        "wave": "0.1.0.1.0.1."
+      },
+      {
+        "name": "cmd_valid_o (FIXED)",
+        "wave": "01.........."
+      }
+    ]
+  ],
+  "head": {
+    "text": "BAD PERF -- read admit at HALF rate. The arm bit was cleared by its own admit and could only re-set the next cycle, so one sub-command (= one DRAM burst = one column here) admitted every TWO cycles. Ceiling 0.5 x 8 B x 75 MHz = 300 MB/s; measured 291.7 against 570 for writes. Integrity was perfect throughout -- this shape is the ONLY symptom."
+  },
+  "config": {
+    "hscale": 1
+  }
+}

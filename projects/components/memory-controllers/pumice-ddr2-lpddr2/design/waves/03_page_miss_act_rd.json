@@ -6,7 +6,7 @@
     },
     {
       "name": "cmd_op_o",
-      "wave": "x1..2.2.x",
+      "wave": "x3..2.2.x",
       "data": [
         "ACT b0",
         "RD b0",
@@ -27,7 +27,7 @@
     },
     {
       "name": "note",
-      "wave": "x1..2...x",
+      "wave": "x3..2...x",
       "data": [
         "ACT opens row",
         "column only after tRCD"

@@ -6,7 +6,7 @@
     },
     {
       "name": "cmd_op_o",
-      "wave": "x6..1..2.x.",
+      "wave": "x6..3..2.x.",
       "data": [
         "PRE b0",
         "ACT b0",
@@ -19,15 +19,15 @@
     },
     {
       "name": "bank_pre_ready\n(tRAS=4)",
-      "wave": "1.0......."
+      "wave": "1.0........"
     },
     {
       "name": "bank_act_ready\n(tRP=3)",
-      "wave": "0...1....."
+      "wave": "0...1......"
     },
     {
       "name": "bank_rdwr_ready\n(tRCD=3)",
-      "wave": "0......1.."
+      "wave": "0......1..."
     }
   ],
   "head": {

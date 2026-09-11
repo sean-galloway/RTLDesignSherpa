@@ -1,0 +1,55 @@
+{
+  "signal": [
+    {
+      "name": "aclk",
+      "wave": "p................"
+    },
+    [
+      "command (one bank)",
+      {
+        "name": "cmd_valid_o",
+        "wave": "01..0.1.0.1.0.1.."
+      },
+      {
+        "name": "cmd_op_o",
+        "wave": "x5.x.2x3x.5x2x3x.",
+        "data": [
+          "PRE",
+          "ACT",
+          "RD",
+          "PRE",
+          "ACT",
+          "RD"
+        ]
+      }
+    ],
+    [
+      "bank timers",
+      {
+        "name": "tRP (3)",
+        "wave": "0.1..0....1..0..."
+      },
+      {
+        "name": "tRCD (3)",
+        "wave": "0....1..0....1..."
+      },
+      {
+        "name": "safe_rd_o",
+        "wave": "0.......10......."
+      }
+    ],
+    [
+      "bus",
+      {
+        "name": "dfi_rddata_valid",
+        "wave": "0........10......"
+      }
+    ]
+  ],
+  "head": {
+    "text": "BAD PERF -- page thrash (col_major). Every access is a different row in the SAME bank, so each column costs PRE + tRP + ACT + tRCD before it can issue: ~8 cycles of overhead per 8 bytes. Board: 102.4 MB/s read at AxLEN 4 against 571.3 for row_major -- a 5.6x penalty with identical DRAM and identical controller settings. The fix is the ADDRESS MAP, not the controller."
+  },
+  "config": {
+    "hscale": 1
+  }
+}

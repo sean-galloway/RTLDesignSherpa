@@ -1,0 +1,49 @@
+{
+  "signal": [
+    {
+      "name": "aclk",
+      "wave": "p................."
+    },
+    [
+      "issue",
+      {
+        "name": "cmd_valid_o",
+        "wave": "01....0....1....0."
+      },
+      {
+        "name": "rt_alloc_ready",
+        "wave": "1.....0....1....0."
+      },
+      {
+        "name": "ring occupancy",
+        "wave": "2.2.2.2....2.2.2..",
+        "data": [
+          "0",
+          "16",
+          "32 FULL",
+          "32 FULL",
+          "16",
+          "32 FULL",
+          "32"
+        ]
+      }
+    ],
+    [
+      "return (t_rddata_en + CL + PHY, ~49 cyc)",
+      {
+        "name": "dfi_rddata_valid",
+        "wave": "0.........1......."
+      },
+      {
+        "name": "s_axi_rvalid",
+        "wave": "0.........1......."
+      }
+    ]
+  ],
+  "head": {
+    "text": "BAD PERF -- reads bounded by the RETURN RING, not by tCCD. Tickets allocate at admit and free only when the beat drains ~49 cycles later, so the sustained rate is DEPTH/latency: 32/49 = 0.78 col/cycle = 470.9 MB/s, which is exactly what the board measured at depth 32. Issue goes idle in bursts (alloc_ready low) even though every DRAM timer is clear. Depth 64 -> 571.3 MB/s."
+  },
+  "config": {
+    "hscale": 1
+  }
+}

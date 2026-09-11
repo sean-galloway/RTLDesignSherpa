@@ -2,21 +2,21 @@
   "signal": [
     {
       "name": "aclk",
-      "wave": "p..............."
+      "wave": "p................"
     },
     [
       "arbiter (mask relaxed -> stale-image race)",
       {
         "name": "r_bank_row_active\n(STALE 1-3cyc)",
-        "wave": "1......0........"
+        "wave": "1......0........."
       },
       {
         "name": "actual row (closing)",
-        "wave": "1....0........."
+        "wave": "1....0..........."
       },
       {
         "name": "cmd_op_o",
-        "wave": "x2.2.x.........",
+        "wave": "x2.2.x...........",
         "data": [
           "RD b0 c0",
           "RD b0 c1 (on stale img!)"
@@ -27,18 +27,18 @@
       "read return (in-order, untagged)",
       {
         "name": "dfi_rddata_valid",
-        "wave": "0.......10......"
+        "wave": "0.......10......."
       },
       {
         "name": "RD c1 data",
-        "wave": "x........4......",
+        "wave": "x........4.......",
         "data": [
           "never returns (wrong row)"
         ]
       },
       {
         "name": "rd_cam AR-drain\n(oldest r_ready)",
-        "wave": "1........0.....",
+        "wave": "1........0.......",
         "data": []
       }
     ],
@@ -46,7 +46,7 @@
       "shared cmd FIFO -> write wedge",
       {
         "name": "u_cmd_fifo head",
-        "wave": "x2.......5.....",
+        "wave": "x2.......5.......",
         "data": [
           "RD(stuck)",
           "WR blocked behind"
@@ -54,11 +54,11 @@
       },
       {
         "name": "wr drain / commit",
-        "wave": "1.........0...."
+        "wave": "1.........0......"
       },
       {
         "name": "s_axi_bvalid (gen_wr_done)",
-        "wave": "0.............."
+        "wave": "0................"
       }
     ]
   ],
