@@ -288,7 +288,9 @@ When an IRQ arrives while masked, the IRR bit latches but delivery is blocked. U
 - [x] Round-robin arbitration behind `IOAPICARBCFG.rr_enable`
 
 **Deferred features (tracked as RLB-008 in `vault/Tasks/RLB/open.md`, not defects):**
-- [ ] LowestPriority delivery mode
+- [x] LowestPriority delivery mode, delegated: the IOAPIC forwards the mode
+      and the destination set, the local APICs arbitrate, and `irq_out_retry`
+      carries a failed arbitration back so the interrupt is re-offered
 - [ ] Additional delivery modes acted on rather than forwarded (SMI, NMI, INIT, ExtINT)
 - [ ] Multi-IOAPIC support
 - [ ] Boot interrupt delivery

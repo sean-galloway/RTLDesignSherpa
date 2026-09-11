@@ -124,6 +124,76 @@ class IOAPICMediumTests:
             self.log.error(f"RLB-008 destination mode test error: {e}")
             return False
 
+    async def test_rlb008_lowest_priority_retry(self) -> bool:
+        """RLB-008: a refused delivery is offered again, not lost.
+
+        LowestPriority delivery is DELEGATED: the IOAPIC forwards the mode and
+        the destination set, the local APICs arbitrate among themselves, and
+        one accepts. The only half the IOAPIC owns is being told the
+        arbitration FAILED -- `irq_out_retry`, qualified by the handshake.
+
+        The thing that must hold is that a refusal retires nothing. An edge
+        pin's pending latch has to survive it, or the interrupt is gone; and
+        once the receiver stops refusing, the same vector has to arrive."""
+        self.log.info("=== RLB-008: delegated LowestPriority, retry path ===")
+        try:
+            await self.tb.reset_dut()
+            irq, vector = 4, 0x44
+            await self.tb.write_redirection_entry(
+                irq=irq, vector=vector, dest=0x0F,
+                delivery_mode=1,          # LowestPriority
+                dest_mode=1,              # logical: a SET, not one CPU
+                polarity=0, trigger_mode=0, mask=0)
+            await ClockCycles(self.tb.pclk, 20)
+
+            # --- the receiver consumes every offer and refuses them all
+            self.tb.dut.irq_out_retry.value = 1
+            await self.tb.pulse_irq(irq)
+            refused = await self.tb.count_irq_out_handshakes(
+                window_cycles=120, ready=1, vector_filter=vector)
+            self.tb.dut.irq_out_ready.value = 0
+            self.log.info(f"  while refusing: {len(refused)} offer(s) of the "
+                          f"same vector")
+
+            # A refusal must retire nothing, so the pin is still pending and
+            # the block keeps offering. One offer would mean it was lost.
+            kept_offering = len(refused) >= 2
+
+            # --- now accept: the same vector must still be there
+            self.tb.dut.irq_out_retry.value = 0
+            accepted = await self.tb.count_irq_out_handshakes(
+                window_cycles=120, ready=1, vector_filter=vector)
+            self.tb.dut.irq_out_ready.value = 0
+            self.log.info(f"  after accepting: {len(accepted)} delivery(ies)")
+            delivered = len(accepted) >= 1
+
+            # --- and exactly once: the accept retires the edge latch
+            await ClockCycles(self.tb.pclk, 20)
+            extra = await self.tb.count_irq_out_handshakes(
+                window_cycles=120, ready=1, vector_filter=vector)
+            self.tb.dut.irq_out_ready.value = 0
+            self.log.info(f"  after the accept: {len(extra)} further "
+                          f"delivery(ies) (want 0)")
+            retired = len(extra) == 0
+
+            ok = kept_offering and delivered and retired
+            if ok:
+                self.log.info("RLB-008 delegated LowestPriority retry GREEN")
+                return True
+            self.log.error(
+                f"RLB-008 retry: kept_offering_while_refused={kept_offering} "
+                f"({len(refused)} offers, want >= 2) delivered_once_accepted="
+                f"{delivered} retired_after_accept={retired} "
+                f"({len(extra)} extra, want 0)")
+            return False
+        except Exception as e:
+            self.log.error(f"RLB-008 retry test error: {e}")
+            return False
+        finally:
+            self.tb.dut.irq_out_retry.value = 0
+            self.tb.dut.irq_out_ready.value = 0
+            await self.tb.reset_dut()
+
     async def test_rlb008_priority_rotation(self) -> bool:
         """RLB-008: round-robin arbitration behind IOAPICARBCFG.rr_enable.
 

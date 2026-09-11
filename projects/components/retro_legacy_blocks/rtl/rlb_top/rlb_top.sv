@@ -168,6 +168,11 @@ module rlb_top #(
     // and then dropped at the block boundary; it is forwarded now.
     output logic                  ioapic_irq_out_dest_mode,
     input  logic                  ioapic_irq_out_ready,
+    // Qualified by the handshake: the receiver consumed the message and no
+    // CPU could accept, so the interrupt is offered again. Tie low if the
+    // receiver always accepts. This is the IOAPIC's half of delegated
+    // LowestPriority delivery (RLB-008).
+    input  logic                  ioapic_irq_out_retry,
     input  logic                  ioapic_eoi_in,
     input  logic [7:0]            ioapic_eoi_vector,
 
@@ -651,6 +656,7 @@ module rlb_top #(
         .irq_out_deliv_mode (ioapic_irq_out_deliv_mode),
         .irq_out_dest_mode  (ioapic_irq_out_dest_mode),
         .irq_out_ready    (ioapic_irq_out_ready),
+        .irq_out_retry    (ioapic_irq_out_retry),
         .eoi_in           (ioapic_eoi_in),
         .eoi_vector       (ioapic_eoi_vector)
     );

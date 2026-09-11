@@ -249,6 +249,10 @@ class IOAPICTB(TBBase):
         # Initialize interrupt delivery NOT ready (TB controls delivery timing)
         # This prevents the IOAPIC from completing delivery before TB is ready to observe it
         self.dut.irq_out_ready.value = 0
+        # The receiver always ACCEPTS unless a test says otherwise. Qualified
+        # by the handshake, so it only means anything on a cycle where ready
+        # is high; driven here so it is never an undriven input.
+        self.dut.irq_out_retry.value = 0
 
         # Initialize EOI input
         self.dut.eoi_in.value = 0

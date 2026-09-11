@@ -206,7 +206,19 @@ module ioapic_core #(
     // delivery usable at all (RLB-008).
     output logic        irq_out_dest_mode,
     output logic [2:0]  irq_out_deliv_mode, // Delivery mode
-    input  logic        irq_out_ready,      // CPU accepts the delivery
+    input  logic        irq_out_ready,      // the delivery handshake completes
+    // DELEGATED ARBITRATION. Qualified by the handshake: 1 says the receiver
+    // took the message and NOBODY could accept the interrupt, so it must be
+    // offered again. Tie it low and the channel behaves exactly as it did
+    // before this existed -- every completed handshake is an acceptance.
+    //
+    // This is what LowestPriority delivery needs, and it is the only thing it
+    // needs from the IOAPIC. An IOAPIC does not track CPU priority; the local
+    // APICs arbitrate among themselves and one of them accepts, which is what
+    // the APIC bus did. So the destination and the mode are already forwarded
+    // unmodified -- see irq_out_deliv_mode -- and the missing half was never
+    // the choosing, it was being told the choice failed.
+    input  logic        irq_out_retry,
 
     // EOI (End of Interrupt) input from CPU - single-cycle strobe in `clk`
     input  logic        eoi_in,             // EOI strobe
@@ -253,7 +265,8 @@ module ioapic_core #(
     logic [7:0]           r_out_dest;
     logic                 r_out_dest_mode;
     logic [2:0]           r_out_deliv_mode;
-    logic                 w_deliv_accept;    // the delivery handshake
+    logic                 w_deliv_done;      // the handshake completed
+    logic                 w_deliv_accept;    // ... and a CPU took the interrupt
     logic                 w_out_load;
 
     // ========================================================================
@@ -336,7 +349,13 @@ module ioapic_core #(
     // set, delivered-vector latch - hangs off this one term, in the SAME cycle
     // the handshake happens (issue #48 C1: the old one-cycle-delayed copy of
     // this condition is what delivered every edge interrupt twice).
-    assign w_deliv_accept = r_out_valid && irq_out_ready;
+    // TWO DIFFERENT EVENTS, and conflating them is how a retried interrupt
+    // would be lost. DONE means the receiver consumed the message: the output
+    // stage is free and the rotation moves on. ACCEPT means a CPU actually
+    // took the interrupt: only then does the edge latch retire, Remote IRR
+    // set, and the delivered vector latch.
+    assign w_deliv_done   = r_out_valid && irq_out_ready;
+    assign w_deliv_accept = w_deliv_done && !irq_out_retry;
 
     // ========================================================================
     // Interrupt Pending Logic
@@ -442,14 +461,22 @@ module ioapic_core #(
         end
     endgenerate
 
-    // ROUND-ROBIN POINTER. Parked at the pin after the last accepted one, so
+    // ROUND-ROBIN POINTER. Parked at the pin after the last one DELIVERED, so
     // that pin is the LAST the rotated scan reaches rather than the first.
-    // It advances only on an accept: a pick that is never taken must not move
-    // the rotation, or a stalled consumer would walk it round the ring.
+    //
+    // It advances on a completed handshake, acceptance or retry alike, and
+    // NOT on a stall: a pick the receiver never takes must not move the
+    // rotation, or a stalled consumer would walk it round the ring without
+    // delivering anything. A retry is not a stall -- the receiver answered --
+    // and moving on it is what stops a pin that keeps being refused from
+    // monopolising the channel. Under static priority it still can: the
+    // refused pin is the lowest eligible number and wins again immediately.
+    // That is the same starvation the datasheet's scheme has everywhere else,
+    // and the fix is the same one -- turn the rotation on.
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             r_rr_ptr <= '0;
-        end else if (w_deliv_accept) begin
+        end else if (w_deliv_done) begin
             r_rr_ptr <= (r_out_irq == IRQ_IDX_W'(NUM_IRQS-1)) ? '0
                                                              : (r_out_irq + 1'b1);
         end

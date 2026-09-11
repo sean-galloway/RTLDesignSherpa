@@ -26,8 +26,8 @@
 ## Overview
 
 **Component:** APB I/O Advanced Programmable Interrupt Controller (IOAPIC)  
-**Version:** 1.2  
-**Last Updated:** 2026-09-10  
+**Version:** 1.3  
+**Last Updated:** 2026-09-11  
 **Status:** RTL Functional - 36/36 in all six DV configurations; issue #48
 delivery, IOREGSEL and address-decode defects fixed 2026-09-09 (spec partial;
 see Document Status below)
@@ -146,9 +146,10 @@ off/on x gate/func/full). The issue #48 defects - edge double-delivery,
 global EOI block, live-vector Remote IRR clear, IOREGSEL shadow divergence,
 address aliasing above 0x0FF, unsynchronized EOI - were fixed 2026-09-09 and
 this revision of the spec describes the fixed hardware. Logical destination
-mode and round-robin arbitration landed 2026-09-10. What is still deferred
-(lowest-priority delivery, multi-IOAPIC routing, boot-interrupt delivery,
-MSI) is tracked as RLB-008 in `vault/Tasks/RLB/open.md`.
+mode and round-robin arbitration landed 2026-09-10, and delegated
+LowestPriority delivery on 2026-09-11. What is still deferred (multi-IOAPIC
+routing, boot-interrupt delivery, MSI) is tracked as RLB-008 in
+`vault/Tasks/RLB/open.md`.
 
 **Next Steps:**
 1. Review specification for completeness
@@ -181,6 +182,7 @@ MSI) is tracked as RLB-008 in `vault/Tasks/RLB/open.md`.
 | 1.0 | 2025-11-16 | RTL Design Sherpa | Initial specification based on Intel 82093AA with RLB methodology |
 | 1.1 | 2026-09-09 | RTL Design Sherpa | Issue #48 fixes: delivery FSM replaced by a one-entry valid/ready stage (one delivery per edge, no parked valid), per-pin Remote IRR blocking with EOI matched against the delivered vector, single IOREGSEL copy with unmapped selectors and 0x100+ accesses dropped, IOWIN tie-off, LAPIC interface presented in pclk and crossed with matched-latency synchronizers when CDC_ENABLE=1 |
 | 1.2 | 2026-09-10 | RTL Design Sherpa | RLB-008, two items. Logical destination mode: `irq_out_dest_mode` carries the RTE's mode alongside the destination, because an IOAPIC does not decode logical destinations itself -- it forwards the field and the mode and the local APICs match, so forwarding the mode is the whole of this block's responsibility. Round-robin arbitration behind `IOAPICARBCFG.rr_enable` at IOWIN selector 0x03, which is reserved on the real 82093AA so a driver written for the part never writes it and gets static priority: the scan starts just above the pin last ACCEPTED and wraps, making priority a position in the rotation rather than an IRQ number, and the pointer moves only on an accept so a stalled consumer cannot walk it round the ring |
+| 1.3 | 2026-09-11 | RTL Design Sherpa | LowestPriority delivery, DELEGATED. An IOAPIC does not track CPU priority and never did: on the APIC bus it broadcast the message and the local APICs arbitrated among themselves on their Arbitration Priority Registers, and whichever was lowest accepted. The destination, destination mode and delivery mode were therefore already forwarded unmodified, and the half this block lacked was never the choosing -- it was being told the choice FAILED. `irq_out_retry`, qualified by the delivery handshake, is that half. The core now separates two events that used to be one: a completed handshake frees the output stage and moves the rotation, while an ACCEPTED one (completed and not retried) is what retires an edge latch, sets Remote IRR and latches the delivered vector, so a refused interrupt is re-offered rather than lost. Tie the pin low and the channel is bit-identical to before. In the CDC build the refusal is captured in pclk on the same edge as the acknowledge and crosses back inside that bundle rather than through a synchronizer of its own, so it cannot land a cycle away from the strobe that qualifies it (handbook CDC rule 7). Under STATIC priority a refused pin wins the next arbitration immediately and a persistent refusal monopolises the channel; round robin is the fix, as it is for static priority's starvation everywhere else here |
 
 ## Navigation
 

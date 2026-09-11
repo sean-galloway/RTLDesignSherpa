@@ -88,7 +88,7 @@ Read-only bit indicating if an interrupt delivery is in progress for a specific 
 **Delivery Mode:**
 Determines how interrupt is delivered to CPU:
 - **Fixed:** To specific CPU
-- **Lowest Priority:** To least-busy CPU
+- **Lowest Priority:** To the least-busy CPU in the destination set. The IOAPIC does not choose; the local APICs arbitrate on their Arbitration Priority Registers and one accepts, and `irq_out_retry` reports the case where none could
 - **SMI/NMI/INIT/ExtINT:** Special modes
 
 **Destination Mode:**

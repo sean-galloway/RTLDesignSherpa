@@ -42,7 +42,9 @@ single valid/ready delivery interface to the CPU/LAPIC.
 - Arbitration in two policies: static priority (lowest IRQ number wins, the
   82093AA scheme and the reset default) or round robin behind
   `IOAPICARBCFG.rr_enable`
-- One outstanding delivery on a valid/ready handshake - no delivery FSM
+- One outstanding delivery on a valid/ready handshake - no delivery FSM - with
+  `irq_out_retry` on the same handshake, so a receiver that could not place
+  the interrupt gets it offered again instead of losing it
 - Per-pin Remote IRR: a level interrupt blocks ITS OWN pin until EOI, other
   pins keep delivering, and a lost or wrong-vector EOI cannot stall the block
 - EOI matched against the vector actually DELIVERED on that pin, so an RTE may
@@ -62,6 +64,46 @@ single valid/ready delivery interface to the CPU/LAPIC.
     answer is a read of zero
 - CDC_ENABLE=1: the whole CPU/LAPIC-facing interface is presented in pclk and
   crosses into ioapic_clk through matched-latency synchronizers
+
+## LowestPriority is delegated, and that is not a dodge
+
+An IOAPIC does not track CPU priority, and never did. On the APIC bus it
+broadcast the message and the local APICs arbitrated among themselves using
+their Arbitration Priority Registers -- roughly the maximum of a CPU's task
+priority class, its highest in-service vector and its highest pending one --
+and whichever was lowest accepted. The IOAPIC only had to know whether anybody
+took it.
+
+That is why the destination, the destination mode and the delivery mode are
+forwarded unmodified. The half this block was missing was never the choosing.
+It was being told the choice FAILED.
+
+`irq_out_retry` is that half:
+
+| handshake | meaning | what the block does |
+|-----------|---------|---------------------|
+| `ready` low | the receiver is not ready | nothing; the offer stands, the rotation does not move |
+| `ready`, `retry` low | a CPU accepted | retire the edge latch, set Remote IRR, latch the delivered vector, move the rotation |
+| `ready`, `retry` high | consumed, nobody could accept | move the rotation and OFFER IT AGAIN -- nothing retires |
+
+Tie `irq_out_retry` low and the channel behaves exactly as it did before this
+existed: every completed handshake is an acceptance.
+
+**What a consumer owes.** For delivery mode 001 the receiver gets the vector
+and the destination set and must pick the lowest-priority CPU in it, or refuse
+with retry when none can take it. None of that lives here, which is the point.
+
+**One sharp edge, stated rather than hidden.** Under static priority a refused
+pin is still the lowest eligible number, so it wins the next arbitration
+immediately and a persistent refusal monopolises the channel. Round robin
+fixes it, which is the same answer static priority's starvation has everywhere
+else in this block.
+
+**Why the channel is shaped this way.** The intent is to hang a CPU off it
+across a bus. A payload plus a handshake plus a status bridges onto AMBA
+readily -- the retry becomes a bus response. A bundle of live per-CPU priority
+registers would not: it would be stale by the time it crossed, and the IOAPIC
+would be choosing on numbers that had already moved.
 
 ## Arbitration is static unless you say otherwise
 
@@ -96,8 +138,13 @@ delivery (RLB-008). Delivery modes other than Fixed are likewise forwarded on
 
 ## Not implemented (see vault/Tasks/RLB/open.md, RLB-008)
 
-LowestPriority arbitration, which needs processor priority tracking this block
-has no interface for; multi-IOAPIC routing; boot-interrupt delivery; MSI/MSI-X.
+Multi-IOAPIC routing; boot-interrupt delivery; MSI/MSI-X.
+
+LowestPriority is delegated rather than absent, and the other delivery modes
+(SMI, NMI, INIT, ExtINT) are FORWARDED rather than acted on: they ride
+`irq_out_deliv_mode` unmodified and it is the receiver that interprets them.
+See "LowestPriority is delegated" above for what the block does and does not
+owe in that arrangement.
 
 ## Files
 

@@ -173,7 +173,14 @@ module apb4_ioapic #(
     // The local APICs do the matching; the IOAPIC forwards both (RLB-008).
     output logic                    irq_out_dest_mode,
     output logic [2:0]              irq_out_deliv_mode, // Delivery mode
-    input  logic                    irq_out_ready,      // CPU acknowledge
+    input  logic                    irq_out_ready,      // handshake completes
+    // Qualified by the handshake: 1 means the receiver consumed the message
+    // and NO CPU could accept it, so the interrupt must be offered again.
+    // Tie it low if the receiver always accepts and the channel behaves
+    // exactly as it did before this existed. This is the half of
+    // LowestPriority delivery the IOAPIC owns -- the local APICs do the
+    // arbitrating, as they did on the APIC bus (RLB-008).
+    input  logic                    irq_out_retry,
 
     // EOI (End of Interrupt) from CPU (pclk domain)
     input  logic                    eoi_in,             // EOI strobe
@@ -221,6 +228,8 @@ module apb4_ioapic #(
     logic        w_core_irq_dest_mode;
     logic [2:0]  w_core_irq_deliv_mode;
     logic        w_core_irq_ready;   // accept strobe back into the core
+    logic        w_core_irq_retry;   // ... and whether it was a refusal
+    logic        r_p_retry;          // the refusal, captured with the ack
 
     // EOI, in the ioapic_clk domain (synchronized when CDC_ENABLE=1)
     logic        w_eoi_strobe;
@@ -448,6 +457,14 @@ module apb4_ioapic #(
             // its valid high as one transfer, which is what this is.
             assign w_core_irq_ready = r_i_busy && r_i_req && w_i_ack;
 
+            // The refusal is read on exactly the cycle the accept strobe
+            // fires, from a value that has been stable in pclk since before
+            // the ack was raised. It crosses as data behind the ack's own
+            // synchronizer rather than through one of its own, so it cannot
+            // arrive a cycle early or late relative to the strobe that
+            // qualifies it.
+            assign w_core_irq_retry = r_p_retry;
+
             cdc_synchronizer #(
                 .WIDTH      (1),
                 .FLOP_COUNT (3)
@@ -483,6 +500,7 @@ module apb4_ioapic #(
                     r_p_dest       <= 8'h00;
                     r_p_dest_mode  <= 1'b0;
                     r_p_deliv_mode <= 3'h0;
+                    r_p_retry      <= 1'b0;
                 end else if (!r_p_ack) begin
                     if (w_p_req && !r_p_valid) begin
                         r_p_vector     <= w_core_irq_vector;
@@ -491,8 +509,17 @@ module apb4_ioapic #(
                         r_p_deliv_mode <= w_core_irq_deliv_mode;
                         r_p_valid      <= 1'b1;
                     end else if (r_p_valid && irq_out_ready) begin
-                        r_p_valid <= 1'b0;      // the LAPIC accepted
+                        r_p_valid <= 1'b0;      // the LAPIC consumed it
                         r_p_ack   <= 1'b1;
+                        // CAPTURED IN THE SAME CYCLE AS THE ACK, and carried
+                        // back with it rather than crossed on its own. The
+                        // retry answer is only meaningful for the handshake
+                        // it belongs to, so it must not be sampled a
+                        // different number of edges away from the accept that
+                        // qualifies it (handbook CDC rule 7). It is
+                        // quasi-static from here: nothing changes it until
+                        // the next delivery is presented.
+                        r_p_retry <= irq_out_retry;
                     end
                 end else begin
                     if (!w_p_req) begin
@@ -565,6 +592,7 @@ module apb4_ioapic #(
             assign irq_out_dest_mode  = w_core_irq_dest_mode;
             assign irq_out_deliv_mode = w_core_irq_deliv_mode;
             assign w_core_irq_ready   = irq_out_ready;
+            assign w_core_irq_retry   = irq_out_retry;
             assign w_eoi_strobe       = eoi_in;
             assign w_eoi_vector       = eoi_vector;
         end
@@ -608,6 +636,7 @@ module apb4_ioapic #(
         .irq_out_dest_mode    (w_core_irq_dest_mode),
         .irq_out_deliv_mode   (w_core_irq_deliv_mode),
         .irq_out_ready        (w_core_irq_ready),
+        .irq_out_retry        (w_core_irq_retry),
 
         // EOI input from CPU (pclk-synchronized when CDC_ENABLE=1)
         .eoi_in               (w_eoi_strobe),

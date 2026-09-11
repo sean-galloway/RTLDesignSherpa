@@ -238,7 +238,7 @@ uint8_t offset_hi = 0x10 + (n * 2) + 1;  // Odd offset
 
 **Delivery Mode [10:8]:**
 - **000 (Fixed):** Deliver to CPU specified in Destination field (MVP)
-- **001 (Lowest Priority):** Deliver to lowest priority CPU (future)
+- **001 (Lowest Priority):** Deliver to the lowest-priority CPU in the destination set. DELEGATED: the IOAPIC forwards the mode and the destination set and the local APICs arbitrate among themselves, as they did on the APIC bus. The IOAPIC's half is `irq_out_retry`, which lets the receiver say nobody could accept so the interrupt is offered again
 - **010 (SMI):** System Management Interrupt (future)
 - **100 (NMI):** Non-Maskable Interrupt (future)
 - **101 (INIT):** Initialization sequence (future)
