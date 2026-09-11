@@ -88,6 +88,8 @@ class PMACPIRegisterMap:
     BUTTON_TIMING = 0x070       # 0x070: Button debounce and long-press
     PM_TIMER_VALUE_HI = 0x074   # 0x074: PM Timer high word (shadow, RO)
     PM_TIMER_MATCH = 0x078      # 0x078: PM Timer comparator
+    PWR_SEQ_CONFIG = 0x07C      # 0x07C: Power sequencer configuration
+    PWR_SEQ_STATUS = 0x080      # 0x080: Power sequencer status (RO)
 
     # ACPI_CONTROL bit definitions
     #
@@ -162,6 +164,17 @@ class PMACPIRegisterMap:
     PM_TIMER_PRESCALE_SHIFT = 16      # [19:16] pre-divide by 2**this
     PM_TIMER_PRESCALE_MASK = 0xF
     PM_TIMER_64BIT = (1 << 20)        # overflow from bit 63, not bit 31
+
+    # PWR_SEQ_CONFIG bit definitions
+    SEQ_ENABLE = (1 << 0)
+    SEQ_ACK_ENABLE = (1 << 1)
+    SEQ_DELAY_SHIFT = 16
+
+    # PWR_SEQ_STATUS bit definitions (RO)
+    SEQ_STATUS_BUSY = (1 << 0)
+    SEQ_STATUS_INDEX_SHIFT = 4
+    SEQ_STATUS_INDEX_MASK = 0x7
+    SEQ_STATUS_DIR = (1 << 8)
 
     # WAKE_STATUS bit definitions (W1C)
     WAKE_STATUS_GPE = (1 << 0)
@@ -257,6 +270,10 @@ class PMACPITB(TBBase):
         self.dut.ext_wake_n.value = 1      # Active low, so 1 = no wake
         self.dut.wdt_reset_n.value = 1     # Active low, so 1 = no watchdog reset
         self.dut.ext_reset_n.value = 1     # Active low, so 1 = no external reset
+        # Every rail reports itself present. The sequencer only consults these
+        # when PWR_SEQ_CONFIG.seq_ack_enable is set, and a test that wants to
+        # model a slow or dead rail drives them itself.
+        self.dut.power_domain_ack.value = 0xFF
 
         # Perform reset sequence
         await self.assert_reset()

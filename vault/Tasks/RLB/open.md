@@ -160,9 +160,9 @@ the same parameter would remove the guard's reason to exist.
 6/6 configurations green at FULL (basic 8/8, medium 10/10, full 12/12, GH#54
 17/17); nothing here is a defect.
 **Status:** partly fixed. The two reset-source pins landed 2026-09-10 in
-6978cf935; S5 soft off, the button debouncer with its long-press override, and
-the PM timer prescaler / 64-bit mode / comparator landed the same day. What is
-left is the power-domain sequencer and the GPE work. Raised while closing issue #54. These items were
+6978cf935; S5 soft off, the button debouncer with its long-press override, the
+PM timer prescaler / 64-bit mode / comparator, and the rail sequencer landed
+the same day. What is left is the GPE work. Raised while closing issue #54. These items were
 the surviving content of `rtl/pm_acpi/TODO.md`, which was deleted with that
 fix: most of it described work already done (the DV suite, the helper-script
 plan) or behaviour the fix changed (the "W1C edge detection / auto-clear
@@ -172,9 +172,17 @@ Same disposition as [[RLB-008]] for ioapic.
 
 **Deferred by design (MVP scope, stated in `rtl/pm_acpi/README.md`):**
 
-- Clock-gate and power-domain transitions are INSTANT. No ramp, no sequencing
-  delay, no per-domain ordering. Real silicon wants a sequencer with
-  programmable inter-domain delays and an acknowledge per rail.
+- ~~Clock-gate and power-domain transitions are INSTANT. No ramp, no
+  sequencing delay, no per-domain ordering. Real silicon wants a sequencer
+  with programmable inter-domain delays and an acknowledge per rail.~~ FIXED:
+  `PWR_SEQ_CONFIG.seq_enable` turns the instant transition into a walk -- rail
+  7 down to rail 0 on the way out, rail 0 up to rail 7 on the way in, with
+  `seq_delay` cycles between steps, the clocks gated before the rails drop and
+  restored only after they are all back. `seq_ack_enable` makes each step wait
+  for `power_domain_ack[N]`; a rail that never answers stalls the walk and
+  `PWR_SEQ_STATUS` says which one. There is deliberately no timeout: a made-up
+  one turns a board fault into a silent half-powered state. The sequencer is
+  OFF at reset, which is the behaviour every existing integration has.
 - ~~No S5 (soft off). The FSM is S0/S1/S3 plus a transition state.~~ FIXED:
   S5 is a real state. It gates every clock and every rail but the always-on
   one, like S3, but retains nothing, so LEAVING it pulses `sys_reset_req` -- a
@@ -209,14 +217,8 @@ Same disposition as [[RLB-008]] for ioapic.
 - Legacy replacement routing (IRQ0 timer, IRQ8 RTC) and processor C/P-state
   hints are out of scope.
 
-**Still open:** the power-domain sequencer and the GPE work (level mode,
-per-event edge/level choice, a second bank, the run-versus-wake split).
-
-**Worth doing sooner than the rest:** the power-domain sequencer. Instant
-`power_domain_en` transitions are the one MVP simplification that a real
-integration cannot paper over, because rail ordering is a board-level
-correctness property, not a performance one. It is a behaviour change with new
-register state, so it was deliberately not smuggled into #54.
+**Still open:** the GPE work (level mode, per-event edge/level choice, a
+second bank, the run-versus-wake split).
 
 ### RLB-010: RTC leftovers after the #56 fix
 

@@ -24,7 +24,8 @@ Extended test coverage beyond basic tests including:
 - Timer stress with various dividers
 """
 
-from cocotb.triggers import ClockCycles, Timer
+import cocotb
+from cocotb.triggers import ClockCycles, RisingEdge, Timer
 
 from projects.components.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tb import (
     PMACPITB, PMACPIRegisterMap
@@ -57,6 +58,7 @@ class PMACPIMediumTests:
             ('RLB-009 soft off state', self.test_rlb009_soft_off_state),
             ('RLB-009 button debounce and override', self.test_rlb009_button_debounce_and_override),
             ('RLB-009 PM timer extensions', self.test_rlb009_pm_timer_extensions),
+            ('RLB-009 power sequencing', self.test_rlb009_power_sequencer),
             ('PM Timer Divider Sweep', self.test_pm_timer_divider_sweep),
             ('PM Timer Extended Run', self.test_pm_timer_extended_run),
             ('GPE Enable Patterns', self.test_gpe_enable_patterns),
@@ -99,6 +101,162 @@ class PMACPIMediumTests:
     # ========================================================================
     # PM Timer Extended Tests
     # ========================================================================
+
+    async def test_rlb009_power_sequencer(self) -> bool:
+        """RLB-009: clock and power-rail sequencing.
+
+        Clock-gate and rail transitions used to be instant: every rail moved
+        in the same cycle and the clocks moved with them. That is fine in
+        simulation and wrong on a board, where rail ordering is a correctness
+        property rather than a performance one. With PWR_SEQ_CONFIG.seq_enable
+        set the rails walk one at a time with a programmable gap, clocks stop
+        before the rails drop and start again only after they are all back,
+        and each step can wait for that rail to acknowledge."""
+        self.log.info("=== RLB-009: power and clock sequencing ===")
+        M = PMACPIRegisterMap
+        mirror = None
+        try:
+            GAP = 40
+
+            async def arm(ack_enable=False):
+                await self.tb.assert_reset()
+                await ClockCycles(self.tb.pclk, 10)
+                await self.tb.deassert_reset()
+                await ClockCycles(self.tb.pclk, 20)
+                cfg = M.SEQ_ENABLE | (GAP << M.SEQ_DELAY_SHIFT)
+                if ack_enable:
+                    cfg |= M.SEQ_ACK_ENABLE
+                await self.tb.write_register(M.PWR_SEQ_CONFIG, cfg)
+                await self.tb.write_register(M.CLOCK_GATE_CTRL, 0xFFFFFFFF)
+                await self.tb.write_register(M.POWER_DOMAIN_CTRL, 0xFF)
+                await self.tb.write_register(M.ACPI_CONTROL, M.CONTROL_ACPI_ENABLE)
+                await self.tb.write_register(M.WAKE_ENABLE, 0xF)
+                await self.tb.write_register(M.PM1_ENABLE, 0xFFFF)
+                await ClockCycles(self.tb.pclk, 20)
+
+            async def trace(cycles):
+                """Poll both status registers and return the ordered list of
+                distinct (clocks, rails) pairs seen. The gap is far wider than
+                an APB read, so no step is missed."""
+                seen = []
+                spent = 0
+                while spent < cycles:
+                    _, clk = await self.tb.read_register(M.CLOCK_GATE_STATUS)
+                    _, pwr = await self.tb.read_register(M.POWER_DOMAIN_STATUS)
+                    if not seen or seen[-1] != (clk, pwr):
+                        seen.append((clk, pwr))
+                    await ClockCycles(self.tb.pclk, 4)
+                    spent += 30
+                return seen
+
+            def rail_walk(samples):
+                """The rail values in order, consecutive duplicates collapsed.
+                The pair changes when the clocks move too, which would
+                otherwise report one rail station twice."""
+                walk = []
+                for _, pwr in samples:
+                    if not walk or walk[-1] != pwr:
+                        walk.append(pwr)
+                return walk
+
+            # --- 1. POWERING DOWN: clocks first, then rails 7 down to 0 ---
+            await arm()
+            await self.tb.request_sleep(sleep_type=3)
+            down = await trace(8 * (GAP + 10) + 200)
+            rails_down = rail_walk(down)
+            clocks_at_first_drop = next(
+                (c for c, p in down if p != 0xFF), None)
+            want_down = [0xFF, 0x7F, 0x3F, 0x1F, 0x0F, 0x07, 0x03, 0x01]
+            # Every value seen must be one of the walk's stations, in order,
+            # and the walk must reach the end.
+            order_down_ok = (rails_down == [v for v in want_down
+                                            if v in rails_down]
+                             and rails_down[-1] == 0x01
+                             and len(rails_down) >= 6)
+            clocks_first_ok = (clocks_at_first_drop == 0)
+            self.log.info(f"  down: rails {[hex(v) for v in rails_down]}")
+            self.log.info(f"  down: clocks at the first rail drop = "
+                          f"{clocks_at_first_drop} (want 0)")
+
+            # --- 2. POWERING UP: rails 0 up to 7, clocks last ---
+            await self.tb.press_power_button()
+            up = await trace(8 * (GAP + 10) + 300)
+            rails_up = rail_walk(up)
+            want_up = [0x01, 0x03, 0x07, 0x0F, 0x1F, 0x3F, 0x7F, 0xFF]
+            order_up_ok = (rails_up == [v for v in want_up if v in rails_up]
+                           and rails_up[-1] == 0xFF
+                           and len(rails_up) >= 6)
+            # The clocks must still be gated on every sample where a rail is
+            # missing, and only come back once every rail is up.
+            clocks_last_ok = all(c == 0 for c, p in up if p != 0xFF)
+            clocks_back = [c for c, p in up if p == 0xFF]
+            clocks_returned = bool(clocks_back) and clocks_back[-1] == 0xFFFFFFFF
+            self.log.info(f"  up: rails {[hex(v) for v in rails_up]}")
+            self.log.info(f"  up: clocks stayed gated until every rail was "
+                          f"back = {clocks_last_ok}, then returned = "
+                          f"{clocks_returned}")
+
+            # --- 3. A RAIL THAT DOES NOT ACKNOWLEDGE STALLS THE WALK ---
+            await arm(ack_enable=True)
+            self.tb.dut.power_domain_ack.value = 0xFF   # every rail claims ON
+            await self.tb.request_sleep(sleep_type=3)
+            await ClockCycles(self.tb.pclk, 8 * (GAP + 10) + 200)
+            _, st = await self.tb.read_register(M.PWR_SEQ_STATUS)
+            stalled = bool(st & M.SEQ_STATUS_BUSY)
+            stall_idx = (st >> M.SEQ_STATUS_INDEX_SHIFT) & M.SEQ_STATUS_INDEX_MASK
+            stall_dir = bool(st & M.SEQ_STATUS_DIR)
+            _, pwr_stalled = await self.tb.read_register(M.POWER_DOMAIN_STATUS)
+            self.log.info(f"  dead rail: busy={stalled} index={stall_idx} "
+                          f"dir_down={stall_dir} rails=0x{pwr_stalled:02X}")
+
+            # Now let the rails answer honestly and the walk finishes.
+            async def mirror_acks():
+                while True:
+                    await RisingEdge(self.tb.dut.pm_clk)
+                    self.tb.dut.power_domain_ack.value = \
+                        int(self.tb.dut.power_domain_en.value)
+
+            mirror = cocotb.start_soon(mirror_acks())
+            await ClockCycles(self.tb.pclk, 8 * (GAP + 10) + 400)
+            _, st2 = await self.tb.read_register(M.PWR_SEQ_STATUS)
+            _, pwr_done = await self.tb.read_register(M.POWER_DOMAIN_STATUS)
+            released = (not (st2 & M.SEQ_STATUS_BUSY)) and pwr_done == 0x01
+            self.log.info(f"  honest rails: busy={bool(st2 & M.SEQ_STATUS_BUSY)} "
+                          f"rails=0x{pwr_done:02X} (walk completed={released})")
+
+            ok = (order_down_ok and clocks_first_ok and order_up_ok and
+                  clocks_last_ok and clocks_returned and stalled and
+                  stall_idx == 7 and stall_dir and pwr_stalled == 0x7F and
+                  released)
+            if ok:
+                self.log.info("RLB-009 power sequencing GREEN")
+                return True
+            self.log.error(
+                f"RLB-009 sequencer: down_order={order_down_ok} "
+                f"({[hex(v) for v in rails_down]}) clocks_before_rails="
+                f"{clocks_first_ok} up_order={order_up_ok} "
+                f"({[hex(v) for v in rails_up]}) clocks_held={clocks_last_ok} "
+                f"clocks_returned={clocks_returned} stalled={stalled} "
+                f"stall_idx={stall_idx} (want 7) stall_dir={stall_dir} "
+                f"rails_at_stall=0x{pwr_stalled:02X} (want 0x7F) "
+                f"walk_completed={released}")
+            return False
+        except Exception as e:
+            self.log.error(f"RLB-009 sequencer test error: {e}")
+            return False
+        finally:
+            if mirror is not None:
+                mirror.kill()
+            # Back to instant transitions, which is what every other test
+            # in the suite assumes.
+            self.tb.dut.power_domain_ack.value = 0xFF
+            await self.tb.assert_reset()
+            await ClockCycles(self.tb.pclk, 10)
+            await self.tb.deassert_reset()
+            await ClockCycles(self.tb.pclk, 20)
+            await self.tb.write_register(M.PWR_SEQ_CONFIG, 0)
+            await self.tb.write_register(M.ACPI_CONTROL, 0)
+            await ClockCycles(self.tb.pclk, 20)
 
     async def test_rlb009_pm_timer_extensions(self) -> bool:
         """RLB-009: PM timer prescaler, comparator, and 64-bit mode.

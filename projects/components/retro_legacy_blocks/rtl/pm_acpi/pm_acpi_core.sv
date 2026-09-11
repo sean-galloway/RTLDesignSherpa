@@ -195,6 +195,13 @@ module pm_acpi_core #(
     input  logic [3:0]  cfg_timer_prescale,    // pre-divide by 2^this
     input  logic        cfg_timer_64bit,       // overflow from bit 63, not 31
     input  logic [31:0] cfg_timer_match,       // compare against the low word
+    // Power sequencer (PWR_SEQ_CONFIG)
+    input  logic        cfg_seq_enable,
+    input  logic        cfg_seq_ack_enable,
+    input  logic [15:0] cfg_seq_delay,
+    output logic        status_seq_busy,
+    output logic [2:0]  status_seq_index,
+    output logic        status_seq_dir,
     input  logic        pm_timer_value_read,   // read strobe for the low word
 
     // GPE enables
@@ -291,6 +298,12 @@ module pm_acpi_core #(
     // Power domain outputs (to power switches)
     output logic [7:0]  power_domain_en,
 
+    // Per-rail acknowledge from the power switches: bit N reports the LEVEL
+    // rail N has actually reached, not a pulse. Only consulted when
+    // PWR_SEQ_CONFIG.seq_ack_enable is set; tie high when the integration has
+    // no acks to give.
+    input  logic [7:0]  power_domain_ack,
+
     // System reset request (one-cycle pulse)
     output logic        sys_reset_req,
 
@@ -383,6 +396,8 @@ module pm_acpi_core #(
     logic        r_wdt_reset_seen;
     logic        r_ext_reset_seen;
     logic [31:0] r_gpe_events_sync [SYNC_STAGES];
+    logic [7:0]  r_pwr_ack_sync    [SYNC_STAGES];
+    logic [7:0]  w_pwr_domain_ack;
     logic        w_rtc_alarm;
     logic        w_ext_wake_n;
     logic        w_wdt_reset_n;
@@ -416,6 +431,22 @@ module pm_acpi_core #(
     logic [31:0] r_clk_gate_current;
     logic [7:0]  w_pwr_domain_target;
     logic [7:0]  r_pwr_domain_current;
+
+    // Power sequencer state
+    typedef enum logic [1:0] {
+        SEQ_IDLE  = 2'b00,
+        SEQ_DELAY = 2'b01,
+        SEQ_STEP  = 2'b10,
+        SEQ_ACK   = 2'b11
+    } seq_state_t;
+    seq_state_t  r_seq_state;
+    logic [2:0]  r_seq_idx;
+    logic        r_seq_down;
+    logic [15:0] r_seq_cnt;
+    logic        w_seq_rails_differ;
+    logic        w_seq_going_down;
+    logic        w_seq_last_rail;
+    logic        w_seq_ack_ok;
 
     // Sticky status registers and their set terms
     logic [4:0]  r_acpi_status;
@@ -481,6 +512,7 @@ module pm_acpi_core #(
                 r_wdt_reset_n_sync[s] <= 1'b1;
                 r_ext_reset_n_sync[s] <= 1'b1;
                 r_gpe_events_sync[s] <= '0;
+                r_pwr_ack_sync[s]    <= 8'hFF;
             end
         end else begin
             r_rtc_alarm_sync[0]  <= rtc_alarm;
@@ -488,12 +520,14 @@ module pm_acpi_core #(
             r_wdt_reset_n_sync[0] <= wdt_reset_n;
             r_ext_reset_n_sync[0] <= ext_reset_n;
             r_gpe_events_sync[0] <= gpe_events_in;
+            r_pwr_ack_sync[0]    <= power_domain_ack;
             for (int s = 1; s < SYNC_STAGES; s++) begin
                 r_rtc_alarm_sync[s]  <= r_rtc_alarm_sync[s-1];
                 r_ext_wake_n_sync[s] <= r_ext_wake_n_sync[s-1];
                 r_wdt_reset_n_sync[s] <= r_wdt_reset_n_sync[s-1];
                 r_ext_reset_n_sync[s] <= r_ext_reset_n_sync[s-1];
                 r_gpe_events_sync[s] <= r_gpe_events_sync[s-1];
+                r_pwr_ack_sync[s]    <= r_pwr_ack_sync[s-1];
             end
         end
     )
@@ -503,6 +537,10 @@ module pm_acpi_core #(
     assign w_gpe_events = r_gpe_events_sync[SYNC_STAGES-1];
     assign w_wdt_reset_n = r_wdt_reset_n_sync[SYNC_STAGES-1];
     assign w_ext_reset_n = r_ext_reset_n_sync[SYNC_STAGES-1];
+    // The rail acknowledges come from power switches on another clock, or on
+    // none at all, so they cross on the same unconditional chain as the other
+    // board inputs rather than straight into the sequencer's comparator.
+    assign w_pwr_domain_ack = r_pwr_ack_sync[SYNC_STAGES-1];
 
     // A reset SOURCE is latched, not sampled: the pulse that caused the reset
     // is long gone by the time software reads RESET_STATUS, so the bit has to
@@ -936,14 +974,6 @@ module pm_acpi_core #(
         endcase
     end
 
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
-            r_clk_gate_current <= 32'hFFFFFFFF;  // All enabled at reset
-        end else begin
-            r_clk_gate_current <= w_clk_gate_target;
-        end
-    )
-
     assign clock_gate_en          = r_clk_gate_current;
     assign status_clk_gate_status = r_clk_gate_current;
 
@@ -964,13 +994,93 @@ module pm_acpi_core #(
         endcase
     end
 
+    // THE SEQUENCER. With cfg_seq_enable clear both registers simply follow
+    // their targets, which is the instant behaviour every integration had
+    // before this existed. With it set, a change is a WALK:
+    //
+    //   powering down   gate the clocks, wait, then rail 7 .. rail 0
+    //   powering up     rail 0 .. rail 7, wait, then ungate the clocks
+    //
+    // so a domain is never clocked while its rail is down, and rails move in
+    // reverse order on the way out. Each step optionally waits for that
+    // rail's acknowledge before the walk continues; a rail that never
+    // acknowledges stalls the walk, and PWR_SEQ_STATUS says which one.
+    assign w_seq_rails_differ = (w_pwr_domain_target != r_pwr_domain_current);
+    // Powering down means at least one rail that is currently up is commanded
+    // off. A change that only turns rails ON walks the other way.
+    assign w_seq_going_down   = |(r_pwr_domain_current & ~w_pwr_domain_target);
+    assign w_seq_last_rail    = r_seq_down ? (r_seq_idx == 3'd0) : (r_seq_idx == 3'd7);
+    assign w_seq_ack_ok       = !cfg_seq_ack_enable ||
+                                (w_pwr_domain_ack[r_seq_idx] ==
+                                 w_pwr_domain_target[r_seq_idx]);
+
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            r_pwr_domain_current <= 8'hFF;  // All powered at reset
-        end else begin
+            r_pwr_domain_current <= 8'hFF;      // All powered at reset
+            r_clk_gate_current   <= 32'hFFFFFFFF;  // All enabled at reset
+            r_seq_state          <= SEQ_IDLE;
+            r_seq_idx            <= 3'd0;
+            r_seq_down           <= 1'b0;
+            r_seq_cnt            <= '0;
+        end else if (!cfg_seq_enable) begin
             r_pwr_domain_current <= w_pwr_domain_target;
+            r_clk_gate_current   <= w_clk_gate_target;
+            r_seq_state          <= SEQ_IDLE;
+            r_seq_cnt            <= '0;
+        end else begin
+            case (r_seq_state)
+                SEQ_IDLE: begin
+                    if (w_seq_rails_differ) begin
+                        r_seq_down <= w_seq_going_down;
+                        r_seq_idx  <= w_seq_going_down ? 3'd7 : 3'd0;
+                        r_seq_cnt  <= '0;
+                        r_seq_state <= SEQ_DELAY;
+                        // Clocks stop BEFORE the rails drop. On the way up
+                        // they wait until the walk has finished.
+                        if (w_seq_going_down) r_clk_gate_current <= w_clk_gate_target;
+                    end else begin
+                        // Rails already where they belong: a clock-only change
+                        // needs no walk.
+                        r_clk_gate_current <= w_clk_gate_target;
+                    end
+                end
+
+                SEQ_DELAY: begin
+                    if (r_seq_cnt >= cfg_seq_delay) begin
+                        r_seq_cnt   <= '0;
+                        r_seq_state <= SEQ_STEP;
+                    end else begin
+                        r_seq_cnt <= r_seq_cnt + 16'd1;
+                    end
+                end
+
+                SEQ_STEP: begin
+                    r_pwr_domain_current[r_seq_idx] <= w_pwr_domain_target[r_seq_idx];
+                    r_seq_state <= SEQ_ACK;
+                end
+
+                SEQ_ACK: begin
+                    if (w_seq_ack_ok) begin
+                        if (w_seq_last_rail) begin
+                            r_seq_state <= SEQ_IDLE;
+                            // Clocks start again only once every rail is up.
+                            if (!r_seq_down) r_clk_gate_current <= w_clk_gate_target;
+                        end else begin
+                            r_seq_idx   <= r_seq_down ? (r_seq_idx - 3'd1)
+                                                      : (r_seq_idx + 3'd1);
+                            r_seq_state <= SEQ_DELAY;
+                        end
+                    end
+                end
+
+                default: r_seq_state <= SEQ_IDLE;
+            endcase
         end
     )
+
+    assign status_seq_busy  = cfg_seq_enable && (r_seq_state != SEQ_IDLE);
+    assign status_seq_index = r_seq_idx;
+    assign status_seq_dir   = r_seq_down;
 
     assign power_domain_en          = r_pwr_domain_current;
     assign status_pwr_domain_status = r_pwr_domain_current;

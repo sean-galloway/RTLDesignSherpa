@@ -25,16 +25,18 @@
  *                                                 --> hwif --> pm_acpi_core
  *
  * ADDRESS DECODE POLICY (issue #54 round_2 item 4)
- *   Only the twenty-two mapped registers decode. Equality is on the WHOLE
+ *   Only the twenty-four mapped registers decode. Equality is on the WHOLE
  *   12-bit address, register by register: everything else in the 4 KB window
  *   is DROPPED - the write is ignored, the read returns zero, and PSLVERR is
  *   raised. This is the policy ioapic, pic_8259 and pit_8254 already use.
  *
  *   What it replaces: this module used to hand regblk_addr[8:0] to a 7-bit
  *   s_cpuif_addr port, so only PADDR[6:0] was ever compared and the map
- *   aliased every 0x80 across the window - a write to 'reserved' 0x080 landed
- *   on ACPI_CONTROL. The generated block ties both of its error outputs to 0,
- *   so nothing reported it either.
+ *   aliased every 0x80 across the window - a write to what was then reserved
+ *   space at 0x080 landed on ACPI_CONTROL. The generated block ties both of
+ *   its error outputs to 0, so nothing reported it either. (0x080 is a real
+ *   register now, PWR_SEQ_STATUS, and the decode is eight bits wide; the
+ *   first alias of ACPI_CONTROL is 0x100.)
  *
  *   A dropped access is acknowledged LOCALLY (w_drop_ack) in the same
  *   combinational form the register block uses, because peakrdl_to_cmdrsp
@@ -98,7 +100,7 @@
  *     pm_acpi_tests_gh54.py::test_gh54_gpe_status_two_bits_exact and
  *     ::test_gh54_gpe_interrupt_deasserts_after_w1c.
  *   - Every address presented to the register block is one its generated
- *     decode recognises -- the twenty-one ADDR_* localparams below and nothing
+ *     decode recognises -- the twenty-four ADDR_* localparams below and nothing
  *     else. If the RDL layout drifts from those localparams the access reads
  *     zero and writes nowhere instead of failing. Guarded by
  *     pm_acpi_tests_gh54.py::test_gh54_address_alias_dropped_with_pslverr and
@@ -151,6 +153,9 @@ module pm_acpi_config_regs
     output logic [3:0]  cfg_timer_prescale,
     output logic        cfg_timer_64bit,
     output logic [31:0] cfg_timer_match,
+    output logic        cfg_seq_enable,
+    output logic        cfg_seq_ack_enable,
+    output logic [15:0] cfg_seq_delay,
     output logic        pm_timer_value_read,
     output logic [4:0]  cfg_long_press_shift,
     output logic        cfg_pwrbtn_ovr,
@@ -194,6 +199,9 @@ module pm_acpi_config_regs
     input  logic [3:0]  status_reset_src,
     input  logic [31:0] status_pm_timer_value,
     input  logic [31:0] status_pm_timer_value_hi,
+    input  logic        status_seq_busy,
+    input  logic [2:0]  status_seq_index,
+    input  logic        status_seq_dir,
     input  logic [31:0] status_clk_gate_status,
     input  logic [7:0]  status_pwr_domain_status
 );
@@ -202,32 +210,35 @@ module pm_acpi_config_regs
     // Local Parameters
     //========================================================================
 
-    // Register offsets, as the generated block decodes them (7 bits). These
+    // Register offsets, as the generated block decodes them (8 bits since
+    // PWR_SEQ_STATUS moved the top of the map to 0x080). These
     // MUST track pm_acpi_regs.rdl - a_regblk_addr_mapped below is the guard.
-    localparam logic [6:0] ADDR_ACPI_CONTROL        = 7'h00;
-    localparam logic [6:0] ADDR_ACPI_STATUS         = 7'h04;
-    localparam logic [6:0] ADDR_ACPI_INT_ENABLE     = 7'h08;
-    localparam logic [6:0] ADDR_ACPI_INT_STATUS     = 7'h0C;
-    localparam logic [6:0] ADDR_PM1_CONTROL         = 7'h10;
-    localparam logic [6:0] ADDR_PM1_STATUS          = 7'h14;
-    localparam logic [6:0] ADDR_PM1_ENABLE          = 7'h18;
-    localparam logic [6:0] ADDR_PM_TIMER_VALUE      = 7'h20;
-    localparam logic [6:0] ADDR_PM_TIMER_CONFIG     = 7'h24;
-    localparam logic [6:0] ADDR_GPE0_STATUS_LO      = 7'h30;
-    localparam logic [6:0] ADDR_GPE0_STATUS_HI      = 7'h34;
-    localparam logic [6:0] ADDR_GPE0_ENABLE_LO      = 7'h38;
-    localparam logic [6:0] ADDR_GPE0_ENABLE_HI      = 7'h3C;
-    localparam logic [6:0] ADDR_CLOCK_GATE_CTRL     = 7'h50;
-    localparam logic [6:0] ADDR_CLOCK_GATE_STATUS   = 7'h54;
-    localparam logic [6:0] ADDR_POWER_DOMAIN_CTRL   = 7'h58;
-    localparam logic [6:0] ADDR_POWER_DOMAIN_STATUS = 7'h5C;
-    localparam logic [6:0] ADDR_WAKE_STATUS         = 7'h60;
-    localparam logic [6:0] ADDR_WAKE_ENABLE         = 7'h64;
-    localparam logic [6:0] ADDR_RESET_CTRL          = 7'h68;
-    localparam logic [6:0] ADDR_RESET_STATUS        = 7'h6C;
-    localparam logic [6:0] ADDR_BUTTON_TIMING       = 7'h70;
-    localparam logic [6:0] ADDR_PM_TIMER_VALUE_HI   = 7'h74;
-    localparam logic [6:0] ADDR_PM_TIMER_MATCH      = 7'h78;
+    localparam logic [7:0] ADDR_ACPI_CONTROL        = 8'h00;
+    localparam logic [7:0] ADDR_ACPI_STATUS         = 8'h04;
+    localparam logic [7:0] ADDR_ACPI_INT_ENABLE     = 8'h08;
+    localparam logic [7:0] ADDR_ACPI_INT_STATUS     = 8'h0C;
+    localparam logic [7:0] ADDR_PM1_CONTROL         = 8'h10;
+    localparam logic [7:0] ADDR_PM1_STATUS          = 8'h14;
+    localparam logic [7:0] ADDR_PM1_ENABLE          = 8'h18;
+    localparam logic [7:0] ADDR_PM_TIMER_VALUE      = 8'h20;
+    localparam logic [7:0] ADDR_PM_TIMER_CONFIG     = 8'h24;
+    localparam logic [7:0] ADDR_GPE0_STATUS_LO      = 8'h30;
+    localparam logic [7:0] ADDR_GPE0_STATUS_HI      = 8'h34;
+    localparam logic [7:0] ADDR_GPE0_ENABLE_LO      = 8'h38;
+    localparam logic [7:0] ADDR_GPE0_ENABLE_HI      = 8'h3C;
+    localparam logic [7:0] ADDR_CLOCK_GATE_CTRL     = 8'h50;
+    localparam logic [7:0] ADDR_CLOCK_GATE_STATUS   = 8'h54;
+    localparam logic [7:0] ADDR_POWER_DOMAIN_CTRL   = 8'h58;
+    localparam logic [7:0] ADDR_POWER_DOMAIN_STATUS = 8'h5C;
+    localparam logic [7:0] ADDR_WAKE_STATUS         = 8'h60;
+    localparam logic [7:0] ADDR_WAKE_ENABLE         = 8'h64;
+    localparam logic [7:0] ADDR_RESET_CTRL          = 8'h68;
+    localparam logic [7:0] ADDR_RESET_STATUS        = 8'h6C;
+    localparam logic [7:0] ADDR_BUTTON_TIMING       = 8'h70;
+    localparam logic [7:0] ADDR_PM_TIMER_VALUE_HI   = 8'h74;
+    localparam logic [7:0] ADDR_PM_TIMER_MATCH      = 8'h78;
+    localparam logic [7:0] ADDR_PWR_SEQ_CONFIG      = 8'h7C;
+    localparam logic [7:0] ADDR_PWR_SEQ_STATUS      = 8'h80;
 
     // The five W1C register windows, one index each. GPE0_STATUS is two
     // registers over one 32-bit core vector, hence six indices.
@@ -259,7 +270,7 @@ module pm_acpi_config_regs
 
     // To the register block, after the decode gate
     logic        regblk_req;
-    logic [6:0]  regblk_addr;
+    logic [7:0]  regblk_addr;
     logic        regblk_req_stall_wr;
     logic        regblk_req_stall_rd;
     logic        regblk_rd_ack;
@@ -325,39 +336,41 @@ module pm_acpi_config_regs
     //========================================================================
     // Strict Address Decode
     //========================================================================
-    // Equality on all 12 bits. The 7-bit alias at 0x080 shares its low seven
+    // Equality on all 12 bits. The 8-bit alias at 0x100 shares its low eight
     // bits with ACPI_CONTROL and is exactly what this rejects.
 
     always_comb begin
-        w_addr_mapped = (adapter_addr == {5'h00, ADDR_ACPI_CONTROL})        ||
-                        (adapter_addr == {5'h00, ADDR_ACPI_STATUS})         ||
-                        (adapter_addr == {5'h00, ADDR_ACPI_INT_ENABLE})     ||
-                        (adapter_addr == {5'h00, ADDR_ACPI_INT_STATUS})     ||
-                        (adapter_addr == {5'h00, ADDR_PM1_CONTROL})         ||
-                        (adapter_addr == {5'h00, ADDR_PM1_STATUS})          ||
-                        (adapter_addr == {5'h00, ADDR_PM1_ENABLE})          ||
-                        (adapter_addr == {5'h00, ADDR_PM_TIMER_VALUE})      ||
-                        (adapter_addr == {5'h00, ADDR_PM_TIMER_CONFIG})     ||
-                        (adapter_addr == {5'h00, ADDR_GPE0_STATUS_LO})      ||
-                        (adapter_addr == {5'h00, ADDR_GPE0_STATUS_HI})      ||
-                        (adapter_addr == {5'h00, ADDR_GPE0_ENABLE_LO})      ||
-                        (adapter_addr == {5'h00, ADDR_GPE0_ENABLE_HI})      ||
-                        (adapter_addr == {5'h00, ADDR_CLOCK_GATE_CTRL})     ||
-                        (adapter_addr == {5'h00, ADDR_CLOCK_GATE_STATUS})   ||
-                        (adapter_addr == {5'h00, ADDR_POWER_DOMAIN_CTRL})   ||
-                        (adapter_addr == {5'h00, ADDR_POWER_DOMAIN_STATUS}) ||
-                        (adapter_addr == {5'h00, ADDR_WAKE_STATUS})         ||
-                        (adapter_addr == {5'h00, ADDR_WAKE_ENABLE})         ||
-                        (adapter_addr == {5'h00, ADDR_RESET_CTRL})          ||
-                        (adapter_addr == {5'h00, ADDR_RESET_STATUS})       ||
-                        (adapter_addr == {5'h00, ADDR_BUTTON_TIMING})      ||
-                        (adapter_addr == {5'h00, ADDR_PM_TIMER_VALUE_HI})  ||
-                        (adapter_addr == {5'h00, ADDR_PM_TIMER_MATCH});
+        w_addr_mapped = (adapter_addr == {4'h0, ADDR_ACPI_CONTROL})        ||
+                        (adapter_addr == {4'h0, ADDR_ACPI_STATUS})         ||
+                        (adapter_addr == {4'h0, ADDR_ACPI_INT_ENABLE})     ||
+                        (adapter_addr == {4'h0, ADDR_ACPI_INT_STATUS})     ||
+                        (adapter_addr == {4'h0, ADDR_PM1_CONTROL})         ||
+                        (adapter_addr == {4'h0, ADDR_PM1_STATUS})          ||
+                        (adapter_addr == {4'h0, ADDR_PM1_ENABLE})          ||
+                        (adapter_addr == {4'h0, ADDR_PM_TIMER_VALUE})      ||
+                        (adapter_addr == {4'h0, ADDR_PM_TIMER_CONFIG})     ||
+                        (adapter_addr == {4'h0, ADDR_GPE0_STATUS_LO})      ||
+                        (adapter_addr == {4'h0, ADDR_GPE0_STATUS_HI})      ||
+                        (adapter_addr == {4'h0, ADDR_GPE0_ENABLE_LO})      ||
+                        (adapter_addr == {4'h0, ADDR_GPE0_ENABLE_HI})      ||
+                        (adapter_addr == {4'h0, ADDR_CLOCK_GATE_CTRL})     ||
+                        (adapter_addr == {4'h0, ADDR_CLOCK_GATE_STATUS})   ||
+                        (adapter_addr == {4'h0, ADDR_POWER_DOMAIN_CTRL})   ||
+                        (adapter_addr == {4'h0, ADDR_POWER_DOMAIN_STATUS}) ||
+                        (adapter_addr == {4'h0, ADDR_WAKE_STATUS})         ||
+                        (adapter_addr == {4'h0, ADDR_WAKE_ENABLE})         ||
+                        (adapter_addr == {4'h0, ADDR_RESET_CTRL})          ||
+                        (adapter_addr == {4'h0, ADDR_RESET_STATUS})       ||
+                        (adapter_addr == {4'h0, ADDR_BUTTON_TIMING})      ||
+                        (adapter_addr == {4'h0, ADDR_PM_TIMER_VALUE_HI})  ||
+                        (adapter_addr == {4'h0, ADDR_PM_TIMER_MATCH})     ||
+                        (adapter_addr == {4'h0, ADDR_PWR_SEQ_CONFIG})     ||
+                        (adapter_addr == {4'h0, ADDR_PWR_SEQ_STATUS});
     end
 
     assign w_drop      = !w_addr_mapped;
     assign regblk_req  = adapter_req && !w_drop;
-    assign regblk_addr = adapter_addr[6:0];
+    assign regblk_addr = adapter_addr[7:0];
 
     // Local acknowledge for a dropped access, in the same combinational form
     // the register block uses. The adapter holds its request until acked.
@@ -419,11 +432,14 @@ module pm_acpi_config_regs
     assign cfg_timer_prescale   = hwif_out.PM_TIMER_CONFIG.timer_prescale.value;
     assign cfg_timer_64bit      = hwif_out.PM_TIMER_CONFIG.timer_64bit.value;
     assign cfg_timer_match      = hwif_out.PM_TIMER_MATCH.match_value.value;
+    assign cfg_seq_enable       = hwif_out.PWR_SEQ_CONFIG.seq_enable.value;
+    assign cfg_seq_ack_enable   = hwif_out.PWR_SEQ_CONFIG.seq_ack_enable.value;
+    assign cfg_seq_delay        = hwif_out.PWR_SEQ_CONFIG.seq_delay.value;
     // A READ of the low word latches the high word, so the pair software
     // gets is one coherent sample rather than two reads that can straddle
     // a carry.
     assign pm_timer_value_read  = regblk_req && !adapter_req_is_wr &&
-                                  (adapter_addr == {5'h00, ADDR_PM_TIMER_VALUE});
+                                  (adapter_addr == {4'h0, ADDR_PM_TIMER_VALUE});
     assign cfg_long_press_shift = hwif_out.BUTTON_TIMING.long_press_shift.value;
     assign cfg_pwrbtn_ovr       = hwif_out.PM1_CONTROL.pwrbtn_ovr.value;
     assign cfg_sleep_enable = hwif_out.PM1_CONTROL.sleep_enable.value;
@@ -575,6 +591,9 @@ module pm_acpi_config_regs
     // Read-only hardware mirrors
     assign hwif_in.PM_TIMER_VALUE.timer_value.next          = status_pm_timer_value;
     assign hwif_in.PM_TIMER_VALUE_HI.value_hi.next          = status_pm_timer_value_hi;
+    assign hwif_in.PWR_SEQ_STATUS.seq_busy.next             = status_seq_busy;
+    assign hwif_in.PWR_SEQ_STATUS.seq_index.next            = status_seq_index;
+    assign hwif_in.PWR_SEQ_STATUS.seq_dir.next              = status_seq_dir;
     assign hwif_in.CLOCK_GATE_STATUS.clk_gate_status.next   = status_clk_gate_status;
     assign hwif_in.POWER_DOMAIN_STATUS.pwr_domain_status.next = status_pwr_domain_status;
 

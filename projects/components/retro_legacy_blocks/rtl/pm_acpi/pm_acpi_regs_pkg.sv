@@ -4,8 +4,8 @@
 package pm_acpi_regs_pkg;
 
     localparam PM_ACPI_REGS_DATA_WIDTH = 32;
-    localparam PM_ACPI_REGS_MIN_ADDR_WIDTH = 7;
-    localparam PM_ACPI_REGS_SIZE = 'h7c;
+    localparam PM_ACPI_REGS_MIN_ADDR_WIDTH = 8;
+    localparam PM_ACPI_REGS_SIZE = 'h84;
 
     typedef struct {
         logic [1:0] next;
@@ -204,6 +204,24 @@ package pm_acpi_regs_pkg;
     } pm_acpi_regs__PM_TIMER_VALUE_HI__in_t;
 
     typedef struct {
+        logic next;
+    } pm_acpi_regs__PWR_SEQ_STATUS__seq_busy__in_t;
+
+    typedef struct {
+        logic [2:0] next;
+    } pm_acpi_regs__PWR_SEQ_STATUS__seq_index__in_t;
+
+    typedef struct {
+        logic next;
+    } pm_acpi_regs__PWR_SEQ_STATUS__seq_dir__in_t;
+
+    typedef struct {
+        pm_acpi_regs__PWR_SEQ_STATUS__seq_busy__in_t seq_busy;
+        pm_acpi_regs__PWR_SEQ_STATUS__seq_index__in_t seq_index;
+        pm_acpi_regs__PWR_SEQ_STATUS__seq_dir__in_t seq_dir;
+    } pm_acpi_regs__PWR_SEQ_STATUS__in_t;
+
+    typedef struct {
         pm_acpi_regs__ACPI_CONTROL__in_t ACPI_CONTROL;
         pm_acpi_regs__ACPI_STATUS__in_t ACPI_STATUS;
         pm_acpi_regs__ACPI_INT_STATUS__in_t ACPI_INT_STATUS;
@@ -216,6 +234,7 @@ package pm_acpi_regs_pkg;
         pm_acpi_regs__WAKE_STATUS__in_t WAKE_STATUS;
         pm_acpi_regs__RESET_STATUS__in_t RESET_STATUS;
         pm_acpi_regs__PM_TIMER_VALUE_HI__in_t PM_TIMER_VALUE_HI;
+        pm_acpi_regs__PWR_SEQ_STATUS__in_t PWR_SEQ_STATUS;
     } pm_acpi_regs__in_t;
 
     typedef struct {
@@ -561,6 +580,24 @@ package pm_acpi_regs_pkg;
     } pm_acpi_regs__PM_TIMER_MATCH__out_t;
 
     typedef struct {
+        logic value;
+    } pm_acpi_regs__PWR_SEQ_CONFIG__seq_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } pm_acpi_regs__PWR_SEQ_CONFIG__seq_ack_enable__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pm_acpi_regs__PWR_SEQ_CONFIG__seq_delay__out_t;
+
+    typedef struct {
+        pm_acpi_regs__PWR_SEQ_CONFIG__seq_enable__out_t seq_enable;
+        pm_acpi_regs__PWR_SEQ_CONFIG__seq_ack_enable__out_t seq_ack_enable;
+        pm_acpi_regs__PWR_SEQ_CONFIG__seq_delay__out_t seq_delay;
+    } pm_acpi_regs__PWR_SEQ_CONFIG__out_t;
+
+    typedef struct {
         pm_acpi_regs__ACPI_CONTROL__out_t ACPI_CONTROL;
         pm_acpi_regs__ACPI_STATUS__out_t ACPI_STATUS;
         pm_acpi_regs__ACPI_INT_ENABLE__out_t ACPI_INT_ENABLE;
@@ -580,5 +617,6 @@ package pm_acpi_regs_pkg;
         pm_acpi_regs__RESET_CTRL__out_t RESET_CTRL;
         pm_acpi_regs__BUTTON_TIMING__out_t BUTTON_TIMING;
         pm_acpi_regs__PM_TIMER_MATCH__out_t PM_TIMER_MATCH;
+        pm_acpi_regs__PWR_SEQ_CONFIG__out_t PWR_SEQ_CONFIG;
     } pm_acpi_regs__out_t;
 endpackage

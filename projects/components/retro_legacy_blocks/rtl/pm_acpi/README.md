@@ -62,7 +62,9 @@ Three layers, the same shape every RLB block uses:
   leaving S5 pulses `sys_reset_req` because nothing was retained)
 - Wake from GPE, power button, RTC alarm or an external pin, with the wake
   request LATCHED so a one-cycle source lands in S0 and stays
-- Strict address decode: only the twenty-two mapped registers are visible,
+- Optional rail sequencer: one rail at a time, programmable gap, per-rail
+  acknowledge, clocks gated before the rails drop and restored after they rise
+- Strict address decode: only the twenty-four mapped registers are visible,
   every other address in the 4 KB window is dropped and answered with PSLVERR
 - Input synchronizers on rtc_alarm, ext_wake_n and gpe_events (SYNC_STAGES,
   default 2, unconditional); 3-flop chains plus a programmable debouncer and a
@@ -158,6 +160,31 @@ already uses. `PM_TIMER_CONFIG.timer_64bit` does not change how wide the
 counter is - it is always 64 bits - only WHICH carry counts as an overflow, so
 software can widen the timer without giving up the 32-bit overflow it may
 already be watching.
+
+## Rails move one at a time, or all at once
+
+`PWR_SEQ_CONFIG.seq_enable` is clear at reset, and with it clear every rail and
+every clock gate moves in the same cycle. That is fine in simulation and wrong
+on a board, where rail ordering is a correctness property rather than a
+performance one. Set it and a power state change becomes a walk:
+
+| direction | order |
+|-----------|-------|
+| powering down | gate the clocks, wait, then rail 7 down to rail 0 |
+| powering up | rail 0 up to rail 7, wait, then ungate the clocks |
+
+so a domain is never clocked while its rail is down, and rails leave in the
+reverse of the order they arrived. `seq_delay` is the gap between steps, in
+core-clock cycles.
+
+With `seq_ack_enable` set, each step waits for `power_domain_ack[N]` to report
+the level that rail was just commanded to. A rail that never acknowledges
+STALLS THE WALK, which is the honest outcome: the rail did not come up. Read
+`PWR_SEQ_STATUS` to find out where it stopped - `seq_busy` stays set with
+`seq_index` parked on the rail that owes an answer. There is no timeout,
+because a made-up one would turn a board fault into a silent half-powered
+state. Tie `power_domain_ack` high if the integration has no acknowledges;
+leave `seq_ack_enable` clear and the pin is ignored entirely.
 
 ## The buttons are debounced, not just synchronized
 
@@ -280,9 +307,9 @@ runs on another clock.
 ## Not implemented
 
 Deferred work is recorded in `vault/Tasks/RLB/open.md` (RLB-009), not in a
-tracker next to the code. In short: clock-gate and power-domain transitions are
-instant, with no programmable inter-domain delay and no per-rail acknowledge,
-and GPE is edge-only with a single bank and no run-versus-wake split.
+tracker next to the code. In short: GPE is edge-only with a single bank of 32,
+with no level mode, no per-event edge/level choice and no run-versus-wake
+split.
 
 ---
 

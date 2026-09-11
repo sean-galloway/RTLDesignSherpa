@@ -43,18 +43,22 @@
  *   0x030-0x03C: GPE0 status and enable, low and high halves
  *   0x050-0x05C: Clock gate and power domain control/status
  *   0x060-0x06C: Wake status/enable, reset control/status
- *   Only these twenty-one addresses decode. EVERY other address in the 4 KB
- *   window - the old 7-bit alias at 0x080 included - is dropped (write
- *   ignored, read 0) and answered with PSLVERR (see #54 round_2 item 4).
+ *   0x070-0x078: Button timing, PM timer high word and comparator
+ *   0x07C-0x080: Power sequencer configuration and status
+ *   Only these twenty-four addresses decode. EVERY other address in the 4 KB
+ *   window - the 8-bit alias at 0x100 included - is dropped (write ignored,
+ *   read 0) and answered with PSLVERR (see #54 round_2 item 4).
  *
  * POWER MANAGEMENT FEATURES:
  *   - ACPI-compatible PM1 control/status
- *   - 32-bit PM Timer (~3.571 MHz at default divider; ACPI target 3.579545 MHz)
+ *   - PM Timer (~3.571 MHz at default divider; ACPI target 3.579545 MHz) with
+ *     a power-of-two prescaler, an optional 64-bit mode and a comparator
  *   - 32 GPE event sources
  *   - 32 clock gate controls
- *   - 8 power domain controls
+ *   - 8 power domain controls, optionally sequenced one rail at a time with a
+ *     programmable gap and a per-rail acknowledge
  *   - Wake event handling with a latched wake request
- *   - Power state FSM (S0/S1/S3)
+ *   - Power state FSM (S0/S1/S3/S5)
  *
  * ASYNCHRONOUS DEVICE PINS:
  *   gpe_events, power_button_n, sleep_button_n, rtc_alarm and ext_wake_n are
@@ -133,6 +137,10 @@ module apb4_pm_acpi #(
 
     // Power domain outputs (to power switches)
     output logic [7:0]              power_domain_en,
+    // Per-rail acknowledge from the power switches. Bit N reports the level
+    // rail N has actually reached. Only consulted when the sequencer is
+    // enabled with PWR_SEQ_CONFIG.seq_ack_enable; tie high otherwise.
+    input  logic [7:0]              power_domain_ack,
 
     // Reset request outputs (one pm_clk pulse per RESET_CTRL write)
     output logic                    sys_reset_req,
@@ -171,6 +179,12 @@ module apb4_pm_acpi #(
     logic [3:0]  w_cfg_timer_prescale;
     logic        w_cfg_timer_64bit;
     logic [31:0] w_cfg_timer_match;
+    logic        w_cfg_seq_enable;
+    logic        w_cfg_seq_ack_enable;
+    logic [15:0] w_cfg_seq_delay;
+    logic        w_status_seq_busy;
+    logic [2:0]  w_status_seq_index;
+    logic        w_status_seq_dir;
     logic        w_pm_timer_value_read;
     logic [31:0] w_status_pm_timer_value_hi;
     logic [4:0]  w_cfg_long_press_shift;
@@ -341,6 +355,12 @@ module apb4_pm_acpi #(
         .cfg_timer_prescale       (w_cfg_timer_prescale),
         .cfg_timer_64bit          (w_cfg_timer_64bit),
         .cfg_timer_match          (w_cfg_timer_match),
+        .cfg_seq_enable           (w_cfg_seq_enable),
+        .cfg_seq_ack_enable       (w_cfg_seq_ack_enable),
+        .cfg_seq_delay            (w_cfg_seq_delay),
+        .status_seq_busy          (w_status_seq_busy),
+        .status_seq_index         (w_status_seq_index),
+        .status_seq_dir           (w_status_seq_dir),
         .pm_timer_value_read      (w_pm_timer_value_read),
         .status_pm_timer_value_hi (w_status_pm_timer_value_hi),
         .cfg_long_press_shift     (w_cfg_long_press_shift),
@@ -455,6 +475,12 @@ module apb4_pm_acpi #(
         .cfg_timer_prescale   (w_cfg_timer_prescale),
         .cfg_timer_64bit      (w_cfg_timer_64bit),
         .cfg_timer_match      (w_cfg_timer_match),
+        .cfg_seq_enable       (w_cfg_seq_enable),
+        .cfg_seq_ack_enable   (w_cfg_seq_ack_enable),
+        .cfg_seq_delay        (w_cfg_seq_delay),
+        .status_seq_busy      (w_status_seq_busy),
+        .status_seq_index     (w_status_seq_index),
+        .status_seq_dir       (w_status_seq_dir),
         .pm_timer_value_read  (w_pm_timer_value_read),
         .status_pm_timer_value_hi (w_status_pm_timer_value_hi),
         .cfg_long_press_shift (w_cfg_long_press_shift),
@@ -466,6 +492,7 @@ module apb4_pm_acpi #(
         .ext_reset_n          (ext_reset_n),
         .clock_gate_en        (clock_gate_en),
         .power_domain_en      (power_domain_en),
+        .power_domain_ack     (power_domain_ack),
         .sys_reset_req        (sys_reset_req),
         .periph_reset_req     (periph_reset_req),
         .pm_interrupt         (pm_interrupt)

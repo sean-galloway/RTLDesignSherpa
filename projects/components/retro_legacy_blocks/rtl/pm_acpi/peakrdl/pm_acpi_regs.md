@@ -8,7 +8,7 @@ Don't override. Generated from: $root
 
 - Absolute Address: 0x0
 - Base Offset: 0x0
-- Size: 0x7C
+- Size: 0x84
 
 <p>ACPI-compatible power management controller with clock gating and GPE support</p>
 
@@ -38,6 +38,8 @@ Don't override. Generated from: $root
 | 0x70 |   BUTTON_TIMING   |         Button Timing         |
 | 0x74 | PM_TIMER_VALUE_HI |      PM Timer Value High      |
 | 0x78 |   PM_TIMER_MATCH  |         PM Timer Match        |
+| 0x7C |   PWR_SEQ_CONFIG  | Power Sequencer Configuration |
+| 0x80 |   PWR_SEQ_STATUS  |     Power Sequencer Status    |
 
 ### ACPI_CONTROL register
 
@@ -844,3 +846,78 @@ PM_TIMER_CONFIG.timer_64bit says.</p>
 #### match_value field
 
 <p>Compare value</p>
+
+### PWR_SEQ_CONFIG register
+
+- Absolute Address: 0x7C
+- Base Offset: 0x7C
+- Size: 0x4
+
+<p>Clock-gate and power-rail transitions are INSTANT unless this
+sequencer is enabled: every rail moves in the same cycle and
+the clocks move with them. That is fine in simulation and
+wrong on a board, where rail ordering is a correctness
+property. With seq_enable set, a state change walks the rails
+one at a time with a programmable gap, and the clocks are
+gated BEFORE the rails drop and ungated AFTER they come up, so
+a powered-down domain is never clocked.</p>
+<p>The walk runs from rail 7 down to rail 0 when powering down and
+from rail 0 up to rail 7 when powering up, which is the usual
+reverse-order rule. Rail 0 is the always-on domain, so in
+practice it never changes; it is walked anyway so the order is
+a property of the sequencer rather than of the rail map.</p>
+<p>Reset leaves the sequencer OFF, which is the behaviour every
+integration had before it existed.</p>
+
+| Bits|  Identifier  |Access|Reset|       Name       |
+|-----|--------------|------|-----|------------------|
+|  0  |  seq_enable  |  rw  | 0x0 | Sequencer Enable |
+|  1  |seq_ack_enable|  rw  | 0x0 |Acknowledge Enable|
+|31:16|   seq_delay  |  rw  | 0x0 | Inter-Rail Delay |
+
+#### seq_enable field
+
+<p>0 = instant transitions, 1 = walk the rails</p>
+
+#### seq_ack_enable field
+
+<p>1 = each rail step waits for the matching power_domain_ack
+bit to report the commanded level before the walk moves on.
+A rail that never acknowledges stalls the walk, which is
+the honest outcome: the rail did not come up. Software can
+see where it stalled in PWR_SEQ_STATUS. 0 = the acks are
+ignored, for integrations that do not have them.</p>
+
+#### seq_delay field
+
+<p>Core-clock cycles between one rail step and the next, and
+between the clock step and the first rail step. 0 steps
+every cycle.</p>
+
+### PWR_SEQ_STATUS register
+
+- Absolute Address: 0x80
+- Base Offset: 0x80
+- Size: 0x4
+
+<p>Where the rail walk has got to. Read this when a power state
+change does not complete: seq_busy stuck with seq_index parked
+on one rail means that rail has not acknowledged.</p>
+
+|Bits|Identifier|Access|Reset|        Name       |
+|----|----------|------|-----|-------------------|
+|  0 | seq_busy |   r  | 0x0 |   Sequencer Busy  |
+| 6:4| seq_index|   r  | 0x0 |  Sequencer Index  |
+|  8 |  seq_dir |   r  | 0x0 |Sequencer Direction|
+
+#### seq_busy field
+
+<p>A walk is in progress</p>
+
+#### seq_index field
+
+<p>The rail the walk is currently on</p>
+
+#### seq_dir field
+
+<p>1 = powering down (walking 7 to 0), 0 = powering up</p>

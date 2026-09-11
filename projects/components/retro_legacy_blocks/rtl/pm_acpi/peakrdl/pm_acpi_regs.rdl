@@ -1099,4 +1099,83 @@ addrmap pm_acpi_regs {
 
     } PM_TIMER_MATCH @ 0x078;
 
+    reg {
+        name = "Power Sequencer Configuration";
+        desc = "Clock-gate and power-rail transitions are INSTANT unless this
+                sequencer is enabled: every rail moves in the same cycle and
+                the clocks move with them. That is fine in simulation and
+                wrong on a board, where rail ordering is a correctness
+                property. With seq_enable set, a state change walks the rails
+                one at a time with a programmable gap, and the clocks are
+                gated BEFORE the rails drop and ungated AFTER they come up, so
+                a powered-down domain is never clocked.
+
+                The walk runs from rail 7 down to rail 0 when powering down and
+                from rail 0 up to rail 7 when powering up, which is the usual
+                reverse-order rule. Rail 0 is the always-on domain, so in
+                practice it never changes; it is walked anyway so the order is
+                a property of the sequencer rather than of the rail map.
+
+                Reset leaves the sequencer OFF, which is the behaviour every
+                integration had before it existed.";
+
+        field {
+            name = "Sequencer Enable";
+            desc = "0 = instant transitions, 1 = walk the rails";
+            sw = rw;
+            hw = r;
+        } seq_enable[0:0] = 1'b0;
+
+        field {
+            name = "Acknowledge Enable";
+            desc = "1 = each rail step waits for the matching power_domain_ack
+                    bit to report the commanded level before the walk moves on.
+                    A rail that never acknowledges stalls the walk, which is
+                    the honest outcome: the rail did not come up. Software can
+                    see where it stalled in PWR_SEQ_STATUS. 0 = the acks are
+                    ignored, for integrations that do not have them.";
+            sw = rw;
+            hw = r;
+        } seq_ack_enable[1:1] = 1'b0;
+
+        field {
+            name = "Inter-Rail Delay";
+            desc = "Core-clock cycles between one rail step and the next, and
+                    between the clock step and the first rail step. 0 steps
+                    every cycle.";
+            sw = rw;
+            hw = r;
+        } seq_delay[31:16] = 16'h0;
+
+    } PWR_SEQ_CONFIG @ 0x07C;
+
+    reg {
+        name = "Power Sequencer Status";
+        desc = "Where the rail walk has got to. Read this when a power state
+                change does not complete: seq_busy stuck with seq_index parked
+                on one rail means that rail has not acknowledged.";
+
+        field {
+            name = "Sequencer Busy";
+            desc = "A walk is in progress";
+            sw = r;
+            hw = w;
+        } seq_busy[0:0] = 1'b0;
+
+        field {
+            name = "Sequencer Index";
+            desc = "The rail the walk is currently on";
+            sw = r;
+            hw = w;
+        } seq_index[6:4] = 3'h0;
+
+        field {
+            name = "Sequencer Direction";
+            desc = "1 = powering down (walking 7 to 0), 0 = powering up";
+            sw = r;
+            hw = w;
+        } seq_dir[8:8] = 1'b0;
+
+    } PWR_SEQ_STATUS @ 0x080;
+
 };

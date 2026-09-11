@@ -139,8 +139,16 @@ module rlb_top #(
     input  logic                  pm_sleep_button_n,
     input  logic                  pm_rtc_alarm,
     input  logic                  pm_ext_wake_n,
+    // Reset-source pins. RESET_STATUS.wdt_reset and .ext_reset report these;
+    // tie high (inactive) if the system has no watchdog or reset button.
+    input  logic                  pm_wdt_reset_n,
+    input  logic                  pm_ext_reset_n,
     output logic [31:0]           pm_clock_gate_en,
     output logic [7:0]            pm_power_domain_en,
+    // Per-rail acknowledge from the power switches, consulted only when the
+    // rail sequencer is enabled with an acknowledge requirement. Tie high
+    // otherwise.
+    input  logic [7:0]            pm_power_domain_ack,
     output logic                  pm_sys_reset_req,
     output logic                  pm_periph_reset_req,
     output logic                  pm_interrupt,
@@ -153,6 +161,10 @@ module rlb_top #(
     output logic [7:0]            ioapic_irq_out_vector,
     output logic [7:0]            ioapic_irq_out_dest,
     output logic [2:0]            ioapic_irq_out_deliv_mode,
+    // Destination mode of the delivered message: 0 physical (APIC ID),
+    // 1 logical (a bit mask). The field was decoded in the redirection table
+    // and then dropped at the block boundary; it is forwarded now.
+    output logic                  ioapic_irq_out_dest_mode,
     input  logic                  ioapic_irq_out_ready,
     input  logic                  ioapic_eoi_in,
     input  logic [7:0]            ioapic_eoi_vector,
@@ -176,6 +188,11 @@ module rlb_top #(
     input  logic                  uart_dcd_n,
     output logic                  uart_dtr_n,
     output logic                  uart_rts_n,
+    // 16550 DMA handshake pins: RXRDY asserts when the receiver has data the
+    // DMA should collect, TXRDY when the transmitter can take more. Leave
+    // unconnected in a programmed-I/O system.
+    output logic                  uart_rxrdy_n,
+    output logic                  uart_txrdy_n,
     output logic                  uart_out1_n,
     output logic                  uart_out2_n,
     output logic                  uart_irq
@@ -595,8 +612,11 @@ module rlb_top #(
         .sleep_button_n   (pm_sleep_button_n),
         .rtc_alarm        (pm_rtc_alarm),
         .ext_wake_n       (pm_ext_wake_n),
+        .wdt_reset_n      (pm_wdt_reset_n),
+        .ext_reset_n      (pm_ext_reset_n),
         .clock_gate_en    (pm_clock_gate_en),
         .power_domain_en  (pm_power_domain_en),
+        .power_domain_ack (pm_power_domain_ack),
         .sys_reset_req    (pm_sys_reset_req),
         .periph_reset_req (pm_periph_reset_req),
         .pm_interrupt     (pm_interrupt)
@@ -626,6 +646,7 @@ module rlb_top #(
         .irq_out_vector   (ioapic_irq_out_vector),
         .irq_out_dest     (ioapic_irq_out_dest),
         .irq_out_deliv_mode (ioapic_irq_out_deliv_mode),
+        .irq_out_dest_mode  (ioapic_irq_out_dest_mode),
         .irq_out_ready    (ioapic_irq_out_ready),
         .eoi_in           (ioapic_eoi_in),
         .eoi_vector       (ioapic_eoi_vector)
@@ -687,6 +708,8 @@ module rlb_top #(
         .dcd_n         (uart_dcd_n),
         .dtr_n         (uart_dtr_n),
         .rts_n         (uart_rts_n),
+        .rxrdy_n       (uart_rxrdy_n),
+        .txrdy_n       (uart_txrdy_n),
         .out1_n        (uart_out1_n),
         .out2_n        (uart_out2_n),
         .irq           (uart_irq)

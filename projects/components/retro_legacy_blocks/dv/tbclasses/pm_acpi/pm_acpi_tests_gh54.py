@@ -65,7 +65,7 @@ bug in it.
      pulses - the opposite failure mode from the GPE term, which never
      deasserted at all.
   7. Only the 21 mapped registers are software-visible in the 4KB APB
-     window; everything else (including the 7-bit alias at 0x080, which
+     window; everything else (including the 8-bit alias at 0x100, which
      hits ACPI_CONTROL) is dropped - write ignored, read 0 - with PSLVERR.
      History: round_2 item 4 - `pm_acpi_config_regs` connected
      `regblk_addr[8:0]` (9 bits) to `pm_acpi_regs`'s 7-bit `s_cpuif_addr`
@@ -679,11 +679,16 @@ class PMACPIGH54Tests:
     # ------------------------------------------------------------------
 
     async def test_gh54_address_alias_dropped_with_pslverr(self) -> bool:
-        """Only the 21 mapped registers are software-visible. Every other
-        address in the 4KB window - including the 7-bit alias at 0x080
-        (which today hits ACPI_CONTROL) - must be dropped (write ignored,
-        read 0) with PSLVERR, the same policy already used by
-        ioapic/pic_8259/pit_8254."""
+        """Only the mapped registers are software-visible. Every other address
+        in the 4KB window - including the alias at 0x100 (which would hit
+        ACPI_CONTROL if the decode looked at only the low eight bits) - must be
+        dropped (write ignored, read 0) with PSLVERR, the same policy already
+        used by ioapic/pic_8259/pit_8254.
+
+        The alias used to be 0x080, back when the map fitted in seven address
+        bits. PWR_SEQ_STATUS moved the top of the map to 0x080 (RLB-009), so
+        the decode is eight bits wide now and the first alias of ACPI_CONTROL
+        sits one bit further up."""
         self.log.info("Test: GH54-7 address decode aliasing / PSLVERR")
         try:
             await self._clean_slate()
@@ -695,36 +700,36 @@ class PMACPIGH54Tests:
                                           PMACPIRegisterMap.CONTROL_ACPI_ENABLE)
             await ClockCycles(self.tb.pclk, 5)
 
-            # Read the alias: 0x080 & 0x7F == 0x000 == ACPI_CONTROL.
-            read_pkt, data = await self.tb.read_register(0x080)
+            # Read the alias: 0x100 & 0xFF == 0x000 == ACPI_CONTROL.
+            read_pkt, data = await self.tb.read_register(0x100)
             assert getattr(read_pkt, 'pslverr', 0) == 1, (
-                "read from unmapped alias 0x080 (aliases ACPI_CONTROL via the "
-                "7-bit PADDR[6:0] decode) did not raise PSLVERR (GH#54 round_2 "
+                "read from unmapped alias 0x100 (aliases ACPI_CONTROL via the "
+                "8-bit PADDR[7:0] decode) did not raise PSLVERR (GH#54 round_2 "
                 "item 4: cpuif_rd_err/readback_err is tied to 0 in the "
                 "generated regblock)"
             )
             assert data == 0, (
-                f"read from unmapped alias 0x080 returned 0x{data:08x} "
+                f"read from unmapped alias 0x100 returned 0x{data:08x} "
                 f"(ACPI_CONTROL's live value), expected 0 (dropped, not "
                 f"aliased through to ACPI_CONTROL)"
             )
 
             # Write the alias with a value that would clear acpi_enable if
             # it lands on the real ACPI_CONTROL - must NOT actually happen.
-            write_pkt = await self.tb.write_register(0x080, 0x00000000)
+            write_pkt = await self.tb.write_register(0x100, 0x00000000)
             assert getattr(write_pkt, 'pslverr', 0) == 1, (
-                "write to unmapped alias 0x080 did not raise PSLVERR"
+                "write to unmapped alias 0x100 did not raise PSLVERR"
             )
             await ClockCycles(self.tb.pclk, 5)
             _, control = await self.tb.read_register(PMACPIRegisterMap.ACPI_CONTROL)
             assert control & PMACPIRegisterMap.CONTROL_ACPI_ENABLE, (
-                "write to unmapped alias 0x080 silently corrupted "
+                "write to unmapped alias 0x100 silently corrupted "
                 "ACPI_CONTROL.acpi_enable - the address-decode aliasing bug "
                 "let an out-of-map write reach a real register (GH#54 "
                 "round_2 item 4)"
             )
 
-            self.log.info("PASS: address alias 0x080 dropped with PSLVERR")
+            self.log.info("PASS: address alias 0x100 dropped with PSLVERR")
             return True
         except AssertionError as e:
             self.log.error(f"GH54-7 FAILED: {e}")

@@ -7,7 +7,7 @@ module pm_acpi_regs (
 
         input wire s_cpuif_req,
         input wire s_cpuif_req_is_wr,
-        input wire [6:0] s_cpuif_addr,
+        input wire [7:0] s_cpuif_addr,
         input wire [31:0] s_cpuif_wr_data,
         input wire [31:0] s_cpuif_wr_biten,
         output wire s_cpuif_req_stall_wr,
@@ -27,7 +27,7 @@ module pm_acpi_regs (
     //--------------------------------------------------------------------------
     logic cpuif_req;
     logic cpuif_req_is_wr;
-    logic [6:0] cpuif_addr;
+    logic [7:0] cpuif_addr;
     logic [31:0] cpuif_wr_data;
     logic [31:0] cpuif_wr_biten;
     logic cpuif_req_stall_wr;
@@ -90,6 +90,8 @@ module pm_acpi_regs (
         logic BUTTON_TIMING;
         logic PM_TIMER_VALUE_HI;
         logic PM_TIMER_MATCH;
+        logic PWR_SEQ_CONFIG;
+        logic PWR_SEQ_STATUS;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
     logic decoded_req;
@@ -98,30 +100,32 @@ module pm_acpi_regs (
     logic [31:0] decoded_wr_biten;
 
     always_comb begin
-        decoded_reg_strb.ACPI_CONTROL = cpuif_req_masked & (cpuif_addr == 7'h0);
-        decoded_reg_strb.ACPI_STATUS = cpuif_req_masked & (cpuif_addr == 7'h4);
-        decoded_reg_strb.ACPI_INT_ENABLE = cpuif_req_masked & (cpuif_addr == 7'h8);
-        decoded_reg_strb.ACPI_INT_STATUS = cpuif_req_masked & (cpuif_addr == 7'hc);
-        decoded_reg_strb.PM1_CONTROL = cpuif_req_masked & (cpuif_addr == 7'h10);
-        decoded_reg_strb.PM1_STATUS = cpuif_req_masked & (cpuif_addr == 7'h14);
-        decoded_reg_strb.PM1_ENABLE = cpuif_req_masked & (cpuif_addr == 7'h18);
-        decoded_reg_strb.PM_TIMER_VALUE = cpuif_req_masked & (cpuif_addr == 7'h20);
-        decoded_reg_strb.PM_TIMER_CONFIG = cpuif_req_masked & (cpuif_addr == 7'h24);
-        decoded_reg_strb.GPE0_STATUS_LO = cpuif_req_masked & (cpuif_addr == 7'h30);
-        decoded_reg_strb.GPE0_STATUS_HI = cpuif_req_masked & (cpuif_addr == 7'h34);
-        decoded_reg_strb.GPE0_ENABLE_LO = cpuif_req_masked & (cpuif_addr == 7'h38);
-        decoded_reg_strb.GPE0_ENABLE_HI = cpuif_req_masked & (cpuif_addr == 7'h3c);
-        decoded_reg_strb.CLOCK_GATE_CTRL = cpuif_req_masked & (cpuif_addr == 7'h50);
-        decoded_reg_strb.CLOCK_GATE_STATUS = cpuif_req_masked & (cpuif_addr == 7'h54);
-        decoded_reg_strb.POWER_DOMAIN_CTRL = cpuif_req_masked & (cpuif_addr == 7'h58);
-        decoded_reg_strb.POWER_DOMAIN_STATUS = cpuif_req_masked & (cpuif_addr == 7'h5c);
-        decoded_reg_strb.WAKE_STATUS = cpuif_req_masked & (cpuif_addr == 7'h60);
-        decoded_reg_strb.WAKE_ENABLE = cpuif_req_masked & (cpuif_addr == 7'h64);
-        decoded_reg_strb.RESET_CTRL = cpuif_req_masked & (cpuif_addr == 7'h68);
-        decoded_reg_strb.RESET_STATUS = cpuif_req_masked & (cpuif_addr == 7'h6c);
-        decoded_reg_strb.BUTTON_TIMING = cpuif_req_masked & (cpuif_addr == 7'h70);
-        decoded_reg_strb.PM_TIMER_VALUE_HI = cpuif_req_masked & (cpuif_addr == 7'h74);
-        decoded_reg_strb.PM_TIMER_MATCH = cpuif_req_masked & (cpuif_addr == 7'h78);
+        decoded_reg_strb.ACPI_CONTROL = cpuif_req_masked & (cpuif_addr == 8'h0);
+        decoded_reg_strb.ACPI_STATUS = cpuif_req_masked & (cpuif_addr == 8'h4);
+        decoded_reg_strb.ACPI_INT_ENABLE = cpuif_req_masked & (cpuif_addr == 8'h8);
+        decoded_reg_strb.ACPI_INT_STATUS = cpuif_req_masked & (cpuif_addr == 8'hc);
+        decoded_reg_strb.PM1_CONTROL = cpuif_req_masked & (cpuif_addr == 8'h10);
+        decoded_reg_strb.PM1_STATUS = cpuif_req_masked & (cpuif_addr == 8'h14);
+        decoded_reg_strb.PM1_ENABLE = cpuif_req_masked & (cpuif_addr == 8'h18);
+        decoded_reg_strb.PM_TIMER_VALUE = cpuif_req_masked & (cpuif_addr == 8'h20);
+        decoded_reg_strb.PM_TIMER_CONFIG = cpuif_req_masked & (cpuif_addr == 8'h24);
+        decoded_reg_strb.GPE0_STATUS_LO = cpuif_req_masked & (cpuif_addr == 8'h30);
+        decoded_reg_strb.GPE0_STATUS_HI = cpuif_req_masked & (cpuif_addr == 8'h34);
+        decoded_reg_strb.GPE0_ENABLE_LO = cpuif_req_masked & (cpuif_addr == 8'h38);
+        decoded_reg_strb.GPE0_ENABLE_HI = cpuif_req_masked & (cpuif_addr == 8'h3c);
+        decoded_reg_strb.CLOCK_GATE_CTRL = cpuif_req_masked & (cpuif_addr == 8'h50);
+        decoded_reg_strb.CLOCK_GATE_STATUS = cpuif_req_masked & (cpuif_addr == 8'h54);
+        decoded_reg_strb.POWER_DOMAIN_CTRL = cpuif_req_masked & (cpuif_addr == 8'h58);
+        decoded_reg_strb.POWER_DOMAIN_STATUS = cpuif_req_masked & (cpuif_addr == 8'h5c);
+        decoded_reg_strb.WAKE_STATUS = cpuif_req_masked & (cpuif_addr == 8'h60);
+        decoded_reg_strb.WAKE_ENABLE = cpuif_req_masked & (cpuif_addr == 8'h64);
+        decoded_reg_strb.RESET_CTRL = cpuif_req_masked & (cpuif_addr == 8'h68);
+        decoded_reg_strb.RESET_STATUS = cpuif_req_masked & (cpuif_addr == 8'h6c);
+        decoded_reg_strb.BUTTON_TIMING = cpuif_req_masked & (cpuif_addr == 8'h70);
+        decoded_reg_strb.PM_TIMER_VALUE_HI = cpuif_req_masked & (cpuif_addr == 8'h74);
+        decoded_reg_strb.PM_TIMER_MATCH = cpuif_req_masked & (cpuif_addr == 8'h78);
+        decoded_reg_strb.PWR_SEQ_CONFIG = cpuif_req_masked & (cpuif_addr == 8'h7c);
+        decoded_reg_strb.PWR_SEQ_STATUS = cpuif_req_masked & (cpuif_addr == 8'h80);
     end
 
     // Pass down signals to next stage
@@ -408,6 +412,20 @@ module pm_acpi_regs (
                 logic load_next;
             } match_value;
         } PM_TIMER_MATCH;
+        struct {
+            struct {
+                logic next;
+                logic load_next;
+            } seq_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } seq_ack_enable;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } seq_delay;
+        } PWR_SEQ_CONFIG;
     } field_combo_t;
     field_combo_t field_combo;
 
@@ -627,6 +645,17 @@ module pm_acpi_regs (
                 logic [31:0] value;
             } match_value;
         } PM_TIMER_MATCH;
+        struct {
+            struct {
+                logic value;
+            } seq_enable;
+            struct {
+                logic value;
+            } seq_ack_enable;
+            struct {
+                logic [15:0] value;
+            } seq_delay;
+        } PWR_SEQ_CONFIG;
     } field_storage_t;
     field_storage_t field_storage;
 
@@ -2066,6 +2095,75 @@ module pm_acpi_regs (
         end
     end
     assign hwif_out.PM_TIMER_MATCH.match_value.value = field_storage.PM_TIMER_MATCH.match_value.value;
+    // Field: pm_acpi_regs.PWR_SEQ_CONFIG.seq_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PWR_SEQ_CONFIG.seq_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PWR_SEQ_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PWR_SEQ_CONFIG.seq_enable.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end
+        field_combo.PWR_SEQ_CONFIG.seq_enable.next = next_c;
+        field_combo.PWR_SEQ_CONFIG.seq_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PWR_SEQ_CONFIG.seq_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.PWR_SEQ_CONFIG.seq_enable.load_next) begin
+                field_storage.PWR_SEQ_CONFIG.seq_enable.value <= field_combo.PWR_SEQ_CONFIG.seq_enable.next;
+            end
+        end
+    end
+    assign hwif_out.PWR_SEQ_CONFIG.seq_enable.value = field_storage.PWR_SEQ_CONFIG.seq_enable.value;
+    // Field: pm_acpi_regs.PWR_SEQ_CONFIG.seq_ack_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PWR_SEQ_CONFIG.seq_ack_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PWR_SEQ_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PWR_SEQ_CONFIG.seq_ack_enable.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end
+        field_combo.PWR_SEQ_CONFIG.seq_ack_enable.next = next_c;
+        field_combo.PWR_SEQ_CONFIG.seq_ack_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PWR_SEQ_CONFIG.seq_ack_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.PWR_SEQ_CONFIG.seq_ack_enable.load_next) begin
+                field_storage.PWR_SEQ_CONFIG.seq_ack_enable.value <= field_combo.PWR_SEQ_CONFIG.seq_ack_enable.next;
+            end
+        end
+    end
+    assign hwif_out.PWR_SEQ_CONFIG.seq_ack_enable.value = field_storage.PWR_SEQ_CONFIG.seq_ack_enable.value;
+    // Field: pm_acpi_regs.PWR_SEQ_CONFIG.seq_delay
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PWR_SEQ_CONFIG.seq_delay.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PWR_SEQ_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PWR_SEQ_CONFIG.seq_delay.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.PWR_SEQ_CONFIG.seq_delay.next = next_c;
+        field_combo.PWR_SEQ_CONFIG.seq_delay.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PWR_SEQ_CONFIG.seq_delay.value <= 16'h0;
+        end else begin
+            if(field_combo.PWR_SEQ_CONFIG.seq_delay.load_next) begin
+                field_storage.PWR_SEQ_CONFIG.seq_delay.value <= field_combo.PWR_SEQ_CONFIG.seq_delay.next;
+            end
+        end
+    end
+    assign hwif_out.PWR_SEQ_CONFIG.seq_delay.value = field_storage.PWR_SEQ_CONFIG.seq_delay.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -2083,7 +2181,7 @@ module pm_acpi_regs (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[24];
+    logic [31:0] readback_array[26];
     assign readback_array[0][0:0] = (decoded_reg_strb.ACPI_CONTROL && !decoded_req_is_wr) ? field_storage.ACPI_CONTROL.acpi_enable.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.ACPI_CONTROL && !decoded_req_is_wr) ? field_storage.ACPI_CONTROL.pm_timer_enable.value : '0;
     assign readback_array[0][2:2] = (decoded_reg_strb.ACPI_CONTROL && !decoded_req_is_wr) ? field_storage.ACPI_CONTROL.gpe_enable.value : '0;
@@ -2173,6 +2271,16 @@ module pm_acpi_regs (
     assign readback_array[21][31:29] = '0;
     assign readback_array[22][31:0] = (decoded_reg_strb.PM_TIMER_VALUE_HI && !decoded_req_is_wr) ? hwif_in.PM_TIMER_VALUE_HI.value_hi.next : '0;
     assign readback_array[23][31:0] = (decoded_reg_strb.PM_TIMER_MATCH && !decoded_req_is_wr) ? field_storage.PM_TIMER_MATCH.match_value.value : '0;
+    assign readback_array[24][0:0] = (decoded_reg_strb.PWR_SEQ_CONFIG && !decoded_req_is_wr) ? field_storage.PWR_SEQ_CONFIG.seq_enable.value : '0;
+    assign readback_array[24][1:1] = (decoded_reg_strb.PWR_SEQ_CONFIG && !decoded_req_is_wr) ? field_storage.PWR_SEQ_CONFIG.seq_ack_enable.value : '0;
+    assign readback_array[24][15:2] = '0;
+    assign readback_array[24][31:16] = (decoded_reg_strb.PWR_SEQ_CONFIG && !decoded_req_is_wr) ? field_storage.PWR_SEQ_CONFIG.seq_delay.value : '0;
+    assign readback_array[25][0:0] = (decoded_reg_strb.PWR_SEQ_STATUS && !decoded_req_is_wr) ? hwif_in.PWR_SEQ_STATUS.seq_busy.next : '0;
+    assign readback_array[25][3:1] = '0;
+    assign readback_array[25][6:4] = (decoded_reg_strb.PWR_SEQ_STATUS && !decoded_req_is_wr) ? hwif_in.PWR_SEQ_STATUS.seq_index.next : '0;
+    assign readback_array[25][7:7] = '0;
+    assign readback_array[25][8:8] = (decoded_reg_strb.PWR_SEQ_STATUS && !decoded_req_is_wr) ? hwif_in.PWR_SEQ_STATUS.seq_dir.next : '0;
+    assign readback_array[25][31:9] = '0;
 
     // Reduce the array
     always_comb begin
@@ -2180,7 +2288,7 @@ module pm_acpi_regs (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<24; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<26; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 
