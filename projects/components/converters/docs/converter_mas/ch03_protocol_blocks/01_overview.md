@@ -55,6 +55,7 @@ Protocol converters bridge components that speak different bus protocols — the
 | peakrdl_to_cmdrsp | Register interface adapter | Production |
 | uart_axil_bridge | UART to AXI4-Lite | Implemented (`rtl/uart_to_axil4/`, `dv/tests/test_uart_axil_bridge.py`) |
 | axil4_to_wb4 | AXI4-Lite to Wishbone B4 (pipelined or classic) | Implemented (`dv/tests/test_axil4_to_wb4.py`, formal on the core) |
+| wb4_to_axil4 | Wishbone B4 to AXI4-Lite; merges AXI's two response channels back into B4's in-order termination | Implemented (`dv/tests/test_wb4_to_axil4.py`, formal on the core) |
 
 : Table 3.3: Other Protocol Converters
 
