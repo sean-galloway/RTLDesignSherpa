@@ -1289,6 +1289,67 @@ def _sc_glabel(bits):
     return "".join(str(b) for b in bits)
 
 
+
+def _prime_implicants(n, ones, dcs):
+    """Quine-McCluskey. Returns cubes as tuples of 0/1/None per variable.
+
+    Don't-cares are allowed INTO an implicant but never need covering -- which
+    is the whole point of marking unreachable cells as X rather than 0: a 0
+    there would force the cover to work around a state the hardware cannot be
+    in, and the implicant list would not match the RTL.
+    """
+    terms = sorted(set(ones) | set(dcs))
+    if not terms:
+        return []
+    cubes = {(tuple((t >> (n - 1 - i)) & 1 for i in range(n))) for t in terms}
+    primes = set()
+    while cubes:
+        merged, used = set(), set()
+        key = lambda c: tuple(-1 if v is None else v for v in c)
+        cl = sorted(cubes, key=key)
+        for i in range(len(cl)):
+            for j in range(i + 1, len(cl)):
+                a, b = cl[i], cl[j]
+                diff = [k for k in range(n) if a[k] != b[k]]
+                if len(diff) == 1 and all(
+                        (a[k] is None) == (b[k] is None) for k in range(n)):
+                    k = diff[0]
+                    if a[k] is None or b[k] is None:
+                        continue
+                    new = list(a)
+                    new[k] = None
+                    merged.add(tuple(new))
+                    used.add(a)
+                    used.add(b)
+        primes |= (cubes - used)
+        cubes = merged
+    # keep only primes needed to cover the ONE-set
+    def covers(cube, m):
+        bits = tuple((m >> (n - 1 - i)) & 1 for i in range(n))
+        return all(c is None or c == b for c, b in zip(cube, bits))
+    need, chosen = set(ones), []
+    for cube in sorted(primes, key=lambda c: (sum(x is not None for x in c),
+                                              tuple(-1 if v is None else v for v in c))):
+        hit = {m for m in need if covers(cube, m)}
+        if hit:
+            chosen.append(cube)
+            need -= hit
+        if not need:
+            break
+    return chosen
+
+
+def _sop(cubes, names):
+    if not cubes:
+        return "0  (never asserted)"
+    out = []
+    for c in cubes:
+        lits = [(names[i] if v else "!" + names[i])
+                for i, v in enumerate(c) if v is not None]
+        out.append(" & ".join(lits) if lits else "1")
+    return "  |  ".join(out)
+
+
 class ScKmapWriter:
     def __init__(self, ws):
         self.ws = ws
@@ -1305,7 +1366,7 @@ class ScKmapWriter:
         self.row += 1
 
     def kmap(self, name, source, expr, varnames, fn, check, values=None,
-             relations=None):
+             relations=None, axis_eqs=None):
         """One K-map block. varnames: MSB-first list (2..6). fn(*bits)->0/1
         (or a short string when `values` mapping is wanted). Pages over
         varnames[4:].
@@ -1337,7 +1398,23 @@ class ScKmapWriter:
         self.row += 1
 
         # ---- relations: why whole regions of the grid are skipped ----------
+        # ---- axis terms: each axis its OWN equation + citation (criterion 3)
+        if axis_eqs:
+            c = ws.cell(self.row, 1, "AXIS TERMS -- each axis is itself a "
+                                     "signal, with its own equation:")
+            c.font = SC_HDR
+            self.row += 1
+            for axis, eq, cite in axis_eqs:
+                ws.cell(self.row, 1, "    " + axis).font = SC_MONO
+                ws.cell(self.row, 2, eq).alignment = SC_WRAP
+                ws.cell(self.row, 4, cite).font = SC_MONO
+                self.row += 1
+
         rels = relations or []
+        # a relation with no predicate is an INDEPENDENCE note: the pair was
+        # examined and is genuinely unconstrained. Saying so is part of the
+        # sufficiency argument; silence is not.
+        constraining = [r for r in rels if r[1] is not None]
         if rels:
             c = ws.cell(self.row, 1,
                         "RELATIONS between axis signals (these make cells "
@@ -1345,7 +1422,8 @@ class ScKmapWriter:
             c.font = SC_HDR; c.alignment = SC_WRAP
             self.row += 1
             for text, _pred, cite in rels:
-                c = ws.cell(self.row, 1, "    " + text)
+                mark = "    " if _pred is not None else "    (independent) "
+                c = ws.cell(self.row, 1, mark + text)
                 c.alignment = SC_WRAP
                 ws.cell(self.row, 4, cite).font = SC_MONO
                 self.row += 1
@@ -1358,7 +1436,7 @@ class ScKmapWriter:
             self.row += 1
 
         def _reachable(bits):
-            return all(bool(pred(*bits)) for _t, pred, _c in rels)
+            return all(bool(pred(*bits)) for _t, pred, _c in constraining)
 
         ws.cell(self.row, 1, f"CHECK BY INSPECTION: {check}").alignment = SC_WRAP
         ws.cell(self.row, 1).font = Font(italic=True)
@@ -1374,6 +1452,7 @@ class ScKmapWriter:
 
         n_dc = 0
         n_tot = len(rows) * len(cols) * len(pages)
+        ones, dcs = [], []          # minterms for the implicant derivation
         for page in pages:
             base = self.row
             if pagev:
@@ -1392,13 +1471,19 @@ class ScKmapWriter:
                 for j, cb in enumerate(cols):
                     bits = tuple(rb) + tuple(cb) + tuple(page)
                     cell = ws.cell(base + 1 + i, 2 + j)
+                    idx = 0
+                    for bit in bits:
+                        idx = (idx << 1) | int(bool(bit))
                     if not _reachable(bits):
+                        dcs.append(idx)
                         cell.value = "X"
                         cell.fill = SC_DC
                         cell.font = Font(italic=True)
                         n_dc += 1
                     else:
                         v = fn(*bits)
+                        if not values and bool(v):
+                            ones.append(idx)
                         if values:                    # multi-valued map
                             cell.value = values.get(v, str(v))
                             benign = str(v) in ("0", "-", "wait", "hold", "IDLE")
@@ -1409,11 +1494,28 @@ class ScKmapWriter:
                     cell.alignment = SC_CENTER
                     cell.border = SC_THIN
             self.row = base + 1 + len(rows) + 1
-        if rels:
+        if constraining:
             c = ws.cell(self.row, 1,
                         f"cells: {n_tot - n_dc} reachable, {n_dc} don't-care "
                         f"(X) of {n_tot}. Read the CHECK over the reachable "
                         f"cells only.")
+            c.font = Font(italic=True); c.alignment = SC_WRAP
+            self.row += 1
+
+        # ---- implicants derived from the grid (criterion 6) ---------------
+        if not values and n == len(varnames):
+            cubes = _prime_implicants(n, ones, dcs)
+            c = ws.cell(self.row, 1, "IMPLICANTS (derived from the cells above, "
+                                     "don't-cares used where they help):")
+            c.font = SC_HDR; c.alignment = SC_WRAP
+            self.row += 1
+            ws.cell(self.row, 1, "    " + _sop(cubes, varnames)).font = SC_MONO
+            self.row += 1
+            c = ws.cell(self.row, 1,
+                        "    Compare against the documented equation above. A "
+                        "difference means the grid and the RTL expression "
+                        "disagree -- one of them is wrong, and the cells are "
+                        "computed, so it is the equation.")
             c.font = Font(italic=True); c.alignment = SC_WRAP
             self.row += 1
         self.row += 1
@@ -1471,7 +1573,25 @@ def build_arbiter_sheet(wb):
         "grant=1 page is all-zero because a REF already granted this cycle "
         "must not re-arm). Any additional 1 is a hole that lets REFab "
         "collide with an open/opening row or violate tRFC (the silicon "
-        "row-corruption bug class).")
+        "row-corruption bug class).",
+        relations=[
+            ("guards_nz and inflight_preact overlap in meaning but not in "
+             "value: a pick in flight sets a guard only from the NEXT cycle, "
+             "so all four combinations occur.",
+             None,
+             "pumice_cmd_arbiter.sv (r_guard0/1 are registered off the pick)"),
+        ],
+        axis_eqs=[
+            ("any_active", "|r_bank_row_active[RK0]", "pumice_cmd_arbiter.sv:1052"),
+            ("inflight_preact", "r_pick_valid && (r_do_act || r_do_pre)",
+             "pumice_cmd_arbiter.sv:302"),
+            ("guards_nz", "(r_guard0 != '0) || (r_guard1 != '0)",
+             "pumice_cmd_arbiter.sv (guard stages)"),
+            ("rfc_busy", "w_rfc_busy -- r_rfc_cnt != 0, reloaded on each fired REF",
+             "pumice_cmd_arbiter.sv"),
+            ("grant", "r_grant -- a REF was granted this cycle",
+             "pumice_cmd_arbiter.sv"),
+        ])
 
     # 2. refresh branch action (multi-valued)
     km.kmap(
@@ -1485,7 +1605,27 @@ def build_arbiter_sheet(wb):
         "REF appears ONLY where any_active=0 AND ref_safe=1. PRE only where "
         "any_active=1 AND pre_found=1. Everything else waits (the branch "
         "never falls through to column/ACT picks).",
-        values={})
+        values={},
+        relations=[
+            ("ref_safe => !any_active. w_ref_safe is literally ANDed with "
+             "!w_any_active, so the two cannot both be 1 -- half this grid "
+             "cannot occur.",
+             lambda a, f, sfe: (not sfe) or (not a),
+             "pumice_cmd_arbiter.sv (w_ref_safe = !w_any_active && ...)"),
+            ("rfsh_pre_found => any_active. The search only sets it for a bank "
+             "with r_bank_row_active[j] high, so 'a bank to precharge exists' "
+             "implies 'a row is open'.",
+             lambda a, f, sfe: (not f) or a,
+             "pumice_cmd_arbiter.sv:1054-1058"),
+        ],
+        axis_eqs=[
+            ("any_active", "|r_bank_row_active[RK0]", "pumice_cmd_arbiter.sv:1052"),
+            ("rfsh_pre_found", "any j with r_bank_row_active[j] && "
+             "r_bank_pre_ready[j] && !w_guarded[j]",
+             "pumice_cmd_arbiter.sv:1054-1058"),
+            ("ref_safe", "w_ref_safe -- see its own map above",
+             "pumice_cmd_arbiter.sv (refresh pick gate)"),
+        ])
 
     # 3. column masks (6 vars -> 4 pages)
     km.kmap(
@@ -1506,7 +1646,28 @@ def build_arbiter_sheet(wb):
         "cell. A 1 anywhere on a col_guard=1 page would mean a RD issued "
         "through a turnaround/AP/precharge guard -- the class that produced "
         "the 471/471 concurrent-soak corruption (a RD into a write burst's "
-        "DQ occupancy on a stale flopped twtr_ok).")
+        "DQ occupancy on a stale flopped twtr_ok).",
+        relations=[
+            ("rhit and rdwr_ready both require an open row but neither implies "
+             "the other: a hit can be pending tRCD (rdwr_ready=0), and a ready "
+             "bank can hold the WRONG row (rhit=0). All four occur.",
+             None, "pumice_cmd_arbiter.sv:562-565 + bank_timer.sv:135"),
+        ],
+        axis_eqs=[
+            ("rhit", "r_bank_row_active[RK0][rb] && (row == r_bank_open_row[RK0][rb])",
+             "pumice_cmd_arbiter.sv:562-563"),
+            ("rdwr_ready", "r_bank_rdwr_ready[RK0][rb] = safe_rd_o = "
+             "r_row_valid && (r_rcd=='0) && !r_ap_pending", "bank_timer.sv:135"),
+            ("tccd_ok", "w_tccd_fwd_ok -- FORWARD tCCD at classify time, not the "
+             "flopped tccd_ok_i", "pumice_cmd_arbiter.sv:420-432"),
+            ("twtr_ok", "twtr_ok_i -- write-to-read turnaround, from global_timers",
+             "global_timers.sv"),
+            ("dbl_issue", "(f_ap(rb) && w_col_inflight_bank[rb]) | "
+             "w_rd_col_inflight_ent[e]", "pumice_cmd_arbiter.sv:361-371,383-385"),
+            ("col_guard", "r_ap_closing[rb] | w_ref_col_block[rb] | "
+             "w_rd_turn_block | w_ap_col_guard[rb] | w_pre_col_guard[rb] | "
+             "w_preact_bank_guard[rb]", "pumice_cmd_arbiter.sv:574-580"),
+        ])
     km.kmap(
         "wr_col_m[e]  (given wr_sch_valid_i[e] && wr_commit_ready)",
         "pumice_cmd_arbiter.sv (classify + direction guard)",
@@ -1521,7 +1682,13 @@ def build_arbiter_sheet(wb):
          "dbl_issue", "col_guard"],
         lambda h, r, c, t, f, b: h and r and c and t and (not f) and (not b),
         "Exact mirror of rd_col_m with the write-side turnaround (trtw) and "
-        "commit-ready: 1s only on [dbl_issue=0, col_guard=0].")
+        "commit-ready: 1s only on [dbl_issue=0, col_guard=0].",
+        relations=[
+            ("dbl_issue and col_guard are independent: the first is "
+             "double-issue prevention for THIS entry/bank, the second folds "
+             "turnaround, AP and precharge guards. Either can hold alone.",
+             None, "pumice_cmd_arbiter.sv:581-587"),
+        ])
     km.kmap(
         "w_rd_turn_block / w_wr_turn_block",
         "pumice_cmd_arbiter.sv (direction-turnaround guard)",
@@ -1533,7 +1700,13 @@ def build_arbiter_sheet(wb):
         lambda f0, f1: f0 or f1,
         "Zero ONLY at (0,0). The guard is direction-CROSSED: a fired WR "
         "blocks RD picks and vice versa; same-direction pacing stays with "
-        "tCCD. If either 1-cell reads 0, the turnaround hole is back.")
+        "tCCD. If either 1-cell reads 0, the turnaround hole is back.",
+        relations=[
+            ("The two fire flags are consecutive pipeline stages of the same "
+             "event, so all four combinations occur as a fired column walks "
+             "through: 01 means 'fired last cycle', 11 'two back to back'.",
+             None, "pumice_cmd_arbiter.sv (r_wrfire0/r_wrfire1)"),
+        ])
 
     # 4. activate masks (6 vars)
     km.kmap(
@@ -1549,7 +1722,14 @@ def build_arbiter_sheet(wb):
         "1s ONLY on the page [trrd_ok=1, rfc_busy=0], single cell "
         "(row_active=0, guarded=0, act_ready=1, tfaw_ok=1). ANY 1 on an "
         "rfc_busy=1 page = ACT during refresh recovery — the silicon "
-        "row-corruption bug the tRFC counter closes.")
+        "row-corruption bug the tRFC counter closes.",
+        relations=[
+            ("act_ready => !row_active. bank_act_ready is safe_act_o, which is "
+             "ANDed with !r_row_valid -- a bank with a row open never reports "
+             "itself ready to activate. Half the grid cannot occur.",
+             lambda ra, g, ar, tf, tr, rb: (not ar) or (not ra),
+             "bank_timer.sv:133 (safe_act_o = !r_row_valid && ...)"),
+        ])
 
     # 5. precharge masks (4 vars, clean single grid)
     km.kmap(
@@ -1590,7 +1770,24 @@ def build_arbiter_sheet(wb):
         "Zero ONLY when both guard stages are clear AND no in-flight "
         "row-affecting/column op targets this bank. Columns are included "
         "(tRTP/tWR registration lag) — if the (0,0,1,1) cell ever reads 0, "
-        "the column-guard extension was lost.")
+        "the column-guard extension was lost.",
+        relations=[
+            ("The guard stages are a shift register, so guard0/guard1 take all "
+             "four combinations as a pick moves through; bank_match is an "
+             "address compare independent of all of them.",
+             None, "pumice_cmd_arbiter.sv (guard fold)"),
+        ],
+        axis_eqs=[
+            ("guard0 / guard1", "r_guard0[b] / r_guard1[b] -- the two registered "
+             "guard stages a pick walks through",
+             "pumice_cmd_arbiter.sv (guard fold)"),
+            ("pick_guards_nz", "w_prepick_guard[b] | w_col_inflight_guard[b]",
+             "pumice_cmd_arbiter.sv:346-350"),
+            ("inflight_rowop_or_col", "w_inflight_preact || w_inflight_col",
+             "pumice_cmd_arbiter.sv:300-302"),
+            ("bank_match", "r_bank == b -- the in-flight pick targets THIS bank",
+             "pumice_cmd_arbiter.sv"),
+        ])
 
     # 7. output stage
     km.kmap(
@@ -1603,7 +1800,13 @@ def build_arbiter_sheet(wb):
                       ("rdy" if not p else "hold")),
         "hold ONLY at (1,0) — a full cmd FIFO holds the decision; "
         "fire ONLY at (1,1). Guards/commits/grants strobe on fire alone.",
-        values={})
+        values={},
+        relations=[
+            ("pick_valid is internal; cmd_ready_i belongs to the downstream "
+             "FIFO. Nothing couples them, so all four occur -- which is what "
+             "makes the pick pipeline latency rather than a rate limit.",
+             None, "pumice_cmd_arbiter.sv (output register)"),
+        ])
 
     # 8. priority order table
     km.table(
@@ -1656,14 +1859,26 @@ def build_bank_timer_sheet(wb):
         ["row_valid", "rp==0", "rc==0"],
         lambda rv, rp0, rc0: (not rv) and rp0 and rc0,
         "Single 1-cell at (0,1,1): closed row, tRP and tRC elapsed. Any 1 "
-        "with row_valid=1 would re-ACT an open bank.")
+        "with row_valid=1 would re-ACT an open bank.",
+        relations=[
+            ("tRP counting => row closed. The PRE edge loads tRP and clears "
+             "row_valid together, so (row_valid=1, rp!=0) cannot occur.",
+             lambda rv, rp0, rc0: rp0 or (not rv),
+             "bank_timer.sv:106 + :120-123"),
+        ])
     km.kmap(
         "safe_rd_o / safe_wr_o", "bank_timer.sv:135-136",
         "safe_rd = safe_wr = r_row_valid && (r_rcd == 0) && !r_ap_pending",
         ["row_valid", "rcd==0", "ap_pending"],
         lambda rv, rcd0, ap: rv and rcd0 and (not ap),
         "Single 1-cell at (1,1,0). ap_pending=1 must kill columns — the row "
-        "is committed to auto-close.")
+        "is committed to auto-close.",
+        relations=[
+            ("tRCD counting => row open. The ACT edge loads tRCD and sets "
+             "row_valid together, so (row_valid=0, rcd!=0) cannot occur.",
+             lambda rv, rcd0, ap: rcd0 or rv,
+             "bank_timer.sv:96 + :116"),
+        ])
     km.kmap(
         "safe_pre_o", "bank_timer.sv:138",
         "safe_pre = r_row_valid && (r_ras == 0) && (r_preblk == 0) && "
@@ -1672,14 +1887,26 @@ def build_bank_timer_sheet(wb):
         lambda rv, ras0, pb0, ap: rv and ras0 and pb0 and (not ap),
         "Single 1-cell at (1,1,1,0): tRAS AND tRTP/tWR both elapsed, no "
         "auto-PRE in flight. preblk covers the read-to-PRE / write-recovery "
-        "window the arbiter cannot see per-command.")
+        "window the arbiter cannot see per-command.",
+        relations=[
+            ("tRAS counting => row open. tRAS loads on the ACT edge that sets "
+             "row_valid, so (row_valid=0, ras!=0) cannot occur.",
+             lambda rv, ras0, pb0, ap: ras0 or rv,
+             "bank_timer.sv (set_act_i -> r_ras) + :116"),
+        ])
     km.kmap(
         "w_ap_fire (internal auto-precharge)", "bank_timer.sv:88",
         "w_ap_fire = r_ap_pending && (r_preblk == 0) && (r_ras == 0)",
         ["ap_pending", "preblk==0", "ras==0"],
         lambda ap, pb0, ras0: ap and pb0 and ras0,
         "Single 1-cell at (1,1,1). Fires exactly once: it clears ap_pending "
-        "and row_valid and loads tRP the same edge.")
+        "and row_valid and loads tRP the same edge.",
+        relations=[
+            ("ap_pending is set by an AP column while the two timers run from "
+             "the ACT and column edges, so a pending auto-precharge can sit "
+             "through any combination of them. That is the flag's purpose.",
+             None, "bank_timer.sv:88 + :115-127"),
+        ])
     km.kmap(
         "state_o (observability only)", "bank_timer.sv:144-147",
         "rv ? (rcd_nz ? ACTIVATING : ACTIVE) : (rp_nz ? PRECHARGING : IDLE)",
@@ -1740,7 +1967,14 @@ def build_refresh_sheet(wb):
         ["grant", "pend_nz"],
         lambda g, p: g and p,
         "Single 1-cell at (1,1): a grant with nothing pending is swallowed "
-        "(the accumulator never goes negative).")
+        "(the accumulator never goes negative).",
+        relations=[
+            ("grant does NOT imply pend_nz. An EARLY grant -- the scheduler "
+             "pulsing while pending is zero -- is an explicitly handled case "
+             "(w_grant_early), so the (1,0) cell is reachable and must read 0, "
+             "not X. Checked, and genuinely independent.",
+             None, "refresh_ctrl.sv:133-134"),
+        ])
     km.kmap(
         "refresh_drain_active", "refresh_ctrl.sv:126",
         "w_drain_active = (r_burst_remaining > 0) && (r_pending > 0) && "
@@ -1751,7 +1985,13 @@ def build_refresh_sheet(wb):
         "requires quota AND owed refreshes AND the REGISTERED request. The "
         "req_o term is not redundant -- a postponed backlog withholds req_o "
         "while pending is non-zero, and without this term the drain window "
-        "would open anyway and defeat the postpone credit.")
+        "would open anyway and defeat the postpone credit.",
+        relations=[
+            ("req_o does NOT follow pend_nz: a postponed backlog withholds the "
+             "registered request while pending is non-zero. That is exactly "
+             "why the term is in the equation, so all combinations occur.",
+             None, "refresh_ctrl.sv:186-192"),
+        ])
     km.table(
         "r_pending next-value", "refresh_ctrl.sv:98-108",
         ["enable && expired", "w_grant_accept", "next"],
@@ -1770,7 +2010,13 @@ def build_refresh_sheet(wb):
         lambda i, r, v, a: (not i) or r or v or a,
         "Zero ONLY at (1,0,0,0): init complete, no refresh owed, cmd FIFO "
         "empty, all rows closed. 15 of 16 cells are 1 — busy is the "
-        "OR-reduce of everything in flight.")
+        "OR-reduce of everything in flight.",
+        relations=[
+            ("cmd_rd_valid is the command FIFO's read-valid and is not gated "
+             "on init_done, and any_row_active is a registered image, so all "
+             "sixteen combinations are reachable.",
+             None, "pumice_mem_cmd_scheduler.sv:527,574"),
+        ])
     return ws
 
 
