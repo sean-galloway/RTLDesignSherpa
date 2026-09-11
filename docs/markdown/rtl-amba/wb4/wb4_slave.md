@@ -46,6 +46,7 @@ register.
 | RSP_DEPTH | int | 2 | Response queue depth in **entries**, 2..8 |
 | MAX_OUTSTANDING | int | 16 | Transfers accepted but not yet terminated before `STALL` asserts |
 | CLASSIC | int | 0 | 0 = B4 pipelined; 1 = B4 standard ("classic") mode, see the [family README](README.md). Match the peer: the modes do not mix |
+| USE_BURST_HINTS | int | 0 | 0 = the bus `CTI`/`BTE` inputs are ignored and `cmd_cti`/`cmd_bte` read CLASSIC/LINEAR; 1 = each transfer's hints are handed to the FUB with it |
 | SEL_WIDTH | int | DATA_WIDTH/8 | Byte-select width (derived) |
 
 `MAX_OUTSTANDING` bounds the FUB's in-order pipeline, not the master's: a

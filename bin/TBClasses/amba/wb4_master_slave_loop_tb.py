@@ -36,6 +36,7 @@ FlexRandomizer timing profiles.
 """
 
 import os
+import random
 from collections import deque
 
 from cocotb.triggers import RisingEdge
@@ -78,14 +79,36 @@ class WB4MasterSlaveLoopTB(TBBase):
         self.pending_rsp = deque()      # responses waiting for the responder coroutine
         self.got = deque()              # (status, dat) seen on the master's rsp queue
         self.errors = []
-        self.stats = {'sent': 0, 'slave_cmds': 0, 'responses': 0,
+        self.stats = {'sent': 0, 'slave_cmds': 0, 'eob': 0, 'responses': 0,
                       'ack': 0, 'err': 0, 'rty': 0}
 
+        # Burst hints: the DUT carries them only when built USE_BURST_HINTS=1.
+        # The TB always drives them so the pins are never X, and only checks
+        # them through when the DUT is carrying them.
+        self.burst_hints = os.environ.get('USE_BURST_HINTS', '0') == '1'
+        self._burst_left = 0
+        self._hint_rng = random.Random(0xB0157)
         self.cmd_fc = self._cmd_field_config()
         self.rsp_fc = self._rsp_field_config()
         self._create_bfms()
 
     # ---- field configs (MSB-first order matches the RTL packing) -----------
+    def _next_hint(self):
+        """Walk a plausible B4 registered-feedback pattern: runs of an
+        incrementing burst closed by an end-of-burst transfer, with classic
+        transfers between them. The blocks do not act on the hints, so the
+        pattern only has to be varied and self-describing, not legal traffic
+        for a particular slave."""
+        if not self.burst_hints:
+            return 0, 0
+        if self._burst_left > 0:
+            self._burst_left -= 1
+            return (0b111, 0b00) if self._burst_left == 0 else (0b010, 0b00)
+        if self._hint_rng.random() < 0.4:
+            self._burst_left = self._hint_rng.randint(2, 5)
+            return 0b010, self._hint_rng.choice([0b00, 0b01, 0b10, 0b11])
+        return 0b000, 0b00
+
     def _cmd_field_config(self):
         fc = FieldConfig()
         fc.add_field(FieldDefinition(name="we", bits=1, default=0, format="bin",
@@ -94,6 +117,13 @@ class WB4MasterSlaveLoopTB(TBBase):
                                      display_width=(self.AW + 3) // 4, description="address"))
         fc.add_field(FieldDefinition(name="dat", bits=self.DW, default=0, format="hex",
                                      display_width=(self.DW + 3) // 4, description="write data"))
+        # The hint fields exist on the DUT whatever USE_BURST_HINTS is, so they
+        # are always in the field config: undriven inputs would otherwise sit
+        # at X and the pass-through check would have nothing to compare.
+        fc.add_field(FieldDefinition(name="cti", bits=3, default=0, format="bin",
+                                     display_width=3))
+        fc.add_field(FieldDefinition(name="bte", bits=2, default=0, format="bin",
+                                     display_width=2))
         fc.add_field(FieldDefinition(name="sel", bits=self.SW, default=(1 << self.SW) - 1,
                                      format="bin", display_width=self.SW, description="byte select"))
         return fc
@@ -176,15 +206,25 @@ class WB4MasterSlaveLoopTB(TBBase):
 
     def _on_slave_cmd(self, pkt):
         we, adr, dat, sel = int(pkt.we), int(pkt.adr), int(pkt.dat), int(pkt.sel)
+        cti, bte = int(pkt.cti), int(pkt.bte)
         self.stats['slave_cmds'] += 1
         if not self.sent:
             self.errors.append(f"slave received a command nothing sent: we={we} adr=0x{adr:X}")
             return
         exp = self.sent.popleft()
-        if (we, adr, dat, sel) != exp:
+        if (we, adr, dat, sel) != exp[:4]:
             self.errors.append(f"command corrupted/reordered: got we={we} adr=0x{adr:X} "
                                f"dat=0x{dat:X} sel=0x{sel:X}, expected we={exp[0]} "
                                f"adr=0x{exp[1]:X} dat=0x{exp[2]:X} sel=0x{exp[3]:X}")
+        # Burst hints are advisory and neither block acts on them, but they
+        # must arrive with THEIR OWN transfer: a hint that slipped a transfer
+        # would mark the wrong one end-of-burst. With the hints compiled out
+        # the slave's FUB reads CLASSIC/LINEAR whatever the master was given.
+        want_cti, want_bte = (exp[4], exp[5]) if self.burst_hints else (0, 0)
+        if (cti, bte) != (want_cti, want_bte):
+            self.errors.append(f"burst hint mispaired at adr=0x{adr:X}: got cti={cti} bte={bte}, "
+                               f"expected cti={want_cti} bte={want_bte}")
+        self.stats['eob'] += int(cti == 0b111)
         status = self._status_for(adr)
         rdat = 0
         if status == WB4_RSP_ACK:
@@ -254,9 +294,11 @@ class WB4MasterSlaveLoopTB(TBBase):
         # the producer to one command per ~3 clocks regardless of profile).
         pkts = []
         for t in self._sequence(rng, count, mix):
-            self.sent.append((t.we, t.adr, t.dat_w, t.sel))
+            cti, bte = self._next_hint()
+            self.sent.append((t.we, t.adr, t.dat_w, t.sel, cti, bte))
             pkt = GAXIPacket(self.cmd_fc)
             pkt.we, pkt.adr, pkt.dat, pkt.sel = t.we, t.adr, t.dat_w, t.sel
+            pkt.cti, pkt.bte = cti, bte
             self.stats['sent'] += 1
             pkts.append(pkt)
         await self.m_cmd.send_burst(pkts)

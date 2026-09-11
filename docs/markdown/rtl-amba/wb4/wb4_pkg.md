@@ -71,6 +71,31 @@ own; it reports what the slave said and the FUB decides. Put
 [`wb4_retry`](wb4_retry.md) in front of the master to absorb retries
 transparently up to a budget.
 
+## Burst hint encodings
+
+Registered-feedback cycles (B4 chapter 4). Both are **advisory**: the family
+carries them when `USE_BURST_HINTS = 1` and neither the master nor the slave
+changes behaviour on them.
+
+| `wb4_cti_t` | Value | Meaning |
+|---|---|---|
+| `WB4_CTI_CLASSIC` | `3'b000` | Classic cycle, no burst |
+| `WB4_CTI_CONST_ADDR` | `3'b001` | Constant-address burst (a FIFO-like target) |
+| `WB4_CTI_INCR` | `3'b010` | Incrementing burst |
+| `WB4_CTI_RSVD_3` .. `WB4_CTI_RSVD_6` | `3'b011`-`3'b110` | Reserved by the spec |
+| `WB4_CTI_EOB` | `3'b111` | End-of-burst: the last transfer of the run |
+
+| `wb4_bte_t` | Value | Meaning |
+|---|---|---|
+| `WB4_BTE_LINEAR` | `2'b00` | Linear burst |
+| `WB4_BTE_WRAP4` | `2'b01` | 4-beat wrap |
+| `WB4_BTE_WRAP8` | `2'b10` | 8-beat wrap |
+| `WB4_BTE_WRAP16` | `2'b11` | 16-beat wrap |
+
+`WB4_CTI_WIDTH` is 3 and `WB4_BTE_WIDTH` is 2. Both encodings put the
+non-burst case at zero on purpose, so a bus with the hint wires tied off is
+a legal classic bus rather than an illegal encoding.
+
 ## Consumers
 
 Every module in the family imports it: [`wb4_master`](wb4_master.md),

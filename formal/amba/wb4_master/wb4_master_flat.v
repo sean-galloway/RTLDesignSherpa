@@ -101,6 +101,8 @@ module wb4_master (
 	m_wb_ADR,
 	m_wb_DAT_W,
 	m_wb_SEL,
+	m_wb_CTI,
+	m_wb_BTE,
 	m_wb_STALL,
 	m_wb_ACK,
 	m_wb_ERR,
@@ -112,6 +114,8 @@ module wb4_master (
 	cmd_adr,
 	cmd_dat,
 	cmd_sel,
+	cmd_cti,
+	cmd_bte,
 	rsp_valid,
 	rsp_ready,
 	rsp_status,
@@ -122,13 +126,18 @@ module wb4_master (
 	parameter signed [31:0] CMD_DEPTH = 4;
 	parameter signed [31:0] RSP_DEPTH = 4;
 	parameter signed [31:0] CLASSIC = 0;
+	parameter signed [31:0] USE_BURST_HINTS = 0;
 	parameter signed [31:0] SEL_WIDTH = DATA_WIDTH / 8;
 	parameter signed [31:0] AW = ADDR_WIDTH;
 	parameter signed [31:0] DW = DATA_WIDTH;
 	parameter signed [31:0] SW = SEL_WIDTH;
 	localparam signed [31:0] wb4_pkg_WB4_STATUS_WIDTH = 2;
 	parameter signed [31:0] STW = wb4_pkg_WB4_STATUS_WIDTH;
-	parameter signed [31:0] CPW = ((1 + AW) + DW) + SW;
+	localparam signed [31:0] wb4_pkg_WB4_CTI_WIDTH = 3;
+	parameter signed [31:0] CTW = wb4_pkg_WB4_CTI_WIDTH;
+	localparam signed [31:0] wb4_pkg_WB4_BTE_WIDTH = 2;
+	parameter signed [31:0] BTW = wb4_pkg_WB4_BTE_WIDTH;
+	parameter signed [31:0] CPW = (((1 + AW) + DW) + SW) + (USE_BURST_HINTS != 0 ? CTW + BTW : 0);
 	parameter signed [31:0] RPW = STW + DW;
 	input wire clk;
 	input wire aresetn;
@@ -138,6 +147,8 @@ module wb4_master (
 	output wire [AW - 1:0] m_wb_ADR;
 	output wire [DW - 1:0] m_wb_DAT_W;
 	output wire [SW - 1:0] m_wb_SEL;
+	output wire [CTW - 1:0] m_wb_CTI;
+	output wire [BTW - 1:0] m_wb_BTE;
 	input wire m_wb_STALL;
 	input wire m_wb_ACK;
 	input wire m_wb_ERR;
@@ -149,6 +160,8 @@ module wb4_master (
 	input wire [AW - 1:0] cmd_adr;
 	input wire [DW - 1:0] cmd_dat;
 	input wire [SW - 1:0] cmd_sel;
+	input wire [CTW - 1:0] cmd_cti;
+	input wire [BTW - 1:0] cmd_bte;
 	output wire rsp_valid;
 	input wire rsp_ready;
 	output wire [STW - 1:0] rsp_status;
@@ -157,8 +170,36 @@ module wb4_master (
 	wire w_cmd_pop;
 	wire [CPW - 1:0] w_cmd_data_in;
 	wire [CPW - 1:0] r_cmd_data_out;
-	assign w_cmd_data_in = {cmd_we, cmd_adr, cmd_dat, cmd_sel};
-	assign {m_wb_WE, m_wb_ADR, m_wb_DAT_W, m_wb_SEL} = r_cmd_data_out;
+	function automatic [2:0] sv2v_cast_90DB4;
+		input reg [2:0] inp;
+		sv2v_cast_90DB4 = inp;
+	endfunction
+	function automatic [CTW - 1:0] sv2v_cast_E0906;
+		input reg [CTW - 1:0] inp;
+		sv2v_cast_E0906 = inp;
+	endfunction
+	function automatic [1:0] sv2v_cast_F1CE9;
+		input reg [1:0] inp;
+		sv2v_cast_F1CE9 = inp;
+	endfunction
+	function automatic [BTW - 1:0] sv2v_cast_85537;
+		input reg [BTW - 1:0] inp;
+		sv2v_cast_85537 = inp;
+	endfunction
+	generate
+		if (USE_BURST_HINTS != 0) begin : g_hints
+			assign w_cmd_data_in = {cmd_we, cmd_adr, cmd_dat, cmd_sel, cmd_cti, cmd_bte};
+			assign {m_wb_WE, m_wb_ADR, m_wb_DAT_W, m_wb_SEL, m_wb_CTI, m_wb_BTE} = r_cmd_data_out;
+		end
+		else begin : g_no_hints
+			assign w_cmd_data_in = {cmd_we, cmd_adr, cmd_dat, cmd_sel};
+			assign {m_wb_WE, m_wb_ADR, m_wb_DAT_W, m_wb_SEL} = r_cmd_data_out;
+			assign m_wb_CTI = sv2v_cast_E0906(sv2v_cast_90DB4(3'b000));
+			assign m_wb_BTE = sv2v_cast_85537(sv2v_cast_F1CE9(2'b00));
+			wire w_unused_hints;
+			assign w_unused_hints = ^{cmd_cti, cmd_bte};
+		end
+	endgenerate
 	gaxi_skid_buffer #(
 		.DATA_WIDTH(CPW),
 		.DEPTH(CMD_DEPTH)
@@ -260,6 +301,10 @@ module wb4_master (
 				assert (r_inflight == 0) ;
 			end
 			assert (sv2v_cast_32(r_reserved) <= RSP_DEPTH) ;
+			if (USE_BURST_HINTS == 0) begin
+				assert (m_wb_CTI == sv2v_cast_E0906(sv2v_cast_90DB4(3'b000))) ;
+				assert (m_wb_BTE == sv2v_cast_85537(sv2v_cast_F1CE9(2'b00))) ;
+			end
 			assert (r_inflight <= r_reserved) ;
 			assert (!w_rsp_push || w_rsp_space) ;
 		end

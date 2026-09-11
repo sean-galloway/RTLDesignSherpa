@@ -101,6 +101,8 @@ module wb4_slave (
 	s_wb_ADR,
 	s_wb_DAT_W,
 	s_wb_SEL,
+	s_wb_CTI,
+	s_wb_BTE,
 	s_wb_STALL,
 	s_wb_ACK,
 	s_wb_ERR,
@@ -112,6 +114,8 @@ module wb4_slave (
 	cmd_adr,
 	cmd_dat,
 	cmd_sel,
+	cmd_cti,
+	cmd_bte,
 	rsp_valid,
 	rsp_ready,
 	rsp_status,
@@ -123,13 +127,18 @@ module wb4_slave (
 	parameter signed [31:0] RSP_DEPTH = 2;
 	parameter signed [31:0] MAX_OUTSTANDING = 16;
 	parameter signed [31:0] CLASSIC = 0;
+	parameter signed [31:0] USE_BURST_HINTS = 0;
 	parameter signed [31:0] SEL_WIDTH = DATA_WIDTH / 8;
 	parameter signed [31:0] AW = ADDR_WIDTH;
 	parameter signed [31:0] DW = DATA_WIDTH;
 	parameter signed [31:0] SW = SEL_WIDTH;
 	localparam signed [31:0] wb4_pkg_WB4_STATUS_WIDTH = 2;
 	parameter signed [31:0] STW = wb4_pkg_WB4_STATUS_WIDTH;
-	parameter signed [31:0] CPW = ((1 + AW) + DW) + SW;
+	localparam signed [31:0] wb4_pkg_WB4_CTI_WIDTH = 3;
+	parameter signed [31:0] CTW = wb4_pkg_WB4_CTI_WIDTH;
+	localparam signed [31:0] wb4_pkg_WB4_BTE_WIDTH = 2;
+	parameter signed [31:0] BTW = wb4_pkg_WB4_BTE_WIDTH;
+	parameter signed [31:0] CPW = (((1 + AW) + DW) + SW) + (USE_BURST_HINTS != 0 ? CTW + BTW : 0);
 	parameter signed [31:0] RPW = STW + DW;
 	input wire clk;
 	input wire aresetn;
@@ -139,6 +148,8 @@ module wb4_slave (
 	input wire [AW - 1:0] s_wb_ADR;
 	input wire [DW - 1:0] s_wb_DAT_W;
 	input wire [SW - 1:0] s_wb_SEL;
+	input wire [CTW - 1:0] s_wb_CTI;
+	input wire [BTW - 1:0] s_wb_BTE;
 	output wire s_wb_STALL;
 	output reg s_wb_ACK;
 	output reg s_wb_ERR;
@@ -150,6 +161,8 @@ module wb4_slave (
 	output wire [AW - 1:0] cmd_adr;
 	output wire [DW - 1:0] cmd_dat;
 	output wire [SW - 1:0] cmd_sel;
+	output wire [CTW - 1:0] cmd_cti;
+	output wire [BTW - 1:0] cmd_bte;
 	input wire rsp_valid;
 	output wire rsp_ready;
 	input wire [STW - 1:0] rsp_status;
@@ -166,8 +179,36 @@ module wb4_slave (
 	wire w_cmd_room;
 	wire [CPW - 1:0] w_cmd_data_in;
 	wire [CPW - 1:0] r_cmd_data_out;
-	assign w_cmd_data_in = {s_wb_WE, s_wb_ADR, s_wb_DAT_W, s_wb_SEL};
-	assign {cmd_we, cmd_adr, cmd_dat, cmd_sel} = r_cmd_data_out;
+	function automatic [2:0] sv2v_cast_90DB4;
+		input reg [2:0] inp;
+		sv2v_cast_90DB4 = inp;
+	endfunction
+	function automatic [CTW - 1:0] sv2v_cast_E0906;
+		input reg [CTW - 1:0] inp;
+		sv2v_cast_E0906 = inp;
+	endfunction
+	function automatic [1:0] sv2v_cast_F1CE9;
+		input reg [1:0] inp;
+		sv2v_cast_F1CE9 = inp;
+	endfunction
+	function automatic [BTW - 1:0] sv2v_cast_85537;
+		input reg [BTW - 1:0] inp;
+		sv2v_cast_85537 = inp;
+	endfunction
+	generate
+		if (USE_BURST_HINTS != 0) begin : g_hints
+			assign w_cmd_data_in = {s_wb_WE, s_wb_ADR, s_wb_DAT_W, s_wb_SEL, s_wb_CTI, s_wb_BTE};
+			assign {cmd_we, cmd_adr, cmd_dat, cmd_sel, cmd_cti, cmd_bte} = r_cmd_data_out;
+		end
+		else begin : g_no_hints
+			assign w_cmd_data_in = {s_wb_WE, s_wb_ADR, s_wb_DAT_W, s_wb_SEL};
+			assign {cmd_we, cmd_adr, cmd_dat, cmd_sel} = r_cmd_data_out;
+			assign cmd_cti = sv2v_cast_E0906(sv2v_cast_90DB4(3'b000));
+			assign cmd_bte = sv2v_cast_85537(sv2v_cast_F1CE9(2'b00));
+			wire w_unused_hints;
+			assign w_unused_hints = ^{s_wb_CTI, s_wb_BTE};
+		end
+	endgenerate
 	function automatic [31:0] sv2v_cast_32;
 		input reg [31:0] inp;
 		sv2v_cast_32 = inp;

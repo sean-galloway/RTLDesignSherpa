@@ -48,6 +48,7 @@ module wb4_slave_cdc
     parameter int DATA_WIDTH      = 32,
     parameter int CMD_DEPTH       = 2,
     parameter int RSP_DEPTH       = 2,
+    parameter int USE_BURST_HINTS = 0,   // see wb4_master/wb4_slave
     parameter int MAX_OUTSTANDING = 16,
     parameter int CLASSIC         = 0,
     parameter int CDC_DEPTH       = 4,
@@ -58,7 +59,11 @@ module wb4_slave_cdc
     parameter int DW  = DATA_WIDTH,
     parameter int SW  = SEL_WIDTH,
     parameter int STW = WB4_STATUS_WIDTH,
-    parameter int CPW = 1 + AW + DW + SW,   // {we, adr, dat, sel}
+    parameter int CTW = wb4_pkg::WB4_CTI_WIDTH,
+    parameter int BTW = wb4_pkg::WB4_BTE_WIDTH,
+    // {we, adr, dat, sel} plus the hints when carried: a burst hint that
+    // did not cross with its own transfer would describe the wrong one.
+    parameter int CPW = 1 + AW + DW + SW + ((USE_BURST_HINTS != 0) ? CTW + BTW : 0),
     parameter int RPW = STW + DW            // {status, dat}
 )
 (
@@ -76,6 +81,8 @@ module wb4_slave_cdc
     input  logic [AW-1:0]     s_wb_ADR,
     input  logic [DW-1:0]     s_wb_DAT_W,
     input  logic [SW-1:0]     s_wb_SEL,
+    input  logic [CTW-1:0]    s_wb_CTI,
+    input  logic [BTW-1:0]    s_wb_BTE,
     output logic              s_wb_STALL,
     output logic              s_wb_ACK,
     output logic              s_wb_ERR,
@@ -89,6 +96,8 @@ module wb4_slave_cdc
     output logic [AW-1:0]     cmd_adr,
     output logic [DW-1:0]     cmd_dat,
     output logic [SW-1:0]     cmd_sel,
+    output logic [CTW-1:0]    cmd_cti,
+    output logic [BTW-1:0]    cmd_bte,
 
     // Response queue (aclk)
     input  logic              rsp_valid,
@@ -101,6 +110,8 @@ module wb4_slave_cdc
 
     // Slave-side queues, wb_clk domain
     logic           w_cmd_valid, w_cmd_ready, w_cmd_we;
+    logic [CTW-1:0] w_cmd_cti;
+    logic [BTW-1:0] w_cmd_bte;
     logic [AW-1:0]  w_cmd_adr;
     logic [DW-1:0]  w_cmd_dat, w_rsp_dat;
     logic [SW-1:0]  w_cmd_sel;
@@ -114,6 +125,7 @@ module wb4_slave_cdc
         .RSP_DEPTH       (RSP_DEPTH),
         .MAX_OUTSTANDING (MAX_OUTSTANDING),
         .CLASSIC         (CLASSIC),
+        .USE_BURST_HINTS (USE_BURST_HINTS),
         .SEL_WIDTH       (SEL_WIDTH)
     ) u_wb4_slave (
         .clk        (wb_clk),
@@ -124,6 +136,8 @@ module wb4_slave_cdc
         .s_wb_ADR   (s_wb_ADR),
         .s_wb_DAT_W (s_wb_DAT_W),
         .s_wb_SEL   (s_wb_SEL),
+        .s_wb_CTI   (s_wb_CTI),
+        .s_wb_BTE   (s_wb_BTE),
         .s_wb_STALL (s_wb_STALL),
         .s_wb_ACK   (s_wb_ACK),
         .s_wb_ERR   (s_wb_ERR),
@@ -135,6 +149,8 @@ module wb4_slave_cdc
         .cmd_adr    (w_cmd_adr),
         .cmd_dat    (w_cmd_dat),
         .cmd_sel    (w_cmd_sel),
+        .cmd_cti    (w_cmd_cti),
+        .cmd_bte    (w_cmd_bte),
         .rsp_valid  (w_rsp_valid),
         .rsp_ready  (w_rsp_ready),
         .rsp_status (w_rsp_status),
@@ -142,6 +158,21 @@ module wb4_slave_cdc
     );
 
     // cmd: wb_clk -> aclk
+    logic [CPW-1:0] w_cmd_cdc_in, w_cmd_cdc_out;
+    generate if (USE_BURST_HINTS != 0) begin : g_cdc_hints
+        assign w_cmd_cdc_in = {w_cmd_we, w_cmd_adr, w_cmd_dat, w_cmd_sel, w_cmd_cti, w_cmd_bte};
+        assign {cmd_we, cmd_adr, cmd_dat, cmd_sel, cmd_cti, cmd_bte} = w_cmd_cdc_out;
+    end else begin : g_cdc_no_hints
+        assign w_cmd_cdc_in = {w_cmd_we, w_cmd_adr, w_cmd_dat, w_cmd_sel};
+        assign {cmd_we, cmd_adr, cmd_dat, cmd_sel} = w_cmd_cdc_out;
+        assign cmd_cti = CTW'(WB4_CTI_CLASSIC);
+        assign cmd_bte = BTW'(WB4_BTE_LINEAR);
+        /* verilator lint_off UNUSEDSIGNAL */
+        logic w_unused_cdc_hints;
+        assign w_unused_cdc_hints = ^{w_cmd_cti, w_cmd_bte};
+        /* verilator lint_on UNUSEDSIGNAL */
+    end endgenerate
+
     gaxi_fifo_async #(
         .DATA_WIDTH   (CPW),
         .DEPTH        (CDC_FIFO_DEPTH),
@@ -154,10 +185,10 @@ module wb4_slave_cdc
         .axi_rd_aresetn (aresetn),
         .wr_valid       (w_cmd_valid),
         .wr_ready       (w_cmd_ready),
-        .wr_data        ({w_cmd_we, w_cmd_adr, w_cmd_dat, w_cmd_sel}),
+        .wr_data        (w_cmd_cdc_in),
         .rd_ready       (cmd_ready),
         .rd_valid       (cmd_valid),
-        .rd_data        ({cmd_we, cmd_adr, cmd_dat, cmd_sel})
+        .rd_data        (w_cmd_cdc_out)
     );
 
     // rsp: aclk -> wb_clk

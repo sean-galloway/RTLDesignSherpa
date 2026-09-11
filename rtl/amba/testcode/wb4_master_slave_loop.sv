@@ -26,10 +26,13 @@ module wb4_master_slave_loop
     parameter int S_RSP_DEPTH     = 2,
     parameter int MAX_OUTSTANDING = 16,
     parameter int CLASSIC         = 0,     // both sides: cross-mode pairs are not legal
+    parameter int USE_BURST_HINTS = 0,     // both sides; the hints ride master -> slave
     parameter int AW  = ADDR_WIDTH,
     parameter int DW  = DATA_WIDTH,
     parameter int SW  = DATA_WIDTH / 8,
-    parameter int STW = WB4_STATUS_WIDTH
+    parameter int STW = WB4_STATUS_WIDTH,
+    parameter int CTW = WB4_CTI_WIDTH,
+    parameter int BTW = WB4_BTE_WIDTH
 ) (
     input  logic              clk,
     input  logic              aresetn,
@@ -41,6 +44,8 @@ module wb4_master_slave_loop
     input  logic [AW-1:0]     m_cmd_adr,
     input  logic [DW-1:0]     m_cmd_dat,
     input  logic [SW-1:0]     m_cmd_sel,
+    input  logic [CTW-1:0]    m_cmd_cti,
+    input  logic [BTW-1:0]    m_cmd_bte,
     output logic              m_rsp_valid,
     input  logic              m_rsp_ready,
     output logic [STW-1:0]    m_rsp_status,
@@ -53,6 +58,8 @@ module wb4_master_slave_loop
     output logic [AW-1:0]     s_cmd_adr,
     output logic [DW-1:0]     s_cmd_dat,
     output logic [SW-1:0]     s_cmd_sel,
+    output logic [CTW-1:0]    s_cmd_cti,
+    output logic [BTW-1:0]    s_cmd_bte,
     input  logic              s_rsp_valid,
     output logic              s_rsp_ready,
     input  logic [STW-1:0]    s_rsp_status,
@@ -65,6 +72,8 @@ module wb4_master_slave_loop
     output logic [AW-1:0]     wb_ADR,
     output logic [DW-1:0]     wb_DAT_W,
     output logic [SW-1:0]     wb_SEL,
+    output logic [CTW-1:0]    wb_CTI,
+    output logic [BTW-1:0]    wb_BTE,
     output logic              wb_STALL,
     output logic              wb_ACK,
     output logic              wb_ERR,
@@ -74,18 +83,21 @@ module wb4_master_slave_loop
 
     wb4_master #(
         .ADDR_WIDTH (AW), .DATA_WIDTH (DW),
-        .CMD_DEPTH  (M_CMD_DEPTH), .RSP_DEPTH (M_RSP_DEPTH), .CLASSIC (CLASSIC)
+        .CMD_DEPTH  (M_CMD_DEPTH), .RSP_DEPTH (M_RSP_DEPTH), .CLASSIC (CLASSIC),
+        .USE_BURST_HINTS (USE_BURST_HINTS)
     ) u_master (
         .clk        (clk),         .aresetn    (aresetn),
         .m_wb_CYC   (wb_CYC),      .m_wb_STB   (wb_STB),
         .m_wb_WE    (wb_WE),       .m_wb_ADR   (wb_ADR),
         .m_wb_DAT_W (wb_DAT_W),    .m_wb_SEL   (wb_SEL),
+        .m_wb_CTI   (wb_CTI),      .m_wb_BTE   (wb_BTE),
         .m_wb_STALL (wb_STALL),    .m_wb_ACK   (wb_ACK),
         .m_wb_ERR   (wb_ERR),      .m_wb_RTY   (wb_RTY),
         .m_wb_DAT_R (wb_DAT_R),
         .cmd_valid  (m_cmd_valid), .cmd_ready  (m_cmd_ready),
         .cmd_we     (m_cmd_we),    .cmd_adr    (m_cmd_adr),
         .cmd_dat    (m_cmd_dat),   .cmd_sel    (m_cmd_sel),
+        .cmd_cti    (m_cmd_cti),   .cmd_bte    (m_cmd_bte),
         .rsp_valid  (m_rsp_valid), .rsp_ready  (m_rsp_ready),
         .rsp_status (m_rsp_status),.rsp_dat    (m_rsp_dat)
     );
@@ -93,18 +105,21 @@ module wb4_master_slave_loop
     wb4_slave #(
         .ADDR_WIDTH (AW), .DATA_WIDTH (DW),
         .CMD_DEPTH  (S_CMD_DEPTH), .RSP_DEPTH (S_RSP_DEPTH),
-        .MAX_OUTSTANDING (MAX_OUTSTANDING), .CLASSIC (CLASSIC)
+        .MAX_OUTSTANDING (MAX_OUTSTANDING), .CLASSIC (CLASSIC),
+        .USE_BURST_HINTS (USE_BURST_HINTS)
     ) u_slave (
         .clk        (clk),         .aresetn    (aresetn),
         .s_wb_CYC   (wb_CYC),      .s_wb_STB   (wb_STB),
         .s_wb_WE    (wb_WE),       .s_wb_ADR   (wb_ADR),
         .s_wb_DAT_W (wb_DAT_W),    .s_wb_SEL   (wb_SEL),
+        .s_wb_CTI   (wb_CTI),      .s_wb_BTE   (wb_BTE),
         .s_wb_STALL (wb_STALL),    .s_wb_ACK   (wb_ACK),
         .s_wb_ERR   (wb_ERR),      .s_wb_RTY   (wb_RTY),
         .s_wb_DAT_R (wb_DAT_R),
         .cmd_valid  (s_cmd_valid), .cmd_ready  (s_cmd_ready),
         .cmd_we     (s_cmd_we),    .cmd_adr    (s_cmd_adr),
         .cmd_dat    (s_cmd_dat),   .cmd_sel    (s_cmd_sel),
+        .cmd_cti    (s_cmd_cti),   .cmd_bte    (s_cmd_bte),
         .rsp_valid  (s_rsp_valid), .rsp_ready  (s_rsp_ready),
         .rsp_status (s_rsp_status),.rsp_dat    (s_rsp_dat)
     );

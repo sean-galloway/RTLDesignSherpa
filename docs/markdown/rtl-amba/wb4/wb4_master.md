@@ -34,7 +34,9 @@ every `ACK`, `ERR` or `RTY` is enqueued as it arrives. Terminations arrive in
 issue order (a B4 rule), so nothing is tagged.
 
 **Protocol scope:** B4 pipelined. `RTY` is reported in `rsp_status`; the
-master never retries on its own. No `CTI`/`BTE`, `LOCK` or tag signals.
+master never retries on its own. `CTI`/`BTE` burst hints are carried when
+`USE_BURST_HINTS = 1` and tied to CLASSIC/LINEAR otherwise; no `LOCK` or tag
+signals.
 
 ## Parameters
 
@@ -45,6 +47,7 @@ master never retries on its own. No `CTI`/`BTE`, `LOCK` or tag signals.
 | CMD_DEPTH | int | 4 | Command queue depth in **entries**, 2..8 |
 | RSP_DEPTH | int | 4 | Response queue depth in **entries**, 2..8; also the maximum transfers in flight |
 | CLASSIC | int | 0 | 0 = B4 pipelined; 1 = B4 standard ("classic") mode, see the [family README](README.md). Match the peer: the modes do not mix |
+| USE_BURST_HINTS | int | 0 | 0 = `CTI`/`BTE` are driven CLASSIC/LINEAR and `cmd_cti`/`cmd_bte` are ignored; 1 = the FUB's hints ride with their transfer onto the bus |
 | SEL_WIDTH | int | DATA_WIDTH/8 | Byte-select width (derived) |
 
 **RSP_DEPTH is the outstanding limit.** Wishbone gives a master no way to
@@ -218,6 +221,12 @@ wb4_master #(
 - A termination that arrives with nothing in flight is a slave protocol
   violation. It is still enqueued (the FUB sees it) and reported in
   simulation.
+- **Burst hints are carried, never acted on.** `CTI` and `BTE` are advisory
+  in B4: the master puts the FUB's hint on the wires with the transfer it
+  belongs to and changes nothing else. They ride inside the command queue,
+  so a hint cannot slip onto a neighbouring transfer when the queue delays
+  one. With `USE_BURST_HINTS = 0` the ports still exist and the bus reads
+  CLASSIC/LINEAR, which is a legal non-burst Wishbone cycle.
 - Under `ifdef FORMAL` the block asserts: `STB` implies `CYC`; `CYC` covers
   every in-flight transfer; a stalled request is held stable; the credit
   invariant `r_reserved <= RSP_DEPTH`; and that every termination found

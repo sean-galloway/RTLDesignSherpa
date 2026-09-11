@@ -68,9 +68,15 @@ AMBA 4 APB.
 - **RTY is a status, not a retry.** Every termination is returned to the FUB
   as `rsp_status` = ACK (0), ERR (1) or RTY (2). The master does not re-issue
   on RTY; the FUB decides, or `wb4_retry` decides for it. The encoding is `wb4_pkg`.
-- **Not implemented, deliberately:** `CTI`/`BTE` burst hints (advisory in
-  B4; the pipelined queues already give the throughput they recover),
-  `LOCK`, `TGA`/`TGC`/`TGD` tags.
+- **Burst hints are carried, not acted on.** `CTI` and `BTE` are advisory in
+  B4. With `USE_BURST_HINTS = 1` the master puts the FUB's hint on the wires
+  with the transfer it belongs to and the slave hands the received hint to
+  its FUB; neither changes behaviour, because deciding what a burst means is
+  the peripheral's job. With the parameter at 0 the ports still exist and the
+  bus reads CLASSIC/LINEAR, a legal non-burst cycle, which is what every
+  consumer had before the hints landed.
+- **Still not implemented, deliberately:** `LOCK` and the `TGA`/`TGC`/`TGD`
+  tag signals.
 
 ### Modules
 

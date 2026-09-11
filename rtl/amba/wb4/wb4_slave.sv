@@ -114,13 +114,21 @@ module wb4_slave
     parameter int RSP_DEPTH       = 2,
     parameter int MAX_OUTSTANDING = 16,
     parameter int CLASSIC         = 0,
+    // Registered-feedback burst hints (B4 ch.4). 0 = the bus hint inputs are
+    // ignored and cmd_cti/cmd_bte read CLASSIC/LINEAR; 1 = each transfer's
+    // hints are handed to the FUB with it. The slave never CHANGES behaviour
+    // on a hint -- they are advisory, and acting on them is the FUB's job.
+    parameter int USE_BURST_HINTS = 0,
     parameter int SEL_WIDTH       = DATA_WIDTH / 8,
     // Short Parameters
     parameter int AW  = ADDR_WIDTH,
     parameter int DW  = DATA_WIDTH,
     parameter int SW  = SEL_WIDTH,
     parameter int STW = WB4_STATUS_WIDTH,
-    parameter int CPW = 1 + AW + DW + SW,   // command packet: {we, adr, dat, sel}
+    parameter int CTW = WB4_CTI_WIDTH,
+    parameter int BTW = WB4_BTE_WIDTH,
+    // command packet: {we, adr, dat, sel} plus the hints when carried
+    parameter int CPW = 1 + AW + DW + SW + ((USE_BURST_HINTS != 0) ? CTW + BTW : 0),
     parameter int RPW = STW + DW            // response packet: {status, dat}
 ) (
     // Clock and Reset
@@ -134,6 +142,8 @@ module wb4_slave
     input  logic [AW-1:0]     s_wb_ADR,
     input  logic [DW-1:0]     s_wb_DAT_W,
     input  logic [SW-1:0]     s_wb_SEL,
+    input  logic [CTW-1:0]    s_wb_CTI,      // burst hint; ignored when USE_BURST_HINTS=0
+    input  logic [BTW-1:0]    s_wb_BTE,      // burst type; ignored when USE_BURST_HINTS=0
     output logic              s_wb_STALL,
     output logic              s_wb_ACK,
     output logic              s_wb_ERR,
@@ -147,6 +157,8 @@ module wb4_slave
     output logic [AW-1:0]     cmd_adr,
     output logic [DW-1:0]     cmd_dat,
     output logic [SW-1:0]     cmd_sel,
+    output logic [CTW-1:0]    cmd_cti,       // CLASSIC when USE_BURST_HINTS=0
+    output logic [BTW-1:0]    cmd_bte,       // LINEAR when USE_BURST_HINTS=0
 
     // Response queue (FUB -> bus)
     input  logic              rsp_valid,
@@ -179,8 +191,19 @@ module wb4_slave
     logic [CPW-1:0]  w_cmd_data_in;
     logic [CPW-1:0]  r_cmd_data_out;
 
-    assign w_cmd_data_in = {s_wb_WE, s_wb_ADR, s_wb_DAT_W, s_wb_SEL};
-    assign {cmd_we, cmd_adr, cmd_dat, cmd_sel} = r_cmd_data_out;
+    generate if (USE_BURST_HINTS != 0) begin : g_hints
+        assign w_cmd_data_in = {s_wb_WE, s_wb_ADR, s_wb_DAT_W, s_wb_SEL, s_wb_CTI, s_wb_BTE};
+        assign {cmd_we, cmd_adr, cmd_dat, cmd_sel, cmd_cti, cmd_bte} = r_cmd_data_out;
+    end else begin : g_no_hints
+        assign w_cmd_data_in = {s_wb_WE, s_wb_ADR, s_wb_DAT_W, s_wb_SEL};
+        assign {cmd_we, cmd_adr, cmd_dat, cmd_sel} = r_cmd_data_out;
+        assign cmd_cti = CTW'(WB4_CTI_CLASSIC);
+        assign cmd_bte = BTW'(WB4_BTE_LINEAR);
+        /* verilator lint_off UNUSEDSIGNAL */
+        logic w_unused_hints;
+        assign w_unused_hints = ^{s_wb_CTI, s_wb_BTE};
+        /* verilator lint_on UNUSEDSIGNAL */
+    end endgenerate
 
     generate
         if (CLASSIC != 0) begin : g_classic

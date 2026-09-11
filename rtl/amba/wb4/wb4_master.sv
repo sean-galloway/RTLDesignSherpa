@@ -106,13 +106,21 @@ module wb4_master
     parameter int CMD_DEPTH  = 4,
     parameter int RSP_DEPTH  = 4,
     parameter int CLASSIC    = 0,
+    // Registered-feedback burst hints (B4 ch.4). 0 = the hint ports are tied
+    // to CLASSIC/LINEAR on the bus and cmd_cti/cmd_bte are ignored, which is
+    // a legal non-burst Wishbone bus and what every consumer got before the
+    // hints existed. 1 = the FUB's hints are carried through per transfer.
+    parameter int USE_BURST_HINTS = 0,
     parameter int SEL_WIDTH  = DATA_WIDTH / 8,
     // Short Parameters
     parameter int AW  = ADDR_WIDTH,
     parameter int DW  = DATA_WIDTH,
     parameter int SW  = SEL_WIDTH,
     parameter int STW = WB4_STATUS_WIDTH,
-    parameter int CPW = 1 + AW + DW + SW,   // command packet: {we, adr, dat, sel}
+    parameter int CTW = WB4_CTI_WIDTH,
+    parameter int BTW = WB4_BTE_WIDTH,
+    // command packet: {we, adr, dat, sel} plus the hints when carried
+    parameter int CPW = 1 + AW + DW + SW + ((USE_BURST_HINTS != 0) ? CTW + BTW : 0),
     parameter int RPW = STW + DW            // response packet: {status, dat}
 ) (
     // Clock and Reset
@@ -126,6 +134,8 @@ module wb4_master
     output logic [AW-1:0]     m_wb_ADR,
     output logic [DW-1:0]     m_wb_DAT_W,
     output logic [SW-1:0]     m_wb_SEL,
+    output logic [CTW-1:0]    m_wb_CTI,      // burst hint; CLASSIC when USE_BURST_HINTS=0
+    output logic [BTW-1:0]    m_wb_BTE,      // burst type; LINEAR when USE_BURST_HINTS=0
     input  logic              m_wb_STALL,
     input  logic              m_wb_ACK,
     input  logic              m_wb_ERR,
@@ -139,6 +149,8 @@ module wb4_master
     input  logic [AW-1:0]     cmd_adr,
     input  logic [DW-1:0]     cmd_dat,
     input  logic [SW-1:0]     cmd_sel,
+    input  logic [CTW-1:0]    cmd_cti,       // ignored when USE_BURST_HINTS=0
+    input  logic [BTW-1:0]    cmd_bte,       // ignored when USE_BURST_HINTS=0
 
     // Response queue (bus -> FUB)
     output logic              rsp_valid,
@@ -155,8 +167,21 @@ module wb4_master
     logic [CPW-1:0]      w_cmd_data_in;
     logic [CPW-1:0]      r_cmd_data_out;
 
-    assign w_cmd_data_in = {cmd_we, cmd_adr, cmd_dat, cmd_sel};
-    assign {m_wb_WE, m_wb_ADR, m_wb_DAT_W, m_wb_SEL} = r_cmd_data_out;
+    // The hints ride in the command queue with their transfer, so a burst
+    // marked EOB stays marked when the queue reorders nothing but delays it.
+    generate if (USE_BURST_HINTS != 0) begin : g_hints
+        assign w_cmd_data_in = {cmd_we, cmd_adr, cmd_dat, cmd_sel, cmd_cti, cmd_bte};
+        assign {m_wb_WE, m_wb_ADR, m_wb_DAT_W, m_wb_SEL, m_wb_CTI, m_wb_BTE} = r_cmd_data_out;
+    end else begin : g_no_hints
+        assign w_cmd_data_in = {cmd_we, cmd_adr, cmd_dat, cmd_sel};
+        assign {m_wb_WE, m_wb_ADR, m_wb_DAT_W, m_wb_SEL} = r_cmd_data_out;
+        assign m_wb_CTI = CTW'(WB4_CTI_CLASSIC);
+        assign m_wb_BTE = BTW'(WB4_BTE_LINEAR);
+        /* verilator lint_off UNUSEDSIGNAL */
+        logic w_unused_hints;
+        assign w_unused_hints = ^{cmd_cti, cmd_bte};
+        /* verilator lint_on UNUSEDSIGNAL */
+    end endgenerate
 
     gaxi_skid_buffer #(
         .DATA_WIDTH   (CPW),
@@ -312,6 +337,12 @@ module wb4_master
         end
         // The credit invariant: never more reserved than the response skid holds.
         assert (32'(r_reserved) <= RSP_DEPTH);
+        // With the hints off the bus must look classic and linear, so a
+        // slave that decodes them sees a legal non-burst cycle.
+        if (USE_BURST_HINTS == 0) begin
+            assert (m_wb_CTI == CTW'(WB4_CTI_CLASSIC));
+            assert (m_wb_BTE == BTW'(WB4_BTE_LINEAR));
+        end
         assert (r_inflight <= r_reserved);
         // A termination always found space (the whole point of the credit).
         assert (!w_rsp_push || w_rsp_space);

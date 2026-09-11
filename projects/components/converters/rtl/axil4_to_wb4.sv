@@ -89,6 +89,8 @@ module axil4_to_wb4 #(
     output logic [AW-1:0]     m_wb_ADR,
     output logic [DW-1:0]     m_wb_DAT_W,
     output logic [SW-1:0]     m_wb_SEL,
+    output logic [wb4_pkg::WB4_CTI_WIDTH-1:0] m_wb_CTI,
+    output logic [wb4_pkg::WB4_BTE_WIDTH-1:0] m_wb_BTE,
     input  logic              m_wb_STALL,
     input  logic              m_wb_ACK,
     input  logic              m_wb_ERR,
@@ -232,6 +234,8 @@ module axil4_to_wb4 #(
         .m_wb_ADR   (m_wb_ADR),
         .m_wb_DAT_W (m_wb_DAT_W),
         .m_wb_SEL   (m_wb_SEL),
+        .m_wb_CTI   (m_wb_CTI),
+        .m_wb_BTE   (m_wb_BTE),
         .m_wb_STALL (m_wb_STALL),
         .m_wb_ACK   (m_wb_ACK),
         .m_wb_ERR   (m_wb_ERR),
@@ -243,6 +247,11 @@ module axil4_to_wb4 #(
         .cmd_adr    (w_cmd_adr),
         .cmd_dat    (w_cmd_dat),
         .cmd_sel    (w_cmd_sel),
+        // AXI4-Lite is single-beat and has no burst concept, so there is
+        // nothing to map onto CTI/BTE. The master is left at its default
+        // USE_BURST_HINTS=0, which drives CLASSIC/LINEAR on the wires.
+        .cmd_cti    (wb4_pkg::WB4_CTI_WIDTH'(wb4_pkg::WB4_CTI_CLASSIC)),
+        .cmd_bte    (wb4_pkg::WB4_BTE_WIDTH'(wb4_pkg::WB4_BTE_LINEAR)),
         .rsp_valid  (w_rsp_valid),
         .rsp_ready  (w_rsp_ready),
         .rsp_status (w_rsp_status),

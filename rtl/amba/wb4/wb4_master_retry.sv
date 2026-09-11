@@ -36,12 +36,15 @@ module wb4_master_retry
     parameter int DATA_WIDTH = 32,
     parameter int CMD_DEPTH  = 4,
     parameter int RSP_DEPTH  = 4,
+    parameter int USE_BURST_HINTS = 0,   // see wb4_master/wb4_slave
     parameter int CLASSIC    = 0,
     parameter int INFLIGHT   = 1,
     // Short params
     parameter int AW  = ADDR_WIDTH,
     parameter int DW  = DATA_WIDTH,
     parameter int SW  = DW/8,
+    parameter int CTW = wb4_pkg::WB4_CTI_WIDTH,
+    parameter int BTW = wb4_pkg::WB4_BTE_WIDTH,
     parameter int STW = WB4_STATUS_WIDTH
 )
 (
@@ -58,6 +61,8 @@ module wb4_master_retry
     output logic [AW-1:0]     m_wb_ADR,
     output logic [DW-1:0]     m_wb_DAT_W,
     output logic [SW-1:0]     m_wb_SEL,
+    output logic [CTW-1:0]    m_wb_CTI,
+    output logic [BTW-1:0]    m_wb_BTE,
     input  logic              m_wb_STALL,
     input  logic              m_wb_ACK,
     input  logic              m_wb_ERR,
@@ -71,6 +76,8 @@ module wb4_master_retry
     input  logic [AW-1:0]     cmd_adr,
     input  logic [DW-1:0]     cmd_dat,
     input  logic [SW-1:0]     cmd_sel,
+    input  logic [CTW-1:0]    cmd_cti,
+    input  logic [BTW-1:0]    cmd_bte,
     output logic              rsp_valid,
     input  logic              rsp_ready,
     output logic [STW-1:0]    rsp_status,
@@ -125,7 +132,8 @@ module wb4_master_retry
         .DATA_WIDTH (DW),
         .CMD_DEPTH  (CMD_DEPTH),
         .RSP_DEPTH  (RSP_DEPTH),
-        .CLASSIC    (CLASSIC)
+        .CLASSIC    (CLASSIC),
+        .USE_BURST_HINTS (USE_BURST_HINTS)
     ) u_master (
         .clk        (clk),
         .aresetn    (aresetn),
@@ -135,6 +143,8 @@ module wb4_master_retry
         .m_wb_ADR   (m_wb_ADR),
         .m_wb_DAT_W (m_wb_DAT_W),
         .m_wb_SEL   (m_wb_SEL),
+        .m_wb_CTI   (m_wb_CTI),
+        .m_wb_BTE   (m_wb_BTE),
         .m_wb_STALL (m_wb_STALL),
         .m_wb_ACK   (m_wb_ACK),
         .m_wb_ERR   (m_wb_ERR),
@@ -146,6 +156,8 @@ module wb4_master_retry
         .cmd_adr    (w_cmd_adr),
         .cmd_dat    (w_cmd_dat),
         .cmd_sel    (w_cmd_sel),
+        .cmd_cti    (cmd_cti),
+        .cmd_bte    (cmd_bte),
         .rsp_valid  (w_rsp_valid),
         .rsp_ready  (w_rsp_ready),
         .rsp_status (w_rsp_status),

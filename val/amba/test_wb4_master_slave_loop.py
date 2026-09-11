@@ -92,25 +92,33 @@ async def wb4_master_slave_loop_test(dut):
 
 
 def generate_test_params():
-    """(addr_width, data_width, m_depth, s_depth, max_outstanding, classic, test_level)"""
+    """(addr_width, data_width, m_depth, s_depth, max_outstanding, classic, hints, test_level)
+
+    `hints` is USE_BURST_HINTS. With it on, the TB drives a CTI/BTE pattern
+    into the master's command queue and checks each hint arrives at the
+    slave's FUB with its own transfer; with it off the slave's FUB must read
+    CLASSIC/LINEAR whatever the master was handed.
+    """
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
     if reg_level == 'GATE':
-        return [(32, 32, 4, 2, 16, 0, 'gate'), (32, 32, 4, 2, 16, 1, 'gate')]
+        return [(32, 32, 4, 2, 16, 0, 0, 'gate'), (32, 32, 4, 2, 16, 0, 1, 'gate'),
+                (32, 32, 4, 2, 16, 1, 1, 'gate')]
     if reg_level == 'FUNC':
-        return [(32, 32, 4, 2, 16, 0, 'func'),
-                (32, 64, 2, 2, 4, 0, 'func'),
-                (32, 32, 8, 4, 8, 0, 'func'),
-                (32, 32, 4, 2, 16, 1, 'func')]
-    return list(product([32], [32, 64], [2, 4, 8], [2, 4], [2, 16], [0, 1], ['full']))
+        return [(32, 32, 4, 2, 16, 0, 0, 'func'),
+                (32, 64, 2, 2, 4, 0, 1, 'func'),
+                (32, 32, 8, 4, 8, 0, 1, 'func'),
+                (32, 32, 4, 2, 16, 1, 0, 'func'),
+                (32, 32, 4, 2, 16, 1, 1, 'func')]
+    return list(product([32], [32, 64], [2, 4, 8], [2, 4], [2, 16], [0, 1], [0, 1], ['full']))
 
 
 params = generate_test_params()
 
 
-@pytest.mark.parametrize("addr_width, data_width, m_depth, s_depth, max_outstanding, classic, test_level",
-                         params)
+@pytest.mark.parametrize("addr_width, data_width, m_depth, s_depth, max_outstanding, "
+                         "classic, hints, test_level", params)
 def test_wb4_master_slave_loop(request, addr_width, data_width, m_depth, s_depth,
-                               max_outstanding, classic, test_level):
+                               max_outstanding, classic, hints, test_level):
     """wb4_master + wb4_slave back to back (rtl/amba/testcode/wb4_master_slave_loop.sv)."""
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -123,7 +131,8 @@ def test_wb4_master_slave_loop(request, addr_width, data_width, m_depth, s_depth
         filelist_path="rtl/amba/filelists/wb4_master_slave_loop.f")
 
     tag = (f"aw{TBBase.format_dec(addr_width, 3)}_dw{TBBase.format_dec(data_width, 3)}"
-           f"_md{m_depth}_sd{s_depth}_mo{max_outstanding}_{'classic' if classic else 'pipe'}_{test_level}")
+           f"_md{m_depth}_sd{s_depth}_mo{max_outstanding}_{'classic' if classic else 'pipe'}"
+           f"_{'hints' if hints else 'nohints'}_{test_level}")
     test_name_plus_params = f"test_{worker_id}_{dut_name}_{tag}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = sim_build_path(tests_dir, test_name_plus_params)
@@ -136,6 +145,7 @@ def test_wb4_master_slave_loop(request, addr_width, data_width, m_depth, s_depth
         'M_CMD_DEPTH': str(m_depth), 'M_RSP_DEPTH': str(m_depth),
         'S_CMD_DEPTH': str(s_depth), 'S_RSP_DEPTH': str(s_depth),
         'MAX_OUTSTANDING': str(max_outstanding), 'CLASSIC': str(classic),
+        'USE_BURST_HINTS': str(hints),
     }
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     extra_env = {
@@ -150,6 +160,7 @@ def test_wb4_master_slave_loop(request, addr_width, data_width, m_depth, s_depth
         'ADDR_WIDTH': str(addr_width),
         'DATA_WIDTH': str(data_width),
         'CLASSIC': str(classic),
+        'USE_BURST_HINTS': str(hints),
     }
     compile_args = [
         "--trace-fst" if enable_waves else "",

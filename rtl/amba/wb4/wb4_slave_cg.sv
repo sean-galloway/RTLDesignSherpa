@@ -45,6 +45,7 @@ module wb4_slave_cg
     parameter int DATA_WIDTH          = 32,
     parameter int CMD_DEPTH           = 2,
     parameter int RSP_DEPTH           = 2,
+    parameter int USE_BURST_HINTS = 0,   // see wb4_master/wb4_slave
     parameter int MAX_OUTSTANDING     = 16,
     parameter int CLASSIC             = 0,
     parameter int CG_IDLE_COUNT_WIDTH = 4,
@@ -54,6 +55,8 @@ module wb4_slave_cg
     parameter int DW  = DATA_WIDTH,
     parameter int SW  = SEL_WIDTH,
     parameter int STW = WB4_STATUS_WIDTH,
+    parameter int CTW = wb4_pkg::WB4_CTI_WIDTH,
+    parameter int BTW = wb4_pkg::WB4_BTE_WIDTH,
     parameter int ICW = CG_IDLE_COUNT_WIDTH
 )
 (
@@ -71,6 +74,8 @@ module wb4_slave_cg
     input  logic [AW-1:0]     s_wb_ADR,
     input  logic [DW-1:0]     s_wb_DAT_W,
     input  logic [SW-1:0]     s_wb_SEL,
+    input  logic [CTW-1:0]    s_wb_CTI,
+    input  logic [BTW-1:0]    s_wb_BTE,
     output logic              s_wb_STALL,
     output logic              s_wb_ACK,
     output logic              s_wb_ERR,
@@ -84,6 +89,8 @@ module wb4_slave_cg
     output logic [AW-1:0]     cmd_adr,
     output logic [DW-1:0]     cmd_dat,
     output logic [SW-1:0]     cmd_sel,
+    output logic [CTW-1:0]    cmd_cti,
+    output logic [BTW-1:0]    cmd_bte,
 
     // Response queue (FUB side)
     input  logic              rsp_valid,
@@ -126,6 +133,7 @@ module wb4_slave_cg
         .RSP_DEPTH       (RSP_DEPTH),
         .MAX_OUTSTANDING (MAX_OUTSTANDING),
         .CLASSIC         (CLASSIC),
+        .USE_BURST_HINTS (USE_BURST_HINTS),
         .SEL_WIDTH       (SEL_WIDTH)
     ) u_wb4_slave (
         .clk        (gated_clk),
@@ -136,6 +144,8 @@ module wb4_slave_cg
         .s_wb_ADR   (s_wb_ADR),
         .s_wb_DAT_W (s_wb_DAT_W),
         .s_wb_SEL   (s_wb_SEL),
+        .s_wb_CTI   (s_wb_CTI),
+        .s_wb_BTE   (s_wb_BTE),
         .s_wb_STALL (w_stall),
         .s_wb_ACK   (s_wb_ACK),
         .s_wb_ERR   (s_wb_ERR),
@@ -147,6 +157,8 @@ module wb4_slave_cg
         .cmd_adr    (cmd_adr),
         .cmd_dat    (cmd_dat),
         .cmd_sel    (cmd_sel),
+        .cmd_cti    (cmd_cti),
+        .cmd_bte    (cmd_bte),
         .rsp_valid  (rsp_valid),
         .rsp_ready  (w_rsp_ready),
         .rsp_status (rsp_status),
