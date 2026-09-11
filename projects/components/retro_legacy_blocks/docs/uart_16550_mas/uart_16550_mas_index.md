@@ -25,11 +25,13 @@
 
 **Component:** APB UART 16550 Compatible Serial Controller
 **Version:** 1.2
-**Last Updated:** 2025-12-01
-**Status:** RTL complete for the implemented feature set; issue #60 fixed
-and covered by the regression suite (37 tests per configuration, standard
-and CDC). The features that remain unimplemented are listed under
-Limitations and tracked as RLB-013.
+**Last Updated:** 2026-09-10
+**Status:** RTL complete; issue #60 fixed and covered by the regression suite
+(37 tests per configuration, standard and CDC), and the five RLB-013 features
+(character timeout, auto flow control, 1.5 stop bits, DLAB remapping, DMA
+mode select) are built. What remains are integration constraints, not missing
+function: no reset synchronizer is instantiated, and parameter guards fail at
+simulation time zero rather than at elaboration.
 
 ---
 

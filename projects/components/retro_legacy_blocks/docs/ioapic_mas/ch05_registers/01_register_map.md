@@ -65,10 +65,11 @@ PSLVERR is an IOWIN access with an unmapped selector, described next.
 - 0x00: IOAPICID
 - 0x01: IOAPICVER
 - 0x02: IOAPICARB
+- 0x03: IOAPICARBCFG (NOT an 82093AA register -- see below)
 - 0x10-0x3F: IOREDTBL entries (even=LO, odd=HI)
 
 **Unmapped selector values are stored, readable, and inert.** A selector in
-0x03-0x0F or at or above 0x40 is accepted by IOREGSEL and reads back as
+0x04-0x0F or at or above 0x40 is accepted by IOREGSEL and reads back as
 written (there is exactly one copy of the selector - the register block's
 `regsel` field drives both readback and the IOWIN translation, and byte
 strobes are honoured by the register block). An IOWIN access made while the
@@ -159,6 +160,38 @@ uint32_t arb = *IOWIN;  // Read arbitration ID
 | [31:28] | Reserved | RO | 0x0 | Reserved, read as 0 |
 
 **Purpose:** Multi-IOAPIC bus arbitration (read-only, matches APIC ID).
+
+#### IOAPICARBCFG Register (Internal Offset 0x03)
+
+**NOT an 82093AA register.** Selector 0x03 is reserved on the real part, and
+this block uses it for the one thing the datasheet's arbitration scheme
+cannot express: a choice about fairness. Software that never writes it gets
+the 82093AA behaviour.
+
+**Access via IOREGSEL/IOWIN:**
+```c
+*IOREGSEL = 0x03;   // Select IOAPICARBCFG
+*IOWIN = 0x1;       // Round robin
+```
+
+| Bits | Name | Type | Reset | Description |
+| --- | --- | --- | --- | --- |
+| [0] | rr_enable | RW | 0x0 | 0 = static priority, 1 = round robin |
+| [31:1] | Reserved | RO | 0x0 | Reserved, read as 0 |
+
+**Static priority** is the 82093AA scheme: scan up from pin 0, the lowest
+eligible number wins. Its weakness follows from the rule rather than from a
+bug -- a level pin that becomes eligible again the cycle after software EOIs
+it holds the low ground forever, and every pin above it starves.
+
+**Round robin** starts the scan just above the pin that was last ACCEPTED,
+and wraps. The pin just served becomes the last one the scan reaches, so
+every eligible pin is served before any pin is served twice, and priority
+becomes a position in the rotation rather than an IRQ number.
+
+The pointer moves only on an accept. A pick the consumer never takes must not
+move it, or a stalled consumer would walk the rotation round the ring without
+delivering anything.
 
 ### Redirection Table (Internal Offsets 0x10-0x3F)
 

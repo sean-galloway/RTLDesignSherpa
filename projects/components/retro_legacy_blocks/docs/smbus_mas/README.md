@@ -23,9 +23,9 @@
 
 # SMBUS Specification
 
-**Status:** Written (chapters 1 and 5), reconciled with the GitHub #58 RTL
-rewrite on 2026-09-09 (v1.1) - see smbus_mas_index.md for the authoritative
-status and the remaining limitations (RLB-011)
+**Status:** Written (chapters 1 and 5), reconciled with the RTL on 2026-09-10
+(v1.2, target mode and arbitration) - see smbus_mas_index.md for the
+authoritative status and the remaining limitations
 
 ---
 

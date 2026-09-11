@@ -368,10 +368,11 @@ remains of it is [[COMMON-027]].
 
 ### RLB-013: UART 16550 features deferred past the #60 fix
 
-**Priority:** P3. Raised 2026-09-10 while fixing issue #60. None of these is a
-defect; each is a 16550 feature this block advertises in its register map but
-has never implemented, and each is disclosed in the MAS.
-**Status:** open 2026-09-10.
+**Priority:** P3. Raised 2026-09-10 while fixing issue #60. None of these was
+a defect; each was a 16550 feature this block advertised in its register map
+but had never implemented.
+**Status:** DONE 2026-09-10, commit 3d6bd04e0. All five landed together with
+the MAS flip. Kept here as the record of what they were.
 
 - **Character-timeout interrupt.** `int_timeout` is tied to 0, so IIR never
   reads 0x0C and there is no four-character-time timeout. Software polling a

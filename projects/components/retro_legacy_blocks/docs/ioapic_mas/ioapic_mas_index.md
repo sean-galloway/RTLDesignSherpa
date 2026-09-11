@@ -26,8 +26,8 @@
 ## Overview
 
 **Component:** APB I/O Advanced Programmable Interrupt Controller (IOAPIC)  
-**Version:** 1.1  
-**Last Updated:** 2026-09-09  
+**Version:** 1.2  
+**Last Updated:** 2026-09-10  
 **Status:** RTL Functional - 36/36 in all six DV configurations; issue #48
 delivery, IOREGSEL and address-decode defects fixed 2026-09-09 (spec partial;
 see Document Status below)
@@ -145,9 +145,10 @@ This specification is organized into five chapters covering all aspects of the A
 off/on x gate/func/full). The issue #48 defects - edge double-delivery,
 global EOI block, live-vector Remote IRR clear, IOREGSEL shadow divergence,
 address aliasing above 0x0FF, unsynchronized EOI - were fixed 2026-09-09 and
-this revision of the spec describes the fixed hardware. Deferred features
-(logical destination mode, lowest-priority delivery, priority rotation) are
-tracked as RLB-008 in `vault/Tasks/RLB/open.md`.
+this revision of the spec describes the fixed hardware. Logical destination
+mode and round-robin arbitration landed 2026-09-10. What is still deferred
+(lowest-priority delivery, multi-IOAPIC routing, boot-interrupt delivery,
+MSI) is tracked as RLB-008 in `vault/Tasks/RLB/open.md`.
 
 **Next Steps:**
 1. Review specification for completeness
@@ -179,6 +180,7 @@ tracked as RLB-008 in `vault/Tasks/RLB/open.md`.
 | --- | --- | --- | --- |
 | 1.0 | 2025-11-16 | RTL Design Sherpa | Initial specification based on Intel 82093AA with RLB methodology |
 | 1.1 | 2026-09-09 | RTL Design Sherpa | Issue #48 fixes: delivery FSM replaced by a one-entry valid/ready stage (one delivery per edge, no parked valid), per-pin Remote IRR blocking with EOI matched against the delivered vector, single IOREGSEL copy with unmapped selectors and 0x100+ accesses dropped, IOWIN tie-off, LAPIC interface presented in pclk and crossed with matched-latency synchronizers when CDC_ENABLE=1 |
+| 1.2 | 2026-09-10 | RTL Design Sherpa | RLB-008, two items. Logical destination mode: `irq_out_dest_mode` carries the RTE's mode alongside the destination, because an IOAPIC does not decode logical destinations itself -- it forwards the field and the mode and the local APICs match, so forwarding the mode is the whole of this block's responsibility. Round-robin arbitration behind `IOAPICARBCFG.rr_enable` at IOWIN selector 0x03, which is reserved on the real 82093AA so a driver written for the part never writes it and gets static priority: the scan starts just above the pin last ACCEPTED and wraps, making priority a position in the rotation rather than an IRQ number, and the pointer moves only on an accept so a stalled consumer cannot walk it round the ring |
 
 ## Navigation
 

@@ -71,7 +71,7 @@ Generated outputs:
   `ACPI_CONTROL.low_power_req`, `PM1_CONTROL.pwrbtn_ovr` and `.slpbtn_ovr`.
   They are not routed to the core.
 - **The address decode is strict.** `pm_acpi_config_regs` compares the whole
-  12-bit address against the twenty-one register offsets and drops everything
+  12-bit address against the thirty-eight register offsets and drops everything
   else with PSLVERR. If you MOVE or ADD a register here, update the `ADDR_*`
   localparams in that file; the `a_regblk_addr_mapped` assertion is the guard.
 

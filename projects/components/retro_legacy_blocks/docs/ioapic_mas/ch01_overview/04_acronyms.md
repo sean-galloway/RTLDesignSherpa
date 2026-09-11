@@ -96,7 +96,7 @@ Determines how interrupt is delivered to CPU:
 - **Logical:** Destination field is logical grouping (multi-cast)
 
 **Priority Arbitration:**
-When multiple IRQs are pending, hardware selects which to deliver first. Current implementation uses static priority (lowest IRQ number wins).
+When multiple IRQs are pending, hardware selects which to deliver first. Two policies: static priority (lowest IRQ number wins), which is the reset default, or round robin from the last accepted pin when `IOAPICARBCFG.rr_enable` is set.
 
 **End-of-Interrupt (EOI):**
 Signal from CPU indicating interrupt service is complete. For level-triggered interrupts, clears Remote IRR on every pin delivered with that vector and allows re-triggering if signal still asserted.

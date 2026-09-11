@@ -123,7 +123,7 @@ Shows General Purpose Event handling:
 | 001 | S1 | Sleep (clock gating, context retained) |
 | 011 | S3 | Deep sleep (power domains off, wake from events) |
 
-Only S0/S1/S3 are implemented; other encodings fall through to S0.
+S0, S1, S3 and S5 are implemented; other sleep_type encodings fall through to S0. current_state is a two-bit ENCODING, not the ACPI number: 0=S0, 1=S1, 2=S5, 3=S3.
 
 ## References
 

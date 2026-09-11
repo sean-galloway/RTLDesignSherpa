@@ -31,12 +31,13 @@ descriptions are quoted from the RDL, which is the single source of truth for
 the fields; the contracts behind them (timing, timeout, FIFOs, interrupts) are
 from `rtl/smbus/README.md`.
 
-**Strict decode.** Only the fifteen mapped registers decode. Every other
+**Strict decode.** Only the seventeen mapped registers decode. Every other
 address in the 4 KB window is dropped: no internal strobe fires, the read
 returns 0, and the access is acknowledged locally with `PSLVERR`. The
-generated block sees six address bits, so without the strict decode every
-unmapped address would alias onto a real register 64 bytes below it (0x040
-would write `SMBUS_CONTROL`). The drop is acknowledged combinationally and
+generated block sees seven address bits, so without the strict decode every
+unmapped address would alias onto a real register 128 bytes below it (0x080
+would write `SMBUS_CONTROL`). It was six bits and 0x040 until the two target
+registers pushed the top of the map past 0x03F. The drop is acknowledged combinationally and
 locally because the adapter holds its request until it is acknowledged; a
 dropped access that is never acknowledged hangs the bus.
 
@@ -58,11 +59,13 @@ action).
 | 0x1C | SMBUS_FIFO_STATUS | RO | 0x00008080 (live) | TX/RX FIFO levels and flags (post-reset both FIFOs empty: tx_empty bit 7, rx_empty bit 15) |
 | 0x20 | SMBUS_CLK_DIV | RW | 0x000000F9 | SCL clock divider |
 | 0x24 | SMBUS_TIMEOUT | RW | 0x002625A0 | SCL-low limit in clocks, 0 = disabled; worst case to busy=0 is five windows |
-| 0x28 | SMBUS_OWN_ADDR | RW | 0x00000000 | Own slave address (slave mode, stub) |
+| 0x28 | SMBUS_OWN_ADDR | RW | 0x00000000 | The address this target answers, and its enable |
 | 0x2C | SMBUS_INT_ENABLE | RW | 0x00000000 | Interrupt enable mask |
 | 0x30 | SMBUS_INT_STATUS | W1C | 0x00000000 | Sticky interrupt status; reads 0 out of reset |
 | 0x34 | SMBUS_PEC | RW | 0x00000000 | PEC value (CRC-8) |
 | 0x38 | SMBUS_BLOCK_COUNT | RW | 0x00000000 | Block transfer byte count |
+| 0x3C | SMBUS_SLAVE_CTRL | RW | 0x00000000 | Target policy: general call, NAK-all, PEC, clock stretching |
+| 0x40 | SMBUS_SLAVE_STATUS | RO | 0x00000000 | Target direction, stretching, PEC verdict and running value |
 
 ---
 
@@ -76,7 +79,7 @@ above applies throughout.
 | Bit | Name | Access | Reset | Description |
 |-----|------|--------|-------|-------------|
 | 0 | master_en | RW | 0 | Enable master mode (0=disabled, 1=enabled). `SMBUS_COMMAND.start` is ignored unless this is already set |
-| 1 | slave_en | RW | 0 | Enable slave mode (0=disabled, 1=enabled). Slave mode is a stub: the bit is stored and has no effect on the wire (RLB-011) |
+| 1 | slave_en | RW | 0 | Enable target mode. With `SMBUS_OWN_ADDR.addr_en` this arms the target engine; see SMBUS_SLAVE_CTRL for its policy |
 | 2 | pec_en | RW | 0 | Enable Packet Error Checking (0=disabled, 1=enabled). Sampled when the transaction starts |
 | 3 | fast_mode | RW | 0 | 0 = 100 kHz standard-mode timing, 1 = 400 kHz fast-mode timing. Selects the whole timing set, not just a frequency (see below) |
 | 4 | fifo_reset | RW/AC | 0 | Reset TX/RX FIFOs (write 1, auto-clears). A synchronous clear of the two byte buffers only, leaving the engine alone |
@@ -124,9 +127,9 @@ W1C event bits are in SMBUS_INT_STATUS (0x30).
 | 1 | bus_error | RO | Bus error: a transfer was aborted for a reason other than a NAK or a PEC mismatch - `SMBUS_COMMAND.stop` written alone, a TX FIFO underrun, an RX FIFO overrun, or bus recovery that could not free SDA within nine clocks. Set together with `timeout_error` it means recovery was attempted, failed, and the bus was released without a STOP |
 | 2 | timeout_error | RO | A bus timeout: SCL was held low - by this master or by anyone else - for longer than SMBUS_TIMEOUT. The transaction was aborted and the bus released. When this bit is set, recovery clocks were issued: every timeout abort runs I2C bus recovery (up to nine SCL pulses with SDA released, standard-mode timing) before its STOP. If SDA was still low after nine clocks, `bus_error` is set as well and no STOP was generated |
 | 3 | pec_error | RO | PEC mismatch detected: on a read with `pec_en`, the slave's PEC byte differed from the running CRC. `complete` is not set |
-| 4 | arb_lost | RO | Multi-master arbitration lost. Tied low: arbitration is not implemented (RLB-011) |
+| 4 | arb_lost | RO | Multi-master arbitration lost: a transmitted 1 read back as 0. Both lines are released within the bit and the sequencer idles WITHOUT framing a STOP, because the winner's transfer is still in progress |
 | 5 | nak_received | RO | NAK received from slave, at any byte: address, command, data or PEC. A NAK aborts the transaction through a STOP and counts as an error for `error_int`, but does not set `bus_error` |
-| 6 | slave_addressed | RO | This device addressed as slave. Tied low: slave mode is a stub (RLB-011) |
+| 6 | slave_addressed | RO | This device is addressed as a target and in a transfer. A LEVEL, true until the STOP; the sticky version is `SMBUS_INT_STATUS.slave_addr_int` |
 | 7 | complete | RO | Transaction completed successfully: the transaction finished and the bus was released with a STOP. Never set alongside any error; it is computed from the next-state error terms, including the ones raised on the very edge the STOP completes, so a transaction that did not terminate the bus cannot report success |
 | 11:8 | fsm_state | RO | Current state machine state (for debugging); the encoding is ABI, see below |
 | 31:12 | Reserved | RO | Reads 0 |
@@ -218,7 +221,11 @@ Quick Command.
 | 31:7 | Reserved | RO | 0 | Reads 0 |
 
 There is no writable R/W bit at bit 7; writes to bit 7 are ignored and it
-reads back 0. Quick Command is always issued with R/W = 0 (RLB-011).
+reads back 0. Quick Command has both directions, and each is its own
+transaction type rather than a direction bit: type 0x0 sends the address with
+R/W = 0 and type 0xA with R/W = 1. The R/W bit IS the payload of a quick
+command, so a shared direction bit would mean nothing for the other nine
+types.
 
 ---
 
@@ -328,9 +335,9 @@ the multiplier in mind.
 | 7 | addr_en | RW | 0 | Enable own address matching (slave mode) |
 | 31:8 | Reserved | RO | 0 | Reads 0 |
 
-Slave mode is a stub: this register is stored so software can see what
-exists, but no slave FSM runs and the block never claims the bus as a target
-(RLB-011).
+`addr_en` is what makes the target answer an address at all: with it clear
+the compare is disabled and the engine responds to nothing, whatever
+`SMBUS_CONTROL.slave_en` says.
 
 ---
 
@@ -342,8 +349,11 @@ exists, but no slave FSM runs and the block never claims the bus as a target
 | 1 | error_en | RW | 0 | Enable interrupt on bus error (any of `bus_error`, `timeout_error`, `pec_error`, `nak_received`) |
 | 2 | tx_thresh_en | RW | 0 | Enable the TX threshold interrupt. The threshold is fixed at empty: the condition is `tx_fifo_empty`, not a programmable level |
 | 3 | rx_thresh_en | RW | 0 | Enable the RX threshold interrupt. The threshold is fixed at non-empty: the condition is `!rx_fifo_empty`, not a programmable level |
-| 4 | slave_addr_en | RW | 0 | Enable interrupt when addressed as slave (never fires: slave mode is a stub, RLB-011) |
-| 31:5 | Reserved | RO | 0 | Reads 0 |
+| 4 | slave_addr_en | RW | 0 | Enable interrupt when addressed as a target |
+| 5 | slave_rx_en | RW | 0 | Enable interrupt when the target takes a byte off the bus into the RX FIFO |
+| 6 | slave_tx_en | RW | 0 | Enable interrupt when the target needs a byte to transmit and the TX FIFO is empty. With `SMBUS_SLAVE_CTRL.stretch_en` set the bus is being held while this is true, so software is on the clock |
+| 7 | slave_done_en | RW | 0 | Enable interrupt when a transfer addressed to this target ends at the STOP. `SMBUS_SLAVE_STATUS.pec_error` is valid from that moment |
+| 31:8 | Reserved | RO | 0 | Reads 0 |
 
 There is no programmable threshold register; the two threshold bits are
 edge-set on the fixed conditions above.
@@ -364,8 +374,11 @@ here is what deasserts the pin."
 | 1 | error_int | W1C | 0 | Bus error occurred: rising edge of any of `bus_error`, `timeout_error`, `pec_error`, `nak_received` |
 | 2 | tx_thresh_int | W1C | 0 | TX FIFO became empty (the threshold is fixed at empty). Sticky: set on the edge of the condition, cleared only by writing 1. It is not a live level |
 | 3 | rx_thresh_int | W1C | 0 | RX FIFO became non-empty (the threshold is fixed at non-empty). Sticky: set on the edge of the condition, cleared only by writing 1 |
-| 4 | slave_addr_int | W1C | 0 | Device addressed as slave (never sets: slave mode is a stub, RLB-011) |
-| 31:5 | Reserved | RO | 0 | Reads 0 |
+| 4 | slave_addr_int | W1C | 0 | Addressed as a target: rising edge of `SMBUS_STATUS.slave_addressed` |
+| 5 | slave_rx_int | W1C | 0 | The target took a byte off the bus into the RX FIFO |
+| 6 | slave_tx_int | W1C | 0 | The target needs a byte to transmit and the TX FIFO is empty |
+| 7 | slave_done_int | W1C | 0 | A transfer addressed to this target ended at the STOP |
+| 31:8 | Reserved | RO | 0 | Reads 0 |
 
 The sticky bits live in hardware (`smbus_int_status`); the generated field is
 a live mirror of them. The W1C is decoded in `smbus_config_regs` as
@@ -414,6 +427,48 @@ Contract). For a Block Read, a slave-supplied count of
 0 is clamped to 1 and one larger than `FIFO_DEPTH` is clamped to the depth,
 and the clamped value is what lands here. Block Process Call shares this
 register between its write and read halves.
+
+---
+
+### SMBUS_SLAVE_CTRL (0x3C)
+
+Target-mode policy. `SMBUS_CONTROL.slave_en` turns the engine on and
+`SMBUS_OWN_ADDR` says which address it answers; these are the choices that
+have no obvious right answer.
+
+| Bit | Name | Access | Reset | Description |
+|-----|------|--------|-------|-------------|
+| 0 | gc_en | RW | 0 | Answer the general call address 0x00 as well as the own address. The general call is a write by definition, so a read to 0x00 is not a match |
+| 1 | nack_all | RW | 0 | Software is busy: NAK this target's own address instead of answering it. A NAK is the only way a target can say "not now" without holding the bus, which is what the alternative -- stretching the clock until software catches up -- does to every other device on the wire |
+| 2 | pec_en | RW | 0 | Maintain a CRC-8 over every byte of a transfer addressed to this target, the address bytes included. See the note below |
+| 3 | stretch_en | RW | 0 | Hold SCL low while a read waits for software to put a byte in the TX FIFO. With this clear an empty FIFO sends 0xFF instead, which is what an unprogrammed target on a real bus looks like and keeps a slow CPU from wedging the whole bus |
+| 31:4 | Reserved | RO | 0 | Reads 0 |
+
+**The target PEC never counts bytes.** A target does not know how long a
+transfer is; the protocol does, and the protocol lives in software. CRC-8
+removes the need to know. On a **write** the running value covers the address
+byte and every data byte, and a correct trailing PEC byte drives it to
+**zero**, so "PEC good" is "the running value is zero at the STOP". On a
+**read**, when the TX FIFO runs dry the byte sent IS the running CRC, which is
+exactly the PEC the master is waiting for; software sets the length by how
+many bytes it queues.
+
+---
+
+### SMBUS_SLAVE_STATUS (0x40)
+
+What the target engine is doing. Read-only: every bit is a live view of the
+engine, and the sticky versions software can poll at leisure are in
+SMBUS_INT_STATUS.
+
+| Bit | Name | Access | Reset | Description |
+|-----|------|--------|-------|-------------|
+| 0 | rd_not_wr | RO | 0 | Direction of the transfer in progress: 1 = the master is reading from this target, 0 = writing to it |
+| 1 | stretching | RO | 0 | The engine is holding SCL low, waiting for software to put a byte in the TX FIFO |
+| 2 | pec_error | RO | 0 | The last WRITE transfer addressed to this target ended with a running CRC that was not zero, which means the master's PEC byte did not match. Valid from the STOP; cleared at the next START |
+| 7:3 | Reserved | RO | 0 | Reads 0 |
+| 15:8 | pec_value | RO | 0 | The running CRC-8. Zero after a correct write PEC; the byte that will be sent when a read runs out of queued data |
+| 31:16 | Reserved | RO | 0 | Reads 0 |
 
 ---
 
@@ -510,21 +565,13 @@ clear is kept.
 
 ## Remaining limitations
 
-None of these is a defect in the master path; they are tracked as RLB-011 in
-`vault/Tasks/RLB/open.md`.
-
-- Slave mode is a stub: `slave_en`, `SMBUS_OWN_ADDR`, `slave_addressed` and
-  `slave_addr_int` are stored or tied low and never act.
-- Multi-master arbitration is not implemented; `arb_lost` is tied to 0.
-- Quick Command is always issued with R/W = 0; there is no direction bit.
 - A `start` written while `master_en` is clear is silently discarded and not
   reported.
 - Block Process Call shares `SMBUS_BLOCK_COUNT` between its two halves.
-- SMBALERT# and Host Notify are not implemented.
-- The `RESET_ACTIVE_HIGH` build is not usable: the shared `fifo_sync` /
-  `counter_bin` primitives hardcode active-low in their reset bodies
-  (COMMON-026, and RLB-012 for this block). Build with the default
-  active-low reset until both are fixed.
+- SMBALERT# and Host Notify are not implemented, and with them the Alert
+  Response Address a target would answer.
+- ARP is not implemented; `SMBUS_OWN_ADDR` is a fixed address software
+  programs.
 - No reset synchronizer is instantiated; `presetn` / `smbus_resetn` must
   arrive already synchronized (asynchronous assert, synchronous deassert).
 

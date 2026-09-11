@@ -25,7 +25,7 @@
  *                                                 --> hwif --> pm_acpi_core
  *
  * ADDRESS DECODE POLICY (issue #54 round_2 item 4)
- *   Only the thirty-six mapped registers decode. Equality is on the WHOLE
+ *   Only the thirty-eight mapped registers decode. Equality is on the WHOLE
  *   12-bit address, register by register: everything else in the 4 KB window
  *   is DROPPED - the write is ignored, the read returns zero, and PSLVERR is
  *   raised. This is the policy ioapic, pic_8259 and pit_8254 already use.
@@ -100,7 +100,7 @@
  *     pm_acpi_tests_gh54.py::test_gh54_gpe_status_two_bits_exact and
  *     ::test_gh54_gpe_interrupt_deasserts_after_w1c.
  *   - Every address presented to the register block is one its generated
- *     decode recognises -- the thirty-six ADDR_* localparams below and nothing
+ *     decode recognises -- the thirty-eight ADDR_* localparams below and nothing
  *     else. If the RDL layout drifts from those localparams the access reads
  *     zero and writes nowhere instead of failing. Guarded by
  *     pm_acpi_tests_gh54.py::test_gh54_address_alias_dropped_with_pslverr and

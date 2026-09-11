@@ -18,7 +18,7 @@
 //   - 16-byte TX and RX FIFOs
 //   - Programmable baud rate via 16-bit divisor
 //   - 5/6/7/8 data bits
-//   - 1 or 2 stop bits (no 1.5; 5-bit words always get 1)
+//   - 1, 1.5 (5-bit words) or 2 stop bits
 //   - None/Odd/Even/Mark/Space parity
 //   - Modem control signals (uart_16550_modem)
 //   - Loopback mode

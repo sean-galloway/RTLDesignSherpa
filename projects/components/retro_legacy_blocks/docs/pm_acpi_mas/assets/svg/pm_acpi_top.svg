@@ -103,35 +103,36 @@
 <!-- event_ctrl -->
 <g id="node7" class="node">
 <title>event_ctrl</title>
-<path fill="lightcyan" stroke="black" d="M1089.41,-372.48C1089.41,-372.48 967.41,-372.48 967.41,-372.48 961.41,-372.48 955.41,-366.48 955.41,-360.48 955.41,-360.48 955.41,-316.48 955.41,-316.48 955.41,-310.48 961.41,-304.48 967.41,-304.48 967.41,-304.48 1089.41,-304.48 1089.41,-304.48 1095.41,-304.48 1101.41,-310.48 1101.41,-316.48 1101.41,-316.48 1101.41,-360.48 1101.41,-360.48 1101.41,-366.48 1095.41,-372.48 1089.41,-372.48"/>
-<text text-anchor="middle" x="1028.41" y="-357.28" font-family="Times,serif" font-size="14.00">Event Controller</text>
-<text text-anchor="middle" x="1028.41" y="-342.28" font-family="Times,serif" font-size="14.00">(GPE edge detect,</text>
-<text text-anchor="middle" x="1028.41" y="-327.28" font-family="Times,serif" font-size="14.00">sticky W1C status</text>
-<text text-anchor="middle" x="1028.41" y="-312.28" font-family="Times,serif" font-size="14.00">owned here)</text>
+<path fill="lightcyan" stroke="black" d="M1089.41,-366.48C1089.41,-366.48 967.41,-366.48 967.41,-366.48 961.41,-366.48 955.41,-360.48 955.41,-354.48 955.41,-354.48 955.41,-310.48 955.41,-310.48 955.41,-304.48 961.41,-298.48 967.41,-298.48 967.41,-298.48 1089.41,-298.48 1089.41,-298.48 1095.41,-298.48 1101.41,-304.48 1101.41,-310.48 1101.41,-310.48 1101.41,-354.48 1101.41,-354.48 1101.41,-360.48 1095.41,-366.48 1089.41,-366.48"/>
+<text text-anchor="middle" x="1028.41" y="-351.28" font-family="Times,serif" font-size="14.00">Event Controller</text>
+<text text-anchor="middle" x="1028.41" y="-336.28" font-family="Times,serif" font-size="14.00">(GPE edge detect,</text>
+<text text-anchor="middle" x="1028.41" y="-321.28" font-family="Times,serif" font-size="14.00">sticky W1C status</text>
+<text text-anchor="middle" x="1028.41" y="-306.28" font-family="Times,serif" font-size="14.00">owned here)</text>
 </g>
 <!-- regs&#45;&gt;event_ctrl -->
 <g id="edge6" class="edge">
 <title>regs&#45;&gt;event_ctrl</title>
-<path fill="none" stroke="black" d="M563.7,-338.48C670.81,-338.48 843.46,-338.48 945.14,-338.48"/>
-<polygon fill="black" stroke="black" points="945.35,-341.98 955.35,-338.48 945.35,-334.98 945.35,-341.98"/>
-<text text-anchor="middle" x="730.54" y="-357.28" font-family="Times,serif" font-size="14.00">enables,</text>
-<text text-anchor="middle" x="730.54" y="-342.28" font-family="Times,serif" font-size="14.00">W1C clear</text>
+<path fill="none" stroke="black" d="M563.7,-337.46C670.81,-336.31 843.46,-334.45 945.14,-333.36"/>
+<polygon fill="black" stroke="black" points="945.39,-336.86 955.35,-333.25 945.32,-329.86 945.39,-336.86"/>
+<text text-anchor="middle" x="730.54" y="-355.28" font-family="Times,serif" font-size="14.00">enables,</text>
+<text text-anchor="middle" x="730.54" y="-340.28" font-family="Times,serif" font-size="14.00">W1C clear</text>
 </g>
 <!-- sleep_ctrl -->
 <g id="node8" class="node">
 <title>sleep_ctrl</title>
-<path fill="lightcyan" stroke="black" d="M1304.41,-435.98C1304.41,-435.98 1186.41,-435.98 1186.41,-435.98 1180.41,-435.98 1174.41,-429.98 1174.41,-423.98 1174.41,-423.98 1174.41,-394.98 1174.41,-394.98 1174.41,-388.98 1180.41,-382.98 1186.41,-382.98 1186.41,-382.98 1304.41,-382.98 1304.41,-382.98 1310.41,-382.98 1316.41,-388.98 1316.41,-394.98 1316.41,-394.98 1316.41,-423.98 1316.41,-423.98 1316.41,-429.98 1310.41,-435.98 1304.41,-435.98"/>
-<text text-anchor="middle" x="1245.41" y="-420.78" font-family="Times,serif" font-size="14.00">Power State FSM</text>
-<text text-anchor="middle" x="1245.41" y="-405.78" font-family="Times,serif" font-size="14.00">(S0/S1/S3,</text>
-<text text-anchor="middle" x="1245.41" y="-390.78" font-family="Times,serif" font-size="14.00">latched wake)</text>
+<path fill="lightcyan" stroke="black" d="M1304.41,-439.48C1304.41,-439.48 1186.41,-439.48 1186.41,-439.48 1180.41,-439.48 1174.41,-433.48 1174.41,-427.48 1174.41,-427.48 1174.41,-383.48 1174.41,-383.48 1174.41,-377.48 1180.41,-371.48 1186.41,-371.48 1186.41,-371.48 1304.41,-371.48 1304.41,-371.48 1310.41,-371.48 1316.41,-377.48 1316.41,-383.48 1316.41,-383.48 1316.41,-427.48 1316.41,-427.48 1316.41,-433.48 1310.41,-439.48 1304.41,-439.48"/>
+<text text-anchor="middle" x="1245.41" y="-424.28" font-family="Times,serif" font-size="14.00">Power State FSM</text>
+<text text-anchor="middle" x="1245.41" y="-409.28" font-family="Times,serif" font-size="14.00">(S0/S1/S3/S5,</text>
+<text text-anchor="middle" x="1245.41" y="-394.28" font-family="Times,serif" font-size="14.00">latched wake,</text>
+<text text-anchor="middle" x="1245.41" y="-379.28" font-family="Times,serif" font-size="14.00">rail sequencer)</text>
 </g>
 <!-- regs&#45;&gt;sleep_ctrl -->
 <g id="edge11" class="edge">
 <title>regs&#45;&gt;sleep_ctrl</title>
-<path fill="none" stroke="black" d="M547.95,-372.63C574.66,-382.59 604.99,-392.2 633.67,-397.48 821.17,-431.95 1046.49,-423.93 1164.06,-416.09"/>
-<polygon fill="black" stroke="black" points="1164.33,-419.58 1174.06,-415.41 1163.85,-412.6 1164.33,-419.58"/>
-<text text-anchor="middle" x="891.41" y="-441.28" font-family="Times,serif" font-size="14.00">sleep_type,</text>
-<text text-anchor="middle" x="891.41" y="-426.28" font-family="Times,serif" font-size="14.00">sleep_enable</text>
+<path fill="none" stroke="black" d="M550.97,-372.57C576.96,-381.82 606.11,-390.61 633.67,-395.48 821.39,-428.63 1046.62,-420.15 1164.12,-412.16"/>
+<polygon fill="black" stroke="black" points="1164.39,-415.65 1174.12,-411.47 1163.9,-408.67 1164.39,-415.65"/>
+<text text-anchor="middle" x="891.41" y="-437.28" font-family="Times,serif" font-size="14.00">sleep_type,</text>
+<text text-anchor="middle" x="891.41" y="-422.28" font-family="Times,serif" font-size="14.00">sleep_enable</text>
 </g>
 <!-- rst_out -->
 <g id="node12" class="node">
@@ -149,8 +150,8 @@
 <!-- sync&#45;&gt;event_ctrl -->
 <g id="edge5" class="edge">
 <title>sync&#45;&gt;event_ctrl</title>
-<path fill="none" stroke="black" d="M799.73,-227.51C809.05,-231.83 818.48,-236.24 827.41,-240.48 867.83,-259.65 912.57,-281.51 949.46,-299.71"/>
-<polygon fill="black" stroke="black" points="948.15,-302.97 958.66,-304.26 951.25,-296.69 948.15,-302.97"/>
+<path fill="none" stroke="black" d="M799.63,-227.72C808.97,-232 818.43,-236.35 827.41,-240.48 866.31,-258.35 909.45,-278.19 945.67,-294.86"/>
+<polygon fill="black" stroke="black" points="944.67,-298.25 955.21,-299.25 947.59,-291.89 944.67,-298.25"/>
 </g>
 <!-- pm_timer&#45;&gt;regs -->
 <g id="edge9" class="edge">
@@ -161,62 +162,62 @@
 <!-- pm_timer&#45;&gt;event_ctrl -->
 <g id="edge10" class="edge">
 <title>pm_timer&#45;&gt;event_ctrl</title>
-<path fill="none" stroke="black" d="M787.07,-286.87C828.52,-295.43 886.55,-307.51 937.41,-318.48 940.04,-319.04 942.7,-319.62 945.39,-320.2"/>
-<polygon fill="black" stroke="black" points="944.7,-323.64 955.22,-322.35 946.2,-316.8 944.7,-323.64"/>
-<text text-anchor="middle" x="891.41" y="-322.28" font-family="Times,serif" font-size="14.00">overflow</text>
+<path fill="none" stroke="black" d="M787.19,-286.2C831.76,-294.78 894.94,-306.96 945.32,-316.66"/>
+<polygon fill="black" stroke="black" points="944.73,-320.11 955.21,-318.57 946.05,-313.24 944.73,-320.11"/>
+<text text-anchor="middle" x="891.41" y="-317.28" font-family="Times,serif" font-size="14.00">overflow</text>
 </g>
 <!-- event_ctrl&#45;&gt;regs -->
 <g id="edge7" class="edge">
 <title>event_ctrl&#45;&gt;regs</title>
-<path fill="none" stroke="black" d="M955.11,-353.79C917.27,-361.04 870.05,-368.88 827.41,-372.48 741.61,-379.72 719.33,-381.23 633.67,-372.48 614.16,-370.48 593.56,-367.2 573.77,-363.43"/>
-<polygon fill="black" stroke="black" points="574.31,-359.97 563.82,-361.49 572.97,-366.84 574.31,-359.97"/>
-<text text-anchor="middle" x="730.54" y="-382.28" font-family="Times,serif" font-size="14.00">status</text>
+<path fill="none" stroke="black" d="M955.21,-349.59C917.39,-357.69 870.17,-366.45 827.41,-370.48 741.68,-378.55 719.38,-378.73 633.67,-370.48 614.2,-368.6 593.61,-365.51 573.83,-361.97"/>
+<polygon fill="black" stroke="black" points="574.35,-358.5 563.88,-360.14 573.08,-365.39 574.35,-358.5"/>
+<text text-anchor="middle" x="730.54" y="-380.28" font-family="Times,serif" font-size="14.00">status</text>
 </g>
 <!-- event_ctrl&#45;&gt;sleep_ctrl -->
 <g id="edge12" class="edge">
 <title>event_ctrl&#45;&gt;sleep_ctrl</title>
-<path fill="none" stroke="black" d="M1101.6,-362.32C1121.82,-368.99 1143.92,-376.29 1164.56,-383.11"/>
-<polygon fill="black" stroke="black" points="1163.64,-386.49 1174.24,-386.3 1165.84,-379.84 1163.64,-386.49"/>
-<text text-anchor="middle" x="1137.91" y="-383.28" font-family="Times,serif" font-size="14.00">wake</text>
+<path fill="none" stroke="black" d="M1101.6,-356.99C1121.82,-363.85 1143.92,-371.36 1164.56,-378.36"/>
+<polygon fill="black" stroke="black" points="1163.64,-381.75 1174.24,-381.65 1165.89,-375.12 1163.64,-381.75"/>
+<text text-anchor="middle" x="1137.91" y="-379.28" font-family="Times,serif" font-size="14.00">wake</text>
 </g>
 <!-- int_gen -->
 <g id="node9" class="node">
 <title>int_gen</title>
-<path fill="lightcyan" stroke="black" d="M1296.91,-364.98C1296.91,-364.98 1193.91,-364.98 1193.91,-364.98 1187.91,-364.98 1181.91,-358.98 1181.91,-352.98 1181.91,-352.98 1181.91,-323.98 1181.91,-323.98 1181.91,-317.98 1187.91,-311.98 1193.91,-311.98 1193.91,-311.98 1296.91,-311.98 1296.91,-311.98 1302.91,-311.98 1308.91,-317.98 1308.91,-323.98 1308.91,-323.98 1308.91,-352.98 1308.91,-352.98 1308.91,-358.98 1302.91,-364.98 1296.91,-364.98"/>
-<text text-anchor="middle" x="1245.41" y="-349.78" font-family="Times,serif" font-size="14.00">Interrupt</text>
-<text text-anchor="middle" x="1245.41" y="-334.78" font-family="Times,serif" font-size="14.00">(level OR of</text>
-<text text-anchor="middle" x="1245.41" y="-319.78" font-family="Times,serif" font-size="14.00">enabled status)</text>
+<path fill="lightcyan" stroke="black" d="M1296.91,-352.98C1296.91,-352.98 1193.91,-352.98 1193.91,-352.98 1187.91,-352.98 1181.91,-346.98 1181.91,-340.98 1181.91,-340.98 1181.91,-311.98 1181.91,-311.98 1181.91,-305.98 1187.91,-299.98 1193.91,-299.98 1193.91,-299.98 1296.91,-299.98 1296.91,-299.98 1302.91,-299.98 1308.91,-305.98 1308.91,-311.98 1308.91,-311.98 1308.91,-340.98 1308.91,-340.98 1308.91,-346.98 1302.91,-352.98 1296.91,-352.98"/>
+<text text-anchor="middle" x="1245.41" y="-337.78" font-family="Times,serif" font-size="14.00">Interrupt</text>
+<text text-anchor="middle" x="1245.41" y="-322.78" font-family="Times,serif" font-size="14.00">(level OR of</text>
+<text text-anchor="middle" x="1245.41" y="-307.78" font-family="Times,serif" font-size="14.00">enabled status)</text>
 </g>
 <!-- event_ctrl&#45;&gt;int_gen -->
 <g id="edge15" class="edge">
 <title>event_ctrl&#45;&gt;int_gen</title>
-<path fill="none" stroke="black" d="M1101.6,-338.48C1124.14,-338.48 1149,-338.48 1171.58,-338.48"/>
-<polygon fill="black" stroke="black" points="1171.77,-341.98 1181.77,-338.48 1171.77,-334.98 1171.77,-341.98"/>
+<path fill="none" stroke="black" d="M1101.6,-330.46C1124.14,-329.83 1149,-329.14 1171.58,-328.51"/>
+<polygon fill="black" stroke="black" points="1171.87,-332 1181.77,-328.22 1171.68,-325.01 1171.87,-332"/>
 </g>
 <!-- sleep_out -->
 <g id="node11" class="node">
 <title>sleep_out</title>
-<ellipse fill="pink" stroke="black" cx="1478.57" cy="-409.48" rx="125.32" ry="26.74"/>
-<text text-anchor="middle" x="1478.57" y="-413.28" font-family="Times,serif" font-size="14.00">clock_gate_en[31:0]</text>
-<text text-anchor="middle" x="1478.57" y="-398.28" font-family="Times,serif" font-size="14.00">power_domain_en[7:0]</text>
+<ellipse fill="pink" stroke="black" cx="1478.57" cy="-405.48" rx="125.32" ry="26.74"/>
+<text text-anchor="middle" x="1478.57" y="-409.28" font-family="Times,serif" font-size="14.00">clock_gate_en[31:0]</text>
+<text text-anchor="middle" x="1478.57" y="-394.28" font-family="Times,serif" font-size="14.00">power_domain_en[7:0]</text>
 </g>
 <!-- sleep_ctrl&#45;&gt;sleep_out -->
 <g id="edge13" class="edge">
 <title>sleep_ctrl&#45;&gt;sleep_out</title>
-<path fill="none" stroke="black" d="M1316.71,-409.48C1325.2,-409.48 1334.08,-409.48 1343.12,-409.48"/>
-<polygon fill="black" stroke="black" points="1343.38,-412.98 1353.38,-409.48 1343.38,-405.98 1343.38,-412.98"/>
+<path fill="none" stroke="black" d="M1316.71,-405.48C1325.2,-405.48 1334.08,-405.48 1343.12,-405.48"/>
+<polygon fill="black" stroke="black" points="1343.38,-408.98 1353.38,-405.48 1343.38,-401.98 1343.38,-408.98"/>
 </g>
 <!-- int_out -->
 <g id="node10" class="node">
 <title>int_out</title>
-<ellipse fill="pink" stroke="black" cx="1478.57" cy="-338.48" rx="72.29" ry="18"/>
-<text text-anchor="middle" x="1478.57" y="-334.78" font-family="Times,serif" font-size="14.00">pm_interrupt</text>
+<ellipse fill="pink" stroke="black" cx="1478.57" cy="-326.48" rx="72.29" ry="18"/>
+<text text-anchor="middle" x="1478.57" y="-322.78" font-family="Times,serif" font-size="14.00">pm_interrupt</text>
 </g>
 <!-- int_gen&#45;&gt;int_out -->
 <g id="edge16" class="edge">
 <title>int_gen&#45;&gt;int_out</title>
-<path fill="none" stroke="black" d="M1308.97,-338.48C1335.88,-338.48 1367.69,-338.48 1396.38,-338.48"/>
-<polygon fill="black" stroke="black" points="1396.39,-341.98 1406.39,-338.48 1396.39,-334.98 1396.39,-341.98"/>
+<path fill="none" stroke="black" d="M1308.97,-326.48C1335.88,-326.48 1367.69,-326.48 1396.38,-326.48"/>
+<polygon fill="black" stroke="black" points="1396.39,-329.98 1406.39,-326.48 1396.39,-322.98 1396.39,-329.98"/>
 </g>
 </g>
 </svg>

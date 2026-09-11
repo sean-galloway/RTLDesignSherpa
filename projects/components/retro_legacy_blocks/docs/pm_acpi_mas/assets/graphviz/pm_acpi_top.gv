@@ -15,7 +15,7 @@ digraph pm_acpi_top {
         sync [label="Input\nSynchronizers\n(SYNC_STAGES /\n3-flop buttons)", fillcolor=lightcyan];
         pm_timer [label="PM Timer\n(32-bit\n~3.571 MHz)", fillcolor=lightcyan];
         event_ctrl [label="Event Controller\n(GPE edge detect,\nsticky W1C status\nowned here)", fillcolor=lightcyan];
-        sleep_ctrl [label="Power State FSM\n(S0/S1/S3,\nlatched wake)", fillcolor=lightcyan];
+        sleep_ctrl [label="Power State FSM\n(S0/S1/S3/S5,\nlatched wake,\nrail sequencer)", fillcolor=lightcyan];
         int_gen [label="Interrupt\n(level OR of\nenabled status)", fillcolor=lightcyan];
     }
 

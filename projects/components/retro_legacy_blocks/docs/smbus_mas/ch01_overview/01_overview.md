@@ -49,13 +49,16 @@ GitHub #58 rewrite (2026-09-09).
   from a wedged SCL to `busy=0` is five x `SMBUS_TIMEOUT`
 - Open-drain signalling: the block only ever drives a 0
 - Sticky, W1C interrupt status; a registered interrupt pin
-- Strict fifteen-register decode; everything else returns PSLVERR
+- Strict seventeen-register decode; everything else returns PSLVERR
+- Target (slave) mode: address match with an optional general call, an ACK
+  policy, RX and TX paths through the shared FIFOs, clock stretching while
+  software fills the queue, and its own PEC
+- Multi-master arbitration: every transmitted bit is read back, and a 1 that
+  reads as 0 releases the bus within the bit
 
 What the block does not do is listed at the end of this chapter under
-Limitations: slave mode is an inert stub, multi-master arbitration is not
-implemented, Quick Command is write-direction only, and a `start` written
-with `master_en` clear is silently discarded. Those are tracked as RLB-011
-in `vault/Tasks/RLB/open.md`.
+Limitations. The short version is SMBALERT#, Host Notify and ARP; everything
+else the register map advertises is built.
 
 ### Applications
 
@@ -91,20 +94,23 @@ apb4_smbus                 APB4 attach, clocking, the interrupt pin
    +- smbus_byte_fifos     TX/RX byte buffers and their three reset sources
    |  +- simple_fifo x2 -> fifo_sync
    +- smbus_int_status     sticky, edge-set, W1C-cleared interrupt bits
-   +- smbus_pec            CRC-8, polynomial 0x07
+   +- smbus_pec            CRC-8, polynomial 0x07 (one per engine)
+   +- smbus_slave_engine   TARGET ENGINE: the half that answers
+      +- smbus_pec         the target's own CRC-8
 ```
 
 | Module | Owns |
 |--------|------|
 | `apb4_smbus` | The APB4 attach, the choice of `apb4_slave` or `apb4_slave_cdc`, the core clock/reset muxing, and the registered `smb_interrupt` pin |
-| `smbus_config_regs` | The strict fifteen-address decode with local PSLVERR, the generated PeakRDL block, the W1C decode for SMBUS_INT_STATUS, and the TX/RX FIFO access ports |
+| `smbus_config_regs` | The strict seventeen-address decode with local PSLVERR, the generated PeakRDL block, the W1C decode for SMBUS_INT_STATUS, and the TX/RX FIFO access ports |
 | `smbus_core` | The transaction: which bytes go out, in what order, with what R/W bit, where the repeated START goes, which byte is ACKed, what the PEC covers, and when it is done. It owns no bit timing and touches neither SCL nor SDA |
 | `smbus_bit_phy` | The only module that touches SCL and SDA. Executes one primitive at a time (START, repeated START, STOP, transmit one bit, receive one bit, bus recovery) and reports completion with a single-cycle `op_done` |
 | `smbus_trans_decode` | The SMBus 2.0 transaction table as combinational logic: command byte present, direction, repeated START needed, data source, count byte, data byte count per type |
 | `smbus_flow_rules` | Byte-state classification, byte-complete detection, ACK/NAK policy for received bytes, the TX FIFO load/pop discipline, and TX underrun detection |
 | `smbus_abort_track` | Tells the sequencer when the abort's own STOP has finished, as opposed to the op_done of the primitive being aborted or the PHY's timeout level |
 | `smbus_byte_fifos` | The TX and RX FIFOs (`fifo_sync` via `simple_fifo`) and their three reset sources: `rst_n`, `soft_reset`, `fifo_reset` |
-| `smbus_int_status` | The five sticky SMBUS_INT_STATUS bits: set on the rising edge of the condition, cleared only by a decoded W1C, set wins over a simultaneous clear |
+| `smbus_int_status` | The eight sticky SMBUS_INT_STATUS bits: set on the rising edge of the condition, cleared only by a decoded W1C, set wins over a simultaneous clear |
+| `smbus_slave_engine` | The target: START/STOP detection on somebody else's clock, address match, the ACK policy, the RX and TX byte paths, clock stretching, and its own PEC |
 | `smbus_pec` | CRC-8, polynomial x^8 + x^2 + x + 1 (0x07), initial value 0x00 |
 
 The split that matters is `smbus_core` / `smbus_bit_phy`. Quoting the RTL
@@ -493,13 +499,15 @@ received; the RX FIFO has them all in order.
 | 0x1C | SMBUS_FIFO_STATUS | RO | TX/RX FIFO levels and flags |
 | 0x20 | SMBUS_CLK_DIV | RW | SCL clock divider |
 | 0x24 | SMBUS_TIMEOUT | RW | SCL-low limit, 0 = disabled |
-| 0x28 | SMBUS_OWN_ADDR | RW | Own slave address (slave mode, stub) |
+| 0x28 | SMBUS_OWN_ADDR | RW | The address this target answers, and its enable |
 | 0x2C | SMBUS_INT_ENABLE | RW | Interrupt enable mask |
 | 0x30 | SMBUS_INT_STATUS | W1C | Sticky interrupt status |
 | 0x34 | SMBUS_PEC | RW | PEC value (CRC-8) |
 | 0x38 | SMBUS_BLOCK_COUNT | RW | Block transfer byte count |
+| 0x3C | SMBUS_SLAVE_CTRL | RW | Target policy: general call, NAK-all, PEC, stretching |
+| 0x40 | SMBUS_SLAVE_STATUS | RO | Target direction, stretching, PEC verdict and value |
 
-Only these fifteen addresses decode. Every other address in the 4 KB window
+Only these seventeen addresses decode. Every other address in the 4 KB window
 is dropped: no internal strobe fires, the read returns 0, and the access is
 acknowledged locally with `PSLVERR`. See
 [Chapter 5: Register Map](../ch05_registers/01_register_map.md) for full field
@@ -571,9 +579,16 @@ Collision detection when multiple masters start simultaneously.
 
 ![SMBus Arbitration](../assets/wavedrom/timing/smbus_arbitration.png)
 
-This is the protocol mechanism, not this block: arbitration is not
-implemented and `SMBUS_STATUS.arb_lost` is tied low (RLB-011). The open-drain
-contract and the bus-free wait before a START are the parts that exist today.
+Every transmitted bit is read back in the SCL-high phase. Sending a 0 means
+driving SDA down and everyone driving down agrees, so only a **1 that reads
+back as 0** says another master is still transmitting and has won. START is
+exempt, because pulling SDA down there is the framing rather than data.
+
+On loss the PHY releases both lines in the same bit and the sequencer reports
+`SMBUS_STATUS.arb_lost` and returns to idle **without generating a STOP** --
+the winner's transfer is still in progress, and re-driving the lines to frame
+a STOP would corrupt it. Retry is left to software, and the bus-free wait
+before START is what makes the retry safe.
 
 ### Waveform 1.5: Packet Error Check (PEC)
 
@@ -598,22 +613,64 @@ then drives SCL low, SDA low a phase later, and generates the STOP. `busy`
 falls only when that STOP has finished; `timeout_error` is set and
 `bus_error` is not, because recovery succeeded (Table 1.4, row 2).
 
+## Target mode
+
+The block answers as well as asks. `smbus_slave_engine` is a separate module
+from `smbus_bit_phy` for a structural reason: **the master owns the clock and
+a target does not.** Every master primitive is something the PHY schedules;
+every target action is a response to an edge somebody else produced. One
+module that is sometimes a clock source and sometimes a passenger would be
+the wrong shape.
+
+It never drives a 1 either. It emits two pull-down requests and `smbus_core`
+wired-ANDs them with the master's, which is the rule the bus itself obeys, so
+the merge needs no ownership mux to be electrically correct. **SDA only ever
+changes on a falling edge of SCL** -- a transition while SCL is high is a
+START or a STOP, not data -- so every drive decision is taken on a fall and
+held.
+
+| control | what it decides |
+|---------|-----------------|
+| `SMBUS_CONTROL.slave_en` | the engine runs at all |
+| `SMBUS_OWN_ADDR` | the address it answers, and whether it answers one |
+| `SMBUS_SLAVE_CTRL.gc_en` | also answer the general call, address 0x00 |
+| `SMBUS_SLAVE_CTRL.nack_all` | software is busy: NAK our own address |
+| `SMBUS_SLAVE_CTRL.pec_en` | maintain, check and append the target PEC |
+| `SMBUS_SLAVE_CTRL.stretch_en` | hold SCL while a read waits for software |
+
+A full RX FIFO is answered with a NAK rather than a silently dropped byte:
+the master has to be told, or it is writing into a target that is not
+listening.
+
+### The target PEC never counts bytes
+
+A target does not know how long a transfer is; the protocol does, and the
+protocol lives in software. CRC-8 removes the need to know. On a **write**
+the running CRC covers the address byte and every data byte, and a correct
+trailing PEC byte drives it to **zero**, so "PEC good" is "the running value
+is zero at the STOP". On a **read**, when the TX FIFO runs dry the byte sent
+IS the running CRC, which is exactly the PEC the master is waiting for;
+software sets the length by how many bytes it queues.
+
+### Stretching, or not
+
+With `stretch_en` set, a read that finds the TX FIFO empty holds SCL low
+until software puts a byte in it, and `SMBUS_SLAVE_STATUS.stretching` says
+so. With it clear the engine sends `0xFF` instead, which is what an
+unprogrammed target on a real bus looks like and keeps a slow CPU from
+wedging the whole wire.
+
+### One engine on the wire
+
+A master START is refused while the target half is **answering** -- not
+merely while a transfer is visible on the bus. The distinction matters: SDA
+pulled low under a high SCL looks exactly like a START that never ends, and a
+target that claimed the wire for that would block the bus recovery that
+exists to clear it. Whether the bus is busy is the master PHY's own question,
+answered by the bus-free wait in front of every START.
+
 ## Limitations
 
-None of these is a defect in the master path; they are tracked as RLB-011 in
-`vault/Tasks/RLB/open.md`.
-
-- **Slave mode is a stub.** `cfg_slave_en`, `SMBUS_OWN_ADDR` and its enable
-  are kept in the register map so software can see what exists, but no slave
-  FSM runs and the block never claims the bus as a target.
-  `SMBUS_STATUS.slave_addressed` is tied low deliberately: a stub that
-  occasionally asserted would let the slave path clear the PEC accumulator or
-  drive SDA underneath a master transaction.
-- **Multi-master arbitration is not implemented** and `SMBUS_STATUS.arb_lost`
-  is tied low. The bus-free check before a START is the first half of it.
-- **Quick Command is always issued with R/W = 0 (write).** The read-direction
-  Quick Command is not implemented; there is no register bit to select the
-  direction.
 - **A `start` written while `master_en` is clear is silently discarded.** It
   is not reported as an error, so software that forgets to enable master mode
   sees a transaction that simply never happens.
@@ -621,12 +678,11 @@ None of these is a defect in the master path; they are tracked as RLB-011 in
   block read; the two halves share `SMBUS_BLOCK_COUNT`.
 - A slave-supplied block length of 0, or one larger than the FIFO depth, is
   clamped rather than honoured.
-- The `RESET_ACTIVE_HIGH` build is not usable for this block: the shared
-  `fifo_sync` / `counter_bin` primitives hardcode active-low in their reset
-  bodies. Tracked as COMMON-026 (the primitives) and RLB-012 (this block);
-  until both are fixed, build with the default active-low reset.
 - SMBALERT# and the Host Notify protocol are not implemented; there is no
-  `smbalert_n` pin.
+  `smbalert_n` pin, and with them goes the Alert Response Address a target
+  would answer.
+- ARP, the SMBus address resolution protocol, is not implemented.
+  `SMBUS_OWN_ADDR` is a fixed address software programs.
 
 ---
 

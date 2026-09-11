@@ -11,7 +11,7 @@ This directory contains WaveDrom timing diagrams for SMBus (System Management Bu
 | `smbus_byte_write.json` | Byte Write | START + address + W bit + slave ACK |
 | `smbus_byte_read.json` | Byte Read | Slave drives data, master samples, ACK/NACK |
 | `smbus_clock_stretch.json` | Clock Stretch | Slave holds SCL low when busy |
-| `smbus_arbitration.json` | Arbitration | Multi-master arbitration via SDA comparison (protocol only; not implemented in this block, RLB-011) |
+| `smbus_arbitration.json` | Arbitration | Multi-master arbitration via SDA comparison |
 | `smbus_pec.json` | PEC | Packet Error Check CRC-8 calculation |
 | `smbus_timeout_recovery.json` | Timeout + recovery | The measured timeout abort: slave stuck in its ACK, timeout expiry, three recovery clocks, STOP |
 
@@ -121,9 +121,10 @@ Transfer resumes when slave releases SCL; a stretch longer than
 ### 4. Multi-Master Arbitration
 Shows collision resolution when two masters start simultaneously. Both
 monitor SDA while transmitting. Master driving 1 but reading 0 (due to other
-master's 0) loses arbitration and backs off. Wired-AND ensures 0 wins. This
-block does not implement arbitration (`arb_lost` tied 0, RLB-011); the
-diagram is the protocol mechanism.
+master's 0) loses arbitration and backs off. Wired-AND ensures 0 wins. The
+block implements this: every transmitted bit is read back in the SCL-high
+phase, a 1 that reads as 0 releases both lines within the bit, and the
+sequencer reports `SMBUS_STATUS.arb_lost` and idles without framing a STOP.
 
 ### 5. Packet Error Check (PEC)
 Shows CRC-8 error detection. PEC byte calculated over every byte on the wire,

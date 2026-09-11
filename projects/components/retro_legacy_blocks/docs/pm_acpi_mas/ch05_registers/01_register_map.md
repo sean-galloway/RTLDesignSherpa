@@ -63,19 +63,38 @@ base address. All registers are 32 bits wide with 32-bit access.
 | 0x064 | WAKE_ENABLE | RW | 0x00000000 | Wake event enable mask |
 | 0x068 | RESET_CTRL | RW | 0x00000000 | Reset generation control |
 | 0x06C | RESET_STATUS | RO | 0x00000001 | Reset source information (por_reset reads 1 out of reset) |
-| 0x070-0xFFC | (Reserved) | - | - | Not decoded: dropped with PSLVERR |
+| 0x070 | BUTTON_TIMING | RW | 0x1C000000 | Button debounce window and long-press threshold |
+| 0x074 | PM_TIMER_VALUE_HI | RO | 0x00000000 | High word of the PM timer, as snapshotted by the last read of PM_TIMER_VALUE |
+| 0x078 | PM_TIMER_MATCH | RW | 0x00000000 | PM timer comparator, on the low word |
+| 0x07C | PWR_SEQ_CONFIG | RW | 0x00000000 | Rail sequencer: enable, acknowledge requirement, inter-rail gap |
+| 0x080 | PWR_SEQ_STATUS | RO | 0x00000000 | Where the rail walk has got to |
+| 0x084 | GPE0_TRIGGER_LO | RW | 0x00000000 | Edge or level per GPE0 source [15:0] |
+| 0x088 | GPE0_TRIGGER_HI | RW | 0x00000000 | Edge or level per GPE0 source [31:16] |
+| 0x08C | GPE0_WAKE_EN_LO | RW | 0x00000000 | GPE0 wake arming [15:0] |
+| 0x090 | GPE0_WAKE_EN_HI | RW | 0x00000000 | GPE0 wake arming [31:16] |
+| 0x094 | GPE1_STATUS_LO | W1C | 0x00000000 | GPE1 status [15:0] |
+| 0x098 | GPE1_STATUS_HI | W1C | 0x00000000 | GPE1 status [31:16] |
+| 0x09C | GPE1_ENABLE_LO | RW | 0x00000000 | GPE1 enable [15:0] |
+| 0x0A0 | GPE1_ENABLE_HI | RW | 0x00000000 | GPE1 enable [31:16] |
+| 0x0A4 | GPE1_TRIGGER_LO | RW | 0x00000000 | Edge or level per GPE1 source [15:0] |
+| 0x0A8 | GPE1_TRIGGER_HI | RW | 0x00000000 | Edge or level per GPE1 source [31:16] |
+| 0x0AC | GPE1_WAKE_EN_LO | RW | 0x00000000 | GPE1 wake arming [15:0] |
+| 0x0B0 | GPE1_WAKE_EN_HI | RW | 0x00000000 | GPE1 wake arming [31:16] |
+| 0x0B4-0xFFC | (Reserved) | - | - | Not decoded: dropped with PSLVERR |
 
 Access legend: RW = read/write, RO = read-only (hardware-updated),
 W1C = read status / write 1 to clear.
 
-The decode is strict. Only the twenty-one mapped registers are visible to
+The decode is strict. Only the thirty-eight mapped registers are visible to
 software, compared on the whole 12-bit address, register by register.
 Everything else in the 4 KB window -- the gaps at 0x01C, 0x028-0x02C and
-0x040-0x04C as much as the space above 0x070 -- is dropped: the write is
+0x040-0x04C as much as the space above 0x0B0 -- is dropped: the write is
 ignored, the read returns 0, and the access is answered with PSLVERR. There
 is no aliasing anywhere in the window (the map used to repeat every 0x80
 bytes because only PADDR[6:0] reached the register block; fixed 2026-09-09,
-issue #54).
+issue #54). The register block decodes eight address bits now that
+PWR_SEQ_STATUS sits at 0x080, so the first alias the strict decode rejects is
+0x100 rather than 0x080.
 
 Every W1C status register in this map is a live mirror of a register that
 pm_acpi_core owns. The hardware event sets a bit and it holds until software
@@ -208,7 +227,7 @@ ACPI_INT_ENABLE.pm1_enable); PM1_STATUS still records the event either way.
 
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
-| 31:0 | timer_value | RO | 0 | Current 32-bit PM timer count (hardware-updated) |
+| 31:0 | timer_value | RO | 0 | Low 32 bits of the PM timer count (hardware-updated). Reading this SNAPSHOTS the high word into PM_TIMER_VALUE_HI, so a pair of reads cannot straddle a carry |
 
 The counter is 32 bits and increments at a divided clock rate (see
 PM_TIMER_CONFIG). At the default divider it advances at ~3.571 MHz from a
@@ -380,10 +399,147 @@ applies to ACPI_CONTROL.soft_reset.
 | Bits | Name | Access | Reset | Description |
 |------|------|--------|-------|-------------|
 | 0 | por_reset | RO | 1 | Sticky level: reads 1 from hardware reset until ACPI_CONTROL.soft_reset executes, which hands the last-reset title to sw_reset |
-| 1 | wdt_reset | RO | 0 | Always reads 0: this block has no watchdog input pin, so a watchdog reset is not observable here |
+| 1 | wdt_reset | RO | 0 | Sticky: LATCHED from the `wdt_reset_n` pin, because the pulse that caused a reset is long gone by the time software reads this. Tie the pin high if the system has no watchdog |
 | 2 | sw_reset | RO | 0 | Sticky level: reads 1 once ACPI_CONTROL.soft_reset has executed since the last hardware reset (por_reset drops in the same cycle) |
-| 3 | ext_reset | RO | 0 | Always reads 0: this block has no external-reset input pin, so an external reset is indistinguishable from a power-on reset here |
+| 3 | ext_reset | RO | 0 | Sticky: LATCHED from the `ext_reset_n` pin, same argument as wdt_reset. Tie the pin high if the system has no external reset button |
 | 31:4 | reserved | RO | 0 | Reserved |
+
+---
+
+### BUTTON_TIMING (0x070)
+
+| Bits | Name | Access | Reset | Description |
+|------|------|--------|-------|-------------|
+| 23:0 | debounce_cycles | RW | 0 | A candidate button level has to hold for this many core clocks before it is accepted; any change inside the window restarts the count. 0 accepts immediately, which is the behaviour the block had before the debouncer existed |
+| 28:24 | long_press_shift | RW | 28 | Holding the ACCEPTED power-button level for 2^this cycles is ACPI's power-button override. 0 disables it |
+| 31:29 | reserved | RO | 0 | Reserved |
+
+A synchronizer resolves metastability and does nothing about contact bounce,
+which is why one press used to be recorded as several. **A press has to
+survive the debounce window to be seen at all**, so a test or a driver that
+programs a window must put the reset value back before anything else relies
+on a short press.
+
+The long-press override is ENABLED by `PM1_CONTROL.pwrbtn_ovr`, not commanded
+by it.
+
+---
+
+### PM_TIMER_VALUE_HI (0x074)
+
+| Bits | Name | Access | Reset | Description |
+|------|------|--------|-------|-------------|
+| 31:0 | value_hi | RO | 0 | Bits [63:32] of the counter, as latched by the last read of PM_TIMER_VALUE |
+
+**Read the low word first.** This is a SNAPSHOT, not a live view, so the two
+halves always belong to the same instant. Reading the high word alone returns
+a stale snapshot, which is the point: a pair of live reads either side of a
+carry would return a value the counter never held.
+
+---
+
+### PM_TIMER_MATCH (0x078)
+
+| Bits | Name | Access | Reset | Description |
+|------|------|--------|-------|-------------|
+| 31:0 | match_value | RW | 0 | Compare value for the PM timer's LOW word |
+
+When the counter reaches it, `ACPI_STATUS.timer_match` sets and, with
+`ACPI_INT_ENABLE.timer_match_enable`, the interrupt asserts. The comparison
+is on the low 32 bits whatever `PM_TIMER_CONFIG.timer_64bit` says, so in
+64-bit mode it recurs once per wrap of the low word. The match fires on the
+value the counter is ABOUT to hold, so the event and the value software can
+read agree.
+
+---
+
+### PWR_SEQ_CONFIG (0x07C)
+
+| Bits | Name | Access | Reset | Description |
+|------|------|--------|-------|-------------|
+| 0 | seq_enable | RW | 0 | 0 = instant transitions, 1 = walk the rails |
+| 1 | seq_ack_enable | RW | 0 | Each rail step waits for the matching `power_domain_ack` bit to report the commanded level |
+| 15:2 | reserved | RO | 0 | Reserved |
+| 31:16 | seq_delay | RW | 0 | Core clocks between one rail step and the next, and between the clock step and the first rail step |
+
+Clock-gate and rail transitions are INSTANT unless this is enabled: every
+rail moves in the same cycle and the clocks move with them. That is fine in
+simulation and wrong on a board, where rail ordering is a correctness
+property rather than a performance one.
+
+| direction | order |
+|-----------|-------|
+| powering down | gate the clocks, wait, then rail 7 down to rail 0 |
+| powering up | rail 0 up to rail 7, wait, then ungate the clocks |
+
+So a domain is never clocked while its rail is down, and rails leave in the
+reverse of the order they arrived. A rail that never acknowledges STALLS THE
+WALK, which is the honest outcome: the rail did not come up. There is no
+timeout, because a made-up one would turn a board fault into a silent
+half-powered state.
+
+---
+
+### PWR_SEQ_STATUS (0x080)
+
+| Bits | Name | Access | Reset | Description |
+|------|------|--------|-------|-------------|
+| 0 | seq_busy | RO | 0 | A rail walk is in progress |
+| 3:1 | reserved | RO | 0 | Reserved |
+| 6:4 | seq_index | RO | 0 | The rail the walk is currently on |
+| 7 | reserved | RO | 0 | Reserved |
+| 8 | seq_dir | RO | 0 | 1 = powering down (walking 7 to 0), 0 = powering up |
+| 31:9 | reserved | RO | 0 | Reserved |
+
+Read this when a power state change does not complete: `seq_busy` stuck with
+`seq_index` parked on one rail means that rail has not acknowledged.
+
+---
+
+### GPE0_TRIGGER_LO / HI (0x084, 0x088) and GPE1_TRIGGER_LO / HI (0x0A4, 0x0A8)
+
+| Bits | Name | Access | Reset | Description |
+|------|------|--------|-------|-------------|
+| 15:0 | gpe_trigger | RW | 0 | 0 = edge, 1 = level, per source |
+| 31:16 | reserved | RO | 0 | Reserved |
+
+An EDGE source sets its status bit once, on the rising edge, and the bit then
+belongs to software: a source that is still asserted does not set it again. A
+LEVEL source sets its bit for as long as it is asserted, so a W1C while the
+source is still high has no lasting effect. That difference is the whole
+point -- it is how software tells an event it missed from one that is still
+happening.
+
+---
+
+### GPE0_WAKE_EN_LO / HI (0x08C, 0x090) and GPE1_WAKE_EN_LO / HI (0x0AC, 0x0B0)
+
+| Bits | Name | Access | Reset | Description |
+|------|------|--------|-------|-------------|
+| 15:0 | gpe_wake_enable | RW | 0 | Arms this source as a WAKE reason |
+| 31:16 | reserved | RO | 0 | Reserved |
+
+Only consulted when `ACPI_CONTROL.gpe_split_enable` is set. With the split
+off, GPEx_ENABLE arms both the interrupt and the wake and these registers are
+ignored.
+
+| split | GPEx_ENABLE arms | GPEx_WAKE_EN arms |
+|-------|------------------|-------------------|
+| 0 (reset) | the interrupt and the wake | nothing |
+| 1 | the interrupt only | the wake only |
+
+With the split on, a source can wake a sleeping machine without interrupting
+a running one, which is what ACPI wants for a device the OS drives directly
+while awake.
+
+---
+
+### GPE1_STATUS_LO / HI (0x094, 0x098) and GPE1_ENABLE_LO / HI (0x09C, 0x0A0)
+
+The second ACPI GPE block, on the `gpe1_events` pins. Field layout, W1C
+behaviour and enable semantics are identical to GPE0; the two banks share the
+GPE interrupt and wake terms, so software that uses only one bank never sees
+the other.
 
 ---
 
@@ -428,7 +584,7 @@ cleared before or after the register that feeds the pin.
 ### Sleep and wake
 
 PM1_CONTROL.sleep_enable is a one-shot: from S0, one write with sleep_type
-1 or 3 takes the FSM through TRANSITION into S1 or S3. In S1 or S3 any
+1, 3 or 5 takes the FSM through TRANSITION into S1, S3 or S5. In S1 or S3 any
 enabled wake source takes it through TRANSITION back to S0, and the core
 latches the wake request so that in TRANSITION a latched or live wake
 outranks the still-programmed sleep_type. A one-cycle power-button press
@@ -439,21 +595,33 @@ is not latched as a wake -- the sticky status bit and the level interrupt
 still record it, the machine enters the programmed sleep state, and the next
 wake event brings it back.
 
+### S5, soft off
+
+S5 is as dark as S3 -- every clock gated, every domain but the always-on one
+powered down -- but it retains nothing, so LEAVING it pulses `sys_reset_req`.
+A wake from soft off is a boot, not a resume. `current_state` is two bits, so
+it reports an ENCODING rather than the ACPI number: 0 = S0, 1 = S1, 2 = S5,
+3 = S3. Encoding 2 was the free one, and widening the field would have moved
+bits software already reads.
+
 ### Storage-only fields
 
-ACPI_CONTROL.low_power_req and PM1_CONTROL.pwrbtn_ovr/slpbtn_ovr read and
-write but are not routed to the core; there is no low-power mode distinct
-from S1/S3, and "override the button" never named a concrete effect. They
-are documented as storage, not as defects. RESET_STATUS.wdt_reset and
-ext_reset read 0 for the same kind of reason: the block has no pin that
-could report them.
+ACPI_CONTROL.low_power_req and PM1_CONTROL.slpbtn_ovr read and write but are
+not routed to the core; there is no low-power mode distinct from S1/S3/S5,
+and "override the sleep button" never named a concrete effect. They are
+documented as storage, not as defects.
+
+PM1_CONTROL.pwrbtn_ovr is no longer storage: it ENABLES the hardware
+long-press override rather than commanding it. Commanding soft off from a
+control bit would mean any write that happens to set the bit parks the
+machine in S5, which is not what a register called "override" should do to a
+register sweep.
 
 ### Deferred
 
-Clock-gate and power-domain transitions are instant, there is no S5 state,
-GPE is edge-only with a single bank, the timer is 32-bit only, and the
-buttons get a synchronizer rather than a real debouncer. None of these are
-defects; they are tracked as RLB-009 in `vault/Tasks/RLB/open.md`.
+Legacy replacement routing (IRQ0 timer, IRQ8 RTC) and processor C/P-state
+hints are out of scope rather than deferred. RLB-009, the deferred-feature
+list, is otherwise closed.
 
 ---
 

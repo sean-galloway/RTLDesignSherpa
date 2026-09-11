@@ -195,7 +195,7 @@ There is none. The IOAPIC core delivers through a one-entry valid/ready
 output stage, and the only per-interrupt state is a Remote IRR bit per pin:
 
 ```
-   eligible pins ──► static-priority ──► ┌──────────────────┐ irq_out_valid ──►
+   eligible pins ──► priority ────────► ┌──────────────────┐ irq_out_valid ──►
    (request &&        arbiter            │ output stage     │ vector/dest/mode ►
     !mask &&                             │ r_out_valid,     │
     !remote_irr &&                       │ registered       │ ◄── irq_out_ready
@@ -368,10 +368,13 @@ apb4_ioapic #(
 - **Benefit**: Software portability, scalable register space
 
 **Static vs Dynamic Priority:**
-- **Chosen**: Static priority (lowest IRQ wins)
-- **Reason**: Simplicity, deterministic behavior, sufficient for MVP
-- **Cost**: Less flexible than round-robin
-- **Benefit**: Predictable, easy to verify, low logic
+- **Chosen**: both, selected by `IOAPICARBCFG.rr_enable`, static at reset
+- **Reason**: static is the 82093AA scheme and what a driver written for the
+  part expects; round robin is what a system needs when a low-numbered level
+  pin that software EOIs promptly would otherwise starve everything above it
+- **Cost**: a rotation pointer and a scan that starts at an offset
+- **Benefit**: the 82093AA behaviour is the default, so nothing changes for
+  software that does not ask for the other one
 
 **Fixed vs Multiple Delivery Modes:**
 - **Chosen**: Fixed mode only for MVP

@@ -66,7 +66,7 @@ Three layers, the same shape every RLB block uses:
   request LATCHED so a one-cycle source lands in S0 and stays
 - Optional rail sequencer: one rail at a time, programmable gap, per-rail
   acknowledge, clocks gated before the rails drop and restored after they rise
-- Strict address decode: only the thirty-six mapped registers are visible,
+- Strict address decode: only the thirty-eight mapped registers are visible,
   every other address in the 4 KB window is dropped and answered with PSLVERR
 - Input synchronizers on rtc_alarm, ext_wake_n and gpe_events (SYNC_STAGES,
   default 2, unconditional); 3-flop chains plus a programmable debouncer and a

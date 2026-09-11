@@ -47,7 +47,7 @@
  *   0x07C-0x080: Power sequencer configuration and status
  *   0x084-0x090: GPE0 trigger mode and wake enables
  *   0x094-0x0B0: GPE1 status, enable, trigger mode and wake enables
- *   Only these thirty-six addresses decode. EVERY other address in the 4 KB
+ *   Only these thirty-eight addresses decode. EVERY other address in the 4 KB
  *   window - the 8-bit alias at 0x100 included - is dropped (write ignored,
  *   read 0) and answered with PSLVERR (see #54 round_2 item 4).
  *

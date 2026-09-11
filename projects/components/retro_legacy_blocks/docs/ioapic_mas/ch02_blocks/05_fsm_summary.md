@@ -247,7 +247,9 @@ Cycle N:   EOI(vector of IRQ7) -> Remote IRR[7] clears; IRQ3 still in service, u
 Cycle N+1: IRQ7 re-requests if its level is still asserted
 ```
 
-**Fairness:** Lower numbered IRQs starve higher ones if they keep requesting, and a low-numbered level pin that is EOI'd promptly can hold the stage indefinitely. Static priority is the design choice; round-robin is tracked as RLB-008 in `vault/Tasks/RLB/open.md`, not as a defect.
+**Fairness:** with static priority, lower numbered IRQs starve higher ones if they keep requesting, and a low-numbered level pin that is EOI'd promptly can hold the stage indefinitely. That is the 82093AA scheme and it is the reset default.
+
+Setting `IOAPICARBCFG.rr_enable` starts the scan just above the pin that was last ACCEPTED, and wraps, so the pin just served is the last one the scan reaches and every eligible pin is served before any pin is served twice. Priority becomes a position in the rotation rather than an IRQ number. The pointer moves only on an accept: a pick the consumer never takes must not move it, or a stalled consumer would walk the rotation round the ring without delivering anything.
 
 ## Navigation
 

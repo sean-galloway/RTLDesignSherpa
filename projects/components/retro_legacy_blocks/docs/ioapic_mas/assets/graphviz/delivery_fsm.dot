@@ -43,7 +43,7 @@ digraph ioapic_delivery_stage {
     }
 
     // Arbiter and output stage
-    ARB   [label="Static-priority arbiter\nlowest eligible IRQ wins\n(combinational)", fillcolor="lightyellow"];
+    ARB   [label="Priority arbiter\nstatic: lowest eligible IRQ wins\nrr_enable: scan from the last accepted\n(combinational)", fillcolor="lightyellow"];
     STAGE [label="Output stage (one entry)\nr_out_valid, r_out_irq\nr_out_vector / dest / deliv_mode\nregistered payload, stable while full", fillcolor="lightblue"];
     CPU   [label="CPU / LAPIC\nirq_out_valid -->\n<-- irq_out_ready\neoi_in, eoi_vector", shape=box, style="filled", fillcolor="white"];
 

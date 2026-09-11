@@ -38,7 +38,7 @@ Key features:
 - GPE (General Purpose Events) support: 32 sources in one bank, rising-edge
   detected, per-bit sticky status with a W1C clear
 - Clock gating control (32 domains) and power domain control (8 domains)
-- System sleep state control (S0/S1/S3)
+- System sleep state control (S0/S1/S3/S5)
 - Single active-high `pm_interrupt` output (no separate SCI/SMI outputs),
   a level over the enabled sticky status bits
 - Wake from GPE, power button, RTC alarm or an external pin, with the wake
@@ -47,7 +47,7 @@ Key features:
 Applications:
 
 - System power management
-- Sleep state transitions (S0/S1/S3)
+- Sleep state transitions (S0/S1/S3/S5)
 - Wake event handling
 - Power button events
 
@@ -106,8 +106,8 @@ complete map, fields, resets, and access types.
 | 0x010 | PM1_CONTROL | RW | PM1 control (sleep, button override) |
 | 0x014 | PM1_STATUS | W1C | PM1 status flags |
 | 0x018 | PM1_ENABLE | RW | PM1 event enable mask |
-| 0x020 | PM_TIMER_VALUE | RO | PM Timer current value (32-bit) |
-| 0x024 | PM_TIMER_CONFIG | RW | PM Timer clock divider |
+| 0x020 | PM_TIMER_VALUE | RO | PM Timer low word; reading it snapshots the high word |
+| 0x024 | PM_TIMER_CONFIG | RW | PM Timer divider, prescaler and 64-bit mode |
 | 0x030 | GPE0_STATUS_LO | W1C | GPE status bits [15:0] |
 | 0x034 | GPE0_STATUS_HI | W1C | GPE status bits [31:16] |
 | 0x038 | GPE0_ENABLE_LO | RW | GPE enable bits [15:0] |
@@ -120,8 +120,25 @@ complete map, fields, resets, and access types.
 | 0x064 | WAKE_ENABLE | RW | Wake event enable mask |
 | 0x068 | RESET_CTRL | RW | Reset generation control |
 | 0x06C | RESET_STATUS | RO | Reset source information |
+| 0x070 | BUTTON_TIMING | RW | Button debounce window and long-press threshold |
+| 0x074 | PM_TIMER_VALUE_HI | RO | PM Timer high word, snapshotted by reading the low word |
+| 0x078 | PM_TIMER_MATCH | RW | PM Timer comparator, on the low word |
+| 0x07C | PWR_SEQ_CONFIG | RW | Rail sequencer enable, acknowledge requirement, gap |
+| 0x080 | PWR_SEQ_STATUS | RO | Where the rail walk has got to |
+| 0x084 | GPE0_TRIGGER_LO | RW | Edge or level per GPE0 source [15:0] |
+| 0x088 | GPE0_TRIGGER_HI | RW | Edge or level per GPE0 source [31:16] |
+| 0x08C | GPE0_WAKE_EN_LO | RW | GPE0 wake arming [15:0] |
+| 0x090 | GPE0_WAKE_EN_HI | RW | GPE0 wake arming [31:16] |
+| 0x094 | GPE1_STATUS_LO | W1C | GPE1 status bits [15:0] |
+| 0x098 | GPE1_STATUS_HI | W1C | GPE1 status bits [31:16] |
+| 0x09C | GPE1_ENABLE_LO | RW | GPE1 enable bits [15:0] |
+| 0x0A0 | GPE1_ENABLE_HI | RW | GPE1 enable bits [31:16] |
+| 0x0A4 | GPE1_TRIGGER_LO | RW | Edge or level per GPE1 source [15:0] |
+| 0x0A8 | GPE1_TRIGGER_HI | RW | Edge or level per GPE1 source [31:16] |
+| 0x0AC | GPE1_WAKE_EN_LO | RW | GPE1 wake arming [15:0] |
+| 0x0B0 | GPE1_WAKE_EN_HI | RW | GPE1 wake arming [31:16] |
 
-Only these twenty-one addresses decode. Every other address in the 4 KB
+Only these thirty-eight addresses decode. Every other address in the 4 KB
 window is dropped -- the write is ignored, the read returns 0 -- and answered
 with PSLVERR.
 

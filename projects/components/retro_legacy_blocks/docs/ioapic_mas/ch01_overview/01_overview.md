@@ -41,7 +41,7 @@ The APB I/O Advanced Programmable Interrupt Controller (IOAPIC) is the interrupt
     (fixed 2026-09-09, issue #48)
   - **Level-triggered**: Tracks signal level, uses Remote IRR, requires EOI
 - **Configurable Polarity**: Active-high or active-low per IRQ input
-- **Priority Arbitration**: Static priority (lowest IRQ number wins for MVP)
+- **Priority Arbitration**: Static priority (lowest IRQ number wins, the 82093AA scheme and the reset default) or round robin behind `IOAPICARBCFG.rr_enable`
 - **Delivery Modes**: Fixed mode (MVP), with support for LowestPri, SMI, NMI, INIT, ExtINT (future)
 - **Remote IRR**: Level-triggered interrupt tracking with End-of-Interrupt (EOI) handling
 - **APB Interface**: Standard AMBA APB4 compliant with 12-bit addressing
@@ -135,12 +135,14 @@ The APB IOAPIC draws directly from the Intel 82093AA I/O APIC specification with
 - Delivery/destination fields
 
 **MVP Simplifications:**
-- Fixed delivery mode only (LowestPri, SMI, NMI, INIT, ExtINT future)
-- Physical destination only (Logical mode future)
-- Static priority only (dynamic/round-robin future)
+- Fixed delivery mode only; the other modes are forwarded on
+  `irq_out_deliv_mode` unmodified rather than acted on
 - Single IOAPIC (multi-IOAPIC arbitration future)
 
 **RLB Enhancements:**
+- Round-robin arbitration behind `IOAPICARBCFG.rr_enable`, at IOWIN selector
+  0x03. Not an 82093AA register: that selector is reserved on the real part,
+  so a driver written for it never writes this and gets static priority
 - APB4 bus interface (instead of direct memory-map)
 - Optional CDC for clock domain flexibility
 - PeakRDL register generation
@@ -275,19 +277,19 @@ When an IRQ arrives while masked, the IRR bit latches but delivery is blocked. U
 - [x] Active high/low polarity support
 - [x] Fixed delivery mode
 - [x] Physical destination mode
-- [x] Static priority arbitration
+- [x] Static priority arbitration, and round robin behind a control bit
 - [x] Remote IRR for level interrupts
 - [x] EOI handling
 - [x] Indirect register access (IOREGSEL/IOWIN)
 - [x] Complete redirection table
 - [x] Delivery status per IRQ
+- [x] Logical destination mode (`irq_out_dest_mode` carries the RTE's mode
+      alongside the destination; the local APICs do the matching)
+- [x] Round-robin arbitration behind `IOAPICARBCFG.rr_enable`
 
 **Deferred features (tracked as RLB-008 in `vault/Tasks/RLB/open.md`, not defects):**
-- [ ] Logical destination mode (`cfg_dest_mode` is stored and software-readable; no logic reads it)
 - [ ] LowestPriority delivery mode
 - [ ] Additional delivery modes acted on rather than forwarded (SMI, NMI, INIT, ExtINT)
-- [ ] Dynamic priority rotation (static priority can starve a low-numbered,
-      promptly-EOI'd level pin's neighbours)
 - [ ] Multi-IOAPIC support
 - [ ] Boot interrupt delivery
 
