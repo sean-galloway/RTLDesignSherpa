@@ -54,7 +54,7 @@ class MonbusGroupHarness:
         layout_trace: BeatLayout = None,
         log=None,
     ) -> None:
-        assert drain_proto in ("axil", "axi4"), drain_proto
+        assert drain_proto in ("axil", "axi4", "wb4"), drain_proto
         assert trace_proto in ("axil", "axi4"), trace_proto
         self.dut = dut
         self.clock = clock
@@ -119,6 +119,8 @@ class MonbusGroupHarness:
     # ------------------------------------------------------------------ #
     async def drain_read_beat(self, addr: int = 0x0, *, timeout_cycles: int = 200) -> int:
         """One drain read = one 64-bit beat popped from the err FIFO."""
+        if self.drain_proto == "wb4":
+            return await self._drain_read_beat_wb4(addr, timeout_cycles=timeout_cycles)
         p = self.drain_prefix
         clk = self.clock
         self._set(self._sig(p, "arvalid"), 1)
@@ -154,6 +156,58 @@ class MonbusGroupHarness:
         self.stats.drain_reads += 1
         self.stats.drain_beats += 1
         return rdata
+
+    async def _drain_read_beat_wb4(self, addr: int, *, timeout_cycles: int = 200) -> int:
+        """One Wishbone B4 read of the group's drain register.
+
+        Signal names are the B4 upper-case ones (`s_wb_CYC` ...), not the
+        lower-case AXI style, so this path builds its handles separately
+        rather than reusing `_sig` with an AXI suffix.
+        """
+        p = self.drain_prefix
+        clk = self.clock
+
+        def sig(name):
+            return self._sig(p, name)
+
+        self._set(sig("CYC"), 1)
+        self._set(sig("STB"), 1)
+        self._set(sig("WE"), 0)
+        self._set(sig("ADR"), addr)
+        self._set(sig("SEL"), (1 << (self.drain_data_width // 8)) - 1)
+
+        # Accepted on the first edge where STALL is low (B4 pipelined). A
+        # classic-mode slave holds STALL low always, so the same wait works.
+        stall = sig("STALL")
+        for _ in range(timeout_cycles):
+            await RisingEdge(clk)
+            if self._get(stall) == 0:
+                break
+        else:
+            self._set(sig("CYC"), 0)
+            self._set(sig("STB"), 0)
+            raise TimeoutError(f"{p}STALL never dropped (addr=0x{addr:08x})")
+        self._set(sig("STB"), 0)
+
+        ack, err = sig("ACK"), sig("ERR")
+        rdat = sig("DAT_R")
+        for _ in range(timeout_cycles):
+            if self._get(ack) == 1 or self._get(err) == 1:
+                errored = self._get(err) == 1
+                data = self._get(rdat) & self._drain_mask
+                break
+            await RisingEdge(clk)
+        else:
+            self._set(sig("CYC"), 0)
+            raise TimeoutError(f"{p}termination timeout (addr=0x{addr:08x})")
+        await RisingEdge(clk)
+        self._set(sig("CYC"), 0)
+        if errored:
+            raise RuntimeError(f"{p}read of 0x{addr:08x} terminated ERR; the drain "
+                               f"port is read-only and a read should never error")
+        self.stats.drain_reads += 1
+        self.stats.drain_beats += 1
+        return data
 
     async def drain_read_burst(self, burst_len: int, *, addr: int = 0x0,
                                arid: int = 0, timeout_cycles: int = 400):

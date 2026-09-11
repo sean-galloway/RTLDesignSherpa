@@ -25,7 +25,11 @@ $REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv
 $REPO_ROOT/rtl/amba/includes/monitor_amba4_pkg.sv
 $REPO_ROOT/rtl/amba/includes/monitor_amba5_pkg.sv
 $REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
+# monitor_wb4_pkg is NOT re-exported by monitor_pkg (only wb4_monitor imports
+# it), but the lint gate needs it declared before that module is elaborated.
+$REPO_ROOT/rtl/amba/includes/monitor_wb4_pkg.sv
 # Protocol packages
+$REPO_ROOT/rtl/amba/wb4/wb4_pkg.sv
 
 # =============================================================================
 # SHARED INFRASTRUCTURE (Base modules used by multiple protocols)
@@ -95,6 +99,18 @@ $REPO_ROOT/rtl/amba/apb4/apb4_slave_cdc.sv
 $REPO_ROOT/rtl/amba/apb4/apb4_slave_cdc_cg.sv
 $REPO_ROOT/rtl/amba/apb4/apb4_slave_cg.sv
 $REPO_ROOT/rtl/amba/apb4/apb4_slave_stub.sv
+
+# =============================================================================
+# Wishbone B4 (pipelined and classic)
+# =============================================================================
+$REPO_ROOT/rtl/amba/wb4/wb4_master.sv
+$REPO_ROOT/rtl/amba/wb4/wb4_master_cg.sv
+$REPO_ROOT/rtl/amba/wb4/wb4_master_retry.sv
+$REPO_ROOT/rtl/amba/wb4/wb4_monitor.sv
+$REPO_ROOT/rtl/amba/wb4/wb4_retry.sv
+$REPO_ROOT/rtl/amba/wb4/wb4_slave.sv
+$REPO_ROOT/rtl/amba/wb4/wb4_slave_cdc.sv
+$REPO_ROOT/rtl/amba/wb4/wb4_slave_cg.sv
 
 # =============================================================================
 # AXI4 - Advanced eXtensible Interface (Full)
@@ -263,6 +279,9 @@ $REPO_ROOT/rtl/amba/monitor/monbus_axi4_axi4_group.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_axi4_axil4_group.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_axil4_axi4_group.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_axil4_axil4_group.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_wb4_axi4_group.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_wb4_axil4_group.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_wb4_rd_shim.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_cam.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_cam_pipe.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_compressor.sv

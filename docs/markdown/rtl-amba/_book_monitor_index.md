@@ -28,6 +28,7 @@
 - [MonBus Group — AXI4 / AXIL](monitor/monbus_axi4_axil4_group.md)
 - [Monitor Bus Group — AXIL Slave-Read / AXI4 Master-Write](monitor/monbus_axil4_axi4_group.md)
 - [Monitor Bus Group — AXIL Slave-Read / AXIL Master-Write](monitor/monbus_axil4_axil4_group.md)
+- [Monitor Bus Groups — Wishbone B4 Slave-Read](monitor/monbus_wb4_groups.md)
 - [Monitor Bus LRU CAM](monitor/monbus_cam.md)
 - [Monitor Bus LRU CAM (Pipelined)](monitor/monbus_cam_pipe.md)
 - [Monitor Bus Compressor](monitor/monbus_compressor.md)
