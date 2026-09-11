@@ -192,6 +192,10 @@ module pm_acpi_core #(
 
     // PM Timer configuration
     input  logic [15:0] cfg_pm_timer_div,      // Clock divider
+    input  logic [3:0]  cfg_timer_prescale,    // pre-divide by 2^this
+    input  logic        cfg_timer_64bit,       // overflow from bit 63, not 31
+    input  logic [31:0] cfg_timer_match,       // compare against the low word
+    input  logic        pm_timer_value_read,   // read strobe for the low word
 
     // GPE enables
     input  logic [31:0] cfg_gpe_enables,
@@ -212,6 +216,7 @@ module pm_acpi_core #(
     input  logic        cfg_pme_enable,
     input  logic        cfg_wake_enable,
     input  logic        cfg_timer_ovf_enable,
+    input  logic        cfg_timer_match_enable,
     input  logic        cfg_state_trans_enable,
     input  logic        cfg_pm1_enable,
     input  logic        cfg_gpe_int_enable,
@@ -227,8 +232,8 @@ module pm_acpi_core #(
     // localparams below, which are the single statement of the transform and
     // are mirrored by the decode in pm_acpi_config_regs (nothing in the RTL
     // cross-checks the two - see CHECK BY INSPECTION in that file's header).
-    input  logic [3:0]  sw_clr_acpi_status,
-    input  logic [5:0]  sw_clr_acpi_int_status,
+    input  logic [4:0]  sw_clr_acpi_status,
+    input  logic [6:0]  sw_clr_acpi_int_status,
     input  logic [4:0]  sw_clr_pm1_status,
     input  logic [3:0]  sw_clr_wake_status,
     input  logic [31:0] sw_clr_gpe_status,
@@ -237,8 +242,8 @@ module pm_acpi_core #(
     // Status Interface (to config_regs) - sticky, W1C
     // ========================================================================
     output logic [1:0]  status_current_state,
-    output logic [3:0]  status_acpi,          // ACPI_STATUS
-    output logic [5:0]  status_acpi_int,      // ACPI_INT_STATUS
+    output logic [4:0]  status_acpi,          // ACPI_STATUS
+    output logic [6:0]  status_acpi_int,      // ACPI_INT_STATUS
     output logic [4:0]  status_pm1,           // PM1_STATUS
     output logic [3:0]  status_wake_src,      // WAKE_STATUS
     output logic [31:0] status_gpe,           // GPE0_STATUS_HI:LO
@@ -246,6 +251,7 @@ module pm_acpi_core #(
 
     // Read-only mirrors
     output logic [31:0] status_pm_timer_value,
+    output logic [31:0] status_pm_timer_value_hi,
     output logic [31:0] status_clk_gate_status,
     output logic [7:0]  status_pwr_domain_status,
 
@@ -258,6 +264,13 @@ module pm_acpi_core #(
 
     // Power button input (active low, asynchronous)
     input  logic        power_button_n,
+    // Button timing, in core-clock cycles. A level must be stable for
+    // cfg_debounce_cycles before an edge is reported; holding the
+    // debounced power button for 2^cfg_long_press_shift asserts the
+    // override. Zero disables either mechanism.
+    input  logic [23:0] cfg_debounce_cycles,
+    input  logic [4:0]  cfg_long_press_shift,
+    input  logic        cfg_pwrbtn_ovr,
 
     // Sleep button input (active low, asynchronous)
     input  logic        sleep_button_n,
@@ -299,6 +312,7 @@ module pm_acpi_core #(
     localparam int ACPI_ST_WAKE   = 1;   // ACPI_STATUS.wake_status
     localparam int ACPI_ST_TMROV  = 2;   // ACPI_STATUS.timer_overflow
     localparam int ACPI_ST_TRANS  = 3;   // ACPI_STATUS.state_transition
+    localparam int ACPI_ST_TMATCH = 4;   // ACPI_STATUS.timer_match
 
     localparam int INT_ST_PME     = 0;   // ACPI_INT_STATUS.pme_int
     localparam int INT_ST_WAKE    = 1;   // ACPI_INT_STATUS.wake_int
@@ -306,6 +320,7 @@ module pm_acpi_core #(
     localparam int INT_ST_TRANS   = 3;   // ACPI_INT_STATUS.state_trans_int
     localparam int INT_ST_PM1     = 4;   // ACPI_INT_STATUS.pm1_int
     localparam int INT_ST_GPE     = 5;   // ACPI_INT_STATUS.gpe_int
+    localparam int INT_ST_TMATCH  = 6;   // ACPI_INT_STATUS.timer_match_int
 
     localparam int PM1_ST_TMR     = 0;   // PM1_STATUS.tmr_sts
     localparam int PM1_ST_PWRBTN  = 1;   // PM1_STATUS.pwrbtn_sts
@@ -328,7 +343,11 @@ module pm_acpi_core #(
     // ========================================================================
 
     // PM Timer
-    logic [31:0] r_pm_timer_count;
+    logic [63:0] r_pm_timer_count;
+    logic [31:0] r_pm_timer_hi_shadow;
+    logic [31:0] r_prescale_cnt;
+    logic        w_prescale_tick;
+    logic        r_timer_match_evt;
     logic [15:0] r_pm_timer_div_count;
     logic        r_pm_timer_tick;
     logic        r_pm_timer_ovf;
@@ -338,6 +357,7 @@ module pm_acpi_core #(
         PWR_S0_WORKING   = 3'b000,
         PWR_S1_SLEEP     = 3'b001,
         PWR_S3_SUSPEND   = 3'b011,
+        PWR_S5_SOFF      = 3'b101,
         PWR_TRANSITION   = 3'b111
     } pwr_state_t;
 
@@ -398,17 +418,17 @@ module pm_acpi_core #(
     logic [7:0]  r_pwr_domain_current;
 
     // Sticky status registers and their set terms
-    logic [3:0]  r_acpi_status;
-    logic [3:0]  w_acpi_status_set;
-    logic [5:0]  r_acpi_int_status;
-    logic [5:0]  w_acpi_int_status_set;
+    logic [4:0]  r_acpi_status;
+    logic [4:0]  w_acpi_status_set;
+    logic [6:0]  r_acpi_int_status;
+    logic [6:0]  w_acpi_int_status_set;
     logic [4:0]  r_pm1_status;
     logic [4:0]  w_pm1_status_set;
     logic [3:0]  r_wake_status;
 
     // Soft-reset-qualified copies of the set terms (see #54 F9 below)
-    logic [3:0]  w_acpi_status_set_q;
-    logic [5:0]  w_acpi_int_status_set_q;
+    logic [4:0]  w_acpi_status_set_q;
+    logic [6:0]  w_acpi_int_status_set_q;
     logic [4:0]  w_pm1_status_set_q;
     logic [3:0]  w_wake_src_event_q;
     logic [31:0] w_gpe_set_q;
@@ -423,6 +443,17 @@ module pm_acpi_core #(
 
     // Reset request outputs
     logic       r_sys_reset_req;
+    logic [23:0] r_pwr_btn_cnt;
+    logic [23:0] r_slp_btn_cnt;
+    logic        r_pwr_btn_level;
+    logic        r_slp_btn_level;
+    logic        r_pwr_btn_level_d;
+    logic        r_slp_btn_level_d;
+    logic [31:0] r_pwr_hold_cnt;
+    logic        r_long_press;
+    logic        w_pwrbtn_override;
+    logic       r_was_soff;
+    logic       w_soff_exit;
     logic       r_periph_reset_req;
 
     // Interrupt aggregation
@@ -430,6 +461,7 @@ module pm_acpi_core #(
     logic       w_int_pme;
     logic       w_int_wake;
     logic       w_int_timer_ovf;
+    logic       w_int_timer_match;
     logic       w_int_state_trans;
     logic       w_int_pm1;
     logic       w_int_gpe;
@@ -517,12 +549,26 @@ module pm_acpi_core #(
     // PM Timer Logic
     // ========================================================================
 
+    // PRESCALER, ahead of the divider. The divider is 16 bits, so on its own
+    // it cannot reach the slow end of the range; pre-dividing by a power of
+    // two extends it without widening the field software already uses. A
+    // prescale of 0 passes every cycle through, which is the old behaviour.
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n))                              r_prescale_cnt <= '0;
+        else if (cfg_acpi_enable && cfg_pm_timer_enable)       r_prescale_cnt <= r_prescale_cnt + 32'd1;
+        else                                                   r_prescale_cnt <= '0;
+    )
+    // A variable part-select is not legal, so mask instead: the low
+    // cfg_timer_prescale bits must all be zero for the tick to pass.
+    assign w_prescale_tick =
+        ((r_prescale_cnt & ((32'd1 << cfg_timer_prescale) - 32'd1)) == 32'd0);
+
     // Timer divider counter
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             r_pm_timer_div_count <= '0;
             r_pm_timer_tick <= 1'b0;
-        end else if (cfg_acpi_enable && cfg_pm_timer_enable) begin
+        end else if (cfg_acpi_enable && cfg_pm_timer_enable && w_prescale_tick) begin
             if (r_pm_timer_div_count >= cfg_pm_timer_div) begin
                 r_pm_timer_div_count <= '0;
                 r_pm_timer_tick <= 1'b1;
@@ -530,6 +576,8 @@ module pm_acpi_core #(
                 r_pm_timer_div_count <= r_pm_timer_div_count + 1'b1;
                 r_pm_timer_tick <= 1'b0;
             end
+        end else if (cfg_acpi_enable && cfg_pm_timer_enable) begin
+            r_pm_timer_tick <= 1'b0;   // between prescale ticks, hold
         end else begin
             r_pm_timer_div_count <= '0;
             r_pm_timer_tick <= 1'b0;
@@ -539,18 +587,38 @@ module pm_acpi_core #(
     // PM Timer counter (32-bit free-running). r_pm_timer_ovf is the raw
     // one-cycle carry-out; the software-visible overflow flags are the sticky
     // bits it sets.
+    // The counter is always 64 bits; cfg_timer_64bit only chooses WHICH carry
+    // counts as an overflow, so software can widen the timer without losing
+    // the 32-bit overflow it may already be using.
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            r_pm_timer_count <= '0;
-            r_pm_timer_ovf <= 1'b0;
+            r_pm_timer_count  <= '0;
+            r_pm_timer_ovf    <= 1'b0;
+            r_timer_match_evt <= 1'b0;
         end else if (cfg_acpi_enable && cfg_pm_timer_enable && r_pm_timer_tick) begin
-            {r_pm_timer_ovf, r_pm_timer_count} <= {1'b0, r_pm_timer_count} + 1'b1;
+            r_pm_timer_count <= r_pm_timer_count + 64'd1;
+            r_pm_timer_ovf   <= cfg_timer_64bit
+                              ? (r_pm_timer_count == 64'hFFFF_FFFF_FFFF_FFFF)
+                              : (r_pm_timer_count[31:0] == 32'hFFFF_FFFF);
+            // The match is on the value the counter is ABOUT to hold, so the
+            // event and the readable value agree.
+            r_timer_match_evt <= ((r_pm_timer_count[31:0] + 32'd1) == cfg_timer_match);
         end else begin
-            r_pm_timer_ovf <= 1'b0;
+            r_pm_timer_ovf    <= 1'b0;
+            r_timer_match_evt <= 1'b0;
         end
     )
 
-    assign status_pm_timer_value = r_pm_timer_count;
+    // COHERENT 64-BIT READ. Two 32-bit reads of a running counter can straddle
+    // a carry and return a value the timer never held, so reading the low word
+    // latches the high word and PM_TIMER_VALUE_HI returns that snapshot.
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n))     r_pm_timer_hi_shadow <= '0;
+        else if (pm_timer_value_read) r_pm_timer_hi_shadow <= r_pm_timer_count[63:32];
+    )
+
+    assign status_pm_timer_value    = r_pm_timer_count[31:0];
+    assign status_pm_timer_value_hi = r_pm_timer_hi_shadow;
 
     // ========================================================================
     // Button Input Synchronization and Edge Detection
@@ -566,10 +634,76 @@ module pm_acpi_core #(
         end
     )
 
-    // Press = high-to-low transition, one cycle wide, on the two synchronized
-    // stages (stage 0 is the metastability catcher and is never compared).
-    assign w_power_button_press = (r_power_button_sync[2:1] == 2'b10);
-    assign w_sleep_button_press = (r_sleep_button_sync[2:1] == 2'b10);
+    // DEBOUNCE. The synchronizer resolves metastability; it does nothing
+    // about contact bounce, and a bouncing push button was recorded as
+    // several presses (RLB-009). A candidate level has to hold for
+    // cfg_debounce_cycles before it becomes the accepted level; any change
+    // restarts the count. cfg_debounce_cycles = 0 accepts immediately, which
+    // is the old behaviour.
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_pwr_btn_cnt   <= '0;
+            r_slp_btn_cnt   <= '0;
+            r_pwr_btn_level <= 1'b1;
+            r_slp_btn_level <= 1'b1;
+        end else begin
+            if (r_power_button_sync[2] == r_pwr_btn_level) begin
+                r_pwr_btn_cnt <= '0;
+            end else if (r_pwr_btn_cnt >= cfg_debounce_cycles) begin
+                r_pwr_btn_level <= r_power_button_sync[2];
+                r_pwr_btn_cnt   <= '0;
+            end else begin
+                r_pwr_btn_cnt <= r_pwr_btn_cnt + 24'd1;
+            end
+
+            if (r_sleep_button_sync[2] == r_slp_btn_level) begin
+                r_slp_btn_cnt <= '0;
+            end else if (r_slp_btn_cnt >= cfg_debounce_cycles) begin
+                r_slp_btn_level <= r_sleep_button_sync[2];
+                r_slp_btn_cnt   <= '0;
+            end else begin
+                r_slp_btn_cnt <= r_slp_btn_cnt + 24'd1;
+            end
+        end
+    )
+
+    // Press = high-to-low transition of the DEBOUNCED level, one cycle wide.
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_pwr_btn_level_d <= 1'b1;
+            r_slp_btn_level_d <= 1'b1;
+        end else begin
+            r_pwr_btn_level_d <= r_pwr_btn_level;
+            r_slp_btn_level_d <= r_slp_btn_level;
+        end
+    )
+    assign w_power_button_press = r_pwr_btn_level_d && !r_pwr_btn_level;
+    assign w_sleep_button_press = r_slp_btn_level_d && !r_slp_btn_level;
+
+    // LONG PRESS. Holding the debounced power button for 2^shift cycles is
+    // ACPI's power-button override: the machine goes to soft off whatever it
+    // was doing, which is the point - it is the escape hatch when software
+    // has stopped responding. Software can force the same thing by writing
+    // PM1_CONTROL.pwrbtn_ovr.
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_pwr_hold_cnt <= '0;
+            r_long_press   <= 1'b0;
+        end else if (r_pwr_btn_level) begin
+            r_pwr_hold_cnt <= '0;
+            r_long_press   <= 1'b0;
+        end else if (cfg_long_press_shift != 5'd0) begin
+            if (r_pwr_hold_cnt[cfg_long_press_shift]) r_long_press <= 1'b1;
+            else                                      r_pwr_hold_cnt <= r_pwr_hold_cnt + 32'd1;
+        end
+    )
+    // PM1_CONTROL.pwrbtn_ovr ENABLES the override rather than commanding it.
+    // Commanding soft off from a control bit would mean any write that
+    // happens to set the bit parks the machine in S5, which is not what a
+    // register called "override" should do; as an enable it lets software
+    // turn the four-second escape hatch off, and the hatch itself stays a
+    // hardware property of holding the button.
+    assign w_pwrbtn_override = r_long_press && cfg_pwrbtn_ovr;
 
     // ========================================================================
     // GPE Event Handling
@@ -709,12 +843,17 @@ module pm_acpi_core #(
         // the pulse and software observing S0.
         if (!cfg_acpi_enable || cfg_soft_reset) begin
             w_next_pwr_state = PWR_S0_WORKING;
+        end else if (w_pwrbtn_override && (r_pwr_state != PWR_S5_SOFF)) begin
+            // The override outranks everything except a reset: that is what
+            // makes it an escape hatch rather than a request.
+            w_next_pwr_state = PWR_S5_SOFF;
         end else begin
             case (r_pwr_state)
                 PWR_S0_WORKING: begin
                     // Enter sleep on the one-shot request
                     if (w_sleep_req) begin
-                        if (cfg_sleep_type == 3'h1 || cfg_sleep_type == 3'h3) begin
+                        if (cfg_sleep_type == 3'h1 || cfg_sleep_type == 3'h3 ||
+                            cfg_sleep_type == 3'h5) begin
                             w_next_pwr_state = PWR_TRANSITION;
                         end else begin
                             w_next_pwr_state = PWR_S0_WORKING;  // S0 or unsupported
@@ -734,6 +873,17 @@ module pm_acpi_core #(
                     end
                 end
 
+                // S5 is SOFT OFF, not a deeper sleep: nothing is retained, so
+                // leaving it is a boot rather than a resume. The wake sources
+                // are the same ones - ACPI lets software choose which are
+                // armed for soft off - but the exit pulses sys_reset_req, see
+                // below, because there is no context to return to.
+                PWR_S5_SOFF: begin
+                    if (w_any_wake_event) begin
+                        w_next_pwr_state = PWR_TRANSITION;
+                    end
+                end
+
                 PWR_TRANSITION: begin
                     // A latched or live wake OUTRANKS the still-programmed
                     // sleep_type. Re-reading sleep_type here is what sent a
@@ -744,6 +894,8 @@ module pm_acpi_core #(
                         w_next_pwr_state = PWR_S1_SLEEP;
                     end else if (cfg_sleep_type == 3'h3) begin
                         w_next_pwr_state = PWR_S3_SUSPEND;
+                    end else if (cfg_sleep_type == 3'h5) begin
+                        w_next_pwr_state = PWR_S5_SOFF;
                     end else begin
                         w_next_pwr_state = PWR_S0_WORKING;
                     end
@@ -756,8 +908,12 @@ module pm_acpi_core #(
         end
     end
 
+    // The status field is two bits, so it reports an ENCODING rather than the
+    // ACPI number: 0 = S0, 1 = S1, 2 = S5, 3 = S3. Encoding 2 was the free one;
+    // widening the field would have moved bits software already reads.
     assign status_current_state = (r_pwr_state == PWR_S1_SLEEP)   ? 2'b01 :
-                                  (r_pwr_state == PWR_S3_SUSPEND) ? 2'b11 : 2'b00;
+                                  (r_pwr_state == PWR_S3_SUSPEND) ? 2'b11 :
+                                  (r_pwr_state == PWR_S5_SOFF)    ? 2'b10 : 2'b00;
 
     // ========================================================================
     // Clock Gating Control with Power State Awareness
@@ -769,8 +925,8 @@ module pm_acpi_core #(
                 // S1: gate all clocks except the two essential ones
                 w_clk_gate_target = cfg_clk_gate_ctrl & 32'h00000003;
             end
-            PWR_S3_SUSPEND: begin
-                // S3: gate every clock
+            PWR_S3_SUSPEND, PWR_S5_SOFF: begin
+                // S3 and S5: gate every clock
                 w_clk_gate_target = 32'h00000000;
             end
             default: begin
@@ -797,8 +953,8 @@ module pm_acpi_core #(
 
     always_comb begin
         case (r_pwr_state)
-            PWR_S3_SUSPEND: begin
-                // S3: power down all except domain 0 (always-on)
+            PWR_S3_SUSPEND, PWR_S5_SOFF: begin
+                // S3 and S5: power down all except domain 0 (always-on)
                 w_pwr_domain_target = cfg_pwr_domain_ctrl & 8'h01;
             end
             default: begin
@@ -833,6 +989,7 @@ module pm_acpi_core #(
     assign w_acpi_status_set[ACPI_ST_WAKE]  = w_any_wake_event;
     assign w_acpi_status_set[ACPI_ST_TMROV] = r_pm_timer_ovf;
     assign w_acpi_status_set[ACPI_ST_TRANS] = r_state_trans_done;
+    assign w_acpi_status_set[ACPI_ST_TMATCH] = r_timer_match_evt;
 
     assign w_pm1_status_set[PM1_ST_TMR]    = r_pm_timer_ovf;
     assign w_pm1_status_set[PM1_ST_PWRBTN] = w_power_button_press;
@@ -857,6 +1014,7 @@ module pm_acpi_core #(
     assign w_acpi_int_status_set[INT_ST_WAKE]  = w_any_wake_event;
     assign w_acpi_int_status_set[INT_ST_TMROV] = r_pm_timer_ovf;
     assign w_acpi_int_status_set[INT_ST_TRANS] = r_state_trans_done;
+    assign w_acpi_int_status_set[INT_ST_TMATCH] = r_timer_match_evt;
     assign w_acpi_int_status_set[INT_ST_PM1]   = |w_pm1_status_set;
     assign w_acpi_int_status_set[INT_ST_GPE]   = |w_gpe_set;
 
@@ -866,8 +1024,8 @@ module pm_acpi_core #(
     // Suppressing the SET terms across the WHOLE level window means a soft
     // reset taken mid-transition cannot leave state_transition or pme set
     // however the request is shaped.
-    assign w_acpi_status_set_q     = cfg_soft_reset ? 4'h0  : w_acpi_status_set;
-    assign w_acpi_int_status_set_q = cfg_soft_reset ? 6'h0  : w_acpi_int_status_set;
+    assign w_acpi_status_set_q     = cfg_soft_reset ? 5'h0  : w_acpi_status_set;
+    assign w_acpi_int_status_set_q = cfg_soft_reset ? 7'h0  : w_acpi_int_status_set;
     assign w_pm1_status_set_q      = cfg_soft_reset ? 5'h0  : w_pm1_status_set;
     assign w_wake_src_event_q      = cfg_soft_reset ? 4'h0  : w_wake_src_event;
 
@@ -931,10 +1089,20 @@ module pm_acpi_core #(
             r_sys_reset_req    <= 1'b0;
             r_periph_reset_req <= 1'b0;
         end else begin
-            r_sys_reset_req    <= w_sys_reset_pulse;
+            r_sys_reset_req    <= w_sys_reset_pulse || w_soff_exit;
             r_periph_reset_req <= w_periph_reset_pulse;
         end
     )
+
+    // Leaving soft off is a BOOT, not a resume: S5 retains nothing, so the
+    // system has to come up from reset rather than continue. One cycle, on
+    // the S5 -> anything edge, ORed into the same request the RESET_CTRL
+    // write drives.
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) r_was_soff <= 1'b0;
+        else                      r_was_soff <= (r_pwr_state == PWR_S5_SOFF);
+    )
+    assign w_soff_exit = r_was_soff && (r_pwr_state != PWR_S5_SOFF);
 
     assign sys_reset_req    = r_sys_reset_req;
     assign periph_reset_req = r_periph_reset_req;
@@ -955,6 +1123,7 @@ module pm_acpi_core #(
     assign w_int_wake        = r_acpi_status[ACPI_ST_WAKE]  && cfg_wake_enable;
     assign w_int_timer_ovf   = r_acpi_status[ACPI_ST_TMROV] && cfg_timer_ovf_enable;
     assign w_int_state_trans = r_acpi_status[ACPI_ST_TRANS] && cfg_state_trans_enable;
+    assign w_int_timer_match = r_acpi_status[ACPI_ST_TMATCH] && cfg_timer_match_enable;
     assign w_int_pm1         = (|(r_pm1_status & w_pm1_src_enable)) && cfg_pm1_enable;
     assign w_int_gpe         = w_ev_gpe_pending && cfg_gpe_int_enable;
 
@@ -964,7 +1133,8 @@ module pm_acpi_core #(
     // history (#54 F10).
     assign pm_interrupt = cfg_acpi_enable &&
                           (w_int_pme || w_int_wake || w_int_timer_ovf ||
-                           w_int_state_trans || w_int_pm1 || w_int_gpe);
+                           w_int_timer_match || w_int_state_trans ||
+                           w_int_pm1 || w_int_gpe);
 
 
     // Elaboration-time parameter guard (sim only). Not an assertion in the

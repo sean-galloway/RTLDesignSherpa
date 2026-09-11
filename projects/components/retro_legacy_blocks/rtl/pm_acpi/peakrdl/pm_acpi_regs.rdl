@@ -120,7 +120,10 @@ addrmap pm_acpi_regs {
 
         field {
             name = "Current Power State";
-            desc = "Current power state: 0=S0, 1=S1, 3=S3";
+            desc = "Current power state, as a two-bit ENCODING rather than
+                    the ACPI number: 0=S0, 1=S1, 2=S5 (soft off), 3=S3.
+                    Encoding 2 was the free one; widening the field would have
+                    moved bits software already reads.";
             sw = r;
             hw = w;
         } current_state[5:4];
@@ -211,11 +214,21 @@ addrmap pm_acpi_regs {
         } state_transition[3:3] = 1'b0;
 
         field {
+            name = "Timer Match";
+            desc = "The PM timer's low word reached PM_TIMER_MATCH. Sticky and
+                    W1C like every other status bit here.";
+            sw = rw;
+            hw = w;
+            precedence = sw;
+            onwrite = woclr;
+        } timer_match[4:4] = 1'b0;
+
+        field {
             name = "Reserved";
             desc = "Reserved bits";
             sw = r;
             hw = na;
-        } reserved[31:4] = 28'h0;
+        } reserved[31:5] = 27'h0;
 
     } ACPI_STATUS @ 0x004;
 
@@ -270,11 +283,18 @@ addrmap pm_acpi_regs {
         } gpe_int_enable[5:5] = 1'b0;
 
         field {
+            name = "Timer Match Interrupt Enable";
+            desc = "Enable the interrupt for ACPI_STATUS.timer_match";
+            sw = rw;
+            hw = r;
+        } timer_match_enable[6:6] = 1'b0;
+
+        field {
             name = "Reserved";
             desc = "Reserved bits";
             sw = r;
             hw = na;
-        } reserved[31:6] = 26'h0;
+        } reserved[31:7] = 25'h0;
 
     } ACPI_INT_ENABLE @ 0x008;
 
@@ -354,11 +374,21 @@ addrmap pm_acpi_regs {
         } gpe_int[5:5] = 1'b0;
 
         field {
+            name = "Timer Match Event";
+            desc = "Event log for the timer match, set whatever
+                    ACPI_INT_ENABLE.timer_match_enable says";
+            sw = rw;
+            hw = w;
+            precedence = sw;
+            onwrite = woclr;
+        } timer_match_int[6:6] = 1'b0;
+
+        field {
             name = "Reserved";
             desc = "Reserved bits";
             sw = r;
             hw = na;
-        } reserved[31:6] = 26'h0;
+        } reserved[31:7] = 25'h0;
 
     } ACPI_INT_STATUS @ 0x00C;
 
@@ -372,7 +402,12 @@ addrmap pm_acpi_regs {
 
         field {
             name = "Sleep Type";
-            desc = "Sleep type: 0=S0, 1=S1, 3=S3";
+            desc = "Sleep type: 0=S0, 1=S1, 3=S3, 5=S5 (soft off).
+                    S5 gates every clock and powers down every domain but
+                    the always-on one, like S3, but retains nothing:
+                    leaving it pulses sys_reset_req, because a wake from
+                    soft off is a boot rather than a resume. Other values
+                    are treated as 0 and stay in S0.";
             sw = rw;
             hw = r;
         } sleep_type[2:0] = 3'h0;
@@ -397,12 +432,15 @@ addrmap pm_acpi_regs {
 
         field {
             name = "Power Button Override";
-            desc = "STORAGE ONLY - no hardware effect (GH#54 H3). 'Override
-                    power button behavior' never named a concrete effect (no
-                    target state, no mask semantics), so rather than invent one
-                    the field is documented as software scratch and is not
-                    routed to pm_acpi_core. The power button always sets
-                    PM1_STATUS.pwrbtn_sts; mask its interrupt with
+            desc = "ENABLES the power-button override (RLB-009): with this
+                    set, holding the debounced power button for
+                    2^BUTTON_TIMING.long_press_shift core-clock cycles forces
+                    the machine to S5 (soft off), which is ACPI's four-second
+                    override. It enables rather than commands - a control bit
+                    that forced soft off would park the machine in S5 on any
+                    write that happened to set it. Clearing it turns the escape
+                    hatch off. The power button always sets
+                    PM1_STATUS.pwrbtn_sts either way; mask its interrupt with
                     PM1_ENABLE.pwrbtn_en and its wake with
                     WAKE_ENABLE.pwrbtn_wake_en.";
             sw = rw;
@@ -423,7 +461,7 @@ addrmap pm_acpi_regs {
             desc = "Reserved bits";
             sw = r;
             hw = na;
-        } reserved[31:6] = 26'h0;
+        } reserved[31:7] = 25'h0;
 
     } PM1_CONTROL @ 0x010;
 
@@ -580,11 +618,31 @@ addrmap pm_acpi_regs {
         } timer_div[15:0] = 16'd27;  // Default ~3.58MHz @ 100MHz sysclk
 
         field {
+            name = "Timer Prescale";
+            desc = "Pre-divide the core clock by 2^this before the divider, so
+                    the reachable range is not limited by the divider's 16
+                    bits. 0 is no prescaling and is the previous behaviour.";
+            sw = rw;
+            hw = r;
+        } timer_prescale[19:16] = 4'd0;
+
+        field {
+            name = "Timer 64-bit Mode";
+            desc = "1 = the counter is 64 bits and the overflow event is its
+                    carry out of bit 63; 0 = 32 bits, carry out of bit 31. The
+                    upper word is always maintained and readable at
+                    PM_TIMER_VALUE_HI; this bit only chooses which carry counts
+                    as an overflow.";
+            sw = rw;
+            hw = r;
+        } timer_64bit[20:20] = 1'b0;
+
+        field {
             name = "Reserved";
             desc = "Reserved bits";
             sw = r;
             hw = na;
-        } reserved[31:16] = 16'h0;
+        } reserved[31:21] = 11'h0;
 
     } PM_TIMER_CONFIG @ 0x024;
 
@@ -969,5 +1027,76 @@ addrmap pm_acpi_regs {
         } reserved[31:4] = 28'h0;
 
     } RESET_STATUS @ 0x06C;
+
+    reg {
+        name = "Button Timing";
+        desc = "Debounce and long-press thresholds for the two buttons, in
+                core-clock cycles. The buttons used to get a plain three-flop
+                synchronizer, which resolves metastability but does nothing
+                about contact bounce: a single press could be recorded as
+                several (RLB-009).";
+
+        field {
+            name = "Debounce Cycles";
+            desc = "The button level must be STABLE for this many core-clock
+                    cycles before an edge is reported. RESETS TO 0, which is no
+                    debouncing and exactly the previous behaviour: a feature
+                    that changed what the block does out of reset would be a
+                    behaviour change wearing a feature's clothes. A mechanical
+                    push button wants something around 10 ms, which is
+                    1,000,000 at 100 MHz.";
+            sw = rw;
+            hw = r;
+        } debounce_cycles[23:0] = 24'd0;
+
+        field {
+            name = "Long Press Shift";
+            desc = "Long-press threshold as a power of two: holding the
+                    DEBOUNCED power button for 2^this core-clock cycles asserts
+                    the override and forces the machine to S5 (soft off), which
+                    is what ACPI's four-second power-button override does. At
+                    100 MHz the reset default of 28 is about 2.7 seconds; 29 is
+                    about 5.4. 0 disables the override.";
+            sw = rw;
+            hw = r;
+        } long_press_shift[28:24] = 5'd28;
+
+    } BUTTON_TIMING @ 0x070;
+
+    reg {
+        name = "PM Timer Value High";
+        desc = "Upper word of the 64-bit PM timer.
+
+                READ PM_TIMER_VALUE FIRST. That read latches this word, so the
+                pair software gets is one coherent 64-bit sample. Reading the
+                halves independently of a running counter can straddle a carry
+                and produce a value the timer never held.";
+
+        field {
+            name = "Timer Value High";
+            desc = "Bits [63:32] of the counter, as latched by the last read of
+                    PM_TIMER_VALUE";
+            sw = r;
+            hw = w;
+        } value_hi[31:0] = 32'h0;
+
+    } PM_TIMER_VALUE_HI @ 0x074;
+
+    reg {
+        name = "PM Timer Match";
+        desc = "Compare value for the PM timer's LOW word. When the counter
+                reaches it, ACPI_STATUS.timer_match sets and, if
+                ACPI_INT_ENABLE.timer_match_enable is set, the interrupt
+                asserts. The comparison is on the low 32 bits whatever
+                PM_TIMER_CONFIG.timer_64bit says.";
+
+        field {
+            name = "Match Value";
+            desc = "Compare value";
+            sw = rw;
+            hw = r;
+        } match_value[31:0] = 32'h0;
+
+    } PM_TIMER_MATCH @ 0x078;
 
 };

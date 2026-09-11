@@ -25,7 +25,7 @@
  *                                                 --> hwif --> pm_acpi_core
  *
  * ADDRESS DECODE POLICY (issue #54 round_2 item 4)
- *   Only the twenty-one mapped registers decode. Equality is on the WHOLE
+ *   Only the twenty-two mapped registers decode. Equality is on the WHOLE
  *   12-bit address, register by register: everything else in the 4 KB window
  *   is DROPPED - the write is ignored, the read returns zero, and PSLVERR is
  *   raised. This is the policy ioapic, pic_8259 and pit_8254 already use.
@@ -147,6 +147,13 @@ module pm_acpi_config_regs
     output logic        cfg_gpe_enable,
     output logic        cfg_soft_reset,
     output logic [2:0]  cfg_sleep_type,
+    output logic [23:0] cfg_debounce_cycles,
+    output logic [3:0]  cfg_timer_prescale,
+    output logic        cfg_timer_64bit,
+    output logic [31:0] cfg_timer_match,
+    output logic        pm_timer_value_read,
+    output logic [4:0]  cfg_long_press_shift,
+    output logic        cfg_pwrbtn_ovr,
     output logic        cfg_sleep_enable,
     output logic        cfg_pm1_tmr_en,
     output logic        cfg_pm1_pwrbtn_en,
@@ -163,6 +170,7 @@ module pm_acpi_config_regs
     output logic        cfg_pme_enable,
     output logic        cfg_wake_enable,
     output logic        cfg_timer_ovf_enable,
+    output logic        cfg_timer_match_enable,
     output logic        cfg_state_trans_enable,
     output logic        cfg_pm1_enable,
     output logic        cfg_gpe_int_enable,
@@ -170,21 +178,22 @@ module pm_acpi_config_regs
     output logic        cfg_periph_reset,
 
     // Per-bit W1C clear pulses to pm_acpi_core (one cycle per transaction)
-    output logic [3:0]  sw_clr_acpi_status,
-    output logic [5:0]  sw_clr_acpi_int_status,
+    output logic [4:0]  sw_clr_acpi_status,
+    output logic [6:0]  sw_clr_acpi_int_status,
     output logic [4:0]  sw_clr_pm1_status,
     output logic [3:0]  sw_clr_wake_status,
     output logic [31:0] sw_clr_gpe_status,
 
     // Status inputs (from pm_acpi_core) - sticky, mirrored into the regblock
     input  logic [1:0]  status_current_state,
-    input  logic [3:0]  status_acpi,
-    input  logic [5:0]  status_acpi_int,
+    input  logic [4:0]  status_acpi,
+    input  logic [6:0]  status_acpi_int,
     input  logic [4:0]  status_pm1,
     input  logic [3:0]  status_wake_src,
     input  logic [31:0] status_gpe,
     input  logic [3:0]  status_reset_src,
     input  logic [31:0] status_pm_timer_value,
+    input  logic [31:0] status_pm_timer_value_hi,
     input  logic [31:0] status_clk_gate_status,
     input  logic [7:0]  status_pwr_domain_status
 );
@@ -216,6 +225,9 @@ module pm_acpi_config_regs
     localparam logic [6:0] ADDR_WAKE_ENABLE         = 7'h64;
     localparam logic [6:0] ADDR_RESET_CTRL          = 7'h68;
     localparam logic [6:0] ADDR_RESET_STATUS        = 7'h6C;
+    localparam logic [6:0] ADDR_BUTTON_TIMING       = 7'h70;
+    localparam logic [6:0] ADDR_PM_TIMER_VALUE_HI   = 7'h74;
+    localparam logic [6:0] ADDR_PM_TIMER_MATCH      = 7'h78;
 
     // The five W1C register windows, one index each. GPE0_STATUS is two
     // registers over one 32-bit core vector, hence six indices.
@@ -337,7 +349,10 @@ module pm_acpi_config_regs
                         (adapter_addr == {5'h00, ADDR_WAKE_STATUS})         ||
                         (adapter_addr == {5'h00, ADDR_WAKE_ENABLE})         ||
                         (adapter_addr == {5'h00, ADDR_RESET_CTRL})          ||
-                        (adapter_addr == {5'h00, ADDR_RESET_STATUS});
+                        (adapter_addr == {5'h00, ADDR_RESET_STATUS})       ||
+                        (adapter_addr == {5'h00, ADDR_BUTTON_TIMING})      ||
+                        (adapter_addr == {5'h00, ADDR_PM_TIMER_VALUE_HI})  ||
+                        (adapter_addr == {5'h00, ADDR_PM_TIMER_MATCH});
     end
 
     assign w_drop      = !w_addr_mapped;
@@ -400,6 +415,17 @@ module pm_acpi_config_regs
     // PM1 Control register. pwrbtn_ovr / slpbtn_ovr are storage only and are
     // deliberately not read here (see the header).
     assign cfg_sleep_type   = hwif_out.PM1_CONTROL.sleep_type.value;
+    assign cfg_debounce_cycles  = hwif_out.BUTTON_TIMING.debounce_cycles.value;
+    assign cfg_timer_prescale   = hwif_out.PM_TIMER_CONFIG.timer_prescale.value;
+    assign cfg_timer_64bit      = hwif_out.PM_TIMER_CONFIG.timer_64bit.value;
+    assign cfg_timer_match      = hwif_out.PM_TIMER_MATCH.match_value.value;
+    // A READ of the low word latches the high word, so the pair software
+    // gets is one coherent sample rather than two reads that can straddle
+    // a carry.
+    assign pm_timer_value_read  = regblk_req && !adapter_req_is_wr &&
+                                  (adapter_addr == {5'h00, ADDR_PM_TIMER_VALUE});
+    assign cfg_long_press_shift = hwif_out.BUTTON_TIMING.long_press_shift.value;
+    assign cfg_pwrbtn_ovr       = hwif_out.PM1_CONTROL.pwrbtn_ovr.value;
     assign cfg_sleep_enable = hwif_out.PM1_CONTROL.sleep_enable.value;
 
     // PM1 Enable register
@@ -429,6 +455,7 @@ module pm_acpi_config_regs
     assign cfg_pme_enable         = hwif_out.ACPI_INT_ENABLE.pme_enable.value;
     assign cfg_wake_enable        = hwif_out.ACPI_INT_ENABLE.wake_enable.value;
     assign cfg_timer_ovf_enable   = hwif_out.ACPI_INT_ENABLE.timer_ovf_enable.value;
+    assign cfg_timer_match_enable = hwif_out.ACPI_INT_ENABLE.timer_match_enable.value;
     assign cfg_state_trans_enable = hwif_out.ACPI_INT_ENABLE.state_trans_enable.value;
     assign cfg_pm1_enable         = hwif_out.ACPI_INT_ENABLE.pm1_enable.value;
     assign cfg_gpe_int_enable     = hwif_out.ACPI_INT_ENABLE.gpe_int_enable.value;
@@ -484,9 +511,9 @@ module pm_acpi_config_regs
     assign w_w1c_mask = adapter_wr_data[15:0] & adapter_wr_biten[15:0];
 
     assign sw_clr_acpi_status     = w_w1c_event[W1C_ACPI_STATUS]     ?
-                                    w_w1c_mask[3:0] : 4'h0;
+                                    w_w1c_mask[4:0] : 5'h0;
     assign sw_clr_acpi_int_status = w_w1c_event[W1C_ACPI_INT_STATUS] ?
-                                    w_w1c_mask[5:0] : 6'h0;
+                                    w_w1c_mask[6:0] : 7'h0;
     assign sw_clr_pm1_status      = w_w1c_event[W1C_PM1_STATUS]      ?
                                     w_w1c_mask[4:0] : 5'h0;
     assign sw_clr_wake_status     = w_w1c_event[W1C_WAKE_STATUS]     ?
@@ -511,6 +538,7 @@ module pm_acpi_config_regs
     assign hwif_in.ACPI_STATUS.wake_status.next     = status_acpi[1];
     assign hwif_in.ACPI_STATUS.timer_overflow.next  = status_acpi[2];
     assign hwif_in.ACPI_STATUS.state_transition.next = status_acpi[3];
+    assign hwif_in.ACPI_STATUS.timer_match.next     = status_acpi[4];
 
     // ACPI_INT_STATUS mirror
     assign hwif_in.ACPI_INT_STATUS.pme_int.next         = status_acpi_int[0];
@@ -519,6 +547,7 @@ module pm_acpi_config_regs
     assign hwif_in.ACPI_INT_STATUS.state_trans_int.next = status_acpi_int[3];
     assign hwif_in.ACPI_INT_STATUS.pm1_int.next         = status_acpi_int[4];
     assign hwif_in.ACPI_INT_STATUS.gpe_int.next         = status_acpi_int[5];
+    assign hwif_in.ACPI_INT_STATUS.timer_match_int.next = status_acpi_int[6];
 
     // PM1_STATUS mirror
     assign hwif_in.PM1_STATUS.tmr_sts.next    = status_pm1[0];
@@ -545,6 +574,7 @@ module pm_acpi_config_regs
 
     // Read-only hardware mirrors
     assign hwif_in.PM_TIMER_VALUE.timer_value.next          = status_pm_timer_value;
+    assign hwif_in.PM_TIMER_VALUE_HI.value_hi.next          = status_pm_timer_value_hi;
     assign hwif_in.CLOCK_GATE_STATUS.clk_gate_status.next   = status_clk_gate_status;
     assign hwif_in.POWER_DOMAIN_STATUS.pwr_domain_status.next = status_pwr_domain_status;
 

@@ -5,7 +5,7 @@ package pm_acpi_regs_pkg;
 
     localparam PM_ACPI_REGS_DATA_WIDTH = 32;
     localparam PM_ACPI_REGS_MIN_ADDR_WIDTH = 7;
-    localparam PM_ACPI_REGS_SIZE = 'h70;
+    localparam PM_ACPI_REGS_SIZE = 'h7c;
 
     typedef struct {
         logic [1:0] next;
@@ -32,10 +32,15 @@ package pm_acpi_regs_pkg;
     } pm_acpi_regs__ACPI_STATUS__state_transition__in_t;
 
     typedef struct {
+        logic next;
+    } pm_acpi_regs__ACPI_STATUS__timer_match__in_t;
+
+    typedef struct {
         pm_acpi_regs__ACPI_STATUS__pme_status__in_t pme_status;
         pm_acpi_regs__ACPI_STATUS__wake_status__in_t wake_status;
         pm_acpi_regs__ACPI_STATUS__timer_overflow__in_t timer_overflow;
         pm_acpi_regs__ACPI_STATUS__state_transition__in_t state_transition;
+        pm_acpi_regs__ACPI_STATUS__timer_match__in_t timer_match;
     } pm_acpi_regs__ACPI_STATUS__in_t;
 
     typedef struct {
@@ -63,12 +68,17 @@ package pm_acpi_regs_pkg;
     } pm_acpi_regs__ACPI_INT_STATUS__gpe_int__in_t;
 
     typedef struct {
+        logic next;
+    } pm_acpi_regs__ACPI_INT_STATUS__timer_match_int__in_t;
+
+    typedef struct {
         pm_acpi_regs__ACPI_INT_STATUS__pme_int__in_t pme_int;
         pm_acpi_regs__ACPI_INT_STATUS__wake_int__in_t wake_int;
         pm_acpi_regs__ACPI_INT_STATUS__timer_ovf_int__in_t timer_ovf_int;
         pm_acpi_regs__ACPI_INT_STATUS__state_trans_int__in_t state_trans_int;
         pm_acpi_regs__ACPI_INT_STATUS__pm1_int__in_t pm1_int;
         pm_acpi_regs__ACPI_INT_STATUS__gpe_int__in_t gpe_int;
+        pm_acpi_regs__ACPI_INT_STATUS__timer_match_int__in_t timer_match_int;
     } pm_acpi_regs__ACPI_INT_STATUS__in_t;
 
     typedef struct {
@@ -186,6 +196,14 @@ package pm_acpi_regs_pkg;
     } pm_acpi_regs__RESET_STATUS__in_t;
 
     typedef struct {
+        logic [31:0] next;
+    } pm_acpi_regs__PM_TIMER_VALUE_HI__value_hi__in_t;
+
+    typedef struct {
+        pm_acpi_regs__PM_TIMER_VALUE_HI__value_hi__in_t value_hi;
+    } pm_acpi_regs__PM_TIMER_VALUE_HI__in_t;
+
+    typedef struct {
         pm_acpi_regs__ACPI_CONTROL__in_t ACPI_CONTROL;
         pm_acpi_regs__ACPI_STATUS__in_t ACPI_STATUS;
         pm_acpi_regs__ACPI_INT_STATUS__in_t ACPI_INT_STATUS;
@@ -197,6 +215,7 @@ package pm_acpi_regs_pkg;
         pm_acpi_regs__POWER_DOMAIN_STATUS__in_t POWER_DOMAIN_STATUS;
         pm_acpi_regs__WAKE_STATUS__in_t WAKE_STATUS;
         pm_acpi_regs__RESET_STATUS__in_t RESET_STATUS;
+        pm_acpi_regs__PM_TIMER_VALUE_HI__in_t PM_TIMER_VALUE_HI;
     } pm_acpi_regs__in_t;
 
     typedef struct {
@@ -275,12 +294,17 @@ package pm_acpi_regs_pkg;
     } pm_acpi_regs__ACPI_INT_ENABLE__gpe_int_enable__out_t;
 
     typedef struct {
+        logic value;
+    } pm_acpi_regs__ACPI_INT_ENABLE__timer_match_enable__out_t;
+
+    typedef struct {
         pm_acpi_regs__ACPI_INT_ENABLE__pme_enable__out_t pme_enable;
         pm_acpi_regs__ACPI_INT_ENABLE__wake_enable__out_t wake_enable;
         pm_acpi_regs__ACPI_INT_ENABLE__timer_ovf_enable__out_t timer_ovf_enable;
         pm_acpi_regs__ACPI_INT_ENABLE__state_trans_enable__out_t state_trans_enable;
         pm_acpi_regs__ACPI_INT_ENABLE__pm1_enable__out_t pm1_enable;
         pm_acpi_regs__ACPI_INT_ENABLE__gpe_int_enable__out_t gpe_int_enable;
+        pm_acpi_regs__ACPI_INT_ENABLE__timer_match_enable__out_t timer_match_enable;
     } pm_acpi_regs__ACPI_INT_ENABLE__out_t;
 
     typedef struct {
@@ -395,7 +419,17 @@ package pm_acpi_regs_pkg;
     } pm_acpi_regs__PM_TIMER_CONFIG__timer_div__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } pm_acpi_regs__PM_TIMER_CONFIG__timer_prescale__out_t;
+
+    typedef struct {
+        logic value;
+    } pm_acpi_regs__PM_TIMER_CONFIG__timer_64bit__out_t;
+
+    typedef struct {
         pm_acpi_regs__PM_TIMER_CONFIG__timer_div__out_t timer_div;
+        pm_acpi_regs__PM_TIMER_CONFIG__timer_prescale__out_t timer_prescale;
+        pm_acpi_regs__PM_TIMER_CONFIG__timer_64bit__out_t timer_64bit;
     } pm_acpi_regs__PM_TIMER_CONFIG__out_t;
 
     typedef struct {
@@ -506,6 +540,27 @@ package pm_acpi_regs_pkg;
     } pm_acpi_regs__RESET_CTRL__out_t;
 
     typedef struct {
+        logic [23:0] value;
+    } pm_acpi_regs__BUTTON_TIMING__debounce_cycles__out_t;
+
+    typedef struct {
+        logic [4:0] value;
+    } pm_acpi_regs__BUTTON_TIMING__long_press_shift__out_t;
+
+    typedef struct {
+        pm_acpi_regs__BUTTON_TIMING__debounce_cycles__out_t debounce_cycles;
+        pm_acpi_regs__BUTTON_TIMING__long_press_shift__out_t long_press_shift;
+    } pm_acpi_regs__BUTTON_TIMING__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } pm_acpi_regs__PM_TIMER_MATCH__match_value__out_t;
+
+    typedef struct {
+        pm_acpi_regs__PM_TIMER_MATCH__match_value__out_t match_value;
+    } pm_acpi_regs__PM_TIMER_MATCH__out_t;
+
+    typedef struct {
         pm_acpi_regs__ACPI_CONTROL__out_t ACPI_CONTROL;
         pm_acpi_regs__ACPI_STATUS__out_t ACPI_STATUS;
         pm_acpi_regs__ACPI_INT_ENABLE__out_t ACPI_INT_ENABLE;
@@ -523,5 +578,7 @@ package pm_acpi_regs_pkg;
         pm_acpi_regs__WAKE_STATUS__out_t WAKE_STATUS;
         pm_acpi_regs__WAKE_ENABLE__out_t WAKE_ENABLE;
         pm_acpi_regs__RESET_CTRL__out_t RESET_CTRL;
+        pm_acpi_regs__BUTTON_TIMING__out_t BUTTON_TIMING;
+        pm_acpi_regs__PM_TIMER_MATCH__out_t PM_TIMER_MATCH;
     } pm_acpi_regs__out_t;
 endpackage

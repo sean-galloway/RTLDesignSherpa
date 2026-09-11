@@ -87,6 +87,9 @@ module pm_acpi_regs (
         logic WAKE_ENABLE;
         logic RESET_CTRL;
         logic RESET_STATUS;
+        logic BUTTON_TIMING;
+        logic PM_TIMER_VALUE_HI;
+        logic PM_TIMER_MATCH;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
     logic decoded_req;
@@ -116,6 +119,9 @@ module pm_acpi_regs (
         decoded_reg_strb.WAKE_ENABLE = cpuif_req_masked & (cpuif_addr == 7'h64);
         decoded_reg_strb.RESET_CTRL = cpuif_req_masked & (cpuif_addr == 7'h68);
         decoded_reg_strb.RESET_STATUS = cpuif_req_masked & (cpuif_addr == 7'h6c);
+        decoded_reg_strb.BUTTON_TIMING = cpuif_req_masked & (cpuif_addr == 7'h70);
+        decoded_reg_strb.PM_TIMER_VALUE_HI = cpuif_req_masked & (cpuif_addr == 7'h74);
+        decoded_reg_strb.PM_TIMER_MATCH = cpuif_req_masked & (cpuif_addr == 7'h78);
     end
 
     // Pass down signals to next stage
@@ -167,6 +173,10 @@ module pm_acpi_regs (
                 logic next;
                 logic load_next;
             } state_transition;
+            struct {
+                logic next;
+                logic load_next;
+            } timer_match;
         } ACPI_STATUS;
         struct {
             struct {
@@ -193,6 +203,10 @@ module pm_acpi_regs (
                 logic next;
                 logic load_next;
             } gpe_int_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } timer_match_enable;
         } ACPI_INT_ENABLE;
         struct {
             struct {
@@ -219,6 +233,10 @@ module pm_acpi_regs (
                 logic next;
                 logic load_next;
             } gpe_int;
+            struct {
+                logic next;
+                logic load_next;
+            } timer_match_int;
         } ACPI_INT_STATUS;
         struct {
             struct {
@@ -283,6 +301,14 @@ module pm_acpi_regs (
                 logic [15:0] next;
                 logic load_next;
             } timer_div;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } timer_prescale;
+            struct {
+                logic next;
+                logic load_next;
+            } timer_64bit;
         } PM_TIMER_CONFIG;
         struct {
             struct {
@@ -366,6 +392,22 @@ module pm_acpi_regs (
                 logic load_next;
             } periph_reset;
         } RESET_CTRL;
+        struct {
+            struct {
+                logic [23:0] next;
+                logic load_next;
+            } debounce_cycles;
+            struct {
+                logic [4:0] next;
+                logic load_next;
+            } long_press_shift;
+        } BUTTON_TIMING;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } match_value;
+        } PM_TIMER_MATCH;
     } field_combo_t;
     field_combo_t field_combo;
 
@@ -400,6 +442,9 @@ module pm_acpi_regs (
             struct {
                 logic value;
             } state_transition;
+            struct {
+                logic value;
+            } timer_match;
         } ACPI_STATUS;
         struct {
             struct {
@@ -420,6 +465,9 @@ module pm_acpi_regs (
             struct {
                 logic value;
             } gpe_int_enable;
+            struct {
+                logic value;
+            } timer_match_enable;
         } ACPI_INT_ENABLE;
         struct {
             struct {
@@ -440,6 +488,9 @@ module pm_acpi_regs (
             struct {
                 logic value;
             } gpe_int;
+            struct {
+                logic value;
+            } timer_match_int;
         } ACPI_INT_STATUS;
         struct {
             struct {
@@ -490,6 +541,12 @@ module pm_acpi_regs (
             struct {
                 logic [15:0] value;
             } timer_div;
+            struct {
+                logic [3:0] value;
+            } timer_prescale;
+            struct {
+                logic value;
+            } timer_64bit;
         } PM_TIMER_CONFIG;
         struct {
             struct {
@@ -557,6 +614,19 @@ module pm_acpi_regs (
                 logic value;
             } periph_reset;
         } RESET_CTRL;
+        struct {
+            struct {
+                logic [23:0] value;
+            } debounce_cycles;
+            struct {
+                logic [4:0] value;
+            } long_press_shift;
+        } BUTTON_TIMING;
+        struct {
+            struct {
+                logic [31:0] value;
+            } match_value;
+        } PM_TIMER_MATCH;
     } field_storage_t;
     field_storage_t field_storage;
 
@@ -782,6 +852,31 @@ module pm_acpi_regs (
         end
     end
     assign hwif_out.ACPI_STATUS.state_transition.swmod = decoded_reg_strb.ACPI_STATUS && decoded_req_is_wr && |(decoded_wr_biten[3:3]);
+    // Field: pm_acpi_regs.ACPI_STATUS.timer_match
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.ACPI_STATUS.timer_match.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.ACPI_STATUS && decoded_req_is_wr) begin // SW write 1 clear
+            next_c = field_storage.ACPI_STATUS.timer_match.value & ~(decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+            load_next_c = '1;
+        end else begin // HW Write
+            next_c = hwif_in.ACPI_STATUS.timer_match.next;
+            load_next_c = '1;
+        end
+        field_combo.ACPI_STATUS.timer_match.next = next_c;
+        field_combo.ACPI_STATUS.timer_match.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.ACPI_STATUS.timer_match.value <= 1'h0;
+        end else begin
+            if(field_combo.ACPI_STATUS.timer_match.load_next) begin
+                field_storage.ACPI_STATUS.timer_match.value <= field_combo.ACPI_STATUS.timer_match.next;
+            end
+        end
+    end
     // Field: pm_acpi_regs.ACPI_INT_ENABLE.pme_enable
     always_comb begin
         automatic logic [0:0] next_c;
@@ -920,6 +1015,29 @@ module pm_acpi_regs (
         end
     end
     assign hwif_out.ACPI_INT_ENABLE.gpe_int_enable.value = field_storage.ACPI_INT_ENABLE.gpe_int_enable.value;
+    // Field: pm_acpi_regs.ACPI_INT_ENABLE.timer_match_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.ACPI_INT_ENABLE.timer_match_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.ACPI_INT_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.ACPI_INT_ENABLE.timer_match_enable.value & ~decoded_wr_biten[6:6]) | (decoded_wr_data[6:6] & decoded_wr_biten[6:6]);
+            load_next_c = '1;
+        end
+        field_combo.ACPI_INT_ENABLE.timer_match_enable.next = next_c;
+        field_combo.ACPI_INT_ENABLE.timer_match_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.ACPI_INT_ENABLE.timer_match_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.ACPI_INT_ENABLE.timer_match_enable.load_next) begin
+                field_storage.ACPI_INT_ENABLE.timer_match_enable.value <= field_combo.ACPI_INT_ENABLE.timer_match_enable.next;
+            end
+        end
+    end
+    assign hwif_out.ACPI_INT_ENABLE.timer_match_enable.value = field_storage.ACPI_INT_ENABLE.timer_match_enable.value;
     // Field: pm_acpi_regs.ACPI_INT_STATUS.pme_int
     always_comb begin
         automatic logic [0:0] next_c;
@@ -1076,6 +1194,31 @@ module pm_acpi_regs (
         end
     end
     assign hwif_out.ACPI_INT_STATUS.gpe_int.swmod = decoded_reg_strb.ACPI_INT_STATUS && decoded_req_is_wr && |(decoded_wr_biten[5:5]);
+    // Field: pm_acpi_regs.ACPI_INT_STATUS.timer_match_int
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.ACPI_INT_STATUS.timer_match_int.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.ACPI_INT_STATUS && decoded_req_is_wr) begin // SW write 1 clear
+            next_c = field_storage.ACPI_INT_STATUS.timer_match_int.value & ~(decoded_wr_data[6:6] & decoded_wr_biten[6:6]);
+            load_next_c = '1;
+        end else begin // HW Write
+            next_c = hwif_in.ACPI_INT_STATUS.timer_match_int.next;
+            load_next_c = '1;
+        end
+        field_combo.ACPI_INT_STATUS.timer_match_int.next = next_c;
+        field_combo.ACPI_INT_STATUS.timer_match_int.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.ACPI_INT_STATUS.timer_match_int.value <= 1'h0;
+        end else begin
+            if(field_combo.ACPI_INT_STATUS.timer_match_int.load_next) begin
+                field_storage.ACPI_INT_STATUS.timer_match_int.value <= field_combo.ACPI_INT_STATUS.timer_match_int.next;
+            end
+        end
+    end
     // Field: pm_acpi_regs.PM1_CONTROL.sleep_type
     always_comb begin
         automatic logic [2:0] next_c;
@@ -1416,6 +1559,52 @@ module pm_acpi_regs (
         end
     end
     assign hwif_out.PM_TIMER_CONFIG.timer_div.value = field_storage.PM_TIMER_CONFIG.timer_div.value;
+    // Field: pm_acpi_regs.PM_TIMER_CONFIG.timer_prescale
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PM_TIMER_CONFIG.timer_prescale.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PM_TIMER_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PM_TIMER_CONFIG.timer_prescale.value & ~decoded_wr_biten[19:16]) | (decoded_wr_data[19:16] & decoded_wr_biten[19:16]);
+            load_next_c = '1;
+        end
+        field_combo.PM_TIMER_CONFIG.timer_prescale.next = next_c;
+        field_combo.PM_TIMER_CONFIG.timer_prescale.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PM_TIMER_CONFIG.timer_prescale.value <= 4'h0;
+        end else begin
+            if(field_combo.PM_TIMER_CONFIG.timer_prescale.load_next) begin
+                field_storage.PM_TIMER_CONFIG.timer_prescale.value <= field_combo.PM_TIMER_CONFIG.timer_prescale.next;
+            end
+        end
+    end
+    assign hwif_out.PM_TIMER_CONFIG.timer_prescale.value = field_storage.PM_TIMER_CONFIG.timer_prescale.value;
+    // Field: pm_acpi_regs.PM_TIMER_CONFIG.timer_64bit
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PM_TIMER_CONFIG.timer_64bit.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PM_TIMER_CONFIG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PM_TIMER_CONFIG.timer_64bit.value & ~decoded_wr_biten[20:20]) | (decoded_wr_data[20:20] & decoded_wr_biten[20:20]);
+            load_next_c = '1;
+        end
+        field_combo.PM_TIMER_CONFIG.timer_64bit.next = next_c;
+        field_combo.PM_TIMER_CONFIG.timer_64bit.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PM_TIMER_CONFIG.timer_64bit.value <= 1'h0;
+        end else begin
+            if(field_combo.PM_TIMER_CONFIG.timer_64bit.load_next) begin
+                field_storage.PM_TIMER_CONFIG.timer_64bit.value <= field_combo.PM_TIMER_CONFIG.timer_64bit.next;
+            end
+        end
+    end
+    assign hwif_out.PM_TIMER_CONFIG.timer_64bit.value = field_storage.PM_TIMER_CONFIG.timer_64bit.value;
     // Field: pm_acpi_regs.GPE0_STATUS_LO.gpe_status
     always_comb begin
         automatic logic [15:0] next_c;
@@ -1808,6 +1997,75 @@ module pm_acpi_regs (
         end
     end
     assign hwif_out.RESET_CTRL.periph_reset.value = field_storage.RESET_CTRL.periph_reset.value;
+    // Field: pm_acpi_regs.BUTTON_TIMING.debounce_cycles
+    always_comb begin
+        automatic logic [23:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.BUTTON_TIMING.debounce_cycles.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.BUTTON_TIMING && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.BUTTON_TIMING.debounce_cycles.value & ~decoded_wr_biten[23:0]) | (decoded_wr_data[23:0] & decoded_wr_biten[23:0]);
+            load_next_c = '1;
+        end
+        field_combo.BUTTON_TIMING.debounce_cycles.next = next_c;
+        field_combo.BUTTON_TIMING.debounce_cycles.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.BUTTON_TIMING.debounce_cycles.value <= 24'h0;
+        end else begin
+            if(field_combo.BUTTON_TIMING.debounce_cycles.load_next) begin
+                field_storage.BUTTON_TIMING.debounce_cycles.value <= field_combo.BUTTON_TIMING.debounce_cycles.next;
+            end
+        end
+    end
+    assign hwif_out.BUTTON_TIMING.debounce_cycles.value = field_storage.BUTTON_TIMING.debounce_cycles.value;
+    // Field: pm_acpi_regs.BUTTON_TIMING.long_press_shift
+    always_comb begin
+        automatic logic [4:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.BUTTON_TIMING.long_press_shift.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.BUTTON_TIMING && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.BUTTON_TIMING.long_press_shift.value & ~decoded_wr_biten[28:24]) | (decoded_wr_data[28:24] & decoded_wr_biten[28:24]);
+            load_next_c = '1;
+        end
+        field_combo.BUTTON_TIMING.long_press_shift.next = next_c;
+        field_combo.BUTTON_TIMING.long_press_shift.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.BUTTON_TIMING.long_press_shift.value <= 5'h1c;
+        end else begin
+            if(field_combo.BUTTON_TIMING.long_press_shift.load_next) begin
+                field_storage.BUTTON_TIMING.long_press_shift.value <= field_combo.BUTTON_TIMING.long_press_shift.next;
+            end
+        end
+    end
+    assign hwif_out.BUTTON_TIMING.long_press_shift.value = field_storage.BUTTON_TIMING.long_press_shift.value;
+    // Field: pm_acpi_regs.PM_TIMER_MATCH.match_value
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PM_TIMER_MATCH.match_value.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PM_TIMER_MATCH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PM_TIMER_MATCH.match_value.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.PM_TIMER_MATCH.match_value.next = next_c;
+        field_combo.PM_TIMER_MATCH.match_value.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PM_TIMER_MATCH.match_value.value <= 32'h0;
+        end else begin
+            if(field_combo.PM_TIMER_MATCH.match_value.load_next) begin
+                field_storage.PM_TIMER_MATCH.match_value.value <= field_combo.PM_TIMER_MATCH.match_value.next;
+            end
+        end
+    end
+    assign hwif_out.PM_TIMER_MATCH.match_value.value = field_storage.PM_TIMER_MATCH.match_value.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -1825,7 +2083,7 @@ module pm_acpi_regs (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[21];
+    logic [31:0] readback_array[24];
     assign readback_array[0][0:0] = (decoded_reg_strb.ACPI_CONTROL && !decoded_req_is_wr) ? field_storage.ACPI_CONTROL.acpi_enable.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.ACPI_CONTROL && !decoded_req_is_wr) ? field_storage.ACPI_CONTROL.pm_timer_enable.value : '0;
     assign readback_array[0][2:2] = (decoded_reg_strb.ACPI_CONTROL && !decoded_req_is_wr) ? field_storage.ACPI_CONTROL.gpe_enable.value : '0;
@@ -1838,26 +2096,30 @@ module pm_acpi_regs (
     assign readback_array[1][1:1] = (decoded_reg_strb.ACPI_STATUS && !decoded_req_is_wr) ? field_storage.ACPI_STATUS.wake_status.value : '0;
     assign readback_array[1][2:2] = (decoded_reg_strb.ACPI_STATUS && !decoded_req_is_wr) ? field_storage.ACPI_STATUS.timer_overflow.value : '0;
     assign readback_array[1][3:3] = (decoded_reg_strb.ACPI_STATUS && !decoded_req_is_wr) ? field_storage.ACPI_STATUS.state_transition.value : '0;
-    assign readback_array[1][31:4] = (decoded_reg_strb.ACPI_STATUS && !decoded_req_is_wr) ? 28'h0 : '0;
+    assign readback_array[1][4:4] = (decoded_reg_strb.ACPI_STATUS && !decoded_req_is_wr) ? field_storage.ACPI_STATUS.timer_match.value : '0;
+    assign readback_array[1][31:5] = (decoded_reg_strb.ACPI_STATUS && !decoded_req_is_wr) ? 27'h0 : '0;
     assign readback_array[2][0:0] = (decoded_reg_strb.ACPI_INT_ENABLE && !decoded_req_is_wr) ? field_storage.ACPI_INT_ENABLE.pme_enable.value : '0;
     assign readback_array[2][1:1] = (decoded_reg_strb.ACPI_INT_ENABLE && !decoded_req_is_wr) ? field_storage.ACPI_INT_ENABLE.wake_enable.value : '0;
     assign readback_array[2][2:2] = (decoded_reg_strb.ACPI_INT_ENABLE && !decoded_req_is_wr) ? field_storage.ACPI_INT_ENABLE.timer_ovf_enable.value : '0;
     assign readback_array[2][3:3] = (decoded_reg_strb.ACPI_INT_ENABLE && !decoded_req_is_wr) ? field_storage.ACPI_INT_ENABLE.state_trans_enable.value : '0;
     assign readback_array[2][4:4] = (decoded_reg_strb.ACPI_INT_ENABLE && !decoded_req_is_wr) ? field_storage.ACPI_INT_ENABLE.pm1_enable.value : '0;
     assign readback_array[2][5:5] = (decoded_reg_strb.ACPI_INT_ENABLE && !decoded_req_is_wr) ? field_storage.ACPI_INT_ENABLE.gpe_int_enable.value : '0;
-    assign readback_array[2][31:6] = (decoded_reg_strb.ACPI_INT_ENABLE && !decoded_req_is_wr) ? 26'h0 : '0;
+    assign readback_array[2][6:6] = (decoded_reg_strb.ACPI_INT_ENABLE && !decoded_req_is_wr) ? field_storage.ACPI_INT_ENABLE.timer_match_enable.value : '0;
+    assign readback_array[2][31:7] = (decoded_reg_strb.ACPI_INT_ENABLE && !decoded_req_is_wr) ? 25'h0 : '0;
     assign readback_array[3][0:0] = (decoded_reg_strb.ACPI_INT_STATUS && !decoded_req_is_wr) ? field_storage.ACPI_INT_STATUS.pme_int.value : '0;
     assign readback_array[3][1:1] = (decoded_reg_strb.ACPI_INT_STATUS && !decoded_req_is_wr) ? field_storage.ACPI_INT_STATUS.wake_int.value : '0;
     assign readback_array[3][2:2] = (decoded_reg_strb.ACPI_INT_STATUS && !decoded_req_is_wr) ? field_storage.ACPI_INT_STATUS.timer_ovf_int.value : '0;
     assign readback_array[3][3:3] = (decoded_reg_strb.ACPI_INT_STATUS && !decoded_req_is_wr) ? field_storage.ACPI_INT_STATUS.state_trans_int.value : '0;
     assign readback_array[3][4:4] = (decoded_reg_strb.ACPI_INT_STATUS && !decoded_req_is_wr) ? field_storage.ACPI_INT_STATUS.pm1_int.value : '0;
     assign readback_array[3][5:5] = (decoded_reg_strb.ACPI_INT_STATUS && !decoded_req_is_wr) ? field_storage.ACPI_INT_STATUS.gpe_int.value : '0;
-    assign readback_array[3][31:6] = (decoded_reg_strb.ACPI_INT_STATUS && !decoded_req_is_wr) ? 26'h0 : '0;
+    assign readback_array[3][6:6] = (decoded_reg_strb.ACPI_INT_STATUS && !decoded_req_is_wr) ? field_storage.ACPI_INT_STATUS.timer_match_int.value : '0;
+    assign readback_array[3][31:7] = (decoded_reg_strb.ACPI_INT_STATUS && !decoded_req_is_wr) ? 25'h0 : '0;
     assign readback_array[4][2:0] = (decoded_reg_strb.PM1_CONTROL && !decoded_req_is_wr) ? field_storage.PM1_CONTROL.sleep_type.value : '0;
     assign readback_array[4][3:3] = (decoded_reg_strb.PM1_CONTROL && !decoded_req_is_wr) ? field_storage.PM1_CONTROL.sleep_enable.value : '0;
     assign readback_array[4][4:4] = (decoded_reg_strb.PM1_CONTROL && !decoded_req_is_wr) ? field_storage.PM1_CONTROL.pwrbtn_ovr.value : '0;
     assign readback_array[4][5:5] = (decoded_reg_strb.PM1_CONTROL && !decoded_req_is_wr) ? field_storage.PM1_CONTROL.slpbtn_ovr.value : '0;
-    assign readback_array[4][31:6] = (decoded_reg_strb.PM1_CONTROL && !decoded_req_is_wr) ? 26'h0 : '0;
+    assign readback_array[4][6:6] = '0;
+    assign readback_array[4][31:7] = (decoded_reg_strb.PM1_CONTROL && !decoded_req_is_wr) ? 25'h0 : '0;
     assign readback_array[5][0:0] = (decoded_reg_strb.PM1_STATUS && !decoded_req_is_wr) ? field_storage.PM1_STATUS.tmr_sts.value : '0;
     assign readback_array[5][1:1] = (decoded_reg_strb.PM1_STATUS && !decoded_req_is_wr) ? field_storage.PM1_STATUS.pwrbtn_sts.value : '0;
     assign readback_array[5][2:2] = (decoded_reg_strb.PM1_STATUS && !decoded_req_is_wr) ? field_storage.PM1_STATUS.slpbtn_sts.value : '0;
@@ -1871,7 +2133,9 @@ module pm_acpi_regs (
     assign readback_array[6][31:4] = (decoded_reg_strb.PM1_ENABLE && !decoded_req_is_wr) ? 28'h0 : '0;
     assign readback_array[7][31:0] = (decoded_reg_strb.PM_TIMER_VALUE && !decoded_req_is_wr) ? hwif_in.PM_TIMER_VALUE.timer_value.next : '0;
     assign readback_array[8][15:0] = (decoded_reg_strb.PM_TIMER_CONFIG && !decoded_req_is_wr) ? field_storage.PM_TIMER_CONFIG.timer_div.value : '0;
-    assign readback_array[8][31:16] = (decoded_reg_strb.PM_TIMER_CONFIG && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[8][19:16] = (decoded_reg_strb.PM_TIMER_CONFIG && !decoded_req_is_wr) ? field_storage.PM_TIMER_CONFIG.timer_prescale.value : '0;
+    assign readback_array[8][20:20] = (decoded_reg_strb.PM_TIMER_CONFIG && !decoded_req_is_wr) ? field_storage.PM_TIMER_CONFIG.timer_64bit.value : '0;
+    assign readback_array[8][31:21] = (decoded_reg_strb.PM_TIMER_CONFIG && !decoded_req_is_wr) ? 11'h0 : '0;
     assign readback_array[9][15:0] = (decoded_reg_strb.GPE0_STATUS_LO && !decoded_req_is_wr) ? field_storage.GPE0_STATUS_LO.gpe_status.value : '0;
     assign readback_array[9][31:16] = (decoded_reg_strb.GPE0_STATUS_LO && !decoded_req_is_wr) ? 16'h0 : '0;
     assign readback_array[10][15:0] = (decoded_reg_strb.GPE0_STATUS_HI && !decoded_req_is_wr) ? field_storage.GPE0_STATUS_HI.gpe_status.value : '0;
@@ -1904,6 +2168,11 @@ module pm_acpi_regs (
     assign readback_array[20][2:2] = (decoded_reg_strb.RESET_STATUS && !decoded_req_is_wr) ? hwif_in.RESET_STATUS.sw_reset.next : '0;
     assign readback_array[20][3:3] = (decoded_reg_strb.RESET_STATUS && !decoded_req_is_wr) ? hwif_in.RESET_STATUS.ext_reset.next : '0;
     assign readback_array[20][31:4] = (decoded_reg_strb.RESET_STATUS && !decoded_req_is_wr) ? 28'h0 : '0;
+    assign readback_array[21][23:0] = (decoded_reg_strb.BUTTON_TIMING && !decoded_req_is_wr) ? field_storage.BUTTON_TIMING.debounce_cycles.value : '0;
+    assign readback_array[21][28:24] = (decoded_reg_strb.BUTTON_TIMING && !decoded_req_is_wr) ? field_storage.BUTTON_TIMING.long_press_shift.value : '0;
+    assign readback_array[21][31:29] = '0;
+    assign readback_array[22][31:0] = (decoded_reg_strb.PM_TIMER_VALUE_HI && !decoded_req_is_wr) ? hwif_in.PM_TIMER_VALUE_HI.value_hi.next : '0;
+    assign readback_array[23][31:0] = (decoded_reg_strb.PM_TIMER_MATCH && !decoded_req_is_wr) ? field_storage.PM_TIMER_MATCH.match_value.value : '0;
 
     // Reduce the array
     always_comb begin
@@ -1911,7 +2180,7 @@ module pm_acpi_regs (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<21; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<24; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

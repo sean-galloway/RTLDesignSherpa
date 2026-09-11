@@ -1,26 +1,3 @@
-<!-- RTL Design Sherpa Documentation Header -->
-<table>
-<tr>
-<td width="80">
-  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
-    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
-  </a>
-</td>
-<td>
-  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
-  <sub>
-    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
-    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
-    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
-  </sub>
-</td>
-</tr>
-</table>
-
----
-
-<!-- End Header -->
-
 <!---
 Markdown description for SystemRDL register map.
 
@@ -31,7 +8,7 @@ Don't override. Generated from: $root
 
 - Absolute Address: 0x0
 - Base Offset: 0x0
-- Size: 0x70
+- Size: 0x7C
 
 <p>ACPI-compatible power management controller with clock gating and GPE support</p>
 
@@ -58,6 +35,9 @@ Don't override. Generated from: $root
 | 0x64 |    WAKE_ENABLE    |      Wake Enable Register     |
 | 0x68 |     RESET_CTRL    |     Reset Control Register    |
 | 0x6C |    RESET_STATUS   |     Reset Status Register     |
+| 0x70 |   BUTTON_TIMING   |         Button Timing         |
+| 0x74 | PM_TIMER_VALUE_HI |      PM Timer Value High      |
+| 0x78 |   PM_TIMER_MATCH  |         PM Timer Match        |
 
 ### ACPI_CONTROL register
 
@@ -95,7 +75,10 @@ it is enabled.</p>
 
 #### current_state field
 
-<p>Current power state: 0=S0, 1=S1, 3=S3</p>
+<p>Current power state, as a two-bit ENCODING rather than
+the ACPI number: 0=S0, 1=S1, 2=S5 (soft off), 3=S3.
+Encoding 2 was the free one; widening the field would have
+moved bits software already reads.</p>
 
 #### low_power_req field
 
@@ -136,7 +119,8 @@ registers are NOT affected.</p>
 |  1 |   wake_status  |rw, woclr| 0x0 |      Wake Status     |
 |  2 | timer_overflow |rw, woclr| 0x0 |    Timer Overflow    |
 |  3 |state_transition|rw, woclr| 0x0 |Power State Transition|
-|31:4|    reserved    |    r    | 0x0 |       Reserved       |
+|  4 |   timer_match  |rw, woclr| 0x0 |      Timer Match     |
+|31:5|    reserved    |    r    | 0x0 |       Reserved       |
 
 #### pme_status field
 
@@ -154,6 +138,11 @@ registers are NOT affected.</p>
 
 <p>Power state transition complete (W1C)</p>
 
+#### timer_match field
+
+<p>The PM timer's low word reached PM_TIMER_MATCH. Sticky and
+W1C like every other status bit here.</p>
+
 #### reserved field
 
 <p>Reserved bits</p>
@@ -166,15 +155,16 @@ registers are NOT affected.</p>
 
 <p>Interrupt enable mask for ACPI events</p>
 
-|Bits|    Identifier    |Access|Reset|          Name         |
-|----|------------------|------|-----|-----------------------|
-|  0 |    pme_enable    |  rw  | 0x0 |       PME Enable      |
-|  1 |    wake_enable   |  rw  | 0x0 |      Wake Enable      |
-|  2 | timer_ovf_enable |  rw  | 0x0 | Timer Overflow Enable |
-|  3 |state_trans_enable|  rw  | 0x0 |State Transition Enable|
-|  4 |    pm1_enable    |  rw  | 0x0 |    PM1 Event Enable   |
-|  5 |  gpe_int_enable  |  rw  | 0x0 |       GPE Enable      |
-|31:6|     reserved     |   r  | 0x0 |        Reserved       |
+|Bits|    Identifier    |Access|Reset|            Name            |
+|----|------------------|------|-----|----------------------------|
+|  0 |    pme_enable    |  rw  | 0x0 |         PME Enable         |
+|  1 |    wake_enable   |  rw  | 0x0 |         Wake Enable        |
+|  2 | timer_ovf_enable |  rw  | 0x0 |    Timer Overflow Enable   |
+|  3 |state_trans_enable|  rw  | 0x0 |   State Transition Enable  |
+|  4 |    pm1_enable    |  rw  | 0x0 |      PM1 Event Enable      |
+|  5 |  gpe_int_enable  |  rw  | 0x0 |         GPE Enable         |
+|  6 |timer_match_enable|  rw  | 0x0 |Timer Match Interrupt Enable|
+|31:7|     reserved     |   r  | 0x0 |          Reserved          |
 
 #### pme_enable field
 
@@ -199,6 +189,10 @@ registers are NOT affected.</p>
 #### gpe_int_enable field
 
 <p>Enable interrupt on any GPE event</p>
+
+#### timer_match_enable field
+
+<p>Enable the interrupt for ACPI_STATUS.timer_match</p>
 
 #### reserved field
 
@@ -227,7 +221,8 @@ status register to make the pin drop.</p>
 |  3 |state_trans_int|rw, woclr| 0x0 |State Transition Interrupt|
 |  4 |    pm1_int    |rw, woclr| 0x0 |       PM1 Interrupt      |
 |  5 |    gpe_int    |rw, woclr| 0x0 |       GPE Interrupt      |
-|31:6|    reserved   |    r    | 0x0 |         Reserved         |
+|  6 |timer_match_int|rw, woclr| 0x0 |     Timer Match Event    |
+|31:7|    reserved   |    r    | 0x0 |         Reserved         |
 
 #### pme_int field
 
@@ -253,6 +248,11 @@ status register to make the pin drop.</p>
 
 <p>GPE event recorded (W1C). Set by a captured GPE EDGE, not by the pending level, so it can be dismissed before GPE0_STATUS_LO/HI is drained. Independent of the GPE0_ENABLE mask; it does follow GPE capture being enabled at all (ACPI_CONTROL.acpi_enable and .gpe_enable), because a GPE this block was told not to watch is not an event it observed.</p>
 
+#### timer_match_int field
+
+<p>Event log for the timer match, set whatever
+ACPI_INT_ENABLE.timer_match_enable says</p>
+
 #### reserved field
 
 <p>Reserved bits</p>
@@ -271,11 +271,16 @@ status register to make the pin drop.</p>
 |  3 |sleep_enable|  rw  | 0x0 |     Sleep Enable    |
 |  4 | pwrbtn_ovr |  rw  | 0x0 |Power Button Override|
 |  5 | slpbtn_ovr |  rw  | 0x0 |Sleep Button Override|
-|31:6|  reserved  |   r  | 0x0 |       Reserved      |
+|31:7|  reserved  |   r  | 0x0 |       Reserved      |
 
 #### sleep_type field
 
-<p>Sleep type: 0=S0, 1=S1, 3=S3</p>
+<p>Sleep type: 0=S0, 1=S1, 3=S3, 5=S5 (soft off).
+S5 gates every clock and powers down every domain but
+the always-on one, like S3, but retains nothing:
+leaving it pulses sys_reset_req, because a wake from
+soft off is a boot rather than a resume. Other values
+are treated as 0 and stay in S0.</p>
 
 #### sleep_enable field
 
@@ -293,12 +298,15 @@ it to S0.</p>
 
 #### pwrbtn_ovr field
 
-<p>STORAGE ONLY - no hardware effect (GH#54 H3). 'Override
-power button behavior' never named a concrete effect (no
-target state, no mask semantics), so rather than invent one
-the field is documented as software scratch and is not
-routed to pm_acpi_core. The power button always sets
-PM1_STATUS.pwrbtn_sts; mask its interrupt with
+<p>ENABLES the power-button override (RLB-009): with this
+set, holding the debounced power button for
+2^BUTTON_TIMING.long_press_shift core-clock cycles forces
+the machine to S5 (soft off), which is ACPI's four-second
+override. It enables rather than commands - a control bit
+that forced soft off would park the machine in S5 on any
+write that happened to set it. Clearing it turns the escape
+hatch off. The power button always sets
+PM1_STATUS.pwrbtn_sts either way; mask its interrupt with
 PM1_ENABLE.pwrbtn_en and its wake with
 WAKE_ENABLE.pwrbtn_wake_en.</p>
 
@@ -421,14 +429,30 @@ source on its own.</p>
 
 <p>PM Timer divider and control</p>
 
-| Bits|Identifier|Access|Reset|     Name    |
-|-----|----------|------|-----|-------------|
-| 15:0| timer_div|  rw  | 0x1B|Timer Divider|
-|31:16| reserved |   r  | 0x0 |   Reserved  |
+| Bits|  Identifier  |Access|Reset|       Name      |
+|-----|--------------|------|-----|-----------------|
+| 15:0|   timer_div  |  rw  | 0x1B|  Timer Divider  |
+|19:16|timer_prescale|  rw  | 0x0 |  Timer Prescale |
+|  20 |  timer_64bit |  rw  | 0x0 |Timer 64-bit Mode|
+|31:21|   reserved   |   r  | 0x0 |     Reserved    |
 
 #### timer_div field
 
 <p>Clock divider for PM timer: timer_clk = sys_clk / (divider + 1)</p>
+
+#### timer_prescale field
+
+<p>Pre-divide the core clock by 2^this before the divider, so
+the reachable range is not limited by the divider's 16
+bits. 0 is no prescaling and is the previous behaviour.</p>
+
+#### timer_64bit field
+
+<p>1 = the counter is 64 bits and the overflow event is its
+carry out of bit 63; 0 = 32 bits, carry out of bit 31. The
+upper word is always maintained and readable at
+PM_TIMER_VALUE_HI; this bit only chooses which carry counts
+as an overflow.</p>
 
 #### reserved field
 
@@ -743,3 +767,80 @@ power-on reset here (GH#54 round_2 item 7).</p>
 #### reserved field
 
 <p>Reserved bits</p>
+
+### BUTTON_TIMING register
+
+- Absolute Address: 0x70
+- Base Offset: 0x70
+- Size: 0x4
+
+<p>Debounce and long-press thresholds for the two buttons, in
+core-clock cycles. The buttons used to get a plain three-flop
+synchronizer, which resolves metastability but does nothing
+about contact bounce: a single press could be recorded as
+several (RLB-009).</p>
+
+| Bits|   Identifier   |Access|Reset|      Name      |
+|-----|----------------|------|-----|----------------|
+| 23:0| debounce_cycles|  rw  | 0x0 | Debounce Cycles|
+|28:24|long_press_shift|  rw  | 0x1C|Long Press Shift|
+
+#### debounce_cycles field
+
+<p>The button level must be STABLE for this many core-clock
+cycles before an edge is reported. RESETS TO 0, which is no
+debouncing and exactly the previous behaviour: a feature
+that changed what the block does out of reset would be a
+behaviour change wearing a feature's clothes. A mechanical
+push button wants something around 10 ms, which is
+1,000,000 at 100 MHz.</p>
+
+#### long_press_shift field
+
+<p>Long-press threshold as a power of two: holding the
+DEBOUNCED power button for 2^this core-clock cycles asserts
+the override and forces the machine to S5 (soft off), which
+is what ACPI's four-second power-button override does. At
+100 MHz the reset default of 28 is about 2.7 seconds; 29 is
+about 5.4. 0 disables the override.</p>
+
+### PM_TIMER_VALUE_HI register
+
+- Absolute Address: 0x74
+- Base Offset: 0x74
+- Size: 0x4
+
+<p>Upper word of the 64-bit PM timer.</p>
+<p>READ PM_TIMER_VALUE FIRST. That read latches this word, so the
+pair software gets is one coherent 64-bit sample. Reading the
+halves independently of a running counter can straddle a carry
+and produce a value the timer never held.</p>
+
+|Bits|Identifier|Access|Reset|      Name      |
+|----|----------|------|-----|----------------|
+|31:0| value_hi |   r  | 0x0 |Timer Value High|
+
+#### value_hi field
+
+<p>Bits [63:32] of the counter, as latched by the last read of
+PM_TIMER_VALUE</p>
+
+### PM_TIMER_MATCH register
+
+- Absolute Address: 0x78
+- Base Offset: 0x78
+- Size: 0x4
+
+<p>Compare value for the PM timer's LOW word. When the counter
+reaches it, ACPI_STATUS.timer_match sets and, if
+ACPI_INT_ENABLE.timer_match_enable is set, the interrupt
+asserts. The comparison is on the low 32 bits whatever
+PM_TIMER_CONFIG.timer_64bit says.</p>
+
+|Bits| Identifier|Access|Reset|    Name   |
+|----|-----------|------|-----|-----------|
+|31:0|match_value|  rw  | 0x0 |Match Value|
+
+#### match_value field
+
+<p>Compare value</p>

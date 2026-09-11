@@ -167,6 +167,14 @@ module apb4_pm_acpi #(
     logic        w_cfg_gpe_enable;
     logic        w_cfg_soft_reset;
     logic [2:0]  w_cfg_sleep_type;
+    logic [23:0] w_cfg_debounce_cycles;
+    logic [3:0]  w_cfg_timer_prescale;
+    logic        w_cfg_timer_64bit;
+    logic [31:0] w_cfg_timer_match;
+    logic        w_pm_timer_value_read;
+    logic [31:0] w_status_pm_timer_value_hi;
+    logic [4:0]  w_cfg_long_press_shift;
+    logic        w_cfg_pwrbtn_ovr;
     logic        w_cfg_sleep_enable;
     logic        w_cfg_pm1_tmr_en;
     logic        w_cfg_pm1_pwrbtn_en;
@@ -183,6 +191,7 @@ module apb4_pm_acpi #(
     logic        w_cfg_pme_enable;
     logic        w_cfg_wake_enable;
     logic        w_cfg_timer_ovf_enable;
+    logic        w_cfg_timer_match_enable;
     logic        w_cfg_state_trans_enable;
     logic        w_cfg_pm1_enable;
     logic        w_cfg_gpe_int_enable;
@@ -190,16 +199,16 @@ module apb4_pm_acpi #(
     logic        w_cfg_periph_reset;
 
     // Per-bit W1C clear pulses, config_regs -> core
-    logic [3:0]  w_sw_clr_acpi_status;
-    logic [5:0]  w_sw_clr_acpi_int_status;
+    logic [4:0]  w_sw_clr_acpi_status;
+    logic [6:0]  w_sw_clr_acpi_int_status;
     logic [4:0]  w_sw_clr_pm1_status;
     logic [3:0]  w_sw_clr_wake_status;
     logic [31:0] w_sw_clr_gpe_status;
 
     // Sticky status vectors, core -> config_regs
     logic [1:0]  w_status_current_state;
-    logic [3:0]  w_status_acpi;
-    logic [5:0]  w_status_acpi_int;
+    logic [4:0]  w_status_acpi;
+    logic [6:0]  w_status_acpi_int;
     logic [4:0]  w_status_pm1;
     logic [3:0]  w_status_wake_src;
     logic [31:0] w_status_gpe;
@@ -328,6 +337,14 @@ module apb4_pm_acpi #(
         .cfg_gpe_enable           (w_cfg_gpe_enable),
         .cfg_soft_reset           (w_cfg_soft_reset),
         .cfg_sleep_type           (w_cfg_sleep_type),
+        .cfg_debounce_cycles      (w_cfg_debounce_cycles),
+        .cfg_timer_prescale       (w_cfg_timer_prescale),
+        .cfg_timer_64bit          (w_cfg_timer_64bit),
+        .cfg_timer_match          (w_cfg_timer_match),
+        .pm_timer_value_read      (w_pm_timer_value_read),
+        .status_pm_timer_value_hi (w_status_pm_timer_value_hi),
+        .cfg_long_press_shift     (w_cfg_long_press_shift),
+        .cfg_pwrbtn_ovr           (w_cfg_pwrbtn_ovr),
         .cfg_sleep_enable         (w_cfg_sleep_enable),
         .cfg_pm1_tmr_en           (w_cfg_pm1_tmr_en),
         .cfg_pm1_pwrbtn_en        (w_cfg_pm1_pwrbtn_en),
@@ -344,6 +361,7 @@ module apb4_pm_acpi #(
         .cfg_pme_enable           (w_cfg_pme_enable),
         .cfg_wake_enable          (w_cfg_wake_enable),
         .cfg_timer_ovf_enable     (w_cfg_timer_ovf_enable),
+        .cfg_timer_match_enable   (w_cfg_timer_match_enable),
         .cfg_state_trans_enable   (w_cfg_state_trans_enable),
         .cfg_pm1_enable           (w_cfg_pm1_enable),
         .cfg_gpe_int_enable       (w_cfg_gpe_int_enable),
@@ -404,6 +422,7 @@ module apb4_pm_acpi #(
         .cfg_pme_enable           (w_cfg_pme_enable),
         .cfg_wake_enable          (w_cfg_wake_enable),
         .cfg_timer_ovf_enable     (w_cfg_timer_ovf_enable),
+        .cfg_timer_match_enable   (w_cfg_timer_match_enable),
         .cfg_state_trans_enable   (w_cfg_state_trans_enable),
         .cfg_pm1_enable           (w_cfg_pm1_enable),
         .cfg_gpe_int_enable       (w_cfg_gpe_int_enable),
@@ -432,6 +451,14 @@ module apb4_pm_acpi #(
         // External interfaces
         .gpe_events_in        (gpe_events),
         .power_button_n       (power_button_n),
+        .cfg_debounce_cycles  (w_cfg_debounce_cycles),
+        .cfg_timer_prescale   (w_cfg_timer_prescale),
+        .cfg_timer_64bit      (w_cfg_timer_64bit),
+        .cfg_timer_match      (w_cfg_timer_match),
+        .pm_timer_value_read  (w_pm_timer_value_read),
+        .status_pm_timer_value_hi (w_status_pm_timer_value_hi),
+        .cfg_long_press_shift (w_cfg_long_press_shift),
+        .cfg_pwrbtn_ovr       (w_cfg_pwrbtn_ovr),
         .sleep_button_n       (sleep_button_n),
         .rtc_alarm            (rtc_alarm),
         .ext_wake_n           (ext_wake_n),

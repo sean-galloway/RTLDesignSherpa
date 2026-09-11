@@ -51,19 +51,22 @@ Three layers, the same shape every RLB block uses:
 ## Features
 
 - ACPI-style PM1 control/status/enable and a global ACPI status/interrupt pair
-- 32-bit PM timer, configurable divider (~3.571 MHz from 100 MHz at the /28
-  default; the ACPI target is 3.579545 MHz)
+- PM timer, configurable divider (~3.571 MHz from 100 MHz at the /28 default;
+  the ACPI target is 3.579545 MHz), with a power-of-two prescaler ahead of the
+  divider, an optional 64-bit mode and a comparator
 - 32 GPE sources, rising-edge detected, per-bit sticky status and enable mask
 - Every status bit is EDGE-set, including the two level pins (rtc_alarm,
   ext_wake_n), so a W1C takes effect while the pin is still asserted
 - Power state FSM: S0 working, S1 sleep (clocks gated except bits [1:0]),
-  S3 suspend (all clocks gated, all power domains but 0 off)
+  S3 suspend and S5 soft off (all clocks gated, all power domains but 0 off;
+  leaving S5 pulses `sys_reset_req` because nothing was retained)
 - Wake from GPE, power button, RTC alarm or an external pin, with the wake
   request LATCHED so a one-cycle source lands in S0 and stays
-- Strict address decode: only the twenty-one mapped registers are visible,
+- Strict address decode: only the twenty-two mapped registers are visible,
   every other address in the 4 KB window is dropped and answered with PSLVERR
 - Input synchronizers on rtc_alarm, ext_wake_n and gpe_events (SYNC_STAGES,
-  default 2, unconditional); 3-flop chains on the two buttons
+  default 2, unconditional); 3-flop chains plus a programmable debouncer and a
+  long-press override on the two buttons
 - APB4 slave, optional CDC (pclk vs pm_clk)
 
 ## Status is sticky and the core owns it
@@ -116,7 +119,7 @@ software has cleared every enabled source:
 
 | term | status | enable |
 |------|--------|--------|
-| PME / wake / timer overflow / state transition | ACPI_STATUS bit N | ACPI_INT_ENABLE bit N |
+| PME / wake / timer overflow / timer match / state transition | ACPI_STATUS bit N | ACPI_INT_ENABLE bit N |
 | PM1 | PM1_STATUS bit N | PM1_ENABLE bit N, then ACPI_INT_ENABLE.pm1_enable |
 | GPE | GPE0_STATUS bit N | GPE0_ENABLE bit N, then ACPI_INT_ENABLE.gpe_int_enable |
 
@@ -137,6 +140,38 @@ dropping one interrupt would mean clearing two registers. `gpe_int` there is
 set by a captured GPE EDGE rather than the pending level, so it can be
 dismissed before `GPE0_STATUS` is drained. Read `ACPI_INT_STATUS` to find out
 WHAT happened; clear the status register to make the pin drop.
+
+## The timer is a chain, not a counter
+
+Four stages, in order, and each one can be set to pass everything through:
+
+| stage | field | effect |
+|-------|-------|--------|
+| prescaler | `PM_TIMER_CONFIG.timer_prescale` | pre-divide by 2^N; 0 passes every clock |
+| divider | `PM_TIMER_CONFIG.timer_div` | the ACPI frequency divider, 16 bits |
+| counter | `PM_TIMER_VALUE` / `PM_TIMER_VALUE_HI` | always 64 bits of state |
+| compare | `PM_TIMER_MATCH` | equality on the low 32 bits |
+
+The divider alone is sixteen bits, which is not enough to reach the slow end of
+the useful range; the prescaler extends it without widening a field software
+already uses. `PM_TIMER_CONFIG.timer_64bit` does not change how wide the
+counter is - it is always 64 bits - only WHICH carry counts as an overflow, so
+software can widen the timer without giving up the 32-bit overflow it may
+already be watching.
+
+## The buttons are debounced, not just synchronized
+
+A synchronizer resolves metastability and does nothing about contact bounce,
+which is why one press used to be recorded as several. A candidate level now
+has to hold for `BUTTON_TIMING.debounce_cycles` before it is accepted, and any
+change inside the window restarts the count.
+
+Holding the accepted level for 2^`BUTTON_TIMING.long_press_shift` cycles is
+ACPI's power-button override: the machine goes to S5 whatever it was doing.
+`PM1_CONTROL.pwrbtn_ovr` ENABLES that escape hatch rather than commanding it.
+Commanding soft off from a control bit would mean any write that happens to set
+the bit parks the machine in S5, which is not what a register called "override"
+should do to a register sweep.
 
 ## Sleep and wake
 
@@ -217,6 +252,17 @@ runs on another clock.
 - `PM_TIMER_VALUE` is read-only; there is no software path to preload it. The
   DV suite pokes `pm_acpi_core.r_pm_timer_count` by hierarchical name to reach
   an overflow in finite simulation time.
+- READ THE LOW WORD FIRST. `PM_TIMER_VALUE_HI` returns the high word as it
+  stood when `PM_TIMER_VALUE` was last read, not a live view, so the two halves
+  always belong to the same instant. Reading the high word alone returns a
+  stale snapshot, which is the point: a pair of live reads either side of a
+  carry would return a value the counter never held.
+- The comparator fires on the value the counter is ABOUT to hold, so the event
+  and the value software can read agree. It is a match on the low 32 bits, so
+  in 64-bit mode it recurs once per wrap of the low word.
+- `BUTTON_TIMING.debounce_cycles` resets to 0, which accepts a level change
+  immediately. A press has to survive the debounce window to be seen at all, so
+  a test that programs a window must put the reset value back before it ends.
 
 ## Files
 
@@ -235,9 +281,8 @@ runs on another clock.
 
 Deferred work is recorded in `vault/Tasks/RLB/open.md` (RLB-009), not in a
 tracker next to the code. In short: clock-gate and power-domain transitions are
-instant, there is no S5 state, GPE is edge-only with a single bank, the timer
-is 32-bit only, and the buttons get a synchronizer rather than a real
-debouncer.
+instant, with no programmable inter-domain delay and no per-rail acknowledge,
+and GPE is edge-only with a single bank and no run-versus-wake split.
 
 ---
 

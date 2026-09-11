@@ -85,6 +85,9 @@ class PMACPIRegisterMap:
     WAKE_ENABLE = 0x064         # 0x064: Wake enables
     RESET_CTRL = 0x068          # 0x068: Reset control
     RESET_STATUS = 0x06C        # 0x06C: Reset status (RO)
+    BUTTON_TIMING = 0x070       # 0x070: Button debounce and long-press
+    PM_TIMER_VALUE_HI = 0x074   # 0x074: PM Timer high word (shadow, RO)
+    PM_TIMER_MATCH = 0x078      # 0x078: PM Timer comparator
 
     # ACPI_CONTROL bit definitions
     #
@@ -114,6 +117,7 @@ class PMACPIRegisterMap:
     STATUS_WAKE = (1 << 1)
     STATUS_TIMER_OVERFLOW = (1 << 2)
     STATUS_STATE_TRANSITION = (1 << 3)
+    STATUS_TIMER_MATCH = (1 << 4)
 
     # ACPI_INT_ENABLE bit definitions
     INT_ENABLE_PME = (1 << 0)
@@ -122,6 +126,7 @@ class PMACPIRegisterMap:
     INT_ENABLE_STATE_TRANS = (1 << 3)
     INT_ENABLE_PM1 = (1 << 4)
     INT_ENABLE_GPE = (1 << 5)
+    INT_ENABLE_TIMER_MATCH = (1 << 6)
 
     # ACPI_INT_STATUS bit definitions (W1C)
     INT_STATUS_PME = (1 << 0)
@@ -130,6 +135,7 @@ class PMACPIRegisterMap:
     INT_STATUS_STATE_TRANS = (1 << 3)
     INT_STATUS_PM1 = (1 << 4)
     INT_STATUS_GPE = (1 << 5)
+    INT_STATUS_TIMER_MATCH = (1 << 6)
 
     # PM1_CONTROL bit definitions
     PM1_SLEEP_TYPE_MASK = 0x7
@@ -153,6 +159,9 @@ class PMACPIRegisterMap:
 
     # PM_TIMER_CONFIG bit definitions
     PM_TIMER_DIV_MASK = 0xFFFF
+    PM_TIMER_PRESCALE_SHIFT = 16      # [19:16] pre-divide by 2**this
+    PM_TIMER_PRESCALE_MASK = 0xF
+    PM_TIMER_64BIT = (1 << 20)        # overflow from bit 63, not bit 31
 
     # WAKE_STATUS bit definitions (W1C)
     WAKE_STATUS_GPE = (1 << 0)
@@ -813,6 +822,20 @@ class PMACPITB(TBBase):
         target = (2 ** 32) - remaining_ticks
         self.dut.u_pm_acpi_core.r_pm_timer_count.value = target
         self.log.info(f"  [whitebox] forced r_pm_timer_count -> 0x{target:08X}")
+
+    def force_pm_timer_count(self, value: int):
+        """
+        Whitebox-poke the full 64-bit pm_acpi_core.r_pm_timer_count.
+
+        The counter is a genuine free-runner with no software write path, so
+        the only way to exercise a carry out of bit 31 inside a simulation is
+        to start just below it. Same stimulus-injection argument as
+        force_pm_timer_near_overflow(), which this generalises: the caller
+        must already have ACPI and the PM timer enabled with a divider of 0,
+        or the forced value simply sits there.
+        """
+        self.dut.u_pm_acpi_core.r_pm_timer_count.value = value & ((1 << 64) - 1)
+        self.log.info(f"  [whitebox] forced r_pm_timer_count -> 0x{value:016X}")
 
     async def sample_signal_over(self, signal, cycles: int, clock=None) -> List[bool]:
         """

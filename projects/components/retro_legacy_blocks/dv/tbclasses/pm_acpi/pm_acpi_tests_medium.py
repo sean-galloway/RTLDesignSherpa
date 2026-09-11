@@ -54,6 +54,9 @@ class PMACPIMediumTests:
 
         test_methods = [
             ('RLB-009 reset source pins', self.test_rlb009_reset_source_pins),
+            ('RLB-009 soft off state', self.test_rlb009_soft_off_state),
+            ('RLB-009 button debounce and override', self.test_rlb009_button_debounce_and_override),
+            ('RLB-009 PM timer extensions', self.test_rlb009_pm_timer_extensions),
             ('PM Timer Divider Sweep', self.test_pm_timer_divider_sweep),
             ('PM Timer Extended Run', self.test_pm_timer_extended_run),
             ('GPE Enable Patterns', self.test_gpe_enable_patterns),
@@ -96,6 +99,307 @@ class PMACPIMediumTests:
     # ========================================================================
     # PM Timer Extended Tests
     # ========================================================================
+
+    async def test_rlb009_pm_timer_extensions(self) -> bool:
+        """RLB-009: PM timer prescaler, comparator, and 64-bit mode.
+
+        The divider is sixteen bits, so on its own the timer cannot reach the
+        slow end of its range; a power-of-two prescaler ahead of it extends
+        the range without widening a field software already uses. The
+        comparator gives software a deadline rather than only a wrap, and
+        64-bit mode moves the overflow to the carry out of bit 63 while
+        leaving the low word where it was. Reading the low word snapshots the
+        high word, so a pair of reads cannot straddle a carry."""
+        self.log.info("=== RLB-009: PM timer prescaler, comparator, 64-bit ===")
+        M = PMACPIRegisterMap
+        try:
+            async def fresh(config):
+                """Reset, program PM_TIMER_CONFIG, then enable. The config has
+                to land before the enable or the first ticks run on the old
+                divider."""
+                await self.tb.assert_reset()
+                await ClockCycles(self.tb.pclk, 10)
+                await self.tb.deassert_reset()
+                await ClockCycles(self.tb.pclk, 20)
+                # Park the comparator somewhere the test will not reach, so a
+                # match cannot be confused with an overflow.
+                await self.tb.write_register(M.PM_TIMER_MATCH, 0x0FFF_0000)
+                await self.tb.write_register(M.PM_TIMER_CONFIG, config)
+                await self.tb.write_register(M.ACPI_CONTROL,
+                                             M.CONTROL_ACPI_ENABLE |
+                                             M.CONTROL_PM_TIMER_ENABLE)
+                await ClockCycles(self.tb.pclk, 10)
+
+            # --- 1. PRESCALER -------------------------------------------
+            # Identical measurement either side, so the APB overhead in the
+            # delta cancels and only the prescale ratio is left.
+            async def measure(config):
+                await fresh(config)
+                _, v0 = await self.tb.read_register(M.PM_TIMER_VALUE)
+                await ClockCycles(self.tb.pclk, 320)
+                _, v1 = await self.tb.read_register(M.PM_TIMER_VALUE)
+                return (v1 - v0) & 0xFFFFFFFF
+
+            d_fast = await measure(0)                                  # /1
+            d_slow = await measure(4 << M.PM_TIMER_PRESCALE_SHIFT)     # /16
+            ratio_ok = (d_slow > 0 and
+                        0.75 <= (d_fast / (d_slow * 16.0)) <= 1.25)
+            self.log.info(f"  prescale /1 advanced {d_fast}, /16 advanced "
+                          f"{d_slow} over the same window (ratio ok={ratio_ok})")
+
+            # --- 2. COMPARATOR ------------------------------------------
+            await fresh(0)
+            await self.tb.write_register(M.ACPI_STATUS, 0x1F)
+            await self.tb.write_register(M.ACPI_INT_STATUS, 0x7F)
+            await self.tb.write_register(M.ACPI_INT_ENABLE,
+                                         M.INT_ENABLE_TIMER_MATCH)
+            _, now = await self.tb.read_register(M.PM_TIMER_VALUE)
+            deadline = (now + 400) & 0xFFFFFFFF
+            await self.tb.write_register(M.PM_TIMER_MATCH, deadline)
+            saw_irq = any(await self.tb.sample_pm_interrupt_over(600))
+            _, st = await self.tb.read_register(M.ACPI_STATUS)
+            _, ist = await self.tb.read_register(M.ACPI_INT_STATUS)
+            matched = bool(st & M.STATUS_TIMER_MATCH)
+            match_int = bool(ist & M.INT_STATUS_TIMER_MATCH)
+            self.log.info(f"  comparator at 0x{deadline:08X}: status={matched} "
+                          f"int_status={match_int} pm_interrupt={saw_irq}")
+
+            # Negative control: a deadline the window cannot reach must not
+            # set the bit, or the test above proves nothing.
+            await fresh(0)
+            await self.tb.write_register(M.PM_TIMER_MATCH, 0x0FFF_0000)
+            await self.tb.write_register(M.ACPI_STATUS, 0x1F)
+            await ClockCycles(self.tb.pclk, 600)
+            _, st_n = await self.tb.read_register(M.ACPI_STATUS)
+            no_false_match = not bool(st_n & M.STATUS_TIMER_MATCH)
+            self.log.info(f"  unreachable deadline stayed clear: {no_false_match}")
+
+            # --- 3. OVERFLOW SOURCE -------------------------------------
+            # 32-bit mode: the carry out of bit 31 is the overflow.
+            await fresh(0)
+            await self.tb.write_register(M.ACPI_STATUS, 0x1F)
+            self.tb.force_pm_timer_count(0xFFFF_FFF0)
+            await ClockCycles(self.tb.pclk, 60)
+            _, st32 = await self.tb.read_register(M.ACPI_STATUS)
+            ovf32 = bool(st32 & M.STATUS_TIMER_OVERFLOW)
+
+            # 64-bit mode: the SAME carry is no longer an overflow, because
+            # the counter has 32 more bits to run through first.
+            await fresh(M.PM_TIMER_64BIT)
+            await self.tb.write_register(M.ACPI_STATUS, 0x1F)
+            self.tb.force_pm_timer_count(0xFFFF_FFF0)
+            await ClockCycles(self.tb.pclk, 60)
+            _, st64 = await self.tb.read_register(M.ACPI_STATUS)
+            ovf64 = bool(st64 & M.STATUS_TIMER_OVERFLOW)
+            self.log.info(f"  carry out of bit 31: overflow in 32-bit mode="
+                          f"{ovf32}, in 64-bit mode={ovf64}")
+
+            # --- 4. COHERENT 64-BIT READ --------------------------------
+            # PM_TIMER_VALUE_HI is a snapshot taken when the low word is read,
+            # not a live view, so the two halves always belong to the same
+            # instant. Read it stale across a carry to prove it.
+            await fresh(M.PM_TIMER_64BIT)
+            self.tb.force_pm_timer_count(0xFFFF_FFF0)
+            _, _lo0 = await self.tb.read_register(M.PM_TIMER_VALUE)   # snaps hi=0
+            await ClockCycles(self.tb.pclk, 100)                      # carry happens
+            _, hi_stale = await self.tb.read_register(M.PM_TIMER_VALUE_HI)
+            _, _lo1 = await self.tb.read_register(M.PM_TIMER_VALUE)   # snaps hi=1
+            _, hi_fresh = await self.tb.read_register(M.PM_TIMER_VALUE_HI)
+            self.log.info(f"  high word across the carry: stale snapshot="
+                          f"{hi_stale}, after re-reading the low word={hi_fresh}")
+
+            ok = (ratio_ok and matched and match_int and saw_irq and
+                  no_false_match and ovf32 and not ovf64 and
+                  hi_stale == 0 and hi_fresh == 1)
+            if ok:
+                self.log.info("RLB-009 PM timer extensions GREEN")
+                return True
+            self.log.error(
+                f"RLB-009 PM timer: prescale_ratio_ok={ratio_ok} "
+                f"(fast={d_fast} slow={d_slow}), match_status={matched} "
+                f"match_int={match_int} match_irq={saw_irq} "
+                f"no_false_match={no_false_match} ovf_32bit_mode={ovf32} "
+                f"ovf_64bit_mode={ovf64} (want False) hi_stale={hi_stale} "
+                f"(want 0) hi_fresh={hi_fresh} (want 1)")
+            return False
+        except Exception as e:
+            self.log.error(f"RLB-009 PM timer test error: {e}")
+            return False
+        finally:
+            # Put PM_TIMER_CONFIG and the comparator back where reset left
+            # them. A prescaled or 64-bit timer left running changes what
+            # every later test sees on PM_TIMER_VALUE.
+            await self.tb.assert_reset()
+            await ClockCycles(self.tb.pclk, 10)
+            await self.tb.deassert_reset()
+            await ClockCycles(self.tb.pclk, 20)
+            await self.tb.write_register(M.PM_TIMER_CONFIG, 0)
+            await self.tb.write_register(M.PM_TIMER_MATCH, 0)
+            await self.tb.write_register(M.ACPI_INT_ENABLE, 0)
+            await self.tb.write_register(M.ACPI_CONTROL, 0)
+            await ClockCycles(self.tb.pclk, 20)
+
+    async def test_rlb009_button_debounce_and_override(self) -> bool:
+        """RLB-009: button debounce and the power-button override.
+
+        A three-flop synchronizer resolves metastability and does nothing
+        about contact bounce, so one press was recorded as several. A level
+        now has to hold for BUTTON_TIMING.debounce_cycles before an edge is
+        reported, and holding the debounced button past the long-press
+        threshold forces soft off - ACPI's four-second override."""
+        self.log.info("=== RLB-009: button debounce and override ===")
+        M = PMACPIRegisterMap
+        try:
+            async def fresh(debounce, shift):
+                await self.tb.assert_reset()
+                await ClockCycles(self.tb.pclk, 10)
+                await self.tb.deassert_reset()
+                await ClockCycles(self.tb.pclk, 20)
+                await self.tb.write_register(
+                    M.BUTTON_TIMING, (debounce & 0xFFFFFF) | ((shift & 0x1F) << 24))
+                await self.tb.write_register(M.ACPI_CONTROL, 0x1)
+                await self.tb.write_register(M.PM1_ENABLE, 0xFFFF)
+                await ClockCycles(self.tb.pclk, 20)
+
+            # Bounce the button: 6 quick edges inside the debounce window.
+            await fresh(debounce=200, shift=0)
+            for _ in range(3):
+                self.tb.dut.power_button_n.value = 0
+                await ClockCycles(self.tb.pclk, 20)
+                self.tb.dut.power_button_n.value = 1
+                await ClockCycles(self.tb.pclk, 20)
+            self.tb.dut.power_button_n.value = 0      # then settle pressed
+            await ClockCycles(self.tb.pclk, 600)
+            _, st = await self.tb.read_register(M.PM1_STATUS)
+            one_press = bool(st & M.PM1_STATUS_PWRBTN)
+            self.tb.dut.power_button_n.value = 1
+            await ClockCycles(self.tb.pclk, 600)
+            self.log.info(f"  bounced press recorded: {one_press}")
+
+            # With debouncing off, the same bounce is several presses: this is
+            # the behaviour the default now suppresses, kept as the control.
+            await fresh(debounce=0, shift=0)
+            presses = 0
+            prev = 0
+            for _ in range(3):
+                self.tb.dut.power_button_n.value = 0
+                await ClockCycles(self.tb.pclk, 20)
+                self.tb.dut.power_button_n.value = 1
+                await ClockCycles(self.tb.pclk, 20)
+                _, st = await self.tb.read_register(M.PM1_STATUS)
+                now = 1 if (st & M.PM1_STATUS_PWRBTN) else 0
+                if now and not prev:
+                    presses += 1
+                await self.tb.write_register(M.PM1_STATUS, M.PM1_STATUS_PWRBTN)
+                prev = 0
+            self.log.info(f"  undebounced bounce recorded {presses} press(es)")
+
+            # Long press forces soft off, with the override ENABLED.
+            await fresh(debounce=10, shift=10)     # 2^10 = 1024 cycles
+            await self.tb.write_register(M.PM1_CONTROL, 1 << 4)   # pwrbtn_ovr
+            self.tb.dut.power_button_n.value = 0
+            await ClockCycles(self.tb.pclk, 4000)
+            _, ctl = await self.tb.read_register(M.ACPI_CONTROL)
+            forced = ((ctl >> 4) & 0x3) == 2       # encoding 2 = S5
+            self.tb.dut.power_button_n.value = 1
+            await ClockCycles(self.tb.pclk, 200)
+            self.log.info(f"  long press with override enabled: S5={forced}")
+
+            # With the override disabled the same hold does nothing: the bit
+            # enables the escape hatch rather than commanding it, so a write
+            # that merely sets it cannot park the machine in S5.
+            await fresh(debounce=10, shift=10)
+            await self.tb.write_register(M.PM1_CONTROL, 0)
+            self.tb.dut.power_button_n.value = 0
+            await ClockCycles(self.tb.pclk, 4000)
+            _, ctl2 = await self.tb.read_register(M.ACPI_CONTROL)
+            not_forced = ((ctl2 >> 4) & 0x3) != 2
+            self.tb.dut.power_button_n.value = 1
+            await ClockCycles(self.tb.pclk, 200)
+            self.log.info(f"  long press with override disabled: stayed out of S5={not_forced}")
+
+            ok = one_press and presses >= 2 and forced and not_forced
+            if ok:
+                self.log.info("RLB-009 button debounce and override GREEN")
+                return True
+            self.log.error(
+                f"RLB-009 buttons: debounced_press={one_press} "
+                f"undebounced_presses={presses} (want >= 2) "
+                f"long_press_forced_S5={forced} disabled_did_nothing={not_forced}")
+            return False
+        except Exception as e:
+            self.log.error(f"RLB-009 button test error: {e}")
+            return False
+        finally:
+            # RESTORE THE RESET DEFAULTS, pass or fail. This is the only test
+            # that programs BUTTON_TIMING, and it ends holding the part in S5
+            # behind a ten-cycle debounce window. Every later test presses the
+            # button for five cycles, which a ten-cycle window swallows, so
+            # leaving it programmed reads as five unrelated GH#54 failures in
+            # the suite that runs next.
+            await self.tb.assert_reset()
+            await ClockCycles(self.tb.pclk, 10)
+            await self.tb.deassert_reset()
+            await ClockCycles(self.tb.pclk, 20)
+            await self.tb.write_register(M.BUTTON_TIMING, 0x1C000000)
+            await self.tb.write_register(M.PM1_CONTROL, 0)
+            await self.tb.write_register(M.ACPI_CONTROL, 0)
+            await ClockCycles(self.tb.pclk, 20)
+
+    async def test_rlb009_soft_off_state(self) -> bool:
+        """RLB-009: S5 soft off.
+
+        S5 is as dark as S3 - every clock gated, every domain but the
+        always-on one powered down - but it retains nothing, so leaving it
+        pulses sys_reset_req: a wake from soft off is a boot, not a resume.
+        The two-bit state field reports encoding 2 for it, the free one."""
+        self.log.info("=== RLB-009: S5 soft off ===")
+        M = PMACPIRegisterMap
+        try:
+            await self.tb.assert_reset()
+            await ClockCycles(self.tb.pclk, 10)
+            await self.tb.deassert_reset()
+            await ClockCycles(self.tb.pclk, 20)
+            await self.tb.write_register(M.ACPI_CONTROL, 0x1)   # acpi_enable
+            await self.tb.write_register(M.PM1_ENABLE, 0xFFFF)
+            await self.tb.write_register(M.WAKE_ENABLE, 0xF)
+            await ClockCycles(self.tb.pclk, 10)
+
+            await self.tb.request_sleep(sleep_type=5)
+            await ClockCycles(self.tb.pclk, 40)
+            _, ctl = await self.tb.read_register(M.ACPI_CONTROL)
+            state = (ctl >> 4) & 0x3
+            clocks = int(self.tb.dut.clock_gate_en.value)
+            rails = int(self.tb.dut.power_domain_en.value)
+            self.log.info(f"  in S5: state_encoding={state} clocks=0x{clocks:08X} "
+                          f"rails=0x{rails:02X}")
+
+            # Wake on the power button, and watch for the boot pulse.
+            saw_reset = 0
+            self.tb.dut.power_button_n.value = 0
+            for _ in range(200):
+                await ClockCycles(self.tb.pclk, 1)
+                saw_reset |= int(self.tb.dut.sys_reset_req.value)
+            self.tb.dut.power_button_n.value = 1
+            await ClockCycles(self.tb.pclk, 100)
+            _, ctl2 = await self.tb.read_register(M.ACPI_CONTROL)
+            back = ((ctl2 >> 4) & 0x3) == 0
+            self.log.info(f"  after wake: state_encoding={(ctl2 >> 4) & 0x3} "
+                          f"sys_reset_req pulsed={bool(saw_reset)}")
+
+            ok = (state == 2 and clocks == 0 and (rails & 0xFE) == 0
+                  and bool(saw_reset) and back)
+            if ok:
+                self.log.info("RLB-009 soft off GREEN")
+                return True
+            self.log.error(
+                f"RLB-009 soft off: state_encoding={state} (want 2), "
+                f"clocks=0x{clocks:08X} (want 0), rails=0x{rails:02X} (want "
+                f"only bit 0), boot_pulse={bool(saw_reset)}, back_in_S0={back}")
+            return False
+        except Exception as e:
+            self.log.error(f"RLB-009 soft off test error: {e}")
+            return False
 
     async def test_rlb009_reset_source_pins(self) -> bool:
         """RLB-009: RESET_STATUS.wdt_reset and .ext_reset are observable.
