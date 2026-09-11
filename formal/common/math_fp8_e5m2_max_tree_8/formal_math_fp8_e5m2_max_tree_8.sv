@@ -15,8 +15,11 @@ module formal_math_fp8_e5m2_max_tree_8 (
     logic [7:0] max_idx;
 
     math_fp8_e5m2_max_tree_8 dut (
-        .i_data_0(d0), .i_data_1(d1), .i_data_2(d2), .i_data_3(d3),
-        .i_data_4(d4), .i_data_5(d5), .i_data_6(d6), .i_data_7(d7),
+        // The real module takes ONE unpacked array port, i_data [8]; the proof reads it
+        // through sv2v, which flattens it to a packed vector with ELEMENT 0 AT THE MSB
+        // END (measured 2026-09-11). So element k is the k-th name in this concat.
+        // The _yw copy this harness was written for had eight scalar ports instead.
+        .i_data({d0, d1, d2, d3, d4, d5, d6, d7}),
         .ow_max(max_val), .ow_max_idx(max_idx)
     );
 

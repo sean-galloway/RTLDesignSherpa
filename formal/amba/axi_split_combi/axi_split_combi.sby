@@ -13,11 +13,13 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
-read -formal -sv -Iincludes axi_split_combi_formal.sv
+read_verilog -formal -sv axi_split_combi_flat.v
 read -formal -sv formal_axi_split_combi.sv
 prep -top formal_axi_split_combi
+# a clocked $display becomes a cell async2sync refuses; it is a sim aid
+delete t:$print
 
 [files]
-axi_split_combi_formal.sv
 formal_axi_split_combi.sv
+axi_split_combi_flat.v
 includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

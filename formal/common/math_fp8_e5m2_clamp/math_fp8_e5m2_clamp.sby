@@ -13,10 +13,12 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
-read -formal -sv math_fp8_e5m2_clamp.sv
+read_verilog -formal -sv math_fp8_e5m2_clamp_flat.v
 read -formal -sv formal_math_fp8_e5m2_clamp.sv
 prep -top formal_math_fp8_e5m2_clamp
+# a clocked $display becomes a cell async2sync refuses; it is a sim aid
+delete t:$print
 
 [files]
-math_fp8_e5m2_clamp.sv math_fp8_e5m2_clamp_yw.sv
 formal_math_fp8_e5m2_clamp.sv
+math_fp8_e5m2_clamp_flat.v

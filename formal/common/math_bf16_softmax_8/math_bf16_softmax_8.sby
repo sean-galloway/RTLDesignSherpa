@@ -1,6 +1,6 @@
 # Formal proof for math_bf16_softmax_8.
 # unpacked array PORT, so the module is flattened to packed Verilog first
-# (see the Makefile). Lane i of i_data / ow_result is bits [W*i +: W].
+# (see the Makefile). Element i of i_data / ow_result is bits [W*(7-i) +: W] -- sv2v puts element 0 at the MSB end.
 
 [tasks]
 prove

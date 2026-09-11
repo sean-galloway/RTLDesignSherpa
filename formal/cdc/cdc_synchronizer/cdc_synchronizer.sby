@@ -13,13 +13,13 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
-read -formal -sv -Iincludes glitch_free_n_dff_arn.sv
-read -formal -sv cdc_synchronizer.sv
+read_verilog -formal -sv cdc_synchronizer_flat.v
 read -formal -sv formal_cdc_synchronizer.sv
 prep -top formal_cdc_synchronizer
+# a clocked $display becomes a cell async2sync refuses; it is a sim aid
+delete t:$print
 
 [files]
-glitch_free_n_dff_arn.sv glitch_free_n_dff_arn_formal.sv
-cdc_synchronizer.sv cdc_synchronizer_formal.sv
 formal_cdc_synchronizer.sv
+cdc_synchronizer_flat.v
 includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

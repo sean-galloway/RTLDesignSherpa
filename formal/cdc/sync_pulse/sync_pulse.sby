@@ -13,11 +13,13 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
-read -formal -sv -Iincludes sync_pulse_formal.sv
+read_verilog -formal -sv sync_pulse_flat.v
 read -formal -sv formal_sync_pulse.sv
 prep -top formal_sync_pulse
+# a clocked $display becomes a cell async2sync refuses; it is a sim aid
+delete t:$print
 
 [files]
-sync_pulse_formal.sv
 formal_sync_pulse.sv
+sync_pulse_flat.v
 includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

@@ -1,3 +1,8 @@
+// Retargeted 2026-09-11. This proof used to read cdc_handshake_formal.sv, a
+// hand-copied fork of a module named cdc_handshake that no longer exists in
+// rtl/. Its set/clear request logic (r_req_src) is the 4-phase protocol, and
+// the real cdc_4_phase_handshake keeps the same ports plus src_timeout, so the
+// same properties now run against the shipped module.
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
@@ -12,7 +17,7 @@
 // Cover:
 //   - Full handshake: src_valid -> src_ready -> dst_valid -> dst_ready
 
-module formal_cdc_handshake #(
+module formal_cdc_4_phase_handshake #(
     parameter int DATA_WIDTH = 8
 ) (
     input  logic                    clk,
@@ -28,7 +33,7 @@ module formal_cdc_handshake #(
     logic [DATA_WIDTH-1:0]   dst_data;
 
     // Single clock drives both domains
-    cdc_handshake #(
+    cdc_4_phase_handshake #(
         .DATA_WIDTH (DATA_WIDTH)
     ) dut (
         .clk_src   (clk),
@@ -40,7 +45,8 @@ module formal_cdc_handshake #(
         .rst_dst_n (rst_n),
         .dst_valid (dst_valid),
         .dst_ready (dst_ready),
-        .dst_data  (dst_data)
+        .dst_data  (dst_data),
+        .src_timeout ()          // TIMEOUT_CYCLES defaults to 0: disabled
     );
 
     // =========================================================================

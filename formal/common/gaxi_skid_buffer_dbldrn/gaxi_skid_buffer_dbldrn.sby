@@ -13,11 +13,13 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
-read -formal -sv -Iincludes gaxi_skid_buffer_dbldrn_formal.sv
+read_verilog -formal -sv gaxi_skid_buffer_dbldrn_flat.v
 read -formal -sv formal_gaxi_skid_dbldrn.sv
 prep -top formal_gaxi_skid_dbldrn
+# a clocked $display becomes a cell async2sync refuses; it is a sim aid
+delete t:$print
 
 [files]
-gaxi_skid_buffer_dbldrn_formal.sv
 formal_gaxi_skid_dbldrn.sv
+gaxi_skid_buffer_dbldrn_flat.v
 includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

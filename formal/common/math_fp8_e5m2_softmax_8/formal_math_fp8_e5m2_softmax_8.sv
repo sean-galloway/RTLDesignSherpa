@@ -20,8 +20,10 @@ module formal_math_fp8_e5m2_softmax_8 (
     // =========================================================================
     // PACKED, not an unpacked array: the proof reads the module through the
     // sv2v flatten flow (yosys cannot parse an unpacked array PORT), and
-    // sv2v turns `logic [7:0] i_data [8]` into `[63:0]`. Lane i is
-    // bits [8*i +: 8].
+    // sv2v turns `logic [7:0] i_data [8]` into `[63:0]`. Element i
+    // is bits [8*(7-i) +: 8]: sv2v packs element 0 at the MSB end
+    // (measured 2026-09-11; this said [W*i +: W], which is reversed. The
+    // per-lane sign property below is symmetric, so it never depended on it).
     (* anyconst *) logic [63:0] data_in;
     // FREE every clock. This was a plain `logic` assigned only in the reset
     // branch, so outside reset it held 0 forever: i_valid never rose, the

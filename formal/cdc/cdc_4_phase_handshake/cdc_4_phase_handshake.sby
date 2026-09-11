@@ -1,0 +1,25 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 25
+cover: mode cover
+cover: depth 30
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read_verilog -formal -sv cdc_4_phase_handshake_flat.v
+read -formal -sv formal_cdc_4_phase_handshake.sv
+prep -top formal_cdc_4_phase_handshake
+# a clocked $display becomes a cell async2sync refuses; it is a sim aid
+delete t:$print
+
+[files]
+formal_cdc_4_phase_handshake.sv
+cdc_4_phase_handshake_flat.v
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

@@ -13,11 +13,13 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
-read -formal -sv -Iincludes gaxi_regslice_formal.sv
+read_verilog -formal -sv gaxi_regslice_flat.v
 read -formal -sv -Iincludes formal_gaxi_regslice.sv
 prep -top formal_gaxi_regslice
+# a clocked $display becomes a cell async2sync refuses; it is a sim aid
+delete t:$print
 
 [files]
-gaxi_regslice_formal.sv
 formal_gaxi_regslice.sv
+gaxi_regslice_flat.v
 includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

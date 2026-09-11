@@ -6,7 +6,8 @@
 # ports". That is still true of yosys's own frontend (verified 2026-09-11),
 # but option 2 of that note -- flatten the array ports into packed vectors --
 # is exactly what sv2v does, and sv2v is already the repo's formal front end.
-# The harness reads the packed form: lane i is bits [W*i +: W].
+# The harness reads the packed form. sv2v puts element 0 at the MSB end, so
+# element i is bits [W*(7-i) +: W] (measured 2026-09-11).
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      := /mnt/data/tools/sv2v

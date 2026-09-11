@@ -208,14 +208,23 @@ module formal_axi_master_wr_splitter #(
             ap_wdata_pass:  assert (m_axi_wdata  == fub_wdata);
             ap_wstrb_pass:  assert (m_axi_wstrb  == fub_wstrb);
             ap_wuser_pass:  assert (m_axi_wuser  == fub_wuser);
-            ap_wvalid_pass: assert (m_axi_wvalid == fub_wvalid);
+            // The real splitter HOLDS write data until the burst's address is issued
+            // (m_axi_wvalid = fub_wvalid && r_aw_issued). So wvalid is not a pure
+            // passthrough -- that was the fork's behaviour. What must hold is that
+            // gating can WITHHOLD a beat but never INVENT one.
+            ap_wvalid_no_invent: assert (!m_axi_wvalid || fub_wvalid);
         end
     end
 
     // P3: fub_wready mirrors m_axi_wready
     always @(posedge clk) begin
         if (rst_n)
-            ap_wready_pass: assert (fub_wready == m_axi_wready);
+            // Likewise fub_wready = m_axi_wready && r_aw_issued: the requester is never
+            // told a beat was taken that the downstream did not take...
+            ap_wready_no_invent: assert (!fub_wready || m_axi_wready);
+            // ...and a beat moves upstream EXACTLY when it moves downstream, so no
+            // beat is lost or duplicated across the gate.
+            ap_w_handshake_equal: assert ((fub_wvalid && fub_wready) == (m_axi_wvalid && m_axi_wready));
     end
 
     // P4: After reset with no valid fub request, fub_awready follows m_axi_awready

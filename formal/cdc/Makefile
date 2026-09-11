@@ -20,19 +20,10 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 # All module directories with proofs (each holds <module>.sby)
-MODULES = \
-	bin2gray \
-	cdc_handshake \
-	cdc_synchronizer \
-	counter_bingray \
-	counter_johnson \
-	fifo_async \
-	gaxi_fifo_async \
-	gaxi_skid_buffer_async \
-	glitch_free_n_dff_arn \
-	gray2bin \
-	johnson2bin \
-	sync_pulse
+# DISCOVERED, not listed (2026-09-11). This list was hand-kept, and a renamed
+# task (cdc_handshake -> cdc_4_phase_handshake) would have silently dropped
+# out of it. Every directory holding a .sby is covered.
+MODULES := $(sort $(patsubst %/,%,$(dir $(wildcard */*.sby))))
 
 .PHONY: help
 help:
@@ -53,12 +44,12 @@ help:
 .PHONY: $(addprefix prove-,$(MODULES))
 $(addprefix prove-,$(MODULES)): prove-%:
 	@echo "=== Proving $* ==="
-	cd $* && sby -f $*.sby prove
+	@if [ -f $*/Makefile ]; then $(MAKE) -C $* prove; else cd $* && sby -f $*.sby prove; fi
 
 .PHONY: $(addprefix cover-,$(MODULES))
 $(addprefix cover-,$(MODULES)): cover-%:
 	@echo "=== Cover $* ==="
-	cd $* && sby -f $*.sby cover
+	@if [ -f $*/Makefile ]; then $(MAKE) -C $* cover; else cd $* && sby -f $*.sby cover; fi
 
 .PHONY: prove-all
 prove-all: $(addprefix prove-,$(MODULES))
