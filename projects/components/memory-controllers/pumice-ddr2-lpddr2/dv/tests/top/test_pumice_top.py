@@ -41,6 +41,18 @@ from tbclasses.pumice_sequences import (  # noqa: E402
     build_patho_addresses,
 )
 
+# REG_LEVEL SELECTS THE DEPTH. This test grades on basic / medium / full, but
+# the regression speaks GATE / FUNC / FULL, and the conftest stamp used to hand
+# it `gate` and `func` -- neither of which is in the depth tables, so both fell
+# to the `basic` default and a FUNC run was exactly as shallow as a GATE run.
+# The `medium` tier was dead code that no run ever reached. This maps the
+# regression's names onto the tables so the three levels are distinct.
+_LEVEL = {"GATE": "gate", "BASIC": "gate",
+          "FUNC": "func", "MEDIUM": "func",
+          "FULL": "full"}.get(
+    (os.environ.get("REG_LEVEL") or os.environ.get("TEST_LEVEL")
+     or "FUNC").upper(), "func")
+
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "dv/tb/pumice_top_csr_tb_top.f")
 
@@ -434,7 +446,7 @@ async def cocotb_test_pumice_top(dut):
 
     # ---- back-to-back multi-burst (stresses DQ pacing) ----
     if test_type in ("wr_rd_b2b_multi", "wr2rd_forward_burst"):
-        n = {"basic": 8, "medium": 24, "full": 48}.get(level, 8)
+        n = {"gate": 8, "basic": 8, "func": 24, "medium": 24, "full": 48}.get(level, 8)
         wr, rd, exp = build_b2b_wr_rd_sequences(
             n_bursts=n, burst_len=BL_WORDS, base_addr=BASE, data_width=DW)
         await _wr_rd_check(tb, wr, rd)
@@ -454,7 +466,7 @@ async def cocotb_test_pumice_top(dut):
     # Unit tests on the splitter cannot see either failure mode.
     if test_type == "burst_len":
         blen = int(os.environ.get("BURST_LEN", "1"))
-        n = {"basic": 4, "medium": 8, "full": 16}.get(level, 4)
+        n = {"gate": 4, "basic": 4, "func": 8, "medium": 8, "full": 16}.get(level, 4)
         wr, rd, exp = build_b2b_wr_rd_sequences(
             n_bursts=n, burst_len=blen, base_addr=BASE, data_width=DW)
         await _wr_rd_check(tb, wr, rd)
@@ -494,7 +506,7 @@ async def cocotb_test_pumice_top(dut):
     # ---- row-hit pattern (walking columns on one row) ----
     if test_type == "row_hit_pattern":
         bank, row = 2, 9
-        k = {"basic": 6, "medium": 16, "full": 32}.get(level, 6)
+        k = {"gate": 6, "basic": 6, "func": 16, "medium": 16, "full": 32}.get(level, 6)
         row_base = BASE + row * 0x10000 + bank * 0x2000
         addrs = [row_base + c * (BL_WORDS * (DW // 8)) for c in range(k)]
         wr, rd, exp = build_addr_pattern_sequences(
@@ -505,7 +517,7 @@ async def cocotb_test_pumice_top(dut):
 
     # ---- workload mix (varied banks/rows) ----
     if test_type in ("workload_mix", "workload_mix_lpddr2"):
-        n = {"basic": 12, "medium": 32, "full": 64}.get(level, 12)
+        n = {"gate": 12, "basic": 12, "func": 32, "medium": 32, "full": 64}.get(level, 12)
         seen, addrs = set(), []
         while len(addrs) < n:
             a = (BASE + rng.randint(0, 127) * 0x10000
@@ -535,7 +547,7 @@ async def cocotb_test_pumice_top(dut):
 
     # ---- open/happy-page workloads (row hits + misses) ----
     if test_type in ("open_page_workload", "adapt_time_workload", "open_page_lpddr2"):
-        n = {"basic": 8, "medium": 20, "full": 40}.get(level, 8)
+        n = {"gate": 8, "basic": 8, "func": 20, "medium": 20, "full": 40}.get(level, 8)
         addrs = [BASE + (k // 2) * 0x10000 + (k % NUM_BANKS) * 0x2000
                  + (k % 4) * (BL_WORDS * (DW // 8)) for k in range(n)]
         # de-dup while preserving order
@@ -722,7 +734,7 @@ def _run(request, testcase, extra_env=None, params_over=None):
            "COCOTB_LOG_LEVEL": "INFO",
            "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{tag}.xml"),
            "SEED": seed,
-           "TEST_LEVEL": os.environ.get("TEST_LEVEL", "basic"),
+           "TEST_LEVEL": _LEVEL,
            "DFI_RATE": params["DFI_RATE"], "DRAM_BEAT_WIDTH": params["DRAM_BEAT_WIDTH"],
            "DRAM_BL": params["DRAM_BL"], "NUM_RANKS": params["NUM_RANKS"]}
     if extra_env:

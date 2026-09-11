@@ -30,6 +30,18 @@ from CocoTBFramework.components.dfi.dram_state import (
 from CocoTBFramework.components.dfi.jedec_timings import builtin_timings
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 
+# REG_LEVEL SELECTS THE DEPTH. This test grades on basic / medium / full, but
+# the regression speaks GATE / FUNC / FULL, and the conftest stamp used to hand
+# it `gate` and `func` -- neither of which is in the depth tables, so both fell
+# to the `basic` default and a FUNC run was exactly as shallow as a GATE run.
+# The `medium` tier was dead code that no run ever reached. This maps the
+# regression's names onto the tables so the three levels are distinct.
+_LEVEL = {"GATE": "gate", "BASIC": "gate",
+          "FUNC": "func", "MEDIUM": "func",
+          "FULL": "full"}.get(
+    (os.environ.get("REG_LEVEL") or os.environ.get("TEST_LEVEL")
+     or "FUNC").upper(), "func")
+
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "dv/tb/pumice_top_csr_tb_top.f")
 
@@ -167,7 +179,7 @@ async def cocotb_test_pumice_top_csr(dut):
     assert int(dut.init_done_o.value) == 1, "init never completed (CSR-programmed config)"
 
     rng = random.Random(int(os.environ.get("SEED", "1")))
-    n = {"basic": 6, "medium": 16, "full": 32}.get(os.environ.get("TEST_LEVEL", "basic").lower(), 6)
+    n = {"gate": 6, "basic": 6, "func": 16, "medium": 16, "full": 32}.get(os.environ.get("TEST_LEVEL", "basic").lower(), 6)
     seen, reqs = set(), []
     while len(reqs) < n:
         bank = rng.randint(0, NUM_BANKS - 1); row = rng.randint(0, 63); col = rng.randint(0, 63) * BL
@@ -208,7 +220,7 @@ def test_pumice_top_csr(request):
                  "COCOTB_LOG_LEVEL": "INFO",
                  "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
                  "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
-                 "TEST_LEVEL": os.environ.get("TEST_LEVEL", "basic")}
+                 "TEST_LEVEL": _LEVEL}
     extra_env.update(params)
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module, testcase="cocotb_test_pumice_top_csr",
