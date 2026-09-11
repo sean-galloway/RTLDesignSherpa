@@ -368,3 +368,36 @@ and both belong in the scrub's findings taxonomy.
 
 **Related:** [[TASK-078]], [[COMMON-025]], [[MATH-010]], [[CDC-001]] are the
 same task in the rtl/ areas.
+
+---
+
+### TASK-080: STREAM formal proofs read a hand-copied gaxi_fifo_sync, not the RTL
+
+**Priority:** Medium. Nothing fails, which is the problem: a proof about a
+copy says nothing about the module that ships.
+
+**Status:** open 2026-09-11, found while retiring the same defect class from
+the repo-root `formal/` areas (amba/cdc/common), where thirty tasks proved
+hand-copied forks. This area was out of that job's scope.
+
+- `formal/stream/stream_latency_bridge/gaxi_fifo_sync_formal.sv` is a
+  hand-copied `gaxi_fifo_sync`: 155 lines against the real module's
+  250, with 133 lines differing. It is read by:
+  `stream_latency_bridge`.
+- `formal/stream/_includes/monitor_pkg_formal.sv` is a package stub that
+  no task reads -- an orphan.
+
+Why forks exist, and why they are unnecessary: yosys's own SystemVerilog
+frontend cannot read these modules (package-typed ports, casts, unpacked
+array ports), so someone copied and simplified them. sv2v can read the real
+RTL, and every one of the thirty repo-root forks turned out to be
+convertible. See `vault/handbook/dv/formal.md` ("PROVING A FORK IS WORSE THAN
+NO PROOF") for the method and the traps: judge a `[files]` entry by its
+SOURCE, not its local name, and expect stale properties to surface once the
+real module is read -- two of the repo-root conversions exposed properties
+written for the fork, and one exposed a real AXI protocol bug (amba
+TASK-094).
+
+**Done when:** no `formal/stream` task reads a `*_formal.sv` copy of an rtl/
+module, each converted task proves against the real RTL, and the two fork
+files are deleted.
