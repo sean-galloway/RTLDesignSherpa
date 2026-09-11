@@ -54,6 +54,7 @@ async def cocotb_test_axi4_master_wr_pattern_gen(dut):
         "id_mode_lfsr":      _id_mode_lfsr,
         "kb4":               _kb4,
         "kb32":              _kb32,
+        "outstanding_dial":  _outstanding_dial,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -189,6 +190,83 @@ async def _wr_gap_inserts_idle(tb: WrPatternGenTB):
     await tb.wait_done()
     assert len(tb.aw_log) == N
     assert len(tb.w_log)  == N * BURST
+
+
+async def _outstanding_dial(tb: WrPatternGenTB):
+    """cfg_max_outstanding caps bursts in flight below the built ceiling.
+
+    Mirror of the read engine's scenario. MAX_OUTSTANDING is the hardware
+    ceiling; this port dials the ACTIVE limit down without a rebuild, so one
+    bitstream walks a bandwidth-vs-outstanding curve instead of needing one
+    build per point. In flight here is (AWs handshaked - Bs received), which is
+    what the engine's own gate counts.
+
+    Checked in three tiers, because "never exceeds" on its own is satisfied by
+    a dial that does nothing:
+      - Under EVERY slave profile, peak <= limit. The safety property.
+      - Dialled DOWN (1, 2, 4) under a profile that back-pressures B,
+        peak == limit. The proof it binds. A back-to-back slave returns B
+        before the next AW is issued, so its peak is 1 whatever the limit says.
+      - At the CEILING, peak > the deepest dialled-down value. Not equality:
+        saturating exactly at the ceiling races the AW issue rate against the
+        slave's stall pattern, which is a correct design and a wrong assertion.
+
+    0 means "as built" and is the reset value, so that case doubles as the
+    proof that an instance which never writes the field is unaffected.
+    """
+    from cocotb.triggers import FallingEdge as _FallingEdge
+
+    BUILT = 8        # MAX_OUTSTANDING, pinned in the run() parameters below
+    BURST = 2
+    N     = 24
+    profile = os.environ.get("SLAVE_PROFILE", "backtoback")
+    BINDING = ("constrained", "burst_pause", "slow_producer")
+
+    async def _run_at(limit, expect, exact):
+        await tb.program(start_addr=0x1000, burst_len=BURST, txn_count=N,
+                         max_outstanding=limit)
+        await tb.pulse_start()
+        live = peak = bs = 0
+        for _ in range(200_000):
+            await _FallingEdge(tb.dut.aclk)
+            if int(tb.dut.m_axi_awvalid.value) and int(tb.dut.m_axi_awready.value):
+                live += 1
+                peak = max(peak, live)
+            if int(tb.dut.m_axi_bvalid.value) and int(tb.dut.m_axi_bready.value):
+                live -= 1
+                bs += 1
+                if bs == N:
+                    break
+        assert bs == N, f"limit={limit}: only {bs}/{N} responses returned"
+        await tb.wait_done()
+        assert int(tb.dut.o_bresp_error.value) == 0, \
+            f"limit={limit}: throttling the AW path produced a BRESP error"
+        assert peak <= expect, \
+            f"limit={limit}: {peak} bursts in flight, cap is {expect}"
+        if profile in BINDING and exact:
+            assert peak == expect, (
+                f"limit={limit} on {profile}: peak {peak} never reached the "
+                f"cap {expect} -- the dial is not binding"
+            )
+        elif profile in BINDING:
+            assert peak > DIALLED[-1], (
+                f"limit={limit} on {profile}: peak {peak} is no deeper than "
+                f"the dialled-down cap {DIALLED[-1]} -- 'as built' is not "
+                f"releasing the limit"
+            )
+
+    DIALLED = (1, 2, 4)
+    for limit in DIALLED:
+        await _run_at(limit, limit, exact=True)
+
+    await _run_at(0, BUILT, exact=False)
+
+    # Above the ceiling saturates rather than wrapping. The port is sized from
+    # the ceiling ($clog2(BUILT+1) bits), so all-ones is the largest
+    # over-request expressible here. A host field wider than the port is
+    # clamped upstream, in char_gen_unit's g_os_limit.
+    OSW = BUILT.bit_length()          # == $clog2(BUILT + 1) for every BUILT
+    await _run_at((1 << OSW) - 1, BUILT, exact=False)
 
 
 async def _id_mode_counter(tb: WrPatternGenTB):
@@ -464,7 +542,7 @@ _ALL_TYPES = ["smoke", "multi_burst", "address_walk",
               "bresp_error_sticky", "rerun_after_done",
               "wr_gap_inserts_idle", "hash_mode_data",
               "awvalid_no_drop", "id_mode_counter",
-              "id_mode_lfsr", "kb4", "kb32"]
+              "id_mode_lfsr", "kb4", "kb32", "outstanding_dial"]
 _GATE = ["smoke", "multi_burst", "address_walk"]
 _FUNC = list(_ALL_TYPES)
 _FULL = list(_ALL_TYPES)
@@ -512,6 +590,10 @@ def test_axi4_master_wr_pattern_gen(request, test_type, slave_profile):
         "AXI_ID_WIDTH":   "8",
         "AXI_ADDR_WIDTH": "32",
         "AXI_USER_WIDTH": "1",
+        # Pinned rather than left at the module default: outstanding_dial
+        # asserts against this number, and a test whose expectations track a
+        # default it does not state stops testing the moment the default moves.
+        "MAX_OUTSTANDING": "8",
     }
 
     enable_waves = bool(int(os.environ.get("WAVES", "0")))

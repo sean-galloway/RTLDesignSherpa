@@ -96,7 +96,7 @@ module char_gen_unit #(
 
     // ---- Generator array ----
     parameter int NUM_GEN          = 2,
-    parameter int GEN_MAX_OUTSTANDING = 8,
+    parameter int GEN_MAX_OUTSTANDING = 32,
 
     // ---- Engine workload ranges ----
     parameter int TXN_COUNT_WIDTH  = 16,
@@ -211,6 +211,12 @@ module char_gen_unit #(
     // Every AW that can be in flight at once needs a slot in the order queue,
     // or AW stalls behind it and the outstanding count the sweep is trying to
     // reach is unreachable for a second time.
+    // Width of the engines' runtime outstanding dial. The CSR field is six
+    // bits so a 32-deep build is reachable; the engines clamp anything above
+    // their own ceiling, so narrowing here would hide a host mistake instead
+    // of letting the RTL saturate it visibly.
+    localparam int OSW = $clog2(GEN_MAX_OUTSTANDING + 1);
+
     localparam int WR_ORDER_DEPTH = 1 << $clog2(NUM_GEN * GEN_MAX_OUTSTANDING);
 
     // Address-channel payloads, packed for the mux. Order is fixed here and
@@ -294,6 +300,31 @@ module char_gen_unit #(
     endgenerate
 
     //=========================================================================
+    // Runtime outstanding dial: CSR field -> per-engine limit
+    //=========================================================================
+    // The CSR field is a fixed six bits; the engines' port is sized from
+    // GEN_MAX_OUTSTANDING. Saturating the comparison in full width before
+    // narrowing is the whole point of this block: a plain cast would alias a
+    // host value of 33 down to 1 on an 8-deep build, which reads as a
+    // legitimate measurement rather than as the mistake it is. Zero passes
+    // through untouched -- the engines read it as "as built".
+    logic [OSW-1:0] w_wr_os_limit [NUM_GEN];
+    logic [OSW-1:0] w_rd_os_limit [NUM_GEN];
+
+    generate
+    for (genvar g = 0; g < NUM_GEN; g++) begin : g_os_limit
+        assign w_wr_os_limit[g] =
+            (32'(cfg_i.WR_GEN[g].AXI_ATTR.max_outstanding.value) > 32'(GEN_MAX_OUTSTANDING))
+                ? OSW'(GEN_MAX_OUTSTANDING)
+                : OSW'(cfg_i.WR_GEN[g].AXI_ATTR.max_outstanding.value);
+        assign w_rd_os_limit[g] =
+            (32'(cfg_i.RD_GEN[g].AXI_ATTR.max_outstanding.value) > 32'(GEN_MAX_OUTSTANDING))
+                ? OSW'(GEN_MAX_OUTSTANDING)
+                : OSW'(cfg_i.RD_GEN[g].AXI_ATTR.max_outstanding.value);
+    end
+    endgenerate
+
+    //=========================================================================
     // Write generator blocks
     //=========================================================================
     generate
@@ -329,6 +360,7 @@ module char_gen_unit #(
             .cfg_hash_seed1       (cfg_i.WR_GEN[g].HASH_SEED1.seed.value),
             .cfg_hash_seed2       (cfg_i.WR_GEN[g].HASH_SEED2.seed.value),
             .cfg_wr_gap           (cfg_i.WR_GEN[g].BLEN_TXN.gap.value),
+            .cfg_max_outstanding  (w_wr_os_limit[g]),
             .cfg_start            (wr_go_i[g]),
             .cfg_done             (w_wr_done[g]),
             .o_expected_crc       (w_wr_crc[g]),
@@ -399,6 +431,7 @@ module char_gen_unit #(
             .cfg_hash_seed1       (cfg_i.RD_GEN[g].HASH_SEED1.seed.value),
             .cfg_hash_seed2       (cfg_i.RD_GEN[g].HASH_SEED2.seed.value),
             .cfg_rd_gap           (cfg_i.RD_GEN[g].BLEN_TXN.gap.value),
+            .cfg_max_outstanding  (w_rd_os_limit[g]),
             .cfg_start            (rd_go_i[g]),
             .cfg_done             (w_rd_done[g]),
             .o_actual_crc         (w_rd_crc[g]),

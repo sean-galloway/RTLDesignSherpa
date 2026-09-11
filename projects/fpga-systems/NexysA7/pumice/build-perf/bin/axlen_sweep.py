@@ -5,9 +5,16 @@
 
 Small-burst reads fall well short of writes on this board (AxLEN 1/2/4 reach
 16/31/60% of peak against a 95% write). This measures the shape and compares it
-to `min(8 x AxLEN / (read_latency + AxLEN), 0.95)` -- the read generator allows
-8 bursts in flight (GEN_MAX_OUTSTANDING), so at a ~49-cycle read latency a
-short burst simply cannot keep the pipe full.
+to `min(OS x AxLEN / (read_latency + AxLEN), 0.95)`, where OS is the bursts the
+read generator may keep in flight: at a ~49-cycle read latency a short burst
+simply cannot keep the pipe full.
+
+The numbers above were taken when OS was pinned at 8 by GEN_MAX_OUTSTANDING,
+and the generated data bridges capped the whole engine at 16 regardless. Both
+limits are gone -- the ceiling is 32 and AXI_ATTR.max_outstanding dials it at
+runtime -- so OS is now a knob rather than a constant, and this script fixes it
+at 8 only to keep comparing against the historical curve. Sweep the other axis
+with outstanding_sweep.py.
 
 Run it before theorising about the read scheduler. Five points inside 2% is
 what turned "per-transaction overhead nobody has identified" into PUMICE-030,
@@ -27,12 +34,14 @@ st = pm.SimpleTest(drv, base_addr=0, level_cache='host/level_cache.json')
 st.init(do_leveling=True)
 cfg = pc.CONFIGS['open_page']
 geom = pc.DEFAULT_GEOM
-print(f"{'AxLEN':>6} {'rd MB/s':>9} {'%peak':>7} {'lat':>6} {'beats/cyc':>10}  predict(8-outstanding)")
+OS = 8          # pinned, so this curve stays comparable with the pre-2026-09-11 runs
+print(f"{'AxLEN':>6} {'rd MB/s':>9} {'%peak':>7} {'lat':>6} {'beats/cyc':>10}  predict({OS}-outstanding)")
 for blen in (1, 2, 4, 8, 16):
     sc = pc.Scenario(name=f"row_major_bl{blen}", family=pc.FAM_ROW_MAJOR,
-                     burst_len=blen, txn_count=4000, gap=0)
+                     burst_len=blen, txn_count=4000, gap=0,
+                     max_outstanding=OS)
     r = pc.measure(drv, sc, cfg=cfg, geom=geom, base_addr=0, clk_mhz=75.0, timeout_s=40.0)
     lat = r.rd_avg_latency_cyc
     bpc = r.rd_bytes_per_cycle / 8.0
-    pred = min((8*blen)/(lat+blen), 0.95) * 8 * 75
+    pred = min((OS*blen)/(lat+blen), 0.95) * 8 * 75
     print(f"{blen:6} {r.rd_bw_mb_s:9.1f} {r.rd_bw_mb_s/6:6.1f}% {lat:6.1f} {bpc:10.3f}  {pred:8.1f}  ok={int(r.ok)}")

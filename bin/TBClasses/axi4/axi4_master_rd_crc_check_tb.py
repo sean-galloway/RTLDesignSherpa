@@ -190,6 +190,11 @@ class RdCrcCheckTB(TBBase):
         self.dut.cfg_hash_seed1.value       = 0
         self.dut.cfg_hash_seed2.value       = 0
         self.dut.cfg_rd_gap.value           = 0
+        # 0 = use the built MAX_OUTSTANDING. Driven explicitly rather
+        # than left floating: the engine compares this against zero to
+        # pick the limit, so an undriven X wedges the address channel
+        # with no error anywhere.
+        self.dut.cfg_max_outstanding.value  = 0
         self.dut.cfg_start.value            = 0
         # Debug FIFO drain idle (DBG_FIFO_DEPTH default=0 → ports tied
         # off internally; the per-engine FUB tests don't enable it).
@@ -277,7 +282,8 @@ class RdCrcCheckTB(TBBase):
                       hash_seed0: int = 0,
                       hash_seed1: int = 0,
                       hash_seed2: int = 0,
-                      id_mode: int = 0) -> None:
+                      id_mode: int = 0,
+                      max_outstanding: int = 0) -> None:
         self.dut.cfg_start_addr.value       = start_addr
         self.dut.cfg_addr_stride_0.value    = stride_0
         self.dut.cfg_addr_stride_1.value    = stride_1
@@ -295,6 +301,7 @@ class RdCrcCheckTB(TBBase):
         self.dut.cfg_hash_seed1.value       = hash_seed1 & 0xFFFFFFFF
         self.dut.cfg_hash_seed2.value       = hash_seed2 & 0xFFFFFFFF
         self.dut.cfg_rd_gap.value           = rd_gap & 0xF
+        self.dut.cfg_max_outstanding.value  = max_outstanding
         # Mirror the DUT's seed selection so the preloaded MemoryModel
         # contents phase-lock with what the reader engine expects.
         self.lfsr_seed = (lfsr_seed if lfsr_seed != 0

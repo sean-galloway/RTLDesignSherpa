@@ -167,6 +167,13 @@ class Scenario:
     gap:       int = 0
     id_mode:   int = dc.ID_MODE_FIXED       # FIXED single-id; LFSR multi-id
     axi_size:  int = dc.AXI_SIZE_8
+    # Per-generator cap on bursts in flight. 0 = as built (GEN_MAX_OUTSTANDING,
+    # 32 on the current bitstream). This is the axis for the latency cliff:
+    # read bandwidth is bounded by outstanding x AxLEN / (latency + AxLEN), so
+    # sweeping it at a fixed AxLEN walks straight up to the knee and flat after
+    # it. One bitstream, the whole curve. Values above the built ceiling
+    # saturate in RTL, so an over-request reads as a flat tail, not a dip.
+    max_outstanding: int = 0
 
     def burst_bytes(self, geom: Geometry) -> int:
         return self.burst_len * (1 << self.axi_size)
@@ -545,7 +552,8 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
                 txn_count=sc.txn_count, stride_0=stride, wrap_mask_0=wrap,
                 gap=sc.gap, id_mode=sc.id_mode, axi_size=sc.axi_size,
                 data_mode=True, lfsr_seed=seed, hash_seed0=seed,
-                hash_seed1=seed ^ 0x9E37_79B9, hash_seed2=seed ^ 0x85EB_CA6B)
+                hash_seed1=seed ^ 0x9E37_79B9, hash_seed2=seed ^ 0x85EB_CA6B,
+                max_outstanding=sc.max_outstanding)
 
     cfg.apply(drv)                          # paging / scheduling / refresh
 
@@ -683,7 +691,8 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
                     txn_count=sc.txn_count, stride_0=stride, wrap_mask_0=wrap,
                     gap=sc.gap, id_mode=sc.id_mode, axi_size=sc.axi_size,
                     data_mode=True, lfsr_seed=seed, hash_seed0=seed,
-                    hash_seed1=seed ^ 0x9E37_79B9, hash_seed2=seed ^ 0x85EB_CA6B)
+                    hash_seed1=seed ^ 0x9E37_79B9, hash_seed2=seed ^ 0x85EB_CA6B,
+                    max_outstanding=sc.max_outstanding)
 
     cfg.apply(drv)
 

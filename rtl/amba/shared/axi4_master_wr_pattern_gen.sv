@@ -114,6 +114,10 @@ module axi4_master_wr_pattern_gen #(
     // Cap on bursts in flight (AWs issued minus B responses received). AW is
     // otherwise decoupled and issues as fast as the slave accepts.
     parameter int MAX_OUTSTANDING = 8,
+    // Width of cfg_max_outstanding: enough to hold MAX_OUTSTANDING itself, so
+    // the runtime dial can reach the ceiling and one value above it is still
+    // representable (and clamps).
+    parameter int OSW = $clog2(MAX_OUTSTANDING + 1),
 
     // ---- Aliases ----
     parameter int IW = AXI_ID_WIDTH,
@@ -171,6 +175,19 @@ module axi4_master_wr_pattern_gen #(
     // throughput stress on the downstream controller during sweeps.
     input  logic [3:0]                          cfg_wr_gap,
 
+    // ---- Runtime cap on bursts in flight ----
+    // MAX_OUTSTANDING is the hardware ceiling (queues and counters are built
+    // for it); this dials the ACTIVE limit down without a rebuild, which is
+    // what a bandwidth-vs-outstanding sweep needs -- one bitstream walks the
+    // whole curve instead of one bitstream per point.
+    //
+    // 0 means "use MAX_OUTSTANDING", so an instance that ties this off behaves
+    // exactly as it did before the port existed. Values above MAX_OUTSTANDING
+    // clamp to it rather than wrapping: the counters are sized for the
+    // parameter, and a host that writes 40 into a 32-deep engine should get 32
+    // and a curve that flattens, not a silent wrap to 8.
+    input  logic [OSW-1:0]                      cfg_max_outstanding,
+
     // Start / done handshake
     input  logic                                cfg_start,        // pulse → begin workload
     output logic                                cfg_done,         // high once all B's received
@@ -212,6 +229,17 @@ module axi4_master_wr_pattern_gen #(
     input  logic                       m_axi_bvalid,
     output logic                       m_axi_bready
 );
+
+    //==========================================================================
+    // Active outstanding limit
+    //==========================================================================
+    // Resolve the runtime dial against the built ceiling once, here, so every
+    // use downstream reads one signal and cannot disagree about the policy.
+    // Zero means "as built"; anything above the ceiling saturates at it.
+    logic [OSW-1:0] w_os_limit;
+    assign w_os_limit = (cfg_max_outstanding == '0)                    ? OSW'(MAX_OUTSTANDING)
+                      : (cfg_max_outstanding > OSW'(MAX_OUTSTANDING))  ? OSW'(MAX_OUTSTANDING)
+                                                                       : cfg_max_outstanding;
 
     //==========================================================================
     // Config guard — the AxLEN==integer-multiple-of-DRAM-burst requirement.
@@ -482,7 +510,7 @@ module axi4_master_wr_pattern_gen #(
     // throttles. Gap pauses by switching state away from S_RUN.
     assign fub_awvalid       = (r_state == S_RUN)
                             && (r_aw_issued < r_txn_count)
-                            && ((r_aw_issued - r_b_received) < TXN_COUNT_WIDTH'(MAX_OUTSTANDING))
+                            && ((r_aw_issued - r_b_received) < TXN_COUNT_WIDTH'(w_os_limit))
                             && w_aw_addr_result_valid;
     assign w_aw_addr_result_ready = fub_awvalid && fub_awready;
 

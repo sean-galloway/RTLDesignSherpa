@@ -46,6 +46,7 @@ async def cocotb_test_axi4_master_rd_crc_check(dut):
         "kb32":                _kb32,
         "stray_beat_drained":  _stray_beat_drained,
         "rready_never_throttles": _rready_never_throttles,
+        "outstanding_dial":    _outstanding_dial,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -226,6 +227,98 @@ async def _arvalid_no_drop(tb: RdCrcCheckTB):
     await tb.wait_done()
 
 
+async def _outstanding_dial(tb: RdCrcCheckTB):
+    """cfg_max_outstanding caps bursts in flight below the built ceiling.
+
+    MAX_OUTSTANDING is the hardware ceiling; this port dials the ACTIVE limit
+    down without a rebuild, so one bitstream can walk a bandwidth-vs-
+    outstanding curve instead of needing one build per point. The property
+    under test is the cap: (ARs handshaked - RLASTs seen) must never exceed
+    the programmed limit.
+
+    Checked in three tiers, because "never exceeds" on its own is satisfied by
+    a dial that does nothing at all:
+      - Under EVERY slave profile, peak <= limit. The safety property.
+      - Dialled DOWN (1, 2, 4) under a back-pressuring profile, peak == limit.
+        The proof the dial binds rather than sitting above the natural depth.
+        A back-to-back slave retires each burst before the next AR goes out, so
+        its peak is 1 whatever the limit says, and asserting equality there
+        would fail a correct design -- hence the profile list.
+      - At the CEILING, peak > the deepest dialled-down value. Not equality:
+        saturating exactly at the ceiling is a race between the AR issue rate
+        and the slave's stall pattern, and burst_pause genuinely reaches 7 of 8
+        on some seeds. What must hold is that the cap was lifted.
+
+    0 means "as built" and is the reset value, so that case is also the proof
+    that an instance which never writes the field behaves exactly as it did
+    before the field existed.
+    """
+    from cocotb.triggers import FallingEdge as _FallingEdge
+
+    BUILT = 8        # MAX_OUTSTANDING, pinned in the run() parameters below
+    BURST = 2
+    N     = 24       # comfortably more than the deepest limit under test
+    profile = os.environ.get("SLAVE_PROFILE", "backtoback")
+    # Profiles that hold R off long enough for ARs to queue up. On the others
+    # the engine never reaches its limit and only the ceiling is checkable.
+    BINDING = ("constrained", "burst_pause", "slow_producer")
+
+    async def _run_at(limit, expect, exact):
+        await tb.program(start_addr=0x1000, stride_0=BURST * 8,
+                         burst_len=BURST, txn_count=N,
+                         max_outstanding=limit)
+        await tb.pulse_start()
+        live = peak = rlasts = 0
+        for _ in range(200_000):
+            await _FallingEdge(tb.dut.aclk)
+            if int(tb.dut.m_axi_arvalid.value) and int(tb.dut.m_axi_arready.value):
+                live += 1
+                peak = max(peak, live)
+            if (int(tb.dut.m_axi_rvalid.value) and int(tb.dut.m_axi_rready.value)
+                    and int(tb.dut.m_axi_rlast.value)):
+                live -= 1
+                rlasts += 1
+                if rlasts == N:
+                    break
+        assert rlasts == N, f"limit={limit}: only {rlasts}/{N} bursts completed"
+        await tb.wait_done()
+        assert int(tb.dut.o_data_error.value) == 0, \
+            f"limit={limit}: throttling the AR path corrupted the compare"
+        assert peak <= expect, \
+            f"limit={limit}: {peak} bursts in flight, cap is {expect}"
+        if profile in BINDING and exact:
+            assert peak == expect, (
+                f"limit={limit} on {profile}: peak {peak} never reached the "
+                f"cap {expect} -- the dial is not binding"
+            )
+        elif profile in BINDING:
+            # At the ceiling, exact saturation is a race between the AR issue
+            # rate and the slave's stall pattern -- burst_pause reaches 7 of 8
+            # on some seeds, which is a correct design and a wrong assertion.
+            # What must hold is that the cap was LIFTED: the engine goes
+            # strictly deeper than the deepest value it was dialled down to.
+            assert peak > DIALLED[-1], (
+                f"limit={limit} on {profile}: peak {peak} is no deeper than "
+                f"the dialled-down cap {DIALLED[-1]} -- 'as built' is not "
+                f"releasing the limit"
+            )
+
+    DIALLED = (1, 2, 4)
+    for limit in DIALLED:
+        await _run_at(limit, limit, exact=True)
+
+    await _run_at(0, BUILT, exact=False)
+
+    # Above the ceiling saturates rather than wrapping. The port is only
+    # $clog2(BUILT+1) bits -- sized from the ceiling, not from the host field --
+    # so the largest over-request expressible here is all-ones. A CSR field
+    # WIDER than the port (chargen_regs carries six bits whatever the build) is
+    # clamped before it reaches this port, in char_gen_unit's g_os_limit; that
+    # is where a 40-into-an-8-deep-engine write is caught.
+    OSW = BUILT.bit_length()          # == $clog2(BUILT + 1) for every BUILT
+    await _run_at((1 << OSW) - 1, BUILT, exact=False)
+
+
 async def _hash_mode_match(tb: RdCrcCheckTB):
     """data_mode=1: slave responder returns addr_hash32 of each beat's
     byte address; DUT regenerates the same hash locally and compares per
@@ -394,7 +487,8 @@ _ALL_TYPES = ["smoke_match", "multi_burst_match", "address_walk",
               "rd_gap_inserts_idle", "hash_mode_match",
               "hash_mode_low_entropy", "arvalid_no_drop",
               "id_mode_counter", "id_mode_lfsr",
-              "kb4", "kb32", "stray_beat_drained", "rready_never_throttles"]
+              "kb4", "kb32", "stray_beat_drained", "rready_never_throttles",
+              "outstanding_dial"]
 _GATE = ["smoke_match", "multi_burst_match", "data_mismatch_sticky"]
 _FUNC = list(_ALL_TYPES)
 _FULL = list(_ALL_TYPES)
@@ -438,6 +532,10 @@ def test_axi4_master_rd_crc_check(request, test_type, slave_profile):
         "AXI_ID_WIDTH":   "8",
         "AXI_ADDR_WIDTH": "32",
         "AXI_USER_WIDTH": "1",
+        # Pinned rather than left at the module default: outstanding_dial
+        # asserts against this number, and a test whose expectations track a
+        # default it does not state stops testing the moment the default moves.
+        "MAX_OUTSTANDING": "8",
     }
 
     enable_waves = bool(int(os.environ.get("WAVES", "0")))

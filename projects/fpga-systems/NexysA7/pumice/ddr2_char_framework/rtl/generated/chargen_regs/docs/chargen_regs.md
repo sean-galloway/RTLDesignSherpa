@@ -129,15 +129,16 @@ Don't override. Generated from: $root
 - Base Offset: 0x18
 - Size: 0x4
 
-<p>AXI id / id_mode / size / burst / data_mode</p>
+<p>AXI id / id_mode / size / burst / data_mode / outstanding cap</p>
 
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-| 7:0 |  axi_id  |  rw  | 0x0 |  — |
-| 9:8 |  id_mode |  rw  | 0x0 |  — |
-|12:10| axi_size |  rw  | 0x0 |  — |
-|14:13| axi_burst|  rw  | 0x0 |  — |
-|  15 | data_mode|  rw  | 0x0 |  — |
+| Bits|   Identifier  |Access|Reset|Name|
+|-----|---------------|------|-----|----|
+| 7:0 |     axi_id    |  rw  | 0x0 |  — |
+| 9:8 |    id_mode    |  rw  | 0x0 |  — |
+|12:10|    axi_size   |  rw  | 0x0 |  — |
+|14:13|   axi_burst   |  rw  | 0x0 |  — |
+|  15 |   data_mode   |  rw  | 0x0 |  — |
+|21:16|max_outstanding|  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -318,15 +319,16 @@ Don't override. Generated from: $root
 - Base Offset: 0x18
 - Size: 0x4
 
-<p>AXI id / id_mode / size / burst / data_mode</p>
+<p>AXI id / id_mode / size / burst / data_mode / outstanding cap</p>
 
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-| 7:0 |  axi_id  |  rw  | 0x0 |  — |
-| 9:8 |  id_mode |  rw  | 0x0 |  — |
-|12:10| axi_size |  rw  | 0x0 |  — |
-|14:13| axi_burst|  rw  | 0x0 |  — |
-|  15 | data_mode|  rw  | 0x0 |  — |
+| Bits|   Identifier  |Access|Reset|Name|
+|-----|---------------|------|-----|----|
+| 7:0 |     axi_id    |  rw  | 0x0 |  — |
+| 9:8 |    id_mode    |  rw  | 0x0 |  — |
+|12:10|    axi_size   |  rw  | 0x0 |  — |
+|14:13|   axi_burst   |  rw  | 0x0 |  — |
+|  15 |   data_mode   |  rw  | 0x0 |  — |
+|21:16|max_outstanding|  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -509,15 +511,16 @@ Don't override. Generated from: $root
 - Base Offset: 0x18
 - Size: 0x4
 
-<p>AXI id / id_mode / size / burst / data_mode</p>
+<p>AXI id / id_mode / size / burst / data_mode / outstanding cap</p>
 
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-| 7:0 |  axi_id  |  rw  | 0x0 |  — |
-| 9:8 |  id_mode |  rw  | 0x0 |  — |
-|12:10| axi_size |  rw  | 0x0 |  — |
-|14:13| axi_burst|  rw  | 0x0 |  — |
-|  15 | data_mode|  rw  | 0x0 |  — |
+| Bits|   Identifier  |Access|Reset|Name|
+|-----|---------------|------|-----|----|
+| 7:0 |     axi_id    |  rw  | 0x0 |  — |
+| 9:8 |    id_mode    |  rw  | 0x0 |  — |
+|12:10|    axi_size   |  rw  | 0x0 |  — |
+|14:13|   axi_burst   |  rw  | 0x0 |  — |
+|  15 |   data_mode   |  rw  | 0x0 |  — |
+|21:16|max_outstanding|  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -726,15 +729,16 @@ Don't override. Generated from: $root
 - Base Offset: 0x18
 - Size: 0x4
 
-<p>AXI id / id_mode / size / burst / data_mode</p>
+<p>AXI id / id_mode / size / burst / data_mode / outstanding cap</p>
 
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-| 7:0 |  axi_id  |  rw  | 0x0 |  — |
-| 9:8 |  id_mode |  rw  | 0x0 |  — |
-|12:10| axi_size |  rw  | 0x0 |  — |
-|14:13| axi_burst|  rw  | 0x0 |  — |
-|  15 | data_mode|  rw  | 0x0 |  — |
+| Bits|   Identifier  |Access|Reset|Name|
+|-----|---------------|------|-----|----|
+| 7:0 |     axi_id    |  rw  | 0x0 |  — |
+| 9:8 |    id_mode    |  rw  | 0x0 |  — |
+|12:10|    axi_size   |  rw  | 0x0 |  — |
+|14:13|   axi_burst   |  rw  | 0x0 |  — |
+|  15 |   data_mode   |  rw  | 0x0 |  — |
+|21:16|max_outstanding|  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 

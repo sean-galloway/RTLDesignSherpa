@@ -130,6 +130,10 @@ module axi4_master_rd_crc_check #(
     // is otherwise decoupled and issues as fast as the slave accepts; this
     // bounds the reorder window a DUT sees from one generator.
     parameter int MAX_OUTSTANDING = 8,
+    // Width of cfg_max_outstanding: enough to hold MAX_OUTSTANDING itself, so
+    // the runtime dial can reach the ceiling and one value above it is still
+    // representable (and clamps).
+    parameter int OSW = $clog2(MAX_OUTSTANDING + 1),
 
     // ---- Debug observability ----
     // When > 0, instantiate a `DBG_FIFO_DEPTH`-deep gaxi_fifo_sync that
@@ -186,6 +190,19 @@ module axi4_master_rd_crc_check #(
     // sweep can vary R-side pressure separately.
     input  logic [3:0]                          cfg_rd_gap,
 
+    // ---- Runtime cap on bursts in flight ----
+    // MAX_OUTSTANDING is the hardware ceiling (queues and counters are built
+    // for it); this dials the ACTIVE limit down without a rebuild, which is
+    // what a bandwidth-vs-outstanding sweep needs -- one bitstream walks the
+    // whole curve instead of one bitstream per point.
+    //
+    // 0 means "use MAX_OUTSTANDING", so an instance that ties this off behaves
+    // exactly as it did before the port existed. Values above MAX_OUTSTANDING
+    // clamp to it rather than wrapping: the counters are sized for the
+    // parameter, and a host that writes 40 into a 32-deep engine should get 32
+    // and a curve that flattens, not a silent wrap to 8.
+    input  logic [OSW-1:0]                      cfg_max_outstanding,
+
     input  logic                                cfg_start,
     output logic                                cfg_done,
 
@@ -241,6 +258,17 @@ module axi4_master_rd_crc_check #(
     output logic [DW-1:0]              dbg_expected,
     output logic                       dbg_mismatch
 );
+
+    //==========================================================================
+    // Active outstanding limit
+    //==========================================================================
+    // Resolve the runtime dial against the built ceiling once, here, so every
+    // use downstream reads one signal and cannot disagree about the policy.
+    // Zero means "as built"; anything above the ceiling saturates at it.
+    logic [OSW-1:0] w_os_limit;
+    assign w_os_limit = (cfg_max_outstanding == '0)                    ? OSW'(MAX_OUTSTANDING)
+                      : (cfg_max_outstanding > OSW'(MAX_OUTSTANDING))  ? OSW'(MAX_OUTSTANDING)
+                                                                       : cfg_max_outstanding;
 
     //==========================================================================
     // Config guard — the AxLEN==integer-multiple-of-DRAM-burst requirement (read
@@ -477,7 +505,7 @@ module axi4_master_rd_crc_check #(
                               && (r_ar_req_count < r_txn_count);
     assign fub_arvalid         = (r_state == S_RUN)
                               && (r_ar_issued < r_txn_count)
-                              && ((r_ar_issued - r_bursts_done) < TXN_COUNT_WIDTH'(MAX_OUTSTANDING))
+                              && ((r_ar_issued - r_bursts_done) < TXN_COUNT_WIDTH'(w_os_limit))
                               && w_ar_addr_result_valid;
     assign w_ar_addr_result_ready = fub_arvalid && fub_arready;
 

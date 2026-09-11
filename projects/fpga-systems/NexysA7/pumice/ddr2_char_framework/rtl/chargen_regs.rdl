@@ -12,9 +12,9 @@
 //
 //   cd $REPO_ROOT && source env_python
 //   python3 bin/peakrdl_generate.py \
-//       projects/fpga-systems/NexysA7/shared/ddr2_char_framework/rtl/chargen_regs.rdl \
-//       -o projects/fpga-systems/NexysA7/shared/ddr2_char_framework/rtl/generated/chargen_regs \
-//       --regmap-output projects/fpga-systems/NexysA7/shared/ddr2_char_framework/dv/tbclasses/chargen_regs_regmap.py
+//       projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/chargen_regs.rdl \
+//       -o projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/generated/chargen_regs \
+//       --regmap-output projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/dv/tbclasses/chargen_regs_regmap.py
 //
 //=============================================================================
 // WHY THIS IS A SEPARATE BLOCK FROM harness_csr
@@ -124,12 +124,23 @@ addrmap chargen_regs {
     };
 
     reg axi_attr_t {
-        desc = "AXI id / id_mode / size / burst / data_mode";
+        desc = "AXI id / id_mode / size / burst / data_mode / outstanding cap";
         field { sw = rw; hw = r; } axi_id[7:0]     = 0;
         field { sw = rw; hw = r; } id_mode[9:8]    = 0;
         field { sw = rw; hw = r; } axi_size[12:10] = 0;
         field { sw = rw; hw = r; } axi_burst[14:13]= 0;
         field { sw = rw; hw = r; } data_mode[15:15]= 0;
+        // Active cap on bursts in flight for THIS generator, 1..GEN_MAX_
+        // OUTSTANDING. 0 = as built, which is also the reset value, so a host
+        // that never writes this field gets the pre-existing behaviour.
+        //
+        // This is the sweep axis for bandwidth against outstanding
+        // transactions: one bitstream is built at the ceiling and the host
+        // walks the limit down, instead of one bitstream per point. Writes
+        // above the built ceiling saturate at it in RTL rather than wrapping.
+        // Six bits, so a 32-deep build is reachable and 33..63 still clamp
+        // visibly instead of aliasing to a small number.
+        field { sw = rw; hw = r; } max_outstanding[21:16] = 0;
     };
 
     //=========================================================================

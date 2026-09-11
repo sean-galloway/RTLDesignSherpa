@@ -140,7 +140,8 @@ class ChargenDriver:
                        axi_id: int, id_mode: int, axi_size: int,
                        axi_burst: int, data_mode: int, lfsr_seed: int,
                        hash_seed0: int, hash_seed1: int,
-                       hash_seed2: int) -> None:
+                       hash_seed2: int,
+                       max_outstanding: int = 0) -> None:
         self._check_index(gen)
         p = f"{kind}_GEN{gen}_"
         await self._write_field(p + "START_ADDR",  "addr",   start_addr)
@@ -158,6 +159,11 @@ class ChargenDriver:
         await self._write_field(p + "AXI_ATTR", "axi_size",  axi_size)
         await self._write_field(p + "AXI_ATTR", "axi_burst", axi_burst)
         await self._write_field(p + "AXI_ATTR", "data_mode", data_mode)
+        # 0 = as built (GEN_MAX_OUTSTANDING). The sweep axis for bandwidth
+        # against outstanding transactions; the RTL saturates anything above
+        # the built ceiling rather than wrapping it to a small number.
+        await self._write_field(p + "AXI_ATTR", "max_outstanding",
+                                max_outstanding & 0x3F)
 
         await self._write_field(p + "LFSR_SEED",  "seed", lfsr_seed)
         await self._write_field(p + "HASH_SEED0", "seed", hash_seed0)
@@ -172,7 +178,8 @@ class ChargenDriver:
                              axi_size: int = 3, axi_burst: int = 1,
                              data_mode: int = 0, lfsr_seed: int = 0,
                              hash_seed0: int = 0, hash_seed1: int = 0,
-                             hash_seed2: int = 0) -> None:
+                             hash_seed2: int = 0,
+                             max_outstanding: int = 0) -> None:
         await self._program("WR", gen, start_addr=start_addr,
                             stride_0=stride_0, stride_1=stride_1,
                             wrap_mask_0=wrap_mask_0, wrap_mask_1=wrap_mask_1,
@@ -180,7 +187,8 @@ class ChargenDriver:
                             axi_id=axi_id, id_mode=id_mode, axi_size=axi_size,
                             axi_burst=axi_burst, data_mode=data_mode,
                             lfsr_seed=lfsr_seed, hash_seed0=hash_seed0,
-                            hash_seed1=hash_seed1, hash_seed2=hash_seed2)
+                            hash_seed1=hash_seed1, hash_seed2=hash_seed2,
+                            max_outstanding=max_outstanding)
 
     async def program_reader(self, gen: int, **kwargs) -> None:
         """Same signature as :meth:`program_writer`.
@@ -194,7 +202,7 @@ class ChargenDriver:
                         wrap_mask_1=0, burst_len=1, txn_count=1, gap=0,
                         axi_id=0, id_mode=0, axi_size=3, axi_burst=1,
                         data_mode=0, lfsr_seed=0, hash_seed0=0, hash_seed1=0,
-                        hash_seed2=0)
+                        hash_seed2=0, max_outstanding=0)
         defaults.update(kwargs)
         await self._program("RD", gen, **defaults)
 

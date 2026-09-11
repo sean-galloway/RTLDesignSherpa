@@ -25,6 +25,11 @@ module tb_axi4_master_pat_crc_pair #(
     parameter int AXI_ID_WIDTH   = 8,
     parameter int AXI_USER_WIDTH = 1,
     parameter int MEM_DEPTH_LOG2 = 12,  // 4096 beat-words backing storage
+    // Built ceiling on bursts in flight, applied to BOTH engines. The runtime
+    // dial (cfg_max_outstanding) rides under it; overriding the parameter is
+    // how a test reaches a ceiling the default 8 cannot.
+    parameter int MAX_OUTSTANDING = 8,
+    parameter int OSW = $clog2(MAX_OUTSTANDING + 1),
 
     parameter int AW = AXI_ADDR_WIDTH,
     parameter int DW = AXI_DATA_WIDTH,
@@ -53,6 +58,10 @@ module tb_axi4_master_pat_crc_pair #(
     input  logic [31:0]                cfg_hash_seed2,
     input  logic [3:0]                 cfg_wr_gap,
     input  logic [3:0]                 cfg_rd_gap,
+    // Runtime outstanding dial, shared by both engines here: the pair test
+    // drives them as a matched writer/reader, so a sweep that throttled only
+    // one side would be measuring a different thing on each channel.
+    input  logic [OSW-1:0]             cfg_max_outstanding,
 
     // Separate start/done so the TB can run wr -> rd sequentially.
     input  logic                       cfg_start_wr,
@@ -96,10 +105,11 @@ module tb_axi4_master_pat_crc_pair #(
     logic          wr_bvalid, wr_bready;
 
     axi4_master_wr_pattern_gen #(
-        .AXI_ID_WIDTH  (AXI_ID_WIDTH),
-        .AXI_ADDR_WIDTH(AXI_ADDR_WIDTH),
-        .AXI_DATA_WIDTH(AXI_DATA_WIDTH),
-        .AXI_USER_WIDTH(AXI_USER_WIDTH)
+        .AXI_ID_WIDTH   (AXI_ID_WIDTH),
+        .AXI_ADDR_WIDTH (AXI_ADDR_WIDTH),
+        .AXI_DATA_WIDTH (AXI_DATA_WIDTH),
+        .AXI_USER_WIDTH (AXI_USER_WIDTH),
+        .MAX_OUTSTANDING(MAX_OUTSTANDING)
     ) u_wr (
         .aclk                 (aclk),
         .aresetn              (aresetn),
@@ -120,6 +130,7 @@ module tb_axi4_master_pat_crc_pair #(
         .cfg_hash_seed1       (cfg_hash_seed1),
         .cfg_hash_seed2       (cfg_hash_seed2),
         .cfg_wr_gap           (cfg_wr_gap),
+        .cfg_max_outstanding  (cfg_max_outstanding),
         .cfg_start            (cfg_start_wr),
         .cfg_done             (cfg_done_wr),
         .o_expected_crc       (o_expected_crc),
@@ -170,10 +181,11 @@ module tb_axi4_master_pat_crc_pair #(
     logic          rd_rlast, rd_rvalid, rd_rready;
 
     axi4_master_rd_crc_check #(
-        .AXI_ID_WIDTH  (AXI_ID_WIDTH),
-        .AXI_ADDR_WIDTH(AXI_ADDR_WIDTH),
-        .AXI_DATA_WIDTH(AXI_DATA_WIDTH),
-        .AXI_USER_WIDTH(AXI_USER_WIDTH)
+        .AXI_ID_WIDTH   (AXI_ID_WIDTH),
+        .AXI_ADDR_WIDTH (AXI_ADDR_WIDTH),
+        .AXI_DATA_WIDTH (AXI_DATA_WIDTH),
+        .AXI_USER_WIDTH (AXI_USER_WIDTH),
+        .MAX_OUTSTANDING(MAX_OUTSTANDING)
     ) u_rd (
         .aclk                 (aclk),
         .aresetn              (aresetn),
@@ -194,6 +206,7 @@ module tb_axi4_master_pat_crc_pair #(
         .cfg_hash_seed1       (cfg_hash_seed1),
         .cfg_hash_seed2       (cfg_hash_seed2),
         .cfg_rd_gap           (cfg_rd_gap),
+        .cfg_max_outstanding  (cfg_max_outstanding),
         .cfg_start            (cfg_start_rd),
         .cfg_done             (cfg_done_rd),
         .o_actual_crc         (o_actual_crc),

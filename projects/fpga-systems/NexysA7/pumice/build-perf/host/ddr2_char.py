@@ -526,6 +526,7 @@ class DDR2CharDriver:
                         wrap_mask_0, wrap_mask_1, burst_len, txn_count, gap,
                         axi_id, id_mode, axi_size, axi_burst, data_mode,
                         lfsr_seed, hash_seed0, hash_seed1, hash_seed2,
+                        max_outstanding: int = 0,
                         gen: int = 0) -> None:
         """Stage one generator's config by name (pfx = WR|RD, gen = 0..7).
 
@@ -534,6 +535,14 @@ class DDR2CharDriver:
         separate because staging takes many bus transactions and launching
         must not: a per-generator start would leave generator 0 running for
         however long it took to program generator 7.
+
+        `max_outstanding` caps this generator's bursts in flight. 0 means "as
+        built" (GEN_MAX_OUTSTANDING, 32 on the current bitstream) and is the
+        reset value, so a script that never passes it behaves as before. This
+        is the sweep axis for bandwidth against outstanding transactions: one
+        bitstream walks the whole curve. Values above the built ceiling
+        saturate at it in RTL rather than wrapping, so a too-large request
+        shows up as a flat tail on the curve rather than as a bogus low point.
         """
         if not 0 <= gen < self.num_gen:
             raise IndexError(
@@ -558,7 +567,8 @@ class DDR2CharDriver:
         r.write(f"{n}_BLEN_TXN", burst_len=burst_len, txn_count=txn_count, gap=gap)
         r.write(f"{n}_AXI_ATTR", axi_id=axi_id, id_mode=id_mode,
                 axi_size=axi_size, axi_burst=axi_burst,
-                data_mode=1 if data_mode else 0)
+                data_mode=1 if data_mode else 0,
+                max_outstanding=max_outstanding & 0x3F)
         r.write_word(f"{n}_LFSR_SEED",  lfsr_seed)
         r.write_word(f"{n}_HASH_SEED0", hash_seed0)
         r.write_word(f"{n}_HASH_SEED1", hash_seed1)
@@ -582,6 +592,7 @@ class DDR2CharDriver:
                           hash_seed0:    int = 0,
                           hash_seed1:    int = 0,
                           hash_seed2:    int = 0,
+                          max_outstanding: int = 0,
                           gen:           int = 0) -> None:
         self._program_engine(
             "WR", gen=gen,
@@ -590,7 +601,8 @@ class DDR2CharDriver:
             burst_len=burst_len, txn_count=txn_count, gap=gap,
             axi_id=axi_id, id_mode=id_mode, axi_size=axi_size,
             axi_burst=axi_burst, data_mode=data_mode, lfsr_seed=lfsr_seed,
-            hash_seed0=hash_seed0, hash_seed1=hash_seed1, hash_seed2=hash_seed2)
+            hash_seed0=hash_seed0, hash_seed1=hash_seed1, hash_seed2=hash_seed2,
+            max_outstanding=max_outstanding)
 
     def program_rd_engine(self, *,
                           start_addr:    int,
@@ -610,6 +622,7 @@ class DDR2CharDriver:
                           hash_seed0:    int = 0,
                           hash_seed1:    int = 0,
                           hash_seed2:    int = 0,
+                          max_outstanding: int = 0,
                           gen:           int = 0) -> None:
         self._program_engine(
             "RD", gen=gen,
@@ -618,7 +631,8 @@ class DDR2CharDriver:
             burst_len=burst_len, txn_count=txn_count, gap=gap,
             axi_id=axi_id, id_mode=id_mode, axi_size=axi_size,
             axi_burst=axi_burst, data_mode=data_mode, lfsr_seed=lfsr_seed,
-            hash_seed0=hash_seed0, hash_seed1=hash_seed1, hash_seed2=hash_seed2)
+            hash_seed0=hash_seed0, hash_seed1=hash_seed1, hash_seed2=hash_seed2,
+            max_outstanding=max_outstanding)
 
     # ----- Run control -----------------------------------------------------
     # Launch is one write to GO in chargen_regs, not the harness CTRL bits

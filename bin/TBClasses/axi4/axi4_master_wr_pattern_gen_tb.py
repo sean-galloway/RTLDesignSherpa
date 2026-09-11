@@ -214,6 +214,11 @@ class WrPatternGenTB(TBBase):
         self.dut.cfg_hash_seed1.value       = 0
         self.dut.cfg_hash_seed2.value       = 0
         self.dut.cfg_wr_gap.value           = 0
+        # 0 = use the built MAX_OUTSTANDING. Driven explicitly rather
+        # than left floating: the engine compares this against zero to
+        # pick the limit, so an undriven X wedges the address channel
+        # with no error anywhere.
+        self.dut.cfg_max_outstanding.value  = 0
         self.dut.cfg_start.value            = 0
 
     def set_slave_delay_profile(self, profile: str) -> None:
@@ -245,7 +250,8 @@ class WrPatternGenTB(TBBase):
                       hash_seed0: int = 0,
                       hash_seed1: int = 0,
                       hash_seed2: int = 0,
-                      id_mode: int = 0) -> None:
+                      id_mode: int = 0,
+                      max_outstanding: int = 0) -> None:
         self.dut.cfg_start_addr.value       = start_addr
         self.dut.cfg_addr_stride_0.value    = stride_0
         self.dut.cfg_addr_stride_1.value    = stride_1
@@ -263,6 +269,7 @@ class WrPatternGenTB(TBBase):
         self.dut.cfg_hash_seed1.value       = hash_seed1 & 0xFFFFFFFF
         self.dut.cfg_hash_seed2.value       = hash_seed2 & 0xFFFFFFFF
         self.dut.cfg_wr_gap.value           = wr_gap & 0xF
+        self.dut.cfg_max_outstanding.value  = max_outstanding
         # Stash for the post-run CRC cross-check in wait_done()
         self._last_total_beats = burst_len * txn_count
         self._last_lfsr_seed = lfsr_seed

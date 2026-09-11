@@ -68,7 +68,19 @@ module char_engine_block
     // NUM_BANKS is carried purely for that elaboration check.
     parameter int NUM_BANKS        = 8,
     parameter int NUM_GEN          = 2,
-    parameter int GEN_MAX_OUTSTANDING = 8,
+    // Per-generator ceiling on bursts in flight (AW/AR issued minus B/RLAST
+    // received). 32, not 8, because this is the axis the latency sweep walks:
+    // read bandwidth is bounded by outstanding x AxLEN / (latency + AxLEN),
+    // so the knee sits near 47/AxLEN transactions -- about 47 at AxLEN=1 and
+    // 13 at AxLEN=4. A ceiling of 8 put every knee below the ceiling, which
+    // made the harness the limit rather than the DRAM.
+    //
+    // Build at the ceiling and dial DOWN at runtime: each generator's
+    // AXI_ATTR.max_outstanding CSR field caps it live (0 = as built), so one
+    // bitstream produces the whole curve. Raising this costs queue depth in
+    // the engines and in char_gen_unit's W-order queue, which sizes itself
+    // from NUM_GEN x this.
+    parameter int GEN_MAX_OUTSTANDING = 32,
 
     // ---- Engine workload ranges ----
     parameter int TXN_COUNT_WIDTH  = 16,

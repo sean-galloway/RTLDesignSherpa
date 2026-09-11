@@ -55,6 +55,10 @@ async def _setup(dut):
     dut.cfg_hash_seed2.value       = 0
     dut.cfg_wr_gap.value           = 0
     dut.cfg_rd_gap.value           = 0
+    # 0 = use the built MAX_OUTSTANDING. Driven explicitly: the engines test
+    # this against zero to pick their limit, so leaving it floating wedges
+    # both address channels on an X with no error reported anywhere.
+    dut.cfg_max_outstanding.value  = 0
     dut.cfg_start_wr.value         = 0
     dut.cfg_start_rd.value         = 0
     dut.aresetn.value              = 0
@@ -73,7 +77,8 @@ async def _program(dut, *, start_addr: int, stride_0: int = 0,
                    hash_seed0: int = 0,
                    hash_seed1: int = 0,
                    hash_seed2: int = 0,
-                   id_mode: int = 0):
+                   id_mode: int = 0,
+                   max_outstanding: int = 0):
     dut.cfg_start_addr.value       = start_addr
     dut.cfg_addr_stride_0.value    = stride_0
     dut.cfg_burst_len.value        = burst_len
@@ -87,6 +92,7 @@ async def _program(dut, *, start_addr: int, stride_0: int = 0,
     dut.cfg_hash_seed2.value       = hash_seed2 & 0xFFFFFFFF
     dut.cfg_wr_gap.value           = wr_gap & 0xF
     dut.cfg_rd_gap.value           = rd_gap & 0xF
+    dut.cfg_max_outstanding.value  = max_outstanding
     await RisingEdge(dut.aclk)
     await Timer(_NBA_SETTLE_PS, units="ps")
 
