@@ -45,7 +45,7 @@ check-tools:
 	@echo "Checking formal verification tools..."
 	@which yosys > /dev/null 2>&1 && echo "  yosys:     $$(yosys --version 2>/dev/null | head -1)" || echo "  yosys:     NOT FOUND"
 	@which sby > /dev/null 2>&1 && echo "  sby:       $$(sby --version 2>/dev/null | head -1)" || echo "  sby:       NOT FOUND (install: pip install sby)"
-	@which boolector > /dev/null 2>&1 && echo "  boolector: found" || echo "  boolector: NOT FOUND (install: see docs/FORMAL_VERIFICATION_GUIDE.md)"
+	@which boolector > /dev/null 2>&1 && echo "  boolector: found" || echo "  boolector: NOT FOUND (OSS CAD Suite ships it; see formal/README.md)"
 	@which z3 > /dev/null 2>&1 && echo "  z3:        found" || echo "  z3:        NOT FOUND (optional fallback solver)"
 
 # formal-amba and formal-converters were MISSING from this list until
@@ -95,7 +95,7 @@ formal-bridge:
 	@if [ -d bridge ]; then \
 		$(MAKE) -C bridge all; \
 	else \
-		echo "Bridge formal not yet set up. See docs/FORMAL_VERIFICATION_GUIDE.md"; \
+		echo "Bridge formal not yet set up. See formal/README.md"; \
 	fi
 
 .PHONY: formal-quick
