@@ -31,3 +31,5 @@ bridge_mix_d,test_configs/bridge_mix_d.toml,test_configs/bridge_mix_d_connectivi
 bridge_2x2_axi5,test_configs/bridge_2x2_axi5.toml,test_configs/bridge_2x2_axi5_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
 bridge_2x2_ooo,test_configs/bridge_2x2_ooo.toml,test_configs/bridge_2x2_ooo_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
 bridge_1x2_rd_axi5w,test_configs/bridge_1x2_rd_axi5w.toml,test_configs/bridge_1x2_rd_axi5w_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_2x2_lite_req,test_configs/bridge_2x2_lite_req.toml,test_configs/bridge_2x2_lite_req_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_2x3_apb_req,test_configs/bridge_2x3_apb_req.toml,test_configs/bridge_2x3_apb_req_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests

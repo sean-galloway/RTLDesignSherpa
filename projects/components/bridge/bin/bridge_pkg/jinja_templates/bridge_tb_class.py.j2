@@ -51,6 +51,14 @@ from CocoTBFramework.components.axil5.axil5_interfaces import (
     AXIL5SlaveRead, AXIL5SlaveWrite,
 )
 {% endif %}
+{% if masters | selectattr('protocol', 'equalto', 'axil5') | list %}
+# AXI5-Lite requester ports are driven by the AXIL5 BFMs: AXIL4 transaction
+# logic plus the optional sideband groups, so they bind to the awuser/
+# awlock/awtrace/... ports the bridge exposes on an axil5 master.
+from CocoTBFramework.components.axil5.axil5_interfaces import (
+    AXIL5MasterRead, AXIL5MasterWrite,
+)
+{% endif %}
 {% if masters | selectattr('protocol', 'in', ['axi4', 'axi5']) | list %}
 # Protocol checkers ride every AXI master port, AXI4 as well as AXI5: the
 # checker binds its five channel monitors and reports handshake, burst, ID
@@ -72,6 +80,9 @@ from CocoTBFramework.components.axi5.axi5_compliance_checker import AXI5Complian
 from CocoTBFramework.components.apb.apb_components import APBMaster, APBSlave
 {% if slaves | selectattr('protocol', 'equalto', 'apb5') | list %}
 from CocoTBFramework.components.apb5.apb5_components import APB5Slave
+{% endif %}
+{% if masters | selectattr('protocol', 'equalto', 'apb5') | list %}
+from CocoTBFramework.components.apb5.apb5_components import APB5Master
 {% endif %}
 
 # Memory model — shared across all protocol slave BFMs (every slave gets
@@ -412,34 +423,51 @@ class {{ tb_class_name }}(TBBase):
     def _setup_master_{{ loop.index0 }}_{{ master.port_name }}(self):
         """Set up protocol BFMs for master {{ loop.index0 }}: {{ master.port_name }} (protocol: {{ master.protocol }})"""
 {% if master.protocol.lower() in ('apb', 'apb5') %}
-        self.master_apb[{{ loop.index0 }}] = APBMaster(
+{% set is_apb5 = master.protocol.lower() == 'apb5' %}
+        # APB requester port: the bridge is the completer. One BFM handle
+        # covers both directions; master_read/master_write unwrap the
+        # completed transaction (PRDATA, PSLVERR -> AxiResponseError).
+        self.master_apb[{{ loop.index0 }}] = {{ 'APB5Master' if is_apb5 else 'APBMaster' }}(
             entity=self.dut,
-            title="APB_M{{ loop.index0 }}",
+            title="{{ 'APB5' if is_apb5 else 'APB' }}_M{{ loop.index0 }}",
             prefix="{{ master.prefix }}",
             clock=self.clock,
             bus_width={{ master.data_width }},
             addr_width={{ master.addr_width }},
+{% if is_apb5 %}
+            # The bridge exposes the APB5 USER pins 1 bit wide (the fabric
+            # USER width); PWAKEUP is requester-driven and asserted with
+            # PSEL by the BFM.
+            auser_width=1, wuser_width=1, ruser_width=1, buser_width=1,
+{% endif %}
             log=self.log,
         )
-{% elif master.protocol.lower() == 'axil' %}
+{% elif master.protocol.lower() in ('axil', 'axil5') %}
+{% set is_axil5 = master.protocol.lower() == 'axil5' %}
 {% if master.has_read_channels() %}
-        self.master_rd[{{ loop.index0 }}] = AXIL4MasterRead(
+        self.master_rd[{{ loop.index0 }}] = {{ 'AXIL5MasterRead' if is_axil5 else 'AXIL4MasterRead' }}(
             self.dut, self.clock,
             prefix="{{ master.prefix }}",
             log=self.log,
             data_width={{ master.data_width }},
             addr_width={{ master.addr_width }},
             multi_sig=True,
+{% if is_axil5 %}
+{{ axil5_bfm_features(master) }}
+{% endif %}
         )
 {% endif %}
 {% if master.has_write_channels() %}
-        self.master_wr[{{ loop.index0 }}] = AXIL4MasterWrite(
+        self.master_wr[{{ loop.index0 }}] = {{ 'AXIL5MasterWrite' if is_axil5 else 'AXIL4MasterWrite' }}(
             self.dut, self.clock,
             prefix="{{ master.prefix }}",
             log=self.log,
             data_width={{ master.data_width }},
             addr_width={{ master.addr_width }},
             multi_sig=True,
+{% if is_axil5 %}
+{{ axil5_bfm_features(master) }}
+{% endif %}
         )
 {% endif %}
 {% else %}
@@ -774,7 +802,13 @@ class {{ tb_class_name }}(TBBase):
     async def master_read(self, master_idx: int, address: int) -> int:
         """Single-beat read from master[master_idx]. Returns master-width int."""
         if master_idx in self.master_apb:
-            return await self.master_apb[master_idx].read(address)
+            # APB has one error bit: SLVERR and DECERR both arrive as PSLVERR.
+            # Report it as SLVERR (2) -- the code an in-range-but-failed
+            # access would carry -- since APB cannot tell the two apart.
+            txn = await self.master_apb[master_idx].read(address)
+            if txn.fields.get('pslverr', 0):
+                raise AxiResponseError(address, 2, 'PSLVERR on APB read')
+            return int(txn.fields['prdata'])
         rd = self.master_rd[master_idx]
         try:
             return await rd.single_read(address, size=self._natural_arsize(master_idx))
@@ -797,7 +831,9 @@ class {{ tb_class_name }}(TBBase):
         arrived somewhere. APB has no id and ignores it.
         """
         if master_idx in self.master_apb:
-            await self.master_apb[master_idx].write(address, data)
+            txn = await self.master_apb[master_idx].write(address, data)
+            if txn.fields.get('pslverr', 0):
+                raise AxiResponseError(address, 2, 'PSLVERR on APB write')
             return
         wr = self.master_wr[master_idx]
         kwargs = {'size': self._natural_arsize(master_idx)}

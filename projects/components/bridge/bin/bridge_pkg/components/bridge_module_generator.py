@@ -1196,10 +1196,49 @@ class BridgeModuleGenerator:
 
         lines.append(f"    // Master: {master.name} ({master.protocol}, {master.channels})")
 
-        if master.protocol == 'axil':
+        if master.protocol in ('apb', 'apb5'):
+            # APB requester port (BRIDGE-014): the bridge is the APB
+            # COMPLETER here, so the requester-driven signals are inputs and
+            # PREADY/PRDATA/PSLVERR outputs -- the mirror of the APB slave
+            # port block in _generate_slave_ports. apb5 adds the requester's
+            # PAUSER/PWUSER/PWAKEUP and the completer's PRUSER/PBUSER, one
+            # bit each (the fabric USER width). The adapter converts to AXI4
+            # with apb{4,5}_to_axi4 behind this surface.
+            dw = master.data_width
+            sw = dw // 8
+            p = master.prefix
+            lines.append(f"    input  logic                  {p}PSEL,")
+            lines.append(f"    input  logic                  {p}PENABLE,")
+            lines.append(f"    output logic                  {p}PREADY,")
+            lines.append(f"    input  logic [31:0]           {p}PADDR,")
+            lines.append(f"    input  logic                  {p}PWRITE,")
+            lines.append(f"    input  logic [{dw-1}:0] {p}PWDATA,")
+            lines.append(f"    input  logic [{sw-1}:0] {p}PSTRB,")
+            lines.append(f"    input  logic [2:0]            {p}PPROT,")
+            lines.append(f"    output logic [{dw-1}:0] {p}PRDATA,")
+            lines.append(f"    output logic                  {p}PSLVERR,")
+            if master.protocol == 'apb5':
+                lines.append(f"    input  logic                  {p}PAUSER,")
+                lines.append(f"    input  logic                  {p}PWUSER,")
+                lines.append(f"    input  logic                  {p}PWAKEUP,")
+                lines.append(f"    output logic                  {p}PRUSER,")
+                lines.append(f"    output logic                  {p}PBUSER,")
+            if lines and lines[-1].endswith(','):
+                lines[-1] = lines[-1][:-1]
+            return lines
+
+        if master.protocol in ('axil', 'axil5'):
             # AXIL master — emit only AXIL signals (no id/len/burst/cache/
             # qos/region/user/last). Mirror of the AXIL slave port handling
             # in _generate_slave_ports.
+            #
+            # axil5 (BRIDGE-014) follows the AXIL set with the AXI5-Lite
+            # sideband from the one shared table, EVERY group whether or not
+            # it is enabled -- same rule as the axil5 slave port: a boundary
+            # whose shape changes with a feature knob cannot be wired to a
+            # fixed external requester. The table's directions are written
+            # for a slave port ('out' = bridge drives); on a master port the
+            # external requester drives those, so they flip.
             addr_w = master.addr_width
             data_w = master.data_width
             strb_w = data_w // 8
@@ -1228,6 +1267,20 @@ class BridgeModuleGenerator:
                 lines.append(f"    output logic [1:0]            {pfx}rresp,")
                 lines.append(f"    output logic                  {pfx}rvalid,")
                 lines.append(f"    input  logic                  {pfx}rready,")
+
+            if master.protocol == 'axil5':
+                from ..axil5_sideband import (sideband_ports, field_width,
+                                              AXIL5_USER_WIDTH,
+                                              AXIL5_LOOP_WIDTH)
+                entries = sideband_ports(master.channels)
+                if entries:
+                    lines.append("    // AXI5-Lite sideband (requester-driven in, completer-driven out)")
+                for base, width_key, direction in entries:
+                    width = field_width(width_key, data_w,
+                                        AXIL5_USER_WIDTH, AXIL5_LOOP_WIDTH)
+                    kind = "input  logic" if direction == 'out' else "output logic"
+                    span = "" if width == 1 else f"[{width-1}:0] "
+                    lines.append(f"    {kind} {span}{pfx}{base},")
 
             # Trim trailing comma; caller re-appends if needed.
             if lines and lines[-1].endswith(','):
@@ -1906,6 +1959,32 @@ class BridgeModuleGenerator:
                 'aruser':   "1'b0",
             }
 
+            # AXI5-Lite master (BRIDGE-014): the enabled forwardable groups
+            # join the Lite surface and reach the adapter's AXI4 face
+            # (awlock/arlock for 'exclusive'; aw/w/b/ar/r user for 'user').
+            # The rest of the sideband is exposed but has no AXI4 home:
+            # inputs are consumed, outputs driven to 0, after the instance.
+            lite_surface = set(axil_surface)
+            if master.protocol == 'axil5':
+                feats = set(master.axi5_features or [])
+                if 'exclusive' in feats:
+                    lite_surface |= {'awlock', 'arlock'}
+                if 'user' in feats:
+                    lite_surface |= {'awuser', 'wuser', 'buser', 'aruser', 'ruser'}
+
+            if master.protocol in ('apb', 'apb5'):
+                # APB requester port: the adapter's external surface IS the
+                # APB completer set (same names both sides), nothing from
+                # the AXI4 signal table is on it.
+                p = master.prefix
+                apb_sigs = ['PSEL', 'PENABLE', 'PREADY', 'PADDR', 'PWRITE',
+                            'PWDATA', 'PSTRB', 'PPROT', 'PRDATA', 'PSLVERR']
+                if master.protocol == 'apb5':
+                    apb_sigs += ['PAUSER', 'PWUSER', 'PWAKEUP', 'PRUSER', 'PBUSER']
+                for sig in apb_sigs:
+                    lines.append(f"        .{p}{sig}({p}{sig}),")
+                channels = []
+
             for channel in channels:
                 if channel not in signal_db:
                     continue
@@ -1919,7 +1998,7 @@ class BridgeModuleGenerator:
                     if master.protocol == 'axi5' and sig_info.name == 'region':
                         continue
 
-                    if master.protocol != 'axil' or full_name in axil_surface:
+                    if master.protocol not in ('axil', 'axil5') or full_name in lite_surface:
                         # AXI4 master, or AXIL master & this signal IS on
                         # the AXIL surface — wire directly to the top.
                         lines.append(f"        .{sig_name}({sig_name}),")
@@ -2009,8 +2088,43 @@ class BridgeModuleGenerator:
                 lines.extend(self._generate_master_monitor_connections(my_wrappers))
 
             lines.append("    );")
+            if master.protocol == 'axil5':
+                lines.extend(self._axil5_master_sideband_tieoffs(master, lite_surface))
             lines.append("")
 
+        return lines
+
+    def _axil5_master_sideband_tieoffs(self, master, lite_surface) -> List[str]:
+        """Terminate the AXI5-Lite sideband groups an axil5 MASTER port
+        exposes but whose values have no AXI4 home (trace/loop/mpam/mecid/
+        nsaid/poison always; lock and user when their feature is off).
+
+        Requester-driven signals are bridge inputs: consumed by a reduction
+        into an `_unused` wire, so Verilator's -Wall build stays clean and
+        a reader can see they are deliberately dropped. Completer-driven
+        ones are bridge outputs: driven to 0, matching what an AXI5-Lite
+        requester sees from a completer that implements none of them."""
+        from ..axil5_sideband import sideband_ports
+        pfx = master.prefix
+        drop_in, tie_out = [], []
+        for base, _width_key, direction in sideband_ports(master.channels):
+            if base in lite_surface:
+                continue   # forwarded: wired straight into the adapter
+            if direction == 'out':   # table 'out' = requester drives = bridge input
+                drop_in.append(f"{pfx}{base}")
+            else:
+                tie_out.append(f"{pfx}{base}")
+        lines: List[str] = []
+        if not (drop_in or tie_out):
+            return lines
+        lines.append(f"    // {master.name}: AXI5-Lite sideband with no AXI4 home on this port")
+        for name in tie_out:
+            lines.append(f"    assign {name} = '0;")
+        if drop_in:
+            lines.append("    /* verilator lint_off UNUSED */")
+            lines.append(f"    wire _unused_{master.name}_axil5_sb = "
+                         f"&{{1'b0, {', '.join(drop_in)}}};")
+            lines.append("    /* verilator lint_on UNUSED */")
         return lines
 
     def _generate_crossbar_routing(self) -> List[str]:

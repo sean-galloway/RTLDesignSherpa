@@ -63,6 +63,8 @@ Low-power peripheral protocol:
 | AXI4-Lite | AXI4 | Upgrade | Single-beat pass-through |
 | AXI4-Lite | AXI4-Lite | Direct | Width conversion if needed |
 | AXI4-Lite | APB | Convert | Simplified conversion |
+| AXI5-Lite | any | Upgrade | As AXI4-Lite; `user`/`exclusive` ride the fabric, other sideband terminates at the boundary |
+| APB / APB5 | any | Full convert | `apb{4,5}_to_axi4` front end, then as AXI4-Lite |
 
 : Table 3.3: Protocol Conversion Matrix
 
@@ -92,6 +94,31 @@ Note the spelling: it is `axil`, not `axi4lite`. Earlier revisions of this
 page used the latter, which the generator rejects.
 
 The shim modules live in `projects/components/converters/rtl/`; the generator instantiates them into each generated top-level module. The slave port still presents the configured protocol (AXIL or APB) to the outside; inside, the crossbar core is uniformly AXI4.
+
+## Automatic Conversion at the Master Boundary
+
+The same `protocol` values are legal on a master port (BRIDGE-014). The
+bridge presents the requester's own protocol on the boundary -- the AXI4-Lite
+signal set, the AXI5-Lite set with its sideband, or the APB completer set --
+and the master adapter converts to the AXI4 the crossbar speaks:
+
+| `protocol` | Boundary presents | Conversion in the master adapter |
+| --- | --- | --- |
+| `axi4` | AXI4 | none (timing wrapper only) |
+| `axi5` | AXI5 (minus REGION, plus enabled features) | `axi5_slave_{wr,rd}` boundary wrappers |
+| `axil` | AXI4-Lite | AXI4 extras tied (`AxLEN=0`, INCR, `WLAST=1`, ID = placeholder); the wide-slave aligner toward wider slaves |
+| `axil5` | AXI5-Lite, full sideband | as `axil`; `exclusive` -> `AxLOCK`, `user` -> the 1-bit USER fields; every other group terminated at the top |
+| `apb` | APB4 completer | `apb4_to_axi4`, then the AXI4 timing wrapper |
+| `apb5` | APB5 completer (+ `PAUSER/PWUSER/PWAKEUP` in, `PRUSER/PBUSER` out) | `apb5_to_axi4` (`PAUSER[0]`/`PWUSER[0]` -> USER), then the AXI4 timing wrapper |
+
+: Table 3.5: Master-port protocol values
+
+Rules the validator enforces on these ports: Lite masters have `id_width = 0`
+(no ID pins exist; the fabric ID is the master index, BRIDGE-016), APB
+masters have `addr_width = 32` (the requester addresses the whole fabric --
+an APB *slave* port's `PADDR` is a window offset, a master's is not), and
+`axi5_features` on an `axil5` master may name only `user` and `exclusive`,
+the two groups with an AXI4 destination.
 
 ## AXI4 to APB Conversion
 

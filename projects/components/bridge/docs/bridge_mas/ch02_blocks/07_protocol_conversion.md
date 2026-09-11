@@ -55,6 +55,19 @@ Protocol conversion has five jobs:
 - For low-bandwidth peripherals
 - Simplified handshaking
 
+**APB and APB5 (Master-Side, BRIDGE-014)**:
+- The bridge is the APB completer; `apb4_to_axi4` / `apb5_to_axi4`
+  (converters component) turn each transfer into one single-beat AXI4
+  transaction in front of the ordinary master timing wrapper
+- SLVERR and DECERR both fold to PSLVERR (APB has one error bit)
+- APB5: `PAUSER[0]`/`PWUSER[0]` ride the fabric's USER bit; `PWAKEUP` is
+  accepted and terminated
+
+**AXI5-Lite (Master-Side, BRIDGE-014)**:
+- The AXI4-Lite path plus the AXI5-Lite sideband on the boundary
+- `exclusive` -> `AxLOCK` and `user` -> the 1-bit USER fields ride the
+  fabric; every other group is terminated at the bridge top
+
 ### Current Limitation: AXI4-Lite Conversion
 
 **Superseded.** This paragraph said AXIL slaves were treated as full AXI4 internally with no real conversion; the very next paragraph, and the RTL, say otherwise -- `axi4_to_axil4_{rd,wr}.sv` perform genuine burst decomposition into single-beat AXI4-Lite transactions. Kept only so the contradiction is not silently deleted. The old text read:
@@ -867,6 +880,12 @@ Use Case             Control registers          Peripherals
 - Minimal resource overhead acceptable
 - No burst performance needed
 
+**APB Master Front End** (`apb{4,5}_to_axi4`, BRIDGE-014):
+- An APB requester that needs to reach AXI4 or AXI4-Lite completers
+- One-outstanding by nature of APB: one transfer per fabric round trip
+- Same lane behaviour as an AXI4-Lite master toward wider slaves (the
+  aligner is shared)
+
 **APB Slave Converter**:
 - Legacy peripheral integration
 - Very simple slave devices (GPIO, timers)
@@ -906,9 +925,40 @@ An earlier revision of this page described the path as an `axi4_to_axil4`
 shim followed by an internal AXIL-to-APB bridge chain. No such chain exists,
 and no generated APB slave adapter instantiates `axi4_to_axil4`.
 
+### Master-Side APB Front End
+
+When `protocol = "apb"` or `"apb5"` is specified on a **master** (BRIDGE-014):
+- The master adapter's external surface is the APB completer set (the
+  requester's `PSEL/PENABLE/PADDR/PWRITE/PWDATA/PSTRB/PPROT` are inputs;
+  `PREADY/PRDATA/PSLVERR` outputs; `apb5` adds `PAUSER/PWUSER/PWAKEUP` in
+  and `PRUSER/PBUSER` out).
+- The adapter instantiates `apb4_to_axi4` / `apb5_to_axi4` on an internal
+  AXI4 face (`apbx_axi_*`) and feeds that to the same `axi4_slave_{wr,rd}`
+  timing wrapper -- `_mon` in the monitored variant -- an AXI4 master port
+  gets. From the wrapper onward the port is an AXI4-Lite-shaped single-beat
+  requester: decode, the width converters and the wide-slave aligner, and
+  the response mux are untouched.
+- The fabric ID is the master index alone (`id_width = 0`, BRIDGE-016).
+
+**Modules**: `projects/components/converters/rtl/apb4_to_axi4.sv`,
+`apb5_to_axi4.sv`, `apb_cmdrsp_to_axi4.sv` -- see the converters MAS.
+
+### Master-Side AXI5-Lite Sideband
+
+When `protocol = "axil5"` is specified on a **master** (BRIDGE-014), the
+bridge top exposes the AXI4-Lite set plus every AXI5-Lite sideband group
+(from `bridge_pkg/axil5_sideband.py`, the one table the slave side also
+reads, with the directions flipped for a requester). The enabled forwardable
+groups join the Lite surface and are wired into the adapter's AXI4 face
+(`exclusive` -> `awlock`/`arlock`, `user` -> `aw/w/ar user`); the rest is
+terminated at the top -- requester-driven inputs consumed by a reduction into
+an `_unused_<master>_axil5_sb` wire, completer-driven outputs driven `'0`.
+Response-side USER (`buser`/`ruser`) is connected but reads 0, because the
+master adapters tie response USER (PRD).
+
 ### Master-Side AXIL→Wider-Slave Alignment
 
-When an AXI4-Lite master interfaces with a wider AXI4 slave (e.g., 32-bit AXIL master to 64-bit AXI4 slave):
+When an AXI4-Lite master interfaces with a wider AXI4 slave (e.g., 32-bit AXIL master to 64-bit AXI4 slave) -- and likewise an AXI5-Lite or APB master, which present the same single-beat stream:
 - Generator emits `axil_to_axi4_wide_align_rd.sv` (read) and `axil_to_axi4_wide_align_wr.sv` (write) at the **master adapter output** (before crossbar core)
 - These modules handle **width alignment** (not protocol conversion — that's done at the slave boundary if needed)
 - Preserves AXIL's single-beat constraint on the master side

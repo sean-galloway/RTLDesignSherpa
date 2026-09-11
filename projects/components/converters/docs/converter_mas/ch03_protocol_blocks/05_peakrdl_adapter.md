@@ -37,7 +37,7 @@ PeakRDL generates register blocks with a selectable cpuif, and this adapter mate
 ## Parameters
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+| --- | --- | --- | --- |
 | ADDR_WIDTH | int | 12 | Address width (register-block sized) |
 | DATA_WIDTH | int | 32 | Data width |
 
@@ -236,7 +236,9 @@ here showed the adapter hanging off a register block's APB port through
 `reg_*` signals that do not exist — the reversed-direction reading this
 page used to make.
 
-## 3.5.9 APB4 Front End (apb4_to_peakrdl)
+## Related Modules
+
+### 3.5.9 APB4 Front End (apb4_to_peakrdl)
 
 `peakrdl_to_cmdrsp` above takes a cmd/rsp stream. `apb4_to_peakrdl` is the
 module that produces one from an APB4 slave port, and it crosses clock domains
@@ -244,12 +246,12 @@ while doing it -- APB on `pclk`, the register block on `aclk`. It is a
 two-stage composition and adds no register logic of its own:
 
 | Stage | Module | Domain |
-|-------|--------|--------|
+| --- | --- | --- |
 | 1 | `apb4_slave_cdc` | `pclk` in, `aclk` out |
 | 2 | `peakrdl_to_cmdrsp` | `aclk` |
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+| --- | --- | --- | --- |
 | `ADDR_WIDTH` | int | 12 | APB and cpuif byte address width |
 | `DATA_WIDTH` | int | 32 | Must match the PeakRDL generation |
 | `PROT_WIDTH` | int | 3 | `PPROT` width |
@@ -261,7 +263,7 @@ two-stage composition and adds no register logic of its own:
 : apb4_to_peakrdl Parameters
 
 | Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
+| --- | --- | --- | --- |
 | `aclk` | 1 | Input | Register-block clock; drives the cpuif master |
 | `aresetn` | 1 | Input | Active-low reset, `aclk` domain |
 | `pclk` | 1 | Input | APB clock |

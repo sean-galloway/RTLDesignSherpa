@@ -1,0 +1,65 @@
+# Bridge Configuration: two LITE requesters into an AXI4 fabric (BRIDGE-014).
+#
+# Masters are an AXI4-Lite port and an AXI5-Lite port -- neither carries a
+# transaction ID, so the fabric ID is entirely the master index (BRIDGE-016)
+# and the slaves see 2-bit IDs from a bridge whose masters have none. The
+# AXI5-Lite master enables the two forwardable groups: 'user' rides the
+# fabric's 1-bit USER fields and 'exclusive' rides awlock/arlock, both to the
+# AXI5-Lite slave (which forwards them on its own two features). Everything else
+# in its sideband is exposed and terminated at the bridge top.
+#
+# The 64-bit AXI4 slave makes both Lite masters take the wide-slave aligner
+# (a narrow single-beat write must land in the right byte lanes of the wide
+# row); the AXI5-Lite slave is same-width so its path is a plain shim.
+# Connectivity comes from bridge_2x2_lite_req_connectivity.csv.
+
+[bridge]
+name = "bridge_2x2_lite_req"
+variants = ["no", "mon"]
+description = "AXI4-Lite + AXI5-Lite masters x AXI4 (64b) + AXI5-Lite slaves rw bridge (BRIDGE-014)"
+
+[[bridge.masters]]
+name = "lite4"
+prefix = "lite4_axil_"
+id_width = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+protocol = "axil"
+
+[[bridge.masters]]
+name = "lite5"
+prefix = "lite5_axil_"
+id_width = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+protocol = "axil5"
+axi5_features = ["user", "exclusive"]
+
+[[bridge.slaves]]
+name = "mem"
+prefix = "mem_axi_"
+id_width = 2  # {master index, master id}: 1-bit placeholder ID + 1 prefix bit (BRIDGE-016)
+addr_width = 32
+data_width = 64
+user_width = 1
+channels = "rw"
+protocol = "axi4"
+base_addr = "0x00000000"
+addr_range = "0x10000000"
+
+[[bridge.slaves]]
+name = "regs"
+prefix = "regs_axil_"
+id_width = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+protocol = "axil5"
+axi5_features = ["user", "exclusive"]  # forwards the master's user AND lock; a group the slave does not enable is gated to 0 at its shim
+base_addr = "0x40000000"
+addr_range = "0x00010000"

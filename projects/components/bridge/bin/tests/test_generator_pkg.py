@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import csv
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -972,3 +973,210 @@ def test_axi5_wr_atomic_keeps_filter(tmp_path):
                      for p in (tmp_path.parent / "filelists").glob("bridge_1x2_wr_axi5a*.f"))
     assert "axi5_atomic_filter.f" in text
     assert "axi5_atomic_rr_tracker.f" not in text
+
+
+# ---------------------------------------------------------------------
+# Lite and APB REQUESTER ports (BRIDGE-014)
+# ---------------------------------------------------------------------
+
+def _write_req_toml(tmp_path, master_block, slave_block=None):
+    """A one-master, one-slave TOML whose master block is supplied whole,
+    so the Lite/APB master rules (id_width, addr_width) can be exercised
+    without colliding with _write_min_toml's fixed keys."""
+    toml = tmp_path / "r.toml"
+    conn = tmp_path / "r.csv"
+    slave_block = slave_block or """
+[[bridge.slaves]]
+name = "s0"
+prefix = "s0_"
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+protocol = "axi4"
+base_addr = "0x0000_0000"
+addr_range = "0x0001_0000"
+"""
+    toml.write_text(f"""
+[bridge]
+name = "r"
+variants = ["no"]
+
+[[bridge.masters]]
+name = "m0"
+prefix = "m0_"
+{master_block}
+{slave_block}
+""")
+    conn.write_text("master,s0\nm0,1\n")
+    return str(toml), str(conn)
+
+
+def test_lite_master_id_width_rejected(tmp_path):
+    """AXI-Lite has no transaction IDs; a non-zero id_width would size
+    ports that do not exist on the boundary."""
+    toml, conn = _write_req_toml(tmp_path, """
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+protocol = "axil"
+""")
+    with pytest.raises(ValidationError, match="must have id_width=0"):
+        load_config(toml, conn)
+
+
+def test_apb_master_addr_width_rejected(tmp_path):
+    """An APB requester supplies the full fabric address, unlike an APB
+    slave port whose PADDR is a window offset."""
+    toml, conn = _write_req_toml(tmp_path, """
+addr_width = 16
+data_width = 32
+id_width = 0
+channels = "rw"
+protocol = "apb5"
+""")
+    with pytest.raises(ValidationError, match="must have addr_width=32"):
+        load_config(toml, conn)
+
+
+@pytest.mark.parametrize("feat", ["trace", "loop", "mpam", "mecid", "nsaid", "poison"])
+def test_axil5_master_tied_feature_rejected(tmp_path, feat):
+    """On a master port the tied groups have no AXI4 DESTINATION: the bridge
+    top terminates them whether or not they are named. Rejected, same as
+    the slave side, so the config cannot claim a feature the design drops."""
+    toml, conn = _write_req_toml(tmp_path, f"""
+addr_width = 32
+data_width = 32
+id_width = 0
+channels = "rw"
+protocol = "axil5"
+axi5_features = ["{feat}"]
+""")
+    with pytest.raises(ValidationError, match="no AXI4 destination"):
+        load_config(toml, conn)
+
+
+def test_axil5_master_forwardable_features_accepted(tmp_path):
+    toml, conn = _write_req_toml(tmp_path, """
+addr_width = 32
+data_width = 32
+id_width = 0
+channels = "rw"
+protocol = "axil5"
+axi5_features = ["user", "exclusive"]
+""")
+    cfg = load_config(toml, conn)
+    assert cfg.masters[0].protocol == "axil5"
+    assert cfg.masters[0].axi5_features == ["user", "exclusive"]
+
+
+def _generate_fixture(tmp_path, name):
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    out = tmp_path / "rtl"
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+         "--ports", _fixture(f"{name}.toml"),
+         "--connectivity", _fixture(f"{name}_connectivity.csv"),
+         "--name", name,
+         "--output-dir", str(out)],
+        cwd=str(BIN_DIR), env=env,
+        capture_output=True, text=True, timeout=300,
+    )
+    assert r.returncode == 0, f"generator failed:\n{r.stdout}\n{r.stderr}"
+    # Filelists land beside the output dir, in <parent>/filelists.
+    return out / name, tmp_path / "filelists" / f"{name}.f"
+
+
+def test_lite_req_generation_smoke(tmp_path):
+    """bridge_2x2_lite_req: an AXI4-Lite and an AXI5-Lite REQUESTER.
+
+    The AXI5-Lite master exposes the full sideband with master-port
+    directions (requester-driven groups are bridge INPUTS), the enabled
+    forwardable groups reach its adapter, and every other group is
+    terminated at the top -- inputs consumed, outputs driven to 0. Both
+    Lite masters take the wide-slave aligner toward the 64-bit memory, and
+    neither has an ID on the boundary."""
+    gen, filelist = _generate_fixture(tmp_path, "bridge_2x2_lite_req")
+    top = (gen / "bridge_2x2_lite_req.sv").read_text()
+
+    # Requester-driven sideband: INPUTS on a master port (the slave-port
+    # table says 'out' for these; the direction flips).
+    for base in ("awlock", "awuser", "awloop", "awtrace", "wuser", "wpoison",
+                 "arlock", "aruser", "armpam", "arnsaid"):
+        assert re.search(rf"input\s+logic[^\n]*lite5_axil_{base},", top), base
+    for base in ("buser", "bloop", "btrace", "ruser", "rloop", "rtrace", "rpoison"):
+        assert re.search(rf"output logic[^\n]*lite5_axil_{base},", top), base
+    from bridge_pkg.axil5_sideband import MPAM_WIDTH, MECID_WIDTH
+    assert f"[{MPAM_WIDTH-1}:0] lite5_axil_awmpam" in top
+    assert f"[{MECID_WIDTH-1}:0] lite5_axil_armecid" in top
+
+    # Forwardable groups ('user', 'exclusive') are wired into the adapter.
+    for base in ("awlock", "awuser", "wuser", "buser", "arlock", "aruser", "ruser"):
+        assert f".lite5_axil_{base}(lite5_axil_{base})" in top, base
+    # Everything else is terminated at the top, not left floating.
+    for base in ("bloop", "btrace", "rloop", "rtrace", "rpoison"):
+        assert f"assign lite5_axil_{base} = '0;" in top, base
+    assert "_unused_lite5_axil5_sb" in top
+    for base in ("awloop", "awmpam", "awmecid", "awnsaid", "awtrace", "wpoison"):
+        assert re.search(rf"_unused_lite5_axil5_sb[^\n]*lite5_axil_{base}", top), base
+
+    # No ID PORT on either Lite boundary, and no sideband port on the
+    # AXI4-Lite one. (The names do appear inside the top, as the tied-off
+    # connections to the adapter's AXI4 face -- `.lite4_axil_awid(1'h0)` --
+    # which is exactly the point: the boundary has no such pin.)
+    for name in ("lite4_axil_awid", "lite5_axil_awid", "lite4_axil_awuser",
+                 "lite4_axil_awlock", "lite4_axil_awlen"):
+        assert not re.search(rf"(input|output)\s+logic[^\n]*\b{name}\b", top), name
+
+    # Both Lite masters take the aligner toward the 64-bit slave.
+    for m in ("lite4", "lite5"):
+        adapter = (gen / f"{m}_adapter.sv").read_text()
+        assert "axil_to_axi4_wide_align_wr" in adapter, m
+        assert "axil_to_axi4_wide_align_rd" in adapter, m
+        assert "apb4_to_axi4" not in adapter and "apb5_to_axi4" not in adapter
+
+    fl = filelist.read_text()
+    assert "axil_to_axi4_wide_align_wr.f" in fl
+    assert "apb4_to_axi4.f" not in fl and "apb5_to_axi4.f" not in fl
+
+
+def test_apb_req_generation_smoke(tmp_path):
+    """bridge_2x3_apb_req: an APB4 and an APB5 REQUESTER.
+
+    The bridge top is the APB completer (PSEL..PPROT in, PREADY/PRDATA/
+    PSLVERR out; apb5 adds PAUSER/PWUSER/PWAKEUP in, PRUSER/PBUSER out),
+    each adapter puts apb{4,5}_to_axi4 in front of the same axi4_slave_*
+    timing wrapper an AXI4 master gets, and the filelist pulls both
+    converter closures."""
+    gen, filelist = _generate_fixture(tmp_path, "bridge_2x3_apb_req")
+    top = (gen / "bridge_2x3_apb_req.sv").read_text()
+
+    for m in ("apb4m", "apb5m"):
+        for sig in ("PSEL", "PENABLE", "PADDR", "PWRITE", "PWDATA", "PSTRB", "PPROT"):
+            assert re.search(rf"input\s+logic[^\n]*{m}_apb_{sig},", top), (m, sig)
+        for sig in ("PREADY", "PRDATA", "PSLVERR"):
+            assert re.search(rf"output logic[^\n]*{m}_apb_{sig},", top), (m, sig)
+        # No AXI signal of any kind on an APB requester boundary.
+        assert f"{m}_apb_awaddr" not in top and f"{m}_apb_awvalid" not in top
+    for sig in ("PAUSER", "PWUSER", "PWAKEUP"):
+        assert re.search(rf"input\s+logic[^\n]*apb5m_apb_{sig},", top), sig
+    for sig in ("PRUSER", "PBUSER"):
+        assert re.search(rf"output logic[^\n]*apb5m_apb_{sig},", top), sig
+    assert "apb4m_apb_PWAKEUP" not in top
+
+    a4 = (gen / "apb4m_adapter.sv").read_text()
+    a5 = (gen / "apb5m_adapter.sv").read_text()
+    assert "apb4_to_axi4 #(" in a4 and "apb5_to_axi4 #(" not in a4
+    assert "apb5_to_axi4 #(" in a5 and "apb4_to_axi4 #(" not in a5
+    for adapter in (a4, a5):
+        # The front end feeds the ordinary timing wrapper on the internal
+        # AXI4 face: same wrapper, different connector prefix.
+        assert ".m_axi_awvalid(apbx_axi_awvalid)" in adapter
+        assert ".s_axi_awvalid(apbx_axi_awvalid)" in adapter
+        assert "axi4_slave_wr" in adapter and "axi4_slave_rd" in adapter
+    assert ".s_apb_PWAKEUP(apb5m_apb_PWAKEUP)" in a5
+
+    fl = filelist.read_text()
+    assert "converters/rtl/filelists/apb4_to_axi4.f" in fl
+    assert "converters/rtl/filelists/apb5_to_axi4.f" in fl

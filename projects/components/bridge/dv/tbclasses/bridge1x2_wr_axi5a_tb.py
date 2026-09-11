@@ -597,7 +597,13 @@ class Bridge1x2WrAxi5aTB(TBBase):
     async def master_read(self, master_idx: int, address: int) -> int:
         """Single-beat read from master[master_idx]. Returns master-width int."""
         if master_idx in self.master_apb:
-            return await self.master_apb[master_idx].read(address)
+            # APB has one error bit: SLVERR and DECERR both arrive as PSLVERR.
+            # Report it as SLVERR (2) -- the code an in-range-but-failed
+            # access would carry -- since APB cannot tell the two apart.
+            txn = await self.master_apb[master_idx].read(address)
+            if txn.fields.get('pslverr', 0):
+                raise AxiResponseError(address, 2, 'PSLVERR on APB read')
+            return int(txn.fields['prdata'])
         rd = self.master_rd[master_idx]
         try:
             return await rd.single_read(address, size=self._natural_arsize(master_idx))
@@ -620,7 +626,9 @@ class Bridge1x2WrAxi5aTB(TBBase):
         arrived somewhere. APB has no id and ignores it.
         """
         if master_idx in self.master_apb:
-            await self.master_apb[master_idx].write(address, data)
+            txn = await self.master_apb[master_idx].write(address, data)
+            if txn.fields.get('pslverr', 0):
+                raise AxiResponseError(address, 2, 'PSLVERR on APB write')
             return
         wr = self.master_wr[master_idx]
         kwargs = {'size': self._natural_arsize(master_idx)}

@@ -1,0 +1,73 @@
+# Bridge Configuration: two APB requesters into an AXI4 fabric (BRIDGE-014).
+#
+# An APB4 and an APB5 requester each get an apb{4,5}_to_axi4 front end in
+# their master adapter: one APB transfer -> one single-beat AXI4 transaction,
+# SLVERR and DECERR both folded to PSLVERR. APB carries no ID, so the fabric
+# ID is the master index alone (BRIDGE-016). Three slaves cover the three
+# things worth proving: a plain AXI4 memory, an AXI5-Lite port with 'user'
+# (the APB5 requester's PAUSER[0] must show up as awuser there -- the only
+# slave family that can show a USER bit), and an APB4 completer (APB in,
+# APB out, through the whole fabric).
+# Connectivity comes from bridge_2x3_apb_req_connectivity.csv.
+
+[bridge]
+name = "bridge_2x3_apb_req"
+variants = ["no", "mon"]
+description = "APB4 + APB5 masters x AXI4 + AXI5-Lite + APB4 slaves rw bridge (BRIDGE-014)"
+
+[[bridge.masters]]
+name = "apb4m"
+prefix = "apb4m_apb_"
+id_width = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+protocol = "apb"
+
+[[bridge.masters]]
+name = "apb5m"
+prefix = "apb5m_apb_"
+id_width = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+protocol = "apb5"
+
+[[bridge.slaves]]
+name = "mem"
+prefix = "mem_axi_"
+id_width = 2  # {master index, master id}: 1-bit placeholder ID + 1 prefix bit (BRIDGE-016)
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+protocol = "axi4"
+base_addr = "0x00000000"
+addr_range = "0x10000000"
+
+[[bridge.slaves]]
+name = "lregs"
+prefix = "lregs_axil_"
+id_width = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+protocol = "axil5"
+axi5_features = ["user"]
+base_addr = "0x40000000"
+addr_range = "0x00010000"
+
+[[bridge.slaves]]
+name = "periph"
+prefix = "periph_apb_"
+id_width = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+protocol = "apb"
+base_addr = "0x50000000"
+addr_range = "0x00001000"

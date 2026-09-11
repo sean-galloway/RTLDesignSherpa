@@ -330,6 +330,12 @@ class AdapterGenerator:
         from ..components.axi4_timing_wrapper_component import (
             axi5_exposed_ext_signals,
         )
+        # An APB requester port has no AXI surface at all: the adapter is
+        # the APB completer and the AXI4 face it feeds the wrapper with is
+        # internal (see _generate_apb_front_end).
+        if self.master.protocol in ('apb', 'apb5'):
+            return self._generate_apb_external_ports()
+
         lines = []
         is_axi5 = (self.master.protocol == 'axi5')
         # Normalised prefix for the hand-emitted AXI5 extras (SignalNaming
@@ -409,6 +415,159 @@ class AdapterGenerator:
                         lines.append(
                             f"    {dir_str}  logic         {sig_name},")
 
+        return lines
+
+    # ------------------------------------------------------------------
+    # APB requester ports (BRIDGE-014): the adapter is the APB COMPLETER.
+    # ------------------------------------------------------------------
+
+    # The AXI4 face apb{4,5}_to_axi4 produces, consumed by the same
+    # axi4_slave_{wr,rd} timing wrapper an AXI4 master port gets. One net
+    # prefix, declared and connected from the one helper below.
+    APB_AXI_PREFIX = 'apbx_axi_'
+
+    @property
+    def is_apb_master(self) -> bool:
+        return self.master.protocol in ('apb', 'apb5')
+
+    def _generate_apb_external_ports(self) -> List[str]:
+        """APB completer surface: the external requester drives PSEL..PPROT,
+        the adapter answers PREADY/PRDATA/PSLVERR. apb5 adds the requester's
+        PAUSER/PWUSER/PWAKEUP and the completer's PRUSER/PBUSER, one bit each
+        (the fabric USER width), mirroring the apb5 slave-port surface."""
+        p = self.master.prefix
+        dw = self.master.data_width
+        sw = dw // 8
+        lines = [
+            f"    input  logic                  {p}PSEL,",
+            f"    input  logic                  {p}PENABLE,",
+            f"    output logic                  {p}PREADY,",
+            f"    input  logic [31:0]           {p}PADDR,",
+            f"    input  logic                  {p}PWRITE,",
+            f"    input  logic [{dw-1}:0] {p}PWDATA,",
+            f"    input  logic [{sw-1}:0] {p}PSTRB,",
+            f"    input  logic [2:0]            {p}PPROT,",
+            f"    output logic [{dw-1}:0] {p}PRDATA,",
+            f"    output logic                  {p}PSLVERR,",
+        ]
+        if self.master.protocol == 'apb5':
+            lines += [
+                f"    input  logic                  {p}PAUSER,",
+                f"    input  logic                  {p}PWUSER,",
+                f"    input  logic                  {p}PWAKEUP,",
+                f"    output logic                  {p}PRUSER,",
+                f"    output logic                  {p}PBUSER,",
+            ]
+        return lines
+
+    def _apb_axi_net_decls(self, prefix: str) -> List[str]:
+        """`logic [W-1:0] {prefix}{sig};` for the full AXI4 channel set the
+        APB front end drives into the timing wrapper. ID is the internal
+        face width (fub_id_width), USER is the fabric's 1 bit."""
+        id_w = self.fub_id_width
+        dw = self.master.data_width
+        sw = dw // 8
+        return [
+            f"    logic [{id_w-1}:0] {prefix}awid;",
+            f"    logic [31:0] {prefix}awaddr;",
+            f"    logic [7:0]  {prefix}awlen;",
+            f"    logic [2:0]  {prefix}awsize;",
+            f"    logic [1:0]  {prefix}awburst;",
+            f"    logic        {prefix}awlock;",
+            f"    logic [3:0]  {prefix}awcache;",
+            f"    logic [2:0]  {prefix}awprot;",
+            f"    logic [3:0]  {prefix}awqos;",
+            f"    logic [3:0]  {prefix}awregion;",
+            f"    logic        {prefix}awuser;",
+            f"    logic        {prefix}awvalid;",
+            f"    logic        {prefix}awready;",
+            f"    logic [{dw-1}:0] {prefix}wdata;",
+            f"    logic [{sw-1}:0] {prefix}wstrb;",
+            f"    logic        {prefix}wlast;",
+            f"    logic        {prefix}wuser;",
+            f"    logic        {prefix}wvalid;",
+            f"    logic        {prefix}wready;",
+            f"    logic [{id_w-1}:0] {prefix}bid;",
+            f"    logic [1:0]  {prefix}bresp;",
+            f"    logic        {prefix}buser;",
+            f"    logic        {prefix}bvalid;",
+            f"    logic        {prefix}bready;",
+            f"    logic [{id_w-1}:0] {prefix}arid;",
+            f"    logic [31:0] {prefix}araddr;",
+            f"    logic [7:0]  {prefix}arlen;",
+            f"    logic [2:0]  {prefix}arsize;",
+            f"    logic [1:0]  {prefix}arburst;",
+            f"    logic        {prefix}arlock;",
+            f"    logic [3:0]  {prefix}arcache;",
+            f"    logic [2:0]  {prefix}arprot;",
+            f"    logic [3:0]  {prefix}arqos;",
+            f"    logic [3:0]  {prefix}arregion;",
+            f"    logic        {prefix}aruser;",
+            f"    logic        {prefix}arvalid;",
+            f"    logic        {prefix}arready;",
+            f"    logic [{id_w-1}:0] {prefix}rid;",
+            f"    logic [{dw-1}:0] {prefix}rdata;",
+            f"    logic [1:0]  {prefix}rresp;",
+            f"    logic        {prefix}rlast;",
+            f"    logic        {prefix}ruser;",
+            f"    logic        {prefix}rvalid;",
+            f"    logic        {prefix}rready;",
+        ]
+
+    def _generate_apb_front_end(self) -> List[str]:
+        """Instantiate apb4_to_axi4 / apb5_to_axi4 between the port's APB
+        completer surface and the AXI4 timing wrapper.
+
+        The converter (projects/components/converters) is the requester
+        half of the bridge's APB story: one APB transfer -> one single-beat
+        AXI4 transaction, both SLVERR and DECERR folded to PSLVERR. From the
+        wrapper onward the port is indistinguishable from an AXI4-Lite
+        master with awlen=0, so decode, width adaptation (the wide-slave
+        aligner included) and the response mux are untouched. USER is the
+        fabric's 1 bit: PAUSER[0]/PWUSER[0] ride awuser/wuser and come back
+        on PBUSER/PRUSER from buser/ruser."""
+        p = self.master.prefix
+        x = self.APB_AXI_PREFIX
+        apb5 = (self.master.protocol == 'apb5')
+        module = 'apb5_to_axi4' if apb5 else 'apb4_to_axi4'
+        lines: List[str] = []
+        lines.append("    // ================================================================")
+        lines.append(f"    // APB requester front end ({module}): APB completer -> AXI4")
+        lines.append("    // single-beat requester, feeding the timing wrapper below.")
+        lines.append("    // ================================================================")
+        lines.extend(self._apb_axi_net_decls(x))
+        lines.append("")
+        lines.append(f"    {module} #(")
+        lines.append(f"        .APB_ADDR_WIDTH(32),")
+        lines.append(f"        .APB_DATA_WIDTH({self.master.data_width}),")
+        if apb5:
+            for k in ('APB_AUSER_WIDTH', 'APB_WUSER_WIDTH', 'APB_RUSER_WIDTH', 'APB_BUSER_WIDTH'):
+                lines.append(f"        .{k}(1),")
+        lines.append(f"        .AXI_ID_WIDTH({self.fub_id_width}),")
+        lines.append(f"        .AXI_USER_WIDTH(1)")
+        lines.append(f"    ) u_apb_front_end (")
+        lines.append(f"        .aclk(aclk),")
+        lines.append(f"        .aresetn(aresetn),")
+        for sig in ('PSEL', 'PENABLE', 'PREADY', 'PADDR', 'PWRITE', 'PWDATA',
+                    'PSTRB', 'PPROT', 'PRDATA', 'PSLVERR'):
+            lines.append(f"        .s_apb_{sig}({p}{sig}),")
+        if apb5:
+            for sig in ('PAUSER', 'PWUSER', 'PWAKEUP', 'PRUSER', 'PBUSER'):
+                lines.append(f"        .s_apb_{sig}({p}{sig}),")
+        axi_sigs = ('awid', 'awaddr', 'awlen', 'awsize', 'awburst', 'awlock',
+                    'awcache', 'awprot', 'awqos', 'awregion', 'awuser',
+                    'awvalid', 'awready',
+                    'wdata', 'wstrb', 'wlast', 'wuser', 'wvalid', 'wready',
+                    'bid', 'bresp', 'buser', 'bvalid', 'bready',
+                    'arid', 'araddr', 'arlen', 'arsize', 'arburst', 'arlock',
+                    'arcache', 'arprot', 'arqos', 'arregion', 'aruser',
+                    'arvalid', 'arready',
+                    'rid', 'rdata', 'rresp', 'rlast', 'ruser', 'rvalid', 'rready')
+        for i, sig in enumerate(axi_sigs):
+            sep = ',' if i < len(axi_sigs) - 1 else ''
+            lines.append(f"        .m_axi_{sig}({x}{sig}){sep}")
+        lines.append("    );")
+        lines.append("")
         return lines
 
     def _generate_struct_ports(self) -> List[str]:
@@ -915,6 +1074,12 @@ class AdapterGenerator:
         signal_prefix = self.master.prefix
         if signal_prefix and not signal_prefix.endswith("_"):
             signal_prefix = signal_prefix + "_"
+
+        # An APB requester port has no external AXI4 signals; the wrapper's
+        # external side connects to the AXI4 face the APB front end drives.
+        if self.is_apb_master:
+            lines.extend(self._generate_apb_front_end())
+            signal_prefix = self.APB_AXI_PREFIX
 
         # Monitor identity: UNIT_ID=2 marks every master-side wrapper
         # (axi4_slave_*_mon -- the bridge looks like a slave to the
@@ -1961,7 +2126,9 @@ class AdapterGenerator:
         # Substitute the dedicated master-side aligner modules instead;
         # they emit one wide single-beat write/read with wdata/wstrb
         # positioned at slot = awaddr[ROW_LSB-1:SLOT_LSB].
-        use_aligner = (self.master.protocol == 'axil') and \
+        # APB requesters produce the same single-beat, awlen=0 stream (via
+        # apb{4,5}_to_axi4), so they take the aligner for the same reason.
+        use_aligner = (self.master.protocol in ('axil', 'axil5', 'apb', 'apb5')) and \
                       (master_width < slave_width)
 
         # Write converter

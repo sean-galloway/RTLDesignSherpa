@@ -168,6 +168,36 @@ the APB4 shim — see the converters MAS), and the external surface adds
 (terminated). The generated TB drives the port with the APB4 BFM: APB5
 keeps the APB4 transfer protocol.
 
+## Lite and APB Requesters (BRIDGE-014)
+
+Every protocol value is legal on a master port. Two of them needed work
+beyond the AXI4-Lite master path that already existed:
+
+- **`axil5` master.** The AXI4-Lite promotion (AXI4 extras tied at the
+  top, `axi4_slave_*` wrappers, the wide-slave aligner toward wider slaves)
+  plus the whole AXI5-Lite sideband on the boundary, directions flipped for
+  a requester. `exclusive` and `user` -- the two groups with an AXI4
+  destination -- join the Lite surface and reach the adapter's AXI4 face;
+  the rest is terminated at the top. `validate_axil5_features` applies to
+  masters and slaves alike, so a config cannot name a group the design
+  drops.
+- **`apb` / `apb5` master.** The bridge is the APB completer.
+  `apb4_to_axi4` / `apb5_to_axi4` (converters: `apb{4,5}_slave` +
+  `apb_cmdrsp_to_axi4`) sit inside the master adapter in front of the
+  ordinary timing wrapper, so monitoring, decode, width adaptation and the
+  response mux are untouched. One transfer -> one single-beat AXI4
+  transaction; SLVERR and DECERR fold to PSLVERR; `PAUSER[0]`/`PWUSER[0]`
+  ride the fabric USER bit (visible at an `axil5` slave with `user`).
+  `PWAKEUP` is requester-driven and terminated.
+
+Validator rules: Lite masters `id_width = 0`; APB masters `addr_width = 32`
+(a requester addresses the whole fabric, unlike an APB slave port's window
+offset). The generated TB drives `axil5` masters with the AXIL5 BFMs and
+`apb`/`apb5` masters with `APBMaster`/`APB5Master`; `master_read`/
+`master_write` unwrap the APB transaction and turn `PSLVERR` into
+`AxiResponseError(resp=2)` -- APB cannot tell SLVERR from DECERR, so 2 is
+the honest code.
+
 ## Verification Anchors
 
 - Generator unit tests: `bin/tests/test_generator_pkg.py` (feature
@@ -194,6 +224,19 @@ keeps the APB4 transfer protocol.
   covers the tracker alone. Mutation-checked: with the tracker's `hit`
   removed from `rid_valid`, the R beat is never routed and the test fails
   on a read-return timeout.
+- Lite requesters: `dv/tests/test_bridge_2x2_lite_req_sideband.py` on
+  `bridge_2x2_lite_req` (AXI4-Lite + AXI5-Lite masters, 64b AXI4 + AXI5-Lite
+  slaves) -- `user`/`lock` from the AXI5-Lite master seen at the AXI5-Lite
+  slave and absent from the AXI4-Lite master's traffic, terminated groups
+  reading 0, both halves of a 64-bit row from both Lite masters (the
+  aligner), and both ID-less masters in flight at one slave.
+- APB requesters: `dv/tests/test_bridge_2x3_apb_req_paths.py` on
+  `bridge_2x3_apb_req` (APB4 + APB5 masters, AXI4 + AXI5-Lite + APB4
+  slaves) -- PSLVERR for unmapped addresses with the port working after,
+  PPROT at the AXI4 slave, the APB5 USER bit at the AXI5-Lite slave and 0
+  from the APB4 master, APB in / APB out through the fabric from both
+  requesters interleaved. The converters alone:
+  `projects/components/converters/dv/tests/test_apb{4,5}_to_axi4.py`.
 - AXI5 compliance at the boundary: every generated TB arms an
   `AXI5ComplianceChecker` on each AXI5 master port and every generated test
   asserts zero violations before PASSED; `dv/tests/test_bridge_1x2_rd_axi5_bfm5.py`

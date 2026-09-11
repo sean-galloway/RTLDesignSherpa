@@ -86,9 +86,9 @@ Features intentionally excluded for simplicity:
 - (Both of these WERE excluded once and no longer are: ID width and address
   width are per-port generation inputs. Left here as history because the
   "design differentiator" argument above still cites them.)
-- ~~No AXI4-Lite protocol variant~~ -- `axil` and `axil5` ARE supported slave protocols (`config_validator.valid_protocols`), converted at the boundary by `axi4_to_axil4_{rd,wr}`
+- ~~No AXI4-Lite protocol variant~~ -- `axil` and `axil5` ARE supported, as slave protocols (converted at the boundary by `axi4_to_axil4_{rd,wr}` / `axi4_to_axil5_{rd,wr}`) and, since BRIDGE-014, as master protocols (tied-off promotion plus the AXI5-Lite sideband surface). `apb` / `apb5` likewise work on both sides (`axi4_to_apb{4,5}_shim` at a slave, `apb{4,5}_to_axi4` at a master).
 - No ACE protocol extensions (cache coherency)
-- No AXI5 features
+- ~~No AXI5 features~~ -- interop-mode AXI5 sideband, native sideband through the structs, atomics of every class and APB5/AXI5-Lite ports were delivered by BRIDGE-002; what is NOT built is a fabric that is itself AXI5 (BRIDGE-018)
 - QoS, Region and REQUEST-side User (AWUSER/ARUSER/WUSER) are routed since
   `c2955863`/`2b229516`. RESPONSE-side User is not: `BUSER`/`RUSER` exist as
   ports but the master adapters tie them to zero (`.fub_axi_buser(1'b0)`,

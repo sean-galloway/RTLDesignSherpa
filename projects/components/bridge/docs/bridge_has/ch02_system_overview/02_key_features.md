@@ -64,11 +64,15 @@ dma,1,0
 | AXI5 | AXI4 / AXI4-Lite / APB | Base-subset interop; sideband terminates at the boundary (warning) |
 | AXI5 | AXI5 (width-matched) | Native sideband pass-through; atomics (read-return classes need an rw port); poison |
 | AXI4 / AXI5 | APB5 | APB4 conversion core + APB5 sideband surface |
+| AXI4-Lite / AXI5-Lite | any | Lite requester: single-beat AXI4 inside; the AXI5-Lite `user` and `exclusive` groups ride the fabric, the rest terminate at the boundary |
+| APB / APB5 | any | APB requester: `apb4_to_axi4` / `apb5_to_axi4` front end, one AXI4 transaction per transfer, SLVERR and DECERR fold to PSLVERR |
 
 : Table 2.1: Supported Protocols
 
-AMBA5 ports are declared per port (`protocol = "axi5"` / `"apb5"` with an
-optional `axi5_features` list); the fabric stays AXI4 internally. See
+AMBA5 ports are declared per port (`protocol = "axi5"` / `"axil5"` /
+`"apb5"` with an optional `axi5_features` list); the fabric stays AXI4
+internally. Every protocol value is legal on a master port as well as a
+slave port (BRIDGE-014). See
 [AXI5 and APB5 Interfaces](../ch04_interfaces/04_axi5_apb5_interfaces.md).
 
 ### Protocol Features

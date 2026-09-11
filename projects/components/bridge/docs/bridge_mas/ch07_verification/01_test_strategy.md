@@ -122,6 +122,8 @@ tests and TB class:
 | `bridge_1x2_rw_axil5`, `bridge_1x2_rw_apb5` | AXI4 master, AXI5-Lite / APB5 slave | the Lite and APB5 shims |
 | `bridge_2x2_axi5` | two AXI5 masters, AXI5 + AXI4 slaves | sideband through arbitration |
 | `bridge_1x2_rd_axi5w` | AXI5 32b master, 64b AXI4 + 32b AXI5 slaves | sideband across a width converter |
+| `bridge_2x2_lite_req` | AXI4-Lite + AXI5-Lite masters, 64b AXI4 + AXI5-Lite slaves | Lite requesters (BRIDGE-014): sideband forwarding, the aligner, ID-less masters sharing a slave |
+| `bridge_2x3_apb_req` | APB4 + APB5 masters, AXI4 + AXI5-Lite + APB4 slaves | APB requesters (BRIDGE-014): `apb{4,5}_to_axi4`, PSLVERR folding, APB in / APB out |
 
 : Table 7.1a: AMBA5 Fixtures
 
@@ -129,7 +131,7 @@ tests and TB class:
 
 Modern bridge tests use **protocol BFMs only** (no direct DUT signal manipulation) with **memory-backed slave models**. If you find yourself poking a DUT signal in a test, stop — drive the protocol and check the memory instead. That includes AMBA5 sideband and atomics: the AXI5 BFMs take `nsaid`/`trace`/`unique`/`poison`/`atop` as transaction keyword arguments (`write_transaction`, `read_transaction`, `atomic_operation`), and the generated TB returns the echoed `trace` in the BFM's result.
 
-The generated TB picks the BFM family from each port's protocol: AXI4 ports get the AXI4 BFMs, `axi5` ports the AXI5 BFMs (which declare every AMBA5 sideband field as optional, so one BFM binds to any feature subset), `axil5` ports the AXIL5 BFMs, and `apb5` ports `APB5Slave` at the generator's 1-bit USER widths. Every AXI5 master port also gets an `AXI5ComplianceChecker` on the same prefix, armed in `setup_clocks_and_reset` and read by `tb.assert_compliance()`, which every generated test calls before it declares PASSED -- a protocol violation on the AXI5 boundary fails the test that caused it even when the data still round-tripped.
+The generated TB picks the BFM family from each port's protocol: AXI4 ports get the AXI4 BFMs, `axi5` ports the AXI5 BFMs (which declare every AMBA5 sideband field as optional, so one BFM binds to any feature subset), `axil5` ports the AXIL5 BFMs (`AXIL5Master*` on a master port), `apb5` slave ports `APB5Slave` and `apb`/`apb5` master ports `APBMaster`/`APB5Master`, all at the generator's 1-bit USER widths. Every AXI5 master port also gets an `AXI5ComplianceChecker` on the same prefix, armed in `setup_clocks_and_reset` and read by `tb.assert_compliance()`, which every generated test calls before it declares PASSED -- a protocol violation on the AXI5 boundary fails the test that caused it even when the data still round-tripped.
 
 Slave memory models are capped at 64 KB per slave (`SLAVE_MEM_CAP_BYTES`). A probe past the model is answered by the one out-of-range contract every slave BFM follows (RDS-DV `shared/memory_model.py`): SLVERR, nothing written, `0xDEADDEAD` read data, one warning. The boundary probe swallows that error only for probes past the seeded region -- the error coming back from the slave the address decodes to is the routing evidence -- and `master_write` raises on any error response, so a SLVERR write never passes through a helper unnoticed. The model's limit is not the design's: an address the bridge does not decode at all is the subtractive slave's DECERR.
 

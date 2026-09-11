@@ -2,29 +2,6 @@
 
 # bridge — open
 
-## BRIDGE-014 — AXI5-Lite and APB5 as MASTER protocols; a native-AXI5 fabric
-**Status:** open 2026-09-10 (filed at Sean's request when BRIDGE-002 closed)
-**Priority:** P3. No in-tree consumer today.
-
-BRIDGE-002 delivered AXI5 masters and slaves, native sideband through the
-fabric structs, atomics of every class, and APB5 / AXI5-Lite as SLAVE
-protocols. Two things it named and did not do:
-
-1. **AXI5-Lite and APB5 as master protocols.** Both shipped slave-only by
-   decision; a Lite or APB5 requester into the fabric is a different piece
-   of work (an `axil5_to_axi4` / `apb5_to_axi4` front end, the master
-   adapter's protocol switch, the validator's master whitelist, and a
-   fixture with its BFMs). Start from how `protocol = "axil"` masters are
-   handled today.
-2. **A native-AXI5 fabric.** The original BRIDGE-002 goal called this the
-   follow-on. The sideband-in-structs design made it unnecessary for every
-   feature anyone has asked for, so the fabric is still AXI4-shaped inside
-   with AXI5 fields riding alongside. If a feature ever needs the fabric
-   itself to be AXI5 (per-beat chunking, MTE tags with their own ordering
-   rules), this is where it goes.
-
-Neither is owed until a consumer appears. Related: [[BRIDGE-002]] (closed).
-
 ## BRIDGE-017 — Legacy backlog carried over from projects/components/bridge/TASKS.md
 **Status:** open 2026-09-10 (created when the pre-migration file was folded in)
 **Priority:** P3. Aspirational items from the 2025 task list that nobody has
@@ -46,3 +23,22 @@ still "Planned" and describe real engineering that has not happened:
   arbiter.
 - **Pipeline stages in the crossbar** (TASK-019): the xbar is combinational
   end to end; a registered variant for high-fanout configs.
+
+## BRIDGE-018 — A native-AXI5 fabric
+**Status:** open 2026-09-11 (split out of BRIDGE-014 when its master-protocol
+half closed)
+**Priority:** P3. No feature anyone has asked for needs it.
+
+The crossbar is AXI4-shaped inside, with the AXI5 sideband riding alongside
+in the channel structs (BRIDGE-002 A5-2). That covers every AMBA5 feature
+delivered so far -- interop sideband, native sideband, atomics of every
+class, poison, the Lite and APB5 ports on both sides (BRIDGE-014). What it
+cannot express is a feature whose semantics change the fabric's own rules:
+read-data chunking (per-beat ordering inside a burst), MTE tags with their
+own ordering, or anything that needs the crossbar to reason about AXI5
+transaction attributes rather than carry them. If one of those becomes a
+requirement, this is where it goes: the structs, the crossbar mux, both
+adapters' tracking paths and the response mux all change together.
+
+Not owed until a consumer appears. Related: [[BRIDGE-002]], [[BRIDGE-014]]
+(both closed).

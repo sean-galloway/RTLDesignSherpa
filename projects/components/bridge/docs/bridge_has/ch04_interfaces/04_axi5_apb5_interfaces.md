@@ -47,6 +47,19 @@ axi5_features = ["trace", "atomic"]   # optional; empty = base AXI5
 name = "periph5"
 protocol = "apb5"                      # APB5 peripheral via the apb5 shim
 channels = "rw"                        # APB rules unchanged (rw-only, 32-bit)
+
+[[bridge.masters]]
+name = "lite5"
+protocol = "axil5"                     # AXI5-Lite requester (BRIDGE-014)
+id_width = 0                           # Lite has no ID pins
+axi5_features = ["user", "exclusive"]  # the two groups with an AXI4 destination
+
+[[bridge.masters]]
+name = "apb5m"
+protocol = "apb5"                      # APB5 requester (BRIDGE-014)
+id_width = 0
+addr_width = 32                        # the requester addresses the whole fabric
+channels = "rw"
 ```
 
 ## Ports
@@ -82,6 +95,38 @@ mirroring `rtl/amba/apb5/apb5_slave.sv` pin-for-pin:
 The transfer protocol is unchanged from APB4, so the `axi4_to_apb5_shim`
 is a sideband wrapper over the APB4 conversion core; APB constraints
 (rw-only, 32-bit data) apply unchanged.
+
+### AXI5-Lite Master Surface
+
+An `axil5` master port (BRIDGE-014) exposes the AXI4-Lite requester set plus
+the **whole** AXI5-Lite sideband, every group whether or not it is enabled --
+the same rule as the slave surface, so the boundary keeps one shape. The
+directions flip relative to the slave table: requester-driven groups are
+bridge inputs, completer-driven groups bridge outputs.
+
+| Group | Signals | Behaviour |
+|---|---|---|
+| **FORWARDED** (when enabled) | `awlock`/`arlock` (`exclusive`); `awuser`, `wuser`, `aruser` (`user`) | reach the adapter's AXI4 face and ride the fabric to the slave |
+| **TERMINATED inputs** | `aw/arloop`, `aw/armpam`, `aw/armecid`, `aw/arnsaid`, `aw/artrace`, `wpoison`; `awlock`/`awuser`/... when their feature is off | consumed at the bridge top (a reduction into an `_unused` wire), never floating |
+| **TERMINATED outputs** | `bloop`, `btrace`, `rloop`, `rtrace`, `rpoison`; `buser`/`ruser` when `user` is off | driven `'0` |
+| **Response USER** | `buser`, `ruser` with `user` on | connected, but read 0: the master adapters tie response-side USER (see the PRD) |
+
+: AXI5-Lite sideband groups at an `axil5` master boundary
+
+### APB5 Master Surface
+
+An `apb5` master port makes the bridge the APB5 **completer**: the APB4 set
+with the requester-driven signals as inputs and `PREADY/PRDATA/PSLVERR` as
+outputs, plus `PAUSER`, `PWUSER`, `PWAKEUP` in and `PRUSER`, `PBUSER` out,
+one bit each (the fabric USER width). `PAUSER[0]`/`PWUSER[0]` become
+`awuser`/`aruser`/`wuser` on the fabric -- observable at an `axil5` slave
+with `user` enabled. `PWAKEUP` is requester-driven and is accepted and
+terminated. Behind the surface sits `apb5_to_axi4`
+(`apb4_to_axi4` for `protocol = "apb"`), then the same AXI4 timing wrapper
+an AXI4 master port gets; from there the port is an AXI4-Lite-shaped
+single-beat requester and takes the wide-slave aligner toward wider slaves.
+An unmapped address answers `PSLVERR` (the subtractive slave's DECERR folds
+into APB's one error bit).
 
 ### AXI5-Lite Slave Surface
 
@@ -151,5 +196,7 @@ B's `AWUSER`.
 |---|---|---|---|---|
 | axi4 | native | base subset | via shim | via shim, sideband TIED to `'0` |
 | axi5 | sideband drops (warning) | **native sideband** when width-matched | sideband drops (warning) | forwarded where AXI4-expressible |
+| axil / axil5 | single-beat AXI4 | single-beat AXI4 | via shim | `user`/`exclusive` forwarded end to end (axil5 master); rest tied |
+| apb / apb5 | single-beat AXI4 | single-beat AXI4 | via shim (APB in, APB out) | `PAUSER[0]` visible as `awuser` (apb5 master) |
 
 Connectivity-gated features tighten the axi5→axi5 cell: they *require* it.

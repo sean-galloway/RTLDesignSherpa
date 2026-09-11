@@ -1037,6 +1037,21 @@ def _emit_bridge_variant(
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_slave_wr.f")
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_slave_rd.f")
 
+    # APB requester ports (BRIDGE-014): the master adapter puts
+    # apb4_to_axi4 / apb5_to_axi4 (converters component) in front of its
+    # timing wrapper. Each filelist is the converter's own closure (the
+    # rtl/amba apb{4,5}_slave front end included) -- never hand-list it.
+    if any(m.protocol.lower() == 'apb' for m in config.masters):
+        filelist_lines.append("")
+        filelist_lines.append("# APB4 requester front end (masters with protocol=apb)")
+        filelist_lines.append(
+            "-f $REPO_ROOT/projects/components/converters/rtl/filelists/apb4_to_axi4.f")
+    if any(m.protocol.lower() == 'apb5' for m in config.masters):
+        filelist_lines.append("")
+        filelist_lines.append("# APB5 requester front end (masters with protocol=apb5)")
+        filelist_lines.append(
+            "-f $REPO_ROOT/projects/components/converters/rtl/filelists/apb5_to_axi4.f")
+
     # Atomic-enabled WRITE-ONLY AXI5 masters (A5-3a): the master adapter
     # inserts the axi5_atomic_filter between the boundary wrapper and the
     # fabric. An rw atomic master forwards read-return atomics natively

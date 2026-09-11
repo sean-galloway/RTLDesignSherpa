@@ -138,7 +138,7 @@ def validate_axi5(masters: List[PortSpec], slaves: List[PortSpec]) -> None:
                 f"'{port.protocol}')"
             )
 
-    validate_axil5_features(slaves)
+    validate_axil5_features(list(masters) + list(slaves))
 
     for port in list(masters) + list(slaves):
         if port.protocol != 'axi5':
@@ -187,30 +187,38 @@ AXIL5_FORWARDABLE_FEATURES = ('user', 'exclusive')
 AXIL5_TIED_FEATURES = ('trace', 'loop', 'mpam', 'mecid', 'nsaid', 'poison')
 
 
-def validate_axil5_features(slaves: List[PortSpec]) -> None:
-    """Only the forwardable groups may be named on an axil5 port."""
-    for port in slaves:
+def validate_axil5_features(ports: List[PortSpec]) -> None:
+    """Only the forwardable groups may be named on an axil5 port.
+
+    Masters and slaves alike (BRIDGE-014): on a master port the same two
+    groups are the only ones with an AXI4 destination -- 'exclusive' rides
+    awlock/arlock and 'user' the 1-bit USER fields; the rest is exposed on
+    the boundary and terminated at the bridge top."""
+    for port in ports:
         if port.protocol != 'axil5':
             continue
+        kind = 'master' if port.direction == 'master' else 'slave'
         seen = set()
         for f in getattr(port, 'axi5_features', []) or []:
             if f in seen:
                 raise ValidationError(
-                    f"AXI5-Lite slave '{port.port_name}': duplicate "
+                    f"AXI5-Lite {kind} '{port.port_name}': duplicate "
                     f"axi5_features entry '{f}'")
             seen.add(f)
             if f in AXIL5_FORWARDABLE_FEATURES:
                 continue
             if f in AXIL5_TIED_FEATURES:
+                where = ("the converter ties it to zero" if kind == 'slave'
+                         else "the bridge top terminates it")
                 raise ValidationError(
-                    f"AXI5-Lite slave '{port.port_name}': feature '{f}' has "
-                    f"no AXI4 source, so the converter ties it to zero "
-                    f"whether or not it is named here. Its port is exposed "
-                    f"on the boundary regardless -- remove it from "
+                    f"AXI5-Lite {kind} '{port.port_name}': feature '{f}' has "
+                    f"no AXI4 {'source' if kind == 'slave' else 'destination'}, "
+                    f"so {where} whether or not it is named here. Its port is "
+                    f"exposed on the boundary regardless -- remove it from "
                     f"axi5_features. Forwardable: "
                     f"{list(AXIL5_FORWARDABLE_FEATURES)}")
             raise ValidationError(
-                f"AXI5-Lite slave '{port.port_name}': unknown axi5_features "
+                f"AXI5-Lite {kind} '{port.port_name}': unknown axi5_features "
                 f"entry '{f}'. Legal on an axil5 port: "
                 f"{list(AXIL5_FORWARDABLE_FEATURES)}")
 
@@ -527,6 +535,29 @@ def validate_required_fields(port: PortSpec) -> None:
             raise ValidationError(
                 f"AXI4 master '{port.port_name}' must have id_width > 0. "
                 f"Got id_width={port.id_width}"
+            )
+
+    # Lite requesters carry no ID: the adapter's internal face uses a
+    # placeholder sized by the bridge (fub_id_width) and the fabric prepends
+    # the master index. A non-zero id_width here would size ports that do
+    # not exist on the boundary.
+    if port.direction == 'master' and port.protocol in ('axil', 'axil5'):
+        if port.id_width:
+            raise ValidationError(
+                f"AXI-Lite master '{port.port_name}' must have id_width=0 "
+                f"(AXI4-Lite/AXI5-Lite have no transaction IDs). "
+                f"Got id_width={port.id_width}"
+            )
+
+    # An APB requester supplies the full fabric address: PADDR is the
+    # 32-bit AXI address, not a window offset the way an APB slave port's
+    # PADDR is. (APB slave ports are windowed by base_addr; masters are not.)
+    if port.direction == 'master' and port.protocol in ('apb', 'apb5'):
+        if port.addr_width != 32:
+            raise ValidationError(
+                f"APB master '{port.port_name}' must have addr_width=32 "
+                f"(the requester addresses the whole fabric). "
+                f"Got addr_width={port.addr_width}"
             )
 
     # Slaves need address mapping

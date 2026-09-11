@@ -1,6 +1,6 @@
 # bridge — task rollup
 
-**Next ID: BRIDGE-018** — never recycle a number, even when its task closed.
+**Next ID: BRIDGE-019** — never recycle a number, even when its task closed.
 
 Bridge crossbar generator (`projects/components/bridge/`): the CSV/toml-driven
 generator, its generated wrappers/xbars/adapters, and their DV.
@@ -9,13 +9,13 @@ generator, its generated wrappers/xbars/adapters, and their DV.
 |---|---|
 | [active](active.md) | 0 |
 | [open](open.md) | 2 |
-| [closed](closed.md) | 15 |
+| [closed](closed.md) | 16 |
 | [dropped](dropped.md) | 2 |
 
 ## Open
 
-- **BRIDGE-014** — AXI5-Lite and APB5 as MASTER protocols; a native-AXI5 fabric.
-  Filed when BRIDGE-002 closed; no consumer yet.
+- **BRIDGE-018** — a native-AXI5 fabric (split out of BRIDGE-014, whose
+  master-protocol half closed 2026-09-11). No consumer yet.
 - **BRIDGE-017** — legacy backlog carried over from the retired TASKS.md
   (perf characterization, synthesis guide, async CDC, QoS aging, xbar
   pipelining).

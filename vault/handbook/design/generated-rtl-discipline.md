@@ -239,3 +239,22 @@ behind, not of the generator. Before consuming `swmod`, `swacc` or any
 and count the cycles; if the side effect is not idempotent, edge-detect and
 align.* Related: [[fsm-discipline]] (the converter's WAIT_ACK is the
 state that makes the level), [[registers-by-name]].
+
+## A protocol branch with no fixture in the batch is dead code
+
+A generator can carry a code path for years without emitting it once. The
+bridge generator had an AXI4-Lite *master* branch -- port emission, tie-off
+defaults, the wide-slave aligner -- and a TB-template branch that drove APB
+master ports through `master_apb[i].read/write`. No fixture in
+`bridge_batch.csv` had a non-AXI4 master, so neither branch had ever been
+generated, linted or simulated. When BRIDGE-014 added the first APB master
+fixture the template's call went straight to `AttributeError`: the APB4
+master BFM had no `read`/`write` at all (only the APB5 subclass did), and
+nothing had ever asked.
+
+The rule: every `protocol` value the validator accepts on a master port, and
+every one it accepts on a slave port, must appear in at least one fixture in
+the batch. The batch is the generator's regression; a branch outside it is
+not tested by the 30 fixtures that pass, it is merely not exercised by them.
+When adding a protocol value, add the fixture in the same commit and let the
+`--bulk` regeneration, the lint sweep and the gate run be the proof.

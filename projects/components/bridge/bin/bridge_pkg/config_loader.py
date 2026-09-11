@@ -202,10 +202,10 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
         # config error -- the key silently doing nothing would hide a
         # typo'd protocol field.
         axi5_features = list(m.get('axi5_features', []))
-        if axi5_features and protocol != 'axi5':
+        if axi5_features and protocol not in ('axi5', 'axil5'):
             raise ValidationError(
                 f"Master '{port_name}': 'axi5_features' is only legal on "
-                f"protocol=\"axi5\" ports (got protocol='{protocol}')")
+                f"protocol=\"axi5\"/\"axil5\" ports (got protocol='{protocol}')")
 
         # Interface config (store for Phase 2, don't use yet)
         interface_config = m.get('interface')

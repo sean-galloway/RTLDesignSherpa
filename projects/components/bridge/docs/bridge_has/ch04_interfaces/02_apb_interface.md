@@ -137,6 +137,19 @@ PREADY  ________|    |________________
 PRDATA xxxxxxxx|_____|xxxxxxxxxxxxxxxx
 ```
 
+## APB Requester Ports
+
+Since BRIDGE-014 an APB port can also be a *master*: `protocol = "apb"` or
+`"apb5"` in `[[bridge.masters]]`. The signal set is the same ten (fifteen
+for APB5) with the directions of the slave table reversed -- the bridge is
+the completer, so `PSEL`, `PENABLE`, `PADDR[31:0]`, `PWRITE`, `PWDATA`,
+`PSTRB`, `PPROT` are inputs and `PREADY`, `PRDATA`, `PSLVERR` outputs.
+`PADDR` is the full 32-bit fabric address (the validator insists on
+`addr_width = 32`); each transfer becomes one single-beat AXI4 transaction
+through `apb4_to_axi4` / `apb5_to_axi4`, and both `SLVERR` and `DECERR`
+come back as `PSLVERR`. The requester is one-outstanding by nature of APB,
+so throughput is one transfer per fabric round trip.
+
 ## Design Notes
 
 - Use APB only for slow peripherals (UART, GPIO, config registers)
