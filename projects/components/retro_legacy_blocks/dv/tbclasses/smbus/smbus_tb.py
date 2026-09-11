@@ -47,7 +47,8 @@ from CocoTBFramework.components.apb.apb_components import APBMaster
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.amba.amba_random_configs import APB_MASTER_RANDOMIZER_CONFIGS
-from CocoTBFramework.components.smbus import SMBusSlave, SMBusMonitor, SMBusPacket
+from CocoTBFramework.components.smbus import (SMBusSlave, SMBusMonitor,
+                                              SMBusPacket, SMBusMaster)
 
 
 class _ShimSignal:
@@ -103,133 +104,31 @@ class _SlaveBusProxy:
         return getattr(self._dut, name)
 
 
-class ExternalSMBusMaster:
-    """A clock-stretch-aware SMBus master that drives the DUT as a TARGET.
+class _ExternalMasterBusProxy:
+    """Entity-like object for the framework's SMBusMaster, used to drive the
+    DUT as a TARGET.
 
-    The framework's SMBusMaster releases SCL and then waits a fixed delay,
-    which clocks straight through a target that is holding SCL down. Slave
-    mode is exactly the feature that stretching exists for, so a driver that
-    cannot see a stretch cannot test it. This one waits for SCL to actually
-    read high before it counts the high phase, which is the rule every real
-    master obeys.
-
-    It drives through the same shim pair and wired-AND bus model the slave
-    BFM uses, so all three drivers - the DUT's own master, the slave BFM and
-    this one - share one open-drain wire.
+    Same trick as _SlaveBusProxy and for the same reason: the BFM's "output"
+    pins (scl_o/scl_t/sda_o/sda_t) are DUT OUTPUTS here, so its writes go to
+    shims and _bus_model_loop folds them into the wired-AND. Its INPUTS
+    (scl_i/sda_i) pass straight through to the real pins, which is what lets
+    it see a clock stretch the DUT is producing.
     """
 
-    def __init__(self, dut, scl_shim, sda_shim, log, half_period_ns: int = 2500):
+    def __init__(self, dut, scl_shim: _ShimSignal, sda_shim: _ShimSignal):
         self._dut = dut
-        self._scl = scl_shim
-        self._sda = sda_shim
-        self._half = half_period_ns
-        self.log = log
+        self._scl_shim = scl_shim
+        self._sda_shim = sda_shim
 
-    # --- line primitives: open-drain, so 1 is a release and 0 is a pull-down
-    def _scl_release(self):
-        self._scl.value = 1
-
-    def _scl_low(self):
-        self._scl.value = 0
-
-    def _sda_drive(self, bit):
-        self._sda.value = 1 if bit else 0
-
-    async def _delay(self, ns=None):
-        await Timer(self._half if ns is None else ns, units='ns')
-
-    async def _scl_high_wait(self, timeout_ns: int = 2_000_000):
-        """Release SCL and wait until the WIRE reads high.
-
-        A target stretching the clock holds it down here, and the high phase
-        does not begin until it lets go.
-        """
-        self._scl_release()
-        waited = 0
-        while int(self._dut.smb_scl_i.value) == 0 and waited < timeout_ns:
-            await Timer(100, units='ns')
-            waited += 100
-        await self._delay()
-
-    async def start(self):
-        self._sda_drive(1)
-        self._scl_release()
-        await self._delay()
-        self._sda_drive(0)          # SDA falls while SCL high
-        await self._delay()
-        self._scl_low()
-        await self._delay()
-
-    async def repeated_start(self):
-        self._sda_drive(1)
-        await self._delay()
-        await self._scl_high_wait()
-        self._sda_drive(0)
-        await self._delay()
-        self._scl_low()
-        await self._delay()
-
-    async def stop(self):
-        self._scl_low()
-        self._sda_drive(0)
-        await self._delay()
-        await self._scl_high_wait()
-        self._sda_drive(1)          # SDA rises while SCL high
-        await self._delay()
-
-    async def _send_bit(self, bit):
-        self._sda_drive(bit)
-        await self._delay()
-        await self._scl_high_wait()
-        self._scl_low()
-        await self._delay()
-
-    async def _recv_bit(self):
-        self._sda_drive(1)          # release so the target can drive
-        await self._delay()
-        await self._scl_high_wait()
-        bit = int(self._dut.smb_sda_i.value)
-        self._scl_low()
-        await self._delay()
-        return bit
-
-    async def send_byte(self, value: int) -> bool:
-        """Send eight bits MSB first; returns True if the target ACKed."""
-        for i in range(7, -1, -1):
-            await self._send_bit((value >> i) & 1)
-        return (await self._recv_bit()) == 0
-
-    async def recv_byte(self, ack: bool = True) -> int:
-        """Receive eight bits MSB first, then answer ACK or NAK."""
-        value = 0
-        for _ in range(8):
-            value = (value << 1) | (await self._recv_bit())
-        await self._send_bit(0 if ack else 1)
-        return value
-
-    async def write_transfer(self, addr7: int, data) -> list:
-        """START, address (write), the bytes, STOP. Returns the ACK per byte,
-        address first."""
-        acks = []
-        await self.start()
-        acks.append(await self.send_byte((addr7 << 1) | 0))
-        if acks[0]:
-            for b in data:
-                acks.append(await self.send_byte(b))
-        await self.stop()
-        return acks
-
-    async def read_transfer(self, addr7: int, count: int) -> tuple:
-        """START, address (read), `count` bytes with the last one NAKed, STOP.
-        Returns (address_acked, bytes)."""
-        await self.start()
-        acked = await self.send_byte((addr7 << 1) | 1)
-        data = []
-        if acked:
-            for i in range(count):
-                data.append(await self.recv_byte(ack=(i < count - 1)))
-        await self.stop()
-        return acked, data
+    def __getattr__(self, name):
+        # Both the value and the tristate map to one shim: the BFM writes
+        # them together and to the same level, which is the open-drain
+        # contract the DUT's own PHY obeys too.
+        if name in ('smb_scl_o', 'smb_scl_t'):
+            return self._scl_shim
+        if name in ('smb_sda_o', 'smb_sda_t'):
+            return self._sda_shim
+        return getattr(self._dut, name)
 
 
 class SMBusRegisterMap:
@@ -427,9 +326,24 @@ class SMBusTB(TBBase):
                 log=self.log
             )
 
-            self.ext_master = ExternalSMBusMaster(
-                self.dut, self._extm_scl_shim, self._extm_sda_shim,
-                log=self.log)
+            # The framework's master, driving the DUT as a target. It waits
+            # for SCL to actually read high before counting a high phase
+            # (RDS-DV #79), which is the whole reason a stretching target can
+            # be tested with it at all.
+            self.ext_master = SMBusMaster(
+                entity=_ExternalMasterBusProxy(self.dut,
+                                               self._extm_scl_shim,
+                                               self._extm_sda_shim),
+                title='External SMBus Master',
+                scl_i='smb_scl_i',   # the real wire
+                scl_o='smb_scl_o',   # -> shim
+                scl_t='smb_scl_t',   # -> shim
+                sda_i='smb_sda_i',   # the real wire
+                sda_o='smb_sda_o',   # -> shim
+                sda_t='smb_sda_t',   # -> shim
+                clock_period_ns=5000,
+                log=self.log
+            )
 
             self._bus_model_task = cocotb.start_soon(self._bus_model_loop())
 

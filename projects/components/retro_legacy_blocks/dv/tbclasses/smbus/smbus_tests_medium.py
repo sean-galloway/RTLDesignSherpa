@@ -309,7 +309,7 @@ class SMBusMediumTests:
         try:
             # --- addressed to us
             await self._slave_setup(addr=0x42)
-            acks = await self.tb.ext_master.write_transfer(0x42, [0xA5, 0x5A])
+            acks = await self.tb.ext_master.write_raw(0x42, [0xA5, 0x5A])
             await ClockCycles(self.tb.pclk, 50)
             fifo = await self.tb.read_fifo_status()
             got = await self.tb.read_rx_fifo(fifo['rx_level'])
@@ -323,7 +323,7 @@ class SMBusMediumTests:
 
             # --- addressed to somebody else
             await self._slave_setup(addr=0x42)
-            acks2 = await self.tb.ext_master.write_transfer(0x43, [0x11])
+            acks2 = await self.tb.ext_master.write_raw(0x43, [0x11])
             await ClockCycles(self.tb.pclk, 50)
             fifo2 = await self.tb.read_fifo_status()
             ints2 = await self.tb.read_interrupt_status()
@@ -334,7 +334,7 @@ class SMBusMediumTests:
 
             # --- software says it is busy
             await self._slave_setup(addr=0x42, nack_all=True)
-            acks3 = await self.tb.ext_master.write_transfer(0x42, [0x22])
+            acks3 = await self.tb.ext_master.write_raw(0x42, [0x22])
             await ClockCycles(self.tb.pclk, 50)
             fifo3 = await self.tb.read_fifo_status()
             self.log.info(f"  to 0x42 with nack_all: acks={acks3} "
@@ -343,7 +343,7 @@ class SMBusMediumTests:
 
             # --- general call
             await self._slave_setup(addr=0x42, gc=True)
-            acks4 = await self.tb.ext_master.write_transfer(0x00, [0x33])
+            acks4 = await self.tb.ext_master.write_raw(0x00, [0x33])
             await ClockCycles(self.tb.pclk, 50)
             fifo4 = await self.tb.read_fifo_status()
             got4 = await self.tb.read_rx_fifo(fifo4['rx_level'])
@@ -379,7 +379,7 @@ class SMBusMediumTests:
             # --- queued data
             await self._slave_setup(addr=0x42)
             await self.tb.write_tx_fifo([0x11, 0x22])
-            acked, data = await self.tb.ext_master.read_transfer(0x42, 2)
+            acked, data = await self.tb.ext_master.read_raw(0x42, 2)
             await ClockCycles(self.tb.pclk, 50)
             self.log.info(f"  queued read: addr_acked={acked} "
                           f"data={[hex(b) for b in data]}")
@@ -387,14 +387,14 @@ class SMBusMediumTests:
 
             # --- empty queue, stretching OFF: 0xFF rather than a held bus
             await self._slave_setup(addr=0x42, stretch=False)
-            acked2, data2 = await self.tb.ext_master.read_transfer(0x42, 1)
+            acked2, data2 = await self.tb.ext_master.read_raw(0x42, 1)
             self.log.info(f"  dry read, no stretch: addr_acked={acked2} "
                           f"data={[hex(b) for b in data2]}")
             dry_ok = acked2 and data2 == [0xFF]
 
             # --- empty queue, stretching ON: the bus waits for software
             await self._slave_setup(addr=0x42, stretch=True)
-            reader = cocotb.start_soon(self.tb.ext_master.read_transfer(0x42, 1))
+            reader = cocotb.start_soon(self.tb.ext_master.read_raw(0x42, 1))
             saw_stretch = False
             for _ in range(400):
                 st = await self.tb.read_slave_status()
@@ -402,13 +402,23 @@ class SMBusMediumTests:
                     saw_stretch = True
                     break
                 await ClockCycles(self.tb.pclk, 20)
+            # HOLD, and hold long enough to matter. A stretch that software
+            # releases within one bit time proves nothing: a master that
+            # ignored the stretch entirely would still line up by accident.
+            # Ten SCL periods is longer than the whole remaining byte, so a
+            # master that clocked through would have finished sending
+            # nothing into a bus that was never moving.
+            await ClockCycles(self.tb.pclk, 5000)
+            still_held = (await self.tb.read_slave_status())['stretching']
             # Only now does software produce the byte, which is the whole
             # point: the master could not have had it any earlier.
             await self.tb.write_tx_fifo([0x77])
             acked3, data3 = await reader
             self.log.info(f"  dry read, stretching: held={saw_stretch} "
+                          f"still_held_after_10_periods={still_held} "
                           f"addr_acked={acked3} data={[hex(b) for b in data3]}")
-            stretch_ok = saw_stretch and acked3 and data3 == [0x77]
+            stretch_ok = (saw_stretch and still_held and acked3 and
+                          data3 == [0x77])
 
             ok = queued_ok and dry_ok and stretch_ok
             if ok:
@@ -416,7 +426,9 @@ class SMBusMediumTests:
                 return True
             self.log.error(
                 f"RLB-011 slave read: queued={queued_ok} dry_sends_FF={dry_ok} "
-                f"stretched_until_software_answered={stretch_ok}")
+                f"stretched_until_software_answered={stretch_ok} "
+                f"(held={saw_stretch} still_held={still_held} "
+                f"data={[hex(b) for b in data3]}, want [0x77])")
             return False
         except Exception as e:
             self.log.error(f"RLB-011 slave read test error: {e}")
@@ -439,7 +451,7 @@ class SMBusMediumTests:
             payload = [0xDE, 0xAD]
             good_pec = self._crc8([(0x42 << 1) | 0] + payload)
             await self._slave_setup(addr=0x42, pec=True)
-            await self.tb.ext_master.write_transfer(0x42, payload + [good_pec])
+            await self.tb.ext_master.write_raw(0x42, payload + [good_pec])
             await ClockCycles(self.tb.pclk, 50)
             st_good = await self.tb.read_slave_status()
             self.log.info(f"  good PEC 0x{good_pec:02X}: pec_error="
@@ -448,7 +460,7 @@ class SMBusMediumTests:
 
             # --- the same write with the PEC byte corrupted
             await self._slave_setup(addr=0x42, pec=True)
-            await self.tb.ext_master.write_transfer(
+            await self.tb.ext_master.write_raw(
                 0x42, payload + [(good_pec ^ 0xFF) & 0xFF])
             await ClockCycles(self.tb.pclk, 50)
             st_bad = await self.tb.read_slave_status()
@@ -457,7 +469,7 @@ class SMBusMediumTests:
             # --- a read: the byte after the queue runs dry is the PEC
             await self._slave_setup(addr=0x42, pec=True)
             await self.tb.write_tx_fifo([0x5A])
-            acked, data = await self.tb.ext_master.read_transfer(0x42, 2)
+            acked, data = await self.tb.ext_master.read_raw(0x42, 2)
             expect_pec = self._crc8([(0x42 << 1) | 1, 0x5A])
             self.log.info(f"  read with PEC: data={[hex(b) for b in data]} "
                           f"expected trailing PEC=0x{expect_pec:02X}")
@@ -466,7 +478,7 @@ class SMBusMediumTests:
 
             # --- ownership: no master START while the target is answering
             await self._slave_setup(addr=0x42, stretch=True)
-            reader = cocotb.start_soon(self.tb.ext_master.read_transfer(0x42, 1))
+            reader = cocotb.start_soon(self.tb.ext_master.read_raw(0x42, 1))
             held = False
             for _ in range(400):
                 st = await self.tb.read_slave_status()
