@@ -877,6 +877,18 @@ module bridge_2x2_rw_xbar
         ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? sram_axi_rvalid : '0) |
         ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
 
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid), ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master cpu (32b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid), ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
+
 
     // Master: dma, Width path: 32b
     assign dma_32b_awready = 
@@ -943,6 +955,18 @@ module bridge_2x2_rw_xbar
         ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rvalid : '0) |
         ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid ? sram_axi_rvalid : '0) |
         ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
+
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid), ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master dma (32b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid), ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
 
 
 endmodule : bridge_2x2_rw_xbar

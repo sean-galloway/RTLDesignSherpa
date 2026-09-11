@@ -52,6 +52,18 @@ on — hides the abort completely and leaves every artifact in place. The
 subsequent run then reports against a stale build while its log claims the
 tree was cleaned.
 
+**`env_python` roots itself from wherever you are standing.** It sets
+`REPO_ROOT` from `git rev-parse --show-toplevel` of the CURRENT directory,
+not from its own location. Sourced from inside RDS-DV (say, after editing a
+BFM there), it points `REPO_ROOT`, `PATH` and `PYTHONPATH` at the DV repo,
+and a bridge test then dies with "File list not found:
+/mnt/data/github/RTLDesignSherpa-DV/projects/components/bridge/rtl/filelists/..."
+-- a path that names the wrong repository, which is the only clue. Measured
+2026-09-10: four fresh tests failed at collection in 0.6 s with exactly that
+message. `cd` into the main repo, source, then go where the tests are; and
+when a run fails in under a second, read the path in the error before the
+test name.
+
 **Source `env_python` first, and check that the directories are actually
 gone**, not that the command was typed:
 

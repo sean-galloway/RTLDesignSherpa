@@ -744,3 +744,133 @@ def test_axil5_sideband_table_matches_converter_ports():
     for base, _width_key, _direction in sideband_ports("rw"):
         assert f"m_axil_{base}" in text, (
             f"axil5_sideband names m_axil_{base}, the RTL does not")
+
+
+# ---------------------------------------------------------------------
+# AXI5 read-return atomics (BRIDGE-002 phase A5-3b)
+# ---------------------------------------------------------------------
+
+
+def _write_rw_atomic_toml(tmp_path, slave_channels="rw", slave_extra=""):
+    """One rw AXI5 atomic master to one AXI5 atomic slave."""
+    toml = tmp_path / "b.toml"
+    conn = tmp_path / "c.csv"
+    toml.write_text(f"""
+[bridge]
+name = "b"
+variants = ["no"]
+
+[[bridge.masters]]
+name = "m0"
+prefix = "m0_"
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+protocol = "axi5"
+axi5_features = ["atomic"]
+
+[[bridge.slaves]]
+name = "s0"
+prefix = "s0_"
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "{slave_channels}"
+base_addr = "0x0000_0000"
+addr_range = "0x0001_0000"
+protocol = "axi5"
+axi5_features = ["atomic"]
+{slave_extra}
+""")
+    conn.write_text("master,s0\nm0,1\n")
+    return str(toml), str(conn)
+
+
+def test_axi5_rr_atomic_master_needs_rw_slave(tmp_path):
+    """A5-3b: an rw atomic master has no boundary filter, so its read-return
+    atomics reach the slave and answer on R. A write-only slave cannot
+    return read data: config error, not a hang."""
+    toml, conn = _write_rw_atomic_toml(tmp_path, slave_channels="wr")
+    with pytest.raises(ValidationError, match="cannot return read data"):
+        load_config(toml, conn)
+
+
+def test_axi5_rr_atomic_rejects_ooo_slave(tmp_path):
+    """A5-3b: the per-ID return tracker sits beside the in-order read FIFO;
+    the CAM (enable_ooo) path has no hook, so the combination is refused."""
+    toml, conn = _write_rw_atomic_toml(tmp_path, slave_extra="enable_ooo = true")
+    with pytest.raises(ValidationError, match="in-order tracker only"):
+        load_config(toml, conn)
+
+
+def test_axi5_rr_atomic_accepted(tmp_path):
+    toml, conn = _write_rw_atomic_toml(tmp_path)
+    cfg = load_config(toml, conn)
+    assert cfg.masters[0].channels == "rw"
+    assert 'atomic' in cfg.slaves[0].axi5_features
+
+
+def _generate(tmp_path, name):
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+         "--ports", _fixture(f"{name}.toml"),
+         "--connectivity", _fixture(f"{name}_connectivity.csv"),
+         "--name", name,
+         "--output-dir", str(tmp_path)],
+        cwd=str(BIN_DIR), env=env,
+        capture_output=True, text=True, timeout=300,
+    )
+    assert r.returncode == 0, f"generator failed:\n{r.stdout}\n{r.stderr}"
+    return tmp_path / name
+
+
+def test_axi5_rr_atomic_generation(tmp_path):
+    """A5-3b fixture: the rw atomic master has NO boundary filter and its
+    AR->R tracker takes a slot at the atomic AW; the atomic slaves route the
+    R beat by ID through axi5_atomic_rr_tracker; the filelist pulls the
+    tracker and not the filter."""
+    out = _generate(tmp_path, "bridge_1x2_rw_axi5a")
+
+    cpu = (out / "cpu_adapter.sv").read_text()
+    assert "u_atomic_filter" not in cpu, "rw atomic master must not filter read-return atomics"
+    assert "ar_trk_push_aw" in cpu, "atomic AW must claim an AR->R tracker slot"
+    assert "aw_rr_gate_ok" in cpu, "atomic AW must pass the read-side single-target gate"
+    assert "ar_trk_wptr + (AR_TRK_AW+1)'(2)" in cpu, "dual push (AR + atomic AW in one cycle) missing"
+
+    for slave in ("ddr", "sram"):
+        sv = (out / f"{slave}_adapter.sv").read_text()
+        assert "u_atom_rd" in sv, f"{slave}: per-ID read-return tracker missing"
+        assert "aw_rr_blocked" in sv, f"{slave}: AW not held while the tracker is full"
+        assert "&& !atom_hit" in sv, f"{slave}: tracked R beats must not pop the in-order FIFO"
+        assert "atom_hit ? atom_bridge_id" in sv, f"{slave}: R routing does not consult the tracker"
+
+    # The generator writes the bridge filelist at <output-dir>/../filelists/,
+    # a sibling of the RTL dir, mirroring rtl/generated -> rtl/filelists.
+    filelists = list((tmp_path.parent / "filelists").glob("bridge_1x2_rw_axi5a*.f"))
+    assert filelists, "no filelist emitted"
+    text = "\n".join(p.read_text() for p in filelists)
+    assert "axi5_atomic_rr_tracker.f" in text
+    assert "axi5_atomic_filter.f" not in text
+
+    sv_files = sorted(tmp_path.glob("bridge_1x2_rw_axi5a*/*.sv"))
+    chk = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "bin" / "check_sv_decl_order.py"),
+         *map(str, sv_files)],
+        capture_output=True, text=True, timeout=120,
+    )
+    assert chk.returncode == 0, f"declaration-order issues:\n{chk.stdout}"
+
+
+def test_axi5_wr_atomic_keeps_filter(tmp_path):
+    """Regression guard for A5-3a: a write-only atomic master has no R path,
+    so it must still terminate read-return atomics at the boundary."""
+    out = _generate(tmp_path, "bridge_1x2_wr_axi5a")
+    cpu = (out / "cpu_wr_adapter.sv").read_text()
+    assert "u_atomic_filter" in cpu
+    assert "u_atom_rd" not in (out / "ddr_wr_adapter.sv").read_text()
+    text = "\n".join(p.read_text()
+                     for p in (tmp_path.parent / "filelists").glob("bridge_1x2_wr_axi5a*.f"))
+    assert "axi5_atomic_filter.f" in text
+    assert "axi5_atomic_rr_tracker.f" not in text

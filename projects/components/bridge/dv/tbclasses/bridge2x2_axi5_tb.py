@@ -549,6 +549,10 @@ class Bridge2x2Axi5TB(TBBase):
             memory_model=self.slave_memory[1],
             base_addr=0x80000000,
         )
+        # A5-3b: a read-return atomic answers on this slave's R channel, which
+        # the read BFM owns. Pair the two so the write side can hand over the
+        # location's original data.
+        self.slave_wr[1].read_return_channel = self.slave_rd[1]
 
     # ----------------------------------------------------------------------
     # Reset / clock plumbing

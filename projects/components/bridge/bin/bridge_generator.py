@@ -1033,16 +1033,31 @@ def _emit_bridge_variant(
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_slave_wr.f")
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_slave_rd.f")
 
-    # Atomic-enabled AXI5 masters (A5-3a): the master adapter inserts
-    # the axi5_atomic_filter between the boundary wrapper and the fabric.
-    has_axi5_atomic = any(
+    # Atomic-enabled WRITE-ONLY AXI5 masters (A5-3a): the master adapter
+    # inserts the axi5_atomic_filter between the boundary wrapper and the
+    # fabric. An rw atomic master forwards read-return atomics natively
+    # (A5-3b) and has no filter.
+    has_axi5_atomic_filter = any(
         m.protocol.lower() == 'axi5'
         and 'atomic' in (getattr(m, 'axi5_features', None) or [])
+        and m.channels == 'wr'
         for m in config.masters)
-    if has_axi5_atomic:
+    if has_axi5_atomic_filter:
         filelist_lines.append("")
         filelist_lines.append("# AXI5 atomic filter (read-return atomics DECERR locally, A5-3a)")
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_atomic_filter.f")
+
+    # Atomic-enabled rw AXI5 slaves (A5-3b): the slave adapter tracks
+    # read-return atomics per ID with axi5_atomic_rr_tracker.
+    has_axi5_rr_slave = any(
+        s.protocol.lower() == 'axi5'
+        and 'atomic' in (getattr(s, 'axi5_features', None) or [])
+        and s.channels == 'rw'
+        for s in config.slaves)
+    if has_axi5_rr_slave:
+        filelist_lines.append("")
+        filelist_lines.append("# AXI5 atomic read-return tracker (per-ID R routing for AtomicLoad/Swap/Compare, A5-3b)")
+        filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_atomic_rr_tracker.f")
 
     # AXI5 slave ports (A5-2 slice 1): the slave adapter instantiates
     # the axi5_master_* boundary wrappers instead of axi4_master_*.

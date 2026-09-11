@@ -106,11 +106,14 @@ $REPO_ROOT/rtl/amba/apb4/apb4_slave_stub.sv
 $REPO_ROOT/rtl/amba/wb4/wb4_master.sv
 $REPO_ROOT/rtl/amba/wb4/wb4_master_cg.sv
 $REPO_ROOT/rtl/amba/wb4/wb4_master_retry.sv
+$REPO_ROOT/rtl/amba/wb4/wb4_master_stub.sv
 $REPO_ROOT/rtl/amba/wb4/wb4_monitor.sv
 $REPO_ROOT/rtl/amba/wb4/wb4_retry.sv
 $REPO_ROOT/rtl/amba/wb4/wb4_slave.sv
 $REPO_ROOT/rtl/amba/wb4/wb4_slave_cdc.sv
+$REPO_ROOT/rtl/amba/wb4/wb4_slave_cdc_cg.sv
 $REPO_ROOT/rtl/amba/wb4/wb4_slave_cg.sv
+$REPO_ROOT/rtl/amba/wb4/wb4_slave_stub.sv
 
 # =============================================================================
 # AXI4 - Advanced eXtensible Interface (Full)

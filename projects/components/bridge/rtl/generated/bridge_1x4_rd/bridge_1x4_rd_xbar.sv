@@ -375,6 +375,18 @@ module bridge_1x4_rd_xbar
         ((periph_rd_axi_rid_bridge_id == 0) && periph_rd_axi_rid_valid ? periph_rd_axi_rvalid : '0) |
         ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid ? apb_periph_axi_rvalid : '0);
 
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((periph_rd_axi_rid_bridge_id == 0) && periph_rd_axi_rid_valid), ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master cpu_rd (32b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((periph_rd_axi_rid_bridge_id == 0) && periph_rd_axi_rid_valid), ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
+
 
     // Master: cpu_rd, Width path: 64b
     assign cpu_rd_64b_arready = 
@@ -397,6 +409,18 @@ module bridge_1x4_rd_xbar
 
     assign cpu_rd_64b_rvalid = 
         ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_rvalid : '0);
+
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master cpu_rd (64b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
 
 
     // Master: cpu_rd, Width path: 128b
@@ -427,6 +451,18 @@ module bridge_1x4_rd_xbar
     assign cpu_rd_128b_rvalid = 
         ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_rvalid : '0) |
         ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
+
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master cpu_rd (128b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
 
 
 endmodule : bridge_1x4_rd_xbar

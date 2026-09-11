@@ -583,6 +583,14 @@ class SlaveAdapterGenerator:
             lines.append("    logic [ID_WIDTH-1:0] cam_wr_deallocate_tag;")
             lines.append("")
 
+        if self.rr_atomic:
+            lines.append("    // A5-3b read-return atomic tracking (u_atom_rd, read section)")
+            lines.append("    logic atom_hit;")
+            lines.append("    logic [BRIDGE_ID_WIDTH-1:0] atom_bridge_id;")
+            lines.append("    logic atom_full;")
+            lines.append("    logic aw_rr_blocked;")
+            lines.append("")
+
         if self.has_read:
             lines.append("    logic cam_rd_allocate;")
             lines.append("    logic cam_rd_deallocate;")
@@ -736,7 +744,14 @@ class SlaveAdapterGenerator:
         lines.append("    // accepting a further AW, so this cannot deadlock.")
         lines.append("    assign wr_trk_full = (wr_ptr[$clog2(WR_FIFO_DEPTH)] != rd_ptr[$clog2(WR_FIFO_DEPTH)]) &&")
         lines.append("                         (wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0] == rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]);")
-        lines.append(f"    assign {crossbar_prefix}awready = w_sub_awready && !wr_trk_full;")
+        if self.rr_atomic:
+            lines.append("    // A5-3b: a read-return atomic also needs a slot in the atomic return")
+            lines.append("    // tracker (u_atom_rd); hold its AW while that is full. Plain writes")
+            lines.append("    // and store-class atomics are unaffected.")
+            lines.append(f"    assign aw_rr_blocked = {crossbar_prefix}awatop[5] && atom_full;")
+            lines.append(f"    assign {crossbar_prefix}awready = w_sub_awready && !wr_trk_full && !aw_rr_blocked;")
+        else:
+            lines.append(f"    assign {crossbar_prefix}awready = w_sub_awready && !wr_trk_full;")
         lines.append("")
         lines.append("    // BRIDGE-010: this port routes B by FIFO POSITION, so it REQUIRES")
         lines.append("    // the slave to return B in AW order across all IDs. AXI4 permits a")
@@ -823,6 +838,10 @@ class SlaveAdapterGenerator:
             lines.append("    //       This ensures FIFO pops when converter actually produces response")
         else:  # axi4
             pop_condition = f"{crossbar_prefix}rvalid && {crossbar_prefix}rready && {crossbar_prefix}rlast"
+            if self.rr_atomic:
+                # A5-3b: an R beat the atomic tracker claims is not the FIFO
+                # head's; it must neither pop the FIFO nor be checked against it.
+                pop_condition += " && !atom_hit"
             lines.append("    // Read Channel FIFO (In-Order) - AXI4 Protocol")
 
         lines.append("    // BRIDGE-011 not-full gating -- see the write channel.")
@@ -858,8 +877,34 @@ class SlaveAdapterGenerator:
         lines.append("    // and the master can't see rvalid until rid_valid is high.")
         lines.append("    // Result: deadlock. Drive these combinationally so the route")
         lines.append("    // is open from the moment an R arrives.")
-        lines.append("    assign rid_bridge_id = rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];")
-        lines.append("    assign rid_valid     = (ar_ptr != r_ptr);")
+        if self.rr_atomic:
+            lines.append("    // A5-3b: read-return atomics answer on R with their AW's ID and no")
+            lines.append("    // AR. Track them per ID from the AW handshake. An R beat whose RID")
+            lines.append("    // hits here is routed by the tracker and leaves the in-order FIFO")
+            lines.append("    // untouched; every other beat routes by FIFO position as before.")
+            lines.append("    axi5_atomic_rr_tracker #(")
+            lines.append("        .AXI_ID_WIDTH(ID_WIDTH),")
+            lines.append("        .DATA_WIDTH(BRIDGE_ID_WIDTH),")
+            lines.append("        .DEPTH(8)")
+            lines.append("    ) u_atom_rd (")
+            lines.append("        .aclk(aclk),")
+            lines.append("        .aresetn(aresetn),")
+            lines.append(f"        .alloc({crossbar_prefix}awvalid && {crossbar_prefix}awready && {crossbar_prefix}awatop[5]),")
+            lines.append(f"        .alloc_id({crossbar_prefix}awid),")
+            lines.append("        .alloc_data(xbar_bridge_id_aw),")
+            lines.append("        .full(atom_full),")
+            lines.append(f"        .lookup_id({crossbar_prefix}rid),")
+            lines.append("        .hit(atom_hit),")
+            lines.append("        .hit_data(atom_bridge_id),")
+            lines.append(f"        .release_beat({crossbar_prefix}rvalid && {crossbar_prefix}rready && {crossbar_prefix}rlast)")
+            lines.append("    );")
+            lines.append("")
+            lines.append("    assign rid_bridge_id = atom_hit ? atom_bridge_id")
+            lines.append("                                    : rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];")
+            lines.append("    assign rid_valid     = atom_hit || (ar_ptr != r_ptr);")
+        else:
+            lines.append("    assign rid_bridge_id = rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];")
+            lines.append("    assign rid_valid     = (ar_ptr != r_ptr);")
         lines.append("")
         lines.append("    // BRIDGE-011, read side -- see the write comment above.")
         lines.append("    assign rd_trk_full = (ar_ptr[$clog2(RD_FIFO_DEPTH)] != r_ptr[$clog2(RD_FIFO_DEPTH)]) &&")
@@ -876,7 +921,8 @@ class SlaveAdapterGenerator:
         lines.append("        end else begin")
         lines.append(f"            if ({crossbar_prefix}arvalid && {crossbar_prefix}arready)")
         lines.append(f"                rd_id_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= {crossbar_prefix}arid;")
-        lines.append(f"            if ({crossbar_prefix}rvalid && {crossbar_prefix}rready && {crossbar_prefix}rlast) begin")
+        lines.append(f"            if ({crossbar_prefix}rvalid && {crossbar_prefix}rready && {crossbar_prefix}rlast"
+                     + (" && !atom_hit" if self.rr_atomic else "") + ") begin")
         lines.append(f"                if ({crossbar_prefix}rid !== rd_id_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]]) begin")
         lines.append("                    $error(\"BRIDGE-010: slave returned R out of AR order -- \",")
         lines.append("                           \"got RID=%0h, expected %0h. This bridge routes \",")
@@ -908,6 +954,20 @@ class SlaveAdapterGenerator:
             lines.extend(self._generate_master_rd_wrapper(crossbar_prefix, slave_prefix))
 
         return lines
+
+    @property
+    def rr_atomic(self) -> bool:
+        """BRIDGE-002 A5-3b: this slave can be sent read-return atomics
+        (AtomicLoad/Swap/Compare) natively. They arrive on AW and answer on
+        R with the AW's ID, which no AR-fed tracker knows about, so the
+        adapter adds a per-ID return tracker (axi5_atomic_rr_tracker) beside
+        the in-order read FIFO. Needs an AXI5 atomic-enabled slave with both
+        channels. Only the in-order tracker has the hook; the validator
+        rejects enable_ooo on such a slave."""
+        feats = getattr(self.slave, 'axi5_features', None) or []
+        return (getattr(self.slave, 'protocol', 'axi4') == 'axi5'
+                and 'atomic' in feats
+                and self.channels == 'rw')
 
     def _sb_feats(self):
         """Native sideband features this slave passes through (A5-2
@@ -972,7 +1032,9 @@ class SlaveAdapterGenerator:
         wrapper.connect_bridge_internal(
             connector_prefix=crossbar_prefix,
             overrides={
-                'awvalid': f"{crossbar_prefix}awvalid && !wr_trk_full",
+                'awvalid': (f"{crossbar_prefix}awvalid && !wr_trk_full && !aw_rr_blocked"
+                            if self.rr_atomic else
+                            f"{crossbar_prefix}awvalid && !wr_trk_full"),
                 'awready': "w_sub_awready",
             },
         )

@@ -66,7 +66,7 @@ off internally.
 | `mecid` | `aw/armecid[15:0]` | Droppable sideband |
 | `unique` | `aw/arunique` | Droppable sideband |
 | `poison` | `wpoison`, `rpoison` | **Connectivity-gated** |
-| `atomic` | `awatop[5:0]` | **Connectivity-gated** (store-class only) |
+| `atomic` | `awatop[5:0]` | **Connectivity-gated**; read-return classes native on rw ports, DECERR on write-only ports |
 | `mte`, `chunking` | — | Rejected at config time (deferred) |
 
 ### APB5 Slave Surface
@@ -110,12 +110,20 @@ widths matched — dwidth converters cannot carry per-beat sideband).
 Dropping POISON silently would launder corrupted data; dropping ATOP would
 turn an atomic into a plain write.
 
-**Atomics are store-class only.** `AWATOP = 01xxxx` (AtomicStore) and plain
-writes forward natively. Read-return classes (AtomicLoad `10xxxx`,
-AtomicSwap/Compare `11000x`) return their data on the R channel of a path
-the split-wr/rd fabric cannot route, so the master boundary's
-`axi5_atomic_filter` answers them locally with **DECERR** — no slave-side
-AW handshake, no memory side effect.
+**Atomics depend on the port having a read path.** `AWATOP = 01xxxx`
+(AtomicStore) and plain writes forward natively on any atomic-enabled
+port. Read-return classes (AtomicLoad `10xxxx`, AtomicSwap/Compare
+`11000x`) answer on the R channel with the AW's ID:
+
+- On an **rw** master port they forward natively. The slave performs the
+  operation and returns the location's original data on R; the bridge
+  routes that beat back by ID (`axi5_atomic_rr_tracker` at the slave
+  adapter, an extra AR->R tracking slot at the master adapter). Every
+  connected atomic slave must be `rw` -- the validator rejects a
+  write-only one, since it could never return the data.
+- On a **write-only** master port there is nowhere to deliver the R beat,
+  so the boundary's `axi5_atomic_filter` answers those classes locally
+  with **DECERR** -- no slave-side AW handshake, no memory side effect.
 
 **The tied group is the honest limit of an AXI4 front end.** MPAM partition
 IDs, MECID encryption contexts and NSAID security IDs are properties of the

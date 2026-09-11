@@ -1360,6 +1360,18 @@ module bridge_5x3_channels_xbar
         ((ddr_controller_axi_rid_bridge_id == 2) && ddr_controller_axi_rid_valid ? ddr_controller_axi_rvalid : '0) |
         ((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
 
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((sram_buffer_axi_rid_bridge_id == 2) && sram_buffer_axi_rid_valid), ((ddr_controller_axi_rid_bridge_id == 2) && ddr_controller_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master src_rd_master (256b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((sram_buffer_axi_rid_bridge_id == 2) && sram_buffer_axi_rid_valid), ((ddr_controller_axi_rid_bridge_id == 2) && ddr_controller_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
+
 
     // Master: stream_master, Width path: 256b
     assign stream_master_256b_awready = 
@@ -1427,6 +1439,18 @@ module bridge_5x3_channels_xbar
         ((ddr_controller_axi_rid_bridge_id == 3) && ddr_controller_axi_rid_valid ? ddr_controller_axi_rvalid : '0) |
         ((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
 
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((sram_buffer_axi_rid_bridge_id == 3) && sram_buffer_axi_rid_valid), ((ddr_controller_axi_rid_bridge_id == 3) && ddr_controller_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master stream_master (256b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((sram_buffer_axi_rid_bridge_id == 3) && sram_buffer_axi_rid_valid), ((ddr_controller_axi_rid_bridge_id == 3) && ddr_controller_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
+
 
     // Master: cpu_master, Width path: 32b
     assign cpu_master_32b_awready = 
@@ -1467,6 +1491,18 @@ module bridge_5x3_channels_xbar
 
     assign cpu_master_32b_rvalid = 
         ((apb_periph_axi_rid_bridge_id == 4) && apb_periph_axi_rid_valid ? apb_periph_axi_rvalid : '0);
+
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((apb_periph_axi_rid_bridge_id == 4) && apb_periph_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master cpu_master (32b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((apb_periph_axi_rid_bridge_id == 4) && apb_periph_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
 
 
     // Master: cpu_master, Width path: 256b
@@ -1534,6 +1570,18 @@ module bridge_5x3_channels_xbar
         ((sram_buffer_axi_rid_bridge_id == 4) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rvalid : '0) |
         ((ddr_controller_axi_rid_bridge_id == 4) && ddr_controller_axi_rid_valid ? ddr_controller_axi_rvalid : '0) |
         ((subtractive_axi_rid_bridge_id == 4) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
+
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((sram_buffer_axi_rid_bridge_id == 4) && sram_buffer_axi_rid_valid), ((ddr_controller_axi_rid_bridge_id == 4) && ddr_controller_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 4) && subtractive_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master cpu_master (256b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((sram_buffer_axi_rid_bridge_id == 4) && sram_buffer_axi_rid_valid), ((ddr_controller_axi_rid_bridge_id == 4) && ddr_controller_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 4) && subtractive_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
 
 
 endmodule : bridge_5x3_channels_xbar

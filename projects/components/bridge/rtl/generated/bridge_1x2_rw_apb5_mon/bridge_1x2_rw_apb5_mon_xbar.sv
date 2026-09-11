@@ -514,5 +514,17 @@ module bridge_1x2_rw_apb5_mon_xbar
         ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid ? periph5_axi_rvalid : '0) |
         ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
 
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid), ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master cpu (32b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid), ((periph5_axi_rid_bridge_id == 0) && periph5_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
+
 
 endmodule : bridge_1x2_rw_apb5_mon_xbar

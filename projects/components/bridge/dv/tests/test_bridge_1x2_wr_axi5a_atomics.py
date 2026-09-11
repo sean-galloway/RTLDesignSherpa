@@ -92,7 +92,11 @@ async def cocotb_test_bridge_1x2_wr_axi5a_atomics(dut):
         r = await wr.write_transaction(base + 0x100, tag | 1, size=2)
         assert r.get('success') and r.get('response') == 0, f"plain write: {r}"
 
-        # 2. AtomicStore forwards with the atop value intact.
+        # 2. AtomicStore forwards with the atop value intact. It is a
+        # store-class ADD, and the slave BFM performs it as one (since A5-3b;
+        # before that it wrote the operand as a plain write, which is what
+        # this test used to expect): memory becomes old + operand.
+        store_old = tb.slave_mem_read(0, base + 0x200, master_idx=0)
         r = await wr.atomic_operation(base + 0x200, tag | 2, ATOP_STORE, size=2)
         assert r.get('success') and r.get('response') == 0, f"AtomicStore: {r}"
 
@@ -111,7 +115,9 @@ async def cocotb_test_bridge_1x2_wr_axi5a_atomics(dut):
         r = await wr.write_transaction(base + 0x500, tag | 5, size=2)
         assert r.get('success') and r.get('response') == 0, f"plain write after swallows: {r}"
 
-        landed += [(base + 0x100, tag | 1), (base + 0x200, tag | 2), (base + 0x500, tag | 5)]
+        landed += [(base + 0x100, tag | 1),
+                   (base + 0x200, (store_old + (tag | 2)) & 0xFFFF_FFFF),
+                   (base + 0x500, tag | 5)]
         swallowed += [base + 0x300, base + 0x400, base + 0x600]
 
     await ClockCycles(tb.clock, 50)

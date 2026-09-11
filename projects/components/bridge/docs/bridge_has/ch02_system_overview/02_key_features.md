@@ -62,7 +62,7 @@ dma,1,0
 | AXI4 | AXI4-Lite | Protocol downgrade |
 | AXI4 | APB | Full protocol conversion |
 | AXI5 | AXI4 / AXI4-Lite / APB | Base-subset interop; sideband terminates at the boundary (warning) |
-| AXI5 | AXI5 (width-matched) | Native sideband pass-through; store-class atomics; poison |
+| AXI5 | AXI5 (width-matched) | Native sideband pass-through; atomics (read-return classes need an rw port); poison |
 | AXI4 / AXI5 | APB5 | APB4 conversion core + APB5 sideband surface |
 
 : Table 2.1: Supported Protocols

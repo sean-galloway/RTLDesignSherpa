@@ -261,6 +261,18 @@ module bridge_1x2_rd_axi5n_xbar
         ((sram_rd_axi_rid_bridge_id == 0) && sram_rd_axi_rid_valid ? sram_rd_axi_rvalid : '0) |
         ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
 
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid), ((sram_rd_axi_rid_bridge_id == 0) && sram_rd_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master cpu_rd (32b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid), ((sram_rd_axi_rid_bridge_id == 0) && sram_rd_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
+
     assign cpu_rd_32b_r.trace = 
         ((sram_rd_axi_rid_bridge_id == 0) && sram_rd_axi_rid_valid ? sram_rd_axi_rtrace : '0);
 

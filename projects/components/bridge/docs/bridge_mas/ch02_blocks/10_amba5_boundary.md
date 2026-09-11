@@ -71,9 +71,9 @@ feature-enabled, and width-matched — otherwise a config error naming the
 offending pair. Droppable sideband that terminates mid-path is legal but
 prints a generation-time warning per (master, slave, feature).
 
-## Atomic Filter (A5-3a)
+## Atomic Filter (A5-3a, write-only masters)
 
-An atomic-enabled master's wr path inserts `axi5_atomic_filter`
+A **write-only** atomic-enabled master's wr path inserts `axi5_atomic_filter`
 between the boundary wrapper and the fabric:
 
 ```mermaid
@@ -87,9 +87,76 @@ Handshakes (AW/W/B) and the B payload (`bid`/`bresp`) go **through** the
 filter; all other payload gets `pref → fub` pass-through assigns. Store-
 class ATOP and plain writes forward; read-return classes are swallowed
 (W burst consumed) and answered with a local DECERR B. See the module doc:
-`docs/markdown/rtl-amba/axi5/axi5_atomic_filter.md`. Read-return atomics
-proper (A5-3b) need a per-ID tracker shared across a port's split wr/rd
-paths and are deferred until a consumer exists.
+`docs/markdown/rtl-amba/axi5/axi5_atomic_filter.md`. The filter exists
+because a port with no read path has nowhere to deliver the R beat those
+classes answer with. A port that has one gets the next section instead.
+
+## Read-Return Atomics (A5-3b, rw masters)
+
+An **rw** atomic-enabled master has no filter. AtomicLoad (`10xxxx`),
+AtomicSwap and AtomicCompare (`11000x`) ride the AW path to the slave like
+any write; the slave performs the operation and answers on **both** B and
+R, the R beat carrying the location's original data under the **AW's ID**.
+Two things in this fabric had to learn about that beat, because every
+R-return tracker in it is fed by AR handshakes:
+
+```mermaid
+graph LR
+    M["master adapter<br/>AR->R slave_select FIFO"] -- "push at atomic AW<br/>(dual push with a same-cycle AR)" --> X["crossbar"]
+    X --> S["slave adapter<br/>in-order read FIFO + axi5_atomic_rr_tracker"]
+    S -- "R beat: RID hits tracker -> route by its tag,<br/>do not pop the FIFO" --> X
+    X -- "R muxed to the FIFO head's slave" --> M
+```
+
+**Master adapter.** The AR->R tracking FIFO that drives `r_slave_select`
+takes an entry at the atomic AW handshake as well as at AR. An AR and an
+atomic AW can handshake in the same cycle, so the FIFO has a dual push: AR
+takes the first slot, the AW the second, and the AW's own gate
+(`aw_rr_gate_ok`) demands two free slots and the same
+single-outstanding-target rule the read side already applies. The AW is
+the last entry pushed, so it becomes the active target. The B/W paths are
+unchanged. The trace tracker mirrors the dual push so the R beat echoes
+the AW's trace (BRIDGE-012).
+
+**Out of range.** A read-return atomic that decodes to the subtractive
+slave would otherwise wedge the port: that slave answers DECERR on B and
+knows nothing about R, while the master adapter is holding an R-return slot
+for the beat. The tracker entry therefore carries a `local` flag and the
+AW's ID, and when it reaches the head the R mux presents a single DECERR
+beat with that ID itself, holding every slave's `rready` off
+(`r_path_active && !r_local_head`) for that cycle. B and R both report
+DECERR, and the port keeps working. This is BRIDGE-009's rule applied to
+the atomic path.
+
+**The invariant underneath.** The crossbar's response mux is an OR-merge
+and is a mux only while at most one connected slave's tracker head belongs
+to a given master; the master adapter's single-outstanding-target gate is
+what guarantees that. The atomic AW's gate therefore yields when an AR to a
+different slave handshakes in the same cycle (the one way a dual push could
+hold two targets), and every generated crossbar now carries a simulation-
+only `$countones` guard on each master's response-mux select vector that
+reports the cycle the invariant slips.
+
+**Slave adapter.** `axi5_atomic_rr_tracker` (module doc:
+`docs/markdown/rtl-amba/axi5/axi5_atomic_rr_tracker.md`) records
+(AWID -> requester index) at every AW handshake with `AWATOP[5]` set, and
+answers combinationally from `RID`. An R beat it claims is routed by its
+tag and does **not** pop the in-order read FIFO; every other beat routes by
+FIFO position as before. The atomic AW's `awready` is held while the
+tracker is full. The BRIDGE-010 in-order check skips tracked beats and
+reports, in simulation, an R beat that matches both a tracked atomic and
+the FIFO head: that is two requesters aliasing one ID at this slave, which
+this fabric does not disambiguate.
+
+**Validator.** An rw atomic master's connected atomic slaves must be `rw`
+(a write-only slave cannot return read data) and must use the in-order
+tracker (`enable_ooo` has no hook for the return tracker). A write-only
+atomic master is not subject to either rule; it keeps the filter.
+
+**Filelist.** `axi5_atomic_filter.f` is pulled only when a write-only
+atomic master exists; `axi5_atomic_rr_tracker.f` only when an rw atomic
+slave exists. Pure-AXI4 bridges and the A5-3a fixture are byte-identical
+to before this change.
 
 ## APB5 Slaves (A5-3c)
 
@@ -113,9 +180,19 @@ keeps the APB4 transfer protocol.
   must match.
 - Sideband **across a width converter**: `dv/tests/test_bridge_1x2_rd_axi5w_sideband.py`
   -- 32b AXI5 master into a 64b AXI4 slave; data round-trips, trace returns 0.
-- Atomics: `dv/tests/test_bridge_1x2_wr_axi5a_atomics.py` (store forwards;
-  load, swap AND compare answered DECERR by the filter, via
+- Atomics, filtered: `dv/tests/test_bridge_1x2_wr_axi5a_atomics.py` (store
+  forwards; load, swap AND compare answered DECERR by the filter, via
   `atomic_operation`) and `val/amba/test_axi5_atomic_filter.py`.
+- Atomics, read-return: `dv/tests/test_bridge_1x2_rw_axi5a_atomics.py` --
+  load ADD/SET/UMAX, swap, compare (match and mismatch) on both slaves,
+  each checked three ways (R data is the pre-op value, memory holds the
+  post-op value, a plain read agrees), then reads and atomics in flight
+  together across and within slaves. The slave BFM performs the operation;
+  the AXI5 checker treats a read-return atomic as an outstanding read and
+  flags any R beat nobody requested. `val/amba/test_axi5_atomic_rr_tracker.py`
+  covers the tracker alone. Mutation-checked: with the tracker's `hit`
+  removed from `rid_valid`, the R beat is never routed and the test fails
+  on a read-return timeout.
 - AXI5 compliance at the boundary: every generated TB arms an
   `AXI5ComplianceChecker` on each AXI5 master port and every generated test
   asserts zero violations before PASSED; `dv/tests/test_bridge_1x2_rd_axi5_bfm5.py`

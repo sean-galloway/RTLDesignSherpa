@@ -1231,6 +1231,29 @@ class CrossbarGenerator:
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
+        # The mux above is an OR-merge: it is only a mux while at most one
+        # connected slave's tracker head belongs to this master, which the
+        # master adapter's single-outstanding-target gate guarantees. When
+        # that invariant slips (A5-3b found one way: a dual push into the
+        # AR->R tracker with two targets), two slaves drive the same lines
+        # and the master sees ORed IDs and payload -- a starvation that looks
+        # like anything but this. Name it the cycle it happens. Sim-only.
+        sel_terms = ", ".join(
+            f"(({get_slave_prefix(slave)}rid_bridge_id == {master_idx}) && {get_slave_prefix(slave)}rid_valid)"
+            for _si, slave in connected_slaves)
+        lines.append("`ifndef SYNTHESIS")
+        lines.append("    // synthesis translate_off")
+        lines.append("    always_ff @(posedge aclk) begin")
+        lines.append(f"        if (aresetn && $countones({{{sel_terms}}}) > 1) begin")
+        lines.append(f'            $error("%m: response mux for master {master.name} ({suffix}) has %0d slaves selected at once; ",')
+        lines.append(f'                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",')
+        lines.append(f"                   $countones({{{sel_terms}}}));")
+        lines.append("        end")
+        lines.append("    end")
+        lines.append("    // synthesis translate_on")
+        lines.append("`endif")
+        lines.append("")
+
         # AXI5 sideband (see write-response mux comment).
         for field, _w, feat, base in self._sb_fields('r', self.sb_union):
             lines.append(f"    assign {master.name}_{suffix}_r.{field} = ")

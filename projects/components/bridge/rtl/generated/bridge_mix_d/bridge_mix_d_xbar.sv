@@ -1066,6 +1066,18 @@ module bridge_mix_d_xbar
         ((doorbell_axi_rid_bridge_id == 0) && doorbell_axi_rid_valid ? doorbell_axi_rvalid : '0) |
         ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid ? apb_periph_axi_rvalid : '0);
 
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((doorbell_axi_rid_bridge_id == 0) && doorbell_axi_rid_valid), ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master cpu_axi4 (32b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((doorbell_axi_rid_bridge_id == 0) && doorbell_axi_rid_valid), ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
+
 
     // Master: cpu_axi4, Width path: 64b
     assign cpu_axi4_64b_awready = 
@@ -1120,6 +1132,18 @@ module bridge_mix_d_xbar
         ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rvalid : '0) |
         ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
 
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master cpu_axi4 (64b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
+
 
     // Master: trace_axil, Width path: 32b
     assign trace_axil_32b_awready = 
@@ -1160,6 +1184,18 @@ module bridge_mix_d_xbar
 
     assign trace_axil_32b_rvalid = 
         ((doorbell_axi_rid_bridge_id == 1) && doorbell_axi_rid_valid ? doorbell_axi_rvalid : '0);
+
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((doorbell_axi_rid_bridge_id == 1) && doorbell_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master trace_axil (32b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((doorbell_axi_rid_bridge_id == 1) && doorbell_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
 
 
     // Master: trace_axil, Width path: 64b
@@ -1214,6 +1250,18 @@ module bridge_mix_d_xbar
     assign trace_axil_64b_rvalid = 
         ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rvalid : '0) |
         ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid ? subtractive_axi_rvalid : '0);
+
+`ifndef SYNTHESIS
+    // synthesis translate_off
+    always_ff @(posedge aclk) begin
+        if (aresetn && $countones({((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}) > 1) begin
+            $error("%m: response mux for master trace_axil (64b) has %0d slaves selected at once; ",
+                   "the single-outstanding-target invariant is broken and the R payload is OR-merged",
+                   $countones({((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid), ((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid)}));
+        end
+    end
+    // synthesis translate_on
+`endif
 
 
 endmodule : bridge_mix_d_xbar

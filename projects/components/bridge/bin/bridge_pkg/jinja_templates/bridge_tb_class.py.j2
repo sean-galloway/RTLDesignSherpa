@@ -638,6 +638,12 @@ class {{ tb_class_name }}(TBBase):
             base_addr={{ '0x%08x' % slave.base_addr }},
         )
 {% endif %}
+{% if s_axi5 and slave.has_read_channels() and slave.has_write_channels() %}
+        # A5-3b: a read-return atomic answers on this slave's R channel, which
+        # the read BFM owns. Pair the two so the write side can hand over the
+        # location's original data.
+        self.slave_wr[{{ loop.index0 }}].read_return_channel = self.slave_rd[{{ loop.index0 }}]
+{% endif %}
 {% endif %}
 {% endfor %}
 

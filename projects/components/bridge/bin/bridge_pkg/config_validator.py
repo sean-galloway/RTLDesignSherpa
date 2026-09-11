@@ -281,6 +281,42 @@ def validate_axi5_poison_connectivity(masters: List[PortSpec],
                 )
 
 
+def validate_axi5_atomic_read_return(masters: List[PortSpec],
+                                     slaves: List[PortSpec],
+                                     connectivity) -> None:
+    """BRIDGE-002 A5-3b. An rw AXI5 master that enables 'atomic' forwards
+    read-return atomics (AtomicLoad/Swap/Compare) natively -- there is no
+    boundary filter on such a port -- and they answer on the READ data
+    channel with the AW's ID. Every connected atomic slave must therefore be
+    able to return read data ('rw'), and must use the in-order tracker: the
+    per-ID return tracker sits beside the read FIFO, and the CAM (enable_ooo)
+    path has no such hook. A write-only atomic master keeps the A5-3a
+    filter and is not subject to this rule."""
+    for m, s in _axi5_connected_pairs(masters, slaves, connectivity):
+        if not (m.protocol == 'axi5'
+                and 'atomic' in (getattr(m, 'axi5_features', None) or [])
+                and m.channels == 'rw'):
+            continue
+        if getattr(s, 'internal', False):
+            continue
+        if s.channels != 'rw':
+            raise ValidationError(
+                f"AXI5 master '{m.port_name}' is 'rw' with 'atomic', so its "
+                f"read-return atomics forward natively and answer on R -- but "
+                f"connected slave '{s.port_name}' has channels '{s.channels}' "
+                f"and cannot return read data. Give the slave 'rw', or make "
+                f"the master write-only (which keeps the boundary filter and "
+                f"answers read-return classes with DECERR)."
+            )
+        if getattr(s, 'enable_ooo', False):
+            raise ValidationError(
+                f"AXI5 slave '{s.port_name}' receives read-return atomics from "
+                f"'{m.port_name}' but uses enable_ooo (CAM tracking); the "
+                f"read-return tracker is implemented on the in-order tracker "
+                f"only. Drop enable_ooo on this slave."
+            )
+
+
 def warn_axi5_dropped_sideband(masters: List[PortSpec],
                                slaves: List[PortSpec],
                                connectivity) -> None:
@@ -589,6 +625,7 @@ def validate_config(
     # droppable sideband set gets visibility warnings when it will
     # terminate mid-path.
     validate_axi5_poison_connectivity(masters, slaves, connectivity)
+    validate_axi5_atomic_read_return(masters, slaves, connectivity)
     warn_axi5_dropped_sideband(masters, slaves, connectivity)
 
     # Validate address map

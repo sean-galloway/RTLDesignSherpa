@@ -1,0 +1,59 @@
+# Bridge Configuration: 1x2 read/write bridge with NATIVE read-return
+# ATOMICS (BRIDGE-002 phase A5-3b).
+#
+# The rw twin of bridge_1x2_wr_axi5a. Because the master has a read path,
+# its AtomicLoad/Swap/Compare are NOT filtered at the boundary: the AW rides
+# the fabric, the slave performs the operation, and the location's original
+# data comes back on R with the AW's ID. The master adapter's AR->R tracker
+# takes a slot at the atomic AW; the slave adapter routes the R beat by ID
+# through axi5_atomic_rr_tracker. Store-class atomics and plain traffic are
+# unchanged. Connectivity comes from bridge_1x2_rw_axi5a_connectivity.csv.
+
+[bridge]
+name = "bridge_1x2_rw_axi5a"
+variants = ["no", "mon"]
+description = "AXI5 master x 2 AXI5 slaves rw bridge, read-return atomics native (A5-3b)"
+
+[[bridge.masters]]
+name = "cpu"
+prefix = "cpu_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+protocol = "axi5"
+axi5_features = ["trace", "atomic"]
+mon_add = ["compl"]
+
+[[bridge.slaves]]
+name = "ddr"
+prefix = "ddr_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+protocol = "axi5"
+axi5_features = ["trace", "atomic"]
+mon_add = ["compl"]
+base_addr = "0x00000000"
+addr_range = "0x80000000"
+
+[[bridge.slaves]]
+name = "sram"  # atomic only: trace drops here (warning)
+prefix = "sram_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+protocol = "axi5"
+axi5_features = ["atomic"]
+mon_add = ["compl"]
+base_addr = "0x80000000"
+# Half the upper space, deliberately: 0xC000_0000 and above decodes to the
+# subtractive slave, so the sign-off test can send a read-return atomic to
+# an unmapped address and check that it is answered (DECERR on B AND R)
+# instead of wedging the port's read path. The wr twin covers all 4 GB.
+addr_range = "0x40000000"

@@ -66,7 +66,7 @@ Note for A5-2: the BFM issues trace-clear transactions by default
 (traced_transactions=0 in the report) — asserting sideband VALUES
 end-to-end belongs with the native-sideband work.
 
-Next: A5-3 (atomics + APB5).
+Next: A5-3 (atomics + APB5). [All of A5-3 landed by 2026-09-10; see the slices below.]
 
 **A5-3 design note (2026-08-09):** three slices, in order of
 tractability. Facts on the ground: the axi5 wrappers already
@@ -128,10 +128,104 @@ reads" rule keeps routing unambiguous once tracked.
   AW and no memory write; 52 generator unit tests; 23/23 bridges
   regenerate, pre-existing byte-identical. A5-3 remaining: only
   A5-3b (read-return atomics), deferred until a consumer exists.
-- *A5-3b — read-return atomics:* the shared per-ID tracking block
-  above. Design that block standalone first; defer until a concrete
-  consumer exists (nothing in-tree issues AtomicLoad today, and the
-  BFM cannot check the return path yet either).
+- *A5-3b — read-return atomics: LANDED 2026-09-10.* The consumer the
+  deferral was waiting on was built alongside it: the AXI5 slave BFM now
+  performs atomics on its memory model and returns the original data on R,
+  and the AXI5 master BFM collects it. With that, the fabric side.
+
+  *What the design note above got right, and what it did not need.* A
+  read-return atomic is invisible to every AR-fed tracker, that part held.
+  But the "per-ID tracking block SHARED between a port's wr and rd
+  adapters" did not need to exist: the master adapter's wr and rd paths are
+  one module, so the atomic AW simply pushes into the existing AR->R
+  slave_select FIFO. What that FIFO needed was a DUAL push (an AR and an
+  atomic AW can handshake in the same cycle; AR takes the first slot, the AW
+  the second) and the AW's own single-target gate requiring two free slots.
+  The AW is the last entry pushed, so it becomes the active target. In-order
+  routing stays sound because the single-target rule already guarantees
+  every live entry shares one slave. Per-ID tracking is needed only at the
+  SLAVE adapter, where reads and atomics from the same requester return in
+  an order no FIFO can predict: `rtl/amba/axi5/axi5_atomic_rr_tracker.sv`
+  (its own val test, gate/func/full) records (AWID -> requester) at every
+  AW with AWATOP[5], answers combinationally from RID, and an R beat it
+  claims is routed by its tag and does not pop the in-order FIFO. The
+  atomic AW's awready is held while it is full. The BRIDGE-010 sim check
+  skips tracked beats and reports an RID that matches both a tracked atomic
+  and the FIFO head: two requesters aliasing one ID at a slave, which this
+  fabric never disambiguated.
+
+  *The out-of-range case, found while writing the test.* A read-return
+  atomic whose address nobody owns decodes to the subtractive slave, which
+  answers DECERR on B and knows nothing about R. With the master adapter now
+  holding an R-return slot for it, that beat never coming would have wedged
+  every later read on the port behind the stuck head: BRIDGE-009's hang,
+  reborn on the atomic path. So the master adapter answers those itself: the
+  tracker entry carries a `local` flag and the AW's ID, and when it reaches
+  the head the R mux presents one DECERR beat with that ID while holding
+  every slave's rready off. The rw fixture's sram range was halved
+  (0x8000_0000, 0x4000_0000) so 0xC000_0000 and up is genuinely unmapped
+  and the test can exercise it: B and R both DECERR, then a plain read and
+  an in-range atomic still complete. Mutation-checked RED: with
+  `r_local_head` forced to zero the OOR atomic's R never arrives.
+
+  *One invariant the dual push nearly broke, and the guard that now names
+  it.* The crossbar's response mux is an OR-merge; it is a mux only while at
+  most one connected slave's tracker head belongs to a given master, which
+  the master adapter's single-outstanding-target gate guarantees. With the
+  AR->R FIFO empty, an AR and an atomic AW to DIFFERENT slaves both pass
+  their target rule in the same cycle, and the first dual push happily held
+  both -- two slaves then drove one master's R lines and the ORed IDs sent
+  beats to the wrong per-ID queues. It surfaced as a seed-dependent read
+  starvation in the sign-off test (two cells of three, one seed base), and
+  passed clean under another base. The AW now yields in that cycle. And
+  every generated crossbar carries a sim-only `$countones(...) > 1` guard on
+  each master's response-mux select vector, so the invariant slipping is a
+  named error in the cycle it happens rather than a starvation a thousand
+  cycles later. That guard is the one change to the 26 pre-existing
+  bridges' RTL (their `*_xbar.sv`); adapters are byte-identical.
+
+  *Where the filter stays.* A write-only atomic master has no R path, so it
+  keeps the A5-3a `axi5_atomic_filter`; `rr_atomic` on the master adapter
+  is exactly "atomic AND rw". Validator: an rw atomic master's connected
+  atomic slaves must be rw (else DECERR-by-filter would have been the honest
+  answer, and now there is no filter) and must not use enable_ooo (the CAM
+  read path has no hook for the return tracker; it is also unexercised, no
+  fixture sets it). Filelist emission pulls the filter only for write-only
+  atomic masters and the tracker only for rw atomic slaves.
+
+  *Also fixed on the way.* The AXI5 slave BFM used to write an
+  AtomicStore's operand as a plain write; it now performs the store-class
+  ALU op, and the A5-3a test's expectation (memory == operand) was that old
+  behaviour written down. It now expects old + operand.
+
+  *Verified.* Fixture `bridge_1x2_rw_axi5a` (+mon), the rw twin of the
+  A5-3a fixture. 27/27 bridges regenerate; the 26 pre-existing are
+  byte-identical in RTL (the 2x2_axi5 TB picked up one line pairing its
+  slave BFMs). Lint gate 40/40 clean. 71 generator unit tests (5 new: the
+  two validator rules, generation of both atomic fixtures, and that the
+  write-only one still gets its filter). Hand-written
+  `test_bridge_1x2_rw_axi5a_atomics.py`: AtomicLoad ADD/SET/UMAX, Swap,
+  Compare match and mismatch on both slaves, each checked three ways (R data
+  is the pre-op value, memory holds the post-op value, a plain read agrees),
+  then reads and atomics in flight together across and within slaves; 16 /
+  112 read-return atomics routed at func / full. Mutation-checked RED: with
+  the tracker's hit removed from the slave adapter's rid_valid, the R beat
+  is never routed and the test dies on "atomic read-return timeout".
+
+  *Checker.* `AXI5ComplianceChecker` treats a read-return atomic AW as an
+  outstanding single-beat read (RLAST and ordering checks apply) -- but only
+  on an interface that has an R channel, since on a write-only port the
+  boundary filter answers with DECERR on B and no R can ever come; the first
+  version registered it regardless and the A5-3a test then reported every
+  second atomic as reusing a live ID. It flags an
+  atomic whose ID is still in use by an outstanding read or write
+  (ATOMIC_ID_IN_USE), and flags an R beat with no outstanding request
+  (R_WITHOUT_REQUEST) -- previously such a beat was silently ignored. The
+  first version of the hand-written test tripped the ID rule itself at full
+  depth: it rotated 14 IDs over 32 in-flight transactions, so a word's four
+  transactions reused IDs a still-outstanding word held, and two read
+  coroutines then shared one per-ID response queue. It now runs in batches
+  of three words so twelve distinct IDs cover everything in flight.
 - *A5-3c — APB5 slaves (independent, do first):* new converters IP
   `axi4_to_apb5_shim` = the axi4_to_apb4 conversion core + the
   apb5_pkg m2s/s2m conversion functions + PWAKEUP generation (assert

@@ -117,7 +117,8 @@ tests and TB class:
 | `bridge_1x2_{rd,wr}_axi5` | AXI5 master, AXI4 slaves | interop boundary; sideband terminates |
 | `bridge_1x2_rd_axi5s` | AXI4 master, one AXI5 slave | AXI5 slave ports |
 | `bridge_1x2_{rd,wr}_axi5n` | AXI5 both ends | native sideband values, poison (wr) |
-| `bridge_1x2_wr_axi5a` | AXI5 both ends, `atomic` | store-class forwards; load/swap/compare DECERR |
+| `bridge_1x2_wr_axi5a` | AXI5 both ends, `atomic`, write-only | store-class forwards; load/swap/compare DECERR at the filter |
+| `bridge_1x2_rw_axi5a` | AXI5 both ends, `atomic`, rw | read-return atomics native: R data routed back by ID |
 | `bridge_1x2_rw_axil5`, `bridge_1x2_rw_apb5` | AXI4 master, AXI5-Lite / APB5 slave | the Lite and APB5 shims |
 | `bridge_2x2_axi5` | two AXI5 masters, AXI5 + AXI4 slaves | sideband through arbitration |
 | `bridge_1x2_rd_axi5w` | AXI5 32b master, 64b AXI4 + 32b AXI5 slaves | sideband across a width converter |

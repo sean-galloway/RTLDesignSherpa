@@ -87,3 +87,35 @@ Two consequences for a TB:
 
 `APBSlave(error_overflow=False)` keeps the old grow-the-memory behaviour for
 a slave meant to accept any address; the default is now the error.
+
+## An ID in flight is a resource (2026-09-10)
+
+The AXI5 BFMs key their response queues on transaction ID: every R or B
+beat lands in a per-ID deque and the coroutine that issued that ID pops it.
+Two transactions in flight with one ID therefore share one queue, and the
+first coroutine to wake takes whichever beat arrived, regardless of whose
+it was. AXI itself only permits same-ID reuse for ordinary reads and
+writes; an atomic must not share its ID with ANY outstanding transaction
+from the same Manager, because a read-return atomic answers on R under its
+AW ID and that is the only thing that tells its beat from a read's.
+
+Measured on the bridge A5-3b sign-off test at full depth: a concurrency
+phase rotated 14 IDs over 32 in-flight transactions, so word seven reused
+word zero's four IDs while word zero was still outstanding. A read then
+starved for 5000 cycles waiting on a queue another coroutine had drained,
+and it looked exactly like a routing bug in the fabric. The fabric was
+fine. The fix is structural, not a bigger timeout: batch the traffic so
+that everything in flight at once holds a distinct ID (with a 4-bit ID and
+four transactions per word, three words per batch), and await the batch
+before reusing one. `AXI5ComplianceChecker` now records ATOMIC_ID_IN_USE
+when an atomic is issued under an ID a read or write still holds, and
+R_WITHOUT_REQUEST for an R beat nobody asked for; the first would have
+named this in the compliance report had the test reached it.
+
+For read-return atomics themselves: `AXI5MasterWrite.atomic_operation`
+takes `read_channel=` (the port's `AXI5MasterRead`) and returns
+`read_data` / `read_resp` alongside the B result; the paired
+`AXI5SlaveWrite` performs the operation on its memory model and hands the
+original data to `AXI5SlaveRead.send_read_return`. The generated bridge TB
+pairs the two slave BFMs for every AXI5 rw slave.
+

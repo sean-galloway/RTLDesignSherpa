@@ -502,6 +502,34 @@ class AdapterGenerator:
     def _trace_echo(self) -> bool:
         return 'trace' in self.sb_own
 
+    # --- BRIDGE-002 A5-3b: read-return atomics ride natively ---------------
+    # A read-return atomic (AWATOP[5]: AtomicLoad/Swap/Compare) is issued on
+    # AW and answers with the location's original data on R, using the AW
+    # ID. Every R-return tracker in this fabric learns from ARs, so A5-3a
+    # terminated those classes at the boundary with axi5_atomic_filter. With
+    # a read path on this port there is somewhere for the R to go: the AW
+    # also claims a slot in the AR->R tracking FIFO (so the response mux
+    # selects its slave in order) and the slave adapter tracks it per ID.
+    # A write-only master has no R path and keeps the filter.
+    @property
+    def rr_atomic(self) -> bool:
+        return 'atomic' in self.sb_own and self.master.channels == 'rw'
+
+    @property
+    def rr_local_idx(self):
+        """Index of the internal (subtractive) slave, or None. A read-return
+        atomic that decodes to it gets its R beat generated HERE: that slave
+        answers DECERR on B and knows nothing about R, and without a local
+        answer the port's R-return tracker would hold a slot for a beat that
+        never comes -- every later read blocked behind it, which is the shape
+        of BRIDGE-009 on the atomic path."""
+        if not self.rr_atomic:
+            return None
+        for i, s in enumerate(self.slaves):
+            if getattr(s, 'internal', False):
+                return i
+        return None
+
     def _trace_capable_mask(self) -> str:
         """One-hot mask of connected slaves that implement trace themselves."""
         from bridge_pkg.sideband import port_features
@@ -527,6 +555,15 @@ class AdapterGenerator:
             "    `ALWAYS_FF_RST(aclk, aresetn,",
             "        if (`RST_ASSERTED(aresetn)) begin",
             f"            for (int i = 0; i < {up}_TRK_DEPTH; i++) {chan}_trk_trace[i] <= 1'b0;",
+            *([
+                # A5-3b: the read-return atomic's R echoes the AW's trace;
+                # mirror the dual push of the slave_select FIFO exactly.
+                "        end else if (ar_trk_push && ar_trk_push_aw) begin",
+                "            ar_trk_trace[ar_trk_wptr[AR_TRK_AW-1:0]] <= fub_axi_artrace;",
+                "            ar_trk_trace[AR_TRK_AW'(ar_trk_wptr[AR_TRK_AW-1:0] + 1'b1)] <= fub_axi_awtrace;",
+                "        end else if (ar_trk_push_aw) begin",
+                "            ar_trk_trace[ar_trk_wptr[AR_TRK_AW-1:0]] <= fub_axi_awtrace;",
+            ] if (chan == 'ar' and self.rr_atomic) else []),
             f"        end else if ({chan}_trk_push) begin",
             f"            {chan}_trk_trace[{chan}_trk_wptr[{up}_TRK_AW-1:0]] <= fub_axi_{chan}trace;",
             "        end",
@@ -792,8 +829,10 @@ class AdapterGenerator:
         lines.extend(self._sb_wire_decls())
 
         # Pre-filter (wrapper-side) wr signals when this master carries
-        # 'atomic' (A5-3a): the axi5_atomic_filter sits pref -> fub.
-        if 'atomic' in self.sb_own and self.master.channels in ("wr", "rw"):
+        # 'atomic' on a write-only port (A5-3a): the axi5_atomic_filter sits
+        # pref -> fub. An rw atomic port forwards read-return atomics
+        # natively (A5-3b, see rr_atomic) and needs no filter.
+        if 'atomic' in self.sb_own and not self.rr_atomic:
             id_w = self.fub_id_width
             dw = self.master.data_width
             lines.append("    // Pre-filter wr signals (axi5_atomic_filter upstream side)")
@@ -896,7 +935,8 @@ class AdapterGenerator:
             # sits between pref and fub (A5-3a — read-return atomics
             # must not reach a fabric that cannot route their R data).
             wrapper.connect_external(connector_prefix=signal_prefix)
-            wr_fub_prefix = ('pref_axi_' if 'atomic' in self.sb_own
+            wr_fub_prefix = ('pref_axi_'
+                             if ('atomic' in self.sb_own and not self.rr_atomic)
                              else 'fub_axi_')
             wrapper.connect_bridge_internal(connector_prefix=wr_fub_prefix)
             wrapper.add_status(busy_connector='wrapper_wr_busy')
@@ -915,7 +955,7 @@ class AdapterGenerator:
             lines.append(f"    // Timing isolation wrapper ({wrapper_protocol}_slave_wr{'_mon' if self.enable_monitoring else ''})")
             lines.append("    // ================================================================")
             lines.extend(wrapper.generate_lines())
-            if 'atomic' in self.sb_own:
+            if 'atomic' in self.sb_own and not self.rr_atomic:
                 lines.extend(self._generate_atomic_filter())
 
         # Read wrapper
@@ -993,6 +1033,17 @@ class AdapterGenerator:
             lines.append("    logic [NUM_SLAVES-1:0] w_slave_select;")
         if self.master.channels in ("rd", "rw"):
             lines.append("    logic [NUM_SLAVES-1:0] r_slave_select;")
+        if self.rr_atomic:
+            lines.append("    // A5-3b: a read-return atomic (AWATOP[5]) answers on R, so its AW")
+            lines.append("    // also claims a slot in the AR->R tracking FIFO and must satisfy the")
+            lines.append("    // read side's single-outstanding-target gate. Declared here, driven")
+            lines.append("    // in the read-tracking section, consumed by aw_gate_ok.")
+            lines.append("    wire  aw_rr_atomic = fub_axi_awatop[5];")
+            lines.append("    logic aw_rr_gate_ok;")
+            if self.rr_local_idx is not None:
+                lines.append("    // ... and one that decoded to the subtractive slave is answered locally")
+                lines.append("    // on R (DECERR); r_local_head marks its turn at the tracker head.")
+                lines.append("    logic r_local_head;")
         lines.append("")
 
         # Write address decode
@@ -1182,6 +1233,10 @@ class AdapterGenerator:
                     )
                 if self.master.channels in ("rd", "rw"):
                     r_terms = " | ".join(f"r_slave_select[{si}]" for si in slaves_at_w)
+                    if self.rr_local_idx is not None:
+                        # A locally answered R beat must not hand a slave's
+                        # beat through underneath it.
+                        r_terms = f"({r_terms}) && !r_local_head"
                     lines.append(
                         f"    logic r_path_active_{slave_width}b;"
                     )
@@ -1332,7 +1387,12 @@ class AdapterGenerator:
             lines.append("                         (aw_trk_wptr[AW_TRK_AW-1:0] == aw_trk_rptr[AW_TRK_AW-1:0]);")
             lines.append("    assign aw_gate_ok = ((aw_trk_wptr == aw_trk_rptr) ||")
             lines.append("                         (comb_slave_select_aw == r_aw_active_target)) &&")
-            lines.append("                        !aw_trk_full;")
+            if self.rr_atomic:
+                lines.append("                        !aw_trk_full &&")
+                lines.append("                        // A5-3b: a read-return atomic also lives in the AR->R FIFO")
+                lines.append("                        (!aw_rr_atomic || aw_rr_gate_ok);")
+            else:
+                lines.append("                        !aw_trk_full;")
             lines.append("")
             lines.append("    // -------- AW->W slave_select tracking FIFO --------")
             lines.append("    // Same push as AW (records slave_select at handshake);")
@@ -1377,20 +1437,56 @@ class AdapterGenerator:
             lines.append(f"    logic [NUM_SLAVES-1:0] ar_trk_mem [AR_TRK_DEPTH];")
             lines.append("    logic [AR_TRK_AW:0] ar_trk_wptr, ar_trk_rptr;")
             lines.append("    logic ar_trk_push, ar_trk_pop;")
+            if self.rr_atomic:
+                lines.append("    logic ar_trk_push_aw;")
+            if self.rr_local_idx is not None:
+                lines.append("    // A5-3b: entries that must be answered locally (see r_local_head)")
+                lines.append("    logic ar_trk_local [AR_TRK_DEPTH];")
+                lines.append(f"    logic [{self.fub_id_width-1}:0] ar_trk_id [AR_TRK_DEPTH];")
+                lines.append(f"    wire  aw_rr_local = aw_rr_atomic && comb_slave_select_aw[{self.rr_local_idx}];")
             # r_slave_select declared at the top of the module.
             lines.append("")
             lines.append("    assign ar_trk_push = fub_axi_arvalid && fub_axi_arready;")
             lines.append("    assign ar_trk_pop  = fub_axi_rvalid && fub_axi_rready && fub_axi_rlast;")
+            if self.rr_atomic:
+                lines.append("    // A5-3b: a read-return atomic's AW claims an R-return slot too.")
+                lines.append("    assign ar_trk_push_aw = fub_axi_awvalid && fub_axi_awready && aw_rr_atomic;")
             lines.append("")
             lines.append("    `ALWAYS_FF_RST(aclk, aresetn,")
             lines.append("        if (`RST_ASSERTED(aresetn)) begin")
             lines.append("            ar_trk_wptr <= '0;")
             lines.append("            ar_trk_rptr <= '0;")
             lines.append("        end else begin")
-            lines.append("            if (ar_trk_push) begin")
-            lines.append("                ar_trk_mem[ar_trk_wptr[AR_TRK_AW-1:0]] <= comb_slave_select_ar;")
-            lines.append("                ar_trk_wptr <= ar_trk_wptr + 1'b1;")
-            lines.append("            end")
+            if self.rr_atomic:
+                # Two pushes can land in one cycle (an AR and a read-return
+                # atomic AW). Both answer on R; AR takes the first slot and
+                # the AW the second, and aw_rr_gate_ok guarantees two free.
+                loc = self.rr_local_idx is not None
+                lines.append("            if (ar_trk_push && ar_trk_push_aw) begin")
+                lines.append("                ar_trk_mem[ar_trk_wptr[AR_TRK_AW-1:0]] <= comb_slave_select_ar;")
+                lines.append("                ar_trk_mem[AR_TRK_AW'(ar_trk_wptr[AR_TRK_AW-1:0] + 1'b1)] <= comb_slave_select_aw;")
+                if loc:
+                    lines.append("                ar_trk_local[ar_trk_wptr[AR_TRK_AW-1:0]] <= 1'b0;")
+                    lines.append("                ar_trk_local[AR_TRK_AW'(ar_trk_wptr[AR_TRK_AW-1:0] + 1'b1)] <= aw_rr_local;")
+                    lines.append("                ar_trk_id[AR_TRK_AW'(ar_trk_wptr[AR_TRK_AW-1:0] + 1'b1)] <= fub_axi_awid;")
+                lines.append("                ar_trk_wptr <= ar_trk_wptr + (AR_TRK_AW+1)'(2);")
+                lines.append("            end else if (ar_trk_push) begin")
+                lines.append("                ar_trk_mem[ar_trk_wptr[AR_TRK_AW-1:0]] <= comb_slave_select_ar;")
+                if loc:
+                    lines.append("                ar_trk_local[ar_trk_wptr[AR_TRK_AW-1:0]] <= 1'b0;")
+                lines.append("                ar_trk_wptr <= ar_trk_wptr + 1'b1;")
+                lines.append("            end else if (ar_trk_push_aw) begin")
+                lines.append("                ar_trk_mem[ar_trk_wptr[AR_TRK_AW-1:0]] <= comb_slave_select_aw;")
+                if loc:
+                    lines.append("                ar_trk_local[ar_trk_wptr[AR_TRK_AW-1:0]] <= aw_rr_local;")
+                    lines.append("                ar_trk_id[ar_trk_wptr[AR_TRK_AW-1:0]] <= fub_axi_awid;")
+                lines.append("                ar_trk_wptr <= ar_trk_wptr + 1'b1;")
+                lines.append("            end")
+            else:
+                lines.append("            if (ar_trk_push) begin")
+                lines.append("                ar_trk_mem[ar_trk_wptr[AR_TRK_AW-1:0]] <= comb_slave_select_ar;")
+                lines.append("                ar_trk_wptr <= ar_trk_wptr + 1'b1;")
+                lines.append("            end")
             lines.append("            if (ar_trk_pop) begin")
             lines.append("                ar_trk_rptr <= ar_trk_rptr + 1'b1;")
             lines.append("            end")
@@ -1400,6 +1496,9 @@ class AdapterGenerator:
             lines.append("    assign r_slave_select = (ar_trk_wptr != ar_trk_rptr)")
             lines.append("                          ? ar_trk_mem[ar_trk_rptr[AR_TRK_AW-1:0]]")
             lines.append("                          : '0;")
+            if self.rr_local_idx is not None:
+                lines.append("    assign r_local_head = (ar_trk_wptr != ar_trk_rptr) &&")
+                lines.append("                          ar_trk_local[ar_trk_rptr[AR_TRK_AW-1:0]];")
             if self._trace_echo:
                 lines.extend(self._trace_track_lines('ar'))
             lines.append("")
@@ -1408,9 +1507,18 @@ class AdapterGenerator:
             lines.append("    `ALWAYS_FF_RST(aclk, aresetn,")
             lines.append("        if (`RST_ASSERTED(aresetn)) begin")
             lines.append("            r_ar_active_target <= '0;")
-            lines.append("        end else if (ar_trk_push) begin")
-            lines.append("            r_ar_active_target <= comb_slave_select_ar;")
-            lines.append("        end")
+            if self.rr_atomic:
+                # The AW is the LAST entry pushed in a dual-push cycle, so it
+                # is the target later requests must match.
+                lines.append("        end else if (ar_trk_push_aw) begin")
+                lines.append("            r_ar_active_target <= comb_slave_select_aw;")
+                lines.append("        end else if (ar_trk_push) begin")
+                lines.append("            r_ar_active_target <= comb_slave_select_ar;")
+                lines.append("        end")
+            else:
+                lines.append("        end else if (ar_trk_push) begin")
+                lines.append("            r_ar_active_target <= comb_slave_select_ar;")
+                lines.append("        end")
             lines.append("    )")
             # BRIDGE-011, read side -- see the aw_gate_ok comment above.
             lines.append("    logic ar_trk_full;")
@@ -1419,6 +1527,25 @@ class AdapterGenerator:
             lines.append("    assign ar_gate_ok = ((ar_trk_wptr == ar_trk_rptr) ||")
             lines.append("                         (comb_slave_select_ar == r_ar_active_target)) &&")
             lines.append("                        !ar_trk_full;")
+            if self.rr_atomic:
+                lines.append("")
+                lines.append("    // A5-3b: the read-return atomic AW's own gate. Same target rule as")
+                lines.append("    // AR, but it needs TWO free slots so an AR handshaking in the same")
+                lines.append("    // cycle still fits (AR takes the first, the AW the second).")
+                lines.append("    //")
+                lines.append("    // The last term is load-bearing. With the FIFO empty, an AR and an")
+                lines.append("    // atomic AW to DIFFERENT slaves both pass their target rule in the same")
+                lines.append("    // cycle, and a dual push would then hold two targets at once. Every")
+                lines.append("    // slave whose tracker head belongs to this master drives the crossbar's")
+                lines.append("    // OR-merged response mux, so two live targets corrupt the R payload")
+                lines.append("    // (found as a seed-dependent read starvation in the A5-3b sign-off).")
+                lines.append("    // The AW yields in that cycle; it gets its turn once the FIFO drains.")
+                lines.append("    logic [AR_TRK_AW:0] ar_trk_count;")
+                lines.append("    assign ar_trk_count = ar_trk_wptr - ar_trk_rptr;")
+                lines.append("    assign aw_rr_gate_ok = ((ar_trk_wptr == ar_trk_rptr) ||")
+                lines.append("                            (comb_slave_select_aw == r_ar_active_target)) &&")
+                lines.append("                           (ar_trk_count <= (AR_TRK_AW+1)'(AR_TRK_DEPTH - 2)) &&")
+                lines.append("                           !(ar_trk_push && (comb_slave_select_ar != comb_slave_select_aw));")
             lines.append("")
 
         # Write channel MUX
@@ -1636,6 +1763,17 @@ class AdapterGenerator:
             lines.append("                // No slave selected - hold defaults")
             lines.append("            end")
             lines.append("        endcase")
+            if self.rr_local_idx is not None:
+                lines.append("        // A5-3b: a read-return atomic that decoded to the subtractive")
+                lines.append("        // slave is answered here -- DECERR, one beat, the AW's ID. The")
+                lines.append("        // subtractive slave has already been held off via r_path_active.")
+                lines.append("        if (r_local_head) begin")
+                lines.append(f"            fub_axi_rid    = ar_trk_id[ar_trk_rptr[AR_TRK_AW-1:0]];")
+                lines.append(f"            fub_axi_rdata  = {master_width}'d0;")
+                lines.append("            fub_axi_rresp  = 2'b11;")
+                lines.append("            fub_axi_rlast  = 1'b1;")
+                lines.append("            fub_axi_rvalid = 1'b1;")
+                lines.append("        end")
             lines.append("    end")
             lines.append("")
             if self._trace_echo:
