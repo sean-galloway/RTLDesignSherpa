@@ -13,15 +13,13 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
-read -formal -sv -Iincludes counter_bin.sv
-read -formal -sv -Iincludes fifo_control.sv
-read -formal -sv -Iincludes gaxi_fifo_sync_formal.sv
+read_verilog -formal -sv gaxi_fifo_sync_flat.v
 read -formal -sv formal_gaxi_fifo_sync.sv
 prep -top formal_gaxi_fifo_sync
+# a clocked $display becomes a cell async2sync refuses; it is a sim aid
+delete t:$print
 
 [files]
-counter_bin.sv ../../../rtl/common/counter_bin.sv
-fifo_control.sv ../../../rtl/common/fifo_control.sv
-gaxi_fifo_sync_formal.sv
 formal_gaxi_fifo_sync.sv
+gaxi_fifo_sync_flat.v
 includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh
