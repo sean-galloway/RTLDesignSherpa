@@ -151,6 +151,8 @@ class BridgeMixDMonTB(TBBase):
         self.slave_wr = {}
         # APB doesn't split rd/wr — single APBSlave per port.
         self.slave_apb = {}
+        # Wishbone B4 completer ports — single WB4Slave per port.
+        self.slave_wb = {}
 
         # Master BFMs — separate read and write handles. For wr-only or
         # rd-only masters only one of these gets populated.
@@ -158,6 +160,8 @@ class BridgeMixDMonTB(TBBase):
         self.master_wr = {}
         # APB master (one handle per APB master port).
         self.master_apb = {}
+        # Wishbone B4 requester ports (one WB4Master per port).
+        self.master_wb = {}
         # AXI5ComplianceChecker per AXI5 master port (see _setup_master_*).
         self.compliance = {}
 
@@ -381,6 +385,10 @@ class BridgeMixDMonTB(TBBase):
             span = apb.num_lines * apb.strb_bits
             mask = (1 << (span - 1).bit_length()) - 1
             data_bytes = apb.mem.read(addr & mask, byte_count)
+        elif proto == 'wb4':
+            # WB4Slave is constructed with base_addr, so its memory is
+            # window-relative like the AXI/AXIL slave models.
+            data_bytes = self.slave_wb[slave_idx].mem.read(offset, byte_count)
         else:
             mem = self.slave_memory[slave_idx]
             data_bytes = mem.read(offset, byte_count)

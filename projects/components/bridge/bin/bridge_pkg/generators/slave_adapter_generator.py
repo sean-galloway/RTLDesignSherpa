@@ -109,6 +109,10 @@ class SlaveAdapterGenerator:
             lines.extend(self._generate_axi4_timing_wrapper())
         elif self.slave.protocol in ('apb', 'apb5'):
             lines.extend(self._generate_apb_converter())
+        elif self.slave.protocol == 'wb4':
+            # BRIDGE-019: axi4_to_wb4 (the AXI4-Lite decomposers plus
+            # axil4_to_wb4) at the boundary, same mon-sandwich as APB.
+            lines.extend(self._generate_wb4_converter())
         elif self.slave.protocol in ('axil', 'axil5'):
             # Real AXI4-to-AXI4-Lite conversion at the slave boundary.
             # axil5 takes the same path through axi4_to_axil5_{rd,wr},
@@ -346,6 +350,8 @@ class SlaveAdapterGenerator:
             lines.extend(self._generate_axi4_external_ports())
         elif self.slave.protocol in ('apb', 'apb5'):
             lines.extend(self._generate_apb_external_ports())
+        elif self.slave.protocol == 'wb4':
+            lines.extend(self._generate_wb4_external_ports())
         elif self.slave.protocol in ('axil', 'axil5'):
             # Real AXI4-Lite external ports (no id/len/size/burst/last/user).
             # See _generate_axil_converter for the shim that converts
@@ -566,7 +572,7 @@ class SlaveAdapterGenerator:
 
         # Add protocol converter intermediate signals for APB/AXIL
         # These allow FIFO tracking to monitor converter output instead of crossbar input
-        if self.slave.protocol in ['apb', 'apb5', 'axil', 'axil5']:
+        if self.slave.protocol in ['apb', 'apb5', 'axil', 'axil5', 'wb4']:
             lines.append("    // Protocol converter intermediate signals")
             lines.append("    // (FIFO tracking monitors these instead of crossbar signals)")
             if self.has_write:
@@ -741,7 +747,7 @@ class SlaveAdapterGenerator:
         #         `converter_bready` off the shim's AXI4 (s_axi) side
         #         so the FIFO pops the moment the shim actually
         #         produces a response, not when external completes.
-        if self.slave.protocol in ('apb', 'apb5', 'axil', 'axil5'):
+        if self.slave.protocol in ('apb', 'apb5', 'axil', 'axil5', 'wb4'):
             label = self.slave.protocol.upper()
             pop_condition = "converter_bvalid && converter_bready"
             lines.append(f"    // Write Channel FIFO (In-Order) - {label} Protocol")
@@ -904,7 +910,7 @@ class SlaveAdapterGenerator:
         # shims with their own latency; tracking the shim's AXI4
         # (s_axi) output via converter_rvalid keeps the FIFO in
         # lockstep with the actual response.
-        if self.slave.protocol in ('apb', 'apb5', 'axil', 'axil5'):
+        if self.slave.protocol in ('apb', 'apb5', 'axil', 'axil5', 'wb4'):
             label = self.slave.protocol.upper()
             pop_condition = "converter_rvalid && converter_rready && converter_rlast"
             lines.append(f"    // Read Channel FIFO (In-Order) - {label} Protocol")
@@ -1358,6 +1364,89 @@ class SlaveAdapterGenerator:
             lines.append(f"    assign {shim_prefix}rlast = converter_rlast;")
         lines.append("")
 
+        return lines
+
+    def _generate_wb4_external_ports(self) -> List[str]:
+        """Wishbone B4 requester surface (the bridge drives the bus toward an
+        external completer). From bridge_pkg/wb4_signals -- the same table
+        the bridge top and the instance component read. The last line keeps
+        no trailing comma, matching the other external-port emitters."""
+        from ..wb4_signals import port_decl_lines
+        lines = port_decl_lines(self.slave.prefix, 'requester',
+                                self.slave.addr_width, self.slave.data_width)
+        if lines and lines[-1].endswith(','):
+            lines[-1] = lines[-1][:-1]
+        return lines
+
+    def _generate_wb4_converter(self) -> List[str]:
+        """axi4_to_wb4 at the slave boundary (BRIDGE-019).
+
+        Structurally _generate_apb_converter with the Wishbone shim: with
+        monitoring on, the axi4_master_*_mon wrappers sit between the
+        crossbar and the shim and the shim reads the intermediate nets;
+        with monitoring off it faces the crossbar and owns the BRIDGE-011
+        not-full gate. B/R come back through the converter_* intercepts so
+        the tracking FIFO pops when the shim produces the response."""
+        from ..components.axi4_to_wb4_shim_component import Axi4ToWb4Shim
+
+        xbar_prefix = f"xbar_{self.slave.name}_axi_"
+        lines: List[str] = []
+
+        if self.enable_monitoring:
+            shim_prefix = f"{self.slave.name}_mon_axi_"
+            lines.append("    // ============================================================")
+            lines.append("    // axi4_master_*_mon wrapper(s) between crossbar and WB4 shim")
+            lines.append("    // ============================================================")
+            lines.extend(self._shim_axi_intermediate_signal_decls(shim_prefix))
+            lines.append("")
+            if self.has_write:
+                lines.extend(self._generate_master_wr_wrapper(xbar_prefix, shim_prefix))
+            if self.has_read:
+                lines.extend(self._generate_master_rd_wrapper(xbar_prefix, shim_prefix))
+        else:
+            shim_prefix = xbar_prefix
+
+        shim = Axi4ToWb4Shim(
+            instance_name=f"u_{self.slave.name}_wb4_converter",
+            id_width=self.id_width,
+            addr_width=self.slave.addr_width,
+            data_width=self.slave.data_width,
+            has_write=self.has_write,
+            has_read=self.has_read,
+        )
+        shim.connect_clocks_and_resets()
+        if self.has_write:
+            shim.connect_axi_write_channel(
+                crossbar_prefix=shim_prefix,
+                gate_full=('wr_trk_full' if shim_prefix == xbar_prefix else None),
+                bvalid_intercept='converter_bvalid',
+                bready_intercept='converter_bready',
+            )
+        else:
+            shim.tie_off_axi_write_channel()
+        if self.has_read:
+            shim.connect_axi_read_channel(
+                crossbar_prefix=shim_prefix,
+                gate_full=('rd_trk_full' if shim_prefix == xbar_prefix else None),
+                rvalid_intercept='converter_rvalid',
+                rready_intercept='converter_rready',
+                rlast_intercept='converter_rlast',
+            )
+        else:
+            shim.tie_off_axi_read_channel()
+        shim.connect_wb4_master(prefix=self.slave.prefix)
+
+        lines.append("    // AXI4-to-Wishbone B4 converter shim")
+        lines.extend(shim.generate_lines())
+        lines.append("    // Wire converter outputs back to shim's crossbar-facing interface")
+        if self.has_write:
+            lines.append(f"    assign {shim_prefix}bvalid = converter_bvalid;")
+            lines.append(f"    assign converter_bready = {shim_prefix}bready;")
+        if self.has_read:
+            lines.append(f"    assign {shim_prefix}rvalid = converter_rvalid;")
+            lines.append(f"    assign converter_rready = {shim_prefix}rready;")
+            lines.append(f"    assign {shim_prefix}rlast = converter_rlast;")
+        lines.append("")
         return lines
 
     def _shim_axi_intermediate_signal_decls(self, prefix: str) -> List[str]:

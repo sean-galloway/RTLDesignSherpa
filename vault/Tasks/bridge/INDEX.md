@@ -1,6 +1,6 @@
 # bridge — task rollup
 
-**Next ID: BRIDGE-019** — never recycle a number, even when its task closed.
+**Next ID: BRIDGE-020** — never recycle a number, even when its task closed.
 
 Bridge crossbar generator (`projects/components/bridge/`): the CSV/toml-driven
 generator, its generated wrappers/xbars/adapters, and their DV.
@@ -9,7 +9,7 @@ generator, its generated wrappers/xbars/adapters, and their DV.
 |---|---|
 | [active](active.md) | 0 |
 | [open](open.md) | 2 |
-| [closed](closed.md) | 16 |
+| [closed](closed.md) | 17 |
 | [dropped](dropped.md) | 2 |
 
 ## Open

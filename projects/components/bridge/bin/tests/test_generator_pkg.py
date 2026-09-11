@@ -1180,3 +1180,90 @@ def test_apb_req_generation_smoke(tmp_path):
     fl = filelist.read_text()
     assert "converters/rtl/filelists/apb4_to_axi4.f" in fl
     assert "converters/rtl/filelists/apb5_to_axi4.f" in fl
+
+
+# ---------------------------------------------------------------------
+# Wishbone B4 ports, both sides (BRIDGE-019)
+# ---------------------------------------------------------------------
+
+def test_wb4_port_must_be_rw(tmp_path):
+    toml, conn = _write_req_toml(tmp_path, """
+addr_width = 32
+data_width = 32
+id_width = 0
+channels = "rd"
+protocol = "wb4"
+""")
+    with pytest.raises(ValidationError, match="must have channels='rw'"):
+        load_config(toml, conn)
+
+
+def test_wb4_port_data_width_rejected(tmp_path):
+    toml, conn = _write_req_toml(tmp_path, """
+addr_width = 32
+data_width = 128
+id_width = 0
+channels = "rw"
+protocol = "wb4"
+""")
+    with pytest.raises(ValidationError, match="8, 16, 32 or 64"):
+        load_config(toml, conn)
+
+
+def test_wb4_master_addr_width_rejected(tmp_path):
+    toml, conn = _write_req_toml(tmp_path, """
+addr_width = 16
+data_width = 32
+id_width = 0
+channels = "rw"
+protocol = "wb4"
+""")
+    with pytest.raises(ValidationError, match="WB4 master 'm0' must have addr_width=32"):
+        load_config(toml, conn)
+
+
+def test_wb4_signal_table_matches_rtl_ports():
+    """The generator's table and the converters it drives must name the same
+    Wishbone signals, or the instantiation dies on PINMISSING."""
+    from bridge_pkg.wb4_signals import wb4_names
+    conv = REPO_ROOT / "projects/components/converters/rtl"
+    a2w = (conv / "axi4_to_wb4.sv").read_text()
+    w2a = (conv / "wb4_to_axi4.sv").read_text()
+    for base in wb4_names():
+        assert re.search(rf"\bm_wb_{base}\b", a2w), f"axi4_to_wb4 lacks m_wb_{base}"
+        assert re.search(rf"\bs_wb_{base}\b", w2a), f"wb4_to_axi4 lacks s_wb_{base}"
+
+
+def test_wb4_generation_smoke(tmp_path):
+    """bridge_2x2_wb4: a Wishbone requester and a Wishbone completer.
+
+    Master port: the bridge is the completer (CYC/STB/... in, STALL/ACK/
+    ERR/RTY/DAT_R out), the adapter puts wb4_to_axi4 in front of the AXI4
+    timing wrapper. Slave port: the bridge drives the bus (CYC/STB/... out),
+    the adapter converts with axi4_to_wb4. Both closures in the filelist."""
+    gen, filelist = _generate_fixture(tmp_path, "bridge_2x2_wb4")
+    top = (gen / "bridge_2x2_wb4.sv").read_text()
+
+    for sig in ("CYC", "STB", "WE", "ADR", "DAT_W", "SEL", "CTI", "BTE"):
+        assert re.search(rf"input\s+logic[^\n]*wbm_wb_{sig},", top), ("master in", sig)
+        assert re.search(rf"output logic[^\n]*wbp_wb_{sig},", top), ("slave out", sig)
+    for sig in ("STALL", "ACK", "ERR", "RTY", "DAT_R"):
+        assert re.search(rf"output logic[^\n]*wbm_wb_{sig},", top), ("master out", sig)
+        assert re.search(rf"input\s+logic[^\n]*wbp_wb_{sig}", top), ("slave in", sig)
+    assert "wbm_wb_awvalid" not in top and "wbp_wb_awvalid" not in top
+
+    adapter = (gen / "wbm_adapter.sv").read_text()
+    assert "wb4_to_axi4 #(" in adapter
+    assert ".s_wb_CYC(wbm_wb_CYC)" in adapter
+    assert ".m_axi_awvalid(wbx_axi_awvalid)" in adapter
+    assert ".s_axi_awvalid(wbx_axi_awvalid)" in adapter     # the timing wrapper's external side
+    assert "axil_to_axi4_wide_align_wr" in adapter          # 32b requester -> 64b memory
+
+    slave = (gen / "wbp_adapter.sv").read_text()
+    assert "axi4_to_wb4 #(" in slave
+    assert ".m_wb_CYC(wbp_wb_CYC)" in slave
+    assert "converter_bvalid" in slave and "converter_rlast" in slave
+
+    fl = filelist.read_text()
+    assert "converters/rtl/filelists/wb4_to_axi4.f" in fl
+    assert "converters/rtl/filelists/axi4_to_wb4.f" in fl

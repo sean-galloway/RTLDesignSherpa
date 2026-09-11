@@ -333,3 +333,13 @@ is singular, write the merge -- and keep the bridge config in the tree so the
 two paths can still be built and measured against each other.
 
 Related: [[valid-ready-contracts]], [[priority-logic-depth]].
+
+The same shape, one level up, the day after: the bridge's shared
+`bridge_arbitration` helper discovers a TB's masters by container name
+(`master_wr`, `master_rd`, `master_apb`). The first Wishbone fixture put its
+requester in `master_wb`, the helper saw one master, skipped both phases --
+and its "refuse to pass on zero work" return value is what turned a silent
+skip into a failing test (BRIDGE-019). Two rules from one incident: a helper
+that enumerates protocol families needs the new family added in the same
+commit as the family, and every such helper must return the work it did so a
+degenerate run cannot report success.

@@ -10,7 +10,7 @@ without a single test noticing.
 
 The body below is config-driven rather than per-bridge: it discovers masters
 and slaves from the TB attributes every bridge TB already defines
-(`num_masters`, `slave_info`, `master_wr` / `master_rd` / `master_apb`,
+(`num_masters`, `slave_info`, `master_wr` / `master_rd` / `master_apb` / `master_wb`,
 `master_data_width`), so one implementation covers 2x2, 4x4, 5x3 and the mixed
 configs without hand-writing an address map seven times.
 
@@ -38,6 +38,14 @@ def set_slave_response_delay(tb, slave_idx: int, cycles: int) -> None:
     Reaches into the slave BFMs directly rather than requiring every one of
     the bridge TB classes to grow the same setter.
     """
+    # The generated TB grew its own setter (it also knows the protocol
+    # families whose slave BFM has no response_delay_cycles -- WB4Slave takes
+    # a randomizer profile); prefer it, fall back to the AXI attribute poke
+    # for TB classes without one.
+    setter = getattr(tb, 'set_slave_response_delay', None)
+    if callable(setter):
+        setter(slave_idx, cycles)
+        return
     for container in ('slave_wr', 'slave_rd'):
         bfms = getattr(tb, container, None)
         if bfms and slave_idx in bfms:
@@ -47,15 +55,24 @@ def set_slave_response_delay(tb, slave_idx: int, cycles: int) -> None:
                 pass
 
 
+# Single-handle master families (one BFM carries both directions). A family
+# missing here is invisible to this helper: the WB4 fixture's arbitration
+# test saw ONE master and skipped both phases -- and, to its credit, refused
+# to report success on zero work (BRIDGE-019).
+_RW_HANDLE_CONTAINERS = ('master_apb', 'master_wb')
+
+
 def _writable_masters(tb):
     m = set(getattr(tb, 'master_wr', {}) or {})
-    m |= set(getattr(tb, 'master_apb', {}) or {})
+    for c in _RW_HANDLE_CONTAINERS:
+        m |= set(getattr(tb, c, {}) or {})
     return sorted(m)
 
 
 def _readable_masters(tb):
     m = set(getattr(tb, 'master_rd', {}) or {})
-    m |= set(getattr(tb, 'master_apb', {}) or {})
+    for c in _RW_HANDLE_CONTAINERS:
+        m |= set(getattr(tb, c, {}) or {})
     return sorted(m)
 
 

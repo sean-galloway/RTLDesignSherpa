@@ -65,6 +65,8 @@ This specification covers the Converters component — the configurable data-wid
 - [AXI4-Lite to Wishbone B4](ch03_protocol_blocks/10_axil4_to_wb4.md)
 - [Wishbone B4 to AXI4-Lite](ch03_protocol_blocks/11_wb4_to_axil4.md)
 - [APB to AXI4 (Requester)](ch03_protocol_blocks/12_apb_to_axi4.md)
+- [AXI4 to Wishbone B4](ch03_protocol_blocks/13_axi4_to_wb4.md)
+- [Wishbone B4 to AXI4](ch03_protocol_blocks/14_wb4_to_axi4.md)
 
 ### Chapter 4: FSM Design
 

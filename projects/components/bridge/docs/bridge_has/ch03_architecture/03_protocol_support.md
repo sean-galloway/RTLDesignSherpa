@@ -65,6 +65,8 @@ Low-power peripheral protocol:
 | AXI4-Lite | APB | Convert | Simplified conversion |
 | AXI5-Lite | any | Upgrade | As AXI4-Lite; `user`/`exclusive` ride the fabric, other sideband terminates at the boundary |
 | APB / APB5 | any | Full convert | `apb{4,5}_to_axi4` front end, then as AXI4-Lite |
+| any | Wishbone B4 | Full convert | `axi4_to_wb4`: one transfer per beat, in-order termination |
+| Wishbone B4 | any | Full convert | `wb4_to_axi4` front end, then as AXI4-Lite |
 
 : Table 3.3: Protocol Conversion Matrix
 
@@ -87,6 +89,7 @@ error, so spelling matters:
 | `axil5` | AXI5-Lite | `axi4_to_axil5_{rd,wr}` |
 | `apb` | APB3/APB4 | `axi4_to_apb4_shim` |
 | `apb5` | APB5 | `axi4_to_apb5_shim` |
+| `wb4` | Wishbone B4 (pipelined) | `axi4_to_wb4` |
 
 : Table 3.4: Slave-port protocol values
 
@@ -110,12 +113,13 @@ and the master adapter converts to the AXI4 the crossbar speaks:
 | `axil5` | AXI5-Lite, full sideband | as `axil`; `exclusive` -> `AxLOCK`, `user` -> the 1-bit USER fields; every other group terminated at the top |
 | `apb` | APB4 completer | `apb4_to_axi4`, then the AXI4 timing wrapper |
 | `apb5` | APB5 completer (+ `PAUSER/PWUSER/PWAKEUP` in, `PRUSER/PBUSER` out) | `apb5_to_axi4` (`PAUSER[0]`/`PWUSER[0]` -> USER), then the AXI4 timing wrapper |
+| `wb4` | Wishbone B4 completer (pipelined) | `wb4_to_axi4`, then the AXI4 timing wrapper; SLVERR/DECERR terminate ERR |
 
 : Table 3.5: Master-port protocol values
 
 Rules the validator enforces on these ports: Lite masters have `id_width = 0`
-(no ID pins exist; the fabric ID is the master index, BRIDGE-016), APB
-masters have `addr_width = 32` (the requester addresses the whole fabric --
+(no ID pins exist; the fabric ID is the master index, BRIDGE-016), APB and
+Wishbone masters have `addr_width = 32` (the requester addresses the whole fabric --
 an APB *slave* port's `PADDR` is a window offset, a master's is not), and
 `axi5_features` on an `axil5` master may name only `user` and `exclusive`,
 the two groups with an AXI4 destination.

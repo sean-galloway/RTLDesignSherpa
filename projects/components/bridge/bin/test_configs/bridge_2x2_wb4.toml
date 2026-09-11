@@ -1,0 +1,62 @@
+# Bridge Configuration: Wishbone B4 on both sides of an AXI4 fabric
+# (BRIDGE-019).
+#
+# One Wishbone requester and one AXI4 requester share a 64-bit AXI4 memory
+# and a 32-bit Wishbone completer. The Wishbone master port is the bridge as
+# COMPLETER (wb4_to_axi4 in its adapter: one transfer -> one single-beat AXI4
+# transaction, SLVERR/DECERR -> ERR); the Wishbone slave port is the bridge
+# as REQUESTER (axi4_to_wb4 in its adapter: AXI4 bursts decomposed to one
+# transfer per beat, ACK -> OKAY, ERR/RTY -> SLVERR). B4 pipelined on both.
+#
+# The 64-bit memory puts the Wishbone master through the wide-slave aligner;
+# the AXI4 master's bursts at the Wishbone completer are what the decomposer
+# is for. Connectivity comes from bridge_2x2_wb4_connectivity.csv.
+
+[bridge]
+name = "bridge_2x2_wb4"
+variants = ["no", "mon"]
+description = "WB4 + AXI4 masters x AXI4 (64b) + WB4 slaves rw bridge (BRIDGE-019)"
+
+[[bridge.masters]]
+name = "wbm"
+prefix = "wbm_wb_"
+id_width = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+protocol = "wb4"
+
+[[bridge.masters]]
+name = "cpu"
+prefix = "cpu_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+protocol = "axi4"
+
+[[bridge.slaves]]
+name = "mem"
+prefix = "mem_axi_"
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (BRIDGE-016)
+addr_width = 32
+data_width = 64
+user_width = 1
+channels = "rw"
+protocol = "axi4"
+base_addr = "0x00000000"
+addr_range = "0x10000000"
+
+[[bridge.slaves]]
+name = "wbp"
+prefix = "wbp_wb_"
+id_width = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+protocol = "wb4"
+base_addr = "0x50000000"
+addr_range = "0x00010000"

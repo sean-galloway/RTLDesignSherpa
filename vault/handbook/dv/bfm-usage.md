@@ -56,9 +56,9 @@ Traps (each cost real debug time):
 
 ## Out of range means one thing (2026-09-09)
 
-Every memory-backed slave BFM -- AXI4, AXI5, AXIL4, AXIL5 `Slave{Read,Write}`
-and `APB`/`APB5 Slave` -- answers an access beyond its `MemoryModel` the
-same way: **SLVERR** (`PSLVERR` on APB), **nothing written** (an AXI write
+Every memory-backed slave BFM -- AXI4, AXI5, AXIL4, AXIL5 `Slave{Read,Write}`,
+`APB`/`APB5 Slave` and `WB4Slave` -- answers an access beyond its `MemoryModel` the
+same way: **SLVERR** (`PSLVERR` on APB, `ERR` on Wishbone), **nothing written** (an AXI write
 burst is checked whole before any beat lands), **read data 0xDEADDEAD**
 replicated to the beat width, **one WARNING** naming the slave, the address
 and the model size. It is one code path, `MemoryModel.in_range` /
@@ -72,6 +72,14 @@ slave past its 4 KB model, got OKAY from an AXI4 slave and SLVERR from an
 AXIL one, and the TB comment that called the silent OKAY "the framework
 behaviour" was true of one slave type. The tests were first "fixed" by
 widening the model (BRIDGE-008); the disagreement stayed until this.*
+
+*Case 2 (2026-09-11): `WB4Slave` was written after the contract and did not
+follow it -- a bounds miss raised inside its sampling loop and the whole BFM
+died, and it addressed memory with the raw `ADR`, so it could not sit at a
+fabric address at all. Both surfaced the day a bridge put a Wishbone
+completer at 0x5000_0000 (BRIDGE-019). A new slave family is not done until
+it has `base_addr` and the OOR path; the structural unit test in RDS-DV is
+the place to add the new class.*
 
 Two consequences for a TB:
 

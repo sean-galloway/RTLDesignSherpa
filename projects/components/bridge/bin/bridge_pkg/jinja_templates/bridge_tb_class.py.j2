@@ -84,6 +84,15 @@ from CocoTBFramework.components.apb5.apb5_components import APB5Slave
 {% if masters | selectattr('protocol', 'equalto', 'apb5') | list %}
 from CocoTBFramework.components.apb5.apb5_components import APB5Master
 {% endif %}
+{% set has_wb4 = (masters + slaves) | selectattr('protocol', 'equalto', 'wb4') | list %}
+{% if has_wb4 %}
+# Wishbone B4 ports (BRIDGE-019): WB4Master drives a requester port, WB4Slave
+# completes a completer port over its own MemoryModel (base_addr-relative,
+# out-of-range answers ERR). Terminations are ACK/ERR/RTY, never a code.
+from CocoTBFramework.components.wb4.wb4_components import WB4Master, WB4Slave
+from CocoTBFramework.components.shared.wb4_common import WB4_STATUS_ACK, WB4_STATUS_NAMES
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+{% endif %}
 
 # Memory model — shared across all protocol slave BFMs (every slave gets
 # its own instance, pre-seeded with a distinct pattern).
@@ -181,6 +190,8 @@ class {{ tb_class_name }}(TBBase):
         self.slave_wr = {}
         # APB doesn't split rd/wr — single APBSlave per port.
         self.slave_apb = {}
+        # Wishbone B4 completer ports — single WB4Slave per port.
+        self.slave_wb = {}
 
         # Master BFMs — separate read and write handles. For wr-only or
         # rd-only masters only one of these gets populated.
@@ -188,6 +199,8 @@ class {{ tb_class_name }}(TBBase):
         self.master_wr = {}
         # APB master (one handle per APB master port).
         self.master_apb = {}
+        # Wishbone B4 requester ports (one WB4Master per port).
+        self.master_wb = {}
         # AXI5ComplianceChecker per AXI5 master port (see _setup_master_*).
         self.compliance = {}
 
@@ -410,6 +423,10 @@ class {{ tb_class_name }}(TBBase):
             span = apb.num_lines * apb.strb_bits
             mask = (1 << (span - 1).bit_length()) - 1
             data_bytes = apb.mem.read(addr & mask, byte_count)
+        elif proto == 'wb4':
+            # WB4Slave is constructed with base_addr, so its memory is
+            # window-relative like the AXI/AXIL slave models.
+            data_bytes = self.slave_wb[slave_idx].mem.read(offset, byte_count)
         else:
             mem = self.slave_memory[slave_idx]
             data_bytes = mem.read(offset, byte_count)
@@ -440,6 +457,22 @@ class {{ tb_class_name }}(TBBase):
             # PSEL by the BFM.
             auser_width=1, wuser_width=1, ruser_width=1, buser_width=1,
 {% endif %}
+            log=self.log,
+        )
+{% elif master.protocol.lower() == 'wb4' %}
+        # Wishbone B4 requester port: the bridge is the completer. One BFM
+        # handle for both directions; master_read/master_write unwrap the
+        # terminated packet (dat_r, status ERR/RTY -> AxiResponseError).
+        # Back-to-back presentation; the bridge's STALL is the only pacing.
+        self.master_wb[{{ loop.index0 }}] = WB4Master(
+            entity=self.dut,
+            title="WB4_M{{ loop.index0 }}",
+            prefix="{{ master.prefix }}",
+            clock=self.clock,
+            addr_width={{ master.addr_width }},
+            data_width={{ master.data_width }},
+            max_outstanding=8,
+            randomizer=FlexRandomizer({'stb': ([(0, 0)], [1])}),
             log=self.log,
         )
 {% elif master.protocol.lower() in ('axil', 'axil5') %}
@@ -572,6 +605,31 @@ class {{ tb_class_name }}(TBBase):
             log=self.log,
         )
 {% endif %}
+{% elif slave.protocol.lower() == 'wb4' %}
+        # Wishbone B4 completer -- WB4Slave over its own MemoryModel, seeded
+        # with the slave pattern and addressed relative to base_addr. The
+        # randomizer is pinned to ACK with a one-clock termination and no
+        # STALL: the default profile mixes in ERR/RTY, which a bridge test
+        # must ask for explicitly (status_hook) rather than meet by chance.
+        # set_slave_response_delay() swaps in a slower profile.
+        bytes_per_line = {{ slave.data_width }} // 8
+        addr_range = {{ '0x%08x' % slave.addr_range }}
+        mem_bytes = min(addr_range, self.SLAVE_MEM_CAP_BYTES)
+        preset = self._build_preset({{ loop.index0 }}, addr_range, {{ slave.data_width }})
+        self.slave_wb[{{ loop.index0 }}] = WB4Slave(
+            entity=self.dut,
+            title="WB4_S{{ loop.index0 }}",
+            prefix="{{ slave.prefix }}",
+            clock=self.clock,
+            registers=list(preset),
+            addr_width={{ slave.addr_width }},
+            data_width={{ slave.data_width }},
+            num_lines=mem_bytes // bytes_per_line,
+            base_addr={{ '0x%08x' % slave.base_addr }},
+            max_outstanding=16,
+            randomizer=FlexRandomizer(self._wb4_slave_profile(1)),
+            log=self.log,
+        )
 {% elif slave.protocol.lower() in ('axil', 'axil5') %}
         # AXIL slave — own MemoryModel pre-seeded with the slave-specific
         # pattern; AXIL4SlaveRead/Write auto-responds from it honoring
@@ -772,6 +830,22 @@ class {{ tb_class_name }}(TBBase):
             bfm = container.get(slave_idx)
             if bfm is not None and hasattr(bfm, 'response_delay_cycles'):
                 bfm.response_delay_cycles = cycles
+{% if has_wb4 %}
+        wb = self.slave_wb.get(slave_idx)
+        if wb is not None:
+            # A Wishbone termination is registered: latency 1 is the
+            # earliest legal, so `cycles` below that means "as fast as B4 allows".
+            wb.set_randomizer(FlexRandomizer(self._wb4_slave_profile(max(1, cycles))))
+
+    @staticmethod
+    def _wb4_slave_profile(ack_latency: int) -> dict:
+        """WB4Slave randomizer: no STALL, fixed termination latency, always ACK."""
+        return {
+            'stall': ([(0, 0)], [1]),
+            'ack': ([(ack_latency, ack_latency)], [1]),
+            'status': ([(0, 0)], [1]),
+        }
+{% endif %}
 
     def apply_level_slave_delay(self) -> int:
         """Apply the level profile's slave_delay to every slave (full: 24
@@ -809,6 +883,16 @@ class {{ tb_class_name }}(TBBase):
             if txn.fields.get('pslverr', 0):
                 raise AxiResponseError(address, 2, 'PSLVERR on APB read')
             return int(txn.fields['prdata'])
+{% if has_wb4 %}
+        if master_idx in self.master_wb:
+            # Wishbone has ERR (and RTY), not a response code: the converter
+            # folds SLVERR and DECERR into ERR, so report 2 as for APB.
+            pkt = await self.master_wb[master_idx].read(address)
+            status = int(pkt.fields['status'])
+            if status != WB4_STATUS_ACK:
+                raise AxiResponseError(address, 2, f'WB4 {WB4_STATUS_NAMES[status]} on read')
+            return int(pkt.fields['dat_r'])
+{% endif %}
         rd = self.master_rd[master_idx]
         try:
             return await rd.single_read(address, size=self._natural_arsize(master_idx))
@@ -835,6 +919,14 @@ class {{ tb_class_name }}(TBBase):
             if txn.fields.get('pslverr', 0):
                 raise AxiResponseError(address, 2, 'PSLVERR on APB write')
             return
+{% if has_wb4 %}
+        if master_idx in self.master_wb:
+            pkt = await self.master_wb[master_idx].write(address, data)
+            status = int(pkt.fields['status'])
+            if status != WB4_STATUS_ACK:
+                raise AxiResponseError(address, 2, f'WB4 {WB4_STATUS_NAMES[status]} on write')
+            return
+{% endif %}
         wr = self.master_wr[master_idx]
         kwargs = {'size': self._natural_arsize(master_idx)}
         if txn_id is not None:

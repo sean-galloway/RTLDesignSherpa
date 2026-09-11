@@ -58,6 +58,8 @@ Protocol converters bridge components that speak different bus protocols — the
 | wb4_to_axil4 | Wishbone B4 to AXI4-Lite; merges AXI's two response channels back into B4's in-order termination | Implemented (`dv/tests/test_wb4_to_axil4.py`, formal on the core) |
 | apb4_to_axi4 / apb5_to_axi4 | APB4 / APB5 completer in, single-beat AXI4 requester out (the mirror of axi4_to_apb4); APB5 USER mapped onto AXI USER | Implemented (`dv/tests/test_apb{4,5}_to_axi4.py`; the bridge's APB master ports, BRIDGE-014) |
 | apb_cmdrsp_to_axi4 | The requester half of the two above: APB cmd/rsp stream to one AXI4 transaction per transfer | Implemented (covered by the wrappers' tests) |
+| axi4_to_wb4 | Full AXI4 completer in, Wishbone B4 requester out: the AXI4-Lite decomposers + axil4_to_wb4 | Implemented (`dv/tests/test_axi4_to_wb4.py`; the bridge's WB4 slave ports, BRIDGE-019) |
+| wb4_to_axi4 | Wishbone B4 completer in, single-beat AXI4 requester out: wb4_to_axil4 + the AXI4 promotion | Implemented (`dv/tests/test_wb4_to_axi4.py`; the bridge's WB4 master ports, BRIDGE-019) |
 
 : Table 3.3: Other Protocol Converters
 

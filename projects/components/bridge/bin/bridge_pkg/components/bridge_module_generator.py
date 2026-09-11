@@ -1196,6 +1196,17 @@ class BridgeModuleGenerator:
 
         lines.append(f"    // Master: {master.name} ({master.protocol}, {master.channels})")
 
+        if master.protocol == 'wb4':
+            # Wishbone B4 requester port (BRIDGE-019): the bridge is the
+            # completer, so the requester-driven signals are inputs and
+            # STALL/ACK/ERR/RTY/DAT_R outputs. One table for every emitter.
+            from ..wb4_signals import port_decl_lines
+            lines.extend(port_decl_lines(master.prefix, 'completer', 32,
+                                         master.data_width))
+            if lines and lines[-1].endswith(','):
+                lines[-1] = lines[-1][:-1]
+            return lines
+
         if master.protocol in ('apb', 'apb5'):
             # APB requester port (BRIDGE-014): the bridge is the APB
             # COMPLETER here, so the requester-driven signals are inputs and
@@ -1496,7 +1507,17 @@ class BridgeModuleGenerator:
         }
 
         # Check protocol and generate appropriate ports
-        if slave.protocol in ('apb', 'apb5'):
+        if slave.protocol == 'wb4':
+            # Wishbone B4 completer port (BRIDGE-019): the bridge drives the
+            # bus, so CYC/STB/WE/ADR/DAT_W/SEL/CTI/BTE are outputs.
+            from ..wb4_signals import port_decl_lines
+            lines.append(f"    // WB4 Slave: {slave.name}")
+            lines.extend(port_decl_lines(slave.prefix, 'requester',
+                                         slave.addr_width, slave.data_width))
+            if lines and lines[-1].endswith(','):
+                lines[-1] = lines[-1][:-1]
+
+        elif slave.protocol in ('apb', 'apb5'):
             # APB slave ports - use SignalNaming for consistency
             lines.append(f"    // {slave.protocol.upper()} Slave: {slave.name}")
 
@@ -1972,16 +1993,20 @@ class BridgeModuleGenerator:
                 if 'user' in feats:
                     lite_surface |= {'awuser', 'wuser', 'buser', 'aruser', 'ruser'}
 
-            if master.protocol in ('apb', 'apb5'):
-                # APB requester port: the adapter's external surface IS the
-                # APB completer set (same names both sides), nothing from
-                # the AXI4 signal table is on it.
+            if master.protocol in ('apb', 'apb5', 'wb4'):
+                # APB or Wishbone requester port: the adapter's external
+                # surface IS the completer set (same names both sides),
+                # nothing from the AXI4 signal table is on it.
                 p = master.prefix
-                apb_sigs = ['PSEL', 'PENABLE', 'PREADY', 'PADDR', 'PWRITE',
-                            'PWDATA', 'PSTRB', 'PPROT', 'PRDATA', 'PSLVERR']
-                if master.protocol == 'apb5':
-                    apb_sigs += ['PAUSER', 'PWUSER', 'PWAKEUP', 'PRUSER', 'PBUSER']
-                for sig in apb_sigs:
+                if master.protocol == 'wb4':
+                    from ..wb4_signals import wb4_names
+                    fe_sigs = wb4_names()
+                else:
+                    fe_sigs = ['PSEL', 'PENABLE', 'PREADY', 'PADDR', 'PWRITE',
+                               'PWDATA', 'PSTRB', 'PPROT', 'PRDATA', 'PSLVERR']
+                    if master.protocol == 'apb5':
+                        fe_sigs += ['PAUSER', 'PWUSER', 'PWAKEUP', 'PRUSER', 'PBUSER']
+                for sig in fe_sigs:
                     lines.append(f"        .{p}{sig}({p}{sig}),")
                 channels = []
 

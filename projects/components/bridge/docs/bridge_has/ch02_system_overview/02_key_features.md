@@ -66,6 +66,8 @@ dma,1,0
 | AXI4 / AXI5 | APB5 | APB4 conversion core + APB5 sideband surface |
 | AXI4-Lite / AXI5-Lite | any | Lite requester: single-beat AXI4 inside; the AXI5-Lite `user` and `exclusive` groups ride the fabric, the rest terminate at the boundary |
 | APB / APB5 | any | APB requester: `apb4_to_axi4` / `apb5_to_axi4` front end, one AXI4 transaction per transfer, SLVERR and DECERR fold to PSLVERR |
+| any | Wishbone B4 | `axi4_to_wb4`: one Wishbone transfer per AXI4 beat, ERR/RTY fold to SLVERR |
+| Wishbone B4 | any | `wb4_to_axi4` front end: single-beat AXI4 inside, SLVERR/DECERR terminate ERR |
 
 : Table 2.1: Supported Protocols
 
@@ -80,6 +82,7 @@ slave port (BRIDGE-014). See
 - **AXI4 Full** - Complete 5-channel implementation with bursts
 - **AXI4-Lite** - Simplified single-beat transactions
 - **APB** - Low-power peripheral access
+- **Wishbone B4** - The open FPGA bus, pipelined mode, on either side (BRIDGE-019)
 
 ## Channel-Specific Masters
 

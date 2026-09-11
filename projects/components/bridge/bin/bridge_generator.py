@@ -1052,6 +1052,12 @@ def _emit_bridge_variant(
         filelist_lines.append(
             "-f $REPO_ROOT/projects/components/converters/rtl/filelists/apb5_to_axi4.f")
 
+    if any(m.protocol.lower() == 'wb4' for m in config.masters):
+        filelist_lines.append("")
+        filelist_lines.append("# Wishbone B4 requester front end (masters with protocol=wb4, BRIDGE-019)")
+        filelist_lines.append(
+            "-f $REPO_ROOT/projects/components/converters/rtl/filelists/wb4_to_axi4.f")
+
     # Atomic-enabled WRITE-ONLY AXI5 masters (A5-3a): the master adapter
     # inserts the axi5_atomic_filter between the boundary wrapper and the
     # fabric. An rw atomic master forwards read-return atomics natively
@@ -1171,6 +1177,15 @@ def _emit_bridge_variant(
         filelist_lines.append("# AXI4-to-AXI5-Lite converter dependencies (protocol=axil5 slaves)")
         filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_axil5_rd.f")
         filelist_lines.append("-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_axil5_wr.f")
+
+    # Wishbone B4 slaves (BRIDGE-019): axi4_to_wb4, whose closure brings the
+    # AXI4-Lite decomposers and axil4_to_wb4 (and through it the rtl/amba
+    # wb4 family).
+    if any(slave.protocol.lower() == 'wb4' for slave in config.slaves):
+        filelist_lines.append("")
+        filelist_lines.append("# AXI4-to-Wishbone B4 converter (protocol=wb4 slaves)")
+        filelist_lines.append(
+            "-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_wb4.f")
 
     # Monitor-aggregation dependencies. Only added for the "mon"
     # variant -- the "no" variant uses the non-_mon wrappers and has

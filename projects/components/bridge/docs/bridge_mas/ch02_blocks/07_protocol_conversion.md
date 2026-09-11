@@ -68,6 +68,13 @@ Protocol conversion has five jobs:
 - `exclusive` -> `AxLOCK` and `user` -> the 1-bit USER fields ride the
   fabric; every other group is terminated at the bridge top
 
+**Wishbone B4 (both sides, BRIDGE-019)**:
+- Slave port: `axi4_to_wb4` (the AXI4-Lite decomposers + `axil4_to_wb4`),
+  one Wishbone transfer per AXI4 beat, ACK -> OKAY, ERR/RTY -> SLVERR
+- Master port: `wb4_to_axi4` (`wb4_to_axil4` + the single-beat AXI4
+  promotion) in front of the ordinary timing wrapper; SLVERR/DECERR -> ERR
+- B4 pipelined; `CTI`/`BTE` carried as CLASSIC/LINEAR, never acted on
+
 ### Current Limitation: AXI4-Lite Conversion
 
 **Superseded.** This paragraph said AXIL slaves were treated as full AXI4 internally with no real conversion; the very next paragraph, and the RTL, say otherwise -- `axi4_to_axil4_{rd,wr}.sv` perform genuine burst decomposition into single-beat AXI4-Lite transactions. Kept only so the contradiction is not silently deleted. The old text read:
@@ -943,6 +950,25 @@ When `protocol = "apb"` or `"apb5"` is specified on a **master** (BRIDGE-014):
 **Modules**: `projects/components/converters/rtl/apb4_to_axi4.sv`,
 `apb5_to_axi4.sv`, `apb_cmdrsp_to_axi4.sv` -- see the converters MAS.
 
+### Wishbone B4 at Either Boundary
+
+When `protocol = "wb4"` is specified (BRIDGE-019):
+- On a **slave**, the adapter instantiates `axi4_to_wb4` through the
+  `Axi4ToWb4Shim` component -- the same channel wiring, BRIDGE-011 not-full
+  gate and `converter_*` response intercepts as the APB shim, and the same
+  `axi4_master_*_mon` sandwich in the monitored variant. The external
+  surface is the thirteen-signal B4 requester set from
+  `bridge_pkg/wb4_signals.py`, the one table the bridge top, the adapter and
+  the instance component all read.
+- On a **master**, the adapter's external surface is the B4 completer set
+  (directions reversed) and `wb4_to_axi4` drives an internal `wbx_axi_*`
+  AXI4 face into the same `axi4_slave_{wr,rd}` wrapper an AXI4 master gets.
+  From there the port is an AXI4-Lite-shaped single-beat requester and takes
+  the wide-slave aligner toward wider slaves.
+
+**Modules**: `projects/components/converters/rtl/axi4_to_wb4.sv`,
+`wb4_to_axi4.sv` -- see the converters MAS.
+
 ### Master-Side AXI5-Lite Sideband
 
 When `protocol = "axil5"` is specified on a **master** (BRIDGE-014), the
@@ -990,11 +1016,10 @@ it.
 - Burst support
 - Suitable for moderate-bandwidth peripherals
 
-**Wishbone**:
-- Open-source bus standard
-- Common in FPGA designs
-- Multiple addressing modes
-- Configurable data widths
+**Wishbone** -- NOT future work; BUILT (BRIDGE-019, 2026-09-11). `wb4` is a
+legal `protocol` on master and slave ports alike; see "Wishbone B4 at Either
+Boundary" above. Not built: B4 standard (classic) mode from the TOML, and
+registered-feedback bursts (`CTI`/`BTE` are carried, not generated).
 
 ### Under Consideration
 

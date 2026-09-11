@@ -68,7 +68,7 @@ def validate_protocol(protocol: str, port_name: str) -> None:
     """
     # 'axil5' is an AXI5-Lite slave boundary: AXI4-Lite transfers plus the
     # optional sideband groups, converted by axi4_to_axil5_{rd,wr}.
-    valid_protocols = {'axi4', 'axi5', 'apb', 'apb5', 'axil', 'axil5'}
+    valid_protocols = {'axi4', 'axi5', 'apb', 'apb5', 'axil', 'axil5', 'wb4'}
     if protocol not in valid_protocols:
         raise ValidationError(
             f"Invalid protocol '{protocol}' for port '{port_name}'. "
@@ -373,6 +373,31 @@ def warn_axi5_dropped_sideband(masters: List[PortSpec],
                       f"{'; '.join(reasons)}")
 
 
+def validate_wb4_constraints(port: PortSpec) -> None:
+    """Wishbone B4 port rules (BRIDGE-019), master or slave.
+
+    One bus carries both directions, so a port is always rw; B4 has no
+    transaction ID; the data bus is one of the B4 port sizes. (B4 pipelined
+    is what the rtl/amba/wb4 family and the converters implement; classic
+    mode is not selectable from the TOML.)
+    """
+    if port.protocol != 'wb4':
+        return
+    if port.channels != 'rw':
+        raise ValidationError(
+            f"WB4 port '{port.port_name}' must have channels='rw' "
+            f"(one Wishbone bus carries reads and writes). "
+            f"Got channels='{port.channels}'")
+    if port.data_width not in (8, 16, 32, 64):
+        raise ValidationError(
+            f"WB4 port '{port.port_name}' has data width {port.data_width}; "
+            f"Wishbone B4 ports are 8, 16, 32 or 64 bits")
+    if port.id_width != 0:
+        raise ValidationError(
+            f"WB4 port '{port.port_name}' must have id_width=0 "
+            f"(Wishbone has no transaction IDs). Got id_width={port.id_width}")
+
+
 def validate_apb_constraints(port: PortSpec) -> None:
     """
     Validate APB-specific constraints.
@@ -552,11 +577,11 @@ def validate_required_fields(port: PortSpec) -> None:
     # An APB requester supplies the full fabric address: PADDR is the
     # 32-bit AXI address, not a window offset the way an APB slave port's
     # PADDR is. (APB slave ports are windowed by base_addr; masters are not.)
-    if port.direction == 'master' and port.protocol in ('apb', 'apb5'):
+    if port.direction == 'master' and port.protocol in ('apb', 'apb5', 'wb4'):
         if port.addr_width != 32:
             raise ValidationError(
-                f"APB master '{port.port_name}' must have addr_width=32 "
-                f"(the requester addresses the whole fabric). "
+                f"{port.protocol.upper()} master '{port.port_name}' must have "
+                f"addr_width=32 (the requester addresses the whole fabric). "
                 f"Got addr_width={port.addr_width}"
             )
 
@@ -655,6 +680,7 @@ def validate_config(
         validate_channels(master.channels, master.port_name)
         validate_protocol(master.protocol, master.port_name)
         validate_apb_constraints(master)
+        validate_wb4_constraints(master)
 
     # Validate each slave
     for slave in slaves:
@@ -662,6 +688,7 @@ def validate_config(
         validate_channels(slave.channels, slave.port_name)
         validate_protocol(slave.protocol, slave.port_name)
         validate_apb_constraints(slave)
+        validate_wb4_constraints(slave)
 
     # Validate explicit channel specification for slaves
     validate_slave_channels_explicit(slaves)

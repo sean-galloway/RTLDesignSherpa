@@ -330,10 +330,12 @@ class AdapterGenerator:
         from ..components.axi4_timing_wrapper_component import (
             axi5_exposed_ext_signals,
         )
-        # An APB requester port has no AXI surface at all: the adapter is
-        # the APB completer and the AXI4 face it feeds the wrapper with is
-        # internal (see _generate_apb_front_end).
-        if self.master.protocol in ('apb', 'apb5'):
+        # An APB or Wishbone requester port has no AXI surface at all: the
+        # adapter is the completer and the AXI4 face it feeds the wrapper
+        # with is internal (see _generate_front_end).
+        if self.is_front_end_master:
+            if self.master.protocol == 'wb4':
+                return self._generate_wb4_external_ports()
             return self._generate_apb_external_ports()
 
         lines = []
@@ -418,17 +420,41 @@ class AdapterGenerator:
         return lines
 
     # ------------------------------------------------------------------
-    # APB requester ports (BRIDGE-014): the adapter is the APB COMPLETER.
+    # Requester ports with a protocol FRONT END (BRIDGE-014 APB/APB5,
+    # BRIDGE-019 WB4): the adapter is the completer on the boundary and a
+    # converter produces the AXI4 face the ordinary axi4_slave_{wr,rd}
+    # timing wrapper consumes. One net prefix per family, declared and
+    # connected from the one helper below.
     # ------------------------------------------------------------------
 
-    # The AXI4 face apb{4,5}_to_axi4 produces, consumed by the same
-    # axi4_slave_{wr,rd} timing wrapper an AXI4 master port gets. One net
-    # prefix, declared and connected from the one helper below.
+    FRONT_END_MODULES = {
+        'apb':  'apb4_to_axi4',
+        'apb5': 'apb5_to_axi4',
+        'wb4':  'wb4_to_axi4',
+    }
     APB_AXI_PREFIX = 'apbx_axi_'
+    WB4_AXI_PREFIX = 'wbx_axi_'
+
+    @property
+    def is_front_end_master(self) -> bool:
+        return self.master.protocol in self.FRONT_END_MODULES
 
     @property
     def is_apb_master(self) -> bool:
         return self.master.protocol in ('apb', 'apb5')
+
+    @property
+    def front_end_prefix(self) -> str:
+        return self.WB4_AXI_PREFIX if self.master.protocol == 'wb4' else self.APB_AXI_PREFIX
+
+    def _generate_wb4_external_ports(self) -> List[str]:
+        """Wishbone B4 completer surface (the bridge is the completer): the
+        requester drives CYC/STB/WE/ADR/DAT_W/SEL/CTI/BTE, the adapter
+        answers STALL/ACK/ERR/RTY/DAT_R. From bridge_pkg/wb4_signals, the one
+        table the bridge top reads too."""
+        from ..wb4_signals import port_decl_lines
+        return port_decl_lines(self.master.prefix, 'completer', 32,
+                               self.master.data_width)
 
     def _generate_apb_external_ports(self) -> List[str]:
         """APB completer surface: the external requester drives PSEL..PPROT,
@@ -515,8 +541,10 @@ class AdapterGenerator:
         ]
 
     def _generate_apb_front_end(self) -> List[str]:
-        """Instantiate apb4_to_axi4 / apb5_to_axi4 between the port's APB
-        completer surface and the AXI4 timing wrapper.
+        """Instantiate the port's protocol front end (apb4_to_axi4 /
+        apb5_to_axi4 / wb4_to_axi4) between its completer surface and the
+        AXI4 timing wrapper. Named for the family that came first; WB4
+        (BRIDGE-019) rides the same path.
 
         The converter (projects/components/converters) is the requester
         half of the bridge's APB story: one APB transfer -> one single-beat
@@ -527,33 +555,44 @@ class AdapterGenerator:
         fabric's 1 bit: PAUSER[0]/PWUSER[0] ride awuser/wuser and come back
         on PBUSER/PRUSER from buser/ruser."""
         p = self.master.prefix
-        x = self.APB_AXI_PREFIX
-        apb5 = (self.master.protocol == 'apb5')
-        module = 'apb5_to_axi4' if apb5 else 'apb4_to_axi4'
+        x = self.front_end_prefix
+        proto = self.master.protocol
+        apb5 = (proto == 'apb5')
+        module = self.FRONT_END_MODULES[proto]
+        label = 'Wishbone B4' if proto == 'wb4' else 'APB'
         lines: List[str] = []
         lines.append("    // ================================================================")
-        lines.append(f"    // APB requester front end ({module}): APB completer -> AXI4")
+        lines.append(f"    // {label} requester front end ({module}): {label} completer -> AXI4")
         lines.append("    // single-beat requester, feeding the timing wrapper below.")
         lines.append("    // ================================================================")
         lines.extend(self._apb_axi_net_decls(x))
         lines.append("")
         lines.append(f"    {module} #(")
-        lines.append(f"        .APB_ADDR_WIDTH(32),")
-        lines.append(f"        .APB_DATA_WIDTH({self.master.data_width}),")
+        if proto == 'wb4':
+            lines.append(f"        .ADDR_WIDTH(32),")
+            lines.append(f"        .DATA_WIDTH({self.master.data_width}),")
+        else:
+            lines.append(f"        .APB_ADDR_WIDTH(32),")
+            lines.append(f"        .APB_DATA_WIDTH({self.master.data_width}),")
         if apb5:
             for k in ('APB_AUSER_WIDTH', 'APB_WUSER_WIDTH', 'APB_RUSER_WIDTH', 'APB_BUSER_WIDTH'):
                 lines.append(f"        .{k}(1),")
         lines.append(f"        .AXI_ID_WIDTH({self.fub_id_width}),")
         lines.append(f"        .AXI_USER_WIDTH(1)")
-        lines.append(f"    ) u_apb_front_end (")
+        lines.append(f"    ) u_{'wb4' if proto == 'wb4' else 'apb'}_front_end (")
         lines.append(f"        .aclk(aclk),")
         lines.append(f"        .aresetn(aresetn),")
-        for sig in ('PSEL', 'PENABLE', 'PREADY', 'PADDR', 'PWRITE', 'PWDATA',
-                    'PSTRB', 'PPROT', 'PRDATA', 'PSLVERR'):
-            lines.append(f"        .s_apb_{sig}({p}{sig}),")
-        if apb5:
-            for sig in ('PAUSER', 'PWUSER', 'PWAKEUP', 'PRUSER', 'PBUSER'):
+        if proto == 'wb4':
+            from ..wb4_signals import wb4_names
+            for sig in wb4_names():
+                lines.append(f"        .s_wb_{sig}({p}{sig}),")
+        else:
+            for sig in ('PSEL', 'PENABLE', 'PREADY', 'PADDR', 'PWRITE', 'PWDATA',
+                        'PSTRB', 'PPROT', 'PRDATA', 'PSLVERR'):
                 lines.append(f"        .s_apb_{sig}({p}{sig}),")
+            if apb5:
+                for sig in ('PAUSER', 'PWUSER', 'PWAKEUP', 'PRUSER', 'PBUSER'):
+                    lines.append(f"        .s_apb_{sig}({p}{sig}),")
         axi_sigs = ('awid', 'awaddr', 'awlen', 'awsize', 'awburst', 'awlock',
                     'awcache', 'awprot', 'awqos', 'awregion', 'awuser',
                     'awvalid', 'awready',
@@ -1077,9 +1116,9 @@ class AdapterGenerator:
 
         # An APB requester port has no external AXI4 signals; the wrapper's
         # external side connects to the AXI4 face the APB front end drives.
-        if self.is_apb_master:
+        if self.is_front_end_master:
             lines.extend(self._generate_apb_front_end())
-            signal_prefix = self.APB_AXI_PREFIX
+            signal_prefix = self.front_end_prefix
 
         # Monitor identity: UNIT_ID=2 marks every master-side wrapper
         # (axi4_slave_*_mon -- the bridge looks like a slave to the
@@ -2128,7 +2167,7 @@ class AdapterGenerator:
         # positioned at slot = awaddr[ROW_LSB-1:SLOT_LSB].
         # APB requesters produce the same single-beat, awlen=0 stream (via
         # apb{4,5}_to_axi4), so they take the aligner for the same reason.
-        use_aligner = (self.master.protocol in ('axil', 'axil5', 'apb', 'apb5')) and \
+        use_aligner = (self.master.protocol in ('axil', 'axil5', 'apb', 'apb5', 'wb4')) and \
                       (master_width < slave_width)
 
         # Write converter

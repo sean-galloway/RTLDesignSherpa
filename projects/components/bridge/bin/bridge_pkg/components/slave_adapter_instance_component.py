@@ -67,7 +67,7 @@ class SlaveAdapterInstance:
 
     def __init__(self, slave_name: str, slave_prefix: str, protocol: str,
                  has_write: bool, has_read: bool, axi5_features=None):
-        if protocol not in ('axi4', 'axi5', 'apb', 'apb5', 'axil', 'axil5'):
+        if protocol not in ('axi4', 'axi5', 'apb', 'apb5', 'axil', 'axil5', 'wb4'):
             raise ValueError(f"unsupported protocol: {protocol!r}")
         if not (has_write or has_read):
             raise ValueError("adapter must carry at least one channel")
@@ -184,6 +184,14 @@ class SlaveAdapterInstance:
             self._sections.append((
                 f"External {self.protocol.upper()} interface "
                 f"({self.slave_prefix}*)", pairs))
+        elif self.protocol == 'wb4':
+            # One table (bridge_pkg/wb4_signals) for the adapter's port list,
+            # the bridge top's ports and this connection list.
+            from ..wb4_signals import wb4_names
+            pairs = [(f'{self.slave_prefix}{b}', f'{self.slave_prefix}{b}')
+                     for b in wb4_names()]
+            self._sections.append((
+                f"External Wishbone B4 interface ({self.slave_prefix}*)", pairs))
         elif self.protocol in ('axil', 'axil5'):
             pairs: List[tuple] = []
             if self.has_write:

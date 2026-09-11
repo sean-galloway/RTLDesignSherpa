@@ -167,7 +167,8 @@ def has_read_master(tb, master_idx=0) -> bool:
     directions through `master_apb`, so they count as readable.
     """
     return (master_idx in getattr(tb, "master_rd", {})
-            or master_idx in getattr(tb, "master_apb", {}))
+            or master_idx in getattr(tb, "master_apb", {})
+            or master_idx in getattr(tb, "master_wb", {}))
 
 
 async def run_traffic_phase(dut, tb, cfg_prefixes, *, n, reachable=None):
