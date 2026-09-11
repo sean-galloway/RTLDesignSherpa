@@ -798,10 +798,38 @@ into the MAS:
    `09_failure_stale_image_wedge` / `11_write_same_bank_wedge_ref` are failure
    references for failures now CLOSED.
 
-**Do, in priority order:** (a) re-derive the computed mirrors from the RTL and
-add a drift check; (b) relations + don't-cares on the remaining 15 maps;
-(c) audit the waves against the RTL, then render to PNG and pull them into the
-MAS -- which was the intent and never happened.
+**2026-09-10 (a) and (c-audit) DONE.**
+
+(a) **Mirrors re-derived + drift gate.** `rd_col_m`/`wr_col_m` restored from 7
+terms to all 13 (six guards recovered as documented folds, and the occupancy
+term corrected from blanket to AP-gated); `w_ref_safe` +`!r_grant`;
+`w_guarded` +`w_prepick_guard`/`w_col_inflight_guard`; `w_drain_active`
++`refresh_req_o`; `rd_act_m`/`rd_pre_m` renamed to exact RTL spellings.
+`docs/check_kmap_rtl_sync.py` requires every RTL identifier on a signal's RHS
+to be NAMED in the documented expression; folds stay legal because the fold
+equation is written in [brackets]. **16 of 17 machine-checked, 0 drifted**; the
+17th is a branch priority, not an assignment, and the tool says so rather than
+skipping silently. The generator REFUSES to write on drift (verified).
+
+(c-audit) **Waves audited, corrected, and extended.** The audit found worse
+than staleness: the header declared tCCD=2 and the streaming diagrams drew a
+column every OTHER cycle while captioned "~100% bus util". BURST_WORDS is 1 at
+this geometry so tCCD clamps to 1 -- the ideal is a column EVERY cycle, which
+is what the board does. Constants and both streams corrected. Added seven
+performance diagrams: 13-17 bad-but-correct (admit gate, ring bound, page
+thrash, turnaround thrash, refresh storm) and 18-19 pathological (row ping-pong
+between masters, in_order serialization), each captioned with the board number
+it produced. `design/check_waves.py` checks row lengths, data-slot counts and
+captions, and both generators exit nonzero on failure -- it found **11 real
+defects in the pre-existing diagrams**, five of them labels attached to a logic
+level instead of a bus slot (WaveDrom then shifts every bus label in the row
+onto the wrong segment, silently). `12_rd_return_ring` was the only wave with
+no generator; folded in.
+
+**Still to do:** (b) relations + don't-cares on the remaining 15 maps; axis
+equations and implicants (criteria 3 and 6); and the RENDER half of (c) --
+there is still no WaveJSON -> PNG step and the MAS still references none of
+them.
 
 **Nothing reports as broken any more.** The five stale "broken today" notes are
 dated and corrected and the INDEX carries the measured status banner. (`READ_PATH_ADMIT` is the shape the
