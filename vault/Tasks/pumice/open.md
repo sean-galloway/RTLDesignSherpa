@@ -4,6 +4,60 @@
 
 ---
 
+## PUMICE-030 — read latency is ~2x LiteDRAM's, and it caps small-burst reads
+**Status:** open 2026-09-10  **Priority:** P1 — the largest identified defect left
+
+**The bug: ~49 MC cycles of read latency against LiteDRAM's 24.7** on the same
+board, the same PHY and the same harness. Roughly 24 cycles of extra pipeline
+for the same DRAM access. Neither 2026-09-10 bandwidth fix (the intake admit
+stage, the return-ring depth) moved it.
+
+**Why it matters beyond latency: it caps small-burst read BANDWIDTH.** Reads at
+AxLEN 1/2/4 reach 16%/31%/60% of peak while writes hold 95% on the same
+addresses. This was previously written off as "per-transaction overhead, a
+mechanism nobody has identified". It is identified: **Little's law**, against
+the read generator's 8-outstanding-burst budget.
+
+Model: `min(8 x AxLEN / (read_latency + AxLEN), 0.95) x 8 B x 75 MHz`
+
+| AxLEN | predicted MB/s | measured MB/s |
+|---|---|---|
+| 1 | 96.1 | 96.2 |
+| 2 | 184.6 | 188.1 |
+| 4 | 369.2 | 359.9 |
+| 8 | 570.0 | 570.5 |
+| 16 | 570.0 | 570.7 |
+
+Five points inside 2%, board-measured with `bin/axlen_sweep.py`.
+
+**Two things this rules out.** It is NOT a scheduling bug, and specifically it
+is NOT "the read cannot be scheduled until the write is consumed on AXI" (a
+reasonable guess, checked and discarded): the characterization runs a write
+phase to completion and THEN a read phase, so no writes are in flight while the
+reads are measured. It is also not the return ring -- the shortfall did not move
+between depth 32 and 64.
+
+**Why writes are immune.** pumice returns B at CAM commit, not after a DRAM
+round trip, so a write burst retires in a fraction of a read's time and the same
+8-burst budget is ample.
+
+**The fix is the latency, and it closes the bandwidth gap with it.** At
+LiteDRAM's 24.7 cycles the same 8-burst budget covers AxLEN 4 (8x4/28.7 = 1.11,
+i.e. no longer binding) and the shortfall vanishes from AxLEN 4 upward.
+Raising `GEN_MAX_OUTSTANDING` in the harness would ALSO move the numbers, but
+that is moving the measurement, not fixing the controller -- a real master with
+few outstanding reads would still see the latency.
+
+**Where to look.** The read path crosses intake -> rd CAM -> arbiter -> DFI ->
+PHY -> aligner -> return ring -> R channel. `ch01_overview/04_pipeline_latency.md`
+in the MAS has the per-stage flop counts from the elaborated netlist; compare
+that budget against the measured 49 and find the stages LiteDRAM does not have.
+The AR-order return ring and the reorder CAM are the obvious suspects, and both
+are research features -- this may be a deliberate cost rather than a defect,
+but nobody has done the accounting to say which.
+
+---
+
 ## PUMICE-029 — pumice is AT REST: what a future session needs to know
 **Status:** open 2026-09-10 (informational; do not close, it is the handover)
 **Priority:** read before touching pumice
@@ -37,10 +91,10 @@ endpoints, 219 controller tests plus the 31-test char gate green. Board build:
    every claim, or re-run it.
 
 **Known-open performance items, none blocking:**
-* AxLEN=4 reads 360.4 MB/s against a 570.3 write, unmoved by ring depth, so a
-  third mechanism (per-transaction overhead) is unidentified.
-* Read latency ~49 cycles vs LiteDRAM's 24.7. Both 2026-09-10 fixes bought
-  bandwidth, not latency.
+* Read latency ~49 cycles vs LiteDRAM's 24.7 -- now filed as [[PUMICE-030]],
+  the largest identified defect left. It also explains the small-burst read
+  shortfall (AxLEN 1/2/4 at 16/31/60% of peak): Little's law against the read
+  generator's 8-burst budget, five points predicted within 2%.
 * The three runtime axes are characterized but NOT tuned -- nobody has picked
   defaults per workload class from the sweep ([[PUMICE-013]]).
 * Area: pumice_top is 12 224 LUT / 7 878 FF, ~5x LiteDRAM's controller+PHY for

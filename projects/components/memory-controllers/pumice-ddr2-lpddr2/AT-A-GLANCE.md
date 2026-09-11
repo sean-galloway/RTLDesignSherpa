@@ -426,11 +426,32 @@ thing to fix next.
   responses by FIFO position, so a second writer would be silently misrouted.
   Single-writer results are unaffected. Three candidate fixes are filed; none
   is chosen.
-* **AxLEN=4 reads reach only 360 MB/s** against a 570 write, and did not move
-  with ring depth, so it is per-transaction overhead rather than a per-column
-  limit. A third mechanism, unidentified.
-* **Read latency is ~49 cycles against LiteDRAM's 24.7.** The two fixes above
-  bought bandwidth and not latency.
+* **KNOWN BUG: read latency is ~49 cycles against LiteDRAM's 24.7 on the same
+  board and PHY.** Roughly 24 cycles of extra pipeline for the same DRAM
+  access. The two 2026-09-10 fixes bought bandwidth and not latency, and this
+  is now the largest identified defect in the controller. It is also what
+  caps small-burst reads — see below.
+* **Small-burst reads are latency-bound, and it is Little's law, not a
+  scheduling bug.** Reads at AxLEN 1/2/4 reach 16%/31%/60% of peak while
+  writes hold 95%. Measured against the model
+  `min(8 x AxLEN / (read_latency + AxLEN), 0.95)` -- the read generator allows
+  8 bursts in flight:
+
+  | AxLEN | predicted | measured |
+  |---|---|---|
+  | 1 | 96.1 | 96.2 |
+  | 2 | 184.6 | 188.1 |
+  | 4 | 369.2 | 359.9 |
+  | 8 | 570.0 | 570.5 |
+  | 16 | 570.0 | 570.7 |
+
+  Five points inside 2%. The proximate cause is a HARNESS parameter
+  (`GEN_MAX_OUTSTANDING=8` in the read engine), but it only binds because
+  pumice's read latency is ~49 cycles: at LiteDRAM's 24.7 the same 8-burst
+  budget would cover AxLEN 4 and the shortfall would vanish. Writes do not show
+  it because pumice returns B at CAM commit rather than after a DRAM round
+  trip, so a write burst retires in a fraction of the time and 8 in flight is
+  ample. **Fix the latency and this closes with it.**
 * **No observer is instantiated on the pumice AXI interface** — the bridge slot
   exists and is tied off.
 * **The advanced modes are characterized but not tuned.** All three axes run on
@@ -546,6 +567,24 @@ disjoint regions), and the one heterogeneous case measured so far was an
 accident — spacing two readers a device/4 region apart put them in the same
 banks on different rows and collapsed row_major from 570 to 224 MB/s.
 
+**On whether an OS would hand different applications different banks:**
+generally no, and that is worth being clear about before anyone reads the
+8-streams-on-8-banks arrangement as a model of real system software. Stock
+Linux and Windows allocators are bank-unaware; they place physical pages by
+availability and NUMA node, not by DRAM geometry. Worse for the idea, the usual
+memory-controller address map *deliberately* interleaves consecutive cache
+lines across banks to extract parallelism from a single stream, so even a
+contiguous allocation is scattered across all banks by the time it reaches the
+device — the OS could not keep two applications bank-disjoint without the
+controller cooperating. Bank-aware and bank-partitioned allocation is a real
+research line (page-colouring extended from caches to DRAM banks, for
+predictability and isolation on mixed-criticality systems) rather than
+something a general-purpose OS does today. So the per-bank stream arrangement
+here is a STIMULUS construct for making bank concurrency observable, not a
+claim about what software does. Pointing the generators at the same banks on
+different rows is arguably the more realistic contention case, and it is the
+one measured at 224 MB/s.
+
 Two caveats before anyone scales the array up:
 
 * **Two writers is unsafe today.** pumice returns B out of AW order across
@@ -593,9 +632,14 @@ All 14 points integrity-clean. Reading this table:
 * **Bank interleaving recovers roughly half of the thrash penalty** (col_major
   17% -> col_major_interleaved 36% at AxLEN 4) because activates pipeline
   across banks instead of serialising in one.
-* **AxLEN 4 reads are the one open anomaly** — 60% against a 95% write on
-  identical addresses, unmoved by return-ring depth, so it is per-transaction
-  overhead and a mechanism nobody has identified. Writes do not show it.
+* **Small-burst reads are LATENCY-bound, and that is a known bug.** AxLEN 4
+  reads reach 60% against a 95% write on identical addresses. This is Little's
+  law on the read generator's 8-outstanding-burst budget against pumice's
+  ~49-cycle read latency, confirmed by a five-point sweep (AxLEN 1/2/4/8/16
+  predicted within 2%, table in *Status*). The generator budget is the
+  proximate cause; the latency is the defect, and halving it to LiteDRAM's
+  24.7 cycles would make the shortfall disappear from AxLEN 4 up. Writes are
+  immune because B returns at CAM commit, not after a DRAM round trip.
 * **Multi-ID traffic and inter-burst gaps cost nothing** here; both land
   bit-identical to the fixed-ID back-to-back case, which says the reordering
   machinery is not the limiter at this operating point.
