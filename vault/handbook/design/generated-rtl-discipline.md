@@ -261,6 +261,14 @@ When adding a protocol value, add the fixture in the same commit and let the
 
 ## A generated bridge is an address decode, not an N:1 merge
 
+*Naming warning up front, because it misled the first write-up of this note:*
+the bridge generator names its routing module `<bridge>_xbar` whatever the
+dimensions are. At two masters and one slave there is no crossing to do, and
+that module is a combinational grant-lock round-robin plus a single address
+comparator -- 88 LUTs on the read side. It is not the expensive part and it is
+not what wants replacing. The cost is in the four generated ADAPTERS wrapped
+around it. Read the utilization report before repeating the word "crossbar".
+
 Reaching for the bridge generator whenever two masters have to share one slave
 port is the wrong reflex. A generated bridge solves *routing*: several masters,
 several slaves, an address map, per-master protocol and width adaptation,
@@ -280,9 +288,11 @@ whose only job is to measure the controller:
   generators' `MAX_OUTSTANDING` said. Read bandwidth against outstanding
   count has its knee below 16 for every AxLEN under 8, so the sweep was
   measuring the harness.
-- **Four skid stages of round-trip latency** (master adapter, crossbar, slave
-  adapter) on the path measuring a ~49-cycle read -- ~8% of the reading, added
-  equally to both controllers in an A/B, which flatters the slower one.
+- **Four skid stages of round-trip latency.** The master-side and slave-side
+  adapters carry two each; the routing module between them is combinational
+  and contributes none. ~8% of a 49-cycle read, added equally to both
+  controllers in an A/B, which flatters the slower one. In LUTs the split was
+  1069 adapter to 88 routing on the read bridge.
 - **A CAM recovering what was already in the response.** The adapter's CAM
   maps a returning ID back to its master, but the bridge itself wrote the
   master index into that ID's top bits and AXI4 requires BID/RID to echo
@@ -293,7 +303,14 @@ round-robin pick on each address channel with the grant held across a stalled
 handshake, an index prefix on the outgoing ID, a queue recording AW order so
 the shared W channel stays in it (W carries no ID, which is the whole reason
 write data needs ordering and read data does not), and stateless B/R demuxes
-on the ID prefix. About 250 lines for all of it.
+on the ID prefix. About 250 lines for all of it -- and the arbitration half of
+that is, by construction, the same design the generator already emitted.
+
+What the bridge had and the merge does not: a subtractive slave absorbing
+out-of-range accesses and latching the first bad address. Check whether
+anything was connected to it before claiming that as a loss. Here nothing was
+-- the consumer left `unmapped_irq`/`unmapped_addr` dangling -- so the trap had
+been swallowing the error rather than reporting it.
 
 Two traps found writing that merge:
 

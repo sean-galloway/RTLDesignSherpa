@@ -82,7 +82,7 @@ module char_engine_block
     // char_gen_unit prefixes every outgoing ID with the generator index --
     // {master index, master id}, the same BRIDGE-016 shape the generated
     // bridges used -- so the controller sees one bit more than the generators'
-    // own 8 at NUM_GEN=2, unchanged from the crossbar era. Derived from
+    // own 8 at NUM_GEN=2, unchanged from the bridge era. Derived from
     // NUM_GEN rather than read from a bridge package, because the merge is no
     // longer a bridge and the two must not be able to disagree.
     parameter int M_AXI_ID_WIDTH   = AXI_ID_WIDTH
@@ -148,8 +148,8 @@ module char_engine_block
 
     //=========================================================================
     // The merged AXI4 master -- this is the controller boundary. The write
-    // engines own AW/W/B and the read engines own AR/R; the two crossbars
-    // above merge NUM_GEN masters per direction onto this one port.
+    // engines own AW/W/B and the read engines own AR/R; the merge inside
+    // char_gen_unit puts NUM_GEN masters per direction onto this one port.
     //=========================================================================
     output logic [PIW-1:0] m_axi_awid,
     output logic [AW-1:0] m_axi_awaddr,
@@ -330,20 +330,24 @@ module char_engine_block
     // Generator unit: N write + N read generator blocks behind one AXI4 port
     //=========================================================================
     // The generators used to reach the controller through two generated 2x1
-    // AXI4 crossbars (bridge_ddr2_char_wr / bridge_ddr2_char_rd) instantiated
-    // right here, with every master's port group written out by hand because a
+    // bridges (bridge_ddr2_char_wr / bridge_ddr2_char_rd) instantiated right
+    // here, with every master's port group written out by hand because a
     // generated bridge cannot be connected in a loop. That is gone: the array
     // and its N:1 merge are one module now, and what this block wires is a
     // single AXI4 master port that goes straight to the controller's s_axi.
     //
-    // The APB config path still goes through a bridge, because that is a real
-    // address decode over unrelated slaves. The data path never was one -- it
-    // is N identical masters at one address range -- and paying for a general
-    // crossbar to express that cost outstanding depth (a bridge_cam DEPTH(16)
-    // gating the address channel, so the engine could never have more than 16
-    // reads in flight however the generators were configured) and four skid
-    // stages of round-trip latency on the path whose entire purpose is to
-    // measure latency. See char_gen_unit.sv for the full argument.
+    // The bridges' own routing module (bridge_ddr2_char_*_xbar) was NOT the
+    // problem and is not what was replaced: at two masters and one slave it is
+    // a combinational grant-lock round-robin plus a one-comparator range
+    // check, 88 LUTs on the read side, and char_gen_axi_mux does the same job
+    // the same way. The cost was the four generated ADAPTERS wrapped around
+    // it -- 1069 of the read bridge's 1123 LUTs -- which is where the two
+    // skid stages per direction live and where a bridge_cam with DEPTH(16)
+    // gated the address channel, capping the whole engine at 16 outstanding
+    // reads however the generators were configured. See char_gen_unit.sv.
+    //
+    // The APB config path still goes through a bridge, and should: that is a
+    // real decode over unrelated slaves. This one decoded a single range.
     //
     // The wr_*/rd_* nets are unchanged: they are what the perf meters tap and
     // what this module's master port renames, so moving the merge did not move
@@ -701,7 +705,7 @@ module char_engine_block
 
     //=========================================================================
     // Merged AXI -> the module's master port. The internal wr_*/rd_* nets are
-    // what the crossbars drive and what the perf meters tap, so the mapping
+    // what char_gen_unit drives and what the perf meters tap, so the mapping
     // stays a rename rather than another layer of muxing.
     //=========================================================================
     assign m_axi_awid     = wr_awid;

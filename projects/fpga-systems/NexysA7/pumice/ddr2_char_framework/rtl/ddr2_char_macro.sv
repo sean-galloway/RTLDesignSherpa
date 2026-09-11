@@ -125,12 +125,12 @@ module ddr2_char_macro
 
     // ---- Generator array ----
     // Concurrent traffic generators per direction. TWO -- the first rung of a
-    // ladder that climbs to four and, on a larger part, to eight. Two 2x1 AXI4
-    // crossbars (one per direction) merge the two generators onto pumice's
-    // single s_axi so the controller sees genuine multi-master contention,
-    // which a single directly-wired stream never could. This is the stress
-    // step that proves the microarchitecture; growing it is an array bound, a
-    // parameter and a bridge-config regen, not an address-map migration.
+    // ladder that climbs to four and, on a larger part, to eight. The N:1
+    // merge inside char_gen_unit puts them all on pumice's single s_axi so the
+    // controller sees genuine multi-master contention, which a single directly
+    // wired stream never could. This is the stress step that proves the
+    // microarchitecture; growing it is now one parameter, with no bridge
+    // config to regenerate and no address map to migrate.
     //
     // Not one per bank: eight of each was the intent and does not fit the
     // XC7A100T (66470 LUTs against 63400; placement short by 1469 slices).

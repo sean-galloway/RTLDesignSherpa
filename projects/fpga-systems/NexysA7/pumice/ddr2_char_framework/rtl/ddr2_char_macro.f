@@ -45,12 +45,14 @@
 # that puts them on pumice's single s_axi port. Each generator spans
 # NUM_BANKS/NUM_GEN banks so bank concurrency is a property of the stimulus.
 #
-# This used to be two generated 2x1 AXI4 crossbars (bridge_ddr2_char_wr/_rd).
-# They are no longer built: a general crossbar on the data path cost a
-# bridge_cam DEPTH(16) cap on outstanding transactions and four skid stages of
-# round-trip latency, on a harness whose measurement IS latency. The bridge
-# TOMLs and their generated output stay in the tree for the APB window and for
-# the record; nothing in this build reads them.
+# This used to be two generated 2x1 bridges (bridge_ddr2_char_wr/_rd). They are
+# no longer built. Not because of their routing module -- at 2x1 that is a
+# combinational grant-lock round-robin and the replacement works the same way --
+# but because of the four generated adapters wrapped around it, which carried a
+# bridge_cam DEPTH(16) cap on outstanding transactions and two skid stages per
+# direction, on a harness whose measurement IS latency. The wr/rd TOMLs and
+# their generated output stay in the tree so both paths can still be built and
+# measured against each other; nothing in this build reads them.
 $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/char_gen_axi_mux.sv
 $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/char_gen_wr_order_q.sv
 $REPO_ROOT/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/rtl/char_gen_unit.sv

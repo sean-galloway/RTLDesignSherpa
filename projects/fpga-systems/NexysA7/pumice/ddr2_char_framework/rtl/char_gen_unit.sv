@@ -18,13 +18,21 @@
 //                                                     >-- m_axi_* -> the MC
 //              axi4_master_rd_crc_check   [NUM_GEN] -/
 //
-//   Replaces the two generated 2x1 AXI4 crossbars (bridge_ddr2_char_wr /
+//   Replaces the two generated 2x1 bridges (bridge_ddr2_char_wr /
 //   bridge_ddr2_char_rd) that used to sit between the generators and the
 //   controller on the data path. The APB config path still goes through the
 //   bridge, which is the right tool there -- a real address decode across
 //   several unrelated slaves. This is not that: it is N identical masters
-//   merging onto one slave at one address range, and paying for a general
-//   crossbar to do it cost three things that matter to a measuring instrument.
+//   merging onto one slave at one address range.
+//
+//   To be precise about what was actually costly, because the module names
+//   mislead: the bridges' routing module is called *_xbar, but at 2x1 there is
+//   nothing to cross. It is a combinational grant-lock round-robin plus one
+//   address comparator -- 88 LUTs on the read side, 338 on the write side --
+//   and u_aw_mux/u_ar_mux below do the same job by the same method. What cost
+//   something was the four generated ADAPTERS wrapped around it (1069 of the
+//   read bridge's 1123 LUTs), which carry three things a measuring instrument
+//   cannot afford.
 //
 //   1. Outstanding depth. Each generated adapter gates the address channel on
 //      a bridge_cam with DEPTH(16), so the whole engine could never have more
@@ -34,11 +42,13 @@
 //      for every AxLEN below 8. Here the generators' own MAX_OUTSTANDING is
 //      the only limit, which is the knob the sweep is supposed to turn.
 //
-//   2. Latency. Master adapter, crossbar, slave adapter is four skid stages
+//   2. Latency. The master-side and slave-side adapters carry two skid stages
+//      each (axi4_slave_rd and axi4_master_rd, AR out and R back), so four
 //      round trip on a path whose whole purpose is to measure a ~49-cycle
 //      read. Four cycles of instrument is ~8% of the reading, and it is added
 //      to pumice and LiteDRAM alike, so it also flatters whichever controller
-//      is slower.
+//      is slower. The routing module between them is combinational and
+//      contributed none of it.
 //
 //   3. The CAM itself, which recovers the originating master from the
 //      returning ID -- information that is already sitting in the top bits of
@@ -60,6 +70,15 @@
 //   width conversion, error injection, timeout, or monbus observation. Every
 //   one of those is a reason to use the bridge generator instead, and none of
 //   them applies to a generator array pointed at a single controller.
+//
+//   One thing genuinely went away with the bridges: the subtractive slave,
+//   which absorbed accesses above 0x07FFFFFF and latched the first offending
+//   address. Nothing observed it -- char_engine_block left the bridge's
+//   unmapped_irq / unmapped_addr ports unconnected -- so an out-of-range
+//   access was silently swallowed rather than reported. Now it reaches the
+//   controller instead, which is at least a behaviour something can see. If a
+//   real out-of-range trap is ever wanted here, it belongs in the generators'
+//   address generation, where the bad address is produced.
 //==============================================================================
 `timescale 1ns / 1ps
 `include "reset_defs.svh"
