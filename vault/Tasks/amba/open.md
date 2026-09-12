@@ -2258,37 +2258,6 @@ in the test (or the DUT, if the seed really found one), not in the seed.
 
 ---
 
-### TASK-090: the four axi4 *_mon_cg formal proofs are unblocked but unwritten
-
-**Priority:** P3. Not a defect. These are the only AXI4 wrappers with no
-proof at all, and the page that explained why is now out of date.
-
-**Status:** open 2026-09-11, found sweeping formal/ against rtl/.
-
-`axi4_master_rd_mon_cg`, `axi4_master_wr_mon_cg`, `axi4_slave_rd_mon_cg` and
-`axi4_slave_wr_mon_cg` each have a `formal/amba/<name>/` directory holding
-nothing but a `KNOWN_LIMITATION.md`. That page said the proof was BLOCKED by a
-multi-driver issue in `axi_monitor_trans_mgr` and by two clock-gating bugs in
-the wrapper.
-
-**All three of those are fixed.** `formal/amba/axi_monitor_trans_mgr` passes
-prove and cover; the wrapper uses `amba_clock_gate_ctrl` and drives the inner
-monitor from a gated clock. The four pages now say so.
-
-**Why it is still not quick.** The harness has to carry the monitor's whole
-config and monbus port set on top of the AXI channels, and a gated clock is
-not provable in this repo's single-clock flow -- it needs the clock-enable
-`icg` model. `formal/amba/wb4_slave_cdc_cg/` (written 2026-09-11) is the
-current shape of that model, and `formal/amba/axi4_master_rd_cg/` is the
-nearest non-monitor template at 283 lines.
-
-**Done when:** each of the four proves and covers, and a mutation of the
-clock-gate mask fails the proof -- the masks are the whole point of the
-wrapper, and a harness that does not fail on a dropped mask has proved
-nothing about it.
-
----
-
 ### TASK-094: axi_master_rd_splitter returns read data before accepting the read (AXI A3.3.1)
 
 **Priority:** P2. A real protocol violation in a shared library block, found

@@ -310,7 +310,7 @@ failed, blank = not started.
 | axi4_master_wr_mon | 2        | PASSING | Same                                    |
 | axi4_slave_rd_mon  | 2        | PASSING | Same                                    |
 | axi4_slave_wr_mon  | 2        | PASSING | Same                                    |
-| axi4_*_mon_cg      | 0        |        | CG variant — prove base first           |
+| axi4_*_mon_cg      | 0        |        | Written + proved 2026-09-11 (TASK-090)  |
 | axi5_*_mon         | 0        |        | AXI5 monitors — lower priority          |
 
 ### AXI Monitor Infrastructure

@@ -1,0 +1,34 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 15
+cover: mode cover
+cover: depth 20
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read_verilog -formal axi4_slave_rd_mon_cg_flat.v
+read -formal -sv formal_axi4_slave_rd_mon_cg.sv
+hierarchy -top formal_axi4_slave_rd_mon_cg
+proc
+flatten
+# Free undriven nets BEFORE any opt pass. An opt that runs first folds an
+# undriven net -- an input the harness left unconnected or never drove -- to
+# a constant, pinning it for the whole proof. That is what made the four
+# axi4 *_mon monbus covers unreachable for as long as they existed.
+setundef -undriven -anyseq
+opt_expr
+opt_clean
+memory_map
+async2sync
+opt -full
+setundef -undriven -init -expose
+[files]
+formal_axi4_slave_rd_mon_cg.sv
+axi4_slave_rd_mon_cg_flat.v

@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: MIT
+# Formal verification Makefile for axi4_slave_rd_mon_cg
+# Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog
+#
+# This block had NO proof until 2026-09-11 (TASK-090). Its KNOWN_LIMITATION.md
+# said the proof was blocked by a multi-driver issue in axi_monitor_trans_mgr
+# and by two clock-gating bugs in the wrapper; all three were fixed, and the
+# page was left claiming a block that no longer existed.
+#
+# DEPS is the transitive closure of axi4_slave_rd_mon (leaves first) plus the
+# clock gate. rtl/common/icg.sv is DELIBERATELY ABSENT -- the harness supplies
+# a clock-enable model of the cell, because a derived clock is not provable in
+# this flow. See formal/amba/wb4_slave_cdc_cg for the same arrangement.
+
+REPO_ROOT := $(shell git rev-parse --show-toplevel)
+SV2V      := /mnt/data/tools/sv2v
+
+INC := -I$(REPO_ROOT)/rtl/amba/includes
+
+PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
+        $(REPO_ROOT)/rtl/amba/includes/monitor_amba4_pkg.sv \
+        monitor_pkg_stub.sv
+
+DEPS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
+        $(REPO_ROOT)/rtl/amba/axi4/axi4_slave_rd.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_addr_check.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_compl.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_debug.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_error.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_perf.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_threshold.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter_timeout.sv \
+        $(REPO_ROOT)/rtl/common/counter_bin.sv \
+        $(REPO_ROOT)/rtl/common/fifo_control.sv \
+        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_reporter.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_timeout.sv \
+        $(REPO_ROOT)/rtl/common/counter_load_clear.sv \
+        $(REPO_ROOT)/rtl/common/counter_freq_invariant.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_timer.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/monitor_trans_cam.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_trans_mgr.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_base.sv \
+        $(REPO_ROOT)/rtl/amba/monitor/axi_monitor_filtered.sv \
+        $(REPO_ROOT)/rtl/amba/axi4/axi4_slave_rd_mon.sv \
+        $(REPO_ROOT)/rtl/common/clock_gate_ctrl.sv \
+        $(REPO_ROOT)/rtl/amba/shared/amba_clock_gate_ctrl.sv
+
+DUT := $(REPO_ROOT)/rtl/amba/axi4/axi4_slave_rd_mon_cg.sv
+
+TMPDIR := /tmp/formal_axi4_slave_rd_mon_cg
+
+.PHONY: prove cover all clean
+
+all: prove cover
+
+prove: axi4_slave_rd_mon_cg_flat.v
+	sby -f axi4_slave_rd_mon_cg.sby prove
+
+cover: axi4_slave_rd_mon_cg_flat.v
+	sby -f axi4_slave_rd_mon_cg.sby cover
+
+# Strip `import monitor_pkg::*;` and `monitor_pkg::` scope prefixes (monitor_pkg
+# re-exports sub-package types and trips sv2v "ambiguous identifier"), then
+# flatten DUT + closure into a single Verilog file.
+axi4_slave_rd_mon_cg_flat.v: $(DUT) $(PKGS) $(DEPS)
+	@mkdir -p $(TMPDIR)
+	@for f in $(DEPS) $(DUT); do \
+		sed -e 's/import monitor_pkg::\*;//g' \
+		    -e 's/monitor_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \
+	done
+	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) \
+		$(addprefix $(TMPDIR)/,$(notdir $(DEPS) $(DUT))) > $@
+	@rm -rf $(TMPDIR)
+
+clean:
+	rm -rf axi4_slave_rd_mon_cg_flat.v axi4_slave_rd_mon_cg_prove axi4_slave_rd_mon_cg_cover

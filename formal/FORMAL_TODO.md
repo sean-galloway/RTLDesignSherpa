@@ -20,20 +20,14 @@ counted here.
 | common (non-math) | 52 | 0 | 0 | 0 | 2 | 54 |
 | common (math) | 163 | 0 | 0 | 7 | 0 | 170 |
 | cdc | 12 | 0 | 0 | 0 | 0 | 12 |
-| amba | 54 | 3 | 0 | 0 | 4 | 61 |
-| **Total** | **281** | **3** | **0** | **7** | **6** | **297** |
+| amba | 60 | 1 | 0 | 0 | 0 | 61 |
+| **Total** | **287** | **1** | **0** | **7** | **2** | **297** |
 
-**The three FAILs are findings, not breakage.** Each is filed, and each proof
-is left red on purpose so the finding cannot quietly disappear:
+**The one FAIL is a finding, not breakage.** It is filed, and the proof is
+left red on purpose so the finding cannot quietly disappear:
 
 ```
-amba/apb4_master_cg: FAIL   <- wake-latency contract undecided -- TASK-091
-  amba/apb5_master_cg: FAIL   <- wake-latency contract undecided -- TASK-091
-  amba/axi4_master_rd_mon_cg: NOSBY
-  amba/axi4_master_wr_mon_cg: NOSBY
-  amba/axi4_slave_rd_mon_cg: NOSBY
-  amba/axi4_slave_wr_mon_cg: NOSBY
-  amba/axi_master_rd_splitter: FAIL   <- real AXI A3.3.1 violation -- TASK-094
+amba/axi_master_rd_splitter: FAIL   <- real AXI A3.3.1 violation -- TASK-094
   common/dataint_ecc_hamming_decode_secded: NOSBY
   common/dataint_ecc_hamming_encode_secded: NOSBY
   common/math_ieee754_2008_fp16_mantissa_mult: TIMEOUT
@@ -70,6 +64,8 @@ unblocked but unwritten -- TASK-090.
 | task scripts pinning harness inputs to constants | 25 | 0 |
 | proofs reachable from `make formal` | common + cdc only | all four areas |
 | `formal/common` proofs its Makefile ran | 34 of 222 | all 222 |
+| axi4 `*_mon_cg` tasks with a proof (TASK-090) | 0 of 4 | 4 of 4 |
+| amba tasks with no `.sby` at all | 4 | 0 |
 
 Five real RTL defects came out of it: multiple drivers on the transaction
 table in both APB monitors, a missing reset on apb4_monitor's error counter, a
