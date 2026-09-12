@@ -332,9 +332,9 @@ bridge" block -- `os.environ['TEST_LEVEL'] = _reg_level.upper()` at
 conftest import, written for wrappers that exported nothing -- was copied
 into thirteen conftests. The bridge's copy is removed (this task's
 evidence), converters followed on 2026-09-10, then retro_legacy_blocks, pumice
-(all three areas) and misc on 2026-09-11. Six remain:
+(all three areas), misc and apbx-xbar on 2026-09-11. Five remain, all
+rapids:
 
-    projects/components/apbx-xbar/dv/tests/conftest.py
     projects/components/dmas/rapids/dv/tests/{fub,fub_beats,macro,macro_beats,top_beats}/conftest.py
 
 **Evidence.** First leveled bridge FULL run, 2026-09-09: 216 cells, the
@@ -342,9 +342,8 @@ gate/func/full triple of every test, all logging `level=full` with
 identical wall-clock. Removing the stamp and re-running one test at
 REG_LEVEL=FULL gave gate/func/full cells at 1/4/16 offsets.
 
-**The stamp is load-bearing in rapids; apbx-xbar's is inert.** Nothing in
-apbx-xbar reads TEST_LEVEL, so removing its stamp alone changes nothing --
-giving that area levels is DV design work. Originally, and true then: Measured 2026-09-10
+**Everything in scope is converted.** The five rapids areas are all that is
+left and they are out of scope until that suite is green again ([[feedback_rapids_out_of_scope]]). Originally, and true then: Measured 2026-09-10
 with `check_test_levels.py`: every area except the bridge reports
 `depth:not-exported` on nearly every test -- their wrappers export nothing,
 so the stamp is the ONLY thing mapping REG_LEVEL onto a depth. Deleting it
@@ -432,3 +431,37 @@ now toplevel + a parameter digest + the xdist worker. And it was the only
 wrapper in the area passing no LOG_PATH and no per-cell results file, so its
 grading would have left nothing to check; both are per cell now, and that is
 where the tier evidence above came from.
+
+**apbx-xbar, converted 2026-09-11 (`d2b61e553`).** The one area whose stamp
+was INERT rather than load-bearing: nothing there read TEST_LEVEL, so the
+grid sat at 9 cells for GATE, FUNC and FULL alike and removing the stamp
+alone would have changed nothing. That made it DV design work -- six
+hand-rolled testbenches with no tbclasses, each with its scenario counts
+written as literals.
+
+Each cocotb body now takes its COUNTS from a per-file table and the crossbar
+shape (master/slave fan-out, burst geometry, poll loops) stays fixed.
+`timeout_time` had to scale with them: it is evaluated at import, inside the
+simulator with TEST_LEVEL already set, and 1to1 allowed 40 us for ~122
+transactions, so a full run against a gate-sized timeout would have failed as
+a timeout rather than as a bug. `func` reproduces each test's previous counts
+exactly, so gate and full bracket the old coverage instead of redefining it.
+
+`test_apbx_xbar_2to2_mixed` has no count to scale -- it is a contract test
+(four master/slave pairings, sideband gating, the APBX-002 decode-miss
+regression). It grades by SECTION with the decode-miss round count as the
+knob, since repeating a miss is what would expose state it left behind.
+
+Step 4 measured. Grid 9 / 18 / 27. Transactions per level, derived and logged
+by each test: 1to1 38 / 122 / 274, 2to1 80 / 204 / 468, 1to4 140 / 336 / 784,
+2to4 180 / 464 / 1108; timing measured 3 / 5 / 16 transfers and 2to2_mixed
+ran 0 / 1 / 4 decode-miss rounds. FULL 27, FUNC 18, GATE 9, no failures.
+
+Three things were already broken. Every summary line added a hand-summed
+constant matching no set of loops (1to1 +60 against 82 fixed transactions,
+2to1 +70 against 144, 1to4 +160 against 296, 2to4 +250 against 364) -- all
+derived now. conftest carried three dead fixtures, one of which
+(`xbar_test_level`) encoded a second, conflicting level model with its own
+transaction-count table that would have tripled every test if anyone had
+requested it. And `timing` imported the same helper twice while
+`2to2_mixed` never imported pytest at all.
