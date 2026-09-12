@@ -35,6 +35,7 @@ from cocotb_test.simulator import run
 # Import framework utilities (PYTHONPATH includes bin/)
 from TBClasses.shared.utilities import get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import current_level, level_env, reg_level_grid
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -42,7 +43,18 @@ sys.path.insert(0, repo_root)
 from CocoTBFramework.components.apb.apb_components import APBMaster, APBSlave
 
 
-@cocotb.test(timeout_time=40, timeout_unit='us')
+# Depth by level. The COUNTS scale; the transaction shape does not -- that is
+# protocol structure. timeout_time is evaluated at import, inside the
+# simulator with TEST_LEVEL already set, so it scales with the counts: a full
+# run against a gate-sized timeout would fail as a timeout, not as a bug.
+_LVL = current_level()
+_D = {'gate': dict(mixed=4,  burst=8,  random=12),
+      'func': dict(mixed=10, burst=30, random=40),
+      'full': dict(mixed=24, burst=64, random=96)}[_LVL]
+_TIMEOUT_US = {'gate': 40, 'func': 80, 'full': 240}[_LVL]
+
+
+@cocotb.test(timeout_time=_TIMEOUT_US, timeout_unit='us')
 async def apbx_xbar_1to1_test(dut):
     """Test 1-to-1 APB crossbar with stress scenarios"""
 
@@ -175,7 +187,7 @@ async def apbx_xbar_1to1_test(dut):
 
     # Test 3: Multiple transactions (Mixed read/write)
     log.info("=== Scenario APB-1TO1-05: Mixed read/write ===")
-    for i in range(10):
+    for i in range(_D['mixed']):
         addr = 0x2000 + (i * 4)
         wdata = random.randint(0, 0xFFFFFFFF)
         await apb_write(addr, wdata)
@@ -189,14 +201,14 @@ async def apbx_xbar_1to1_test(dut):
     # Test 4: Burst writes
     log.info("=== Scenario APB-1TO1-03: Back-to-back writes ===")
     base_addr = 0x3000
-    for i in range(30):
+    for i in range(_D['burst']):
         addr = base_addr + (i * 4)
         data = 0xA0000000 + i
         await apb_write(addr, data)
 
     # Verify (Back-to-back reads)
     log.info("=== Scenario APB-1TO1-04: Back-to-back reads ===")
-    for i in range(30):
+    for i in range(_D['burst']):
         addr = base_addr + (i * 4)
         expected = 0xA0000000 + i
         rdata = await apb_read(addr)
@@ -208,7 +220,7 @@ async def apbx_xbar_1to1_test(dut):
     # Test 5: Random access pattern
     log.info("=== Scenario APB-1TO1-10: Address propagation ===")
     transaction_log = []
-    for _ in range(40):
+    for _ in range(_D['random']):
         addr = random.randint(0x4000, 0x4FFF) & 0xFFFC
         if random.random() < 0.5:
             data = random.randint(0, 0xFFFFFFFF)
@@ -245,14 +257,16 @@ async def apbx_xbar_1to1_test(dut):
 
     log.info("=" * 80)
     log.info("1-to-1 APB Crossbar Test PASSED")
-    log.info(f"Total transactions: {len(transaction_log) + 60}")
+    log.info(f"Total transactions: "
+             f"{len(transaction_log) + 2 + 2 * _D['mixed'] + 2 * _D['burst']}")
     log.info("=" * 80)
 
 
+@pytest.mark.parametrize("test_level", reg_level_grid())
 @pytest.mark.parametrize("aw,dw", [
     (32, 32),
 ])
-def test_apbx_xbar_1to1(request, aw, dw):
+def test_apbx_xbar_1to1(request, aw, dw, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for 1-to-1 crossbar test"""
 
@@ -282,7 +296,7 @@ def test_apbx_xbar_1to1(request, aw, dw):
     log_dir = os.path.join(tests_dir, 'logs')
     os.makedirs(log_dir, exist_ok=True)
 
-    test_name = f'test_apbx_xbar_1to1_aw{aw:03d}_dw{dw:03d}'
+    test_name = f'test_apbx_xbar_1to1_aw{aw:03d}_dw{dw:03d}_{test_level}'
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
@@ -299,6 +313,10 @@ def test_apbx_xbar_1to1(request, aw, dw):
         work_dir=sim_build,
         waves=enable_waves,
         plus_args=['--trace'] if enable_waves else [],
+        # These TBs log through dut._log, not a TBBase logger, so LOG_PATH
+        # would be dead config here: the per-level evidence is the derived
+        # "Total transactions" line.
+        extra_env={**level_env(test_level)},
     )
 
 

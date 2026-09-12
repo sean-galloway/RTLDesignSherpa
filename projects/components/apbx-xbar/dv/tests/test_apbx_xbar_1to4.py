@@ -34,13 +34,24 @@ from cocotb_test.simulator import run
 # Import framework utilities (PYTHONPATH includes bin/)
 from TBClasses.shared.utilities import get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import current_level, level_env, reg_level_grid
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 
-@cocotb.test(timeout_time=120, timeout_unit='us')
+# Depth by level: the COUNTS scale, the four-slave decode fan-out does not.
+# timeout_time is evaluated at import inside the simulator, so it scales with
+# them -- otherwise a full run fails as a timeout rather than as a bug.
+_LVL = current_level()
+_D = {'gate': dict(seq=4,  rapid=2,  random=12, burst=4,  alt=4),
+      'func': dict(seq=10, rapid=5,  random=40, burst=10, alt=10),
+      'full': dict(seq=24, rapid=12, random=96, burst=24, alt=24)}[_LVL]
+_TIMEOUT_US = {'gate': 120, 'func': 240, 'full': 700}[_LVL]
+
+
+@cocotb.test(timeout_time=_TIMEOUT_US, timeout_unit='us')
 async def apbx_xbar_1to4_test(dut):
     """Test 1-to-4 APB crossbar with address decoding and stress scenarios"""
 
@@ -240,7 +251,7 @@ async def apbx_xbar_1to4_test(dut):
 
     # Test 2: Interleaved access across slaves
     log.info("=== Scenario APB-1TO4-09: Sequential slave access ===")
-    for i in range(10):
+    for i in range(_D['seq']):
         addr0 = BASE + 0x00200 + (i * 4)
         addr1 = BASE + 0x10200 + (i * 4)
         addr2 = BASE + 0x20200 + (i * 4)
@@ -276,7 +287,7 @@ async def apbx_xbar_1to4_test(dut):
     log.info("=== Scenario APB-1TO4-14: Address decode slave 3 ===")
     for slave_id in range(4):
         base_addr = BASE + (slave_id * 0x10000) + 0x00400
-        for i in range(5):
+        for i in range(_D['rapid']):
             addr = base_addr + (i * 4)
             data = 0x50000000 + (slave_id << 16) + i
             await apb_write(addr, data)
@@ -290,7 +301,7 @@ async def apbx_xbar_1to4_test(dut):
     log.info("=== Scenario APB-1TO4-10: Random slave access ===")
 
     transaction_log = []
-    for _ in range(40):  # Reduced from 80
+    for _ in range(_D['random']):
         slave_id = random.randint(0, 3)
         offset = random.randint(0, 0xFFF0) & 0xFFFC
         addr = BASE + (slave_id << 16) + offset
@@ -314,12 +325,12 @@ async def apbx_xbar_1to4_test(dut):
     for slave_id in range(4):
         base_offset = (slave_id << 16) + 0x03000
         # Write burst
-        for i in range(10):  # Reduced from 20
+        for i in range(_D['burst']):
             addr = BASE + base_offset + (i * 4)
             data = 0xE0000000 | (slave_id << 16) | i
             await apb_write(addr, data)
         # Read burst
-        for i in range(10):  # Reduced from 20
+        for i in range(_D['burst']):
             addr = BASE + base_offset + (i * 4)
             expected = 0xE0000000 | (slave_id << 16) | i
             rdata, _ = await apb_read(addr)
@@ -331,14 +342,14 @@ async def apbx_xbar_1to4_test(dut):
     # Test 6: Alternating slave access (decoder switching stress)
     log.info("=== Scenario APB-1TO4-20: Back-to-back different slaves ===")
 
-    for iteration in range(10):  # Reduced from 15
+    for iteration in range(_D['alt']):
         for slave_id in range(4):
             addr = BASE + (slave_id << 16) + 0x04000 + (iteration * 4)
             data = 0xF0000000 | (slave_id << 16) | iteration
             await apb_write(addr, data)
 
     # Verify all in reverse order
-    for iteration in range(9, -1, -1):  # Reduced from 14
+    for iteration in range(_D['alt'] - 1, -1, -1):   # verify in reverse
         for slave_id in range(3, -1, -1):
             addr = BASE + (slave_id << 16) + 0x04000 + (iteration * 4)
             expected = 0xF0000000 | (slave_id << 16) | iteration
@@ -413,17 +424,21 @@ async def apbx_xbar_1to4_test(dut):
 
     log.info("=" * 80)
     log.info("1-to-4 APB Crossbar Test PASSED")
-    log.info(f"Total transactions: {len(transaction_log) + 80 + 80}")
+    # was a hand-sum (+80+80) covering neither the opening 16 nor the rapid
+    # and alternating loops; each of these scenarios is 8 transactions per index.
+    _fixed = 16 + 8 * (_D['seq'] + _D['rapid'] + _D['burst'] + _D['alt'])
+    log.info(f"Total transactions: {len(transaction_log) + _fixed}")
     log.info("=" * 80)
 
 
+@pytest.mark.parametrize("test_level", reg_level_grid())
 @pytest.mark.parametrize("aw,dw,base", [
     (32, 32, 0x10000000),
     # span-UNaligned base: bits [17:16] nonzero -- pins the offset-based
     # decode (raw-bit decode rotates the slave map, qc round_7)
     (32, 32, 0x10010000),
 ])
-def test_apbx_xbar_1to4(request, aw, dw, base):
+def test_apbx_xbar_1to4(request, aw, dw, base, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for 1-to-4 crossbar test"""
 
@@ -454,7 +469,7 @@ def test_apbx_xbar_1to4(request, aw, dw, base):
     log_dir = os.path.join(tests_dir, 'logs')
     os.makedirs(log_dir, exist_ok=True)
 
-    test_name = f'test_apbx_xbar_1to4_aw{aw:03d}_dw{dw:03d}_b{base:08x}'
+    test_name = f'test_apbx_xbar_1to4_aw{aw:03d}_dw{dw:03d}_b{base:08x}_{test_level}'
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
@@ -465,7 +480,7 @@ def test_apbx_xbar_1to4(request, aw, dw, base):
         toplevel="apbx_xbar_1to4_wrap",
         module=module,
         parameters=parameters,
-        extra_env={'TB_BASE_ADDR': hex(base)},
+        extra_env={'TB_BASE_ADDR': hex(base), **level_env(test_level)},
         simulator="verilator",
         compile_args=compile_args,
         sim_build=sim_build,

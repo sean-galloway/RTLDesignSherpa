@@ -245,56 +245,13 @@ def pytest_ignore_collect(collection_path, config):
     return 'logs' in path_str or 'coverage_data' in path_str
 
 
-# APB XBAR-specific parametrization fixtures
-@pytest.fixture(scope="module", params=[
-    # (num_masters, num_slaves, description)
-    (1, 1, "1to1 passthrough"),
-    (2, 1, "2to1 arbitration"),
-    (1, 4, "1to4 decode"),
-    (2, 4, "2to4 full"),
-])
-def xbar_config(request):
-    """APB Crossbar configuration parameters"""
-    num_masters, num_slaves, description = request.param
-    return {
-        'NUM_MASTERS': num_masters,
-        'NUM_SLAVES': num_slaves,
-        'description': description,
-    }
-
-
-@pytest.fixture(scope="module", params=[
-    # Test levels: (level, transaction_count, timeout_factor)
-    ('gate', 10, 1.0),
-    ('func', 50, 1.5),
-    ('full', 200, 2.0),
-])
-def xbar_test_level(request):
-    """APB Crossbar test level configuration"""
-    level, transaction_count, timeout_factor = request.param
-
-    # Override from environment if specified
-    env_level = os.environ.get('TEST_LEVEL', level).lower()
-    if env_level in ['gate', 'func', 'full']:
-        level = env_level
-
-    return {
-        'level': level,
-        'transaction_count': transaction_count,
-        'timeout_factor': timeout_factor
-    }
-
-
-def get_xbar_env_config():
-    """Get APB Crossbar configuration from environment variables"""
-    return {
-        'NUM_MASTERS': int(os.environ.get('XBAR_NUM_MASTERS', '1')),
-        'NUM_SLAVES': int(os.environ.get('XBAR_NUM_SLAVES', '4')),
-        'DATA_WIDTH': int(os.environ.get('XBAR_DATA_WIDTH', '32')),
-        'ADDR_WIDTH': int(os.environ.get('XBAR_ADDR_WIDTH', '32')),
-        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate').lower(),
-        'ENABLE_WAVEDUMP': os.environ.get('ENABLE_WAVEDUMP', '1') == '1',
-    }
+# NOTE: xbar_config, xbar_test_level and get_xbar_env_config used to live
+# here. All three were dead -- nothing in the area ever requested them -- and
+# xbar_test_level encoded a SECOND, conflicting level model (a module-scoped
+# params fixture that would have tripled every test if anyone had used it,
+# with its own transaction_count/timeout_factor table). Removed with the
+# stamp so the reg_level_grid()/level_env() axis in the wrappers is the only
+# level mechanism in this area.
 
 
 def pytest_collection_modifyitems(config, items):
@@ -324,20 +281,15 @@ def test_level():
     return os.environ.get('TEST_LEVEL', 'gate')
 
 # ----------------------------------------------------------------------
-# REG_LEVEL -> TEST_LEVEL bridge
+# REG_LEVEL -> TEST_LEVEL: deliberately NOT bridged here
 # ----------------------------------------------------------------------
-# make/tests.mk drives the regression level through REG_LEVEL; this area's test
-# modules read TEST_LEVEL, and most read it at MODULE IMPORT time. conftest is
-# imported before any test module, so setting it here is early enough.
+# This area used to stamp os.environ['TEST_LEVEL'] = REG_LEVEL at import.
+# cocotb_test.simulator.set_env copies every os.environ entry OVER the
+# caller's extra_env, so the stamp beats any per-cell value a wrapper exports
+# (TOOL-016). Here it was also inert: nothing in this area read TEST_LEVEL at
+# all, so every cell ran one depth whatever the make target said.
 #
-# WITHOUT THIS BRIDGE THE MAKEFILE CONVERGENCE SILENTLY REDUCES COVERAGE: the
-# 4-line area Makefile sets REG_LEVEL=full, nothing reads it, TEST_LEVEL falls
-# back to its default, and `make run-all-full-parallel` quietly runs a smaller
-# matrix while still reporting "passed". Measured on pumice fub during this
-# conversion: 91 tests -> 79.
-#
-# REG_LEVEL wins over TEST_LEVEL, matching stream's conftest: the make target
-# you typed is more explicit than an inherited environment variable.
-_reg_level = os.environ.get('REG_LEVEL')
-if _reg_level:
-    os.environ['TEST_LEVEL'] = _reg_level.upper()
+# Every wrapper now parametrizes test_level over reg_level_grid() and exports
+# it with level_env(), and each cocotb body picks its counts (and its
+# timeout) from that. The fixture below stays as the fallback for a bare
+# `pytest` run with no grid.

@@ -41,13 +41,23 @@ from cocotb_test.simulator import run
 # Import framework utilities (PYTHONPATH includes bin/)
 from TBClasses.shared.utilities import get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import current_level, level_env, reg_level_grid
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 
-@cocotb.test(timeout_time=100, timeout_unit='us')
+# Depth by level: the COUNTS scale, the 2x4 fan-out does not. timeout_time is
+# evaluated at import inside the simulator so it scales with them.
+_LVL = current_level()
+_D = {'gate': dict(same=2,  inter=4,  hammer=8,  burst=4,  chaos=16,  b2b=6),
+      'func': dict(same=5,  inter=10, hammer=20, burst=10, chaos=50,  b2b=15),
+      'full': dict(same=12, inter=24, hammer=48, burst=24, chaos=120, b2b=36)}[_LVL]
+_TIMEOUT_US = {'gate': 100, 'func': 240, 'full': 800}[_LVL]
+
+
+@cocotb.test(timeout_time=_TIMEOUT_US, timeout_unit='us')
 async def apbx_xbar_2to4_test(dut):
     """Test 2-to-4 APB crossbar with arbitration and stress scenarios"""
 
@@ -231,7 +241,7 @@ async def apbx_xbar_2to4_test(dut):
     log.info("=== Scenario APB-2TO4-07: Arbitration slave 0 ===")
 
     # Sequential access to same slave
-    for i in range(5):
+    for i in range(_D['same']):
         addr0 = base_addr + 0x200 + (i * 4)
         addr1 = base_addr + 0x300 + (i * 4)
         data0 = 0x1000 + i
@@ -253,7 +263,7 @@ async def apbx_xbar_2to4_test(dut):
     log.info("=== Scenario APB-2TO4-09: Arbitration slave 2 ===")
     log.info("=== Scenario APB-2TO4-10: Arbitration slave 3 ===")
 
-    for i in range(10):
+    for i in range(_D['inter']):
         m0_slave = random.randint(0, 3)
         m1_slave = random.randint(0, 3)
 
@@ -288,13 +298,13 @@ async def apbx_xbar_2to4_test(dut):
             await apb_write(master_id, addr, data)
 
     # Both masters hammer slave 0 simultaneously
-    m0_task = cocotb.start_soon(master_hammer(0, 0x00400, 20))
-    m1_task = cocotb.start_soon(master_hammer(1, 0x00800, 20))
+    m0_task = cocotb.start_soon(master_hammer(0, 0x00400, _D['hammer']))
+    m1_task = cocotb.start_soon(master_hammer(1, 0x00800, _D['hammer']))
     await m0_task
     await m1_task
 
     # Verify all writes
-    for i in range(20):
+    for i in range(_D['hammer']):
         addr0 = base_addr + 0x00400 + (i * 4)
         addr1 = base_addr + 0x00800 + (i * 4)
         rdata, _ = await apb_read(0, addr0)
@@ -314,13 +324,13 @@ async def apbx_xbar_2to4_test(dut):
     for master_id in range(2):
         for slave_id in range(4):
             base_offset = (slave_id << 16) + 0x01000 + (master_id * 0x0200)
-            for i in range(10):
+            for i in range(_D['burst']):
                 addr = base_addr + base_offset + (i * 4)
                 data = 0xC0000000 | (master_id << 20) | (slave_id << 16) | i
                 await apb_write(master_id, addr, data)
 
             # Verify burst
-            for i in range(10):
+            for i in range(_D['burst']):
                 addr = base_addr + base_offset + (i * 4)
                 expected = 0xC0000000 | (master_id << 20) | (slave_id << 16) | i
                 rdata, _ = await apb_read(master_id, addr)
@@ -355,8 +365,8 @@ async def apbx_xbar_2to4_test(dut):
                 await Timer(random.randint(1, 3) * 10, units="ns")
 
     # Both masters run chaos simultaneously
-    m0_chaos = cocotb.start_soon(random_master_activity(0, 50))
-    m1_chaos = cocotb.start_soon(random_master_activity(1, 50))
+    m0_chaos = cocotb.start_soon(random_master_activity(0, _D['chaos']))
+    m1_chaos = cocotb.start_soon(random_master_activity(1, _D['chaos']))
     await m0_chaos
     await m1_chaos
 
@@ -379,8 +389,8 @@ async def apbx_xbar_2to4_test(dut):
             await apb_write(master_id, addr, data)
 
     # Master 0 hammers slave 0, Master 1 hammers slave 2 (no contention)
-    m0_b2b = cocotb.start_soon(back_to_back_writes(0, 0, 15))
-    m1_b2b = cocotb.start_soon(back_to_back_writes(1, 2, 15))
+    m0_b2b = cocotb.start_soon(back_to_back_writes(0, 0, _D['b2b']))
+    m1_b2b = cocotb.start_soon(back_to_back_writes(1, 2, _D['b2b']))
     await m0_b2b
     await m1_b2b
 
@@ -388,7 +398,7 @@ async def apbx_xbar_2to4_test(dut):
     for master_id in range(2):
         slave_id = 0 if master_id == 0 else 2
         base_offset = (slave_id << 16) + 0x02000 + (master_id * 0x0400)
-        for i in range(15):
+        for i in range(_D['b2b']):
             addr = base_addr + base_offset + (i * 4)
             expected = 0xD0000000 | (master_id << 20) | (slave_id << 16) | i
             rdata, _ = await apb_read(master_id, addr)
@@ -464,16 +474,20 @@ async def apbx_xbar_2to4_test(dut):
 
     log.info("=" * 80)
     log.info("2-to-4 APB Crossbar Test PASSED")
-    log.info(f"Total transactions: {len(transaction_log) + 100 + 80 + 40 + 30}")
+    # was a hand-sum (+100+80+40+30) that matched no set of loops; derive it.
+    _fixed = (4 + 4 * (_D['same'] + _D['inter'] + _D['hammer'] + _D['b2b'])
+              + 16 * _D['burst'])
+    log.info(f"Total transactions: {len(transaction_log) + _fixed}")
     log.info("=" * 80)
 
 
+@pytest.mark.parametrize("test_level", reg_level_grid())
 @pytest.mark.parametrize("aw,dw,base", [
     (32, 32, 0x10000000),
     # span-UNaligned base: bits [17:16] nonzero -- pins offset decode
     (32, 32, 0x10020000),
 ])
-def test_apbx_xbar_2to4(request, aw, dw, base):
+def test_apbx_xbar_2to4(request, aw, dw, base, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for 2-to-4 crossbar test"""
 
@@ -504,7 +518,7 @@ def test_apbx_xbar_2to4(request, aw, dw, base):
     log_dir = os.path.join(tests_dir, 'logs')
     os.makedirs(log_dir, exist_ok=True)
 
-    test_name = f'test_apbx_xbar_2to4_aw{aw:03d}_dw{dw:03d}_base{base:08X}'
+    test_name = f'test_apbx_xbar_2to4_aw{aw:03d}_dw{dw:03d}_base{base:08X}_{test_level}'
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
@@ -515,7 +529,7 @@ def test_apbx_xbar_2to4(request, aw, dw, base):
         toplevel="apbx_xbar_2to4_wrap",
         module=module,
         parameters=parameters,
-        extra_env={'TB_BASE_ADDR': hex(base)},
+        extra_env={'TB_BASE_ADDR': hex(base), **level_env(test_level)},
         simulator="verilator",
         compile_args=compile_args,
         sim_build=sim_build,

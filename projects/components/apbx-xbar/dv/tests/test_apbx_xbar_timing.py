@@ -35,7 +35,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
-from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import current_level, level_env, reg_level_grid
 
 BASE = 0x1000_0000
 
@@ -131,7 +131,7 @@ async def apbx_xbar_timing_test(dut):
            's_psel_rise': [], 's_ready': []}
     cocotb.start_soon(_sampler(dut, rec))
 
-    n_xfers = 5
+    n_xfers = {'gate': 3, 'func': 5, 'full': 16}[current_level()]
     for i in range(n_xfers):
         dut.m0_apb_PADDR.value = BASE + (i * 4)
         dut.m0_apb_PWRITE.value = 0
@@ -208,11 +208,12 @@ async def apbx_xbar_timing_test(dut):
 import pytest
 
 
+@pytest.mark.parametrize("test_level", reg_level_grid())
 @pytest.mark.parametrize("dut_name,klass", [
     ("apbx_xbar_1to1", "single_master"),
     ("apbx_xbar_2to1", "arbitrated"),
 ])
-def test_apbx_xbar_timing(request, dut_name, klass):
+def test_apbx_xbar_timing(request, dut_name, klass, test_level):
     """Both variant classes. Testing only the single-master one is how the
     published numbers came to be a cycle optimistic for every arbitrated
     variant -- apbx_xbar_1to1 is the only variant with no arbiter at all."""
@@ -225,7 +226,7 @@ def test_apbx_xbar_timing(request, dut_name, klass):
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    sim_build_name = f"test_{dut_name}_timing{worker_suffix}"
+    sim_build_name = f"test_{dut_name}_timing_{test_level}{worker_suffix}"
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
     results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
@@ -248,5 +249,6 @@ def test_apbx_xbar_timing(request, dut_name, klass):
             'LOG_PATH': log_path,
             'COCOTB_RESULTS_FILE': results_path,
             'TIMING_CLASS': klass,
+            **level_env(test_level),
         },
     )

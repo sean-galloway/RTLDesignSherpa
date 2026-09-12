@@ -15,12 +15,14 @@
 import os
 
 import cocotb
+import pytest
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, ClockCycles
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, get_wave_config, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import current_level, level_env, reg_level_grid
 
 S0_BASE = 0x1000_0000   # slave0 (APB5), 64KB window
 S1_BASE = 0x1001_0000   # slave1 (APB4), 64KB window
@@ -86,6 +88,14 @@ async def _xfer(dut, m, addr, write, wdata=0, apb5_sideband=None, timeout=300,
     return got
 
 
+# This one has no transaction count to scale: it is a contract test (four
+# master/slave pairings, sideband gating, then the APBX-002 decode-miss
+# regression). So it grades by SECTION, and the decode-miss round count is
+# the one real knob -- repeating it is what would expose state left behind by
+# a miss, which is the bug APBX-002 was.
+_MISS_ROUNDS = {"gate": 0, "func": 1, "full": 4}[current_level()]
+
+
 @cocotb.test(timeout_time=50, timeout_unit="ms")
 async def apbx_2to2_mixed_test(dut):
     cocotb.start_soon(Clock(dut.pclk, 10, units="ns").start())
@@ -146,28 +156,30 @@ async def apbx_2to2_mixed_test(dut):
     #    An out-of-range access used to leave cmd_ready low forever,
     #    wedging that master with PREADY low and no error signature.
     #    Run last: on the old RTL the first miss wedges the crossbar.
-    n_s0, n_s1 = len(dut._s0_log), len(dut._s1_log)
-    for m, bad_addr in ((0, S0_BASE - 4), (1, S1_BASE + 0x10000)):
-        got = await _xfer(dut, m, bad_addr, write=0, timeout=60,
-                          allow_timeout=True)
-        assert got is not None, (
-            f"decode miss m{m} at 0x{bad_addr:08X} HUNG: PREADY never "
-            f"asserted -- out-of-range access wedges that master")
-        assert got['pslverr'] == 1, (
-            f"decode miss m{m} at 0x{bad_addr:08X} completed without "
-            f"PSLVERR: {got}")
-    assert len(dut._s0_log) == n_s0 and len(dut._s1_log) == n_s1, \
-        "decode miss leaked a transfer to a slave"
+    for _miss_round in range(_MISS_ROUNDS):
+        n_s0, n_s1 = len(dut._s0_log), len(dut._s1_log)
+        for m, bad_addr in ((0, S0_BASE - 4), (1, S1_BASE + 0x10000)):
+            got = await _xfer(dut, m, bad_addr, write=0, timeout=60,
+                              allow_timeout=True)
+            assert got is not None, (
+                f"decode miss m{m} at 0x{bad_addr:08X} HUNG: PREADY never "
+                f"asserted -- out-of-range access wedges that master")
+            assert got['pslverr'] == 1, (
+                f"decode miss m{m} at 0x{bad_addr:08X} completed without "
+                f"PSLVERR: {got}")
+        assert len(dut._s0_log) == n_s0 and len(dut._s1_log) == n_s1, \
+            "decode miss leaked a transfer to a slave"
 
-    # fabric must still work after the misses
-    got = await _xfer(dut, 0, S0_BASE + 0x50, write=1, wdata=0x600D0005)
-    assert got['pslverr'] == 0, f"m0 wedged after decode miss: {got}"
-    got = await _xfer(dut, 1, S1_BASE + 0x60, write=0)
-    assert got['pslverr'] == 0, f"m1 wedged after decode miss: {got}"
-    dut._log.info("apbx_xbar_2to2_mixed: decode misses PSLVERR'd, fabric alive")
+        # fabric must still work after the misses
+        got = await _xfer(dut, 0, S0_BASE + 0x50, write=1, wdata=0x600D0005)
+        assert got['pslverr'] == 0, f"m0 wedged after decode miss: {got}"
+        got = await _xfer(dut, 1, S1_BASE + 0x60, write=0)
+        assert got['pslverr'] == 0, f"m1 wedged after decode miss: {got}"
+        dut._log.info("apbx_xbar_2to2_mixed: decode misses PSLVERR'd, fabric alive")
 
 
-def test_apbx_xbar_2to2_mixed(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_apbx_xbar_2to2_mixed(request, test_level):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_xbar': 'projects/components/apbx-xbar/rtl',
     })
@@ -180,7 +192,7 @@ def test_apbx_xbar_2to2_mixed(request):
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    sim_build_name = f"test_{dut_name}{worker_suffix}"
+    sim_build_name = f"test_{dut_name}_{test_level}{worker_suffix}"
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
     results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
@@ -205,6 +217,7 @@ def test_apbx_xbar_2to2_mixed(request):
             'COCOTB_LOG_LEVEL': 'INFO',
             'LOG_PATH': log_path,
             'COCOTB_RESULTS_FILE': results_path,
+            **level_env(test_level),
             **waves['extra_env'],
         },
     )

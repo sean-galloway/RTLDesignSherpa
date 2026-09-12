@@ -34,13 +34,24 @@ from cocotb_test.simulator import run
 # Import framework utilities (PYTHONPATH includes bin/)
 from TBClasses.shared.utilities import get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import current_level, level_env, reg_level_grid
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 
-@cocotb.test(timeout_time=60, timeout_unit='us')
+# Depth by level: the COUNTS scale, the two-master shape does not. timeout_time
+# is evaluated at import inside the simulator, so it scales too -- a full run
+# against a gate-sized timeout fails as a timeout, not as a bug.
+_LVL = current_level()
+_D = {'gate': dict(inter=2,  rr=4,  hammer=8,  chaos=10),
+      'func': dict(inter=5,  rr=10, hammer=20, chaos=30),
+      'full': dict(inter=12, rr=24, hammer=48, chaos=64)}[_LVL]
+_TIMEOUT_US = {'gate': 60, 'func': 120, 'full': 360}[_LVL]
+
+
+@cocotb.test(timeout_time=_TIMEOUT_US, timeout_unit='us')
 async def apbx_xbar_2to1_test(dut):
     """Test 2-to-1 APB crossbar with arbitration and stress scenarios"""
 
@@ -200,7 +211,7 @@ async def apbx_xbar_2to1_test(dut):
 
     # Test 2: Alternating access
     log.info("=== Scenario APB-2TO1-11: Interleaved transactions ===")
-    for i in range(5):
+    for i in range(_D['inter']):
         addr0 = 0x2000 + (i * 8)
         addr1 = 0x2004 + (i * 8)
         data0 = 0x1000 + i
@@ -219,7 +230,7 @@ async def apbx_xbar_2to1_test(dut):
 
     # Test 3: Rapid interleaved access
     log.info("=== Scenario APB-2TO1-05: Round-robin arbitration ===")
-    for i in range(10):
+    for i in range(_D['rr']):
         addr = 0x3000 + (i * 4)
         data0 = 0xA0000000 + i
         data1 = 0xB0000000 + i
@@ -250,13 +261,13 @@ async def apbx_xbar_2to1_test(dut):
             await apb_write(master_id, addr, data)
 
     # Both masters hammer simultaneously
-    m0_task = cocotb.start_soon(master_hammer(0, 0x4000, 20))
-    m1_task = cocotb.start_soon(master_hammer(1, 0x5000, 20))
+    m0_task = cocotb.start_soon(master_hammer(0, 0x4000, _D['hammer']))
+    m1_task = cocotb.start_soon(master_hammer(1, 0x5000, _D['hammer']))
     await m0_task
     await m1_task
 
     # Verify
-    for i in range(20):
+    for i in range(_D['hammer']):
         addr0 = 0x4000 + (i * 4)
         addr1 = 0x5000 + (i * 4)
         rdata, _ = await apb_read(0, addr0)
@@ -285,8 +296,8 @@ async def apbx_xbar_2to1_test(dut):
                 transaction_log.append((master_id, 'R', addr, rdata))
 
     # Both masters run chaos simultaneously
-    m0_chaos = cocotb.start_soon(random_master_activity(0, 30))
-    m1_chaos = cocotb.start_soon(random_master_activity(1, 30))
+    m0_chaos = cocotb.start_soon(random_master_activity(0, _D['chaos']))
+    m1_chaos = cocotb.start_soon(random_master_activity(1, _D['chaos']))
     await m0_chaos
     await m1_chaos
 
@@ -305,14 +316,18 @@ async def apbx_xbar_2to1_test(dut):
 
     log.info("=" * 80)
     log.info("2-to-1 APB Crossbar Test PASSED")
-    log.info(f"Total transactions: {len(transaction_log) + 70}")
+    # was a hand-sum (+70) that matched no set of loops: the real fixed count
+    # is 4 singles + 4 per interleave + 4 per round-robin + 4 per hammer index.
+    _fixed = 4 + 4 * (_D['inter'] + _D['rr'] + _D['hammer'])
+    log.info(f"Total transactions: {len(transaction_log) + _fixed}")
     log.info("=" * 80)
 
 
+@pytest.mark.parametrize("test_level", reg_level_grid())
 @pytest.mark.parametrize("aw,dw", [
     (32, 32),
 ])
-def test_apbx_xbar_2to1(request, aw, dw):
+def test_apbx_xbar_2to1(request, aw, dw, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for 2-to-1 crossbar test"""
 
@@ -342,7 +357,7 @@ def test_apbx_xbar_2to1(request, aw, dw):
     log_dir = os.path.join(tests_dir, 'logs')
     os.makedirs(log_dir, exist_ok=True)
 
-    test_name = f'test_apbx_xbar_2to1_aw{aw:03d}_dw{dw:03d}'
+    test_name = f'test_apbx_xbar_2to1_aw{aw:03d}_dw{dw:03d}_{test_level}'
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
@@ -359,6 +374,10 @@ def test_apbx_xbar_2to1(request, aw, dw):
         work_dir=sim_build,
         waves=enable_waves,
         plus_args=['--trace'] if enable_waves else [],
+        # These TBs log through dut._log, not a TBBase logger, so LOG_PATH
+        # would be dead config here: the per-level evidence is the derived
+        # "Total transactions" line.
+        extra_env={**level_env(test_level)},
     )
 
 
