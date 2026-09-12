@@ -331,20 +331,20 @@ beats the per-cell value a wrapper exports. A "REG_LEVEL -> TEST_LEVEL
 bridge" block -- `os.environ['TEST_LEVEL'] = _reg_level.upper()` at
 conftest import, written for wrappers that exported nothing -- was copied
 into thirteen conftests. The bridge's copy is removed (this task's
-evidence), converters followed on 2026-09-10, and ten remain:
+evidence), converters followed on 2026-09-10, then retro_legacy_blocks, pumice
+(all three areas) and misc on 2026-09-11. Six remain:
 
-    projects/components/misc/dv/tests/fub/conftest.py
-    projects/components/retro_legacy_blocks/dv/tests/conftest.py
     projects/components/apbx-xbar/dv/tests/conftest.py
     projects/components/dmas/rapids/dv/tests/{fub,fub_beats,macro,macro_beats,top_beats}/conftest.py
-    projects/components/memory-controllers/pumice-ddr2-lpddr2/dv/tests/{fub,macro,top}/conftest.py
 
 **Evidence.** First leveled bridge FULL run, 2026-09-09: 216 cells, the
 gate/func/full triple of every test, all logging `level=full` with
 identical wall-clock. Removing the stamp and re-running one test at
 REG_LEVEL=FULL gave gate/func/full cells at 1/4/16 offsets.
 
-**The stamp is load-bearing in every remaining area.** Measured 2026-09-10
+**The stamp is load-bearing in rapids; apbx-xbar's is inert.** Nothing in
+apbx-xbar reads TEST_LEVEL, so removing its stamp alone changes nothing --
+giving that area levels is DV design work. Originally, and true then: Measured 2026-09-10
 with `check_test_levels.py`: every area except the bridge reports
 `depth:not-exported` on nearly every test -- their wrappers export nothing,
 so the stamp is the ONLY thing mapping REG_LEVEL onto a depth. Deleting it
@@ -405,3 +405,30 @@ first-slice cases, while a stuck accumulator fails the clean beats that follow
 an errored one. That second case did not exist before and is the coverage the
 level axis actually bought: at full the run now shows OKAY on beats 2, 4 and 6
 immediately after SLVERR beats.
+
+**misc, converted 2026-09-11 (`79cc245eb`).** Four wrappers.
+`test_dma_address_gen` already exported a per-cell TEST_LEVEL and its TB
+already had a gate/func/full table -- the stamp overrode both, the exact
+half-state this task describes. The grid did not move either: 48 cells at
+GATE, FUNC and FULL alike. All four wrappers now take `reg_level_grid()` and
+export `level_env()`; the three with no depth knob got one (counts, never
+burst geometry), and the observer's register test is graded by SECTION
+instead -- gate proves the bus, the capability contract and the reset values,
+func adds the config round-trip, full adds the read-only sweep. A register
+test still has tiers if you look for them.
+
+Step 4 measured. Grid 48 / 96 / 144. Sibling cells of one test: dma_address_gen
+drove 16 / 64 / 256 linear addresses, rd_pattern_gen 8 / 16 / 48 stability
+bursts, wr_crc_check 2 / 4 / 12 back-to-back writes, the observer's traffic
+test 16 / 32 / 96 productive beats, and its register test stopped at three
+distinct tiers. Clean run: FULL 144 (8:48), FUNC 96 (4:36), GATE 48 (4:07),
+no failures, no reruns.
+
+Two findings fell out, both in the observer wrapper. Its sim_build key was
+`{dut}_{testcase}`, but testcase is runtime-only and does not change the
+build, so the same RTL compiled four times per observer -- and a level axis
+made it twelve (24 directories for 2 distinct RTL configurations). The key is
+now toplevel + a parameter digest + the xdist worker. And it was the only
+wrapper in the area passing no LOG_PATH and no per-cell results file, so its
+grading would have left nothing to check; both are per cell now, and that is
+where the tier evidence above came from.
