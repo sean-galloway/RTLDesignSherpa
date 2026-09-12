@@ -34,6 +34,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid
 
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
@@ -166,6 +167,7 @@ dma_address_gen_params = generate_dma_address_gen_params()
 # PYTEST WRAPPER FUNCTION
 # ===========================================================================
 
+@pytest.mark.parametrize("test_level", reg_level_grid())
 @pytest.mark.parametrize(
     "test_type, addr_width, index_width, stride_width, tag_width",
     dma_address_gen_params
@@ -200,7 +202,7 @@ def test_dma_address_gen(request, test_type, addr_width, index_width,
 
     test_name_plus_params = (
         f"test_{dut_name}_{test_type}"
-        f"_aw{aw_str}_iw{iw_str}_sw{sw_str}_tw{tw_str}"
+        f"_aw{aw_str}_iw{iw_str}_sw{sw_str}_tw{tw_str}_{test_level}"
     )
 
     # Handle pytest-xdist parallel execution
@@ -229,8 +231,7 @@ def test_dma_address_gen(request, test_type, addr_width, index_width,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
-        'TEST_LEVEL': test_level,
+        **level_env(test_level),
         'TEST_DEBUG': '0',
     }
 

@@ -24,6 +24,7 @@ Both observers run the SAME body: they share obs_regs.rdl, and the register map
 is precisely what must not drift between them.
 """
 
+import hashlib
 import os
 import sys
 
@@ -34,6 +35,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import current_level, level_env, reg_level_grid
 
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
@@ -48,7 +50,12 @@ def _p(name, default):
 
 @cocotb.test(timeout_time=200, timeout_unit="us")
 async def cocotb_test_observer_regs(dut):
-    """Capability reporting, config round-trip and reset values."""
+    """Capability reporting, config round-trip and reset values.
+
+    Graded: gate proves the bus, the capability contract and the reset
+    values; func adds the config round-trip; full adds the read-only sweep.
+    """
+    _lvl = current_level()
     tb = AXI4IntfObserverTB(dut)
     await tb.setup_clocks_and_reset()
 
@@ -127,6 +134,11 @@ async def cocotb_test_observer_regs(dut):
     lat = await tb.read_reg("MON_LATENCY")
     assert lat == 0x0000FFFF, f"MON_LATENCY reset 0x{lat:08X} != 0x0000FFFF"
 
+    if _lvl == "gate":
+        tb.log.info("gate: reset + capability contract only "
+                    "(func adds the round-trip, full the read-only sweep)")
+        return
+
     # ---- 3. config must actually round-trip ------------------------------
     for name, value in (("MON_CTRL",        0x0000_007F),
                         ("MON_TIMEOUT",     0x0000_0020),
@@ -142,6 +154,10 @@ async def cocotb_test_observer_regs(dut):
         assert got == value, (f"{name} round-trip: wrote 0x{value:08X}, read 0x{got:08X} "
                               f"-- a config write that does not stick leaves the old "
                               f"tie-off behaviour in place silently")
+
+    if _lvl != "full":
+        tb.log.info("func: stopping before the read-only sweep (full runs it)")
+        return
 
     # ---- 4. capabilities are READ-ONLY -----------------------------------
     await tb.write_reg("OBS_CAPS0", 0xFFFF_FFFF)
@@ -174,7 +190,8 @@ async def cocotb_test_observer_traffic(dut):
     caps0 = await tb.read_reg("OBS_CAPS0")
     assert (caps0 >> 6) & 1, "taps not armed in this build; traffic cannot be observed"
 
-    for i in range(8):
+    _n = {'gate': 4, 'func': 8, 'full': 24}[current_level()]
+    for i in range(_n):
         await tb.drive_read_burst(addr=0x1000 + i * 0x40, arid=i % 2, beats=4)
         await tb.drive_write_burst(addr=0x2000 + i * 0x40, awid=i % 2, beats=4)
     await tb.wait_clocks("aclk", 400)
@@ -225,7 +242,8 @@ async def cocotb_test_observer_packet_coverage(dut):
     # transaction is still live in the CAM is an ID collision, and a write
     # whose B lands before its data is attributed reads as a protocol
     # violation -- both are stimulus faults that look like DUT errors.
-    for i in range(4):
+    _n = {'gate': 2, 'func': 4, 'full': 8}[current_level()]
+    for i in range(_n):
         await tb.drive_read_burst(addr=0x1000 + i * 0x40, arid=i, beats=4)
         await tb.wait_clocks("aclk", 40)
         await tb.drive_write_burst(addr=0x2000 + i * 0x40, awid=i + 8, beats=4)
@@ -301,12 +319,14 @@ async def cocotb_test_observer_all_classes(dut):
         await tb.write_reg("ADDR_RANGE_CTRL", 0x1)
 
     # completion + threshold + perf + addr-match: in-range and out-of-range
-    for i in range(6):
+    _n = {'gate': 4, 'func': 6, 'full': 12}[current_level()]
+    _n_out = {'gate': 2, 'func': 4, 'full': 8}[current_level()]
+    for i in range(_n):
         await tb.drive_read_burst(addr=0x1000 + i * 0x40, arid=i, beats=4)
         await tb.wait_clocks("aclk", 40)
         await tb.drive_write_burst(addr=0x1000 + i * 0x40, awid=i + 8, beats=4)
         await tb.wait_clocks("aclk", 40)
-    for i in range(4):                            # deliberately OUT of range 0
+    for i in range(_n_out):                       # deliberately OUT of range 0
         await tb.drive_read_burst(addr=0x8000 + i * 0x40, arid=i, beats=2)
         await tb.wait_clocks("aclk", 40)
     for n, resp in enumerate((2, 3)):
@@ -338,7 +358,8 @@ async def cocotb_test_observer_all_classes(dut):
             f"AddrMatch packet. Saw: {sorted(seen)}")
 
 
-def _run_observer(request, dut_name, params, testcase="cocotb_test_observer_regs"):
+def _run_observer(request, dut_name, params, testcase="cocotb_test_observer_regs",
+                  test_level="gate"):
     module, repo_root_, tests_dir, log_dir, rtl_dict = get_paths({
         'misc_rtl': '../../../rtl',
     })
@@ -346,7 +367,27 @@ def _run_observer(request, dut_name, params, testcase="cocotb_test_observer_regs
         repo_root=repo_root_,
         filelist_path=f'projects/components/misc/rtl/filelists/{dut_name}.f')
 
+    # Build key = what actually changes the BUILD (toplevel + parameters),
+    # plus the xdist worker. testcase and test_level are runtime-only, so
+    # keying on them compiled the same RTL 12 times per observer; keying on
+    # nothing would let two processes share a directory and regenerate
+    # sources under each other (PUMICE-019). Worker-scoped means cells that
+    # share a worker reuse one build and no two processes ever collide.
+    p_digest = hashlib.md5(repr(sorted(params.items())).encode()).hexdigest()[:6]
+    worker = os.environ.get('PYTEST_XDIST_WORKER', '')
+    sim_build = sim_build_path(
+        tests_dir, f"{dut_name}_p{p_digest}" + (f"_{worker}" if worker else ""))
+    # Per-cell evidence: this was the only wrapper in the area writing no log
+    # and no results file, so its level grading left nothing to check.
+    tag = f"{dut_name}_{testcase}_{test_level}" + (f"_{worker}" if worker else "")
+    os.makedirs(log_dir, exist_ok=True)
+    env_log = {'LOG_PATH': os.path.join(log_dir, f"{tag}.log"),
+               'COCOTB_RESULTS_FILE': os.path.join(log_dir, f"results_{tag}.xml"),
+               'COCOTB_LOG_LEVEL': 'INFO'}
+
     env = os.environ.copy()
+    env.update(env_log)
+    env.update(level_env(test_level))
     env.update({f"P_{k}": str(v) for k, v in {
         'TAP_ERROR': params['TAP_ENABLE_ERROR_LOGIC'],
         'TAP_TIMEOUT': params['TAP_ENABLE_TIMEOUT_LOGIC'],
@@ -369,7 +410,7 @@ def _run_observer(request, dut_name, params, testcase="cocotb_test_observer_regs
         module=os.path.splitext(os.path.basename(__file__))[0],
         testcase=testcase,
         parameters=params,
-        sim_build=sim_build_path(tests_dir, f"{dut_name}_{testcase}"),
+        sim_build=sim_build,
         extra_env=env,
         timescale="1ns/1ps",
         compile_args=["--unroll-count", "16384", "--unroll-stmts", "200000",
@@ -416,47 +457,61 @@ _PARAMS = {
 }
 
 
-def test_axi4_intf_master_observer(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_master_observer(request, test_level):
     """Register layer of the MASTER observer."""
-    _run_observer(request, 'axi4_intf_master_observer', dict(_PARAMS))
+    _run_observer(request, 'axi4_intf_master_observer', dict(_PARAMS), test_level=test_level)
 
 
-def test_axi4_intf_master_observer_traffic(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_master_observer_traffic(request, test_level):
     """Observation path of the MASTER observer."""
     _run_observer(request, 'axi4_intf_master_observer', dict(_PARAMS),
-                  testcase="cocotb_test_observer_traffic")
+                  testcase="cocotb_test_observer_traffic",
+                  test_level=test_level)
 
 
-def test_axi4_intf_slave_observer_traffic(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_slave_observer_traffic(request, test_level):
     """Observation path of the SLAVE observer."""
     _run_observer(request, 'axi4_intf_slave_observer', dict(_PARAMS),
-                  testcase="cocotb_test_observer_traffic")
+                  testcase="cocotb_test_observer_traffic",
+                  test_level=test_level)
 
 
-def test_axi4_intf_master_observer_packets(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_master_observer_packets(request, test_level):
     """Packet-class and error-injection coverage, MASTER observer."""
     _run_observer(request, 'axi4_intf_master_observer', dict(_PARAMS),
-                  testcase="cocotb_test_observer_packet_coverage")
+                  testcase="cocotb_test_observer_packet_coverage",
+                  test_level=test_level)
 
 
-def test_axi4_intf_slave_observer_packets(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_slave_observer_packets(request, test_level):
     """Packet-class and error-injection coverage, SLAVE observer."""
     _run_observer(request, 'axi4_intf_slave_observer', dict(_PARAMS),
-                  testcase="cocotb_test_observer_packet_coverage")
+                  testcase="cocotb_test_observer_packet_coverage",
+                  test_level=test_level)
 
 
-def test_axi4_intf_slave_observer(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_slave_observer(request, test_level):
     """Register layer of the SLAVE observer -- same map, same body."""
-    _run_observer(request, 'axi4_intf_slave_observer', dict(_PARAMS))
+    _run_observer(request, 'axi4_intf_slave_observer', dict(_PARAMS), test_level=test_level)
 
 
-def test_axi4_intf_master_observer_all_classes(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_master_observer_all_classes(request, test_level):
     """Every packet class, MASTER observer, all cones built."""
     _run_observer(request, 'axi4_intf_master_observer', dict(_PARAMS_ALL),
-                  testcase="cocotb_test_observer_all_classes")
+                  testcase="cocotb_test_observer_all_classes",
+                  test_level=test_level)
 
 
-def test_axi4_intf_slave_observer_all_classes(request):
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_slave_observer_all_classes(request, test_level):
     """Every packet class, SLAVE observer, all cones built."""
     _run_observer(request, 'axi4_intf_slave_observer', dict(_PARAMS_ALL),
-                  testcase="cocotb_test_observer_all_classes")
+                  testcase="cocotb_test_observer_all_classes",
+                  test_level=test_level)

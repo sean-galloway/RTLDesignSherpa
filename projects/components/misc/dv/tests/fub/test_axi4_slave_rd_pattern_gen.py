@@ -21,6 +21,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import current_level, level_env, reg_level_grid
 
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
@@ -38,6 +39,11 @@ from projects.components.misc.dv.tbclasses.axi4_slave_rd_pattern_gen_tb import (
 async def cocotb_test_axi4_slave_rd_pattern_gen(dut):
     """Unified test for axi4_slave_rd_pattern_gen."""
     test_type = os.environ.get('TEST_TYPE', 'single')
+    # Burst GEOMETRY is protocol structure and stays fixed; the COUNTS are
+    # the depth knob, so they are what the level scales.
+    _D = {'gate': dict(b2b=2, crc=8, stream=8, big_burst=8),
+          'func': dict(b2b=4, crc=16, stream=16, big_burst=16),
+          'full': dict(b2b=12, crc=32, stream=48, big_burst=32)}[current_level()]
 
     tb = AXI4SlaveRdPatternGenTB(dut)
     await tb.setup_clocks_and_reset()
@@ -50,21 +56,21 @@ async def cocotb_test_axi4_slave_rd_pattern_gen(dut):
         await tb.run_burst_test(burst_len=burst_len)
 
     elif test_type == 'back_to_back':
-        await tb.run_back_to_back_test(num_reads=4, burst_len=4)
+        await tb.run_back_to_back_test(num_reads=_D['b2b'], burst_len=4)
 
     elif test_type == 'crc':
-        await tb.run_crc_test(burst_len=16)
+        await tb.run_crc_test(burst_len=_D['crc'])
 
     elif test_type == 'stream_stability':
-        await tb.run_stream_stability_test(num_bursts=16, burst_len=8)
+        await tb.run_stream_stability_test(num_bursts=_D['stream'], burst_len=8)
 
     elif test_type == 'all':
         await tb.run_single_beat_test()
         await tb.run_burst_test(burst_len=4)
-        await tb.run_burst_test(burst_len=16)
-        await tb.run_back_to_back_test(num_reads=4, burst_len=4)
-        await tb.run_crc_test(burst_len=16)
-        await tb.run_stream_stability_test(num_bursts=16, burst_len=8)
+        await tb.run_burst_test(burst_len=_D['big_burst'])
+        await tb.run_back_to_back_test(num_reads=_D['b2b'], burst_len=4)
+        await tb.run_crc_test(burst_len=_D['crc'])
+        await tb.run_stream_stability_test(num_bursts=_D['stream'], burst_len=8)
 
     else:
         raise ValueError(f"Unknown test_type: {test_type}")
@@ -95,6 +101,7 @@ rd_pattern_gen_params = generate_params()
 # PYTEST WRAPPER
 # ===========================================================================
 
+@pytest.mark.parametrize("test_level", reg_level_grid())
 @pytest.mark.parametrize(
     "test_type, data_width, id_width, user_width",
     rd_pattern_gen_params,
@@ -126,7 +133,7 @@ def test_axi4_slave_rd_pattern_gen(request, test_type, data_width, id_width,
     iw_str = TBBase.format_dec(id_width, 2)
 
     test_name_plus_params = (
-        f"test_{dut_name}_{test_type}_dw{dw_str}_iw{iw_str}"
+        f"test_{dut_name}_{test_type}_dw{dw_str}_iw{iw_str}_{test_level}"
     )
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -153,7 +160,7 @@ def test_axi4_slave_rd_pattern_gen(request, test_type, data_width, id_width,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        **level_env(test_level),
     }
 
     simulator = os.environ.get('SIM', 'verilator').lower()

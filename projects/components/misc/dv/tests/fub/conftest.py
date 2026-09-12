@@ -45,20 +45,16 @@ def test_level():
     return os.environ.get('TEST_LEVEL', 'gate')
 
 # ----------------------------------------------------------------------
-# REG_LEVEL -> TEST_LEVEL bridge
+# REG_LEVEL -> TEST_LEVEL: deliberately NOT bridged here
 # ----------------------------------------------------------------------
-# make/tests.mk drives the regression level through REG_LEVEL; this area's test
-# modules read TEST_LEVEL, and most read it at MODULE IMPORT time. conftest is
-# imported before any test module, so setting it here is early enough.
+# This area used to stamp os.environ['TEST_LEVEL'] = REG_LEVEL at import.
+# cocotb_test.simulator.set_env copies every os.environ entry OVER the
+# caller's extra_env, so that stamp beat the per-cell value a wrapper passed.
+# test_dma_address_gen already exported a per-cell TEST_LEVEL and its TB has a
+# real gate/func/full table; the stamp overrode both, and all 48 cells ran at
+# one depth while the run reported three levels (TOOL-016).
 #
-# WITHOUT THIS BRIDGE THE MAKEFILE CONVERGENCE SILENTLY REDUCES COVERAGE: the
-# 4-line area Makefile sets REG_LEVEL=full, nothing reads it, TEST_LEVEL falls
-# back to its default, and `make run-all-full-parallel` quietly runs a smaller
-# matrix while still reporting "passed". Measured on pumice fub during this
-# conversion: 91 tests -> 79.
-#
-# REG_LEVEL wins over TEST_LEVEL, matching stream's conftest: the make target
-# you typed is more explicit than an inherited environment variable.
-_reg_level = os.environ.get('REG_LEVEL')
-if _reg_level:
-    os.environ['TEST_LEVEL'] = _reg_level.upper()
+# Every wrapper in this area now parametrizes test_level over
+# reg_level_grid() and exports it with level_env(), so the stamp is gone. The
+# fixture below stays as the fallback for a bare `pytest` invocation with no
+# grid, where TEST_LEVEL from the environment is the only signal.
