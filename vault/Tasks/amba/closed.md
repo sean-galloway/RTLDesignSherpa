@@ -2783,3 +2783,32 @@ PASS (119 s), axi4_master_wr_mon cover PASS (83 s), and the two slave
 monitors likewise. A cover that no RTL can satisfy fails forever and teaches
 nothing; this one had been hiding that the monitors were never shown to emit
 a packet in formal at all.
+
+---
+
+### TASK-091: apb4/apb5_master_cg -- the wake property checked one clock too early
+
+**Priority:** P2. **Status:** CLOSED 2026-09-11 -- harness bug. The RTL was
+correct the whole time.
+
+`ap_no_gate_inflight` asserted that `cg_gating` was low one clock after
+`PSEL`/`PENABLE`. There are TWO registered stages between bus activity and
+the gate decision: the wrapper registers its own wake term (`r_wakeup <=
+cmd_valid || rsp_valid || m_apb_PSEL || m_apb_PENABLE`, plus `m_apb_PWAKEUP`
+on apb5), and `amba_clock_gate_ctrl` registers it again (`r_wakeup <=
+user_valid || axi_valid`). Activity at clock N cannot reach the gate before
+N+2, so the check at N+1 failed at step 6 on a design behaving exactly as
+designed. The harness comment directly above the code already said "Check
+delayed: 2 cycles" -- the code disagreed with its own comment.
+
+Both now use `$past(..., 2)`, the bounded-wake shape the wb4 `_cg` blocks
+assert (`ap_wake_bounded`). Both PASS prove.
+
+**Mutation-tested, and the first mutation was the instructive one.** Dropping
+`m_apb_PENABLE` from the wake term left both proofs PASSING -- correctly:
+PSEL and PENABLE are both master *outputs* and APB never asserts PENABLE
+without PSEL, so that term is redundant and its removal is semantically
+equivalent. Dropping `m_apb_PSEL` instead -- the term nothing else covers --
+FAILS `ap_no_gate_inflight` on both apb4 and apb5. That failure also settles
+non-vacuity: the antecedent has to be reachable for the property to fail at
+all. Shared RTL restored by absolute path and verified byte-identical.

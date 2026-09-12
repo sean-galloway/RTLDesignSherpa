@@ -159,7 +159,15 @@ module formal_apb5_master_cg (
     // be active during an in-flight ACCESS phase (property holds for master).
     always @(posedge clk) begin
         if (f_past_valid > 3 && rst_n && $past(rst_n))
-            if ($past(m_apb_PSEL) || $past(m_apb_PENABLE))
+            // TWO registered stages sit between bus activity and the gate:
+            // the wrapper registers its own wake term (r_wakeup <= ... PSEL ||
+            // PENABLE ...), and amba_clock_gate_ctrl registers it again
+            // (r_wakeup <= user_valid || axi_valid). So activity at clock N
+            // cannot reach the gate decision before N+2, and this checked N+1.
+            // The comment above always said "2 cycles"; the code disagreed with
+            // it, and the proof failed at step 6 on a design behaving as
+            // intended. Same bounded-wake shape the wb4 _cg blocks assert.
+            if ($past(m_apb_PSEL, 2) || $past(m_apb_PENABLE, 2))
                 ap_no_gate_inflight: assert (!cg_gating);
     end
 
