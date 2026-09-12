@@ -18,6 +18,17 @@ Rules - each guards against a proof that PASSES while checking nothing:
   prove PASS. A property that never failed has never been tested. (The old
   block_ready property restated the assign - tautological - and the wedge
   shipped under passing formal.)
+  - **A mutation that PASSES can be the CORRECT answer, not a weak property.**
+    If the term you broke is redundant, the mutant is semantically identical
+    and passing is right. *Case (2026-09-11): dropping `m_apb_PENABLE` from
+    apb4_master_cg's wake term left the proof passing. PSEL and PENABLE are
+    both master OUTPUTS and APB never asserts PENABLE without PSEL, so that
+    term can never be the only thing awake.* Before concluding a property is
+    weak, ask whether anything else already covers the term you removed; then
+    mutate the term nothing else covers (here PSEL), which fails. That
+    failure doubles as the NON-VACUITY check -- the antecedent has to be
+    reachable for the property to fail at all, so one good mutation retires
+    two doubts.
 - Vacuity traps: hierarchical refs to nonexistent nets elaborate as FREE
   WIRES (watch yosys warnings); unconnected inputs model constant-x; a
   harness sized below the engagement threshold makes gated logic constant.
