@@ -70,12 +70,12 @@ module char_engine_harness
     parameter int BURST_LEN_MULTIPLE = 1,
     parameter int NUM_BANKS          = 8,
     parameter int NUM_GEN            = 2,
-    // Width of the IDs leaving the harness. char_gen_unit prepends the
-    // generator index to every ID (BRIDGE-016 shape), so the m_axi side is one
-    // bit wider than the generators' own at NUM_GEN=2. The LiteDRAM user port
-    // must be generated at this width -- litedram_hp.yml id_width.
-    parameter int M_AXI_ID_WIDTH     = AXI_ID_WIDTH
-                                       + ((NUM_GEN > 1) ? $clog2(NUM_GEN) : 0),
+    // Width of the IDs leaving the harness: the SAME as the generators' own.
+    // char_gen_unit carries the generator index in the top bits of it rather
+    // than prepending a bit. litedram_hp.yml's id_width must match -- it was 9
+    // for the prepend scheme and has to be regenerated at 8 before this flow
+    // builds again.
+    parameter int M_AXI_ID_WIDTH     = AXI_ID_WIDTH,
     // Per-generator ceiling on bursts in flight (AW/AR issued minus B/RLAST
     // received). 32, not 8, because this is the axis the latency sweep walks:
     // read bandwidth is bounded by outstanding x AxLEN / (latency + AxLEN),

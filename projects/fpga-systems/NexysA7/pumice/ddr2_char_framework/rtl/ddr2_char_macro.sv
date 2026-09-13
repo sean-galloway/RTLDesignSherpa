@@ -176,11 +176,9 @@ module ddr2_char_macro
 
     // ---- Aliases ----
     parameter int IW = AXI_ID_WIDTH,
-    // pumice sees {generator index, master id} from the merge inside
-    // char_gen_unit (BRIDGE-016 shape): one bit wider than the generators'
-    // own IDs at NUM_GEN=2. Derived from NUM_GEN here and derived from NUM_GEN
-    // again inside the unit, so the two cannot be given different answers.
-    parameter int PIW = AXI_ID_WIDTH + ((NUM_GEN > 1) ? $clog2(NUM_GEN) : 0),
+    // pumice sees exactly the generators' id width. The generator index
+    // rides in the top bits of it, not on top of it -- see char_gen_unit.
+    parameter int PIW = AXI_ID_WIDTH,
     parameter int AW = AXI_ADDR_WIDTH,
     parameter int DW = AXI_DATA_WIDTH,
     parameter int UW = AXI_USER_WIDTH,
@@ -500,7 +498,7 @@ module ddr2_char_macro
     // widths with the formal AXI dwidth converters.
     pumice_top_geared #(
         .HOST_AXI_DATA_WIDTH (AXI_DATA_WIDTH),
-        .AXI_ID_WIDTH    (PIW),            // {master index, id} from the bridges
+        .AXI_ID_WIDTH    (AXI_ID_WIDTH),   // always 8; see PIW above
         .AXI_ADDR_WIDTH  (AXI_ADDR_WIDTH),
         .NUM_RANKS       (NUM_RANKS),
         .NUM_BANKS       (NUM_BANKS),

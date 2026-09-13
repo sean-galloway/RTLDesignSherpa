@@ -60,8 +60,7 @@ module litedram_char_top (
     // cannot drift apart -- both are this one pair of numbers.
     localparam int CHAR_NUM_GEN   = 2;
     localparam int CHAR_GEN_ID_W  = 8;
-    localparam int CHAR_MC_ID_W   = CHAR_GEN_ID_W
-                                    + ((CHAR_NUM_GEN > 1) ? $clog2(CHAR_NUM_GEN) : 0);
+    localparam int CHAR_MC_ID_W   = CHAR_GEN_ID_W;   // index rides inside it
 
     logic [CHAR_MC_ID_W-1:0] ax_awid, ax_arid, ax_bid, ax_rid;
     logic [31:0] ax_awaddr, ax_araddr;

@@ -22,8 +22,21 @@ puts "========================================================================"
 source "$script_dir/create_project.tcl"
 
 # ---- Synthesis ----
+# FLATTEN_HIERARCHY: env SYNTH_FLATTEN=<rebuilt|none|full>, default rebuilt
+# (Vivado's own default). `none` exists because the default is not neutral:
+# with hierarchy flattened, synthesis optimises pumice's internals together
+# with whatever drives its s_axi, and the SAME pumice RTL came out with 12
+# logic levels on the arbiter's r_rd_pop -> r_wr_col_q path when the generators
+# sat behind the data bridges and 23 when they did not. 12 levels closes at
+# +1.1 ns; 23 misses by 6.6. Nothing inside pumice changed -- parameters,
+# constraints and clocks were matched -- so the depth came from across the
+# boundary.
+set _flatten [expr {[info exists ::env(SYNTH_FLATTEN)] ? $::env(SYNTH_FLATTEN) : "rebuilt"}]
+puts "SYNTH_DESIGN flatten_hierarchy: $_flatten"
+
 puts "\n--- Synthesis ---"
 reset_run synth_1
+set_property STEPS.SYNTH_DESIGN.ARGS.FLATTEN_HIERARCHY $_flatten [get_runs synth_1]
 launch_runs synth_1 -jobs 4
 wait_on_run synth_1
 if {[get_property PROGRESS [get_runs synth_1]] != "100%"} {

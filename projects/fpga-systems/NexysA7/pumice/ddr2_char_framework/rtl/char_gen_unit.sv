@@ -112,11 +112,25 @@ module char_gen_unit #(
     parameter int DW = AXI_DATA_WIDTH,
     parameter int UW = AXI_USER_WIDTH,
     parameter int SW = AXI_STRB_WIDTH,
-    // Generator-select field carried in the top bits of the outgoing ID. Zero
-    // bits when there is only one generator, so a single-generator build
-    // presents exactly the generator's own ID and the merge disappears.
+    // Generator-select field, carried in the TOP bits of the outgoing ID --
+    // INSIDE the generator's own width, not prepended to it. Zero bits when
+    // there is only one generator, so a single-generator build presents
+    // exactly the generator's own ID and the merge disappears.
+    //
+    // The controller therefore sees the SAME id width the generators drive.
+    // That is a hard requirement, not a preference: prepending a ninth bit
+    // (the BRIDGE-016 fabric convention) widens every ID comparator in
+    // pumice's NUM_ENTRIES-wide pick cone and took the arbiter's
+    // r_rd_pop -> r_wr_col_q path from 13 logic levels to 26, which is
+    // +1.100 ns to -6.602 ns at 75 MHz. Measured at synthesis, so it is the
+    // netlist and not placement. pumice's ID is always 8 bits.
+    //
+    // The cost is ID space: each generator owns 2**(IW-GSELW) ids instead of
+    // 2**IW -- 128 each at NUM_GEN=2. The generators' cfg_axi_id is masked to
+    // that width below, so a host writing a full 8-bit id gets its top bit
+    // replaced by the generator index rather than aliasing onto its neighbour.
     parameter int GSELW = (NUM_GEN > 1) ? $clog2(NUM_GEN) : 0,
-    parameter int PIW   = IW + GSELW
+    parameter int PIW   = IW
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -226,6 +240,10 @@ module char_gen_unit #(
     initial begin
         if (NUM_GEN < 1) begin
             $error("char_gen_unit: NUM_GEN (%0d) must be at least 1", NUM_GEN);
+        end
+        if (GSELW >= IW) begin
+            $error("char_gen_unit: NUM_GEN (%0d) needs %0d select bits but the id is only %0d wide -- the index must fit INSIDE the id",
+                   NUM_GEN, GSELW, IW);
         end
     end
 
@@ -592,7 +610,7 @@ module char_gen_unit #(
 
     generate
     for (genvar g = 0; g < NUM_GEN; g++) begin : g_b_demux
-        assign gw_bid[g]    = m_axi_bid[IW-1:0];
+        assign gw_bid[g]    = IW'(m_axi_bid[IW-GSELW-1:0]);
         assign gw_bresp[g]  = m_axi_bresp;
         assign gw_buser[g]  = m_axi_buser;
         assign gw_bvalid[g] = m_axi_bvalid && w_b_inrange && (w_b_sel == SELW'(g));
@@ -605,7 +623,7 @@ module char_gen_unit #(
 
     generate
     for (genvar g = 0; g < NUM_GEN; g++) begin : g_r_demux
-        assign gr_rid[g]    = m_axi_rid[IW-1:0];
+        assign gr_rid[g]    = IW'(m_axi_rid[IW-GSELW-1:0]);
         assign gr_rdata[g]  = m_axi_rdata;
         assign gr_rresp[g]  = m_axi_rresp;
         assign gr_rlast[g]  = m_axi_rlast;
@@ -616,8 +634,8 @@ module char_gen_unit #(
 
     generate
     if (NUM_GEN > 1) begin : g_sel_decode
-        assign w_b_sel     = SELW'(m_axi_bid[PIW-1 -: GSELW]);
-        assign w_r_sel     = SELW'(m_axi_rid[PIW-1 -: GSELW]);
+        assign w_b_sel     = SELW'(m_axi_bid[IW-1 -: GSELW]);
+        assign w_r_sel     = SELW'(m_axi_rid[IW-1 -: GSELW]);
         // NUM_GEN need not be a power of two, so a response can name a
         // generator that does not exist. That is a controller bug or a
         // corrupted ID, and the generator it was meant for will report as
@@ -704,8 +722,9 @@ module char_gen_unit #(
     // above be stateless.
     generate
     if (NUM_GEN > 1) begin : g_id_prefix
-        assign m_axi_awid = {GSELW'(w_aw_sel), w_m_awid_raw};
-        assign m_axi_arid = {GSELW'(w_ar_sel), w_m_arid_raw};
+        // Overwrite the top GSELW bits rather than prepending them.
+        assign m_axi_awid = {GSELW'(w_aw_sel), w_m_awid_raw[IW-GSELW-1:0]};
+        assign m_axi_arid = {GSELW'(w_ar_sel), w_m_arid_raw[IW-GSELW-1:0]};
     end else begin : g_id_direct
         assign m_axi_awid = w_m_awid_raw;
         assign m_axi_arid = w_m_arid_raw;

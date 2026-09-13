@@ -91,14 +91,13 @@ module char_engine_block
     parameter int RD_DBG_FIFO_DEPTH = 0,
 
     // ---- Controller-side ID width ----
-    // char_gen_unit prefixes every outgoing ID with the generator index --
-    // {master index, master id}, the same BRIDGE-016 shape the generated
-    // bridges used -- so the controller sees one bit more than the generators'
-    // own 8 at NUM_GEN=2, unchanged from the bridge era. Derived from
-    // NUM_GEN rather than read from a bridge package, because the merge is no
-    // longer a bridge and the two must not be able to disagree.
-    parameter int M_AXI_ID_WIDTH   = AXI_ID_WIDTH
-                                     + ((NUM_GEN > 1) ? $clog2(NUM_GEN) : 0),
+    // THE SAME as the generators' own. char_gen_unit puts the generator index
+    // in the TOP bits of the 8-bit id rather than prepending a 9th, because
+    // pumice's id width is not free: one extra bit widens every comparator in
+    // its NUM_ENTRIES-wide pick cone and took the arbiter's
+    // r_rd_pop -> r_wr_col_q path from 13 logic levels to 26 -- +1.100 ns to
+    // -6.602 ns at 75 MHz, measured at synthesis. pumice's ID is always 8 bits.
+    parameter int M_AXI_ID_WIDTH   = AXI_ID_WIDTH,
 
     // ---- Aliases ----
     parameter int IW = AXI_ID_WIDTH,
