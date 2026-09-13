@@ -59,6 +59,36 @@ def strip_strings(content: str) -> str:
     return re.sub(r'"[^"]*"', '""', content)
 
 
+def strip_subprogram_bodies(content: str) -> str:
+    """Blank out function/task bodies, preserving line numbering.
+
+    Ports declared inside a subprogram are LOCAL to it, not module-scope
+    signals. A single-line signature was already skipped line-by-line, but a
+    MULTI-LINE signature leaks its ports into module scope: e.g.
+
+        function automatic t select_alignment_strategy(
+            input logic [63:0] address,     <-- registered as a module signal
+
+    which then made an unrelated function's own `address` port look like a
+    use-before-declaration against that later line. Removing the whole body
+    keeps both passes consistent.
+    """
+    lines = content.split('\n')
+    depth = 0
+    for i, line in enumerate(lines):
+        opens = len(re.findall(r'\b(?:function|task)\b(?!\s*:)', line))
+        closes = len(re.findall(r'\b(?:endfunction|endtask)\b', line))
+        # A prototype/import ending in ';' on the same line opens nothing.
+        if opens and re.search(r'\b(?:extern|import|export)\b', line):
+            opens = 0
+        if depth > 0 or opens:
+            lines[i] = ''
+        depth += opens - closes
+        if depth < 0:
+            depth = 0
+    return '\n'.join(lines)
+
+
 def get_module_boundaries(content: str) -> List[Tuple[int, int, str]]:
     """Find module/endmodule boundaries. Returns list of (start_line, end_line, module_name)."""
     modules = []
@@ -95,6 +125,9 @@ def parse_declarations(content: str, start_line: int = 1) -> Dict[str, SignalInf
     """
     signals: Dict[str, SignalInfo] = {}
     lines = content.split('\n')
+
+    # Subprogram bodies are local scope - drop them before parsing.
+    content = strip_subprogram_bodies(content)
 
     # Pattern for signal declarations
     # Matches: keyword [signed] [width] [type[::type]] [width] signal [array]
@@ -171,6 +204,9 @@ def parse_declarations(content: str, start_line: int = 1) -> Dict[str, SignalInf
 
 def find_signal_uses(content: str, signals: Dict[str, SignalInfo], start_line: int = 1) -> None:
     """Find first use of each signal and update SignalInfo."""
+    # Uses inside subprogram bodies are local scope - drop them, matching
+    # parse_declarations so the two passes agree.
+    content = strip_subprogram_bodies(content)
     lines = content.split('\n')
 
     # Build regex pattern for all signal names
