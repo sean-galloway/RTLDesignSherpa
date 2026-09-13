@@ -96,6 +96,41 @@ async def cocotb_test_control_path(dut):
     tb.log.info("rapids_beats_top CONTROL path PASSED")
 
 
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_status_readback(dut):
+    """Hardware-driven status registers must report the design, not zero.
+
+    hwif_in was `'{default: '0}` -- the register block's hardware inputs were
+    tied off -- so every status field in the map read 0 in every build and a
+    zero could not be told apart from "this CSR is not wired". This reads the
+    fields that now have real sources behind them.
+    """
+    tb = RapidsBeatsTopTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+
+    seen = {}
+    for half in ('src', 'snk'):
+        for reg in ('GLOBAL_STATUS', 'SCHEDULER_IDLE', 'DESC_ENGINE_IDLE',
+                    'SCHED_ERROR', 'CH_STATE0_STATE'):
+            seen[f'{half}.{reg}'] = await tb.read_reg(half, reg)
+    seen['src.AXI_RD_COMPLETE'] = await tb.read_reg('src', 'AXI_RD_COMPLETE')
+
+    for k, v in seen.items():
+        tb.log.info(f"status readback {k} = 0x{v:08X}")
+
+    tb.finalize_test()
+
+    # At rest after reset both halves are idle, so these must read non-zero.
+    # Every one of them read 0 with the tie-off in place.
+    for k in ('src.GLOBAL_STATUS', 'snk.GLOBAL_STATUS',
+              'src.SCHEDULER_IDLE', 'snk.SCHEDULER_IDLE',
+              'src.DESC_ENGINE_IDLE', 'snk.DESC_ENGINE_IDLE'):
+        assert seen[k] != 0, (
+            f"{k} reads 0 -- the register block's hardware inputs are not "
+            f"connected, so this CSR reports nothing. Saw: {seen}")
+
+
 # ===========================================================================
 # PYTEST WRAPPER
 # ===========================================================================
@@ -209,6 +244,13 @@ def test_rapids_beats_top_control(request):
     memory on the control masters (CTRL_READ gate held off, CTRL_WRITE doorbell
     releases it)."""
     _run_top("cocotb_test_control_path", "test_rapids_beats_top_control")
+
+
+@pytest.mark.top_beats
+@pytest.mark.rapids_beats_top
+def test_rapids_beats_top_status(request):
+    """Status CSR read-back: the fields with real sources must not read 0."""
+    _run_top("cocotb_test_status_readback", "test_rapids_beats_top_status")
 
 
 if __name__ == "__main__":

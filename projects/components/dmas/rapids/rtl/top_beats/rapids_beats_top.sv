@@ -569,11 +569,55 @@ module rapids_beats_top #(
     //=========================================================================
     import rapids_regs_pkg::*;
 
+    // Core status collected for register read-back (driven into hwif_in
+    // below). These pins were dangling at the core instantiation, so the
+    // status they carry had nowhere to go.
+    logic [NC-1:0]       src_desc_engine_idle, snk_desc_engine_idle;
+    logic [NC-1:0]       src_sched_idle,       snk_sched_idle;
+    logic [NC-1:0][6:0]  src_sched_state,      snk_sched_state;
+    logic [NC-1:0]       src_rd_all_complete;
+
     rapids_regs_pkg::rapids_regs__in_t  hwif_in;
     rapids_regs_pkg::rapids_regs__out_t hwif_out;
 
-    // hwif_in status returns are tied off minimally (no fields driven).
-    assign hwif_in = '{default: '0};
+    // Register read-back. This was `assign hwif_in = '{default: '0}` with the
+    // note "status returns are tied off minimally (no fields driven)", so
+    // EVERY hardware-driven field in the map read zero in every build and a
+    // zero could not be told apart from "this CSR is not wired". STREAM hit
+    // exactly this twice (SCHED_ERROR and AXI_{RD,WR}_COMPLETE existed, the
+    // core drove the sources, nothing connected them); the shape below is its
+    // fix -- default everything, then drive each field from its real source.
+    always_comb begin
+        hwif_in = '{default: '0};
+
+        hwif_in.SRC.GLOBAL_STATUS.SYSTEM_IDLE.next   = src_system_idle;
+        hwif_in.SRC.DESC_ENGINE_IDLE.DESC_IDLE.next  = 8'(src_desc_engine_idle);
+        hwif_in.SRC.SCHEDULER_IDLE.SCHED_IDLE.next   = 8'(src_sched_idle);
+        hwif_in.SRC.SCHED_ERROR.SCHED_ERR.next       = 8'(src_sched_error);
+        hwif_in.SRC.AXI_RD_COMPLETE.RD_COMPLETE.next = 8'(src_rd_all_complete);
+
+        hwif_in.SNK.GLOBAL_STATUS.SYSTEM_IDLE.next   = snk_system_idle;
+        hwif_in.SNK.DESC_ENGINE_IDLE.DESC_IDLE.next  = 8'(snk_desc_engine_idle);
+        hwif_in.SNK.SCHEDULER_IDLE.SCHED_IDLE.next   = 8'(snk_sched_idle);
+        hwif_in.SNK.SCHED_ERROR.SCHED_ERR.next       = 8'(snk_sched_error);
+
+        for (int i = 0; i < NC; i++) begin
+            hwif_in.SRC.CH_STATE[i].STATE.STATE.next = src_sched_state[i];
+            hwif_in.SNK.CH_STATE[i].STATE.STATE.next = snk_sched_state[i];
+        end
+
+        // Deliberately left at zero, rather than given a plausible driver:
+        //  * CHANNEL_IDLE -- the core has no per-channel "channel idle"
+        //    source. It reports descriptor-engine idle and scheduler idle
+        //    separately, and combining them here would invent a definition
+        //    the design does not state.
+        //  * SNK AXI_RD_COMPLETE and both AXI_WR_COMPLETE -- the engines do
+        //    produce dbg_{rd,wr}_all_complete, but only rapids_src_beats
+        //    exports the read one, so no route exists above the engines.
+        //  * the MON.* subtree, including every *_PERF_* field: the
+        //    descriptor monitor's perf outputs are dangling inside
+        //    scheduler_group_array_beats, which has no ports to carry them.
+    end
 
     rapids_regs u_rapids_regs (
         .clk                    (aclk),
@@ -1098,9 +1142,9 @@ module rapids_beats_top #(
         .src_cfg_desc_mon_debug_mask    (src_cfg_desc_mon_debug_mask),
         // Status (source)
         .src_system_idle                (src_system_idle),
-        .src_descriptor_engine_idle     (),
-        .src_scheduler_idle             (),
-        .src_scheduler_state            (),
+        .src_descriptor_engine_idle     (src_desc_engine_idle),
+        .src_scheduler_idle             (src_sched_idle),
+        .src_scheduler_state            (src_sched_state),
         .src_sched_error                (src_sched_error),
         .src_cfg_sts_desc_mon_busy          (),
         .src_cfg_sts_desc_mon_active_txns   (),
@@ -1236,9 +1280,9 @@ module rapids_beats_top #(
         .snk_cfg_desc_mon_debug_mask    (snk_cfg_desc_mon_debug_mask),
         // Status (sink)
         .snk_system_idle                (snk_system_idle),
-        .snk_descriptor_engine_idle     (),
-        .snk_scheduler_idle             (),
-        .snk_scheduler_state            (),
+        .snk_descriptor_engine_idle     (snk_desc_engine_idle),
+        .snk_scheduler_idle             (snk_sched_idle),
+        .snk_scheduler_state            (snk_sched_state),
         .snk_sched_error                (snk_sched_error),
         .snk_cfg_sts_desc_mon_busy          (),
         .snk_cfg_sts_desc_mon_active_txns   (),
@@ -1352,7 +1396,7 @@ module rapids_beats_top #(
         //---------------------------------------------------------------------
         // Debug (discarded)
         //---------------------------------------------------------------------
-        .src_dbg_rd_all_complete          (),
+        .src_dbg_rd_all_complete          (src_rd_all_complete),
         .src_dbg_r_beats_rcvd             (),
         .src_dbg_sram_writes              (),
         .src_dbg_arb_request              (),
