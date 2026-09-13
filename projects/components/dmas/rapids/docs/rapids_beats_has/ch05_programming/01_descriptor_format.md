@@ -129,13 +129,13 @@ so the same layout serves both.
 **For SINK transfers (network to memory):**
 | Field | Usage |
 |-------|-------|
-| `dest_addr` [127:64] | Memory write destination address |
+| `dst_addr` [127:64] | Memory write destination address |
 | `src_addr` [63:0] | Not used (write 0) |
 
 **For SOURCE transfers (memory to network):**
 | Field | Usage |
 |-------|-------|
-| `dest_addr` [127:64] | Not used (write 0) |
+| `dst_addr` [127:64] | Not used (write 0) |
 | `src_addr` [63:0] | Memory read source address |
 
 : Address Field Usage
