@@ -716,54 +716,88 @@ module char_engine_block
 
 
     //=========================================================================
-    // Merged AXI -> the module's master port. The internal wr_*/rd_* nets are
-    // what char_gen_unit drives and what the perf meters tap, so the mapping
-    // stays a rename rather than another layer of muxing.
+    // Controller boundary: one skid stage per channel
     //=========================================================================
-    assign m_axi_awid     = wr_awid;
-    assign m_axi_awaddr   = wr_awaddr;
-    assign m_axi_awlen    = wr_awlen;
-    assign m_axi_awsize   = wr_awsize;
-    assign m_axi_awburst  = wr_awburst;
-    assign m_axi_awlock   = wr_awlock;
-    assign m_axi_awcache  = wr_awcache;
-    assign m_axi_awprot   = wr_awprot;
-    assign m_axi_awqos    = wr_awqos;
-    assign m_axi_awregion = wr_awregion;
-    assign m_axi_awuser   = wr_awuser;
-    assign m_axi_awvalid  = wr_awvalid;
-    assign wr_awready     = m_axi_awready;
-    assign m_axi_wdata    = wr_wdata;
-    assign m_axi_wstrb    = wr_wstrb;
-    assign m_axi_wlast    = wr_wlast;
-    assign m_axi_wuser    = wr_wuser;
-    assign m_axi_wvalid   = wr_wvalid;
-    assign wr_wready      = m_axi_wready;
-    assign wr_bid         = m_axi_bid;
-    assign wr_bresp       = m_axi_bresp;
-    assign wr_buser       = m_axi_buser;
-    assign wr_bvalid      = m_axi_bvalid;
-    assign m_axi_bready   = wr_bready;
+    // These are register stages, not buffering for its own sake, and they are
+    // load-bearing for TIMING rather than for throughput.
+    //
+    // The two generated data bridges used to sit here, and their slave-side
+    // adapter contributed exactly this: a skid per channel between the
+    // generator array and the controller's s_axi. Removing the bridges took
+    // the registers with them, and the board build went from +0.003 ns with
+    // zero failing endpoints to -5.8 ns with about a thousand -- measured, not
+    // inferred: the same pumice RTL, rebuilt against the pre-refactor harness,
+    // closes; against the bridgeless one it does not.
+    //
+    // The failing paths were reported INSIDE pumice (the arbiter's
+    // r_rd_pop -> r_wr_col_q cone, the row predictor, the read CAM), which is
+    // why this took a worktree A/B to pin down rather than a look at the
+    // timing report. That cone closes by single-digit picoseconds when it
+    // closes at all, so it has no tolerance for a change in how its s_axi
+    // inputs are driven or placed. Driving the controller's slave port from
+    // combinational logic across the whole generator merge is such a change.
+    //
+    // Depths match what the bridge adapters used: 2 on the address and
+    // response channels, 4 on the data channels. Keeping the perf meters and
+    // histograms tapped on wr_*/rd_* -- the generator side -- means the
+    // measurement point did not move either.
+    localparam int SKID_AW_W = PIW + AW + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + UW;
+    localparam int SKID_W_W  = DW + SW + 1 + UW;
+    localparam int SKID_B_W  = PIW + 2 + UW;
+    localparam int SKID_R_W  = PIW + DW + 2 + 1 + UW;
 
-    assign m_axi_arid     = rd_arid;
-    assign m_axi_araddr   = rd_araddr;
-    assign m_axi_arlen    = rd_arlen;
-    assign m_axi_arsize   = rd_arsize;
-    assign m_axi_arburst  = rd_arburst;
-    assign m_axi_arlock   = rd_arlock;
-    assign m_axi_arcache  = rd_arcache;
-    assign m_axi_arprot   = rd_arprot;
-    assign m_axi_arqos    = rd_arqos;
-    assign m_axi_arregion = rd_arregion;
-    assign m_axi_aruser   = rd_aruser;
-    assign m_axi_arvalid  = rd_arvalid;
-    assign rd_arready     = m_axi_arready;
-    assign rd_rid         = m_axi_rid;
-    assign rd_rdata       = m_axi_rdata;
-    assign rd_rresp       = m_axi_rresp;
-    assign rd_rlast       = m_axi_rlast;
-    assign rd_ruser       = m_axi_ruser;
-    assign rd_rvalid      = m_axi_rvalid;
-    assign m_axi_rready   = rd_rready;
+    gaxi_skid_buffer #(.DATA_WIDTH(SKID_AW_W), .DEPTH(2)) u_skid_aw (
+        .axi_aclk (mc_clk), .axi_aresetn (mc_rst_n),
+        .wr_valid (wr_awvalid), .wr_ready (wr_awready),
+        .wr_data  ({wr_awid, wr_awaddr, wr_awlen, wr_awsize, wr_awburst,
+                    wr_awlock, wr_awcache, wr_awprot, wr_awqos, wr_awregion,
+                    wr_awuser}),
+        .count    (), .rd_count (),
+        .rd_valid (m_axi_awvalid), .rd_ready (m_axi_awready),
+        .rd_data  ({m_axi_awid, m_axi_awaddr, m_axi_awlen, m_axi_awsize,
+                    m_axi_awburst, m_axi_awlock, m_axi_awcache, m_axi_awprot,
+                    m_axi_awqos, m_axi_awregion, m_axi_awuser})
+    );
+
+    gaxi_skid_buffer #(.DATA_WIDTH(SKID_W_W), .DEPTH(4)) u_skid_w (
+        .axi_aclk (mc_clk), .axi_aresetn (mc_rst_n),
+        .wr_valid (wr_wvalid), .wr_ready (wr_wready),
+        .wr_data  ({wr_wdata, wr_wstrb, wr_wlast, wr_wuser}),
+        .count    (), .rd_count (),
+        .rd_valid (m_axi_wvalid), .rd_ready (m_axi_wready),
+        .rd_data  ({m_axi_wdata, m_axi_wstrb, m_axi_wlast, m_axi_wuser})
+    );
+
+    gaxi_skid_buffer #(.DATA_WIDTH(SKID_B_W), .DEPTH(2)) u_skid_b (
+        .axi_aclk (mc_clk), .axi_aresetn (mc_rst_n),
+        .wr_valid (m_axi_bvalid), .wr_ready (m_axi_bready),
+        .wr_data  ({m_axi_bid, m_axi_bresp, m_axi_buser}),
+        .count    (), .rd_count (),
+        .rd_valid (wr_bvalid), .rd_ready (wr_bready),
+        .rd_data  ({wr_bid, wr_bresp, wr_buser})
+    );
+
+    gaxi_skid_buffer #(.DATA_WIDTH(SKID_AW_W), .DEPTH(2)) u_skid_ar (
+        .axi_aclk (mc_clk), .axi_aresetn (mc_rst_n),
+        .wr_valid (rd_arvalid), .wr_ready (rd_arready),
+        .wr_data  ({rd_arid, rd_araddr, rd_arlen, rd_arsize, rd_arburst,
+                    rd_arlock, rd_arcache, rd_arprot, rd_arqos, rd_arregion,
+                    rd_aruser}),
+        .count    (), .rd_count (),
+        .rd_valid (m_axi_arvalid), .rd_ready (m_axi_arready),
+        .rd_data  ({m_axi_arid, m_axi_araddr, m_axi_arlen, m_axi_arsize,
+                    m_axi_arburst, m_axi_arlock, m_axi_arcache, m_axi_arprot,
+                    m_axi_arqos, m_axi_arregion, m_axi_aruser})
+    );
+
+    gaxi_skid_buffer #(.DATA_WIDTH(SKID_R_W), .DEPTH(4)) u_skid_r (
+        .axi_aclk (mc_clk), .axi_aresetn (mc_rst_n),
+        .wr_valid (m_axi_rvalid), .wr_ready (m_axi_rready),
+        .wr_data  ({m_axi_rid, m_axi_rdata, m_axi_rresp, m_axi_rlast,
+                    m_axi_ruser}),
+        .count    (), .rd_count (),
+        .rd_valid (rd_rvalid), .rd_ready (rd_rready),
+        .rd_data  ({rd_rid, rd_rdata, rd_rresp, rd_rlast, rd_ruser})
+    );
 
 endmodule : char_engine_block
