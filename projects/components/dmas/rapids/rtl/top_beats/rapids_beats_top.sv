@@ -580,6 +580,143 @@ module rapids_beats_top #(
     rapids_regs_pkg::rapids_regs__in_t  hwif_in;
     rapids_regs_pkg::rapids_regs__out_t hwif_out;
 
+
+    //=========================================================================
+    // Always-on data-path bus meters (STREAM's axi_bus_meter, RFC Stage E)
+    //=========================================================================
+    // The RDMON_/WRMON_PERF_* CSRs have existed in the map all along and had
+    // no source, so they read 0 in every build. These two meters give them
+    // one. They are CHEAP (a few counters each) and deliberately NOT gated by
+    // USE_AXI_MONITORS: STREAM's core says the same thing at its own meter
+    // ("MUST survive USE_AXI_MONITORS=0") because over-gating them was a real
+    // cause of zero perf readings on monitors-off board builds.
+    //
+    // Halves: rapids_src_beats owns the read master and rapids_snk_beats owns
+    // the write master, so read statistics belong to SRC.MON.RDMON_* and
+    // write statistics to SNK.MON.WRMON_*.
+    //
+    // Window control is each half's own CTRL.RUN bit: freeze while RUN is
+    // low, and clear on its rising edge, so software opens a window, runs a
+    // workload and closes it.
+    localparam int MCW = (NC > 1) ? $clog2(NC) : 1;
+
+    logic w_rd_run, w_wr_run, r_rd_run_d, r_wr_run_d;
+    assign w_rd_run = hwif_out.SRC.MON.RDMON_PERF_CTRL.RUN.value;
+    assign w_wr_run = hwif_out.SNK.MON.WRMON_PERF_CTRL.RUN.value;
+
+    logic [31:0] r_rd_win_cycles, r_wr_win_cycles;
+    logic [31:0] r_rd_beats, r_wr_beats;
+    logic [63:0] r_rd_bytes, r_wr_bytes;
+    logic [31:0] r_rd_bursts, r_wr_bursts;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_rd_run_d      <= 1'b0;
+            r_wr_run_d      <= 1'b0;
+            r_rd_win_cycles <= '0;
+            r_wr_win_cycles <= '0;
+            r_rd_beats      <= '0;
+            r_wr_beats      <= '0;
+            r_rd_bytes      <= '0;
+            r_wr_bytes      <= '0;
+            r_rd_bursts     <= '0;
+            r_wr_bursts     <= '0;
+        end else begin
+            r_rd_run_d <= w_rd_run;
+            r_wr_run_d <= w_wr_run;
+
+            // READ half: clear on the RUN rising edge, accumulate while open.
+            if (w_rd_run && !r_rd_run_d) begin
+                r_rd_win_cycles <= '0;
+                r_rd_beats      <= '0;
+                r_rd_bytes      <= '0;
+                r_rd_bursts     <= '0;
+            end else if (w_rd_run) begin
+                r_rd_win_cycles <= r_rd_win_cycles + 32'd1;
+                if (m_axi_rd_rvalid && m_axi_rd_rready) begin
+                    r_rd_beats <= r_rd_beats + 32'd1;
+                    r_rd_bytes <= r_rd_bytes + 64'(DW / 8);
+                end
+                if (m_axi_rd_arvalid && m_axi_rd_arready) begin
+                    r_rd_bursts <= r_rd_bursts + 32'd1;
+                end
+            end
+
+            // WRITE half: same shape. Bytes come from WSTRB rather than the
+            // full beat width, so a partial beat is not counted as a full one.
+            if (w_wr_run && !r_wr_run_d) begin
+                r_wr_win_cycles <= '0;
+                r_wr_beats      <= '0;
+                r_wr_bytes      <= '0;
+                r_wr_bursts     <= '0;
+            end else if (w_wr_run) begin
+                r_wr_win_cycles <= r_wr_win_cycles + 32'd1;
+                if (m_axi_wr_wvalid && m_axi_wr_wready) begin
+                    r_wr_beats <= r_wr_beats + 32'd1;
+                    r_wr_bytes <= r_wr_bytes + 64'($countones(m_axi_wr_wstrb));
+                end
+                if (m_axi_wr_awvalid && m_axi_wr_awready) begin
+                    r_wr_bursts <= r_wr_bursts + 32'd1;
+                end
+            end
+        end
+    )
+
+    logic [31:0] w_rd_prod, w_rd_bp, w_rd_starv, w_rd_idle;
+    logic [31:0] w_wr_prod, w_wr_bp, w_wr_starv, w_wr_idle;
+    /* verilator lint_off PINCONNECTEMPTY */
+    axi_bus_meter #(.NUM_CHANNELS(NC)) u_rd_bus_meter (
+        .aclk               (aclk),
+        .aresetn            (aresetn),
+        .i_clear            (w_rd_run && !r_rd_run_d),
+        .i_freeze           (~w_rd_run),
+        .i_valid            (m_axi_rd_rvalid),
+        .i_ready            (m_axi_rd_rready),
+        .i_channel_id       (m_axi_rd_rid[MCW-1:0]),
+        .i_channel_valid    (m_axi_rd_rvalid),
+        .o_agg_productive   (w_rd_prod),
+        .o_agg_backpressure (w_rd_bp),
+        .o_agg_starvation   (w_rd_starv),
+        .o_agg_idle         (w_rd_idle),
+        // Per-channel readout is NOT wired: the CH_PROD_BP / CH_STARV_IDLE /
+        // CH_OVERFLOW registers describe themselves as "for PERF_CH_SEL
+        // channel", and no PERF_CH_SEL field exists anywhere in the register
+        // map (PERF_CONFIG @ 0x2B0 has only PERF_EN / PERF_MODE /
+        // PERF_CLEAR). Driving channel 0 into them would invent the selector
+        // semantics rather than report them.
+        .o_ch_productive    (),
+        .o_ch_backpressure  (),
+        .o_ch_starvation    (),
+        .o_ch_idle          (),
+        .o_ch_overflow      ()
+    );
+
+    axi_bus_meter #(.NUM_CHANNELS(NC)) u_wr_bus_meter (
+        .aclk               (aclk),
+        .aresetn            (aresetn),
+        .i_clear            (w_wr_run && !r_wr_run_d),
+        .i_freeze           (~w_wr_run),
+        .i_valid            (m_axi_wr_wvalid),
+        .i_ready            (m_axi_wr_wready),
+        // No channel-id sideband reaches the top on the write path (the write
+        // engine exports o_active_channel_id, but snk_data_path_beats ties it
+        // off). The aggregate buckets come from i_valid/i_ready alone, so they
+        // are unaffected; only per-channel attribution would be meaningless,
+        // and that readout is not wired for the reason above.
+        .i_channel_id       ('0),
+        .i_channel_valid    (1'b0),
+        .o_agg_productive   (w_wr_prod),
+        .o_agg_backpressure (w_wr_bp),
+        .o_agg_starvation   (w_wr_starv),
+        .o_agg_idle         (w_wr_idle),
+        .o_ch_productive    (),
+        .o_ch_backpressure  (),
+        .o_ch_starvation    (),
+        .o_ch_idle          (),
+        .o_ch_overflow      ()
+    );
+    /* verilator lint_on PINCONNECTEMPTY */
+
     // Register read-back. This was `assign hwif_in = '{default: '0}` with the
     // note "status returns are tied off minimally (no fields driven)", so
     // EVERY hardware-driven field in the map read zero in every build and a
@@ -605,6 +742,34 @@ module rapids_beats_top #(
             hwif_in.SRC.CH_STATE[i].STATE.STATE.next = src_sched_state[i];
             hwif_in.SNK.CH_STATE[i].STATE.STATE.next = snk_sched_state[i];
         end
+
+        // Data-path perf windows, from the two always-on bus meters above.
+        hwif_in.SRC.MON.RDMON_PERF_STATUS.WIN_ACTIVE.next  = w_rd_run;
+        // LIVE-only, per the register's own description ("reads 0 after
+        // close"). The four bucket registers HOLD after close; this one
+        // does not, so it is gated by RUN rather than reported stale.
+        hwif_in.SRC.MON.RDMON_PERF_WINDOW_CYCLES.VAL.next  =
+                                      w_rd_run ? r_rd_win_cycles : 32'd0;
+        hwif_in.SRC.MON.RDMON_PERF_PROD_CYCLES.VAL.next    = w_rd_prod;
+        hwif_in.SRC.MON.RDMON_PERF_BP_CYCLES.VAL.next      = w_rd_bp;
+        hwif_in.SRC.MON.RDMON_PERF_STARV_CYCLES.VAL.next   = w_rd_starv;
+        hwif_in.SRC.MON.RDMON_PERF_IDLE_CYCLES.VAL.next    = w_rd_idle;
+        hwif_in.SRC.MON.RDMON_PERF_BEAT_COUNT.VAL.next     = r_rd_beats;
+        hwif_in.SRC.MON.RDMON_PERF_BYTE_COUNT_LO.VAL.next  = r_rd_bytes[31:0];
+        hwif_in.SRC.MON.RDMON_PERF_BYTE_COUNT_HI.VAL.next  = r_rd_bytes[63:32];
+        hwif_in.SRC.MON.RDMON_PERF_BURST_COUNT.VAL.next    = r_rd_bursts;
+
+        hwif_in.SNK.MON.WRMON_PERF_STATUS.WIN_ACTIVE.next  = w_wr_run;
+        hwif_in.SNK.MON.WRMON_PERF_WINDOW_CYCLES.VAL.next  =
+                                      w_wr_run ? r_wr_win_cycles : 32'd0;
+        hwif_in.SNK.MON.WRMON_PERF_PROD_CYCLES.VAL.next    = w_wr_prod;
+        hwif_in.SNK.MON.WRMON_PERF_BP_CYCLES.VAL.next      = w_wr_bp;
+        hwif_in.SNK.MON.WRMON_PERF_STARV_CYCLES.VAL.next   = w_wr_starv;
+        hwif_in.SNK.MON.WRMON_PERF_IDLE_CYCLES.VAL.next    = w_wr_idle;
+        hwif_in.SNK.MON.WRMON_PERF_BEAT_COUNT.VAL.next     = r_wr_beats;
+        hwif_in.SNK.MON.WRMON_PERF_BYTE_COUNT_LO.VAL.next  = r_wr_bytes[31:0];
+        hwif_in.SNK.MON.WRMON_PERF_BYTE_COUNT_HI.VAL.next  = r_wr_bytes[63:32];
+        hwif_in.SNK.MON.WRMON_PERF_BURST_COUNT.VAL.next    = r_wr_bursts;
 
         // Deliberately left at zero, rather than given a plausible driver:
         //  * CHANNEL_IDLE -- the core has no per-channel "channel idle"

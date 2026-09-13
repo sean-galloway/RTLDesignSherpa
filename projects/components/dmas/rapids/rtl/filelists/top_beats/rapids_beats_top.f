@@ -40,6 +40,12 @@
 
 -f $REPO_ROOT/rtl/amba/filelists/monbus_group.f
 
+# ---- Always-on data-path bus meters ----
+# rapids_beats_top instantiates axi_bus_meter twice (read + write) to give the
+# RDMON_/WRMON_PERF_* CSRs a source. Pulled in by its own sub-block filelist,
+# per the closure rule stated above.
+-f $REPO_ROOT/rtl/amba/filelists/axi_bus_meter.f
+
 # ---- APB -> register chain ----
 -f $REPO_ROOT/projects/components/dmas/stream/rtl/filelists/stream_pkg.f
 -f $REPO_ROOT/projects/components/dmas/stream/rtl/filelists/fub/apb4todescr.f

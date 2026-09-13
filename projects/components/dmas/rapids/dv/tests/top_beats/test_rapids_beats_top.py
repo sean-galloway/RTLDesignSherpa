@@ -131,6 +131,70 @@ async def cocotb_test_status_readback(dut):
             f"connected, so this CSR reports nothing. Saw: {seen}")
 
 
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_perf_window(dut):
+    """The data-path perf windows must count, not read zero.
+
+    The RDMON_/WRMON_PERF_* registers existed in the map with nothing driving
+    them, so every one read 0 in every build. Each half now has an always-on
+    axi_bus_meter behind it: SRC covers the read master, SNK the write master.
+    Opens each window through its own CTRL.RUN, requires it to report itself
+    active and to accumulate, then closes it.
+    """
+    tb = RapidsBeatsTopTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+
+    # Closed out of reset: WIN_ACTIVE clear, and WINDOW_CYCLES is live-only.
+    assert (await tb.read_reg('src', 'RDMON_PERF_STATUS')) & 1 == 0, \
+        "RDMON window reports active before it was opened"
+    assert (await tb.read_reg('snk', 'WRMON_PERF_STATUS')) & 1 == 0, \
+        "WRMON window reports active before it was opened"
+
+    await tb.write_fields('src', 'RDMON_PERF_CTRL', RUN=1)
+    await tb.write_fields('snk', 'WRMON_PERF_CTRL', RUN=1)
+    await tb.wait_clocks('aclk', 300)
+
+    rd_status = await tb.read_reg('src', 'RDMON_PERF_STATUS')
+    wr_status = await tb.read_reg('snk', 'WRMON_PERF_STATUS')
+    rd_cycles = await tb.read_reg('src', 'RDMON_PERF_WINDOW_CYCLES')
+    wr_cycles = await tb.read_reg('snk', 'WRMON_PERF_WINDOW_CYCLES')
+    rd_bkts = {b: await tb.read_reg('src', f'RDMON_PERF_{b}_CYCLES')
+               for b in ('PROD', 'BP', 'STARV', 'IDLE')}
+    wr_bkts = {b: await tb.read_reg('snk', f'WRMON_PERF_{b}_CYCLES')
+               for b in ('PROD', 'BP', 'STARV', 'IDLE')}
+    tb.log.info(f"perf window OPEN: rd status=0x{rd_status:X} cycles={rd_cycles} "
+                f"buckets={rd_bkts} | wr status=0x{wr_status:X} "
+                f"cycles={wr_cycles} buckets={wr_bkts}")
+
+    assert rd_status & 1, "RDMON_PERF_STATUS.WIN_ACTIVE clear while RUN is set"
+    assert wr_status & 1, "WRMON_PERF_STATUS.WIN_ACTIVE clear while RUN is set"
+    assert rd_cycles != 0, "RDMON_PERF_WINDOW_CYCLES reads 0 with the window open"
+    assert wr_cycles != 0, "WRMON_PERF_WINDOW_CYCLES reads 0 with the window open"
+    # With no traffic the cycles land in exactly one of starvation or idle,
+    # depending on whether the far end holds its ready high. Measured on this
+    # harness: the read channel's rready IS held, so its cycles go to STARV,
+    # while the write channel's go to IDLE. Naming one bucket would assert an
+    # accident of the slave model, so require the meter to have accumulated
+    # SOMETHING -- that is what distinguishes a live meter from a CSR that
+    # reads zero because nothing drives it.
+    assert sum(rd_bkts.values()) != 0, \
+        f"RDMON buckets all zero with the window open: {rd_bkts}"
+    assert sum(wr_bkts.values()) != 0, \
+        f"WRMON buckets all zero with the window open: {wr_bkts}"
+
+    await tb.write_fields('src', 'RDMON_PERF_CTRL', RUN=0)
+    await tb.write_fields('snk', 'WRMON_PERF_CTRL', RUN=0)
+    await tb.wait_clocks('aclk', 20)
+
+    assert (await tb.read_reg('src', 'RDMON_PERF_STATUS')) & 1 == 0, \
+        "RDMON window still active after RUN was cleared"
+    assert (await tb.read_reg('snk', 'WRMON_PERF_STATUS')) & 1 == 0, \
+        "WRMON window still active after RUN was cleared"
+
+    tb.finalize_test()
+
+
 # ===========================================================================
 # PYTEST WRAPPER
 # ===========================================================================
@@ -251,6 +315,13 @@ def test_rapids_beats_top_control(request):
 def test_rapids_beats_top_status(request):
     """Status CSR read-back: the fields with real sources must not read 0."""
     _run_top("cocotb_test_status_readback", "test_rapids_beats_top_status")
+
+
+@pytest.mark.top_beats
+@pytest.mark.rapids_beats_top
+def test_rapids_beats_top_perf_window(request):
+    """Perf window: the RDMON/WRMON CSRs must count rather than read 0."""
+    _run_top("cocotb_test_perf_window", "test_rapids_beats_top_perf_window")
 
 
 if __name__ == "__main__":
