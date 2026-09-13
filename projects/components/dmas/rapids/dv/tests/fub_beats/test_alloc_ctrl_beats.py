@@ -223,12 +223,15 @@ def _run_beats_alloc_ctrl_test(request, testcase_name, depth, almost_wr_margin, 
         'rtl_fub_beats': '../../rtl/fub_beats'
     })
 
-    dut_name = "alloc_ctrl_beats"
+    # DV wrapper, not the bare module: the rd side is a payload-less
+    # handshake and a GAXI producer must bind one payload field, so the
+    # wrapper supplies an unused rd_pad for the BFM to drive.
+    dut_name = "alloc_ctrl_beats_tb_top"
 
     # Get Verilog sources from file list
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/dmas/rapids/rtl/filelists/fub_beats/alloc_ctrl_beats.f'
+        filelist_path='projects/components/dmas/rapids/dv/tb/alloc_ctrl_beats_tb_top.f'
     )
 
     # Format parameters for unique test name (AMBA pattern with TBBase.format_dec())

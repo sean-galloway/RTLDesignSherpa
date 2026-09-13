@@ -215,7 +215,12 @@ class MonbusAxilGroupTB(TBBase):
             prefix="source_monbus",
             clock=self.axi_aclk,
             field_config=monbus_config,
-            signal_map={'data': 'source_monbus_packet'},
+            # The framework requires the full valid/data/ready triple in an
+            # explicit signal_map; it used to accept 'data' alone. RTL names
+            # the payload 'packet', which is why the map exists at all.
+            signal_map={'valid': 'source_monbus_valid',
+                        'ready': 'source_monbus_ready',
+                        'data': 'source_monbus_packet'},
             log=self.log
         )
 
@@ -227,7 +232,9 @@ class MonbusAxilGroupTB(TBBase):
             prefix="sink_monbus",
             clock=self.axi_aclk,
             field_config=monbus_config,
-            signal_map={'data': 'sink_monbus_packet'},
+            signal_map={'valid': 'sink_monbus_valid',
+                        'ready': 'sink_monbus_ready',
+                        'data': 'sink_monbus_packet'},
             log=self.log
         )
 

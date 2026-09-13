@@ -117,7 +117,9 @@ class DrainCtrlBeatsTB(TBBase):
         await self.wait_clocks(self.clk_name, 5)
 
         # GAXI master BFMs (Rule #1):
-        #   wr: data-write strobe, pure handshake     -> 1-bit dummy field
+        #   wr: data-write strobe, pure handshake     -> binds the DV
+        #       wrapper's unused wr_pad input (an unbound field is a hard
+        #       error now, and would read 0 forever anyway)
         #   rd: drain request, carries rd_size        -> field 'size'
         wr_fc = FieldConfig()
         wr_fc.add_field(FieldDefinition(name='pad', bits=1, format='dec',

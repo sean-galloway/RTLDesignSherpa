@@ -819,6 +819,23 @@ module scheduler_group_array_beats #(
         .aclk                   (clk),
         .aresetn                (rst_n),
 
+        // ID / address filtering, and the block-ready debug output. These
+        // ports were added to the shared axi4_master_rd_mon after this
+        // instantiation was written, so all seven sat unconnected: Verilator
+        // treats warnings as fatal by default, and PINMISSING x7 became
+        // "%Error: Exiting due to 7 warning(s)" -- the whole macro_beats
+        // scheduler-group-array suite and both top_beats core tests never
+        // elaborated. Filtering is tied OFF, which the monitor documents as
+        // bit-identical to the unfiltered behaviour this design has always
+        // had; debug_block_ready is left open like STREAM's instantiation.
+        .cfg_id_filter_enable   (1'b0),
+        .cfg_id_match_base      ('0),
+        .cfg_id_match_count     ('0),
+        .cfg_addr_filter_enable (1'b0),
+        .cfg_addr_filter_low    ('0),
+        .cfg_addr_filter_high   ('0),
+        .debug_block_ready      (),
+
         // FUB side (input to monitor) - AR Channel
         .fub_axi_arid           (desc_axi_int_arid),
         .fub_axi_araddr         (desc_axi_int_araddr),

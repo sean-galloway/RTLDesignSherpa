@@ -115,7 +115,10 @@ filelist_dirs = ["projects/components/dmas/stream/rtl/filelists"]
 name = "rapids"
 kind = "component"
 rtl_roots = ["projects/components/dmas/rapids/rtl"]
-filelist_dirs = ["projects/components/dmas/rapids/rtl/filelists"]
+filelist_dirs = [
+    "projects/components/dmas/rapids/rtl/filelists",
+    "projects/components/dmas/rapids/dv/tb",
+]
 
 [[area]]
 name = "retro_legacy_blocks"

@@ -126,8 +126,11 @@ class AllocCtrlBeatsTB(TBBase):
             dut=self.dut, title='alloc_wr', prefix='wr', clock=self.clk,
             field_config=wr_fc, multi_sig=True, log=self.log)
         # rd is a pure valid/ready pulse (no payload). The factory requires a
-        # field_config, and GAXI treats a field with no matching signal as
-        # optional (warns, still handshakes) -- so use a 1-bit dummy field.
+        # field_config with at least one field, and the field must BIND: an
+        # unbound field used to warn and is now a hard error (it would read 0
+        # forever, which the framework's optional-field rule rejects). So the
+        # DV wrapper alloc_ctrl_beats_tb_top supplies an unused rd_pad input
+        # and this 1-bit field binds to it.
         rd_fc = FieldConfig()
         rd_fc.add_field(FieldDefinition(name='pad', bits=1, format='dec',
                                         description='unused (handshake-only)'))

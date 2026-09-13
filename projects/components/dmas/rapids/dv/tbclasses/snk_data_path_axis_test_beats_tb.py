@@ -761,14 +761,23 @@ class SnkDataPathAxisTestBeatsTB(TBBase):
                 # NOW send descriptor - tells scheduler to drain SRAM to memory
                 await self.send_descriptor(channel, addr, beats, eos=(i == num_transfers - 1))
 
-                # Wait for completion
-                await self.wait_clocks(self.clk_name, 150)
-
-                # Verify memory write (read one beat of data)
-                # Convert absolute address to memory model relative address
+                # Wait for the write to LAND, rather than assuming a fixed
+                # delay. This used to wait exactly 150 clocks and read once,
+                # so a transfer that needed longer -- more beats, or the
+                # shared AXI interface still draining another channel -- read
+                # back zeros and was reported as "no memory write". That is
+                # why this test failed intermittently (7 of 8 transfers
+                # passing) with nothing wrong in the DUT. Same total budget
+                # or better: up to 20 x 50 = 1000 clocks, and a transfer that
+                # genuinely never writes still fails, just later.
                 bytes_to_read = self.DATA_WIDTH // 8
                 relative_addr = addr - self.BASE_ADDRESS
-                mem_data = self.memory_model.read(relative_addr, bytes_to_read)
+                mem_data = None
+                for _ in range(20):
+                    await self.wait_clocks(self.clk_name, 50)
+                    mem_data = self.memory_model.read(relative_addr, bytes_to_read)
+                    if mem_data and any(b != 0 for b in mem_data):
+                        break
                 if mem_data and any(b != 0 for b in mem_data):
                     successful += 1
                     self.test_stats['successful_operations'] += 1
