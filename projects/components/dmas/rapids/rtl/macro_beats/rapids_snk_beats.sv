@@ -116,6 +116,7 @@ module rapids_snk_beats #(
     input  logic                                cfg_desc_mon_enable,
     input  logic                                cfg_desc_mon_err_enable,
     input  logic                                cfg_desc_mon_perf_enable,
+    input  logic                                cfg_desc_mon_perf_run,
     input  logic                                cfg_desc_mon_timeout_enable,
     input  logic [31:0]                         cfg_desc_mon_timeout_cycles,
     input  logic [31:0]                         cfg_desc_mon_latency_thresh,
@@ -148,6 +149,19 @@ module rapids_snk_beats #(
     output logic [15:0]                         cfg_sts_desc_mon_error_count,
     output logic [31:0]                         cfg_sts_desc_mon_txn_count,
     output logic                                cfg_sts_desc_mon_conflict_error,
+
+    // Descriptor AXI Monitor perf window (DAXMON_PERF_* CSRs). The monitor
+    // computes these; nothing collected them, so the CSRs read 0 in every
+    // build.
+    output logic                                 sts_desc_mon_win_active,
+    output logic [31:0]                          sts_desc_mon_win_cycles,
+    output logic [31:0]                          sts_desc_mon_prod_cycles,
+    output logic [31:0]                          sts_desc_mon_bp_cycles,
+    output logic [31:0]                          sts_desc_mon_starv_cycles,
+    output logic [31:0]                          sts_desc_mon_idle_cycles,
+    output logic [31:0]                          sts_desc_mon_beat_count,
+    output logic [63:0]                          sts_desc_mon_byte_count,
+    output logic [31:0]                          sts_desc_mon_burst_count,
 
     //=========================================================================
     // Sink Path - AXIS Slave Interface (Network -> SRAM); tid = channel id
@@ -366,6 +380,7 @@ module rapids_snk_beats #(
         .cfg_desc_mon_enable        (cfg_desc_mon_enable),
         .cfg_desc_mon_err_enable    (cfg_desc_mon_err_enable),
         .cfg_desc_mon_perf_enable   (cfg_desc_mon_perf_enable),
+        .cfg_desc_mon_perf_run      (cfg_desc_mon_perf_run),
         .cfg_desc_mon_timeout_enable(cfg_desc_mon_timeout_enable),
         .cfg_desc_mon_timeout_cycles(cfg_desc_mon_timeout_cycles),
         .cfg_desc_mon_latency_thresh(cfg_desc_mon_latency_thresh),
@@ -389,6 +404,15 @@ module rapids_snk_beats #(
         .cfg_sts_desc_mon_error_count   (cfg_sts_desc_mon_error_count),
         .cfg_sts_desc_mon_txn_count     (cfg_sts_desc_mon_txn_count),
         .cfg_sts_desc_mon_conflict_error(cfg_sts_desc_mon_conflict_error),
+        .sts_desc_mon_win_active   (sts_desc_mon_win_active),
+        .sts_desc_mon_win_cycles   (sts_desc_mon_win_cycles),
+        .sts_desc_mon_prod_cycles  (sts_desc_mon_prod_cycles),
+        .sts_desc_mon_bp_cycles    (sts_desc_mon_bp_cycles),
+        .sts_desc_mon_starv_cycles (sts_desc_mon_starv_cycles),
+        .sts_desc_mon_idle_cycles  (sts_desc_mon_idle_cycles),
+        .sts_desc_mon_beat_count   (sts_desc_mon_beat_count),
+        .sts_desc_mon_byte_count   (sts_desc_mon_byte_count),
+        .sts_desc_mon_burst_count  (sts_desc_mon_burst_count),
 
         // Descriptor AXI Master
         .desc_axi_arvalid       (m_axi_desc_arvalid),

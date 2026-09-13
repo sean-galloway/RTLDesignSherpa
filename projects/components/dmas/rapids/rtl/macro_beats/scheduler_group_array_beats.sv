@@ -94,6 +94,10 @@ module scheduler_group_array_beats #(
     input  logic                                 cfg_desc_mon_enable,
     input  logic                                 cfg_desc_mon_err_enable,
     input  logic                                 cfg_desc_mon_perf_enable,
+    // Perf-window run control (DAXMON_PERF_CTRL.RUN). The window used to be
+    // tied shut -- cfg_start/end_trigger were 1'b0 -- so the monitor's perf
+    // counters never ran and plumbing them out would still have read 0.
+    input  logic                                 cfg_desc_mon_perf_run,
     input  logic                                 cfg_desc_mon_timeout_enable,
     input  logic [31:0]                          cfg_desc_mon_timeout_cycles,
     input  logic [31:0]                          cfg_desc_mon_latency_thresh,
@@ -123,6 +127,19 @@ module scheduler_group_array_beats #(
     output logic [15:0]                          cfg_sts_desc_mon_error_count,
     output logic [31:0]                          cfg_sts_desc_mon_txn_count,
     output logic                                 cfg_sts_desc_mon_conflict_error,
+
+    // Descriptor AXI Monitor perf window (DAXMON_PERF_* CSRs). The monitor
+    // computes these; nothing collected them, so the CSRs read 0 in every
+    // build.
+    output logic                                 sts_desc_mon_win_active,
+    output logic [31:0]                          sts_desc_mon_win_cycles,
+    output logic [31:0]                          sts_desc_mon_prod_cycles,
+    output logic [31:0]                          sts_desc_mon_bp_cycles,
+    output logic [31:0]                          sts_desc_mon_starv_cycles,
+    output logic [31:0]                          sts_desc_mon_idle_cycles,
+    output logic [31:0]                          sts_desc_mon_beat_count,
+    output logic [63:0]                          sts_desc_mon_byte_count,
+    output logic [31:0]                          sts_desc_mon_burst_count,
 
     // Shared Descriptor AXI4 Master Read Interface (256-bit descriptor fetch)
     output logic                        desc_axi_arvalid,
@@ -922,8 +939,8 @@ module scheduler_group_array_beats #(
         .cfg_debug_enable       (1'b0),
         .cfg_start_event_sel    (3'b0),
         .cfg_end_event_sel      (3'b0),
-        .cfg_start_trigger      (1'b0),
-        .cfg_end_trigger        (1'b0),
+        .cfg_start_trigger      (cfg_desc_mon_perf_run),
+        .cfg_end_trigger        (~cfg_desc_mon_perf_run),
         .cfg_window_force_close (1'b0),
 
         // Free-running monitor time broadcast
@@ -944,15 +961,15 @@ module scheduler_group_array_beats #(
 
         // Perf-window measurement outputs (unused at this level)
         /* verilator lint_off PINCONNECTEMPTY */
-        .window_active          (),
-        .window_cycles          (),
-        .perf_prod_cycles       (),
-        .perf_bp_cycles         (),
-        .perf_starv_cycles      (),
-        .perf_idle_cycles       (),
-        .perf_beat_count        (),
-        .perf_byte_count        (),
-        .perf_burst_count       ()
+        .window_active          (sts_desc_mon_win_active),
+        .window_cycles          (sts_desc_mon_win_cycles),
+        .perf_prod_cycles       (sts_desc_mon_prod_cycles),
+        .perf_bp_cycles         (sts_desc_mon_bp_cycles),
+        .perf_starv_cycles      (sts_desc_mon_starv_cycles),
+        .perf_idle_cycles       (sts_desc_mon_idle_cycles),
+        .perf_beat_count        (sts_desc_mon_beat_count),
+        .perf_byte_count        (sts_desc_mon_byte_count),
+        .perf_burst_count       (sts_desc_mon_burst_count)
         /* verilator lint_on PINCONNECTEMPTY */
     );
 

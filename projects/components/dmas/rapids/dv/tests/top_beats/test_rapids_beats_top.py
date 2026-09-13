@@ -183,6 +183,38 @@ async def cocotb_test_perf_window(dut):
     assert sum(wr_bkts.values()) != 0, \
         f"WRMON buckets all zero with the window open: {wr_bkts}"
 
+    # ---- descriptor-AXI monitor window (DAXMON) -------------------------
+    # Its window used to be tied shut in the RTL (cfg_start/end_trigger were
+    # 1'b0), so these counters never ran and the CSRs read 0 no matter how
+    # they were programmed. MON_EN and PERF_EN are set together because
+    # write_fields zeroes unnamed fields, and clearing MON_EN would switch the
+    # monitor off entirely.
+    for half in ('src', 'snk'):
+        await tb.write_fields(half, 'DAXMON_ENABLE', MON_EN=1, PERF_EN=1)
+        await tb.write_fields(half, 'DAXMON_PERF_CTRL', RUN=1)
+    await tb.wait_clocks('aclk', 300)
+
+    dax = {}
+    for half in ('src', 'snk'):
+        dax[half] = {
+            'status': await tb.read_reg(half, 'DAXMON_PERF_STATUS'),
+            'cycles': await tb.read_reg(half, 'DAXMON_PERF_WINDOW_CYCLES'),
+            'buckets': {b: await tb.read_reg(half, f'DAXMON_PERF_{b}_CYCLES')
+                        for b in ('PROD', 'BP', 'STARV', 'IDLE')},
+        }
+        tb.log.info(f"DAXMON window {half}: {dax[half]}")
+
+    for half in ('src', 'snk'):
+        assert dax[half]['status'] & 1, \
+            f"DAXMON {half}: WIN_ACTIVE clear while RUN is set -- window not opening"
+        assert dax[half]['cycles'] != 0, \
+            f"DAXMON {half}: WINDOW_CYCLES reads 0 with the window open"
+        assert sum(dax[half]['buckets'].values()) != 0, \
+            f"DAXMON {half}: every bucket zero with the window open: {dax[half]}"
+
+    for half in ('src', 'snk'):
+        await tb.write_fields(half, 'DAXMON_PERF_CTRL', RUN=0)
+
     await tb.write_fields('src', 'RDMON_PERF_CTRL', RUN=0)
     await tb.write_fields('snk', 'WRMON_PERF_CTRL', RUN=0)
     await tb.wait_clocks('aclk', 20)

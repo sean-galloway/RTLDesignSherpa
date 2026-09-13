@@ -582,6 +582,33 @@ module rapids_beats_top #(
 
 
     //=========================================================================
+    // Descriptor-monitor perf window: run control down, counters up.
+    // Declared here rather than beside their cfg_* namesakes because the
+    // read-back block below consumes them, and this file is checked for
+    // declaration-before-use.
+    //=========================================================================
+    logic           src_cfg_desc_mon_perf_run;
+    logic           src_sts_desc_mon_win_active;
+    logic [31:0]    src_sts_desc_mon_win_cycles;
+    logic [31:0]    src_sts_desc_mon_prod_cycles;
+    logic [31:0]    src_sts_desc_mon_bp_cycles;
+    logic [31:0]    src_sts_desc_mon_starv_cycles;
+    logic [31:0]    src_sts_desc_mon_idle_cycles;
+    logic [31:0]    src_sts_desc_mon_beat_count;
+    logic [63:0]    src_sts_desc_mon_byte_count;
+    logic [31:0]    src_sts_desc_mon_burst_count;
+    logic           snk_cfg_desc_mon_perf_run;
+    logic           snk_sts_desc_mon_win_active;
+    logic [31:0]    snk_sts_desc_mon_win_cycles;
+    logic [31:0]    snk_sts_desc_mon_prod_cycles;
+    logic [31:0]    snk_sts_desc_mon_bp_cycles;
+    logic [31:0]    snk_sts_desc_mon_starv_cycles;
+    logic [31:0]    snk_sts_desc_mon_idle_cycles;
+    logic [31:0]    snk_sts_desc_mon_beat_count;
+    logic [63:0]    snk_sts_desc_mon_byte_count;
+    logic [31:0]    snk_sts_desc_mon_burst_count;
+
+    //=========================================================================
     // Always-on data-path bus meters (STREAM's axi_bus_meter, RFC Stage E)
     //=========================================================================
     // The RDMON_/WRMON_PERF_* CSRs have existed in the map all along and had
@@ -603,6 +630,8 @@ module rapids_beats_top #(
     logic w_rd_run, w_wr_run, r_rd_run_d, r_wr_run_d;
     assign w_rd_run = hwif_out.SRC.MON.RDMON_PERF_CTRL.RUN.value;
     assign w_wr_run = hwif_out.SNK.MON.WRMON_PERF_CTRL.RUN.value;
+    assign src_cfg_desc_mon_perf_run = hwif_out.SRC.MON.DAXMON_PERF_CTRL.RUN.value;
+    assign snk_cfg_desc_mon_perf_run = hwif_out.SNK.MON.DAXMON_PERF_CTRL.RUN.value;
 
     logic [31:0] r_rd_win_cycles, r_wr_win_cycles;
     logic [31:0] r_rd_beats, r_wr_beats;
@@ -770,6 +799,34 @@ module rapids_beats_top #(
         hwif_in.SNK.MON.WRMON_PERF_BYTE_COUNT_LO.VAL.next  = r_wr_bytes[31:0];
         hwif_in.SNK.MON.WRMON_PERF_BYTE_COUNT_HI.VAL.next  = r_wr_bytes[63:32];
         hwif_in.SNK.MON.WRMON_PERF_BURST_COUNT.VAL.next    = r_wr_bursts;
+
+        // Descriptor-AXI monitor perf window. The monitor computed these all
+        // along; nothing collected them, and its window was tied shut
+        // (cfg_start/end_trigger were 1'b0) so they never even ran.
+        hwif_in.SRC.MON.DAXMON_PERF_STATUS.WIN_ACTIVE.next = src_sts_desc_mon_win_active;
+        hwif_in.SRC.MON.DAXMON_PERF_WINDOW_CYCLES.VAL.next = src_sts_desc_mon_win_cycles;
+        hwif_in.SRC.MON.DAXMON_PERF_PROD_CYCLES.VAL.next   = src_sts_desc_mon_prod_cycles;
+        hwif_in.SRC.MON.DAXMON_PERF_BP_CYCLES.VAL.next     = src_sts_desc_mon_bp_cycles;
+        hwif_in.SRC.MON.DAXMON_PERF_STARV_CYCLES.VAL.next  = src_sts_desc_mon_starv_cycles;
+        hwif_in.SRC.MON.DAXMON_PERF_IDLE_CYCLES.VAL.next   = src_sts_desc_mon_idle_cycles;
+        hwif_in.SRC.MON.DAXMON_PERF_BEAT_COUNT.VAL.next    = src_sts_desc_mon_beat_count;
+        hwif_in.SRC.MON.DAXMON_PERF_BYTE_COUNT_LO.VAL.next = src_sts_desc_mon_byte_count[31:0];
+        hwif_in.SRC.MON.DAXMON_PERF_BYTE_COUNT_HI.VAL.next = src_sts_desc_mon_byte_count[63:32];
+        hwif_in.SRC.MON.DAXMON_PERF_BURST_COUNT.VAL.next   = src_sts_desc_mon_burst_count;
+
+        // Descriptor-AXI monitor perf window. The monitor computed these all
+        // along; nothing collected them, and its window was tied shut
+        // (cfg_start/end_trigger were 1'b0) so they never even ran.
+        hwif_in.SNK.MON.DAXMON_PERF_STATUS.WIN_ACTIVE.next = snk_sts_desc_mon_win_active;
+        hwif_in.SNK.MON.DAXMON_PERF_WINDOW_CYCLES.VAL.next = snk_sts_desc_mon_win_cycles;
+        hwif_in.SNK.MON.DAXMON_PERF_PROD_CYCLES.VAL.next   = snk_sts_desc_mon_prod_cycles;
+        hwif_in.SNK.MON.DAXMON_PERF_BP_CYCLES.VAL.next     = snk_sts_desc_mon_bp_cycles;
+        hwif_in.SNK.MON.DAXMON_PERF_STARV_CYCLES.VAL.next  = snk_sts_desc_mon_starv_cycles;
+        hwif_in.SNK.MON.DAXMON_PERF_IDLE_CYCLES.VAL.next   = snk_sts_desc_mon_idle_cycles;
+        hwif_in.SNK.MON.DAXMON_PERF_BEAT_COUNT.VAL.next    = snk_sts_desc_mon_beat_count;
+        hwif_in.SNK.MON.DAXMON_PERF_BYTE_COUNT_LO.VAL.next = snk_sts_desc_mon_byte_count[31:0];
+        hwif_in.SNK.MON.DAXMON_PERF_BYTE_COUNT_HI.VAL.next = snk_sts_desc_mon_byte_count[63:32];
+        hwif_in.SNK.MON.DAXMON_PERF_BURST_COUNT.VAL.next   = snk_sts_desc_mon_burst_count;
 
         // Deliberately left at zero, rather than given a plausible driver:
         //  * CHANNEL_IDLE -- the core has no per-channel "channel idle"
@@ -1293,6 +1350,7 @@ module rapids_beats_top #(
         .src_cfg_desc_mon_enable        (src_cfg_desc_mon_enable),
         .src_cfg_desc_mon_err_enable    (src_cfg_desc_mon_err_enable),
         .src_cfg_desc_mon_perf_enable   (src_cfg_desc_mon_perf_enable),
+        .src_cfg_desc_mon_perf_run      (src_cfg_desc_mon_perf_run),
         .src_cfg_desc_mon_timeout_enable(src_cfg_desc_mon_timeout_enable),
         .src_cfg_desc_mon_timeout_cycles(src_cfg_desc_mon_timeout_cycles),
         .src_cfg_desc_mon_latency_thresh(src_cfg_desc_mon_latency_thresh),
@@ -1316,6 +1374,15 @@ module rapids_beats_top #(
         .src_cfg_sts_desc_mon_error_count   (),
         .src_cfg_sts_desc_mon_txn_count     (),
         .src_cfg_sts_desc_mon_conflict_error(),
+        .src_sts_desc_mon_win_active  (src_sts_desc_mon_win_active),
+        .src_sts_desc_mon_win_cycles  (src_sts_desc_mon_win_cycles),
+        .src_sts_desc_mon_prod_cycles (src_sts_desc_mon_prod_cycles),
+        .src_sts_desc_mon_bp_cycles   (src_sts_desc_mon_bp_cycles),
+        .src_sts_desc_mon_starv_cycles(src_sts_desc_mon_starv_cycles),
+        .src_sts_desc_mon_idle_cycles (src_sts_desc_mon_idle_cycles),
+        .src_sts_desc_mon_beat_count  (src_sts_desc_mon_beat_count),
+        .src_sts_desc_mon_byte_count  (src_sts_desc_mon_byte_count),
+        .src_sts_desc_mon_burst_count (src_sts_desc_mon_burst_count),
         // Source descriptor fetch master -> top src_m_axi_desc_*
         .src_m_axi_desc_arvalid     (src_m_axi_desc_arvalid),
         .src_m_axi_desc_arready     (src_m_axi_desc_arready),
@@ -1431,6 +1498,7 @@ module rapids_beats_top #(
         .snk_cfg_desc_mon_enable        (snk_cfg_desc_mon_enable),
         .snk_cfg_desc_mon_err_enable    (snk_cfg_desc_mon_err_enable),
         .snk_cfg_desc_mon_perf_enable   (snk_cfg_desc_mon_perf_enable),
+        .snk_cfg_desc_mon_perf_run      (snk_cfg_desc_mon_perf_run),
         .snk_cfg_desc_mon_timeout_enable(snk_cfg_desc_mon_timeout_enable),
         .snk_cfg_desc_mon_timeout_cycles(snk_cfg_desc_mon_timeout_cycles),
         .snk_cfg_desc_mon_latency_thresh(snk_cfg_desc_mon_latency_thresh),
@@ -1454,6 +1522,15 @@ module rapids_beats_top #(
         .snk_cfg_sts_desc_mon_error_count   (),
         .snk_cfg_sts_desc_mon_txn_count     (),
         .snk_cfg_sts_desc_mon_conflict_error(),
+        .snk_sts_desc_mon_win_active  (snk_sts_desc_mon_win_active),
+        .snk_sts_desc_mon_win_cycles  (snk_sts_desc_mon_win_cycles),
+        .snk_sts_desc_mon_prod_cycles (snk_sts_desc_mon_prod_cycles),
+        .snk_sts_desc_mon_bp_cycles   (snk_sts_desc_mon_bp_cycles),
+        .snk_sts_desc_mon_starv_cycles(snk_sts_desc_mon_starv_cycles),
+        .snk_sts_desc_mon_idle_cycles (snk_sts_desc_mon_idle_cycles),
+        .snk_sts_desc_mon_beat_count  (snk_sts_desc_mon_beat_count),
+        .snk_sts_desc_mon_byte_count  (snk_sts_desc_mon_byte_count),
+        .snk_sts_desc_mon_burst_count (snk_sts_desc_mon_burst_count),
         // Sink descriptor fetch master -> top snk_m_axi_desc_*
         .snk_m_axi_desc_arvalid     (snk_m_axi_desc_arvalid),
         .snk_m_axi_desc_arready     (snk_m_axi_desc_arready),

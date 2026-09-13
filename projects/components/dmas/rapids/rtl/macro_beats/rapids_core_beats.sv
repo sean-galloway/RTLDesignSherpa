@@ -131,6 +131,7 @@ module rapids_core_beats #(
     input  logic                                src_cfg_desc_mon_enable,
     input  logic                                src_cfg_desc_mon_err_enable,
     input  logic                                src_cfg_desc_mon_perf_enable,
+    input  logic                                src_cfg_desc_mon_perf_run,
     input  logic                                src_cfg_desc_mon_timeout_enable,
     input  logic [31:0]                         src_cfg_desc_mon_timeout_cycles,
     input  logic [31:0]                         src_cfg_desc_mon_latency_thresh,
@@ -157,6 +158,17 @@ module rapids_core_beats #(
     output logic [15:0]                         src_cfg_sts_desc_mon_error_count,
     output logic [31:0]                         src_cfg_sts_desc_mon_txn_count,
     output logic                                src_cfg_sts_desc_mon_conflict_error,
+
+    // Descriptor AXI Monitor perf window (feeds SRC_.MON.DAXMON_PERF_*).
+    output logic                                src_sts_desc_mon_win_active,
+    output logic [31:0]                         src_sts_desc_mon_win_cycles,
+    output logic [31:0]                         src_sts_desc_mon_prod_cycles,
+    output logic [31:0]                         src_sts_desc_mon_bp_cycles,
+    output logic [31:0]                         src_sts_desc_mon_starv_cycles,
+    output logic [31:0]                         src_sts_desc_mon_idle_cycles,
+    output logic [31:0]                         src_sts_desc_mon_beat_count,
+    output logic [63:0]                         src_sts_desc_mon_byte_count,
+    output logic [31:0]                         src_sts_desc_mon_burst_count,
 
     // Descriptor Fetch AXI Master
     output logic                        src_m_axi_desc_arvalid,
@@ -291,6 +303,7 @@ module rapids_core_beats #(
     input  logic                                snk_cfg_desc_mon_enable,
     input  logic                                snk_cfg_desc_mon_err_enable,
     input  logic                                snk_cfg_desc_mon_perf_enable,
+    input  logic                                snk_cfg_desc_mon_perf_run,
     input  logic                                snk_cfg_desc_mon_timeout_enable,
     input  logic [31:0]                         snk_cfg_desc_mon_timeout_cycles,
     input  logic [31:0]                         snk_cfg_desc_mon_latency_thresh,
@@ -317,6 +330,17 @@ module rapids_core_beats #(
     output logic [15:0]                         snk_cfg_sts_desc_mon_error_count,
     output logic [31:0]                         snk_cfg_sts_desc_mon_txn_count,
     output logic                                snk_cfg_sts_desc_mon_conflict_error,
+
+    // Descriptor AXI Monitor perf window (feeds SNK_.MON.DAXMON_PERF_*).
+    output logic                                snk_sts_desc_mon_win_active,
+    output logic [31:0]                         snk_sts_desc_mon_win_cycles,
+    output logic [31:0]                         snk_sts_desc_mon_prod_cycles,
+    output logic [31:0]                         snk_sts_desc_mon_bp_cycles,
+    output logic [31:0]                         snk_sts_desc_mon_starv_cycles,
+    output logic [31:0]                         snk_sts_desc_mon_idle_cycles,
+    output logic [31:0]                         snk_sts_desc_mon_beat_count,
+    output logic [63:0]                         snk_sts_desc_mon_byte_count,
+    output logic [31:0]                         snk_sts_desc_mon_burst_count,
 
     // Descriptor Fetch AXI Master
     output logic                        snk_m_axi_desc_arvalid,
@@ -520,6 +544,7 @@ module rapids_core_beats #(
         .cfg_desc_mon_enable        (src_cfg_desc_mon_enable),
         .cfg_desc_mon_err_enable    (src_cfg_desc_mon_err_enable),
         .cfg_desc_mon_perf_enable   (src_cfg_desc_mon_perf_enable),
+        .cfg_desc_mon_perf_run      (src_cfg_desc_mon_perf_run),
         .cfg_desc_mon_timeout_enable(src_cfg_desc_mon_timeout_enable),
         .cfg_desc_mon_timeout_cycles(src_cfg_desc_mon_timeout_cycles),
         .cfg_desc_mon_latency_thresh(src_cfg_desc_mon_latency_thresh),
@@ -548,6 +573,15 @@ module rapids_core_beats #(
         .cfg_sts_desc_mon_error_count   (src_cfg_sts_desc_mon_error_count),
         .cfg_sts_desc_mon_txn_count     (src_cfg_sts_desc_mon_txn_count),
         .cfg_sts_desc_mon_conflict_error(src_cfg_sts_desc_mon_conflict_error),
+        .sts_desc_mon_win_active   (src_sts_desc_mon_win_active),
+        .sts_desc_mon_win_cycles   (src_sts_desc_mon_win_cycles),
+        .sts_desc_mon_prod_cycles  (src_sts_desc_mon_prod_cycles),
+        .sts_desc_mon_bp_cycles    (src_sts_desc_mon_bp_cycles),
+        .sts_desc_mon_starv_cycles (src_sts_desc_mon_starv_cycles),
+        .sts_desc_mon_idle_cycles  (src_sts_desc_mon_idle_cycles),
+        .sts_desc_mon_beat_count   (src_sts_desc_mon_beat_count),
+        .sts_desc_mon_byte_count   (src_sts_desc_mon_byte_count),
+        .sts_desc_mon_burst_count  (src_sts_desc_mon_burst_count),
 
         // AXIS Master (source egress)
         .m_axis_tdata               (m_axis_tdata),
@@ -712,6 +746,7 @@ module rapids_core_beats #(
         .cfg_desc_mon_enable        (snk_cfg_desc_mon_enable),
         .cfg_desc_mon_err_enable    (snk_cfg_desc_mon_err_enable),
         .cfg_desc_mon_perf_enable   (snk_cfg_desc_mon_perf_enable),
+        .cfg_desc_mon_perf_run      (snk_cfg_desc_mon_perf_run),
         .cfg_desc_mon_timeout_enable(snk_cfg_desc_mon_timeout_enable),
         .cfg_desc_mon_timeout_cycles(snk_cfg_desc_mon_timeout_cycles),
         .cfg_desc_mon_latency_thresh(snk_cfg_desc_mon_latency_thresh),
@@ -740,6 +775,15 @@ module rapids_core_beats #(
         .cfg_sts_desc_mon_error_count   (snk_cfg_sts_desc_mon_error_count),
         .cfg_sts_desc_mon_txn_count     (snk_cfg_sts_desc_mon_txn_count),
         .cfg_sts_desc_mon_conflict_error(snk_cfg_sts_desc_mon_conflict_error),
+        .sts_desc_mon_win_active   (snk_sts_desc_mon_win_active),
+        .sts_desc_mon_win_cycles   (snk_sts_desc_mon_win_cycles),
+        .sts_desc_mon_prod_cycles  (snk_sts_desc_mon_prod_cycles),
+        .sts_desc_mon_bp_cycles    (snk_sts_desc_mon_bp_cycles),
+        .sts_desc_mon_starv_cycles (snk_sts_desc_mon_starv_cycles),
+        .sts_desc_mon_idle_cycles  (snk_sts_desc_mon_idle_cycles),
+        .sts_desc_mon_beat_count   (snk_sts_desc_mon_beat_count),
+        .sts_desc_mon_byte_count   (snk_sts_desc_mon_byte_count),
+        .sts_desc_mon_burst_count  (snk_sts_desc_mon_burst_count),
 
         // AXIS Slave (sink ingress)
         .s_axis_tdata               (s_axis_tdata),
