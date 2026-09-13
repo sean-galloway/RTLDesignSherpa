@@ -1686,6 +1686,49 @@ still "Planned" and describe real engineering that has not happened:
 
 ---
 
+## BRIDGE-018 — A native-AXI5 fabric
+**Status:** CLOSED 2026-09-13. The gap was two features, and both now ride
+the fabric natively: **Memory Tagging** (`mte`: AWTAGOP/AWTAG, WTAG/
+WTAGUPDATE, BTAG/BTAGMATCH, ARTAGOP, RTAG/RTAGMATCH) and **read-data
+chunking** (`chunking`: ARCHUNKEN, RCHUNKV/RCHUNKNUM/RCHUNKSTRB). They join
+the one sideband table (`bridge_pkg/sideband.py`) with widths that scale
+with the data bus (`field_width`, `fit_expr` -- the width-independent
+aw/ar/b structs size tag fields for the widest port and adapters/crossbar
+zero-extend or slice explicitly). Rules: `mte` is connectivity-gated like
+poison (a dropped tag op changes the write's meaning); `chunking` is
+droppable (ARCHUNKEN is permission -- an AXI4 slave answers unchunked);
+both need >= 128-bit ports. The fabric carries and never interprets them:
+tags ride with their beat, BTAGMATCH returns by bridge id, chunked R beats
+route by ID and free on RLAST in any order. Fixtures `bridge_2x2_axi5_native`
+(128-bit, every feature, two masters contending) and `bridge_1x2_rd_axi5c`
+(chunking native to an AXI5 slave, dropped at an AXI4 one); directed tests
+`test_bridge_2x2_axi5_native_mte_chunk` (Transfer/Match/Update writes land
+and report through the RDS-DV slave BFM's new tag store, Transfer reads
+return tags, chunked reads carry RCHUNKV/RCHUNKNUM per beat) and
+`test_bridge_1x2_rd_axi5c_chunk`. RDS-DV: `axi5_tag_store`, per-beat
+`wtag`/`tagupdate`, Match compare (was a stub returning 1). Still not
+carried, because no library endpoint has them either: AxLOOP, QoS accept,
+SMMU untranslated, stash/CMO (rtl-amba AXI5 README). HAS 4.4, MAS 2.10.
+**Was:** open 2026-09-11 (split out of BRIDGE-014 when its master-protocol
+half closed)
+**Priority:** P3. No feature anyone has asked for needs it.
+
+The crossbar is AXI4-shaped inside, with the AXI5 sideband riding alongside
+in the channel structs (BRIDGE-002 A5-2). That covers every AMBA5 feature
+delivered so far -- interop sideband, native sideband, atomics of every
+class, poison, the Lite and APB5 ports on both sides (BRIDGE-014). What it
+cannot express is a feature whose semantics change the fabric's own rules:
+read-data chunking (per-beat ordering inside a burst), MTE tags with their
+own ordering, or anything that needs the crossbar to reason about AXI5
+transaction attributes rather than carry them. If one of those becomes a
+requirement, this is where it goes: the structs, the crossbar mux, both
+adapters' tracking paths and the response mux all change together.
+
+Not owed until a consumer appears. Related: [[BRIDGE-002]], [[BRIDGE-014]]
+(both closed).
+
+---
+
 ## Pre-migration ledger: projects/components/bridge/TASKS.md (retired 2026-09-10)
 
 The component's own task file predated the vault and was folded in here, one

@@ -343,3 +343,31 @@ skip into a failing test (BRIDGE-019). Two rules from one incident: a helper
 that enumerates protocol families needs the new family added in the same
 commit as the family, and every such helper must return the work it did so a
 degenerate run cannot report success.
+
+## Data-scaled fields: decide the width in Python, emit the extension
+
+Some sideband scales with the data bus: AXI5 MTE carries one 4-bit tag per
+16 bytes, chunking one strobe bit per 128-bit chunk. The bridge's channel
+structs are per data width for W and R but width-independent for AW, AR
+and B (one struct type feeds every master's arbiter), so a tag field on AW
+cannot be "the port's width" -- it has one width for the whole bridge.
+
+What worked (BRIDGE-018, 2026-09-13): the one sideband table carries a
+symbolic width (`WIDTH_TAGS`, `WIDTH_NTAGS`, `WIDTH_CHUNKSTRB`);
+`field_width(width, dw)` resolves it; width-independent structs size the
+field for the WIDEST port in the bridge; and every pack, mux and extract
+goes through `fit_expr(src, src_w, dst_w)`, which returns the expression
+as-is, zero-extended (`{{n{1'b0}}, x}`) or sliced (`x[w-1:0]`). Both
+widths are known in Python at emission time, so the RTL carries explicit
+widths and no casts, lints without WIDTH waivers, and a wrong size is a
+visible mismatch rather than a silent truncation.
+
+- **Never rely on implicit extension or a `$bits()` cast in generated
+  RTL.** The generator knows every width; make it write them down.
+- **Every consumer of a width table takes the data width it is sizing
+  for** (struct, port, wire). A consumer that "only needs names" can skip
+  it, but a consumer that prints `[w-1:0]` without a `dw` is a bug the
+  moment a symbolic width lands.
+- The byte-identical invariant held: 35 existing fixtures regenerated
+  without a changed line, because a feature no port enables emits no
+  field.

@@ -25,9 +25,12 @@
 
 ## Overview
 
-The bridge remains AMBA4-shaped internally — the crossbar fabric is always
-AXI4 — but any master or slave port can be declared AMBA5. This chapter
-covers the external surfaces; the mechanism lives in the MAS
+The bridge is AXI4-shaped internally with every AXI5 feature the library
+wrappers carry riding alongside in the channel structs — since BRIDGE-018
+that includes Memory Tagging and read-data chunking, so there is no AXI5
+signal an `axi5` port can present that the fabric cannot carry natively
+to another `axi5` port. Any master or slave port can be declared AMBA5.
+This chapter covers the external surfaces; the mechanism lives in the MAS
 ([AMBA5 Boundary and Native Sideband](../../bridge_mas/ch02_blocks/10_amba5_boundary.md)).
 
 ## Parameters
@@ -80,7 +83,8 @@ off internally.
 | `unique` | `aw/arunique` | Droppable sideband |
 | `poison` | `wpoison`, `rpoison` | **Connectivity-gated** |
 | `atomic` | `awatop[5:0]` | **Connectivity-gated**; read-return classes native on rw ports, DECERR on write-only ports |
-| `mte`, `chunking` | — | Rejected at config time (deferred) |
+| `mte` | `aw/artagop[1:0]`, `awtag`, `wtag`, `wtagupdate`, `btag`, `btagmatch`, `rtag`, `rtagmatch` (tag buses are 4 bits per 16 bytes of data, `wtagupdate` one bit per 16 bytes) | **Connectivity-gated**; 128-bit ports or wider (BRIDGE-018) |
+| `chunking` | `archunken`, `rchunkv`, `rchunknum[3:0]`, `rchunkstrb` (one bit per 128 bits of data) | Droppable sideband; 128-bit ports or wider (BRIDGE-018) |
 
 ### APB5 Slave Surface
 
@@ -153,7 +157,25 @@ terminates at the fabric boundary with a generation-time warning.
 connected path is native (AXI5 both ends, feature enabled both ends, data
 widths matched — dwidth converters cannot carry per-beat sideband).
 Dropping POISON silently would launder corrupted data; dropping ATOP would
-turn an atomic into a plain write.
+turn an atomic into a plain write; dropping a tag operation would turn a
+tagged write into an untagged one and a Match into a plain access, with
+the requester none the wiser — so `mte` is gated the same way.
+
+**Chunking is permission, not demand.** `ARCHUNKEN` tells the completer it
+*may* return the burst in chunks; a completer that cannot simply returns
+ordered data with `RCHUNKV` low, and every chunking requester must accept
+that. So `chunking` is droppable: toward an AXI4 slave, or through a width
+converter, the enable terminates with a generation-time warning and the
+read completes unchunked. Toward an AXI5 slave that chunks, the enable and
+the chunk fields ride the structs natively; the fabric never looks inside
+them — it routes each R beat by ID and frees its tracking on `RLAST`
+exactly as for an ordered burst, so chunks may arrive in any order the
+completer chooses.
+
+**Both need a 128-bit bus.** Tags are one per 16 bytes and chunks are 128
+bits; the validator rejects `mte` or `chunking` on a narrower port
+(`bridge_2x2_axi5_native` and `bridge_1x2_rd_axi5c` are the 128-bit
+fixtures; MAS 7.1a lists what their tests check).
 
 **Atomics depend on the port having a read path.** `AWATOP = 01xxxx`
 (AtomicStore) and plain writes forward natively on any atomic-enabled

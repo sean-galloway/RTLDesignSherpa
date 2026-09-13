@@ -130,13 +130,19 @@ class PackageGenerator:
             f"    localparam int XBAR_ID_WIDTH   = {self.id_width};  // MASTER_ID_WIDTH + ID_PREFIX_WIDTH",
         ]
 
-    def _sideband_lines(self, channel: str) -> List[str]:
+    def _max_dw(self) -> int:
+        """The widest data bus in the bridge: the width-independent aw/ar/b
+        structs size their data-scaled sideband fields (MTE tags) for it."""
+        return max(self.data_widths) if self.data_widths else 32
+
+    def _sideband_lines(self, channel: str, dw: int) -> List[str]:
         """AXI5 native-sideband field declarations for `channel` (A5-2
-        slice 2). Empty for pure-AXI4 bridges so their packages stay
-        byte-identical."""
+        slice 2), sized for a `dw`-bit data bus (BRIDGE-018: tag and chunk
+        fields scale with it). Empty for pure-AXI4 bridges so their
+        packages stay byte-identical."""
         lines = []
         for field, width, feature, _base in channel_fields(
-                self.sideband_features, channel):
+                self.sideband_features, channel, dw):
             decl = "logic         " if width == 1 else f"logic [{width-1}:0]  "
             lines.append(f"        {decl}{field + ';':<8} // AXI5 sideband"
                          f" ({feature})")
@@ -159,7 +165,7 @@ class PackageGenerator:
             "        logic [3:0]   qos;     // Quality of Service",
             "        logic [3:0]   region;  // Region identifier",
             "        logic         user;    // User signal",
-        ] + self._sideband_lines('aw') + [
+        ] + self._sideband_lines('aw', self._max_dw()) + [
             "    } axi4_aw_t;"
         ]
 
@@ -179,7 +185,7 @@ class PackageGenerator:
             "        logic [3:0]   qos;     // Quality of Service",
             "        logic [3:0]   region;  // Region identifier",
             "        logic         user;    // User signal",
-        ] + self._sideband_lines('ar') + [
+        ] + self._sideband_lines('ar', self._max_dw()) + [
             "    } axi4_ar_t;"
         ]
 
@@ -200,7 +206,7 @@ class PackageGenerator:
             f"        logic [{strb_width-1}:0]   strb;    // Write strobes",
             "        logic         last;    // Last transfer in burst",
             "        logic         user;    // User signal",
-        ] + self._sideband_lines('w') + [
+        ] + self._sideband_lines('w', data_width) + [
             f"    }} axi4_w_{suffix}_t;"
         ]
 
@@ -212,7 +218,7 @@ class PackageGenerator:
             f"        logic [{self.id_width-1}:0]   id;      // Response ID",
             "        logic [1:0]   resp;    // Write response",
             "        logic         user;    // User signal",
-        ] + self._sideband_lines('b') + [
+        ] + self._sideband_lines('b', self._max_dw()) + [
             "    } axi4_b_t;"
         ]
 
@@ -233,7 +239,7 @@ class PackageGenerator:
             "        logic [1:0]   resp;    // Read response",
             "        logic         last;    // Last transfer in burst",
             "        logic         user;    // User signal",
-        ] + self._sideband_lines('r') + [
+        ] + self._sideband_lines('r', data_width) + [
             f"    }} axi4_r_{suffix}_t;"
         ]
 

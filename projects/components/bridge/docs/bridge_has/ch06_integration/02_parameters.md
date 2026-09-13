@@ -97,7 +97,8 @@ Each master and slave port carries its own field set in the configuration file.
 |-------|------|-------------|
 | name | string | Unique identifier |
 | prefix | string | Signal prefix |
-| protocol | enum | `axi4`, `axi5`, `axil`, `axil5`, `apb`, `apb5` -- the exact values `config_validator.valid_protocols` accepts. Note `axil`, not `axi4lite`. |
+| protocol | enum | `axi4`, `axi5`, `axil`, `axil5`, `apb`, `apb5`, `wb4` -- the exact values `config_validator.valid_protocols` accepts. Note `axil`, not `axi4lite`. |
+| axi5_features | list | On an `axi5` port: any of `nsaid`, `trace`, `mpam`, `mecid`, `unique` (droppable), `chunking` (droppable, 128-bit ports), `poison`, `atomic`, `mte` (connectivity-gated; `mte` 128-bit ports). Classes and rules in HAS 4.4. |
 | data_width | int | Port data width |
 | base_addr | hex | Base address (must be 4K-aligned) |
 | addr_range | hex | Address range size (must be multiple of 4K) |

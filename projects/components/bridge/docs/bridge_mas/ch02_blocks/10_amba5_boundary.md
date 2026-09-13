@@ -63,13 +63,40 @@ RTL stays byte-identical — the zero-drift invariant.
 The struct field for AWUNIQUE/ARUNIQUE is named `uniq` (`unique` is an SV
 keyword).
 
-## Connectivity Gating (poison, atomic)
+### Data-scaled fields: Memory Tagging and chunking (BRIDGE-018)
+
+The last two wrapper features, `mte` and `chunking`, joined the table on
+2026-09-13 and closed the native-AXI5 gap. Their fields are the only ones
+whose width follows the data bus: a tag bus is 4 bits per 16 bytes
+(`aw/w/b/rtag`), `wtagupdate` and `rchunkstrb` one bit per 16 bytes /
+128-bit chunk. `sideband.py` carries them as symbolic widths
+(`WIDTH_TAGS`, `WIDTH_NTAGS`, `WIDTH_CHUNKSTRB`) and resolves them with
+`field_width(width, data_width)`:
+
+- the per-width `w`/`r` structs size them for their own width;
+- the width-independent `aw`/`ar`/`b` structs size them for the **widest
+  port in the bridge**, and the adapters and crossbar fit a narrower
+  port's value with an explicit zero-extension or slice (`fit_expr`) --
+  widths decided in Python, so the emitted RTL carries no casts;
+- slave ports and adapter pins are sized for that port's own width.
+
+The fabric carries these fields and never interprets them: tags are
+payload routed with their beat, `btagmatch` returns through the B mux by
+bridge id like `bresp`, and a chunked burst's R beats are routed by ID and
+released on `RLAST` whatever order the completer sends the chunks in. Both
+features require a port of 128 bits or more (`validate_axi5_wide_features`).
+
+## Connectivity Gating (poison, atomic, mte) and Droppable Chunking
 
 `AXI5_CONNECTIVITY_GATED_FEATURES` in the validator: these features are
 legal only when **every** connected path is AXI5-both-ends,
 feature-enabled, and width-matched — otherwise a config error naming the
-offending pair. Droppable sideband that terminates mid-path is legal but
-prints a generation-time warning per (master, slave, feature).
+offending pair. `mte` is in the set because a dropped tag operation
+changes what the write means. Droppable sideband that terminates mid-path
+is legal but prints a generation-time warning per (master, slave,
+feature); `chunking` is droppable because `ARCHUNKEN` is permission, not
+demand -- a slave that cannot chunk answers with ordered data and `RCHUNKV`
+low, which every chunking requester must accept.
 
 ## Atomic Filter (A5-3a, write-only masters)
 

@@ -161,6 +161,11 @@ class AdapterGenerator:
         # unconditionally.
         from bridge_pkg.sideband import sideband_union, port_features
         self.sb_union = sideband_union(self.all_masters, self.slaves)
+        # BRIDGE-018: the width-independent aw/ar/b structs size their
+        # data-scaled sideband (MTE tags) for the widest port in the bridge;
+        # this adapter fits its own-width fub wires to that.
+        self.bridge_max_dw = max([m.data_width for m in (all_masters or [master_config])]
+                                 + [sl.data_width for sl in slaves])
         self.sb_own = port_features(self.master) & self.sb_union
 
         # Skid buffer depths (configurable)
@@ -408,7 +413,7 @@ class AdapterGenerator:
             # inputs; b/r-side extras are adapter outputs.
             if is_axi5:
                 for name, width, ext_in in axi5_exposed_ext_signals(
-                        channel.value, self.master.axi5_features):
+                        channel.value, self.master.axi5_features, self.master.data_width):
                     dir_str = 'input' if ext_in else 'output'
                     sig_name = f"{axi5_prefix}{name}"
                     if width > 1:
@@ -680,6 +685,16 @@ class AdapterGenerator:
         from bridge_pkg.sideband import channel_fields
         return channel_fields(feats, channel)
 
+    def _sb_struct_to_fub(self, channel, width, struct_expr, path_dw):
+        """A response-struct sideband field as this master's fub-width
+        expression (BRIDGE-018: struct fields are sized by struct_dw --
+        the path's width for r, the bridge-wide max for b -- and the fub
+        wires by this master's own data width)."""
+        from bridge_pkg.sideband import field_width, fit_expr, struct_dw
+        sw = field_width(width, struct_dw(channel, path_dw, self.bridge_max_dw))
+        fw = field_width(width, self.master.data_width)
+        return fit_expr(struct_expr, sw, fw)
+
     # --- BRIDGE-012: response trace is echoed at the boundary ---------------
     # AXI5 wants the response trace bit to follow the request's. From this
     # master's port the BRIDGE is the Subordinate, and this port advertises
@@ -830,8 +845,9 @@ class AdapterGenerator:
             chans += ['aw', 'w', 'b']
         if self.master.channels in ("rd", "rw"):
             chans += ['ar', 'r']
+        from bridge_pkg.sideband import channel_fields
         for ch in chans:
-            for _f, width, feat, base in self._sb_fields(ch, self.sb_own):
+            for _f, width, feat, base in channel_fields(self.sb_own, ch, self.master.data_width):
                 decl = ("    logic         " if width == 1
                         else f"    logic [{width-1}:0]  ")
                 lines.append(f"{decl}fub_axi_{base};  // AXI5 sideband ({feat})")
@@ -844,10 +860,14 @@ class AdapterGenerator:
         """Direct-path struct packs for `channel`: own features come
         from the fub wires, other union fields tie '0."""
         lines = []
-        for field, _w, feat, base in self._sb_fields(channel, self.sb_union):
+        from bridge_pkg.sideband import field_width, fit_expr, struct_dw
+        for field, w, feat, base in self._sb_fields(channel, self.sb_union):
             dst = f"{self.master.name}_{suffix}_{channel}.{field}"
             if feat in self.sb_own:
-                lines.append(f"    assign {dst} = fub_axi_{base};  // AXI5 sideband")
+                # the direct arm's path width is this master's own
+                sw = field_width(w, struct_dw(channel, self.master.data_width, self.bridge_max_dw))
+                fw = field_width(w, self.master.data_width)
+                lines.append(f"    assign {dst} = {fit_expr(f'fub_axi_{base}', fw, sw)};  // AXI5 sideband")
             else:
                 lines.append(f"    assign {dst} = '0;  // AXI5 sideband (not on this master)")
         return lines
@@ -1894,9 +1914,10 @@ class AdapterGenerator:
                         lines.append(f"                fub_axi_bid = {self.master.name}_{suffix}_b.id[{self.fub_id_width - 1}:0];")
                         lines.append(f"                fub_axi_bresp = {self.master.name}_{suffix}_b.resp;")
                         lines.append(f"                fub_axi_bvalid = {self.master.name}_{suffix}_bvalid;")
-                        for field, _w, _feat, base in self._sb_fields('b', self.sb_own):
+                        for field, w, _feat, base in self._sb_fields('b', self.sb_own):
                             tgt = "b_slave_trace" if base == 'btrace' else f"fub_axi_{base}"
-                            lines.append(f"                {tgt} = {self.master.name}_{suffix}_b.{field};")
+                            src = self._sb_struct_to_fub('b', w, f"{self.master.name}_{suffix}_b.{field}", slave_width)
+                            lines.append(f"                {tgt} = {src};")
                     else:
                         # Converter intermediate signals
                         lines.append(f"                fub_axi_bid = conv_{suffix}_bid"
@@ -1984,9 +2005,10 @@ class AdapterGenerator:
                         lines.append(f"                fub_axi_rresp = {self.master.name}_{suffix}_r.resp;")
                         lines.append(f"                fub_axi_rlast = {self.master.name}_{suffix}_r.last;")
                         lines.append(f"                fub_axi_rvalid = {self.master.name}_{suffix}_rvalid;")
-                        for field, _w, _feat, base in self._sb_fields('r', self.sb_own):
+                        for field, w, _feat, base in self._sb_fields('r', self.sb_own):
                             tgt = "r_slave_trace" if base == 'rtrace' else f"fub_axi_{base}"
-                            lines.append(f"                {tgt} = {self.master.name}_{suffix}_r.{field};")
+                            src = self._sb_struct_to_fub('r', w, f"{self.master.name}_{suffix}_r.{field}", slave_width)
+                            lines.append(f"                {tgt} = {src};")
                     else:
                         # Converter intermediate signals
                         lines.append(f"                fub_axi_rid = conv_{suffix}_rid"

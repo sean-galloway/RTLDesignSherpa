@@ -146,10 +146,11 @@ exists and why it runs in minutes.
 
 ### The reference set
 
-Nine generated fixtures cover the shapes the generator produces: the
+Ten generated fixtures cover the shapes the generator produces: the
 baseline 2x2, its registered-crossbar, QoS, QoS-plus-registered and CDC
-variants, a 4x4 with mixed widths, a shim-heavy mix, an AXI5 pair and a 5x3
-with channel-specific masters. Each is constrained at 100 MHz on the Artix-7 and 150 MHz on the
+variants, a 4x4 with mixed widths, a shim-heavy mix, a 32-bit AXI5 pair, the
+128-bit native-AXI5 2x2 with Memory Tagging and chunking on every port, and
+a 5x3 with channel-specific masters. Each is constrained at 100 MHz on the Artix-7 and 150 MHz on the
 Kintex-7, the clocks the Nexys A7 and Genesys 2 harnesses in this
 repository run their fabrics at. Every row has zero unrouted nets, zero
 block RAM and zero DSPs.
@@ -157,6 +158,7 @@ block RAM and zero DSPs.
 | Bridge | LUTs | FFs | BRAM | WNS reg-to-reg (ns) | Fmax est. (MHz) | Worst logic levels |
 |---|---:|---:|---:|---:|---:|---:|
 | `bridge_2x2_axi5` | 4,441 | 3,325 | 0 | +0.40 | 104.2 | 8 |
+| `bridge_2x2_axi5_native` | 8,007 | 6,213 | 0 | +0.04 | 100.4 | 12 |
 | `bridge_2x2_rw` | 4,615 | 3,253 | 0 | +0.12 | 101.2 | 9 |
 | `bridge_2x2_rw_cdc` | 4,851 | 3,413 | 0 | +0.27 | 102.7 | 9 |
 | `bridge_2x2_rw_pipe` | 5,646 | 4,227 | 0 | +1.27 | 114.6 | 6 |
@@ -171,6 +173,7 @@ block RAM and zero DSPs.
 | Bridge | LUTs | FFs | BRAM | WNS reg-to-reg (ns) | Fmax est. (MHz) | Worst logic levels |
 |---|---:|---:|---:|---:|---:|---:|
 | `bridge_2x2_axi5` | 4,430 | 3,325 | 0 | +0.69 | 167.4 | 9 |
+| `bridge_2x2_axi5_native` | 7,969 | 6,213 | 0 | +0.26 | 156.1 | 12 |
 | `bridge_2x2_rw` | 4,612 | 3,253 | 0 | +0.97 | 175.6 | 9 |
 | `bridge_2x2_rw_cdc` | 4,842 | 3,413 | 0 | +0.55 | 163.4 | 9 |
 | `bridge_2x2_rw_pipe` | 5,647 | 4,227 | 0 | +1.73 | 202.6 | 6 |
@@ -205,6 +208,12 @@ block RAM and zero DSPs.
   should be generated with `xbar_pipeline = true`; on the Kintex-7 at
   150 MHz only QoS-without-pipeline and the 5x3 fall short, by fractions of
   a nanosecond.
+- **The native-AXI5 fabric costs its data width, not its features.**
+  `bridge_2x2_axi5_native` is the 32-bit AXI5 pair at 128 bits with mte
+  and chunking added on every port: 8,007 LUTs and 6,213 FFs against 4,441
+  and 3,325, and it meets both targets (+0.04 ns on the Artix-7, 12
+  levels). The tag and chunk fields are a few bits beside a 128-bit beat;
+  the wider beat is the cost.
 - **Width steps set the size.** The 4x4 with 32/64/128/256-bit ports is
   six times the 2x2 in both LUTs and FFs: every converter carries a full
   wide beat, in each direction, per path.

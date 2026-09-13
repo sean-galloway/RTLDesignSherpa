@@ -1,0 +1,51 @@
+# Bridge Configuration: 1x2 read bridge, 128-bit AXI5 master with read-data
+# CHUNKING, one AXI5 slave that chunks (native path) and one AXI4 slave that
+# cannot (drop path) -- BRIDGE-018.
+#
+# chunking is droppable sideband: ARCHUNKEN is permission, not demand. To
+# sram_rd the request arrives with ARCHUNKEN and the slave answers with
+# RCHUNKV/RCHUNKNUM/RCHUNKSTRB through the fabric; to ddr_rd the enable
+# terminates (generation-time warning) and the master sees ordered data with
+# RCHUNKV low, exactly as AXI5 allows. test_bridge_1x2_rd_axi5c reads both
+# and checks both outcomes.
+# Connectivity comes from bridge_1x2_rd_axi5c_connectivity.csv.
+
+[bridge]
+name = "bridge_1x2_rd_axi5c"
+variants = ["no"]
+description = "128-bit AXI5 chunking master x (1 AXI5 chunking + 1 AXI4) slaves rd bridge (BRIDGE-018)"
+
+[[bridge.masters]]
+name = "cpu_rd"
+prefix = "cpu_rd_axi_"
+id_width = 4
+addr_width = 32
+data_width = 128
+user_width = 1
+channels = "rd"
+protocol = "axi5"
+axi5_features = ["trace", "chunking"]
+
+[[bridge.slaves]]
+name = "ddr_rd"  # stays AXI4: chunking terminates here (warning), data returns unchunked
+prefix = "ddr_rd_axi_"
+id_width = 4
+addr_width = 32
+data_width = 128
+user_width = 1
+channels = "rd"
+base_addr = "0x00000000"
+addr_range = "0x80000000"
+
+[[bridge.slaves]]
+name = "sram_rd"  # AXI5 with chunking: the native path
+prefix = "sram_rd_axi_"
+id_width = 4
+addr_width = 32
+data_width = 128
+user_width = 1
+channels = "rd"
+protocol = "axi5"
+axi5_features = ["trace", "chunking"]
+base_addr = "0x80000000"
+addr_range = "0x80000000"

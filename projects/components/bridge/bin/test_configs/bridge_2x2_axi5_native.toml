@@ -1,0 +1,67 @@
+# Bridge Configuration: 2x2 read/write bridge, every port AXI5 at 128 bits
+# with the NATIVE-AXI5 feature set through the fabric (BRIDGE-018).
+#
+# The two features the fabric could not carry until BRIDGE-018 -- Memory
+# Tagging (mte: AWTAGOP/AWTAG, WTAG/WTAGUPDATE, BTAG/BTAGMATCH, ARTAGOP,
+# RTAG/RTAGMATCH) and read-data chunking (chunking: ARCHUNKEN,
+# RCHUNKV/RCHUNKNUM/RCHUNKSTRB) -- ride the channel structs here from two
+# masters through the arbiter to two slaves, beside the older sideband
+# set. mte is connectivity-gated (every path AXI5, mte-enabled,
+# width-matched); both features need 128-bit ports because tags are per 16
+# bytes and chunks are 128 bits. test_bridge_2x2_axi5_native drives tagged
+# writes, tag readback, Match operations and chunked reads from both
+# masters at once and checks them at the far ports.
+# Connectivity comes from bridge_2x2_axi5_native_connectivity.csv.
+
+[bridge]
+name = "bridge_2x2_axi5_native"
+variants = ["no"]
+description = "2 AXI5 masters x 2 AXI5 slaves, 128-bit, MTE + chunking native through the fabric (BRIDGE-018)"
+
+[[bridge.masters]]
+name = "cpu"
+prefix = "cpu_axi_"
+id_width = 4
+addr_width = 32
+data_width = 128
+user_width = 1
+channels = "rw"
+protocol = "axi5"
+axi5_features = ["nsaid", "trace", "unique", "poison", "mte", "chunking"]
+
+[[bridge.masters]]
+name = "dma"
+prefix = "dma_axi_"
+id_width = 4
+addr_width = 32
+data_width = 128
+user_width = 1
+channels = "rw"
+protocol = "axi5"
+axi5_features = ["nsaid", "trace", "unique", "poison", "mte", "chunking"]
+
+[[bridge.slaves]]
+name = "ddr"
+prefix = "ddr_axi_"
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (BRIDGE-016)
+addr_width = 32
+data_width = 128
+user_width = 1
+channels = "rw"
+protocol = "axi5"
+axi5_features = ["nsaid", "trace", "unique", "poison", "mte", "chunking"]
+base_addr = "0x00000000"
+addr_range = "0x80000000"
+
+[[bridge.slaves]]
+name = "sram"
+prefix = "sram_axi_"
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (BRIDGE-016)
+addr_width = 32
+data_width = 128
+user_width = 1
+channels = "rw"
+protocol = "axi5"
+axi5_features = ["nsaid", "trace", "unique", "poison", "mte", "chunking"]
+base_addr = "0x80000000"
+addr_range = "0x80000000"

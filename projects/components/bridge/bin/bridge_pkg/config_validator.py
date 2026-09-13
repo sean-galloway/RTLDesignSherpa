@@ -90,18 +90,19 @@ def validate_protocol(protocol: str, port_name: str) -> None:
 # phase-gated below.
 # ---------------------------------------------------------------------------
 
-# Features legal in interop mode: pure sideband, terminated at the AXI4
-# fabric.
-AXI5_ALLOWED_FEATURES = ('nsaid', 'trace', 'mpam', 'mecid', 'unique')
+# Droppable sideband: legal on any AXI5 port; terminates (with a
+# generation-time warning) on a path whose other end cannot carry it.
+# 'chunking' (BRIDGE-018) is droppable because ARCHUNKEN is permission,
+# not demand: a slave that cannot chunk answers with ordered data and
+# RCHUNKV low, which is exactly what the requester must be able to accept.
+AXI5_ALLOWED_FEATURES = ('nsaid', 'trace', 'mpam', 'mecid', 'unique',
+                         'chunking')
 
-# Features that exist in the axi5 wrappers but are NOT deliverable on an
-# AXI4 fabric without more work. Maps feature -> the phase that lands it.
-# 'poison' left this set in A5-2 slice 2: it is legal under the
-# connectivity rule below (validate_axi5_poison_connectivity).
-AXI5_PHASED_FEATURES = {
-    'mte':      'deferred (per-beat tag fields; revisit after poison)',
-    'chunking': 'deferred (R-channel re-framing through converters)',
-}
+# Features that exist in the axi5 wrappers but are NOT deliverable on this
+# fabric. Empty since BRIDGE-018 closed the native-AXI5 gap (mte and
+# chunking were the last two); kept so a future feature has a place to
+# name its delivering phase.
+AXI5_PHASED_FEATURES: dict = {}
 
 # Legal ONLY when every connected path carries it natively end-to-end
 # (A5-2 slice 2): both ends protocol="axi5" with the feature enabled and
@@ -111,7 +112,13 @@ AXI5_PHASED_FEATURES = {
 # 'atomic' (A5-3a): store-class atomics ride the structs natively;
 # the master boundary's axi5_atomic_filter DECERRs read-return classes
 # (AtomicLoad/Swap/Compare), which this fabric cannot route.
-AXI5_CONNECTIVITY_GATED_FEATURES = ('poison', 'atomic')
+# 'mte' (BRIDGE-018): a tag operation dropped on the way to a slave turns
+# a tagged write into an untagged one and a Match into a plain access,
+# with the requester none the wiser -- so every path must carry it.
+AXI5_CONNECTIVITY_GATED_FEATURES = ('poison', 'atomic', 'mte')
+
+# Features that need a data bus wide enough to carry them: MTE tags are
+# one per 16 bytes and chunks are 128 bits (sideband.WIDE_FEATURE_MIN_DW).
 
 
 def validate_axi5(masters: List[PortSpec], slaves: List[PortSpec]) -> None:
@@ -371,6 +378,25 @@ def warn_axi5_dropped_sideband(masters: List[PortSpec],
                 print(f"  WARNING: AXI5 sideband '{f}' terminates on path "
                       f"{m.port_name} -> {s.port_name}: "
                       f"{'; '.join(reasons)}")
+
+
+def validate_axi5_wide_features(port: PortSpec) -> None:
+    """BRIDGE-018: mte and chunking are only meaningful on a data bus of at
+    least 128 bits (one 4-bit tag per 16 bytes; one 128-bit chunk per
+    strobe bit). A narrower port asking for them is a config error, not a
+    warning -- the wrappers would size the tag bus to one tag and the DV
+    checker rejects chunking below 128."""
+    if port.protocol != 'axi5':
+        return
+    from .sideband import WIDE_FEATURE_MIN_DW
+    for f in (getattr(port, 'axi5_features', None) or []):
+        need = WIDE_FEATURE_MIN_DW.get(f)
+        if need and port.data_width < need:
+            kind = 'master' if port.direction == 'master' else 'slave'
+            raise ValidationError(
+                f"AXI5 {kind} '{port.port_name}': feature '{f}' needs "
+                f"data_width >= {need} (got {port.data_width}); tags are per "
+                f"16 bytes and chunks are 128 bits")
 
 
 def validate_cdc_constraints(port: PortSpec) -> None:
@@ -717,6 +743,8 @@ def validate_config(
     # Validate AXI5 scope (interop mode: sideband features only, on
     # masters (A5-1) and slaves (A5-2 slice 1) alike)
     validate_axi5(masters, slaves)
+    for port in list(masters) + list(slaves):
+        validate_axi5_wide_features(port)
 
     # A5-2 slice 2: poison needs every connected path native; the
     # droppable sideband set gets visibility warnings when it will

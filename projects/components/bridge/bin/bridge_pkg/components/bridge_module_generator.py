@@ -1369,7 +1369,7 @@ class BridgeModuleGenerator:
             # AdapterGenerator._generate_external_ports.
             if is_axi5:
                 for name, width, ext_in in axi5_exposed_ext_signals(
-                        channel.value, master.axi5_features):
+                        channel.value, master.axi5_features, master.data_width):
                     dir_str = 'input' if ext_in else 'output'
                     sig_name = f"{axi5_prefix}{name}"
                     if width > 1:
@@ -1687,7 +1687,7 @@ class BridgeModuleGenerator:
                 # SlaveAdapterGenerator._generate_axi4_external_ports.
                 if is_axi5:
                     for name, width, req_dir in axi5_exposed_ext_signals(
-                            channel.value, slave.axi5_features):
+                            channel.value, slave.axi5_features, slave.data_width):
                         dir_str = 'output' if req_dir else 'input'
                         sig_name = f"{axi5_prefix}{name}"
                         if width > 1:
@@ -1845,7 +1845,7 @@ class BridgeModuleGenerator:
                 chs = ((['aw', 'w', 'b'] if has_write else [])
                        + (['ar', 'r'] if has_read else []))
                 for ch in chs:
-                    for _f, w, feat, base in channel_fields(sb_feats, ch):
+                    for _f, w, feat, base in channel_fields(sb_feats, ch, slave.data_width):
                         rng = "                     " if w == 1 else f"[{w-1}:0]{' ' * (21 - 7)}"
                         lines.append(f"    logic {rng} {prefix}{base};  // AXI5 sideband ({feat})")
 

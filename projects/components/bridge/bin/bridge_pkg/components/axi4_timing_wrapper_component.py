@@ -109,6 +109,12 @@ _AXI5_RD_RESP_EXTRAS = (            # R-side (after rready)
 # means the signal flows master->slave: on an AXI5 MASTER port (bridge
 # is the slave) it is a bridge-top INPUT; on an AXI5 SLAVE port (bridge
 # is the master) it is a bridge-top OUTPUT.
+# BRIDGE-018: the MTE and chunking signals scale with the data bus (one
+# tag per 16 bytes, one chunk strobe per 128 bits); their widths are the
+# symbolic specs from sideband.py and axi5_exposed_ext_signals() resolves
+# them for the port's data width.
+from bridge_pkg.sideband import (WIDTH_TAGS, WIDTH_NTAGS, WIDTH_CHUNKSTRB,
+                                 field_width as _sb_field_width)
 AXI5_SIDEBAND_EXT_SIGNALS = {
     'aw': (
         ('awnsaid',  4,  'nsaid',  True),
@@ -117,35 +123,50 @@ AXI5_SIDEBAND_EXT_SIGNALS = {
         ('awmecid',  16, 'mecid',  True),
         ('awunique', 1,  'unique', True),
         ('awatop',   6,  'atomic', True),
+        ('awtagop',  2,  'mte',    True),
+        ('awtag',    WIDTH_TAGS, 'mte', True),
     ),
     'w': (
-        ('wpoison', 1, 'poison', True),
+        ('wpoison',    1,           'poison', True),
+        ('wtag',       WIDTH_TAGS,  'mte',    True),
+        ('wtagupdate', WIDTH_NTAGS, 'mte',    True),
     ),
     'b': (
-        ('btrace', 1, 'trace', False),
+        ('btrace',    1,          'trace', False),
+        ('btag',      WIDTH_TAGS, 'mte',   False),
+        ('btagmatch', 1,          'mte',   False),
     ),
     'ar': (
-        ('arnsaid',  4,  'nsaid',  True),
-        ('artrace',  1,  'trace',  True),
-        ('armpam',   11, 'mpam',   True),
-        ('armecid',  16, 'mecid',  True),
-        ('arunique', 1,  'unique', True),
+        ('arnsaid',   4,  'nsaid',    True),
+        ('artrace',   1,  'trace',    True),
+        ('armpam',    11, 'mpam',     True),
+        ('armecid',   16, 'mecid',    True),
+        ('arunique',  1,  'unique',   True),
+        ('archunken', 1,  'chunking', True),
+        ('artagop',   2,  'mte',      True),
     ),
     'r': (
-        ('rtrace', 1, 'trace', False),
-        ('rpoison', 1, 'poison', False),
+        ('rtrace',     1,               'trace',    False),
+        ('rpoison',    1,               'poison',   False),
+        ('rchunkv',    1,               'chunking', False),
+        ('rchunknum',  4,               'chunking', False),
+        ('rchunkstrb', WIDTH_CHUNKSTRB, 'chunking', False),
+        ('rtag',       WIDTH_TAGS,      'mte',      False),
+        ('rtagmatch',  1,               'mte',      False),
     ),
 }
 
 
-def axi5_exposed_ext_signals(channel_key: str, features) -> List[tuple]:
+def axi5_exposed_ext_signals(channel_key: str, features, dw: int = None) -> List[tuple]:
     """The (name, width, req_direction) triples an AXI5 port with
     `features` enabled exposes on AXI channel `channel_key`
     ('aw'/'w'/'b'/'ar'/'r'), in declaration order. req_direction=True
     signals flow master->slave (bridge-top INPUT on an AXI5 master
-    port, bridge-top OUTPUT on an AXI5 slave port)."""
+    port, bridge-top OUTPUT on an AXI5 slave port). Pass the port's data
+    width as `dw` to resolve the data-scaled widths (MTE tags, chunk
+    strobes); callers that only want names may omit it."""
     feats = set(features or ())
-    return [(name, width, ext_in)
+    return [(name, _sb_field_width(width, dw) if dw is not None else width, ext_in)
             for name, width, feat, ext_in
             in AXI5_SIDEBAND_EXT_SIGNALS[channel_key]
             if feat in feats]

@@ -178,7 +178,7 @@ def test_parse_csv_value_decimal_not_hex():
     assert parse_csv_value("hello", "name") == "hello"
 
 
-def _write_min_toml(tmp_path, slave_extra="", master_extra=""):
+def _write_min_toml(tmp_path, slave_extra="", master_extra="", data_width=32):
     toml = tmp_path / "b.toml"
     conn = tmp_path / "c.csv"
     toml.write_text(f"""
@@ -190,7 +190,7 @@ variants = ["no"]
 name = "m0"
 prefix = "m0_"
 addr_width = 32
-data_width = 32
+data_width = {data_width}
 id_width = 4
 channels = "rd"
 {master_extra}
@@ -199,7 +199,7 @@ channels = "rd"
 name = "s0"
 prefix = "s0_"
 addr_width = 32
-data_width = 32
+data_width = {data_width}
 id_width = 4
 base_addr = "0x0000_0000"
 addr_range = "0x0001_0000"
@@ -262,15 +262,55 @@ def test_axi5_atomic_accepted_native_both_ends(tmp_path):
 
 
 @pytest.mark.parametrize("feat", ["mte", "chunking"])
-def test_axi5_data_semantics_features_rejected(tmp_path, feat):
-    """mte/chunking change data semantics -- still phase-gated."""
+def test_axi5_wide_features_need_128_bits(tmp_path, feat):
+    """BRIDGE-018: mte/chunking are native now, but tags are per 16 bytes
+    and chunks are 128 bits -- a 32-bit port asking for them is an error."""
     toml, conn = _write_min_toml(
         tmp_path,
         slave_extra='channels = "rd"',
         master_extra=f'protocol = "axi5"\naxi5_features = ["{feat}"]',
     )
-    with pytest.raises(ValidationError, match="not supported in interop"):
+    with pytest.raises(ValidationError, match="data_width >= 128"):
         load_config(toml, conn)
+
+
+def test_axi5_mte_rejected_on_non_native_path(tmp_path):
+    """mte is connectivity-gated: a 128-bit MTE master into an AXI4 slave
+    would drop the tag operation silently."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra='channels = "rd"',
+        master_extra='protocol = "axi5"\naxi5_features = ["mte"]',
+        data_width=128,
+    )
+    with pytest.raises(ValidationError, match="cannot carry it natively"):
+        load_config(toml, conn)
+
+
+def test_axi5_chunking_drops_to_axi4_slave(tmp_path, capsys):
+    """chunking is droppable: the AXI4 slave simply never chunks, and the
+    build log says so."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra='channels = "rd"',
+        master_extra='protocol = "axi5"\naxi5_features = ["chunking"]',
+        data_width=128,
+    )
+    cfg = load_config(toml, conn)
+    assert 'chunking' in cfg.masters[0].axi5_features
+    assert "sideband 'chunking' terminates" in capsys.readouterr().out
+
+
+def test_axi5_mte_chunking_accepted_native_both_ends(tmp_path):
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra=('channels = "rd"\nprotocol = "axi5"\n'
+                     'axi5_features = ["mte", "chunking"]'),
+        master_extra='protocol = "axi5"\naxi5_features = ["mte", "chunking"]',
+        data_width=128,
+    )
+    cfg = load_config(toml, conn)
+    assert set(cfg.slaves[0].axi5_features) == {"mte", "chunking"}
 
 
 def test_axi5_slave_accepted(tmp_path):
@@ -415,14 +455,14 @@ def test_axi5_slave_atomic_rejected_on_non_native_path(tmp_path):
 
 
 @pytest.mark.parametrize("feat", ["mte", "chunking"])
-def test_axi5_slave_data_semantics_features_rejected(tmp_path, feat):
-    """mte/chunking change data semantics -- still phase-gated."""
+def test_axi5_slave_wide_features_need_128_bits(tmp_path, feat):
+    """The 128-bit rule applies to slave ports too."""
     toml, conn = _write_min_toml(
         tmp_path,
         slave_extra=(f'channels = "rd"\nprotocol = "axi5"\n'
                      f'axi5_features = ["{feat}"]'),
     )
-    with pytest.raises(ValidationError, match="not supported in interop"):
+    with pytest.raises(ValidationError, match="data_width >= 128"):
         load_config(toml, conn)
 
 
@@ -1426,3 +1466,48 @@ def test_cdc_generation_smoke(tmp_path):
     assert "axi4_cdc" not in sram and "s_aclk" not in sram
     text = fl.read_text()
     assert "axi4_cdc_wr.f" in text and "axi4_cdc_rd.f" in text
+
+
+# ---------------------------------------------------------------------
+# BRIDGE-018: native AXI5 -- MTE and chunking through the fabric
+# ---------------------------------------------------------------------
+
+def test_axi5_native_generation_smoke(tmp_path):
+    """bridge_2x2_axi5_native: the structs carry the tag and chunk fields
+    sized for 128-bit data (one 4-bit tag, one chunk strobe), the crossbar
+    drives them to the slave ports, the adapters bind them to the wrapper
+    pins, and the top exposes them on every port."""
+    gen, fl = _generate_fixture(tmp_path, "bridge_2x2_axi5_native")
+    pkg = (gen / "bridge_2x2_axi5_native_pkg.sv").read_text()
+    for field in ("tagop;", "tag;", "tagupdate;", "tagmatch;", "chunken;", "chunkv;", "chunknum;", "chunkstrb;"):
+        assert field in pkg, field
+    assert "logic [3:0]  tag;" in pkg and "logic [3:0]  chunknum;" in pkg
+    assert "logic         tagupdate;" in pkg and "logic         chunkstrb;" in pkg
+    xbar = (gen / "bridge_2x2_axi5_native_xbar.sv").read_text()
+    for sig in ("ddr_axi_awtagop", "ddr_axi_wtag", "ddr_axi_wtagupdate", "ddr_axi_archunken",
+                "sram_axi_rchunkv", "sram_axi_rchunknum", "sram_axi_rtag", "sram_axi_btagmatch"):
+        assert sig in xbar, sig
+    assert "cpu_128b_r.chunkv" in xbar and "dma_128b_b.tagmatch" in xbar
+    cpu = (gen / "cpu_adapter.sv").read_text()
+    for w in ("fub_axi_awtagop", "fub_axi_wtag", "fub_axi_btag", "fub_axi_archunken", "fub_axi_rchunknum"):
+        assert w in cpu, w
+    assert "ENABLE_MTE(1'b1" in cpu and "ENABLE_CHUNKING(1'b1" in cpu   # wrapper parameter overrides
+    top = (gen / "bridge_2x2_axi5_native.sv").read_text()
+    for port in ("cpu_axi_awtag", "cpu_axi_wtagupdate", "cpu_axi_btagmatch", "cpu_axi_archunken",
+                 "cpu_axi_rchunkstrb", "ddr_axi_awtag", "ddr_axi_rtag", "sram_axi_rchunknum"):
+        assert re.search(rf"\b{port}\b", top), port
+
+
+def test_axi5_native_tag_widths_follow_data_width(tmp_path):
+    """A 256-bit MTE port carries two tags per beat: 8-bit tag fields, 2-bit
+    tagupdate and chunk strobe; the fabric sizes struct and port alike."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra=('channels = "rd"\nprotocol = "axi5"\naxi5_features = ["mte", "chunking"]'),
+        master_extra='protocol = "axi5"\naxi5_features = ["mte", "chunking"]',
+        data_width=256,
+    )
+    from bridge_pkg.sideband import field_width, WIDTH_TAGS, WIDTH_NTAGS, WIDTH_CHUNKSTRB
+    assert field_width(WIDTH_TAGS, 256) == 8 and field_width(WIDTH_NTAGS, 256) == 2
+    assert field_width(WIDTH_CHUNKSTRB, 128) == 1 and field_width(WIDTH_TAGS, 32) == 4
+    load_config(toml, conn)   # accepted: both ends AXI5, mte, width-matched, wide enough

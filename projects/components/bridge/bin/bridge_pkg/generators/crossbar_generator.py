@@ -74,6 +74,11 @@ class CrossbarGenerator:
         # sideband signals exist.
         from bridge_pkg.sideband import sideband_union, port_features
         self.sb_union = sideband_union(self.masters, self.slaves)
+        # BRIDGE-018: the width-independent aw/ar/b structs size their
+        # data-scaled sideband (MTE tags) for the widest port in the bridge;
+        # the crossbar fits those fields to each slave port's own width.
+        self.bridge_max_dw = max([m.data_width for m in self.masters]
+                                 + [sl.data_width for sl in self.slaves])
         self._sb_port_features = port_features
 
     def generate(self) -> str:
@@ -286,9 +291,27 @@ class CrossbarGenerator:
 
         return channels
 
-    def _sb_fields(self, channel, feats):
+    def _sb_fields(self, channel, feats, dw=None):
         from bridge_pkg.sideband import channel_fields
-        return channel_fields(feats, channel)
+        return channel_fields(feats, channel, dw)
+
+    def _sb_struct_to_port(self, channel, width, struct_expr, slave_dw):
+        """A channel-struct sideband field as a slave-port-width expression
+        (BRIDGE-018). Struct fields are sized by struct_dw (per path for
+        w/r -- the path width IS the slave's -- and bridge-wide max for
+        aw/ar/b); port signals by the slave's own data width."""
+        from bridge_pkg.sideband import field_width, fit_expr, struct_dw
+        sw = field_width(width, struct_dw(channel, slave_dw, self.bridge_max_dw))
+        pw = field_width(width, slave_dw)
+        return fit_expr(struct_expr, sw, pw)
+
+    def _sb_port_to_struct(self, channel, width, port_expr, slave_dw):
+        """The reverse fit: a slave-port response field into the master's
+        channel struct."""
+        from bridge_pkg.sideband import field_width, fit_expr, struct_dw
+        sw = field_width(width, struct_dw(channel, slave_dw, self.bridge_max_dw))
+        pw = field_width(width, slave_dw)
+        return fit_expr(port_expr, pw, sw)
 
     def _sb_slave_feats(self, slave):
         """Sideband features this slave exposes discrete xbar signals
@@ -356,11 +379,11 @@ class CrossbarGenerator:
             req_chs = (['aw', 'w'] if has_write else []) + (['ar'] if has_read else [])
             rsp_chs = (['b'] if has_write else []) + (['r'] if has_read else [])
             for ch in req_chs:
-                for _f, w, feat, base in self._sb_fields(ch, sb_feats):
+                for _f, w, feat, base in self._sb_fields(ch, sb_feats, slave.data_width):
                     rng = "        " if w == 1 else f"[{w-1}:0]  "
                     sb_lines.append(f"    output logic {rng}{slave.name}_axi_{base},")
             for ch in rsp_chs:
-                for _f, w, feat, base in self._sb_fields(ch, sb_feats):
+                for _f, w, feat, base in self._sb_fields(ch, sb_feats, slave.data_width):
                     rng = "        " if w == 1 else f"[{w-1}:0]  "
                     sb_lines.append(f"    input  logic {rng}{slave.name}_axi_{base},")
             if sb_lines:
@@ -992,8 +1015,9 @@ class CrossbarGenerator:
         lines.append(f"    assign {prefix}awqos    = {sig_select} ? {master.name}_{suffix}_aw.qos : '0;")
         lines.append(f"    assign {prefix}awregion = {sig_select} ? {master.name}_{suffix}_aw.region : '0;")
         lines.append(f"    assign {prefix}awuser   = {sig_select} ? {master.name}_{suffix}_aw.user : '0;")
-        for field, _w, _feat, base in self._sb_fields('aw', self._sb_slave_feats(slave)):
-            lines.append(f"    assign {prefix}{base}  = {sig_select} ? {master.name}_{suffix}_aw.{field} : '0;  // AXI5 sideband")
+        for field, w, _feat, base in self._sb_fields('aw', self._sb_slave_feats(slave)):
+            src = self._sb_struct_to_port('aw', w, f"{master.name}_{suffix}_aw.{field}", slave.data_width)
+            lines.append(f"    assign {prefix}{base}  = {sig_select} ? {src} : '0;  // AXI5 sideband")
         lines.append(f"    assign {prefix}awvalid  = {sig_select} && {master.name}_{suffix}_awvalid;")
         lines.append("")
 
@@ -1009,8 +1033,9 @@ class CrossbarGenerator:
         lines.append(f"    assign {prefix}wstrb  = {w_sig} ? {master.name}_{suffix}_w.strb : '0;")
         lines.append(f"    assign {prefix}wlast  = {w_sig} ? {master.name}_{suffix}_w.last : '0;")
         lines.append(f"    assign {prefix}wuser  = {w_sig} ? {master.name}_{suffix}_w.user : '0;")
-        for field, _w, _feat, base in self._sb_fields('w', self._sb_slave_feats(slave)):
-            lines.append(f"    assign {prefix}{base} = {w_sig} ? {master.name}_{suffix}_w.{field} : '0;  // AXI5 sideband")
+        for field, w, _feat, base in self._sb_fields('w', self._sb_slave_feats(slave)):
+            src = self._sb_struct_to_port('w', w, f"{master.name}_{suffix}_w.{field}", slave.data_width)
+            lines.append(f"    assign {prefix}{base} = {w_sig} ? {src} : '0;  // AXI5 sideband")
         lines.append(f"    assign {prefix}wvalid = {w_sig} && {master.name}_{suffix}_wvalid;")
         lines.append("")
 
@@ -1062,8 +1087,9 @@ class CrossbarGenerator:
         lines.append(f"    assign {prefix}arqos    = {sig_select} ? {master.name}_{suffix}_ar.qos : '0;")
         lines.append(f"    assign {prefix}arregion = {sig_select} ? {master.name}_{suffix}_ar.region : '0;")
         lines.append(f"    assign {prefix}aruser   = {sig_select} ? {master.name}_{suffix}_ar.user : '0;")
-        for field, _w, _feat, base in self._sb_fields('ar', self._sb_slave_feats(slave)):
-            lines.append(f"    assign {prefix}{base}  = {sig_select} ? {master.name}_{suffix}_ar.{field} : '0;  // AXI5 sideband")
+        for field, w, _feat, base in self._sb_fields('ar', self._sb_slave_feats(slave)):
+            src = self._sb_struct_to_port('ar', w, f"{master.name}_{suffix}_ar.{field}", slave.data_width)
+            lines.append(f"    assign {prefix}{base}  = {sig_select} ? {src} : '0;  // AXI5 sideband")
         lines.append(f"    assign {prefix}arvalid  = {sig_select} && {master.name}_{suffix}_arvalid;")
         lines.append("")
 
@@ -1207,14 +1233,15 @@ class CrossbarGenerator:
         # AXI5 sideband: union fields exist in the struct for every
         # master, so they must always be driven; only slaves that expose
         # the feature contribute (others fall to the '0 default).
-        for field, _w, feat, base in self._sb_fields('b', self.sb_union):
+        for field, w, feat, base in self._sb_fields('b', self.sb_union):
             lines.append(f"    assign {master.name}_{suffix}_b.{field} = ")
             mux_terms = []
             for slave_idx, slave in connected_slaves:
                 if feat not in self._sb_slave_feats(slave):
                     continue
                 prefix = get_slave_prefix(slave)
-                mux_terms.append(f"        (({prefix}bid_bridge_id == {master_idx}) && {prefix}bid_valid ? {prefix}{base} : '0)")
+                src = self._sb_port_to_struct('b', w, f"{prefix}{base}", slave.data_width)
+                mux_terms.append(f"        (({prefix}bid_bridge_id == {master_idx}) && {prefix}bid_valid ? {src} : '0)")
             lines.append((" |\n".join(mux_terms) if mux_terms else "        '0") + ";")
             lines.append("")
 
@@ -1325,14 +1352,15 @@ class CrossbarGenerator:
         lines.append("")
 
         # AXI5 sideband (see write-response mux comment).
-        for field, _w, feat, base in self._sb_fields('r', self.sb_union):
+        for field, w, feat, base in self._sb_fields('r', self.sb_union):
             lines.append(f"    assign {master.name}_{suffix}_r.{field} = ")
             mux_terms = []
             for slave_idx, slave in connected_slaves:
                 if feat not in self._sb_slave_feats(slave):
                     continue
                 prefix = get_slave_prefix(slave)
-                mux_terms.append(f"        (({prefix}rid_bridge_id == {master_idx}) && {prefix}rid_valid ? {prefix}{base} : '0)")
+                src = self._sb_port_to_struct('r', w, f"{prefix}{base}", slave.data_width)
+                mux_terms.append(f"        (({prefix}rid_bridge_id == {master_idx}) && {prefix}rid_valid ? {src} : '0)")
             lines.append((" |\n".join(mux_terms) if mux_terms else "        '0") + ";")
             lines.append("")
 

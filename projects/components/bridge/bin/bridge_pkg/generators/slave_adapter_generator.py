@@ -302,12 +302,15 @@ class SlaveAdapterGenerator:
             req_chs = (['aw', 'w'] if has_wr else []) + (['ar'] if has_rd else [])
             rsp_chs = (['b'] if has_wr else []) + (['r'] if has_rd else [])
             sb_lines = []
+            # Sized for THIS port's data bus (BRIDGE-018: tag and chunk
+            # fields scale with it); the crossbar fits the struct field
+            # to this width on its side.
             for ch in req_chs:
-                for _f, w, feat, base in channel_fields(sb_feats, ch):
+                for _f, w, feat, base in channel_fields(sb_feats, ch, self.slave.data_width):
                     rng = "        " if w == 1 else f"[{w-1}:0]  "
                     sb_lines.append(f"    input  logic {rng}{prefix}{base},")
             for ch in rsp_chs:
-                for _f, w, feat, base in channel_fields(sb_feats, ch):
+                for _f, w, feat, base in channel_fields(sb_feats, ch, self.slave.data_width):
                     rng = "        " if w == 1 else f"[{w-1}:0]  "
                     sb_lines.append(f"    output logic {rng}{prefix}{base},")
             if sb_lines:
@@ -427,7 +430,7 @@ class SlaveAdapterGenerator:
             # external slave; b/r-side extras are inputs from it.
             if is_axi5:
                 for name, width, req_dir in axi5_exposed_ext_signals(
-                        channel.value, self.slave.axi5_features):
+                        channel.value, self.slave.axi5_features, self.slave.data_width):
                     dir_str = 'output' if req_dir else 'input'
                     sig_name = f"{prefix}{name}"
                     if width > 1:
