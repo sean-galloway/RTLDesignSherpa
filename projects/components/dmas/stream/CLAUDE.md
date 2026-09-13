@@ -210,7 +210,7 @@ STREAM Architecture (as implemented)
 │   ├── stream_alloc_ctrl.sv        # Space allocation tracking
 │   ├── stream_drain_ctrl.sv        # Drain control
 │   ├── stream_latency_bridge.sv    # Latency decoupling
-│   ├── stream_run_addr_gen.sv      # Address generation
+│   ├── (moved) stream_run_addr_gen.sv -> projects/components/misc/rtl/  # shared with RAPIDS
 │   └── perf_profiler.sv            # Performance profiling
 │
 ├── rtl/macro/                      # Integration blocks
@@ -225,7 +225,7 @@ STREAM Architecture (as implemented)
     └── cmdrsp_router.sv            # Command/response routing
 ```
 
-Monitoring uses the shared monbus group modules from `rtl/amba/monitor/` (e.g. `monbus_axil_axil_group.sv`) rather than a STREAM-local reporter.
+Monitoring uses the shared monbus group modules from `rtl/amba/monitor/` (e.g. `monbus_axil4_axil4_group.sv`) rather than a STREAM-local reporter.
 
 ---
 

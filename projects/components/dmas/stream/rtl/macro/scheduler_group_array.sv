@@ -590,6 +590,16 @@ module scheduler_group_array #(
         .aresetn                (rst_n),
         // Observability tap added with the port; unused here.
         .debug_block_ready      (),
+        // ID / address filtering added to axi4_master_rd_mon after this
+        // instantiation was written. Unused on the descriptor-fetch monitor:
+        // tie off explicitly, or PINMISSING is fatal in any build that does
+        // not waive it (the perf-profile tests do not).
+        .cfg_id_filter_enable   (1'b0),
+        .cfg_id_match_base      ('0),
+        .cfg_id_match_count     ('0),
+        .cfg_addr_filter_enable (1'b0),
+        .cfg_addr_filter_low    ('0),
+        .cfg_addr_filter_high   ('0),
         .cam_clear              (cam_clear),
 
         // FUB side (input to monitor) - AR Channel

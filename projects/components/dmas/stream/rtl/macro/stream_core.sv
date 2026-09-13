@@ -1565,6 +1565,17 @@ module stream_core #(
         .aresetn                (rst_n),
         // Observability tap added with the port; unused here.
         .debug_block_ready      (),
+        // ID / address filtering was added to the monitor after this
+        // instantiation was written. The datapath monitors watch a single
+        // engine's traffic and do not filter, so tie the pins off explicitly:
+        // PINMISSING is fatal in any build that does not waive it, and the
+        // perf-profile tests do not waive it.
+        .cfg_id_filter_enable   (1'b0),
+        .cfg_id_match_base      ('0),
+        .cfg_id_match_count     ('0),
+        .cfg_addr_filter_enable (1'b0),
+        .cfg_addr_filter_low    ('0),
+        .cfg_addr_filter_high   ('0),
         .cam_clear              (cam_clear),
 
         // FUB side (input from read engine)
@@ -1741,6 +1752,17 @@ module stream_core #(
         .aresetn                (rst_n),
         // Observability tap added with the port; unused here.
         .debug_block_ready      (),
+        // ID / address filtering was added to the monitor after this
+        // instantiation was written. The datapath monitors watch a single
+        // engine's traffic and do not filter, so tie the pins off explicitly:
+        // PINMISSING is fatal in any build that does not waive it, and the
+        // perf-profile tests do not waive it.
+        .cfg_id_filter_enable   (1'b0),
+        .cfg_id_match_base      ('0),
+        .cfg_id_match_count     ('0),
+        .cfg_addr_filter_enable (1'b0),
+        .cfg_addr_filter_low    ('0),
+        .cfg_addr_filter_high   ('0),
         .cam_clear              (cam_clear),
 
         // FUB side (input from write engine)

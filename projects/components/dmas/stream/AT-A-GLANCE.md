@@ -58,7 +58,7 @@ data path:
   space and occupancy WITHOUT carrying data, so the engines can arbitrate on
   credit rather than on the buffer itself.
 
-## Addressing (`rtl/fub/stream_run_addr_gen.sv`)
+## Addressing (`projects/components/misc/rtl/stream_run_addr_gen.sv`)
 
 * Wraps one `dma_address_gen` plus a base FIFO, producing the address
   sequence the scheduler consumes. Gated by
