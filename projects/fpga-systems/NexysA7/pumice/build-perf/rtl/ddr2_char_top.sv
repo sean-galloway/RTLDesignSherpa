@@ -270,28 +270,26 @@ module ddr2_char_top #(
         .DFI_RATE        (DFI_RATE),
         .DRAM_BL         (DRAM_BL),
         .BURST_LEN_MULTIPLE(BURST_LEN_MULTIPLE),
-        // Reads in flight (pumice_rd_return_ring tickets). THIRTY-TWO, which
-        // is pumice's own default and what the last build that closed 75 MHz
-        // was compiled with (3c66f442d, base +0.009 ns, 0 failing of 72896).
-        // Back to the baseline deliberately, so the current timing failure is
-        // measured against a known-good parameter set rather than against a
-        // configuration nothing ever closed at.
+        // Reads in flight (pumice_rd_return_ring tickets). SIXTY-FOUR, which
+        // is the measured operating point, not an inherited default: sustained
+        // read rate is bounded by depth over the ticket's alloc-to-R-drain
+        // time, and this board's PHY read latency is ~49 MC cycles, so 32
+        // tickets cap reads at ~0.78 of the DRAM rate. Board sweep at
+        // BL8/row-major reads 470.9 MB/s at 32 and 571.3 at 64 -- the latter is
+        // write parity (570.2) and 95% of the 600 MB/s peak.
         //
-        // The COST is real and measured: sustained read rate is bounded by
-        // depth over the ticket's alloc-to-R-drain time, and this board's PHY
-        // read latency is ~49 MC cycles, so 32 tickets cap reads at ~0.78 of
-        // the DRAM rate. Board sweep at BL8/row-major: 470.9 MB/s at 32,
-        // 571.3 at 64 -- the latter is write parity (570.2) and 95% of the
-        // 600 MB/s peak. Set PUMICE_RD_RET_DEPTH=64 to get that back.
+        // It briefly went back to 32 (2026-09-13) on the theory that the ring
+        // was behind the 75 MHz timing failure. It is not, and the A/B says so
+        // twice over: 32 was slightly WORSE (-5.704 -> -6.136 ns) and moved
+        // only ~172 endpoints, and a rebuild of the last commit that closed
+        // (3c66f442d) has MORE logic than today's failing build and still
+        // makes +0.009 ns. Depth costs ~158 LUT and buys 100 MB/s; keep it.
         //
-        // Depth is NOT the timing problem: the 64 -> 32 A/B on 2026-09-13 made
-        // timing slightly WORSE (-5.704 -> -6.136 ns) and moved only ~172 of
-        // the ~15k grown endpoints. It is restored for baseline hygiene, not
-        // as a fix -- see project_ddr2_char_board_timing_regression.
+        // `PUMICE_RD_RET_DEPTH overrides for sweeps.
 `ifdef PUMICE_RD_RET_DEPTH
         .RD_RET_DEPTH    (`PUMICE_RD_RET_DEPTH),
 `else
-        .RD_RET_DEPTH    (32),
+        .RD_RET_DEPTH    (64),
 `endif
         .ROW_WIDTH       (ROW_WIDTH),
 `ifdef PUMICE_SYS_75
