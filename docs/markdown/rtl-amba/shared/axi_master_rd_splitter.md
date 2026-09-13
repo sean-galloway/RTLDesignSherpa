@@ -147,7 +147,7 @@ In modern SoC designs, memory systems are often partitioned across multiple addr
 | fub_arregion | input | 4 | Region identifier |
 | fub_aruser | input | UW | User-defined extension |
 | fub_arvalid | input | 1 | Valid signal for original transaction |
-| fub_arready | output | 1 | Ready signal to upstream master (suppressed until all splits complete) |
+| fub_arready | output | 1 | Ready to the upstream master, asserted at ADMISSION (the cycle the first split goes downstream) so read data cannot precede acceptance -- AXI A3.3.1 |
 
 **R Channel (Read Data):**
 
@@ -190,7 +190,9 @@ The module operates as a transparent pass-through for non-split transactions and
 **Split path (multi-transaction):**
 - Transaction crosses one or more boundary regions
 - AR signals buffered and regenerated for each split
-- fub_arready suppressed until the final split is accepted
+- fub_arready asserts on the FIRST split (admission), not the last: the R channel
+  is a passthrough, so beats for split 1 return as soon as split 1 is accepted
+  downstream, and AXI A3.3.1 requires the upstream AR handshake to complete first
 - R channel remains transparent (ID-based aggregation)
 - Split count = N (number of boundary crossings + 1)
 
@@ -202,13 +204,15 @@ The module implements a simple two-state FSM:
 - Awaits new transactions on the fub_ar interface
 - Combinational split logic evaluates the boundary crossing
 - If no split: immediate pass-through with fub_arready = m_axi_arready
-- If split: buffer the transaction, transition to SPLITTING, suppress fub_arready
+- If split: accept upstream as well, buffer the transaction and transition to
+  SPLITTING to issue the remaining splits from the buffered copy
 
 **SPLITTING state:**
 - Issue the current split using the buffered address/length
 - Update next_addr and remaining_len for the subsequent split
 - If more splits needed: stay in SPLITTING, increment split_count
-- If final split: assert fub_arready when accepted, return to IDLE
+- If final split: return to IDLE and report the split record with its true count.
+  fub_arready stays low throughout SPLITTING -- the original was already accepted
 
 ### Boundary Crossing Detection
 
@@ -253,14 +257,19 @@ split_len = beats_to_boundary - 1  // AXI encoding
 ### Ready Signal Management
 
 **The protocol constraint that drives everything here:**
-- fub_arready must NOT assert until the entire original transaction is accepted
-- The upstream master expects a single handshake for its request
+- AXI A3.3.1: a slave must not assert RVALID until the AR handshake it answers has
+  COMPLETED. On the fub port this module IS that slave
+- The upstream master expects exactly ONE handshake for its request
+- Suppressing fub_arready until the last split (the behaviour before TASK-094)
+  broke the first rule for every split read: data for split 1 reached the
+  requester while the requester's request was still unaccepted
 
 **Ready logic:**
-- IDLE + no split: fub_arready = m_axi_arready (immediate)
-- IDLE + split needed: fub_arready = 0 (suppress until done)
-- SPLITTING + intermediate: fub_arready = 0
-- SPLITTING + final split: fub_arready = m_axi_arready (completes the handshake)
+- IDLE: fub_arready = m_axi_arready && !block_ready && !r_rbeats_active -- split or
+  not, acceptance happens at admission, alongside the first downstream split
+- SPLITTING: fub_arready = 0 (already accepted)
+- The NEXT original is fenced by r_rbeats_active, not by fub_arready: a second
+  admission while beats are still owed would reload the single owed-beat counter
 
 ### R Channel Handling
 

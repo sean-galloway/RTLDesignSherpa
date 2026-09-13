@@ -52,7 +52,18 @@ across boundary crossings before forwarding to the master AXI interface.
 
 **FUB_ARREADY Assertion Strategy**:
 - **No Split Required**: `fub_arready` passes through `m_axi_arready` directly (immediate acceptance)
-- **Split Required**: `fub_arready` is suppressed until ALL splits complete successfully
+- **Split Required**: `fub_arready` ALSO asserts on the first split, i.e. at ADMISSION --
+    the cycle the original is buffered and its owed-beat count loaded.
+
+    It used to be suppressed until every split had been issued, which violated
+    AXI A3.3.1: the R channel is a passthrough, so beats for the first split
+    return as soon as that split is accepted downstream, and they reached the
+    requester while the requester's own request was still unaccepted. Data
+    must follow acceptance, so acceptance moved earlier (TASK-094).
+
+    The next original is fenced off by `r_rbeats_active`, not by `fub_arready`:
+    a second admission while beats are still owed would reload the single
+    owed-beat counter mid-burst.
 
 **Splitting Sequence for Boundary-Crossing Transactions**:
 
@@ -60,7 +71,8 @@ across boundary crossings before forwarding to the master AXI interface.
     - Original transaction arrives on fub_ar interface
     - Split combinational logic evaluates if boundary crossing occurs
     - If no split needed: immediate pass-through with `fub_arready = m_axi_arready`
-    - If split needed: suppress `fub_arready`, transition to SPLITTING state
+    - If split needed: accept upstream too (data must follow acceptance), buffer the
+        original, and transition to SPLITTING to issue the remaining splits
 
 2. **First Split Generation (IDLE → SPLITTING)**:
     - Send first split using original address and calculated split_len
@@ -74,9 +86,10 @@ across boundary crossings before forwarding to the master AXI interface.
     - If final split: send transaction and prepare for completion
 
 4. **Transaction Completion**:
-    - Only when the FINAL split transaction receives `m_axi_arready = 1`
-    - Assert `fub_arready = 1` to complete the original fub transaction
-    - Return to IDLE state for next transaction
+    - The upstream handshake already completed at admission; the FINAL split
+        receiving `m_axi_arready = 1` returns the FSM to IDLE and reports the
+        split record (with its true count) on the fub_split interface
+    - The next original is admitted once all owed R beats have returned
 
 **Key Properties**:
 - FUB interface sees exactly one transaction (request → acceptance)
@@ -300,10 +313,22 @@ module axi_master_rd_splitter
     // counterpart of the write side's WLAST regeneration.
     //
     // The count is captured when the original is ADMITTED (IDLE accept),
-    // not when fub_arready finally asserts: fub_arready is suppressed until
-    // the last split, while R beats for split 1 are already flowing back.
+    // which since TASK-094 is also when fub_arready asserts -- the two were
+    // deliberately made the same event, because R beats for split 1 start
+    // flowing back as soon as split 1 is accepted downstream.
     logic [8:0] r_rbeats_remaining;
     logic       r_rbeats_active;
+
+    // ADMISSION: the original is captured, its owed-beat count loaded, its
+    // first (or only) split issued downstream, and -- since TASK-094 -- its
+    // upstream AR handshake completed. One event, named once.
+    logic w_admit;
+    assign w_admit = (r_split_state == IDLE) && fub_arvalid && m_axi_arready
+                     && !block_ready && !r_rbeats_active;
+
+    // The last split of a multi-split original has been accepted downstream.
+    logic w_final_accept;
+    assign w_final_accept = w_is_final_split && m_axi_arready;
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
@@ -338,8 +363,7 @@ module axi_master_rd_splitter
 
             case (r_split_state)
                 IDLE: begin
-                    if (fub_arvalid && m_axi_arready && !block_ready
-                        && !r_rbeats_active) begin
+                    if (w_admit) begin
                         // Beats owed upstream for THIS original transaction.
                         r_rbeats_remaining <= 9'(fub_arlen) + 9'd1;
                         r_rbeats_active <= 1'b1;
@@ -448,24 +472,30 @@ module axi_master_rd_splitter
     end
 
     // AR Channel - Slave side ready logic
+    //
+    // AXI A3.3.1: a slave must not assert RVALID until the AR handshake it is
+    // answering has COMPLETED. On the fub port this module IS that slave, and
+    // its R channel is a straight passthrough -- so the upstream request must
+    // be accepted no later than the cycle the FIRST split goes downstream,
+    // because that split's read data can arrive immediately afterwards.
+    //
+    // This used to suppress fub_arready until the final split was accepted,
+    // which for any split read put data upstream for a request the requester
+    // had not yet seen accepted. Formal caught it with a legal downstream
+    // slave (one that answers only what it accepted), so it could not be
+    // blamed on a permissive environment. TASK-094.
     always_comb begin
         case (r_split_state)
-            IDLE: begin
-                if (w_new_split_needed) begin
-                    // Split required - suppress fub_arready until all splits complete
-                    fub_arready = 1'b0;
-                end else begin
-                    // No split needed - pass through ready immediately
-                    fub_arready = m_axi_arready && !block_ready && !r_rbeats_active;
-                end
-            end
-            SPLITTING: begin
-                // Only assert ready when final split transaction is accepted
-                fub_arready = w_is_final_split && m_axi_arready && !block_ready;
-            end
-            default: begin
-                fub_arready = 1'b0;
-            end
+            // Accept at ADMISSION, split or not. The gating terms are the same
+            // ones that gate the downstream valid and the FSM capture, so the
+            // upstream handshake and the first downstream split are the same
+            // event and cannot come apart.
+            IDLE:      fub_arready = m_axi_arready && !block_ready && !r_rbeats_active;
+            // Already accepted. The remaining splits are issued from the
+            // buffered copy and need nothing further from the requester; the
+            // NEXT original waits on r_rbeats_active, not on this signal.
+            SPLITTING: fub_arready = 1'b0;
+            default:   fub_arready = 1'b0;
         endcase
     end
 
@@ -510,16 +540,25 @@ module axi_master_rd_splitter
     // command instead would be better still; that needs the accept path
     // to consult the FIFO, which is a larger change than this fix.
 
-    // Write split info when original transaction is accepted (fub_arready asserts)
-    assign w_split_fifo_valid = fub_arvalid && fub_arready;
+    // Reported ONCE per original, when its last split has been issued: at
+    // admission for a pass-through, at the final split's acceptance otherwise.
+    //
+    // This was `fub_arvalid && fub_arready`, which landed on exactly those two
+    // events ONLY because fub_arready was suppressed until the final split.
+    // With acceptance moved to admission (TASK-094) the write has to name the
+    // events directly -- otherwise every split read would report the
+    // hardcoded estimate of 2 instead of its actual r_split_count.
+    assign w_split_fifo_valid = (w_admit && !w_new_split_needed) || w_final_accept;
 
     // Always use the original transaction data at the time of acceptance
     always_comb begin
         if (r_split_state == IDLE) begin
-            // IDLE state: use live inputs (original transaction)
+            // IDLE writes only for a pass-through, which is exactly one
+            // downstream transaction. (The old `w_new_split_needed ? 2 : 1`
+            // estimate was unreachable: a split never wrote from IDLE.)
             split_fifo_din = {fub_araddr,
                                 fub_arid,
-                                w_new_split_needed ? 8'd2 : 8'd1};  // Estimate split count
+                                8'd1};
         end else begin
             // SPLITTING state: use buffered original transaction data
             split_fifo_din = {r_orig_araddr,
@@ -563,15 +602,15 @@ module axi_master_rd_splitter
             /* verilator lint_on CMPCONST */
             /* verilator lint_on UNSIGNED */
 
-            // Verify ready logic correctness
-            if (r_split_state == IDLE && fub_arvalid && w_new_split_needed) begin
+            // Verify ready logic correctness.
+            //
+            // The old "fub_arready must be 0 when a split is needed in IDLE"
+            // check is GONE: it asserted the A3.3.1 violation itself. What
+            // holds now is that the original is accepted exactly once -- at
+            // admission -- and never again while its splits are being issued.
+            if (r_split_state == SPLITTING) begin
                 assert (fub_arready == 1'b0) else
-                    $error("fub_arready should be suppressed when split needed in IDLE");
-            end
-
-            if (r_split_state == SPLITTING && !w_is_final_split) begin
-                assert (fub_arready == 1'b0) else
-                    $error("fub_arready should be suppressed during intermediate splits");
+                    $error("fub_arready must stay low once the original is admitted");
             end
 
             // Verify transaction buffering
@@ -580,10 +619,13 @@ module axi_master_rd_splitter
                     $error("Original transaction should be buffered in SPLITTING state");
             end
 
-            // Verify split info FIFO write timing
+            // Verify split info FIFO write timing. Tied to the beat tracker
+            // rather than to fub_arready, which no longer coincides with the
+            // final split: a record is written either as the original is
+            // admitted, or later while its beats are still owed.
             if (w_split_fifo_valid) begin
-                assert (fub_arvalid && fub_arready) else
-                    $error("Split info should only be written when transaction is accepted");
+                assert (w_admit || r_rbeats_active) else
+                    $error("Split info written outside an admitted transaction");
             end
         end
         /* verilator lint_on SYNCASYNCNET */

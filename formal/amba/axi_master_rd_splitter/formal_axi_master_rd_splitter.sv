@@ -160,6 +160,28 @@ module formal_axi_master_rd_splitter #(
     always @(posedge clk) if (rst_n) assume ((fub_araddr & AW'(BYTES_PER_BEAT - 1)) == '0);
     always @(posedge clk) if (rst_n) assume (!block_ready);
 
+    // Assumption 4 of the module header, stated in the environment: the
+    // NEXT ALIGNMENT BOUNDARY ABOVE THE TRANSACTION MUST EXIST inside the
+    // address space.
+    //
+    // axi_split_combi computes next_boundary_addr = (addr | mask) + 1 in AW
+    // bits. For any transaction in the FINAL alignment window that overflows
+    // to 0 -- with AW=16 and mask 0xFFF, every address from 0xF000 up. Then
+    // `transaction_end_addr >= next_boundary_addr` compares against 0 and
+    // reads TRUE, so a transaction that crosses nothing is split anyway: the
+    // solver's first counterexample was a ONE-BEAT read at 0xFFFC split into
+    // two downstream beats, the extra one arriving upstream with nothing
+    // owed. Constraining the transaction not to wrap is NOT enough, because
+    // the boundary arithmetic overflows first.
+    //
+    // The RTL says it does not handle this ("Assumption 4: No Address
+    // Wraparound ... No wraparound handling in boundary crossing logic"), so
+    // this holds the proof to the design's stated operating range. It does
+    // NOT weaken ap_rvalid_after_ar or ap_rlast_on_last_beat. The overflow
+    // itself is filed as TASK-095.
+    always @(posedge clk) if (rst_n)
+        assume ((fub_araddr | AW'(alignment_mask)) != {AW{1'b1}});
+
     // AXI valid-stable
     always @(posedge clk) begin
         if (f_past_valid > 0 && rst_n && $past(rst_n))

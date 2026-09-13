@@ -538,6 +538,10 @@ module axi_master_rd_splitter (
 	assign w_is_final_split = (r_split_state == 2'b10) && !w_split_required;
 	reg [8:0] r_rbeats_remaining;
 	reg r_rbeats_active;
+	wire w_admit;
+	assign w_admit = ((((r_split_state == 2'b01) && fub_arvalid) && m_axi_arready) && !block_ready) && !r_rbeats_active;
+	wire w_final_accept;
+	assign w_final_accept = w_is_final_split && m_axi_arready;
 	function automatic [8:0] sv2v_cast_9;
 		input reg [8:0] inp;
 		sv2v_cast_9 = inp;
@@ -570,7 +574,7 @@ module axi_master_rd_splitter (
 			end
 			case (r_split_state)
 				2'b01:
-					if (((fub_arvalid && m_axi_arready) && !block_ready) && !r_rbeats_active) begin
+					if (w_admit) begin
 						r_rbeats_remaining <= sv2v_cast_9(fub_arlen) + 9'd1;
 						r_rbeats_active <= 1'b1;
 						r_orig_arid <= fub_arid;
@@ -643,12 +647,8 @@ module axi_master_rd_splitter (
 		if (_sv2v_0)
 			;
 		case (r_split_state)
-			2'b01:
-				if (w_new_split_needed)
-					fub_arready = 1'b0;
-				else
-					fub_arready = (m_axi_arready && !block_ready) && !r_rbeats_active;
-			2'b10: fub_arready = (w_is_final_split && m_axi_arready) && !block_ready;
+			2'b01: fub_arready = (m_axi_arready && !block_ready) && !r_rbeats_active;
+			2'b10: fub_arready = 1'b0;
 			default: fub_arready = 1'b0;
 		endcase
 	end
@@ -667,12 +667,12 @@ module axi_master_rd_splitter (
 			r_split_fifo_overflow <= 1'b0;
 		else if (w_split_fifo_valid && !w_split_fifo_ready)
 			r_split_fifo_overflow <= 1'b1;
-	assign w_split_fifo_valid = fub_arvalid && fub_arready;
+	assign w_split_fifo_valid = (w_admit && !w_new_split_needed) || w_final_accept;
 	always @(*) begin
 		if (_sv2v_0)
 			;
 		if (r_split_state == 2'b01)
-			split_fifo_din = {fub_araddr, fub_arid, (w_new_split_needed ? 8'd2 : 8'd1)};
+			split_fifo_din = {fub_araddr, fub_arid, 8'd1};
 		else
 			split_fifo_din = {r_orig_araddr, r_orig_arid, r_split_count};
 	end
@@ -693,9 +693,7 @@ module axi_master_rd_splitter (
 	);
 	always @(posedge aclk)
 		if (aresetn) begin
-			if (((r_split_state == 2'b01) && fub_arvalid) && w_new_split_needed)
-				;
-			if ((r_split_state == 2'b10) && !w_is_final_split)
+			if (r_split_state == 2'b10)
 				;
 			if (r_split_state == 2'b10)
 				;
