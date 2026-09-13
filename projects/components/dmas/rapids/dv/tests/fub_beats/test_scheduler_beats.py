@@ -187,6 +187,21 @@ async def cocotb_test_varying_transfer_sizes(dut):
 # FSM STATE TESTS
 # ===========================================================================
 
+@cocotb.test(timeout_time=300, timeout_unit="ms")
+async def cocotb_test_extended_addressing(dut):
+    """Extended row/col-major addressing: exact strided address sequences.
+
+    Only meaningful on a build with USE_ROW_COL_MAJOR_ADDRESSING=1; the pytest
+    cell below passes it and folds it into the test name so the ON build gets
+    its own sim_build.
+    """
+    tb = SchedulerTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+    ok = await tb.test_extended_addressing()
+    assert ok, "extended addressing: address sequence mismatch (see log)"
+
+
 @cocotb.test(timeout_time=100, timeout_unit="ms")
 async def cocotb_test_fsm_state_transitions(dut):
     """Test all FSM state transitions"""
@@ -344,6 +359,16 @@ def test_scheduler_beats_varying_sizes(request, channel_id, num_channels, data_w
 @pytest.mark.fub
 @pytest.mark.scheduler
 @pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
+def test_scheduler_beats_extended_addressing(request, channel_id, num_channels, data_width, timing_profile):
+    """Pytest: extended addressing matrix on an ON build (15 extended + 1 legacy)."""
+    _run_scheduler_test(request, "cocotb_test_extended_addressing",
+                        channel_id, num_channels, data_width, timing_profile,
+                        extra_params={'USE_ROW_COL_MAJOR_ADDRESSING': 1})
+
+
+@pytest.mark.fub
+@pytest.mark.scheduler
+@pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
 def test_scheduler_beats_fsm_transitions(request, channel_id, num_channels, data_width, timing_profile):
     """Pytest: Test FSM state transitions"""
     _run_scheduler_test(request, "cocotb_test_fsm_state_transitions",
@@ -355,7 +380,7 @@ def test_scheduler_beats_fsm_transitions(request, channel_id, num_channels, data
 # ===========================================================================
 
 def _run_scheduler_test(request, testcase_name, channel_id, num_channels, data_width,
-                        timing_profile='default'):
+                        timing_profile='default', extra_params=None):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Helper function to run scheduler tests with AMBA pattern.
 
@@ -390,6 +415,14 @@ def _run_scheduler_test(request, testcase_name, channel_id, num_channels, data_w
     test_suffix = testcase_name.replace("cocotb_test_", "")
     test_name_plus_params = f"test_{dut_name}_{test_suffix}_cid{cid_str}_nc{nc_str}_dw{dw_str}_{timing_profile}"
 
+    # Fold RTL parameter overrides into the unique name BEFORE sim_build/log
+    # paths are derived below: sim_build is keyed on this string, so an ON and
+    # an OFF build of the same testcase would otherwise share one directory and
+    # the second would silently reuse the first's image.
+    if extra_params:
+        test_name_plus_params += "_" + "_".join(
+            f"{k.lower()}{v}" for k, v in sorted(extra_params.items()))
+
     # Handle pytest-xdist parallel execution
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     if worker_id:
@@ -409,6 +442,8 @@ def _run_scheduler_test(request, testcase_name, channel_id, num_channels, data_w
         'ADDR_WIDTH': 64,
         'DATA_WIDTH': data_width,
     }
+    if extra_params:
+        rtl_parameters.update(extra_params)
 
     extra_env = {
         'LOG_PATH': log_path,
