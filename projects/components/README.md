@@ -143,7 +143,7 @@ Python-based code generator producing parameterized AXI4 full crossbar RTL for c
 **Resources:**
 - Generator: `bin/bridge_generator.py` (+ `bin/bridge_pkg/` package)
 - Performance Models: `models/`
-- Documentation: `PRD.md`, `docs/bridge_has/`, `docs/bridge_mas/` (built PDFs: `Bridge_HAS_v1.1.pdf`, `Bridge_MAS_v1.1.pdf`)
+- Documentation: `PRD.md`, `docs/bridge_has/`, `docs/bridge_mas/` (built PDFs: `Bridge_HAS_v1.7.pdf`, `Bridge_MAS_v1.7.pdf`)
 
 **📖 See:** [`bridge/PRD.md`](bridge/PRD.md) for complete specification
 

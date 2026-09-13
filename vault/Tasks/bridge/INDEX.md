@@ -8,17 +8,18 @@ generator, its generated wrappers/xbars/adapters, and their DV.
 | State | Count |
 |---|---|
 | [active](active.md) | 0 |
-| [open](open.md) | 2 |
-| [closed](closed.md) | 17 |
-| [dropped](dropped.md) | 2 |
+| [open](open.md) | 0 |
+| [closed](closed.md) | 19 |
+| [dropped](dropped.md) | 3 |
 
 ## Open
 
-- **BRIDGE-018** — a native-AXI5 fabric (split out of BRIDGE-014, whose
-  master-protocol half closed 2026-09-11). No consumer yet.
-- **BRIDGE-017** — legacy backlog carried over from the retired TASKS.md
-  (perf characterization, synthesis guide, async CDC, QoS aging, xbar
-  pipelining).
+Nothing, since 2026-09-13. BRIDGE-017 (the legacy backlog: perf
+characterization, synthesis flow, CDC slave ports, QoS aging, registered
+crossbar) and BRIDGE-018 (native-AXI5 fabric: Memory Tagging and chunking
+through the structs) both closed; the two known Wishbone gaps are on the
+dropped page by the owner's decision (best effort). A new bridge task starts
+from a consumer's need, not from this list.
 
 > The pre-migration `projects/components/bridge/TASKS.md` was folded in on
 > 2026-09-10: ledger at the end of [closed](closed.md), leftovers in

@@ -28,7 +28,7 @@
 | Property | Value |
 |----------|-------|
 | Document Title | Bridge Hardware Architecture Specification |
-| Version | 1.2 |
+| Version | 1.7 |
 | Date | September 8, 2026 |
 | Status | Released |
 | Classification | Open Source - MIT License |
@@ -40,6 +40,11 @@
 | 1.0 | 2026-01-03 | RTL Design Sherpa | Initial release - restructured from single spec |
 | 1.1 | 2026-06-04 | RTL Design Sherpa | Content sync to RTL state at 2026-06-04. Documents (1) the 64→128-bit monbus packet migration with new 64-bit side-band timestamp wire — referenced via `docs/markdown/rtl-amba/includes/monitor_package_spec.md`; (2) per-port + global SV-parameter monitor methodology with mandatory `use_monitor` TOML field and `variants = ["no","mon"]` generator selector; (3) generator-emitted AXI4↔AXIL conversion at the slave boundary (was external); (4) new AXIL→wider-slave master-side alignment converters (`axil_to_axi4_wide_align_{rd,wr}`); (5) verification-strategy rewrite to protocol-BFM-only TBs with memory-backed slaves, serial-only execution, per-module cocotb function names, boundary_probe (renamed from address_decode) tests; (6) note of the independent W-tracker FIFO + split AW/W-ready MUX fix (commit `d24bd617`) that closed an interleaved-master deadlock. |
 | 1.2 | 2026-09-08 | RTL Design Sherpa | Correctness and voice pass. Four external qc rounds (65/54/53/57 findings, all triaged against rtl/generated and the generator) removed the planned-but-never-built ID-table/CAM out-of-order scheme, the fixed 64-bit internal path, response arbitration/FIFOs and the AXI4-Lite-as-future-work status from the text; annotated the TOML keys the loader has never known and its three-tier unknown-key behaviour; replaced asserted latency figures with measured ones. Four RTL defects found by the rounds are fixed and mutation-checked (BRIDGE-011 response-FIFO overrun, axi4_subtractive_slave simultaneous AW+AR fault loss, axi5_atomic_filter duplicate B and B-before-WLAST). Prose then voice-passed with all correctness annotations preserved. |
+| 1.3 | 2026-09-11 | RTL Design Sherpa | BRIDGE-014: AXI5-Lite and APB/APB5 as master protocols (front-end converters); BRIDGE-016 slave ID widening |
+| 1.4 | 2026-09-11 | RTL Design Sherpa | BRIDGE-019: Wishbone B4 on both sides of the fabric |
+| 1.5 | 2026-09-11 | RTL Design Sherpa | BRIDGE-017: measured throughput and latency, registered crossbar, QoS arbitration, CDC slave ports, out-of-context synthesis flow and measured resources, CAM ordering-count fix |
+| 1.6 | 2026-09-13 | RTL Design Sherpa | BRIDGE-018: native AXI5 fabric -- Memory Tagging and read-data chunking through the structs |
+| 1.7 | 2026-09-13 | RTL Design Sherpa | Document sync: one fabric clock plus CDC ports throughout, Wishbone best-effort stance, out-of-order chunk proof |
 
 ## Document Purpose
 
