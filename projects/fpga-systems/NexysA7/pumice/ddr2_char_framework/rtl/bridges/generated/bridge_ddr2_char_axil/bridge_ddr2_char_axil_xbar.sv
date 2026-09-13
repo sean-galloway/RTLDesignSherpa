@@ -64,7 +64,7 @@ module bridge_ddr2_char_axil_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] ddr2_apb_axi_rid_bridge_id,
     input  logic                       ddr2_apb_axi_rid_valid,
 
-    output  logic [7:0]  ddr2_apb_axi_awid,
+    output  logic         ddr2_apb_axi_awid,
     output  logic [31:0]  ddr2_apb_axi_awaddr,
     output  logic [7:0]  ddr2_apb_axi_awlen,
     output  logic [2:0]  ddr2_apb_axi_awsize,
@@ -85,13 +85,13 @@ module bridge_ddr2_char_axil_xbar
     output  logic         ddr2_apb_axi_wvalid,
     input  logic         ddr2_apb_axi_wready,
 
-    input  logic [7:0]  ddr2_apb_axi_bid,
+    input  logic         ddr2_apb_axi_bid,
     input  logic [1:0]  ddr2_apb_axi_bresp,
     input  logic         ddr2_apb_axi_buser,
     input  logic         ddr2_apb_axi_bvalid,
     output  logic         ddr2_apb_axi_bready,
 
-    output  logic [7:0]  ddr2_apb_axi_arid,
+    output  logic         ddr2_apb_axi_arid,
     output  logic [31:0]  ddr2_apb_axi_araddr,
     output  logic [7:0]  ddr2_apb_axi_arlen,
     output  logic [2:0]  ddr2_apb_axi_arsize,
@@ -105,7 +105,7 @@ module bridge_ddr2_char_axil_xbar
     output  logic         ddr2_apb_axi_arvalid,
     input  logic         ddr2_apb_axi_arready,
 
-    input  logic [7:0]  ddr2_apb_axi_rid,
+    input  logic         ddr2_apb_axi_rid,
     input  logic [31:0]  ddr2_apb_axi_rdata,
     input  logic [1:0]  ddr2_apb_axi_rresp,
     input  logic         ddr2_apb_axi_rlast,
@@ -122,7 +122,7 @@ module bridge_ddr2_char_axil_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] harness_csr_axi_rid_bridge_id,
     input  logic                       harness_csr_axi_rid_valid,
 
-    output  logic [7:0]  harness_csr_axi_awid,
+    output  logic         harness_csr_axi_awid,
     output  logic [31:0]  harness_csr_axi_awaddr,
     output  logic [7:0]  harness_csr_axi_awlen,
     output  logic [2:0]  harness_csr_axi_awsize,
@@ -143,13 +143,13 @@ module bridge_ddr2_char_axil_xbar
     output  logic         harness_csr_axi_wvalid,
     input  logic         harness_csr_axi_wready,
 
-    input  logic [7:0]  harness_csr_axi_bid,
+    input  logic         harness_csr_axi_bid,
     input  logic [1:0]  harness_csr_axi_bresp,
     input  logic         harness_csr_axi_buser,
     input  logic         harness_csr_axi_bvalid,
     output  logic         harness_csr_axi_bready,
 
-    output  logic [7:0]  harness_csr_axi_arid,
+    output  logic         harness_csr_axi_arid,
     output  logic [31:0]  harness_csr_axi_araddr,
     output  logic [7:0]  harness_csr_axi_arlen,
     output  logic [2:0]  harness_csr_axi_arsize,
@@ -163,7 +163,7 @@ module bridge_ddr2_char_axil_xbar
     output  logic         harness_csr_axi_arvalid,
     input  logic         harness_csr_axi_arready,
 
-    input  logic [7:0]  harness_csr_axi_rid,
+    input  logic         harness_csr_axi_rid,
     input  logic [31:0]  harness_csr_axi_rdata,
     input  logic [1:0]  harness_csr_axi_rresp,
     input  logic         harness_csr_axi_rlast,
@@ -180,7 +180,7 @@ module bridge_ddr2_char_axil_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] debug_sram_axi_rid_bridge_id,
     input  logic                       debug_sram_axi_rid_valid,
 
-    output  logic [7:0]  debug_sram_axi_awid,
+    output  logic         debug_sram_axi_awid,
     output  logic [31:0]  debug_sram_axi_awaddr,
     output  logic [7:0]  debug_sram_axi_awlen,
     output  logic [2:0]  debug_sram_axi_awsize,
@@ -201,13 +201,13 @@ module bridge_ddr2_char_axil_xbar
     output  logic         debug_sram_axi_wvalid,
     input  logic         debug_sram_axi_wready,
 
-    input  logic [7:0]  debug_sram_axi_bid,
+    input  logic         debug_sram_axi_bid,
     input  logic [1:0]  debug_sram_axi_bresp,
     input  logic         debug_sram_axi_buser,
     input  logic         debug_sram_axi_bvalid,
     output  logic         debug_sram_axi_bready,
 
-    output  logic [7:0]  debug_sram_axi_arid,
+    output  logic         debug_sram_axi_arid,
     output  logic [31:0]  debug_sram_axi_araddr,
     output  logic [7:0]  debug_sram_axi_arlen,
     output  logic [2:0]  debug_sram_axi_arsize,
@@ -221,7 +221,7 @@ module bridge_ddr2_char_axil_xbar
     output  logic         debug_sram_axi_arvalid,
     input  logic         debug_sram_axi_arready,
 
-    input  logic [7:0]  debug_sram_axi_rid,
+    input  logic         debug_sram_axi_rid,
     input  logic [63:0]  debug_sram_axi_rdata,
     input  logic [1:0]  debug_sram_axi_rresp,
     input  logic         debug_sram_axi_rlast,
@@ -238,7 +238,7 @@ module bridge_ddr2_char_axil_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] dfi_mon_ram_axi_rid_bridge_id,
     input  logic                       dfi_mon_ram_axi_rid_valid,
 
-    output  logic [7:0]  dfi_mon_ram_axi_awid,
+    output  logic         dfi_mon_ram_axi_awid,
     output  logic [31:0]  dfi_mon_ram_axi_awaddr,
     output  logic [7:0]  dfi_mon_ram_axi_awlen,
     output  logic [2:0]  dfi_mon_ram_axi_awsize,
@@ -259,13 +259,13 @@ module bridge_ddr2_char_axil_xbar
     output  logic         dfi_mon_ram_axi_wvalid,
     input  logic         dfi_mon_ram_axi_wready,
 
-    input  logic [7:0]  dfi_mon_ram_axi_bid,
+    input  logic         dfi_mon_ram_axi_bid,
     input  logic [1:0]  dfi_mon_ram_axi_bresp,
     input  logic         dfi_mon_ram_axi_buser,
     input  logic         dfi_mon_ram_axi_bvalid,
     output  logic         dfi_mon_ram_axi_bready,
 
-    output  logic [7:0]  dfi_mon_ram_axi_arid,
+    output  logic         dfi_mon_ram_axi_arid,
     output  logic [31:0]  dfi_mon_ram_axi_araddr,
     output  logic [7:0]  dfi_mon_ram_axi_arlen,
     output  logic [2:0]  dfi_mon_ram_axi_arsize,
@@ -279,7 +279,7 @@ module bridge_ddr2_char_axil_xbar
     output  logic         dfi_mon_ram_axi_arvalid,
     input  logic         dfi_mon_ram_axi_arready,
 
-    input  logic [7:0]  dfi_mon_ram_axi_rid,
+    input  logic         dfi_mon_ram_axi_rid,
     input  logic [31:0]  dfi_mon_ram_axi_rdata,
     input  logic [1:0]  dfi_mon_ram_axi_rresp,
     input  logic         dfi_mon_ram_axi_rlast,
@@ -296,7 +296,7 @@ module bridge_ddr2_char_axil_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] obs_apb_axi_rid_bridge_id,
     input  logic                       obs_apb_axi_rid_valid,
 
-    output  logic [7:0]  obs_apb_axi_awid,
+    output  logic         obs_apb_axi_awid,
     output  logic [31:0]  obs_apb_axi_awaddr,
     output  logic [7:0]  obs_apb_axi_awlen,
     output  logic [2:0]  obs_apb_axi_awsize,
@@ -317,13 +317,13 @@ module bridge_ddr2_char_axil_xbar
     output  logic         obs_apb_axi_wvalid,
     input  logic         obs_apb_axi_wready,
 
-    input  logic [7:0]  obs_apb_axi_bid,
+    input  logic         obs_apb_axi_bid,
     input  logic [1:0]  obs_apb_axi_bresp,
     input  logic         obs_apb_axi_buser,
     input  logic         obs_apb_axi_bvalid,
     output  logic         obs_apb_axi_bready,
 
-    output  logic [7:0]  obs_apb_axi_arid,
+    output  logic         obs_apb_axi_arid,
     output  logic [31:0]  obs_apb_axi_araddr,
     output  logic [7:0]  obs_apb_axi_arlen,
     output  logic [2:0]  obs_apb_axi_arsize,
@@ -337,7 +337,7 @@ module bridge_ddr2_char_axil_xbar
     output  logic         obs_apb_axi_arvalid,
     input  logic         obs_apb_axi_arready,
 
-    input  logic [7:0]  obs_apb_axi_rid,
+    input  logic         obs_apb_axi_rid,
     input  logic [31:0]  obs_apb_axi_rdata,
     input  logic [1:0]  obs_apb_axi_rresp,
     input  logic         obs_apb_axi_rlast,
@@ -354,7 +354,7 @@ module bridge_ddr2_char_axil_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] chargen_apb_axi_rid_bridge_id,
     input  logic                       chargen_apb_axi_rid_valid,
 
-    output  logic [7:0]  chargen_apb_axi_awid,
+    output  logic         chargen_apb_axi_awid,
     output  logic [31:0]  chargen_apb_axi_awaddr,
     output  logic [7:0]  chargen_apb_axi_awlen,
     output  logic [2:0]  chargen_apb_axi_awsize,
@@ -375,13 +375,13 @@ module bridge_ddr2_char_axil_xbar
     output  logic         chargen_apb_axi_wvalid,
     input  logic         chargen_apb_axi_wready,
 
-    input  logic [7:0]  chargen_apb_axi_bid,
+    input  logic         chargen_apb_axi_bid,
     input  logic [1:0]  chargen_apb_axi_bresp,
     input  logic         chargen_apb_axi_buser,
     input  logic         chargen_apb_axi_bvalid,
     output  logic         chargen_apb_axi_bready,
 
-    output  logic [7:0]  chargen_apb_axi_arid,
+    output  logic         chargen_apb_axi_arid,
     output  logic [31:0]  chargen_apb_axi_araddr,
     output  logic [7:0]  chargen_apb_axi_arlen,
     output  logic [2:0]  chargen_apb_axi_arsize,
@@ -395,7 +395,7 @@ module bridge_ddr2_char_axil_xbar
     output  logic         chargen_apb_axi_arvalid,
     input  logic         chargen_apb_axi_arready,
 
-    input  logic [7:0]  chargen_apb_axi_rid,
+    input  logic         chargen_apb_axi_rid,
     input  logic [31:0]  chargen_apb_axi_rdata,
     input  logic [1:0]  chargen_apb_axi_rresp,
     input  logic         chargen_apb_axi_rlast,
@@ -412,7 +412,7 @@ module bridge_ddr2_char_axil_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_rid_bridge_id,
     input  logic                       subtractive_axi_rid_valid,
 
-    output  logic [7:0]  subtractive_axi_awid,
+    output  logic         subtractive_axi_awid,
     output  logic [31:0]  subtractive_axi_awaddr,
     output  logic [7:0]  subtractive_axi_awlen,
     output  logic [2:0]  subtractive_axi_awsize,
@@ -433,13 +433,13 @@ module bridge_ddr2_char_axil_xbar
     output  logic         subtractive_axi_wvalid,
     input  logic         subtractive_axi_wready,
 
-    input  logic [7:0]  subtractive_axi_bid,
+    input  logic         subtractive_axi_bid,
     input  logic [1:0]  subtractive_axi_bresp,
     input  logic         subtractive_axi_buser,
     input  logic         subtractive_axi_bvalid,
     output  logic         subtractive_axi_bready,
 
-    output  logic [7:0]  subtractive_axi_arid,
+    output  logic         subtractive_axi_arid,
     output  logic [31:0]  subtractive_axi_araddr,
     output  logic [7:0]  subtractive_axi_arlen,
     output  logic [2:0]  subtractive_axi_arsize,
@@ -453,7 +453,7 @@ module bridge_ddr2_char_axil_xbar
     output  logic         subtractive_axi_arvalid,
     input  logic         subtractive_axi_arready,
 
-    input  logic [7:0]  subtractive_axi_rid,
+    input  logic         subtractive_axi_rid,
     input  logic [63:0]  subtractive_axi_rdata,
     input  logic [1:0]  subtractive_axi_rresp,
     input  logic         subtractive_axi_rlast,

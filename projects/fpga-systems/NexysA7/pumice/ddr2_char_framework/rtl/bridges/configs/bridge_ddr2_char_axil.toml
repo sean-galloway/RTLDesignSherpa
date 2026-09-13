@@ -95,10 +95,14 @@ name        = "host"
 prefix      = "host_axi_"
 protocol    = "axil"
 channels    = "rw"
-# id_width=8 mirrors stream. AXIL has no transaction IDs in its protocol;
-# the host port ties its 8 id bits to 0 at the wiring boundary. Uniform
-# id-width across the bridge keeps its xbar id-routing consistent.
-id_width    = 8
+# 0 because AXI4-Lite has no transaction IDs, and the generator's validator
+# now enforces that. This said 8 ("mirrors stream", for uniform xbar id
+# routing) and the generated wrapper simply tied those eight bits to zero and
+# left the returning ones open -- they never reached the bridge's external
+# port list, so nothing outside ever connected them. Carrying a width for a
+# field the protocol does not have bought nothing and blocked every build once
+# the validator caught up.
+id_width    = 0
 addr_width  = 32
 data_width  = 32
 user_width  = 0

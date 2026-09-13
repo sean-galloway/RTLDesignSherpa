@@ -30,8 +30,12 @@ lint flat-filelist lint-decl-order: FILELIST := $(SELF_DIR)/rtl/filelists/litedr
 
 # The generated bridge must match its .toml before synthesis (build-perf's
 # pattern): the same bridge_ddr2_char_axil is what keeps the address map
-# identical between the two flows.
-PREBUILD := bash $(RDS_ROOT)/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/bin/regen_bridges.sh
+# identical between the two flows. CHECKS rather than regenerates, for the
+# reason build-perf's Makefile gives at length -- an A/B against pumice is
+# worthless if the two sides were built against different bridges.
+REGEN_BRIDGES ?= 0
+BRIDGE_REGEN  := bash $(RDS_ROOT)/projects/fpga-systems/NexysA7/pumice/ddr2_char_framework/bin/regen_bridges.sh
+PREBUILD := $(BRIDGE_REGEN) $(if $(filter-out 0,$(REGEN_BRIDGES)),,--check)
 
 include $(RDS_ROOT)/make/fpga_flow.mk
 

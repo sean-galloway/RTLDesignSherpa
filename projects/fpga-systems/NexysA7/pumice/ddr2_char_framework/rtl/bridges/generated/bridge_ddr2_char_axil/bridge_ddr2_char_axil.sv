@@ -202,7 +202,7 @@ module bridge_ddr2_char_axil
 
     // Crossbar-to-Slave Internal AXI4 Signals
     // ddr2_apb (APB, 32b AXI4 interface)
-    logic [7:0]            xbar_ddr2_apb_axi_awid;
+    logic [0:0]            xbar_ddr2_apb_axi_awid;
     logic [31:0]               xbar_ddr2_apb_axi_awaddr;
     logic [7:0]                xbar_ddr2_apb_axi_awlen;
     logic [2:0]                xbar_ddr2_apb_axi_awsize;
@@ -221,12 +221,12 @@ module bridge_ddr2_char_axil
     logic                      xbar_ddr2_apb_axi_wuser;
     logic                      xbar_ddr2_apb_axi_wvalid;
     logic                      xbar_ddr2_apb_axi_wready;
-    logic [7:0]            xbar_ddr2_apb_axi_bid;
+    logic [0:0]            xbar_ddr2_apb_axi_bid;
     logic [1:0]                xbar_ddr2_apb_axi_bresp;
     logic                      xbar_ddr2_apb_axi_buser;
     logic                      xbar_ddr2_apb_axi_bvalid;
     logic                      xbar_ddr2_apb_axi_bready;
-    logic [7:0]            xbar_ddr2_apb_axi_arid;
+    logic [0:0]            xbar_ddr2_apb_axi_arid;
     logic [31:0]               xbar_ddr2_apb_axi_araddr;
     logic [7:0]                xbar_ddr2_apb_axi_arlen;
     logic [2:0]                xbar_ddr2_apb_axi_arsize;
@@ -239,7 +239,7 @@ module bridge_ddr2_char_axil
     logic                      xbar_ddr2_apb_axi_aruser;
     logic                      xbar_ddr2_apb_axi_arvalid;
     logic                      xbar_ddr2_apb_axi_arready;
-    logic [7:0]            xbar_ddr2_apb_axi_rid;
+    logic [0:0]            xbar_ddr2_apb_axi_rid;
     logic [31:0] xbar_ddr2_apb_axi_rdata;
     logic [1:0]                xbar_ddr2_apb_axi_rresp;
     logic                      xbar_ddr2_apb_axi_rlast;
@@ -254,7 +254,7 @@ module bridge_ddr2_char_axil
     logic                       ddr2_apb_axi_rid_valid;
 
     // harness_csr (AXIL, 32b AXI4 interface)
-    logic [7:0]            xbar_harness_csr_axi_awid;
+    logic [0:0]            xbar_harness_csr_axi_awid;
     logic [31:0]               xbar_harness_csr_axi_awaddr;
     logic [7:0]                xbar_harness_csr_axi_awlen;
     logic [2:0]                xbar_harness_csr_axi_awsize;
@@ -273,12 +273,12 @@ module bridge_ddr2_char_axil
     logic                      xbar_harness_csr_axi_wuser;
     logic                      xbar_harness_csr_axi_wvalid;
     logic                      xbar_harness_csr_axi_wready;
-    logic [7:0]            xbar_harness_csr_axi_bid;
+    logic [0:0]            xbar_harness_csr_axi_bid;
     logic [1:0]                xbar_harness_csr_axi_bresp;
     logic                      xbar_harness_csr_axi_buser;
     logic                      xbar_harness_csr_axi_bvalid;
     logic                      xbar_harness_csr_axi_bready;
-    logic [7:0]            xbar_harness_csr_axi_arid;
+    logic [0:0]            xbar_harness_csr_axi_arid;
     logic [31:0]               xbar_harness_csr_axi_araddr;
     logic [7:0]                xbar_harness_csr_axi_arlen;
     logic [2:0]                xbar_harness_csr_axi_arsize;
@@ -291,7 +291,7 @@ module bridge_ddr2_char_axil
     logic                      xbar_harness_csr_axi_aruser;
     logic                      xbar_harness_csr_axi_arvalid;
     logic                      xbar_harness_csr_axi_arready;
-    logic [7:0]            xbar_harness_csr_axi_rid;
+    logic [0:0]            xbar_harness_csr_axi_rid;
     logic [31:0] xbar_harness_csr_axi_rdata;
     logic [1:0]                xbar_harness_csr_axi_rresp;
     logic                      xbar_harness_csr_axi_rlast;
@@ -306,7 +306,7 @@ module bridge_ddr2_char_axil
     logic                       harness_csr_axi_rid_valid;
 
     // debug_sram (AXIL, 64b AXI4 interface)
-    logic [7:0]            xbar_debug_sram_axi_awid;
+    logic [0:0]            xbar_debug_sram_axi_awid;
     logic [31:0]               xbar_debug_sram_axi_awaddr;
     logic [7:0]                xbar_debug_sram_axi_awlen;
     logic [2:0]                xbar_debug_sram_axi_awsize;
@@ -325,12 +325,12 @@ module bridge_ddr2_char_axil
     logic                      xbar_debug_sram_axi_wuser;
     logic                      xbar_debug_sram_axi_wvalid;
     logic                      xbar_debug_sram_axi_wready;
-    logic [7:0]            xbar_debug_sram_axi_bid;
+    logic [0:0]            xbar_debug_sram_axi_bid;
     logic [1:0]                xbar_debug_sram_axi_bresp;
     logic                      xbar_debug_sram_axi_buser;
     logic                      xbar_debug_sram_axi_bvalid;
     logic                      xbar_debug_sram_axi_bready;
-    logic [7:0]            xbar_debug_sram_axi_arid;
+    logic [0:0]            xbar_debug_sram_axi_arid;
     logic [31:0]               xbar_debug_sram_axi_araddr;
     logic [7:0]                xbar_debug_sram_axi_arlen;
     logic [2:0]                xbar_debug_sram_axi_arsize;
@@ -343,7 +343,7 @@ module bridge_ddr2_char_axil
     logic                      xbar_debug_sram_axi_aruser;
     logic                      xbar_debug_sram_axi_arvalid;
     logic                      xbar_debug_sram_axi_arready;
-    logic [7:0]            xbar_debug_sram_axi_rid;
+    logic [0:0]            xbar_debug_sram_axi_rid;
     logic [63:0] xbar_debug_sram_axi_rdata;
     logic [1:0]                xbar_debug_sram_axi_rresp;
     logic                      xbar_debug_sram_axi_rlast;
@@ -358,7 +358,7 @@ module bridge_ddr2_char_axil
     logic                       debug_sram_axi_rid_valid;
 
     // dfi_mon_ram (AXIL, 32b AXI4 interface)
-    logic [7:0]            xbar_dfi_mon_ram_axi_awid;
+    logic [0:0]            xbar_dfi_mon_ram_axi_awid;
     logic [31:0]               xbar_dfi_mon_ram_axi_awaddr;
     logic [7:0]                xbar_dfi_mon_ram_axi_awlen;
     logic [2:0]                xbar_dfi_mon_ram_axi_awsize;
@@ -377,12 +377,12 @@ module bridge_ddr2_char_axil
     logic                      xbar_dfi_mon_ram_axi_wuser;
     logic                      xbar_dfi_mon_ram_axi_wvalid;
     logic                      xbar_dfi_mon_ram_axi_wready;
-    logic [7:0]            xbar_dfi_mon_ram_axi_bid;
+    logic [0:0]            xbar_dfi_mon_ram_axi_bid;
     logic [1:0]                xbar_dfi_mon_ram_axi_bresp;
     logic                      xbar_dfi_mon_ram_axi_buser;
     logic                      xbar_dfi_mon_ram_axi_bvalid;
     logic                      xbar_dfi_mon_ram_axi_bready;
-    logic [7:0]            xbar_dfi_mon_ram_axi_arid;
+    logic [0:0]            xbar_dfi_mon_ram_axi_arid;
     logic [31:0]               xbar_dfi_mon_ram_axi_araddr;
     logic [7:0]                xbar_dfi_mon_ram_axi_arlen;
     logic [2:0]                xbar_dfi_mon_ram_axi_arsize;
@@ -395,7 +395,7 @@ module bridge_ddr2_char_axil
     logic                      xbar_dfi_mon_ram_axi_aruser;
     logic                      xbar_dfi_mon_ram_axi_arvalid;
     logic                      xbar_dfi_mon_ram_axi_arready;
-    logic [7:0]            xbar_dfi_mon_ram_axi_rid;
+    logic [0:0]            xbar_dfi_mon_ram_axi_rid;
     logic [31:0] xbar_dfi_mon_ram_axi_rdata;
     logic [1:0]                xbar_dfi_mon_ram_axi_rresp;
     logic                      xbar_dfi_mon_ram_axi_rlast;
@@ -410,7 +410,7 @@ module bridge_ddr2_char_axil
     logic                       dfi_mon_ram_axi_rid_valid;
 
     // obs_apb (APB, 32b AXI4 interface)
-    logic [7:0]            xbar_obs_apb_axi_awid;
+    logic [0:0]            xbar_obs_apb_axi_awid;
     logic [31:0]               xbar_obs_apb_axi_awaddr;
     logic [7:0]                xbar_obs_apb_axi_awlen;
     logic [2:0]                xbar_obs_apb_axi_awsize;
@@ -429,12 +429,12 @@ module bridge_ddr2_char_axil
     logic                      xbar_obs_apb_axi_wuser;
     logic                      xbar_obs_apb_axi_wvalid;
     logic                      xbar_obs_apb_axi_wready;
-    logic [7:0]            xbar_obs_apb_axi_bid;
+    logic [0:0]            xbar_obs_apb_axi_bid;
     logic [1:0]                xbar_obs_apb_axi_bresp;
     logic                      xbar_obs_apb_axi_buser;
     logic                      xbar_obs_apb_axi_bvalid;
     logic                      xbar_obs_apb_axi_bready;
-    logic [7:0]            xbar_obs_apb_axi_arid;
+    logic [0:0]            xbar_obs_apb_axi_arid;
     logic [31:0]               xbar_obs_apb_axi_araddr;
     logic [7:0]                xbar_obs_apb_axi_arlen;
     logic [2:0]                xbar_obs_apb_axi_arsize;
@@ -447,7 +447,7 @@ module bridge_ddr2_char_axil
     logic                      xbar_obs_apb_axi_aruser;
     logic                      xbar_obs_apb_axi_arvalid;
     logic                      xbar_obs_apb_axi_arready;
-    logic [7:0]            xbar_obs_apb_axi_rid;
+    logic [0:0]            xbar_obs_apb_axi_rid;
     logic [31:0] xbar_obs_apb_axi_rdata;
     logic [1:0]                xbar_obs_apb_axi_rresp;
     logic                      xbar_obs_apb_axi_rlast;
@@ -462,7 +462,7 @@ module bridge_ddr2_char_axil
     logic                       obs_apb_axi_rid_valid;
 
     // chargen_apb (APB, 32b AXI4 interface)
-    logic [7:0]            xbar_chargen_apb_axi_awid;
+    logic [0:0]            xbar_chargen_apb_axi_awid;
     logic [31:0]               xbar_chargen_apb_axi_awaddr;
     logic [7:0]                xbar_chargen_apb_axi_awlen;
     logic [2:0]                xbar_chargen_apb_axi_awsize;
@@ -481,12 +481,12 @@ module bridge_ddr2_char_axil
     logic                      xbar_chargen_apb_axi_wuser;
     logic                      xbar_chargen_apb_axi_wvalid;
     logic                      xbar_chargen_apb_axi_wready;
-    logic [7:0]            xbar_chargen_apb_axi_bid;
+    logic [0:0]            xbar_chargen_apb_axi_bid;
     logic [1:0]                xbar_chargen_apb_axi_bresp;
     logic                      xbar_chargen_apb_axi_buser;
     logic                      xbar_chargen_apb_axi_bvalid;
     logic                      xbar_chargen_apb_axi_bready;
-    logic [7:0]            xbar_chargen_apb_axi_arid;
+    logic [0:0]            xbar_chargen_apb_axi_arid;
     logic [31:0]               xbar_chargen_apb_axi_araddr;
     logic [7:0]                xbar_chargen_apb_axi_arlen;
     logic [2:0]                xbar_chargen_apb_axi_arsize;
@@ -499,7 +499,7 @@ module bridge_ddr2_char_axil
     logic                      xbar_chargen_apb_axi_aruser;
     logic                      xbar_chargen_apb_axi_arvalid;
     logic                      xbar_chargen_apb_axi_arready;
-    logic [7:0]            xbar_chargen_apb_axi_rid;
+    logic [0:0]            xbar_chargen_apb_axi_rid;
     logic [31:0] xbar_chargen_apb_axi_rdata;
     logic [1:0]                xbar_chargen_apb_axi_rresp;
     logic                      xbar_chargen_apb_axi_rlast;
@@ -514,7 +514,7 @@ module bridge_ddr2_char_axil
     logic                       chargen_apb_axi_rid_valid;
 
     // subtractive (AXI4, 64b AXI4 interface)
-    logic [7:0]            xbar_subtractive_axi_awid;
+    logic [0:0]            xbar_subtractive_axi_awid;
     logic [31:0]               xbar_subtractive_axi_awaddr;
     logic [7:0]                xbar_subtractive_axi_awlen;
     logic [2:0]                xbar_subtractive_axi_awsize;
@@ -533,12 +533,12 @@ module bridge_ddr2_char_axil
     logic                      xbar_subtractive_axi_wuser;
     logic                      xbar_subtractive_axi_wvalid;
     logic                      xbar_subtractive_axi_wready;
-    logic [7:0]            xbar_subtractive_axi_bid;
+    logic [0:0]            xbar_subtractive_axi_bid;
     logic [1:0]                xbar_subtractive_axi_bresp;
     logic                      xbar_subtractive_axi_buser;
     logic                      xbar_subtractive_axi_bvalid;
     logic                      xbar_subtractive_axi_bready;
-    logic [7:0]            xbar_subtractive_axi_arid;
+    logic [0:0]            xbar_subtractive_axi_arid;
     logic [31:0]               xbar_subtractive_axi_araddr;
     logic [7:0]                xbar_subtractive_axi_arlen;
     logic [2:0]                xbar_subtractive_axi_arsize;
@@ -551,7 +551,7 @@ module bridge_ddr2_char_axil
     logic                      xbar_subtractive_axi_aruser;
     logic                      xbar_subtractive_axi_arvalid;
     logic                      xbar_subtractive_axi_arready;
-    logic [7:0]            xbar_subtractive_axi_rid;
+    logic [0:0]            xbar_subtractive_axi_rid;
     logic [63:0] xbar_subtractive_axi_rdata;
     logic [1:0]                xbar_subtractive_axi_rresp;
     logic                      xbar_subtractive_axi_rlast;
@@ -569,7 +569,7 @@ module bridge_ddr2_char_axil
     // ---- Slave 6: subtractive (subtractive catch-all, internal) ----
     // Unmapped addresses land here instead of selecting nothing and
     // stalling the master forever (BRIDGE-009). Always answers DECERR.
-    logic [7:0]  subtractive_awid;
+    logic         subtractive_awid;
     logic [31:0]  subtractive_awaddr;
     logic [7:0]  subtractive_awlen;
     logic [2:0]  subtractive_awsize;
@@ -588,12 +588,12 @@ module bridge_ddr2_char_axil
     logic         subtractive_wuser;
     logic         subtractive_wvalid;
     logic         subtractive_wready;
-    logic [7:0]  subtractive_bid;
+    logic         subtractive_bid;
     logic [1:0]  subtractive_bresp;
     logic         subtractive_buser;
     logic         subtractive_bvalid;
     logic         subtractive_bready;
-    logic [7:0]  subtractive_arid;
+    logic         subtractive_arid;
     logic [31:0]  subtractive_araddr;
     logic [7:0]  subtractive_arlen;
     logic [2:0]  subtractive_arsize;
@@ -606,7 +606,7 @@ module bridge_ddr2_char_axil
     logic         subtractive_aruser;
     logic         subtractive_arvalid;
     logic         subtractive_arready;
-    logic [7:0]  subtractive_rid;
+    logic         subtractive_rid;
     logic [63:0]  subtractive_rdata;
     logic [1:0]  subtractive_rresp;
     logic         subtractive_rlast;
@@ -620,7 +620,7 @@ module bridge_ddr2_char_axil
     monitor_common_pkg::monitor_packet_t subtractive_monbus_packet;
 
     axi4_subtractive_slave #(
-        .AXI_ID_WIDTH   (8),
+        .AXI_ID_WIDTH   (1),
         .AXI_ADDR_WIDTH (32),
         .AXI_DATA_WIDTH (64),
         .AXI_USER_WIDTH (1),
@@ -677,7 +677,7 @@ module bridge_ddr2_char_axil
         .aresetn(aresetn),
 
         // External interface
-        .host_axi_awid(8'h0),
+        .host_axi_awid(1'h0),
         .host_axi_awaddr(host_axi_awaddr),
         .host_axi_awlen(8'h0),
         .host_axi_awsize(3'd2),
@@ -701,7 +701,7 @@ module bridge_ddr2_char_axil
         .host_axi_buser(),
         .host_axi_bvalid(host_axi_bvalid),
         .host_axi_bready(host_axi_bready),
-        .host_axi_arid(8'h0),
+        .host_axi_arid(1'h0),
         .host_axi_araddr(host_axi_araddr),
         .host_axi_arlen(8'h0),
         .host_axi_arsize(3'd2),

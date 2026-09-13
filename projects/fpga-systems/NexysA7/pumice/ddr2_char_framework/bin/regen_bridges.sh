@@ -12,10 +12,23 @@
 # exercises the bridge through the UART harness rather than per-bridge cocotb
 # tests. Add --generate-tests (plus --output-tb/--output-test) if that changes.
 #
+# Two modes, because this script runs as the board flow's PREBUILD and the
+# bridge generator is under active development:
+#
+#   --check   regenerate into a temp dir and DIFF against the committed output.
+#             Reports drift and exits nonzero; touches nothing. This is what the
+#             board build runs, so a build is reproducible from the tree and
+#             does NOT silently absorb whatever the bridge generator became
+#             today. Staleness still cannot rot unnoticed -- it fails loudly at
+#             prebuild instead of mid-synthesis, which was the original point.
+#
+#   (default) regenerate in place, the deliberate act of taking a new bridge.
+#
 # Usage:
 #   source $REPO_ROOT/env_python
-#   ./regen_bridges.sh              # regenerate every config
+#   ./regen_bridges.sh              # regenerate every config, in place
 #   ./regen_bridges.sh <name>       # regenerate just <name>.toml
+#   ./regen_bridges.sh --check      # verify only; no writes, nonzero on drift
 
 set -euo pipefail
 
@@ -38,6 +51,12 @@ fi
 
 mkdir -p "$RTL_OUT"
 
+CHECK_ONLY=0
+if [ "${1:-}" = "--check" ]; then
+    CHECK_ONLY=1
+    shift
+fi
+
 if [ "$#" -ge 1 ]; then
     requested="$1"
     config="$CONFIGS_DIR/${requested}.toml"
@@ -54,8 +73,27 @@ else
     fi
 fi
 
+if [ "$CHECK_ONLY" = "1" ]; then
+    # Regenerate into a scratch tree and compare. RTL_OUT is repointed for the
+    # whole loop so every step below -- generation, the subtractive uniquifier,
+    # the filelist -- runs exactly as it would in place, and the comparison is
+    # therefore of like with like.
+    CHECK_DIR="$(mktemp -d)"
+    trap 'rm -rf "$CHECK_DIR"' EXIT
+    COMMITTED_OUT="$RTL_OUT"
+    # The generator writes its filelist to <output-dir>/../filelists, so the
+    # scratch output has to sit one level down -- otherwise the filelist lands
+    # in the temp dir's PARENT, which is /tmp, and is never cleaned up.
+    RTL_OUT="$CHECK_DIR/generated"
+    mkdir -p "$RTL_OUT"
+fi
+
 echo "================================================================================"
-echo "Regenerating ${#configs[@]} bridge(s) under $BRIDGES_DIR"
+if [ "$CHECK_ONLY" = "1" ]; then
+    echo "Checking ${#configs[@]} bridge(s) under $BRIDGES_DIR against their configs"
+else
+    echo "Regenerating ${#configs[@]} bridge(s) under $BRIDGES_DIR"
+fi
 echo "================================================================================"
 
 for config in "${configs[@]}"; do
@@ -89,6 +127,41 @@ for config in "${configs[@]}"; do
         echo "    uniquified subtractive_adapter -> ${name}_subtractive_adapter"
     fi
 done
+
+if [ "$CHECK_ONLY" = "1" ]; then
+    echo ""
+    echo "================================================================================"
+    drift=0
+    for config in "${configs[@]}"; do
+        name="$(basename "$config" .toml)"
+        # Only the .sv matters to the build. The copied .toml/.csv carry
+        # absolute paths that differ between the real tree and the scratch one
+        # and say nothing about whether the RTL moved. (diff excludes with -x;
+        # --include is a grep flag and is not one here.)
+        if ! diff -rq -x '*.toml' -x '*.csv' -x '*.f' \
+                "$COMMITTED_OUT/$name" "$RTL_OUT/$name" >/dev/null 2>&1; then
+            drift=1
+            echo "DRIFT: $name"
+            diff -rq -x '*.toml' -x '*.csv' -x '*.f' \
+                "$COMMITTED_OUT/$name" "$RTL_OUT/$name" 2>&1 | sed 's/^/    /'
+        fi
+    done
+    if [ "$drift" = "1" ]; then
+        echo ""
+        echo "The committed bridge RTL no longer matches what the generator emits."
+        echo "The board build uses the COMMITTED RTL, so it is reproducible -- but"
+        echo "it is now behind the generator. Take the new bridge deliberately:"
+        echo ""
+        echo "    bash $0"
+        echo ""
+        echo "then re-run the build. (REGEN_BRIDGES=1 make bitstream does both.)"
+        echo "================================================================================"
+        exit 1
+    fi
+    echo "All bridges match their configs."
+    echo "================================================================================"
+    exit 0
+fi
 
 echo ""
 echo "================================================================================"
