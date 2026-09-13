@@ -24,6 +24,71 @@ regfile rapids_engine_regs {
     default accesswidth = 32;
     default alignment = 4;
 
+    //=========================================================================
+    // Channel descriptor staging (0x000-0x03F) and launch (0x040)
+    //=========================================================================
+    // Software stages a 64-bit descriptor address per channel in
+    // CHx_DESC_ADDR_{LOW,HIGH} and then launches with ONE write to
+    // KICK_ENABLE. The address registers STORE (sw=rw, hw=r); writing one no
+    // longer kicks by itself.
+    //
+    // This replaces apb4todescr, which snooped the raw APB command stream so
+    // that the ADDRESS WRITE ITSELF kicked. Two consequences it had: the
+    // staged address was never readable state, and an N-channel launch cost N
+    // APB transactions, so channel 0 was already running before the last
+    // channel started -- long enough to bias any cross-channel measurement.
+    // One 32-bit write to KICK_ENABLE now starts every channel on the same
+    // cycle.
+    //
+    // The addresses deliberately keep apb4todescr's geometry (channel*8,
+    // +0 = LOW, +4 = HIGH), so an existing writer stages the same words at the
+    // same offsets; only the separate launch write is new.
+
+    reg { name="Ch0 desc addr LOW";  desc="Ch0 descriptor address [31:0] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_LOW[31:0]=0;  } CH0_DESC_ADDR_LOW  @ 0x000;
+    reg { name="Ch0 desc addr HIGH"; desc="Ch0 descriptor address [63:32] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_HIGH[31:0]=0; } CH0_DESC_ADDR_HIGH @ 0x004;
+    reg { name="Ch1 desc addr LOW";  desc="Ch1 descriptor address [31:0] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_LOW[31:0]=0;  } CH1_DESC_ADDR_LOW  @ 0x008;
+    reg { name="Ch1 desc addr HIGH"; desc="Ch1 descriptor address [63:32] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_HIGH[31:0]=0; } CH1_DESC_ADDR_HIGH @ 0x00C;
+    reg { name="Ch2 desc addr LOW";  desc="Ch2 descriptor address [31:0] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_LOW[31:0]=0;  } CH2_DESC_ADDR_LOW  @ 0x010;
+    reg { name="Ch2 desc addr HIGH"; desc="Ch2 descriptor address [63:32] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_HIGH[31:0]=0; } CH2_DESC_ADDR_HIGH @ 0x014;
+    reg { name="Ch3 desc addr LOW";  desc="Ch3 descriptor address [31:0] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_LOW[31:0]=0;  } CH3_DESC_ADDR_LOW  @ 0x018;
+    reg { name="Ch3 desc addr HIGH"; desc="Ch3 descriptor address [63:32] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_HIGH[31:0]=0; } CH3_DESC_ADDR_HIGH @ 0x01C;
+    reg { name="Ch4 desc addr LOW";  desc="Ch4 descriptor address [31:0] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_LOW[31:0]=0;  } CH4_DESC_ADDR_LOW  @ 0x020;
+    reg { name="Ch4 desc addr HIGH"; desc="Ch4 descriptor address [63:32] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_HIGH[31:0]=0; } CH4_DESC_ADDR_HIGH @ 0x024;
+    reg { name="Ch5 desc addr LOW";  desc="Ch5 descriptor address [31:0] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_LOW[31:0]=0;  } CH5_DESC_ADDR_LOW  @ 0x028;
+    reg { name="Ch5 desc addr HIGH"; desc="Ch5 descriptor address [63:32] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_HIGH[31:0]=0; } CH5_DESC_ADDR_HIGH @ 0x02C;
+    reg { name="Ch6 desc addr LOW";  desc="Ch6 descriptor address [31:0] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_LOW[31:0]=0;  } CH6_DESC_ADDR_LOW  @ 0x030;
+    reg { name="Ch6 desc addr HIGH"; desc="Ch6 descriptor address [63:32] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_HIGH[31:0]=0; } CH6_DESC_ADDR_HIGH @ 0x034;
+    reg { name="Ch7 desc addr LOW";  desc="Ch7 descriptor address [31:0] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_LOW[31:0]=0;  } CH7_DESC_ADDR_LOW  @ 0x038;
+    reg { name="Ch7 desc addr HIGH"; desc="Ch7 descriptor address [63:32] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_HIGH[31:0]=0; } CH7_DESC_ADDR_HIGH @ 0x03C;
+
+    reg {
+        name = "Kick enable";
+        desc = "Write 1 to bit[ch] to launch that channel from its staged CHx_DESC_ADDR pair";
+
+        // One singlepulse field per channel rather than a single 8-bit field:
+        // SystemRDL requires singlepulse to be width 1. They share a register,
+        // so a single 32-bit write still launches every channel on the same
+        // cycle -- the atomicity comes from the bus transaction, not the field
+        // width. Each bit self-clears, so software never clears it and a
+        // re-read cannot be mistaken for a pending launch.
+        field { sw=w; hw=r; singlepulse; } KICK0[0:0]=0;
+        field { sw=w; hw=r; singlepulse; } KICK1[1:1]=0;
+        field { sw=w; hw=r; singlepulse; } KICK2[2:2]=0;
+        field { sw=w; hw=r; singlepulse; } KICK3[3:3]=0;
+        field { sw=w; hw=r; singlepulse; } KICK4[4:4]=0;
+        field { sw=w; hw=r; singlepulse; } KICK5[5:5]=0;
+        field { sw=w; hw=r; singlepulse; } KICK6[6:6]=0;
+        field { sw=w; hw=r; singlepulse; } KICK7[7:7]=0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:8] = 24'h0;
+
+    } KICK_ENABLE @ 0x040;
+
+
     reg {
         name = "Global Control Register";
         desc = "Master enable and global configuration";

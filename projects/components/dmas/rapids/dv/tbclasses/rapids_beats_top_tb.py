@@ -419,27 +419,29 @@ class RapidsBeatsTopTB(TBBase):
     # DESCRIPTOR KICK-OFF VIA APB (per-half kick window, LOW/HIGH pair)
     # =========================================================================
 
-    def _kick_low_addr(self, half: str, channel: int) -> int:
-        """apb4todescr LOW offset: base + channel*8 (paddr[2]=0). channel=paddr[5:3]."""
-        base = SRC_BASE_ADDR if half == 'src' else SNK_BASE_ADDR
-        return base + channel * 0x008
-
-    def _kick_high_addr(self, half: str, channel: int) -> int:
-        """apb4todescr HIGH offset: base + channel*8 + 4 (paddr[2]=1)."""
-        base = SRC_BASE_ADDR if half == 'src' else SNK_BASE_ADDR
-        return base + channel * 0x008 + 0x004
-
     async def kick_off_channel(self, half: str, channel: int, descriptor_addr: int):
-        """Kick a channel by writing the 64-bit descriptor address to its LOW/HIGH
-        kickoff register pair. The HIGH write blocks in apb4todescr until the
-        descriptor engine has ACCEPTED the kick, so a completed pair == accepted."""
-        desc_low = descriptor_addr & 0xFFFF_FFFF
-        desc_high = (descriptor_addr >> 32) & 0xFFFF_FFFF
-        await self.write_apb(self._kick_low_addr(half, channel), desc_low,
-                             reg_name=f"{half.upper()}_CH{channel}_KICK_LOW")
-        await self.write_apb(self._kick_high_addr(half, channel), desc_high,
-                             reg_name=f"{half.upper()}_CH{channel}_KICK_HIGH")
-        self.log.info(f"Kicked {half} ch{channel} via APB, desc @ 0x{descriptor_addr:016X}")
+        """Stage a channel's 64-bit descriptor address, then launch it.
+
+        The address is written to CHx_DESC_ADDR_{LOW,HIGH} (ordinary storing
+        registers) and the launch is a separate write to that channel's bit in
+        KICK_ENABLE, which is a singlepulse: it self-clears, and one 32-bit
+        write can launch several channels on the same cycle.
+
+        NOTE the behavioural change from the old apb4todescr kick window: its
+        HIGH write stalled the APB until the descriptor engine had ACCEPTED the
+        kick, so "the write completed" meant "accepted". Acceptance is now
+        asynchronous -- the RTL holds the request until the engine takes it --
+        so a completed write means only that the request was raised.
+        """
+        await self.write_reg(half, f'CH{channel}_DESC_ADDR_LOW',
+                             descriptor_addr & 0xFFFF_FFFF)
+        await self.write_reg(half, f'CH{channel}_DESC_ADDR_HIGH',
+                             (descriptor_addr >> 32) & 0xFFFF_FFFF)
+        # write_fields zeroes unnamed fields, which is what we want here: only
+        # this channel's KICK bit is set, so no other channel launches.
+        await self.write_fields(half, 'KICK_ENABLE', **{f'KICK{channel}': 1})
+        self.log.info(f"Staged + kicked {half} ch{channel}, desc @ "
+                      f"0x{descriptor_addr:016X}")
 
     # =========================================================================
     # DESCRIPTOR + MEMORY HELPERS
@@ -626,11 +628,22 @@ class RapidsBeatsTopTB(TBBase):
                 break
         await self.wait_clocks(self.clk_name, 50)
 
+        # Over-delivery check. A kick accepted twice re-runs the SAME descriptor,
+        # so the duplicate beats are byte-identical and only arrive AFTER the
+        # first chain completes -- long after the ">= beats" wait above returns.
+        # Settle to idle before counting: otherwise a double launch passes
+        # unnoticed, because got[:beats] still matches the pattern exactly.
+        await self.wait_half_idle('src', timeout_cycles=20000)
+        await self.wait_clocks(self.clk_name, 200)
+
         got = self.captured_axis.get(channel, [])
         errors = list(self.test_errors)
-        if len(got) < beats:
-            errors.append(f"source ch{channel}: captured {len(got)}/{beats} beats")
-        else:
+        if len(got) != beats:
+            kind = ("OVER-DELIVERY: descriptor launched more than once?"
+                    if len(got) > beats else "short")
+            errors.append(
+                f"source ch{channel}: captured {len(got)}/{beats} beats [{kind}]")
+        if len(got) >= beats:
             mism = sum(1 for a, b in zip(got[:beats], pattern) if a != b)
             if mism:
                 errors.append(f"source ch{channel}: {mism}/{beats} beat mismatches")

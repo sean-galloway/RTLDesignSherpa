@@ -33,7 +33,7 @@ control descriptors add a bounded synchronization delay.
 
 | Stage | Typical Cycles (100 MHz) | Notes |
 |-------|--------------------------|-------|
-| Kick decode (APB / kick window) | 2-4 | Descriptor address latched |
+| Kick decode (APB write to `KICK_ENABLE`) | TBD -- re-measure | Address is staged beforehand; the launch request is then held until the descriptor engine accepts it |
 | Descriptor fetch (AXI read, 256-bit) | AXI read latency + 1 | Overlapped by prefetch on chains |
 | Descriptor parse | 1-2 | Opcode + fields decoded |
 | SRAM fill (sink) / AXI read issue (source) | AXI/AXIS latency | First beat into the buffer |
@@ -44,6 +44,11 @@ control descriptors add a bounded synchronization delay.
 ```
 L_first_beat  =  L_kick + L_desc_fetch + L_parse + L_pipeline_fill
 ```
+
+> **Note:** `L_kick` predates the staged-address/`KICK_ENABLE` kick and has not
+> been re-measured. The previous figure came from a path that stalled APB until
+> the descriptor engine accepted the kick; acceptance is now asynchronous, so
+> the term is no longer bounded by an APB stall.
 
 `L_desc_fetch` is hidden on chained descriptors when the descriptor engine has
 prefetched the next descriptor (`DESCENG_CONFIG.PREFETCH_EN`).

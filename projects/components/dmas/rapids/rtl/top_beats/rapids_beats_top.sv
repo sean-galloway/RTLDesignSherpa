@@ -22,8 +22,8 @@
 //     APB4 slave (s_apb_*)
 //       -> apb4_slave  (APB -> CMD/RSP, single clock domain: pclk = aclk)
 //       -> cmd demux (hand-written, 3-way):
-//            0x000-0x03F  -> apb4todescr (u_kick_src)  -> core.src_apb_*
-//            0x1000-0x103F-> apb4todescr (u_kick_snk)  -> core.snk_apb_*
+//            all accesses -> peakrdl_to_cmdrsp -> rapids_regs; the kick
+//            windows are now ordinary registers in that map
 //            all others   -> peakrdl_to_cmdrsp -> rapids_regs
 //       -> rapids_config_block x2 (u_cfg_src <- hwif_out.SRC.*,
 //                                  u_cfg_snk <- hwif_out.SNK.*)
@@ -32,9 +32,11 @@
 //                                  bulk-capture master / IRQ)
 //
 //   APB address map (13-bit APB address; bit[12] selects SRC(0)/SNK(1)):
-//     0x0000-0x003F : SOURCE channel kick-off (apb4todescr u_kick_src)
+//     0x0000-0x003F : SOURCE staged descriptor addresses (CHx_DESC_ADDR_*)
+//     0x0040        : SOURCE KICK_ENABLE (one singlepulse bit per channel)
 //     0x0040-0x0FFF : SOURCE configuration registers (rapids_regs SRC)
-//     0x1000-0x103F : SINK   channel kick-off (apb4todescr u_kick_snk)
+//     0x1000-0x103F : SINK   staged descriptor addresses (CHx_DESC_ADDR_*)
+//     0x1040        : SINK   KICK_ENABLE (one singlepulse bit per channel)
 //     0x1040-0x1FFF : SINK   configuration registers (rapids_regs SNK)
 //
 //   NOTE on the single MonBus egress config: the two halves each emit their own
@@ -398,38 +400,14 @@ module rapids_beats_top #(
     );
 
     //=========================================================================
-    // Hand-written CMD/RSP 3-way demux
-    //   - SRC kick   : 0x000-0x03F   (paddr[12:6] == 0)
-    //   - SNK kick   : 0x1000-0x103F (paddr[12]==1, paddr[11:6] == 0)
-    //   - Registers  : everything else -> peakrdl register chain
-    //
-    // APB is single-outstanding (apb4_slave issues one CMD and waits for its
-    // RSP), so a combinational demux on the address is safe: exactly one sink
-    // sees CMD.valid at a time, and exactly one sink asserts RSP.valid.
+    // APB -> register chain (single sink)
     //=========================================================================
-    localparam int KICK_WIN_LSB = 6;  // 0x40-byte kick window per half
-
-    logic sel_kick_src, sel_kick_snk, sel_regs;
-    assign sel_kick_src = (apb_cmd_paddr[APB_ADDR_WIDTH-1:KICK_WIN_LSB] == '0);
-    assign sel_kick_snk = (apb_cmd_paddr[APB_ADDR_WIDTH-1] == 1'b1) &&
-                          (apb_cmd_paddr[APB_ADDR_WIDTH-2:KICK_WIN_LSB] == '0);
-    assign sel_regs     = ~(sel_kick_src | sel_kick_snk);
-
-    // ---- SRC kick-off CMD/RSP ----
-    logic                          kick_src_cmd_valid;
-    logic                          kick_src_cmd_ready;
-    logic                          kick_src_rsp_valid;
-    logic [APB_DATA_WIDTH-1:0]     kick_src_rsp_prdata;
-    logic                          kick_src_rsp_pslverr;
-
-    // ---- SNK kick-off CMD/RSP ----
-    logic                          kick_snk_cmd_valid;
-    logic                          kick_snk_cmd_ready;
-    logic                          kick_snk_rsp_valid;
-    logic [APB_DATA_WIDTH-1:0]     kick_snk_rsp_prdata;
-    logic                          kick_snk_rsp_pslverr;
-
-    // ---- Register chain CMD/RSP ----
+    // This used to be a 3-way demux: 0x000-0x03F and 0x1000-0x103F were carved
+    // out as apb4todescr kick windows and everything else went to the register
+    // chain. Those windows are now ordinary registers (CHx_DESC_ADDR_{LOW,HIGH}
+    // and KICK_ENABLE at the same offsets), so every access goes to the
+    // register block and the demux is gone.
+    //=========================================================================
     logic                          peakrdl_cmd_valid;
     logic                          peakrdl_cmd_ready;
     logic                          peakrdl_rsp_valid;
@@ -437,86 +415,29 @@ module rapids_beats_top #(
     logic [APB_DATA_WIDTH-1:0]     peakrdl_rsp_prdata;
     logic                          peakrdl_rsp_pslverr;
 
-    // CMD valid steering
-    assign kick_src_cmd_valid = apb_cmd_valid & sel_kick_src;
-    assign kick_snk_cmd_valid = apb_cmd_valid & sel_kick_snk;
-    assign peakrdl_cmd_valid  = apb_cmd_valid & sel_regs;
-
-    // CMD ready mux back to apb4_slave
-    assign apb_cmd_ready = sel_kick_src ? kick_src_cmd_ready :
-                           sel_kick_snk ? kick_snk_cmd_ready :
-                                          peakrdl_cmd_ready;
-
-    // RSP mux (only one sink responds per outstanding transaction)
-    assign apb_rsp_valid   = kick_src_rsp_valid | kick_snk_rsp_valid | peakrdl_rsp_valid;
-    assign apb_rsp_prdata  = kick_src_rsp_valid ? kick_src_rsp_prdata  :
-                             kick_snk_rsp_valid ? kick_snk_rsp_prdata  :
-                                                  peakrdl_rsp_prdata;
-    assign apb_rsp_pslverr = kick_src_rsp_valid ? kick_src_rsp_pslverr :
-                             kick_snk_rsp_valid ? kick_snk_rsp_pslverr :
-                                                  peakrdl_rsp_pslverr;
-    // RSP ready fanout
+    assign peakrdl_cmd_valid = apb_cmd_valid;
+    assign apb_cmd_ready     = peakrdl_cmd_ready;
+    assign apb_rsp_valid     = peakrdl_rsp_valid;
+    assign apb_rsp_prdata    = peakrdl_rsp_prdata;
+    assign apb_rsp_pslverr   = peakrdl_rsp_pslverr;
     assign peakrdl_rsp_ready = apb_rsp_ready;
 
     //=========================================================================
-    // SOURCE channel kick-off (apb4todescr) -> core.src_apb_*
+    // SOURCE channel descriptor requests (driven from the staged
+    // CHx_DESC_ADDR pair + KICK_ENABLE, below the register block)
     //=========================================================================
     logic [NC-1:0]          src_apb_valid;
     logic [NC-1:0]          src_apb_ready;
     logic [NC-1:0][AW-1:0]  src_apb_addr;
 
-    apb4todescr #(
-        .ADDR_WIDTH      (APB_ADDR_WIDTH),
-        .DATA_WIDTH      (APB_DATA_WIDTH),
-        .NUM_CHANNELS    (NUM_CHANNELS),
-        .DESC_ADDR_WIDTH (ADDR_WIDTH)
-    ) u_kick_src (
-        .clk            (aclk),
-        .rst_n          (aresetn),
-        .apb_cmd_valid  (kick_src_cmd_valid),
-        .apb_cmd_ready  (kick_src_cmd_ready),
-        .apb_cmd_addr   (apb_cmd_paddr),
-        .apb_cmd_wdata  (apb_cmd_pwdata),
-        .apb_cmd_write  (apb_cmd_pwrite),
-        .apb_rsp_valid  (kick_src_rsp_valid),
-        .apb_rsp_ready  (apb_rsp_ready),
-        .apb_rsp_rdata  (kick_src_rsp_prdata),
-        .apb_rsp_error  (kick_src_rsp_pslverr),
-        .desc_apb_valid (src_apb_valid),
-        .desc_apb_ready (src_apb_ready),
-        .desc_apb_addr  (src_apb_addr),
-        .apb_descriptor_kickoff_hit ()
-    );
 
     //=========================================================================
-    // SINK channel kick-off (apb4todescr) -> core.snk_apb_*
+    // SINK channel descriptor requests (same source, below)
     //=========================================================================
     logic [NC-1:0]          snk_apb_valid;
     logic [NC-1:0]          snk_apb_ready;
     logic [NC-1:0][AW-1:0]  snk_apb_addr;
 
-    apb4todescr #(
-        .ADDR_WIDTH      (APB_ADDR_WIDTH),
-        .DATA_WIDTH      (APB_DATA_WIDTH),
-        .NUM_CHANNELS    (NUM_CHANNELS),
-        .DESC_ADDR_WIDTH (ADDR_WIDTH)
-    ) u_kick_snk (
-        .clk            (aclk),
-        .rst_n          (aresetn),
-        .apb_cmd_valid  (kick_snk_cmd_valid),
-        .apb_cmd_ready  (kick_snk_cmd_ready),
-        .apb_cmd_addr   (apb_cmd_paddr),
-        .apb_cmd_wdata  (apb_cmd_pwdata),
-        .apb_cmd_write  (apb_cmd_pwrite),
-        .apb_rsp_valid  (kick_snk_rsp_valid),
-        .apb_rsp_ready  (apb_rsp_ready),
-        .apb_rsp_rdata  (kick_snk_rsp_prdata),
-        .apb_rsp_error  (kick_snk_rsp_pslverr),
-        .desc_apb_valid (snk_apb_valid),
-        .desc_apb_ready (snk_apb_ready),
-        .desc_apb_addr  (snk_apb_addr),
-        .apb_descriptor_kickoff_hit ()
-    );
 
     //=========================================================================
     // PeakRDL passthrough adapter (peakrdl_to_cmdrsp)
@@ -859,6 +780,134 @@ module rapids_beats_top #(
         .hwif_in                (hwif_in),
         .hwif_out               (hwif_out)
     );
+
+    //=========================================================================
+    // Channel kick: staged address + KICK_ENABLE (replaces apb4todescr)
+    //=========================================================================
+    // Software stages CHx_DESC_ADDR_{LOW,HIGH} per channel and then writes
+    // KICK_ENABLE; one 32-bit write launches every selected channel on the
+    // same cycle. The old scheme kicked on the ADDRESS WRITE itself, so an
+    // N-channel launch cost N APB transactions and the channels started
+    // measurably apart.
+    //
+    // RISING-EDGE detect on the kick, NOT the level. peakrdl_to_cmdrsp holds
+    // regblk_req across CMD_IDLE -> CMD_WAIT_ACK, and a PeakRDL singlepulse
+    // fires once per decoded write strobe, so a held request pulses KICKn on
+    // consecutive cycles -- launching the channel TWICE and moving exactly 2x
+    // the descriptor's beats. STREAM hit precisely this; edge-detecting makes
+    // the launch independent of how long the adapter holds the request.
+    //
+    // The request is then HELD until the descriptor engine accepts it, so a
+    // one-cycle pulse cannot be lost while a channel is briefly unready. That
+    // is the one behavioural change from apb4todescr, whose HIGH write stalled
+    // the APB until the engine accepted: acceptance is now asynchronous to the
+    // bus write, so a completed write no longer means "accepted".
+    //=========================================================================
+    logic [7:0]       w_kick_src_pulse, w_kick_snk_pulse;
+    logic [7:0]       r_kick_src_d,     r_kick_snk_d;
+    logic [7:0]       w_kick_src_edge,  w_kick_snk_edge;
+    logic [7:0][63:0] w_staged_src_addr, w_staged_snk_addr;
+
+    always_comb begin
+        w_kick_src_pulse[0] = hwif_out.SRC.KICK_ENABLE.KICK0.value;
+        w_kick_src_pulse[1] = hwif_out.SRC.KICK_ENABLE.KICK1.value;
+        w_kick_src_pulse[2] = hwif_out.SRC.KICK_ENABLE.KICK2.value;
+        w_kick_src_pulse[3] = hwif_out.SRC.KICK_ENABLE.KICK3.value;
+        w_kick_src_pulse[4] = hwif_out.SRC.KICK_ENABLE.KICK4.value;
+        w_kick_src_pulse[5] = hwif_out.SRC.KICK_ENABLE.KICK5.value;
+        w_kick_src_pulse[6] = hwif_out.SRC.KICK_ENABLE.KICK6.value;
+        w_kick_src_pulse[7] = hwif_out.SRC.KICK_ENABLE.KICK7.value;
+        w_kick_snk_pulse[0] = hwif_out.SNK.KICK_ENABLE.KICK0.value;
+        w_kick_snk_pulse[1] = hwif_out.SNK.KICK_ENABLE.KICK1.value;
+        w_kick_snk_pulse[2] = hwif_out.SNK.KICK_ENABLE.KICK2.value;
+        w_kick_snk_pulse[3] = hwif_out.SNK.KICK_ENABLE.KICK3.value;
+        w_kick_snk_pulse[4] = hwif_out.SNK.KICK_ENABLE.KICK4.value;
+        w_kick_snk_pulse[5] = hwif_out.SNK.KICK_ENABLE.KICK5.value;
+        w_kick_snk_pulse[6] = hwif_out.SNK.KICK_ENABLE.KICK6.value;
+        w_kick_snk_pulse[7] = hwif_out.SNK.KICK_ENABLE.KICK7.value;
+        w_staged_src_addr[0] = {hwif_out.SRC.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value,
+                        hwif_out.SRC.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.value};
+        w_staged_src_addr[1] = {hwif_out.SRC.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value,
+                        hwif_out.SRC.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.value};
+        w_staged_src_addr[2] = {hwif_out.SRC.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value,
+                        hwif_out.SRC.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.value};
+        w_staged_src_addr[3] = {hwif_out.SRC.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value,
+                        hwif_out.SRC.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.value};
+        w_staged_src_addr[4] = {hwif_out.SRC.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value,
+                        hwif_out.SRC.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.value};
+        w_staged_src_addr[5] = {hwif_out.SRC.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value,
+                        hwif_out.SRC.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.value};
+        w_staged_src_addr[6] = {hwif_out.SRC.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value,
+                        hwif_out.SRC.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.value};
+        w_staged_src_addr[7] = {hwif_out.SRC.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value,
+                        hwif_out.SRC.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.value};
+        w_staged_snk_addr[0] = {hwif_out.SNK.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value,
+                        hwif_out.SNK.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.value};
+        w_staged_snk_addr[1] = {hwif_out.SNK.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value,
+                        hwif_out.SNK.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.value};
+        w_staged_snk_addr[2] = {hwif_out.SNK.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value,
+                        hwif_out.SNK.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.value};
+        w_staged_snk_addr[3] = {hwif_out.SNK.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value,
+                        hwif_out.SNK.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.value};
+        w_staged_snk_addr[4] = {hwif_out.SNK.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value,
+                        hwif_out.SNK.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.value};
+        w_staged_snk_addr[5] = {hwif_out.SNK.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value,
+                        hwif_out.SNK.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.value};
+        w_staged_snk_addr[6] = {hwif_out.SNK.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value,
+                        hwif_out.SNK.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.value};
+        w_staged_snk_addr[7] = {hwif_out.SNK.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value,
+                        hwif_out.SNK.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.value};
+    end
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_kick_src_d <= '0;
+            r_kick_snk_d <= '0;
+        end else begin
+            r_kick_src_d <= w_kick_src_pulse;
+            r_kick_snk_d <= w_kick_snk_pulse;
+        end
+    )
+    assign w_kick_src_edge = w_kick_src_pulse & ~r_kick_src_d;
+    assign w_kick_snk_edge = w_kick_snk_pulse & ~r_kick_snk_d;
+
+    logic [NC-1:0]          r_kick_src_pending, r_kick_snk_pending;
+    logic [NC-1:0][AW-1:0]  r_kick_src_addr,    r_kick_snk_addr;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_kick_src_pending <= '0;
+            r_kick_snk_pending <= '0;
+            r_kick_src_addr    <= '{default:'0};
+            r_kick_snk_addr    <= '{default:'0};
+        end else begin
+            for (int ch = 0; ch < NC; ch++) begin
+                if (w_kick_src_edge[ch]) begin
+                    r_kick_src_pending[ch] <= 1'b1;
+                    r_kick_src_addr[ch]    <= AW'(w_staged_src_addr[ch]);
+                end else if (r_kick_src_pending[ch] && src_apb_ready[ch]) begin
+                    r_kick_src_pending[ch] <= 1'b0;
+                end
+
+                if (w_kick_snk_edge[ch]) begin
+                    r_kick_snk_pending[ch] <= 1'b1;
+                    r_kick_snk_addr[ch]    <= AW'(w_staged_snk_addr[ch]);
+                end else if (r_kick_snk_pending[ch] && snk_apb_ready[ch]) begin
+                    r_kick_snk_pending[ch] <= 1'b0;
+                end
+            end
+        end
+    )
+
+    always_comb begin
+        for (int ch = 0; ch < NC; ch++) begin
+            src_apb_valid[ch] = r_kick_src_pending[ch];
+            src_apb_addr [ch] = r_kick_src_addr[ch];
+            snk_apb_valid[ch] = r_kick_snk_pending[ch];
+            snk_apb_addr [ch] = r_kick_snk_addr[ch];
+        end
+    end
+
 
     //=========================================================================
     // Configuration for the SOURCE half (u_cfg_src <- hwif_out.SRC.*)

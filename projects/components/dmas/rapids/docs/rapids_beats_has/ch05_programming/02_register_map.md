@@ -30,7 +30,8 @@ status. All registers are accessed through the single top-level APB slave
 (`s_apb_*`) and are implemented by the PeakRDL-generated `rapids_regs` register
 block. A single addrmap (one APB slave) contains a base regfile at 0x100-0x3FF
 and a nested monitor regfile (`rapids_mon_regs`) at 0x1000. Descriptor kick-off
-uses a separate address range (0x000-0x03F) routed to `apb4todescr`.
+is part of this same register block: the staged descriptor addresses occupy
+0x000-0x03F and the launch register `KICK_ENABLE` sits at 0x040.
 
 Because the monitor regfile lives at 0x1000, the APB address bus must be at
 least 13 bits wide.
@@ -39,7 +40,8 @@ least 13 bits wide.
 
 | Range | Target | Purpose |
 |-------|--------|---------|
-| 0x000-0x03F | `apb4todescr` | Per-channel descriptor kick-off |
+| 0x000-0x03F | `rapids_regs` base regfile | Per-channel staged descriptor addresses |
+| 0x040 | `rapids_regs` base regfile | `KICK_ENABLE` per-channel launch bits |
 | 0x100-0x3FF | `rapids_regs` base regfile | Configuration and status |
 | 0x1000+ | `rapids_regs` monitor regfile | AXI-monitor config and performance |
 
@@ -177,24 +179,26 @@ least 13 bits wide.
 
 ## Channel Kick Sequence
 
-Writing to the `kick` bit triggers descriptor processing:
+Staging a channel's descriptor address, then writing that channel's bit in
+`KICK_ENABLE`, triggers descriptor processing:
 
 ```wavedrom
 {
   "signal": [
     {"name": "pclk", "wave": "p............"},
     {},
-    ["APB Write",
-      {"name": "psel", "wave": "01...0......."},
-      {"name": "penable", "wave": "0.1..0......."},
-      {"name": "paddr", "wave": "x=...x.......", "data": ["0x000"]},
-      {"name": "pwdata", "wave": "x=...x.......", "data": ["KICK"]}
+    ["APB Writes",
+      {"name": "psel", "wave": "01.....0....."},
+      {"name": "penable", "wave": "0.1.1.1.0...."},
+      {"name": "paddr", "wave": "x=.=.=.x.....", "data": ["0x000","0x004","0x040"]},
+      {"name": "pwdata", "wave": "x=.=.=.x.....", "data": ["ADDR_LO","ADDR_HI","KICK0"]}
     ],
     {},
     ["Channel Response",
-      {"name": "kick_valid", "wave": "0...1.0......"},
-      {"name": "ch_state", "wave": "=....=.......", "data": ["IDLE","WAIT_DESC"]},
-      {"name": "desc_fetch", "wave": "0....1.0....."}
+      {"name": "kick_pending", "wave": "0.....1..0..."},
+      {"name": "apb_ready", "wave": "1.......0...."},
+      {"name": "ch_state", "wave": "=.......=....", "data": ["IDLE","WAIT_DESC"]},
+      {"name": "desc_fetch", "wave": "0.......1.0.."}
     ]
   ],
   "config": {"hscale": 1.5},
@@ -207,11 +211,13 @@ Writing to the `kick` bit triggers descriptor processing:
 Registers are global (not per-channel windows); per-channel fields are packed
 as bit lanes within a single 32-bit register (e.g. `CHANNEL_ENABLE.CH_EN[7:0]`,
 `CHANNEL_IDLE.CH_IDLE[7:0]`). The only per-channel array is `CH_STATE[0..7]` at
-0x150-0x16C (stride 0x4). Descriptor kick-off is a separate address range
-(0x000-0x03F) handled by `apb4todescr`, not part of the register regfile.
+0x150-0x16C (stride 0x4). Descriptor kick-off is part of this register block:
+staged addresses at 0x000-0x03F (`CH*_DESC_ADDR_{LOW,HIGH}`, stride 0x8) and the
+`KICK_ENABLE` launch register at 0x040.
 
 ```
-0x000 - 0x03F: Descriptor kick-off (apb4todescr)
+0x000 - 0x03F: Staged descriptor addresses (CH*_DESC_ADDR_{LOW,HIGH})
+0x040        : KICK_ENABLE (per-channel launch, singlepulse)
 0x100 - 0x3FF: Base configuration / status registers
 0x1000+      : Monitor configuration / performance registers
 ```

@@ -67,6 +67,23 @@ module rapids_regs (
     //--------------------------------------------------------------------------
     typedef struct {
         struct {
+            logic CH0_DESC_ADDR_LOW;
+            logic CH0_DESC_ADDR_HIGH;
+            logic CH1_DESC_ADDR_LOW;
+            logic CH1_DESC_ADDR_HIGH;
+            logic CH2_DESC_ADDR_LOW;
+            logic CH2_DESC_ADDR_HIGH;
+            logic CH3_DESC_ADDR_LOW;
+            logic CH3_DESC_ADDR_HIGH;
+            logic CH4_DESC_ADDR_LOW;
+            logic CH4_DESC_ADDR_HIGH;
+            logic CH5_DESC_ADDR_LOW;
+            logic CH5_DESC_ADDR_HIGH;
+            logic CH6_DESC_ADDR_LOW;
+            logic CH6_DESC_ADDR_HIGH;
+            logic CH7_DESC_ADDR_LOW;
+            logic CH7_DESC_ADDR_HIGH;
+            logic KICK_ENABLE;
             logic GLOBAL_CTRL;
             logic GLOBAL_STATUS;
             logic VERSION;
@@ -169,6 +186,23 @@ module rapids_regs (
             } MON;
         } SRC;
         struct {
+            logic CH0_DESC_ADDR_LOW;
+            logic CH0_DESC_ADDR_HIGH;
+            logic CH1_DESC_ADDR_LOW;
+            logic CH1_DESC_ADDR_HIGH;
+            logic CH2_DESC_ADDR_LOW;
+            logic CH2_DESC_ADDR_HIGH;
+            logic CH3_DESC_ADDR_LOW;
+            logic CH3_DESC_ADDR_HIGH;
+            logic CH4_DESC_ADDR_LOW;
+            logic CH4_DESC_ADDR_HIGH;
+            logic CH5_DESC_ADDR_LOW;
+            logic CH5_DESC_ADDR_HIGH;
+            logic CH6_DESC_ADDR_LOW;
+            logic CH6_DESC_ADDR_HIGH;
+            logic CH7_DESC_ADDR_LOW;
+            logic CH7_DESC_ADDR_HIGH;
+            logic KICK_ENABLE;
             logic GLOBAL_CTRL;
             logic GLOBAL_STATUS;
             logic VERSION;
@@ -278,6 +312,23 @@ module rapids_regs (
     logic [31:0] decoded_wr_biten;
 
     always_comb begin
+        decoded_reg_strb.SRC.CH0_DESC_ADDR_LOW = cpuif_req_masked & (cpuif_addr == 13'h0);
+        decoded_reg_strb.SRC.CH0_DESC_ADDR_HIGH = cpuif_req_masked & (cpuif_addr == 13'h4);
+        decoded_reg_strb.SRC.CH1_DESC_ADDR_LOW = cpuif_req_masked & (cpuif_addr == 13'h8);
+        decoded_reg_strb.SRC.CH1_DESC_ADDR_HIGH = cpuif_req_masked & (cpuif_addr == 13'hc);
+        decoded_reg_strb.SRC.CH2_DESC_ADDR_LOW = cpuif_req_masked & (cpuif_addr == 13'h10);
+        decoded_reg_strb.SRC.CH2_DESC_ADDR_HIGH = cpuif_req_masked & (cpuif_addr == 13'h14);
+        decoded_reg_strb.SRC.CH3_DESC_ADDR_LOW = cpuif_req_masked & (cpuif_addr == 13'h18);
+        decoded_reg_strb.SRC.CH3_DESC_ADDR_HIGH = cpuif_req_masked & (cpuif_addr == 13'h1c);
+        decoded_reg_strb.SRC.CH4_DESC_ADDR_LOW = cpuif_req_masked & (cpuif_addr == 13'h20);
+        decoded_reg_strb.SRC.CH4_DESC_ADDR_HIGH = cpuif_req_masked & (cpuif_addr == 13'h24);
+        decoded_reg_strb.SRC.CH5_DESC_ADDR_LOW = cpuif_req_masked & (cpuif_addr == 13'h28);
+        decoded_reg_strb.SRC.CH5_DESC_ADDR_HIGH = cpuif_req_masked & (cpuif_addr == 13'h2c);
+        decoded_reg_strb.SRC.CH6_DESC_ADDR_LOW = cpuif_req_masked & (cpuif_addr == 13'h30);
+        decoded_reg_strb.SRC.CH6_DESC_ADDR_HIGH = cpuif_req_masked & (cpuif_addr == 13'h34);
+        decoded_reg_strb.SRC.CH7_DESC_ADDR_LOW = cpuif_req_masked & (cpuif_addr == 13'h38);
+        decoded_reg_strb.SRC.CH7_DESC_ADDR_HIGH = cpuif_req_masked & (cpuif_addr == 13'h3c);
+        decoded_reg_strb.SRC.KICK_ENABLE = cpuif_req_masked & (cpuif_addr == 13'h40);
         decoded_reg_strb.SRC.GLOBAL_CTRL = cpuif_req_masked & (cpuif_addr == 13'h100);
         decoded_reg_strb.SRC.GLOBAL_STATUS = cpuif_req_masked & (cpuif_addr == 13'h104);
         decoded_reg_strb.SRC.VERSION = cpuif_req_masked & (cpuif_addr == 13'h108);
@@ -376,6 +427,23 @@ module rapids_regs (
         decoded_reg_strb.SRC.MON.WRMON_PERF_CH_STARV_IDLE = cpuif_req_masked & (cpuif_addr == 13'h9ec);
         decoded_reg_strb.SRC.MON.RDMON_PERF_CH_OVERFLOW = cpuif_req_masked & (cpuif_addr == 13'h9f0);
         decoded_reg_strb.SRC.MON.WRMON_PERF_CH_OVERFLOW = cpuif_req_masked & (cpuif_addr == 13'h9f4);
+        decoded_reg_strb.SNK.CH0_DESC_ADDR_LOW = cpuif_req_masked & (cpuif_addr == 13'h1000);
+        decoded_reg_strb.SNK.CH0_DESC_ADDR_HIGH = cpuif_req_masked & (cpuif_addr == 13'h1004);
+        decoded_reg_strb.SNK.CH1_DESC_ADDR_LOW = cpuif_req_masked & (cpuif_addr == 13'h1008);
+        decoded_reg_strb.SNK.CH1_DESC_ADDR_HIGH = cpuif_req_masked & (cpuif_addr == 13'h100c);
+        decoded_reg_strb.SNK.CH2_DESC_ADDR_LOW = cpuif_req_masked & (cpuif_addr == 13'h1010);
+        decoded_reg_strb.SNK.CH2_DESC_ADDR_HIGH = cpuif_req_masked & (cpuif_addr == 13'h1014);
+        decoded_reg_strb.SNK.CH3_DESC_ADDR_LOW = cpuif_req_masked & (cpuif_addr == 13'h1018);
+        decoded_reg_strb.SNK.CH3_DESC_ADDR_HIGH = cpuif_req_masked & (cpuif_addr == 13'h101c);
+        decoded_reg_strb.SNK.CH4_DESC_ADDR_LOW = cpuif_req_masked & (cpuif_addr == 13'h1020);
+        decoded_reg_strb.SNK.CH4_DESC_ADDR_HIGH = cpuif_req_masked & (cpuif_addr == 13'h1024);
+        decoded_reg_strb.SNK.CH5_DESC_ADDR_LOW = cpuif_req_masked & (cpuif_addr == 13'h1028);
+        decoded_reg_strb.SNK.CH5_DESC_ADDR_HIGH = cpuif_req_masked & (cpuif_addr == 13'h102c);
+        decoded_reg_strb.SNK.CH6_DESC_ADDR_LOW = cpuif_req_masked & (cpuif_addr == 13'h1030);
+        decoded_reg_strb.SNK.CH6_DESC_ADDR_HIGH = cpuif_req_masked & (cpuif_addr == 13'h1034);
+        decoded_reg_strb.SNK.CH7_DESC_ADDR_LOW = cpuif_req_masked & (cpuif_addr == 13'h1038);
+        decoded_reg_strb.SNK.CH7_DESC_ADDR_HIGH = cpuif_req_masked & (cpuif_addr == 13'h103c);
+        decoded_reg_strb.SNK.KICK_ENABLE = cpuif_req_masked & (cpuif_addr == 13'h1040);
         decoded_reg_strb.SNK.GLOBAL_CTRL = cpuif_req_masked & (cpuif_addr == 13'h1100);
         decoded_reg_strb.SNK.GLOBAL_STATUS = cpuif_req_masked & (cpuif_addr == 13'h1104);
         decoded_reg_strb.SNK.VERSION = cpuif_req_masked & (cpuif_addr == 13'h1108);
@@ -487,6 +555,136 @@ module rapids_regs (
     //--------------------------------------------------------------------------
     typedef struct {
         struct {
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_LOW;
+            } CH0_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_HIGH;
+            } CH0_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_LOW;
+            } CH1_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_HIGH;
+            } CH1_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_LOW;
+            } CH2_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_HIGH;
+            } CH2_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_LOW;
+            } CH3_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_HIGH;
+            } CH3_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_LOW;
+            } CH4_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_HIGH;
+            } CH4_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_LOW;
+            } CH5_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_HIGH;
+            } CH5_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_LOW;
+            } CH6_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_HIGH;
+            } CH6_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_LOW;
+            } CH7_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_HIGH;
+            } CH7_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic next;
+                    logic load_next;
+                } KICK0;
+                struct {
+                    logic next;
+                    logic load_next;
+                } KICK1;
+                struct {
+                    logic next;
+                    logic load_next;
+                } KICK2;
+                struct {
+                    logic next;
+                    logic load_next;
+                } KICK3;
+                struct {
+                    logic next;
+                    logic load_next;
+                } KICK4;
+                struct {
+                    logic next;
+                    logic load_next;
+                } KICK5;
+                struct {
+                    logic next;
+                    logic load_next;
+                } KICK6;
+                struct {
+                    logic next;
+                    logic load_next;
+                } KICK7;
+            } KICK_ENABLE;
             struct {
                 struct {
                     logic next;
@@ -915,6 +1113,136 @@ module rapids_regs (
             } MON;
         } SRC;
         struct {
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_LOW;
+            } CH0_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_HIGH;
+            } CH0_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_LOW;
+            } CH1_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_HIGH;
+            } CH1_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_LOW;
+            } CH2_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_HIGH;
+            } CH2_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_LOW;
+            } CH3_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_HIGH;
+            } CH3_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_LOW;
+            } CH4_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_HIGH;
+            } CH4_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_LOW;
+            } CH5_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_HIGH;
+            } CH5_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_LOW;
+            } CH6_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_HIGH;
+            } CH6_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_LOW;
+            } CH7_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } DESC_ADDR_HIGH;
+            } CH7_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic next;
+                    logic load_next;
+                } KICK0;
+                struct {
+                    logic next;
+                    logic load_next;
+                } KICK1;
+                struct {
+                    logic next;
+                    logic load_next;
+                } KICK2;
+                struct {
+                    logic next;
+                    logic load_next;
+                } KICK3;
+                struct {
+                    logic next;
+                    logic load_next;
+                } KICK4;
+                struct {
+                    logic next;
+                    logic load_next;
+                } KICK5;
+                struct {
+                    logic next;
+                    logic load_next;
+                } KICK6;
+                struct {
+                    logic next;
+                    logic load_next;
+                } KICK7;
+            } KICK_ENABLE;
             struct {
                 struct {
                     logic next;
@@ -1349,6 +1677,112 @@ module rapids_regs (
         struct {
             struct {
                 struct {
+                    logic [31:0] value;
+                } DESC_ADDR_LOW;
+            } CH0_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_HIGH;
+            } CH0_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_LOW;
+            } CH1_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_HIGH;
+            } CH1_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_LOW;
+            } CH2_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_HIGH;
+            } CH2_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_LOW;
+            } CH3_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_HIGH;
+            } CH3_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_LOW;
+            } CH4_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_HIGH;
+            } CH4_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_LOW;
+            } CH5_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_HIGH;
+            } CH5_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_LOW;
+            } CH6_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_HIGH;
+            } CH6_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_LOW;
+            } CH7_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_HIGH;
+            } CH7_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic value;
+                } KICK0;
+                struct {
+                    logic value;
+                } KICK1;
+                struct {
+                    logic value;
+                } KICK2;
+                struct {
+                    logic value;
+                } KICK3;
+                struct {
+                    logic value;
+                } KICK4;
+                struct {
+                    logic value;
+                } KICK5;
+                struct {
+                    logic value;
+                } KICK6;
+                struct {
+                    logic value;
+                } KICK7;
+            } KICK_ENABLE;
+            struct {
+                struct {
                     logic value;
                 } GLOBAL_EN;
                 struct {
@@ -1691,6 +2125,112 @@ module rapids_regs (
             } MON;
         } SRC;
         struct {
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_LOW;
+            } CH0_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_HIGH;
+            } CH0_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_LOW;
+            } CH1_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_HIGH;
+            } CH1_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_LOW;
+            } CH2_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_HIGH;
+            } CH2_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_LOW;
+            } CH3_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_HIGH;
+            } CH3_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_LOW;
+            } CH4_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_HIGH;
+            } CH4_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_LOW;
+            } CH5_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_HIGH;
+            } CH5_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_LOW;
+            } CH6_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_HIGH;
+            } CH6_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_LOW;
+            } CH7_DESC_ADDR_LOW;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } DESC_ADDR_HIGH;
+            } CH7_DESC_ADDR_HIGH;
+            struct {
+                struct {
+                    logic value;
+                } KICK0;
+                struct {
+                    logic value;
+                } KICK1;
+                struct {
+                    logic value;
+                } KICK2;
+                struct {
+                    logic value;
+                } KICK3;
+                struct {
+                    logic value;
+                } KICK4;
+                struct {
+                    logic value;
+                } KICK5;
+                struct {
+                    logic value;
+                } KICK6;
+                struct {
+                    logic value;
+                } KICK7;
+            } KICK_ENABLE;
             struct {
                 struct {
                     logic value;
@@ -2037,6 +2577,582 @@ module rapids_regs (
     } field_storage_t;
     field_storage_t field_storage;
 
+    // Field: rapids_regs.SRC.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.CH0_DESC_ADDR_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SRC.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.SRC.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.SRC.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.SRC.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= field_combo.SRC.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.value = field_storage.SRC.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+    // Field: rapids_regs.SRC.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.CH0_DESC_ADDR_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SRC.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.SRC.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.SRC.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.SRC.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= field_combo.SRC.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value = field_storage.SRC.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+    // Field: rapids_regs.SRC.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.CH1_DESC_ADDR_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SRC.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.SRC.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.SRC.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.SRC.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= field_combo.SRC.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.value = field_storage.SRC.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+    // Field: rapids_regs.SRC.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.CH1_DESC_ADDR_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SRC.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.SRC.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.SRC.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.SRC.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= field_combo.SRC.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value = field_storage.SRC.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+    // Field: rapids_regs.SRC.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.CH2_DESC_ADDR_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SRC.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.SRC.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.SRC.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.SRC.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= field_combo.SRC.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.value = field_storage.SRC.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+    // Field: rapids_regs.SRC.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.CH2_DESC_ADDR_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SRC.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.SRC.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.SRC.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.SRC.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= field_combo.SRC.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value = field_storage.SRC.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+    // Field: rapids_regs.SRC.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.CH3_DESC_ADDR_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SRC.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.SRC.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.SRC.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.SRC.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= field_combo.SRC.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.value = field_storage.SRC.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+    // Field: rapids_regs.SRC.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.CH3_DESC_ADDR_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SRC.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.SRC.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.SRC.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.SRC.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= field_combo.SRC.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value = field_storage.SRC.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+    // Field: rapids_regs.SRC.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.CH4_DESC_ADDR_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SRC.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.SRC.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.SRC.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.SRC.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= field_combo.SRC.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.value = field_storage.SRC.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+    // Field: rapids_regs.SRC.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.CH4_DESC_ADDR_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SRC.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.SRC.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.SRC.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.SRC.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= field_combo.SRC.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value = field_storage.SRC.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+    // Field: rapids_regs.SRC.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.CH5_DESC_ADDR_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SRC.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.SRC.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.SRC.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.SRC.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= field_combo.SRC.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.value = field_storage.SRC.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+    // Field: rapids_regs.SRC.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.CH5_DESC_ADDR_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SRC.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.SRC.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.SRC.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.SRC.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= field_combo.SRC.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value = field_storage.SRC.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+    // Field: rapids_regs.SRC.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.CH6_DESC_ADDR_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SRC.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.SRC.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.SRC.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.SRC.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= field_combo.SRC.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.value = field_storage.SRC.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+    // Field: rapids_regs.SRC.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.CH6_DESC_ADDR_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SRC.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.SRC.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.SRC.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.SRC.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= field_combo.SRC.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value = field_storage.SRC.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+    // Field: rapids_regs.SRC.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.CH7_DESC_ADDR_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SRC.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.SRC.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.SRC.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.SRC.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= field_combo.SRC.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.value = field_storage.SRC.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+    // Field: rapids_regs.SRC.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.CH7_DESC_ADDR_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SRC.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.SRC.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.SRC.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.SRC.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= field_combo.SRC.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value = field_storage.SRC.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+    // Field: rapids_regs.SRC.KICK_ENABLE.KICK0
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.KICK_ENABLE.KICK0.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.KICK_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.KICK_ENABLE.KICK0.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.SRC.KICK_ENABLE.KICK0.next = next_c;
+        field_combo.SRC.KICK_ENABLE.KICK0.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.KICK_ENABLE.KICK0.value <= 1'h0;
+        end else begin
+            if(field_combo.SRC.KICK_ENABLE.KICK0.load_next) begin
+                field_storage.SRC.KICK_ENABLE.KICK0.value <= field_combo.SRC.KICK_ENABLE.KICK0.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.KICK_ENABLE.KICK0.value = field_storage.SRC.KICK_ENABLE.KICK0.value;
+    // Field: rapids_regs.SRC.KICK_ENABLE.KICK1
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.KICK_ENABLE.KICK1.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.KICK_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.KICK_ENABLE.KICK1.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.SRC.KICK_ENABLE.KICK1.next = next_c;
+        field_combo.SRC.KICK_ENABLE.KICK1.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.KICK_ENABLE.KICK1.value <= 1'h0;
+        end else begin
+            if(field_combo.SRC.KICK_ENABLE.KICK1.load_next) begin
+                field_storage.SRC.KICK_ENABLE.KICK1.value <= field_combo.SRC.KICK_ENABLE.KICK1.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.KICK_ENABLE.KICK1.value = field_storage.SRC.KICK_ENABLE.KICK1.value;
+    // Field: rapids_regs.SRC.KICK_ENABLE.KICK2
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.KICK_ENABLE.KICK2.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.KICK_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.KICK_ENABLE.KICK2.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.SRC.KICK_ENABLE.KICK2.next = next_c;
+        field_combo.SRC.KICK_ENABLE.KICK2.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.KICK_ENABLE.KICK2.value <= 1'h0;
+        end else begin
+            if(field_combo.SRC.KICK_ENABLE.KICK2.load_next) begin
+                field_storage.SRC.KICK_ENABLE.KICK2.value <= field_combo.SRC.KICK_ENABLE.KICK2.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.KICK_ENABLE.KICK2.value = field_storage.SRC.KICK_ENABLE.KICK2.value;
+    // Field: rapids_regs.SRC.KICK_ENABLE.KICK3
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.KICK_ENABLE.KICK3.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.KICK_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.KICK_ENABLE.KICK3.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.SRC.KICK_ENABLE.KICK3.next = next_c;
+        field_combo.SRC.KICK_ENABLE.KICK3.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.KICK_ENABLE.KICK3.value <= 1'h0;
+        end else begin
+            if(field_combo.SRC.KICK_ENABLE.KICK3.load_next) begin
+                field_storage.SRC.KICK_ENABLE.KICK3.value <= field_combo.SRC.KICK_ENABLE.KICK3.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.KICK_ENABLE.KICK3.value = field_storage.SRC.KICK_ENABLE.KICK3.value;
+    // Field: rapids_regs.SRC.KICK_ENABLE.KICK4
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.KICK_ENABLE.KICK4.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.KICK_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.KICK_ENABLE.KICK4.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.SRC.KICK_ENABLE.KICK4.next = next_c;
+        field_combo.SRC.KICK_ENABLE.KICK4.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.KICK_ENABLE.KICK4.value <= 1'h0;
+        end else begin
+            if(field_combo.SRC.KICK_ENABLE.KICK4.load_next) begin
+                field_storage.SRC.KICK_ENABLE.KICK4.value <= field_combo.SRC.KICK_ENABLE.KICK4.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.KICK_ENABLE.KICK4.value = field_storage.SRC.KICK_ENABLE.KICK4.value;
+    // Field: rapids_regs.SRC.KICK_ENABLE.KICK5
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.KICK_ENABLE.KICK5.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.KICK_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.KICK_ENABLE.KICK5.value & ~decoded_wr_biten[5:5]) | (decoded_wr_data[5:5] & decoded_wr_biten[5:5]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.SRC.KICK_ENABLE.KICK5.next = next_c;
+        field_combo.SRC.KICK_ENABLE.KICK5.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.KICK_ENABLE.KICK5.value <= 1'h0;
+        end else begin
+            if(field_combo.SRC.KICK_ENABLE.KICK5.load_next) begin
+                field_storage.SRC.KICK_ENABLE.KICK5.value <= field_combo.SRC.KICK_ENABLE.KICK5.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.KICK_ENABLE.KICK5.value = field_storage.SRC.KICK_ENABLE.KICK5.value;
+    // Field: rapids_regs.SRC.KICK_ENABLE.KICK6
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.KICK_ENABLE.KICK6.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.KICK_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.KICK_ENABLE.KICK6.value & ~decoded_wr_biten[6:6]) | (decoded_wr_data[6:6] & decoded_wr_biten[6:6]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.SRC.KICK_ENABLE.KICK6.next = next_c;
+        field_combo.SRC.KICK_ENABLE.KICK6.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.KICK_ENABLE.KICK6.value <= 1'h0;
+        end else begin
+            if(field_combo.SRC.KICK_ENABLE.KICK6.load_next) begin
+                field_storage.SRC.KICK_ENABLE.KICK6.value <= field_combo.SRC.KICK_ENABLE.KICK6.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.KICK_ENABLE.KICK6.value = field_storage.SRC.KICK_ENABLE.KICK6.value;
+    // Field: rapids_regs.SRC.KICK_ENABLE.KICK7
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRC.KICK_ENABLE.KICK7.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRC.KICK_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRC.KICK_ENABLE.KICK7.value & ~decoded_wr_biten[7:7]) | (decoded_wr_data[7:7] & decoded_wr_biten[7:7]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.SRC.KICK_ENABLE.KICK7.next = next_c;
+        field_combo.SRC.KICK_ENABLE.KICK7.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRC.KICK_ENABLE.KICK7.value <= 1'h0;
+        end else begin
+            if(field_combo.SRC.KICK_ENABLE.KICK7.load_next) begin
+                field_storage.SRC.KICK_ENABLE.KICK7.value <= field_combo.SRC.KICK_ENABLE.KICK7.next;
+            end
+        end
+    end
+    assign hwif_out.SRC.KICK_ENABLE.KICK7.value = field_storage.SRC.KICK_ENABLE.KICK7.value;
     // Field: rapids_regs.SRC.GLOBAL_CTRL.GLOBAL_EN
     always_comb begin
         automatic logic [0:0] next_c;
@@ -3972,6 +5088,582 @@ module rapids_regs (
         end
     end
     assign hwif_out.SRC.MON.WRMON_PERF_CTRL.RUN.value = field_storage.SRC.MON.WRMON_PERF_CTRL.RUN.value;
+    // Field: rapids_regs.SNK.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.CH0_DESC_ADDR_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.SNK.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.SNK.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.SNK.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= field_combo.SNK.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.value = field_storage.SNK.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+    // Field: rapids_regs.SNK.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.CH0_DESC_ADDR_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.SNK.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.SNK.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.SNK.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= field_combo.SNK.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value = field_storage.SNK.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+    // Field: rapids_regs.SNK.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.CH1_DESC_ADDR_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.SNK.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.SNK.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.SNK.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= field_combo.SNK.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.value = field_storage.SNK.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+    // Field: rapids_regs.SNK.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.CH1_DESC_ADDR_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.SNK.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.SNK.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.SNK.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= field_combo.SNK.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value = field_storage.SNK.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+    // Field: rapids_regs.SNK.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.CH2_DESC_ADDR_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.SNK.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.SNK.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.SNK.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= field_combo.SNK.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.value = field_storage.SNK.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+    // Field: rapids_regs.SNK.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.CH2_DESC_ADDR_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.SNK.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.SNK.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.SNK.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= field_combo.SNK.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value = field_storage.SNK.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+    // Field: rapids_regs.SNK.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.CH3_DESC_ADDR_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.SNK.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.SNK.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.SNK.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= field_combo.SNK.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.value = field_storage.SNK.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+    // Field: rapids_regs.SNK.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.CH3_DESC_ADDR_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.SNK.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.SNK.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.SNK.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= field_combo.SNK.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value = field_storage.SNK.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+    // Field: rapids_regs.SNK.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.CH4_DESC_ADDR_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.SNK.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.SNK.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.SNK.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= field_combo.SNK.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.value = field_storage.SNK.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+    // Field: rapids_regs.SNK.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.CH4_DESC_ADDR_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.SNK.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.SNK.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.SNK.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= field_combo.SNK.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value = field_storage.SNK.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+    // Field: rapids_regs.SNK.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.CH5_DESC_ADDR_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.SNK.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.SNK.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.SNK.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= field_combo.SNK.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.value = field_storage.SNK.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+    // Field: rapids_regs.SNK.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.CH5_DESC_ADDR_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.SNK.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.SNK.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.SNK.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= field_combo.SNK.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value = field_storage.SNK.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+    // Field: rapids_regs.SNK.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.CH6_DESC_ADDR_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.SNK.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.SNK.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.SNK.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= field_combo.SNK.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.value = field_storage.SNK.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+    // Field: rapids_regs.SNK.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.CH6_DESC_ADDR_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.SNK.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.SNK.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.SNK.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= field_combo.SNK.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value = field_storage.SNK.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+    // Field: rapids_regs.SNK.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.CH7_DESC_ADDR_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.SNK.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.SNK.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.SNK.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.value <= field_combo.SNK.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.value = field_storage.SNK.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.value;
+    // Field: rapids_regs.SNK.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.CH7_DESC_ADDR_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SNK.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.SNK.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.SNK.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.SNK.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value <= field_combo.SNK.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value = field_storage.SNK.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value;
+    // Field: rapids_regs.SNK.KICK_ENABLE.KICK0
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.KICK_ENABLE.KICK0.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.KICK_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.KICK_ENABLE.KICK0.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.SNK.KICK_ENABLE.KICK0.next = next_c;
+        field_combo.SNK.KICK_ENABLE.KICK0.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.KICK_ENABLE.KICK0.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.KICK_ENABLE.KICK0.load_next) begin
+                field_storage.SNK.KICK_ENABLE.KICK0.value <= field_combo.SNK.KICK_ENABLE.KICK0.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.KICK_ENABLE.KICK0.value = field_storage.SNK.KICK_ENABLE.KICK0.value;
+    // Field: rapids_regs.SNK.KICK_ENABLE.KICK1
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.KICK_ENABLE.KICK1.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.KICK_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.KICK_ENABLE.KICK1.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.SNK.KICK_ENABLE.KICK1.next = next_c;
+        field_combo.SNK.KICK_ENABLE.KICK1.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.KICK_ENABLE.KICK1.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.KICK_ENABLE.KICK1.load_next) begin
+                field_storage.SNK.KICK_ENABLE.KICK1.value <= field_combo.SNK.KICK_ENABLE.KICK1.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.KICK_ENABLE.KICK1.value = field_storage.SNK.KICK_ENABLE.KICK1.value;
+    // Field: rapids_regs.SNK.KICK_ENABLE.KICK2
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.KICK_ENABLE.KICK2.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.KICK_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.KICK_ENABLE.KICK2.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.SNK.KICK_ENABLE.KICK2.next = next_c;
+        field_combo.SNK.KICK_ENABLE.KICK2.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.KICK_ENABLE.KICK2.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.KICK_ENABLE.KICK2.load_next) begin
+                field_storage.SNK.KICK_ENABLE.KICK2.value <= field_combo.SNK.KICK_ENABLE.KICK2.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.KICK_ENABLE.KICK2.value = field_storage.SNK.KICK_ENABLE.KICK2.value;
+    // Field: rapids_regs.SNK.KICK_ENABLE.KICK3
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.KICK_ENABLE.KICK3.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.KICK_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.KICK_ENABLE.KICK3.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.SNK.KICK_ENABLE.KICK3.next = next_c;
+        field_combo.SNK.KICK_ENABLE.KICK3.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.KICK_ENABLE.KICK3.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.KICK_ENABLE.KICK3.load_next) begin
+                field_storage.SNK.KICK_ENABLE.KICK3.value <= field_combo.SNK.KICK_ENABLE.KICK3.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.KICK_ENABLE.KICK3.value = field_storage.SNK.KICK_ENABLE.KICK3.value;
+    // Field: rapids_regs.SNK.KICK_ENABLE.KICK4
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.KICK_ENABLE.KICK4.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.KICK_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.KICK_ENABLE.KICK4.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.SNK.KICK_ENABLE.KICK4.next = next_c;
+        field_combo.SNK.KICK_ENABLE.KICK4.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.KICK_ENABLE.KICK4.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.KICK_ENABLE.KICK4.load_next) begin
+                field_storage.SNK.KICK_ENABLE.KICK4.value <= field_combo.SNK.KICK_ENABLE.KICK4.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.KICK_ENABLE.KICK4.value = field_storage.SNK.KICK_ENABLE.KICK4.value;
+    // Field: rapids_regs.SNK.KICK_ENABLE.KICK5
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.KICK_ENABLE.KICK5.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.KICK_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.KICK_ENABLE.KICK5.value & ~decoded_wr_biten[5:5]) | (decoded_wr_data[5:5] & decoded_wr_biten[5:5]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.SNK.KICK_ENABLE.KICK5.next = next_c;
+        field_combo.SNK.KICK_ENABLE.KICK5.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.KICK_ENABLE.KICK5.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.KICK_ENABLE.KICK5.load_next) begin
+                field_storage.SNK.KICK_ENABLE.KICK5.value <= field_combo.SNK.KICK_ENABLE.KICK5.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.KICK_ENABLE.KICK5.value = field_storage.SNK.KICK_ENABLE.KICK5.value;
+    // Field: rapids_regs.SNK.KICK_ENABLE.KICK6
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.KICK_ENABLE.KICK6.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.KICK_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.KICK_ENABLE.KICK6.value & ~decoded_wr_biten[6:6]) | (decoded_wr_data[6:6] & decoded_wr_biten[6:6]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.SNK.KICK_ENABLE.KICK6.next = next_c;
+        field_combo.SNK.KICK_ENABLE.KICK6.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.KICK_ENABLE.KICK6.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.KICK_ENABLE.KICK6.load_next) begin
+                field_storage.SNK.KICK_ENABLE.KICK6.value <= field_combo.SNK.KICK_ENABLE.KICK6.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.KICK_ENABLE.KICK6.value = field_storage.SNK.KICK_ENABLE.KICK6.value;
+    // Field: rapids_regs.SNK.KICK_ENABLE.KICK7
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SNK.KICK_ENABLE.KICK7.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SNK.KICK_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SNK.KICK_ENABLE.KICK7.value & ~decoded_wr_biten[7:7]) | (decoded_wr_data[7:7] & decoded_wr_biten[7:7]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.SNK.KICK_ENABLE.KICK7.next = next_c;
+        field_combo.SNK.KICK_ENABLE.KICK7.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SNK.KICK_ENABLE.KICK7.value <= 1'h0;
+        end else begin
+            if(field_combo.SNK.KICK_ENABLE.KICK7.load_next) begin
+                field_storage.SNK.KICK_ENABLE.KICK7.value <= field_combo.SNK.KICK_ENABLE.KICK7.next;
+            end
+        end
+    end
+    assign hwif_out.SNK.KICK_ENABLE.KICK7.value = field_storage.SNK.KICK_ENABLE.KICK7.value;
     // Field: rapids_regs.SNK.GLOBAL_CTRL.GLOBAL_EN
     always_comb begin
         automatic logic [0:0] next_c;
@@ -5924,391 +7616,427 @@ module rapids_regs (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[206];
-    assign readback_array[0][0:0] = (decoded_reg_strb.SRC.GLOBAL_CTRL && !decoded_req_is_wr) ? field_storage.SRC.GLOBAL_CTRL.GLOBAL_EN.value : '0;
-    assign readback_array[0][1:1] = (decoded_reg_strb.SRC.GLOBAL_CTRL && !decoded_req_is_wr) ? field_storage.SRC.GLOBAL_CTRL.GLOBAL_RST.value : '0;
-    assign readback_array[0][31:2] = (decoded_reg_strb.SRC.GLOBAL_CTRL && !decoded_req_is_wr) ? 30'h0 : '0;
-    assign readback_array[1][0:0] = (decoded_reg_strb.SRC.GLOBAL_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.GLOBAL_STATUS.SYSTEM_IDLE.next : '0;
-    assign readback_array[1][31:1] = (decoded_reg_strb.SRC.GLOBAL_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
-    assign readback_array[2][7:0] = (decoded_reg_strb.SRC.VERSION && !decoded_req_is_wr) ? 8'h5a : '0;
-    assign readback_array[2][15:8] = (decoded_reg_strb.SRC.VERSION && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[2][23:16] = (decoded_reg_strb.SRC.VERSION && !decoded_req_is_wr) ? 8'h8 : '0;
-    assign readback_array[2][31:24] = (decoded_reg_strb.SRC.VERSION && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[3][7:0] = (decoded_reg_strb.SRC.CHANNEL_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.CHANNEL_ENABLE.CH_EN.value : '0;
-    assign readback_array[3][31:8] = (decoded_reg_strb.SRC.CHANNEL_ENABLE && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[4][7:0] = (decoded_reg_strb.SRC.CHANNEL_RESET && !decoded_req_is_wr) ? field_storage.SRC.CHANNEL_RESET.CH_RST.value : '0;
-    assign readback_array[4][31:8] = (decoded_reg_strb.SRC.CHANNEL_RESET && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[5][7:0] = (decoded_reg_strb.SRC.CHANNEL_IDLE && !decoded_req_is_wr) ? hwif_in.SRC.CHANNEL_IDLE.CH_IDLE.next : '0;
-    assign readback_array[5][31:8] = (decoded_reg_strb.SRC.CHANNEL_IDLE && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[6][7:0] = (decoded_reg_strb.SRC.DESC_ENGINE_IDLE && !decoded_req_is_wr) ? hwif_in.SRC.DESC_ENGINE_IDLE.DESC_IDLE.next : '0;
-    assign readback_array[6][31:8] = (decoded_reg_strb.SRC.DESC_ENGINE_IDLE && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[7][7:0] = (decoded_reg_strb.SRC.SCHEDULER_IDLE && !decoded_req_is_wr) ? hwif_in.SRC.SCHEDULER_IDLE.SCHED_IDLE.next : '0;
-    assign readback_array[7][31:8] = (decoded_reg_strb.SRC.SCHEDULER_IDLE && !decoded_req_is_wr) ? 24'h0 : '0;
+    logic [31:0] readback_array[240];
+    assign readback_array[0][31:0] = (decoded_reg_strb.SRC.CH0_DESC_ADDR_LOW && !decoded_req_is_wr) ? field_storage.SRC.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.value : '0;
+    assign readback_array[1][31:0] = (decoded_reg_strb.SRC.CH0_DESC_ADDR_HIGH && !decoded_req_is_wr) ? field_storage.SRC.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value : '0;
+    assign readback_array[2][31:0] = (decoded_reg_strb.SRC.CH1_DESC_ADDR_LOW && !decoded_req_is_wr) ? field_storage.SRC.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.value : '0;
+    assign readback_array[3][31:0] = (decoded_reg_strb.SRC.CH1_DESC_ADDR_HIGH && !decoded_req_is_wr) ? field_storage.SRC.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value : '0;
+    assign readback_array[4][31:0] = (decoded_reg_strb.SRC.CH2_DESC_ADDR_LOW && !decoded_req_is_wr) ? field_storage.SRC.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.value : '0;
+    assign readback_array[5][31:0] = (decoded_reg_strb.SRC.CH2_DESC_ADDR_HIGH && !decoded_req_is_wr) ? field_storage.SRC.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value : '0;
+    assign readback_array[6][31:0] = (decoded_reg_strb.SRC.CH3_DESC_ADDR_LOW && !decoded_req_is_wr) ? field_storage.SRC.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.value : '0;
+    assign readback_array[7][31:0] = (decoded_reg_strb.SRC.CH3_DESC_ADDR_HIGH && !decoded_req_is_wr) ? field_storage.SRC.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value : '0;
+    assign readback_array[8][31:0] = (decoded_reg_strb.SRC.CH4_DESC_ADDR_LOW && !decoded_req_is_wr) ? field_storage.SRC.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.value : '0;
+    assign readback_array[9][31:0] = (decoded_reg_strb.SRC.CH4_DESC_ADDR_HIGH && !decoded_req_is_wr) ? field_storage.SRC.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value : '0;
+    assign readback_array[10][31:0] = (decoded_reg_strb.SRC.CH5_DESC_ADDR_LOW && !decoded_req_is_wr) ? field_storage.SRC.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.value : '0;
+    assign readback_array[11][31:0] = (decoded_reg_strb.SRC.CH5_DESC_ADDR_HIGH && !decoded_req_is_wr) ? field_storage.SRC.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value : '0;
+    assign readback_array[12][31:0] = (decoded_reg_strb.SRC.CH6_DESC_ADDR_LOW && !decoded_req_is_wr) ? field_storage.SRC.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.value : '0;
+    assign readback_array[13][31:0] = (decoded_reg_strb.SRC.CH6_DESC_ADDR_HIGH && !decoded_req_is_wr) ? field_storage.SRC.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value : '0;
+    assign readback_array[14][31:0] = (decoded_reg_strb.SRC.CH7_DESC_ADDR_LOW && !decoded_req_is_wr) ? field_storage.SRC.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.value : '0;
+    assign readback_array[15][31:0] = (decoded_reg_strb.SRC.CH7_DESC_ADDR_HIGH && !decoded_req_is_wr) ? field_storage.SRC.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value : '0;
+    assign readback_array[16][7:0] = '0;
+    assign readback_array[16][31:8] = (decoded_reg_strb.SRC.KICK_ENABLE && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[17][0:0] = (decoded_reg_strb.SRC.GLOBAL_CTRL && !decoded_req_is_wr) ? field_storage.SRC.GLOBAL_CTRL.GLOBAL_EN.value : '0;
+    assign readback_array[17][1:1] = (decoded_reg_strb.SRC.GLOBAL_CTRL && !decoded_req_is_wr) ? field_storage.SRC.GLOBAL_CTRL.GLOBAL_RST.value : '0;
+    assign readback_array[17][31:2] = (decoded_reg_strb.SRC.GLOBAL_CTRL && !decoded_req_is_wr) ? 30'h0 : '0;
+    assign readback_array[18][0:0] = (decoded_reg_strb.SRC.GLOBAL_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.GLOBAL_STATUS.SYSTEM_IDLE.next : '0;
+    assign readback_array[18][31:1] = (decoded_reg_strb.SRC.GLOBAL_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[19][7:0] = (decoded_reg_strb.SRC.VERSION && !decoded_req_is_wr) ? 8'h5a : '0;
+    assign readback_array[19][15:8] = (decoded_reg_strb.SRC.VERSION && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[19][23:16] = (decoded_reg_strb.SRC.VERSION && !decoded_req_is_wr) ? 8'h8 : '0;
+    assign readback_array[19][31:24] = (decoded_reg_strb.SRC.VERSION && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[20][7:0] = (decoded_reg_strb.SRC.CHANNEL_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.CHANNEL_ENABLE.CH_EN.value : '0;
+    assign readback_array[20][31:8] = (decoded_reg_strb.SRC.CHANNEL_ENABLE && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[21][7:0] = (decoded_reg_strb.SRC.CHANNEL_RESET && !decoded_req_is_wr) ? field_storage.SRC.CHANNEL_RESET.CH_RST.value : '0;
+    assign readback_array[21][31:8] = (decoded_reg_strb.SRC.CHANNEL_RESET && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[22][7:0] = (decoded_reg_strb.SRC.CHANNEL_IDLE && !decoded_req_is_wr) ? hwif_in.SRC.CHANNEL_IDLE.CH_IDLE.next : '0;
+    assign readback_array[22][31:8] = (decoded_reg_strb.SRC.CHANNEL_IDLE && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[23][7:0] = (decoded_reg_strb.SRC.DESC_ENGINE_IDLE && !decoded_req_is_wr) ? hwif_in.SRC.DESC_ENGINE_IDLE.DESC_IDLE.next : '0;
+    assign readback_array[23][31:8] = (decoded_reg_strb.SRC.DESC_ENGINE_IDLE && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[24][7:0] = (decoded_reg_strb.SRC.SCHEDULER_IDLE && !decoded_req_is_wr) ? hwif_in.SRC.SCHEDULER_IDLE.SCHED_IDLE.next : '0;
+    assign readback_array[24][31:8] = (decoded_reg_strb.SRC.SCHEDULER_IDLE && !decoded_req_is_wr) ? 24'h0 : '0;
     for(genvar i0=0; i0<8; i0++) begin
-        assign readback_array[i0 * 1 + 8][6:0] = (decoded_reg_strb.SRC.CH_STATE[i0].STATE && !decoded_req_is_wr) ? hwif_in.SRC.CH_STATE[i0].STATE.STATE.next : '0;
-        assign readback_array[i0 * 1 + 8][31:7] = (decoded_reg_strb.SRC.CH_STATE[i0].STATE && !decoded_req_is_wr) ? 25'h0 : '0;
+        assign readback_array[i0 * 1 + 25][6:0] = (decoded_reg_strb.SRC.CH_STATE[i0].STATE && !decoded_req_is_wr) ? hwif_in.SRC.CH_STATE[i0].STATE.STATE.next : '0;
+        assign readback_array[i0 * 1 + 25][31:7] = (decoded_reg_strb.SRC.CH_STATE[i0].STATE && !decoded_req_is_wr) ? 25'h0 : '0;
     end
-    assign readback_array[16][7:0] = (decoded_reg_strb.SRC.SCHED_ERROR && !decoded_req_is_wr) ? hwif_in.SRC.SCHED_ERROR.SCHED_ERR.next : '0;
-    assign readback_array[16][31:8] = (decoded_reg_strb.SRC.SCHED_ERROR && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[17][7:0] = (decoded_reg_strb.SRC.AXI_RD_COMPLETE && !decoded_req_is_wr) ? hwif_in.SRC.AXI_RD_COMPLETE.RD_COMPLETE.next : '0;
-    assign readback_array[17][31:8] = (decoded_reg_strb.SRC.AXI_RD_COMPLETE && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[18][7:0] = (decoded_reg_strb.SRC.AXI_WR_COMPLETE && !decoded_req_is_wr) ? hwif_in.SRC.AXI_WR_COMPLETE.WR_COMPLETE.next : '0;
-    assign readback_array[18][31:8] = (decoded_reg_strb.SRC.AXI_WR_COMPLETE && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[19][31:0] = (decoded_reg_strb.SRC.SCHED_TIMEOUT_CYCLES && !decoded_req_is_wr) ? field_storage.SRC.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value : '0;
-    assign readback_array[20][0:0] = (decoded_reg_strb.SRC.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.SCHED_CONFIG.SCHED_EN.value : '0;
-    assign readback_array[20][1:1] = (decoded_reg_strb.SRC.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.SCHED_CONFIG.TIMEOUT_EN.value : '0;
-    assign readback_array[20][2:2] = (decoded_reg_strb.SRC.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.SCHED_CONFIG.ERR_EN.value : '0;
-    assign readback_array[20][3:3] = (decoded_reg_strb.SRC.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.SCHED_CONFIG.COMPL_EN.value : '0;
-    assign readback_array[20][4:4] = (decoded_reg_strb.SRC.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.SCHED_CONFIG.PERF_EN.value : '0;
-    assign readback_array[20][31:5] = (decoded_reg_strb.SRC.SCHED_CONFIG && !decoded_req_is_wr) ? 27'h0 : '0;
-    assign readback_array[21][7:0] = (decoded_reg_strb.SRC.SCHED_TIMEOUT_LIMIT && !decoded_req_is_wr) ? field_storage.SRC.SCHED_TIMEOUT_LIMIT.LIMIT.value : '0;
-    assign readback_array[21][31:8] = '0;
-    assign readback_array[22][0:0] = (decoded_reg_strb.SRC.DESCENG_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.DESCENG_CONFIG.DESCENG_EN.value : '0;
-    assign readback_array[22][1:1] = (decoded_reg_strb.SRC.DESCENG_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.DESCENG_CONFIG.PREFETCH_EN.value : '0;
-    assign readback_array[22][5:2] = (decoded_reg_strb.SRC.DESCENG_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.DESCENG_CONFIG.FIFO_THRESH.value : '0;
-    assign readback_array[22][31:6] = (decoded_reg_strb.SRC.DESCENG_CONFIG && !decoded_req_is_wr) ? 26'h0 : '0;
-    assign readback_array[23][31:0] = (decoded_reg_strb.SRC.DESCENG_ADDR0_BASE && !decoded_req_is_wr) ? field_storage.SRC.DESCENG_ADDR0_BASE.ADDR0_BASE.value : '0;
-    assign readback_array[24][31:0] = (decoded_reg_strb.SRC.DESCENG_ADDR0_LIMIT && !decoded_req_is_wr) ? field_storage.SRC.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value : '0;
-    assign readback_array[25][31:0] = (decoded_reg_strb.SRC.DESCENG_ADDR1_BASE && !decoded_req_is_wr) ? field_storage.SRC.DESCENG_ADDR1_BASE.ADDR1_BASE.value : '0;
-    assign readback_array[26][31:0] = (decoded_reg_strb.SRC.DESCENG_ADDR1_LIMIT && !decoded_req_is_wr) ? field_storage.SRC.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value : '0;
-    assign readback_array[27][8:0] = (decoded_reg_strb.SRC.CTRL_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.CTRL_CONFIG.CTRLRD_MAX_TRY.value : '0;
-    assign readback_array[27][31:9] = (decoded_reg_strb.SRC.CTRL_CONFIG && !decoded_req_is_wr) ? 23'h0 : '0;
-    assign readback_array[28][7:0] = (decoded_reg_strb.SRC.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.AXI_XFER_CONFIG.RD_XFER_BEATS.value : '0;
-    assign readback_array[28][15:8] = (decoded_reg_strb.SRC.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.AXI_XFER_CONFIG.WR_XFER_BEATS.value : '0;
-    assign readback_array[28][23:16] = (decoded_reg_strb.SRC.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.AXI_XFER_CONFIG.ALLOC_SIZE.value : '0;
-    assign readback_array[28][31:24] = (decoded_reg_strb.SRC.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.AXI_XFER_CONFIG.DRAIN_SIZE.value : '0;
-    assign readback_array[29][0:0] = (decoded_reg_strb.SRC.PERF_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.PERF_CONFIG.PERF_EN.value : '0;
-    assign readback_array[29][1:1] = (decoded_reg_strb.SRC.PERF_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.PERF_CONFIG.PERF_MODE.value : '0;
-    assign readback_array[29][2:2] = (decoded_reg_strb.SRC.PERF_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.PERF_CONFIG.PERF_CLEAR.value : '0;
-    assign readback_array[29][31:3] = (decoded_reg_strb.SRC.PERF_CONFIG && !decoded_req_is_wr) ? 29'h0 : '0;
-    assign readback_array[30][2:0] = (decoded_reg_strb.SRC.OBS_CTRL && !decoded_req_is_wr) ? field_storage.SRC.OBS_CTRL.CH_SEL.value : '0;
-    assign readback_array[30][4:3] = (decoded_reg_strb.SRC.OBS_CTRL && !decoded_req_is_wr) ? field_storage.SRC.OBS_CTRL.CAT_SEL.value : '0;
-    assign readback_array[30][31:5] = (decoded_reg_strb.SRC.OBS_CTRL && !decoded_req_is_wr) ? 27'h0 : '0;
-    assign readback_array[31][31:0] = (decoded_reg_strb.SRC.OBS_FLAGS && !decoded_req_is_wr) ? hwif_in.SRC.OBS_FLAGS.FLAGS.next : '0;
-    assign readback_array[32][31:0] = (decoded_reg_strb.SRC.OBS_DATA0 && !decoded_req_is_wr) ? hwif_in.SRC.OBS_DATA0.DATA.next : '0;
-    assign readback_array[33][31:0] = (decoded_reg_strb.SRC.OBS_DATA1 && !decoded_req_is_wr) ? hwif_in.SRC.OBS_DATA1.DATA.next : '0;
-    assign readback_array[34][2:0] = (decoded_reg_strb.SRC.PERF_CH_SEL && !decoded_req_is_wr) ? field_storage.SRC.PERF_CH_SEL.CH_SEL.value : '0;
-    assign readback_array[34][31:3] = (decoded_reg_strb.SRC.PERF_CH_SEL && !decoded_req_is_wr) ? 29'h0 : '0;
-    assign readback_array[35][0:0] = (decoded_reg_strb.SRC.HIST_SEL && !decoded_req_is_wr) ? field_storage.SRC.HIST_SEL.BUS.value : '0;
-    assign readback_array[35][1:1] = (decoded_reg_strb.SRC.HIST_SEL && !decoded_req_is_wr) ? field_storage.SRC.HIST_SEL.METRIC.value : '0;
-    assign readback_array[35][5:2] = (decoded_reg_strb.SRC.HIST_SEL && !decoded_req_is_wr) ? field_storage.SRC.HIST_SEL.BIN.value : '0;
-    assign readback_array[35][31:6] = (decoded_reg_strb.SRC.HIST_SEL && !decoded_req_is_wr) ? 26'h0 : '0;
-    assign readback_array[36][31:0] = (decoded_reg_strb.SRC.HIST_DATA && !decoded_req_is_wr) ? hwif_in.SRC.HIST_DATA.VAL.next : '0;
-    assign readback_array[37][31:0] = (decoded_reg_strb.SRC.HIST_TOTAL && !decoded_req_is_wr) ? hwif_in.SRC.HIST_TOTAL.VAL.next : '0;
-    assign readback_array[38][0:0] = (decoded_reg_strb.SRC.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.MON.MON_FIFO_STATUS.MON_FIFO_FULL.next : '0;
-    assign readback_array[38][1:1] = (decoded_reg_strb.SRC.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.MON.MON_FIFO_STATUS.MON_FIFO_EMPTY.next : '0;
-    assign readback_array[38][2:2] = (decoded_reg_strb.SRC.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.MON.MON_FIFO_STATUS.MON_FIFO_OVFL.next : '0;
-    assign readback_array[38][3:3] = (decoded_reg_strb.SRC.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.MON.MON_FIFO_STATUS.MON_FIFO_UNFL.next : '0;
-    assign readback_array[38][31:4] = (decoded_reg_strb.SRC.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? 28'h0 : '0;
-    assign readback_array[39][15:0] = (decoded_reg_strb.SRC.MON.MON_FIFO_COUNT && !decoded_req_is_wr) ? hwif_in.SRC.MON.MON_FIFO_COUNT.FIFO_COUNT.next : '0;
-    assign readback_array[39][31:16] = (decoded_reg_strb.SRC.MON.MON_FIFO_COUNT && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[40][0:0] = (decoded_reg_strb.SRC.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_ENABLE.MON_EN.value : '0;
-    assign readback_array[40][1:1] = (decoded_reg_strb.SRC.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_ENABLE.ERR_EN.value : '0;
-    assign readback_array[40][2:2] = (decoded_reg_strb.SRC.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_ENABLE.COMPL_EN.value : '0;
-    assign readback_array[40][3:3] = (decoded_reg_strb.SRC.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_ENABLE.TIMEOUT_EN.value : '0;
-    assign readback_array[40][4:4] = (decoded_reg_strb.SRC.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_ENABLE.PERF_EN.value : '0;
-    assign readback_array[40][31:5] = (decoded_reg_strb.SRC.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? 27'h0 : '0;
-    assign readback_array[41][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
-    assign readback_array[42][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
-    assign readback_array[43][15:0] = (decoded_reg_strb.SRC.MON.DAXMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_PKT_MASK.PKT_MASK.value : '0;
-    assign readback_array[43][31:16] = (decoded_reg_strb.SRC.MON.DAXMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[44][3:0] = (decoded_reg_strb.SRC.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_ERR_CFG.ERR_SELECT.value : '0;
-    assign readback_array[44][7:4] = (decoded_reg_strb.SRC.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
-    assign readback_array[44][15:8] = (decoded_reg_strb.SRC.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_ERR_CFG.ERR_MASK.value : '0;
-    assign readback_array[44][31:16] = (decoded_reg_strb.SRC.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[45][7:0] = (decoded_reg_strb.SRC.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_MASK1.TIMEOUT_MASK.value : '0;
-    assign readback_array[45][15:8] = (decoded_reg_strb.SRC.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_MASK1.COMPL_MASK.value : '0;
-    assign readback_array[45][31:16] = (decoded_reg_strb.SRC.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[46][7:0] = (decoded_reg_strb.SRC.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_MASK2.THRESH_MASK.value : '0;
-    assign readback_array[46][15:8] = (decoded_reg_strb.SRC.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_MASK2.PERF_MASK.value : '0;
-    assign readback_array[46][31:16] = (decoded_reg_strb.SRC.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[47][7:0] = (decoded_reg_strb.SRC.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_MASK3.ADDR_MASK.value : '0;
-    assign readback_array[47][15:8] = (decoded_reg_strb.SRC.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_MASK3.DEBUG_MASK.value : '0;
-    assign readback_array[47][31:16] = (decoded_reg_strb.SRC.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[48][0:0] = (decoded_reg_strb.SRC.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_ENABLE.MON_EN.value : '0;
-    assign readback_array[48][1:1] = (decoded_reg_strb.SRC.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_ENABLE.ERR_EN.value : '0;
-    assign readback_array[48][2:2] = (decoded_reg_strb.SRC.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_ENABLE.COMPL_EN.value : '0;
-    assign readback_array[48][3:3] = (decoded_reg_strb.SRC.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_ENABLE.TIMEOUT_EN.value : '0;
-    assign readback_array[48][4:4] = (decoded_reg_strb.SRC.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_ENABLE.PERF_EN.value : '0;
-    assign readback_array[48][31:5] = (decoded_reg_strb.SRC.MON.RDMON_ENABLE && !decoded_req_is_wr) ? 27'h0 : '0;
-    assign readback_array[49][31:0] = (decoded_reg_strb.SRC.MON.RDMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
-    assign readback_array[50][31:0] = (decoded_reg_strb.SRC.MON.RDMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
-    assign readback_array[51][15:0] = (decoded_reg_strb.SRC.MON.RDMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_PKT_MASK.PKT_MASK.value : '0;
-    assign readback_array[51][31:16] = (decoded_reg_strb.SRC.MON.RDMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[52][3:0] = (decoded_reg_strb.SRC.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_ERR_CFG.ERR_SELECT.value : '0;
-    assign readback_array[52][7:4] = (decoded_reg_strb.SRC.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
-    assign readback_array[52][15:8] = (decoded_reg_strb.SRC.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_ERR_CFG.ERR_MASK.value : '0;
-    assign readback_array[52][31:16] = (decoded_reg_strb.SRC.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[53][7:0] = (decoded_reg_strb.SRC.MON.RDMON_MASK1 && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_MASK1.TIMEOUT_MASK.value : '0;
-    assign readback_array[53][15:8] = (decoded_reg_strb.SRC.MON.RDMON_MASK1 && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_MASK1.COMPL_MASK.value : '0;
-    assign readback_array[53][31:16] = (decoded_reg_strb.SRC.MON.RDMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[54][7:0] = (decoded_reg_strb.SRC.MON.RDMON_MASK2 && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_MASK2.THRESH_MASK.value : '0;
-    assign readback_array[54][15:8] = (decoded_reg_strb.SRC.MON.RDMON_MASK2 && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_MASK2.PERF_MASK.value : '0;
-    assign readback_array[54][31:16] = (decoded_reg_strb.SRC.MON.RDMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[55][7:0] = (decoded_reg_strb.SRC.MON.RDMON_MASK3 && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_MASK3.ADDR_MASK.value : '0;
-    assign readback_array[55][15:8] = (decoded_reg_strb.SRC.MON.RDMON_MASK3 && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_MASK3.DEBUG_MASK.value : '0;
-    assign readback_array[55][31:16] = (decoded_reg_strb.SRC.MON.RDMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[56][0:0] = (decoded_reg_strb.SRC.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ENABLE.MON_EN.value : '0;
-    assign readback_array[56][1:1] = (decoded_reg_strb.SRC.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ENABLE.ERR_EN.value : '0;
-    assign readback_array[56][2:2] = (decoded_reg_strb.SRC.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ENABLE.COMPL_EN.value : '0;
-    assign readback_array[56][3:3] = (decoded_reg_strb.SRC.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ENABLE.TIMEOUT_EN.value : '0;
-    assign readback_array[56][4:4] = (decoded_reg_strb.SRC.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ENABLE.PERF_EN.value : '0;
-    assign readback_array[56][5:5] = (decoded_reg_strb.SRC.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ENABLE.COMPRESS_EN.value : '0;
-    assign readback_array[56][31:6] = (decoded_reg_strb.SRC.MON.WRMON_ENABLE && !decoded_req_is_wr) ? 26'h0 : '0;
-    assign readback_array[57][31:0] = (decoded_reg_strb.SRC.MON.WRMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
-    assign readback_array[58][31:0] = (decoded_reg_strb.SRC.MON.WRMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
-    assign readback_array[59][15:0] = (decoded_reg_strb.SRC.MON.WRMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_PKT_MASK.PKT_MASK.value : '0;
-    assign readback_array[59][31:16] = (decoded_reg_strb.SRC.MON.WRMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[60][3:0] = (decoded_reg_strb.SRC.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ERR_CFG.ERR_SELECT.value : '0;
-    assign readback_array[60][7:4] = (decoded_reg_strb.SRC.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
-    assign readback_array[60][15:8] = (decoded_reg_strb.SRC.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ERR_CFG.ERR_MASK.value : '0;
-    assign readback_array[60][31:16] = (decoded_reg_strb.SRC.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[61][7:0] = (decoded_reg_strb.SRC.MON.WRMON_MASK1 && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_MASK1.TIMEOUT_MASK.value : '0;
-    assign readback_array[61][15:8] = (decoded_reg_strb.SRC.MON.WRMON_MASK1 && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_MASK1.COMPL_MASK.value : '0;
-    assign readback_array[61][31:16] = (decoded_reg_strb.SRC.MON.WRMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[62][7:0] = (decoded_reg_strb.SRC.MON.WRMON_MASK2 && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_MASK2.THRESH_MASK.value : '0;
-    assign readback_array[62][15:8] = (decoded_reg_strb.SRC.MON.WRMON_MASK2 && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_MASK2.PERF_MASK.value : '0;
-    assign readback_array[62][31:16] = (decoded_reg_strb.SRC.MON.WRMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[63][7:0] = (decoded_reg_strb.SRC.MON.WRMON_MASK3 && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_MASK3.ADDR_MASK.value : '0;
-    assign readback_array[63][15:8] = (decoded_reg_strb.SRC.MON.WRMON_MASK3 && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_MASK3.DEBUG_MASK.value : '0;
-    assign readback_array[63][31:16] = (decoded_reg_strb.SRC.MON.WRMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[64][0:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_CTRL && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_PERF_CTRL.RUN.value : '0;
-    assign readback_array[64][31:1] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_CTRL && !decoded_req_is_wr) ? 31'h0 : '0;
-    assign readback_array[65][0:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_STATUS.WIN_ACTIVE.next : '0;
-    assign readback_array[65][31:1] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
-    assign readback_array[66][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_WINDOW_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_WINDOW_CYCLES.VAL.next : '0;
-    assign readback_array[67][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_PROD_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_PROD_CYCLES.VAL.next : '0;
-    assign readback_array[68][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_BP_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_BP_CYCLES.VAL.next : '0;
-    assign readback_array[69][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_STARV_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_STARV_CYCLES.VAL.next : '0;
-    assign readback_array[70][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_IDLE_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_IDLE_CYCLES.VAL.next : '0;
-    assign readback_array[71][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_BEAT_COUNT && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_BEAT_COUNT.VAL.next : '0;
-    assign readback_array[72][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_BYTE_COUNT_LO && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_BYTE_COUNT_LO.VAL.next : '0;
-    assign readback_array[73][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_BYTE_COUNT_HI && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_BYTE_COUNT_HI.VAL.next : '0;
-    assign readback_array[74][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_BURST_COUNT && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_BURST_COUNT.VAL.next : '0;
-    assign readback_array[75][0:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_CTRL && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_PERF_CTRL.RUN.value : '0;
-    assign readback_array[75][31:1] = (decoded_reg_strb.SRC.MON.RDMON_PERF_CTRL && !decoded_req_is_wr) ? 31'h0 : '0;
-    assign readback_array[76][0:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_STATUS.WIN_ACTIVE.next : '0;
-    assign readback_array[76][31:1] = (decoded_reg_strb.SRC.MON.RDMON_PERF_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
-    assign readback_array[77][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_WINDOW_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_WINDOW_CYCLES.VAL.next : '0;
-    assign readback_array[78][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_PROD_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_PROD_CYCLES.VAL.next : '0;
-    assign readback_array[79][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_BP_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_BP_CYCLES.VAL.next : '0;
-    assign readback_array[80][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_STARV_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_STARV_CYCLES.VAL.next : '0;
-    assign readback_array[81][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_IDLE_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_IDLE_CYCLES.VAL.next : '0;
-    assign readback_array[82][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_BEAT_COUNT && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_BEAT_COUNT.VAL.next : '0;
-    assign readback_array[83][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_BYTE_COUNT_LO && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_BYTE_COUNT_LO.VAL.next : '0;
-    assign readback_array[84][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_BYTE_COUNT_HI && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_BYTE_COUNT_HI.VAL.next : '0;
-    assign readback_array[85][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_BURST_COUNT && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_BURST_COUNT.VAL.next : '0;
-    assign readback_array[86][0:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_CTRL && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_PERF_CTRL.RUN.value : '0;
-    assign readback_array[86][31:1] = (decoded_reg_strb.SRC.MON.WRMON_PERF_CTRL && !decoded_req_is_wr) ? 31'h0 : '0;
-    assign readback_array[87][0:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_STATUS.WIN_ACTIVE.next : '0;
-    assign readback_array[87][31:1] = (decoded_reg_strb.SRC.MON.WRMON_PERF_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
-    assign readback_array[88][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_WINDOW_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_WINDOW_CYCLES.VAL.next : '0;
-    assign readback_array[89][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_PROD_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_PROD_CYCLES.VAL.next : '0;
-    assign readback_array[90][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_BP_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_BP_CYCLES.VAL.next : '0;
-    assign readback_array[91][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_STARV_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_STARV_CYCLES.VAL.next : '0;
-    assign readback_array[92][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_IDLE_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_IDLE_CYCLES.VAL.next : '0;
-    assign readback_array[93][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_BEAT_COUNT && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_BEAT_COUNT.VAL.next : '0;
-    assign readback_array[94][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_BYTE_COUNT_LO && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_BYTE_COUNT_LO.VAL.next : '0;
-    assign readback_array[95][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_BYTE_COUNT_HI && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_BYTE_COUNT_HI.VAL.next : '0;
-    assign readback_array[96][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_BURST_COUNT && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_BURST_COUNT.VAL.next : '0;
-    assign readback_array[97][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_CH_PROD_BP && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_CH_PROD_BP.VAL.next : '0;
-    assign readback_array[98][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_CH_STARV_IDLE && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_CH_STARV_IDLE.VAL.next : '0;
-    assign readback_array[99][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_CH_PROD_BP && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_CH_PROD_BP.VAL.next : '0;
-    assign readback_array[100][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_CH_STARV_IDLE && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_CH_STARV_IDLE.VAL.next : '0;
-    assign readback_array[101][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_CH_OVERFLOW && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_CH_OVERFLOW.VAL.next : '0;
-    assign readback_array[102][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_CH_OVERFLOW && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_CH_OVERFLOW.VAL.next : '0;
-    assign readback_array[103][0:0] = (decoded_reg_strb.SNK.GLOBAL_CTRL && !decoded_req_is_wr) ? field_storage.SNK.GLOBAL_CTRL.GLOBAL_EN.value : '0;
-    assign readback_array[103][1:1] = (decoded_reg_strb.SNK.GLOBAL_CTRL && !decoded_req_is_wr) ? field_storage.SNK.GLOBAL_CTRL.GLOBAL_RST.value : '0;
-    assign readback_array[103][31:2] = (decoded_reg_strb.SNK.GLOBAL_CTRL && !decoded_req_is_wr) ? 30'h0 : '0;
-    assign readback_array[104][0:0] = (decoded_reg_strb.SNK.GLOBAL_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.GLOBAL_STATUS.SYSTEM_IDLE.next : '0;
-    assign readback_array[104][31:1] = (decoded_reg_strb.SNK.GLOBAL_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
-    assign readback_array[105][7:0] = (decoded_reg_strb.SNK.VERSION && !decoded_req_is_wr) ? 8'h5a : '0;
-    assign readback_array[105][15:8] = (decoded_reg_strb.SNK.VERSION && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[105][23:16] = (decoded_reg_strb.SNK.VERSION && !decoded_req_is_wr) ? 8'h8 : '0;
-    assign readback_array[105][31:24] = (decoded_reg_strb.SNK.VERSION && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[106][7:0] = (decoded_reg_strb.SNK.CHANNEL_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.CHANNEL_ENABLE.CH_EN.value : '0;
-    assign readback_array[106][31:8] = (decoded_reg_strb.SNK.CHANNEL_ENABLE && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[107][7:0] = (decoded_reg_strb.SNK.CHANNEL_RESET && !decoded_req_is_wr) ? field_storage.SNK.CHANNEL_RESET.CH_RST.value : '0;
-    assign readback_array[107][31:8] = (decoded_reg_strb.SNK.CHANNEL_RESET && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[108][7:0] = (decoded_reg_strb.SNK.CHANNEL_IDLE && !decoded_req_is_wr) ? hwif_in.SNK.CHANNEL_IDLE.CH_IDLE.next : '0;
-    assign readback_array[108][31:8] = (decoded_reg_strb.SNK.CHANNEL_IDLE && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[109][7:0] = (decoded_reg_strb.SNK.DESC_ENGINE_IDLE && !decoded_req_is_wr) ? hwif_in.SNK.DESC_ENGINE_IDLE.DESC_IDLE.next : '0;
-    assign readback_array[109][31:8] = (decoded_reg_strb.SNK.DESC_ENGINE_IDLE && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[110][7:0] = (decoded_reg_strb.SNK.SCHEDULER_IDLE && !decoded_req_is_wr) ? hwif_in.SNK.SCHEDULER_IDLE.SCHED_IDLE.next : '0;
-    assign readback_array[110][31:8] = (decoded_reg_strb.SNK.SCHEDULER_IDLE && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[33][7:0] = (decoded_reg_strb.SRC.SCHED_ERROR && !decoded_req_is_wr) ? hwif_in.SRC.SCHED_ERROR.SCHED_ERR.next : '0;
+    assign readback_array[33][31:8] = (decoded_reg_strb.SRC.SCHED_ERROR && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[34][7:0] = (decoded_reg_strb.SRC.AXI_RD_COMPLETE && !decoded_req_is_wr) ? hwif_in.SRC.AXI_RD_COMPLETE.RD_COMPLETE.next : '0;
+    assign readback_array[34][31:8] = (decoded_reg_strb.SRC.AXI_RD_COMPLETE && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[35][7:0] = (decoded_reg_strb.SRC.AXI_WR_COMPLETE && !decoded_req_is_wr) ? hwif_in.SRC.AXI_WR_COMPLETE.WR_COMPLETE.next : '0;
+    assign readback_array[35][31:8] = (decoded_reg_strb.SRC.AXI_WR_COMPLETE && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[36][31:0] = (decoded_reg_strb.SRC.SCHED_TIMEOUT_CYCLES && !decoded_req_is_wr) ? field_storage.SRC.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value : '0;
+    assign readback_array[37][0:0] = (decoded_reg_strb.SRC.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.SCHED_CONFIG.SCHED_EN.value : '0;
+    assign readback_array[37][1:1] = (decoded_reg_strb.SRC.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.SCHED_CONFIG.TIMEOUT_EN.value : '0;
+    assign readback_array[37][2:2] = (decoded_reg_strb.SRC.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.SCHED_CONFIG.ERR_EN.value : '0;
+    assign readback_array[37][3:3] = (decoded_reg_strb.SRC.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.SCHED_CONFIG.COMPL_EN.value : '0;
+    assign readback_array[37][4:4] = (decoded_reg_strb.SRC.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.SCHED_CONFIG.PERF_EN.value : '0;
+    assign readback_array[37][31:5] = (decoded_reg_strb.SRC.SCHED_CONFIG && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[38][7:0] = (decoded_reg_strb.SRC.SCHED_TIMEOUT_LIMIT && !decoded_req_is_wr) ? field_storage.SRC.SCHED_TIMEOUT_LIMIT.LIMIT.value : '0;
+    assign readback_array[38][31:8] = '0;
+    assign readback_array[39][0:0] = (decoded_reg_strb.SRC.DESCENG_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.DESCENG_CONFIG.DESCENG_EN.value : '0;
+    assign readback_array[39][1:1] = (decoded_reg_strb.SRC.DESCENG_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.DESCENG_CONFIG.PREFETCH_EN.value : '0;
+    assign readback_array[39][5:2] = (decoded_reg_strb.SRC.DESCENG_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.DESCENG_CONFIG.FIFO_THRESH.value : '0;
+    assign readback_array[39][31:6] = (decoded_reg_strb.SRC.DESCENG_CONFIG && !decoded_req_is_wr) ? 26'h0 : '0;
+    assign readback_array[40][31:0] = (decoded_reg_strb.SRC.DESCENG_ADDR0_BASE && !decoded_req_is_wr) ? field_storage.SRC.DESCENG_ADDR0_BASE.ADDR0_BASE.value : '0;
+    assign readback_array[41][31:0] = (decoded_reg_strb.SRC.DESCENG_ADDR0_LIMIT && !decoded_req_is_wr) ? field_storage.SRC.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value : '0;
+    assign readback_array[42][31:0] = (decoded_reg_strb.SRC.DESCENG_ADDR1_BASE && !decoded_req_is_wr) ? field_storage.SRC.DESCENG_ADDR1_BASE.ADDR1_BASE.value : '0;
+    assign readback_array[43][31:0] = (decoded_reg_strb.SRC.DESCENG_ADDR1_LIMIT && !decoded_req_is_wr) ? field_storage.SRC.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value : '0;
+    assign readback_array[44][8:0] = (decoded_reg_strb.SRC.CTRL_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.CTRL_CONFIG.CTRLRD_MAX_TRY.value : '0;
+    assign readback_array[44][31:9] = (decoded_reg_strb.SRC.CTRL_CONFIG && !decoded_req_is_wr) ? 23'h0 : '0;
+    assign readback_array[45][7:0] = (decoded_reg_strb.SRC.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.AXI_XFER_CONFIG.RD_XFER_BEATS.value : '0;
+    assign readback_array[45][15:8] = (decoded_reg_strb.SRC.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.AXI_XFER_CONFIG.WR_XFER_BEATS.value : '0;
+    assign readback_array[45][23:16] = (decoded_reg_strb.SRC.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.AXI_XFER_CONFIG.ALLOC_SIZE.value : '0;
+    assign readback_array[45][31:24] = (decoded_reg_strb.SRC.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.AXI_XFER_CONFIG.DRAIN_SIZE.value : '0;
+    assign readback_array[46][0:0] = (decoded_reg_strb.SRC.PERF_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.PERF_CONFIG.PERF_EN.value : '0;
+    assign readback_array[46][1:1] = (decoded_reg_strb.SRC.PERF_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.PERF_CONFIG.PERF_MODE.value : '0;
+    assign readback_array[46][2:2] = (decoded_reg_strb.SRC.PERF_CONFIG && !decoded_req_is_wr) ? field_storage.SRC.PERF_CONFIG.PERF_CLEAR.value : '0;
+    assign readback_array[46][31:3] = (decoded_reg_strb.SRC.PERF_CONFIG && !decoded_req_is_wr) ? 29'h0 : '0;
+    assign readback_array[47][2:0] = (decoded_reg_strb.SRC.OBS_CTRL && !decoded_req_is_wr) ? field_storage.SRC.OBS_CTRL.CH_SEL.value : '0;
+    assign readback_array[47][4:3] = (decoded_reg_strb.SRC.OBS_CTRL && !decoded_req_is_wr) ? field_storage.SRC.OBS_CTRL.CAT_SEL.value : '0;
+    assign readback_array[47][31:5] = (decoded_reg_strb.SRC.OBS_CTRL && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[48][31:0] = (decoded_reg_strb.SRC.OBS_FLAGS && !decoded_req_is_wr) ? hwif_in.SRC.OBS_FLAGS.FLAGS.next : '0;
+    assign readback_array[49][31:0] = (decoded_reg_strb.SRC.OBS_DATA0 && !decoded_req_is_wr) ? hwif_in.SRC.OBS_DATA0.DATA.next : '0;
+    assign readback_array[50][31:0] = (decoded_reg_strb.SRC.OBS_DATA1 && !decoded_req_is_wr) ? hwif_in.SRC.OBS_DATA1.DATA.next : '0;
+    assign readback_array[51][2:0] = (decoded_reg_strb.SRC.PERF_CH_SEL && !decoded_req_is_wr) ? field_storage.SRC.PERF_CH_SEL.CH_SEL.value : '0;
+    assign readback_array[51][31:3] = (decoded_reg_strb.SRC.PERF_CH_SEL && !decoded_req_is_wr) ? 29'h0 : '0;
+    assign readback_array[52][0:0] = (decoded_reg_strb.SRC.HIST_SEL && !decoded_req_is_wr) ? field_storage.SRC.HIST_SEL.BUS.value : '0;
+    assign readback_array[52][1:1] = (decoded_reg_strb.SRC.HIST_SEL && !decoded_req_is_wr) ? field_storage.SRC.HIST_SEL.METRIC.value : '0;
+    assign readback_array[52][5:2] = (decoded_reg_strb.SRC.HIST_SEL && !decoded_req_is_wr) ? field_storage.SRC.HIST_SEL.BIN.value : '0;
+    assign readback_array[52][31:6] = (decoded_reg_strb.SRC.HIST_SEL && !decoded_req_is_wr) ? 26'h0 : '0;
+    assign readback_array[53][31:0] = (decoded_reg_strb.SRC.HIST_DATA && !decoded_req_is_wr) ? hwif_in.SRC.HIST_DATA.VAL.next : '0;
+    assign readback_array[54][31:0] = (decoded_reg_strb.SRC.HIST_TOTAL && !decoded_req_is_wr) ? hwif_in.SRC.HIST_TOTAL.VAL.next : '0;
+    assign readback_array[55][0:0] = (decoded_reg_strb.SRC.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.MON.MON_FIFO_STATUS.MON_FIFO_FULL.next : '0;
+    assign readback_array[55][1:1] = (decoded_reg_strb.SRC.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.MON.MON_FIFO_STATUS.MON_FIFO_EMPTY.next : '0;
+    assign readback_array[55][2:2] = (decoded_reg_strb.SRC.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.MON.MON_FIFO_STATUS.MON_FIFO_OVFL.next : '0;
+    assign readback_array[55][3:3] = (decoded_reg_strb.SRC.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.MON.MON_FIFO_STATUS.MON_FIFO_UNFL.next : '0;
+    assign readback_array[55][31:4] = (decoded_reg_strb.SRC.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? 28'h0 : '0;
+    assign readback_array[56][15:0] = (decoded_reg_strb.SRC.MON.MON_FIFO_COUNT && !decoded_req_is_wr) ? hwif_in.SRC.MON.MON_FIFO_COUNT.FIFO_COUNT.next : '0;
+    assign readback_array[56][31:16] = (decoded_reg_strb.SRC.MON.MON_FIFO_COUNT && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[57][0:0] = (decoded_reg_strb.SRC.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_ENABLE.MON_EN.value : '0;
+    assign readback_array[57][1:1] = (decoded_reg_strb.SRC.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_ENABLE.ERR_EN.value : '0;
+    assign readback_array[57][2:2] = (decoded_reg_strb.SRC.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_ENABLE.COMPL_EN.value : '0;
+    assign readback_array[57][3:3] = (decoded_reg_strb.SRC.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_ENABLE.TIMEOUT_EN.value : '0;
+    assign readback_array[57][4:4] = (decoded_reg_strb.SRC.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_ENABLE.PERF_EN.value : '0;
+    assign readback_array[57][31:5] = (decoded_reg_strb.SRC.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[58][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
+    assign readback_array[59][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
+    assign readback_array[60][15:0] = (decoded_reg_strb.SRC.MON.DAXMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_PKT_MASK.PKT_MASK.value : '0;
+    assign readback_array[60][31:16] = (decoded_reg_strb.SRC.MON.DAXMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[61][3:0] = (decoded_reg_strb.SRC.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_ERR_CFG.ERR_SELECT.value : '0;
+    assign readback_array[61][7:4] = (decoded_reg_strb.SRC.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
+    assign readback_array[61][15:8] = (decoded_reg_strb.SRC.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_ERR_CFG.ERR_MASK.value : '0;
+    assign readback_array[61][31:16] = (decoded_reg_strb.SRC.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[62][7:0] = (decoded_reg_strb.SRC.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_MASK1.TIMEOUT_MASK.value : '0;
+    assign readback_array[62][15:8] = (decoded_reg_strb.SRC.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_MASK1.COMPL_MASK.value : '0;
+    assign readback_array[62][31:16] = (decoded_reg_strb.SRC.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[63][7:0] = (decoded_reg_strb.SRC.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_MASK2.THRESH_MASK.value : '0;
+    assign readback_array[63][15:8] = (decoded_reg_strb.SRC.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_MASK2.PERF_MASK.value : '0;
+    assign readback_array[63][31:16] = (decoded_reg_strb.SRC.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[64][7:0] = (decoded_reg_strb.SRC.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_MASK3.ADDR_MASK.value : '0;
+    assign readback_array[64][15:8] = (decoded_reg_strb.SRC.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_MASK3.DEBUG_MASK.value : '0;
+    assign readback_array[64][31:16] = (decoded_reg_strb.SRC.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[65][0:0] = (decoded_reg_strb.SRC.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_ENABLE.MON_EN.value : '0;
+    assign readback_array[65][1:1] = (decoded_reg_strb.SRC.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_ENABLE.ERR_EN.value : '0;
+    assign readback_array[65][2:2] = (decoded_reg_strb.SRC.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_ENABLE.COMPL_EN.value : '0;
+    assign readback_array[65][3:3] = (decoded_reg_strb.SRC.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_ENABLE.TIMEOUT_EN.value : '0;
+    assign readback_array[65][4:4] = (decoded_reg_strb.SRC.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_ENABLE.PERF_EN.value : '0;
+    assign readback_array[65][31:5] = (decoded_reg_strb.SRC.MON.RDMON_ENABLE && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[66][31:0] = (decoded_reg_strb.SRC.MON.RDMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
+    assign readback_array[67][31:0] = (decoded_reg_strb.SRC.MON.RDMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
+    assign readback_array[68][15:0] = (decoded_reg_strb.SRC.MON.RDMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_PKT_MASK.PKT_MASK.value : '0;
+    assign readback_array[68][31:16] = (decoded_reg_strb.SRC.MON.RDMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[69][3:0] = (decoded_reg_strb.SRC.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_ERR_CFG.ERR_SELECT.value : '0;
+    assign readback_array[69][7:4] = (decoded_reg_strb.SRC.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
+    assign readback_array[69][15:8] = (decoded_reg_strb.SRC.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_ERR_CFG.ERR_MASK.value : '0;
+    assign readback_array[69][31:16] = (decoded_reg_strb.SRC.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[70][7:0] = (decoded_reg_strb.SRC.MON.RDMON_MASK1 && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_MASK1.TIMEOUT_MASK.value : '0;
+    assign readback_array[70][15:8] = (decoded_reg_strb.SRC.MON.RDMON_MASK1 && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_MASK1.COMPL_MASK.value : '0;
+    assign readback_array[70][31:16] = (decoded_reg_strb.SRC.MON.RDMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[71][7:0] = (decoded_reg_strb.SRC.MON.RDMON_MASK2 && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_MASK2.THRESH_MASK.value : '0;
+    assign readback_array[71][15:8] = (decoded_reg_strb.SRC.MON.RDMON_MASK2 && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_MASK2.PERF_MASK.value : '0;
+    assign readback_array[71][31:16] = (decoded_reg_strb.SRC.MON.RDMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[72][7:0] = (decoded_reg_strb.SRC.MON.RDMON_MASK3 && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_MASK3.ADDR_MASK.value : '0;
+    assign readback_array[72][15:8] = (decoded_reg_strb.SRC.MON.RDMON_MASK3 && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_MASK3.DEBUG_MASK.value : '0;
+    assign readback_array[72][31:16] = (decoded_reg_strb.SRC.MON.RDMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[73][0:0] = (decoded_reg_strb.SRC.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ENABLE.MON_EN.value : '0;
+    assign readback_array[73][1:1] = (decoded_reg_strb.SRC.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ENABLE.ERR_EN.value : '0;
+    assign readback_array[73][2:2] = (decoded_reg_strb.SRC.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ENABLE.COMPL_EN.value : '0;
+    assign readback_array[73][3:3] = (decoded_reg_strb.SRC.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ENABLE.TIMEOUT_EN.value : '0;
+    assign readback_array[73][4:4] = (decoded_reg_strb.SRC.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ENABLE.PERF_EN.value : '0;
+    assign readback_array[73][5:5] = (decoded_reg_strb.SRC.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ENABLE.COMPRESS_EN.value : '0;
+    assign readback_array[73][31:6] = (decoded_reg_strb.SRC.MON.WRMON_ENABLE && !decoded_req_is_wr) ? 26'h0 : '0;
+    assign readback_array[74][31:0] = (decoded_reg_strb.SRC.MON.WRMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
+    assign readback_array[75][31:0] = (decoded_reg_strb.SRC.MON.WRMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
+    assign readback_array[76][15:0] = (decoded_reg_strb.SRC.MON.WRMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_PKT_MASK.PKT_MASK.value : '0;
+    assign readback_array[76][31:16] = (decoded_reg_strb.SRC.MON.WRMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[77][3:0] = (decoded_reg_strb.SRC.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ERR_CFG.ERR_SELECT.value : '0;
+    assign readback_array[77][7:4] = (decoded_reg_strb.SRC.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
+    assign readback_array[77][15:8] = (decoded_reg_strb.SRC.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_ERR_CFG.ERR_MASK.value : '0;
+    assign readback_array[77][31:16] = (decoded_reg_strb.SRC.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[78][7:0] = (decoded_reg_strb.SRC.MON.WRMON_MASK1 && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_MASK1.TIMEOUT_MASK.value : '0;
+    assign readback_array[78][15:8] = (decoded_reg_strb.SRC.MON.WRMON_MASK1 && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_MASK1.COMPL_MASK.value : '0;
+    assign readback_array[78][31:16] = (decoded_reg_strb.SRC.MON.WRMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[79][7:0] = (decoded_reg_strb.SRC.MON.WRMON_MASK2 && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_MASK2.THRESH_MASK.value : '0;
+    assign readback_array[79][15:8] = (decoded_reg_strb.SRC.MON.WRMON_MASK2 && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_MASK2.PERF_MASK.value : '0;
+    assign readback_array[79][31:16] = (decoded_reg_strb.SRC.MON.WRMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[80][7:0] = (decoded_reg_strb.SRC.MON.WRMON_MASK3 && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_MASK3.ADDR_MASK.value : '0;
+    assign readback_array[80][15:8] = (decoded_reg_strb.SRC.MON.WRMON_MASK3 && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_MASK3.DEBUG_MASK.value : '0;
+    assign readback_array[80][31:16] = (decoded_reg_strb.SRC.MON.WRMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[81][0:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_CTRL && !decoded_req_is_wr) ? field_storage.SRC.MON.DAXMON_PERF_CTRL.RUN.value : '0;
+    assign readback_array[81][31:1] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_CTRL && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[82][0:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_STATUS.WIN_ACTIVE.next : '0;
+    assign readback_array[82][31:1] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[83][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_WINDOW_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_WINDOW_CYCLES.VAL.next : '0;
+    assign readback_array[84][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_PROD_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_PROD_CYCLES.VAL.next : '0;
+    assign readback_array[85][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_BP_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_BP_CYCLES.VAL.next : '0;
+    assign readback_array[86][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_STARV_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_STARV_CYCLES.VAL.next : '0;
+    assign readback_array[87][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_IDLE_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_IDLE_CYCLES.VAL.next : '0;
+    assign readback_array[88][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_BEAT_COUNT && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_BEAT_COUNT.VAL.next : '0;
+    assign readback_array[89][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_BYTE_COUNT_LO && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_BYTE_COUNT_LO.VAL.next : '0;
+    assign readback_array[90][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_BYTE_COUNT_HI && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_BYTE_COUNT_HI.VAL.next : '0;
+    assign readback_array[91][31:0] = (decoded_reg_strb.SRC.MON.DAXMON_PERF_BURST_COUNT && !decoded_req_is_wr) ? hwif_in.SRC.MON.DAXMON_PERF_BURST_COUNT.VAL.next : '0;
+    assign readback_array[92][0:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_CTRL && !decoded_req_is_wr) ? field_storage.SRC.MON.RDMON_PERF_CTRL.RUN.value : '0;
+    assign readback_array[92][31:1] = (decoded_reg_strb.SRC.MON.RDMON_PERF_CTRL && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[93][0:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_STATUS.WIN_ACTIVE.next : '0;
+    assign readback_array[93][31:1] = (decoded_reg_strb.SRC.MON.RDMON_PERF_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[94][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_WINDOW_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_WINDOW_CYCLES.VAL.next : '0;
+    assign readback_array[95][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_PROD_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_PROD_CYCLES.VAL.next : '0;
+    assign readback_array[96][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_BP_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_BP_CYCLES.VAL.next : '0;
+    assign readback_array[97][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_STARV_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_STARV_CYCLES.VAL.next : '0;
+    assign readback_array[98][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_IDLE_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_IDLE_CYCLES.VAL.next : '0;
+    assign readback_array[99][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_BEAT_COUNT && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_BEAT_COUNT.VAL.next : '0;
+    assign readback_array[100][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_BYTE_COUNT_LO && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_BYTE_COUNT_LO.VAL.next : '0;
+    assign readback_array[101][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_BYTE_COUNT_HI && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_BYTE_COUNT_HI.VAL.next : '0;
+    assign readback_array[102][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_BURST_COUNT && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_BURST_COUNT.VAL.next : '0;
+    assign readback_array[103][0:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_CTRL && !decoded_req_is_wr) ? field_storage.SRC.MON.WRMON_PERF_CTRL.RUN.value : '0;
+    assign readback_array[103][31:1] = (decoded_reg_strb.SRC.MON.WRMON_PERF_CTRL && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[104][0:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_STATUS && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_STATUS.WIN_ACTIVE.next : '0;
+    assign readback_array[104][31:1] = (decoded_reg_strb.SRC.MON.WRMON_PERF_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[105][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_WINDOW_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_WINDOW_CYCLES.VAL.next : '0;
+    assign readback_array[106][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_PROD_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_PROD_CYCLES.VAL.next : '0;
+    assign readback_array[107][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_BP_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_BP_CYCLES.VAL.next : '0;
+    assign readback_array[108][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_STARV_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_STARV_CYCLES.VAL.next : '0;
+    assign readback_array[109][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_IDLE_CYCLES && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_IDLE_CYCLES.VAL.next : '0;
+    assign readback_array[110][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_BEAT_COUNT && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_BEAT_COUNT.VAL.next : '0;
+    assign readback_array[111][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_BYTE_COUNT_LO && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_BYTE_COUNT_LO.VAL.next : '0;
+    assign readback_array[112][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_BYTE_COUNT_HI && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_BYTE_COUNT_HI.VAL.next : '0;
+    assign readback_array[113][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_BURST_COUNT && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_BURST_COUNT.VAL.next : '0;
+    assign readback_array[114][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_CH_PROD_BP && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_CH_PROD_BP.VAL.next : '0;
+    assign readback_array[115][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_CH_STARV_IDLE && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_CH_STARV_IDLE.VAL.next : '0;
+    assign readback_array[116][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_CH_PROD_BP && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_CH_PROD_BP.VAL.next : '0;
+    assign readback_array[117][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_CH_STARV_IDLE && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_CH_STARV_IDLE.VAL.next : '0;
+    assign readback_array[118][31:0] = (decoded_reg_strb.SRC.MON.RDMON_PERF_CH_OVERFLOW && !decoded_req_is_wr) ? hwif_in.SRC.MON.RDMON_PERF_CH_OVERFLOW.VAL.next : '0;
+    assign readback_array[119][31:0] = (decoded_reg_strb.SRC.MON.WRMON_PERF_CH_OVERFLOW && !decoded_req_is_wr) ? hwif_in.SRC.MON.WRMON_PERF_CH_OVERFLOW.VAL.next : '0;
+    assign readback_array[120][31:0] = (decoded_reg_strb.SNK.CH0_DESC_ADDR_LOW && !decoded_req_is_wr) ? field_storage.SNK.CH0_DESC_ADDR_LOW.DESC_ADDR_LOW.value : '0;
+    assign readback_array[121][31:0] = (decoded_reg_strb.SNK.CH0_DESC_ADDR_HIGH && !decoded_req_is_wr) ? field_storage.SNK.CH0_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value : '0;
+    assign readback_array[122][31:0] = (decoded_reg_strb.SNK.CH1_DESC_ADDR_LOW && !decoded_req_is_wr) ? field_storage.SNK.CH1_DESC_ADDR_LOW.DESC_ADDR_LOW.value : '0;
+    assign readback_array[123][31:0] = (decoded_reg_strb.SNK.CH1_DESC_ADDR_HIGH && !decoded_req_is_wr) ? field_storage.SNK.CH1_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value : '0;
+    assign readback_array[124][31:0] = (decoded_reg_strb.SNK.CH2_DESC_ADDR_LOW && !decoded_req_is_wr) ? field_storage.SNK.CH2_DESC_ADDR_LOW.DESC_ADDR_LOW.value : '0;
+    assign readback_array[125][31:0] = (decoded_reg_strb.SNK.CH2_DESC_ADDR_HIGH && !decoded_req_is_wr) ? field_storage.SNK.CH2_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value : '0;
+    assign readback_array[126][31:0] = (decoded_reg_strb.SNK.CH3_DESC_ADDR_LOW && !decoded_req_is_wr) ? field_storage.SNK.CH3_DESC_ADDR_LOW.DESC_ADDR_LOW.value : '0;
+    assign readback_array[127][31:0] = (decoded_reg_strb.SNK.CH3_DESC_ADDR_HIGH && !decoded_req_is_wr) ? field_storage.SNK.CH3_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value : '0;
+    assign readback_array[128][31:0] = (decoded_reg_strb.SNK.CH4_DESC_ADDR_LOW && !decoded_req_is_wr) ? field_storage.SNK.CH4_DESC_ADDR_LOW.DESC_ADDR_LOW.value : '0;
+    assign readback_array[129][31:0] = (decoded_reg_strb.SNK.CH4_DESC_ADDR_HIGH && !decoded_req_is_wr) ? field_storage.SNK.CH4_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value : '0;
+    assign readback_array[130][31:0] = (decoded_reg_strb.SNK.CH5_DESC_ADDR_LOW && !decoded_req_is_wr) ? field_storage.SNK.CH5_DESC_ADDR_LOW.DESC_ADDR_LOW.value : '0;
+    assign readback_array[131][31:0] = (decoded_reg_strb.SNK.CH5_DESC_ADDR_HIGH && !decoded_req_is_wr) ? field_storage.SNK.CH5_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value : '0;
+    assign readback_array[132][31:0] = (decoded_reg_strb.SNK.CH6_DESC_ADDR_LOW && !decoded_req_is_wr) ? field_storage.SNK.CH6_DESC_ADDR_LOW.DESC_ADDR_LOW.value : '0;
+    assign readback_array[133][31:0] = (decoded_reg_strb.SNK.CH6_DESC_ADDR_HIGH && !decoded_req_is_wr) ? field_storage.SNK.CH6_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value : '0;
+    assign readback_array[134][31:0] = (decoded_reg_strb.SNK.CH7_DESC_ADDR_LOW && !decoded_req_is_wr) ? field_storage.SNK.CH7_DESC_ADDR_LOW.DESC_ADDR_LOW.value : '0;
+    assign readback_array[135][31:0] = (decoded_reg_strb.SNK.CH7_DESC_ADDR_HIGH && !decoded_req_is_wr) ? field_storage.SNK.CH7_DESC_ADDR_HIGH.DESC_ADDR_HIGH.value : '0;
+    assign readback_array[136][7:0] = '0;
+    assign readback_array[136][31:8] = (decoded_reg_strb.SNK.KICK_ENABLE && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[137][0:0] = (decoded_reg_strb.SNK.GLOBAL_CTRL && !decoded_req_is_wr) ? field_storage.SNK.GLOBAL_CTRL.GLOBAL_EN.value : '0;
+    assign readback_array[137][1:1] = (decoded_reg_strb.SNK.GLOBAL_CTRL && !decoded_req_is_wr) ? field_storage.SNK.GLOBAL_CTRL.GLOBAL_RST.value : '0;
+    assign readback_array[137][31:2] = (decoded_reg_strb.SNK.GLOBAL_CTRL && !decoded_req_is_wr) ? 30'h0 : '0;
+    assign readback_array[138][0:0] = (decoded_reg_strb.SNK.GLOBAL_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.GLOBAL_STATUS.SYSTEM_IDLE.next : '0;
+    assign readback_array[138][31:1] = (decoded_reg_strb.SNK.GLOBAL_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[139][7:0] = (decoded_reg_strb.SNK.VERSION && !decoded_req_is_wr) ? 8'h5a : '0;
+    assign readback_array[139][15:8] = (decoded_reg_strb.SNK.VERSION && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[139][23:16] = (decoded_reg_strb.SNK.VERSION && !decoded_req_is_wr) ? 8'h8 : '0;
+    assign readback_array[139][31:24] = (decoded_reg_strb.SNK.VERSION && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[140][7:0] = (decoded_reg_strb.SNK.CHANNEL_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.CHANNEL_ENABLE.CH_EN.value : '0;
+    assign readback_array[140][31:8] = (decoded_reg_strb.SNK.CHANNEL_ENABLE && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[141][7:0] = (decoded_reg_strb.SNK.CHANNEL_RESET && !decoded_req_is_wr) ? field_storage.SNK.CHANNEL_RESET.CH_RST.value : '0;
+    assign readback_array[141][31:8] = (decoded_reg_strb.SNK.CHANNEL_RESET && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[142][7:0] = (decoded_reg_strb.SNK.CHANNEL_IDLE && !decoded_req_is_wr) ? hwif_in.SNK.CHANNEL_IDLE.CH_IDLE.next : '0;
+    assign readback_array[142][31:8] = (decoded_reg_strb.SNK.CHANNEL_IDLE && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[143][7:0] = (decoded_reg_strb.SNK.DESC_ENGINE_IDLE && !decoded_req_is_wr) ? hwif_in.SNK.DESC_ENGINE_IDLE.DESC_IDLE.next : '0;
+    assign readback_array[143][31:8] = (decoded_reg_strb.SNK.DESC_ENGINE_IDLE && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[144][7:0] = (decoded_reg_strb.SNK.SCHEDULER_IDLE && !decoded_req_is_wr) ? hwif_in.SNK.SCHEDULER_IDLE.SCHED_IDLE.next : '0;
+    assign readback_array[144][31:8] = (decoded_reg_strb.SNK.SCHEDULER_IDLE && !decoded_req_is_wr) ? 24'h0 : '0;
     for(genvar i0=0; i0<8; i0++) begin
-        assign readback_array[i0 * 1 + 111][6:0] = (decoded_reg_strb.SNK.CH_STATE[i0].STATE && !decoded_req_is_wr) ? hwif_in.SNK.CH_STATE[i0].STATE.STATE.next : '0;
-        assign readback_array[i0 * 1 + 111][31:7] = (decoded_reg_strb.SNK.CH_STATE[i0].STATE && !decoded_req_is_wr) ? 25'h0 : '0;
+        assign readback_array[i0 * 1 + 145][6:0] = (decoded_reg_strb.SNK.CH_STATE[i0].STATE && !decoded_req_is_wr) ? hwif_in.SNK.CH_STATE[i0].STATE.STATE.next : '0;
+        assign readback_array[i0 * 1 + 145][31:7] = (decoded_reg_strb.SNK.CH_STATE[i0].STATE && !decoded_req_is_wr) ? 25'h0 : '0;
     end
-    assign readback_array[119][7:0] = (decoded_reg_strb.SNK.SCHED_ERROR && !decoded_req_is_wr) ? hwif_in.SNK.SCHED_ERROR.SCHED_ERR.next : '0;
-    assign readback_array[119][31:8] = (decoded_reg_strb.SNK.SCHED_ERROR && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[120][7:0] = (decoded_reg_strb.SNK.AXI_RD_COMPLETE && !decoded_req_is_wr) ? hwif_in.SNK.AXI_RD_COMPLETE.RD_COMPLETE.next : '0;
-    assign readback_array[120][31:8] = (decoded_reg_strb.SNK.AXI_RD_COMPLETE && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[121][7:0] = (decoded_reg_strb.SNK.AXI_WR_COMPLETE && !decoded_req_is_wr) ? hwif_in.SNK.AXI_WR_COMPLETE.WR_COMPLETE.next : '0;
-    assign readback_array[121][31:8] = (decoded_reg_strb.SNK.AXI_WR_COMPLETE && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[122][31:0] = (decoded_reg_strb.SNK.SCHED_TIMEOUT_CYCLES && !decoded_req_is_wr) ? field_storage.SNK.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value : '0;
-    assign readback_array[123][0:0] = (decoded_reg_strb.SNK.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.SCHED_CONFIG.SCHED_EN.value : '0;
-    assign readback_array[123][1:1] = (decoded_reg_strb.SNK.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.SCHED_CONFIG.TIMEOUT_EN.value : '0;
-    assign readback_array[123][2:2] = (decoded_reg_strb.SNK.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.SCHED_CONFIG.ERR_EN.value : '0;
-    assign readback_array[123][3:3] = (decoded_reg_strb.SNK.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.SCHED_CONFIG.COMPL_EN.value : '0;
-    assign readback_array[123][4:4] = (decoded_reg_strb.SNK.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.SCHED_CONFIG.PERF_EN.value : '0;
-    assign readback_array[123][31:5] = (decoded_reg_strb.SNK.SCHED_CONFIG && !decoded_req_is_wr) ? 27'h0 : '0;
-    assign readback_array[124][7:0] = (decoded_reg_strb.SNK.SCHED_TIMEOUT_LIMIT && !decoded_req_is_wr) ? field_storage.SNK.SCHED_TIMEOUT_LIMIT.LIMIT.value : '0;
-    assign readback_array[124][31:8] = '0;
-    assign readback_array[125][0:0] = (decoded_reg_strb.SNK.DESCENG_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.DESCENG_CONFIG.DESCENG_EN.value : '0;
-    assign readback_array[125][1:1] = (decoded_reg_strb.SNK.DESCENG_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.DESCENG_CONFIG.PREFETCH_EN.value : '0;
-    assign readback_array[125][5:2] = (decoded_reg_strb.SNK.DESCENG_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.DESCENG_CONFIG.FIFO_THRESH.value : '0;
-    assign readback_array[125][31:6] = (decoded_reg_strb.SNK.DESCENG_CONFIG && !decoded_req_is_wr) ? 26'h0 : '0;
-    assign readback_array[126][31:0] = (decoded_reg_strb.SNK.DESCENG_ADDR0_BASE && !decoded_req_is_wr) ? field_storage.SNK.DESCENG_ADDR0_BASE.ADDR0_BASE.value : '0;
-    assign readback_array[127][31:0] = (decoded_reg_strb.SNK.DESCENG_ADDR0_LIMIT && !decoded_req_is_wr) ? field_storage.SNK.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value : '0;
-    assign readback_array[128][31:0] = (decoded_reg_strb.SNK.DESCENG_ADDR1_BASE && !decoded_req_is_wr) ? field_storage.SNK.DESCENG_ADDR1_BASE.ADDR1_BASE.value : '0;
-    assign readback_array[129][31:0] = (decoded_reg_strb.SNK.DESCENG_ADDR1_LIMIT && !decoded_req_is_wr) ? field_storage.SNK.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value : '0;
-    assign readback_array[130][8:0] = (decoded_reg_strb.SNK.CTRL_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.CTRL_CONFIG.CTRLRD_MAX_TRY.value : '0;
-    assign readback_array[130][31:9] = (decoded_reg_strb.SNK.CTRL_CONFIG && !decoded_req_is_wr) ? 23'h0 : '0;
-    assign readback_array[131][7:0] = (decoded_reg_strb.SNK.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.AXI_XFER_CONFIG.RD_XFER_BEATS.value : '0;
-    assign readback_array[131][15:8] = (decoded_reg_strb.SNK.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.AXI_XFER_CONFIG.WR_XFER_BEATS.value : '0;
-    assign readback_array[131][23:16] = (decoded_reg_strb.SNK.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.AXI_XFER_CONFIG.ALLOC_SIZE.value : '0;
-    assign readback_array[131][31:24] = (decoded_reg_strb.SNK.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.AXI_XFER_CONFIG.DRAIN_SIZE.value : '0;
-    assign readback_array[132][0:0] = (decoded_reg_strb.SNK.PERF_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.PERF_CONFIG.PERF_EN.value : '0;
-    assign readback_array[132][1:1] = (decoded_reg_strb.SNK.PERF_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.PERF_CONFIG.PERF_MODE.value : '0;
-    assign readback_array[132][2:2] = (decoded_reg_strb.SNK.PERF_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.PERF_CONFIG.PERF_CLEAR.value : '0;
-    assign readback_array[132][31:3] = (decoded_reg_strb.SNK.PERF_CONFIG && !decoded_req_is_wr) ? 29'h0 : '0;
-    assign readback_array[133][2:0] = (decoded_reg_strb.SNK.OBS_CTRL && !decoded_req_is_wr) ? field_storage.SNK.OBS_CTRL.CH_SEL.value : '0;
-    assign readback_array[133][4:3] = (decoded_reg_strb.SNK.OBS_CTRL && !decoded_req_is_wr) ? field_storage.SNK.OBS_CTRL.CAT_SEL.value : '0;
-    assign readback_array[133][31:5] = (decoded_reg_strb.SNK.OBS_CTRL && !decoded_req_is_wr) ? 27'h0 : '0;
-    assign readback_array[134][31:0] = (decoded_reg_strb.SNK.OBS_FLAGS && !decoded_req_is_wr) ? hwif_in.SNK.OBS_FLAGS.FLAGS.next : '0;
-    assign readback_array[135][31:0] = (decoded_reg_strb.SNK.OBS_DATA0 && !decoded_req_is_wr) ? hwif_in.SNK.OBS_DATA0.DATA.next : '0;
-    assign readback_array[136][31:0] = (decoded_reg_strb.SNK.OBS_DATA1 && !decoded_req_is_wr) ? hwif_in.SNK.OBS_DATA1.DATA.next : '0;
-    assign readback_array[137][2:0] = (decoded_reg_strb.SNK.PERF_CH_SEL && !decoded_req_is_wr) ? field_storage.SNK.PERF_CH_SEL.CH_SEL.value : '0;
-    assign readback_array[137][31:3] = (decoded_reg_strb.SNK.PERF_CH_SEL && !decoded_req_is_wr) ? 29'h0 : '0;
-    assign readback_array[138][0:0] = (decoded_reg_strb.SNK.HIST_SEL && !decoded_req_is_wr) ? field_storage.SNK.HIST_SEL.BUS.value : '0;
-    assign readback_array[138][1:1] = (decoded_reg_strb.SNK.HIST_SEL && !decoded_req_is_wr) ? field_storage.SNK.HIST_SEL.METRIC.value : '0;
-    assign readback_array[138][5:2] = (decoded_reg_strb.SNK.HIST_SEL && !decoded_req_is_wr) ? field_storage.SNK.HIST_SEL.BIN.value : '0;
-    assign readback_array[138][31:6] = (decoded_reg_strb.SNK.HIST_SEL && !decoded_req_is_wr) ? 26'h0 : '0;
-    assign readback_array[139][31:0] = (decoded_reg_strb.SNK.HIST_DATA && !decoded_req_is_wr) ? hwif_in.SNK.HIST_DATA.VAL.next : '0;
-    assign readback_array[140][31:0] = (decoded_reg_strb.SNK.HIST_TOTAL && !decoded_req_is_wr) ? hwif_in.SNK.HIST_TOTAL.VAL.next : '0;
-    assign readback_array[141][0:0] = (decoded_reg_strb.SNK.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.MON.MON_FIFO_STATUS.MON_FIFO_FULL.next : '0;
-    assign readback_array[141][1:1] = (decoded_reg_strb.SNK.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.MON.MON_FIFO_STATUS.MON_FIFO_EMPTY.next : '0;
-    assign readback_array[141][2:2] = (decoded_reg_strb.SNK.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.MON.MON_FIFO_STATUS.MON_FIFO_OVFL.next : '0;
-    assign readback_array[141][3:3] = (decoded_reg_strb.SNK.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.MON.MON_FIFO_STATUS.MON_FIFO_UNFL.next : '0;
-    assign readback_array[141][31:4] = (decoded_reg_strb.SNK.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? 28'h0 : '0;
-    assign readback_array[142][15:0] = (decoded_reg_strb.SNK.MON.MON_FIFO_COUNT && !decoded_req_is_wr) ? hwif_in.SNK.MON.MON_FIFO_COUNT.FIFO_COUNT.next : '0;
-    assign readback_array[142][31:16] = (decoded_reg_strb.SNK.MON.MON_FIFO_COUNT && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[143][0:0] = (decoded_reg_strb.SNK.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_ENABLE.MON_EN.value : '0;
-    assign readback_array[143][1:1] = (decoded_reg_strb.SNK.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_ENABLE.ERR_EN.value : '0;
-    assign readback_array[143][2:2] = (decoded_reg_strb.SNK.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_ENABLE.COMPL_EN.value : '0;
-    assign readback_array[143][3:3] = (decoded_reg_strb.SNK.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_ENABLE.TIMEOUT_EN.value : '0;
-    assign readback_array[143][4:4] = (decoded_reg_strb.SNK.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_ENABLE.PERF_EN.value : '0;
-    assign readback_array[143][31:5] = (decoded_reg_strb.SNK.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? 27'h0 : '0;
-    assign readback_array[144][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
-    assign readback_array[145][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
-    assign readback_array[146][15:0] = (decoded_reg_strb.SNK.MON.DAXMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_PKT_MASK.PKT_MASK.value : '0;
-    assign readback_array[146][31:16] = (decoded_reg_strb.SNK.MON.DAXMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[147][3:0] = (decoded_reg_strb.SNK.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_ERR_CFG.ERR_SELECT.value : '0;
-    assign readback_array[147][7:4] = (decoded_reg_strb.SNK.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
-    assign readback_array[147][15:8] = (decoded_reg_strb.SNK.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_ERR_CFG.ERR_MASK.value : '0;
-    assign readback_array[147][31:16] = (decoded_reg_strb.SNK.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[148][7:0] = (decoded_reg_strb.SNK.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_MASK1.TIMEOUT_MASK.value : '0;
-    assign readback_array[148][15:8] = (decoded_reg_strb.SNK.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_MASK1.COMPL_MASK.value : '0;
-    assign readback_array[148][31:16] = (decoded_reg_strb.SNK.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[149][7:0] = (decoded_reg_strb.SNK.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_MASK2.THRESH_MASK.value : '0;
-    assign readback_array[149][15:8] = (decoded_reg_strb.SNK.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_MASK2.PERF_MASK.value : '0;
-    assign readback_array[149][31:16] = (decoded_reg_strb.SNK.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[150][7:0] = (decoded_reg_strb.SNK.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_MASK3.ADDR_MASK.value : '0;
-    assign readback_array[150][15:8] = (decoded_reg_strb.SNK.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_MASK3.DEBUG_MASK.value : '0;
-    assign readback_array[150][31:16] = (decoded_reg_strb.SNK.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[151][0:0] = (decoded_reg_strb.SNK.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_ENABLE.MON_EN.value : '0;
-    assign readback_array[151][1:1] = (decoded_reg_strb.SNK.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_ENABLE.ERR_EN.value : '0;
-    assign readback_array[151][2:2] = (decoded_reg_strb.SNK.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_ENABLE.COMPL_EN.value : '0;
-    assign readback_array[151][3:3] = (decoded_reg_strb.SNK.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_ENABLE.TIMEOUT_EN.value : '0;
-    assign readback_array[151][4:4] = (decoded_reg_strb.SNK.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_ENABLE.PERF_EN.value : '0;
-    assign readback_array[151][31:5] = (decoded_reg_strb.SNK.MON.RDMON_ENABLE && !decoded_req_is_wr) ? 27'h0 : '0;
-    assign readback_array[152][31:0] = (decoded_reg_strb.SNK.MON.RDMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
-    assign readback_array[153][31:0] = (decoded_reg_strb.SNK.MON.RDMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
-    assign readback_array[154][15:0] = (decoded_reg_strb.SNK.MON.RDMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_PKT_MASK.PKT_MASK.value : '0;
-    assign readback_array[154][31:16] = (decoded_reg_strb.SNK.MON.RDMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[155][3:0] = (decoded_reg_strb.SNK.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_ERR_CFG.ERR_SELECT.value : '0;
-    assign readback_array[155][7:4] = (decoded_reg_strb.SNK.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
-    assign readback_array[155][15:8] = (decoded_reg_strb.SNK.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_ERR_CFG.ERR_MASK.value : '0;
-    assign readback_array[155][31:16] = (decoded_reg_strb.SNK.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[156][7:0] = (decoded_reg_strb.SNK.MON.RDMON_MASK1 && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_MASK1.TIMEOUT_MASK.value : '0;
-    assign readback_array[156][15:8] = (decoded_reg_strb.SNK.MON.RDMON_MASK1 && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_MASK1.COMPL_MASK.value : '0;
-    assign readback_array[156][31:16] = (decoded_reg_strb.SNK.MON.RDMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[157][7:0] = (decoded_reg_strb.SNK.MON.RDMON_MASK2 && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_MASK2.THRESH_MASK.value : '0;
-    assign readback_array[157][15:8] = (decoded_reg_strb.SNK.MON.RDMON_MASK2 && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_MASK2.PERF_MASK.value : '0;
-    assign readback_array[157][31:16] = (decoded_reg_strb.SNK.MON.RDMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[158][7:0] = (decoded_reg_strb.SNK.MON.RDMON_MASK3 && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_MASK3.ADDR_MASK.value : '0;
-    assign readback_array[158][15:8] = (decoded_reg_strb.SNK.MON.RDMON_MASK3 && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_MASK3.DEBUG_MASK.value : '0;
-    assign readback_array[158][31:16] = (decoded_reg_strb.SNK.MON.RDMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[159][0:0] = (decoded_reg_strb.SNK.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ENABLE.MON_EN.value : '0;
-    assign readback_array[159][1:1] = (decoded_reg_strb.SNK.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ENABLE.ERR_EN.value : '0;
-    assign readback_array[159][2:2] = (decoded_reg_strb.SNK.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ENABLE.COMPL_EN.value : '0;
-    assign readback_array[159][3:3] = (decoded_reg_strb.SNK.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ENABLE.TIMEOUT_EN.value : '0;
-    assign readback_array[159][4:4] = (decoded_reg_strb.SNK.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ENABLE.PERF_EN.value : '0;
-    assign readback_array[159][5:5] = (decoded_reg_strb.SNK.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ENABLE.COMPRESS_EN.value : '0;
-    assign readback_array[159][31:6] = (decoded_reg_strb.SNK.MON.WRMON_ENABLE && !decoded_req_is_wr) ? 26'h0 : '0;
-    assign readback_array[160][31:0] = (decoded_reg_strb.SNK.MON.WRMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
-    assign readback_array[161][31:0] = (decoded_reg_strb.SNK.MON.WRMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
-    assign readback_array[162][15:0] = (decoded_reg_strb.SNK.MON.WRMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_PKT_MASK.PKT_MASK.value : '0;
-    assign readback_array[162][31:16] = (decoded_reg_strb.SNK.MON.WRMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[163][3:0] = (decoded_reg_strb.SNK.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ERR_CFG.ERR_SELECT.value : '0;
-    assign readback_array[163][7:4] = (decoded_reg_strb.SNK.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
-    assign readback_array[163][15:8] = (decoded_reg_strb.SNK.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ERR_CFG.ERR_MASK.value : '0;
-    assign readback_array[163][31:16] = (decoded_reg_strb.SNK.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[164][7:0] = (decoded_reg_strb.SNK.MON.WRMON_MASK1 && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_MASK1.TIMEOUT_MASK.value : '0;
-    assign readback_array[164][15:8] = (decoded_reg_strb.SNK.MON.WRMON_MASK1 && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_MASK1.COMPL_MASK.value : '0;
-    assign readback_array[164][31:16] = (decoded_reg_strb.SNK.MON.WRMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[165][7:0] = (decoded_reg_strb.SNK.MON.WRMON_MASK2 && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_MASK2.THRESH_MASK.value : '0;
-    assign readback_array[165][15:8] = (decoded_reg_strb.SNK.MON.WRMON_MASK2 && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_MASK2.PERF_MASK.value : '0;
-    assign readback_array[165][31:16] = (decoded_reg_strb.SNK.MON.WRMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[166][7:0] = (decoded_reg_strb.SNK.MON.WRMON_MASK3 && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_MASK3.ADDR_MASK.value : '0;
-    assign readback_array[166][15:8] = (decoded_reg_strb.SNK.MON.WRMON_MASK3 && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_MASK3.DEBUG_MASK.value : '0;
-    assign readback_array[166][31:16] = (decoded_reg_strb.SNK.MON.WRMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[167][0:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_CTRL && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_PERF_CTRL.RUN.value : '0;
-    assign readback_array[167][31:1] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_CTRL && !decoded_req_is_wr) ? 31'h0 : '0;
-    assign readback_array[168][0:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_STATUS.WIN_ACTIVE.next : '0;
-    assign readback_array[168][31:1] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
-    assign readback_array[169][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_WINDOW_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_WINDOW_CYCLES.VAL.next : '0;
-    assign readback_array[170][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_PROD_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_PROD_CYCLES.VAL.next : '0;
-    assign readback_array[171][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_BP_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_BP_CYCLES.VAL.next : '0;
-    assign readback_array[172][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_STARV_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_STARV_CYCLES.VAL.next : '0;
-    assign readback_array[173][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_IDLE_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_IDLE_CYCLES.VAL.next : '0;
-    assign readback_array[174][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_BEAT_COUNT && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_BEAT_COUNT.VAL.next : '0;
-    assign readback_array[175][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_BYTE_COUNT_LO && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_BYTE_COUNT_LO.VAL.next : '0;
-    assign readback_array[176][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_BYTE_COUNT_HI && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_BYTE_COUNT_HI.VAL.next : '0;
-    assign readback_array[177][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_BURST_COUNT && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_BURST_COUNT.VAL.next : '0;
-    assign readback_array[178][0:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_CTRL && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_PERF_CTRL.RUN.value : '0;
-    assign readback_array[178][31:1] = (decoded_reg_strb.SNK.MON.RDMON_PERF_CTRL && !decoded_req_is_wr) ? 31'h0 : '0;
-    assign readback_array[179][0:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_STATUS.WIN_ACTIVE.next : '0;
-    assign readback_array[179][31:1] = (decoded_reg_strb.SNK.MON.RDMON_PERF_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
-    assign readback_array[180][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_WINDOW_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_WINDOW_CYCLES.VAL.next : '0;
-    assign readback_array[181][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_PROD_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_PROD_CYCLES.VAL.next : '0;
-    assign readback_array[182][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_BP_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_BP_CYCLES.VAL.next : '0;
-    assign readback_array[183][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_STARV_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_STARV_CYCLES.VAL.next : '0;
-    assign readback_array[184][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_IDLE_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_IDLE_CYCLES.VAL.next : '0;
-    assign readback_array[185][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_BEAT_COUNT && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_BEAT_COUNT.VAL.next : '0;
-    assign readback_array[186][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_BYTE_COUNT_LO && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_BYTE_COUNT_LO.VAL.next : '0;
-    assign readback_array[187][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_BYTE_COUNT_HI && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_BYTE_COUNT_HI.VAL.next : '0;
-    assign readback_array[188][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_BURST_COUNT && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_BURST_COUNT.VAL.next : '0;
-    assign readback_array[189][0:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_CTRL && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_PERF_CTRL.RUN.value : '0;
-    assign readback_array[189][31:1] = (decoded_reg_strb.SNK.MON.WRMON_PERF_CTRL && !decoded_req_is_wr) ? 31'h0 : '0;
-    assign readback_array[190][0:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_STATUS.WIN_ACTIVE.next : '0;
-    assign readback_array[190][31:1] = (decoded_reg_strb.SNK.MON.WRMON_PERF_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
-    assign readback_array[191][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_WINDOW_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_WINDOW_CYCLES.VAL.next : '0;
-    assign readback_array[192][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_PROD_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_PROD_CYCLES.VAL.next : '0;
-    assign readback_array[193][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_BP_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_BP_CYCLES.VAL.next : '0;
-    assign readback_array[194][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_STARV_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_STARV_CYCLES.VAL.next : '0;
-    assign readback_array[195][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_IDLE_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_IDLE_CYCLES.VAL.next : '0;
-    assign readback_array[196][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_BEAT_COUNT && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_BEAT_COUNT.VAL.next : '0;
-    assign readback_array[197][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_BYTE_COUNT_LO && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_BYTE_COUNT_LO.VAL.next : '0;
-    assign readback_array[198][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_BYTE_COUNT_HI && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_BYTE_COUNT_HI.VAL.next : '0;
-    assign readback_array[199][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_BURST_COUNT && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_BURST_COUNT.VAL.next : '0;
-    assign readback_array[200][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_CH_PROD_BP && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_CH_PROD_BP.VAL.next : '0;
-    assign readback_array[201][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_CH_STARV_IDLE && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_CH_STARV_IDLE.VAL.next : '0;
-    assign readback_array[202][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_CH_PROD_BP && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_CH_PROD_BP.VAL.next : '0;
-    assign readback_array[203][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_CH_STARV_IDLE && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_CH_STARV_IDLE.VAL.next : '0;
-    assign readback_array[204][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_CH_OVERFLOW && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_CH_OVERFLOW.VAL.next : '0;
-    assign readback_array[205][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_CH_OVERFLOW && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_CH_OVERFLOW.VAL.next : '0;
+    assign readback_array[153][7:0] = (decoded_reg_strb.SNK.SCHED_ERROR && !decoded_req_is_wr) ? hwif_in.SNK.SCHED_ERROR.SCHED_ERR.next : '0;
+    assign readback_array[153][31:8] = (decoded_reg_strb.SNK.SCHED_ERROR && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[154][7:0] = (decoded_reg_strb.SNK.AXI_RD_COMPLETE && !decoded_req_is_wr) ? hwif_in.SNK.AXI_RD_COMPLETE.RD_COMPLETE.next : '0;
+    assign readback_array[154][31:8] = (decoded_reg_strb.SNK.AXI_RD_COMPLETE && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[155][7:0] = (decoded_reg_strb.SNK.AXI_WR_COMPLETE && !decoded_req_is_wr) ? hwif_in.SNK.AXI_WR_COMPLETE.WR_COMPLETE.next : '0;
+    assign readback_array[155][31:8] = (decoded_reg_strb.SNK.AXI_WR_COMPLETE && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[156][31:0] = (decoded_reg_strb.SNK.SCHED_TIMEOUT_CYCLES && !decoded_req_is_wr) ? field_storage.SNK.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value : '0;
+    assign readback_array[157][0:0] = (decoded_reg_strb.SNK.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.SCHED_CONFIG.SCHED_EN.value : '0;
+    assign readback_array[157][1:1] = (decoded_reg_strb.SNK.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.SCHED_CONFIG.TIMEOUT_EN.value : '0;
+    assign readback_array[157][2:2] = (decoded_reg_strb.SNK.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.SCHED_CONFIG.ERR_EN.value : '0;
+    assign readback_array[157][3:3] = (decoded_reg_strb.SNK.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.SCHED_CONFIG.COMPL_EN.value : '0;
+    assign readback_array[157][4:4] = (decoded_reg_strb.SNK.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.SCHED_CONFIG.PERF_EN.value : '0;
+    assign readback_array[157][31:5] = (decoded_reg_strb.SNK.SCHED_CONFIG && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[158][7:0] = (decoded_reg_strb.SNK.SCHED_TIMEOUT_LIMIT && !decoded_req_is_wr) ? field_storage.SNK.SCHED_TIMEOUT_LIMIT.LIMIT.value : '0;
+    assign readback_array[158][31:8] = '0;
+    assign readback_array[159][0:0] = (decoded_reg_strb.SNK.DESCENG_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.DESCENG_CONFIG.DESCENG_EN.value : '0;
+    assign readback_array[159][1:1] = (decoded_reg_strb.SNK.DESCENG_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.DESCENG_CONFIG.PREFETCH_EN.value : '0;
+    assign readback_array[159][5:2] = (decoded_reg_strb.SNK.DESCENG_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.DESCENG_CONFIG.FIFO_THRESH.value : '0;
+    assign readback_array[159][31:6] = (decoded_reg_strb.SNK.DESCENG_CONFIG && !decoded_req_is_wr) ? 26'h0 : '0;
+    assign readback_array[160][31:0] = (decoded_reg_strb.SNK.DESCENG_ADDR0_BASE && !decoded_req_is_wr) ? field_storage.SNK.DESCENG_ADDR0_BASE.ADDR0_BASE.value : '0;
+    assign readback_array[161][31:0] = (decoded_reg_strb.SNK.DESCENG_ADDR0_LIMIT && !decoded_req_is_wr) ? field_storage.SNK.DESCENG_ADDR0_LIMIT.ADDR0_LIMIT.value : '0;
+    assign readback_array[162][31:0] = (decoded_reg_strb.SNK.DESCENG_ADDR1_BASE && !decoded_req_is_wr) ? field_storage.SNK.DESCENG_ADDR1_BASE.ADDR1_BASE.value : '0;
+    assign readback_array[163][31:0] = (decoded_reg_strb.SNK.DESCENG_ADDR1_LIMIT && !decoded_req_is_wr) ? field_storage.SNK.DESCENG_ADDR1_LIMIT.ADDR1_LIMIT.value : '0;
+    assign readback_array[164][8:0] = (decoded_reg_strb.SNK.CTRL_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.CTRL_CONFIG.CTRLRD_MAX_TRY.value : '0;
+    assign readback_array[164][31:9] = (decoded_reg_strb.SNK.CTRL_CONFIG && !decoded_req_is_wr) ? 23'h0 : '0;
+    assign readback_array[165][7:0] = (decoded_reg_strb.SNK.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.AXI_XFER_CONFIG.RD_XFER_BEATS.value : '0;
+    assign readback_array[165][15:8] = (decoded_reg_strb.SNK.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.AXI_XFER_CONFIG.WR_XFER_BEATS.value : '0;
+    assign readback_array[165][23:16] = (decoded_reg_strb.SNK.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.AXI_XFER_CONFIG.ALLOC_SIZE.value : '0;
+    assign readback_array[165][31:24] = (decoded_reg_strb.SNK.AXI_XFER_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.AXI_XFER_CONFIG.DRAIN_SIZE.value : '0;
+    assign readback_array[166][0:0] = (decoded_reg_strb.SNK.PERF_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.PERF_CONFIG.PERF_EN.value : '0;
+    assign readback_array[166][1:1] = (decoded_reg_strb.SNK.PERF_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.PERF_CONFIG.PERF_MODE.value : '0;
+    assign readback_array[166][2:2] = (decoded_reg_strb.SNK.PERF_CONFIG && !decoded_req_is_wr) ? field_storage.SNK.PERF_CONFIG.PERF_CLEAR.value : '0;
+    assign readback_array[166][31:3] = (decoded_reg_strb.SNK.PERF_CONFIG && !decoded_req_is_wr) ? 29'h0 : '0;
+    assign readback_array[167][2:0] = (decoded_reg_strb.SNK.OBS_CTRL && !decoded_req_is_wr) ? field_storage.SNK.OBS_CTRL.CH_SEL.value : '0;
+    assign readback_array[167][4:3] = (decoded_reg_strb.SNK.OBS_CTRL && !decoded_req_is_wr) ? field_storage.SNK.OBS_CTRL.CAT_SEL.value : '0;
+    assign readback_array[167][31:5] = (decoded_reg_strb.SNK.OBS_CTRL && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[168][31:0] = (decoded_reg_strb.SNK.OBS_FLAGS && !decoded_req_is_wr) ? hwif_in.SNK.OBS_FLAGS.FLAGS.next : '0;
+    assign readback_array[169][31:0] = (decoded_reg_strb.SNK.OBS_DATA0 && !decoded_req_is_wr) ? hwif_in.SNK.OBS_DATA0.DATA.next : '0;
+    assign readback_array[170][31:0] = (decoded_reg_strb.SNK.OBS_DATA1 && !decoded_req_is_wr) ? hwif_in.SNK.OBS_DATA1.DATA.next : '0;
+    assign readback_array[171][2:0] = (decoded_reg_strb.SNK.PERF_CH_SEL && !decoded_req_is_wr) ? field_storage.SNK.PERF_CH_SEL.CH_SEL.value : '0;
+    assign readback_array[171][31:3] = (decoded_reg_strb.SNK.PERF_CH_SEL && !decoded_req_is_wr) ? 29'h0 : '0;
+    assign readback_array[172][0:0] = (decoded_reg_strb.SNK.HIST_SEL && !decoded_req_is_wr) ? field_storage.SNK.HIST_SEL.BUS.value : '0;
+    assign readback_array[172][1:1] = (decoded_reg_strb.SNK.HIST_SEL && !decoded_req_is_wr) ? field_storage.SNK.HIST_SEL.METRIC.value : '0;
+    assign readback_array[172][5:2] = (decoded_reg_strb.SNK.HIST_SEL && !decoded_req_is_wr) ? field_storage.SNK.HIST_SEL.BIN.value : '0;
+    assign readback_array[172][31:6] = (decoded_reg_strb.SNK.HIST_SEL && !decoded_req_is_wr) ? 26'h0 : '0;
+    assign readback_array[173][31:0] = (decoded_reg_strb.SNK.HIST_DATA && !decoded_req_is_wr) ? hwif_in.SNK.HIST_DATA.VAL.next : '0;
+    assign readback_array[174][31:0] = (decoded_reg_strb.SNK.HIST_TOTAL && !decoded_req_is_wr) ? hwif_in.SNK.HIST_TOTAL.VAL.next : '0;
+    assign readback_array[175][0:0] = (decoded_reg_strb.SNK.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.MON.MON_FIFO_STATUS.MON_FIFO_FULL.next : '0;
+    assign readback_array[175][1:1] = (decoded_reg_strb.SNK.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.MON.MON_FIFO_STATUS.MON_FIFO_EMPTY.next : '0;
+    assign readback_array[175][2:2] = (decoded_reg_strb.SNK.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.MON.MON_FIFO_STATUS.MON_FIFO_OVFL.next : '0;
+    assign readback_array[175][3:3] = (decoded_reg_strb.SNK.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.MON.MON_FIFO_STATUS.MON_FIFO_UNFL.next : '0;
+    assign readback_array[175][31:4] = (decoded_reg_strb.SNK.MON.MON_FIFO_STATUS && !decoded_req_is_wr) ? 28'h0 : '0;
+    assign readback_array[176][15:0] = (decoded_reg_strb.SNK.MON.MON_FIFO_COUNT && !decoded_req_is_wr) ? hwif_in.SNK.MON.MON_FIFO_COUNT.FIFO_COUNT.next : '0;
+    assign readback_array[176][31:16] = (decoded_reg_strb.SNK.MON.MON_FIFO_COUNT && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[177][0:0] = (decoded_reg_strb.SNK.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_ENABLE.MON_EN.value : '0;
+    assign readback_array[177][1:1] = (decoded_reg_strb.SNK.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_ENABLE.ERR_EN.value : '0;
+    assign readback_array[177][2:2] = (decoded_reg_strb.SNK.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_ENABLE.COMPL_EN.value : '0;
+    assign readback_array[177][3:3] = (decoded_reg_strb.SNK.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_ENABLE.TIMEOUT_EN.value : '0;
+    assign readback_array[177][4:4] = (decoded_reg_strb.SNK.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_ENABLE.PERF_EN.value : '0;
+    assign readback_array[177][31:5] = (decoded_reg_strb.SNK.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[178][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
+    assign readback_array[179][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
+    assign readback_array[180][15:0] = (decoded_reg_strb.SNK.MON.DAXMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_PKT_MASK.PKT_MASK.value : '0;
+    assign readback_array[180][31:16] = (decoded_reg_strb.SNK.MON.DAXMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[181][3:0] = (decoded_reg_strb.SNK.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_ERR_CFG.ERR_SELECT.value : '0;
+    assign readback_array[181][7:4] = (decoded_reg_strb.SNK.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
+    assign readback_array[181][15:8] = (decoded_reg_strb.SNK.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_ERR_CFG.ERR_MASK.value : '0;
+    assign readback_array[181][31:16] = (decoded_reg_strb.SNK.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[182][7:0] = (decoded_reg_strb.SNK.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_MASK1.TIMEOUT_MASK.value : '0;
+    assign readback_array[182][15:8] = (decoded_reg_strb.SNK.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_MASK1.COMPL_MASK.value : '0;
+    assign readback_array[182][31:16] = (decoded_reg_strb.SNK.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[183][7:0] = (decoded_reg_strb.SNK.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_MASK2.THRESH_MASK.value : '0;
+    assign readback_array[183][15:8] = (decoded_reg_strb.SNK.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_MASK2.PERF_MASK.value : '0;
+    assign readback_array[183][31:16] = (decoded_reg_strb.SNK.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[184][7:0] = (decoded_reg_strb.SNK.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_MASK3.ADDR_MASK.value : '0;
+    assign readback_array[184][15:8] = (decoded_reg_strb.SNK.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_MASK3.DEBUG_MASK.value : '0;
+    assign readback_array[184][31:16] = (decoded_reg_strb.SNK.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[185][0:0] = (decoded_reg_strb.SNK.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_ENABLE.MON_EN.value : '0;
+    assign readback_array[185][1:1] = (decoded_reg_strb.SNK.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_ENABLE.ERR_EN.value : '0;
+    assign readback_array[185][2:2] = (decoded_reg_strb.SNK.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_ENABLE.COMPL_EN.value : '0;
+    assign readback_array[185][3:3] = (decoded_reg_strb.SNK.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_ENABLE.TIMEOUT_EN.value : '0;
+    assign readback_array[185][4:4] = (decoded_reg_strb.SNK.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_ENABLE.PERF_EN.value : '0;
+    assign readback_array[185][31:5] = (decoded_reg_strb.SNK.MON.RDMON_ENABLE && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[186][31:0] = (decoded_reg_strb.SNK.MON.RDMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
+    assign readback_array[187][31:0] = (decoded_reg_strb.SNK.MON.RDMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
+    assign readback_array[188][15:0] = (decoded_reg_strb.SNK.MON.RDMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_PKT_MASK.PKT_MASK.value : '0;
+    assign readback_array[188][31:16] = (decoded_reg_strb.SNK.MON.RDMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[189][3:0] = (decoded_reg_strb.SNK.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_ERR_CFG.ERR_SELECT.value : '0;
+    assign readback_array[189][7:4] = (decoded_reg_strb.SNK.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
+    assign readback_array[189][15:8] = (decoded_reg_strb.SNK.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_ERR_CFG.ERR_MASK.value : '0;
+    assign readback_array[189][31:16] = (decoded_reg_strb.SNK.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[190][7:0] = (decoded_reg_strb.SNK.MON.RDMON_MASK1 && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_MASK1.TIMEOUT_MASK.value : '0;
+    assign readback_array[190][15:8] = (decoded_reg_strb.SNK.MON.RDMON_MASK1 && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_MASK1.COMPL_MASK.value : '0;
+    assign readback_array[190][31:16] = (decoded_reg_strb.SNK.MON.RDMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[191][7:0] = (decoded_reg_strb.SNK.MON.RDMON_MASK2 && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_MASK2.THRESH_MASK.value : '0;
+    assign readback_array[191][15:8] = (decoded_reg_strb.SNK.MON.RDMON_MASK2 && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_MASK2.PERF_MASK.value : '0;
+    assign readback_array[191][31:16] = (decoded_reg_strb.SNK.MON.RDMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[192][7:0] = (decoded_reg_strb.SNK.MON.RDMON_MASK3 && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_MASK3.ADDR_MASK.value : '0;
+    assign readback_array[192][15:8] = (decoded_reg_strb.SNK.MON.RDMON_MASK3 && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_MASK3.DEBUG_MASK.value : '0;
+    assign readback_array[192][31:16] = (decoded_reg_strb.SNK.MON.RDMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[193][0:0] = (decoded_reg_strb.SNK.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ENABLE.MON_EN.value : '0;
+    assign readback_array[193][1:1] = (decoded_reg_strb.SNK.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ENABLE.ERR_EN.value : '0;
+    assign readback_array[193][2:2] = (decoded_reg_strb.SNK.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ENABLE.COMPL_EN.value : '0;
+    assign readback_array[193][3:3] = (decoded_reg_strb.SNK.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ENABLE.TIMEOUT_EN.value : '0;
+    assign readback_array[193][4:4] = (decoded_reg_strb.SNK.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ENABLE.PERF_EN.value : '0;
+    assign readback_array[193][5:5] = (decoded_reg_strb.SNK.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ENABLE.COMPRESS_EN.value : '0;
+    assign readback_array[193][31:6] = (decoded_reg_strb.SNK.MON.WRMON_ENABLE && !decoded_req_is_wr) ? 26'h0 : '0;
+    assign readback_array[194][31:0] = (decoded_reg_strb.SNK.MON.WRMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
+    assign readback_array[195][31:0] = (decoded_reg_strb.SNK.MON.WRMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
+    assign readback_array[196][15:0] = (decoded_reg_strb.SNK.MON.WRMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_PKT_MASK.PKT_MASK.value : '0;
+    assign readback_array[196][31:16] = (decoded_reg_strb.SNK.MON.WRMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[197][3:0] = (decoded_reg_strb.SNK.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ERR_CFG.ERR_SELECT.value : '0;
+    assign readback_array[197][7:4] = (decoded_reg_strb.SNK.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
+    assign readback_array[197][15:8] = (decoded_reg_strb.SNK.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_ERR_CFG.ERR_MASK.value : '0;
+    assign readback_array[197][31:16] = (decoded_reg_strb.SNK.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[198][7:0] = (decoded_reg_strb.SNK.MON.WRMON_MASK1 && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_MASK1.TIMEOUT_MASK.value : '0;
+    assign readback_array[198][15:8] = (decoded_reg_strb.SNK.MON.WRMON_MASK1 && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_MASK1.COMPL_MASK.value : '0;
+    assign readback_array[198][31:16] = (decoded_reg_strb.SNK.MON.WRMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[199][7:0] = (decoded_reg_strb.SNK.MON.WRMON_MASK2 && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_MASK2.THRESH_MASK.value : '0;
+    assign readback_array[199][15:8] = (decoded_reg_strb.SNK.MON.WRMON_MASK2 && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_MASK2.PERF_MASK.value : '0;
+    assign readback_array[199][31:16] = (decoded_reg_strb.SNK.MON.WRMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[200][7:0] = (decoded_reg_strb.SNK.MON.WRMON_MASK3 && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_MASK3.ADDR_MASK.value : '0;
+    assign readback_array[200][15:8] = (decoded_reg_strb.SNK.MON.WRMON_MASK3 && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_MASK3.DEBUG_MASK.value : '0;
+    assign readback_array[200][31:16] = (decoded_reg_strb.SNK.MON.WRMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[201][0:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_CTRL && !decoded_req_is_wr) ? field_storage.SNK.MON.DAXMON_PERF_CTRL.RUN.value : '0;
+    assign readback_array[201][31:1] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_CTRL && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[202][0:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_STATUS.WIN_ACTIVE.next : '0;
+    assign readback_array[202][31:1] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[203][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_WINDOW_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_WINDOW_CYCLES.VAL.next : '0;
+    assign readback_array[204][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_PROD_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_PROD_CYCLES.VAL.next : '0;
+    assign readback_array[205][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_BP_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_BP_CYCLES.VAL.next : '0;
+    assign readback_array[206][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_STARV_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_STARV_CYCLES.VAL.next : '0;
+    assign readback_array[207][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_IDLE_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_IDLE_CYCLES.VAL.next : '0;
+    assign readback_array[208][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_BEAT_COUNT && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_BEAT_COUNT.VAL.next : '0;
+    assign readback_array[209][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_BYTE_COUNT_LO && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_BYTE_COUNT_LO.VAL.next : '0;
+    assign readback_array[210][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_BYTE_COUNT_HI && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_BYTE_COUNT_HI.VAL.next : '0;
+    assign readback_array[211][31:0] = (decoded_reg_strb.SNK.MON.DAXMON_PERF_BURST_COUNT && !decoded_req_is_wr) ? hwif_in.SNK.MON.DAXMON_PERF_BURST_COUNT.VAL.next : '0;
+    assign readback_array[212][0:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_CTRL && !decoded_req_is_wr) ? field_storage.SNK.MON.RDMON_PERF_CTRL.RUN.value : '0;
+    assign readback_array[212][31:1] = (decoded_reg_strb.SNK.MON.RDMON_PERF_CTRL && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[213][0:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_STATUS.WIN_ACTIVE.next : '0;
+    assign readback_array[213][31:1] = (decoded_reg_strb.SNK.MON.RDMON_PERF_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[214][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_WINDOW_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_WINDOW_CYCLES.VAL.next : '0;
+    assign readback_array[215][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_PROD_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_PROD_CYCLES.VAL.next : '0;
+    assign readback_array[216][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_BP_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_BP_CYCLES.VAL.next : '0;
+    assign readback_array[217][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_STARV_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_STARV_CYCLES.VAL.next : '0;
+    assign readback_array[218][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_IDLE_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_IDLE_CYCLES.VAL.next : '0;
+    assign readback_array[219][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_BEAT_COUNT && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_BEAT_COUNT.VAL.next : '0;
+    assign readback_array[220][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_BYTE_COUNT_LO && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_BYTE_COUNT_LO.VAL.next : '0;
+    assign readback_array[221][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_BYTE_COUNT_HI && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_BYTE_COUNT_HI.VAL.next : '0;
+    assign readback_array[222][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_BURST_COUNT && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_BURST_COUNT.VAL.next : '0;
+    assign readback_array[223][0:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_CTRL && !decoded_req_is_wr) ? field_storage.SNK.MON.WRMON_PERF_CTRL.RUN.value : '0;
+    assign readback_array[223][31:1] = (decoded_reg_strb.SNK.MON.WRMON_PERF_CTRL && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[224][0:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_STATUS && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_STATUS.WIN_ACTIVE.next : '0;
+    assign readback_array[224][31:1] = (decoded_reg_strb.SNK.MON.WRMON_PERF_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[225][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_WINDOW_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_WINDOW_CYCLES.VAL.next : '0;
+    assign readback_array[226][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_PROD_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_PROD_CYCLES.VAL.next : '0;
+    assign readback_array[227][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_BP_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_BP_CYCLES.VAL.next : '0;
+    assign readback_array[228][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_STARV_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_STARV_CYCLES.VAL.next : '0;
+    assign readback_array[229][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_IDLE_CYCLES && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_IDLE_CYCLES.VAL.next : '0;
+    assign readback_array[230][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_BEAT_COUNT && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_BEAT_COUNT.VAL.next : '0;
+    assign readback_array[231][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_BYTE_COUNT_LO && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_BYTE_COUNT_LO.VAL.next : '0;
+    assign readback_array[232][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_BYTE_COUNT_HI && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_BYTE_COUNT_HI.VAL.next : '0;
+    assign readback_array[233][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_BURST_COUNT && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_BURST_COUNT.VAL.next : '0;
+    assign readback_array[234][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_CH_PROD_BP && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_CH_PROD_BP.VAL.next : '0;
+    assign readback_array[235][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_CH_STARV_IDLE && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_CH_STARV_IDLE.VAL.next : '0;
+    assign readback_array[236][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_CH_PROD_BP && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_CH_PROD_BP.VAL.next : '0;
+    assign readback_array[237][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_CH_STARV_IDLE && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_CH_STARV_IDLE.VAL.next : '0;
+    assign readback_array[238][31:0] = (decoded_reg_strb.SNK.MON.RDMON_PERF_CH_OVERFLOW && !decoded_req_is_wr) ? hwif_in.SNK.MON.RDMON_PERF_CH_OVERFLOW.VAL.next : '0;
+    assign readback_array[239][31:0] = (decoded_reg_strb.SNK.MON.WRMON_PERF_CH_OVERFLOW && !decoded_req_is_wr) ? hwif_in.SNK.MON.WRMON_PERF_CH_OVERFLOW.VAL.next : '0;
 
     // Reduce the array
     always_comb begin
@@ -6316,7 +8044,7 @@ module rapids_regs (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<206; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<240; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

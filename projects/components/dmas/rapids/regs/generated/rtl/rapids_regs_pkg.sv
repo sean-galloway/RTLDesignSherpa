@@ -498,6 +498,177 @@ package rapids_regs_pkg;
     } rapids_regs__in_t;
 
     typedef struct {
+        logic [31:0] value;
+    } rapids_engine_regs__CH0_DESC_ADDR_LOW__DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        rapids_engine_regs__CH0_DESC_ADDR_LOW__DESC_ADDR_LOW__out_t DESC_ADDR_LOW;
+    } rapids_engine_regs__CH0_DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } rapids_engine_regs__CH0_DESC_ADDR_HIGH__DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        rapids_engine_regs__CH0_DESC_ADDR_HIGH__DESC_ADDR_HIGH__out_t DESC_ADDR_HIGH;
+    } rapids_engine_regs__CH0_DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } rapids_engine_regs__CH1_DESC_ADDR_LOW__DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        rapids_engine_regs__CH1_DESC_ADDR_LOW__DESC_ADDR_LOW__out_t DESC_ADDR_LOW;
+    } rapids_engine_regs__CH1_DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } rapids_engine_regs__CH1_DESC_ADDR_HIGH__DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        rapids_engine_regs__CH1_DESC_ADDR_HIGH__DESC_ADDR_HIGH__out_t DESC_ADDR_HIGH;
+    } rapids_engine_regs__CH1_DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } rapids_engine_regs__CH2_DESC_ADDR_LOW__DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        rapids_engine_regs__CH2_DESC_ADDR_LOW__DESC_ADDR_LOW__out_t DESC_ADDR_LOW;
+    } rapids_engine_regs__CH2_DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } rapids_engine_regs__CH2_DESC_ADDR_HIGH__DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        rapids_engine_regs__CH2_DESC_ADDR_HIGH__DESC_ADDR_HIGH__out_t DESC_ADDR_HIGH;
+    } rapids_engine_regs__CH2_DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } rapids_engine_regs__CH3_DESC_ADDR_LOW__DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        rapids_engine_regs__CH3_DESC_ADDR_LOW__DESC_ADDR_LOW__out_t DESC_ADDR_LOW;
+    } rapids_engine_regs__CH3_DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } rapids_engine_regs__CH3_DESC_ADDR_HIGH__DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        rapids_engine_regs__CH3_DESC_ADDR_HIGH__DESC_ADDR_HIGH__out_t DESC_ADDR_HIGH;
+    } rapids_engine_regs__CH3_DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } rapids_engine_regs__CH4_DESC_ADDR_LOW__DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        rapids_engine_regs__CH4_DESC_ADDR_LOW__DESC_ADDR_LOW__out_t DESC_ADDR_LOW;
+    } rapids_engine_regs__CH4_DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } rapids_engine_regs__CH4_DESC_ADDR_HIGH__DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        rapids_engine_regs__CH4_DESC_ADDR_HIGH__DESC_ADDR_HIGH__out_t DESC_ADDR_HIGH;
+    } rapids_engine_regs__CH4_DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } rapids_engine_regs__CH5_DESC_ADDR_LOW__DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        rapids_engine_regs__CH5_DESC_ADDR_LOW__DESC_ADDR_LOW__out_t DESC_ADDR_LOW;
+    } rapids_engine_regs__CH5_DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } rapids_engine_regs__CH5_DESC_ADDR_HIGH__DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        rapids_engine_regs__CH5_DESC_ADDR_HIGH__DESC_ADDR_HIGH__out_t DESC_ADDR_HIGH;
+    } rapids_engine_regs__CH5_DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } rapids_engine_regs__CH6_DESC_ADDR_LOW__DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        rapids_engine_regs__CH6_DESC_ADDR_LOW__DESC_ADDR_LOW__out_t DESC_ADDR_LOW;
+    } rapids_engine_regs__CH6_DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } rapids_engine_regs__CH6_DESC_ADDR_HIGH__DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        rapids_engine_regs__CH6_DESC_ADDR_HIGH__DESC_ADDR_HIGH__out_t DESC_ADDR_HIGH;
+    } rapids_engine_regs__CH6_DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } rapids_engine_regs__CH7_DESC_ADDR_LOW__DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        rapids_engine_regs__CH7_DESC_ADDR_LOW__DESC_ADDR_LOW__out_t DESC_ADDR_LOW;
+    } rapids_engine_regs__CH7_DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } rapids_engine_regs__CH7_DESC_ADDR_HIGH__DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        rapids_engine_regs__CH7_DESC_ADDR_HIGH__DESC_ADDR_HIGH__out_t DESC_ADDR_HIGH;
+    } rapids_engine_regs__CH7_DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        logic value;
+    } rapids_engine_regs__KICK_ENABLE__KICK0__out_t;
+
+    typedef struct {
+        logic value;
+    } rapids_engine_regs__KICK_ENABLE__KICK1__out_t;
+
+    typedef struct {
+        logic value;
+    } rapids_engine_regs__KICK_ENABLE__KICK2__out_t;
+
+    typedef struct {
+        logic value;
+    } rapids_engine_regs__KICK_ENABLE__KICK3__out_t;
+
+    typedef struct {
+        logic value;
+    } rapids_engine_regs__KICK_ENABLE__KICK4__out_t;
+
+    typedef struct {
+        logic value;
+    } rapids_engine_regs__KICK_ENABLE__KICK5__out_t;
+
+    typedef struct {
+        logic value;
+    } rapids_engine_regs__KICK_ENABLE__KICK6__out_t;
+
+    typedef struct {
+        logic value;
+    } rapids_engine_regs__KICK_ENABLE__KICK7__out_t;
+
+    typedef struct {
+        rapids_engine_regs__KICK_ENABLE__KICK0__out_t KICK0;
+        rapids_engine_regs__KICK_ENABLE__KICK1__out_t KICK1;
+        rapids_engine_regs__KICK_ENABLE__KICK2__out_t KICK2;
+        rapids_engine_regs__KICK_ENABLE__KICK3__out_t KICK3;
+        rapids_engine_regs__KICK_ENABLE__KICK4__out_t KICK4;
+        rapids_engine_regs__KICK_ENABLE__KICK5__out_t KICK5;
+        rapids_engine_regs__KICK_ENABLE__KICK6__out_t KICK6;
+        rapids_engine_regs__KICK_ENABLE__KICK7__out_t KICK7;
+    } rapids_engine_regs__KICK_ENABLE__out_t;
+
+    typedef struct {
         logic value;
     } rapids_engine_regs__GLOBAL_CTRL__GLOBAL_EN__out_t;
 
@@ -1083,6 +1254,23 @@ package rapids_regs_pkg;
     } rapids_mon_regs__out_t;
 
     typedef struct {
+        rapids_engine_regs__CH0_DESC_ADDR_LOW__out_t CH0_DESC_ADDR_LOW;
+        rapids_engine_regs__CH0_DESC_ADDR_HIGH__out_t CH0_DESC_ADDR_HIGH;
+        rapids_engine_regs__CH1_DESC_ADDR_LOW__out_t CH1_DESC_ADDR_LOW;
+        rapids_engine_regs__CH1_DESC_ADDR_HIGH__out_t CH1_DESC_ADDR_HIGH;
+        rapids_engine_regs__CH2_DESC_ADDR_LOW__out_t CH2_DESC_ADDR_LOW;
+        rapids_engine_regs__CH2_DESC_ADDR_HIGH__out_t CH2_DESC_ADDR_HIGH;
+        rapids_engine_regs__CH3_DESC_ADDR_LOW__out_t CH3_DESC_ADDR_LOW;
+        rapids_engine_regs__CH3_DESC_ADDR_HIGH__out_t CH3_DESC_ADDR_HIGH;
+        rapids_engine_regs__CH4_DESC_ADDR_LOW__out_t CH4_DESC_ADDR_LOW;
+        rapids_engine_regs__CH4_DESC_ADDR_HIGH__out_t CH4_DESC_ADDR_HIGH;
+        rapids_engine_regs__CH5_DESC_ADDR_LOW__out_t CH5_DESC_ADDR_LOW;
+        rapids_engine_regs__CH5_DESC_ADDR_HIGH__out_t CH5_DESC_ADDR_HIGH;
+        rapids_engine_regs__CH6_DESC_ADDR_LOW__out_t CH6_DESC_ADDR_LOW;
+        rapids_engine_regs__CH6_DESC_ADDR_HIGH__out_t CH6_DESC_ADDR_HIGH;
+        rapids_engine_regs__CH7_DESC_ADDR_LOW__out_t CH7_DESC_ADDR_LOW;
+        rapids_engine_regs__CH7_DESC_ADDR_HIGH__out_t CH7_DESC_ADDR_HIGH;
+        rapids_engine_regs__KICK_ENABLE__out_t KICK_ENABLE;
         rapids_engine_regs__GLOBAL_CTRL__out_t GLOBAL_CTRL;
         rapids_engine_regs__CHANNEL_ENABLE__out_t CHANNEL_ENABLE;
         rapids_engine_regs__CHANNEL_RESET__out_t CHANNEL_RESET;
