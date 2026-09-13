@@ -21,8 +21,15 @@
 #     0 -- the result crossed back through the B mux to the right master;
 #   - Update writes: WTAGUPDATE low leaves the store alone, high changes it;
 #   - Chunked reads: with ARCHUNKEN every R beat has RCHUNKV set and
-#     RCHUNKNUM counting the beat; without it RCHUNKV is low; data is right
+#     RCHUNKNUM naming the beat; without it RCHUNKV is low; data is right
 #     either way and the slave port saw exactly the chunk enables issued;
+#   - Out-of-order chunks: the slave BFM is then switched to emit each
+#     chunked burst's transfers in REVERSE order (RDS-DV #81), so RLAST
+#     rides the first beat and RCHUNKNUM runs backwards on the wire. The
+#     fabric must route those beats by ID and free its tracking on RLAST
+#     without caring: every burst completes, the data reassembles by
+#     RCHUNKNUM, the wire order is provably permuted, and the ordered
+#     control reads beside them are untouched;
 #   - the AXI5 compliance checkers on both master ports: zero violations.
 # Depth (TEST_LEVEL): arb_per_master transactions per master and phase.
 
@@ -223,6 +230,37 @@ async def cocotb_test_bridge_2x2_axi5_native_mte_chunk(dut):
     r_chunked = sum(1 for v, _, _ in sampler.r if v)
     assert r_chunked == len(chunked) * BEATS, f"slave port: {r_chunked} chunk-valid R beats, expected {len(chunked) * BEATS}"
     tb.log.info(f"phase 5: {len(chunked)} chunked + {len(plain)} plain reads, chunk fields right on every beat")
+
+    # ---- phase 6: the completer returns chunks out of order; the fabric must not care
+    tb.slave_rd[DDR].chunk_order = 'reverse'
+    sampler.r.clear()
+    rev, ctl = {}, {}
+
+    async def _to(m, i, chunk):
+        beats = await tb.master_rd[m].read_transaction(
+            _region(m, i), burst_len=BEATS, size=SIZE, id=(m << 3) | (i % 8), chunken=1 if chunk else 0)
+        (rev if chunk else ctl)[(m, i)] = beats
+
+    await _run_all(tb, [_to(m, i, chunk=(i % 2 == 0)) for m in (CPU, DMA) for i in range(n)], 2 * n, "reversed-chunk reads")
+    permuted = 0
+    for (m, i), beats in rev.items():
+        assert [b['data'] for b in beats] == data[(m, i)], f"reversed chunks {(m, i)}: data did not reassemble"
+        assert [b['chunknum'] for b in beats] == list(range(BEATS)), f"{(m, i)}: RCHUNKNUM after reassembly"
+        wire = [b['wire_index'] for b in beats]
+        assert wire == list(reversed(range(BEATS))), (
+            f"{(m, i)}: expected the wire to carry the beats reversed, saw wire order {wire}")
+        assert all(b['chunkstrb'] == 1 for b in beats), f"{(m, i)}: RCHUNKSTRB {[b['chunkstrb'] for b in beats]}"
+        permuted += 1
+    for (m, i), beats in ctl.items():
+        assert [b['data'] for b in beats] == data[(m, i)] and all(b['chunkv'] == 0 for b in beats), f"control read {(m, i)}"
+    # at the slave port the chunk numbers ran backwards within every burst
+    nums = [num for v, num, _ in sampler.r if v]
+    assert len(nums) == permuted * BEATS, f"slave port: {len(nums)} chunk-valid beats, expected {permuted * BEATS}"
+    descents = sum(1 for a, b in zip(nums, nums[1:]) if b < a)
+    assert descents >= permuted * (BEATS - 1) // 2, (
+        f"slave port RCHUNKNUM sequence shows only {descents} descents for {permuted} reversed bursts -- the beats were not permuted")
+    tb.slave_rd[DDR].chunk_order = 'in_order'
+    tb.log.info(f"phase 6: {permuted} bursts returned with reversed chunks, all reassembled; {len(ctl)} ordered controls beside them")
 
     tb.assert_compliance()
     tb.log.info("BRIDGE-018 native AXI5 MTE + chunking PASSED")

@@ -1706,7 +1706,12 @@ route by ID and free on RLAST in any order. Fixtures `bridge_2x2_axi5_native`
 and report through the RDS-DV slave BFM's new tag store, Transfer reads
 return tags, chunked reads carry RCHUNKV/RCHUNKNUM per beat) and
 `test_bridge_1x2_rd_axi5c_chunk`. RDS-DV: `axi5_tag_store`, per-beat
-`wtag`/`tagupdate`, Match compare (was a stub returning 1). Still not
+`wtag`/`tagupdate`, Match compare (was a stub returning 1); then (#81,
+same day) `chunk_order` on the slave read BFM, real RCHUNKSTRB, master
+reassembly by RCHUNKNUM with `wire_index`, and the checker's chunk and
+tag-width violations recorded -- so phase 6 of the native test returns
+every chunked burst REVERSED on the wire and shows the fabric routes the
+beats by ID and frees on RLAST regardless (24 bursts per master at full). Still not
 carried, because no library endpoint has them either: AxLOOP, QoS accept,
 SMMU untranslated, stash/CMO (rtl-amba AXI5 README). HAS 4.4, MAS 2.10.
 **Was:** open 2026-09-11 (split out of BRIDGE-014 when its master-protocol
