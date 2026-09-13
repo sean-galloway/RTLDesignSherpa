@@ -98,6 +98,54 @@ package rapids_pkg;
     localparam int DESC_CTRL_MAXTRY_HI = 143;
 
     //=========================================================================
+    // Extended (row/col-major) Descriptor Encoding
+    //=========================================================================
+    // A 3-bit descriptor TYPE at chunk-0 bits [212:210], clear of the 2-bit
+    // OPCODE at [209:208] and of channel_id/desc_priority below it. TYPE=EXT
+    // makes the descriptor engine fetch a second 256-bit chunk at
+    // descriptor_addr + 0x20 carrying the dma_address_gen configuration.
+    //
+    // The labels are RAPIDS_-prefixed on purpose: stream_pkg exports
+    // DESC_TYPE_LEGACY/DESC_TYPE_EXT, and the two packages share a compilation
+    // scope on the characterization harness, where colliding wildcard-imported
+    // enum labels are ambiguous under Vivado (see rapids_imports.svh).
+    localparam int DESC_TYPE_LO = 210;
+    localparam int DESC_TYPE_HI = 212;
+
+    typedef enum logic [2:0] {
+        RAPIDS_DESC_TYPE_LEGACY = 3'd0,  // 256-bit, 1 chunk, linear addressing
+        RAPIDS_DESC_TYPE_EXT    = 3'd1   // 512-bit, 2 chunks, dma_address_gen
+    } rapids_desc_type_e;
+
+    // Chunk 1 (the 256 bits fetched at descriptor_addr + 0x20). Layout is
+    // byte-compatible with STREAM's descriptor_ext_t so one descriptor builder
+    // serves both engines. Strides are SIGNED byte strides; wrap fields are
+    // log2 window sizes (0 = no wrap); inner_count is the index_0 extent.
+    localparam int RAPIDS_ADDRGEN_STRIDE_WIDTH = 32;
+    localparam int RAPIDS_ADDRGEN_INDEX_WIDTH  = 16;
+
+    typedef struct packed {
+        logic [63:0]        reserved_hi;     // [255:192] future: 3rd dim / elem size
+        logic [3:0]         wr_reserved;     // [191:188]
+        logic [5:0]         wr_wrap1_log2;   // [187:182]
+        logic [5:0]         wr_wrap0_log2;   // [181:176]
+        logic [15:0]        wr_inner_count;  // [175:160] index_0 extent (beats/row)
+        logic signed [31:0] wr_stride_1;     // [159:128] signed byte stride (outer)
+        logic signed [31:0] wr_stride_0;     // [127:96]  signed byte stride (inner)
+        logic [3:0]         rd_reserved;     // [95:92]
+        logic [5:0]         rd_wrap1_log2;   // [91:86]
+        logic [5:0]         rd_wrap0_log2;   // [85:80]
+        logic [15:0]        rd_inner_count;  // [79:64]  index_0 extent (beats/row)
+        logic signed [31:0] rd_stride_1;     // [63:32]  signed byte stride (outer)
+        logic signed [31:0] rd_stride_0;     // [31:0]   signed byte stride (inner)
+    } descriptor_ext_t;
+
+    // log2 wrap window -> address mask (0 = no wrap), mirroring dma_address_gen.
+    function automatic logic [63:0] rapids_wrap_log2_to_mask(input logic [5:0] wrap_log2);
+        return (wrap_log2 == 6'd0) ? 64'h0 : ((64'h1 << wrap_log2) - 64'h1);
+    endfunction
+
+    //=========================================================================
     // Channel State Enumeration (ONE-HOT ENCODED - for Phase 1 scheduler)
     //=========================================================================
     // CRITICAL: CH_XFER_DATA runs read and write engines CONCURRENTLY
@@ -121,7 +169,11 @@ package rapids_pkg;
         RD_ISSUE_ADDR = 3'b001,  // Issue AXI AR transaction
         RD_WAIT_DATA  = 3'b010,  // Wait for AXI R response
         RD_COMPLETE   = 3'b011,  // Descriptor fetched successfully
-        RD_ERROR      = 3'b100   // AXI response error
+        RD_ERROR      = 3'b100,  // AXI response error
+        // Extended addressing (USE_ROW_COL_MAJOR_ADDRESSING=1): conditional
+        // second 256-bit fetch at descriptor_addr + 0x20 for an EXT descriptor.
+        RD_ISSUE_ADDR2 = 3'b101, // Issue AXI AR for extended chunk 1
+        RD_WAIT_DATA2  = 3'b110  // Wait for AXI R response (chunk 1)
     } desc_fetch_state_t;
 
     //=========================================================================

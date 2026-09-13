@@ -17,5 +17,9 @@
 
 $REPO_ROOT/projects/components/dmas/rapids/rtl/includes/rapids_pkg.sv
 
+# Run-base address generator (extended row/col-major addressing). Shared
+# with STREAM from misc/rtl; pulls dma_address_gen + gaxi_fifo_sync itself.
+-f $REPO_ROOT/projects/components/misc/rtl/filelists/stream_run_addr_gen.f
+
 # DUT module
 $REPO_ROOT/projects/components/dmas/rapids/rtl/fub_beats/scheduler_beats.sv

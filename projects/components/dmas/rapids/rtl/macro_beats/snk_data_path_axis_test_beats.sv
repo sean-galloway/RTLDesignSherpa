@@ -329,6 +329,12 @@ module snk_data_path_axis_test_beats #(
                 .descriptor_valid       (desc_valid[i]),
                 .descriptor_ready       (desc_ready[i]),
                 .descriptor_packet      (desc_packet[i]),
+                // Extended chunk 1: this harness drives only legacy descriptors
+                // (type=0), so chunk 1 is don't-care. Tied off explicitly rather
+                // than left unconnected -- it is an INPUT, and PINMISSING is an
+                // ERROR under the flags cocotb passes, so a missing pin fails
+                // the BUILD and the test never runs.
+                .descriptor_ext_packet  ('0),
                 .descriptor_error       (desc_error[i]),
 
                 // Data read interface (auto-completed for write-only test)

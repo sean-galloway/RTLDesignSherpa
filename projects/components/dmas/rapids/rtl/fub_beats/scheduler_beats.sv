@@ -87,7 +87,12 @@ module scheduler_beats #(
     // Loading 0 beats in the disabled direction makes its sched_*_valid
     // self-gate and collapses completion onto the active direction.
     parameter bit EN_READ  = 1'b1,
-    parameter bit EN_WRITE = 1'b1
+    parameter bit EN_WRITE = 1'b1,
+    // Extended (row/col-major) addressing. When 1, an EXT descriptor uses two
+    // stream_run_addr_gen run-base generators (read + write) so a transfer can
+    // be strided / 2-D tiled / circular / reverse / transpose. Legacy
+    // descriptors and the whole param=0 build keep linear accumulation.
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -108,6 +113,7 @@ module scheduler_beats #(
     input  logic                        descriptor_valid,
     output logic                        descriptor_ready,
     input  logic [DESC_WIDTH-1:0]       descriptor_packet,     // 256-bit RAPIDS descriptor
+    input  logic [255:0]                descriptor_ext_packet, // Extended chunk 1 (ignored unless type=EXT)
     input  logic                        descriptor_error,      // Error signal FROM descriptor engine
 
     // Data Read Interface (to AXI Read Engine)
@@ -267,6 +273,23 @@ module scheduler_beats #(
     logic [31:0] r_read_beats_remaining;          // Beats left to read from source
     logic [31:0] r_write_beats_remaining;         // Beats left to ISSUE to destination (drives engine + dst address)
     logic [31:0] r_write_beats_to_commit;         // Beats left to COMMIT (B responses) - gates completion
+
+    // Extended addressing working state
+    rapids_pkg::descriptor_ext_t r_descriptor_ext;   // Latched chunk 1
+    // Incoming (pre-latch) views. Cast ONCE into a named net: a member select
+    // applied directly to a package-qualified cast expression
+    // (pkg::type_t'(x).field) does not parse.
+    rapids_pkg::descriptor_ext_t w_descriptor_ext_in;
+    logic                        w_is_ext_in;
+    logic        r_is_ext;                           // This descriptor is EXT
+    logic        r_rd_per_beat, r_wr_per_beat;       // stride_0 != beat_size
+    logic [31:0] r_rd_run_remaining, r_wr_run_remaining;
+    logic                  w_rd_base_valid, w_rd_base_ready;
+    logic [ADDR_WIDTH-1:0] w_rd_base_addr;
+    logic                  w_wr_base_valid, w_wr_base_ready;
+    logic [ADDR_WIDTH-1:0] w_wr_base_addr;
+    logic w_rd_need_base, w_wr_need_base;
+    logic w_addrgen_start, r_fetch_desc_d;
 
     // Timeout tracking
     // Counts clock cycles while waiting for engine grant (sched_wr_ready)
@@ -459,6 +482,110 @@ module scheduler_beats #(
     // CRITICAL: In rapids_pkg::CH_XFER_DATA, both counters update independently based on their
     //           respective done strobes. This allows concurrent read/write operation.
 
+    assign w_descriptor_ext_in = rapids_pkg::descriptor_ext_t'(descriptor_ext_packet);
+    assign w_is_ext_in = (USE_ROW_COL_MAJOR_ADDRESSING != 0) &&
+                         (descriptor_packet[rapids_pkg::DESC_TYPE_HI:rapids_pkg::DESC_TYPE_LO] ==
+                          rapids_pkg::RAPIDS_DESC_TYPE_EXT);
+
+    //=========================================================================
+    // Extended addressing: run sizing and run-base generators
+    //=========================================================================
+    // A "run" is a contiguous span of beats. Legacy => run == whole transfer,
+    // so no boundary is ever reached early. EXT => run == inner_count beats
+    // (run-contiguous), or 1 beat when stride_0 != beat_size (per-beat 2-D).
+    localparam logic signed [rapids_pkg::RAPIDS_ADDRGEN_STRIDE_WIDTH-1:0] BEAT_BYTES =
+                    rapids_pkg::RAPIDS_ADDRGEN_STRIDE_WIDTH'(DATA_WIDTH/8);
+
+    logic [31:0] w_rd_inner_beats, w_wr_inner_beats;
+    assign w_rd_inner_beats = (r_descriptor_ext.rd_inner_count == '0) ? 32'd1
+                                : {16'h0, r_descriptor_ext.rd_inner_count};
+    assign w_wr_inner_beats = (r_descriptor_ext.wr_inner_count == '0) ? 32'd1
+                                : {16'h0, r_descriptor_ext.wr_inner_count};
+
+    logic [31:0] w_rd_run_size, w_wr_run_size;
+    assign w_rd_run_size = r_rd_per_beat ? 32'd1 : w_rd_inner_beats;
+    assign w_wr_run_size = r_wr_per_beat ? 32'd1 : w_wr_inner_beats;
+
+    logic [31:0] w_rd_run_init, w_wr_run_init;
+    assign w_rd_run_init = !r_is_ext ? r_descriptor.length
+        : ((w_rd_run_size < r_descriptor.length) ? w_rd_run_size : r_descriptor.length);
+    assign w_wr_run_init = !r_is_ext ? r_descriptor.length
+        : ((w_wr_run_size < r_descriptor.length) ? w_wr_run_size : r_descriptor.length);
+
+    // "Between runs": current run drained but beats remain -> need a new base.
+    assign w_rd_need_base = r_is_ext && (r_rd_run_remaining == 32'h0) &&
+                            (r_read_beats_remaining != 32'h0);
+    assign w_wr_need_base = r_is_ext && (r_wr_run_remaining == 32'h0) &&
+                            (r_write_beats_remaining != 32'h0);
+    assign w_rd_base_ready = w_rd_need_base;
+    assign w_wr_base_ready = w_wr_need_base;
+
+    // One-cycle start pulse on entry to CH_FETCH_DESC, EXT ONLY. Starting the
+    // generators for a legacy descriptor would run them with that descriptor's
+    // base and the STALE r_descriptor_ext strides, pushing bogus bases into the
+    // generator's internal FIFO (which only clears on reset). A later chained
+    // EXT descriptor would then consume them and address the wrong memory.
+    assign w_addrgen_start = w_state_fetch_desc && !r_fetch_desc_d && r_is_ext;
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) r_fetch_desc_d <= 1'b0;
+        else                      r_fetch_desc_d <= w_state_fetch_desc;
+    )
+
+    generate
+    if (USE_ROW_COL_MAJOR_ADDRESSING != 0) begin : g_addrgen
+        stream_run_addr_gen #(
+            .ADDR_WIDTH   (ADDR_WIDTH),
+            .STRIDE_WIDTH (rapids_pkg::RAPIDS_ADDRGEN_STRIDE_WIDTH),
+            .INDEX_WIDTH  (rapids_pkg::RAPIDS_ADDRGEN_INDEX_WIDTH),
+            .FIFO_DEPTH   (4),
+            .BEATS_WIDTH  (32)
+        ) u_rd_addr_gen (
+            .clk             (clk),
+            .rst_n           (rst_n),
+            .start           (w_addrgen_start),
+            .cfg_per_beat    (r_rd_per_beat),
+            .cfg_base_addr   (r_descriptor.src_addr[ADDR_WIDTH-1:0]),
+            .cfg_stride_0    (r_descriptor_ext.rd_stride_0),
+            .cfg_stride_1    (r_descriptor_ext.rd_stride_1),
+            .cfg_wrap_mask_0 (ADDR_WIDTH'(rapids_pkg::rapids_wrap_log2_to_mask(r_descriptor_ext.rd_wrap0_log2))),
+            .cfg_wrap_mask_1 (ADDR_WIDTH'(rapids_pkg::rapids_wrap_log2_to_mask(r_descriptor_ext.rd_wrap1_log2))),
+            .cfg_inner_count (r_descriptor_ext.rd_inner_count),
+            .cfg_total_beats (r_descriptor.length),
+            .o_base_valid    (w_rd_base_valid),
+            .i_base_ready    (w_rd_base_ready),
+            .o_base_addr     (w_rd_base_addr)
+        );
+        stream_run_addr_gen #(
+            .ADDR_WIDTH   (ADDR_WIDTH),
+            .STRIDE_WIDTH (rapids_pkg::RAPIDS_ADDRGEN_STRIDE_WIDTH),
+            .INDEX_WIDTH  (rapids_pkg::RAPIDS_ADDRGEN_INDEX_WIDTH),
+            .FIFO_DEPTH   (4),
+            .BEATS_WIDTH  (32)
+        ) u_wr_addr_gen (
+            .clk             (clk),
+            .rst_n           (rst_n),
+            .start           (w_addrgen_start),
+            .cfg_per_beat    (r_wr_per_beat),
+            .cfg_base_addr   (r_descriptor.dst_addr[ADDR_WIDTH-1:0]),
+            .cfg_stride_0    (r_descriptor_ext.wr_stride_0),
+            .cfg_stride_1    (r_descriptor_ext.wr_stride_1),
+            .cfg_wrap_mask_0 (ADDR_WIDTH'(rapids_pkg::rapids_wrap_log2_to_mask(r_descriptor_ext.wr_wrap0_log2))),
+            .cfg_wrap_mask_1 (ADDR_WIDTH'(rapids_pkg::rapids_wrap_log2_to_mask(r_descriptor_ext.wr_wrap1_log2))),
+            .cfg_inner_count (r_descriptor_ext.wr_inner_count),
+            .cfg_total_beats (r_descriptor.length),
+            .o_base_valid    (w_wr_base_valid),
+            .i_base_ready    (w_wr_base_ready),
+            .o_base_addr     (w_wr_base_addr)
+        );
+    end else begin : g_no_addrgen
+        assign w_rd_base_valid = 1'b0;
+        assign w_rd_base_addr  = '0;
+        assign w_wr_base_valid = 1'b0;
+        assign w_wr_base_addr  = '0;
+    end
+    endgenerate
+
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             r_descriptor <= '0;
@@ -471,6 +598,12 @@ module scheduler_beats #(
             r_write_beats_to_commit <= 32'h0;
             r_desc_opcode <= 2'b00;
             r_ctrl_issued <= 1'b0;
+            r_descriptor_ext <= '0;
+            r_is_ext <= 1'b0;
+            r_rd_per_beat <= 1'b0;
+            r_wr_per_beat <= 1'b0;
+            r_rd_run_remaining <= 32'h0;
+            r_wr_run_remaining <= 32'h0;
         end else begin
             // Descriptor capture: Sample descriptor_packet when handshake occurs
             // This happens in either rapids_pkg::CH_IDLE (first descriptor) or rapids_pkg::CH_NEXT_DESC (chained)
@@ -492,6 +625,16 @@ module scheduler_beats #(
                 // Latch the opcode; ctrl addr/data/mask are read from the src/dst
                 // slots (see completion/output logic). Fresh control op -> not issued.
                 r_desc_opcode <= descriptor_packet[DESC_OPCODE_HI:DESC_OPCODE_LO];
+
+                // Extended descriptor: type at [212:210], chunk 1 arrives in
+                // lockstep on descriptor_ext_packet. Precompute the per-beat
+                // flags here so the hot path selects on a register bit.
+                r_descriptor_ext <= w_descriptor_ext_in;
+                r_is_ext         <= w_is_ext_in;
+                r_rd_per_beat    <= w_is_ext_in &&
+                                    (w_descriptor_ext_in.rd_stride_0 != BEAT_BYTES);
+                r_wr_per_beat    <= w_is_ext_in &&
+                                    (w_descriptor_ext_in.wr_stride_0 != BEAT_BYTES);
                 r_ctrl_issued <= 1'b0;
 
                 r_descriptor_loaded <= 1'b1;
@@ -510,6 +653,9 @@ module scheduler_beats #(
                     r_read_beats_remaining  <= EN_READ  ? r_descriptor.length : 32'h0;
                     r_write_beats_remaining <= EN_WRITE ? r_descriptor.length : 32'h0;
                     r_write_beats_to_commit <= EN_WRITE ? r_descriptor.length : 32'h0;
+                    // Seed contiguous-run counters (whole transfer for legacy).
+                    r_rd_run_remaining <= w_rd_run_init;
+                    r_wr_run_remaining <= w_wr_run_init;
                 end
 
                 rapids_pkg::CH_XFER_DATA: begin
@@ -536,11 +682,25 @@ module scheduler_beats #(
                         // Increment source address by bytes transferred
                         // Address increment = beats_done << AXSIZE (where AXSIZE = log2(DATA_WIDTH/8))
                         r_src_addr <= r_src_addr + (ADDR_WIDTH'(sched_rd_beats_done) << $clog2(DATA_WIDTH/8));
+
+                        // Drain the current run (EXT only; legacy run == total).
+                        if (r_is_ext) begin
+                            r_rd_run_remaining <= (r_rd_run_remaining >= sched_rd_beats_done) ?
+                                                (r_rd_run_remaining - sched_rd_beats_done) : 32'h0;
+                        end
                     end
 
                     // Write ISSUE progress: fires on AW handshake. Decrements the ISSUE
                     // counter (drives the engine's next-burst sizing) and advances the
                     // destination address so the next (pipelined) AW targets correctly.
+                    // Run boundary: jump to the next run's base and reload the
+                    // run counter (the cycle after a run drains).
+                    if (w_rd_need_base && w_rd_base_valid) begin
+                        r_src_addr <= w_rd_base_addr;
+                        r_rd_run_remaining <= (r_read_beats_remaining >= w_rd_run_size) ?
+                                                w_rd_run_size : r_read_beats_remaining;
+                    end
+
                     if (sched_wr_done_strobe) begin
                         // Decrement by number of beats issued this burst
                         // Saturate at 0 (safety check, shouldn't underflow)
@@ -550,12 +710,25 @@ module scheduler_beats #(
                         // Increment destination address by bytes transferred
                         // Address increment = beats_done << AXSIZE (where AXSIZE = log2(DATA_WIDTH/8))
                         r_dst_addr <= r_dst_addr + (ADDR_WIDTH'(sched_wr_beats_done) << $clog2(DATA_WIDTH/8));
+
+                        // Drain the current write run (EXT only).
+                        if (r_is_ext) begin
+                            r_wr_run_remaining <= (r_wr_run_remaining >= sched_wr_beats_done) ?
+                                                (r_wr_run_remaining - sched_wr_beats_done) : 32'h0;
+                        end
                     end
 
                     // Write COMMIT progress: fires on B response (data actually written
                     // to the destination). Decrements the COMMIT counter, which gates
                     // completion (w_write_complete) so a channel is not reported done
                     // until every issued write has been acknowledged.
+                    // Write run boundary: jump to the next run base.
+                    if (w_wr_need_base && w_wr_base_valid) begin
+                        r_dst_addr <= w_wr_base_addr;
+                        r_wr_run_remaining <= (r_write_beats_remaining >= w_wr_run_size) ?
+                                                w_wr_run_size : r_write_beats_remaining;
+                    end
+
                     if (sched_wr_commit_strobe) begin
                         r_write_beats_to_commit <= (r_write_beats_to_commit >= sched_wr_commit_beats) ?
                                                 (r_write_beats_to_commit - sched_wr_commit_beats) : 32'h0;
@@ -655,7 +828,7 @@ module scheduler_beats #(
                         !w_read_complete &&
                         !w_sched_rd_completing_this_cycle;
     assign sched_rd_addr = r_src_addr;
-    assign sched_rd_beats = r_read_beats_remaining;
+    assign sched_rd_beats = r_is_ext ? r_rd_run_remaining : r_read_beats_remaining;
 
     //=========================================================================
     // Data Write Interface Outputs
@@ -677,7 +850,7 @@ module scheduler_beats #(
                         !w_write_complete &&
                         !w_sched_wr_completing_this_cycle;
     assign sched_wr_addr = r_dst_addr;
-    assign sched_wr_beats = r_write_beats_remaining;
+    assign sched_wr_beats = r_is_ext ? r_wr_run_remaining : r_write_beats_remaining;
 
     //=========================================================================
     // Control Engine Interface Outputs (Phase 2)

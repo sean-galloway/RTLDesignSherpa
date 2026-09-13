@@ -66,6 +66,73 @@ async def cocotb_test_source_path(dut):
     tb.log.info("rapids_beats_top SOURCE path PASSED")
 
 
+@cocotb.test(timeout_time=90, timeout_unit="ms")
+async def cocotb_test_ext_addressing(dut):
+    """EXT descriptor on the SOURCE path: strided reads via dma_address_gen.
+
+    Built with USE_ROW_COL_MAJOR_ADDRESSING=1. The descriptor engine sees
+    desc_type=EXT at [212:210], fetches chunk 1 at descriptor_addr+0x20, and the
+    scheduler walks run bases instead of accumulating linearly. Source memory is
+    seeded so that each beat's payload encodes the ADDRESS it was read from, so
+    the captured AXIS stream proves which addresses were actually fetched.
+    """
+    tb = RapidsBeatsTopTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+
+    channel   = 0
+    inner     = 4                      # beats per contiguous run
+    rows      = 2                      # number of runs
+    beats     = inner * rows
+    bpl       = tb.DATA_WIDTH // 8     # bytes per beat
+    row_pitch = 0x1000                 # outer stride: rows far apart
+
+    src_addr  = tb.SRC_BASE + channel * tb.CHANNEL_OFFSET
+    desc_addr = tb.DESC_BASE + channel * 0x1000
+
+    # Golden model: run-contiguous (stride_0 == beat size), outer stride row_pitch.
+    seq = tb.expected_seq(base=src_addr, s0=bpl, s1=row_pitch, inner=inner,
+                          length=beats, per_beat=False)
+    tb.log.info(f"EXT golden run sequence: {[(hex(a), n) for a, n in seq]}")
+
+    # Seed every address the model predicts; payload == that address.
+    expected_payload = []
+    for run_base, run_beats in seq:
+        for i in range(run_beats):
+            a = run_base + i * bpl
+            tb.preload_source(a, [a & ((1 << (bpl * 8)) - 1)])
+            expected_payload.append(a & ((1 << (bpl * 8)) - 1))
+
+    chunk0 = tb.create_descriptor(src_addr, 0, beats, channel_id=channel,
+                                  desc_type=tb.DESC_TYPE_EXT)
+    chunk1 = tb.build_ext_chunk1(
+        rd=dict(s0=bpl, s1=row_pitch, inner=inner, w0=0, w1=0),
+        wr=dict(s0=bpl, s1=0,         inner=inner, w0=0, w1=0))
+    tb.register_ext_descriptor(tb.desc_src_mem, desc_addr, chunk0, chunk1)
+
+    await tb.kick_off_channel('src', channel, desc_addr)
+
+    for _ in range(8000):
+        await tb.wait_clocks(tb.clk_name, 1)
+        if len(tb.captured_axis.get(channel, [])) >= beats:
+            break
+    await tb.wait_half_idle('src', timeout_cycles=20000)
+    await tb.wait_clocks(tb.clk_name, 200)
+
+    got = tb.captured_axis.get(channel, [])
+    errors = list(tb.test_errors)
+    if len(got) != beats:
+        errors.append(f"ext ch{channel}: captured {len(got)}/{beats} beats")
+    else:
+        for i, (a, b) in enumerate(zip(got, expected_payload)):
+            if a != b:
+                errors.append(f"ext ch{channel}: beat[{i}] got=0x{a:X} exp=0x{b:X} "
+                              f"(address walk diverged from dma_address_gen model)")
+    tb.finalize_test()
+    assert not errors, f"extended addressing failed: {errors}"
+    tb.log.info(f"rapids_beats_top EXT addressing PASSED ({rows} runs x {inner} beats)")
+
+
 @cocotb.test(timeout_time=60, timeout_unit="ms")
 async def cocotb_test_sink_path(dut):
     """SINK datapath (AXIS -> memory), configured + kicked over APB by name."""
@@ -231,7 +298,7 @@ async def cocotb_test_perf_window(dut):
 # PYTEST WRAPPER
 # ===========================================================================
 
-def _run_top(testcase, test_name):
+def _run_top(testcase, test_name, extra_params=None):
     """Shared runner: compile rapids_beats_top (split core) and run a testcase.
 
     The split top uses a 13-bit APB (address bit[12] selects SRC/SNK), so both
@@ -248,6 +315,14 @@ def _run_top(testcase, test_name):
         repo_root=repo_root,
         filelist_path='projects/components/dmas/rapids/rtl/filelists/top_beats/rapids_beats_top.f'
     )
+
+    # Encode RTL parameter overrides into the test name BEFORE any path is
+    # derived (repo convention, cf. test_scheduler_beats.py). sim_build is keyed
+    # on test_name, so without this an ON and an OFF build of the same cell
+    # share one directory and the second silently reuses the first's image.
+    if extra_params:
+        test_name = f"{test_name}_" + "_".join(
+            f"{k.lower()}{v}" for k, v in sorted(extra_params.items()))
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     if worker_id:
@@ -268,6 +343,12 @@ def _run_top(testcase, test_name):
         'APB_ADDR_WIDTH': 13,
         'APB_DATA_WIDTH': 32,
     }
+    # Build-time feature overrides. A cell that changes an RTL parameter MUST
+    # also use a distinct test_name: sim_build is keyed on test_name, so an ON
+    # and an OFF cell sharing a name would share one build directory and the
+    # second would silently run the first's image.
+    if extra_params:
+        rtl_parameters.update(extra_params)
 
     extra_env = {
         'DUT': dut_name,
@@ -354,6 +435,16 @@ def test_rapids_beats_top_status(request):
 def test_rapids_beats_top_perf_window(request):
     """Perf window: the RDMON/WRMON CSRs must count rather than read 0."""
     _run_top("cocotb_test_perf_window", "test_rapids_beats_top_perf_window")
+
+
+@pytest.mark.top_beats
+@pytest.mark.rapids_beats_top
+def test_rapids_beats_top_ext_addressing(request):
+    """EXTENDED addressing (USE_ROW_COL_MAJOR_ADDRESSING=1): a strided EXT
+    descriptor must fetch chunk 1 at +0x20 and walk the addresses the
+    dma_address_gen model predicts. Distinct test_name -> own sim_build."""
+    _run_top("cocotb_test_ext_addressing", "test_rapids_beats_top_ext",
+             extra_params={'USE_ROW_COL_MAJOR_ADDRESSING': 1})
 
 
 if __name__ == "__main__":

@@ -58,6 +58,12 @@ module descriptor_engine_beats #(
     parameter int AXI_ID_WIDTH = 8,
     parameter int FIFO_DEPTH = 8,
     parameter int DESC_ADDR_FIFO_DEPTH = 2,          // NEW: Descriptor read address FIFO depth
+    // Extended addressing: when 1, an EXT descriptor (type=1 in chunk-0 bits
+    // [212:210]) triggers a conditional second 256-bit fetch at
+    // descriptor_addr + 0x20 carrying the addr-gen cfg, emitted on
+    // descriptor_ext_packet. When 0 the second-fetch path is unreachable and
+    // synthesizes away -> legacy single-beat behavior verbatim.
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,
     parameter int TIMEOUT_CYCLES = 1000,
     // Monitor Bus Parameters
     parameter logic [15:0] MON_AGENT_ID  = 16'h0010,  // 16-bit agent ID (128-bit packet)
@@ -78,6 +84,7 @@ module descriptor_engine_beats #(
     output logic                        descriptor_valid,
     input  logic                        descriptor_ready,
     output logic [255:0]                descriptor_packet,     // FIXED 256-bit descriptor
+    output logic [255:0]                descriptor_ext_packet, // Extended chunk 1 (0 when unused)
     output logic                        descriptor_error,
 
     // NEW: Enhanced control signal outputs
@@ -209,6 +216,10 @@ module descriptor_engine_beats #(
     // Storage for fetched descriptor data
     logic [255:0] r_descriptor_data;           // FIXED 256-bit RAPIDS descriptor
     logic [ADDR_WIDTH-1:0] r_saved_next_addr;  // next_descriptor_ptr (for logging)
+
+    // Extended second-chunk fetch
+    logic [255:0] r_descriptor_ext_data;       // Latched chunk 1 (addr-gen cfg)
+    logic         w_want_ext;                  // Chunk-0 response is an EXT descriptor
 
     // Autonomous chaining logic
     // Decision tree for whether to automatically fetch next descriptor
@@ -510,6 +521,39 @@ module descriptor_engine_beats #(
     );
 
     //=========================================================================
+    // Extended Chunk-1 FIFO (lockstep with the descriptor FIFO)
+    //=========================================================================
+    // Written and read with the SAME enables and depth as the main FIFO, so the
+    // two never diverge: entry N here is chunk 1 for entry N there. Its own
+    // wr_ready/rd_valid are deliberately left open - the main FIFO's flow
+    // control governs both. For legacy descriptors chunk 1 is don't-care (the
+    // scheduler ignores it when type=LEGACY). Instantiated only when the
+    // feature is enabled; otherwise the output ties off and this synthesizes
+    // away.
+    generate
+    if (USE_ROW_COL_MAJOR_ADDRESSING != 0) begin : g_ext_fifo
+        logic [255:0] w_desc_ext_fifo_rd_data;
+        gaxi_fifo_sync #(
+            .DATA_WIDTH(256),
+            .DEPTH(FIFO_DEPTH)
+        ) i_descriptor_ext_fifo (
+            .axi_aclk(clk),
+            .axi_aresetn(rst_n),
+            .wr_valid(w_desc_fifo_wr_valid),
+            .wr_ready(),                       // lockstep: mirrors main FIFO wr_ready
+            .wr_data(r_descriptor_ext_data),
+            .rd_valid(),                       // lockstep: mirrors main FIFO rd_valid
+            .rd_ready(w_desc_fifo_rd_ready),
+            .rd_data(w_desc_ext_fifo_rd_data),
+            .count()
+        );
+        assign descriptor_ext_packet = w_desc_ext_fifo_rd_data;
+    end else begin : g_no_ext
+        assign descriptor_ext_packet = '0;
+    end
+    endgenerate
+
+    //=========================================================================
     // Enhanced Field Extraction with EOS/EOL/EOD
     //=========================================================================
     // Parses fetched descriptor data to extract control fields
@@ -587,8 +631,17 @@ module descriptor_engine_beats #(
     // AXI response validation
     assign w_axi_response_ok = (r_resp == 2'b00); // OKAY response
 
+    // Chunk-0 response carries an EXT descriptor (type at [212:210], clear of
+    // the 2-bit opcode at [209:208]). Held 0 when the feature is compiled out
+    // so the second-fetch path is unreachable.
+    assign w_want_ext = (USE_ROW_COL_MAJOR_ADDRESSING != 0) &&
+                        (r_data[rapids_pkg::DESC_TYPE_HI:rapids_pkg::DESC_TYPE_LO] ==
+                         rapids_pkg::RAPIDS_DESC_TYPE_EXT);
+
     // We're ready when waiting for our response
-    assign r_ready = (r_current_state == rapids_pkg::RD_WAIT_DATA) && w_our_axi_response;
+    // Ready while waiting for our response: chunk 0 or, for EXT, chunk 1.
+    assign r_ready = ((r_current_state == rapids_pkg::RD_WAIT_DATA) ||
+                      (r_current_state == rapids_pkg::RD_WAIT_DATA2)) && w_our_axi_response;
 
     //=========================================================================
     // FSM State Machine with Channel Reset (reuses RAPIDS rapids_pkg::read_engine_state_t)
@@ -682,18 +735,39 @@ module descriptor_engine_beats #(
             end
 
             rapids_pkg::RD_WAIT_DATA: begin
-                // Wait for AXI R channel response
+                // Wait for AXI R channel response (chunk 0)
                 if (r_channel_reset_active) begin
                     w_next_state = rapids_pkg::RD_IDLE; // Reset aborts operation
                 end else if (w_our_axi_response && r_valid) begin
                     // Our response arrived (r_id matches CHANNEL_ID)
-                    if (w_axi_response_ok) begin
-                        w_next_state = rapids_pkg::RD_COMPLETE;  // OKAY response → complete
-                    end else begin
+                    if (!w_axi_response_ok) begin
                         w_next_state = rapids_pkg::RD_ERROR;     // Error response → error state
+                    end else if (w_want_ext) begin
+                        w_next_state = rapids_pkg::RD_ISSUE_ADDR2; // EXT → fetch chunk 1
+                    end else begin
+                        w_next_state = rapids_pkg::RD_COMPLETE;  // Legacy → complete
                     end
                 end
                 // Note: Stays in WAIT_DATA until response or reset
+            end
+
+            rapids_pkg::RD_ISSUE_ADDR2: begin
+                // Issue AXI AR for extended chunk 1 (descriptor_addr + 0x20)
+                if (r_channel_reset_active) begin
+                    w_next_state = rapids_pkg::RD_IDLE;
+                end else if (ar_ready) begin
+                    w_next_state = rapids_pkg::RD_WAIT_DATA2;
+                end
+            end
+
+            rapids_pkg::RD_WAIT_DATA2: begin
+                // Wait for AXI R channel response (chunk 1)
+                if (r_channel_reset_active) begin
+                    w_next_state = rapids_pkg::RD_IDLE;
+                end else if (w_our_axi_response && r_valid) begin
+                    w_next_state = w_axi_response_ok ? rapids_pkg::RD_COMPLETE
+                                                     : rapids_pkg::RD_ERROR;
+                end
             end
 
             rapids_pkg::RD_COMPLETE: begin
@@ -730,6 +804,7 @@ module descriptor_engine_beats #(
             r_axi_read_addr <= 64'h0;
             r_axi_read_resp <= 2'b00;
             r_descriptor_data <= '0;
+            r_descriptor_ext_data <= '0;
             r_saved_next_addr <= 64'h0;
             r_descriptor_error <= 1'b0;
         end else begin
@@ -755,10 +830,31 @@ module descriptor_engine_beats #(
                         r_axi_read_resp <= r_resp;
                         r_saved_next_addr <= {{(ADDR_WIDTH-32){1'b0}}, w_next_addr};  // Zero-extend 32→64 bit
 
+                        // EXT descriptor: release the read-active latch so the
+                        // chunk-1 AR can issue from RD_ISSUE_ADDR2.
+                        if (w_want_ext && w_axi_response_ok) begin
+                            r_axi_read_active <= 1'b0;
+                        end
+
                         // Check descriptor valid bit - flag error if invalid
                         if (!r_data[192]) begin  // valid bit = 0
                             r_descriptor_error <= 1'b1;
                         end
+                    end
+                end
+
+                rapids_pkg::RD_ISSUE_ADDR2: begin
+                    // Chunk-1 AR accepted
+                    if (ar_ready) begin
+                        r_axi_read_active <= 1'b1;
+                    end
+                end
+
+                rapids_pkg::RD_WAIT_DATA2: begin
+                    // Latch extended chunk 1
+                    if (w_our_axi_response && r_valid) begin
+                        r_descriptor_ext_data <= r_data;
+                        r_axi_read_resp <= r_resp;
                     end
                 end
 
@@ -817,8 +913,13 @@ module descriptor_engine_beats #(
     // AXI Read Address Channel Output
     //=========================================================================
 
-    assign ar_valid = (r_current_state == rapids_pkg::RD_ISSUE_ADDR) && !r_axi_read_active;
-    assign ar_addr = r_axi_read_addr;
+    // AR issues for chunk 0 (RD_ISSUE_ADDR) and, for EXT descriptors, chunk 1
+    // (RD_ISSUE_ADDR2). Chunk 1 sits immediately after chunk 0 in memory:
+    // descriptor_addr + 0x20 (256 bits = 32 bytes).
+    assign ar_valid = ((r_current_state == rapids_pkg::RD_ISSUE_ADDR) ||
+                       (r_current_state == rapids_pkg::RD_ISSUE_ADDR2)) && !r_axi_read_active;
+    assign ar_addr = (r_current_state == rapids_pkg::RD_ISSUE_ADDR2) ?
+                        (r_axi_read_addr + ADDR_WIDTH'(32)) : r_axi_read_addr;
     assign ar_len = 8'h00;           // Single beat transfer
     assign ar_size = 3'b110;         // 64 bytes (512-bit)
     assign ar_burst = 2'b01;         // INCR burst type

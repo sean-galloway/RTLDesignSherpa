@@ -44,6 +44,9 @@ module scheduler_group_beats #(
     // SINK half = write-only (EN_READ=0); default both preserves mem-to-mem behavior.
     parameter bit EN_READ  = 1'b1,
     parameter bit EN_WRITE = 1'b1,
+    // Extended (row/col-major) addressing: default off preserves linear
+    // addressing verbatim; the second-chunk fetch synthesizes away at 0.
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,
     // GEN_MON=0 gates this group's per-channel MonBus emitters (descriptor,
     // scheduler, ctrl-rd, ctrl-wr) to 0 so synthesis prunes the emitter cones.
     // Default 1 preserves production behavior.
@@ -201,6 +204,7 @@ module scheduler_group_beats #(
     logic                        desceng_to_sched_valid;
     logic                        desceng_to_sched_ready;
     logic [255:0]                desceng_to_sched_packet;  // 256-bit descriptors
+    logic [255:0]                desceng_to_sched_ext_packet;  // extended chunk 1
     logic                        desceng_to_sched_error;
     logic                        desceng_to_sched_eos;
     logic                        desceng_to_sched_eol;
@@ -263,7 +267,8 @@ module scheduler_group_beats #(
         .AXI_ID_WIDTH           (AXI_ID_WIDTH),
         .MON_AGENT_ID           (16'(DESC_MON_AGENT_ID)),
         .MON_UNIT_ID            (8'(MON_UNIT_ID)),
-        .MON_CHANNEL_ID         (9'(MON_CHANNEL_ID))
+        .MON_CHANNEL_ID         (9'(MON_CHANNEL_ID)),
+        .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING)
     ) u_descriptor_engine (
         .clk                    (clk),
         .rst_n                  (rst_n),
@@ -278,6 +283,7 @@ module scheduler_group_beats #(
         .descriptor_valid       (desceng_to_sched_valid),
         .descriptor_ready       (desceng_to_sched_ready),
         .descriptor_packet      (desceng_to_sched_packet),
+        .descriptor_ext_packet  (desceng_to_sched_ext_packet),
         .descriptor_error       (desceng_to_sched_error),
         .descriptor_eos         (desceng_to_sched_eos),
         .descriptor_eol         (desceng_to_sched_eol),
@@ -346,7 +352,8 @@ module scheduler_group_beats #(
         .MON_UNIT_ID            (8'(MON_UNIT_ID)),
         .MON_CHANNEL_ID         (9'(MON_CHANNEL_ID)),
         .EN_READ                (EN_READ),
-        .EN_WRITE               (EN_WRITE)
+        .EN_WRITE               (EN_WRITE),
+        .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING)
     ) u_scheduler (
         .clk                    (clk),
         .rst_n                  (rst_n),
@@ -375,6 +382,7 @@ module scheduler_group_beats #(
         .descriptor_valid       (desceng_to_sched_valid),
         .descriptor_ready       (desceng_to_sched_ready),
         .descriptor_packet      (desceng_to_sched_packet),
+        .descriptor_ext_packet  (desceng_to_sched_ext_packet),
         .descriptor_error       (desceng_to_sched_error),
 
         // Data read interface (to AXI read engine)

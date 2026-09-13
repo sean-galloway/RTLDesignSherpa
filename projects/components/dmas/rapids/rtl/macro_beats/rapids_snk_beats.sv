@@ -59,6 +59,9 @@ module rapids_snk_beats #(
     // Monitor synthesis gates (default 1 = production unchanged); see
     // scheduler_group_array_beats.
     parameter int USE_AXI_MONITORS = 1,
+    // Extended (row/col-major) addressing: default off preserves linear
+    // addressing verbatim; the second-chunk fetch synthesizes away at 0.
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,
     parameter bit GEN_MON          = 1'b1,
     parameter int MON_MAX_TRANSACTIONS = 16,
 
@@ -343,6 +346,7 @@ module rapids_snk_beats #(
         .MON_MAX_TRANSACTIONS   (MON_MAX_TRANSACTIONS),
         .EN_READ                (1'b0),
         .EN_WRITE               (1'b1),
+        .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
         .USE_AXI_MONITORS       (USE_AXI_MONITORS),
         .GEN_MON                (GEN_MON)
     ) u_scheduler_group_array (

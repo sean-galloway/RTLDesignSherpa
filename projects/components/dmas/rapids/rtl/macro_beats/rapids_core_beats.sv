@@ -77,6 +77,9 @@ module rapids_core_beats #(
     // Monitor synthesis gates (default 1 = production unchanged); see
     // scheduler_group_array_beats. Threaded to both halves.
     parameter int USE_AXI_MONITORS = 1,
+    // Extended (row/col-major) addressing: default off preserves linear
+    // addressing verbatim; the second-chunk fetch synthesizes away at 0.
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,
     parameter bit GEN_MON          = 1'b1,
 
     // Short aliases
@@ -509,6 +512,7 @@ module rapids_core_beats #(
         .DESC_AXI_MON_AGENT_ID  (DESC_AXI_MON_AGENT_ID),
         .MON_UNIT_ID            (MON_UNIT_ID),
         .MON_MAX_TRANSACTIONS   (MON_MAX_TRANSACTIONS),
+        .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
         .USE_AXI_MONITORS       (USE_AXI_MONITORS),
         .GEN_MON                (GEN_MON)
     ) u_src (
@@ -711,6 +715,7 @@ module rapids_core_beats #(
         .DESC_AXI_MON_AGENT_ID  (DESC_AXI_MON_AGENT_ID),
         .MON_UNIT_ID            (MON_UNIT_ID),
         .MON_MAX_TRANSACTIONS   (MON_MAX_TRANSACTIONS),
+        .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
         .USE_AXI_MONITORS       (USE_AXI_MONITORS),
         .GEN_MON                (GEN_MON)
     ) u_snk (

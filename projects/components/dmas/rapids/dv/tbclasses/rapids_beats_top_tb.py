@@ -448,7 +448,7 @@ class RapidsBeatsTopTB(TBBase):
     # =========================================================================
 
     def create_descriptor(self, src_addr, dst_addr, length, gen_irq=False,
-                          last=True, channel_id=0, opcode=0) -> int:
+                          last=True, channel_id=0, opcode=0, desc_type=0) -> int:
         """Pack a 256-bit descriptor. opcode lives at [209:208]:
         0=DATA, 1=CTRL_READ (consumer gate), 2=CTRL_WRITE (producer doorbell).
         For CONTROL descriptors the DATA slots are reinterpreted by the scheduler:
@@ -464,6 +464,7 @@ class RapidsBeatsTopTB(TBBase):
         desc |= (0 << 195)                        # error
         desc |= ((channel_id & 0xF) << 196)
         desc |= ((opcode & 0x3) << 208)           # DESC_OPCODE_LO/HI
+        desc |= ((desc_type & 0x7) << 210)        # DESC_TYPE_LO/HI ([212:210])
         return desc
 
     def create_ctrl_read_descriptor(self, addr, expected, mask, channel_id=0) -> int:
@@ -492,6 +493,84 @@ class RapidsBeatsTopTB(TBBase):
 
     def register_descriptor(self, mem, desc_addr, desc_data):
         mem.write(desc_addr - self.DESC_BASE, bytearray(desc_data.to_bytes(32, 'little')))
+
+    # ---------------------------------------------------------------- EXTENDED
+    DESC_TYPE_LEGACY = 0
+    DESC_TYPE_EXT    = 1
+
+    @staticmethod
+    def build_ext_chunk1(rd, wr) -> int:
+        """Pack chunk 1 (rapids_pkg::descriptor_ext_t, 256 bits).
+
+        rd/wr are dicts: {'s0','s1','inner','w0','w1'} -- signed byte strides
+        s0/s1, index_0 extent `inner`, and log2 wrap windows w0/w1 (0 = off).
+        Layout is byte-compatible with STREAM's descriptor_ext_t:
+          [31:0] rd_stride_0   [63:32] rd_stride_1
+          [79:64] rd_inner     [85:80] rd_wrap0   [91:86] rd_wrap1
+          [127:96] wr_stride_0 [159:128] wr_stride_1
+          [175:160] wr_inner   [181:176] wr_wrap0 [187:182] wr_wrap1
+        """
+        def u32(v):
+            return v & 0xFFFF_FFFF          # two's-complement wrap for signed strides
+
+        def dim(inner, w0, w1):
+            return ((inner & 0xFFFF)
+                    | ((w0 & 0x3F) << 16)
+                    | ((w1 & 0x3F) << 22))
+
+        c = 0
+        c |= u32(rd['s0']) << 0
+        c |= u32(rd['s1']) << 32
+        c |= dim(rd['inner'], rd.get('w0', 0), rd.get('w1', 0)) << 64
+        c |= u32(wr['s0']) << 96
+        c |= u32(wr['s1']) << 128
+        c |= dim(wr['inner'], wr.get('w0', 0), wr.get('w1', 0)) << 160
+        return c
+
+    def register_ext_descriptor(self, mem, desc_addr, chunk0, chunk1):
+        """Write an EXT descriptor: chunk 0 at desc_addr, chunk 1 at +0x20.
+
+        The descriptor engine issues a SECOND single-beat AR at
+        descriptor_addr + 0x20 when the type field says EXT, so chunk 1 is
+        simply the next 32-byte line in the same descriptor memory.
+        """
+        self.register_descriptor(mem, desc_addr, chunk0)
+        self.register_descriptor(mem, desc_addr + 0x20, chunk1)
+
+    @staticmethod
+    def _wrap_mask(log2):
+        return ((1 << log2) - 1) if log2 else 0
+
+    @classmethod
+    def expected_seq(cls, base, s0, s1, inner, length, per_beat, w0log2=0, w1log2=0):
+        """Golden model of the (addr, beats) sequence the scheduler presents.
+
+        Mirrors dma_address_gen: offset_d = (index_d*stride_d) & wrap_mask_d when
+        the mask is set, else index_d*stride_d; addr = base + offset_0 + offset_1.
+        per_beat=False -> one entry per run (index_0=0, beats=min(inner, rem));
+        per_beat=True  -> one entry per beat (i0 = b % inner fastest, beats=1).
+        """
+        m0, m1 = cls._wrap_mask(w0log2), cls._wrap_mask(w1log2)
+
+        def off(idx, stride, mask):
+            raw = idx * stride
+            return (raw & mask) if mask else raw
+
+        def addr(i0, i1):
+            return (base + off(i0, s0, m0) + off(i1, s1, m1)) & 0xFFFF_FFFF_FFFF_FFFF
+
+        seq = []
+        if per_beat:
+            for b in range(length):
+                seq.append((addr(b % inner, b // inner), 1))
+        else:
+            remaining, k = length, 0
+            while remaining > 0:
+                beats = min(inner, remaining)
+                seq.append((addr(0, k), beats))
+                remaining -= beats
+                k += 1
+        return seq
 
     def preload_source(self, src_addr, beats: List[int]):
         bpl = self.DATA_WIDTH // 8

@@ -57,6 +57,9 @@ module scheduler_group_array_beats #(
     //   GEN_MON=0 omits the per-channel completion/error MonBus emitters inside
     //     each scheduler_group_beats.
     parameter int USE_AXI_MONITORS = 1,
+    // Extended (row/col-major) addressing: default off preserves linear
+    // addressing verbatim; the second-chunk fetch synthesizes away at 0.
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,
     parameter bit GEN_MON          = 1'b1
 ) (
     // Clock and Reset
@@ -407,7 +410,8 @@ module scheduler_group_array_beats #(
                 .MON_CHANNEL_ID         (9'(ch)),
                 .EN_READ                (EN_READ),
                 .EN_WRITE               (EN_WRITE),
-                .GEN_MON                (GEN_MON)
+                .GEN_MON                (GEN_MON),
+                .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING)
             ) u_beats_scheduler_group (
                 .clk                    (clk),
                 .rst_n                  (rst_n),

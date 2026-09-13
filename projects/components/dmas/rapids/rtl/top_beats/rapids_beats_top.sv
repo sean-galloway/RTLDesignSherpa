@@ -74,6 +74,9 @@ module rapids_beats_top #(
     // For an FPGA characterization build that meters externally, set both 0 to
     // reclaim the monitor LUTs and ease timing (mirrors stream_top_ch8).
     parameter int USE_AXI_MONITORS     = 1,
+    // Extended (row/col-major) addressing: default off preserves linear
+    // addressing verbatim; the second-chunk fetch synthesizes away at 0.
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,
     parameter bit GEN_MON              = 1'b1,
     parameter int AR_MAX_OUTSTANDING   = 8,
     parameter int AW_MAX_OUTSTANDING   = 8,
@@ -1366,6 +1369,7 @@ module rapids_beats_top #(
         .AXIS_DEST_WIDTH      (AXIS_DEST_WIDTH),
         .AXIS_USER_WIDTH      (AXIS_USER_WIDTH),
         .MON_MAX_TRANSACTIONS (MON_MAX_TRANSACTIONS),
+        .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
         .USE_AXI_MONITORS     (USE_AXI_MONITORS),
         .GEN_MON              (GEN_MON)
     ) u_core (
