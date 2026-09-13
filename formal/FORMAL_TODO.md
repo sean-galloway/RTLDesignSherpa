@@ -20,14 +20,14 @@ counted here.
 | common (non-math) | 52 | 0 | 0 | 0 | 2 | 54 |
 | common (math) | 163 | 0 | 0 | 7 | 0 | 170 |
 | cdc | 12 | 0 | 0 | 0 | 0 | 12 |
-| amba | 60 | 1 | 0 | 0 | 0 | 61 |
-| **Total** | **287** | **1** | **0** | **7** | **2** | **297** |
+| amba | 61 | 0 | 0 | 0 | 0 | 61 |
+| **Total** | **288** | **0** | **0** | **7** | **2** | **297** |
 
-**The one FAIL is a finding, not breakage.** It is filed, and the proof is
-left red on purpose so the finding cannot quietly disappear:
+**No FAILs.** The last proof left deliberately red -- the rd splitter's AXI
+A3.3.1 violation -- was FIXED on 2026-09-13 (TASK-094). What remains below is
+not failure:
 
 ```
-amba/axi_master_rd_splitter: FAIL   <- real AXI A3.3.1 violation -- TASK-094
   common/dataint_ecc_hamming_decode_secded: NOSBY
   common/dataint_ecc_hamming_encode_secded: NOSBY
   common/math_ieee754_2008_fp16_mantissa_mult: TIMEOUT
@@ -40,20 +40,21 @@ amba/axi_master_rd_splitter: FAIL   <- real AXI A3.3.1 violation -- TASK-094
 ```
 
 **"slow" is not a failure.** Seven tasks exceed a 15-minute per-task budget:
-one mantissa multiplier and six multiplier trees. Three more would be in that
+one mantissa multiplier and six multiplier trees. Four more would be in that
 column but were given a long budget and passed to full depth -- worth knowing
 before setting a CI budget:
 
 ```
-cdc/gaxi_skid_buffer_async: prove PASS in 5793 s (long budget), cover PASS
+amba/axi_master_rd_splitter: prove PASS in 6175 s (long budget), cover PASS
+  cdc/gaxi_skid_buffer_async: prove PASS in 5793 s (long budget), cover PASS
   common/fifo_sync: prove PASS in 1907 s (long budget), cover PASS
   common/gaxi_fifo_sync: prove PASS in 2530 s (long budget), cover PASS
 ```
 
-**"no .sby" is two different things.** Two are deliberate: the SECDED encode
-and decode directories hold a README pointing at the combined roundtrip proof
-in `dataint_ecc_hamming`. The other four are the `axi4_*_mon_cg` wrappers,
-unblocked but unwritten -- TASK-090.
+**"no .sby" is deliberate now.** Both are the SECDED encode and decode
+directories, which hold a README pointing at the combined roundtrip proof in
+`dataint_ecc_hamming`. (The four `axi4_*_mon_cg` wrappers that used to sit
+here were written and proved under TASK-090.)
 
 ### What changed on 2026-09-11
 

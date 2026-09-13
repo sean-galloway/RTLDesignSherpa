@@ -2860,3 +2860,48 @@ restored by absolute path and verified byte-identical with a clean re-prove.
 The slave wrappers name their upstream side `s_axi_*`, not `fub_axi_*`; the
 harness generator derives each variant's masked readys and wake valid from
 the wrapper's own assigns rather than assuming the master naming.
+
+---
+
+### TASK-094: axi_master_rd_splitter returned read data before accepting the read (AXI A3.3.1)
+
+**Priority:** P2. **Status:** CLOSED 2026-09-13 -- fixed, proved and
+mutation-tested. Commit 968c8a8f7.
+
+**The fix (option 1 of the two this task listed): accept the upstream AR at
+ADMISSION.** `fub_arready` now asserts on the cycle the original is buffered,
+its owed-beat count loaded and its first split issued downstream, instead of
+being suppressed until the final split. Read data can no longer precede
+acceptance of the request it answers.
+
+Option 2 (hold `fub_rvalid`/`m_axi_rready` until the upstream AR is accepted)
+was rejected as deadlock-prone: a legal slave may hold RVALID waiting for
+RREADY while the splitter withholds RREADY until it can place the final AR,
+which that same slave may be unable to accept with its read path stalled.
+Option 1 has no such cycle, and the RTL was already built around admission --
+the FSM captured the original and loaded `r_rbeats_remaining` there, and the
+comment above that counter described the bug in so many words.
+
+**The split-info FIFO had to be decoupled.** Its write was `fub_arvalid &&
+fub_arready`, which landed on the right events ONLY because acceptance was
+late. It now names those events directly -- otherwise every split read would
+report the hardcoded estimate of 2 instead of its true `r_split_count`. FIFO
+contents and timing are unchanged. Two in-RTL checks had their premise
+inverted and were rewritten; one of them asserted the violation itself.
+
+**Evidence.**
+- prove PASS to full depth 25 in 6175 s; cover PASS, all four covers reached.
+  `ap_rvalid_after_ar` and `ap_rlast_on_last_beat` both intact, neither relaxed.
+- MUTATION: restoring the old acceptance timing fails `ap_rvalid_after_ar`
+  immediately. RTL restored by absolute path, byte-compared, flat rebuilt.
+- Unit tests after `make clean-all`: 4 passed (read splitter FULL, both
+  `block_ready` cases, write splitter as control).
+- Lint: before/after warning sets identical; the fix introduces none.
+
+**Cost note.** This task failed in under a second at step 4 while the bug was
+in it; passing costs 103 minutes. It has moved to the long-budget list.
+
+**Found along the way:** the first two counterexamples were NOT this bug but
+an overflow in `axi_split_combi`'s next-boundary arithmetic -- filed as
+TASK-095, not fixed here. The harness now states the module's own
+Assumption 4 (no address wraparound).

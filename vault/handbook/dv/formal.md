@@ -195,3 +195,29 @@ The fix is not a longer list. **Discover the task set from the tree**
 time someone forgets, and a missing entry looks exactly like a passing run.
 Check a tracker's claims against a measured sweep before believing them -- see
 [[escape-analysis]] on integration status being measured, never inferred.
+
+## A proof's cost flips the day it starts passing (2026-09-13)
+
+`axi_master_rd_splitter` prove FAILED in under a second, at step 4, for as
+long as the AXI A3.3.1 bug was in it. With the bug fixed the same task takes
+103 minutes (6175 s) to exhaust its 25 steps. Nothing got slower: the solver
+went from exhibiting ONE counterexample to proving absence over the whole
+depth. Budget for the PASSING cost, not the failing one -- a CI budget tuned
+while a proof is red will start "timing out" the day it goes green.
+
+## Constrain to the documented range; file the hazard (2026-09-13)
+
+When a counterexample lands OUTSIDE the design's stated operating range,
+constrain the environment and FILE it -- never weaken the property to get
+past it. Proving that splitter first produced a one-beat read at 0xFFFC,
+where `axi_split_combi`'s `(addr | mask) + 1` overflows the address space, so
+`transaction_end_addr >= next_boundary_addr` compares against 0 and splits a
+transaction that crosses nothing. The module documents "Assumption 4: No
+Address Wraparound", so the harness assumes the next boundary exists and the
+overflow became TASK-095.
+
+The first attempt at that constraint was wrong in an instructive way: it
+assumed the TRANSACTION does not wrap. The solver walked straight back in,
+because the BOUNDARY arithmetic overflows first -- 0xFFFC + 4 ends exactly at
+the top of the space without wrapping. Constrain the expression that actually
+overflows, not the one you had in mind.
