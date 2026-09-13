@@ -139,6 +139,12 @@ generated.
 - **Burst hints are not generated.** `CTI`/`BTE` are CLASSIC/LINEAR on a
   slave port; a Wishbone completer that needs registered-feedback bursts to
   perform will not see them from the bridge.
+- **Best effort, by decision (2026-09-13).** The Wishbone ports are
+  spec-legal and regress green, and that is the accepted state: forming
+  pipelined Wishbone bursts from AXI bursts and putting a Wishbone slave in
+  its own clock domain (`cdc` is AXI4-only) are not owed. They cost only
+  Wishbone throughput nobody has asked for; a consumer that needs either
+  files a task against that need.
 
 Verified by `dv/tests/test_bridge_2x2_wb4_paths.py` on `bridge_2x2_wb4`
 (error folding both ways, SEL lanes at both a Wishbone and a 64-bit AXI4

@@ -49,13 +49,15 @@ One clock, one reset. The AXI fabric runs in a single synchronous domain — the
 
 ## Functional Description
 
-### Single Clock Domain
+### One Fabric Clock
 
 #### Figure 4.1: Clock Distribution
 
 ![Clock Distribution](../assets/mermaid/clock_distribution.png)
 
-All masters and slaves must be in the same clock domain as Bridge.
+Every master port and the fabric itself run on `aclk`. A slave port may run
+on its own clock when declared `cdc = true` (next section); every other
+slave port shares `aclk` too.
 
 ### Clock Domain Crossing: CDC Slave Ports
 

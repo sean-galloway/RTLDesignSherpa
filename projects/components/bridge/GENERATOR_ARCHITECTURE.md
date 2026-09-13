@@ -532,9 +532,13 @@ endmodule
 
 ---
 
-## AMBA5 Support (BRIDGE-002)
+## AMBA5 Support (BRIDGE-002, BRIDGE-014, BRIDGE-018)
 
-The fabric is always AXI4 internally; AMBA5 is a per-port property.
+The fabric is AXI4-shaped internally, and every AXI5 feature the library
+wrappers carry rides alongside in the channel structs -- since BRIDGE-018
+that includes Memory Tagging (`mte`) and read-data chunking (`chunking`), so
+there is no AXI5 signal an `axi5` port can present that the fabric cannot
+carry natively to another `axi5` port. AMBA5 is a per-port property.
 
 ```toml
 [[bridge.masters]]
@@ -549,6 +553,12 @@ Key pieces (see `bridge_mas/ch02_blocks/10_amba5_boundary.md` for depth):
 
 - **`bridge_pkg/sideband.py`** — the single spec table
   (`SIDEBAND_FIELDS`) mapping features to per-channel struct fields and
+  wrapper pins. Tag and chunk fields carry SYMBOLIC widths (`WIDTH_TAGS`,
+  `WIDTH_NTAGS`, `WIDTH_CHUNKSTRB`) that scale with the data bus;
+  `field_width(width, dw)` resolves them and `fit_expr(src, sw, dw)` emits
+  the explicit zero-extension or slice between a struct field (sized for
+  the widest port on aw/ar/b) and a port of its own width. Every consumer
+  that prints a width passes the data width it sizes for. Also the table
   wrapper port bases. Package, adapter, crossbar, and slave-adapter
   generators all iterate it in the same order.
 - **Feature classes** (`config_validator.py`):
@@ -969,3 +979,19 @@ My changes broke the signal naming system by bypassing `SignalNaming` and direct
 
 **Solution:**
 Revert changes and regenerate, OR understand original architecture and implement proper fix.
+
+## Fabric Options and Newer Protocols (BRIDGE-017, BRIDGE-019)
+
+Config keys the generators honour beyond the port list; each is a
+`BridgeConfig` field parsed by `config_loader.py` and validated in
+`config_validator.py`:
+
+| Key | Where it lands | Reference |
+|---|---|---|
+| `xbar_pipeline = true` (`[bridge]`) | `CrossbarGenerator(pipeline=True)`: `_generate_pipeline_decls()` declares `xs_<slave>_axi_*` ahead of the routing, `_generate_pipeline_stages()` puts a 2-deep `gaxi_skid_buffer` on every slave-side channel | HAS 6.8a, MAS 2.3 |
+| `arbitration = "qos"`, `qos_aging_shift` | `_generate_arbiter()`: effective priority = AxQOS + age, max wins, equals round-robin | HAS 6.8a, MAS 2.3 |
+| `cdc = true` (an AXI4 `[[bridge.slaves]]`) | `SlaveAdapterGenerator._generate_cdc_stage()` puts `axi4_cdc_{wr,rd}` between the timing wrapper and the port; the top gains `<slave>_aclk/_aresetn`; the TB template runs the port on `BRIDGE_CDC_PERIOD_NS` | HAS 4.5a, 6.8b |
+| `protocol = "wb4"` (either side) | master: `wb4_to_axi4` front end (`FRONT_END_MODULES`); slave: `axi4_to_wb4` shim component; one signal table `wb4_signals.py` | HAS 4.6 |
+
+Out-of-context synthesis of any generated bridge: `projects/components/bridge/fpga/`
+(`make synth BRIDGE=<fixture>`), HAS 6.4.

@@ -92,8 +92,8 @@ that now reports it.
 
 ### Clock Domain
 
-- **Single clock domain** - All Bridge logic synchronous to `aclk`
-- **No CDC** - Masters and slaves must be in same clock domain
+- **One fabric clock** - All Bridge logic and every master port synchronous to `aclk`
+- **CDC slave ports** - An AXI4 slave declared `cdc = true` runs on its own `<slave>_aclk` behind an async-FIFO crossing (HAS 4.5a); other slaves share `aclk`
 
 ### Reset
 

@@ -23,8 +23,8 @@
 
 # Claude Code Guide: Bridge Subsystem
 
-**Version:** 2.2
-**Last Updated:** 2026-09-07
+**Version:** 2.3
+**Last Updated:** 2026-09-13
 **Purpose:** AI-specific guidance for working with Bridge subsystem
 
 ---
@@ -33,7 +33,7 @@
 
 **Before making ANY changes to bridge generator or understanding signal flow:**
 
-**READ:** `projects/components/bridge/GENERATOR_ARCHITECTURE.md` (generator structure) and `projects/components/bridge/docs/bridge_mas/` (micro-architecture spec; rendered as `docs/Bridge_MAS_v1.1.pdf`)
+**READ:** `projects/components/bridge/GENERATOR_ARCHITECTURE.md` (generator structure) and `projects/components/bridge/docs/bridge_mas/` (micro-architecture spec; rendered as `docs/Bridge_MAS_v1.7.pdf`)
 
 These documents contain the **definitive bridge architecture** including:
 - Correct signal flow (wrappers → decoder → converters → crossbar → slaves)
@@ -57,8 +57,8 @@ taking TOML or CSV configuration. There is no second generator: the separate
 1. `projects/components/bridge/GENERATOR_ARCHITECTURE.md` ← **START HERE** (generator architecture reference)
 2. `projects/components/bridge/PRD.md` ← Product requirements
 3. `vault/Tasks/bridge/INDEX.md` ← Task tracking (open / closed / dropped; the old TASKS.md was folded in 2026-09-10)
-4. `projects/components/bridge/docs/bridge_has/bridge_has_index.md` ← Hardware Architecture Spec (rendered: `docs/Bridge_HAS_v1.1.pdf`)
-5. `projects/components/bridge/docs/bridge_mas/bridge_mas_index.md` ← Micro-Architecture Spec (rendered: `docs/Bridge_MAS_v1.1.pdf`)
+4. `projects/components/bridge/docs/bridge_has/bridge_has_index.md` ← Hardware Architecture Spec (rendered: `docs/Bridge_HAS_v1.7.pdf`)
+5. `projects/components/bridge/docs/bridge_mas/bridge_mas_index.md` ← Micro-Architecture Spec (rendered: `docs/Bridge_MAS_v1.7.pdf`)
 
 (The older BRIDGE_ARCHITECTURE.md, BRIDGE_CURRENT_STATE.md, BRIDGE_ARCHITECTURE_DIAGRAMS.md, CSV_BRIDGE_STATUS.md, and docs/bridge_spec/ documents were superseded by the HAS/MAS above.)
 
@@ -870,26 +870,35 @@ mapping -- not a Phase-3 placeholder.
 
 **Q: "Can ports be AMBA5 (AXI5 / APB5)?"**
 
-**A: Yes — per port, while the fabric stays AXI4 (BRIDGE-002):**
+**A: Yes — per port; every wrapper feature rides the fabric natively
+(BRIDGE-002, BRIDGE-014, BRIDGE-018):**
 
 ```toml
 [[bridge.masters]]
 protocol = "axi5"
-axi5_features = ["trace", "atomic"]  # nsaid/trace/mpam/mecid/unique are
-                                     # droppable sideband; poison/atomic are
+axi5_features = ["trace", "atomic"]  # nsaid/trace/mpam/mecid/unique/chunking are
+                                     # droppable sideband; poison/atomic/mte are
                                      # connectivity-gated (every connected path
                                      # must be AXI5 + feature + width-matched);
-                                     # mte/chunking rejected
+                                     # mte and chunking need 128-bit ports
 
 [[bridge.slaves]]
 protocol = "apb5"   # APB4 rules apply (rw-only, 32-bit); adds the APB5 pins
 ```
 
 Sideband passes natively on width-matched AXI5<->AXI5 paths and terminates
-with a generation-time warning elsewhere. Atomics are store-class only:
-read-return classes DECERR at the boundary (`axi5_atomic_filter`). Details:
-`docs/bridge_has/ch04_interfaces/04_axi5_apb5_interfaces.md` and
-`docs/bridge_mas/ch02_blocks/10_amba5_boundary.md`.
+with a generation-time warning elsewhere. Read-return atomics forward
+natively on rw master ports (per-ID return tracker at the slave adapter);
+on write-only ports the boundary's `axi5_atomic_filter` answers them with
+DECERR. AXI5-Lite and APB5 are legal as MASTER protocols too (front-end
+converters). Details: `docs/bridge_has/ch04_interfaces/04_axi5_apb5_interfaces.md`
+and `docs/bridge_mas/ch02_blocks/10_amba5_boundary.md`.
+
+**Q: "Wishbone?"** `protocol = "wb4"` on either side (BRIDGE-019, HAS 4.6):
+`channels = "rw"`, `id_width = 0`, 8/16/32/64-bit. One Wishbone transfer is
+one single-beat AXI4 transaction; AXI bursts decompose to single Wishbone
+transfers; burst hints are carried, not formed. Best effort by decision --
+do not propose burst formation or a WB4 CDC port without a consumer.
 
 **Q: "What if data widths don't match?"**
 
@@ -1087,8 +1096,15 @@ The Bridge AXI4 crossbar connects multiple AXI4 masters to multiple slaves:
 
 **Key Features:**
 - Configurable NxM topology
-- Single-clock AXI fabric (an `apb`/`apb5` slave crosses domains inside its
-  own shim, which contains two async FIFOs)
+- One fabric clock; an AXI4 slave port declared `cdc = true` runs on its own
+  clock behind `axi4_cdc_{wr,rd}` (HAS 4.5a), and an `apb`/`apb5` slave
+  crosses domains inside its own shim (two async FIFOs)
+- Crossbar options: `xbar_pipeline = true` (registered slave-side channels --
+  needed on the Artix-7 at 100 MHz beyond a plain 2x2, HAS 6.4) and
+  `arbitration = "qos"` with `qos_aging_shift` (HAS 6.8a)
+- Out-of-context synthesis of any fixture: `projects/components/bridge/fpga/`
+  (`make synth BRIDGE=<fixture> PART=<part> CLK_NS=<ns>`), measured tables in
+  HAS 5.3
 - Subtractive catch-all: an unmapped address gets DECERR + 0xDEADBEEF and a
   sticky status/IRQ instead of hanging the master (HAS 4.5)
 

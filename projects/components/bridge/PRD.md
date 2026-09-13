@@ -24,10 +24,10 @@
 # Bridge: AXI4 Full Crossbar Generator - Product Requirements Document
 
 **Project:** Bridge
-**Version:** 2.1
+**Version:** 2.2
 **Status:** Phase 2 Complete - Simplified Architecture with Hard Limits
 **Created:** 2025-10-18
-**Last Updated:** 2025-11-02
+**Last Updated:** 2026-09-13
 
 ---
 
@@ -515,18 +515,22 @@ address_map = {
 - **Registered outputs:** All slave outputs registered for timing closure
 - **Pipelineable:** Optional pipeline stages for >400 MHz
 
-### 4.2 Resource Usage (Estimated)
+### 4.2 Resource Usage (Measured)
 
-**M = 4 masters, S = 4 slaves, DATA_WIDTH = 512, ADDR_WIDTH = 64, ID_WIDTH = 4:**
+Post-route, out of context, Vivado 2025.1 (HAS 6.4 flow; full tables in
+HAS 5.3):
 
-| Resource | Flat Crossbar | Notes |
-|----------|---------------|-------|
-| **LUTs** | ~2,500 | Address decode + arbiters + mux |
-| **FFs** | ~3,000 (hand estimate, unverified) | Registered outputs + the per-slave bridge_id FIFOs |
-| **BRAM** | 0 | No ID tables exist. Tracking is a small in-order FIFO per direction in each slave adapter. |
-| **DSP** | 0 | No arithmetic operations |
+| Bridge | Part | LUTs | FFs | BRAM / DSP | Timing |
+|--------|------|-----:|----:|-----------|--------|
+| `bridge_2x2_rw` (2 x 2, 32-bit AXI4) | Artix-7 100T -1 @ 10 ns | 4,615 | 3,253 | 0 / 0 | met, +0.12 ns |
+| `bridge_2x2_rw_pipe` (registered crossbar) | Artix-7 100T -1 @ 10 ns | 5,646 | 4,227 | 0 / 0 | met, +1.27 ns |
+| `bridge_2x2_axi5_native` (128-bit, MTE + chunking) | Artix-7 100T -1 @ 10 ns | 8,007 | 6,213 | 0 / 0 | met, +0.04 ns |
+| `bridge_4x4_rw` (4 x 4, 32..256-bit) | Kintex-7 325T -2 @ 6.667 ns | 29,719 | 29,508 | 0 / 0 | met, +0.28 ns |
 
-**Scaling:** ~150 LUTs per M×S connection
+No configuration uses block RAM or DSPs: the per-slave bridge_id FIFOs and
+the CAM are LUT arrays. Data width sets the cost -- the 4 x 4 with width
+converters is six times the 2 x 2 -- and on the Artix-7 at 100 MHz any
+configuration beyond a plain 2 x 2 needs `xbar_pipeline = true` to close.
 
 ### 4.3 Quality Requirements
 
