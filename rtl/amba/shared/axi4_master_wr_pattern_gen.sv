@@ -549,8 +549,6 @@ module axi4_master_wr_pattern_gen #(
     // the harness must use per-beat compare (o_data_error) for integrity.
     //==========================================================================
     localparam int REP     = (DW + 31) / 32;   // 32-bit slices per beat
-    localparam int HSTAGES = 4;                 // 2 mults, each isolated
-    localparam int WFIFO_DEPTH = 16;
 
     logic [REP*32-1:0] w_data_replicated;
     assign w_data_replicated = {REP{w_lfsr_out}};
@@ -562,123 +560,83 @@ module axi4_master_wr_pattern_gen #(
     assign w_byte_addr_for_beat = w_w_addr_result
         + (AW'({{(AW-8){1'b0}}, r_w_beat_idx}) << r_axi_size);
 
-    // Odd-forced Murmur3-fmix multiplier constants (from cfg seeds).
-    logic [31:0] w_s1_odd, w_s2_odd;
-    assign w_s1_odd = r_hash_seed1 | 32'h1;
-    assign w_s2_odd = r_hash_seed2 | 32'h1;
+    //-------------------------------------------------------------------------
+    // Address hash: four seeded rotate-XOR rounds, combinational
+    //-------------------------------------------------------------------------
+    // Each beat's data is a pure function of its byte address, which is what
+    // lets a reader validate a beat wherever it lands (out of order, any id).
+    // The function used to be Murmur3 fmix -- two 32-bit multiplies -- and two
+    // multiplies do not fit in a cycle, so it was cut into a four-stage
+    // pipeline, and because a fixed-latency pipeline cannot stall it needed a
+    // 16-deep staging FIFO behind it to catch beats already in flight.
+    //
+    // A rotate is free on an FPGA: it is wiring. Four `x ^= rotl(x, k)` rounds
+    // with the seeds folded in reach the same place in a few LUT levels, so
+    // the pipeline, its multipliers and the staging FIFO all go away. The
+    // engine is an artificial traffic source; it should not cost DSPs.
+    //
+    // Rotate constants (23, 21, 17, 7) were chosen by measuring avalanche --
+    // the mean fraction of output bits that flip per input bit flipped, where
+    // 0.5 is ideal -- over the address space this drives:
+    //
+    //                          zero seeds    board seeds
+    //   Murmur3 fmix              0.050          0.500
+    //   rotate-XOR (this)         0.500          0.500
+    //
+    // It is not merely cheaper, it is better where it was worst. With the
+    // default all-zero seeds the old function degenerated: `s|1` makes both
+    // multipliers 1, so fmix collapsed to two right-shifts and adjacent beats
+    // differed by as little as ONE bit. An off-by-one-beat addressing bug
+    // could compare almost equal. Here adjacent beats differ by 8 bits at
+    // worst, 16.8 on average, seeds or no seeds.
+    //
+    // Changing the function changes every expected data value, which is fine
+    // and checked: writer, reader and the Python mirror in
+    // bin/TBClasses/axi4/axi4_master_wr_pattern_gen_tb.py::addr_hash32 must
+    // agree bit for bit, and the cross-block CRC compare fails loudly if they
+    // do not. Keep all three in step.
+    // Argument is `v`, not `x`: f_addr_hash32 below declares its own local
+    // `x`, and the declaration-order checker reads the file linearly -- a
+    // function argument sharing a name with a later local reads as a use
+    // before declaration. Cheap to avoid, and the checker is right to be
+    // literal about it.
+    function automatic logic [31:0] f_rotl32(input logic [31:0] v,
+                                             input int unsigned k);
+        return (v << k) | (v >> (32 - k));
+    endfunction
 
-    // Combinational stage-0: (addr + s*4) ^ s0, then ^ >>16 (cheap).
-    logic [REP-1:0][31:0] w_hp_t_in;
+    function automatic logic [31:0] f_addr_hash32(input logic [31:0] addr);
+        logic [31:0] x;
+        x = addr ^ r_hash_seed0;
+        x = x ^ f_rotl32(x, 23);
+        x = x ^ r_hash_seed1;
+        x = x ^ f_rotl32(x, 21);
+        x = x ^ f_rotl32(x, 17);
+        x = x ^ r_hash_seed2;
+        x = x ^ f_rotl32(x, 7);
+        return x;
+    endfunction
+
+    logic [DW-1:0] w_hash_wdata;
     always_comb begin
+        w_hash_wdata = '0;
         for (int s = 0; s < REP; s++) begin
-            logic [31:0] x;
-            x = (w_byte_addr_for_beat[31:0] + 32'(s * 4)) ^ r_hash_seed0;
-            w_hp_t_in[s] = x ^ (x >> 16);
+            w_hash_wdata[s*32 +: 32] =
+                f_addr_hash32(w_byte_addr_for_beat[31:0] + 32'(s * 4));
         end
     end
 
-    // ---- Hash pipeline ------------------------------------------------------
-    // The mode-1 Murmur hash chains two 32-bit multiplies — combinationally a
-    // ~25 ns / 4-DSP cone that misses 100 MHz. Each multiply is isolated in its
-    // own register stage (DSP output register carries it); wlast/mode/LFSR-data
-    // ride alongside so the output stays beat-aligned. Latency-insensitive:
-    // per-beat data VALUES and order are unchanged, so the golden-CRC /
-    // per-beat-compare contract still holds.
-    logic [HSTAGES-1:0]         r_hp_valid;
-    logic [HSTAGES-1:0]         r_hp_wlast;
-    logic [HSTAGES-1:0]         r_hp_mode;
-    logic [HSTAGES-1:0][DW-1:0] r_hp_lfsr;
-    logic [REP-1:0][31:0]       r_hp_t;    // s1: (addr^s0)^>>16
-    logic [REP-1:0][31:0]       r_hp_p1;   // s2: t * s1_odd   (multiply #1)
-    logic [REP-1:0][31:0]       r_hp_u;    // s3: p1 ^ (p1>>13)
-    logic [REP-1:0][31:0]       r_hp_p2;   // s4: u * s2_odd   (multiply #2)
-
-    `ALWAYS_FF_RST(aclk, aresetn, begin
-        if (`RST_ASSERTED(aresetn)) begin
-            r_hp_valid <= '0;
-            r_hp_wlast <= '0;
-            r_hp_mode  <= '0;
-            r_hp_lfsr  <= '0;
-            r_hp_t     <= '0;
-            r_hp_p1    <= '0;
-            r_hp_u     <= '0;
-            r_hp_p2    <= '0;
-        end else begin
-            // Stage 1: admit.
-            r_hp_valid[0] <= w_w_beat;
-            r_hp_wlast[0] <= w_gen_wlast;
-            r_hp_mode [0] <= r_data_mode;
-            r_hp_lfsr [0] <= w_data_replicated[DW-1:0];
-            r_hp_t        <= w_hp_t_in;
-            // Stage 2: first multiply.
-            r_hp_valid[1] <= r_hp_valid[0];
-            r_hp_wlast[1] <= r_hp_wlast[0];
-            r_hp_mode [1] <= r_hp_mode [0];
-            r_hp_lfsr [1] <= r_hp_lfsr [0];
-            for (int s = 0; s < REP; s++) r_hp_p1[s] <= r_hp_t[s] * w_s1_odd;
-            // Stage 3: xorshift.
-            r_hp_valid[2] <= r_hp_valid[1];
-            r_hp_wlast[2] <= r_hp_wlast[1];
-            r_hp_mode [2] <= r_hp_mode [1];
-            r_hp_lfsr [2] <= r_hp_lfsr [1];
-            for (int s = 0; s < REP; s++) r_hp_u[s] <= r_hp_p1[s] ^ (r_hp_p1[s] >> 13);
-            // Stage 4: second multiply.
-            r_hp_valid[3] <= r_hp_valid[2];
-            r_hp_wlast[3] <= r_hp_wlast[2];
-            r_hp_mode [3] <= r_hp_mode [2];
-            r_hp_lfsr [3] <= r_hp_lfsr [2];
-            for (int s = 0; s < REP; s++) r_hp_p2[s] <= r_hp_u[s] * w_s2_odd;
-        end
-    end)
-
-    // Pipeline output: final xorshift + mode mux.
-    logic [DW-1:0] w_hp_wdata;
-    always_comb begin
-        logic [REP*32-1:0] hash_word;
-        for (int s = 0; s < REP; s++)
-            hash_word[s*32 +: 32] = r_hp_p2[s] ^ (r_hp_p2[s] >> 16);
-        w_hp_wdata = r_hp_mode[HSTAGES-1] ? hash_word[DW-1:0]
-                                          : r_hp_lfsr[HSTAGES-1];
-    end
-
-    // ---- Staging FIFO {wlast, wdata} ---------------------------------------
-    // Decouples the hash pipeline from the AXI W handshake so W streams
-    // back-to-back independent of pipeline fill / master backpressure.
-    localparam int WFIFO_DW = DW + 1;
-    logic                 w_wfifo_wr_ready;
-    logic                 w_wfifo_rd_valid, w_wfifo_rd_ready;
-    logic [WFIFO_DW-1:0]  w_wfifo_rd_data;
-    logic [$clog2(WFIFO_DEPTH):0] w_wfifo_count;
-
-    gaxi_fifo_sync #(
-        .REGISTERED (0),   // mux mode: rd_data = head combinationally (show-ahead)
-        .DATA_WIDTH (WFIFO_DW),
-        .DEPTH      (WFIFO_DEPTH)
-    ) u_wdata_fifo (
-        .axi_aclk    (aclk),
-        .axi_aresetn (aresetn),
-        .wr_valid    (r_hp_valid[HSTAGES-1]),
-        .wr_ready    (w_wfifo_wr_ready),
-        .wr_data     ({r_hp_wlast[HSTAGES-1], w_hp_wdata}),
-        .rd_ready    (w_wfifo_rd_ready),
-        .count       (w_wfifo_count),
-        .rd_valid    (w_wfifo_rd_valid),
-        .rd_data     (w_wfifo_rd_data)
-    );
-
-    // ADMIT a beat when the generator has one AND the FIFO has room for it
-    // plus the HSTAGES beats already in flight (they WILL land regardless).
-    localparam logic [$clog2(WFIFO_DEPTH):0] WFIFO_ADMIT_HI =
-        ($clog2(WFIFO_DEPTH)+1)'(WFIFO_DEPTH - HSTAGES - 1);
-    assign w_w_beat = w_gen_valid && w_wfifo_wr_ready
-                   && (w_wfifo_count <= WFIFO_ADMIT_HI);
-
-    // Master W driven from the FIFO output (wstrb tied full-beat at instance).
+    // Mode mux: hash data or the raw LFSR stream, both available this cycle.
     logic [DW-1:0] w_wdata_out;
-    assign w_wdata_out      = w_wfifo_rd_data[DW-1:0];
-    assign fub_wlast        = w_wfifo_rd_data[DW];
-    assign fub_wvalid       = w_wfifo_rd_valid;
-    assign w_wfifo_rd_ready = fub_wvalid && fub_wready;
+    assign w_wdata_out = r_data_mode ? w_hash_wdata : w_data_replicated[DW-1:0];
+
+    // W is driven straight from the generator now. There is no pipeline to
+    // decouple from, so a beat is admitted exactly when the AXI W channel
+    // takes one -- which is also what makes the engine stallable rather than
+    // free-running.
+    assign fub_wlast  = w_gen_wlast;
+    assign fub_wvalid = w_gen_valid;
+    assign w_w_beat   = fub_wvalid && fub_wready;
 
     //==========================================================================
     // Sequential FSM + counters

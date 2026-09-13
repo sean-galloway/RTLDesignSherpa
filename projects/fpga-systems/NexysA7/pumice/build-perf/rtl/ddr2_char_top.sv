@@ -270,18 +270,28 @@ module ddr2_char_top #(
         .DFI_RATE        (DFI_RATE),
         .DRAM_BL         (DRAM_BL),
         .BURST_LEN_MULTIPLE(BURST_LEN_MULTIPLE),
-        // Reads in flight (pumice_rd_return_ring tickets). SIXTY-FOUR, measured
-        // 2026-09-10, not inherited: sustained read rate is bounded by depth
-        // divided by the ticket's alloc-to-R-drain time, and this board's PHY
+        // Reads in flight (pumice_rd_return_ring tickets). THIRTY-TWO, which
+        // is pumice's own default and what the last build that closed 75 MHz
+        // was compiled with (3c66f442d, base +0.009 ns, 0 failing of 72896).
+        // Back to the baseline deliberately, so the current timing failure is
+        // measured against a known-good parameter set rather than against a
+        // configuration nothing ever closed at.
+        //
+        // The COST is real and measured: sustained read rate is bounded by
+        // depth over the ticket's alloc-to-R-drain time, and this board's PHY
         // read latency is ~49 MC cycles, so 32 tickets cap reads at ~0.78 of
-        // the DRAM rate. The board sweep at BL8/row-major reads 470.9 MB/s at
-        // 32 and 571.3 at 64 -- the latter is write parity (570.2) and 95% of
-        // the 600 MB/s peak, so 64 is where the ring stops being the limit.
-        // Costs ~158 LUT. `PUMICE_RD_RET_DEPTH overrides for further sweeps.
+        // the DRAM rate. Board sweep at BL8/row-major: 470.9 MB/s at 32,
+        // 571.3 at 64 -- the latter is write parity (570.2) and 95% of the
+        // 600 MB/s peak. Set PUMICE_RD_RET_DEPTH=64 to get that back.
+        //
+        // Depth is NOT the timing problem: the 64 -> 32 A/B on 2026-09-13 made
+        // timing slightly WORSE (-5.704 -> -6.136 ns) and moved only ~172 of
+        // the ~15k grown endpoints. It is restored for baseline hygiene, not
+        // as a fix -- see project_ddr2_char_board_timing_regression.
 `ifdef PUMICE_RD_RET_DEPTH
         .RD_RET_DEPTH    (`PUMICE_RD_RET_DEPTH),
 `else
-        .RD_RET_DEPTH    (64),
+        .RD_RET_DEPTH    (32),
 `endif
         .ROW_WIDTH       (ROW_WIDTH),
 `ifdef PUMICE_SYS_75

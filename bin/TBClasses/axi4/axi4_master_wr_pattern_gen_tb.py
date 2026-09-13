@@ -364,16 +364,33 @@ class WrPatternGenTB(TBBase):
 
     @staticmethod
     def addr_hash32(addr: int, s0: int, s1: int, s2: int) -> int:
-        """Murmur3 fmix32 with constants replaced by cfg seeds. The DUT
-        function does the same xor-shift / odd-mul sequence at 32-bit
-        truncated arithmetic."""
+        """Four seeded rotate-XOR rounds, 32-bit truncated.
+
+        Mirrors f_addr_hash32 in BOTH axi4_master_wr_pattern_gen.sv and
+        axi4_master_rd_crc_check.sv, which are identical by contract. All
+        three must change together; the cross-block CRC compare is what
+        catches it if they do not.
+
+        Was Murmur3 fmix with the multiplier constants taken from the seeds.
+        The multiplies cost 14 DSPs per engine and did not fit in a cycle, so
+        they were pipelined, and the pipeline then needed a staging FIFO
+        because it could not stall. Rotates are free on an FPGA, and four
+        rounds reach the same avalanche -- better, in the case that actually
+        shipped: with the default all-zero seeds `s | 1` made both multipliers
+        1 and fmix collapsed into two right-shifts, avalanche 0.05, with
+        adjacent beats differing by as little as one bit."""
         mask = 0xFFFFFFFF
+
+        def rotl(x: int, k: int) -> int:
+            return ((x << k) | (x >> (32 - k))) & mask
+
         x = (addr ^ s0) & mask
-        x = (x ^ (x >> 16)) & mask
-        x = (x * ((s1 | 1) & mask)) & mask
-        x = (x ^ (x >> 13)) & mask
-        x = (x * ((s2 | 1) & mask)) & mask
-        x = (x ^ (x >> 16)) & mask
+        x = (x ^ rotl(x, 23)) & mask
+        x = (x ^ s1) & mask
+        x = (x ^ rotl(x, 21)) & mask
+        x = (x ^ rotl(x, 17)) & mask
+        x = (x ^ s2) & mask
+        x = (x ^ rotl(x, 7)) & mask
         return x
 
     def expected_hash_beat_data(self, byte_addr: int,
