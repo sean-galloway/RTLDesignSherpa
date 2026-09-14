@@ -117,10 +117,22 @@ DELIBERATELY not fixed and documented as a constraint). The one genuine open
 work item anywhere in RLB is RLB-010's "no formal area exists for
 retro_legacy_blocks".
 
-**Owner decision still outstanding:** this entry also claimed several unpushed
-RLB-001/002 doc-fix commits sit on branch `dmas-reorg-and-stream-perf`. No such
-branch exists locally and the tree is on `main`, so that needs the owner's
-disposition rather than an agent's guess.
+**Owner decision RESOLVED 2026-09-14: nothing was stranded.** This entry once
+claimed several unpushed RLB-001/002 doc-fix commits sat on branch
+`dmas-reorg-and-stream-perf`, and a later reader correctly noted the branch was
+gone -- but read that as work possibly lost. It was not: the branch was MERGED
+through six pull requests (#38 and #40 on 2026-07-18, then #62-#65 on
+2026-07-22/23) and deleted afterwards, which is why no ref remains.
+
+Verified rather than assumed: the RLB-001/002 doc-fix commits `243affb32`,
+`a1b76d082` and `dc88e1a65` are all ancestors of both `HEAD` and `origin/main`,
+and EVERY commit touching `vault/Tasks/RLB/` or the RLB docs is on main. There
+is no unpushed RLB work anywhere.
+
+(A stale copy of the old wording survives in the `pumice-ataglance-modes`
+worktree's RLB pages. That checkout is ~677 commits behind main and carries no
+RLB commits of its own, so it is a snapshot, not unmerged work; it corrects
+itself when that branch takes main.)
 
 ---
 
