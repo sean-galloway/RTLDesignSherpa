@@ -20,7 +20,7 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-MODULES := rtc_config_regs
+MODULES := rtc_config_regs ioapic_lowest_pri_arb
 
 define RUN
 	$(MAKE) -C $(1) $(2)
