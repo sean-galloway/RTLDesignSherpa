@@ -188,6 +188,16 @@ async def cocotb_test_varying_transfer_sizes(dut):
 # ===========================================================================
 
 @cocotb.test(timeout_time=300, timeout_unit="ms")
+async def cocotb_test_extended_addressing_off(dut):
+    """OFF build: an EXT descriptor must fall back to linear addressing."""
+    tb = SchedulerTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+    ok = await tb.test_extended_addressing_off()
+    assert ok, "OFF build did not ignore the extended descriptor (see log)"
+
+
+@cocotb.test(timeout_time=300, timeout_unit="ms")
 async def cocotb_test_extended_addressing(dut):
     """Extended row/col-major addressing: exact strided address sequences.
 
@@ -355,6 +365,16 @@ def test_scheduler_beats_varying_sizes(request, channel_id, num_channels, data_w
 # ===========================================================================
 # PYTEST WRAPPER FUNCTIONS - FSM State Tests
 # ===========================================================================
+
+@pytest.mark.fub
+@pytest.mark.scheduler
+@pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
+def test_scheduler_beats_extended_addressing_off(request, channel_id, num_channels, data_width, timing_profile):
+    """Pytest: the parameter's OFF state, driven with EXT stimulus."""
+    _run_scheduler_test(request, "cocotb_test_extended_addressing_off",
+                        channel_id, num_channels, data_width, timing_profile,
+                        extra_params={'USE_ROW_COL_MAJOR_ADDRESSING': 0})
+
 
 @pytest.mark.fub
 @pytest.mark.scheduler

@@ -74,9 +74,11 @@ module rapids_beats_top #(
     // For an FPGA characterization build that meters externally, set both 0 to
     // reclaim the monitor LUTs and ease timing (mirrors stream_top_ch8).
     parameter int USE_AXI_MONITORS     = 1,
-    // Extended (row/col-major) addressing: default off preserves linear
-    // addressing verbatim; the second-chunk fetch synthesizes away at 0.
-    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,
+    // Extended (row/col-major) addressing. Default ON, matching STREAM. Set 0
+    // to compile the feature out entirely: the second-chunk fetch and the
+    // run-base generators become unreachable and synthesize away, leaving
+    // linear addressing verbatim.
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 1,
     parameter bit GEN_MON              = 1'b1,
     parameter int AR_MAX_OUTSTANDING   = 8,
     parameter int AW_MAX_OUTSTANDING   = 8,
@@ -631,12 +633,17 @@ module rapids_beats_top #(
         .o_agg_backpressure (w_rd_bp),
         .o_agg_starvation   (w_rd_starv),
         .o_agg_idle         (w_rd_idle),
-        // Per-channel readout is NOT wired: the CH_PROD_BP / CH_STARV_IDLE /
-        // CH_OVERFLOW registers describe themselves as "for PERF_CH_SEL
-        // channel", and no PERF_CH_SEL field exists anywhere in the register
-        // map (PERF_CONFIG @ 0x2B0 has only PERF_EN / PERF_MODE /
-        // PERF_CLEAR). Driving channel 0 into them would invent the selector
-        // semantics rather than report them.
+        // Per-channel readout is NOT wired yet. The selector DOES exist --
+        // PERF_CH_SEL @ 0x35C, CH_SEL[2:0], sw=rw hw=r in rapids_engine_regs.rdl
+        // (an earlier comment here claimed it did not; that was wrong, it looked
+        // only at PERF_CONFIG in the MON regfile). The CH_PROD_BP /
+        // CH_STARV_IDLE / CH_OVERFLOW registers are sw=r hw=w, so the RDL
+        // specifies a contract this module has simply not implemented.
+        // STREAM implements it (stream_core.sv u_*_bus_meter ->
+        // stream_top_ch8.sv cfg_perf_ch_sel + hwif_in packing) and is the
+        // pattern to follow. Read side is portable as-is; the WRITE side also
+        // needs axi_write_engine_beats.o_active_channel_id plumbed out of
+        // snk_data_path_beats, which currently ties it off.
         .o_ch_productive    (),
         .o_ch_backpressure  (),
         .o_ch_starvation    (),

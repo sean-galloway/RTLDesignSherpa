@@ -60,9 +60,11 @@ module rapids_src_beats #(
     // Monitor synthesis gates (default 1 = production unchanged); see
     // scheduler_group_array_beats.
     parameter int USE_AXI_MONITORS = 1,
-    // Extended (row/col-major) addressing: default off preserves linear
-    // addressing verbatim; the second-chunk fetch synthesizes away at 0.
-    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,
+    // Extended (row/col-major) addressing. Default ON, matching STREAM. Set 0
+    // to compile the feature out entirely: the second-chunk fetch and the
+    // run-base generators become unreachable and synthesize away, leaving
+    // linear addressing verbatim.
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 1,
     parameter bit GEN_MON          = 1'b1,
 
     // Short aliases

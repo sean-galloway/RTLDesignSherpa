@@ -44,9 +44,11 @@ module scheduler_group_beats #(
     // SINK half = write-only (EN_READ=0); default both preserves mem-to-mem behavior.
     parameter bit EN_READ  = 1'b1,
     parameter bit EN_WRITE = 1'b1,
-    // Extended (row/col-major) addressing: default off preserves linear
-    // addressing verbatim; the second-chunk fetch synthesizes away at 0.
-    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,
+    // Extended (row/col-major) addressing. Default ON, matching STREAM. Set 0
+    // to compile the feature out entirely: the second-chunk fetch and the
+    // run-base generators become unreachable and synthesize away, leaving
+    // linear addressing verbatim.
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 1,
     // GEN_MON=0 gates this group's per-channel MonBus emitters (descriptor,
     // scheduler, ctrl-rd, ctrl-wr) to 0 so synthesis prunes the emitter cones.
     // Default 1 preserves production behavior.

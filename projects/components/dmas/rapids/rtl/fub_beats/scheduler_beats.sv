@@ -92,7 +92,8 @@ module scheduler_beats #(
     // stream_run_addr_gen run-base generators (read + write) so a transfer can
     // be strided / 2-D tiled / circular / reverse / transpose. Legacy
     // descriptors and the whole param=0 build keep linear accumulation.
-    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0
+    // Default ON, matching STREAM.
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 1
 ) (
     // Clock and Reset
     input  logic                        clk,

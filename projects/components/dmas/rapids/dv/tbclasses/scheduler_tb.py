@@ -849,6 +849,66 @@ class SchedulerTB(TBBase):
                       f"{cases_run}/{EXPECTED_CASES} cases run)")
         return all_ok
 
+    async def test_extended_addressing_off(self) -> bool:
+        """OFF-build control: an EXT descriptor must fall back to LINEAR.
+
+        Requires USE_ROW_COL_MAJOR_ADDRESSING=0. Drives the SAME extended
+        descriptors the ON matrix uses -- driving legacy stimulus here would
+        pass vacuously, since legacy is linear on either build. The claim under
+        test is specifically that the compiled-out feature IGNORES a descriptor
+        that asks for striding, rather than partially honouring it.
+        """
+        self.log.info("=== Extended addressing OFF-build control ===")
+        BS = self.DATA_WIDTH // 8
+        self.capture_addrs = True
+        all_ok = True
+        cases_run = 0
+        EXPECTED_CASES = 3
+
+        async def run_off(name, src, dst, length, rd, wr):
+            nonlocal all_ok, cases_run
+            cases_run += 1
+            c0, c1 = self.create_ext_descriptor(
+                src, dst, length,
+                rd_stride_0=rd['s0'], rd_stride_1=rd['s1'], rd_inner_count=rd['inner'],
+                wr_stride_0=wr['s0'], wr_stride_1=wr['s1'], wr_inner_count=wr['inner'])
+            # The feature is compiled out, so the strides/inner_count must have
+            # NO effect: one run per direction covering the whole transfer.
+            exp_rd = [(src, length)]
+            exp_wr = [(dst, length)]
+            self.rd_addr_seq = []
+            self.wr_addr_seq = []
+            await self.send_ext_descriptor(c0, c1)
+            idle = await self.wait_for_idle(timeout_cycles=8000)
+            ok = idle and self.rd_addr_seq == exp_rd and self.wr_addr_seq == exp_wr
+            if not ok:
+                all_ok = False
+                self.log.error(f"  FAIL {name}: idle={idle} -- EXT descriptor was "
+                               f"NOT ignored on an OFF build")
+                self.log.error(f"     rd got={[(hex(a), b) for a, b in self.rd_addr_seq]}")
+                self.log.error(f"     rd exp={[(hex(a), b) for a, b in exp_rd]}")
+                self.log.error(f"     wr got={[(hex(a), b) for a, b in self.wr_addr_seq]}")
+                self.log.error(f"     wr exp={[(hex(a), b) for a, b in exp_wr]}")
+            else:
+                self.log.info(f"  ok   {name} (linear fallback)")
+
+        # Run-contiguous, per-beat/transpose, and reverse: three shapes that
+        # produce visibly different sequences when the feature IS enabled.
+        await run_off("ext 2D-tiled -> linear", 0x01000, 0x02000, 16,
+                      dict(s0=BS, s1=8 * BS, inner=4), dict(s0=BS, s1=6 * BS, inner=4))
+        await run_off("ext transpose -> linear", 0x11000, 0x12000, 16,
+                      dict(s0=BS, s1=8 * BS, inner=4), dict(s0=4 * BS, s1=BS, inner=4))
+        await run_off("ext reverse -> linear", 0x17000, 0x18000, 8,
+                      dict(s0=-BS, s1=-BS, inner=1), dict(s0=BS, s1=BS, inner=8))
+
+        self.capture_addrs = False
+        if cases_run != EXPECTED_CASES:
+            all_ok = False
+            self.log.error(f"  FAIL ran {cases_run} cases, expected {EXPECTED_CASES}")
+        self.log.info(f"Extended addressing OFF: {'PASS' if all_ok else 'FAIL'} "
+                      f"({cases_run}/{EXPECTED_CASES} cases run)")
+        return all_ok
+
     async def test_descriptor_chaining(self, chain_length: int = 3) -> bool:
         """Test descriptor chaining functionality
 

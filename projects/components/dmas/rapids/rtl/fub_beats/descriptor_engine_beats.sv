@@ -61,9 +61,10 @@ module descriptor_engine_beats #(
     // Extended addressing: when 1, an EXT descriptor (type=1 in chunk-0 bits
     // [212:210]) triggers a conditional second 256-bit fetch at
     // descriptor_addr + 0x20 carrying the addr-gen cfg, emitted on
-    // descriptor_ext_packet. When 0 the second-fetch path is unreachable and
-    // synthesizes away -> legacy single-beat behavior verbatim.
-    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,
+    // descriptor_ext_packet. Default ON, matching STREAM; when 0 the
+    // second-fetch path is unreachable and synthesizes away -> legacy
+    // single-beat behavior verbatim.
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 1,
     parameter int TIMEOUT_CYCLES = 1000,
     // Monitor Bus Parameters
     parameter logic [15:0] MON_AGENT_ID  = 16'h0010,  // 16-bit agent ID (128-bit packet)
