@@ -149,7 +149,7 @@ module ddr2_char_macro
     // enforce it, because the bank field's position is pumice's runtime
     // ADDR_MAP.bank_lsb, so the host asserts the mapping and reads the
     // compiled count back from GEN_CONFIG.
-    parameter int NUM_GEN          = 2,
+    parameter int NUM_GEN          = 4,
     // Per-generator ceiling on bursts in flight (AW/AR issued minus B/RLAST
     // received). 32, not 8, because this is the axis the latency sweep walks:
     // read bandwidth is bounded by outstanding x AxLEN / (latency + AxLEN),

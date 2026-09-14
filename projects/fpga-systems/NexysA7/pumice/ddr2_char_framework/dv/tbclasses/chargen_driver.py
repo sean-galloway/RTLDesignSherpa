@@ -58,11 +58,13 @@ _WR_FIELDS = ("START_ADDR", "STRIDE_0", "STRIDE_1", "WRAP_MASK_0",
 class ChargenDriver:
     """APB-by-name access to chargen_regs."""
 
-    #: Generators per direction as BUILT. Two: the first rung of the multi-
-    #: master ladder (climbs to 4). Eight per direction did not fit the
-    #: XC7A100T (see chargen_regs.rdl). Read gen_config() to confirm against
-    #: the bitstream rather than trusting this constant.
-    NUM_GEN = 2
+    #: Generators per direction as BUILT. FOUR, each spanning NUM_BANKS/4 = 2
+    #: banks on the MT47H64M16. Measured cost of the step from two: one
+    #: write+read pair is 2,043 LUT / 2,022 FF, taking the board build from
+    #: 77% to about 87% slice occupancy. Six or eight per direction do not fit
+    #: the XC7A100T. Read gen_config() to confirm against the bitstream rather
+    #: than trusting this constant.
+    NUM_GEN = 4
 
     def __init__(self, dut, clock, prefix: str = "s_chargen_apb",
                  addr_width: int = 12, log=None):

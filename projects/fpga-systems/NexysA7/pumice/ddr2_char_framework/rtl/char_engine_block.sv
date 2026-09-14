@@ -67,7 +67,7 @@ module char_engine_block
     // expected to SPAN NUM_BANKS/NUM_GEN banks, so two keep all eight busy.
     // NUM_BANKS is carried purely for that elaboration check.
     parameter int NUM_BANKS        = 8,
-    parameter int NUM_GEN          = 2,
+    parameter int NUM_GEN          = 4,
     // Per-generator ceiling on bursts in flight (AW/AR issued minus B/RLAST
     // received). 32, not 8, because this is the axis the latency sweep walks:
     // read bandwidth is bounded by outstanding x AxLEN / (latency + AxLEN),
@@ -254,6 +254,11 @@ module char_engine_block
     // deliberate area trade (see the parameter comment) and is allowed -- the
     // host spreads them.
     initial begin
+        if (NUM_GEN > 4) begin
+            $error("char_engine_block: NUM_GEN (%0d) exceeds the GO register's 4 start bits -- add wr_go/rd_go fields in chargen_regs.rdl and regenerate first",
+                   NUM_GEN);
+            $finish;
+        end
         if (NUM_GEN > NUM_BANKS) begin
             $error("char_engine_block: NUM_GEN (%0d) exceeds NUM_BANKS (%0d) -- two streams would share a bank",
                    NUM_GEN, NUM_BANKS);
@@ -333,9 +338,21 @@ module char_engine_block
     // generator start register would mean generator 0 had been running for
     // however long it took the host to program generator 15, and that skew is
     // what produced meaningless zero-utilization windows on rapids.
+    // The register carries GO_BITS of each direction; this block takes the low
+    // NUM_GEN of them, so widening the array is an RDL edit plus a NUM_GEN
+    // change and nothing here. Sliced rather than concatenated to width so a
+    // NUM_GEN larger than the register can be caught at elaboration instead of
+    // silently truncating a generator's start bit.
+    localparam int GO_BITS = 4;
+    logic [GO_BITS-1:0] w_wr_go_all, w_rd_go_all;
+    assign w_wr_go_all = {cg_out.GO.wr_go3.value, cg_out.GO.wr_go2.value,
+                          cg_out.GO.wr_go1.value, cg_out.GO.wr_go0.value};
+    assign w_rd_go_all = {cg_out.GO.rd_go3.value, cg_out.GO.rd_go2.value,
+                          cg_out.GO.rd_go1.value, cg_out.GO.rd_go0.value};
+
     logic [NUM_GEN-1:0] w_wr_go, w_rd_go;
-    assign w_wr_go = {cg_out.GO.wr_go1.value, cg_out.GO.wr_go0.value};
-    assign w_rd_go = {cg_out.GO.rd_go1.value, cg_out.GO.rd_go0.value};
+    assign w_wr_go = w_wr_go_all[NUM_GEN-1:0];
+    assign w_rd_go = w_rd_go_all[NUM_GEN-1:0];
 
     //=========================================================================
     // Generator unit: N write + N read generator blocks behind one AXI4 port

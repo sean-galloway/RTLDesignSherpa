@@ -58,7 +58,7 @@ module litedram_char_top (
     // (litedram_hp.yml id_width). The array's shape is stated once here and
     // handed to the harness explicitly, so this width and the harness's own
     // cannot drift apart -- both are this one pair of numbers.
-    localparam int CHAR_NUM_GEN   = 2;
+    localparam int CHAR_NUM_GEN   = 4;
     localparam int CHAR_GEN_ID_W  = 8;
     localparam int CHAR_MC_ID_W   = CHAR_GEN_ID_W;   // index rides inside it
 

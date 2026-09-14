@@ -61,7 +61,7 @@
 //       (char_gen_axi_mux).
 //     - Master-unique IDs: {generator index, generator id}, the same
 //       {BRIDGE_ID, id} shape the bridges used (BRIDGE-016), so the ID width
-//       the controller sees is unchanged at NUM_GEN=2.
+//       the controller sees is unchanged: the index rides inside the 8 bits.
 //     - W in AW order (char_gen_wr_order_q), which is an AXI4 requirement the
 //       moment two masters share one W channel.
 //     - B and R steered back by ID prefix.
@@ -95,7 +95,7 @@ module char_gen_unit #(
     parameter int BURST_LEN_MULTIPLE = 1,
 
     // ---- Generator array ----
-    parameter int NUM_GEN          = 2,
+    parameter int NUM_GEN          = 4,
     parameter int GEN_MAX_OUTSTANDING = 32,
 
     // ---- Engine workload ranges ----
@@ -126,7 +126,7 @@ module char_gen_unit #(
     // netlist and not placement. pumice's ID is always 8 bits.
     //
     // The cost is ID space: each generator owns 2**(IW-GSELW) ids instead of
-    // 2**IW -- 128 each at NUM_GEN=2. The generators' cfg_axi_id is masked to
+    // 2**IW -- 64 each at NUM_GEN=4. The generators' cfg_axi_id is masked to
     // that width below, so a host writing a full 8-bit id gets its top bit
     // replaced by the generator index rather than aliasing onto its neighbour.
     parameter int GSELW = (NUM_GEN > 1) ? $clog2(NUM_GEN) : 0,

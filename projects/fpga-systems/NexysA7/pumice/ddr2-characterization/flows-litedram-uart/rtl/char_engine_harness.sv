@@ -69,7 +69,7 @@ module char_engine_harness
     // = 1 (unconstrained). Threaded from the top like build-perf.
     parameter int BURST_LEN_MULTIPLE = 1,
     parameter int NUM_BANKS          = 8,
-    parameter int NUM_GEN            = 2,
+    parameter int NUM_GEN            = 4,
     // Width of the IDs leaving the harness: the SAME as the generators' own.
     // char_gen_unit carries the generator index in the top bits of it rather
     // than prepending a bit. litedram_hp.yml's id_width must match -- it was 9
