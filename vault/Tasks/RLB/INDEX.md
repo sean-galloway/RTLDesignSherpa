@@ -10,8 +10,8 @@ pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
 | State | Count | Tasks |
 |---|---|---|
 | active | 0 | — |
-| open | 8 | RLB-006 (test scrub -- DONE for RLB, residual is in rtl/ areas), RLB-007 (RDL relocation), RLB-008 (ioapic residual features), RLB-009 (pm_acpi residual features), RLB-011 (smbus residual features), RLB-013 (uart_16550 residual features), RLB-014 (800-line core cap), RLB-015 (RESET_ACTIVE_HIGH SYNCASYNCNET, unverified) |
-| closed | 7 | RLB-001 (Kimi review), RLB-002 (5 wrong-map MAS fixes), RLB-003 (4 targeted MAS fixes), RLB-004 (the 9 RTL bugs), RLB-005 (rtc wavedrom README), RLB-010 (rtc leftovers), RLB-012 (regblock reset polarity) |
+| open | 7 | RLB-006 (test scrub -- DONE for RLB, residual is in rtl/ areas), RLB-007 (RDL relocation), RLB-008 (ioapic residual features), RLB-009 (pm_acpi residual features), RLB-011 (smbus residual features), RLB-013 (uart_16550 residual features), RLB-014 (800-line core cap) |
+| closed | 8 | RLB-001 (Kimi review), RLB-002 (5 wrong-map MAS fixes), RLB-003 (4 targeted MAS fixes), RLB-004 (the 9 RTL bugs), RLB-005 (rtc wavedrom README), RLB-010 (rtc leftovers), RLB-012 (regblock reset polarity), RLB-015 (SYNCASYNCNET, measured + waived) |
 | dropped | 0 | — |
 
 ## Shortlist

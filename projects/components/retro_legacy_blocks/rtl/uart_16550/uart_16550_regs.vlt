@@ -9,3 +9,11 @@
 // reads IEEE 1800-2023 9.2.2.2 strictly, other tools accept it silently.
 lint_off -rule MULTIDRIVEN -file "*/uart_16550_regs.sv"
 
+// SYNCASYNCNET: the generated block uses its reset SYNCHRONOUSLY
+// (always_ff @(posedge clk) ... if(rst)) while
+// projects/components/converters/rtl/peakrdl_to_cmdrsp.sv:117 uses the same
+// net asynchronously (house ALWAYS_FF_RST style). Both are in the APB clock
+// domain and both are correct. Fires only under -DRESET_ACTIVE_HIGH, where
+// RST_ASSERTED(rst_n) expands to (rst_n) rather than !(rst_n), so one net
+// reaches both users instead of two. Measured 2026-09-14 (RLB-015).
+lint_off -rule SYNCASYNCNET -file "*/uart_16550_regs.sv"

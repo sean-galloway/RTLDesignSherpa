@@ -1,0 +1,19 @@
+`verilator_config
+// Waivers for the PeakRDL-generated register block ONLY. This file lives
+// outside the generated output so regeneration does not overwrite it, and
+// it is listed in filelists/apb4_rtc.f ahead of the generated sources.
+// Same treatment as smbus_regs.vlt and uart_16550_regs.vlt.
+//
+// SYNCASYNCNET: the generated block uses its reset SYNCHRONOUSLY
+// (always_ff @(posedge clk) ... if(rst)) while the async user --
+// rtl/amba/apb4/apb4_slave.sv:205
+// -- uses the same net asynchronously, in the house ALWAYS_FF_RST style.
+// Both are in the APB clock domain and both are correct. The net Verilator
+// names is this block's own cell input, so the waiver must attach to THIS
+// file; a lint_off in the block top or in *_config_regs.sv never reaches it.
+//
+// It fires only under -DRESET_ACTIVE_HIGH. At the default polarity
+// RST_ASSERTED(rst_n) expands to !(rst_n), an inverted derived net, so the
+// two users see different nets; under RESET_ACTIVE_HIGH it expands to
+// (rst_n) and one net reaches both. Measured 2026-09-14 (RLB-015).
+lint_off -rule SYNCASYNCNET -file "*/rtc_regs.sv"

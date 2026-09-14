@@ -26,6 +26,10 @@
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 
 # Package (must come first)
+# PeakRDL-generated registers. The .vlt comes FIRST and is not optional: it
+# waives the one Verilator rule the generated block trips under
+# -DRESET_ACTIVE_HIGH (see the file for why), without waiving it elsewhere.
+$RETRO_ROOT/rtl/pit_8254/pit_regs.vlt
 $RETRO_ROOT/rtl/pit_8254/pit_regs_pkg.sv
 
 # Register file (PeakRDL generated)

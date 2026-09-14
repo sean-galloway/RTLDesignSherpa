@@ -282,3 +282,83 @@ Residual of the same defect class lives elsewhere: the FIFO primitives
 underneath had it ([[COMMON-026]], fixed), and what remains is [[COMMON-027]].
 [[RLB-015]] (SYNCASYNCNET under `-DRESET_ACTIVE_HIGH`, family-wide) is a
 DIFFERENT finding in the same area and stays open.
+
+---
+
+## RLB-015 — SYNCASYNCNET under -DRESET_ACTIVE_HIGH, family-wide
+**Status:** closed 2026-09-14 — measured, then fixed
+
+Filed REPORTED-NOT-VERIFIED. It has now been measured across all nine blocks
+at both polarities, and the five affected blocks are waived. Four things in the
+original entry were wrong, and each is worth knowing because each came from a
+plausible-looking check.
+
+**1. The counts were LINE counts, not warning counts.** The entry reported
+`RESET_ACTIVE_HIGH=3` for four blocks. `grep -c SYNCASYNCNET` returns 3 because
+Verilator prints the warning plus two boilerplate lines ("For warning
+description see ...", "Use lint_off ..."). Counted as `%Warning-SYNCASYNCNET`,
+every affected block has exactly ONE. I reproduced the 3s exactly before
+noticing I was reproducing the same artifact with the same broken instrument.
+
+**2. The sweep was incomplete, in both directions.** Measured 9/9:
+
+| block | default | RESET_ACTIVE_HIGH | note |
+|---|---|---|---|
+| gpio, pic_8259, pit_8254, rtc, uart_16550 | 0 | 1 | affected |
+| hpet, ioapic, pm_acpi | 0 | 0 | genuinely clean |
+| smbus | 0 | 0 | clean ONLY because already waived |
+
+`pic_8259` is affected and was never in the report. `smbus` was cited as
+evidence for a theory about its #58 reset rework; it is actually suppressed by
+`lint_off -rule SYNCASYNCNET` in `smbus_regs.vlt`, wired in at
+`apb4_smbus.f:36`. A "clean" block that is merely waived is not a data point.
+
+**3. The rejected file:line citation was RIGHT.** The entry dismissed
+`peakrdl_to_cmdrsp.sv:117` as "the closing paren of an ALWAYS_FF_RST macro, not
+a reset usage". Line 117 is `` `ALWAYS_FF_RST(aclk, aresetn, ...) ``, which
+under `-DRESET_ACTIVE_HIGH` expands to `always_ff @(posedge aclk or posedge
+aresetn)` -- a genuine async reset usage, and exactly what Verilator names.
+Reading the macro at the DEFAULT polarity is what made it look wrong. Only the
+path was stale (`rtl/amba/shared/` -> `projects/components/converters/rtl/`).
+The original reporter was correct and the rebuttal was the artifact.
+
+**4. It is NOT a shared-file change.** The entry concluded that if the counts
+held, the fix belonged in `converters` and needed owner sign-off before editing
+a file every block instantiates. It does not. In every affected block the SYNC
+side is the block's own generated `<block>_regs.sv` (`gpio_regs.sv:264`,
+`pic_8259_regs.sv:313`, `pit_regs.sv:207`, `rtc_regs.sv:349`,
+`uart_16550_regs.sv:399`), and Verilator names the net at that block's own cell
+input -- so the waiver must attach there, which is what `smbus_regs.vlt` already
+says in its own comment. Nothing shared was touched.
+
+**The mechanism.** `reset_defs.svh` makes `RST_ASSERTED(rst)` expand to
+`!(rst)` at default and `(rst)` under `RESET_ACTIVE_HIGH`, while
+`ALWAYS_FF_RST` is asynchronous at BOTH polarities (`negedge rst` / `posedge
+rst`). At default the inversion creates a derived net, so the async user and
+the synchronous generated block see two different nets. Under
+`RESET_ACTIVE_HIGH` the macro passes the net through and one net reaches both.
+The warning is therefore a visible consequence of RLB-012's CORRECT fix, not a
+regression from it.
+
+**Fix applied 2026-09-14:** a `*_regs.sv`-scoped `.vlt` per affected block, on
+the smbus pattern -- new `gpio_regs.vlt`, `pic_8259_regs.vlt`, `pit_regs.vlt`,
+`rtc_regs.vlt` wired into their filelists ahead of the generated sources, and a
+SYNCASYNCNET clause appended to the already-wired `uart_16550_regs.vlt`.
+Verified per block: the one SYNCASYNCNET removed, total warning count down by
+exactly one, default-polarity totals unchanged (gpio 26, pic_8259 32,
+pit_8254 26, rtc 31, uart_16550 13). All nine blocks now 0/0 at both
+polarities. filelist_registry --check 53/53, --audit PASS.
+
+**NOT explained, recorded rather than guessed:** why hpet, ioapic and pm_acpi
+are genuinely clean. Two rules were proposed and both refuted by measurement --
+"inline ternary vs named intermediate wire" (smbus uses an inline ternary and
+is affected) and "CDC default" (gpio still warns with `-GCDC_ENABLE=1`, smbus
+still clean with `-GCDC_ENABLE=0`, both on runs confirmed to have executed). It
+does not change the remedy, so it is left open rather than given a rule that
+the evidence does not support.
+
+**Spun out:** the entry said "retro_legacy_blocks has no lint target, so
+nothing here is measured". The target EXISTS -- `projects/components/Makefile`
+generates `lint-<component>` and advertises it in `make help` -- but it
+delegates to `$(MAKE) -C <component>/rtl lint-all` and this area has no
+`rtl/Makefile`. Filed as [[TOOL-017]]; `lint-apbx_xbar` is broken the same way.

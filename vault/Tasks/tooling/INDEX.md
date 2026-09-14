@@ -2,15 +2,15 @@
 
 # Tooling tasks
 
-**Next ID: TOOL-017** — never recycle a number, even when its task closed.
+**Next ID: TOOL-018** — never recycle a number, even when its task closed.
 
 Repo tooling, scripts, and process work.
 
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 2 | in progress right now |
-| [open.md](open.md) | 10 | accepted, not started |
-| [closed.md](closed.md) | 2 | done (kept for history) |
+| [open.md](open.md) | 9 | accepted, not started |
+| [closed.md](closed.md) | 3 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing |
 
 ## Active
@@ -47,6 +47,11 @@ Repo tooling, scripts, and process work.
   hardcoded paths.
 - **TOOL-012** — burn down `--blindspots`, then make it a gate.
 - **TOOL-014** — Scripts book link rot + DOCUMENTATION_INDEX refresh/retire.
+- **TOOL-017** (P3) — `lint-<component>` is advertised in `make help` but
+  cannot run for retro_legacy_blocks or apbx_xbar: the template delegates to
+  `$(MAKE) -C <component>/rtl lint-all` and neither area has that Makefile.
+  A gate that cannot run is not a gate, and it misled [[RLB-015]] into
+  "nothing here is measured".
 
 ## Note
 

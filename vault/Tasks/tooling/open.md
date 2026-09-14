@@ -465,3 +465,43 @@ derived now. conftest carried three dead fixtures, one of which
 transaction-count table that would have tripled every test if anyone had
 requested it. And `timing` imported the same helper twice while
 `2to2_mixed` never imported pytest at all.
+
+
+### TOOL-017: `lint-<component>` is advertised but cannot run for two areas
+**Priority:** P3
+**Status:** 🔴 Not Started
+**Owner:** TBD
+
+`projects/components/Makefile` generates a lint target per component and
+advertises them in `make help`:
+
+    make lint-retro_legacy_blocks  Lint Retro Legacy Blocks RTL
+
+Both of these fail immediately, measured 2026-09-14:
+
+    $ make lint-retro_legacy_blocks
+    make[1]: *** No rule to make target 'lint-all'.  Stop.
+    make: *** [Makefile:463: lint-retro_legacy_blocks] Error 2
+
+    $ make lint-apbx_xbar
+    make[1]: *** apbx_xbar/rtl: No such file or directory.  Stop.
+    make: *** [Makefile:463: lint-apbx_xbar] Error 2
+
+The template at `Makefile:456` delegates to `$(MAKE) -C $(1)/rtl lint-all`.
+stream, rapids, bridge and converters each have an `rtl/Makefile` providing
+`lint-all`; **retro_legacy_blocks and apbx_xbar do not**, and apbx_xbar has no
+`rtl/` directory under that name at all.
+
+**Why it matters rather than being cosmetic.** A gate that cannot run is not a
+gate, and this one is advertised in `help`, so the natural assumption is that
+the area is linted. It is not: [[RLB-015]] sat unverified for days partly
+because the reporter concluded "retro_legacy_blocks has no lint target, so
+nothing is measured" -- the right conclusion from the wrong premise. The area
+IS lintable; every block has a working top filelist and
+`verilator --lint-only -Wall --timing -f <filelist>` runs clean today.
+
+**Fix options, in order of preference:** give the two areas an `rtl/Makefile`
+with a `lint-all` that loops their top filelists (the sweep in RLB-015's
+closure is a working prototype); or have the template discover filelists
+directly and drop the per-area Makefile requirement; or, at minimum, stop
+advertising targets that cannot run.
