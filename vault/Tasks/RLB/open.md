@@ -279,9 +279,11 @@ STILL OWED on MSI: the emitter has formal proofs but NO DV test, and Sean has
 asked for one. Adding the two ports also broke every consumer that does not
 connect them -- 6 regression cells in the two companion TB tops, plus
 `rlb_top.sv`, which no test elaborates and which therefore failed silently.
-`bin/check_port_consumers.py` catches exactly this, but nothing invokes it and
-a bare run exits 0 without examining anything; it must be passed the changed
-files.
+`bin/check_port_consumers.py` catches exactly this, and it DOES run
+automatically -- as a pre-commit hook, which is what would have caught the
+break had the ports been added in a commit rather than sitting in the worktree
+across a regression. Run by hand with nothing staged it exits 0 having examined
+nothing, so to check before staging it must be passed the changed files.
 
 Boot-interrupt is what remains, and it needs RE-SCOPING before anyone
 implements it -- the requirement as written here was wrong. See the two
