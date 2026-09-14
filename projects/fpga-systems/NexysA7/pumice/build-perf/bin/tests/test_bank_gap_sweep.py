@@ -74,9 +74,28 @@ class _MockDrv:
         return dict(kw)
 
     def timer(self):
-        per = max(self._beats / self._util, self._beats + self._gap)
-        cyc = int(self._txn * per)
+        cyc = int(self._txn * self._period())
         return types.SimpleNamespace(w_first=0, w_last=cyc, r_first=0, r_last=cyc)
+
+    def _period(self):
+        """Cycles per burst: whichever side is slower."""
+        return max(self._beats / self._util, self._beats + self._gap)
+
+    def perf_meters(self):
+        """Four buckets consistent with the cycle model above.
+
+        Productive is the beats actually moved. Whatever the GAP adds on top
+        of the controller's own rate is STARVATION -- the generator withheld
+        it. Whatever the controller's rate costs above the raw beats is
+        BACKPRESSURE -- it would not accept.
+        """
+        total = int(self._txn * self._period())
+        prod = int(self._txn * self._beats)
+        gen_excess = max(0.0, (self._beats + self._gap) - self._beats / self._util)
+        starv = int(self._txn * gen_excess)
+        bp = max(0, total - prod - starv)
+        m = types.SimpleNamespace(prod=prod, bp=bp, starv=starv, idle=0)
+        return {"wr": m, "rd": m}
 
     def __getattr__(self, _n):
         return lambda *a, **k: {}
@@ -262,3 +281,47 @@ def test_slower_families_have_more_slack():
                 knees[name] = int(line.split()[-1])
     assert set(knees) == {n for n, _ in mod.ORDERS}, f"missing curves: {knees}"
     assert knees["cacheline"] <= knees["row_major"] <= knees["col_major"], knees
+
+
+# ---------------------------------------------------------------------------
+# The record is what outlives the run -- the plots and any later comparison
+# read it, not the scrollback. Check it carries what they need.
+# ---------------------------------------------------------------------------
+def test_record_carries_coordinates_rates_ceiling_and_buckets(tmp_path):
+    out = tmp_path / "sweep.json"
+    mod, drv = _load(gens="4,2", gaps="0,7")
+    os.environ["JSON_OUT"] = str(out)
+    mod = importlib.reload(mod)
+    _run(mod, drv)
+    import json
+    rows = json.loads(out.read_text())
+    assert rows, "no records written"
+    r = rows[0]
+    for k in ("order", "n_gen", "gap", "txn", "beats",          # coordinates
+              "wr", "rd", "bus",                                 # rates
+              "wr_cycles", "rd_cycles", "window_cycles",         # both windows
+              "peak_mb_s",                                       # the ceiling
+              "mism", "ok", "rd_txn", "want_txn", "buckets"):
+        assert k in r, f"record is missing {k!r}"
+    for d in ("wr", "rd"):
+        b = r["buckets"][d]
+        # Raw counts AND fractions, so nothing downstream re-derives a ratio.
+        # `total` is the denominator and carries no fraction of its own.
+        assert isinstance(b["total"], int), f"{d}.total missing/not an int"
+        for k in ("productive", "backpressure", "starvation", "idle"):
+            assert k in b and isinstance(b[k], int), f"{d}.{k} missing/not an int"
+            assert f"{k}_frac" in b, f"{d}.{k}_frac missing"
+        assert abs(sum(b[f"{k}_frac"] for k in
+                       ("productive", "backpressure", "starvation", "idle"))
+                   - 1.0) < 1e-6, "bucket fractions do not sum to 1"
+
+
+def test_named_gap_sweeps_resolve_and_typos_raise():
+    """A sweep you cannot name is a sweep you cannot repeat -- and a typo must
+    not silently measure a different curve than the one that was asked for."""
+    mod, _ = _load()
+    assert mod.resolve_gaps("full") == list(range(16))
+    assert mod.resolve_gaps("ends") == [0, 15]
+    assert mod.resolve_gaps("0,4,8") == [0, 4, 8]
+    with pytest.raises(SystemExit):
+        mod.resolve_gaps("kneee")

@@ -47,6 +47,7 @@ back-to-back case twice, so the range stops at 15 and says so here.
     GAPS=0,4,8,15 GENS=4,1 python3 bin/bank_gap_sweep.py
     TXN=20000 python3 bin/bank_gap_sweep.py                     # wider spans
 """
+import json
 import os
 import sys
 
@@ -62,7 +63,28 @@ PEAK_MBS = 8 * CLK_MHZ                      # 8 bytes/beat at one beat/cycle
 # One seed for the prefill and every engine after it. See the module docstring.
 SEED = 0x5EED_0B01
 
-GAPS  = [int(x) for x in os.environ.get("GAPS", ",".join(str(g) for g in range(16))).split(",")]
+# Named gap sweeps, borrowed from the STREAM runner's DELAY_SWEEPS: a sweep you
+# cannot name is a sweep you cannot repeat. GAPS takes a name OR a literal list,
+# and an unknown NAME raises rather than falling back -- a typo must not
+# silently measure a different curve than the one that was asked for.
+GAP_SWEEPS = {
+    "full":  list(range(16)),          # every gap the 4-bit field can express
+    "knee":  [0, 1, 2, 3, 4, 6, 8, 12, 15],
+    "ends":  [0, 15],                  # smoke: back-to-back and maximum idle
+}
+
+
+def resolve_gaps(spec):
+    if spec in GAP_SWEEPS:
+        return list(GAP_SWEEPS[spec])
+    if "," in spec or spec.strip().isdigit():
+        return [int(x, 0) for x in spec.split(",") if x.strip()]
+    raise SystemExit(f"unknown gap sweep {spec!r}; known names: "
+                     f"{', '.join(sorted(GAP_SWEEPS))} (or a literal list)")
+
+
+GAPS  = resolve_gaps(os.environ.get("GAPS", "full"))
+JSON_OUT = os.environ.get("JSON_OUT", "reports/bank_gap_sweep.json")
 GENS  = [int(x) for x in os.environ.get("GENS", "4,3,2,1").split(",")]
 TXN   = int(os.environ.get("TXN", "2000"))
 BEATS = int(os.environ.get("BEATS", "8"))   # 8 beats x 8 B = 64 B bursts
@@ -201,9 +223,38 @@ def _point(drv, geom, n_gen, family, gap, timeout_s=60.0):
     _, rd_txn = drv.perf_hist_dump(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
     want_txn = TXN * n_gen
     mism = drv.beats_mismatched()
+
+    # Four-bucket cycle classification per direction. This is what turns a
+    # bandwidth shortfall into a named cause instead of a number: rising
+    # STARVATION means the generators stopped asking (the gap did it), rising
+    # BACKPRESSURE means the controller stopped accepting (the DRAM did it).
+    # Raw counts sit beside the fractions so nothing downstream has to
+    # re-derive a ratio, or trust one it cannot rebuild.
+    meters = {d: pc._read_meter(drv, d) for d in ("wr", "rd")}
     drv.freeze_trace(False)
-    return dict(wr=wr_bw, rd=rd_bw, bus=bus_bw, mism=mism,
-                ok=(wr_ok and rd_ok), rd_txn=rd_txn, want_txn=want_txn)
+
+    def _buckets(m):
+        t = m.total
+        return dict(productive=m.prod, backpressure=m.bp, starvation=m.starv,
+                    idle=m.idle, total=t,
+                    productive_frac=(m.prod / t) if t else 0.0,
+                    backpressure_frac=(m.bp / t) if t else 0.0,
+                    starvation_frac=(m.starv / t) if t else 0.0,
+                    idle_frac=(m.idle / t) if t else 0.0)
+
+    return dict(
+        order=family, n_gen=n_gen, gap=gap, txn=TXN, beats=BEATS,
+        wr=wr_bw, rd=rd_bw, bus=bus_bw,
+        # Both windows, so a disagreement between the counters and the
+        # hardware stamps is visible rather than averaged away.
+        wr_cycles=wr_cyc, rd_cycles=rd_cyc, window_cycles=window,
+        bytes_per_direction=byts,
+        # Ceiling stored per record, so a plot never re-derives it and it
+        # cannot drift from the clock this run actually used.
+        peak_mb_s=PEAK_MBS,
+        mism=mism, ok=(wr_ok and rd_ok), rd_txn=rd_txn, want_txn=want_txn,
+        buckets={d: _buckets(m) for d, m in meters.items()},
+    )
 
 
 SPARK = " .:-=+*#@"
@@ -281,7 +332,7 @@ def main() -> int:
               "against an incomplete image; stopping.")
         return 1
 
-    bad = []
+    bad, records = [], []
     for n_gen in gens:
         wr_banks, rd_banks = _banks(geom, n_gen)
         print(f"=== {n_gen}+{n_gen} concurrent -- writers on banks {wr_banks}, "
@@ -290,6 +341,7 @@ def main() -> int:
         for name, fam in ORDERS:
             for gap in GAPS:
                 r = _point(drv, geom, n_gen, fam, gap)
+                records.append(r)
                 for series in ("wr", "rd", "bus"):
                     curves.setdefault((name, series), {})[gap] = r[series]
                 if not r["ok"]:
@@ -302,6 +354,16 @@ def main() -> int:
                                f"{r['want_txn']} -- the MB/s for this point is "
                                f"computed from bytes that did not move")
         _curve_table(curves)
+
+    # Durable records. A sweep that only prints is a sweep whose numbers die
+    # with the terminal: the plots, the report and any later comparison all
+    # read this file, not the scrollback.
+    if JSON_OUT:
+        os.makedirs(os.path.dirname(JSON_OUT) or ".", exist_ok=True)
+        with open(JSON_OUT, "w") as f:
+            json.dump(records, f, indent=2, default=str)
+        print(f"wrote {len(records)} records -> {JSON_OUT}")
+        print(f"plot them: python3 bin/plot_bank_gap.py {JSON_OUT}")
 
     for b in bad:
         print(f"FAIL: {b}")
