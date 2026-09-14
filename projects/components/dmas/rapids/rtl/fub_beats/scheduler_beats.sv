@@ -825,9 +825,18 @@ module scheduler_beats #(
     //                       Runs simultaneously with write engine
 
     // Gated on w_is_data: control descriptors must NOT drive the data engines.
+    //
+    // TASK-101: stall the engine between runs. In EXT mode sched_rd_beats is
+    // the CURRENT RUN's remainder, which reaches 0 at every run boundary while
+    // the transfer still has beats left, so w_read_complete is false and would
+    // otherwise leave the valid asserted on a zero count. The engine sizes its
+    // burst as (sched_rd_beats - 1), which underflows to 8'hFF and issues a
+    // spurious 256-beat burst from the address the run-base jump has not yet
+    // updated. STREAM carries the same term (192254872); this port dropped it.
     assign sched_rd_valid = (r_current_state == rapids_pkg::CH_XFER_DATA) && w_is_data &&
                         !w_read_complete &&
-                        !w_sched_rd_completing_this_cycle;
+                        !w_sched_rd_completing_this_cycle &&
+                        !w_rd_need_base;   // TASK-101: stall reads between runs
     assign sched_rd_addr = r_src_addr;
     assign sched_rd_beats = r_is_ext ? r_rd_run_remaining : r_read_beats_remaining;
 
@@ -849,7 +858,8 @@ module scheduler_beats #(
     assign sched_wr_valid = (r_current_state == rapids_pkg::CH_XFER_DATA) && w_is_data &&
                         (r_write_beats_remaining != 32'h0) &&
                         !w_write_complete &&
-                        !w_sched_wr_completing_this_cycle;
+                        !w_sched_wr_completing_this_cycle &&
+                        !w_wr_need_base;   // TASK-101: stall writes between runs
     assign sched_wr_addr = r_dst_addr;
     assign sched_wr_beats = r_is_ext ? r_wr_run_remaining : r_write_beats_remaining;
 
