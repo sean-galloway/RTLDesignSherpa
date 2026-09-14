@@ -238,11 +238,27 @@ Two of the four remaining items shipped 2026-09-14 as COMPANION modules, which
 keeps Sean's 2026-09-11 interface decision intact -- apb4_ioapic's port list is
 unchanged and apb4_ioapic.f references neither file:
   - LowestPriority's delegated arbitration half: `ioapic_lowest_pri_arb`
-    (7a4096b24), formal prove+cover PASS, mutation-checked.
+    (7a4096b24), formal prove+cover PASS, mutation-checked. SYSTEM-CONTEXT
+    TESTED 2026-09-14 (fab087467): four seam tests against a real apb4_ioapic
+    delivery channel, themselves mutation-checked -- mis-wiring `deliv_dest`
+    fails both cells, tying `cpu_can_accept` high fails only the cell that
+    owns the retry test.
   - Multi-IOAPIC routing: `ioapic_deliv_merge` (e0c77afc9), N delivery
     channels merged in round robin with each message tagged by source id so an
     EOI routes back to the IOAPIC holding that pin's Remote IRR. Formal
-    prove+cover PASS, mutation-checked.
+    prove+cover PASS, mutation-checked. SYSTEM-CONTEXT TESTED 2026-09-14
+    (72484a498): four seam tests against TWO real apb4_ioapic instances, with
+    three mutations each breaking exactly the cells that make the matching
+    claim (3 / 2-of-3 / 1-of-3 failures).
+
+  Why the seam tests exist when formal already passes: formal proves each
+  companion's contract at its OWN ports with free inputs, and for the merge one
+  claim is not checkable there at all -- `m_src_id` is self-consistent under
+  formal whatever it names, so a merge that routed payloads correctly and
+  mislabelled the ORIGIN would prove clean and break EOI routing on silicon.
+  The seam tests use real producers; the consumer is still the testbench, so
+  behaviour against a real LAPIC or a genuine multi-IOAPIC system remains
+  uncovered.
 
 Boot-interrupt delivery and MSI are what remain, and NEITHER is a matter of
 effort -- see the two bullets below. Both need a decision outside this block
@@ -312,7 +328,10 @@ trackers next to the code instead of recording the open work here.
   pointer between two contenders and checks that the two policies deliver
   them in opposite orders, with the static run as its own control.
 - ~~Multi-IOAPIC routing.~~ SHIPPED 2026-09-14 as `ioapic_deliv_merge`
-  (e0c77afc9), a companion rather than a port change.
+  (e0c77afc9), a companion rather than a port change, and system-context
+  tested in 72484a498. The area grid moved 63 -> 66 -> 69 cells at FULL as the
+  two companion tests landed; both run inside
+  `make clean-all && make run-all-full-parallel`, not only standalone.
 - **Boot-interrupt (INIT-SIPI-SIPI) delivery. BLOCKED: the message cannot be
   expressed.** `ioapic_regs.rdl` enumerates the delivery-mode field as
   `000=Fixed, 001=LowestPri, 010=SMI, 100=NMI, 101=INIT, 111=ExtINT`. There is
