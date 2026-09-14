@@ -144,7 +144,11 @@ module ioapic_config_regs
     // Status inputs (from ioapic_core)
     input  logic        status_deliv_status [NUM_IRQS],
     input  logic        status_remote_irr   [NUM_IRQS],
-    input  logic [3:0]  status_arb_id
+    input  logic [3:0]  status_arb_id,
+    // Saturating dropped-delivery count, from the core. Same clock domain:
+    // this module and ioapic_core are both clocked by
+    // (CDC_ENABLE ? ioapic_clk : pclk), so there is no crossing here.
+    input  logic [31:0] status_drop_count
 );
 
     //========================================================================
@@ -168,9 +172,11 @@ module ioapic_config_regs
     // 82093AA never writes them, and MSI stays off.
     localparam logic [7:0]  SEL_MSIADDR   = 8'h04;
     localparam logic [7:0]  SEL_MSIDATA   = 8'h05;
+    // Dropped-delivery count. 0x06 is reserved on the real part too.
+    localparam logic [7:0]  SEL_MSIDROP   = 8'h06;
     localparam logic [7:0]  SEL_REDIR_LO  = 8'h10;  // first redirection entry
     localparam logic [7:0]  SEL_REDIR_HI  = 8'h3F;  // last  redirection entry
-    // Register-block addresses are 8 bits: the whole map is 0x00-0xDC and the
+    // Register-block addresses are 8 bits: the whole map is 0x00-0xE0 and the
     // decode below only ever presents a constant from this list, so there is
     // no truncation on the way into s_cpuif_addr. (The range was 0x00-0xD0
     // before the MSI registers were added at 0xD8/0xDC; still 8-bit safe.)
@@ -181,6 +187,7 @@ module ioapic_config_regs
     localparam logic [7:0]  ADDR_ARBCFG   = 8'hD4;
     localparam logic [7:0]  ADDR_MSIADDR  = 8'hD8;
     localparam logic [7:0]  ADDR_MSIDATA  = 8'hDC;
+    localparam logic [7:0]  ADDR_MSIDROP  = 8'hE0;
     localparam logic [7:0]  ADDR_REDIR    = 8'h14;   // IOREDTBL[0].REDIR_LO
     // The two software-visible APB addresses in the 4 KB window. Everything
     // else, in window or not, is dropped (see DECODE CONTRACT above).
@@ -292,6 +299,7 @@ module ioapic_config_regs
                           (w_regsel == SEL_ARBCFG)    ||
                           (w_regsel == SEL_MSIADDR)   ||
                           (w_regsel == SEL_MSIDATA)   ||
+                          (w_regsel == SEL_MSIDROP)   ||
                           ((w_regsel >= SEL_REDIR_LO) && (w_regsel <= SEL_REDIR_HI));
 
     // The software-visible decode, in full: IOREGSEL and IOWIN, nothing else.
@@ -336,6 +344,7 @@ module ioapic_config_regs
                 SEL_ARBCFG:    regblk_addr = ADDR_ARBCFG;
                 SEL_MSIADDR:   regblk_addr = ADDR_MSIADDR;
                 SEL_MSIDATA:   regblk_addr = ADDR_MSIDATA;
+                SEL_MSIDROP:   regblk_addr = ADDR_MSIDROP;
                 default: begin
                     // Redirection table, or an unmapped selector - in which
                     // case regblk_req is already gated off and the address
@@ -433,6 +442,9 @@ module ioapic_config_regs
 
     // Arbitration ID (read-only, from core)
     assign hwif_in.IOAPICARB.arb_id.next = status_arb_id;
+
+    // Dropped-delivery count (read-only, from core)
+    assign hwif_in.IOAPICMSIDROP.count.next = status_drop_count;
 
     // IOWIN is a window, not storage: every APB access to 0x004 is translated
     // to the selected register above, so the generated IOWIN field is never

@@ -78,6 +78,7 @@ module ioapic_regs (
         logic IOAPICARBCFG;
         logic IOAPICMSIADDR;
         logic IOAPICMSIDATA;
+        logic IOAPICMSIDROP;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
     logic decoded_req;
@@ -98,6 +99,7 @@ module ioapic_regs (
         decoded_reg_strb.IOAPICARBCFG = cpuif_req_masked & (cpuif_addr == 8'hd4);
         decoded_reg_strb.IOAPICMSIADDR = cpuif_req_masked & (cpuif_addr == 8'hd8);
         decoded_reg_strb.IOAPICMSIDATA = cpuif_req_masked & (cpuif_addr == 8'hdc);
+        decoded_reg_strb.IOAPICMSIDROP = cpuif_req_masked & (cpuif_addr == 8'he0);
     end
 
     // Pass down signals to next stage
@@ -565,7 +567,7 @@ module ioapic_regs (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[56];
+    logic [31:0] readback_array[57];
     assign readback_array[0][7:0] = (decoded_reg_strb.IOREGSEL && !decoded_req_is_wr) ? field_storage.IOREGSEL.regsel.value : '0;
     assign readback_array[0][31:8] = (decoded_reg_strb.IOREGSEL && !decoded_req_is_wr) ? 24'h0 : '0;
     assign readback_array[1][31:0] = (decoded_reg_strb.IOWIN && !decoded_req_is_wr) ? field_storage.IOWIN.data.value : '0;
@@ -596,6 +598,7 @@ module ioapic_regs (
     assign readback_array[53][31:1] = (decoded_reg_strb.IOAPICARBCFG && !decoded_req_is_wr) ? 31'h0 : '0;
     assign readback_array[54][31:0] = (decoded_reg_strb.IOAPICMSIADDR && !decoded_req_is_wr) ? field_storage.IOAPICMSIADDR.addr.value : '0;
     assign readback_array[55][31:0] = (decoded_reg_strb.IOAPICMSIDATA && !decoded_req_is_wr) ? field_storage.IOAPICMSIDATA.data.value : '0;
+    assign readback_array[56][31:0] = (decoded_reg_strb.IOAPICMSIDROP && !decoded_req_is_wr) ? hwif_in.IOAPICMSIDROP.count.next : '0;
 
     // Reduce the array
     always_comb begin
@@ -603,7 +606,7 @@ module ioapic_regs (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<56; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<57; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

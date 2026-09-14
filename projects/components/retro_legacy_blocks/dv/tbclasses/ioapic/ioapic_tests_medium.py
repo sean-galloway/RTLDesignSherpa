@@ -767,6 +767,99 @@ class IOAPICMediumTests:
     # Defect 6: two divergent IOREGSEL copies
     # =========================================================================
 
+    async def test_msi_drop_counter_counts_events_not_cycles(self) -> bool:
+        """RLB-008: IOAPICMSIDROP counts late refusals, ONCE each.
+
+        Sean, 2026-09-14: "Silently drop is bad. We at least need to count
+        when that happens." This is that counter's own test.
+
+        WHY IT LIVES HERE and not in the MSI seam suite: ioapic_msi_emit ties
+        rsp_ready high, so rsp_valid -- and therefore deliv_retry -- is ONE
+        cycle wide. That stimulus cannot tell an edge-detected counter from
+        one that counts cycles. Measured, not assumed: deleting the
+        `!r_drop_event_d` term from ioapic_core leaves the MSI seam test
+        green. The bare-block harness drives irq_out_retry from Python, so it
+        can hold a refusal high for several cycles, which is the only
+        stimulus that separates the two.
+
+        WHAT THE COUNTER MEANS, precisely: rising edges of
+        (irq_out_retry && !delivery handshake). For a PULSE-shaped refusal --
+        the MSI case, one pulse per refused write -- that is exactly one
+        count per dropped message, which is the requirement. A consumer that
+        holds retry high continuously across many offers is a different
+        shape: each completed handshake momentarily clears the term and so
+        starts a new edge. That is not the MSI path and is deliberately not
+        claimed here.
+        """
+        self.log.info("TEST MED-9: IOAPICMSIDROP counts events, not cycles")
+
+        try:
+            await self.tb.reset_dut()
+            # reset_dut drives irq_out_ready but NOT irq_out_retry, so set it
+            # explicitly rather than inherit whatever the last test left.
+            self.tb.dut.irq_out_ready.value = 0
+            self.tb.dut.irq_out_retry.value = 0
+            await ClockCycles(self.tb.pclk, 5)
+
+            checks = 0
+
+            base = await self.tb.read_ioapic_register(
+                IOAPICRegisterMap.OFFSET_MSIDROP)
+            if base != 0:
+                self.log.error(
+                    f"  after reset IOAPICMSIDROP = {base}, want 0")
+                return False
+            checks += 1
+            self.log.info("  baseline after reset: 0")
+
+            # One refusal, held FIVE cycles, with no handshake in progress.
+            # Edge-detected: exactly 1. Counting cycles: 5.
+            self.tb.dut.irq_out_retry.value = 1
+            await ClockCycles(self.tb.pclk, 5)
+            self.tb.dut.irq_out_retry.value = 0
+            await ClockCycles(self.tb.pclk, 5)
+
+            n1 = await self.tb.read_ioapic_register(
+                IOAPICRegisterMap.OFFSET_MSIDROP)
+            if n1 != 1:
+                why = ("never counted" if n1 == 0
+                       else "counting CYCLES, not events")
+                self.log.error(
+                    f"  a 5-cycle refusal counted {n1}, want 1 -- {why}")
+                return False
+            checks += 1
+            self.log.info("  5-cycle refusal counted once")
+
+            # A second, shorter refusal. Proves the counter advances rather
+            # than sticking at 1 -- a counter pinned at its first value would
+            # pass the check above and be useless.
+            self.tb.dut.irq_out_retry.value = 1
+            await ClockCycles(self.tb.pclk, 3)
+            self.tb.dut.irq_out_retry.value = 0
+            await ClockCycles(self.tb.pclk, 5)
+
+            n2 = await self.tb.read_ioapic_register(
+                IOAPICRegisterMap.OFFSET_MSIDROP)
+            if n2 != 2:
+                self.log.error(
+                    f"  after a second refusal IOAPICMSIDROP = {n2}, want 2 "
+                    "-- the counter is not advancing per event")
+                return False
+            checks += 1
+            self.log.info("  second refusal counted: 2")
+
+            if checks == 0:
+                self.log.error("  no checks performed -- vacuous pass refused")
+                return False
+
+            self.log.info(
+                f"IOAPICMSIDROP event counting GREEN ({checks} checks)")
+            return True
+
+        except Exception as e:
+            self.log.error(f"MSI drop-counter test error: {e}")
+            return False
+
     async def test_ioregsel_invalid_selector_readback(self) -> bool:
         """
         GitHub #48 qc round_2 item 2: the functional address-translation

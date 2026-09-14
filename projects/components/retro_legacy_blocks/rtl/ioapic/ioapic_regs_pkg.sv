@@ -5,7 +5,7 @@ package ioapic_regs_pkg;
 
     localparam IOAPIC_REGS_DATA_WIDTH = 32;
     localparam IOAPIC_REGS_MIN_ADDR_WIDTH = 8;
-    localparam IOAPIC_REGS_SIZE = 'he0;
+    localparam IOAPIC_REGS_SIZE = 'he4;
 
     typedef struct {
         logic [31:0] next;
@@ -41,9 +41,18 @@ package ioapic_regs_pkg;
     } ioapic_regs__redirection_entry__in_t;
 
     typedef struct {
+        logic [31:0] next;
+    } ioapic_regs__IOAPICMSIDROP__count__in_t;
+
+    typedef struct {
+        ioapic_regs__IOAPICMSIDROP__count__in_t count;
+    } ioapic_regs__IOAPICMSIDROP__in_t;
+
+    typedef struct {
         ioapic_regs__IOWIN__in_t IOWIN;
         ioapic_regs__IOAPICARB__in_t IOAPICARB;
         ioapic_regs__redirection_entry__in_t IOREDTBL[24];
+        ioapic_regs__IOAPICMSIDROP__in_t IOAPICMSIDROP;
     } ioapic_regs__in_t;
 
     typedef struct {

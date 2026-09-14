@@ -232,6 +232,7 @@ module apb4_ioapic #(
     logic        w_status_deliv_status [NUM_IRQS];
     logic        w_status_remote_irr   [NUM_IRQS];
     logic [3:0]  w_status_arb_id;
+    logic [31:0] w_status_drop_count;
 
     // LAPIC-facing delivery, on the ioapic_clk side of the crossing
     logic        w_core_irq_valid;
@@ -379,8 +380,87 @@ module apb4_ioapic #(
         // Status inputs from core
         .status_deliv_status(w_status_deliv_status),
         .status_remote_irr  (w_status_remote_irr),
-        .status_arb_id      (w_status_arb_id)
+        .status_arb_id      (w_status_arb_id),
+        .status_drop_count  (w_status_drop_count)
     );
+
+    // ========================================================================
+    // Dropped-delivery counter (RLB-008)
+    // ========================================================================
+    //
+    // WHERE THIS LIVES, AND WHY NOT IN THE CORE. The event is a refusal that
+    // arrives with NO delivery handshake in progress -- the posted-MSI case,
+    // where ioapic_msi_emit's deliv_ready is the master's cmd_ready, so the
+    // handshake closes when the write is QUEUED and PSLVERR comes back later.
+    // That is only visible on the PCLK pins. The core cannot see it at
+    // CDC_ENABLE=1: w_core_irq_retry is r_p_retry, captured in the same cycle
+    // as the ack and quasi-static from there (the retry answer belongs to its
+    // handshake and must not be crossed on its own), so a late refusal never
+    // reaches the core at all. Measured, not theorised: a counter placed in
+    // the core read 0 in both CDC cells while reading 1 in the same-clock
+    // ones.
+    //
+    // sync_pulse was REJECTED for this crossing. It is toggle-based with a
+    // rate contract (see the LAPIC note below): two pulses inside one
+    // destination sample window cancel, and BOTH are lost silently. A
+    // counter whose whole purpose is that drops not be silent must not be
+    // built on a primitive that silently drops. A monotonic count crossed
+    // gray-coded has no such contract -- a saturating +1 changes exactly one
+    // gray bit, which is the condition that makes a gray crossing safe.
+    logic        w_drop_event_p;
+    logic        r_drop_event_p_d;
+    logic [31:0] r_drop_count_p;
+
+    assign w_drop_event_p =
+        irq_out_retry && !(irq_out_valid && irq_out_ready);
+
+    `ALWAYS_FF_RST(pclk, presetn,
+        if (`RST_ASSERTED(presetn)) begin
+            r_drop_event_p_d <= 1'b0;
+            r_drop_count_p   <= 32'h0;
+        end else begin
+            r_drop_event_p_d <= w_drop_event_p;
+            // Edge-detected: irq_out_retry is a LEVEL, so counting every
+            // cycle it is high would score one refusal as several.
+            // Saturating: a wrapped count reading 3 after four billion
+            // drops is worse than one pinned at its maximum, because the
+            // small number looks like good news.
+            if (w_drop_event_p && !r_drop_event_p_d &&
+                (r_drop_count_p != 32'hFFFF_FFFF)) begin
+                r_drop_count_p <= r_drop_count_p + 32'h1;
+            end
+        end
+    )
+
+    generate
+        if (CDC_ENABLE != 0) begin : g_drop_count_cdc
+            logic [31:0] w_drop_gray;
+            logic [31:0] w_drop_gray_sync;
+
+            bin2gray #(.WIDTH(32)) u_drop_bin2gray (
+                .binary (r_drop_count_p),
+                .gray   (w_drop_gray)
+            );
+
+            glitch_free_n_dff_arn #(
+                .FLOP_COUNT (3),
+                .WIDTH      (32)
+            ) u_drop_sync (
+                .clk   (ioapic_clk),
+                .rst_n (ioapic_resetn),
+                .d     (w_drop_gray),
+                .q     (w_drop_gray_sync)
+            );
+
+            gray2bin #(.WIDTH(32)) u_drop_gray2bin (
+                .gray   (w_drop_gray_sync),
+                .binary (w_status_drop_count)
+            );
+        end else begin : g_drop_count_same_clk
+            // pclk IS the register block's clock here, so nothing to cross.
+            assign w_status_drop_count = r_drop_count_p;
+        end
+    endgenerate
 
     // ========================================================================
     // LAPIC Interface Clock Domain Crossing

@@ -68,10 +68,11 @@ PSLVERR is an IOWIN access with an unmapped selector, described next.
 - 0x03: IOAPICARBCFG (NOT an 82093AA register -- see below)
 - 0x04: IOAPICMSIADDR (NOT an 82093AA register -- see below)
 - 0x05: IOAPICMSIDATA (NOT an 82093AA register -- see below)
+- 0x06: IOAPICMSIDROP (NOT an 82093AA register -- see below)
 - 0x10-0x3F: IOREDTBL entries (even=LO, odd=HI)
 
 **Unmapped selector values are stored, readable, and inert.** A selector in
-0x06-0x0F or at or above 0x40 is accepted by IOREGSEL and reads back as
+0x07-0x0F or at or above 0x40 is accepted by IOREGSEL and reads back as
 written (there is exactly one copy of the selector - the register block's
 `regsel` field drives both readback and the IOWIN translation, and byte
 strobes are honoured by the register block). An IOWIN access made while the
@@ -246,6 +247,35 @@ fixed data bits can be changed at runtime, which is what a driver expects.
 delivery channel as `deliv_retry`, so a refused MSI is re-offered by the same
 path that handles a LAPIC refusing a LowestPriority message. Timing stays
 posted: the write is issued and the response consumed when it arrives.
+
+#### IOAPICMSIDROP Register (Internal Offset 0x06)
+
+**NOT an 82093AA register.** Selector 0x06 is reserved on the real part, the
+same treatment as IOAPICARBCFG and the MSI address/data pair.
+
+**Read-only, hardware-owned, saturating.** It counts refused deliveries that
+could NOT be acted on -- `irq_out_retry` asserting while no delivery handshake
+is in progress.
+
+| Bits | Name | Type | Reset | Description |
+| --- | --- | --- | --- | --- |
+| [31:0] | count | RO | 0x00000000 | Saturating count of refusals that arrived too late to act on |
+
+**What it does and does not count.** A consumer that refuses DURING the
+handshake is re-offered by the core and is not counted: nothing was lost.
+`ioapic_lowest_pri_arb` is combinational, so its refusals land in that
+category. A refusal that arrives afterwards cannot be acted on, because the
+core qualifies retry at the handshake -- by then the edge has been retired as
+accepted and the interrupt is gone.
+
+That is exactly the posted-MSI case: `ioapic_msi_emit` derives `deliv_ready`
+from the master's `cmd_ready`, so the handshake closes when the write is
+QUEUED, while PSLVERR comes back later -- always too late. Such an MSI is
+dropped. This register is what makes that visible rather than silent.
+
+It **saturates** at 0xFFFFFFFF rather than wrapping. A wrapped count reading 3
+after four billion drops is worse than one pinned at its maximum, because the
+small number looks like good news.
 
 ### Redirection Table (Internal Offsets 0x10-0x3F)
 

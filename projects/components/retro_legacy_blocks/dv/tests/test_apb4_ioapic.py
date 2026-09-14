@@ -105,6 +105,12 @@ async def ioapic_test(dut):
         ('GH48 C1 Edge Double-Delivery Count', medium_tests.test_c1_edge_double_delivery_count),
         ('GH48 C1 No Park After Single Ready Pulse', medium_tests.test_c1_no_park_after_single_ready_pulse),
         ('GH48 IOREGSEL Invalid-Selector Readback', medium_tests.test_ioregsel_invalid_selector_readback),
+        # RLB-008: the drop counter. Here rather than in the MSI seam suite
+        # because only this harness can hold irq_out_retry high for several
+        # cycles, which is what separates an edge-detected counter from one
+        # that counts cycles.
+        ('RLB-008 IOAPICMSIDROP event counting',
+         medium_tests.test_msi_drop_counter_counts_events_not_cycles),
         ('GH48 Address Decode No Aliasing >= 0x100', medium_tests.test_address_decode_no_aliasing_above_0x100),
         # Review finding M1: in-window backdoor (0x008-0x0FF), expected RED
         ('GH48 M1 APB In-Window Backdoor Dropped With PSLVERR', medium_tests.test_apb_backdoor_dropped_with_slverr),

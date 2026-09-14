@@ -304,15 +304,67 @@ deliv_retry. The mistake was in the emitter's comment claiming retry is
 irq_out_retry by the delivery handshake": they are two DIFFERENT handshakes,
 and only one of them is the one ioapic_core samples.
 
-This follows from the posted timing decision (Sean, 2026-09-14), so the three
-ways out are his call, not a bug fix:
-  1. Accept it. MSI delivery is fire-and-forget; document deliv_retry as inert
-     in this configuration. Cheapest, and consistent with "posted".
-  2. Make the emitter NON-POSTED: hold deliv_ready until the response returns,
-     so the handshake and the response coincide and retry works as designed.
-     This reverses the posted decision.
-  3. Keep posted and give the emitter its own re-offer path, which means adding
-     state to a deliberately combinational module.
+**RESOLVED 2026-09-14, Sean: "Silently drop is bad. We at least need to count
+when that happens."** The write stays posted and the refusal still cannot be
+re-offered -- but the drop is no longer invisible.
+
+`IOAPICMSIDROP` at IOWIN selector 0x06 (regblock 0xE0), read-only and
+hardware-owned, counts refused deliveries that could NOT be acted on:
+`irq_out_retry` asserting while no delivery handshake is in progress.
+
+IT LIVES IN PCLK, in apb4_ioapic, not in ioapic_core -- and the first attempt
+put it in the core, which MED-9 caught. At CDC_ENABLE=1 the core's retry input
+is `r_p_retry`, captured in the same cycle as the ack and quasi-static from
+there (the retry answer belongs to its handshake and must not be crossed on
+its own), so a LATE refusal never reaches the core at all. Measured: the
+core-side counter read 0 in both CDC cells while reading 1 in the same-clock
+ones -- i.e. it silently failed to count exactly the drops it exists for, in
+the dual-clock build. The event is only observable on the pclk pins, so that
+is where it is detected and counted.
+
+The count crosses into the register block's domain GRAY-CODED
+(bin2gray -> glitch_free_n_dff_arn -> gray2bin) when CDC_ENABLE=1, and is a
+plain wire when it is 0. sync_pulse was rejected: it is toggle-based with a
+rate contract, and two pulses inside one destination sample window cancel so
+BOTH are lost silently. A counter whose purpose is that drops not be silent
+must not be built on a primitive that silently drops. A saturating +1 changes
+exactly one gray bit, which is what makes the gray crossing safe here.
+
+Three details that are load-bearing rather than decorative:
+  - EDGE-DETECTED. irq_out_retry is a level, so counting every cycle it is
+    high would score one refusal as several. The DV test asserts EXACTLY 1
+    after exactly one refusal, so a broken edge detect fails it; `>= 1` would
+    not have.
+  - SATURATING at 0xFFFFFFFF. A wrapped count reading 3 after four billion
+    drops is worse than one pinned at maximum, because the small number looks
+    like good news.
+  - A consumer that refuses DURING the handshake -- ioapic_lowest_pri_arb,
+    being combinational -- is re-offered by the core and is NOT counted on
+    that cycle. Nothing was lost there, so counting it would make the
+    register mean two different things.
+
+WHAT IT COUNTS, stated exactly, because the loose version is wrong: RISING
+EDGES of (irq_out_retry && !delivery-handshake). For a PULSE-shaped refusal --
+the MSI case, one pulse per refused write, because ioapic_msi_emit ties
+rsp_ready high so rsp_valid is one cycle -- that is exactly one count per
+dropped message, which is the requirement. A consumer that holds retry high
+CONTINUOUSLY across many offers is a different shape: each completed handshake
+momentarily clears the term and starts a fresh edge, so the count tracks
+offers rather than drops. That is not the MSI path and is deliberately not
+claimed.
+
+Qualifying the event with `r_out_valid` was considered and REJECTED: by the
+time a posted write's PSLVERR returns, the core has moved on and r_out_valid
+is low, so the qualified form would stop counting the very drops this register
+exists for.
+
+TESTED in two places, because neither alone is enough. The MSI seam test
+asserts the count is EXACTLY 1 after one refused write (0 = uncounted, >1 =
+counting cycles). But the emitter's retry is one cycle wide, so that test
+cannot see the edge detect: deleting `!r_drop_event_d` from ioapic_core leaves
+it GREEN -- measured. So `ioapic_tests_medium.test_msi_drop_counter_counts_
+events_not_cycles` (MED-9) holds retry high for five cycles in the bare-block
+harness, where the TB owns the pin, and asserts 1 rather than 5.
 
 The DV test deliberately does NOT assert the absence of a re-offer -- that
 would freeze the current behaviour into a contract. It asserts the refusal

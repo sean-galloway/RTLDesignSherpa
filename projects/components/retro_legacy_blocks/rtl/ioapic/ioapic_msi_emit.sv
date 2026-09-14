@@ -154,8 +154,20 @@ module ioapic_msi_emit #(
     // able to back up into the delivery path.
     assign rsp_ready = 1'b1;
 
-    // Qualified by the response handshake, exactly as ioapic_core qualifies
-    // irq_out_retry by the delivery handshake.
+    // Qualified by the RESPONSE handshake -- which is NOT the handshake
+    // ioapic_core samples. This comment used to claim they were the same, and
+    // that error is the whole of RLB-008's posted-timing finding: deliv_ready
+    // is cmd_ready, so the DELIVERY handshake closes when the write queues,
+    // while this response arrives strictly later. ioapic_core evaluates
+    // w_deliv_accept = w_deliv_done && !irq_out_retry AT the delivery
+    // handshake, where retry is still low, so it retires the edge as accepted
+    // and a refusal raised here can no longer be acted on.
+    //
+    // Accepted behaviour while the write is posted (Sean, 2026-09-14),
+    // but it is not silent: ioapic_core counts every such late refusal into
+    // IOAPICMSIDROP (IOWIN selector 0x06), so a dropped MSI is visible to
+    // software. Two signals both being "qualified by a handshake" does not
+    // make it the same handshake.
     assign deliv_retry = rsp_valid && w_rsp_pslverr;
 
     // ------------------------------------------------------------------

@@ -296,16 +296,34 @@ class IOAPICMsiTests:
                 self.log.error("  no checks performed -- vacuous pass refused")
                 return False
 
-            # The gap, measured rather than assumed. Not an assertion: see the
-            # docstring. If this ever becomes non-zero the design changed and
-            # RLB-008's open question has been answered.
+            # The drop is no longer silent: IOAPICMSIDROP counts it (Sean,
+            # 2026-09-14). Read it back over APB -- that also proves the whole
+            # core -> status -> hwif_in -> IOWIN path, not just the counter.
+            drops = await self.tb.read_ioapic_register(
+                IOAPICRegisterMap.OFFSET_MSIDROP)
+            # EXACTLY one. The test arms once and is refused once, so a count
+            # of 0 means the drop went uncounted and anything above 1 means the
+            # counter is not edge-detecting -- irq_out_retry is a level, so a
+            # broken edge detect scores one refusal as several. `>= 1` would
+            # pass in that second case, which would leave the edge detect
+            # unproven.
+            if drops != 1:
+                self.log.error(
+                    f"  IOAPICMSIDROP reads {drops} after exactly one refused "
+                    "MSI -- expected 1 (0 = the drop went uncounted, >1 = the "
+                    "counter is counting cycles, not events)")
+                return False
+            checks += 1
+            self.log.info(f"  IOAPICMSIDROP = {drops} (the drop was counted)")
+
             if self.tb.retry_at_handshake == 0:
                 self.log.warning(
                     "  RLB-008 posted-timing gap: deliv_retry asserted "
                     f"{self.tb.retry_asserts} time(s) but NEVER at the delivery "
                     "handshake, so ioapic_core retired the edge as accepted "
-                    "and the refused MSI is not re-offered. deliv_retry is "
-                    "inert while the write is posted.")
+                    "and the refused MSI is not re-offered. It is COUNTED "
+                    f"({drops}) rather than silent, which is the agreed "
+                    "treatment while the write stays posted.")
             else:
                 self.log.info(
                     f"  retry coincided with the handshake "

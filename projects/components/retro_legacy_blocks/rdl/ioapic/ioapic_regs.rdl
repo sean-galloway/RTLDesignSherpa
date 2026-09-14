@@ -388,4 +388,42 @@ addrmap ioapic_regs {
 
     } IOAPICMSIDATA @ 0xDC;
 
+    reg {
+        name = "MSI Dropped-Delivery Count";
+        desc = "Saturating count of refused deliveries that could NOT be acted
+                on (accessed at offset 0x06 via IOWIN). NOT an 82093AA
+                register: selector 0x06 is reserved on the real part, the same
+                treatment as IOAPICARBCFG and the MSI address/data pair.
+
+                WHAT IT COUNTS, precisely: irq_out_retry asserting while no
+                delivery handshake is in progress. A consumer that refuses
+                DURING the handshake -- as ioapic_lowest_pri_arb does, being
+                combinational -- is re-offered by the core and is NOT counted,
+                because nothing was lost. A refusal that arrives afterwards
+                cannot be acted on: ioapic_core qualifies retry at the
+                handshake (w_deliv_accept = w_deliv_done && !irq_out_retry), so
+                by the time a late retry arrives the edge has already been
+                retired as accepted and the interrupt is gone.
+
+                That is the posted-MSI case. ioapic_msi_emit's deliv_ready is
+                the master's cmd_ready, so the handshake closes when the write
+                is QUEUED, while PSLVERR comes back later -- always too late.
+                Without this counter those drops are invisible, which is the
+                reason the register exists (Sean, 2026-09-14: 'silently drop is
+                bad, we at least need to count when that happens').
+
+                SATURATES at 0xFFFFFFFF rather than wrapping. A wrapped count
+                reading 3 after four billion drops is worse than one pinned at
+                its maximum, because the small number looks like good news.";
+
+        field {
+            name = "Dropped Deliveries";
+            desc = "Saturating count of refusals that arrived too late to be
+                    acted on. Read-only; hardware owns it.";
+            sw = r;
+            hw = w;
+        } count[31:0];
+
+    } IOAPICMSIDROP @ 0xE0;
+
 };

@@ -75,6 +75,9 @@ class IOAPICRegisterMap:
     # the hand-maintained mirror of the RDL and must be updated with it.
     OFFSET_MSIADDR = 0x04    # IOAPICMSIADDR, regblock 0xD8
     OFFSET_MSIDATA = 0x05    # IOAPICMSIDATA, regblock 0xDC
+    # Saturating count of refusals that arrived too late to be acted on.
+    # Read-only; hardware owns it.
+    OFFSET_MSIDROP = 0x06    # IOAPICMSIDROP, regblock 0xE0
 
     # Redirection table base (internal offset)
     OFFSET_IOREDTBL_BASE = 0x10  # First redirection entry

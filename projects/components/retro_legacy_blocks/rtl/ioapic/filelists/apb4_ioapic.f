@@ -25,6 +25,11 @@
 # LAPIC interface crossing (CDC_ENABLE=1): request level + accept/EOI pulses
 -f $REPO_ROOT/rtl/cdc/filelists/sync_pulse.f
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_synchronizer.f
+# Gray encode/decode for the dropped-delivery counter's crossing at
+# CDC_ENABLE=1. A monotonic count crosses gray-coded rather than through
+# sync_pulse, whose toggle rate contract loses BOTH of two close pulses.
+-f $REPO_ROOT/rtl/cdc/filelists/bin2gray.f
+-f $REPO_ROOT/rtl/cdc/filelists/gray2bin.f
 
 # PeakRDL adapter
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
