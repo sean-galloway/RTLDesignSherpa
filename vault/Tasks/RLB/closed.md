@@ -81,6 +81,49 @@ with dated comments.
 
 ---
 
+## RLB-004 — Triage & fix the RTL bugs found by the MAS/RTL review
+**Status:** closed 2026-09-14
+
+The 9 `bug`-labeled issues from RLB-001, all fixed and all CLOSED on GitHub:
+#44 gpio, #46 hpet, #48 ioapic, #50 pic_8259, #52 pit_8254, #54 pm_acpi,
+#56 rtc, #58 smbus, #60 uart_16550, plus tracking #61.
+
+This entry sat in `active` claiming "awaiting owner design decisions, not
+started in RTL" for four days after the work had landed. It was STALE, not
+paused: the fixes went in 2026-09-10/11 with commit references recorded in
+[[RLB-008]], [[RLB-010]], [[RLB-011]], [[RLB-012]] and [[RLB-013]], and the
+issues were closed at the same time. A tracker that claims active work which
+is finished is worse than no tracker, because nobody re-reads it.
+
+**Verified green today, not taken on trust.** A clean
+`make clean-all && make run-all-full-parallel` across all nine blocks at
+REG_LEVEL=FULL: **63 passed, 0 failed** in 343.60s.
+
+pm_acpi was re-checked specifically, because a long-running agent reported it
+"17/21 green with 4 genuine RED findings". That report was a stale snapshot of
+a tree that moved under it (the agent ran ~119 hours; its files date 09-09 to
+09-11). The GH#54 suite runs and passes 21/21 -- 21 distinct PASS strings, each
+in 4 of the 6 cells, the gate-level cells not running it by design -- including
+all four tests it named. The RTL it described as pending had already landed:
+`pm_acpi_core.sv` edge-detects `cfg_sys_reset` (904/910/1268) because
+`peakrdl_to_cmdrsp` holds `regblk_req` for the accept cycle plus one, so a
+`singlepulse` field otherwise asserts for two cycles. Same mechanism and same
+remedy as rapids' kick refactor -- worth knowing it bites in both components.
+
+**What stays open is not a defect:** [[RLB-008]] (ioapic -- LowestPriority is
+delegated by Sean's call; multi-IOAPIC routing, boot-interrupt delivery and MSI
+are scoped out) and [[RLB-010]] (rtc -- the combinational clock mux is
+DELIBERATELY not fixed and documented as a constraint). The one genuine open
+work item anywhere in RLB is RLB-010's "no formal area exists for
+retro_legacy_blocks".
+
+**Owner decision still outstanding:** this entry also claimed several unpushed
+RLB-001/002 doc-fix commits sit on branch `dmas-reorg-and-stream-perf`. No such
+branch exists locally and the tree is on `main`, so that needs the owner's
+disposition rather than an agent's guess.
+
+---
+
 ## RLB-005 — Clean up rtc wavedrom README third register-map copy
 **Status:** closed 2026-09-08
 
