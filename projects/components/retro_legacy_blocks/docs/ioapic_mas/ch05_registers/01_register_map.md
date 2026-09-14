@@ -66,10 +66,12 @@ PSLVERR is an IOWIN access with an unmapped selector, described next.
 - 0x01: IOAPICVER
 - 0x02: IOAPICARB
 - 0x03: IOAPICARBCFG (NOT an 82093AA register -- see below)
+- 0x04: IOAPICMSIADDR (NOT an 82093AA register -- see below)
+- 0x05: IOAPICMSIDATA (NOT an 82093AA register -- see below)
 - 0x10-0x3F: IOREDTBL entries (even=LO, odd=HI)
 
 **Unmapped selector values are stored, readable, and inert.** A selector in
-0x04-0x0F or at or above 0x40 is accepted by IOREGSEL and reads back as
+0x06-0x0F or at or above 0x40 is accepted by IOREGSEL and reads back as
 written (there is exactly one copy of the selector - the register block's
 `regsel` field drives both readback and the IOWIN translation, and byte
 strobes are honoured by the register block). An IOWIN access made while the
@@ -192,6 +194,58 @@ becomes a position in the rotation rather than an IRQ number.
 The pointer moves only on an accept. A pick the consumer never takes must not
 move it, or a stalled consumer would walk the rotation round the ring without
 delivering anything.
+
+#### IOAPICMSIADDR / IOAPICMSIDATA Registers (Internal Offsets 0x04, 0x05)
+
+**NOT 82093AA registers.** Selectors 0x04 and 0x05 are reserved on the real
+part -- the same treatment as IOAPICARBCFG. Software written for the 82093AA
+never writes them, and at their reset value of 0 nothing observes them.
+
+They exist because an MSI is, in the end, just a write to an address. The
+delivery channel already carries a message; the `ioapic_msi_emit` companion
+turns that message into a posted write, and these two registers hold the parts
+of the write the message itself does not carry. Nothing in `apb4_ioapic`
+consumes them: they leave the block as `cfg_msi_addr` and `cfg_msi_data`, and
+if the companion is not instantiated they are inert storage.
+
+**Access via IOREGSEL/IOWIN:**
+```c
+*IOREGSEL = 0x04;         // Select IOAPICMSIADDR
+*IOWIN = 0xFEE00000;      // x86 local-APIC message region
+
+*IOREGSEL = 0x05;         // Select IOAPICMSIDATA
+*IOWIN = 0x00000000;      // template; the message fills in the low bits
+```
+
+| Bits | Name | Type | Reset | Description |
+| --- | --- | --- | --- | --- |
+| [31:0] | addr | RW | 0x00000000 | IOAPICMSIADDR. Target address; [19:12] are replaced by the message destination |
+
+| Bits | Name | Type | Reset | Description |
+| --- | --- | --- | --- | --- |
+| [31:0] | data | RW | 0x00000000 | IOAPICMSIDATA. Data template; [11:0] are replaced by the message fields |
+
+**What the message overwrites.** The companion passes both registers through
+except for the bits the delivery message defines:
+
+| Field | Source |
+| --- | --- |
+| addr[19:12] | destination |
+| addr, all other bits | IOAPICMSIADDR |
+| data[7:0] | vector |
+| data[10:8] | delivery mode |
+| data[11] | destination mode |
+| data[31:12] | IOAPICMSIDATA |
+
+That split is the x86 convention and it is a DEFAULT, not a requirement --
+nothing in the 82093AA dictates an MSI format. It is expressed as two
+programmable registers rather than parameters so the target address and the
+fixed data bits can be changed at runtime, which is what a driver expects.
+
+**Refusal comes back as retry.** The posted write's PSLVERR is returned on the
+delivery channel as `deliv_retry`, so a refused MSI is re-offered by the same
+path that handles a LAPIC refusing a LowestPriority message. Timing stays
+posted: the write is issued and the response consumed when it arrives.
 
 ### Redirection Table (Internal Offsets 0x10-0x3F)
 

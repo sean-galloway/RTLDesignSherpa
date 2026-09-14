@@ -96,7 +96,12 @@ module ioapic_lowest_pri_arb_tb_top #(
         .irq_out_ready      (irq_out_ready),
         .irq_out_retry      (irq_out_retry),
         .eoi_in             (eoi_in),
-        .eoi_vector         (eoi_vector)
+        .eoi_vector         (eoi_vector),
+        // MSI config outputs (RLB-008): this harness exercises the
+        // delivery channel, not MSI. Explicit and open -- omitting them
+        // entirely is PINMISSING.
+        .cfg_msi_addr       (),
+        .cfg_msi_data       ()
     );
 
     // The consumer half. Combinational, so the handshake closes in the same

@@ -658,7 +658,13 @@ module rlb_top #(
         .irq_out_ready    (ioapic_irq_out_ready),
         .irq_out_retry    (ioapic_irq_out_retry),
         .eoi_in           (ioapic_eoi_in),
-        .eoi_vector       (ioapic_eoi_vector)
+        .eoi_vector       (ioapic_eoi_vector),
+        // MSI config (RLB-008). Software can program these through
+        // IOWIN, but rlb_top does not yet instantiate ioapic_msi_emit,
+        // so nothing here consumes them. Connected explicitly and left
+        // open: omitting the pins is PINMISSING, which is how it hides.
+        .cfg_msi_addr     (),
+        .cfg_msi_data     ()
     );
 
     // GPIO Controller

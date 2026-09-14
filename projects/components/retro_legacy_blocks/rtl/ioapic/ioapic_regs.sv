@@ -76,6 +76,8 @@ module ioapic_regs (
             logic REDIR_HI;
         } IOREDTBL[24];
         logic IOAPICARBCFG;
+        logic IOAPICMSIADDR;
+        logic IOAPICMSIDATA;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
     logic decoded_req;
@@ -94,6 +96,8 @@ module ioapic_regs (
             decoded_reg_strb.IOREDTBL[i0].REDIR_HI = cpuif_req_masked & (cpuif_addr == 8'h18 + (8)'(i0) * 8'h8);
         end
         decoded_reg_strb.IOAPICARBCFG = cpuif_req_masked & (cpuif_addr == 8'hd4);
+        decoded_reg_strb.IOAPICMSIADDR = cpuif_req_masked & (cpuif_addr == 8'hd8);
+        decoded_reg_strb.IOAPICMSIDATA = cpuif_req_masked & (cpuif_addr == 8'hdc);
     end
 
     // Pass down signals to next stage
@@ -164,6 +168,18 @@ module ioapic_regs (
                 logic load_next;
             } rr_enable;
         } IOAPICARBCFG;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } addr;
+        } IOAPICMSIADDR;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } data;
+        } IOAPICMSIDATA;
     } field_combo_t;
     field_combo_t field_combo;
 
@@ -215,6 +231,16 @@ module ioapic_regs (
                 logic value;
             } rr_enable;
         } IOAPICARBCFG;
+        struct {
+            struct {
+                logic [31:0] value;
+            } addr;
+        } IOAPICMSIADDR;
+        struct {
+            struct {
+                logic [31:0] value;
+            } data;
+        } IOAPICMSIDATA;
     } field_storage_t;
     field_storage_t field_storage;
 
@@ -476,6 +502,52 @@ module ioapic_regs (
         end
     end
     assign hwif_out.IOAPICARBCFG.rr_enable.value = field_storage.IOAPICARBCFG.rr_enable.value;
+    // Field: ioapic_regs.IOAPICMSIADDR.addr
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.IOAPICMSIADDR.addr.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.IOAPICMSIADDR && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.IOAPICMSIADDR.addr.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.IOAPICMSIADDR.addr.next = next_c;
+        field_combo.IOAPICMSIADDR.addr.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.IOAPICMSIADDR.addr.value <= 32'h0;
+        end else begin
+            if(field_combo.IOAPICMSIADDR.addr.load_next) begin
+                field_storage.IOAPICMSIADDR.addr.value <= field_combo.IOAPICMSIADDR.addr.next;
+            end
+        end
+    end
+    assign hwif_out.IOAPICMSIADDR.addr.value = field_storage.IOAPICMSIADDR.addr.value;
+    // Field: ioapic_regs.IOAPICMSIDATA.data
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.IOAPICMSIDATA.data.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.IOAPICMSIDATA && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.IOAPICMSIDATA.data.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.IOAPICMSIDATA.data.next = next_c;
+        field_combo.IOAPICMSIDATA.data.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.IOAPICMSIDATA.data.value <= 32'h0;
+        end else begin
+            if(field_combo.IOAPICMSIDATA.data.load_next) begin
+                field_storage.IOAPICMSIDATA.data.value <= field_combo.IOAPICMSIDATA.data.next;
+            end
+        end
+    end
+    assign hwif_out.IOAPICMSIDATA.data.value = field_storage.IOAPICMSIDATA.data.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -493,7 +565,7 @@ module ioapic_regs (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[54];
+    logic [31:0] readback_array[56];
     assign readback_array[0][7:0] = (decoded_reg_strb.IOREGSEL && !decoded_req_is_wr) ? field_storage.IOREGSEL.regsel.value : '0;
     assign readback_array[0][31:8] = (decoded_reg_strb.IOREGSEL && !decoded_req_is_wr) ? 24'h0 : '0;
     assign readback_array[1][31:0] = (decoded_reg_strb.IOWIN && !decoded_req_is_wr) ? field_storage.IOWIN.data.value : '0;
@@ -522,6 +594,8 @@ module ioapic_regs (
     end
     assign readback_array[53][0:0] = (decoded_reg_strb.IOAPICARBCFG && !decoded_req_is_wr) ? field_storage.IOAPICARBCFG.rr_enable.value : '0;
     assign readback_array[53][31:1] = (decoded_reg_strb.IOAPICARBCFG && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[54][31:0] = (decoded_reg_strb.IOAPICMSIADDR && !decoded_req_is_wr) ? field_storage.IOAPICMSIADDR.addr.value : '0;
+    assign readback_array[55][31:0] = (decoded_reg_strb.IOAPICMSIDATA && !decoded_req_is_wr) ? field_storage.IOAPICMSIDATA.data.value : '0;
 
     // Reduce the array
     always_comb begin
@@ -529,7 +603,7 @@ module ioapic_regs (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<54; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<56; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

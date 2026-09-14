@@ -50,8 +50,12 @@
 //       0x008 rewrote IOAPICID and one to 0x014 rewrote IOREDTBL[0].REDIR_LO,
 //       bypassing the indirect mechanism entirely. There is no pass-through
 //       default any more: the only direct access is IOREGSEL itself.
-//     - An IOWIN access while the selector is unmapped (not 0x00-0x02 and not
-//       0x10-0x3F). These do NOT raise PSLVERR: the address is legal, the
+//     - An IOWIN access while the selector is unmapped. The mapped set is the
+//       SEL_* list below and has grown twice past the 82093AA's: 0x00-0x02
+//       (ID/VER/ARB), 0x03 (ARBCFG), 0x04-0x05 (MSI addr/data) and 0x10-0x3F
+//       (IOREDTBL). This sentence used to enumerate "0x00-0x02 and 0x10-0x3F"
+//       and went stale at the first addition; the SEL_* localparams are the
+//       only authority. These do NOT raise PSLVERR: the address is legal, the
 //       selector merely names a register the 82093AA does not implement, and
 //       the architectural answer there is a read of zero. The selector itself
 //       is unaffected - it keeps whatever software last wrote to IOREGSEL.
@@ -130,6 +134,12 @@ module ioapic_config_regs
     output logic [7:0]  cfg_destination  [NUM_IRQS],
     output logic [3:0]  cfg_ioapic_id,
     output logic        cfg_rr_enable,
+    // MSI configuration, consumed by the ioapic_msi_emit companion. These are
+    // quasi-static CONFIG outputs, not live per-CPU state -- see apb4_ioapic's
+    // header for why that distinction matters to the delivery-channel
+    // interface decision.
+    output logic [31:0] cfg_msi_addr,
+    output logic [31:0] cfg_msi_data,
 
     // Status inputs (from ioapic_core)
     input  logic        status_deliv_status [NUM_IRQS],
@@ -152,16 +162,25 @@ module ioapic_config_regs
     // it for the arbitration policy bit, so a driver written for the 82093AA
     // never touches it and gets the static scheme.
     localparam logic [7:0]  SEL_ARBCFG    = 8'h03;
+    // Also NOT 82093AA selectors: 0x04 and 0x05 are reserved on the part and
+    // carry the MSI address and data template for the ioapic_msi_emit
+    // companion. Same reasoning as SEL_ARBCFG -- a driver written for the
+    // 82093AA never writes them, and MSI stays off.
+    localparam logic [7:0]  SEL_MSIADDR   = 8'h04;
+    localparam logic [7:0]  SEL_MSIDATA   = 8'h05;
     localparam logic [7:0]  SEL_REDIR_LO  = 8'h10;  // first redirection entry
     localparam logic [7:0]  SEL_REDIR_HI  = 8'h3F;  // last  redirection entry
-    // Register-block addresses are 8 bits: the whole map is 0x00-0xD0 and the
+    // Register-block addresses are 8 bits: the whole map is 0x00-0xDC and the
     // decode below only ever presents a constant from this list, so there is
-    // no truncation on the way into s_cpuif_addr.
+    // no truncation on the way into s_cpuif_addr. (The range was 0x00-0xD0
+    // before the MSI registers were added at 0xD8/0xDC; still 8-bit safe.)
     localparam logic [7:0]  ADDR_IOREGSEL = 8'h00;   // the ONE direct register
     localparam logic [7:0]  ADDR_IOAPICID = 8'h08;
     localparam logic [7:0]  ADDR_IOAPICVER= 8'h0C;
     localparam logic [7:0]  ADDR_IOAPICARB= 8'h10;
     localparam logic [7:0]  ADDR_ARBCFG   = 8'hD4;
+    localparam logic [7:0]  ADDR_MSIADDR  = 8'hD8;
+    localparam logic [7:0]  ADDR_MSIDATA  = 8'hDC;
     localparam logic [7:0]  ADDR_REDIR    = 8'h14;   // IOREDTBL[0].REDIR_LO
     // The two software-visible APB addresses in the 4 KB window. Everything
     // else, in window or not, is dropped (see DECODE CONTRACT above).
@@ -271,6 +290,8 @@ module ioapic_config_regs
                           (w_regsel == SEL_IOAPICVER) ||
                           (w_regsel == SEL_IOAPICARB) ||
                           (w_regsel == SEL_ARBCFG)    ||
+                          (w_regsel == SEL_MSIADDR)   ||
+                          (w_regsel == SEL_MSIDATA)   ||
                           ((w_regsel >= SEL_REDIR_LO) && (w_regsel <= SEL_REDIR_HI));
 
     // The software-visible decode, in full: IOREGSEL and IOWIN, nothing else.
@@ -313,6 +334,8 @@ module ioapic_config_regs
                 SEL_IOAPICVER: regblk_addr = ADDR_IOAPICVER;
                 SEL_IOAPICARB: regblk_addr = ADDR_IOAPICARB;
                 SEL_ARBCFG:    regblk_addr = ADDR_ARBCFG;
+                SEL_MSIADDR:   regblk_addr = ADDR_MSIADDR;
+                SEL_MSIDATA:   regblk_addr = ADDR_MSIDATA;
                 default: begin
                     // Redirection table, or an unmapped selector - in which
                     // case regblk_req is already gated off and the address
@@ -387,6 +410,8 @@ module ioapic_config_regs
     // IOAPIC ID
     assign cfg_ioapic_id = hwif_out.IOAPICID.apic_id.value;
     assign cfg_rr_enable = hwif_out.IOAPICARBCFG.rr_enable.value;
+    assign cfg_msi_addr  = hwif_out.IOAPICMSIADDR.addr.value;
+    assign cfg_msi_data  = hwif_out.IOAPICMSIDATA.data.value;
 
     // Redirection table entries - map array to core
     genvar g;

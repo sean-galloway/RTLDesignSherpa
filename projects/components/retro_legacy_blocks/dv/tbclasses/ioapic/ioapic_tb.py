@@ -69,6 +69,12 @@ class IOAPICRegisterMap:
     OFFSET_ARBCFG = 0x03     # Arbitration policy (NOT an 82093AA register;
                              # selector 0x03 is reserved on the part)
     ARBCFG_RR_ENABLE = (1 << 0)
+    # MSI configuration, also NOT 82093AA registers: selectors 0x04/0x05 are
+    # reserved on the real part. Consumed by the ioapic_msi_emit companion.
+    # There is no generated ioapic_regmap.py for this block, so this class is
+    # the hand-maintained mirror of the RDL and must be updated with it.
+    OFFSET_MSIADDR = 0x04    # IOAPICMSIADDR, regblock 0xD8
+    OFFSET_MSIDATA = 0x05    # IOAPICMSIDATA, regblock 0xDC
 
     # Redirection table base (internal offset)
     OFFSET_IOREDTBL_BASE = 0x10  # First redirection entry

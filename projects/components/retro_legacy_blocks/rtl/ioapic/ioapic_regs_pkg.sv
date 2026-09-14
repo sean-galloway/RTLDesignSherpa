@@ -5,7 +5,7 @@ package ioapic_regs_pkg;
 
     localparam IOAPIC_REGS_DATA_WIDTH = 32;
     localparam IOAPIC_REGS_MIN_ADDR_WIDTH = 8;
-    localparam IOAPIC_REGS_SIZE = 'hd8;
+    localparam IOAPIC_REGS_SIZE = 'he0;
 
     typedef struct {
         logic [31:0] next;
@@ -125,10 +125,28 @@ package ioapic_regs_pkg;
     } ioapic_regs__IOAPICARBCFG__out_t;
 
     typedef struct {
+        logic [31:0] value;
+    } ioapic_regs__IOAPICMSIADDR__addr__out_t;
+
+    typedef struct {
+        ioapic_regs__IOAPICMSIADDR__addr__out_t addr;
+    } ioapic_regs__IOAPICMSIADDR__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } ioapic_regs__IOAPICMSIDATA__data__out_t;
+
+    typedef struct {
+        ioapic_regs__IOAPICMSIDATA__data__out_t data;
+    } ioapic_regs__IOAPICMSIDATA__out_t;
+
+    typedef struct {
         ioapic_regs__IOREGSEL__out_t IOREGSEL;
         ioapic_regs__IOWIN__out_t IOWIN;
         ioapic_regs__IOAPICID__out_t IOAPICID;
         ioapic_regs__redirection_entry__out_t IOREDTBL[24];
         ioapic_regs__IOAPICARBCFG__out_t IOAPICARBCFG;
+        ioapic_regs__IOAPICMSIADDR__out_t IOAPICMSIADDR;
+        ioapic_regs__IOAPICMSIDATA__out_t IOAPICMSIDATA;
     } ioapic_regs__out_t;
 endpackage

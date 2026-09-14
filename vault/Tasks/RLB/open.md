@@ -228,7 +228,8 @@ regblock` desyncs the regmap. Run the RLB tests afterwards.
 
 **Priority:** P3. The block is functionally complete for its MVP scope and
 36/36 green in all six configurations; nothing here is a defect.
-**Status:** open, and what is left is now BLOCKED rather than merely deferred.
+**Status:** open. One item remains -- boot-interrupt -- and it is MIS-SCOPED,
+not blocked; it needs re-scoping before anyone implements it.
 Logical destination mode landed 2026-09-10 in 4bce6badc and round-robin
 arbitration the same day; LowestPriority's IOAPIC half landed 2026-09-11. The
 table-size note was examined 2026-09-14: the actionable part was a false claim
@@ -260,9 +261,31 @@ unchanged and apb4_ioapic.f references neither file:
   behaviour against a real LAPIC or a genuine multi-IOAPIC system remains
   uncovered.
 
-MSI SHIPPED 2026-09-14 as a third companion, `ioapic_msi_emit`. Boot-interrupt
-is what remains, and it needs RE-SCOPING before anyone implements it -- the
-requirement as written here was wrong. See the two bullets below.
+MSI SHIPPED 2026-09-14 as a third companion, `ioapic_msi_emit` (4e60ac88b),
+which bridges the delivery message onto an `apb4_master_stub` as a posted write
+and returns PSLVERR as `deliv_retry`. I had filed MSI as BLOCKED on the grounds
+that `apb4_ioapic` is a slave with no initiator port. Sean: "Isn't msi just a
+write to an address". That was right, and the block stayed a slave -- the
+emitting is the companion's job.
+
+Its address and data are REGISTERS, not parameters (Sean's call, 2026-09-14):
+IOAPICMSIADDR at IOWIN selector 0x04 and IOAPICMSIDATA at 0x05, both reserved
+on the real 82093AA, surfaced as `cfg_msi_addr` / `cfg_msi_data`. Those two
+outputs are the only ports apb4_ioapic has grown beyond the delivery channel,
+and they are quasi-static config rather than the live per-CPU state Sean's
+2026-09-11 decision rejected.
+
+STILL OWED on MSI: the emitter has formal proofs but NO DV test, and Sean has
+asked for one. Adding the two ports also broke every consumer that does not
+connect them -- 6 regression cells in the two companion TB tops, plus
+`rlb_top.sv`, which no test elaborates and which therefore failed silently.
+`bin/check_port_consumers.py` catches exactly this, but nothing invokes it and
+a bare run exits 0 without examining anything; it must be passed the changed
+files.
+
+Boot-interrupt is what remains, and it needs RE-SCOPING before anyone
+implements it -- the requirement as written here was wrong. See the two
+bullets below.
 
 Raised while closing issue #48. Those deferred features were the surviving
 content of `rtl/ioapic/TODO.md`, which was deleted with that fix along with

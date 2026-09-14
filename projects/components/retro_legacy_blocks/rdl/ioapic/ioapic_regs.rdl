@@ -343,4 +343,49 @@ addrmap ioapic_regs {
 
     } IOAPICARBCFG @ 0xD4;
 
+    reg {
+        name = "MSI Address";
+        desc = "Target address for MSI delivery (accessed at offset 0x04 via
+                IOWIN). NOT an 82093AA register: selector 0x04 is reserved on
+                the real part, so a driver written for the 82093AA never writes
+                this and is unaffected -- the same treatment as IOAPICARBCFG.
+
+                Consumed by the ioapic_msi_emit companion, which turns a
+                delivery message into a posted write. Bits [19:12] are REPLACED
+                by the message's destination when the write is formed; every
+                other bit is passed through from this register. On a PC the
+                base is 0xFEE00000.";
+
+        field {
+            name = "MSI Address";
+            desc = "Full 32-bit target address. [19:12] are overwritten with
+                    the delivery destination by ioapic_msi_emit.";
+            sw = rw;
+            hw = r;
+        } addr[31:0] = 32'h0;
+
+    } IOAPICMSIADDR @ 0xD8;
+
+    reg {
+        name = "MSI Data Template";
+        desc = "Template for the MSI data word (accessed at offset 0x05 via
+                IOWIN). NOT an 82093AA register: selector 0x05 is reserved on
+                the real part.
+
+                ioapic_msi_emit overwrites [7:0] with the vector, [10:8] with
+                the delivery mode and [11] with the destination mode; bits
+                [31:12] are passed through from this register. That mapping is
+                the x86 convention and is a DEFAULT -- nothing in the 82093AA
+                dictates an MSI format.";
+
+        field {
+            name = "MSI Data Template";
+            desc = "Fixed bits of the MSI data word. [11:0] are overwritten
+                    with vector, delivery mode and destination mode.";
+            sw = rw;
+            hw = r;
+        } data[31:0] = 32'h0;
+
+    } IOAPICMSIDATA @ 0xDC;
+
 };

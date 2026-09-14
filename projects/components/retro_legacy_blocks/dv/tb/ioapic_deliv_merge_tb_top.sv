@@ -106,7 +106,11 @@ module ioapic_deliv_merge_tb_top #(
         .irq_out_dest(w_src_dest[0]),       .irq_out_dest_mode(w_src_dest_mode[0]),
         .irq_out_deliv_mode(w_src_deliv_mode[0]),
         .irq_out_ready(src_ready[0]),       .irq_out_retry(src_retry[0]),
-        .eoi_in(eoi0_in), .eoi_vector(eoi0_vector)
+        .eoi_in(eoi0_in), .eoi_vector(eoi0_vector),
+        // MSI config outputs (RLB-008): this harness exercises the
+        // delivery channel, not MSI. Explicit and open -- omitting them
+        // entirely is PINMISSING.
+        .cfg_msi_addr(), .cfg_msi_data()
     );
 
     apb4_ioapic #(.NUM_IRQS(NUM_IRQS), .CDC_ENABLE(CDC_ENABLE)) u_ioapic1 (
@@ -122,7 +126,11 @@ module ioapic_deliv_merge_tb_top #(
         .irq_out_dest(w_src_dest[1]),       .irq_out_dest_mode(w_src_dest_mode[1]),
         .irq_out_deliv_mode(w_src_deliv_mode[1]),
         .irq_out_ready(src_ready[1]),       .irq_out_retry(src_retry[1]),
-        .eoi_in(eoi1_in), .eoi_vector(eoi1_vector)
+        .eoi_in(eoi1_in), .eoi_vector(eoi1_vector),
+        // MSI config outputs (RLB-008): this harness exercises the
+        // delivery channel, not MSI. Explicit and open -- omitting them
+        // entirely is PINMISSING.
+        .cfg_msi_addr(), .cfg_msi_data()
     );
 
     ioapic_deliv_merge #(.NUM_SRC(NUM_SRC)) u_merge (

@@ -41,8 +41,9 @@ pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
   already wrong by one; it is now 9 listing nine, corrected deliberately rather
   than made right by the removal.
 - **Nothing is active.** What remains open is deliberate scope (RLB-008 ioapic
-  modes -- multi-IOAPIC routing, boot-interrupt delivery and MSI) plus the two
-  filed 2026-09-14.
+  -- boot-interrupt ONLY, and it is mis-scoped rather than blocked; multi-IOAPIC
+  routing, LowestPriority's arbitration half and MSI all shipped as companion
+  modules 2026-09-14) plus the two filed 2026-09-14.
 
 ## Done
 

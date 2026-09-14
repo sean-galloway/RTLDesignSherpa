@@ -184,7 +184,19 @@ module apb4_ioapic #(
 
     // EOI (End of Interrupt) from CPU (pclk domain)
     input  logic                    eoi_in,             // EOI strobe
-    input  logic [7:0]              eoi_vector          // Vector being EOI'd
+    input  logic [7:0]              eoi_vector,         // Vector being EOI'd
+
+    // MSI configuration, for the ioapic_msi_emit companion (RLB-008).
+    //
+    // These are the only ports this block has grown beyond the delivery
+    // channel, and the distinction matters. Sean's 2026-09-11 decision was
+    // that the channel must not grow LIVE per-CPU state -- priority inputs
+    // would be stale by the time they crossed a bus. These are QUASI-STATIC
+    // config, written by software through IOWIN and read by a companion: the
+    // same shape as every other cfg_* signal, just surfaced rather than kept
+    // internal. Leave them unconnected and MSI is simply unused.
+    output logic [31:0]             cfg_msi_addr,       // IOAPICMSIADDR, sel 0x04
+    output logic [31:0]             cfg_msi_data        // IOAPICMSIDATA, sel 0x05
 );
 
     // ========================================================================
@@ -361,6 +373,8 @@ module apb4_ioapic #(
         .cfg_destination   (w_cfg_destination),
         .cfg_ioapic_id     (w_cfg_ioapic_id),
         .cfg_rr_enable     (w_cfg_rr_enable),
+        .cfg_msi_addr      (cfg_msi_addr),
+        .cfg_msi_data      (cfg_msi_data),
 
         // Status inputs from core
         .status_deliv_status(w_status_deliv_status),

@@ -793,9 +793,26 @@ class IOAPICMediumTests:
                 self.log.error(f"Sanity check failed: IOREGSEL readback 0x{regsel:02X}")
                 return False
 
-            # Select an INVALID offset: not IOAPICID/VER/ARB (0x00-0x02) and
-            # not in the redirection table range (0x10-0x3F).
-            invalid_selector = 0x03
+            # Select a GENUINELY unmapped offset. This must be kept in step
+            # with ioapic_config_regs' SEL_* set, which has grown twice since
+            # this test was written:
+            #   0x00-0x02  IOAPICID / IOAPICVER / IOAPICARB (82093AA)
+            #   0x03       IOAPICARBCFG   (added ae259c60b)
+            #   0x04-0x05  MSI addr/data  (added for RLB-008)
+            #   0x10-0x3F  IOREDTBL
+            # It said 0x03 from ae259c60b onward, by which time 0x03 was
+            # MAPPED -- so the IOWIN write landed in ARBCFG, never reached
+            # regblk_addr 0x000, and the test passed via the mapped path while
+            # claiming to exercise the unmapped one. It was green and blind.
+            #
+            # 0x0B is not just any unmapped selector: it is the ONLY one whose
+            # default regblk_addr resolves to 0x00, the regblock's own IOREGSEL
+            # storage. That address is the entire subject of the defect --
+            # ADDR_REDIR 0x14 + (irq<<3) + lo/hi with irq=(sel-0x10)>>1 lands on
+            # 0x00 for sel=0x0B and nowhere else below 0x10. Pick any other
+            # unmapped selector (0x06 -> 0xEC, say) and the write goes somewhere
+            # harmless, so the assertion holds whether or not the drop works.
+            invalid_selector = 0x0B
             await self.tb.write_apb_register(IOAPICRegisterMap.IOREGSEL, invalid_selector)
 
             # Write IOWIN with garbage while the invalid selector is active.
