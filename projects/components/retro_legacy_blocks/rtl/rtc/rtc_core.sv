@@ -315,11 +315,18 @@
 //     alarm. Alarms are evaluated on a tick, and a commit is not a tick -
 //     setting the clock to the alarm time arms the alarm for the next time
 //     the counter REACHES that value, one full second later at the earliest.
-//   - `selected_clk` is a plain combinational clock mux. Changing
-//     RTC_CONFIG.clock_select while the RTC is enabled can produce a runt
-//     clock pulse; software must change it with rtc_enable low. A glitchless
-//     mux needs a cell (BUFGMUX/clock gate) that does not belong in portable
-//     RTL. A runt pulse also has a second-order effect worth naming: a
+//   - `selected_clk` comes from rtc_clk_mux (RLB-010), which resolves per
+//     target. On XILINX/INTEL it is a device glitchless cell (BUFGCTRL with
+//     IGNORE0/IGNORE1, or ALTCLKCTRL) and a live RTC_CONFIG.clock_select
+//     change is safe, including away from a stopped crystal. On every other
+//     target -- simulation included -- it is the original combinational mux
+//     bit for bit, and there the constraint is unchanged: changing
+//     clock_select while the RTC is enabled can produce a runt clock pulse,
+//     so software must change it with rtc_enable low. A PORTABLE glitch-free
+//     mux cannot close that gap -- break-before-make needs BOTH clocks
+//     running, which is exactly what clock_select does not guarantee -- so
+//     the device cell is the only real answer. On the combinational branch
+//     the runt also has a second-order effect worth naming: a
 //     commit in flight across a live clock_select switch can be stranded
 //     (the destination side sees a corrupted or missing edge), in which case
 //     it is the watchdog above that resolves it - the commit is abandoned
@@ -718,10 +725,20 @@ module rtc_core #(
     // reset with the far domain so presetn cannot touch it.
     //
     // It is a pclk flop rather than a counter-domain one because it feeds the
-    // mux that makes the counter clock. The mux itself is still plain
-    // combinational logic, so the "change clock_select only with rtc_enable
-    // low" constraint below still applies to genuine software changes.
-    assign selected_clk = r_clk_sel_held ? clk : rtc_clk;
+    // mux that makes the counter clock.
+    //
+    // The mux is rtc_clk_mux (RLB-010), which resolves to a device glitchless
+    // cell under XILINX/INTEL and to the original combinational expression
+    // otherwise. On the DEFAULT branch nothing about the hazard has changed,
+    // so the "change clock_select only with rtc_enable low" constraint below
+    // still applies there; a device branch removes it. The constraint text is
+    // worded per-branch for exactly that reason.
+    rtc_clk_mux u_clk_mux (
+        .sel     (r_clk_sel_held),
+        .clk_0   (rtc_clk),
+        .clk_1   (clk),
+        .clk_out (selected_clk)
+    );
 
     `ALWAYS_FF_RST(clk, w_rtc_rst_n_pclk,
         if (`RST_ASSERTED(w_rtc_rst_n_pclk)) begin
@@ -744,8 +761,11 @@ module rtc_core #(
     // change, because a live software write of clock_select would then assert
     // the counter reset and wipe the time of day - and it would not even
     // help, since the mux has already moved by the time the flag could react.
-    // A live change of clock_select stays the documented limitation: change it
-    // only with rtc_enable low. Assertion is unaffected either way (it is
+    // A live change of clock_select stays the documented limitation on the
+    // combinational branch of rtc_clk_mux: change it only with rtc_enable low.
+    // A device branch is glitchless and lifts that, but this one-shot is the
+    // same on both -- it guards the reset-release ORDERING, not the glitch.
+    // Assertion is unaffected either way (it is
     // asynchronous, and a runt during assertion is harmless).
     `ALWAYS_FF_RST(clk, w_rtc_rst_n_pclk,
         if (`RST_ASSERTED(w_rtc_rst_n_pclk)) begin

@@ -3427,9 +3427,12 @@ class RTCMediumTests:
 
         Today RTC_CONFIG.clock_select resets to 0 (=rtc_clk) on presetn
         exactly like every other field and crosses unconditionally, so the
-        combinational mux (`selected_clk = cfg_clock_select ? clk :
-        rtc_clk`) flips away from pclk the moment the reset-default
-        crosses, even though software never rewrote RTC_CONFIG.
+        source mux flips away from pclk the moment the reset-default
+        crosses, even though software never rewrote RTC_CONFIG. In
+        simulation that mux is rtc_clk_mux's default branch, which is the
+        original expression bit for bit (clk_out = sel ? clk_1 : clk_0,
+        i.e. cfg_clock_select ? clk : rtc_clk), so nothing here is changed
+        by the device branches added for RLB-010.
 
         The exact pclk-cycle offset between the commit trigger and the
         in-flight window is not hand-derived; sweeps a small range so at
@@ -4295,8 +4298,9 @@ class RTCMediumTests:
         fresh cfg_valid crossing - releasing the counter domain's reset
         (letting u_ctr_reset_sync sample selected_clk) while r_clk_sel_held
         might still be mid-transition is what produces the runt clock
-        pulse rtc_core.sv's header documents (selected_clk is a plain
-        combinational mux). Verilator cannot model the runt pulse itself;
+        pulse rtc_core.sv's header documents (in simulation selected_clk
+        comes from rtc_clk_mux's default branch, a plain combinational
+        mux). Verilator cannot model the runt pulse itself;
         this test pins the ORDERING a fix must create instead:
         u_ctr_reset_sync's sync_rst_n output (w_ctr_rst_n) must deassert
         at least 2 pclk cycles AFTER r_clk_sel_held has already reloaded.

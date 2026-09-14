@@ -46,6 +46,11 @@ $RETRO_ROOT/rtl/rtc/rtc_regs_pkg.sv
 # Register file (PeakRDL generated)
 $RETRO_ROOT/rtl/rtc/rtc_regs.sv
 
+# Counter-clock source mux (RLB-010). Device-specific glitchless cell where
+# one exists, the original combinational mux otherwise. Must precede rtc_core,
+# which instantiates it.
+$RETRO_ROOT/rtl/rtc/rtc_clk_mux.sv
+
 # RTC core (time counting logic)
 $RETRO_ROOT/rtl/rtc/rtc_core.sv
 

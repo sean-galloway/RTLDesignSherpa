@@ -75,18 +75,21 @@ the word that was written; but each register write lands on its own, so a
 sequence of writes is seen one at a time; change `hour_mode_12` and `bcd_mode`
 with the alarm disabled (or the RTC disabled), then enable.
 
-`clock_select` drives a plain combinational clock mux, and the divider target
-depends on it too. Change it only with `rtc_enable` low; flipping it while
-the RTC runs can produce a runt clock pulse, and a runt on the counter clock
-can leave an in-flight commit unacknowledged until `commit_timeout` reports
-it. Around an `rtc_resetn` pulse the select flop itself moves the mux twice
+`clock_select` drives `rtc_clk_mux`, and the divider target depends on it too.
+On a XILINX or INTEL target that mux is a device glitchless cell and the select
+may be changed live; on every other target, simulation included, it is a plain
+combinational mux and the rule that follows applies. Change it only with
+`rtc_enable` low; flipping it while the RTC runs can then produce a runt clock
+pulse, and a runt on the counter clock can leave an in-flight commit
+unacknowledged until `commit_timeout` reports it. Around an `rtc_resetn` pulse the select flop itself moves the mux twice
 (it clears on assert and reloads after release), so the counter domain's
 reset release is held until the select has been stable for three pclk; the
 counter domain never comes out of reset across a mux switch. That hold is a
 one-shot per `rtc_resetn`: a live write of `clock_select` does not touch the
 counter reset (it would wipe the time of day, and the mux has already moved
 by the time a gate could react), which is why the change-only-with-
-`rtc_enable`-low rule stands.
+`rtc_enable`-low rule stands on the combinational branch. A XILINX or INTEL
+target uses a device glitchless cell and is not subject to it.
 
 A `presetn` reset keeps the clock. The counter domain holds its run/enable
 state and its clock source across a `presetn`-only reset: RTC_CONFIG reads
@@ -405,8 +408,9 @@ the next tick rather than silently rewritten to a wrong digit.
 
 None of these is a defect in the block; they are the edges of what it does.
 
-- `clock_select` is a combinational clock mux, so it must be changed with
-  `rtc_enable` low.
+- `clock_select` drives a combinational clock mux on any target without a
+  device glitchless cell -- that is, everywhere except XILINX and INTEL,
+  simulation included -- so there it must be changed with `rtc_enable` low.
 - The alarm registers land in the counter domain one write at a time;
   program the alarm (or the mode bits) with the alarm (or the RTC)
   disabled, then enable.
@@ -449,8 +453,11 @@ None of these is a defect in the block; they are the edges of what it does.
   an `rtc_resetn` pulse while `pclk` is stopped leaves the counters in reset
   until pclk returns.
 
-The deferred lint items on the shared CDC primitives and the clock mux are
-tracked as RLB-010 in `vault/Tasks/RLB/open.md`.
+Both of RLB-010's deferred items have since landed: the shared CDC primitives
+are verilator `-Wall` clean as of dc4ea9db7, and the counter-clock source mux
+is now `rtc_clk_mux`, which supplies a device glitchless cell on XILINX and
+INTEL and the original combinational mux everywhere else. RLB-010 is tracked
+in `vault/Tasks/RLB/`.
 
 ## History
 

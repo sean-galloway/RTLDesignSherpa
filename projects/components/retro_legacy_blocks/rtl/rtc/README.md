@@ -171,8 +171,9 @@ destination period covers it too. The exact `set_max_delay` lines are in
 ### If the counter clock stops
 
 A commit needs the counter clock to complete. If the clock is not running (no
-crystal, oscillator fault, or a runt pulse from switching `clock_select`
-live), the handshake's watchdog expires after `COMMIT_TIMEOUT_CYCLES` pclk
+crystal, oscillator fault, or -- on the combinational branch of
+`rtc_clk_mux` -- a runt pulse from switching `clock_select` live), the
+handshake's watchdog expires after `COMMIT_TIMEOUT_CYCLES` pclk
 cycles (parameter on `apb4_rtc`/`rtc_core`, default 65535) and sets
 `RTC_STATUS.commit_timeout` (bit 4, sticky, W1C). A value of 0 disables
 both watchdogs, the in-flight one and the queued commit's; a commit on a
@@ -426,10 +427,15 @@ RTL and `rtc_regmap.py` are generated from.
 
 ## Known limitations
 
-- `selected_clk` is a plain combinational clock mux. Change
-  `RTC_CONFIG.clock_select` only with `rtc_enable` low; switching it while
-  the RTC runs can produce a runt clock pulse. A glitchless mux needs a
-  device-specific cell that does not belong in portable RTL. A runt pulse can
+- `selected_clk` comes from `rtc_clk_mux` (RLB-010). On a XILINX or INTEL
+  target it is a device glitchless cell -- BUFGCTRL with `IGNORE0`/`IGNORE1`,
+  or ALTCLKCTRL -- and `RTC_CONFIG.clock_select` may be changed live. On every
+  other target, simulation included, it is the original combinational mux and
+  the limitation stands: change `clock_select` only with `rtc_enable` low,
+  because switching it while the RTC runs can produce a runt clock pulse. A
+  portable glitch-free mux is not an available substitute -- break-before-make
+  needs both clocks running, and `clock_select` exists precisely for the case
+  where the crystal may be absent. On the combinational branch a runt pulse can
   also strand a commit that is in flight; that case ends in the watchdog and
   is reported as `RTC_STATUS.commit_timeout` rather than hanging.
 - The alarm compare values, the mask and the mode bits cross as ONE
