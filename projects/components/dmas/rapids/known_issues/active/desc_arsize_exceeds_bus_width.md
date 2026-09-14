@@ -64,6 +64,11 @@ EXT fetch, passing runs included) whereas the extended-addressing run-boundary
 failure is seed-dependent. The two are unrelated; do not close one by fixing
 the other.
 
+That run-boundary defect was found and fixed in `c09207c42` (the engine valids
+now stall between runs, restoring STREAM's `!w_*_need_base` terms). It does not
+touch this issue: the ARSIZE constant is in the DESCRIPTOR ENGINE, while that
+fix is in the scheduler. This one is still open.
+
 ## Proposed fix
 
 One line per file, `3'b110` -> `3'b101`, plus the stale comment. Needs its own
