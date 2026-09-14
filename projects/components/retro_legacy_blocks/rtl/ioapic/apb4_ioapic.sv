@@ -196,7 +196,16 @@ module apb4_ioapic #(
     // same shape as every other cfg_* signal, just surfaced rather than kept
     // internal. Leave them unconnected and MSI is simply unused.
     output logic [31:0]             cfg_msi_addr,       // IOAPICMSIADDR, sel 0x04
-    output logic [31:0]             cfg_msi_data        // IOAPICMSIDATA, sel 0x05
+    output logic [31:0]             cfg_msi_data,       // IOAPICMSIDATA, sel 0x05
+
+    // Boot-interrupt support, for the ioapic_boot_intx companion
+    // (RLB-008). The mask vector is the per-pin IOREDTBL mask this block
+    // already holds, PACKED -- the companion wants a vector, and packed is
+    // what the other companions take for per-element bits. Exporting it is
+    // what lets the rerouting live outside: the block says which pins it is
+    // NOT delivering, and the companion decides what to do about it.
+    output logic [NUM_IRQS-1:0]     cfg_mask_vec,       // 1 = pin masked
+    output logic                    cfg_boot_intx_en    // IOAPICBOOTINTX, sel 0x07
 );
 
     // ========================================================================
@@ -376,6 +385,7 @@ module apb4_ioapic #(
         .cfg_rr_enable     (w_cfg_rr_enable),
         .cfg_msi_addr      (cfg_msi_addr),
         .cfg_msi_data      (cfg_msi_data),
+        .cfg_boot_intx_en  (cfg_boot_intx_en),
 
         // Status inputs from core
         .status_deliv_status(w_status_deliv_status),
@@ -383,6 +393,15 @@ module apb4_ioapic #(
         .status_arb_id      (w_status_arb_id),
         .status_drop_count  (w_status_drop_count)
     );
+
+    // The per-pin mask, packed for export. w_cfg_mask is an unpacked array
+    // because that is how the core consumes it; the companion takes a
+    // vector, so the conversion happens once, here.
+    generate
+        for (genvar gm = 0; gm < NUM_IRQS; gm++) begin : g_mask_pack
+            assign cfg_mask_vec[gm] = w_cfg_mask[gm];
+        end
+    endgenerate
 
     // ========================================================================
     // Dropped-delivery counter (RLB-008)

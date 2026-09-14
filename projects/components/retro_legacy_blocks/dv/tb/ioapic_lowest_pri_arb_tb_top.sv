@@ -101,7 +101,12 @@ module ioapic_lowest_pri_arb_tb_top #(
         // delivery channel, not MSI. Explicit and open -- omitting them
         // entirely is PINMISSING.
         .cfg_msi_addr       (),
-        .cfg_msi_data       ()
+        .cfg_msi_data       (),
+        // Boot-interrupt support (RLB-008): this harness does not
+        // exercise it. Explicit and open -- omitting them is
+        // PINMISSING, which is an ERROR under cocotb's flags.
+        .cfg_mask_vec       (),
+        .cfg_boot_intx_en   ()
     );
 
     // The consumer half. Combinational, so the handshake closes in the same

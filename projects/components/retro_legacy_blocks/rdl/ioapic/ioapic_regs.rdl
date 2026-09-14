@@ -426,4 +426,35 @@ addrmap ioapic_regs {
 
     } IOAPICMSIDROP @ 0xE0;
 
+    reg {
+        name = "Boot Interrupt Control";
+        desc = "Arms chipset-style boot-interrupt rerouting (accessed at offset
+                0x07 via IOWIN). NOT an 82093AA register: selector 0x07 is
+                reserved on the real part, the same treatment as IOAPICARBCFG,
+                the MSI pair and IOAPICMSIDROP.
+
+                Boot interrupt is the chipset behaviour where a device's INTx
+                is rerouted to the legacy 8259 while the IOAPIC is not
+                delivering it, so an interrupt raised before the OS has
+                programmed the IOAPIC is not lost. It is a compatibility
+                crutch, which is why it is a control rather than always-on:
+                an OS that has programmed the IOAPIC generally wants it off,
+                and the only other way to stop a masked pin leaking to the PIC
+                would be to unmask it.
+
+                Consumed by the ioapic_boot_intx companion, together with the
+                per-pin RTE mask. A pin reroutes only when this bit is set AND
+                that pin's IOREDTBL mask bit is set -- rerouting a pin the
+                IOAPIC is actively delivering would double-deliver it.";
+
+        field {
+            name = "Boot Interrupt Enable";
+            desc = "1 = a masked IOAPIC pin also drives its mapped legacy PIC
+                    input. 0 = no rerouting, whatever the mask bits say.";
+            sw = rw;
+            hw = r;
+        } enable[0:0] = 1'h0;
+
+    } IOAPICBOOTINTX @ 0xE4;
+
 };

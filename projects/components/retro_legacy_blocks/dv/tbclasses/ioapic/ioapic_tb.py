@@ -78,6 +78,9 @@ class IOAPICRegisterMap:
     # Saturating count of refusals that arrived too late to be acted on.
     # Read-only; hardware owns it.
     OFFSET_MSIDROP = 0x06    # IOAPICMSIDROP, regblock 0xE0
+    # Boot-interrupt rerouting control, consumed by ioapic_boot_intx.
+    OFFSET_BOOTINTX = 0x07   # IOAPICBOOTINTX, regblock 0xE4
+    BOOTINTX_ENABLE = (1 << 0)
 
     # Redirection table base (internal offset)
     OFFSET_IOREDTBL_BASE = 0x10  # First redirection entry

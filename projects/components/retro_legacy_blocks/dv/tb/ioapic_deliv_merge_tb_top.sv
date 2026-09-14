@@ -110,7 +110,11 @@ module ioapic_deliv_merge_tb_top #(
         // MSI config outputs (RLB-008): this harness exercises the
         // delivery channel, not MSI. Explicit and open -- omitting them
         // entirely is PINMISSING.
-        .cfg_msi_addr(), .cfg_msi_data()
+        .cfg_msi_addr(), .cfg_msi_data(),
+        // Boot-interrupt support (RLB-008): this harness does not
+        // exercise it. Explicit and open -- omitting them is
+        // PINMISSING, which is an ERROR under cocotb's flags.
+        .cfg_mask_vec(), .cfg_boot_intx_en()
     );
 
     apb4_ioapic #(.NUM_IRQS(NUM_IRQS), .CDC_ENABLE(CDC_ENABLE)) u_ioapic1 (
@@ -130,7 +134,11 @@ module ioapic_deliv_merge_tb_top #(
         // MSI config outputs (RLB-008): this harness exercises the
         // delivery channel, not MSI. Explicit and open -- omitting them
         // entirely is PINMISSING.
-        .cfg_msi_addr(), .cfg_msi_data()
+        .cfg_msi_addr(), .cfg_msi_data(),
+        // Boot-interrupt support (RLB-008): this harness does not
+        // exercise it. Explicit and open -- omitting them is
+        // PINMISSING, which is an ERROR under cocotb's flags.
+        .cfg_mask_vec(), .cfg_boot_intx_en()
     );
 
     ioapic_deliv_merge #(.NUM_SRC(NUM_SRC)) u_merge (

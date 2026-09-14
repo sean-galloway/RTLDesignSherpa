@@ -20,7 +20,8 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-MODULES := rtc_config_regs ioapic_lowest_pri_arb ioapic_deliv_merge ioapic_msi_emit
+MODULES := rtc_config_regs ioapic_lowest_pri_arb ioapic_deliv_merge \
+           ioapic_msi_emit ioapic_boot_intx
 
 define RUN
 	$(MAKE) -C $(1) $(2)

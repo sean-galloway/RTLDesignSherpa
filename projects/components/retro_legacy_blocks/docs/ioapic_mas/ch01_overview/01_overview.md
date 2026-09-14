@@ -298,11 +298,16 @@ When an IRQ arrives while masked, the IRR bit latches but delivery is blocked. U
 - [x] Multi-IOAPIC support, delegated: `ioapic_deliv_merge` merges N delivery
       channels onto one in round robin and tags each message with its source
       id, so an EOI routes back to the IOAPIC holding that pin's Remote IRR
-- [ ] Boot interrupt delivery -- BLOCKED, not merely deferred: the
-      delivery-mode field has no SIPI encoding, so INIT-SIPI-SIPI cannot be
-      expressed
-- [ ] MSI/MSI-X -- BLOCKED, not merely deferred: an APB slave has no initiator
-      port with which to issue the upstream memory write
+- [ ] Boot interrupt delivery -- in progress as the `ioapic_boot_intx`
+      companion. This entry used to say BLOCKED because the delivery-mode
+      field has no SIPI encoding; that was a category error. INIT-SIPI-SIPI
+      is a local APIC's AP-startup IPI. The real feature is chipset INTx
+      rerouting to the legacy PIC while IOAPIC delivery is masked
+- [x] MSI/MSI-X, delegated: `ioapic_msi_emit` turns a delivery message into a
+      posted write through an `apb4_master_stub`. The old "an APB slave has
+      no initiator port" was true and beside the point -- the companion does
+      the emitting. Address and data are registers (selectors 0x04/0x05), and
+      a refusal that lands too late to act on is counted in IOAPICMSIDROP
 
 ## References
 

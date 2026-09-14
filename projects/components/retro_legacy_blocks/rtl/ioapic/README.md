@@ -138,12 +138,22 @@ delivery (RLB-008). Delivery modes other than Fixed are likewise forwarded on
 
 ## Not implemented (see vault/Tasks/RLB/, RLB-008)
 
-Boot-interrupt delivery and MSI/MSI-X. Both are blocked on more than effort:
-the delivery-mode field has no SIPI encoding (000 Fixed, 001 LowestPri, 010
-SMI, 100 NMI, 101 INIT, 111 ExtINT), so an INIT-SIPI-SIPI sequence cannot be
-expressed at all; and MSI is an upstream memory write, which this block cannot
-issue because `apb4_ioapic` is an APB SLAVE with no initiator port. Neither is
-a gap that more RTL in this module would close.
+Boot-interrupt delivery. Both items this section used to list as BLOCKED
+were wrong, and the correction is worth keeping.
+
+MSI SHIPPED 2026-09-14 as the `ioapic_msi_emit` companion. The old claim --
+"an APB slave has no initiator port" -- was true and beside the point: an MSI
+is a posted write, so a companion bridges the delivery channel onto an
+`apb4_master_stub`. Its target address and data are registers
+(IOAPICMSIADDR/IOAPICMSIDATA, IOWIN selectors 0x04/0x05), and a refusal that
+arrives too late to act on is counted in IOAPICMSIDROP (0x06).
+
+Boot interrupt was MIS-SCOPED, not blocked. The old text described
+INIT-SIPI-SIPI, which is a LOCAL APIC's AP-startup IPI and was never this
+block's business. The real feature is the chipset behaviour: a PCI device's
+INTx rerouted to the legacy PIC while IOAPIC delivery is masked, so an
+interrupt raised before the OS programs the IOAPIC is not lost. It is being
+built as a fourth companion, `ioapic_boot_intx`.
 
 Multi-IOAPIC routing is available as a companion: `ioapic_deliv_merge` merges N
 delivery channels onto one and tags each message with its source id, so an EOI

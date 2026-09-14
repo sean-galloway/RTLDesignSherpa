@@ -471,8 +471,39 @@ trackers next to the code instead of recording the open work here.
   question than the one this entry has been posing. If the first is wanted,
   it belongs to a LAPIC, not here.
 
-  NOT IMPLEMENTED, deliberately: building to a mis-stated requirement would be
-  worse than leaving it. What is needed first is which of the two is meant.
+  RESOLVED 2026-09-14: Sean confirmed the SECOND -- the chipset behaviour.
+  IMPLEMENTED as `ioapic_boot_intx`, a FOURTH companion (his call on the shape
+  too), outside apb4_ioapic's port list with its own filelist, formal proofs and
+  seam test, exactly like the other three.
+
+  THE GATE IS ENABLE AND MASK, and both terms matter. Without the mask term a
+  pin the IOAPIC is actively delivering would ALSO reach the PIC and the
+  interrupt would be taken twice. Without the enable term the only way to stop a
+  deliberately masked pin leaking to the PIC would be to unmask it, and an OS
+  that has finished programming the IOAPIC generally wants the crutch off --
+  which is why real chipsets carry a disable control rather than keying purely
+  off the mask. The enable is IOAPICBOOTINTX at IOWIN selector 0x07 (regblock
+  0xE4), reserved on the real part like the other non-82093AA registers.
+
+  apb4_ioapic grew exactly TWO outputs: `cfg_mask_vec` -- the per-pin IOREDTBL
+  mask it already held, packed for export -- and `cfg_boot_intx_en`. The
+  rerouting itself, and the pin-to-legacy-IRQ map, live in the companion. The
+  map is a PACKED parameter, because unpacked parameter arrays survive
+  simulation and then surprise a downstream tool. Its default is "nothing
+  reroutes", so instantiating the companion without setting PIC_MAP changes no
+  behaviour.
+
+  Formal prove + cover PASS, mutation-checked: dropping the mask term fails
+  ap_reroute_eq and ap_unmasked_never; turning the map's OR into an overwrite
+  fails ap_map_0. The formal harness uses a deliberately ASYMMETRIC map (two
+  pins onto one legacy input, one pin carrying the no-reroute code) because with
+  the DEFAULT map pic_irq is provably zero -- a proof that would hold for the
+  wrong reason.
+
+  rlb_top does NOT instantiate the companion: rerouting needs a
+  pin-to-legacy-IRQ map, which is a board decision, and that subsystem has no
+  INTx concept of its own. Its two new pins are connected explicitly and left
+  open, so the gap is visible rather than hidden behind PINMISSING.
 - ~~MSI/MSI-X.~~ SHIPPED 2026-09-14 as `ioapic_msi_emit`, a third companion.
 
   **This entry called it BLOCKED and that was wrong.** MSI is a posted write of

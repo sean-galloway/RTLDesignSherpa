@@ -125,7 +125,12 @@ module ioapic_msi_emit_tb_top #(
         .eoi_in             (eoi_in),
         .eoi_vector         (eoi_vector),
         .cfg_msi_addr       (cfg_msi_addr),
-        .cfg_msi_data       (cfg_msi_data)
+        .cfg_msi_data       (cfg_msi_data),
+        // Boot-interrupt support (RLB-008): this harness does not
+        // exercise it. Explicit and open -- omitting them is
+        // PINMISSING, which is an ERROR under cocotb's flags.
+        .cfg_mask_vec       (),
+        .cfg_boot_intx_en   ()
     );
 
     // The emitter. Combinational: the handshake closes in the same cycle the

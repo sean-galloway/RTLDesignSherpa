@@ -148,11 +148,14 @@ address aliasing above 0x0FF, unsynchronized EOI - were fixed 2026-09-09 and
 this revision of the spec describes the fixed hardware. Logical destination
 mode and round-robin arbitration landed 2026-09-10, and delegated
 LowestPriority delivery on 2026-09-11. Multi-IOAPIC routing landed 2026-09-14
-as the `ioapic_deliv_merge` companion. What remains deferred (boot-interrupt
-delivery, MSI) is tracked as RLB-008 in `vault/Tasks/RLB/`, and both are
-blocked structurally rather than by effort: there is no SIPI encoding in the
-delivery-mode field, and MSI needs an initiator port an APB slave does not
-have.
+as the `ioapic_deliv_merge` companion, and MSI the same day as
+`ioapic_msi_emit` -- a posted write issued through an `apb4_master_stub`, with
+its address and data held in registers and late refusals counted in
+IOAPICMSIDROP. What remains is boot-interrupt delivery, tracked as RLB-008 in
+`vault/Tasks/RLB/`. It was previously recorded here as structurally blocked on
+the absence of a SIPI encoding; that was a category error -- INIT-SIPI-SIPI is
+a local APIC's business, and the actual feature is chipset INTx rerouting to
+the legacy PIC while IOAPIC delivery is masked.
 
 **Next Steps:**
 1. Review specification for completeness

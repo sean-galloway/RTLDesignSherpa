@@ -140,6 +140,10 @@ module ioapic_config_regs
     // interface decision.
     output logic [31:0] cfg_msi_addr,
     output logic [31:0] cfg_msi_data,
+    // Boot-interrupt enable, consumed by the ioapic_boot_intx companion
+    // together with the per-pin mask apb4_ioapic exports. Quasi-static
+    // config, same shape as the MSI pair above.
+    output logic        cfg_boot_intx_en,
 
     // Status inputs (from ioapic_core)
     input  logic        status_deliv_status [NUM_IRQS],
@@ -174,6 +178,8 @@ module ioapic_config_regs
     localparam logic [7:0]  SEL_MSIDATA   = 8'h05;
     // Dropped-delivery count. 0x06 is reserved on the real part too.
     localparam logic [7:0]  SEL_MSIDROP   = 8'h06;
+    // Boot-interrupt control. 0x07 is reserved on the real part too.
+    localparam logic [7:0]  SEL_BOOTINTX  = 8'h07;
     localparam logic [7:0]  SEL_REDIR_LO  = 8'h10;  // first redirection entry
     localparam logic [7:0]  SEL_REDIR_HI  = 8'h3F;  // last  redirection entry
     // Register-block addresses are 8 bits: the whole map is 0x00-0xE0 and the
@@ -188,6 +194,7 @@ module ioapic_config_regs
     localparam logic [7:0]  ADDR_MSIADDR  = 8'hD8;
     localparam logic [7:0]  ADDR_MSIDATA  = 8'hDC;
     localparam logic [7:0]  ADDR_MSIDROP  = 8'hE0;
+    localparam logic [7:0]  ADDR_BOOTINTX = 8'hE4;
     localparam logic [7:0]  ADDR_REDIR    = 8'h14;   // IOREDTBL[0].REDIR_LO
     // The two software-visible APB addresses in the 4 KB window. Everything
     // else, in window or not, is dropped (see DECODE CONTRACT above).
@@ -300,6 +307,7 @@ module ioapic_config_regs
                           (w_regsel == SEL_MSIADDR)   ||
                           (w_regsel == SEL_MSIDATA)   ||
                           (w_regsel == SEL_MSIDROP)   ||
+                          (w_regsel == SEL_BOOTINTX)  ||
                           ((w_regsel >= SEL_REDIR_LO) && (w_regsel <= SEL_REDIR_HI));
 
     // The software-visible decode, in full: IOREGSEL and IOWIN, nothing else.
@@ -345,6 +353,7 @@ module ioapic_config_regs
                 SEL_MSIADDR:   regblk_addr = ADDR_MSIADDR;
                 SEL_MSIDATA:   regblk_addr = ADDR_MSIDATA;
                 SEL_MSIDROP:   regblk_addr = ADDR_MSIDROP;
+                SEL_BOOTINTX:  regblk_addr = ADDR_BOOTINTX;
                 default: begin
                     // Redirection table, or an unmapped selector - in which
                     // case regblk_req is already gated off and the address
@@ -421,6 +430,7 @@ module ioapic_config_regs
     assign cfg_rr_enable = hwif_out.IOAPICARBCFG.rr_enable.value;
     assign cfg_msi_addr  = hwif_out.IOAPICMSIADDR.addr.value;
     assign cfg_msi_data  = hwif_out.IOAPICMSIDATA.data.value;
+    assign cfg_boot_intx_en = hwif_out.IOAPICBOOTINTX.enable.value;
 
     // Redirection table entries - map array to core
     genvar g;

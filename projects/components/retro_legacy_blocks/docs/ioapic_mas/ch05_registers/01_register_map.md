@@ -69,10 +69,11 @@ PSLVERR is an IOWIN access with an unmapped selector, described next.
 - 0x04: IOAPICMSIADDR (NOT an 82093AA register -- see below)
 - 0x05: IOAPICMSIDATA (NOT an 82093AA register -- see below)
 - 0x06: IOAPICMSIDROP (NOT an 82093AA register -- see below)
+- 0x07: IOAPICBOOTINTX (NOT an 82093AA register -- see below)
 - 0x10-0x3F: IOREDTBL entries (even=LO, odd=HI)
 
 **Unmapped selector values are stored, readable, and inert.** A selector in
-0x07-0x0F or at or above 0x40 is accepted by IOREGSEL and reads back as
+0x08-0x0F or at or above 0x40 is accepted by IOREGSEL and reads back as
 written (there is exactly one copy of the selector - the register block's
 `regsel` field drives both readback and the IOWIN translation, and byte
 strobes are honoured by the register block). An IOWIN access made while the
@@ -276,6 +277,35 @@ dropped. This register is what makes that visible rather than silent.
 It **saturates** at 0xFFFFFFFF rather than wrapping. A wrapped count reading 3
 after four billion drops is worse than one pinned at its maximum, because the
 small number looks like good news.
+
+#### IOAPICBOOTINTX Register (Internal Offset 0x07)
+
+**NOT an 82093AA register.** Selector 0x07 is reserved on the real part, the
+same treatment as IOAPICARBCFG, the MSI pair and IOAPICMSIDROP.
+
+| Bits | Name | Type | Reset | Description |
+| --- | --- | --- | --- | --- |
+| [0] | enable | RW | 0x0 | 1 = a masked pin also drives its mapped legacy PIC input |
+| [31:1] | Reserved | RO | 0x0 | Reserved, read as 0 |
+
+**Boot interrupt** is the chipset behaviour where a device's INTx is rerouted
+to the legacy 8259 while the IOAPIC is not delivering it, so an interrupt
+raised before the OS has programmed the IOAPIC is not lost. It is a
+compatibility crutch, which is why it is a control rather than always-on: an
+OS that has programmed the IOAPIC generally wants it off, and the only other
+way to stop a masked pin leaking to the PIC would be to unmask it.
+
+**A pin reroutes only when this bit is set AND that pin's IOREDTBL mask bit is
+set.** Both terms matter. Without the mask term a pin the IOAPIC is actively
+delivering would also reach the PIC and the interrupt would be taken twice;
+without the enable term the crutch could never be switched off.
+
+The rerouting itself is not in this block. `apb4_ioapic` exports the per-pin
+mask as `cfg_mask_vec` and this bit as `cfg_boot_intx_en`; the
+`ioapic_boot_intx` companion combines them with the INTx lines and produces
+the 8259-bound term. An integrator that does not want boot interrupts simply
+does not instantiate it, and with the enable at its reset value of 0 nothing
+reroutes even if they do.
 
 ### Redirection Table (Internal Offsets 0x10-0x3F)
 

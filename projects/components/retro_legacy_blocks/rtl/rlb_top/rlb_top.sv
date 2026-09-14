@@ -664,7 +664,14 @@ module rlb_top #(
         // so nothing here consumes them. Connected explicitly and left
         // open: omitting the pins is PINMISSING, which is how it hides.
         .cfg_msi_addr     (),
-        .cfg_msi_data     ()
+        .cfg_msi_data     (),
+        // Boot-interrupt support (RLB-008). rlb_top does not instantiate
+        // ioapic_boot_intx: rerouting needs a pin-to-legacy-IRQ map, which
+        // is a board/chipset decision, and this subsystem has no INTx
+        // concept of its own. Connected explicitly and left open so the
+        // gap is visible rather than hidden behind PINMISSING.
+        .cfg_mask_vec     (),
+        .cfg_boot_intx_en ()
     );
 
     // GPIO Controller
