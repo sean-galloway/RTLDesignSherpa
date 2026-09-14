@@ -740,6 +740,82 @@ class RapidsBeatsTopTB(TBBase):
             self.log.info(f"  SCOREBOARD: source verified ({beats} beats)")
         return (len(errors) == 0), stats
 
+    async def test_perf_ch_readout(self) -> Tuple[bool, Dict[str, Any]]:
+        """Per-channel perf readout: PERF_CH_SEL must actually select.
+
+        The read meter counts a channel only when data returns with that
+        channel's RID (i_channel_valid = rvalid, i_channel_id = rid), so this
+        drives REAL traffic -- and DIFFERENT amounts on two channels, because
+        equal traffic would read identically whichever channel the mux picked,
+        and the test could not tell a working selector from one pinned to 0.
+
+        The window must be opened BEFORE the traffic: i_clear is a pulse on
+        RUN's rising edge, so opening it afterwards would wipe what it measured.
+        """
+        errors = []
+        CH_A, BEATS_A = 0, 4
+        CH_B, BEATS_B = 1, 16          # deliberately unequal
+
+        # Open the read window first, then move data on both channels.
+        await self.write_fields('src', 'RDMON_PERF_CTRL', RUN=1)
+        await self.wait_clocks(self.clk_name, 20)
+
+        for ch, n in ((CH_A, BEATS_A), (CH_B, BEATS_B)):
+            ok, st = await self.test_source_path(channel=ch, beats=n)
+            if not ok:
+                errors.append(f"source traffic ch{ch} failed: {st.get('errors')}")
+
+        # Read each channel's buckets back through the selector.
+        readings = {}
+        for ch in (CH_A, CH_B):
+            await self.write_fields('src', 'PERF_CH_SEL', CH_SEL=ch)
+            await self.wait_clocks(self.clk_name, 5)
+            prod_bp = await self.read_reg('src', 'RDMON_PERF_CH_PROD_BP')
+            starv_idle = await self.read_reg('src', 'RDMON_PERF_CH_STARV_IDLE')
+            readings[ch] = {
+                'prod':  prod_bp & 0xFFFF,
+                'bp':   (prod_bp >> 16) & 0xFFFF,
+                'starv': starv_idle & 0xFFFF,
+                'idle': (starv_idle >> 16) & 0xFFFF,
+            }
+            self.log.info(f"  PERF_CH_SEL={ch} -> {readings[ch]}")
+
+        overflow = await self.read_reg('src', 'RDMON_PERF_CH_OVERFLOW')
+        await self.write_fields('src', 'RDMON_PERF_CTRL', RUN=0)
+
+        # 1. Both channels must have counted something: a register that reads 0
+        #    is indistinguishable from one nothing drives.
+        for ch in (CH_A, CH_B):
+            if readings[ch]['prod'] == 0:
+                errors.append(f"ch{ch} productive=0 -- per-channel bucket not counting")
+
+        # 2. The selector must SELECT. Unequal traffic must read back unequal;
+        #    identical readings mean the mux is pinned (or the RID never varies).
+        if readings[CH_A]['prod'] == readings[CH_B]['prod']:
+            errors.append(
+                f"ch{CH_A} and ch{CH_B} report identical productive="
+                f"{readings[CH_A]['prod']} despite {BEATS_A} vs {BEATS_B} beats "
+                f"-- PERF_CH_SEL is not selecting")
+
+        # 3. The heavier channel must count more. Asserting inequality and
+        #    direction, NOT a ratio: burst shaping is not something measured
+        #    here, and a ratio would assert precision this test has not earned.
+        if readings[CH_B]['prod'] <= readings[CH_A]['prod']:
+            errors.append(
+                f"ch{CH_B} ({BEATS_B} beats) productive={readings[CH_B]['prod']} "
+                f"not greater than ch{CH_A} ({BEATS_A} beats) "
+                f"productive={readings[CH_A]['prod']}")
+
+        stats = {'readings': readings, 'overflow': overflow, 'errors': errors}
+        if errors:
+            for e in errors:
+                self.log.error(f"  SCOREBOARD: {e}")
+        else:
+            self.log.info(f"  SCOREBOARD: per-channel readout verified "
+                          f"(ch{CH_A}={readings[CH_A]['prod']}, "
+                          f"ch{CH_B}={readings[CH_B]['prod']}, overflow=0x{overflow:X})")
+        return (len(errors) == 0), stats
+
     async def test_sink_path(self, channel=0, beats=4) -> Tuple[bool, Dict[str, Any]]:
         """SINK: AXIS -> memory. APB-kick SNK, stream s_axis, verify wr_mem."""
         self.log.info(f"=== SINK path: ch{channel}, {beats} beats ===")

@@ -619,6 +619,31 @@ module rapids_beats_top #(
 
     logic [31:0] w_rd_prod, w_rd_bp, w_rd_starv, w_rd_idle;
     logic [31:0] w_wr_prod, w_wr_bp, w_wr_starv, w_wr_idle;
+
+    // Per-channel buckets from the READ meter, presented one channel at a time
+    // through SRC.PERF_CH_SEL.CH_SEL (indexed readout, mirroring STREAM's
+    // stream_core -> stream_top_ch8 pattern). The WRITE side is deliberately
+    // NOT wired: snk_data_path_beats ties off the write engine's
+    // o_active_channel_id, so u_wr_bus_meter sees i_channel_id='0 and would
+    // attribute every beat to channel 0. Populating WRMON_PERF_CH_* from that
+    // would report a fiction; zeros are honestly "not implemented".
+    logic [15:0] w_rd_ch_prod  [NC];
+    logic [15:0] w_rd_ch_bp    [NC];
+    logic [15:0] w_rd_ch_starv [NC];
+    logic [15:0] w_rd_ch_idle  [NC];
+    logic [NC*4-1:0] w_rd_ch_overflow;
+    logic [MCW-1:0]  w_rd_ch_sel;
+    logic [15:0] w_rd_sel_prod, w_rd_sel_bp, w_rd_sel_starv, w_rd_sel_idle;
+
+    // Slice the 3-bit CSR field to the meter's index width explicitly rather
+    // than relying on them happening to match (both are 3 at NC=8).
+    assign w_rd_ch_sel = hwif_out.SRC.PERF_CH_SEL.CH_SEL.value[MCW-1:0];
+    always_comb begin
+        w_rd_sel_prod  = w_rd_ch_prod [w_rd_ch_sel];
+        w_rd_sel_bp    = w_rd_ch_bp   [w_rd_ch_sel];
+        w_rd_sel_starv = w_rd_ch_starv[w_rd_ch_sel];
+        w_rd_sel_idle  = w_rd_ch_idle [w_rd_ch_sel];
+    end
     /* verilator lint_off PINCONNECTEMPTY */
     axi_bus_meter #(.NUM_CHANNELS(NC)) u_rd_bus_meter (
         .aclk               (aclk),
@@ -644,11 +669,11 @@ module rapids_beats_top #(
         // pattern to follow. Read side is portable as-is; the WRITE side also
         // needs axi_write_engine_beats.o_active_channel_id plumbed out of
         // snk_data_path_beats, which currently ties it off.
-        .o_ch_productive    (),
-        .o_ch_backpressure  (),
-        .o_ch_starvation    (),
-        .o_ch_idle          (),
-        .o_ch_overflow      ()
+        .o_ch_productive    (w_rd_ch_prod),
+        .o_ch_backpressure  (w_rd_ch_bp),
+        .o_ch_starvation    (w_rd_ch_starv),
+        .o_ch_idle          (w_rd_ch_idle),
+        .o_ch_overflow      (w_rd_ch_overflow)
     );
 
     axi_bus_meter #(.NUM_CHANNELS(NC)) u_wr_bus_meter (
@@ -718,6 +743,15 @@ module rapids_beats_top #(
         hwif_in.SRC.MON.RDMON_PERF_BYTE_COUNT_LO.VAL.next  = r_rd_bytes[31:0];
         hwif_in.SRC.MON.RDMON_PERF_BYTE_COUNT_HI.VAL.next  = r_rd_bytes[63:32];
         hwif_in.SRC.MON.RDMON_PERF_BURST_COUNT.VAL.next    = r_rd_bursts;
+
+        // Per-channel readout for the channel SRC.PERF_CH_SEL selects. Packed
+        // as {bp[31:16], prod[15:0]} and {idle[31:16], starv[15:0]} to match
+        // the register descriptions and STREAM's packing. The overflow mask
+        // exposes ALL channels at once ({prod,bp,starv,idle} per channel), so
+        // it is not selector-indexed.
+        hwif_in.SRC.MON.RDMON_PERF_CH_PROD_BP.VAL.next    = {w_rd_sel_bp,   w_rd_sel_prod};
+        hwif_in.SRC.MON.RDMON_PERF_CH_STARV_IDLE.VAL.next = {w_rd_sel_idle, w_rd_sel_starv};
+        hwif_in.SRC.MON.RDMON_PERF_CH_OVERFLOW.VAL.next   = 32'(w_rd_ch_overflow);
 
         hwif_in.SNK.MON.WRMON_PERF_STATUS.WIN_ACTIVE.next  = w_wr_run;
         hwif_in.SNK.MON.WRMON_PERF_WINDOW_CYCLES.VAL.next  =

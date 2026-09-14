@@ -133,6 +133,17 @@ async def cocotb_test_ext_addressing(dut):
     tb.log.info(f"rapids_beats_top EXT addressing PASSED ({rows} runs x {inner} beats)")
 
 
+@cocotb.test(timeout_time=120, timeout_unit="ms")
+async def cocotb_test_perf_ch_readout(dut):
+    """PERF_CH_SEL must select: two channels, unequal traffic, distinct buckets."""
+    tb = RapidsBeatsTopTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+    ok, stats = await tb.test_perf_ch_readout()
+    tb.finalize_test()
+    assert ok, f"per-channel perf readout failed: {stats.get('errors')}"
+
+
 @cocotb.test(timeout_time=60, timeout_unit="ms")
 async def cocotb_test_sink_path(dut):
     """SINK datapath (AXIS -> memory), configured + kicked over APB by name."""
@@ -428,6 +439,13 @@ def test_rapids_beats_top_control(request):
 def test_rapids_beats_top_status(request):
     """Status CSR read-back: the fields with real sources must not read 0."""
     _run_top("cocotb_test_status_readback", "test_rapids_beats_top_status")
+
+
+@pytest.mark.top_beats
+@pytest.mark.rapids_beats_top
+def test_rapids_beats_top_perf_ch_readout(request):
+    """Per-channel perf bucket readout through PERF_CH_SEL."""
+    _run_top("cocotb_test_perf_ch_readout", "test_rapids_beats_top_perf_ch")
 
 
 @pytest.mark.top_beats

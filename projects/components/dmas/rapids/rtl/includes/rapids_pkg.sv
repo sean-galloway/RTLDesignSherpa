@@ -48,7 +48,7 @@ package rapids_pkg;
     //   [255:192] - control: Control bits
 
     typedef struct packed {
-        logic [63:0]  reserved;              // [255:192] Reserved
+        logic [63:0]  reserved;              // [271:208] Reserved (top 16 = struct pad)
         logic [7:0]   desc_priority;         // [207:200] Transfer priority
         logic [3:0]   channel_id;            // [199:196] Channel ID (informational only)
         logic         error;                 // [195] Error flag
