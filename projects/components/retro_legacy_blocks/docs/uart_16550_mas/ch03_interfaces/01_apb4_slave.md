@@ -49,7 +49,7 @@ This is the bus-level view of the block: the APB signals, the address map they r
 
 ### Address Map
 
-Flat, DLAB-independent map (LCR[7] does not remap any address; DLL/DLM have dedicated offsets). Only `paddr[5:0]` is decoded, so the block aliases every 0x40 bytes across the window.
+Each register has a unique offset, and LCR[7] (DLAB) additionally remaps 0x00/0x04 to DLL/DLM while it is set; DLL/DLM keep their dedicated offsets either way. Only `paddr[5:0]` is decoded, so the block aliases every 0x40 bytes across the window.
 
 | Offset | Read | Write |
 |--------|------|-------|

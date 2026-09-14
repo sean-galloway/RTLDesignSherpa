@@ -61,7 +61,7 @@ The modem interface carries the classic flow-control and status pins: RTS/DTR/OU
 | 3 | OUT2 | out2_n | MCR[3] = 1 (also gates the irq pin) |
 | 4 | LOOP | - | Loopback mode |
 
-MCR is only 5 bits wide in this RTL (bit 5/AFE does not exist). OUT2 additionally
+MCR is 6 bits wide: bit 5 is AFE (auto flow control, see below). OUT2 additionally
 gates the `irq` output: the pin can assert only when MCR.OUT2 = 1.
 
 #### Auto Flow Control (AFE)

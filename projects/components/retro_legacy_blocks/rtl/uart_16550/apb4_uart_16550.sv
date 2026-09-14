@@ -15,13 +15,12 @@
 //   - Interrupt support, individually maskable via IER
 //   - Optional CDC for async pin domains
 //
-// Not implemented (ledger RLB-013, documented in README.md):
-//   - Character-timeout interrupt (int_timeout tied low, IIR never reads 0x0C)
-//   - Auto flow control (MCR[5] AFE has no field: MCR[31:5] reads 0, and
-//     CTS does not gate the transmitter)
-//   - 1.5 stop bits for 5-bit words
-//   - DLAB register remapping (the map is flat)
-//   - DMA mode select (FCR[3] stores and is never read)
+// Implemented (RLB-013, commit 3d6bd04e0): the character-timeout interrupt
+// (IIR reads 0x0C), auto flow control on MCR[5] (CTS gates the START of a
+// character; RTS follows the RX FIFO level), 1.5 stop bits for a 5-bit word,
+// additive DLAB remapping (0x00/0x04 are the divisor latches while LCR[7] is
+// set, and the flat 0x24/0x28 offsets keep working) and DMA mode select on
+// FCR[3].
 //
 // Reset:
 //   presetn and uart_rstn are INDEPENDENT ports. With CDC_ENABLE=1 they reset

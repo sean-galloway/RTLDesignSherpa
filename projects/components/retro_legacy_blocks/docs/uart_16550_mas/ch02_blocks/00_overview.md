@@ -68,7 +68,7 @@ Handles APB protocol conversion and register access.
 **See:** [01_apb_interface.md](01_apb_interface.md)
 
 ### Register File
-16550-compatible register set with a flat, DLAB-independent address map (each register has a unique offset; DLAB does not remap addresses).
+16550-compatible register set. Every register has a unique offset, and LCR[7] (DLAB) additionally remaps 0x00/0x04 to DLL/DLM while set (RLB-013).
 
 **See:** [02_register_file.md](02_register_file.md)
 

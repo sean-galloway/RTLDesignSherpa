@@ -1,6 +1,6 @@
 # RLB — Retro Legacy Blocks
 
-**Next ID: RLB-014** — never recycle a number, even when its task closed.
+**Next ID: RLB-016** — never recycle a number, even when its task closed.
 
 Task rollup for the retro legacy peripheral blocks (gpio, hpet, ioapic,
 pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
@@ -9,9 +9,9 @@ pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
 
 | State | Count | Tasks |
 |---|---|---|
-| active | 1 | RLB-004 (RTL bugs — awaiting owner) |
-| open | 7 | RLB-006 (test scrub), RLB-007 (RDL relocation), RLB-008 (ioapic residual features), RLB-009 (pm_acpi residual features), RLB-010 (rtc leftovers: shared-primitive lint, clock mux), RLB-011 (smbus slave mode, arbitration, quick-command read), RLB-013 (uart_16550 character timeout, AFE, 1.5 stop bits, DLAB remap, DMA mode) |
-| closed | 4 | RLB-001 (Kimi review), RLB-002 (5 wrong-map MAS fixes), RLB-003 (4 targeted MAS fixes), RLB-005 (rtc wavedrom README) |
+| active | 0 | — |
+| open | 9 | RLB-006 (test scrub), RLB-007 (RDL relocation), RLB-008 (ioapic residual features), RLB-009 (pm_acpi residual features), RLB-010 (rtc leftovers), RLB-011 (smbus residual features), RLB-012 (regblock reset polarity), RLB-013 (uart_16550 residual features), RLB-014 (800-line core cap), RLB-015 (RESET_ACTIVE_HIGH SYNCASYNCNET, unverified) |
+| closed | 5 | RLB-001 (Kimi review), RLB-002 (5 wrong-map MAS fixes), RLB-003 (4 targeted MAS fixes), RLB-004 (the 9 RTL bugs), RLB-005 (rtc wavedrom README) |
 | dropped | 0 | — |
 
 ## Shortlist
@@ -24,10 +24,13 @@ pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
   after. A power outage killed the driver mid-smbus; `run_humanize_resumable.sh`
   re-sent only smbus + uart_16550 (results in
   `results/humanize-kimi-k2/round_1/`). RLB-006 is now unblocked.
-- **Blocked on owner (RLB-004):** 9 RTL bugs filed (#44–#60 even) need design
-  decisions before RTL changes; each re-verified 2026-09-08 with a dated
-  issue comment.
-- **Next (RLB-006):** test scrub via `run_batch.py testqc`. Then RLB-007 (RDL relocation).
+- **RLB-004 CLOSED 2026-09-14.** All 9 RTL bugs (#44–#60 even) and tracking
+  #61 are closed on GitHub; the fixes landed 2026-09-10/11. Verified before
+  closing: clean `make clean-all && make run-all-full-parallel` over all nine
+  blocks at REG_LEVEL=FULL, 63 passed / 0 failed.
+- **Nothing is active.** What remains open is deliberate scope (RLB-008
+  ioapic modes, RLB-010 rtc clock mux) plus the two filed 2026-09-14. The one
+  genuine open work item is RLB-010's missing formal area.
 
 ## Done
 

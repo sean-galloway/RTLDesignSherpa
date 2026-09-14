@@ -22,8 +22,9 @@
 //     clear wins over a same-cycle set, so a change that happens exactly when
 //     software reads MSR is reported by the level bits (sts_cts and friends)
 //     rather than being latched twice.
-//   - Auto flow control is NOT implemented (ledger RLB-013): cts does not
-//     gate the transmitter and MCR[5] has no field at all.
+//   - Auto flow control (MCR[5] AFE, RLB-013): cts gates the START of a
+//     character - the one in the shifter always finishes - and rts_n is
+//     driven from the RX FIFO level rather than from MCR[1].
 //
 // Documentation: projects/components/retro_legacy_blocks/rtl/uart_16550/README.md
 // Created: 2026-09-10

@@ -50,8 +50,9 @@ The APB UART 16550 is a 16550-compatible Universal Asynchronous Receiver/Transmi
 - Modem status changes
 
 #### Modem Control
-- CTS/RTS modem signals (NOTE: automatic hardware flow control does not
-  exist -- AFE is unimplemented and CTS does not gate TX; see ch03/ch05)
+- CTS/RTS modem signals, with automatic hardware flow control on MCR[5]
+  (AFE): CTS gates the start of a character and RTS follows the RX FIFO
+  level; see ch03/ch05
 - Full modem signals (DTR, DSR, DCD, RI)
 - Programmable outputs (OUT1, OUT2)
 - Loopback mode for testing
@@ -82,7 +83,7 @@ The APB UART 16550 is a 16550-compatible Universal Asynchronous Receiver/Transmi
 
 ### Register Summary
 
-This implementation uses a flat, DLAB-independent address map - each register has a unique offset and LCR[7] (DLAB) does not remap any address. See [Chapter 5](../ch05_registers/01_register_map.md) for full field detail.
+Every register has a unique offset, and LCR[7] (DLAB) additionally remaps 0x00 and 0x04 to the divisor latches DLL/DLM while it is set, as a standard 16550 driver expects; the flat offsets 0x24/0x28 keep working either way (RLB-013).
 
 | Offset | Name | Access | Description |
 |--------|------|--------|-------------|

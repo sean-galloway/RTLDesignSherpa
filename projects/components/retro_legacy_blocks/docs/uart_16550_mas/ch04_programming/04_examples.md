@@ -36,7 +36,8 @@ Complete, working examples that pull together everything from the previous pages
 ```c
 #define UART_BASE   0xFEC08000
 
-// Flat, DLAB-independent map: each register has its own offset.
+// Each register has its own offset; this example uses those flat offsets.
+// (LCR[7]/DLAB additionally remaps 0x00/0x04 to DLL/DLM when set.)
 // RBR read returns the received byte in bits [7:0], so read RBR as 16-bit.
 #define RBR  (*(volatile uint16_t *)(UART_BASE + 0x00))
 #define THR  (*(volatile uint8_t  *)(UART_BASE + 0x00))

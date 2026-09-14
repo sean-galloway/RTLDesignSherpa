@@ -25,7 +25,8 @@
 //   - FCR[0]=0 is real 16450 character mode: one holding register per side
 //   - LSR[4:2] are the tags of the character being handed to the CPU
 //   - A continuous break loads exactly one character
-//   - Character timeout interrupt: NOT implemented (int_timeout tied 0)
+//   - Character timeout interrupt (RLB-013): IIR reads 0x0C after four
+//     character times with a non-empty RX FIFO and no activity
 //
 // Documentation: projects/components/retro_legacy_blocks/rtl/uart_16550/README.md
 // Created: 2025-11-29

@@ -511,3 +511,78 @@ the MAS flip. Kept here as the record of what they were.
   it is not what a driver written against a standard 16550 expects.
 - **DMA mode select.** FCR[3] is stored and never read.
 
+
+---
+
+### RLB-014: the 800-line core cap is honored in the breach
+
+**Priority:** P3. Hygiene and reviewability, not a defect — every block is
+green. Raised 2026-09-14 by the uart_16550 verification agent and confirmed
+by measurement.
+**Status:** open, and it is a POLICY question for the owner, not a fix an
+agent should take unilaterally.
+
+Measured `wc -l` on the nine RLB cores:
+
+```
+1706  rtc/rtc_core.sv
+1328  pm_acpi/pm_acpi_core.sv
+ 888  smbus/smbus_core.sv
+ 842  uart_16550/uart_16550_core.sv     <- 759 before the RLB-013 features
+ 705  hpet/hpet_core.sv
+ 666  pic_8259/pic_8259_core.sv
+ 552  ioapic/ioapic_core.sv
+ 331  pit_8254/pit_core.sv
+ 227  gpio/gpio_core.sv
+```
+
+Four are over the repo's 800-line guidance. smbus is the pointed one: it was
+held to exactly 800 during the #58 review and has since grown to 888.
+
+**The obvious cut in uart is blocked by DV.** The tests whitebox
+`r_tx_state`, `r_tx_wr_ptr`, `r_tx_rd_ptr`, `w_tx_fifo_count`, `w_tx_bit` and
+the RX equivalents at `u_uart_core` scope, so extracting TX or RX breaks tests
+that an RTL agent may not edit. That constraint is why round 2 split modem and
+intr instead, and the sweep confirmed that split was DV-safe (zero references
+into `u_intr` or `u_modem`). Any split here is a DV change first and an RTL
+change second.
+
+---
+
+### RLB-015: SYNCASYNCNET under -DRESET_ACTIVE_HIGH, family-wide
+
+**Priority:** P3. REPORTED, NOT VERIFIED — filed so it is not lost, with its
+evidence explicitly marked unconfirmed.
+**Status:** open. Needs measurement before anyone acts on it.
+
+The uart_16550 verification agent reported verilator SYNCASYNCNET warnings
+under `-DRESET_ACTIVE_HIGH`, absent at the default polarity:
+
+```
+apb4_rtc         RESET_ACTIVE_HIGH=3  default=0
+apb4_gpio        RESET_ACTIVE_HIGH=3  default=0
+apb4_pit_8254    RESET_ACTIVE_HIGH=3  default=0
+apb4_uart_16550  RESET_ACTIVE_HIGH=3  default=0
+apb4_smbus       RESET_ACTIVE_HIGH=0  default=0
+```
+
+attributing it to `presetn` used synchronously in the block against async use
+in the shared `peakrdl_to_cmdrsp`.
+
+**Its file:line evidence does not check out, which is why this is filed as
+unverified.** It cited `rtl/amba/shared/peakrdl_to_cmdrsp.sv:117`; the file is
+actually at `projects/components/converters/rtl/peakrdl_to_cmdrsp.sv`, and
+line 117 there is the closing paren of an `ALWAYS_FF_RST` macro, not a reset
+usage. The warning counts were not reproduced either — retro_legacy_blocks has
+no lint target, so nothing in this entry is measured.
+
+The MECHANISM is plausible: `reset_defs.svh` swaps `RST_ASSERTED` and
+`ALWAYS_FF_RST_HI/LO` under `RESET_ACTIVE_HIGH`, so a reset used
+asynchronously inside the macro and synchronously outside it is exactly the
+shape SYNCASYNCNET names. smbus being the only clean block also fits — its
+reset path was reworked in the #58 rounds 5-6.
+
+**Before acting:** reproduce the counts. If they hold, this is a shared-file
+change in `converters`, not an RLB fix, and it belongs with [[RLB-012]]
+(regblock reset polarity) as a shared-bridge item. Confirm scope with the
+owner before editing a shared file that every block instantiates.
