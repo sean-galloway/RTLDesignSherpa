@@ -249,6 +249,49 @@ every sv2v-flow area (rapids, stream, converters) asserts on ports only.
 INSPECTION** -- which the rule explicitly calls the accepted state, not a gap
 to paper over.
 
+## A sequential DUT needs a reset sequence, or anyinit invents counterexamples (2026-09-14)
+
+The setundef bullet above covers undriven INPUTS. Uninitialised FLOPS are a
+separate trap and they bite the moment a harness moves from combinational to
+sequential RTL.
+
+A harness whose `clk`/`rst_n` are plain inputs of the formal top never applies
+reset. yosys then starts every flop in the DUT at an `anyinit` value, the
+solver picks the worst one, and properties fail against RTL that is correct.
+
+*Case: `formal_ioapic_deliv_merge`. `ap_ready_onehot0` -- at most one source
+ready at a time -- FAILED at step 1. The RTL was right: `arbiter_round_robin`
+computes `w_next_grant = '0` then sets one bit, and clears grant on reset, so
+grant is one-hot-or-zero in operation. The trace named the real cause in
+plain sight: `u_arb/_witness_/anyinit_procdff_428…463`, i.e. the arbiter's
+grant/grant_valid/grant_id flops free at step 0 with no reset ever applied.
+The sibling `formal_ioapic_lowest_pri_arb` needed none of this because that
+module is combinational and holds no state -- which is exactly why the trap
+is easy to walk into on the second proof in an area.*
+
+The fix is the standard idiom already used by `formal_drain_ctrl_beats.sv` and
+`formal_axi_write_engine.sv` -- hold reset for the first two cycles:
+
+    reg [7:0] f_past_valid = 0;
+    always @(posedge clk)
+        f_past_valid <= f_past_valid + (f_past_valid < 8'hFF);
+    initial assume (!rst_n);
+    always @(posedge clk)
+        if (f_past_valid >= 2) assume (rst_n);
+
+**Read `_witness_/anyinit_*` in a cex as "no reset", not as a design bug.** Note
+the shape of the mistake: the property was correct, and the counterexample was
+genuine in the MODEL but unreachable in the hardware -- the model permitted a
+start state the design cannot occupy. That is the same judgement as "Constrain
+to the documented range; file the hazard" below -- constrain the environment,
+never weaken the property. The second
+failure in that same proof was the other half of it: in arbiter ACK mode a
+grant is HELD, so a source withdrawing `valid` mid-grant leaves the merged
+channel valid for a source no longer asking. No conforming producer does that
+(`ioapic_core` drives `irq_out_valid` from a registered stage that empties only
+on `irq_out_valid && irq_out_ready`), so it too is an assumption, and
+`ap_src_requesting` stayed exactly as written.
+
 ## `design.log` cell counts are NOT a vacuity test
 
 Route 4 above passed, and three separate readings of `design.log` gave three
