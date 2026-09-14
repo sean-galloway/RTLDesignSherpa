@@ -59,11 +59,14 @@
 //   upstream adapter HOLDS its request until an ack, so a dropped access that
 //   is merely gated off the register block would hang the APB.
 //
-// CHECK BY INSPECTION (these were assertions and a simulation-time parameter
-// guard; properties belong in external formal bindings, not inside the module)
+// CHECK BY INSPECTION (these were assertions; properties belong in external
+// formal bindings, not inside the module)
 //   - NUM_IRQS must be 24. The register map is generated from a fixed 24-entry
 //     RDL, so this parameter is not free here even though ioapic_core scales.
-//     Nothing in the RTL rejects another value.
+//     This one IS enforced: the elaboration-time param_check at the bottom of
+//     this file $errors on any other value. That guard is not SVA and stays --
+//     c67e9c31a kept it deliberately when it removed this block's assertions,
+//     and gpio/hpet carry the same shape.
 //   - Every address this file presents to the register block is one the
 //     generated decode recognises: IOREGSEL/IOAPICID/IOAPICVER/IOAPICARB, or
 //     ADDR_REDIR + 8*n (+4) for n in [0,24). IOWIN's own regblock address

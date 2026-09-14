@@ -211,14 +211,19 @@ regblock` desyncs the regmap. Run the RLB tests afterwards.
 
 **Priority:** P3. The block is functionally complete for its MVP scope and
 36/36 green in all six configurations; nothing here is a defect.
-**Status:** partly fixed. Logical destination mode landed 2026-09-10 in
-4bce6badc and round-robin arbitration the same day; what is left is
-LowestPriority, multi-IOAPIC routing, boot-interrupt delivery and MSI, plus
-the table-size note below. Raised while closing issue #48. These items were
-the surviving content of `rtl/ioapic/TODO.md`, which was deleted with that fix
-along with `INTERRUPT_DELIVERY_DEBUG.md` -- both described the delivery FSM
-that the #48 fix removed, so keeping them in sync would have meant rewriting
-two stale trackers next to the code instead of recording the open work here.
+**Status:** open, and everything left is deliberate scope. Logical destination
+mode landed 2026-09-10 in 4bce6badc and round-robin arbitration the same day;
+LowestPriority's IOAPIC half landed 2026-09-11 and its arbitration half is
+delegated. The table-size note was examined 2026-09-14: the actionable part was
+a false claim in the module header, now fixed; the rest cannot be done in
+SystemRDL. What remains is multi-IOAPIC routing, boot-interrupt delivery and
+MSI -- features the MVP does not implement.
+
+Raised while closing issue #48. Those deferred features were the surviving
+content of `rtl/ioapic/TODO.md`, which was deleted with that fix along with
+`INTERRUPT_DELIVERY_DEBUG.md` -- both described the delivery FSM that the #48
+fix removed, so keeping them in sync would have meant rewriting two stale
+trackers next to the code instead of recording the open work here.
 
 **Deferred by design (82093AA features the MVP does not implement):**
 
@@ -279,11 +284,36 @@ two stale trackers next to the code instead of recording the open work here.
   them in opposite orders, with the static run as its own control.
 - Multi-IOAPIC routing, boot-interrupt (INIT-SIPI-SIPI) delivery, MSI/MSI-X.
 
-**Worth doing sooner than the rest:**
-`ioapic_regs.rdl` fixes the table at 24 entries while `ioapic_core` scales
-with NUM_IRQS -- the mismatch is caught today only by a simulation-time
-`$error` in `ioapic_config_regs`. Making the RDL entry count generated from
-the same parameter would remove the guard's reason to exist.
+**The table-size note, re-stated 2026-09-14 after examining it.**
+`ioapic_regs.rdl` fixes the table at 24 entries (`IOREDTBL[24] @ 0x14`) while
+`ioapic_core` scales with NUM_IRQS. The original suggestion -- "make the RDL
+entry count generated from the same parameter" -- CANNOT BE DONE as written:
+SystemRDL has no parameters, which this repo already records at
+`projects/components/misc/rtl/tally_regs.rdl:22` ("RDL has no parameters").
+It would mean templating the `.rdl` itself, i.e. generating the source of a
+generated file, which exists nowhere here -- a large mechanism for a P3 note.
+
+What was actually wrong was the HEADER, and that is fixed. It claimed
+"Nothing in the RTL rejects another value" while the elaboration-time
+`param_check` at the bottom of the same file `$error`s on exactly that. Both
+landed in `c67e9c31a`, whose message says the `initial ... param_check` guards
+stay; the header swept the surviving guard in with the deleted SVA. gpio and
+hpet carry the same guard with no such claim, so this was an ioapic-only
+wording slip. The guard is the correct mechanism and is untouched.
+
+**Considered and declined: driving `IOAPICVER.max_redir` from NUM_IRQS.**
+It is `sw=r, hw=na` with a hardcoded `8'h17`, referenced nowhere in the
+generated block, `ioapic_config_regs` or `ioapic_core` -- so software reads 23
+whatever NUM_IRQS says. Making it track the parameter costs an RDL change, a
+PeakRDL regeneration of two files, a new RTL driver, a DV change
+(`ioapic_tests_basic` fails if `max_redir != 23`) and a MAS change -- to report
+a value the guard in the same file already forces to 24. Revisit only if
+NUM_IRQS ever becomes genuinely free, which needs the RDL problem solved first.
+
+**Still genuinely deferred (82093AA features the MVP does not implement):**
+multi-IOAPIC routing, boot-interrupt (INIT-SIPI-SIPI) delivery, MSI/MSI-X, and
+the arbitration half of LowestPriority, which is delegated to the consumer by
+Sean's call (see above).
 
 ### RLB-009: PM_ACPI features deferred past the #54 fix
 
@@ -371,8 +401,15 @@ scope.
 the #56 rewrite (ten review rounds on the clock-domain crossing); nothing
 here is a defect in the block. The durable lessons are in the handbook:
 [[cdc]] Rules 1-7 and [[no-assertions-in-rtl]].
-**Status:** partly fixed. The three shared-primitive lint items landed
-2026-09-10 in dc4ea9db7; the clock mux and the formal area are open.
+**Status:** DONE apart from one item that is a deliberate design decision, not
+work. The three shared-primitive lint items landed 2026-09-10 in dc4ea9db7; the
+formal area was created 2026-09-14 and proves the W1C strobe (below). The only
+remaining bullet is the combinational clock mux, which is DELIBERATELY NOT
+FIXED for the reason stated there -- a portable glitch-free mux needs both
+clocks running, and the whole point of `clock_select` is surviving an absent
+crystal. It needs a device-specific cell (BUFGMUX / clock-gate pair), which is
+a board/technology decision rather than an RTL fix, so this entry stays open to
+hold that constraint rather than because anything is pending.
 
 - ~~Two shared CDC primitives are not verilator -Wall clean.~~ FIXED
   dc4ea9db7: the handshake's timeout counter now lives inside the generate
@@ -409,7 +446,8 @@ here is a defect in the block. The durable lessons are in the handbook:
   (kick) and pm_acpi (`cfg_sys_reset`) the same week. MUTATION-CHECKED:
   removing `&& !r_status_sw_wr_d` makes the proof FAIL and restoring it makes
   it PASS; all three covers are reached at step 2; the named properties appear
-  in `design_smt2.log`.
+  in `design_smt2.smt2` (the SMT model -- NOT `design_smt2.log`, which
+    contains none of them; grepping the log is itself a false vacuity test).
 
   **STILL UNPROVED, and now known to be unprovable here: the seconds-read
   latch alignment.** It is a property of `w_seconds_latch`, an internal
