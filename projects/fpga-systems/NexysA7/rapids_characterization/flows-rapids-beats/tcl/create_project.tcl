@@ -72,12 +72,20 @@ if {[info exists ::env(RAPIDS_SRAM_DEPTH)]}       { set sram_depth $::env(RAPIDS
 set desc_ram_entries 256
 if {[info exists ::env(RAPIDS_DESC_RAM_ENTRIES)]} { set desc_ram_entries $::env(RAPIDS_DESC_RAM_ENTRIES) }
 
+# Extended row/col-major addressing in the DUT (USE_ROW_COL_MAJOR_ADDRESSING).
+# Default 0: this build is tuned down to close 8-channel timing and meters
+# externally. Set RAPIDS_ROW_COL=1 to measure what the feature costs in area
+# and WNS. Threaded top -> char_top -> harness -> rapids_beats_top.
+set row_col 0
+if {[info exists ::env(RAPIDS_ROW_COL)]} { set row_col $::env(RAPIDS_ROW_COL) }
+
 puts "========================================================================"
 puts "RTL Design Sherpa — RAPIDS beats Characterization ($board_label)"
 puts "========================================================================"
 puts "Project root:      $project_root"
 puts "REPO_ROOT:         $::env(REPO_ROOT)"
 puts "Part / top:        $part_name / $top_name"
+puts "Row/col addressing: $row_col"
 puts "NUM_CHANNELS:      $num_channels"
 puts "SRAM_DEPTH:        $sram_depth"
 puts "DESC_RAM_ENTRIES:  $desc_ram_entries"
@@ -147,7 +155,7 @@ puts "Setting top module: $top_name"
 set_property top $top_name $src_fs
 
 # Narrow the board geometry + memory sizing via top-level generics (see header).
-set_property generic "NUM_CHANNELS=$num_channels SRAM_DEPTH=$sram_depth DESC_RAM_ENTRIES=$desc_ram_entries" $src_fs
+set_property generic "NUM_CHANNELS=$num_channels SRAM_DEPTH=$sram_depth DESC_RAM_ENTRIES=$desc_ram_entries USE_ROW_COL_MAJOR_ADDRESSING=$row_col" $src_fs
 
 update_compile_order -fileset sources_1
 

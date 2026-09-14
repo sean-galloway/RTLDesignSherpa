@@ -129,6 +129,10 @@ module rapids_char_top #(
     parameter int AXIS_DEST_WIDTH = 4,
     // Descriptor fetch is fixed 256-bit end-to-end.
     parameter int DESC_DATA_WIDTH = 256,
+    // Extended row/col-major addressing in the DUT. Pinned OFF by default for
+    // this characterization build (it is tuned down to close 8-channel timing);
+    // override via the RAPIDS_ROW_COL env generic to measure the cost.
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,
     // Descriptor RAM depth per half. Shrunk from the harness default (2048)
     // to fit the 100T BRAM budget; bump for deeper descriptor chains.
     parameter int SRAM_DEPTH    = 256,   // sink/source data-buffer depth (board-fit; sim default is deeper)
@@ -873,7 +877,8 @@ module rapids_char_top #(
         .APB_DATA_WIDTH   (APB_DATA_WIDTH),
         .AXIS_DEST_WIDTH  (AXIS_DEST_WIDTH),
         .SRAM_DEPTH       (SRAM_DEPTH),
-        .DESC_RAM_ENTRIES (DESC_RAM_ENTRIES)
+        .DESC_RAM_ENTRIES (DESC_RAM_ENTRIES),
+        .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING)
     ) u_harness (
         .aclk    (aclk),
         .aresetn (aresetn),

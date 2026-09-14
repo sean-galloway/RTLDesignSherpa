@@ -35,7 +35,11 @@ module rapids_char_genesys2_top #(
     parameter int DESC_RAM_ENTRIES = 256,
     parameter int APB_ADDR_WIDTH   = 13,
     parameter int APB_DATA_WIDTH   = 32,
-    parameter int UART_BAUD        = 115_200
+    parameter int UART_BAUD        = 115_200,
+    // Extended row/col-major addressing in the DUT. Pinned OFF by default for
+    // this characterization build (it is tuned down to close 8-channel timing);
+    // override via the RAPIDS_ROW_COL env generic to measure the cost.
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0
 ) (
     input  logic        sysclk_p,      // 200 MHz LVDS (+)
     input  logic        sysclk_n,      // 200 MHz LVDS (-)
@@ -103,7 +107,8 @@ module rapids_char_genesys2_top #(
         .SRAM_DEPTH       (SRAM_DEPTH),
         .DESC_RAM_ENTRIES (DESC_RAM_ENTRIES),
         .APB_ADDR_WIDTH   (APB_ADDR_WIDTH),
-        .APB_DATA_WIDTH   (APB_DATA_WIDTH)
+        .APB_DATA_WIDTH   (APB_DATA_WIDTH),
+        .USE_ROW_COL_MAJOR_ADDRESSING(USE_ROW_COL_MAJOR_ADDRESSING)
     ) u_char_top (
         .CLK100MHZ    (clk100),
         .CPU_RESETN   (dut_resetn),

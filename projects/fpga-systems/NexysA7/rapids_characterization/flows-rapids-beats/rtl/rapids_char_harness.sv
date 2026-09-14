@@ -57,7 +57,11 @@ module rapids_char_harness #(
     parameter int SW  = DATA_WIDTH / 8,
     parameter int CIW = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1,
     // Descriptor fetch is fixed 256-bit end-to-end (DUT src/snk desc rdata).
-    parameter int DESC_DATA_WIDTH = 256
+    parameter int DESC_DATA_WIDTH = 256,
+    // Extended row/col-major addressing in the DUT. Pinned OFF by default for
+    // this characterization build (it is tuned down to close 8-channel timing);
+    // override via the RAPIDS_ROW_COL env generic to measure the cost.
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0
 ) (
     //-------------------------------------------------------------------------
     // Clock / Reset / CAM clear
@@ -422,7 +426,14 @@ module rapids_char_harness #(
         // monitors are dead weight -- removing them reclaims LUTs and closes
         // 8-channel timing (mirrors stream_char's USE_AXI_MONITORS=0).
         .USE_AXI_MONITORS(0),
-        .GEN_MON         (1'b0)
+        .GEN_MON         (1'b0),
+        // Extended addressing compiled OUT. rapids_beats_top defaults this to 1
+        // as of the default flip, but this char build is tuned down to close
+        // 8-channel timing and meters externally; inheriting the new default
+        // would silently add two stream_run_addr_gen instances per channel plus
+        // the second descriptor-fetch path. Pin it here so the board flow's
+        // area and WNS are unchanged by that flip.
+        .USE_ROW_COL_MAJOR_ADDRESSING(USE_ROW_COL_MAJOR_ADDRESSING)
     ) u_dut (
         .aclk    (aclk),
         .aresetn (aresetn),
