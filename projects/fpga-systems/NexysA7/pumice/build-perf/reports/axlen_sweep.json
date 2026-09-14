@@ -1,0 +1,61 @@
+{
+  "peak_mb_s": 600.0,
+  "outstanding": 8,
+  "points": [
+    {
+      "axlen": 1,
+      "outstanding": 8,
+      "rd_mb_s": 98.66392600205549,
+      "pct_peak": 16.44398766700925,
+      "rd_latency_cyc": 50.556,
+      "beats_per_cycle": 0.1644398766700925,
+      "predicted_mb_s": 93.1026456668477,
+      "peak_mb_s": 600.0,
+      "ok": true
+    },
+    {
+      "axlen": 2,
+      "outstanding": 8,
+      "rd_mb_s": 196.61655675254985,
+      "pct_peak": 32.76942612542498,
+      "rd_latency_cyc": 48.0,
+      "beats_per_cycle": 0.3276942612542498,
+      "predicted_mb_s": 192.0,
+      "peak_mb_s": 600.0,
+      "ok": true
+    },
+    {
+      "axlen": 4,
+      "outstanding": 8,
+      "rd_mb_s": 367.92886708569677,
+      "pct_peak": 61.32147784761613,
+      "rd_latency_cyc": 50.016,
+      "beats_per_cycle": 0.6132147784761612,
+      "predicted_mb_s": 355.45023696682466,
+      "peak_mb_s": 600.0,
+      "ok": true
+    },
+    {
+      "axlen": 8,
+      "outstanding": 8,
+      "rd_mb_s": 575.0396837281739,
+      "pct_peak": 95.839947288029,
+      "rd_latency_cyc": 49.824,
+      "beats_per_cycle": 0.9583994728802899,
+      "predicted_mb_s": 570.0,
+      "peak_mb_s": 600.0,
+      "ok": true
+    },
+    {
+      "axlen": 16,
+      "outstanding": 8,
+      "rd_mb_s": 575.789836709601,
+      "pct_peak": 95.9649727849335,
+      "rd_latency_cyc": 95.988,
+      "beats_per_cycle": 0.959649727849335,
+      "predicted_mb_s": 570.0,
+      "peak_mb_s": 600.0,
+      "ok": true
+    }
+  ]
+}

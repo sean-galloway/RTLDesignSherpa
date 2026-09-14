@@ -334,6 +334,17 @@ Practice: `vault/handbook/dv/` — especially [[structure-trackers]].
   control. Conditioning on ready is what makes it geometry-independent: a raw
   duty measures whatever the bottleneck happens to be, and at this testbench's
   geometry that hides a half-rate intake completely.
+* **On the board, the three sweeps** (all in `build-perf/bin/`, all run
+  2026-09-14) — `axlen_sweep.py` walks burst length at a fixed outstanding
+  budget; `outstanding_sweep.py` walks the budget at a fixed burst length and
+  is the direct test of the Little's-law claim; `bank_gap_sweep.py` runs N
+  writers and N readers concurrently on separate banks across gap 0..15 and
+  three address orders, and `plot_bank_gap.py` draws it. Two things the gap
+  sweep learned the hard way and now enforces: it re-fills the whole device
+  before EVERY point, because a point that corrupts cells is otherwise
+  inherited by every later point and reported as theirs; and it sums the
+  mismatch counter across the ACTIVE readers, because that counter is per
+  reader and the default argument silently verified one of four.
 * **On the board** — `build-perf/host/pumice_master.py --char` drives the
   characterization harness over UART and writes a CSV. `--char-profile
   concurrent` and `multigen` run both directions in ONE window, which is the
@@ -381,6 +392,20 @@ controller cycle).
 WNS **+0.285 ns**, 0 failing of 94 060 endpoints. Simulation is green: 219
 controller tests at FULL plus the DDR2 characterization harness (31 passed).
 
+**Re-validated 2026-09-14 after the harness rewrite (PUMICE-036).** The figures
+above were taken before the data bridges were removed, the generator data
+function was replaced, the array went 2+2 -> 4+4 and the AXI id scheme moved
+inside 8 bits. All of that touches the measured path, so none of it could be
+assumed free. Re-measured on the board: **no regression** — reads still ~95% of
+peak, and the Little's-law fit still holds (see the AxLEN table below). The
+4+4 bitstream closes at WNS +0.016 ns, 0 failing of 101 116 endpoints.
+
+That run also found a P0 correctness defect, **PUMICE-037** — see *What is NOT
+done*. It does not touch the numbers on this page (gap 0..7 is clean, including
+the full 4+4 concurrent case), but it is open and it is a data-integrity bug,
+so the "correctness backlog is empty" line that stood here since 2026-08-25 is
+no longer true.
+
 **How it got here (2026-09-10).** Reads sat at 291.7 MB/s — 48.6% of peak,
 against a 570 write — for weeks, and two separate throttles were responsible:
 
@@ -414,6 +439,23 @@ thing to fix next.
 
 **What is NOT done — read this before trusting a number:**
 
+* **KNOWN BUG (P0, PUMICE-037): concurrent read+write with the READER's gap at
+  8 or above returns wrong data, and corrupts cells when the two address ranges
+  overlap.** Found on the board 2026-09-14. Narrowed by elimination, each line
+  its own run from a verified-clean 128 MiB prefill: the reader ALONE is clean
+  at every gap 0..15; the writer ALONE is clean at every gap; the writer's gap
+  swept 0..15 against a reader gap of 0 is clean; **reader gap 0..7 with a
+  concurrent writer is clean**; reader gap >= 8 with a concurrent writer
+  mismatches 1.5k-7k of 32000 beats. With disjoint banks the error is transient
+  (the eight-bank audit afterwards is clean, so the cells were always right and
+  the returned data was not); with overlapping ranges it leaves real damage that
+  re-reads identically. Not yet attributed to pumice or to the harness read
+  engine — but `o_stray_beats` is 0 on all 22 failing points of 192, which rules
+  out the read engine's stray-drain path and points at the data itself. The
+  sim has never run this: both gap-bearing suites already cover rd_gap 8 and 15
+  and BOTH drain the writer before starting the reader, so concurrency with a
+  gap has never been simulated. **Nothing on this page is affected** — every
+  figure here is at gap 0..7 — but do not quote a gap >= 8 concurrent point.
 * **Simulation cannot run the board's DRAM geometry.** The core suite is BL8 /
   64-bit beat / device == beat, so one burst is four bus beats. Any
   per-sub-command rate limit is divided by four before a bandwidth assertion
@@ -437,21 +479,52 @@ thing to fix next.
   `min(8 x AxLEN / (read_latency + AxLEN), 0.95)` -- the read generator allows
   8 bursts in flight:
 
-  | AxLEN | predicted | measured |
-  |---|---|---|
-  | 1 | 96.1 | 96.2 |
-  | 2 | 184.6 | 188.1 |
-  | 4 | 369.2 | 359.9 |
-  | 8 | 570.0 | 570.5 |
-  | 16 | 570.0 | 570.7 |
+  | AxLEN | predicted | measured (2026-09-10) | measured (2026-09-14) | rd latency |
+  |---|---|---|---|---|
+  | 1 | 90.7 | 96.2 | 98.3 | 51.9 |
+  | 2 | 192.0 | 188.1 | 196.3 | 48.0 |
+  | 4 | 351.8 | 359.9 | 368.2 | 50.6 |
+  | 8 | 570.0 | 570.5 | 570.5 | 50.2 |
+  | 16 | 570.0 | 570.7 | 570.8 | 96.0 |
 
-  Five points inside 2%. The proximate cause is a HARNESS parameter
-  (`GEN_MAX_OUTSTANDING=8` in the read engine), but it only binds because
-  pumice's read latency is ~49 cycles: at LiteDRAM's 24.7 the same 8-burst
-  budget would cover AxLEN 4 and the shortfall would vanish. Writes do not show
-  it because pumice returns B at CAM commit rather than after a DRAM round
-  trip, so a write burst retires in a fraction of the time and 8 in flight is
-  ample. **Fix the latency and this closes with it.**
+  Five points inside a few percent, and the 2026-09-14 column re-takes the
+  whole curve on the rewritten harness at the same 8 outstanding — the fit
+  survives the rewrite. (`axlen_sweep.py` had to be fixed first: it was missing
+  `import sys` and had never been runnable since its original commit
+  f02a4b569.)
+
+  The proximate cause is a HARNESS parameter (the read engine's outstanding
+  budget), but it only binds because pumice's read latency is ~49 cycles: at
+  LiteDRAM's 24.7 the same 8-burst budget would cover AxLEN 4 and the shortfall
+  would vanish. Writes do not show it because pumice returns B at CAM commit
+  rather than after a DRAM round trip, so a write burst retires in a fraction
+  of the time and 8 in flight is ample. **Fix the latency and this closes with
+  it.**
+
+  **Confirmed directly 2026-09-14 by sweeping the outstanding budget itself**,
+  which is what the runtime dial and the 32-deep ceiling were built for. Two
+  predictions, both held. First, the knee must sit near `latency/AxLEN` and move
+  as `1/AxLEN`: no knee inside 32 at AxLEN 1 (model 49), 32 at AxLEN 2 (model
+  24.5), 24 at AxLEN 4 (model 12.3), 12 at AxLEN 8 (model 6.2) — the scaling is
+  exact, the constant runs 1.3-2x high, and the sweep only locates a knee to
+  within one step (1, 2, 4, 8, 12, 16, 24, 32).
+
+  Second and decisive, **the shortfall recovers completely when the budget is
+  raised** — which it could not do if small bursts were paying a
+  per-transaction penalty:
+
+  | AxLEN | at 8 outstanding | best reached | at |
+  |---|---|---|---|
+  | 1 | 98.7 (16.4%) | 390.6 (65.1%) | 32, still climbing |
+  | 2 | 196.6 (32.8%) | **573.1 (95.5%)** | 24 |
+  | 4 | 367.9 (61.3%) | **574.6 (95.8%)** | 16 |
+  | 8 | 575.0 (95.8%) | 575.6 (95.9%) | 12 |
+
+  AxLEN 2 and 4 reach the same ~95.8% ceiling as AxLEN 8 once enough reads are
+  in flight, so **nothing in pumice's datapath limits small bursts** — the
+  latency and the requester's budget are the whole story. AxLEN 1 needs ~49 in
+  flight against a harness ceiling of 32, which is why it alone is still
+  climbing. Records: `reports/axlen_sweep.json`, `reports/outstanding_sweep.json`.
 * **No observer is instantiated on the pumice AXI interface** — the bridge slot
   exists and is tied off.
 * **The advanced modes are characterized but not tuned.** All three axes run on
@@ -642,14 +715,51 @@ All 14 points integrity-clean. Reading this table:
 * **Small-burst reads are LATENCY-bound, and that is a known bug.** AxLEN 4
   reads reach 60% against a 95% write on identical addresses. This is Little's
   law on the read generator's 8-outstanding-burst budget against pumice's
-  ~49-cycle read latency, confirmed by a five-point sweep (AxLEN 1/2/4/8/16
-  predicted within 2%, table in *Status*). The generator budget is the
-  proximate cause; the latency is the defect, and halving it to LiteDRAM's
-  24.7 cycles would make the shortfall disappear from AxLEN 4 up. Writes are
-  immune because B returns at CAM commit, not after a DRAM round trip.
+  ~49-cycle read latency, confirmed twice: a five-point AxLEN sweep that fits
+  the model, and an outstanding sweep in which **AxLEN 2 and 4 both reach the
+  same ~95.8% ceiling as AxLEN 8 once enough reads are in flight** (tables in
+  *Status*). That recovery is what rules out a per-transaction penalty: nothing
+  in the datapath limits small bursts. The generator budget is the proximate
+  cause; the latency is the defect, and halving it to LiteDRAM's 24.7 cycles
+  would make the shortfall disappear from AxLEN 4 up. Writes are immune because
+  B returns at CAM commit, not after a DRAM round trip.
 * **Multi-ID traffic and inter-burst gaps cost nothing** here; both land
   bit-identical to the fixed-ID back-to-back case, which says the reordering
-  machinery is not the limiter at this operating point.
+  machinery is not the limiter at this operating point. That single-stream
+  result is now generalised by the gap sweep below, which says WHY: one
+  generator at gap 8 is still asking for more than the controller can deliver.
+
+### How much idle the controller absorbs — the gap knee (2026-09-14)
+
+192 points: N writers and N readers running CONCURRENTLY, one bank apiece,
+inter-burst gap 0..15, three address orders, at 4+4 / 3+3 / 2+2 / 1+1 engines.
+`bin/bank_gap_sweep.py`, plotted by `bin/plot_bank_gap.py`. The knee is the
+largest gap whose read bandwidth is still within 3% of the gap-0 value:
+
+| order | 4+4 | 3+3 | 2+2 | 1+1 |
+|---|---|---|---|---|
+| cacheline | 15 | 15 | 9 | 0 |
+| row_major | 15 | 15 | 9 | 0 |
+| col_major | 15 | 15 | 15 | 15 |
+
+Read MB/s from gap 0 to gap 15: 1+1 row_major 574 -> 206 (36% retained), 2+2
+575 -> 417 (73%), 3+3 565 -> 565, 4+4 559 -> 559.
+
+* **The knee rises with generator count, and that is the expected shape.** A
+  gap only bends the curve once aggregate demand falls BELOW what the
+  controller can deliver. At 4+4 even gap 15 leaves each generator at a ~52%
+  duty cycle across four engines, so demand still exceeds the ceiling and
+  nothing moves. **A flat curve at high generator counts is a result, not a
+  broken axis** — and it means the 4-bit gap field cannot inject enough idle to
+  starve four generators. To bend the curve there, the lever is the outstanding
+  dial, not the gap.
+* **col_major is flat at EVERY generator count** because it is page-miss bound
+  at ~150 MB/s, 25% of peak: the DRAM is the limit, so generator pacing never
+  becomes the binding constraint. Its flatness is the expected result, not a
+  missing measurement.
+* 22 of the 192 points carry mismatches and must not be read as clean operating
+  points; they are the PUMICE-037 configuration above. The plotter rings them.
+  The bandwidth numbers themselves are real — those bytes did move.
 
 ### Both directions at once, in ONE measurement window
 

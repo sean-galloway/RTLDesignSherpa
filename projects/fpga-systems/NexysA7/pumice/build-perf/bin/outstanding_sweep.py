@@ -31,6 +31,7 @@ something else is the limit and the number it stopped at names it.
     PUMICE_MC_CLK_HZ=75000000 python3 bin/outstanding_sweep.py    # from build-perf/
     AXLENS=1,4 OUTSTANDING=1,2,4,8,16,32 python3 bin/outstanding_sweep.py
 """
+import json
 import os
 import sys
 
@@ -43,6 +44,12 @@ import pumice_char as pc
 CLK_MHZ  = float(os.environ.get("PUMICE_MC_CLK_HZ", "75000000")) / 1e6
 PEAK_MBS = 8 * CLK_MHZ          # 8 bytes/beat at one beat/cycle
 
+# A sweep that only prints is a sweep whose numbers die with the terminal.
+# This one's results were quoted into AT-A-GLANCE and PUMICE-030 from
+# scrollback because there was no file to cite -- so nobody could re-derive
+# the published table. JSON_OUT="" disables.
+JSON_OUT = os.environ.get("JSON_OUT", "reports/outstanding_sweep.json")
+
 AXLENS      = [int(x) for x in os.environ.get("AXLENS", "1,2,4,8").split(",")]
 OUTSTANDING = [int(x) for x in os.environ.get("OUTSTANDING", "1,2,4,8,12,16,24,32").split(",")]
 
@@ -53,6 +60,7 @@ def main() -> int:
     st.init(do_leveling=True)
     cfg  = pc.CONFIGS['open_page']
     geom = pc.DEFAULT_GEOM
+    records, knees = [], {}
 
     for blen in AXLENS:
         print(f"\n=== AxLEN {blen} "
@@ -74,6 +82,11 @@ def main() -> int:
             print(f"{n:6} {r.rd_bw_mb_s:9.1f} {r.rd_bw_mb_s / PEAK_MBS * 100:6.1f}% "
                   f"{lat:8.1f} {pred:10.1f} {err:6.1f}%"
                   + ("" if r.ok else "   FAILED"))
+            records.append(dict(
+                axlen=blen, outstanding=n, rd_mb_s=r.rd_bw_mb_s,
+                pct_peak=r.rd_bw_mb_s / PEAK_MBS * 100 if PEAK_MBS else 0.0,
+                rd_latency_cyc=lat, predicted_mb_s=pred, err_pct=err,
+                peak_mb_s=PEAK_MBS, ok=r.ok))
             # The knee is the first point that stops buying bandwidth. 3% is
             # above this rig's run-to-run spread and well below the ~2x steps
             # the sweep takes, so it fires on a real plateau rather than noise.
@@ -91,6 +104,16 @@ def main() -> int:
         else:
             print(f"  no knee inside {max(OUTSTANDING)} outstanding -- still "
                   f"climbing, so the ceiling is the limit, not the DRAM")
+        knees[blen] = dict(knee=knee, model_knee=(last_lat / blen)
+                           if last_lat else None)
+
+    if JSON_OUT:
+        os.makedirs(os.path.dirname(JSON_OUT) or ".", exist_ok=True)
+        with open(JSON_OUT, "w") as f:
+            json.dump(dict(peak_mb_s=PEAK_MBS, clk_mhz=CLK_MHZ,
+                           knees={str(k): v for k, v in knees.items()},
+                           points=records), f, indent=2, default=str)
+        print(f"\nwrote {len(records)} points -> {JSON_OUT}")
     return 0
 
 

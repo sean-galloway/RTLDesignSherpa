@@ -23,6 +23,8 @@ AxLEN 4 and the shortfall disappears.
 
     PUMICE_MC_CLK_HZ=75000000 python3 bin/axlen_sweep.py     # from build-perf/
 """
+import json
+import os
 import sys
 
 sys.path.insert(0, 'host')
@@ -37,6 +39,10 @@ st.init(do_leveling=True)
 cfg = pc.CONFIGS['open_page']
 geom = pc.DEFAULT_GEOM
 OS = 8          # pinned, so this curve stays comparable with the pre-2026-09-11 runs
+# Durable record. This table is quoted in AT-A-GLANCE and PUMICE-030, and until
+# 2026-09-14 it could only be cited from scrollback. JSON_OUT="" disables.
+JSON_OUT = os.environ.get("JSON_OUT", "reports/axlen_sweep.json")
+records = []
 print(f"{'AxLEN':>6} {'rd MB/s':>9} {'%peak':>7} {'lat':>6} {'beats/cyc':>10}  predict({OS}-outstanding)")
 for blen in (1, 2, 4, 8, 16):
     sc = pc.Scenario(name=f"row_major_bl{blen}", family=pc.FAM_ROW_MAJOR,
@@ -47,3 +53,14 @@ for blen in (1, 2, 4, 8, 16):
     bpc = r.rd_bytes_per_cycle / 8.0
     pred = min((OS*blen)/(lat+blen), 0.95) * 8 * 75
     print(f"{blen:6} {r.rd_bw_mb_s:9.1f} {r.rd_bw_mb_s/6:6.1f}% {lat:6.1f} {bpc:10.3f}  {pred:8.1f}  ok={int(r.ok)}")
+    records.append(dict(axlen=blen, outstanding=OS, rd_mb_s=r.rd_bw_mb_s,
+                        pct_peak=r.rd_bw_mb_s / 6.0, rd_latency_cyc=lat,
+                        beats_per_cycle=bpc, predicted_mb_s=pred,
+                        peak_mb_s=600.0, ok=r.ok))
+
+if JSON_OUT:
+    os.makedirs(os.path.dirname(JSON_OUT) or ".", exist_ok=True)
+    with open(JSON_OUT, "w") as f:
+        json.dump(dict(peak_mb_s=600.0, outstanding=OS, points=records),
+                  f, indent=2, default=str)
+    print(f"\nwrote {len(records)} points -> {JSON_OUT}")

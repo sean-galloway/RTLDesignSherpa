@@ -129,21 +129,77 @@ the read generator's 8-outstanding-burst budget.
 
 Model: `min(8 x AxLEN / (read_latency + AxLEN), 0.95) x 8 B x 75 MHz`
 
-| AxLEN | predicted MB/s | measured MB/s |
-|---|---|---|
-| 1 | 96.1 | 96.2 |
-| 2 | 184.6 | 188.1 |
-| 4 | 369.2 | 359.9 |
-| 8 | 570.0 | 570.5 |
-| 16 | 570.0 | 570.7 |
+| AxLEN | predicted MB/s | measured 2026-09-10 | measured 2026-09-14 | rd latency |
+|---|---|---|---|---|
+| 1 | 90.7 | 96.2 | 98.3 | 51.9 |
+| 2 | 192.0 | 188.1 | 196.3 | 48.0 |
+| 4 | 351.8 | 359.9 | 368.2 | 50.6 |
+| 8 | 570.0 | 570.5 | 570.5 | 50.2 |
+| 16 | 570.0 | 570.7 | 570.8 | 96.0 |
 
-Five points inside 2%, board-measured with `bin/axlen_sweep.py`.
+Board-measured with `bin/axlen_sweep.py`. The 2026-09-14 column re-takes the
+curve on the rewritten harness (bridges removed, 4+4 generators, new data
+function) at the same 8 outstanding: the fit survives, so the model is not an
+artifact of the old measurement path. `axlen_sweep.py` had to be repaired
+first — it was missing `import sys` and had never been runnable since its
+original commit f02a4b569.
+
+**DIRECT confirmation, 2026-09-14: the outstanding sweep.** The table above is
+still an inference from a bandwidth curve. `bin/outstanding_sweep.py` tests the
+claim head-on — if the shortfall is Little's law, the knee must sit near
+`latency/AxLEN` and must move as `1/AxLEN`:
+
+| AxLEN | model knee | measured knee |
+|---|---|---|
+| 1 | 49.1 | none inside 32 (390.6 MB/s at 32, still climbing) |
+| 2 | 24.5 | 32 |
+| 4 | 12.3 | 24 |
+| 8 | 6.2 | 12 |
+
+Every model knee at AxLEN 1 and 2 sits at or above the harness's own 32-deep
+ceiling, which is why this could not be measured before the runtime dial
+existed. The bandwidth values themselves fit the model to 0-6.5%.
+
+The measured knees sit ABOVE the model — 1.3x at AxLEN 2, 2.0x at AxLEN 4 and
+8 — so the model's constant is not right even though its SHAPE is. The 1/AxLEN
+scaling is unambiguous and that is what identifies the mechanism; the factor is
+a loose end worth chasing. Note the sweep steps 1, 2, 4, 8, 12, 16, 24, 32, so a
+knee is located only to within one step and the 1.3-vs-2.0 difference may be
+nothing more than that.
+
+**The decisive result: the shortfall RECOVERS COMPLETELY when the budget is
+raised.** This is the claim's strongest test — if small-burst reads were losing
+bandwidth to per-transaction overhead, more outstanding transactions would not
+buy it back. They do:
+
+| AxLEN | at 8 outstanding | best reached | at |
+|---|---|---|---|
+| 1 | 98.7 MB/s (16.4%) | 390.6 MB/s (65.1%) | 32, still climbing |
+| 2 | 196.6 MB/s (32.8%) | **573.1 MB/s (95.5%)** | 24 |
+| 4 | 367.9 MB/s (61.3%) | **574.6 MB/s (95.8%)** | 16 |
+| 8 | 575.0 MB/s (95.8%) | 575.6 MB/s (95.9%) | 12 |
+
+AxLEN 2 and 4 reach the SAME ~95.8% ceiling as AxLEN 8 once enough reads are in
+flight. There is no per-transaction penalty left to explain. AxLEN 1 needs ~49
+in flight and the harness ceiling is 32, which is why it alone is still
+climbing — not a different mechanism, just a budget that has not reached its
+knee.
+
+This also sharpens the fix. The latency is still the defect for a real master
+with a shallow budget, but it is now measured that the CONTROLLER can be driven
+to 95% at AxLEN 2 — so nothing in pumice's datapath is limiting small bursts.
+
+Durable records: `reports/axlen_sweep.json`, `reports/outstanding_sweep.json`.
+Both sweeps only printed until 2026-09-14, which is why the tables above were
+previously quoted from scrollback with no artifact to re-derive them from.
 
 **Two things this rules out.** It is NOT a scheduling bug, and specifically it
 is NOT "the read cannot be scheduled until the write is consumed on AXI" (a
 reasonable guess, checked and discarded): the characterization runs a write
 phase to completion and THEN a read phase, so no writes are in flight while the
-reads are measured. It is also not the return ring -- the shortfall did not move
+reads are measured. (That sequencing is also why PUMICE-037 went unseen for so
+long: nothing in this area ran both directions at once with a gap until the
+2026-09-14 bank/gap sweep.) It is also not the return ring -- the shortfall did not move
 between depth 32 and 64.
 
 **Why writes are immune.** pumice returns B at CAM commit, not after a DRAM
