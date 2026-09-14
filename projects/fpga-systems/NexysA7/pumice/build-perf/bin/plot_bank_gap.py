@@ -88,6 +88,16 @@ def line_family(rows, order, series, outdir):
             continue
         ax.plot([r["gap"] for r in sub], [r[series] for r in sub], "-o",
                 color=cmap[k], label=f"{n}+{n} gens")
+        # Ring any point whose data did not verify. The bandwidth number is
+        # still a real measurement -- those bytes did move -- but the point
+        # ran a configuration that returns wrong data (PUMICE-037, reader gap
+        # >= 8 with a concurrent writer), and a curve that does not say so
+        # invites someone to quote it as a clean operating point.
+        bad = [r for r in sub if r.get("mism")]
+        if bad:
+            ax.plot([r["gap"] for r in bad], [r[series] for r in bad], "o",
+                    mfc="none", mec="#B22222", mew=1.6, ms=11, ls="none",
+                    label="_nolegend_")
     if peak:
         # A theoretical bound is always a dotted axhline at alpha 0.6.
         ax.axhline(peak, color=GRAY, ls=":", alpha=0.6,
@@ -98,6 +108,9 @@ def line_family(rows, order, series, outdir):
     ax.set_ylabel(f"{series} bandwidth (MB/s)")
     ax.set_title(f"{order}: {series} bandwidth vs gap")
     ax.grid(True, alpha=0.3)
+    if any(r.get("mism") for r in rows):
+        ax.plot([], [], "o", mfc="none", mec="#B22222", mew=1.6, ms=11,
+                ls="none", label="data did NOT verify")
     ax.legend(fontsize=8)
     return _save(fig, outdir, f"lines_{order}_{series}.png")
 

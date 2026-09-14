@@ -14,13 +14,24 @@ starting page, so "the writer just wrote this" is not a property the readers
 can rely on. Filling the whole device first makes every address a reader can
 reach already correct.
 
-Writers and readers own DISJOINT banks, and that is a correctness requirement
-rather than tidiness. A reader sampling an address a writer is mid-burst on
-would report a mismatch that is a race in the test, not a defect in the
-controller. With eight banks and four of each, every engine gets its own:
-writers on 0, 2, 4, 6 and readers on 1, 3, 5, 7. Fewer generators spread the
-same way, so the two directions are always interleaved rather than clustered at
-opposite ends of the device.
+Writers and readers START on disjoint banks: writers on 0, 2, 4, 6 and readers
+on 1, 3, 5, 7, interleaved rather than clustered at opposite ends of the
+device. Fewer generators spread the same way.
+
+Read that as disjoint STARTING banks and nothing more. Only col_major stays in
+its bank; cacheline and row_major march out of it, and a cacheline point at
+board scale covers 250 KiB -- every bank, many times over. So the engines DO
+overlap in address, deliberately, and the design that makes this safe is not
+the bank assignment but the data function: every value is a pure hash of its
+own address under one run-wide seed, so a writer rewrites exactly the bytes
+already there and a reader is right to expect them no matter who wrote them
+last. A reader sampling an address a writer is mid-burst on is therefore not a
+race -- both agree on the value.
+
+That distinction is load-bearing. The 2026-09-14 investigation of PUMICE-037
+spent a pass on the theory that overlap explained the mismatches; it does not,
+and the proof is that the 4+4 point has maximum overlap and stays clean while
+the 1+1 point has the least and does not.
 
 ONE seed for the whole run -- the prefill and every engine after it. The
 expected data is a function of address AND seed, so a per-scenario seed would
@@ -62,6 +73,24 @@ PEAK_MBS = 8 * CLK_MHZ                      # 8 bytes/beat at one beat/cycle
 
 # One seed for the prefill and every engine after it. See the module docstring.
 SEED = 0x5EED_0B01
+
+# Re-fill the device before EVERY point, not once for the run.
+#
+# Points are not independent otherwise, and that is not a theory: a concurrent
+# read+write point with the reader gap at 8 or above leaves genuinely wrong
+# data in cells (2026-09-14, PUMICE-037). Every later point then reads that
+# damage and reports it as its own mismatch -- which is exactly what made the
+# first full run unreadable, where row_major g1 reported an identical 3694
+# mismatched beats at eight consecutive gaps. Those 3694 were the *previous*
+# family's damage, re-read eight times; the point itself was clean.
+#
+# The fill is ~0.27 s of DRAM time, so paying it per point is cheap next to
+# mistaking stale damage for a measurement. PREFILL=once restores the old
+# behaviour for a deliberate damage-accumulation experiment -- do not use it
+# to go faster.
+PREFILL_MODE = os.environ.get("PREFILL", "point").lower()
+if PREFILL_MODE not in ("point", "once"):
+    raise SystemExit(f"PREFILL={PREFILL_MODE!r}: expected 'point' or 'once'")
 
 # Named gap sweeps, borrowed from the STREAM runner's DELAY_SWEEPS: a sweep you
 # cannot name is a sweep you cannot repeat. GAPS takes a name OR a literal list,
@@ -109,7 +138,7 @@ def _seed_kw(seed):
                 hash_seed1=seed ^ 0x9E37_79B9, hash_seed2=seed ^ 0x85EB_CA6B)
 
 
-def _prefill(drv, geom, n_gen, timeout_s=120.0):
+def _prefill(drv, geom, n_gen, timeout_s=120.0, quiet=False):
     """Write the whole device once, with n_gen writers side by side.
 
     Split into passes when one writer's share needs more bursts than the
@@ -129,8 +158,9 @@ def _prefill(drv, geom, n_gen, timeout_s=120.0):
               f"report a mismatch that is this, not the DRAM.")
     passes = -(-total // pc.TXN_MAX)
     base_txn, extra = divmod(total, passes)
-    print(f"[prefill] {span/(1<<20):.0f} MiB, {n_gen} writers, {passes} pass(es), "
-          f"seed 0x{SEED:08X}")
+    if not quiet:
+        print(f"[prefill] {span/(1<<20):.0f} MiB, {n_gen} writers, {passes} "
+              f"pass(es), seed 0x{SEED:08X}")
 
     ok, cycles, done = True, 0, 0
     for p in range(passes):
@@ -154,8 +184,9 @@ def _prefill(drv, geom, n_gen, timeout_s=120.0):
         done += txn
 
     bw = (span / (cycles / (CLK_MHZ * 1e6))) / 1e6 if cycles else 0.0
-    print(f"[prefill] {'done' if ok else 'DID NOT COMPLETE'} in {cycles} cycles "
-          f"({bw:.1f} MB/s)\n")
+    if not quiet:
+        print(f"[prefill] {'done' if ok else 'DID NOT COMPLETE'} in {cycles} "
+              f"cycles ({bw:.1f} MB/s)\n")
     return ok
 
 
@@ -222,7 +253,17 @@ def _point(drv, geom, n_gen, family, gap, timeout_s=60.0):
     # bytes that did not move and the number is fiction, not a measurement.
     _, rd_txn = drv.perf_hist_dump(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
     want_txn = TXN * n_gen
-    mism = drv.beats_mismatched()
+    # Summed across the ACTIVE readers, not just reader 0 -- at n_gen > 1 a
+    # single-reader read silently ignores the other three.
+    mism  = sum(drv.beats_mismatched(g) for g in range(n_gen))
+    # Stray R beats: beats the bus delivered with NO outstanding AR to own
+    # them. This is the discriminator for PUMICE-037. The read engine drains a
+    # stray with rready high and its unconditional per-beat compare then counts
+    # it as a mismatch, so a point with stray > 0 is over-DELIVERY by the
+    # controller, while mismatches with stray == 0 are wrong data for beats
+    # that were genuinely asked for. Recording it costs one register read and
+    # is the difference between those two diagnoses.
+    stray = sum(drv.stray_beats(g) for g in range(n_gen))
 
     # Four-bucket cycle classification per direction. This is what turns a
     # bandwidth shortfall into a named cause instead of a number: rising
@@ -252,7 +293,8 @@ def _point(drv, geom, n_gen, family, gap, timeout_s=60.0):
         # Ceiling stored per record, so a plot never re-derives it and it
         # cannot drift from the clock this run actually used.
         peak_mb_s=PEAK_MBS,
-        mism=mism, ok=(wr_ok and rd_ok), rd_txn=rd_txn, want_txn=want_txn,
+        mism=mism, stray=stray, ok=(wr_ok and rd_ok), rd_txn=rd_txn,
+        want_txn=want_txn,
         buckets={d: _buckets(m) for d, m in meters.items()},
     )
 
@@ -331,6 +373,9 @@ def main() -> int:
         print("prefill did not complete -- reads below would be measured "
               "against an incomplete image; stopping.")
         return 1
+    print(f"prefill mode: {PREFILL_MODE}"
+          + (" (device re-filled before every point)" if PREFILL_MODE == "point"
+             else " (ONCE for the whole run -- points are NOT independent)"))
 
     bad, records = [], []
     for n_gen in gens:
@@ -340,14 +385,21 @@ def main() -> int:
         curves = {}
         for name, fam in ORDERS:
             for gap in GAPS:
+                if PREFILL_MODE == "point" and not _prefill(
+                        drv, geom, n_built, quiet=True):
+                    bad.append(f"{fam} g{n_gen} gap{gap}: prefill did not "
+                               f"complete; this point measures an incomplete "
+                               f"image")
                 r = _point(drv, geom, n_gen, fam, gap)
+                r["prefill_mode"] = PREFILL_MODE
                 records.append(r)
                 for series in ("wr", "rd", "bus"):
                     curves.setdefault((name, series), {})[gap] = r[series]
                 if not r["ok"]:
                     bad.append(f"{fam} g{n_gen} gap{gap} did not complete")
                 if r["mism"]:
-                    bad.append(f"{fam} g{n_gen} gap{gap}: {r['mism']} beats mismatched")
+                    bad.append(f"{fam} g{n_gen} gap{gap}: {r['mism']} beats "
+                               f"mismatched, {r['stray']} stray")
                 if r["rd_txn"] != r["want_txn"]:
                     bad.append(f"{fam} g{n_gen} gap{gap}: bus returned "
                                f"{r['rd_txn']} read txns, programmed "

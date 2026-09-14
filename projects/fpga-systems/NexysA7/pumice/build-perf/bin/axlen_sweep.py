@@ -23,6 +23,8 @@ AxLEN 4 and the shortfall disappears.
 
     PUMICE_MC_CLK_HZ=75000000 python3 bin/axlen_sweep.py     # from build-perf/
 """
+import sys
+
 sys.path.insert(0, 'host')
 import ddr2_char as dc
 from ddr2_char import DDR2CharDriver

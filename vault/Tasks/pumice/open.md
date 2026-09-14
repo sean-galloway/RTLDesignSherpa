@@ -113,47 +113,6 @@ the report complete, not the debugging possible.
 
 ---
 
-## PUMICE-036 — every published board number predates the 2026-09-13/14 harness rewrite
-**Status:** open 2026-09-14  **Priority:** P1 — the numbers on record are stale, not wrong-but-close
-
-The read/write figures quoted everywhere in this area -- **571.3 MB/s read,
-570.2 write, 95% of a 600 MB/s peak** -- were measured before a run of changes
-that all touch the measured path:
-
-- the data bridges were removed and the generators now drive `s_axi` through a
-  direct N:1 merge plus one skid layer (8f75add68, d54103176);
-- the pattern generators' data function changed from a two-multiply hash to four
-  rotate-XOR rounds, deleting a 4-stage pipeline, a 16-deep staging FIFO and 48
-  DSPs (475b9a53b);
-- the generator array went from 2+2 to 4+4 (a78007109);
-- the AXI id scheme changed so the generator index rides inside 8 bits
-  (7baf98780).
-
-None of that is expected to cost bandwidth -- the skid is full-rate, the hash is
-combinational and stallable, and the W address is consumed only on a burst's
-last beat so beats still issue one per cycle. **Expected is not measured.** The
-simulation asserts only that bandwidth is positive, so nothing in the gate would
-catch a regression here.
-
-**Do, in order:**
-1. `PUMICE_SYS_75=1 make bitstream && make program` (the 4+4 bitstream is built
-   and closes at +0.016 ns).
-2. `python3 bin/axlen_sweep.py` -- confirm the read/write figures and the
-   Little's-law fit still hold at the new harness.
-3. `python3 bin/outstanding_sweep.py` -- never run on hardware. The outstanding
-   dial and the 32-deep ceiling exist precisely so this curve can be taken, and
-   it is the direct evidence for [[PUMICE-030]]'s latency argument.
-4. `python3 bin/bank_gap_sweep.py` then `python3 bin/plot_bank_gap.py
-   reports/bank_gap_sweep.json` -- also never run on hardware. Four generators
-   on four banks, concurrent read+write, gap 0..15 across three address orders.
-5. Check the knees ORDER as §8 of the methodology doc predicts: rising from
-   cacheline to row-major to col-major, and falling as generators are added. If
-   they do not, either the sweep or the controller is not doing what it claims.
-
-**Update when done:** AT-A-GLANCE, the char guide, and [[PUMICE-030]]'s table.
-
----
-
 ## PUMICE-030 — read latency is ~2x LiteDRAM's, and it caps small-burst reads
 **Status:** open 2026-09-10  **Priority:** P1 — the largest identified defect left
 
@@ -666,6 +625,98 @@ failures to triage: `smoke_rate2_faithful`, `smoke_rate2_rdphase1`,
 `smoke_rate2_strict`, `pagehit_rate2_x16_free_earlyen` (all fail at
 79fb58a66, before this session). Add this directory to the pumice regression
 convention (`regressions` skill) and to the components master Makefile.
+
+## PUMICE-037 — concurrent read+write with reader gap >= 8 returns bad data AND corrupts cells
+**Status:** open 2026-09-14  **Priority:** P0
+
+Found while running PUMICE-036 on the board (4+4 bitstream, 75 MHz, BL4, x16,
+`open_page`). It is a correctness defect, not a performance one, and it is the
+reason the first `bank_gap_sweep` run looked incoherent.
+
+**The trigger, narrowed by elimination on hardware:**
+
+| configuration | result |
+|---|---|
+| prefill 128 MiB, then read every bank read-only, all 3 families | CLEAN |
+| reader ALONE, gap 0..15 | CLEAN at every gap |
+| writer ALONE, gap 0..15 (incremental, marches all banks) | cells CLEAN |
+| writer gap 0..15, **reader gap 0** | CLEAN at every writer gap |
+| **reader gap 0..7** + concurrent writer | CLEAN |
+| **reader gap >= 8** + concurrent writer | 1.5k-7k of 32000 beats mismatched |
+| 4+4 concurrent, gap 0 (and gap 4), incremental | CLEAN, cells CLEAN |
+
+So it needs BOTH a concurrent writer AND the reader's gap field at 8 or above.
+Neither engine alone does it at any gap, and the writer's own gap never does it.
+
+**Two distinct symptoms, and the second is the serious one:**
+1. *Transient* — with writer and reader on disjoint banks (row_major, writer
+   confined to bank 0, reader to bank 4) the reader reports thousands of
+   mismatched beats, but a read-only audit of all eight banks afterwards is
+   CLEAN. The cells were always right; the returned data was not.
+2. *Persistent* — with writer and reader ranges OVERLAPPING (incremental) the
+   audit afterwards shows real DAMAGE: banks 3/4/6/7 dirty, 248..4636
+   mismatched beats each, reproducible on re-read. Cells genuinely hold wrong
+   data. **The write engine alone never does this** (verified above), and a
+   read engine cannot write, so something in the concurrent path is either
+   writing the wrong data or writing it to the wrong address.
+
+**Why the first sweep run was unreadable.** Damage from one point is inherited
+by every later point. `row_major g1` reported an identical 3694 mismatched
+beats at eight consecutive gaps; that constant is the *previous* family's
+damage being re-read, not a property of those points. Confirmed directly: a
+later row_major point reported exactly 5025, which was precisely the audited
+mismatch count of bank 4 going in. `bin/bank_gap_sweep.py` now re-fills the
+device before every point (`PREFILL=point`, the default) so points are
+independent.
+
+**Not yet determined: whether this is pumice or the harness.** Both are live:
+- *Harness read engine* — in `axi4_master_rd_crc_check.sv` the R-beat
+  bookkeeping (`if (w_r_beat)`, ~line 707) sits inside the `S_RUN` arm, while
+  the mismatch compare at the bottom of the same block runs unconditionally.
+  A beat that lands while the FSM is in `S_GAP` is compared but not counted.
+  **Measured and largely RULED OUT.** That path can only fire through the
+  stray-beat drain (`fub_rready = w_r_consuming || w_stray_beat`), and the
+  sweep now records `o_stray_beats` per reader: **every one of the 22 failing
+  points reports stray = 0**, across 192 points. No beat was drained without an
+  owner, so the mismatching beats were legitimately outstanding and came back
+  with the wrong DATA. That is a controller-side answer, not a bookkeeping
+  artifact — and it is consistent with symptom 2, which the read engine could
+  never have produced anyway.
+- *pumice* — symptom 2 points at the controller under mixed R/W. Note the
+  known refresh-collision suspicion in [[project_pumice_board_bringup_tuple]].
+
+The sharp edge at exactly 8 (bit 3 of the 4-bit gap field) is unexplained; the
+gap logic in both engines is a plain 4-bit countdown with nothing special at 8,
+and the register layout has gap[27:24] with nothing adjacent.
+
+**Next step: reproduce in the char-framework sim**, which runs the identical
+host program and can dump waves — that is the only way to tell the two apart.
+
+**The coverage hole is exact, and checked.** `test_ddr2_char_macro.py` has two
+gap-bearing suites and BOTH drain the writer before the reader starts:
+- `pacing_sweep_b2b` (~line 563) — `_start_writers` then
+  `_wait_done(gen_wr_done)` then `_start_readers`.
+- `ooo_pacing_schmoo` (~line 405, commented "Writes: preset memory") — same
+  order, and its `_OOO_SCHMOO_STEPS` already includes `slow_same` at
+  rd_gap=8 and `asym` at rd_gap=15.
+So the gap values that fail on hardware are already in the matrix; what is
+missing is running the two directions AT THE SAME TIME. The sim has never
+exercised a reader gap with a writer still in flight, which is why this got to
+the board. A new `test_type` that programs both and issues one concurrent
+start — the board's `start_both` — should reproduce it directly.
+
+**Second, smaller phenomenon, kept separate because it may be unrelated.** At
+1+1 with the two ranges OVERLAPPING (cacheline), small mismatch counts appear
+at some gaps BELOW 8 too -- 80 at gap 1, 122 at gap 3, 435 at gap 6 -- and
+2+2 cacheline shows the same at gaps 10/13/14. The disjoint families (row_major
+at 1+1) stay perfectly clean below 8. So overlap alone, at low generator
+counts, produces sporadic small errors that the gap>=8 mechanism does not
+explain. Do not fold the two together until one of them has a cause.
+
+**Scope of the damage to published numbers:** gap 0..7 is clean, including the
+4+4 concurrent case, so bandwidth at those gaps is trustworthy. Every gap >= 8
+point in any concurrent sweep is measuring a broken configuration and must not
+be quoted.
 
 ## PUMICE-CLEANUP — doc + filelist cleanup (push from workstation)
 **Status:** open 2026-07-24 — deferred (project cleanup; see TOOL-010)

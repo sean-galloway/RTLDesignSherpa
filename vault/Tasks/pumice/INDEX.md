@@ -1,6 +1,6 @@
 # pumice — task rollup
 
-**Next ID: PUMICE-037** — never recycle a number, even when its task closed.
+**Next ID: PUMICE-038** — never recycle a number, even when its task closed.
 
 DDR2/LPDDR2 memory controller (`projects/components/memory-controllers/pumice-ddr2-lpddr2/`).
 
@@ -8,23 +8,25 @@ DDR2/LPDDR2 memory controller (`projects/components/memory-controllers/pumice-dd
 |---|---|
 | [active](active.md) | 0 |
 | [open](open.md) | 12 |
-| [closed](closed.md) | 16 |
+| [closed](closed.md) | 17 |
 | [dropped](dropped.md) | 1 |
 
 ## Active
 
-(none — the correctness backlog is empty. PUMICE-016 is marked ACTIVE in its
+(none running. The correctness backlog is NO LONGER empty: PUMICE-037 (P0) is
+an open correctness defect found on the board 2026-09-14. PUMICE-016 is marked
+ACTIVE in its
 body but its own scope note says do NOT run it standalone, so it is counted
 as open, not active. See the caveat under the shortlist.)
 
 ## Open shortlist
 
-- **PUMICE-036** — every published board number predates the 2026-09-13/14
-  harness rewrite (bridges removed, generator data function replaced, 2+2 ->
-  4+4, id scheme changed). Nothing is expected to have cost bandwidth and
-  nothing has been measured; the sim asserts only that bandwidth is positive.
-  Three sweeps are written and have never touched hardware. **Start here** —
-  it is cheap, and it is the evidence every other perf task argues from.
+- **PUMICE-037** — P0, and the only correctness defect in this list.
+  Concurrent read+write with the reader's gap at 8 or above returns wrong data
+  and, when the two ranges overlap, leaves genuinely corrupted cells behind.
+  Found on the board running PUMICE-036. Gap 0..7 is clean, so it does not
+  invalidate the bandwidth work — but it must be reproduced in the
+  char-framework sim to tell pumice from the harness read engine.
 - **PUMICE-033** — one extra AXI ID bit takes the arbiter's pick cone from 13
   logic levels to 26 and 75 MHz from +1.100 to -6.602 ns. Measured at
   synthesis, so it is the netlist, not placement. Constrains pumice to a

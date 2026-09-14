@@ -67,7 +67,13 @@ class _MockDrv:
     def perf_hist_dump(self, *a, **k):
         return [], self._txn * self._n_gen
 
-    def beats_mismatched(self):
+    def beats_mismatched(self, gen=0):
+        # Takes `gen` because the real driver does: the counter is PER READER,
+        # and a caller that omits it silently checks only reader 0 while the
+        # other three run unverified. That was a live bug in the sweep.
+        return 0
+
+    def stray_beats(self, gen=0):
         return 0
 
     def set_controller_cfg(self, **kw):

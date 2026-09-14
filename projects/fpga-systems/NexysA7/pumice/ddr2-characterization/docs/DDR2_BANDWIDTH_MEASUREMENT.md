@@ -245,6 +245,28 @@ Each of these has produced a wrong or misleading number in this area.
 - **Trusting programmed byte counts.** Bandwidth is bytes over time, and the
   bytes are assumed. Compare the transactions the bus actually returned against
   what was programmed; if they disagree the MB/s is fiction.
+- **Assuming the points of a sweep are independent.** They are not, if any point
+  can leave memory in a wrong state. A point that corrupts cells is inherited by
+  every later point that reads the same region, and the inherited damage is
+  reported as the later point's own result. This is not hypothetical: it made
+  the first `bank_gap_sweep` run unreadable (PUMICE-037). Re-fill before every
+  point unless you are deliberately studying accumulation.
+- **A constant repeated across runs is stale state, not a race.** A race varies.
+  When `row_major g1` reported an identical 3694 mismatched beats at eight
+  consecutive gaps, that count was the previous family's damage being re-read
+  eight times — the points themselves were clean. Confirmed by a later point
+  reporting exactly the mismatch count audited into that bank beforehand. The
+  same reasoning inverts usefully: a figure that varies run to run is a race,
+  and one that does not is state you carried in.
+- **Reading only generator 0.** The mismatch counter is per reader. A sweep that
+  calls `beats_mismatched()` with no argument verifies one of four readers and
+  silently reports the other three as clean. Sum across the active engines.
+- **Checking correctness only where you happened to read.** Writers and readers
+  on disjoint banks means nobody ever verifies the writers' banks. A defect can
+  sit there for a whole run and only appear when some later configuration
+  happens to place a reader on a bank that earlier points wrote — which is
+  exactly how PUMICE-037 surfaced, at the very last block of a 192-point sweep.
+  Audit the whole device, not just the read side.
 
 ---
 
