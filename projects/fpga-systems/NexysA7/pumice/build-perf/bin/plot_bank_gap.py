@@ -68,6 +68,28 @@ def _save(fig, outdir, name):
     return path
 
 
+def _sanity(rows, path):
+    """Refuse a record file that cannot have come from the hardware.
+
+    A results file that is silently fiction is worse than a missing one: it
+    still plots, and the plot still looks like a measurement. On 2026-09-14 a
+    board-less pytest run overwrote this file with mock rows claiming 2280
+    MB/s -- 3.8x the part's physical peak -- and nothing anywhere complained.
+    Bandwidth above the ceiling stored in the record itself is impossible, so
+    check it before drawing anything.
+    """
+    bad = [r for r in rows
+           if any(r.get(k, 0) > r.get("peak_mb_s", float("inf")) * 1.01
+                  for k in ("wr", "rd"))]
+    if bad:
+        r = bad[0]
+        raise SystemExit(
+            f"{path}: {len(bad)} of {len(rows)} records exceed their own peak "
+            f"({r.get('rd'):.0f} / {r.get('wr'):.0f} MB/s against a "
+            f"{r.get('peak_mb_s'):.0f} MB/s ceiling). This file did not come "
+            f"from the board -- re-run the sweep before plotting it.")
+
+
 def _sel(rows, **kw):
     return [r for r in rows if all(r.get(k) == v for k, v in kw.items())]
 
@@ -204,6 +226,7 @@ def main(argv=None) -> int:
     if not rows:
         print("no records in that file", file=sys.stderr)
         return 1
+    _sanity(rows, a.json)
     outdir = a.outdir or os.path.join(os.path.dirname(a.json) or ".", "plots")
 
     orders = sorted({r["order"] for r in rows})

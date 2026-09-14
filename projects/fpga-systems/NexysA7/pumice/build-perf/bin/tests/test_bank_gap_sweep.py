@@ -20,6 +20,7 @@ import importlib
 import io
 import os
 import sys
+import tempfile
 import types
 import contextlib
 
@@ -107,8 +108,18 @@ class _MockDrv:
         return lambda *a, **k: {}
 
 
-def _load(gens="4,3,2,1", gaps=None, txn="2000"):
-    """Import bank_gap_sweep fresh with the env it reads at module scope."""
+def _load(gens="4,3,2,1", gaps=None, txn="2000", json_out=None):
+    """Import bank_gap_sweep fresh with the env it reads at module scope.
+
+    `json_out` is NOT optional in spirit: main() writes its record file
+    unconditionally, and the module resolves the path at import. If the tests
+    leave it at the default, running this board-less suite OVERWRITES
+    reports/bank_gap_sweep.json -- the real measured board data -- with the
+    mock's fabricated numbers. That happened for real on 2026-09-14: a pytest
+    run replaced 192 measured records with 48 rows claiming 2280 MB/s, which is
+    3.8x the physical peak of the part. So the default here is a throwaway file
+    and never the real one.
+    """
     import ddr2_char as dc
     import pumice_char as pc
 
@@ -129,6 +140,8 @@ def _load(gens="4,3,2,1", gaps=None, txn="2000"):
 
     os.environ["GENS"] = gens
     os.environ["TXN"] = txn
+    os.environ["JSON_OUT"] = json_out or os.path.join(
+        tempfile.mkdtemp(prefix="bankgap-test-"), "sweep.json")
     if gaps is not None:
         os.environ["GAPS"] = gaps
     else:
@@ -295,9 +308,7 @@ def test_slower_families_have_more_slack():
 # ---------------------------------------------------------------------------
 def test_record_carries_coordinates_rates_ceiling_and_buckets(tmp_path):
     out = tmp_path / "sweep.json"
-    mod, drv = _load(gens="4,2", gaps="0,7")
-    os.environ["JSON_OUT"] = str(out)
-    mod = importlib.reload(mod)
+    mod, drv = _load(gens="4,2", gaps="0,7", json_out=str(out))
     _run(mod, drv)
     import json
     rows = json.loads(out.read_text())
@@ -331,3 +342,33 @@ def test_named_gap_sweeps_resolve_and_typos_raise():
     assert mod.resolve_gaps("0,4,8") == [0, 4, 8]
     with pytest.raises(SystemExit):
         mod.resolve_gaps("kneee")
+
+
+# ---------------------------------------------------------------------------
+# The suite must never write the REAL results file
+# ---------------------------------------------------------------------------
+def test_suite_never_touches_the_real_report():
+    """A board-less test that overwrites measured board data is worse than no
+    test: it destroys the evidence silently and leaves a file that still looks
+    like a result.
+
+    This is a regression guard for an actual incident. main() writes JSON_OUT
+    unconditionally, only one test used to override it, and a routine pytest
+    run replaced 192 measured records with 48 mock rows reporting 2280 MB/s --
+    3.8x the part's physical peak. Nothing failed; the file just quietly became
+    fiction.
+    """
+    real = os.path.join(_FLOW, "reports", "bank_gap_sweep.json")
+    before = os.path.getmtime(real) if os.path.exists(real) else None
+
+    mod, drv = _load(gens="4,2", gaps="0,7")
+    assert os.environ["JSON_OUT"] != "reports/bank_gap_sweep.json"
+    assert not os.path.abspath(os.environ["JSON_OUT"]).startswith(
+        os.path.abspath(os.path.join(_FLOW, "reports")) + os.sep), \
+        f"test would write inside the real reports dir: {os.environ['JSON_OUT']}"
+    _run(mod, drv)
+
+    after = os.path.getmtime(real) if os.path.exists(real) else None
+    assert before == after, (
+        "the board-less suite modified reports/bank_gap_sweep.json -- that file "
+        "holds measured board data and no test may write it")
