@@ -122,7 +122,18 @@ async def cocotb_test_ext_addressing(dut):
     got = tb.captured_axis.get(channel, [])
     errors = list(tb.test_errors)
     if len(got) != beats:
-        errors.append(f"ext ch{channel}: captured {len(got)}/{beats} beats")
+        # Log the payloads, not just the count. Each beat's payload IS the
+        # address it was read from, so the first few values distinguish the
+        # two failure shapes immediately: repeated seeded values mean the
+        # descriptor re-ran, ascending unseeded values mean the transfer never
+        # terminated. Reporting only a count forces the next reader to infer
+        # it from memory-model warnings, which cost a long investigation once.
+        head = [f"0x{v:X}" for v in got[:12]]
+        tail = [f"0x{v:X}" for v in got[-4:]] if len(got) > 12 else []
+        exp_head = [f"0x{v:X}" for v in expected_payload[:8]]
+        errors.append(f"ext ch{channel}: captured {len(got)}/{beats} beats; "
+                      f"got head={head}{' ... tail=' + str(tail) if tail else ''}; "
+                      f"expected={exp_head}")
     else:
         for i, (a, b) in enumerate(zip(got, expected_payload)):
             if a != b:
