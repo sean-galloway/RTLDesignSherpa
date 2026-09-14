@@ -221,3 +221,53 @@ assumed the TRANSACTION does not wrap. The solver walked straight back in,
 because the BOUNDARY arithmetic overflows first -- 0xFFFC + 4 ends exactly at
 the top of the space without wrapping. Constrain the expression that actually
 overflows, not the one you had in mind.
+
+## Internal visibility is not always available (2026-09-14)
+
+The rule above says properties live in the RTL under `` `ifdef FORMAL ``. That
+is `rtl/**` practice. It does **not** apply to `projects/components/**`, where
+[[no-assertions-in-rtl]] is an owner standing decision and `c67e9c31a` removed
+in-module SVA from seven RLB blocks. There, properties go in the external
+`formal_<block>.sv` binding -- and for a **PeakRDL-backed block** that binding
+can only see PORTS. Four routes to internal signals were measured on
+`rtc_config_regs` and all fail:
+
+1. `dut.<sig>`, DUT read as sv2v-flattened Verilog + harness as SV:
+   `ERROR: Failed to resolve identifier \dut.w_status_wr_event`.
+2. the same with `hierarchy` / `proc` / `flatten` before `prep`: identical.
+3. the same with harness and DUT sv2v'd into ONE file: identical.
+4. `bind`: yosys drops the checker (`Removing unused module
+   $abstract\<checker>`) and the proof passes with NO property cells. sv2v
+   cannot parse `bind` at all (`unexpected token 'bind'`).
+
+Reading the RTL as SystemVerilog instead -- how `formal/apbx_xbar` legitimately
+reaches `dut.s0_arb_grant` -- is closed off by the generated package:
+`rtc_regs_pkg.sv:10: ERROR: Only PACKED supported at this time`. That is why
+every sv2v-flow area (rapids, stream, converters) asserts on ports only.
+
+**So scope the contract to what ports can see, and leave the rest as CHECK BY
+INSPECTION** -- which the rule explicitly calls the accepted state, not a gap
+to paper over.
+
+## `design.log` cell counts are NOT a vacuity test
+
+Route 4 above passed, and three separate readings of `design.log` gave three
+wrong answers about whether it proved anything:
+- `Removing unused module $abstract\<checker>` looked like the checker being
+  dropped. The `$abstract` form is also printed for modules yosys later
+  resolves normally.
+- `PASS 0 0` in `status` looked like "zero properties". The second field is
+  ELAPSED SECONDS -- `PASS 0 11854` pairs with "Elapsed process time (11854)".
+- `Checking assertions in step N` looked like proof of life. sby prints it per
+  BMC step **whether or not any assertions exist**.
+
+What actually discriminates:
+- **grep the property NAMES in `model/design_smt2.smt2`** -- the SMT MODEL,
+  not `design_smt2.log`, which contains none of them. Measured 2026-09-14:
+  the .smt2 holds all six `ap_*` / `cp_*` names while the .log holds zero,
+  so grepping the log is itself a false discriminator of exactly the kind
+  this section warns about;
+- **`Reached cover statement ... at <file>:<line>`** in the cover log;
+- and above all **MUTATE**. Route 4's proof passed both mutations; the
+  port-only rewrite failed the one that matters and passed the documented
+  control. Nothing short of the mutation settled it.

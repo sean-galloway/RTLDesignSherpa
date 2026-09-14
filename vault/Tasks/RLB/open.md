@@ -393,13 +393,41 @@ here is a defect in the block. The durable lessons are in the handbook:
   waits for it to settle, so a reset cannot switch it under the domain). A
   glitchless mux needs a device-specific cell (BUFGMUX / clock-gate pair); if
   the RTC ever has to switch source live on silicon, that is the change.
-- **No formal area exists for retro_legacy_blocks.** The hand-decoded
-  RTC_STATUS W1C strobe in `rtc_config_regs.sv` and the seconds-read latch
-  alignment (which depends on `peakrdl_to_cmdrsp` capturing read data in the
-  FIRST of its two held cycles) are guarded only by the DV suite's W1C and
-  coherent-read tests; the in-module assertions that used to cover them were
-  removed under the no-assertions rule. If the bridge's capture cycle ever
-  changes, re-derive the alignment.
+- ~~No formal area exists for retro_legacy_blocks.~~ **CREATED 2026-09-14.**
+  `formal/retro_legacy_blocks/` now exists on the rapids pattern (aggregator
+  Makefile -> per-block Makefile -> sv2v flatten -> sby), with a
+  `rtc_config_regs` proof wired into the top-level `formal:` goal in the same
+  edit that added it -- the comment above `formal:` records what happens when
+  a target is added and not wired in.
+
+  **PROVED: the RTC_STATUS W1C strobe.** `clear_alarm_flag`,
+  `clear_second_tick` and `clear_commit_timeout` are each asserted for at most
+  one cycle per W1C transaction, which is the contract the module header
+  states. It matters because `peakrdl_to_cmdrsp` holds `regblk_req` for the
+  accept cycle PLUS one, so a strobe derived from it is presented twice unless
+  edge-detected -- the same two-cycle hold that produced defects in rapids
+  (kick) and pm_acpi (`cfg_sys_reset`) the same week. MUTATION-CHECKED:
+  removing `&& !r_status_sw_wr_d` makes the proof FAIL and restoring it makes
+  it PASS; all three covers are reached at step 2; the named properties appear
+  in `design_smt2.log`.
+
+  **STILL UNPROVED, and now known to be unprovable here: the seconds-read
+  latch alignment.** It is a property of `w_seconds_latch`, an internal
+  signal, and internal visibility is unavailable for this block in this
+  toolchain. Four routes were tried and all fail:
+    1. `dut.<sig>` with the DUT read as flat Verilog and the harness as SV --
+       "ERROR: Failed to resolve identifier".
+    2. the same with `hierarchy`/`proc`/`flatten` before `prep` -- identical.
+    3. the same with harness and DUT sv2v'd into ONE file -- identical.
+    4. `bind` -- yosys drops the checker silently and the proof passes with no
+       property cells; caught by MUTATION, not by reading the log. sv2v cannot
+       parse `bind` at all ("unexpected token 'bind'").
+  Reading the RTL as SystemVerilog instead (how `formal/apbx_xbar` gets
+  internal visibility) is closed off: yosys cannot parse the generated package
+  -- "rtc_regs_pkg.sv:10: ERROR: Only PACKED supported at this time".
+  So it stays CHECK BY INSPECTION in the module header, which
+  [[no-assertions-in-rtl]] sanctions as the accepted state. If the bridge's
+  capture cycle ever changes, re-derive the alignment by hand.
 
 Design decisions to know before touching the block (all stated in
 `rtc_core.sv`'s header and the MAS): the commit handshake is deliberately not

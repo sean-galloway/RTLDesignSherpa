@@ -32,6 +32,7 @@ help:
 	@echo "  make formal-converters  Protocol converters"
 	@echo "  make formal-stream    STREAM DMA blocks (dmas/stream)"
 	@echo "  make formal-rapids    RAPIDS DMA blocks (dmas/rapids *_beats)"
+	@echo "  make formal-rlb       Retro legacy blocks (rtc config regs)"
 	@echo "  make formal-dma       STREAM + RAPIDS"
 	@echo "  make formal-bridge    Bridge AXI4 protocol (requires SVA-AXI4-FVIP submodule)"
 	@echo "  make formal-quick     Quick check: counter_bin only (~seconds)"
@@ -52,7 +53,7 @@ check-tools:
 # 2026-09-11: `make formal` ran neither, so ninety task directories had no
 # entry point and nobody noticed twelve flat files drifting from their RTL.
 .PHONY: formal
-formal: formal-rtl formal-converters formal-stream formal-rapids
+formal: formal-rtl formal-converters formal-stream formal-rapids formal-rlb
 
 # Everything whose RTL lives in repo-root rtl/.
 .PHONY: formal-rtl
@@ -86,6 +87,13 @@ formal-stream:
 .PHONY: formal-rapids
 formal-rapids:
 	$(MAKE) -C rapids prove-all
+
+# Retro legacy blocks. Added 2026-09-14 for RLB-010; the comment above about
+# formal-amba and formal-converters going missing from the `formal:` list is
+# exactly why this target is wired into that list in the SAME edit.
+.PHONY: formal-rlb
+formal-rlb:
+	$(MAKE) -C retro_legacy_blocks prove-all
 
 .PHONY: formal-dma
 formal-dma: formal-stream formal-rapids
