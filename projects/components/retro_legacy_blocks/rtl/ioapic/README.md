@@ -136,9 +136,18 @@ forwarding the mode is the whole of this block's responsibility for logical
 delivery (RLB-008). Delivery modes other than Fixed are likewise forwarded on
 `irq_out_deliv_mode` unmodified.
 
-## Not implemented (see vault/Tasks/RLB/open.md, RLB-008)
+## Not implemented (see vault/Tasks/RLB/, RLB-008)
 
-Multi-IOAPIC routing; boot-interrupt delivery; MSI/MSI-X.
+Boot-interrupt delivery and MSI/MSI-X. Both are blocked on more than effort:
+the delivery-mode field has no SIPI encoding (000 Fixed, 001 LowestPri, 010
+SMI, 100 NMI, 101 INIT, 111 ExtINT), so an INIT-SIPI-SIPI sequence cannot be
+expressed at all; and MSI is an upstream memory write, which this block cannot
+issue because `apb4_ioapic` is an APB SLAVE with no initiator port. Neither is
+a gap that more RTL in this module would close.
+
+Multi-IOAPIC routing is available as a companion: `ioapic_deliv_merge` merges N
+delivery channels onto one and tags each message with its source id, so an EOI
+can be routed back to the IOAPIC holding that pin's Remote IRR.
 
 LowestPriority is delegated rather than absent, and the other delivery modes
 (SMI, NMI, INIT, ExtINT) are FORWARDED rather than acted on: they ride

@@ -137,7 +137,10 @@ The APB IOAPIC draws directly from the Intel 82093AA I/O APIC specification with
 **MVP Simplifications:**
 - Fixed delivery mode only; the other modes are forwarded on
   `irq_out_deliv_mode` unmodified rather than acted on
-- Single IOAPIC (multi-IOAPIC arbitration future)
+- Single IOAPIC in the block itself. Multi-IOAPIC routing is no longer
+  "future": `ioapic_deliv_merge` (RLB-008) merges N delivery channels outside
+  the block, which is where it belongs -- apb4_ioapic's port list stays a
+  single payload + valid/ready + status so a bridge can carry it onto a bus
 
 **RLB Enhancements:**
 - Round-robin arbitration behind `IOAPICARBCFG.rr_enable`, at IOWIN selector
@@ -292,8 +295,14 @@ When an IRQ arrives while masked, the IRR bit latches but delivery is blocked. U
       and the destination set, the local APICs arbitrate, and `irq_out_retry`
       carries a failed arbitration back so the interrupt is re-offered
 - [ ] Additional delivery modes acted on rather than forwarded (SMI, NMI, INIT, ExtINT)
-- [ ] Multi-IOAPIC support
-- [ ] Boot interrupt delivery
+- [x] Multi-IOAPIC support, delegated: `ioapic_deliv_merge` merges N delivery
+      channels onto one in round robin and tags each message with its source
+      id, so an EOI routes back to the IOAPIC holding that pin's Remote IRR
+- [ ] Boot interrupt delivery -- BLOCKED, not merely deferred: the
+      delivery-mode field has no SIPI encoding, so INIT-SIPI-SIPI cannot be
+      expressed
+- [ ] MSI/MSI-X -- BLOCKED, not merely deferred: an APB slave has no initiator
+      port with which to issue the upstream memory write
 
 ## References
 

@@ -211,13 +211,25 @@ regblock` desyncs the regmap. Run the RLB tests afterwards.
 
 **Priority:** P3. The block is functionally complete for its MVP scope and
 36/36 green in all six configurations; nothing here is a defect.
-**Status:** open, and everything left is deliberate scope. Logical destination
-mode landed 2026-09-10 in 4bce6badc and round-robin arbitration the same day;
-LowestPriority's IOAPIC half landed 2026-09-11 and its arbitration half is
-delegated. The table-size note was examined 2026-09-14: the actionable part was
-a false claim in the module header, now fixed; the rest cannot be done in
-SystemRDL. What remains is multi-IOAPIC routing, boot-interrupt delivery and
-MSI -- features the MVP does not implement.
+**Status:** open, and what is left is now BLOCKED rather than merely deferred.
+Logical destination mode landed 2026-09-10 in 4bce6badc and round-robin
+arbitration the same day; LowestPriority's IOAPIC half landed 2026-09-11. The
+table-size note was examined 2026-09-14: the actionable part was a false claim
+in the module header, now fixed; the rest cannot be done in SystemRDL.
+
+Two of the four remaining items shipped 2026-09-14 as COMPANION modules, which
+keeps Sean's 2026-09-11 interface decision intact -- apb4_ioapic's port list is
+unchanged and apb4_ioapic.f references neither file:
+  - LowestPriority's delegated arbitration half: `ioapic_lowest_pri_arb`
+    (7a4096b24), formal prove+cover PASS, mutation-checked.
+  - Multi-IOAPIC routing: `ioapic_deliv_merge` (e0c77afc9), N delivery
+    channels merged in round robin with each message tagged by source id so an
+    EOI routes back to the IOAPIC holding that pin's Remote IRR. Formal
+    prove+cover PASS, mutation-checked.
+
+Boot-interrupt delivery and MSI are what remain, and NEITHER is a matter of
+effort -- see the two bullets below. Both need a decision outside this block
+before any RTL here could be written.
 
 Raised while closing issue #48. Those deferred features were the surviving
 content of `rtl/ioapic/TODO.md`, which was deleted with that fix along with
@@ -282,7 +294,25 @@ trackers next to the code instead of recording the open work here.
   directed test asked for below is the one that ships with it: it parks the
   pointer between two contenders and checks that the two policies deliver
   them in opposite orders, with the static run as its own control.
-- Multi-IOAPIC routing, boot-interrupt (INIT-SIPI-SIPI) delivery, MSI/MSI-X.
+- ~~Multi-IOAPIC routing.~~ SHIPPED 2026-09-14 as `ioapic_deliv_merge`
+  (e0c77afc9), a companion rather than a port change.
+- **Boot-interrupt (INIT-SIPI-SIPI) delivery. BLOCKED: the message cannot be
+  expressed.** `ioapic_regs.rdl` enumerates the delivery-mode field as
+  `000=Fixed, 001=LowestPri, 010=SMI, 100=NMI, 101=INIT, 111=ExtINT`. There is
+  no SIPI encoding, and `sipi` appears nowhere in the RDL, the RTL or the MAS.
+  Encodings 011 and 110 are unused, but assigning one would invent a
+  non-82093AA encoding -- i.e. stop implementing the part this block
+  implements. The real question is a specification one (does this system carry
+  SIPI on this channel at all, and under whose encoding?) and it is not the
+  IOAPIC's to answer alone.
+- **MSI/MSI-X. BLOCKED: no initiator port exists.** MSI is an upstream memory
+  WRITE. `apb4_ioapic`'s entire bus interface is `s_apb_*` -- an APB slave.
+  The block has no way to originate a transaction, so this is an architecture
+  change (add a master port, or bridge the existing delivery channel onto one),
+  not a feature that could be added inside the current interface. Worth noting
+  the channel is already message-shaped -- `ioapic_core.sv:197` calls it an
+  "MSI-style message interface" -- so what is missing is the ability to EMIT,
+  not the message format.
 
 **The table-size note, re-stated 2026-09-14 after examining it.**
 `ioapic_regs.rdl` fixes the table at 24 entries (`IOREDTBL[24] @ 0x14`) while
@@ -310,10 +340,15 @@ PeakRDL regeneration of two files, a new RTL driver, a DV change
 a value the guard in the same file already forces to 24. Revisit only if
 NUM_IRQS ever becomes genuinely free, which needs the RDL problem solved first.
 
-**Still genuinely deferred (82093AA features the MVP does not implement):**
-multi-IOAPIC routing, boot-interrupt (INIT-SIPI-SIPI) delivery, MSI/MSI-X, and
-the arbitration half of LowestPriority, which is delegated to the consumer by
-Sean's call (see above).
+**Still open, and both are BLOCKED rather than deferred:** boot-interrupt
+(INIT-SIPI-SIPI) delivery, which has no encoding in the delivery-mode field to
+carry it, and MSI/MSI-X, which needs an initiator port this APB slave does not
+have. Each needs a decision above this block before RTL here would mean
+anything.
+
+Multi-IOAPIC routing and LowestPriority's delegated arbitration half both
+shipped 2026-09-14 as companion modules (e0c77afc9, 7a4096b24), outside
+apb4_ioapic's port list by design.
 
 ### RLB-009: PM_ACPI features deferred past the #54 fix
 
