@@ -260,9 +260,9 @@ unchanged and apb4_ioapic.f references neither file:
   behaviour against a real LAPIC or a genuine multi-IOAPIC system remains
   uncovered.
 
-Boot-interrupt delivery and MSI are what remain, and NEITHER is a matter of
-effort -- see the two bullets below. Both need a decision outside this block
-before any RTL here could be written.
+MSI SHIPPED 2026-09-14 as a third companion, `ioapic_msi_emit`. Boot-interrupt
+is what remains, and it needs RE-SCOPING before anyone implements it -- the
+requirement as written here was wrong. See the two bullets below.
 
 Raised while closing issue #48. Those deferred features were the surviving
 content of `rtl/ioapic/TODO.md`, which was deleted with that fix along with
@@ -332,23 +332,73 @@ trackers next to the code instead of recording the open work here.
   tested in 72484a498. The area grid moved 63 -> 66 -> 69 cells at FULL as the
   two companion tests landed; both run inside
   `make clean-all && make run-all-full-parallel`, not only standalone.
-- **Boot-interrupt (INIT-SIPI-SIPI) delivery. BLOCKED: the message cannot be
-  expressed.** `ioapic_regs.rdl` enumerates the delivery-mode field as
-  `000=Fixed, 001=LowestPri, 010=SMI, 100=NMI, 101=INIT, 111=ExtINT`. There is
-  no SIPI encoding, and `sipi` appears nowhere in the RDL, the RTL or the MAS.
-  Encodings 011 and 110 are unused, but assigning one would invent a
-  non-82093AA encoding -- i.e. stop implementing the part this block
-  implements. The real question is a specification one (does this system carry
-  SIPI on this channel at all, and under whose encoding?) and it is not the
-  IOAPIC's to answer alone.
-- **MSI/MSI-X. BLOCKED: no initiator port exists.** MSI is an upstream memory
-  WRITE. `apb4_ioapic`'s entire bus interface is `s_apb_*` -- an APB slave.
-  The block has no way to originate a transaction, so this is an architecture
-  change (add a master port, or bridge the existing delivery channel onto one),
-  not a feature that could be added inside the current interface. Worth noting
-  the channel is already message-shaped -- `ioapic_core.sv:197` calls it an
-  "MSI-style message interface" -- so what is missing is the ability to EMIT,
-  not the message format.
+- **Boot-interrupt delivery. MIS-SCOPED -- the requirement needs restating
+  before anything is built.** This entry has been carrying a category error,
+  and it was mine: `git log -S "INIT-SIPI-SIPI"` traces the framing to
+  23df0dbf0 / 105c1b186, my own commits, citing no source. The MAS references
+  only the 82093AA datasheet, which contains neither SIPI nor a boot-interrupt
+  section.
+
+  The two things it conflates are unrelated:
+  * **INIT-SIPI-SIPI** is the AP startup sequence one LOCAL APIC sends another
+    as an IPI. An IOAPIC never originates it. "No SIPI encoding in the
+    delivery-mode field" is true and beside the point -- the field would not
+    carry it even on real silicon.
+  * **Boot interrupt** is the chipset behaviour where a PCI device's INTx is
+    rerouted to the legacy PIC when IOAPIC delivery is masked or disabled, so
+    an interrupt raised before the OS programs the IOAPIC is not lost.
+
+  If the second is what is wanted, it is a real and implementable feature, and
+  it is about the INTERACTION between this block and `apb4_pic_8259` rather
+  than about a delivery-mode encoding -- which makes it a different design
+  question than the one this entry has been posing. If the first is wanted,
+  it belongs to a LAPIC, not here.
+
+  NOT IMPLEMENTED, deliberately: building to a mis-stated requirement would be
+  worse than leaving it. What is needed first is which of the two is meant.
+- ~~MSI/MSI-X.~~ SHIPPED 2026-09-14 as `ioapic_msi_emit`, a third companion.
+
+  **This entry called it BLOCKED and that was wrong.** MSI is a posted write of
+  one data word to one address; the claim "no initiator port exists" was true
+  but the conclusion did not follow, and this bullet's own parenthetical held
+  the answer -- "or bridge the existing delivery channel onto one". Sean's
+  2026-09-11 interface decision says the channel stays payload + valid/ready +
+  status precisely so "a bridge can carry that shape onto a bus (the retry
+  becomes a response)". That sentence describes the module. apb4_ioapic is
+  untouched and apb4_ioapic.f does not reference it.
+
+  It consumes the delivery channel, drives `apb4_master_stub`, and maps the
+  write's PSLVERR back to `deliv_retry`. Its `deliv_*` ports are field-for-field
+  identical to `ioapic_core`'s `irq_out_*` AND to `ioapic_deliv_merge`'s `m_*`,
+  so a multi-IOAPIC system chains merge -> emitter with no adapter.
+
+  Formal prove+cover PASS, five covers reached. MUTATION-CHECKED with four,
+  each breaking exactly the properties that make the matching claim: moving the
+  destination field (ap_addr_dest + ap_cmd_packing), reading prdata's top bit
+  instead of pslverr (ap_retry_iff), swapping address/data order (all five
+  field properties), and swapping vector with delivery mode (ap_data_vector +
+  ap_cmd_packing). The third is the one that tested the PROOF rather than the
+  design: the harness builds the expected command from the SPEC, so a
+  restatement that had quietly copied the DUT would have survived it.
+
+  **TWO OPEN DECISIONS, both deliberately not made unilaterally:**
+  1. *Posted-write retry timing.* `deliv_ready` follows `cmd_ready`, so the
+     delivery handshake completes when the write is ACCEPTED, while PSLVERR
+     arrives later. A refusal can therefore land after ioapic_core has retired
+     an edge pin's latch -- losing the interrupt instead of re-offering it. The
+     alternative holds `deliv_ready` until the response, which serialises to
+     one MSI in flight. The posted form is what shipped.
+  2. *The encoding is a default, not a derivation.* Nothing in the RTL, RDL or
+     MAS commits to an MSI format, so this uses the x86 convention:
+     addr[19:12]=destination, data[7:0]=vector, data[10:8]=delivery mode,
+     data[11]=destination mode. Two `always_comb` blocks are the whole format.
+
+  Address and data arrive as PORTS, not registers, to keep it a pure companion.
+  Register-backing them is a separate change: new RDL at a reserved selector
+  (0x04/0x05 are free, following the IOAPICARBCFG @ 0x03 / 0xD4 precedent),
+  regblock offsets 0xD8/0xDC free, regenerated only via
+  `bin/peakrdl_generate.py` -- it touches generated files and the block's
+  decode, so it is not bundled here.
 
 **The table-size note, re-stated 2026-09-14 after examining it.**
 `ioapic_regs.rdl` fixes the table at 24 entries (`IOREDTBL[24] @ 0x14`) while
@@ -376,15 +426,14 @@ PeakRDL regeneration of two files, a new RTL driver, a DV change
 a value the guard in the same file already forces to 24. Revisit only if
 NUM_IRQS ever becomes genuinely free, which needs the RDL problem solved first.
 
-**Still open, and both are BLOCKED rather than deferred:** boot-interrupt
-(INIT-SIPI-SIPI) delivery, which has no encoding in the delivery-mode field to
-carry it, and MSI/MSI-X, which needs an initiator port this APB slave does not
-have. Each needs a decision above this block before RTL here would mean
-anything.
+**Still open: boot-interrupt, and it is MIS-SCOPED rather than blocked.** The
+requirement as filed conflated two unrelated things; see its bullet. Nothing
+should be built against it until it is restated.
 
-Multi-IOAPIC routing and LowestPriority's delegated arbitration half both
-shipped 2026-09-14 as companion modules (e0c77afc9, 7a4096b24), outside
-apb4_ioapic's port list by design.
+All three of the other deferred 82093AA features shipped 2026-09-14 as
+companion modules, outside apb4_ioapic's port list by design: multi-IOAPIC
+routing (e0c77afc9), LowestPriority's delegated arbitration half (7a4096b24),
+and MSI delivery (`ioapic_msi_emit`).
 
 ### RLB-009: PM_ACPI features deferred past the #54 fix
 
