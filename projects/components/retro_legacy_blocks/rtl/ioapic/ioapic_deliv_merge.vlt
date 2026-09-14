@@ -1,0 +1,21 @@
+`verilator_config
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// Lint waivers for ioapic_deliv_merge's dependencies.
+//
+// arbiter_round_robin declares w_mask_decode, a per-client decode array that
+// only some configurations read, so -Wall reports UNUSEDSIGNAL on it whenever
+// the arbiter is instantiated. It is PRE-EXISTING in shared rtl/common and has
+// nothing to do with this companion: `git diff` against that file is empty
+// here, and it reports identically for every other consumer of the arbiter.
+//
+// It is waived rather than fixed on purpose. rtl/common is shared by the whole
+// repo, and editing a shared primitive to quiet one consumer's lint is how a
+// working design gets broken for everyone else -- twice already in this repo's
+// history. If it is worth fixing it is worth fixing for the family, in its own
+// change, with the family re-linted.
+//
+// Scoped by BOTH rule and file so it cannot mask a future UNUSEDSIGNAL in this
+// companion's own RTL.
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/common/arbiter_round_robin.sv"
