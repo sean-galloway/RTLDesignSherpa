@@ -3,7 +3,8 @@
 This is the operator / developer guide for the Nexys A7 **DDR2/LPDDR2
 Characterization** project (`projects/fpga-systems/NexysA7/pumice/ddr2-characterization`). It
 explains what the project characterizes, how the harness works, how to build /
-simulate / program / run it, and how the harness CSR is configured.
+simulate / program / run it, how the harness CSR is configured, and what the
+board measured (Chapter 8, added at v0.95).
 
 The memory controller under test — **pumice** — is separate IP
 (`projects/components/memory-controllers/pumice-ddr2-lpddr2`). This guide treats
@@ -25,6 +26,8 @@ document the controller's internals.
 | RTL Design Sherpa | `build-perf/bin/README_a7ddrphy.md` (PHY regen) |
 | RTL Design Sherpa | `flows-litedram-uart/HARNESS_PLAN.md` (baseline flow) |
 | RTL Design Sherpa | `bin/TBClasses/harness/` (shared UART-char collateral) |
+| RTL Design Sherpa | `docs/DDR2_BANDWIDTH_MEASUREMENT.md` (what "bandwidth" means here) |
+| RTL Design Sherpa | `build-perf/reports/` (the raw records behind Chapter 8) |
 | Micron | `MT47H64M16HR-25E` DDR2 SDRAM datasheet |
 | ARM | AMBA AXI4 / AXI4-Lite / APB Protocol Specifications |
 

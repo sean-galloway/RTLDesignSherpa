@@ -23,12 +23,12 @@
 
 # DDR2/LPDDR2 Characterization — Project Guide
 
-**Version:** 0.90
-**Date:** 2026-07-18
+**Version:** 0.95
+**Date:** 2026-09-14
 **Purpose:** Operator / developer guide for the Nexys A7 `ddr2-characterization`
 project — how it works, how to build/simulate/program/run it, and the harness
-CSR configuration. The DDR2 controller under test (pumice) is separate IP and is
-treated here as a black box.
+CSR configuration, and what the board actually measured. The DDR2 controller
+under test (pumice) is separate IP and is treated here as a black box.
 
 ---
 
@@ -66,6 +66,10 @@ treated here as a black box.
 
 - [Known State and Common Issues](ch07_troubleshooting/01_troubleshooting.md)
 
+### Chapter 8: Measured Results
+
+- [Board Results: Bandwidth, Knees and Integrity](ch08_results/01_results.md)
+
 ---
 
 ## Quick Reference
@@ -92,5 +96,5 @@ treated here as a black box.
 
 ---
 
-**Last Updated:** 2026-07-18
+**Last Updated:** 2026-09-14
 **Maintained By:** RTL Design Sherpa Project

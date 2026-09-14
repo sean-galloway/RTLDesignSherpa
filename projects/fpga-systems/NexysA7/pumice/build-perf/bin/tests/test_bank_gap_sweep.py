@@ -327,9 +327,21 @@ def test_record_carries_coordinates_rates_ceiling_and_buckets(tmp_path):
         assert isinstance(b["total"], int), f"{d}.total missing/not an int"
         for k in ("productive", "backpressure", "starvation", "idle"):
             assert k in b and isinstance(b[k], int), f"{d}.{k} missing/not an int"
+        # Fractions are against the HARDWARE window, not the meter's total.
+        # The meter free-runs across the host's UART chatter, so its own total
+        # is ~430x the transfer and every fraction taken against it is
+        # meaningless -- that is how a 95%-of-peak point once reported 0.2%
+        # productive. `starvation` keeps its raw count but gets no fraction,
+        # because that bucket is where the host idle lands; the remainder is
+        # reported as other_frac.
+        assert "window" in b, f"{d}.window missing -- the fraction denominator"
+        assert "starvation_frac" not in b, (
+            f"{d}.starvation_frac is back: that bucket absorbs host idle and "
+            f"must not be published as a fraction")
+        for k in ("productive", "backpressure", "idle", "other"):
             assert f"{k}_frac" in b, f"{d}.{k}_frac missing"
         assert abs(sum(b[f"{k}_frac"] for k in
-                       ("productive", "backpressure", "starvation", "idle"))
+                       ("productive", "backpressure", "idle", "other"))
                    - 1.0) < 1e-6, "bucket fractions do not sum to 1"
 
 

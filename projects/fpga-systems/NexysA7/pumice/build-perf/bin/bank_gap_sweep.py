@@ -274,14 +274,28 @@ def _point(drv, geom, n_gen, family, gap, timeout_s=60.0):
     meters = {d: pc._read_meter(drv, d) for d in ("wr", "rd")}
     drv.freeze_trace(False)
 
-    def _buckets(m):
-        t = m.total
+    def _buckets(m, window):
+        """Counts as measured, fractions against the HARDWARE window.
+
+        The meter free-runs from clear_stats() until it is read, so m.total
+        spans the host's UART chatter as well as the transfer -- 7.2M cycles
+        against a 16.7k-cycle window on a 1+1 point, 430x. Dividing by m.total
+        made a point moving 95% of peak report "0.2% productive, 99.8%
+        starvation" (2026-09-14). The counts are right -- productive lands on
+        exactly the beats moved -- so only the denominator needed fixing.
+
+        m.starv is NOT re-exported as a fraction: it absorbs all the host idle
+        and carries no information about the run. What is left after
+        productive, backpressure and idle is reported as `other_frac`.
+        """
+        w = window or m.total
+        f = (lambda v: (v / w) if w else 0.0)
+        prod, bp, idle = f(m.prod), f(m.bp), f(m.idle)
         return dict(productive=m.prod, backpressure=m.bp, starvation=m.starv,
-                    idle=m.idle, total=t,
-                    productive_frac=(m.prod / t) if t else 0.0,
-                    backpressure_frac=(m.bp / t) if t else 0.0,
-                    starvation_frac=(m.starv / t) if t else 0.0,
-                    idle_frac=(m.idle / t) if t else 0.0)
+                    idle=m.idle, total=m.total, window=w,
+                    productive_frac=prod, backpressure_frac=bp,
+                    idle_frac=idle,
+                    other_frac=max(0.0, 1.0 - prod - bp - idle))
 
     return dict(
         order=family, n_gen=n_gen, gap=gap, txn=TXN, beats=BEATS,
@@ -295,7 +309,8 @@ def _point(drv, geom, n_gen, family, gap, timeout_s=60.0):
         peak_mb_s=PEAK_MBS,
         mism=mism, stray=stray, ok=(wr_ok and rd_ok), rd_txn=rd_txn,
         want_txn=want_txn,
-        buckets={d: _buckets(m) for d, m in meters.items()},
+        buckets={d: _buckets(m, wr_cyc if d == "wr" else rd_cyc)
+                 for d, m in meters.items()},
     )
 
 

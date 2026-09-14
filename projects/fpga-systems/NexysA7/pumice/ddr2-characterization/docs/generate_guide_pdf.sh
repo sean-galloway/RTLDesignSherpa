@@ -7,13 +7,13 @@ set -euo pipefail
 # Usage:
 #   ./generate_guide_pdf.sh [--rev <version>] [--help]
 #
-# Builds the CDC Counter Display operator/developer guide (DOCX + PDF) from the
-# chapterized Markdown under cdc_demo_guide/ using bin/md_to_docx.py. Skeleton-
+# Builds the DDR2 characterization operator/developer guide (DOCX + PDF) from
+# the chapterized Markdown under ddr2_char_guide/ using bin/md_to_docx.py. Skeleton-
 # identical to the STREAM generate_*_pdf.sh scripts; only the doc name, index,
 # and styles file differ.
 # ------------------------------------------------------------
 
-REV="0.90"
+REV="0.95"
 DOC="ddr2_char_guide"
 ASSETS="${DOC}/assets"
 SPEC_INDEX="${DOC}/${DOC}_index.md"
@@ -30,7 +30,7 @@ Options:
   -h, --help             Show this help message and exit
 
 Description:
-  Generates a DOCX and PDF of the CDC Counter Display project guide by invoking
+  Generates a DOCX and PDF of the DDR2 characterization project guide by invoking
   bin/md_to_docx.py on ${SPEC_INDEX}.
 EOF
 }

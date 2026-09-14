@@ -173,12 +173,38 @@ def buckets_stacked(rows, order, n_gen, direction, outdir):
     if not sub:
         return None
     xs = [r["gap"] for r in sub]
-    b = [r["buckets"][direction] for r in sub]
-    parts = [[x[f"{k}_frac"] * 100.0 for x in b]
-             for k in ("productive", "backpressure", "starvation", "idle")]
+
+    # Normalise against the HARDWARE window, not the meter's own total.
+    #
+    # The bus meter free-runs from clear_stats() until it is read, so its total
+    # spans the host's UART chatter as well as the transfer -- 7.2M cycles
+    # against a 16.7k-cycle window, 430x. Every stored *_frac is therefore
+    # dominated by the time the host spent talking at 115200 baud, which is how
+    # a point moving 95% of peak came to report "0.2% productive, 99.8%
+    # starvation". The COUNTS are sound (productive lands on exactly the 16000
+    # beats moved); only the denominator was wrong. Recompute against
+    # rd_cycles/wr_cycles, the timer's first-to-last stamp for this direction,
+    # and fold whatever is left into "other" rather than pretending the
+    # meter's starvation bucket means anything here.
+    parts = [[], [], [], []]
+    for r in sub:
+        x = r["buckets"][direction]
+        w = r.get(f"{direction}_cycles") or x["total"]
+        prod = 100.0 * x["productive"] / w if w else 0.0
+        bp = 100.0 * x["backpressure"] / w if w else 0.0
+        idle = 100.0 * x["idle"] / w if w else 0.0
+        other = max(0.0, 100.0 - prod - bp - idle)
+        for lst, v in zip(parts, (prod, bp, other, idle)):
+            lst.append(v)
     fig, ax = plt.subplots(figsize=(7, 4.2))
+    # "consumer not ready" rather than "backpressure": on a READ the engine is
+    # the consumer, so its own inter-burst gap deasserts rready and lands in
+    # this bucket. It is generator-induced idle, NOT the controller refusing --
+    # the opposite of what the word backpressure implies on a write.
+    bp_label = ("consumer not ready" if direction == "rd"
+                else "backpressure (slave)")
     ax.stackplot(xs, *parts,
-                 labels=["productive", "backpressure", "starvation", "idle"],
+                 labels=["productive", bp_label, "other", "idle"],
                  colors=[GREEN, RED, ORANGE, SILVER], alpha=0.85)
     ax.set_ylim(0, 100)
     ax.set_xlabel("inter-burst gap (clocks)")
@@ -231,19 +257,28 @@ def main(argv=None) -> int:
 
     orders = sorted({r["order"] for r in rows})
     gens = _axes(rows, "n_gen")
-    widest = max(gens)
+    widest, narrowest = max(gens), min(gens)
+    # Both ends, and the NARROW one is the one that explains the curve.
+    #
+    # This used to draw the cycle breakdown for the widest configuration only,
+    # reasoning that it "stops hardest" there. That is backwards. At the widest
+    # configuration the gap axis is FLAT -- four generators still out-demand the
+    # controller even at gap 15 -- so those buckets show nothing changing across
+    # the whole sweep. The bend lives at the narrow end, and so does its cause:
+    # starvation should climb with the gap while backpressure falls, which is
+    # what turns "bandwidth dropped" into "the generators stopped asking".
+    bucket_gens = sorted({widest, narrowest})
     n = 0
     for order in orders:
         for series in ("bus", "rd", "wr"):
             line_family(rows, order, series, outdir); n += 1
         heatmap(rows, order, "bus", outdir); n += 1
-        # The cycle breakdown only needs the widest configuration: it answers
-        # "what stopped the bus", and the widest one is where it stops hardest.
-        for direction in ("rd", "wr"):
-            if buckets_stacked(rows, order, widest, direction, outdir):
+        for g in bucket_gens:
+            for direction in ("rd", "wr"):
+                if buckets_stacked(rows, order, g, direction, outdir):
+                    n += 1
+            if efficiency_pair(rows, order, g, outdir):
                 n += 1
-        if efficiency_pair(rows, order, widest, outdir):
-            n += 1
     print(f"{n} figures -> {outdir}")
     return 0
 
