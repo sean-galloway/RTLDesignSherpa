@@ -10,8 +10,8 @@ pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
 | State | Count | Tasks |
 |---|---|---|
 | active | 0 | — |
-| open | 9 | RLB-006 (test scrub), RLB-007 (RDL relocation), RLB-008 (ioapic residual features), RLB-009 (pm_acpi residual features), RLB-010 (rtc leftovers), RLB-011 (smbus residual features), RLB-012 (regblock reset polarity), RLB-013 (uart_16550 residual features), RLB-014 (800-line core cap), RLB-015 (RESET_ACTIVE_HIGH SYNCASYNCNET, unverified) |
-| closed | 5 | RLB-001 (Kimi review), RLB-002 (5 wrong-map MAS fixes), RLB-003 (4 targeted MAS fixes), RLB-004 (the 9 RTL bugs), RLB-005 (rtc wavedrom README) |
+| open | 9 | RLB-006 (test scrub), RLB-007 (RDL relocation), RLB-008 (ioapic residual features), RLB-009 (pm_acpi residual features), RLB-011 (smbus residual features), RLB-012 (regblock reset polarity), RLB-013 (uart_16550 residual features), RLB-014 (800-line core cap), RLB-015 (RESET_ACTIVE_HIGH SYNCASYNCNET, unverified) |
+| closed | 6 | RLB-001 (Kimi review), RLB-002 (5 wrong-map MAS fixes), RLB-003 (4 targeted MAS fixes), RLB-004 (the 9 RTL bugs), RLB-005 (rtc wavedrom README), RLB-010 (rtc leftovers) |
 | dropped | 0 | — |
 
 ## Shortlist
@@ -28,9 +28,17 @@ pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
   #61 are closed on GitHub; the fixes landed 2026-09-10/11. Verified before
   closing: clean `make clean-all && make run-all-full-parallel` over all nine
   blocks at REG_LEVEL=FULL, 63 passed / 0 failed.
-- **Nothing is active.** What remains open is deliberate scope (RLB-008
-  ioapic modes, RLB-010 rtc clock mux) plus the two filed 2026-09-14. The one
-  genuine open work item is RLB-010's missing formal area.
+- **RLB-010 CLOSED 2026-09-14.** Its formal area was created, and its last
+  bullet -- the combinational clock mux -- was resolved by `rtc_clk_mux`
+  (`ae03c6b43`), the device-specific cell the entry itself named as the real
+  answer. Verified before closing: clean `make clean-all &&
+  make run-all-full-parallel` over all nine blocks, 63 passed / 0 failed in
+  343.50s. NOTE: the open count above read 9 while listing ten tasks, so it was
+  already wrong by one; it is now 9 listing nine, corrected deliberately rather
+  than made right by the removal.
+- **Nothing is active.** What remains open is deliberate scope (RLB-008 ioapic
+  modes -- multi-IOAPIC routing, boot-interrupt delivery and MSI) plus the two
+  filed 2026-09-14.
 
 ## Done
 
