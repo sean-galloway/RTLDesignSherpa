@@ -124,7 +124,10 @@ filelist_dirs = [
 name = "retro_legacy_blocks"
 kind = "component"
 rtl_roots = ["projects/components/retro_legacy_blocks/rtl"]
-filelist_dirs = ["projects/components/retro_legacy_blocks/rtl"]
+filelist_dirs = [
+    "projects/components/retro_legacy_blocks/rtl",
+    "projects/components/retro_legacy_blocks/dv/tb",
+]
 
 [[area]]
 name = "apbx_xbar"
