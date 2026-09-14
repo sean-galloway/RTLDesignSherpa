@@ -389,3 +389,7 @@ val/*/coverage_data/
 # that commit was deleting (51de248df, 2026-09-10).
 .decl_order_files.txt
 **/.decl_order_files.txt
+
+# Vivado drops an empty clockInfo.txt stub in the CWD of any run (a header and
+# a link to a support page, Design: design_1 -- not ours). It is not a report.
+clockInfo.txt
