@@ -228,8 +228,11 @@ regblock` desyncs the regmap. Run the RLB tests afterwards.
 
 **Priority:** P3. The block is functionally complete for its MVP scope and
 36/36 green in all six configurations; nothing here is a defect.
-**Status:** open. One item remains -- boot-interrupt -- and it is MIS-SCOPED,
-not blocked; it needs re-scoping before anyone implements it.
+**Status:** open. Every ioapic FEATURE is now shipped -- LowestPriority
+arbitration, multi-IOAPIC merge, MSI emit and boot-interrupt rerouting,
+all as companions. What remains is one DESIGN QUESTION, not a missing
+feature: deliv_retry cannot be acted on while the MSI write is posted,
+so a refused MSI is counted in IOAPICMSIDROP rather than re-offered.
 Logical destination mode landed 2026-09-10 in 4bce6badc and round-robin
 arbitration the same day; LowestPriority's IOAPIC half landed 2026-09-11. The
 table-size note was examined 2026-09-14: the actionable part was a false claim
