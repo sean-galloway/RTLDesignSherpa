@@ -176,23 +176,82 @@ def _point(drv, geom, n_gen, family, gap, timeout_s=60.0):
     drv.freeze_trace(True)
 
     t = drv.timer()
-    # ONE window over both directions: first kick to last completion. Both
-    # directions move the same bytes here (same TXN, BEATS and engine count),
-    # so a per-direction MB/s would just print one number twice. What the bus
-    # actually did is the SUM over that shared window, and what is worth
-    # seeing beside it is the balance: each direction's own stamps say how
-    # long it personally took, and a ratio far from 1.00 means one side was
-    # starved while the other ran.
+    # Each direction on its OWN window, and the bus on the shared one.
+    #
+    # In theory both directions move the same bytes and finish together, so
+    # wr and rd should print the same number -- but that is the theory this
+    # test exists to check, so both are measured and both are printed. If they
+    # differ, one direction was starved while the other ran, and that is a
+    # result rather than a rounding artifact.
     wr_cyc = max(t.w_last - t.w_first, 0)
     rd_cyc = max(t.r_last - t.r_first, 0)
     window = max(max(t.w_last, t.r_last) - min(t.w_first, t.r_first), 0)
     byts = TXN * BEATS * 8 * n_gen          # per direction
-    secs = window / (CLK_MHZ * 1e6) if window else 0.0
-    tot_bw = (2 * byts / secs) / 1e6 if secs else 0.0
-    ratio = (rd_cyc / wr_cyc) if wr_cyc else 0.0
+
+    def _mbs(nbytes, cycles):
+        return (nbytes / (cycles / (CLK_MHZ * 1e6))) / 1e6 if cycles else 0.0
+
+    wr_bw  = _mbs(byts, wr_cyc)
+    rd_bw  = _mbs(byts, rd_cyc)
+    bus_bw = _mbs(2 * byts, window)
+
+    # The read histogram counts transactions the bus actually returned. If it
+    # disagrees with what was programmed, the MB/s above are computed from
+    # bytes that did not move and the number is fiction, not a measurement.
+    _, rd_txn = drv.perf_hist_dump(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
+    want_txn = TXN * n_gen
     mism = drv.beats_mismatched()
     drv.freeze_trace(False)
-    return tot_bw, ratio, mism, (wr_ok and rd_ok)
+    return dict(wr=wr_bw, rd=rd_bw, bus=bus_bw, mism=mism,
+                ok=(wr_ok and rd_ok), rd_txn=rd_txn, want_txn=want_txn)
+
+
+SPARK = " .:-=+*#@"
+
+
+def _spark(vals, lo, hi):
+    """One character per gap, so the shape of a curve is visible at a glance."""
+    if hi <= lo:
+        return SPARK[-1] * len(vals)
+    span = len(SPARK) - 1
+    return "".join(SPARK[max(0, min(span, round((v - lo) / (hi - lo) * span)))]
+                   for v in vals)
+
+
+def _knee(gaps, vals, tol=0.03):
+    """Largest gap whose bandwidth is still within `tol` of the gap-0 value.
+
+    That is the bend: how much idle the controller absorbs before the
+    generators become the limit. A high knee means the controller had slack
+    at gap 0 -- it was not the bottleneck. A knee of 0 means every clock of
+    injected idle cost bandwidth immediately, so it was.
+    """
+    if not vals or vals[0] <= 0:
+        return None
+    ref = vals[0]
+    best = gaps[0]
+    for g, v in zip(gaps, vals):
+        if v >= ref * (1.0 - tol):
+            best = g
+        else:
+            break
+    return best
+
+
+def _curve_table(curves):
+    """One ROW per curve, gap across -- so a bend reads left to right."""
+    print(f"{'MB/s by gap:':>20}" + "".join(f"{g:>5}" for g in GAPS)
+          + f"{'shape':>18}{'knee':>6}")
+    for name, _ in ORDERS:
+        for series in ("wr", "rd", "bus"):
+            vals = [curves[(name, series)][g] for g in GAPS]
+            lo, hi = min(vals), max(vals)
+            k = _knee(GAPS, vals)
+            print(f"{name + ' ' + series:>20}"
+                  + "".join(f"{v:>5.0f}" for v in vals)
+                  + f"  {_spark(vals, lo, hi):>16}"
+                  + (f"{k:>6}" if k is not None else f"{'-':>6}"))
+        print()
 
 
 def main() -> int:
@@ -227,21 +286,22 @@ def main() -> int:
         wr_banks, rd_banks = _banks(geom, n_gen)
         print(f"=== {n_gen}+{n_gen} concurrent -- writers on banks {wr_banks}, "
               f"readers on {rd_banks} ===")
-        print(f"{'gap':>4} " + " ".join(f"{nm:>24}" for nm, _ in ORDERS))
-        print(f"{'':>4} " + " ".join(f"{'rd+wr MB/s  %peak  rd/wr':>24}" for _ in ORDERS))
-        for gap in GAPS:
-            cells = []
-            for _, fam in ORDERS:
-                tot_bw, ratio, mism, ok = _point(drv, geom, n_gen, fam, gap)
-                flag = "" if (ok and not mism) else ("!" if not ok else "m")
-                if not ok or mism:
-                    bad.append(f"{fam} g{n_gen} gap{gap}"
-                               + (" did not complete" if not ok
-                                  else f" {mism} beats mismatched"))
-                cells.append(f"{tot_bw:9.1f} {tot_bw/PEAK_MBS*100:6.1f}% "
-                             f"{ratio:5.2f}{flag}")
-            print(f"{gap:>4} " + " ".join(f"{c:>24}" for c in cells))
-        print()
+        curves = {}
+        for name, fam in ORDERS:
+            for gap in GAPS:
+                r = _point(drv, geom, n_gen, fam, gap)
+                for series in ("wr", "rd", "bus"):
+                    curves.setdefault((name, series), {})[gap] = r[series]
+                if not r["ok"]:
+                    bad.append(f"{fam} g{n_gen} gap{gap} did not complete")
+                if r["mism"]:
+                    bad.append(f"{fam} g{n_gen} gap{gap}: {r['mism']} beats mismatched")
+                if r["rd_txn"] != r["want_txn"]:
+                    bad.append(f"{fam} g{n_gen} gap{gap}: bus returned "
+                               f"{r['rd_txn']} read txns, programmed "
+                               f"{r['want_txn']} -- the MB/s for this point is "
+                               f"computed from bytes that did not move")
+        _curve_table(curves)
 
     for b in bad:
         print(f"FAIL: {b}")
