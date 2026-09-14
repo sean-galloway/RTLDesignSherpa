@@ -128,6 +128,11 @@ class SchedulerTB(TBBase):
         self.write_transfers_completed = 0
         self.monitor_packets_received = []
         self.test_errors = []
+        # Engine-interface contract accounting. A "no violations" result is
+        # only meaningful with a count behind it, so record how many requests
+        # were actually inspected as well as how many were bad.
+        self.beat_requests_seen = 0
+        self.zero_beat_requests = 0
 
         # FSM tracking
         self.fsm_state_history = []
@@ -462,6 +467,22 @@ class SchedulerTB(TBBase):
                 addr = int(self.dut.sched_rd_addr.value)
                 beats = int(self.dut.sched_rd_beats.value)
 
+                # CONTRACT: valid must never be asserted with a zero beat
+                # count. The real engine sizes its burst as (beats - 1), so a
+                # zero request underflows to AxLEN=0xFF and issues a spurious
+                # 256-beat burst. This simulator previously skipped such a
+                # request silently, which is why the fub-level EXT tests could
+                # not see it.
+                self.beat_requests_seen += 1
+                if beats == 0:
+                    self.zero_beat_requests += 1
+                    # Cap the recorded messages: the violation persists for many
+                    # cycles, and thousands of identical strings help nobody. The
+                    # COUNT above stays exact.
+                    if self.zero_beat_requests <= 5:
+                        self.test_errors.append(
+                            f"zero-beat read request at addr 0x{addr:X}")
+
                 if beats > 0:
                     # Extended-addressing capture: record the (address, beats)
                     # the scheduler PRESENTS per burst. Under capture the engine
@@ -508,6 +529,22 @@ class SchedulerTB(TBBase):
             if int(self.dut.sched_wr_valid.value) == 1:
                 addr = int(self.dut.sched_wr_addr.value)
                 beats = int(self.dut.sched_wr_beats.value)
+
+                # CONTRACT: valid must never be asserted with a zero beat
+                # count. The real engine sizes its burst as (beats - 1), so a
+                # zero request underflows to AxLEN=0xFF and issues a spurious
+                # 256-beat burst. This simulator previously skipped such a
+                # request silently, which is why the fub-level EXT tests could
+                # not see it.
+                self.beat_requests_seen += 1
+                if beats == 0:
+                    self.zero_beat_requests += 1
+                    # Cap the recorded messages: the violation persists for many
+                    # cycles, and thousands of identical strings help nobody. The
+                    # COUNT above stays exact.
+                    if self.zero_beat_requests <= 5:
+                        self.test_errors.append(
+                            f"zero-beat write request at addr 0x{addr:X}")
 
                 if beats > 0:
                     # See simulate_read_engine: capture + whole-run completion.
@@ -844,6 +881,24 @@ class SchedulerTB(TBBase):
             all_ok = False
             self.log.error(f"  FAIL matrix ran {cases_run} cases, expected "
                            f"{EXPECTED_CASES} -- cases were skipped")
+        # Engine-request contract: fold it into the VERDICT. These two cells
+        # do not call generate_test_report(), so counting a violation that
+        # nothing asserts on is a blind checker -- the exact shape this check
+        # exists to catch. Failing when the check never armed matters too: a
+        # clean verdict from a check that inspected nothing is not a pass.
+        if self.beat_requests_seen == 0:
+            all_ok = False
+            self.log.error("  FAIL engine-request contract never armed: "
+                           "0 requests inspected")
+        if self.zero_beat_requests:
+            all_ok = False
+            self.log.error(
+                f"  FAIL {self.zero_beat_requests} zero-beat engine request(s) "
+                f"-- the engine sizes its burst as (beats - 1), underflowing "
+                f"to AxLEN=0xFF")
+        self.log.info(
+            f"engine-request contract: {self.beat_requests_seen} requests "
+            f"inspected, {self.zero_beat_requests} zero-beat violations")
         self.log.info(f"Extended addressing: {'PASS' if all_ok else 'FAIL'} "
                       f"({cases_run - 1} extended + 1 legacy, "
                       f"{cases_run}/{EXPECTED_CASES} cases run)")
@@ -905,6 +960,24 @@ class SchedulerTB(TBBase):
         if cases_run != EXPECTED_CASES:
             all_ok = False
             self.log.error(f"  FAIL ran {cases_run} cases, expected {EXPECTED_CASES}")
+        # Engine-request contract: fold it into the VERDICT. These two cells
+        # do not call generate_test_report(), so counting a violation that
+        # nothing asserts on is a blind checker -- the exact shape this check
+        # exists to catch. Failing when the check never armed matters too: a
+        # clean verdict from a check that inspected nothing is not a pass.
+        if self.beat_requests_seen == 0:
+            all_ok = False
+            self.log.error("  FAIL engine-request contract never armed: "
+                           "0 requests inspected")
+        if self.zero_beat_requests:
+            all_ok = False
+            self.log.error(
+                f"  FAIL {self.zero_beat_requests} zero-beat engine request(s) "
+                f"-- the engine sizes its burst as (beats - 1), underflowing "
+                f"to AxLEN=0xFF")
+        self.log.info(
+            f"engine-request contract: {self.beat_requests_seen} requests "
+            f"inspected, {self.zero_beat_requests} zero-beat violations")
         self.log.info(f"Extended addressing OFF: {'PASS' if all_ok else 'FAIL'} "
                       f"({cases_run}/{EXPECTED_CASES} cases run)")
         return all_ok
@@ -1301,6 +1374,12 @@ class SchedulerTB(TBBase):
         self.log.info(f"Total write beats: {self.total_write_beats}")
         self.log.info(f"Monitor packets: {len(self.monitor_packets_received)}")
         self.log.info(f"FSM state transitions: {len(self.fsm_state_history)}")
+
+        # Engine-interface contract: report the count, not just the verdict.
+        # Zero violations means nothing unless the check actually ran.
+        self.log.info(
+            f"engine-request contract: {self.beat_requests_seen} requests "
+            f"inspected, {self.zero_beat_requests} zero-beat violations")
 
         if self.test_errors:
             self.log.error(f"\nTest errors ({len(self.test_errors)}):")
