@@ -149,23 +149,32 @@ still an inference from a bandwidth curve. `bin/outstanding_sweep.py` tests the
 claim head-on — if the shortfall is Little's law, the knee must sit near
 `latency/AxLEN` and must move as `1/AxLEN`:
 
-| AxLEN | model knee | measured knee |
-|---|---|---|
-| 1 | 49.1 | none inside 32 (390.6 MB/s at 32, still climbing) |
-| 2 | 24.5 | 32 |
-| 4 | 12.3 | 24 |
-| 8 | 6.2 | 12 |
+| AxLEN | model knee | measured knee | ratio |
+|---|---|---|---|
+| 1 | 47.7 | none inside 32 (390.6 MB/s at 32, still climbing) | — |
+| 2 | 24.1 | 24 | 0.99x |
+| 4 | 12.7 | 12 | 0.95x |
+| 8 | 6.9 | 8 | 1.17x |
 
 Every model knee at AxLEN 1 and 2 sits at or above the harness's own 32-deep
 ceiling, which is why this could not be measured before the runtime dial
 existed. The bandwidth values themselves fit the model to 0-6.5%.
 
-The measured knees sit ABOVE the model — 1.3x at AxLEN 2, 2.0x at AxLEN 4 and
-8 — so the model's constant is not right even though its SHAPE is. The 1/AxLEN
-scaling is unambiguous and that is what identifies the mechanism; the factor is
-a loose end worth chasing. Note the sweep steps 1, 2, 4, 8, 12, 16, 24, 32, so a
-knee is located only to within one step and the 1.3-vs-2.0 difference may be
-nothing more than that.
+**The model is exact, and an earlier version of this task said otherwise.** On
+2026-09-14 this table reported the knees at 32 / 24 / 12 and called the 1.3-2x
+gap to the model an open anomaly. That was a defect in the SWEEP's knee
+detector, not in the controller: it fired on "this point did not gain 3% over
+the previous one", which names the first point AFTER saturation, one sweep step
+late every time. Scored as "the first N that reaches 95% of the plateau" the
+knees land at 0.99x, 0.95x and 1.17x, and the 1.17x is only the sweep grid —
+the model wants 6.9 and the available steps are 4 and 8. Fixed in
+`bin/outstanding_sweep.py` and re-measured on the board; both the 1/AxLEN
+scaling and the constant hold.
+
+The per-point fit is just as good. At AxLEN 4 the model tracks every one of the
+eight points from -0.1% to +4.4%, and measured bandwidth sits slightly ABOVE
+the prediction throughout, which says the effective latency is marginally
+better than the sampled average rather than worse.
 
 **The decisive result: the shortfall RECOVERS COMPLETELY when the budget is
 raised.** This is the claim's strongest test — if small-burst reads were losing

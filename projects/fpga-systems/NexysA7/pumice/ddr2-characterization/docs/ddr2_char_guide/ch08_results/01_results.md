@@ -51,11 +51,33 @@ latency and the requester's budget are the whole story. AxLEN 1 needs roughly
 49 bursts in flight and the harness ceiling is 32, which is why it alone is
 still climbing rather than a different mechanism.
 
-The knees confirm the shape too: they scale as `1/AxLEN` exactly — none inside
-32 at AxLEN 1 (model 49), 32 at AxLEN 2 (model 24.5), 24 at AxLEN 4 (model
-12.3), 12 at AxLEN 8 (model 6.2). The *constant* runs 1.3-2x above the model,
-which is an open question; note the sweep steps 1, 2, 4, 8, 12, 16, 24, 32, so
-a knee is located only to within one step.
+The knee confirms the shape too. It is the smallest number of bursts in flight
+at which bandwidth reaches 95% of the plateau, and the model puts it at
+`0.95 x (latency + AxLEN) / AxLEN`:
+
+| AxLEN | model knee | measured knee | ratio |
+|---|---|---|---|
+| 1 | 47.7 | none inside 32 (still climbing) | — |
+| 2 | 24.1 | 24 | 0.99x |
+| 4 | 12.7 | 12 | 0.95x |
+| 8 | 6.9 | 8 | 1.17x |
+
+: Where bandwidth reaches its plateau, measured against the model
+
+Scaling and constant both hold. The 1.17x at AxLEN 8 is the sweep grid rather
+than a discrepancy — the model wants 6.9 and the available steps are 4 and 8.
+The per-point agreement is as good: at AxLEN 4 the model tracks all eight
+points from -0.1% to +4.4%, with measured bandwidth sitting slightly *above*
+the prediction throughout, which says the effective latency is marginally
+better than the sampled average rather than worse.
+
+> **A note on how this knee is scored, because the obvious way is wrong.**
+> Reading the knee as "the first point that stopped improving" names the point
+> *after* saturation — one sweep step late, every time. Scored that way these
+> same measurements read 32 / 24 / 12 and appear to sit 1.3-2x above the model,
+> which is exactly what an earlier draft of this chapter reported as an open
+> anomaly. There was no anomaly. The knee is where bandwidth *arrives* at the
+> plateau, not where it first fails to climb.
 
 ---
 

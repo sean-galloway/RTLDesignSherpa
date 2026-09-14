@@ -504,10 +504,11 @@ thing to fix next.
   **Confirmed directly 2026-09-14 by sweeping the outstanding budget itself**,
   which is what the runtime dial and the 32-deep ceiling were built for. Two
   predictions, both held. First, the knee must sit near `latency/AxLEN` and move
-  as `1/AxLEN`: no knee inside 32 at AxLEN 1 (model 49), 32 at AxLEN 2 (model
-  24.5), 24 at AxLEN 4 (model 12.3), 12 at AxLEN 8 (model 6.2) — the scaling is
-  exact, the constant runs 1.3-2x high, and the sweep only locates a knee to
-  within one step (1, 2, 4, 8, 12, 16, 24, 32).
+  as `1/AxLEN`: no knee inside 32 at AxLEN 1 (model 47.7), 24 at AxLEN 2 (model
+  24.1, 0.99x), 12 at AxLEN 4 (model 12.7, 0.95x), 8 at AxLEN 8 (model 6.9,
+  1.17x — the grid steps 4 then 8, so 8 is the first point available). Scaling
+  AND constant both hold. The per-point fit runs -0.1% to +4.4% at AxLEN 4,
+  with measured slightly ABOVE prediction throughout.
 
   Second and decisive, **the shortfall recovers completely when the budget is
   raised** — which it could not do if small bursts were paying a

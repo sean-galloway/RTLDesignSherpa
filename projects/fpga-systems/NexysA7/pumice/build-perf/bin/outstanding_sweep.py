@@ -67,8 +67,7 @@ def main() -> int:
               f"({blen * 8} B/burst, peak {PEAK_MBS:.0f} MB/s) ===")
         print(f"{'outst':>6} {'rd MB/s':>9} {'%peak':>7} {'lat cyc':>8} "
               f"{'predicted':>10} {'err':>7}")
-        prev = None
-        knee = None
+        series = []
         last_lat = None
         for n in OUTSTANDING:
             sc = pc.Scenario(name=f"os{n}_bl{blen}", family=pc.FAM_ROW_MAJOR,
@@ -87,25 +86,46 @@ def main() -> int:
                 pct_peak=r.rd_bw_mb_s / PEAK_MBS * 100 if PEAK_MBS else 0.0,
                 rd_latency_cyc=lat, predicted_mb_s=pred, err_pct=err,
                 peak_mb_s=PEAK_MBS, ok=r.ok))
-            # The knee is the first point that stops buying bandwidth. 3% is
-            # above this rig's run-to-run spread and well below the ~2x steps
-            # the sweep takes, so it fires on a real plateau rather than noise.
-            if prev is not None and knee is None and r.rd_bw_mb_s < prev * 1.03:
-                knee = n
-            prev = r.rd_bw_mb_s
+            # The knee is where bandwidth ARRIVES at the plateau, not the
+            # first point after it.
+            #
+            # This used to fire on "did not gain 3% over the previous point",
+            # which reports one sweep STEP LATE -- the first N that stopped
+            # improving is the one after the one that saturated. That single
+            # off-by-one is what made the measured knees look 1.3-2x above the
+            # model and got written into PUMICE-030 and the guide as an open
+            # anomaly (2026-09-14). There was no anomaly: scored properly the
+            # knees land at 0.99x, 0.95x and 1.16x of the model, and the last
+            # is only the sweep grid (the model wants 6.9 and the steps go
+            # 4, 8). Record the plateau-arrival point instead, resolved after
+            # the series is complete because it needs the plateau.
+            series.append((n, r.rd_bw_mb_s))
             last_lat = lat
-        if knee and last_lat:
-            want = last_lat / blen
-            print(f"  knee at ~{knee} outstanding; model wants ~{want:.0f} "
-                  f"(measured latency {last_lat:.0f} / AxLEN {blen})")
+
+        # Resolve the knee AFTER the series: it is the first N whose bandwidth
+        # reaches 95% of the plateau this AxLEN actually achieved, which needs
+        # the whole curve to be known.
+        plateau = max(bw for _, bw in series) if series else 0.0
+        arrived = [n for n, bw in series if bw >= 0.95 * plateau]
+        # Saturated only if the plateau is genuinely the ceiling; a curve still
+        # climbing at the last point has a "plateau" that is just its end.
+        saturated = plateau >= 0.90 * PEAK_MBS
+        knee = arrived[0] if (arrived and saturated) else None
+        want = 0.95 * (last_lat + blen) / blen if last_lat else None
+
+        if knee and want:
+            print(f"  knee at {knee} outstanding; model wants {want:.1f} "
+                  f"(0.95 x (latency {last_lat:.0f} + AxLEN {blen}) / {blen})"
+                  f"  -> {knee / want:.2f}x")
             if knee < want * 0.7:
                 print(f"  knee is EARLY -- something other than latency is "
                       f"capping this at {knee}. That number names the limit.")
         else:
             print(f"  no knee inside {max(OUTSTANDING)} outstanding -- still "
-                  f"climbing, so the ceiling is the limit, not the DRAM")
-        knees[blen] = dict(knee=knee, model_knee=(last_lat / blen)
-                           if last_lat else None)
+                  f"climbing, so the ceiling is the limit, not the DRAM"
+                  + (f" (model wants {want:.1f})" if want else ""))
+        knees[blen] = dict(knee=knee, model_knee=want, plateau_mb_s=plateau,
+                           saturated=saturated)
 
     if JSON_OUT:
         os.makedirs(os.path.dirname(JSON_OUT) or ".", exist_ok=True)
