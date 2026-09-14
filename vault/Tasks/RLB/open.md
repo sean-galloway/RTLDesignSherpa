@@ -275,8 +275,48 @@ outputs are the only ports apb4_ioapic has grown beyond the delivery channel,
 and they are quasi-static config rather than the live per-CPU state Sean's
 2026-09-11 decision rejected.
 
-STILL OWED on MSI: the emitter has formal proofs but NO DV test, and Sean has
-asked for one. Adding the two ports also broke every consumer that does not
+MSI SEAM TESTED 2026-09-14: `test_ioapic_msi_emit` wires the emitter onto a
+real apb4_ioapic channel AND a real apb4_master_stub terminated by an APB slave
+BFM, so the register path is covered end to end -- software writes
+IOAPICMSIADDR/IOAPICMSIDATA through IOWIN and the test checks the address and
+data of the write that actually appears on the bus. Four tests: programmed
+values reach the bus, the message fields overwrite the template, reprogramming
+retargets the write (a test that could not exist while these were parameters),
+and PSLVERR reaches the emitter as retry.
+
+**FINDING, and it needs Sean's decision: `deliv_retry` is INERT while the MSI
+write is posted.** Measured, not inferred -- handshakes=1, retry_asserts=1,
+retry_at_handshake=0:
+
+    ioapic_msi_emit.sv:144   deliv_ready = cmd_ready
+    ioapic_msi_emit.sv:159   deliv_retry = rsp_valid && pslverr
+    ioapic_core.sv:357-358   w_deliv_accept = w_deliv_done && !irq_out_retry
+
+`cmd_ready` is driven from apb4_master's cmd FIFO, so the delivery handshake
+closes when the write is QUEUED; the bus response, and therefore deliv_retry,
+arrives strictly later. ioapic_core samples retry AT the handshake, where it is
+always 0, so the edge is always retired as accepted and the late retry pulse is
+gated away by the w_deliv_done term. A refused MSI is silently dropped.
+
+The emitter itself is correct and formal's P9 holds -- PSLVERR does become
+deliv_retry. The mistake was in the emitter's comment claiming retry is
+"qualified by the response handshake, exactly as ioapic_core qualifies
+irq_out_retry by the delivery handshake": they are two DIFFERENT handshakes,
+and only one of them is the one ioapic_core samples.
+
+This follows from the posted timing decision (Sean, 2026-09-14), so the three
+ways out are his call, not a bug fix:
+  1. Accept it. MSI delivery is fire-and-forget; document deliv_retry as inert
+     in this configuration. Cheapest, and consistent with "posted".
+  2. Make the emitter NON-POSTED: hold deliv_ready until the response returns,
+     so the handshake and the response coincide and retry works as designed.
+     This reverses the posted decision.
+  3. Keep posted and give the emitter its own re-offer path, which means adding
+     state to a deliberately combinational module.
+
+The DV test deliberately does NOT assert the absence of a re-offer -- that
+would freeze the current behaviour into a contract. It asserts the refusal
+reaches the emitter and logs the gap with its measurement. Adding the two ports also broke every consumer that does not
 connect them -- 6 regression cells in the two companion TB tops, plus
 `rlb_top.sv`, which no test elaborates and which therefore failed silently.
 `bin/check_port_consumers.py` catches exactly this, and it DOES run
