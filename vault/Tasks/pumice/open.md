@@ -4,6 +4,156 @@
 
 ---
 
+## PUMICE-033 — one extra AXI ID bit doubles the arbiter's pick cone
+**Status:** open 2026-09-14  **Priority:** P1 — it is a hard constraint on where pumice can be used
+
+**The finding: `AXI_ID_WIDTH` 8 -> 9 takes the arbiter's
+`r_rd_pop -> r_wr_col_q` path from 13 logic levels to 26, and 75 MHz from
++1.100 ns to -6.602 ns.** Measured at SYNTHESIS, before placement, so it is the
+netlist and not congestion. Same RTL, same constraints, same clocks, same
+synth settings; the only difference is the parameter.
+
+| ID width | logic levels | data path delay | post-route slack |
+|---|---|---|---|
+| 8 | 13 | 11.09 ns | +1.100 |
+| 9 | 26 | 20.21 ns | -6.602 |
+
+**Why it matters beyond this board.** BRIDGE-016 made fabric IDs
+`{master index, master id}`, so ANY multi-master fabric in this repo hands its
+slave more ID bits than a single master drives. pumice cannot currently absorb
+that. It is usable behind one master, or behind a fabric that keeps the index
+inside the master's own width -- which is what the char harness now does, by
+putting the generator index in the top bits of the 8-bit id rather than on top
+of it (7baf98780). That works and costs 1 bit of id space per doubling of
+masters, but it is a workaround in the CONSUMER, not a fix in pumice.
+
+**Where to look.** `pumice_cmd_arbiter.sv`: the pick is
+`NUM_ENTRIES`-wide and ID comparisons are replicated across every entry, so an
+extra bit multiplies by the entry count rather than adding to it. `qos_top` at
+:818 is the same shape. The fix is presumably to compare a narrowed key, or to
+pipeline the pick a stage further, not to widen everything and hope.
+
+**How this was found**, because the route to it was wrong twice and the method
+is the reusable part: the regression was first blamed on removing the data
+bridges, on the read-return-ring depth, on constraints, on placement directives
+and on hierarchy flattening -- each ruled out with its own build. Sean rejected
+the bridge explanation on the grounds that generators behind a bridge and
+generators without one look identical to pumice, which is correct and is what
+forced the measurement that found it. **Logic levels at the synthesis
+checkpoint are the discriminator**: if they differ between two builds, the cause
+is RTL or parameters and can never be placement.
+
+```
+open_checkpoint <run>/synth_1/<top>.dcp
+report_timing -to [get_pins -hier -filter {NAME =~ *u_arbiter/r_wr_col_q_reg*/D}] \
+              -max_paths 1 -path_type full
+```
+
+**Definition of done:** pumice closes 75 MHz with `AXI_ID_WIDTH = 9`, or the
+constraint is documented as permanent in the HAS with the id-space workaround
+named as the supported pattern.
+
+---
+
+## PUMICE-034 — the paging predictors are built unconditionally and the board never uses them
+**Status:** open 2026-09-14  **Priority:** P2 — pure headroom, no correctness impact
+
+`u_page_policy` (the mode 5 row predictor plus the mode 6/7 RBL table) is
+**4,546 LUT / 3,341 FF**, a third of pumice's LUTs, instantiated with no build
+gate. The board's default runs use `open_page` and never select modes 5/6/7, so
+that area is carried and never exercised on a part where it is the difference
+between comfortable and tight.
+
+It is also where timing dies first when anything else grows: across the
+2026-09-13 builds `u_row_pred` owned 340-920 of the failing endpoints every
+time, more than any other block.
+
+**The tension, which is why this is not simply a fix.** The modes were restored
+specifically so that ONE bitstream characterizes every policy
+([[project_pumice_advanced_sched_modes]]). Gating them trades that away for
+area. Both positions are defensible and it is Sean's call, not a session's.
+
+**Options, in increasing order of how much they give up:**
+1. A `PAGE_PRED_MODES` parameter defaulting ON, with the board build turning it
+   off. One bitstream per policy family instead of one for all.
+2. Gate only the RBL table (248 LUT / 1,488 FF) and keep the row predictor.
+3. Leave it and accept the area; revisit if a build stops closing.
+
+**Context for the decision:** the four-generator build closes at **+0.016 ns**
+with **87.1% slice occupancy**. There is not much room left for anything else to
+grow, and this is the largest single block that is optional.
+
+---
+
+## PUMICE-035 — no stall-cause attribution, so the overhead breakdown cannot be published
+**Status:** open 2026-09-14  **Priority:** P2 — blocks a documented reporting gap
+
+The bus meters classify every cycle into productive / backpressure / starvation
+/ idle. That says the controller did not accept a beat; it does not say **why**.
+So the natural and most useful line of a characterization report -- the missing
+percent split into refresh, activate/precharge, bus turnaround and
+first-transaction latency -- cannot be produced from anything the design
+currently exposes.
+
+`docs/DDR2_BANDWIDTH_MEASUREMENT.md` §5 states this explicitly and leaves the
+table out rather than printing a plausible split. That is the right call for
+now and a poor permanent answer: every reader of a bandwidth number wants to
+know where the rest went.
+
+**What would close it:** a small set of counters in the scheduler attributing
+each stalled cycle to the timing constraint that caused it -- tRCD, tRP, tRFC,
+tWTR/tRTW, or "no command ready". Four or five counters and a CSR window. The
+existing meters already prove the window discipline works; this is the same
+pattern one level deeper.
+
+**Why it is P2 and not P1:** the direction is already recoverable from the
+buckets we have (backpressure means DRAM-bound, starvation means
+requester-bound), which is enough to choose what to fix. The attribution makes
+the report complete, not the debugging possible.
+
+---
+
+## PUMICE-036 — every published board number predates the 2026-09-13/14 harness rewrite
+**Status:** open 2026-09-14  **Priority:** P1 — the numbers on record are stale, not wrong-but-close
+
+The read/write figures quoted everywhere in this area -- **571.3 MB/s read,
+570.2 write, 95% of a 600 MB/s peak** -- were measured before a run of changes
+that all touch the measured path:
+
+- the data bridges were removed and the generators now drive `s_axi` through a
+  direct N:1 merge plus one skid layer (8f75add68, d54103176);
+- the pattern generators' data function changed from a two-multiply hash to four
+  rotate-XOR rounds, deleting a 4-stage pipeline, a 16-deep staging FIFO and 48
+  DSPs (475b9a53b);
+- the generator array went from 2+2 to 4+4 (a78007109);
+- the AXI id scheme changed so the generator index rides inside 8 bits
+  (7baf98780).
+
+None of that is expected to cost bandwidth -- the skid is full-rate, the hash is
+combinational and stallable, and the W address is consumed only on a burst's
+last beat so beats still issue one per cycle. **Expected is not measured.** The
+simulation asserts only that bandwidth is positive, so nothing in the gate would
+catch a regression here.
+
+**Do, in order:**
+1. `PUMICE_SYS_75=1 make bitstream && make program` (the 4+4 bitstream is built
+   and closes at +0.016 ns).
+2. `python3 bin/axlen_sweep.py` -- confirm the read/write figures and the
+   Little's-law fit still hold at the new harness.
+3. `python3 bin/outstanding_sweep.py` -- never run on hardware. The outstanding
+   dial and the 32-deep ceiling exist precisely so this curve can be taken, and
+   it is the direct evidence for [[PUMICE-030]]'s latency argument.
+4. `python3 bin/bank_gap_sweep.py` then `python3 bin/plot_bank_gap.py
+   reports/bank_gap_sweep.json` -- also never run on hardware. Four generators
+   on four banks, concurrent read+write, gap 0..15 across three address orders.
+5. Check the knees ORDER as §8 of the methodology doc predicts: rising from
+   cacheline to row-major to col-major, and falling as generators are added. If
+   they do not, either the sweep or the controller is not doing what it claims.
+
+**Update when done:** AT-A-GLANCE, the char guide, and [[PUMICE-030]]'s table.
+
+---
+
 ## PUMICE-030 — read latency is ~2x LiteDRAM's, and it caps small-burst reads
 **Status:** open 2026-09-10  **Priority:** P1 — the largest identified defect left
 

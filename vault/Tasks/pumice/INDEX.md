@@ -1,13 +1,13 @@
 # pumice — task rollup
 
-**Next ID: PUMICE-033** — never recycle a number, even when its task closed.
+**Next ID: PUMICE-037** — never recycle a number, even when its task closed.
 
 DDR2/LPDDR2 memory controller (`projects/components/memory-controllers/pumice-ddr2-lpddr2/`).
 
 | State | Count |
 |---|---|
 | [active](active.md) | 0 |
-| [open](open.md) | 7 |
+| [open](open.md) | 12 |
 | [closed](closed.md) | 16 |
 | [dropped](dropped.md) | 1 |
 
@@ -18,6 +18,25 @@ body but its own scope note says do NOT run it standalone, so it is counted
 as open, not active. See the caveat under the shortlist.)
 
 ## Open shortlist
+
+- **PUMICE-036** — every published board number predates the 2026-09-13/14
+  harness rewrite (bridges removed, generator data function replaced, 2+2 ->
+  4+4, id scheme changed). Nothing is expected to have cost bandwidth and
+  nothing has been measured; the sim asserts only that bandwidth is positive.
+  Three sweeps are written and have never touched hardware. **Start here** —
+  it is cheap, and it is the evidence every other perf task argues from.
+- **PUMICE-033** — one extra AXI ID bit takes the arbiter's pick cone from 13
+  logic levels to 26 and 75 MHz from +1.100 to -6.602 ns. Measured at
+  synthesis, so it is the netlist, not placement. Constrains pumice to a
+  single master or to a fabric that keeps the index inside the master's own id
+  width; the char harness works around it in the consumer.
+- **PUMICE-034** — the paging predictors are 4,546 LUT / 3,341 FF built
+  unconditionally for modes the board never selects, and they own most of the
+  failing endpoints whenever a build stops closing. Gating them trades away
+  "one bitstream characterizes every policy" — Sean's call.
+- **PUMICE-035** — the bus meters say a cycle was not productive, not why, so a
+  bandwidth report cannot attribute the missing percent to refresh, activate,
+  turnaround or first-transaction latency. Needs a few scheduler counters.
 
 - **PUMICE-016** — adopt the external `axi4_intf_master_observer` and retire
   the harness's hand-rolled meters/hists (Sean 2026-08-26: no monitor/perf
