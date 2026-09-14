@@ -95,8 +95,17 @@ def _filelist_index(root: Path) -> dict[str, list[Path]]:
     # with only the flat pattern, no filelist is ever found for those files,
     # so the retry-through-filelist path silently never fires and a healthy
     # macro-using file is reported as a syntax error.
-    for pat in ("**/filelists/**/*.f", "**/lint_reports/verilator/*.f"):
+    # "flists/" is the fpga-systems board-flow spelling of the same thing.
+    # Without it the retry-through-filelist path never fires for those flows,
+    # so a healthy macro-using top (rapids_char_top.sv: `ALWAYS_FF_RST at 168
+    # and 473) is reported as a syntax error while Vivado synthesises it fine.
+    # Worktree copies are skipped: judging a staged file against ANOTHER
+    # worktree's compilation unit is the wrong unit and may be stale.
+    for pat in ("**/filelists/**/*.f", "**/flists/**/*.f",
+                "**/lint_reports/verilator/*.f"):
         for f in root.glob(pat):
+            if ".claude" in f.parts or ".git" in f.parts:
+                continue
             try:
                 body = f.read_text(errors="ignore")
             except OSError:
