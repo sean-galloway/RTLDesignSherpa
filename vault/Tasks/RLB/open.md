@@ -54,16 +54,33 @@ reviewer's impression:
    functions that need different `COMMIT_TIMEOUT_CYCLES` builds, and each
    pytest cell pins its own. Checked by AST that no cocotb test in any module
    is unreachable. Nothing hidden.
-7. *A fix landed with a test has its mutation check recorded.* PARTIAL, and
-   the gap is recorded rather than papered over. ioapic, pit_8254 and rtc
-   already carried it in the test file; pm_acpi carries it in the GH54 suite.
-   gpio and hpet had it only in their commit messages, which nobody re-reads,
-   so it now sits in the test files quoting what the commit says. **smbus,
-   uart_16550 and pic_8259 have NO record that their defect-regression tests
-   were ever seen RED.** The tests may well have been written test-first --
-   the arc worked that way -- but the record does not say so, and inventing
-   the claim would be worse than leaving the gap visible. Anyone revisiting
-   those three should re-derive it by reverting a fix.
+7. *A fix landed with a test has its mutation check recorded.* Reported
+   PARTIAL; **RETRACTED 2026-09-14 -- the gap does not exist.** ioapic,
+   pit_8254 and rtc carried it in the test file; pm_acpi carries it in the
+   GH54 suite; gpio and hpet had it only in commit messages and now carry it
+   in the test files.
+
+   This entry then said "**smbus, uart_16550 and pic_8259 have NO record that
+   their defect-regression tests were ever seen RED**". That is FALSE, and it
+   was checked before being retracted. All three carry one, two of them
+   prominently:
+   - pic_8259: `pic_8259_tests_medium.py:30`, "this suite was authored RED
+     (2026-09-09) against the pre-fix RTL", plus per-test "expected RED
+     against current RTL" notes in `test_apb4_pic_8259.py`.
+   - smbus: `test_apb4_smbus.py:109`, "GH#58 RED regression tests -- written
+     FIRST, against the unfixed" RTL, and the RED result named as the
+     deliverable finding.
+   - uart_16550: `uart_16550_tests_medium.py:524` and `:1128`, the GH60 and
+     GH60-R2 batches both described as RED tests against the pre-fix RTL.
+
+   **How the original claim went wrong is the lesson.** It was produced by a
+   search that missed the phrasing those files actually use ("authored RED
+   against the pre-fix RTL", "written FIRST against the unfixed"). The first
+   re-check repeated the mistake with a pattern that ALSO returned zero for
+   ioapic -- a known-present case -- which is what exposed it. A checker that
+   returns zero for a case you know is present is measuring nothing; test the
+   instrument against a known positive before believing its negatives. Nobody
+   should revert a fix on the strength of the retracted claim.
 
 **Still open elsewhere:** the same scrub for the rtl/ areas, and the
 `bin/review/run_batch.py testqc` round, which has never been run for any
@@ -480,32 +497,6 @@ the block advertises in its RDL/MAS header but has never implemented.
   read-direction form. The R/W bit IS the payload of a quick command, so each
   direction has its own code rather than a direction bit that would mean
   nothing for the other nine types.
-
-### RLB-012: regblock reset polarity composed by hand - FIXED
-
-**Status:** fixed 2026-09-10, commit b953fd582. Raised by the smbus #58
-round-5 review and confirmed again on uart_16550.
-
-All nine wrappers instantiated their PeakRDL register block with
-`.rst(~rst_n)`. The block does take an active-high reset, so the inversion is
-right while the build is active-low and wrong the moment it is not:
-`reset_defs.svh` makes polarity a compile-time property, so under
-`-DRESET_ACTIVE_HIGH` the register file was held in reset permanently. No
-field latched, every write acked and read back its default, and lint could
-not see it - all four permutations compiled clean.
-
-Fixed by asking the macro instead: `` `RST_ASSERTED(rst_n) `` is "is reset
-asserted", which is what an active-high reset port wants at either polarity.
-Measured on gpio, writing 0xA5A51234 to GPIO_DIRECTION and reading it back:
-
-| build | before | after |
-|---|---|---|
-| default | 0xA5A51234 | 0xA5A51234 |
-| `-DRESET_ACTIVE_HIGH` | 0x00000000 | 0xA5A51234 |
-
-All nine lint clean at both polarities; RLB area regression 49/49. The FIFO
-primitives underneath had the same defect class ([[COMMON-026]], fixed); what
-remains of it is [[COMMON-027]].
 
 ### RLB-013: UART 16550 features deferred past the #60 fix
 

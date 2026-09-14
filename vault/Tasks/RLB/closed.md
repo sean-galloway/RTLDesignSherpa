@@ -244,3 +244,41 @@ queued commit slot carries its own watchdog and two marks (expired per
 occupant, reported per slot); `COMMIT_TIMEOUT_CYCLES=0` disables both watchdogs
 and then a commit on a dead clock hangs busy unreported; the counter domain's
 reset release needs pclk running.
+
+---
+
+## RLB-012 — regblock reset polarity composed by hand
+**Status:** closed 2026-09-14 (fixed 2026-09-10, `b953fd582`)
+
+All nine wrappers instantiated their PeakRDL register block with
+`.rst(~rst_n)`. The block does take an active-high reset, so the inversion is
+right while the build is active-low and wrong the moment it is not:
+`reset_defs.svh` makes polarity a compile-time property, so under
+`-DRESET_ACTIVE_HIGH` the register file was held in reset permanently. No field
+latched, every write acked and read back its default, and lint could not see
+it -- all four permutations compiled clean.
+
+Fixed by asking the macro instead: `` `RST_ASSERTED(rst_n) `` is "is reset
+asserted", which is what an active-high reset port wants at either polarity.
+Measured on gpio, writing 0xA5A51234 to GPIO_DIRECTION and reading it back:
+
+| build | before | after |
+|---|---|---|
+| default | 0xA5A51234 | 0xA5A51234 |
+| `-DRESET_ACTIVE_HIGH` | 0x00000000 | 0xA5A51234 |
+
+**Verified in the TREE before closing, 2026-09-14, not taken from this entry.**
+All nine `*_config_regs.sv` carry `.rst(`` `RST_ASSERTED(rst_n)``)`, and
+`grep` finds no surviving `.rst(~rst_n)` anywhere in the area's RTL.
+
+One discrepancy chased and resolved, recorded so nobody re-chases it: the fix
+commit touched EIGHT files, not nine -- uart_16550 is absent from it. That is
+not a gap. uart_16550's regblock instantiation was written later and written
+correctly (`4e05b3d76`, then `3d6bd04e0`), so the tree is nine-of-nine even
+though the commit is eight-of-nine. Counting files in the fix commit is the
+wrong check here; grepping the tree is the right one.
+
+Residual of the same defect class lives elsewhere: the FIFO primitives
+underneath had it ([[COMMON-026]], fixed), and what remains is [[COMMON-027]].
+[[RLB-015]] (SYNCASYNCNET under `-DRESET_ACTIVE_HIGH`, family-wide) is a
+DIFFERENT finding in the same area and stays open.

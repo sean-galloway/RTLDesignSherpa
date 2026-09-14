@@ -10,8 +10,8 @@ pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
 | State | Count | Tasks |
 |---|---|---|
 | active | 0 | — |
-| open | 9 | RLB-006 (test scrub), RLB-007 (RDL relocation), RLB-008 (ioapic residual features), RLB-009 (pm_acpi residual features), RLB-011 (smbus residual features), RLB-012 (regblock reset polarity), RLB-013 (uart_16550 residual features), RLB-014 (800-line core cap), RLB-015 (RESET_ACTIVE_HIGH SYNCASYNCNET, unverified) |
-| closed | 6 | RLB-001 (Kimi review), RLB-002 (5 wrong-map MAS fixes), RLB-003 (4 targeted MAS fixes), RLB-004 (the 9 RTL bugs), RLB-005 (rtc wavedrom README), RLB-010 (rtc leftovers) |
+| open | 8 | RLB-006 (test scrub -- DONE for RLB, residual is in rtl/ areas), RLB-007 (RDL relocation), RLB-008 (ioapic residual features), RLB-009 (pm_acpi residual features), RLB-011 (smbus residual features), RLB-013 (uart_16550 residual features), RLB-014 (800-line core cap), RLB-015 (RESET_ACTIVE_HIGH SYNCASYNCNET, unverified) |
+| closed | 7 | RLB-001 (Kimi review), RLB-002 (5 wrong-map MAS fixes), RLB-003 (4 targeted MAS fixes), RLB-004 (the 9 RTL bugs), RLB-005 (rtc wavedrom README), RLB-010 (rtc leftovers), RLB-012 (regblock reset polarity) |
 | dropped | 0 | — |
 
 ## Shortlist
@@ -23,7 +23,11 @@ pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
   0 suspect, emoji 0 and its `#NN` deviation references counted before and
   after. A power outage killed the driver mid-smbus; `run_humanize_resumable.sh`
   re-sent only smbus + uart_16550 (results in
-  `results/humanize-kimi-k2/round_1/`). RLB-006 is now unblocked.
+  `results/humanize-kimi-k2/round_1/`). RLB-006 was unblocked by this and has
+  since been DONE for retro_legacy_blocks (2026-09-11); its residual is the
+  same scrub in the rtl/ areas and the testqc round, neither of which is RLB
+  work. This line said "is now unblocked" for three days after it finished --
+  reading it as current work cost a session's planning time on 2026-09-14.
 - **RLB-004 CLOSED 2026-09-14.** All 9 RTL bugs (#44–#60 even) and tracking
   #61 are closed on GitHub; the fixes landed 2026-09-10/11. Verified before
   closing: clean `make clean-all && make run-all-full-parallel` over all nine
