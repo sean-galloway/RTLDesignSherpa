@@ -8,6 +8,7 @@ import sys
 import random
 
 import cocotb
+import pytest
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
@@ -24,6 +25,86 @@ from tbclasses.pumice_mem_cmd_scheduler_tb import (  # noqa: E402
 
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "rtl/filelists/macro/pumice_mem_cmd_scheduler.f")
+
+
+@cocotb.test(timeout_time=5, timeout_unit="ms")
+async def cocotb_test_refresh_vs_inflight_read(dut):
+    """PUMICE-037 at the scheduler layer: refresh landing on an in-flight read.
+
+    On the board, a refresh arriving while reads are outstanding corrupts them:
+    the ILA shows RD(bank4) -> PRE(bank4) -> REF -> ACT(bank4) with the read
+    checker's mismatch asserted continuously across the whole window, and 59% of
+    the bad beats read as all-ones (an undriven DQ bus). Nothing in the char sim
+    or at pumice_top reproduces it, because both hand the controller a DFI slave
+    that always returns correct data -- no model there can be wrong.
+
+    This layer CAN speak to it, because the question is about COMMAND SPACING,
+    which is what this block decides. JEDEC says a PRE may not follow a READ to
+    the same bank until the burst has been driven out:
+
+        PRE >= AL + BL/2 + max(tRTP, 2) - 2   (DDR2, in DRAM clocks)
+
+    and REF may not follow PRE until tRP. If the refresh path issues either
+    early, the DRAM stops driving mid-burst and the beats already in the PHY
+    pipeline are garbage -- exactly the observed signature.
+
+    Asserted here against the timings the TB programs, so a violation names the
+    offending pair and the shortfall rather than showing up as a wrong byte on a
+    board three layers up.
+    """
+    tb = PumiceMemCmdSchedulerTB(dut)
+    await tb.setup_clocks_and_reset()
+    assert await tb.complete_init(), "init_done never asserted"
+    tb.cmds.clear()
+
+    t_rtp = int(dut.t_rtp_i.value)
+    t_rp  = int(dut.t_rp_i.value)
+
+    # A read pending on a bank, then force refresh to come due immediately, so
+    # the refresh path has to precharge a bank that just took a column command.
+    BANK, ROW = 4, 0x21
+    tb.rd_entry = {'bank': BANK, 'row': ROW, 'col': 0x10,
+                   'id': 0x3, 'age': 5, 'slot': 2}
+    # t_refi is LOADED at init (0x800), so shortening it does not take effect
+    # until that first interval expires -- allow for it rather than concluding
+    # "no refresh" after 400 cycles, which is what this test did first time.
+    dut.t_refi_i.value = 0x0010
+    for _ in range(3000):
+        await tb.wait_clocks('aclk', 1)
+        if tb.ops_of(OP_REF):
+            break
+
+    seq = [(i, c) for i, c in enumerate(tb.cmds)]
+    rds = [(i, c) for i, c in seq if c['op'] == OP_RD and c['bank'] == BANK]
+    pres = [(i, c) for i, c in seq if c['op'] == OP_PRE]
+    refs = [(i, c) for i, c in seq if c['op'] == OP_REF]
+    assert refs, "no REF issued -- the refresh path never fired, test proves nothing"
+    assert rds, "no RD issued to the bank -- nothing was in flight, test proves nothing"
+
+    # cmds carry their issue cycle; fall back to index order if not stamped.
+    def at(c, i):
+        return c.get('cycle', i)
+
+    ref_i, ref_c = refs[0]
+    last_rd = max((x for x in rds if x[0] < ref_i), default=None, key=lambda x: x[0])
+    assert last_rd is not None, "REF issued before any RD -- no collision window"
+    pre_after = [x for x in pres if last_rd[0] < x[0] <= ref_i
+                 and x[1]['bank'] == BANK]
+
+    if pre_after:
+        pre_i, pre_c = pre_after[0]
+        d_rd_pre = at(pre_c, pre_i) - at(last_rd[1], last_rd[0])
+        assert d_rd_pre >= t_rtp, (
+            f"PUMICE-037: PRE(bank {BANK}) issued {d_rd_pre} cycles after RD to "
+            f"the same bank, tRTP={t_rtp}. The DRAM is precharged while its read "
+            f"burst is still being driven out.")
+        d_pre_ref = at(ref_c, ref_i) - at(pre_c, pre_i)
+        assert d_pre_ref >= t_rp, (
+            f"PUMICE-037: REF issued {d_pre_ref} cycles after PRE, tRP={t_rp}.")
+
+    tb.log.info(
+        f"refresh vs in-flight read: {len(rds)} RD, {len(pres)} PRE, "
+        f"{len(refs)} REF; spacing respects tRTP={t_rtp} tRP={t_rp}")
 
 
 @cocotb.test(timeout_time=5, timeout_unit="ms")
@@ -169,10 +250,24 @@ async def cocotb_test_pumice_mem_cmd_scheduler(dut):
                 "concurrent-turnaround audit")
 
 
+@pytest.mark.xfail(strict=True, reason=(
+    "PUMICE-037, open: the refresh-drain PRE picks on r_bank_pre_ready, a "
+    "REGISTERED copy that is 1-2 cycles stale after a column, so it precharges "
+    "a bank whose RD fired last cycle (observed: PRE 1 cycle after RD, tRTP=2). "
+    "strict=True so this flips to XPASS the moment it is fixed."))
+def test_pumice_mem_cmd_scheduler_refresh_inflight_read(request):
+    """PUMICE-037 at the layer that decides command spacing."""
+    _run_scheduler(request, "cocotb_test_refresh_vs_inflight_read")
+
+
 def test_pumice_mem_cmd_scheduler(request):
+    _run_scheduler(request, "cocotb_test_pumice_mem_cmd_scheduler")
+
+
+def _run_scheduler(request, testcase):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_mem_cmd_scheduler"
-    test_name = "cocotb_test_pumice_mem_cmd_scheduler"
+    test_name = testcase
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=_FILELIST
@@ -204,7 +299,7 @@ def test_pumice_mem_cmd_scheduler(request):
 
     run(
         python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
-        toplevel=dut_name, module=module, testcase="cocotb_test_pumice_mem_cmd_scheduler",
+        toplevel=dut_name, module=module, testcase=testcase,
         sim_build=sim_build, simulator="verilator", extra_env=extra_env,
         parameters=params, compile_args=compile_args,
         waves=bool(int(os.environ.get("WAVES", "0"))), keep_files=True, timescale="1ns/1ps",

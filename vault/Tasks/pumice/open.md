@@ -987,6 +987,47 @@ That leaves the collision itself as the defect: pumice issues precharge + REF
 while reads are in flight, and tREFI only sets how OFTEN that window comes
 round, not whether it corrupts when it does.
 
+### REPRODUCED IN SIM at the scheduler layer (2026-09-15)
+
+`test_pumice_mem_cmd_scheduler_refresh_inflight_read` — no board, no PHY, no
+data path:
+
+```
+PUMICE-037: PRE(bank 4) issued 1 cycles after RD to the same bank, tRTP=2.
+The DRAM is precharged while its read burst is still being driven out.
+```
+
+The refresh path precharges a bank **one cycle** after issuing a READ to it,
+against a programmed tRTP of 2. That is the collision, at the layer that
+decides command spacing. It is kept as `xfail(strict=True)` so the suite stays
+green and the test flips to XPASS the moment the RTL is fixed.
+
+Why no earlier sim saw it: the char macro and `pumice_top` both hand the
+controller a DFI slave that always returns correct data, so a truncated read
+burst still reads back clean. Only a check on COMMAND SPACING can see it, and
+that is what this layer owns.
+
+**Candidate location, from the RTL's own reasoning.** The refresh-drain PRE
+picks a bank via `w_rfsh_pre_found`, which gates on `r_bank_pre_ready` — a
+REGISTERED copy of the bank-timer readiness (`pumice_cmd_arbiter.sv:533`). The
+comment at :304 states the hazard exactly:
+
+> "a column fired <2 cycles ago has not yet dropped this bank's registered
+> pre_ready (tRTP/tWR load), so an unguarded PRE pick — normal or
+> refresh-drain — could precharge on stale readiness."
+
+`w_guarded` is the intended protection and covers columns in the PICK PIPELINE
+(selection / pre-pick, plus the output stage via `w_inflight_col`). The failing
+case is a column that has already ISSUED, where the only remaining protection
+is that stale registered readiness. This is the same stale-registered-bank-image
+family as [[project_pumice_scheduler_ceiling_rootcause]] and
+[[project_pumice_mask_ap_hazard_and_tccd_csr]].
+
+Note the REFpb (LPDDR2 per-bank) arm gates on
+`r_bank_pre_ready[RK0][refresh_bank_i] && !w_guarded[...]` explicitly, while the
+REFab arm relies on `w_rfsh_pre_found`. Whether that asymmetry matters is worth
+checking, but it is NOT yet established — do not treat it as the diagnosis.
+
 **What to look at:** whether the refresh scheduler drains (or blocks on)
 outstanding reads before issuing precharge-all + REF. The standing suspicion in
 [[project_pumice_board_bringup_tuple]] -- "residual corruption is a
